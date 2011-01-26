@@ -45,19 +45,19 @@
 #define MAX_NUM_CHANNELS_SUPPORTED	256
 
 
-enum VMBUS_CONNECT_STATE {
-	Disconnected,
-	Connecting,
-	Connected,
-	Disconnecting
+enum vmbus_connect_state {
+	DISCONNECTED,
+	CONNECTING,
+	CONNECTED,
+	DISCONNECTING
 };
 
 #define MAX_SIZE_CHANNEL_MESSAGE	HV_MESSAGE_PAYLOAD_BYTE_COUNT
 
-struct VMBUS_CONNECTION {
-	enum VMBUS_CONNECT_STATE ConnectState;
+struct vmbus_connection {
+	enum vmbus_connect_state conn_state;
 
-	atomic_t NextGpadlHandle;
+	atomic_t next_gpadl_handle;
 
 	/*
 	 * Represents channel interrupts. Each bit position represents a
@@ -66,39 +66,39 @@ struct VMBUS_CONNECTION {
 	 * event. The other end receives the port event and parse the
 	 * recvInterruptPage to see which bit is set
 	 */
-	void *InterruptPage;
-	void *SendInterruptPage;
-	void *RecvInterruptPage;
+	void *int_page;
+	void *send_int_page;
+	void *recv_int_page;
 
 	/*
 	 * 2 pages - 1st page for parent->child notification and 2nd
 	 * is child->parent notification
 	 */
-	void *MonitorPages;
-	struct list_head ChannelMsgList;
+	void *monitor_pages;
+	struct list_head chn_msg_list;
 	spinlock_t channelmsg_lock;
 
 	/* List of channels */
-	struct list_head ChannelList;
+	struct list_head chn_list;
 	spinlock_t channel_lock;
 
-	struct workqueue_struct *WorkQueue;
+	struct workqueue_struct *work_queue;
 };
 
 
-struct VMBUS_MSGINFO {
+struct vmbus_msginfo {
 	/* Bookkeeping stuff */
-	struct list_head MsgListEntry;
+	struct list_head msglist_entry;
 
 	/* Synchronize the request/response if needed */
-	struct osd_waitevent *WaitEvent;
+	struct osd_waitevent *wait_event;
 
 	/* The message itself */
-	unsigned char Msg[0];
+	unsigned char msg[0];
 };
 
 
-extern struct VMBUS_CONNECTION vmbus_connection;
+extern struct vmbus_connection vmbus_connection;
 
 /* General vmbus interface */
 

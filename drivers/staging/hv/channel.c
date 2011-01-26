@@ -77,10 +77,10 @@ static void vmbus_setevent(struct vmbus_channel *channel)
 	if (channel->offermsg.monitor_allocated) {
 		/* Each u32 represents 32 channels */
 		set_bit(channel->offermsg.child_relid & 31,
-			(unsigned long *) vmbus_connection.SendInterruptPage +
+			(unsigned long *) vmbus_connection.send_int_page +
 			(channel->offermsg.child_relid >> 5));
 
-		monitorpage = vmbus_connection.MonitorPages;
+		monitorpage = vmbus_connection.monitor_pages;
 		monitorpage++; /* Get the child to parent monitor page */
 
 		set_bit(channel->monitor_bit,
@@ -100,11 +100,11 @@ static void VmbusChannelClearEvent(struct vmbus_channel *channel)
 	if (Channel->offermsg.monitor_allocated) {
 		/* Each u32 represents 32 channels */
 		clear_bit(Channel->offermsg.child_relid & 31,
-			  (unsigned long *)vmbus_connection.SendInterruptPage +
+			  (unsigned long *)vmbus_connection.send_int_page +
 			  (Channel->offermsg.child_relid >> 5));
 
-		monitorPage =
-			(struct hv_monitor_page *)vmbus_connection.MonitorPages;
+		monitorPage = (struct hv_monitor_page *)
+			vmbus_connection.monitor_pages;
 		monitorPage++; /* Get the child to parent monitor page */
 
 		clear_bit(Channel->monitor_bit,
@@ -133,7 +133,7 @@ void vmbus_get_debug_info(struct vmbus_channel *channel,
 	       &channel->offermsg.offer.if_instance,
 	       sizeof(struct hv_guid));
 
-	monitorpage = (struct hv_monitor_page *)vmbus_connection.MonitorPages;
+	monitorpage = (struct hv_monitor_page *)vmbus_connection.monitor_pages;
 
 	debuginfo->monitorid = channel->offermsg.monitorid;
 
@@ -267,7 +267,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_add_tail(&openInfo->msglistentry,
-		      &vmbus_connection.ChannelMsgList);
+		      &vmbus_connection.chn_msg_list);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
 	DPRINT_DBG(VMBUS, "Sending channel open msg...");
@@ -501,8 +501,8 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	unsigned long flags;
 	int ret = 0;
 
-	next_gpadl_handle = atomic_read(&vmbus_connection.NextGpadlHandle);
-	atomic_inc(&vmbus_connection.NextGpadlHandle);
+	next_gpadl_handle = atomic_read(&vmbus_connection.next_gpadl_handle);
+	atomic_inc(&vmbus_connection.next_gpadl_handle);
 
 	ret = create_gpadl_header(kbuffer, size, &msginfo, &msgcount);
 	if (ret)
@@ -523,7 +523,7 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_add_tail(&msginfo->msglistentry,
-		      &vmbus_connection.ChannelMsgList);
+		      &vmbus_connection.chn_msg_list);
 
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 	DPRINT_DBG(VMBUS, "buffer %p, size %d msg cnt %d",
@@ -618,7 +618,7 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_add_tail(&info->msglistentry,
-		      &vmbus_connection.ChannelMsgList);
+		      &vmbus_connection.chn_msg_list);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
 	ret = vmbus_post_msg(msg,

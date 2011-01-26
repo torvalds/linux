@@ -308,7 +308,7 @@ void free_channel(struct vmbus_channel *channel)
 	 * ie we can't destroy ourselves.
 	 */
 	INIT_WORK(&channel->work, release_channel);
-	queue_work(vmbus_connection.WorkQueue, &channel->work);
+	queue_work(vmbus_connection.work_queue, &channel->work);
 }
 
 
@@ -363,7 +363,7 @@ static void vmbus_process_offer(struct work_struct *work)
 	/* Make sure this is a new offer */
 	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 
-	list_for_each_entry(channel, &vmbus_connection.ChannelList, listentry) {
+	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
 		if (!memcmp(&channel->offermsg.offer.if_type,
 			    &newchannel->offermsg.offer.if_type,
 			    sizeof(struct hv_guid)) &&
@@ -377,7 +377,7 @@ static void vmbus_process_offer(struct work_struct *work)
 
 	if (fnew)
 		list_add_tail(&newchannel->listentry,
-			      &vmbus_connection.ChannelList);
+			      &vmbus_connection.chn_list);
 
 	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 
@@ -579,7 +579,7 @@ static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 	 */
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &vmbus_connection.ChannelMsgList) {
+	list_for_each(curr, &vmbus_connection.chn_msg_list) {
 /* FIXME: this should probably use list_entry() instead */
 		msginfo = (struct vmbus_channel_msginfo *)curr;
 		requestheader =
@@ -627,7 +627,7 @@ static void vmbus_ongpadl_created(struct vmbus_channel_message_header *hdr)
 	 */
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &vmbus_connection.ChannelMsgList) {
+	list_for_each(curr, &vmbus_connection.chn_msg_list) {
 /* FIXME: this should probably use list_entry() instead */
 		msginfo = (struct vmbus_channel_msginfo *)curr;
 		requestheader =
@@ -675,7 +675,7 @@ static void vmbus_ongpadl_torndown(
 	 */
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &vmbus_connection.ChannelMsgList) {
+	list_for_each(curr, &vmbus_connection.chn_msg_list) {
 /* FIXME: this should probably use list_entry() instead */
 		msginfo = (struct vmbus_channel_msginfo *)curr;
 		requestheader =
@@ -717,7 +717,7 @@ static void vmbus_onversion_response(
 	version_response = (struct vmbus_channel_version_response *)hdr;
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &vmbus_connection.ChannelMsgList) {
+	list_for_each(curr, &vmbus_connection.chn_msg_list) {
 /* FIXME: this should probably use list_entry() instead */
 		msginfo = (struct vmbus_channel_msginfo *)curr;
 		requestheader =
@@ -859,7 +859,7 @@ void vmbus_release_unattached_channels(void)
 
 	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 
-	list_for_each_entry_safe(channel, pos, &vmbus_connection.ChannelList,
+	list_for_each_entry_safe(channel, pos, &vmbus_connection.chn_list,
 				 listentry) {
 		if (channel == start)
 			break;

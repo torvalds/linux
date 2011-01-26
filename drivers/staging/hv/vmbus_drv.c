@@ -239,7 +239,7 @@ static void vmbus_on_msg_dpc(struct hv_driver *drv)
 				continue;
 			INIT_WORK(&ctx->work, vmbus_onmessage_work);
 			memcpy(&ctx->msg, msg, sizeof(*msg));
-			queue_work(vmbus_connection.WorkQueue, &ctx->work);
+			queue_work(vmbus_connection.work_queue, &ctx->work);
 		}
 
 		msg->header.message_type = HVMSG_NONE;

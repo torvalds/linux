@@ -29,9 +29,9 @@
 #include "vmbus_private.h"
 
 
-struct VMBUS_CONNECTION vmbus_connection = {
-	.ConnectState		= Disconnected,
-	.NextGpadlHandle	= ATOMIC_INIT(0xE1E10),
+struct vmbus_connection vmbus_connection = {
+	.conn_state		= DISCONNECTED,
+	.next_gpadl_handle	= ATOMIC_INIT(0xE1E10),
 };
 
 /*
@@ -45,44 +45,44 @@ int vmbus_connect(void)
 	unsigned long flags;
 
 	/* Make sure we are not connecting or connected */
-	if (vmbus_connection.ConnectState != Disconnected)
+	if (vmbus_connection.conn_state != DISCONNECTED)
 		return -1;
 
 	/* Initialize the vmbus connection */
-	vmbus_connection.ConnectState = Connecting;
-	vmbus_connection.WorkQueue = create_workqueue("hv_vmbus_con");
-	if (!vmbus_connection.WorkQueue) {
+	vmbus_connection.conn_state = CONNECTING;
+	vmbus_connection.work_queue = create_workqueue("hv_vmbus_con");
+	if (!vmbus_connection.work_queue) {
 		ret = -1;
 		goto Cleanup;
 	}
 
-	INIT_LIST_HEAD(&vmbus_connection.ChannelMsgList);
+	INIT_LIST_HEAD(&vmbus_connection.chn_msg_list);
 	spin_lock_init(&vmbus_connection.channelmsg_lock);
 
-	INIT_LIST_HEAD(&vmbus_connection.ChannelList);
+	INIT_LIST_HEAD(&vmbus_connection.chn_list);
 	spin_lock_init(&vmbus_connection.channel_lock);
 
 	/*
 	 * Setup the vmbus event connection for channel interrupt
 	 * abstraction stuff
 	 */
-	vmbus_connection.InterruptPage = osd_page_alloc(1);
-	if (vmbus_connection.InterruptPage == NULL) {
+	vmbus_connection.int_page = osd_page_alloc(1);
+	if (vmbus_connection.int_page == NULL) {
 		ret = -1;
 		goto Cleanup;
 	}
 
-	vmbus_connection.RecvInterruptPage = vmbus_connection.InterruptPage;
-	vmbus_connection.SendInterruptPage =
-		(void *)((unsigned long)vmbus_connection.InterruptPage +
+	vmbus_connection.recv_int_page = vmbus_connection.int_page;
+	vmbus_connection.send_int_page =
+		(void *)((unsigned long)vmbus_connection.int_page +
 			(PAGE_SIZE >> 1));
 
 	/*
 	 * Setup the monitor notification facility. The 1st page for
 	 * parent->child and the 2nd page for child->parent
 	 */
-	vmbus_connection.MonitorPages = osd_page_alloc(2);
-	if (vmbus_connection.MonitorPages == NULL) {
+	vmbus_connection.monitor_pages = osd_page_alloc(2);
+	if (vmbus_connection.monitor_pages == NULL) {
 		ret = -1;
 		goto Cleanup;
 	}
@@ -105,10 +105,10 @@ int vmbus_connect(void)
 
 	msg->header.msgtype = CHANNELMSG_INITIATE_CONTACT;
 	msg->vmbus_version_requested = VMBUS_REVISION_NUMBER;
-	msg->interrupt_page = virt_to_phys(vmbus_connection.InterruptPage);
-	msg->monitor_page1 = virt_to_phys(vmbus_connection.MonitorPages);
+	msg->interrupt_page = virt_to_phys(vmbus_connection.int_page);
+	msg->monitor_page1 = virt_to_phys(vmbus_connection.monitor_pages);
 	msg->monitor_page2 = virt_to_phys(
-			(void *)((unsigned long)vmbus_connection.MonitorPages +
+			(void *)((unsigned long)vmbus_connection.monitor_pages +
 				 PAGE_SIZE));
 
 	/*
@@ -117,7 +117,7 @@ int vmbus_connect(void)
 	 */
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_add_tail(&msginfo->msglistentry,
-		      &vmbus_connection.ChannelMsgList);
+		      &vmbus_connection.chn_msg_list);
 
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
@@ -141,7 +141,7 @@ int vmbus_connect(void)
 	/* Check if successful */
 	if (msginfo->response.version_response.version_supported) {
 		DPRINT_INFO(VMBUS, "Vmbus connected!!");
-		vmbus_connection.ConnectState = Connected;
+		vmbus_connection.conn_state = CONNECTED;
 
 	} else {
 		DPRINT_ERR(VMBUS, "Vmbus connection failed!!..."
@@ -156,19 +156,19 @@ int vmbus_connect(void)
 	return 0;
 
 Cleanup:
-	vmbus_connection.ConnectState = Disconnected;
+	vmbus_connection.conn_state = DISCONNECTED;
 
-	if (vmbus_connection.WorkQueue)
-		destroy_workqueue(vmbus_connection.WorkQueue);
+	if (vmbus_connection.work_queue)
+		destroy_workqueue(vmbus_connection.work_queue);
 
-	if (vmbus_connection.InterruptPage) {
-		osd_page_free(vmbus_connection.InterruptPage, 1);
-		vmbus_connection.InterruptPage = NULL;
+	if (vmbus_connection.int_page) {
+		osd_page_free(vmbus_connection.int_page, 1);
+		vmbus_connection.int_page = NULL;
 	}
 
-	if (vmbus_connection.MonitorPages) {
-		osd_page_free(vmbus_connection.MonitorPages, 2);
-		vmbus_connection.MonitorPages = NULL;
+	if (vmbus_connection.monitor_pages) {
+		osd_page_free(vmbus_connection.monitor_pages, 2);
+		vmbus_connection.monitor_pages = NULL;
 	}
 
 	if (msginfo) {
@@ -189,7 +189,7 @@ int vmbus_disconnect(void)
 	struct vmbus_channel_message_header *msg;
 
 	/* Make sure we are connected */
-	if (vmbus_connection.ConnectState != Connected)
+	if (vmbus_connection.conn_state != CONNECTED)
 		return -1;
 
 	msg = kzalloc(sizeof(struct vmbus_channel_message_header), GFP_KERNEL);
@@ -203,12 +203,12 @@ int vmbus_disconnect(void)
 	if (ret != 0)
 		goto Cleanup;
 
-	osd_page_free(vmbus_connection.InterruptPage, 1);
+	osd_page_free(vmbus_connection.int_page, 1);
 
 	/* TODO: iterate thru the msg list and free up */
-	destroy_workqueue(vmbus_connection.WorkQueue);
+	destroy_workqueue(vmbus_connection.work_queue);
 
-	vmbus_connection.ConnectState = Disconnected;
+	vmbus_connection.conn_state = DISCONNECTED;
 
 	DPRINT_INFO(VMBUS, "Vmbus disconnected!!");
 
@@ -228,7 +228,7 @@ struct vmbus_channel *relid2channel(u32 relid)
 	unsigned long flags;
 
 	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
-	list_for_each_entry(channel, &vmbus_connection.ChannelList, listentry) {
+	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
 		if (channel->offermsg.child_relid == relid) {
 			found_channel = channel;
 			break;
@@ -276,7 +276,7 @@ void vmbus_on_event(void)
 	int maxdword = MAX_NUM_CHANNELS_SUPPORTED >> 5;
 	int bit;
 	int relid;
-	u32 *recv_int_page = vmbus_connection.RecvInterruptPage;
+	u32 *recv_int_page = vmbus_connection.recv_int_page;
 
 	/* Check events */
 	if (recv_int_page) {
@@ -326,7 +326,7 @@ int vmbus_set_event(u32 child_relid)
 {
 	/* Each u32 represents 32 channels */
 	set_bit(child_relid & 31,
-		(unsigned long *)vmbus_connection.SendInterruptPage +
+		(unsigned long *)vmbus_connection.send_int_page +
 		(child_relid >> 5));
 
 	return hv_signal_event();
