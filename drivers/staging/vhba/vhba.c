@@ -27,7 +27,6 @@
 #include <linux/miscdevice.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
@@ -41,7 +40,7 @@
 #define KAT_SCATTERLIST_HAS_PAGE_LINK
 
 MODULE_AUTHOR("Chia-I Wu");
-MODULE_VERSION("20100822");
+MODULE_VERSION("20110623");
 MODULE_DESCRIPTION("Virtual SCSI HBA");
 MODULE_LICENSE("GPL");
 
@@ -390,7 +389,7 @@ static int vhba_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi
         return retval;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
+#ifdef DEF_SCSI_QCMD
 DEF_SCSI_QCMD(vhba_queuecommand)
 #else
 #define vhba_queuecommand vhba_queuecommand_lck
@@ -457,9 +456,47 @@ static ssize_t do_request(struct scsi_cmnd *cmd, char __user *buf, size_t buf_le
         if (DATA_TO_DEVICE(cmd->sc_data_direction) && vreq.data_len) {
                 buf += sizeof(vreq);
 
-                /* XXX use_sg? */
-                if (copy_to_user(buf, scsi_sglist(cmd), vreq.data_len))
-                        return -EFAULT;
+                if (scsi_sg_count(cmd)) {
+                        unsigned char buf_stack[64];
+                        unsigned char *kaddr, *uaddr, *kbuf;
+                        struct scatterlist *sg = scsi_sglist(cmd);
+                        int i;
+
+                        uaddr = (unsigned char *) buf;
+
+                        if (vreq.data_len > 64) {
+                                kbuf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+                        } else {
+                                kbuf = buf_stack;
+                        }
+
+                        for (i = 0; i < scsi_sg_count(cmd); i++) {
+                                size_t len = sg[i].length;
+
+#ifdef KAT_SCATTERLIST_HAS_PAGE_LINK
+                                kaddr = kmap_atomic(sg_page(&sg[i]), KM_USER0);
+#else
+                                kaddr = kmap_atomic(sg[i].page, KM_USER0);
+#endif
+                                memcpy(kbuf, kaddr + sg[i].offset, len);
+                                kunmap_atomic(kaddr, KM_USER0);
+
+                                if (copy_to_user(uaddr, kbuf, len)) {
+                                        if (kbuf != buf_stack)
+                                                kfree(kbuf);
+
+                                        return -EFAULT;
+                                }
+                                uaddr += len;
+                        }
+
+                        if (kbuf != buf_stack)
+                                kfree(kbuf);
+
+                } else {
+                        if (copy_to_user(buf, scsi_sglist(cmd), vreq.data_len))
+                                return -EFAULT;
+                }
         }
 
         return ret;
@@ -719,9 +756,9 @@ static long vhba_ctl_ioctl (struct file *file, unsigned int cmd, unsigned long a
 #ifdef CONFIG_COMPAT
 static long vhba_ctl_compat_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 {
-	unsigned long compat_arg = (unsigned long)compat_ptr(arg);
+    unsigned long compat_arg = (unsigned long)compat_ptr(arg);
 
-	return vhba_ctl_ioctl(file, cmd, compat_arg);
+    return vhba_ctl_ioctl(file, cmd, compat_arg);
 }
 #endif
 
@@ -804,7 +841,7 @@ static struct file_operations vhba_ctl_fops = {
         .poll = vhba_ctl_poll,
         .unlocked_ioctl = vhba_ctl_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl = vhba_ctl_compat_ioctl,
+        .compat_ioctl = vhba_ctl_compat_ioctl,
 #endif
 };
 
