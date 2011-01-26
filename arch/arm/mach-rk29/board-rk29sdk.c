@@ -1231,7 +1231,7 @@ static int rk29sdk_wifi_reset(int on)
         return 0;
 }
 
-static int rk29sdk_wifi_set_carddetect(int val)
+int rk29sdk_wifi_set_carddetect(int val)
 {
         pr_info("%s:%d\n", __func__, val);
         rk29sdk_wifi_cd = val;
@@ -1242,6 +1242,7 @@ static int rk29sdk_wifi_set_carddetect(int val)
         }
         return 0;
 }
+EXPORT_SYMBOL(rk29sdk_wifi_set_carddetect);
 
 static struct wifi_platform_data rk29sdk_wifi_control = {
         .set_power = rk29sdk_wifi_power,

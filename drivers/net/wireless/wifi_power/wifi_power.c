@@ -26,7 +26,8 @@
  */
 struct wifi_power power_gpio = 
 {
-	0, 0, 0, 0, 0, 0
+	POWER_USE_GPIO, POWER_GPIO_IOMUX, 
+	GPIO5D6_SDMMC1PWREN_NAME, GPIO5H_GPIO5D6, RK29_PIN5_PD6, GPIO_HIGH 
 };
 
 /*
@@ -36,7 +37,7 @@ struct wifi_power power_gpio =
  */
 struct wifi_power power_save_gpio = 
 {
-	0, 0, 0, 0, 0, 0
+	POWER_USE_GPIO, POWER_GPIO_NOT_IOMUX, 0, 0, RK29_PIN6_PC0, GPIO_HIGH 
 };
 
 /*
