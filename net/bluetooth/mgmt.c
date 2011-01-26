@@ -481,6 +481,34 @@ failed:
 	return err;
 }
 
+static int send_mode_rsp(struct sock *sk, u16 opcode, u16 index, u8 val)
+{
+	struct mgmt_hdr *hdr;
+	struct mgmt_ev_cmd_complete *ev;
+	struct mgmt_mode *rp;
+	struct sk_buff *skb;
+
+	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + sizeof(*rp), GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
+	hdr->len = cpu_to_le16(sizeof(*ev) + sizeof(*rp));
+
+	ev = (void *) skb_put(skb, sizeof(*ev));
+	put_unaligned_le16(opcode, &ev->opcode);
+
+	rp = (void *) skb_put(skb, sizeof(*rp));
+	put_unaligned_le16(index, &rp->index);
+	rp->val = val;
+
+	if (sock_queue_rcv_skb(sk, skb) < 0)
+		kfree_skb(skb);
+
+	return 0;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -594,33 +622,13 @@ struct cmd_lookup {
 
 static void mode_rsp(struct pending_cmd *cmd, void *data)
 {
-	struct mgmt_hdr *hdr;
-	struct mgmt_ev_cmd_complete *ev;
-	struct mgmt_mode *rp;
 	struct mgmt_mode *cp = cmd->cmd;
-	struct sk_buff *skb;
 	struct cmd_lookup *match = data;
 
 	if (cp->val != match->val)
 		return;
 
-	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + sizeof(*rp), GFP_ATOMIC);
-	if (!skb)
-		return;
-
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
-	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
-	hdr->len = cpu_to_le16(sizeof(*ev) + sizeof(*rp));
-
-	ev = (void *) skb_put(skb, sizeof(*ev));
-	put_unaligned_le16(cmd->opcode, &ev->opcode);
-
-	rp = (void *) skb_put(skb, sizeof(*rp));
-	put_unaligned_le16(cmd->index, &rp->index);
-	rp->val = cp->val;
-
-	if (sock_queue_rcv_skb(cmd->sk, skb) < 0)
-		kfree_skb(skb);
+	send_mode_rsp(cmd->sk, cmd->opcode, cmd->index, cp->val);
 
 	list_del(&cmd->list);
 
