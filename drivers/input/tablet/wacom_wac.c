@@ -1101,6 +1101,13 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 	}
 }
 
+static unsigned int wacom_calculate_touch_res(unsigned int logical_max,
+					      unsigned int physical_max)
+{
+       /* Touch physical dimensions are in 100th of mm */
+       return (logical_max * 100) / physical_max;
+}
+
 void wacom_setup_input_capabilities(struct input_dev *input_dev,
 				    struct wacom_wac *wacom_wac)
 {
@@ -1228,8 +1235,12 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case TABLETPC:
 		if (features->device_type == BTN_TOOL_DOUBLETAP ||
 		    features->device_type == BTN_TOOL_TRIPLETAP) {
-			input_set_abs_params(input_dev, ABS_RX, 0, features->x_phy, 0, 0);
-			input_set_abs_params(input_dev, ABS_RY, 0, features->y_phy, 0, 0);
+			input_abs_set_res(input_dev, ABS_X,
+				wacom_calculate_touch_res(features->x_max,
+							features->x_phy));
+			input_abs_set_res(input_dev, ABS_Y,
+				wacom_calculate_touch_res(features->y_max,
+							features->y_phy));
 			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
 		}
 
@@ -1272,6 +1283,12 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 			input_set_abs_params(input_dev, ABS_MT_PRESSURE,
 					     0, features->pressure_max,
 					     features->pressure_fuzz, 0);
+			input_abs_set_res(input_dev, ABS_X,
+				wacom_calculate_touch_res(features->x_max,
+							features->x_phy));
+			input_abs_set_res(input_dev, ABS_Y,
+				wacom_calculate_touch_res(features->y_max,
+							features->y_phy));
 		} else if (features->device_type == BTN_TOOL_PEN) {
 			__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
 			__set_bit(BTN_TOOL_PEN, input_dev->keybit);
