@@ -33,16 +33,9 @@
 
 #include <asm/io.h>
 
-//#include <linux/module.h>
-//#include <linux/device.h>
-//#include <linux/err.h>
+// save_sp 必须定义为静态全局变量
 
-
-
-unsigned long save_sp;
-#define DDR_SAVE_SP		do { save_sp = ddr_save_sp((SRAM_DATA_END&(~7))); } while (0)
-#define DDR_RESTORE_SP		do { ddr_save_sp(save_sp); } while (0)
-//unsigned long ddr_save_sp( unsigned long new_sp );
+static unsigned long save_sp;
 
 
 //CCR;                    //Controller Configuration Register                            
@@ -391,20 +384,6 @@ static __sramdata u32 tFAW;
 static __sramdata u32 tXS;
 static __sramdata u32 tXP;
 
-#if 0
-asm(	
-"	.section \".sram.text\",\"ax\"\n"	
-"	.align\n"
-"	.type	ddr_save_sp, #function\n"
-"               .global ddr_save_sp\n"
-"ddr_save_sp:\n"
-"	mov r1,sp\n"	
-"	mov sp,r0\n"	
-"	mov r0,r1\n"	
-"	mov pc,lr\n"
-"	.previous"
-);
-#endif
 
 /****************************************************************************
 内部sram 的us 延时函数
@@ -521,7 +500,6 @@ void __sramfunc EnterDDRSelfRefresh(void)
 /****************************************************************/
 void __sramfunc ExitDDRSelfRefresh(void)
 {
-    volatile u32 n;
 
     pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x7<<27) | (0x1<<31)); //exit
     delayus(10); //wait for exit self refresh dll lock
@@ -530,7 +508,6 @@ void __sramfunc ExitDDRSelfRefresh(void)
     pSCU_Reg->CRU_SOFTRST_CON[0] &= ~(0x1F<<19);
     delayus(100); 
     //pDDR_Reg->CCR |= DTT;
-    n = pDDR_Reg->CCR;
     delayus(100);
     pDDR_Reg->CCR |= HOSTEN;  //enable host port
 }
@@ -1031,11 +1008,11 @@ void DDR_ChangeFreq(u32 DDRoldMHz, u32 DDRnewMHz)
 
     DDRPreUpdateRef(DDRnewMHz);
     DDRPreUpdateTiming(DDRnewMHz);	
-    DDR_SAVE_SP;
+    DDR_SAVE_SP(save_sp);
     flush_cache_all();      // 20100615,HSL@RK.
     __cpuc_flush_user_all();
     ChangeDDRFreqInSram(DDRoldMHz, DDRnewMHz);
-    DDR_RESTORE_SP;
+    DDR_RESTORE_SP(save_sp);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1125,42 +1102,22 @@ n=temp[1024*3];
 barrier();
 
 
-#if 0
-	n = * (volatile u32 *)SRAM_CODE_OFFSET;
-	n = * (volatile u32 *)(SRAM_CODE_OFFSET + 4096);
-	n = * (volatile u32 *)(SRAM_CODE_OFFSET + 8192);
-	n = * (volatile u32 *)(SRAM_CODE_OFFSET + 12288);
-#endif
 
 #endif
 	n= pDDR_Reg->CCR;
 	n= pSCU_Reg->CRU_SOFTRST_CON[0];
-      //	flush_cache_all();      // 20100615,HSL@RK.
-	//__cpuc_flush_kern_all();
-       //__cpuc_flush_user_all();
-       //barrier();
-       dsb();//dmb();
+       dsb();
 	  
-     //  printk("do_selfrefreshtest tlb \n");
    	DDR_EnterSelfRefresh();
-	//delayus(100000000);
-	//delayus(1000*1000*100);
    	DDR_ExitSelfRefresh();
-	dsb(); //dmb();
-#if 1
-	delayus(1);
-	delayus(1);
-	delayus(1);
-	delayus(1);
-
-#endif
+	dsb(); 
 }
 
 static void selfrefreshtest(void)
 {
-	DDR_SAVE_SP;
+	DDR_SAVE_SP(save_sp);
 	do_selfrefreshtest();
-   	DDR_RESTORE_SP;
+   	DDR_RESTORE_SP(save_sp);
 }
 
 static void changefreqtest(u32 DDRnewMHz)
@@ -1173,12 +1130,12 @@ static void changefreqtest(u32 DDRnewMHz)
     MHz =  Hz /1000000; // PLLGetDDRFreq()/1000;
     DDRPreUpdateRef(DDRnewMHz);
     DDRPreUpdateTiming(DDRnewMHz);	
-    DDR_SAVE_SP;
+    DDR_SAVE_SP(save_sp);
     flush_cache_all();      // 20100615,HSL@RK.
     __cpuc_flush_user_all();
     ChangeDDRFreqInSram(MHz, DDRnewMHz);
     DDRDLLSetMode(DLL_BYPASS,DDRnewMHz);
-    DDR_RESTORE_SP;
+    DDR_RESTORE_SP(save_sp);
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -1280,39 +1237,13 @@ void __sramfunc ddr_resume(void)
 static int __init ddr_update_freq(void)
 {
 
-  // DDR_Init();
+  DDR_Init();
    
 #if 0 //#ifdef CONFIG_HAS_EARLYSUSPEND
 	register_early_suspend(&early_suspend_info);
 #endif
 
 
-#if 0
-   unsigned long flags , i;
-   printk("DDR enter self-refresh!\n");
-   
-   local_irq_save(flags);
- 
-   DDR_Init();
-   //DDR_ChangeFreq(333); 
-  
-   for (i=0;i<1000000;i++)
-   {
-       printk("%d ", i);
-	if(!(i%50))
-		printk("\n");
-
-	selfrefreshtest();
-	//changefreqtest(200);	
-       //delayus(10000000);
-       //changefreqtest(333);
-   }
-   
-   local_irq_restore(flags);
-   
-   printk("DDR exit self-refresh!\n");
-   
-#endif
    
 
    return 0;
