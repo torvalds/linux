@@ -677,17 +677,22 @@ static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 	return result;
 }
 
-static int nvme_submit_user_admin_command(struct nvme_dev *dev, unsigned long addr,
-					unsigned length, struct nvme_command *cmd)
+static int nvme_map_user_pages(struct nvme_dev *dev, int write,
+				unsigned long addr, unsigned length,
+				struct scatterlist **sgp)
 {
 	int i, err, count, nents, offset;
-	struct scatterlist sg[2];
-	struct page *pages[2];
+	struct scatterlist *sg;
+	struct page **pages;
 
 	if (addr & 3)
 		return -EINVAL;
+	if (!length)
+		return -EINVAL;
+
 	offset = offset_in_page(addr);
-	count = ((offset + length) > PAGE_SIZE) ? 2 : 1;
+	count = DIV_ROUND_UP(offset + length, PAGE_SIZE);
+	pages = kcalloc(count, sizeof(*pages), GFP_KERNEL);
 
 	err = get_user_pages_fast(addr, count, 1, pages);
 	if (err < count) {
@@ -695,27 +700,60 @@ static int nvme_submit_user_admin_command(struct nvme_dev *dev, unsigned long ad
 		err = -EFAULT;
 		goto put_pages;
 	}
+
+	sg = kcalloc(count, sizeof(*sg), GFP_KERNEL);
 	sg_init_table(sg, count);
 	sg_set_page(&sg[0], pages[0], PAGE_SIZE - offset, offset);
-	if (count > 1)
-		sg_set_page(&sg[1], pages[1], offset, 0);
-	nents = dma_map_sg(&dev->pci_dev->dev, sg, count, DMA_FROM_DEVICE);
+	length -= (PAGE_SIZE - offset);
+	for (i = 1; i < count; i++) {
+		sg_set_page(&sg[i], pages[i], min_t(int, length, PAGE_SIZE), 0);
+		length -= PAGE_SIZE;
+	}
+
+	err = -ENOMEM;
+	nents = dma_map_sg(&dev->pci_dev->dev, sg, count,
+				write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	if (!nents)
 		goto put_pages;
 
-	nvme_setup_prps(&cmd->common, sg, length);
+	kfree(pages);
+	*sgp = sg;
+	return nents;
 
-	err = nvme_submit_admin_cmd(dev, cmd, NULL);
-
-	if (err)
-		err = -EIO;
-
-	dma_unmap_sg(&dev->pci_dev->dev, sg, nents, DMA_FROM_DEVICE);
  put_pages:
 	for (i = 0; i < count; i++)
 		put_page(pages[i]);
-
+	kfree(pages);
 	return err;
+}
+
+static void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
+				unsigned long addr, int length,
+				struct scatterlist *sg, int nents)
+{
+	int i, count;
+
+	count = DIV_ROUND_UP(offset_in_page(addr) + length, PAGE_SIZE);
+	dma_unmap_sg(&dev->pci_dev->dev, sg, nents, DMA_FROM_DEVICE);
+
+	for (i = 0; i < count; i++)
+		put_page(sg_page(&sg[i]));
+}
+
+static int nvme_submit_user_admin_command(struct nvme_dev *dev,
+					unsigned long addr, unsigned length,
+					struct nvme_command *cmd)
+{
+	int err, nents;
+	struct scatterlist *sg;
+
+	nents = nvme_map_user_pages(dev, 0, addr, length, &sg);
+	if (nents < 0)
+		return nents;
+	nvme_setup_prps(&cmd->common, sg, length);
+	err = nvme_submit_admin_cmd(dev, cmd, NULL);
+	nvme_unmap_user_pages(dev, 0, addr, length, sg, nents);
+	return err ? -EIO : 0;
 }
 
 static int nvme_identify(struct nvme_ns *ns, unsigned long addr, int cns)
