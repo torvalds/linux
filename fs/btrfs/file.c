@@ -945,6 +945,10 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		     PAGE_CACHE_SIZE, PAGE_CACHE_SIZE /
 		     (sizeof(struct page *)));
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
+	if (!pages) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/* generic_write_checks can change our pos */
 	start_pos = pos;

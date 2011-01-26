@@ -176,6 +176,8 @@ static struct dentry *btrfs_get_parent(struct dentry *child)
 	int ret;
 
 	path = btrfs_alloc_path();
+	if (!path)
+		return ERR_PTR(-ENOMEM);
 
 	if (dir->i_ino == BTRFS_FIRST_FREE_OBJECTID) {
 		key.objectid = root->root_key.objectid;
