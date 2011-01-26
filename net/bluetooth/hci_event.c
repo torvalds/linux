@@ -692,13 +692,13 @@ static int hci_outgoing_auth_needed(struct hci_dev *hdev,
 	if (conn->state != BT_CONFIG || !conn->out)
 		return 0;
 
-	if (conn->sec_level == BT_SECURITY_SDP)
+	if (conn->pending_sec_level == BT_SECURITY_SDP)
 		return 0;
 
 	/* Only request authentication for SSP connections or non-SSP
 	 * devices with sec_level HIGH */
 	if (!(hdev->ssp_mode > 0 && conn->ssp_mode > 0) &&
-					conn->sec_level != BT_SECURITY_HIGH)
+				conn->pending_sec_level != BT_SECURITY_HIGH)
 		return 0;
 
 	return 1;
@@ -1095,9 +1095,10 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
 	if (conn) {
-		if (!ev->status)
+		if (!ev->status) {
 			conn->link_mode |= HCI_LM_AUTH;
-		else
+			conn->sec_level = conn->pending_sec_level;
+		} else
 			conn->sec_level = BT_SECURITY_LOW;
 
 		clear_bit(HCI_CONN_AUTH_PEND, &conn->pend);
