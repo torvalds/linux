@@ -1544,6 +1544,7 @@ out:
 out_page:
 	unlock_page(page);
 	page_cache_release(page);
+	kfree(fixup);
 }
 
 /*
