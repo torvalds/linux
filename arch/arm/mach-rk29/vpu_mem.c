@@ -428,7 +428,7 @@ static long vpu_mem_allocate(struct file *file, unsigned int len)
 	 */
 	while (curr < vpu_mem.num_entries) {
 		if (VPU_MEM_IS_FREE(curr)) {
-			if (VPU_MEM_PFN(curr) >= (unsigned char)pfn) {
+			if (VPU_MEM_PFN(curr) >= pfn) {
 				/* set the not free bit and clear others */
 				best_fit = curr;
 #if VPU_MEM_DEBUG

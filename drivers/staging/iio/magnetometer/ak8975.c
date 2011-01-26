@@ -1,501 +1,910 @@
+/* drivers/i2c/chips/akm8975.c - akm8975 compass driver
+ *
+ * Copyright (C) 2007-2008 HTC Corporation.
+ * Author: Hou-Kun Chen <houkun.chen@gmail.com>
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ */
+
 /*
- * A sensor driver for the magnetometer AK8975. 
+ * Revised by AKM 2009/04/02
  * 
- * Magnetic compass sensor driver for monitoring magnetic flux information. 
- * 
- * Copyright (c) 2010, NVIDIA Corporation. 
- * 
- * This program is free software; you can redistribute it and/or modify 
- * it under the terms of the GNU General Public License as published by 
- * the Free Software Foundation; either version 2 of the License, or 
- * (at your option) any later version. 
- * 
- * This program is distributed in the hope that it will be useful, but WITHOUT 
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for 
- * more details. 
- * 
- * You should have received a copy of the GNU General Public License along 
- * with this program; if not, write to the Free Software Foundation, Inc., 
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. 
- */ 
- 
-#include <linux/module.h> 
-#include <linux/kernel.h> 
-#include <linux/slab.h> 
-#include <linux/i2c.h> 
-#include <linux/err.h> 
-#include <linux/mutex.h> 
-#include <linux/delay.h> 
- 
-#include <linux/gpio.h> 
- 
-#include "../iio.h" 
-#include "magnet.h" 
- 
-/* 
- * Register definitions, as well as various shifts and masks to get at the 
- * individual fields of the registers. 
- */ 
-#define AK8975_REG_WIA 0x00 
-#define AK8975_DEVICE_ID 0x48 
- 
-#define AK8975_REG_INFO 0x01 
- 
-#define AK8975_REG_ST1 0x02 
-#define AK8975_REG_ST1_DRDY_SHIFT 0 
-#define AK8975_REG_ST1_DRDY_MASK (1 << AK8975_REG_ST1_DRDY_SHIFT) 
- 
-#define AK8975_REG_HXL 0x03 
-#define AK8975_REG_HXH 0x04 
-#define AK8975_REG_HYL 0x05 
-#define AK8975_REG_HYH 0x06 
-#define AK8975_REG_HZL 0x07 
-#define AK8975_REG_HZH 0x08 
-#define AK8975_REG_ST2 0x09 
-#define AK8975_REG_ST2_DERR_SHIFT 2 
-#define AK8975_REG_ST2_DERR_MASK (1 << AK8975_REG_ST2_DERR_SHIFT) 
- 
-#define AK8975_REG_ST2_HOFL_SHIFT 3 
-#define AK8975_REG_ST2_HOFL_MASK (1 << AK8975_REG_ST2_HOFL_SHIFT) 
- 
-#define AK8975_REG_CNTL 0x0A 
-#define AK8975_REG_CNTL_MODE_SHIFT 0 
-#define AK8975_REG_CNTL_MODE_MASK (0xF << AK8975_REG_CNTL_MODE_SHIFT) 
-#define AK8975_REG_CNTL_MODE_POWER_DOWN 0 
-#define AK8975_REG_CNTL_MODE_ONCE 1 
-#define AK8975_REG_CNTL_MODE_SELF_TEST 8 
-#define AK8975_REG_CNTL_MODE_FUSE_ROM 0xF 
- 
-#define AK8975_REG_RSVC 0x0B 
-#define AK8975_REG_ASTC 0x0C 
-#define AK8975_REG_TS1 0x0D 
-#define AK8975_REG_TS2 0x0E 
-#define AK8975_REG_I2CDIS 0x0F 
-#define AK8975_REG_ASAX 0x10 
-#define AK8975_REG_ASAY 0x11 
-#define AK8975_REG_ASAZ 0x12 
- 
-#define AK8975_MAX_REGS AK8975_REG_ASAZ 
- 
-/* 
- * Miscellaneous values. 
- */ 
-#define AK8975_MAX_CONVERSION_TRIAL 5 
-#define AK8975_MAX_CONVERSION_TIMEOUT 500 
-#define AK8975_CONVERSION_DONE_POLL_TIME 10 
- 
-/* 
- * Per-instance context data for the device. 
- */ 
-struct ak8975_data { 
+ */
+
+#include <linux/interrupt.h>
+#include <linux/i2c.h>
+#include <linux/slab.h>
+#include <linux/irq.h>
+#include <linux/miscdevice.h>
+#include <linux/gpio.h>
+#include <linux/uaccess.h>
+#include <linux/delay.h>
+#include <linux/input.h>
+#include <linux/workqueue.h>
+#include <linux/freezer.h>
+#include <linux/earlysuspend.h>
+#include "ak8975.h"
+
+#define AKM8975_DEBUG		1
+#define AKM8975_DEBUG_MSG	1
+#define AKM8975_DEBUG_FUNC	0
+#define AKM8975_DEBUG_DATA	0
+#define MAX_FAILURE_COUNT	3
+#define AKM8975_RETRY_COUNT	10
+#define AKM8975_DEFAULT_DELAY	100
+
+#if AKM8975_DEBUG_MSG
+#define AKMDBG(format, ...)	printk(KERN_INFO "AKM8975 " format "\n", ## __VA_ARGS__)
+#else
+#define AKMDBG(format, ...)
+#endif
+
+#if AKM8975_DEBUG_FUNC
+#define AKMFUNC(func) printk(KERN_INFO "AKM8975 " func " is called\n")
+#else
+#define AKMFUNC(func)
+#endif
+
+static struct i2c_client *this_client;
+
+struct akm8975_data {
 	struct i2c_client *client; 
-	struct iio_dev *indio_dev; 
-	struct attribute_group attrs; 
-	struct mutex lock; 
-	u8 asa[3]; 
-	unsigned long mode; 
-	u8 reg_cache[AK8975_MAX_REGS]; 
-	int eoc_gpio; 
+	struct input_dev *input_dev;
+	struct work_struct work;
+	struct early_suspend akm_early_suspend;
 	int eoc_irq; 
-}; 
- 
-/* 
- * Helper function to write to the I2C device's registers. 
- */ 
-static bool ak8975_write_data(struct i2c_client *client, 
-	u8 reg, u8 val, u8 mask, u8 shift) 
-{ 
-	u8 regval; 
-	struct i2c_msg msg; 
-	u8 w_data[2]; 
-	int ret = 0; 
+};
+
+/* Addresses to scan -- protected by sense_data_mutex */
+static char sense_data[SENSOR_DATA_SIZE];
+static struct mutex sense_data_mutex;
+static DECLARE_WAIT_QUEUE_HEAD(data_ready_wq);
+static DECLARE_WAIT_QUEUE_HEAD(open_wq);
+
+static atomic_t data_ready;
+static atomic_t open_count;
+static atomic_t open_flag;
+static atomic_t reserve_open_flag;
+
+static atomic_t m_flag;
+static atomic_t a_flag;
+static atomic_t mv_flag;
+
+static int failure_count = 0;
+
+static short akmd_delay = AKM8975_DEFAULT_DELAY;
+
+static atomic_t suspend_flag = ATOMIC_INIT(0);
+
+//static struct akm8975_platform_data *pdata;
+
+static int AKI2C_RxData(char *rxData, int length)
+{
+	uint8_t loop_i;
+	struct i2c_msg msgs[] = {
+		{
+			.addr = this_client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = rxData,
+		},
+		{
+			.addr = this_client->addr,
+			.flags = I2C_M_RD,
+			.len = length,
+			.buf = rxData,
+		},
+	};
+#if AKM8975_DEBUG_DATA
+	int i;
+	char addr = rxData[0];
+#endif
+#ifdef AKM8975_DEBUG
+	/* Caller should check parameter validity.*/
+	if ((rxData == NULL) || (length < 1)) {
+		return -EINVAL;
+	}
+#endif
+	for (loop_i = 0; loop_i < AKM8975_RETRY_COUNT; loop_i++) {
+		if (i2c_transfer(this_client->adapter, msgs, 2) > 0) {
+			break;
+		}
+		mdelay(10);
+	}
 	
-	struct ak8975_data *data = i2c_get_clientdata(client); 
+	if (loop_i >= AKM8975_RETRY_COUNT) {
+		printk(KERN_ERR "%s retry over %d\n", __func__, AKM8975_RETRY_COUNT);
+		return -EIO;
+	}
+#if AKM8975_DEBUG_DATA
+	printk(KERN_INFO "RxData: len=%02x, addr=%02x\n  data=", length, addr);
+	for (i = 0; i < length; i++) {
+		printk(KERN_INFO " %02x", rxData[i]);
+	}
+    printk(KERN_INFO "\n");
+#endif
+	return 0;
+}
+
+static int AKI2C_TxData(char *txData, int length)
+{
+	uint8_t loop_i;
+	struct i2c_msg msg[] = {
+		{
+			.addr = this_client->addr,
+			.flags = 0,
+			.len = length,
+			.buf = txData,
+		},
+	};
+#if AKM8975_DEBUG_DATA
+	int i;
+#endif
+#ifdef AKM8975_DEBUG
+	/* Caller should check parameter validity.*/
+	if ((txData == NULL) || (length < 2)) {
+		return -EINVAL;
+	}
+#endif	
+	for (loop_i = 0; loop_i < AKM8975_RETRY_COUNT; loop_i++) {
+		if (i2c_transfer(this_client->adapter, msg, 1) > 0) {
+			break;
+		}
+		mdelay(10);
+	}
 	
-	regval = data->reg_cache[reg]; 
-	regval &= ~mask; 
-	regval |= val << shift; 
+	if (loop_i >= AKM8975_RETRY_COUNT) {
+		printk(KERN_ERR "%s retry over %d\n", __func__, AKM8975_RETRY_COUNT);
+		return -EIO;
+	}
+#if AKM8975_DEBUG_DATA
+	printk(KERN_INFO "TxData: len=%02x, addr=%02x\n  data=", length, txData[0]);
+	for (i = 0; i < (length-1); i++) {
+		printk(KERN_INFO " %02x", txData[i + 1]);
+	}
+	printk(KERN_INFO "\n");
+#endif
+	return 0;
+}
+
+static int AKECS_SetMode_SngMeasure(void)
+{
+	char buffer[2];
 	
-	w_data[0] = reg; 
-	w_data[1] = regval; 
+	atomic_set(&data_ready, 0);
 	
-	msg.addr = client->addr; 
-	msg.flags = 0; 
-	msg.len = 2; 
-	msg.buf = w_data; 
+	/* Set measure mode */
+	buffer[0] = AK8975_REG_CNTL;
+	buffer[1] = AK8975_MODE_SNG_MEASURE;
 	
-	ret = i2c_transfer(client->adapter, &msg, 1); 
-	if (ret < 0) { 
-		dev_err(&client->dev, "Write to device fails status %x\n", ret); 
-		return false; 
+	/* Set data */
+	return AKI2C_TxData(buffer, 2);
+}
+
+static int AKECS_SetMode_SelfTest(void)
+{
+	char buffer[2];
+	
+	/* Set measure mode */
+	buffer[0] = AK8975_REG_CNTL;
+	buffer[1] = AK8975_MODE_SELF_TEST;
+	/* Set data */
+	return AKI2C_TxData(buffer, 2);
+}
+
+static int AKECS_SetMode_FUSEAccess(void)
+{
+	char buffer[2];
+	
+	/* Set measure mode */
+	buffer[0] = AK8975_REG_CNTL;
+	buffer[1] = AK8975_MODE_FUSE_ACCESS;
+	/* Set data */
+	return AKI2C_TxData(buffer, 2);
+}
+
+static int AKECS_SetMode_PowerDown(void)
+{
+	char buffer[2];
+	
+	/* Set powerdown mode */
+	buffer[0] = AK8975_REG_CNTL;
+	buffer[1] = AK8975_MODE_POWERDOWN;
+	/* Set data */
+	return AKI2C_TxData(buffer, 2);
+}
+
+static int AKECS_SetMode(char mode)
+{
+	int ret;
+	
+	switch (mode) {
+		case AK8975_MODE_SNG_MEASURE:
+			ret = AKECS_SetMode_SngMeasure();
+			break;
+		case AK8975_MODE_SELF_TEST:
+			ret = AKECS_SetMode_SelfTest();
+			break;
+		case AK8975_MODE_FUSE_ACCESS:
+			ret = AKECS_SetMode_FUSEAccess();
+			break;
+		case AK8975_MODE_POWERDOWN:
+			ret = AKECS_SetMode_PowerDown();
+			/* wait at least 100us after changing mode */
+			udelay(100);
+			break;
+		default:
+			AKMDBG("%s: Unknown mode(%d)", __func__, mode);
+			return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int AKECS_CheckDevice(void)
+{
+	char buffer[2];
+	int ret;
+	
+	/* Set measure mode */
+	buffer[0] = AK8975_REG_WIA;
+	
+	/* Read data */
+	ret = AKI2C_RxData(buffer, 1);
+	if (ret < 0) {
+		return ret;
+	}
+	/* Check read data */
+	if (buffer[0] != 0x48) {
+		return -ENXIO;
+	}
+	
+	return 0;
+}
+
+static int AKECS_GetData(char *rbuf, int size)
+{
+#ifdef AKM8975_DEBUG
+	/* This function is not exposed, so parameters 
+	 should be checked internally.*/
+	if ((rbuf == NULL) || (size < SENSOR_DATA_SIZE)) {
+		return -EINVAL;
+	}
+#endif
+	wait_event_interruptible_timeout(data_ready_wq,
+									 atomic_read(&data_ready), 1000);
+	if (!atomic_read(&data_ready)) {
+		AKMDBG("%s: data_ready is not set.", __func__);
+		if (!atomic_read(&suspend_flag)) {
+			AKMDBG("%s: suspend_flag is not set.", __func__);
+			failure_count++;
+			if (failure_count >= MAX_FAILURE_COUNT) {
+				printk(KERN_ERR
+				       "AKM8975 AKECS_GetData: successive %d failure.\n",
+				       failure_count);
+				atomic_set(&open_flag, -1);
+				wake_up(&open_wq);
+				failure_count = 0;
+			}
+		}
+		return -1;
+	}
+	
+	mutex_lock(&sense_data_mutex);
+	memcpy(rbuf, sense_data, size);
+	atomic_set(&data_ready, 0);
+	mutex_unlock(&sense_data_mutex);
+	
+	failure_count = 0;
+	return 0;
+}
+
+static void AKECS_SetYPR(short *rbuf)
+{
+	struct akm8975_data *data = i2c_get_clientdata(this_client);
+#if AKM8975_DEBUG_DATA
+	printk(KERN_INFO "AKM8975 %s:\n", __func__);
+	printk(KERN_INFO "  yaw =%6d, pitch =%6d, roll =%6d\n",
+		   rbuf[0], rbuf[1], rbuf[2]);
+	printk(KERN_INFO "  tmp =%6d, m_stat =%6d, g_stat =%6d\n",
+		   rbuf[3], rbuf[4], rbuf[5]);
+	printk(KERN_INFO "  Acceleration[LSB]: %6d,%6d,%6d\n",
+	       rbuf[6], rbuf[7], rbuf[8]);
+	printk(KERN_INFO "  Geomagnetism[LSB]: %6d,%6d,%6d\n",
+	       rbuf[9], rbuf[10], rbuf[11]);
+#endif
+	/* Report magnetic sensor information */
+	if (atomic_read(&m_flag)) {
+		input_report_abs(data->input_dev, ABS_RX, rbuf[0]);
+		input_report_abs(data->input_dev, ABS_RY, rbuf[1]);
+		input_report_abs(data->input_dev, ABS_RZ, rbuf[2]);
+		input_report_abs(data->input_dev, ABS_RUDDER, rbuf[4]);
+	}
+	
+	/* Report acceleration sensor information */
+	if (atomic_read(&a_flag)) {
+		input_report_abs(data->input_dev, ABS_X, rbuf[6]);
+		input_report_abs(data->input_dev, ABS_Y, rbuf[7]);
+		input_report_abs(data->input_dev, ABS_Z, rbuf[8]);
+		input_report_abs(data->input_dev, ABS_WHEEL, rbuf[5]);
+	}
+	
+	/* Report magnetic vector information */
+	if (atomic_read(&mv_flag)) {
+		input_report_abs(data->input_dev, ABS_HAT0X, rbuf[9]);
+		input_report_abs(data->input_dev, ABS_HAT0Y, rbuf[10]);
+		input_report_abs(data->input_dev, ABS_BRAKE, rbuf[11]);
+	}
+	
+	input_sync(data->input_dev);
+}
+
+static int AKECS_GetOpenStatus(void)
+{
+	wait_event_interruptible(open_wq, (atomic_read(&open_flag) != 0));
+	return atomic_read(&open_flag);
+}
+
+static int AKECS_GetCloseStatus(void)
+{
+	wait_event_interruptible(open_wq, (atomic_read(&open_flag) <= 0));
+	return atomic_read(&open_flag);
+}
+
+static void AKECS_CloseDone(void)
+{
+	atomic_set(&m_flag, 1);
+	atomic_set(&a_flag, 1);
+	atomic_set(&mv_flag, 1);
+}
+
+/***** akm_aot functions ***************************************/
+static int akm_aot_open(struct inode *inode, struct file *file)
+{
+	int ret = -1;
+
+	AKMFUNC("akm_aot_open");
+	if (atomic_cmpxchg(&open_count, 0, 1) == 0) {
+		if (atomic_cmpxchg(&open_flag, 0, 1) == 0) {
+			atomic_set(&reserve_open_flag, 1);
+			wake_up(&open_wq);
+			ret = 0;
+		}
+	}
+	return ret;
+}
+
+static int akm_aot_release(struct inode *inode, struct file *file)
+{
+	AKMFUNC("akm_aot_release");
+	atomic_set(&reserve_open_flag, 0);
+	atomic_set(&open_flag, 0);
+	atomic_set(&open_count, 0);
+	wake_up(&open_wq);
+	return 0;
+}
+
+static int
+akm_aot_ioctl(struct inode *inode, struct file *file,
+			  unsigned int cmd, unsigned long arg)
+{
+	void __user *argp = (void __user *)arg;
+	short flag;
+	
+	switch (cmd) {
+		case ECS_IOCTL_APP_SET_MFLAG:
+		case ECS_IOCTL_APP_SET_AFLAG:
+		case ECS_IOCTL_APP_SET_MVFLAG:
+			if (copy_from_user(&flag, argp, sizeof(flag))) {
+				return -EFAULT;
+			}
+			if (flag < 0 || flag > 1) {
+				return -EINVAL;
+			}
+			break;
+		case ECS_IOCTL_APP_SET_DELAY:
+			if (copy_from_user(&flag, argp, sizeof(flag))) {
+				return -EFAULT;
+			}
+			break;
+		default:
+			break;
+	}
+	
+	switch (cmd) {
+		case ECS_IOCTL_APP_SET_MFLAG:
+			atomic_set(&m_flag, flag);
+			AKMDBG("MFLAG is set to %d", flag);
+			break;
+		case ECS_IOCTL_APP_GET_MFLAG:
+			flag = atomic_read(&m_flag);
+			break;
+		case ECS_IOCTL_APP_SET_AFLAG:
+			atomic_set(&a_flag, flag);
+			AKMDBG("AFLAG is set to %d", flag);
+			break;
+		case ECS_IOCTL_APP_GET_AFLAG:
+			flag = atomic_read(&a_flag);
+			break;
+		case ECS_IOCTL_APP_SET_MVFLAG:
+			atomic_set(&mv_flag, flag);
+			AKMDBG("MVFLAG is set to %d", flag);
+			break;
+		case ECS_IOCTL_APP_GET_MVFLAG:
+			flag = atomic_read(&mv_flag);
+			break;
+		case ECS_IOCTL_APP_SET_DELAY:
+			akmd_delay = flag;
+			AKMDBG("Delay is set to %d", flag);
+			break;
+		case ECS_IOCTL_APP_GET_DELAY:
+			flag = akmd_delay;
+			break;
+		default:
+			return -ENOTTY;
+	}
+	
+	switch (cmd) {
+		case ECS_IOCTL_APP_GET_MFLAG:
+		case ECS_IOCTL_APP_GET_AFLAG:
+		case ECS_IOCTL_APP_GET_MVFLAG:
+		case ECS_IOCTL_APP_GET_DELAY:
+			if (copy_to_user(argp, &flag, sizeof(flag))) {
+				return -EFAULT;
+			}
+			break;
+		default:
+			break;
+	}
+	
+	return 0;
+}
+
+/***** akmd functions ********************************************/
+static int akmd_open(struct inode *inode, struct file *file)
+{
+	AKMFUNC("akmd_open");
+	return nonseekable_open(inode, file);
+}
+
+static int akmd_release(struct inode *inode, struct file *file)
+{
+	AKMFUNC("akmd_release");
+	AKECS_CloseDone();
+	return 0;
+}
+
+static int
+akmd_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
+		   unsigned long arg)
+{
+	void __user *argp = (void __user *)arg;
+	
+	/* NOTE: In this function the size of "char" should be 1-byte. */
+	char sData[SENSOR_DATA_SIZE];/* for GETDATA */
+	char rwbuf[RWBUF_SIZE];		/* for READ/WRITE */
+	char mode;					/* for SET_MODE*/
+	short value[12];			/* for SET_YPR */
+	short delay;				/* for GET_DELAY */
+	int status;					/* for OPEN/CLOSE_STATUS */
+	int ret = -1;				/* Return value. */
+	/*AKMDBG("%s (0x%08X).", __func__, cmd);*/
+	
+	switch (cmd) {
+		case ECS_IOCTL_WRITE:
+		case ECS_IOCTL_READ:
+			if (argp == NULL) {
+				AKMDBG("invalid argument.");
+				return -EINVAL;
+			}
+			if (copy_from_user(&rwbuf, argp, sizeof(rwbuf))) {
+				AKMDBG("copy_from_user failed.");
+				return -EFAULT;
+			}
+			break;
+		case ECS_IOCTL_SET_MODE:
+			if (argp == NULL) {
+				AKMDBG("invalid argument.");
+				return -EINVAL;
+			}
+			if (copy_from_user(&mode, argp, sizeof(mode))) {
+				AKMDBG("copy_from_user failed.");
+				return -EFAULT;
+			}
+			break;
+		case ECS_IOCTL_SET_YPR:
+			if (argp == NULL) {
+				AKMDBG("invalid argument.");
+				return -EINVAL;
+			}
+			if (copy_from_user(&value, argp, sizeof(value))) {
+				AKMDBG("copy_from_user failed.");
+				return -EFAULT;
+			}
+			break;
+		default:
+			break;
+	}
+	
+	switch (cmd) {
+		case ECS_IOCTL_WRITE:
+			AKMFUNC("IOCTL_WRITE");
+			if ((rwbuf[0] < 2) || (rwbuf[0] > (RWBUF_SIZE-1))) {
+				AKMDBG("invalid argument.");
+				return -EINVAL;
+			}
+			ret = AKI2C_TxData(&rwbuf[1], rwbuf[0]);
+			if (ret < 0) {
+				return ret;
+			}
+			break;
+		case ECS_IOCTL_READ:
+			AKMFUNC("IOCTL_READ");
+			if ((rwbuf[0] < 1) || (rwbuf[0] > (RWBUF_SIZE-1))) {
+				AKMDBG("invalid argument.");
+				return -EINVAL;
+			}
+			ret = AKI2C_RxData(&rwbuf[1], rwbuf[0]);
+			if (ret < 0) {
+				return ret;
+			}
+			break;
+		case ECS_IOCTL_SET_MODE:
+			AKMFUNC("IOCTL_SET_MODE");
+			ret = AKECS_SetMode(mode);
+			if (ret < 0) {
+				return ret;
+			}
+			break;
+		case ECS_IOCTL_GETDATA:
+			AKMFUNC("IOCTL_GET_DATA");
+			ret = AKECS_GetData(sData, SENSOR_DATA_SIZE);
+			if (ret < 0) {
+				return ret;
+			}
+			break;
+		case ECS_IOCTL_SET_YPR:
+			AKECS_SetYPR(value);
+			break;
+		case ECS_IOCTL_GET_OPEN_STATUS:
+			AKMFUNC("IOCTL_GET_OPEN_STATUS");
+			status = AKECS_GetOpenStatus();
+			AKMDBG("AKECS_GetOpenStatus returned (%d)", status);
+			break;
+		case ECS_IOCTL_GET_CLOSE_STATUS:
+			AKMFUNC("IOCTL_GET_CLOSE_STATUS");
+			status = AKECS_GetCloseStatus();
+			AKMDBG("AKECS_GetCloseStatus returned (%d)", status);
+			break;
+		case ECS_IOCTL_GET_DELAY:
+			AKMFUNC("IOCTL_GET_DELAY");
+			delay = akmd_delay;
+			break;
+		default:
+			return -ENOTTY;
+	}
+	
+	switch (cmd) {
+		case ECS_IOCTL_READ:
+			if (copy_to_user(argp, &rwbuf, rwbuf[0]+1)) {
+				AKMDBG("copy_to_user failed.");
+				return -EFAULT;
+			}
+			break;
+		case ECS_IOCTL_GETDATA:
+			if (copy_to_user(argp, &sData, sizeof(sData))) {
+				AKMDBG("copy_to_user failed.");
+				return -EFAULT;
+			}
+			break;
+		case ECS_IOCTL_GET_OPEN_STATUS:
+		case ECS_IOCTL_GET_CLOSE_STATUS:
+			if (copy_to_user(argp, &status, sizeof(status))) {
+				AKMDBG("copy_to_user failed.");
+				return -EFAULT;
+			}
+			break;
+		case ECS_IOCTL_GET_DELAY:
+			if (copy_to_user(argp, &delay, sizeof(delay))) {
+				AKMDBG("copy_to_user failed.");
+				return -EFAULT;
+			}
+			break;
+		default:
+			break;
+	}
+	
+	return 0;
+}
+
+static void akm8975_work_func(struct work_struct *work)
+{
+	char buffer[SENSOR_DATA_SIZE];
+	int ret;
+	
+	memset(buffer, 0, SENSOR_DATA_SIZE);
+	buffer[0] = AK8975_REG_ST1;
+	ret = AKI2C_RxData(buffer, SENSOR_DATA_SIZE);
+	if (ret < 0) {
+		printk(KERN_ERR "AKM8975 akm8975_work_func: I2C failed\n");
+		return;
+	}
+	/* Check ST bit */
+	if ((buffer[0] & 0x01) != 0x01) {
+		printk(KERN_ERR "AKM8975 akm8975_work_func: ST is not set\n");
+		return;
+	}
+	
+	mutex_lock(&sense_data_mutex);
+	memcpy(sense_data, buffer, SENSOR_DATA_SIZE);
+	atomic_set(&data_ready, 1);
+	wake_up(&data_ready_wq);
+	mutex_unlock(&sense_data_mutex);
+	
+	enable_irq(this_client->irq);
+	
+	AKMFUNC("akm8975_work_func");
+}
+
+static irqreturn_t akm8975_interrupt(int irq, void *dev_id)
+{
+	struct akm8975_data *data = dev_id;
+	AKMFUNC("akm8975_interrupt");
+	disable_irq(this_client->irq);
+	schedule_work(&data->work);
+	return IRQ_HANDLED;
+}
+
+static void akm8975_early_suspend(struct early_suspend *handler)
+{
+	AKMFUNC("akm8975_early_suspend");
+	atomic_set(&suspend_flag, 1);
+	atomic_set(&reserve_open_flag, atomic_read(&open_flag));
+	atomic_set(&open_flag, 0);
+	wake_up(&open_wq);
+	disable_irq(this_client->irq);
+	AKMDBG("suspended with flag=%d", 
+	       atomic_read(&reserve_open_flag));
+}
+
+static void akm8975_early_resume(struct early_suspend *handler)
+{
+	AKMFUNC("akm8975_early_resume");
+	enable_irq(this_client->irq);
+	atomic_set(&suspend_flag, 0);
+	atomic_set(&open_flag, atomic_read(&reserve_open_flag));
+	wake_up(&open_wq);
+	AKMDBG("resumed with flag=%d", 
+	       atomic_read(&reserve_open_flag));
+}
+
+/*********************************************/
+static struct file_operations akmd_fops = {
+	.owner = THIS_MODULE,
+	.open = akmd_open,
+	.release = akmd_release,
+	.ioctl = akmd_ioctl,
+};
+
+static struct file_operations akm_aot_fops = {
+	.owner = THIS_MODULE,
+	.open = akm_aot_open,
+	.release = akm_aot_release,
+	.ioctl = akm_aot_ioctl,
+};
+
+static struct miscdevice akmd_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "akm8975_dev",
+	.fops = &akmd_fops,
+};
+
+static struct miscdevice akm_aot_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "akm8975_aot",
+	.fops = &akm_aot_fops,
+};
+
+/*********************************************/
+int akm8975_probe(struct i2c_client *client, const struct i2c_device_id *id)
+{
+	struct akm8975_data *akm;
+	int err = 0;
+	
+	AKMFUNC("akm8975_probe");
+
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		printk(KERN_ERR "AKM8975 akm8975_probe: check_functionality failed.\n");
+		err = -ENODEV;
+		goto exit0;
+	}
+	
+	/* Allocate memory for driver data */
+	akm = kzalloc(sizeof(struct akm8975_data), GFP_KERNEL);
+	if (!akm) {
+		printk(KERN_ERR "AKM8975 akm8975_probe: memory allocation failed.\n");
+		err = -ENOMEM;
+		goto exit1;
+	}
+	
+	INIT_WORK(&akm->work, akm8975_work_func);
+	i2c_set_clientdata(client, akm);
+	
+	this_client = client;
+	
+	/* Check connection */
+	err = AKECS_CheckDevice();
+	if (err < 0) {
+		printk(KERN_ERR "AKM8975 akm8975_probe: set power down mode error\n");
+		goto exit3;
+	}
+	akm->eoc_irq = client->irq; 
+	if (!akm->eoc_irq) {
+		dev_dbg(&akm->client->dev, "no IRQ?\n");
+		return -ENODEV;
+	}else{
+		akm->eoc_irq = gpio_to_irq(akm->eoc_irq);
 	} 
-	data->reg_cache[reg] = regval; 
-	
-	return true; 
-} 
- 
-/* 
- * Helper function to read a contiguous set of the I2C device's registers. 
- */ 
-static bool ak8975_read_data(struct i2c_client *client, 
-	u8 reg, u8 length, u8 *buffer) 
-{ 
-	struct i2c_msg msg[2]; 
-	u8 w_data[2]; 
-	int ret = 0; 
-	
-	w_data[0] = reg; 
-	
-	msg[0].addr = client->addr; 
-	msg[0].flags = I2C_M_NOSTART; /* set repeated start and write */ 
-	msg[0].len = 1; 
-	msg[0].buf = w_data; 
-	
-	msg[1].addr = client->addr; 
-	msg[1].flags = I2C_M_RD; 
-	msg[1].len = length; 
-	msg[1].buf = buffer; 
-	
-	ret = i2c_transfer(client->adapter, msg, 2); 
-	if (ret < 0) { 
-		dev_err(&client->dev, "Read from device fails\n"); 
-		return false; 
-	} 
-	
-	return true; 
-} 
- 
-/* 
- * Perform some start-of-day setup, including reading the asa calibration 
- * values and caching them. 
- */ 
-static int ak8975_setup(struct i2c_client *client) 
-{ 
-	struct ak8975_data *data = i2c_get_clientdata(client); 
-	u8 device_id; 
-	u8 buffer[3]; 
-	bool status; 
-	
-	/* Confirm that the device we're talking to is really an AK8975. */ 
-	status = ak8975_read_data(client, AK8975_REG_WIA, 1, &device_id); 
-	if ((!status) || (device_id != AK8975_DEVICE_ID)) { 
-		dev_err(&client->dev, "Device ak8975 not found\n"); 
-		return -ENODEV; 
-	} 
-	
-	/* Write the fused rom access mode. */ 
-	status = ak8975_write_data(client, AK8975_REG_CNTL, AK8975_REG_CNTL_MODE_FUSE_ROM, AK8975_REG_CNTL_MODE_MASK, AK8975_REG_CNTL_MODE_SHIFT); 
-	if (!status) { 
-		dev_err(&client->dev, "Error in setting fuse access mode\n"); 
-		return false; 
-	} 
-	
-	/* Get asa data and store in the device data. */ 
-	status = ak8975_read_data(client, AK8975_REG_ASAX, 3, buffer); 
-	if (!status) { 
-		dev_err(&client->dev, "Not able to read asa data\n"); 
-		return -ENODEV; 
-	} 
-	
-	data->asa[0] = buffer[0] & 0xFF; 
-	data->asa[1] = buffer[1] & 0xFF; 
-	data->asa[2] = buffer[2] & 0xFF; 
-	
-	return 0; 
-} 
- 
-/* 
- * Shows the device's mode. 0 = off, 1 = on. 
- */ 
-static ssize_t show_mode(struct device *dev, struct device_attribute *devattr, 
-	char *buf) 
-{ 
-	struct iio_dev *indio_dev = dev_get_drvdata(dev); 
-	struct ak8975_data *data = indio_dev->dev_data; 
-	
-	return sprintf(buf, "%lu\n", data->mode); 
-} 
- 
-/* 
- * Sets the device's mode. 0 = off, 1 = on. The device's mode must be on 
- * for the magn raw attributes to be available. 
- */ 
-static ssize_t store_mode(struct device *dev, struct device_attribute *devattr, 
-	const char *buf, size_t count) 
-{ 
-	struct iio_dev *indio_dev = dev_get_drvdata(dev); 
-	struct ak8975_data *data = indio_dev->dev_data; 
-	struct i2c_client *client = data->client; 
-	unsigned long oval; 
-	bool status; 
-	
-	/* Convert mode string and do some basic sanity checking on it. 
-	only 0 or 1 are valid. */ 
-	if (strict_strtol(buf, 10, &oval)) 
-		return -EINVAL; 
-	
-	if ((oval < 0) || (oval > 1)) { 
-		dev_err(dev, "mode value is not supported\n"); 
-		return -EINVAL; 
-	} 
-	
-	mutex_lock(&data->lock); 
-	
-	/* Write the mode to the device. */ 
-	if (data->mode != oval) { 
-		status = ak8975_write_data(client, AK8975_REG_CNTL, (u8)oval, AK8975_REG_CNTL_MODE_MASK, AK8975_REG_CNTL_MODE_SHIFT); 	
-		if (!status) { 
-			dev_err(&client->dev, "Error in setting mode\n"); 
-			mutex_unlock(&data->lock); 
-			return -EINVAL; 
-		} 
-		data->mode = oval; 
-	} 
-	
-	mutex_unlock(&data->lock); 
-	
-	return count; 
-} 
- 
-/* 
- * Emits the ASA sensitivity adjustment value for the x, y, or z axis. 
- * These ASA values are read from the sensor device at start of day, and 
- * cached in the device context struct. 
- */ 
-static ssize_t show_calibscale(struct device *dev, 
-	struct device_attribute *devattr, char *buf) 
-{ 
-	struct iio_dev *indio_dev = dev_get_drvdata(dev); 
-	struct ak8975_data *data = indio_dev->dev_data; 
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(devattr); 
-	
-	if (!data) { 
-		dev_err(dev, "No device found\n"); 
-		return -ENODEV; 
-	} 
-	
-	return sprintf(buf, "%d\n", data->asa[this_attr->address]); 
-} 
- 
-/* 
- * Emits the raw flux value for the x, y, or z axis. 
- * 
- * Adjusting the flux value with the sensitivity adjustment value should be 
- * done via the following formula: 
- * 
- * Hadj = H * ( ( ( (ASA-128)*0.5 ) / 128 ) + 1 ) 
- * 
- * where H is the raw value, ASA is the sensitivity adjustment, and Hadj 
- * is the resultant adjusted value. 
- */ 
-static ssize_t show_raw(struct device *dev, struct device_attribute *devattr, 
-	char *buf) 
-{ 
-	struct iio_dev *indio_dev = dev_get_drvdata(dev); 
-	struct ak8975_data *data = indio_dev->dev_data; 
-	struct i2c_client *client = data->client; 
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(devattr); 
-	u32 timeout_ms = AK8975_MAX_CONVERSION_TIMEOUT; 
-	u16 meas_reg; 
-	s16 raw; 
-	u8 read_status; 
-	bool status; 
-	int state; 
-	
-	/* Set up the device for taking a sample. */ 
-	status = ak8975_write_data(client, AK8975_REG_CNTL, AK8975_REG_CNTL_MODE_ONCE, AK8975_REG_CNTL_MODE_MASK, AK8975_REG_CNTL_MODE_SHIFT); 
-	if (!status) { 
-		dev_err(&client->dev, "Error in setting operating mode\n"); 
-		return false; 
-	} 
-	
-	/* Wait for the conversion to complete. */ 
-	while (timeout_ms) { 
-		msleep(AK8975_CONVERSION_DONE_POLL_TIME); 
-		state = (gpio_get_value(data->eoc_gpio) ? 1 : 0); 
-		if (state) 
-		break; 
-		timeout_ms -= AK8975_CONVERSION_DONE_POLL_TIME; 
-	} 
-	if (!timeout_ms) { 
-		dev_err(&client->dev, "Conversion timeout happend\n"); 
-		return false; 
-	} 
-	
-	status = ak8975_read_data(client, AK8975_REG_ST1, 1, &read_status); 
-	if (!status) { 
-		dev_err(&client->dev, "Error in reading ST1\n"); 
-		return false; 
-	} 
-	
-	if (read_status & AK8975_REG_ST1_DRDY_MASK) { 
-		status = ak8975_read_data(client, AK8975_REG_ST2, 1, &read_status); 
-		if (!status) { 
-			dev_err(&client->dev, "Error in reading ST2\n"); 
-			return false; 
-		} 
-		if (read_status & (AK8975_REG_ST2_DERR_MASK | AK8975_REG_ST2_HOFL_MASK)) { 
-			dev_err(&client->dev, "ST2 status error 0x%x\n", 
-			read_status); 
-			return false; 
-		} 
-	} 
-	
-	/* Read the flux value from the appropriate register 
-	(the register is specified in the iio device attributes). */ 
-	status = ak8975_read_data(client, this_attr->address, 2, 
-	(u8 *)&meas_reg); 
-	if (!status) { 
-		dev_err(&client->dev, "Read axis data fails\n"); 
-		return false; 
-	} 
-	
-	/* Endian conversion of the measured values */ 
-	raw = (s16) (le16_to_cpu(meas_reg)); 
-	
-	return sprintf(buf, "%d\n", raw); 
-} 
- 
-static IIO_DEVICE_ATTR(mode, S_IRUGO | S_IWUSR, show_mode, store_mode, 0); 
-static IIO_DEVICE_ATTR(magn_x_calibscale, S_IRUGO, show_calibscale, NULL, 0); 
-static IIO_DEVICE_ATTR(magn_y_calibscale, S_IRUGO, show_calibscale, NULL, 1); 
-static IIO_DEVICE_ATTR(magn_z_calibscale, S_IRUGO, show_calibscale, NULL, 2); 
-static IIO_DEV_ATTR_MAGN_X(show_raw, AK8975_REG_HXL); 
-static IIO_DEV_ATTR_MAGN_Y(show_raw, AK8975_REG_HYL); 
-static IIO_DEV_ATTR_MAGN_Z(show_raw, AK8975_REG_HZL); 
- 
-static struct attribute *ak8975_attr[] = { 
-	&iio_dev_attr_mode.dev_attr.attr, 
-	&iio_dev_attr_magn_x_calibscale.dev_attr.attr, 
-	&iio_dev_attr_magn_y_calibscale.dev_attr.attr, 
-	&iio_dev_attr_magn_z_calibscale.dev_attr.attr, 
-	&iio_dev_attr_magn_x_raw.dev_attr.attr, 
-	&iio_dev_attr_magn_y_raw.dev_attr.attr, 
-	&iio_dev_attr_magn_z_raw.dev_attr.attr, 
-	NULL 
-}; 
- 
-static struct attribute_group ak8975_attr_group = { 
-	.attrs = ak8975_attr, 
-}; 
- 
-static int ak8975_probe(struct i2c_client *client, 
-	const struct i2c_device_id *id) 
-{ 
-	struct ak8975_data *data; 
-	int err; 
-	
-	/* Allocate our device context. */ 
-	data = kzalloc(sizeof(struct ak8975_data), GFP_KERNEL); 
-	if (!data) { 
-		dev_err(&client->dev, "Memory allocation fails\n"); 
-		err = -ENOMEM; 
-		goto exit; 
-	} 
-	
-	i2c_set_clientdata(client, data); 
-	data->client = client; 
-	
-	mutex_init(&data->lock); 
-	
-	/* Grab and set up the supplied GPIO. */ 
-	data->eoc_irq = client->irq; 
-	data->eoc_gpio = irq_to_gpio(client->irq); 
-	
-	err = gpio_request(data->eoc_gpio, "ak_8975"); 
+	err = gpio_request(client->irq, "ak_8975"); 
 	if (err < 0) { 
-		dev_err(&client->dev, "failed to request GPIO %d, error %d\n", 
-		data->eoc_gpio, err); 
-		goto exit_free; 
+		dev_err(&client->dev, "failed to request GPIO, error %d\n", err); 
+		goto exit3; 
 	} 
+	/* IRQ */
+	err = request_irq(akm->eoc_irq, akm8975_interrupt, IRQ_TYPE_EDGE_RISING,
+					  "akm8975_DRDY", akm);
+	if (err < 0) {
+		printk(KERN_ERR "AKM8975 akm8975_probe: request irq failed\n");
+		goto exit4;
+	}
 	
-	err = gpio_direction_input(data->eoc_gpio); 
-	if (err < 0) { 
-		dev_err(&client->dev, "Failed to configure input direction for GPIO %d, error %d\n", data->eoc_gpio, err); 
-		gpio_free(data->eoc_gpio); 
-		goto exit_gpio; 
-	} 
+	/* Declare input device */
+	akm->input_dev = input_allocate_device();
+	if (!akm->input_dev) {
+		err = -ENOMEM;
+		printk(KERN_ERR
+		       "AKM8975 akm8975_probe: Failed to allocate input device\n");
+		goto exit5;
+	}
+	/* Setup input device */
+	set_bit(EV_ABS, akm->input_dev->evbit);
+	/* yaw (0, 360) */
+	input_set_abs_params(akm->input_dev, ABS_RX, 0, 23040, 0, 0);
+	/* pitch (-180, 180) */
+	input_set_abs_params(akm->input_dev, ABS_RY, -11520, 11520, 0, 0);
+	/* roll (-90, 90) */
+	input_set_abs_params(akm->input_dev, ABS_RZ, -5760, 5760, 0, 0);
+	/* x-axis acceleration (720 x 8G) */
+	input_set_abs_params(akm->input_dev, ABS_X, -5760, 5760, 0, 0);
+	/* y-axis acceleration (720 x 8G) */
+	input_set_abs_params(akm->input_dev, ABS_Y, -5760, 5760, 0, 0);
+	/* z-axis acceleration (720 x 8G) */
+	input_set_abs_params(akm->input_dev, ABS_Z, -5760, 5760, 0, 0);
+	/* temparature */
+	/*
+	input_set_abs_params(akm->input_dev, ABS_THROTTLE, -30, 85, 0, 0);
+	 */
+	/* status of magnetic sensor */
+	input_set_abs_params(akm->input_dev, ABS_RUDDER, -32768, 3, 0, 0);
+	/* status of acceleration sensor */
+	input_set_abs_params(akm->input_dev, ABS_WHEEL, -32768, 3, 0, 0);
+	/* x-axis of raw magnetic vector (-4096, 4095) */
+	input_set_abs_params(akm->input_dev, ABS_HAT0X, -20480, 20479, 0, 0);
+	/* y-axis of raw magnetic vector (-4096, 4095) */
+	input_set_abs_params(akm->input_dev, ABS_HAT0Y, -20480, 20479, 0, 0);
+	/* z-axis of raw magnetic vector (-4096, 4095) */
+	input_set_abs_params(akm->input_dev, ABS_BRAKE, -20480, 20479, 0, 0);
+	/* Set name */
+	akm->input_dev->name = "compass";
 	
-	/* Perform some basic start-of-day setup of the device. */ 
-	err = ak8975_setup(client); 
-	if (err < 0) { 
-		dev_err(&client->dev, "AK8975 initialization fails\n"); 
-		goto exit_gpio; 
-	} 
+	/* Register */
+	err = input_register_device(akm->input_dev);
+	if (err) {
+		printk(KERN_ERR
+		       "AKM8975 akm8975_probe: Unable to register input device\n");
+		goto exit6;
+	}
 	
-	/* Register with IIO */ 
-	data->indio_dev = iio_allocate_device(); 
-	if (data->indio_dev == NULL) { 
-		err = -ENOMEM; 
-		goto exit_gpio; 
-	} 
+	err = misc_register(&akmd_device);
+	if (err) {
+		printk(KERN_ERR
+			   "AKM8975 akm8975_probe: akmd_device register failed\n");
+		goto exit7;
+	}
 	
-	data->indio_dev->dev.parent = &client->dev; 
-	data->indio_dev->attrs = &ak8975_attr_group; 
-	data->indio_dev->dev_data = (void *)(data); 
-	data->indio_dev->driver_module = THIS_MODULE; 
-	data->indio_dev->modes = INDIO_DIRECT_MODE; 
+	err = misc_register(&akm_aot_device);
+	if (err) {
+		printk(KERN_ERR
+		       "AKM8975 akm8975_probe: akm_aot_device register failed\n");
+		goto exit8;
+	}
 	
-	err = iio_device_register(data->indio_dev); 
-	if (err < 0) 
-		goto exit_free_iio; 
+	mutex_init(&sense_data_mutex);
 	
-	return 0; 
+	init_waitqueue_head(&data_ready_wq);
+	init_waitqueue_head(&open_wq);
 	
-exit_free_iio: 
-	iio_free_device(data->indio_dev); 
-exit_gpio: 
-	gpio_free(data->eoc_gpio); 
-exit_free: 
-	kfree(data); 
-exit: 
-	return err; 
-} 
- 
-static int ak8975_remove(struct i2c_client *client) 
-{ 
-	struct ak8975_data *data = i2c_get_clientdata(client); 
+	/* As default, report all information */
+	atomic_set(&m_flag, 1);
+	atomic_set(&a_flag, 1);
+	atomic_set(&mv_flag, 1);
 	
-	iio_device_unregister(data->indio_dev); 
-	iio_free_device(data->indio_dev); 
+	akm->akm_early_suspend.suspend = akm8975_early_suspend;
+	akm->akm_early_suspend.resume = akm8975_early_resume;
+	register_early_suspend(&akm->akm_early_suspend);
 	
-	gpio_free(data->eoc_gpio); 
+	AKMDBG("successfully probed.");
+	return 0;
 	
-	kfree(data); 
+exit8:
+	misc_deregister(&akmd_device);
+exit7:
+	input_unregister_device(akm->input_dev);
+exit6:
+	input_free_device(akm->input_dev);
+exit5:
+	free_irq(client->irq, akm);
+exit4:
+exit3:
+	kfree(akm);
+exit1:
+exit0:
+	return err;
 	
-	return 0; 
-} 
- 
-static const struct i2c_device_id ak8975_id[] = { 
-	{"ak8975", 0}, 
-	{} 
-}; 
- 
-MODULE_DEVICE_TABLE(i2c, ak8975_id); 
- 
-static struct i2c_driver ak8975_driver = { 
-	.driver = { 
-	.name = "ak8975", 
-		}, 
-	.probe = ak8975_probe, 
-	.remove = __devexit_p(ak8975_remove), 
-	.id_table = ak8975_id, 
-}; 
- 
-static int __init ak8975_init(void) 
-{ 
-	return i2c_add_driver(&ak8975_driver); 
-} 
- 
-static void __exit ak8975_exit(void) 
-{ 
-	i2c_del_driver(&ak8975_driver); 
-} 
- 
-module_init(ak8975_init); 
-module_exit(ak8975_exit); 
- 
-MODULE_AUTHOR("Laxman Dewangan <ldewangan [at] nvidia>"); 
-MODULE_DESCRIPTION("AK8975 magnetometer driver"); 
-MODULE_LICENSE("GPL"); 
+}
+
+static int akm8975_remove(struct i2c_client *client)
+{
+	struct akm8975_data *akm = i2c_get_clientdata(client);
+	AKMFUNC("akm8975_remove");
+	unregister_early_suspend(&akm->akm_early_suspend);
+	misc_deregister(&akm_aot_device);
+	misc_deregister(&akmd_device);
+	input_unregister_device(akm->input_dev);
+	free_irq(client->irq, akm);
+	kfree(akm);
+	AKMDBG("successfully removed.");
+	return 0;
+}
+
+static const struct i2c_device_id akm8975_id[] = {
+	{AKM8975_I2C_NAME, 0 },
+	{ }
+};
+
+static struct i2c_driver akm8975_driver = {
+	.probe		= akm8975_probe,
+	.remove 	= akm8975_remove,
+	.id_table	= akm8975_id,
+	.driver = {
+		.name = AKM8975_I2C_NAME,
+	},
+};
+
+static int __init akm8975_init(void)
+{
+	printk(KERN_INFO "AKM8975 compass driver: initialize\n");
+	return i2c_add_driver(&akm8975_driver);
+}
+
+static void __exit akm8975_exit(void)
+{
+	printk(KERN_INFO "AKM8975 compass driver: release\n");
+	i2c_del_driver(&akm8975_driver);
+}
+
+module_init(akm8975_init);
+module_exit(akm8975_exit);
+
+MODULE_AUTHOR("viral wang <viral_wang@htc.com>");
+MODULE_DESCRIPTION("AKM8975 compass driver");
+MODULE_LICENSE("GPL");
+

@@ -41,7 +41,7 @@
 
 #include "rk2818-sdmmc.h"
 
-#define RK29_SDMMC_DATA_ERROR_FLAGS	(SDMMC_INT_DRTO | SDMMC_INT_DCRC | SDMMC_INT_HTO | SDMMC_INT_SBE | SDMMC_INT_EBE)
+#define RK29_SDMMC_DATA_ERROR_FLAGS	(SDMMC_INT_DRTO | SDMMC_INT_DCRC | SDMMC_INT_HTO | SDMMC_INT_SBE | SDMMC_INT_EBE | SDMMC_INT_FRUN)
 #define RK29_SDMMC_CMD_ERROR_FLAGS	(SDMMC_INT_RTO | SDMMC_INT_RCRC | SDMMC_INT_RE | SDMMC_INT_HLE)
 #define RK29_SDMMC_ERROR_FLAGS		(RK29_SDMMC_DATA_ERROR_FLAGS | RK29_SDMMC_CMD_ERROR_FLAGS | SDMMC_INT_HLE)
 #define RK29_SDMMC_SEND_STATUS		1
@@ -310,6 +310,8 @@ static u32 rk29_sdmmc_prepare_command(struct mmc_host *mmc,
 
 	if(cmdr == 12) 
 		cmdr |= SDMMC_CMD_STOP;
+	else if(cmdr == 13) 
+		cmdr &= ~SDMMC_CMD_PRV_DAT_WAIT;
 	else 
 		cmdr |= SDMMC_CMD_PRV_DAT_WAIT;
 
@@ -338,12 +340,15 @@ static void rk29_sdmmc_start_command(struct rk29_sdmmc *host,
 		struct mmc_command *cmd, u32 cmd_flags)
 {
  	int tmo = 5000;
+	unsigned long flags;
  	host->cmd = cmd;
 	dev_vdbg(&host->pdev->dev,
 			"start cmd:%d ARGR=0x%08x CMDR=0x%08x\n",
 			cmd->opcode, cmd->arg, cmd_flags);
+	local_irq_save(flags);
 	rk29_sdmmc_write(host->regs, SDMMC_CMDARG, cmd->arg); // write to SDMMC_CMDARG register
 	rk29_sdmmc_write(host->regs, SDMMC_CMD, cmd_flags | SDMMC_CMD_START); // write to SDMMC_CMD register
+	local_irq_restore(flags);
 
 	/* wait until CIU accepts the command */
 	while (--tmo && (rk29_sdmmc_read(host->regs, SDMMC_CMD) & SDMMC_CMD_START)) 
@@ -374,10 +379,10 @@ static int rk29_sdmmc_wait_unbusy(struct rk29_sdmmc *host)
 		time_out--;
 		if (!time_out) {
 			time_out = time_out_us;
-			rk29_sdmmc_reset_fifo(host);
-			time_out2--;
+			rk29_sdmmc_reset_fifo(host);			
 			if (!time_out2)
 				break;
+			time_out2--;
 		}
 	}
 
@@ -400,7 +405,7 @@ static void rk29_sdmmc_dma_cleanup(struct rk29_sdmmc *host)
 	if (data) 
 		dma_unmap_sg(&host->pdev->dev, data->sg, data->sg_len,
 		     ((data->flags & MMC_DATA_WRITE)
-		      ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
+		      ? DMA_TO_DEVICE : DMA_FROM_DEVICE));		      	
 }
 
 static void rk29_sdmmc_stop_dma(struct rk29_sdmmc *host)
@@ -410,7 +415,7 @@ static void rk29_sdmmc_stop_dma(struct rk29_sdmmc *host)
 	if (host->dma_chn > 0) {
 		//dma_stop_channel(host->dma_chn);
 		rk29_dma_ctrl(host->dma_chn,RK29_DMAOP_STOP);
-		rk29_sdmmc_dma_cleanup(host);
+		rk29_sdmmc_dma_cleanup(host);		
 	} else {
 		/* Data transfer was stopped by the interrupt handler */
 		rk29_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
@@ -425,8 +430,7 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 
 	if(host->use_dma == 0)
 		return;
-	dev_vdbg(&host->pdev->dev, "DMA complete\n");
-			
+	dev_vdbg(&host->pdev->dev, "DMA complete\n");	
 	spin_lock(&host->lock);
 	rk29_sdmmc_dma_cleanup(host);
 	/*
@@ -481,7 +485,13 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	if (data->flags & MMC_DATA_READ)
 		direction = RK29_DMASRC_HW;  
 	else
-		direction = RK29_DMASRC_MEM;  						
+		direction = RK29_DMASRC_MEM;  
+	if(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_FIFO_FULL ) {
+		rk29_sdmmc_reset_fifo(host);
+		printk("%s %d fifo full reset\n",__FUNCTION__,__LINE__);
+	}	
+	rk29_dma_ctrl(host->dma_chn,RK29_DMAOP_STOP);
+	rk29_dma_ctrl(host->dma_chn,RK29_DMAOP_FLUSH);						
     rk29_dma_devconfig(host->dma_chn, direction, (unsigned long )(host->dma_addr));
 	dma_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, 
 			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);						                	   
@@ -775,6 +785,8 @@ static void rk29_sdmmc_command_complete(struct rk29_sdmmc *host,
 		cmd->error = -EILSEQ;
 	else if (status & SDMMC_INT_RE)
 		cmd->error = -EIO;
+	else if(status & SDMMC_INT_HLE)
+		cmd->error = -EIO;
 	else
 		cmd->error = 0;
 
@@ -869,8 +881,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 						status);
 					data->error = -EIO;
 				}
-			}
-			else {
+			}else {
 				data->bytes_xfered = data->blocks * data->blksz;
 				data->error = 0;
 			}
@@ -956,10 +967,8 @@ static void rk29_sdmmc_read_data_pio(struct rk29_sdmmc *host)
 			old_len = len;
 		if (likely(offset + len <= sg->length)) {
 			rk29_sdmmc_pull_data(host, (void *)(buf + offset),len);
-
 			offset += len;
 			nbytes += len;
-
 			if (offset == sg->length) {
 				flush_dcache_page(sg_page(sg));
 				host->sg = sg = sg_next(sg);
@@ -987,7 +996,10 @@ static void rk29_sdmmc_read_data_pio(struct rk29_sdmmc *host)
 		rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_RXDR); // clear RXDR interrupt
 		if (status & RK29_SDMMC_DATA_ERROR_FLAGS) {
 			host->data_status = status;
-			data->bytes_xfered += nbytes;
+			if(data)
+				data->bytes_xfered += nbytes;
+			else
+				printk("%s %d host data NULL err",__FUNCTION__,__LINE__);
 			smp_wmb();
 			rk29_sdmmc_set_pending(host, EVENT_DATA_ERROR);
 			tasklet_schedule(&host->tasklet);
@@ -997,11 +1009,17 @@ static void rk29_sdmmc_read_data_pio(struct rk29_sdmmc *host)
 	} while (status & SDMMC_INT_RXDR); // if the RXDR is ready let read again
 	len = SDMMC_GET_FCNT(rk29_sdmmc_read(host->regs, SDMMC_STATUS));
 	host->pio_offset = offset;
-	data->bytes_xfered += nbytes;
+	if(data)
+		data->bytes_xfered += nbytes;
+	else
+		printk("%s %d host data NULL err",__FUNCTION__,__LINE__);	
 	return;
 
 done:
-	data->bytes_xfered += nbytes;
+	if(data)
+		data->bytes_xfered += nbytes;
+	else
+		printk("%s %d host data NULL err",__FUNCTION__,__LINE__);	
 	smp_wmb();
 	rk29_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
 }
@@ -1051,7 +1069,10 @@ static void rk29_sdmmc_write_data_pio(struct rk29_sdmmc *host)
 		rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_TXDR); // clear RXDR interrupt
 		if (status & RK29_SDMMC_DATA_ERROR_FLAGS) {
 			host->data_status = status;
-			data->bytes_xfered += nbytes;
+			if(data)
+				data->bytes_xfered += nbytes;
+			else
+				printk("%s %d host data NULL err",__FUNCTION__,__LINE__);	
 			smp_wmb();
 			rk29_sdmmc_set_pending(host, EVENT_DATA_ERROR);
 			tasklet_schedule(&host->tasklet);
@@ -1060,12 +1081,17 @@ static void rk29_sdmmc_write_data_pio(struct rk29_sdmmc *host)
 	} while (status & SDMMC_INT_TXDR); // if TXDR, let write again
 
 	host->pio_offset = offset;
-	data->bytes_xfered += nbytes;
-
+	if(data)
+		data->bytes_xfered += nbytes;
+	else
+		printk("%s %d host data NULL err",__FUNCTION__,__LINE__);	
 	return;
 
 done:
-	data->bytes_xfered += nbytes;
+	if(data)
+		data->bytes_xfered += nbytes;
+	else
+		printk("%s %d host data NULL err",__FUNCTION__,__LINE__);	
 	smp_wmb();
 	rk29_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
 }
@@ -1133,16 +1159,17 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 		if (!pending)
 			break;	
 		if(pending & SDMMC_INT_CD) {
-		    writel(SDMMC_INT_CD, host->regs + SDMMC_RINTSTS);  // clear sd detect int
+		    rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, SDMMC_INT_CD); // clear sd detect int
 			present = rk29_sdmmc_get_cd(host->mmc);
 			present_old = test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
 			if(present != present_old) {
 				if (present != 0) {
 					set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
-				} else {
+					mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(200));
+				} else {					
 					clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+					mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(10));					
 				}							
-				mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(100));
 			}
 		}	
 		if(pending & RK29_SDMMC_CMD_ERROR_FLAGS) {
@@ -1160,7 +1187,6 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 			rk29_sdmmc_set_pending(host, EVENT_DATA_ERROR);
 			tasklet_schedule(&host->tasklet);
 		}
-
 
 		if(pending & SDMMC_INT_DTO) {
 		    rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_DTO);  // clear interrupt
@@ -1209,12 +1235,12 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 static void rk29_sdmmc_detect_change(unsigned long data)
 {
 	struct mmc_request *mrq;
-	struct rk29_sdmmc *host = (struct rk29_sdmmc *)data;;
+	struct rk29_sdmmc *host = (struct rk29_sdmmc *)data;
    
 	smp_rmb();
 	if (test_bit(RK29_SDMMC_SHUTDOWN, &host->flags))
 		return;		
-	spin_lock(&host->lock);	
+	spin_lock(&host->lock);		
 	/* Clean up queue if present */
 	mrq = host->mrq;
 	if (mrq) {
@@ -1263,8 +1289,8 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 				spin_unlock(&host->lock);
 				mmc_request_done(host->mmc, mrq);
 				spin_lock(&host->lock);
-		}
-		}	
+			}
+	}	
 	spin_unlock(&host->lock);	
 	mmc_detect_change(host->mmc, 0);	
 }

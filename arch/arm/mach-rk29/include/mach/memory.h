@@ -25,5 +25,13 @@
 
 #define CONSISTENT_DMA_SIZE	SZ_8M
 
+/*
+ * SRAM memory whereabouts
+ */
+#define SRAM_CODE_OFFSET	0xff400000
+#define SRAM_CODE_END		0xff401fff
+#define SRAM_DATA_OFFSET	0xff402000
+#define SRAM_DATA_END		0xff403fff
+
 #endif
 

@@ -42,10 +42,12 @@
 
 int dhd_msg_level;
 
-
 #if defined(CSCAN)
 #include <wl_iw.h>
 #endif 
+
+#define CONFIG_BCM4329_FW_PATH      "/etc/firmware/fw_bcm4329.bin"
+#define CONFIG_BCM4329_NVRAM_PATH   "/etc/firmware/nvram_bcm4329_B23_26M.txt"
 
 char fw_path[MOD_PARAM_PATHLEN];
 char nv_path[MOD_PARAM_PATHLEN];

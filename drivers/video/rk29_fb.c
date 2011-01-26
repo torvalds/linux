@@ -1879,7 +1879,7 @@ struct suspend_info {
 	struct rk29fb_inf *inf;
 };
 
-void suspend(struct early_suspend *h)
+static void rk29fb_suspend(struct early_suspend *h)
 {
 	struct suspend_info *info = container_of(h, struct suspend_info,
 						early_suspend);
@@ -1925,7 +1925,7 @@ void suspend(struct early_suspend *h)
 
 }
 
-void resume(struct early_suspend *h)
+static void rk29fb_resume(struct early_suspend *h)
 {
 	struct suspend_info *info = container_of(h, struct suspend_info,
 					early_suspend);
@@ -1969,9 +1969,9 @@ void resume(struct early_suspend *h)
 	memcpy((u8*)inf->preg, (u8*)&inf->regbak, 0xa4);  //resume reg
 }
 
-struct suspend_info suspend_info = {
-	.early_suspend.suspend = suspend,
-	.early_suspend.resume = resume,
+static struct suspend_info suspend_info = {
+	.early_suspend.suspend = rk29fb_suspend,
+	.early_suspend.resume = rk29fb_resume,
 	.early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
 };
 #endif

@@ -26,6 +26,7 @@ extern int rknand_queue_read(int Index, int nSec, void *buf);
 extern int rknand_queue_write(int Index, int nSec, void *buf,int mode);
 extern int rknand_buffer_init(void);
 extern void rknand_buffer_shutdown(void);
+extern void rknand_buffer_sync(void);
 
 #define DRIVER_NAME	"rk29xxnand"
 const char rknand_base_version[] = "rknand_base.c version: 4.20 20101118";
@@ -268,7 +269,7 @@ static int rk28xxnand_read(struct mtd_info *mtd, loff_t from, size_t len,
     if(sector)
     {
         {
-		    ret = FtlRead(2,LBA, sector, buf);
+		    ret = NandRead(LBA, sector, buf);
         }
     }
     rknand_release_device();
@@ -290,11 +291,11 @@ static int rk28xxnand_write(struct mtd_info *mtd, loff_t from, size_t len,
 		if(LBA < SysImageWriteEndAdd)//0x4E000)
 		{
 			printk(">>> FtlWriteImage: LBA=0x%08X  sector=%d\n",LBA, sector);
-			ret = FtlWriteImage(LBA&0xFFFFFFE0, sector, (void *)buf);// LBA align to 32
+			ret = NandWriteImage(LBA&0xFFFFFFE0, sector, (void *)buf);// LBA align to 32
         }
 		else
         {
-            ret = FtlWrite(2,LBA, sector, (void *)buf);
+            ret = NandWrite(LBA, sector, (void *)buf);
         }
 	}
     rknand_release_device();
@@ -356,6 +357,9 @@ static int rk28xxnand_erase(struct mtd_info *mtd, struct erase_info *instr)
 static void rk28xxnand_sync(struct mtd_info *mtd)
 {
 	NAND_DEBUG(NAND_DEBUG_LEVEL0,"rk28xxnand_sync: \n");
+#ifdef CONFIG_MTD_RKNAND_BUFFER
+    rknand_buffer_sync();
+#endif
 }
 
 static int rk28xxnand_init(struct rknand_info *nand_info)
@@ -371,17 +375,13 @@ static int rk28xxnand_init(struct rknand_info *nand_info)
 	rknand->pFlashCallBack = NULL;
 	init_waitqueue_head(&rknand->wq);
     NAND_DEBUG(NAND_DEBUG_LEVEL0,"FTLInit ...: \n");
-#ifdef PAGE_REMAP
-    if(FTLInit())
-#else
-    if(FTLInit_WithoutPageRemap())
-#endif
+    if(NandInit())
 	{
 		NAND_DEBUG(NAND_DEBUG_LEVEL0,"FTLInit Error: \n");
 		return -ENXIO;
     }
     NAND_DEBUG(NAND_DEBUG_LEVEL0,"FTLInit OK: \n");
-    mtd->size = (uint64_t)FtlGetCapacity(0xFF)*0x200;
+    mtd->size = (uint64_t)NandGetCapacity()*0x200;
     //readflash modify rk28_partition_info
     
     NAND_DEBUG(NAND_DEBUG_LEVEL0,"mtd->size: 0x%012llx\n",mtd->size);
@@ -550,7 +550,7 @@ static int rknand_probe(struct platform_device *pdev)
         }
     }
 
-    FtlSetSysProtAddr(SysImageWriteEndAdd);
+    NandSetSysProtAddr(SysImageWriteEndAdd);
 	dev_set_drvdata(&pdev->dev, nand_info);
 
 	return 0;
@@ -601,7 +601,8 @@ static int rknand_resume(struct platform_device *pdev)
 void rknand_shutdown(struct platform_device *pdev)
 {
 #ifdef CONFIG_MTD_RKNAND_BUFFER
-    NAND_DEBUG(NAND_DEBUG_LEVEL0,"rknand_shutdown...\n");
+    //NAND_DEBUG(NAND_DEBUG_LEVEL0,"rknand_shutdown...\n");
+    printk("rknand_shutdown...\n");
     gpNandInfo->rknand.rknand_schedule_enable = 0;
     rknand_buffer_shutdown();    
 #else
@@ -611,12 +612,12 @@ void rknand_shutdown(struct platform_device *pdev)
     if (nand_info->state == FL_READY)
     {
         nand_info->state = FL_UNVALID;
-        FtlClose();
+        NandDeInit();
         rknand_release_device();
     }
     else
     {
-        nand_info->pFlashCallBack = FtlClose;
+        nand_info->pFlashCallBack = NandDeInit;
     }
 #endif
 }
@@ -626,7 +627,7 @@ static struct platform_driver rknand_driver = {
 	//.remove		= rknand_remove,
 	.suspend	= rknand_suspend,
 	.resume		= rknand_resume,
-//	.shutdown   = rknand_shutdown,	// FIXME: temporarily disable by huangtao
+	.shutdown   = rknand_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
@@ -705,12 +706,12 @@ static int rknand_sys_shutdown(struct sys_device *dev)
     {
         //rknand_get_device(FL_UNVALID);
         nand_info->state = FL_UNVALID;
-        FtlClose();
+        NandDeInit();
         rknand_release_device();
     }
     else
     {//flash not ready,use call back
-        nand_info->pFlashCallBack = FtlClose;
+        nand_info->pFlashCallBack = NandDeInit;
     } 
 	return 0;
 }

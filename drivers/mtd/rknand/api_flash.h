@@ -189,4 +189,13 @@ int FtlPageRead(int Index, int nSec, void *buf);
 ***************************************************************************/
 char GetSNSectorInfo(char * pbuf);
 
+
+extern int NandInit(void);
+extern int NandRead(unsigned int Index, unsigned int nSec, void * buf) ;
+extern int NandWriteImage(unsigned int Index, unsigned int nSec, void * buf);
+extern int NandWrite(unsigned int Index, unsigned int nSec, void * buf) ;
+extern int NandDeInit(void) ;
+extern unsigned int NandGetCapacity(void); 
+extern void NandSetSysProtAddr(unsigned int SysImageWriteEndAdd);
+
 #endif

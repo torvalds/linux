@@ -32,6 +32,7 @@
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/poll.h>
+#include <linux/platform_device.h>
 
 #include <asm/uaccess.h>
 
@@ -107,19 +108,21 @@ static void vpu_power_on(void)
 		return;
 	pr_debug("power domain on\n");
 	pmu_set_power_domain(PD_VCODEC, true);
-    udelay(10);
+	udelay(10);
 	clk_enable(aclk_vepu);
 	clk_enable(hclk_vepu);
 	clk_enable(aclk_ddr_vepu);
 	clk_enable(hclk_cpu_vcodec);
-    udelay(10);
-    writel( (1<<27), RK29_CRU_BASE +    CRU_SOFTRST0_CON );
-    writel( (1<<19), RK29_CRU_BASE +    CRU_SOFTRST2_CON );
-    writel( (1<<18), RK29_CRU_BASE +    CRU_SOFTRST2_CON );
-    writel( (1<<15), RK29_CRU_BASE +    CRU_SOFTRST2_CON );
-    udelay(10);
-    writel( 0, RK29_CRU_BASE +    CRU_SOFTRST0_CON );
-    writel( 0, RK29_CRU_BASE +    CRU_SOFTRST2_CON );
+	udelay(10);
+	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, true);
+	cru_set_soft_reset(SOFT_RST_VCODEC_AHB_BUS, true);
+	cru_set_soft_reset(SOFT_RST_VCODEC_AXI_BUS, true);
+	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, true);
+	udelay(10);
+	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, false);
+	cru_set_soft_reset(SOFT_RST_VCODEC_AHB_BUS, false);
+	cru_set_soft_reset(SOFT_RST_VCODEC_AXI_BUS, false);
+	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, false);
 	client.enabled = true;
 }
 
@@ -329,28 +332,6 @@ static irqreturn_t hx280enc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void vpu_reset_dec_asic(struct vpu_device * dev)
-{
-	unsigned int i, n = dev->iosize >> 2;
-
-	writel(0, dev->hwregs + DEC_INTERRUPT_REGISTER);
-
-	for (i = 1; i < n; i++) {
-		writel(0, dev->hwregs + i);
-	}
-}
-
-static void vpu_reset_enc_asic(struct vpu_device * dev)
-{
-	unsigned int i, n = dev->iosize >> 2;
-
-	writel(0, dev->hwregs + 14);
-
-	for (i = 4; i < n; i++) {
-		writel(0, dev->hwregs + i);
-	}
-}
-
 static int vpu_mmap(struct file *fp, struct vm_area_struct *vm)
 {
 	unsigned long pfn;
@@ -436,6 +417,39 @@ static struct miscdevice vpu_misc_device = {
 	.fops		= &vpu_fops,
 };
 
+#ifdef CONFIG_PM
+static int vpu_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	bool enabled = client.enabled;
+	vpu_power_off();
+	client.enabled = enabled;
+	return 0;
+}
+
+static int vpu_resume(struct platform_device *pdev)
+{
+	if (client.enabled) {
+		client.enabled = false;
+		vpu_power_on();
+	}
+	return 0;
+}
+
+static struct platform_device vpu_pm_device = {
+	.name          = "vpu",
+	.id            = -1,
+};
+
+static struct platform_driver vpu_pm_driver = {
+	.driver    = {
+		.name  = "vpu",
+		.owner = THIS_MODULE,
+	},
+	.suspend   = vpu_suspend,
+	.resume    = vpu_resume,
+};
+#endif
+
 static int __init vpu_init(void)
 {
 	int ret;
@@ -463,9 +477,6 @@ static int __init vpu_init(void)
 	atomic_set(&client.dec_event, 0);
 	atomic_set(&client.enc_event, 0);
 
-	vpu_reset_dec_asic(&dec_dev);	/* reset hardware */
-	vpu_reset_enc_asic(&enc_dev);	/* reset hardware */
-
 	/* get the IRQ line */
 	ret = request_irq(IRQ_VDPU, hx170dec_isr, 0, "hx170dec", (void *)&dec_dev);
 	if (ret != 0) {
@@ -486,6 +497,11 @@ static int __init vpu_init(void)
 	}
 
 	vpu_power_off();
+
+#ifdef CONFIG_PM
+	platform_device_register(&vpu_pm_device);
+	platform_driver_probe(&vpu_pm_driver, NULL);
+#endif
 	pr_info("init success\n");
 
 	return 0;
@@ -505,16 +521,12 @@ err_reserve_io:
 
 static void __exit vpu_exit(void)
 {
+#ifdef CONFIG_PM
+	platform_device_unregister(&vpu_pm_device);
+	platform_driver_unregister(&vpu_pm_driver);
+#endif
+
 	vpu_power_on();
-
-	/* clear dec IRQ */
-	writel(0, dec_dev.hwregs + DEC_INTERRUPT_REGISTER);
-	/* clear pp IRQ */
-	writel(0, dec_dev.hwregs + PP_INTERRUPT_REGISTER);
-
-	writel(0, enc_dev.hwregs + 14);	/* disable HW */
-	/* clear enc IRQ */
-	writel(0, enc_dev.hwregs + ENC_INTERRUPT_REGISTER);
 
 	misc_deregister(&vpu_misc_device);
 	free_irq(IRQ_VEPU, (void *)&enc_dev);

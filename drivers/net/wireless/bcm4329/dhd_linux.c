@@ -2387,8 +2387,9 @@ dhd_detach(dhd_pub_t *dhdp)
 	}
 }
 }
-static void __exit
-dhd_module_cleanup(void)
+
+//static void __exit dhd_module_cleanup(void)
+void rockchip_wifi_exit_module(void)
 {
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
@@ -2401,8 +2402,8 @@ dhd_module_cleanup(void)
 }
 
 
-static int __init
-dhd_module_init(void)
+//static int __init dhd_module_init(void)
+int rockchip_wifi_init_module(void)
 {
 	int error;
 
@@ -2474,8 +2475,24 @@ faild:
 	return -EINVAL;
 }
 
-module_init(dhd_module_init);
-module_exit(dhd_module_cleanup);
+int mv88w8686_if_sdio_init_module(void)
+{
+	return rockchip_wifi_init_module();
+}
+
+void mv88w8686_if_sdio_exit_module(void)
+{
+	rockchip_wifi_exit_module();
+}
+
+EXPORT_SYMBOL(rockchip_wifi_init_module);
+EXPORT_SYMBOL(rockchip_wifi_exit_module);
+EXPORT_SYMBOL(mv88w8686_if_sdio_init_module);
+EXPORT_SYMBOL(mv88w8686_if_sdio_exit_module);
+
+//module_init(rockchip_wifi_init_module);
+//module_exit(rockchip_wifi_exit_module);
+
 
 /*
  * OS specific functions required to implement DHD driver in OS independent way

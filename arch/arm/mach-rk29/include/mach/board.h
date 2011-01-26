@@ -159,7 +159,22 @@ struct it7260_platform_data {
 };
 
 
+struct akm8975_platform_data {
+	char layouts[3][3];
+	char project_name[64];
+	int gpio_DRDY;
+};
+
+
 void __init rk29_map_common_io(void);
 void __init rk29_clock_init(void);
+
+#define BOOT_MODE_NORMAL		0
+#define BOOT_MODE_FACTORY2		1
+#define BOOT_MODE_RECOVERY		2
+#define BOOT_MODE_CHARGE		3
+#define BOOT_MODE_POWER_TEST		4
+#define BOOT_MODE_OFFMODE_CHARGING	5
+int board_boot_mode(void);
 
 #endif

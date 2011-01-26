@@ -1,25 +1,16 @@
-config BCM4329
-	tristate "Broadcom 4329 wireless cards support"
-	depends on WIRELESS_EXT && MMC
-	---help---
-	  This module adds support for wireless adapters based on
-	  Broadcom 4329 chipset.
 
-	  This driver uses the kernel's wireless extensions subsystem.
-
-	  If you choose to build a module, it'll be called dhd. Say M if
-	  unsure.
-
-config BCM4329_FW_PATH
+choice BCM4329_MODULE_NAME
 	depends on BCM4329
-	string "Firmware path"
-	default "/etc/firmware/fw_bcm4329.bin"
+	prompt "BCM4329 WiFi module"
 	---help---
-	  Path to the firmware file.
+	  Different module need own firmware file even if they
+	  are based on the same BCM4329 WiFi chip.
 
-config BCM4329_NVRAM_PATH
-	depends on BCM4329
-	string "NVRAM path"
-	default "/etc/firmware/nvram_bcm4329_B23.txt"
-	---help---
-	  Path to the calibration file.
+	config BCM4329_SAMSUNG_B23
+	  bool "Samsung SWL-B23"
+
+	config BCM4329_USI
+	  bool "USI SWL-B23"
+
+endchoice
+

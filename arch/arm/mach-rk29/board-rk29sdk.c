@@ -42,6 +42,7 @@
 #include <mach/rk29_camera.h>                          /* ddl@rock-chips.com : camera support */
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 #include <mach/vpu_mem.h>
+#include <mach/sram.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
@@ -507,7 +508,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #if defined (CONFIG_SENSORS_AK8975)
 	{
 		.type    		= "ak8975",
-		.addr           = 0x1d,
+		.addr           = 0x0d,
 		.flags			= 0,
 		.irq			= RK29_PIN0_PA4,
 	},
@@ -1793,6 +1794,7 @@ static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tag
 static void __init machine_rk29_mapio(void)
 {
 	rk29_map_common_io();
+	rk29_sram_init();
 	rk29_clock_init();
 	rk29_iomux_init();
 }
