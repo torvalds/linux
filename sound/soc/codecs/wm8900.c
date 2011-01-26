@@ -1349,16 +1349,14 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 	snd_soc_write(codec, WM8900_REG_RADC_DV,
 		      snd_soc_read(codec, WM8900_REG_RADC_DV) | 0x100);
 
-
+        snd_soc_write(codec, WM8900_REG_AUDIO2,
+                      ((snd_soc_read(codec, WM8900_REG_AUDIO2) & 0x3FFF) | (1<<14)));   // 1<<15 Left And Right sw
         /* For Fzf Test */
         #if 1
 	snd_soc_write(codec, WM8900_REG_LDAC_DV,
 		      (snd_soc_read(codec, WM8900_REG_LDAC_DV)&0xFF00) | 0xB0);
 	snd_soc_write(codec, WM8900_REG_RDAC_DV,
 		      (snd_soc_read(codec, WM8900_REG_RDAC_DV)&0xFF00) | 0xB0);
-
-        snd_soc_write(codec, WM8900_REG_AUDIO2,
-                      (snd_soc_read(codec, WM8900_REG_AUDIO2) | (0<<10)));
         		      
         #endif
 	/* Set the DAC and mixer output bias */
