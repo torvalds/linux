@@ -51,7 +51,7 @@ char ixgbevf_driver_name[] = "ixgbevf";
 static const char ixgbevf_driver_string[] =
 	"Intel(R) 82599 Virtual Function";
 
-#define DRV_VERSION "1.0.19-k0"
+#define DRV_VERSION "1.1.0-k0"
 const char ixgbevf_driver_version[] = DRV_VERSION;
 static char ixgbevf_copyright[] =
 	"Copyright (c) 2009 - 2010 Intel Corporation.";
@@ -1665,6 +1665,11 @@ static int ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 		j = adapter->rx_ring[i].reg_idx;
 		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(j));
 		rxdctl |= IXGBE_RXDCTL_ENABLE;
+		if (hw->mac.type == ixgbe_mac_X540_vf) {
+			rxdctl &= ~IXGBE_RXDCTL_RLPMLMASK;
+			rxdctl |= ((netdev->mtu + ETH_HLEN + ETH_FCS_LEN) |
+				   IXGBE_RXDCTL_RLPML_EN);
+		}
 		IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(j), rxdctl);
 		ixgbevf_rx_desc_queue_enable(adapter, i);
 	}
@@ -3217,16 +3222,26 @@ static int ixgbevf_set_mac(struct net_device *netdev, void *p)
 static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
+	int max_possible_frame = MAXIMUM_ETHERNET_VLAN_SIZE;
+	u32 msg[2];
+
+	if (adapter->hw.mac.type == ixgbe_mac_X540_vf)
+		max_possible_frame = IXGBE_MAX_JUMBO_FRAME_SIZE;
 
 	/* MTU < 68 is an error and causes problems on some kernels */
-	if ((new_mtu < 68) || (max_frame > MAXIMUM_ETHERNET_VLAN_SIZE))
+	if ((new_mtu < 68) || (max_frame > max_possible_frame))
 		return -EINVAL;
 
 	hw_dbg(&adapter->hw, "changing MTU from %d to %d\n",
 	       netdev->mtu, new_mtu);
 	/* must set new MTU before calling down or up */
 	netdev->mtu = new_mtu;
+
+	msg[0] = IXGBE_VF_SET_LPE;
+	msg[1] = max_frame;
+	hw->mbx.ops.write_posted(hw, msg, 2);
 
 	if (netif_running(netdev))
 		ixgbevf_reinit_locked(adapter);
