@@ -218,7 +218,7 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)request,
-			       VmbusPacketTypeDataInBand,
+			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
@@ -249,7 +249,7 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)request,
-			       VmbusPacketTypeDataInBand,
+			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
@@ -280,7 +280,7 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)request,
-			       VmbusPacketTypeDataInBand,
+			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
 	if (ret != 0) {
@@ -317,7 +317,7 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)request,
-			       VmbusPacketTypeDataInBand,
+			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
 	if (ret != 0) {
@@ -642,7 +642,7 @@ int stor_vsc_on_host_reset(struct hv_device *device)
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)&stor_device->reset_request,
-			       VmbusPacketTypeDataInBand,
+			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC, "Unable to send reset packet %p ret %d",
@@ -744,7 +744,7 @@ static int stor_vsc_on_io_request(struct hv_device *device,
 		ret = vmbus_sendpacket(device->channel, vstor_packet,
 				       sizeof(struct vstor_packet),
 				       (unsigned long)request_extension,
-				       VmbusPacketTypeDataInBand,
+				       VM_PKT_DATA_INBAND,
 				       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	}
 

@@ -194,7 +194,7 @@ void chn_cb_negotiate(void *context)
 
 		vmbus_sendpacket(channel, buf,
 				       recvlen, requestid,
-				       VmbusPacketTypeDataInBand, 0);
+				       VM_PKT_DATA_INBAND, 0);
 	}
 
 	kfree(buf);

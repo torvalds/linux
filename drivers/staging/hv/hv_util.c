@@ -97,7 +97,7 @@ static void shutdown_onchannelcallback(void *context)
 
 		vmbus_sendpacket(channel, shut_txf_buf,
 				       recvlen, requestid,
-				       VmbusPacketTypeDataInBand, 0);
+				       VM_PKT_DATA_INBAND, 0);
 	}
 
 	if (execute_shutdown == true)
@@ -179,7 +179,7 @@ static void timesync_onchannelcallback(void *context)
 
 		vmbus_sendpacket(channel, time_txf_buf,
 				recvlen, requestid,
-				VmbusPacketTypeDataInBand, 0);
+				VM_PKT_DATA_INBAND, 0);
 	}
 }
 
@@ -225,7 +225,7 @@ static void heartbeat_onchannelcallback(void *context)
 
 		vmbus_sendpacket(channel, hbeat_txf_buf,
 				       recvlen, requestid,
-				       VmbusPacketTypeDataInBand, 0);
+				       VM_PKT_DATA_INBAND, 0);
 	}
 }
 

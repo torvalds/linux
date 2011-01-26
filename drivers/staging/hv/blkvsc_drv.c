@@ -872,7 +872,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 		DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - "
 			   "req %p pfn[%d] %llx\n",
 			   blkvsc_req, i,
-			   blkvsc_req->request.data_buffer.PfnArray[i]);
+			   blkvsc_req->request.data_buffer.pfn_array[i]);
 	}
 #endif
 

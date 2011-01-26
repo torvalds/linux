@@ -224,7 +224,7 @@ response_done:
 	icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION | ICMSGHDRFLAG_RESPONSE;
 
 	vmbus_sendpacket(channel, recv_buffer, buf_len, req_id,
-				VmbusPacketTypeDataInBand, 0);
+				VM_PKT_DATA_INBAND, 0);
 
 	kvp_transaction.active = false;
 }
@@ -318,7 +318,7 @@ callback_done:
 
 		vmbus_sendpacket(channel, recv_buffer,
 				       recvlen, requestid,
-				       VmbusPacketTypeDataInBand, 0);
+				       VM_PKT_DATA_INBAND, 0);
 	}
 
 }

@@ -270,7 +270,7 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 	ret = vmbus_sendpacket(device->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
-			       VmbusPacketTypeDataInBand,
+			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC,
@@ -404,7 +404,7 @@ static int netvsc_init_send_buf(struct hv_device *device)
 	ret = vmbus_sendpacket(device->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
-			       VmbusPacketTypeDataInBand,
+			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC,
@@ -466,7 +466,7 @@ static int netvsc_destroy_recv_buf(struct netvsc_device *net_device)
 				       revoke_packet,
 				       sizeof(struct nvsp_message),
 				       (unsigned long)revoke_packet,
-				       VmbusPacketTypeDataInBand, 0);
+				       VM_PKT_DATA_INBAND, 0);
 		/*
 		 * If we failed here, we might as well return and
 		 * have a leak rather than continue and a bugchk
@@ -540,7 +540,7 @@ static int netvsc_destroy_send_buf(struct netvsc_device *net_device)
 				       revoke_packet,
 				       sizeof(struct nvsp_message),
 				       (unsigned long)revoke_packet,
-				       VmbusPacketTypeDataInBand, 0);
+				       VM_PKT_DATA_INBAND, 0);
 		/*
 		 * If we failed here, we might as well return and have a leak
 		 * rather than continue and a bugchk
@@ -612,7 +612,7 @@ static int netvsc_connect_vsp(struct hv_device *device)
 	ret = vmbus_sendpacket(device->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
-			       VmbusPacketTypeDataInBand,
+			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
 	if (ret != 0) {
@@ -666,7 +666,7 @@ static int netvsc_connect_vsp(struct hv_device *device)
 	ret = vmbus_sendpacket(device->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
-			       VmbusPacketTypeDataInBand, 0);
+			       VM_PKT_DATA_INBAND, 0);
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC,
 			   "unable to send NvspMessage1TypeSendNdisVersion");
@@ -872,7 +872,7 @@ static void netvsc_send_completion(struct hv_device *device,
 	}
 
 	nvsp_packet = (struct nvsp_message *)((unsigned long)packet +
-			(packet->DataOffset8 << 3));
+			(packet->offset8 << 3));
 
 	DPRINT_DBG(NETVSC, "send completion packet - type %d",
 		   nvsp_packet->hdr.msg_type);
@@ -890,7 +890,7 @@ static void netvsc_send_completion(struct hv_device *device,
 		   NVSP_MSG1_TYPE_SEND_RNDIS_PKT_COMPLETE) {
 		/* Get the send context */
 		nvsc_packet = (struct hv_netvsc_packet *)(unsigned long)
-			packet->TransactionId;
+			packet->trans_id;
 		/* ASSERT(nvscPacket); */
 
 		/* Notify the layer above us */
@@ -946,7 +946,7 @@ static int netvsc_send(struct hv_device *device,
 		ret = vmbus_sendpacket(device->channel, &sendMessage,
 				       sizeof(struct nvsp_message),
 				       (unsigned long)packet,
-				       VmbusPacketTypeDataInBand,
+				       VM_PKT_DATA_INBAND,
 				       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
 	}
@@ -987,15 +987,15 @@ static void netvsc_receive(struct hv_device *device,
 	 * All inbound packets other than send completion should be xfer page
 	 * packet
 	 */
-	if (packet->Type != VmbusPacketTypeDataUsingTransferPages) {
+	if (packet->type != VM_PKT_DATA_USING_XFER_PAGES) {
 		DPRINT_ERR(NETVSC, "Unknown packet type received - %d",
-			   packet->Type);
+			   packet->type);
 		put_net_device(device);
 		return;
 	}
 
 	nvsp_packet = (struct nvsp_message *)((unsigned long)packet +
-			(packet->DataOffset8 << 3));
+			(packet->offset8 << 3));
 
 	/* Make sure this is a valid nvsp packet */
 	if (nvsp_packet->hdr.msg_type !=
@@ -1011,16 +1011,16 @@ static void netvsc_receive(struct hv_device *device,
 
 	vmxferpage_packet = (struct vmtransfer_page_packet_header *)packet;
 
-	if (vmxferpage_packet->TransferPageSetId != NETVSC_RECEIVE_BUFFER_ID) {
+	if (vmxferpage_packet->xfer_pageset_id != NETVSC_RECEIVE_BUFFER_ID) {
 		DPRINT_ERR(NETVSC, "Invalid xfer page set id - "
 			   "expecting %x got %x", NETVSC_RECEIVE_BUFFER_ID,
-			   vmxferpage_packet->TransferPageSetId);
+			   vmxferpage_packet->xfer_pageset_id);
 		put_net_device(device);
 		return;
 	}
 
 	DPRINT_DBG(NETVSC, "xfer page - range count %d",
-		   vmxferpage_packet->RangeCount);
+		   vmxferpage_packet->range_cnt);
 
 	/*
 	 * Grab free packets (range count + 1) to represent this xfer
@@ -1031,7 +1031,7 @@ static void netvsc_receive(struct hv_device *device,
 	spin_lock_irqsave(&net_device->recv_pkt_list_lock, flags);
 	while (!list_empty(&net_device->recv_pkt_list)) {
 		list_move_tail(net_device->recv_pkt_list.next, &listHead);
-		if (++count == vmxferpage_packet->RangeCount + 1)
+		if (++count == vmxferpage_packet->range_cnt + 1)
 			break;
 	}
 	spin_unlock_irqrestore(&net_device->recv_pkt_list_lock, flags);
@@ -1044,7 +1044,7 @@ static void netvsc_receive(struct hv_device *device,
 	if (count < 2) {
 		DPRINT_ERR(NETVSC, "Got only %d netvsc pkt...needed %d pkts. "
 			   "Dropping this xfer page packet completely!",
-			   count, vmxferpage_packet->RangeCount + 1);
+			   count, vmxferpage_packet->range_cnt + 1);
 
 		/* Return it to the freelist */
 		spin_lock_irqsave(&net_device->recv_pkt_list_lock, flags);
@@ -1056,7 +1056,7 @@ static void netvsc_receive(struct hv_device *device,
 				       flags);
 
 		netvsc_send_recv_completion(device,
-					    vmxferpage_packet->d.TransactionId);
+					    vmxferpage_packet->d.trans_id);
 
 		put_net_device(device);
 		return;
@@ -1071,9 +1071,9 @@ static void netvsc_receive(struct hv_device *device,
 	/* ASSERT(xferpagePacket->Count > 0 && xferpagePacket->Count <= */
 	/* 	vmxferpagePacket->RangeCount); */
 
-	if (xferpage_packet->count != vmxferpage_packet->RangeCount) {
+	if (xferpage_packet->count != vmxferpage_packet->range_cnt) {
 		DPRINT_INFO(NETVSC, "Needed %d netvsc pkts to satisy this xfer "
-			    "page...got %d", vmxferpage_packet->RangeCount,
+			    "page...got %d", vmxferpage_packet->range_cnt,
 			    xferpage_packet->count);
 	}
 
@@ -1091,10 +1091,10 @@ static void netvsc_receive(struct hv_device *device,
 		netvsc_packet->device = device;
 		/* Save this so that we can send it back */
 		netvsc_packet->completion.recv.recv_completion_tid =
-					vmxferpage_packet->d.TransactionId;
+					vmxferpage_packet->d.trans_id;
 
 		netvsc_packet->total_data_buflen =
-					vmxferpage_packet->Ranges[i].ByteCount;
+					vmxferpage_packet->ranges[i].byte_count;
 		netvsc_packet->page_buf_cnt = 1;
 
 		/* ASSERT(vmxferpagePacket->Ranges[i].ByteOffset + */
@@ -1102,20 +1102,20 @@ static void netvsc_receive(struct hv_device *device,
 		/* 	netDevice->ReceiveBufferSize); */
 
 		netvsc_packet->page_buf[0].len =
-					vmxferpage_packet->Ranges[i].ByteCount;
+					vmxferpage_packet->ranges[i].byte_count;
 
 		start = virt_to_phys((void *)((unsigned long)net_device->
-		recv_buf + vmxferpage_packet->Ranges[i].ByteOffset));
+		recv_buf + vmxferpage_packet->ranges[i].byte_offset));
 
 		netvsc_packet->page_buf[0].pfn = start >> PAGE_SHIFT;
 		end_virtual = (unsigned long)net_device->recv_buf
-		    + vmxferpage_packet->Ranges[i].ByteOffset
-		    + vmxferpage_packet->Ranges[i].ByteCount - 1;
+		    + vmxferpage_packet->ranges[i].byte_offset
+		    + vmxferpage_packet->ranges[i].byte_count - 1;
 		end = virt_to_phys((void *)end_virtual);
 
 		/* Calculate the page relative offset */
 		netvsc_packet->page_buf[0].offset =
-			vmxferpage_packet->Ranges[i].ByteOffset &
+			vmxferpage_packet->ranges[i].byte_offset &
 			(PAGE_SIZE - 1);
 		if ((end >> PAGE_SHIFT) != (start >> PAGE_SHIFT)) {
 			/* Handle frame across multiple pages: */
@@ -1147,8 +1147,8 @@ static void netvsc_receive(struct hv_device *device,
 		}
 		DPRINT_DBG(NETVSC, "[%d] - (abs offset %u len %u) => "
 			   "(pfn %llx, offset %u, len %u)", i,
-			   vmxferpage_packet->Ranges[i].ByteOffset,
-			   vmxferpage_packet->Ranges[i].ByteCount,
+			   vmxferpage_packet->ranges[i].byte_offset,
+			   vmxferpage_packet->ranges[i].byte_count,
 			   netvsc_packet->page_buf[0].pfn,
 			   netvsc_packet->page_buf[0].offset,
 			   netvsc_packet->page_buf[0].len);
@@ -1187,7 +1187,7 @@ retry_send_cmplt:
 	/* Send the completion */
 	ret = vmbus_sendpacket(device->channel, &recvcompMessage,
 			       sizeof(struct nvsp_message), transaction_id,
-			       VmbusPacketTypeCompletion, 0);
+			       VM_PKT_COMP, 0);
 	if (ret == 0) {
 		/* success */
 		/* no-op */
@@ -1300,12 +1300,12 @@ static void netvsc_channel_cb(void *context)
 					   bytes_recvd, request_id);
 
 				desc = (struct vmpacket_descriptor *)buffer;
-				switch (desc->Type) {
-				case VmbusPacketTypeCompletion:
+				switch (desc->type) {
+				case VM_PKT_COMP:
 					netvsc_send_completion(device, desc);
 					break;
 
-				case VmbusPacketTypeDataUsingTransferPages:
+				case VM_PKT_DATA_USING_XFER_PAGES:
 					netvsc_receive(device, desc);
 					break;
 
@@ -1313,7 +1313,7 @@ static void netvsc_channel_cb(void *context)
 					DPRINT_ERR(NETVSC,
 						   "unhandled packet type %d, "
 						   "tid %llx len %d\n",
-						   desc->Type, request_id,
+						   desc->type, request_id,
 						   bytes_recvd);
 					break;
 				}
