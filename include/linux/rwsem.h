@@ -11,6 +11,9 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/spinlock.h>
+
 #include <asm/system.h>
 #include <asm/atomic.h>
 

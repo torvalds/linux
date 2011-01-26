@@ -43,11 +43,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/list.h>
-#include <linux/spinlock.h>
-
-struct rwsem_waiter;
-
 extern struct rw_semaphore *rwsem_down_read_failed(struct rw_semaphore *);
 extern struct rw_semaphore *rwsem_down_write_failed(struct rw_semaphore *);
 extern struct rw_semaphore *rwsem_wake(struct rw_semaphore *);

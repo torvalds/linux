@@ -11,11 +11,6 @@
 #endif
 
 #ifdef __KERNEL__
-#include <linux/list.h>
-#include <linux/spinlock.h>
-#include <asm/atomic.h>
-#include <asm/system.h>
-
 /*
  * the semaphore definition
  */

@@ -12,12 +12,6 @@
 #endif
 
 #ifdef __KERNEL__
-
-#include <linux/list.h>
-#include <linux/spinlock.h>
-
-struct rwsem_waiter;
-
 struct rw_semaphore {
 	signed long			count;
 #define RWSEM_UNLOCKED_VALUE		0x00000000L

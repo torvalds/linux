@@ -37,13 +37,7 @@
 #endif
 
 #ifdef __KERNEL__
-
-#include <linux/list.h>
-#include <linux/spinlock.h>
-#include <linux/lockdep.h>
 #include <asm/asm.h>
-
-struct rwsem_waiter;
 
 extern asmregparm struct rw_semaphore *
  rwsem_down_read_failed(struct rw_semaphore *sem);

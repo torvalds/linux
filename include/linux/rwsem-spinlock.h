@@ -12,15 +12,7 @@
 #error "please don't include linux/rwsem-spinlock.h directly, use linux/rwsem.h instead"
 #endif
 
-#include <linux/spinlock.h>
-#include <linux/list.h>
-
 #ifdef __KERNEL__
-
-#include <linux/types.h>
-
-struct rwsem_waiter;
-
 /*
  * the rw-semaphore definition
  * - if activity is 0 then there are no active readers or writers

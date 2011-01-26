@@ -25,9 +25,6 @@
 #error "Please don't include <asm/rwsem.h> directly, use <linux/rwsem.h> instead."
 #endif
 
-#include <linux/list.h>
-#include <linux/spinlock.h>
-
 #include <asm/intrinsics.h>
 
 /*

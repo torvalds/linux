@@ -13,11 +13,6 @@
  * by Paul Mackerras <paulus@samba.org>.
  */
 
-#include <linux/list.h>
-#include <linux/spinlock.h>
-#include <asm/atomic.h>
-#include <asm/system.h>
-
 /*
  * the semaphore definition
  */
