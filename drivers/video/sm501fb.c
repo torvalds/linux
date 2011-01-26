@@ -1729,6 +1729,15 @@ static int sm501fb_init_fb(struct fb_info *fb,
 		FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT |
 		FBINFO_HWACCEL_XPAN | FBINFO_HWACCEL_YPAN;
 
+#if defined(CONFIG_OF)
+#ifdef __BIG_ENDIAN
+	if (of_get_property(info->dev->parent->of_node, "little-endian", NULL))
+		fb->flags |= FBINFO_FOREIGN_ENDIAN;
+#else
+	if (of_get_property(info->dev->parent->of_node, "big-endian", NULL))
+		fb->flags |= FBINFO_FOREIGN_ENDIAN;
+#endif
+#endif
 	/* fixed data */
 
 	fb->fix.type		= FB_TYPE_PACKED_PIXELS;
@@ -1765,14 +1774,17 @@ static int sm501fb_init_fb(struct fb_info *fb,
 			fb->var.xres_virtual = fb->var.xres;
 			fb->var.yres_virtual = fb->var.yres;
 		} else {
-			if (info->edid_data)
+			if (info->edid_data) {
 				ret = fb_find_mode(&fb->var, fb, fb_mode,
 					fb->monspecs.modedb,
 					fb->monspecs.modedb_len,
 					&sm501_default_mode, default_bpp);
-			else
+				/* edid_data is no longer needed, free it */
+				kfree(info->edid_data);
+			} else {
 				ret = fb_find_mode(&fb->var, fb,
 					   NULL, NULL, 0, NULL, 8);
+			}
 
 			switch (ret) {
 			case 1:
@@ -1933,8 +1945,32 @@ static int __devinit sm501fb_probe(struct platform_device *pdev)
 	}
 
 	if (info->pdata == NULL) {
-		dev_info(dev, "using default configuration data\n");
+		int found = 0;
+#if defined(CONFIG_OF)
+		struct device_node *np = pdev->dev.parent->of_node;
+		const u8 *prop;
+		const char *cp;
+		int len;
+
 		info->pdata = &sm501fb_def_pdata;
+		if (np) {
+			/* Get EDID */
+			cp = of_get_property(np, "mode", &len);
+			if (cp)
+				strcpy(fb_mode, cp);
+			prop = of_get_property(np, "edid", &len);
+			if (prop && len == EDID_LENGTH) {
+				info->edid_data = kmemdup(prop, EDID_LENGTH,
+							  GFP_KERNEL);
+				if (info->edid_data)
+					found = 1;
+			}
+		}
+#endif
+		if (!found) {
+			dev_info(dev, "using default configuration data\n");
+			info->pdata = &sm501fb_def_pdata;
+		}
 	}
 
 	/* probe for the presence of each panel */
