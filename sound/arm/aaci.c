@@ -490,12 +490,21 @@ static int aaci_pcm_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+/* Channel to slot mask */
+static const u32 channels_to_slotmask[] = {
+	[2] = CR_SL3 | CR_SL4,
+	[4] = CR_SL3 | CR_SL4 | CR_SL7 | CR_SL8,
+	[6] = CR_SL3 | CR_SL4 | CR_SL7 | CR_SL8 | CR_SL6 | CR_SL9,
+};
+
 static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
-			      struct aaci_runtime *aacirun,
 			      struct snd_pcm_hw_params *params)
 {
+	struct aaci_runtime *aacirun = substream->runtime->private_data;
+	unsigned int channels = params_channels(params);
+	unsigned int rate = params_rate(params);
+	int dbl = rate > 48000;
 	int err;
-	struct aaci *aaci = substream->private_data;
 
 	aaci_pcm_hw_free(substream);
 	if (aacirun->pcm_open) {
@@ -503,18 +512,21 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 		aacirun->pcm_open = 0;
 	}
 
+	/* channels is already limited to 2, 4, or 6 by aaci_rule_channels */
+	if (dbl && channels != 2)
+		return -EINVAL;
+
 	err = snd_pcm_lib_malloc_pages(substream,
 				       params_buffer_bytes(params));
 	if (err >= 0) {
-		unsigned int rate = params_rate(params);
-		int dbl = rate > 48000;
+		struct aaci *aaci = substream->private_data;
 
-		err = snd_ac97_pcm_open(aacirun->pcm, rate,
-					params_channels(params),
+		err = snd_ac97_pcm_open(aacirun->pcm, rate, channels,
 					aacirun->pcm->r[dbl].slots);
 
 		aacirun->pcm_open = err == 0;
 		aacirun->cr = CR_FEN | CR_COMPACT | CR_SZ16;
+		aacirun->cr |= channels_to_slotmask[channels + dbl * 2];
 		aacirun->fifosz = aaci->fifosize * 4;
 
 		if (aacirun->cr & CR_COMPACT)
@@ -551,34 +563,6 @@ static snd_pcm_uframes_t aaci_pcm_pointer(struct snd_pcm_substream *substream)
 /*
  * Playback specific ALSA stuff
  */
-static const u32 channels_to_txmask[] = {
-	[2] = CR_SL3 | CR_SL4,
-	[4] = CR_SL3 | CR_SL4 | CR_SL7 | CR_SL8,
-	[6] = CR_SL3 | CR_SL4 | CR_SL7 | CR_SL8 | CR_SL6 | CR_SL9,
-};
-
-static int aaci_pcm_playback_hw_params(struct snd_pcm_substream *substream,
-				       struct snd_pcm_hw_params *params)
-{
-	struct aaci_runtime *aacirun = substream->runtime->private_data;
-	unsigned int channels = params_channels(params);
-	int ret;
-
-	WARN_ON(channels >= ARRAY_SIZE(channels_to_txmask) ||
-		!channels_to_txmask[channels]);
-
-	ret = aaci_pcm_hw_params(substream, aacirun, params);
-
-	/*
-	 * Enable FIFO, compact mode, 16 bits per sample.
-	 * FIXME: double rate slots?
-	 */
-	if (ret >= 0)
-		aacirun->cr |= channels_to_txmask[channels];
-
-	return ret;
-}
-
 static void aaci_pcm_playback_stop(struct aaci_runtime *aacirun)
 {
 	u32 ie;
@@ -648,26 +632,12 @@ static struct snd_pcm_ops aaci_playback_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= aaci_pcm_playback_hw_params,
+	.hw_params	= aaci_pcm_hw_params,
 	.hw_free	= aaci_pcm_hw_free,
 	.prepare	= aaci_pcm_prepare,
 	.trigger	= aaci_pcm_playback_trigger,
 	.pointer	= aaci_pcm_pointer,
 };
-
-static int aaci_pcm_capture_hw_params(struct snd_pcm_substream *substream,
-				      struct snd_pcm_hw_params *params)
-{
-	struct aaci_runtime *aacirun = substream->runtime->private_data;
-	int ret;
-
-	ret = aaci_pcm_hw_params(substream, aacirun, params);
-	if (ret >= 0)
-		/* Line in record: slot 3 and 4 */
-		aacirun->cr |= CR_SL3 | CR_SL4;
-
-	return ret;
-}
 
 static void aaci_pcm_capture_stop(struct aaci_runtime *aacirun)
 {
@@ -765,7 +735,7 @@ static struct snd_pcm_ops aaci_capture_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= aaci_pcm_capture_hw_params,
+	.hw_params	= aaci_pcm_hw_params,
 	.hw_free	= aaci_pcm_hw_free,
 	.prepare	= aaci_pcm_capture_prepare,
 	.trigger	= aaci_pcm_capture_trigger,
