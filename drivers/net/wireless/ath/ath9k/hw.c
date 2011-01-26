@@ -1346,8 +1346,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ath9k_hw_spur_mitigate_freq(ah, chan);
 	ah->eep_ops->set_board_values(ah, chan);
 
-	ath9k_hw_set_operating_mode(ah, ah->opmode);
-
 	ENABLE_REGWRITE_BUFFER(ah);
 
 	REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(common->macaddr));
@@ -1364,6 +1362,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	REG_WRITE(ah, AR_RSSI_THR, INIT_RSSI_THR);
 
 	REGWRITE_BUFFER_FLUSH(ah);
+
+	ath9k_hw_set_operating_mode(ah, ah->opmode);
 
 	r = ath9k_hw_rf_set_freq(ah, chan);
 	if (r)
