@@ -899,7 +899,8 @@ static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
 				for (i = 0; i < ARRAY_SIZE(dapm_up_seq); i++)
 					if (sort[i] == cur_sort)
 						cur_dapm->seq_notifier(cur_dapm,
-								       i);
+								       i,
+								       cur_subseq);
 			}
 
 			INIT_LIST_HEAD(&pending);
@@ -968,7 +969,7 @@ static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
 		for (i = 0; i < ARRAY_SIZE(dapm_up_seq); i++)
 			if (sort[i] == cur_sort)
 				cur_dapm->seq_notifier(cur_dapm,
-						       i);
+						       i, cur_subseq);
 	}
 }
 
