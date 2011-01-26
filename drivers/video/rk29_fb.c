@@ -166,7 +166,7 @@ struct rk29fb_inf {
     LCDC_REG regbak;
 
 	int in_suspend;
-
+    int fb0_color_deepth;
     /* variable used in mcu panel */
 	int mcu_needflush;
 	int mcu_isrcnt;
@@ -1140,6 +1140,7 @@ static int fb0_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
         return -EINVAL;
     }
 
+    if(inf->fb0_color_deepth)var->bits_per_pixel=inf->fb0_color_deepth;
     switch(var->bits_per_pixel)
     {
     case 16:    // rgb565
@@ -1184,6 +1185,7 @@ static int fb0_set_par(struct fb_info *info)
 
 	CHK_SUSPEND(inf);
 
+    if(inf->fb0_color_deepth)var->bits_per_pixel=inf->fb0_color_deepth;
     if((inf->video_mode == 1)&&(screen->y_res < var->yres))ypos_virtual += (var->yres-screen->y_res);
 
     switch(var->bits_per_pixel)
@@ -1191,7 +1193,7 @@ static int fb0_set_par(struct fb_info *info)
     case 16:    // rgb565
         par->format = 1;
         fix->line_length = 2 * xres_virtual;
-        offset = (ypos_virtual*xres_virtual + xpos_virtual)*2;
+        offset = (ypos_virtual*xres_virtual + xpos_virtual)*(inf->fb0_color_deepth ? 4:2);
         break;
     case 32:    // rgb888
     default:
@@ -1251,13 +1253,14 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	//fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
 	CHK_SUSPEND(inf);
-
+    if(inf->fb0_color_deepth)var->bits_per_pixel=inf->fb0_color_deepth;
+    
     switch(var1->bits_per_pixel)
     {
     case 16:    // rgb565
         var->xoffset = (var->xoffset) & (~0x1);
-        offset = (var->yoffset*var1->xres_virtual + var->xoffset)*2;
-        break;
+        offset = (var->yoffset*var1->xres_virtual + var->xoffset)*(inf->fb0_color_deepth ? 4:2);
+        break; 
     case 32:    // rgb888
         offset = (var->yoffset*var1->xres_virtual + var->xoffset)*4;
         break;
@@ -1304,6 +1307,11 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             inf->mcu_usetimer = 0;
         }
         break;
+   case FBIOPUT_16OR32:
+        
+        inf->fb0_color_deepth = arg;
+        
+	    break;
    default:
         break;
     }
@@ -2069,6 +2077,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
     inf->fb0->var.xres = screen->x_res;
     inf->fb0->var.yres = screen->y_res;
     inf->fb0->var.bits_per_pixel = 16;
+    inf->fb0_color_deepth = 0;
     inf->fb0->var.xres_virtual = screen->x_res;
     inf->fb0->var.yres_virtual = screen->y_res;
     inf->fb0->var.width = screen->width;
