@@ -12,8 +12,6 @@
  * @cs_en:	pointer to the cs enable function
  * @cs_dis:	pointer to the cs disable function
  * @irq_read_val:    pointer to read the pen irq value function
- * @x_max_res: xmax resolution
- * @y_max_res: ymax resolution
  * @touch_x_max: touch x max
  * @touch_y_max: touch y max
  * @cs_pin: chip select pin
@@ -29,8 +27,6 @@ struct bu21013_platform_device {
 	int (*cs_en)(int reset_pin);
 	int (*cs_dis)(int reset_pin);
 	int (*irq_read_val)(void);
-	int x_max_res;
-	int y_max_res;
 	int touch_x_max;
 	int touch_y_max;
 	unsigned int cs_pin;
