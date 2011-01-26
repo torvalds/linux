@@ -2355,33 +2355,6 @@ static inline int drbd_set_ed_uuid(struct drbd_conf *mdev, u64 val)
 	return changed;
 }
 
-static inline int seq_cmp(u32 a, u32 b)
-{
-	/* we assume wrap around at 32bit.
-	 * for wrap around at 24bit (old atomic_t),
-	 * we'd have to
-	 *  a <<= 8; b <<= 8;
-	 */
-	return (s32)(a) - (s32)(b);
-}
-#define seq_lt(a, b) (seq_cmp((a), (b)) < 0)
-#define seq_gt(a, b) (seq_cmp((a), (b)) > 0)
-#define seq_ge(a, b) (seq_cmp((a), (b)) >= 0)
-#define seq_le(a, b) (seq_cmp((a), (b)) <= 0)
-/* CAUTION: please no side effects in arguments! */
-#define seq_max(a, b) ((u32)(seq_gt((a), (b)) ? (a) : (b)))
-
-static inline void update_peer_seq(struct drbd_conf *mdev, unsigned int new_seq)
-{
-	unsigned int m;
-	spin_lock(&mdev->peer_seq_lock);
-	m = seq_max(mdev->peer_seq, new_seq);
-	mdev->peer_seq = m;
-	spin_unlock(&mdev->peer_seq_lock);
-	if (m == new_seq)
-		wake_up(&mdev->seq_wait);
-}
-
 static inline void drbd_update_congested(struct drbd_conf *mdev)
 {
 	struct sock *sk = mdev->tconn->data.socket->sk;

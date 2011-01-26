@@ -1621,6 +1621,33 @@ static int e_send_discard_ack(struct drbd_conf *mdev, struct drbd_work *w, int u
 	return ok;
 }
 
+static bool seq_greater(u32 a, u32 b)
+{
+	/*
+	 * We assume 32-bit wrap-around here.
+	 * For 24-bit wrap-around, we would have to shift:
+	 *  a <<= 8; b <<= 8;
+	 */
+	return (s32)a - (s32)b > 0;
+}
+
+static u32 seq_max(u32 a, u32 b)
+{
+	return seq_greater(a, b) ? a : b;
+}
+
+static void update_peer_seq(struct drbd_conf *mdev, unsigned int new_seq)
+{
+	unsigned int m;
+
+	spin_lock(&mdev->peer_seq_lock);
+	m = seq_max(mdev->peer_seq, new_seq);
+	mdev->peer_seq = m;
+	spin_unlock(&mdev->peer_seq_lock);
+	if (m == new_seq)
+		wake_up(&mdev->seq_wait);
+}
+
 /* Called from receive_Data.
  * Synchronize packets on sock with packets on msock.
  *
@@ -1651,7 +1678,7 @@ static int drbd_wait_peer_seq(struct drbd_conf *mdev, const u32 packet_seq)
 	spin_lock(&mdev->peer_seq_lock);
 	for (;;) {
 		prepare_to_wait(&mdev->seq_wait, &wait, TASK_INTERRUPTIBLE);
-		if (seq_le(packet_seq, mdev->peer_seq+1))
+		if (!seq_greater(packet_seq, mdev->peer_seq + 1))
 			break;
 		if (signal_pending(current)) {
 			ret = -ERESTARTSYS;
