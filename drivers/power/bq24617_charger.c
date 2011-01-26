@@ -19,15 +19,11 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
-#include <linux/workqueue.h>
-#include <linux/wakelock.h>
 
 struct bq24617_data {
-	struct work_struct work;
 	int stat1_irq;
 	int stat2_irq;
 	int detect_irq;
-	struct wake_lock wake_lock;
 	struct power_supply ac;
 	int ac_online;
 };
@@ -67,20 +63,8 @@ static int power_get_property(struct power_supply *psy,
 	return 0;
 }
 
-static irqreturn_t bq24617_isr(int irq, void *data)
+static void bq24617_read_status(struct bq24617_data *bq_data)
 {
-	struct bq24617_data *bq_data = data;
-
-	wake_lock(&bq_data->wake_lock);
-	schedule_work(&bq_data->work);
-
-	return IRQ_HANDLED;
-}
-
-static void bq24617_work(struct work_struct *work)
-{
-	struct bq24617_data *bq_data =
-		container_of(work, struct bq24617_data, work);
 	int detect = 0;
 
 	/* STAT1 indicates charging, STAT2 indicates charge complete */
@@ -100,7 +84,14 @@ static void bq24617_work(struct work_struct *work)
 		detect);
 
 	power_supply_changed(&bq_data->ac);
-	wake_unlock(&bq_data->wake_lock);
+}
+
+static irqreturn_t bq24617_isr(int irq, void *data)
+{
+	struct bq24617_data *bq_data = data;
+
+	bq24617_read_status(bq_data);
+	return IRQ_HANDLED;
 }
 
 static int bq24617_probe(struct platform_device *pdev)
@@ -113,8 +104,6 @@ static int bq24617_probe(struct platform_device *pdev)
 	if (bq_data == NULL)
 		return -ENOMEM;
 
-	INIT_WORK(&bq_data->work, bq24617_work);
-	wake_lock_init(&bq_data->wake_lock, WAKE_LOCK_SUSPEND, "bq24617");
 	platform_set_drvdata(pdev, bq_data);
 
 	bq_data->stat1_irq = platform_get_irq_byname(pdev, "stat1");
@@ -174,7 +163,7 @@ static int bq24617_probe(struct platform_device *pdev)
 		enable_irq_wake(bq_data->detect_irq);
 	}
 
-	bq24617_work(&bq_data->work);
+	bq24617_read_status(bq_data);
 
 	return 0;
 
@@ -185,7 +174,6 @@ free_stat2:
 free_stat1:
 	free_irq(bq_data->stat1_irq, bq_data);
 free_mem:
-	wake_lock_destroy(&bq_data->wake_lock);
 	kfree(bq_data);
 
 	return retval;
@@ -195,7 +183,6 @@ static int bq24617_remove(struct platform_device *pdev)
 {
 	struct bq24617_data *bq_data = platform_get_drvdata(pdev);
 
-	cancel_work_sync(&bq_data->work);
 	power_supply_unregister(&bq_data->ac);
 
 	free_irq(bq_data->stat1_irq, bq_data);
@@ -203,15 +190,33 @@ static int bq24617_remove(struct platform_device *pdev)
 	if (bq_data->detect_irq >= 0)
 		free_irq(bq_data->detect_irq, bq_data);
 
-	wake_lock_destroy(&bq_data->wake_lock);
 	kfree(bq_data);
 
 	return 0;
 }
 
+static int bq24617_resume(struct device *dev)
+{
+	struct bq24617_data *bq_data = dev_get_drvdata(dev);
+	int stat1 = gpio_get_value(irq_to_gpio(bq_data->stat1_irq));
+	int stat2 = gpio_get_value(irq_to_gpio(bq_data->stat2_irq));
+
+	if ((stat1 != bq24617_stat1_value) || (stat2 != bq24617_stat2_value)) {
+		pr_debug("%s: STAT pins changed while suspended\n", __func__);
+		bq24617_read_status(bq_data);
+	}
+
+	return 0;
+}
+
+static struct dev_pm_ops bq24617_pm_ops = {
+	.resume = bq24617_resume,
+};
+
 static struct platform_driver bq24617_pdrv = {
 	.driver = {
 		.name = "bq24617",
+		.pm = &bq24617_pm_ops,
 	},
 	.probe = bq24617_probe,
 	.remove = bq24617_remove,
