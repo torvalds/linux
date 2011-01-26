@@ -355,6 +355,7 @@ void __init xen_arch_setup(void)
 	boot_cpu_data.hlt_works_ok = 1;
 #endif
 	pm_idle = default_idle;
+	boot_option_idle_override = IDLE_HALT;
 
 	fiddle_vdso();
 }
