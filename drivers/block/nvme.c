@@ -240,6 +240,36 @@ static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
 	bio_endio(bio, status ? -EIO : 0);
 }
 
+/* length is in bytes */
+static void nvme_setup_prps(struct nvme_common_command *cmd,
+					struct scatterlist *sg, int length)
+{
+	int dma_len = sg_dma_len(sg);
+	u64 dma_addr = sg_dma_address(sg);
+	int offset = offset_in_page(dma_addr);
+
+	cmd->prp1 = cpu_to_le64(dma_addr);
+	length -= (PAGE_SIZE - offset);
+	if (length <= 0)
+		return;
+
+	dma_len -= (PAGE_SIZE - offset);
+	if (dma_len) {
+		dma_addr += (PAGE_SIZE - offset);
+	} else {
+		sg = sg_next(sg);
+		dma_addr = sg_dma_address(sg);
+		dma_len = sg_dma_len(sg);
+	}
+
+	if (length <= PAGE_SIZE) {
+		cmd->prp2 = cpu_to_le64(dma_addr);
+		return;
+	}
+
+	/* XXX: support PRP lists */
+}
+
 static int nvme_map_bio(struct device *dev, struct nvme_req_info *info,
 		struct bio *bio, enum dma_data_direction dma_dir, int psegs)
 {
@@ -261,7 +291,7 @@ static int nvme_map_bio(struct device *dev, struct nvme_req_info *info,
 static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 								struct bio *bio)
 {
-	struct nvme_rw_command *cmnd;
+	struct nvme_command *cmnd;
 	struct nvme_req_info *info;
 	enum dma_data_direction dma_dir;
 	int cmdid;
@@ -290,27 +320,26 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 		dsmgmt |= NVME_RW_DSM_FREQ_PREFETCH;
 
 	spin_lock_irqsave(&nvmeq->q_lock, flags);
-	cmnd = &nvmeq->sq_cmds[nvmeq->sq_tail].rw;
+	cmnd = &nvmeq->sq_cmds[nvmeq->sq_tail];
 
 	if (bio_data_dir(bio)) {
-		cmnd->opcode = nvme_cmd_write;
+		cmnd->rw.opcode = nvme_cmd_write;
 		dma_dir = DMA_TO_DEVICE;
 	} else {
-		cmnd->opcode = nvme_cmd_read;
+		cmnd->rw.opcode = nvme_cmd_read;
 		dma_dir = DMA_FROM_DEVICE;
 	}
 
 	nvme_map_bio(nvmeq->q_dmadev, info, bio, dma_dir, psegs);
 
-	cmnd->flags = 1;
-	cmnd->command_id = cmdid;
-	cmnd->nsid = cpu_to_le32(ns->ns_id);
-	cmnd->prp1 = cpu_to_le64(sg_phys(info->sg));
-	/* XXX: Support more than one PRP */
-	cmnd->slba = cpu_to_le64(bio->bi_sector >> (ns->lba_shift - 9));
-	cmnd->length = cpu_to_le16((bio->bi_size >> ns->lba_shift) - 1);
-	cmnd->control = cpu_to_le16(control);
-	cmnd->dsmgmt = cpu_to_le32(dsmgmt);
+	cmnd->rw.flags = 1;
+	cmnd->rw.command_id = cmdid;
+	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
+	nvme_setup_prps(&cmnd->common, info->sg, bio->bi_size);
+	cmnd->rw.slba = cpu_to_le64(bio->bi_sector >> (ns->lba_shift - 9));
+	cmnd->rw.length = cpu_to_le16((bio->bi_size >> ns->lba_shift) - 1);
+	cmnd->rw.control = cpu_to_le16(control);
+	cmnd->rw.dsmgmt = cpu_to_le32(dsmgmt);
 
 	writel(nvmeq->sq_tail, nvmeq->q_db);
 	if (++nvmeq->sq_tail == nvmeq->q_depth)
@@ -667,8 +696,9 @@ static int nvme_identify(struct nvme_ns *ns, unsigned long addr, int cns)
 		goto put_pages;
 	}
 	sg_init_table(sg, count);
-	for (i = 0; i < count; i++)
-		sg_set_page(&sg[i], pages[i], PAGE_SIZE, 0);
+	sg_set_page(&sg[0], pages[0], PAGE_SIZE - offset, offset);
+	if (count > 1)
+		sg_set_page(&sg[1], pages[1], offset, 0);
 	nents = dma_map_sg(&dev->pci_dev->dev, sg, count, DMA_FROM_DEVICE);
 	if (!nents)
 		goto put_pages;
@@ -676,15 +706,7 @@ static int nvme_identify(struct nvme_ns *ns, unsigned long addr, int cns)
 	memset(&c, 0, sizeof(c));
 	c.identify.opcode = nvme_admin_identify;
 	c.identify.nsid = cns ? 0 : cpu_to_le32(ns->ns_id);
-	c.identify.prp1 = cpu_to_le64(sg_dma_address(&sg[0]) + offset);
-	if (count > 1) {
-		u64 dma_addr;
-		if (nents > 1)
-			dma_addr = sg_dma_address(&sg[1]);
-		else
-			dma_addr = sg_dma_address(&sg[0]) + PAGE_SIZE;
-		c.identify.prp2 = cpu_to_le64(dma_addr);
-	}
+	nvme_setup_prps(&c.common, sg, 4096);
 	c.identify.cns = cpu_to_le32(cns);
 
 	err = nvme_submit_admin_cmd(dev, &c, NULL);
