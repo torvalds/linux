@@ -2528,6 +2528,13 @@ static int we_should_drop_the_connection(struct drbd_conf *mdev, struct socket *
 	return drop_it; /* && (mdev->state == R_PRIMARY) */;
 }
 
+static void drbd_update_congested(struct drbd_conf *mdev)
+{
+	struct sock *sk = mdev->tconn->data.socket->sk;
+	if (sk->sk_wmem_queued > sk->sk_sndbuf * 4 / 5)
+		set_bit(NET_CONGESTED, &mdev->flags);
+}
+
 /* The idea of sendpage seems to be to put some kind of reference
  * to the page into the skb, and to hand it over to the NIC. In
  * this process get_page() gets called.

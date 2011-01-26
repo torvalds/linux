@@ -56,6 +56,35 @@ static void _drbd_end_io_acct(struct drbd_conf *mdev, struct drbd_request *req)
 	part_stat_unlock();
 }
 
+static struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
+					       struct bio *bio_src)
+{
+	struct drbd_request *req;
+
+	req = mempool_alloc(drbd_request_mempool, GFP_NOIO);
+	if (!req)
+		return NULL;
+
+	drbd_req_make_private_bio(req, bio_src);
+	req->rq_state    = bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0;
+	req->mdev        = mdev;
+	req->master_bio  = bio_src;
+	req->epoch       = 0;
+	drbd_clear_interval(&req->i);
+	req->i.sector     = bio_src->bi_sector;
+	req->i.size      = bio_src->bi_size;
+	INIT_LIST_HEAD(&req->tl_requests);
+	INIT_LIST_HEAD(&req->w.list);
+
+	return req;
+}
+
+static void drbd_req_free(struct drbd_request *req)
+{
+	mempool_free(req, drbd_request_mempool);
+}
+
+/* rw is bio_data_dir(), only READ or WRITE */
 static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const int rw)
 {
 	const unsigned long s = req->rq_state;

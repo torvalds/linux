@@ -2355,13 +2355,6 @@ static inline int drbd_set_ed_uuid(struct drbd_conf *mdev, u64 val)
 	return changed;
 }
 
-static inline void drbd_update_congested(struct drbd_conf *mdev)
-{
-	struct sock *sk = mdev->tconn->data.socket->sk;
-	if (sk->sk_wmem_queued > sk->sk_sndbuf * 4 / 5)
-		set_bit(NET_CONGESTED, &mdev->flags);
-}
-
 static inline int drbd_queue_order_type(struct drbd_conf *mdev)
 {
 	/* sorry, we currently have no working implementation
