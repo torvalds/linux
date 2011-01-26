@@ -799,10 +799,17 @@ int hci_get_dev_list(void __user *arg)
 	read_lock_bh(&hci_dev_list_lock);
 	list_for_each(p, &hci_dev_list) {
 		struct hci_dev *hdev;
+
 		hdev = list_entry(p, struct hci_dev, list);
+
 		hci_del_off_timer(hdev);
+
+		if (!test_bit(HCI_MGMT, &hdev->flags))
+			set_bit(HCI_PAIRABLE, &hdev->flags);
+
 		(dr + n)->dev_id  = hdev->id;
 		(dr + n)->dev_opt = hdev->flags;
+
 		if (++n >= dev_num)
 			break;
 	}
@@ -831,6 +838,9 @@ int hci_get_dev_info(void __user *arg)
 		return -ENODEV;
 
 	hci_del_off_timer(hdev);
+
+	if (!test_bit(HCI_MGMT, &hdev->flags))
+		set_bit(HCI_PAIRABLE, &hdev->flags);
 
 	strcpy(di.name, hdev->name);
 	di.bdaddr   = hdev->bdaddr;

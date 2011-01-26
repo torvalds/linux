@@ -481,6 +481,29 @@ failed:
 	return err;
 }
 
+static int mgmt_event(u16 event, void *data, u16 data_len, struct sock *skip_sk)
+{
+	struct sk_buff *skb;
+	struct mgmt_hdr *hdr;
+
+	skb = alloc_skb(sizeof(*hdr) + data_len, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	bt_cb(skb)->channel = HCI_CHANNEL_CONTROL;
+
+	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr->opcode = cpu_to_le16(event);
+	hdr->len = cpu_to_le16(data_len);
+
+	memcpy(skb_put(skb, data_len), data, data_len);
+
+	hci_send_to_sock(NULL, skb, skip_sk);
+	kfree_skb(skb);
+
+	return 0;
+}
+
 static int send_mode_rsp(struct sock *sk, u16 opcode, u16 index, u8 val)
 {
 	struct mgmt_hdr *hdr;
@@ -507,6 +530,45 @@ static int send_mode_rsp(struct sock *sk, u16 opcode, u16 index, u8 val)
 		kfree_skb(skb);
 
 	return 0;
+}
+
+static int set_pairable(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct mgmt_mode *cp, ev;
+	struct hci_dev *hdev;
+	u16 dev_id;
+	int err;
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	BT_DBG("request for hci%u", dev_id);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_SET_PAIRABLE, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	if (cp->val)
+		set_bit(HCI_PAIRABLE, &hdev->flags);
+	else
+		clear_bit(HCI_PAIRABLE, &hdev->flags);
+
+	err = send_mode_rsp(sk, MGMT_OP_SET_PAIRABLE, dev_id, cp->val);
+	if (err < 0)
+		goto failed;
+
+	put_unaligned_le16(dev_id, &ev.index);
+	ev.val = cp->val;
+
+	err = mgmt_event(MGMT_EV_PAIRABLE, &ev, sizeof(ev), sk);
+
+failed:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
 }
 
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
@@ -558,6 +620,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	case MGMT_OP_SET_CONNECTABLE:
 		err = set_connectable(sk, buf + sizeof(*hdr), len);
 		break;
+	case MGMT_OP_SET_PAIRABLE:
+		err = set_pairable(sk, buf + sizeof(*hdr), len);
+		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
 		err = cmd_status(sk, opcode, 0x01);
@@ -572,29 +637,6 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 done:
 	kfree(buf);
 	return err;
-}
-
-static int mgmt_event(u16 event, void *data, u16 data_len, struct sock *skip_sk)
-{
-	struct sk_buff *skb;
-	struct mgmt_hdr *hdr;
-
-	skb = alloc_skb(sizeof(*hdr) + data_len, GFP_ATOMIC);
-	if (!skb)
-		return -ENOMEM;
-
-	bt_cb(skb)->channel = HCI_CHANNEL_CONTROL;
-
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
-	hdr->opcode = cpu_to_le16(event);
-	hdr->len = cpu_to_le16(data_len);
-
-	memcpy(skb_put(skb, data_len), data, data_len);
-
-	hci_send_to_sock(NULL, skb, skip_sk);
-	kfree_skb(skb);
-
-	return 0;
 }
 
 int mgmt_index_added(u16 index)
