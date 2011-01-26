@@ -3206,6 +3206,9 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	u32 seqno = 0;
 	int ret;
 
+	if (atomic_read(&dev_priv->mm.wedged))
+		return -EIO;
+
 	spin_lock(&file_priv->mm.lock);
 	list_for_each_entry(request, &file_priv->mm.request_list, client_list) {
 		if (time_after_eq(request->emitted_jiffies, recent_enough))
