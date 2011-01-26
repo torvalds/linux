@@ -50,6 +50,7 @@
 #include <linux/module.h>
 #include <linux/sunrpc/bc_xprt.h>
 #include <linux/xattr.h>
+#include <linux/utsname.h>
 
 #include "nfs4_fs.h"
 #include "delegation.h"
@@ -4572,27 +4573,16 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 	*p = htonl((u32)clp->cl_boot_time.tv_nsec);
 	args.verifier = &verifier;
 
-	while (1) {
-		args.id_len = scnprintf(args.id, sizeof(args.id),
-					"%s/%s %u",
-					clp->cl_ipaddr,
-					rpc_peeraddr2str(clp->cl_rpcclient,
-							 RPC_DISPLAY_ADDR),
-					clp->cl_id_uniquifier);
+	args.id_len = scnprintf(args.id, sizeof(args.id),
+				"%s/%s.%s/%u",
+				clp->cl_ipaddr,
+				init_utsname()->nodename,
+				init_utsname()->domainname,
+				clp->cl_rpcclient->cl_auth->au_flavor);
 
-		status = rpc_call_sync(clp->cl_rpcclient, &msg, 0);
-
-		if (status != -NFS4ERR_CLID_INUSE)
-			break;
-
-		if (signalled())
-			break;
-
-		if (++clp->cl_id_uniquifier == 0)
-			break;
-	}
-
-	status = nfs4_check_cl_exchange_flags(clp->cl_exchange_flags);
+	status = rpc_call_sync(clp->cl_rpcclient, &msg, 0);
+	if (!status)
+		status = nfs4_check_cl_exchange_flags(clp->cl_exchange_flags);
 	dprintk("<-- %s status= %d\n", __func__, status);
 	return status;
 }
