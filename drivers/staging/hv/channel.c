@@ -77,10 +77,10 @@ static void vmbus_setevent(struct vmbus_channel *channel)
 	if (channel->offermsg.monitor_allocated) {
 		/* Each u32 represents 32 channels */
 		set_bit(channel->offermsg.child_relid & 31,
-			(unsigned long *) gVmbusConnection.SendInterruptPage +
+			(unsigned long *) vmbus_connection.SendInterruptPage +
 			(channel->offermsg.child_relid >> 5));
 
-		monitorpage = gVmbusConnection.MonitorPages;
+		monitorpage = vmbus_connection.MonitorPages;
 		monitorpage++; /* Get the child to parent monitor page */
 
 		set_bit(channel->monitor_bit,
@@ -100,11 +100,11 @@ static void VmbusChannelClearEvent(struct vmbus_channel *channel)
 	if (Channel->offermsg.monitor_allocated) {
 		/* Each u32 represents 32 channels */
 		clear_bit(Channel->offermsg.child_relid & 31,
-			  (unsigned long *)gVmbusConnection.SendInterruptPage +
+			  (unsigned long *)vmbus_connection.SendInterruptPage +
 			  (Channel->offermsg.child_relid >> 5));
 
 		monitorPage =
-			(struct hv_monitor_page *)gVmbusConnection.MonitorPages;
+			(struct hv_monitor_page *)vmbus_connection.MonitorPages;
 		monitorPage++; /* Get the child to parent monitor page */
 
 		clear_bit(Channel->monitor_bit,
@@ -133,7 +133,7 @@ void vmbus_get_debug_info(struct vmbus_channel *channel,
 	       &channel->offermsg.offer.InterfaceInstance,
 	       sizeof(struct hv_guid));
 
-	monitorpage = (struct hv_monitor_page *)gVmbusConnection.MonitorPages;
+	monitorpage = (struct hv_monitor_page *)vmbus_connection.MonitorPages;
 
 	debuginfo->monitorid = channel->offermsg.monitorid;
 
@@ -265,10 +265,10 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	if (userdatalen)
 		memcpy(openMsg->userdata, userdata, userdatalen);
 
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_add_tail(&openInfo->msglistentry,
-		      &gVmbusConnection.ChannelMsgList);
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+		      &vmbus_connection.ChannelMsgList);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
 	DPRINT_DBG(VMBUS, "Sending channel open msg...");
 
@@ -289,9 +289,9 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 			    newchannel, openInfo->response.open_result.status);
 
 Cleanup:
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&openInfo->msglistentry);
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
 	kfree(openInfo->waitevent);
 	kfree(openInfo);
@@ -501,8 +501,8 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	unsigned long flags;
 	int ret = 0;
 
-	next_gpadl_handle = atomic_read(&gVmbusConnection.NextGpadlHandle);
-	atomic_inc(&gVmbusConnection.NextGpadlHandle);
+	next_gpadl_handle = atomic_read(&vmbus_connection.NextGpadlHandle);
+	atomic_inc(&vmbus_connection.NextGpadlHandle);
 
 	ret = create_gpadl_header(kbuffer, size, &msginfo, &msgcount);
 	if (ret)
@@ -521,11 +521,11 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 
 	dump_gpadl_header(gpadlmsg);
 
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_add_tail(&msginfo->msglistentry,
-		      &gVmbusConnection.ChannelMsgList);
+		      &vmbus_connection.ChannelMsgList);
 
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 	DPRINT_DBG(VMBUS, "buffer %p, size %d msg cnt %d",
 		   kbuffer, size, msgcount);
 
@@ -577,9 +577,9 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	*gpadl_handle = gpadlmsg->gpadl;
 
 Cleanup:
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&msginfo->msglistentry);
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
 	kfree(msginfo->waitevent);
 	kfree(msginfo);
@@ -616,10 +616,10 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 	msg->child_relid = channel->offermsg.child_relid;
 	msg->gpadl = gpadl_handle;
 
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_add_tail(&info->msglistentry,
-		      &gVmbusConnection.ChannelMsgList);
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+		      &vmbus_connection.ChannelMsgList);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
 	ret = VmbusPostMessage(msg,
 			       sizeof(struct vmbus_channel_gpadl_teardown));
@@ -631,9 +631,9 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 	osd_waitevent_wait(info->waitevent);
 
 	/* Received a torndown response */
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&info->msglistentry);
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
 	kfree(info->waitevent);
 	kfree(info);
@@ -697,9 +697,9 @@ void vmbus_close(struct vmbus_channel *channel)
 	 */
 
 	if (channel->state == CHANNEL_OPEN_STATE) {
-		spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
+		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 		list_del(&channel->listentry);
-		spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
+		spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 
 		free_channel(channel);
 	}

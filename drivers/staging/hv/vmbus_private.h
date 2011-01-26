@@ -98,7 +98,7 @@ struct VMBUS_MSGINFO {
 };
 
 
-extern struct VMBUS_CONNECTION gVmbusConnection;
+extern struct VMBUS_CONNECTION vmbus_connection;
 
 /* General vmbus interface */
 

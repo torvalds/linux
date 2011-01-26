@@ -308,7 +308,7 @@ void free_channel(struct vmbus_channel *channel)
 	 * ie we can't destroy ourselves.
 	 */
 	INIT_WORK(&channel->work, release_channel);
-	queue_work(gVmbusConnection.WorkQueue, &channel->work);
+	queue_work(vmbus_connection.WorkQueue, &channel->work);
 }
 
 
@@ -323,10 +323,10 @@ static void count_hv_channel(void)
 	static int counter;
 	unsigned long flags;
 
-	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 	if (++counter == MAX_MSG_TYPES)
 		complete(&hv_channel_ready);
-	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 }
 
 /*
@@ -361,9 +361,9 @@ static void vmbus_process_offer(struct work_struct *work)
 	INIT_WORK(&newchannel->work, vmbus_process_rescind_offer);
 
 	/* Make sure this is a new offer */
-	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 
-	list_for_each_entry(channel, &gVmbusConnection.ChannelList, listentry) {
+	list_for_each_entry(channel, &vmbus_connection.ChannelList, listentry) {
 		if (!memcmp(&channel->offermsg.offer.InterfaceType,
 			    &newchannel->offermsg.offer.InterfaceType,
 			    sizeof(struct hv_guid)) &&
@@ -377,9 +377,9 @@ static void vmbus_process_offer(struct work_struct *work)
 
 	if (fnew)
 		list_add_tail(&newchannel->listentry,
-			      &gVmbusConnection.ChannelList);
+			      &vmbus_connection.ChannelList);
 
-	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 
 	if (!fnew) {
 		DPRINT_DBG(VMBUS, "Ignoring duplicate offer for relid (%d)",
@@ -412,9 +412,9 @@ static void vmbus_process_offer(struct work_struct *work)
 			   "unable to add child device object (relid %d)",
 			   newchannel->offermsg.child_relid);
 
-		spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
+		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 		list_del(&newchannel->listentry);
-		spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
+		spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 
 		free_channel(newchannel);
 	} else {
@@ -577,9 +577,9 @@ static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 	/*
 	 * Find the open msg, copy the result and signal/unblock the wait event
 	 */
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &gVmbusConnection.ChannelMsgList) {
+	list_for_each(curr, &vmbus_connection.ChannelMsgList) {
 /* FIXME: this should probably use list_entry() instead */
 		msginfo = (struct vmbus_channel_msginfo *)curr;
 		requestheader =
@@ -598,7 +598,7 @@ static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 			}
 		}
 	}
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 }
 
 /*
@@ -625,9 +625,9 @@ static void vmbus_ongpadl_created(struct vmbus_channel_message_header *hdr)
 	 * Find the establish msg, copy the result and signal/unblock the wait
 	 * event
 	 */
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &gVmbusConnection.ChannelMsgList) {
+	list_for_each(curr, &vmbus_connection.ChannelMsgList) {
 /* FIXME: this should probably use list_entry() instead */
 		msginfo = (struct vmbus_channel_msginfo *)curr;
 		requestheader =
@@ -648,7 +648,7 @@ static void vmbus_ongpadl_created(struct vmbus_channel_message_header *hdr)
 			}
 		}
 	}
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 }
 
 /*
@@ -673,9 +673,9 @@ static void vmbus_ongpadl_torndown(
 	/*
 	 * Find the open msg, copy the result and signal/unblock the wait event
 	 */
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &gVmbusConnection.ChannelMsgList) {
+	list_for_each(curr, &vmbus_connection.ChannelMsgList) {
 /* FIXME: this should probably use list_entry() instead */
 		msginfo = (struct vmbus_channel_msginfo *)curr;
 		requestheader =
@@ -694,7 +694,7 @@ static void vmbus_ongpadl_torndown(
 			}
 		}
 	}
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 }
 
 /*
@@ -715,9 +715,9 @@ static void vmbus_onversion_response(
 	unsigned long flags;
 
 	version_response = (struct vmbus_channel_version_response *)hdr;
-	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &gVmbusConnection.ChannelMsgList) {
+	list_for_each(curr, &vmbus_connection.ChannelMsgList) {
 /* FIXME: this should probably use list_entry() instead */
 		msginfo = (struct vmbus_channel_msginfo *)curr;
 		requestheader =
@@ -733,7 +733,7 @@ static void vmbus_onversion_response(
 			osd_waitevent_set(msginfo->waitevent);
 		}
 	}
-	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 }
 
 /* Channel message dispatch table */
@@ -857,9 +857,9 @@ void vmbus_release_unattached_channels(void)
 	struct vmbus_channel *start = NULL;
 	unsigned long flags;
 
-	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
+	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 
-	list_for_each_entry_safe(channel, pos, &gVmbusConnection.ChannelList,
+	list_for_each_entry_safe(channel, pos, &vmbus_connection.ChannelList,
 				 listentry) {
 		if (channel == start)
 			break;
@@ -878,7 +878,7 @@ void vmbus_release_unattached_channels(void)
 		}
 	}
 
-	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
+	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 }
 
 /* eof */
