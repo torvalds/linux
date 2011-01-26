@@ -75,8 +75,8 @@ static void i915_gem_info_remove_obj(struct drm_i915_private *dev_priv,
 	dev_priv->mm.object_memory -= size;
 }
 
-int
-i915_gem_check_is_wedged(struct drm_device *dev)
+static int
+i915_gem_wait_for_error(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct completion *x = &dev_priv->error_completion;
@@ -90,38 +90,30 @@ i915_gem_check_is_wedged(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	/* Success, we reset the GPU! */
-	if (!atomic_read(&dev_priv->mm.wedged))
-		return 0;
-
-	/* GPU is hung, bump the completion count to account for
-	 * the token we just consumed so that we never hit zero and
-	 * end up waiting upon a subsequent completion event that
-	 * will never happen.
-	 */
-	spin_lock_irqsave(&x->wait.lock, flags);
-	x->done++;
-	spin_unlock_irqrestore(&x->wait.lock, flags);
-	return -EIO;
+	if (atomic_read(&dev_priv->mm.wedged)) {
+		/* GPU is hung, bump the completion count to account for
+		 * the token we just consumed so that we never hit zero and
+		 * end up waiting upon a subsequent completion event that
+		 * will never happen.
+		 */
+		spin_lock_irqsave(&x->wait.lock, flags);
+		x->done++;
+		spin_unlock_irqrestore(&x->wait.lock, flags);
+	}
+	return 0;
 }
 
 int i915_mutex_lock_interruptible(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ret = i915_gem_check_is_wedged(dev);
+	ret = i915_gem_wait_for_error(dev);
 	if (ret)
 		return ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
-
-	if (atomic_read(&dev_priv->mm.wedged)) {
-		mutex_unlock(&dev->struct_mutex);
-		return -EAGAIN;
-	}
 
 	WARN_ON(i915_verify_lists(dev));
 	return 0;

@@ -980,8 +980,12 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 int intel_ring_begin(struct intel_ring_buffer *ring,
 		     int num_dwords)
 {
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	int n = 4*num_dwords;
 	int ret;
+
+	if (unlikely(atomic_read(&dev_priv->mm.wedged)))
+		return -EIO;
 
 	if (unlikely(ring->tail + n > ring->effective_size)) {
 		ret = intel_wrap_ring_buffer(ring);
