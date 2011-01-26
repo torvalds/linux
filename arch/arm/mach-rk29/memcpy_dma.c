@@ -15,7 +15,7 @@
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static int wq_condition = 0;
 
-static struct rk29_dma_client rk29_dma_Memcpy_client = {
+static struct rk29_dma_client rk29_dma_memcpy_client = {
         .name = "rk29-dma-memcpy",
 };
 
@@ -34,13 +34,13 @@ static void rk29_dma_memcpy_callback(struct rk29_dma_chan *dma_ch, void *buf_id,
 }
 
 //int slecount = 0;
-static ssize_t Memcpy_Dma_read(struct device *device,struct device_attribute *attr, void *argv)
+static ssize_t memcpy_dma_read(struct device *device,struct device_attribute *attr, void *argv)
 {
 
      return 0;
 }
 
-static ssize_t Memcpy_Dma_write (struct device *device,struct device_attribute *attr, void *argv)//(struct device_driver *device, const char *argv,size_t count)
+static ssize_t memcpy_dma_write (struct device *device,struct device_attribute *attr, void *argv)//(struct device_driver *device, const char *argv,size_t count)
 {
     int dma_flag;
     u32 mcode_sbus;
@@ -53,8 +53,8 @@ static ssize_t Memcpy_Dma_write (struct device *device,struct device_attribute *
     struct Dma_MemToMem  *DmaMemInfo = (struct Dma_MemToMem *)argv;
 
 
-    dma_flag = rk29_dma_request(DMACH_DMAC0_MemToMem, &rk29_dma_Memcpy_client, NULL);           
-    dma_flag = DMACH_DMAC0_MemToMem;
+    dma_flag = rk29_dma_request(DMACH_DMAC0_MEMTOMEM, &rk29_dma_memcpy_client, NULL);           
+    dma_flag = DMACH_DMAC0_MEMTOMEM;
 
     rt = rk29_dma_devconfig(dma_flag, RK29_DMASRC_MEMTOMEM, DmaMemInfo->SrcAddr);
     rt = rk29_dma_config(dma_flag, 8);
@@ -62,18 +62,18 @@ static ssize_t Memcpy_Dma_write (struct device *device,struct device_attribute *
     rt = rk29_dma_enqueue(dma_flag, NULL, DmaMemInfo->DstAddr, DmaMemInfo->MenSize);
     rt = rk29_dma_ctrl(dma_flag, RK29_DMAOP_START);    
     wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
-    wq_condition = 0; 
+    wq_condition = 0;  
     return 0;
 }
 
-static DRIVER_ATTR(DmaMemcpy,  S_IRUGO|S_IALLUGO, Memcpy_Dma_read, Memcpy_Dma_write);
+static DRIVER_ATTR(dmamemcpy,  S_IRUGO|S_IALLUGO, memcpy_dma_read, memcpy_dma_write);
 
 
 static int __init dma_memcpy_probe(struct platform_device *pdev)
 {
     int ret;
       
-    ret = device_create_file(&pdev->dev, &driver_attr_DmaMemcpy);
+    ret = device_create_file(&pdev->dev, &driver_attr_dmamemcpy);
     if(ret)
     {
         printk(">> fb1 dsp win0 info device_create_file err\n");
@@ -86,7 +86,7 @@ static int __init dma_memcpy_probe(struct platform_device *pdev)
 static int  dma_memcpy_remove(struct platform_device *pdev)
 {
     int ret;
-    driver_remove_file(&pdev->dev, &driver_attr_DmaMemcpy);
+    driver_remove_file(&pdev->dev, &driver_attr_dmamemcpy);
   
     return 0;
 }

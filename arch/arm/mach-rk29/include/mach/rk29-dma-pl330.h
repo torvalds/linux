@@ -46,7 +46,7 @@ enum dma_ch {
 	DMACH_SPI1_TX,
 	DMACH_SPI1_RX,
 	DMACH_PID_FILTER,
-    DMACH_DMAC0_MemToMem,
+    DMACH_DMAC0_MEMTOMEM,
 	/* END Marker, also used to denote a reserved channel */
 	DMACH_MAX,
 };

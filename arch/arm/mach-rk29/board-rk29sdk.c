@@ -229,7 +229,7 @@ struct platform_device rk29_device_fb = {
 	}
 };
 
-struct platform_device rk29_device_Dma_cpy = {
+struct platform_device rk29_device_dma_cpy = {
 	.name		  = "dma_memcpy",
 	.id		  = 4,
 
@@ -1443,7 +1443,7 @@ static struct platform_device *devices[] __initdata = {
 
 #ifdef CONFIG_FB_RK29
 	&rk29_device_fb,
-	&rk29_device_Dma_cpy,
+	&rk29_device_dma_cpy,
 #endif
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
