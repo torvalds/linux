@@ -364,11 +364,11 @@ static void vmbus_process_offer(struct work_struct *work)
 	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 
 	list_for_each_entry(channel, &vmbus_connection.ChannelList, listentry) {
-		if (!memcmp(&channel->offermsg.offer.InterfaceType,
-			    &newchannel->offermsg.offer.InterfaceType,
+		if (!memcmp(&channel->offermsg.offer.if_type,
+			    &newchannel->offermsg.offer.if_type,
 			    sizeof(struct hv_guid)) &&
-		    !memcmp(&channel->offermsg.offer.InterfaceInstance,
-			    &newchannel->offermsg.offer.InterfaceInstance,
+		    !memcmp(&channel->offermsg.offer.if_instance,
+			    &newchannel->offermsg.offer.if_instance,
 			    sizeof(struct hv_guid))) {
 			fnew = false;
 			break;
@@ -394,8 +394,8 @@ static void vmbus_process_offer(struct work_struct *work)
 	 * vmbus_child_dev_add()
 	 */
 	newchannel->device_obj = vmbus_child_device_create(
-		&newchannel->offermsg.offer.InterfaceType,
-		&newchannel->offermsg.offer.InterfaceInstance,
+		&newchannel->offermsg.offer.if_type,
+		&newchannel->offermsg.offer.if_instance,
 		newchannel);
 
 	DPRINT_DBG(VMBUS, "child device object allocated - %p",
@@ -427,7 +427,7 @@ static void vmbus_process_offer(struct work_struct *work)
 
 		/* Open IC channels */
 		for (cnt = 0; cnt < MAX_MSG_TYPES; cnt++) {
-			if (memcmp(&newchannel->offermsg.offer.InterfaceType,
+			if (memcmp(&newchannel->offermsg.offer.if_type,
 				   &hv_cb_utils[cnt].data,
 				   sizeof(struct hv_guid)) == 0 &&
 				vmbus_open(newchannel, 2 * PAGE_SIZE,
@@ -461,7 +461,7 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 
 	offer = (struct vmbus_channel_offer_channel *)hdr;
 	for (i = 0; i < MAX_NUM_DEVICE_CLASSES_SUPPORTED; i++) {
-		if (memcmp(&offer->offer.InterfaceType,
+		if (memcmp(&offer->offer.if_type,
 		    &gSupportedDeviceClasses[i], sizeof(struct hv_guid)) == 0) {
 			fsupported = 1;
 			break;
@@ -474,8 +474,8 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 		return;
 	}
 
-	guidtype = &offer->offer.InterfaceType;
-	guidinstance = &offer->offer.InterfaceInstance;
+	guidtype = &offer->offer.if_type;
+	guidinstance = &offer->offer.if_instance;
 
 	DPRINT_INFO(VMBUS, "Channel offer notification - "
 		    "child relid %d monitor id %d allocated %d, "
