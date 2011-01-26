@@ -46,6 +46,7 @@ static struct cpufreq_frequency_table freq_table[] = {
 };
 static struct clk *arm_clk;
 static struct regulator *vcore;
+static int vcore_uV;
 
 static int rk29_cpufreq_verify(struct cpufreq_policy *policy)
 {
@@ -96,13 +97,14 @@ static int rk29_cpufreq_target(struct cpufreq_policy *policy, unsigned int targe
 	pr_debug("%d r %d (%d-%d) selected %d (%duV)\n", target_freq, relation, policy->min, policy->max, freq->frequency, freq->index);
 
 #ifdef CONFIG_REGULATOR
-	if (vcore && freqs.new > freqs.old) {
+	if (vcore && freqs.new > freqs.old && vcore_uV != freq->index) {
 		err = regulator_set_voltage(vcore, freq->index, freq->index);
 		if (err) {
 			pr_err("fail to set vcore (%duV) for %dkHz: %d\n",
 				freq->index, freqs.new, err);
 			goto err_vol;
 		}
+		vcore_uV = freq->index;
 	}
 #endif
 
@@ -112,12 +114,13 @@ static int rk29_cpufreq_target(struct cpufreq_policy *policy, unsigned int targe
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 #ifdef CONFIG_REGULATOR
-	if (vcore && freqs.new < freqs.old) {
+	if (vcore && freqs.new < freqs.old && vcore_uV != freq->index) {
 		err = regulator_set_voltage(vcore, freq->index, freq->index);
 		if (err) {
 			pr_err("fail to set vcore (%duV) for %dkHz: %d\n",
 				freq->index, freqs.new, err);
 		}
+		vcore_uV = freq->index;
 	}
 #endif
 
