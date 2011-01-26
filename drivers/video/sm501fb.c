@@ -41,6 +41,26 @@
 #include <linux/sm501.h>
 #include <linux/sm501-regs.h>
 
+#include "edid.h"
+
+static char *fb_mode = "640x480-16@60";
+static unsigned long default_bpp = 16;
+
+static struct fb_videomode __devinitdata sm501_default_mode = {
+	.refresh	= 60,
+	.xres		= 640,
+	.yres		= 480,
+	.pixclock	= 20833,
+	.left_margin	= 142,
+	.right_margin	= 13,
+	.upper_margin	= 21,
+	.lower_margin	= 1,
+	.hsync_len	= 69,
+	.vsync_len	= 3,
+	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+	.vmode		= FB_VMODE_NONINTERLACED
+};
+
 #define NR_PALETTE	256
 
 enum sm501_controller {
@@ -77,6 +97,7 @@ struct sm501fb_info {
 	void __iomem		*regs2d;	/* 2d remapped registers */
 	void __iomem		*fbmem;		/* remapped framebuffer */
 	size_t			 fbmem_len;	/* length of remapped region */
+	u8 *edid_data;
 };
 
 /* per-framebuffer private data */
@@ -1725,9 +1746,16 @@ static int sm501fb_init_fb(struct fb_info *fb,
 	fb->var.vmode		= FB_VMODE_NONINTERLACED;
 	fb->var.bits_per_pixel  = 16;
 
+	if (info->edid_data) {
+			/* Now build modedb from EDID */
+			fb_edid_to_monspecs(info->edid_data, &fb->monspecs);
+			fb_videomode_to_modelist(fb->monspecs.modedb,
+						 fb->monspecs.modedb_len,
+						 &fb->modelist);
+	}
+
 	if (enable && (pd->flags & SM501FB_FLAG_USE_INIT_MODE) && 0) {
 		/* TODO read the mode from the current display */
-
 	} else {
 		if (pd->def_mode) {
 			dev_info(info->dev, "using supplied mode\n");
@@ -1737,12 +1765,34 @@ static int sm501fb_init_fb(struct fb_info *fb,
 			fb->var.xres_virtual = fb->var.xres;
 			fb->var.yres_virtual = fb->var.yres;
 		} else {
-			ret = fb_find_mode(&fb->var, fb,
+			if (info->edid_data)
+				ret = fb_find_mode(&fb->var, fb, fb_mode,
+					fb->monspecs.modedb,
+					fb->monspecs.modedb_len,
+					&sm501_default_mode, default_bpp);
+			else
+				ret = fb_find_mode(&fb->var, fb,
 					   NULL, NULL, 0, NULL, 8);
 
-			if (ret == 0 || ret == 4) {
-				dev_err(info->dev,
-					"failed to get initial mode\n");
+			switch (ret) {
+			case 1:
+				dev_info(info->dev, "using mode specified in "
+						"@mode\n");
+				break;
+			case 2:
+				dev_info(info->dev, "using mode specified in "
+					"@mode with ignored refresh rate\n");
+				break;
+			case 3:
+				dev_info(info->dev, "using mode default "
+					"mode\n");
+				break;
+			case 4:
+				dev_info(info->dev, "using mode from list\n");
+				break;
+			default:
+				dev_info(info->dev, "ret = %d\n", ret);
+				dev_info(info->dev, "failed to find mode\n");
 				return -EINVAL;
 			}
 		}
@@ -2157,6 +2207,11 @@ static void __exit sm501fb_cleanup(void)
 module_init(sm501fb_init);
 module_exit(sm501fb_cleanup);
 
+module_param_named(mode, fb_mode, charp, 0);
+MODULE_PARM_DESC(mode,
+	"Specify resolution as \"<xres>x<yres>[-<bpp>][@<refresh>]\" ");
+module_param_named(bpp, default_bpp, ulong, 0);
+MODULE_PARM_DESC(bpp, "Specify bit-per-pixel if not specified mode");
 MODULE_AUTHOR("Ben Dooks, Vincent Sanders");
 MODULE_DESCRIPTION("SM501 Framebuffer driver");
 MODULE_LICENSE("GPL v2");
