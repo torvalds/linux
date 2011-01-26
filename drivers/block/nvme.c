@@ -677,18 +677,17 @@ static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 	return result;
 }
 
-static int nvme_identify(struct nvme_ns *ns, unsigned long addr, int cns)
+static int nvme_submit_user_admin_command(struct nvme_dev *dev, unsigned long addr,
+					unsigned length, struct nvme_command *cmd)
 {
-	struct nvme_dev *dev = ns->dev;
 	int i, err, count, nents, offset;
-	struct nvme_command c;
 	struct scatterlist sg[2];
 	struct page *pages[2];
 
 	if (addr & 3)
 		return -EINVAL;
 	offset = offset_in_page(addr);
-	count = offset ? 2 : 1;
+	count = ((offset + length) > PAGE_SIZE) ? 2 : 1;
 
 	err = get_user_pages_fast(addr, count, 1, pages);
 	if (err < count) {
@@ -704,13 +703,9 @@ static int nvme_identify(struct nvme_ns *ns, unsigned long addr, int cns)
 	if (!nents)
 		goto put_pages;
 
-	memset(&c, 0, sizeof(c));
-	c.identify.opcode = nvme_admin_identify;
-	c.identify.nsid = cns ? 0 : cpu_to_le32(ns->ns_id);
-	nvme_setup_prps(&c.common, sg, 4096);
-	c.identify.cns = cpu_to_le32(cns);
+	nvme_setup_prps(&cmd->common, sg, length);
 
-	err = nvme_submit_admin_cmd(dev, &c, NULL);
+	err = nvme_submit_admin_cmd(dev, cmd, NULL);
 
 	if (err)
 		err = -EIO;
@@ -723,34 +718,28 @@ static int nvme_identify(struct nvme_ns *ns, unsigned long addr, int cns)
 	return err;
 }
 
-static int nvme_get_range_type(struct nvme_ns *ns, void __user *addr)
+static int nvme_identify(struct nvme_ns *ns, unsigned long addr, int cns)
 {
-	struct nvme_dev *dev = ns->dev;
-	int status;
 	struct nvme_command c;
-	void *page;
-	dma_addr_t dma_addr;
 
-	page = dma_alloc_coherent(&dev->pci_dev->dev, 4096, &dma_addr,
-								GFP_KERNEL);
+	memset(&c, 0, sizeof(c));
+	c.identify.opcode = nvme_admin_identify;
+	c.identify.nsid = cns ? 0 : cpu_to_le32(ns->ns_id);
+	c.identify.cns = cpu_to_le32(cns);
+
+	return nvme_submit_user_admin_command(ns->dev, addr, 4096, &c);
+}
+
+static int nvme_get_range_type(struct nvme_ns *ns, unsigned long addr)
+{
+	struct nvme_command c;
 
 	memset(&c, 0, sizeof(c));
 	c.features.opcode = nvme_admin_get_features;
 	c.features.nsid = cpu_to_le32(ns->ns_id);
-	c.features.prp1 = cpu_to_le64(dma_addr);
 	c.features.fid = cpu_to_le32(NVME_FEAT_LBA_RANGE);
 
-	status = nvme_submit_admin_cmd(dev, &c, NULL);
-
-	/* XXX: Assuming first range for now */
-	if (status)
-		status = -EIO;
-	else if (copy_to_user(addr, page, 64))
-		status = -EFAULT;
-
-	dma_free_coherent(&dev->pci_dev->dev, 4096, page, dma_addr);
-
-	return status;
+	return nvme_submit_user_admin_command(ns->dev, addr, 4096, &c);
 }
 
 static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
@@ -764,7 +753,7 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 	case NVME_IOCTL_IDENTIFY_CTRL:
 		return nvme_identify(ns, arg, 1);
 	case NVME_IOCTL_GET_RANGE_TYPE:
-		return nvme_get_range_type(ns, (void __user *)arg);
+		return nvme_get_range_type(ns, arg);
 	default:
 		return -ENOTTY;
 	}
