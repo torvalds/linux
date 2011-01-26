@@ -1447,7 +1447,7 @@ static inline struct net_device *next_net_device_rcu(struct net_device *dev)
 	struct net *net;
 
 	net = dev_net(dev);
-	lh = rcu_dereference(dev->dev_list.next);
+	lh = rcu_dereference(list_next_rcu(&dev->dev_list));
 	return lh == &net->dev_base_head ? NULL : net_device_entry(lh);
 }
 
@@ -1455,6 +1455,13 @@ static inline struct net_device *first_net_device(struct net *net)
 {
 	return list_empty(&net->dev_base_head) ? NULL :
 		net_device_entry(net->dev_base_head.next);
+}
+
+static inline struct net_device *first_net_device_rcu(struct net *net)
+{
+	struct list_head *lh = rcu_dereference(list_next_rcu(&net->dev_base_head));
+
+	return lh == &net->dev_base_head ? NULL : net_device_entry(lh);
 }
 
 extern int 			netdev_boot_setup_check(struct net_device *dev);
