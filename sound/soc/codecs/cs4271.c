@@ -386,7 +386,7 @@ static struct snd_soc_dai_ops cs4271_dai_ops = {
 	.digital_mute	= cs4271_digital_mute,
 };
 
-struct snd_soc_dai_driver cs4271_dai = {
+static struct snd_soc_dai_driver cs4271_dai = {
 	.name = "cs4271-hifi",
 	.playback = {
 		.stream_name	= "Playback",
@@ -526,7 +526,7 @@ static int cs4271_remove(struct snd_soc_codec *codec)
 	return 0;
 };
 
-struct snd_soc_codec_driver soc_codec_dev_cs4271 = {
+static struct snd_soc_codec_driver soc_codec_dev_cs4271 = {
 	.probe			= cs4271_probe,
 	.remove			= cs4271_remove,
 	.suspend		= cs4271_soc_suspend,
