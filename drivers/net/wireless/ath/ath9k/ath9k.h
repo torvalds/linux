@@ -310,6 +310,8 @@ struct ath_rx {
 	struct ath_descdma rxdma;
 	struct ath_buf *rx_bufptr;
 	struct ath_rx_edma rx_edma[ATH9K_RX_QUEUE_MAX];
+
+	struct sk_buff *frag;
 };
 
 int ath_startrecv(struct ath_softc *sc);
