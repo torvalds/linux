@@ -4101,6 +4101,65 @@ static int w_md_sync(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 	return 1;
 }
 
+const char *cmdname(enum drbd_packets cmd)
+{
+	/* THINK may need to become several global tables
+	 * when we want to support more than
+	 * one PRO_VERSION */
+	static const char *cmdnames[] = {
+		[P_DATA]	        = "Data",
+		[P_DATA_REPLY]	        = "DataReply",
+		[P_RS_DATA_REPLY]	= "RSDataReply",
+		[P_BARRIER]	        = "Barrier",
+		[P_BITMAP]	        = "ReportBitMap",
+		[P_BECOME_SYNC_TARGET]  = "BecomeSyncTarget",
+		[P_BECOME_SYNC_SOURCE]  = "BecomeSyncSource",
+		[P_UNPLUG_REMOTE]	= "UnplugRemote",
+		[P_DATA_REQUEST]	= "DataRequest",
+		[P_RS_DATA_REQUEST]     = "RSDataRequest",
+		[P_SYNC_PARAM]	        = "SyncParam",
+		[P_SYNC_PARAM89]	= "SyncParam89",
+		[P_PROTOCOL]            = "ReportProtocol",
+		[P_UUIDS]	        = "ReportUUIDs",
+		[P_SIZES]	        = "ReportSizes",
+		[P_STATE]	        = "ReportState",
+		[P_SYNC_UUID]           = "ReportSyncUUID",
+		[P_AUTH_CHALLENGE]      = "AuthChallenge",
+		[P_AUTH_RESPONSE]	= "AuthResponse",
+		[P_PING]		= "Ping",
+		[P_PING_ACK]	        = "PingAck",
+		[P_RECV_ACK]	        = "RecvAck",
+		[P_WRITE_ACK]	        = "WriteAck",
+		[P_RS_WRITE_ACK]	= "RSWriteAck",
+		[P_DISCARD_ACK]	        = "DiscardAck",
+		[P_NEG_ACK]	        = "NegAck",
+		[P_NEG_DREPLY]	        = "NegDReply",
+		[P_NEG_RS_DREPLY]	= "NegRSDReply",
+		[P_BARRIER_ACK]	        = "BarrierAck",
+		[P_STATE_CHG_REQ]       = "StateChgRequest",
+		[P_STATE_CHG_REPLY]     = "StateChgReply",
+		[P_OV_REQUEST]          = "OVRequest",
+		[P_OV_REPLY]            = "OVReply",
+		[P_OV_RESULT]           = "OVResult",
+		[P_CSUM_RS_REQUEST]     = "CsumRSRequest",
+		[P_RS_IS_IN_SYNC]	= "CsumRSIsInSync",
+		[P_COMPRESSED_BITMAP]   = "CBitmap",
+		[P_DELAY_PROBE]         = "DelayProbe",
+		[P_OUT_OF_SYNC]		= "OutOfSync",
+		[P_MAX_CMD]	        = NULL,
+	};
+
+	if (cmd == P_HAND_SHAKE_M)
+		return "HandShakeM";
+	if (cmd == P_HAND_SHAKE_S)
+		return "HandShakeS";
+	if (cmd == P_HAND_SHAKE)
+		return "HandShake";
+	if (cmd >= P_MAX_CMD)
+		return "Unknown";
+	return cmdnames[cmd];
+}
+
 #ifdef CONFIG_DRBD_FAULT_INJECTION
 /* Fault insertion support including random number generator shamelessly
  * stolen from kernel/rcutorture.c */
