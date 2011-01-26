@@ -58,8 +58,9 @@ drbd_insert_interval(struct rb_root *root, struct drbd_interval *this)
 			new = &(*new)->rb_right;
 		else if (this < here)
 			new = &(*new)->rb_left;
-		else if (this->sector > here->sector)
+		else if (this > here)
 			new = &(*new)->rb_right;
+		else
 			return false;
 	}
 
