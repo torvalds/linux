@@ -654,10 +654,10 @@ struct snd_soc_card {
 
 	/* the pre and post PM functions are used to do any PM work before and
 	 * after the codec and DAI's do any PM work. */
-	int (*suspend_pre)(struct platform_device *pdev, pm_message_t state);
-	int (*suspend_post)(struct platform_device *pdev, pm_message_t state);
-	int (*resume_pre)(struct platform_device *pdev);
-	int (*resume_post)(struct platform_device *pdev);
+	int (*suspend_pre)(struct snd_soc_card *card);
+	int (*suspend_post)(struct snd_soc_card *card);
+	int (*resume_pre)(struct snd_soc_card *card);
+	int (*resume_post)(struct snd_soc_card *card);
 
 	/* callbacks */
 	int (*set_bias_level)(struct snd_soc_card *,

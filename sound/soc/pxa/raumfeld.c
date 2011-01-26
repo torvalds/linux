@@ -151,13 +151,13 @@ static struct snd_soc_ops raumfeld_cs4270_ops = {
 	.hw_params = raumfeld_cs4270_hw_params,
 };
 
-static int raumfeld_line_suspend(struct platform_device *pdev, pm_message_t state)
+static int raumfeld_line_suspend(struct snd_soc_card *card)
 {
 	raumfeld_enable_audio(false);
 	return 0;
 }
 
-static int raumfeld_line_resume(struct platform_device *pdev)
+static int raumfeld_line_resume(struct snd_soc_card *card)
 {
 	raumfeld_enable_audio(true);
 	return 0;

@@ -1011,7 +1011,7 @@ static int soc_suspend(struct device *dev)
 	}
 
 	if (card->suspend_pre)
-		card->suspend_pre(pdev, PMSG_SUSPEND);
+		card->suspend_pre(card);
 
 	for (i = 0; i < card->num_rtd; i++) {
 		struct snd_soc_dai *cpu_dai = card->rtd[i].cpu_dai;
@@ -1078,7 +1078,7 @@ static int soc_suspend(struct device *dev)
 	}
 
 	if (card->suspend_post)
-		card->suspend_post(pdev, PMSG_SUSPEND);
+		card->suspend_post(card);
 
 	return 0;
 }
@@ -1090,7 +1090,6 @@ static void soc_resume_deferred(struct work_struct *work)
 {
 	struct snd_soc_card *card =
 			container_of(work, struct snd_soc_card, deferred_resume_work);
-	struct platform_device *pdev = to_platform_device(card->dev);
 	struct snd_soc_codec *codec;
 	int i;
 
@@ -1104,7 +1103,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	snd_power_change_state(card->snd_card, SNDRV_CTL_POWER_D2);
 
 	if (card->resume_pre)
-		card->resume_pre(pdev);
+		card->resume_pre(card);
 
 	/* resume AC97 DAIs */
 	for (i = 0; i < card->num_rtd; i++) {
@@ -1179,7 +1178,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	}
 
 	if (card->resume_post)
-		card->resume_post(pdev);
+		card->resume_post(card);
 
 	dev_dbg(card->dev, "resume work completed\n");
 
