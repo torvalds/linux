@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #ifndef __ASM_ARCH_MXC_UNCOMPRESS_H__
 #define __ASM_ARCH_MXC_UNCOMPRESS_H__
@@ -67,6 +63,8 @@ static inline void flush(void)
 #define MX3X_UART1_BASE_ADDR	0x43F90000
 #define MX3X_UART2_BASE_ADDR	0x43F94000
 #define MX51_UART1_BASE_ADDR	0x73fbc000
+#define MX50_UART1_BASE_ADDR	0x53fbc000
+#define MX53_UART1_BASE_ADDR	0x53fbc000
 
 static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 {
@@ -103,7 +101,14 @@ static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 		uart_base = MX3X_UART2_BASE_ADDR;
 		break;
 	case MACH_TYPE_MX51_BABBAGE:
+	case MACH_TYPE_EUKREA_CPUIMX51SD:
 		uart_base = MX51_UART1_BASE_ADDR;
+		break;
+	case MACH_TYPE_MX50_RDP:
+		uart_base = MX50_UART1_BASE_ADDR;
+		break;
+	case MACH_TYPE_MX53_EVK:
+		uart_base = MX53_UART1_BASE_ADDR;
 		break;
 	default:
 		break;

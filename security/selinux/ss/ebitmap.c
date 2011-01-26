@@ -22,6 +22,8 @@
 #include "ebitmap.h"
 #include "policydb.h"
 
+#define BITS_PER_U64	(sizeof(u64) * 8)
+
 int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2)
 {
 	struct ebitmap_node *n1, *n2;
@@ -363,10 +365,10 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 	e->highbit = le32_to_cpu(buf[1]);
 	count = le32_to_cpu(buf[2]);
 
-	if (mapunit != sizeof(u64) * 8) {
+	if (mapunit != BITS_PER_U64) {
 		printk(KERN_ERR "SELinux: ebitmap: map size %u does not "
 		       "match my size %Zd (high bit was %d)\n",
-		       mapunit, sizeof(u64) * 8, e->highbit);
+		       mapunit, BITS_PER_U64, e->highbit);
 		goto bad;
 	}
 
@@ -445,4 +447,79 @@ bad:
 		rc = -EINVAL;
 	ebitmap_destroy(e);
 	goto out;
+}
+
+int ebitmap_write(struct ebitmap *e, void *fp)
+{
+	struct ebitmap_node *n;
+	u32 count;
+	__le32 buf[3];
+	u64 map;
+	int bit, last_bit, last_startbit, rc;
+
+	buf[0] = cpu_to_le32(BITS_PER_U64);
+
+	count = 0;
+	last_bit = 0;
+	last_startbit = -1;
+	ebitmap_for_each_positive_bit(e, n, bit) {
+		if (rounddown(bit, (int)BITS_PER_U64) > last_startbit) {
+			count++;
+			last_startbit = rounddown(bit, BITS_PER_U64);
+		}
+		last_bit = roundup(bit + 1, BITS_PER_U64);
+	}
+	buf[1] = cpu_to_le32(last_bit);
+	buf[2] = cpu_to_le32(count);
+
+	rc = put_entry(buf, sizeof(u32), 3, fp);
+	if (rc)
+		return rc;
+
+	map = 0;
+	last_startbit = INT_MIN;
+	ebitmap_for_each_positive_bit(e, n, bit) {
+		if (rounddown(bit, (int)BITS_PER_U64) > last_startbit) {
+			__le64 buf64[1];
+
+			/* this is the very first bit */
+			if (!map) {
+				last_startbit = rounddown(bit, BITS_PER_U64);
+				map = (u64)1 << (bit - last_startbit);
+				continue;
+			}
+
+			/* write the last node */
+			buf[0] = cpu_to_le32(last_startbit);
+			rc = put_entry(buf, sizeof(u32), 1, fp);
+			if (rc)
+				return rc;
+
+			buf64[0] = cpu_to_le64(map);
+			rc = put_entry(buf64, sizeof(u64), 1, fp);
+			if (rc)
+				return rc;
+
+			/* set up for the next node */
+			map = 0;
+			last_startbit = rounddown(bit, BITS_PER_U64);
+		}
+		map |= (u64)1 << (bit - last_startbit);
+	}
+	/* write the last node */
+	if (map) {
+		__le64 buf64[1];
+
+		/* write the last node */
+		buf[0] = cpu_to_le32(last_startbit);
+		rc = put_entry(buf, sizeof(u32), 1, fp);
+		if (rc)
+			return rc;
+
+		buf64[0] = cpu_to_le64(map);
+		rc = put_entry(buf64, sizeof(u64), 1, fp);
+		if (rc)
+			return rc;
+	}
+	return 0;
 }

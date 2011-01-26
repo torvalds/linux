@@ -19,10 +19,10 @@
 #include <linux/string.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/clkdev.h>
 
 #include <mach/hardware.h>
 
-#include <asm/clkdev.h>
 #include <asm/div64.h>
 
 
@@ -43,7 +43,8 @@ static unsigned long get_uart_rate(struct clk *clk);
 
 static int set_keytchclk_rate(struct clk *clk, unsigned long rate);
 static int set_div_rate(struct clk *clk, unsigned long rate);
-
+static int set_i2s_sclk_rate(struct clk *clk, unsigned long rate);
+static int set_i2s_lrclk_rate(struct clk *clk, unsigned long rate);
 
 static struct clk clk_xtali = {
 	.rate		= EP93XX_EXT_CLK_RATE,
@@ -110,6 +111,29 @@ static struct clk clk_video = {
 	.enable_reg     = EP93XX_SYSCON_VIDCLKDIV,
 	.enable_mask    = EP93XX_SYSCON_CLKDIV_ENABLE,
 	.set_rate	= set_div_rate,
+};
+
+static struct clk clk_i2s_mclk = {
+	.sw_locked	= 1,
+	.enable_reg	= EP93XX_SYSCON_I2SCLKDIV,
+	.enable_mask	= EP93XX_SYSCON_CLKDIV_ENABLE,
+	.set_rate	= set_div_rate,
+};
+
+static struct clk clk_i2s_sclk = {
+	.sw_locked	= 1,
+	.parent		= &clk_i2s_mclk,
+	.enable_reg	= EP93XX_SYSCON_I2SCLKDIV,
+	.enable_mask	= EP93XX_SYSCON_I2SCLKDIV_SENA,
+	.set_rate	= set_i2s_sclk_rate,
+};
+
+static struct clk clk_i2s_lrclk = {
+	.sw_locked	= 1,
+	.parent		= &clk_i2s_sclk,
+	.enable_reg	= EP93XX_SYSCON_I2SCLKDIV,
+	.enable_mask	= EP93XX_SYSCON_I2SCLKDIV_SENA,
+	.set_rate	= set_i2s_lrclk_rate,
 };
 
 /* DMA Clocks */
@@ -185,12 +209,15 @@ static struct clk_lookup clocks[] = {
 	INIT_CK(NULL,			"pll1",		&clk_pll1),
 	INIT_CK(NULL,			"fclk",		&clk_f),
 	INIT_CK(NULL,			"hclk",		&clk_h),
-	INIT_CK(NULL,			"pclk",		&clk_p),
+	INIT_CK(NULL,			"apb_pclk",	&clk_p),
 	INIT_CK(NULL,			"pll2",		&clk_pll2),
 	INIT_CK("ep93xx-ohci",		NULL,		&clk_usb_host),
 	INIT_CK("ep93xx-keypad",	NULL,		&clk_keypad),
 	INIT_CK("ep93xx-fb",		NULL,		&clk_video),
 	INIT_CK("ep93xx-spi.0",		NULL,		&clk_spi),
+	INIT_CK("ep93xx-i2s",		"mclk",		&clk_i2s_mclk),
+	INIT_CK("ep93xx-i2s",		"sclk",		&clk_i2s_sclk),
+	INIT_CK("ep93xx-i2s",		"lrclk",	&clk_i2s_lrclk),
 	INIT_CK(NULL,			"pwm_clk",	&clk_pwm),
 	INIT_CK(NULL,			"m2p0",		&clk_m2p0),
 	INIT_CK(NULL,			"m2p1",		&clk_m2p1),
@@ -331,8 +358,7 @@ static int calc_clk_div(struct clk *clk, unsigned long rate,
 	int i, found = 0, __div = 0, __pdiv = 0;
 
 	/* Don't exceed the maximum rate */
-	max_rate = max(max(clk_pll1.rate / 4, clk_pll2.rate / 4),
-		       clk_xtali.rate / 4);
+	max_rate = max3(clk_pll1.rate / 4, clk_pll2.rate / 4, clk_xtali.rate / 4);
 	rate = min(rate, max_rate);
 
 	/*
@@ -398,6 +424,44 @@ static int set_div_rate(struct clk *clk, unsigned long rate)
 		(psel ? EP93XX_SYSCON_CLKDIV_PSEL : 0) |
 		(pdiv << EP93XX_SYSCON_CLKDIV_PDIV_SHIFT) | div;
 	ep93xx_syscon_swlocked_write(val, clk->enable_reg);
+	return 0;
+}
+
+static int set_i2s_sclk_rate(struct clk *clk, unsigned long rate)
+{
+	unsigned val = __raw_readl(clk->enable_reg);
+
+	if (rate == clk_i2s_mclk.rate / 2)
+		ep93xx_syscon_swlocked_write(val & ~EP93XX_I2SCLKDIV_SDIV, 
+					     clk->enable_reg);
+	else if (rate == clk_i2s_mclk.rate / 4)
+		ep93xx_syscon_swlocked_write(val | EP93XX_I2SCLKDIV_SDIV, 
+					     clk->enable_reg);
+	else
+		return -EINVAL;
+
+	clk_i2s_sclk.rate = rate;
+	return 0;
+}
+
+static int set_i2s_lrclk_rate(struct clk *clk, unsigned long rate)
+{
+	unsigned val = __raw_readl(clk->enable_reg) & 
+		~EP93XX_I2SCLKDIV_LRDIV_MASK;
+	
+	if (rate == clk_i2s_sclk.rate / 32)
+		ep93xx_syscon_swlocked_write(val | EP93XX_I2SCLKDIV_LRDIV32,
+					     clk->enable_reg);
+	else if (rate == clk_i2s_sclk.rate / 64)
+		ep93xx_syscon_swlocked_write(val | EP93XX_I2SCLKDIV_LRDIV64,
+					     clk->enable_reg);
+	else if (rate == clk_i2s_sclk.rate / 128)
+		ep93xx_syscon_swlocked_write(val | EP93XX_I2SCLKDIV_LRDIV128,
+					     clk->enable_reg);
+	else
+		return -EINVAL;
+
+	clk_i2s_lrclk.rate = rate;
 	return 0;
 }
 
@@ -495,4 +559,4 @@ static int __init ep93xx_clock_init(void)
 	clkdev_add_table(clocks, ARRAY_SIZE(clocks));
 	return 0;
 }
-arch_initcall(ep93xx_clock_init);
+postcore_initcall(ep93xx_clock_init);

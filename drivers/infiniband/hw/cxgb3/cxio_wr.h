@@ -689,7 +689,7 @@ struct t3_swrq {
  * A T3 WQ implements both the SQ and RQ.
  */
 struct t3_wq {
-	union t3_wr *queue;		/* DMA accessable memory */
+	union t3_wr *queue;		/* DMA accessible memory */
 	dma_addr_t dma_addr;		/* DMA address for HW */
 	DEFINE_DMA_UNMAP_ADDR(mapping); /* unmap kruft */
 	u32 error;			/* 1 once we go to ERROR */
@@ -727,6 +727,22 @@ struct t3_cq {
 
 #define CQ_VLD_ENTRY(ptr,size_log2,cqe) (Q_GENBIT(ptr,size_log2) == \
 					 CQE_GENBIT(*cqe))
+
+struct t3_cq_status_page {
+	u32 cq_err;
+};
+
+static inline int cxio_cq_in_error(struct t3_cq *cq)
+{
+	return ((struct t3_cq_status_page *)
+		&cq->queue[1 << cq->size_log2])->cq_err;
+}
+
+static inline void cxio_set_cq_in_error(struct t3_cq *cq)
+{
+	((struct t3_cq_status_page *)
+	 &cq->queue[1 << cq->size_log2])->cq_err = 1;
+}
 
 static inline void cxio_set_wq_in_error(struct t3_wq *wq)
 {

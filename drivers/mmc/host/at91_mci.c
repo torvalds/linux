@@ -66,8 +66,10 @@
 #include <linux/clk.h>
 #include <linux/atmel_pdc.h>
 #include <linux/gfp.h>
+#include <linux/highmem.h>
 
 #include <linux/mmc/host.h>
+#include <linux/mmc/sdio.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -492,10 +494,14 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 		else if (data->flags & MMC_DATA_WRITE)
 			cmdr |= AT91_MCI_TRCMD_START;
 
-		if (data->flags & MMC_DATA_STREAM)
-			cmdr |= AT91_MCI_TRTYP_STREAM;
-		if (data->blocks > 1)
-			cmdr |= AT91_MCI_TRTYP_MULTIPLE;
+		if (cmd->opcode == SD_IO_RW_EXTENDED) {
+			cmdr |= AT91_MCI_TRTYP_SDIO_BLOCK;
+		} else {
+			if (data->flags & MMC_DATA_STREAM)
+				cmdr |= AT91_MCI_TRTYP_STREAM;
+			if (data->blocks > 1)
+				cmdr |= AT91_MCI_TRTYP_MULTIPLE;
+		}
 	}
 	else {
 		block_length = 0;
@@ -927,7 +933,7 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENXIO;
 
-	if (!request_mem_region(res->start, res->end - res->start + 1, DRIVER_NAME))
+	if (!request_mem_region(res->start, resource_size(res), DRIVER_NAME))
 		return -EBUSY;
 
 	mmc = mmc_alloc_host(sizeof(struct at91mci_host), &pdev->dev);
@@ -946,8 +952,7 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	mmc->max_blk_size  = MCI_MAXBLKSIZE;
 	mmc->max_blk_count = MCI_BLKATONCE;
 	mmc->max_req_size  = MCI_BUFSIZE;
-	mmc->max_phys_segs = MCI_BLKATONCE;
-	mmc->max_hw_segs   = MCI_BLKATONCE;
+	mmc->max_segs      = MCI_BLKATONCE;
 	mmc->max_seg_size  = MCI_BUFSIZE;
 
 	host = mmc_priv(mmc);
@@ -1016,7 +1021,7 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	/*
 	 * Map I/O region
 	 */
-	host->baseaddr = ioremap(res->start, res->end - res->start + 1);
+	host->baseaddr = ioremap(res->start, resource_size(res));
 	if (!host->baseaddr) {
 		ret = -ENOMEM;
 		goto fail1;
@@ -1092,7 +1097,7 @@ fail4b:
 fail5:
 	mmc_free_host(mmc);
 fail6:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 	dev_err(&pdev->dev, "probe failed, err %d\n", ret);
 	return ret;
 }
@@ -1137,7 +1142,7 @@ static int __exit at91_mci_remove(struct platform_device *pdev)
 
 	iounmap(host->baseaddr);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 	mmc_free_host(mmc);
 	platform_set_drvdata(pdev, NULL);
@@ -1157,7 +1162,7 @@ static int at91_mci_suspend(struct platform_device *pdev, pm_message_t state)
 		enable_irq_wake(host->board->det_pin);
 
 	if (mmc)
-		ret = mmc_suspend_host(mmc, state);
+		ret = mmc_suspend_host(mmc);
 
 	return ret;
 }

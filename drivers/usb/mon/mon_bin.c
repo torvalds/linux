@@ -15,7 +15,6 @@
 #include <linux/poll.h>
 #include <linux/compat.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 
@@ -437,6 +436,28 @@ static unsigned int mon_bin_get_data(const struct mon_reader_bin *rp,
 	return length;
 }
 
+/*
+ * This is the look-ahead pass in case of 'C Zi', when actual_length cannot
+ * be used to determine the length of the whole contiguous buffer.
+ */
+static unsigned int mon_bin_collate_isodesc(const struct mon_reader_bin *rp,
+    struct urb *urb, unsigned int ndesc)
+{
+	struct usb_iso_packet_descriptor *fp;
+	unsigned int length;
+
+	length = 0;
+	fp = urb->iso_frame_desc;
+	while (ndesc-- != 0) {
+		if (fp->actual_length != 0) {
+			if (fp->offset + fp->actual_length > length)
+				length = fp->offset + fp->actual_length;
+		}
+		fp++;
+	}
+	return length;
+}
+
 static void mon_bin_get_isodesc(const struct mon_reader_bin *rp,
     unsigned int offset, struct urb *urb, char ev_type, unsigned int ndesc)
 {
@@ -479,6 +500,10 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	/*
 	 * Find the maximum allowable length, then allocate space.
 	 */
+	urb_length = (ev_type == 'S') ?
+	    urb->transfer_buffer_length : urb->actual_length;
+	length = urb_length;
+
 	if (usb_endpoint_xfer_isoc(epd)) {
 		if (urb->number_of_packets < 0) {
 			ndesc = 0;
@@ -487,14 +512,16 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 		} else {
 			ndesc = urb->number_of_packets;
 		}
+		if (ev_type == 'C' && usb_urb_dir_in(urb))
+			length = mon_bin_collate_isodesc(rp, urb, ndesc);
 	} else {
 		ndesc = 0;
 	}
 	lendesc = ndesc*sizeof(struct mon_bin_isodesc);
 
-	urb_length = (ev_type == 'S') ?
-	    urb->transfer_buffer_length : urb->actual_length;
-	length = urb_length;
+	/* not an issue unless there's a subtle bug in a HCD somewhere */
+	if (length >= urb->transfer_buffer_length)
+		length = urb->transfer_buffer_length;
 
 	if (length >= rp->b_size/5)
 		length = rp->b_size/5;
@@ -646,17 +673,14 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 	size_t size;
 	int rc;
 
-	lock_kernel();
 	mutex_lock(&mon_lock);
 	if ((mbus = mon_bus_lookup(iminor(inode))) == NULL) {
 		mutex_unlock(&mon_lock);
-		unlock_kernel();
 		return -ENODEV;
 	}
 	if (mbus != &mon_bus0 && mbus->u_bus == NULL) {
 		printk(KERN_ERR TAG ": consistency error on open\n");
 		mutex_unlock(&mon_lock);
-		unlock_kernel();
 		return -ENODEV;
 	}
 
@@ -689,7 +713,6 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 
 	file->private_data = rp;
 	mutex_unlock(&mon_lock);
-	unlock_kernel();
 	return 0;
 
 err_allocbuff:
@@ -698,7 +721,6 @@ err_allocvec:
 	kfree(rp);
 err_alloc:
 	mutex_unlock(&mon_lock);
-	unlock_kernel();
 	return rc;
 }
 
@@ -954,7 +976,7 @@ static int mon_bin_queued(struct mon_reader_bin *rp)
 
 /*
  */
-static int mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct mon_reader_bin *rp = file->private_data;
 	// struct mon_bus* mbus = rp->r.m_bus;
@@ -1009,7 +1031,7 @@ static int mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		mutex_lock(&rp->fetch_lock);
 		spin_lock_irqsave(&rp->b_lock, flags);
-		mon_free_buff(rp->b_vec, size/CHUNK_SIZE);
+		mon_free_buff(rp->b_vec, rp->b_size/CHUNK_SIZE);
 		kfree(rp->b_vec);
 		rp->b_vec  = vec;
 		rp->b_size = size;
@@ -1093,19 +1115,6 @@ static int mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	return ret;
 }
-
-static long mon_bin_unlocked_ioctl(struct file *file, unsigned int cmd,
-				   unsigned long arg)
-{
-	int ret;
-
-	lock_kernel();
-	ret = mon_bin_ioctl(file, cmd, arg);
-	unlock_kernel();
-
-	return ret;
-}
-
 
 #ifdef CONFIG_COMPAT
 static long mon_bin_compat_ioctl(struct file *file,
@@ -1250,7 +1259,7 @@ static const struct file_operations mon_fops_binary = {
 	.read =		mon_bin_read,
 	/* .write =	mon_text_write, */
 	.poll =		mon_bin_poll,
-	.unlocked_ioctl = mon_bin_unlocked_ioctl,
+	.unlocked_ioctl = mon_bin_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl =	mon_bin_compat_ioctl,
 #endif

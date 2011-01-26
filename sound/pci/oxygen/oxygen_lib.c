@@ -202,7 +202,13 @@ static void oxygen_proc_read(struct snd_info_entry *entry,
 	struct oxygen *chip = entry->private_data;
 	int i, j;
 
-	snd_iprintf(buffer, "CMI8788\n\n");
+	switch (oxygen_read8(chip, OXYGEN_REVISION) & OXYGEN_PACKAGE_ID_MASK) {
+	case OXYGEN_PACKAGE_ID_8786: i = '6'; break;
+	case OXYGEN_PACKAGE_ID_8787: i = '7'; break;
+	case OXYGEN_PACKAGE_ID_8788: i = '8'; break;
+	default:                     i = '?'; break;
+	}
+	snd_iprintf(buffer, "CMI878%c:\n", i);
 	for (i = 0; i < OXYGEN_IO_SIZE; i += 0x10) {
 		snd_iprintf(buffer, "%02x:", i);
 		for (j = 0; j < 0x10; ++j)
@@ -212,7 +218,7 @@ static void oxygen_proc_read(struct snd_info_entry *entry,
 	if (mutex_lock_interruptible(&chip->mutex) < 0)
 		return;
 	if (chip->has_ac97_0) {
-		snd_iprintf(buffer, "\nAC97\n");
+		snd_iprintf(buffer, "\nAC97:\n");
 		for (i = 0; i < 0x80; i += 0x10) {
 			snd_iprintf(buffer, "%02x:", i);
 			for (j = 0; j < 0x10; j += 2)
@@ -222,7 +228,7 @@ static void oxygen_proc_read(struct snd_info_entry *entry,
 		}
 	}
 	if (chip->has_ac97_1) {
-		snd_iprintf(buffer, "\nAC97 2\n");
+		snd_iprintf(buffer, "\nAC97 2:\n");
 		for (i = 0; i < 0x80; i += 0x10) {
 			snd_iprintf(buffer, "%02x:", i);
 			for (j = 0; j < 0x10; j += 2)
@@ -232,13 +238,15 @@ static void oxygen_proc_read(struct snd_info_entry *entry,
 		}
 	}
 	mutex_unlock(&chip->mutex);
+	if (chip->model.dump_registers)
+		chip->model.dump_registers(chip, buffer);
 }
 
 static void oxygen_proc_init(struct oxygen *chip)
 {
 	struct snd_info_entry *entry;
 
-	if (!snd_card_proc_new(chip->card, "cmi8788", &entry))
+	if (!snd_card_proc_new(chip->card, "oxygen", &entry))
 		snd_info_set_text_ops(entry, chip, oxygen_proc_read);
 }
 #else
@@ -262,7 +270,7 @@ oxygen_search_pci_id(struct oxygen *chip, const struct pci_device_id ids[])
 	 */
 	subdevice = oxygen_read_eeprom(chip, 2);
 	/* use default ID if EEPROM is missing */
-	if (subdevice == 0xffff)
+	if (subdevice == 0xffff && oxygen_read_eeprom(chip, 1) == 0xffff)
 		subdevice = 0x8788;
 	/*
 	 * We use only the subsystem device ID for searching because it is
@@ -308,25 +316,46 @@ static void oxygen_restore_eeprom(struct oxygen *chip,
 	}
 }
 
-static void pci_bridge_magic(void)
+static void configure_pcie_bridge(struct pci_dev *pci)
 {
-	struct pci_dev *pci = NULL;
+	enum { PEX811X, PI7C9X110 };
+	static const struct pci_device_id bridge_ids[] = {
+		{ PCI_VDEVICE(PLX, 0x8111), .driver_data = PEX811X },
+		{ PCI_VDEVICE(PLX, 0x8112), .driver_data = PEX811X },
+		{ PCI_DEVICE(0x12d8, 0xe110), .driver_data = PI7C9X110 },
+		{ }
+	};
+	struct pci_dev *bridge;
+	const struct pci_device_id *id;
 	u32 tmp;
 
-	for (;;) {
-		/* If there is any Pericom PI7C9X110 PCI-E/PCI bridge ... */
-		pci = pci_get_device(0x12d8, 0xe110, pci);
-		if (!pci)
-			break;
-		/*
-		 * ... configure its secondary internal arbiter to park to
-		 * the secondary port, instead of to the last master.
-		 */
-		if (!pci_read_config_dword(pci, 0x40, &tmp)) {
-			tmp |= 1;
-			pci_write_config_dword(pci, 0x40, tmp);
-		}
-		/* Why?  Try asking C-Media. */
+	if (!pci->bus || !pci->bus->self)
+		return;
+	bridge = pci->bus->self;
+
+	id = pci_match_id(bridge_ids, bridge);
+	if (!id)
+		return;
+
+	switch (id->driver_data) {
+	case PEX811X:	/* PLX PEX8111/PEX8112 PCIe/PCI bridge */
+		pci_read_config_dword(bridge, 0x48, &tmp);
+		tmp |= 1;	/* enable blind prefetching */
+		tmp |= 1 << 11;	/* enable beacon generation */
+		pci_write_config_dword(bridge, 0x48, tmp);
+
+		pci_write_config_dword(bridge, 0x84, 0x0c);
+		pci_read_config_dword(bridge, 0x88, &tmp);
+		tmp &= ~(7 << 27);
+		tmp |= 2 << 27;	/* set prefetch size to 128 bytes */
+		pci_write_config_dword(bridge, 0x88, tmp);
+		break;
+
+	case PI7C9X110:	/* Pericom PI7C9X110 PCIe/PCI bridge */
+		pci_read_config_dword(bridge, 0x40, &tmp);
+		tmp |= 1;	/* park the PCI arbiter to the sound chip */
+		pci_write_config_dword(bridge, 0x40, tmp);
+		break;
 	}
 }
 
@@ -343,12 +372,7 @@ static void oxygen_init(struct oxygen *chip)
 		(IEC958_AES1_CON_PCM_CODER << OXYGEN_SPDIF_CATEGORY_SHIFT);
 	chip->spdif_pcm_bits = chip->spdif_bits;
 
-	if (oxygen_read8(chip, OXYGEN_REVISION) & OXYGEN_REVISION_2)
-		chip->revision = 2;
-	else
-		chip->revision = 1;
-
-	if (chip->revision == 1)
+	if (!(oxygen_read8(chip, OXYGEN_REVISION) & OXYGEN_REVISION_2))
 		oxygen_set_bits8(chip, OXYGEN_MISC,
 				 OXYGEN_MISC_PCI_MEM_W_1_CLOCK);
 
@@ -385,28 +409,40 @@ static void oxygen_init(struct oxygen *chip)
 		      (OXYGEN_FORMAT_16 << OXYGEN_MULTICH_FORMAT_SHIFT));
 	oxygen_write8(chip, OXYGEN_REC_CHANNELS, OXYGEN_REC_CHANNELS_2_2_2);
 	oxygen_write16(chip, OXYGEN_I2S_MULTICH_FORMAT,
-		       OXYGEN_RATE_48000 | chip->model.dac_i2s_format |
-		       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
-		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
+		       OXYGEN_RATE_48000 |
+		       chip->model.dac_i2s_format |
+		       OXYGEN_I2S_MCLK(chip->model.dac_mclks) |
+		       OXYGEN_I2S_BITS_16 |
+		       OXYGEN_I2S_MASTER |
+		       OXYGEN_I2S_BCLK_64);
 	if (chip->model.device_config & CAPTURE_0_FROM_I2S_1)
 		oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
-			       OXYGEN_RATE_48000 | chip->model.adc_i2s_format |
-			       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
-			       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
+			       OXYGEN_RATE_48000 |
+			       chip->model.adc_i2s_format |
+			       OXYGEN_I2S_MCLK(chip->model.adc_mclks) |
+			       OXYGEN_I2S_BITS_16 |
+			       OXYGEN_I2S_MASTER |
+			       OXYGEN_I2S_BCLK_64);
 	else
 		oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
-			       OXYGEN_I2S_MASTER | OXYGEN_I2S_MUTE_MCLK);
+			       OXYGEN_I2S_MASTER |
+			       OXYGEN_I2S_MUTE_MCLK);
 	if (chip->model.device_config & (CAPTURE_0_FROM_I2S_2 |
 					 CAPTURE_2_FROM_I2S_2))
 		oxygen_write16(chip, OXYGEN_I2S_B_FORMAT,
-			       OXYGEN_RATE_48000 | chip->model.adc_i2s_format |
-			       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
-			       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
+			       OXYGEN_RATE_48000 |
+			       chip->model.adc_i2s_format |
+			       OXYGEN_I2S_MCLK(chip->model.adc_mclks) |
+			       OXYGEN_I2S_BITS_16 |
+			       OXYGEN_I2S_MASTER |
+			       OXYGEN_I2S_BCLK_64);
 	else
 		oxygen_write16(chip, OXYGEN_I2S_B_FORMAT,
-			       OXYGEN_I2S_MASTER | OXYGEN_I2S_MUTE_MCLK);
+			       OXYGEN_I2S_MASTER |
+			       OXYGEN_I2S_MUTE_MCLK);
 	oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
-		       OXYGEN_I2S_MASTER | OXYGEN_I2S_MUTE_MCLK);
+		       OXYGEN_I2S_MASTER |
+		       OXYGEN_I2S_MUTE_MCLK);
 	oxygen_clear_bits32(chip, OXYGEN_SPDIF_CONTROL,
 			    OXYGEN_SPDIF_OUT_ENABLE |
 			    OXYGEN_SPDIF_LOOPBACK);
@@ -519,19 +555,25 @@ static void oxygen_init(struct oxygen *chip)
 	}
 }
 
-static void oxygen_card_free(struct snd_card *card)
+static void oxygen_shutdown(struct oxygen *chip)
 {
-	struct oxygen *chip = card->private_data;
-
 	spin_lock_irq(&chip->reg_lock);
 	chip->interrupt_mask = 0;
 	chip->pcm_running = 0;
 	oxygen_write16(chip, OXYGEN_DMA_STATUS, 0);
 	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
 	spin_unlock_irq(&chip->reg_lock);
+}
+
+static void oxygen_card_free(struct snd_card *card)
+{
+	struct oxygen *chip = card->private_data;
+
+	oxygen_shutdown(chip);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
-	flush_scheduled_work();
+	flush_work_sync(&chip->spdif_input_bits_work);
+	flush_work_sync(&chip->gpio_work);
 	chip->model.cleanup(chip);
 	kfree(chip->model_data);
 	mutex_destroy(&chip->mutex);
@@ -608,7 +650,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	snd_card_set_dev(card, &pci->dev);
 	card->private_free = oxygen_card_free;
 
-	pci_bridge_magic();
+	configure_pcie_bridge(pci);
 	oxygen_init(chip);
 	chip->model.init(chip);
 
@@ -622,8 +664,8 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 
 	strcpy(card->driver, chip->model.chip);
 	strcpy(card->shortname, chip->model.shortname);
-	sprintf(card->longname, "%s (rev %u) at %#lx, irq %i",
-		chip->model.longname, chip->revision, chip->addr, chip->irq);
+	sprintf(card->longname, "%s at %#lx, irq %i",
+		chip->model.longname, chip->addr, chip->irq);
 	strcpy(card->mixername, chip->model.chip);
 	snd_component_add(card, chip->model.chip);
 
@@ -707,7 +749,8 @@ int oxygen_pci_suspend(struct pci_dev *pci, pm_message_t state)
 	spin_unlock_irq(&chip->reg_lock);
 
 	synchronize_irq(chip->irq);
-	flush_scheduled_work();
+	flush_work_sync(&chip->spdif_input_bits_work);
+	flush_work_sync(&chip->gpio_work);
 	chip->interrupt_mask = saved_interrupt_mask;
 
 	pci_disable_device(pci);
@@ -778,3 +821,13 @@ int oxygen_pci_resume(struct pci_dev *pci)
 }
 EXPORT_SYMBOL(oxygen_pci_resume);
 #endif /* CONFIG_PM */
+
+void oxygen_pci_shutdown(struct pci_dev *pci)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct oxygen *chip = card->private_data;
+
+	oxygen_shutdown(chip);
+	chip->model.cleanup(chip);
+}
+EXPORT_SYMBOL(oxygen_pci_shutdown);

@@ -4,6 +4,7 @@
  *
  *  Copyright (C) 2002-2004 John Belmonte
  *  Copyright (C) 2008 Philip Langdale
+ *  Copyright (C) 2010 Pierre Ducroquet
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -47,6 +48,8 @@
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
 #include <linux/input.h>
+#include <linux/input/sparse-keymap.h>
+#include <linux/leds.h>
 #include <linux/slab.h>
 
 #include <asm/uaccess.h>
@@ -119,34 +122,29 @@ static const struct acpi_device_id toshiba_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, toshiba_device_ids);
 
-struct key_entry {
-	char type;
-	u16 code;
-	u16 keycode;
-};
-
-enum {KE_KEY, KE_END};
-
-static struct key_entry toshiba_acpi_keymap[]  = {
-	{KE_KEY, 0x101, KEY_MUTE},
-	{KE_KEY, 0x13b, KEY_COFFEE},
-	{KE_KEY, 0x13c, KEY_BATTERY},
-	{KE_KEY, 0x13d, KEY_SLEEP},
-	{KE_KEY, 0x13e, KEY_SUSPEND},
-	{KE_KEY, 0x13f, KEY_SWITCHVIDEOMODE},
-	{KE_KEY, 0x140, KEY_BRIGHTNESSDOWN},
-	{KE_KEY, 0x141, KEY_BRIGHTNESSUP},
-	{KE_KEY, 0x142, KEY_WLAN},
-	{KE_KEY, 0x143, KEY_PROG1},
-	{KE_KEY, 0xb05, KEY_PROG2},
-	{KE_KEY, 0xb06, KEY_WWW},
-	{KE_KEY, 0xb07, KEY_MAIL},
-	{KE_KEY, 0xb30, KEY_STOP},
-	{KE_KEY, 0xb31, KEY_PREVIOUSSONG},
-	{KE_KEY, 0xb32, KEY_NEXTSONG},
-	{KE_KEY, 0xb33, KEY_PLAYPAUSE},
-	{KE_KEY, 0xb5a, KEY_MEDIA},
-	{KE_END, 0, 0},
+static const struct key_entry toshiba_acpi_keymap[] __initconst = {
+	{ KE_KEY, 0x101, { KEY_MUTE } },
+	{ KE_KEY, 0x102, { KEY_ZOOMOUT } },
+	{ KE_KEY, 0x103, { KEY_ZOOMIN } },
+	{ KE_KEY, 0x13b, { KEY_COFFEE } },
+	{ KE_KEY, 0x13c, { KEY_BATTERY } },
+	{ KE_KEY, 0x13d, { KEY_SLEEP } },
+	{ KE_KEY, 0x13e, { KEY_SUSPEND } },
+	{ KE_KEY, 0x13f, { KEY_SWITCHVIDEOMODE } },
+	{ KE_KEY, 0x140, { KEY_BRIGHTNESSDOWN } },
+	{ KE_KEY, 0x141, { KEY_BRIGHTNESSUP } },
+	{ KE_KEY, 0x142, { KEY_WLAN } },
+	{ KE_KEY, 0x143, { KEY_PROG1 } },
+	{ KE_KEY, 0x17f, { KEY_FN } },
+	{ KE_KEY, 0xb05, { KEY_PROG2 } },
+	{ KE_KEY, 0xb06, { KEY_WWW } },
+	{ KE_KEY, 0xb07, { KEY_MAIL } },
+	{ KE_KEY, 0xb30, { KEY_STOP } },
+	{ KE_KEY, 0xb31, { KEY_PREVIOUSSONG } },
+	{ KE_KEY, 0xb32, { KEY_NEXTSONG } },
+	{ KE_KEY, 0xb33, { KEY_PLAYPAUSE } },
+	{ KE_KEY, 0xb5a, { KEY_MEDIA } },
+	{ KE_END, 0 },
 };
 
 /* utility
@@ -285,11 +283,116 @@ struct toshiba_acpi_dev {
 	struct platform_device *p_dev;
 	struct rfkill *bt_rfk;
 	struct input_dev *hotkey_dev;
+	int illumination_installed;
 	acpi_handle handle;
 
 	const char *bt_name;
 
 	struct mutex mutex;
+};
+
+/* Illumination support */
+static int toshiba_illumination_available(void)
+{
+	u32 in[HCI_WORDS] = { 0, 0, 0, 0, 0, 0 };
+	u32 out[HCI_WORDS];
+	acpi_status status;
+
+	in[0] = 0xf100;
+	status = hci_raw(in, out);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Illumination device not available\n");
+		return 0;
+	}
+	in[0] = 0xf400;
+	status = hci_raw(in, out);
+	return 1;
+}
+
+static void toshiba_illumination_set(struct led_classdev *cdev,
+				     enum led_brightness brightness)
+{
+	u32 in[HCI_WORDS] = { 0, 0, 0, 0, 0, 0 };
+	u32 out[HCI_WORDS];
+	acpi_status status;
+
+	/* First request : initialize communication. */
+	in[0] = 0xf100;
+	status = hci_raw(in, out);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Illumination device not available\n");
+		return;
+	}
+
+	if (brightness) {
+		/* Switch the illumination on */
+		in[0] = 0xf400;
+		in[1] = 0x14e;
+		in[2] = 1;
+		status = hci_raw(in, out);
+		if (ACPI_FAILURE(status)) {
+			printk(MY_INFO "ACPI call for illumination failed.\n");
+			return;
+		}
+	} else {
+		/* Switch the illumination off */
+		in[0] = 0xf400;
+		in[1] = 0x14e;
+		in[2] = 0;
+		status = hci_raw(in, out);
+		if (ACPI_FAILURE(status)) {
+			printk(MY_INFO "ACPI call for illumination failed.\n");
+			return;
+		}
+	}
+
+	/* Last request : close communication. */
+	in[0] = 0xf200;
+	in[1] = 0;
+	in[2] = 0;
+	hci_raw(in, out);
+}
+
+static enum led_brightness toshiba_illumination_get(struct led_classdev *cdev)
+{
+	u32 in[HCI_WORDS] = { 0, 0, 0, 0, 0, 0 };
+	u32 out[HCI_WORDS];
+	acpi_status status;
+	enum led_brightness result;
+
+	/* First request : initialize communication. */
+	in[0] = 0xf100;
+	status = hci_raw(in, out);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Illumination device not available\n");
+		return LED_OFF;
+	}
+
+	/* Check the illumination */
+	in[0] = 0xf300;
+	in[1] = 0x14e;
+	status = hci_raw(in, out);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "ACPI call for illumination failed.\n");
+		return LED_OFF;
+	}
+
+	result = out[2] ? LED_FULL : LED_OFF;
+
+	/* Last request : close communication. */
+	in[0] = 0xf200;
+	in[1] = 0;
+	in[2] = 0;
+	hci_raw(in, out);
+
+	return result;
+}
+
+static struct led_classdev toshiba_led = {
+	.name           = "toshiba::illumination",
+	.max_brightness = 1,
+	.brightness_set = toshiba_illumination_set,
+	.brightness_get = toshiba_illumination_get,
 };
 
 static struct toshiba_acpi_dev toshiba_acpi = {
@@ -720,90 +823,32 @@ static const struct file_operations version_proc_fops = {
 
 #define PROC_TOSHIBA		"toshiba"
 
-static acpi_status __init add_device(void)
+static void __init create_toshiba_proc_entries(void)
 {
 	proc_create("lcd", S_IRUGO | S_IWUSR, toshiba_proc_dir, &lcd_proc_fops);
 	proc_create("video", S_IRUGO | S_IWUSR, toshiba_proc_dir, &video_proc_fops);
 	proc_create("fan", S_IRUGO | S_IWUSR, toshiba_proc_dir, &fan_proc_fops);
 	proc_create("keys", S_IRUGO | S_IWUSR, toshiba_proc_dir, &keys_proc_fops);
 	proc_create("version", S_IRUGO, toshiba_proc_dir, &version_proc_fops);
-
-	return AE_OK;
 }
 
-static acpi_status remove_device(void)
+static void remove_toshiba_proc_entries(void)
 {
 	remove_proc_entry("lcd", toshiba_proc_dir);
 	remove_proc_entry("video", toshiba_proc_dir);
 	remove_proc_entry("fan", toshiba_proc_dir);
 	remove_proc_entry("keys", toshiba_proc_dir);
 	remove_proc_entry("version", toshiba_proc_dir);
-	return AE_OK;
 }
 
-static struct backlight_ops toshiba_backlight_data = {
+static const struct backlight_ops toshiba_backlight_data = {
         .get_brightness = get_lcd,
         .update_status  = set_lcd_status,
 };
 
-static struct key_entry *toshiba_acpi_get_entry_by_scancode(unsigned int code)
-{
-	struct key_entry *key;
-
-	for (key = toshiba_acpi_keymap; key->type != KE_END; key++)
-		if (code == key->code)
-			return key;
-
-	return NULL;
-}
-
-static struct key_entry *toshiba_acpi_get_entry_by_keycode(unsigned int code)
-{
-	struct key_entry *key;
-
-	for (key = toshiba_acpi_keymap; key->type != KE_END; key++)
-		if (code == key->keycode && key->type == KE_KEY)
-			return key;
-
-	return NULL;
-}
-
-static int toshiba_acpi_getkeycode(struct input_dev *dev,
-				   unsigned int scancode, unsigned int *keycode)
-{
-	struct key_entry *key = toshiba_acpi_get_entry_by_scancode(scancode);
-
-	if (key && key->type == KE_KEY) {
-		*keycode = key->keycode;
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
-static int toshiba_acpi_setkeycode(struct input_dev *dev,
-				   unsigned int scancode, unsigned int keycode)
-{
-	struct key_entry *key;
-	unsigned int old_keycode;
-
-	key = toshiba_acpi_get_entry_by_scancode(scancode);
-	if (key && key->type == KE_KEY) {
-		old_keycode = key->keycode;
-		key->keycode = keycode;
-		set_bit(keycode, dev->keybit);
-		if (!toshiba_acpi_get_entry_by_keycode(old_keycode))
-			clear_bit(old_keycode, dev->keybit);
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
 static void toshiba_acpi_notify(acpi_handle handle, u32 event, void *context)
 {
 	u32 hci_result, value;
-	struct key_entry *key;
 
 	if (event != 0x80)
 		return;
@@ -816,19 +861,11 @@ static void toshiba_acpi_notify(acpi_handle handle, u32 event, void *context)
 			if (value & 0x80)
 				continue;
 
-			key = toshiba_acpi_get_entry_by_scancode
-				(value);
-			if (!key) {
+			if (!sparse_keymap_report_event(toshiba_acpi.hotkey_dev,
+							value, 1, true)) {
 				printk(MY_INFO "Unknown key %x\n",
 				       value);
-				continue;
 			}
-			input_report_key(toshiba_acpi.hotkey_dev,
-					 key->keycode, 1);
-			input_sync(toshiba_acpi.hotkey_dev);
-			input_report_key(toshiba_acpi.hotkey_dev,
-					 key->keycode, 0);
-			input_sync(toshiba_acpi.hotkey_dev);
 		} else if (hci_result == HCI_NOT_SUPPORTED) {
 			/* This is a workaround for an unresolved issue on
 			 * some machines where system events sporadically
@@ -839,31 +876,14 @@ static void toshiba_acpi_notify(acpi_handle handle, u32 event, void *context)
 	} while (hci_result != HCI_EMPTY);
 }
 
-static int toshiba_acpi_setup_keyboard(char *device)
+static int __init toshiba_acpi_setup_keyboard(char *device)
 {
 	acpi_status status;
-	acpi_handle handle;
-	int result;
-	const struct key_entry *key;
+	int error;
 
-	status = acpi_get_handle(NULL, device, &handle);
+	status = acpi_get_handle(NULL, device, &toshiba_acpi.handle);
 	if (ACPI_FAILURE(status)) {
 		printk(MY_INFO "Unable to get notification device\n");
-		return -ENODEV;
-	}
-
-	toshiba_acpi.handle = handle;
-
-	status = acpi_evaluate_object(handle, "ENAB", NULL, NULL);
-	if (ACPI_FAILURE(status)) {
-		printk(MY_INFO "Unable to enable hotkeys\n");
-		return -ENODEV;
-	}
-
-	status = acpi_install_notify_handler(handle, ACPI_DEVICE_NOTIFY,
-					      toshiba_acpi_notify, NULL);
-	if (ACPI_FAILURE(status)) {
-		printk(MY_INFO "Unable to install hotkey notification\n");
 		return -ENODEV;
 	}
 
@@ -876,27 +896,54 @@ static int toshiba_acpi_setup_keyboard(char *device)
 	toshiba_acpi.hotkey_dev->name = "Toshiba input device";
 	toshiba_acpi.hotkey_dev->phys = device;
 	toshiba_acpi.hotkey_dev->id.bustype = BUS_HOST;
-	toshiba_acpi.hotkey_dev->getkeycode = toshiba_acpi_getkeycode;
-	toshiba_acpi.hotkey_dev->setkeycode = toshiba_acpi_setkeycode;
 
-	for (key = toshiba_acpi_keymap; key->type != KE_END; key++) {
-		set_bit(EV_KEY, toshiba_acpi.hotkey_dev->evbit);
-		set_bit(key->keycode, toshiba_acpi.hotkey_dev->keybit);
+	error = sparse_keymap_setup(toshiba_acpi.hotkey_dev,
+				    toshiba_acpi_keymap, NULL);
+	if (error)
+		goto err_free_dev;
+
+	status = acpi_install_notify_handler(toshiba_acpi.handle,
+				ACPI_DEVICE_NOTIFY, toshiba_acpi_notify, NULL);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Unable to install hotkey notification\n");
+		error = -ENODEV;
+		goto err_free_keymap;
 	}
 
-	result = input_register_device(toshiba_acpi.hotkey_dev);
-	if (result) {
+	status = acpi_evaluate_object(toshiba_acpi.handle, "ENAB", NULL, NULL);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Unable to enable hotkeys\n");
+		error = -ENODEV;
+		goto err_remove_notify;
+	}
+
+	error = input_register_device(toshiba_acpi.hotkey_dev);
+	if (error) {
 		printk(MY_INFO "Unable to register input device\n");
-		return result;
+		goto err_remove_notify;
 	}
 
 	return 0;
+
+ err_remove_notify:
+	acpi_remove_notify_handler(toshiba_acpi.handle,
+				   ACPI_DEVICE_NOTIFY, toshiba_acpi_notify);
+ err_free_keymap:
+	sparse_keymap_free(toshiba_acpi.hotkey_dev);
+ err_free_dev:
+	input_free_device(toshiba_acpi.hotkey_dev);
+	toshiba_acpi.hotkey_dev = NULL;
+	return error;
 }
 
 static void toshiba_acpi_exit(void)
 {
-	if (toshiba_acpi.hotkey_dev)
+	if (toshiba_acpi.hotkey_dev) {
+		acpi_remove_notify_handler(toshiba_acpi.handle,
+				ACPI_DEVICE_NOTIFY, toshiba_acpi_notify);
+		sparse_keymap_free(toshiba_acpi.hotkey_dev);
 		input_unregister_device(toshiba_acpi.hotkey_dev);
+	}
 
 	if (toshiba_acpi.bt_rfk) {
 		rfkill_unregister(toshiba_acpi.bt_rfk);
@@ -906,13 +953,13 @@ static void toshiba_acpi_exit(void)
 	if (toshiba_backlight_device)
 		backlight_device_unregister(toshiba_backlight_device);
 
-	remove_device();
+	remove_toshiba_proc_entries();
 
 	if (toshiba_proc_dir)
 		remove_proc_entry(PROC_TOSHIBA, acpi_root_dir);
 
-	acpi_remove_notify_handler(toshiba_acpi.handle, ACPI_DEVICE_NOTIFY,
-				   toshiba_acpi_notify);
+	if (toshiba_acpi.illumination_installed)
+		led_classdev_unregister(&toshiba_led);
 
 	platform_device_unregister(toshiba_acpi.p_dev);
 
@@ -921,7 +968,6 @@ static void toshiba_acpi_exit(void)
 
 static int __init toshiba_acpi_init(void)
 {
-	acpi_status status = AE_OK;
 	u32 hci_result;
 	bool bt_present;
 	int ret = 0;
@@ -969,11 +1015,7 @@ static int __init toshiba_acpi_init(void)
 		toshiba_acpi_exit();
 		return -ENODEV;
 	} else {
-		status = add_device();
-		if (ACPI_FAILURE(status)) {
-			toshiba_acpi_exit();
-			return -ENODEV;
-		}
+		create_toshiba_proc_entries();
 	}
 
 	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
@@ -1011,6 +1053,13 @@ static int __init toshiba_acpi_init(void)
 			toshiba_acpi_exit();
 			return ret;
 		}
+	}
+
+	toshiba_acpi.illumination_installed = 0;
+	if (toshiba_illumination_available()) {
+		if (!led_classdev_register(&(toshiba_acpi.p_dev->dev),
+					   &toshiba_led))
+			toshiba_acpi.illumination_installed = 1;
 	}
 
 	return 0;

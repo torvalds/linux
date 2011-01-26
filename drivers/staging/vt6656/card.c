@@ -457,11 +457,10 @@ void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType)
     abyData[14] = abySignal[3];
     abyData[15] = abyServ[3];
 
-    for(i=0;i<9;i++) {
-        abyData[16+i*2] = abyTxRate[i];
-        abyData[16+i*2+1] = abyRsvTime[i];
+    for (i = 0; i < 9; i++) {
+	abyData[16+i*2] = abyTxRate[i];
+	abyData[16+i*2+1] = abyRsvTime[i];
     }
-
 
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_WRITE,
@@ -1093,7 +1092,7 @@ CARDbChannelSwitch (
         pDevice->sMgmtObj.uCurrChannel = byNewChannel;
         bResult = CARDbSetMediaChannel(pDevice, byNewChannel);
 
-        return(bResult);
+	return bResult;
     }
     pDevice->byChannelSwitchCount = byCount;
     pDevice->byNewChannel = byNewChannel;
@@ -1103,7 +1102,7 @@ CARDbChannelSwitch (
         //bResult=CARDbStopTxPacket(pDevice, PKT_TYPE_802_11_ALL);
         pDevice->bStopDataPkt = TRUE;
     }
-    return (bResult);
+	return bResult;
 }
 
 

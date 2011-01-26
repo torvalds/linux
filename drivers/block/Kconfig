@@ -464,6 +464,7 @@ config XEN_BLKDEV_FRONTEND
 	tristate "Xen virtual block device support"
 	depends on XEN
 	default y
+	select XEN_XENBUS_FRONTEND
 	help
 	  This driver implements the front-end of the Xen virtual
 	  block device driver.  It communicates with a back-end driver
@@ -485,6 +486,23 @@ config BLK_DEV_HD
 	  functionality of the newer ones.
 
 	  It is required for systems with ancient MFM/RLL/ESDI drives.
+
+	  If unsure, say N.
+
+config BLK_DEV_RBD
+	tristate "Rados block device (RBD)"
+	depends on INET && EXPERIMENTAL && BLOCK
+	select CEPH_LIB
+	select LIBCRC32C
+	select CRYPTO_AES
+	select CRYPTO
+	default n
+	help
+	  Say Y here if you want include the Rados block device, which stripes
+	  a block device over objects stored in the Ceph distributed object
+	  store.
+
+	  More information at http://ceph.newdream.net/.
 
 	  If unsure, say N.
 

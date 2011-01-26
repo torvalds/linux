@@ -10,22 +10,20 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
-#include <linux/smsc911x.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/mc13783.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/machine.h>
+#include <linux/usb/otg.h>
+#include <linux/usb/ulpi.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -34,19 +32,18 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 #include <mach/common.h>
-#include <mach/board-mx31_3ds.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
-#include <mach/mxc_nand.h>
-#include <mach/spi.h>
+#include <mach/3ds_debugboard.h>
+#include <mach/ulpi.h>
+
+#include "devices-imx31.h"
 #include "devices.h"
 
-/*!
- * @file mx31_3ds.c
- *
- * @brief This file contains the board-specific initialization routines.
- *
- * @ingroup System
+/* CPLD IRQ line for external uart, external ethernet etc */
+#define EXPIO_PARENT_INT	IOMUX_TO_IRQ(MX31_PIN_GPIO1_1)
+
+/*
+ * This file contains the board-specific initialization routines.
  */
 
 static int mx31_3ds_pins[] = {
@@ -65,6 +62,65 @@ static int mx31_3ds_pins[] = {
 	MX31_PIN_CSPI2_SS2__SS2, /*CS for MC13783 */
 	/* MC13783 IRQ */
 	IOMUX_MODE(MX31_PIN_GPIO1_3, IOMUX_CONFIG_GPIO),
+	/* USB OTG reset */
+	IOMUX_MODE(MX31_PIN_USB_PWR, IOMUX_CONFIG_GPIO),
+	/* USB OTG */
+	MX31_PIN_USBOTG_DATA0__USBOTG_DATA0,
+	MX31_PIN_USBOTG_DATA1__USBOTG_DATA1,
+	MX31_PIN_USBOTG_DATA2__USBOTG_DATA2,
+	MX31_PIN_USBOTG_DATA3__USBOTG_DATA3,
+	MX31_PIN_USBOTG_DATA4__USBOTG_DATA4,
+	MX31_PIN_USBOTG_DATA5__USBOTG_DATA5,
+	MX31_PIN_USBOTG_DATA6__USBOTG_DATA6,
+	MX31_PIN_USBOTG_DATA7__USBOTG_DATA7,
+	MX31_PIN_USBOTG_CLK__USBOTG_CLK,
+	MX31_PIN_USBOTG_DIR__USBOTG_DIR,
+	MX31_PIN_USBOTG_NXT__USBOTG_NXT,
+	MX31_PIN_USBOTG_STP__USBOTG_STP,
+	/*Keyboard*/
+	MX31_PIN_KEY_ROW0_KEY_ROW0,
+	MX31_PIN_KEY_ROW1_KEY_ROW1,
+	MX31_PIN_KEY_ROW2_KEY_ROW2,
+	MX31_PIN_KEY_COL0_KEY_COL0,
+	MX31_PIN_KEY_COL1_KEY_COL1,
+	MX31_PIN_KEY_COL2_KEY_COL2,
+	MX31_PIN_KEY_COL3_KEY_COL3,
+	/* USB Host 2 */
+	IOMUX_MODE(MX31_PIN_USBH2_CLK, IOMUX_CONFIG_FUNC),
+	IOMUX_MODE(MX31_PIN_USBH2_DIR, IOMUX_CONFIG_FUNC),
+	IOMUX_MODE(MX31_PIN_USBH2_NXT, IOMUX_CONFIG_FUNC),
+	IOMUX_MODE(MX31_PIN_USBH2_STP, IOMUX_CONFIG_FUNC),
+	IOMUX_MODE(MX31_PIN_USBH2_DATA0, IOMUX_CONFIG_FUNC),
+	IOMUX_MODE(MX31_PIN_USBH2_DATA1, IOMUX_CONFIG_FUNC),
+	IOMUX_MODE(MX31_PIN_PC_VS2, IOMUX_CONFIG_ALT1),
+	IOMUX_MODE(MX31_PIN_PC_BVD1, IOMUX_CONFIG_ALT1),
+	IOMUX_MODE(MX31_PIN_PC_BVD2, IOMUX_CONFIG_ALT1),
+	IOMUX_MODE(MX31_PIN_PC_RST, IOMUX_CONFIG_ALT1),
+	IOMUX_MODE(MX31_PIN_IOIS16, IOMUX_CONFIG_ALT1),
+	IOMUX_MODE(MX31_PIN_PC_RW_B, IOMUX_CONFIG_ALT1),
+	/* USB Host2 reset */
+	IOMUX_MODE(MX31_PIN_USB_BYP, IOMUX_CONFIG_GPIO),
+};
+
+/*
+ * Matrix keyboard
+ */
+
+static const uint32_t mx31_3ds_keymap[] = {
+	KEY(0, 0, KEY_UP),
+	KEY(0, 1, KEY_DOWN),
+	KEY(1, 0, KEY_RIGHT),
+	KEY(1, 1, KEY_LEFT),
+	KEY(1, 2, KEY_ENTER),
+	KEY(2, 0, KEY_F6),
+	KEY(2, 1, KEY_F8),
+	KEY(2, 2, KEY_F9),
+	KEY(2, 3, KEY_F10),
+};
+
+static const struct matrix_keymap_data mx31_3ds_keymap_data __initconst = {
+	.keymap		= mx31_3ds_keymap,
+	.keymap_size	= ARRAY_SIZE(mx31_3ds_keymap),
 };
 
 /* Regulators */
@@ -75,13 +131,27 @@ static struct regulator_init_data pwgtx_init = {
 	},
 };
 
+static struct regulator_init_data gpo_init = {
+	.constraints = {
+		.boot_on = 1,
+		.always_on = 1,
+	}
+};
+
 static struct mc13783_regulator_init_data mx31_3ds_regulators[] = {
 	{
-		.id = MC13783_REGU_PWGT1SPI, /* Power Gate for ARM core. */
+		.id = MC13783_REG_PWGT1SPI, /* Power Gate for ARM core. */
 		.init_data = &pwgtx_init,
 	}, {
-		.id = MC13783_REGU_PWGT2SPI, /* Power Gate for L2 Cache. */
+		.id = MC13783_REG_PWGT2SPI, /* Power Gate for L2 Cache. */
 		.init_data = &pwgtx_init,
+	}, {
+
+		.id = MC13783_REG_GPO1, /* Turn on 1.8V */
+		.init_data = &gpo_init,
+	}, {
+		.id = MC13783_REG_GPO3, /* Turn on 3.3V */
+		.init_data = &gpo_init,
 	},
 };
 
@@ -89,7 +159,7 @@ static struct mc13783_regulator_init_data mx31_3ds_regulators[] = {
 static struct mc13783_platform_data mc13783_pdata __initdata = {
 	.regulators = mx31_3ds_regulators,
 	.num_regulators = ARRAY_SIZE(mx31_3ds_regulators),
-	.flags  = MC13783_USE_REGULATOR,
+	.flags  = MC13783_USE_REGULATOR | MC13783_USE_TOUCHSCREEN,
 };
 
 /* SPI */
@@ -98,7 +168,7 @@ static int spi1_internal_chipselect[] = {
 	MXC_SPI_CS(2),
 };
 
-static struct spi_imx_master spi1_pdata = {
+static const struct spi_imx_master spi1_pdata __initconst = {
 	.chipselect	= spi1_internal_chipselect,
 	.num_chipselect	= ARRAY_SIZE(spi1_internal_chipselect),
 };
@@ -118,7 +188,8 @@ static struct spi_board_info mx31_3ds_spi_devs[] __initdata = {
 /*
  * NAND Flash
  */
-static struct mxc_nand_platform_data imx31_3ds_nand_flash_pdata = {
+static const struct mxc_nand_platform_data
+mx31_3ds_nand_board_info __initconst = {
 	.width		= 1,
 	.hw_ecc		= 1,
 #ifdef MACH_MX31_3DS_MXC_NAND_USE_BBT
@@ -126,169 +197,127 @@ static struct mxc_nand_platform_data imx31_3ds_nand_flash_pdata = {
 #endif
 };
 
-static struct imxuart_platform_data uart_pdata = {
-	.flags = IMXUART_HAVE_RTSCTS,
-};
-
 /*
- * Support for the SMSC9217 on the Debug board.
+ * USB OTG
  */
 
-static struct smsc911x_platform_config smsc911x_config = {
-	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type	= SMSC911X_IRQ_TYPE_PUSH_PULL,
-	.flags		= SMSC911X_USE_16BIT | SMSC911X_FORCE_INTERNAL_PHY,
-	.phy_interface	= PHY_INTERFACE_MODE_MII,
-};
+#define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
+		     PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
 
-static struct resource smsc911x_resources[] = {
-	{
-		.start		= LAN9217_BASE_ADDR,
-		.end		= LAN9217_BASE_ADDR + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= EXPIO_INT_ENET,
-		.end		= EXPIO_INT_ENET,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
+#define USBOTG_RST_B IOMUX_TO_GPIO(MX31_PIN_USB_PWR)
+#define USBH2_RST_B IOMUX_TO_GPIO(MX31_PIN_USB_BYP)
 
-static struct platform_device smsc911x_device = {
-	.name		= "smsc911x",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(smsc911x_resources),
-	.resource	= smsc911x_resources,
-	.dev		= {
-		.platform_data = &smsc911x_config,
-	},
-};
-
-/*
- * Routines for the CPLD on the debug board. It contains a CPLD handling
- * LEDs, switches, interrupts for Ethernet.
- */
-
-static void mx31_3ds_expio_irq_handler(uint32_t irq, struct irq_desc *desc)
+static int mx31_3ds_usbotg_init(void)
 {
-	uint32_t imr_val;
-	uint32_t int_valid;
-	uint32_t expio_irq;
+	int err;
 
-	imr_val = __raw_readw(CPLD_INT_MASK_REG);
-	int_valid = __raw_readw(CPLD_INT_STATUS_REG) & ~imr_val;
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA0, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA1, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA2, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA3, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA4, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA5, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA6, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA7, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_CLK, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DIR, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_NXT, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_STP, USB_PAD_CFG);
 
-	expio_irq = MXC_EXP_IO_BASE;
-	for (; int_valid != 0; int_valid >>= 1, expio_irq++) {
-		if ((int_valid & 1) == 0)
-			continue;
-		generic_handle_irq(expio_irq);
-	}
-}
-
-/*
- * Disable an expio pin's interrupt by setting the bit in the imr.
- * @param irq           an expio virtual irq number
- */
-static void expio_mask_irq(uint32_t irq)
-{
-	uint16_t reg;
-	uint32_t expio = MXC_IRQ_TO_EXPIO(irq);
-
-	/* mask the interrupt */
-	reg = __raw_readw(CPLD_INT_MASK_REG);
-	reg |= 1 << expio;
-	__raw_writew(reg, CPLD_INT_MASK_REG);
-}
-
-/*
- * Acknowledge an expanded io pin's interrupt by clearing the bit in the isr.
- * @param irq           an expanded io virtual irq number
- */
-static void expio_ack_irq(uint32_t irq)
-{
-	uint32_t expio = MXC_IRQ_TO_EXPIO(irq);
-
-	/* clear the interrupt status */
-	__raw_writew(1 << expio, CPLD_INT_RESET_REG);
-	__raw_writew(0, CPLD_INT_RESET_REG);
-	/* mask the interrupt */
-	expio_mask_irq(irq);
-}
-
-/*
- * Enable a expio pin's interrupt by clearing the bit in the imr.
- * @param irq           a expio virtual irq number
- */
-static void expio_unmask_irq(uint32_t irq)
-{
-	uint16_t reg;
-	uint32_t expio = MXC_IRQ_TO_EXPIO(irq);
-
-	/* unmask the interrupt */
-	reg = __raw_readw(CPLD_INT_MASK_REG);
-	reg &= ~(1 << expio);
-	__raw_writew(reg, CPLD_INT_MASK_REG);
-}
-
-static struct irq_chip expio_irq_chip = {
-	.ack = expio_ack_irq,
-	.mask = expio_mask_irq,
-	.unmask = expio_unmask_irq,
-};
-
-static int __init mx31_3ds_init_expio(void)
-{
-	int i;
-	int ret;
-
-	/* Check if there's a debug board connected */
-	if ((__raw_readw(CPLD_MAGIC_NUMBER1_REG) != 0xAAAA) ||
-	    (__raw_readw(CPLD_MAGIC_NUMBER2_REG) != 0x5555) ||
-	    (__raw_readw(CPLD_MAGIC_NUMBER3_REG) != 0xCAFE)) {
-		/* No Debug board found */
-		return -ENODEV;
+	err = gpio_request(USBOTG_RST_B, "otgusb-reset");
+	if (err) {
+		pr_err("Failed to request the USB OTG reset gpio\n");
+		return err;
 	}
 
-	pr_info("i.MX31 3DS Debug board detected, rev = 0x%04X\n",
-		__raw_readw(CPLD_CODE_VER_REG));
+	err = gpio_direction_output(USBOTG_RST_B, 0);
+	if (err) {
+		pr_err("Failed to drive the USB OTG reset gpio\n");
+		goto usbotg_free_reset;
+	}
 
-	/*
-	 * Configure INT line as GPIO input
-	 */
-	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_GPIO1_1), "sms9217-irq");
-	if (ret)
-		pr_warning("could not get LAN irq gpio\n");
+	mdelay(1);
+	gpio_set_value(USBOTG_RST_B, 1);
+	return 0;
+
+usbotg_free_reset:
+	gpio_free(USBOTG_RST_B);
+	return err;
+}
+
+static int mx31_3ds_host2_init(struct platform_device *pdev)
+{
+	int err;
+
+	mxc_iomux_set_pad(MX31_PIN_USBH2_CLK, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_DIR, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_NXT, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_STP, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_DATA0, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_DATA1, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_PC_VS2, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_PC_BVD1, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_PC_BVD2, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_PC_RST, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_IOIS16, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_PC_RW_B, USB_PAD_CFG);
+
+	err = gpio_request(USBH2_RST_B, "usbh2-reset");
+	if (err) {
+		pr_err("Failed to request the USB Host 2 reset gpio\n");
+		return err;
+	}
+
+	err = gpio_direction_output(USBH2_RST_B, 0);
+	if (err) {
+		pr_err("Failed to drive the USB Host 2 reset gpio\n");
+		goto usbotg_free_reset;
+	}
+
+	mdelay(1);
+	gpio_set_value(USBH2_RST_B, 1);
+	return 0;
+
+usbotg_free_reset:
+	gpio_free(USBH2_RST_B);
+	return err;
+}
+
+#if defined(CONFIG_USB_ULPI)
+static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.portsc	= MXC_EHCI_MODE_ULPI,
+	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
+};
+
+static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
+	.init = mx31_3ds_host2_init,
+	.portsc	= MXC_EHCI_MODE_ULPI,
+	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
+};
+#endif
+
+static const struct fsl_usb2_platform_data usbotg_pdata __initconst = {
+	.operating_mode = FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_ULPI,
+};
+
+static int otg_mode_host;
+
+static int __init mx31_3ds_otg_mode(char *options)
+{
+	if (!strcmp(options, "host"))
+		otg_mode_host = 1;
+	else if (!strcmp(options, "device"))
+		otg_mode_host = 0;
 	else
-		gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO1_1));
-
-	/* Disable the interrupts and clear the status */
-	__raw_writew(0, CPLD_INT_MASK_REG);
-	__raw_writew(0xFFFF, CPLD_INT_RESET_REG);
-	__raw_writew(0, CPLD_INT_RESET_REG);
-	__raw_writew(0x1F, CPLD_INT_MASK_REG);
-	for (i = MXC_EXP_IO_BASE;
-	     i < (MXC_EXP_IO_BASE + MXC_MAX_EXP_IO_LINES);
-	     i++) {
-		set_irq_chip(i, &expio_irq_chip);
-		set_irq_handler(i, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID);
-	}
-	set_irq_type(EXPIO_PARENT_INT, IRQ_TYPE_LEVEL_LOW);
-	set_irq_chained_handler(EXPIO_PARENT_INT, mx31_3ds_expio_irq_handler);
-
+		pr_info("otg_mode neither \"host\" nor \"device\". "
+			"Defaulting to device\n");
 	return 0;
 }
+__setup("otg_mode=", mx31_3ds_otg_mode);
 
-/*
- * This structure defines the MX31 memory map.
- */
-static struct map_desc mx31_3ds_io_desc[] __initdata = {
-	{
-		.virtual = MX31_CS5_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX31_CS5_BASE_ADDR),
-		.length = MX31_CS5_SIZE,
-		.type = MT_DEVICE,
-	},
+static const struct imxuart_platform_data uart_pdata __initconst = {
+	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 /*
@@ -297,7 +326,6 @@ static struct map_desc mx31_3ds_io_desc[] __initdata = {
 static void __init mx31_3ds_map_io(void)
 {
 	mx31_map_io();
-	iotable_init(mx31_3ds_io_desc, ARRAY_SIZE(mx31_3ds_io_desc));
 }
 
 /*!
@@ -308,15 +336,34 @@ static void __init mxc_board_init(void)
 	mxc_iomux_setup_multiple_pins(mx31_3ds_pins, ARRAY_SIZE(mx31_3ds_pins),
 				      "mx31_3ds");
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_nand_device, &imx31_3ds_nand_flash_pdata);
+	imx31_add_imx_uart0(&uart_pdata);
+	imx31_add_mxc_nand(&mx31_3ds_nand_board_info);
 
-	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
+	imx31_add_spi_imx1(&spi1_pdata);
 	spi_register_board_info(mx31_3ds_spi_devs,
 						ARRAY_SIZE(mx31_3ds_spi_devs));
 
-	if (!mx31_3ds_init_expio())
-		platform_device_register(&smsc911x_device);
+	imx31_add_imx_keypad(&mx31_3ds_keymap_data);
+
+	mx31_3ds_usbotg_init();
+#if defined(CONFIG_USB_ULPI)
+	if (otg_mode_host) {
+		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
+				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
+
+		imx31_add_mxc_ehci_otg(&otg_pdata);
+	}
+	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
+				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
+	imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
+#endif
+	if (!otg_mode_host)
+		imx31_add_fsl_usb2_udc(&usbotg_pdata);
+
+	if (mxc_expio_init(MX31_CS5_BASE_ADDR, EXPIO_PARENT_INT))
+		printk(KERN_WARNING "Init of the debug board failed, all "
+				    "devices on the debug board are unusable.\n");
+	imx31_add_imx2_wdt(NULL);
 }
 
 static void __init mx31_3ds_timer_init(void)
@@ -334,8 +381,6 @@ static struct sys_timer mx31_3ds_timer = {
  */
 MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.phys_io	= MX31_AIPS1_BASE_ADDR,
-	.io_pg_offst	= (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
 	.map_io         = mx31_3ds_map_io,
 	.init_irq       = mx31_init_irq,

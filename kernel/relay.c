@@ -70,17 +70,10 @@ static const struct vm_operations_struct relay_file_mmap_ops = {
  */
 static struct page **relay_alloc_page_array(unsigned int n_pages)
 {
-	struct page **array;
-	size_t pa_size = n_pages * sizeof(struct page *);
-
-	if (pa_size > PAGE_SIZE) {
-		array = vmalloc(pa_size);
-		if (array)
-			memset(array, 0, pa_size);
-	} else {
-		array = kzalloc(pa_size, GFP_KERNEL);
-	}
-	return array;
+	const size_t pa_size = n_pages * sizeof(struct page *);
+	if (pa_size > PAGE_SIZE)
+		return vzalloc(pa_size);
+	return kzalloc(pa_size, GFP_KERNEL);
 }
 
 /*
@@ -539,7 +532,7 @@ static int __cpuinit relay_hotcpu_callback(struct notifier_block *nb,
 					"relay_hotcpu_callback: cpu %d buffer "
 					"creation failed\n", hotcpu);
 				mutex_unlock(&relay_channels_mutex);
-				return NOTIFY_BAD;
+				return notifier_from_errno(-ENOMEM);
 			}
 		}
 		mutex_unlock(&relay_channels_mutex);

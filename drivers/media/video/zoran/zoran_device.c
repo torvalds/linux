@@ -484,7 +484,7 @@ zr36057_overlay (struct zoran *zr,
 				zr->overlay_settings.format);
 
 		/* Start and length of each line MUST be 4-byte aligned.
-		 * This should be allready checked before the call to this routine.
+		 * This should be already checked before the call to this routine.
 		 * All error messages are internal driver checking only! */
 
 		/* video display top and bottom registers */
@@ -1470,8 +1470,7 @@ zoran_irq (int             irq,
 		    (zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS ||
 		     zr->codec_mode == BUZ_MODE_MOTION_COMPRESS)) {
 			if (zr36067_debug > 1 && (!zr->frame_num || zr->JPEG_error)) {
-				char sc[] = "0000";
-				char sv[5];
+				char sv[BUZ_NUM_STAT_COM + 1];
 				int i;
 
 				printk(KERN_INFO
@@ -1481,12 +1480,9 @@ zoran_irq (int             irq,
 				       zr->jpg_settings.field_per_buff,
 				       zr->JPEG_missed);
 
-				strcpy(sv, sc);
-				for (i = 0; i < 4; i++) {
-					if (le32_to_cpu(zr->stat_com[i]) & 1)
-						sv[i] = '1';
-				}
-				sv[4] = 0;
+				for (i = 0; i < BUZ_NUM_STAT_COM; i++)
+					sv[i] = le32_to_cpu(zr->stat_com[i]) & 1 ? '1' : '0';
+				sv[BUZ_NUM_STAT_COM] = 0;
 				printk(KERN_INFO
 				       "%s: stat_com=%s queue_state=%ld/%ld/%ld/%ld\n",
 				       ZR_DEVNAME(zr), sv,
@@ -1527,7 +1523,7 @@ zoran_irq (int             irq,
 		    zr->JPEG_missed > 25 ||
 		    zr->JPEG_error == 1	||
 		    ((zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS) &&
-		     (zr->frame_num & (zr->JPEG_missed > zr->jpg_settings.field_per_buff)))) {
+		     (zr->frame_num && (zr->JPEG_missed > zr->jpg_settings.field_per_buff)))) {
 			error_handler(zr, astat, stat);
 		}
 

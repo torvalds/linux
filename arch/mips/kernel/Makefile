@@ -76,6 +76,7 @@ obj-$(CONFIG_IRQ_TXX9)		+= irq_txx9.o
 obj-$(CONFIG_IRQ_GT641XX)	+= irq-gt641xx.o
 obj-$(CONFIG_IRQ_GIC)		+= irq-gic.o
 
+obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_32BIT)		+= scall32-o32.o
 obj-$(CONFIG_64BIT)		+= scall64-64.o
 obj-$(CONFIG_MIPS32_COMPAT)	+= linux32.o ptrace32.o signal32.o
@@ -94,6 +95,9 @@ obj-$(CONFIG_GPIO_TXX9)		+= gpio_txx9.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 obj-$(CONFIG_SPINLOCK_TEST)	+= spinlock_test.o
+obj-$(CONFIG_MIPS_MACHINE)	+= mips_machine.o
+
+obj-$(CONFIG_OF)		+= prom.o
 
 CFLAGS_cpu-bugs64.o	= $(shell if $(CC) $(KBUILD_CFLAGS) -Wa,-mdaddi -c -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-DHAVE_AS_SET_DADDI"; fi)
 
@@ -101,6 +105,8 @@ obj-$(CONFIG_HAVE_STD_PC_SERIAL_PORT)	+= 8250-platform.o
 
 obj-$(CONFIG_MIPS_CPUFREQ)	+= cpufreq/
 
-EXTRA_CFLAGS += -Werror
+obj-$(CONFIG_HW_PERF_EVENTS)	+= perf_event.o
+
+obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
 
 CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)

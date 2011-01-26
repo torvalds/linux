@@ -705,17 +705,21 @@ void pci_remove_legacy_files(struct pci_bus *b)
 
 #ifdef HAVE_PCI_MMAP
 
-int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma)
+int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma,
+		  enum pci_mmap_api mmap_api)
 {
-	unsigned long nr, start, size;
+	unsigned long nr, start, size, pci_start;
 
+	if (pci_resource_len(pdev, resno) == 0)
+		return 0;
 	nr = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 	start = vma->vm_pgoff;
 	size = ((pci_resource_len(pdev, resno) - 1) >> PAGE_SHIFT) + 1;
-	if (start < size && size - start >= nr)
+	pci_start = (mmap_api == PCI_MMAP_PROCFS) ?
+			pci_resource_start(pdev, resno) >> PAGE_SHIFT : 0;
+	if (start >= pci_start && start < pci_start + size &&
+			start + nr <= pci_start + size)
 		return 1;
-	WARN(1, "process \"%s\" tried to map 0x%08lx-0x%08lx on %s BAR %d (size 0x%08lx)\n",
-		current->comm, start, start+nr, pci_name(pdev), resno, size);
 	return 0;
 }
 
@@ -734,7 +738,7 @@ pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 {
 	struct pci_dev *pdev = to_pci_dev(container_of(kobj,
 						       struct device, kobj));
-	struct resource *res = (struct resource *)attr->private;
+	struct resource *res = attr->private;
 	enum pci_mmap_state mmap_type;
 	resource_size_t start, end;
 	int i;
@@ -745,8 +749,15 @@ pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 	if (i >= PCI_ROM_RESOURCE)
 		return -ENODEV;
 
-	if (!pci_mmap_fits(pdev, i, vma))
+	if (!pci_mmap_fits(pdev, i, vma, PCI_MMAP_SYSFS)) {
+		WARN(1, "process \"%s\" tried to map 0x%08lx bytes "
+			"at page 0x%08lx on %s BAR %d (start 0x%16Lx, size 0x%16Lx)\n",
+			current->comm, vma->vm_end-vma->vm_start, vma->vm_pgoff,
+			pci_name(pdev), i,
+			(u64)pci_resource_start(pdev, i),
+			(u64)pci_resource_len(pdev, i));
 		return -EINVAL;
+	}
 
 	/* pci_mmap_page_range() expects the same kind of entry as coming
 	 * from /proc/bus/pci/ which is a "user visible" value. If this is
@@ -776,6 +787,70 @@ pci_mmap_resource_wc(struct file *filp, struct kobject *kobj,
 		     struct vm_area_struct *vma)
 {
 	return pci_mmap_resource(kobj, attr, vma, 1);
+}
+
+static ssize_t
+pci_resource_io(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr, char *buf,
+		loff_t off, size_t count, bool write)
+{
+	struct pci_dev *pdev = to_pci_dev(container_of(kobj,
+						       struct device, kobj));
+	struct resource *res = attr->private;
+	unsigned long port = off;
+	int i;
+
+	for (i = 0; i < PCI_ROM_RESOURCE; i++)
+		if (res == &pdev->resource[i])
+			break;
+	if (i >= PCI_ROM_RESOURCE)
+		return -ENODEV;
+
+	port += pci_resource_start(pdev, i);
+
+	if (port > pci_resource_end(pdev, i))
+		return 0;
+
+	if (port + count - 1 > pci_resource_end(pdev, i))
+		return -EINVAL;
+
+	switch (count) {
+	case 1:
+		if (write)
+			outb(*(u8 *)buf, port);
+		else
+			*(u8 *)buf = inb(port);
+		return 1;
+	case 2:
+		if (write)
+			outw(*(u16 *)buf, port);
+		else
+			*(u16 *)buf = inw(port);
+		return 2;
+	case 4:
+		if (write)
+			outl(*(u32 *)buf, port);
+		else
+			*(u32 *)buf = inl(port);
+		return 4;
+	}
+	return -EINVAL;
+}
+
+static ssize_t
+pci_read_resource_io(struct file *filp, struct kobject *kobj,
+		     struct bin_attribute *attr, char *buf,
+		     loff_t off, size_t count)
+{
+	return pci_resource_io(filp, kobj, attr, buf, off, count, false);
+}
+
+static ssize_t
+pci_write_resource_io(struct file *filp, struct kobject *kobj,
+		      struct bin_attribute *attr, char *buf,
+		      loff_t off, size_t count)
+{
+	return pci_resource_io(filp, kobj, attr, buf, off, count, true);
 }
 
 /**
@@ -827,6 +902,10 @@ static int pci_create_attr(struct pci_dev *pdev, int num, int write_combine)
 			pdev->res_attr[num] = res_attr;
 			sprintf(res_attr_name, "resource%d", num);
 			res_attr->mmap = pci_mmap_resource_uc;
+		}
+		if (pci_resource_flags(pdev, num) & IORESOURCE_IO) {
+			res_attr->read = pci_read_resource_io;
+			res_attr->write = pci_write_resource_io;
 		}
 		res_attr->attr.name = res_attr_name;
 		res_attr->attr.mode = S_IRUSR | S_IWUSR;
@@ -1035,39 +1114,6 @@ error:
 	return retval;
 }
 
-static void pci_remove_slot_links(struct pci_dev *dev)
-{
-	char func[10];
-	struct pci_slot *slot;
-
-	sysfs_remove_link(&dev->dev.kobj, "slot");
-	list_for_each_entry(slot, &dev->bus->slots, list) {
-		if (slot->number != PCI_SLOT(dev->devfn))
-			continue;
-		snprintf(func, 10, "function%d", PCI_FUNC(dev->devfn));
-		sysfs_remove_link(&slot->kobj, func);
-	}
-}
-
-static int pci_create_slot_links(struct pci_dev *dev)
-{
-	int result = 0;
-	char func[10];
-	struct pci_slot *slot;
-
-	list_for_each_entry(slot, &dev->bus->slots, list) {
-		if (slot->number != PCI_SLOT(dev->devfn))
-			continue;
-		result = sysfs_create_link(&dev->dev.kobj, &slot->kobj, "slot");
-		if (result)
-			goto out;
-		snprintf(func, 10, "function%d", PCI_FUNC(dev->devfn));
-		result = sysfs_create_link(&slot->kobj, &dev->dev.kobj, func);
-	}
-out:
-	return result;
-}
-
 int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 {
 	int retval;
@@ -1103,7 +1149,7 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 		sysfs_bin_attr_init(attr);
 		attr->size = rom_size;
 		attr->attr.name = "rom";
-		attr->attr.mode = S_IRUSR;
+		attr->attr.mode = S_IRUSR | S_IWUSR;
 		attr->read = pci_read_rom;
 		attr->write = pci_write_rom;
 		retval = sysfs_create_bin_file(&pdev->dev.kobj, attr);
@@ -1130,7 +1176,7 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 	if (retval)
 		goto err_vga_file;
 
-	pci_create_slot_links(pdev);
+	pci_create_firmware_label_files(pdev);
 
 	return 0;
 
@@ -1181,8 +1227,6 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 	if (!sysfs_initialized)
 		return;
 
-	pci_remove_slot_links(pdev);
-
 	pci_remove_capabilities_sysfs(pdev);
 
 	if (pdev->cfg_size < PCI_CFG_SPACE_EXP_SIZE)
@@ -1201,6 +1245,9 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
 		kfree(pdev->rom_attr);
 	}
+
+	pci_remove_firmware_label_files(pdev);
+
 }
 
 static int __init pci_sysfs_init(void)

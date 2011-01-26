@@ -57,7 +57,7 @@
 #include <linux/ioport.h>	/* for request_region */
 #include <linux/delay.h>	/* for loops_per_jiffy */
 #include <linux/sched.h>
-#include <linux/smp_lock.h>	/* cycle_kernel_lock() */
+#include <linux/mutex.h>
 #include <asm/io.h>		/* for inb_p, outb_p, inb, outb, etc. */
 #include <asm/uaccess.h>	/* for get_user, etc. */
 #include <linux/wait.h>		/* for wait_queue */
@@ -73,6 +73,7 @@
 #define TRACE_RET ((void) 0)
 #endif				/* TRACING */
 
+static DEFINE_MUTEX(dtlk_mutex);
 static void dtlk_timer_tick(unsigned long data);
 
 static int dtlk_major;
@@ -105,6 +106,7 @@ static const struct file_operations dtlk_fops =
 	.unlocked_ioctl	= dtlk_ioctl,
 	.open		= dtlk_open,
 	.release	= dtlk_release,
+	.llseek		= no_llseek,
 };
 
 /* local prototypes */
@@ -275,9 +277,9 @@ static long dtlk_ioctl(struct file *file,
 	switch (cmd) {
 
 	case DTLK_INTERROGATE:
-		lock_kernel();
+		mutex_lock(&dtlk_mutex);
 		sp = dtlk_interrogate();
-		unlock_kernel();
+		mutex_unlock(&dtlk_mutex);
 		if (copy_to_user(argp, sp, sizeof(struct dtlk_settings)))
 			return -EINVAL;
 		return 0;
@@ -296,7 +298,6 @@ static int dtlk_open(struct inode *inode, struct file *file)
 {
 	TRACE_TEXT("(dtlk_open");
 
-	cycle_kernel_lock();
 	nonseekable_open(inode, file);
 	switch (iminor(inode)) {
 	case DTLK_MINOR:

@@ -83,6 +83,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_NET
 static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 {
 	struct kobject *kobj = data;
@@ -98,6 +99,7 @@ static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 
 	return 0;
 }
+#endif
 
 static int kobj_usermode_filter(struct kobject *kobj)
 {
@@ -121,7 +123,7 @@ static int kobj_usermode_filter(struct kobject *kobj)
  * @kobj: struct kobject that the action is happening to
  * @envp_ext: pointer to environmental data
  *
- * Returns 0 if kobject_uevent() is completed with success or the
+ * Returns 0 if kobject_uevent_env() is completed with success or the
  * corresponding error when it fails.
  */
 int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
@@ -315,7 +317,7 @@ exit:
 EXPORT_SYMBOL_GPL(kobject_uevent_env);
 
 /**
- * kobject_uevent - notify userspace by ending an uevent
+ * kobject_uevent - notify userspace by sending an uevent
  *
  * @action: action that is happening
  * @kobj: struct kobject that the action is happening to
@@ -378,6 +380,7 @@ static int uevent_net_init(struct net *net)
 	if (!ue_sk->sk) {
 		printk(KERN_ERR
 		       "kobject_uevent: unable to create netlink socket!\n");
+		kfree(ue_sk);
 		return -ENODEV;
 	}
 	mutex_lock(&uevent_sock_mutex);

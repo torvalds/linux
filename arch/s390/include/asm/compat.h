@@ -169,7 +169,7 @@ static inline compat_uptr_t ptr_to_compat(void __user *uptr)
 
 static inline int is_compat_task(void)
 {
-	return test_thread_flag(TIF_31BIT);
+	return is_32bit_task();
 }
 
 #else
@@ -181,7 +181,7 @@ static inline int is_compat_task(void)
 
 #endif
 
-static inline void __user *compat_alloc_user_space(long len)
+static inline void __user *arch_compat_alloc_user_space(long len)
 {
 	unsigned long stack;
 

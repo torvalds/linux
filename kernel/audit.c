@@ -56,7 +56,6 @@
 #include <net/netlink.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
-#include <linux/inotify.h>
 #include <linux/freezer.h>
 #include <linux/tty.h>
 
@@ -401,13 +400,13 @@ static void kauditd_send_skb(struct sk_buff *skb)
 	if (err < 0) {
 		BUG_ON(err != -ECONNREFUSED); /* Shouldn't happen */
 		printk(KERN_ERR "audit: *NO* daemon at audit_pid=%d\n", audit_pid);
-		audit_log_lost("auditd dissapeared\n");
+		audit_log_lost("auditd disappeared\n");
 		audit_pid = 0;
 		/* we might get lucky and get this in the next auditd */
 		audit_hold_skb(skb);
 	} else
 		/* drop the extra reference if sent ok */
-		kfree_skb(skb);
+		consume_skb(skb);
 }
 
 static int kauditd_thread(void *dummy)
@@ -468,23 +467,16 @@ static int audit_prepare_user_tty(pid_t pid, uid_t loginuid, u32 sessionid)
 	struct task_struct *tsk;
 	int err;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	tsk = find_task_by_vpid(pid);
-	err = -ESRCH;
-	if (!tsk)
-		goto out;
-	err = 0;
-
-	spin_lock_irq(&tsk->sighand->siglock);
-	if (!tsk->signal->audit_tty)
-		err = -EPERM;
-	spin_unlock_irq(&tsk->sighand->siglock);
-	if (err)
-		goto out;
-
-	tty_audit_push_task(tsk, loginuid, sessionid);
-out:
-	read_unlock(&tasklist_lock);
+	if (!tsk) {
+		rcu_read_unlock();
+		return -ESRCH;
+	}
+	get_task_struct(tsk);
+	rcu_read_unlock();
+	err = tty_audit_push_task(tsk, loginuid, sessionid);
+	put_task_struct(tsk);
 	return err;
 }
 
@@ -507,7 +499,7 @@ int audit_send_list(void *_dest)
 }
 
 struct sk_buff *audit_make_reply(int pid, int seq, int type, int done,
-				 int multi, void *payload, int size)
+				 int multi, const void *payload, int size)
 {
 	struct sk_buff	*skb;
 	struct nlmsghdr	*nlh;
@@ -556,8 +548,8 @@ static int audit_send_reply_thread(void *arg)
  * Allocates an skb, builds the netlink message, and sends it to the pid.
  * No failure notifications.
  */
-void audit_send_reply(int pid, int seq, int type, int done, int multi,
-		      void *payload, int size)
+static void audit_send_reply(int pid, int seq, int type, int done, int multi,
+			     const void *payload, int size)
 {
 	struct sk_buff *skb;
 	struct task_struct *tsk;
@@ -881,40 +873,40 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case AUDIT_TTY_GET: {
 		struct audit_tty_status s;
 		struct task_struct *tsk;
+		unsigned long flags;
 
-		read_lock(&tasklist_lock);
+		rcu_read_lock();
 		tsk = find_task_by_vpid(pid);
-		if (!tsk)
-			err = -ESRCH;
-		else {
-			spin_lock_irq(&tsk->sighand->siglock);
+		if (tsk && lock_task_sighand(tsk, &flags)) {
 			s.enabled = tsk->signal->audit_tty != 0;
-			spin_unlock_irq(&tsk->sighand->siglock);
-		}
-		read_unlock(&tasklist_lock);
-		audit_send_reply(NETLINK_CB(skb).pid, seq, AUDIT_TTY_GET, 0, 0,
-				 &s, sizeof(s));
+			unlock_task_sighand(tsk, &flags);
+		} else
+			err = -ESRCH;
+		rcu_read_unlock();
+
+		if (!err)
+			audit_send_reply(NETLINK_CB(skb).pid, seq,
+					 AUDIT_TTY_GET, 0, 0, &s, sizeof(s));
 		break;
 	}
 	case AUDIT_TTY_SET: {
 		struct audit_tty_status *s;
 		struct task_struct *tsk;
+		unsigned long flags;
 
 		if (nlh->nlmsg_len < sizeof(struct audit_tty_status))
 			return -EINVAL;
 		s = data;
 		if (s->enabled != 0 && s->enabled != 1)
 			return -EINVAL;
-		read_lock(&tasklist_lock);
+		rcu_read_lock();
 		tsk = find_task_by_vpid(pid);
-		if (!tsk)
-			err = -ESRCH;
-		else {
-			spin_lock_irq(&tsk->sighand->siglock);
+		if (tsk && lock_task_sighand(tsk, &flags)) {
 			tsk->signal->audit_tty = s->enabled != 0;
-			spin_unlock_irq(&tsk->sighand->siglock);
-		}
-		read_unlock(&tasklist_lock);
+			unlock_task_sighand(tsk, &flags);
+		} else
+			err = -ESRCH;
+		rcu_read_unlock();
 		break;
 	}
 	default:

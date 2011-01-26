@@ -30,10 +30,10 @@
 #include <linux/amba/bus.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/clkdev.h>
 
 #include <mach/csp/mm_addr.h>
 #include <mach/hardware.h>
-#include <asm/clkdev.h>
 #include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/hardware/arm_timer.h>
@@ -91,14 +91,23 @@ static struct clk uart_clk = {
 	.parent = &pll1_clk,
 };
 
+static struct clk dummy_apb_pclk = {
+	.name = "BUSCLK",
+	.type = CLK_TYPE_PRIMARY,
+	.mode = CLK_MODE_XTAL,
+};
+
 static struct clk_lookup lookups[] = {
-	{			/* UART0 */
-	 .dev_id = "uarta",
-	 .clk = &uart_clk,
-	 }, {			/* UART1 */
-	     .dev_id = "uartb",
-	     .clk = &uart_clk,
-	     }
+	{			/* Bus clock */
+		.con_id = "apb_pclk",
+		.clk = &dummy_apb_pclk,
+	}, {			/* UART0 */
+		.dev_id = "uarta",
+		.clk = &uart_clk,
+	}, {			/* UART1 */
+		.dev_id = "uartb",
+		.clk = &uart_clk,
+	}
 };
 
 static struct amba_device *amba_devs[] __initdata = {
@@ -285,7 +294,6 @@ static struct clocksource clocksource_bcmring_timer1 = {
 	.rating = 200,
 	.read = bcmring_get_cycles_timer1,
 	.mask = CLOCKSOURCE_MASK(32),
-	.shift = 20,
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -294,7 +302,6 @@ static struct clocksource clocksource_bcmring_timer3 = {
 	.rating = 100,
 	.read = bcmring_get_cycles_timer3,
 	.mask = CLOCKSOURCE_MASK(32),
-	.shift = 20,
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -307,10 +314,8 @@ static int __init bcmring_clocksource_init(void)
 	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
 	       TIMER1_VA_BASE + TIMER_CTRL);
 
-	clocksource_bcmring_timer1.mult =
-	    clocksource_khz2mult(TIMER1_FREQUENCY_MHZ * 1000,
-				 clocksource_bcmring_timer1.shift);
-	clocksource_register(&clocksource_bcmring_timer1);
+	clocksource_register_khz(&clocksource_bcmring_timer1,
+				 TIMER1_FREQUENCY_MHZ * 1000);
 
 	/* setup timer3 as free-running clocksource */
 	writel(0, TIMER3_VA_BASE + TIMER_CTRL);
@@ -319,10 +324,8 @@ static int __init bcmring_clocksource_init(void)
 	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
 	       TIMER3_VA_BASE + TIMER_CTRL);
 
-	clocksource_bcmring_timer3.mult =
-	    clocksource_khz2mult(TIMER3_FREQUENCY_KHZ,
-				 clocksource_bcmring_timer3.shift);
-	clocksource_register(&clocksource_bcmring_timer3);
+	clocksource_register_khz(&clocksource_bcmring_timer3,
+				 TIMER3_FREQUENCY_KHZ);
 
 	return 0;
 }

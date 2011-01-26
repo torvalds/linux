@@ -99,10 +99,7 @@ static void __init tavorevb_init(void)
 }
 
 MACHINE_START(TAVOREVB, "PXA910 Evaluation Board (aka TavorEVB)")
-	.phys_io        = APB_PHYS_BASE,
-	.boot_params    = 0x00000100,
-	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= mmp_map_io,
 	.init_irq       = pxa910_init_irq,
 	.timer          = &pxa910_timer,
 	.init_machine   = tavorevb_init,

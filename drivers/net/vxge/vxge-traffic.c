@@ -7,9 +7,9 @@
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
  *
- * vxge-traffic.c: Driver for Neterion Inc's X3100 Series 10GbE PCIe I/O
+ * vxge-traffic.c: Driver for Exar Corp's X3100 Series 10GbE PCIe I/O
  *                 Virtualized Server Adapter.
- * Copyright(c) 2002-2009 Neterion Inc.
+ * Copyright(c) 2002-2010 Exar Corp.
  ******************************************************************************/
 #include <linux/etherdevice.h>
 
@@ -412,6 +412,384 @@ void vxge_hw_device_flush_io(struct __vxge_hw_device *hldev)
 }
 
 /**
+ * __vxge_hw_device_handle_error - Handle error
+ * @hldev: HW device
+ * @vp_id: Vpath Id
+ * @type: Error type. Please see enum vxge_hw_event{}
+ *
+ * Handle error.
+ */
+static enum vxge_hw_status
+__vxge_hw_device_handle_error(struct __vxge_hw_device *hldev, u32 vp_id,
+			      enum vxge_hw_event type)
+{
+	switch (type) {
+	case VXGE_HW_EVENT_UNKNOWN:
+		break;
+	case VXGE_HW_EVENT_RESET_START:
+	case VXGE_HW_EVENT_RESET_COMPLETE:
+	case VXGE_HW_EVENT_LINK_DOWN:
+	case VXGE_HW_EVENT_LINK_UP:
+		goto out;
+	case VXGE_HW_EVENT_ALARM_CLEARED:
+		goto out;
+	case VXGE_HW_EVENT_ECCERR:
+	case VXGE_HW_EVENT_MRPCIM_ECCERR:
+		goto out;
+	case VXGE_HW_EVENT_FIFO_ERR:
+	case VXGE_HW_EVENT_VPATH_ERR:
+	case VXGE_HW_EVENT_CRITICAL_ERR:
+	case VXGE_HW_EVENT_SERR:
+		break;
+	case VXGE_HW_EVENT_SRPCIM_SERR:
+	case VXGE_HW_EVENT_MRPCIM_SERR:
+		goto out;
+	case VXGE_HW_EVENT_SLOT_FREEZE:
+		break;
+	default:
+		vxge_assert(0);
+		goto out;
+	}
+
+	/* notify driver */
+	if (hldev->uld_callbacks.crit_err)
+		hldev->uld_callbacks.crit_err(
+			(struct __vxge_hw_device *)hldev,
+			type, vp_id);
+out:
+
+	return VXGE_HW_OK;
+}
+
+/*
+ * __vxge_hw_device_handle_link_down_ind
+ * @hldev: HW device handle.
+ *
+ * Link down indication handler. The function is invoked by HW when
+ * Titan indicates that the link is down.
+ */
+static enum vxge_hw_status
+__vxge_hw_device_handle_link_down_ind(struct __vxge_hw_device *hldev)
+{
+	/*
+	 * If the previous link state is not down, return.
+	 */
+	if (hldev->link_state == VXGE_HW_LINK_DOWN)
+		goto exit;
+
+	hldev->link_state = VXGE_HW_LINK_DOWN;
+
+	/* notify driver */
+	if (hldev->uld_callbacks.link_down)
+		hldev->uld_callbacks.link_down(hldev);
+exit:
+	return VXGE_HW_OK;
+}
+
+/*
+ * __vxge_hw_device_handle_link_up_ind
+ * @hldev: HW device handle.
+ *
+ * Link up indication handler. The function is invoked by HW when
+ * Titan indicates that the link is up for programmable amount of time.
+ */
+static enum vxge_hw_status
+__vxge_hw_device_handle_link_up_ind(struct __vxge_hw_device *hldev)
+{
+	/*
+	 * If the previous link state is not down, return.
+	 */
+	if (hldev->link_state == VXGE_HW_LINK_UP)
+		goto exit;
+
+	hldev->link_state = VXGE_HW_LINK_UP;
+
+	/* notify driver */
+	if (hldev->uld_callbacks.link_up)
+		hldev->uld_callbacks.link_up(hldev);
+exit:
+	return VXGE_HW_OK;
+}
+
+/*
+ * __vxge_hw_vpath_alarm_process - Process Alarms.
+ * @vpath: Virtual Path.
+ * @skip_alarms: Do not clear the alarms
+ *
+ * Process vpath alarms.
+ *
+ */
+static enum vxge_hw_status
+__vxge_hw_vpath_alarm_process(struct __vxge_hw_virtualpath *vpath,
+			      u32 skip_alarms)
+{
+	u64 val64;
+	u64 alarm_status;
+	u64 pic_status;
+	struct __vxge_hw_device *hldev = NULL;
+	enum vxge_hw_event alarm_event = VXGE_HW_EVENT_UNKNOWN;
+	u64 mask64;
+	struct vxge_hw_vpath_stats_sw_info *sw_stats;
+	struct vxge_hw_vpath_reg __iomem *vp_reg;
+
+	if (vpath == NULL) {
+		alarm_event = VXGE_HW_SET_LEVEL(VXGE_HW_EVENT_UNKNOWN,
+			alarm_event);
+		goto out2;
+	}
+
+	hldev = vpath->hldev;
+	vp_reg = vpath->vp_reg;
+	alarm_status = readq(&vp_reg->vpath_general_int_status);
+
+	if (alarm_status == VXGE_HW_ALL_FOXES) {
+		alarm_event = VXGE_HW_SET_LEVEL(VXGE_HW_EVENT_SLOT_FREEZE,
+			alarm_event);
+		goto out;
+	}
+
+	sw_stats = vpath->sw_stats;
+
+	if (alarm_status & ~(
+		VXGE_HW_VPATH_GENERAL_INT_STATUS_PIC_INT |
+		VXGE_HW_VPATH_GENERAL_INT_STATUS_PCI_INT |
+		VXGE_HW_VPATH_GENERAL_INT_STATUS_WRDMA_INT |
+		VXGE_HW_VPATH_GENERAL_INT_STATUS_XMAC_INT)) {
+		sw_stats->error_stats.unknown_alarms++;
+
+		alarm_event = VXGE_HW_SET_LEVEL(VXGE_HW_EVENT_UNKNOWN,
+			alarm_event);
+		goto out;
+	}
+
+	if (alarm_status & VXGE_HW_VPATH_GENERAL_INT_STATUS_XMAC_INT) {
+
+		val64 = readq(&vp_reg->xgmac_vp_int_status);
+
+		if (val64 &
+		VXGE_HW_XGMAC_VP_INT_STATUS_ASIC_NTWK_VP_ERR_ASIC_NTWK_VP_INT) {
+
+			val64 = readq(&vp_reg->asic_ntwk_vp_err_reg);
+
+			if (((val64 &
+			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT) &&
+			     (!(val64 &
+				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK))) ||
+			    ((val64 &
+			     VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT_OCCURR) &&
+			     (!(val64 &
+				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK_OCCURR)
+				     ))) {
+				sw_stats->error_stats.network_sustained_fault++;
+
+				writeq(
+				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT,
+					&vp_reg->asic_ntwk_vp_err_mask);
+
+				__vxge_hw_device_handle_link_down_ind(hldev);
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_LINK_DOWN, alarm_event);
+			}
+
+			if (((val64 &
+			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK) &&
+			     (!(val64 &
+				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT))) ||
+			    ((val64 &
+			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK_OCCURR) &&
+			     (!(val64 &
+				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT_OCCURR)
+				     ))) {
+
+				sw_stats->error_stats.network_sustained_ok++;
+
+				writeq(
+				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK,
+					&vp_reg->asic_ntwk_vp_err_mask);
+
+				__vxge_hw_device_handle_link_up_ind(hldev);
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_LINK_UP, alarm_event);
+			}
+
+			writeq(VXGE_HW_INTR_MASK_ALL,
+				&vp_reg->asic_ntwk_vp_err_reg);
+
+			alarm_event = VXGE_HW_SET_LEVEL(
+				VXGE_HW_EVENT_ALARM_CLEARED, alarm_event);
+
+			if (skip_alarms)
+				return VXGE_HW_OK;
+		}
+	}
+
+	if (alarm_status & VXGE_HW_VPATH_GENERAL_INT_STATUS_PIC_INT) {
+
+		pic_status = readq(&vp_reg->vpath_ppif_int_status);
+
+		if (pic_status &
+		    VXGE_HW_VPATH_PPIF_INT_STATUS_GENERAL_ERRORS_GENERAL_INT) {
+
+			val64 = readq(&vp_reg->general_errors_reg);
+			mask64 = readq(&vp_reg->general_errors_mask);
+
+			if ((val64 &
+				VXGE_HW_GENERAL_ERRORS_REG_INI_SERR_DET) &
+				~mask64) {
+				sw_stats->error_stats.ini_serr_det++;
+
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_SERR, alarm_event);
+			}
+
+			if ((val64 &
+			    VXGE_HW_GENERAL_ERRORS_REG_DBLGEN_FIFO0_OVRFLOW) &
+				~mask64) {
+				sw_stats->error_stats.dblgen_fifo0_overflow++;
+
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_FIFO_ERR, alarm_event);
+			}
+
+			if ((val64 &
+			    VXGE_HW_GENERAL_ERRORS_REG_STATSB_PIF_CHAIN_ERR) &
+				~mask64)
+				sw_stats->error_stats.statsb_pif_chain_error++;
+
+			if ((val64 &
+			   VXGE_HW_GENERAL_ERRORS_REG_STATSB_DROP_TIMEOUT_REQ) &
+				~mask64)
+				sw_stats->error_stats.statsb_drop_timeout++;
+
+			if ((val64 &
+				VXGE_HW_GENERAL_ERRORS_REG_TGT_ILLEGAL_ACCESS) &
+				~mask64)
+				sw_stats->error_stats.target_illegal_access++;
+
+			if (!skip_alarms) {
+				writeq(VXGE_HW_INTR_MASK_ALL,
+					&vp_reg->general_errors_reg);
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_ALARM_CLEARED,
+					alarm_event);
+			}
+		}
+
+		if (pic_status &
+		    VXGE_HW_VPATH_PPIF_INT_STATUS_KDFCCTL_ERRORS_KDFCCTL_INT) {
+
+			val64 = readq(&vp_reg->kdfcctl_errors_reg);
+			mask64 = readq(&vp_reg->kdfcctl_errors_mask);
+
+			if ((val64 &
+			    VXGE_HW_KDFCCTL_ERRORS_REG_KDFCCTL_FIFO0_OVRWR) &
+				~mask64) {
+				sw_stats->error_stats.kdfcctl_fifo0_overwrite++;
+
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_FIFO_ERR,
+					alarm_event);
+			}
+
+			if ((val64 &
+			    VXGE_HW_KDFCCTL_ERRORS_REG_KDFCCTL_FIFO0_POISON) &
+				~mask64) {
+				sw_stats->error_stats.kdfcctl_fifo0_poison++;
+
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_FIFO_ERR,
+					alarm_event);
+			}
+
+			if ((val64 &
+			    VXGE_HW_KDFCCTL_ERRORS_REG_KDFCCTL_FIFO0_DMA_ERR) &
+				~mask64) {
+				sw_stats->error_stats.kdfcctl_fifo0_dma_error++;
+
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_FIFO_ERR,
+					alarm_event);
+			}
+
+			if (!skip_alarms) {
+				writeq(VXGE_HW_INTR_MASK_ALL,
+					&vp_reg->kdfcctl_errors_reg);
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_ALARM_CLEARED,
+					alarm_event);
+			}
+		}
+
+	}
+
+	if (alarm_status & VXGE_HW_VPATH_GENERAL_INT_STATUS_WRDMA_INT) {
+
+		val64 = readq(&vp_reg->wrdma_alarm_status);
+
+		if (val64 & VXGE_HW_WRDMA_ALARM_STATUS_PRC_ALARM_PRC_INT) {
+
+			val64 = readq(&vp_reg->prc_alarm_reg);
+			mask64 = readq(&vp_reg->prc_alarm_mask);
+
+			if ((val64 & VXGE_HW_PRC_ALARM_REG_PRC_RING_BUMP)&
+				~mask64)
+				sw_stats->error_stats.prc_ring_bumps++;
+
+			if ((val64 & VXGE_HW_PRC_ALARM_REG_PRC_RXDCM_SC_ERR) &
+				~mask64) {
+				sw_stats->error_stats.prc_rxdcm_sc_err++;
+
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_VPATH_ERR,
+					alarm_event);
+			}
+
+			if ((val64 & VXGE_HW_PRC_ALARM_REG_PRC_RXDCM_SC_ABORT)
+				& ~mask64) {
+				sw_stats->error_stats.prc_rxdcm_sc_abort++;
+
+				alarm_event = VXGE_HW_SET_LEVEL(
+						VXGE_HW_EVENT_VPATH_ERR,
+						alarm_event);
+			}
+
+			if ((val64 & VXGE_HW_PRC_ALARM_REG_PRC_QUANTA_SIZE_ERR)
+				 & ~mask64) {
+				sw_stats->error_stats.prc_quanta_size_err++;
+
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_VPATH_ERR,
+					alarm_event);
+			}
+
+			if (!skip_alarms) {
+				writeq(VXGE_HW_INTR_MASK_ALL,
+					&vp_reg->prc_alarm_reg);
+				alarm_event = VXGE_HW_SET_LEVEL(
+						VXGE_HW_EVENT_ALARM_CLEARED,
+						alarm_event);
+			}
+		}
+	}
+out:
+	hldev->stats.sw_dev_err_stats.vpath_alarms++;
+out2:
+	if ((alarm_event == VXGE_HW_EVENT_ALARM_CLEARED) ||
+		(alarm_event == VXGE_HW_EVENT_UNKNOWN))
+		return VXGE_HW_OK;
+
+	__vxge_hw_device_handle_error(hldev, vpath->vp_id, alarm_event);
+
+	if (alarm_event == VXGE_HW_EVENT_SERR)
+		return VXGE_HW_ERR_CRITICAL;
+
+	return (alarm_event == VXGE_HW_EVENT_SLOT_FREEZE) ?
+		VXGE_HW_ERR_SLOT_FREEZE :
+		(alarm_event == VXGE_HW_EVENT_FIFO_ERR) ? VXGE_HW_ERR_FIFO :
+		VXGE_HW_ERR_VPATH;
+}
+
+/**
  * vxge_hw_device_begin_irq - Begin IRQ processing.
  * @hldev: HW device handle.
  * @skip_alarms: Do not clear the alarms
@@ -506,108 +884,6 @@ exit:
 	return ret;
 }
 
-/*
- * __vxge_hw_device_handle_link_up_ind
- * @hldev: HW device handle.
- *
- * Link up indication handler. The function is invoked by HW when
- * Titan indicates that the link is up for programmable amount of time.
- */
-enum vxge_hw_status
-__vxge_hw_device_handle_link_up_ind(struct __vxge_hw_device *hldev)
-{
-	/*
-	 * If the previous link state is not down, return.
-	 */
-	if (hldev->link_state == VXGE_HW_LINK_UP)
-		goto exit;
-
-	hldev->link_state = VXGE_HW_LINK_UP;
-
-	/* notify driver */
-	if (hldev->uld_callbacks.link_up)
-		hldev->uld_callbacks.link_up(hldev);
-exit:
-	return VXGE_HW_OK;
-}
-
-/*
- * __vxge_hw_device_handle_link_down_ind
- * @hldev: HW device handle.
- *
- * Link down indication handler. The function is invoked by HW when
- * Titan indicates that the link is down.
- */
-enum vxge_hw_status
-__vxge_hw_device_handle_link_down_ind(struct __vxge_hw_device *hldev)
-{
-	/*
-	 * If the previous link state is not down, return.
-	 */
-	if (hldev->link_state == VXGE_HW_LINK_DOWN)
-		goto exit;
-
-	hldev->link_state = VXGE_HW_LINK_DOWN;
-
-	/* notify driver */
-	if (hldev->uld_callbacks.link_down)
-		hldev->uld_callbacks.link_down(hldev);
-exit:
-	return VXGE_HW_OK;
-}
-
-/**
- * __vxge_hw_device_handle_error - Handle error
- * @hldev: HW device
- * @vp_id: Vpath Id
- * @type: Error type. Please see enum vxge_hw_event{}
- *
- * Handle error.
- */
-enum vxge_hw_status
-__vxge_hw_device_handle_error(
-		struct __vxge_hw_device *hldev,
-		u32 vp_id,
-		enum vxge_hw_event type)
-{
-	switch (type) {
-	case VXGE_HW_EVENT_UNKNOWN:
-		break;
-	case VXGE_HW_EVENT_RESET_START:
-	case VXGE_HW_EVENT_RESET_COMPLETE:
-	case VXGE_HW_EVENT_LINK_DOWN:
-	case VXGE_HW_EVENT_LINK_UP:
-		goto out;
-	case VXGE_HW_EVENT_ALARM_CLEARED:
-		goto out;
-	case VXGE_HW_EVENT_ECCERR:
-	case VXGE_HW_EVENT_MRPCIM_ECCERR:
-		goto out;
-	case VXGE_HW_EVENT_FIFO_ERR:
-	case VXGE_HW_EVENT_VPATH_ERR:
-	case VXGE_HW_EVENT_CRITICAL_ERR:
-	case VXGE_HW_EVENT_SERR:
-		break;
-	case VXGE_HW_EVENT_SRPCIM_SERR:
-	case VXGE_HW_EVENT_MRPCIM_SERR:
-		goto out;
-	case VXGE_HW_EVENT_SLOT_FREEZE:
-		break;
-	default:
-		vxge_assert(0);
-		goto out;
-	}
-
-	/* notify driver */
-	if (hldev->uld_callbacks.crit_err)
-		hldev->uld_callbacks.crit_err(
-			(struct __vxge_hw_device *)hldev,
-			type, vp_id);
-out:
-
-	return VXGE_HW_OK;
-}
-
 /**
  * vxge_hw_device_clear_tx_rx - Acknowledge (that is, clear) the
  * condition that has caused the Tx and RX interrupt.
@@ -646,7 +922,7 @@ void vxge_hw_device_clear_tx_rx(struct __vxge_hw_device *hldev)
  * it swaps the reserve and free arrays.
  *
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 vxge_hw_channel_dtr_alloc(struct __vxge_hw_channel *channel, void **dtrh)
 {
 	void **tmp_arr;
@@ -692,7 +968,8 @@ _alloc_after_swap:
  * Posts a dtr to work array.
  *
  */
-void vxge_hw_channel_dtr_post(struct __vxge_hw_channel *channel, void *dtrh)
+static void
+vxge_hw_channel_dtr_post(struct __vxge_hw_channel *channel, void *dtrh)
 {
 	vxge_assert(channel->work_arr[channel->post_index] == NULL);
 
@@ -903,10 +1180,6 @@ void vxge_hw_ring_rxd_post(struct __vxge_hw_ring *ring, void *rxdh)
  */
 void vxge_hw_ring_rxd_post_post_wmb(struct __vxge_hw_ring *ring, void *rxdh)
 {
-	struct __vxge_hw_channel *channel;
-
-	channel = &ring->channel;
-
 	wmb();
 	vxge_hw_ring_rxd_post_post(ring, rxdh);
 }
@@ -967,7 +1240,7 @@ enum vxge_hw_status vxge_hw_ring_rxd_next_completed(
 	*t_code	= (u8)VXGE_HW_RING_RXD_T_CODE_GET(control_0);
 
 	/* check whether it is not the end */
-	if (!own || ((*t_code == VXGE_HW_RING_T_CODE_FRM_DROP) && own)) {
+	if (!own || *t_code == VXGE_HW_RING_T_CODE_FRM_DROP) {
 
 		vxge_assert(((struct vxge_hw_ring_rxd_1 *)rxdp)->host_control !=
 				0);
@@ -1658,37 +1931,6 @@ exit:
 }
 
 /**
- * vxge_hw_vpath_vid_get_next - Get the next vid entry for this vpath
- *               from vlan id table.
- * @vp: Vpath handle.
- * @vid: Buffer to return vlan id
- *
- * Returns the next vlan id in the list for this vpath.
- * see also: vxge_hw_vpath_vid_get
- *
- */
-enum vxge_hw_status
-vxge_hw_vpath_vid_get_next(struct __vxge_hw_vpath_handle *vp, u64 *vid)
-{
-	u64 data;
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	if (vp == NULL) {
-		status = VXGE_HW_ERR_INVALID_HANDLE;
-		goto exit;
-	}
-
-	status = __vxge_hw_vpath_rts_table_get(vp,
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_LIST_NEXT_ENTRY,
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_VID,
-			0, vid, &data);
-
-	*vid = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_VLAN_ID(*vid);
-exit:
-	return status;
-}
-
-/**
  * vxge_hw_vpath_vid_delete - Delete the vlan id entry for this vpath
  *               to vlan id table.
  * @vp: Vpath handle.
@@ -1891,284 +2133,6 @@ exit:
 }
 
 /*
- * __vxge_hw_vpath_alarm_process - Process Alarms.
- * @vpath: Virtual Path.
- * @skip_alarms: Do not clear the alarms
- *
- * Process vpath alarms.
- *
- */
-enum vxge_hw_status __vxge_hw_vpath_alarm_process(
-			struct __vxge_hw_virtualpath *vpath,
-			u32 skip_alarms)
-{
-	u64 val64;
-	u64 alarm_status;
-	u64 pic_status;
-	struct __vxge_hw_device *hldev = NULL;
-	enum vxge_hw_event alarm_event = VXGE_HW_EVENT_UNKNOWN;
-	u64 mask64;
-	struct vxge_hw_vpath_stats_sw_info *sw_stats;
-	struct vxge_hw_vpath_reg __iomem *vp_reg;
-
-	if (vpath == NULL) {
-		alarm_event = VXGE_HW_SET_LEVEL(VXGE_HW_EVENT_UNKNOWN,
-			alarm_event);
-		goto out2;
-	}
-
-	hldev = vpath->hldev;
-	vp_reg = vpath->vp_reg;
-	alarm_status = readq(&vp_reg->vpath_general_int_status);
-
-	if (alarm_status == VXGE_HW_ALL_FOXES) {
-		alarm_event = VXGE_HW_SET_LEVEL(VXGE_HW_EVENT_SLOT_FREEZE,
-			alarm_event);
-		goto out;
-	}
-
-	sw_stats = vpath->sw_stats;
-
-	if (alarm_status & ~(
-		VXGE_HW_VPATH_GENERAL_INT_STATUS_PIC_INT |
-		VXGE_HW_VPATH_GENERAL_INT_STATUS_PCI_INT |
-		VXGE_HW_VPATH_GENERAL_INT_STATUS_WRDMA_INT |
-		VXGE_HW_VPATH_GENERAL_INT_STATUS_XMAC_INT)) {
-		sw_stats->error_stats.unknown_alarms++;
-
-		alarm_event = VXGE_HW_SET_LEVEL(VXGE_HW_EVENT_UNKNOWN,
-			alarm_event);
-		goto out;
-	}
-
-	if (alarm_status & VXGE_HW_VPATH_GENERAL_INT_STATUS_XMAC_INT) {
-
-		val64 = readq(&vp_reg->xgmac_vp_int_status);
-
-		if (val64 &
-		VXGE_HW_XGMAC_VP_INT_STATUS_ASIC_NTWK_VP_ERR_ASIC_NTWK_VP_INT) {
-
-			val64 = readq(&vp_reg->asic_ntwk_vp_err_reg);
-
-			if (((val64 &
-			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT) &&
-			     (!(val64 &
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK))) ||
-			    ((val64 &
-			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT_OCCURR) &&
-			     (!(val64 &
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK_OCCURR)
-				     ))) {
-				sw_stats->error_stats.network_sustained_fault++;
-
-				writeq(
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT,
-					&vp_reg->asic_ntwk_vp_err_mask);
-
-				__vxge_hw_device_handle_link_down_ind(hldev);
-				alarm_event = VXGE_HW_SET_LEVEL(
-					VXGE_HW_EVENT_LINK_DOWN, alarm_event);
-			}
-
-			if (((val64 &
-			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK) &&
-			     (!(val64 &
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT))) ||
-			    ((val64 &
-			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK_OCCURR) &&
-			     (!(val64 &
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT_OCCURR)
-				     ))) {
-
-				sw_stats->error_stats.network_sustained_ok++;
-
-				writeq(
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK,
-					&vp_reg->asic_ntwk_vp_err_mask);
-
-				__vxge_hw_device_handle_link_up_ind(hldev);
-				alarm_event = VXGE_HW_SET_LEVEL(
-					VXGE_HW_EVENT_LINK_UP, alarm_event);
-			}
-
-			writeq(VXGE_HW_INTR_MASK_ALL,
-				&vp_reg->asic_ntwk_vp_err_reg);
-
-			alarm_event = VXGE_HW_SET_LEVEL(
-				VXGE_HW_EVENT_ALARM_CLEARED, alarm_event);
-
-			if (skip_alarms)
-				return VXGE_HW_OK;
-		}
-	}
-
-	if (alarm_status & VXGE_HW_VPATH_GENERAL_INT_STATUS_PIC_INT) {
-
-		pic_status = readq(&vp_reg->vpath_ppif_int_status);
-
-		if (pic_status &
-		    VXGE_HW_VPATH_PPIF_INT_STATUS_GENERAL_ERRORS_GENERAL_INT) {
-
-			val64 = readq(&vp_reg->general_errors_reg);
-			mask64 = readq(&vp_reg->general_errors_mask);
-
-			if ((val64 &
-				VXGE_HW_GENERAL_ERRORS_REG_INI_SERR_DET) &
-				~mask64) {
-				sw_stats->error_stats.ini_serr_det++;
-
-				alarm_event = VXGE_HW_SET_LEVEL(
-					VXGE_HW_EVENT_SERR, alarm_event);
-			}
-
-			if ((val64 &
-			    VXGE_HW_GENERAL_ERRORS_REG_DBLGEN_FIFO0_OVRFLOW) &
-				~mask64) {
-				sw_stats->error_stats.dblgen_fifo0_overflow++;
-
-				alarm_event = VXGE_HW_SET_LEVEL(
-					VXGE_HW_EVENT_FIFO_ERR, alarm_event);
-			}
-
-			if ((val64 &
-			    VXGE_HW_GENERAL_ERRORS_REG_STATSB_PIF_CHAIN_ERR) &
-				~mask64)
-				sw_stats->error_stats.statsb_pif_chain_error++;
-
-			if ((val64 &
-			   VXGE_HW_GENERAL_ERRORS_REG_STATSB_DROP_TIMEOUT_REQ) &
-				~mask64)
-				sw_stats->error_stats.statsb_drop_timeout++;
-
-			if ((val64 &
-				VXGE_HW_GENERAL_ERRORS_REG_TGT_ILLEGAL_ACCESS) &
-				~mask64)
-				sw_stats->error_stats.target_illegal_access++;
-
-			if (!skip_alarms) {
-				writeq(VXGE_HW_INTR_MASK_ALL,
-					&vp_reg->general_errors_reg);
-				alarm_event = VXGE_HW_SET_LEVEL(
-					VXGE_HW_EVENT_ALARM_CLEARED,
-					alarm_event);
-			}
-		}
-
-		if (pic_status &
-		    VXGE_HW_VPATH_PPIF_INT_STATUS_KDFCCTL_ERRORS_KDFCCTL_INT) {
-
-			val64 = readq(&vp_reg->kdfcctl_errors_reg);
-			mask64 = readq(&vp_reg->kdfcctl_errors_mask);
-
-			if ((val64 &
-			    VXGE_HW_KDFCCTL_ERRORS_REG_KDFCCTL_FIFO0_OVRWR) &
-				~mask64) {
-				sw_stats->error_stats.kdfcctl_fifo0_overwrite++;
-
-				alarm_event = VXGE_HW_SET_LEVEL(
-					VXGE_HW_EVENT_FIFO_ERR,
-					alarm_event);
-			}
-
-			if ((val64 &
-			    VXGE_HW_KDFCCTL_ERRORS_REG_KDFCCTL_FIFO0_POISON) &
-				~mask64) {
-				sw_stats->error_stats.kdfcctl_fifo0_poison++;
-
-				alarm_event = VXGE_HW_SET_LEVEL(
-					VXGE_HW_EVENT_FIFO_ERR,
-					alarm_event);
-			}
-
-			if ((val64 &
-			    VXGE_HW_KDFCCTL_ERRORS_REG_KDFCCTL_FIFO0_DMA_ERR) &
-				~mask64) {
-				sw_stats->error_stats.kdfcctl_fifo0_dma_error++;
-
-				alarm_event = VXGE_HW_SET_LEVEL(
-					VXGE_HW_EVENT_FIFO_ERR,
-					alarm_event);
-			}
-
-			if (!skip_alarms) {
-				writeq(VXGE_HW_INTR_MASK_ALL,
-					&vp_reg->kdfcctl_errors_reg);
-				alarm_event = VXGE_HW_SET_LEVEL(
-					VXGE_HW_EVENT_ALARM_CLEARED,
-					alarm_event);
-			}
-		}
-
-	}
-
-	if (alarm_status & VXGE_HW_VPATH_GENERAL_INT_STATUS_WRDMA_INT) {
-
-		val64 = readq(&vp_reg->wrdma_alarm_status);
-
-		if (val64 & VXGE_HW_WRDMA_ALARM_STATUS_PRC_ALARM_PRC_INT) {
-
-			val64 = readq(&vp_reg->prc_alarm_reg);
-			mask64 = readq(&vp_reg->prc_alarm_mask);
-
-			if ((val64 & VXGE_HW_PRC_ALARM_REG_PRC_RING_BUMP)&
-				~mask64)
-				sw_stats->error_stats.prc_ring_bumps++;
-
-			if ((val64 & VXGE_HW_PRC_ALARM_REG_PRC_RXDCM_SC_ERR) &
-				~mask64) {
-				sw_stats->error_stats.prc_rxdcm_sc_err++;
-
-				alarm_event = VXGE_HW_SET_LEVEL(
-					VXGE_HW_EVENT_VPATH_ERR,
-					alarm_event);
-			}
-
-			if ((val64 & VXGE_HW_PRC_ALARM_REG_PRC_RXDCM_SC_ABORT)
-				& ~mask64) {
-				sw_stats->error_stats.prc_rxdcm_sc_abort++;
-
-				alarm_event = VXGE_HW_SET_LEVEL(
-						VXGE_HW_EVENT_VPATH_ERR,
-						alarm_event);
-			}
-
-			if ((val64 & VXGE_HW_PRC_ALARM_REG_PRC_QUANTA_SIZE_ERR)
-				 & ~mask64) {
-				sw_stats->error_stats.prc_quanta_size_err++;
-
-				alarm_event = VXGE_HW_SET_LEVEL(
-					VXGE_HW_EVENT_VPATH_ERR,
-					alarm_event);
-			}
-
-			if (!skip_alarms) {
-				writeq(VXGE_HW_INTR_MASK_ALL,
-					&vp_reg->prc_alarm_reg);
-				alarm_event = VXGE_HW_SET_LEVEL(
-						VXGE_HW_EVENT_ALARM_CLEARED,
-						alarm_event);
-			}
-		}
-	}
-out:
-	hldev->stats.sw_dev_err_stats.vpath_alarms++;
-out2:
-	if ((alarm_event == VXGE_HW_EVENT_ALARM_CLEARED) ||
-		(alarm_event == VXGE_HW_EVENT_UNKNOWN))
-		return VXGE_HW_OK;
-
-	__vxge_hw_device_handle_error(hldev, vpath->vp_id, alarm_event);
-
-	if (alarm_event == VXGE_HW_EVENT_SERR)
-		return VXGE_HW_ERR_CRITICAL;
-
-	return (alarm_event == VXGE_HW_EVENT_SLOT_FREEZE) ?
-		VXGE_HW_ERR_SLOT_FREEZE :
-		(alarm_event == VXGE_HW_EVENT_FIFO_ERR) ? VXGE_HW_ERR_FIFO :
-		VXGE_HW_ERR_VPATH;
-}
-
-/*
  * vxge_hw_vpath_alarm_process - Process Alarms.
  * @vpath: Virtual Path.
  * @skip_alarms: Do not clear the alarms
@@ -2265,36 +2229,6 @@ vxge_hw_vpath_msix_mask(struct __vxge_hw_vpath_handle *vp, int msix_id)
 }
 
 /**
- * vxge_hw_vpath_msix_clear - Clear MSIX Vector.
- * @vp: Virtual Path handle.
- * @msix_id:  MSI ID
- *
- * The function clears the msix interrupt for the given msix_id
- *
- * Returns: 0,
- * Otherwise, VXGE_HW_ERR_WRONG_IRQ if the msix index is out of range
- * status.
- * See also:
- */
-void
-vxge_hw_vpath_msix_clear(struct __vxge_hw_vpath_handle *vp, int msix_id)
-{
-	struct __vxge_hw_device *hldev = vp->vpath->hldev;
-	if (hldev->config.intr_mode ==
-			VXGE_HW_INTR_MODE_MSIX_ONE_SHOT) {
-		__vxge_hw_pio_mem_write32_upper(
-			(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
-				&hldev->common_reg->
-					clr_msix_one_shot_vec[msix_id%4]);
-	} else {
-		__vxge_hw_pio_mem_write32_upper(
-			(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
-				&hldev->common_reg->
-					clear_msix_mask_vect[msix_id%4]);
-	}
-}
-
-/**
  * vxge_hw_vpath_msix_unmask - Unmask the MSIX Vector.
  * @vp: Virtual Path handle.
  * @msix_id:  MSI ID
@@ -2313,22 +2247,6 @@ vxge_hw_vpath_msix_unmask(struct __vxge_hw_vpath_handle *vp, int msix_id)
 	__vxge_hw_pio_mem_write32_upper(
 			(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
 			&hldev->common_reg->clear_msix_mask_vect[msix_id%4]);
-}
-
-/**
- * vxge_hw_vpath_msix_mask_all - Mask all MSIX vectors for the vpath.
- * @vp: Virtual Path handle.
- *
- * The function masks all msix interrupt for the given vpath
- *
- */
-void
-vxge_hw_vpath_msix_mask_all(struct __vxge_hw_vpath_handle *vp)
-{
-
-	__vxge_hw_pio_mem_write32_upper(
-		(u32)vxge_bVALn(vxge_mBIT(vp->vpath->vp_id), 0, 32),
-		&vp->vpath->hldev->common_reg->set_msix_mask_all_vect);
 }
 
 /**
@@ -2466,14 +2384,12 @@ enum vxge_hw_status vxge_hw_vpath_poll_rx(struct __vxge_hw_ring *ring)
  * the same.
  * @fifo: Handle to the fifo object used for non offload send
  *
- * The function	polls the Tx for the completed	descriptors and	calls
+ * The function polls the Tx for the completed descriptors and calls
  * the driver via supplied completion callback.
  *
  * Returns: VXGE_HW_OK, if the polling is completed successful.
  * VXGE_HW_COMPLETIONS_REMAIN: There are still more completed
  * descriptors available which are yet to be processed.
- *
- * See also: vxge_hw_vpath_poll_tx().
  */
 enum vxge_hw_status vxge_hw_vpath_poll_tx(struct __vxge_hw_fifo *fifo,
 					struct sk_buff ***skb_ptr, int nr_skb,

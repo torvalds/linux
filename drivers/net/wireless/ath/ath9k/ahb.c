@@ -35,10 +35,9 @@ static bool ath_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 
 	pdata = (struct ath9k_platform_data *) pdev->dev.platform_data;
 	if (off >= (ARRAY_SIZE(pdata->eeprom_data))) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "%s: flash read failed, offset %08x "
-			  "is out of range\n",
-			  __func__, off);
+		ath_err(common,
+			"%s: flash read failed, offset %08x is out of range\n",
+			__func__, off);
 		return false;
 	}
 
@@ -131,11 +130,8 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
 	ah = sc->sc_ah;
 	ath9k_hw_name(ah, hw_name, sizeof(hw_name));
-	printk(KERN_INFO
-	       "%s: %s mem=0x%lx, irq=%d\n",
-	       wiphy_name(hw->wiphy),
-	       hw_name,
-	       (unsigned long)mem, irq);
+	wiphy_info(hw->wiphy, "%s mem=0x%lx, irq=%d\n",
+		   hw_name, (unsigned long)mem, irq);
 
 	return 0;
 

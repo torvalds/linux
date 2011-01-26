@@ -241,12 +241,12 @@ static int request_ports(struct bfin_bf54xfb_info *fbi)
 	u16 disp = fbi->mach_info->disp;
 
 	if (gpio_request(disp, DRIVER_NAME)) {
-		printk(KERN_ERR "Requesting GPIO %d faild\n", disp);
+		printk(KERN_ERR "Requesting GPIO %d failed\n", disp);
 		return -EFAULT;
 	}
 
 	if (peripheral_request_list(eppi_req_18, DRIVER_NAME)) {
-		printk(KERN_ERR "Requesting Peripherals faild\n");
+		printk(KERN_ERR "Requesting Peripherals failed\n");
 		gpio_free(disp);
 		return -EFAULT;
 	}
@@ -256,7 +256,7 @@ static int request_ports(struct bfin_bf54xfb_info *fbi)
 		u16 eppi_req_24[] = EPPI0_24;
 
 		if (peripheral_request_list(eppi_req_24, DRIVER_NAME)) {
-			printk(KERN_ERR "Requesting Peripherals faild\n");
+			printk(KERN_ERR "Requesting Peripherals failed\n");
 			peripheral_free_list(eppi_req_18);
 			gpio_free(disp);
 			return -EFAULT;
@@ -501,7 +501,9 @@ static irqreturn_t bfin_bf54x_irq_error(int irq, void *dev_id)
 
 static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
 {
+#ifndef NO_BL_SUPPORT
 	struct backlight_properties props;
+#endif
 	struct bfin_bf54xfb_info *info;
 	struct fb_info *fbinfo;
 	int ret;
@@ -654,7 +656,8 @@ static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
 		printk(KERN_ERR DRIVER_NAME
 			": unable to register backlight.\n");
 		ret = -EINVAL;
-		goto out9;
+		unregister_framebuffer(fbinfo);
+		goto out8;
 	}
 
 	lcd_dev = lcd_device_register(DRIVER_NAME, &pdev->dev, NULL, &bfin_lcd_ops);
@@ -663,8 +666,6 @@ static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
 
 	return 0;
 
-out9:
-	unregister_framebuffer(fbinfo);
 out8:
 	free_irq(info->irq, info);
 out7:

@@ -28,7 +28,7 @@
 #include "entry.h"
 
 #define DATA8(sym, init_value)			\
-	.pushsection .data.read_mostly ;	\
+	.pushsection .data..read_mostly ;	\
 	.align 8 ;				\
 	.global sym ;				\
 	sym: ;					\

@@ -42,7 +42,8 @@ static struct zd_reg_alpha2_map reg_alpha2_map[] = {
 	{ ZD_REGDOMAIN_IC, "CA" },
 	{ ZD_REGDOMAIN_ETSI, "DE" }, /* Generic ETSI, use most restrictive */
 	{ ZD_REGDOMAIN_JAPAN, "JP" },
-	{ ZD_REGDOMAIN_JAPAN_ADD, "JP" },
+	{ ZD_REGDOMAIN_JAPAN_2, "JP" },
+	{ ZD_REGDOMAIN_JAPAN_3, "JP" },
 	{ ZD_REGDOMAIN_SPAIN, "ES" },
 	{ ZD_REGDOMAIN_FRANCE, "FR" },
 };
@@ -855,7 +856,7 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	if (skb == NULL)
 		return -ENOMEM;
 	if (need_padding) {
-		/* Make sure the the payload data is 4 byte aligned. */
+		/* Make sure the payload data is 4 byte aligned. */
 		skb_reserve(skb, 2);
 	}
 
@@ -1206,7 +1207,6 @@ static void housekeeping_enable(struct zd_mac *mac)
 static void housekeeping_disable(struct zd_mac *mac)
 {
 	dev_dbg_f(zd_mac_dev(mac), "\n");
-	cancel_rearming_delayed_workqueue(zd_workqueue,
-		&mac->housekeeping.link_led_work);
+	cancel_delayed_work_sync(&mac->housekeeping.link_led_work);
 	zd_chip_control_leds(&mac->chip, ZD_LED_OFF);
 }

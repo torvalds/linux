@@ -41,22 +41,22 @@ typedef struct xfs_buf_log_format {
  * This flag indicates that the buffer contains on disk inodes
  * and requires special recovery handling.
  */
-#define	XFS_BLI_INODE_BUF	0x1
+#define	XFS_BLF_INODE_BUF	0x1
 /*
  * This flag indicates that the buffer should not be replayed
  * during recovery because its blocks are being freed.
  */
-#define	XFS_BLI_CANCEL		0x2
+#define	XFS_BLF_CANCEL		0x2
 /*
  * This flag indicates that the buffer contains on disk
  * user or group dquots and may require special recovery handling.
  */
-#define	XFS_BLI_UDQUOT_BUF	0x4
-#define XFS_BLI_PDQUOT_BUF	0x8
-#define	XFS_BLI_GDQUOT_BUF	0x10
+#define	XFS_BLF_UDQUOT_BUF	0x4
+#define XFS_BLF_PDQUOT_BUF	0x8
+#define	XFS_BLF_GDQUOT_BUF	0x10
 
-#define	XFS_BLI_CHUNK		128
-#define	XFS_BLI_SHIFT		7
+#define	XFS_BLF_CHUNK		128
+#define	XFS_BLF_SHIFT		7
 #define	BIT_TO_WORD_SHIFT	5
 #define	NBWORD			(NBBY * sizeof(unsigned int))
 
@@ -69,6 +69,7 @@ typedef struct xfs_buf_log_format {
 #define	XFS_BLI_LOGGED		0x08
 #define	XFS_BLI_INODE_ALLOC_BUF	0x10
 #define XFS_BLI_STALE_INODE	0x20
+#define	XFS_BLI_INODE_BUF	0x40
 
 #define XFS_BLI_FLAGS \
 	{ XFS_BLI_HOLD,		"HOLD" }, \
@@ -76,7 +77,8 @@ typedef struct xfs_buf_log_format {
 	{ XFS_BLI_STALE,	"STALE" }, \
 	{ XFS_BLI_LOGGED,	"LOGGED" }, \
 	{ XFS_BLI_INODE_ALLOC_BUF, "INODE_ALLOC" }, \
-	{ XFS_BLI_STALE_INODE,	"STALE_INODE" }
+	{ XFS_BLI_STALE_INODE,	"STALE_INODE" }, \
+	{ XFS_BLI_INODE_BUF,	"INODE_BUF" }
 
 
 #ifdef __KERNEL__
@@ -103,17 +105,6 @@ typedef struct xfs_buf_log_item {
 	xfs_buf_log_format_t	bli_format;	/* in-log header */
 } xfs_buf_log_item_t;
 
-/*
- * This structure is used during recovery to record the buf log
- * items which have been canceled and should not be replayed.
- */
-typedef struct xfs_buf_cancel {
-	xfs_daddr_t		bc_blkno;
-	uint			bc_len;
-	int			bc_refcount;
-	struct xfs_buf_cancel	*bc_next;
-} xfs_buf_cancel_t;
-
 void	xfs_buf_item_init(struct xfs_buf *, struct xfs_mount *);
 void	xfs_buf_item_relse(struct xfs_buf *);
 void	xfs_buf_item_log(xfs_buf_log_item_t *, uint, uint);
@@ -122,7 +113,7 @@ void	xfs_buf_attach_iodone(struct xfs_buf *,
 			      void(*)(struct xfs_buf *, xfs_log_item_t *),
 			      xfs_log_item_t *);
 void	xfs_buf_iodone_callbacks(struct xfs_buf *);
-void	xfs_buf_iodone(struct xfs_buf *, xfs_buf_log_item_t *);
+void	xfs_buf_iodone(struct xfs_buf *, struct xfs_log_item *);
 
 #ifdef XFS_TRANS_DEBUG
 void

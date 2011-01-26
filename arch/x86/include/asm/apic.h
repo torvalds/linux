@@ -141,13 +141,13 @@ static inline void native_apic_msr_write(u32 reg, u32 v)
 
 static inline u32 native_apic_msr_read(u32 reg)
 {
-	u32 low, high;
+	u64 msr;
 
 	if (reg == APIC_DFR)
 		return -1;
 
-	rdmsr(APIC_BASE_MSR + (reg >> 4), low, high);
-	return low;
+	rdmsrl(APIC_BASE_MSR + (reg >> 4), msr);
+	return (u32)msr;
 }
 
 static inline void native_x2apic_wait_icr_idle(void)
@@ -181,12 +181,12 @@ extern void enable_x2apic(void);
 extern void x2apic_icr_write(u32 low, u32 id);
 static inline int x2apic_enabled(void)
 {
-	int msr, msr2;
+	u64 msr;
 
 	if (!cpu_has_x2apic)
 		return 0;
 
-	rdmsr(MSR_IA32_APICBASE, msr, msr2);
+	rdmsrl(MSR_IA32_APICBASE, msr);
 	if (msr & X2APIC_ENABLE)
 		return 1;
 	return 0;
@@ -234,16 +234,17 @@ extern void init_bsp_APIC(void);
 extern void setup_local_APIC(void);
 extern void end_local_APIC_setup(void);
 extern void init_apic_mappings(void);
+void register_lapic_address(unsigned long address);
 extern void setup_boot_APIC_clock(void);
 extern void setup_secondary_APIC_clock(void);
 extern int APIC_init_uniprocessor(void);
 extern void enable_NMI_through_LVT0(void);
+extern int apic_force_enable(void);
 
 /*
  * On 32bit this is mach-xxx local
  */
 #ifdef CONFIG_X86_64
-extern void early_init_lapic_mapping(void);
 extern int apic_is_clustered_box(void);
 #else
 static inline int apic_is_clustered_box(void)
@@ -252,9 +253,7 @@ static inline int apic_is_clustered_box(void)
 }
 #endif
 
-extern u8 setup_APIC_eilvt_mce(u8 vector, u8 msg_type, u8 mask);
-extern u8 setup_APIC_eilvt_ibs(u8 vector, u8 msg_type, u8 mask);
-
+extern int setup_APIC_eilvt(u8 lvt_off, u8 vector, u8 msg_type, u8 mask);
 
 #else /* !CONFIG_X86_LOCAL_APIC */
 static inline void lapic_shutdown(void) { }

@@ -116,6 +116,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 
 	inode = new_inode(sb);
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_uid = current_fsuid();
 		inode->i_gid = current_fsgid();
@@ -158,7 +159,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 		 	    u->mq_bytes + mq_bytes >
 			    task_rlimit(p, RLIMIT_MSGQUEUE)) {
 				spin_unlock(&mq_lock);
-				/* mqueue_delete_inode() releases info->messages */
+				/* mqueue_evict_inode() releases info->messages */
 				goto out_inode;
 			}
 			u->mq_bytes += mq_bytes;
@@ -176,7 +177,6 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 	}
 	return inode;
 out_inode:
-	make_bad_inode(inode);
 	iput(inode);
 	return NULL;
 }
@@ -211,13 +211,13 @@ out:
 	return error;
 }
 
-static int mqueue_get_sb(struct file_system_type *fs_type,
+static struct dentry *mqueue_mount(struct file_system_type *fs_type,
 			 int flags, const char *dev_name,
-			 void *data, struct vfsmount *mnt)
+			 void *data)
 {
 	if (!(flags & MS_KERNMOUNT))
 		data = current->nsproxy->ipc_ns;
-	return get_sb_ns(fs_type, flags, data, mqueue_fill_super, mnt);
+	return mount_ns(fs_type, flags, data, mqueue_fill_super);
 }
 
 static void init_once(void *foo)
@@ -237,12 +237,19 @@ static struct inode *mqueue_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void mqueue_destroy_inode(struct inode *inode)
+static void mqueue_i_callback(struct rcu_head *head)
 {
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(mqueue_inode_cachep, MQUEUE_I(inode));
 }
 
-static void mqueue_delete_inode(struct inode *inode)
+static void mqueue_destroy_inode(struct inode *inode)
+{
+	call_rcu(&inode->i_rcu, mqueue_i_callback);
+}
+
+static void mqueue_evict_inode(struct inode *inode)
 {
 	struct mqueue_inode_info *info;
 	struct user_struct *user;
@@ -250,10 +257,11 @@ static void mqueue_delete_inode(struct inode *inode)
 	int i;
 	struct ipc_namespace *ipc_ns;
 
-	if (S_ISDIR(inode->i_mode)) {
-		clear_inode(inode);
+	end_writeback(inode);
+
+	if (S_ISDIR(inode->i_mode))
 		return;
-	}
+
 	ipc_ns = get_ns_from_inode(inode);
 	info = MQUEUE_I(inode);
 	spin_lock(&info->lock);
@@ -261,8 +269,6 @@ static void mqueue_delete_inode(struct inode *inode)
 		free_msg(info->messages[i]);
 	kfree(info->messages);
 	spin_unlock(&info->lock);
-
-	clear_inode(inode);
 
 	/* Total amount of bytes accounted for the mqueue */
 	mq_bytes = info->attr.mq_maxmsg * (sizeof(struct msg_msg *)
@@ -771,7 +777,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 
 	inode = dentry->d_inode;
 	if (inode)
-		atomic_inc(&inode->i_count);
+		ihold(inode);
 	err = mnt_want_write(ipc_ns->mq_mnt);
 	if (err)
 		goto out_err;
@@ -1221,19 +1227,19 @@ static const struct file_operations mqueue_file_operations = {
 	.flush = mqueue_flush_file,
 	.poll = mqueue_poll_file,
 	.read = mqueue_read_file,
+	.llseek = default_llseek,
 };
 
 static const struct super_operations mqueue_super_ops = {
 	.alloc_inode = mqueue_alloc_inode,
 	.destroy_inode = mqueue_destroy_inode,
+	.evict_inode = mqueue_evict_inode,
 	.statfs = simple_statfs,
-	.delete_inode = mqueue_delete_inode,
-	.drop_inode = generic_delete_inode,
 };
 
 static struct file_system_type mqueue_fs_type = {
 	.name = "mqueue",
-	.get_sb = mqueue_get_sb,
+	.mount = mqueue_mount,
 	.kill_sb = kill_litter_super,
 };
 

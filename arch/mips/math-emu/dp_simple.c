@@ -4,7 +4,6 @@
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- * http://www.algor.co.uk
  *
  * ########################################################################
  *
@@ -78,6 +77,7 @@ ieee754dp ieee754dp_abs(ieee754dp x)
 	DPSIGN(x) = 0;
 
 	if (xc == IEEE754_CLASS_SNAN) {
+		SETCX(IEEE754_INVALID_OPERATION);
 		return ieee754dp_nanxcpt(ieee754dp_indef(), "abs");
 	}
 

@@ -11,9 +11,117 @@
 #ifndef _ASM_ATOMIC_H
 #define _ASM_ATOMIC_H
 
+#include <asm/irqflags.h>
+
+#ifndef __ASSEMBLY__
+
 #ifdef CONFIG_SMP
-#error not SMP safe
-#endif
+#ifdef CONFIG_MN10300_HAS_ATOMIC_OPS_UNIT
+static inline
+unsigned long __xchg(volatile unsigned long *m, unsigned long val)
+{
+	unsigned long status;
+	unsigned long oldval;
+
+	asm volatile(
+		"1:	mov	%4,(_AAR,%3)	\n"
+		"	mov	(_ADR,%3),%1	\n"
+		"	mov	%5,(_ADR,%3)	\n"
+		"	mov	(_ADR,%3),%0	\n"	/* flush */
+		"	mov	(_ASR,%3),%0	\n"
+		"	or	%0,%0		\n"
+		"	bne	1b		\n"
+		: "=&r"(status), "=&r"(oldval), "=m"(*m)
+		: "a"(ATOMIC_OPS_BASE_ADDR), "r"(m), "r"(val)
+		: "memory", "cc");
+
+	return oldval;
+}
+
+static inline unsigned long __cmpxchg(volatile unsigned long *m,
+				      unsigned long old, unsigned long new)
+{
+	unsigned long status;
+	unsigned long oldval;
+
+	asm volatile(
+		"1:	mov	%4,(_AAR,%3)	\n"
+		"	mov	(_ADR,%3),%1	\n"
+		"	cmp	%5,%1		\n"
+		"	bne	2f		\n"
+		"	mov	%6,(_ADR,%3)	\n"
+		"2:	mov	(_ADR,%3),%0	\n"	/* flush */
+		"	mov	(_ASR,%3),%0	\n"
+		"	or	%0,%0		\n"
+		"	bne	1b		\n"
+		: "=&r"(status), "=&r"(oldval), "=m"(*m)
+		: "a"(ATOMIC_OPS_BASE_ADDR), "r"(m),
+		  "r"(old), "r"(new)
+		: "memory", "cc");
+
+	return oldval;
+}
+#else  /* CONFIG_MN10300_HAS_ATOMIC_OPS_UNIT */
+#error "No SMP atomic operation support!"
+#endif /* CONFIG_MN10300_HAS_ATOMIC_OPS_UNIT */
+
+#else  /* CONFIG_SMP */
+
+/*
+ * Emulate xchg for non-SMP MN10300
+ */
+struct __xchg_dummy { unsigned long a[100]; };
+#define __xg(x) ((struct __xchg_dummy *)(x))
+
+static inline
+unsigned long __xchg(volatile unsigned long *m, unsigned long val)
+{
+	unsigned long oldval;
+	unsigned long flags;
+
+	flags = arch_local_cli_save();
+	oldval = *m;
+	*m = val;
+	arch_local_irq_restore(flags);
+	return oldval;
+}
+
+/*
+ * Emulate cmpxchg for non-SMP MN10300
+ */
+static inline unsigned long __cmpxchg(volatile unsigned long *m,
+				      unsigned long old, unsigned long new)
+{
+	unsigned long oldval;
+	unsigned long flags;
+
+	flags = arch_local_cli_save();
+	oldval = *m;
+	if (oldval == old)
+		*m = new;
+	arch_local_irq_restore(flags);
+	return oldval;
+}
+
+#endif /* CONFIG_SMP */
+
+#define xchg(ptr, v)						\
+	((__typeof__(*(ptr))) __xchg((unsigned long *)(ptr),	\
+				     (unsigned long)(v)))
+
+#define cmpxchg(ptr, o, n)					\
+	((__typeof__(*(ptr))) __cmpxchg((unsigned long *)(ptr), \
+					(unsigned long)(o),	\
+					(unsigned long)(n)))
+
+#define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
+#define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
+
+#endif /* !__ASSEMBLY__ */
+
+#ifndef CONFIG_SMP
+#include <asm-generic/atomic.h>
+#else
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for
@@ -31,7 +139,7 @@
  * Atomically reads the value of @v.  Note that the guaranteed
  * useful range of an atomic_t is only 24 bits.
  */
-#define atomic_read(v)	(*(volatile int *)&(v)->counter)
+#define atomic_read(v)	((v)->counter)
 
 /**
  * atomic_set - set atomic variable
@@ -43,8 +151,6 @@
  */
 #define atomic_set(v, i) (((v)->counter) = (i))
 
-#include <asm/system.h>
-
 /**
  * atomic_add_return - add integer to atomic variable
  * @i: integer value to add
@@ -55,16 +161,33 @@
  */
 static inline int atomic_add_return(int i, atomic_t *v)
 {
+	int retval;
+#ifdef CONFIG_SMP
+	int status;
+
+	asm volatile(
+		"1:	mov	%4,(_AAR,%3)	\n"
+		"	mov	(_ADR,%3),%1	\n"
+		"	add	%5,%1		\n"
+		"	mov	%1,(_ADR,%3)	\n"
+		"	mov	(_ADR,%3),%0	\n"	/* flush */
+		"	mov	(_ASR,%3),%0	\n"
+		"	or	%0,%0		\n"
+		"	bne	1b		\n"
+		: "=&r"(status), "=&r"(retval), "=m"(v->counter)
+		: "a"(ATOMIC_OPS_BASE_ADDR), "r"(&v->counter), "r"(i)
+		: "memory", "cc");
+
+#else
 	unsigned long flags;
-	int temp;
 
-	local_irq_save(flags);
-	temp = v->counter;
-	temp += i;
-	v->counter = temp;
-	local_irq_restore(flags);
-
-	return temp;
+	flags = arch_local_cli_save();
+	retval = v->counter;
+	retval += i;
+	v->counter = retval;
+	arch_local_irq_restore(flags);
+#endif
+	return retval;
 }
 
 /**
@@ -77,16 +200,32 @@ static inline int atomic_add_return(int i, atomic_t *v)
  */
 static inline int atomic_sub_return(int i, atomic_t *v)
 {
+	int retval;
+#ifdef CONFIG_SMP
+	int status;
+
+	asm volatile(
+		"1:	mov	%4,(_AAR,%3)	\n"
+		"	mov	(_ADR,%3),%1	\n"
+		"	sub	%5,%1		\n"
+		"	mov	%1,(_ADR,%3)	\n"
+		"	mov	(_ADR,%3),%0	\n"	/* flush */
+		"	mov	(_ASR,%3),%0	\n"
+		"	or	%0,%0		\n"
+		"	bne	1b		\n"
+		: "=&r"(status), "=&r"(retval), "=m"(v->counter)
+		: "a"(ATOMIC_OPS_BASE_ADDR), "r"(&v->counter), "r"(i)
+		: "memory", "cc");
+
+#else
 	unsigned long flags;
-	int temp;
-
-	local_irq_save(flags);
-	temp = v->counter;
-	temp -= i;
-	v->counter = temp;
-	local_irq_restore(flags);
-
-	return temp;
+	flags = arch_local_cli_save();
+	retval = v->counter;
+	retval -= i;
+	v->counter = retval;
+	arch_local_irq_restore(flags);
+#endif
+	return retval;
 }
 
 static inline int atomic_add_negative(int i, atomic_t *v)
@@ -132,18 +271,72 @@ static inline void atomic_dec(atomic_t *v)
 
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
+/**
+ * atomic_clear_mask - Atomically clear bits in memory
+ * @mask: Mask of the bits to be cleared
+ * @v: pointer to word in memory
+ *
+ * Atomically clears the bits set in mask from the memory word specified.
+ */
 static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 {
+#ifdef CONFIG_SMP
+	int status;
+
+	asm volatile(
+		"1:	mov	%3,(_AAR,%2)	\n"
+		"	mov	(_ADR,%2),%0	\n"
+		"	and	%4,%0		\n"
+		"	mov	%0,(_ADR,%2)	\n"
+		"	mov	(_ADR,%2),%0	\n"	/* flush */
+		"	mov	(_ASR,%2),%0	\n"
+		"	or	%0,%0		\n"
+		"	bne	1b		\n"
+		: "=&r"(status), "=m"(*addr)
+		: "a"(ATOMIC_OPS_BASE_ADDR), "r"(addr), "r"(~mask)
+		: "memory", "cc");
+#else
 	unsigned long flags;
 
 	mask = ~mask;
-	local_irq_save(flags);
+	flags = arch_local_cli_save();
 	*addr &= mask;
-	local_irq_restore(flags);
+	arch_local_irq_restore(flags);
+#endif
 }
 
-#define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
-#define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
+/**
+ * atomic_set_mask - Atomically set bits in memory
+ * @mask: Mask of the bits to be set
+ * @v: pointer to word in memory
+ *
+ * Atomically sets the bits set in mask from the memory word specified.
+ */
+static inline void atomic_set_mask(unsigned long mask, unsigned long *addr)
+{
+#ifdef CONFIG_SMP
+	int status;
+
+	asm volatile(
+		"1:	mov	%3,(_AAR,%2)	\n"
+		"	mov	(_ADR,%2),%0	\n"
+		"	or	%4,%0		\n"
+		"	mov	%0,(_ADR,%2)	\n"
+		"	mov	(_ADR,%2),%0	\n"	/* flush */
+		"	mov	(_ASR,%2),%0	\n"
+		"	or	%0,%0		\n"
+		"	bne	1b		\n"
+		: "=&r"(status), "=m"(*addr)
+		: "a"(ATOMIC_OPS_BASE_ADDR), "r"(addr), "r"(mask)
+		: "memory", "cc");
+#else
+	unsigned long flags;
+
+	flags = arch_local_cli_save();
+	*addr |= mask;
+	arch_local_irq_restore(flags);
+#endif
+}
 
 /* Atomic operations are already serializing on MN10300??? */
 #define smp_mb__before_atomic_dec()	barrier()
@@ -154,4 +347,5 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 #include <asm-generic/atomic-long.h>
 
 #endif /* __KERNEL__ */
+#endif /* CONFIG_SMP */
 #endif /* _ASM_ATOMIC_H */

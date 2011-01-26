@@ -138,7 +138,7 @@ static int cy82c693_init_one(struct pci_dev *pdev, const struct pci_device_id *i
 	if (PCI_FUNC(pdev->devfn) != 1)
 		return -ENODEV;
 
-	return ata_pci_sff_init_one(pdev, ppi, &cy82c693_sht, NULL, 0);
+	return ata_pci_bmdma_init_one(pdev, ppi, &cy82c693_sht, NULL, 0);
 }
 
 static const struct pci_device_id cy82c693[] = {

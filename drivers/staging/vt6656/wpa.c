@@ -69,7 +69,7 @@ const BYTE abyOUI05[4] = { 0x00, 0x50, 0xf2, 0x05 };
 -*/
 
 void
-WPA_ClearRSN (
+WPA_ClearRSN(
      PKnownBSS        pBSSList
     )
 {
@@ -105,7 +105,7 @@ WPA_ClearRSN (
  *
 -*/
 void
-WPA_ParseRSN (
+WPA_ParseRSN(
      PKnownBSS        pBSSList,
      PWLAN_IE_RSN_EXT pRSN
     )
@@ -148,7 +148,8 @@ WPA_ParseRSN (
         {
             j = 0;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wPKCount: %d, sizeof(pBSSList->abyPKType): %zu\n", pRSN->wPKCount, sizeof(pBSSList->abyPKType));
-            for(i = 0; (i < pRSN->wPKCount) && (j < sizeof(pBSSList->abyPKType)/sizeof(BYTE)); i++) {
+	    for (i = 0; (i < pRSN->wPKCount) &&
+		   (j < sizeof(pBSSList->abyPKType)/sizeof(BYTE)); i++) {
                 if(pRSN->len >= 12+i*4+4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*i)
                     if ( !memcmp(pRSN->PKSList[i].abyOUI, abyOUI00, 4))
                         pBSSList->abyPKType[j++] = WPA_NONE;
@@ -180,7 +181,8 @@ WPA_ParseRSN (
             j = 0;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wAuthCount: %d, sizeof(pBSSList->abyAuthType): %zu\n",
                           pIE_RSN_Auth->wAuthCount, sizeof(pBSSList->abyAuthType));
-            for(i = 0; (i < pIE_RSN_Auth->wAuthCount) && (j < sizeof(pBSSList->abyAuthType)/sizeof(BYTE)); i++) {
+	    for (i = 0; (i < pIE_RSN_Auth->wAuthCount) &&
+		   (j < sizeof(pBSSList->abyAuthType)/sizeof(BYTE)); i++) {
                 if(pRSN->len >= 14+4+(m+i)*4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*m)+AKC(2)+AKS(4*i)
                     if ( !memcmp(pIE_RSN_Auth->AuthKSList[i].abyOUI, abyOUI01, 4))
                         pBSSList->abyAuthType[j++] = WPA_AUTH_IEEE802_1X;
@@ -238,7 +240,7 @@ WPA_ParseRSN (
  *
 -*/
 BOOL
-WPA_SearchRSN (
+WPA_SearchRSN(
     BYTE                byCmd,
     BYTE                byEncrypt,
      PKnownBSS        pBSSList
@@ -298,7 +300,7 @@ WPA_SearchRSN (
  *
 -*/
 BOOL
-WPAb_Is_RSN (
+WPAb_Is_RSN(
      PWLAN_IE_RSN_EXT pRSN
     )
 {

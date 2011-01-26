@@ -29,7 +29,6 @@ static DEFINE_MUTEX(bat_lock);
 static struct work_struct bat_work;
 static struct mutex work_lock;
 static int bat_status = POWER_SUPPLY_STATUS_UNKNOWN;
-static struct wm97xx_batt_info *gpdata;
 static enum power_supply_property *prop;
 
 static unsigned long wm97xx_read_bat(struct power_supply *bat_ps)
@@ -148,7 +147,7 @@ static irqreturn_t wm97xx_chrg_irq(int irq, void *data)
 #ifdef CONFIG_PM
 static int wm97xx_bat_suspend(struct device *dev)
 {
-	flush_scheduled_work();
+	flush_work_sync(&bat_work);
 	return 0;
 }
 
@@ -171,12 +170,6 @@ static int __devinit wm97xx_bat_probe(struct platform_device *dev)
 	int i = 0;
 	struct wm97xx_pdata *wmdata = dev->dev.platform_data;
 	struct wm97xx_batt_pdata *pdata;
-
-	if (gpdata) {
-		dev_err(&dev->dev, "Do not pass platform_data through "
-			"wm97xx_bat_set_pdata!\n");
-		return -EINVAL;
-	}
 
 	if (!wmdata) {
 		dev_err(&dev->dev, "No platform data supplied\n");
@@ -280,7 +273,7 @@ static int __devexit wm97xx_bat_remove(struct platform_device *dev)
 		free_irq(gpio_to_irq(pdata->charge_gpio), dev);
 		gpio_free(pdata->charge_gpio);
 	}
-	flush_scheduled_work();
+	cancel_work_sync(&bat_work);
 	power_supply_unregister(&bat_ps);
 	kfree(prop);
 	return 0;
@@ -307,15 +300,6 @@ static void __exit wm97xx_bat_exit(void)
 {
 	platform_driver_unregister(&wm97xx_bat_driver);
 }
-
-/* The interface is deprecated, as well as linux/wm97xx_batt.h */
-void wm97xx_bat_set_pdata(struct wm97xx_batt_info *data);
-
-void wm97xx_bat_set_pdata(struct wm97xx_batt_info *data)
-{
-	gpdata = data;
-}
-EXPORT_SYMBOL_GPL(wm97xx_bat_set_pdata);
 
 module_init(wm97xx_bat_init);
 module_exit(wm97xx_bat_exit);

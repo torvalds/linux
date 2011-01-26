@@ -27,8 +27,8 @@
 #include "rt_config.h"
 
 /* Following information will be show when you run 'modinfo' */
-/* *** If you have a solution for the bug in current version of driver, please mail to me. */
-/* Otherwise post to forum in ralinktech's web site(www.ralinktech.com) and let all users help you. *** */
+/* If you have a solution for the bug in current version of driver, please e-mail me. */
+/* Otherwise post to the forum at ralinktech's web site(www.ralinktech.com) and let all users help you. */
 MODULE_AUTHOR("Paul Lin <paul_lin@ralinktech.com>");
 MODULE_DESCRIPTION("RT2870/RT3070 Wireless Lan Linux Driver");
 MODULE_LICENSE("GPL");
@@ -44,6 +44,7 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x07B8, 0x2870)},	/* AboCom */
 	{USB_DEVICE(0x07B8, 0x2770)},	/* AboCom */
 	{USB_DEVICE(0x0DF6, 0x0039)},	/* Sitecom 2770 */
+	{USB_DEVICE(0x0DF6, 0x003F)},	/* Sitecom 2770 */
 	{USB_DEVICE(0x083A, 0x7512)},	/* Arcadyan 2770 */
 	{USB_DEVICE(0x0789, 0x0162)},	/* Logitec 2870 */
 	{USB_DEVICE(0x0789, 0x0163)},	/* Logitec 2870 */
@@ -64,6 +65,8 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x14B2, 0x3C07)},	/* AL */
 	{USB_DEVICE(0x050D, 0x8053)},	/* Belkin */
 	{USB_DEVICE(0x050D, 0x825B)},	/* Belkin */
+	{USB_DEVICE(0x050D, 0x935A)},	/* Belkin F6D4050 v1 */
+	{USB_DEVICE(0x050D, 0x935B)},	/* Belkin F6D4050 v2 */
 	{USB_DEVICE(0x14B2, 0x3C23)},	/* Airlink */
 	{USB_DEVICE(0x14B2, 0x3C27)},	/* Airlink */
 	{USB_DEVICE(0x07AA, 0x002F)},	/* Corega */
@@ -77,6 +80,7 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x083A, 0x7522)},	/* Arcadyan */
 	{USB_DEVICE(0x0CDE, 0x0022)},	/* ZCOM */
 	{USB_DEVICE(0x0586, 0x3416)},	/* Zyxel */
+	{USB_DEVICE(0x0586, 0x341a)},	/* Zyxel NWD-270N */
 	{USB_DEVICE(0x0CDE, 0x0025)},	/* Zyxel */
 	{USB_DEVICE(0x1740, 0x9701)},	/* EnGenius */
 	{USB_DEVICE(0x1740, 0x9702)},	/* EnGenius */
@@ -93,7 +97,8 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x050d, 0x815c)},
 	{USB_DEVICE(0x1482, 0x3C09)},	/* Abocom */
 	{USB_DEVICE(0x14B2, 0x3C09)},	/* Alpha */
-	{USB_DEVICE(0x04E8, 0x2018)},	/* samsung */
+	{USB_DEVICE(0x04E8, 0x2018)},	/* samsung linkstick2 */
+	{USB_DEVICE(0x1690, 0x0740)},	/* Askey */
 	{USB_DEVICE(0x5A57, 0x0280)},	/* Zinwell */
 	{USB_DEVICE(0x5A57, 0x0282)},	/* Zinwell */
 	{USB_DEVICE(0x7392, 0x7718)},
@@ -103,21 +108,34 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x1737, 0x0071)},	/* Linksys WUSB600N */
 	{USB_DEVICE(0x0411, 0x00e8)},	/* Buffalo WLI-UC-G300N */
 	{USB_DEVICE(0x050d, 0x815c)},	/* Belkin F5D8053 */
+	{USB_DEVICE(0x100D, 0x9031)},	/* Motorola 2770 */
 #endif /* RT2870 // */
 #ifdef RT3070
 	{USB_DEVICE(0x148F, 0x3070)},	/* Ralink 3070 */
 	{USB_DEVICE(0x148F, 0x3071)},	/* Ralink 3071 */
 	{USB_DEVICE(0x148F, 0x3072)},	/* Ralink 3072 */
 	{USB_DEVICE(0x0DB0, 0x3820)},	/* Ralink 3070 */
+	{USB_DEVICE(0x0DB0, 0x871C)},	/* Ralink 3070 */
+	{USB_DEVICE(0x0DB0, 0x822C)},	/* Ralink 3070 */
+	{USB_DEVICE(0x0DB0, 0x871B)},	/* Ralink 3070 */
+	{USB_DEVICE(0x0DB0, 0x822B)},	/* Ralink 3070 */
 	{USB_DEVICE(0x0DF6, 0x003E)},	/* Sitecom 3070 */
 	{USB_DEVICE(0x0DF6, 0x0042)},	/* Sitecom 3072 */
+	{USB_DEVICE(0x0DF6, 0x0048)},	/* Sitecom 3070 */
+	{USB_DEVICE(0x0DF6, 0x0047)},	/* Sitecom 3071 */
 	{USB_DEVICE(0x14B2, 0x3C12)},	/* AL 3070 */
 	{USB_DEVICE(0x18C5, 0x0012)},	/* Corega 3070 */
 	{USB_DEVICE(0x083A, 0x7511)},	/* Arcadyan 3070 */
+	{USB_DEVICE(0x083A, 0xA701)},	/* SMC 3070 */
+	{USB_DEVICE(0x083A, 0xA702)},	/* SMC 3072 */
 	{USB_DEVICE(0x1740, 0x9703)},	/* EnGenius 3070 */
 	{USB_DEVICE(0x1740, 0x9705)},	/* EnGenius 3071 */
 	{USB_DEVICE(0x1740, 0x9706)},	/* EnGenius 3072 */
+	{USB_DEVICE(0x1740, 0x9707)},	/* EnGenius 3070 */
+	{USB_DEVICE(0x1740, 0x9708)},	/* EnGenius 3071 */
+	{USB_DEVICE(0x1740, 0x9709)},	/* EnGenius 3072 */
 	{USB_DEVICE(0x13D3, 0x3273)},	/* AzureWave 3070 */
+	{USB_DEVICE(0x13D3, 0x3305)},	/* AzureWave 3070*/
 	{USB_DEVICE(0x1044, 0x800D)},	/* Gigabyte GN-WB32L 3070 */
 	{USB_DEVICE(0x2019, 0xAB25)},	/* Planex Communications, Inc. RT3070 */
 	{USB_DEVICE(0x07B8, 0x3070)},	/* AboCom 3070 */
@@ -130,18 +148,41 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x07D1, 0x3C0D)},	/* D-Link 3070 */
 	{USB_DEVICE(0x07D1, 0x3C0E)},	/* D-Link 3070 */
 	{USB_DEVICE(0x07D1, 0x3C0F)},	/* D-Link 3070 */
+	{USB_DEVICE(0x07D1, 0x3C16)},	/* D-Link 3070 */
+	{USB_DEVICE(0x07D1, 0x3C17)},	/* D-Link 8070 */
 	{USB_DEVICE(0x1D4D, 0x000C)},	/* Pegatron Corporation 3070 */
 	{USB_DEVICE(0x1D4D, 0x000E)},	/* Pegatron Corporation 3070 */
 	{USB_DEVICE(0x5A57, 0x5257)},	/* Zinwell 3070 */
 	{USB_DEVICE(0x5A57, 0x0283)},	/* Zinwell 3072 */
 	{USB_DEVICE(0x04BB, 0x0945)},	/* I-O DATA 3072 */
+	{USB_DEVICE(0x04BB, 0x0947)},	/* I-O DATA 3070 */
+	{USB_DEVICE(0x04BB, 0x0948)},	/* I-O DATA 3072 */
 	{USB_DEVICE(0x203D, 0x1480)},	/* Encore 3070 */
+	{USB_DEVICE(0x20B8, 0x8888)},	/* PARA INDUSTRIAL 3070 */
+	{USB_DEVICE(0x0B05, 0x1784)},	/* Asus 3072 */
+	{USB_DEVICE(0x203D, 0x14A9)},	/* Encore 3070*/
+	{USB_DEVICE(0x0DB0, 0x899A)},	/* MSI 3070*/
+	{USB_DEVICE(0x0DB0, 0x3870)},	/* MSI 3070*/
+	{USB_DEVICE(0x0DB0, 0x870A)},	/* MSI 3070*/
+	{USB_DEVICE(0x0DB0, 0x6899)},	/* MSI 3070 */
+	{USB_DEVICE(0x0DB0, 0x3822)},	/* MSI 3070 */
+	{USB_DEVICE(0x0DB0, 0x3871)},	/* MSI 3070 */
+	{USB_DEVICE(0x0DB0, 0x871A)},	/* MSI 3070 */
+	{USB_DEVICE(0x0DB0, 0x822A)},	/* MSI 3070 */
+	{USB_DEVICE(0x0DB0, 0x3821)},	/* Ralink 3070 */
+	{USB_DEVICE(0x0DB0, 0x821A)},	/* Ralink 3070 */
+	{USB_DEVICE(0x083A, 0xA703)},	/* IO-MAGIC */
+	{USB_DEVICE(0x13D3, 0x3307)},	/* Azurewave */
+	{USB_DEVICE(0x13D3, 0x3321)},	/* Azurewave */
+	{USB_DEVICE(0x07FA, 0x7712)},	/* Edimax */
+	{USB_DEVICE(0x0789, 0x0166)},	/* Edimax */
+	{USB_DEVICE(0x148F, 0x2070)},	/* Edimax */
 #endif /* RT3070 // */
-	{USB_DEVICE(0x0DF6, 0x003F)},	/* Sitecom WL-608 */
 	{USB_DEVICE(0x1737, 0x0077)},	/* Linksys WUSB54GC-EU v3 */
 	{USB_DEVICE(0x2001, 0x3C09)},	/* D-Link */
 	{USB_DEVICE(0x2001, 0x3C0A)},	/* D-Link 3072 */
 	{USB_DEVICE(0x2019, 0xED14)},	/* Planex Communications, Inc. */
+	{USB_DEVICE(0x0411, 0x015D)},	/* Buffalo Airstation WLI-UC-GN */
 	{}			/* Terminating entry */
 };
 
@@ -192,7 +233,7 @@ BOOLEAN RT28XXChipsetCheck(IN void *_dev_p)
 	for (i = 0; i < rtusb_usb_id_len; i++) {
 		if (dev_p->descriptor.idVendor == rtusb_usb_id[i].idVendor &&
 		    dev_p->descriptor.idProduct == rtusb_usb_id[i].idProduct) {
-			printk("rt2870: idVendor = 0x%x, idProduct = 0x%x\n",
+			printk(KERN_INFO "rt2870: idVendor = 0x%x, idProduct = 0x%x\n",
 			       dev_p->descriptor.idVendor,
 			       dev_p->descriptor.idProduct);
 			break;
@@ -200,7 +241,7 @@ BOOLEAN RT28XXChipsetCheck(IN void *_dev_p)
 	}
 
 	if (i == rtusb_usb_id_len) {
-		printk("rt2870: Error! Device Descriptor not matching!\n");
+		printk(KERN_ERR "rt2870: Error! Device Descriptor not matching!\n");
 		return FALSE;
 	}
 
@@ -282,7 +323,7 @@ static BOOLEAN USBDevConfigInit(IN struct usb_device *dev,
 
 	if (!(pAd->BulkInEpAddr && pAd->BulkOutEpAddr[0])) {
 		printk
-		    ("%s: Could not find both bulk-in and bulk-out endpoints\n",
+		    (KERN_ERR "%s: Could not find both bulk-in and bulk-out endpoints\n",
 		     __FUNCTION__);
 		return FALSE;
 	}
@@ -382,7 +423,7 @@ static int rt2870_resume(struct usb_interface *intf)
 /* Init driver module */
 int __init rtusb_init(void)
 {
-	printk("rtusb init --->\n");
+	printk(KERN_DEBUG "rtusb init --->\n");
 	return usb_register(&rtusb_driver);
 }
 
@@ -390,7 +431,7 @@ int __init rtusb_init(void)
 void __exit rtusb_exit(void)
 {
 	usb_deregister(&rtusb_driver);
-	printk("<--- rtusb exit\n");
+	printk(KERN_DEBUG "<--- rtusb exit\n");
 }
 
 module_init(rtusb_init);
@@ -421,8 +462,8 @@ int MlmeThread(IN void *Context)
 	int status;
 	status = 0;
 
-	pTask = (struct rt_rtmp_os_task *)Context;
-	pAd = (struct rt_rtmp_adapter *)pTask->priv;
+	pTask = Context;
+	pAd = pTask->priv;
 
 	RtmpOSTaskCustomize(pTask);
 
@@ -490,8 +531,8 @@ int RTUSBCmdThread(IN void *Context)
 	int status;
 	status = 0;
 
-	pTask = (struct rt_rtmp_os_task *)Context;
-	pAd = (struct rt_rtmp_adapter *)pTask->priv;
+	pTask = Context;
+	pAd = pTask->priv;
 
 	RtmpOSTaskCustomize(pTask);
 
@@ -773,7 +814,7 @@ static void rt2870_disconnect(struct usb_device *dev, struct rt_rtmp_adapter *pA
 		  dev->bus->bus_name, dev->devpath));
 	if (!pAd) {
 		usb_put_dev(dev);
-		printk("rtusb_disconnect: pAd == NULL!\n");
+		printk(KERN_ERR "rtusb_disconnect: pAd == NULL!\n");
 		return;
 	}
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST);
@@ -843,8 +884,8 @@ static int __devinit rt2870_probe(IN struct usb_interface *intf,
 	if (net_dev == NULL)
 		goto err_out_free_radev;
 
-	/* Here are the net_device structure with usb specific parameters. */
-	/* for supporting Network Manager.
+	/* Here are the net_device structure with usb specific parameters. 
+	 * for supporting Network Manager.
 	 * Set the sysfs physical device reference for the network logical device if set prior to registration will
 	 * cause a symlink during initialization.
 	 */

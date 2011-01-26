@@ -31,10 +31,10 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 	 * packets with foreign saddr to appear on the NF_INET_LOCAL_OUT hook.
 	 */
 	if (addr_type == RTN_LOCAL) {
-		fl.nl_u.ip4_u.daddr = iph->daddr;
+		fl.fl4_dst = iph->daddr;
 		if (type == RTN_LOCAL)
-			fl.nl_u.ip4_u.saddr = iph->saddr;
-		fl.nl_u.ip4_u.tos = RT_TOS(iph->tos);
+			fl.fl4_src = iph->saddr;
+		fl.fl4_tos = RT_TOS(iph->tos);
 		fl.oif = skb->sk ? skb->sk->sk_bound_dev_if : 0;
 		fl.mark = skb->mark;
 		fl.flags = skb->sk ? inet_sk_flowi_flags(skb->sk) : 0;
@@ -43,21 +43,21 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 
 		/* Drop old route. */
 		skb_dst_drop(skb);
-		skb_dst_set(skb, &rt->u.dst);
+		skb_dst_set(skb, &rt->dst);
 	} else {
 		/* non-local src, find valid iif to satisfy
 		 * rp-filter when calling ip_route_input. */
-		fl.nl_u.ip4_u.daddr = iph->saddr;
+		fl.fl4_dst = iph->saddr;
 		if (ip_route_output_key(net, &rt, &fl) != 0)
 			return -1;
 
 		orefdst = skb->_skb_refdst;
 		if (ip_route_input(skb, iph->daddr, iph->saddr,
-				   RT_TOS(iph->tos), rt->u.dst.dev) != 0) {
-			dst_release(&rt->u.dst);
+				   RT_TOS(iph->tos), rt->dst.dev) != 0) {
+			dst_release(&rt->dst);
 			return -1;
 		}
-		dst_release(&rt->u.dst);
+		dst_release(&rt->dst);
 		refdst_drop(orefdst);
 	}
 
@@ -212,9 +212,7 @@ static __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
 		skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr, protocol,
 					       skb->len - dataoff, 0);
 		skb->ip_summed = CHECKSUM_NONE;
-		csum = __skb_checksum_complete_head(skb, dataoff + len);
-		if (!csum)
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		return __skb_checksum_complete_head(skb, dataoff + len);
 	}
 	return csum;
 }

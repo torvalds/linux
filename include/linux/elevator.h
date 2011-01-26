@@ -93,6 +93,7 @@ struct elevator_queue
 	struct elevator_type *elevator_type;
 	struct mutex sysfs_lock;
 	struct hlist_head *hash;
+	unsigned int registered:1;
 };
 
 /*
@@ -136,6 +137,7 @@ extern ssize_t elv_iosched_store(struct request_queue *, const char *, size_t);
 
 extern int elevator_init(struct request_queue *, char *);
 extern void elevator_exit(struct elevator_queue *);
+extern int elevator_change(struct request_queue *, const char *);
 extern int elv_rq_merge_ok(struct request *, struct bio *);
 
 /*
@@ -193,15 +195,9 @@ enum {
 /*
  * io context count accounting
  */
-#define elv_ioc_count_mod(name, __val)				\
-	do {							\
-		preempt_disable();				\
-		__get_cpu_var(name) += (__val);			\
-		preempt_enable();				\
-	} while (0)
-
-#define elv_ioc_count_inc(name)	elv_ioc_count_mod(name, 1)
-#define elv_ioc_count_dec(name)	elv_ioc_count_mod(name, -1)
+#define elv_ioc_count_mod(name, __val) this_cpu_add(name, __val)
+#define elv_ioc_count_inc(name)	this_cpu_inc(name)
+#define elv_ioc_count_dec(name)	this_cpu_dec(name)
 
 #define elv_ioc_count_read(name)				\
 ({								\

@@ -188,7 +188,7 @@ static void __td_unmap_descs(struct timb_dma_desc *td_desc, bool single)
 static int td_fill_desc(struct timb_dma_chan *td_chan, u8 *dma_desc,
 	struct scatterlist *sg, bool last)
 {
-	if (sg_dma_len(sg) > USHORT_MAX) {
+	if (sg_dma_len(sg) > USHRT_MAX) {
 		dev_err(chan2dev(&td_chan->chan), "Too big sg element\n");
 		return -EINVAL;
 	}
@@ -200,8 +200,8 @@ static int td_fill_desc(struct timb_dma_chan *td_chan, u8 *dma_desc,
 		return -EINVAL;
 	}
 
-	dev_dbg(chan2dev(&td_chan->chan), "desc: %p, addr: %p\n",
-		dma_desc, (void *)sg_dma_address(sg));
+	dev_dbg(chan2dev(&td_chan->chan), "desc: %p, addr: 0x%llx\n",
+		dma_desc, (unsigned long long)sg_dma_address(sg));
 
 	dma_desc[7] = (sg_dma_address(sg) >> 24) & 0xff;
 	dma_desc[6] = (sg_dma_address(sg) >> 16) & 0xff;
@@ -382,7 +382,7 @@ static struct timb_dma_desc *td_alloc_init_desc(struct timb_dma_chan *td_chan)
 	td_desc = kzalloc(sizeof(struct timb_dma_desc), GFP_KERNEL);
 	if (!td_desc) {
 		dev_err(chan2dev(chan), "Failed to alloc descriptor\n");
-		goto err;
+		goto out;
 	}
 
 	td_desc->desc_list_len = td_chan->desc_elems * TIMB_DMA_DESC_SIZE;
@@ -410,7 +410,7 @@ static struct timb_dma_desc *td_alloc_init_desc(struct timb_dma_chan *td_chan)
 err:
 	kfree(td_desc->desc_list);
 	kfree(td_desc);
-
+out:
 	return NULL;
 
 }
@@ -759,7 +759,7 @@ static int __devinit td_probe(struct platform_device *pdev)
 			pdata->channels + i;
 
 		/* even channels are RX, odd are TX */
-		if (((i % 2) && pchan->rx) || (!(i % 2) && !pchan->rx)) {
+		if ((i % 2) == pchan->rx) {
 			dev_err(&pdev->dev, "Wrong channel configuration\n");
 			err = -EINVAL;
 			goto err_tasklet_kill;

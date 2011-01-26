@@ -21,8 +21,7 @@
 #include <linux/list.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 
 #include <mach/clock.h>
 #include <mach/hardware.h>
@@ -155,7 +154,7 @@ static unsigned long get_rate_arm(void)
 
 	aad = &clk_consumer[(pdr0 >> 16) & 0xf];
 	if (aad->sel)
-		fref = fref * 2 / 3;
+		fref = fref * 3 / 4;
 
 	return fref / aad->arm;
 }
@@ -164,7 +163,7 @@ static unsigned long get_rate_ahb(struct clk *clk)
 {
 	unsigned long pdr0 = __raw_readl(CCM_BASE + CCM_PDR0);
 	struct arm_ahb_div *aad;
-	unsigned long fref = get_rate_mpll();
+	unsigned long fref = get_rate_arm();
 
 	aad = &clk_consumer[(pdr0 >> 16) & 0xf];
 
@@ -176,16 +175,11 @@ static unsigned long get_rate_ipg(struct clk *clk)
 	return get_rate_ahb(NULL) >> 1;
 }
 
-static unsigned long get_3_3_div(unsigned long in)
-{
-	return (((in >> 3) & 0x7) + 1) * ((in & 0x7) + 1);
-}
-
 static unsigned long get_rate_uart(struct clk *clk)
 {
 	unsigned long pdr3 = __raw_readl(CCM_BASE + CCM_PDR3);
 	unsigned long pdr4 = __raw_readl(CCM_BASE + CCM_PDR4);
-	unsigned long div = get_3_3_div(pdr4 >> 10);
+	unsigned long div = ((pdr4 >> 10) & 0x3f) + 1;
 
 	if (pdr3 & (1 << 14))
 		return get_rate_arm() / div;
@@ -216,7 +210,7 @@ static unsigned long get_rate_sdhc(struct clk *clk)
 		break;
 	}
 
-	return rate / get_3_3_div(div);
+	return rate / (div + 1);
 }
 
 static unsigned long get_rate_mshc(struct clk *clk)
@@ -270,7 +264,7 @@ static unsigned long get_rate_csi(struct clk *clk)
 	else
 		rate = get_rate_ppll();
 
-	return rate / get_3_3_div((pdr2 >> 16) & 0x3f);
+	return rate / (((pdr2 >> 16) & 0x3f) + 1);
 }
 
 static unsigned long get_rate_otg(struct clk *clk)
@@ -283,23 +277,49 @@ static unsigned long get_rate_otg(struct clk *clk)
 	else
 		rate = get_rate_ppll();
 
-	return rate / get_3_3_div((pdr4 >> 22) & 0x3f);
+	return rate / (((pdr4 >> 22) & 0x3f) + 1);
 }
 
 static unsigned long get_rate_ipg_per(struct clk *clk)
 {
 	unsigned long pdr0 = __raw_readl(CCM_BASE + CCM_PDR0);
 	unsigned long pdr4 = __raw_readl(CCM_BASE + CCM_PDR4);
-	unsigned long div1, div2;
+	unsigned long div;
 
 	if (pdr0 & (1 << 26)) {
-		div1 = (pdr4 >> 19) & 0x7;
-		div2 = (pdr4 >> 16) & 0x7;
-		return get_rate_arm() / ((div1 + 1) * (div2 + 1));
+		div = (pdr4 >> 16) & 0x3f;
+		return get_rate_arm() / (div + 1);
 	} else {
-		div1 = (pdr0 >> 12) & 0x7;
-		return get_rate_ahb(NULL) / div1;
+		div = (pdr0 >> 12) & 0x7;
+		return get_rate_ahb(NULL) / (div + 1);
 	}
+}
+
+static unsigned long get_rate_hsp(struct clk *clk)
+{
+	unsigned long hsp_podf = (__raw_readl(CCM_BASE + CCM_PDR0) >> 20) & 0x03;
+	unsigned long fref = get_rate_mpll();
+
+	if (fref > 400 * 1000 * 1000) {
+		switch (hsp_podf) {
+		case 0:
+			return fref >> 2;
+		case 1:
+			return fref >> 3;
+		case 2:
+			return fref / 3;
+		}
+	} else {
+		switch (hsp_podf) {
+		case 0:
+		case 2:
+			return fref / 3;
+		case 1:
+			return fref / 6;
+		}
+	}
+
+	return 0;
 }
 
 static int clk_cgr_enable(struct clk *clk)
@@ -343,8 +363,8 @@ DEFINE_CLOCK(cspi2_clk,  1, CCM_CGR0, 12, get_rate_ipg, NULL);
 DEFINE_CLOCK(ect_clk,    0, CCM_CGR0, 14, get_rate_ipg, NULL);
 DEFINE_CLOCK(edio_clk,   0, CCM_CGR0, 16, NULL, NULL);
 DEFINE_CLOCK(emi_clk,    0, CCM_CGR0, 18, get_rate_ipg, NULL);
-DEFINE_CLOCK(epit1_clk,  0, CCM_CGR0, 20, get_rate_ipg_per, NULL);
-DEFINE_CLOCK(epit2_clk,  1, CCM_CGR0, 22, get_rate_ipg_per, NULL);
+DEFINE_CLOCK(epit1_clk,  0, CCM_CGR0, 20, get_rate_ipg, NULL);
+DEFINE_CLOCK(epit2_clk,  1, CCM_CGR0, 22, get_rate_ipg, NULL);
 DEFINE_CLOCK(esai_clk,   0, CCM_CGR0, 24, NULL, NULL);
 DEFINE_CLOCK(esdhc1_clk, 0, CCM_CGR0, 26, get_rate_sdhc, NULL);
 DEFINE_CLOCK(esdhc2_clk, 1, CCM_CGR0, 28, get_rate_sdhc, NULL);
@@ -359,7 +379,7 @@ DEFINE_CLOCK(i2c1_clk,   0, CCM_CGR1, 10, get_rate_ipg_per, NULL);
 DEFINE_CLOCK(i2c2_clk,   1, CCM_CGR1, 12, get_rate_ipg_per, NULL);
 DEFINE_CLOCK(i2c3_clk,   2, CCM_CGR1, 14, get_rate_ipg_per, NULL);
 DEFINE_CLOCK(iomuxc_clk, 0, CCM_CGR1, 16, NULL, NULL);
-DEFINE_CLOCK(ipu_clk,    0, CCM_CGR1, 18, NULL, NULL);
+DEFINE_CLOCK(ipu_clk,    0, CCM_CGR1, 18, get_rate_hsp, NULL);
 DEFINE_CLOCK(kpp_clk,    0, CCM_CGR1, 20, get_rate_ipg, NULL);
 DEFINE_CLOCK(mlb_clk,    0, CCM_CGR1, 22, get_rate_ahb, NULL);
 DEFINE_CLOCK(mshc_clk,   0, CCM_CGR1, 24, get_rate_mshc, NULL);
@@ -428,19 +448,19 @@ static struct clk nfc_clk = {
 static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "asrc", asrc_clk)
 	_REGISTER_CLOCK(NULL, "ata", ata_clk)
-	_REGISTER_CLOCK(NULL, "can", can1_clk)
-	_REGISTER_CLOCK(NULL, "can", can2_clk)
-	_REGISTER_CLOCK("spi_imx.0", NULL, cspi1_clk)
-	_REGISTER_CLOCK("spi_imx.1", NULL, cspi2_clk)
+	_REGISTER_CLOCK("flexcan.0", NULL, can1_clk)
+	_REGISTER_CLOCK("flexcan.1", NULL, can2_clk)
+	_REGISTER_CLOCK("imx35-cspi.0", NULL, cspi1_clk)
+	_REGISTER_CLOCK("imx35-cspi.1", NULL, cspi2_clk)
 	_REGISTER_CLOCK(NULL, "ect", ect_clk)
 	_REGISTER_CLOCK(NULL, "edio", edio_clk)
 	_REGISTER_CLOCK(NULL, "emi", emi_clk)
-	_REGISTER_CLOCK(NULL, "epit", epit1_clk)
-	_REGISTER_CLOCK(NULL, "epit", epit2_clk)
+	_REGISTER_CLOCK("imx-epit.0", NULL, epit1_clk)
+	_REGISTER_CLOCK("imx-epit.1", NULL, epit2_clk)
 	_REGISTER_CLOCK(NULL, "esai", esai_clk)
-	_REGISTER_CLOCK(NULL, "sdhc", esdhc1_clk)
-	_REGISTER_CLOCK(NULL, "sdhc", esdhc2_clk)
-	_REGISTER_CLOCK(NULL, "sdhc", esdhc3_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx.0", NULL, esdhc1_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx.2", NULL, esdhc3_clk)
 	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK(NULL, "gpio", gpio1_clk)
 	_REGISTER_CLOCK(NULL, "gpio", gpio2_clk)
@@ -461,7 +481,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "rtc", rtc_clk)
 	_REGISTER_CLOCK(NULL, "rtic", rtic_clk)
 	_REGISTER_CLOCK(NULL, "scc", scc_clk)
-	_REGISTER_CLOCK(NULL, "sdma", sdma_clk)
+	_REGISTER_CLOCK("imx-sdma", NULL, sdma_clk)
 	_REGISTER_CLOCK(NULL, "spba", spba_clk)
 	_REGISTER_CLOCK(NULL, "spdif", spdif_clk)
 	_REGISTER_CLOCK("imx-ssi.0", NULL, ssi1_clk)
@@ -474,7 +494,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("mxc-ehci.2", "usb", usbotg_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usbotg_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", usbahb_clk)
-	_REGISTER_CLOCK("imx-wdt.0", NULL, wdog_clk)
+	_REGISTER_CLOCK("imx2-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "max", max_clk)
 	_REGISTER_CLOCK(NULL, "audmux", audmux_clk)
 	_REGISTER_CLOCK(NULL, "csi", csi_clk)
@@ -485,10 +505,10 @@ static struct clk_lookup lookups[] = {
 
 int __init mx35_clocks_init()
 {
-	unsigned int ll = 0;
+	unsigned int cgr2 = 3 << 26, cgr3 = 0;
 
 #if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_ICEDCC)
-	ll = (3 << 16);
+	cgr2 |= 3 << 16;
 #endif
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
@@ -499,11 +519,31 @@ int __init mx35_clocks_init()
 	__raw_writel((3 << 18), CCM_BASE + CCM_CGR0);
 	__raw_writel((3 << 2) | (3 << 4) | (3 << 6) | (3 << 8) | (3 << 16),
 			CCM_BASE + CCM_CGR1);
-	__raw_writel((3 << 26) | ll, CCM_BASE + CCM_CGR2);
-	__raw_writel(0, CCM_BASE + CCM_CGR3);
 
+	/*
+	 * Check if we came up in internal boot mode. If yes, we need some
+	 * extra clocks turned on, otherwise the MX35 boot ROM code will
+	 * hang after a watchdog reset.
+	 */
+	if (!(__raw_readl(CCM_BASE + CCM_RCSR) & (3 << 10))) {
+		/* Additionally turn on UART1, SCC, and IIM clocks */
+		cgr2 |= 3 << 16 | 3 << 4;
+		cgr3 |= 3 << 2;
+	}
+
+	__raw_writel(cgr2, CCM_BASE + CCM_CGR2);
+	__raw_writel(cgr3, CCM_BASE + CCM_CGR3);
+
+	clk_enable(&iim_clk);
+	mx35_read_cpu_rev();
+
+#ifdef CONFIG_MXC_USE_EPIT
+	epit_timer_init(&epit1_clk,
+			MX35_IO_ADDRESS(MX35_EPIT1_BASE_ADDR), MX35_INT_EPIT1);
+#else
 	mxc_timer_init(&gpt_clk,
 			MX35_IO_ADDRESS(MX35_GPT1_BASE_ADDR), MX35_INT_GPT);
+#endif
 
 	return 0;
 }

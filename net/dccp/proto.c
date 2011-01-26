@@ -50,6 +50,30 @@ EXPORT_SYMBOL_GPL(dccp_hashinfo);
 /* the maximum queue length for tx in packets. 0 is no limit */
 int sysctl_dccp_tx_qlen __read_mostly = 5;
 
+#ifdef CONFIG_IP_DCCP_DEBUG
+static const char *dccp_state_name(const int state)
+{
+	static const char *const dccp_state_names[] = {
+	[DCCP_OPEN]		= "OPEN",
+	[DCCP_REQUESTING]	= "REQUESTING",
+	[DCCP_PARTOPEN]		= "PARTOPEN",
+	[DCCP_LISTEN]		= "LISTEN",
+	[DCCP_RESPOND]		= "RESPOND",
+	[DCCP_CLOSING]		= "CLOSING",
+	[DCCP_ACTIVE_CLOSEREQ]	= "CLOSEREQ",
+	[DCCP_PASSIVE_CLOSE]	= "PASSIVE_CLOSE",
+	[DCCP_PASSIVE_CLOSEREQ]	= "PASSIVE_CLOSEREQ",
+	[DCCP_TIME_WAIT]	= "TIME_WAIT",
+	[DCCP_CLOSED]		= "CLOSED",
+	};
+
+	if (state >= DCCP_MAX_STATES)
+		return "INVALID STATE!";
+	else
+		return dccp_state_names[state];
+}
+#endif
+
 void dccp_set_state(struct sock *sk, const int state)
 {
 	const int oldstate = sk->sk_state;
@@ -146,30 +170,6 @@ const char *dccp_packet_name(const int type)
 
 EXPORT_SYMBOL_GPL(dccp_packet_name);
 
-const char *dccp_state_name(const int state)
-{
-	static const char *const dccp_state_names[] = {
-	[DCCP_OPEN]		= "OPEN",
-	[DCCP_REQUESTING]	= "REQUESTING",
-	[DCCP_PARTOPEN]		= "PARTOPEN",
-	[DCCP_LISTEN]		= "LISTEN",
-	[DCCP_RESPOND]		= "RESPOND",
-	[DCCP_CLOSING]		= "CLOSING",
-	[DCCP_ACTIVE_CLOSEREQ]	= "CLOSEREQ",
-	[DCCP_PASSIVE_CLOSE]	= "PASSIVE_CLOSE",
-	[DCCP_PASSIVE_CLOSEREQ]	= "PASSIVE_CLOSEREQ",
-	[DCCP_TIME_WAIT]	= "TIME_WAIT",
-	[DCCP_CLOSED]		= "CLOSED",
-	};
-
-	if (state >= DCCP_MAX_STATES)
-		return "INVALID STATE!";
-	else
-		return dccp_state_names[state];
-}
-
-EXPORT_SYMBOL_GPL(dccp_state_name);
-
 int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -185,6 +185,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 	dp->dccps_role		= DCCP_ROLE_UNDEFINED;
 	dp->dccps_service	= DCCP_SERVICE_CODE_IS_ABSENT;
 	dp->dccps_l_ack_ratio	= dp->dccps_r_ack_ratio = 1;
+	dp->dccps_tx_qlen	= sysctl_dccp_tx_qlen;
 
 	dccp_init_xmit_timers(sk);
 
@@ -473,14 +474,9 @@ static int dccp_setsockopt_ccid(struct sock *sk, int type,
 	if (optlen < 1 || optlen > DCCP_FEAT_MAX_SP_VALS)
 		return -EINVAL;
 
-	val = kmalloc(optlen, GFP_KERNEL);
-	if (val == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(val, optval, optlen)) {
-		kfree(val);
-		return -EFAULT;
-	}
+	val = memdup_user(optval, optlen);
+	if (IS_ERR(val))
+		return PTR_ERR(val);
 
 	lock_sock(sk);
 	if (type == DCCP_SOCKOPT_TX_CCID || type == DCCP_SOCKOPT_CCID)
@@ -536,6 +532,20 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	case DCCP_SOCKOPT_RECV_CSCOV:
 		err = dccp_setsockopt_cscov(sk, val, true);
+		break;
+	case DCCP_SOCKOPT_QPOLICY_ID:
+		if (sk->sk_state != DCCP_CLOSED)
+			err = -EISCONN;
+		else if (val < 0 || val >= DCCPQ_POLICY_MAX)
+			err = -EINVAL;
+		else
+			dp->dccps_qpolicy = val;
+		break;
+	case DCCP_SOCKOPT_QPOLICY_TXQLEN:
+		if (val < 0)
+			err = -EINVAL;
+		else
+			dp->dccps_tx_qlen = val;
 		break;
 	default:
 		err = -ENOPROTOOPT;
@@ -644,6 +654,12 @@ static int do_dccp_getsockopt(struct sock *sk, int level, int optname,
 	case DCCP_SOCKOPT_RECV_CSCOV:
 		val = dp->dccps_pcrlen;
 		break;
+	case DCCP_SOCKOPT_QPOLICY_ID:
+		val = dp->dccps_qpolicy;
+		break;
+	case DCCP_SOCKOPT_QPOLICY_TXQLEN:
+		val = dp->dccps_tx_qlen;
+		break;
 	case 128 ... 191:
 		return ccid_hc_rx_getsockopt(dp->dccps_hc_rx_ccid, sk, optname,
 					     len, (u32 __user *)optval, optlen);
@@ -686,6 +702,47 @@ int compat_dccp_getsockopt(struct sock *sk, int level, int optname,
 EXPORT_SYMBOL_GPL(compat_dccp_getsockopt);
 #endif
 
+static int dccp_msghdr_parse(struct msghdr *msg, struct sk_buff *skb)
+{
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(msg);
+
+	/*
+	 * Assign an (opaque) qpolicy priority value to skb->priority.
+	 *
+	 * We are overloading this skb field for use with the qpolicy subystem.
+	 * The skb->priority is normally used for the SO_PRIORITY option, which
+	 * is initialised from sk_priority. Since the assignment of sk_priority
+	 * to skb->priority happens later (on layer 3), we overload this field
+	 * for use with queueing priorities as long as the skb is on layer 4.
+	 * The default priority value (if nothing is set) is 0.
+	 */
+	skb->priority = 0;
+
+	for (; cmsg != NULL; cmsg = CMSG_NXTHDR(msg, cmsg)) {
+
+		if (!CMSG_OK(msg, cmsg))
+			return -EINVAL;
+
+		if (cmsg->cmsg_level != SOL_DCCP)
+			continue;
+
+		if (cmsg->cmsg_type <= DCCP_SCM_QPOLICY_MAX &&
+		    !dccp_qpolicy_param_ok(skb->sk, cmsg->cmsg_type))
+			return -EINVAL;
+
+		switch (cmsg->cmsg_type) {
+		case DCCP_SCM_PRIORITY:
+			if (cmsg->cmsg_len != CMSG_LEN(sizeof(__u32)))
+				return -EINVAL;
+			skb->priority = *(__u32 *)CMSG_DATA(cmsg);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		 size_t len)
 {
@@ -701,8 +758,7 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	lock_sock(sk);
 
-	if (sysctl_dccp_tx_qlen &&
-	    (sk->sk_write_queue.qlen >= sysctl_dccp_tx_qlen)) {
+	if (dccp_qpolicy_full(sk)) {
 		rc = -EAGAIN;
 		goto out_release;
 	}
@@ -730,8 +786,18 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	if (rc != 0)
 		goto out_discard;
 
-	skb_queue_tail(&sk->sk_write_queue, skb);
-	dccp_write_xmit(sk,0);
+	rc = dccp_msghdr_parse(msg, skb);
+	if (rc != 0)
+		goto out_discard;
+
+	dccp_qpolicy_push(sk, skb);
+	/*
+	 * The xmit_timer is set if the TX CCID is rate-based and will expire
+	 * when congestion control permits to release further packets into the
+	 * network. Window-based CCIDs do not use this timer.
+	 */
+	if (!timer_pending(&dp->dccps_xmit_timer))
+		dccp_write_xmit(sk);
 out_release:
 	release_sock(sk);
 	return rc ? : len;
@@ -949,15 +1015,28 @@ void dccp_close(struct sock *sk, long timeout)
 
 	if (data_was_unread) {
 		/* Unread data was tossed, send an appropriate Reset Code */
-		DCCP_WARN("DCCP: ABORT -- %u bytes unread\n", data_was_unread);
+		DCCP_WARN("ABORT with %u bytes unread\n", data_was_unread);
 		dccp_send_reset(sk, DCCP_RESET_CODE_ABORTED);
 		dccp_set_state(sk, DCCP_CLOSED);
 	} else if (sock_flag(sk, SOCK_LINGER) && !sk->sk_lingertime) {
 		/* Check zero linger _after_ checking for unread data. */
 		sk->sk_prot->disconnect(sk, 0);
 	} else if (sk->sk_state != DCCP_CLOSED) {
+		/*
+		 * Normal connection termination. May need to wait if there are
+		 * still packets in the TX queue that are delayed by the CCID.
+		 */
+		dccp_flush_write_queue(sk, &timeout);
 		dccp_terminate_connection(sk);
 	}
+
+	/*
+	 * Flush write queue. This may be necessary in several cases:
+	 * - we have been closed by the peer but still have application data;
+	 * - abortive termination (unread data or zero linger time),
+	 * - normal termination but queue could not be flushed within time limit
+	 */
+	__skb_queue_purge(&sk->sk_write_queue);
 
 	sk_stream_wait_close(sk, timeout);
 
@@ -1007,7 +1086,8 @@ EXPORT_SYMBOL_GPL(dccp_shutdown);
 static inline int dccp_mib_init(void)
 {
 	return snmp_mib_init((void __percpu **)dccp_statistics,
-			     sizeof(struct dccp_mib));
+			     sizeof(struct dccp_mib),
+			     __alignof__(struct dccp_mib));
 }
 
 static inline void dccp_mib_exit(void)

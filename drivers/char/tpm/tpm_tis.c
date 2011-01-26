@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
+#include <linux/acpi.h>
 #include "tpm.h"
 
 #define TPM_HEADER_SIZE 10
@@ -77,6 +78,26 @@ enum tis_defaults {
 
 static LIST_HEAD(tis_chips);
 static DEFINE_SPINLOCK(tis_lock);
+
+#ifdef CONFIG_ACPI
+static int is_itpm(struct pnp_dev *dev)
+{
+	struct acpi_device *acpi = pnp_acpi_device(dev);
+	struct acpi_hardware_id *id;
+
+	list_for_each_entry(id, &acpi->pnp.ids, list) {
+		if (!strcmp("INTC0102", id->id))
+			return 1;
+	}
+
+	return 0;
+}
+#else
+static int is_itpm(struct pnp_dev *dev)
+{
+	return 0;
+}
+#endif
 
 static int check_locality(struct tpm_chip *chip, int l)
 {
@@ -613,6 +634,9 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 	else
 		interrupts = 0;
 
+	if (is_itpm(pnp_dev))
+		itpm = 1;
+
 	return tpm_tis_init(&pnp_dev->dev, start, len, irq);
 }
 
@@ -623,7 +647,14 @@ static int tpm_tis_pnp_suspend(struct pnp_dev *dev, pm_message_t msg)
 
 static int tpm_tis_pnp_resume(struct pnp_dev *dev)
 {
-	return tpm_pm_resume(&dev->dev);
+	struct tpm_chip *chip = pnp_get_drvdata(dev);
+	int ret;
+
+	ret = tpm_pm_resume(&dev->dev);
+	if (!ret)
+		tpm_continue_selftest(chip);
+
+	return ret;
 }
 
 static struct pnp_device_id tpm_pnp_tbl[] __devinitdata = {

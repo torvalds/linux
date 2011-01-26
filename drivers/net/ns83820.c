@@ -424,7 +424,6 @@ struct rx_info {
 
 
 struct ns83820 {
-	struct net_device_stats	stats;
 	u8			__iomem *base;
 
 	struct pci_dev		*pci_dev;
@@ -773,7 +772,7 @@ static int ns83820_setup_rx(struct net_device *ndev)
 		phy_intr(ndev);
 
 		/* Okay, let it rip */
-		spin_lock_irq(&dev->misc_lock);
+		spin_lock(&dev->misc_lock);
 		dev->IMR_cache |= ISR_PHY;
 		dev->IMR_cache |= ISR_RXRCMP;
 		//dev->IMR_cache |= ISR_RXERR;
@@ -918,13 +917,13 @@ static void rx_irq(struct net_device *ndev)
 			if (unlikely(!skb))
 				goto netdev_mangle_me_harder_failed;
 			if (cmdsts & CMDSTS_DEST_MULTI)
-				dev->stats.multicast ++;
-			dev->stats.rx_packets ++;
-			dev->stats.rx_bytes += len;
+				ndev->stats.multicast++;
+			ndev->stats.rx_packets++;
+			ndev->stats.rx_bytes += len;
 			if ((extsts & 0x002a0000) && !(extsts & 0x00540000)) {
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 			} else {
-				skb->ip_summed = CHECKSUM_NONE;
+				skb_checksum_none_assert(skb);
 			}
 			skb->protocol = eth_type_trans(skb, ndev);
 #ifdef NS83820_VLAN_ACCEL_SUPPORT
@@ -940,7 +939,7 @@ static void rx_irq(struct net_device *ndev)
 #endif
 			if (NET_RX_DROP == rx_rc) {
 netdev_mangle_me_harder_failed:
-				dev->stats.rx_dropped ++;
+				ndev->stats.rx_dropped++;
 			}
 		} else {
 			kfree_skb(skb);
@@ -1008,11 +1007,11 @@ static void do_tx_done(struct net_device *ndev)
 		dma_addr_t addr;
 
 		if (cmdsts & CMDSTS_ERR)
-			dev->stats.tx_errors ++;
+			ndev->stats.tx_errors++;
 		if (cmdsts & CMDSTS_OK)
-			dev->stats.tx_packets ++;
+			ndev->stats.tx_packets++;
 		if (cmdsts & CMDSTS_OK)
-			dev->stats.tx_bytes += cmdsts & 0xffff;
+			ndev->stats.tx_bytes += cmdsts & 0xffff;
 
 		dprintk("tx_done_idx=%d free_idx=%d cmdsts=%08x\n",
 			tx_done_idx, dev->tx_free_idx, cmdsts);
@@ -1212,20 +1211,21 @@ again:
 
 static void ns83820_update_stats(struct ns83820 *dev)
 {
+	struct net_device *ndev = dev->ndev;
 	u8 __iomem *base = dev->base;
 
 	/* the DP83820 will freeze counters, so we need to read all of them */
-	dev->stats.rx_errors		+= readl(base + 0x60) & 0xffff;
-	dev->stats.rx_crc_errors	+= readl(base + 0x64) & 0xffff;
-	dev->stats.rx_missed_errors	+= readl(base + 0x68) & 0xffff;
-	dev->stats.rx_frame_errors	+= readl(base + 0x6c) & 0xffff;
-	/*dev->stats.rx_symbol_errors +=*/ readl(base + 0x70);
-	dev->stats.rx_length_errors	+= readl(base + 0x74) & 0xffff;
-	dev->stats.rx_length_errors	+= readl(base + 0x78) & 0xffff;
-	/*dev->stats.rx_badopcode_errors += */ readl(base + 0x7c);
-	/*dev->stats.rx_pause_count += */  readl(base + 0x80);
-	/*dev->stats.tx_pause_count += */  readl(base + 0x84);
-	dev->stats.tx_carrier_errors	+= readl(base + 0x88) & 0xff;
+	ndev->stats.rx_errors		+= readl(base + 0x60) & 0xffff;
+	ndev->stats.rx_crc_errors	+= readl(base + 0x64) & 0xffff;
+	ndev->stats.rx_missed_errors	+= readl(base + 0x68) & 0xffff;
+	ndev->stats.rx_frame_errors	+= readl(base + 0x6c) & 0xffff;
+	/*ndev->stats.rx_symbol_errors +=*/ readl(base + 0x70);
+	ndev->stats.rx_length_errors	+= readl(base + 0x74) & 0xffff;
+	ndev->stats.rx_length_errors	+= readl(base + 0x78) & 0xffff;
+	/*ndev->stats.rx_badopcode_errors += */ readl(base + 0x7c);
+	/*ndev->stats.rx_pause_count += */  readl(base + 0x80);
+	/*ndev->stats.tx_pause_count += */  readl(base + 0x84);
+	ndev->stats.tx_carrier_errors	+= readl(base + 0x88) & 0xff;
 }
 
 static struct net_device_stats *ns83820_get_stats(struct net_device *ndev)
@@ -1237,7 +1237,7 @@ static struct net_device_stats *ns83820_get_stats(struct net_device *ndev)
 	ns83820_update_stats(dev);
 	spin_unlock_irq(&dev->misc_lock);
 
-	return &dev->stats;
+	return &ndev->stats;
 }
 
 /* Let ethtool retrieve info */
@@ -1246,7 +1246,6 @@ static int ns83820_get_settings(struct net_device *ndev,
 {
 	struct ns83820 *dev = PRIV(ndev);
 	u32 cfg, tanar, tbicr;
-	int have_optical = 0;
 	int fullduplex   = 0;
 
 	/*
@@ -1267,25 +1266,25 @@ static int ns83820_get_settings(struct net_device *ndev,
 	tanar = readl(dev->base + TANAR);
 	tbicr = readl(dev->base + TBICR);
 
-	if (dev->CFG_cache & CFG_TBI_EN) {
-		/* we have an optical interface */
-		have_optical = 1;
-		fullduplex = (cfg & CFG_DUPSTS) ? 1 : 0;
-
-	} else {
-		/* We have copper */
-		fullduplex = (cfg & CFG_DUPSTS) ? 1 : 0;
-        }
+	fullduplex = (cfg & CFG_DUPSTS) ? 1 : 0;
 
 	cmd->supported = SUPPORTED_Autoneg;
 
-	/* we have optical interface */
 	if (dev->CFG_cache & CFG_TBI_EN) {
+		/* we have optical interface */
 		cmd->supported |= SUPPORTED_1000baseT_Half |
 					SUPPORTED_1000baseT_Full |
 					SUPPORTED_FIBRE;
 		cmd->port       = PORT_FIBRE;
-	} /* TODO: else copper related  support */
+	} else {
+		/* we have copper */
+		cmd->supported |= SUPPORTED_10baseT_Half |
+			SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Half |
+			SUPPORTED_100baseT_Full | SUPPORTED_1000baseT_Half |
+			SUPPORTED_1000baseT_Full |
+			SUPPORTED_MII;
+		cmd->port = PORT_MII;
+	}
 
 	cmd->duplex = fullduplex ? DUPLEX_FULL : DUPLEX_HALF;
 	switch (cfg / CFG_SPDSTS0 & 3) {
@@ -1299,7 +1298,8 @@ static int ns83820_get_settings(struct net_device *ndev,
 		cmd->speed = SPEED_10;
 		break;
 	}
-	cmd->autoneg = (tbicr & TBICR_MR_AN_ENABLE) ? 1: 0;
+	cmd->autoneg = (tbicr & TBICR_MR_AN_ENABLE)
+		? AUTONEG_ENABLE : AUTONEG_DISABLE;
 	return 0;
 }
 
@@ -1405,6 +1405,13 @@ static const struct ethtool_ops ops = {
 	.get_link        = ns83820_get_link
 };
 
+static inline void ns83820_disable_interrupts(struct ns83820 *dev)
+{
+	writel(0, dev->base + IMR);
+	writel(0, dev->base + IER);
+	readl(dev->base + IER);
+}
+
 /* this function is called in irq context from the ISR */
 static void ns83820_mib_isr(struct ns83820 *dev)
 {
@@ -1464,12 +1471,12 @@ static void ns83820_do_isr(struct net_device *ndev, u32 isr)
 
 	if (unlikely(ISR_RXSOVR & isr)) {
 		//printk("overrun: rxsovr\n");
-		dev->stats.rx_fifo_errors ++;
+		ndev->stats.rx_fifo_errors++;
 	}
 
 	if (unlikely(ISR_RXORN & isr)) {
 		//printk("overrun: rxorn\n");
-		dev->stats.rx_fifo_errors ++;
+		ndev->stats.rx_fifo_errors++;
 	}
 
 	if ((ISR_RXRCMP & isr) && dev->rx_info.up)
@@ -1557,10 +1564,7 @@ static int ns83820_stop(struct net_device *ndev)
 	/* FIXME: protect against interrupt handler? */
 	del_timer_sync(&dev->tx_watchdog);
 
-	/* disable interrupts */
-	writel(0, dev->base + IMR);
-	writel(0, dev->base + IER);
-	readl(dev->base + IER);
+	ns83820_disable_interrupts(dev);
 
 	dev->rx_info.up = 0;
 	synchronize_irq(dev->pci_dev->irq);
@@ -1984,12 +1988,11 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev,
 	}
 
 	ndev = alloc_etherdev(sizeof(struct ns83820));
-	dev = PRIV(ndev);
-
 	err = -ENOMEM;
-	if (!dev)
+	if (!ndev)
 		goto out;
 
+	dev = PRIV(ndev);
 	dev->ndev = ndev;
 
 	spin_lock_init(&dev->rx_info.lock);
@@ -2023,10 +2026,7 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev,
 		dev->tx_descs, (long)dev->tx_phy_descs,
 		dev->rx_info.descs, (long)dev->rx_info.phy_descs);
 
-	/* disable interrupts */
-	writel(0, dev->base + IMR);
-	writel(0, dev->base + IER);
-	readl(dev->base + IER);
+	ns83820_disable_interrupts(dev);
 
 	dev->IMR_cache = 0;
 
@@ -2250,9 +2250,7 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev,
 	return 0;
 
 out_cleanup:
-	writel(0, dev->base + IMR);	/* paranoia */
-	writel(0, dev->base + IER);
-	readl(dev->base + IER);
+	ns83820_disable_interrupts(dev); /* paranoia */
 out_free_irq:
 	rtnl_unlock();
 	free_irq(pci_dev->irq, ndev);
@@ -2277,9 +2275,7 @@ static void __devexit ns83820_remove_one(struct pci_dev *pci_dev)
 	if (!ndev)			/* paranoia */
 		return;
 
-	writel(0, dev->base + IMR);	/* paranoia */
-	writel(0, dev->base + IER);
-	readl(dev->base + IER);
+	ns83820_disable_interrupts(dev); /* paranoia */
 
 	unregister_netdev(ndev);
 	free_irq(dev->pci_dev->irq, ndev);

@@ -41,12 +41,12 @@ Bug reports etc
 ---------------
 
   Please send patches to the patch system.  For more information, see
-  http://www.arm.linux.org.uk/patches/info.html  Always include some
+  http://www.arm.linux.org.uk/developer/patches/info.php Always include some
   explanation as to what the patch does and why it is needed.
 
   Bug reports should be sent to linux-arm-kernel@lists.arm.linux.org.uk,
   or submitted through the web form at
-  http://www.arm.linux.org.uk/forms/solution.shtml
+  http://www.arm.linux.org.uk/developer/ 
 
   When sending bug reports, please ensure that they contain all relevant
   information, eg. the kernel messages that were printed before/during

@@ -26,20 +26,56 @@ enum balloon3_features {
 #define BALLOON3_FPGA_VIRT	(0xf1000000)	/* as per balloon2 */
 #define BALLOON3_FPGA_LENGTH	0x01000000
 
-/* FPGA/CPLD registers */
-#define BALLOON3_PCMCIA0_REG		(BALLOON3_FPGA_VIRT + 0x00e00008)
-/* fixme - same for now */
-#define BALLOON3_PCMCIA1_REG		(BALLOON3_FPGA_VIRT + 0x00e00008)
-#define BALLOON3_NANDIO_IO_REG		(BALLOON3_FPGA_VIRT + 0x00e00000)
+#define	BALLOON3_FPGA_SETnCLR		(0x1000)
+
+/* FPGA / CPLD registers for CF socket */
+#define	BALLOON3_CF_STATUS_REG		(BALLOON3_FPGA_VIRT + 0x00e00008)
+#define	BALLOON3_CF_CONTROL_REG		(BALLOON3_FPGA_VIRT + 0x00e00008)
+/* FPGA / CPLD version register */
+#define	BALLOON3_FPGA_VER		(BALLOON3_FPGA_VIRT + 0x00e0001c)
+/* FPGA / CPLD registers for NAND flash */
+#define	BALLOON3_NAND_BASE		(PXA_CS4_PHYS + 0x00e00000)
+#define	BALLOON3_NAND_IO_REG		(BALLOON3_FPGA_VIRT + 0x00e00000)
+#define	BALLOON3_NAND_CONTROL2_REG	(BALLOON3_FPGA_VIRT + 0x00e00010)
+#define	BALLOON3_NAND_STAT_REG		(BALLOON3_FPGA_VIRT + 0x00e00014)
+#define	BALLOON3_NAND_CONTROL_REG	(BALLOON3_FPGA_VIRT + 0x00e00014)
+
 /* fpga/cpld interrupt control register */
 #define BALLOON3_INT_CONTROL_REG	(BALLOON3_FPGA_VIRT + 0x00e0000C)
-#define BALLOON3_NANDIO_CTL2_REG 	(BALLOON3_FPGA_VIRT + 0x00e00010)
-#define BALLOON3_NANDIO_CTL_REG 	(BALLOON3_FPGA_VIRT + 0x00e00014)
 #define BALLOON3_VERSION_REG		(BALLOON3_FPGA_VIRT + 0x00e0001c)
 
 #define BALLOON3_SAMOSA_ADDR_REG	(BALLOON3_FPGA_VIRT + 0x00c00000)
 #define BALLOON3_SAMOSA_DATA_REG	(BALLOON3_FPGA_VIRT + 0x00c00004)
 #define BALLOON3_SAMOSA_STATUS_REG	(BALLOON3_FPGA_VIRT + 0x00c0001c)
+
+/* CF Status Register bits (read-only) bits */
+#define BALLOON3_CF_nIRQ		(1 << 0)
+#define BALLOON3_CF_nSTSCHG_BVD1	(1 << 1)
+
+/* CF Control Set Register bits / CF Control Clear Register bits (write-only) */
+#define BALLOON3_CF_RESET		(1 << 0)
+#define BALLOON3_CF_ENABLE		(1 << 1)
+#define BALLOON3_CF_ADD_ENABLE		(1 << 2)
+
+/* CF Interrupt sources */
+#define BALLOON3_BP_CF_NRDY_IRQ		BALLOON3_IRQ(0)
+#define BALLOON3_BP_NSTSCHG_IRQ		BALLOON3_IRQ(1)
+
+/* NAND Control register */
+#define	BALLOON3_NAND_CONTROL_FLWP	(1 << 7)
+#define	BALLOON3_NAND_CONTROL_FLSE	(1 << 6)
+#define	BALLOON3_NAND_CONTROL_FLCE3	(1 << 5)
+#define	BALLOON3_NAND_CONTROL_FLCE2	(1 << 4)
+#define	BALLOON3_NAND_CONTROL_FLCE1	(1 << 3)
+#define	BALLOON3_NAND_CONTROL_FLCE0	(1 << 2)
+#define	BALLOON3_NAND_CONTROL_FLALE	(1 << 1)
+#define	BALLOON3_NAND_CONTROL_FLCLE	(1 << 0)
+
+/* NAND Status register */
+#define	BALLOON3_NAND_STAT_RNB		(1 << 0)
+
+/* NAND Control2 register */
+#define	BALLOON3_NAND_CONTROL2_16BIT	(1 << 0)
 
 /* GPIOs for irqs */
 #define BALLOON3_GPIO_AUX_NIRQ		(94)
@@ -54,19 +90,23 @@ enum balloon3_features {
 
 #define BALLOON3_GPIO_S0_CD		(105)
 
+/* NAND */
+#define BALLOON3_GPIO_RUN_NAND		(102)
+
+/* PCF8574A Leds */
+#define	BALLOON3_PCF_GPIO_BASE		160
+#define	BALLOON3_PCF_GPIO_LED0		(BALLOON3_PCF_GPIO_BASE + 0)
+#define	BALLOON3_PCF_GPIO_LED1		(BALLOON3_PCF_GPIO_BASE + 1)
+#define	BALLOON3_PCF_GPIO_LED2		(BALLOON3_PCF_GPIO_BASE + 2)
+#define	BALLOON3_PCF_GPIO_LED3		(BALLOON3_PCF_GPIO_BASE + 3)
+#define	BALLOON3_PCF_GPIO_LED4		(BALLOON3_PCF_GPIO_BASE + 4)
+#define	BALLOON3_PCF_GPIO_LED5		(BALLOON3_PCF_GPIO_BASE + 5)
+#define	BALLOON3_PCF_GPIO_LED6		(BALLOON3_PCF_GPIO_BASE + 6)
+#define	BALLOON3_PCF_GPIO_LED7		(BALLOON3_PCF_GPIO_BASE + 7)
+
 /* FPGA Interrupt Mask/Acknowledge Register */
 #define BALLOON3_INT_S0_IRQ		(1 << 0)  /* PCMCIA 0 IRQ */
 #define BALLOON3_INT_S0_STSCHG		(1 << 1)  /* PCMCIA 0 status changed */
-
-/* CF Status Register */
-#define BALLOON3_PCMCIA_nIRQ		(1 << 0)  /* IRQ / ready signal */
-#define BALLOON3_PCMCIA_nSTSCHG_BVD1	(1 << 1)
-					/* VDD sense / card status changed */
-
-/* CF control register (write) */
-#define BALLOON3_PCMCIA_RESET		(1 << 0)   /* Card reset signal */
-#define BALLOON3_PCMCIA_ENABLE		(1 << 1)
-#define BALLOON3_PCMCIA_ADD_ENABLE	(1 << 2)
 
 /* CPLD (and FPGA) interface definitions */
 #define CPLD_LCD0_DATA_SET             0x00
@@ -132,12 +172,11 @@ enum balloon3_features {
 /* Balloon3 Interrupts */
 #define BALLOON3_IRQ(x)		(IRQ_BOARD_START + (x))
 
-#define BALLOON3_BP_CF_NRDY_IRQ	BALLOON3_IRQ(0)
-#define BALLOON3_BP_NSTSCHG_IRQ	BALLOON3_IRQ(1)
-
 #define BALLOON3_AUX_NIRQ	IRQ_GPIO(BALLOON3_GPIO_AUX_NIRQ)
 #define BALLOON3_CODEC_IRQ	IRQ_GPIO(BALLOON3_GPIO_CODEC_IRQ)
 #define BALLOON3_S0_CD_IRQ	IRQ_GPIO(BALLOON3_GPIO_S0_CD)
+
+#define BALLOON3_NR_IRQS	(IRQ_BOARD_START + 16)
 
 extern int balloon3_has(enum balloon3_features feature);
 

@@ -1,8 +1,0 @@
-if ARCH_MX25
-
-comment "MX25 platforms:"
-
-config MACH_MX25_3DS
-	bool "Support MX25PDK (3DS) Platform"
-
-endif

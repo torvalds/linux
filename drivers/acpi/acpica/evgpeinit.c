@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,10 +45,26 @@
 #include "accommon.h"
 #include "acevents.h"
 #include "acnamesp.h"
-#include "acinterp.h"
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evgpeinit")
+
+/*
+ * Note: History of _PRW support in ACPICA
+ *
+ * Originally (2000 - 2010), the GPE initialization code performed a walk of
+ * the entire namespace to execute the _PRW methods and detect all GPEs
+ * capable of waking the system.
+ *
+ * As of 10/2010, the _PRW method execution has been removed since it is
+ * actually unnecessary. The host OS must in fact execute all _PRW methods
+ * in order to identify the device/power-resource dependencies. We now put
+ * the onus on the host OS to identify the wake GPEs as part of this process
+ * and to inform ACPICA of these GPEs via the acpi_setup_gpe_for_wake interface. This
+ * not only reduces the complexity of the ACPICA initialization code, but in
+ * some cases (on systems with very large namespaces) it should reduce the
+ * kernel boot time as well.
+ */
 
 /*******************************************************************************
  *
@@ -210,10 +226,7 @@ acpi_status acpi_ev_gpe_initialize(void)
  *
  * DESCRIPTION: Check for new GPE methods (_Lxx/_Exx) made available as a
  *              result of a Load() or load_table() operation. If new GPE
- *              methods have been installed, register the new methods and
- *              enable and runtime GPEs that are associated with them. Also,
- *              run any newly loaded _PRW methods in order to discover any
- *              new CAN_WAKE GPEs.
+ *              methods have been installed, register the new methods.
  *
  ******************************************************************************/
 
@@ -223,49 +236,12 @@ void acpi_ev_update_gpes(acpi_owner_id table_owner_id)
 	struct acpi_gpe_block_info *gpe_block;
 	struct acpi_gpe_walk_info walk_info;
 	acpi_status status = AE_OK;
-	u32 new_wake_gpe_count = 0;
-
-	/* We will examine only _PRW/_Lxx/_Exx methods owned by this table */
-
-	walk_info.owner_id = table_owner_id;
-	walk_info.execute_by_owner_id = TRUE;
-	walk_info.count = 0;
-
-	if (acpi_gbl_leave_wake_gpes_disabled) {
-		/*
-		 * 1) Run any newly-loaded _PRW methods to find any GPEs that
-		 * can now be marked as CAN_WAKE GPEs. Note: We must run the
-		 * _PRW methods before we process the _Lxx/_Exx methods because
-		 * we will enable all runtime GPEs associated with the new
-		 * _Lxx/_Exx methods at the time we process those methods.
-		 *
-		 * Unlock interpreter so that we can run the _PRW methods.
-		 */
-		walk_info.gpe_block = NULL;
-		walk_info.gpe_device = NULL;
-
-		acpi_ex_exit_interpreter();
-
-		status =
-		    acpi_ns_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-					   ACPI_UINT32_MAX,
-					   ACPI_NS_WALK_NO_UNLOCK,
-					   acpi_ev_match_prw_and_gpe, NULL,
-					   &walk_info, NULL);
-		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status,
-					"While executing _PRW methods"));
-		}
-
-		acpi_ex_enter_interpreter();
-		new_wake_gpe_count = walk_info.count;
-	}
 
 	/*
-	 * 2) Find any _Lxx/_Exx GPE methods that have just been loaded.
+	 * Find any _Lxx/_Exx GPE methods that have just been loaded.
 	 *
-	 * Any GPEs that correspond to new _Lxx/_Exx methods and are not
-	 * marked as CAN_WAKE are immediately enabled.
+	 * Any GPEs that correspond to new _Lxx/_Exx methods are immediately
+	 * enabled.
 	 *
 	 * Examine the namespace underneath each gpe_device within the
 	 * gpe_block lists.
@@ -276,7 +252,8 @@ void acpi_ev_update_gpes(acpi_owner_id table_owner_id)
 	}
 
 	walk_info.count = 0;
-	walk_info.enable_this_gpe = TRUE;
+	walk_info.owner_id = table_owner_id;
+	walk_info.execute_by_owner_id = TRUE;
 
 	/* Walk the interrupt level descriptor list */
 
@@ -307,10 +284,8 @@ void acpi_ev_update_gpes(acpi_owner_id table_owner_id)
 		gpe_xrupt_info = gpe_xrupt_info->next;
 	}
 
-	if (walk_info.count || new_wake_gpe_count) {
-		ACPI_INFO((AE_INFO,
-			   "Enabled %u new runtime GPEs, added %u new wakeup GPEs",
-			   walk_info.count, new_wake_gpe_count));
+	if (walk_info.count) {
+		ACPI_INFO((AE_INFO, "Enabled %u new GPEs", walk_info.count));
 	}
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
@@ -339,9 +314,7 @@ void acpi_ev_update_gpes(acpi_owner_id table_owner_id)
  *                  xx     - is the GPE number [in HEX]
  *
  * If walk_info->execute_by_owner_id is TRUE, we only execute examine GPE methods
- *    with that owner.
- * If walk_info->enable_this_gpe is TRUE, the GPE that is referred to by a GPE
- *    method is immediately enabled (Used for Load/load_table operators)
+ * with that owner.
  *
  ******************************************************************************/
 
@@ -354,8 +327,6 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	struct acpi_gpe_walk_info *walk_info =
 	    ACPI_CAST_PTR(struct acpi_gpe_walk_info, context);
 	struct acpi_gpe_event_info *gpe_event_info;
-	struct acpi_namespace_node *gpe_device;
-	acpi_status status;
 	u32 gpe_number;
 	char name[ACPI_NAME_SIZE + 1];
 	u8 type;
@@ -386,9 +357,6 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	/*
 	 * 3) Edge/Level determination is based on the 2nd character
 	 *    of the method name
-	 *
-	 * NOTE: Default GPE type is RUNTIME only. Later, if a _PRW object is
-	 * found that points to this GPE, the ACPI_GPE_CAN_WAKE flag is set.
 	 */
 	switch (name[1]) {
 	case 'L':
@@ -456,198 +424,19 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 		return_ACPI_STATUS(AE_OK);
 	}
 
+	/* Disable the GPE in case it's been enabled already. */
+	(void)acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_DISABLE);
+
 	/*
 	 * Add the GPE information from above to the gpe_event_info block for
 	 * use during dispatch of this GPE.
 	 */
+	gpe_event_info->flags &= ~(ACPI_GPE_DISPATCH_MASK);
 	gpe_event_info->flags |= (u8)(type | ACPI_GPE_DISPATCH_METHOD);
 	gpe_event_info->dispatch.method_node = method_node;
-
-	/*
-	 * Enable this GPE if requested. This only happens when during the
-	 * execution of a Load or load_table operator. We have found a new
-	 * GPE method and want to immediately enable the GPE if it is a
-	 * runtime GPE.
-	 */
-	if (walk_info->enable_this_gpe) {
-
-		/* Ignore GPEs that can wake the system */
-
-		if (!(gpe_event_info->flags & ACPI_GPE_CAN_WAKE) ||
-		    !acpi_gbl_leave_wake_gpes_disabled) {
-			walk_info->count++;
-			gpe_device = walk_info->gpe_device;
-
-			if (gpe_device == acpi_gbl_fadt_gpe_device) {
-				gpe_device = NULL;
-			}
-
-			status = acpi_enable_gpe(gpe_device, gpe_number,
-						 ACPI_GPE_TYPE_RUNTIME);
-			if (ACPI_FAILURE(status)) {
-				ACPI_EXCEPTION((AE_INFO, status,
-						"Could not enable GPE 0x%02X",
-						gpe_number));
-			}
-		}
-	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
 			  "Registered GPE method %s as GPE number 0x%.2X\n",
 			  name, gpe_number));
-	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ev_match_prw_and_gpe
- *
- * PARAMETERS:  Callback from walk_namespace
- *
- * RETURN:      Status. NOTE: We ignore errors so that the _PRW walk is
- *              not aborted on a single _PRW failure.
- *
- * DESCRIPTION: Called from acpi_walk_namespace. Expects each object to be a
- *              Device. Run the _PRW method. If present, extract the GPE
- *              number and mark the GPE as a CAN_WAKE GPE. Allows a
- *              per-owner_id execution if execute_by_owner_id is TRUE in the
- *              walk_info parameter block.
- *
- * If walk_info->execute_by_owner_id is TRUE, we only execute _PRWs with that
- *    owner.
- * If walk_info->gpe_device is NULL, we execute every _PRW found. Otherwise,
- *    we only execute _PRWs that refer to the input gpe_device.
- *
- ******************************************************************************/
-
-acpi_status
-acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
-			  u32 level, void *context, void **return_value)
-{
-	struct acpi_gpe_walk_info *walk_info =
-	    ACPI_CAST_PTR(struct acpi_gpe_walk_info, context);
-	struct acpi_namespace_node *gpe_device;
-	struct acpi_gpe_block_info *gpe_block;
-	struct acpi_namespace_node *target_gpe_device;
-	struct acpi_namespace_node *prw_node;
-	struct acpi_gpe_event_info *gpe_event_info;
-	union acpi_operand_object *pkg_desc;
-	union acpi_operand_object *obj_desc;
-	u32 gpe_number;
-	acpi_status status;
-
-	ACPI_FUNCTION_TRACE(ev_match_prw_and_gpe);
-
-	/* Check for a _PRW method under this device */
-
-	status = acpi_ns_get_node(obj_handle, METHOD_NAME__PRW,
-				  ACPI_NS_NO_UPSEARCH, &prw_node);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(AE_OK);
-	}
-
-	/* Check if requested owner_id matches this owner_id */
-
-	if ((walk_info->execute_by_owner_id) &&
-	    (prw_node->owner_id != walk_info->owner_id)) {
-		return_ACPI_STATUS(AE_OK);
-	}
-
-	/* Execute the _PRW */
-
-	status = acpi_ut_evaluate_object(prw_node, NULL,
-					 ACPI_BTYPE_PACKAGE, &pkg_desc);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(AE_OK);
-	}
-
-	/* The returned _PRW package must have at least two elements */
-
-	if (pkg_desc->package.count < 2) {
-		goto cleanup;
-	}
-
-	/* Extract pointers from the input context */
-
-	gpe_device = walk_info->gpe_device;
-	gpe_block = walk_info->gpe_block;
-
-	/*
-	 * The _PRW object must return a package, we are only interested
-	 * in the first element
-	 */
-	obj_desc = pkg_desc->package.elements[0];
-
-	if (obj_desc->common.type == ACPI_TYPE_INTEGER) {
-
-		/* Use FADT-defined GPE device (from definition of _PRW) */
-
-		target_gpe_device = NULL;
-		if (gpe_device) {
-			target_gpe_device = acpi_gbl_fadt_gpe_device;
-		}
-
-		/* Integer is the GPE number in the FADT described GPE blocks */
-
-		gpe_number = (u32)obj_desc->integer.value;
-	} else if (obj_desc->common.type == ACPI_TYPE_PACKAGE) {
-
-		/* Package contains a GPE reference and GPE number within a GPE block */
-
-		if ((obj_desc->package.count < 2) ||
-		    ((obj_desc->package.elements[0])->common.type !=
-		     ACPI_TYPE_LOCAL_REFERENCE) ||
-		    ((obj_desc->package.elements[1])->common.type !=
-		     ACPI_TYPE_INTEGER)) {
-			goto cleanup;
-		}
-
-		/* Get GPE block reference and decode */
-
-		target_gpe_device =
-		    obj_desc->package.elements[0]->reference.node;
-		gpe_number = (u32)obj_desc->package.elements[1]->integer.value;
-	} else {
-		/* Unknown type, just ignore it */
-
-		goto cleanup;
-	}
-
-	/* Get the gpe_event_info for this GPE */
-
-	if (gpe_device) {
-		/*
-		 * Is this GPE within this block?
-		 *
-		 * TRUE if and only if these conditions are true:
-		 *     1) The GPE devices match.
-		 *     2) The GPE index(number) is within the range of the Gpe Block
-		 *          associated with the GPE device.
-		 */
-		if (gpe_device != target_gpe_device) {
-			goto cleanup;
-		}
-
-		gpe_event_info =
-		    acpi_ev_low_get_gpe_info(gpe_number, gpe_block);
-	} else {
-		/* gpe_device is NULL, just match the target_device and gpe_number */
-
-		gpe_event_info =
-		    acpi_ev_get_gpe_event_info(target_gpe_device, gpe_number);
-	}
-
-	if (gpe_event_info) {
-		if (!(gpe_event_info->flags & ACPI_GPE_CAN_WAKE)) {
-
-			/* This GPE can wake the system */
-
-			gpe_event_info->flags |= ACPI_GPE_CAN_WAKE;
-			walk_info->count++;
-		}
-	}
-
-      cleanup:
-	acpi_ut_remove_reference(pkg_desc);
 	return_ACPI_STATUS(AE_OK);
 }

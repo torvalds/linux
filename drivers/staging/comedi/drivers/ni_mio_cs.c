@@ -48,8 +48,6 @@ See the notes in the ni_atmio.o driver.
 #include "ni_stc.h"
 #include "8255.h"
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -123,7 +121,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .adbits = 12,
 	 .ai_fifo_depth = 1024,
 	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_16,
+	 .gainlkup = ai_gain_4,
 	 .ai_speed = 5000,
 	 .n_aochan = 2,
 	 .aobits = 12,
@@ -261,15 +259,9 @@ static void cs_release(struct pcmcia_device *link);
 static void cs_detach(struct pcmcia_device *);
 
 static struct pcmcia_device *cur_dev = NULL;
-static const dev_info_t dev_info = "ni_mio_cs";
 
 static int cs_attach(struct pcmcia_device *link)
 {
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	link->io.NumPorts1 = 16;
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-
 	cur_dev = link;
 
 	mio_cs_config(link);
@@ -303,21 +295,16 @@ static int mio_cs_resume(struct pcmcia_device *link)
 }
 
 
-static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cfg,
-				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
-				void *priv_data)
+static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int base, ret;
 
-	p_dev->io.NumPorts1 = cfg->io.win[0].len;
-	p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
-	p_dev->io.NumPorts2 = 0;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
 
 	for (base = 0x000; base < 0x400; base += 0x20) {
-		p_dev->io.BasePort1 = base;
-		ret = pcmcia_request_io(p_dev, &p_dev->io);
+		p_dev->resource[0]->start = base;
+		ret = pcmcia_request_io(p_dev);
 		if (!ret)
 			return 0;
 	}
@@ -330,6 +317,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	int ret;
 
 	DPRINTK("mio_cs_config(link=%p)\n", link);
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
 	if (ret) {
@@ -340,7 +328,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	if (!link->irq)
 		dev_info(&link->dev, "no IRQ available\n");
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 }
 
 static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -356,7 +344,7 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 
 	dev->driver = &driver_ni_mio_cs;
-	dev->iobase = link->io.BasePort1;
+	dev->iobase = link->resource[0]->start;
 
 	irq = link->irq;
 
@@ -449,9 +437,7 @@ struct pcmcia_driver ni_mio_cs_driver = {
 	.resume = &mio_cs_resume,
 	.id_table = ni_mio_cs_ids,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = dev_info,
-		},
+	.name = "ni_mio_cs",
 };
 
 int init_module(void)

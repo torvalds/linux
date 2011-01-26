@@ -48,6 +48,8 @@
  * be incorporated into the next SCTP release.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/poll.h>
@@ -172,7 +174,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
 		(unsigned long)sp->autoclose * HZ;
 
-	/* Initilizes the timers */
+	/* Initializes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i)
 		setup_timer(&asoc->timers[i], sctp_timer_events[i],
 				(unsigned long)asoc);

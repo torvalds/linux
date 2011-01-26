@@ -16,7 +16,7 @@
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
 #include <linux/console.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/io.h>
 #include <asm/prom.h>
@@ -46,7 +46,7 @@
 
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
-int boot_cpuid;
+int boot_cpuid = -1;
 EXPORT_SYMBOL_GPL(boot_cpuid);
 int boot_cpuid_phys;
 
@@ -241,39 +241,36 @@ int __init ppc_init(void)
 
 arch_initcall(ppc_init);
 
-#ifdef CONFIG_IRQSTACKS
 static void __init irqstack_early_init(void)
 {
 	unsigned int i;
 
 	/* interrupt stacks must be in lowmem, we get that for free on ppc32
-	 * as the lmb is limited to lowmem by LMB_REAL_LIMIT */
+	 * as the memblock is limited to lowmem by default */
 	for_each_possible_cpu(i) {
 		softirq_ctx[i] = (struct thread_info *)
-			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
 		hardirq_ctx[i] = (struct thread_info *)
-			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
 	}
 }
-#else
-#define irqstack_early_init()
-#endif
 
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 static void __init exc_lvl_early_init(void)
 {
-	unsigned int i;
+	unsigned int i, hw_cpu;
 
 	/* interrupt stacks must be in lowmem, we get that for free on ppc32
-	 * as the lmb is limited to lowmem by LMB_REAL_LIMIT */
+	 * as the memblock is limited to lowmem by MEMBLOCK_REAL_LIMIT */
 	for_each_possible_cpu(i) {
-		critirq_ctx[i] = (struct thread_info *)
-			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+		hw_cpu = get_hard_smp_processor_id(i);
+		critirq_ctx[hw_cpu] = (struct thread_info *)
+			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
 #ifdef CONFIG_BOOKE
-		dbgirq_ctx[i] = (struct thread_info *)
-			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
-		mcheckirq_ctx[i] = (struct thread_info *)
-			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+		dbgirq_ctx[hw_cpu] = (struct thread_info *)
+			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
+		mcheckirq_ctx[hw_cpu] = (struct thread_info *)
+			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
 #endif
 	}
 }

@@ -16,9 +16,7 @@
  */
 #define DRV_NAME  	"qlge"
 #define DRV_STRING 	"QLogic 10 Gigabit PCI-E Ethernet Driver "
-#define DRV_VERSION	"v1.00.00.23.00.00-01"
-
-#define PFX "qlge: "
+#define DRV_VERSION	"v1.00.00.27.00.00-01"
 
 #define WQ_ADDR_ALIGN	0x3	/* 4 byte alignment */
 
@@ -1062,7 +1060,7 @@ struct tx_buf_desc {
 #define TX_DESC_LEN_MASK	0x000fffff
 #define TX_DESC_C	0x40000000
 #define TX_DESC_E	0x80000000
-} __attribute((packed));
+} __packed;
 
 /*
  * IOCB Definitions...
@@ -1095,7 +1093,7 @@ struct ob_mac_iocb_req {
 	__le16 vlan_tci;
 	__le16 reserved4;
 	struct tx_buf_desc tbd[TX_DESC_PER_IOCB];
-} __attribute((packed));
+} __packed;
 
 struct ob_mac_iocb_rsp {
 	u8 opcode;		/* */
@@ -1112,7 +1110,7 @@ struct ob_mac_iocb_rsp {
 	u32 tid;
 	u32 txq_idx;
 	__le32 reserved[13];
-} __attribute((packed));
+} __packed;
 
 struct ob_mac_tso_iocb_req {
 	u8 opcode;
@@ -1140,7 +1138,7 @@ struct ob_mac_tso_iocb_req {
 	__le16 vlan_tci;
 	__le16 mss;
 	struct tx_buf_desc tbd[TX_DESC_PER_IOCB];
-} __attribute((packed));
+} __packed;
 
 struct ob_mac_tso_iocb_rsp {
 	u8 opcode;
@@ -1157,7 +1155,7 @@ struct ob_mac_tso_iocb_rsp {
 	u32 tid;
 	u32 txq_idx;
 	__le32 reserved2[13];
-} __attribute((packed));
+} __packed;
 
 struct ib_mac_iocb_rsp {
 	u8 opcode;		/* 0x20 */
@@ -1216,7 +1214,7 @@ struct ib_mac_iocb_rsp {
 #define IB_MAC_IOCB_RSP_HL	0x80
 	__le32 hdr_len;		/* */
 	__le64 hdr_addr;	/* */
-} __attribute((packed));
+} __packed;
 
 struct ib_ae_iocb_rsp {
 	u8 opcode;
@@ -1237,7 +1235,7 @@ struct ib_ae_iocb_rsp {
 #define PCI_ERR_ANON_BUF_RD        0x40
 	u8 q_id;
 	__le32 reserved[15];
-} __attribute((packed));
+} __packed;
 
 /*
  * These three structures are for generic
@@ -1249,7 +1247,7 @@ struct ql_net_rsp_iocb {
 	__le16 length;
 	__le32 tid;
 	__le32 reserved[14];
-} __attribute((packed));
+} __packed;
 
 struct net_req_iocb {
 	u8 opcode;
@@ -1257,7 +1255,7 @@ struct net_req_iocb {
 	__le16 flags1;
 	__le32 tid;
 	__le32 reserved1[30];
-} __attribute((packed));
+} __packed;
 
 /*
  * tx ring initialization control block for chip.
@@ -1283,7 +1281,7 @@ struct wqicb {
 	__le16 rid;
 	__le64 addr;
 	__le64 cnsmr_idx_addr;
-} __attribute((packed));
+} __packed;
 
 /*
  * rx ring initialization control block for chip.
@@ -1317,7 +1315,7 @@ struct cqicb {
 	__le64 sbq_addr;
 	__le16 sbq_buf_size;
 	__le16 sbq_len;		/* entry count */
-} __attribute((packed));
+} __packed;
 
 struct ricb {
 	u8 base_cq;
@@ -1335,7 +1333,7 @@ struct ricb {
 	u8 hash_cq_id[1024];
 	__le32 ipv6_hash_key[10];
 	__le32 ipv4_hash_key[4];
-} __attribute((packed));
+} __packed;
 
 /* SOFTWARE/DRIVER DATA STRUCTURES. */
 
@@ -2085,6 +2083,7 @@ struct ql_adapter {
 	u32 mailbox_in;
 	u32 mailbox_out;
 	struct mbox_params idc_mbc;
+	struct mutex	mpi_mutex;
 
 	int tx_ring_size;
 	int rx_ring_size;
@@ -2223,13 +2222,12 @@ int ql_write_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 data);
 int ql_unpause_mpi_risc(struct ql_adapter *qdev);
 int ql_pause_mpi_risc(struct ql_adapter *qdev);
 int ql_hard_reset_mpi_risc(struct ql_adapter *qdev);
+int ql_soft_reset_mpi_risc(struct ql_adapter *qdev);
 int ql_dump_risc_ram_area(struct ql_adapter *qdev, void *buf,
 		u32 ram_addr, int word_count);
 int ql_core_dump(struct ql_adapter *qdev,
 		struct ql_mpi_coredump *mpi_coredump);
-int ql_mb_sys_err(struct ql_adapter *qdev);
 int ql_mb_about_fw(struct ql_adapter *qdev);
-int ql_wol(struct ql_adapter *qdev);
 int ql_mb_wol_set_magic(struct ql_adapter *qdev, u32 enable_wol);
 int ql_mb_wol_mode(struct ql_adapter *qdev, u32 wol);
 int ql_mb_set_led_cfg(struct ql_adapter *qdev, u32 led_config);
@@ -2240,6 +2238,7 @@ int ql_mb_set_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 control);
 int ql_mb_get_port_cfg(struct ql_adapter *qdev);
 int ql_mb_set_port_cfg(struct ql_adapter *qdev);
 int ql_wait_fifo_empty(struct ql_adapter *qdev);
+void ql_get_dump(struct ql_adapter *qdev, void *buff);
 void ql_gen_reg_dump(struct ql_adapter *qdev,
 			struct ql_reg_dump *mpi_coredump);
 netdev_tx_t ql_lb_send(struct sk_buff *skb, struct net_device *ndev);
@@ -2247,14 +2246,12 @@ void ql_check_lb_frame(struct ql_adapter *, struct sk_buff *);
 int ql_own_firmware(struct ql_adapter *qdev);
 int ql_clean_lb_rx_ring(struct rx_ring *rx_ring, int budget);
 
-#if 1
-#define QL_ALL_DUMP
-#define QL_REG_DUMP
-#define QL_DEV_DUMP
-#define QL_CB_DUMP
+/* #define QL_ALL_DUMP */
+/* #define QL_REG_DUMP */
+/* #define QL_DEV_DUMP */
+/* #define QL_CB_DUMP */
 /* #define QL_IB_DUMP */
 /* #define QL_OB_DUMP */
-#endif
 
 #ifdef QL_REG_DUMP
 extern void ql_dump_xgmac_control_regs(struct ql_adapter *qdev);

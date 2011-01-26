@@ -133,8 +133,8 @@ static int ar9170_register_led(struct ar9170 *ar, int i, char *name,
 	err = led_classdev_register(wiphy_dev(ar->hw->wiphy),
 				    &ar->leds[i].l);
 	if (err)
-		printk(KERN_ERR "%s: failed to register %s LED (%d).\n",
-		       wiphy_name(ar->hw->wiphy), ar->leds[i].name, err);
+		wiphy_err(ar->hw->wiphy, "failed to register %s LED (%d).\n",
+			  ar->leds[i].name, err);
 	else
 		ar->leds[i].registered = true;
 

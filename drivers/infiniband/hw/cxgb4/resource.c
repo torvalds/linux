@@ -110,11 +110,12 @@ static int c4iw_init_qid_fifo(struct c4iw_rdev *rdev)
 
 	spin_lock_init(&rdev->resource.qid_fifo_lock);
 
-	if (kfifo_alloc(&rdev->resource.qid_fifo, T4_MAX_QIDS * sizeof(u32),
-			GFP_KERNEL))
+	if (kfifo_alloc(&rdev->resource.qid_fifo, rdev->lldi.vr->qp.size *
+			sizeof(u32), GFP_KERNEL))
 		return -ENOMEM;
 
-	for (i = T4_QID_BASE; i < T4_QID_BASE + T4_MAX_QIDS; i++)
+	for (i = rdev->lldi.vr->qp.start;
+	     i < rdev->lldi.vr->qp.start + rdev->lldi.vr->qp.size; i++)
 		if (!(i & rdev->qpmask))
 			kfifo_in(&rdev->resource.qid_fifo,
 				    (unsigned char *) &i, sizeof(u32));
@@ -310,6 +311,9 @@ u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size)
 {
 	unsigned long addr = gen_pool_alloc(rdev->pbl_pool, size);
 	PDBG("%s addr 0x%x size %d\n", __func__, (u32)addr, size);
+	if (!addr && printk_ratelimit())
+		printk(KERN_WARNING MOD "%s: Out of PBL memory\n",
+		       pci_name(rdev->lldi.pdev));
 	return (u32)addr;
 }
 
@@ -369,6 +373,9 @@ u32 c4iw_rqtpool_alloc(struct c4iw_rdev *rdev, int size)
 {
 	unsigned long addr = gen_pool_alloc(rdev->rqt_pool, size << 6);
 	PDBG("%s addr 0x%x size %d\n", __func__, (u32)addr, size << 6);
+	if (!addr && printk_ratelimit())
+		printk(KERN_WARNING MOD "%s: Out of RQT memory\n",
+		       pci_name(rdev->lldi.pdev));
 	return (u32)addr;
 }
 
@@ -414,4 +421,60 @@ int c4iw_rqtpool_create(struct c4iw_rdev *rdev)
 void c4iw_rqtpool_destroy(struct c4iw_rdev *rdev)
 {
 	gen_pool_destroy(rdev->rqt_pool);
+}
+
+/*
+ * On-Chip QP Memory.
+ */
+#define MIN_OCQP_SHIFT 12	/* 4KB == min ocqp size */
+
+u32 c4iw_ocqp_pool_alloc(struct c4iw_rdev *rdev, int size)
+{
+	unsigned long addr = gen_pool_alloc(rdev->ocqp_pool, size);
+	PDBG("%s addr 0x%x size %d\n", __func__, (u32)addr, size);
+	return (u32)addr;
+}
+
+void c4iw_ocqp_pool_free(struct c4iw_rdev *rdev, u32 addr, int size)
+{
+	PDBG("%s addr 0x%x size %d\n", __func__, addr, size);
+	gen_pool_free(rdev->ocqp_pool, (unsigned long)addr, size);
+}
+
+int c4iw_ocqp_pool_create(struct c4iw_rdev *rdev)
+{
+	unsigned start, chunk, top;
+
+	rdev->ocqp_pool = gen_pool_create(MIN_OCQP_SHIFT, -1);
+	if (!rdev->ocqp_pool)
+		return -ENOMEM;
+
+	start = rdev->lldi.vr->ocq.start;
+	chunk = rdev->lldi.vr->ocq.size;
+	top = start + chunk;
+
+	while (start < top) {
+		chunk = min(top - start + 1, chunk);
+		if (gen_pool_add(rdev->ocqp_pool, start, chunk, -1)) {
+			PDBG("%s failed to add OCQP chunk (%x/%x)\n",
+			     __func__, start, chunk);
+			if (chunk <= 1024 << MIN_OCQP_SHIFT) {
+				printk(KERN_WARNING MOD
+				       "Failed to add all OCQP chunks (%x/%x)\n",
+				       start, top - start);
+				return 0;
+			}
+			chunk >>= 1;
+		} else {
+			PDBG("%s added OCQP chunk (%x/%x)\n",
+			     __func__, start, chunk);
+			start += chunk;
+		}
+	}
+	return 0;
+}
+
+void c4iw_ocqp_pool_destroy(struct c4iw_rdev *rdev)
+{
+	gen_pool_destroy(rdev->ocqp_pool);
 }

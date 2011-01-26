@@ -65,7 +65,7 @@ hisax_findcard(int driverid)
 	return (struct IsdnCardState *) 0;
 }
 
-static void
+static __attribute__((format(printf, 3, 4))) void
 link_debug(struct Channel *chanp, int direction, char *fmt, ...)
 {
 	va_list args;
@@ -1068,7 +1068,7 @@ init_d_st(struct Channel *chanp)
 	return 0;
 }
 
-static void
+static __attribute__((format(printf, 2, 3))) void
 callc_debug(struct FsmInst *fi, char *fmt, ...)
 {
 	va_list args;
@@ -1172,7 +1172,7 @@ CallcFreeChan(struct IsdnCardState *csta)
 			kfree(csta->channel[i].b_st);
 			csta->channel[i].b_st = NULL;
 		} else
-			printk(KERN_WARNING "CallcFreeChan b_st ch%d allready freed\n", i);
+			printk(KERN_WARNING "CallcFreeChan b_st ch%d already freed\n", i);
 		if (i || test_bit(FLG_TWO_DCHAN, &csta->HW_Flags)) {
 			release_d_st(csta->channel + i);
 		} else

@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2009 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,11 +24,11 @@
 
 #include "saa7164.h"
 
-#define SAA7164_REV2_FIRMWARE		"v4l-saa7164-1.0.2.fw"
-#define SAA7164_REV2_FIRMWARE_SIZE	3978608
+#define SAA7164_REV2_FIRMWARE		"NXP7164-2010-03-10.1.fw"
+#define SAA7164_REV2_FIRMWARE_SIZE	4019072
 
-#define SAA7164_REV3_FIRMWARE		"v4l-saa7164-1.0.3.fw"
-#define SAA7164_REV3_FIRMWARE_SIZE	3978608
+#define SAA7164_REV3_FIRMWARE		"NXP7164-2010-03-10.1.fw"
+#define SAA7164_REV3_FIRMWARE_SIZE	4019072
 
 struct fw_header {
 	u32	firmwaresize;
@@ -178,7 +178,7 @@ int saa7164_downloadimage(struct saa7164_dev *dev, u8 *src, u32 srcsize,
 			goto out;
 		}
 
-		msleep(10);
+		msleep(10); /* Checkpatch throws a < 20ms warning */
 		if (timeout++ > 60)
 			break;
 	}
@@ -235,7 +235,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 		while (err_flags != SAA_DEVICE_IMAGE_BOOTING) {
 			dprintk(DBGLVL_FW, "%s() err_flags = %x\n",
 				__func__, err_flags);
-			msleep(10);
+			msleep(10); /* Checkpatch throws a < 20ms warning */
 
 			if (err_flags & SAA_DEVICE_IMAGE_CORRUPT) {
 				printk(KERN_ERR "%s() firmware corrupt\n",
@@ -294,7 +294,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 			while (err_flags != SAA_DEVICE_IMAGE_BOOTING) {
 				dprintk(DBGLVL_FW, "%s() err_flags2 = %x\n",
 					__func__, err_flags);
-				msleep(10);
+				msleep(10); /* Checkpatch throws a < 20ms warning */
 
 				if (err_flags & SAA_DEVICE_IMAGE_CORRUPT) {
 					printk(KERN_ERR
@@ -365,7 +365,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 
 			first_timeout = SAA_DEVICE_TIMEOUT;
 			while (first_timeout) {
-				msleep(10);
+				msleep(10); /* Checkpatch throws a < 20ms warning */
 
 				version =
 					saa7164_getcurrentfirmwareversion(dev);
@@ -604,11 +604,10 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 		}
 	}
 
+	dev->firmwareloaded = 1;
 	ret = 0;
 
 out:
-	if (fw)
-		release_firmware(fw);
-
+	release_firmware(fw);
 	return ret;
 }

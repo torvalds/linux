@@ -293,7 +293,7 @@ static void
 dt3155_buf_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
 	if (vb->state == VIDEOBUF_ACTIVE)
-		videobuf_waiton(vb, 0, 0); /* FIXME: cannot be interrupted */
+		videobuf_waiton(q, vb, 0, 0); /* FIXME: cannot be interrupted */
 	videobuf_dma_contig_free(q, vb);
 	vb->state = VIDEOBUF_NEEDS_INIT;
 }
@@ -440,7 +440,7 @@ dt3155_open(struct file *filp)
 		videobuf_queue_dma_contig_init(pd->vidq, &vbq_ops,
 				&pd->pdev->dev, &pd->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct videobuf_buffer), pd);
+				sizeof(struct videobuf_buffer), pd, NULL);
 		/* disable all irqs, clear all irq flags */
 		iowrite32(FLD_START | FLD_END_EVEN | FLD_END_ODD,
 						pd->regs + INT_CSR);
@@ -494,7 +494,7 @@ dt3155_release(struct file *filp)
 		tmp = pd->curr_buf;
 		spin_unlock_irqrestore(&pd->lock, flags);
 		if (tmp)
-			videobuf_waiton(tmp, 0, 1); /* block, interruptible */
+			videobuf_waiton(pd->vidq, tmp, 0, 1); /* block, interruptible */
 		dt3155_stop_acq(pd);
 		videobuf_stop(pd->vidq);
 		pd->acq_fp = NULL;
@@ -603,7 +603,7 @@ dt3155_ioc_streamoff(struct file *filp, void *p, enum v4l2_buf_type type)
 	tmp = pd->curr_buf;
 	spin_unlock_irqrestore(&pd->lock, flags);
 	if (tmp)
-		videobuf_waiton(tmp, 0, 1); /* block, interruptible */
+		videobuf_waiton(pd->vidq, tmp, 0, 1); /* block, interruptible */
 	return ret;
 }
 
@@ -876,9 +876,6 @@ static const struct v4l2_ioctl_ops dt3155_ioctl_ops = {
 	.vidioc_s_crop = dt3155_ioc_s_crop,
 	.vidioc_enum_framesizes = dt3155_ioc_enum_framesizes,
 	.vidioc_enum_frameintervals = dt3155_ioc_enum_frameintervals,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf = iocgmbuf,
-#endif
 */
 };
 
@@ -1008,6 +1005,8 @@ struct dma_coherent_mem {
 static int __devinit
 dt3155_alloc_coherent(struct device *dev, size_t size, int flags)
 {
+	struct dma_coherent_mem *mem;
+	dma_addr_t dev_base;
 	int pages = size >> PAGE_SHIFT;
 	int bitmap_size = BITS_TO_LONGS(pages) * sizeof(long);
 
@@ -1018,25 +1017,28 @@ dt3155_alloc_coherent(struct device *dev, size_t size, int flags)
 	if (dev->dma_mem)
 		goto out;
 
-	dev->dma_mem = kzalloc(sizeof(struct dma_coherent_mem), GFP_KERNEL);
-	if (!dev->dma_mem)
+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	if (!mem)
 		goto out;
-	dev->dma_mem->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-	if (!dev->dma_mem->bitmap)
+	mem->virt_base = dma_alloc_coherent(dev, size, &dev_base,
+							DT3155_COH_FLAGS);
+	if (!mem->virt_base)
+		goto err_alloc_coherent;
+	mem->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+	if (!mem->bitmap)
 		goto err_bitmap;
 
-	dev->dma_mem->virt_base = dma_alloc_coherent(dev, size,
-				&dev->dma_mem->device_base, DT3155_COH_FLAGS);
-	if (!dev->dma_mem->virt_base)
-		goto err_coherent;
-	dev->dma_mem->size = pages;
-	dev->dma_mem->flags = flags;
+	/* coherent_dma_mask is already set to 32 bits */
+	mem->device_base = dev_base;
+	mem->size = pages;
+	mem->flags = flags;
+	dev->dma_mem = mem;
 	return DMA_MEMORY_MAP;
 
-err_coherent:
-	kfree(dev->dma_mem->bitmap);
 err_bitmap:
-	kfree(dev->dma_mem);
+	dma_free_coherent(dev, size, mem->virt_base, dev_base);
+err_alloc_coherent:
+	kfree(mem);
 out:
 	return 0;
 }

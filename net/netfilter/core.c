@@ -27,7 +27,7 @@
 
 static DEFINE_MUTEX(afinfo_mutex);
 
-const struct nf_afinfo *nf_afinfo[NFPROTO_NUMPROTO] __read_mostly;
+const struct nf_afinfo __rcu *nf_afinfo[NFPROTO_NUMPROTO] __read_mostly;
 EXPORT_SYMBOL(nf_afinfo);
 
 int nf_register_afinfo(const struct nf_afinfo *afinfo)
@@ -105,10 +105,8 @@ EXPORT_SYMBOL(nf_register_hooks);
 
 void nf_unregister_hooks(struct nf_hook_ops *reg, unsigned int n)
 {
-	unsigned int i;
-
-	for (i = 0; i < n; i++)
-		nf_unregister_hook(&reg[i]);
+	while (n-- > 0)
+		nf_unregister_hook(&reg[n]);
 }
 EXPORT_SYMBOL(nf_unregister_hooks);
 
@@ -175,9 +173,11 @@ next_hook:
 			     outdev, &elem, okfn, hook_thresh);
 	if (verdict == NF_ACCEPT || verdict == NF_STOP) {
 		ret = 1;
-	} else if (verdict == NF_DROP) {
+	} else if ((verdict & NF_VERDICT_MASK) == NF_DROP) {
 		kfree_skb(skb);
-		ret = -EPERM;
+		ret = -(verdict >> NF_VERDICT_BITS);
+		if (ret == 0)
+			ret = -EPERM;
 	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
 		if (!nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
 			      verdict >> NF_VERDICT_BITS))

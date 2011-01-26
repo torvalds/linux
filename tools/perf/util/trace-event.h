@@ -233,7 +233,12 @@ static inline unsigned long long __data2host8(unsigned long long data)
 
 #define data2host2(ptr)		__data2host2(*(unsigned short *)ptr)
 #define data2host4(ptr)		__data2host4(*(unsigned int *)ptr)
-#define data2host8(ptr)		__data2host8(*(unsigned long long *)ptr)
+#define data2host8(ptr)		({				\
+	unsigned long long __val;				\
+								\
+	memcpy(&__val, (ptr), sizeof(unsigned long long));	\
+	__data2host8(__val);					\
+})
 
 extern int header_page_ts_offset;
 extern int header_page_ts_size;
@@ -257,9 +262,8 @@ raw_field_value(struct event *event, const char *name, void *data);
 void *raw_field_ptr(struct event *event, const char *name, void *data);
 unsigned long long eval_flag(const char *flag);
 
-int read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events);
-ssize_t read_tracing_data_size(int fd, struct perf_event_attr *pattrs,
-			       int nb_events);
+int read_tracing_data(int fd, struct list_head *pattrs);
+ssize_t read_tracing_data_size(int fd, struct list_head *pattrs);
 
 /* taken from kernel/trace/trace.h */
 enum trace_flag_type {

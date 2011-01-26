@@ -1467,7 +1467,7 @@ static int ablkcipher_add(unsigned int *drestp, struct scatterlist *dst,
 		return -EINVAL;
 
 	while (size) {
-		copy = min(drest, min(size, dst->length));
+		copy = min3(drest, size, dst->length);
 
 		size -= copy;
 		drest -= copy;
@@ -1729,7 +1729,7 @@ static int ablkcipher_get(void *saddr, unsigned int *srestp, unsigned int offset
 		return -EINVAL;
 
 	while (size) {
-		copy = min(srest, min(dst->length, size));
+		copy = min3(srest, dst->length, size);
 
 		daddr = kmap_atomic(sg_page(dst), KM_IRQ0);
 		memcpy(daddr + dst->offset + offset, saddr, copy);
@@ -2018,7 +2018,6 @@ static void hifn_flush(struct hifn_device *dev)
 {
 	unsigned long flags;
 	struct crypto_async_request *async_req;
-	struct hifn_context *ctx;
 	struct ablkcipher_request *req;
 	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
 	int i;
@@ -2035,7 +2034,6 @@ static void hifn_flush(struct hifn_device *dev)
 
 	spin_lock_irqsave(&dev->lock, flags);
 	while ((async_req = crypto_dequeue_request(&dev->queue))) {
-		ctx = crypto_tfm_ctx(async_req->tfm);
 		req = container_of(async_req, struct ablkcipher_request, base);
 		spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -2139,7 +2137,6 @@ static int hifn_setup_crypto_req(struct ablkcipher_request *req, u8 op,
 static int hifn_process_queue(struct hifn_device *dev)
 {
 	struct crypto_async_request *async_req, *backlog;
-	struct hifn_context *ctx;
 	struct ablkcipher_request *req;
 	unsigned long flags;
 	int err = 0;
@@ -2156,7 +2153,6 @@ static int hifn_process_queue(struct hifn_device *dev)
 		if (backlog)
 			backlog->complete(backlog, -EINPROGRESS);
 
-		ctx = crypto_tfm_ctx(async_req->tfm);
 		req = container_of(async_req, struct ablkcipher_request, base);
 
 		err = hifn_handle_req(req);
@@ -2704,8 +2700,7 @@ static void __devexit hifn_remove(struct pci_dev *pdev)
 	dev = pci_get_drvdata(pdev);
 
 	if (dev) {
-		cancel_delayed_work(&dev->work);
-		flush_scheduled_work();
+		cancel_delayed_work_sync(&dev->work);
 
 		hifn_unregister_rng(dev);
 		hifn_unregister_alg(dev);

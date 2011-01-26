@@ -155,7 +155,7 @@ static int max8649_get_voltage(struct regulator_dev *rdev)
 }
 
 static int max8649_set_voltage(struct regulator_dev *rdev,
-			       int min_uV, int max_uV)
+			       int min_uV, int max_uV, unsigned *selector)
 {
 	struct max8649_regulator_info *info = rdev_get_drvdata(rdev);
 	unsigned char data, mask;
@@ -168,6 +168,7 @@ static int max8649_set_voltage(struct regulator_dev *rdev,
 	data = (min_uV - MAX8649_DCDC_VMIN + MAX8649_DCDC_STEP - 1)
 		/ MAX8649_DCDC_STEP;
 	mask = MAX8649_VOL_MASK;
+	*selector = data & mask;
 
 	return max8649_set_bits(info->i2c, info->vol_reg, mask, data);
 }
@@ -330,7 +331,7 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 		/* set external clock frequency */
 		info->extclk_freq = pdata->extclk_freq;
 		max8649_set_bits(info->i2c, MAX8649_SYNC, MAX8649_EXT_MASK,
-				 info->extclk_freq);
+				 info->extclk_freq << 6);
 	}
 
 	if (pdata->ramp_timing) {
@@ -357,7 +358,6 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 	dev_info(info->dev, "Max8649 regulator device is detected.\n");
 	return 0;
 out:
-	i2c_set_clientdata(client, NULL);
 	kfree(info);
 	return ret;
 }
@@ -369,7 +369,6 @@ static int __devexit max8649_regulator_remove(struct i2c_client *client)
 	if (info) {
 		if (info->regulator)
 			regulator_unregister(info->regulator);
-		i2c_set_clientdata(client, NULL);
 		kfree(info);
 	}
 

@@ -18,6 +18,8 @@
  * any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
@@ -141,8 +143,8 @@ static void wacom_poke(struct hid_device *hdev, u8 speed)
 	 * Note that if the raw queries fail, it's not a hard failure and it
 	 * is safe to continue
 	 */
-	dev_warn(&hdev->dev, "failed to poke device, command %d, err %d\n",
-				rep_data[0], ret);
+	hid_warn(hdev, "failed to poke device, command %d, err %d\n",
+		 rep_data[0], ret);
 	return;
 }
 
@@ -172,7 +174,7 @@ static ssize_t wacom_store_speed(struct device *dev,
 		return -EINVAL;
 }
 
-static DEVICE_ATTR(speed, S_IRUGO | S_IWUGO,
+static DEVICE_ATTR(speed, S_IRUGO | S_IWUSR | S_IWGRP,
 		wacom_show_speed, wacom_store_speed);
 
 static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
@@ -230,7 +232,7 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 				input_report_key(input, BTN_RIGHT, 0);
 				input_report_key(input, BTN_MIDDLE, 0);
 				input_report_abs(input, ABS_DISTANCE,
-						input->absmax[ABS_DISTANCE]);
+					input_abs_get_max(input, ABS_DISTANCE));
 			} else {
 				input_report_key(input, BTN_TOUCH, 0);
 				input_report_key(input, BTN_STYLUS, 0);
@@ -312,7 +314,7 @@ static int wacom_probe(struct hid_device *hdev,
 
 	wdata = kzalloc(sizeof(*wdata), GFP_KERNEL);
 	if (wdata == NULL) {
-		dev_err(&hdev->dev, "can't alloc wacom descriptor\n");
+		hid_err(hdev, "can't alloc wacom descriptor\n");
 		return -ENOMEM;
 	}
 
@@ -321,20 +323,20 @@ static int wacom_probe(struct hid_device *hdev,
 	/* Parse the HID report now */
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err_free;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err_free;
 	}
 
 	ret = device_create_file(&hdev->dev, &dev_attr_speed);
 	if (ret)
-		dev_warn(&hdev->dev,
-			"can't create sysfs speed attribute err: %d\n", ret);
+		hid_warn(hdev,
+			 "can't create sysfs speed attribute err: %d\n", ret);
 
 	/* Set Wacom mode 2 with high reporting speed */
 	wacom_poke(hdev, 1);
@@ -349,8 +351,8 @@ static int wacom_probe(struct hid_device *hdev,
 
 	ret = power_supply_register(&hdev->dev, &wdata->battery);
 	if (ret) {
-		dev_warn(&hdev->dev,
-			"can't create sysfs battery attribute, err: %d\n", ret);
+		hid_warn(hdev, "can't create sysfs battery attribute, err: %d\n",
+			 ret);
 		/*
 		 * battery attribute is not critical for the tablet, but if it
 		 * failed then there is no need to create ac attribute
@@ -367,8 +369,8 @@ static int wacom_probe(struct hid_device *hdev,
 
 	ret = power_supply_register(&hdev->dev, &wdata->ac);
 	if (ret) {
-		dev_warn(&hdev->dev,
-			"can't create ac battery attribute, err: %d\n", ret);
+		hid_warn(hdev,
+			 "can't create ac battery attribute, err: %d\n", ret);
 		/*
 		 * ac attribute is not critical for the tablet, but if it
 		 * failed then we don't want to battery attribute to exist
@@ -383,38 +385,37 @@ move_on:
 
 	/* Basics */
 	input->evbit[0] |= BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_REL);
-	input->absbit[0] |= BIT(ABS_X) | BIT(ABS_Y) |
-		BIT(ABS_PRESSURE) | BIT(ABS_DISTANCE);
-	input->relbit[0] |= BIT(REL_WHEEL);
-	set_bit(BTN_TOOL_PEN, input->keybit);
-	set_bit(BTN_TOUCH, input->keybit);
-	set_bit(BTN_STYLUS, input->keybit);
-	set_bit(BTN_STYLUS2, input->keybit);
-	set_bit(BTN_LEFT, input->keybit);
-	set_bit(BTN_RIGHT, input->keybit);
-	set_bit(BTN_MIDDLE, input->keybit);
+
+	__set_bit(REL_WHEEL, input->relbit);
+
+	__set_bit(BTN_TOOL_PEN, input->keybit);
+	__set_bit(BTN_TOUCH, input->keybit);
+	__set_bit(BTN_STYLUS, input->keybit);
+	__set_bit(BTN_STYLUS2, input->keybit);
+	__set_bit(BTN_LEFT, input->keybit);
+	__set_bit(BTN_RIGHT, input->keybit);
+	__set_bit(BTN_MIDDLE, input->keybit);
 
 	/* Pad */
 	input->evbit[0] |= BIT(EV_MSC);
-	input->mscbit[0] |= BIT(MSC_SERIAL);
-	set_bit(BTN_0, input->keybit);
-	set_bit(BTN_1, input->keybit);
-	set_bit(BTN_TOOL_FINGER, input->keybit);
+
+	__set_bit(MSC_SERIAL, input->mscbit);
+
+	__set_bit(BTN_0, input->keybit);
+	__set_bit(BTN_1, input->keybit);
+	__set_bit(BTN_TOOL_FINGER, input->keybit);
 
 	/* Distance, rubber and mouse */
-	input->absbit[0] |= BIT(ABS_DISTANCE);
-	set_bit(BTN_TOOL_RUBBER, input->keybit);
-	set_bit(BTN_TOOL_MOUSE, input->keybit);
+	__set_bit(BTN_TOOL_RUBBER, input->keybit);
+	__set_bit(BTN_TOOL_MOUSE, input->keybit);
 
-	input->absmax[ABS_PRESSURE] = 511;
-	input->absmax[ABS_DISTANCE] = 32;
-
-	input->absmax[ABS_X] = 16704;
-	input->absmax[ABS_Y] = 12064;
-	input->absfuzz[ABS_X] = 4;
-	input->absfuzz[ABS_Y] = 4;
+	input_set_abs_params(input, ABS_X, 0, 16704, 4, 0);
+	input_set_abs_params(input, ABS_Y, 0, 12064, 4, 0);
+	input_set_abs_params(input, ABS_PRESSURE, 0, 511, 0, 0);
+	input_set_abs_params(input, ABS_DISTANCE, 0, 32, 0, 0);
 
 	return 0;
+
 err_free:
 	kfree(wdata);
 	return ret;
@@ -436,7 +437,7 @@ static void wacom_remove(struct hid_device *hdev)
 
 static const struct hid_device_id wacom_devices[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_GRAPHIRE_BLUETOOTH) },
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_INTUOS4_BLUETOOTH) },
+
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, wacom_devices);
@@ -455,7 +456,7 @@ static int __init wacom_init(void)
 
 	ret = hid_register_driver(&wacom_driver);
 	if (ret)
-		printk(KERN_ERR "can't register wacom driver\n");
+		pr_err("can't register wacom driver\n");
 	return ret;
 }
 

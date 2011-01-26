@@ -72,6 +72,7 @@ static struct event_constraint intel_westmere_event_constraints[] =
 	INTEL_EVENT_CONSTRAINT(0x51, 0x3), /* L1D */
 	INTEL_EVENT_CONSTRAINT(0x60, 0x1), /* OFFCORE_REQUESTS_OUTSTANDING */
 	INTEL_EVENT_CONSTRAINT(0x63, 0x3), /* CACHE_LOCK_CYCLES */
+	INTEL_EVENT_CONSTRAINT(0xb3, 0x1), /* SNOOPQ_REQUEST_OUTSTANDING */
 	EVENT_CONSTRAINT_END
 };
 
@@ -490,33 +491,78 @@ static void intel_pmu_enable_all(int added)
  *   Intel Errata AAP53  (model 30)
  *   Intel Errata BD53   (model 44)
  *
- * These chips need to be 'reset' when adding counters by programming
- * the magic three (non counting) events 0x4300D2, 0x4300B1 and 0x4300B5
- * either in sequence on the same PMC or on different PMCs.
+ * The official story:
+ *   These chips need to be 'reset' when adding counters by programming the
+ *   magic three (non-counting) events 0x4300B5, 0x4300D2, and 0x4300B1 either
+ *   in sequence on the same PMC or on different PMCs.
+ *
+ * In practise it appears some of these events do in fact count, and
+ * we need to programm all 4 events.
  */
+static void intel_pmu_nhm_workaround(void)
+{
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	static const unsigned long nhm_magic[4] = {
+		0x4300B5,
+		0x4300D2,
+		0x4300B1,
+		0x4300B1
+	};
+	struct perf_event *event;
+	int i;
+
+	/*
+	 * The Errata requires below steps:
+	 * 1) Clear MSR_IA32_PEBS_ENABLE and MSR_CORE_PERF_GLOBAL_CTRL;
+	 * 2) Configure 4 PERFEVTSELx with the magic events and clear
+	 *    the corresponding PMCx;
+	 * 3) set bit0~bit3 of MSR_CORE_PERF_GLOBAL_CTRL;
+	 * 4) Clear MSR_CORE_PERF_GLOBAL_CTRL;
+	 * 5) Clear 4 pairs of ERFEVTSELx and PMCx;
+	 */
+
+	/*
+	 * The real steps we choose are a little different from above.
+	 * A) To reduce MSR operations, we don't run step 1) as they
+	 *    are already cleared before this function is called;
+	 * B) Call x86_perf_event_update to save PMCx before configuring
+	 *    PERFEVTSELx with magic number;
+	 * C) With step 5), we do clear only when the PERFEVTSELx is
+	 *    not used currently.
+	 * D) Call x86_perf_event_set_period to restore PMCx;
+	 */
+
+	/* We always operate 4 pairs of PERF Counters */
+	for (i = 0; i < 4; i++) {
+		event = cpuc->events[i];
+		if (event)
+			x86_perf_event_update(event);
+	}
+
+	for (i = 0; i < 4; i++) {
+		wrmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + i, nhm_magic[i]);
+		wrmsrl(MSR_ARCH_PERFMON_PERFCTR0 + i, 0x0);
+	}
+
+	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0xf);
+	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0x0);
+
+	for (i = 0; i < 4; i++) {
+		event = cpuc->events[i];
+
+		if (event) {
+			x86_perf_event_set_period(event);
+			__x86_pmu_enable_event(&event->hw,
+					ARCH_PERFMON_EVENTSEL_ENABLE);
+		} else
+			wrmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + i, 0x0);
+	}
+}
+
 static void intel_pmu_nhm_enable_all(int added)
 {
-	if (added) {
-		struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-		int i;
-
-		wrmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + 0, 0x4300D2);
-		wrmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + 1, 0x4300B1);
-		wrmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + 2, 0x4300B5);
-
-		wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0x3);
-		wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0x0);
-
-		for (i = 0; i < 3; i++) {
-			struct perf_event *event = cpuc->events[i];
-
-			if (!event)
-				continue;
-
-			__x86_pmu_enable_event(&event->hw,
-					       ARCH_PERFMON_EVENTSEL_ENABLE);
-		}
-	}
+	if (added)
+		intel_pmu_nhm_workaround();
 	intel_pmu_enable_all(added);
 }
 
@@ -603,7 +649,7 @@ static void intel_pmu_enable_event(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 
 	if (unlikely(hwc->idx == X86_PMC_IDX_FIXED_BTS)) {
-		if (!__get_cpu_var(cpu_hw_events).enabled)
+		if (!__this_cpu_read(cpu_hw_events.enabled))
 			return;
 
 		intel_pmu_enable_bts(hwc->config);
@@ -633,7 +679,7 @@ static int intel_pmu_save_and_restart(struct perf_event *event)
 
 static void intel_pmu_reset(void)
 {
-	struct debug_store *ds = __get_cpu_var(cpu_hw_events).ds;
+	struct debug_store *ds = __this_cpu_read(cpu_hw_events.ds);
 	unsigned long flags;
 	int idx;
 
@@ -666,22 +712,24 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	struct perf_sample_data data;
 	struct cpu_hw_events *cpuc;
 	int bit, loops;
-	u64 ack, status;
+	u64 status;
+	int handled;
 
 	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
 	intel_pmu_disable_all();
-	intel_pmu_drain_bts_buffer();
+	handled = intel_pmu_drain_bts_buffer();
 	status = intel_pmu_get_status();
 	if (!status) {
 		intel_pmu_enable_all(0);
-		return 0;
+		return handled;
 	}
 
 	loops = 0;
 again:
+	intel_pmu_ack_status(status);
 	if (++loops > 100) {
 		WARN_ONCE(1, "perfevents: irq loop stuck!\n");
 		perf_event_print_debug();
@@ -690,18 +738,21 @@ again:
 	}
 
 	inc_irq_stat(apic_perf_irqs);
-	ack = status;
 
 	intel_pmu_lbr_read();
 
 	/*
 	 * PEBS overflow sets bit 62 in the global status register
 	 */
-	if (__test_and_clear_bit(62, (unsigned long *)&status))
+	if (__test_and_clear_bit(62, (unsigned long *)&status)) {
+		handled++;
 		x86_pmu.drain_pebs(regs);
+	}
 
 	for_each_set_bit(bit, (unsigned long *)&status, X86_PMC_IDX_MAX) {
 		struct perf_event *event = cpuc->events[bit];
+
+		handled++;
 
 		if (!test_bit(bit, cpuc->active_mask))
 			continue;
@@ -712,10 +763,8 @@ again:
 		data.period = event->hw.last_period;
 
 		if (perf_event_overflow(event, 1, &data, regs))
-			x86_pmu_stop(event);
+			x86_pmu_stop(event, 0);
 	}
-
-	intel_pmu_ack_status(ack);
 
 	/*
 	 * Repeat if there is more work to be done:
@@ -726,7 +775,7 @@ again:
 
 done:
 	intel_pmu_enable_all(0);
-	return 1;
+	return handled;
 }
 
 static struct event_constraint *
@@ -766,6 +815,32 @@ static int intel_pmu_hw_config(struct perf_event *event)
 
 	if (ret)
 		return ret;
+
+	if (event->attr.precise_ip &&
+	    (event->hw.config & X86_RAW_EVENT_MASK) == 0x003c) {
+		/*
+		 * Use an alternative encoding for CPU_CLK_UNHALTED.THREAD_P
+		 * (0x003c) so that we can use it with PEBS.
+		 *
+		 * The regular CPU_CLK_UNHALTED.THREAD_P event (0x003c) isn't
+		 * PEBS capable. However we can use INST_RETIRED.ANY_P
+		 * (0x00c0), which is a PEBS capable event, to get the same
+		 * count.
+		 *
+		 * INST_RETIRED.ANY_P counts the number of cycles that retires
+		 * CNTMASK instructions. By setting CNTMASK to a value (16)
+		 * larger than the maximum number of instructions that can be
+		 * retired per cycle (4) and then inverting the condition, we
+		 * count all cycles that retire 16 or less instructions, which
+		 * is every cycle.
+		 *
+		 * Thereby we gain a PEBS capable cycle counter.
+		 */
+		u64 alt_config = 0x108000c0; /* INST_RETIRED.TOTAL_CYCLES */
+
+		alt_config |= (event->hw.config & ~X86_RAW_EVENT_MASK);
+		event->hw.config = alt_config;
+	}
 
 	if (event->attr.type != PERF_TYPE_RAW)
 		return 0;

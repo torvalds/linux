@@ -15,7 +15,6 @@
 #include "net_driver.h"
 #include "mdio_10g.h"
 #include "workarounds.h"
-#include "nic.h"
 
 unsigned efx_mdio_id_oui(u32 id)
 {
@@ -63,7 +62,8 @@ static int efx_mdio_check_mmd(struct efx_nic *efx, int mmd, int fault_fatal)
 		/* Read MMD STATUS2 to check it is responding. */
 		status = efx_mdio_read(efx, mmd, MDIO_STAT2);
 		if ((status & MDIO_STAT2_DEVPRST) != MDIO_STAT2_DEVPRST_VAL) {
-			EFX_ERR(efx, "PHY MMD %d not responding.\n", mmd);
+			netif_err(efx, hw, efx->net_dev,
+				  "PHY MMD %d not responding.\n", mmd);
 			return -EIO;
 		}
 	}
@@ -72,12 +72,14 @@ static int efx_mdio_check_mmd(struct efx_nic *efx, int mmd, int fault_fatal)
 	status = efx_mdio_read(efx, mmd, MDIO_STAT1);
 	if (status & MDIO_STAT1_FAULT) {
 		if (fault_fatal) {
-			EFX_ERR(efx, "PHY MMD %d reporting fatal"
-				" fault: status %x\n", mmd, status);
+			netif_err(efx, hw, efx->net_dev,
+				  "PHY MMD %d reporting fatal"
+				  " fault: status %x\n", mmd, status);
 			return -EIO;
 		} else {
-			EFX_LOG(efx, "PHY MMD %d reporting status"
-				" %x (expected)\n", mmd, status);
+			netif_dbg(efx, hw, efx->net_dev,
+				  "PHY MMD %d reporting status"
+				  " %x (expected)\n", mmd, status);
 		}
 	}
 	return 0;
@@ -103,8 +105,9 @@ int efx_mdio_wait_reset_mmds(struct efx_nic *efx, unsigned int mmd_mask)
 			if (mask & 1) {
 				stat = efx_mdio_read(efx, mmd, MDIO_CTRL1);
 				if (stat < 0) {
-					EFX_ERR(efx, "failed to read status of"
-						" MMD %d\n", mmd);
+					netif_err(efx, hw, efx->net_dev,
+						  "failed to read status of"
+						  " MMD %d\n", mmd);
 					return -EIO;
 				}
 				if (stat & MDIO_CTRL1_RESET)
@@ -119,8 +122,9 @@ int efx_mdio_wait_reset_mmds(struct efx_nic *efx, unsigned int mmd_mask)
 		msleep(spintime);
 	}
 	if (in_reset != 0) {
-		EFX_ERR(efx, "not all MMDs came out of reset in time."
-			" MMDs still in reset: %x\n", in_reset);
+		netif_err(efx, hw, efx->net_dev,
+			  "not all MMDs came out of reset in time."
+			  " MMDs still in reset: %x\n", in_reset);
 		rc = -ETIMEDOUT;
 	}
 	return rc;
@@ -142,16 +146,18 @@ int efx_mdio_check_mmds(struct efx_nic *efx,
 	devs1 = efx_mdio_read(efx, probe_mmd, MDIO_DEVS1);
 	devs2 = efx_mdio_read(efx, probe_mmd, MDIO_DEVS2);
 	if (devs1 < 0 || devs2 < 0) {
-		EFX_ERR(efx, "failed to read devices present\n");
+		netif_err(efx, hw, efx->net_dev,
+			  "failed to read devices present\n");
 		return -EIO;
 	}
 	devices = devs1 | (devs2 << 16);
 	if ((devices & mmd_mask) != mmd_mask) {
-		EFX_ERR(efx, "required MMDs not present: got %x, "
-			"wanted %x\n", devices, mmd_mask);
+		netif_err(efx, hw, efx->net_dev,
+			  "required MMDs not present: got %x, wanted %x\n",
+			  devices, mmd_mask);
 		return -ENODEV;
 	}
-	EFX_TRACE(efx, "Devices present: %x\n", devices);
+	netif_vdbg(efx, hw, efx->net_dev, "Devices present: %x\n", devices);
 
 	/* Check all required MMDs are responding and happy. */
 	while (mmd_mask) {
@@ -219,7 +225,7 @@ static void efx_mdio_set_mmd_lpower(struct efx_nic *efx,
 {
 	int stat = efx_mdio_read(efx, mmd, MDIO_STAT1);
 
-	EFX_TRACE(efx, "Setting low power mode for MMD %d to %d\n",
+	netif_vdbg(efx, drv, efx->net_dev, "Setting low power mode for MMD %d to %d\n",
 		  mmd, lpower);
 
 	if (stat & MDIO_STAT1_LPOWERABLE) {
@@ -279,46 +285,24 @@ int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
  */
 void efx_mdio_an_reconfigure(struct efx_nic *efx)
 {
-	bool xnp = (efx->link_advertising & ADVERTISED_10000baseT_Full
-		    || EFX_WORKAROUND_13204(efx));
 	int reg;
 
 	WARN_ON(!(efx->mdio.mmds & MDIO_DEVS_AN));
 
 	/* Set up the base page */
-	reg = ADVERTISE_CSMA;
-	if (efx->link_advertising & ADVERTISED_10baseT_Half)
-		reg |= ADVERTISE_10HALF;
-	if (efx->link_advertising & ADVERTISED_10baseT_Full)
-		reg |= ADVERTISE_10FULL;
-	if (efx->link_advertising & ADVERTISED_100baseT_Half)
-		reg |= ADVERTISE_100HALF;
-	if (efx->link_advertising & ADVERTISED_100baseT_Full)
-		reg |= ADVERTISE_100FULL;
-	if (xnp)
-		reg |= ADVERTISE_RESV;
-	else if (efx->link_advertising & (ADVERTISED_1000baseT_Half |
-					  ADVERTISED_1000baseT_Full))
-		reg |= ADVERTISE_NPAGE;
+	reg = ADVERTISE_CSMA | ADVERTISE_RESV;
 	if (efx->link_advertising & ADVERTISED_Pause)
 		reg |= ADVERTISE_PAUSE_CAP;
 	if (efx->link_advertising & ADVERTISED_Asym_Pause)
 		reg |= ADVERTISE_PAUSE_ASYM;
 	efx_mdio_write(efx, MDIO_MMD_AN, MDIO_AN_ADVERTISE, reg);
 
-	/* Set up the (extended) next page if necessary */
-	if (efx->phy_op->set_npage_adv)
-		efx->phy_op->set_npage_adv(efx, efx->link_advertising);
+	/* Set up the (extended) next page */
+	efx->phy_op->set_npage_adv(efx, efx->link_advertising);
 
 	/* Enable and restart AN */
 	reg = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_CTRL1);
-	reg |= MDIO_AN_CTRL1_ENABLE;
-	if (!(EFX_WORKAROUND_15195(efx) && LOOPBACK_EXTERNAL(efx)))
-		reg |= MDIO_AN_CTRL1_RESTART;
-	if (xnp)
-		reg |= MDIO_AN_CTRL1_XNP;
-	else
-		reg &= ~MDIO_AN_CTRL1_XNP;
+	reg |= MDIO_AN_CTRL1_ENABLE | MDIO_AN_CTRL1_RESTART | MDIO_AN_CTRL1_XNP;
 	efx_mdio_write(efx, MDIO_MMD_AN, MDIO_CTRL1, reg);
 }
 
@@ -349,8 +333,8 @@ int efx_mdio_test_alive(struct efx_nic *efx)
 
 	if ((physid1 == 0x0000) || (physid1 == 0xffff) ||
 	    (physid2 == 0x0000) || (physid2 == 0xffff)) {
-		EFX_ERR(efx, "no MDIO PHY present with ID %d\n",
-			efx->mdio.prtad);
+		netif_err(efx, hw, efx->net_dev,
+			  "no MDIO PHY present with ID %d\n", efx->mdio.prtad);
 		rc = -EINVAL;
 	} else {
 		rc = efx_mdio_check_mmds(efx, efx->mdio.mmds, 0);

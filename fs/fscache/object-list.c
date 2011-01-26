@@ -34,8 +34,8 @@ struct fscache_objlist_data {
 #define FSCACHE_OBJLIST_CONFIG_NOREADS	0x00000200	/* show objects without active reads */
 #define FSCACHE_OBJLIST_CONFIG_EVENTS	0x00000400	/* show objects with events */
 #define FSCACHE_OBJLIST_CONFIG_NOEVENTS	0x00000800	/* show objects without no events */
-#define FSCACHE_OBJLIST_CONFIG_WORK	0x00001000	/* show objects with slow work */
-#define FSCACHE_OBJLIST_CONFIG_NOWORK	0x00002000	/* show objects without slow work */
+#define FSCACHE_OBJLIST_CONFIG_WORK	0x00001000	/* show objects with work */
+#define FSCACHE_OBJLIST_CONFIG_NOWORK	0x00002000	/* show objects without work */
 
 	u8		buf[512];	/* key and aux data buffer */
 };
@@ -103,7 +103,7 @@ static struct fscache_object *fscache_objlist_lookup(loff_t *_pos)
 	/* banners (can't represent line 0 by pos 0 as that would involve
 	 * returning a NULL pointer) */
 	if (pos == 0)
-		return (struct fscache_object *) ++(*_pos);
+		return (struct fscache_object *)(long)++(*_pos);
 	if (pos < 3)
 		return (struct fscache_object *)pos;
 
@@ -231,12 +231,11 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 		       READS, NOREADS);
 		FILTER(obj->events & obj->event_mask,
 		       EVENTS, NOEVENTS);
-		FILTER(obj->work.flags & ~(1UL << SLOW_WORK_VERY_SLOW),
-		       WORK, NOWORK);
+		FILTER(work_busy(&obj->work), WORK, NOWORK);
 	}
 
 	seq_printf(m,
-		   "%8x %8x %s %5u %3u %3u %3u %2u %5u %2lx %2lx %1lx %1lx | ",
+		   "%8x %8x %s %5u %3u %3u %3u %2u %5u %2lx %2lx %1lx %1x | ",
 		   obj->debug_id,
 		   obj->parent ? obj->parent->debug_id : -1,
 		   fscache_object_states_short[obj->state],
@@ -249,7 +248,7 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 		   obj->event_mask & FSCACHE_OBJECT_EVENTS_MASK,
 		   obj->events,
 		   obj->flags,
-		   obj->work.flags);
+		   work_busy(&obj->work));
 
 	no_cookie = true;
 	keylen = auxlen = 0;

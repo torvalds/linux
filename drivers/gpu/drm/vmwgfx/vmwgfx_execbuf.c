@@ -538,8 +538,11 @@ static void vmw_apply_relocations(struct vmw_sw_context *sw_context)
 		reloc = &sw_context->relocs[i];
 		validate = &sw_context->val_bufs[reloc->index];
 		bo = validate->bo;
-		reloc->location->offset += bo->offset;
-		reloc->location->gmrId = vmw_dmabuf_gmr(bo);
+		if (bo->mem.mem_type == TTM_PL_VRAM) {
+			reloc->location->offset += bo->offset;
+			reloc->location->gmrId = SVGA_GMR_FRAMEBUFFER;
+		} else
+			reloc->location->gmrId = bo->mem.start;
 	}
 	vmw_free_relocations(sw_context);
 }
@@ -563,25 +566,14 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 {
 	int ret;
 
-	if (vmw_dmabuf_gmr(bo) != SVGA_GMR_NULL)
-		return 0;
-
 	/**
-	 * Put BO in VRAM, only if there is space.
+	 * Put BO in VRAM if there is space, otherwise as a GMR.
+	 * If there is no space in VRAM and GMR ids are all used up,
+	 * start evicting GMRs to make room. If the DMA buffer can't be
+	 * used as a GMR, this will return -ENOMEM.
 	 */
 
-	ret = ttm_bo_validate(bo, &vmw_vram_sys_placement, true, false, false);
-	if (unlikely(ret == -ERESTARTSYS))
-		return ret;
-
-	/**
-	 * Otherwise, set it up as GMR.
-	 */
-
-	if (vmw_dmabuf_gmr(bo) != SVGA_GMR_NULL)
-		return 0;
-
-	ret = vmw_gmr_bind(dev_priv, bo);
+	ret = ttm_bo_validate(bo, &vmw_vram_gmr_placement, true, false, false);
 	if (likely(ret == 0 || ret == -ERESTARTSYS))
 		return ret;
 
@@ -590,6 +582,7 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	 * previous contents.
 	 */
 
+	DRM_INFO("Falling through to VRAM.\n");
 	ret = ttm_bo_validate(bo, &vmw_vram_placement, true, false, false);
 	return ret;
 }
@@ -644,6 +637,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	ret = copy_from_user(cmd, user_cmd, arg->command_size);
 
 	if (unlikely(ret != 0)) {
+		ret = -EFAULT;
 		DRM_ERROR("Failed copying commands.\n");
 		goto out_commit;
 	}
@@ -659,8 +653,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	ret = vmw_cmd_check_all(dev_priv, sw_context, cmd, arg->command_size);
 	if (unlikely(ret != 0))
 		goto out_err;
-	ret = ttm_eu_reserve_buffers(&sw_context->validate_nodes,
-				     dev_priv->val_seq++);
+	ret = ttm_eu_reserve_buffers(&sw_context->validate_nodes);
 	if (unlikely(ret != 0))
 		goto out_err;
 
@@ -669,6 +662,15 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 		goto out_err;
 
 	vmw_apply_relocations(sw_context);
+
+	if (arg->throttle_us) {
+		ret = vmw_wait_lag(dev_priv, &dev_priv->fifo.fence_queue,
+				   arg->throttle_us);
+
+		if (unlikely(ret != 0))
+			goto out_err;
+	}
+
 	vmw_fifo_commit(dev_priv, arg->command_size);
 
 	ret = vmw_fifo_send_fence(dev_priv, &sequence);
@@ -688,6 +690,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 
 	fence_rep.error = ret;
 	fence_rep.fence_seq = (uint64_t) sequence;
+	fence_rep.pad64 = 0;
 
 	user_fence_rep = (struct drm_vmw_fence_rep __user *)
 	    (unsigned long)arg->fence_rep;

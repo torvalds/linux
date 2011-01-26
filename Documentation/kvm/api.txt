@@ -126,6 +126,10 @@ user fills in the size of the indices array in nmsrs, and in return
 kvm adjusts nmsrs to reflect the actual number of msrs and fills in
 the indices array with their numbers.
 
+Note: if kvm indicates supports MCE (KVM_CAP_MCE), then the MCE bank MSRs are
+not returned in the MSR list, as different vcpus can have a different number
+of banks, as set via the KVM_X86_SETUP_MCE ioctl.
+
 4.4 KVM_CHECK_EXTENSION
 
 Capability: basic
@@ -160,29 +164,7 @@ Type: vm ioctl
 Parameters: struct kvm_memory_region (in)
 Returns: 0 on success, -1 on error
 
-struct kvm_memory_region {
-	__u32 slot;
-	__u32 flags;
-	__u64 guest_phys_addr;
-	__u64 memory_size; /* bytes */
-};
-
-/* for kvm_memory_region::flags */
-#define KVM_MEM_LOG_DIRTY_PAGES  1UL
-
-This ioctl allows the user to create or modify a guest physical memory
-slot.  When changing an existing slot, it may be moved in the guest
-physical memory space, or its flags may be modified.  It may not be
-resized.  Slots may not overlap.
-
-The flags field supports just one flag, KVM_MEM_LOG_DIRTY_PAGES, which
-instructs kvm to keep track of writes to memory within the slot.  See
-the KVM_GET_DIRTY_LOG ioctl.
-
-It is recommended to use the KVM_SET_USER_MEMORY_REGION ioctl instead
-of this API, if available.  This newer API allows placing guest memory
-at specified locations in the host address space, yielding better
-control and easy access.
+This ioctl is obsolete and has been removed.
 
 4.6 KVM_CREATE_VCPU
 
@@ -226,17 +208,7 @@ Type: vm ioctl
 Parameters: struct kvm_memory_alias (in)
 Returns: 0 (success), -1 (error)
 
-struct kvm_memory_alias {
-	__u32 slot;  /* this has a different namespace than memory slots */
-	__u32 flags;
-	__u64 guest_phys_addr;
-	__u64 memory_size;
-	__u64 target_phys_addr;
-};
-
-Defines a guest physical address space region as an alias to another
-region.  Useful for aliased address, for example the VGA low memory
-window. Should not be used with userspace memory.
+This ioctl is obsolete and has been removed.
 
 4.9 KVM_RUN
 
@@ -348,13 +320,13 @@ struct kvm_translation {
 4.15 KVM_INTERRUPT
 
 Capability: basic
-Architectures: x86
+Architectures: x86, ppc
 Type: vcpu ioctl
 Parameters: struct kvm_interrupt (in)
 Returns: 0 on success, -1 on error
 
 Queues a hardware interrupt vector to be injected.  This is only
-useful if in-kernel local APIC is not used.
+useful if in-kernel local APIC or equivalent is not used.
 
 /* for KVM_INTERRUPT */
 struct kvm_interrupt {
@@ -362,7 +334,36 @@ struct kvm_interrupt {
 	__u32 irq;
 };
 
+X86:
+
 Note 'irq' is an interrupt vector, not an interrupt pin or line.
+
+PPC:
+
+Queues an external interrupt to be injected. This ioctl is overleaded
+with 3 different irq values:
+
+a) KVM_INTERRUPT_SET
+
+  This injects an edge type external interrupt into the guest once it's ready
+  to receive interrupts. When injected, the interrupt is done.
+
+b) KVM_INTERRUPT_UNSET
+
+  This unsets any pending interrupt.
+
+  Only available with KVM_CAP_PPC_UNSET_IRQ.
+
+c) KVM_INTERRUPT_SET_LEVEL
+
+  This injects a level type external interrupt into the guest context. The
+  interrupt stays pending until a specific ioctl with KVM_INTERRUPT_UNSET
+  is triggered.
+
+  Only available with KVM_CAP_PPC_IRQ_LEVEL.
+
+Note that any value for 'irq' other than the ones stated above is invalid
+and incurs unexpected behavior.
 
 4.16 KVM_DEBUG_GUEST
 
@@ -873,7 +874,7 @@ Possible values are:
  - KVM_MP_STATE_HALTED:          the vcpu has executed a HLT instruction and
                                  is waiting for an interrupt
  - KVM_MP_STATE_SIPI_RECEIVED:   the vcpu has just received a SIPI (vector
-                                 accesible via KVM_GET_VCPU_EVENTS)
+                                 accessible via KVM_GET_VCPU_EVENTS)
 
 This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
 irqchip, the multiprocessing state must be maintained by userspace.
@@ -891,6 +892,376 @@ arguments.
 
 This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
 irqchip, the multiprocessing state must be maintained by userspace.
+
+4.39 KVM_SET_IDENTITY_MAP_ADDR
+
+Capability: KVM_CAP_SET_IDENTITY_MAP_ADDR
+Architectures: x86
+Type: vm ioctl
+Parameters: unsigned long identity (in)
+Returns: 0 on success, -1 on error
+
+This ioctl defines the physical address of a one-page region in the guest
+physical address space.  The region must be within the first 4GB of the
+guest physical address space and must not conflict with any memory slot
+or any mmio address.  The guest may malfunction if it accesses this memory
+region.
+
+This ioctl is required on Intel-based hosts.  This is needed on Intel hardware
+because of a quirk in the virtualization implementation (see the internals
+documentation when it pops into existence).
+
+4.40 KVM_SET_BOOT_CPU_ID
+
+Capability: KVM_CAP_SET_BOOT_CPU_ID
+Architectures: x86, ia64
+Type: vm ioctl
+Parameters: unsigned long vcpu_id
+Returns: 0 on success, -1 on error
+
+Define which vcpu is the Bootstrap Processor (BSP).  Values are the same
+as the vcpu id in KVM_CREATE_VCPU.  If this ioctl is not called, the default
+is vcpu 0.
+
+4.41 KVM_GET_XSAVE
+
+Capability: KVM_CAP_XSAVE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_xsave (out)
+Returns: 0 on success, -1 on error
+
+struct kvm_xsave {
+	__u32 region[1024];
+};
+
+This ioctl would copy current vcpu's xsave struct to the userspace.
+
+4.42 KVM_SET_XSAVE
+
+Capability: KVM_CAP_XSAVE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_xsave (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_xsave {
+	__u32 region[1024];
+};
+
+This ioctl would copy userspace's xsave struct to the kernel.
+
+4.43 KVM_GET_XCRS
+
+Capability: KVM_CAP_XCRS
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_xcrs (out)
+Returns: 0 on success, -1 on error
+
+struct kvm_xcr {
+	__u32 xcr;
+	__u32 reserved;
+	__u64 value;
+};
+
+struct kvm_xcrs {
+	__u32 nr_xcrs;
+	__u32 flags;
+	struct kvm_xcr xcrs[KVM_MAX_XCRS];
+	__u64 padding[16];
+};
+
+This ioctl would copy current vcpu's xcrs to the userspace.
+
+4.44 KVM_SET_XCRS
+
+Capability: KVM_CAP_XCRS
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_xcrs (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_xcr {
+	__u32 xcr;
+	__u32 reserved;
+	__u64 value;
+};
+
+struct kvm_xcrs {
+	__u32 nr_xcrs;
+	__u32 flags;
+	struct kvm_xcr xcrs[KVM_MAX_XCRS];
+	__u64 padding[16];
+};
+
+This ioctl would set vcpu's xcr to the value userspace specified.
+
+4.45 KVM_GET_SUPPORTED_CPUID
+
+Capability: KVM_CAP_EXT_CPUID
+Architectures: x86
+Type: system ioctl
+Parameters: struct kvm_cpuid2 (in/out)
+Returns: 0 on success, -1 on error
+
+struct kvm_cpuid2 {
+	__u32 nent;
+	__u32 padding;
+	struct kvm_cpuid_entry2 entries[0];
+};
+
+#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX 1
+#define KVM_CPUID_FLAG_STATEFUL_FUNC    2
+#define KVM_CPUID_FLAG_STATE_READ_NEXT  4
+
+struct kvm_cpuid_entry2 {
+	__u32 function;
+	__u32 index;
+	__u32 flags;
+	__u32 eax;
+	__u32 ebx;
+	__u32 ecx;
+	__u32 edx;
+	__u32 padding[3];
+};
+
+This ioctl returns x86 cpuid features which are supported by both the hardware
+and kvm.  Userspace can use the information returned by this ioctl to
+construct cpuid information (for KVM_SET_CPUID2) that is consistent with
+hardware, kernel, and userspace capabilities, and with user requirements (for
+example, the user may wish to constrain cpuid to emulate older hardware,
+or for feature consistency across a cluster).
+
+Userspace invokes KVM_GET_SUPPORTED_CPUID by passing a kvm_cpuid2 structure
+with the 'nent' field indicating the number of entries in the variable-size
+array 'entries'.  If the number of entries is too low to describe the cpu
+capabilities, an error (E2BIG) is returned.  If the number is too high,
+the 'nent' field is adjusted and an error (ENOMEM) is returned.  If the
+number is just right, the 'nent' field is adjusted to the number of valid
+entries in the 'entries' array, which is then filled.
+
+The entries returned are the host cpuid as returned by the cpuid instruction,
+with unknown or unsupported features masked out.  Some features (for example,
+x2apic), may not be present in the host cpu, but are exposed by kvm if it can
+emulate them efficiently. The fields in each entry are defined as follows:
+
+  function: the eax value used to obtain the entry
+  index: the ecx value used to obtain the entry (for entries that are
+         affected by ecx)
+  flags: an OR of zero or more of the following:
+        KVM_CPUID_FLAG_SIGNIFCANT_INDEX:
+           if the index field is valid
+        KVM_CPUID_FLAG_STATEFUL_FUNC:
+           if cpuid for this function returns different values for successive
+           invocations; there will be several entries with the same function,
+           all with this flag set
+        KVM_CPUID_FLAG_STATE_READ_NEXT:
+           for KVM_CPUID_FLAG_STATEFUL_FUNC entries, set if this entry is
+           the first entry to be read by a cpu
+   eax, ebx, ecx, edx: the values returned by the cpuid instruction for
+         this function/index combination
+
+4.46 KVM_PPC_GET_PVINFO
+
+Capability: KVM_CAP_PPC_GET_PVINFO
+Architectures: ppc
+Type: vm ioctl
+Parameters: struct kvm_ppc_pvinfo (out)
+Returns: 0 on success, !0 on error
+
+struct kvm_ppc_pvinfo {
+	__u32 flags;
+	__u32 hcall[4];
+	__u8  pad[108];
+};
+
+This ioctl fetches PV specific information that need to be passed to the guest
+using the device tree or other means from vm context.
+
+For now the only implemented piece of information distributed here is an array
+of 4 instructions that make up a hypercall.
+
+If any additional field gets added to this structure later on, a bit for that
+additional piece of information will be set in the flags bitmap.
+
+4.47 KVM_ASSIGN_PCI_DEVICE
+
+Capability: KVM_CAP_DEVICE_ASSIGNMENT
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_assigned_pci_dev (in)
+Returns: 0 on success, -1 on error
+
+Assigns a host PCI device to the VM.
+
+struct kvm_assigned_pci_dev {
+	__u32 assigned_dev_id;
+	__u32 busnr;
+	__u32 devfn;
+	__u32 flags;
+	__u32 segnr;
+	union {
+		__u32 reserved[11];
+	};
+};
+
+The PCI device is specified by the triple segnr, busnr, and devfn.
+Identification in succeeding service requests is done via assigned_dev_id. The
+following flags are specified:
+
+/* Depends on KVM_CAP_IOMMU */
+#define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
+
+4.48 KVM_DEASSIGN_PCI_DEVICE
+
+Capability: KVM_CAP_DEVICE_DEASSIGNMENT
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_assigned_pci_dev (in)
+Returns: 0 on success, -1 on error
+
+Ends PCI device assignment, releasing all associated resources.
+
+See KVM_CAP_DEVICE_ASSIGNMENT for the data structure. Only assigned_dev_id is
+used in kvm_assigned_pci_dev to identify the device.
+
+4.49 KVM_ASSIGN_DEV_IRQ
+
+Capability: KVM_CAP_ASSIGN_DEV_IRQ
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_assigned_irq (in)
+Returns: 0 on success, -1 on error
+
+Assigns an IRQ to a passed-through device.
+
+struct kvm_assigned_irq {
+	__u32 assigned_dev_id;
+	__u32 host_irq;
+	__u32 guest_irq;
+	__u32 flags;
+	union {
+		struct {
+			__u32 addr_lo;
+			__u32 addr_hi;
+			__u32 data;
+		} guest_msi;
+		__u32 reserved[12];
+	};
+};
+
+The following flags are defined:
+
+#define KVM_DEV_IRQ_HOST_INTX    (1 << 0)
+#define KVM_DEV_IRQ_HOST_MSI     (1 << 1)
+#define KVM_DEV_IRQ_HOST_MSIX    (1 << 2)
+
+#define KVM_DEV_IRQ_GUEST_INTX   (1 << 8)
+#define KVM_DEV_IRQ_GUEST_MSI    (1 << 9)
+#define KVM_DEV_IRQ_GUEST_MSIX   (1 << 10)
+
+It is not valid to specify multiple types per host or guest IRQ. However, the
+IRQ type of host and guest can differ or can even be null.
+
+4.50 KVM_DEASSIGN_DEV_IRQ
+
+Capability: KVM_CAP_ASSIGN_DEV_IRQ
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_assigned_irq (in)
+Returns: 0 on success, -1 on error
+
+Ends an IRQ assignment to a passed-through device.
+
+See KVM_ASSIGN_DEV_IRQ for the data structure. The target device is specified
+by assigned_dev_id, flags must correspond to the IRQ type specified on
+KVM_ASSIGN_DEV_IRQ. Partial deassignment of host or guest IRQ is allowed.
+
+4.51 KVM_SET_GSI_ROUTING
+
+Capability: KVM_CAP_IRQ_ROUTING
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_irq_routing (in)
+Returns: 0 on success, -1 on error
+
+Sets the GSI routing table entries, overwriting any previously set entries.
+
+struct kvm_irq_routing {
+	__u32 nr;
+	__u32 flags;
+	struct kvm_irq_routing_entry entries[0];
+};
+
+No flags are specified so far, the corresponding field must be set to zero.
+
+struct kvm_irq_routing_entry {
+	__u32 gsi;
+	__u32 type;
+	__u32 flags;
+	__u32 pad;
+	union {
+		struct kvm_irq_routing_irqchip irqchip;
+		struct kvm_irq_routing_msi msi;
+		__u32 pad[8];
+	} u;
+};
+
+/* gsi routing entry types */
+#define KVM_IRQ_ROUTING_IRQCHIP 1
+#define KVM_IRQ_ROUTING_MSI 2
+
+No flags are specified so far, the corresponding field must be set to zero.
+
+struct kvm_irq_routing_irqchip {
+	__u32 irqchip;
+	__u32 pin;
+};
+
+struct kvm_irq_routing_msi {
+	__u32 address_lo;
+	__u32 address_hi;
+	__u32 data;
+	__u32 pad;
+};
+
+4.52 KVM_ASSIGN_SET_MSIX_NR
+
+Capability: KVM_CAP_DEVICE_MSIX
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_assigned_msix_nr (in)
+Returns: 0 on success, -1 on error
+
+Set the number of MSI-X interrupts for an assigned device. This service can
+only be called once in the lifetime of an assigned device.
+
+struct kvm_assigned_msix_nr {
+	__u32 assigned_dev_id;
+	__u16 entry_nr;
+	__u16 padding;
+};
+
+#define KVM_MAX_MSIX_PER_DEV		256
+
+4.53 KVM_ASSIGN_SET_MSIX_ENTRY
+
+Capability: KVM_CAP_DEVICE_MSIX
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_assigned_msix_entry (in)
+Returns: 0 on success, -1 on error
+
+Specifies the routing of an MSI-X assigned device interrupt to a GSI. Setting
+the GSI vector to zero means disabling the interrupt.
+
+struct kvm_assigned_msix_entry {
+	__u32 assigned_dev_id;
+	__u32 gsi;
+	__u16 entry; /* The index of entry in the MSI-X table */
+	__u16 padding[3];
+};
 
 5. The kvm_run structure
 

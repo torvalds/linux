@@ -19,6 +19,8 @@
 #include <linux/init.h>
 #include <linux/signal.h>
 #include <linux/uaccess.h>
+#include <linux/perf_event.h>
+#include <linux/hw_breakpoint.h>
 
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -51,6 +53,102 @@
 #define BREAKINST_ARM	0xe7f001f0
 #define BREAKINST_THUMB	0xde01
 #endif
+
+struct pt_regs_offset {
+	const char *name;
+	int offset;
+};
+
+#define REG_OFFSET_NAME(r) \
+	{.name = #r, .offset = offsetof(struct pt_regs, ARM_##r)}
+#define REG_OFFSET_END {.name = NULL, .offset = 0}
+
+static const struct pt_regs_offset regoffset_table[] = {
+	REG_OFFSET_NAME(r0),
+	REG_OFFSET_NAME(r1),
+	REG_OFFSET_NAME(r2),
+	REG_OFFSET_NAME(r3),
+	REG_OFFSET_NAME(r4),
+	REG_OFFSET_NAME(r5),
+	REG_OFFSET_NAME(r6),
+	REG_OFFSET_NAME(r7),
+	REG_OFFSET_NAME(r8),
+	REG_OFFSET_NAME(r9),
+	REG_OFFSET_NAME(r10),
+	REG_OFFSET_NAME(fp),
+	REG_OFFSET_NAME(ip),
+	REG_OFFSET_NAME(sp),
+	REG_OFFSET_NAME(lr),
+	REG_OFFSET_NAME(pc),
+	REG_OFFSET_NAME(cpsr),
+	REG_OFFSET_NAME(ORIG_r0),
+	REG_OFFSET_END,
+};
+
+/**
+ * regs_query_register_offset() - query register offset from its name
+ * @name:	the name of a register
+ *
+ * regs_query_register_offset() returns the offset of a register in struct
+ * pt_regs from its name. If the name is invalid, this returns -EINVAL;
+ */
+int regs_query_register_offset(const char *name)
+{
+	const struct pt_regs_offset *roff;
+	for (roff = regoffset_table; roff->name != NULL; roff++)
+		if (!strcmp(roff->name, name))
+			return roff->offset;
+	return -EINVAL;
+}
+
+/**
+ * regs_query_register_name() - query register name from its offset
+ * @offset:	the offset of a register in struct pt_regs.
+ *
+ * regs_query_register_name() returns the name of a register from its
+ * offset in struct pt_regs. If the @offset is invalid, this returns NULL;
+ */
+const char *regs_query_register_name(unsigned int offset)
+{
+	const struct pt_regs_offset *roff;
+	for (roff = regoffset_table; roff->name != NULL; roff++)
+		if (roff->offset == offset)
+			return roff->name;
+	return NULL;
+}
+
+/**
+ * regs_within_kernel_stack() - check the address in the stack
+ * @regs:      pt_regs which contains kernel stack pointer.
+ * @addr:      address which is checked.
+ *
+ * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
+ * If @addr is within the kernel stack, it returns true. If not, returns false.
+ */
+bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
+{
+	return ((addr & ~(THREAD_SIZE - 1))  ==
+		(kernel_stack_pointer(regs) & ~(THREAD_SIZE - 1)));
+}
+
+/**
+ * regs_get_kernel_stack_nth() - get Nth entry of the stack
+ * @regs:	pt_regs which contains kernel stack pointer.
+ * @n:		stack entry number.
+ *
+ * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
+ * is specified by @regs. If the @n th entry is NOT in the kernel stack,
+ * this returns 0.
+ */
+unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
+{
+	unsigned long *addr = (unsigned long *)kernel_stack_pointer(regs);
+	addr += n;
+	if (regs_within_kernel_stack(regs, (unsigned long)addr))
+		return *addr;
+	else
+		return 0;
+}
 
 /*
  * this routine will get a word off of the processes privileged stack.
@@ -751,13 +849,241 @@ static int ptrace_setvfpregs(struct task_struct *tsk, void __user *data)
 }
 #endif
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+/*
+ * Convert a virtual register number into an index for a thread_info
+ * breakpoint array. Breakpoints are identified using positive numbers
+ * whilst watchpoints are negative. The registers are laid out as pairs
+ * of (address, control), each pair mapping to a unique hw_breakpoint struct.
+ * Register 0 is reserved for describing resource information.
+ */
+static int ptrace_hbp_num_to_idx(long num)
+{
+	if (num < 0)
+		num = (ARM_MAX_BRP << 1) - num;
+	return (num - 1) >> 1;
+}
+
+/*
+ * Returns the virtual register number for the address of the
+ * breakpoint at index idx.
+ */
+static long ptrace_hbp_idx_to_num(int idx)
+{
+	long mid = ARM_MAX_BRP << 1;
+	long num = (idx << 1) + 1;
+	return num > mid ? mid - num : num;
+}
+
+/*
+ * Handle hitting a HW-breakpoint.
+ */
+static void ptrace_hbptriggered(struct perf_event *bp, int unused,
+				     struct perf_sample_data *data,
+				     struct pt_regs *regs)
+{
+	struct arch_hw_breakpoint *bkpt = counter_arch_bp(bp);
+	long num;
+	int i;
+	siginfo_t info;
+
+	for (i = 0; i < ARM_MAX_HBP_SLOTS; ++i)
+		if (current->thread.debug.hbp[i] == bp)
+			break;
+
+	num = (i == ARM_MAX_HBP_SLOTS) ? 0 : ptrace_hbp_idx_to_num(i);
+
+	info.si_signo	= SIGTRAP;
+	info.si_errno	= (int)num;
+	info.si_code	= TRAP_HWBKPT;
+	info.si_addr	= (void __user *)(bkpt->trigger);
+
+	force_sig_info(SIGTRAP, &info, current);
+}
+
+/*
+ * Set ptrace breakpoint pointers to zero for this task.
+ * This is required in order to prevent child processes from unregistering
+ * breakpoints held by their parent.
+ */
+void clear_ptrace_hw_breakpoint(struct task_struct *tsk)
+{
+	memset(tsk->thread.debug.hbp, 0, sizeof(tsk->thread.debug.hbp));
+}
+
+/*
+ * Unregister breakpoints from this task and reset the pointers in
+ * the thread_struct.
+ */
+void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
+{
+	int i;
+	struct thread_struct *t = &tsk->thread;
+
+	for (i = 0; i < ARM_MAX_HBP_SLOTS; i++) {
+		if (t->debug.hbp[i]) {
+			unregister_hw_breakpoint(t->debug.hbp[i]);
+			t->debug.hbp[i] = NULL;
+		}
+	}
+}
+
+static u32 ptrace_get_hbp_resource_info(void)
+{
+	u8 num_brps, num_wrps, debug_arch, wp_len;
+	u32 reg = 0;
+
+	num_brps	= hw_breakpoint_slots(TYPE_INST);
+	num_wrps	= hw_breakpoint_slots(TYPE_DATA);
+	debug_arch	= arch_get_debug_arch();
+	wp_len		= arch_get_max_wp_len();
+
+	reg		|= debug_arch;
+	reg		<<= 8;
+	reg		|= wp_len;
+	reg		<<= 8;
+	reg		|= num_wrps;
+	reg		<<= 8;
+	reg		|= num_brps;
+
+	return reg;
+}
+
+static struct perf_event *ptrace_hbp_create(struct task_struct *tsk, int type)
+{
+	struct perf_event_attr attr;
+
+	ptrace_breakpoint_init(&attr);
+
+	/* Initialise fields to sane defaults. */
+	attr.bp_addr	= 0;
+	attr.bp_len	= HW_BREAKPOINT_LEN_4;
+	attr.bp_type	= type;
+	attr.disabled	= 1;
+
+	return register_user_hw_breakpoint(&attr, ptrace_hbptriggered, tsk);
+}
+
+static int ptrace_gethbpregs(struct task_struct *tsk, long num,
+			     unsigned long  __user *data)
+{
+	u32 reg;
+	int idx, ret = 0;
+	struct perf_event *bp;
+	struct arch_hw_breakpoint_ctrl arch_ctrl;
+
+	if (num == 0) {
+		reg = ptrace_get_hbp_resource_info();
+	} else {
+		idx = ptrace_hbp_num_to_idx(num);
+		if (idx < 0 || idx >= ARM_MAX_HBP_SLOTS) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		bp = tsk->thread.debug.hbp[idx];
+		if (!bp) {
+			reg = 0;
+			goto put;
+		}
+
+		arch_ctrl = counter_arch_bp(bp)->ctrl;
+
+		/*
+		 * Fix up the len because we may have adjusted it
+		 * to compensate for an unaligned address.
+		 */
+		while (!(arch_ctrl.len & 0x1))
+			arch_ctrl.len >>= 1;
+
+		if (idx & 0x1)
+			reg = encode_ctrl_reg(arch_ctrl);
+		else
+			reg = bp->attr.bp_addr;
+	}
+
+put:
+	if (put_user(reg, data))
+		ret = -EFAULT;
+
+out:
+	return ret;
+}
+
+static int ptrace_sethbpregs(struct task_struct *tsk, long num,
+			     unsigned long __user *data)
+{
+	int idx, gen_len, gen_type, implied_type, ret = 0;
+	u32 user_val;
+	struct perf_event *bp;
+	struct arch_hw_breakpoint_ctrl ctrl;
+	struct perf_event_attr attr;
+
+	if (num == 0)
+		goto out;
+	else if (num < 0)
+		implied_type = HW_BREAKPOINT_RW;
+	else
+		implied_type = HW_BREAKPOINT_X;
+
+	idx = ptrace_hbp_num_to_idx(num);
+	if (idx < 0 || idx >= ARM_MAX_HBP_SLOTS) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (get_user(user_val, data)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	bp = tsk->thread.debug.hbp[idx];
+	if (!bp) {
+		bp = ptrace_hbp_create(tsk, implied_type);
+		if (IS_ERR(bp)) {
+			ret = PTR_ERR(bp);
+			goto out;
+		}
+		tsk->thread.debug.hbp[idx] = bp;
+	}
+
+	attr = bp->attr;
+
+	if (num & 0x1) {
+		/* Address */
+		attr.bp_addr	= user_val;
+	} else {
+		/* Control */
+		decode_ctrl_reg(user_val, &ctrl);
+		ret = arch_bp_generic_fields(ctrl, &gen_len, &gen_type);
+		if (ret)
+			goto out;
+
+		if ((gen_type & implied_type) != gen_type) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		attr.bp_len	= gen_len;
+		attr.bp_type	= gen_type;
+		attr.disabled	= !ctrl.enabled;
+	}
+
+	ret = modify_user_hw_breakpoint(bp, &attr);
+out:
+	return ret;
+}
+#endif
+
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	int ret;
+	unsigned long __user *datap = (unsigned long __user *) data;
 
 	switch (request) {
 		case PTRACE_PEEKUSR:
-			ret = ptrace_read_user(child, addr, (unsigned long __user *)data);
+			ret = ptrace_read_user(child, addr, datap);
 			break;
 
 		case PTRACE_POKEUSR:
@@ -765,34 +1091,34 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 
 		case PTRACE_GETREGS:
-			ret = ptrace_getregs(child, (void __user *)data);
+			ret = ptrace_getregs(child, datap);
 			break;
 
 		case PTRACE_SETREGS:
-			ret = ptrace_setregs(child, (void __user *)data);
+			ret = ptrace_setregs(child, datap);
 			break;
 
 		case PTRACE_GETFPREGS:
-			ret = ptrace_getfpregs(child, (void __user *)data);
+			ret = ptrace_getfpregs(child, datap);
 			break;
 		
 		case PTRACE_SETFPREGS:
-			ret = ptrace_setfpregs(child, (void __user *)data);
+			ret = ptrace_setfpregs(child, datap);
 			break;
 
 #ifdef CONFIG_IWMMXT
 		case PTRACE_GETWMMXREGS:
-			ret = ptrace_getwmmxregs(child, (void __user *)data);
+			ret = ptrace_getwmmxregs(child, datap);
 			break;
 
 		case PTRACE_SETWMMXREGS:
-			ret = ptrace_setwmmxregs(child, (void __user *)data);
+			ret = ptrace_setwmmxregs(child, datap);
 			break;
 #endif
 
 		case PTRACE_GET_THREAD_AREA:
 			ret = put_user(task_thread_info(child)->tp_value,
-				       (unsigned long __user *) data);
+				       datap);
 			break;
 
 		case PTRACE_SET_SYSCALL:
@@ -802,21 +1128,32 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 #ifdef CONFIG_CRUNCH
 		case PTRACE_GETCRUNCHREGS:
-			ret = ptrace_getcrunchregs(child, (void __user *)data);
+			ret = ptrace_getcrunchregs(child, datap);
 			break;
 
 		case PTRACE_SETCRUNCHREGS:
-			ret = ptrace_setcrunchregs(child, (void __user *)data);
+			ret = ptrace_setcrunchregs(child, datap);
 			break;
 #endif
 
 #ifdef CONFIG_VFP
 		case PTRACE_GETVFPREGS:
-			ret = ptrace_getvfpregs(child, (void __user *)data);
+			ret = ptrace_getvfpregs(child, datap);
 			break;
 
 		case PTRACE_SETVFPREGS:
-			ret = ptrace_setvfpregs(child, (void __user *)data);
+			ret = ptrace_setvfpregs(child, datap);
+			break;
+#endif
+
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+		case PTRACE_GETHBPREGS:
+			ret = ptrace_gethbpregs(child, addr,
+						(unsigned long __user *)data);
+			break;
+		case PTRACE_SETHBPREGS:
+			ret = ptrace_sethbpregs(child, addr,
+						(unsigned long __user *)data);
 			break;
 #endif
 

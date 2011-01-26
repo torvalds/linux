@@ -37,7 +37,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/tuner.h>
-#include <media/ir-common.h>
+#include <media/rc-core.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/videobuf-dma-sg.h>
 #include <sound/core.h>
@@ -117,6 +117,26 @@ struct saa7134_format {
 	unsigned int   yuv:1;
 	unsigned int   planar:1;
 	unsigned int   uvswap:1;
+};
+
+struct saa7134_card_ir {
+	struct rc_dev		*dev;
+
+	char                    name[32];
+	char                    phys[32];
+	unsigned                users;
+
+	u32			polling;
+        u32			last_gpio;
+        u32			mask_keycode, mask_keydown, mask_keyup;
+
+	bool                    running;
+	bool			active;
+
+	struct timer_list       timer;
+
+	/* IR core raw decoding */
+	u32                     raw_decode;
 };
 
 /* ----------------------------------------------------------- */
@@ -303,6 +323,10 @@ struct saa7134_format {
 #define SAA7134_BOARD_HAWELL_HW_404M7		177
 #define SAA7134_BOARD_BEHOLD_H7             178
 #define SAA7134_BOARD_BEHOLD_A7             179
+#define SAA7134_BOARD_AVERMEDIA_M733A       180
+#define SAA7134_BOARD_TECHNOTREND_BUDGET_T3000 181
+#define SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG 182
+#define SAA7134_BOARD_VIDEOMATE_M1F         183
 
 #define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
@@ -527,7 +551,7 @@ struct saa7134_dev {
 
 	/* infrared remote */
 	int                        has_remote;
-	struct card_ir		   *remote;
+	struct saa7134_card_ir     *remote;
 
 	/* pci i/o */
 	char                       name[32];
@@ -808,16 +832,18 @@ void saa7134_irq_oss_done(struct saa7134_dev *dev, unsigned long status);
 /* ----------------------------------------------------------- */
 /* saa7134-input.c                                             */
 
+#if defined(CONFIG_VIDEO_SAA7134_RC)
 int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 void saa7134_probe_i2c_ir(struct saa7134_dev *dev);
 int saa7134_ir_start(struct saa7134_dev *dev);
 void saa7134_ir_stop(struct saa7134_dev *dev);
-
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
+#else
+#define saa7134_input_init1(dev)	(0)
+#define saa7134_input_fini(dev)		(0)
+#define saa7134_input_irq(dev)		(0)
+#define saa7134_probe_i2c_ir(dev)	(0)
+#define saa7134_ir_start(dev)		(0)
+#define saa7134_ir_stop(dev)		(0)
+#endif

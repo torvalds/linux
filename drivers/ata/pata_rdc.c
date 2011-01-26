@@ -344,7 +344,7 @@ static int __devinit rdc_init_one(struct pci_dev *pdev,
 	 */
 	pci_read_config_dword(pdev, 0x54, &hpriv->saved_iocfg);
 
-	rc = ata_pci_sff_prepare_host(pdev, ppi, &host);
+	rc = ata_pci_bmdma_prepare_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 	host->private_data = hpriv;
@@ -354,7 +354,7 @@ static int __devinit rdc_init_one(struct pci_dev *pdev,
 	host->flags |= ATA_HOST_PARALLEL_SCAN;
 
 	pci_set_master(pdev);
-	return ata_pci_sff_activate_host(host, ata_sff_interrupt, &rdc_sht);
+	return ata_pci_sff_activate_host(host, ata_bmdma_interrupt, &rdc_sht);
 }
 
 static void rdc_remove_one(struct pci_dev *pdev)

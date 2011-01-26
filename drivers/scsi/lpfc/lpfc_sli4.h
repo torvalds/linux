@@ -19,9 +19,15 @@
  *******************************************************************/
 
 #define LPFC_ACTIVE_MBOX_WAIT_CNT               100
+#define LPFC_XRI_EXCH_BUSY_WAIT_TMO		10000
+#define LPFC_XRI_EXCH_BUSY_WAIT_T1   		10
+#define LPFC_XRI_EXCH_BUSY_WAIT_T2              30000
 #define LPFC_RELEASE_NOTIFICATION_INTERVAL	32
 #define LPFC_GET_QE_REL_INT			32
 #define LPFC_RPI_LOW_WATER_MARK			10
+
+#define LPFC_UNREG_FCF                          1
+#define LPFC_SKIP_UNREG_FCF                     0
 
 /* Amount of time in seconds for waiting FCF rediscovery to complete */
 #define LPFC_FCF_REDISCOVER_WAIT_TMO		2000 /* msec */
@@ -51,6 +57,9 @@
 #define LPFC_FCOE_FCF_GET_FIRST	0xFFFF
 #define LPFC_FCOE_FCF_NEXT_NONE	0xFFFF
 
+#define LPFC_FCOE_NULL_VID	0xFFF
+#define LPFC_FCOE_IGNORE_VID	0xFFFF
+
 /* First 3 bytes of default FCF MAC is specified by FC_MAP */
 #define LPFC_FCOE_FCF_MAC3	0xFF
 #define LPFC_FCOE_FCF_MAC4	0xFF
@@ -58,7 +67,7 @@
 #define LPFC_FCOE_FCF_MAP0	0x0E
 #define LPFC_FCOE_FCF_MAP1	0xFC
 #define LPFC_FCOE_FCF_MAP2	0x00
-#define LPFC_FCOE_MAX_RCV_SIZE	0x5AC
+#define LPFC_FCOE_MAX_RCV_SIZE	0x800
 #define LPFC_FCOE_FKA_ADV_PER	0
 #define LPFC_FCOE_FIP_PRIORITY	0x80
 
@@ -128,9 +137,11 @@ struct lpfc_sli4_link {
 	uint8_t speed;
 	uint8_t duplex;
 	uint8_t status;
-	uint8_t physical;
+	uint8_t type;
+	uint8_t number;
 	uint8_t fault;
 	uint16_t logical_speed;
+	uint16_t topology;
 };
 
 struct lpfc_fcf_rec {
@@ -160,8 +171,8 @@ struct lpfc_fcf {
 #define FCF_REDISC_PEND	0x80 /* FCF rediscovery pending */
 #define FCF_REDISC_EVT	0x100 /* FCF rediscovery event to worker thread */
 #define FCF_REDISC_FOV	0x200 /* Post FCF rediscovery fast failover */
+#define FCF_REDISC_PROG (FCF_REDISC_PEND | FCF_REDISC_EVT)
 	uint32_t addr_mode;
-	uint16_t fcf_rr_init_indx;
 	uint32_t eligible_fcf_cnt;
 	struct lpfc_fcf_rec current_rec;
 	struct lpfc_fcf_rec failover_rec;
@@ -358,23 +369,39 @@ struct lpfc_sli4_hba {
 					     PCI BAR1, control registers */
 	void __iomem *drbl_regs_memmap_p; /* Kernel memory mapped address for
 					     PCI BAR2, doorbell registers */
-	/* BAR0 PCI config space register memory map */
-	void __iomem *UERRLOregaddr; /* Address to UERR_STATUS_LO register */
-	void __iomem *UERRHIregaddr; /* Address to UERR_STATUS_HI register */
-	void __iomem *UEMASKLOregaddr; /* Address to UE_MASK_LO register */
-	void __iomem *UEMASKHIregaddr; /* Address to UE_MASK_HI register */
-	void __iomem *SLIINTFregaddr; /* Address to SLI_INTF register */
-	/* BAR1 FCoE function CSR register memory map */
-	void __iomem *STAregaddr;    /* Address to HST_STATE register */
-	void __iomem *ISRregaddr;    /* Address to HST_ISR register */
-	void __iomem *IMRregaddr;    /* Address to HST_IMR register */
-	void __iomem *ISCRregaddr;   /* Address to HST_ISCR register */
-	/* BAR2 VF-0 doorbell register memory map */
-	void __iomem *RQDBregaddr;   /* Address to RQ_DOORBELL register */
-	void __iomem *WQDBregaddr;   /* Address to WQ_DOORBELL register */
-	void __iomem *EQCQDBregaddr; /* Address to EQCQ_DOORBELL register */
-	void __iomem *MQDBregaddr;   /* Address to MQ_DOORBELL register */
-	void __iomem *BMBXregaddr;   /* Address to BootStrap MBX register */
+	union {
+		struct {
+			/* IF Type 0, BAR 0 PCI cfg space reg mem map */
+			void __iomem *UERRLOregaddr;
+			void __iomem *UERRHIregaddr;
+			void __iomem *UEMASKLOregaddr;
+			void __iomem *UEMASKHIregaddr;
+		} if_type0;
+		struct {
+			/* IF Type 2, BAR 0 PCI cfg space reg mem map. */
+			void __iomem *STATUSregaddr;
+			void __iomem *CTRLregaddr;
+			void __iomem *ERR1regaddr;
+			void __iomem *ERR2regaddr;
+		} if_type2;
+	} u;
+
+	/* IF type 0, BAR1 and if type 2, Bar 0 CSR register memory map */
+	void __iomem *PSMPHRregaddr;
+
+	/* Well-known SLI INTF register memory map. */
+	void __iomem *SLIINTFregaddr;
+
+	/* IF type 0, BAR 1 function CSR register memory map */
+	void __iomem *ISRregaddr;	/* HST_ISR register */
+	void __iomem *IMRregaddr;	/* HST_IMR register */
+	void __iomem *ISCRregaddr;	/* HST_ISCR register */
+	/* IF type 0, BAR 0 and if type 2, BAR 0 doorbell register memory map */
+	void __iomem *RQDBregaddr;	/* RQ_DOORBELL register */
+	void __iomem *WQDBregaddr;	/* WQ_DOORBELL register */
+	void __iomem *EQCQDBregaddr;	/* EQCQ_DOORBELL register */
+	void __iomem *MQDBregaddr;	/* MQ_DOORBELL register */
+	void __iomem *BMBXregaddr;	/* BootStrap MBX register */
 
 	uint32_t ue_mask_lo;
 	uint32_t ue_mask_hi;
@@ -382,6 +409,7 @@ struct lpfc_sli4_hba {
 	struct lpfc_pc_sli4_params pc_sli4_params;
 	struct msix_entry *msix_entries;
 	uint32_t cfg_eqn;
+	uint32_t msix_vec_nr;
 	struct lpfc_fcp_eq_hdl *fcp_eq_hdl; /* FCP per-WQ handle */
 	/* Pointers to the constructed SLI4 queues */
 	struct lpfc_queue **fp_eq; /* Fast-path event queue */
@@ -456,6 +484,7 @@ struct lpfc_sglq {
 	struct list_head clist;
 	enum lpfc_sge_type buff_type; /* is this a scsi sgl */
 	enum lpfc_sgl_state state;
+	struct lpfc_nodelist *ndlp; /* ndlp associated with IO */
 	uint16_t iotag;         /* pre-assigned IO tag */
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
 	struct sli4_sge *sgl;	/* pre-assigned SGL */
@@ -476,7 +505,6 @@ struct lpfc_rpi_hdr {
  */
 int lpfc_pci_function_reset(struct lpfc_hba *);
 int lpfc_sli4_hba_setup(struct lpfc_hba *);
-int lpfc_sli4_hba_down(struct lpfc_hba *);
 int lpfc_sli4_config(struct lpfc_hba *, struct lpfcMboxq *, uint8_t,
 		     uint8_t, uint32_t, bool);
 void lpfc_sli4_mbox_cmd_free(struct lpfc_hba *, struct lpfcMboxq *);
@@ -509,7 +537,6 @@ int lpfc_sli4_queue_setup(struct lpfc_hba *);
 void lpfc_sli4_queue_unset(struct lpfc_hba *);
 int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
 int lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *);
-int lpfc_sli4_remove_all_sgl_pages(struct lpfc_hba *);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);
 int lpfc_sli4_post_sgl_list(struct lpfc_hba *phba);
@@ -539,7 +566,7 @@ int lpfc_sli4_brdreset(struct lpfc_hba *);
 int lpfc_sli4_add_fcf_record(struct lpfc_hba *, struct fcf_record *);
 void lpfc_sli_remove_dflt_fcf(struct lpfc_hba *);
 int lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *);
-int lpfc_sli4_init_vpi(struct lpfc_hba *, uint16_t);
+int lpfc_sli4_init_vpi(struct lpfc_vport *);
 uint32_t lpfc_sli4_cq_release(struct lpfc_queue *, bool);
 uint32_t lpfc_sli4_eq_release(struct lpfc_queue *, bool);
 void lpfc_sli4_fcfi_unreg(struct lpfc_hba *, uint16_t);

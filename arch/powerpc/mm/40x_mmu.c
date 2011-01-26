@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/highmem.h>
+#include <linux/memblock.h>
 
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
@@ -47,6 +48,7 @@
 #include <asm/bootx.h>
 #include <asm/machdep.h>
 #include <asm/setup.h>
+
 #include "mmu_decl.h"
 
 extern int __map_without_ltlbs;
@@ -135,12 +137,23 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 	/* If the size of RAM is not an exact power of two, we may not
 	 * have covered RAM in its entirety with 16 and 4 MiB
 	 * pages. Consequently, restrict the top end of RAM currently
-	 * allocable so that calls to the LMB to allocate PTEs for "tail"
+	 * allocable so that calls to the MEMBLOCK to allocate PTEs for "tail"
 	 * coverage with normal-sized pages (or other reasons) do not
 	 * attempt to allocate outside the allowed range.
 	 */
-
-	__initial_memory_limit_addr = memstart_addr + mapped;
+	memblock_set_current_limit(mapped);
 
 	return mapped;
+}
+
+void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+				phys_addr_t first_memblock_size)
+{
+	/* We don't currently support the first MEMBLOCK not mapping 0
+	 * physical on those processors
+	 */
+	BUG_ON(first_memblock_base != 0);
+
+	/* 40x can only access 16MB at the moment (see head_40x.S) */
+	memblock_set_current_limit(min_t(u64, first_memblock_size, 0x00800000));
 }

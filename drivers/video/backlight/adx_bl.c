@@ -107,8 +107,8 @@ static int __devinit adx_backlight_probe(struct platform_device *pdev)
 	props.max_brightness = 0xff;
 	bldev = backlight_device_register(dev_name(&pdev->dev), &pdev->dev,
 					  bl, &adx_backlight_ops, &props);
-	if (!bldev) {
-		ret = -ENOMEM;
+	if (IS_ERR(bldev)) {
+		ret = PTR_ERR(bldev);
 		goto out;
 	}
 

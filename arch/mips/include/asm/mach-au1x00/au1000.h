@@ -188,7 +188,8 @@ extern unsigned long get_au1x00_uart_baud_base(void);
 extern unsigned long au1xxx_calc_clock(void);
 
 /* PM: arch/mips/alchemy/common/sleeper.S, power.c, irq.c */
-void au1xxx_save_and_sleep(void);
+void alchemy_sleep_au1000(void);
+void alchemy_sleep_au1550(void);
 void au_sleep(void);
 
 

@@ -97,9 +97,11 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	fl.fl_ip_dport = otcph.source;
 	security_skb_classify_flow(oldskb, &fl);
 	dst = ip6_route_output(net, NULL, &fl);
-	if (dst == NULL)
+	if (dst == NULL || dst->error) {
+		dst_release(dst);
 		return;
-	if (dst->error || xfrm_lookup(net, &dst, &fl, NULL, 0))
+	}
+	if (xfrm_lookup(net, &dst, &fl, NULL, 0))
 		return;
 
 	hh_len = (dst->dev->hard_header_len + 15)&~15;
@@ -122,7 +124,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	skb_reset_network_header(nskb);
 	ip6h = ipv6_hdr(nskb);
 	ip6h->version = 6;
-	ip6h->hop_limit = dst_metric(dst, RTAX_HOPLIMIT);
+	ip6h->hop_limit = ip6_dst_hoplimit(dst);
 	ip6h->nexthdr = IPPROTO_TCP;
 	ipv6_addr_copy(&ip6h->saddr, &oip6h->daddr);
 	ipv6_addr_copy(&ip6h->daddr, &oip6h->saddr);

@@ -33,7 +33,8 @@ Table of Contents
   2	Modifying System Parameters
 
   3	Per-Process Parameters
-  3.1	/proc/<pid>/oom_adj - Adjust the oom-killer score
+  3.1	/proc/<pid>/oom_adj & /proc/<pid>/oom_score_adj - Adjust the oom-killer
+								score
   3.2	/proc/<pid>/oom_score - Display current oom-killer score
   3.3	/proc/<pid>/io - Display the IO accounting fields
   3.4	/proc/<pid>/coredump_filter - Core dump filtering settings
@@ -73,9 +74,9 @@ contact Bodo  Bauer  at  bb@ricochet.net.  We'll  be happy to add them to this
 document.
 
 The   latest   version    of   this   document   is    available   online   at
-http://skaro.nightcrawler.com/~bb/Docs/Proc as HTML version.
+http://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/proc.html
 
-If  the above  direction does  not works  for you,  ypu could  try the  kernel
+If  the above  direction does  not works  for you,  you could  try the  kernel
 mailing  list  at  linux-kernel@vger.kernel.org  and/or try  to  reach  me  at
 comandante@zaralinux.com.
 
@@ -135,6 +136,7 @@ Table 1-1: Process specific entries in /proc
  statm		Process memory status information
  status		Process status in human readable form
  wchan		If CONFIG_KALLSYMS is set, a pre-decoded wchan
+ pagemap	Page table
  stack		Report full stack trace, enable via CONFIG_STACKTRACE
  smaps		a extension based on maps, showing the memory consumption of
 		each mapping
@@ -369,17 +371,25 @@ Shared_Dirty:          0 kB
 Private_Clean:         0 kB
 Private_Dirty:         0 kB
 Referenced:          892 kB
+Anonymous:             0 kB
 Swap:                  0 kB
 KernelPageSize:        4 kB
 MMUPageSize:           4 kB
+Locked:              374 kB
 
-The first  of these lines shows  the same information  as is displayed for the
-mapping in /proc/PID/maps.  The remaining lines show  the size of the mapping,
-the amount of the mapping that is currently resident in RAM, the "proportional
-set size” (divide each shared page by the number of processes sharing it), the
-number of clean and dirty shared pages in the mapping, and the number of clean
-and dirty private pages in the mapping.  The "Referenced" indicates the amount
-of memory currently marked as referenced or accessed.
+The first of these lines shows the same information as is displayed for the
+mapping in /proc/PID/maps.  The remaining lines show the size of the mapping
+(size), the amount of the mapping that is currently resident in RAM (RSS), the
+process' proportional share of this mapping (PSS), the number of clean and
+dirty private pages in the mapping.  Note that even a page which is part of a
+MAP_SHARED mapping, but has only a single pte mapped, i.e.  is currently used
+by only one process, is accounted as private and not as shared.  "Referenced"
+indicates the amount of memory currently marked as referenced or accessed.
+"Anonymous" shows the amount of memory that does not belong to any file.  Even
+a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
+and a page is modified, the file page is replaced by a private anonymous copy.
+"Swap" shows how much would-be-anonymous memory is also used, but out on
+swap.
 
 This file is only present if the CONFIG_MMU kernel configuration option is
 enabled.
@@ -396,6 +406,9 @@ To clear the bits for the file mapped pages associated with the process
     > echo 3 > /proc/PID/clear_refs
 Any other value written to /proc/PID/clear_refs will have no effect.
 
+The /proc/pid/pagemap gives the PFN, which can be used to find the pageflags
+using /proc/kpageflags and number of times a page is mapped using
+/proc/kpagecount. For detailed explanation, see Documentation/vm/pagemap.txt.
 
 1.2 Kernel data
 ---------------
@@ -657,6 +670,8 @@ varies by architecture and compile options.  The following is from a
 16GB PIII, which has highmem enabled.  You may not have all of these fields.
 
 > cat /proc/meminfo
+
+The "Locked" indicates whether the mapping is locked in memory or not.
 
 
 MemTotal:     16344972 kB
@@ -1169,6 +1184,30 @@ Table 1-12: Files in /proc/fs/ext4/<devname>
  mb_groups       details of multiblock allocator buddy cache of free blocks
 ..............................................................................
 
+2.0 /proc/consoles
+------------------
+Shows registered system console lines.
+
+To see which character device lines are currently used for the system console
+/dev/console, you may simply look into the file /proc/consoles:
+
+  > cat /proc/consoles
+  tty0                 -WU (ECp)       4:7
+  ttyS0                -W- (Ep)        4:64
+
+The columns are:
+
+  device               name of the device
+  operations           R = can do read operations
+                       W = can do write operations
+                       U = can do unblank
+  flags                E = it is enabled
+                       C = it is prefered console
+                       B = it is primary boot console
+                       p = it is used for printk buffer
+                       b = it is not a TTY but a Braille device
+                       a = it is safe to use when cpu is offline
+  major:minor          major and minor number of the device separated by a colon
 
 ------------------------------------------------------------------------------
 Summary
@@ -1234,42 +1273,68 @@ of the kernel.
 CHAPTER 3: PER-PROCESS PARAMETERS
 ------------------------------------------------------------------------------
 
-3.1 /proc/<pid>/oom_adj - Adjust the oom-killer score
-------------------------------------------------------
+3.1 /proc/<pid>/oom_adj & /proc/<pid>/oom_score_adj- Adjust the oom-killer score
+--------------------------------------------------------------------------------
 
-This file can be used to adjust the score used to select which processes
-should be killed in an  out-of-memory  situation.  Giving it a high score will
-increase the likelihood of this process being killed by the oom-killer.  Valid
-values are in the range -16 to +15, plus the special value -17, which disables
-oom-killing altogether for this process.
+These file can be used to adjust the badness heuristic used to select which
+process gets killed in out of memory conditions.
 
-The process to be killed in an out-of-memory situation is selected among all others
-based on its badness score. This value equals the original memory size of the process
-and is then updated according to its CPU time (utime + stime) and the
-run time (uptime - start time). The longer it runs the smaller is the score.
-Badness score is divided by the square root of the CPU time and then by
-the double square root of the run time.
+The badness heuristic assigns a value to each candidate task ranging from 0
+(never kill) to 1000 (always kill) to determine which process is targeted.  The
+units are roughly a proportion along that range of allowed memory the process
+may allocate from based on an estimation of its current memory and swap use.
+For example, if a task is using all allowed memory, its badness score will be
+1000.  If it is using half of its allowed memory, its score will be 500.
 
-Swapped out tasks are killed first. Half of each child's memory size is added to
-the parent's score if they do not share the same memory. Thus forking servers
-are the prime candidates to be killed. Having only one 'hungry' child will make
-parent less preferable than the child.
+There is an additional factor included in the badness score: root
+processes are given 3% extra memory over other tasks.
 
-/proc/<pid>/oom_score shows process' current badness score.
+The amount of "allowed" memory depends on the context in which the oom killer
+was called.  If it is due to the memory assigned to the allocating task's cpuset
+being exhausted, the allowed memory represents the set of mems assigned to that
+cpuset.  If it is due to a mempolicy's node(s) being exhausted, the allowed
+memory represents the set of mempolicy nodes.  If it is due to a memory
+limit (or swap limit) being reached, the allowed memory is that configured
+limit.  Finally, if it is due to the entire system being out of memory, the
+allowed memory represents all allocatable resources.
 
-The following heuristics are then applied:
- * if the task was reniced, its score doubles
- * superuser or direct hardware access tasks (CAP_SYS_ADMIN, CAP_SYS_RESOURCE
- 	or CAP_SYS_RAWIO) have their score divided by 4
- * if oom condition happened in one cpuset and checked process does not belong
- 	to it, its score is divided by 8
- * the resulting score is multiplied by two to the power of oom_adj, i.e.
-	points <<= oom_adj when it is positive and
-	points >>= -(oom_adj) otherwise
+The value of /proc/<pid>/oom_score_adj is added to the badness score before it
+is used to determine which task to kill.  Acceptable values range from -1000
+(OOM_SCORE_ADJ_MIN) to +1000 (OOM_SCORE_ADJ_MAX).  This allows userspace to
+polarize the preference for oom killing either by always preferring a certain
+task or completely disabling it.  The lowest possible value, -1000, is
+equivalent to disabling oom killing entirely for that task since it will always
+report a badness score of 0.
 
-The task with the highest badness score is then selected and its children
-are killed, process itself will be killed in an OOM situation when it does
-not have children or some of them disabled oom like described above.
+Consequently, it is very simple for userspace to define the amount of memory to
+consider for each task.  Setting a /proc/<pid>/oom_score_adj value of +500, for
+example, is roughly equivalent to allowing the remainder of tasks sharing the
+same system, cpuset, mempolicy, or memory controller resources to use at least
+50% more memory.  A value of -500, on the other hand, would be roughly
+equivalent to discounting 50% of the task's allowed memory from being considered
+as scoring against the task.
+
+For backwards compatibility with previous kernels, /proc/<pid>/oom_adj may also
+be used to tune the badness score.  Its acceptable values range from -16
+(OOM_ADJUST_MIN) to +15 (OOM_ADJUST_MAX) and a special value of -17
+(OOM_DISABLE) to disable oom killing entirely for that task.  Its value is
+scaled linearly with /proc/<pid>/oom_score_adj.
+
+Writing to /proc/<pid>/oom_score_adj or /proc/<pid>/oom_adj will change the
+other with its scaled value.
+
+The value of /proc/<pid>/oom_score_adj may be reduced no lower than the last
+value set by a CAP_SYS_RESOURCE process. To reduce the value any lower
+requires CAP_SYS_RESOURCE.
+
+NOTICE: /proc/<pid>/oom_adj is deprecated and will be removed, please see
+Documentation/feature-removal-schedule.txt.
+
+Caveat: when a parent task is selected, the oom killer will sacrifice any first
+generation children with seperate address spaces instead, if possible.  This
+avoids servers and important system daemons from being killed and loses the
+minimal amount of work.
+
 
 3.2 /proc/<pid>/oom_score - Display current oom-killer score
 -------------------------------------------------------------

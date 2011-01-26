@@ -15,6 +15,7 @@
 #define KMSG_COMPONENT "time"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/kernel_stat.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -37,6 +38,7 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/gfp.h>
+#include <linux/kprobes.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
 #include <asm/s390_ext.h>
@@ -60,7 +62,7 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long notrace sched_clock(void)
+unsigned long long notrace __kprobes sched_clock(void)
 {
 	return (get_clock_monotonic() * 125) >> 9;
 }
@@ -155,8 +157,11 @@ void init_cpu_timer(void)
 	__ctl_set_bit(0, 4);
 }
 
-static void clock_comparator_interrupt(__u16 code)
+static void clock_comparator_interrupt(unsigned int ext_int_code,
+				       unsigned int param32,
+				       unsigned long param64)
 {
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_CLK]++;
 	if (S390_lowcore.clock_comparator == -1ULL)
 		set_clock_comparator(S390_lowcore.clock_comparator);
 }
@@ -164,14 +169,14 @@ static void clock_comparator_interrupt(__u16 code)
 static void etr_timing_alert(struct etr_irq_parm *);
 static void stp_timing_alert(struct stp_irq_parm *);
 
-static void timing_alert_interrupt(__u16 code)
+static void timing_alert_interrupt(unsigned int ext_int_code,
+				   unsigned int param32, unsigned long param64)
 {
-	if (S390_lowcore.ext_params & 0x00c40000)
-		etr_timing_alert((struct etr_irq_parm *)
-				 &S390_lowcore.ext_params);
-	if (S390_lowcore.ext_params & 0x00038000)
-		stp_timing_alert((struct stp_irq_parm *)
-				 &S390_lowcore.ext_params);
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_TLA]++;
+	if (param32 & 0x00c40000)
+		etr_timing_alert((struct etr_irq_parm *) &param32);
+	if (param32 & 0x00038000)
+		stp_timing_alert((struct stp_irq_parm *) &param32);
 }
 
 static void etr_reset(void);
@@ -207,8 +212,8 @@ struct clocksource * __init clocksource_default_clock(void)
 	return &clocksource_tod;
 }
 
-void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
-		     u32 mult)
+void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
+			struct clocksource *clock, u32 mult)
 {
 	if (clock != &clocksource_tod)
 		return;
@@ -219,8 +224,8 @@ void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
 	vdso_data->xtime_tod_stamp = clock->cycle_last;
 	vdso_data->xtime_clock_sec = wall_time->tv_sec;
 	vdso_data->xtime_clock_nsec = wall_time->tv_nsec;
-	vdso_data->wtom_clock_sec = wall_to_monotonic.tv_sec;
-	vdso_data->wtom_clock_nsec = wall_to_monotonic.tv_nsec;
+	vdso_data->wtom_clock_sec = wtm->tv_sec;
+	vdso_data->wtom_clock_nsec = wtm->tv_nsec;
 	vdso_data->ntp_mult = mult;
 	smp_wmb();
 	++vdso_data->tb_update_count;
@@ -524,8 +529,11 @@ void etr_switch_to_local(void)
 	if (!etr_eacr.sl)
 		return;
 	disable_sync_clock(NULL);
-	set_bit(ETR_EVENT_SWITCH_LOCAL, &etr_events);
-	queue_work(time_sync_wq, &etr_work);
+	if (!test_and_set_bit(ETR_EVENT_SWITCH_LOCAL, &etr_events)) {
+		etr_eacr.es = etr_eacr.sl = 0;
+		etr_setr(&etr_eacr);
+		queue_work(time_sync_wq, &etr_work);
+	}
 }
 
 /*
@@ -539,8 +547,11 @@ void etr_sync_check(void)
 	if (!etr_eacr.es)
 		return;
 	disable_sync_clock(NULL);
-	set_bit(ETR_EVENT_SYNC_CHECK, &etr_events);
-	queue_work(time_sync_wq, &etr_work);
+	if (!test_and_set_bit(ETR_EVENT_SYNC_CHECK, &etr_events)) {
+		etr_eacr.es = 0;
+		etr_setr(&etr_eacr);
+		queue_work(time_sync_wq, &etr_work);
+	}
 }
 
 /*
@@ -902,7 +913,7 @@ static struct etr_eacr etr_handle_update(struct etr_aib *aib,
 	 * Do not try to get the alternate port aib if the clock
 	 * is not in sync yet.
 	 */
-	if (!check_sync_clock())
+	if (!eacr.es || !check_sync_clock())
 		return eacr;
 
 	/*
@@ -1064,7 +1075,7 @@ static void etr_work_fn(struct work_struct *work)
 	 * If the clock is in sync just update the eacr and return.
 	 * If there is no valid sync port wait for a port update.
 	 */
-	if (check_sync_clock() || sync_port < 0) {
+	if ((eacr.es && check_sync_clock()) || sync_port < 0) {
 		etr_update_eacr(eacr);
 		etr_set_tolec_timeout(now);
 		goto out_unlock;

@@ -39,7 +39,7 @@
 /*
  * Allow hardware encryption to be disabled.
  */
-static int modparam_nohwcrypt = 0;
+static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
@@ -345,11 +345,21 @@ static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
 				struct rt2x00lib_crypto *crypto,
 				struct ieee80211_key_conf *key)
 {
-	int timeout;
 	u32 mask;
 	u16 reg;
+	enum cipher curr_cipher;
 
 	if (crypto->cmd == SET_KEY) {
+		/*
+		 * Disallow to set WEP key other than with index 0,
+		 * it is known that not work at least on some hardware.
+		 * SW crypto will be used in that case.
+		 */
+		if ((key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+		     key->cipher == WLAN_CIPHER_SUITE_WEP104) &&
+		    key->keyidx != 0)
+			return -EOPNOTSUPP;
+
 		/*
 		 * Pairwise key will always be entry 0, but this
 		 * could collide with a shared key on the same
@@ -358,6 +368,7 @@ static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
 		mask = TXRX_CSR0_KEY_ID.bit_mask;
 
 		rt2500usb_register_read(rt2x00dev, TXRX_CSR0, &reg);
+		curr_cipher = rt2x00_get_field16(reg, TXRX_CSR0_ALGORITHM);
 		reg &= mask;
 
 		if (reg && reg == mask)
@@ -366,19 +377,17 @@ static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
 		reg = rt2x00_get_field16(reg, TXRX_CSR0_KEY_ID);
 
 		key->hw_key_idx += reg ? ffz(reg) : 0;
-
 		/*
-		 * The encryption key doesn't fit within the CSR cache,
-		 * this means we should allocate it separately and use
-		 * rt2x00usb_vendor_request() to send the key to the hardware.
+		 * Hardware requires that all keys use the same cipher
+		 * (e.g. TKIP-only, AES-only, but not TKIP+AES).
+		 * If this is not the first key, compare the cipher with the
+		 * first one and fall back to SW crypto if not the same.
 		 */
-		reg = KEY_ENTRY(key->hw_key_idx);
-		timeout = REGISTER_TIMEOUT32(sizeof(crypto->key));
-		rt2x00usb_vendor_request_large_buff(rt2x00dev, USB_MULTI_WRITE,
-						    USB_VENDOR_REQUEST_OUT, reg,
-						    crypto->key,
-						    sizeof(crypto->key),
-						    timeout);
+		if (key->hw_key_idx > 0 && crypto->cipher != curr_cipher)
+			return -EOPNOTSUPP;
+
+		rt2500usb_register_multiwrite(rt2x00dev, KEY_ENTRY(key->hw_key_idx),
+					      crypto->key, sizeof(crypto->key));
 
 		/*
 		 * The driver does not support the IV/EIV generation
@@ -485,24 +494,34 @@ static void rt2500usb_config_intf(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt2500usb_config_erp(struct rt2x00_dev *rt2x00dev,
-				 struct rt2x00lib_erp *erp)
+				 struct rt2x00lib_erp *erp,
+				 u32 changed)
 {
 	u16 reg;
 
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR10, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR10_AUTORESPOND_PREAMBLE,
-			   !!erp->short_preamble);
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR10, reg);
+	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
+		rt2500usb_register_read(rt2x00dev, TXRX_CSR10, &reg);
+		rt2x00_set_field16(&reg, TXRX_CSR10_AUTORESPOND_PREAMBLE,
+				   !!erp->short_preamble);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR10, reg);
+	}
 
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR11, erp->basic_rates);
+	if (changed & BSS_CHANGED_BASIC_RATES)
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR11,
+					 erp->basic_rates);
 
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR18, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR18_INTERVAL, erp->beacon_int * 4);
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
+	if (changed & BSS_CHANGED_BEACON_INT) {
+		rt2500usb_register_read(rt2x00dev, TXRX_CSR18, &reg);
+		rt2x00_set_field16(&reg, TXRX_CSR18_INTERVAL,
+				   erp->beacon_int * 4);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
+	}
 
-	rt2500usb_register_write(rt2x00dev, MAC_CSR10, erp->slot_time);
-	rt2500usb_register_write(rt2x00dev, MAC_CSR11, erp->sifs);
-	rt2500usb_register_write(rt2x00dev, MAC_CSR12, erp->eifs);
+	if (changed & BSS_CHANGED_ERP_SLOT) {
+		rt2500usb_register_write(rt2x00dev, MAC_CSR10, erp->slot_time);
+		rt2500usb_register_write(rt2x00dev, MAC_CSR11, erp->sifs);
+		rt2500usb_register_write(rt2x00dev, MAC_CSR12, erp->eifs);
+	}
 }
 
 static void rt2500usb_config_ant(struct rt2x00_dev *rt2x00dev,
@@ -720,6 +739,55 @@ static void rt2500usb_reset_tuner(struct rt2x00_dev *rt2x00dev,
 }
 
 /*
+ * Queue handlers.
+ */
+static void rt2500usb_start_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u16 reg;
+
+	switch (queue->qid) {
+	case QID_RX:
+		rt2500usb_register_read(rt2x00dev, TXRX_CSR2, &reg);
+		rt2x00_set_field16(&reg, TXRX_CSR2_DISABLE_RX, 0);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR2, reg);
+		break;
+	case QID_BEACON:
+		rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
+		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 1);
+		rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 1);
+		rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 1);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
+		break;
+	default:
+		break;
+	}
+}
+
+static void rt2500usb_stop_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u16 reg;
+
+	switch (queue->qid) {
+	case QID_RX:
+		rt2500usb_register_read(rt2x00dev, TXRX_CSR2, &reg);
+		rt2x00_set_field16(&reg, TXRX_CSR2_DISABLE_RX, 1);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR2, reg);
+		break;
+	case QID_BEACON:
+		rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
+		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 0);
+		rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 0);
+		rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
+		break;
+	default:
+		break;
+	}
+}
+
+/*
  * Initialization functions.
  */
 static int rt2500usb_init_registers(struct rt2x00_dev *rt2x00dev)
@@ -818,6 +886,7 @@ static int rt2500usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2500usb_register_write(rt2x00dev, MAC_CSR8, reg);
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR0, &reg);
+	rt2x00_set_field16(&reg, TXRX_CSR0_ALGORITHM, CIPHER_NONE);
 	rt2x00_set_field16(&reg, TXRX_CSR0_IV_OFFSET, IEEE80211_HEADER);
 	rt2x00_set_field16(&reg, TXRX_CSR0_KEY_ID, 0);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR0, reg);
@@ -911,18 +980,6 @@ static int rt2500usb_init_bbp(struct rt2x00_dev *rt2x00dev)
 /*
  * Device state switch handlers.
  */
-static void rt2500usb_toggle_rx(struct rt2x00_dev *rt2x00dev,
-				enum dev_state state)
-{
-	u16 reg;
-
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR2, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR2_DISABLE_RX,
-			   (state == STATE_RADIO_RX_OFF) ||
-			   (state == STATE_RADIO_RX_OFF_LINK));
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR2, reg);
-}
-
 static int rt2500usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	/*
@@ -998,14 +1055,10 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 	case STATE_RADIO_OFF:
 		rt2500usb_disable_radio(rt2x00dev);
 		break;
-	case STATE_RADIO_RX_ON:
-	case STATE_RADIO_RX_ON_LINK:
-	case STATE_RADIO_RX_OFF:
-	case STATE_RADIO_RX_OFF_LINK:
-		rt2500usb_toggle_rx(rt2x00dev, state);
-		break;
 	case STATE_RADIO_IRQ_ON:
+	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
+	case STATE_RADIO_IRQ_OFF_ISR:
 		/* No support, but no error either */
 		break;
 	case STATE_DEEP_SLEEP:
@@ -1029,12 +1082,11 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 /*
  * TX descriptor initialization
  */
-static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				    struct sk_buff *skb,
+static void rt2500usb_write_tx_desc(struct queue_entry *entry,
 				    struct txentry_desc *txdesc)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	__le32 *txd = (__le32 *)(skb->data - TXD_DESC_SIZE);
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	__le32 *txd = (__le32 *) entry->skb->data;
 	u32 word;
 
 	/*
@@ -1060,9 +1112,9 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00_desc_read(txd, 1, &word);
 	rt2x00_set_field32(&word, TXD_W1_IV_OFFSET, txdesc->iv_offset);
-	rt2x00_set_field32(&word, TXD_W1_AIFS, txdesc->aifs);
-	rt2x00_set_field32(&word, TXD_W1_CWMIN, txdesc->cw_min);
-	rt2x00_set_field32(&word, TXD_W1_CWMAX, txdesc->cw_max);
+	rt2x00_set_field32(&word, TXD_W1_AIFS, entry->queue->aifs);
+	rt2x00_set_field32(&word, TXD_W1_CWMIN, entry->queue->cw_min);
+	rt2x00_set_field32(&word, TXD_W1_CWMAX, entry->queue->cw_max);
 	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
@@ -1080,6 +1132,7 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Register descriptor details in skb frame descriptor.
 	 */
+	skbdesc->flags |= SKBDESC_DESC_IN_SKB;
 	skbdesc->desc = txd;
 	skbdesc->desc_len = TXD_DESC_SIZE;
 }
@@ -1108,9 +1161,20 @@ static void rt2500usb_write_beacon(struct queue_entry *entry,
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 
 	/*
-	 * Take the descriptor in front of the skb into account.
+	 * Add space for the descriptor in front of the skb.
 	 */
 	skb_push(entry->skb, TXD_DESC_SIZE);
+	memset(entry->skb->data, 0, TXD_DESC_SIZE);
+
+	/*
+	 * Write the TX descriptor for the beacon.
+	 */
+	rt2500usb_write_tx_desc(entry, txdesc);
+
+	/*
+	 * Dump beacon to userspace through debugfs.
+	 */
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry->skb);
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the
@@ -1460,13 +1524,6 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
 
 	/*
-	 * Check if the BBP tuning should be disabled.
-	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &eeprom);
-	if (rt2x00_get_field16(eeprom, EEPROM_NIC_DYN_BBP_TUNE))
-		__set_bit(CONFIG_DISABLE_LINK_TUNING, &rt2x00dev->flags);
-
-	/*
 	 * Read the RSSI <-> dBm offset information.
 	 */
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_CALIBRATE_OFFSET, &eeprom);
@@ -1640,10 +1697,15 @@ static int rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * Initialize all hw fields.
+	 *
+	 * Don't set IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING unless we are
+	 * capable of sending the buffered frames out after the DTIM
+	 * transmission using rt2x00lib_beacondone. This will send out
+	 * multicast and broadcast traffic immediately instead of buffering it
+	 * infinitly and thus dropping it after some time.
 	 */
 	rt2x00dev->hw->flags =
 	    IEEE80211_HW_RX_INCLUDES_FCS |
-	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 	    IEEE80211_HW_SIGNAL_DBM |
 	    IEEE80211_HW_SUPPORTS_PS |
 	    IEEE80211_HW_PS_NULLFUNC_STACK;
@@ -1683,19 +1745,23 @@ static int rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Create channel information array
 	 */
-	info = kzalloc(spec->num_channels * sizeof(*info), GFP_KERNEL);
+	info = kcalloc(spec->num_channels, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
 	spec->channels_info = info;
 
 	tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_START);
-	for (i = 0; i < 14; i++)
-		info[i].tx_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+	for (i = 0; i < 14; i++) {
+		info[i].max_power = MAX_TXPOWER;
+		info[i].default_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+	}
 
 	if (spec->num_channels > 14) {
-		for (i = 14; i < spec->num_channels; i++)
-			info[i].tx_power1 = DEFAULT_TXPOWER;
+		for (i = 14; i < spec->num_channels; i++) {
+			info[i].max_power = MAX_TXPOWER;
+			info[i].default_power1 = DEFAULT_TXPOWER;
+		}
 	}
 
 	return 0;
@@ -1732,7 +1798,7 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
 		__set_bit(DRIVER_REQUIRE_COPY_IV, &rt2x00dev->flags);
 	}
-	__set_bit(CONFIG_DISABLE_LINK_TUNING, &rt2x00dev->flags);
+	__set_bit(DRIVER_SUPPORT_WATCHDOG, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.
@@ -1752,10 +1818,13 @@ static const struct ieee80211_ops rt2500usb_mac80211_ops = {
 	.configure_filter	= rt2x00mac_configure_filter,
 	.set_tim		= rt2x00mac_set_tim,
 	.set_key		= rt2x00mac_set_key,
+	.sw_scan_start		= rt2x00mac_sw_scan_start,
+	.sw_scan_complete	= rt2x00mac_sw_scan_complete,
 	.get_stats		= rt2x00mac_get_stats,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2x00mac_conf_tx,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
+	.flush			= rt2x00mac_flush,
 };
 
 static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
@@ -1767,12 +1836,14 @@ static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
 	.rfkill_poll		= rt2500usb_rfkill_poll,
 	.link_stats		= rt2500usb_link_stats,
 	.reset_tuner		= rt2500usb_reset_tuner,
+	.watchdog		= rt2x00usb_watchdog,
+	.start_queue		= rt2500usb_start_queue,
+	.kick_queue		= rt2x00usb_kick_queue,
+	.stop_queue		= rt2500usb_stop_queue,
+	.flush_queue		= rt2x00usb_flush_queue,
 	.write_tx_desc		= rt2500usb_write_tx_desc,
-	.write_tx_data		= rt2x00usb_write_tx_data,
 	.write_beacon		= rt2500usb_write_beacon,
 	.get_tx_data_len	= rt2500usb_get_tx_data_len,
-	.kick_tx_queue		= rt2x00usb_kick_tx_queue,
-	.kill_tx_queue		= rt2x00usb_kill_tx_queue,
 	.fill_rxdone		= rt2500usb_fill_rxdone,
 	.config_shared_key	= rt2500usb_config_key,
 	.config_pairwise_key	= rt2500usb_config_key,
@@ -1784,28 +1855,28 @@ static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
 };
 
 static const struct data_queue_desc rt2500usb_queue_rx = {
-	.entry_num		= RX_ENTRIES,
+	.entry_num		= 32,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= RXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt2500usb_queue_tx = {
-	.entry_num		= TX_ENTRIES,
+	.entry_num		= 32,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt2500usb_queue_bcn = {
-	.entry_num		= BEACON_ENTRIES,
+	.entry_num		= 1,
 	.data_size		= MGMT_FRAME_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb_bcn),
 };
 
 static const struct data_queue_desc rt2500usb_queue_atim = {
-	.entry_num		= ATIM_ENTRIES,
+	.entry_num		= 8,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),

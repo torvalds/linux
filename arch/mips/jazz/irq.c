@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
+#include <linux/irq.h>
 
 #include <asm/irq_cpu.h>
 #include <asm/i8253.h>

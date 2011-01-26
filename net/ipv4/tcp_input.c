@@ -78,10 +78,13 @@ int sysctl_tcp_window_scaling __read_mostly = 1;
 int sysctl_tcp_sack __read_mostly = 1;
 int sysctl_tcp_fack __read_mostly = 1;
 int sysctl_tcp_reordering __read_mostly = TCP_FASTRETRANS_THRESH;
+EXPORT_SYMBOL(sysctl_tcp_reordering);
 int sysctl_tcp_ecn __read_mostly = 2;
+EXPORT_SYMBOL(sysctl_tcp_ecn);
 int sysctl_tcp_dsack __read_mostly = 1;
 int sysctl_tcp_app_win __read_mostly = 31;
 int sysctl_tcp_adv_win_scale __read_mostly = 2;
+EXPORT_SYMBOL(sysctl_tcp_adv_win_scale);
 
 int sysctl_tcp_stdurg __read_mostly;
 int sysctl_tcp_rfc1337 __read_mostly;
@@ -179,7 +182,7 @@ static void tcp_incr_quickack(struct sock *sk)
 		icsk->icsk_ack.quick = min(quickacks, TCP_MAX_QUICKACKS);
 }
 
-void tcp_enter_quickack_mode(struct sock *sk)
+static void tcp_enter_quickack_mode(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	tcp_incr_quickack(sk);
@@ -256,8 +259,11 @@ static void tcp_fixup_sndbuf(struct sock *sk)
 	int sndmem = tcp_sk(sk)->rx_opt.mss_clamp + MAX_TCP_HEADER + 16 +
 		     sizeof(struct sk_buff);
 
-	if (sk->sk_sndbuf < 3 * sndmem)
-		sk->sk_sndbuf = min(3 * sndmem, sysctl_tcp_wmem[2]);
+	if (sk->sk_sndbuf < 3 * sndmem) {
+		sk->sk_sndbuf = 3 * sndmem;
+		if (sk->sk_sndbuf > sysctl_tcp_wmem[2])
+			sk->sk_sndbuf = sysctl_tcp_wmem[2];
+	}
 }
 
 /* 2. Tuning advertised window (window_clamp, rcv_ssthresh)
@@ -393,7 +399,7 @@ static void tcp_clamp_window(struct sock *sk)
 	if (sk->sk_rcvbuf < sysctl_tcp_rmem[2] &&
 	    !(sk->sk_userlocks & SOCK_RCVBUF_LOCK) &&
 	    !tcp_memory_pressure &&
-	    atomic_read(&tcp_memory_allocated) < sysctl_tcp_mem[0]) {
+	    atomic_long_read(&tcp_memory_allocated) < sysctl_tcp_mem[0]) {
 		sk->sk_rcvbuf = min(atomic_read(&sk->sk_rmem_alloc),
 				    sysctl_tcp_rmem[2]);
 	}
@@ -419,15 +425,16 @@ void tcp_initialize_rcv_mss(struct sock *sk)
 
 	inet_csk(sk)->icsk_ack.rcv_mss = hint;
 }
+EXPORT_SYMBOL(tcp_initialize_rcv_mss);
 
 /* Receiver "autotuning" code.
  *
  * The algorithm for RTT estimation w/o timestamps is based on
  * Dynamic Right-Sizing (DRS) by Wu Feng and Mike Fisk of LANL.
- * <http://www.lanl.gov/radiant/website/pubs/drs/lacsi2001.ps>
+ * <http://public.lanl.gov/radiant/pubs.html#DRS>
  *
  * More detail on this code can be found at
- * <http://www.psc.edu/~jheffner/senior_thesis.ps>,
+ * <http://staff.psc.edu/jheffner/>,
  * though this reference is out of date.  A new paper
  * is pending.
  */
@@ -727,7 +734,7 @@ void tcp_update_metrics(struct sock *sk)
 			 * Reset our results.
 			 */
 			if (!(dst_metric_locked(dst, RTAX_RTT)))
-				dst->metrics[RTAX_RTT - 1] = 0;
+				dst_metric_set(dst, RTAX_RTT, 0);
 			return;
 		}
 
@@ -769,57 +776,48 @@ void tcp_update_metrics(struct sock *sk)
 			if (dst_metric(dst, RTAX_SSTHRESH) &&
 			    !dst_metric_locked(dst, RTAX_SSTHRESH) &&
 			    (tp->snd_cwnd >> 1) > dst_metric(dst, RTAX_SSTHRESH))
-				dst->metrics[RTAX_SSTHRESH-1] = tp->snd_cwnd >> 1;
+				dst_metric_set(dst, RTAX_SSTHRESH, tp->snd_cwnd >> 1);
 			if (!dst_metric_locked(dst, RTAX_CWND) &&
 			    tp->snd_cwnd > dst_metric(dst, RTAX_CWND))
-				dst->metrics[RTAX_CWND - 1] = tp->snd_cwnd;
+				dst_metric_set(dst, RTAX_CWND, tp->snd_cwnd);
 		} else if (tp->snd_cwnd > tp->snd_ssthresh &&
 			   icsk->icsk_ca_state == TCP_CA_Open) {
 			/* Cong. avoidance phase, cwnd is reliable. */
 			if (!dst_metric_locked(dst, RTAX_SSTHRESH))
-				dst->metrics[RTAX_SSTHRESH-1] =
-					max(tp->snd_cwnd >> 1, tp->snd_ssthresh);
+				dst_metric_set(dst, RTAX_SSTHRESH,
+					       max(tp->snd_cwnd >> 1, tp->snd_ssthresh));
 			if (!dst_metric_locked(dst, RTAX_CWND))
-				dst->metrics[RTAX_CWND-1] = (dst_metric(dst, RTAX_CWND) + tp->snd_cwnd) >> 1;
+				dst_metric_set(dst, RTAX_CWND,
+					       (dst_metric(dst, RTAX_CWND) +
+						tp->snd_cwnd) >> 1);
 		} else {
 			/* Else slow start did not finish, cwnd is non-sense,
 			   ssthresh may be also invalid.
 			 */
 			if (!dst_metric_locked(dst, RTAX_CWND))
-				dst->metrics[RTAX_CWND-1] = (dst_metric(dst, RTAX_CWND) + tp->snd_ssthresh) >> 1;
+				dst_metric_set(dst, RTAX_CWND,
+					       (dst_metric(dst, RTAX_CWND) +
+						tp->snd_ssthresh) >> 1);
 			if (dst_metric(dst, RTAX_SSTHRESH) &&
 			    !dst_metric_locked(dst, RTAX_SSTHRESH) &&
 			    tp->snd_ssthresh > dst_metric(dst, RTAX_SSTHRESH))
-				dst->metrics[RTAX_SSTHRESH-1] = tp->snd_ssthresh;
+				dst_metric_set(dst, RTAX_SSTHRESH, tp->snd_ssthresh);
 		}
 
 		if (!dst_metric_locked(dst, RTAX_REORDERING)) {
 			if (dst_metric(dst, RTAX_REORDERING) < tp->reordering &&
 			    tp->reordering != sysctl_tcp_reordering)
-				dst->metrics[RTAX_REORDERING-1] = tp->reordering;
+				dst_metric_set(dst, RTAX_REORDERING, tp->reordering);
 		}
 	}
 }
 
-/* Numbers are taken from RFC3390.
- *
- * John Heffner states:
- *
- *	The RFC specifies a window of no more than 4380 bytes
- *	unless 2*MSS > 4380.  Reading the pseudocode in the RFC
- *	is a bit misleading because they use a clamp at 4380 bytes
- *	rather than use a multiplier in the relevant range.
- */
 __u32 tcp_init_cwnd(struct tcp_sock *tp, struct dst_entry *dst)
 {
 	__u32 cwnd = (dst ? dst_metric(dst, RTAX_INITCWND) : 0);
 
-	if (!cwnd) {
-		if (tp->mss_cache > 1460)
-			cwnd = 2;
-		else
-			cwnd = (tp->mss_cache > 1095) ? 3 : 4;
-	}
+	if (!cwnd)
+		cwnd = rfc3390_bytes_to_packets(tp->mss_cache);
 	return min_t(__u32, cwnd, tp->snd_cwnd_clamp);
 }
 
@@ -918,25 +916,20 @@ static void tcp_init_metrics(struct sock *sk)
 		tp->mdev_max = tp->rttvar = max(tp->mdev, tcp_rto_min(sk));
 	}
 	tcp_set_rto(sk);
-	if (inet_csk(sk)->icsk_rto < TCP_TIMEOUT_INIT && !tp->rx_opt.saw_tstamp)
-		goto reset;
-
-cwnd:
+	if (inet_csk(sk)->icsk_rto < TCP_TIMEOUT_INIT && !tp->rx_opt.saw_tstamp) {
+reset:
+		/* Play conservative. If timestamps are not
+		 * supported, TCP will fail to recalculate correct
+		 * rtt, if initial rto is too small. FORGET ALL AND RESET!
+		 */
+		if (!tp->rx_opt.saw_tstamp && tp->srtt) {
+			tp->srtt = 0;
+			tp->mdev = tp->mdev_max = tp->rttvar = TCP_TIMEOUT_INIT;
+			inet_csk(sk)->icsk_rto = TCP_TIMEOUT_INIT;
+		}
+	}
 	tp->snd_cwnd = tcp_init_cwnd(tp, dst);
 	tp->snd_cwnd_stamp = tcp_time_stamp;
-	return;
-
-reset:
-	/* Play conservative. If timestamps are not
-	 * supported, TCP will fail to recalculate correct
-	 * rtt, if initial rto is too small. FORGET ALL AND RESET!
-	 */
-	if (!tp->rx_opt.saw_tstamp && tp->srtt) {
-		tp->srtt = 0;
-		tp->mdev = tp->mdev_max = tp->rttvar = TCP_TIMEOUT_INIT;
-		inet_csk(sk)->icsk_rto = TCP_TIMEOUT_INIT;
-	}
-	goto cwnd;
 }
 
 static void tcp_update_reordering(struct sock *sk, const int metric,
@@ -2310,7 +2303,7 @@ static inline int tcp_dupack_heuristics(struct tcp_sock *tp)
 
 static inline int tcp_skb_timedout(struct sock *sk, struct sk_buff *skb)
 {
-	return (tcp_time_stamp - TCP_SKB_CB(skb)->when > inet_csk(sk)->icsk_rto);
+	return tcp_time_stamp - TCP_SKB_CB(skb)->when > inet_csk(sk)->icsk_rto;
 }
 
 static inline int tcp_head_timedout(struct sock *sk)
@@ -2504,7 +2497,7 @@ static void tcp_timeout_skbs(struct sock *sk)
 /* Mark head of queue up as lost. With RFC3517 SACK, the packets is
  * is against sacked "cnt", otherwise it's against facked "cnt"
  */
-static void tcp_mark_head_lost(struct sock *sk, int packets)
+static void tcp_mark_head_lost(struct sock *sk, int packets, int mark_head)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
@@ -2512,13 +2505,13 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 	int err;
 	unsigned int mss;
 
-	if (packets == 0)
-		return;
-
 	WARN_ON(packets > tp->packets_out);
 	if (tp->lost_skb_hint) {
 		skb = tp->lost_skb_hint;
 		cnt = tp->lost_cnt_hint;
+		/* Head already handled? */
+		if (mark_head && skb != tcp_write_queue_head(sk))
+			return;
 	} else {
 		skb = tcp_write_queue_head(sk);
 		cnt = 0;
@@ -2541,7 +2534,8 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 			cnt += tcp_skb_pcount(skb);
 
 		if (cnt > packets) {
-			if (tcp_is_sack(tp) || (oldcnt >= packets))
+			if ((tcp_is_sack(tp) && !tcp_is_fack(tp)) ||
+			    (oldcnt >= packets))
 				break;
 
 			mss = skb_shinfo(skb)->gso_size;
@@ -2552,6 +2546,9 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 		}
 
 		tcp_skb_mark_lost(tp, skb);
+
+		if (mark_head)
+			break;
 	}
 	tcp_verify_left_out(tp);
 }
@@ -2563,17 +2560,18 @@ static void tcp_update_scoreboard(struct sock *sk, int fast_rexmit)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	if (tcp_is_reno(tp)) {
-		tcp_mark_head_lost(sk, 1);
+		tcp_mark_head_lost(sk, 1, 1);
 	} else if (tcp_is_fack(tp)) {
 		int lost = tp->fackets_out - tp->reordering;
 		if (lost <= 0)
 			lost = 1;
-		tcp_mark_head_lost(sk, lost);
+		tcp_mark_head_lost(sk, lost, 0);
 	} else {
 		int sacked_upto = tp->sacked_out - tp->reordering;
-		if (sacked_upto < fast_rexmit)
-			sacked_upto = fast_rexmit;
-		tcp_mark_head_lost(sk, sacked_upto);
+		if (sacked_upto >= 0)
+			tcp_mark_head_lost(sk, sacked_upto, 0);
+		else if (fast_rexmit)
+			tcp_mark_head_lost(sk, 1, 1);
 	}
 
 	tcp_timeout_skbs(sk);
@@ -2639,7 +2637,7 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 	if (sk->sk_family == AF_INET) {
 		printk(KERN_DEBUG "Undo %s %pI4/%u c%u l%u ss%u/%u p%u\n",
 		       msg,
-		       &inet->daddr, ntohs(inet->dport),
+		       &inet->inet_daddr, ntohs(inet->inet_dport),
 		       tp->snd_cwnd, tcp_left_out(tp),
 		       tp->snd_ssthresh, tp->prior_ssthresh,
 		       tp->packets_out);
@@ -2649,7 +2647,7 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 		struct ipv6_pinfo *np = inet6_sk(sk);
 		printk(KERN_DEBUG "Undo %s %pI6/%u c%u l%u ss%u/%u p%u\n",
 		       msg,
-		       &np->daddr, ntohs(inet->dport),
+		       &np->daddr, ntohs(inet->inet_dport),
 		       tp->snd_cwnd, tcp_left_out(tp),
 		       tp->snd_ssthresh, tp->prior_ssthresh,
 		       tp->packets_out);
@@ -2882,7 +2880,7 @@ static void tcp_mtup_probe_success(struct sock *sk)
 		       icsk->icsk_mtup.probe_size;
 	tp->snd_cwnd_cnt = 0;
 	tp->snd_cwnd_stamp = tcp_time_stamp;
-	tp->rcv_ssthresh = tcp_current_ssthresh(sk);
+	tp->snd_ssthresh = tcp_current_ssthresh(sk);
 
 	icsk->icsk_mtup.search_low = icsk->icsk_mtup.probe_size;
 	icsk->icsk_mtup.probe_size = 0;
@@ -2938,6 +2936,7 @@ void tcp_simple_retransmit(struct sock *sk)
 	}
 	tcp_xmit_retransmit_queue(sk);
 }
+EXPORT_SYMBOL(tcp_simple_retransmit);
 
 /* Process an event, which can update packets-in-flight not trivially.
  * Main goal of this function is to calculate new estimate for left_out,
@@ -2978,7 +2977,7 @@ static void tcp_fastretrans_alert(struct sock *sk, int pkts_acked, int flag)
 	    before(tp->snd_una, tp->high_seq) &&
 	    icsk->icsk_ca_state != TCP_CA_Open &&
 	    tp->fackets_out > tp->reordering) {
-		tcp_mark_head_lost(sk, tp->fackets_out - tp->reordering);
+		tcp_mark_head_lost(sk, tp->fackets_out - tp->reordering, 0);
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPLOSS);
 	}
 
@@ -3286,7 +3285,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 		 * connection startup slow start one packet too
 		 * quickly.  This is severely frowned upon behavior.
 		 */
-		if (!(scb->flags & TCPCB_FLAG_SYN)) {
+		if (!(scb->flags & TCPHDR_SYN)) {
 			flag |= FLAG_DATA_ACKED;
 		} else {
 			flag |= FLAG_SYN_ACKED;
@@ -3406,8 +3405,8 @@ static void tcp_ack_probe(struct sock *sk)
 
 static inline int tcp_ack_is_dubious(const struct sock *sk, const int flag)
 {
-	return (!(flag & FLAG_NOT_DUP) || (flag & FLAG_CA_ALERT) ||
-		inet_csk(sk)->icsk_ca_state != TCP_CA_Open);
+	return !(flag & FLAG_NOT_DUP) || (flag & FLAG_CA_ALERT) ||
+		inet_csk(sk)->icsk_ca_state != TCP_CA_Open;
 }
 
 static inline int tcp_may_raise_cwnd(const struct sock *sk, const int flag)
@@ -3424,9 +3423,9 @@ static inline int tcp_may_update_window(const struct tcp_sock *tp,
 					const u32 ack, const u32 ack_seq,
 					const u32 nwin)
 {
-	return (after(ack, tp->snd_una) ||
+	return	after(ack, tp->snd_una) ||
 		after(ack_seq, tp->snd_wl1) ||
-		(ack_seq == tp->snd_wl1 && nwin > tp->snd_wnd));
+		(ack_seq == tp->snd_wl1 && nwin > tp->snd_wnd);
 }
 
 /* Update our send window.
@@ -3858,6 +3857,7 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 		}
 	}
 }
+EXPORT_SYMBOL(tcp_parse_options);
 
 static int tcp_parse_aligned_timestamp(struct tcp_sock *tp, struct tcphdr *th)
 {
@@ -3924,13 +3924,14 @@ u8 *tcp_parse_md5sig_option(struct tcphdr *th)
 			if (opsize < 2 || opsize > length)
 				return NULL;
 			if (opcode == TCPOPT_MD5SIG)
-				return ptr;
+				return opsize == TCPOLEN_MD5SIG ? ptr : NULL;
 		}
 		ptr += opsize - 2;
 		length -= opsize;
 	}
 	return NULL;
 }
+EXPORT_SYMBOL(tcp_parse_md5sig_option);
 #endif
 
 static inline void tcp_store_ts_recent(struct tcp_sock *tp)
@@ -4041,6 +4042,8 @@ static void tcp_reset(struct sock *sk)
 	default:
 		sk->sk_err = ECONNRESET;
 	}
+	/* This barrier is coupled with smp_rmb() in tcp_poll() */
+	smp_wmb();
 
 	if (!sock_flag(sk, SOCK_DEAD))
 		sk->sk_error_report(sk);
@@ -4860,7 +4863,7 @@ static int tcp_should_expand_sndbuf(struct sock *sk)
 		return 0;
 
 	/* If we are under soft global TCP memory pressure, do not expand.  */
-	if (atomic_read(&tcp_memory_allocated) >= sysctl_tcp_mem[0])
+	if (atomic_long_read(&tcp_memory_allocated) >= sysctl_tcp_mem[0])
 		return 0;
 
 	/* If we filled the congestion window, do not expand.  */
@@ -5432,6 +5435,7 @@ discard:
 	__kfree_skb(skb);
 	return 0;
 }
+EXPORT_SYMBOL(tcp_rcv_established);
 
 static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 					 struct tcphdr *th, unsigned len)
@@ -5931,14 +5935,4 @@ discard:
 	}
 	return 0;
 }
-
-EXPORT_SYMBOL(sysctl_tcp_ecn);
-EXPORT_SYMBOL(sysctl_tcp_reordering);
-EXPORT_SYMBOL(sysctl_tcp_adv_win_scale);
-EXPORT_SYMBOL(tcp_parse_options);
-#ifdef CONFIG_TCP_MD5SIG
-EXPORT_SYMBOL(tcp_parse_md5sig_option);
-#endif
-EXPORT_SYMBOL(tcp_rcv_established);
 EXPORT_SYMBOL(tcp_rcv_state_process);
-EXPORT_SYMBOL(tcp_initialize_rcv_mss);

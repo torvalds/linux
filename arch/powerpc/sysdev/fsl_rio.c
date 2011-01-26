@@ -1,6 +1,15 @@
 /*
  * Freescale MPC85xx/MPC86xx RapidIO support
  *
+ * Copyright 2009 Sysgo AG
+ * Thomas Moll <thomas.moll@sysgo.com>
+ * - fixed maintenance access routines, check for aligned access
+ *
+ * Copyright 2009 Integrated Device Technology, Inc.
+ * Alex Bounine <alexandre.bounine@idt.com>
+ * - Added Port-Write message handling
+ * - Added Machine Check exception handling
+ *
  * Copyright (C) 2007, 2008 Freescale Semiconductor, Inc.
  * Zhang Wei <wei.zhang@freescale.com>
  *
@@ -24,19 +33,31 @@
 #include <linux/of_platform.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/kfifo.h>
 
 #include <asm/io.h>
+#include <asm/machdep.h>
+#include <asm/uaccess.h>
+
+#undef DEBUG_PW	/* Port-Write debugging */
 
 /* RapidIO definition irq, which read from OF-tree */
 #define IRQ_RIO_BELL(m)		(((struct rio_priv *)(m->priv))->bellirq)
 #define IRQ_RIO_TX(m)		(((struct rio_priv *)(m->priv))->txirq)
 #define IRQ_RIO_RX(m)		(((struct rio_priv *)(m->priv))->rxirq)
+#define IRQ_RIO_PW(m)		(((struct rio_priv *)(m->priv))->pwirq)
 
 #define RIO_ATMU_REGS_OFFSET	0x10c00
 #define RIO_P_MSG_REGS_OFFSET	0x11000
 #define RIO_S_MSG_REGS_OFFSET	0x13000
+#define RIO_GCCSR		0x13c
 #define RIO_ESCSR		0x158
 #define RIO_CCSR		0x15c
+#define RIO_LTLEDCSR		0x0608
+#define  RIO_LTLEDCSR_IER	0x80000000
+#define  RIO_LTLEDCSR_PRT	0x01000000
+#define RIO_LTLEECSR		0x060c
+#define RIO_EPWISR		0x10010
 #define RIO_ISR_AACR		0x10120
 #define RIO_ISR_AACR_AA		0x1	/* Accept All ID */
 #define RIO_MAINT_WIN_SIZE	0x400000
@@ -54,6 +75,21 @@
 #define RIO_MSG_ISR_TE		0x00000080
 #define RIO_MSG_ISR_QFI		0x00000010
 #define RIO_MSG_ISR_DIQI	0x00000001
+
+#define RIO_IPWMR_SEN		0x00100000
+#define RIO_IPWMR_QFIE		0x00000100
+#define RIO_IPWMR_EIE		0x00000020
+#define RIO_IPWMR_CQ		0x00000002
+#define RIO_IPWMR_PWE		0x00000001
+
+#define RIO_IPWSR_QF		0x00100000
+#define RIO_IPWSR_TE		0x00000080
+#define RIO_IPWSR_QFI		0x00000010
+#define RIO_IPWSR_PWD		0x00000008
+#define RIO_IPWSR_PWB		0x00000004
+
+#define RIO_EPWISR_PINT		0x80000000
+#define RIO_EPWISR_PW		0x00000001
 
 #define RIO_MSG_DESC_SIZE	32
 #define RIO_MSG_BUFFER_SIZE	4096
@@ -85,44 +121,59 @@ struct rio_atmu_regs {
 };
 
 struct rio_msg_regs {
-	u32 omr;
-	u32 osr;
+	u32 omr;	/* 0xD_3000 - Outbound message 0 mode register */
+	u32 osr;	/* 0xD_3004 - Outbound message 0 status register */
 	u32 pad1;
-	u32 odqdpar;
+	u32 odqdpar;	/* 0xD_300C - Outbound message 0 descriptor queue
+			   dequeue pointer address register */
 	u32 pad2;
-	u32 osar;
-	u32 odpr;
-	u32 odatr;
-	u32 odcr;
+	u32 osar;	/* 0xD_3014 - Outbound message 0 source address
+			   register */
+	u32 odpr;	/* 0xD_3018 - Outbound message 0 destination port
+			   register */
+	u32 odatr;	/* 0xD_301C - Outbound message 0 destination attributes
+			   Register*/
+	u32 odcr;	/* 0xD_3020 - Outbound message 0 double-word count
+			   register */
 	u32 pad3;
-	u32 odqepar;
+	u32 odqepar;	/* 0xD_3028 - Outbound message 0 descriptor queue
+			   enqueue pointer address register */
 	u32 pad4[13];
-	u32 imr;
-	u32 isr;
+	u32 imr;	/* 0xD_3060 - Inbound message 0 mode register */
+	u32 isr;	/* 0xD_3064 - Inbound message 0 status register */
 	u32 pad5;
-	u32 ifqdpar;
+	u32 ifqdpar;	/* 0xD_306C - Inbound message 0 frame queue dequeue
+			   pointer address register*/
 	u32 pad6;
-	u32 ifqepar;
+	u32 ifqepar;	/* 0xD_3074 - Inbound message 0 frame queue enqueue
+			   pointer address register */
 	u32 pad7[226];
-	u32 odmr;
-	u32 odsr;
+	u32 odmr;	/* 0xD_3400 - Outbound doorbell mode register */
+	u32 odsr;	/* 0xD_3404 - Outbound doorbell status register */
 	u32 res0[4];
-	u32 oddpr;
-	u32 oddatr;
+	u32 oddpr;	/* 0xD_3418 - Outbound doorbell destination port
+			   register */
+	u32 oddatr;	/* 0xD_341c - Outbound doorbell destination attributes
+			   register */
 	u32 res1[3];
-	u32 odretcr;
+	u32 odretcr;	/* 0xD_342C - Outbound doorbell retry error threshold
+			   configuration register */
 	u32 res2[12];
-	u32 dmr;
-	u32 dsr;
+	u32 dmr;	/* 0xD_3460 - Inbound doorbell mode register */
+	u32 dsr;	/* 0xD_3464 - Inbound doorbell status register */
 	u32 pad8;
-	u32 dqdpar;
+	u32 dqdpar;	/* 0xD_346C - Inbound doorbell queue dequeue Pointer
+			   address register */
 	u32 pad9;
-	u32 dqepar;
+	u32 dqepar;	/* 0xD_3474 - Inbound doorbell Queue enqueue pointer
+			   address register */
 	u32 pad10[26];
-	u32 pwmr;
-	u32 pwsr;
-	u32 pad11;
-	u32 pwqbar;
+	u32 pwmr;	/* 0xD_34E0 - Inbound port-write mode register */
+	u32 pwsr;	/* 0xD_34E4 - Inbound port-write status register */
+	u32 epwqbar;	/* 0xD_34E8 - Extended Port-Write Queue Base Address
+			   register */
+	u32 pwqbar;	/* 0xD_34EC - Inbound port-write queue base address
+			   register */
 };
 
 struct rio_tx_desc {
@@ -160,6 +211,14 @@ struct rio_msg_rx_ring {
 	void *dev_id;
 };
 
+struct rio_port_write_msg {
+	void *virt;
+	dma_addr_t phys;
+	u32 msg_count;
+	u32 err_count;
+	u32 discard_count;
+};
+
 struct rio_priv {
 	struct device *dev;
 	void __iomem *regs_win;
@@ -172,10 +231,65 @@ struct rio_priv {
 	struct rio_dbell_ring dbell_ring;
 	struct rio_msg_tx_ring msg_tx_ring;
 	struct rio_msg_rx_ring msg_rx_ring;
+	struct rio_port_write_msg port_write_msg;
 	int bellirq;
 	int txirq;
 	int rxirq;
+	int pwirq;
+	struct work_struct pw_work;
+	struct kfifo pw_fifo;
+	spinlock_t pw_fifo_lock;
 };
+
+#define __fsl_read_rio_config(x, addr, err, op)		\
+	__asm__ __volatile__(				\
+		"1:	"op" %1,0(%2)\n"		\
+		"	eieio\n"			\
+		"2:\n"					\
+		".section .fixup,\"ax\"\n"		\
+		"3:	li %1,-1\n"			\
+		"	li %0,%3\n"			\
+		"	b 2b\n"				\
+		".section __ex_table,\"a\"\n"		\
+		"	.align 2\n"			\
+		"	.long 1b,3b\n"			\
+		".text"					\
+		: "=r" (err), "=r" (x)			\
+		: "b" (addr), "i" (-EFAULT), "0" (err))
+
+static void __iomem *rio_regs_win;
+
+#ifdef CONFIG_E500
+static int (*saved_mcheck_exception)(struct pt_regs *regs);
+
+static int fsl_rio_mcheck_exception(struct pt_regs *regs)
+{
+	const struct exception_table_entry *entry = NULL;
+	unsigned long reason = mfspr(SPRN_MCSR);
+
+	if (reason & MCSR_BUS_RBERR) {
+		reason = in_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR));
+		if (reason & (RIO_LTLEDCSR_IER | RIO_LTLEDCSR_PRT)) {
+			/* Check if we are prepared to handle this fault */
+			entry = search_exception_tables(regs->nip);
+			if (entry) {
+				pr_debug("RIO: %s - MC Exception handled\n",
+					 __func__);
+				out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR),
+					 0);
+				regs->msr |= MSR_RI;
+				regs->nip = entry->fixup;
+				return 1;
+			}
+		}
+	}
+
+	if (saved_mcheck_exception)
+		return saved_mcheck_exception(regs);
+	else
+		return cur_cpu_spec->machine_check(regs);
+}
+#endif
 
 /**
  * fsl_rio_doorbell_send - Send a MPC85xx doorbell message
@@ -277,27 +391,44 @@ fsl_rio_config_read(struct rio_mport *mport, int index, u16 destid,
 {
 	struct rio_priv *priv = mport->priv;
 	u8 *data;
+	u32 rval, err = 0;
 
 	pr_debug
 	    ("fsl_rio_config_read: index %d destid %d hopcount %d offset %8.8x len %d\n",
 	     index, destid, hopcount, offset, len);
-	out_be32(&priv->maint_atmu_regs->rowtar,
-		 (destid << 22) | (hopcount << 12) | ((offset & ~0x3) >> 9));
 
-	data = (u8 *) priv->maint_win + offset;
+	/* 16MB maintenance window possible */
+	/* allow only aligned access to maintenance registers */
+	if (offset > (0x1000000 - len) || !IS_ALIGNED(offset, len))
+		return -EINVAL;
+
+	out_be32(&priv->maint_atmu_regs->rowtar,
+		 (destid << 22) | (hopcount << 12) | (offset >> 12));
+	out_be32(&priv->maint_atmu_regs->rowtear,  (destid >> 10));
+
+	data = (u8 *) priv->maint_win + (offset & (RIO_MAINT_WIN_SIZE - 1));
 	switch (len) {
 	case 1:
-		*val = in_8((u8 *) data);
+		__fsl_read_rio_config(rval, data, err, "lbz");
 		break;
 	case 2:
-		*val = in_be16((u16 *) data);
+		__fsl_read_rio_config(rval, data, err, "lhz");
+		break;
+	case 4:
+		__fsl_read_rio_config(rval, data, err, "lwz");
 		break;
 	default:
-		*val = in_be32((u32 *) data);
-		break;
+		return -EINVAL;
 	}
 
-	return 0;
+	if (err) {
+		pr_debug("RIO: cfg_read error %d for %x:%x:%x\n",
+			 err, destid, hopcount, offset);
+	}
+
+	*val = rval;
+
+	return err;
 }
 
 /**
@@ -322,10 +453,17 @@ fsl_rio_config_write(struct rio_mport *mport, int index, u16 destid,
 	pr_debug
 	    ("fsl_rio_config_write: index %d destid %d hopcount %d offset %8.8x len %d val %8.8x\n",
 	     index, destid, hopcount, offset, len, val);
-	out_be32(&priv->maint_atmu_regs->rowtar,
-		 (destid << 22) | (hopcount << 12) | ((offset & ~0x3) >> 9));
 
-	data = (u8 *) priv->maint_win + offset;
+	/* 16MB maintenance windows possible */
+	/* allow only aligned access to maintenance registers */
+	if (offset > (0x1000000 - len) || !IS_ALIGNED(offset, len))
+		return -EINVAL;
+
+	out_be32(&priv->maint_atmu_regs->rowtar,
+		 (destid << 22) | (hopcount << 12) | (offset >> 12));
+	out_be32(&priv->maint_atmu_regs->rowtear,  (destid >> 10));
+
+	data = (u8 *) priv->maint_win + (offset & (RIO_MAINT_WIN_SIZE - 1));
 	switch (len) {
 	case 1:
 		out_8((u8 *) data, val);
@@ -333,9 +471,11 @@ fsl_rio_config_write(struct rio_mport *mport, int index, u16 destid,
 	case 2:
 		out_be16((u16 *) data, val);
 		break;
-	default:
+	case 4:
 		out_be32((u32 *) data, val);
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
@@ -833,7 +973,6 @@ fsl_rio_dbell_handler(int irq, void *dev_instance)
 	if (dsr & DOORBELL_DSR_QFI) {
 		pr_info("RIO: doorbell queue full\n");
 		out_be32(&priv->msg_regs->dsr, DOORBELL_DSR_QFI);
-		goto out;
 	}
 
 	/* XXX Need to check/dispatch until queue empty */
@@ -930,6 +1069,230 @@ static int fsl_rio_doorbell_init(struct rio_mport *mport)
 	return rc;
 }
 
+/**
+ * fsl_rio_port_write_handler - MPC85xx port write interrupt handler
+ * @irq: Linux interrupt number
+ * @dev_instance: Pointer to interrupt-specific data
+ *
+ * Handles port write interrupts. Parses a list of registered
+ * port write event handlers and executes a matching event handler.
+ */
+static irqreturn_t
+fsl_rio_port_write_handler(int irq, void *dev_instance)
+{
+	u32 ipwmr, ipwsr;
+	struct rio_mport *port = (struct rio_mport *)dev_instance;
+	struct rio_priv *priv = port->priv;
+	u32 epwisr, tmp;
+
+	epwisr = in_be32(priv->regs_win + RIO_EPWISR);
+	if (!(epwisr & RIO_EPWISR_PW))
+		goto pw_done;
+
+	ipwmr = in_be32(&priv->msg_regs->pwmr);
+	ipwsr = in_be32(&priv->msg_regs->pwsr);
+
+#ifdef DEBUG_PW
+	pr_debug("PW Int->IPWMR: 0x%08x IPWSR: 0x%08x (", ipwmr, ipwsr);
+	if (ipwsr & RIO_IPWSR_QF)
+		pr_debug(" QF");
+	if (ipwsr & RIO_IPWSR_TE)
+		pr_debug(" TE");
+	if (ipwsr & RIO_IPWSR_QFI)
+		pr_debug(" QFI");
+	if (ipwsr & RIO_IPWSR_PWD)
+		pr_debug(" PWD");
+	if (ipwsr & RIO_IPWSR_PWB)
+		pr_debug(" PWB");
+	pr_debug(" )\n");
+#endif
+	/* Schedule deferred processing if PW was received */
+	if (ipwsr & RIO_IPWSR_QFI) {
+		/* Save PW message (if there is room in FIFO),
+		 * otherwise discard it.
+		 */
+		if (kfifo_avail(&priv->pw_fifo) >= RIO_PW_MSG_SIZE) {
+			priv->port_write_msg.msg_count++;
+			kfifo_in(&priv->pw_fifo, priv->port_write_msg.virt,
+				 RIO_PW_MSG_SIZE);
+		} else {
+			priv->port_write_msg.discard_count++;
+			pr_debug("RIO: ISR Discarded Port-Write Msg(s) (%d)\n",
+				 priv->port_write_msg.discard_count);
+		}
+		/* Clear interrupt and issue Clear Queue command. This allows
+		 * another port-write to be received.
+		 */
+		out_be32(&priv->msg_regs->pwsr,	RIO_IPWSR_QFI);
+		out_be32(&priv->msg_regs->pwmr, ipwmr | RIO_IPWMR_CQ);
+
+		schedule_work(&priv->pw_work);
+	}
+
+	if ((ipwmr & RIO_IPWMR_EIE) && (ipwsr & RIO_IPWSR_TE)) {
+		priv->port_write_msg.err_count++;
+		pr_debug("RIO: Port-Write Transaction Err (%d)\n",
+			 priv->port_write_msg.err_count);
+		/* Clear Transaction Error: port-write controller should be
+		 * disabled when clearing this error
+		 */
+		out_be32(&priv->msg_regs->pwmr, ipwmr & ~RIO_IPWMR_PWE);
+		out_be32(&priv->msg_regs->pwsr,	RIO_IPWSR_TE);
+		out_be32(&priv->msg_regs->pwmr, ipwmr);
+	}
+
+	if (ipwsr & RIO_IPWSR_PWD) {
+		priv->port_write_msg.discard_count++;
+		pr_debug("RIO: Port Discarded Port-Write Msg(s) (%d)\n",
+			 priv->port_write_msg.discard_count);
+		out_be32(&priv->msg_regs->pwsr, RIO_IPWSR_PWD);
+	}
+
+pw_done:
+	if (epwisr & RIO_EPWISR_PINT) {
+		tmp = in_be32(priv->regs_win + RIO_LTLEDCSR);
+		pr_debug("RIO_LTLEDCSR = 0x%x\n", tmp);
+		out_be32(priv->regs_win + RIO_LTLEDCSR, 0);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static void fsl_pw_dpc(struct work_struct *work)
+{
+	struct rio_priv *priv = container_of(work, struct rio_priv, pw_work);
+	unsigned long flags;
+	u32 msg_buffer[RIO_PW_MSG_SIZE/sizeof(u32)];
+
+	/*
+	 * Process port-write messages
+	 */
+	spin_lock_irqsave(&priv->pw_fifo_lock, flags);
+	while (kfifo_out(&priv->pw_fifo, (unsigned char *)msg_buffer,
+			 RIO_PW_MSG_SIZE)) {
+		/* Process one message */
+		spin_unlock_irqrestore(&priv->pw_fifo_lock, flags);
+#ifdef DEBUG_PW
+		{
+		u32 i;
+		pr_debug("%s : Port-Write Message:", __func__);
+		for (i = 0; i < RIO_PW_MSG_SIZE/sizeof(u32); i++) {
+			if ((i%4) == 0)
+				pr_debug("\n0x%02x: 0x%08x", i*4,
+					 msg_buffer[i]);
+			else
+				pr_debug(" 0x%08x", msg_buffer[i]);
+		}
+		pr_debug("\n");
+		}
+#endif
+		/* Pass the port-write message to RIO core for processing */
+		rio_inb_pwrite_handler((union rio_pw_msg *)msg_buffer);
+		spin_lock_irqsave(&priv->pw_fifo_lock, flags);
+	}
+	spin_unlock_irqrestore(&priv->pw_fifo_lock, flags);
+}
+
+/**
+ * fsl_rio_pw_enable - enable/disable port-write interface init
+ * @mport: Master port implementing the port write unit
+ * @enable:    1=enable; 0=disable port-write message handling
+ */
+static int fsl_rio_pw_enable(struct rio_mport *mport, int enable)
+{
+	struct rio_priv *priv = mport->priv;
+	u32 rval;
+
+	rval = in_be32(&priv->msg_regs->pwmr);
+
+	if (enable)
+		rval |= RIO_IPWMR_PWE;
+	else
+		rval &= ~RIO_IPWMR_PWE;
+
+	out_be32(&priv->msg_regs->pwmr, rval);
+
+	return 0;
+}
+
+/**
+ * fsl_rio_port_write_init - MPC85xx port write interface init
+ * @mport: Master port implementing the port write unit
+ *
+ * Initializes port write unit hardware and DMA buffer
+ * ring. Called from fsl_rio_setup(). Returns %0 on success
+ * or %-ENOMEM on failure.
+ */
+static int fsl_rio_port_write_init(struct rio_mport *mport)
+{
+	struct rio_priv *priv = mport->priv;
+	int rc = 0;
+
+	/* Following configurations require a disabled port write controller */
+	out_be32(&priv->msg_regs->pwmr,
+		 in_be32(&priv->msg_regs->pwmr) & ~RIO_IPWMR_PWE);
+
+	/* Initialize port write */
+	priv->port_write_msg.virt = dma_alloc_coherent(priv->dev,
+					RIO_PW_MSG_SIZE,
+					&priv->port_write_msg.phys, GFP_KERNEL);
+	if (!priv->port_write_msg.virt) {
+		pr_err("RIO: unable allocate port write queue\n");
+		return -ENOMEM;
+	}
+
+	priv->port_write_msg.err_count = 0;
+	priv->port_write_msg.discard_count = 0;
+
+	/* Point dequeue/enqueue pointers at first entry */
+	out_be32(&priv->msg_regs->epwqbar, 0);
+	out_be32(&priv->msg_regs->pwqbar, (u32) priv->port_write_msg.phys);
+
+	pr_debug("EIPWQBAR: 0x%08x IPWQBAR: 0x%08x\n",
+		 in_be32(&priv->msg_regs->epwqbar),
+		 in_be32(&priv->msg_regs->pwqbar));
+
+	/* Clear interrupt status IPWSR */
+	out_be32(&priv->msg_regs->pwsr,
+		 (RIO_IPWSR_TE | RIO_IPWSR_QFI | RIO_IPWSR_PWD));
+
+	/* Configure port write contoller for snooping enable all reporting,
+	   clear queue full */
+	out_be32(&priv->msg_regs->pwmr,
+		 RIO_IPWMR_SEN | RIO_IPWMR_QFIE | RIO_IPWMR_EIE | RIO_IPWMR_CQ);
+
+
+	/* Hook up port-write handler */
+	rc = request_irq(IRQ_RIO_PW(mport), fsl_rio_port_write_handler, 0,
+			 "port-write", (void *)mport);
+	if (rc < 0) {
+		pr_err("MPC85xx RIO: unable to request inbound doorbell irq");
+		goto err_out;
+	}
+
+	INIT_WORK(&priv->pw_work, fsl_pw_dpc);
+	spin_lock_init(&priv->pw_fifo_lock);
+	if (kfifo_alloc(&priv->pw_fifo, RIO_PW_MSG_SIZE * 32, GFP_KERNEL)) {
+		pr_err("FIFO allocation failed\n");
+		rc = -ENOMEM;
+		goto err_out_irq;
+	}
+
+	pr_debug("IPWMR: 0x%08x IPWSR: 0x%08x\n",
+		 in_be32(&priv->msg_regs->pwmr),
+		 in_be32(&priv->msg_regs->pwsr));
+
+	return rc;
+
+err_out_irq:
+	free_irq(IRQ_RIO_PW(mport), (void *)mport);
+err_out:
+	dma_free_coherent(priv->dev, RIO_PW_MSG_SIZE,
+			  priv->port_write_msg.virt,
+			  priv->port_write_msg.phys);
+	return rc;
+}
+
 static char *cmdline = NULL;
 
 static int fsl_rio_get_hdid(int index)
@@ -996,13 +1359,13 @@ static inline void fsl_rio_info(struct device *dev, u32 ccsr)
 
 /**
  * fsl_rio_setup - Setup Freescale PowerPC RapidIO interface
- * @dev: of_device pointer
+ * @dev: platform_device pointer
  *
  * Initializes MPC85xx RapidIO hardware interface, configures
  * master port with system-specific info, and registers the
  * master port with the RapidIO subsystem.
  */
-int fsl_rio_setup(struct of_device *dev)
+int fsl_rio_setup(struct platform_device *dev)
 {
 	struct rio_ops *ops;
 	struct rio_mport *port;
@@ -1057,7 +1420,7 @@ int fsl_rio_setup(struct of_device *dev)
 	dev_info(&dev->dev, "LAW start 0x%016llx, size 0x%016llx.\n",
 			law_start, law_size);
 
-	ops = kmalloc(sizeof(struct rio_ops), GFP_KERNEL);
+	ops = kzalloc(sizeof(struct rio_ops), GFP_KERNEL);
 	if (!ops) {
 		rc = -ENOMEM;
 		goto err_ops;
@@ -1067,6 +1430,7 @@ int fsl_rio_setup(struct of_device *dev)
 	ops->cread = fsl_rio_config_read;
 	ops->cwrite = fsl_rio_config_write;
 	ops->dsend = fsl_rio_doorbell_send;
+	ops->pwenable = fsl_rio_pw_enable;
 
 	port = kzalloc(sizeof(struct rio_mport), GFP_KERNEL);
 	if (!port) {
@@ -1089,11 +1453,12 @@ int fsl_rio_setup(struct of_device *dev)
 	port->iores.flags = IORESOURCE_MEM;
 	port->iores.name = "rio_io_win";
 
+	priv->pwirq   = irq_of_parse_and_map(dev->dev.of_node, 0);
 	priv->bellirq = irq_of_parse_and_map(dev->dev.of_node, 2);
 	priv->txirq = irq_of_parse_and_map(dev->dev.of_node, 3);
 	priv->rxirq = irq_of_parse_and_map(dev->dev.of_node, 4);
-	dev_info(&dev->dev, "bellirq: %d, txirq: %d, rxirq %d\n", priv->bellirq,
-				priv->txirq, priv->rxirq);
+	dev_info(&dev->dev, "pwirq: %d, bellirq: %d, txirq: %d, rxirq %d\n",
+		 priv->pwirq, priv->bellirq, priv->txirq, priv->rxirq);
 
 	rio_init_dbell_res(&port->riores[RIO_DOORBELL_RESOURCE], 0, 0xffff);
 	rio_init_mbox_res(&port->riores[RIO_INB_MBOX_RESOURCE], 0, 0);
@@ -1106,9 +1471,11 @@ int fsl_rio_setup(struct of_device *dev)
 	port->host_deviceid = fsl_rio_get_hdid(port->id);
 
 	port->priv = priv;
+	port->phys_efptr = 0x100;
 	rio_register_mport(port);
 
 	priv->regs_win = ioremap(regs.start, regs.end - regs.start + 1);
+	rio_regs_win = priv->regs_win;
 
 	/* Probe the master port phy type */
 	ccsr = in_be32(priv->regs_win + RIO_CCSR);
@@ -1152,6 +1519,12 @@ int fsl_rio_setup(struct of_device *dev)
 	dev_info(&dev->dev, "RapidIO Common Transport System size: %d\n",
 			port->sys_size ? 65536 : 256);
 
+	if (port->host_deviceid >= 0)
+		out_be32(priv->regs_win + RIO_GCCSR, RIO_PORT_GEN_HOST |
+			RIO_PORT_GEN_MASTER | RIO_PORT_GEN_DISCOVERED);
+	else
+		out_be32(priv->regs_win + RIO_GCCSR, 0x00000000);
+
 	priv->atmu_regs = (struct rio_atmu_regs *)(priv->regs_win
 					+ RIO_ATMU_REGS_OFFSET);
 	priv->maint_atmu_regs = priv->atmu_regs + 1;
@@ -1166,7 +1539,8 @@ int fsl_rio_setup(struct of_device *dev)
 
 	/* Configure maintenance transaction window */
 	out_be32(&priv->maint_atmu_regs->rowbar, law_start >> 12);
-	out_be32(&priv->maint_atmu_regs->rowar, 0x80077015);	/* 4M */
+	out_be32(&priv->maint_atmu_regs->rowar,
+		 0x80077000 | (ilog2(RIO_MAINT_WIN_SIZE) - 1));
 
 	priv->maint_win = ioremap(law_start, RIO_MAINT_WIN_SIZE);
 
@@ -1175,6 +1549,12 @@ int fsl_rio_setup(struct of_device *dev)
 			(law_start + RIO_MAINT_WIN_SIZE) >> 12);
 	out_be32(&priv->dbell_atmu_regs->rowar, 0x8004200b);	/* 4k */
 	fsl_rio_doorbell_init(port);
+	fsl_rio_port_write_init(port);
+
+#ifdef CONFIG_E500
+	saved_mcheck_exception = ppc_md.machine_check_exception;
+	ppc_md.machine_check_exception = fsl_rio_mcheck_exception;
+#endif
 
 	return 0;
 err:
@@ -1190,7 +1570,7 @@ err_ops:
 
 /* The probe function for RapidIO peer-to-peer network.
  */
-static int __devinit fsl_of_rio_rpn_probe(struct of_device *dev,
+static int __devinit fsl_of_rio_rpn_probe(struct platform_device *dev,
 				     const struct of_device_id *match)
 {
 	int rc;

@@ -18,8 +18,11 @@
 #include <linux/io.h>
 
 #include <mach/map.h>
+#include <mach/irqs.h>
 
 #include <plat/pm.h>
+#include <plat/wakeup-mask.h>
+
 #include <mach/regs-sys.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
@@ -153,8 +156,25 @@ static void s3c64xx_cpu_suspend(void)
 	panic("sleep resumed to originator?");
 }
 
+/* mapping of interrupts to parts of the wakeup mask */
+static struct samsung_wakeup_mask wake_irqs[] = {
+	{ .irq = IRQ_RTC_ALARM,	.bit = S3C64XX_PWRCFG_RTC_ALARM_DISABLE, },
+	{ .irq = IRQ_RTC_TIC,	.bit = S3C64XX_PWRCFG_RTC_TICK_DISABLE, },
+	{ .irq = IRQ_PENDN,	.bit = S3C64XX_PWRCFG_TS_DISABLE, },
+	{ .irq = IRQ_HSMMC0,	.bit = S3C64XX_PWRCFG_MMC0_DISABLE, },
+	{ .irq = IRQ_HSMMC1,	.bit = S3C64XX_PWRCFG_MMC1_DISABLE, },
+	{ .irq = IRQ_HSMMC2,	.bit = S3C64XX_PWRCFG_MMC2_DISABLE, },
+	{ .irq = NO_WAKEUP_IRQ,	.bit = S3C64XX_PWRCFG_BATF_DISABLE},
+	{ .irq = NO_WAKEUP_IRQ,	.bit = S3C64XX_PWRCFG_MSM_DISABLE },
+	{ .irq = NO_WAKEUP_IRQ,	.bit = S3C64XX_PWRCFG_HSI_DISABLE },
+	{ .irq = NO_WAKEUP_IRQ,	.bit = S3C64XX_PWRCFG_MSM_DISABLE },
+};
+
 static void s3c64xx_pm_prepare(void)
 {
+	samsung_sync_wakemask(S3C64XX_PWR_CFG,
+			      wake_irqs, ARRAY_SIZE(wake_irqs));
+
 	/* store address of resume. */
 	__raw_writel(virt_to_phys(s3c_cpu_resume), S3C64XX_INFORM0);
 

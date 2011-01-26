@@ -106,7 +106,7 @@ BYTE dot3_table[256] = {
 
 /*---------------------  Export Functions  --------------------------*/
 
-void xor_128(BYTE *a, BYTE *b, BYTE *out)
+static void xor_128(BYTE *a, BYTE *b, BYTE *out)
 {
 	PDWORD dwPtrA = (PDWORD) a;
 	PDWORD dwPtrB = (PDWORD) b;
@@ -119,7 +119,7 @@ void xor_128(BYTE *a, BYTE *b, BYTE *out)
 }
 
 
-void xor_32(BYTE *a, BYTE *b, BYTE *out)
+static void xor_32(BYTE *a, BYTE *b, BYTE *out)
 {
 	PDWORD dwPtrA = (PDWORD) a;
 	PDWORD dwPtrB = (PDWORD) b;

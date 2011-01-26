@@ -64,7 +64,7 @@ static void tx4938ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 	pair = ide_get_pair_dev(drive);
 	if (pair)
-		safe = min(safe, pair->pio_mode - XFER_PIO_0);
+		safe = min_t(u8, safe, pair->pio_mode - XFER_PIO_0);
 	tx4938ide_tune_ebusc(pdata->ebus_ch, pdata->gbus_clock, safe);
 }
 

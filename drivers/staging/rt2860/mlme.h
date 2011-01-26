@@ -31,9 +31,10 @@
 
 	Revision History:
 	Who			When			What
-	--------	----------		----------------------------------------------
-	John Chang	2003-08-28		Created
-	John Chang  2004-09-06      modified for RT2600
+	--------	----------		------------------------------
+	John Chang		2003-08-28		Created
+	John Chang  		2004-09-06      	modified for RT2600
+	Justin P. Mattock	11/07/2010		Fix typos in comments
 
 */
 #ifndef __MLME_H__
@@ -41,7 +42,7 @@
 
 #include "rtmp_dot11.h"
 
-/* maximum supported capability information - */
+/* maximum supported capability information */
 /* ESS, IBSS, Privacy, Short Preamble, Spectrum mgmt, Short Slot */
 #define SUPPORTED_CAPABILITY_INFO   0x0533
 
@@ -50,7 +51,7 @@
 #define MLME_TASK_EXEC_INTV         100/*200*/	/* */
 #define LEAD_TIME                   5
 #define MLME_TASK_EXEC_MULTIPLE       10  /*5*/	/* MLME_TASK_EXEC_MULTIPLE * MLME_TASK_EXEC_INTV = 1 sec */
-#define REORDER_EXEC_INTV         	100	/* 0.1 sec */
+#define REORDER_EXEC_INTV		100	/* 0.1 sec */
 
 /* The definition of Radar detection duration region */
 #define CE		0
@@ -60,7 +61,7 @@
 #define JAP_W56	4
 #define MAX_RD_REGION 5
 
-#define BEACON_LOST_TIME            4 * OS_HZ	/* 2048 msec = 2 sec */
+#define BEACON_LOST_TIME            (4 * OS_HZ)	/* 2048 msec = 2 sec */
 
 #define DLS_TIMEOUT                 1200	/* unit: msec */
 #define AUTH_TIMEOUT                300	/* unit: msec */
@@ -77,7 +78,7 @@
 #define CW_MAX_IN_BITS              10	/* actual CwMax = 2^CW_MAX_IN_BITS - 1 */
 
 /* Note: RSSI_TO_DBM_OFFSET has been changed to variable for new RF (2004-0720). */
-/* SHould not refer to this constant anymore */
+/* Should not refer to this constant anymore */
 /*#define RSSI_TO_DBM_OFFSET          120 // for RT2530 RSSI-115 = dBm */
 #define RSSI_FOR_MID_TX_POWER       -55	/* -55 db is considered mid-distance */
 #define RSSI_FOR_LOW_TX_POWER       -45	/* -45 db is considered very short distance and */
@@ -119,11 +120,11 @@
 #define MAC_ADDR_IS_GROUP(Addr)       (((Addr[0]) & 0x01))
 #define MAC_ADDR_HASH(Addr)            (Addr[0] ^ Addr[1] ^ Addr[2] ^ Addr[3] ^ Addr[4] ^ Addr[5])
 #define MAC_ADDR_HASH_INDEX(Addr)      (MAC_ADDR_HASH(Addr) % HASH_TABLE_SIZE)
-#define TID_MAC_HASH(Addr,TID)            (TID^Addr[0] ^ Addr[1] ^ Addr[2] ^ Addr[3] ^ Addr[4] ^ Addr[5])
-#define TID_MAC_HASH_INDEX(Addr,TID)      (TID_MAC_HASH(Addr,TID) % HASH_TABLE_SIZE)
+#define TID_MAC_HASH(Addr, TID)            (TID^Addr[0] ^ Addr[1] ^ Addr[2] ^ Addr[3] ^ Addr[4] ^ Addr[5])
+#define TID_MAC_HASH_INDEX(Addr, TID)      (TID_MAC_HASH(Addr, TID) % HASH_TABLE_SIZE)
 
 /* LED Control */
-/* assoiation ON. one LED ON. another blinking when TX, OFF when idle */
+/* association ON. one LED ON. another blinking when TX, OFF when idle */
 /* no association, both LED off */
 #define ASIC_LED_ACT_ON(pAd)        RTMP_IO_WRITE32(pAd, MAC_CSR14, 0x00031e46)
 #define ASIC_LED_ACT_OFF(pAd)       RTMP_IO_WRITE32(pAd, MAC_CSR14, 0x00001e46)
@@ -145,7 +146,7 @@
 #define CAP_IS_DSSS_OFDM(x)              (((x) & 0x2000) != 0)
 #define CAP_IS_DELAY_BA(x)               (((x) & 0x4000) != 0)	/* 802.11e d9 */
 
-#define CAP_GENERATE(ess,ibss,priv,s_pre,s_slot,spectrum)  (((ess) ? 0x0001 : 0x0000) | ((ibss) ? 0x0002 : 0x0000) | ((priv) ? 0x0010 : 0x0000) | ((s_pre) ? 0x0020 : 0x0000) | ((s_slot) ? 0x0400 : 0x0000) | ((spectrum) ? 0x0100 : 0x0000))
+#define CAP_GENERATE(ess, ibss, priv, s_pre, s_slot, spectrum)  (((ess) ? 0x0001 : 0x0000) | ((ibss) ? 0x0002 : 0x0000) | ((priv) ? 0x0010 : 0x0000) | ((s_pre) ? 0x0020 : 0x0000) | ((s_slot) ? 0x0400 : 0x0000) | ((spectrum) ? 0x0100 : 0x0000))
 
 #define ERP_IS_NON_ERP_PRESENT(x)        (((x) & 0x01) != 0)	/* 802.11g */
 #define ERP_IS_USE_PROTECTION(x)         (((x) & 0x02) != 0)	/* 802.11g */
@@ -154,9 +155,9 @@
 #define DRS_TX_QUALITY_WORST_BOUND       8	/* 3  // just test by gary */
 #define DRS_PENALTY                      8
 
-#define BA_NOTUSE 	2
+#define BA_NOTUSE	2
 /*BA Policy subfiled value in ADDBA frame */
-#define IMMED_BA 	1
+#define IMMED_BA	1
 #define DELAY_BA	0
 
 /* BA Initiator subfield in DELBA frame */
@@ -176,8 +177,7 @@
 
 /* reset all OneSecTx counters */
 #define RESET_ONE_SEC_TX_CNT(__pEntry) \
-if (((__pEntry)) != NULL) \
-{ \
+if (((__pEntry)) != NULL) { \
 	(__pEntry)->OneSecTxRetryOkCount = 0; \
 	(__pEntry)->OneSecTxFailCount = 0; \
 	(__pEntry)->OneSecTxNoRetryOkCount = 0; \
@@ -285,8 +285,8 @@ struct PACKED rt_ht_capability_ie {
 
 /* 802.11n draft3 related structure definitions. */
 /* 7.3.2.60 */
-#define dot11OBSSScanPassiveDwell							20	/* in TU. min amount of time that the STA continously scans each channel when performing an active OBSS scan. */
-#define dot11OBSSScanActiveDwell							10	/* in TU.min amount of time that the STA continously scans each channel when performing an passive OBSS scan. */
+#define dot11OBSSScanPassiveDwell							20	/* in TU. min amount of time that the STA continuously scans each channel when performing an active OBSS scan. */
+#define dot11OBSSScanActiveDwell							10	/* in TU.min amount of time that the STA continuously scans each channel when performing an passive OBSS scan. */
 #define dot11BSSWidthTriggerScanInterval					300	/* in sec. max interval between scan operations to be performed to detect BSS channel width trigger events. */
 #define dot11OBSSScanPassiveTotalPerChannel					200	/* in TU. min total amount of time that the STA scans each channel when performing a passive OBSS scan. */
 #define dot11OBSSScanActiveTotalPerChannel					20	/*in TU. min total amount of time that the STA scans each channel when performing a active OBSS scan */
@@ -326,7 +326,7 @@ struct rt_trigger_eventa {
 };
 
 /* 20/40 trigger event table */
-/* If one Event A delete or created, or if Event B is detected or not detected, STA should send 2040BSSCoexistence to AP. */
+/* If one Event (A) is deleted or created, or if Event (B) is detected or not detected, STA should send 2040BSSCoexistence to AP. */
 #define MAX_TRIGGER_EVENT		64
 struct rt_trigger_event_tab {
 	u8 EventANo;
@@ -358,14 +358,14 @@ struct PACKED rt_bss_2040_intolerant_ch_report {
 	u8 ChList[0];
 };
 
-/* The structure for channel switch annoucement IE. This is in 802.11n D3.03 */
+/* The structure for channel switch announcement IE. This is in 802.11n D3.03 */
 struct PACKED rt_cha_switch_announce_ie {
 	u8 SwitchMode;	/*channel switch mode */
 	u8 NewChannel;	/* */
 	u8 SwitchCount;	/* */
 };
 
-/* The structure for channel switch annoucement IE. This is in 802.11n D3.03 */
+/* The structure for channel switch announcement IE. This is in 802.11n D3.03 */
 struct PACKED rt_sec_cha_offset_ie {
 	u8 SecondaryChannelOffset;	/* 1: Secondary above, 3: Secondary below, 0: no Secondary */
 };
@@ -378,7 +378,7 @@ struct rt_ht_phy_info {
 	u8 MCSSet[16];
 };
 
-/*This structure substracts ralink supports from all 802.11n-related features. */
+/*This structure subtracts ralink supports from all 802.11n-related features. */
 /*Features not listed here but contained in 802.11n spec are not supported in rt2860. */
 struct rt_ht_capability {
 	u16 ChannelWidth:1;
@@ -388,14 +388,14 @@ struct rt_ht_capability {
 	u16 ShortGIfor40:1;	/*for40MHz */
 	u16 TxSTBC:1;
 	u16 RxSTBC:2;	/* 2 bits */
-	u16 AmsduEnable:1;	/* Enable to transmit A-MSDU. Suggest disable. We should use A-MPDU to gain best benifit of 802.11n */
+	u16 AmsduEnable:1;	/* Enable to transmit A-MSDU. Suggest disable. We should use A-MPDU to gain best benefit of 802.11n */
 	u16 AmsduSize:1;	/* Max receiving A-MSDU size */
 	u16 rsv:5;
 
 	/*Substract from Addiont HT INFO IE */
 	u8 MaxRAmpduFactor:2;
 	u8 MpduDensity:3;
-	u8 ExtChanOffset:2;	/* Please not the difference with following     u8   NewExtChannelOffset; from 802.11n */
+	u8 ExtChanOffset:2;	/* Please note the difference with following     u8   NewExtChannelOffset; from 802.11n */
 	u8 RecomWidth:1;
 
 	u16 OperaionMode:2;
@@ -482,7 +482,7 @@ struct PACKED rt_ba_parm {
 	u16 AMSDUSupported:1;	/* 0: not permitted             1: permitted */
 	u16 BAPolicy:1;	/* 1: immediately BA    0:delayed BA */
 	u16 TID:4;		/* value of TC os TS */
-	u16 BufSize:10;	/* number of buffe of size 2304 octetsr */
+	u16 BufSize:10;	/* number of buffer of size 2304 octetsr */
 };
 
 /* 2-byte BA Starting Seq CONTROL field */
@@ -552,7 +552,7 @@ struct PACKED rt_frame_mtba_req {
 	BASEQ_CONTROL BAStartingSeq;
 };
 
-/* Compressed format is mandantory in HT STA */
+/* Compressed format is mandatory in HT STA */
 struct PACKED rt_frame_mtba {
 	struct rt_frame_control FC;
 	u16 Duration;
@@ -648,7 +648,7 @@ struct PACKED rt_frame_ba {
 	u8 bitmask[8];
 };
 
-/* Radio Measuement Request Frame Format */
+/* Radio Measurement Request Frame Format */
 struct PACKED rt_frame_rm_req_action {
 	struct rt_header_802_11 Hdr;
 	u8 Category;
@@ -710,7 +710,7 @@ struct rt_edca_parm {
 	u8 Cwmin[4];
 	u8 Cwmax[4];
 	u16 Txop[4];		/* in unit of 32-us */
-	BOOLEAN bACM[4];	/* 1: Admission Control of AC_BK is mandattory */
+	BOOLEAN bACM[4];	/* 1: Admission Control of AC_BK is mandatory */
 };
 
 /* QBSS LOAD information from QAP's BEACON/ProbeRsp */
@@ -758,7 +758,7 @@ struct rt_wpa_ie {
 struct rt_bss_entry {
 	u8 Bssid[MAC_ADDR_LEN];
 	u8 Channel;
-	u8 CentralChannel;	/*Store the wide-band central channel for 40MHz.  .used in 40MHz AP. Or this is the same as Channel. */
+	u8 CentralChannel;	/*Store the wide-band central channel for 40MHz. used in 40MHz AP. Or this is the same as Channel. */
 	u8 BssType;
 	u16 AtimWin;
 	u16 BeaconPeriod;
@@ -846,7 +846,7 @@ struct rt_mlme_queue {
 	struct rt_mlme_queue_elem Entry[MAX_LEN_OF_MLME_QUEUE];
 };
 
-typedef void(*STATE_MACHINE_FUNC) (void * Adaptor, struct rt_mlme_queue_elem *Elem);
+typedef void(*STATE_MACHINE_FUNC) (void *Adaptor, struct rt_mlme_queue_elem *Elem);
 
 struct rt_state_machine {
 	unsigned long Base;
@@ -856,7 +856,7 @@ struct rt_state_machine {
 	STATE_MACHINE_FUNC *TransFunc;
 };
 
-/* MLME AUX data structure that hold temporarliy settings during a connection attempt. */
+/* MLME AUX data structure that holds temporarliy settings during a connection attempt. */
 /* Once this attemp succeeds, all settings will be copy to pAd->StaActive. */
 /* A connection attempt (user set OID, roaming, CCX fast roaming,..) consists of */
 /* several steps (JOIN, AUTH, ASSOC or REASSOC) and may fail at any step. We purposely */
@@ -997,7 +997,7 @@ struct PACKED rt_rtmp_tx_rate_switch {
 #define MAC_TABLE_ASSOC_TIMEOUT			5	/* unit: sec */
 #define MAC_TABLE_FULL(Tab)				((Tab).size == MAX_LEN_OF_MAC_TABLE)
 
-/* AP shall drop the sta if contine Tx fail count reach it. */
+/* AP shall drop the sta if continue Tx fail count reach it. */
 #define MAC_ENTRY_LIFE_CHECK_CNT		20	/* packet cnt. */
 
 /* Value domain of pMacEntry->Sst */

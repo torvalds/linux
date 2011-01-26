@@ -2,7 +2,7 @@
  * linux/arch/sh/mm/init.c
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2002 - 2010  Paul Mundt
+ *  Copyright (C) 2002 - 2011  Paul Mundt
  *
  *  Based on linux/arch/i386/mm/init.c:
  *   Copyright (C) 1995  Linus Torvalds
@@ -16,7 +16,7 @@
 #include <linux/pagemap.h>
 #include <linux/percpu.h>
 #include <linux/io.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/dma-mapping.h>
 #include <asm/mmu_context.h>
 #include <asm/mmzone.h>
@@ -33,7 +33,7 @@ pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 void __init generic_mem_init(void)
 {
-	lmb_add(__MEMORY_START, __MEMORY_SIZE);
+	memblock_add(__MEMORY_START, __MEMORY_SIZE);
 }
 
 void __init __weak plat_mem_setup(void)
@@ -47,7 +47,6 @@ static pte_t *__get_pte_phys(unsigned long addr)
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte;
 
 	pgd = pgd_offset_k(addr);
 	if (pgd_none(*pgd)) {
@@ -67,8 +66,7 @@ static pte_t *__get_pte_phys(unsigned long addr)
 		return NULL;
 	}
 
-	pte = pte_offset_kernel(pmd, addr);
-	return pte;
+	return pte_offset_kernel(pmd, addr);
 }
 
 static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
@@ -125,13 +123,45 @@ void __clear_fixmap(enum fixed_addresses idx, pgprot_t prot)
 	clear_pte_phys(address, prot);
 }
 
+static pmd_t * __init one_md_table_init(pud_t *pud)
+{
+	if (pud_none(*pud)) {
+		pmd_t *pmd;
+
+		pmd = alloc_bootmem_pages(PAGE_SIZE);
+		pud_populate(&init_mm, pud, pmd);
+		BUG_ON(pmd != pmd_offset(pud, 0));
+	}
+
+	return pmd_offset(pud, 0);
+}
+
+static pte_t * __init one_page_table_init(pmd_t *pmd)
+{
+	if (pmd_none(*pmd)) {
+		pte_t *pte;
+
+		pte = alloc_bootmem_pages(PAGE_SIZE);
+		pmd_populate_kernel(&init_mm, pmd, pte);
+		BUG_ON(pte != pte_offset_kernel(pmd, 0));
+	}
+
+	return pte_offset_kernel(pmd, 0);
+}
+
+static pte_t * __init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
+					    unsigned long vaddr, pte_t *lastpte)
+{
+	return pte;
+}
+
 void __init page_table_range_init(unsigned long start, unsigned long end,
 					 pgd_t *pgd_base)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte;
+	pte_t *pte = NULL;
 	int i, j, k;
 	unsigned long vaddr;
 
@@ -144,19 +174,13 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
 	for ( ; (i < PTRS_PER_PGD) && (vaddr != end); pgd++, i++) {
 		pud = (pud_t *)pgd;
 		for ( ; (j < PTRS_PER_PUD) && (vaddr != end); pud++, j++) {
-#ifdef __PAGETABLE_PMD_FOLDED
-			pmd = (pmd_t *)pud;
-#else
-			pmd = (pmd_t *)alloc_bootmem_low_pages(PAGE_SIZE);
-			pud_populate(&init_mm, pud, pmd);
+			pmd = one_md_table_init(pud);
+#ifndef __PAGETABLE_PMD_FOLDED
 			pmd += k;
 #endif
 			for (; (k < PTRS_PER_PMD) && (vaddr != end); pmd++, k++) {
-				if (pmd_none(*pmd)) {
-					pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
-					pmd_populate_kernel(&init_mm, pmd, pte);
-					BUG_ON(pte != pte_offset_kernel(pmd, 0));
-				}
+				pte = page_table_kmap_check(one_page_table_init(pmd),
+							    pmd, vaddr, pte);
 				vaddr += PMD_SIZE;
 			}
 			k = 0;
@@ -176,12 +200,12 @@ void __init allocate_pgdat(unsigned int nid)
 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
-	phys = __lmb_alloc_base(sizeof(struct pglist_data),
+	phys = __memblock_alloc_base(sizeof(struct pglist_data),
 				SMP_CACHE_BYTES, end_pfn << PAGE_SHIFT);
 	/* Retry with all of system memory */
 	if (!phys)
-		phys = __lmb_alloc_base(sizeof(struct pglist_data),
-					SMP_CACHE_BYTES, lmb_end_of_DRAM());
+		phys = __memblock_alloc_base(sizeof(struct pglist_data),
+					SMP_CACHE_BYTES, memblock_end_of_DRAM());
 	if (!phys)
 		panic("Can't allocate pgdat for node %d\n", nid);
 
@@ -200,7 +224,6 @@ static void __init bootmem_init_one_node(unsigned int nid)
 	unsigned long total_pages, paddr;
 	unsigned long end_pfn;
 	struct pglist_data *p;
-	int i;
 
 	p = NODE_DATA(nid);
 
@@ -212,7 +235,7 @@ static void __init bootmem_init_one_node(unsigned int nid)
 
 	total_pages = bootmem_bootmap_pages(p->node_spanned_pages);
 
-	paddr = lmb_alloc(total_pages << PAGE_SHIFT, PAGE_SIZE);
+	paddr = memblock_alloc(total_pages << PAGE_SHIFT, PAGE_SIZE);
 	if (!paddr)
 		panic("Can't allocate bootmap for nid[%d]\n", nid);
 
@@ -226,11 +249,12 @@ static void __init bootmem_init_one_node(unsigned int nid)
 	 * reservations in other nodes.
 	 */
 	if (nid == 0) {
+		struct memblock_region *reg;
+
 		/* Reserve the sections we're already using. */
-		for (i = 0; i < lmb.reserved.cnt; i++)
-			reserve_bootmem(lmb.reserved.region[i].base,
-					lmb_size_bytes(&lmb.reserved, i),
-					BOOTMEM_DEFAULT);
+		for_each_memblock(reserved, reg) {
+			reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
+		}
 	}
 
 	sparse_memory_present_with_active_regions(nid);
@@ -238,13 +262,14 @@ static void __init bootmem_init_one_node(unsigned int nid)
 
 static void __init do_init_bootmem(void)
 {
+	struct memblock_region *reg;
 	int i;
 
 	/* Add active regions with valid PFNs. */
-	for (i = 0; i < lmb.memory.cnt; i++) {
+	for_each_memblock(memory, reg) {
 		unsigned long start_pfn, end_pfn;
-		start_pfn = lmb.memory.region[i].base >> PAGE_SHIFT;
-		end_pfn = start_pfn + lmb_size_pages(&lmb.memory, i);
+		start_pfn = memblock_region_memory_base_pfn(reg);
+		end_pfn = memblock_region_memory_end_pfn(reg);
 		__add_active_range(0, start_pfn, end_pfn);
 	}
 
@@ -276,7 +301,7 @@ static void __init early_reserve_mem(void)
 	 * this catches the (definitely buggy) case of us accidentally
 	 * initializing the bootmem allocator with an invalid RAM area.
 	 */
-	lmb_reserve(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
+	memblock_reserve(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
 		    (PFN_PHYS(start_pfn) + PAGE_SIZE - 1) -
 		    (__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET));
 
@@ -284,7 +309,7 @@ static void __init early_reserve_mem(void)
 	 * Reserve physical pages below CONFIG_ZERO_PAGE_OFFSET.
 	 */
 	if (CONFIG_ZERO_PAGE_OFFSET != 0)
-		lmb_reserve(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET);
+		memblock_reserve(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET);
 
 	/*
 	 * Handle additional early reservations
@@ -299,27 +324,33 @@ void __init paging_init(void)
 	unsigned long vaddr, end;
 	int nid;
 
-	lmb_init();
-
+	memblock_init();
 	sh_mv.mv_mem_init();
 
 	early_reserve_mem();
 
-	lmb_enforce_memory_limit(memory_limit);
-	lmb_analyze();
+	/*
+	 * Once the early reservations are out of the way, give the
+	 * platforms a chance to kick out some memory.
+	 */
+	if (sh_mv.mv_mem_reserve)
+		sh_mv.mv_mem_reserve();
 
-	lmb_dump_all();
+	memblock_enforce_memory_limit(memory_limit);
+	memblock_analyze();
+
+	memblock_dump_all();
 
 	/*
 	 * Determine low and high memory ranges:
 	 */
-	max_low_pfn = max_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;
+	max_low_pfn = max_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
 	min_low_pfn = __MEMORY_START >> PAGE_SHIFT;
 
 	nodes_clear(node_online_map);
 
 	memory_start = (unsigned long)__va(__MEMORY_START);
-	memory_end = memory_start + (memory_limit ?: lmb_phys_mem_size());
+	memory_end = memory_start + (memory_limit ?: memblock_phys_mem_size());
 
 	uncached_init();
 	pmb_init();

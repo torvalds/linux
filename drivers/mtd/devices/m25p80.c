@@ -16,6 +16,8 @@
  */
 
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -49,6 +51,10 @@
 #define	OPCODE_WRDI		0x04	/* Write disable */
 #define	OPCODE_AAI_WP		0xad	/* Auto address increment word program */
 
+/* Used for Macronix flashes only. */
+#define	OPCODE_EN4B		0xb7	/* Enter 4-byte mode */
+#define	OPCODE_EX4B		0xe9	/* Exit 4-byte mode */
+
 /* Status Register bits. */
 #define	SR_WIP			1	/* Write in progress */
 #define	SR_WEL			2	/* Write enable latch */
@@ -60,7 +66,7 @@
 
 /* Define max times to check status register before we give up. */
 #define	MAX_READY_WAIT_JIFFIES	(40 * HZ)	/* M25P16 specs 40s max chip erase */
-#define	MAX_CMD_SIZE		4
+#define	MAX_CMD_SIZE		5
 
 #ifdef CONFIG_M25PXX_USE_FAST_READ
 #define OPCODE_READ 	OPCODE_FAST_READ
@@ -150,6 +156,16 @@ static inline int write_disable(struct m25p *flash)
 }
 
 /*
+ * Enable/disable 4-byte addressing mode.
+ */
+static inline int set_4byte(struct m25p *flash, int enable)
+{
+	u8	code = enable ? OPCODE_EN4B : OPCODE_EX4B;
+
+	return spi_write_then_read(flash->spi, &code, 1, NULL, 0);
+}
+
+/*
  * Service routine to read status register until ready, or timeout occurs.
  * Returns non-zero if error.
  */
@@ -205,6 +221,7 @@ static void m25p_addr2cmd(struct m25p *flash, unsigned int addr, u8 *cmd)
 	cmd[1] = addr >> (flash->addr_width * 8 -  8);
 	cmd[2] = addr >> (flash->addr_width * 8 - 16);
 	cmd[3] = addr >> (flash->addr_width * 8 - 24);
+	cmd[4] = addr >> (flash->addr_width * 8 - 32);
 }
 
 static int m25p_cmdsz(struct m25p *flash)
@@ -345,8 +362,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	spi_message_add_tail(&t[1], &m);
 
 	/* Byte count starts at zero. */
-	if (retlen)
-		*retlen = 0;
+	*retlen = 0;
 
 	mutex_lock(&flash->lock);
 
@@ -392,8 +408,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 			dev_name(&flash->spi->dev), __func__, "to",
 			(u32)to, len);
 
-	if (retlen)
-		*retlen = 0;
+	*retlen = 0;
 
 	/* sanity checks */
 	if (!len)
@@ -464,8 +479,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 			spi_sync(flash->spi, &m);
 
-			if (retlen)
-				*retlen += m.actual_length - m25p_cmdsz(flash);
+			*retlen += m.actual_length - m25p_cmdsz(flash);
 		}
 	}
 
@@ -483,8 +497,11 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	size_t actual;
 	int cmd_sz, ret;
 
-	if (retlen)
-		*retlen = 0;
+	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
+			dev_name(&flash->spi->dev), __func__, "to",
+			(u32)to, len);
+
+	*retlen = 0;
 
 	/* sanity checks */
 	if (!len)
@@ -609,7 +626,6 @@ struct flash_info {
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
 		.page_size = 256,					\
-		.addr_width = 3,					\
 		.flags = (_flags),					\
 	})
 
@@ -637,14 +653,26 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "at26f004",   INFO(0x1f0400, 0, 64 * 1024,  8, SECT_4K) },
 	{ "at26df081a", INFO(0x1f4501, 0, 64 * 1024, 16, SECT_4K) },
 	{ "at26df161a", INFO(0x1f4601, 0, 64 * 1024, 32, SECT_4K) },
-	{ "at26df321",  INFO(0x1f4701, 0, 64 * 1024, 64, SECT_4K) },
+	{ "at26df321",  INFO(0x1f4700, 0, 64 * 1024, 64, SECT_4K) },
+
+	/* EON -- en25pxx */
+	{ "en25p32", INFO(0x1c2016, 0, 64 * 1024,  64, 0) },
+	{ "en25p64", INFO(0x1c2017, 0, 64 * 1024, 128, 0) },
+
+	/* Intel/Numonyx -- xxxs33b */
+	{ "160s33b",  INFO(0x898911, 0, 64 * 1024,  32, 0) },
+	{ "320s33b",  INFO(0x898912, 0, 64 * 1024,  64, 0) },
+	{ "640s33b",  INFO(0x898913, 0, 64 * 1024, 128, 0) },
 
 	/* Macronix */
 	{ "mx25l4005a",  INFO(0xc22013, 0, 64 * 1024,   8, SECT_4K) },
+	{ "mx25l8005",   INFO(0xc22014, 0, 64 * 1024,  16, 0) },
 	{ "mx25l3205d",  INFO(0xc22016, 0, 64 * 1024,  64, 0) },
 	{ "mx25l6405d",  INFO(0xc22017, 0, 64 * 1024, 128, 0) },
 	{ "mx25l12805d", INFO(0xc22018, 0, 64 * 1024, 256, 0) },
 	{ "mx25l12855e", INFO(0xc22618, 0, 64 * 1024, 256, 0) },
+	{ "mx25l25635e", INFO(0xc22019, 0, 64 * 1024, 512, 0) },
+	{ "mx25l25655e", INFO(0xc22619, 0, 64 * 1024, 512, 0) },
 
 	/* Spansion -- single (large) sector size only, at least
 	 * for the chips listed here (without boot sectors).
@@ -653,11 +681,14 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "s25sl008a",  INFO(0x010213,      0,  64 * 1024,  16, 0) },
 	{ "s25sl016a",  INFO(0x010214,      0,  64 * 1024,  32, 0) },
 	{ "s25sl032a",  INFO(0x010215,      0,  64 * 1024,  64, 0) },
+	{ "s25sl032p",  INFO(0x010215, 0x4d00,  64 * 1024,  64, SECT_4K) },
 	{ "s25sl064a",  INFO(0x010216,      0,  64 * 1024, 128, 0) },
 	{ "s25sl12800", INFO(0x012018, 0x0300, 256 * 1024,  64, 0) },
 	{ "s25sl12801", INFO(0x012018, 0x0301,  64 * 1024, 256, 0) },
 	{ "s25fl129p0", INFO(0x012018, 0x4d00, 256 * 1024,  64, 0) },
 	{ "s25fl129p1", INFO(0x012018, 0x4d01,  64 * 1024, 256, 0) },
+	{ "s25fl016k",  INFO(0xef4015,      0,  64 * 1024,  32, SECT_4K) },
+	{ "s25fl064k",  INFO(0xef4017,      0,  64 * 1024, 128, SECT_4K) },
 
 	/* SST -- large erase sizes are "overlays", "sectors" are 4K */
 	{ "sst25vf040b", INFO(0xbf258d, 0, 64 * 1024,  8, SECT_4K) },
@@ -680,6 +711,16 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "m25p64",  INFO(0x202017,  0,  64 * 1024, 128, 0) },
 	{ "m25p128", INFO(0x202018,  0, 256 * 1024,  64, 0) },
 
+	{ "m25p05-nonjedec",  INFO(0, 0,  32 * 1024,   2, 0) },
+	{ "m25p10-nonjedec",  INFO(0, 0,  32 * 1024,   4, 0) },
+	{ "m25p20-nonjedec",  INFO(0, 0,  64 * 1024,   4, 0) },
+	{ "m25p40-nonjedec",  INFO(0, 0,  64 * 1024,   8, 0) },
+	{ "m25p80-nonjedec",  INFO(0, 0,  64 * 1024,  16, 0) },
+	{ "m25p16-nonjedec",  INFO(0, 0,  64 * 1024,  32, 0) },
+	{ "m25p32-nonjedec",  INFO(0, 0,  64 * 1024,  64, 0) },
+	{ "m25p64-nonjedec",  INFO(0, 0,  64 * 1024, 128, 0) },
+	{ "m25p128-nonjedec", INFO(0, 0, 256 * 1024,  64, 0) },
+
 	{ "m45pe10", INFO(0x204011,  0, 64 * 1024,    2, 0) },
 	{ "m45pe80", INFO(0x204014,  0, 64 * 1024,   16, 0) },
 	{ "m45pe16", INFO(0x204015,  0, 64 * 1024,   32, 0) },
@@ -694,7 +735,9 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "w25x80", INFO(0xef3014, 0, 64 * 1024,  16, SECT_4K) },
 	{ "w25x16", INFO(0xef3015, 0, 64 * 1024,  32, SECT_4K) },
 	{ "w25x32", INFO(0xef3016, 0, 64 * 1024,  64, SECT_4K) },
+	{ "w25q32", INFO(0xef4016, 0, 64 * 1024,  64, SECT_4K) },
 	{ "w25x64", INFO(0xef3017, 0, 64 * 1024, 128, SECT_4K) },
+	{ "w25q64", INFO(0xef4017, 0, 64 * 1024, 128, SECT_4K) },
 
 	/* Catalyst / On Semiconductor -- non-JEDEC */
 	{ "cat25c11", CAT25_INFO(  16, 8, 16, 1) },
@@ -723,21 +766,13 @@ static const struct spi_device_id *__devinit jedec_probe(struct spi_device *spi)
 	if (tmp < 0) {
 		DEBUG(MTD_DEBUG_LEVEL0, "%s: error %d reading JEDEC ID\n",
 			dev_name(&spi->dev), tmp);
-		return NULL;
+		return ERR_PTR(tmp);
 	}
 	jedec = id[0];
 	jedec = jedec << 8;
 	jedec |= id[1];
 	jedec = jedec << 8;
 	jedec |= id[2];
-
-	/*
-	 * Some chips (like Numonyx M25P80) have JEDEC and non-JEDEC variants,
-	 * which depend on technology process. Officially RDID command doesn't
-	 * exist for non-JEDEC chips, but for compatibility they return ID 0.
-	 */
-	if (jedec == 0)
-		return NULL;
 
 	ext_jedec = id[3] << 8 | id[4];
 
@@ -749,7 +784,8 @@ static const struct spi_device_id *__devinit jedec_probe(struct spi_device *spi)
 			return &m25p_ids[tmp];
 		}
 	}
-	return NULL;
+	dev_err(&spi->dev, "unrecognized JEDEC id %06x\n", jedec);
+	return ERR_PTR(-ENODEV);
 }
 
 
@@ -782,7 +818,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 			break;
 		}
 
-		if (plat_id)
+		if (i < ARRAY_SIZE(m25p_ids) - 1)
 			id = plat_id;
 		else
 			dev_warn(&spi->dev, "unrecognized id %s\n", data->type);
@@ -794,9 +830,8 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		const struct spi_device_id *jid;
 
 		jid = jedec_probe(spi);
-		if (!jid) {
-			dev_info(&spi->dev, "non-JEDEC variant of %s\n",
-				 id->name);
+		if (IS_ERR(jid)) {
+			return PTR_ERR(jid);
 		} else if (jid != id) {
 			/*
 			 * JEDEC knows better, so overwrite platform ID. We
@@ -826,11 +861,12 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	dev_set_drvdata(&spi->dev, flash);
 
 	/*
-	 * Atmel and SST serial flash tend to power
+	 * Atmel, SST and Intel/Numonyx serial flash tend to power
 	 * up with the software protection bits set
 	 */
 
 	if (info->jedec_id >> 16 == 0x1f ||
+	    info->jedec_id >> 16 == 0x89 ||
 	    info->jedec_id >> 16 == 0xbf) {
 		write_enable(flash);
 		write_sr(flash, 0);
@@ -868,7 +904,17 @@ static int __devinit m25p_probe(struct spi_device *spi)
 
 	flash->mtd.dev.parent = &spi->dev;
 	flash->page_size = info->page_size;
-	flash->addr_width = info->addr_width;
+
+	if (info->addr_width)
+		flash->addr_width = info->addr_width;
+	else {
+		/* enable 4-byte addressing if the device exceeds 16MiB */
+		if (flash->mtd.size > 0x1000000) {
+			flash->addr_width = 4;
+			set_4byte(flash, 1);
+		} else
+			flash->addr_width = 3;
+	}
 
 	dev_info(&spi->dev, "%s (%lld Kbytes)\n", id->name,
 			(long long)flash->mtd.size >> 10);
@@ -912,6 +958,13 @@ static int __devinit m25p_probe(struct spi_device *spi)
 			parts = data->parts;
 			nr_parts = data->nr_parts;
 		}
+
+#ifdef CONFIG_MTD_OF_PARTS
+		if (nr_parts <= 0 && spi->dev.of_node) {
+			nr_parts = of_mtd_parse_partitions(&spi->dev,
+					spi->dev.of_node, &parts);
+		}
+#endif
 
 		if (nr_parts > 0) {
 			for (i = 0; i < nr_parts; i++) {

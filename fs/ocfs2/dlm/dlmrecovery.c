@@ -463,7 +463,7 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 	if (dlm->reco.dead_node == O2NM_INVALID_NODE_NUM) {
 		int bit;
 
-		bit = find_next_bit (dlm->recovery_map, O2NM_MAX_NODES+1, 0);
+		bit = find_next_bit (dlm->recovery_map, O2NM_MAX_NODES, 0);
 		if (bit >= O2NM_MAX_NODES || bit < 0)
 			dlm_set_reco_dead_node(dlm, O2NM_INVALID_NODE_NUM);
 		else
@@ -1997,6 +1997,8 @@ void dlm_move_lockres_to_recovery_list(struct dlm_ctxt *dlm,
 	struct list_head *queue;
 	struct dlm_lock *lock, *next;
 
+	assert_spin_locked(&dlm->spinlock);
+	assert_spin_locked(&res->spinlock);
 	res->state |= DLM_LOCK_RES_RECOVERING;
 	if (!list_empty(&res->recovering)) {
 		mlog(0,
@@ -2326,19 +2328,15 @@ static void dlm_do_local_recovery_cleanup(struct dlm_ctxt *dlm, u8 dead_node)
 			/* zero the lvb if necessary */
 			dlm_revalidate_lvb(dlm, res, dead_node);
 			if (res->owner == dead_node) {
-				if (res->state & DLM_LOCK_RES_DROPPING_REF)
-					mlog(0, "%s:%.*s: owned by "
-					     "dead node %u, this node was "
-					     "dropping its ref when it died. "
-					     "continue, dropping the flag.\n",
-					     dlm->name, res->lockname.len,
-					     res->lockname.name, dead_node);
+				if (res->state & DLM_LOCK_RES_DROPPING_REF) {
+					mlog(ML_NOTICE, "Ignore %.*s for "
+					     "recovery as it is being freed\n",
+					     res->lockname.len,
+					     res->lockname.name);
+				} else
+					dlm_move_lockres_to_recovery_list(dlm,
+									  res);
 
-				/* the wake_up for this will happen when the
-				 * RECOVERING flag is dropped later */
-				res->state &= ~DLM_LOCK_RES_DROPPING_REF;
-
-				dlm_move_lockres_to_recovery_list(dlm, res);
 			} else if (res->owner == dlm->node_num) {
 				dlm_free_dead_locks(dlm, res, dead_node);
 				__dlm_lockres_calc_usage(dlm, res);

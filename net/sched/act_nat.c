@@ -114,6 +114,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 	int egress;
 	int action;
 	int ihl;
+	int noff;
 
 	spin_lock(&p->tcf_lock);
 
@@ -124,15 +125,15 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 	egress = p->flags & TCA_NAT_FLAG_EGRESS;
 	action = p->tcf_action;
 
-	p->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	p->tcf_bstats.packets++;
+	bstats_update(&p->tcf_bstats, skb);
 
 	spin_unlock(&p->tcf_lock);
 
 	if (unlikely(action == TC_ACT_SHOT))
 		goto drop;
 
-	if (!pskb_may_pull(skb, sizeof(*iph)))
+	noff = skb_network_offset(skb);
+	if (!pskb_may_pull(skb, sizeof(*iph) + noff))
 		goto drop;
 
 	iph = ip_hdr(skb);
@@ -144,7 +145,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 
 	if (!((old_addr ^ addr) & mask)) {
 		if (skb_cloned(skb) &&
-		    !skb_clone_writable(skb, sizeof(*iph)) &&
+		    !skb_clone_writable(skb, sizeof(*iph) + noff) &&
 		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
 			goto drop;
 
@@ -159,6 +160,9 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 			iph->daddr = new_addr;
 
 		csum_replace4(&iph->check, addr, new_addr);
+	} else if ((iph->frag_off & htons(IP_OFFSET)) ||
+		   iph->protocol != IPPROTO_ICMP) {
+		goto out;
 	}
 
 	ihl = iph->ihl * 4;
@@ -169,9 +173,9 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 	{
 		struct tcphdr *tcph;
 
-		if (!pskb_may_pull(skb, ihl + sizeof(*tcph)) ||
+		if (!pskb_may_pull(skb, ihl + sizeof(*tcph) + noff) ||
 		    (skb_cloned(skb) &&
-		     !skb_clone_writable(skb, ihl + sizeof(*tcph)) &&
+		     !skb_clone_writable(skb, ihl + sizeof(*tcph) + noff) &&
 		     pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
 			goto drop;
 
@@ -183,9 +187,9 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 	{
 		struct udphdr *udph;
 
-		if (!pskb_may_pull(skb, ihl + sizeof(*udph)) ||
+		if (!pskb_may_pull(skb, ihl + sizeof(*udph) + noff) ||
 		    (skb_cloned(skb) &&
-		     !skb_clone_writable(skb, ihl + sizeof(*udph)) &&
+		     !skb_clone_writable(skb, ihl + sizeof(*udph) + noff) &&
 		     pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
 			goto drop;
 
@@ -202,7 +206,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 	{
 		struct icmphdr *icmph;
 
-		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + sizeof(*iph)))
+		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + noff))
 			goto drop;
 
 		icmph = (void *)(skb_network_header(skb) + ihl);
@@ -212,6 +216,11 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 		    (icmph->type != ICMP_PARAMETERPROB))
 			break;
 
+		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + sizeof(*iph) +
+					noff))
+			goto drop;
+
+		icmph = (void *)(skb_network_header(skb) + ihl);
 		iph = (void *)(icmph + 1);
 		if (egress)
 			addr = iph->daddr;
@@ -222,8 +231,8 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 			break;
 
 		if (skb_cloned(skb) &&
-		    !skb_clone_writable(skb,
-					ihl + sizeof(*icmph) + sizeof(*iph)) &&
+		    !skb_clone_writable(skb, ihl + sizeof(*icmph) +
+					     sizeof(*iph) + noff) &&
 		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
 			goto drop;
 
@@ -240,13 +249,14 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 			iph->saddr = new_addr;
 
 		inet_proto_csum_replace4(&icmph->checksum, skb, addr, new_addr,
-					 1);
+					 0);
 		break;
 	}
 	default:
 		break;
 	}
 
+out:
 	return action;
 
 drop:
@@ -261,40 +271,29 @@ static int tcf_nat_dump(struct sk_buff *skb, struct tc_action *a,
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_nat *p = a->priv;
-	struct tc_nat *opt;
+	struct tc_nat opt = {
+		.old_addr = p->old_addr,
+		.new_addr = p->new_addr,
+		.mask     = p->mask,
+		.flags    = p->flags,
+
+		.index    = p->tcf_index,
+		.action   = p->tcf_action,
+		.refcnt   = p->tcf_refcnt - ref,
+		.bindcnt  = p->tcf_bindcnt - bind,
+	};
 	struct tcf_t t;
-	int s;
 
-	s = sizeof(*opt);
-
-	/* netlink spinlocks held above us - must use ATOMIC */
-	opt = kzalloc(s, GFP_ATOMIC);
-	if (unlikely(!opt))
-		return -ENOBUFS;
-
-	opt->old_addr = p->old_addr;
-	opt->new_addr = p->new_addr;
-	opt->mask = p->mask;
-	opt->flags = p->flags;
-
-	opt->index = p->tcf_index;
-	opt->action = p->tcf_action;
-	opt->refcnt = p->tcf_refcnt - ref;
-	opt->bindcnt = p->tcf_bindcnt - bind;
-
-	NLA_PUT(skb, TCA_NAT_PARMS, s, opt);
+	NLA_PUT(skb, TCA_NAT_PARMS, sizeof(opt), &opt);
 	t.install = jiffies_to_clock_t(jiffies - p->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - p->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(p->tcf_tm.expires);
 	NLA_PUT(skb, TCA_NAT_TM, sizeof(t), &t);
 
-	kfree(opt);
-
 	return skb->len;
 
 nla_put_failure:
 	nlmsg_trim(skb, b);
-	kfree(opt);
 	return -1;
 }
 

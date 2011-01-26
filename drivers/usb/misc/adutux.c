@@ -439,7 +439,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 			/* drain secondary buffer */
 			int amount = bytes_to_read < data_in_secondary ? bytes_to_read : data_in_secondary;
 			i = copy_to_user(buffer, dev->read_buffer_secondary+dev->secondary_head, amount);
-			if (i < 0) {
+			if (i) {
 				retval = -EFAULT;
 				goto exit;
 			}
@@ -679,6 +679,7 @@ static const struct file_operations adu_fops = {
 	.write = adu_write,
 	.open = adu_open,
 	.release = adu_release,
+	.llseek = noop_llseek,
 };
 
 /*
@@ -716,7 +717,7 @@ static int adu_probe(struct usb_interface *interface,
 		goto exit;
 	}
 
-	/* allocate memory for our device state and intialize it */
+	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(struct adu_device), GFP_KERNEL);
 	if (dev == NULL) {
 		dev_err(&interface->dev, "Out of memory\n");

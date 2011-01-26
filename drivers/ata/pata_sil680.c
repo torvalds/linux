@@ -202,12 +202,23 @@ static void sil680_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-void sil680_sff_exec_command(struct ata_port *ap,
-					const struct ata_taskfile *tf)
+static void sil680_sff_exec_command(struct ata_port *ap,
+				    const struct ata_taskfile *tf)
 {
 	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
 	iowrite8(tf->command, ap->ioaddr.command_addr);
 	ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+}
+
+static bool sil680_sff_irq_check(struct ata_port *ap)
+{
+	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
+	unsigned long addr	= sil680_selreg(ap, 1);
+	u8 val;
+
+	pci_read_config_byte(pdev, addr, &val);
+
+	return val & 0x08;
 }
 
 static struct scsi_host_template sil680_sht = {
@@ -218,6 +229,7 @@ static struct scsi_host_template sil680_sht = {
 static struct ata_port_operations sil680_port_ops = {
 	.inherits		= &ata_bmdma32_port_ops,
 	.sff_exec_command	= sil680_sff_exec_command,
+	.sff_irq_check		= sil680_sff_irq_check,
 	.cable_detect		= sil680_cable_detect,
 	.set_piomode		= sil680_set_piomode,
 	.set_dmamode		= sil680_set_dmamode,
@@ -374,11 +386,11 @@ static int __devinit sil680_init_one(struct pci_dev *pdev,
 	ata_sff_std_ports(&host->ports[1]->ioaddr);
 
 	/* Register & activate */
-	return ata_host_activate(host, pdev->irq, ata_sff_interrupt,
+	return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
 				 IRQF_SHARED, &sil680_sht);
 
 use_ioports:
-	return ata_pci_sff_init_one(pdev, ppi, &sil680_sht, NULL, 0);
+	return ata_pci_bmdma_init_one(pdev, ppi, &sil680_sht, NULL, 0);
 }
 
 #ifdef CONFIG_PM

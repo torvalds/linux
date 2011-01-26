@@ -55,28 +55,33 @@ static int brnf_call_arptables __read_mostly = 1;
 static int brnf_filter_vlan_tagged __read_mostly = 0;
 static int brnf_filter_pppoe_tagged __read_mostly = 0;
 #else
+#define brnf_call_iptables 1
+#define brnf_call_ip6tables 1
+#define brnf_call_arptables 1
 #define brnf_filter_vlan_tagged 0
 #define brnf_filter_pppoe_tagged 0
 #endif
 
 static inline __be16 vlan_proto(const struct sk_buff *skb)
 {
-	return vlan_eth_hdr(skb)->h_vlan_encapsulated_proto;
+	if (vlan_tx_tag_present(skb))
+		return skb->protocol;
+	else if (skb->protocol == htons(ETH_P_8021Q))
+		return vlan_eth_hdr(skb)->h_vlan_encapsulated_proto;
+	else
+		return 0;
 }
 
 #define IS_VLAN_IP(skb) \
-	(skb->protocol == htons(ETH_P_8021Q) && \
-	 vlan_proto(skb) == htons(ETH_P_IP) && 	\
+	(vlan_proto(skb) == htons(ETH_P_IP) && \
 	 brnf_filter_vlan_tagged)
 
 #define IS_VLAN_IPV6(skb) \
-	(skb->protocol == htons(ETH_P_8021Q) && \
-	 vlan_proto(skb) == htons(ETH_P_IPV6) &&\
+	(vlan_proto(skb) == htons(ETH_P_IPV6) && \
 	 brnf_filter_vlan_tagged)
 
 #define IS_VLAN_ARP(skb) \
-	(skb->protocol == htons(ETH_P_8021Q) &&	\
-	 vlan_proto(skb) == htons(ETH_P_ARP) &&	\
+	(vlan_proto(skb) == htons(ETH_P_ARP) &&	\
 	 brnf_filter_vlan_tagged)
 
 static inline __be16 pppoe_proto(const struct sk_buff *skb)
@@ -103,7 +108,6 @@ static struct dst_ops fake_dst_ops = {
 	.family =		AF_INET,
 	.protocol =		cpu_to_be16(ETH_P_IP),
 	.update_pmtu =		fake_update_pmtu,
-	.entries =		ATOMIC_INIT(0),
 };
 
 /*
@@ -117,25 +121,27 @@ void br_netfilter_rtable_init(struct net_bridge *br)
 {
 	struct rtable *rt = &br->fake_rtable;
 
-	atomic_set(&rt->u.dst.__refcnt, 1);
-	rt->u.dst.dev = br->dev;
-	rt->u.dst.path = &rt->u.dst;
-	rt->u.dst.metrics[RTAX_MTU - 1] = 1500;
-	rt->u.dst.flags	= DST_NOXFRM;
-	rt->u.dst.ops = &fake_dst_ops;
+	atomic_set(&rt->dst.__refcnt, 1);
+	rt->dst.dev = br->dev;
+	rt->dst.path = &rt->dst;
+	dst_metric_set(&rt->dst, RTAX_MTU, 1500);
+	rt->dst.flags	= DST_NOXFRM;
+	rt->dst.ops = &fake_dst_ops;
 }
 
 static inline struct rtable *bridge_parent_rtable(const struct net_device *dev)
 {
-	struct net_bridge_port *port = rcu_dereference(dev->br_port);
+	struct net_bridge_port *port;
 
+	port = br_port_get_rcu(dev);
 	return port ? &port->br->fake_rtable : NULL;
 }
 
 static inline struct net_device *bridge_parent(const struct net_device *dev)
 {
-	struct net_bridge_port *port = rcu_dereference(dev->br_port);
+	struct net_bridge_port *port;
 
+	port = br_port_get_rcu(dev);
 	return port ? port->br->dev : NULL;
 }
 
@@ -158,8 +164,8 @@ static inline struct nf_bridge_info *nf_bridge_unshare(struct sk_buff *skb)
 		if (tmp) {
 			memcpy(tmp, nf_bridge, sizeof(struct nf_bridge_info));
 			atomic_set(&tmp->use, 1);
-			nf_bridge_put(nf_bridge);
 		}
+		nf_bridge_put(nf_bridge);
 		nf_bridge = tmp;
 	}
 	return nf_bridge;
@@ -205,6 +211,72 @@ static inline void nf_bridge_update_protocol(struct sk_buff *skb)
 		skb->protocol = htons(ETH_P_PPP_SES);
 }
 
+/* When handing a packet over to the IP layer
+ * check whether we have a skb that is in the
+ * expected format
+ */
+
+static int br_parse_ip_options(struct sk_buff *skb)
+{
+	struct ip_options *opt;
+	struct iphdr *iph;
+	struct net_device *dev = skb->dev;
+	u32 len;
+
+	iph = ip_hdr(skb);
+	opt = &(IPCB(skb)->opt);
+
+	/* Basic sanity checks */
+	if (iph->ihl < 5 || iph->version != 4)
+		goto inhdr_error;
+
+	if (!pskb_may_pull(skb, iph->ihl*4))
+		goto inhdr_error;
+
+	iph = ip_hdr(skb);
+	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
+		goto inhdr_error;
+
+	len = ntohs(iph->tot_len);
+	if (skb->len < len) {
+		IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INTRUNCATEDPKTS);
+		goto drop;
+	} else if (len < (iph->ihl*4))
+		goto inhdr_error;
+
+	if (pskb_trim_rcsum(skb, len)) {
+		IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INDISCARDS);
+		goto drop;
+	}
+
+	/* Zero out the CB buffer if no options present */
+	if (iph->ihl == 5) {
+		memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+		return 0;
+	}
+
+	opt->optlen = iph->ihl*4 - sizeof(struct iphdr);
+	if (ip_options_compile(dev_net(dev), opt, skb))
+		goto inhdr_error;
+
+	/* Check correct handling of SRR option */
+	if (unlikely(opt->srr)) {
+		struct in_device *in_dev = __in_dev_get_rcu(dev);
+		if (in_dev && !IN_DEV_SOURCE_ROUTE(in_dev))
+			goto drop;
+
+		if (ip_options_rcv_srr(skb))
+			goto drop;
+	}
+
+	return 0;
+
+inhdr_error:
+	IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INHDRERRORS);
+drop:
+	return -1;
+}
+
 /* Fill in the header for fragmented IP packets handled by
  * the IPv4 connection tracking code.
  */
@@ -244,8 +316,7 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 		kfree_skb(skb);
 		return 0;
 	}
-	dst_hold(&rt->u.dst);
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set_noref(skb, &rt->dst);
 
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_update_protocol(skb);
@@ -342,13 +413,8 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 	if (dnat_took_place(skb)) {
 		if ((err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))) {
 			struct flowi fl = {
-				.nl_u = {
-					.ip4_u = {
-						 .daddr = iph->daddr,
-						 .saddr = 0,
-						 .tos = RT_TOS(iph->tos) },
-				},
-				.proto = 0,
+				.fl4_dst = iph->daddr,
+				.fl4_tos = RT_TOS(iph->tos),
 			};
 			struct in_device *in_dev = __in_dev_get_rcu(dev);
 
@@ -396,8 +462,7 @@ bridged_dnat:
 			kfree_skb(skb);
 			return 0;
 		}
-		dst_hold(&rt->u.dst);
-		skb_dst_set(skb, &rt->u.dst);
+		skb_dst_set_noref(skb, &rt->dst);
 	}
 
 	skb->dev = nf_bridge->physindev;
@@ -497,26 +562,26 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 	u32 pkt_len;
 
 	if (skb->len < sizeof(struct ipv6hdr))
-		goto inhdr_error;
+		return NF_DROP;
 
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
-		goto inhdr_error;
+		return NF_DROP;
 
 	hdr = ipv6_hdr(skb);
 
 	if (hdr->version != 6)
-		goto inhdr_error;
+		return NF_DROP;
 
 	pkt_len = ntohs(hdr->payload_len);
 
 	if (pkt_len || hdr->nexthdr != NEXTHDR_HOP) {
 		if (pkt_len + sizeof(struct ipv6hdr) > skb->len)
-			goto inhdr_error;
+			return NF_DROP;
 		if (pskb_trim_rcsum(skb, pkt_len + sizeof(struct ipv6hdr)))
-			goto inhdr_error;
+			return NF_DROP;
 	}
 	if (hdr->nexthdr == NEXTHDR_HOP && check_hbh_len(skb))
-		goto inhdr_error;
+		return NF_DROP;
 
 	nf_bridge_put(skb->nf_bridge);
 	if (!nf_bridge_alloc(skb))
@@ -529,9 +594,6 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 		br_nf_pre_routing_finish_ipv6);
 
 	return NF_STOLEN;
-
-inhdr_error:
-	return NF_DROP;
 }
 
 /* Direct IPv6 traffic to br_nf_pre_routing_ipv6.
@@ -545,25 +607,29 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 				      const struct net_device *out,
 				      int (*okfn)(struct sk_buff *))
 {
-	struct iphdr *iph;
+	struct net_bridge_port *p;
+	struct net_bridge *br;
 	__u32 len = nf_bridge_encap_header_len(skb);
 
 	if (unlikely(!pskb_may_pull(skb, len)))
-		goto out;
+		return NF_DROP;
+
+	p = br_port_get_rcu(in);
+	if (p == NULL)
+		return NF_DROP;
+	br = p->br;
 
 	if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
 	    IS_PPPOE_IPV6(skb)) {
-#ifdef CONFIG_SYSCTL
-		if (!brnf_call_ip6tables)
+		if (!brnf_call_ip6tables && !br->nf_call_ip6tables)
 			return NF_ACCEPT;
-#endif
+
 		nf_bridge_pull_encap_header_rcsum(skb);
 		return br_nf_pre_routing_ipv6(hook, skb, in, out, okfn);
 	}
-#ifdef CONFIG_SYSCTL
-	if (!brnf_call_iptables)
+
+	if (!brnf_call_iptables && !br->nf_call_iptables)
 		return NF_ACCEPT;
-#endif
 
 	if (skb->protocol != htons(ETH_P_IP) && !IS_VLAN_IP(skb) &&
 	    !IS_PPPOE_IP(skb))
@@ -571,25 +637,8 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 
 	nf_bridge_pull_encap_header_rcsum(skb);
 
-	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
-		goto inhdr_error;
-
-	iph = ip_hdr(skb);
-	if (iph->ihl < 5 || iph->version != 4)
-		goto inhdr_error;
-
-	if (!pskb_may_pull(skb, 4 * iph->ihl))
-		goto inhdr_error;
-
-	iph = ip_hdr(skb);
-	if (ip_fast_csum((__u8 *) iph, iph->ihl) != 0)
-		goto inhdr_error;
-
-	len = ntohs(iph->tot_len);
-	if (skb->len < len || len < 4 * iph->ihl)
-		goto inhdr_error;
-
-	pskb_trim_rcsum(skb, len);
+	if (br_parse_ip_options(skb))
+		return NF_DROP;
 
 	nf_bridge_put(skb->nf_bridge);
 	if (!nf_bridge_alloc(skb))
@@ -603,11 +652,6 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 		br_nf_pre_routing_finish);
 
 	return NF_STOLEN;
-
-inhdr_error:
-//      IP_INC_STATS_BH(IpInHdrErrors);
-out:
-	return NF_DROP;
 }
 
 
@@ -716,12 +760,17 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff *skb,
 				      const struct net_device *out,
 				      int (*okfn)(struct sk_buff *))
 {
+	struct net_bridge_port *p;
+	struct net_bridge *br;
 	struct net_device **d = (struct net_device **)(skb->cb);
 
-#ifdef CONFIG_SYSCTL
-	if (!brnf_call_arptables)
+	p = br_port_get_rcu(out);
+	if (p == NULL)
 		return NF_ACCEPT;
-#endif
+	br = p->br;
+
+	if (!brnf_call_arptables && !br->nf_call_arptables)
+		return NF_ACCEPT;
 
 	if (skb->protocol != htons(ETH_P_ARP)) {
 		if (!IS_VLAN_ARP(skb))
@@ -744,12 +793,19 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff *skb,
 #if defined(CONFIG_NF_CONNTRACK_IPV4) || defined(CONFIG_NF_CONNTRACK_IPV4_MODULE)
 static int br_nf_dev_queue_xmit(struct sk_buff *skb)
 {
+	int ret;
+
 	if (skb->nfct != NULL && skb->protocol == htons(ETH_P_IP) &&
 	    skb->len + nf_bridge_mtu_reduction(skb) > skb->dev->mtu &&
-	    !skb_is_gso(skb))
-		return ip_fragment(skb, br_dev_queue_push_xmit);
-	else
-		return br_dev_queue_push_xmit(skb);
+	    !skb_is_gso(skb)) {
+		if (br_parse_ip_options(skb))
+			/* Drop invalid packet */
+			return NF_DROP;
+		ret = ip_fragment(skb, br_dev_queue_push_xmit);
+	} else
+		ret = br_dev_queue_push_xmit(skb);
+
+	return ret;
 }
 #else
 static int br_nf_dev_queue_xmit(struct sk_buff *skb)
@@ -937,15 +993,22 @@ int __init br_netfilter_init(void)
 {
 	int ret;
 
-	ret = nf_register_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
+	ret = dst_entries_init(&fake_dst_ops);
 	if (ret < 0)
 		return ret;
+
+	ret = nf_register_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
+	if (ret < 0) {
+		dst_entries_destroy(&fake_dst_ops);
+		return ret;
+	}
 #ifdef CONFIG_SYSCTL
 	brnf_sysctl_header = register_sysctl_paths(brnf_path, brnf_table);
 	if (brnf_sysctl_header == NULL) {
 		printk(KERN_WARNING
 		       "br_netfilter: can't register to sysctl.\n");
 		nf_unregister_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
+		dst_entries_destroy(&fake_dst_ops);
 		return -ENOMEM;
 	}
 #endif
@@ -959,4 +1022,5 @@ void br_netfilter_fini(void)
 #ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(brnf_sysctl_header);
 #endif
+	dst_entries_destroy(&fake_dst_ops);
 }

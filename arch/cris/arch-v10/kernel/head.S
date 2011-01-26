@@ -280,7 +280,7 @@ _no_romfs_in_flash:
 	;; the "rom fs" we'll possibly use in 2.4 if not JFFS (which does
 	;; not need this mechanism anyway)
 
-	move.d	__vmlinux_end, $r0; the image will be after the vmlinux end address
+	move.d	__init_end, $r0; the image will be after the end of init
 	move.d	[$r0], $r1	; cramfs assumes same endian on host/target
 	cmp.d	CRAMFS_MAGIC, $r1; magic value in cramfs superblock
 	bne	2f

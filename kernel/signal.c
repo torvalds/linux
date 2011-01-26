@@ -637,12 +637,12 @@ static inline bool si_fromuser(const struct siginfo *info)
 
 /*
  * Bad permissions for sending the signal
- * - the caller must hold at least the RCU read lock
+ * - the caller must hold the RCU read lock
  */
 static int check_kill_permission(int sig, struct siginfo *info,
 				 struct task_struct *t)
 {
-	const struct cred *cred = current_cred(), *tcred;
+	const struct cred *cred, *tcred;
 	struct pid *sid;
 	int error;
 
@@ -656,8 +656,10 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	if (error)
 		return error;
 
+	cred = current_cred();
 	tcred = __task_cred(t);
-	if ((cred->euid ^ tcred->suid) &&
+	if (!same_thread_group(current, t) &&
+	    (cred->euid ^ tcred->suid) &&
 	    (cred->euid ^ tcred->uid) &&
 	    (cred->uid  ^ tcred->suid) &&
 	    (cred->uid  ^ tcred->uid) &&
@@ -1083,26 +1085,28 @@ force_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 /*
  * Nuke all other threads in the group.
  */
-void zap_other_threads(struct task_struct *p)
+int zap_other_threads(struct task_struct *p)
 {
-	struct task_struct *t;
+	struct task_struct *t = p;
+	int count = 0;
 
 	p->signal->group_stop_count = 0;
 
-	for (t = next_thread(p); t != p; t = next_thread(t)) {
-		/*
-		 * Don't bother with already dead threads
-		 */
+	while_each_thread(p, t) {
+		count++;
+
+		/* Don't bother with already dead threads */
 		if (t->exit_state)
 			continue;
-
-		/* SIGKILL will be handled before any pending SIGSTOP */
 		sigaddset(&t->pending.signal, SIGKILL);
 		signal_wake_up(t, 1);
 	}
+
+	return count;
 }
 
-struct sighand_struct *lock_task_sighand(struct task_struct *tsk, unsigned long *flags)
+struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
+					   unsigned long *flags)
 {
 	struct sighand_struct *sighand;
 
@@ -1124,11 +1128,14 @@ struct sighand_struct *lock_task_sighand(struct task_struct *tsk, unsigned long 
 
 /*
  * send signal info to all the members of a group
- * - the caller must hold the RCU read lock at least
  */
 int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 {
-	int ret = check_kill_permission(sig, info, p);
+	int ret;
+
+	rcu_read_lock();
+	ret = check_kill_permission(sig, info, p);
+	rcu_read_unlock();
 
 	if (!ret && sig)
 		ret = do_send_sig_info(sig, info, p, true);
@@ -1611,6 +1618,8 @@ static int sigkill_pending(struct task_struct *tsk)
  * is gone, we keep current->exit_code unless clear_code.
  */
 static void ptrace_stop(int exit_code, int clear_code, siginfo_t *info)
+	__releases(&current->sighand->siglock)
+	__acquires(&current->sighand->siglock)
 {
 	if (arch_ptrace_stop_needed(exit_code, info)) {
 		/*
@@ -2208,6 +2217,14 @@ int copy_siginfo_to_user(siginfo_t __user *to, siginfo_t *from)
 		err |= __put_user(from->si_addr, &to->si_addr);
 #ifdef __ARCH_SI_TRAPNO
 		err |= __put_user(from->si_trapno, &to->si_trapno);
+#endif
+#ifdef BUS_MCEERR_AO
+		/* 
+		 * Other callers might not initialize the si_lsb field,
+	 	 * so check explicitely for the right codes here.
+		 */
+		if (from->si_code == BUS_MCEERR_AR || from->si_code == BUS_MCEERR_AO)
+			err |= __put_user(from->si_addr_lsb, &to->si_addr_lsb);
 #endif
 		break;
 	case __SI_CHLD:

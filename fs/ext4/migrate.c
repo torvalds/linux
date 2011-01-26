@@ -376,7 +376,7 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 * We have the extent map build with the tmp inode.
 	 * Now copy the i_data across
 	 */
-	ei->i_flags |= EXT4_EXTENTS_FL;
+	ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS);
 	memcpy(ei->i_data, tmp_ei->i_data, sizeof(ei->i_data));
 
 	/*
@@ -412,7 +412,7 @@ static int free_ext_idx(handle_t *handle, struct inode *inode,
 	struct buffer_head *bh;
 	struct ext4_extent_header *eh;
 
-	block = idx_pblock(ix);
+	block = ext4_idx_pblock(ix);
 	bh = sb_bread(inode->i_sb, block);
 	if (!bh)
 		return -EIO;
@@ -475,7 +475,7 @@ int ext4_ext_migrate(struct inode *inode)
 	 */
 	if (!EXT4_HAS_INCOMPAT_FEATURE(inode->i_sb,
 				       EXT4_FEATURE_INCOMPAT_EXTENTS) ||
-	    (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL))
+	    (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return -EINVAL;
 
 	if (S_ISLNK(inode->i_mode) && inode->i_blocks == 0)
@@ -496,7 +496,7 @@ int ext4_ext_migrate(struct inode *inode)
 	goal = (((inode->i_ino - 1) / EXT4_INODES_PER_GROUP(inode->i_sb)) *
 		EXT4_INODES_PER_GROUP(inode->i_sb)) + 1;
 	tmp_inode = ext4_new_inode(handle, inode->i_sb->s_root->d_inode,
-				   S_IFREG, 0, goal);
+				   S_IFREG, NULL, goal);
 	if (IS_ERR(tmp_inode)) {
 		retval = -ENOMEM;
 		ext4_journal_stop(handle);

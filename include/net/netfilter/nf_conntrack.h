@@ -75,7 +75,7 @@ struct nf_conntrack_helper;
 /* nf_conn feature for connections that have a helper */
 struct nf_conn_help {
 	/* Helper. if any */
-	struct nf_conntrack_helper *helper;
+	struct nf_conntrack_helper __rcu *helper;
 
 	union nf_conntrack_help help;
 
@@ -152,11 +152,7 @@ extern struct net init_net;
 
 static inline struct net *nf_ct_net(const struct nf_conn *ct)
 {
-#ifdef CONFIG_NET_NS
-	return ct->ct_net;
-#else
-	return &init_net;
-#endif
+	return read_pnet(&ct->ct_net);
 }
 
 /* Alter reply tuple (maybe alter helper). */
@@ -261,7 +257,12 @@ extern s16 (*nf_ct_nat_offset)(const struct nf_conn *ct,
 			       u32 seq);
 
 /* Fake conntrack entry for untracked connections */
-extern struct nf_conn nf_conntrack_untracked;
+DECLARE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
+static inline struct nf_conn *nf_ct_untracked_get(void)
+{
+	return &__raw_get_cpu_var(nf_conntrack_untracked);
+}
+extern void nf_ct_untracked_status_or(unsigned long bits);
 
 /* Iterate over all conntracks: if iter returns true, it's deleted. */
 extern void
@@ -289,14 +290,16 @@ static inline int nf_ct_is_dying(struct nf_conn *ct)
 	return test_bit(IPS_DYING_BIT, &ct->status);
 }
 
-static inline int nf_ct_is_untracked(const struct sk_buff *skb)
+static inline int nf_ct_is_untracked(const struct nf_conn *ct)
 {
-	return (skb->nfct == &nf_conntrack_untracked.ct_general);
+	return test_bit(IPS_UNTRACKED_BIT, &ct->status);
 }
 
 extern int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);
 extern unsigned int nf_conntrack_htable_size;
 extern unsigned int nf_conntrack_max;
+extern unsigned int nf_conntrack_hash_rnd;
+void init_nf_conntrack_hash_rnd(void);
 
 #define NF_CT_STAT_INC(net, count)	\
 	__this_cpu_inc((net)->ct.stat->count)

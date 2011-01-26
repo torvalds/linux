@@ -319,6 +319,8 @@ static unsigned crb_hub_agt[64] =
 
 #define NETXEN_PCIE_SEM_TIMEOUT	10000
 
+static int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu);
+
 int
 netxen_pcie_sem_lock(struct netxen_adapter *adapter, int sem, u32 id_reg)
 {
@@ -345,7 +347,7 @@ netxen_pcie_sem_unlock(struct netxen_adapter *adapter, int sem)
 	NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM_UNLOCK(sem)));
 }
 
-int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
+static int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
 {
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		NXWR32(adapter, NETXEN_NIU_XGE_CONFIG_1+(0x10000*port), 0x1447);
@@ -356,7 +358,7 @@ int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
 }
 
 /* Disable an XG interface */
-int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
+static int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
 {
 	__u32 mac_cfg;
 	u32 port = adapter->physical_port;
@@ -383,7 +385,7 @@ int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
 #define MAC_LO(addr) \
 	((addr[5] << 16) | (addr[4] << 8) | (addr[3]))
 
-int netxen_p2_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
+static int netxen_p2_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
 {
 	u32 mac_cfg;
 	u32 cnt = 0;
@@ -434,7 +436,7 @@ int netxen_p2_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
 	return 0;
 }
 
-int netxen_p2_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr)
+static int netxen_p2_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr)
 {
 	u32 mac_hi, mac_lo;
 	u32 reg_hi, reg_lo;
@@ -531,7 +533,7 @@ netxen_nic_set_mcast_addr(struct netxen_adapter *adapter,
 	return 0;
 }
 
-void netxen_p2_nic_set_multi(struct net_device *netdev)
+static void netxen_p2_nic_set_multi(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct netdev_hw_addr *ha;
@@ -598,8 +600,14 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 
 	if (nr_desc >= netxen_tx_avail(tx_ring)) {
 		netif_tx_stop_queue(tx_ring->txq);
-		__netif_tx_unlock_bh(tx_ring->txq);
-		return -EBUSY;
+		smp_mb();
+		if (netxen_tx_avail(tx_ring) > nr_desc) {
+			if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH)
+				netif_tx_wake_queue(tx_ring->txq);
+		} else {
+			__netif_tx_unlock_bh(tx_ring->txq);
+			return -EBUSY;
+		}
 	}
 
 	do {
@@ -647,7 +655,7 @@ nx_p3_sre_macaddr_change(struct netxen_adapter *adapter, u8 *addr, unsigned op)
 }
 
 static int nx_p3_nic_add_mac(struct netxen_adapter *adapter,
-		u8 *addr, struct list_head *del_list)
+		const u8 *addr, struct list_head *del_list)
 {
 	struct list_head *head;
 	nx_mac_list_t *cur;
@@ -674,11 +682,13 @@ static int nx_p3_nic_add_mac(struct netxen_adapter *adapter,
 				cur->mac_addr, NETXEN_MAC_ADD);
 }
 
-void netxen_p3_nic_set_multi(struct net_device *netdev)
+static void netxen_p3_nic_set_multi(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct netdev_hw_addr *ha;
-	u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	static const u8 bcast_addr[ETH_ALEN] = {
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	};
 	u32 mode = VPORT_MISS_MODE_DROP;
 	LIST_HEAD(del_list);
 	struct list_head *head;
@@ -721,7 +731,7 @@ send_fw_cmd:
 	}
 }
 
-int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
+static int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
 {
 	nx_nic_req_t req;
 	u64 word;
@@ -754,7 +764,7 @@ void netxen_p3_free_mac_list(struct netxen_adapter *adapter)
 	}
 }
 
-int netxen_p3_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr)
+static int netxen_p3_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr)
 {
 	/* assuming caller has already copied new addr to netdev */
 	netxen_p3_nic_set_multi(adapter->netdev);
@@ -799,9 +809,6 @@ int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable)
 	u64 word;
 	int rv = 0;
 
-	if ((adapter->flags & NETXEN_NIC_LRO_ENABLED) == enable)
-		return 0;
-
 	memset(&req, 0, sizeof(nx_nic_req_t));
 
 	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
@@ -816,8 +823,6 @@ int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable)
 		printk(KERN_ERR "ERROR. Could not send "
 			"configure hw lro request\n");
 	}
-
-	adapter->flags ^= NETXEN_NIC_LRO_ENABLED;
 
 	return rv;
 }
@@ -861,9 +866,11 @@ int netxen_config_rss(struct netxen_adapter *adapter, int enable)
 	u64 word;
 	int i, rv;
 
-	u64 key[] = { 0xbeac01fa6a42b73bULL, 0x8030f20c77cb2da3ULL,
-			0xae7b30b4d0ca2bcbULL, 0x43a38fb04167253dULL,
-			0x255b0ec26d5a56daULL };
+	static const u64 key[] = {
+		0xbeac01fa6a42b73bULL, 0x8030f20c77cb2da3ULL,
+		0xae7b30b4d0ca2bcbULL, 0x43a38fb04167253dULL,
+		0x255b0ec26d5a56daULL
+	};
 
 
 	memset(&req, 0, sizeof(nx_nic_req_t));
@@ -887,7 +894,7 @@ int netxen_config_rss(struct netxen_adapter *adapter, int enable)
 		((u64)(enable & 0x1) << 8) |
 		((0x7ULL) << 48);
 	req.words[0] = cpu_to_le64(word);
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < ARRAY_SIZE(key); i++)
 		req.words[i+1] = cpu_to_le64(key[i]);
 
 
@@ -1159,9 +1166,6 @@ netxen_nic_pci_set_crbwindow_2M(struct netxen_adapter *adapter, ulong off)
 
 	window = CRB_HI(off);
 
-	if (adapter->ahw.crb_win == window)
-		return;
-
 	writel(window, addr);
 	if (readl(addr) != window) {
 		if (printk_ratelimit())
@@ -1169,7 +1173,6 @@ netxen_nic_pci_set_crbwindow_2M(struct netxen_adapter *adapter, ulong off)
 				"failed to set CRB window to %d off 0x%lx\n",
 				window, off);
 	}
-	adapter->ahw.crb_win = window;
 }
 
 static void __iomem *
@@ -1820,13 +1823,13 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 	if (netxen_rom_fast_read(adapter, offset, &board_type))
 		return -EIO;
 
-	adapter->ahw.board_type = board_type;
-
 	if (board_type == NETXEN_BRDTYPE_P3_4_GB_MM) {
 		u32 gpio = NXRD32(adapter, NETXEN_ROMUSB_GLB_PAD_GPIO_I);
 		if ((gpio & 0x8000) == 0)
 			board_type = NETXEN_BRDTYPE_P3_10G_TP;
 	}
+
+	adapter->ahw.board_type = board_type;
 
 	switch (board_type) {
 	case NETXEN_BRDTYPE_P2_SB35_4G:
@@ -1871,16 +1874,7 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 }
 
 /* NIU access sections */
-
-int netxen_nic_set_mtu_gb(struct netxen_adapter *adapter, int new_mtu)
-{
-	new_mtu += MTU_FUDGE_FACTOR;
-	NXWR32(adapter, NETXEN_NIU_GB_MAX_FRAME_SIZE(adapter->physical_port),
-		new_mtu);
-	return 0;
-}
-
-int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu)
+static int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu)
 {
 	new_mtu += MTU_FUDGE_FACTOR;
 	if (adapter->physical_port == 0)

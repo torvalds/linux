@@ -834,4 +834,40 @@ static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot)
 	return -EIO;
 }
 
-COMEDI_PCI_INITCLEANUP(driver_ni_65xx, ni_65xx_pci_table);
+static int __devinit driver_ni_65xx_pci_probe(struct pci_dev *dev,
+					      const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_ni_65xx.driver_name);
+}
+
+static void __devexit driver_ni_65xx_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_ni_65xx_pci_driver = {
+	.id_table = ni_65xx_pci_table,
+	.probe = &driver_ni_65xx_pci_probe,
+	.remove = __devexit_p(&driver_ni_65xx_pci_remove)
+};
+
+static int __init driver_ni_65xx_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_ni_65xx);
+	if (retval < 0)
+		return retval;
+
+	driver_ni_65xx_pci_driver.name = (char *)driver_ni_65xx.driver_name;
+	return pci_register_driver(&driver_ni_65xx_pci_driver);
+}
+
+static void __exit driver_ni_65xx_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_ni_65xx_pci_driver);
+	comedi_driver_unregister(&driver_ni_65xx);
+}
+
+module_init(driver_ni_65xx_init_module);
+module_exit(driver_ni_65xx_cleanup_module);

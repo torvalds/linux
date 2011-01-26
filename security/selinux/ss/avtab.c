@@ -266,8 +266,8 @@ int avtab_alloc(struct avtab *h, u32 nrules)
 	if (shift > 2)
 		shift = shift - 2;
 	nslot = 1 << shift;
-	if (nslot > MAX_AVTAB_SIZE)
-		nslot = MAX_AVTAB_SIZE;
+	if (nslot > MAX_AVTAB_HASH_BUCKETS)
+		nslot = MAX_AVTAB_HASH_BUCKETS;
 	mask = nslot - 1;
 
 	h->htable = kcalloc(nslot, sizeof(*(h->htable)), GFP_KERNEL);
@@ -342,20 +342,20 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 
 	if (vers < POLICYDB_VERSION_AVTAB) {
 		rc = next_entry(buf32, fp, sizeof(u32));
-		if (rc < 0) {
+		if (rc) {
 			printk(KERN_ERR "SELinux: avtab: truncated entry\n");
-			return -1;
+			return rc;
 		}
 		items2 = le32_to_cpu(buf32[0]);
 		if (items2 > ARRAY_SIZE(buf32)) {
 			printk(KERN_ERR "SELinux: avtab: entry overflow\n");
-			return -1;
+			return -EINVAL;
 
 		}
 		rc = next_entry(buf32, fp, sizeof(u32)*items2);
-		if (rc < 0) {
+		if (rc) {
 			printk(KERN_ERR "SELinux: avtab: truncated entry\n");
-			return -1;
+			return rc;
 		}
 		items = 0;
 
@@ -363,19 +363,19 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 		key.source_type = (u16)val;
 		if (key.source_type != val) {
 			printk(KERN_ERR "SELinux: avtab: truncated source type\n");
-			return -1;
+			return -EINVAL;
 		}
 		val = le32_to_cpu(buf32[items++]);
 		key.target_type = (u16)val;
 		if (key.target_type != val) {
 			printk(KERN_ERR "SELinux: avtab: truncated target type\n");
-			return -1;
+			return -EINVAL;
 		}
 		val = le32_to_cpu(buf32[items++]);
 		key.target_class = (u16)val;
 		if (key.target_class != val) {
 			printk(KERN_ERR "SELinux: avtab: truncated target class\n");
-			return -1;
+			return -EINVAL;
 		}
 
 		val = le32_to_cpu(buf32[items++]);
@@ -383,12 +383,12 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 
 		if (!(val & (AVTAB_AV | AVTAB_TYPE))) {
 			printk(KERN_ERR "SELinux: avtab: null entry\n");
-			return -1;
+			return -EINVAL;
 		}
 		if ((val & AVTAB_AV) &&
 		    (val & AVTAB_TYPE)) {
 			printk(KERN_ERR "SELinux: avtab: entry has both access vectors and types\n");
-			return -1;
+			return -EINVAL;
 		}
 
 		for (i = 0; i < ARRAY_SIZE(spec_order); i++) {
@@ -403,15 +403,15 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 
 		if (items != items2) {
 			printk(KERN_ERR "SELinux: avtab: entry only had %d items, expected %d\n", items2, items);
-			return -1;
+			return -EINVAL;
 		}
 		return 0;
 	}
 
 	rc = next_entry(buf16, fp, sizeof(u16)*4);
-	if (rc < 0) {
+	if (rc) {
 		printk(KERN_ERR "SELinux: avtab: truncated entry\n");
-		return -1;
+		return rc;
 	}
 
 	items = 0;
@@ -424,7 +424,7 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 	    !policydb_type_isvalid(pol, key.target_type) ||
 	    !policydb_class_isvalid(pol, key.target_class)) {
 		printk(KERN_ERR "SELinux: avtab: invalid type or class\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	set = 0;
@@ -434,19 +434,19 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 	}
 	if (!set || set > 1) {
 		printk(KERN_ERR "SELinux:  avtab:  more than one specifier\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	rc = next_entry(buf32, fp, sizeof(u32));
-	if (rc < 0) {
+	if (rc) {
 		printk(KERN_ERR "SELinux: avtab: truncated entry\n");
-		return -1;
+		return rc;
 	}
 	datum.data = le32_to_cpu(*buf32);
 	if ((key.specified & AVTAB_TYPE) &&
 	    !policydb_type_isvalid(pol, datum.data)) {
 		printk(KERN_ERR "SELinux: avtab: invalid type\n");
-		return -1;
+		return -EINVAL;
 	}
 	return insertf(a, &key, &datum, p);
 }
@@ -487,8 +487,7 @@ int avtab_read(struct avtab *a, void *fp, struct policydb *pol)
 				printk(KERN_ERR "SELinux: avtab: out of memory\n");
 			else if (rc == -EEXIST)
 				printk(KERN_ERR "SELinux: avtab: duplicate entry\n");
-			else
-				rc = -EINVAL;
+
 			goto bad;
 		}
 	}
@@ -502,6 +501,48 @@ bad:
 	goto out;
 }
 
+int avtab_write_item(struct policydb *p, struct avtab_node *cur, void *fp)
+{
+	__le16 buf16[4];
+	__le32 buf32[1];
+	int rc;
+
+	buf16[0] = cpu_to_le16(cur->key.source_type);
+	buf16[1] = cpu_to_le16(cur->key.target_type);
+	buf16[2] = cpu_to_le16(cur->key.target_class);
+	buf16[3] = cpu_to_le16(cur->key.specified);
+	rc = put_entry(buf16, sizeof(u16), 4, fp);
+	if (rc)
+		return rc;
+	buf32[0] = cpu_to_le32(cur->datum.data);
+	rc = put_entry(buf32, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+	return 0;
+}
+
+int avtab_write(struct policydb *p, struct avtab *a, void *fp)
+{
+	unsigned int i;
+	int rc = 0;
+	struct avtab_node *cur;
+	__le32 buf[1];
+
+	buf[0] = cpu_to_le32(a->nel);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < a->nslot; i++) {
+		for (cur = a->htable[i]; cur; cur = cur->next) {
+			rc = avtab_write_item(p, cur, fp);
+			if (rc)
+				return rc;
+		}
+	}
+
+	return rc;
+}
 void avtab_cache_init(void)
 {
 	avtab_node_cachep = kmem_cache_create("avtab_node",

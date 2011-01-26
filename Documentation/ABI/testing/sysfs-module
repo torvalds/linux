@@ -1,0 +1,12 @@
+What:		/sys/module/pch_phub/drivers/.../pch_mac
+Date:		August 2010
+KernelVersion:	2.6.35
+Contact:	masa-korg@dsn.okisemi.com
+Description:	Write/read GbE MAC address.
+
+What:		/sys/module/pch_phub/drivers/.../pch_firmware
+Date:		August 2010
+KernelVersion:	2.6.35
+Contact:	masa-korg@dsn.okisemi.com
+Description:	Write/read Option ROM data.
+

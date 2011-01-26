@@ -14,7 +14,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <mach/hardware.h>
-
+#include <mach/smemc.h>
 #include <mach/pxa2xx-regs.h>
 
 #define MDREFR_KDIV	0x200a4000	// all banks
@@ -339,10 +339,6 @@ ENTRY(pxa_cpu_resume)
 	mcr	p15, 0, r1, c8, c7, 0   	@ invalidate I & D TLBs
 	mcr	p15, 0, r1, c7, c7, 0		@ invalidate I & D caches, BTB
 
-#ifdef CONFIG_XSCALE_CACHE_ERRATA
-	bic     r9, r9, #0x0004			@ see cpu_xscale_proc_init
-#endif
-
 	mcr	p14, 0, r3, c6, c0, 0		@ clock configuration, turbo mode.
 	mcr	p15, 0, r4, c15, c1, 0		@ CP access reg
 	mcr	p15, 0, r5, c13, c0, 0		@ PID
@@ -357,8 +353,8 @@ resume_turn_on_mmu:
 
 	@ Let us ensure we jump to resume_after_mmu only when the mcr above
 	@ actually took effect.  They call it the "cpwait" operation.
-	mrc	p15, 0, r1, c2, c0, 0		@ queue a dependency on CP15
-	sub	pc, r2, r1, lsr #32		@ jump to virtual addr
+	mrc	p15, 0, r0, c2, c0, 0		@ queue a dependency on CP15
+	sub	pc, r2, r0, lsr #32		@ jump to virtual addr
 	nop
 	nop
 	nop
@@ -368,9 +364,6 @@ sleep_save_sp:
 
 	.text
 resume_after_mmu:
-#ifdef CONFIG_XSCALE_CACHE_ERRATA
-	bl	cpu_xscale_proc_init
-#endif
 	ldmfd	sp!, {r2, r3}
 #ifndef CONFIG_IWMMXT
 	mar	acc0, r2, r3

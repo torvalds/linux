@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2008 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -14,10 +14,19 @@
 #define QL_VND_A84_MGMT_CMD	0x04
 #define QL_VND_IIDMA		0x05
 #define QL_VND_FCP_PRIO_CFG_CMD	0x06
+#define QL_VND_READ_FLASH	0x07
+#define QL_VND_UPDATE_FLASH	0x08
 
 /* BSG definations for interpreting CommandSent field */
 #define INT_DEF_LB_LOOPBACK_CMD         0
 #define INT_DEF_LB_ECHO_CMD             1
+
+/* Loopback related definations */
+#define EXTERNAL_LOOPBACK		0xF2
+#define ENABLE_INTERNAL_LOOPBACK	0x02
+#define INTERNAL_LOOPBACK_MASK		0x000E
+#define MAX_ELS_FRAME_PAYLOAD		252
+#define ELS_OPCODE_BYTE			0x10
 
 /* BSG Vendor specific definations */
 #define A84_ISSUE_WRITE_TYPE_CMD        0

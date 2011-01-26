@@ -51,7 +51,7 @@ static struct snd_ps3_card_info the_card;
 static int snd_ps3_start_delay = CONFIG_SND_PS3_DEFAULT_START_DELAY;
 
 module_param_named(start_delay, snd_ps3_start_delay, uint, 0644);
-MODULE_PARM_DESC(start_delay, "time to insert silent data in milisec");
+MODULE_PARM_DESC(start_delay, "time to insert silent data in ms");
 
 static int index = SNDRV_DEFAULT_IDX1;
 static char *id = SNDRV_DEFAULT_STR1;
@@ -579,7 +579,7 @@ static int snd_ps3_delay_to_bytes(struct snd_pcm_substream *substream,
 				  rate * delay_ms / 1000)
 		* substream->runtime->channels;
 
-	pr_debug(KERN_ERR "%s: time=%d rate=%d bytes=%ld, frames=%d, ret=%d\n",
+	pr_debug("%s: time=%d rate=%d bytes=%ld, frames=%d, ret=%d\n",
 		 __func__,
 		 delay_ms,
 		 rate,

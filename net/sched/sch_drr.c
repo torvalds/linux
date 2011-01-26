@@ -110,7 +110,7 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	cl->refcnt	   = 1;
 	cl->common.classid = classid;
 	cl->quantum	   = quantum;
-	cl->qdisc	   = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
+	cl->qdisc	   = qdisc_create_dflt(sch->dev_queue,
 					       &pfifo_qdisc_ops, classid);
 	if (cl->qdisc == NULL)
 		cl->qdisc = &noop_qdisc;
@@ -218,7 +218,7 @@ static int drr_graft_class(struct Qdisc *sch, unsigned long arg,
 	struct drr_class *cl = (struct drr_class *)arg;
 
 	if (new == NULL) {
-		new = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
+		new = qdisc_create_dflt(sch->dev_queue,
 					&pfifo_qdisc_ops, cl->common.classid);
 		if (new == NULL)
 			new = &noop_qdisc;
@@ -351,7 +351,6 @@ static int drr_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct drr_sched *q = qdisc_priv(sch);
 	struct drr_class *cl;
-	unsigned int len;
 	int err;
 
 	cl = drr_classify(skb, sch, &err);
@@ -362,7 +361,6 @@ static int drr_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return err;
 	}
 
-	len = qdisc_pkt_len(skb);
 	err = qdisc_enqueue(skb, cl->qdisc);
 	if (unlikely(err != NET_XMIT_SUCCESS)) {
 		if (net_xmit_drop_count(err)) {
@@ -377,10 +375,8 @@ static int drr_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		cl->deficit = cl->quantum;
 	}
 
-	cl->bstats.packets++;
-	cl->bstats.bytes += len;
-	sch->bstats.packets++;
-	sch->bstats.bytes += len;
+	bstats_update(&cl->bstats, skb);
+	qdisc_bstats_update(sch, skb);
 
 	sch->q.qlen++;
 	return err;

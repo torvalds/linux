@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/delay.h>
@@ -32,12 +28,11 @@
 #include <mach/hardware.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
-#include <mach/mmc.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
 #include <media/soc_camera.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 
 static unsigned int marxbot_pins[] = {
@@ -119,7 +114,7 @@ static void marxbot_sdhc2_exit(struct device *dev, void *data)
 	gpio_free(SDHC2_CD);
 }
 
-static struct imxmmc_platform_data sdhc2_pdata = {
+static const struct imxmmc_platform_data sdhc2_pdata __initconst = {
 	.get_ro	= marxbot_sdhc2_get_ro,
 	.init	= marxbot_sdhc2_init,
 	.exit	= marxbot_sdhc2_exit,
@@ -182,7 +177,6 @@ static struct soc_camera_link base_iclink = {
 	.reset		= marxbot_basecam_reset,
 	.board_info	= &marxbot_i2c_devices[0],
 	.i2c_adapter_id	= 0,
-	.module_name	= "mt9t031",
 };
 
 static struct platform_device marxbot_camera[] = {
@@ -306,7 +300,7 @@ static int marxbot_isp1105_set_vbus(struct otg_transceiver *otg, bool on)
 	return 0;
 }
 
-static struct mxc_usbh_platform_data usbh1_pdata = {
+static struct mxc_usbh_platform_data usbh1_pdata __initdata = {
 	.init	= marxbot_usbh1_hw_init,
 	.portsc	= MXC_EHCI_MODE_UTMI | MXC_EHCI_SERIAL,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_SINGLE_UNI,
@@ -315,6 +309,7 @@ static struct mxc_usbh_platform_data usbh1_pdata = {
 static int __init marxbot_usbh1_init(void)
 {
 	struct otg_transceiver *otg;
+	struct platform_device *pdev;
 
 	otg = kzalloc(sizeof(*otg), GFP_KERNEL);
 	if (!otg)
@@ -326,8 +321,17 @@ static int __init marxbot_usbh1_init(void)
 
 	usbh1_pdata.otg = otg;
 
-	return mxc_register_device(&mxc_usbh1, &usbh1_pdata);
+	pdev = imx31_add_mxc_ehci_hs(1, &usbh1_pdata);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
 }
+
+static const struct fsl_usb2_platform_data usb_pdata __initconst = {
+	.operating_mode	= FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_ULPI,
+};
 
 /*
  * system init for baseboard usage. Will be called by mx31moboard init.
@@ -343,7 +347,7 @@ void __init mx31moboard_marxbot_init(void)
 
 	dspics_resets_init();
 
-	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
+	imx31_add_mxc_mmc(1, &sdhc2_pdata);
 
 	spi_register_board_info(marxbot_spi_board_info,
 		ARRAY_SIZE(marxbot_spi_board_info));
@@ -355,6 +359,8 @@ void __init mx31moboard_marxbot_init(void)
 	gpio_request(IOMUX_TO_GPIO(MX31_PIN_LCS0), "bat-present");
 	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_LCS0));
 	gpio_export(IOMUX_TO_GPIO(MX31_PIN_LCS0), false);
+
+	imx31_add_fsl_usb2_udc(&usb_pdata);
 
 	marxbot_usbh1_init();
 }

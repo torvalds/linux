@@ -167,25 +167,6 @@ int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
 				   const u16 buffer_length, const int timeout);
 
 /**
- * rt2x00usb_vendor_request_large_buff - Send register command to device (buffered)
- * @rt2x00dev: Pointer to &struct rt2x00_dev
- * @request: USB vendor command (See &enum rt2x00usb_vendor_request)
- * @requesttype: Request type &USB_VENDOR_REQUEST_*
- * @offset: Register start offset to perform action on
- * @buffer: Buffer where information will be read/written to by device
- * @buffer_length: Size of &buffer
- * @timeout: Operation timeout
- *
- * This function is used to transfer register data in blocks larger
- * then CSR_CACHE_SIZE. Use for firmware upload, keys and beacons.
- */
-int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
-					const u8 request, const u8 requesttype,
-					const u16 offset, const void *buffer,
-					const u16 buffer_length,
-					const int timeout);
-
-/**
  * rt2x00usb_vendor_request_sw - Send single register command to device
  * @rt2x00dev: Pointer to &struct rt2x00_dev
  * @request: USB vendor command (See &enum rt2x00usb_vendor_request)
@@ -370,16 +351,6 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev);
 
 /**
- * rt2x00usb_write_tx_data - Initialize URB for TX operation
- * @entry: The entry where the frame is located
- *
- * This function will initialize the URB and skb descriptor
- * to prepare the entry for the actual TX operation.
- */
-int rt2x00usb_write_tx_data(struct queue_entry *entry,
-			    struct txentry_desc *txdesc);
-
-/**
  * struct queue_entry_priv_usb: Per entry USB specific information
  *
  * @urb: Urb structure used for device communication.
@@ -407,26 +378,32 @@ struct queue_entry_priv_usb_bcn {
 };
 
 /**
- * rt2x00usb_kick_tx_queue - Kick data queue
- * @rt2x00dev: Pointer to &struct rt2x00_dev
- * @qid: Data queue to kick
+ * rt2x00usb_kick_queue - Kick data queue
+ * @queue: Data queue to kick
  *
  * This will walk through all entries of the queue and push all pending
  * frames to the hardware as a single burst.
  */
-void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-			     const enum data_queue_qid qid);
+void rt2x00usb_kick_queue(struct data_queue *queue);
 
 /**
- * rt2x00usb_kill_tx_queue - Kill data queue
- * @rt2x00dev: Pointer to &struct rt2x00_dev
- * @qid: Data queue to kill
+ * rt2x00usb_flush_queue - Flush data queue
+ * @queue: Data queue to stop
  *
  * This will walk through all entries of the queue and kill all
- * previously kicked frames before they can be send.
+ * URB's which were send to the device.
  */
-void rt2x00usb_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
-			      const enum data_queue_qid qid);
+void rt2x00usb_flush_queue(struct data_queue *queue);
+
+/**
+ * rt2x00usb_watchdog - Watchdog for USB communication
+ * @rt2x00dev: Pointer to &struct rt2x00_dev
+ *
+ * Check the health of the USB communication and determine
+ * if timeouts have occured. If this is the case, this function
+ * will reset all communication to restore functionality again.
+ */
+void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev);
 
 /*
  * Device initialization handlers.

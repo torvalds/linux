@@ -310,8 +310,12 @@ static int pmu_set_cpu_speed(int low_speed)
 	/* Restore low level PMU operations */
 	pmu_unlock();
 
-	/* Restore decrementer */
-	wakeup_decrementer();
+	/*
+	 * Restore decrementer; we'll take a decrementer interrupt
+	 * as soon as interrupts are re-enabled and the generic
+	 * clockevents code will reprogram it with the right value.
+	 */
+	set_dec(1);
 
 	/* Restore interrupts */
  	mpic_cpu_set_priority(pic_prio);

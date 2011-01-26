@@ -13,51 +13,94 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
+#include <linux/gpio.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
 #include <linux/spi/spi.h>
+#include <linux/mfd/ab8500.h>
+#include <linux/mfd/tc3589x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+#include <plat/pincfg.h>
 #include <plat/i2c.h>
 
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
+#include <mach/irqs.h>
 
-static void ab4500_spi_cs_control(u32 command)
-{
-	/* set the FRM signal, which is CS  - TODO */
-}
+#include "devices-db8500.h"
+#include "pins-db8500.h"
+#include "board-mop500.h"
+#include "board-mop500-regulators.h"
 
-struct pl022_config_chip ab4500_chip_info = {
-	.lbm = LOOPBACK_DISABLED,
-	.com_mode = INTERRUPT_TRANSFER,
-	.iface = SSP_INTERFACE_MOTOROLA_SPI,
-	/* we can act as master only */
-	.hierarchy = SSP_MASTER,
-	.slave_tx_disable = 0,
-	.endian_rx = SSP_RX_MSB,
-	.endian_tx = SSP_TX_MSB,
-	.data_size = SSP_DATA_BITS_24,
-	.rx_lev_trig = SSP_RX_1_OR_MORE_ELEM,
-	.tx_lev_trig = SSP_TX_1_OR_MORE_EMPTY_LOC,
-	.clk_phase = SSP_CLK_SECOND_EDGE,
-	.clk_pol = SSP_CLK_POL_IDLE_HIGH,
-	.cs_control = ab4500_spi_cs_control,
+static pin_cfg_t mop500_pins[] = {
+	/* SSP0 */
+	GPIO143_SSP0_CLK,
+	GPIO144_SSP0_FRM,
+	GPIO145_SSP0_RXD,
+	GPIO146_SSP0_TXD,
+
+	/* I2C */
+	GPIO147_I2C0_SCL,
+	GPIO148_I2C0_SDA,
+	GPIO16_I2C1_SCL,
+	GPIO17_I2C1_SDA,
+	GPIO10_I2C2_SDA,
+	GPIO11_I2C2_SCL,
+	GPIO229_I2C3_SDA,
+	GPIO230_I2C3_SCL,
+
+	/* SKE keypad */
+	GPIO153_KP_I7,
+	GPIO154_KP_I6,
+	GPIO155_KP_I5,
+	GPIO156_KP_I4,
+	GPIO157_KP_O7,
+	GPIO158_KP_O6,
+	GPIO159_KP_O5,
+	GPIO160_KP_O4,
+	GPIO161_KP_I3,
+	GPIO162_KP_I2,
+	GPIO163_KP_I1,
+	GPIO164_KP_I0,
+	GPIO165_KP_O3,
+	GPIO166_KP_O2,
+	GPIO167_KP_O1,
+	GPIO168_KP_O0,
+
+	/* GPIO_EXP_INT */
+	GPIO217_GPIO,
+
+	/* STMPE1601 IRQ */
+	GPIO218_GPIO    | PIN_INPUT_PULLUP,
 };
 
-static struct spi_board_info u8500_spi_devices[] = {
-	{
-		.modalias = "ab4500",
-		.controller_data = &ab4500_chip_info,
-		.max_speed_hz = 12000000,
-		.bus_num = 0,
-		.chip_select = 0,
-		.mode = SPI_MODE_0,
-		.irq = IRQ_AB4500,
+static struct ab8500_platform_data ab8500_platdata = {
+	.irq_base	= MOP500_AB8500_IRQ_BASE,
+	.regulator	= ab8500_regulators,
+	.num_regulator	= ARRAY_SIZE(ab8500_regulators),
+};
+
+static struct resource ab8500_resources[] = {
+	[0] = {
+		.start	= IRQ_DB8500_AB8500,
+		.end	= IRQ_DB8500_AB8500,
+		.flags	= IORESOURCE_IRQ
+	}
+};
+
+struct platform_device ab8500_device = {
+	.name = "ab8500-i2c",
+	.id = 0,
+	.dev = {
+		.platform_data = &ab8500_platdata,
 	},
+	.num_resources = 1,
+	.resource = ab8500_resources,
 };
 
 static struct pl022_ssp_controller ssp0_platform_data = {
@@ -68,6 +111,34 @@ static struct pl022_ssp_controller ssp0_platform_data = {
 	 * 224 are connected as chip selects
 	 */
 	.num_chipselect = 5,
+};
+
+/*
+ * TC35892
+ */
+
+static void mop500_tc35892_init(struct tc3589x *tc3589x, unsigned int base)
+{
+	mop500_sdi_tc35892_init();
+}
+
+static struct tc3589x_gpio_platform_data mop500_tc35892_gpio_data = {
+	.gpio_base	= MOP500_EGPIO(0),
+	.setup		= mop500_tc35892_init,
+};
+
+static struct tc3589x_platform_data mop500_tc35892_data = {
+	.block		= TC3589x_BLOCK_GPIO,
+	.gpio		= &mop500_tc35892_gpio_data,
+	.irq_base	= MOP500_EGPIO_IRQ_BASE,
+};
+
+static struct i2c_board_info mop500_i2c0_devices[] = {
+	{
+		I2C_BOARD_INFO("tc3589x", 0x42),
+		.irq            = NOMADIK_GPIO_TO_IRQ(217),
+		.platform_data  = &mop500_tc35892_data,
+	},
 };
 
 #define U8500_I2C_CONTROLLER(id, _slsu, _tft, _rft, clk, _sm) \
@@ -99,48 +170,53 @@ U8500_I2C_CONTROLLER(1, 0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 U8500_I2C_CONTROLLER(2,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 U8500_I2C_CONTROLLER(3,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 
-static struct amba_device *amba_devs[] __initdata = {
-	&ux500_uart0_device,
-	&ux500_uart1_device,
-	&ux500_uart2_device,
-	&u8500_ssp0_device,
-};
+static void __init mop500_i2c_init(void)
+{
+	db8500_add_i2c0(&u8500_i2c0_data);
+	db8500_add_i2c1(&u8500_i2c1_data);
+	db8500_add_i2c2(&u8500_i2c2_data);
+	db8500_add_i2c3(&u8500_i2c3_data);
+}
 
 /* add any platform devices here - TODO */
 static struct platform_device *platform_devs[] __initdata = {
-	&u8500_i2c0_device,
-	&ux500_i2c1_device,
-	&ux500_i2c2_device,
-	&ux500_i2c3_device,
 };
+
+static void __init mop500_spi_init(void)
+{
+	db8500_add_ssp0(&ssp0_platform_data);
+}
+
+static void __init mop500_uart_init(void)
+{
+	db8500_add_uart0();
+	db8500_add_uart1();
+	db8500_add_uart2();
+}
 
 static void __init u8500_init_machine(void)
 {
-	int i;
+	u8500_init_devices();
 
-	u8500_i2c0_device.dev.platform_data = &u8500_i2c0_data;
-	ux500_i2c1_device.dev.platform_data = &u8500_i2c1_data;
-	ux500_i2c2_device.dev.platform_data = &u8500_i2c2_data;
-	ux500_i2c3_device.dev.platform_data = &u8500_i2c3_data;
-
-	u8500_ssp0_device.dev.platform_data = &ssp0_platform_data;
-
-	/* Register the active AMBA devices on this board */
-	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)
-		amba_device_register(amba_devs[i], &iomem_resource);
+	nmk_config_pins(mop500_pins, ARRAY_SIZE(mop500_pins));
 
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
-	spi_register_board_info(u8500_spi_devices,
-			ARRAY_SIZE(u8500_spi_devices));
+	mop500_i2c_init();
+	mop500_sdi_init();
+	mop500_spi_init();
+	mop500_uart_init();
 
-	u8500_init_devices();
+	mop500_keypad_init();
+
+	platform_device_register(&ab8500_device);
+
+	i2c_register_board_info(0, mop500_i2c0_devices,
+				ARRAY_SIZE(mop500_i2c0_devices));
 }
 
 MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
 	/* Maintainer: Srinidhi Kasagar <srinidhi.kasagar@stericsson.com> */
-	.phys_io	= U8500_UART2_BASE,
-	.io_pg_offst	= (IO_ADDRESS(U8500_UART2_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x100,
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,

@@ -12,11 +12,18 @@
 #include <linux/securebits.h>
 #include <net/net_namespace.h>
 
+#ifdef CONFIG_SMP
+# define INIT_PUSHABLE_TASKS(tsk)					\
+	.pushable_tasks = PLIST_NODE_INIT(tsk.pushable_tasks, MAX_PRIO),
+#else
+# define INIT_PUSHABLE_TASKS(tsk)
+#endif
+
 extern struct files_struct init_files;
 extern struct fs_struct init_fs;
 
 #define INIT_SIGNALS(sig) {						\
-	.count		= ATOMIC_INIT(1), 				\
+	.nr_threads	= 1,						\
 	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(sig.wait_chldexit),\
 	.shared_pending	= { 						\
 		.list = LIST_HEAD_INIT(sig.shared_pending.list),	\
@@ -29,13 +36,15 @@ extern struct fs_struct init_fs;
 		.running = 0,						\
 		.lock = __SPIN_LOCK_UNLOCKED(sig.cputimer.lock),	\
 	},								\
+	.cred_guard_mutex =						\
+		 __MUTEX_INITIALIZER(sig.cred_guard_mutex),		\
 }
 
 extern struct nsproxy init_nsproxy;
 
 #define INIT_SIGHAND(sighand) {						\
 	.count		= ATOMIC_INIT(1), 				\
-	.action		= { { { .sa_handler = NULL, } }, },		\
+	.action		= { { { .sa_handler = SIG_DFL, } }, },		\
 	.siglock	= __SPIN_LOCK_UNLOCKED(sighand.siglock),	\
 	.signalfd_wqh	= __WAIT_QUEUE_HEAD_INITIALIZER(sighand.signalfd_wqh),	\
 }
@@ -45,9 +54,9 @@ extern struct group_info init_groups;
 #define INIT_STRUCT_PID {						\
 	.count 		= ATOMIC_INIT(1),				\
 	.tasks		= {						\
-		{ .first = &init_task.pids[PIDTYPE_PID].node },		\
-		{ .first = &init_task.pids[PIDTYPE_PGID].node },	\
-		{ .first = &init_task.pids[PIDTYPE_SID].node },		\
+		{ .first = NULL },					\
+		{ .first = NULL },					\
+		{ .first = NULL },					\
 	},								\
 	.level		= 0,						\
 	.numbers	= { {						\
@@ -61,7 +70,7 @@ extern struct group_info init_groups;
 {								\
 	.node = {						\
 		.next = NULL,					\
-		.pprev = &init_struct_pid.tasks[type].first,	\
+		.pprev = NULL,					\
 	},							\
 	.pid = &init_struct_pid,				\
 }
@@ -81,12 +90,25 @@ extern struct group_info init_groups;
  */
 # define CAP_INIT_BSET  CAP_FULL_SET
 
+#ifdef CONFIG_RCU_BOOST
+#define INIT_TASK_RCU_BOOST()						\
+	.rcu_boost_mutex = NULL,
+#else
+#define INIT_TASK_RCU_BOOST()
+#endif
 #ifdef CONFIG_TREE_PREEMPT_RCU
+#define INIT_TASK_RCU_TREE_PREEMPT()					\
+	.rcu_blocked_node = NULL,
+#else
+#define INIT_TASK_RCU_TREE_PREEMPT(tsk)
+#endif
+#ifdef CONFIG_PREEMPT_RCU
 #define INIT_TASK_RCU_PREEMPT(tsk)					\
 	.rcu_read_lock_nesting = 0,					\
 	.rcu_read_unlock_special = 0,					\
-	.rcu_blocked_node = NULL,					\
-	.rcu_node_entry = LIST_HEAD_INIT(tsk.rcu_node_entry),
+	.rcu_node_entry = LIST_HEAD_INIT(tsk.rcu_node_entry),		\
+	INIT_TASK_RCU_TREE_PREEMPT()					\
+	INIT_TASK_RCU_BOOST()
 #else
 #define INIT_TASK_RCU_PREEMPT(tsk)
 #endif
@@ -129,7 +151,7 @@ extern struct cred init_cred;
 		.nr_cpus_allowed = NR_CPUS,				\
 	},								\
 	.tasks		= LIST_HEAD_INIT(tsk.tasks),			\
-	.pushable_tasks = PLIST_NODE_INIT(tsk.pushable_tasks, MAX_PRIO), \
+	INIT_PUSHABLE_TASKS(tsk)					\
 	.ptraced	= LIST_HEAD_INIT(tsk.ptraced),			\
 	.ptrace_entry	= LIST_HEAD_INIT(tsk.ptrace_entry),		\
 	.real_parent	= &tsk,						\
@@ -137,10 +159,8 @@ extern struct cred init_cred;
 	.children	= LIST_HEAD_INIT(tsk.children),			\
 	.sibling	= LIST_HEAD_INIT(tsk.sibling),			\
 	.group_leader	= &tsk,						\
-	.real_cred	= &init_cred,					\
-	.cred		= &init_cred,					\
-	.cred_guard_mutex =						\
-		 __MUTEX_INITIALIZER(tsk.cred_guard_mutex),		\
+	RCU_INIT_POINTER(.real_cred, &init_cred),			\
+	RCU_INIT_POINTER(.cred, &init_cred),				\
 	.comm		= "swapper",					\
 	.thread		= INIT_THREAD,					\
 	.fs		= &init_fs,					\
@@ -163,6 +183,7 @@ extern struct cred init_cred;
 		[PIDTYPE_PGID] = INIT_PID_LINK(PIDTYPE_PGID),		\
 		[PIDTYPE_SID]  = INIT_PID_LINK(PIDTYPE_SID),		\
 	},								\
+	.thread_group	= LIST_HEAD_INIT(tsk.thread_group),		\
 	.dirties = INIT_PROP_LOCAL_SINGLE(dirties),			\
 	INIT_IDS							\
 	INIT_PERF_EVENTS(tsk)						\
@@ -182,7 +203,7 @@ extern struct cred init_cred;
 }
 
 /* Attach to the init_task data structure for proper alignment */
-#define __init_task_data __attribute__((__section__(".data.init_task")))
+#define __init_task_data __attribute__((__section__(".data..init_task")))
 
 
 #endif

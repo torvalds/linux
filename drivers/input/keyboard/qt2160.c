@@ -358,7 +358,6 @@ static int __devexit qt2160_remove(struct i2c_client *client)
 	input_unregister_device(qt2160->input);
 	kfree(qt2160);
 
-	i2c_set_clientdata(client, NULL);
 	return 0;
 }
 

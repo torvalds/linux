@@ -179,7 +179,7 @@ struct ax88172_int_data {
 	__le16 res2;
 	u8 status;
 	__le16 res3;
-} __attribute__ ((packed));
+} __packed;
 
 static int asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 			    u16 size, void *data)
@@ -322,7 +322,7 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		size = (u16) (header & 0x0000ffff);
 
 		if ((skb->len) - ((size + 1) & 0xfffe) == 0) {
-			u8 alignment = (u32)skb->data & 0x3;
+			u8 alignment = (unsigned long)skb->data & 0x3;
 			if (alignment != 0x2) {
 				/*
 				 * not 16bit aligned so use the room provided by
@@ -344,14 +344,14 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			return 2;
 		}
 
-		if (size > ETH_FRAME_LEN) {
+		if (size > dev->net->mtu + ETH_HLEN) {
 			netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
 				   size);
 			return 0;
 		}
 		ax_skb = skb_clone(skb, GFP_ATOMIC);
 		if (ax_skb) {
-			u8 alignment = (u32)packet & 0x3;
+			u8 alignment = (unsigned long)packet & 0x3;
 			ax_skb->len = size;
 
 			if (alignment != 0x2) {
@@ -1506,6 +1506,10 @@ static const struct usb_device_id	products [] = {
 }, {
 	// ASIX AX88178 10/100/1000
 	USB_DEVICE (0x0b95, 0x1780),
+	.driver_info = (unsigned long) &ax88178_info,
+}, {
+	// Logitec LAN-GTJ/U2A
+	USB_DEVICE (0x0789, 0x0160),
 	.driver_info = (unsigned long) &ax88178_info,
 }, {
 	// Linksys USB200M Rev 2

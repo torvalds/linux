@@ -49,6 +49,8 @@ void pci_ehci_write_reg(int reg, u32 value)
 			lo |= SOFT_BAR_EHCI_FLAG;
 			_wrmsr(GLCP_MSR_REG(GLCP_SOFT_COM), hi, lo);
 		} else if ((value & 0x01) == 0x00) {
+			_rdmsr(USB_MSR_REG(USB_EHCI), &hi, &lo);
+			lo = value;
 			_wrmsr(USB_MSR_REG(USB_EHCI), hi, lo);
 
 			value &= 0xfffffff0;

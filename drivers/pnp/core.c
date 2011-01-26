@@ -124,7 +124,8 @@ static void pnp_release_device(struct device *dmdev)
 	kfree(dev);
 }
 
-struct pnp_dev *pnp_alloc_dev(struct pnp_protocol *protocol, int id, char *pnpid)
+struct pnp_dev *pnp_alloc_dev(struct pnp_protocol *protocol, int id,
+			      const char *pnpid)
 {
 	struct pnp_dev *dev;
 	struct pnp_id *dev_id;
@@ -164,6 +165,9 @@ int __pnp_add_device(struct pnp_dev *dev)
 	list_add_tail(&dev->global_list, &pnp_global);
 	list_add_tail(&dev->protocol_list, &dev->protocol->devices);
 	spin_unlock(&pnp_lock);
+	if (dev->protocol->can_wakeup)
+		device_set_wakeup_capable(&dev->dev,
+				dev->protocol->can_wakeup(dev));
 	return device_register(&dev->dev);
 }
 
@@ -191,8 +195,9 @@ int pnp_add_device(struct pnp_dev *dev)
 	for (id = dev->id; id; id = id->next)
 		len += scnprintf(buf + len, sizeof(buf) - len, " %s", id->id);
 
-	pnp_dbg(&dev->dev, "%s device, IDs%s (%s)\n",
-		dev->protocol->name, buf, dev->active ? "active" : "disabled");
+	dev_printk(KERN_DEBUG, &dev->dev, "%s device, IDs%s (%s)\n",
+		   dev->protocol->name, buf,
+		   dev->active ? "active" : "disabled");
 	return 0;
 }
 
@@ -215,10 +220,5 @@ subsys_initcall(pnp_init);
 int pnp_debug;
 
 #if defined(CONFIG_PNP_DEBUG_MESSAGES)
-static int __init pnp_debug_setup(char *__unused)
-{
-	pnp_debug = 1;
-	return 1;
-}
-__setup("pnp.debug", pnp_debug_setup);
+module_param_named(debug, pnp_debug, int, 0644);
 #endif

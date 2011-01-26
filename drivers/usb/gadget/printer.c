@@ -25,7 +25,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/timer.h>
@@ -70,6 +70,7 @@
 #define DRIVER_DESC		"Printer Gadget"
 #define DRIVER_VERSION		"2007 OCT 06"
 
+static DEFINE_MUTEX(printer_mutex);
 static const char shortname [] = "printer";
 static const char driver_desc [] = DRIVER_DESC;
 
@@ -82,7 +83,7 @@ static struct class *usb_gadget_class;
 struct printer_dev {
 	spinlock_t		lock;		/* lock this structure */
 	/* lock buffer lists during read/write calls */
-	spinlock_t		lock_printer_io;
+	struct mutex		lock_printer_io;
 	struct usb_gadget	*gadget;
 	struct usb_request	*req;		/* for control responses */
 	u8			config;
@@ -476,7 +477,7 @@ printer_open(struct inode *inode, struct file *fd)
 	unsigned long		flags;
 	int			ret = -EBUSY;
 
-	lock_kernel();
+	mutex_lock(&printer_mutex);
 	dev = container_of(inode->i_cdev, struct printer_dev, printer_cdev);
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -492,7 +493,7 @@ printer_open(struct inode *inode, struct file *fd)
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	DBG(dev, "printer_open returned %x\n", ret);
-	unlock_kernel();
+	mutex_unlock(&printer_mutex);
 	return ret;
 }
 
@@ -567,7 +568,7 @@ printer_read(struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 
 	DBG(dev, "printer_read trying to read %d bytes\n", (int)len);
 
-	spin_lock(&dev->lock_printer_io);
+	mutex_lock(&dev->lock_printer_io);
 	spin_lock_irqsave(&dev->lock, flags);
 
 	/* We will use this flag later to check if a printer reset happened
@@ -601,7 +602,7 @@ printer_read(struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 		 * call or not.
 		 */
 		if (fd->f_flags & (O_NONBLOCK|O_NDELAY)) {
-			spin_unlock(&dev->lock_printer_io);
+			mutex_unlock(&dev->lock_printer_io);
 			return -EAGAIN;
 		}
 
@@ -648,7 +649,7 @@ printer_read(struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 		if (dev->reset_printer) {
 			list_add(&current_rx_req->list, &dev->rx_reqs);
 			spin_unlock_irqrestore(&dev->lock, flags);
-			spin_unlock(&dev->lock_printer_io);
+			mutex_unlock(&dev->lock_printer_io);
 			return -EAGAIN;
 		}
 
@@ -673,7 +674,7 @@ printer_read(struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 	dev->current_rx_buf = current_rx_buf;
 
 	spin_unlock_irqrestore(&dev->lock, flags);
-	spin_unlock(&dev->lock_printer_io);
+	mutex_unlock(&dev->lock_printer_io);
 
 	DBG(dev, "printer_read returned %d bytes\n", (int)bytes_copied);
 
@@ -697,7 +698,7 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	if (len == 0)
 		return -EINVAL;
 
-	spin_lock(&dev->lock_printer_io);
+	mutex_lock(&dev->lock_printer_io);
 	spin_lock_irqsave(&dev->lock, flags);
 
 	/* Check if a printer reset happens while we have interrupts on */
@@ -713,7 +714,7 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 		 * a NON-Blocking call or not.
 		 */
 		if (fd->f_flags & (O_NONBLOCK|O_NDELAY)) {
-			spin_unlock(&dev->lock_printer_io);
+			mutex_unlock(&dev->lock_printer_io);
 			return -EAGAIN;
 		}
 
@@ -752,7 +753,7 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 
 		if (copy_from_user(req->buf, buf, size)) {
 			list_add(&req->list, &dev->tx_reqs);
-			spin_unlock(&dev->lock_printer_io);
+			mutex_unlock(&dev->lock_printer_io);
 			return bytes_copied;
 		}
 
@@ -766,14 +767,14 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 		if (dev->reset_printer) {
 			list_add(&req->list, &dev->tx_reqs);
 			spin_unlock_irqrestore(&dev->lock, flags);
-			spin_unlock(&dev->lock_printer_io);
+			mutex_unlock(&dev->lock_printer_io);
 			return -EAGAIN;
 		}
 
 		if (usb_ep_queue(dev->in_ep, req, GFP_ATOMIC)) {
 			list_add(&req->list, &dev->tx_reqs);
 			spin_unlock_irqrestore(&dev->lock, flags);
-			spin_unlock(&dev->lock_printer_io);
+			mutex_unlock(&dev->lock_printer_io);
 			return -EAGAIN;
 		}
 
@@ -782,7 +783,7 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	}
 
 	spin_unlock_irqrestore(&dev->lock, flags);
-	spin_unlock(&dev->lock_printer_io);
+	mutex_unlock(&dev->lock_printer_io);
 
 	DBG(dev, "printer_write sent %d bytes\n", (int)bytes_copied);
 
@@ -794,7 +795,7 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 }
 
 static int
-printer_fsync(struct file *fd, struct dentry *dentry, int datasync)
+printer_fsync(struct file *fd, int datasync)
 {
 	struct printer_dev	*dev = fd->private_data;
 	unsigned long		flags;
@@ -820,11 +821,11 @@ printer_poll(struct file *fd, poll_table *wait)
 	unsigned long		flags;
 	int			status = 0;
 
-	spin_lock(&dev->lock_printer_io);
+	mutex_lock(&dev->lock_printer_io);
 	spin_lock_irqsave(&dev->lock, flags);
 	setup_rx_reqs(dev);
 	spin_unlock_irqrestore(&dev->lock, flags);
-	spin_unlock(&dev->lock_printer_io);
+	mutex_unlock(&dev->lock_printer_io);
 
 	poll_wait(fd, &dev->rx_wait, wait);
 	poll_wait(fd, &dev->tx_wait, wait);
@@ -883,7 +884,8 @@ static const struct file_operations printer_io_operations = {
 	.fsync =	printer_fsync,
 	.poll =		printer_poll,
 	.unlocked_ioctl = printer_ioctl,
-	.release =	printer_close
+	.release =	printer_close,
+	.llseek =	noop_llseek,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1461,7 +1463,7 @@ autoconf_fail:
 	}
 
 	spin_lock_init(&dev->lock);
-	spin_lock_init(&dev->lock_printer_io);
+	mutex_init(&dev->lock_printer_io);
 	INIT_LIST_HEAD(&dev->tx_reqs);
 	INIT_LIST_HEAD(&dev->tx_reqs_active);
 	INIT_LIST_HEAD(&dev->rx_reqs);
@@ -1542,7 +1544,6 @@ static struct usb_gadget_driver printer_driver = {
 	.speed		= DEVSPEED,
 
 	.function	= (char *) driver_desc,
-	.bind		= printer_bind,
 	.unbind		= printer_unbind,
 
 	.setup		= printer_setup,
@@ -1578,11 +1579,11 @@ init(void)
 		return status;
 	}
 
-	status = usb_gadget_register_driver(&printer_driver);
+	status = usb_gadget_probe_driver(&printer_driver, printer_bind);
 	if (status) {
 		class_destroy(usb_gadget_class);
 		unregister_chrdev_region(g_printer_devno, 1);
-		DBG(dev, "usb_gadget_register_driver %x\n", status);
+		DBG(dev, "usb_gadget_probe_driver %x\n", status);
 	}
 
 	return status;
@@ -1594,7 +1595,7 @@ cleanup(void)
 {
 	int status;
 
-	spin_lock(&usb_printer_gadget.lock_printer_io);
+	mutex_lock(&usb_printer_gadget.lock_printer_io);
 	class_destroy(usb_gadget_class);
 	unregister_chrdev_region(g_printer_devno, 2);
 
@@ -1602,6 +1603,6 @@ cleanup(void)
 	if (status)
 		ERROR(dev, "usb_gadget_unregister_driver %x\n", status);
 
-	spin_unlock(&usb_printer_gadget.lock_printer_io);
+	mutex_unlock(&usb_printer_gadget.lock_printer_io);
 }
 module_exit(cleanup);

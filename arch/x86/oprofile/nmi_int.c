@@ -65,7 +65,6 @@ static int profile_exceptions_notify(struct notifier_block *self,
 
 	switch (val) {
 	case DIE_NMI:
-	case DIE_NMI_IPI:
 		if (ctr_running)
 			model->check_ctrs(args->regs, &__get_cpu_var(cpu_msrs));
 		else if (!nmi_enabled)
@@ -143,7 +142,7 @@ static inline int has_mux(void)
 
 inline int op_x86_phys_to_virt(int phys)
 {
-	return __get_cpu_var(switch_index) + phys;
+	return __this_cpu_read(switch_index) + phys;
 }
 
 inline int op_x86_virt_to_phys(int virt)
@@ -361,7 +360,7 @@ static void nmi_cpu_setup(void *dummy)
 static struct notifier_block profile_exceptions_nb = {
 	.notifier_call = profile_exceptions_notify,
 	.next = NULL,
-	.priority = 2
+	.priority = NMI_LOCAL_LOW_PRIOR,
 };
 
 static void nmi_cpu_restore_registers(struct op_msrs *msrs)
@@ -568,8 +567,13 @@ static int __init init_sysfs(void)
 	int error;
 
 	error = sysdev_class_register(&oprofile_sysclass);
-	if (!error)
-		error = sysdev_register(&device_oprofile);
+	if (error)
+		return error;
+
+	error = sysdev_register(&device_oprofile);
+	if (error)
+		sysdev_class_unregister(&oprofile_sysclass);
+
 	return error;
 }
 
@@ -580,8 +584,10 @@ static void exit_sysfs(void)
 }
 
 #else
-#define init_sysfs() do { } while (0)
-#define exit_sysfs() do { } while (0)
+
+static inline int  init_sysfs(void) { return 0; }
+static inline void exit_sysfs(void) { }
+
 #endif /* CONFIG_PM */
 
 static int __init p4_init(char **cpu_type)
@@ -634,6 +640,18 @@ static int __init ppro_init(char **cpu_type)
 	if (force_arch_perfmon && cpu_has_arch_perfmon)
 		return 0;
 
+	/*
+	 * Documentation on identifying Intel processors by CPU family
+	 * and model can be found in the Intel Software Developer's
+	 * Manuals (SDM):
+	 *
+	 *  http://www.intel.com/products/processor/manuals/
+	 *
+	 * As of May 2010 the documentation for this was in the:
+	 * "Intel 64 and IA-32 Architectures Software Developer's
+	 * Manual Volume 3B: System Programming Guide", "Table B-1
+	 * CPUID Signature Values of DisplayFamily_DisplayModel".
+	 */
 	switch (cpu_model) {
 	case 0 ... 2:
 		*cpu_type = "i386/ppro";
@@ -652,15 +670,19 @@ static int __init ppro_init(char **cpu_type)
 	case 14:
 		*cpu_type = "i386/core";
 		break;
-	case 15: case 23:
+	case 0x0f:
+	case 0x16:
+	case 0x17:
+	case 0x1d:
 		*cpu_type = "i386/core_2";
 		break;
+	case 0x1a:
+	case 0x1e:
 	case 0x2e:
-	case 26:
 		spec = &op_arch_perfmon_spec;
 		*cpu_type = "i386/core_i7";
 		break;
-	case 28:
+	case 0x1c:
 		*cpu_type = "i386/atom";
 		break;
 	default:
@@ -671,9 +693,6 @@ static int __init ppro_init(char **cpu_type)
 	model = spec;
 	return 1;
 }
-
-/* in order to get sysfs right */
-static int using_nmi;
 
 int __init op_nmi_init(struct oprofile_operations *ops)
 {
@@ -705,6 +724,15 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 			break;
 		case 0x11:
 			cpu_type = "x86-64/family11h";
+			break;
+		case 0x12:
+			cpu_type = "x86-64/family12h";
+			break;
+		case 0x14:
+			cpu_type = "x86-64/family14h";
+			break;
+		case 0x15:
+			cpu_type = "x86-64/family15h";
 			break;
 		default:
 			return -ENODEV;
@@ -761,14 +789,15 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 
 	mux_init(ops);
 
-	init_sysfs();
-	using_nmi = 1;
+	ret = init_sysfs();
+	if (ret)
+		return ret;
+
 	printk(KERN_INFO "oprofile: using NMI interrupt.\n");
 	return 0;
 }
 
 void op_nmi_exit(void)
 {
-	if (using_nmi)
-		exit_sysfs();
+	exit_sysfs();
 }

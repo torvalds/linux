@@ -23,8 +23,8 @@
 
 #include "ad73311.h"
 
-struct snd_soc_dai ad73311_dai = {
-	.name = "AD73311",
+static struct snd_soc_dai_driver ad73311_dai = {
+	.name = "ad73311-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
@@ -38,68 +38,40 @@ struct snd_soc_dai ad73311_dai = {
 		.rates = SNDRV_PCM_RATE_8000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE, },
 };
-EXPORT_SYMBOL_GPL(ad73311_dai);
 
-static int ad73311_soc_probe(struct platform_device *pdev)
+static struct snd_soc_codec_driver soc_codec_dev_ad73311;
+
+static int ad73311_probe(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret = 0;
-
-	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (codec == NULL)
-		return -ENOMEM;
-	mutex_init(&codec->mutex);
-	codec->name = "AD73311";
-	codec->owner = THIS_MODULE;
-	codec->dai = &ad73311_dai;
-	codec->num_dai = 1;
-	socdev->card->codec = codec;
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		printk(KERN_ERR "ad73311: failed to create pcms\n");
-		goto pcm_err;
-	}
-
-	return ret;
-
-pcm_err:
-	kfree(socdev->card->codec);
-	socdev->card->codec = NULL;
-	return ret;
+	return snd_soc_register_codec(&pdev->dev,
+			&soc_codec_dev_ad73311, &ad73311_dai, 1);
 }
 
-static int ad73311_soc_remove(struct platform_device *pdev)
+static int __devexit ad73311_remove(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	if (codec == NULL)
-		return 0;
-	snd_soc_free_pcms(socdev);
-	kfree(codec);
+	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 
-struct snd_soc_codec_device soc_codec_dev_ad73311 = {
-	.probe = 	ad73311_soc_probe,
-	.remove = 	ad73311_soc_remove,
+static struct platform_driver ad73311_codec_driver = {
+	.driver = {
+			.name = "ad73311-codec",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = ad73311_probe,
+	.remove = __devexit_p(ad73311_remove),
 };
-EXPORT_SYMBOL_GPL(soc_codec_dev_ad73311);
 
 static int __init ad73311_init(void)
 {
-	return snd_soc_register_dai(&ad73311_dai);
+	return platform_driver_register(&ad73311_codec_driver);
 }
 module_init(ad73311_init);
 
 static void __exit ad73311_exit(void)
 {
-	snd_soc_unregister_dai(&ad73311_dai);
+	platform_driver_unregister(&ad73311_codec_driver);
 }
 module_exit(ad73311_exit);
 

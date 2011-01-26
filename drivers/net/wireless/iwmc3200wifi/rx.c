@@ -321,14 +321,14 @@ iwm_rx_ticket_node_alloc(struct iwm_priv *iwm, struct iwm_rx_ticket *ticket)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ticket_node->ticket = kzalloc(sizeof(struct iwm_rx_ticket), GFP_KERNEL);
+	ticket_node->ticket = kmemdup(ticket, sizeof(struct iwm_rx_ticket),
+				      GFP_KERNEL);
 	if (!ticket_node->ticket) {
 		IWM_ERR(iwm, "Couldn't allocate RX ticket\n");
 		kfree(ticket_node);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	memcpy(ticket_node->ticket, ticket, sizeof(struct iwm_rx_ticket));
 	INIT_LIST_HEAD(&ticket_node->node);
 
 	return ticket_node;
@@ -1195,11 +1195,8 @@ static int iwm_ntf_wifi_if_wrapper(struct iwm_priv *iwm, u8 *buf,
 	IWM_DBG_NTF(iwm, DBG, "WIFI_IF_WRAPPER cmd is delivered to UMAC: "
 		    "oid is 0x%x\n", hdr->oid);
 
-	if (hdr->oid <= WIFI_IF_NTFY_MAX) {
-		set_bit(hdr->oid, &iwm->wifi_ntfy[0]);
-		wake_up_interruptible(&iwm->wifi_ntfy_queue);
-	} else
-		return -EINVAL;
+	set_bit(hdr->oid, &iwm->wifi_ntfy[0]);
+	wake_up_interruptible(&iwm->wifi_ntfy_queue);
 
 	switch (hdr->oid) {
 	case UMAC_WIFI_IF_CMD_SET_PROFILE:

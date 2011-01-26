@@ -418,13 +418,11 @@ static inline __u32 xattr_hash(const char *msg, int len)
 
 int reiserfs_commit_write(struct file *f, struct page *page,
 			  unsigned from, unsigned to);
-int reiserfs_prepare_write(struct file *f, struct page *page,
-			   unsigned from, unsigned to);
 
 static void update_ctime(struct inode *inode)
 {
 	struct timespec now = current_fs_time(inode->i_sb);
-	if (hlist_unhashed(&inode->i_hash) || !inode->i_nlink ||
+	if (inode_unhashed(inode) || !inode->i_nlink ||
 	    timespec_equal(&inode->i_ctime, &now))
 		return;
 
@@ -532,8 +530,7 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 			rxh->h_hash = cpu_to_le32(xahash);
 		}
 
-		err = reiserfs_prepare_write(NULL, page, page_offset,
-					    page_offset + chunk + skip);
+		err = __reiserfs_write_begin(page, page_offset, chunk + skip);
 		if (!err) {
 			if (buffer)
 				memcpy(data + skip, buffer + buffer_pos, chunk);
@@ -873,10 +870,13 @@ out:
 	return err;
 }
 
-static int reiserfs_check_acl(struct inode *inode, int mask)
+static int reiserfs_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
 	struct posix_acl *acl;
 	int error = -EAGAIN; /* do regular unix permission checks by default */
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	acl = reiserfs_get_acl(inode, ACL_TYPE_ACCESS);
 
@@ -954,8 +954,10 @@ static int xattr_mount_check(struct super_block *s)
 	return 0;
 }
 
-int reiserfs_permission(struct inode *inode, int mask)
+int reiserfs_permission(struct inode *inode, int mask, unsigned int flags)
 {
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 	/*
 	 * We don't do permission checks on the internal objects.
 	 * Permissions are determined by the "owning" object.
@@ -968,13 +970,16 @@ int reiserfs_permission(struct inode *inode, int mask)
 	 * Stat data v1 doesn't support ACLs.
 	 */
 	if (get_inode_sd_version(inode) != STAT_DATA_V1)
-		return generic_permission(inode, mask, reiserfs_check_acl);
+		return generic_permission(inode, mask, flags,
+					reiserfs_check_acl);
 #endif
-	return generic_permission(inode, mask, NULL);
+	return generic_permission(inode, mask, flags, NULL);
 }
 
 static int xattr_hide_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
 	return -EPERM;
 }
 
@@ -993,7 +998,7 @@ int reiserfs_lookup_privroot(struct super_block *s)
 				strlen(PRIVROOT_NAME));
 	if (!IS_ERR(dentry)) {
 		REISERFS_SB(s)->priv_root = dentry;
-		dentry->d_op = &xattr_lookup_poison_ops;
+		d_set_d_op(dentry, &xattr_lookup_poison_ops);
 		if (dentry->d_inode)
 			dentry->d_inode->i_flags |= S_PRIVATE;
 	} else

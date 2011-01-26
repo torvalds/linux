@@ -32,13 +32,19 @@
 #include <media/v4l2-chip-ident.h>
 
 #include <media/cx25840.h>
+#include "dvb-usb-ids.h"
 #include "xc5000.h"
+#include "tda18271.h"
 
 #include "cx231xx.h"
 
 static int tuner = -1;
 module_param(tuner, int, 0444);
 MODULE_PARM_DESC(tuner, "tuner type");
+
+static int transfer_mode = 1;
+module_param(transfer_mode, int, 0444);
+MODULE_PARM_DESC(transfer_mode, "transfer mode (1-ISO or 0-BULK)");
 
 static unsigned int disable_ir;
 module_param(disable_ir, int, 0444);
@@ -85,8 +91,8 @@ struct cx231xx_board cx231xx_boards[] = {
 			}
 		},
 	},
-	[CX231XX_BOARD_CNXT_RDE_250] = {
-		.name = "Conexant Hybrid TV - RDE250",
+	[CX231XX_BOARD_CNXT_CARRAERA] = {
+		.name = "Conexant Hybrid TV - CARRAERA",
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
 		.tuner_gpio = RDE250_XCV_TUNER,
@@ -94,6 +100,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_scl_gpio = 0x1a,
 		.tuner_sda_gpio = 0x1b,
 		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
 		.demod_xfer_mode = 0,
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
@@ -124,9 +131,8 @@ struct cx231xx_board cx231xx_boards[] = {
 			}
 		},
 	},
-
-	[CX231XX_BOARD_CNXT_RDU_250] = {
-		.name = "Conexant Hybrid TV - RDU250",
+	[CX231XX_BOARD_CNXT_SHELBY] = {
+		.name = "Conexant Hybrid TV - SHELBY",
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
 		.tuner_gpio = RDE250_XCV_TUNER,
@@ -134,6 +140,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_scl_gpio = 0x1a,
 		.tuner_sda_gpio = 0x1b,
 		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
 		.demod_xfer_mode = 0,
 		.ctl_pin_status_mask = 0xFFFFFFC4,
 		.agc_analog_digital_select_gpio = 0x0c,
@@ -164,6 +171,270 @@ struct cx231xx_board cx231xx_boards[] = {
 			}
 		},
 	},
+	[CX231XX_BOARD_CNXT_RDE_253S] = {
+		.name = "Conexant Hybrid TV - RDE253S",
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
+		.tuner_gpio = RDE250_XCV_TUNER,
+		.tuner_sif_gpio = 0x05,
+		.tuner_scl_gpio = 0x1a,
+		.tuner_sda_gpio = 0x1b,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x1c,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 1,
+		.demod_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x02,
+		.norm = V4L2_STD_PAL,
+
+		.input = {{
+				.type = CX231XX_VMUX_TELEVISION,
+				.vmux = CX231XX_VIN_3_1,
+				.amux = CX231XX_AMUX_VIDEO,
+				.gpio = NULL,
+			}, {
+				.type = CX231XX_VMUX_COMPOSITE1,
+				.vmux = CX231XX_VIN_2_1,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}, {
+				.type = CX231XX_VMUX_SVIDEO,
+				.vmux = CX231XX_VIN_1_1 |
+					(CX231XX_VIN_1_2 << 8) |
+					CX25840_SVIDEO_ON,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}
+		},
+	},
+
+	[CX231XX_BOARD_CNXT_RDU_253S] = {
+		.name = "Conexant Hybrid TV - RDU253S",
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
+		.tuner_gpio = RDE250_XCV_TUNER,
+		.tuner_sif_gpio = 0x05,
+		.tuner_scl_gpio = 0x1a,
+		.tuner_sda_gpio = 0x1b,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x1c,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 1,
+		.demod_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x02,
+		.norm = V4L2_STD_PAL,
+
+		.input = {{
+				.type = CX231XX_VMUX_TELEVISION,
+				.vmux = CX231XX_VIN_3_1,
+				.amux = CX231XX_AMUX_VIDEO,
+				.gpio = NULL,
+			}, {
+				.type = CX231XX_VMUX_COMPOSITE1,
+				.vmux = CX231XX_VIN_2_1,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}, {
+				.type = CX231XX_VMUX_SVIDEO,
+				.vmux = CX231XX_VIN_1_1 |
+					(CX231XX_VIN_1_2 << 8) |
+					CX25840_SVIDEO_ON,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}
+		},
+	},
+	[CX231XX_BOARD_CNXT_VIDEO_GRABBER] = {
+		.name = "Conexant VIDEO GRABBER",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x1c,
+		.gpio_pin_status_mask = 0x4001000,
+		.norm = V4L2_STD_PAL,
+
+		.input = {{
+				.type = CX231XX_VMUX_COMPOSITE1,
+				.vmux = CX231XX_VIN_2_1,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}, {
+				.type = CX231XX_VMUX_SVIDEO,
+				.vmux = CX231XX_VIN_1_1 |
+					(CX231XX_VIN_1_2 << 8) |
+					CX25840_SVIDEO_ON,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}
+		},
+	},
+	[CX231XX_BOARD_CNXT_RDE_250] = {
+		.name = "Conexant Hybrid TV - rde 250",
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
+		.tuner_gpio = RDE250_XCV_TUNER,
+		.tuner_sif_gpio = 0x05,
+		.tuner_scl_gpio = 0x1a,
+		.tuner_sda_gpio = 0x1b,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 1,
+		.demod_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x02,
+		.norm = V4L2_STD_PAL,
+
+		.input = {{
+				.type = CX231XX_VMUX_TELEVISION,
+				.vmux = CX231XX_VIN_2_1,
+				.amux = CX231XX_AMUX_VIDEO,
+				.gpio = NULL,
+			}
+		},
+	},
+	[CX231XX_BOARD_CNXT_RDU_250] = {
+		.name = "Conexant Hybrid TV - RDU 250",
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
+		.tuner_gpio = RDE250_XCV_TUNER,
+		.tuner_sif_gpio = 0x05,
+		.tuner_scl_gpio = 0x1a,
+		.tuner_sda_gpio = 0x1b,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 1,
+		.demod_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x32,
+		.norm = V4L2_STD_NTSC,
+
+		.input = {{
+				.type = CX231XX_VMUX_TELEVISION,
+				.vmux = CX231XX_VIN_2_1,
+				.amux = CX231XX_AMUX_VIDEO,
+				.gpio = NULL,
+			}
+		},
+	},
+	[CX231XX_BOARD_HAUPPAUGE_EXETER] = {
+		.name = "Hauppauge EXETER",
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
+		.tuner_gpio = RDE250_XCV_TUNER,
+		.tuner_sif_gpio = 0x05,
+		.tuner_scl_gpio = 0x1a,
+		.tuner_sda_gpio = 0x1b,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 1,
+		.demod_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x0e,
+		.norm = V4L2_STD_NTSC,
+
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = 0,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		} },
+	},
+	[CX231XX_BOARD_HAUPPAUGE_USBLIVE2] = {
+		.name = "Hauppauge USB Live 2",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.norm = V4L2_STD_NTSC,
+		.input = {{
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		} },
+	},
+	[CX231XX_BOARD_PV_PLAYTV_USB_HYBRID] = {
+		.name = "Pixelview PlayTV USB Hybrid",
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x00,	/* According with PV cxPolaris.inf file */
+		.tuner_sif_gpio = -1,
+		.tuner_scl_gpio = -1,
+		.tuner_sda_gpio = -1,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 2,
+		.demod_i2c_master = 1,
+		.ir_i2c_master = 2,
+		.rc_map_name = RC_MAP_PIXELVIEW_002T,
+		.has_dvb = 1,
+		.demod_addr = 0x10,
+		.norm = V4L2_STD_PAL_M,
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = 0,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		} },
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
@@ -172,9 +443,27 @@ struct usb_device_id cx231xx_id_table[] = {
 	{USB_DEVICE(0x0572, 0x5A3C),
 	 .driver_info = CX231XX_BOARD_UNKNOWN},
 	{USB_DEVICE(0x0572, 0x58A2),
-	 .driver_info = CX231XX_BOARD_CNXT_RDE_250},
+	 .driver_info = CX231XX_BOARD_CNXT_CARRAERA},
 	{USB_DEVICE(0x0572, 0x58A1),
+	 .driver_info = CX231XX_BOARD_CNXT_SHELBY},
+	{USB_DEVICE(0x0572, 0x58A4),
+	 .driver_info = CX231XX_BOARD_CNXT_RDE_253S},
+	{USB_DEVICE(0x0572, 0x58A5),
+	 .driver_info = CX231XX_BOARD_CNXT_RDU_253S},
+	{USB_DEVICE(0x0572, 0x58A6),
+	 .driver_info = CX231XX_BOARD_CNXT_VIDEO_GRABBER},
+	{USB_DEVICE(0x0572, 0x589E),
+	 .driver_info = CX231XX_BOARD_CNXT_RDE_250},
+	{USB_DEVICE(0x0572, 0x58A0),
 	 .driver_info = CX231XX_BOARD_CNXT_RDU_250},
+	{USB_DEVICE(0x2040, 0xb120),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
+	{USB_DEVICE(0x2040, 0xb140),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
+	{USB_DEVICE(0x2040, 0xc200),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_USBLIVE2},
+	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000, 0x4001),
+	 .driver_info = CX231XX_BOARD_PV_PLAYTV_USB_HYBRID},
 	{},
 };
 
@@ -204,10 +493,37 @@ int cx231xx_tuner_callback(void *ptr, int component, int command, int arg)
 					       1);
 			msleep(10);
 		}
+	} else if (dev->tuner_type == TUNER_NXP_TDA18271) {
+		switch (command) {
+		case TDA18271_CALLBACK_CMD_AGC_ENABLE:
+			if (dev->model == CX231XX_BOARD_PV_PLAYTV_USB_HYBRID)
+				rc = cx231xx_set_agc_analog_digital_mux_select(dev, arg);
+			break;
+		default:
+			rc = -EINVAL;
+			break;
+		}
 	}
 	return rc;
 }
 EXPORT_SYMBOL_GPL(cx231xx_tuner_callback);
+
+void cx231xx_reset_out(struct cx231xx *dev)
+{
+	cx231xx_set_gpio_value(dev, CX23417_RESET, 1);
+	msleep(200);
+	cx231xx_set_gpio_value(dev, CX23417_RESET, 0);
+	msleep(200);
+	cx231xx_set_gpio_value(dev, CX23417_RESET, 1);
+}
+void cx231xx_enable_OSC(struct cx231xx *dev)
+{
+	cx231xx_set_gpio_value(dev, CX23417_OSC_EN, 1);
+}
+void cx231xx_sleep_s5h1432(struct cx231xx *dev)
+{
+	cx231xx_set_gpio_value(dev, SLEEP_S5H1432, 0);
+}
 
 static inline void cx231xx_set_model(struct cx231xx *dev)
 {
@@ -226,14 +542,14 @@ void cx231xx_pre_card_setup(struct cx231xx *dev)
 		     dev->board.name, dev->model);
 
 	/* set the direction for GPIO pins */
-	cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit, 1);
-	cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit, 1);
-	cx231xx_set_gpio_direction(dev, dev->board.tuner_sif_gpio, 1);
+	if (dev->board.tuner_gpio) {
+		cx231xx_set_gpio_direction(dev, dev->board.tuner_gpio->bit, 1);
+		cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit, 1);
+	}
+	if (dev->board.tuner_sif_gpio >= 0)
+		cx231xx_set_gpio_direction(dev, dev->board.tuner_sif_gpio, 1);
 
 	/* request some modules if any required */
-
-	/* reset the Tuner */
-	cx231xx_gpio_set(dev, dev->board.tuner_gpio);
 
 	/* set the mode to Analog mode initially */
 	cx231xx_set_mode(dev, CX231XX_ANALOG_MODE);
@@ -281,26 +597,6 @@ static void cx231xx_config_tuner(struct cx231xx *dev)
 
 }
 
-/* ----------------------------------------------------------------------- */
-void cx231xx_register_i2c_ir(struct cx231xx *dev)
-{
-	if (disable_ir)
-		return;
-
-	/* REVISIT: instantiate IR device */
-
-	/* detect & configure */
-	switch (dev->model) {
-
-	case CX231XX_BOARD_CNXT_RDE_250:
-		break;
-	case CX231XX_BOARD_CNXT_RDU_250:
-		break;
-	default:
-		break;
-	}
-}
-
 void cx231xx_card_setup(struct cx231xx *dev)
 {
 
@@ -314,29 +610,24 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	if (dev->board.decoder == CX231XX_AVDECODER) {
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 					&dev->i2c_bus[0].i2c_adap,
-					"cx25840", "cx25840", 0x88 >> 1, NULL);
+					"cx25840", 0x88 >> 1, NULL);
 		if (dev->sd_cx25840 == NULL)
 			cx231xx_info("cx25840 subdev registration failure\n");
 		cx25840_call(dev, core, load_fw);
 
 	}
 
+	/* Initialize the tuner */
 	if (dev->board.tuner_type != TUNER_ABSENT) {
-		dev->sd_tuner =	v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_bus[1].i2c_adap,
-				"tuner", "tuner", 0xc2 >> 1, NULL);
+		dev->sd_tuner = v4l2_i2c_new_subdev(&dev->v4l2_dev,
+						    &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+						    "tuner",
+						    dev->tuner_addr, NULL);
 		if (dev->sd_tuner == NULL)
 			cx231xx_info("tuner subdev registration failure\n");
-
-		cx231xx_config_tuner(dev);
+		else
+			cx231xx_config_tuner(dev);
 	}
-
-	cx231xx_config_tuner(dev);
-
-#if 0
-	/* TBD  IR will be added later */
-	cx231xx_ir_init(dev);
-#endif
 }
 
 /*
@@ -370,17 +661,14 @@ void cx231xx_config_i2c(struct cx231xx *dev)
 */
 void cx231xx_release_resources(struct cx231xx *dev)
 {
-
-#if 0		/* TBD IR related  */
-	if (dev->ir)
-		cx231xx_ir_fini(dev);
-#endif
-
 	cx231xx_release_analog_resources(dev);
 
 	cx231xx_remove_from_devlist(dev);
 
+	/* Release I2C buses */
 	cx231xx_dev_uninit(dev);
+
+	cx231xx_ir_exit(dev);
 
 	usb_put_dev(dev->udev);
 
@@ -404,6 +692,7 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	mutex_init(&dev->lock);
 	mutex_init(&dev->ctrl_urb_lock);
 	mutex_init(&dev->gpio_i2c_lock);
+	mutex_init(&dev->i2c_lock);
 
 	spin_lock_init(&dev->video_mode.slock);
 	spin_lock_init(&dev->vbi_mode.slock);
@@ -422,6 +711,13 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	/* Query cx231xx to find what pcb config it is related to */
 	initialize_cx231xx(dev);
 
+	/*To workaround error number=-71 on EP0 for VideoGrabber,
+		 need set alt here.*/
+	if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER ||
+	    dev->model == CX231XX_BOARD_HAUPPAUGE_USBLIVE2) {
+		cx231xx_set_alt_setting(dev, INDEX_VIDEO, 3);
+		cx231xx_set_alt_setting(dev, INDEX_VANC, 1);
+	}
 	/* Cx231xx pre card setup */
 	cx231xx_pre_card_setup(dev);
 
@@ -437,6 +733,7 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	/* register i2c bus */
 	errCode = cx231xx_dev_init(dev);
 	if (errCode < 0) {
+		cx231xx_dev_uninit(dev);
 		cx231xx_errdev("%s: cx231xx_i2c_register - errCode [%d]!\n",
 			       __func__, errCode);
 		return errCode;
@@ -455,8 +752,6 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	dev->width = maxw;
 	dev->height = maxh;
 	dev->interlaced = 0;
-	dev->hscale = 0;
-	dev->vscale = 0;
 	dev->video_input = 0;
 
 	errCode = cx231xx_config(dev);
@@ -475,22 +770,28 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	INIT_LIST_HEAD(&dev->vbi_mode.vidq.queued);
 
 	/* Reset other chips required if they are tied up with GPIO pins */
-
 	cx231xx_add_into_devlist(dev);
+
+	if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER) {
+		printk(KERN_INFO "attach 417 %d\n", dev->model);
+		if (cx231xx_417_register(dev) < 0) {
+			printk(KERN_ERR
+				"%s() Failed to register 417 on VID_B\n",
+			       __func__);
+		}
+	}
 
 	retval = cx231xx_register_analog_devices(dev);
 	if (retval < 0) {
 		cx231xx_release_resources(dev);
-		goto fail_reg_devices;
+		return retval;
 	}
+
+	cx231xx_ir_init(dev);
 
 	cx231xx_init_extension(dev);
 
 	return 0;
-
-fail_reg_devices:
-	mutex_unlock(&dev->lock);
-	return retval;
 }
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
@@ -512,8 +813,14 @@ static void request_modules(struct cx231xx *dev)
 	INIT_WORK(&dev->request_module_wk, request_module_async);
 	schedule_work(&dev->request_module_wk);
 }
+
+static void flush_request_modules(struct cx231xx *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
 #else
 #define request_modules(dev)
+#define flush_request_modules(dev)
 #endif /* CONFIG_MODULES */
 
 /*
@@ -532,13 +839,12 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	char *speed;
 	char descr[255] = "";
 	struct usb_interface *lif = NULL;
-	int skip_interface = 0;
 	struct usb_interface_assoc_descriptor *assoc_desc;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 
-	if (!ifnum) {
+	if (ifnum == 1) {
 		/*
 		 * Interface number 0 - IR interface
 		 */
@@ -547,8 +853,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		cx231xx_devused |= 1 << nr;
 
 		if (nr >= CX231XX_MAXBOARDS) {
-			cx231xx_err(DRIVER_NAME ": Supports only %i cx231xx boards.\n",
-				     CX231XX_MAXBOARDS);
+			cx231xx_err(DRIVER_NAME
+		 ": Supports only %i cx231xx boards.\n", CX231XX_MAXBOARDS);
 			cx231xx_devused &= ~(1 << nr);
 			return -ENOMEM;
 		}
@@ -573,6 +879,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		dev->xc_fw_load_done = 0;
 		dev->has_alsa_audio = 1;
 		dev->power_mode = -1;
+		atomic_set(&dev->devlist_count, 0);
 
 		/* 0 - vbi ; 1 -sliced cc mode */
 		dev->vbi_or_sliced_cc_mode = 0;
@@ -585,6 +892,11 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 
 		/* store the current interface */
 		lif = interface;
+
+		/*mode_tv: digital=1 or analog=0*/
+		dev->mode_tv = 0;
+
+		dev->USE_ISO = transfer_mode;
 
 		switch (udev->speed) {
 		case USB_SPEED_LOW:
@@ -619,13 +931,6 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		     le16_to_cpu(udev->descriptor.idVendor),
 		     le16_to_cpu(udev->descriptor.idProduct),
 		     dev->max_iad_interface_count);
-	} else {
-		/* Get dev structure first */
-		dev = usb_get_intfdata(udev->actconfig->interface[0]);
-		if (dev == NULL) {
-			cx231xx_err(DRIVER_NAME ": out of first interface!\n");
-			return -ENODEV;
-		}
 
 		/* store the interface 0 back */
 		lif = udev->actconfig->interface[0];
@@ -636,34 +941,20 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		/* get device number */
 		nr = dev->devno;
 
-		/*
-		 * set skip interface, for all interfaces but
-		 * interface 1 and the last one
-		 */
-		if ((ifnum != 1) && ((dev->interface_count - 1)
-				     != dev->max_iad_interface_count))
-			skip_interface = 1;
-
-		if (ifnum == 1) {
-			assoc_desc = udev->actconfig->intf_assoc[0];
-			if (assoc_desc->bFirstInterface != ifnum) {
-				cx231xx_err(DRIVER_NAME ": Not found "
-					    "matching IAD interface\n");
-				return -ENODEV;
-			}
+		assoc_desc = udev->actconfig->intf_assoc[0];
+		if (assoc_desc->bFirstInterface != ifnum) {
+			cx231xx_err(DRIVER_NAME ": Not found "
+				    "matching IAD interface\n");
+			return -ENODEV;
 		}
-	}
-
-	if (skip_interface)
+	} else {
 		return -ENODEV;
+	}
 
 	cx231xx_info("registering interface %d\n", ifnum);
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(lif, dev);
-
-	if ((dev->interface_count - 1) != dev->max_iad_interface_count)
-		return 0;
 
 	/*
 	 * AV device initialization - only done at the last interface
@@ -675,15 +966,18 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		cx231xx_errdev("v4l2_device_register failed\n");
 		cx231xx_devused &= ~(1 << nr);
 		kfree(dev);
+		dev = NULL;
 		return -EIO;
 	}
-
 	/* allocate device struct */
 	retval = cx231xx_init_dev(&dev, udev, nr);
 	if (retval) {
 		cx231xx_devused &= ~(1 << dev->devno);
 		v4l2_device_unregister(&dev->v4l2_dev);
 		kfree(dev);
+		dev = NULL;
+		usb_set_intfdata(lif, NULL);
+
 		return retval;
 	}
 
@@ -706,6 +1000,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		cx231xx_devused &= ~(1 << nr);
 		v4l2_device_unregister(&dev->v4l2_dev);
 		kfree(dev);
+		dev = NULL;
 		return -ENOMEM;
 	}
 
@@ -739,6 +1034,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		cx231xx_devused &= ~(1 << nr);
 		v4l2_device_unregister(&dev->v4l2_dev);
 		kfree(dev);
+		dev = NULL;
 		return -ENOMEM;
 	}
 
@@ -773,6 +1069,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		cx231xx_devused &= ~(1 << nr);
 		v4l2_device_unregister(&dev->v4l2_dev);
 		kfree(dev);
+		dev = NULL;
 		return -ENOMEM;
 	}
 
@@ -808,6 +1105,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 			cx231xx_devused &= ~(1 << nr);
 			v4l2_device_unregister(&dev->v4l2_dev);
 			kfree(dev);
+			dev = NULL;
 			return -ENOMEM;
 		}
 
@@ -821,6 +1119,15 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 				     dev->ts1_mode.alt_max_pkt_size[i]);
 		}
 	}
+
+	if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER) {
+		cx231xx_enable_OSC(dev);
+		cx231xx_reset_out(dev);
+		cx231xx_set_alt_setting(dev, INDEX_VIDEO, 3);
+	}
+
+	if (dev->model == CX231XX_BOARD_CNXT_RDE_253S)
+		cx231xx_sleep_s5h1432(dev);
 
 	/* load other modules required */
 	request_modules(dev);
@@ -846,6 +1153,8 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 	if (!dev->udev)
 		return;
 
+	flush_request_modules(dev);
+
 	/* delete v4l2 device */
 	v4l2_device_unregister(&dev->v4l2_dev);
 
@@ -862,7 +1171,10 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 		     video_device_node_name(dev->vdev));
 
 		dev->state |= DEV_MISCONFIGURED;
-		cx231xx_uninit_isoc(dev);
+		if (dev->USE_ISO)
+			cx231xx_uninit_isoc(dev);
+		else
+			cx231xx_uninit_bulk(dev);
 		dev->state |= DEV_DISCONNECTED;
 		wake_up_interruptible(&dev->wait_frame);
 		wake_up_interruptible(&dev->wait_stream);
@@ -881,6 +1193,7 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 		kfree(dev->sliced_cc_mode.alt_max_pkt_size);
 		kfree(dev->ts1_mode.alt_max_pkt_size);
 		kfree(dev);
+		dev = NULL;
 	}
 }
 

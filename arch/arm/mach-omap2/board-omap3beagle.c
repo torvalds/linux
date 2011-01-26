@@ -27,6 +27,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
+#include <linux/mmc/host.h>
 
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
@@ -40,18 +41,103 @@
 #include <plat/board.h>
 #include <plat/common.h>
 #include <plat/display.h>
+#include <plat/panel-generic-dpi.h>
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
-#include <plat/timer-gp.h>
 
 #include "mux.h"
 #include "hsmmc.h"
-
-#define GPMC_CS0_BASE  0x60
-#define GPMC_CS_SIZE   0x30
+#include "timer-gp.h"
 
 #define NAND_BLOCK_SIZE		SZ_128K
+
+/*
+ * OMAP3 Beagle revision
+ * Run time detection of Beagle revision is done by reading GPIO.
+ * GPIO ID -
+ *	AXBX	= GPIO173, GPIO172, GPIO171: 1 1 1
+ *	C1_3	= GPIO173, GPIO172, GPIO171: 1 1 0
+ *	C4	= GPIO173, GPIO172, GPIO171: 1 0 1
+ *	XM	= GPIO173, GPIO172, GPIO171: 0 0 0
+ */
+enum {
+	OMAP3BEAGLE_BOARD_UNKN = 0,
+	OMAP3BEAGLE_BOARD_AXBX,
+	OMAP3BEAGLE_BOARD_C1_3,
+	OMAP3BEAGLE_BOARD_C4,
+	OMAP3BEAGLE_BOARD_XM,
+};
+
+static u8 omap3_beagle_version;
+
+static u8 omap3_beagle_get_rev(void)
+{
+	return omap3_beagle_version;
+}
+
+static void __init omap3_beagle_init_rev(void)
+{
+	int ret;
+	u16 beagle_rev = 0;
+
+	omap_mux_init_gpio(171, OMAP_PIN_INPUT_PULLUP);
+	omap_mux_init_gpio(172, OMAP_PIN_INPUT_PULLUP);
+	omap_mux_init_gpio(173, OMAP_PIN_INPUT_PULLUP);
+
+	ret = gpio_request(171, "rev_id_0");
+	if (ret < 0)
+		goto fail0;
+
+	ret = gpio_request(172, "rev_id_1");
+	if (ret < 0)
+		goto fail1;
+
+	ret = gpio_request(173, "rev_id_2");
+	if (ret < 0)
+		goto fail2;
+
+	gpio_direction_input(171);
+	gpio_direction_input(172);
+	gpio_direction_input(173);
+
+	beagle_rev = gpio_get_value(171) | (gpio_get_value(172) << 1)
+			| (gpio_get_value(173) << 2);
+
+	switch (beagle_rev) {
+	case 7:
+		printk(KERN_INFO "OMAP3 Beagle Rev: Ax/Bx\n");
+		omap3_beagle_version = OMAP3BEAGLE_BOARD_AXBX;
+		break;
+	case 6:
+		printk(KERN_INFO "OMAP3 Beagle Rev: C1/C2/C3\n");
+		omap3_beagle_version = OMAP3BEAGLE_BOARD_C1_3;
+		break;
+	case 5:
+		printk(KERN_INFO "OMAP3 Beagle Rev: C4\n");
+		omap3_beagle_version = OMAP3BEAGLE_BOARD_C4;
+		break;
+	case 0:
+		printk(KERN_INFO "OMAP3 Beagle Rev: xM\n");
+		omap3_beagle_version = OMAP3BEAGLE_BOARD_XM;
+		break;
+	default:
+		printk(KERN_INFO "OMAP3 Beagle Rev: unknown %hd\n", beagle_rev);
+		omap3_beagle_version = OMAP3BEAGLE_BOARD_UNKN;
+	}
+
+	return;
+
+fail2:
+	gpio_free(172);
+fail1:
+	gpio_free(171);
+fail0:
+	printk(KERN_ERR "Unable to get revision detection GPIO pins\n");
+	omap3_beagle_version = OMAP3BEAGLE_BOARD_UNKN;
+
+	return;
+}
 
 static struct mtd_partition omap3beagle_nand_partitions[] = {
 	/* All the partition sizes are listed in terms of NAND block size */
@@ -93,20 +179,6 @@ static struct omap_nand_platform_data omap3beagle_nand_data = {
 	.dev_ready	= NULL,
 };
 
-static struct resource omap3beagle_nand_resource = {
-	.flags		= IORESOURCE_MEM,
-};
-
-static struct platform_device omap3beagle_nand_device = {
-	.name		= "omap2-nand",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &omap3beagle_nand_data,
-	},
-	.num_resources	= 1,
-	.resource	= &omap3beagle_nand_resource,
-};
-
 /* DSS */
 
 static int beagle_enable_dvi(struct omap_dss_device *dssdev)
@@ -123,14 +195,19 @@ static void beagle_disable_dvi(struct omap_dss_device *dssdev)
 		gpio_set_value(dssdev->reset_gpio, 0);
 }
 
+static struct panel_generic_dpi_data dvi_panel = {
+	.name = "generic",
+	.platform_enable = beagle_enable_dvi,
+	.platform_disable = beagle_disable_dvi,
+};
+
 static struct omap_dss_device beagle_dvi_device = {
 	.type = OMAP_DISPLAY_TYPE_DPI,
 	.name = "dvi",
-	.driver_name = "generic_panel",
+	.driver_name = "generic_dpi_panel",
+	.data = &dvi_panel,
 	.phy.dpi.data_lines = 24,
-	.reset_gpio = 170,
-	.platform_enable = beagle_enable_dvi,
-	.platform_disable = beagle_disable_dvi,
+	.reset_gpio = -EINVAL,
 };
 
 static struct omap_dss_device beagle_tv_device = {
@@ -183,7 +260,7 @@ static void __init beagle_display_init(void)
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
-		.wires		= 8,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
 		.gpio_wp	= 29,
 	},
 	{}	/* Terminator */
@@ -202,7 +279,12 @@ static struct gpio_led gpio_leds[];
 static int beagle_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
-	if (system_rev >= 0x20 && system_rev <= 0x34301000) {
+	int r;
+
+	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM) {
+		mmc[0].gpio_wp = -EINVAL;
+	} else if ((omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_C1_3) ||
+		(omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_C4)) {
 		omap_mux_init_gpio(23, OMAP_PIN_INPUT);
 		mmc[0].gpio_wp = 23;
 	} else {
@@ -219,16 +301,62 @@ static int beagle_twl_gpio_setup(struct device *dev,
 	/* REVISIT: need ehci-omap hooks for external VBUS
 	 * power switch and overcurrent detect
 	 */
+	if (omap3_beagle_get_rev() != OMAP3BEAGLE_BOARD_XM) {
+		r = gpio_request(gpio + 1, "EHCI_nOC");
+		if (!r) {
+			r = gpio_direction_input(gpio + 1);
+			if (r)
+				gpio_free(gpio + 1);
+		}
+		if (r)
+			pr_err("%s: unable to configure EHCI_nOC\n", __func__);
+	}
 
-	gpio_request(gpio + 1, "EHCI_nOC");
-	gpio_direction_input(gpio + 1);
-
-	/* TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, active low) */
+	/*
+	 * TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, XM active
+	 * high / others active low)
+	 */
 	gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
-	gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM)
+		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 1);
+	else
+		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+
+	/* DVI reset GPIO is different between beagle revisions */
+	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM)
+		beagle_dvi_device.reset_gpio = 129;
+	else
+		beagle_dvi_device.reset_gpio = 170;
 
 	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
+
+	/*
+	 * gpio + 1 on Xm controls the TFP410's enable line (active low)
+	 * gpio + 2 control varies depending on the board rev as follows:
+	 * P7/P8 revisions(prototype): Camera EN
+	 * A2+ revisions (production): LDO (supplies DVI, serial, led blocks)
+	 */
+	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM) {
+		r = gpio_request(gpio + 1, "nDVI_PWR_EN");
+		if (!r) {
+			r = gpio_direction_output(gpio + 1, 0);
+			if (r)
+				gpio_free(gpio + 1);
+		}
+		if (r)
+			pr_err("%s: unable to configure nDVI_PWR_EN\n",
+				__func__);
+		r = gpio_request(gpio + 2, "DVI_LDO_EN");
+		if (!r) {
+			r = gpio_direction_output(gpio + 2, 1);
+			if (r)
+				gpio_free(gpio + 2);
+		}
+		if (r)
+			pr_err("%s: unable to configure DVI_LDO_EN\n",
+				__func__);
+	}
 
 	return 0;
 }
@@ -339,13 +467,19 @@ static struct i2c_board_info __initdata beagle_i2c_boardinfo[] = {
 	},
 };
 
+static struct i2c_board_info __initdata beagle_i2c_eeprom[] = {
+       {
+               I2C_BOARD_INFO("eeprom", 0x50),
+       },
+};
+
 static int __init omap3_beagle_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 2600, beagle_i2c_boardinfo,
 			ARRAY_SIZE(beagle_i2c_boardinfo));
 	/* Bus 3 is attached to the DVI port where devices like the pico DLP
 	 * projector don't work reliably with 400kHz */
-	omap_register_i2c_bus(3, 100, NULL, 0);
+	omap_register_i2c_bus(3, 100, beagle_i2c_eeprom, ARRAY_SIZE(beagle_i2c_eeprom));
 	return 0;
 }
 
@@ -404,13 +538,13 @@ static struct platform_device keys_gpio = {
 
 static void __init omap3_beagle_init_irq(void)
 {
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-			     mt46h32m32lf6_sdrc_params);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
+				  mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(12);
 #endif
-	omap_gpio_init();
 }
 
 static struct platform_device *omap3_beagle_devices[] __initdata = {
@@ -423,8 +557,6 @@ static void __init omap3beagle_flash_init(void)
 {
 	u8 cs = 0;
 	u8 nandcs = GPMC_CS_NUM + 1;
-
-	u32 gpmc_base_add = OMAP34XX_GPMC_VIRT;
 
 	/* find out the chip-select on which NAND exists */
 	while (cs < GPMC_CS_NUM) {
@@ -447,12 +579,9 @@ static void __init omap3beagle_flash_init(void)
 
 	if (nandcs < GPMC_CS_NUM) {
 		omap3beagle_nand_data.cs = nandcs;
-		omap3beagle_nand_data.gpmc_cs_baseaddr = (void *)
-			(gpmc_base_add + GPMC_CS0_BASE + nandcs * GPMC_CS_SIZE);
-		omap3beagle_nand_data.gpmc_baseaddr = (void *) (gpmc_base_add);
 
 		printk(KERN_INFO "Registering NAND on CS%d\n", nandcs);
-		if (platform_device_register(&omap3beagle_nand_device) < 0)
+		if (gpmc_nand_init(&omap3beagle_nand_data) < 0)
 			printk(KERN_ERR "Unable to register NAND device\n");
 	}
 }
@@ -473,8 +602,6 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux	NULL
 #endif
 
 static struct omap_musb_board_data musb_board_data = {
@@ -486,6 +613,7 @@ static struct omap_musb_board_data musb_board_data = {
 static void __init omap3_beagle_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	omap3_beagle_init_rev();
 	omap3_beagle_i2c_init();
 	platform_add_devices(omap3_beagle_devices,
 			ARRAY_SIZE(omap3_beagle_devices));
@@ -507,18 +635,11 @@ static void __init omap3_beagle_init(void)
 	beagle_display_init();
 }
 
-static void __init omap3_beagle_map_io(void)
-{
-	omap2_set_globals_343x();
-	omap34xx_map_common_io();
-}
-
 MACHINE_START(OMAP3_BEAGLE, "OMAP3 Beagle Board")
 	/* Maintainer: Syed Mohammed Khasim - http://beagleboard.org */
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_beagle_map_io,
+	.map_io		= omap3_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap3_beagle_init_irq,
 	.init_machine	= omap3_beagle_init,
 	.timer		= &omap_timer,

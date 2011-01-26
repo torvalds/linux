@@ -8,12 +8,18 @@
 #include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
+#include <linux/quotaops.h>
 #include <linux/mutex.h>
 #include <linux/exportfs.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>
 
 #include <asm/uaccess.h>
+
+static inline int simple_positive(struct dentry *dentry)
+{
+	return dentry->d_inode && !d_unhashed(dentry);
+}
 
 int simple_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		   struct kstat *stat)
@@ -36,7 +42,7 @@ int simple_statfs(struct dentry *dentry, struct kstatfs *buf)
  * Retaining negative dentries for an in-memory filesystem just wastes
  * memory and lookup time: arrange for them to be deleted immediately.
  */
-static int simple_delete_dentry(struct dentry *dentry)
+static int simple_delete_dentry(const struct dentry *dentry)
 {
 	return 1;
 }
@@ -53,16 +59,11 @@ struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, struct na
 
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
-	dentry->d_op = &simple_dentry_operations;
+	d_set_d_op(dentry, &simple_dentry_operations);
 	d_add(dentry, NULL);
 	return NULL;
 }
 
-int simple_sync_file(struct file * file, struct dentry *dentry, int datasync)
-{
-	return 0;
-}
- 
 int dcache_dir_open(struct inode *inode, struct file *file)
 {
 	static struct qstr cursor_name = {.len = 1, .name = "."};
@@ -80,7 +81,8 @@ int dcache_dir_close(struct inode *inode, struct file *file)
 
 loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 {
-	mutex_lock(&file->f_path.dentry->d_inode->i_mutex);
+	struct dentry *dentry = file->f_path.dentry;
+	mutex_lock(&dentry->d_inode->i_mutex);
 	switch (origin) {
 		case 1:
 			offset += file->f_pos;
@@ -88,7 +90,7 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 			if (offset >= 0)
 				break;
 		default:
-			mutex_unlock(&file->f_path.dentry->d_inode->i_mutex);
+			mutex_unlock(&dentry->d_inode->i_mutex);
 			return -EINVAL;
 	}
 	if (offset != file->f_pos) {
@@ -98,21 +100,24 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 			struct dentry *cursor = file->private_data;
 			loff_t n = file->f_pos - 2;
 
-			spin_lock(&dcache_lock);
+			spin_lock(&dentry->d_lock);
+			/* d_lock not required for cursor */
 			list_del(&cursor->d_u.d_child);
-			p = file->f_path.dentry->d_subdirs.next;
-			while (n && p != &file->f_path.dentry->d_subdirs) {
+			p = dentry->d_subdirs.next;
+			while (n && p != &dentry->d_subdirs) {
 				struct dentry *next;
 				next = list_entry(p, struct dentry, d_u.d_child);
-				if (!d_unhashed(next) && next->d_inode)
+				spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
+				if (simple_positive(next))
 					n--;
+				spin_unlock(&next->d_lock);
 				p = p->next;
 			}
 			list_add_tail(&cursor->d_u.d_child, p);
-			spin_unlock(&dcache_lock);
+			spin_unlock(&dentry->d_lock);
 		}
 	}
-	mutex_unlock(&file->f_path.dentry->d_inode->i_mutex);
+	mutex_unlock(&dentry->d_inode->i_mutex);
 	return offset;
 }
 
@@ -152,29 +157,35 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
 			i++;
 			/* fallthrough */
 		default:
-			spin_lock(&dcache_lock);
+			spin_lock(&dentry->d_lock);
 			if (filp->f_pos == 2)
 				list_move(q, &dentry->d_subdirs);
 
 			for (p=q->next; p != &dentry->d_subdirs; p=p->next) {
 				struct dentry *next;
 				next = list_entry(p, struct dentry, d_u.d_child);
-				if (d_unhashed(next) || !next->d_inode)
+				spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
+				if (!simple_positive(next)) {
+					spin_unlock(&next->d_lock);
 					continue;
+				}
 
-				spin_unlock(&dcache_lock);
+				spin_unlock(&next->d_lock);
+				spin_unlock(&dentry->d_lock);
 				if (filldir(dirent, next->d_name.name, 
 					    next->d_name.len, filp->f_pos, 
 					    next->d_inode->i_ino, 
 					    dt_type(next->d_inode)) < 0)
 					return 0;
-				spin_lock(&dcache_lock);
+				spin_lock(&dentry->d_lock);
+				spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
 				/* next is still alive */
 				list_move(q, p);
+				spin_unlock(&next->d_lock);
 				p = q;
 				filp->f_pos++;
 			}
-			spin_unlock(&dcache_lock);
+			spin_unlock(&dentry->d_lock);
 	}
 	return 0;
 }
@@ -190,7 +201,7 @@ const struct file_operations simple_dir_operations = {
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
 	.readdir	= dcache_readdir,
-	.fsync		= simple_sync_file,
+	.fsync		= noop_fsync,
 };
 
 const struct inode_operations simple_dir_inode_operations = {
@@ -205,9 +216,9 @@ static const struct super_operations simple_super_operations = {
  * Common helper for pseudo-filesystems (sockfs, pipefs, bdev - stuff that
  * will never be mountable)
  */
-int get_sb_pseudo(struct file_system_type *fs_type, char *name,
-	const struct super_operations *ops, unsigned long magic,
-	struct vfsmount *mnt)
+struct dentry *mount_pseudo(struct file_system_type *fs_type, char *name,
+	const struct super_operations *ops,
+	const struct dentry_operations *dops, unsigned long magic)
 {
 	struct super_block *s = sget(fs_type, NULL, set_anon_super, NULL);
 	struct dentry *dentry;
@@ -215,7 +226,7 @@ int get_sb_pseudo(struct file_system_type *fs_type, char *name,
 	struct qstr d_name = {.name = name, .len = strlen(name)};
 
 	if (IS_ERR(s))
-		return PTR_ERR(s);
+		return ERR_CAST(s);
 
 	s->s_flags = MS_NOUSER;
 	s->s_maxbytes = MAX_LFS_FILESIZE;
@@ -244,13 +255,13 @@ int get_sb_pseudo(struct file_system_type *fs_type, char *name,
 	dentry->d_parent = dentry;
 	d_instantiate(dentry, root);
 	s->s_root = dentry;
+	s->s_d_op = dops;
 	s->s_flags |= MS_ACTIVE;
-	simple_set_mnt(mnt, s);
-	return 0;
+	return dget(s->s_root);
 
 Enomem:
 	deactivate_locked_super(s);
-	return -ENOMEM;
+	return ERR_PTR(-ENOMEM);
 }
 
 int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
@@ -259,15 +270,10 @@ int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *den
 
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	inc_nlink(inode);
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 	dget(dentry);
 	d_instantiate(dentry, inode);
 	return 0;
-}
-
-static inline int simple_positive(struct dentry *dentry)
-{
-	return dentry->d_inode && !d_unhashed(dentry);
 }
 
 int simple_empty(struct dentry *dentry)
@@ -275,13 +281,18 @@ int simple_empty(struct dentry *dentry)
 	struct dentry *child;
 	int ret = 0;
 
-	spin_lock(&dcache_lock);
-	list_for_each_entry(child, &dentry->d_subdirs, d_u.d_child)
-		if (simple_positive(child))
+	spin_lock(&dentry->d_lock);
+	list_for_each_entry(child, &dentry->d_subdirs, d_u.d_child) {
+		spin_lock_nested(&child->d_lock, DENTRY_D_LOCK_NESTED);
+		if (simple_positive(child)) {
+			spin_unlock(&child->d_lock);
 			goto out;
+		}
+		spin_unlock(&child->d_lock);
+	}
 	ret = 1;
 out:
-	spin_unlock(&dcache_lock);
+	spin_unlock(&dentry->d_lock);
 	return ret;
 }
 
@@ -329,6 +340,39 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	return 0;
 }
+
+/**
+ * simple_setattr - setattr for simple filesystem
+ * @dentry: dentry
+ * @iattr: iattr structure
+ *
+ * Returns 0 on success, -error on failure.
+ *
+ * simple_setattr is a simple ->setattr implementation without a proper
+ * implementation of size changes.
+ *
+ * It can either be used for in-memory filesystems or special files
+ * on simple regular filesystems.  Anything that needs to change on-disk
+ * or wire state on size changes needs its own setattr method.
+ */
+int simple_setattr(struct dentry *dentry, struct iattr *iattr)
+{
+	struct inode *inode = dentry->d_inode;
+	int error;
+
+	WARN_ON_ONCE(inode->i_op->truncate);
+
+	error = inode_change_ok(inode, iattr);
+	if (error)
+		return error;
+
+	if (iattr->ia_valid & ATTR_SIZE)
+		truncate_setsize(inode, iattr->ia_size);
+	setattr_copy(inode, iattr);
+	mark_inode_dirty(inode);
+	return 0;
+}
+EXPORT_SYMBOL(simple_setattr);
 
 int simple_readpage(struct file *file, struct page *page)
 {
@@ -418,7 +462,8 @@ int simple_write_end(struct file *file, struct address_space *mapping,
  * unique inode values later for this filesystem, then you must take care
  * to pass it an appropriate max_reserved value to avoid collisions.
  */
-int simple_fill_super(struct super_block *s, int magic, struct tree_descr *files)
+int simple_fill_super(struct super_block *s, unsigned long magic,
+		      struct tree_descr *files)
 {
 	struct inode *inode;
 	struct dentry *root;
@@ -851,13 +896,18 @@ struct dentry *generic_fh_to_parent(struct super_block *sb, struct fid *fid,
 }
 EXPORT_SYMBOL_GPL(generic_fh_to_parent);
 
-int simple_fsync(struct file *file, struct dentry *dentry, int datasync)
+/**
+ * generic_file_fsync - generic fsync implementation for simple filesystems
+ * @file:	file to synchronize
+ * @datasync:	only synchronize essential metadata if true
+ *
+ * This is a generic implementation of the fsync method for simple
+ * filesystems which track all non-inode metadata in the buffers list
+ * hanging off the address_space structure.
+ */
+int generic_file_fsync(struct file *file, int datasync)
 {
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = 0, /* metadata-only; caller takes care of data */
-	};
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	int err;
 	int ret;
 
@@ -867,19 +917,56 @@ int simple_fsync(struct file *file, struct dentry *dentry, int datasync)
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
 		return ret;
 
-	err = sync_inode(inode, &wbc);
+	err = sync_inode_metadata(inode, 1);
 	if (ret == 0)
 		ret = err;
 	return ret;
 }
-EXPORT_SYMBOL(simple_fsync);
+EXPORT_SYMBOL(generic_file_fsync);
+
+/**
+ * generic_check_addressable - Check addressability of file system
+ * @blocksize_bits:	log of file system block size
+ * @num_blocks:		number of blocks in file system
+ *
+ * Determine whether a file system with @num_blocks blocks (and a
+ * block size of 2**@blocksize_bits) is addressable by the sector_t
+ * and page cache of the system.  Return 0 if so and -EFBIG otherwise.
+ */
+int generic_check_addressable(unsigned blocksize_bits, u64 num_blocks)
+{
+	u64 last_fs_block = num_blocks - 1;
+	u64 last_fs_page =
+		last_fs_block >> (PAGE_CACHE_SHIFT - blocksize_bits);
+
+	if (unlikely(num_blocks == 0))
+		return 0;
+
+	if ((blocksize_bits < 9) || (blocksize_bits > PAGE_CACHE_SHIFT))
+		return -EINVAL;
+
+	if ((last_fs_block > (sector_t)(~0ULL) >> (blocksize_bits - 9)) ||
+	    (last_fs_page > (pgoff_t)(~0ULL))) {
+		return -EFBIG;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(generic_check_addressable);
+
+/*
+ * No-op implementation of ->fsync for in-memory filesystems.
+ */
+int noop_fsync(struct file *file, int datasync)
+{
+	return 0;
+}
 
 EXPORT_SYMBOL(dcache_dir_close);
 EXPORT_SYMBOL(dcache_dir_lseek);
 EXPORT_SYMBOL(dcache_dir_open);
 EXPORT_SYMBOL(dcache_readdir);
 EXPORT_SYMBOL(generic_read_dir);
-EXPORT_SYMBOL(get_sb_pseudo);
+EXPORT_SYMBOL(mount_pseudo);
 EXPORT_SYMBOL(simple_write_begin);
 EXPORT_SYMBOL(simple_write_end);
 EXPORT_SYMBOL(simple_dir_inode_operations);
@@ -895,7 +982,7 @@ EXPORT_SYMBOL(simple_release_fs);
 EXPORT_SYMBOL(simple_rename);
 EXPORT_SYMBOL(simple_rmdir);
 EXPORT_SYMBOL(simple_statfs);
-EXPORT_SYMBOL(simple_sync_file);
+EXPORT_SYMBOL(noop_fsync);
 EXPORT_SYMBOL(simple_unlink);
 EXPORT_SYMBOL(simple_read_from_buffer);
 EXPORT_SYMBOL(simple_write_to_buffer);

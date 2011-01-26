@@ -80,7 +80,6 @@ void PHY_SetRF8256Bandwidth(struct net_device* dev , HT_CHANNEL_WIDTH Bandwidth)
 
 		}
 	}
-	return;
 }
 /*--------------------------------------------------------------------------
  * Overview:    Interface to config 8256
@@ -414,7 +413,6 @@ void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 
 #endif
 #endif
-	return;
 }
 
 #define MAX_DOZE_WAITING_TIMES_9x 64
@@ -501,13 +499,13 @@ SetRFPowerState8190(
 				if((priv->ieee80211->eRFPowerState == eRfOff) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
 				{ // The current RF state is OFF and the RF OFF level is halting the NIC, re-initialize the NIC.
 					bool rtstatus = true;
-					u32 InitilizeCount = 3;
+					u32 InitializeCount = 3;
 					do
 					{
-						InitilizeCount--;
+						InitializeCount--;
 						priv->RegRfOff = false;
 						rtstatus = NicIFEnableNIC(dev);
-					}while( (rtstatus != true) &&(InitilizeCount >0) );
+					}while( (rtstatus != true) &&(InitializeCount >0) );
 
 					if(rtstatus != true)
 					{

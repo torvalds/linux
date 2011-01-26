@@ -98,7 +98,7 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	printk(KERN_ERR "\"echo 0 > /proc/sys/kernel/hung_task_timeout_secs\""
 			" disables this message.\n");
 	sched_show_task(t);
-	__debug_show_held_locks(t);
+	debug_show_held_locks(t);
 
 	touch_nmi_watchdog();
 
@@ -111,7 +111,7 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
  * periodically exit the critical section and enter a new one.
  *
  * For preemptible RCU it is sufficient to call rcu_read_unlock in order
- * exit the grace period. For classic RCU, a reschedule is required.
+ * to exit the grace period. For classic RCU, a reschedule is required.
  */
 static void rcu_lock_break(struct task_struct *g, struct task_struct *t)
 {

@@ -42,6 +42,10 @@
 #define DISPC_IRQ_SYNC_LOST		(1 << 14)
 #define DISPC_IRQ_SYNC_LOST_DIGIT	(1 << 15)
 #define DISPC_IRQ_WAKEUP		(1 << 16)
+#define DISPC_IRQ_SYNC_LOST2		(1 << 17)
+#define DISPC_IRQ_VSYNC2		(1 << 18)
+#define DISPC_IRQ_ACBIAS_COUNT_STAT2	(1 << 21)
+#define DISPC_IRQ_FRAMEDONE2		(1 << 22)
 
 struct omap_dss_device;
 struct omap_overlay_manager;
@@ -64,6 +68,7 @@ enum omap_plane {
 enum omap_channel {
 	OMAP_DSS_CHANNEL_LCD	= 0,
 	OMAP_DSS_CHANNEL_DIGIT	= 1,
+	OMAP_DSS_CHANNEL_LCD2	= 2,
 };
 
 enum omap_color_mode {
@@ -81,37 +86,6 @@ enum omap_color_mode {
 	OMAP_DSS_COLOR_ARGB32	= 1 << 11, /* ARGB32 */
 	OMAP_DSS_COLOR_RGBA32	= 1 << 12, /* RGBA32 */
 	OMAP_DSS_COLOR_RGBX32	= 1 << 13, /* RGBx32 */
-
-	OMAP_DSS_COLOR_GFX_OMAP2 =
-		OMAP_DSS_COLOR_CLUT1 | OMAP_DSS_COLOR_CLUT2 |
-		OMAP_DSS_COLOR_CLUT4 | OMAP_DSS_COLOR_CLUT8 |
-		OMAP_DSS_COLOR_RGB12U | OMAP_DSS_COLOR_RGB16 |
-		OMAP_DSS_COLOR_RGB24U | OMAP_DSS_COLOR_RGB24P,
-
-	OMAP_DSS_COLOR_VID_OMAP2 =
-		OMAP_DSS_COLOR_RGB16 | OMAP_DSS_COLOR_RGB24U |
-		OMAP_DSS_COLOR_RGB24P | OMAP_DSS_COLOR_YUV2 |
-		OMAP_DSS_COLOR_UYVY,
-
-	OMAP_DSS_COLOR_GFX_OMAP3 =
-		OMAP_DSS_COLOR_CLUT1 | OMAP_DSS_COLOR_CLUT2 |
-		OMAP_DSS_COLOR_CLUT4 | OMAP_DSS_COLOR_CLUT8 |
-		OMAP_DSS_COLOR_RGB12U | OMAP_DSS_COLOR_ARGB16 |
-		OMAP_DSS_COLOR_RGB16 | OMAP_DSS_COLOR_RGB24U |
-		OMAP_DSS_COLOR_RGB24P | OMAP_DSS_COLOR_ARGB32 |
-		OMAP_DSS_COLOR_RGBA32 | OMAP_DSS_COLOR_RGBX32,
-
-	OMAP_DSS_COLOR_VID1_OMAP3 =
-		OMAP_DSS_COLOR_RGB12U | OMAP_DSS_COLOR_RGB16 |
-		OMAP_DSS_COLOR_RGB24U | OMAP_DSS_COLOR_RGB24P |
-		OMAP_DSS_COLOR_YUV2 | OMAP_DSS_COLOR_UYVY,
-
-	OMAP_DSS_COLOR_VID2_OMAP3 =
-		OMAP_DSS_COLOR_RGB12U | OMAP_DSS_COLOR_ARGB16 |
-		OMAP_DSS_COLOR_RGB16 | OMAP_DSS_COLOR_RGB24U |
-		OMAP_DSS_COLOR_RGB24P | OMAP_DSS_COLOR_YUV2 |
-		OMAP_DSS_COLOR_UYVY | OMAP_DSS_COLOR_ARGB32 |
-		OMAP_DSS_COLOR_RGBA32 | OMAP_DSS_COLOR_RGBX32,
 };
 
 enum omap_lcd_display_type {
@@ -173,6 +147,7 @@ enum omap_dss_display_state {
 enum omap_dss_overlay_managers {
 	OMAP_DSS_OVL_MGR_LCD,
 	OMAP_DSS_OVL_MGR_TV,
+	OMAP_DSS_OVL_MGR_LCD2,
 };
 
 enum omap_dss_rotation_type {
@@ -238,7 +213,7 @@ int dsi_vc_dcs_write_1(int channel, u8 dcs_cmd, u8 param);
 int dsi_vc_dcs_write_nosync(int channel, u8 *data, int len);
 int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen);
 int dsi_vc_dcs_read_1(int channel, u8 dcs_cmd, u8 *data);
-int dsi_vc_dcs_read_2(int channel, u8 dcs_cmd, u16 *data);
+int dsi_vc_dcs_read_2(int channel, u8 dcs_cmd, u8 *data1, u8 *data2);
 int dsi_vc_set_max_rx_packet_size(int channel, u16 len);
 int dsi_vc_send_null(int channel);
 int dsi_vc_send_bta_sync(int channel);
@@ -277,8 +252,8 @@ struct omap_video_timings {
  * identify the mode, and does not actually use the configs
  * itself. However, the configs should be something that
  * a normal monitor can also show */
-const extern struct omap_video_timings omap_dss_pal_timings;
-const extern struct omap_video_timings omap_dss_ntsc_timings;
+extern const struct omap_video_timings omap_dss_pal_timings;
+extern const struct omap_video_timings omap_dss_ntsc_timings;
 #endif
 
 struct omap_overlay_info {
@@ -299,6 +274,7 @@ struct omap_overlay_info {
 	u16 out_width;	/* if 0, out_width == width */
 	u16 out_height;	/* if 0, out_height == height */
 	u8 global_alpha;
+	u8 pre_mult_alpha;
 };
 
 struct omap_overlay {
@@ -381,6 +357,8 @@ struct omap_dss_device {
 	struct device dev;
 
 	enum omap_display_type type;
+
+	enum omap_channel channel;
 
 	union {
 		struct {
@@ -560,7 +538,8 @@ void omapdss_dsi_vc_enable_hs(int channel, bool enable);
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
 
 int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
-				    u16 *x, u16 *y, u16 *w, u16 *h);
+				    u16 *x, u16 *y, u16 *w, u16 *h,
+				    bool enlarge_update_area);
 int omap_dsi_update(struct omap_dss_device *dssdev,
 		int channel,
 		u16 x, u16 y, u16 w, u16 h,

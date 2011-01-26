@@ -24,14 +24,13 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
+#include <sound/jack.h>
 
 #include <asm/mach-types.h>
 #include <plat/hardware.h>
 #include <plat/mux.h>
 
 #include "mcpdm.h"
-#include "omap-mcpdm.h"
 #include "omap-pcm.h"
 #include "../codecs/twl6040.h"
 
@@ -41,7 +40,7 @@ static int sdp4430_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int clk_id, freq;
 	int ret;
 
@@ -60,10 +59,26 @@ static int sdp4430_hw_params(struct snd_pcm_substream *substream,
 		printk(KERN_ERR "can't set codec system clock\n");
 		return ret;
 	}
+	return ret;
 }
 
 static struct snd_soc_ops sdp4430_ops = {
 	.hw_params = sdp4430_hw_params,
+};
+
+/* Headset jack */
+static struct snd_soc_jack hs_jack;
+
+/*Headset jack detection DAPM pins */
+static struct snd_soc_jack_pin hs_jack_pins[] = {
+	{
+		.pin = "Headset Mic",
+		.mask = SND_JACK_MICROPHONE,
+	},
+	{
+		.pin = "Headset Stereophone",
+		.mask = SND_JACK_HEADPHONE,
+	},
 };
 
 static int sdp4430_get_power_mode(struct snd_kcontrol *kcontrol,
@@ -102,6 +117,7 @@ static const struct snd_soc_dapm_widget sdp4430_twl6040_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_HP("Headset Stereophone", NULL),
 	SND_SOC_DAPM_SPK("Earphone Spk", NULL),
+	SND_SOC_DAPM_INPUT("Aux/FM Stereo In"),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
@@ -124,10 +140,16 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 	/* Earphone speaker */
 	{"Earphone Spk", NULL, "EP"},
+
+	/* Aux/FM Stereo In: AFML, AFMR */
+	{"AFML", NULL, "Aux/FM Stereo In"},
+	{"AFMR", NULL, "Aux/FM Stereo In"},
 };
 
-static int sdp4430_twl6040_init(struct snd_soc_codec *codec)
+static int sdp4430_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	/* Add SDP4430 specific controls */
@@ -137,25 +159,39 @@ static int sdp4430_twl6040_init(struct snd_soc_codec *codec)
 		return ret;
 
 	/* Add SDP4430 specific widgets */
-	ret = snd_soc_dapm_new_controls(codec, sdp4430_twl6040_dapm_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, sdp4430_twl6040_dapm_widgets,
 				ARRAY_SIZE(sdp4430_twl6040_dapm_widgets));
 	if (ret)
 		return ret;
 
 	/* Set up SDP4430 specific audio path audio_map */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	/* SDP4430 connected pins */
-	snd_soc_dapm_enable_pin(codec, "Ext Mic");
-	snd_soc_dapm_enable_pin(codec, "Ext Spk");
-	snd_soc_dapm_enable_pin(codec, "Headset Mic");
-	snd_soc_dapm_enable_pin(codec, "Headset Stereophone");
+	snd_soc_dapm_enable_pin(dapm, "Ext Mic");
+	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
+	snd_soc_dapm_enable_pin(dapm, "AFML");
+	snd_soc_dapm_enable_pin(dapm, "AFMR");
+	snd_soc_dapm_enable_pin(dapm, "Headset Mic");
+	snd_soc_dapm_enable_pin(dapm, "Headset Stereophone");
 
-	/* TWL6040 not connected pins */
-	snd_soc_dapm_nc_pin(codec, "AFML");
-	snd_soc_dapm_nc_pin(codec, "AFMR");
+	ret = snd_soc_dapm_sync(dapm);
+	if (ret)
+		return ret;
 
-	ret = snd_soc_dapm_sync(codec);
+	/* Headset jack detection */
+	ret = snd_soc_jack_new(codec, "Headset Jack",
+				SND_JACK_HEADSET, &hs_jack);
+	if (ret)
+		return ret;
+
+	ret = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
+				hs_jack_pins);
+
+	if (machine_is_omap_4430sdp())
+		twl6040_hs_jack_detect(codec, &hs_jack, SND_JACK_HEADSET);
+	else
+		snd_soc_jack_report(&hs_jack, SND_JACK_HEADSET, SND_JACK_HEADSET);
 
 	return ret;
 }
@@ -164,8 +200,10 @@ static int sdp4430_twl6040_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link sdp4430_dai = {
 	.name = "TWL6040",
 	.stream_name = "TWL6040",
-	.cpu_dai = &omap_mcpdm_dai,
-	.codec_dai = &twl6040_dai,
+	.cpu_dai_name ="omap-mcpdm-dai",
+	.codec_dai_name = "twl6040-hifi",
+	.platform_name = "omap-pcm-audio",
+	.codec_name = "twl6040-codec",
 	.init = sdp4430_twl6040_init,
 	.ops = &sdp4430_ops,
 };
@@ -173,15 +211,8 @@ static struct snd_soc_dai_link sdp4430_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_sdp4430 = {
 	.name = "SDP4430",
-	.platform = &omap_soc_platform,
 	.dai_link = &sdp4430_dai,
 	.num_links = 1,
-};
-
-/* Audio subsystem */
-static struct snd_soc_device sdp4430_snd_devdata = {
-	.card = &snd_soc_sdp4430,
-	.codec_dev = &soc_codec_dev_twl6040,
 };
 
 static struct platform_device *sdp4430_snd_device;
@@ -190,10 +221,8 @@ static int __init sdp4430_soc_init(void)
 {
 	int ret;
 
-	if (!machine_is_omap_4430sdp()) {
-		pr_debug("Not SDP4430!\n");
+	if (!machine_is_omap_4430sdp())
 		return -ENODEV;
-	}
 	printk(KERN_INFO "SDP4430 SoC init\n");
 
 	sdp4430_snd_device = platform_device_alloc("soc-audio", -1);
@@ -202,8 +231,7 @@ static int __init sdp4430_soc_init(void)
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(sdp4430_snd_device, &sdp4430_snd_devdata);
-	sdp4430_snd_devdata.dev = &sdp4430_snd_device->dev;
+	platform_set_drvdata(sdp4430_snd_device, &snd_soc_sdp4430);
 
 	ret = platform_device_add(sdp4430_snd_device);
 	if (ret)

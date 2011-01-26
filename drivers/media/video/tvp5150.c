@@ -11,7 +11,6 @@
 #include <linux/delay.h>
 #include <media/v4l2-device.h>
 #include <media/tvp5150.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/v4l2-chip-ident.h>
 
 #include "tvp5150_reg.h"
@@ -277,7 +276,7 @@ static int tvp5150_log_status(struct v4l2_subdev *sd)
 
 static inline void tvp5150_selmux(struct v4l2_subdev *sd)
 {
-	int opmode=0;
+	int opmode = 0;
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	int input = 0;
 	unsigned char val;
@@ -290,12 +289,10 @@ static inline void tvp5150_selmux(struct v4l2_subdev *sd)
 		input |= 2;
 		/* fall through */
 	case TVP5150_COMPOSITE0:
-		opmode=0x30;		/* TV Mode */
 		break;
 	case TVP5150_SVIDEO:
 	default:
 		input |= 1;
-		opmode=0;		/* Auto Mode */
 		break;
 	}
 
@@ -934,17 +931,6 @@ static int tvp5150_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 	return 0;
 }
 
-static int tvp5150_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	switch (fmt->type) {
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return tvp5150_s_sliced_fmt(sd, &fmt->fmt.sliced);
-
-	default:
-		return -EINVAL;
-	}
-}
-
 static int tvp5150_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *svbi)
 {
 	int i, mask = 0;
@@ -958,13 +944,6 @@ static int tvp5150_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 	}
 	svbi->service_set = mask;
 	return 0;
-}
-
-static int tvp5150_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
-		return -EINVAL;
-	return tvp5150_g_sliced_fmt(sd, &fmt->fmt.sliced);
 }
 
 static int tvp5150_g_chip_ident(struct v4l2_subdev *sd,
@@ -1054,8 +1033,6 @@ static const struct v4l2_subdev_tuner_ops tvp5150_tuner_ops = {
 
 static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
 	.s_routing = tvp5150_s_routing,
-	.g_fmt = tvp5150_g_fmt,
-	.s_fmt = tvp5150_s_fmt,
 };
 
 static const struct v4l2_subdev_vbi_ops tvp5150_vbi_ops = {
@@ -1131,9 +1108,25 @@ static const struct i2c_device_id tvp5150_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tvp5150_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "tvp5150",
-	.probe = tvp5150_probe,
-	.remove = tvp5150_remove,
-	.id_table = tvp5150_id,
+static struct i2c_driver tvp5150_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tvp5150",
+	},
+	.probe		= tvp5150_probe,
+	.remove		= tvp5150_remove,
+	.id_table	= tvp5150_id,
 };
+
+static __init int init_tvp5150(void)
+{
+	return i2c_add_driver(&tvp5150_driver);
+}
+
+static __exit void exit_tvp5150(void)
+{
+	i2c_del_driver(&tvp5150_driver);
+}
+
+module_init(init_tvp5150);
+module_exit(exit_tvp5150);

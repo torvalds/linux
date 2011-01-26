@@ -105,10 +105,10 @@ static inline struct udp_hslot *udp_hashslot2(struct udp_table *table,
 
 extern struct proto udp_prot;
 
-extern atomic_t udp_memory_allocated;
+extern atomic_long_t udp_memory_allocated;
 
 /* sysctl variables for udp */
-extern int sysctl_udp_mem[3];
+extern long sysctl_udp_mem[3];
 extern int sysctl_udp_rmem_min;
 extern int sysctl_udp_wmem_min;
 
@@ -151,38 +151,40 @@ static inline void udp_lib_hash(struct sock *sk)
 }
 
 extern void udp_lib_unhash(struct sock *sk);
+extern void udp_lib_rehash(struct sock *sk, u16 new_hash);
 
 static inline void udp_lib_close(struct sock *sk, long timeout)
 {
 	sk_common_release(sk);
 }
 
-extern int	udp_lib_get_port(struct sock *sk, unsigned short snum,
-		int (*)(const struct sock *,const struct sock *),
-		unsigned int hash2_nulladdr);
+extern int udp_lib_get_port(struct sock *sk, unsigned short snum,
+			    int (*)(const struct sock *,const struct sock *),
+			    unsigned int hash2_nulladdr);
 
 /* net/ipv4/udp.c */
-extern int	udp_get_port(struct sock *sk, unsigned short snum,
-			     int (*saddr_cmp)(const struct sock *, const struct sock *));
-extern void	udp_err(struct sk_buff *, u32);
-
-extern int	udp_sendmsg(struct kiocb *iocb, struct sock *sk,
+extern int udp_get_port(struct sock *sk, unsigned short snum,
+			int (*saddr_cmp)(const struct sock *,
+					 const struct sock *));
+extern void udp_err(struct sk_buff *, u32);
+extern int udp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			    struct msghdr *msg, size_t len);
-extern void	udp_flush_pending_frames(struct sock *sk);
-
-extern int	udp_rcv(struct sk_buff *skb);
-extern int	udp_ioctl(struct sock *sk, int cmd, unsigned long arg);
-extern int	udp_disconnect(struct sock *sk, int flags);
+extern void udp_flush_pending_frames(struct sock *sk);
+extern int udp_rcv(struct sk_buff *skb);
+extern int udp_ioctl(struct sock *sk, int cmd, unsigned long arg);
+extern int udp_disconnect(struct sock *sk, int flags);
 extern unsigned int udp_poll(struct file *file, struct socket *sock,
 			     poll_table *wait);
-extern int 	udp_lib_getsockopt(struct sock *sk, int level, int optname,
-			           char __user *optval, int __user *optlen);
-extern int 	udp_lib_setsockopt(struct sock *sk, int level, int optname,
-				   char __user *optval, unsigned int optlen,
-				   int (*push_pending_frames)(struct sock *));
-
+extern int udp_lib_getsockopt(struct sock *sk, int level, int optname,
+			      char __user *optval, int __user *optlen);
+extern int udp_lib_setsockopt(struct sock *sk, int level, int optname,
+			      char __user *optval, unsigned int optlen,
+			      int (*push_pending_frames)(struct sock *));
 extern struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 				    __be32 daddr, __be16 dport,
+				    int dif);
+extern struct sock *udp6_lib_lookup(struct net *net, const struct in6_addr *saddr, __be16 sport,
+				    const struct in6_addr *daddr, __be16 dport,
 				    int dif);
 
 /*
@@ -236,7 +238,7 @@ struct udp_iter_state {
 extern int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo);
 extern void udp_proc_unregister(struct net *net, struct udp_seq_afinfo *afinfo);
 
-extern int  udp4_proc_init(void);
+extern int udp4_proc_init(void);
 extern void udp4_proc_exit(void);
 #endif
 

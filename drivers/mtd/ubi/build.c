@@ -95,8 +95,8 @@ DEFINE_MUTEX(ubi_devices_mutex);
 static DEFINE_SPINLOCK(ubi_devices_lock);
 
 /* "Show" method for files in '/<sysfs>/class/ubi/' */
-static ssize_t ubi_version_show(struct class *class, struct class_attribute *attr,
-				char *buf)
+static ssize_t ubi_version_show(struct class *class,
+				struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", UBI_VERSION);
 }
@@ -591,8 +591,10 @@ static int attach_by_scanning(struct ubi_device *ubi)
 
 	ubi->bad_peb_count = si->bad_peb_count;
 	ubi->good_peb_count = ubi->peb_count - ubi->bad_peb_count;
+	ubi->corr_peb_count = si->corr_peb_count;
 	ubi->max_ec = si->max_ec;
 	ubi->mean_ec = si->mean_ec;
+	ubi_msg("max. sequence number:       %llu", si->max_sqnum);
 
 	err = ubi_read_volume_table(ubi, si);
 	if (err)
@@ -670,7 +672,33 @@ static int io_init(struct ubi_device *ubi)
 		ubi->nor_flash = 1;
 	}
 
-	ubi->min_io_size = ubi->mtd->writesize;
+	/*
+	 * Set UBI min. I/O size (@ubi->min_io_size). We use @mtd->writebufsize
+	 * for these purposes, not @mtd->writesize. At the moment this does not
+	 * matter for NAND, because currently @mtd->writebufsize is equivalent to
+	 * @mtd->writesize for all NANDs. However, some CFI NOR flashes may
+	 * have @mtd->writebufsize which is multiple of @mtd->writesize.
+	 *
+	 * The reason we use @mtd->writebufsize for @ubi->min_io_size is that
+	 * UBI and UBIFS recovery algorithms rely on the fact that if there was
+	 * an unclean power cut, then we can find offset of the last corrupted
+	 * node, align the offset to @ubi->min_io_size, read the rest of the
+	 * eraseblock starting from this offset, and check whether there are
+	 * only 0xFF bytes. If yes, then we are probably dealing with a
+	 * corruption caused by a power cut, if not, then this is probably some
+	 * severe corruption.
+	 *
+	 * Thus, we have to use the maximum write unit size of the flash, which
+	 * is @mtd->writebufsize, because @mtd->writesize is the minimum write
+	 * size, not the maximum.
+	 */
+	if (ubi->mtd->type == MTD_NANDFLASH)
+		ubi_assert(ubi->mtd->writebufsize == ubi->mtd->writesize);
+	else if (ubi->mtd->type == MTD_NORFLASH)
+		ubi_assert(ubi->mtd->writebufsize % ubi->mtd->writesize == 0);
+
+	ubi->min_io_size = ubi->mtd->writebufsize;
+
 	ubi->hdrs_min_io_size = ubi->mtd->writesize >> ubi->mtd->subpage_sft;
 
 	/*
@@ -971,6 +999,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	ubi_msg("MTD device size:            %llu MiB", ubi->flash_size >> 20);
 	ubi_msg("number of good PEBs:        %d", ubi->good_peb_count);
 	ubi_msg("number of bad PEBs:         %d", ubi->bad_peb_count);
+	ubi_msg("number of corrupted PEBs:   %d", ubi->corr_peb_count);
 	ubi_msg("max. allowed volumes:       %d", ubi->vtbl_slots);
 	ubi_msg("wear-leveling threshold:    %d", CONFIG_MTD_UBI_WL_THRESHOLD);
 	ubi_msg("number of internal volumes: %d", UBI_INT_VOL_COUNT);
@@ -981,7 +1010,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	ubi_msg("number of PEBs reserved for bad PEB handling: %d",
 		ubi->beb_rsvd_pebs);
 	ubi_msg("max/mean erase counter: %d/%d", ubi->max_ec, ubi->mean_ec);
-	ubi_msg("image sequence number: %d", ubi->image_seq);
+	ubi_msg("image sequence number:  %d", ubi->image_seq);
 
 	/*
 	 * The below lock makes sure we do not race with 'ubi_thread()' which

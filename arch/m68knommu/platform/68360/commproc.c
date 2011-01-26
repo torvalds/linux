@@ -110,7 +110,7 @@ void m360_cpm_reset()
 	/* 	pte = find_pte(&init_mm, host_page_addr); */
 	/* 	pte_val(*pte) |= _PAGE_NO_CACHE; */
 	/* 	flush_tlb_page(current->mm->mmap, host_buffer); */
-	
+
 	/* Tell everyone where the comm processor resides.
 	*/
 /* 	cpmp = (cpm360_t *)commproc; */
@@ -191,7 +191,7 @@ cpm_interrupt(int irq, void * dev, struct pt_regs * regs)
 	 */
 	((immap_t *)IMAP_ADDR)->im_cpic.cpic_cisr |= (1 << vec);
 #endif
-	
+
 }
 
 /* The CPM can generate the error interrupt when there is a race condition

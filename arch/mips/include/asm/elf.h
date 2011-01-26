@@ -249,7 +249,8 @@ extern struct mips_abi mips_abi_n32;
 
 #define SET_PERSONALITY(ex)						\
 do {									\
-	set_personality(PER_LINUX);					\
+	if (personality(current->personality) != PER_LINUX)		\
+		set_personality(PER_LINUX);				\
 									\
 	current->thread.abi = &mips_abi;				\
 } while (0)
@@ -296,6 +297,8 @@ do {									\
 
 #define SET_PERSONALITY(ex)						\
 do {									\
+	unsigned int p;							\
+									\
 	clear_thread_flag(TIF_32BIT_REGS);				\
 	clear_thread_flag(TIF_32BIT_ADDR);				\
 									\
@@ -304,7 +307,8 @@ do {									\
 	else								\
 		current->thread.abi = &mips_abi;			\
 									\
-	if (current->personality != PER_LINUX32)			\
+	p = personality(current->personality);				\
+	if (p != PER_LINUX32 && p != PER_LINUX)				\
 		set_personality(PER_LINUX);				\
 } while (0)
 
@@ -372,4 +376,9 @@ extern const char *__elf_platform;
 struct linux_binprm;
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 				       int uses_interp);
+
+struct mm_struct;
+extern unsigned long arch_randomize_brk(struct mm_struct *mm);
+#define arch_randomize_brk arch_randomize_brk
+
 #endif /* _ASM_ELF_H */

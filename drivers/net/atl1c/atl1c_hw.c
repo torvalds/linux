@@ -37,6 +37,9 @@ int atl1c_check_eeprom_exist(struct atl1c_hw *hw)
 	if (data & TWSI_DEBUG_DEV_EXIST)
 		return 1;
 
+	AT_READ_REG(hw, REG_MASTER_CTRL, &data);
+	if (data & MASTER_CTRL_OTP_SEL)
+		return 1;
 	return 0;
 }
 
@@ -69,6 +72,8 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 	u32 i;
 	u32 otp_ctrl_data;
 	u32 twsi_ctrl_data;
+	u32 ltssm_ctrl_data;
+	u32 wol_data;
 	u8  eth_addr[ETH_ALEN];
 	u16 phy_data;
 	bool raise_vol = false;
@@ -77,7 +82,7 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 	addr[0] = addr[1] = 0;
 	AT_READ_REG(hw, REG_OTP_CTRL, &otp_ctrl_data);
 	if (atl1c_check_eeprom_exist(hw)) {
-		if (hw->nic_type == athr_l1c || hw->nic_type == athr_l2c_b) {
+		if (hw->nic_type == athr_l1c || hw->nic_type == athr_l2c) {
 			/* Enable OTP CLK */
 			if (!(otp_ctrl_data & OTP_CTRL_CLK_EN)) {
 				otp_ctrl_data |= OTP_CTRL_CLK_EN;
@@ -104,6 +109,15 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 			udelay(20);
 			raise_vol = true;
 		}
+		/* close open bit of ReadOnly*/
+		AT_READ_REG(hw, REG_LTSSM_ID_CTRL, &ltssm_ctrl_data);
+		ltssm_ctrl_data &= ~LTSSM_ID_EN_WRO;
+		AT_WRITE_REG(hw, REG_LTSSM_ID_CTRL, ltssm_ctrl_data);
+
+		/* clear any WOL settings */
+		AT_WRITE_REG(hw, REG_WOL_CTRL, 0);
+		AT_READ_REG(hw, REG_WOL_CTRL, &wol_data);
+
 
 		AT_READ_REG(hw, REG_TWSI_CTRL, &twsi_ctrl_data);
 		twsi_ctrl_data |= TWSI_CTRL_SW_LDSTART;
@@ -119,17 +133,15 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 	}
 	/* Disable OTP_CLK */
 	if ((hw->nic_type == athr_l1c || hw->nic_type == athr_l2c)) {
-		if (otp_ctrl_data & OTP_CTRL_CLK_EN) {
-			otp_ctrl_data &= ~OTP_CTRL_CLK_EN;
-			AT_WRITE_REG(hw, REG_OTP_CTRL, otp_ctrl_data);
-			AT_WRITE_FLUSH(hw);
-			msleep(1);
-		}
+		otp_ctrl_data &= ~OTP_CTRL_CLK_EN;
+		AT_WRITE_REG(hw, REG_OTP_CTRL, otp_ctrl_data);
+		msleep(1);
 	}
 	if (raise_vol) {
 		if (hw->nic_type == athr_l2c_b ||
 		    hw->nic_type == athr_l2c_b2 ||
-		    hw->nic_type == athr_l1d) {
+		    hw->nic_type == athr_l1d ||
+		    hw->nic_type == athr_l1d_2) {
 			atl1c_write_phy_reg(hw, MII_DBG_ADDR, 0x00);
 			if (atl1c_read_phy_reg(hw, MII_DBG_DATA, &phy_data))
 				goto out;
@@ -456,14 +468,22 @@ int atl1c_phy_reset(struct atl1c_hw *hw)
 
 	if (hw->nic_type == athr_l2c_b ||
 	    hw->nic_type == athr_l2c_b2 ||
-	    hw->nic_type == athr_l1d) {
+	    hw->nic_type == athr_l1d ||
+	    hw->nic_type == athr_l1d_2) {
 		atl1c_write_phy_reg(hw, MII_DBG_ADDR, 0x3B);
 		atl1c_read_phy_reg(hw, MII_DBG_DATA, &phy_data);
 		atl1c_write_phy_reg(hw, MII_DBG_DATA, phy_data & 0xFFF7);
 		msleep(20);
 	}
-
-	/*Enable PHY LinkChange Interrupt */
+	if (hw->nic_type == athr_l1d) {
+		atl1c_write_phy_reg(hw, MII_DBG_ADDR, 0x29);
+		atl1c_write_phy_reg(hw, MII_DBG_DATA, 0x929D);
+	}
+	if (hw->nic_type == athr_l1c || hw->nic_type == athr_l2c_b2
+		|| hw->nic_type == athr_l2c) {
+		atl1c_write_phy_reg(hw, MII_DBG_ADDR, 0x29);
+		atl1c_write_phy_reg(hw, MII_DBG_DATA, 0xB6DD);
+	}
 	err = atl1c_write_phy_reg(hw, MII_IER, mii_ier_data);
 	if (err) {
 		if (netif_msg_hw(adapter))
@@ -482,12 +502,10 @@ int atl1c_phy_init(struct atl1c_hw *hw)
 	struct pci_dev *pdev = adapter->pdev;
 	int ret_val;
 	u16 mii_bmcr_data = BMCR_RESET;
-	u16 phy_id1, phy_id2;
 
-	if ((atl1c_read_phy_reg(hw, MII_PHYSID1, &phy_id1) != 0) ||
-		(atl1c_read_phy_reg(hw, MII_PHYSID2, &phy_id2) != 0)) {
-			if (netif_msg_link(adapter))
-				dev_err(&pdev->dev, "Error get phy ID\n");
+	if ((atl1c_read_phy_reg(hw, MII_PHYSID1, &hw->phy_id1) != 0) ||
+		(atl1c_read_phy_reg(hw, MII_PHYSID2, &hw->phy_id2) != 0)) {
+		dev_err(&pdev->dev, "Error get phy ID\n");
 		return -1;
 	}
 	switch (hw->media_type) {
@@ -570,6 +588,65 @@ int atl1c_get_speed_and_duplex(struct atl1c_hw *hw, u16 *speed, u16 *duplex)
 		*duplex = HALF_DUPLEX;
 
 	return 0;
+}
+
+int atl1c_phy_power_saving(struct atl1c_hw *hw)
+{
+	struct atl1c_adapter *adapter = (struct atl1c_adapter *)hw->adapter;
+	struct pci_dev *pdev = adapter->pdev;
+	int ret = 0;
+	u16 autoneg_advertised = ADVERTISED_10baseT_Half;
+	u16 save_autoneg_advertised;
+	u16 phy_data;
+	u16 mii_lpa_data;
+	u16 speed = SPEED_0;
+	u16 duplex = FULL_DUPLEX;
+	int i;
+
+	atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
+	atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
+	if (phy_data & BMSR_LSTATUS) {
+		atl1c_read_phy_reg(hw, MII_LPA, &mii_lpa_data);
+		if (mii_lpa_data & LPA_10FULL)
+			autoneg_advertised = ADVERTISED_10baseT_Full;
+		else if (mii_lpa_data & LPA_10HALF)
+			autoneg_advertised = ADVERTISED_10baseT_Half;
+		else if (mii_lpa_data & LPA_100HALF)
+			autoneg_advertised = ADVERTISED_100baseT_Half;
+		else if (mii_lpa_data & LPA_100FULL)
+			autoneg_advertised = ADVERTISED_100baseT_Full;
+
+		save_autoneg_advertised = hw->autoneg_advertised;
+		hw->phy_configured = false;
+		hw->autoneg_advertised = autoneg_advertised;
+		if (atl1c_restart_autoneg(hw) != 0) {
+			dev_dbg(&pdev->dev, "phy autoneg failed\n");
+			ret = -1;
+		}
+		hw->autoneg_advertised = save_autoneg_advertised;
+
+		if (mii_lpa_data) {
+			for (i = 0; i < AT_SUSPEND_LINK_TIMEOUT; i++) {
+				mdelay(100);
+				atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
+				atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
+				if (phy_data & BMSR_LSTATUS) {
+					if (atl1c_get_speed_and_duplex(hw, &speed,
+									&duplex) != 0)
+						dev_dbg(&pdev->dev,
+							"get speed and duplex failed\n");
+					break;
+				}
+			}
+		}
+	} else {
+		speed = SPEED_10;
+		duplex = HALF_DUPLEX;
+	}
+	adapter->link_speed = speed;
+	adapter->link_duplex = duplex;
+
+	return ret;
 }
 
 int atl1c_restart_autoneg(struct atl1c_hw *hw)

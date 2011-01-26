@@ -26,6 +26,7 @@
 #endif
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 
 int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 {
@@ -34,6 +35,7 @@ int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 
 	INIT_LIST_HEAD(&v4l2_dev->subdevs);
 	spin_lock_init(&v4l2_dev->lock);
+	mutex_init(&v4l2_dev->ioctl_lock);
 	v4l2_dev->dev = dev;
 	if (dev == NULL) {
 		/* If dev == NULL, then name must be filled in by the caller */
@@ -98,6 +100,7 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 			   is a platform bus, then it is never deleted. */
 			if (client)
 				i2c_unregister_device(client);
+			continue;
 		}
 #endif
 #if defined(CONFIG_SPI)
@@ -106,6 +109,7 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 
 			if (spi)
 				spi_unregister_device(spi);
+			continue;
 		}
 #endif
 	}
@@ -115,6 +119,8 @@ EXPORT_SYMBOL_GPL(v4l2_device_unregister);
 int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 						struct v4l2_subdev *sd)
 {
+	int err;
+
 	/* Check for valid input */
 	if (v4l2_dev == NULL || sd == NULL || !sd->name[0])
 		return -EINVAL;
@@ -123,6 +129,18 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	if (!try_module_get(sd->owner))
 		return -ENODEV;
 	sd->v4l2_dev = v4l2_dev;
+	if (sd->internal_ops && sd->internal_ops->registered) {
+		err = sd->internal_ops->registered(sd);
+		if (err)
+			return err;
+	}
+	/* This just returns 0 if either of the two args is NULL */
+	err = v4l2_ctrl_add_handler(v4l2_dev->ctrl_handler, sd->ctrl_handler);
+	if (err) {
+		if (sd->internal_ops && sd->internal_ops->unregistered)
+			sd->internal_ops->unregistered(sd);
+		return err;
+	}
 	spin_lock(&v4l2_dev->lock);
 	list_add_tail(&sd->list, &v4l2_dev->subdevs);
 	spin_unlock(&v4l2_dev->lock);
@@ -138,6 +156,8 @@ void v4l2_device_unregister_subdev(struct v4l2_subdev *sd)
 	spin_lock(&sd->v4l2_dev->lock);
 	list_del(&sd->list);
 	spin_unlock(&sd->v4l2_dev->lock);
+	if (sd->internal_ops && sd->internal_ops->unregistered)
+		sd->internal_ops->unregistered(sd);
 	sd->v4l2_dev = NULL;
 	module_put(sd->owner);
 }

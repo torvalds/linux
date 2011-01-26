@@ -7,10 +7,6 @@
 
 #include <linux/range.h>
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
 int add_range(struct range *range, int az, int nr_range, u64 start, u64 end)
 {
 	if (start >= end)
@@ -123,7 +119,7 @@ static int cmp_range(const void *x1, const void *x2)
 
 int clean_sort_range(struct range *range, int az)
 {
-	int i, j, k = az - 1, nr_range = 0;
+	int i, j, k = az - 1, nr_range = az;
 
 	for (i = 0; i < k; i++) {
 		if (range[i].end)

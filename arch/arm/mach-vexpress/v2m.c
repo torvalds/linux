@@ -11,18 +11,19 @@
 #include <linux/spinlock.h>
 #include <linux/sysdev.h>
 #include <linux/usb/isp1760.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <asm/sizes.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/hardware/arm_timer.h>
+#include <asm/hardware/timer-sp.h>
+#include <asm/hardware/sp810.h>
 
-#include <mach/clkdev.h>
 #include <mach/motherboard.h>
 
-#include <plat/timer-sp.h>
+#include <plat/sched_clock.h>
 
 #include "core.h"
 
@@ -48,8 +49,18 @@ void __init v2m_map_io(struct map_desc *tile, size_t num)
 }
 
 
-static void v2m_timer_init(void)
+static void __init v2m_timer_init(void)
 {
+	u32 scctrl;
+
+	versatile_sched_clock_init(MMIO_P2V(V2M_SYS_24MHZ), 24000000);
+
+	/* Select 1MHz TIMCLK as the reference clock for SP804 timers */
+	scctrl = readl(MMIO_P2V(V2M_SYSCTL + SCCTRL));
+	scctrl |= SCCTRL_TIMEREN0SEL_TIMCLK;
+	scctrl |= SCCTRL_TIMEREN1SEL_TIMCLK;
+	writel(scctrl, MMIO_P2V(V2M_SYSCTL + SCCTRL));
+
 	writel(0, MMIO_P2V(V2M_TIMER0) + TIMER_CTRL);
 	writel(0, MMIO_P2V(V2M_TIMER1) + TIMER_CTRL);
 
@@ -241,7 +252,7 @@ static struct platform_device v2m_flash_device = {
 
 static unsigned int v2m_mmci_status(struct device *dev)
 {
-	return !(readl(MMIO_P2V(V2M_SYS_MCI)) & (1 << 0));
+	return readl(MMIO_P2V(V2M_SYS_MCI)) & (1 << 0);
 }
 
 static struct mmci_platform_data v2m_mmci_data = {
@@ -298,8 +309,13 @@ static struct clk osc2_clk = {
 	.rate	= 24000000,
 };
 
+static struct clk dummy_apb_pclk;
+
 static struct clk_lookup v2m_lookups[] = {
-	{	/* UART0 */
+	{	/* AMBA bus clock */
+		.con_id		= "apb_pclk",
+		.clk		= &dummy_apb_pclk,
+	}, {	/* UART0 */
 		.dev_id		= "mb:uart0",
 		.clk		= &osc2_clk,
 	}, {	/* UART1 */

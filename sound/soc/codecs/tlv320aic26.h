@@ -90,7 +90,4 @@ enum aic26_wlen {
 	AIC26_WLEN_32	= 3 << 10,
 };
 
-extern struct snd_soc_dai aic26_dai;
-extern struct snd_soc_codec_device aic26_soc_codec_dev;
-
 #endif /* _TLV320AIC16_H_ */

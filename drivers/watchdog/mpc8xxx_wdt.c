@@ -53,7 +53,7 @@ static int mpc8xxx_wdt_init_late(void);
 static u16 timeout = 0xffff;
 module_param(timeout, ushort, 0);
 MODULE_PARM_DESC(timeout,
-	"Watchdog timeout in ticks. (0<timeout<65536, default=65535");
+	"Watchdog timeout in ticks. (0<timeout<65536, default=65535)");
 
 static int reset = 1;
 module_param(reset, bool, 0);
@@ -185,11 +185,11 @@ static struct miscdevice mpc8xxx_wdt_miscdev = {
 	.fops	= &mpc8xxx_wdt_fops,
 };
 
-static int __devinit mpc8xxx_wdt_probe(struct of_device *ofdev,
+static int __devinit mpc8xxx_wdt_probe(struct platform_device *ofdev,
 				       const struct of_device_id *match)
 {
 	int ret;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct mpc8xxx_wdt_type *wdt_type = match->data;
 	u32 freq = fsl_get_sys_freq();
 	bool enabled;
@@ -238,7 +238,7 @@ err_unmap:
 	return ret;
 }
 
-static int __devexit mpc8xxx_wdt_remove(struct of_device *ofdev)
+static int __devexit mpc8xxx_wdt_remove(struct platform_device *ofdev)
 {
 	mpc8xxx_wdt_pr_warn("watchdog removed");
 	del_timer_sync(&wdt_timer);

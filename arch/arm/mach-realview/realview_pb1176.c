@@ -25,6 +25,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
+#include <linux/amba/pl022.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>
@@ -32,6 +33,7 @@
 #include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/pmu.h>
+#include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 
@@ -122,6 +124,12 @@ static struct pl061_platform_data gpio2_plat_data = {
 	.irq_base	= -1,
 };
 
+static struct pl022_ssp_controller ssp0_plat_data = {
+	.bus_id = 0,
+	.enable_dma = 0,
+	.num_chipselect = 1,
+};
+
 /*
  * RealView PB1176 AMBA devices
  */
@@ -143,8 +151,6 @@ static struct pl061_platform_data gpio2_plat_data = {
 #define MPMC_DMA	{ 0, 0 }
 #define PB1176_CLCD_IRQ	{ IRQ_DC1176_CLCD, NO_IRQ }
 #define PB1176_CLCD_DMA	{ 0, 0 }
-#define DMAC_IRQ	{ IRQ_PB1176_DMAC, NO_IRQ }
-#define DMAC_DMA	{ 0, 0 }
 #define SCTL_IRQ	{ NO_IRQ, NO_IRQ }
 #define SCTL_DMA	{ 0, 0 }
 #define PB1176_WATCHDOG_IRQ	{ IRQ_DC1176_WATCHDOG, NO_IRQ }
@@ -165,7 +171,9 @@ static struct pl061_platform_data gpio2_plat_data = {
 #define PB1176_UART2_DMA	{ 11, 10 }
 #define PB1176_UART3_IRQ	{ IRQ_DC1176_UART3, NO_IRQ }
 #define PB1176_UART3_DMA	{ 0x86, 0x87 }
-#define PB1176_SSP_IRQ		{ IRQ_PB1176_SSP, NO_IRQ }
+#define PB1176_UART4_IRQ	{ IRQ_PB1176_UART4, NO_IRQ }
+#define PB1176_UART4_DMA	{ 0, 0 }
+#define PB1176_SSP_IRQ		{ IRQ_DC1176_SSP, NO_IRQ }
 #define PB1176_SSP_DMA		{ 9, 8 }
 
 /* FPGA Primecells */
@@ -173,7 +181,7 @@ AMBA_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
 AMBA_DEVICE(mmc0,	"fpga:mmc0",	MMCI0,		&realview_mmc0_plat_data);
 AMBA_DEVICE(kmi0,	"fpga:kmi0",	KMI0,		NULL);
 AMBA_DEVICE(kmi1,	"fpga:kmi1",	KMI1,		NULL);
-AMBA_DEVICE(uart3,	"fpga:uart3",	PB1176_UART3,	NULL);
+AMBA_DEVICE(uart4,	"fpga:uart4",	PB1176_UART4,	NULL);
 
 /* DevChip Primecells */
 AMBA_DEVICE(smc,	"dev:smc",	PB1176_SMC,	NULL);
@@ -187,18 +195,16 @@ AMBA_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
 AMBA_DEVICE(uart0,	"dev:uart0",	PB1176_UART0,	NULL);
 AMBA_DEVICE(uart1,	"dev:uart1",	PB1176_UART1,	NULL);
 AMBA_DEVICE(uart2,	"dev:uart2",	PB1176_UART2,	NULL);
-AMBA_DEVICE(ssp0,	"dev:ssp0",	PB1176_SSP,	NULL);
-
-/* Primecells on the NEC ISSP chip */
-AMBA_DEVICE(clcd,	"issp:clcd",	PB1176_CLCD,	&clcd_plat_data);
-//AMBA_DEVICE(dmac,	"issp:dmac",	PB1176_DMAC,	NULL);
+AMBA_DEVICE(uart3,	"dev:uart3",	PB1176_UART3,	NULL);
+AMBA_DEVICE(ssp0,	"dev:ssp0",	PB1176_SSP,	&ssp0_plat_data);
+AMBA_DEVICE(clcd,	"dev:clcd",	PB1176_CLCD,	&clcd_plat_data);
 
 static struct amba_device *amba_devs[] __initdata = {
-//	&dmac_device,
 	&uart0_device,
 	&uart1_device,
 	&uart2_device,
 	&uart3_device,
+	&uart4_device,
 	&smc_device,
 	&clcd_device,
 	&sctl_device,
@@ -275,16 +281,37 @@ static struct platform_device pmu_device = {
 	.resource		= &pmu_resource,
 };
 
+static struct resource char_lcd_resources[] = {
+	{
+		.start = REALVIEW_CHAR_LCD_BASE,
+		.end   = (REALVIEW_CHAR_LCD_BASE + SZ_4K - 1),
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_PB1176_CHARLCD,
+		.end	= IRQ_PB1176_CHARLCD,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device char_lcd_device = {
+	.name		=	"arm-charlcd",
+	.id		=	-1,
+	.num_resources	=	ARRAY_SIZE(char_lcd_resources),
+	.resource	=	char_lcd_resources,
+};
+
 static void __init gic_init_irq(void)
 {
 	/* ARM1176 DevChip GIC, primary */
-	gic_cpu_base_addr = __io_address(REALVIEW_DC1176_GIC_CPU_BASE);
-	gic_dist_init(0, __io_address(REALVIEW_DC1176_GIC_DIST_BASE), IRQ_DC1176_GIC_START);
-	gic_cpu_init(0, gic_cpu_base_addr);
+	gic_init(0, IRQ_DC1176_GIC_START,
+		 __io_address(REALVIEW_DC1176_GIC_DIST_BASE),
+		 __io_address(REALVIEW_DC1176_GIC_CPU_BASE));
 
 	/* board GIC, secondary */
-	gic_dist_init(1, __io_address(REALVIEW_PB1176_GIC_DIST_BASE), IRQ_PB1176_GIC_START);
-	gic_cpu_init(1, __io_address(REALVIEW_PB1176_GIC_CPU_BASE));
+	gic_init(1, IRQ_PB1176_GIC_START,
+		 __io_address(REALVIEW_PB1176_GIC_DIST_BASE),
+		 __io_address(REALVIEW_PB1176_GIC_CPU_BASE));
 	gic_cascade_irq(1, IRQ_DC1176_PB_IRQ1);
 }
 
@@ -337,6 +364,7 @@ static void __init realview_pb1176_init(void)
 	platform_device_register(&realview_i2c_device);
 	realview_usb_register(realview_pb1176_isp1761_resources);
 	platform_device_register(&pmu_device);
+	platform_device_register(&char_lcd_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
@@ -351,8 +379,6 @@ static void __init realview_pb1176_init(void)
 
 MACHINE_START(REALVIEW_PB1176, "ARM-RealView PB1176")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.phys_io	= REALVIEW_PB1176_UART0_BASE,
-	.io_pg_offst	= (IO_ADDRESS(REALVIEW_PB1176_UART0_BASE) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.fixup		= realview_pb1176_fixup,
 	.map_io		= realview_pb1176_map_io,

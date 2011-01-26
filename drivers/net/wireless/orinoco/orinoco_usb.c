@@ -57,7 +57,6 @@
 #include <linux/fcntl.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
-#include <linux/smp_lock.h>
 #include <linux/usb.h>
 #include <linux/timer.h>
 
@@ -90,7 +89,7 @@ struct header_struct {
 	/* SNAP */
 	u8 oui[3];
 	__be16 ethertype;
-} __attribute__ ((packed));
+} __packed;
 
 struct ez_usb_fw {
 	u16 size;
@@ -222,7 +221,7 @@ struct ezusb_packet {
 	__le16 hermes_len;
 	__le16 hermes_rid;
 	u8 data[0];
-} __attribute__ ((packed));
+} __packed;
 
 /* Table of devices that work or may work with this driver */
 static struct usb_device_id ezusb_table[] = {
@@ -356,11 +355,9 @@ static struct request_context *ezusb_alloc_ctx(struct ezusb_priv *upriv,
 {
 	struct request_context *ctx;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_ATOMIC);
+	ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
 	if (!ctx)
 		return NULL;
-
-	memset(ctx, 0, sizeof(*ctx));
 
 	ctx->buf = kmalloc(BULK_BUF_SIZE, GFP_ATOMIC);
 	if (!ctx->buf) {
@@ -1504,16 +1501,16 @@ static inline void ezusb_delete(struct ezusb_priv *upriv)
 	    ezusb_ctx_complete(list_entry(item,
 					  struct request_context, list));
 
-	if (upriv->read_urb->status == -EINPROGRESS)
+	if (upriv->read_urb && upriv->read_urb->status == -EINPROGRESS)
 		printk(KERN_ERR PFX "Some URB in progress\n");
 
 	mutex_unlock(&upriv->mtx);
 
-	kfree(upriv->read_urb->transfer_buffer);
-	if (upriv->bap_buf != NULL)
-		kfree(upriv->bap_buf);
-	if (upriv->read_urb != NULL)
+	if (upriv->read_urb) {
+		kfree(upriv->read_urb->transfer_buffer);
 		usb_free_urb(upriv->read_urb);
+	}
+	kfree(upriv->bap_buf);
 	if (upriv->dev) {
 		struct orinoco_private *priv = ndev_priv(upriv->dev);
 		orinoco_if_del(priv);

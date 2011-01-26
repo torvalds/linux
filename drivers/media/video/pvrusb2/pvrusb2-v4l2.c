@@ -852,8 +852,8 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 #endif
 
 	default :
-		ret = v4l_compat_translate_ioctl(file, cmd,
-						 arg, pvr2_v4l2_do_ioctl);
+		ret = -EINVAL;
+		break;
 	}
 
 	pvr2_hdw_commit_ctl(hdw);
@@ -883,6 +883,17 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 {
 	struct pvr2_hdw *hdw = dip->v4lp->channel.mc_head->hdw;
 	enum pvr2_config cfg = dip->config;
+	char msg[80];
+	unsigned int mcnt;
+
+	/* Construct the unregistration message *before* we actually
+	   perform the unregistration step.  By doing it this way we don't
+	   have to worry about potentially touching deleted resources. */
+	mcnt = scnprintf(msg, sizeof(msg) - 1,
+			 "pvrusb2: unregistered device %s [%s]",
+			 video_device_node_name(&dip->devbase),
+			 pvr2_config_get_name(cfg));
+	msg[mcnt] = 0;
 
 	pvr2_hdw_v4l_store_minor_number(hdw,dip->minor_type,-1);
 
@@ -894,9 +905,7 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 	   are gone. */
 	video_unregister_device(&dip->devbase);
 
-	printk(KERN_INFO "pvrusb2: unregistered device %s [%s]\n",
-	       video_device_node_name(&dip->devbase),
-	       pvr2_config_get_name(cfg));
+	printk(KERN_INFO "%s\n", msg);
 
 }
 

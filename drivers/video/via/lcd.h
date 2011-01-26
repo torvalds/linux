@@ -28,11 +28,6 @@
 #define     VT3271_DEVICE_ID_REG        0x02
 #define     VT3271_DEVICE_ID            0x71
 
-#define     GET_LCD_SIZE_BY_SYSTEM_BIOS     0x01
-#define     GET_LCD_SIZE_BY_VGA_BIOS        0x02
-#define     GET_LCD_SZIE_BY_HW_STRAPPING    0x03
-#define     GET_LCD_SIZE_BY_USER_SETTING    0x04
-
 /* Definition DVI Panel ID*/
 /* Resolution: 640x480,   Channel: single, Dithering: Enable */
 #define     LCD_PANEL_ID0_640X480       0x00
@@ -76,15 +71,15 @@ void viafb_enable_lvds_vt1636(struct lvds_setting_information
 			struct lvds_chip_information *plvds_chip_info);
 void viafb_lcd_disable(void);
 void viafb_lcd_enable(void);
-void viafb_init_lcd_size(void);
-void viafb_init_lvds_output_interface(struct lvds_chip_information
+void __devinit viafb_init_lcd_size(void);
+void __devinit viafb_init_lvds_output_interface(struct lvds_chip_information
 				*plvds_chip_info,
 				struct lvds_setting_information
 				*plvds_setting_info);
 void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 		  struct lvds_setting_information *plvds_setting_info,
 		  struct lvds_chip_information *plvds_chip_info);
-int viafb_lvds_trasmitter_identify(void);
+int __devinit viafb_lvds_trasmitter_identify(void);
 void viafb_init_lvds_output_interface(struct lvds_chip_information
 				*plvds_chip_info,
 				struct lvds_setting_information

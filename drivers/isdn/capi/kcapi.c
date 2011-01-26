@@ -38,6 +38,7 @@
 #include <linux/rcupdate.h>
 
 static int showcapimsgs = 0;
+static struct workqueue_struct *kcapi_wq;
 
 MODULE_DESCRIPTION("CAPI4Linux: kernel CAPI layer");
 MODULE_AUTHOR("Carsten Paeth");
@@ -96,6 +97,16 @@ static inline struct capi_ctr *get_capi_ctr_by_nr(u16 contr)
 		return NULL;
 
 	return capi_controller[contr - 1];
+}
+
+static inline struct capi20_appl *__get_capi_appl_by_nr(u16 applid)
+{
+	lockdep_assert_held(&capi_controller_lock);
+
+	if (applid - 1 >= CAPI_MAXAPPL)
+		return NULL;
+
+	return capi_applications[applid - 1];
 }
 
 static inline struct capi20_appl *get_capi_appl_by_nr(u16 applid)
@@ -185,10 +196,9 @@ static void notify_up(u32 contr)
 		ctr->state = CAPI_CTR_RUNNING;
 
 		for (applid = 1; applid <= CAPI_MAXAPPL; applid++) {
-			ap = get_capi_appl_by_nr(applid);
-			if (!ap)
-				continue;
-			register_appl(ctr, applid, &ap->rparam);
+			ap = __get_capi_appl_by_nr(applid);
+			if (ap)
+				register_appl(ctr, applid, &ap->rparam);
 		}
 
 		wake_up_interruptible_all(&ctr->state_wait_queue);
@@ -215,7 +225,7 @@ static void ctr_down(struct capi_ctr *ctr, int new_state)
 	memset(ctr->serial, 0, sizeof(ctr->serial));
 
 	for (applid = 1; applid <= CAPI_MAXAPPL; applid++) {
-		ap = get_capi_appl_by_nr(applid);
+		ap = __get_capi_appl_by_nr(applid);
 		if (ap)
 			capi_ctr_put(ctr);
 	}
@@ -282,7 +292,7 @@ static int notify_push(unsigned int event_type, u32 controller)
 	event->type = event_type;
 	event->controller = controller;
 
-	schedule_work(&event->work);
+	queue_work(kcapi_wq, &event->work);
 	return 0;
 }
 
@@ -399,7 +409,7 @@ void capi_ctr_handle_message(struct capi_ctr *ctr, u16 appl,
 		goto error;
 	}
 	skb_queue_tail(&ap->recv_queue, skb);
-	schedule_work(&ap->recv_work);
+	queue_work(kcapi_wq, &ap->recv_work);
 	rcu_read_unlock();
 
 	return;
@@ -734,7 +744,7 @@ u16 capi20_release(struct capi20_appl *ap)
 
 	mutex_unlock(&capi_controller_lock);
 
-	flush_scheduled_work();
+	flush_workqueue(kcapi_wq);
 	skb_queue_purge(&ap->recv_queue);
 
 	if (showcapimsgs & 1) {
@@ -1020,12 +1030,12 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 		if (cmd == AVMB1_ADDCARD) {
 		   if ((retval = copy_from_user(&cdef, data,
 					    sizeof(avmb1_carddef))))
-			   return retval;
+			   return -EFAULT;
 		   cdef.cardtype = AVM_CARDTYPE_B1;
 		} else {
 		   if ((retval = copy_from_user(&cdef, data,
 					    sizeof(avmb1_extcarddef))))
-			   return retval;
+			   return -EFAULT;
 		}
 		cparams.port = cdef.port;
 		cparams.irq = cdef.irq;
@@ -1147,6 +1157,12 @@ load_unlock_out:
 		if (ctr->state == CAPI_CTR_DETECTED)
 			goto reset_unlock_out;
 
+		if (ctr->reset_ctr == NULL) {
+			printk(KERN_DEBUG "kcapi: reset: no reset function\n");
+			retval = -ESRCH;
+			goto reset_unlock_out;
+		}
+
 		ctr->reset_ctr(ctr);
 
 		retval = wait_on_ctr_state(ctr, CAPI_CTR_DETECTED);
@@ -1212,7 +1228,7 @@ int capi20_manufacturer(unsigned int cmd, void __user *data)
 		kcapi_carddef cdef;
 
 		if ((retval = copy_from_user(&cdef, data, sizeof(cdef))))
-			return retval;
+			return -EFAULT;
 
 		cparams.port = cdef.port;
 		cparams.irq = cdef.irq;
@@ -1270,21 +1286,30 @@ static int __init kcapi_init(void)
 {
 	int err;
 
+	kcapi_wq = alloc_workqueue("kcapi", 0, 0);
+	if (!kcapi_wq)
+		return -ENOMEM;
+
 	register_capictr_notifier(&capictr_nb);
 
 	err = cdebug_init();
-	if (!err)
-		kcapi_proc_init();
-	return err;
+	if (err) {
+		unregister_capictr_notifier(&capictr_nb);
+		destroy_workqueue(kcapi_wq);
+		return err;
+	}
+
+	kcapi_proc_init();
+	return 0;
 }
 
 static void __exit kcapi_exit(void)
 {
         kcapi_proc_exit();
 
-	/* make sure all notifiers are finished */
-	flush_scheduled_work();
+	unregister_capictr_notifier(&capictr_nb);
 	cdebug_exit();
+	destroy_workqueue(kcapi_wq);
 }
 
 module_init(kcapi_init);

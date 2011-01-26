@@ -24,6 +24,7 @@
 #include <mach/pxa2xx-regs.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
+#include <mach/smemc.h>
 
 #include <asm/hardware/it8152.h>
 
@@ -32,6 +33,9 @@
 
 extern void cmx255_init(void);
 extern void cmx270_init(void);
+
+/* reserve IRQs for IT8152 */
+#define CMX2XX_NR_IRQS		(IRQ_BOARD_START + 40)
 
 /* virtual addresses for statically mapped regions */
 #define CMX2XX_VIRT_BASE	(0xe8000000)
@@ -389,9 +393,9 @@ static int cmx2xx_suspend(struct sys_device *dev, pm_message_t state)
 	cmx2xx_pci_suspend();
 
 	/* save MSC registers */
-	sleep_save_msc[0] = MSC0;
-	sleep_save_msc[1] = MSC1;
-	sleep_save_msc[2] = MSC2;
+	sleep_save_msc[0] = __raw_readl(MSC0);
+	sleep_save_msc[1] = __raw_readl(MSC1);
+	sleep_save_msc[2] = __raw_readl(MSC2);
 
 	/* setup power saving mode registers */
 	PCFR = 0x0;
@@ -413,9 +417,9 @@ static int cmx2xx_resume(struct sys_device *dev)
 	cmx2xx_pci_resume();
 
 	/* restore MSC registers */
-	MSC0 = sleep_save_msc[0];
-	MSC1 = sleep_save_msc[1];
-	MSC2 = sleep_save_msc[2];
+	__raw_writel(sleep_save_msc[0], MSC0);
+	__raw_writel(sleep_save_msc[1], MSC1);
+	__raw_writel(sleep_save_msc[2], MSC2);
 
 	return 0;
 }
@@ -473,8 +477,6 @@ static void __init cmx2xx_init(void)
 
 static void __init cmx2xx_init_irq(void)
 {
-	pxa27x_init_irq();
-
 	if (cpu_is_pxa25x()) {
 		pxa25x_init_irq();
 		cmx2xx_pci_init_irq(CMX255_GPIO_IT8152_IRQ);
@@ -497,7 +499,12 @@ static struct map_desc cmx2xx_io_desc[] __initdata = {
 
 static void __init cmx2xx_map_io(void)
 {
-	pxa_map_io();
+	if (cpu_is_pxa25x())
+		pxa25x_map_io();
+
+	if (cpu_is_pxa27x())
+		pxa27x_map_io();
+
 	iotable_init(cmx2xx_io_desc, ARRAY_SIZE(cmx2xx_io_desc));
 
 	it8152_base_address = CMX2XX_IT8152_VIRT;
@@ -505,15 +512,18 @@ static void __init cmx2xx_map_io(void)
 #else
 static void __init cmx2xx_map_io(void)
 {
-	pxa_map_io();
+	if (cpu_is_pxa25x())
+		pxa25x_map_io();
+
+	if (cpu_is_pxa27x())
+		pxa27x_map_io();
 }
 #endif
 
 MACHINE_START(ARMCORE, "Compulab CM-X2XX")
 	.boot_params	= 0xa0000100,
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= cmx2xx_map_io,
+	.nr_irqs	= CMX2XX_NR_IRQS,
 	.init_irq	= cmx2xx_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= cmx2xx_init,

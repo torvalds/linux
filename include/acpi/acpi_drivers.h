@@ -104,8 +104,7 @@ int acpi_pci_bind_root(struct acpi_device *device);
 
 /* Arch-defined function to add a bus to the system */
 
-struct pci_bus *pci_acpi_scan_root(struct acpi_device *device, int domain,
-				   int bus);
+struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root);
 void pci_acpi_crs_quirks(void);
 
 /* --------------------------------------------------------------------------
@@ -115,8 +114,6 @@ void pci_acpi_crs_quirks(void);
 #define ACPI_PROCESSOR_LIMIT_NONE	0x00
 #define ACPI_PROCESSOR_LIMIT_INCREMENT	0x01
 #define ACPI_PROCESSOR_LIMIT_DECREMENT	0x02
-
-int acpi_processor_set_thermal_limit(acpi_handle handle, int type);
 
 /*--------------------------------------------------------------------------
                                   Dock Station

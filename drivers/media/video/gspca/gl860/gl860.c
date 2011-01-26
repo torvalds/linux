@@ -63,7 +63,7 @@ static int sd_set_##thename(struct gspca_dev *gspca_dev, s32 val)\
 \
 	sd->vcur.thename = val;\
 	if (gspca_dev->streaming)\
-		sd->dev_camera_settings(gspca_dev);\
+		sd->waitSet = 1;\
 	return 0;\
 } \
 static int sd_get_##thename(struct gspca_dev *gspca_dev, s32 *val)\
@@ -91,7 +91,6 @@ SD_SETGET(contrast)
 /* control table */
 static struct ctrl sd_ctrls_mi1320[GL860_NCTRLS];
 static struct ctrl sd_ctrls_mi2020[GL860_NCTRLS];
-static struct ctrl sd_ctrls_mi2020b[GL860_NCTRLS];
 static struct ctrl sd_ctrls_ov2640[GL860_NCTRLS];
 static struct ctrl sd_ctrls_ov9655[GL860_NCTRLS];
 
@@ -121,8 +120,6 @@ static int gl860_build_control_table(struct gspca_dev *gspca_dev)
 		sd_ctrls = sd_ctrls_mi1320;
 	else if (_MI2020_)
 		sd_ctrls = sd_ctrls_mi2020;
-	else if (_MI2020b_)
-		sd_ctrls = sd_ctrls_mi2020b;
 	else if (_OV2640_)
 		sd_ctrls = sd_ctrls_ov2640;
 	else if (_OV9655_)
@@ -187,19 +184,6 @@ static const struct sd_desc sd_desc_mi2020 = {
 	.dq_callback = sd_callback,
 };
 
-static const struct sd_desc sd_desc_mi2020b = {
-	.name        = MODULE_NAME,
-	.ctrls       = sd_ctrls_mi2020b,
-	.nctrls      = GL860_NCTRLS,
-	.config      = sd_config,
-	.init        = sd_init,
-	.isoc_init   = sd_isoc_init,
-	.start       = sd_start,
-	.stop0       = sd_stop0,
-	.pkt_scan    = sd_pkt_scan,
-	.dq_callback = sd_callback,
-};
-
 static const struct sd_desc sd_desc_ov2640 = {
 	.name        = MODULE_NAME,
 	.ctrls       = sd_ctrls_ov2640,
@@ -235,9 +219,9 @@ static struct v4l2_pix_format mi2020_mode[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0
 	},
-	{ 800,  600, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{ 800,  598, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
 		.bytesperline = 800,
-		.sizeimage = 800 * 600,
+		.sizeimage = 800 * 598,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1
 	},
@@ -247,9 +231,9 @@ static struct v4l2_pix_format mi2020_mode[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2
 	},
-	{1600, 1200, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{1600, 1198, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
 		.bytesperline = 1600,
-		.sizeimage = 1600 * 1200,
+		.sizeimage = 1600 * 1198,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 3
 	},
@@ -344,8 +328,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		sd->sensor = ID_OV9655;
 	else if (strcmp(sensor, "MI2020") == 0)
 		sd->sensor = ID_MI2020;
-	else if (strcmp(sensor, "MI2020b") == 0)
-		sd->sensor = ID_MI2020b;
 
 	/* Get sensor and set the suitable init/start/../stop functions */
 	if (gl860_guess_sensor(gspca_dev, vendor_id, product_id) == -1)
@@ -364,13 +346,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	case ID_MI2020:
 		gspca_dev->sd_desc = &sd_desc_mi2020;
-		cam->cam_mode = mi2020_mode;
-		cam->nmodes = ARRAY_SIZE(mi2020_mode);
-		dev_init_settings   = mi2020_init_settings;
-		break;
-
-	case ID_MI2020b:
-		gspca_dev->sd_desc = &sd_desc_mi2020b;
 		cam->cam_mode = mi2020_mode;
 		cam->nmodes = ARRAY_SIZE(mi2020_mode);
 		dev_init_settings   = mi2020_init_settings;
@@ -513,7 +488,7 @@ static void sd_callback(struct gspca_dev *gspca_dev)
 
 /*=================== USB driver structure initialisation ==================*/
 
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x05e3, 0x0503)},
 	{USB_DEVICE(0x05e3, 0xf191)},
 	{}
@@ -565,15 +540,12 @@ static int __init sd_mod_init(void)
 
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "driver registered");
-
 	return 0;
 }
 
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "driver deregistered");
 }
 
 module_init(sd_mod_init);
@@ -613,17 +585,13 @@ int gl860_RTx(struct gspca_dev *gspca_dev,
 	}
 
 	if (r < 0)
-		PDEBUG(D_ERR,
-			"ctrl transfer failed %4d "
+		err("ctrl transfer failed %4d "
 			"[p%02x r%d v%04x i%04x len%d]",
 			r, pref, req, val, index, len);
 	else if (len > 1 && r < len)
 		PDEBUG(D_ERR, "short ctrl transfer %d/%d", r, len);
 
-	if ((_MI2020_ || _MI2020b_ || _MI2020c_) && (val || index))
-		msleep(1);
-	if (_OV2640_)
-		msleep(1);
+	msleep(1);
 
 	return r;
 }
@@ -767,8 +735,6 @@ static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
 		PDEBUG(D_PROBE, "05e3:f191 sensor MI1320 (1.3M)");
 	} else if (_MI2020_) {
 		PDEBUG(D_PROBE, "05e3:0503 sensor MI2020 (2.0M)");
-	} else if (_MI2020b_) {
-		PDEBUG(D_PROBE, "05e3:0503 sensor MI2020 alt. driver (2.0M)");
 	} else if (_OV9655_) {
 		PDEBUG(D_PROBE, "05e3:0503 sensor OV9655 (1.3M)");
 	} else if (_OV2640_) {

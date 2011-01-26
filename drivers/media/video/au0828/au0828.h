@@ -53,12 +53,16 @@
 
 /* Defination for AU0828 USB transfer */
 #define AU0828_MAX_ISO_BUFS    12  /* maybe resize this value in the future */
-#define AU0828_ISO_PACKETS_PER_URB      10
+#define AU0828_ISO_PACKETS_PER_URB      128
 
 #define AU0828_MIN_BUF 4
 #define AU0828_DEF_BUF 8
 
 #define AU0828_MAX_INPUT        4
+
+/* au0828 resource types (used for res_get/res_lock etc */
+#define AU0828_RESOURCE_VIDEO 0x01
+#define AU0828_RESOURCE_VBI   0x02
 
 enum au0828_itype {
 	AU0828_VMUX_UNDEFINED = 0,
@@ -115,8 +119,10 @@ enum au0828_dev_state {
 
 struct au0828_fh {
 	struct au0828_dev *dev;
-	unsigned int  stream_on:1;	/* Locks streams */
+	unsigned int  resources;
+
 	struct videobuf_queue        vb_vidq;
+	struct videobuf_queue        vb_vbiq;
 	enum v4l2_buf_type           type;
 };
 
@@ -145,7 +151,8 @@ struct au0828_usb_isoc_ctl {
 	int				tmp_buf_len;
 
 		/* Stores already requested buffers */
-	struct au0828_buffer    	*buf;
+	struct au0828_buffer		*buf;
+	struct au0828_buffer		*vbi_buf;
 
 		/* Stores the number of received fields */
 	int				nfields;
@@ -194,11 +201,18 @@ struct au0828_dev {
 	/* Analog */
 	struct v4l2_device v4l2_dev;
 	int users;
-	unsigned int stream_on:1;	/* Locks streams */
+	unsigned int resources;	/* resources in use */
 	struct video_device *vdev;
 	struct video_device *vbi_dev;
+	struct timer_list vid_timeout;
+	int vid_timeout_running;
+	struct timer_list vbi_timeout;
+	int vbi_timeout_running;
 	int width;
 	int height;
+	int vbi_width;
+	int vbi_height;
+	u32 vbi_read;
 	u32 field_size;
 	u32 frame_size;
 	u32 bytesperline;
@@ -219,6 +233,7 @@ struct au0828_dev {
 
 	/* Isoc control struct */
 	struct au0828_dmaqueue vidq;
+	struct au0828_dmaqueue vbiq;
 	struct au0828_usb_isoc_ctl isoc_ctl;
 	spinlock_t slock;
 
@@ -277,6 +292,9 @@ void au0828_analog_unregister(struct au0828_dev *dev);
 /* au0828-dvb.c */
 extern int au0828_dvb_register(struct au0828_dev *dev);
 extern void au0828_dvb_unregister(struct au0828_dev *dev);
+
+/* au0828-vbi.c */
+extern struct videobuf_queue_ops au0828_vbi_qops;
 
 #define dprintk(level, fmt, arg...)\
 	do { if (au0828_debug & level)\

@@ -158,7 +158,7 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end, unsigned long req_type)
 	return req_type;
 }
 
-static int pat_pagerange_is_ram(unsigned long start, unsigned long end)
+static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
 {
 	int ram_page = 0, not_rampage = 0;
 	unsigned long page_nr;
@@ -302,7 +302,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		return -EINVAL;
 	}
 
-	new  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
+	new  = kzalloc(sizeof(struct memtype), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
@@ -336,6 +336,7 @@ int free_memtype(u64 start, u64 end)
 {
 	int err = -EINVAL;
 	int is_range_ram;
+	struct memtype *entry;
 
 	if (!pat_enabled)
 		return 0;
@@ -355,17 +356,20 @@ int free_memtype(u64 start, u64 end)
 	}
 
 	spin_lock(&memtype_lock);
-	err = rbt_memtype_erase(start, end);
+	entry = rbt_memtype_erase(start, end);
 	spin_unlock(&memtype_lock);
 
-	if (err) {
+	if (!entry) {
 		printk(KERN_INFO "%s:%d freeing invalid memtype %Lx-%Lx\n",
 			current->comm, current->pid, start, end);
+		return -EINVAL;
 	}
+
+	kfree(entry);
 
 	dprintk("free_memtype request 0x%Lx-0x%Lx\n", start, end);
 
-	return err;
+	return 0;
 }
 
 

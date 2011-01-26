@@ -88,7 +88,12 @@ static void bond_na_send(struct net_device *slave_dev,
 	}
 
 	if (vlan_id) {
-		skb = vlan_put_tag(skb, vlan_id);
+		/* The Ethernet header is not present yet, so it is
+		 * too early to insert a VLAN tag.  Force use of an
+		 * out-of-line tag here and let dev_hard_start_xmit()
+		 * insert it if the slave hardware can't.
+		 */
+		skb = __vlan_hwaccel_put_tag(skb, vlan_id);
 		if (!skb) {
 			pr_err("failed to insert VLAN tag\n");
 			return;
@@ -178,6 +183,8 @@ static int bond_inet6addr_event(struct notifier_block *this,
 		}
 
 		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
+			if (!bond->vlgrp)
+				continue;
 			vlan_dev = vlan_group_get_device(bond->vlgrp,
 							 vlan->vlan_id);
 			if (vlan_dev == event_dev) {

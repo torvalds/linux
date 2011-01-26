@@ -124,27 +124,36 @@ ebt_dev_check(const char *entry, const struct net_device *device)
 #define FWINV2(bool,invflg) ((bool) ^ !!(e->invflags & invflg))
 /* process standard matches */
 static inline int
-ebt_basic_match(const struct ebt_entry *e, const struct ethhdr *h,
+ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
                 const struct net_device *in, const struct net_device *out)
 {
+	const struct ethhdr *h = eth_hdr(skb);
+	const struct net_bridge_port *p;
+	__be16 ethproto;
 	int verdict, i;
 
+	if (vlan_tx_tag_present(skb))
+		ethproto = htons(ETH_P_8021Q);
+	else
+		ethproto = h->h_proto;
+
 	if (e->bitmask & EBT_802_3) {
-		if (FWINV2(ntohs(h->h_proto) >= 1536, EBT_IPROTO))
+		if (FWINV2(ntohs(ethproto) >= 1536, EBT_IPROTO))
 			return 1;
 	} else if (!(e->bitmask & EBT_NOPROTO) &&
-	   FWINV2(e->ethproto != h->h_proto, EBT_IPROTO))
+	   FWINV2(e->ethproto != ethproto, EBT_IPROTO))
 		return 1;
 
 	if (FWINV2(ebt_dev_check(e->in, in), EBT_IIN))
 		return 1;
 	if (FWINV2(ebt_dev_check(e->out, out), EBT_IOUT))
 		return 1;
-	if ((!in || !in->br_port) ? 0 : FWINV2(ebt_dev_check(
-	   e->logical_in, in->br_port->br->dev), EBT_ILOGICALIN))
+	/* rcu_read_lock()ed by nf_hook_slow */
+	if (in && (p = br_port_get_rcu(in)) != NULL &&
+	    FWINV2(ebt_dev_check(e->logical_in, p->br->dev), EBT_ILOGICALIN))
 		return 1;
-	if ((!out || !out->br_port) ? 0 : FWINV2(ebt_dev_check(
-	   e->logical_out, out->br_port->br->dev), EBT_ILOGICALOUT))
+	if (out && (p = br_port_get_rcu(out)) != NULL &&
+	    FWINV2(ebt_dev_check(e->logical_out, p->br->dev), EBT_ILOGICALOUT))
 		return 1;
 
 	if (e->bitmask & EBT_SOURCEMAC) {
@@ -210,7 +219,7 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 	base = private->entries;
 	i = 0;
 	while (i < nentries) {
-		if (ebt_basic_match(point, eth_hdr(skb), in, out))
+		if (ebt_basic_match(point, skb, in, out))
 			goto letscontinue;
 
 		if (EBT_MATCH_ITERATE(point, ebt_do_match, skb, &acpar) != 0)
@@ -1138,7 +1147,7 @@ ebt_register_table(struct net *net, const struct ebt_table *input_table)
 	void *p;
 
 	if (input_table == NULL || (repl = input_table->table) == NULL ||
-	    repl->entries == 0 || repl->entries_size == 0 ||
+	    repl->entries == NULL || repl->entries_size == 0 ||
 	    repl->counters != NULL || input_table->private != NULL) {
 		BUGPRINT("Bad table data for ebt_register_table!!!\n");
 		return ERR_PTR(-EINVAL);

@@ -1,5 +1,6 @@
 #ifndef SPI_ADIS16260_H_
 #define SPI_ADIS16260_H_
+#include "adis16260_platform_data.h"
 
 #define ADIS16260_STARTUP_DELAY	220 /* ms */
 
@@ -85,7 +86,6 @@
  * struct adis16260_state - device instance specific data
  * @us:			actual spi_device
  * @work_trigger_to_ring: bh for triggered event handling
- * @work_cont_thresh: CLEAN
  * @inter:		used to check if new interrupt has been triggered
  * @last_timestamp:	passing timestamp from th to bh of interrupt handler
  * @indio_dev:		industrial I/O device structure
@@ -93,17 +93,18 @@
  * @tx:			transmit buffer
  * @rx:			recieve buffer
  * @buf_lock:		mutex to protect tx and rx
+ * @negate:		negate the scale parameter
  **/
 struct adis16260_state {
 	struct spi_device		*us;
 	struct work_struct		work_trigger_to_ring;
-	struct iio_work_cont		work_cont_thresh;
 	s64				last_timestamp;
 	struct iio_dev			*indio_dev;
 	struct iio_trigger		*trig;
 	u8				*tx;
 	u8				*rx;
 	struct mutex			buf_lock;
+	unsigned			negate:1;
 };
 
 int adis16260_set_irq(struct device *dev, bool enable);
@@ -113,13 +114,11 @@ int adis16260_set_irq(struct device *dev, bool enable);
  * filling. This may change!
  */
 
-enum adis16260_scan {
-	ADIS16260_SCAN_SUPPLY,
-	ADIS16260_SCAN_GYRO,
-	ADIS16260_SCAN_AUX_ADC,
-	ADIS16260_SCAN_TEMP,
-	ADIS16260_SCAN_ANGL,
-};
+#define ADIS16260_SCAN_SUPPLY	0
+#define ADIS16260_SCAN_GYRO	1
+#define ADIS16260_SCAN_AUX_ADC	2
+#define ADIS16260_SCAN_TEMP	3
+#define ADIS16260_SCAN_ANGL	4
 
 void adis16260_remove_trigger(struct iio_dev *indio_dev);
 int adis16260_probe_trigger(struct iio_dev *indio_dev);
@@ -132,8 +131,6 @@ ssize_t adis16260_read_data_from_ring(struct device *dev,
 int adis16260_configure_ring(struct iio_dev *indio_dev);
 void adis16260_unconfigure_ring(struct iio_dev *indio_dev);
 
-int adis16260_initialize_ring(struct iio_ring_buffer *ring);
-void adis16260_uninitialize_ring(struct iio_ring_buffer *ring);
 #else /* CONFIG_IIO_RING_BUFFER */
 
 static inline void adis16260_remove_trigger(struct iio_dev *indio_dev)
@@ -159,15 +156,6 @@ static int adis16260_configure_ring(struct iio_dev *indio_dev)
 }
 
 static inline void adis16260_unconfigure_ring(struct iio_dev *indio_dev)
-{
-}
-
-static inline int adis16260_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return 0;
-}
-
-static inline void adis16260_uninitialize_ring(struct iio_ring_buffer *ring)
 {
 }
 

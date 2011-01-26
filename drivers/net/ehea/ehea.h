@@ -40,7 +40,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0103"
+#define DRV_VERSION	"EHEA_0107"
 
 /* eHEA capability flags */
 #define DLPAR_PORT_ADD_REM 1
@@ -129,19 +129,6 @@
 #define EHEA_WATCH_DOG_TIMEOUT 10*HZ
 
 /* utility functions */
-
-#define ehea_info(fmt, args...) \
-	printk(KERN_INFO DRV_NAME ": " fmt "\n", ## args)
-
-#define ehea_error(fmt, args...) \
-	printk(KERN_ERR DRV_NAME ": Error in %s: " fmt "\n", __func__, ## args)
-
-#ifdef DEBUG
-#define ehea_debug(fmt, args...) \
-	printk(KERN_DEBUG DRV_NAME ": " fmt, ## args)
-#else
-#define ehea_debug(fmt, args...) do {} while (0)
-#endif
 
 void ehea_dump(void *adr, int len, char *msg);
 
@@ -396,10 +383,13 @@ struct ehea_port_res {
 	int swqe_ll_count;
 	u32 swqe_id_counter;
 	u64 tx_packets;
+	u64 tx_bytes;
 	u64 rx_packets;
+	u64 rx_bytes;
 	u32 poll_counter;
 	struct net_lro_mgr lro_mgr;
 	struct net_lro_desc lro_desc[MAX_LRO_DESCRIPTORS];
+	int sq_restart_flag;
 };
 
 
@@ -413,7 +403,7 @@ struct ehea_port_res {
 
 struct ehea_adapter {
 	u64 handle;
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 	struct ehea_port *port[EHEA_MAX_PORTS];
 	struct ehea_eq *neq;       /* notification event queue */
 	struct tasklet_struct neq_tasklet;
@@ -465,7 +455,7 @@ struct ehea_port {
 	struct net_device *netdev;
 	struct net_device_stats stats;
 	struct ehea_port_res port_res[EHEA_MAX_PORT_RES];
-	struct of_device  ofdev; /* Open Firmware Device */
+	struct platform_device  ofdev; /* Open Firmware Device */
 	struct ehea_mc_list *mc_list;	 /* Multicast MAC addresses */
 	struct vlan_group *vgrp;
 	struct ehea_eq *qp_eq;
@@ -490,6 +480,8 @@ struct ehea_port {
 	u8 full_duplex;
 	u8 autoneg;
 	u8 num_def_qps;
+	wait_queue_head_t swqe_avail_wq;
+	wait_queue_head_t restart_wq;
 };
 
 struct port_res_cfg {
@@ -509,7 +501,5 @@ enum ehea_flag_bits {
 void ehea_set_ethtool_ops(struct net_device *netdev);
 int ehea_sense_port_attr(struct ehea_port *port);
 int ehea_set_portspeed(struct ehea_port *port, u32 port_speed);
-
-extern struct work_struct ehea_rereg_mr_task;
 
 #endif	/* __EHEA_H__ */

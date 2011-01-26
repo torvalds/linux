@@ -1,6 +1,7 @@
 Run-time Power Management Framework for I/O Devices
 
 (C) 2009 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+(C) 2010 Alan Stern <stern@rowland.harvard.edu>
 
 1. Introduction
 
@@ -48,6 +49,15 @@ type's callback is not defined), or device class (if the bus type's and device
 type's callbacks are not defined) of given device.  The bus type, device type
 and device class callbacks are referred to as subsystem-level callbacks in what
 follows.
+
+By default, the callbacks are always invoked in process context with interrupts
+enabled.  However, subsystems can use the pm_runtime_irq_safe() helper function
+to tell the PM core that a device's ->runtime_suspend() and ->runtime_resume()
+callbacks should be invoked in atomic context with interrupts disabled
+(->runtime_idle() is still invoked the default way).  This implies that these
+callback routines must not block or sleep, but it also means that the
+synchronous helper functions listed at the end of Section 4 can be used within
+an interrupt handler or in an atomic context.
 
 The subsystem-level suspend callback is _entirely_ _responsible_ for handling
 the suspend of the device as appropriate, which may, but need not include
@@ -157,7 +167,8 @@ rules:
     to execute it, the other callbacks will not be executed for the same device.
 
   * A request to execute ->runtime_resume() will cancel any pending or
-    scheduled requests to execute the other callbacks for the same device.
+    scheduled requests to execute the other callbacks for the same device,
+    except for scheduled autosuspends.
 
 3. Run-time PM Device Fields
 
@@ -165,7 +176,7 @@ The following device run-time PM fields are present in 'struct dev_pm_info', as
 defined in include/linux/pm.h:
 
   struct timer_list suspend_timer;
-    - timer used for scheduling (delayed) suspend request
+    - timer used for scheduling (delayed) suspend and autosuspend requests
 
   unsigned long timer_expires;
     - timer expiration time, in jiffies (if this is different from zero, the
@@ -230,6 +241,32 @@ defined in include/linux/pm.h:
       interface; it may only be modified with the help of the pm_runtime_allow()
       and pm_runtime_forbid() helper functions
 
+  unsigned int no_callbacks;
+    - indicates that the device does not use the run-time PM callbacks (see
+      Section 8); it may be modified only by the pm_runtime_no_callbacks()
+      helper function
+
+  unsigned int irq_safe;
+    - indicates that the ->runtime_suspend() and ->runtime_resume() callbacks
+      will be invoked with the spinlock held and interrupts disabled
+
+  unsigned int use_autosuspend;
+    - indicates that the device's driver supports delayed autosuspend (see
+      Section 9); it may be modified only by the
+      pm_runtime{_dont}_use_autosuspend() helper functions
+
+  unsigned int timer_autosuspends;
+    - indicates that the PM core should attempt to carry out an autosuspend
+      when the timer expires rather than a normal suspend
+
+  int autosuspend_delay;
+    - the delay time (in milliseconds) to be used for autosuspend
+
+  unsigned long last_busy;
+    - the time (in jiffies) when the pm_runtime_mark_last_busy() helper
+      function was last called for this device; used in calculating inactivity
+      periods for autosuspend
+
 All of the above fields are members of the 'power' member of 'struct device'.
 
 4. Run-time PM Device Helper Functions
@@ -255,6 +292,12 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       error code on failure, where -EAGAIN or -EBUSY means it is safe to attempt
       to suspend the device again in future
 
+  int pm_runtime_autosuspend(struct device *dev);
+    - same as pm_runtime_suspend() except that the autosuspend delay is taken
+      into account; if pm_runtime_autosuspend_expiration() says the delay has
+      not yet expired then an autosuspend is scheduled for the appropriate time
+      and 0 is returned
+
   int pm_runtime_resume(struct device *dev);
     - execute the subsystem-level resume callback for the device; returns 0 on
       success, 1 if the device's run-time PM status was already 'active' or
@@ -266,6 +309,11 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
     - submit a request to execute the subsystem-level idle callback for the
       device (the request is represented by a work item in pm_wq); returns 0 on
       success or error code if the request has not been queued up
+
+  int pm_request_autosuspend(struct device *dev);
+    - schedule the execution of the subsystem-level suspend callback for the
+      device when the autosuspend delay has expired; if the delay has already
+      expired then the work item is queued up immediately
 
   int pm_schedule_suspend(struct device *dev, unsigned int delay);
     - schedule the execution of the subsystem-level suspend callback for the
@@ -298,12 +346,24 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
     - decrement the device's usage counter
 
   int pm_runtime_put(struct device *dev);
-    - decrement the device's usage counter, run pm_request_idle(dev) and return
-      its result
+    - decrement the device's usage counter; if the result is 0 then run
+      pm_request_idle(dev) and return its result
+
+  int pm_runtime_put_autosuspend(struct device *dev);
+    - decrement the device's usage counter; if the result is 0 then run
+      pm_request_autosuspend(dev) and return its result
 
   int pm_runtime_put_sync(struct device *dev);
-    - decrement the device's usage counter, run pm_runtime_idle(dev) and return
-      its result
+    - decrement the device's usage counter; if the result is 0 then run
+      pm_runtime_idle(dev) and return its result
+
+  int pm_runtime_put_sync_suspend(struct device *dev);
+    - decrement the device's usage counter; if the result is 0 then run
+      pm_runtime_suspend(dev) and return its result
+
+  int pm_runtime_put_sync_autosuspend(struct device *dev);
+    - decrement the device's usage counter; if the result is 0 then run
+      pm_runtime_autosuspend(dev) and return its result
 
   void pm_runtime_enable(struct device *dev);
     - enable the run-time PM helper functions to run the device bus type's
@@ -336,8 +396,8 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       zero)
 
   bool pm_runtime_suspended(struct device *dev);
-    - return true if the device's runtime PM status is 'suspended', or false
-      otherwise
+    - return true if the device's runtime PM status is 'suspended' and its
+      'power.disable_depth' field is equal to zero, or false otherwise
 
   void pm_runtime_allow(struct device *dev);
     - set the power.runtime_auto flag for the device and decrease its usage
@@ -349,19 +409,65 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       counter (used by the /sys/devices/.../power/control interface to
       effectively prevent the device from being power managed at run time)
 
+  void pm_runtime_no_callbacks(struct device *dev);
+    - set the power.no_callbacks flag for the device and remove the run-time
+      PM attributes from /sys/devices/.../power (or prevent them from being
+      added when the device is registered)
+
+  void pm_runtime_irq_safe(struct device *dev);
+    - set the power.irq_safe flag for the device, causing the runtime-PM
+      suspend and resume callbacks (but not the idle callback) to be invoked
+      with interrupts disabled
+
+  void pm_runtime_mark_last_busy(struct device *dev);
+    - set the power.last_busy field to the current time
+
+  void pm_runtime_use_autosuspend(struct device *dev);
+    - set the power.use_autosuspend flag, enabling autosuspend delays
+
+  void pm_runtime_dont_use_autosuspend(struct device *dev);
+    - clear the power.use_autosuspend flag, disabling autosuspend delays
+
+  void pm_runtime_set_autosuspend_delay(struct device *dev, int delay);
+    - set the power.autosuspend_delay value to 'delay' (expressed in
+      milliseconds); if 'delay' is negative then run-time suspends are
+      prevented
+
+  unsigned long pm_runtime_autosuspend_expiration(struct device *dev);
+    - calculate the time when the current autosuspend delay period will expire,
+      based on power.last_busy and power.autosuspend_delay; if the delay time
+      is 1000 ms or larger then the expiration time is rounded up to the
+      nearest second; returns 0 if the delay period has already expired or
+      power.use_autosuspend isn't set, otherwise returns the expiration time
+      in jiffies
+
 It is safe to execute the following helper functions from interrupt context:
 
 pm_request_idle()
+pm_request_autosuspend()
 pm_schedule_suspend()
 pm_request_resume()
 pm_runtime_get_noresume()
 pm_runtime_get()
 pm_runtime_put_noidle()
 pm_runtime_put()
+pm_runtime_put_autosuspend()
+pm_runtime_enable()
 pm_suspend_ignore_children()
 pm_runtime_set_active()
 pm_runtime_set_suspended()
-pm_runtime_enable()
+pm_runtime_suspended()
+pm_runtime_mark_last_busy()
+pm_runtime_autosuspend_expiration()
+
+If pm_runtime_irq_safe() has been called for a device then the following helper
+functions may also be used in interrupt context:
+
+pm_runtime_suspend()
+pm_runtime_autosuspend()
+pm_runtime_resume()
+pm_runtime_get_sync()
+pm_runtime_put_sync_suspend()
 
 5. Run-time PM Initialization, Device Probing and Removal
 
@@ -524,3 +630,141 @@ poweroff and run-time suspend callback, and similarly for system resume, thaw,
 restore, and run-time resume, can achieve this with the help of the
 UNIVERSAL_DEV_PM_OPS macro defined in include/linux/pm.h (possibly setting its
 last argument to NULL).
+
+8. "No-Callback" Devices
+
+Some "devices" are only logical sub-devices of their parent and cannot be
+power-managed on their own.  (The prototype example is a USB interface.  Entire
+USB devices can go into low-power mode or send wake-up requests, but neither is
+possible for individual interfaces.)  The drivers for these devices have no
+need of run-time PM callbacks; if the callbacks did exist, ->runtime_suspend()
+and ->runtime_resume() would always return 0 without doing anything else and
+->runtime_idle() would always call pm_runtime_suspend().
+
+Subsystems can tell the PM core about these devices by calling
+pm_runtime_no_callbacks().  This should be done after the device structure is
+initialized and before it is registered (although after device registration is
+also okay).  The routine will set the device's power.no_callbacks flag and
+prevent the non-debugging run-time PM sysfs attributes from being created.
+
+When power.no_callbacks is set, the PM core will not invoke the
+->runtime_idle(), ->runtime_suspend(), or ->runtime_resume() callbacks.
+Instead it will assume that suspends and resumes always succeed and that idle
+devices should be suspended.
+
+As a consequence, the PM core will never directly inform the device's subsystem
+or driver about run-time power changes.  Instead, the driver for the device's
+parent must take responsibility for telling the device's driver when the
+parent's power state changes.
+
+9. Autosuspend, or automatically-delayed suspends
+
+Changing a device's power state isn't free; it requires both time and energy.
+A device should be put in a low-power state only when there's some reason to
+think it will remain in that state for a substantial time.  A common heuristic
+says that a device which hasn't been used for a while is liable to remain
+unused; following this advice, drivers should not allow devices to be suspended
+at run-time until they have been inactive for some minimum period.  Even when
+the heuristic ends up being non-optimal, it will still prevent devices from
+"bouncing" too rapidly between low-power and full-power states.
+
+The term "autosuspend" is an historical remnant.  It doesn't mean that the
+device is automatically suspended (the subsystem or driver still has to call
+the appropriate PM routines); rather it means that run-time suspends will
+automatically be delayed until the desired period of inactivity has elapsed.
+
+Inactivity is determined based on the power.last_busy field.  Drivers should
+call pm_runtime_mark_last_busy() to update this field after carrying out I/O,
+typically just before calling pm_runtime_put_autosuspend().  The desired length
+of the inactivity period is a matter of policy.  Subsystems can set this length
+initially by calling pm_runtime_set_autosuspend_delay(), but after device
+registration the length should be controlled by user space, using the
+/sys/devices/.../power/autosuspend_delay_ms attribute.
+
+In order to use autosuspend, subsystems or drivers must call
+pm_runtime_use_autosuspend() (preferably before registering the device), and
+thereafter they should use the various *_autosuspend() helper functions instead
+of the non-autosuspend counterparts:
+
+	Instead of: pm_runtime_suspend    use: pm_runtime_autosuspend;
+	Instead of: pm_schedule_suspend   use: pm_request_autosuspend;
+	Instead of: pm_runtime_put        use: pm_runtime_put_autosuspend;
+	Instead of: pm_runtime_put_sync   use: pm_runtime_put_sync_autosuspend.
+
+Drivers may also continue to use the non-autosuspend helper functions; they
+will behave normally, not taking the autosuspend delay into account.
+Similarly, if the power.use_autosuspend field isn't set then the autosuspend
+helper functions will behave just like the non-autosuspend counterparts.
+
+The implementation is well suited for asynchronous use in interrupt contexts.
+However such use inevitably involves races, because the PM core can't
+synchronize ->runtime_suspend() callbacks with the arrival of I/O requests.
+This synchronization must be handled by the driver, using its private lock.
+Here is a schematic pseudo-code example:
+
+	foo_read_or_write(struct foo_priv *foo, void *data)
+	{
+		lock(&foo->private_lock);
+		add_request_to_io_queue(foo, data);
+		if (foo->num_pending_requests++ == 0)
+			pm_runtime_get(&foo->dev);
+		if (!foo->is_suspended)
+			foo_process_next_request(foo);
+		unlock(&foo->private_lock);
+	}
+
+	foo_io_completion(struct foo_priv *foo, void *req)
+	{
+		lock(&foo->private_lock);
+		if (--foo->num_pending_requests == 0) {
+			pm_runtime_mark_last_busy(&foo->dev);
+			pm_runtime_put_autosuspend(&foo->dev);
+		} else {
+			foo_process_next_request(foo);
+		}
+		unlock(&foo->private_lock);
+		/* Send req result back to the user ... */
+	}
+
+	int foo_runtime_suspend(struct device *dev)
+	{
+		struct foo_priv foo = container_of(dev, ...);
+		int ret = 0;
+
+		lock(&foo->private_lock);
+		if (foo->num_pending_requests > 0) {
+			ret = -EBUSY;
+		} else {
+			/* ... suspend the device ... */
+			foo->is_suspended = 1;
+		}
+		unlock(&foo->private_lock);
+		return ret;
+	}
+
+	int foo_runtime_resume(struct device *dev)
+	{
+		struct foo_priv foo = container_of(dev, ...);
+
+		lock(&foo->private_lock);
+		/* ... resume the device ... */
+		foo->is_suspended = 0;
+		pm_runtime_mark_last_busy(&foo->dev);
+		if (foo->num_pending_requests > 0)
+			foo_process_requests(foo);
+		unlock(&foo->private_lock);
+		return 0;
+	}
+
+The important point is that after foo_io_completion() asks for an autosuspend,
+the foo_runtime_suspend() callback may race with foo_read_or_write().
+Therefore foo_runtime_suspend() has to check whether there are any pending I/O
+requests (while holding the private lock) before allowing the suspend to
+proceed.
+
+In addition, the power.autosuspend_delay field can be changed by user space at
+any time.  If a driver cares about this, it can call
+pm_runtime_autosuspend_expiration() from within the ->runtime_suspend()
+callback while holding its private lock.  If the function returns a nonzero
+value then the delay has not yet expired and the callback should return
+-EAGAIN.

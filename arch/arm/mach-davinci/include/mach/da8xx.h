@@ -28,6 +28,13 @@ extern void __iomem *da8xx_syscfg0_base;
 extern void __iomem *da8xx_syscfg1_base;
 
 /*
+ * If the DA850/OMAP-L138/AM18x SoC on board is of a higher speed grade
+ * (than the regular 300Mhz variant), the board code should set this up
+ * with the supported speed before calling da850_register_cpufreq().
+ */
+extern unsigned int da850_max_speed;
+
+/*
  * The cp_intc interrupt controller for the da8xx isn't in the same
  * chunk of physical memory space as the other registers (like it is
  * on the davincis) so it needs to be mapped separately.  It will be
@@ -67,7 +74,8 @@ extern void __iomem *da8xx_syscfg1_base;
 void __init da830_init(void);
 void __init da850_init(void);
 
-int da8xx_register_edma(void);
+int da830_register_edma(struct edma_rsv_info *rsv);
+int da850_register_edma(struct edma_rsv_info *rsv[2]);
 int da8xx_register_i2c(int instance, struct davinci_i2c_platform_data *pdata);
 int da8xx_register_watchdog(void);
 int da8xx_register_usb20(unsigned mA, unsigned potpgt);
@@ -75,9 +83,10 @@ int da8xx_register_usb11(struct da8xx_ohci_root_hub *pdata);
 int da8xx_register_emac(void);
 int da8xx_register_lcdc(struct da8xx_lcdc_platform_data *pdata);
 int da8xx_register_mmcsd0(struct davinci_mmc_config *config);
+int da850_register_mmcsd1(struct davinci_mmc_config *config);
 void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata);
 int da8xx_register_rtc(void);
-int da850_register_cpufreq(void);
+int da850_register_cpufreq(char *async_clk);
 int da8xx_register_cpuidle(void);
 void __iomem * __init da8xx_get_mem_ctlr(void);
 int da850_register_pm(struct platform_device *pdev);
@@ -120,11 +129,9 @@ extern const short da850_uart2_pins[];
 extern const short da850_i2c0_pins[];
 extern const short da850_i2c1_pins[];
 extern const short da850_cpgmac_pins[];
-extern const short da850_rmii_pins[];
 extern const short da850_mcasp_pins[];
 extern const short da850_lcdcntl_pins[];
 extern const short da850_mmcsd0_pins[];
-extern const short da850_nand_pins[];
-extern const short da850_nor_pins[];
+extern const short da850_emif25_pins[];
 
 #endif /* __ASM_ARCH_DAVINCI_DA8XX_H */

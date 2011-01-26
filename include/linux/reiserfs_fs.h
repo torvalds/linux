@@ -22,7 +22,6 @@
 #include <asm/unaligned.h>
 #include <linux/bitops.h>
 #include <linux/proc_fs.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/reiserfs_fs_i.h>
 #include <linux/reiserfs_fs_sb.h>
@@ -360,7 +359,7 @@ int is_reiserfs_jr(struct reiserfs_super_block *rs);
 /* the spot for the super in versions 3.5 - 3.5.10 (inclusive) */
 #define REISERFS_OLD_DISK_OFFSET_IN_BYTES (8 * 1024)
 
-// reiserfs internal error code (used by search_by_key adn fix_nodes))
+/* reiserfs internal error code (used by search_by_key and fix_nodes)) */
 #define CARRY_ON      0
 #define REPEAT_SEARCH -1
 #define IO_ERROR      -2
@@ -2033,7 +2032,7 @@ void reiserfs_read_locked_inode(struct inode *inode,
 				struct reiserfs_iget_args *args);
 int reiserfs_find_actor(struct inode *inode, void *p);
 int reiserfs_init_locked_inode(struct inode *inode, void *p);
-void reiserfs_delete_inode(struct inode *inode);
+void reiserfs_evict_inode(struct inode *inode);
 int reiserfs_write_inode(struct inode *inode, struct writeback_control *wbc);
 int reiserfs_get_block(struct inode *inode, sector_t block,
 		       struct buffer_head *bh_result, int create);
@@ -2071,6 +2070,8 @@ static inline void reiserfs_update_sd(struct reiserfs_transaction_handle *th,
 void sd_attrs_to_i_attrs(__u16 sd_attrs, struct inode *inode);
 void i_attrs_to_sd_attrs(struct inode *inode, __u16 * sd_attrs);
 int reiserfs_setattr(struct dentry *dentry, struct iattr *attr);
+
+int __reiserfs_write_begin(struct page *page, unsigned from, unsigned len);
 
 /* namei.c */
 void set_de_name_and_namelen(struct reiserfs_dir_entry *de);

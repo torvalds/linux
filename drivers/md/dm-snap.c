@@ -19,7 +19,6 @@
 #include <linux/vmalloc.h>
 #include <linux/log2.h>
 #include <linux/dm-kcopyd.h>
-#include <linux/workqueue.h>
 
 #include "dm-exception-store.h"
 
@@ -80,9 +79,6 @@ struct dm_snapshot {
 	/* Origin writes don't trigger exceptions until this is set */
 	int active;
 
-	/* Whether or not owning mapped_device is suspended */
-	int suspended;
-
 	atomic_t pending_exceptions_count;
 
 	mempool_t *pending_pool;
@@ -105,10 +101,6 @@ struct dm_snapshot {
 	struct dm_exception_store *store;
 
 	struct dm_kcopyd_client *kcopyd_client;
-
-	/* Queue of snapshot writes for ksnapd to flush */
-	struct bio_list queued_bios;
-	struct work_struct queued_bios_work;
 
 	/* Wait for events based on state_bits */
 	unsigned long state_bits;
@@ -148,14 +140,17 @@ struct dm_snapshot {
 #define RUNNING_MERGE          0
 #define SHUTDOWN_MERGE         1
 
+struct dm_dev *dm_snap_origin(struct dm_snapshot *s)
+{
+	return s->origin;
+}
+EXPORT_SYMBOL(dm_snap_origin);
+
 struct dm_dev *dm_snap_cow(struct dm_snapshot *s)
 {
 	return s->cow;
 }
 EXPORT_SYMBOL(dm_snap_cow);
-
-static struct workqueue_struct *ksnapd;
-static void flush_queued_bios(struct work_struct *work);
 
 static sector_t chunk_to_sector(struct dm_exception_store *store,
 				chunk_t chunk)
@@ -700,8 +695,6 @@ static int dm_add_exception(void *context, chunk_t old, chunk_t new)
 	return 0;
 }
 
-#define min_not_zero(l, r) (((l) == 0) ? (r) : (((r) == 0) ? (l) : min(l, r)))
-
 /*
  * Return a minimum chunk size of all snapshots that have the specified origin.
  * Return zero if the origin has no snapshots.
@@ -1065,16 +1058,22 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		origin_mode = FMODE_WRITE;
 	}
 
-	origin_path = argv[0];
-	argv++;
-	argc--;
-
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s) {
 		ti->error = "Cannot allocate snapshot context private "
 		    "structure";
 		r = -ENOMEM;
 		goto bad;
+	}
+
+	origin_path = argv[0];
+	argv++;
+	argc--;
+
+	r = dm_get_device(ti, origin_path, origin_mode, &s->origin);
+	if (r) {
+		ti->error = "Cannot get origin device";
+		goto bad_origin;
 	}
 
 	cow_path = argv[0];
@@ -1097,16 +1096,9 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	argv += args_used;
 	argc -= args_used;
 
-	r = dm_get_device(ti, origin_path, origin_mode, &s->origin);
-	if (r) {
-		ti->error = "Cannot get origin device";
-		goto bad_origin;
-	}
-
 	s->ti = ti;
 	s->valid = 1;
 	s->active = 0;
-	s->suspended = 0;
 	atomic_set(&s->pending_exceptions_count, 0);
 	init_rwsem(&s->lock);
 	INIT_LIST_HEAD(&s->list);
@@ -1148,9 +1140,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		INIT_HLIST_HEAD(&s->tracked_chunk_hash[i]);
 
 	spin_lock_init(&s->tracked_chunk_lock);
-
-	bio_list_init(&s->queued_bios);
-	INIT_WORK(&s->queued_bios_work, flush_queued_bios);
 
 	ti->private = s;
 	ti->num_flush_requests = num_flush_requests;
@@ -1212,15 +1201,15 @@ bad_kcopyd:
 	dm_exception_table_exit(&s->complete, exception_cache);
 
 bad_hash_tables:
-	dm_put_device(ti, s->origin);
-
-bad_origin:
 	dm_exception_store_destroy(s->store);
 
 bad_store:
 	dm_put_device(ti, s->cow);
 
 bad_cow:
+	dm_put_device(ti, s->origin);
+
+bad_origin:
 	kfree(s);
 
 bad:
@@ -1275,8 +1264,6 @@ static void snapshot_dtr(struct dm_target *ti)
 	struct dm_snapshot *s = ti->private;
 	struct dm_snapshot *snap_src = NULL, *snap_dest = NULL;
 
-	flush_workqueue(ksnapd);
-
 	down_read(&_origins_lock);
 	/* Check whether exception handover must be cancelled */
 	(void) __find_snapshots_sharing_cow(s, &snap_src, &snap_dest, NULL);
@@ -1314,11 +1301,11 @@ static void snapshot_dtr(struct dm_target *ti)
 
 	mempool_destroy(s->pending_pool);
 
-	dm_put_device(ti, s->origin);
-
 	dm_exception_store_destroy(s->store);
 
 	dm_put_device(ti, s->cow);
+
+	dm_put_device(ti, s->origin);
 
 	kfree(s);
 }
@@ -1336,20 +1323,6 @@ static void flush_bios(struct bio *bio)
 		generic_make_request(bio);
 		bio = n;
 	}
-}
-
-static void flush_queued_bios(struct work_struct *work)
-{
-	struct dm_snapshot *s =
-		container_of(work, struct dm_snapshot, queued_bios_work);
-	struct bio *queued_bios;
-	unsigned long flags;
-
-	spin_lock_irqsave(&s->pe_lock, flags);
-	queued_bios = bio_list_get(&s->queued_bios);
-	spin_unlock_irqrestore(&s->pe_lock, flags);
-
-	flush_bios(queued_bios);
 }
 
 static int do_origin(struct dm_dev *origin, struct bio *bio);
@@ -1581,7 +1554,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	chunk_t chunk;
 	struct dm_snap_pending_exception *pe = NULL;
 
-	if (unlikely(bio_empty_barrier(bio))) {
+	if (bio->bi_rw & REQ_FLUSH) {
 		bio->bi_bdev = s->cow->bdev;
 		return DM_MAPIO_REMAPPED;
 	}
@@ -1685,8 +1658,8 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio,
 	int r = DM_MAPIO_REMAPPED;
 	chunk_t chunk;
 
-	if (unlikely(bio_empty_barrier(bio))) {
-		if (!map_context->flush_request)
+	if (bio->bi_rw & REQ_FLUSH) {
+		if (!map_context->target_request_nr)
 			bio->bi_bdev = s->origin->bdev;
 		else
 			bio->bi_bdev = s->cow->bdev;
@@ -1756,15 +1729,6 @@ static void snapshot_merge_presuspend(struct dm_target *ti)
 	stop_merge(s);
 }
 
-static void snapshot_postsuspend(struct dm_target *ti)
-{
-	struct dm_snapshot *s = ti->private;
-
-	down_write(&s->lock);
-	s->suspended = 1;
-	up_write(&s->lock);
-}
-
 static int snapshot_preresume(struct dm_target *ti)
 {
 	int r = 0;
@@ -1779,7 +1743,7 @@ static int snapshot_preresume(struct dm_target *ti)
 			DMERR("Unable to resume snapshot source until "
 			      "handover completes.");
 			r = -EINVAL;
-		} else if (!snap_src->suspended) {
+		} else if (!dm_suspended(snap_src->ti)) {
 			DMERR("Unable to perform snapshot handover until "
 			      "source is suspended.");
 			r = -EINVAL;
@@ -1812,7 +1776,6 @@ static void snapshot_resume(struct dm_target *ti)
 
 	down_write(&s->lock);
 	s->active = 1;
-	s->suspended = 0;
 	up_write(&s->lock);
 }
 
@@ -1899,8 +1862,14 @@ static int snapshot_iterate_devices(struct dm_target *ti,
 				    iterate_devices_callout_fn fn, void *data)
 {
 	struct dm_snapshot *snap = ti->private;
+	int r;
 
-	return fn(ti, snap->origin, 0, ti->len, data);
+	r = fn(ti, snap->origin, 0, ti->len, data);
+
+	if (!r)
+		r = fn(ti, snap->cow, 0, get_dev_size(snap->cow->bdev), data);
+
+	return r;
 }
 
 
@@ -2123,7 +2092,7 @@ static int origin_map(struct dm_target *ti, struct bio *bio,
 	struct dm_dev *dev = ti->private;
 	bio->bi_bdev = dev->bdev;
 
-	if (unlikely(bio_empty_barrier(bio)))
+	if (bio->bi_rw & REQ_FLUSH)
 		return DM_MAPIO_REMAPPED;
 
 	/* Only tell snapshots if this is a write */
@@ -2159,6 +2128,21 @@ static int origin_status(struct dm_target *ti, status_type_t type, char *result,
 	return 0;
 }
 
+static int origin_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
+			struct bio_vec *biovec, int max_size)
+{
+	struct dm_dev *dev = ti->private;
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	if (!q->merge_bvec_fn)
+		return max_size;
+
+	bvm->bi_bdev = dev->bdev;
+	bvm->bi_sector = bvm->bi_sector;
+
+	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
+}
+
 static int origin_iterate_devices(struct dm_target *ti,
 				  iterate_devices_callout_fn fn, void *data)
 {
@@ -2169,25 +2153,25 @@ static int origin_iterate_devices(struct dm_target *ti,
 
 static struct target_type origin_target = {
 	.name    = "snapshot-origin",
-	.version = {1, 7, 0},
+	.version = {1, 7, 1},
 	.module  = THIS_MODULE,
 	.ctr     = origin_ctr,
 	.dtr     = origin_dtr,
 	.map     = origin_map,
 	.resume  = origin_resume,
 	.status  = origin_status,
+	.merge	 = origin_merge,
 	.iterate_devices = origin_iterate_devices,
 };
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 9, 0},
+	.version = {1, 10, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
 	.map     = snapshot_map,
 	.end_io  = snapshot_end_io,
-	.postsuspend = snapshot_postsuspend,
 	.preresume  = snapshot_preresume,
 	.resume  = snapshot_resume,
 	.status  = snapshot_status,
@@ -2196,14 +2180,13 @@ static struct target_type snapshot_target = {
 
 static struct target_type merge_target = {
 	.name    = dm_snapshot_merge_target_name,
-	.version = {1, 0, 0},
+	.version = {1, 1, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
 	.map     = snapshot_merge_map,
 	.end_io  = snapshot_end_io,
 	.presuspend = snapshot_merge_presuspend,
-	.postsuspend = snapshot_postsuspend,
 	.preresume  = snapshot_preresume,
 	.resume  = snapshot_merge_resume,
 	.status  = snapshot_status,
@@ -2265,17 +2248,8 @@ static int __init dm_snapshot_init(void)
 		goto bad_tracked_chunk_cache;
 	}
 
-	ksnapd = create_singlethread_workqueue("ksnapd");
-	if (!ksnapd) {
-		DMERR("Failed to create ksnapd workqueue.");
-		r = -ENOMEM;
-		goto bad_pending_pool;
-	}
-
 	return 0;
 
-bad_pending_pool:
-	kmem_cache_destroy(tracked_chunk_cache);
 bad_tracked_chunk_cache:
 	kmem_cache_destroy(pending_cache);
 bad_pending_cache:
@@ -2296,8 +2270,6 @@ bad_register_snapshot_target:
 
 static void __exit dm_snapshot_exit(void)
 {
-	destroy_workqueue(ksnapd);
-
 	dm_unregister_target(&snapshot_target);
 	dm_unregister_target(&origin_target);
 	dm_unregister_target(&merge_target);

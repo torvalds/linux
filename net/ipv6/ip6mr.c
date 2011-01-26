@@ -120,7 +120,7 @@ static void mroute_clean_tables(struct mr6_table *mrt);
 static void ipmr_expire_process(unsigned long arg);
 
 #ifdef CONFIG_IPV6_MROUTE_MULTIPLE_TABLES
-#define ip6mr_for_each_table(mrt, met) \
+#define ip6mr_for_each_table(mrt, net) \
 	list_for_each_entry_rcu(mrt, &net->ipv6.mr6_tables, list)
 
 static struct mr6_table *ip6mr_get_table(struct net *net, u32 id)
@@ -254,8 +254,10 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 {
 	struct mr6_table *mrt, *next;
 
-	list_for_each_entry_safe(mrt, next, &net->ipv6.mr6_tables, list)
+	list_for_each_entry_safe(mrt, next, &net->ipv6.mr6_tables, list) {
+		list_del(&mrt->list);
 		ip6mr_free_table(mrt);
+	}
 	fib_rules_unregister(net->ipv6.mr6_rules_ops);
 }
 #else
@@ -665,6 +667,7 @@ static int pim6_rcv(struct sk_buff *skb)
 	skb_tunnel_rx(skb, reg_dev);
 
 	netif_rx(skb);
+
 	dev_put(reg_dev);
 	return 0;
  drop:
@@ -1840,9 +1843,7 @@ static int ip6mr_forward2(struct net *net, struct mr6_table *mrt,
 
 	fl = (struct flowi) {
 		.oif = vif->link,
-		.nl_u = { .ip6_u =
-				{ .daddr = ipv6h->daddr, }
-		}
+		.fl6_dst = ipv6h->daddr,
 	};
 
 	dst = ip6_route_output(net, NULL, &fl);
@@ -2017,7 +2018,7 @@ static int __ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 	struct rtattr *mp_head;
 
 	/* If cache is unresolved, don't try to parse IIF and OIF */
-	if (c->mf6c_parent > MAXMIFS)
+	if (c->mf6c_parent >= MAXMIFS)
 		return -ENOENT;
 
 	if (MIF_EXISTS(mrt, c->mf6c_parent))

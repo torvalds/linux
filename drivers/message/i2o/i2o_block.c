@@ -53,6 +53,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2o.h>
+#include <linux/mutex.h>
 
 #include <linux/mempool.h>
 
@@ -68,6 +69,7 @@
 #define OSM_VERSION	"1.325"
 #define OSM_DESCRIPTION	"I2O Block Device OSM"
 
+static DEFINE_MUTEX(i2o_block_mutex);
 static struct i2o_driver i2o_block_driver;
 
 /* global Block OSM request mempool */
@@ -307,7 +309,7 @@ static inline void i2o_block_request_free(struct i2o_block_request *ireq)
  *	@ireq: I2O block request
  *	@mptr: message body pointer
  *
- *	Builds the SG list and map it to be accessable by the controller.
+ *	Builds the SG list and map it to be accessible by the controller.
  *
  *	Returns 0 on failure or 1 on success.
  */
@@ -577,6 +579,7 @@ static int i2o_block_open(struct block_device *bdev, fmode_t mode)
 	if (!dev->i2o_dev)
 		return -ENODEV;
 
+	mutex_lock(&i2o_block_mutex);
 	if (dev->power > 0x1f)
 		i2o_block_device_power(dev, 0x02);
 
@@ -585,6 +588,7 @@ static int i2o_block_open(struct block_device *bdev, fmode_t mode)
 	i2o_block_device_lock(dev->i2o_dev, -1);
 
 	osm_debug("Ready.\n");
+	mutex_unlock(&i2o_block_mutex);
 
 	return 0;
 };
@@ -615,6 +619,7 @@ static int i2o_block_release(struct gendisk *disk, fmode_t mode)
 	if (!dev->i2o_dev)
 		return 0;
 
+	mutex_lock(&i2o_block_mutex);
 	i2o_block_device_flush(dev->i2o_dev);
 
 	i2o_block_device_unlock(dev->i2o_dev, -1);
@@ -625,6 +630,7 @@ static int i2o_block_release(struct gendisk *disk, fmode_t mode)
 		operation = 0x24;
 
 	i2o_block_device_power(dev, operation);
+	mutex_unlock(&i2o_block_mutex);
 
 	return 0;
 }
@@ -652,30 +658,40 @@ static int i2o_block_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	struct gendisk *disk = bdev->bd_disk;
 	struct i2o_block_device *dev = disk->private_data;
+	int ret = -ENOTTY;
 
 	/* Anyone capable of this syscall can do *real bad* things */
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
+	mutex_lock(&i2o_block_mutex);
 	switch (cmd) {
 	case BLKI2OGRSTRAT:
-		return put_user(dev->rcache, (int __user *)arg);
+		ret = put_user(dev->rcache, (int __user *)arg);
+		break;
 	case BLKI2OGWSTRAT:
-		return put_user(dev->wcache, (int __user *)arg);
+		ret = put_user(dev->wcache, (int __user *)arg);
+		break;
 	case BLKI2OSRSTRAT:
+		ret = -EINVAL;
 		if (arg < 0 || arg > CACHE_SMARTFETCH)
-			return -EINVAL;
+			break;
 		dev->rcache = arg;
+		ret = 0;
 		break;
 	case BLKI2OSWSTRAT:
+		ret = -EINVAL;
 		if (arg != 0
 		    && (arg < CACHE_WRITETHROUGH || arg > CACHE_SMARTBACK))
-			return -EINVAL;
+			break;
 		dev->wcache = arg;
+		ret = 0;
 		break;
 	}
-	return -ENOTTY;
+	mutex_unlock(&i2o_block_mutex);
+
+	return ret;
 };
 
 /**
@@ -712,7 +728,7 @@ static int i2o_block_transfer(struct request *req)
 {
 	struct i2o_block_device *dev = req->rq_disk->private_data;
 	struct i2o_controller *c;
-	u32 tid = dev->i2o_dev->lct_data.tid;
+	u32 tid;
 	struct i2o_message *msg;
 	u32 *mptr;
 	struct i2o_block_request *ireq = req->special;
@@ -728,6 +744,7 @@ static int i2o_block_transfer(struct request *req)
 		goto exit;
 	}
 
+	tid = dev->i2o_dev->lct_data.tid;
 	c = dev->i2o_dev->iop;
 
 	msg = i2o_msg_get(c);
@@ -883,7 +900,7 @@ static void i2o_block_request_fn(struct request_queue *q)
 		if (!req)
 			break;
 
-		if (blk_fs_request(req)) {
+		if (req->cmd_type == REQ_TYPE_FS) {
 			struct i2o_block_delayed_request *dreq;
 			struct i2o_block_request *ireq = req->special;
 			unsigned int queue_depth;
@@ -930,7 +947,8 @@ static const struct block_device_operations i2o_block_fops = {
 	.owner = THIS_MODULE,
 	.open = i2o_block_open,
 	.release = i2o_block_release,
-	.locked_ioctl = i2o_block_ioctl,
+	.ioctl = i2o_block_ioctl,
+	.compat_ioctl = i2o_block_ioctl,
 	.getgeo = i2o_block_getgeo,
 	.media_changed = i2o_block_media_changed
 };

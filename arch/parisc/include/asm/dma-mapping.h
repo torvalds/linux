@@ -184,18 +184,6 @@ dma_set_mask(struct device *dev, u64 mask)
 	return 0;
 }
 
-static inline int
-dma_get_cache_alignment(void)
-{
-	return dcache_stride;
-}
-
-static inline int
-dma_is_consistent(struct device *dev, dma_addr_t dma_addr)
-{
-	return (hppa_dma_ops->dma_sync_single_for_cpu == NULL);
-}
-
 static inline void
 dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction)

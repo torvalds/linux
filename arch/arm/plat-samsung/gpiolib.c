@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <mach/gpio.h>
+#include <linux/gpio.h>
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
@@ -196,4 +196,11 @@ void __init samsung_gpiolib_add_4bit2_chips(struct s3c_gpio_chip *chip,
 		samsung_gpiolib_add_4bit2(chip);
 		s3c_gpiolib_add(chip);
 	}
+}
+
+void __init samsung_gpiolib_add_2bit_chips(struct s3c_gpio_chip *chip,
+					   int nr_chips)
+{
+	for (; nr_chips > 0; nr_chips--, chip++)
+		s3c_gpiolib_add(chip);
 }

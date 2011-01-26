@@ -7,7 +7,6 @@
 struct cfq_queue;
 struct cfq_io_context {
 	void *key;
-	unsigned long dead_key;
 
 	struct cfq_queue *cfqq[2];
 
@@ -54,7 +53,7 @@ struct io_context {
 
 	struct radix_tree_root radix_root;
 	struct hlist_head cic_list;
-	void *ioc_data;
+	void __rcu *ioc_data;
 };
 
 static inline struct io_context *ioc_task_link(struct io_context *ioc)
@@ -77,7 +76,6 @@ int put_io_context(struct io_context *ioc);
 void exit_io_context(struct task_struct *task);
 struct io_context *get_io_context(gfp_t gfp_flags, int node);
 struct io_context *alloc_io_context(gfp_t gfp_flags, int node);
-void copy_io_context(struct io_context **pdst, struct io_context **psrc);
 #else
 static inline void exit_io_context(struct task_struct *task)
 {

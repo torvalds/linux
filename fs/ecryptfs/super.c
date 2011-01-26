@@ -28,7 +28,6 @@
 #include <linux/key.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 #include <linux/file.h>
 #include <linux/crypto.h>
 #include "ecryptfs_kernel.h"
@@ -63,6 +62,16 @@ out:
 	return inode;
 }
 
+static void ecryptfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	struct ecryptfs_inode_info *inode_info;
+	inode_info = ecryptfs_inode_to_private(inode);
+
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(ecryptfs_inode_info_cache, inode_info);
+}
+
 /**
  * ecryptfs_destroy_inode
  * @inode: The ecryptfs inode
@@ -89,7 +98,7 @@ static void ecryptfs_destroy_inode(struct inode *inode)
 		}
 	}
 	ecryptfs_destroy_crypt_stat(&inode_info->crypt_stat);
-	kmem_cache_free(ecryptfs_inode_info_cache, inode_info);
+	call_rcu(&inode->i_rcu, ecryptfs_i_callback);
 }
 
 /**
@@ -118,11 +127,15 @@ void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode)
  */
 static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	return vfs_statfs(ecryptfs_dentry_to_lower(dentry), buf);
+	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
+
+	if (!lower_dentry->d_sb->s_op->statfs)
+		return -ENOSYS;
+	return lower_dentry->d_sb->s_op->statfs(lower_dentry, buf);
 }
 
 /**
- * ecryptfs_clear_inode
+ * ecryptfs_evict_inode
  * @inode - The ecryptfs inode
  *
  * Called by iput() when the inode reference count reached zero
@@ -131,8 +144,10 @@ static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
  * on the inode free list. We use this to drop out reference to the
  * lower inode.
  */
-static void ecryptfs_clear_inode(struct inode *inode)
+static void ecryptfs_evict_inode(struct inode *inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 	iput(ecryptfs_inode_to_lower(inode));
 }
 
@@ -174,6 +189,8 @@ static int ecryptfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 		seq_printf(m, ",ecryptfs_encrypted_view");
 	if (mount_crypt_stat->flags & ECRYPTFS_UNLINK_SIGS)
 		seq_printf(m, ",ecryptfs_unlink_sigs");
+	if (mount_crypt_stat->flags & ECRYPTFS_GLOBAL_MOUNT_AUTH_TOK_ONLY)
+		seq_printf(m, ",ecryptfs_mount_auth_tok_only");
 
 	return 0;
 }
@@ -184,6 +201,6 @@ const struct super_operations ecryptfs_sops = {
 	.drop_inode = generic_delete_inode,
 	.statfs = ecryptfs_statfs,
 	.remount_fs = NULL,
-	.clear_inode = ecryptfs_clear_inode,
+	.evict_inode = ecryptfs_evict_inode,
 	.show_options = ecryptfs_show_options
 };

@@ -24,17 +24,20 @@ static struct dentry *afs_mntpt_lookup(struct inode *dir,
 				       struct dentry *dentry,
 				       struct nameidata *nd);
 static int afs_mntpt_open(struct inode *inode, struct file *file);
-static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd);
 static void afs_mntpt_expiry_timed_out(struct work_struct *work);
 
 const struct file_operations afs_mntpt_file_operations = {
 	.open		= afs_mntpt_open,
+	.llseek		= noop_llseek,
 };
 
 const struct inode_operations afs_mntpt_inode_operations = {
 	.lookup		= afs_mntpt_lookup,
-	.follow_link	= afs_mntpt_follow_link,
 	.readlink	= page_readlink,
+	.getattr	= afs_getattr,
+};
+
+const struct inode_operations afs_autocell_inode_operations = {
 	.getattr	= afs_getattr,
 };
 
@@ -82,6 +85,7 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode, struct key *key)
 		_debug("symlink is a mountpoint");
 		spin_lock(&vnode->lock);
 		set_bit(AFS_VNODE_MOUNTPOINT, &vnode->flags);
+		vnode->vfs_inode.i_flags |= S_AUTOMOUNT;
 		spin_unlock(&vnode->lock);
 	}
 
@@ -136,19 +140,15 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 {
 	struct afs_super_info *super;
 	struct vfsmount *mnt;
+	struct afs_vnode *vnode;
 	struct page *page;
-	size_t size;
-	char *buf, *devname, *options;
+	char *devname, *options;
+	bool rwpath = false;
 	int ret;
 
 	_enter("{%s}", mntpt->d_name.name);
 
 	BUG_ON(!mntpt->d_inode);
-
-	ret = -EINVAL;
-	size = mntpt->d_inode->i_size;
-	if (size > PAGE_SIZE - 1)
-		goto error_no_devname;
 
 	ret = -ENOMEM;
 	devname = (char *) get_zeroed_page(GFP_KERNEL);
@@ -159,28 +159,59 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	if (!options)
 		goto error_no_options;
 
-	/* read the contents of the AFS special symlink */
-	page = read_mapping_page(mntpt->d_inode->i_mapping, 0, NULL);
-	if (IS_ERR(page)) {
-		ret = PTR_ERR(page);
-		goto error_no_page;
+	vnode = AFS_FS_I(mntpt->d_inode);
+	if (test_bit(AFS_VNODE_PSEUDODIR, &vnode->flags)) {
+		/* if the directory is a pseudo directory, use the d_name */
+		static const char afs_root_cell[] = ":root.cell.";
+		unsigned size = mntpt->d_name.len;
+
+		ret = -ENOENT;
+		if (size < 2 || size > AFS_MAXCELLNAME)
+			goto error_no_page;
+
+		if (mntpt->d_name.name[0] == '.') {
+			devname[0] = '#';
+			memcpy(devname + 1, mntpt->d_name.name, size - 1);
+			memcpy(devname + size, afs_root_cell,
+			       sizeof(afs_root_cell));
+			rwpath = true;
+		} else {
+			devname[0] = '%';
+			memcpy(devname + 1, mntpt->d_name.name, size);
+			memcpy(devname + size + 1, afs_root_cell,
+			       sizeof(afs_root_cell));
+		}
+	} else {
+		/* read the contents of the AFS special symlink */
+		loff_t size = i_size_read(mntpt->d_inode);
+		char *buf;
+
+		ret = -EINVAL;
+		if (size > PAGE_SIZE - 1)
+			goto error_no_page;
+
+		page = read_mapping_page(mntpt->d_inode->i_mapping, 0, NULL);
+		if (IS_ERR(page)) {
+			ret = PTR_ERR(page);
+			goto error_no_page;
+		}
+
+		ret = -EIO;
+		if (PageError(page))
+			goto error;
+
+		buf = kmap_atomic(page, KM_USER0);
+		memcpy(devname, buf, size);
+		kunmap_atomic(buf, KM_USER0);
+		page_cache_release(page);
+		page = NULL;
 	}
-
-	ret = -EIO;
-	if (PageError(page))
-		goto error;
-
-	buf = kmap_atomic(page, KM_USER0);
-	memcpy(devname, buf, size);
-	kunmap_atomic(buf, KM_USER0);
-	page_cache_release(page);
-	page = NULL;
 
 	/* work out what options we want */
 	super = AFS_FS_S(mntpt->d_sb);
 	memcpy(options, "cell=", 5);
 	strcpy(options + 5, super->volume->cell->name);
-	if (super->volume->type == AFSVL_RWVOL)
+	if (super->volume->type == AFSVL_RWVOL || rwpath)
 		strcat(options, ",rwpath");
 
 	/* try and do the mount */
@@ -205,52 +236,24 @@ error_no_devname:
 }
 
 /*
- * follow a link from a mountpoint directory, thus causing it to be mounted
+ * handle an automount point
  */
-static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
+struct vfsmount *afs_d_automount(struct path *path)
 {
 	struct vfsmount *newmnt;
-	int err;
 
-	_enter("%p{%s},{%s:%p{%s},}",
-	       dentry,
-	       dentry->d_name.name,
-	       nd->path.mnt->mnt_devname,
-	       dentry,
-	       nd->path.dentry->d_name.name);
+	_enter("{%s,%s}", path->mnt->mnt_devname, path->dentry->d_name.name);
 
-	dput(nd->path.dentry);
-	nd->path.dentry = dget(dentry);
+	newmnt = afs_mntpt_do_automount(path->dentry);
+	if (IS_ERR(newmnt))
+		return newmnt;
 
-	newmnt = afs_mntpt_do_automount(nd->path.dentry);
-	if (IS_ERR(newmnt)) {
-		path_put(&nd->path);
-		return (void *)newmnt;
-	}
-
-	mntget(newmnt);
-	err = do_add_mount(newmnt, &nd->path, MNT_SHRINKABLE, &afs_vfsmounts);
-	switch (err) {
-	case 0:
-		path_put(&nd->path);
-		nd->path.mnt = newmnt;
-		nd->path.dentry = dget(newmnt->mnt_root);
-		schedule_delayed_work(&afs_mntpt_expiry_timer,
-				      afs_mntpt_expiry_timeout * HZ);
-		break;
-	case -EBUSY:
-		/* someone else made a mount here whilst we were busy */
-		while (d_mountpoint(nd->path.dentry) &&
-		       follow_down(&nd->path))
-			;
-		err = 0;
-	default:
-		mntput(newmnt);
-		break;
-	}
-
-	_leave(" = %d", err);
-	return ERR_PTR(err);
+	mntget(newmnt); /* prevent immediate expiration */
+	mnt_set_expiry(newmnt, &afs_vfsmounts);
+	queue_delayed_work(afs_wq, &afs_mntpt_expiry_timer,
+			   afs_mntpt_expiry_timeout * HZ);
+	_leave(" = %p {%s}", newmnt, newmnt->mnt_devname);
+	return newmnt;
 }
 
 /*
@@ -262,8 +265,8 @@ static void afs_mntpt_expiry_timed_out(struct work_struct *work)
 
 	if (!list_empty(&afs_vfsmounts)) {
 		mark_mounts_for_expiry(&afs_vfsmounts);
-		schedule_delayed_work(&afs_mntpt_expiry_timer,
-				      afs_mntpt_expiry_timeout * HZ);
+		queue_delayed_work(afs_wq, &afs_mntpt_expiry_timer,
+				   afs_mntpt_expiry_timeout * HZ);
 	}
 
 	_leave("");
@@ -277,6 +280,5 @@ void afs_mntpt_kill_timer(void)
 	_enter("");
 
 	ASSERT(list_empty(&afs_vfsmounts));
-	cancel_delayed_work(&afs_mntpt_expiry_timer);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&afs_mntpt_expiry_timer);
 }

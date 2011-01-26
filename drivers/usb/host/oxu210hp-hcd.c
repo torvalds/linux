@@ -544,8 +544,6 @@ static void oxu_buf_free(struct oxu_hcd *oxu, struct ehci_qtd *qtd)
 	qtd->buffer = NULL;
 
 	spin_unlock(&oxu->mem_lock);
-
-	return;
 }
 
 static inline void ehci_qtd_init(struct ehci_qtd *qtd, dma_addr_t dma)
@@ -571,8 +569,6 @@ static inline void oxu_qtd_free(struct oxu_hcd *oxu, struct ehci_qtd *qtd)
 	oxu->qtd_used[index] = 0;
 
 	spin_unlock(&oxu->mem_lock);
-
-	return;
 }
 
 static struct ehci_qtd *ehci_qtd_alloc(struct oxu_hcd *oxu)
@@ -615,8 +611,6 @@ static void oxu_qh_free(struct oxu_hcd *oxu, struct ehci_qh *qh)
 	oxu->qh_used[index] = 0;
 
 	spin_unlock(&oxu->mem_lock);
-
-	return;
 }
 
 static void qh_destroy(struct kref *kref)
@@ -693,8 +687,6 @@ static void oxu_murb_free(struct oxu_hcd *oxu, struct oxu_murb *murb)
 	oxu->murb_used[index] = 0;
 
 	spin_unlock(&oxu->mem_lock);
-
-	return;
 }
 
 static struct oxu_murb *oxu_murb_alloc(struct oxu_hcd *oxu)
@@ -1641,8 +1633,7 @@ static int submit_async(struct oxu_hcd	*oxu, struct urb *urb,
 #endif
 
 	spin_lock_irqsave(&oxu->lock, flags);
-	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
-			       &oxu_to_hcd(oxu)->flags))) {
+	if (unlikely(!HCD_HW_ACCESSIBLE(oxu_to_hcd(oxu)))) {
 		rc = -ESHUTDOWN;
 		goto done;
 	}
@@ -2209,8 +2200,7 @@ static int intr_submit(struct oxu_hcd *oxu, struct urb *urb,
 
 	spin_lock_irqsave(&oxu->lock, flags);
 
-	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
-			       &oxu_to_hcd(oxu)->flags))) {
+	if (unlikely(!HCD_HW_ACCESSIBLE(oxu_to_hcd(oxu)))) {
 		status = -ESHUTDOWN;
 		goto done;
 	}
@@ -2715,7 +2705,6 @@ static int oxu_run(struct usb_hcd *hcd)
 	u32 temp, hcc_params;
 
 	hcd->uses_new_polling = 1;
-	hcd->poll_rh = 0;
 
 	/* EHCI spec section 4.1 */
 	retval = ehci_reset(oxu);
@@ -3073,7 +3062,6 @@ nogood:
 	ep->hcpriv = NULL;
 done:
 	spin_unlock_irqrestore(&oxu->lock, flags);
-	return;
 }
 
 static int oxu_get_frame(struct usb_hcd *hcd)
@@ -3106,7 +3094,7 @@ static int oxu_hub_status_data(struct usb_hcd *hcd, char *buf)
 
 	/* Some boards (mostly VIA?) report bogus overcurrent indications,
 	 * causing massive log spam unless we completely ignore them.  It
-	 * may be relevant that VIA VT8235 controlers, where PORT_POWER is
+	 * may be relevant that VIA VT8235 controllers, where PORT_POWER is
 	 * always set, seem to clear PORT_OCC and PORT_CSC when writing to
 	 * PORT_POWER; that's surprising, but maybe within-spec.
 	 */
@@ -3699,7 +3687,7 @@ static void oxu_configuration(struct platform_device *pdev, void *base)
 static int oxu_verify_id(struct platform_device *pdev, void *base)
 {
 	u32 id;
-	char *bo[] = {
+	static const char * const bo[] = {
 		"reserved",
 		"128-pin LQFP",
 		"84-pin TFBGA",

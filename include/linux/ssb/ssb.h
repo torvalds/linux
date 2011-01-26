@@ -55,6 +55,10 @@ struct ssb_sprom {
 	u8 tri5gl;		/* 5.2GHz TX isolation */
 	u8 tri5g;		/* 5.3GHz TX isolation */
 	u8 tri5gh;		/* 5.8GHz TX isolation */
+	u8 txpid2g[4];		/* 2GHz TX power index */
+	u8 txpid5gl[4];		/* 4.9 - 5.1GHz TX power index */
+	u8 txpid5g[4];		/* 5.1 - 5.5GHz TX power index */
+	u8 txpid5gh[4];		/* 5.5 - ...GHz TX power index */
 	u8 rxpo2g;		/* 2GHz RX power offset */
 	u8 rxpo5g;		/* 5GHz RX power offset */
 	u8 rssisav2g;		/* 2GHz RSSI params */
@@ -167,7 +171,7 @@ struct ssb_device {
 	 * is an optimization. */
 	const struct ssb_bus_ops *ops;
 
-	struct device *dev;
+	struct device *dev, *dma_dev;
 
 	struct ssb_bus *bus;
 	struct ssb_device_id id;
@@ -470,14 +474,6 @@ extern u32 ssb_dma_translation(struct ssb_device *dev);
 #define SSB_DMA_TRANSLATION_MASK	0xC0000000
 #define SSB_DMA_TRANSLATION_SHIFT	30
 
-extern int ssb_dma_set_mask(struct ssb_device *dev, u64 mask);
-
-extern void * ssb_dma_alloc_consistent(struct ssb_device *dev, size_t size,
-				       dma_addr_t *dma_handle, gfp_t gfp_flags);
-extern void ssb_dma_free_consistent(struct ssb_device *dev, size_t size,
-				    void *vaddr, dma_addr_t dma_handle,
-				    gfp_t gfp_flags);
-
 static inline void __cold __ssb_dma_not_implemented(struct ssb_device *dev)
 {
 #ifdef CONFIG_SSB_DEBUG
@@ -485,155 +481,6 @@ static inline void __cold __ssb_dma_not_implemented(struct ssb_device *dev)
 	       "unsupported bustype %d\n", dev->bus->bustype);
 #endif /* DEBUG */
 }
-
-static inline int ssb_dma_mapping_error(struct ssb_device *dev, dma_addr_t addr)
-{
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		return pci_dma_mapping_error(dev->bus->host_pci, addr);
-#endif
-		break;
-	case SSB_BUSTYPE_SSB:
-		return dma_mapping_error(dev->dev, addr);
-	default:
-		break;
-	}
-	__ssb_dma_not_implemented(dev);
-	return -ENOSYS;
-}
-
-static inline dma_addr_t ssb_dma_map_single(struct ssb_device *dev, void *p,
-					    size_t size, enum dma_data_direction dir)
-{
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		return pci_map_single(dev->bus->host_pci, p, size, dir);
-#endif
-		break;
-	case SSB_BUSTYPE_SSB:
-		return dma_map_single(dev->dev, p, size, dir);
-	default:
-		break;
-	}
-	__ssb_dma_not_implemented(dev);
-	return 0;
-}
-
-static inline void ssb_dma_unmap_single(struct ssb_device *dev, dma_addr_t dma_addr,
-					size_t size, enum dma_data_direction dir)
-{
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		pci_unmap_single(dev->bus->host_pci, dma_addr, size, dir);
-		return;
-#endif
-		break;
-	case SSB_BUSTYPE_SSB:
-		dma_unmap_single(dev->dev, dma_addr, size, dir);
-		return;
-	default:
-		break;
-	}
-	__ssb_dma_not_implemented(dev);
-}
-
-static inline void ssb_dma_sync_single_for_cpu(struct ssb_device *dev,
-					       dma_addr_t dma_addr,
-					       size_t size,
-					       enum dma_data_direction dir)
-{
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		pci_dma_sync_single_for_cpu(dev->bus->host_pci, dma_addr,
-					    size, dir);
-		return;
-#endif
-		break;
-	case SSB_BUSTYPE_SSB:
-		dma_sync_single_for_cpu(dev->dev, dma_addr, size, dir);
-		return;
-	default:
-		break;
-	}
-	__ssb_dma_not_implemented(dev);
-}
-
-static inline void ssb_dma_sync_single_for_device(struct ssb_device *dev,
-						  dma_addr_t dma_addr,
-						  size_t size,
-						  enum dma_data_direction dir)
-{
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		pci_dma_sync_single_for_device(dev->bus->host_pci, dma_addr,
-					       size, dir);
-		return;
-#endif
-		break;
-	case SSB_BUSTYPE_SSB:
-		dma_sync_single_for_device(dev->dev, dma_addr, size, dir);
-		return;
-	default:
-		break;
-	}
-	__ssb_dma_not_implemented(dev);
-}
-
-static inline void ssb_dma_sync_single_range_for_cpu(struct ssb_device *dev,
-						     dma_addr_t dma_addr,
-						     unsigned long offset,
-						     size_t size,
-						     enum dma_data_direction dir)
-{
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		/* Just sync everything. That's all the PCI API can do. */
-		pci_dma_sync_single_for_cpu(dev->bus->host_pci, dma_addr,
-					    offset + size, dir);
-		return;
-#endif
-		break;
-	case SSB_BUSTYPE_SSB:
-		dma_sync_single_range_for_cpu(dev->dev, dma_addr, offset,
-					      size, dir);
-		return;
-	default:
-		break;
-	}
-	__ssb_dma_not_implemented(dev);
-}
-
-static inline void ssb_dma_sync_single_range_for_device(struct ssb_device *dev,
-							dma_addr_t dma_addr,
-							unsigned long offset,
-							size_t size,
-							enum dma_data_direction dir)
-{
-	switch (dev->bus->bustype) {
-	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
-		/* Just sync everything. That's all the PCI API can do. */
-		pci_dma_sync_single_for_device(dev->bus->host_pci, dma_addr,
-					       offset + size, dir);
-		return;
-#endif
-		break;
-	case SSB_BUSTYPE_SSB:
-		dma_sync_single_range_for_device(dev->dev, dma_addr, offset,
-						 size, dir);
-		return;
-	default:
-		break;
-	}
-	__ssb_dma_not_implemented(dev);
-}
-
 
 #ifdef CONFIG_SSB_PCIHOST
 /* PCI-host wrapper driver */

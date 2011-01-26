@@ -16,7 +16,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/poll.h>
 #include <linux/init.h>
@@ -46,8 +45,7 @@ static char gpio_name[] = "etrax gpio";
 static wait_queue_head_t *gpio_wq;
 #endif
 
-static int gpio_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg);
+static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static ssize_t gpio_write(struct file *file, const char __user *buf,
 	size_t count, loff_t *off);
 static int gpio_open(struct inode *inode, struct file *filp);
@@ -324,7 +322,6 @@ gpio_open(struct inode *inode, struct file *filp)
 	if (!priv)
 		return -ENOMEM;
 
-	lock_kernel();
 	priv->minor = p;
 
 	/* initialize the io/alarm struct */
@@ -359,7 +356,6 @@ gpio_open(struct inode *inode, struct file *filp)
 	alarmlist = priv;
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
-	unlock_kernel();
 	return 0;
 }
 
@@ -504,9 +500,7 @@ unsigned long inline setget_output(struct gpio_private *priv, unsigned long arg)
 static int
 gpio_leds_ioctl(unsigned int cmd, unsigned long arg);
 
-static int
-gpio_ioctl(struct inode *inode, struct file *file,
-	   unsigned int cmd, unsigned long arg)
+static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
 	unsigned long val;
@@ -516,54 +510,65 @@ gpio_ioctl(struct inode *inode, struct file *file,
 	if (_IOC_TYPE(cmd) != ETRAXGPIO_IOCTYPE)
 		return -EINVAL;
 
-	spin_lock_irqsave(&gpio_lock, flags);
-
 	switch (_IOC_NR(cmd)) {
 	case IO_READBITS: /* Use IO_READ_INBITS and IO_READ_OUTBITS instead */
 		// read the port
+		spin_lock_irqsave(&gpio_lock, flags);
 		if (USE_PORTS(priv)) {
 			ret =  *priv->port;
 		} else if (priv->minor == GPIO_MINOR_G) {
 			ret =  (*R_PORT_G_DATA) & 0x7FFFFFFF;
 		}
+		spin_unlock_irqrestore(&gpio_lock, flags);
+
 		break;
 	case IO_SETBITS:
 		// set changeable bits with a 1 in arg
+		spin_lock_irqsave(&gpio_lock, flags);
+
 		if (USE_PORTS(priv)) {
-			*priv->port = *priv->shadow |= 
+			*priv->port = *priv->shadow |=
 			  ((unsigned char)arg & priv->changeable_bits);
 		} else if (priv->minor == GPIO_MINOR_G) {
 			*R_PORT_G_DATA = port_g_data_shadow |= (arg & dir_g_out_bits);
 		}
+		spin_unlock_irqrestore(&gpio_lock, flags);
+
 		break;
 	case IO_CLRBITS:
 		// clear changeable bits with a 1 in arg
+		spin_lock_irqsave(&gpio_lock, flags);
 		if (USE_PORTS(priv)) {
-			*priv->port = *priv->shadow &= 
+			*priv->port = *priv->shadow &=
 			 ~((unsigned char)arg & priv->changeable_bits);
 		} else if (priv->minor == GPIO_MINOR_G) {
 			*R_PORT_G_DATA = port_g_data_shadow &= ~((unsigned long)arg & dir_g_out_bits);
 		}
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_HIGHALARM:
 		// set alarm when bits with 1 in arg go high
+		spin_lock_irqsave(&gpio_lock, flags);
 		priv->highalarm |= arg;
 		gpio_some_alarms = 1;
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_LOWALARM:
 		// set alarm when bits with 1 in arg go low
+		spin_lock_irqsave(&gpio_lock, flags);
 		priv->lowalarm |= arg;
 		gpio_some_alarms = 1;
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_CLRALARM:
-		// clear alarm for bits with 1 in arg
+		/* clear alarm for bits with 1 in arg */
+		spin_lock_irqsave(&gpio_lock, flags);
 		priv->highalarm &= ~arg;
 		priv->lowalarm  &= ~arg;
 		{
 			/* Must update gpio_some_alarms */
 			struct gpio_private *p = alarmlist;
 			int some_alarms;
-			spin_lock_irq(&gpio_lock);
 			p = alarmlist;
 			some_alarms = 0;
 			while (p) {
@@ -574,11 +579,12 @@ gpio_ioctl(struct inode *inode, struct file *file,
 				p = p->next;
 			}
 			gpio_some_alarms = some_alarms;
-			spin_unlock_irq(&gpio_lock);
 		}
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_READDIR: /* Use IO_SETGET_INPUT/OUTPUT instead! */
 		/* Read direction 0=input 1=output */
+		spin_lock_irqsave(&gpio_lock, flags);
 		if (USE_PORTS(priv)) {
 			ret = *priv->dir_shadow;
 		} else if (priv->minor == GPIO_MINOR_G) {
@@ -587,30 +593,40 @@ gpio_ioctl(struct inode *inode, struct file *file,
 			 */
 			ret = (dir_g_shadow | dir_g_out_bits) & 0x7FFFFFFF;
 		}
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_SETINPUT: /* Use IO_SETGET_INPUT instead! */
-		/* Set direction 0=unchanged 1=input, 
-		 * return mask with 1=input 
+		/* Set direction 0=unchanged 1=input,
+		 * return mask with 1=input
 		 */
+		spin_lock_irqsave(&gpio_lock, flags);
 		ret = setget_input(priv, arg) & 0x7FFFFFFF;
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_SETOUTPUT: /* Use IO_SETGET_OUTPUT instead! */
-		/* Set direction 0=unchanged 1=output, 
-		 * return mask with 1=output 
+		/* Set direction 0=unchanged 1=output,
+		 * return mask with 1=output
 		 */
+		spin_lock_irqsave(&gpio_lock, flags);
 		ret =  setget_output(priv, arg) & 0x7FFFFFFF;
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_SHUTDOWN:
+		spin_lock_irqsave(&gpio_lock, flags);
 		SOFT_SHUTDOWN();
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_GET_PWR_BT:
+		spin_lock_irqsave(&gpio_lock, flags);
 #if defined (CONFIG_ETRAX_SOFT_SHUTDOWN)
 		ret = (*R_PORT_G_DATA & ( 1 << CONFIG_ETRAX_POWERBUTTON_BIT));
 #else
 		ret = 0;
 #endif
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_CFG_WRITE_MODE:
+		spin_lock_irqsave(&gpio_lock, flags);
 		priv->clk_mask = arg & 0xFF;
 		priv->data_mask = (arg >> 8) & 0xFF;
 		priv->write_msb = (arg >> 16) & 0x01;
@@ -626,28 +642,33 @@ gpio_ioctl(struct inode *inode, struct file *file,
 			priv->data_mask = 0;
 			ret = -EPERM;
 		}
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
-	case IO_READ_INBITS: 
+	case IO_READ_INBITS:
 		/* *arg is result of reading the input pins */
+		spin_lock_irqsave(&gpio_lock, flags);
 		if (USE_PORTS(priv)) {
 			val = *priv->port;
 		} else if (priv->minor == GPIO_MINOR_G) {
 			val = *R_PORT_G_DATA;
 		}
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			ret = -EFAULT;
 		break;
 	case IO_READ_OUTBITS:
 		 /* *arg is result of reading the output shadow */
+		spin_lock_irqsave(&gpio_lock, flags);
 		if (USE_PORTS(priv)) {
 			val = *priv->shadow;
 		} else if (priv->minor == GPIO_MINOR_G) {
 			val = port_g_data_shadow;
 		}
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			ret = -EFAULT;
 		break;
-	case IO_SETGET_INPUT: 
+	case IO_SETGET_INPUT:
 		/* bits set in *arg is set to input,
 		 * *arg updated with current input pins.
 		 */
@@ -656,7 +677,9 @@ gpio_ioctl(struct inode *inode, struct file *file,
 			ret = -EFAULT;
 			break;
 		}
+		spin_lock_irqsave(&gpio_lock, flags);
 		val = setget_input(priv, val);
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			ret = -EFAULT;
 		break;
@@ -668,18 +691,21 @@ gpio_ioctl(struct inode *inode, struct file *file,
 			ret = -EFAULT;
 			break;
 		}
+		spin_lock_irqsave(&gpio_lock, flags);
 		val = setget_output(priv, val);
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			ret = -EFAULT;
 		break;
 	default:
+		spin_lock_irqsave(&gpio_lock, flags);
 		if (priv->minor == GPIO_MINOR_LEDS)
 			ret = gpio_leds_ioctl(cmd, arg);
 		else
 			ret = -EINVAL;
+		spin_unlock_irqrestore(&gpio_lock, flags);
 	} /* switch */
 
-	spin_unlock_irqrestore(&gpio_lock, flags);
 	return ret;
 }
 
@@ -713,12 +739,13 @@ gpio_leds_ioctl(unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations gpio_fops = {
-	.owner       = THIS_MODULE,
-	.poll        = gpio_poll,
-	.ioctl       = gpio_ioctl,
-	.write       = gpio_write,
-	.open        = gpio_open,
-	.release     = gpio_release,
+	.owner          = THIS_MODULE,
+	.poll           = gpio_poll,
+	.unlocked_ioctl = gpio_ioctl,
+	.write          = gpio_write,
+	.open           = gpio_open,
+	.release        = gpio_release,
+	.llseek		= noop_llseek,
 };
 
 static void ioif_watcher(const unsigned int gpio_in_available,

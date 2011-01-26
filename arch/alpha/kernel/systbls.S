@@ -58,7 +58,7 @@ sys_call_table:
 	.quad sys_open				/* 45 */
 	.quad alpha_ni_syscall
 	.quad sys_getxgid
-	.quad osf_sigprocmask
+	.quad sys_osf_sigprocmask
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall			/* 50 */
 	.quad sys_acct
@@ -512,6 +512,9 @@ sys_call_table:
 	.quad sys_pwritev
 	.quad sys_rt_tgsigqueueinfo
 	.quad sys_perf_event_open
+	.quad sys_fanotify_init
+	.quad sys_fanotify_mark				/* 495 */
+	.quad sys_prlimit64
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object

@@ -63,6 +63,12 @@ struct nfs_clone_mount {
 #define NFS_UNSPEC_PORT		(-1)
 
 /*
+ * Maximum number of pages that readdir can use for creating
+ * a vmapped array of pages.
+ */
+#define NFS_MAX_READDIR_PAGES 8
+
+/*
  * In-kernel mount arguments
  */
 struct nfs_parsed_mount_data {
@@ -122,9 +128,13 @@ extern void nfs_umount(const struct nfs_mount_request *info);
 /* client.c */
 extern struct rpc_program nfs_program;
 
+extern void nfs_cleanup_cb_ident_idr(void);
 extern void nfs_put_client(struct nfs_client *);
-extern struct nfs_client *nfs_find_client(const struct sockaddr *, u32);
-extern struct nfs_client *nfs_find_client_next(struct nfs_client *);
+extern struct nfs_client *nfs4_find_client_no_ident(const struct sockaddr *);
+extern struct nfs_client *nfs4_find_client_ident(int);
+extern struct nfs_client *
+nfs4_find_client_sessionid(const struct sockaddr *, struct nfs4_sessionid *,
+			   int);
 extern struct nfs_server *nfs_create_server(
 					const struct nfs_parsed_mount_data *,
 					struct nfs_fh *);
@@ -179,17 +189,20 @@ extern int __init nfs_init_directcache(void);
 extern void nfs_destroy_directcache(void);
 
 /* nfs2xdr.c */
-extern int nfs_stat_to_errno(int);
+extern int nfs_stat_to_errno(enum nfs_stat);
 extern struct rpc_procinfo nfs_procedures[];
-extern __be32 * nfs_decode_dirent(__be32 *, struct nfs_entry *, int);
+extern int nfs2_decode_dirent(struct xdr_stream *,
+				struct nfs_entry *, int);
 
 /* nfs3xdr.c */
 extern struct rpc_procinfo nfs3_procedures[];
-extern __be32 *nfs3_decode_dirent(__be32 *, struct nfs_entry *, int);
+extern int nfs3_decode_dirent(struct xdr_stream *,
+				struct nfs_entry *, int);
 
 /* nfs4xdr.c */
 #ifdef CONFIG_NFS_V4
-extern __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus);
+extern int nfs4_decode_dirent(struct xdr_stream *,
+				struct nfs_entry *, int);
 #endif
 #ifdef CONFIG_NFS_V4_1
 extern const u32 nfs41_maxread_overhead;
@@ -205,16 +218,17 @@ extern struct rpc_procinfo nfs4_procedures[];
 void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
 
 /* dir.c */
-extern int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask);
+extern int nfs_access_cache_shrinker(struct shrinker *shrink,
+					int nr_to_scan, gfp_t gfp_mask);
 
 /* inode.c */
 extern struct workqueue_struct *nfsiod_workqueue;
 extern struct inode *nfs_alloc_inode(struct super_block *sb);
 extern void nfs_destroy_inode(struct inode *);
 extern int nfs_write_inode(struct inode *, struct writeback_control *);
-extern void nfs_clear_inode(struct inode *);
+extern void nfs_evict_inode(struct inode *);
 #ifdef CONFIG_NFS_V4
-extern void nfs4_clear_inode(struct inode *);
+extern void nfs4_evict_inode(struct inode *);
 #endif
 void nfs_zap_acl_cache(struct inode *inode);
 extern int nfs_wait_bit_killable(void *word);
@@ -238,6 +252,7 @@ extern char *nfs_path(const char *base,
 		      const struct dentry *droot,
 		      const struct dentry *dentry,
 		      char *buffer, ssize_t buflen);
+extern struct vfsmount *nfs_d_automount(struct path *path);
 
 /* getroot.c */
 extern struct dentry *nfs_get_root(struct super_block *, struct nfs_fh *);
@@ -355,6 +370,15 @@ unsigned int nfs_page_length(struct page *page)
 }
 
 /*
+ * Convert a umode to a dirent->d_type
+ */
+static inline
+unsigned char nfs_umode_to_dtype(umode_t mode)
+{
+	return (mode >> 12) & 15;
+}
+
+/*
  * Determine the number of pages in an array of length 'len' and
  * with a base offset of 'base'
  */
@@ -369,10 +393,9 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
  * Helper for restarting RPC calls in the possible presence of NFSv4.1
  * sessions.
  */
-static inline void nfs_restart_rpc(struct rpc_task *task, const struct nfs_client *clp)
+static inline int nfs_restart_rpc(struct rpc_task *task, const struct nfs_client *clp)
 {
 	if (nfs4_has_session(clp))
-		rpc_restart_call_prepare(task);
-	else
-		rpc_restart_call(task);
+		return rpc_restart_call_prepare(task);
+	return rpc_restart_call(task);
 }

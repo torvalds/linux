@@ -81,7 +81,7 @@
 #include <inttypes.h>
 #include "../../../include/linux/magic.h"
 #include "types.h"
-
+#include <sys/ttydefaults.h>
 
 #ifndef NO_ICONV
 #include <iconv.h>
@@ -89,6 +89,7 @@
 
 extern const char *graph_line;
 extern const char *graph_dotted_line;
+extern char buildid_dir[];
 
 /* On most systems <limits.h> would have given us this, but
  * not on some systems (e.g. GNU/Hurd).
@@ -152,126 +153,14 @@ extern void warning(const char *err, ...) __attribute__((format (printf, 1, 2)))
 extern void set_die_routine(void (*routine)(const char *err, va_list params) NORETURN);
 
 extern int prefixcmp(const char *str, const char *prefix);
-extern time_t tm_to_time_t(const struct tm *tm);
+extern void set_buildid_dir(void);
+extern void disable_buildid_cache(void);
 
 static inline const char *skip_prefix(const char *str, const char *prefix)
 {
 	size_t len = strlen(prefix);
 	return strncmp(str, prefix, len) ? NULL : str + len;
 }
-
-#if defined(NO_MMAP) || defined(USE_WIN32_MMAP)
-
-#ifndef PROT_READ
-#define PROT_READ 1
-#define PROT_WRITE 2
-#define MAP_PRIVATE 1
-#define MAP_FAILED ((void*)-1)
-#endif
-
-#define mmap git_mmap
-#define munmap git_munmap
-extern void *git_mmap(void *start, size_t length, int prot, int flags, int fd, off_t offset);
-extern int git_munmap(void *start, size_t length);
-
-#else /* NO_MMAP || USE_WIN32_MMAP */
-
-#include <sys/mman.h>
-
-#endif /* NO_MMAP || USE_WIN32_MMAP */
-
-#ifdef NO_MMAP
-
-/* This value must be multiple of (pagesize * 2) */
-#define DEFAULT_PACKED_GIT_WINDOW_SIZE (1 * 1024 * 1024)
-
-#else /* NO_MMAP */
-
-/* This value must be multiple of (pagesize * 2) */
-#define DEFAULT_PACKED_GIT_WINDOW_SIZE \
-	(sizeof(void*) >= 8 \
-		?  1 * 1024 * 1024 * 1024 \
-		: 32 * 1024 * 1024)
-
-#endif /* NO_MMAP */
-
-#ifdef NO_ST_BLOCKS_IN_STRUCT_STAT
-#define on_disk_bytes(st) ((st).st_size)
-#else
-#define on_disk_bytes(st) ((st).st_blocks * 512)
-#endif
-
-#define DEFAULT_PACKED_GIT_LIMIT \
-	((1024L * 1024L) * (sizeof(void*) >= 8 ? 8192 : 256))
-
-#ifdef NO_PREAD
-#define pread git_pread
-extern ssize_t git_pread(int fd, void *buf, size_t count, off_t offset);
-#endif
-/*
- * Forward decl that will remind us if its twin in cache.h changes.
- * This function is used in compat/pread.c.  But we can't include
- * cache.h there.
- */
-extern ssize_t read_in_full(int fd, void *buf, size_t count);
-
-#ifdef NO_SETENV
-#define setenv gitsetenv
-extern int gitsetenv(const char *, const char *, int);
-#endif
-
-#ifdef NO_MKDTEMP
-#define mkdtemp gitmkdtemp
-extern char *gitmkdtemp(char *);
-#endif
-
-#ifdef NO_UNSETENV
-#define unsetenv gitunsetenv
-extern void gitunsetenv(const char *);
-#endif
-
-#ifdef NO_STRCASESTR
-#define strcasestr gitstrcasestr
-extern char *gitstrcasestr(const char *haystack, const char *needle);
-#endif
-
-#ifdef NO_STRLCPY
-#define strlcpy gitstrlcpy
-extern size_t gitstrlcpy(char *, const char *, size_t);
-#endif
-
-#ifdef NO_STRTOUMAX
-#define strtoumax gitstrtoumax
-extern uintmax_t gitstrtoumax(const char *, char **, int);
-#endif
-
-#ifdef NO_HSTRERROR
-#define hstrerror githstrerror
-extern const char *githstrerror(int herror);
-#endif
-
-#ifdef NO_MEMMEM
-#define memmem gitmemmem
-void *gitmemmem(const void *haystack, size_t haystacklen,
-                const void *needle, size_t needlelen);
-#endif
-
-#ifdef FREAD_READS_DIRECTORIES
-#ifdef fopen
-#undef fopen
-#endif
-#define fopen(a,b) git_fopen(a,b)
-extern FILE *git_fopen(const char*, const char*);
-#endif
-
-#ifdef SNPRINTF_RETURNS_BOGUS
-#define snprintf git_snprintf
-extern int git_snprintf(char *str, size_t maxsize,
-			const char *format, ...);
-#define vsnprintf git_vsnprintf
-extern int git_vsnprintf(char *str, size_t maxsize,
-			 const char *format, va_list ap);
-#endif
 
 #ifdef __GLIBC_PREREQ
 #if __GLIBC_PREREQ(2, 1)
@@ -293,26 +182,12 @@ static inline char *gitstrchrnul(const char *s, int c)
  * Wrappers:
  */
 extern char *xstrdup(const char *str);
-extern void *xmalloc(size_t size) __attribute__((weak));
-extern void *xmemdupz(const void *data, size_t len);
-extern char *xstrndup(const char *str, size_t len);
 extern void *xrealloc(void *ptr, size_t size) __attribute__((weak));
 
-static inline void *xzalloc(size_t size)
-{
-	void *buf = xmalloc(size);
-
-	return memset(buf, 0, size);
-}
 
 static inline void *zalloc(size_t size)
 {
 	return calloc(1, size);
-}
-
-static inline size_t xsize_t(off_t len)
-{
-	return (size_t)len;
 }
 
 static inline int has_extension(const char *filename, const char *ext)
@@ -351,8 +226,6 @@ extern unsigned char sane_ctype[256];
 #define isalpha(x) sane_istest(x,GIT_ALPHA)
 #define isalnum(x) sane_istest(x,GIT_ALPHA | GIT_DIGIT)
 #define isprint(x) sane_istest(x,GIT_PRINT)
-#define is_glob_special(x) sane_istest(x,GIT_GLOB_SPECIAL)
-#define is_regex_special(x) sane_istest(x,GIT_GLOB_SPECIAL | GIT_REGEX_SPECIAL)
 #define tolower(x) sane_case((unsigned char)(x), 0x20)
 #define toupper(x) sane_case((unsigned char)(x), 0)
 
@@ -362,38 +235,6 @@ static inline int sane_case(int x, int high)
 		x = (x & ~0x20) | high;
 	return x;
 }
-
-static inline int strtoul_ui(char const *s, int base, unsigned int *result)
-{
-	unsigned long ul;
-	char *p;
-
-	errno = 0;
-	ul = strtoul(s, &p, base);
-	if (errno || *p || p == s || (unsigned int) ul != ul)
-		return -1;
-	*result = ul;
-	return 0;
-}
-
-static inline int strtol_i(char const *s, int base, int *result)
-{
-	long ul;
-	char *p;
-
-	errno = 0;
-	ul = strtol(s, &p, base);
-	if (errno || *p || p == s || (int) ul != ul)
-		return -1;
-	*result = ul;
-	return 0;
-}
-
-#ifdef INTERNAL_QSORT
-void git_qsort(void *base, size_t nmemb, size_t size,
-	       int(*compar)(const void *, const void *));
-#define qsort git_qsort
-#endif
 
 #ifndef DIR_HAS_BSD_GROUP_SEMANTICS
 # define FORCE_DIR_SET_GID S_ISGID
@@ -424,6 +265,7 @@ void argv_free(char **argv);
 bool strglobmatch(const char *str, const char *pat);
 bool strlazymatch(const char *str, const char *pat);
 unsigned long convert_unit(unsigned long value, char *unit);
+int readn(int fd, void *buf, size_t size);
 
 #define _STR(x) #x
 #define STR(x) _STR(x)

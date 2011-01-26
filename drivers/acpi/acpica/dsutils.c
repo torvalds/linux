@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -746,7 +746,7 @@ acpi_ds_create_operands(struct acpi_walk_state *walk_state,
 		index--;
 
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-				  "Arg #%d (%p) done, Arg1=%p\n", index, arg,
+				  "Arg #%u (%p) done, Arg1=%p\n", index, arg,
 				  first_arg));
 	}
 
@@ -760,7 +760,7 @@ acpi_ds_create_operands(struct acpi_walk_state *walk_state,
 	 */
 	acpi_ds_obj_stack_pop_and_delete(arg_count, walk_state);
 
-	ACPI_EXCEPTION((AE_INFO, status, "While creating Arg %d", index));
+	ACPI_EXCEPTION((AE_INFO, status, "While creating Arg %u", index));
 	return_ACPI_STATUS(status);
 }
 

@@ -26,6 +26,7 @@
 
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
+#include <linux/mmc/host.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -38,8 +39,8 @@
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
-#include <plat/timer-gp.h>
 #include <plat/display.h>
+#include <plat/panel-generic-dpi.h>
 
 #include <plat/mcspi.h>
 #include <linux/input/matrix_keypad.h>
@@ -52,6 +53,7 @@
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mux.h"
 #include "hsmmc.h"
+#include "timer-gp.h"
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 #define OMAP3STALKER_ETHR_START	0x2c000000
@@ -159,13 +161,18 @@ static void omap3_stalker_disable_lcd(struct omap_dss_device *dssdev)
 	lcd_enabled = 0;
 }
 
-static struct omap_dss_device omap3_stalker_lcd_device = {
-	.name			= "lcd",
-	.driver_name		= "generic_panel",
-	.phy.dpi.data_lines	= 24,
-	.type			= OMAP_DISPLAY_TYPE_DPI,
+static struct panel_generic_dpi_data lcd_panel = {
+	.name			= "generic",
 	.platform_enable	= omap3_stalker_enable_lcd,
 	.platform_disable	= omap3_stalker_disable_lcd,
+};
+
+static struct omap_dss_device omap3_stalker_lcd_device = {
+	.name			= "lcd",
+	.driver_name		= "generic_dpi_panel",
+	.data			= &lcd_panel,
+	.phy.dpi.data_lines	= 24,
+	.type			= OMAP_DISPLAY_TYPE_DPI,
 };
 
 static int omap3_stalker_enable_tv(struct omap_dss_device *dssdev)
@@ -207,13 +214,18 @@ static void omap3_stalker_disable_dvi(struct omap_dss_device *dssdev)
 	dvi_enabled = 0;
 }
 
-static struct omap_dss_device omap3_stalker_dvi_device = {
-	.name			= "dvi",
-	.driver_name		= "generic_panel",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 24,
+static struct panel_generic_dpi_data dvi_panel = {
+	.name			= "generic",
 	.platform_enable	= omap3_stalker_enable_dvi,
 	.platform_disable	= omap3_stalker_disable_dvi,
+};
+
+static struct omap_dss_device omap3_stalker_dvi_device = {
+	.name			= "dvi",
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.driver_name		= "generic_dpi_panel",
+	.data			= &dvi_panel,
+	.phy.dpi.data_lines	= 24,
 };
 
 static struct omap_dss_device *omap3_stalker_dss_devices[] = {
@@ -275,7 +287,7 @@ static struct regulator_init_data omap3stalker_vsim = {
 static struct omap2_hsmmc_info mmc[] = {
 	{
 	 .mmc		= 1,
-	 .wires		= 4,
+	 .caps		= MMC_CAP_4_BIT_DATA,
 	 .gpio_cd	= -EINVAL,
 	 .gpio_wp	= 23,
 	 },
@@ -389,7 +401,7 @@ static struct twl4030_usb_data omap3stalker_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
-static int board_keymap[] = {
+static uint32_t board_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_DOWN),
 	KEY(0, 2, KEY_ENTER),
@@ -538,9 +550,7 @@ static void ads7846_dev_init(void)
 		printk(KERN_ERR "can't get ads7846 pen down GPIO\n");
 
 	gpio_direction_input(OMAP3_STALKER_TS_GPIO);
-
-	omap_set_gpio_debounce(OMAP3_STALKER_TS_GPIO, 1);
-	omap_set_gpio_debounce_time(OMAP3_STALKER_TS_GPIO, 0xa);
+	gpio_set_debounce(OMAP3_STALKER_TS_GPIO, 310);
 }
 
 static int ads7846_get_pendown_state(void)
@@ -566,7 +576,7 @@ static struct omap2_mcspi_device_config ads7846_mcspi_config = {
 	.single_channel		= 1,	/* 0: slave, 1: master */
 };
 
-struct spi_board_info omap3stalker_spi_board_info[] = {
+static struct spi_board_info omap3stalker_spi_board_info[] = {
 	[0] = {
 	       .modalias	= "ads7846",
 	       .bus_num		= 1,
@@ -585,12 +595,12 @@ static void __init omap3_stalker_init_irq(void)
 {
 	omap_board_config = omap3_stalker_config;
 	omap_board_config_size = ARRAY_SIZE(omap3_stalker_config);
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params, NULL);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(mt46h32m32lf6_sdrc_params, NULL);
 	omap_init_irq();
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(12);
 #endif
-	omap_gpio_init();
 }
 
 static struct platform_device *omap3_stalker_devices[] __initdata = {
@@ -617,8 +627,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 		  OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_WAKEUPENABLE),
 	{.reg_offset = OMAP_MUX_TERMINATOR},
 };
-#else
-#define board_mux	NULL
 #endif
 
 static struct omap_musb_board_data musb_board_data = {
@@ -654,18 +662,10 @@ static void __init omap3_stalker_init(void)
 	omap_mux_init_signal("sdr_cke1", OMAP_PIN_OUTPUT);
 }
 
-static void __init omap3_stalker_map_io(void)
-{
-	omap2_set_globals_343x();
-	omap34xx_map_common_io();
-}
-
 MACHINE_START(SBC3530, "OMAP3 STALKER")
 	/* Maintainer: Jason Lam -lzg@ema-tech.com */
-	.phys_io		= 0x48000000,
-	.io_pg_offst		= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params		= 0x80000100,
-	.map_io			= omap3_stalker_map_io,
+	.map_io			= omap3_map_io,
 	.init_irq		= omap3_stalker_init_irq,
 	.init_machine		= omap3_stalker_init,
 	.timer			= &omap_timer,

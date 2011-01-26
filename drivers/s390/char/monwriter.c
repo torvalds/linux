@@ -274,6 +274,7 @@ static const struct file_operations monwrite_fops = {
 	.open	 = &monwrite_open,
 	.release = &monwrite_close,
 	.write	 = &monwrite_write,
+	.llseek  = noop_llseek,
 };
 
 static struct miscdevice mon_dev = {
@@ -380,7 +381,7 @@ out_driver:
 
 static void __exit mon_exit(void)
 {
-	WARN_ON(misc_deregister(&mon_dev) != 0);
+	misc_deregister(&mon_dev);
 	platform_device_unregister(monwriter_pdev);
 	platform_driver_unregister(&monwriter_pdrv);
 }

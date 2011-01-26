@@ -49,7 +49,6 @@
 #include <linux/io.h>
 
 #include <linux/i2c.h>
-#include <linux/backlight.h>
 #include <linux/regulator/machine.h>
 
 #include <linux/mfd/pcf50633/core.h>
@@ -57,6 +56,7 @@
 #include <linux/mfd/pcf50633/adc.h>
 #include <linux/mfd/pcf50633/gpio.h>
 #include <linux/mfd/pcf50633/pmic.h>
+#include <linux/mfd/pcf50633/backlight.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -90,23 +90,16 @@
 static struct pcf50633 *gta02_pcf;
 
 /*
- * This gets called every 1ms when we paniced.
+ * This gets called frequently when we paniced.
  */
 
-static long gta02_panic_blink(long count)
+static long gta02_panic_blink(int state)
 {
 	long delay = 0;
-	static long last_blink;
-	static char led;
+	char led;
 
-	/* Fast blink: 200ms period. */
-	if (count - last_blink < 100)
-		return 0;
-
-	led ^= 1;
+	led = (state) ? 1 : 0;
 	gpio_direction_output(GTA02_GPIO_AUX_LED, led);
-
-	last_blink = count;
 
 	return delay;
 }
@@ -254,6 +247,12 @@ static char *gta02_batteries[] = {
 	"battery",
 };
 
+static struct pcf50633_bl_platform_data gta02_backlight_data = {
+	.default_brightness = 0x3f,
+	.default_brightness_limit = 0,
+	.ramp_time = 5,
+};
+
 struct pcf50633_platform_data gta02_pcf_pdata = {
 	.resumers = {
 		[0] =	PCF50633_INT1_USBINS |
@@ -270,6 +269,8 @@ struct pcf50633_platform_data gta02_pcf_pdata = {
 	.num_batteries = ARRAY_SIZE(gta02_batteries),
 
 	.charger_reference_current_ma = 1000,
+
+	.backlight_data = &gta02_backlight_data,
 
 	.reg_init_data = {
 		[PCF50633_REGULATOR_AUTO] = {
@@ -478,71 +479,6 @@ static struct s3c2410_udc_mach_info gta02_udc_cfg = {
 
 };
 
-
-
-static void gta02_bl_set_intensity(int intensity)
-{
-	struct pcf50633 *pcf = gta02_pcf;
-	int old_intensity = pcf50633_reg_read(pcf, PCF50633_REG_LEDOUT);
-
-	/* We map 8-bit intensity to 6-bit intensity in hardware. */
-	intensity >>= 2;
-
-	/*
-	 * This can happen during, eg, print of panic on blanked console,
-	 * but we can't service i2c without interrupts active, so abort.
-	 */
-	if (in_atomic()) {
-		printk(KERN_ERR "gta02_bl_set_intensity called while atomic\n");
-		return;
-	}
-
-	old_intensity = pcf50633_reg_read(pcf, PCF50633_REG_LEDOUT);
-	if (intensity == old_intensity)
-		return;
-
-	/* We can't do this anywhere else. */
-	pcf50633_reg_write(pcf, PCF50633_REG_LEDDIM, 5);
-
-	if (!(pcf50633_reg_read(pcf, PCF50633_REG_LEDENA) & 3))
-		old_intensity = 0;
-
-	/*
-	 * The PCF50633 cannot handle LEDOUT = 0 (datasheet p60)
-	 * if seen, you have to re-enable the LED unit.
-	 */
-	if (!intensity || !old_intensity)
-		pcf50633_reg_write(pcf, PCF50633_REG_LEDENA, 0);
-
-	/* Illegal to set LEDOUT to 0. */
-	if (!intensity)
-		pcf50633_reg_set_bit_mask(pcf, PCF50633_REG_LEDOUT, 0x3f, 2);
-	else
-		pcf50633_reg_set_bit_mask(pcf, PCF50633_REG_LEDOUT, 0x3f,
-					  intensity);
-
-	if (intensity)
-		pcf50633_reg_write(pcf, PCF50633_REG_LEDENA, 2);
-
-}
-
-static struct generic_bl_info gta02_bl_info = {
-	.name			= "gta02-bl",
-	.max_intensity		= 0xff,
-	.default_intensity	= 0xff,
-	.set_bl_intensity	= gta02_bl_set_intensity,
-};
-
-static struct platform_device gta02_bl_dev = {
-	.name			= "generic-bl",
-	.id			= 1,
-	.dev = {
-		.platform_data = &gta02_bl_info,
-	},
-};
-
-
-
 /* USB */
 static struct s3c2410_hcd_info gta02_usb_info __initdata = {
 	.port[0]	= {
@@ -579,7 +515,6 @@ static struct platform_device *gta02_devices[] __initdata = {
 /* These guys DO need to be children of PMU. */
 
 static struct platform_device *gta02_devices_pmu_children[] = {
-	&gta02_bl_dev,
 };
 
 
@@ -614,7 +549,7 @@ static void gta02_poweroff(void)
 
 static void __init gta02_machine_init(void)
 {
-	/* Set the panic callback to make AUX LED blink at ~5Hz. */
+	/* Set the panic callback to turn AUX LED on or off. */
 	panic_blink = gta02_panic_blink;
 
 	s3c_pm_init();
@@ -637,8 +572,6 @@ static void __init gta02_machine_init(void)
 
 MACHINE_START(NEO1973_GTA02, "GTA02")
 	/* Maintainer: Nelson Castillo <arhuaco@freaks-unidos.net> */
-	.phys_io	= S3C2410_PA_UART,
-	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= gta02_map_io,
 	.init_irq	= s3c24xx_init_irq,

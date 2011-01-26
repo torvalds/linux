@@ -95,7 +95,7 @@ MODULE_PARM_DESC(int_timeout_rx, "RX timeout value");
 #include <asm/sibyte/sb1250_regs.h>
 #include <asm/sibyte/sb1250_int.h>
 #else
-#error invalid SiByte MAC configuation
+#error invalid SiByte MAC configuration
 #endif
 #include <asm/sibyte/sb1250_scd.h>
 #include <asm/sibyte/sb1250_mac.h>
@@ -106,7 +106,7 @@ MODULE_PARM_DESC(int_timeout_rx, "RX timeout value");
 #elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 #define UNIT_INT(n)		(K_INT_MAC_0 + (n))
 #else
-#error invalid SiByte MAC configuation
+#error invalid SiByte MAC configuration
 #endif
 
 #ifdef K_INT_PHY
@@ -1170,7 +1170,7 @@ again:
 						sb->ip_summed = CHECKSUM_UNNECESSARY;
 						/* don't need to set sb->csum */
 					} else {
-						sb->ip_summed = CHECKSUM_NONE;
+						skb_checksum_none_assert(sb);
 					}
 				}
 				prefetch(sb->data);
@@ -1568,7 +1568,7 @@ static void sbmac_channel_start(struct sbmac_softc *s)
 		       M_MAC_RX_ENABLE |
 		       M_MAC_TX_ENABLE, s->sbm_macenable);
 #else
-#error invalid SiByte MAC configuation
+#error invalid SiByte MAC configuration
 #endif
 
 #ifdef CONFIG_SBMAC_COALESCE
@@ -2532,7 +2532,7 @@ static int sbmac_mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!netif_running(dev) || !sc->phy_dev)
 		return -EINVAL;
 
-	return phy_mii_ioctl(sc->phy_dev, if_mii(rq), cmd);
+	return phy_mii_ioctl(sc->phy_dev, rq, cmd);
 }
 
 static int sbmac_close(struct net_device *dev)
@@ -2671,6 +2671,7 @@ static struct platform_driver sbmac_driver = {
 	.remove = __exit_p(sbmac_remove),
 	.driver = {
 		.name = sbmac_string,
+		.owner  = THIS_MODULE,
 	},
 };
 

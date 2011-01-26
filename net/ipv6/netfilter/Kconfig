@@ -5,10 +5,15 @@
 menu "IPv6: Netfilter Configuration"
 	depends on INET && IPV6 && NETFILTER
 
+config NF_DEFRAG_IPV6
+	tristate
+	default n
+
 config NF_CONNTRACK_IPV6
 	tristate "IPv6 connection tracking support"
 	depends on INET && IPV6 && NF_CONNTRACK
 	default m if NETFILTER_ADVANCED=n
+	select NF_DEFRAG_IPV6
 	---help---
 	  Connection tracking keeps a record of what packets have passed
 	  through your machine, in order to figure out how they are related
@@ -132,10 +137,10 @@ config IP6_NF_MATCH_RT
 # The targets
 config IP6_NF_TARGET_HL
 	tristate '"HL" hoplimit target support'
-	depends on NETFILTER_ADVANCED
+	depends on NETFILTER_ADVANCED && IP6_NF_MANGLE
 	select NETFILTER_XT_TARGET_HL
 	---help---
-	This is a backwards-compat option for the user's convenience
+	This is a backwards-compatible option for the user's convenience
 	(e.g. when running oldconfig). It selects
 	CONFIG_NETFILTER_XT_TARGET_HL.
 

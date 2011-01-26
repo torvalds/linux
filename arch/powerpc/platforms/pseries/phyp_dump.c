@@ -255,12 +255,12 @@ void invalidate_last_dump(struct phyp_dump_header *ph, unsigned long addr)
 
 /* ------------------------------------------------- */
 /**
- * release_memory_range -- release memory previously lmb_reserved
+ * release_memory_range -- release memory previously memblock_reserved
  * @start_pfn: starting physical frame number
  * @nr_pages: number of pages to free.
  *
  * This routine will release memory that had been previously
- * lmb_reserved in early boot. The released memory becomes
+ * memblock_reserved in early boot. The released memory becomes
  * available for genreal use.
  */
 static void release_memory_range(unsigned long start_pfn,

@@ -315,7 +315,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	read_unlock(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPATH_TABLE,  &ifmsh->wrkq_flags);
-		ieee80211_queue_work(&local->hw, &ifmsh->work);
+		ieee80211_queue_work(&local->hw, &sdata->work);
 	}
 	return 0;
 
@@ -425,7 +425,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	read_unlock(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPP_TABLE,  &ifmsh->wrkq_flags);
-		ieee80211_queue_work(&local->hw, &ifmsh->work);
+		ieee80211_queue_work(&local->hw, &sdata->work);
 	}
 	return 0;
 
@@ -467,8 +467,8 @@ void mesh_plink_broken(struct sta_info *sta)
 			mpath->flags &= ~MESH_PATH_ACTIVE;
 			++mpath->sn;
 			spin_unlock_bh(&mpath->state_lock);
-			mesh_path_error_tx(MESH_TTL, mpath->dst,
-					cpu_to_le32(mpath->sn),
+			mesh_path_error_tx(sdata->u.mesh.mshcfg.element_ttl,
+					mpath->dst, cpu_to_le32(mpath->sn),
 					cpu_to_le16(PERR_RCODE_DEST_UNREACH),
 					bcast, sdata);
 		} else
@@ -614,7 +614,8 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 		mpath = mesh_path_lookup(da, sdata);
 		if (mpath)
 			sn = ++mpath->sn;
-		mesh_path_error_tx(MESH_TTL, skb->data, cpu_to_le32(sn),
+		mesh_path_error_tx(sdata->u.mesh.mshcfg.element_ttl, skb->data,
+				   cpu_to_le32(sn),
 				   cpu_to_le16(PERR_RCODE_NO_ROUTE), ra, sdata);
 	}
 

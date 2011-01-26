@@ -29,7 +29,7 @@
 #include <linux/kexec.h>
 #include <linux/debugfs.h>
 #include <linux/irq.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/prom.h>
 #include <asm/page.h>
@@ -42,19 +42,14 @@
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
 
-void __init early_init_dt_scan_chosen_arch(unsigned long node)
-{
-	/* No Microblaze specific code here */
-}
-
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
-	lmb_add(base, size);
+	memblock_add(base, size);
 }
 
-u64 __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
+void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 {
-	return lmb_alloc(size, align);
+	return __va(memblock_alloc(size, align));
 }
 
 #ifdef CONFIG_EARLY_PRINTK
@@ -66,6 +61,37 @@ static int __init early_init_dt_scan_serial(unsigned long node,
 	char *p;
 	int *addr;
 
+	pr_debug("search \"serial\", depth: %d, uname: %s\n", depth, uname);
+
+/* find all serial nodes */
+	if (strncmp(uname, "serial", 6) != 0)
+		return 0;
+
+/* find compatible node with uartlite */
+	p = of_get_flat_dt_prop(node, "compatible", &l);
+	if ((strncmp(p, "xlnx,xps-uartlite", 17) != 0) &&
+			(strncmp(p, "xlnx,opb-uartlite", 17) != 0) &&
+			(strncmp(p, "xlnx,axi-uartlite", 17) != 0))
+		return 0;
+
+	addr = of_get_flat_dt_prop(node, "reg", &l);
+	return be32_to_cpup(addr); /* return address */
+}
+
+/* this function is looking for early uartlite console - Microblaze specific */
+int __init early_uartlite_console(void)
+{
+	return of_scan_flat_dt(early_init_dt_scan_serial, NULL);
+}
+
+/* MS this is Microblaze specifig function */
+static int __init early_init_dt_scan_serial_full(unsigned long node,
+				const char *uname, int depth, void *data)
+{
+	unsigned long l;
+	char *p;
+	unsigned int addr;
+
 	pr_debug("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
 
 /* find all serial nodes */
@@ -76,18 +102,20 @@ static int __init early_init_dt_scan_serial(unsigned long node,
 
 /* find compatible node with uartlite */
 	p = of_get_flat_dt_prop(node, "compatible", &l);
-	if ((strncmp(p, "xlnx,xps-uartlite", 17) != 0) &&
-			(strncmp(p, "xlnx,opb-uartlite", 17) != 0))
+
+	if ((strncmp(p, "xlnx,xps-uart16550", 18) != 0) &&
+		(strncmp(p, "xlnx,axi-uart16550", 18) != 0))
 		return 0;
 
-	addr = of_get_flat_dt_prop(node, "reg", &l);
-	return *addr; /* return address */
+	addr = *(u32 *)of_get_flat_dt_prop(node, "reg", &l);
+	addr += *(u32 *)of_get_flat_dt_prop(node, "reg-offset", &l);
+	return be32_to_cpu(addr); /* return address */
 }
 
 /* this function is looking for early uartlite console - Microblaze specific */
-int __init early_uartlite_console(void)
+int __init early_uart16550_console(void)
 {
-	return of_scan_flat_dt(early_init_dt_scan_serial, NULL);
+	return of_scan_flat_dt(early_init_dt_scan_serial_full, NULL);
 }
 #endif
 
@@ -104,8 +132,8 @@ void __init early_init_devtree(void *params)
 	 */
 	of_scan_flat_dt(early_init_dt_scan_chosen, NULL);
 
-	/* Scan memory nodes and rebuild LMBs */
-	lmb_init();
+	/* Scan memory nodes and rebuild MEMBLOCKs */
+	memblock_init();
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 
@@ -113,9 +141,9 @@ void __init early_init_devtree(void *params)
 	strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
 	parse_early_param();
 
-	lmb_analyze();
+	memblock_analyze();
 
-	pr_debug("Phys. mem: %lx\n", (unsigned long) lmb_phys_mem_size());
+	pr_debug("Phys. mem: %lx\n", (unsigned long) memblock_phys_mem_size());
 
 	pr_debug(" <- early_init_devtree()\n");
 }

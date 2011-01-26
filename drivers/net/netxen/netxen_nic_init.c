@@ -214,13 +214,12 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	tx_ring->num_desc = adapter->num_txd;
 	tx_ring->txq = netdev_get_tx_queue(netdev, 0);
 
-	cmd_buf_arr = vmalloc(TX_BUFF_RINGSIZE(tx_ring));
+	cmd_buf_arr = vzalloc(TX_BUFF_RINGSIZE(tx_ring));
 	if (cmd_buf_arr == NULL) {
 		dev_err(&pdev->dev, "%s: failed to allocate cmd buffer ring\n",
 		       netdev->name);
-		return -ENOMEM;
+		goto err_out;
 	}
-	memset(cmd_buf_arr, 0, TX_BUFF_RINGSIZE(tx_ring));
 	tx_ring->cmd_buf_arr = cmd_buf_arr;
 
 	recv_ctx = &adapter->recv_ctx;
@@ -230,7 +229,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	if (rds_ring == NULL) {
 		dev_err(&pdev->dev, "%s: failed to allocate rds ring struct\n",
 		       netdev->name);
-		return -ENOMEM;
+		goto err_out;
 	}
 	recv_ctx->rds_rings = rds_ring;
 
@@ -279,8 +278,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 			break;
 
 		}
-		rds_ring->rx_buf_arr = (struct netxen_rx_buffer *)
-			vmalloc(RCV_BUFF_RINGSIZE(rds_ring));
+		rds_ring->rx_buf_arr = vzalloc(RCV_BUFF_RINGSIZE(rds_ring));
 		if (rds_ring->rx_buf_arr == NULL) {
 			printk(KERN_ERR "%s: Failed to allocate "
 				"rx buffer ring %d\n",
@@ -288,7 +286,6 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 			/* free whatever was already allocated */
 			goto err_out;
 		}
-		memset(rds_ring->rx_buf_arr, 0, RCV_BUFF_RINGSIZE(rds_ring));
 		INIT_LIST_HEAD(&rds_ring->free_list);
 		/*
 		 * Now go through all of them, set reference handles
@@ -346,7 +343,7 @@ static u32 netxen_decode_crb_addr(u32 addr)
 	if (pci_base == NETXEN_ADDR_ERROR)
 		return pci_base;
 	else
-		return (pci_base + offset);
+		return pci_base + offset;
 }
 
 #define NETXEN_MAX_ROM_WAIT_USEC	100
@@ -1540,7 +1537,6 @@ netxen_process_rcv(struct netxen_adapter *adapter,
 	if (pkt_offset)
 		skb_pull(skb, pkt_offset);
 
-	skb->truesize = skb->len + sizeof(struct sk_buff);
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	napi_gro_receive(&sds_ring->napi, skb);
@@ -1601,8 +1597,6 @@ netxen_process_lro(struct netxen_adapter *adapter,
 		data_offset = l4_hdr_offset + TCP_HDR_SIZE;
 
 	skb_put(skb, lro_length + data_offset);
-
-	skb->truesize = skb->len + sizeof(struct sk_buff) + skb_headroom(skb);
 
 	skb_pull(skb, l2_hdr_offset);
 	skb->protocol = eth_type_trans(skb, netdev);
@@ -1766,14 +1760,10 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 
 		smp_mb();
 
-		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev)) {
-			__netif_tx_lock(tx_ring->txq, smp_processor_id());
-			if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH) {
+		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev))
+			if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH)
 				netif_wake_queue(netdev);
-				adapter->tx_timeo_cnt = 0;
-			}
-			__netif_tx_unlock(tx_ring->txq);
-		}
+		adapter->tx_timeo_cnt = 0;
 	}
 	/*
 	 * If everything is freed up to consumer then check if the ring is full
@@ -1792,7 +1782,7 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 	done = (sw_consumer == hw_consumer);
 	spin_unlock(&adapter->tx_clean_lock);
 
-	return (done);
+	return done;
 }
 
 void
@@ -1807,7 +1797,6 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 
 	producer = rds_ring->producer;
 
-	spin_lock(&rds_ring->lock);
 	head = &rds_ring->free_list;
 	while (!list_empty(head)) {
 
@@ -1829,7 +1818,6 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 
 		producer = get_next_index(producer, rds_ring->num_desc);
 	}
-	spin_unlock(&rds_ring->lock);
 
 	if (count) {
 		rds_ring->producer = producer;
@@ -1864,9 +1852,10 @@ netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 	int producer, count = 0;
 	struct list_head *head;
 
-	producer = rds_ring->producer;
 	if (!spin_trylock(&rds_ring->lock))
 		return;
+
+	producer = rds_ring->producer;
 
 	head = &rds_ring->free_list;
 	while (!list_empty(head)) {

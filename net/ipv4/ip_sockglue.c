@@ -238,48 +238,68 @@ int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc)
    but receiver should be enough clever f.e. to forward mtrace requests,
    sent to multicast group to reach destination designated router.
  */
-struct ip_ra_chain *ip_ra_chain;
-DEFINE_RWLOCK(ip_ra_lock);
+struct ip_ra_chain __rcu *ip_ra_chain;
+static DEFINE_SPINLOCK(ip_ra_lock);
+
+
+static void ip_ra_destroy_rcu(struct rcu_head *head)
+{
+	struct ip_ra_chain *ra = container_of(head, struct ip_ra_chain, rcu);
+
+	sock_put(ra->saved_sk);
+	kfree(ra);
+}
 
 int ip_ra_control(struct sock *sk, unsigned char on,
 		  void (*destructor)(struct sock *))
 {
-	struct ip_ra_chain *ra, *new_ra, **rap;
+	struct ip_ra_chain *ra, *new_ra;
+	struct ip_ra_chain __rcu **rap;
 
 	if (sk->sk_type != SOCK_RAW || inet_sk(sk)->inet_num == IPPROTO_RAW)
 		return -EINVAL;
 
 	new_ra = on ? kmalloc(sizeof(*new_ra), GFP_KERNEL) : NULL;
 
-	write_lock_bh(&ip_ra_lock);
-	for (rap = &ip_ra_chain; (ra = *rap) != NULL; rap = &ra->next) {
+	spin_lock_bh(&ip_ra_lock);
+	for (rap = &ip_ra_chain;
+	     (ra = rcu_dereference_protected(*rap,
+			lockdep_is_held(&ip_ra_lock))) != NULL;
+	     rap = &ra->next) {
 		if (ra->sk == sk) {
 			if (on) {
-				write_unlock_bh(&ip_ra_lock);
+				spin_unlock_bh(&ip_ra_lock);
 				kfree(new_ra);
 				return -EADDRINUSE;
 			}
-			*rap = ra->next;
-			write_unlock_bh(&ip_ra_lock);
+			/* dont let ip_call_ra_chain() use sk again */
+			ra->sk = NULL;
+			rcu_assign_pointer(*rap, ra->next);
+			spin_unlock_bh(&ip_ra_lock);
 
 			if (ra->destructor)
 				ra->destructor(sk);
-			sock_put(sk);
-			kfree(ra);
+			/*
+			 * Delay sock_put(sk) and kfree(ra) after one rcu grace
+			 * period. This guarantee ip_call_ra_chain() dont need
+			 * to mess with socket refcounts.
+			 */
+			ra->saved_sk = sk;
+			call_rcu(&ra->rcu, ip_ra_destroy_rcu);
 			return 0;
 		}
 	}
 	if (new_ra == NULL) {
-		write_unlock_bh(&ip_ra_lock);
+		spin_unlock_bh(&ip_ra_lock);
 		return -ENOBUFS;
 	}
 	new_ra->sk = sk;
 	new_ra->destructor = destructor;
 
 	new_ra->next = ra;
-	*rap = new_ra;
+	rcu_assign_pointer(*rap, new_ra);
 	sock_hold(sk);
-	write_unlock_bh(&ip_ra_lock);
+	spin_unlock_bh(&ip_ra_lock);
 
 	return 0;
 }
@@ -449,7 +469,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			     (1<<IP_MTU_DISCOVER) | (1<<IP_RECVERR) |
 			     (1<<IP_ROUTER_ALERT) | (1<<IP_FREEBIND) |
 			     (1<<IP_PASSSEC) | (1<<IP_TRANSPARENT) |
-			     (1<<IP_MINTTL))) ||
+			     (1<<IP_MINTTL) | (1<<IP_NODEFRAG))) ||
 	    optname == IP_MULTICAST_TTL ||
 	    optname == IP_MULTICAST_ALL ||
 	    optname == IP_MULTICAST_LOOP ||
@@ -571,6 +591,13 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			break;
 		}
 		inet->hdrincl = val ? 1 : 0;
+		break;
+	case IP_NODEFRAG:
+		if (sk->sk_type != SOCK_RAW) {
+			err = -ENOPROTOOPT;
+			break;
+		}
+		inet->nodefrag = val ? 1 : 0;
 		break;
 	case IP_MTU_DISCOVER:
 		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_PROBE)
@@ -1105,6 +1132,9 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case IP_HDRINCL:
 		val = inet->hdrincl;
+		break;
+	case IP_NODEFRAG:
+		val = inet->nodefrag;
 		break;
 	case IP_MTU_DISCOVER:
 		val = inet->pmtudisc;

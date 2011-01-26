@@ -301,6 +301,16 @@ A partial list of the supported mount options follows:
   gid		Set the default gid for inodes (similar to above).
   file_mode     If CIFS Unix extensions are not supported by the server
 		this overrides the default mode for file inodes.
+  fsc		Enable local disk caching using FS-Cache (off by default). This
+  		option could be useful to improve performance on a slow link,
+		heavily loaded server and/or network where reading from the
+		disk is faster than reading from the server (over the network).
+		This could also impact scalability positively as the
+		number of calls to the server are reduced. However, local
+		caching is not suitable for all workloads for e.g. read-once
+		type workloads. So, you need to consider carefully your
+		workload/scenario before using this option. Currently, local
+		disk caching is functional for CIFS files opened as read-only.
   dir_mode      If CIFS Unix extensions are not supported by the server 
 		this overrides the default mode for directory inodes.
   port		attempt to contact the server on this tcp port, before
@@ -327,6 +337,15 @@ A partial list of the supported mount options follows:
   wsize		default write size (default 57344)
 		maximum wsize currently allowed by CIFS is 57344 (fourteen
 		4096 byte pages)
+  actimeo=n	attribute cache timeout in seconds (default 1 second).
+		After this timeout, the cifs client requests fresh attribute
+		information from the server. This option allows to tune the
+		attribute cache timeout to suit the workload needs. Shorter
+		timeouts mean better the cache coherency, but increased number
+		of calls to the server. Longer timeouts mean reduced number
+		of calls to the server at the expense of less stricter cache
+		coherency checks (i.e. incorrect attribute cache for a short
+		period of time).
   rw		mount the network share read-write (note that the
 		server may still consider the share read-only)
   ro		mount network share read-only
@@ -517,6 +536,11 @@ A partial list of the supported mount options follows:
 		SFU does).  In the future the bottom 9 bits of the
 		mode also will be emulated using queries of the security
 		descriptor (ACL).
+ mfsymlinks     Enable support for Minshall+French symlinks
+		(see http://wiki.samba.org/index.php/UNIX_Extensions#Minshall.2BFrench_symlinks)
+		This option is ignored when specified together with the
+		'sfu' option. Minshall+French symlinks are used even if
+		the server supports the CIFS Unix Extensions.
  sign           Must use packet signing (helps avoid unwanted data modification
 		by intermediate systems in the route).  Note that signing
 		does not work with lanman or plaintext authentication.
@@ -568,8 +592,9 @@ module can be displayed via modinfo.
 Misc /proc/fs/cifs Flags and Debug Info
 =======================================
 Informational pseudo-files:
-DebugData		Displays information about active CIFS sessions
-			and shares, as well as the cifs.ko version.
+DebugData		Displays information about active CIFS sessions and
+			shares, features enabled as well as the cifs.ko
+			version.
 Stats			Lists summary resource usage information as well as per
 			share statistics, if CONFIG_CIFS_STATS in enabled
 			in the kernel configuration.

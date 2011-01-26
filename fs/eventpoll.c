@@ -77,9 +77,6 @@
 /* Maximum number of nesting allowed inside epoll sets */
 #define EP_MAX_NESTS 4
 
-/* Maximum msec timeout value storeable in a long int */
-#define EP_MAX_MSTIMEO min(1000ULL * MAX_SCHEDULE_TIMEOUT / HZ, (LONG_MAX - 999ULL) / HZ)
-
 #define EP_MAX_EVENTS (INT_MAX / sizeof(struct epoll_event))
 
 #define EP_UNACTIVE_PTR ((void *) -1L)
@@ -220,7 +217,7 @@ struct ep_send_events_data {
  * Configuration options available inside /proc/sys/fs/epoll/
  */
 /* Maximum number of epoll watched descriptors, per user */
-static int max_user_watches __read_mostly;
+static long max_user_watches __read_mostly;
 
 /*
  * This mutex is used to serialize ep_free() and eventpoll_release_file().
@@ -243,16 +240,18 @@ static struct kmem_cache *pwq_cache __read_mostly;
 
 #include <linux/sysctl.h>
 
-static int zero;
+static long zero;
+static long long_max = LONG_MAX;
 
 ctl_table epoll_table[] = {
 	{
 		.procname	= "max_user_watches",
 		.data		= &max_user_watches,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(max_user_watches),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_doulongvec_minmax,
 		.extra1		= &zero,
+		.extra2		= &long_max,
 	},
 	{ }
 };
@@ -564,7 +563,7 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 	/* At this point it is safe to free the eventpoll item */
 	kmem_cache_free(epi_cache, epi);
 
-	atomic_dec(&ep->user->epoll_watches);
+	atomic_long_dec(&ep->user->epoll_watches);
 
 	return 0;
 }
@@ -674,7 +673,8 @@ static unsigned int ep_eventpoll_poll(struct file *file, poll_table *wait)
 /* File callbacks that implement the eventpoll file behaviour */
 static const struct file_operations eventpoll_fops = {
 	.release	= ep_eventpoll_release,
-	.poll		= ep_eventpoll_poll
+	.poll		= ep_eventpoll_poll,
+	.llseek		= noop_llseek,
 };
 
 /* Fast test to see if the file is an evenpoll file */
@@ -900,11 +900,12 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 {
 	int error, revents, pwake = 0;
 	unsigned long flags;
+	long user_watches;
 	struct epitem *epi;
 	struct ep_pqueue epq;
 
-	if (unlikely(atomic_read(&ep->user->epoll_watches) >=
-		     max_user_watches))
+	user_watches = atomic_long_read(&ep->user->epoll_watches);
+	if (unlikely(user_watches >= max_user_watches))
 		return -ENOSPC;
 	if (!(epi = kmem_cache_alloc(epi_cache, GFP_KERNEL)))
 		return -ENOMEM;
@@ -968,7 +969,7 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 
 	spin_unlock_irqrestore(&ep->lock, flags);
 
-	atomic_inc(&ep->user->epoll_watches);
+	atomic_long_inc(&ep->user->epoll_watches);
 
 	/* We have to call this outside the lock */
 	if (pwake)
@@ -1116,18 +1117,22 @@ static int ep_send_events(struct eventpoll *ep,
 static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		   int maxevents, long timeout)
 {
-	int res, eavail;
+	int res, eavail, timed_out = 0;
 	unsigned long flags;
-	long jtimeout;
+	long slack;
 	wait_queue_t wait;
+	struct timespec end_time;
+	ktime_t expires, *to = NULL;
 
-	/*
-	 * Calculate the timeout by checking for the "infinite" value (-1)
-	 * and the overflow condition. The passed timeout is in milliseconds,
-	 * that why (t * HZ) / 1000.
-	 */
-	jtimeout = (timeout < 0 || timeout >= EP_MAX_MSTIMEO) ?
-		MAX_SCHEDULE_TIMEOUT : (timeout * HZ + 999) / 1000;
+	if (timeout > 0) {
+		ktime_get_ts(&end_time);
+		timespec_add_ns(&end_time, (u64)timeout * NSEC_PER_MSEC);
+		slack = select_estimate_accuracy(&end_time);
+		to = &expires;
+		*to = timespec_to_ktime(end_time);
+	} else if (timeout == 0) {
+		timed_out = 1;
+	}
 
 retry:
 	spin_lock_irqsave(&ep->lock, flags);
@@ -1149,7 +1154,7 @@ retry:
 			 * to TASK_INTERRUPTIBLE before doing the checks.
 			 */
 			set_current_state(TASK_INTERRUPTIBLE);
-			if (!list_empty(&ep->rdllist) || !jtimeout)
+			if (!list_empty(&ep->rdllist) || timed_out)
 				break;
 			if (signal_pending(current)) {
 				res = -EINTR;
@@ -1157,7 +1162,9 @@ retry:
 			}
 
 			spin_unlock_irqrestore(&ep->lock, flags);
-			jtimeout = schedule_timeout(jtimeout);
+			if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS))
+				timed_out = 1;
+
 			spin_lock_irqsave(&ep->lock, flags);
 		}
 		__remove_wait_queue(&ep->wq, &wait);
@@ -1175,7 +1182,7 @@ retry:
 	 * more luck.
 	 */
 	if (!res && eavail &&
-	    !(res = ep_send_events(ep, events, maxevents)) && jtimeout)
+	    !(res = ep_send_events(ep, events, maxevents)) && !timed_out)
 		goto retry;
 
 	return res;
@@ -1422,6 +1429,7 @@ static int __init eventpoll_init(void)
 	 */
 	max_user_watches = (((si.totalram - si.totalhigh) / 25) << PAGE_SHIFT) /
 		EP_ITEM_COST;
+	BUG_ON(max_user_watches < 0);
 
 	/* Initialize the structure used to perform safe poll wait head wake ups */
 	ep_nested_calls_init(&poll_safewake_ncalls);

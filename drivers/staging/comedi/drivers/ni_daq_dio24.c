@@ -48,8 +48,6 @@ the PCMCIA interface.
 
 #include "8255.h"
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -129,7 +127,7 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		link = pcmcia_cur_dev;	/* XXX hack */
 		if (!link)
 			return -EIO;
-		iobase = link->io.BasePort1;
+		iobase = link->resource[0]->start;
 #ifdef incomplete
 		irq = link->irq;
 #endif
@@ -188,54 +186,19 @@ static int dio24_detach(struct comedi_device *dev)
 	return 0;
 };
 
-/* PCMCIA crap -- watch your words! */
-
 static void dio24_config(struct pcmcia_device *link);
 static void dio24_release(struct pcmcia_device *link);
 static int dio24_cs_suspend(struct pcmcia_device *p_dev);
 static int dio24_cs_resume(struct pcmcia_device *p_dev);
 
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static int dio24_cs_attach(struct pcmcia_device *);
 static void dio24_cs_detach(struct pcmcia_device *);
-
-/*
-   You'll also need to prototype all the functions that will actually
-   be used to talk to your device.  See 'memory_cs' for a good example
-   of a fully self-sufficient driver; the other drivers rely more or
-   less on other parts of the kernel.
-*/
-
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static const dev_info_t dev_info = "ni_daq_dio24";
 
 struct local_info_t {
 	struct pcmcia_device *link;
 	int stop;
 	struct bus_operations *bus;
 };
-
-/*======================================================================
-
-    dio24_cs_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-
-======================================================================*/
 
 static int dio24_cs_attach(struct pcmcia_device *link)
 {
@@ -252,31 +215,12 @@ static int dio24_cs_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-	/*
-	   General socket configuration defaults can go here.  In this
-	   client, we assume very little, and rely on the CIS for almost
-	   everything.  In most clients, many details (i.e., number, sizes,
-	   and attributes of IO windows) are fixed by the nature of the
-	   device, and can be hard-wired here.
-	 */
-	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-
 	pcmcia_cur_dev = link;
 
 	dio24_config(link);
 
 	return 0;
 }				/* dio24_cs_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void dio24_cs_detach(struct pcmcia_device *link)
 {
@@ -289,93 +233,31 @@ static void dio24_cs_detach(struct pcmcia_device *link)
 	dio24_release(link);
 
 	/* This points to the parent local_info_t struct */
-	if (link->priv)
-		kfree(link->priv);
+	kfree(link->priv);
 
 }				/* dio24_cs_detach */
 
-/*======================================================================
-
-    dio24_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
-
 static int dio24_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cfg,
-				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
 				void *priv_data)
 {
-	win_req_t *req = priv_data;
-	memreq_t map;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
-	if (cfg->index == 0)
-		return -ENODEV;
-
-	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
-		p_dev->conf.Status = CCSR_AUDIO_ENA;
-	}
-
-	/* Do we need to allocate an interrupt? */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		if (!(io->flags & CISTPL_IO_8BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(io->flags & CISTPL_IO_16BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-		p_dev->io.BasePort1 = io->win[0].base;
-		p_dev->io.NumPorts1 = io->win[0].len;
-		if (io->nwin > 1) {
-			p_dev->io.Attributes2 = p_dev->io.Attributes1;
-			p_dev->io.BasePort2 = io->win[1].base;
-			p_dev->io.NumPorts2 = io->win[1].len;
-		}
-		/* This reserves IO space but doesn't actually enable it */
-		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
-			return -ENODEV;
-	}
-
-	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
-		cistpl_mem_t *mem =
-			(cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
-		req->Attributes = WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM;
-		req->Attributes |= WIN_ENABLE;
-		req->Base = mem->win[0].host_addr;
-		req->Size = mem->win[0].len;
-		if (req->Size < 0x1000)
-			req->Size = 0x1000;
-		req->AccessSpeed = 0;
-		if (pcmcia_request_window(p_dev, req, &p_dev->win))
-			return -ENODEV;
-		map.Page = 0;
-		map.CardOffset = mem->win[0].card_addr;
-		if (pcmcia_map_mem_page(p_dev, p_dev->win, &map))
-			return -ENODEV;
-	}
-	/* If we got this far, we're cool! */
-	return 0;
+	return pcmcia_request_io(p_dev);
 }
 
 static void dio24_config(struct pcmcia_device *link)
 {
 	int ret;
-	win_req_t req;
 
 	printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO! - config\n");
 
 	dev_dbg(&link->dev, "dio24_config\n");
 
-	ret = pcmcia_loop_config(link, dio24_pcmcia_config_loop, &req);
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_AUDIO |
+		CONF_AUTO_SET_IO;
+
+	ret = pcmcia_loop_config(link, dio24_pcmcia_config_loop, NULL);
 	if (ret) {
 		dev_warn(&link->dev, "no configuration found\n");
 		goto failed;
@@ -384,29 +266,9 @@ static void dio24_config(struct pcmcia_device *link)
 	if (!link->irq)
 		goto failed;
 
-	/*
-	   This actually configures the PCMCIA socket -- setting up
-	   the I/O windows and the interrupt mapping, and putting the
-	   card and host interface into "Memory and IO" mode.
-	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
-
-	/* Finally, report what we've done */
-	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1 + link->io.NumPorts1 - 1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2 + link->io.NumPorts2 - 1);
-	if (link->win)
-		printk(", mem 0x%06lx-0x%06lx", req.Base,
-		       req.Base + req.Size - 1);
-	printk("\n");
 
 	return;
 
@@ -422,18 +284,6 @@ static void dio24_release(struct pcmcia_device *link)
 
 	pcmcia_disable_device(link);
 }				/* dio24_release */
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.
-
-    When a CARD_REMOVAL event is received, we immediately set a
-    private flag to block future accesses to this device.  All the
-    functions that actually access the device should check this flag
-    to make sure the card is still present.
-
-======================================================================*/
 
 static int dio24_cs_suspend(struct pcmcia_device *link)
 {
@@ -473,9 +323,7 @@ struct pcmcia_driver dio24_cs_driver = {
 	.resume = dio24_cs_resume,
 	.id_table = dio24_cs_ids,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = dev_info,
-		},
+	.name = "ni_daq_dio24",
 };
 
 static int __init init_dio24_cs(void)

@@ -48,11 +48,13 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
+#include <linux/kernel.h>
 #include "comedi_pci.h"
 #include "jr3_pci.h"
 
 #define PCI_VENDOR_ID_JR3 0x1762
 #define PCI_DEVICE_ID_JR3_1_CHANNEL 0x3111
+#define PCI_DEVICE_ID_JR3_1_CHANNEL_NEW 0x1111
 #define PCI_DEVICE_ID_JR3_2_CHANNEL 0x3112
 #define PCI_DEVICE_ID_JR3_3_CHANNEL 0x3113
 #define PCI_DEVICE_ID_JR3_4_CHANNEL 0x3114
@@ -71,6 +73,8 @@ static struct comedi_driver driver_jr3_pci = {
 static DEFINE_PCI_DEVICE_TABLE(jr3_pci_pci_table) = {
 	{
 	PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_1_CHANNEL,
+		    PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
+	PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_1_CHANNEL_NEW,
 		    PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
 	PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_2_CHANNEL,
 		    PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
@@ -123,12 +127,9 @@ struct jr3_pci_subdev_private {
 };
 
 /* Hotplug firmware loading stuff */
-
-typedef int comedi_firmware_callback(struct comedi_device *dev,
-				     const u8 * data, size_t size);
-
 static int comedi_load_firmware(struct comedi_device *dev, char *name,
-				comedi_firmware_callback cb)
+				int (*cb)(struct comedi_device *dev,
+					const u8 *data, size_t size))
 {
 	int result = 0;
 	const struct firmware *fw;
@@ -373,7 +374,7 @@ static int jr3_pci_ai_insn_read(struct comedi_device *dev,
 	return result;
 }
 
-static void jr3_pci_open(struct comedi_device *dev)
+static int jr3_pci_open(struct comedi_device *dev)
 {
 	int i;
 	struct jr3_pci_dev_private *devpriv = dev->private;
@@ -388,6 +389,7 @@ static void jr3_pci_open(struct comedi_device *dev)
 			       p->channel_no);
 		}
 	}
+	return 0;
 }
 
 int read_idm_word(const u8 * data, size_t size, int *pos, unsigned int *val)
@@ -399,14 +401,14 @@ int read_idm_word(const u8 * data, size_t size, int *pos, unsigned int *val)
 		}
 		/*  Collect value */
 		*val = 0;
-		for (; *pos < size && isxdigit(data[*pos]); (*pos)++) {
-			char ch = tolower(data[*pos]);
-			result = 1;
-			if ('0' <= ch && ch <= '9') {
-				*val = (*val << 4) + (ch - '0');
-			} else if ('a' <= ch && ch <= 'f') {
-				*val = (*val << 4) + (ch - 'a' + 10);
-			}
+		for (; *pos < size; (*pos)++) {
+			int value;
+			value = hex_to_bin(data[*pos]);
+			if (value >= 0) {
+				result = 1;
+				*val = (*val << 4) + value;
+			} else
+				break;
 		}
 	}
 	return result;
@@ -808,6 +810,10 @@ static int jr3_pci_attach(struct comedi_device *dev,
 					devpriv->n_channels = 1;
 				}
 				break;
+			case PCI_DEVICE_ID_JR3_1_CHANNEL_NEW:{
+					devpriv->n_channels = 1;
+				}
+				break;
 			case PCI_DEVICE_ID_JR3_2_CHANNEL:{
 					devpriv->n_channels = 2;
 				}
@@ -986,4 +992,44 @@ static int jr3_pci_detach(struct comedi_device *dev)
 	return 0;
 }
 
-COMEDI_PCI_INITCLEANUP(driver_jr3_pci, jr3_pci_pci_table);
+static int __devinit driver_jr3_pci_pci_probe(struct pci_dev *dev,
+					      const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_jr3_pci.driver_name);
+}
+
+static void __devexit driver_jr3_pci_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_jr3_pci_pci_driver = {
+	.id_table = jr3_pci_pci_table,
+	.probe = &driver_jr3_pci_pci_probe,
+	.remove = __devexit_p(&driver_jr3_pci_pci_remove)
+};
+
+static int __init driver_jr3_pci_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_jr3_pci);
+	if (retval < 0)
+		return retval;
+
+	driver_jr3_pci_pci_driver.name = (char *)driver_jr3_pci.driver_name;
+	return pci_register_driver(&driver_jr3_pci_pci_driver);
+}
+
+static void __exit driver_jr3_pci_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_jr3_pci_pci_driver);
+	comedi_driver_unregister(&driver_jr3_pci);
+}
+
+module_init(driver_jr3_pci_init_module);
+module_exit(driver_jr3_pci_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

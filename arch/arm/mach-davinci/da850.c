@@ -86,6 +86,8 @@ static struct clk pll0_sysclk3 = {
 	.parent		= &pll0_clk,
 	.flags		= CLK_PLL,
 	.div_reg	= PLLDIV3,
+	.set_rate	= davinci_set_sysclk_rate,
+	.maxrate	= 100000000,
 };
 
 static struct clk pll0_sysclk4 = {
@@ -323,10 +325,17 @@ static struct clk lcdc_clk = {
 	.gpsc		= 1,
 };
 
-static struct clk mmcsd_clk = {
-	.name		= "mmcsd",
+static struct clk mmcsd0_clk = {
+	.name		= "mmcsd0",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC0_MMC_SD,
+};
+
+static struct clk mmcsd1_clk = {
+	.name		= "mmcsd1",
+	.parent		= &pll0_sysclk2,
+	.lpsc		= DA850_LPSC1_MMC_SD1,
+	.gpsc		= 1,
 };
 
 static struct clk aemif_clk = {
@@ -375,7 +384,8 @@ static struct clk_lookup da850_clks[] = {
 	CLK("davinci_emac.1",	NULL,		&emac_clk),
 	CLK("davinci-mcasp.0",	NULL,		&mcasp_clk),
 	CLK("da8xx_lcdc.0",	NULL,		&lcdc_clk),
-	CLK("davinci_mmc.0",	NULL,		&mmcsd_clk),
+	CLK("davinci_mmc.0",	NULL,		&mmcsd0_clk),
+	CLK("davinci_mmc.1",	NULL,		&mmcsd1_clk),
 	CLK(NULL,		"aemif",	&aemif_clk),
 	CLK(NULL,		NULL,		NULL),
 };
@@ -572,15 +582,9 @@ const short da850_cpgmac_pins[] __initdata = {
 	DA850_MII_TXD_2, DA850_MII_TXD_1, DA850_MII_TXD_0, DA850_MII_RXER,
 	DA850_MII_CRS, DA850_MII_RXCLK, DA850_MII_RXDV, DA850_MII_RXD_3,
 	DA850_MII_RXD_2, DA850_MII_RXD_1, DA850_MII_RXD_0, DA850_MDIO_CLK,
-	DA850_MDIO_D,
-	-1
-};
-
-const short da850_rmii_pins[] __initdata = {
-	DA850_RMII_TXD_0, DA850_RMII_TXD_1, DA850_RMII_TXEN,
-	DA850_RMII_CRS_DV, DA850_RMII_RXD_0, DA850_RMII_RXD_1,
-	DA850_RMII_RXER, DA850_RMII_MHZ_50_CLK, DA850_MDIO_CLK,
-	DA850_MDIO_D,
+	DA850_MDIO_D, DA850_RMII_TXD_0, DA850_RMII_TXD_1, DA850_RMII_TXEN,
+	DA850_RMII_CRS_DV, DA850_RMII_RXD_0, DA850_RMII_RXD_1, DA850_RMII_RXER,
+	DA850_RMII_MHZ_50_CLK,
 	-1
 };
 
@@ -607,27 +611,19 @@ const short da850_mmcsd0_pins[] __initdata = {
 	-1
 };
 
-const short da850_nand_pins[] __initdata = {
-	DA850_EMA_D_7, DA850_EMA_D_6, DA850_EMA_D_5, DA850_EMA_D_4,
-	DA850_EMA_D_3, DA850_EMA_D_2, DA850_EMA_D_1, DA850_EMA_D_0,
-	DA850_EMA_A_1, DA850_EMA_A_2, DA850_NEMA_CS_3, DA850_NEMA_CS_4,
-	DA850_NEMA_WE, DA850_NEMA_OE,
-	-1
-};
-
-const short da850_nor_pins[] __initdata = {
+const short da850_emif25_pins[] __initdata = {
 	DA850_EMA_BA_1, DA850_EMA_CLK, DA850_EMA_WAIT_1, DA850_NEMA_CS_2,
-	DA850_NEMA_WE, DA850_NEMA_OE, DA850_EMA_D_0, DA850_EMA_D_1,
-	DA850_EMA_D_2, DA850_EMA_D_3, DA850_EMA_D_4, DA850_EMA_D_5,
-	DA850_EMA_D_6, DA850_EMA_D_7, DA850_EMA_D_8, DA850_EMA_D_9,
-	DA850_EMA_D_10, DA850_EMA_D_11, DA850_EMA_D_12, DA850_EMA_D_13,
-	DA850_EMA_D_14, DA850_EMA_D_15, DA850_EMA_A_0, DA850_EMA_A_1,
-	DA850_EMA_A_2, DA850_EMA_A_3, DA850_EMA_A_4, DA850_EMA_A_5,
-	DA850_EMA_A_6, DA850_EMA_A_7, DA850_EMA_A_8, DA850_EMA_A_9,
-	DA850_EMA_A_10, DA850_EMA_A_11, DA850_EMA_A_12, DA850_EMA_A_13,
-	DA850_EMA_A_14, DA850_EMA_A_15, DA850_EMA_A_16, DA850_EMA_A_17,
-	DA850_EMA_A_18, DA850_EMA_A_19, DA850_EMA_A_20, DA850_EMA_A_21,
-	DA850_EMA_A_22, DA850_EMA_A_23,
+	DA850_NEMA_CS_3, DA850_NEMA_CS_4, DA850_NEMA_WE, DA850_NEMA_OE,
+	DA850_EMA_D_0, DA850_EMA_D_1, DA850_EMA_D_2, DA850_EMA_D_3,
+	DA850_EMA_D_4, DA850_EMA_D_5, DA850_EMA_D_6, DA850_EMA_D_7,
+	DA850_EMA_D_8, DA850_EMA_D_9, DA850_EMA_D_10, DA850_EMA_D_11,
+	DA850_EMA_D_12, DA850_EMA_D_13, DA850_EMA_D_14, DA850_EMA_D_15,
+	DA850_EMA_A_0, DA850_EMA_A_1, DA850_EMA_A_2, DA850_EMA_A_3,
+	DA850_EMA_A_4, DA850_EMA_A_5, DA850_EMA_A_6, DA850_EMA_A_7,
+	DA850_EMA_A_8, DA850_EMA_A_9, DA850_EMA_A_10, DA850_EMA_A_11,
+	DA850_EMA_A_12, DA850_EMA_A_13, DA850_EMA_A_14, DA850_EMA_A_15,
+	DA850_EMA_A_16, DA850_EMA_A_17, DA850_EMA_A_18, DA850_EMA_A_19,
+	DA850_EMA_A_20, DA850_EMA_A_21, DA850_EMA_A_22, DA850_EMA_A_23,
 	-1
 };
 
@@ -642,7 +638,6 @@ static u8 da850_default_priorities[DA850_N_CP_INTC_IRQ] = {
 	[IRQ_DA8XX_EVTOUT3]		= 7,
 	[IRQ_DA8XX_EVTOUT4]		= 7,
 	[IRQ_DA8XX_EVTOUT5]		= 7,
-	[IRQ_DA8XX_EVTOUT6]		= 7,
 	[IRQ_DA8XX_EVTOUT6]		= 7,
 	[IRQ_DA8XX_EVTOUT7]		= 7,
 	[IRQ_DA8XX_CCINT0]		= 7,
@@ -661,27 +656,7 @@ static u8 da850_default_priorities[DA850_N_CP_INTC_IRQ] = {
 	[IRQ_DA8XX_TINT34_1]		= 7,
 	[IRQ_DA8XX_UARTINT0]		= 7,
 	[IRQ_DA8XX_KEYMGRINT]		= 7,
-	[IRQ_DA8XX_SECINT]		= 7,
-	[IRQ_DA8XX_SECKEYERR]		= 7,
 	[IRQ_DA850_MPUADDRERR0]		= 7,
-	[IRQ_DA850_MPUPROTERR0]		= 7,
-	[IRQ_DA850_IOPUADDRERR0]	= 7,
-	[IRQ_DA850_IOPUPROTERR0]	= 7,
-	[IRQ_DA850_IOPUADDRERR1]	= 7,
-	[IRQ_DA850_IOPUPROTERR1]	= 7,
-	[IRQ_DA850_IOPUADDRERR2]	= 7,
-	[IRQ_DA850_IOPUPROTERR2]	= 7,
-	[IRQ_DA850_BOOTCFG_ADDR_ERR]	= 7,
-	[IRQ_DA850_BOOTCFG_PROT_ERR]	= 7,
-	[IRQ_DA850_MPUADDRERR1]		= 7,
-	[IRQ_DA850_MPUPROTERR1]		= 7,
-	[IRQ_DA850_IOPUADDRERR3]	= 7,
-	[IRQ_DA850_IOPUPROTERR3]	= 7,
-	[IRQ_DA850_IOPUADDRERR4]	= 7,
-	[IRQ_DA850_IOPUPROTERR4]	= 7,
-	[IRQ_DA850_IOPUADDRERR5]	= 7,
-	[IRQ_DA850_IOPUPROTERR5]	= 7,
-	[IRQ_DA850_MIOPU_BOOTCFG_ERR]	= 7,
 	[IRQ_DA8XX_CHIPINT0]		= 7,
 	[IRQ_DA8XX_CHIPINT1]		= 7,
 	[IRQ_DA8XX_CHIPINT2]		= 7,
@@ -722,8 +697,6 @@ static u8 da850_default_priorities[DA850_N_CP_INTC_IRQ] = {
 	[IRQ_DA8XX_EHRPWM1]		= 7,
 	[IRQ_DA8XX_EHRPWM1TZ]		= 7,
 	[IRQ_DA850_SATAINT]		= 7,
-	[IRQ_DA850_TINT12_2]		= 7,
-	[IRQ_DA850_TINT34_2]		= 7,
 	[IRQ_DA850_TINTALL_2]		= 7,
 	[IRQ_DA8XX_ECAP0]		= 7,
 	[IRQ_DA8XX_ECAP1]		= 7,
@@ -751,8 +724,6 @@ static u8 da850_default_priorities[DA850_N_CP_INTC_IRQ] = {
 	[IRQ_DA850_CCINT1]		= 7,
 	[IRQ_DA850_CCERRINT1]		= 7,
 	[IRQ_DA850_TCERRINT2]		= 7,
-	[IRQ_DA850_TINT12_3]		= 7,
-	[IRQ_DA850_TINT34_3]		= 7,
 	[IRQ_DA850_TINTALL_3]		= 7,
 	[IRQ_DA850_MCBSP0RINT]		= 7,
 	[IRQ_DA850_MCBSP0XINT]		= 7,
@@ -859,8 +830,7 @@ static void da850_set_async3_src(int pllnum)
  * According to the TRM, minimum PLLM results in maximum power savings.
  * The OPP definitions below should keep the PLLM as low as possible.
  *
- * The output of the PLLM must be between 400 to 600 MHz.
- * This rules out prediv of anything but divide-by-one for 24Mhz OSC input.
+ * The output of the PLLM must be between 300 to 600 MHz.
  */
 struct da850_opp {
 	unsigned int	freq;	/* in KHz */
@@ -871,12 +841,39 @@ struct da850_opp {
 	unsigned int	cvdd_max; /* in uV */
 };
 
+static const struct da850_opp da850_opp_456 = {
+	.freq		= 456000,
+	.prediv		= 1,
+	.mult		= 19,
+	.postdiv	= 1,
+	.cvdd_min	= 1300000,
+	.cvdd_max	= 1350000,
+};
+
+static const struct da850_opp da850_opp_408 = {
+	.freq		= 408000,
+	.prediv		= 1,
+	.mult		= 17,
+	.postdiv	= 1,
+	.cvdd_min	= 1300000,
+	.cvdd_max	= 1350000,
+};
+
+static const struct da850_opp da850_opp_372 = {
+	.freq		= 372000,
+	.prediv		= 2,
+	.mult		= 31,
+	.postdiv	= 1,
+	.cvdd_min	= 1200000,
+	.cvdd_max	= 1320000,
+};
+
 static const struct da850_opp da850_opp_300 = {
 	.freq		= 300000,
 	.prediv		= 1,
 	.mult		= 25,
 	.postdiv	= 2,
-	.cvdd_min	= 1140000,
+	.cvdd_min	= 1200000,
 	.cvdd_max	= 1320000,
 };
 
@@ -885,7 +882,7 @@ static const struct da850_opp da850_opp_200 = {
 	.prediv		= 1,
 	.mult		= 25,
 	.postdiv	= 3,
-	.cvdd_min	= 1050000,
+	.cvdd_min	= 1100000,
 	.cvdd_max	= 1160000,
 };
 
@@ -894,7 +891,7 @@ static const struct da850_opp da850_opp_96 = {
 	.prediv		= 1,
 	.mult		= 20,
 	.postdiv	= 5,
-	.cvdd_min	= 950000,
+	.cvdd_min	= 1000000,
 	.cvdd_max	= 1050000,
 };
 
@@ -905,6 +902,9 @@ static const struct da850_opp da850_opp_96 = {
 	}
 
 static struct cpufreq_frequency_table da850_freq_table[] = {
+	OPP(456),
+	OPP(408),
+	OPP(372),
 	OPP(300),
 	OPP(200),
 	OPP(96),
@@ -912,6 +912,19 @@ static struct cpufreq_frequency_table da850_freq_table[] = {
 		.index		= 0,
 		.frequency	= CPUFREQ_TABLE_END,
 	},
+};
+
+#ifdef CONFIG_REGULATOR
+static int da850_set_voltage(unsigned int index);
+static int da850_regulator_init(void);
+#endif
+
+static struct davinci_cpufreq_config cpufreq_info = {
+	.freq_table = da850_freq_table,
+#ifdef CONFIG_REGULATOR
+	.init = da850_regulator_init,
+	.set_voltage = da850_set_voltage,
+#endif
 };
 
 #ifdef CONFIG_REGULATOR
@@ -924,7 +937,7 @@ static int da850_set_voltage(unsigned int index)
 	if (!cvdd)
 		return -ENODEV;
 
-	opp = (struct da850_opp *) da850_freq_table[index].index;
+	opp = (struct da850_opp *) cpufreq_info.freq_table[index].index;
 
 	return regulator_set_voltage(cvdd, opp->cvdd_min, opp->cvdd_max);
 }
@@ -941,23 +954,31 @@ static int da850_regulator_init(void)
 }
 #endif
 
-static struct davinci_cpufreq_config cpufreq_info = {
-	.freq_table = &da850_freq_table[0],
-#ifdef CONFIG_REGULATOR
-	.init = da850_regulator_init,
-	.set_voltage = da850_set_voltage,
-#endif
-};
-
 static struct platform_device da850_cpufreq_device = {
 	.name			= "cpufreq-davinci",
 	.dev = {
 		.platform_data	= &cpufreq_info,
 	},
+	.id = -1,
 };
 
-int __init da850_register_cpufreq(void)
+unsigned int da850_max_speed = 300000;
+
+int __init da850_register_cpufreq(char *async_clk)
 {
+	int i;
+
+	/* cpufreq driver can help keep an "async" clock constant */
+	if (async_clk)
+		clk_add_alias("async", da850_cpufreq_device.name,
+							async_clk, NULL);
+	for (i = 0; i < ARRAY_SIZE(da850_freq_table); i++) {
+		if (da850_freq_table[i].frequency <= da850_max_speed) {
+			cpufreq_info.freq_table = &da850_freq_table[i];
+			break;
+		}
+	}
+
 	return platform_device_register(&da850_cpufreq_device);
 }
 
@@ -965,17 +986,18 @@ static int da850_round_armrate(struct clk *clk, unsigned long rate)
 {
 	int i, ret = 0, diff;
 	unsigned int best = (unsigned int) -1;
+	struct cpufreq_frequency_table *table = cpufreq_info.freq_table;
 
 	rate /= 1000; /* convert to kHz */
 
-	for (i = 0; da850_freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		diff = da850_freq_table[i].frequency - rate;
+	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		diff = table[i].frequency - rate;
 		if (diff < 0)
 			diff = -diff;
 
 		if (diff < best) {
 			best = diff;
-			ret = da850_freq_table[i].frequency;
+			ret = table[i].frequency;
 		}
 	}
 
@@ -996,7 +1018,7 @@ static int da850_set_pll0rate(struct clk *clk, unsigned long index)
 	struct pll_data *pll = clk->pll_data;
 	int ret;
 
-	opp = (struct da850_opp *) da850_freq_table[index].index;
+	opp = (struct da850_opp *) cpufreq_info.freq_table[index].index;
 	prediv = opp->prediv;
 	mult = opp->mult;
 	postdiv = opp->postdiv;
@@ -1008,7 +1030,7 @@ static int da850_set_pll0rate(struct clk *clk, unsigned long index)
 	return 0;
 }
 #else
-int __init da850_register_cpufreq(void)
+int __init da850_register_cpufreq(char *async_clk)
 {
 	return 0;
 }

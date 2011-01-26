@@ -173,7 +173,7 @@ static irqreturn_t stylus_irq(int irq, void *dev_id)
 	if (down)
 		s3c_adc_start(ts.client, 0, 1 << ts.shift);
 	else
-		dev_info(ts.dev, "%s: count=%d\n", __func__, ts.count);
+		dev_dbg(ts.dev, "%s: count=%d\n", __func__, ts.count);
 
 	if (ts.features & FEAT_PEN_IRQ) {
 		/* Clear pen down/up interrupt */
@@ -350,7 +350,7 @@ static int __devinit s3c2410ts_probe(struct platform_device *pdev)
  err_tcirq:
 	free_irq(ts.irq_tc, ts.input);
  err_inputdev:
-	input_unregister_device(ts.input);
+	input_free_device(ts.input);
  err_iomap:
 	iounmap(ts.io);
  err_clk:
@@ -413,6 +413,8 @@ static struct dev_pm_ops s3c_ts_pmops = {
 #endif
 
 static struct platform_device_id s3cts_driver_ids[] = {
+	{ "s3c2410-ts", 0 },
+	{ "s3c2440-ts", 0 },
 	{ "s3c64xx-ts", FEAT_PEN_IRQ },
 	{ }
 };

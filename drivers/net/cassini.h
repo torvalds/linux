@@ -2844,10 +2844,6 @@ struct cas {
 	atomic_t		reset_task_pending_all;
 #endif
 
-#ifdef CONFIG_CASSINI_QGE_DEBUG
-	atomic_t interrupt_seen; /* 1 if any interrupts are getting through */
-#endif
-
 	/* Link-down problem workaround */
 #define LINK_TRANSITION_UNKNOWN 	0
 #define LINK_TRANSITION_ON_FAILURE 	1
@@ -2872,6 +2868,9 @@ struct cas {
 	dma_addr_t block_dvma, tx_tiny_dvma[N_TX_RINGS];
 	struct pci_dev *pdev;
 	struct net_device *dev;
+#if defined(CONFIG_OF)
+	struct device_node	*of_node;
+#endif
 
 	/* Firmware Info */
 	u16			fw_load_addr;

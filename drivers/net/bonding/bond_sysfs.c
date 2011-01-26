@@ -211,7 +211,8 @@ static ssize_t bonding_show_slaves(struct device *d,
 /*
  * Set the slaves in the current bond.  The bond interface must be
  * up for this to succeed.
- * This function is largely the same flow as bonding_update_bonds().
+ * This is supposed to be only thin wrapper for bond_enslave and bond_release.
+ * All hard work should be done there.
  */
 static ssize_t bonding_store_slaves(struct device *d,
 				    struct device_attribute *attr,
@@ -219,10 +220,8 @@ static ssize_t bonding_store_slaves(struct device *d,
 {
 	char command[IFNAMSIZ + 1] = { 0, };
 	char *ifname;
-	int i, res, found, ret = count;
-	u32 original_mtu;
-	struct slave *slave;
-	struct net_device *dev = NULL;
+	int res, ret = count;
+	struct net_device *dev;
 	struct bonding *bond = to_bond(d);
 
 	/* Quick sanity check -- is the bond interface up? */
@@ -230,8 +229,6 @@ static ssize_t bonding_store_slaves(struct device *d,
 		pr_warning("%s: doing slave updates when interface is down.\n",
 			   bond->dev->name);
 	}
-
-	/* Note:  We can't hold bond->lock here, as bond_create grabs it. */
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -242,90 +239,32 @@ static ssize_t bonding_store_slaves(struct device *d,
 	    !dev_valid_name(ifname))
 		goto err_no_cmd;
 
-	if (command[0] == '+') {
+	dev = __dev_get_by_name(dev_net(bond->dev), ifname);
+	if (!dev) {
+		pr_info("%s: Interface %s does not exist!\n",
+			bond->dev->name, ifname);
+		ret = -ENODEV;
+		goto out;
+	}
 
-		/* Got a slave name in ifname.  Is it already in the list? */
-		found = 0;
-
-		dev = __dev_get_by_name(dev_net(bond->dev), ifname);
-		if (!dev) {
-			pr_info("%s: Interface %s does not exist!\n",
-				bond->dev->name, ifname);
-			ret = -ENODEV;
-			goto out;
-		}
-
-		if (dev->flags & IFF_UP) {
-			pr_err("%s: Error: Unable to enslave %s because it is already up.\n",
-			       bond->dev->name, dev->name);
-			ret = -EPERM;
-			goto out;
-		}
-
-		read_lock(&bond->lock);
-		bond_for_each_slave(bond, slave, i)
-			if (slave->dev == dev) {
-				pr_err("%s: Interface %s is already enslaved!\n",
-				       bond->dev->name, ifname);
-				ret = -EPERM;
-				read_unlock(&bond->lock);
-				goto out;
-			}
-		read_unlock(&bond->lock);
-
-		pr_info("%s: Adding slave %s.\n", bond->dev->name, ifname);
-
-		/* If this is the first slave, then we need to set
-		   the master's hardware address to be the same as the
-		   slave's. */
-		if (is_zero_ether_addr(bond->dev->dev_addr))
-			memcpy(bond->dev->dev_addr, dev->dev_addr,
-			       dev->addr_len);
-
-		/* Set the slave's MTU to match the bond */
-		original_mtu = dev->mtu;
-		res = dev_set_mtu(dev, bond->dev->mtu);
-		if (res) {
-			ret = res;
-			goto out;
-		}
-
+	switch (command[0]) {
+	case '+':
+		pr_info("%s: Adding slave %s.\n", bond->dev->name, dev->name);
 		res = bond_enslave(bond->dev, dev);
-		bond_for_each_slave(bond, slave, i)
-			if (strnicmp(slave->dev->name, ifname, IFNAMSIZ) == 0)
-				slave->original_mtu = original_mtu;
-		if (res)
-			ret = res;
+		break;
 
-		goto out;
+	case '-':
+		pr_info("%s: Removing slave %s.\n", bond->dev->name, dev->name);
+		res = bond_release(bond->dev, dev);
+		break;
+
+	default:
+		goto err_no_cmd;
 	}
 
-	if (command[0] == '-') {
-		dev = NULL;
-		original_mtu = 0;
-		bond_for_each_slave(bond, slave, i)
-			if (strnicmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
-				dev = slave->dev;
-				original_mtu = slave->original_mtu;
-				break;
-			}
-		if (dev) {
-			pr_info("%s: Removing slave %s\n",
-				bond->dev->name, dev->name);
-				res = bond_release(bond->dev, dev);
-			if (res) {
-				ret = res;
-				goto out;
-			}
-			/* set the slave MTU to the default */
-			dev_set_mtu(dev, original_mtu);
-		} else {
-			pr_err("unable to remove non-existent slave %s for bond %s.\n",
-			       ifname, bond->dev->name);
-			ret = -ENODEV;
-		}
-		goto out;
-	}
+	if (res)
+		ret = res;
+	goto out;
 
 err_no_cmd:
 	pr_err("no command found in slaves file for bond %s. Use +ifname or -ifname.\n",
@@ -374,19 +313,26 @@ static ssize_t bonding_store_mode(struct device *d,
 		       bond->dev->name, (int)strlen(buf) - 1, buf);
 		ret = -EINVAL;
 		goto out;
-	} else {
-		if (bond->params.mode == BOND_MODE_8023AD)
-			bond_unset_master_3ad_flags(bond);
-
-		if (bond->params.mode == BOND_MODE_ALB)
-			bond_unset_master_alb_flags(bond);
-
-		bond->params.mode = new_value;
-		bond_set_mode_ops(bond, bond->params.mode);
-		pr_info("%s: setting mode to %s (%d).\n",
-			bond->dev->name, bond_mode_tbl[new_value].modename,
-		       new_value);
 	}
+	if ((new_value == BOND_MODE_ALB ||
+	     new_value == BOND_MODE_TLB) &&
+	    bond->params.arp_interval) {
+		pr_err("%s: %s mode is incompatible with arp monitoring.\n",
+		       bond->dev->name, bond_mode_tbl[new_value].modename);
+		ret = -EINVAL;
+		goto out;
+	}
+	if (bond->params.mode == BOND_MODE_8023AD)
+		bond_unset_master_3ad_flags(bond);
+
+	if (bond->params.mode == BOND_MODE_ALB)
+		bond_unset_master_alb_flags(bond);
+
+	bond->params.mode = new_value;
+	bond_set_mode_ops(bond, bond->params.mode);
+	pr_info("%s: setting mode to %s (%d).\n",
+		bond->dev->name, bond_mode_tbl[new_value].modename,
+		new_value);
 out:
 	return ret;
 }
@@ -571,7 +517,13 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 		ret = -EINVAL;
 		goto out;
 	}
-
+	if (bond->params.mode == BOND_MODE_ALB ||
+	    bond->params.mode == BOND_MODE_TLB) {
+		pr_info("%s: ARP monitoring cannot be used with ALB/TLB. Only MII monitoring is supported on %s.\n",
+			bond->dev->name, bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
 	pr_info("%s: Setting ARP monitoring interval to %d.\n",
 		bond->dev->name, new_value);
 	bond->params.arp_interval = new_value;
@@ -1114,6 +1066,7 @@ static ssize_t bonding_store_primary(struct device *d,
 
 	if (!rtnl_trylock())
 		return restart_syscall();
+	block_netpoll_tx();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
@@ -1149,6 +1102,7 @@ static ssize_t bonding_store_primary(struct device *d,
 out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
+	unblock_netpoll_tx();
 	rtnl_unlock();
 
 	return count;
@@ -1194,11 +1148,13 @@ static ssize_t bonding_store_primary_reselect(struct device *d,
 		bond->dev->name, pri_reselect_tbl[new_value].modename,
 		new_value);
 
+	block_netpoll_tx();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 	bond_select_active_slave(bond);
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
+	unblock_netpoll_tx();
 out:
 	rtnl_unlock();
 	return ret;
@@ -1280,6 +1236,8 @@ static ssize_t bonding_store_active_slave(struct device *d,
 
 	if (!rtnl_trylock())
 		return restart_syscall();
+
+	block_netpoll_tx();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
@@ -1336,6 +1294,8 @@ static ssize_t bonding_store_active_slave(struct device *d,
  out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
+	unblock_netpoll_tx();
+
 	rtnl_unlock();
 
 	return count;
@@ -1472,7 +1432,216 @@ static ssize_t bonding_show_ad_partner_mac(struct device *d,
 }
 static DEVICE_ATTR(ad_partner_mac, S_IRUGO, bonding_show_ad_partner_mac, NULL);
 
+/*
+ * Show the queue_ids of the slaves in the current bond.
+ */
+static ssize_t bonding_show_queue_id(struct device *d,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct slave *slave;
+	int i, res = 0;
+	struct bonding *bond = to_bond(d);
 
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	read_lock(&bond->lock);
+	bond_for_each_slave(bond, slave, i) {
+		if (res > (PAGE_SIZE - IFNAMSIZ - 6)) {
+			/* not enough space for another interface_name:queue_id pair */
+			if ((PAGE_SIZE - res) > 10)
+				res = PAGE_SIZE - 10;
+			res += sprintf(buf + res, "++more++ ");
+			break;
+		}
+		res += sprintf(buf + res, "%s:%d ",
+			       slave->dev->name, slave->queue_id);
+	}
+	read_unlock(&bond->lock);
+	if (res)
+		buf[res-1] = '\n'; /* eat the leftover space */
+	rtnl_unlock();
+	return res;
+}
+
+/*
+ * Set the queue_ids of the  slaves in the current bond.  The bond
+ * interface must be enslaved for this to work.
+ */
+static ssize_t bonding_store_queue_id(struct device *d,
+				      struct device_attribute *attr,
+				      const char *buffer, size_t count)
+{
+	struct slave *slave, *update_slave;
+	struct bonding *bond = to_bond(d);
+	u16 qid;
+	int i, ret = count;
+	char *delim;
+	struct net_device *sdev = NULL;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	/* delim will point to queue id if successful */
+	delim = strchr(buffer, ':');
+	if (!delim)
+		goto err_no_cmd;
+
+	/*
+	 * Terminate string that points to device name and bump it
+	 * up one, so we can read the queue id there.
+	 */
+	*delim = '\0';
+	if (sscanf(++delim, "%hd\n", &qid) != 1)
+		goto err_no_cmd;
+
+	/* Check buffer length, valid ifname and queue id */
+	if (strlen(buffer) > IFNAMSIZ ||
+	    !dev_valid_name(buffer) ||
+	    qid > bond->params.tx_queues)
+		goto err_no_cmd;
+
+	/* Get the pointer to that interface if it exists */
+	sdev = __dev_get_by_name(dev_net(bond->dev), buffer);
+	if (!sdev)
+		goto err_no_cmd;
+
+	read_lock(&bond->lock);
+
+	/* Search for thes slave and check for duplicate qids */
+	update_slave = NULL;
+	bond_for_each_slave(bond, slave, i) {
+		if (sdev == slave->dev)
+			/*
+			 * We don't need to check the matching
+			 * slave for dups, since we're overwriting it
+			 */
+			update_slave = slave;
+		else if (qid && qid == slave->queue_id) {
+			goto err_no_cmd_unlock;
+		}
+	}
+
+	if (!update_slave)
+		goto err_no_cmd_unlock;
+
+	/* Actually set the qids for the slave */
+	update_slave->queue_id = qid;
+
+	read_unlock(&bond->lock);
+out:
+	rtnl_unlock();
+	return ret;
+
+err_no_cmd_unlock:
+	read_unlock(&bond->lock);
+err_no_cmd:
+	pr_info("invalid input for queue_id set for %s.\n",
+		bond->dev->name);
+	ret = -EPERM;
+	goto out;
+}
+
+static DEVICE_ATTR(queue_id, S_IRUGO | S_IWUSR, bonding_show_queue_id,
+		   bonding_store_queue_id);
+
+
+/*
+ * Show and set the all_slaves_active flag.
+ */
+static ssize_t bonding_show_slaves_active(struct device *d,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n", bond->params.all_slaves_active);
+}
+
+static ssize_t bonding_store_slaves_active(struct device *d,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	int i, new_value, ret = count;
+	struct bonding *bond = to_bond(d);
+	struct slave *slave;
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		pr_err("%s: no all_slaves_active value specified.\n",
+		       bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (new_value == bond->params.all_slaves_active)
+		goto out;
+
+	if ((new_value == 0) || (new_value == 1)) {
+		bond->params.all_slaves_active = new_value;
+	} else {
+		pr_info("%s: Ignoring invalid all_slaves_active value %d.\n",
+			bond->dev->name, new_value);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	bond_for_each_slave(bond, slave, i) {
+		if (slave->state == BOND_STATE_BACKUP) {
+			if (new_value)
+				slave->dev->priv_flags &= ~IFF_SLAVE_INACTIVE;
+			else
+				slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
+		}
+	}
+out:
+	return count;
+}
+static DEVICE_ATTR(all_slaves_active, S_IRUGO | S_IWUSR,
+		   bonding_show_slaves_active, bonding_store_slaves_active);
+
+/*
+ * Show and set the number of IGMP membership reports to send on link failure
+ */
+static ssize_t bonding_show_resend_igmp(struct device *d,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n", bond->params.resend_igmp);
+}
+
+static ssize_t bonding_store_resend_igmp(struct device *d,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	int new_value, ret = count;
+	struct bonding *bond = to_bond(d);
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		pr_err("%s: no resend_igmp value specified.\n",
+		       bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (new_value < 0) {
+		pr_err("%s: Invalid resend_igmp value %d not in range 0-255; rejected.\n",
+		       bond->dev->name, new_value);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	pr_info("%s: Setting resend_igmp to %d.\n",
+		bond->dev->name, new_value);
+	bond->params.resend_igmp = new_value;
+out:
+	return ret;
+}
+
+static DEVICE_ATTR(resend_igmp, S_IRUGO | S_IWUSR,
+		   bonding_show_resend_igmp, bonding_store_resend_igmp);
 
 static struct attribute *per_bond_attrs[] = {
 	&dev_attr_slaves.attr,
@@ -1499,6 +1668,9 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_ad_actor_key.attr,
 	&dev_attr_ad_partner_key.attr,
 	&dev_attr_ad_partner_mac.attr,
+	&dev_attr_queue_id.attr,
+	&dev_attr_all_slaves_active.attr,
+	&dev_attr_resend_igmp.attr,
 	NULL,
 };
 

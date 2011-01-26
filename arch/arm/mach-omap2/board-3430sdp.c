@@ -24,6 +24,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/mmc/host.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -37,16 +38,16 @@
 #include <plat/dma.h>
 #include <plat/gpmc.h>
 #include <plat/display.h>
+#include <plat/panel-generic-dpi.h>
 
-#include <plat/control.h>
 #include <plat/gpmc-smc91x.h>
 
-#include <mach/board-sdp.h>
-
+#include "board-flash.h"
 #include "mux.h"
 #include "sdram-qimonda-hyb18m512160af-6.h"
 #include "hsmmc.h"
 #include "pm.h"
+#include "control.h"
 
 #define CONFIG_DISABLE_HFCLK 1
 
@@ -76,7 +77,7 @@ static struct cpuidle_params omap3_cpuidle_params_table[] = {
 	{1, 10000, 30000, 300000},
 };
 
-static int board_keymap[] = {
+static uint32_t board_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_RIGHT),
 	KEY(0, 2, KEY_A),
@@ -137,9 +138,7 @@ static void ads7846_dev_init(void)
 	}
 
 	gpio_direction_input(ts_gpio);
-
-	omap_set_gpio_debounce(ts_gpio, 1);
-	omap_set_gpio_debounce_time(ts_gpio, 0xa);
+	gpio_set_debounce(ts_gpio, 310);
 }
 
 static int ads7846_get_pendown_state(void)
@@ -272,13 +271,18 @@ static struct omap_dss_device sdp3430_lcd_device = {
 	.platform_disable	= sdp3430_panel_disable_lcd,
 };
 
-static struct omap_dss_device sdp3430_dvi_device = {
-	.name			= "dvi",
-	.driver_name		= "generic_panel",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 24,
+static struct panel_generic_dpi_data dvi_panel = {
+	.name			= "generic",
 	.platform_enable	= sdp3430_panel_enable_dvi,
 	.platform_disable	= sdp3430_panel_disable_dvi,
+};
+
+static struct omap_dss_device sdp3430_dvi_device = {
+	.name			= "dvi",
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.driver_name		= "generic_dpi_panel",
+	.data			= &dvi_panel,
+	.phy.dpi.data_lines	= 24,
 };
 
 static struct omap_dss_device sdp3430_tv_device = {
@@ -328,9 +332,9 @@ static void __init omap_3430sdp_init_irq(void)
 	omap_board_config = sdp3430_config;
 	omap_board_config_size = ARRAY_SIZE(sdp3430_config);
 	omap3_pm_init_cpuidle(omap3_cpuidle_params_table);
-	omap2_init_common_hw(hyb18m512160af6_sdrc_params, NULL);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(hyb18m512160af6_sdrc_params, NULL);
 	omap_init_irq();
-	omap_gpio_init();
 }
 
 static int sdp3430_batt_table[] = {
@@ -355,12 +359,12 @@ static struct omap2_hsmmc_info mmc[] = {
 		/* 8 bits (default) requires S6.3 == ON,
 		 * so the SIM card isn't used; else 4 bits.
 		 */
-		.wires		= 8,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
 		.gpio_wp	= 4,
 	},
 	{
 		.mmc		= 2,
-		.wires		= 8,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
 		.gpio_wp	= 7,
 	},
 	{}	/* Terminator */
@@ -665,9 +669,19 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux	NULL
 #endif
+
+/*
+ * SDP3430 V2 Board CS organization
+ * Different from SDP3430 V1. Now 4 switches used to specify CS
+ *
+ * See also the Switch S8 settings in the comments.
+ */
+static char chip_sel_3430[][GPMC_CS_NUM] = {
+	{PDC_NOR, PDC_NAND, PDC_ONENAND, DBG_MPDB, 0, 0, 0, 0}, /* S8:1111 */
+	{PDC_ONENAND, PDC_NAND, PDC_NOR, DBG_MPDB, 0, 0, 0, 0}, /* S8:1110 */
+	{PDC_NAND, PDC_ONENAND, PDC_NOR, DBG_MPDB, 0, 0, 0, 0}, /* S8:1101 */
+};
 
 static struct mtd_partition sdp_nor_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
@@ -799,24 +813,17 @@ static void __init omap_3430sdp_init(void)
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
 	board_smc91x_init();
-	sdp_flash_init(sdp_flash_partitions);
+	board_flash_init(sdp_flash_partitions, chip_sel_3430);
 	sdp3430_display_init();
 	enable_board_wakeup_source();
 	usb_ehci_init(&ehci_pdata);
 }
 
-static void __init omap_3430sdp_map_io(void)
-{
-	omap2_set_globals_343x();
-	omap34xx_map_common_io();
-}
-
 MACHINE_START(OMAP_3430SDP, "OMAP3430 3430SDP board")
 	/* Maintainer: Syed Khasim - Texas Instruments Inc */
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
-	.map_io		= omap_3430sdp_map_io,
+	.map_io		= omap3_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_3430sdp_init_irq,
 	.init_machine	= omap_3430sdp_init,
 	.timer		= &omap_timer,

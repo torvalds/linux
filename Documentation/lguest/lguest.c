@@ -39,14 +39,17 @@
 #include <limits.h>
 #include <stddef.h>
 #include <signal.h>
-#include "linux/lguest_launcher.h"
-#include "linux/virtio_config.h"
-#include "linux/virtio_net.h"
-#include "linux/virtio_blk.h"
-#include "linux/virtio_console.h"
-#include "linux/virtio_rng.h"
-#include "linux/virtio_ring.h"
-#include "asm/bootparam.h"
+#include <pwd.h>
+#include <grp.h>
+
+#include <linux/virtio_config.h>
+#include <linux/virtio_net.h>
+#include <linux/virtio_blk.h>
+#include <linux/virtio_console.h>
+#include <linux/virtio_rng.h>
+#include <linux/virtio_ring.h>
+#include <asm/bootparam.h>
+#include "../../include/linux/lguest_launcher.h"
 /*L:110
  * We can ignore the 42 include files we need for this program, but I do want
  * to draw attention to the use of kernel-style types.
@@ -298,12 +301,18 @@ static void *map_zeroed_pages(unsigned int num)
 
 	/*
 	 * We use a private mapping (ie. if we write to the page, it will be
-	 * copied).
+	 * copied). We allocate an extra two pages PROT_NONE to act as guard
+	 * pages against read/write attempts that exceed allocated space.
 	 */
-	addr = mmap(NULL, getpagesize() * num,
-		    PROT_READ|PROT_WRITE|PROT_EXEC, MAP_PRIVATE, fd, 0);
+	addr = mmap(NULL, getpagesize() * (num+2),
+		    PROT_NONE, MAP_PRIVATE, fd, 0);
+
 	if (addr == MAP_FAILED)
 		err(1, "Mmapping %u pages of /dev/zero", num);
+
+	if (mprotect(addr + getpagesize(), getpagesize() * num,
+		     PROT_READ|PROT_WRITE) == -1)
+		err(1, "mprotect rw %u pages failed", num);
 
 	/*
 	 * One neat mmap feature is that you can close the fd, and it
@@ -311,7 +320,8 @@ static void *map_zeroed_pages(unsigned int num)
 	 */
 	close(fd);
 
-	return addr;
+	/* Return address after PROT_NONE page */
+	return addr + getpagesize();
 }
 
 /* Get some more pages for a device. */
@@ -343,7 +353,7 @@ static void map_at(int fd, void *addr, unsigned long offset, unsigned long len)
 	 * done to it.  This allows us to share untouched memory between
 	 * Guests.
 	 */
-	if (mmap(addr, len, PROT_READ|PROT_WRITE|PROT_EXEC,
+	if (mmap(addr, len, PROT_READ|PROT_WRITE,
 		 MAP_FIXED|MAP_PRIVATE, fd, offset) != MAP_FAILED)
 		return;
 
@@ -573,10 +583,10 @@ static void *_check_pointer(unsigned long addr, unsigned int size,
 			    unsigned int line)
 {
 	/*
-	 * We have to separately check addr and addr+size, because size could
-	 * be huge and addr + size might wrap around.
+	 * Check if the requested address and size exceeds the allocated memory,
+	 * or addr + size wraps around.
 	 */
-	if (addr >= guest_limit || addr + size >= guest_limit)
+	if ((addr + size) > guest_limit || (addr + size) < addr)
 		errx(1, "%s:%i: Invalid address %#lx", __FILE__, line, addr);
 	/*
 	 * We return a pointer for the caller's convenience, now we know it's
@@ -1447,14 +1457,15 @@ static void add_to_bridge(int fd, const char *if_name, const char *br_name)
 static void configure_device(int fd, const char *tapif, u32 ipaddr)
 {
 	struct ifreq ifr;
-	struct sockaddr_in *sin = (struct sockaddr_in *)&ifr.ifr_addr;
+	struct sockaddr_in sin;
 
 	memset(&ifr, 0, sizeof(ifr));
 	strcpy(ifr.ifr_name, tapif);
 
 	/* Don't read these incantations.  Just cut & paste them like I did! */
-	sin->sin_family = AF_INET;
-	sin->sin_addr.s_addr = htonl(ipaddr);
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(ipaddr);
+	memcpy(&ifr.ifr_addr, &sin, sizeof(sin));
 	if (ioctl(fd, SIOCSIFADDR, &ifr) != 0)
 		err(1, "Setting %s interface address", tapif);
 	ifr.ifr_flags = IFF_UP;
@@ -1639,15 +1650,6 @@ static void blk_request(struct virtqueue *vq)
 	off = out->sector * 512;
 
 	/*
-	 * The block device implements "barriers", where the Guest indicates
-	 * that it wants all previous writes to occur before this write.  We
-	 * don't have a way of asking our kernel to do a barrier, so we just
-	 * synchronize all the data in the file.  Pretty poor, no?
-	 */
-	if (out->type & VIRTIO_BLK_T_BARRIER)
-		fdatasync(vblk->fd);
-
-	/*
 	 * In general the virtio block driver is allowed to try SCSI commands.
 	 * It'd be nice if we supported eject, for example, but we don't.
 	 */
@@ -1679,6 +1681,13 @@ static void blk_request(struct virtqueue *vq)
 			/* Die, bad Guest, die. */
 			errx(1, "Write past end %llu+%u", off, ret);
 		}
+
+		wlen = sizeof(*in);
+		*in = (ret >= 0 ? VIRTIO_BLK_S_OK : VIRTIO_BLK_S_IOERR);
+	} else if (out->type & VIRTIO_BLK_T_FLUSH) {
+		/* Flush */
+		ret = fdatasync(vblk->fd);
+		verbose("FLUSH fdatasync: %i\n", ret);
 		wlen = sizeof(*in);
 		*in = (ret >= 0 ? VIRTIO_BLK_S_OK : VIRTIO_BLK_S_IOERR);
 	} else {
@@ -1701,15 +1710,6 @@ static void blk_request(struct virtqueue *vq)
 			*in = VIRTIO_BLK_S_IOERR;
 		}
 	}
-
-	/*
-	 * OK, so we noted that it was pretty poor to use an fdatasync as a
-	 * barrier.  But Christoph Hellwig points out that we need a sync
-	 * *afterwards* as well: "Barriers specify no reordering to the front
-	 * or the back."  And Jens Axboe confirmed it, so here we are:
-	 */
-	if (out->type & VIRTIO_BLK_T_BARRIER)
-		fdatasync(vblk->fd);
 
 	/* Finished that request. */
 	add_used(vq, head, wlen);
@@ -1735,8 +1735,8 @@ static void setup_block_file(const char *filename)
 	vblk->fd = open_or_die(filename, O_RDWR|O_LARGEFILE);
 	vblk->len = lseek64(vblk->fd, 0, SEEK_END);
 
-	/* We support barriers. */
-	add_feature(dev, VIRTIO_BLK_F_BARRIER);
+	/* We support FLUSH. */
+	add_feature(dev, VIRTIO_BLK_F_FLUSH);
 
 	/* Tell Guest how many sectors this device has. */
 	conf.capacity = cpu_to_le64(vblk->len / 512);
@@ -1882,6 +1882,8 @@ static struct option opts[] = {
 	{ "block", 1, NULL, 'b' },
 	{ "rng", 0, NULL, 'r' },
 	{ "initrd", 1, NULL, 'i' },
+	{ "username", 1, NULL, 'u' },
+	{ "chroot", 1, NULL, 'c' },
 	{ NULL },
 };
 static void usage(void)
@@ -1903,6 +1905,12 @@ int main(int argc, char *argv[])
 	struct boot_params *boot;
 	/* If they specify an initrd file to load. */
 	const char *initrd_name = NULL;
+
+	/* Password structure for initgroups/setres[gu]id */
+	struct passwd *user_details = NULL;
+
+	/* Directory to chroot to */
+	char *chroot_path = NULL;
 
 	/* Save the args: we "reboot" by execing ourselves again. */
 	main_args = argv;
@@ -1959,6 +1967,14 @@ int main(int argc, char *argv[])
 			break;
 		case 'i':
 			initrd_name = optarg;
+			break;
+		case 'u':
+			user_details = getpwnam(optarg);
+			if (!user_details)
+				err(1, "getpwnam failed, incorrect username?");
+			break;
+		case 'c':
+			chroot_path = optarg;
 			break;
 		default:
 			warnx("Unknown argument %s", argv[optind]);
@@ -2030,6 +2046,37 @@ int main(int argc, char *argv[])
 
 	/* If we exit via err(), this kills all the threads, restores tty. */
 	atexit(cleanup_devices);
+
+	/* If requested, chroot to a directory */
+	if (chroot_path) {
+		if (chroot(chroot_path) != 0)
+			err(1, "chroot(\"%s\") failed", chroot_path);
+
+		if (chdir("/") != 0)
+			err(1, "chdir(\"/\") failed");
+
+		verbose("chroot done\n");
+	}
+
+	/* If requested, drop privileges */
+	if (user_details) {
+		uid_t u;
+		gid_t g;
+
+		u = user_details->pw_uid;
+		g = user_details->pw_gid;
+
+		if (initgroups(user_details->pw_name, g) != 0)
+			err(1, "initgroups failed");
+
+		if (setresgid(g, g, g) != 0)
+			err(1, "setresgid failed");
+
+		if (setresuid(u, u, u) != 0)
+			err(1, "setresuid failed");
+
+		verbose("Dropping privileges completed\n");
+	}
 
 	/* Finally, run the Guest.  This doesn't return. */
 	run_guest();

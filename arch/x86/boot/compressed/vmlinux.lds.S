@@ -26,8 +26,8 @@ SECTIONS
 		HEAD_TEXT
 		_ehead = . ;
 	}
-	.rodata.compressed : {
-		*(.rodata.compressed)
+	.rodata..compressed : {
+		*(.rodata..compressed)
 	}
 	.text :	{
 		_text = .; 	/* Text */
@@ -40,6 +40,12 @@ SECTIONS
 		*(.rodata)	 /* read-only data */
 		*(.rodata.*)
 		_erodata = . ;
+	}
+	.got : {
+		_got = .;
+		KEEP(*(.got.plt))
+		KEEP(*(.got))
+		_egot = .;
 	}
 	.data :	{
 		_data = . ;

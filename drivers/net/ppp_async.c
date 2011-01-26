@@ -32,6 +32,7 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 #include <asm/uaccess.h>
 #include <asm/string.h>
 
@@ -108,9 +109,9 @@ static void ppp_async_process(unsigned long arg);
 static void async_lcp_peek(struct asyncppp *ap, unsigned char *data,
 			   int len, int inbound);
 
-static struct ppp_channel_ops async_ops = {
-	ppp_async_send,
-	ppp_async_ioctl
+static const struct ppp_channel_ops async_ops = {
+	.start_xmit = ppp_async_send,
+	.ioctl      = ppp_async_ioctl,
 };
 
 /*
@@ -184,7 +185,7 @@ ppp_asynctty_open(struct tty_struct *tty)
 	tasklet_init(&ap->tsk, ppp_async_process, (unsigned long) ap);
 
 	atomic_set(&ap->refcnt, 1);
-	init_MUTEX_LOCKED(&ap->dead_sem);
+	sema_init(&ap->dead_sem, 0);
 
 	ap->chan.private = ap;
 	ap->chan.ops = &async_ops;
@@ -542,7 +543,7 @@ ppp_async_encode(struct asyncppp *ap)
 	data = ap->tpkt->data;
 	count = ap->tpkt->len;
 	fcs = ap->tfcs;
-	proto = (data[0] << 8) + data[1];
+	proto = get_unaligned_be16(data);
 
 	/*
 	 * LCP packets with code values between 1 (configure-reqest)
@@ -963,7 +964,7 @@ static void async_lcp_peek(struct asyncppp *ap, unsigned char *data,
 	code = data[0];
 	if (code != CONFACK && code != CONFREQ)
 		return;
-	dlen = (data[2] << 8) + data[3];
+	dlen = get_unaligned_be16(data + 2);
 	if (len < dlen)
 		return;		/* packet got truncated or length is bogus */
 
@@ -997,15 +998,14 @@ static void async_lcp_peek(struct asyncppp *ap, unsigned char *data,
 	while (dlen >= 2 && dlen >= data[1] && data[1] >= 2) {
 		switch (data[0]) {
 		case LCP_MRU:
-			val = (data[2] << 8) + data[3];
+			val = get_unaligned_be16(data + 2);
 			if (inbound)
 				ap->mru = val;
 			else
 				ap->chan.mtu = val;
 			break;
 		case LCP_ASYNCMAP:
-			val = (data[2] << 24) + (data[3] << 16)
-				+ (data[4] << 8) + data[5];
+			val = get_unaligned_be32(data + 2);
 			if (inbound)
 				ap->raccm = val;
 			else

@@ -41,6 +41,7 @@
 #include <linux/init.h>
 #include <linux/bcd.h>
 #include <linux/profile.h>
+#include <linux/irq_work.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -51,6 +52,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/time.h>
 #include <linux/timex.h>
+#include <linux/clocksource.h>
 
 #include "proto.h"
 #include "irq_impl.h"
@@ -80,6 +82,26 @@ static struct {
 } state;
 
 unsigned long est_cycle_freq;
+
+#ifdef CONFIG_IRQ_WORK
+
+DEFINE_PER_CPU(u8, irq_work_pending);
+
+#define set_irq_work_pending_flag()  __get_cpu_var(irq_work_pending) = 1
+#define test_irq_work_pending()      __get_cpu_var(irq_work_pending)
+#define clear_irq_work_pending()     __get_cpu_var(irq_work_pending) = 0
+
+void set_irq_work_pending(void)
+{
+	set_irq_work_pending_flag();
+}
+
+#else  /* CONFIG_IRQ_WORK */
+
+#define test_irq_work_pending()      0
+#define clear_irq_work_pending()
+
+#endif /* CONFIG_IRQ_WORK */
 
 
 static inline __u32 rpcc(void)
@@ -168,6 +190,11 @@ irqreturn_t timer_interrupt(int irq, void *dev)
 		do_timer(nticks);
 
 	write_sequnlock(&xtime_lock);
+
+	if (test_irq_work_pending()) {
+		clear_irq_work_pending();
+		irq_work_run();
+	}
 
 #ifndef CONFIG_SMP
 	while (nticks--)
@@ -332,6 +359,34 @@ rpcc_after_update_in_progress(void)
 	return rpcc();
 }
 
+#ifndef CONFIG_SMP
+/* Until and unless we figure out how to get cpu cycle counters
+   in sync and keep them there, we can't use the rpcc.  */
+static cycle_t read_rpcc(struct clocksource *cs)
+{
+	cycle_t ret = (cycle_t)rpcc();
+	return ret;
+}
+
+static struct clocksource clocksource_rpcc = {
+	.name                   = "rpcc",
+	.rating                 = 300,
+	.read                   = read_rpcc,
+	.mask                   = CLOCKSOURCE_MASK(32),
+	.flags                  = CLOCK_SOURCE_IS_CONTINUOUS
+};
+
+static inline void register_rpcc_clocksource(long cycle_freq)
+{
+	clocksource_calc_mult_shift(&clocksource_rpcc, cycle_freq, 4);
+	clocksource_register(&clocksource_rpcc);
+}
+#else /* !CONFIG_SMP */
+static inline void register_rpcc_clocksource(long cycle_freq)
+{
+}
+#endif /* !CONFIG_SMP */
+
 void __init
 time_init(void)
 {
@@ -385,6 +440,8 @@ time_init(void)
 		__you_loose();
 	}
 
+	register_rpcc_clocksource(cycle_freq);
+
 	state.last_time = cc1;
 	state.scaled_ticks_per_cycle
 		= ((unsigned long) HZ << FIX_SHIFT) / cycle_freq;
@@ -392,44 +449,6 @@ time_init(void)
 
 	/* Startup the timer source. */
 	alpha_mv.init_rtc();
-}
-
-/*
- * Use the cycle counter to estimate an displacement from the last time
- * tick.  Unfortunately the Alpha designers made only the low 32-bits of
- * the cycle counter active, so we overflow on 8.2 seconds on a 500MHz
- * part.  So we can't do the "find absolute time in terms of cycles" thing
- * that the other ports do.
- */
-u32 arch_gettimeoffset(void)
-{
-#ifdef CONFIG_SMP
-	/* Until and unless we figure out how to get cpu cycle counters
-	   in sync and keep them there, we can't use the rpcc tricks.  */
-	return 0;
-#else
-	unsigned long delta_cycles, delta_usec, partial_tick;
-
-	delta_cycles = rpcc() - state.last_time;
-	partial_tick = state.partial_tick;
-	/*
-	 * usec = cycles * ticks_per_cycle * 2**48 * 1e6 / (2**48 * ticks)
-	 *	= cycles * (s_t_p_c) * 1e6 / (2**48 * ticks)
-	 *	= cycles * (s_t_p_c) * 15625 / (2**42 * ticks)
-	 *
-	 * which, given a 600MHz cycle and a 1024Hz tick, has a
-	 * dynamic range of about 1.7e17, which is less than the
-	 * 1.8e19 in an unsigned long, so we are safe from overflow.
-	 *
-	 * Round, but with .5 up always, since .5 to even is harder
-	 * with no clear gain.
-	 */
-
-	delta_usec = (delta_cycles * state.scaled_ticks_per_cycle 
-		      + partial_tick) * 15625;
-	delta_usec = ((delta_usec / ((1UL << (FIX_SHIFT-6-1)) * HZ)) + 1) / 2;
-	return delta_usec * 1000;
-#endif
 }
 
 /*
@@ -487,7 +506,7 @@ set_rtc_mmss(unsigned long nowtime)
 		CMOS_WRITE(real_seconds,RTC_SECONDS);
 		CMOS_WRITE(real_minutes,RTC_MINUTES);
 	} else {
-		printk(KERN_WARNING
+		printk_once(KERN_NOTICE
 		       "set_rtc_mmss: can't update from %d to %d\n",
 		       cmos_minutes, real_minutes);
  		retval = -1;

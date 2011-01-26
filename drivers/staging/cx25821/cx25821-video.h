@@ -40,21 +40,17 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-/* Include V4L1 specific functions. Should be removed soon */
-#include <linux/videodev.h>
-#endif
-
 #define TUNER_FLAG
 
 #define VIDEO_DEBUG 0
 
-#define dprintk(level, fmt, arg...)\
-    do { if (VIDEO_DEBUG >= level)\
-	printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
-    } while (0)
+#define dprintk(level, fmt, arg...)					\
+do {									\
+	if (VIDEO_DEBUG >= level)					\
+		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ##arg);	\
+} while (0)
 
-//For IOCTL to identify running upstream
+/* For IOCTL to identify running upstream */
 #define UPSTREAM_START_VIDEO        700
 #define UPSTREAM_STOP_VIDEO         701
 #define UPSTREAM_START_AUDIO        702
@@ -80,25 +76,14 @@ extern struct sram_channel *channel7;
 extern struct sram_channel *channel9;
 extern struct sram_channel *channel10;
 extern struct sram_channel *channel11;
-extern struct video_device cx25821_video_template0;
-extern struct video_device cx25821_video_template1;
-extern struct video_device cx25821_video_template2;
-extern struct video_device cx25821_video_template3;
-extern struct video_device cx25821_video_template4;
-extern struct video_device cx25821_video_template5;
-extern struct video_device cx25821_video_template6;
-extern struct video_device cx25821_video_template7;
-extern struct video_device cx25821_video_template9;
-extern struct video_device cx25821_video_template10;
-extern struct video_device cx25821_video_template11;
 extern struct video_device cx25821_videoioctl_template;
-//extern const u32 *ctrl_classes[];
+/* extern const u32 *ctrl_classes[]; */
 
 extern unsigned int vid_limit;
 
 #define FORMAT_FLAGS_PACKED       0x01
 extern struct cx25821_fmt formats[];
-extern struct cx25821_fmt *format_by_fourcc(unsigned int fourcc);
+extern struct cx25821_fmt *cx25821_format_by_fourcc(unsigned int fourcc);
 extern struct cx25821_data timeout_data[MAX_VID_CHANNEL_NUM];
 
 extern void cx25821_dump_video_queue(struct cx25821_dev *dev,
@@ -113,7 +98,7 @@ extern int cx25821_set_tvnorm(struct cx25821_dev *dev, v4l2_std_id norm);
 extern int cx25821_res_get(struct cx25821_dev *dev, struct cx25821_fh *fh,
 		   unsigned int bit);
 extern int cx25821_res_check(struct cx25821_fh *fh, unsigned int bit);
-extern int cx25821_res_locked(struct cx25821_dev *dev, unsigned int bit);
+extern int cx25821_res_locked(struct cx25821_fh *fh, unsigned int bit);
 extern void cx25821_res_free(struct cx25821_dev *dev, struct cx25821_fh *fh,
 		     unsigned int bits);
 extern int cx25821_video_mux(struct cx25821_dev *dev, unsigned int input);
@@ -126,8 +111,7 @@ extern int cx25821_set_scale(struct cx25821_dev *dev, unsigned int width,
 			     unsigned int height, enum v4l2_field field);
 extern int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status);
 extern void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num);
-extern int cx25821_video_register(struct cx25821_dev *dev, int chan_num,
-				  struct video_device *video_template);
+extern int cx25821_video_register(struct cx25821_dev *dev);
 extern int cx25821_get_format_size(void);
 
 extern int cx25821_buffer_setup(struct videobuf_queue *q, unsigned int *count,
@@ -145,7 +129,6 @@ extern int cx25821_vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap);
 extern int cx25821_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 				   struct v4l2_fmtdesc *f);
-extern int cx25821_vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf);
 extern int cx25821_vidioc_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *p);
 extern int cx25821_vidioc_querybuf(struct file *file, void *priv,

@@ -120,7 +120,7 @@
 #include <linux/timer.h>
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 
 #ifdef GDTH_RTC
@@ -140,6 +140,7 @@
 #include <scsi/scsi_host.h>
 #include "gdth.h"
 
+static DEFINE_MUTEX(gdth_mutex);
 static void gdth_delay(int milliseconds);
 static void gdth_eval_mapping(u32 size, u32 *cyls, int *heads, int *secs);
 static irqreturn_t gdth_interrupt(int irq, void *dev_id);
@@ -184,7 +185,7 @@ static long gdth_unlocked_ioctl(struct file *filep, unsigned int cmd,
 			        unsigned long arg);
 
 static void gdth_flush(gdth_ha_str *ha);
-static int gdth_queuecommand(Scsi_Cmnd *scp,void (*done)(Scsi_Cmnd *));
+static int gdth_queuecommand(struct Scsi_Host *h, struct scsi_cmnd *cmd);
 static int __gdth_queuecommand(gdth_ha_str *ha, struct scsi_cmnd *scp,
 				struct gdth_cmndinfo *cmndinfo);
 static void gdth_scsi_done(struct scsi_cmnd *scp);
@@ -372,6 +373,7 @@ static const struct file_operations gdth_fops = {
     .unlocked_ioctl   = gdth_unlocked_ioctl,
     .open    = gdth_open,
     .release = gdth_close,
+    .llseek = noop_llseek,
 };
 
 #include "gdth_proc.h"
@@ -4002,7 +4004,7 @@ static int gdth_bios_param(struct scsi_device *sdev,struct block_device *bdev,se
 }
 
 
-static int gdth_queuecommand(struct scsi_cmnd *scp,
+static int gdth_queuecommand_lck(struct scsi_cmnd *scp,
 				void (*done)(struct scsi_cmnd *))
 {
     gdth_ha_str *ha = shost_priv(scp->device->host);
@@ -4019,6 +4021,8 @@ static int gdth_queuecommand(struct scsi_cmnd *scp,
 
     return __gdth_queuecommand(ha, scp, cmndinfo);
 }
+
+static DEF_SCSI_QCMD(gdth_queuecommand)
 
 static int __gdth_queuecommand(gdth_ha_str *ha, struct scsi_cmnd *scp,
 				struct gdth_cmndinfo *cmndinfo)
@@ -4042,12 +4046,12 @@ static int gdth_open(struct inode *inode, struct file *filep)
 {
     gdth_ha_str *ha;
 
-    lock_kernel();
+    mutex_lock(&gdth_mutex);
     list_for_each_entry(ha, &gdth_instances, list) {
         if (!ha->sdev)
             ha->sdev = scsi_get_host_dev(ha->shost);
     }
-    unlock_kernel();
+    mutex_unlock(&gdth_mutex);
 
     TRACE(("gdth_open()\n"));
     return 0;
@@ -4175,6 +4179,14 @@ static int ioc_general(void __user *arg, char *cmnd)
     ha = gdth_find_ha(gen.ionode);
     if (!ha)
         return -EFAULT;
+
+    if (gen.data_len > INT_MAX)
+        return -EINVAL;
+    if (gen.sense_len > INT_MAX)
+        return -EINVAL;
+    if (gen.data_len + gen.sense_len > INT_MAX)
+        return -EINVAL;
+
     if (gen.data_len + gen.sense_len != 0) {
         if (!(buf = gdth_ioctl_alloc(ha, gen.data_len + gen.sense_len,
                                      FALSE, &paddr)))
@@ -4261,8 +4273,10 @@ static int ioc_general(void __user *arg, char *cmnd)
     }
 
     rval = __gdth_execute(ha->sdev, &gen.command, cmnd, gen.timeout, &gen.info);
-    if (rval < 0)
+    if (rval < 0) {
+	gdth_ioctl_free(ha, gen.data_len+gen.sense_len, buf, paddr);
         return rval;
+    }
     gen.status = rval;
 
     if (copy_to_user(arg + sizeof(gdth_ioctl_general), buf, 
@@ -4615,9 +4629,9 @@ static long gdth_unlocked_ioctl(struct file *file, unsigned int cmd,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&gdth_mutex);
 	ret = gdth_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&gdth_mutex);
 
 	return ret;
 }
@@ -4914,7 +4928,7 @@ static int __init gdth_eisa_probe_one(u16 eisa_slot)
 
 	error = scsi_add_host(shp, NULL);
 	if (error)
-		goto out_free_coal_stat;
+		goto out_free_ccb_phys;
 	list_add_tail(&ha->list, &gdth_instances);
 	gdth_timer_init();
 

@@ -33,7 +33,8 @@ struct statfs {
 	/* Linux specials */
 	__kernel_fsid_t	f_fsid;
 	long		f_namelen;
-	long		f_spare[6];
+	long		f_flags;
+	long		f_spare[5];
 };
 
 #if (_MIPS_SIM == _MIPS_SIM_ABI32) || (_MIPS_SIM == _MIPS_SIM_NABI32)
@@ -53,7 +54,8 @@ struct statfs64 {
 	__u64	f_bavail;
 	__kernel_fsid_t f_fsid;
 	__u32	f_namelen;
-	__u32	f_spare[6];
+	__u32	f_flags;
+	__u32	f_spare[5];
 };
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
@@ -73,7 +75,8 @@ struct statfs64 {			/* Same as struct statfs */
 	/* Linux specials */
 	__kernel_fsid_t	f_fsid;
 	long		f_namelen;
-	long		f_spare[6];
+	long		f_flags;
+	long		f_spare[5];
 };
 
 struct compat_statfs64 {
@@ -88,7 +91,8 @@ struct compat_statfs64 {
 	__u64	f_bavail;
 	__kernel_fsid_t f_fsid;
 	__u32	f_namelen;
-	__u32	f_spare[6];
+	__u32	f_flags;
+	__u32	f_spare[5];
 };
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */

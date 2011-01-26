@@ -52,7 +52,7 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup);
  * Engine control
  */
 
-int mga_do_wait_for_idle(drm_mga_private_t * dev_priv)
+int mga_do_wait_for_idle(drm_mga_private_t *dev_priv)
 {
 	u32 status = 0;
 	int i;
@@ -74,7 +74,7 @@ int mga_do_wait_for_idle(drm_mga_private_t * dev_priv)
 	return -EBUSY;
 }
 
-static int mga_do_dma_reset(drm_mga_private_t * dev_priv)
+static int mga_do_dma_reset(drm_mga_private_t *dev_priv)
 {
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_primary_buffer_t *primary = &dev_priv->prim;
@@ -102,7 +102,7 @@ static int mga_do_dma_reset(drm_mga_private_t * dev_priv)
  * Primary DMA stream
  */
 
-void mga_do_dma_flush(drm_mga_private_t * dev_priv)
+void mga_do_dma_flush(drm_mga_private_t *dev_priv)
 {
 	drm_mga_primary_buffer_t *primary = &dev_priv->prim;
 	u32 head, tail;
@@ -142,11 +142,10 @@ void mga_do_dma_flush(drm_mga_private_t * dev_priv)
 
 	head = MGA_READ(MGA_PRIMADDRESS);
 
-	if (head <= tail) {
+	if (head <= tail)
 		primary->space = primary->size - primary->tail;
-	} else {
+	else
 		primary->space = head - tail;
-	}
 
 	DRM_DEBUG("   head = 0x%06lx\n", (unsigned long)(head - dev_priv->primary->offset));
 	DRM_DEBUG("   tail = 0x%06lx\n", (unsigned long)(tail - dev_priv->primary->offset));
@@ -158,7 +157,7 @@ void mga_do_dma_flush(drm_mga_private_t * dev_priv)
 	DRM_DEBUG("done.\n");
 }
 
-void mga_do_dma_wrap_start(drm_mga_private_t * dev_priv)
+void mga_do_dma_wrap_start(drm_mga_private_t *dev_priv)
 {
 	drm_mga_primary_buffer_t *primary = &dev_priv->prim;
 	u32 head, tail;
@@ -181,11 +180,10 @@ void mga_do_dma_wrap_start(drm_mga_private_t * dev_priv)
 
 	head = MGA_READ(MGA_PRIMADDRESS);
 
-	if (head == dev_priv->primary->offset) {
+	if (head == dev_priv->primary->offset)
 		primary->space = primary->size;
-	} else {
+	else
 		primary->space = head - dev_priv->primary->offset;
-	}
 
 	DRM_DEBUG("   head = 0x%06lx\n", (unsigned long)(head - dev_priv->primary->offset));
 	DRM_DEBUG("   tail = 0x%06x\n", primary->tail);
@@ -199,7 +197,7 @@ void mga_do_dma_wrap_start(drm_mga_private_t * dev_priv)
 	DRM_DEBUG("done.\n");
 }
 
-void mga_do_dma_wrap_end(drm_mga_private_t * dev_priv)
+void mga_do_dma_wrap_end(drm_mga_private_t *dev_priv)
 {
 	drm_mga_primary_buffer_t *primary = &dev_priv->prim;
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
@@ -220,11 +218,11 @@ void mga_do_dma_wrap_end(drm_mga_private_t * dev_priv)
  * Freelist management
  */
 
-#define MGA_BUFFER_USED		~0
+#define MGA_BUFFER_USED		(~0)
 #define MGA_BUFFER_FREE		0
 
 #if MGA_FREELIST_DEBUG
-static void mga_freelist_print(struct drm_device * dev)
+static void mga_freelist_print(struct drm_device *dev)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_freelist_t *entry;
@@ -245,7 +243,7 @@ static void mga_freelist_print(struct drm_device * dev)
 }
 #endif
 
-static int mga_freelist_init(struct drm_device * dev, drm_mga_private_t * dev_priv)
+static int mga_freelist_init(struct drm_device *dev, drm_mga_private_t *dev_priv)
 {
 	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *buf;
@@ -288,7 +286,7 @@ static int mga_freelist_init(struct drm_device * dev, drm_mga_private_t * dev_pr
 	return 0;
 }
 
-static void mga_freelist_cleanup(struct drm_device * dev)
+static void mga_freelist_cleanup(struct drm_device *dev)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_freelist_t *entry;
@@ -308,7 +306,7 @@ static void mga_freelist_cleanup(struct drm_device * dev)
 #if 0
 /* FIXME: Still needed?
  */
-static void mga_freelist_reset(struct drm_device * dev)
+static void mga_freelist_reset(struct drm_device *dev)
 {
 	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *buf;
@@ -356,7 +354,7 @@ static struct drm_buf *mga_freelist_get(struct drm_device * dev)
 	return NULL;
 }
 
-int mga_freelist_put(struct drm_device * dev, struct drm_buf * buf)
+int mga_freelist_put(struct drm_device *dev, struct drm_buf *buf)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_buf_priv_t *buf_priv = buf->dev_private;
@@ -391,7 +389,7 @@ int mga_freelist_put(struct drm_device * dev, struct drm_buf * buf)
  * DMA initialization, cleanup
  */
 
-int mga_driver_load(struct drm_device * dev, unsigned long flags)
+int mga_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	drm_mga_private_t *dev_priv;
 	int ret;
@@ -405,8 +403,8 @@ int mga_driver_load(struct drm_device * dev, unsigned long flags)
 	dev_priv->usec_timeout = MGA_DEFAULT_USEC_TIMEOUT;
 	dev_priv->chipset = flags;
 
-	dev_priv->mmio_base = drm_get_resource_start(dev, 1);
-	dev_priv->mmio_size = drm_get_resource_len(dev, 1);
+	dev_priv->mmio_base = pci_resource_start(dev->pdev, 1);
+	dev_priv->mmio_size = pci_resource_len(dev->pdev, 1);
 
 	dev->counters += 3;
 	dev->types[6] = _DRM_STAT_IRQ;
@@ -439,8 +437,8 @@ int mga_driver_load(struct drm_device * dev, unsigned long flags)
  *
  * \sa mga_do_dma_bootstrap, mga_do_pci_dma_bootstrap
  */
-static int mga_do_agp_dma_bootstrap(struct drm_device * dev,
-				    drm_mga_dma_bootstrap_t * dma_bs)
+static int mga_do_agp_dma_bootstrap(struct drm_device *dev,
+				    drm_mga_dma_bootstrap_t *dma_bs)
 {
 	drm_mga_private_t *const dev_priv =
 	    (drm_mga_private_t *) dev->dev_private;
@@ -481,11 +479,10 @@ static int mga_do_agp_dma_bootstrap(struct drm_device * dev,
 	 */
 
 	if (dev_priv->chipset == MGA_CARD_TYPE_G200) {
-		if (mode.mode & 0x02) {
+		if (mode.mode & 0x02)
 			MGA_WRITE(MGA_AGP_PLL, MGA_AGP2XPLL_ENABLE);
-		} else {
+		else
 			MGA_WRITE(MGA_AGP_PLL, MGA_AGP2XPLL_DISABLE);
-		}
 	}
 
 	/* Allocate and bind AGP memory. */
@@ -593,8 +590,8 @@ static int mga_do_agp_dma_bootstrap(struct drm_device * dev,
 	return 0;
 }
 #else
-static int mga_do_agp_dma_bootstrap(struct drm_device * dev,
-				    drm_mga_dma_bootstrap_t * dma_bs)
+static int mga_do_agp_dma_bootstrap(struct drm_device *dev,
+				    drm_mga_dma_bootstrap_t *dma_bs)
 {
 	return -EINVAL;
 }
@@ -614,8 +611,8 @@ static int mga_do_agp_dma_bootstrap(struct drm_device * dev,
  *
  * \sa mga_do_dma_bootstrap, mga_do_agp_dma_bootstrap
  */
-static int mga_do_pci_dma_bootstrap(struct drm_device * dev,
-				    drm_mga_dma_bootstrap_t * dma_bs)
+static int mga_do_pci_dma_bootstrap(struct drm_device *dev,
+				    drm_mga_dma_bootstrap_t *dma_bs)
 {
 	drm_mga_private_t *const dev_priv =
 	    (drm_mga_private_t *) dev->dev_private;
@@ -678,9 +675,8 @@ static int mga_do_pci_dma_bootstrap(struct drm_device * dev,
 		req.size = dma_bs->secondary_bin_size;
 
 		err = drm_addbufs_pci(dev, &req);
-		if (!err) {
+		if (!err)
 			break;
-		}
 	}
 
 	if (bin_count == 0) {
@@ -704,8 +700,8 @@ static int mga_do_pci_dma_bootstrap(struct drm_device * dev,
 	return 0;
 }
 
-static int mga_do_dma_bootstrap(struct drm_device * dev,
-				drm_mga_dma_bootstrap_t * dma_bs)
+static int mga_do_dma_bootstrap(struct drm_device *dev,
+				drm_mga_dma_bootstrap_t *dma_bs)
 {
 	const int is_agp = (dma_bs->agp_mode != 0) && drm_device_is_agp(dev);
 	int err;
@@ -737,17 +733,15 @@ static int mga_do_dma_bootstrap(struct drm_device * dev,
 	 * carve off portions of it for internal uses.  The remaining memory
 	 * is returned to user-mode to be used for AGP textures.
 	 */
-	if (is_agp) {
+	if (is_agp)
 		err = mga_do_agp_dma_bootstrap(dev, dma_bs);
-	}
 
 	/* If we attempted to initialize the card for AGP DMA but failed,
 	 * clean-up any mess that may have been created.
 	 */
 
-	if (err) {
+	if (err)
 		mga_do_cleanup_dma(dev, MINIMAL_CLEANUP);
-	}
 
 	/* Not only do we want to try and initialized PCI cards for PCI DMA,
 	 * but we also try to initialized AGP cards that could not be
@@ -757,9 +751,8 @@ static int mga_do_dma_bootstrap(struct drm_device * dev,
 	 * AGP memory, etc.
 	 */
 
-	if (!is_agp || err) {
+	if (!is_agp || err)
 		err = mga_do_pci_dma_bootstrap(dev, dma_bs);
-	}
 
 	return err;
 }
@@ -792,7 +785,7 @@ int mga_dma_bootstrap(struct drm_device *dev, void *data,
 	return err;
 }
 
-static int mga_do_init_dma(struct drm_device * dev, drm_mga_init_t * init)
+static int mga_do_init_dma(struct drm_device *dev, drm_mga_init_t *init)
 {
 	drm_mga_private_t *dev_priv;
 	int ret;
@@ -800,11 +793,10 @@ static int mga_do_init_dma(struct drm_device * dev, drm_mga_init_t * init)
 
 	dev_priv = dev->dev_private;
 
-	if (init->sgram) {
+	if (init->sgram)
 		dev_priv->clear_cmd = MGA_DWGCTL_CLEAR | MGA_ATYPE_BLK;
-	} else {
+	else
 		dev_priv->clear_cmd = MGA_DWGCTL_CLEAR | MGA_ATYPE_RSTR;
-	}
 	dev_priv->maccess = init->maccess;
 
 	dev_priv->fb_cpp = init->fb_cpp;
@@ -975,9 +967,8 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup)
 				dev_priv->agp_handle = 0;
 			}
 
-			if ((dev->agp != NULL) && dev->agp->acquired) {
+			if ((dev->agp != NULL) && dev->agp->acquired)
 				err = drm_agp_release(dev);
-			}
 #endif
 		}
 
@@ -998,9 +989,8 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup)
 		memset(dev_priv->warp_pipe_phys, 0,
 		       sizeof(dev_priv->warp_pipe_phys));
 
-		if (dev_priv->head != NULL) {
+		if (dev_priv->head != NULL)
 			mga_freelist_cleanup(dev);
-		}
 	}
 
 	return err;
@@ -1017,9 +1007,8 @@ int mga_dma_init(struct drm_device *dev, void *data,
 	switch (init->func) {
 	case MGA_INIT_DMA:
 		err = mga_do_init_dma(dev, init);
-		if (err) {
+		if (err)
 			(void)mga_do_cleanup_dma(dev, FULL_CLEANUP);
-		}
 		return err;
 	case MGA_CLEANUP_DMA:
 		return mga_do_cleanup_dma(dev, FULL_CLEANUP);
@@ -1047,9 +1036,8 @@ int mga_dma_flush(struct drm_device *dev, void *data,
 
 	WRAP_WAIT_WITH_RETURN(dev_priv);
 
-	if (lock->flags & (_DRM_LOCK_FLUSH | _DRM_LOCK_FLUSH_ALL)) {
+	if (lock->flags & (_DRM_LOCK_FLUSH | _DRM_LOCK_FLUSH_ALL))
 		mga_do_dma_flush(dev_priv);
-	}
 
 	if (lock->flags & _DRM_LOCK_QUIESCENT) {
 #if MGA_DMA_DEBUG
@@ -1079,8 +1067,8 @@ int mga_dma_reset(struct drm_device *dev, void *data,
  * DMA buffer management
  */
 
-static int mga_dma_get_buffers(struct drm_device * dev,
-			       struct drm_file *file_priv, struct drm_dma * d)
+static int mga_dma_get_buffers(struct drm_device *dev,
+			       struct drm_file *file_priv, struct drm_dma *d)
 {
 	struct drm_buf *buf;
 	int i;
@@ -1134,9 +1122,8 @@ int mga_dma_buffers(struct drm_device *dev, void *data,
 
 	d->granted_count = 0;
 
-	if (d->request_count) {
+	if (d->request_count)
 		ret = mga_dma_get_buffers(dev, file_priv, d);
-	}
 
 	return ret;
 }
@@ -1144,7 +1131,7 @@ int mga_dma_buffers(struct drm_device *dev, void *data,
 /**
  * Called just before the module is unloaded.
  */
-int mga_driver_unload(struct drm_device * dev)
+int mga_driver_unload(struct drm_device *dev)
 {
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;
@@ -1155,12 +1142,12 @@ int mga_driver_unload(struct drm_device * dev)
 /**
  * Called when the last opener of the device is closed.
  */
-void mga_driver_lastclose(struct drm_device * dev)
+void mga_driver_lastclose(struct drm_device *dev)
 {
 	mga_do_cleanup_dma(dev, FULL_CLEANUP);
 }
 
-int mga_driver_dma_quiescent(struct drm_device * dev)
+int mga_driver_dma_quiescent(struct drm_device *dev)
 {
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	return mga_do_wait_for_idle(dev_priv);

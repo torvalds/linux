@@ -23,7 +23,7 @@
 #include <linux/svga.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/console.h> /* Why should fb driver call console functions? because acquire_console_sem() */
+#include <linux/console.h> /* Why should fb driver call console functions? because console_lock() */
 #include <video/vga.h>
 
 #ifdef CONFIG_MTRR
@@ -726,7 +726,9 @@ static int __devinit vt8623_pci_probe(struct pci_dev *dev, const struct pci_devi
 
 	/* Prepare startup mode */
 
+	kparam_block_sysfs_write(mode_option);
 	rc = fb_find_mode(&(info->var), info, mode_option, NULL, 0, NULL, 8);
+	kparam_unblock_sysfs_write(mode_option);
 	if (! ((rc == 1) || (rc == 2))) {
 		rc = -EINVAL;
 		dev_err(info->device, "mode %s not found\n", mode_option);
@@ -817,12 +819,12 @@ static int vt8623_pci_suspend(struct pci_dev* dev, pm_message_t state)
 
 	dev_info(info->device, "suspend\n");
 
-	acquire_console_sem();
+	console_lock();
 	mutex_lock(&(par->open_lock));
 
 	if ((state.event == PM_EVENT_FREEZE) || (par->ref_count == 0)) {
 		mutex_unlock(&(par->open_lock));
-		release_console_sem();
+		console_unlock();
 		return 0;
 	}
 
@@ -833,7 +835,7 @@ static int vt8623_pci_suspend(struct pci_dev* dev, pm_message_t state)
 	pci_set_power_state(dev, pci_choose_state(dev, state));
 
 	mutex_unlock(&(par->open_lock));
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }
@@ -848,7 +850,7 @@ static int vt8623_pci_resume(struct pci_dev* dev)
 
 	dev_info(info->device, "resume\n");
 
-	acquire_console_sem();
+	console_lock();
 	mutex_lock(&(par->open_lock));
 
 	if (par->ref_count == 0)
@@ -867,7 +869,7 @@ static int vt8623_pci_resume(struct pci_dev* dev)
 
 fail:
 	mutex_unlock(&(par->open_lock));
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }

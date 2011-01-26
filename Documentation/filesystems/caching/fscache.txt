@@ -343,8 +343,8 @@ This will look something like:
 	[root@andromeda ~]# head /proc/fs/fscache/objects
 	OBJECT   PARENT   STAT CHLDN OPS OOP IPR EX READS EM EV F S | NETFS_COOKIE_DEF TY FL NETFS_DATA       OBJECT_KEY, AUX_DATA
 	======== ======== ==== ===== === === === == ===== == == = = | ================ == == ================ ================
-	   17e4b        2 ACTV     0   0   0   0  0     0 7b  4 0 8 | NFS.fh           DT  0 ffff88001dd82820 010006017edcf8bbc93b43298fdfbe71e50b57b13a172c0117f38472, e567634700000000000000000000000063f2404a000000000000000000000000c9030000000000000000000063f2404a
-	   1693a        2 ACTV     0   0   0   0  0     0 7b  4 0 8 | NFS.fh           DT  0 ffff88002db23380 010006017edcf8bbc93b43298fdfbe71e50b57b1e0162c01a2df0ea6, 420ebc4a000000000000000000000000420ebc4a0000000000000000000000000e1801000000000000000000420ebc4a
+	   17e4b        2 ACTV     0   0   0   0  0     0 7b  4 0 0 | NFS.fh           DT  0 ffff88001dd82820 010006017edcf8bbc93b43298fdfbe71e50b57b13a172c0117f38472, e567634700000000000000000000000063f2404a000000000000000000000000c9030000000000000000000063f2404a
+	   1693a        2 ACTV     0   0   0   0  0     0 7b  4 0 0 | NFS.fh           DT  0 ffff88002db23380 010006017edcf8bbc93b43298fdfbe71e50b57b1e0162c01a2df0ea6, 420ebc4a000000000000000000000000420ebc4a0000000000000000000000000e1801000000000000000000420ebc4a
 
 where the first set of columns before the '|' describe the object:
 
@@ -362,7 +362,7 @@ where the first set of columns before the '|' describe the object:
 	EM	Object's event mask
 	EV	Events raised on this object
 	F	Object flags
-	S	Object slow-work work item flags
+	S	Object work item busy state mask (1:pending 2:running)
 
 and the second set of columns describe the object's cookie, if present:
 
@@ -395,8 +395,8 @@ and the following paired letters:
 	w	Show objects that don't have pending writes
 	R	Show objects that have outstanding reads
 	r	Show objects that don't have outstanding reads
-	S	Show objects that have slow work queued
-	s	Show objects that don't have slow work queued
+	S	Show objects that have work queued
+	s	Show objects that don't have work queued
 
 If neither side of a letter pair is given, then both are implied.  For example:
 

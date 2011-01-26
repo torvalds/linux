@@ -422,7 +422,6 @@ static int wis_saa7115_probe(struct i2c_client *client,
 	if (write_regs(client, initial_registers) < 0) {
 		printk(KERN_ERR
 			"wis-saa7115: error initializing SAA7115\n");
-		i2c_set_clientdata(client, NULL);
 		kfree(dec);
 		return -ENODEV;
 	}
@@ -434,7 +433,6 @@ static int wis_saa7115_remove(struct i2c_client *client)
 {
 	struct wis_saa7115 *dec = i2c_get_clientdata(client);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(dec);
 	return 0;
 }
@@ -443,6 +441,7 @@ static const struct i2c_device_id wis_saa7115_id[] = {
 	{ "wis_saa7115", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, wis_saa7115_id);
 
 static struct i2c_driver wis_saa7115_driver = {
 	.driver = {

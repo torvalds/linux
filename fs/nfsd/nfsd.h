@@ -153,10 +153,12 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_bad_seqid	cpu_to_be32(NFSERR_BAD_SEQID)
 #define	nfserr_symlink		cpu_to_be32(NFSERR_SYMLINK)
 #define	nfserr_not_same		cpu_to_be32(NFSERR_NOT_SAME)
+#define nfserr_lock_range	cpu_to_be32(NFSERR_LOCK_RANGE)
 #define	nfserr_restorefh	cpu_to_be32(NFSERR_RESTOREFH)
 #define	nfserr_attrnotsupp	cpu_to_be32(NFSERR_ATTRNOTSUPP)
 #define	nfserr_bad_xdr		cpu_to_be32(NFSERR_BAD_XDR)
 #define	nfserr_openmode		cpu_to_be32(NFSERR_OPENMODE)
+#define	nfserr_badowner		cpu_to_be32(NFSERR_BADOWNER)
 #define	nfserr_locks_held	cpu_to_be32(NFSERR_LOCKS_HELD)
 #define	nfserr_op_illegal	cpu_to_be32(NFSERR_OP_ILLEGAL)
 #define	nfserr_grace		cpu_to_be32(NFSERR_GRACE)
@@ -248,7 +250,7 @@ extern time_t nfsd4_grace;
 #define	COMPOUND_SLACK_SPACE		140    /* OP_GETFH */
 #define COMPOUND_ERR_SLACK_SPACE	12     /* OP_SETATTR */
 
-#define NFSD_LAUNDROMAT_MINTIMEOUT      10   /* seconds */
+#define NFSD_LAUNDROMAT_MINTIMEOUT      1   /* seconds */
 
 /*
  * The following attributes are currently not supported by the NFSv4 server:

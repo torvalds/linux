@@ -53,6 +53,8 @@
 #include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/debugfs.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -64,6 +66,9 @@
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/udbg.h>
+#include <asm/dbell.h>
+#include <asm/smp.h>
+
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #include <asm/firmware.h>
@@ -111,7 +116,7 @@ static inline notrace void set_soft_enabled(unsigned long enable)
 	: : "r" (enable), "i" (offsetof(struct paca_struct, soft_enabled)));
 }
 
-notrace void raw_local_irq_restore(unsigned long en)
+notrace void arch_local_irq_restore(unsigned long en)
 {
 	/*
 	 * get_paca()->soft_enabled = en;
@@ -153,14 +158,28 @@ notrace void raw_local_irq_restore(unsigned long en)
 	if (get_hard_enabled())
 		return;
 
+#if defined(CONFIG_BOOKE) && defined(CONFIG_SMP)
+	/* Check for pending doorbell interrupts and resend to ourself */
+	doorbell_check_self();
+#endif
+
 	/*
 	 * Need to hard-enable interrupts here.  Since currently disabled,
 	 * no need to take further asm precautions against preemption; but
 	 * use local_paca instead of get_paca() to avoid preemption checking.
 	 */
 	local_paca->hard_enabled = en;
+
+#ifndef CONFIG_BOOKE
+	/* On server, re-trigger the decrementer if it went negative since
+	 * some processors only trigger on edge transitions of the sign bit.
+	 *
+	 * BookE has a level sensitive decrementer (latches in TSR) so we
+	 * don't need that
+	 */
 	if ((int)mfspr(SPRN_DEC) < 0)
 		mtspr(SPRN_DEC, 1);
+#endif /* CONFIG_BOOKE */
 
 	/*
 	 * Force the delivery of pending soft-disabled interrupts on PS3.
@@ -173,7 +192,7 @@ notrace void raw_local_irq_restore(unsigned long en)
 
 	__hard_irq_enable();
 }
-EXPORT_SYMBOL(raw_local_irq_restore);
+EXPORT_SYMBOL(arch_local_irq_restore);
 #endif /* CONFIG_PPC64 */
 
 static int show_other_interrupts(struct seq_file *p, int prec)
@@ -295,7 +314,10 @@ void fixup_irqs(const struct cpumask *map)
 
 	for_each_irq(irq) {
 		desc = irq_to_desc(irq);
-		if (desc && desc->status & IRQ_PER_CPU)
+		if (!desc)
+			continue;
+
+		if (desc->status & IRQ_PER_CPU)
 			continue;
 
 		cpumask_and(mask, desc->affinity, map);
@@ -317,7 +339,6 @@ void fixup_irqs(const struct cpumask *map)
 }
 #endif
 
-#ifdef CONFIG_IRQSTACKS
 static inline void handle_one_irq(unsigned int irq)
 {
 	struct thread_info *curtp, *irqtp;
@@ -358,12 +379,6 @@ static inline void handle_one_irq(unsigned int irq)
 	if (irqtp->flags)
 		set_bits(irqtp->flags, &curtp->flags);
 }
-#else
-static inline void handle_one_irq(unsigned int irq)
-{
-	generic_handle_irq(irq);
-}
-#endif
 
 static inline void check_stack_overflow(void)
 {
@@ -432,22 +447,23 @@ struct thread_info *mcheckirq_ctx[NR_CPUS] __read_mostly;
 void exc_lvl_ctx_init(void)
 {
 	struct thread_info *tp;
-	int i;
+	int i, hw_cpu;
 
 	for_each_possible_cpu(i) {
-		memset((void *)critirq_ctx[i], 0, THREAD_SIZE);
-		tp = critirq_ctx[i];
+		hw_cpu = get_hard_smp_processor_id(i);
+		memset((void *)critirq_ctx[hw_cpu], 0, THREAD_SIZE);
+		tp = critirq_ctx[hw_cpu];
 		tp->cpu = i;
 		tp->preempt_count = 0;
 
 #ifdef CONFIG_BOOKE
-		memset((void *)dbgirq_ctx[i], 0, THREAD_SIZE);
-		tp = dbgirq_ctx[i];
+		memset((void *)dbgirq_ctx[hw_cpu], 0, THREAD_SIZE);
+		tp = dbgirq_ctx[hw_cpu];
 		tp->cpu = i;
 		tp->preempt_count = 0;
 
-		memset((void *)mcheckirq_ctx[i], 0, THREAD_SIZE);
-		tp = mcheckirq_ctx[i];
+		memset((void *)mcheckirq_ctx[hw_cpu], 0, THREAD_SIZE);
+		tp = mcheckirq_ctx[hw_cpu];
 		tp->cpu = i;
 		tp->preempt_count = HARDIRQ_OFFSET;
 #endif
@@ -455,7 +471,6 @@ void exc_lvl_ctx_init(void)
 }
 #endif
 
-#ifdef CONFIG_IRQSTACKS
 struct thread_info *softirq_ctx[NR_CPUS] __read_mostly;
 struct thread_info *hardirq_ctx[NR_CPUS] __read_mostly;
 
@@ -491,10 +506,6 @@ static inline void do_softirq_onstack(void)
 	current->thread.ksp_limit = saved_sp_limit;
 	irqtp->task = NULL;
 }
-
-#else
-#define do_softirq_onstack()	__do_softirq()
-#endif /* CONFIG_IRQSTACKS */
 
 void do_softirq(void)
 {
@@ -576,8 +587,10 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 			 * this will be fixed once slab is made available early
 			 * instead of the current cruft
 			 */
-			if (mem_init_done)
+			if (mem_init_done) {
+				of_node_put(host->of_node);
 				kfree(host);
+			}
 			return NULL;
 		}
 		irq_map[0].host = host;
@@ -812,18 +825,6 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_of_mapping);
-
-unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
-{
-	struct of_irq oirq;
-
-	if (of_irq_map_one(dev, index, &oirq))
-		return NO_IRQ;
-
-	return irq_create_of_mapping(oirq.controller, oirq.specifier,
-				     oirq.size);
-}
-EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
 
 void irq_dispose_mapping(unsigned int virq)
 {
@@ -1144,7 +1145,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 	unsigned long flags;
 	struct irq_desc *desc;
 	const char *p;
-	char none[] = "none";
+	static const char none[] = "none";
 	int i;
 
 	seq_printf(m, "%-5s  %-7s  %-15s  %s\n", "virq", "hwirq",

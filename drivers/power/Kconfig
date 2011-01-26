@@ -64,8 +64,7 @@ config TEST_POWER
 
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
-	select W1
-	select W1_SLAVE_DS2760
+	depends on W1 && W1_SLAVE_DS2760
 	help
 	  Say Y here to enable support for batteries with ds2760 chip.
 
@@ -109,6 +108,13 @@ config BATTERY_WM97XX
 	help
 	  Say Y to enable support for battery measured by WM97xx aux port.
 
+config BATTERY_BQ20Z75
+        tristate "TI BQ20z75 gas gauge"
+        depends on I2C
+        help
+         Say Y to include support for TI BQ20z75 SBS-compliant
+         gas gauge and protection IC.
+
 config BATTERY_BQ27x00
 	tristate "BQ27x00 battery driver"
 	depends on I2C
@@ -130,16 +136,73 @@ config BATTERY_MAX17040
 	  in handheld and portable equipment. The MAX17040 is configured
 	  to operate with a single lithium cell
 
+config BATTERY_MAX17042
+	tristate "Maxim MAX17042/8997/8966 Fuel Gauge"
+	depends on I2C
+	help
+	  MAX17042 is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. The MAX17042 is configured
+	  to operate with a single lithium cell. MAX8997 and MAX8966 are
+	  multi-function devices that include fuel gauages that are compatible
+	  with MAX17042.
+
 config BATTERY_Z2
 	tristate "Z2 battery driver"
 	depends on I2C && MACH_ZIPIT2
 	help
 	  Say Y to include support for the battery on the Zipit Z2.
 
+config BATTERY_S3C_ADC
+	tristate "Battery driver for Samsung ADC based monitoring"
+	depends on S3C_ADC
+	help
+	  Say Y here to enable support for iPAQ h1930/h1940/rx1950 battery
+
 config CHARGER_PCF50633
 	tristate "NXP PCF50633 MBC"
 	depends on MFD_PCF50633
 	help
 	 Say Y to include support for NXP PCF50633 Main Battery Charger.
+
+config BATTERY_JZ4740
+	tristate "Ingenic JZ4740 battery"
+	depends on MACH_JZ4740
+	depends on MFD_JZ4740_ADC
+	help
+	  Say Y to enable support for the battery on Ingenic JZ4740 based
+	  boards.
+
+	  This driver can be build as a module. If so, the module will be
+	  called jz4740-battery.
+
+config BATTERY_INTEL_MID
+	tristate "Battery driver for Intel MID platforms"
+	depends on INTEL_SCU_IPC && SPI
+	help
+	  Say Y here to enable the battery driver on Intel MID
+	  platforms.
+
+config CHARGER_ISP1704
+	tristate "ISP1704 USB Charger Detection"
+	depends on USB_OTG_UTILS
+	help
+	  Say Y to enable support for USB Charger Detection with
+	  ISP1707/ISP1704 USB transceivers.
+
+config CHARGER_TWL4030
+	tristate "OMAP TWL4030 BCI charger driver"
+	depends on TWL4030_CORE
+	help
+	  Say Y here to enable support for TWL4030 Battery Charge Interface.
+
+config CHARGER_GPIO
+	tristate "GPIO charger"
+	depends on GPIOLIB
+	help
+	  Say Y to include support for chargers which report their online status
+	  through a GPIO pin.
+
+	  This driver can be build as a module. If so, the module will be
+	  called gpio-charger.
 
 endif # POWER_SUPPLY

@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Cisco Systems, Inc.  All rights reserved.
+ * Copyright 2008-2010 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  *
  * This program is free software; you may redistribute it and/or modify
@@ -30,11 +30,12 @@ struct vnic_enet_config {
 	u32 wq_desc_count;
 	u32 rq_desc_count;
 	u16 mtu;
-	u16 intr_timer;
+	u16 intr_timer_deprecated;
 	u8 intr_timer_type;
 	u8 intr_mode;
 	char devname[16];
 	u32 intr_timer_usec;
+	u16 loop_tag;
 };
 
 #define VENETF_TSO		0x1	/* TSO enabled */
@@ -48,5 +49,6 @@ struct vnic_enet_config {
 #define VENETF_RSSHASH_TCPIPV6	0x100	/* Hash on TCP + IPv6 fields */
 #define VENETF_RSSHASH_IPV6_EX	0x200	/* Hash on IPv6 extended fields */
 #define VENETF_RSSHASH_TCPIPV6_EX 0x400	/* Hash on TCP + IPv6 ext. fields */
+#define VENETF_LOOP		0x800	/* Loopback enabled */
 
 #endif /* _VNIC_ENIC_H_ */

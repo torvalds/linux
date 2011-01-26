@@ -75,6 +75,8 @@ union cvmx_pcie_address {
 	} mem;
 };
 
+#include <dma-coherence.h>
+
 /**
  * Return the Core virtual base address for PCIe IO access. IOs are
  * read/written as an offset from this address.
@@ -402,6 +404,10 @@ static void __cvmx_pcie_rc_initialize_config_space(int pcie_port)
 	npei_ctl_status2.s.mps = 0;
 	/* Max read request size = 128 bytes for best Octeon DMA performance */
 	npei_ctl_status2.s.mrrs = 0;
+	if (pcie_port)
+		npei_ctl_status2.s.c1_b1_s = 3; /* Port1 BAR1 Size 256MB */
+	else
+		npei_ctl_status2.s.c0_b1_s = 3; /* Port0 BAR1 Size 256MB */
 	cvmx_write_csr(CVMX_PEXP_NPEI_CTL_STATUS2, npei_ctl_status2.u64);
 
 	/* ECRC Generation (PCIE*_CFG070[GE,CE]) */
@@ -666,6 +672,8 @@ static int __cvmx_pcie_rc_initialize_link(int pcie_port)
 static int cvmx_pcie_rc_initialize(int pcie_port)
 {
 	int i;
+	int base;
+	u64 addr_swizzle;
 	union cvmx_ciu_soft_prst ciu_soft_prst;
 	union cvmx_pescx_bist_status pescx_bist_status;
 	union cvmx_pescx_bist_status2 pescx_bist_status2;
@@ -674,6 +682,7 @@ static int cvmx_pcie_rc_initialize(int pcie_port)
 	union cvmx_npei_mem_access_subidx mem_access_subid;
 	union cvmx_npei_dbg_data npei_dbg_data;
 	union cvmx_pescx_ctl_status2 pescx_ctl_status2;
+	union cvmx_npei_bar1_indexx bar1_index;
 
 	/*
 	 * Make sure we aren't trying to setup a target mode interface
@@ -891,7 +900,7 @@ static int cvmx_pcie_rc_initialize(int pcie_port)
 	mem_access_subid.s.ror = 0;
 	/* Disable Relaxed Ordering for Writes. */
 	mem_access_subid.s.row = 0;
-	/* PCIe Adddress Bits <63:34>. */
+	/* PCIe Address Bits <63:34>. */
 	mem_access_subid.s.ba = 0;
 
 	/*
@@ -918,12 +927,30 @@ static int cvmx_pcie_rc_initialize(int pcie_port)
 	/* Set Octeon's BAR0 to decode 0-16KB. It overlaps with Bar2 */
 	cvmx_write_csr(CVMX_PESCX_P2N_BAR0_START(pcie_port), 0);
 
-	/*
-	 * Disable Octeon's BAR1. It isn't needed in RC mode since
-	 * BAR2 maps all of memory. BAR2 also maps 256MB-512MB into
-	 * the 2nd 256MB of memory.
-	 */
-	cvmx_write_csr(CVMX_PESCX_P2N_BAR1_START(pcie_port), -1);
+	/* BAR1 follows BAR2 with a gap. */
+	cvmx_write_csr(CVMX_PESCX_P2N_BAR1_START(pcie_port), CVMX_PCIE_BAR1_RC_BASE);
+
+	bar1_index.u32 = 0;
+	bar1_index.s.addr_idx = (CVMX_PCIE_BAR1_PHYS_BASE >> 22);
+	bar1_index.s.ca = 1;       /* Not Cached */
+	bar1_index.s.end_swp = 1;  /* Endian Swap mode */
+	bar1_index.s.addr_v = 1;   /* Valid entry */
+
+	base = pcie_port ? 16 : 0;
+
+	/* Big endian swizzle for 32-bit PEXP_NCB register. */
+#ifdef __MIPSEB__
+	addr_swizzle = 4;
+#else
+	addr_swizzle = 0;
+#endif
+	for (i = 0; i < 16; i++) {
+		cvmx_write64_uint32((CVMX_PEXP_NPEI_BAR1_INDEXX(base) ^ addr_swizzle),
+				    bar1_index.u32);
+		base++;
+		/* 256MB / 16 >> 22 == 4 */
+		bar1_index.s.addr_idx += (((1ull << 28) / 16ull) >> 22);
+	}
 
 	/*
 	 * Set Octeon's BAR2 to decode 0-2^39. Bar0 and Bar1 take
@@ -1366,6 +1393,9 @@ static int __init octeon_pcie_setup(void)
 			cvmx_pcie_get_io_size(1) - 1;
 		register_pci_controller(&octeon_pcie1_controller);
 	}
+
+	octeon_pci_dma_init();
+
 	return 0;
 }
 

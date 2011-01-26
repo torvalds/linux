@@ -89,11 +89,10 @@
 #define PPPOE_HASH_SIZE (1 << PPPOE_HASH_BITS)
 #define PPPOE_HASH_MASK	(PPPOE_HASH_SIZE - 1)
 
-static int pppoe_xmit(struct ppp_channel *chan, struct sk_buff *skb);
 static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb);
 
 static const struct proto_ops pppoe_ops;
-static struct ppp_channel_ops pppoe_chan_ops;
+static const struct ppp_channel_ops pppoe_chan_ops;
 
 /* per-net private data for this module */
 static int pppoe_net_id __read_mostly;
@@ -289,6 +288,7 @@ static void pppoe_flush_dev(struct net_device *dev)
 	struct pppoe_net *pn;
 	int i;
 
+	pn = pppoe_pernet(dev_net(dev));
 	write_lock_bh(&pn->hash_lock);
 	for (i = 0; i < PPPOE_HASH_SIZE; i++) {
 		struct pppox_sock *po = pn->hash_table[i];
@@ -963,7 +963,7 @@ static int pppoe_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	return __pppoe_xmit(sk, skb);
 }
 
-static struct ppp_channel_ops pppoe_chan_ops = {
+static const struct ppp_channel_ops pppoe_chan_ops = {
 	.start_xmit = pppoe_xmit,
 };
 
@@ -1124,7 +1124,7 @@ static const struct proto_ops pppoe_ops = {
 	.ioctl		= pppox_ioctl,
 };
 
-static struct pppox_proto pppoe_proto = {
+static const struct pppox_proto pppoe_proto = {
 	.create	= pppoe_create,
 	.ioctl	= pppoe_ioctl,
 	.owner	= THIS_MODULE,

@@ -420,13 +420,13 @@ static void omap24xxcam_vbq_release(struct videobuf_queue *vbq,
 	struct videobuf_dmabuf *dma = videobuf_to_dma(vb);
 
 	/* wait for buffer, especially to get out of the sgdma queue */
-	videobuf_waiton(vb, 0, 0);
+	videobuf_waiton(vbq, vb, 0, 0);
 	if (vb->memory == V4L2_MEMORY_MMAP) {
 		dma_unmap_sg(vbq->dev, dma->sglist, dma->sglen,
 			     dma->direction);
 		dma->direction = DMA_NONE;
 	} else {
-		videobuf_dma_unmap(vbq, videobuf_to_dma(vb));
+		videobuf_dma_unmap(vbq->dev, videobuf_to_dma(vb));
 		videobuf_dma_free(videobuf_to_dma(vb));
 	}
 
@@ -1198,7 +1198,7 @@ static int vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 
 	atomic_inc(&cam->reset_disable);
 
-	flush_scheduled_work();
+	flush_work_sync(&cam->sensor_reset_work);
 
 	rval = videobuf_streamoff(q);
 	if (!rval) {
@@ -1491,7 +1491,7 @@ static int omap24xxcam_open(struct file *file)
 	videobuf_queue_sg_init(&fh->vbq, &omap24xxcam_vbq_ops, NULL,
 				&fh->vbq_lock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				V4L2_FIELD_NONE,
-				sizeof(struct videobuf_buffer), fh);
+				sizeof(struct videobuf_buffer), fh, NULL);
 
 	return 0;
 
@@ -1512,7 +1512,7 @@ static int omap24xxcam_release(struct file *file)
 
 	atomic_inc(&cam->reset_disable);
 
-	flush_scheduled_work();
+	flush_work_sync(&cam->sensor_reset_work);
 
 	/* stop streaming capture */
 	videobuf_streamoff(&fh->vbq);
@@ -1536,7 +1536,7 @@ static int omap24xxcam_release(struct file *file)
 	 * not be scheduled anymore since streaming is already
 	 * disabled.)
 	 */
-	flush_scheduled_work();
+	flush_work_sync(&cam->sensor_reset_work);
 
 	mutex_lock(&cam->mutex);
 	if (atomic_dec_return(&cam->users) == 0) {

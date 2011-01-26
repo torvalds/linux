@@ -1126,8 +1126,7 @@ submit_async (
 #endif
 
 	spin_lock_irqsave (&ehci->lock, flags);
-	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
-			       &ehci_to_hcd(ehci)->flags))) {
+	if (unlikely(!HCD_HW_ACCESSIBLE(ehci_to_hcd(ehci)))) {
 		rc = -ESHUTDOWN;
 		goto done;
 	}

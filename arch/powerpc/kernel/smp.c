@@ -288,8 +288,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 			max_cpus = NR_CPUS;
 	else
 		max_cpus = 1;
- 
-	smp_space_timers(max_cpus);
 
 	for_each_possible_cpu(cpu)
 		if (cpu != boot_cpuid)
@@ -429,11 +427,11 @@ int __cpuinit __cpu_up(unsigned int cpu)
 #endif
 
 	if (!cpu_callin_map[cpu]) {
-		printk("Processor %u is stuck.\n", cpu);
+		printk(KERN_ERR "Processor %u is stuck.\n", cpu);
 		return -ENOENT;
 	}
 
-	printk("Processor %u found.\n", cpu);
+	DBG("Processor %u found.\n", cpu);
 
 	if (smp_ops->give_timebase)
 		smp_ops->give_timebase();
@@ -468,7 +466,20 @@ out:
 	return id;
 }
 
-/* Must be called when no change can occur to cpu_present_mask,
+/* Helper routines for cpu to core mapping */
+int cpu_core_index_of_thread(int cpu)
+{
+	return cpu >> threads_shift;
+}
+EXPORT_SYMBOL_GPL(cpu_core_index_of_thread);
+
+int cpu_first_thread_of_core(int core)
+{
+	return core << threads_shift;
+}
+EXPORT_SYMBOL_GPL(cpu_first_thread_of_core);
+
+/* Must be called when no change can occur to cpu_present_map,
  * i.e. during cpu online or offline.
  */
 static struct device_node *cpu_to_l2cache(int cpu)
@@ -501,14 +512,6 @@ int __devinit start_secondary(void *unused)
 	current->active_mm = &init_mm;
 
 	smp_store_cpu_info(cpu);
-
-#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
-	/* Clear any pending timer interrupts */
-	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
-
-	/* Enable decrementer interrupt */
-	mtspr(SPRN_TCR, TCR_DIE);
-#endif
 	set_dec(tb_ticks_per_jiffy);
 	preempt_disable();
 	cpu_callin_map[cpu] = 1;
@@ -518,16 +521,13 @@ int __devinit start_secondary(void *unused)
 	if (smp_ops->take_timebase)
 		smp_ops->take_timebase();
 
-	if (system_state > SYSTEM_BOOTING)
-		snapshot_timebase();
-
 	secondary_cpu_time_init();
 
 	ipi_call_lock();
 	notify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
 	/* Update sibling maps */
-	base = cpu_first_thread_in_core(cpu);
+	base = cpu_first_thread_sibling(cpu);
 	for (i = 0; i < threads_per_core; i++) {
 		if (cpu_is_offline(base + i))
 			continue;
@@ -585,9 +585,16 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 	free_cpumask_var(old_mask);
 
-	snapshot_timebases();
-
 	dump_numa_cpu_topology();
+}
+
+int arch_sd_sibling_asym_packing(void)
+{
+	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
+		printk_once(KERN_INFO "Enabling Asymmetric SMT scheduling\n");
+		return SD_ASYM_PACKING;
+	}
+	return 0;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -606,7 +613,7 @@ int __cpu_disable(void)
 		return err;
 
 	/* Update sibling maps */
-	base = cpu_first_thread_in_core(cpu);
+	base = cpu_first_thread_sibling(cpu);
 	for (i = 0; i < threads_per_core; i++) {
 		cpumask_clear_cpu(cpu, cpu_sibling_mask(base + i));
 		cpumask_clear_cpu(base + i, cpu_sibling_mask(cpu));

@@ -209,7 +209,10 @@ static int ocfs2_acl_set_mode(struct inode *inode, struct buffer_head *di_bh,
 	}
 
 	inode->i_mode = new_mode;
+	inode->i_ctime = CURRENT_TIME;
 	di->i_mode = cpu_to_le16(inode->i_mode);
+	di->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
+	di->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
 
 	ocfs2_journal_dirty(handle, di_bh);
 
@@ -288,14 +291,36 @@ static int ocfs2_set_acl(handle_t *handle,
 	return ret;
 }
 
-int ocfs2_check_acl(struct inode *inode, int mask)
+int ocfs2_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
-	struct posix_acl *acl = ocfs2_get_acl(inode, ACL_TYPE_ACCESS);
+	struct ocfs2_super *osb;
+	struct buffer_head *di_bh = NULL;
+	struct posix_acl *acl;
+	int ret = -EAGAIN;
 
-	if (IS_ERR(acl))
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
+
+	osb = OCFS2_SB(inode->i_sb);
+	if (!(osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL))
+		return ret;
+
+	ret = ocfs2_read_inode_block(inode, &di_bh);
+	if (ret < 0) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	acl = ocfs2_get_acl_nolock(inode, ACL_TYPE_ACCESS, di_bh);
+
+	brelse(di_bh);
+
+	if (IS_ERR(acl)) {
+		mlog_errno(PTR_ERR(acl));
 		return PTR_ERR(acl);
+	}
 	if (acl) {
-		int ret = posix_acl_permission(inode, acl, mask);
+		ret = posix_acl_permission(inode, acl, mask);
 		posix_acl_release(acl);
 		return ret;
 	}
@@ -344,7 +369,7 @@ int ocfs2_init_acl(handle_t *handle,
 {
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct posix_acl *acl = NULL;
-	int ret = 0;
+	int ret = 0, ret2;
 	mode_t mode;
 
 	if (!S_ISLNK(inode->i_mode)) {
@@ -381,7 +406,12 @@ int ocfs2_init_acl(handle_t *handle,
 		mode = inode->i_mode;
 		ret = posix_acl_create_masq(clone, &mode);
 		if (ret >= 0) {
-			ret = ocfs2_acl_set_mode(inode, di_bh, handle, mode);
+			ret2 = ocfs2_acl_set_mode(inode, di_bh, handle, mode);
+			if (ret2) {
+				mlog_errno(ret2);
+				ret = ret2;
+				goto cleanup;
+			}
 			if (ret > 0) {
 				ret = ocfs2_set_acl(handle, inode,
 						    di_bh, ACL_TYPE_ACCESS,

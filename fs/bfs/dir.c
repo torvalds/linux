@@ -78,7 +78,7 @@ static int bfs_readdir(struct file *f, void *dirent, filldir_t filldir)
 const struct file_operations bfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= bfs_readdir,
-	.fsync		= simple_fsync,
+	.fsync		= generic_file_fsync,
 	.llseek		= generic_file_llseek,
 };
 
@@ -176,7 +176,7 @@ static int bfs_link(struct dentry *old, struct inode *dir,
 	inc_nlink(inode);
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 	d_instantiate(new, inode);
 	mutex_unlock(&info->bfs_lock);
 	return 0;

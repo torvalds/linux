@@ -54,6 +54,9 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 	case DRM_VMW_PARAM_FIFO_CAPS:
 		param->value = dev_priv->fifo.capabilities;
 		break;
+	case DRM_VMW_PARAM_MAX_FB_SIZE:
+		param->value = dev_priv->vram_size;
+		break;
 	default:
 		DRM_ERROR("Illegal vmwgfx get param request: %d\n",
 			  param->param);

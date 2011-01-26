@@ -330,10 +330,8 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbevf_ring *tx_ring = NULL, *rx_ring = NULL;
-	int i, err;
+	int i, err = 0;
 	u32 new_rx_count, new_tx_count;
-	bool need_tx_update = false;
-	bool need_rx_update = false;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
@@ -355,89 +353,96 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	while (test_and_set_bit(__IXGBEVF_RESETTING, &adapter->state))
 		msleep(1);
 
-	if (new_tx_count != adapter->tx_ring_count) {
-		tx_ring = kcalloc(adapter->num_tx_queues,
-				  sizeof(struct ixgbevf_ring), GFP_KERNEL);
-		if (!tx_ring) {
-			err = -ENOMEM;
-			goto err_setup;
-		}
-		memcpy(tx_ring, adapter->tx_ring,
-		       adapter->num_tx_queues * sizeof(struct ixgbevf_ring));
-		for (i = 0; i < adapter->num_tx_queues; i++) {
-			tx_ring[i].count = new_tx_count;
-			err = ixgbevf_setup_tx_resources(adapter,
-							 &tx_ring[i]);
-			if (err) {
-				while (i) {
-					i--;
-					ixgbevf_free_tx_resources(adapter,
-								  &tx_ring[i]);
-				}
-				kfree(tx_ring);
-				goto err_setup;
-			}
-			tx_ring[i].v_idx = adapter->tx_ring[i].v_idx;
-		}
-		need_tx_update = true;
-	}
-
-	if (new_rx_count != adapter->rx_ring_count) {
-		rx_ring = kcalloc(adapter->num_rx_queues,
-				  sizeof(struct ixgbevf_ring), GFP_KERNEL);
-		if ((!rx_ring) && (need_tx_update)) {
-			err = -ENOMEM;
-			goto err_rx_setup;
-		}
-		memcpy(rx_ring, adapter->rx_ring,
-		       adapter->num_rx_queues * sizeof(struct ixgbevf_ring));
-		for (i = 0; i < adapter->num_rx_queues; i++) {
-			rx_ring[i].count = new_rx_count;
-			err = ixgbevf_setup_rx_resources(adapter,
-							 &rx_ring[i]);
-			if (err) {
-				while (i) {
-					i--;
-					ixgbevf_free_rx_resources(adapter,
-								  &rx_ring[i]);
-				}
-				kfree(rx_ring);
-				goto err_rx_setup;
-			}
-			rx_ring[i].v_idx = adapter->rx_ring[i].v_idx;
-		}
-		need_rx_update = true;
-	}
-
-err_rx_setup:
-	/* if rings need to be updated, here's the place to do it in one shot */
-	if (need_tx_update || need_rx_update) {
-		if (netif_running(netdev))
-			ixgbevf_down(adapter);
-	}
-
-	/* tx */
-	if (need_tx_update) {
-		kfree(adapter->tx_ring);
-		adapter->tx_ring = tx_ring;
-		tx_ring = NULL;
+	/*
+	 * If the adapter isn't up and running then just set the
+	 * new parameters and scurry for the exits.
+	 */
+	if (!netif_running(adapter->netdev)) {
+		for (i = 0; i < adapter->num_tx_queues; i++)
+			adapter->tx_ring[i].count = new_tx_count;
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			adapter->rx_ring[i].count = new_rx_count;
 		adapter->tx_ring_count = new_tx_count;
+		adapter->rx_ring_count = new_rx_count;
+		goto clear_reset;
 	}
 
-	/* rx */
-	if (need_rx_update) {
-		kfree(adapter->rx_ring);
-		adapter->rx_ring = rx_ring;
-		rx_ring = NULL;
-		adapter->rx_ring_count = new_rx_count;
+	tx_ring = kcalloc(adapter->num_tx_queues,
+			  sizeof(struct ixgbevf_ring), GFP_KERNEL);
+	if (!tx_ring) {
+		err = -ENOMEM;
+		goto clear_reset;
 	}
+
+	rx_ring = kcalloc(adapter->num_rx_queues,
+			  sizeof(struct ixgbevf_ring), GFP_KERNEL);
+	if (!rx_ring) {
+		err = -ENOMEM;
+		goto err_rx_setup;
+	}
+
+	ixgbevf_down(adapter);
+
+	memcpy(tx_ring, adapter->tx_ring,
+	       adapter->num_tx_queues * sizeof(struct ixgbevf_ring));
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		tx_ring[i].count = new_tx_count;
+		err = ixgbevf_setup_tx_resources(adapter, &tx_ring[i]);
+		if (err) {
+			while (i) {
+				i--;
+				ixgbevf_free_tx_resources(adapter,
+							  &tx_ring[i]);
+			}
+			goto err_tx_ring_setup;
+		}
+		tx_ring[i].v_idx = adapter->tx_ring[i].v_idx;
+	}
+
+	memcpy(rx_ring, adapter->rx_ring,
+	       adapter->num_rx_queues * sizeof(struct ixgbevf_ring));
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		rx_ring[i].count = new_rx_count;
+		err = ixgbevf_setup_rx_resources(adapter, &rx_ring[i]);
+		if (err) {
+			while (i) {
+				i--;
+				ixgbevf_free_rx_resources(adapter,
+							  &rx_ring[i]);
+			}
+				goto err_rx_ring_setup;
+		}
+		rx_ring[i].v_idx = adapter->rx_ring[i].v_idx;
+	}
+
+	/*
+	 * Only switch to new rings if all the prior allocations
+	 * and ring setups have succeeded.
+	 */
+	kfree(adapter->tx_ring);
+	adapter->tx_ring = tx_ring;
+	adapter->tx_ring_count = new_tx_count;
+
+	kfree(adapter->rx_ring);
+	adapter->rx_ring = rx_ring;
+	adapter->rx_ring_count = new_rx_count;
 
 	/* success! */
-	err = 0;
-	if (netif_running(netdev))
-		ixgbevf_up(adapter);
+	ixgbevf_up(adapter);
 
-err_setup:
+	goto clear_reset;
+
+err_rx_ring_setup:
+	for(i = 0; i < adapter->num_tx_queues; i++)
+		ixgbevf_free_tx_resources(adapter, &tx_ring[i]);
+
+err_tx_ring_setup:
+	kfree(rx_ring);
+
+err_rx_setup:
+	kfree(tx_ring);
+
+clear_reset:
 	clear_bit(__IXGBEVF_RESETTING, &adapter->state);
 	return err;
 }
@@ -539,7 +544,7 @@ struct ixgbevf_reg_test {
 #define TABLE64_TEST_HI	6
 
 /* default VF register test */
-static struct ixgbevf_reg_test reg_test_vf[] = {
+static const struct ixgbevf_reg_test reg_test_vf[] = {
 	{ IXGBE_VFRDBAL(0), 2, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFF80 },
 	{ IXGBE_VFRDBAH(0), 2, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ IXGBE_VFRDLEN(0), 2, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
@@ -552,19 +557,23 @@ static struct ixgbevf_reg_test reg_test_vf[] = {
 	{ 0, 0, 0, 0 }
 };
 
+static const u32 register_test_patterns[] = {
+	0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF
+};
+
 #define REG_PATTERN_TEST(R, M, W)                                             \
 {                                                                             \
 	u32 pat, val, before;                                                 \
-	const u32 _test[] = {0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF}; \
-	for (pat = 0; pat < ARRAY_SIZE(_test); pat++) {                       \
+	for (pat = 0; pat < ARRAY_SIZE(register_test_patterns); pat++) {      \
 		before = readl(adapter->hw.hw_addr + R);                      \
-		writel((_test[pat] & W), (adapter->hw.hw_addr + R));          \
+		writel((register_test_patterns[pat] & W),                     \
+		       (adapter->hw.hw_addr + R));                            \
 		val = readl(adapter->hw.hw_addr + R);                         \
-		if (val != (_test[pat] & W & M)) {                            \
+		if (val != (register_test_patterns[pat] & W & M)) {           \
 			hw_dbg(&adapter->hw,                                  \
 			"pattern test reg %04X failed: got "                  \
 			"0x%08X expected 0x%08X\n",                           \
-			R, val, (_test[pat] & W & M));                        \
+			R, val, (register_test_patterns[pat] & W & M));       \
 			*data = R;                                            \
 			writel(before, adapter->hw.hw_addr + R);              \
 			return 1;                                             \
@@ -591,7 +600,7 @@ static struct ixgbevf_reg_test reg_test_vf[] = {
 
 static int ixgbevf_reg_test(struct ixgbevf_adapter *adapter, u64 *data)
 {
-	struct ixgbevf_reg_test *test;
+	const struct ixgbevf_reg_test *test;
 	u32 i;
 
 	test = reg_test_vf;

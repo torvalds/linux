@@ -15,6 +15,8 @@
 
 #include <linux/netdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/netpoll.h>
+#include <linux/u64_stats_sync.h>
 #include <net/route.h>
 
 #define BR_HASH_BITS 8
@@ -70,7 +72,7 @@ struct net_bridge_fdb_entry
 
 struct net_bridge_port_group {
 	struct net_bridge_port		*port;
-	struct net_bridge_port_group	*next;
+	struct net_bridge_port_group __rcu *next;
 	struct hlist_node		mglist;
 	struct rcu_head			rcu;
 	struct timer_list		timer;
@@ -84,7 +86,7 @@ struct net_bridge_mdb_entry
 	struct hlist_node		hlist[2];
 	struct hlist_node		mglist;
 	struct net_bridge		*br;
-	struct net_bridge_port_group	*ports;
+	struct net_bridge_port_group __rcu *ports;
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct timer_list		query_timer;
@@ -143,13 +145,32 @@ struct net_bridge_port
 #ifdef CONFIG_SYSFS
 	char				sysfs_name[IFNAMSIZ];
 #endif
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	struct netpoll			*np;
+#endif
 };
 
+#define br_port_exists(dev) (dev->priv_flags & IFF_BRIDGE_PORT)
+
+static inline struct net_bridge_port *br_port_get_rcu(const struct net_device *dev)
+{
+	struct net_bridge_port *port = rcu_dereference(dev->rx_handler_data);
+	return br_port_exists(dev) ? port : NULL;
+}
+
+static inline struct net_bridge_port *br_port_get_rtnl(struct net_device *dev)
+{
+	return br_port_exists(dev) ?
+		rtnl_dereference(dev->rx_handler_data) : NULL;
+}
+
 struct br_cpu_netstats {
-	unsigned long	rx_packets;
-	unsigned long	rx_bytes;
-	unsigned long	tx_packets;
-	unsigned long	tx_bytes;
+	u64			rx_packets;
+	u64			rx_bytes;
+	u64			tx_packets;
+	u64			tx_bytes;
+	struct u64_stats_sync	syncp;
 };
 
 struct net_bridge
@@ -164,6 +185,9 @@ struct net_bridge
 	unsigned long			feature_mask;
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct rtable 			fake_rtable;
+	bool				nf_call_iptables;
+	bool				nf_call_ip6tables;
+	bool				nf_call_arptables;
 #endif
 	unsigned long			flags;
 #define BR_SET_MAC_ADDR		0x00000001
@@ -212,7 +236,7 @@ struct net_bridge
 	unsigned long			multicast_startup_query_interval;
 
 	spinlock_t			multicast_lock;
-	struct net_bridge_mdb_htable	*mdb;
+	struct net_bridge_mdb_htable __rcu *mdb;
 	struct hlist_head		router_list;
 	struct hlist_head		mglist;
 
@@ -273,16 +297,41 @@ extern void br_dev_setup(struct net_device *dev);
 extern netdev_tx_t br_dev_xmit(struct sk_buff *skb,
 			       struct net_device *dev);
 #ifdef CONFIG_NET_POLL_CONTROLLER
-extern void br_netpoll_cleanup(struct net_device *dev);
-extern void br_netpoll_enable(struct net_bridge *br,
-			      struct net_device *dev);
-extern void br_netpoll_disable(struct net_bridge *br,
-			       struct net_device *dev);
-#else
-#define br_netpoll_cleanup(br)
-#define br_netpoll_enable(br, dev)
-#define br_netpoll_disable(br, dev)
+static inline struct netpoll_info *br_netpoll_info(struct net_bridge *br)
+{
+	return br->dev->npinfo;
+}
 
+static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
+				       struct sk_buff *skb)
+{
+	struct netpoll *np = p->np;
+
+	if (np)
+		netpoll_send_skb(np, skb);
+}
+
+extern int br_netpoll_enable(struct net_bridge_port *p);
+extern void br_netpoll_disable(struct net_bridge_port *p);
+#else
+static inline struct netpoll_info *br_netpoll_info(struct net_bridge *br)
+{
+	return NULL;
+}
+
+static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
+				       struct sk_buff *skb)
+{
+}
+
+static inline int br_netpoll_enable(struct net_bridge_port *p)
+{
+	return 0;
+}
+
+static inline void br_netpoll_disable(struct net_bridge_port *p)
+{
+}
 #endif
 
 /* br_fdb.c */
@@ -331,8 +380,7 @@ extern void br_features_recompute(struct net_bridge *br);
 
 /* br_input.c */
 extern int br_handle_frame_finish(struct sk_buff *skb);
-extern struct sk_buff *br_handle_frame(struct net_bridge_port *p,
-				       struct sk_buff *skb);
+extern struct sk_buff *br_handle_frame(struct sk_buff *skb);
 
 /* br_ioctl.c */
 extern int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);

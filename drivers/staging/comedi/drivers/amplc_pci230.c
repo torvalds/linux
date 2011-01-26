@@ -617,7 +617,45 @@ static struct comedi_driver driver_amplc_pci230 = {
 	.num_names = ARRAY_SIZE(pci230_boards),
 };
 
-COMEDI_PCI_INITCLEANUP(driver_amplc_pci230, pci230_pci_table);
+static int __devinit driver_amplc_pci230_pci_probe(struct pci_dev *dev,
+						   const struct pci_device_id
+						   *ent)
+{
+	return comedi_pci_auto_config(dev, driver_amplc_pci230.driver_name);
+}
+
+static void __devexit driver_amplc_pci230_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_amplc_pci230_pci_driver = {
+	.id_table = pci230_pci_table,
+	.probe = &driver_amplc_pci230_pci_probe,
+	.remove = __devexit_p(&driver_amplc_pci230_pci_remove)
+};
+
+static int __init driver_amplc_pci230_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_amplc_pci230);
+	if (retval < 0)
+		return retval;
+
+	driver_amplc_pci230_pci_driver.name =
+	    (char *)driver_amplc_pci230.driver_name;
+	return pci_register_driver(&driver_amplc_pci230_pci_driver);
+}
+
+static void __exit driver_amplc_pci230_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_amplc_pci230_pci_driver);
+	comedi_driver_unregister(&driver_amplc_pci230);
+}
+
+module_init(driver_amplc_pci230_init_module);
+module_exit(driver_amplc_pci230_cleanup_module);
 
 static int pci230_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
@@ -726,7 +764,7 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	unsigned long iobase1, iobase2;
 	/* PCI230's I/O spaces 1 and 2 respectively. */
-	struct pci_dev *pci_dev;
+	struct pci_dev *pci_dev = NULL;
 	int i = 0, irq_hdl, rc;
 
 	printk("comedi%d: amplc_pci230: attach %s %d,%d\n", dev->minor,
@@ -742,9 +780,7 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	spin_lock_init(&devpriv->ai_stop_spinlock);
 	spin_lock_init(&devpriv->ao_stop_spinlock);
 	/* Find card */
-	for (pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pci_dev != NULL;
-	     pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
+	for_each_pci_dev(pci_dev) {
 		if (it->options[0] || it->options[1]) {
 			/* Match against bus/slot options. */
 			if (it->options[0] != pci_dev->bus->number ||
@@ -935,7 +971,7 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (thisboard->ao_chans > 0) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = thisboard->ao_chans;;
+		s->n_chan = thisboard->ao_chans;
 		s->maxdata = (1 << thisboard->ao_bits) - 1;
 		s->range_table = &pci230_ao_range;
 		s->insn_write = &pci230_ao_winsn;
@@ -3014,3 +3050,7 @@ static int pci230_ai_cancel(struct comedi_device *dev,
 	pci230_ai_stop(dev, s);
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

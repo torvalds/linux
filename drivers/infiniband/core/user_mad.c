@@ -1022,7 +1022,7 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 
 	port->ib_dev   = device;
 	port->port_num = port_num;
-	init_MUTEX(&port->sm_sem);
+	sema_init(&port->sm_sem, 1);
 	mutex_init(&port->file_mutex);
 	INIT_LIST_HEAD(&port->file_list);
 
@@ -1085,7 +1085,6 @@ err_cdev:
 static void ib_umad_kill_port(struct ib_umad_port *port)
 {
 	struct ib_umad_file *file;
-	int already_dead;
 	int id;
 
 	dev_set_drvdata(port->dev,    NULL);
@@ -1103,7 +1102,6 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 
 	list_for_each_entry(file, &port->file_list, port_list) {
 		mutex_lock(&file->mutex);
-		already_dead = file->agents_dead;
 		file->agents_dead = 1;
 		mutex_unlock(&file->mutex);
 

@@ -8,11 +8,13 @@
 # on the console port whenever a DBG interrupt occurs. You have to
 # set up you HW breakpoints to trigger a DBG interrupt:
 #
-# EXTRA_CFLAGS += -DTRAP_DBG_INTERRUPT
-# EXTRA_AFLAGS += -DTRAP_DBG_INTERRUPT
+# ccflags-y := -DTRAP_DBG_INTERRUPT
+# asflags-y := -DTRAP_DBG_INTERRUPT
 #
 
 asflags-$(CONFIG_FULLDEBUG) := -DDEBUGGER_COMPATIBLE_CACHE=1
 
-obj-y	+= config.o gpio.o
+obj-y			+= config.o gpio.o
+obj-$(CONFIG_NETtel)	+= nettel.o
+obj-$(CONFIG_CLEOPATRA)	+= nettel.o
 

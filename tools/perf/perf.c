@@ -15,15 +15,15 @@
 #include "util/parse-events.h"
 #include "util/debugfs.h"
 
-bool use_browser;
-
 const char perf_usage_string[] =
 	"perf [--version] [--help] COMMAND [ARGS]";
 
 const char perf_more_info_string[] =
 	"See 'perf help COMMAND' for more information on a specific command.";
 
+int use_browser = -1;
 static int use_pager = -1;
+
 struct pager_config {
 	const char *cmd;
 	int val;
@@ -46,6 +46,24 @@ int check_pager_config(const char *cmd)
 	c.cmd = cmd;
 	c.val = -1;
 	perf_config(pager_command_config, &c);
+	return c.val;
+}
+
+static int tui_command_config(const char *var, const char *value, void *data)
+{
+	struct pager_config *c = data;
+	if (!prefixcmp(var, "tui.") && !strcmp(var + 4, c->cmd))
+		c->val = perf_config_bool(var, value);
+	return 0;
+}
+
+/* returns 0 for "no tui", 1 for "use tui", and -1 for "not specified" */
+static int check_tui_config(const char *cmd)
+{
+	struct pager_config c;
+	c.cmd = cmd;
+	c.val = -1;
+	perf_config(tui_command_config, &c);
 	return c.val;
 }
 
@@ -255,6 +273,9 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	if (p->option & RUN_SETUP)
 		prefix = NULL; /* setup_perf_directory(); */
 
+	if (use_browser == -1)
+		use_browser = check_tui_config(p->cmd);
+
 	if (use_pager == -1 && p->option & RUN_SETUP)
 		use_pager = check_pager_config(p->cmd);
 	if (use_pager == -1 && p->option & USE_PAGER)
@@ -302,7 +323,7 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "top",	cmd_top,	0 },
 		{ "annotate",	cmd_annotate,	0 },
 		{ "version",	cmd_version,	0 },
-		{ "trace",	cmd_trace,	0 },
+		{ "script",	cmd_script,	0 },
 		{ "sched",	cmd_sched,	0 },
 		{ "probe",	cmd_probe,	0 },
 		{ "kmem",	cmd_kmem,	0 },
@@ -437,6 +458,8 @@ int main(int argc, const char **argv)
 	handle_options(&argv, &argc, NULL);
 	commit_pager_choice();
 	set_debugfs_path();
+	set_buildid_dir();
+
 	if (argc > 0) {
 		if (!prefixcmp(argv[0], "--"))
 			argv[0] += 2;

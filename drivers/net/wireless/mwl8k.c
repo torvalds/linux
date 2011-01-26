@@ -29,6 +29,12 @@
 #define MWL8K_NAME	KBUILD_MODNAME
 #define MWL8K_VERSION	"0.12"
 
+/* Module parameters */
+static unsigned ap_mode_default;
+module_param(ap_mode_default, bool, 0);
+MODULE_PARM_DESC(ap_mode_default,
+		 "Set to 1 to make ap mode the default instead of sta mode");
+
 /* Register definitions */
 #define MWL8K_HIU_GEN_PTR			0x00000c10
 #define  MWL8K_MODE_STA				 0x0000005a
@@ -86,14 +92,16 @@ struct rxd_ops {
 	void (*rxd_init)(void *rxd, dma_addr_t next_dma_addr);
 	void (*rxd_refill)(void *rxd, dma_addr_t addr, int len);
 	int (*rxd_process)(void *rxd, struct ieee80211_rx_status *status,
-			   __le16 *qos);
+			   __le16 *qos, s8 *noise);
 };
 
 struct mwl8k_device_info {
 	char *part_name;
 	char *helper_image;
-	char *fw_image;
+	char *fw_image_sta;
+	char *fw_image_ap;
 	struct rxd_ops *ap_rxd_ops;
+	u32 fw_api_ap;
 };
 
 struct mwl8k_rx_queue {
@@ -109,7 +117,7 @@ struct mwl8k_rx_queue {
 	dma_addr_t rxd_dma;
 	struct {
 		struct sk_buff *skb;
-		DECLARE_PCI_UNMAP_ADDR(dma)
+		DEFINE_DMA_UNMAP_ADDR(dma);
 	} *buf;
 };
 
@@ -136,8 +144,8 @@ struct mwl8k_priv {
 	void __iomem *regs;
 
 	/* firmware */
-	struct firmware *fw_helper;
-	struct firmware *fw_ucode;
+	const struct firmware *fw_helper;
+	const struct firmware *fw_ucode;
 
 	/* hardware/firmware parameters */
 	bool ap_fw;
@@ -207,6 +215,21 @@ struct mwl8k_priv {
 
 	/* Tasklet to perform RX.  */
 	struct tasklet_struct poll_rx_task;
+
+	/* Most recently reported noise in dBm */
+	s8 noise;
+
+	/*
+	 * preserve the queue configurations so they can be restored if/when
+	 * the firmware image is swapped.
+	 */
+	struct ieee80211_tx_queue_params wmm_params[MWL8K_TX_QUEUES];
+
+	/* async firmware loading state */
+	unsigned fw_state;
+	char *fw_pref;
+	char *fw_alt;
+	struct completion firmware_loading_complete;
 };
 
 /* Per interface specific private data */
@@ -282,8 +305,9 @@ static const struct ieee80211_rate mwl8k_rates_50[] = {
 };
 
 /* Set or get info from Firmware */
-#define MWL8K_CMD_SET			0x0001
 #define MWL8K_CMD_GET			0x0000
+#define MWL8K_CMD_SET			0x0001
+#define MWL8K_CMD_SET_LIST		0x0002
 
 /* Firmware command codes */
 #define MWL8K_CMD_CODE_DNLD		0x0001
@@ -293,6 +317,7 @@ static const struct ieee80211_rate mwl8k_rates_50[] = {
 #define MWL8K_CMD_GET_STAT		0x0014
 #define MWL8K_CMD_RADIO_CONTROL		0x001c
 #define MWL8K_CMD_RF_TX_POWER		0x001e
+#define MWL8K_CMD_TX_POWER		0x001f
 #define MWL8K_CMD_RF_ANTENNA		0x0020
 #define MWL8K_CMD_SET_BEACON		0x0100		/* per-vif */
 #define MWL8K_CMD_SET_PRE_SCAN		0x0107
@@ -314,13 +339,15 @@ static const struct ieee80211_rate mwl8k_rates_50[] = {
 #define MWL8K_CMD_SET_NEW_STN		0x1111		/* per-vif */
 #define MWL8K_CMD_UPDATE_STADB		0x1123
 
-static const char *mwl8k_cmd_name(u16 cmd, char *buf, int bufsize)
+static const char *mwl8k_cmd_name(__le16 cmd, char *buf, int bufsize)
 {
+	u16 command = le16_to_cpu(cmd);
+
 #define MWL8K_CMDNAME(x)	case MWL8K_CMD_##x: do {\
 					snprintf(buf, bufsize, "%s", #x);\
 					return buf;\
 					} while (0)
-	switch (cmd & ~0x8000) {
+	switch (command & ~0x8000) {
 		MWL8K_CMDNAME(CODE_DNLD);
 		MWL8K_CMDNAME(GET_HW_SPEC);
 		MWL8K_CMDNAME(SET_HW_SPEC);
@@ -328,6 +355,7 @@ static const char *mwl8k_cmd_name(u16 cmd, char *buf, int bufsize)
 		MWL8K_CMDNAME(GET_STAT);
 		MWL8K_CMDNAME(RADIO_CONTROL);
 		MWL8K_CMDNAME(RF_TX_POWER);
+		MWL8K_CMDNAME(TX_POWER);
 		MWL8K_CMDNAME(RF_ANTENNA);
 		MWL8K_CMDNAME(SET_BEACON);
 		MWL8K_CMDNAME(SET_PRE_SCAN);
@@ -367,7 +395,7 @@ static void mwl8k_hw_reset(struct mwl8k_priv *priv)
 }
 
 /* Release fw image */
-static void mwl8k_release_fw(struct firmware **fw)
+static void mwl8k_release_fw(const struct firmware **fw)
 {
 	if (*fw == NULL)
 		return;
@@ -381,37 +409,68 @@ static void mwl8k_release_firmware(struct mwl8k_priv *priv)
 	mwl8k_release_fw(&priv->fw_helper);
 }
 
+/* states for asynchronous f/w loading */
+static void mwl8k_fw_state_machine(const struct firmware *fw, void *context);
+enum {
+	FW_STATE_INIT = 0,
+	FW_STATE_LOADING_PREF,
+	FW_STATE_LOADING_ALT,
+	FW_STATE_ERROR,
+};
+
 /* Request fw image */
 static int mwl8k_request_fw(struct mwl8k_priv *priv,
-			    const char *fname, struct firmware **fw)
+			    const char *fname, const struct firmware **fw,
+			    bool nowait)
 {
 	/* release current image */
 	if (*fw != NULL)
 		mwl8k_release_fw(fw);
 
-	return request_firmware((const struct firmware **)fw,
-				fname, &priv->pdev->dev);
+	if (nowait)
+		return request_firmware_nowait(THIS_MODULE, 1, fname,
+					       &priv->pdev->dev, GFP_KERNEL,
+					       priv, mwl8k_fw_state_machine);
+	else
+		return request_firmware(fw, fname, &priv->pdev->dev);
 }
 
-static int mwl8k_request_firmware(struct mwl8k_priv *priv)
+static int mwl8k_request_firmware(struct mwl8k_priv *priv, char *fw_image,
+				  bool nowait)
 {
 	struct mwl8k_device_info *di = priv->device_info;
 	int rc;
 
 	if (di->helper_image != NULL) {
-		rc = mwl8k_request_fw(priv, di->helper_image, &priv->fw_helper);
-		if (rc) {
-			printk(KERN_ERR "%s: Error requesting helper "
-			       "firmware file %s\n", pci_name(priv->pdev),
-			       di->helper_image);
+		if (nowait)
+			rc = mwl8k_request_fw(priv, di->helper_image,
+					      &priv->fw_helper, true);
+		else
+			rc = mwl8k_request_fw(priv, di->helper_image,
+					      &priv->fw_helper, false);
+		if (rc)
+			printk(KERN_ERR "%s: Error requesting helper fw %s\n",
+			       pci_name(priv->pdev), di->helper_image);
+
+		if (rc || nowait)
 			return rc;
-		}
 	}
 
-	rc = mwl8k_request_fw(priv, di->fw_image, &priv->fw_ucode);
+	if (nowait) {
+		/*
+		 * if we get here, no helper image is needed.  Skip the
+		 * FW_STATE_INIT state.
+		 */
+		priv->fw_state = FW_STATE_LOADING_PREF;
+		rc = mwl8k_request_fw(priv, fw_image,
+				      &priv->fw_ucode,
+				      true);
+	} else
+		rc = mwl8k_request_fw(priv, fw_image,
+				      &priv->fw_ucode, false);
 	if (rc) {
 		printk(KERN_ERR "%s: Error requesting firmware file %s\n",
-		       pci_name(priv->pdev), di->fw_image);
+		       pci_name(priv->pdev), fw_image);
 		mwl8k_release_fw(&priv->fw_helper);
 		return rc;
 	}
@@ -426,7 +485,7 @@ struct mwl8k_cmd_pkt {
 	__u8	macid;
 	__le16	result;
 	char	payload[0];
-} __attribute__((packed));
+} __packed;
 
 /*
  * Firmware loading.
@@ -572,12 +631,12 @@ static int mwl8k_feed_fw_image(struct mwl8k_priv *priv,
 static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 {
 	struct mwl8k_priv *priv = hw->priv;
-	struct firmware *fw = priv->fw_ucode;
+	const struct firmware *fw = priv->fw_ucode;
 	int rc;
 	int loops;
 
 	if (!memcmp(fw->data, "\x01\x00\x00\x00", 4)) {
-		struct firmware *helper = priv->fw_helper;
+		const struct firmware *helper = priv->fw_helper;
 
 		if (helper == NULL) {
 			printk(KERN_ERR "%s: helper image needed but none "
@@ -632,7 +691,7 @@ struct mwl8k_dma_data {
 	__le16 fwlen;
 	struct ieee80211_hdr wh;
 	char data[0];
-} __attribute__((packed));
+} __packed;
 
 /* Routines to add/remove DMA header from skb.  */
 static inline void mwl8k_remove_dma_header(struct sk_buff *skb, __le16 qos)
@@ -711,7 +770,7 @@ struct mwl8k_rxd_8366_ap {
 	__u8 rx_status;
 	__u8 channel;
 	__u8 rx_ctrl;
-} __attribute__((packed));
+} __packed;
 
 #define MWL8K_8366_AP_RATE_INFO_MCS_FORMAT	0x80
 #define MWL8K_8366_AP_RATE_INFO_40MHZ		0x40
@@ -739,7 +798,7 @@ static void mwl8k_rxd_8366_ap_refill(void *_rxd, dma_addr_t addr, int len)
 
 static int
 mwl8k_rxd_8366_ap_process(void *_rxd, struct ieee80211_rx_status *status,
-			  __le16 *qos)
+			  __le16 *qos, s8 *noise)
 {
 	struct mwl8k_rxd_8366_ap *rxd = _rxd;
 
@@ -750,6 +809,7 @@ mwl8k_rxd_8366_ap_process(void *_rxd, struct ieee80211_rx_status *status,
 	memset(status, 0, sizeof(*status));
 
 	status->signal = -rxd->rssi;
+	*noise = -rxd->noise_floor;
 
 	if (rxd->rate & MWL8K_8366_AP_RATE_INFO_MCS_FORMAT) {
 		status->flag |= RX_FLAG_HT;
@@ -806,7 +866,7 @@ struct mwl8k_rxd_sta {
 	__u8 rx_ctrl;
 	__u8 rx_status;
 	__u8 pad2[2];
-} __attribute__((packed));
+} __packed;
 
 #define MWL8K_STA_RATE_INFO_SHORTPRE		0x8000
 #define MWL8K_STA_RATE_INFO_ANTSELECT(x)	(((x) >> 11) & 0x3)
@@ -837,7 +897,7 @@ static void mwl8k_rxd_sta_refill(void *_rxd, dma_addr_t addr, int len)
 
 static int
 mwl8k_rxd_sta_process(void *_rxd, struct ieee80211_rx_status *status,
-		       __le16 *qos)
+		       __le16 *qos, s8 *noise)
 {
 	struct mwl8k_rxd_sta *rxd = _rxd;
 	u16 rate_info;
@@ -851,6 +911,7 @@ mwl8k_rxd_sta_process(void *_rxd, struct ieee80211_rx_status *status,
 	memset(status, 0, sizeof(*status));
 
 	status->signal = -rxd->rssi;
+	*noise = -rxd->noise_level;
 	status->antenna = MWL8K_STA_RATE_INFO_ANTSELECT(rate_info);
 	status->rate_idx = MWL8K_STA_RATE_INFO_RATEID(rate_info);
 
@@ -903,16 +964,14 @@ static int mwl8k_rxq_init(struct ieee80211_hw *hw, int index)
 
 	rxq->rxd = pci_alloc_consistent(priv->pdev, size, &rxq->rxd_dma);
 	if (rxq->rxd == NULL) {
-		printk(KERN_ERR "%s: failed to alloc RX descriptors\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "failed to alloc RX descriptors\n");
 		return -ENOMEM;
 	}
 	memset(rxq->rxd, 0, size);
 
 	rxq->buf = kmalloc(MWL8K_RX_DESCS * sizeof(*rxq->buf), GFP_KERNEL);
 	if (rxq->buf == NULL) {
-		printk(KERN_ERR "%s: failed to alloc RX skbuff list\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "failed to alloc RX skbuff list\n");
 		pci_free_consistent(priv->pdev, size, rxq->rxd, rxq->rxd_dma);
 		return -ENOMEM;
 	}
@@ -963,7 +1022,7 @@ static int rxq_refill(struct ieee80211_hw *hw, int index, int limit)
 		if (rxq->tail == MWL8K_RX_DESCS)
 			rxq->tail = 0;
 		rxq->buf[rx].skb = skb;
-		pci_unmap_addr_set(&rxq->buf[rx], dma, addr);
+		dma_unmap_addr_set(&rxq->buf[rx], dma, addr);
 
 		rxd = rxq->rxd + (rx * priv->rxd_ops->rxd_size);
 		priv->rxd_ops->rxd_refill(rxd, addr, MWL8K_RX_MAXSZ);
@@ -984,9 +1043,9 @@ static void mwl8k_rxq_deinit(struct ieee80211_hw *hw, int index)
 	for (i = 0; i < MWL8K_RX_DESCS; i++) {
 		if (rxq->buf[i].skb != NULL) {
 			pci_unmap_single(priv->pdev,
-					 pci_unmap_addr(&rxq->buf[i], dma),
+					 dma_unmap_addr(&rxq->buf[i], dma),
 					 MWL8K_RX_MAXSZ, PCI_DMA_FROMDEVICE);
-			pci_unmap_addr_set(&rxq->buf[i], dma, 0);
+			dma_unmap_addr_set(&rxq->buf[i], dma, 0);
 
 			kfree_skb(rxq->buf[i].skb);
 			rxq->buf[i].skb = NULL;
@@ -1053,16 +1112,17 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 
 		rxd = rxq->rxd + (rxq->head * priv->rxd_ops->rxd_size);
 
-		pkt_len = priv->rxd_ops->rxd_process(rxd, &status, &qos);
+		pkt_len = priv->rxd_ops->rxd_process(rxd, &status, &qos,
+							&priv->noise);
 		if (pkt_len < 0)
 			break;
 
 		rxq->buf[rxq->head].skb = NULL;
 
 		pci_unmap_single(priv->pdev,
-				 pci_unmap_addr(&rxq->buf[rxq->head], dma),
+				 dma_unmap_addr(&rxq->buf[rxq->head], dma),
 				 MWL8K_RX_MAXSZ, PCI_DMA_FROMDEVICE);
-		pci_unmap_addr_set(&rxq->buf[rxq->head], dma, 0);
+		dma_unmap_addr_set(&rxq->buf[rxq->head], dma, 0);
 
 		rxq->head++;
 		if (rxq->head == MWL8K_RX_DESCS)
@@ -1120,7 +1180,7 @@ struct mwl8k_tx_desc {
 	__le16 rate_info;
 	__u8 peer_id;
 	__u8 tx_frag_cnt;
-} __attribute__((packed));
+} __packed;
 
 #define MWL8K_TX_DESCS		128
 
@@ -1139,16 +1199,14 @@ static int mwl8k_txq_init(struct ieee80211_hw *hw, int index)
 
 	txq->txd = pci_alloc_consistent(priv->pdev, size, &txq->txd_dma);
 	if (txq->txd == NULL) {
-		printk(KERN_ERR "%s: failed to alloc TX descriptors\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "failed to alloc TX descriptors\n");
 		return -ENOMEM;
 	}
 	memset(txq->txd, 0, size);
 
 	txq->skb = kmalloc(MWL8K_TX_DESCS * sizeof(*txq->skb), GFP_KERNEL);
 	if (txq->skb == NULL) {
-		printk(KERN_ERR "%s: failed to alloc TX skbuff list\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "failed to alloc TX skbuff list\n");
 		pci_free_consistent(priv->pdev, size, txq->txd, txq->txd_dma);
 		return -ENOMEM;
 	}
@@ -1204,11 +1262,12 @@ static void mwl8k_dump_tx_rings(struct ieee80211_hw *hw)
 				unused++;
 		}
 
-		printk(KERN_ERR "%s: txq[%d] len=%d head=%d tail=%d "
-		       "fw_owned=%d drv_owned=%d unused=%d\n",
-		       wiphy_name(hw->wiphy), i,
-		       txq->len, txq->head, txq->tail,
-		       fw_owned, drv_owned, unused);
+		wiphy_err(hw->wiphy,
+			  "txq[%d] len=%d head=%d tail=%d "
+			  "fw_owned=%d drv_owned=%d unused=%d\n",
+			  i,
+			  txq->len, txq->head, txq->tail,
+			  fw_owned, drv_owned, unused);
 	}
 }
 
@@ -1252,25 +1311,23 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 		if (timeout) {
 			WARN_ON(priv->pending_tx_pkts);
 			if (retry) {
-				printk(KERN_NOTICE "%s: tx rings drained\n",
-				       wiphy_name(hw->wiphy));
+				wiphy_notice(hw->wiphy, "tx rings drained\n");
 			}
 			break;
 		}
 
 		if (priv->pending_tx_pkts < oldcount) {
-			printk(KERN_NOTICE "%s: waiting for tx rings "
-			       "to drain (%d -> %d pkts)\n",
-			       wiphy_name(hw->wiphy), oldcount,
-			       priv->pending_tx_pkts);
+			wiphy_notice(hw->wiphy,
+				     "waiting for tx rings to drain (%d -> %d pkts)\n",
+				     oldcount, priv->pending_tx_pkts);
 			retry = 1;
 			continue;
 		}
 
 		priv->tx_wait = NULL;
 
-		printk(KERN_ERR "%s: tx rings stuck for %d ms\n",
-		       wiphy_name(hw->wiphy), MWL8K_TX_WAIT_TIMEOUT_MS);
+		wiphy_err(hw->wiphy, "tx rings stuck for %d ms\n",
+			  MWL8K_TX_WAIT_TIMEOUT_MS);
 		mwl8k_dump_tx_rings(hw);
 
 		rc = -ETIMEDOUT;
@@ -1421,8 +1478,8 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 				skb->len, PCI_DMA_TODEVICE);
 
 	if (pci_dma_mapping_error(priv->pdev, dma)) {
-		printk(KERN_DEBUG "%s: failed to dma map skb, "
-		       "dropping TX frame.\n", wiphy_name(hw->wiphy));
+		wiphy_debug(hw->wiphy,
+			    "failed to dma map skb, dropping TX frame.\n");
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -1538,7 +1595,7 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 	unsigned long timeout = 0;
 	u8 buf[32];
 
-	cmd->result = 0xffff;
+	cmd->result = (__force __le16) 0xffff;
 	dma_size = le16_to_cpu(cmd->length);
 	dma_addr = pci_map_single(priv->pdev, cmd, dma_size,
 				  PCI_DMA_BIDIRECTIONAL);
@@ -1570,10 +1627,9 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 					PCI_DMA_BIDIRECTIONAL);
 
 	if (!timeout) {
-		printk(KERN_ERR "%s: Command %s timeout after %u ms\n",
-		       wiphy_name(hw->wiphy),
-		       mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
-		       MWL8K_CMD_TIMEOUT_MS);
+		wiphy_err(hw->wiphy, "Command %s timeout after %u ms\n",
+			  mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
+			  MWL8K_CMD_TIMEOUT_MS);
 		rc = -ETIMEDOUT;
 	} else {
 		int ms;
@@ -1582,15 +1638,14 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 
 		rc = cmd->result ? -EINVAL : 0;
 		if (rc)
-			printk(KERN_ERR "%s: Command %s error 0x%x\n",
-			       wiphy_name(hw->wiphy),
-			       mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
-			       le16_to_cpu(cmd->result));
+			wiphy_err(hw->wiphy, "Command %s error 0x%x\n",
+				  mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
+				  le16_to_cpu(cmd->result));
 		else if (ms > 2000)
-			printk(KERN_NOTICE "%s: Command %s took %d ms\n",
-			       wiphy_name(hw->wiphy),
-			       mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
-			       ms);
+			wiphy_notice(hw->wiphy, "Command %s took %d ms\n",
+				     mwl8k_cmd_name(cmd->code,
+						    buf, sizeof(buf)),
+				     ms);
 	}
 
 	return rc;
@@ -1666,7 +1721,7 @@ struct mwl8k_cmd_get_hw_spec_sta {
 	__le32 caps2;
 	__le32 num_tx_desc_per_queue;
 	__le32 total_rxd;
-} __attribute__((packed));
+} __packed;
 
 #define MWL8K_CAP_MAX_AMSDU		0x20000000
 #define MWL8K_CAP_GREENFIELD		0x08000000
@@ -1810,13 +1865,15 @@ struct mwl8k_cmd_get_hw_spec_ap {
 	__le32 wcbbase1;
 	__le32 wcbbase2;
 	__le32 wcbbase3;
-} __attribute__((packed));
+	__le32 fw_api_version;
+} __packed;
 
 static int mwl8k_cmd_get_hw_spec_ap(struct ieee80211_hw *hw)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_cmd_get_hw_spec_ap *cmd;
 	int rc;
+	u32 api_version;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (cmd == NULL)
@@ -1833,6 +1890,16 @@ static int mwl8k_cmd_get_hw_spec_ap(struct ieee80211_hw *hw)
 	if (!rc) {
 		int off;
 
+		api_version = le32_to_cpu(cmd->fw_api_version);
+		if (priv->device_info->fw_api_ap != api_version) {
+			printk(KERN_ERR "%s: Unsupported fw API version for %s."
+			       "  Expected %d got %d.\n", MWL8K_NAME,
+			       priv->device_info->part_name,
+			       priv->device_info->fw_api_ap,
+			       api_version);
+			rc = -EINVAL;
+			goto done;
+		}
 		SET_IEEE80211_PERM_ADDR(hw, cmd->perm_addr);
 		priv->num_mcaddrs = le16_to_cpu(cmd->num_mcaddrs);
 		priv->fw_rev = le32_to_cpu(cmd->fw_rev);
@@ -1842,24 +1909,25 @@ static int mwl8k_cmd_get_hw_spec_ap(struct ieee80211_hw *hw)
 		priv->sta_macids_supported = 0x00000000;
 
 		off = le32_to_cpu(cmd->wcbbase0) & 0xffff;
-		iowrite32(cpu_to_le32(priv->txq[0].txd_dma), priv->sram + off);
+		iowrite32(priv->txq[0].txd_dma, priv->sram + off);
 
 		off = le32_to_cpu(cmd->rxwrptr) & 0xffff;
-		iowrite32(cpu_to_le32(priv->rxq[0].rxd_dma), priv->sram + off);
+		iowrite32(priv->rxq[0].rxd_dma, priv->sram + off);
 
 		off = le32_to_cpu(cmd->rxrdptr) & 0xffff;
-		iowrite32(cpu_to_le32(priv->rxq[0].rxd_dma), priv->sram + off);
+		iowrite32(priv->rxq[0].rxd_dma, priv->sram + off);
 
 		off = le32_to_cpu(cmd->wcbbase1) & 0xffff;
-		iowrite32(cpu_to_le32(priv->txq[1].txd_dma), priv->sram + off);
+		iowrite32(priv->txq[1].txd_dma, priv->sram + off);
 
 		off = le32_to_cpu(cmd->wcbbase2) & 0xffff;
-		iowrite32(cpu_to_le32(priv->txq[2].txd_dma), priv->sram + off);
+		iowrite32(priv->txq[2].txd_dma, priv->sram + off);
 
 		off = le32_to_cpu(cmd->wcbbase3) & 0xffff;
-		iowrite32(cpu_to_le32(priv->txq[3].txd_dma), priv->sram + off);
+		iowrite32(priv->txq[3].txd_dma, priv->sram + off);
 	}
 
+done:
 	kfree(cmd);
 	return rc;
 }
@@ -1883,7 +1951,7 @@ struct mwl8k_cmd_set_hw_spec {
 	__le32 flags;
 	__le32 num_tx_desc_per_queue;
 	__le32 total_rxd;
-} __attribute__((packed));
+} __packed;
 
 #define MWL8K_SET_HW_SPEC_FLAG_HOST_DECR_MGMT		0x00000080
 #define MWL8K_SET_HW_SPEC_FLAG_HOSTFORM_PROBERESP	0x00000020
@@ -1985,7 +2053,7 @@ __mwl8k_cmd_mac_multicast_adr(struct ieee80211_hw *hw, int allmulti,
 struct mwl8k_cmd_get_stat {
 	struct mwl8k_cmd_pkt header;
 	__le32 stats[64];
-} __attribute__((packed));
+} __packed;
 
 #define MWL8K_STAT_ACK_FAILURE	9
 #define MWL8K_STAT_RTS_FAILURE	12
@@ -2029,7 +2097,7 @@ struct mwl8k_cmd_radio_control {
 	__le16 action;
 	__le16 control;
 	__le16 radio_on;
-} __attribute__((packed));
+} __packed;
 
 static int
 mwl8k_cmd_radio_control(struct ieee80211_hw *hw, bool enable, bool force)
@@ -2083,7 +2151,7 @@ mwl8k_set_radio_preamble(struct ieee80211_hw *hw, bool short_preamble)
 /*
  * CMD_RF_TX_POWER.
  */
-#define MWL8K_TX_POWER_LEVEL_TOTAL	8
+#define MWL8K_RF_TX_POWER_LEVEL_TOTAL	8
 
 struct mwl8k_cmd_rf_tx_power {
 	struct mwl8k_cmd_pkt header;
@@ -2091,8 +2159,8 @@ struct mwl8k_cmd_rf_tx_power {
 	__le16 support_level;
 	__le16 current_level;
 	__le16 reserved;
-	__le16 power_level_list[MWL8K_TX_POWER_LEVEL_TOTAL];
-} __attribute__((packed));
+	__le16 power_level_list[MWL8K_RF_TX_POWER_LEVEL_TOTAL];
+} __packed;
 
 static int mwl8k_cmd_rf_tx_power(struct ieee80211_hw *hw, int dBm)
 {
@@ -2115,13 +2183,72 @@ static int mwl8k_cmd_rf_tx_power(struct ieee80211_hw *hw, int dBm)
 }
 
 /*
+ * CMD_TX_POWER.
+ */
+#define MWL8K_TX_POWER_LEVEL_TOTAL      12
+
+struct mwl8k_cmd_tx_power {
+	struct mwl8k_cmd_pkt header;
+	__le16 action;
+	__le16 band;
+	__le16 channel;
+	__le16 bw;
+	__le16 sub_ch;
+	__le16 power_level_list[MWL8K_TX_POWER_LEVEL_TOTAL];
+} __attribute__((packed));
+
+static int mwl8k_cmd_tx_power(struct ieee80211_hw *hw,
+				     struct ieee80211_conf *conf,
+				     unsigned short pwr)
+{
+	struct ieee80211_channel *channel = conf->channel;
+	struct mwl8k_cmd_tx_power *cmd;
+	int rc;
+	int i;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENOMEM;
+
+	cmd->header.code = cpu_to_le16(MWL8K_CMD_TX_POWER);
+	cmd->header.length = cpu_to_le16(sizeof(*cmd));
+	cmd->action = cpu_to_le16(MWL8K_CMD_SET_LIST);
+
+	if (channel->band == IEEE80211_BAND_2GHZ)
+		cmd->band = cpu_to_le16(0x1);
+	else if (channel->band == IEEE80211_BAND_5GHZ)
+		cmd->band = cpu_to_le16(0x4);
+
+	cmd->channel = channel->hw_value;
+
+	if (conf->channel_type == NL80211_CHAN_NO_HT ||
+	    conf->channel_type == NL80211_CHAN_HT20) {
+		cmd->bw = cpu_to_le16(0x2);
+	} else {
+		cmd->bw = cpu_to_le16(0x4);
+		if (conf->channel_type == NL80211_CHAN_HT40MINUS)
+			cmd->sub_ch = cpu_to_le16(0x3);
+		else if (conf->channel_type == NL80211_CHAN_HT40PLUS)
+			cmd->sub_ch = cpu_to_le16(0x1);
+	}
+
+	for (i = 0; i < MWL8K_TX_POWER_LEVEL_TOTAL; i++)
+		cmd->power_level_list[i] = cpu_to_le16(pwr);
+
+	rc = mwl8k_post_cmd(hw, &cmd->header);
+	kfree(cmd);
+
+	return rc;
+}
+
+/*
  * CMD_RF_ANTENNA.
  */
 struct mwl8k_cmd_rf_antenna {
 	struct mwl8k_cmd_pkt header;
 	__le16 antenna;
 	__le16 mode;
-} __attribute__((packed));
+} __packed;
 
 #define MWL8K_RF_ANTENNA_RX		1
 #define MWL8K_RF_ANTENNA_TX		2
@@ -2182,7 +2309,7 @@ static int mwl8k_cmd_set_beacon(struct ieee80211_hw *hw,
  */
 struct mwl8k_cmd_set_pre_scan {
 	struct mwl8k_cmd_pkt header;
-} __attribute__((packed));
+} __packed;
 
 static int mwl8k_cmd_set_pre_scan(struct ieee80211_hw *hw)
 {
@@ -2209,7 +2336,7 @@ struct mwl8k_cmd_set_post_scan {
 	struct mwl8k_cmd_pkt header;
 	__le32 isibss;
 	__u8 bssid[ETH_ALEN];
-} __attribute__((packed));
+} __packed;
 
 static int
 mwl8k_cmd_set_post_scan(struct ieee80211_hw *hw, const __u8 *mac)
@@ -2240,7 +2367,7 @@ struct mwl8k_cmd_set_rf_channel {
 	__le16 action;
 	__u8 current_channel;
 	__le32 channel_flags;
-} __attribute__((packed));
+} __packed;
 
 static int mwl8k_cmd_set_rf_channel(struct ieee80211_hw *hw,
 				    struct ieee80211_conf *conf)
@@ -2293,7 +2420,7 @@ struct mwl8k_cmd_update_set_aid {
 	__u8	bssid[ETH_ALEN];
 	__le16	protection_mode;
 	__u8	supp_rates[14];
-} __attribute__((packed));
+} __packed;
 
 static void legacy_rate_mask_to_array(u8 *rates, u32 mask)
 {
@@ -2364,7 +2491,7 @@ struct mwl8k_cmd_set_rate {
 	/* Bitmap for supported MCS codes.  */
 	__u8	mcs_set[16];
 	__u8	reserved[16];
-} __attribute__((packed));
+} __packed;
 
 static int
 mwl8k_cmd_set_rate(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -2397,7 +2524,7 @@ struct mwl8k_cmd_finalize_join {
 	struct mwl8k_cmd_pkt header;
 	__le32 sleep_interval;	/* Number of beacon periods to sleep */
 	__u8 beacon_data[MWL8K_FJ_BEACON_MAXLEN];
-} __attribute__((packed));
+} __packed;
 
 static int mwl8k_cmd_finalize_join(struct ieee80211_hw *hw, void *frame,
 				   int framelen, int dtim)
@@ -2436,7 +2563,7 @@ struct mwl8k_cmd_set_rts_threshold {
 	struct mwl8k_cmd_pkt header;
 	__le16 action;
 	__le16 threshold;
-} __attribute__((packed));
+} __packed;
 
 static int
 mwl8k_cmd_set_rts_threshold(struct ieee80211_hw *hw, int rts_thresh)
@@ -2466,7 +2593,7 @@ struct mwl8k_cmd_set_slot {
 	struct mwl8k_cmd_pkt header;
 	__le16 action;
 	__u8 short_slot;
-} __attribute__((packed));
+} __packed;
 
 static int mwl8k_cmd_set_slot(struct ieee80211_hw *hw, bool short_slot_time)
 {
@@ -2528,7 +2655,7 @@ struct mwl8k_cmd_set_edca_params {
 			__u8 txq;
 		} sta;
 	};
-} __attribute__((packed));
+} __packed;
 
 #define MWL8K_SET_EDCA_CW	0x01
 #define MWL8K_SET_EDCA_TXOP	0x02
@@ -2579,7 +2706,7 @@ mwl8k_cmd_set_edca_params(struct ieee80211_hw *hw, __u8 qnum,
 struct mwl8k_cmd_set_wmm_mode {
 	struct mwl8k_cmd_pkt header;
 	__le16 action;
-} __attribute__((packed));
+} __packed;
 
 static int mwl8k_cmd_set_wmm_mode(struct ieee80211_hw *hw, bool enable)
 {
@@ -2612,7 +2739,7 @@ struct mwl8k_cmd_mimo_config {
 	__le32 action;
 	__u8 rx_antenna_map;
 	__u8 tx_antenna_map;
-} __attribute__((packed));
+} __packed;
 
 static int mwl8k_cmd_mimo_config(struct ieee80211_hw *hw, __u8 rx, __u8 tx)
 {
@@ -2652,7 +2779,7 @@ struct mwl8k_cmd_use_fixed_rate_sta {
 	__le32 rate_type;
 	__le32 reserved1;
 	__le32 reserved2;
-} __attribute__((packed));
+} __packed;
 
 #define MWL8K_USE_AUTO_RATE	0x0002
 #define MWL8K_UCAST_RATE	0
@@ -2694,7 +2821,7 @@ struct mwl8k_cmd_use_fixed_rate_ap {
 	u8 multicast_rate;
 	u8 multicast_rate_type;
 	u8 management_rate;
-} __attribute__((packed));
+} __packed;
 
 static int
 mwl8k_cmd_use_fixed_rate_ap(struct ieee80211_hw *hw, int mcast, int mgmt)
@@ -2724,7 +2851,7 @@ mwl8k_cmd_use_fixed_rate_ap(struct ieee80211_hw *hw, int mcast, int mgmt)
 struct mwl8k_cmd_enable_sniffer {
 	struct mwl8k_cmd_pkt header;
 	__le32 action;
-} __attribute__((packed));
+} __packed;
 
 static int mwl8k_cmd_enable_sniffer(struct ieee80211_hw *hw, bool enable)
 {
@@ -2757,7 +2884,7 @@ struct mwl8k_cmd_set_mac_addr {
 		} mbss;
 		__u8 mac_addr[ETH_ALEN];
 	};
-} __attribute__((packed));
+} __packed;
 
 #define MWL8K_MAC_TYPE_PRIMARY_CLIENT		0
 #define MWL8K_MAC_TYPE_SECONDARY_CLIENT		1
@@ -2812,7 +2939,7 @@ struct mwl8k_cmd_set_rate_adapt_mode {
 	struct mwl8k_cmd_pkt header;
 	__le16 action;
 	__le16 mode;
-} __attribute__((packed));
+} __packed;
 
 static int mwl8k_cmd_set_rateadapt_mode(struct ieee80211_hw *hw, __u16 mode)
 {
@@ -2840,7 +2967,7 @@ static int mwl8k_cmd_set_rateadapt_mode(struct ieee80211_hw *hw, __u16 mode)
 struct mwl8k_cmd_bss_start {
 	struct mwl8k_cmd_pkt header;
 	__le32 enable;
-} __attribute__((packed));
+} __packed;
 
 static int mwl8k_cmd_bss_start(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif, int enable)
@@ -2885,7 +3012,7 @@ struct mwl8k_cmd_set_new_stn {
 	__u8 add_qos_info;
 	__u8 is_qos_sta;
 	__le32 fw_sta_ptr;
-} __attribute__((packed));
+} __packed;
 
 #define MWL8K_STA_ACTION_ADD		0
 #define MWL8K_STA_ACTION_REMOVE		2
@@ -2978,7 +3105,7 @@ struct ewc_ht_info {
 	__le16	control1;
 	__le16	control2;
 	__le16	control3;
-} __attribute__((packed));
+} __packed;
 
 struct peer_capability_info {
 	/* Peer type - AP vs. STA.  */
@@ -3007,7 +3134,7 @@ struct peer_capability_info {
 	__u8	pad2;
 	__u8	station_id;
 	__le16	amsdu_enabled;
-} __attribute__((packed));
+} __packed;
 
 struct mwl8k_cmd_update_stadb {
 	struct mwl8k_cmd_pkt header;
@@ -3022,7 +3149,7 @@ struct mwl8k_cmd_update_stadb {
 
 	/* Peer info - valid during add/update.  */
 	struct peer_capability_info	peer_info;
-} __attribute__((packed));
+} __packed;
 
 #define MWL8K_STA_DB_MODIFY_ENTRY	1
 #define MWL8K_STA_DB_DEL_ENTRY		2
@@ -3052,7 +3179,7 @@ static int mwl8k_cmd_update_stadb_add(struct ieee80211_hw *hw,
 	p->peer_type = MWL8K_PEER_TYPE_ACCESSPOINT;
 	p->basic_caps = cpu_to_le16(vif->bss_conf.assoc_capability);
 	p->ht_support = sta->ht_cap.ht_supported;
-	p->ht_caps = sta->ht_cap.cap;
+	p->ht_caps = cpu_to_le16(sta->ht_cap.cap);
 	p->extended_ht_caps = (sta->ht_cap.ampdu_factor & 3) |
 		((sta->ht_cap.ampdu_density & 7) << 2);
 	if (hw->conf.channel->band == IEEE80211_BAND_2GHZ)
@@ -3190,8 +3317,8 @@ static int mwl8k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	int rc;
 
 	if (!priv->radio_on) {
-		printk(KERN_DEBUG "%s: dropped TX frame since radio "
-		       "disabled\n", wiphy_name(hw->wiphy));
+		wiphy_debug(hw->wiphy,
+			    "dropped TX frame since radio disabled\n");
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -3209,8 +3336,7 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
 			 IRQF_SHARED, MWL8K_NAME, hw);
 	if (rc) {
-		printk(KERN_ERR "%s: failed to register IRQ handler\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "failed to register IRQ handler\n");
 		return -EIO;
 	}
 
@@ -3283,13 +3409,16 @@ static void mwl8k_stop(struct ieee80211_hw *hw)
 		mwl8k_txq_reclaim(hw, i, INT_MAX, 1);
 }
 
+static int mwl8k_reload_firmware(struct ieee80211_hw *hw, char *fw_image);
+
 static int mwl8k_add_interface(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_vif *mwl8k_vif;
 	u32 macids_supported;
-	int macid;
+	int macid, rc;
+	struct mwl8k_device_info *di;
 
 	/*
 	 * Reject interface creation if sniffer mode is active, as
@@ -3297,18 +3426,33 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	 * mode.  (Sniffer mode is only used on STA firmware.)
 	 */
 	if (priv->sniffer_enabled) {
-		printk(KERN_INFO "%s: unable to create STA "
-		       "interface due to sniffer mode being enabled\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_info(hw->wiphy,
+			   "unable to create STA interface because sniffer mode is enabled\n");
 		return -EINVAL;
 	}
 
-
+	di = priv->device_info;
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
+		if (!priv->ap_fw && di->fw_image_ap) {
+			/* we must load the ap fw to meet this request */
+			if (!list_empty(&priv->vif_list))
+				return -EBUSY;
+			rc = mwl8k_reload_firmware(hw, di->fw_image_ap);
+			if (rc)
+				return rc;
+		}
 		macids_supported = priv->ap_macids_supported;
 		break;
 	case NL80211_IFTYPE_STATION:
+		if (priv->ap_fw && di->fw_image_sta) {
+			/* we must load the sta fw to meet this request */
+			if (!list_empty(&priv->vif_list))
+				return -EBUSY;
+			rc = mwl8k_reload_firmware(hw, di->fw_image_sta);
+			if (rc)
+				return rc;
+		}
 		macids_supported = priv->sta_macids_supported;
 		break;
 	default:
@@ -3378,15 +3522,19 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (conf->power_level > 18)
 		conf->power_level = 18;
-	rc = mwl8k_cmd_rf_tx_power(hw, conf->power_level);
-	if (rc)
-		goto out;
 
 	if (priv->ap_fw) {
+		rc = mwl8k_cmd_tx_power(hw, conf, conf->power_level);
+		if (rc)
+			goto out;
+
 		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_RX, 0x7);
 		if (!rc)
 			rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_TX, 0x7);
 	} else {
+		rc = mwl8k_cmd_rf_tx_power(hw, conf->power_level);
+		if (rc)
+			goto out;
 		rc = mwl8k_cmd_mimo_config(hw, 0x7, 0x7);
 	}
 
@@ -3581,9 +3729,8 @@ mwl8k_configure_filter_sniffer(struct ieee80211_hw *hw,
 	 */
 	if (!list_empty(&priv->vif_list)) {
 		if (net_ratelimit())
-			printk(KERN_INFO "%s: not enabling sniffer "
-			       "mode because STA interface is active\n",
-			       wiphy_name(hw->wiphy));
+			wiphy_info(hw->wiphy,
+				   "not enabling sniffer mode because STA interface is active\n");
 		return 0;
 	}
 
@@ -3741,6 +3888,9 @@ static int mwl8k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 	rc = mwl8k_fw_lock(hw);
 	if (!rc) {
+		BUG_ON(queue > MWL8K_TX_QUEUES - 1);
+		memcpy(&priv->wmm_params[queue], params, sizeof(*params));
+
 		if (!priv->wmm_enabled)
 			rc = mwl8k_cmd_set_wmm_mode(hw, 1);
 
@@ -3761,6 +3911,22 @@ static int mwl8k_get_stats(struct ieee80211_hw *hw,
 			   struct ieee80211_low_level_stats *stats)
 {
 	return mwl8k_cmd_get_stat(hw, stats);
+}
+
+static int mwl8k_get_survey(struct ieee80211_hw *hw, int idx,
+				struct survey_info *survey)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+
+	if (idx != 0)
+		return -ENOENT;
+
+	survey->channel = conf->channel;
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = priv->noise;
+
+	return 0;
 }
 
 static int
@@ -3794,6 +3960,7 @@ static const struct ieee80211_ops mwl8k_ops = {
 	.sta_remove		= mwl8k_sta_remove,
 	.conf_tx		= mwl8k_conf_tx,
 	.get_stats		= mwl8k_get_stats,
+	.get_survey		= mwl8k_get_survey,
 	.ampdu_action		= mwl8k_ampdu_action,
 };
 
@@ -3823,21 +3990,27 @@ enum {
 	MWL8366,
 };
 
+#define MWL8K_8366_AP_FW_API 1
+#define _MWL8K_8366_AP_FW(api) "mwl8k/fmimage_8366_ap-" #api ".fw"
+#define MWL8K_8366_AP_FW(api) _MWL8K_8366_AP_FW(api)
+
 static struct mwl8k_device_info mwl8k_info_tbl[] __devinitdata = {
 	[MWL8363] = {
 		.part_name	= "88w8363",
 		.helper_image	= "mwl8k/helper_8363.fw",
-		.fw_image	= "mwl8k/fmimage_8363.fw",
+		.fw_image_sta	= "mwl8k/fmimage_8363.fw",
 	},
 	[MWL8687] = {
 		.part_name	= "88w8687",
 		.helper_image	= "mwl8k/helper_8687.fw",
-		.fw_image	= "mwl8k/fmimage_8687.fw",
+		.fw_image_sta	= "mwl8k/fmimage_8687.fw",
 	},
 	[MWL8366] = {
 		.part_name	= "88w8366",
 		.helper_image	= "mwl8k/helper_8366.fw",
-		.fw_image	= "mwl8k/fmimage_8366.fw",
+		.fw_image_sta	= "mwl8k/fmimage_8366.fw",
+		.fw_image_ap	= MWL8K_8366_AP_FW(MWL8K_8366_AP_FW_API),
+		.fw_api_ap	= MWL8K_8366_AP_FW_API,
 		.ap_rxd_ops	= &rxd_8366_ap_ops,
 	},
 };
@@ -3848,6 +4021,7 @@ MODULE_FIRMWARE("mwl8k/helper_8687.fw");
 MODULE_FIRMWARE("mwl8k/fmimage_8687.fw");
 MODULE_FIRMWARE("mwl8k/helper_8366.fw");
 MODULE_FIRMWARE("mwl8k/fmimage_8366.fw");
+MODULE_FIRMWARE(MWL8K_8366_AP_FW(MWL8K_8366_AP_FW_API));
 
 static DEFINE_PCI_DEVICE_TABLE(mwl8k_pci_id_table) = {
 	{ PCI_VDEVICE(MARVELL, 0x2a0a), .driver_data = MWL8363, },
@@ -3861,14 +4035,375 @@ static DEFINE_PCI_DEVICE_TABLE(mwl8k_pci_id_table) = {
 };
 MODULE_DEVICE_TABLE(pci, mwl8k_pci_id_table);
 
+static int mwl8k_request_alt_fw(struct mwl8k_priv *priv)
+{
+	int rc;
+	printk(KERN_ERR "%s: Error requesting preferred fw %s.\n"
+	       "Trying alternative firmware %s\n", pci_name(priv->pdev),
+	       priv->fw_pref, priv->fw_alt);
+	rc = mwl8k_request_fw(priv, priv->fw_alt, &priv->fw_ucode, true);
+	if (rc) {
+		printk(KERN_ERR "%s: Error requesting alt fw %s\n",
+		       pci_name(priv->pdev), priv->fw_alt);
+		return rc;
+	}
+	return 0;
+}
+
+static int mwl8k_firmware_load_success(struct mwl8k_priv *priv);
+static void mwl8k_fw_state_machine(const struct firmware *fw, void *context)
+{
+	struct mwl8k_priv *priv = context;
+	struct mwl8k_device_info *di = priv->device_info;
+	int rc;
+
+	switch (priv->fw_state) {
+	case FW_STATE_INIT:
+		if (!fw) {
+			printk(KERN_ERR "%s: Error requesting helper fw %s\n",
+			       pci_name(priv->pdev), di->helper_image);
+			goto fail;
+		}
+		priv->fw_helper = fw;
+		rc = mwl8k_request_fw(priv, priv->fw_pref, &priv->fw_ucode,
+				      true);
+		if (rc && priv->fw_alt) {
+			rc = mwl8k_request_alt_fw(priv);
+			if (rc)
+				goto fail;
+			priv->fw_state = FW_STATE_LOADING_ALT;
+		} else if (rc)
+			goto fail;
+		else
+			priv->fw_state = FW_STATE_LOADING_PREF;
+		break;
+
+	case FW_STATE_LOADING_PREF:
+		if (!fw) {
+			if (priv->fw_alt) {
+				rc = mwl8k_request_alt_fw(priv);
+				if (rc)
+					goto fail;
+				priv->fw_state = FW_STATE_LOADING_ALT;
+			} else
+				goto fail;
+		} else {
+			priv->fw_ucode = fw;
+			rc = mwl8k_firmware_load_success(priv);
+			if (rc)
+				goto fail;
+			else
+				complete(&priv->firmware_loading_complete);
+		}
+		break;
+
+	case FW_STATE_LOADING_ALT:
+		if (!fw) {
+			printk(KERN_ERR "%s: Error requesting alt fw %s\n",
+			       pci_name(priv->pdev), di->helper_image);
+			goto fail;
+		}
+		priv->fw_ucode = fw;
+		rc = mwl8k_firmware_load_success(priv);
+		if (rc)
+			goto fail;
+		else
+			complete(&priv->firmware_loading_complete);
+		break;
+
+	default:
+		printk(KERN_ERR "%s: Unexpected firmware loading state: %d\n",
+		       MWL8K_NAME, priv->fw_state);
+		BUG_ON(1);
+	}
+
+	return;
+
+fail:
+	priv->fw_state = FW_STATE_ERROR;
+	complete(&priv->firmware_loading_complete);
+	device_release_driver(&priv->pdev->dev);
+	mwl8k_release_firmware(priv);
+}
+
+static int mwl8k_init_firmware(struct ieee80211_hw *hw, char *fw_image,
+			       bool nowait)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	int rc;
+
+	/* Reset firmware and hardware */
+	mwl8k_hw_reset(priv);
+
+	/* Ask userland hotplug daemon for the device firmware */
+	rc = mwl8k_request_firmware(priv, fw_image, nowait);
+	if (rc) {
+		wiphy_err(hw->wiphy, "Firmware files not found\n");
+		return rc;
+	}
+
+	if (nowait)
+		return rc;
+
+	/* Load firmware into hardware */
+	rc = mwl8k_load_firmware(hw);
+	if (rc)
+		wiphy_err(hw->wiphy, "Cannot start firmware\n");
+
+	/* Reclaim memory once firmware is successfully loaded */
+	mwl8k_release_firmware(priv);
+
+	return rc;
+}
+
+/* initialize hw after successfully loading a firmware image */
+static int mwl8k_probe_hw(struct ieee80211_hw *hw)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	int rc = 0;
+	int i;
+
+	if (priv->ap_fw) {
+		priv->rxd_ops = priv->device_info->ap_rxd_ops;
+		if (priv->rxd_ops == NULL) {
+			wiphy_err(hw->wiphy,
+				  "Driver does not have AP firmware image support for this hardware\n");
+			goto err_stop_firmware;
+		}
+	} else {
+		priv->rxd_ops = &rxd_sta_ops;
+	}
+
+	priv->sniffer_enabled = false;
+	priv->wmm_enabled = false;
+	priv->pending_tx_pkts = 0;
+
+	rc = mwl8k_rxq_init(hw, 0);
+	if (rc)
+		goto err_stop_firmware;
+	rxq_refill(hw, 0, INT_MAX);
+
+	for (i = 0; i < MWL8K_TX_QUEUES; i++) {
+		rc = mwl8k_txq_init(hw, i);
+		if (rc)
+			goto err_free_queues;
+	}
+
+	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS);
+	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
+	iowrite32(MWL8K_A2H_INT_TX_DONE | MWL8K_A2H_INT_RX_READY,
+		  priv->regs + MWL8K_HIU_A2H_INTERRUPT_CLEAR_SEL);
+	iowrite32(0xffffffff, priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
+
+	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
+			 IRQF_SHARED, MWL8K_NAME, hw);
+	if (rc) {
+		wiphy_err(hw->wiphy, "failed to register IRQ handler\n");
+		goto err_free_queues;
+	}
+
+	/*
+	 * Temporarily enable interrupts.  Initial firmware host
+	 * commands use interrupts and avoid polling.  Disable
+	 * interrupts when done.
+	 */
+	iowrite32(MWL8K_A2H_EVENTS, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
+
+	/* Get config data, mac addrs etc */
+	if (priv->ap_fw) {
+		rc = mwl8k_cmd_get_hw_spec_ap(hw);
+		if (!rc)
+			rc = mwl8k_cmd_set_hw_spec(hw);
+	} else {
+		rc = mwl8k_cmd_get_hw_spec_sta(hw);
+	}
+	if (rc) {
+		wiphy_err(hw->wiphy, "Cannot initialise firmware\n");
+		goto err_free_irq;
+	}
+
+	/* Turn radio off */
+	rc = mwl8k_cmd_radio_disable(hw);
+	if (rc) {
+		wiphy_err(hw->wiphy, "Cannot disable\n");
+		goto err_free_irq;
+	}
+
+	/* Clear MAC address */
+	rc = mwl8k_cmd_set_mac_addr(hw, NULL, "\x00\x00\x00\x00\x00\x00");
+	if (rc) {
+		wiphy_err(hw->wiphy, "Cannot clear MAC address\n");
+		goto err_free_irq;
+	}
+
+	/* Disable interrupts */
+	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
+	free_irq(priv->pdev->irq, hw);
+
+	wiphy_info(hw->wiphy, "%s v%d, %pm, %s firmware %u.%u.%u.%u\n",
+		   priv->device_info->part_name,
+		   priv->hw_rev, hw->wiphy->perm_addr,
+		   priv->ap_fw ? "AP" : "STA",
+		   (priv->fw_rev >> 24) & 0xff, (priv->fw_rev >> 16) & 0xff,
+		   (priv->fw_rev >> 8) & 0xff, priv->fw_rev & 0xff);
+
+	return 0;
+
+err_free_irq:
+	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
+	free_irq(priv->pdev->irq, hw);
+
+err_free_queues:
+	for (i = 0; i < MWL8K_TX_QUEUES; i++)
+		mwl8k_txq_deinit(hw, i);
+	mwl8k_rxq_deinit(hw, 0);
+
+err_stop_firmware:
+	mwl8k_hw_reset(priv);
+
+	return rc;
+}
+
+/*
+ * invoke mwl8k_reload_firmware to change the firmware image after the device
+ * has already been registered
+ */
+static int mwl8k_reload_firmware(struct ieee80211_hw *hw, char *fw_image)
+{
+	int i, rc = 0;
+	struct mwl8k_priv *priv = hw->priv;
+
+	mwl8k_stop(hw);
+	mwl8k_rxq_deinit(hw, 0);
+
+	for (i = 0; i < MWL8K_TX_QUEUES; i++)
+		mwl8k_txq_deinit(hw, i);
+
+	rc = mwl8k_init_firmware(hw, fw_image, false);
+	if (rc)
+		goto fail;
+
+	rc = mwl8k_probe_hw(hw);
+	if (rc)
+		goto fail;
+
+	rc = mwl8k_start(hw);
+	if (rc)
+		goto fail;
+
+	rc = mwl8k_config(hw, ~0);
+	if (rc)
+		goto fail;
+
+	for (i = 0; i < MWL8K_TX_QUEUES; i++) {
+		rc = mwl8k_conf_tx(hw, i, &priv->wmm_params[i]);
+		if (rc)
+			goto fail;
+	}
+
+	return rc;
+
+fail:
+	printk(KERN_WARNING "mwl8k: Failed to reload firmware image.\n");
+	return rc;
+}
+
+static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
+{
+	struct ieee80211_hw *hw = priv->hw;
+	int i, rc;
+
+	rc = mwl8k_load_firmware(hw);
+	mwl8k_release_firmware(priv);
+	if (rc) {
+		wiphy_err(hw->wiphy, "Cannot start firmware\n");
+		return rc;
+	}
+
+	/*
+	 * Extra headroom is the size of the required DMA header
+	 * minus the size of the smallest 802.11 frame (CTS frame).
+	 */
+	hw->extra_tx_headroom =
+		sizeof(struct mwl8k_dma_data) - sizeof(struct ieee80211_cts);
+
+	hw->channel_change_time = 10;
+
+	hw->queues = MWL8K_TX_QUEUES;
+
+	/* Set rssi values to dBm */
+	hw->flags |= IEEE80211_HW_SIGNAL_DBM;
+	hw->vif_data_size = sizeof(struct mwl8k_vif);
+	hw->sta_data_size = sizeof(struct mwl8k_sta);
+
+	priv->macids_used = 0;
+	INIT_LIST_HEAD(&priv->vif_list);
+
+	/* Set default radio state and preamble */
+	priv->radio_on = 0;
+	priv->radio_short_preamble = 0;
+
+	/* Finalize join worker */
+	INIT_WORK(&priv->finalize_join_worker, mwl8k_finalize_join_worker);
+
+	/* TX reclaim and RX tasklets.  */
+	tasklet_init(&priv->poll_tx_task, mwl8k_tx_poll, (unsigned long)hw);
+	tasklet_disable(&priv->poll_tx_task);
+	tasklet_init(&priv->poll_rx_task, mwl8k_rx_poll, (unsigned long)hw);
+	tasklet_disable(&priv->poll_rx_task);
+
+	/* Power management cookie */
+	priv->cookie = pci_alloc_consistent(priv->pdev, 4, &priv->cookie_dma);
+	if (priv->cookie == NULL)
+		return -ENOMEM;
+
+	mutex_init(&priv->fw_mutex);
+	priv->fw_mutex_owner = NULL;
+	priv->fw_mutex_depth = 0;
+	priv->hostcmd_wait = NULL;
+
+	spin_lock_init(&priv->tx_lock);
+
+	priv->tx_wait = NULL;
+
+	rc = mwl8k_probe_hw(hw);
+	if (rc)
+		goto err_free_cookie;
+
+	hw->wiphy->interface_modes = 0;
+	if (priv->ap_macids_supported || priv->device_info->fw_image_ap)
+		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP);
+	if (priv->sta_macids_supported || priv->device_info->fw_image_sta)
+		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_STATION);
+
+	rc = ieee80211_register_hw(hw);
+	if (rc) {
+		wiphy_err(hw->wiphy, "Cannot register device\n");
+		goto err_unprobe_hw;
+	}
+
+	return 0;
+
+err_unprobe_hw:
+	for (i = 0; i < MWL8K_TX_QUEUES; i++)
+		mwl8k_txq_deinit(hw, i);
+	mwl8k_rxq_deinit(hw, 0);
+
+err_free_cookie:
+	if (priv->cookie != NULL)
+		pci_free_consistent(priv->pdev, 4,
+				priv->cookie, priv->cookie_dma);
+
+	return rc;
+}
 static int __devinit mwl8k_probe(struct pci_dev *pdev,
 				 const struct pci_device_id *id)
 {
-	static int printed_version = 0;
+	static int printed_version;
 	struct ieee80211_hw *hw;
 	struct mwl8k_priv *priv;
+	struct mwl8k_device_info *di;
 	int rc;
-	int i;
 
 	if (!printed_version) {
 		printk(KERN_INFO "%s version %s\n", MWL8K_DESC, MWL8K_VERSION);
@@ -3911,8 +4446,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 
 	priv->sram = pci_iomap(pdev, 0, 0x10000);
 	if (priv->sram == NULL) {
-		printk(KERN_ERR "%s: Cannot map device SRAM\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "Cannot map device SRAM\n");
 		goto err_iounmap;
 	}
 
@@ -3924,204 +4458,38 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	if (priv->regs == NULL) {
 		priv->regs = pci_iomap(pdev, 2, 0x10000);
 		if (priv->regs == NULL) {
-			printk(KERN_ERR "%s: Cannot map device registers\n",
-			       wiphy_name(hw->wiphy));
+			wiphy_err(hw->wiphy, "Cannot map device registers\n");
 			goto err_iounmap;
 		}
 	}
 
-
-	/* Reset firmware and hardware */
-	mwl8k_hw_reset(priv);
-
-	/* Ask userland hotplug daemon for the device firmware */
-	rc = mwl8k_request_firmware(priv);
-	if (rc) {
-		printk(KERN_ERR "%s: Firmware files not found\n",
-		       wiphy_name(hw->wiphy));
-		goto err_stop_firmware;
-	}
-
-	/* Load firmware into hardware */
-	rc = mwl8k_load_firmware(hw);
-	if (rc) {
-		printk(KERN_ERR "%s: Cannot start firmware\n",
-		       wiphy_name(hw->wiphy));
-		goto err_stop_firmware;
-	}
-
-	/* Reclaim memory once firmware is successfully loaded */
-	mwl8k_release_firmware(priv);
-
-
-	if (priv->ap_fw) {
-		priv->rxd_ops = priv->device_info->ap_rxd_ops;
-		if (priv->rxd_ops == NULL) {
-			printk(KERN_ERR "%s: Driver does not have AP "
-			       "firmware image support for this hardware\n",
-			       wiphy_name(hw->wiphy));
-			goto err_stop_firmware;
-		}
-	} else {
-		priv->rxd_ops = &rxd_sta_ops;
-	}
-
-	priv->sniffer_enabled = false;
-	priv->wmm_enabled = false;
-	priv->pending_tx_pkts = 0;
-
-
 	/*
-	 * Extra headroom is the size of the required DMA header
-	 * minus the size of the smallest 802.11 frame (CTS frame).
+	 * Choose the initial fw image depending on user input.  If a second
+	 * image is available, make it the alternative image that will be
+	 * loaded if the first one fails.
 	 */
-	hw->extra_tx_headroom =
-		sizeof(struct mwl8k_dma_data) - sizeof(struct ieee80211_cts);
-
-	hw->channel_change_time = 10;
-
-	hw->queues = MWL8K_TX_QUEUES;
-
-	/* Set rssi values to dBm */
-	hw->flags |= IEEE80211_HW_SIGNAL_DBM;
-	hw->vif_data_size = sizeof(struct mwl8k_vif);
-	hw->sta_data_size = sizeof(struct mwl8k_sta);
-
-	priv->macids_used = 0;
-	INIT_LIST_HEAD(&priv->vif_list);
-
-	/* Set default radio state and preamble */
-	priv->radio_on = 0;
-	priv->radio_short_preamble = 0;
-
-	/* Finalize join worker */
-	INIT_WORK(&priv->finalize_join_worker, mwl8k_finalize_join_worker);
-
-	/* TX reclaim and RX tasklets.  */
-	tasklet_init(&priv->poll_tx_task, mwl8k_tx_poll, (unsigned long)hw);
-	tasklet_disable(&priv->poll_tx_task);
-	tasklet_init(&priv->poll_rx_task, mwl8k_rx_poll, (unsigned long)hw);
-	tasklet_disable(&priv->poll_rx_task);
-
-	/* Power management cookie */
-	priv->cookie = pci_alloc_consistent(priv->pdev, 4, &priv->cookie_dma);
-	if (priv->cookie == NULL)
-		goto err_stop_firmware;
-
-	rc = mwl8k_rxq_init(hw, 0);
+	init_completion(&priv->firmware_loading_complete);
+	di = priv->device_info;
+	if (ap_mode_default && di->fw_image_ap) {
+		priv->fw_pref = di->fw_image_ap;
+		priv->fw_alt = di->fw_image_sta;
+	} else if (!ap_mode_default && di->fw_image_sta) {
+		priv->fw_pref = di->fw_image_sta;
+		priv->fw_alt = di->fw_image_ap;
+	} else if (ap_mode_default && !di->fw_image_ap && di->fw_image_sta) {
+		printk(KERN_WARNING "AP fw is unavailable.  Using STA fw.");
+		priv->fw_pref = di->fw_image_sta;
+	} else if (!ap_mode_default && !di->fw_image_sta && di->fw_image_ap) {
+		printk(KERN_WARNING "STA fw is unavailable.  Using AP fw.");
+		priv->fw_pref = di->fw_image_ap;
+	}
+	rc = mwl8k_init_firmware(hw, priv->fw_pref, true);
 	if (rc)
-		goto err_free_cookie;
-	rxq_refill(hw, 0, INT_MAX);
-
-	mutex_init(&priv->fw_mutex);
-	priv->fw_mutex_owner = NULL;
-	priv->fw_mutex_depth = 0;
-	priv->hostcmd_wait = NULL;
-
-	spin_lock_init(&priv->tx_lock);
-
-	priv->tx_wait = NULL;
-
-	for (i = 0; i < MWL8K_TX_QUEUES; i++) {
-		rc = mwl8k_txq_init(hw, i);
-		if (rc)
-			goto err_free_queues;
-	}
-
-	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS);
-	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
-	iowrite32(MWL8K_A2H_INT_TX_DONE | MWL8K_A2H_INT_RX_READY,
-		  priv->regs + MWL8K_HIU_A2H_INTERRUPT_CLEAR_SEL);
-	iowrite32(0xffffffff, priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
-
-	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
-			 IRQF_SHARED, MWL8K_NAME, hw);
-	if (rc) {
-		printk(KERN_ERR "%s: failed to register IRQ handler\n",
-		       wiphy_name(hw->wiphy));
-		goto err_free_queues;
-	}
-
-	/*
-	 * Temporarily enable interrupts.  Initial firmware host
-	 * commands use interrupts and avoid polling.  Disable
-	 * interrupts when done.
-	 */
-	iowrite32(MWL8K_A2H_EVENTS, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
-
-	/* Get config data, mac addrs etc */
-	if (priv->ap_fw) {
-		rc = mwl8k_cmd_get_hw_spec_ap(hw);
-		if (!rc)
-			rc = mwl8k_cmd_set_hw_spec(hw);
-	} else {
-		rc = mwl8k_cmd_get_hw_spec_sta(hw);
-	}
-	if (rc) {
-		printk(KERN_ERR "%s: Cannot initialise firmware\n",
-		       wiphy_name(hw->wiphy));
-		goto err_free_irq;
-	}
-
-	hw->wiphy->interface_modes = 0;
-	if (priv->ap_macids_supported)
-		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP);
-	if (priv->sta_macids_supported)
-		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_STATION);
-
-
-	/* Turn radio off */
-	rc = mwl8k_cmd_radio_disable(hw);
-	if (rc) {
-		printk(KERN_ERR "%s: Cannot disable\n", wiphy_name(hw->wiphy));
-		goto err_free_irq;
-	}
-
-	/* Clear MAC address */
-	rc = mwl8k_cmd_set_mac_addr(hw, NULL, "\x00\x00\x00\x00\x00\x00");
-	if (rc) {
-		printk(KERN_ERR "%s: Cannot clear MAC address\n",
-		       wiphy_name(hw->wiphy));
-		goto err_free_irq;
-	}
-
-	/* Disable interrupts */
-	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
-	free_irq(priv->pdev->irq, hw);
-
-	rc = ieee80211_register_hw(hw);
-	if (rc) {
-		printk(KERN_ERR "%s: Cannot register device\n",
-		       wiphy_name(hw->wiphy));
-		goto err_free_queues;
-	}
-
-	printk(KERN_INFO "%s: %s v%d, %pM, %s firmware %u.%u.%u.%u\n",
-	       wiphy_name(hw->wiphy), priv->device_info->part_name,
-	       priv->hw_rev, hw->wiphy->perm_addr,
-	       priv->ap_fw ? "AP" : "STA",
-	       (priv->fw_rev >> 24) & 0xff, (priv->fw_rev >> 16) & 0xff,
-	       (priv->fw_rev >> 8) & 0xff, priv->fw_rev & 0xff);
-
-	return 0;
-
-err_free_irq:
-	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
-	free_irq(priv->pdev->irq, hw);
-
-err_free_queues:
-	for (i = 0; i < MWL8K_TX_QUEUES; i++)
-		mwl8k_txq_deinit(hw, i);
-	mwl8k_rxq_deinit(hw, 0);
-
-err_free_cookie:
-	if (priv->cookie != NULL)
-		pci_free_consistent(priv->pdev, 4,
-				priv->cookie, priv->cookie_dma);
+		goto err_stop_firmware;
+	return rc;
 
 err_stop_firmware:
 	mwl8k_hw_reset(priv);
-	mwl8k_release_firmware(priv);
 
 err_iounmap:
 	if (priv->regs != NULL)
@@ -4157,6 +4525,13 @@ static void __devexit mwl8k_remove(struct pci_dev *pdev)
 		return;
 	priv = hw->priv;
 
+	wait_for_completion(&priv->firmware_loading_complete);
+
+	if (priv->fw_state == FW_STATE_ERROR) {
+		mwl8k_hw_reset(priv);
+		goto unmap;
+	}
+
 	ieee80211_stop_queues(hw);
 
 	ieee80211_unregister_hw(hw);
@@ -4179,6 +4554,7 @@ static void __devexit mwl8k_remove(struct pci_dev *pdev)
 
 	pci_free_consistent(priv->pdev, 4, priv->cookie, priv->cookie_dma);
 
+unmap:
 	pci_iounmap(pdev, priv->regs);
 	pci_iounmap(pdev, priv->sram);
 	pci_set_drvdata(pdev, NULL);

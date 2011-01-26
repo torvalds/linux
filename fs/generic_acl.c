@@ -94,6 +94,7 @@ generic_acl_set(struct dentry *dentry, const char *name, const void *value,
 			if (error < 0)
 				goto failed;
 			inode->i_mode = mode;
+			inode->i_ctime = CURRENT_TIME;
 			if (error == 0) {
 				posix_acl_release(acl);
 				acl = NULL;
@@ -189,14 +190,20 @@ generic_acl_chmod(struct inode *inode)
 }
 
 int
-generic_check_acl(struct inode *inode, int mask)
+generic_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
-	struct posix_acl *acl = get_cached_acl(inode, ACL_TYPE_ACCESS);
+	if (flags & IPERM_FLAG_RCU) {
+		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
+			return -ECHILD;
+	} else {
+		struct posix_acl *acl;
 
-	if (acl) {
-		int error = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
-		return error;
+		acl = get_cached_acl(inode, ACL_TYPE_ACCESS);
+		if (acl) {
+			int error = posix_acl_permission(inode, acl, mask);
+			posix_acl_release(acl);
+			return error;
+		}
 	}
 	return -EAGAIN;
 }

@@ -81,9 +81,9 @@ static char *serial_version = "4.30";
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
+#include <linux/platform_device.h>
 
 #include <asm/setup.h>
 
@@ -1071,7 +1071,7 @@ static int get_serial_info(struct async_struct * info,
 	if (!retinfo)
 		return -EFAULT;
 	memset(&tmp, 0, sizeof(tmp));
-	lock_kernel();
+	tty_lock();
 	tmp.type = state->type;
 	tmp.line = state->line;
 	tmp.port = state->port;
@@ -1082,7 +1082,7 @@ static int get_serial_info(struct async_struct * info,
 	tmp.close_delay = state->close_delay;
 	tmp.closing_wait = state->closing_wait;
 	tmp.custom_divisor = state->custom_divisor;
-	unlock_kernel();
+	tty_unlock();
 	if (copy_to_user(retinfo,&tmp,sizeof(*retinfo)))
 		return -EFAULT;
 	return 0;
@@ -1099,14 +1099,14 @@ static int set_serial_info(struct async_struct * info,
 	if (copy_from_user(&new_serial,new_info,sizeof(new_serial)))
 		return -EFAULT;
 
-	lock_kernel();
+	tty_lock();
 	state = info->state;
 	old_state = *state;
   
 	change_irq = new_serial.irq != state->irq;
 	change_port = (new_serial.port != state->port);
 	if(change_irq || change_port || (new_serial.xmit_fifo_size != state->xmit_fifo_size)) {
-	  unlock_kernel();
+	  tty_unlock();
 	  return -EINVAL;
 	}
   
@@ -1126,7 +1126,7 @@ static int set_serial_info(struct async_struct * info,
 	}
 
 	if (new_serial.baud_base < 9600) {
-		unlock_kernel();
+		tty_unlock();
 		return -EINVAL;
 	}
 
@@ -1162,7 +1162,7 @@ check_and_exit:
 		}
 	} else
 		retval = startup(info);
-	unlock_kernel();
+	tty_unlock();
 	return retval;
 }
 
@@ -1262,13 +1262,42 @@ static int rs_break(struct tty_struct *tty, int break_state)
 	return 0;
 }
 
+/*
+ * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
+ * Return: write counters to the user passed counter struct
+ * NB: both 1->0 and 0->1 transitions are counted except for
+ *     RI where only 0->1 is counted.
+ */
+static int rs_get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *icount)
+{
+	struct async_struct *info = tty->driver_data;
+	struct async_icount cnow;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	cnow = info->state->icount;
+	local_irq_restore(flags);
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+
+	return 0;
+}
 
 static int rs_ioctl(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct async_struct * info = tty->driver_data;
 	struct async_icount cprev, cnow;	/* kernel counter temps */
-	struct serial_icounter_struct icount;
 	void __user *argp = (void __user *)arg;
 	unsigned long flags;
 
@@ -1331,31 +1360,6 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 			}
 			/* NOTREACHED */
 
-		/* 
-		 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
-		 * Return: write counters to the user passed counter struct
-		 * NB: both 1->0 and 0->1 transitions are counted except for
-		 *     RI where only 0->1 is counted.
-		 */
-		case TIOCGICOUNT:
-			local_irq_save(flags);
-			cnow = info->state->icount;
-			local_irq_restore(flags);
-			icount.cts = cnow.cts;
-			icount.dsr = cnow.dsr;
-			icount.rng = cnow.rng;
-			icount.dcd = cnow.dcd;
-			icount.rx = cnow.rx;
-			icount.tx = cnow.tx;
-			icount.frame = cnow.frame;
-			icount.overrun = cnow.overrun;
-			icount.parity = cnow.parity;
-			icount.brk = cnow.brk;
-			icount.buf_overrun = cnow.buf_overrun;
-
-			if (copy_to_user(argp, &icount, sizeof(icount)))
-				return -EFAULT;
-			return 0;
 		case TIOCSERGWILD:
 		case TIOCSERSWILD:
 			/* "setserial -W" is called in Debian boot */
@@ -1527,6 +1531,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 {
 	struct async_struct * info = tty->driver_data;
 	unsigned long orig_jiffies, char_time;
+	int tty_was_locked = tty_locked();
 	int lsr;
 
 	if (serial_paranoia_check(info, tty->name, "rs_wait_until_sent"))
@@ -1537,7 +1542,12 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 
 	orig_jiffies = jiffies;
 
-	lock_kernel();
+	/*
+	 * tty_wait_until_sent is called from lots of places,
+	 * with or without the BTM.
+	 */
+	if (!tty_was_locked)
+		tty_lock();
 	/*
 	 * Set the check interval to be 1/5 of the estimated time to
 	 * send a single character, and make it at least 1.  The check
@@ -1578,7 +1588,8 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 			break;
 	}
 	__set_current_state(TASK_RUNNING);
-	unlock_kernel();
+	if (!tty_was_locked)
+		tty_unlock();
 #ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
 	printk("lsr = %d (jiff=%lu)...done\n", lsr, jiffies);
 #endif
@@ -1702,7 +1713,9 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 		printk("block_til_ready blocking: ttys%d, count = %d\n",
 		       info->line, state->count);
 #endif
+		tty_unlock();
 		schedule();
+		tty_lock();
 	}
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&info->open_wait, &wait);
@@ -1948,34 +1961,22 @@ static const struct tty_operations serial_ops = {
 	.wait_until_sent = rs_wait_until_sent,
 	.tiocmget = rs_tiocmget,
 	.tiocmset = rs_tiocmset,
+	.get_icount = rs_get_icount,
 	.proc_fops = &rs_proc_fops,
 };
 
 /*
  * The serial driver boot-time initialization code!
  */
-static int __init rs_init(void)
+static int __init amiga_serial_probe(struct platform_device *pdev)
 {
 	unsigned long flags;
 	struct serial_state * state;
 	int error;
 
-	if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(AMI_SERIAL))
-		return -ENODEV;
-
 	serial_driver = alloc_tty_driver(1);
 	if (!serial_driver)
 		return -ENOMEM;
-
-	/*
-	 *  We request SERDAT and SERPER only, because the serial registers are
-	 *  too spreaded over the custom register space
-	 */
-	if (!request_mem_region(CUSTOM_PHYSADDR+0x30, 4,
-				"amiserial [Paula]")) {
-		error = -EBUSY;
-		goto fail_put_tty_driver;
-	}
 
 	IRQ_ports = NULL;
 
@@ -1998,7 +1999,7 @@ static int __init rs_init(void)
 
 	error = tty_register_driver(serial_driver);
 	if (error)
-		goto fail_release_mem_region;
+		goto fail_put_tty_driver;
 
 	state = rs_table;
 	state->magic = SSTATE_MAGIC;
@@ -2050,23 +2051,24 @@ static int __init rs_init(void)
 	ciab.ddra |= (SER_DTR | SER_RTS);   /* outputs */
 	ciab.ddra &= ~(SER_DCD | SER_CTS | SER_DSR);  /* inputs */
 
+	platform_set_drvdata(pdev, state);
+
 	return 0;
 
 fail_free_irq:
 	free_irq(IRQ_AMIGA_TBE, state);
 fail_unregister:
 	tty_unregister_driver(serial_driver);
-fail_release_mem_region:
-	release_mem_region(CUSTOM_PHYSADDR+0x30, 4);
 fail_put_tty_driver:
 	put_tty_driver(serial_driver);
 	return error;
 }
 
-static __exit void rs_exit(void) 
+static int __exit amiga_serial_remove(struct platform_device *pdev)
 {
 	int error;
-	struct async_struct *info = rs_table[0].info;
+	struct serial_state *state = platform_get_drvdata(pdev);
+	struct async_struct *info = state->info;
 
 	/* printk("Unloading %s: version %s\n", serial_name, serial_version); */
 	tasklet_kill(&info->tlet);
@@ -2075,19 +2077,38 @@ static __exit void rs_exit(void)
 		       error);
 	put_tty_driver(serial_driver);
 
-	if (info) {
-	  rs_table[0].info = NULL;
-	  kfree(info);
-	}
+	rs_table[0].info = NULL;
+	kfree(info);
 
 	free_irq(IRQ_AMIGA_TBE, rs_table);
 	free_irq(IRQ_AMIGA_RBF, rs_table);
 
-	release_mem_region(CUSTOM_PHYSADDR+0x30, 4);
+	platform_set_drvdata(pdev, NULL);
+
+	return error;
 }
 
-module_init(rs_init)
-module_exit(rs_exit)
+static struct platform_driver amiga_serial_driver = {
+	.remove = __exit_p(amiga_serial_remove),
+	.driver   = {
+		.name	= "amiga-serial",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init amiga_serial_init(void)
+{
+	return platform_driver_probe(&amiga_serial_driver, amiga_serial_probe);
+}
+
+module_init(amiga_serial_init);
+
+static void __exit amiga_serial_exit(void)
+{
+	platform_driver_unregister(&amiga_serial_driver);
+}
+
+module_exit(amiga_serial_exit);
 
 
 #if defined(CONFIG_SERIAL_CONSOLE) && !defined(MODULE)
@@ -2154,3 +2175,4 @@ console_initcall(amiserial_console_init);
 #endif /* CONFIG_SERIAL_CONSOLE && !MODULE */
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:amiga-serial");

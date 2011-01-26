@@ -644,6 +644,8 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 				interface->control_cache.size_in_bytes,
 				(struct hpi_control_cache_info *)
 				p_control_cache_virtual);
+			if (!phw->p_cache)
+				err = HPI_ERROR_MEMORY_ALLOC;
 		}
 		if (!err) {
 			err = hpios_locked_mem_get_phys_addr(&phw->
@@ -941,11 +943,10 @@ static void outstream_host_buffer_free(struct hpi_adapter_obj *pao,
 
 }
 
-static long outstream_get_space_available(struct hpi_hostbuffer_status
-	*status)
+static u32 outstream_get_space_available(struct hpi_hostbuffer_status *status)
 {
-	return status->size_in_bytes - ((long)(status->host_index) -
-		(long)(status->dSP_index));
+	return status->size_in_bytes - (status->host_index -
+		status->dSP_index);
 }
 
 static void outstream_write(struct hpi_adapter_obj *pao,
@@ -954,7 +955,7 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 	struct hpi_hw_obj *phw = pao->priv;
 	struct bus_master_interface *interface = phw->p_interface_buffer;
 	struct hpi_hostbuffer_status *status;
-	long space_available;
+	u32 space_available;
 
 	if (!phw->outstream_host_buffer_size[phm->obj_index]) {
 		/* there  is no BBM buffer, write via message */
@@ -966,22 +967,15 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 	status = &interface->outstream_host_buffer_status[phm->obj_index];
 
 	if (phw->flag_outstream_just_reset[phm->obj_index]) {
-		/* Format can only change after reset. Must tell DSP. */
-		u16 function = phm->function;
-		phw->flag_outstream_just_reset[phm->obj_index] = 0;
-		phm->function = HPI_OSTREAM_SET_FORMAT;
-		hw_message(pao, phm, phr);	/* send the format to the DSP */
-		phm->function = function;
-		if (phr->error)
-			return;
-	}
-#if 1
-	if (phw->flag_outstream_just_reset[phm->obj_index]) {
 		/* First OutStremWrite() call following reset will write data to the
-		   adapter's buffers, reducing delay before stream can start
+		   adapter's buffers, reducing delay before stream can start. The DSP
+		   takes care of setting the stream data format using format information
+		   embedded in phm.
 		 */
 		int partial_write = 0;
 		unsigned int original_size = 0;
+
+		phw->flag_outstream_just_reset[phm->obj_index] = 0;
 
 		/* Send the first buffer to the DSP the old way. */
 		/* Limit size of first transfer - */
@@ -994,6 +988,10 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 		/* write it */
 		phm->function = HPI_OSTREAM_WRITE;
 		hw_message(pao, phm, phr);
+
+		if (phr->error)
+			return;
+
 		/* update status information that the DSP would typically
 		 * update (and will update next time the DSP
 		 * buffer update task reads data from the host BBM buffer)
@@ -1012,10 +1010,9 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 			original_size - HPI6205_SIZEOF_DATA;
 		phm->u.d.u.data.pb_data += HPI6205_SIZEOF_DATA;
 	}
-#endif
 
 	space_available = outstream_get_space_available(status);
-	if (space_available < (long)phm->u.d.u.data.data_size) {
+	if (space_available < phm->u.d.u.data.data_size) {
 		phr->error = HPI_ERROR_INVALID_DATASIZE;
 		return;
 	}
@@ -1026,7 +1023,7 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 		&& hpios_locked_mem_valid(&phw->outstream_host_buffers[phm->
 				obj_index])) {
 		u8 *p_bbm_data;
-		long l_first_write;
+		u32 l_first_write;
 		u8 *p_app_data = (u8 *)phm->u.d.u.data.pb_data;
 
 		if (hpios_locked_mem_get_virt_addr(&phw->
@@ -1256,9 +1253,9 @@ static void instream_start(struct hpi_adapter_obj *pao,
 	hw_message(pao, phm, phr);
 }
 
-static long instream_get_bytes_available(struct hpi_hostbuffer_status *status)
+static u32 instream_get_bytes_available(struct hpi_hostbuffer_status *status)
 {
-	return (long)(status->dSP_index) - (long)(status->host_index);
+	return status->dSP_index - status->host_index;
 }
 
 static void instream_read(struct hpi_adapter_obj *pao,
@@ -1267,9 +1264,9 @@ static void instream_read(struct hpi_adapter_obj *pao,
 	struct hpi_hw_obj *phw = pao->priv;
 	struct bus_master_interface *interface = phw->p_interface_buffer;
 	struct hpi_hostbuffer_status *status;
-	long data_available;
+	u32 data_available;
 	u8 *p_bbm_data;
-	long l_first_read;
+	u32 l_first_read;
 	u8 *p_app_data = (u8 *)phm->u.d.u.data.pb_data;
 
 	if (!phw->instream_host_buffer_size[phm->obj_index]) {
@@ -1280,7 +1277,7 @@ static void instream_read(struct hpi_adapter_obj *pao,
 
 	status = &interface->instream_host_buffer_status[phm->obj_index];
 	data_available = instream_get_bytes_available(status);
-	if (data_available < (long)phm->u.d.u.data.data_size) {
+	if (data_available < phm->u.d.u.data.data_size) {
 		phr->error = HPI_ERROR_INVALID_DATASIZE;
 		return;
 	}
@@ -1368,6 +1365,9 @@ static u16 adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	case HPI_ADAPTER_FAMILY_ASI(0x5600):
 	case HPI_ADAPTER_FAMILY_ASI(0x6500):
 		firmware_id = HPI_ADAPTER_FAMILY_ASI(0x6600);
+		break;
+	case HPI_ADAPTER_FAMILY_ASI(0x8800):
+		firmware_id = HPI_ADAPTER_FAMILY_ASI(0x8900);
 		break;
 	}
 	boot_code_id[1] = firmware_id;

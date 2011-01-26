@@ -12,6 +12,7 @@
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/mount.h>
@@ -258,17 +259,22 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 
 	error = inode_change_ok(inode, iattr);
 	if (error)
-		goto out;
+		return error;
 
-	error = inode_setattr(inode, iattr);
-	if (error)
-		goto out;
+	if ((iattr->ia_valid & ATTR_SIZE) &&
+	    iattr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, iattr->ia_size);
+		if (error)
+			return error;
+	}
+
+	setattr_copy(inode, iattr);
+	mark_inode_dirty(inode);
 	
 	de->uid = inode->i_uid;
 	de->gid = inode->i_gid;
 	de->mode = inode->i_mode;
-out:
-	return error;
+	return 0;
 }
 
 static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,
@@ -343,21 +349,6 @@ static DEFINE_SPINLOCK(proc_inum_lock); /* protects the above */
 /*
  * Return an inode number between PROC_DYNAMIC_FIRST and
  * 0xffffffff, or zero on failure.
- *
- * Current inode allocations in the proc-fs (hex-numbers):
- *
- * 00000000		reserved
- * 00000001-00000fff	static entries	(goners)
- *      001		root-ino
- *
- * 00001000-00001fff	unused
- * 0001xxxx-7fffxxxx	pid-dir entries for pid 1-7fff
- * 80000000-efffffff	unused
- * f0000000-ffffffff	dynamic entries
- *
- * Goal:
- *	Once we split the thing into several virtual filesystems,
- *	we will get rid of magical ranges (and this comment, BTW).
  */
 static unsigned int get_inode_number(void)
 {
@@ -409,7 +400,7 @@ static const struct inode_operations proc_link_inode_operations = {
  * smarter: we could keep a "volatile" flag in the 
  * inode to indicate which ones to keep.
  */
-static int proc_delete_dentry(struct dentry * dentry)
+static int proc_delete_dentry(const struct dentry * dentry)
 {
 	return 1;
 }
@@ -434,13 +425,10 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 		if (de->namelen != dentry->d_name.len)
 			continue;
 		if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
-			unsigned int ino;
-
-			ino = de->low_ino;
 			pde_get(de);
 			spin_unlock(&proc_subdir_lock);
 			error = -EINVAL;
-			inode = proc_get_inode(dir->i_sb, ino, de);
+			inode = proc_get_inode(dir->i_sb, de);
 			goto out_unlock;
 		}
 	}
@@ -448,7 +436,7 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 out_unlock:
 
 	if (inode) {
-		dentry->d_op = &proc_dentry_operations;
+		d_set_d_op(dentry, &proc_dentry_operations);
 		d_add(dentry, inode);
 		return NULL;
 	}
@@ -777,12 +765,7 @@ EXPORT_SYMBOL(proc_create_data);
 
 static void free_proc_entry(struct proc_dir_entry *de)
 {
-	unsigned int ino = de->low_ino;
-
-	if (ino < PROC_DYNAMIC_FIRST)
-		return;
-
-	release_inode_number(ino);
+	release_inode_number(de->low_ino);
 
 	if (S_ISLNK(de->mode))
 		kfree(de->data);
@@ -843,12 +826,9 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 
 		wait_for_completion(de->pde_unload_completion);
 
-		goto continue_removing;
+		spin_lock(&de->pde_unload_lock);
 	}
-	spin_unlock(&de->pde_unload_lock);
 
-continue_removing:
-	spin_lock(&de->pde_unload_lock);
 	while (!list_empty(&de->pde_openers)) {
 		struct pde_opener *pdeo;
 

@@ -625,6 +625,8 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 			control_cache_size, (struct hpi_control_cache_info *)
 			&phw->control_cache[0]
 			);
+		if (!phw->p_cache)
+			pao->has_control_cache = 0;
 	} else
 		pao->has_control_cache = 0;
 
@@ -687,12 +689,10 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	switch (pao->pci.subsys_device_id) {
 	case 0x5100:
 	case 0x5110:	/* ASI5100 revB or higher with C6711D */
+	case 0x5200:	/* ASI5200 PC_ie version of ASI5100 */
 	case 0x6100:
 	case 0x6200:
 		boot_load_family = HPI_ADAPTER_FAMILY_ASI(0x6200);
-		break;
-	case 0x8800:
-		boot_load_family = HPI_ADAPTER_FAMILY_ASI(0x8800);
 		break;
 	default:
 		return HPI6000_ERROR_UNHANDLED_SUBSYS_ID;
@@ -1135,6 +1135,12 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 				if (HPI_ADAPTER_FAMILY_ASI(pao->pci.
 						subsys_device_id) ==
 					HPI_ADAPTER_FAMILY_ASI(0x5100))
+					mask = 0x00000000L;
+				/* ASI5200 uses AX6 code, */
+				/* but has no PLD r/w register to test */
+				if (HPI_ADAPTER_FAMILY_ASI(pao->pci.
+						subsys_device_id) ==
+					HPI_ADAPTER_FAMILY_ASI(0x5200))
 					mask = 0x00000000L;
 				break;
 			case HPI_ADAPTER_FAMILY_ASI(0x8800):
@@ -1775,7 +1781,6 @@ static void hw_message(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 	u16 error = 0;
 	u16 dsp_index = 0;
 	u16 num_dsp = ((struct hpi_hw_obj *)pao->priv)->num_dsp;
-	hpios_dsplock_lock(pao);
 
 	if (num_dsp < 2)
 		dsp_index = 0;
@@ -1796,6 +1801,8 @@ static void hw_message(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 			}
 		}
 	}
+
+	hpios_dsplock_lock(pao);
 	error = hpi6000_message_response_sequence(pao, dsp_index, phm, phr);
 
 	/* maybe an error response */

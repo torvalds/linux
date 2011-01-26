@@ -12,6 +12,7 @@ obj-$(CONFIG_GENERIC_GPIO) += gpio.o
 obj-$(CONFIG_EARLY_PRINTK) += early_printk.o
 obj-$(CONFIG_SERIAL_8250) += serial.o
 obj-$(CONFIG_LOONGSON_UART_BASE) += uart_base.o
+obj-$(CONFIG_LOONGSON_MC146818) += rtc.o
 
 #
 # Enable CS5536 Virtual Support Module(VSM) to virtulize the PCI configure

@@ -18,15 +18,17 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/max8649.h>
 #include <linux/mfd/max8925.h>
+#include <linux/interrupt.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/addr-map.h>
 #include <mach/mfp-mmp2.h>
 #include <mach/mmp2.h>
-#include <mach/irqs.h>
 
 #include "common.h"
+
+#define JASPER_NR_IRQS		(IRQ_BOARD_START + 48)
 
 static unsigned long jasper_pin_config[] __initdata = {
 	/* UART1 */
@@ -65,6 +67,36 @@ static unsigned long jasper_pin_config[] __initdata = {
 
 	/* PMIC */
 	PMIC_PMIC_INT | MFP_LPM_EDGE_FALL,
+
+	/* MMC1 */
+	GPIO131_MMC1_DAT3,
+	GPIO132_MMC1_DAT2,
+	GPIO133_MMC1_DAT1,
+	GPIO134_MMC1_DAT0,
+	GPIO136_MMC1_CMD,
+	GPIO139_MMC1_CLK,
+	GPIO140_MMC1_CD,
+	GPIO141_MMC1_WP,
+
+	/* MMC2 */
+	GPIO37_MMC2_DAT3,
+	GPIO38_MMC2_DAT2,
+	GPIO39_MMC2_DAT1,
+	GPIO40_MMC2_DAT0,
+	GPIO41_MMC2_CMD,
+	GPIO42_MMC2_CLK,
+
+	/* MMC3 */
+	GPIO165_MMC3_DAT7,
+	GPIO162_MMC3_DAT6,
+	GPIO166_MMC3_DAT5,
+	GPIO163_MMC3_DAT4,
+	GPIO167_MMC3_DAT3,
+	GPIO164_MMC3_DAT2,
+	GPIO168_MMC3_DAT1,
+	GPIO111_MMC3_DAT0,
+	GPIO112_MMC3_CMD,
+	GPIO151_MMC3_CLK,
 };
 
 static struct regulator_consumer_supply max8649_supply[] = {
@@ -121,6 +153,10 @@ static struct i2c_board_info jasper_twsi1_info[] = {
 	},
 };
 
+static struct sdhci_pxa_platdata mmp2_sdh_platdata_mmc0 = {
+	.max_speed	= 25000000,
+};
+
 static void __init jasper_init(void)
 {
 	mfp_config(ARRAY_AND_SIZE(jasper_pin_config));
@@ -129,15 +165,14 @@ static void __init jasper_init(void)
 	mmp2_add_uart(1);
 	mmp2_add_uart(3);
 	mmp2_add_twsi(1, NULL, ARRAY_AND_SIZE(jasper_twsi1_info));
+	mmp2_add_sdhost(0, &mmp2_sdh_platdata_mmc0); /* SD/MMC */
 
 	regulator_has_full_constraints();
 }
 
 MACHINE_START(MARVELL_JASPER, "Jasper Development Platform")
-	.phys_io        = APB_PHYS_BASE,
-	.boot_params    = 0x00000100,
-	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= mmp_map_io,
+	.nr_irqs	= JASPER_NR_IRQS,
 	.init_irq       = mmp2_init_irq,
 	.timer          = &mmp2_timer,
 	.init_machine   = jasper_init,

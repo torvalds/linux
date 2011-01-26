@@ -169,7 +169,7 @@ void parse_config(struct net_device *dev)
 	DBG_ENTER(DbgInfo);
 
 	/* Get the wavelan specific info for this device */
-	wvlan_config = (struct wl_private *)dev->priv;
+	wvlan_config = dev->priv;
 	if (wvlan_config == NULL) {
 		DBG_ERROR(DbgInfo, "Wavelan specific info struct not present?\n");
 		return;
@@ -248,7 +248,7 @@ void parse_config(struct net_device *dev)
 		} else {
 			DBG_TRACE(DbgInfo, "F/W image file found\n");
 #define DHF_ALLOC_SIZE 96000			/* just below 96K, let's hope it suffices for now and for the future */
-			cp = (char *)vmalloc(DHF_ALLOC_SIZE);
+			cp = vmalloc(DHF_ALLOC_SIZE);
 			if (cp == NULL) {
 				DBG_ERROR(DbgInfo, "error in vmalloc\n");
 			} else {

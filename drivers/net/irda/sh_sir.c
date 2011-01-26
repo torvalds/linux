@@ -258,7 +258,7 @@ static int sh_sir_set_baudrate(struct sh_sir_self *self, u32 baudrate)
 
 	/* Baud Rate Error Correction x 10000 */
 	u32 rate_err_array[] = {
-		0000, 0625, 1250, 1875,
+		   0,  625, 1250, 1875,
 		2500, 3125, 3750, 4375,
 		5000, 5625, 6250, 6875,
 		7500, 8125, 8750, 9375,
@@ -709,7 +709,7 @@ static int __devinit sh_sir_probe(struct platform_device *pdev)
 	struct sh_sir_self *self;
 	struct resource *res;
 	char clk_name[8];
-	unsigned int irq;
+	int irq;
 	int err = -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

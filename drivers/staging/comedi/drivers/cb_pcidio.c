@@ -91,11 +91,10 @@ static const struct pcidio_board pcidio_boards[] = {
 /* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
  * upstream. */
 static DEFINE_PCI_DEVICE_TABLE(pcidio_pci_table) = {
-	{
-	PCI_VENDOR_ID_CB, 0x0028, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x0014, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x000b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0028) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0014) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x000b) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, pcidio_pci_table);
@@ -202,9 +201,7 @@ static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * Probe the device to determine what device in the series it is.
  */
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		/*  is it not a computer boards card? */
 		if (pcidev->vendor != PCI_VENDOR_ID_CB)
 			continue;
@@ -300,4 +297,44 @@ static int pcidio_detach(struct comedi_device *dev)
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_PCI_INITCLEANUP(driver_cb_pcidio, pcidio_pci_table);
+static int __devinit driver_cb_pcidio_pci_probe(struct pci_dev *dev,
+						const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_cb_pcidio.driver_name);
+}
+
+static void __devexit driver_cb_pcidio_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_cb_pcidio_pci_driver = {
+	.id_table = pcidio_pci_table,
+	.probe = &driver_cb_pcidio_pci_probe,
+	.remove = __devexit_p(&driver_cb_pcidio_pci_remove)
+};
+
+static int __init driver_cb_pcidio_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_cb_pcidio);
+	if (retval < 0)
+		return retval;
+
+	driver_cb_pcidio_pci_driver.name = (char *)driver_cb_pcidio.driver_name;
+	return pci_register_driver(&driver_cb_pcidio_pci_driver);
+}
+
+static void __exit driver_cb_pcidio_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_cb_pcidio_pci_driver);
+	comedi_driver_unregister(&driver_cb_pcidio);
+}
+
+module_init(driver_cb_pcidio_init_module);
+module_exit(driver_cb_pcidio_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

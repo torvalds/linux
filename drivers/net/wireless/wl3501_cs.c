@@ -29,7 +29,6 @@
 
 #include <linux/delay.h>
 #include <linux/types.h>
-#include <linux/ethtool.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/in.h>
@@ -48,8 +47,6 @@
 
 #include <net/iw_handler.h>
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -79,22 +76,8 @@
 #define WL3501_RESUME	0
 #define WL3501_SUSPEND	1
 
-/*
- * The event() function is this driver's Card Services event handler.  It will
- * be called by Card Services when an appropriate card status event is
- * received. The config() and release() entry points are used to configure or
- * release a socket, in response to card insertion and ejection events.  They
- * are invoked from the wl24 event handler.
- */
 static int wl3501_config(struct pcmcia_device *link);
 static void wl3501_release(struct pcmcia_device *link);
-
-/*
- * The dev_info variable is the "key" that is used to match up this
- * device driver with appropriate cards, through the card configuration
- * database.
- */
-static dev_info_t wl3501_dev_info = "wl3501_cs";
 
 static const struct {
 	int reg_domain;
@@ -209,7 +192,7 @@ static inline void wl3501_switch_page(struct wl3501_card *this, u8 page)
 }
 
 /*
- * Get Ethernet MAC addresss.
+ * Get Ethernet MAC address.
  *
  * WARNING: We switch to FPAGE0 and switc back again.
  *          Making sure there is no other WL function beening called by ISR.
@@ -1419,15 +1402,6 @@ static struct iw_statistics *wl3501_get_wireless_stats(struct net_device *dev)
 	return wstats;
 }
 
-static void wl3501_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
-{
-	strlcpy(info->driver, wl3501_dev_info, sizeof(info->driver));
-}
-
-static const struct ethtool_ops ops = {
-	.get_drvinfo = wl3501_get_drvinfo
-};
-
 /**
  * wl3501_detach - deletes a driver "instance"
  * @link - FILL_IN
@@ -1877,29 +1851,18 @@ static const struct net_device_ops wl3501_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/**
- * wl3501_attach - creates an "instance" of the driver
- *
- * Creates an "instance" of the driver, allocating local data structures for
- * one device.  The device is registered with Card Services.
- *
- * The dev_link structure is initialized, but we don't actually configure the
- * card at this point -- we wait until we receive a card insertion event.
- */
 static int wl3501_probe(struct pcmcia_device *p_dev)
 {
 	struct net_device *dev;
 	struct wl3501_card *this;
 
 	/* The io structure describes IO port mapping */
-	p_dev->io.NumPorts1	= 16;
-	p_dev->io.Attributes1	= IO_DATA_PATH_WIDTH_8;
-	p_dev->io.IOAddrLines	= 5;
+	p_dev->resource[0]->end	= 16;
+	p_dev->resource[0]->flags	= IO_DATA_PATH_WIDTH_8;
 
 	/* General socket configuration */
-	p_dev->conf.Attributes	= CONF_ENABLE_IRQ;
-	p_dev->conf.IntType	= INT_MEMORY_AND_IO;
-	p_dev->conf.ConfigIndex	= 1;
+	p_dev->config_flags	= CONF_ENABLE_IRQ;
+	p_dev->config_index	= 1;
 
 	dev = alloc_etherdev(sizeof(struct wl3501_card));
 	if (!dev)
@@ -1914,7 +1877,6 @@ static int wl3501_probe(struct pcmcia_device *p_dev)
 	this->p_dev = p_dev;
 	dev->wireless_data	= &this->wireless_data;
 	dev->wireless_handlers	= &wl3501_handler_def;
-	SET_ETHTOOL_OPS(dev, &ops);
 	netif_stop_queue(dev);
 	p_dev->priv = dev;
 
@@ -1923,14 +1885,6 @@ out_link:
 	return -ENOMEM;
 }
 
-/**
- * wl3501_config - configure the PCMCIA socket and make eth device available
- * @link - FILL_IN
- *
- * wl3501_config() is scheduled to run after a CARD_INSERTION event is
- * received, to configure the PCMCIA socket, and to make the ethernet device
- * available to the system.
- */
 static int wl3501_config(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
@@ -1940,13 +1894,14 @@ static int wl3501_config(struct pcmcia_device *link)
 	/* Try allocating IO ports.  This tries a few fixed addresses.  If you
 	 * want, you can also read the card's config table to pick addresses --
 	 * see the serial driver for an example. */
+	link->io_lines = 5;
 
 	for (j = 0x280; j < 0x400; j += 0x20) {
 		/* The '^0x300' is so that we probe 0x300-0x3ff first, then
 		 * 0x200-0x2ff, and so on, because this seems safer */
-		link->io.BasePort1 = j;
-		link->io.BasePort2 = link->io.BasePort1 + 0x10;
-		i = pcmcia_request_io(link, &link->io);
+		link->resource[0]->start = j;
+		link->resource[1]->start = link->resource[0]->start + 0x10;
+		i = pcmcia_request_io(link);
 		if (i == 0)
 			break;
 	}
@@ -1960,15 +1915,12 @@ static int wl3501_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	/* This actually configures the PCMCIA socket -- setting up the I/O
-	 * windows and the interrupt mapping.  */
-
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
 	dev->irq = link->irq;
-	dev->base_addr = link->io.BasePort1;
+	dev->base_addr = link->resource[0]->start;
 	SET_NETDEV_DEV(dev, &link->dev);
 	if (register_netdev(dev)) {
 		printk(KERN_NOTICE "wl3501_cs: register_netdev() failed\n");
@@ -2018,14 +1970,6 @@ failed:
 	return -ENODEV;
 }
 
-/**
- * wl3501_release - unregister the net, release PCMCIA configuration
- * @arg - link
- *
- * After a card is removed, wl3501_release() will unregister the net device,
- * and release the PCMCIA configuration.  If the device is still open, this
- * will be postponed until it is closed.
- */
 static void wl3501_release(struct pcmcia_device *link)
 {
 	pcmcia_disable_device(link);
@@ -2064,9 +2008,7 @@ MODULE_DEVICE_TABLE(pcmcia, wl3501_ids);
 
 static struct pcmcia_driver wl3501_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "wl3501_cs",
-	},
+	.name		= "wl3501_cs",
 	.probe		= wl3501_probe,
 	.remove		= wl3501_detach,
 	.id_table	= wl3501_ids,

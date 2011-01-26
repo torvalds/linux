@@ -110,7 +110,7 @@ struct mlx4_eqe {
 		u32		raw[6];
 		struct {
 			__be32	cqn;
-		} __attribute__((packed)) comp;
+		} __packed comp;
 		struct {
 			u16	reserved1;
 			__be16	token;
@@ -118,27 +118,27 @@ struct mlx4_eqe {
 			u8	reserved3[3];
 			u8	status;
 			__be64	out_param;
-		} __attribute__((packed)) cmd;
+		} __packed cmd;
 		struct {
 			__be32	qpn;
-		} __attribute__((packed)) qp;
+		} __packed qp;
 		struct {
 			__be32	srqn;
-		} __attribute__((packed)) srq;
+		} __packed srq;
 		struct {
 			__be32	cqn;
 			u32	reserved1;
 			u8	reserved2[3];
 			u8	syndrome;
-		} __attribute__((packed)) cq_err;
+		} __packed cq_err;
 		struct {
 			u32	reserved1[2];
 			__be32	port;
-		} __attribute__((packed)) port_change;
+		} __packed port_change;
 	}			event;
 	u8			reserved3[3];
 	u8			owner;
-} __attribute__((packed));
+} __packed;
 
 static void eq_set_ci(struct mlx4_eq *eq, int req_not)
 {
@@ -475,10 +475,10 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 		mlx4_dbg(dev, "Dumping EQ context %02x:\n", eq->eqn);
 		for (i = 0; i < sizeof (struct mlx4_eq_context) / 4; ++i) {
 			if (i % 4 == 0)
-				printk("[%02x] ", i * 4);
-			printk(" %08x", be32_to_cpup(mailbox->buf + i * 4));
+				pr_cont("[%02x] ", i * 4);
+			pr_cont(" %08x", be32_to_cpup(mailbox->buf + i * 4));
 			if ((i + 1) % 4 == 0)
-				printk("\n");
+				pr_cont("\n");
 		}
 	}
 
@@ -699,3 +699,47 @@ void mlx4_cleanup_eq_table(struct mlx4_dev *dev)
 
 	kfree(priv->eq_table.uar_map);
 }
+
+/* A test that verifies that we can accept interrupts on all
+ * the irq vectors of the device.
+ * Interrupts are checked using the NOP command.
+ */
+int mlx4_test_interrupts(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int i;
+	int err;
+
+	err = mlx4_NOP(dev);
+	/* When not in MSI_X, there is only one irq to check */
+	if (!(dev->flags & MLX4_FLAG_MSI_X))
+		return err;
+
+	/* A loop over all completion vectors, for each vector we will check
+	 * whether it works by mapping command completions to that vector
+	 * and performing a NOP command
+	 */
+	for(i = 0; !err && (i < dev->caps.num_comp_vectors); ++i) {
+		/* Temporary use polling for command completions */
+		mlx4_cmd_use_polling(dev);
+
+		/* Map the new eq to handle all asyncronous events */
+		err = mlx4_MAP_EQ(dev, MLX4_ASYNC_EVENT_MASK, 0,
+				  priv->eq_table.eq[i].eqn);
+		if (err) {
+			mlx4_warn(dev, "Failed mapping eq for interrupt test\n");
+			mlx4_cmd_use_events(dev);
+			break;
+		}
+
+		/* Go back to using events */
+		mlx4_cmd_use_events(dev);
+		err = mlx4_NOP(dev);
+	}
+
+	/* Return to default */
+	mlx4_MAP_EQ(dev, MLX4_ASYNC_EVENT_MASK, 0,
+		    priv->eq_table.eq[dev->caps.num_comp_vectors].eqn);
+	return err;
+}
+EXPORT_SYMBOL(mlx4_test_interrupts);

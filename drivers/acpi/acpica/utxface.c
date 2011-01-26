@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -107,6 +107,15 @@ acpi_status __init acpi_initialize_subsystem(void)
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"During Namespace initialization"));
+		return_ACPI_STATUS(status);
+	}
+
+	/* Initialize the global OSI interfaces list with the static names */
+
+	status = acpi_ut_initialize_interfaces();
+	if (ACPI_FAILURE(status)) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"During OSI interfaces initialization"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -287,23 +296,6 @@ acpi_status acpi_initialize_objects(u32 flags)
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
-	}
-
-	/*
-	 * Complete the GPE initialization for the GPE blocks defined in the FADT
-	 * (GPE block 0 and 1).
-	 *
-	 * Note1: This is where the _PRW methods are executed for the GPEs. These
-	 * methods can only be executed after the SCI and Global Lock handlers are
-	 * installed and initialized.
-	 *
-	 * Note2: Currently, there seems to be no need to run the _REG methods
-	 * before execution of the _PRW methods and enabling of the GPEs.
-	 */
-	if (!(flags & ACPI_NO_EVENT_INIT)) {
-		status = acpi_ev_install_fadt_gpes();
-		if (ACPI_FAILURE(status))
-			return (status);
 	}
 
 	/*
@@ -510,6 +502,7 @@ acpi_install_initialization_handler(acpi_init_handler handler, u32 function)
 
 ACPI_EXPORT_SYMBOL(acpi_install_initialization_handler)
 #endif				/*  ACPI_FUTURE_USAGE  */
+
 /*****************************************************************************
  *
  * FUNCTION:    acpi_purge_cached_objects
@@ -533,4 +526,117 @@ acpi_status acpi_purge_cached_objects(void)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_purge_cached_objects)
-#endif
+
+/*****************************************************************************
+ *
+ * FUNCTION:    acpi_install_interface
+ *
+ * PARAMETERS:  interface_name      - The interface to install
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Install an _OSI interface to the global list
+ *
+ ****************************************************************************/
+acpi_status acpi_install_interface(acpi_string interface_name)
+{
+	acpi_status status;
+	struct acpi_interface_info *interface_info;
+
+	/* Parameter validation */
+
+	if (!interface_name || (ACPI_STRLEN(interface_name) == 0)) {
+		return (AE_BAD_PARAMETER);
+	}
+
+	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+
+	/* Check if the interface name is already in the global list */
+
+	interface_info = acpi_ut_get_interface(interface_name);
+	if (interface_info) {
+		/*
+		 * The interface already exists in the list. This is OK if the
+		 * interface has been marked invalid -- just clear the bit.
+		 */
+		if (interface_info->flags & ACPI_OSI_INVALID) {
+			interface_info->flags &= ~ACPI_OSI_INVALID;
+			status = AE_OK;
+		} else {
+			status = AE_ALREADY_EXISTS;
+		}
+	} else {
+		/* New interface name, install into the global list */
+
+		status = acpi_ut_install_interface(interface_name);
+	}
+
+	acpi_os_release_mutex(acpi_gbl_osi_mutex);
+	return (status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_install_interface)
+
+/*****************************************************************************
+ *
+ * FUNCTION:    acpi_remove_interface
+ *
+ * PARAMETERS:  interface_name      - The interface to remove
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Remove an _OSI interface from the global list
+ *
+ ****************************************************************************/
+acpi_status acpi_remove_interface(acpi_string interface_name)
+{
+	acpi_status status;
+
+	/* Parameter validation */
+
+	if (!interface_name || (ACPI_STRLEN(interface_name) == 0)) {
+		return (AE_BAD_PARAMETER);
+	}
+
+	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+
+	status = acpi_ut_remove_interface(interface_name);
+
+	acpi_os_release_mutex(acpi_gbl_osi_mutex);
+	return (status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_remove_interface)
+
+/*****************************************************************************
+ *
+ * FUNCTION:    acpi_install_interface_handler
+ *
+ * PARAMETERS:  Handler             - The _OSI interface handler to install
+ *                                    NULL means "remove existing handler"
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Install a handler for the predefined _OSI ACPI method.
+ *              invoked during execution of the internal implementation of
+ *              _OSI. A NULL handler simply removes any existing handler.
+ *
+ ****************************************************************************/
+acpi_status acpi_install_interface_handler(acpi_interface_handler handler)
+{
+	acpi_status status = AE_OK;
+
+	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+
+	if (handler && acpi_gbl_interface_handler) {
+		status = AE_ALREADY_EXISTS;
+	} else {
+		acpi_gbl_interface_handler = handler;
+	}
+
+	acpi_os_release_mutex(acpi_gbl_osi_mutex);
+	return (status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_install_interface_handler)
+#endif				/* !ACPI_ASL_COMPILER */

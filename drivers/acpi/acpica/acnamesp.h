@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -339,18 +339,6 @@ acpi_object_type acpi_ns_get_type(struct acpi_namespace_node *node);
 u32 acpi_ns_local(acpi_object_type type);
 
 void
-acpi_ns_report_error(const char *module_name,
-		     u32 line_number,
-		     const char *internal_name, acpi_status lookup_status);
-
-void
-acpi_ns_report_method_error(const char *module_name,
-			    u32 line_number,
-			    const char *message,
-			    struct acpi_namespace_node *node,
-			    const char *path, acpi_status lookup_status);
-
-void
 acpi_ns_print_node_pathname(struct acpi_namespace_node *node, const char *msg);
 
 acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info);
@@ -368,12 +356,5 @@ acpi_ns_externalize_name(u32 internal_name_length,
 struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle);
 
 void acpi_ns_terminate(void);
-
-struct acpi_namespace_node *acpi_ns_get_parent_node(struct acpi_namespace_node
-						    *node);
-
-struct acpi_namespace_node *acpi_ns_get_next_valid_node(struct
-							acpi_namespace_node
-							*node);
 
 #endif				/* __ACNAMESP_H__ */

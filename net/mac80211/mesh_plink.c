@@ -65,7 +65,6 @@ void mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
 {
 	atomic_inc(&sdata->u.mesh.mshstats.estab_plinks);
 	mesh_accept_plinks_update(sdata);
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
 }
 
 static inline
@@ -73,7 +72,6 @@ void mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
 {
 	atomic_dec(&sdata->u.mesh.mshstats.estab_plinks);
 	mesh_accept_plinks_update(sdata);
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
 }
 
 /**
@@ -115,7 +113,7 @@ static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
 }
 
 /**
- * mesh_plink_deactivate - deactivate mesh peer link
+ * __mesh_plink_deactivate - deactivate mesh peer link
  *
  * @sta: mesh peer link to deactivate
  *
@@ -123,18 +121,23 @@ static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
  *
  * Locking: the caller must hold sta->lock
  */
-static void __mesh_plink_deactivate(struct sta_info *sta)
+static bool __mesh_plink_deactivate(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	bool deactivated = false;
 
-	if (sta->plink_state == PLINK_ESTAB)
+	if (sta->plink_state == PLINK_ESTAB) {
 		mesh_plink_dec_estab_count(sdata);
+		deactivated = true;
+	}
 	sta->plink_state = PLINK_BLOCKED;
 	mesh_path_flush_by_nexthop(sta);
+
+	return deactivated;
 }
 
 /**
- * __mesh_plink_deactivate - deactivate mesh peer link
+ * mesh_plink_deactivate - deactivate mesh peer link
  *
  * @sta: mesh peer link to deactivate
  *
@@ -142,16 +145,23 @@ static void __mesh_plink_deactivate(struct sta_info *sta)
  */
 void mesh_plink_deactivate(struct sta_info *sta)
 {
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	bool deactivated;
+
 	spin_lock_bh(&sta->lock);
-	__mesh_plink_deactivate(sta);
+	deactivated = __mesh_plink_deactivate(sta);
 	spin_unlock_bh(&sta->lock);
+
+	if (deactivated)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
 }
 
 static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		enum plink_frame_type action, u8 *da, __le16 llid, __le16 plid,
 		__le16 reason) {
 	struct ieee80211_local *local = sdata->local;
-	struct sk_buff *skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
+	struct sk_buff *skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400 +
+			sdata->u.mesh.vendor_ie_len);
 	struct ieee80211_mgmt *mgmt;
 	bool include_plid = false;
 	static const u8 meshpeeringproto[] = { 0x00, 0x0F, 0xAC, 0x2A };
@@ -381,10 +391,16 @@ int mesh_plink_open(struct sta_info *sta)
 
 void mesh_plink_block(struct sta_info *sta)
 {
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	bool deactivated;
+
 	spin_lock_bh(&sta->lock);
-	__mesh_plink_deactivate(sta);
+	deactivated = __mesh_plink_deactivate(sta);
 	sta->plink_state = PLINK_BLOCKED;
 	spin_unlock_bh(&sta->lock);
+
+	if (deactivated)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
 }
 
 
@@ -397,6 +413,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	enum plink_event event;
 	enum plink_frame_type ftype;
 	size_t baselen;
+	bool deactivated, matches_local = true;
 	u8 ie_len;
 	u8 *baseaddr;
 	__le16 plid, llid, reason;
@@ -471,6 +488,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	/* Now we will figure out the appropriate event... */
 	event = PLINK_UNDEFINED;
 	if (ftype != PLINK_CLOSE && (!mesh_matches_local(&elems, sdata))) {
+		matches_local = false;
 		switch (ftype) {
 		case PLINK_OPEN:
 			event = OPN_RJCT;
@@ -482,7 +500,15 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			/* avoid warning */
 			break;
 		}
-		spin_lock_bh(&sta->lock);
+	}
+
+	if (!sta && !matches_local) {
+		rcu_read_unlock();
+		reason = cpu_to_le16(MESH_CAPABILITY_POLICY_VIOLATION);
+		llid = 0;
+		mesh_plink_frame_tx(sdata, PLINK_CLOSE, mgmt->sa, llid,
+				    plid, reason);
+		return;
 	} else if (!sta) {
 		/* ftype == PLINK_OPEN */
 		u32 rates;
@@ -506,7 +532,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		}
 		event = OPN_ACPT;
 		spin_lock_bh(&sta->lock);
-	} else {
+	} else if (matches_local) {
 		spin_lock_bh(&sta->lock);
 		switch (ftype) {
 		case PLINK_OPEN:
@@ -548,6 +574,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			rcu_read_unlock();
 			return;
 		}
+	} else {
+		spin_lock_bh(&sta->lock);
 	}
 
 	mpl_dbg("Mesh plink (peer, state, llid, plid, event): %pM %s %d %d %d\n",
@@ -651,8 +679,9 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		case CNF_ACPT:
 			del_timer(&sta->plink_timer);
 			sta->plink_state = PLINK_ESTAB;
-			mesh_plink_inc_estab_count(sdata);
 			spin_unlock_bh(&sta->lock);
+			mesh_plink_inc_estab_count(sdata);
+			ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
 			mpl_dbg("Mesh plink with %pM ESTABLISHED\n",
 				sta->sta.addr);
 			break;
@@ -684,8 +713,9 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		case OPN_ACPT:
 			del_timer(&sta->plink_timer);
 			sta->plink_state = PLINK_ESTAB;
-			mesh_plink_inc_estab_count(sdata);
 			spin_unlock_bh(&sta->lock);
+			mesh_plink_inc_estab_count(sdata);
+			ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
 			mpl_dbg("Mesh plink with %pM ESTABLISHED\n",
 				sta->sta.addr);
 			mesh_plink_frame_tx(sdata, PLINK_CONFIRM, sta->sta.addr, llid,
@@ -702,11 +732,13 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		case CLS_ACPT:
 			reason = cpu_to_le16(MESH_CLOSE_RCVD);
 			sta->reason = reason;
-			__mesh_plink_deactivate(sta);
+			deactivated = __mesh_plink_deactivate(sta);
 			sta->plink_state = PLINK_HOLDING;
 			llid = sta->llid;
 			mod_plink_timer(sta, dot11MeshHoldingTimeout(sdata));
 			spin_unlock_bh(&sta->lock);
+			if (deactivated)
+				ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
 			mesh_plink_frame_tx(sdata, PLINK_CLOSE, sta->sta.addr, llid,
 					    plid, reason);
 			break;

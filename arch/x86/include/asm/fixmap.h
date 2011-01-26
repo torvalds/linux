@@ -116,7 +116,11 @@ enum fixed_addresses {
 #endif
 	FIX_TEXT_POKE1,	/* reserve 2 pages for text_poke() */
 	FIX_TEXT_POKE0, /* first page is last, because allocation is backward */
+#ifdef	CONFIG_X86_MRST
+	FIX_LNW_VRTC,
+#endif
 	__end_of_permanent_fixed_addresses,
+
 	/*
 	 * 256 temporary boot-time mappings, used by early_ioremap(),
 	 * before ioremap() is functional.
@@ -214,5 +218,20 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
 	BUG_ON(vaddr >= FIXADDR_TOP || vaddr < FIXADDR_START);
 	return __virt_to_fix(vaddr);
 }
+
+/* Return an pointer with offset calculated */
+static __always_inline unsigned long
+__set_fixmap_offset(enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
+{
+	__set_fixmap(idx, phys, flags);
+	return fix_to_virt(idx) + (phys & (PAGE_SIZE - 1));
+}
+
+#define set_fixmap_offset(idx, phys)			\
+	__set_fixmap_offset(idx, phys, PAGE_KERNEL)
+
+#define set_fixmap_offset_nocache(idx, phys)			\
+	__set_fixmap_offset(idx, phys, PAGE_KERNEL_NOCACHE)
+
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_X86_FIXMAP_H */

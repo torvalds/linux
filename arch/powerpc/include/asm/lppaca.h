@@ -62,7 +62,10 @@ struct lppaca {
 	volatile u32 dyn_pir;		// Dynamic ProcIdReg value	x20-x23
 	u32	dsei_data;           	// DSEI data                  	x24-x27
 	u64	sprg3;               	// SPRG3 value                	x28-x2F
-	u8	reserved3[80];		// Reserved			x30-x7F
+	u8	reserved3[40];		// Reserved			x30-x57
+	volatile u8 vphn_assoc_counts[8]; // Virtual processor home node
+					// associativity change counters x58-x5F
+	u8	reserved4[32];		// Reserved			x60-x7F
 
 //=============================================================================
 // CACHE_LINE_2 0x0080 - 0x00FF Contains local read-write data
@@ -153,6 +156,8 @@ struct lppaca {
 
 extern struct lppaca lppaca[];
 
+#define lppaca_of(cpu)	(*paca[cpu].lppaca_ptr)
+
 /*
  * SLB shadow buffer structure as defined in the PAPR.  The save_area
  * contains adjacent ESID and VSID pairs for each shadowed SLB.  The
@@ -169,6 +174,33 @@ struct slb_shadow {
 } ____cacheline_aligned;
 
 extern struct slb_shadow slb_shadow[];
+
+/*
+ * Layout of entries in the hypervisor's dispatch trace log buffer.
+ */
+struct dtl_entry {
+	u8	dispatch_reason;
+	u8	preempt_reason;
+	u16	processor_id;
+	u32	enqueue_to_dispatch_time;
+	u32	ready_to_enqueue_time;
+	u32	waiting_to_ready_time;
+	u64	timebase;
+	u64	fault_addr;
+	u64	srr0;
+	u64	srr1;
+};
+
+#define DISPATCH_LOG_BYTES	4096	/* bytes per cpu */
+#define N_DISPATCH_LOG		(DISPATCH_LOG_BYTES / sizeof(struct dtl_entry))
+
+/*
+ * When CONFIG_VIRT_CPU_ACCOUNTING = y, the cpu accounting code controls
+ * reading from the dispatch trace log.  If other code wants to consume
+ * DTL entries, it can set this pointer to a function that will get
+ * called once for each DTL entry that gets processed.
+ */
+extern void (*dtl_consumer)(struct dtl_entry *entry, u64 index);
 
 #endif /* CONFIG_PPC_BOOK3S */
 #endif /* __KERNEL__ */

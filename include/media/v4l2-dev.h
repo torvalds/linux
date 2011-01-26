@@ -21,12 +21,12 @@
 #define VFL_TYPE_GRABBER	0
 #define VFL_TYPE_VBI		1
 #define VFL_TYPE_RADIO		2
-#define VFL_TYPE_VTX		3
-#define VFL_TYPE_MAX		4
+#define VFL_TYPE_MAX		3
 
 struct v4l2_ioctl_callbacks;
 struct video_device;
 struct v4l2_device;
+struct v4l2_ctrl_handler;
 
 /* Flag to mark the video_device struct as registered.
    Drivers can clear this flag if they want to block all future
@@ -41,8 +41,6 @@ struct v4l2_file_operations {
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*ioctl) (struct file *, unsigned int, unsigned long);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
-	unsigned long (*get_unmapped_area) (struct file *, unsigned long,
-				unsigned long, unsigned long, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
 	int (*open) (struct file *);
 	int (*release) (struct file *);
@@ -66,6 +64,9 @@ struct video_device
 	/* Set either parent or v4l2_dev if your driver uses v4l2_device */
 	struct device *parent;		/* device parent */
 	struct v4l2_device *v4l2_dev;	/* v4l2_device parent */
+
+	/* Control handler associated with this device node. May be NULL. */
+	struct v4l2_ctrl_handler *ctrl_handler;
 
 	/* device info */
 	char name[32];
@@ -93,6 +94,9 @@ struct video_device
 
 	/* ioctl callbacks */
 	const struct v4l2_ioctl_ops *ioctl_ops;
+
+	/* serialization lock */
+	struct mutex *lock;
 };
 
 /* dev to video-device */

@@ -2,13 +2,14 @@ config P54_COMMON
 	tristate "Softmac Prism54 support"
 	depends on MAC80211 && EXPERIMENTAL
 	select FW_LOADER
+	select CRC_CCITT
 	---help---
 	  This is common code for isl38xx/stlc45xx based modules.
 	  This module does nothing by itself - the USB/PCI/SPI front-ends
 	  also need to be enabled in order to support any devices.
 
 	  These devices require softmac firmware which can be found at
-	  http://prism54.org/
+	  <http://wireless.kernel.org/en/users/Drivers/p54>
 
 	  If you choose to build a module, it'll be called p54common.
 
@@ -20,7 +21,7 @@ config P54_USB
 	  This driver is for USB isl38xx based wireless cards.
 
 	  These devices require softmac firmware which can be found at
-	  http://prism54.org/
+	  <http://wireless.kernel.org/en/users/Drivers/p54>
 
 	  If you choose to build a module, it'll be called p54usb.
 
@@ -34,7 +35,7 @@ config P54_PCI
 	  supported by the fullmac driver/firmware.
 
 	  This driver requires softmac firmware which can be found at
-	  http://prism54.org/
+	  <http://wireless.kernel.org/en/users/Drivers/p54>
 
 	  If you choose to build a module, it'll be called p54pci.
 
@@ -47,6 +48,23 @@ config P54_SPI
 	  Nokia's N800/N810 Portable Internet Tablet.
 
 	  If you choose to build a module, it'll be called p54spi.
+
+config P54_SPI_DEFAULT_EEPROM
+	bool "Include fallback EEPROM blob"
+	depends on P54_SPI
+	default n
+	---help---
+	 Unlike the PCI or USB devices, the SPI variants don't have
+	 a dedicated EEPROM chip to store all device specific values
+	 for calibration, country and interface settings.
+
+	 The driver will try to load the image "3826.eeprom", if the
+	 file is put at the right place. (usually /lib/firmware.)
+
+	 Only if this request fails, this option will provide a
+	 backup set of generic values to get the device working.
+
+	 Enabling this option adds about 4k to p54spi.
 
 config P54_LEDS
 	bool

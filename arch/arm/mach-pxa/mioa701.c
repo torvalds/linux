@@ -34,7 +34,7 @@
 #include <linux/irq.h>
 #include <linux/pda_power.h>
 #include <linux/power_supply.h>
-#include <linux/wm97xx_batt.h>
+#include <linux/wm97xx.h>
 #include <linux/mtd/physmap.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/regulator/max1586.h>
@@ -45,7 +45,7 @@
 
 #include <mach/pxa27x.h>
 #include <mach/regs-rtc.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
@@ -636,7 +636,7 @@ static struct platform_device power_dev = {
 	},
 };
 
-static struct wm97xx_batt_info mioa701_battery_data = {
+static struct wm97xx_batt_pdata mioa701_battery_data = {
 	.batt_aux	= WM97XX_AUX_ID1,
 	.temp_aux	= -1,
 	.charge_gpio	= -1,
@@ -646,6 +646,10 @@ static struct wm97xx_batt_info mioa701_battery_data = {
 	.batt_div	= 1,
 	.batt_mult	= 1,
 	.batt_name	= "mioa701_battery",
+};
+
+static struct wm97xx_pdata mioa701_wm97xx_pdata = {
+	.batt_pdata	= &mioa701_battery_data,
 };
 
 /*
@@ -697,7 +701,7 @@ static struct i2c_board_info __initdata mioa701_pi2c_devices[] = {
 };
 
 /* Board I2C devices. */
-static struct i2c_board_info __initdata mioa701_i2c_devices[] = {
+static struct i2c_board_info mioa701_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("mt9m111", 0x5d),
 	},
@@ -707,7 +711,6 @@ static struct soc_camera_link iclink = {
 	.bus_id		= 0, /* Match id in pxa27x_device_camera in device.c */
 	.board_info	= &mioa701_i2c_devices[0],
 	.i2c_adapter_id	= 0,
-	.module_name	= "mt9m111",
 };
 
 struct i2c_pxa_platform_data i2c_pdata = {
@@ -716,6 +719,7 @@ struct i2c_pxa_platform_data i2c_pdata = {
 
 static pxa2xx_audio_ops_t mioa701_ac97_info = {
 	.reset_gpio = 95,
+	.codec_pdata = { &mioa701_wm97xx_pdata, },
 };
 
 /*
@@ -794,7 +798,6 @@ static void __init mioa701_machine_init(void)
 	set_pxa_fb_info(&mioa701_pxafb_info);
 	pxa_set_mci_info(&mioa701_mci_info);
 	pxa_set_keypad_info(&mioa701_keypad_info);
-	wm97xx_bat_set_pdata(&mioa701_battery_data);
 	pxa_set_udc_info(&mioa701_udc_info);
 	pxa_set_ac97_info(&mioa701_ac97_info);
 	pm_power_off = mioa701_poweroff;
@@ -815,10 +818,8 @@ static void mioa701_machine_exit(void)
 }
 
 MACHINE_START(MIOA701, "MIO A701")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
-	.map_io		= &pxa_map_io,
+	.map_io		= &pxa27x_map_io,
 	.init_irq	= &pxa27x_init_irq,
 	.init_machine	= mioa701_machine_init,
 	.timer		= &pxa_timer,

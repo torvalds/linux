@@ -31,12 +31,10 @@
 
 #include "udfdecl.h"
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
-#include <linux/quotaops.h>
 #include <linux/slab.h>
 #include <linux/crc-itu-t.h>
 
@@ -52,6 +50,7 @@ MODULE_LICENSE("GPL");
 static mode_t udf_convert_permissions(struct fileEntry *);
 static int udf_update_inode(struct inode *, int);
 static void udf_fill_inode(struct inode *, struct buffer_head *);
+static int udf_sync_inode(struct inode *inode);
 static int udf_alloc_i_data(struct inode *inode, size_t size);
 static struct buffer_head *inode_getblk(struct inode *, sector_t, int *,
 					sector_t *, int *);
@@ -69,40 +68,21 @@ static void udf_update_extents(struct inode *,
 static int udf_get_block(struct inode *, sector_t, struct buffer_head *, int);
 
 
-void udf_delete_inode(struct inode *inode)
+void udf_evict_inode(struct inode *inode)
 {
-	if (!is_bad_inode(inode))
-		dquot_initialize(inode);
+	struct udf_inode_info *iinfo = UDF_I(inode);
+	int want_delete = 0;
 
 	truncate_inode_pages(&inode->i_data, 0);
 
-	if (is_bad_inode(inode))
-		goto no_delete;
-
-	inode->i_size = 0;
-	udf_truncate(inode);
-	lock_kernel();
-
-	udf_update_inode(inode, IS_SYNC(inode));
-	udf_free_inode(inode);
-
-	unlock_kernel();
-	return;
-
-no_delete:
-	clear_inode(inode);
-}
-
-/*
- * If we are going to release inode from memory, we truncate last inode extent
- * to proper length. We could use drop_inode() but it's called under inode_lock
- * and thus we cannot mark inode dirty there.  We use clear_inode() but we have
- * to make sure to write inode as it's not written automatically.
- */
-void udf_clear_inode(struct inode *inode)
-{
-	struct udf_inode_info *iinfo = UDF_I(inode);
-
+	if (!inode->i_nlink && !is_bad_inode(inode)) {
+		want_delete = 1;
+		inode->i_size = 0;
+		udf_truncate(inode);
+		udf_update_inode(inode, IS_SYNC(inode));
+	}
+	invalidate_inode_buffers(inode);
+	end_writeback(inode);
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB &&
 	    inode->i_size != iinfo->i_lenExtents) {
 		printk(KERN_WARNING "UDF-fs (%s): Inode %lu (mode %o) has "
@@ -112,10 +92,11 @@ void udf_clear_inode(struct inode *inode)
 			(unsigned long long)inode->i_size,
 			(unsigned long long)iinfo->i_lenExtents);
 	}
-
-	dquot_drop(inode);
 	kfree(iinfo->i_ext.i_data);
 	iinfo->i_ext.i_data = NULL;
+	if (want_delete) {
+		udf_free_inode(inode);
+	}
 }
 
 static int udf_writepage(struct page *page, struct writeback_control *wbc)
@@ -132,9 +113,16 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
-	*pagep = NULL;
-	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				udf_get_block);
+	int ret;
+
+	ret = block_write_begin(mapping, pos, len, flags, pagep, udf_get_block);
+	if (unlikely(ret)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
+
+	return ret;
 }
 
 static sector_t udf_bmap(struct address_space *mapping, sector_t block)
@@ -310,10 +298,9 @@ static int udf_get_block(struct inode *inode, sector_t block,
 	err = -EIO;
 	new = 0;
 	bh = NULL;
-
-	lock_kernel();
-
 	iinfo = UDF_I(inode);
+
+	down_write(&iinfo->i_data_sem);
 	if (block == iinfo->i_next_alloc_block + 1) {
 		iinfo->i_next_alloc_block++;
 		iinfo->i_next_alloc_goal++;
@@ -332,7 +319,7 @@ static int udf_get_block(struct inode *inode, sector_t block,
 	map_bh(bh_result, inode->i_sb, phys);
 
 abort:
-	unlock_kernel();
+	up_write(&iinfo->i_data_sem);
 	return err;
 }
 
@@ -1030,16 +1017,16 @@ void udf_truncate(struct inode *inode)
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
 		return;
 
-	lock_kernel();
 	iinfo = UDF_I(inode);
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
+		down_write(&iinfo->i_data_sem);
 		if (inode->i_sb->s_blocksize <
 				(udf_file_entry_alloc_offset(inode) +
 				 inode->i_size)) {
 			udf_expand_file_adinicb(inode, inode->i_size, &err);
 			if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 				inode->i_size = iinfo->i_lenAlloc;
-				unlock_kernel();
+				up_write(&iinfo->i_data_sem);
 				return;
 			} else
 				udf_truncate_extents(inode);
@@ -1050,10 +1037,13 @@ void udf_truncate(struct inode *inode)
 				offset - udf_file_entry_alloc_offset(inode));
 			iinfo->i_lenAlloc = inode->i_size;
 		}
+		up_write(&iinfo->i_data_sem);
 	} else {
 		block_truncate_page(inode->i_mapping, inode->i_size,
 				    udf_get_block);
+		down_write(&iinfo->i_data_sem);
 		udf_truncate_extents(inode);
+		up_write(&iinfo->i_data_sem);
 	}
 
 	inode->i_mtime = inode->i_ctime = current_fs_time(inode->i_sb);
@@ -1061,7 +1051,6 @@ void udf_truncate(struct inode *inode)
 		udf_sync_inode(inode);
 	else
 		mark_inode_dirty(inode);
-	unlock_kernel();
 }
 
 static void __udf_read_inode(struct inode *inode)
@@ -1210,6 +1199,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		return;
 	}
 
+	read_lock(&sbi->s_cred_lock);
 	inode->i_uid = le32_to_cpu(fe->uid);
 	if (inode->i_uid == -1 ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_IGNORE) ||
@@ -1222,13 +1212,6 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_GID_SET))
 		inode->i_gid = UDF_SB(inode->i_sb)->s_gid;
 
-	inode->i_nlink = le16_to_cpu(fe->fileLinkCount);
-	if (!inode->i_nlink)
-		inode->i_nlink = 1;
-
-	inode->i_size = le64_to_cpu(fe->informationLength);
-	iinfo->i_lenExtents = inode->i_size;
-
 	if (fe->icbTag.fileType != ICBTAG_FILE_TYPE_DIRECTORY &&
 			sbi->s_fmode != UDF_INVALID_MODE)
 		inode->i_mode = sbi->s_fmode;
@@ -1238,6 +1221,14 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 	else
 		inode->i_mode = udf_convert_permissions(fe);
 	inode->i_mode &= ~sbi->s_umask;
+	read_unlock(&sbi->s_cred_lock);
+
+	inode->i_nlink = le16_to_cpu(fe->fileLinkCount);
+	if (!inode->i_nlink)
+		inode->i_nlink = 1;
+
+	inode->i_size = le64_to_cpu(fe->informationLength);
+	iinfo->i_lenExtents = inode->i_size;
 
 	if (iinfo->i_efe == 0) {
 		inode->i_blocks = le64_to_cpu(fe->logicalBlocksRecorded) <<
@@ -1381,16 +1372,10 @@ static mode_t udf_convert_permissions(struct fileEntry *fe)
 
 int udf_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
-	int ret;
-
-	lock_kernel();
-	ret = udf_update_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
-	unlock_kernel();
-
-	return ret;
+	return udf_update_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 }
 
-int udf_sync_inode(struct inode *inode)
+static int udf_sync_inode(struct inode *inode)
 {
 	return udf_update_inode(inode, 1);
 }
@@ -2056,7 +2041,7 @@ long udf_block_map(struct inode *inode, sector_t block)
 	struct extent_position epos = {};
 	int ret;
 
-	lock_kernel();
+	down_read(&UDF_I(inode)->i_data_sem);
 
 	if (inode_bmap(inode, block, &epos, &eloc, &elen, &offset) ==
 						(EXT_RECORDED_ALLOCATED >> 30))
@@ -2064,7 +2049,7 @@ long udf_block_map(struct inode *inode, sector_t block)
 	else
 		ret = 0;
 
-	unlock_kernel();
+	up_read(&UDF_I(inode)->i_data_sem);
 	brelse(epos.bh);
 
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_VARCONV))

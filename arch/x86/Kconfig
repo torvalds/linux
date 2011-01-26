@@ -1,6 +1,3 @@
-# x86 configuration
-mainmenu "Linux Kernel Configuration for x86"
-
 # Select 32 or 64 bit
 config 64BIT
 	bool "64-bit kernel" if ARCH = "x86"
@@ -24,15 +21,18 @@ config X86
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
 	select HAVE_OPROFILE
-	select HAVE_PERF_EVENTS if (!M386 && !M486)
+	select HAVE_PERF_EVENTS
+	select HAVE_IRQ_WORK
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
+	select HAVE_MEMBLOCK
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_DMA_ATTRS
 	select HAVE_KRETPROBES
 	select HAVE_OPTPROBES
 	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_C_RECORDMCOUNT
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -51,13 +51,22 @@ config X86
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_XZ
 	select HAVE_KERNEL_LZO
 	select HAVE_HW_BREAKPOINT
 	select HAVE_MIXED_BREAKPOINTS_REGS
 	select PERF_EVENTS
+	select HAVE_PERF_EVENTS_NMI
 	select ANON_INODES
 	select HAVE_ARCH_KMEMCHECK
 	select HAVE_USER_RETURN_NOTIFIER
+	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_TEXT_POKE_SMP
+	select HAVE_GENERIC_HARDIRQS
+	select HAVE_SPARSE_IRQ
+	select GENERIC_IRQ_PROBE
+	select GENERIC_PENDING_IRQ if SMP
+	select USE_GENERIC_SMP_HELPERS if SMP
 
 config INSTRUCTION_DECODER
 	def_bool (KPROBES || PERF_EVENTS)
@@ -71,9 +80,6 @@ config ARCH_DEFCONFIG
 	string
 	default "arch/x86/configs/i386_defconfig" if X86_32
 	default "arch/x86/configs/x86_64_defconfig" if X86_64
-
-config GENERIC_TIME
-	def_bool y
 
 config GENERIC_CMOS_UPDATE
 	def_bool y
@@ -108,6 +114,9 @@ config SBUS
 
 config NEED_DMA_MAP_STATE
        def_bool (X86_64 || DMAR || DMA_API_DEBUG)
+
+config NEED_SG_DMA_LENGTH
+	def_bool y
 
 config GENERIC_ISA_DMA
 	def_bool y
@@ -192,30 +201,9 @@ config ARCH_SUPPORTS_OPTIMIZED_INLINING
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
-config HAVE_EARLY_RES
-	def_bool y
-
 config HAVE_INTEL_TXT
 	def_bool y
 	depends on EXPERIMENTAL && DMAR && ACPI
-
-# Use the generic interrupt handling code in kernel/irq/:
-config GENERIC_HARDIRQS
-	def_bool y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-       def_bool y
-
-config GENERIC_IRQ_PROBE
-	def_bool y
-
-config GENERIC_PENDING_IRQ
-	def_bool y
-	depends on GENERIC_HARDIRQS && SMP
-
-config USE_GENERIC_SMP_HELPERS
-	def_bool y
-	depends on SMP
 
 config X86_32_SMP
 	def_bool y
@@ -244,6 +232,11 @@ config ARCH_HWEIGHT_CFLAGS
 
 config KTIME_SCALAR
 	def_bool X86_32
+
+config ARCH_CPU_PROBE_RELEASE
+	def_bool y
+	depends on HOTPLUG_CPU
+
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
@@ -289,23 +282,6 @@ config X86_X2APIC
 	  and accesses the local apic via MSRs not via mmio.
 
 	  If you don't know what to do here, say N.
-
-config SPARSE_IRQ
-	bool "Support sparse irq numbering"
-	depends on PCI_MSI || HT_IRQ
-	---help---
-	  This enables support for sparse irqs. This is useful for distro
-	  kernels that want to define a high CONFIG_NR_CPUS value but still
-	  want to have low kernel memory footprint on smaller machines.
-
-	  ( Sparse IRQs can also be beneficial on NUMA boxes, as they spread
-	    out the irq_desc[] array in a more NUMA-friendly way. )
-
-	  If you don't know what to do here, say N.
-
-config NUMA_IRQ_DESC
-	def_bool y
-	depends on SPARSE_IRQ && NUMA
 
 config X86_MPPARSE
 	bool "Enable MPS table" if ACPI
@@ -366,6 +342,7 @@ endif
 
 config X86_VSMP
 	bool "ScaleMP vSMP"
+	select PARAVIRT_GUEST
 	select PARAVIRT
 	depends on X86_64 && PCI
 	depends on X86_EXTENDED_PLATFORM
@@ -398,6 +375,18 @@ config X86_ELAN
 
 	  If unsure, choose "PC-compatible" instead.
 
+config X86_INTEL_CE
+	bool "CE4100 TV platform"
+	depends on PCI
+	depends on PCI_GODIRECT
+	depends on X86_32
+	depends on X86_EXTENDED_PLATFORM
+	select X86_REBOOTFIXUPS
+	---help---
+	  Select for the Intel CE media processor (CE4100) SOC.
+	  This option compiles in support for the CE4100 SOC for settop
+	  boxes and media devices.
+
 config X86_MRST
        bool "Moorestown MID platform"
 	depends on PCI
@@ -406,6 +395,10 @@ config X86_MRST
 	depends on X86_EXTENDED_PLATFORM
 	depends on X86_IO_APIC
 	select APB_TIMER
+	select I2C
+	select SPI
+	select INTEL_SCU_IPC
+	select X86_PLATFORM_DEVICES
 	---help---
 	  Moorestown is Intel's Low Power Intel Architecture (LPIA) based Moblin
 	  Internet Device(MID) platform. Moorestown consists of two chips:
@@ -487,6 +480,19 @@ config X86_ES7000
 	  Support for Unisys ES7000 systems.  Say 'Y' here if this kernel is
 	  supposed to run on an IA32-based Unisys ES7000 system.
 
+config X86_32_IRIS
+	tristate "Eurobraille/Iris poweroff module"
+	depends on X86_32
+	---help---
+	  The Iris machines from EuroBraille do not have APM or ACPI support
+	  to shut themselves down properly.  A special I/O sequence is
+	  needed to do so, which is what this module does at
+	  kernel shutdown.
+
+	  This is only for Iris machines from EuroBraille.
+
+	  If unused, say N.
+
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
 	prompt "Single-depth WCHAN output"
@@ -510,25 +516,6 @@ menuconfig PARAVIRT_GUEST
 if PARAVIRT_GUEST
 
 source "arch/x86/xen/Kconfig"
-
-config VMI
-	bool "VMI Guest support (DEPRECATED)"
-	select PARAVIRT
-	depends on X86_32
-	---help---
-	  VMI provides a paravirtualized interface to the VMware ESX server
-	  (it could be used by other hypervisors in theory too, but is not
-	  at the moment), by linking the kernel to a GPL-ed ROM module
-	  provided by the hypervisor.
-
-	  As of September 2009, VMware has started a phased retirement
-	  of this feature from VMware's products. Please see
-	  feature-removal-schedule.txt for details.  If you are
-	  planning to enable this option, please note that you cannot
-	  live migrate a VMI enabled VM to a future VMware product,
-	  which doesn't support VMI. So if you expect your kernel to
-	  seamlessly migrate to newer VMware products, keep this
-	  disabled.
 
 config KVM_CLOCK
 	bool "KVM paravirtualized clock"
@@ -584,16 +571,7 @@ config PARAVIRT_DEBUG
 	  a paravirt_op is missing when it is called.
 
 config NO_BOOTMEM
-	default y
-	bool "Disable Bootmem code"
-	---help---
-	  Use early_res directly instead of bootmem before slab is ready.
-		- allocator (buddy) [generic]
-		- early allocator (bootmem) [generic]
-		- very early allocator (reserve_early*()) [x86]
-		- very very early allocator (early brk model) [x86]
-	  So reduce one layer between early allocator to final allocator
-
+	def_bool y
 
 config MEMTEST
 	bool "Memtest"
@@ -649,11 +627,11 @@ config APB_TIMER
          as it is off-chip. APB timers are always running regardless of CPU
          C states, they are used as per CPU clockevent device when possible.
 
-# Mark as embedded because too many people got it wrong.
+# Mark as expert because too many people got it wrong.
 # The code disables itself when not needed.
 config DMI
 	default y
-	bool "Enable DMI scanning" if EMBEDDED
+	bool "Enable DMI scanning" if EXPERT
 	---help---
 	  Enabled scanning of DMI to identify machine quirks. Say Y
 	  here unless you have verified that your setup is not
@@ -661,10 +639,10 @@ config DMI
 	  BIOS code.
 
 config GART_IOMMU
-	bool "GART IOMMU support" if EMBEDDED
+	bool "GART IOMMU support" if EXPERT
 	default y
 	select SWIOTLB
-	depends on X86_64 && PCI && K8_NB
+	depends on X86_64 && PCI && AMD_NB
 	---help---
 	  Support for full DMA access of devices with 32bit memory access only
 	  on systems with more than 3GB. This is usually needed for USB,
@@ -748,11 +726,11 @@ config IOMMU_API
 	def_bool (AMD_IOMMU || DMAR)
 
 config MAXSMP
-	bool "Configure Maximum number of SMP Processors and NUMA Nodes"
+	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
 	depends on X86_64 && SMP && DEBUG_KERNEL && EXPERIMENTAL
 	select CPUMASK_OFFSTACK
 	---help---
-	  Configure maximum number of CPUS and NUMA Nodes for this architecture.
+	  Enable maximum number of CPUS and NUMA Nodes for this architecture.
 	  If unsure, say N.
 
 config NR_CPUS
@@ -788,6 +766,17 @@ config SCHED_MC
 	  Multi-core scheduler support improves the CPU scheduler's decision
 	  making when dealing with multi-core CPU chips at a cost of slightly
 	  increased overhead in some places. If unsure say N here.
+
+config IRQ_TIME_ACCOUNTING
+	bool "Fine granularity task level IRQ time accounting"
+	default n
+	---help---
+	  Select this option to enable fine granularity task irq time
+	  accounting. This is done by reading a timestamp on each
+	  transitions between softirq and hardirq state, so there can be a
+	  small performance impact.
+
+	  If in doubt, say N here.
 
 source "kernel/Kconfig.preempt"
 
@@ -900,7 +889,7 @@ config X86_THERMAL_VECTOR
 	depends on X86_MCE_INTEL
 
 config VM86
-	bool "Enable VM86 support" if EMBEDDED
+	bool "Enable VM86 support" if EXPERT
 	default y
 	depends on X86_32
 	---help---
@@ -1084,7 +1073,7 @@ endchoice
 
 choice
 	depends on EXPERIMENTAL
-	prompt "Memory split" if EMBEDDED
+	prompt "Memory split" if EXPERT
 	default VMSPLIT_3G
 	depends on X86_32
 	---help---
@@ -1142,8 +1131,11 @@ config X86_PAE
 config ARCH_PHYS_ADDR_T_64BIT
 	def_bool X86_64 || X86_PAE
 
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool X86_64 || HIGHMEM64G
+
 config DIRECT_GBPAGES
-	bool "Enable 1GB pages for kernel pagetables" if EMBEDDED
+	bool "Enable 1GB pages for kernel pagetables" if EXPERT
 	default y
 	depends on X86_64
 	---help---
@@ -1176,16 +1168,16 @@ config NUMA
 comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
 	depends on X86_32 && X86_SUMMIT && (!HIGHMEM64G || !ACPI)
 
-config K8_NUMA
+config AMD_NUMA
 	def_bool y
 	prompt "Old style AMD Opteron NUMA detection"
 	depends on X86_64 && NUMA && PCI
 	---help---
-	  Enable K8 NUMA node topology detection.  You should say Y here if
-	  you have a multi processor AMD K8 system. This uses an old
-	  method to read the NUMA configuration directly from the builtin
-	  Northbridge of Opteron. It is recommended to use X86_64_ACPI_NUMA
-	  instead, which also takes priority if both are compiled in.
+	  Enable AMD NUMA node topology detection.  You should say Y here if
+	  you have a multi processor AMD system. This uses an old method to
+	  read the NUMA configuration directly from the builtin Northbridge
+	  of Opteron. It is recommended to use X86_64_ACPI_NUMA instead,
+	  which also takes priority if both are compiled in.
 
 config X86_64_ACPI_NUMA
 	def_bool y
@@ -1320,25 +1312,34 @@ config X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK
 	  Set whether the default state of memory_corruption_check is
 	  on or off.
 
-config X86_RESERVE_LOW_64K
-	bool "Reserve low 64K of RAM on AMI/Phoenix BIOSen"
-	default y
+config X86_RESERVE_LOW
+	int "Amount of low memory, in kilobytes, to reserve for the BIOS"
+	default 64
+	range 4 640
 	---help---
-	  Reserve the first 64K of physical RAM on BIOSes that are known
-	  to potentially corrupt that memory range. A numbers of BIOSes are
-	  known to utilize this area during suspend/resume, so it must not
-	  be used by the kernel.
+	  Specify the amount of low memory to reserve for the BIOS.
 
-	  Set this to N if you are absolutely sure that you trust the BIOS
-	  to get all its memory reservations and usages right.
+	  The first page contains BIOS data structures that the kernel
+	  must not use, so that page must always be reserved.
 
-	  If you have doubts about the BIOS (e.g. suspend/resume does not
-	  work or there's kernel crashes after certain hardware hotplug
-	  events) and it's not AMI or Phoenix, then you might want to enable
-	  X86_CHECK_BIOS_CORRUPTION=y to allow the kernel to check typical
-	  corruption patterns.
+	  By default we reserve the first 64K of physical RAM, as a
+	  number of BIOSes are known to corrupt that memory range
+	  during events such as suspend/resume or monitor cable
+	  insertion, so it must not be used by the kernel.
 
-	  Say Y if unsure.
+	  You can set this to 4 if you are absolutely sure that you
+	  trust the BIOS to get all its memory reservations and usages
+	  right.  If you know your BIOS have problems beyond the
+	  default 64K area, you can set this to 640 to avoid using the
+	  entire low memory range.
+
+	  If you have doubts about the BIOS (e.g. suspend/resume does
+	  not work or there's kernel crashes after certain hardware
+	  hotplug events) then you might want to enable
+	  X86_CHECK_BIOS_CORRUPTION=y to allow the kernel to check
+	  typical corruption patterns.
+
+	  Leave this to the default value of 64 if you are unsure.
 
 config MATH_EMULATION
 	bool
@@ -1368,7 +1369,7 @@ config MATH_EMULATION
 
 config MTRR
 	def_bool y
-	prompt "MTRR (Memory Type Range Register) support" if EMBEDDED
+	prompt "MTRR (Memory Type Range Register) support" if EXPERT
 	---help---
 	  On Intel P6 family processors (Pentium Pro, Pentium II and later)
 	  the Memory Type Range Registers (MTRRs) may be used to control
@@ -1434,7 +1435,7 @@ config MTRR_SANITIZER_SPARE_REG_NR_DEFAULT
 
 config X86_PAT
 	def_bool y
-	prompt "x86 PAT support" if EMBEDDED
+	prompt "x86 PAT support" if EXPERT
 	depends on MTRR
 	---help---
 	  Use PAT attributes to setup page level cache control.
@@ -1538,7 +1539,7 @@ config KEXEC_JUMP
 	  code in physical address mode via KEXEC
 
 config PHYSICAL_START
-	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
+	hex "Physical address where the kernel is loaded" if (EXPERT || CRASH_DUMP)
 	default "0x1000000"
 	---help---
 	  This gives the physical address where the kernel is loaded.
@@ -1700,6 +1701,10 @@ config ARCH_ENABLE_MEMORY_HOTREMOVE
 	depends on MEMORY_HOTPLUG
 
 config HAVE_ARCH_EARLY_PFN_TO_NID
+	def_bool X86_64
+	depends on NUMA
+
+config USE_PERCPU_NUMA_NODE_ID
 	def_bool X86_64
 	depends on NUMA
 
@@ -1890,7 +1895,7 @@ config PCI_GODIRECT
 	bool "Direct"
 
 config PCI_GOOLPC
-	bool "OLPC"
+	bool "OLPC XO-1"
 	depends on OLPC
 
 config PCI_GOANY
@@ -1915,6 +1920,11 @@ config PCI_OLPC
 	def_bool y
 	depends on PCI && OLPC && (PCI_GOOLPC || PCI_GOANY)
 
+config PCI_XEN
+	def_bool y
+	depends on PCI && XEN
+	select SWIOTLB_XEN
+
 config PCI_DOMAINS
 	def_bool y
 	depends on PCI
@@ -1924,12 +1934,18 @@ config PCI_MMCONFIG
 	depends on X86_64 && PCI && ACPI
 
 config PCI_CNB20LE_QUIRK
-	bool "Read CNB20LE Host Bridge Windows"
-	depends on PCI
+	bool "Read CNB20LE Host Bridge Windows" if EXPERT
+	default n
+	depends on PCI && EXPERIMENTAL
 	help
 	  Read the PCI windows out of the CNB20LE host bridge. This allows
 	  PCI hotplug to work on systems with the CNB20LE chipset which do
 	  not have ACPI.
+
+	  There's no public spec for this chipset, and this functionality
+	  is known to be incomplete.
+
+	  You should say N unless you know you need this.
 
 config DMAR
 	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
@@ -2039,7 +2055,7 @@ config SCx200
 
 config SCx200HR_TIMER
 	tristate "NatSemi SCx200 27MHz High-Resolution Timer Support"
-	depends on SCx200 && GENERIC_TIME
+	depends on SCx200
 	default y
 	---help---
 	  This driver provides a clocksource built upon the on-chip
@@ -2051,13 +2067,36 @@ config SCx200HR_TIMER
 config OLPC
 	bool "One Laptop Per Child support"
 	select GPIOLIB
+	select OLPC_OPENFIRMWARE
+	depends on !X86_64 && !X86_PAE
 	---help---
 	  Add support for detecting the unique features of the OLPC
 	  XO hardware.
 
+config OLPC_XO1
+	tristate "OLPC XO-1 support"
+	depends on OLPC && MFD_CS5535
+	---help---
+	  Add support for non-essential features of the OLPC XO-1 laptop.
+
+config OLPC_OPENFIRMWARE
+	bool "Support for OLPC's Open Firmware"
+	depends on !X86_64 && !X86_PAE
+	default n
+	select OF
+	help
+	  This option adds support for the implementation of Open Firmware
+	  that is used on the OLPC XO-1 Children's Machine.
+	  If unsure, say N here.
+
+config OLPC_OPENFIRMWARE_DT
+	bool
+	default y if OLPC_OPENFIRMWARE && PROC_DEVICETREE
+	select OF_PROMTREE
+
 endif # X86_32
 
-config K8_NB
+config AMD_NB
 	def_bool y
 	depends on CPU_SUP_AMD && PCI
 
@@ -2105,6 +2144,10 @@ endmenu
 config HAVE_ATOMIC_IOMAP
 	def_bool y
 	depends on X86_32
+
+config HAVE_TEXT_POKE_SMP
+	bool
+	select STOP_MACHINE if SMP
 
 source "net/Kconfig"
 

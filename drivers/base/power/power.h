@@ -34,6 +34,7 @@ extern void device_pm_move_last(struct device *);
 
 static inline void device_pm_init(struct device *dev)
 {
+	spin_lock_init(&dev->power.lock);
 	pm_runtime_init(dev);
 }
 
@@ -59,6 +60,7 @@ static inline void device_pm_move_last(struct device *dev) {}
 
 extern int dpm_sysfs_add(struct device *);
 extern void dpm_sysfs_remove(struct device *);
+extern void rpm_sysfs_remove(struct device *);
 
 #else /* CONFIG_PM */
 

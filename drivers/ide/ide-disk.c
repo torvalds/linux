@@ -184,7 +184,7 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	ide_hwif_t *hwif = drive->hwif;
 
 	BUG_ON(drive->dev_flags & IDE_DFLAG_BLOCKED);
-	BUG_ON(!blk_fs_request(rq));
+	BUG_ON(rq->cmd_type != REQ_TYPE_FS);
 
 	ledtrig_ide_activity();
 
@@ -427,15 +427,19 @@ static void ide_disk_unlock_native_capacity(ide_drive_t *drive)
 		drive->dev_flags |= IDE_DFLAG_NOHPA; /* disable HPA on resume */
 }
 
-static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
+static int idedisk_prep_fn(struct request_queue *q, struct request *rq)
 {
 	ide_drive_t *drive = q->queuedata;
-	struct ide_cmd *cmd = kmalloc(sizeof(*cmd), GFP_ATOMIC);
+	struct ide_cmd *cmd;
+
+	if (!(rq->cmd_flags & REQ_FLUSH))
+		return BLKPREP_OK;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
 
 	/* FIXME: map struct ide_taskfile on rq->cmd[] */
 	BUG_ON(cmd == NULL);
 
-	memset(cmd, 0, sizeof(*cmd));
 	if (ata_id_flush_ext_enabled(drive->id) &&
 	    (drive->capacity64 >= (1UL << 28)))
 		cmd->tf.command = ATA_CMD_FLUSH_EXT;
@@ -448,6 +452,8 @@ static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq->special = cmd;
 	cmd->rq = rq;
+
+	return BLKPREP_OK;
 }
 
 ide_devset_get(multcount, mult_count);
@@ -509,11 +515,10 @@ static int ide_do_setfeature(ide_drive_t *drive, u8 feature, u8 nsect)
 	return ide_no_data_taskfile(drive, &cmd);
 }
 
-static void update_ordered(ide_drive_t *drive)
+static void update_flush(ide_drive_t *drive)
 {
 	u16 *id = drive->id;
-	unsigned ordered = QUEUE_ORDERED_NONE;
-	prepare_flush_fn *prep_fn = NULL;
+	unsigned flush = 0;
 
 	if (drive->dev_flags & IDE_DFLAG_WCACHE) {
 		unsigned long long capacity;
@@ -537,13 +542,12 @@ static void update_ordered(ide_drive_t *drive)
 		       drive->name, barrier ? "" : "not ");
 
 		if (barrier) {
-			ordered = QUEUE_ORDERED_DRAIN_FLUSH;
-			prep_fn = idedisk_prepare_flush;
+			flush = REQ_FLUSH;
+			blk_queue_prep_rq(drive->queue, idedisk_prep_fn);
 		}
-	} else
-		ordered = QUEUE_ORDERED_DRAIN;
+	}
 
-	blk_queue_ordered(drive->queue, ordered, prep_fn);
+	blk_queue_flush(drive->queue, flush);
 }
 
 ide_devset_get_flag(wcache, IDE_DFLAG_WCACHE);
@@ -566,7 +570,7 @@ static int set_wcache(ide_drive_t *drive, int arg)
 		}
 	}
 
-	update_ordered(drive);
+	update_flush(drive);
 
 	return err;
 }

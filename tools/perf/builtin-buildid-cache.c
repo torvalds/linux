@@ -78,8 +78,7 @@ static int __cmd_buildid_cache(void)
 	struct str_node *pos;
 	char debugdir[PATH_MAX];
 
-	snprintf(debugdir, sizeof(debugdir), "%s/%s", getenv("HOME"),
-		 DEBUG_CACHE_DIR);
+	snprintf(debugdir, sizeof(debugdir), "%s", buildid_dir);
 
 	if (add_name_list_str) {
 		list = strlist__new(true, add_name_list_str);

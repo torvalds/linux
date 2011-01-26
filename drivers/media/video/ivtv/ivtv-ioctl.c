@@ -37,7 +37,6 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-event.h>
 #include <linux/dvb/audio.h>
-#include <linux/i2c-id.h>
 
 u16 ivtv_service2vbi(int type)
 {
@@ -162,7 +161,7 @@ int ivtv_set_speed(struct ivtv *itv, int speed)
 	data[0] |= (speed > 1000 || speed < -1500) ? 0x40000000 : 0;
 	data[1] = (speed < 0);
 	data[2] = speed < 0 ? 3 : 7;
-	data[3] = itv->params.video_b_frames;
+	data[3] = v4l2_ctrl_g_ctrl(itv->cxhdl.video_b_frames);
 	data[4] = (speed == 1500 || speed == 500) ? itv->speed_mute_audio : 0;
 	data[5] = 0;
 	data[6] = 0;
@@ -339,8 +338,8 @@ static int ivtv_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 	struct ivtv *itv = id->itv;
 	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
 
-	pixfmt->width = itv->params.width;
-	pixfmt->height = itv->params.height;
+	pixfmt->width = itv->cxhdl.width;
+	pixfmt->height = itv->cxhdl.height;
 	pixfmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pixfmt->field = V4L2_FIELD_INTERLACED;
 	pixfmt->priv = 0;
@@ -568,7 +567,7 @@ static int ivtv_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 {
 	struct ivtv_open_id *id = fh;
 	struct ivtv *itv = id->itv;
-	struct cx2341x_mpeg_params *p = &itv->params;
+	struct v4l2_mbus_framefmt mbus_fmt;
 	int ret = ivtv_try_fmt_vid_cap(file, fh, fmt);
 	int w = fmt->fmt.pix.width;
 	int h = fmt->fmt.pix.height;
@@ -576,17 +575,20 @@ static int ivtv_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 	if (ret)
 		return ret;
 
-	if (p->width == w && p->height == h)
+	if (itv->cxhdl.width == w && itv->cxhdl.height == h)
 		return 0;
 
 	if (atomic_read(&itv->capturing) > 0)
 		return -EBUSY;
 
-	p->width = w;
-	p->height = h;
-	if (p->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1)
+	itv->cxhdl.width = w;
+	itv->cxhdl.height = h;
+	if (v4l2_ctrl_g_ctrl(itv->cxhdl.video_encoding) == V4L2_MPEG_VIDEO_ENCODING_MPEG_1)
 		fmt->fmt.pix.width /= 2;
-	v4l2_subdev_call(itv->sd_video, video, s_fmt, fmt);
+	mbus_fmt.width = fmt->fmt.pix.width;
+	mbus_fmt.height = h;
+	mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
+	v4l2_subdev_call(itv->sd_video, video, s_mbus_fmt, &mbus_fmt);
 	return ivtv_g_fmt_vid_cap(file, fh, fmt);
 }
 
@@ -1110,9 +1112,10 @@ int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
 
 	itv->std = *std;
 	itv->is_60hz = (*std & V4L2_STD_525_60) ? 1 : 0;
-	itv->params.is_50hz = itv->is_50hz = !itv->is_60hz;
-	itv->params.width = 720;
-	itv->params.height = itv->is_50hz ? 576 : 480;
+	itv->is_50hz = !itv->is_60hz;
+	cx2341x_handler_set_50hz(&itv->cxhdl, itv->is_50hz);
+	itv->cxhdl.width = 720;
+	itv->cxhdl.height = itv->is_50hz ? 576 : 480;
 	itv->vbi.count = itv->is_50hz ? 18 : 12;
 	itv->vbi.start[0] = itv->is_50hz ? 6 : 10;
 	itv->vbi.start[1] = itv->is_50hz ? 318 : 273;
@@ -1153,7 +1156,7 @@ int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
 		ivtv_vapi(itv, CX2341X_DEC_SET_STANDARD, 1, itv->is_out_50hz);
 		itv->main_rect.left = itv->main_rect.top = 0;
 		itv->main_rect.width = 720;
-		itv->main_rect.height = itv->params.height;
+		itv->main_rect.height = itv->cxhdl.height;
 		ivtv_vapi(itv, CX2341X_OSD_SET_FRAMEBUFFER_WINDOW, 4,
 			720, itv->main_rect.height, 0, 0);
 		yi->main_rect = itv->main_rect;
@@ -1550,7 +1553,7 @@ static int ivtv_log_status(struct file *file, void *fh)
 	}
 	IVTV_INFO("Tuner:  %s\n",
 		test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? "Radio" : "TV");
-	cx2341x_log_status(&itv->params, itv->v4l2_dev.name);
+	v4l2_ctrl_handler_log_status(&itv->cxhdl.hdl, itv->v4l2_dev.name);
 	IVTV_INFO("Status flags:    0x%08lx\n", itv->i_flags);
 	for (i = 0; i < IVTV_MAX_STREAMS; i++) {
 		struct ivtv_stream *s = &itv->streams[i];
@@ -1938,11 +1941,6 @@ static const struct v4l2_ioctl_ops ivtv_ioctl_ops = {
 	.vidioc_s_register 		    = ivtv_s_register,
 #endif
 	.vidioc_default 		    = ivtv_default,
-	.vidioc_queryctrl 		    = ivtv_queryctrl,
-	.vidioc_querymenu 		    = ivtv_querymenu,
-	.vidioc_g_ext_ctrls 		    = ivtv_g_ext_ctrls,
-	.vidioc_s_ext_ctrls 		    = ivtv_s_ext_ctrls,
-	.vidioc_try_ext_ctrls    	    = ivtv_try_ext_ctrls,
 	.vidioc_subscribe_event 	    = ivtv_subscribe_event,
 	.vidioc_unsubscribe_event 	    = v4l2_event_unsubscribe,
 };

@@ -6,6 +6,29 @@
  * Resolves DNS hostnames into valid ip addresses
  */
 
+#ifdef CONFIG_NFS_USE_KERNEL_DNS
+
+#include <linux/sunrpc/clnt.h>
+#include <linux/dns_resolver.h>
+
+ssize_t nfs_dns_resolve_name(char *name, size_t namelen,
+		struct sockaddr *sa, size_t salen)
+{
+	ssize_t ret;
+	char *ip_addr = NULL;
+	int ip_len;
+
+	ip_len = dns_query(NULL, name, namelen, NULL, &ip_addr, NULL);
+	if (ip_len > 0)
+		ret = rpc_pton(ip_addr, ip_len, sa, salen);
+	else
+		ret = -ESRCH;
+	kfree(ip_addr);
+	return ret;
+}
+
+#else
+
 #include <linux/hash.h>
 #include <linux/string.h>
 #include <linux/kmod.h>
@@ -144,7 +167,7 @@ static int nfs_dns_show(struct seq_file *m, struct cache_detail *cd,
 		return 0;
 	}
 	item = container_of(h, struct nfs_dns_ent, h);
-	ttl = (long)item->h.expiry_time - (long)get_seconds();
+	ttl = item->h.expiry_time - seconds_since_boot();
 	if (ttl < 0)
 		ttl = 0;
 
@@ -216,7 +239,7 @@ static int nfs_dns_parse(struct cache_detail *cd, char *buf, int buflen)
 	ttl = get_expiry(&buf);
 	if (ttl == 0)
 		goto out;
-	key.h.expiry_time = ttl + get_seconds();
+	key.h.expiry_time = ttl + seconds_since_boot();
 
 	ret = -ENOMEM;
 	item = nfs_dns_lookup(cd, &key);
@@ -278,7 +301,7 @@ static int do_cache_lookup_nowait(struct cache_detail *cd,
 		goto out_err;
 	ret = -ETIMEDOUT;
 	if (!test_bit(CACHE_VALID, &(*item)->h.flags)
-			|| (*item)->h.expiry_time < get_seconds()
+			|| (*item)->h.expiry_time < seconds_since_boot()
 			|| cd->flush_time > (*item)->h.last_refresh)
 		goto out_put;
 	ret = -ENOENT;
@@ -346,3 +369,4 @@ void nfs_dns_resolver_destroy(void)
 	nfs_cache_unregister(&nfs_dns_resolve);
 }
 
+#endif

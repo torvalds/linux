@@ -15,6 +15,7 @@ struct nlm_host;
 struct nfs4_sequence_args;
 struct nfs4_sequence_res;
 struct nfs_server;
+struct nfs4_minor_version_ops;
 
 /*
  * The nfs_client identifies our client state to the server.
@@ -46,11 +47,6 @@ struct nfs_client {
 	u64			cl_clientid;	/* constant */
 	unsigned long		cl_state;
 
-	struct rb_root		cl_openowner_id;
-	struct rb_root		cl_lockowner_id;
-
-	struct list_head	cl_delegations;
-	struct rb_root		cl_state_owners;
 	spinlock_t		cl_lock;
 
 	unsigned long		cl_lease_time;
@@ -70,11 +66,8 @@ struct nfs_client {
 	 */
 	char			cl_ipaddr[48];
 	unsigned char		cl_id_uniquifier;
-	int		     (* cl_call_sync)(struct nfs_server *server,
-					      struct rpc_message *msg,
-					      struct nfs4_sequence_args *args,
-					      struct nfs4_sequence_res *res,
-					      int cache_reply);
+	u32			cl_cb_ident;	/* v4.0 callback identifier */
+	const struct nfs4_minor_version_ops *cl_mvops;
 #endif /* CONFIG_NFS_V4 */
 
 #ifdef CONFIG_NFS_V4_1
@@ -85,6 +78,8 @@ struct nfs_client {
 	/* The flags used for obtaining the clientid during EXCHANGE_ID */
 	u32			cl_exchange_flags;
 	struct nfs4_session	*cl_session; 	/* sharred session */
+	struct list_head	cl_layouts;
+	struct pnfs_deviceid_cache *cl_devid_cache; /* pNFS deviceid cache */
 #endif /* CONFIG_NFS_V4_1 */
 
 #ifdef CONFIG_NFS_FSCACHE
@@ -127,6 +122,7 @@ struct nfs_server {
 
 	struct nfs_fsid		fsid;
 	__u64			maxfilesize;	/* maximum file size */
+	struct timespec		time_delta;	/* smallest time granularity */
 	unsigned long		mount_time;	/* when this fs was mounted */
 	dev_t			s_dev;		/* superblock dev numbers */
 
@@ -147,7 +143,15 @@ struct nfs_server {
 	u32			acl_bitmask;	/* V4 bitmask representing the ACEs
 						   that are supported on this
 						   filesystem */
+	struct pnfs_layoutdriver_type  *pnfs_curr_ld; /* Active layout driver */
+	struct rpc_wait_queue	roc_rpcwaitq;
+
+	/* the following fields are protected by nfs_client->cl_lock */
+	struct rb_root		state_owners;
+	struct rb_root		openowner_id;
+	struct rb_root		lockowner_id;
 #endif
+	struct list_head	delegations;
 	void (*destroy)(struct nfs_server *);
 
 	atomic_t active; /* Keep trace of any activity to this server */
@@ -195,6 +199,7 @@ struct nfs4_slot_table {
 						 * op for dynamic resizing */
 	int		target_max_slots;	/* Set by CB_RECALL_SLOT as
 						 * the new max_slots */
+	struct completion complete;
 };
 
 static inline int slot_idx(struct nfs4_slot_table *tbl, struct nfs4_slot *sp)
@@ -211,7 +216,6 @@ struct nfs4_session {
 	unsigned long			session_state;
 	u32				hash_alg;
 	u32				ssv_len;
-	struct completion		complete;
 
 	/* The fore and back channel */
 	struct nfs4_channel_attrs	fc_attrs;

@@ -97,7 +97,7 @@ static int qec_global_reset(void __iomem *gregs)
 
 static void qec_init(struct bigmac *bp)
 {
-	struct of_device *qec_op = bp->qec_op;
+	struct platform_device *qec_op = bp->qec_op;
 	void __iomem *gregs = bp->gregs;
 	u8 bsizes = bp->bigmac_bursts;
 	u32 regval;
@@ -617,7 +617,7 @@ static void bigmac_begin_auto_negotiation(struct bigmac *bp)
 	bp->timer_ticks = 0;
 	bp->bigmac_timer.expires = jiffies + (12 * HZ) / 10;
 	bp->bigmac_timer.data = (unsigned long) bp;
-	bp->bigmac_timer.function = &bigmac_timer;
+	bp->bigmac_timer.function = bigmac_timer;
 	add_timer(&bp->bigmac_timer);
 }
 
@@ -1083,8 +1083,8 @@ static const struct net_device_ops bigmac_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit bigmac_ether_init(struct of_device *op,
-				       struct of_device *qec_op)
+static int __devinit bigmac_ether_init(struct platform_device *op,
+				       struct platform_device *qec_op)
 {
 	static int version_printed;
 	struct net_device *dev;
@@ -1201,7 +1201,7 @@ static int __devinit bigmac_ether_init(struct of_device *op,
 	dev->watchdog_timeo = 5*HZ;
 
 	/* Finish net device registration. */
-	dev->irq = bp->bigmac_op->irqs[0];
+	dev->irq = bp->bigmac_op->archdata.irqs[0];
 	dev->dma = 0;
 
 	if (register_netdev(dev)) {
@@ -1242,25 +1242,25 @@ fail_and_cleanup:
 /* QEC can be the parent of either QuadEthernet or a BigMAC.  We want
  * the latter.
  */
-static int __devinit bigmac_sbus_probe(struct of_device *op,
+static int __devinit bigmac_sbus_probe(struct platform_device *op,
 				       const struct of_device_id *match)
 {
 	struct device *parent = op->dev.parent;
-	struct of_device *qec_op;
+	struct platform_device *qec_op;
 
-	qec_op = to_of_device(parent);
+	qec_op = to_platform_device(parent);
 
 	return bigmac_ether_init(op, qec_op);
 }
 
-static int __devexit bigmac_sbus_remove(struct of_device *op)
+static int __devexit bigmac_sbus_remove(struct platform_device *op)
 {
 	struct bigmac *bp = dev_get_drvdata(&op->dev);
 	struct device *parent = op->dev.parent;
 	struct net_device *net_dev = bp->dev;
-	struct of_device *qec_op;
+	struct platform_device *qec_op;
 
-	qec_op = to_of_device(parent);
+	qec_op = to_platform_device(parent);
 
 	unregister_netdev(net_dev);
 
@@ -1301,12 +1301,12 @@ static struct of_platform_driver bigmac_sbus_driver = {
 
 static int __init bigmac_init(void)
 {
-	return of_register_driver(&bigmac_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&bigmac_sbus_driver);
 }
 
 static void __exit bigmac_exit(void)
 {
-	of_unregister_driver(&bigmac_sbus_driver);
+	of_unregister_platform_driver(&bigmac_sbus_driver);
 }
 
 module_init(bigmac_init);

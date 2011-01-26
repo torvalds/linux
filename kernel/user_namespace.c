@@ -9,7 +9,10 @@
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
 #include <linux/user_namespace.h>
+#include <linux/highuid.h>
 #include <linux/cred.h>
+
+static struct kmem_cache *user_ns_cachep __read_mostly;
 
 /*
  * Create a new user namespace, deriving the creator from the user in the
@@ -25,7 +28,7 @@ int create_user_ns(struct cred *new)
 	struct user_struct *root_user;
 	int n;
 
-	ns = kmalloc(sizeof(struct user_namespace), GFP_KERNEL);
+	ns = kmem_cache_alloc(user_ns_cachep, GFP_KERNEL);
 	if (!ns)
 		return -ENOMEM;
 
@@ -37,7 +40,7 @@ int create_user_ns(struct cred *new)
 	/* Alloc new root user.  */
 	root_user = alloc_uid(ns, 0);
 	if (!root_user) {
-		kfree(ns);
+		kmem_cache_free(user_ns_cachep, ns);
 		return -ENOMEM;
 	}
 
@@ -70,7 +73,7 @@ static void free_user_ns_work(struct work_struct *work)
 	struct user_namespace *ns =
 		container_of(work, struct user_namespace, destroyer);
 	free_uid(ns->creator);
-	kfree(ns);
+	kmem_cache_free(user_ns_cachep, ns);
 }
 
 void free_user_ns(struct kref *kref)
@@ -82,3 +85,53 @@ void free_user_ns(struct kref *kref)
 	schedule_work(&ns->destroyer);
 }
 EXPORT_SYMBOL(free_user_ns);
+
+uid_t user_ns_map_uid(struct user_namespace *to, const struct cred *cred, uid_t uid)
+{
+	struct user_namespace *tmp;
+
+	if (likely(to == cred->user->user_ns))
+		return uid;
+
+
+	/* Is cred->user the creator of the target user_ns
+	 * or the creator of one of it's parents?
+	 */
+	for ( tmp = to; tmp != &init_user_ns;
+	      tmp = tmp->creator->user_ns ) {
+		if (cred->user == tmp->creator) {
+			return (uid_t)0;
+		}
+	}
+
+	/* No useful relationship so no mapping */
+	return overflowuid;
+}
+
+gid_t user_ns_map_gid(struct user_namespace *to, const struct cred *cred, gid_t gid)
+{
+	struct user_namespace *tmp;
+
+	if (likely(to == cred->user->user_ns))
+		return gid;
+
+	/* Is cred->user the creator of the target user_ns
+	 * or the creator of one of it's parents?
+	 */
+	for ( tmp = to; tmp != &init_user_ns;
+	      tmp = tmp->creator->user_ns ) {
+		if (cred->user == tmp->creator) {
+			return (gid_t)0;
+		}
+	}
+
+	/* No useful relationship so no mapping */
+	return overflowgid;
+}
+
+static __init int user_namespaces_init(void)
+{
+	user_ns_cachep = KMEM_CACHE(user_namespace, SLAB_PANIC);
+	return 0;
+}
+module_init(user_namespaces_init);

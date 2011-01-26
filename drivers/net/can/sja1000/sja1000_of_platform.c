@@ -67,7 +67,7 @@ static void sja1000_ofp_write_reg(const struct sja1000_priv *priv,
 	out_8(priv->reg_base + reg, val);
 }
 
-static int __devexit sja1000_ofp_remove(struct of_device *ofdev)
+static int __devexit sja1000_ofp_remove(struct platform_device *ofdev)
 {
 	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
 	struct sja1000_priv *priv = netdev_priv(dev);
@@ -87,7 +87,7 @@ static int __devexit sja1000_ofp_remove(struct of_device *ofdev)
 	return 0;
 }
 
-static int __devinit sja1000_ofp_probe(struct of_device *ofdev,
+static int __devinit sja1000_ofp_probe(struct platform_device *ofdev,
 				       const struct of_device_id *id)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -107,17 +107,13 @@ static int __devinit sja1000_ofp_probe(struct of_device *ofdev,
 	res_size = resource_size(&res);
 
 	if (!request_mem_region(res.start, res_size, DRV_NAME)) {
-		dev_err(&ofdev->dev, "couldn't request %#llx..%#llx\n",
-			(unsigned long long)res.start,
-			(unsigned long long)res.end);
+		dev_err(&ofdev->dev, "couldn't request %pR\n", &res);
 		return -EBUSY;
 	}
 
 	base = ioremap_nocache(res.start, res_size);
 	if (!base) {
-		dev_err(&ofdev->dev, "couldn't ioremap %#llx..%#llx\n",
-			(unsigned long long)res.start,
-			(unsigned long long)res.end);
+		dev_err(&ofdev->dev, "couldn't ioremap %pR\n", &res);
 		err = -ENOMEM;
 		goto exit_release_mem;
 	}

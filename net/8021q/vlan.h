@@ -2,6 +2,7 @@
 #define __BEN_VLAN_802_1Q_INC__
 
 #include <linux/if_vlan.h>
+#include <linux/u64_stats_sync.h>
 
 
 /**
@@ -18,17 +19,25 @@ struct vlan_priority_tci_mapping {
 
 
 /**
- *	struct vlan_rx_stats - VLAN percpu rx stats
+ *	struct vlan_pcpu_stats - VLAN percpu rx/tx stats
  *	@rx_packets: number of received packets
  *	@rx_bytes: number of received bytes
- *	@multicast: number of received multicast packets
- *	@rx_errors: number of errors
+ *	@rx_multicast: number of received multicast packets
+ *	@tx_packets: number of transmitted packets
+ *	@tx_bytes: number of transmitted bytes
+ *	@syncp: synchronization point for 64bit counters
+ *	@rx_errors: number of rx errors
+ *	@tx_dropped: number of tx drops
  */
-struct vlan_rx_stats {
-	unsigned long rx_packets;
-	unsigned long rx_bytes;
-	unsigned long multicast;
-	unsigned long rx_errors;
+struct vlan_pcpu_stats {
+	u64			rx_packets;
+	u64			rx_bytes;
+	u64			rx_multicast;
+	u64			tx_packets;
+	u64			tx_bytes;
+	struct u64_stats_sync	syncp;
+	u32			rx_errors;
+	u32			tx_dropped;
 };
 
 /**
@@ -42,9 +51,7 @@ struct vlan_rx_stats {
  *	@real_dev: underlying netdevice
  *	@real_dev_addr: address of underlying netdevice
  *	@dent: proc dir entry
- *	@cnt_inc_headroom_on_tx: statistic - number of skb expansions on TX
- *	@cnt_encap_on_xmit: statistic - number of skb encapsulations on TX
- *	@vlan_rx_stats: ptr to percpu rx stats
+ *	@vlan_pcpu_stats: ptr to percpu rx stats
  */
 struct vlan_dev_info {
 	unsigned int				nr_ingress_mappings;
@@ -59,32 +66,13 @@ struct vlan_dev_info {
 	unsigned char				real_dev_addr[ETH_ALEN];
 
 	struct proc_dir_entry			*dent;
-	unsigned long				cnt_inc_headroom_on_tx;
-	unsigned long				cnt_encap_on_xmit;
-	struct vlan_rx_stats __percpu		*vlan_rx_stats;
+	struct vlan_pcpu_stats __percpu		*vlan_pcpu_stats;
 };
 
 static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
 {
 	return netdev_priv(dev);
 }
-
-#define VLAN_GRP_HASH_SHIFT	5
-#define VLAN_GRP_HASH_SIZE	(1 << VLAN_GRP_HASH_SHIFT)
-#define VLAN_GRP_HASH_MASK	(VLAN_GRP_HASH_SIZE - 1)
-
-/*  Find a VLAN device by the MAC address of its Ethernet device, and
- *  it's VLAN ID.  The default configuration is to have VLAN's scope
- *  to be box-wide, so the MAC will be ignored.  The mac will only be
- *  looked at if we are configured to have a separate set of VLANs per
- *  each MAC addressable interface.  Note that this latter option does
- *  NOT follow the spec for VLANs, but may be useful for doing very
- *  large quantities of VLAN MUX/DEMUX onto FrameRelay or ATM PVCs.
- *
- *  Must be invoked with rcu_read_lock (ie preempt disabled)
- *  or with RTNL.
- */
-struct net_device *__find_vlan_dev(struct net_device *real_dev, u16 vlan_id);
 
 /* found in vlan_dev.c */
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,

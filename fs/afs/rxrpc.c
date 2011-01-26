@@ -100,6 +100,7 @@ int afs_open_socket(void)
 	ret = kernel_bind(socket, (struct sockaddr *) &srx, sizeof(srx));
 	if (ret < 0) {
 		sock_release(socket);
+		destroy_workqueue(afs_async_calls);
 		_leave(" = %d [bind]", ret);
 		return ret;
 	}
@@ -409,7 +410,7 @@ static void afs_rx_interceptor(struct sock *sk, unsigned long user_call_ID,
 	if (!call) {
 		/* its an incoming call for our callback service */
 		skb_queue_tail(&afs_incoming_calls, skb);
-		schedule_work(&afs_collect_incoming_call_work);
+		queue_work(afs_wq, &afs_collect_incoming_call_work);
 	} else {
 		/* route the messages directly to the appropriate call */
 		skb_queue_tail(&call->rx_queue, skb);

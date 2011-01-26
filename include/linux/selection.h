@@ -39,5 +39,6 @@ extern void putconsxy(struct vc_data *vc, unsigned char *p);
 
 extern u16 vcs_scr_readw(struct vc_data *vc, const u16 *org);
 extern void vcs_scr_writew(struct vc_data *vc, u16 val, u16 *org);
+extern void vcs_scr_updated(struct vc_data *vc);
 
 #endif

@@ -52,7 +52,7 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 	SE_DEBUG(DBG_LVL_8, "In beiscsi_session_create\n");
 
 	if (!ep) {
-		SE_DEBUG(DBG_LVL_1, "beiscsi_session_create: invalid ep \n");
+		SE_DEBUG(DBG_LVL_1, "beiscsi_session_create: invalid ep\n");
 		return NULL;
 	}
 	beiscsi_ep = ep->dd_data;
@@ -157,7 +157,7 @@ static int beiscsi_bindconn_cid(struct beiscsi_hba *phba,
 			 "Connection table already occupied. Detected clash\n");
 		return -EINVAL;
 	} else {
-		SE_DEBUG(DBG_LVL_8, "phba->conn_table[%d]=%p(beiscsi_conn) \n",
+		SE_DEBUG(DBG_LVL_8, "phba->conn_table[%d]=%p(beiscsi_conn)\n",
 			 cid, beiscsi_conn);
 		phba->conn_table[cid] = beiscsi_conn;
 	}
@@ -196,7 +196,7 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 
 	if (beiscsi_ep->phba != phba) {
 		SE_DEBUG(DBG_LVL_8,
-			 "beiscsi_ep->hba=%p not equal to phba=%p \n",
+			 "beiscsi_ep->hba=%p not equal to phba=%p\n",
 			 beiscsi_ep->phba, phba);
 		return -EEXIST;
 	}
@@ -204,7 +204,7 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 	beiscsi_conn->beiscsi_conn_cid = beiscsi_ep->ep_cid;
 	beiscsi_conn->ep = beiscsi_ep;
 	beiscsi_ep->conn = beiscsi_conn;
-	SE_DEBUG(DBG_LVL_8, "beiscsi_conn=%p conn=%p ep_cid=%d \n",
+	SE_DEBUG(DBG_LVL_8, "beiscsi_conn=%p conn=%p ep_cid=%d\n",
 		 beiscsi_conn, conn, beiscsi_ep->ep_cid);
 	return beiscsi_bindconn_cid(phba, beiscsi_conn, beiscsi_ep->ep_cid);
 }
@@ -230,7 +230,7 @@ int beiscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 	if (!beiscsi_ep) {
 		SE_DEBUG(DBG_LVL_1,
 			 "In beiscsi_conn_get_param , no beiscsi_ep\n");
-		return -1;
+		return -ENODEV;
 	}
 
 	switch (param) {
@@ -277,6 +277,10 @@ int beiscsi_set_param(struct iscsi_cls_conn *cls_conn,
 		if (session->max_burst > 262144)
 			session->max_burst = 262144;
 		break;
+	case ISCSI_PARAM_MAX_XMIT_DLENGTH:
+		if ((conn->max_xmit_dlength > 65536) ||
+		    (conn->max_xmit_dlength == 0))
+			conn->max_xmit_dlength = 65536;
 	default:
 		return 0;
 	}
@@ -296,47 +300,64 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 			   enum iscsi_host_param param, char *buf)
 {
 	struct beiscsi_hba *phba = (struct beiscsi_hba *)iscsi_host_priv(shost);
-	struct be_cmd_resp_get_mac_addr *resp;
-	struct be_mcc_wrb *wrb;
-	unsigned int tag, wrb_num;
-	int len = 0;
-	unsigned short status, extd_status;
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	int status = 0;
 
 	SE_DEBUG(DBG_LVL_8, "In beiscsi_get_host_param, param= %d\n", param);
 	switch (param) {
 	case ISCSI_HOST_PARAM_HWADDRESS:
-		tag = be_cmd_get_mac_addr(phba);
-		if (!tag) {
-			SE_DEBUG(DBG_LVL_1, "be_cmd_get_mac_addr Failed \n");
-			return -1;
-		} else
-			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-						 phba->ctrl.mcc_numtag[tag]);
-
-		wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-		if (status || extd_status) {
-			SE_DEBUG(DBG_LVL_1, "be_cmd_get_mac_addr Failed"
-					    " status = %d extd_status = %d \n",
-					    status, extd_status);
-			free_mcc_tag(&phba->ctrl, tag);
-			return -1;
-		} else {
-			wrb = queue_get_wrb(mccq, wrb_num);
-			free_mcc_tag(&phba->ctrl, tag);
-			resp = embedded_payload(wrb);
-			memcpy(phba->mac_address, resp->mac_address, ETH_ALEN);
-			len = sysfs_format_mac(buf, phba->mac_address,
-					       ETH_ALEN);
+		status = beiscsi_get_macaddr(buf, phba);
+		if (status < 0) {
+			SE_DEBUG(DBG_LVL_1, "beiscsi_get_macaddr Failed\n");
+			return status;
 		}
 		break;
 	default:
 		return iscsi_host_get_param(shost, param, buf);
 	}
-	return len;
+	return status;
 }
+
+int beiscsi_get_macaddr(char *buf, struct beiscsi_hba *phba)
+{
+	struct be_cmd_resp_get_mac_addr *resp;
+	struct be_mcc_wrb *wrb;
+	unsigned int tag, wrb_num;
+	unsigned short status, extd_status;
+	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	int rc;
+
+	if (phba->read_mac_address)
+		return sysfs_format_mac(buf, phba->mac_address,
+					ETH_ALEN);
+
+	tag = be_cmd_get_mac_addr(phba);
+	if (!tag) {
+		SE_DEBUG(DBG_LVL_1, "be_cmd_get_mac_addr Failed\n");
+		return -EBUSY;
+	} else
+		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
+					 phba->ctrl.mcc_numtag[tag]);
+
+	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
+	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
+	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
+	if (status || extd_status) {
+		SE_DEBUG(DBG_LVL_1, "Failed to get be_cmd_get_mac_addr"
+				    " status = %d extd_status = %d\n",
+				    status, extd_status);
+		free_mcc_tag(&phba->ctrl, tag);
+		return -EAGAIN;
+	}
+	wrb = queue_get_wrb(mccq, wrb_num);
+	free_mcc_tag(&phba->ctrl, tag);
+	resp = embedded_payload(wrb);
+	memcpy(phba->mac_address, resp->mac_address, ETH_ALEN);
+	rc = sysfs_format_mac(buf, phba->mac_address,
+			       ETH_ALEN);
+	phba->read_mac_address = 1;
+	return rc;
+}
+
 
 /**
  * beiscsi_conn_get_stats - get the iscsi stats
@@ -442,75 +463,6 @@ static int beiscsi_get_cid(struct beiscsi_hba *phba)
 }
 
 /**
- * beiscsi_open_conn - Ask FW to open a TCP connection
- * @ep:	endpoint to be used
- * @src_addr: The source IP address
- * @dst_addr: The Destination  IP address
- *
- * Asks the FW to open a TCP connection
- */
-static int beiscsi_open_conn(struct iscsi_endpoint *ep,
-			     struct sockaddr *src_addr,
-			     struct sockaddr *dst_addr, int non_blocking)
-{
-	struct beiscsi_endpoint *beiscsi_ep = ep->dd_data;
-	struct beiscsi_hba *phba = beiscsi_ep->phba;
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
-	struct be_mcc_wrb *wrb;
-	struct tcp_connect_and_offload_out *ptcpcnct_out;
-	unsigned short status, extd_status;
-	unsigned int tag, wrb_num;
-	int ret = -1;
-
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_open_conn\n");
-	beiscsi_ep->ep_cid = beiscsi_get_cid(phba);
-	if (beiscsi_ep->ep_cid == 0xFFFF) {
-		SE_DEBUG(DBG_LVL_1, "No free cid available\n");
-		return ret;
-	}
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_open_conn, ep_cid=%d ",
-		 beiscsi_ep->ep_cid);
-	phba->ep_array[beiscsi_ep->ep_cid -
-		       phba->fw_config.iscsi_cid_start] = ep;
-	if (beiscsi_ep->ep_cid > (phba->fw_config.iscsi_cid_start +
-				  phba->params.cxns_per_ctrl * 2)) {
-		SE_DEBUG(DBG_LVL_1, "Failed in allocate iscsi cid\n");
-		return ret;
-	}
-
-	beiscsi_ep->cid_vld = 0;
-	tag = mgmt_open_connection(phba, dst_addr, beiscsi_ep);
-	if (!tag) {
-		SE_DEBUG(DBG_LVL_1,
-			 "mgmt_open_connection Failed for cid=%d \n",
-			 beiscsi_ep->ep_cid);
-	} else {
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-					 phba->ctrl.mcc_numtag[tag]);
-	}
-	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-	if (status || extd_status) {
-		SE_DEBUG(DBG_LVL_1, "mgmt_open_connection Failed"
-				    " status = %d extd_status = %d \n",
-				    status, extd_status);
-		free_mcc_tag(&phba->ctrl, tag);
-		return -1;
-	} else {
-		wrb = queue_get_wrb(mccq, wrb_num);
-		free_mcc_tag(&phba->ctrl, tag);
-
-		ptcpcnct_out = 	embedded_payload(wrb);
-		beiscsi_ep = ep->dd_data;
-		beiscsi_ep->fw_handle = ptcpcnct_out->connection_handle;
-		beiscsi_ep->cid_vld = 1;
-		SE_DEBUG(DBG_LVL_8, "mgmt_open_connection Success\n");
-	}
-	return 0;
-}
-
-/**
  * beiscsi_put_cid - Free the cid
  * @phba: The phba for which the cid is being freed
  * @cid: The cid to free
@@ -536,6 +488,100 @@ static void beiscsi_free_ep(struct beiscsi_endpoint *beiscsi_ep)
 }
 
 /**
+ * beiscsi_open_conn - Ask FW to open a TCP connection
+ * @ep:	endpoint to be used
+ * @src_addr: The source IP address
+ * @dst_addr: The Destination  IP address
+ *
+ * Asks the FW to open a TCP connection
+ */
+static int beiscsi_open_conn(struct iscsi_endpoint *ep,
+			     struct sockaddr *src_addr,
+			     struct sockaddr *dst_addr, int non_blocking)
+{
+	struct beiscsi_endpoint *beiscsi_ep = ep->dd_data;
+	struct beiscsi_hba *phba = beiscsi_ep->phba;
+	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	struct be_mcc_wrb *wrb;
+	struct tcp_connect_and_offload_out *ptcpcnct_out;
+	unsigned short status, extd_status;
+	struct be_dma_mem nonemb_cmd;
+	unsigned int tag, wrb_num;
+	int ret = -ENOMEM;
+
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_open_conn\n");
+	beiscsi_ep->ep_cid = beiscsi_get_cid(phba);
+	if (beiscsi_ep->ep_cid == 0xFFFF) {
+		SE_DEBUG(DBG_LVL_1, "No free cid available\n");
+		return ret;
+	}
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_open_conn, ep_cid=%d\n",
+		 beiscsi_ep->ep_cid);
+	phba->ep_array[beiscsi_ep->ep_cid -
+		       phba->fw_config.iscsi_cid_start] = ep;
+	if (beiscsi_ep->ep_cid > (phba->fw_config.iscsi_cid_start +
+				  phba->params.cxns_per_ctrl * 2)) {
+		SE_DEBUG(DBG_LVL_1, "Failed in allocate iscsi cid\n");
+		goto free_ep;
+	}
+
+	beiscsi_ep->cid_vld = 0;
+	nonemb_cmd.va = pci_alloc_consistent(phba->ctrl.pdev,
+				sizeof(struct tcp_connect_and_offload_in),
+				&nonemb_cmd.dma);
+	if (nonemb_cmd.va == NULL) {
+		SE_DEBUG(DBG_LVL_1,
+			 "Failed to allocate memory for mgmt_open_connection"
+			 "\n");
+		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
+		return -ENOMEM;
+	}
+	nonemb_cmd.size = sizeof(struct tcp_connect_and_offload_in);
+	memset(nonemb_cmd.va, 0, nonemb_cmd.size);
+	tag = mgmt_open_connection(phba, dst_addr, beiscsi_ep, &nonemb_cmd);
+	if (!tag) {
+		SE_DEBUG(DBG_LVL_1,
+			 "mgmt_open_connection Failed for cid=%d\n",
+			 beiscsi_ep->ep_cid);
+		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+				    nonemb_cmd.va, nonemb_cmd.dma);
+		return -EAGAIN;
+	} else {
+		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
+					 phba->ctrl.mcc_numtag[tag]);
+	}
+	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
+	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
+	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
+	if (status || extd_status) {
+		SE_DEBUG(DBG_LVL_1, "mgmt_open_connection Failed"
+				    " status = %d extd_status = %d\n",
+				    status, extd_status);
+		free_mcc_tag(&phba->ctrl, tag);
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+			    nonemb_cmd.va, nonemb_cmd.dma);
+		goto free_ep;
+	} else {
+		wrb = queue_get_wrb(mccq, wrb_num);
+		free_mcc_tag(&phba->ctrl, tag);
+
+		ptcpcnct_out = embedded_payload(wrb);
+		beiscsi_ep = ep->dd_data;
+		beiscsi_ep->fw_handle = ptcpcnct_out->connection_handle;
+		beiscsi_ep->cid_vld = 1;
+		SE_DEBUG(DBG_LVL_8, "mgmt_open_connection Success\n");
+	}
+	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+			    nonemb_cmd.va, nonemb_cmd.dma);
+	return 0;
+
+free_ep:
+	beiscsi_free_ep(beiscsi_ep);
+	return -EBUSY;
+}
+
+/**
  * beiscsi_ep_connect - Ask chip to create TCP Conn
  * @scsi_host: Pointer to scsi_host structure
  * @dst_addr: The IP address of Target
@@ -552,18 +598,18 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	struct iscsi_endpoint *ep;
 	int ret;
 
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_ep_connect \n");
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_ep_connect\n");
 	if (shost)
 		phba = iscsi_host_priv(shost);
 	else {
 		ret = -ENXIO;
-		SE_DEBUG(DBG_LVL_1, "shost is NULL \n");
+		SE_DEBUG(DBG_LVL_1, "shost is NULL\n");
 		return ERR_PTR(ret);
 	}
 
 	if (phba->state != BE_ADAPTER_UP) {
 		ret = -EBUSY;
-		SE_DEBUG(DBG_LVL_1, "The Adapter state is Not UP \n");
+		SE_DEBUG(DBG_LVL_1, "The Adapter state is Not UP\n");
 		return ERR_PTR(ret);
 	}
 
@@ -576,16 +622,16 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	beiscsi_ep = ep->dd_data;
 	beiscsi_ep->phba = phba;
 	beiscsi_ep->openiscsi_ep = ep;
-	if (beiscsi_open_conn(ep, NULL, dst_addr, non_blocking)) {
-		SE_DEBUG(DBG_LVL_1, "Failed in beiscsi_open_conn \n");
-		ret = -ENOMEM;
+	ret = beiscsi_open_conn(ep, NULL, dst_addr, non_blocking);
+	if (ret) {
+		SE_DEBUG(DBG_LVL_1, "Failed in beiscsi_open_conn\n");
 		goto free_ep;
 	}
 
 	return ep;
 
 free_ep:
-	beiscsi_free_ep(beiscsi_ep);
+	iscsi_destroy_endpoint(ep);
 	return ERR_PTR(ret);
 }
 
@@ -620,39 +666,15 @@ static int beiscsi_close_conn(struct  beiscsi_endpoint *beiscsi_ep, int flag)
 
 	tag = mgmt_upload_connection(phba, beiscsi_ep->ep_cid, flag);
 	if (!tag) {
-		SE_DEBUG(DBG_LVL_8, "upload failed for cid 0x%x",
+		SE_DEBUG(DBG_LVL_8, "upload failed for cid 0x%x\n",
 			 beiscsi_ep->ep_cid);
-		ret = -1;
+		ret = -EAGAIN;
 	} else {
 		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
 					 phba->ctrl.mcc_numtag[tag]);
 		free_mcc_tag(&phba->ctrl, tag);
 	}
 	return ret;
-}
-
-/**
- * beiscsi_ep_disconnect - Tears down the TCP connection
- * @ep:	endpoint to be used
- *
- * Tears down the TCP connection
- */
-void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
-{
-	struct beiscsi_conn *beiscsi_conn;
-	struct beiscsi_endpoint *beiscsi_ep;
-	struct beiscsi_hba *phba;
-
-	beiscsi_ep = ep->dd_data;
-	phba = beiscsi_ep->phba;
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_ep_disconnect for ep_cid = %d\n",
-			     beiscsi_ep->ep_cid);
-
-	if (beiscsi_ep->conn) {
-		beiscsi_conn = beiscsi_ep->conn;
-		iscsi_suspend_queue(beiscsi_conn->conn);
-	}
-
 }
 
 /**
@@ -666,50 +688,57 @@ static int beiscsi_unbind_conn_to_cid(struct beiscsi_hba *phba,
 	if (phba->conn_table[cid])
 		phba->conn_table[cid] = NULL;
 	else {
-		SE_DEBUG(DBG_LVL_8, "Connection table Not occupied. \n");
+		SE_DEBUG(DBG_LVL_8, "Connection table Not occupied.\n");
 		return -EINVAL;
 	}
 	return 0;
 }
 
 /**
- * beiscsi_conn_stop - Invalidate and stop the connection
- * @cls_conn: pointer to get iscsi_conn
- * @flag: The type of connection closure
+ * beiscsi_ep_disconnect - Tears down the TCP connection
+ * @ep:	endpoint to be used
+ *
+ * Tears down the TCP connection
  */
-void beiscsi_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
+void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 {
-	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct beiscsi_conn *beiscsi_conn = conn->dd_data;
+	struct beiscsi_conn *beiscsi_conn;
 	struct beiscsi_endpoint *beiscsi_ep;
-	struct iscsi_session *session = conn->session;
-	struct Scsi_Host *shost = iscsi_session_to_shost(session->cls_session);
-	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	struct beiscsi_hba *phba;
 	unsigned int tag;
 	unsigned short savecfg_flag = CMD_ISCSI_SESSION_SAVE_CFG_ON_FLASH;
 
-	beiscsi_ep = beiscsi_conn->ep;
-	if (!beiscsi_ep) {
-		SE_DEBUG(DBG_LVL_8, "In beiscsi_conn_stop , no beiscsi_ep\n");
+	beiscsi_ep = ep->dd_data;
+	phba = beiscsi_ep->phba;
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_ep_disconnect for ep_cid = %d\n",
+			     beiscsi_ep->ep_cid);
+
+	if (!beiscsi_ep->conn) {
+		SE_DEBUG(DBG_LVL_8, "In beiscsi_ep_disconnect, no "
+			 "beiscsi_ep\n");
 		return;
 	}
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_conn_stop  ep_cid = %d\n",
-			     beiscsi_ep->ep_cid);
+	beiscsi_conn = beiscsi_ep->conn;
+	iscsi_suspend_queue(beiscsi_conn->conn);
+
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_ep_disconnect ep_cid = %d\n",
+		 beiscsi_ep->ep_cid);
+
 	tag = mgmt_invalidate_connection(phba, beiscsi_ep,
 					    beiscsi_ep->ep_cid, 1,
 					    savecfg_flag);
 	if (!tag) {
 		SE_DEBUG(DBG_LVL_1,
-			 "mgmt_invalidate_connection Failed for cid=%d \n",
+			 "mgmt_invalidate_connection Failed for cid=%d\n",
 			  beiscsi_ep->ep_cid);
 	} else {
 		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
 					 phba->ctrl.mcc_numtag[tag]);
 		free_mcc_tag(&phba->ctrl, tag);
 	}
+
 	beiscsi_close_conn(beiscsi_ep, CONNECTION_UPLOAD_GRACEFUL);
 	beiscsi_free_ep(beiscsi_ep);
-	iscsi_destroy_endpoint(beiscsi_ep->openiscsi_ep);
 	beiscsi_unbind_conn_to_cid(phba, beiscsi_ep->ep_cid);
-	iscsi_conn_stop(cls_conn, flag);
+	iscsi_destroy_endpoint(beiscsi_ep->openiscsi_ep);
 }

@@ -5,23 +5,19 @@ Supported chips:
   * Winbond W83627HF (ISA accesses ONLY)
     Prefix: 'w83627hf'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet: http://www.winbond.com/PDF/sheet/w83627hf.pdf
   * Winbond W83627THF
     Prefix: 'w83627thf'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet: http://www.winbond.com/PDF/sheet/w83627thf.pdf
   * Winbond W83697HF
     Prefix: 'w83697hf'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet: http://www.winbond.com/PDF/sheet/697hf.pdf
   * Winbond W83637HF
     Prefix: 'w83637hf'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet: http://www.winbond.com/PDF/sheet/w83637hf.pdf
   * Winbond W83687THF
     Prefix: 'w83687thf'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet: Provided by Winbond on request
+    Datasheet: Provided by Winbond on request(http://www.winbond.com/hq/enu)
 
 Authors:
         Frodo Looijaard <frodol@dds.nl>,
@@ -95,3 +91,25 @@ isaset -y -f 0x2e 0xaa
 
 The above sequence assumes a Super-I/O config space at 0x2e/0x2f, but
 0x4e/0x4f is also possible.
+
+Voltage pin mapping
+-------------------
+
+Here is a summary of the voltage pin mapping for the W83627THF. This
+can be useful to convert data provided by board manufacturers into
+working libsensors configuration statements.
+
+    W83627THF		|
+  Pin	| Name		| Register	| Sysfs attribute
+-----------------------------------------------------
+  100	| CPUVCORE	| 20h		| in0
+   99	| VIN0		| 21h		| in1
+   98	| VIN1		| 22h		| in2
+   97	| VIN2		| 24h		| in4
+  114	| AVCC		| 23h		| in3
+   61	| 5VSB		| 50h (bank 5)	| in7
+   74	| VBAT		| 51h (bank 5)	| in8
+
+For other supported devices, you'll have to take the hard path and
+look up the information in the datasheet yourself (and then add it
+to this document please.)

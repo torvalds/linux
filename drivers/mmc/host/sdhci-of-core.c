@@ -13,6 +13,7 @@
  * your option) any later version.
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -20,8 +21,12 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/mmc/host.h>
+#ifdef CONFIG_PPC
 #include <asm/machdep.h>
+#endif
 #include "sdhci-of.h"
 #include "sdhci.h"
 
@@ -85,14 +90,14 @@ void sdhci_be32bs_writeb(struct sdhci_host *host, u8 val, int reg)
 
 #ifdef CONFIG_PM
 
-static int sdhci_of_suspend(struct of_device *ofdev, pm_message_t state)
+static int sdhci_of_suspend(struct platform_device *ofdev, pm_message_t state)
 {
 	struct sdhci_host *host = dev_get_drvdata(&ofdev->dev);
 
-	return mmc_suspend_host(host->mmc, state);
+	return mmc_suspend_host(host->mmc);
 }
 
-static int sdhci_of_resume(struct of_device *ofdev)
+static int sdhci_of_resume(struct platform_device *ofdev)
 {
 	struct sdhci_host *host = dev_get_drvdata(&ofdev->dev);
 
@@ -112,17 +117,21 @@ static bool __devinit sdhci_of_wp_inverted(struct device_node *np)
 		return true;
 
 	/* Old device trees don't have the wp-inverted property. */
+#ifdef CONFIG_PPC
 	return machine_is(mpc837x_rdb) || machine_is(mpc837x_mds);
+#else
+	return false;
+#endif
 }
 
-static int __devinit sdhci_of_probe(struct of_device *ofdev,
+static int __devinit sdhci_of_probe(struct platform_device *ofdev,
 				 const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct sdhci_of_data *sdhci_of_data = match->data;
 	struct sdhci_host *host;
 	struct sdhci_of_host *of_host;
-	const u32 *clk;
+	const __be32 *clk;
 	int size;
 	int ret;
 
@@ -154,6 +163,10 @@ static int __devinit sdhci_of_probe(struct of_device *ofdev,
 		host->ops = &sdhci_of_data->ops;
 	}
 
+	if (of_get_property(np, "sdhci,auto-cmd12", NULL))
+		host->quirks |= SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12;
+
+
 	if (of_get_property(np, "sdhci,1-bit-only", NULL))
 		host->quirks |= SDHCI_QUIRK_FORCE_1_BIT_DATA;
 
@@ -162,7 +175,7 @@ static int __devinit sdhci_of_probe(struct of_device *ofdev,
 
 	clk = of_get_property(np, "clock-frequency", &size);
 	if (clk && size == sizeof(*clk) && *clk)
-		of_host->clock = *clk;
+		of_host->clock = be32_to_cpup(clk);
 
 	ret = sdhci_add_host(host);
 	if (ret)
@@ -179,7 +192,7 @@ err_addr_map:
 	return ret;
 }
 
-static int __devexit sdhci_of_remove(struct of_device *ofdev)
+static int __devexit sdhci_of_remove(struct platform_device *ofdev)
 {
 	struct sdhci_host *host = dev_get_drvdata(&ofdev->dev);
 

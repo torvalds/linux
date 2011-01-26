@@ -57,6 +57,13 @@ static inline int pte_file(pte_t pte) { return 0; }
 
 #define pgprot_noncached_wc(prot)	prot
 
+/*
+ * All 32bit addresses are effectively valid for vmalloc...
+ * Sort of meaningless for non-VM targets.
+ */
+#define	VMALLOC_START	0
+#define	VMALLOC_END	0xffffffff
+
 #else /* CONFIG_MMU */
 
 #include <asm-generic/4level-fixup.h>
@@ -437,8 +444,9 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	*ptep = pte;
 }
 
-static inline int ptep_test_and_clear_young(struct mm_struct *mm,
-		unsigned long addr, pte_t *ptep)
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
+		unsigned long address, pte_t *ptep)
 {
 	return (pte_update(ptep, _PAGE_ACCESSED, 0) & _PAGE_ACCESSED) != 0;
 }
@@ -450,6 +458,7 @@ static inline int ptep_test_and_clear_dirty(struct mm_struct *mm,
 		(_PAGE_DIRTY | _PAGE_HWWRITE), 0) & _PAGE_DIRTY) != 0;
 }
 
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 		unsigned long addr, pte_t *ptep)
 {
@@ -497,12 +506,9 @@ static inline pmd_t *pmd_offset(pgd_t *dir, unsigned long address)
 #define pte_offset_kernel(dir, addr)	\
 	((pte_t *) pmd_page_kernel(*(dir)) + pte_index(addr))
 #define pte_offset_map(dir, addr)		\
-	((pte_t *) kmap_atomic(pmd_page(*(dir)), KM_PTE0) + pte_index(addr))
-#define pte_offset_map_nested(dir, addr)	\
-	((pte_t *) kmap_atomic(pmd_page(*(dir)), KM_PTE1) + pte_index(addr))
+	((pte_t *) kmap_atomic(pmd_page(*(dir))) + pte_index(addr))
 
-#define pte_unmap(pte)		kunmap_atomic(pte, KM_PTE0)
-#define pte_unmap_nested(pte)	kunmap_atomic(pte, KM_PTE1)
+#define pte_unmap(pte)		kunmap_atomic(pte)
 
 /* Encode and decode a nonlinear file mapping entry */
 #define PTE_FILE_MAX_BITS	29

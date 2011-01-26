@@ -32,8 +32,9 @@ config HAVE_OPROFILE
 
 config KPROBES
 	bool "Kprobes"
-	depends on KALLSYMS && MODULES
+	depends on MODULES
 	depends on HAVE_KPROBES
+	select KALLSYMS
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes
@@ -41,11 +42,24 @@ config KPROBES
 	  for kernel debugging, non-intrusive instrumentation and testing.
 	  If in doubt, say "N".
 
+config JUMP_LABEL
+       bool "Optimize trace point call sites"
+       depends on HAVE_ARCH_JUMP_LABEL
+       help
+         If it is detected that the compiler has support for "asm goto",
+	 the kernel will compile trace point locations with just a
+	 nop instruction. When trace points are enabled, the nop will
+	 be converted to a jump to the trace function. This technique
+	 lowers overhead and stress on the branch prediction of the
+	 processor.
+
+	 On i386, options added to the compiler flags may increase
+	 the size of the kernel slightly.
+
 config OPTPROBES
 	def_bool y
 	depends on KPROBES && HAVE_OPTPROBES
 	depends on !PREEMPT
-	select KALLSYMS_ALL
 
 config HAVE_EFFICIENT_UNALIGNED_ACCESS
 	bool
@@ -149,6 +163,19 @@ config HAVE_MIXED_BREAKPOINTS_REGS
 	  latter fashion.
 
 config HAVE_USER_RETURN_NOTIFIER
+	bool
+
+config HAVE_PERF_EVENTS_NMI
+	bool
+	help
+	  System hardware can generate an NMI using the perf event
+	  subsystem.  Also has support for calculating CPU cycle events
+	  to determine how many clock cycles in a given period.
+
+config HAVE_ARCH_JUMP_LABEL
+	bool
+
+config HAVE_ARCH_MUTEX_CPU_RELAX
 	bool
 
 source "kernel/gcov/Kconfig"

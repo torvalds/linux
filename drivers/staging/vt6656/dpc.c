@@ -80,7 +80,7 @@ static
 void
 s_vGetDASA(
       PBYTE pbyRxBufferAddr,
-     PUINT pcbHeaderSize,
+     unsigned int *pcbHeaderSize,
      PSEthernetHeader psEthHeader
     );
 
@@ -92,7 +92,7 @@ s_vProcessRxMACHeader (
       unsigned int cbPacketSize,
       BOOL bIsWEP,
       BOOL bExtIV,
-     PUINT pcbHeadSize
+     unsigned int *pcbHeadSize
     );
 
 static BOOL s_bAPModeRxCtl(
@@ -167,7 +167,7 @@ s_vProcessRxMACHeader (
       unsigned int cbPacketSize,
       BOOL bIsWEP,
       BOOL bExtIV,
-     PUINT pcbHeadSize
+     unsigned int *pcbHeadSize
     )
 {
     PBYTE           pbyRxBuffer;
@@ -195,16 +195,14 @@ s_vProcessRxMACHeader (
     };
 
     pbyRxBuffer = (PBYTE) (pbyRxBufferAddr + cbHeaderSize);
-    if (IS_ETH_ADDRESS_EQUAL(pbyRxBuffer, &pDevice->abySNAP_Bridgetunnel[0])) {
+    if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_Bridgetunnel[0])) {
         cbHeaderSize += 6;
-    }
-    else if (IS_ETH_ADDRESS_EQUAL(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
+    } else if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
         cbHeaderSize += 6;
         pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
-        if ((*pwType!= TYPE_PKT_IPX) && (*pwType != cpu_to_le16(0xF380))) {
-        }
-        else {
-            cbHeaderSize -= 8;
+	if ((*pwType == cpu_to_le16(ETH_P_IPX)) ||
+	    (*pwType == cpu_to_le16(0xF380))) {
+		cbHeaderSize -= 8;
             pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
             if (bIsWEP) {
                 if (bExtIV) {
@@ -262,7 +260,7 @@ static
 void
 s_vGetDASA (
       PBYTE pbyRxBufferAddr,
-     PUINT pcbHeaderSize,
+     unsigned int *pcbHeaderSize,
      PSEthernetHeader psEthHeader
     )
 {
@@ -343,9 +341,7 @@ RXbBulkInProcessData (
     PBYTE           pbyRxSts;
     PBYTE           pbyRxRate;
     PBYTE           pbySQ;
-#ifdef Calcu_LinkQual
     PBYTE           pby3SQ;
-#endif
     unsigned int            cbHeaderSize;
     PSKeyItem       pKey = NULL;
     WORD            wRxTSC15_0 = 0;
@@ -380,9 +376,9 @@ RXbBulkInProcessData (
         return FALSE;
     }
 
-    if ((BytesToIndicate > 2372)||(BytesToIndicate <= 40)) {
+    if ((BytesToIndicate > 2372) || (BytesToIndicate <= 40)) {
         // Frame Size error drop this packet.
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- WRONG Length 2 \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---------- WRONG Length 2\n");
         return FALSE;
     }
 
@@ -416,7 +412,6 @@ RXbBulkInProcessData (
     wPLCPwithPadding = ( (*pwPLCP_Length / 4) + ( (*pwPLCP_Length % 4) ? 1:0 ) ) *4;
 
     pqwTSFTime = (PQWORD) (pbyDAddress + 8 + wPLCPwithPadding);
-#ifdef Calcu_LinkQual
   if(pDevice->byBBType == BB_TYPE_11G)  {
       pby3SQ = pbyDAddress + 8 + wPLCPwithPadding + 12;
       pbySQ = pby3SQ;
@@ -425,9 +420,6 @@ RXbBulkInProcessData (
    pbySQ = pbyDAddress + 8 + wPLCPwithPadding + 8;
    pby3SQ = pbySQ;
   }
-#else
-    pbySQ = pbyDAddress + 8 + wPLCPwithPadding + 8;
-#endif
     pbyNewRsr = pbyDAddress + 8 + wPLCPwithPadding + 9;
     pbyRSSI = pbyDAddress + 8 + wPLCPwithPadding + 10;
     pbyRsr = pbyDAddress + 8 + wPLCPwithPadding + 11;
@@ -453,21 +445,22 @@ RXbBulkInProcessData (
     if ((pMgmt->eCurrMode == WMAC_MODE_STANDBY) ||
         (pMgmt->eCurrMode == WMAC_MODE_ESS_STA)) {
        if (pMgmt->sNodeDBTable[0].bActive) {
-         if(IS_ETH_ADDRESS_EQUAL (pMgmt->abyCurrBSSID, pMACHeader->abyAddr2) ) {
+	 if (!compare_ether_addr(pMgmt->abyCurrBSSID, pMACHeader->abyAddr2)) {
 	    if (pMgmt->sNodeDBTable[0].uInActiveCount != 0)
                   pMgmt->sNodeDBTable[0].uInActiveCount = 0;
            }
        }
     }
 
-    if (!IS_MULTICAST_ADDRESS(pMACHeader->abyAddr1) && !IS_BROADCAST_ADDRESS(pMACHeader->abyAddr1)) {
+    if (!is_multicast_ether_addr(pMACHeader->abyAddr1) && !is_broadcast_ether_addr(pMACHeader->abyAddr1)) {
         if ( WCTLbIsDuplicate(&(pDevice->sDupRxCache), (PS802_11Header) pbyFrame) ) {
             pDevice->s802_11Counter.FrameDuplicateCount++;
             return FALSE;
         }
 
-        if ( !IS_ETH_ADDRESS_EQUAL (pDevice->abyCurrentNetAddr, pMACHeader->abyAddr1) ) {
-            return FALSE;
+	if (compare_ether_addr(pDevice->abyCurrentNetAddr,
+			       pMACHeader->abyAddr1)) {
+		return FALSE;
         }
     }
 
@@ -475,7 +468,8 @@ RXbBulkInProcessData (
     // Use for TKIP MIC
     s_vGetDASA(pbyFrame, &cbHeaderSize, &pDevice->sRxEthHeader);
 
-    if (IS_ETH_ADDRESS_EQUAL((PBYTE)&(pDevice->sRxEthHeader.abySrcAddr[0]), pDevice->abyCurrentNetAddr))
+    if (!compare_ether_addr((PBYTE)&(pDevice->sRxEthHeader.abySrcAddr[0]),
+			    pDevice->abyCurrentNetAddr))
         return FALSE;
 
     if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) || (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)) {
@@ -568,8 +562,8 @@ RXbBulkInProcessData (
     //
     // RX OK
     //
-    //remove the CRC length
-    FrameSize -= U_CRC_LEN;
+    /* remove the FCS/CRC length */
+    FrameSize -= ETH_FCS_LEN;
 
     if ( !(*pbyRsr & (RSR_ADDRBROAD | RSR_ADDRMULTI)) && // unicast address
         (IS_FRAGMENT_PKT((pbyFrame)))
@@ -758,10 +752,11 @@ RXbBulkInProcessData (
         pMgmt->pCurrBSS->byRSSIStatCnt++;
         pMgmt->pCurrBSS->byRSSIStatCnt %= RSSI_STAT_COUNT;
         pMgmt->pCurrBSS->ldBmAverage[pMgmt->pCurrBSS->byRSSIStatCnt] = ldBm;
-        for(ii=0;ii<RSSI_STAT_COUNT;ii++) {
-            if (pMgmt->pCurrBSS->ldBmAverage[ii] != 0) {
-            pMgmt->pCurrBSS->ldBmMAX = max(pMgmt->pCurrBSS->ldBmAverage[ii], ldBm);
-            }
+	for (ii = 0; ii < RSSI_STAT_COUNT; ii++) {
+		if (pMgmt->pCurrBSS->ldBmAverage[ii] != 0) {
+			pMgmt->pCurrBSS->ldBmMAX =
+				max(pMgmt->pCurrBSS->ldBmAverage[ii], ldBm);
+		}
         }
     }
 */
@@ -869,7 +864,6 @@ RXbBulkInProcessData (
                             pDevice->dev->name);
                     }
                 }
-		//2008-0409-07, <Add> by Einsn Liu
        #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 				//send event to wpa_supplicant
 				//if(pDevice->bWPASuppWextEnabled == TRUE)
@@ -1448,7 +1442,7 @@ static BOOL s_bAPModeRxData (
     if (FrameSize > CB_MAX_BUF_SIZE)
         return FALSE;
     // check DA
-    if(IS_MULTICAST_ADDRESS((PBYTE)(skb->data+cbHeaderOffset))) {
+    if (is_multicast_ether_addr((PBYTE)(skb->data+cbHeaderOffset))) {
        if (pMgmt->sNodeDBTable[0].bPSEnable) {
 
            skbcpy = dev_alloc_skb((int)pDevice->rx_buf_sz);
@@ -1523,12 +1517,13 @@ static BOOL s_bAPModeRxData (
 void RXvWorkItem(void *Context)
 {
     PSDevice pDevice = (PSDevice) Context;
-    NTSTATUS        ntStatus;
+    int ntStatus;
     PRCB            pRCB=NULL;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
     spin_lock_irq(&pDevice->lock);
-    while ( MP_TEST_FLAG(pDevice, fMP_POST_READS) &&
+
+    while ((pDevice->Flags & fMP_POST_READS) &&
             MP_IS_READY(pDevice) &&
             (pDevice->NumRecvFreeList != 0) ) {
         pRCB = pDevice->FirstRecvFreeList;
@@ -1573,7 +1568,7 @@ RXvFreeRCB(
     pDevice->NumRecvFreeList++;
 
 
-    if (MP_TEST_FLAG(pDevice, fMP_POST_READS) && MP_IS_READY(pDevice) &&
+    if ((pDevice->Flags & fMP_POST_READS) && MP_IS_READY(pDevice) &&
         (pDevice->bIsRxWorkItemQueued == FALSE) ) {
 
         pDevice->bIsRxWorkItemQueued = TRUE;
@@ -1613,8 +1608,8 @@ void RXvMngWorkItem(void *Context)
         }
     }
 
-    pDevice->bIsRxMngWorkItemQueued = FALSE;
-    spin_unlock_irq(&pDevice->lock);
+	pDevice->bIsRxMngWorkItemQueued = FALSE;
+	spin_unlock_irq(&pDevice->lock);
 
 }
 

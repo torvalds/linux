@@ -99,7 +99,7 @@ struct pmc_type {
 	int has_deep_sleep;
 };
 
-static struct of_device *pmc_dev;
+static struct platform_device *pmc_dev;
 static int has_deep_sleep, deep_sleeping;
 static int pmc_irq;
 static struct mpc83xx_pmc __iomem *pmc_regs;
@@ -311,14 +311,14 @@ static int mpc83xx_is_pci_agent(void)
 	return ret;
 }
 
-static struct platform_suspend_ops mpc83xx_suspend_ops = {
+static const struct platform_suspend_ops mpc83xx_suspend_ops = {
 	.valid = mpc83xx_suspend_valid,
 	.begin = mpc83xx_suspend_begin,
 	.enter = mpc83xx_suspend_enter,
 	.end = mpc83xx_suspend_end,
 };
 
-static int pmc_probe(struct of_device *ofdev,
+static int pmc_probe(struct platform_device *ofdev,
                      const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -396,7 +396,7 @@ out:
 	return ret;
 }
 
-static int pmc_remove(struct of_device *ofdev)
+static int pmc_remove(struct platform_device *ofdev)
 {
 	return -EPERM;
 };

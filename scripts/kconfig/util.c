@@ -12,15 +12,18 @@
 struct file *file_lookup(const char *name)
 {
 	struct file *file;
+	const char *file_name = sym_expand_string_value(name);
 
 	for (file = file_list; file; file = file->next) {
-		if (!strcmp(name, file->name))
+		if (!strcmp(name, file->name)) {
+			free((void *)file_name);
 			return file;
+		}
 	}
 
 	file = malloc(sizeof(*file));
 	memset(file, 0, sizeof(*file));
-	file->name = strdup(name);
+	file->name = file_name;
 	file->next = file_list;
 	file_list = file;
 	return file;
@@ -78,6 +81,7 @@ struct gstr str_new(void)
 	struct gstr gs;
 	gs.s = malloc(sizeof(char) * 64);
 	gs.len = 64;
+	gs.max_width = 0;
 	strcpy(gs.s, "\0");
 	return gs;
 }
@@ -88,6 +92,7 @@ struct gstr str_assign(const char *s)
 	struct gstr gs;
 	gs.s = strdup(s);
 	gs.len = strlen(s) + 1;
+	gs.max_width = 0;
 	return gs;
 }
 

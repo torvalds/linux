@@ -136,9 +136,7 @@ extern unsigned long sysv_count_free_blocks(struct super_block *);
 
 /* itree.c */
 extern void sysv_truncate(struct inode *);
-extern int __sysv_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata);
+extern int sysv_prepare_chunk(struct page *page, loff_t pos, unsigned len);
 
 /* inode.c */
 extern struct inode *sysv_iget(struct super_block *, unsigned int);

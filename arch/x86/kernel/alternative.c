@@ -195,7 +195,7 @@ static void __init_or_module add_nops(void *insns, unsigned int len)
 
 extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 extern s32 __smp_locks[], __smp_locks_end[];
-static void *text_poke_early(void *addr, const void *opcode, size_t len);
+void *text_poke_early(void *addr, const void *opcode, size_t len);
 
 /* Replace instructions with better alternatives for this CPU type.
    This runs before SMP is initialized to avoid SMP problems with
@@ -214,6 +214,7 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 		u8 *instr = a->instr;
 		BUG_ON(a->replacementlen > a->instrlen);
 		BUG_ON(a->instrlen > sizeof(insnbuf));
+		BUG_ON(a->cpuid >= NCAPINTS*32);
 		if (!boot_cpu_has(a->cpuid))
 			continue;
 #ifdef CONFIG_X86_64
@@ -352,6 +353,7 @@ void __init_or_module alternatives_smp_module_del(struct module *mod)
 	mutex_unlock(&smp_alt);
 }
 
+bool skip_smp_alternatives;
 void alternatives_smp_switch(int smp)
 {
 	struct smp_alt_module *mod;
@@ -367,7 +369,7 @@ void alternatives_smp_switch(int smp)
 	printk("lockdep: fixing up alternatives.\n");
 #endif
 
-	if (noreplace_smp || smp_alt_once)
+	if (noreplace_smp || smp_alt_once || skip_smp_alternatives)
 		return;
 	BUG_ON(!smp && (num_online_cpus() > 1));
 
@@ -521,7 +523,7 @@ void __init alternative_instructions(void)
  * instructions. And on the local CPU you need to be protected again NMI or MCE
  * handlers seeing an inconsistent instruction while you patch.
  */
-static void *__init_or_module text_poke_early(void *addr, const void *opcode,
+void *__init_or_module text_poke_early(void *addr, const void *opcode,
 					      size_t len)
 {
 	unsigned long flags;
@@ -590,17 +592,21 @@ static atomic_t stop_machine_first;
 static int wrote_text;
 
 struct text_poke_params {
-	void *addr;
-	const void *opcode;
-	size_t len;
+	struct text_poke_param *params;
+	int nparams;
 };
 
 static int __kprobes stop_machine_text_poke(void *data)
 {
 	struct text_poke_params *tpp = data;
+	struct text_poke_param *p;
+	int i;
 
 	if (atomic_dec_and_test(&stop_machine_first)) {
-		text_poke(tpp->addr, tpp->opcode, tpp->len);
+		for (i = 0; i < tpp->nparams; i++) {
+			p = &tpp->params[i];
+			text_poke(p->addr, p->opcode, p->len);
+		}
 		smp_wmb();	/* Make sure other cpus see that this has run */
 		wrote_text = 1;
 	} else {
@@ -609,8 +615,12 @@ static int __kprobes stop_machine_text_poke(void *data)
 		smp_mb();	/* Load wrote_text before following execution */
 	}
 
-	flush_icache_range((unsigned long)tpp->addr,
-			   (unsigned long)tpp->addr + tpp->len);
+	for (i = 0; i < tpp->nparams; i++) {
+		p = &tpp->params[i];
+		flush_icache_range((unsigned long)p->addr,
+				   (unsigned long)p->addr + p->len);
+	}
+
 	return 0;
 }
 
@@ -630,13 +640,62 @@ static int __kprobes stop_machine_text_poke(void *data)
 void *__kprobes text_poke_smp(void *addr, const void *opcode, size_t len)
 {
 	struct text_poke_params tpp;
+	struct text_poke_param p;
 
-	tpp.addr = addr;
-	tpp.opcode = opcode;
-	tpp.len = len;
+	p.addr = addr;
+	p.opcode = opcode;
+	p.len = len;
+	tpp.params = &p;
+	tpp.nparams = 1;
 	atomic_set(&stop_machine_first, 1);
 	wrote_text = 0;
-	stop_machine(stop_machine_text_poke, (void *)&tpp, NULL);
+	/* Use __stop_machine() because the caller already got online_cpus. */
+	__stop_machine(stop_machine_text_poke, (void *)&tpp, cpu_online_mask);
 	return addr;
 }
 
+/**
+ * text_poke_smp_batch - Update instructions on a live kernel on SMP
+ * @params: an array of text_poke parameters
+ * @n: the number of elements in params.
+ *
+ * Modify multi-byte instruction by using stop_machine() on SMP. Since the
+ * stop_machine() is heavy task, it is better to aggregate text_poke requests
+ * and do it once if possible.
+ *
+ * Note: Must be called under get_online_cpus() and text_mutex.
+ */
+void __kprobes text_poke_smp_batch(struct text_poke_param *params, int n)
+{
+	struct text_poke_params tpp = {.params = params, .nparams = n};
+
+	atomic_set(&stop_machine_first, 1);
+	wrote_text = 0;
+	stop_machine(stop_machine_text_poke, (void *)&tpp, NULL);
+}
+
+#if defined(CONFIG_DYNAMIC_FTRACE) || defined(HAVE_JUMP_LABEL)
+
+#ifdef CONFIG_X86_64
+unsigned char ideal_nop5[5] = { 0x66, 0x66, 0x66, 0x66, 0x90 };
+#else
+unsigned char ideal_nop5[5] = { 0x3e, 0x8d, 0x74, 0x26, 0x00 };
+#endif
+
+void __init arch_init_ideal_nop5(void)
+{
+	/*
+	 * There is no good nop for all x86 archs.  This selection
+	 * algorithm should be unified with the one in find_nop_table(),
+	 * but this should be good enough for now.
+	 *
+	 * For cases other than the ones below, use the safe (as in
+	 * always functional) defaults above.
+	 */
+#ifdef CONFIG_X86_64
+	/* Don't use these on 32 bits due to broken virtualizers */
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		memcpy(ideal_nop5, p6_nops[5], 5);
+#endif
+}
+#endif

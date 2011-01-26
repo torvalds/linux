@@ -31,6 +31,7 @@
 #include "urb.h"
 #include "helper.h"
 #include "pcm.h"
+#include "clock.h"
 
 /*
  * return the current pcm pointer.  just based on the hwptr_done value.
@@ -120,10 +121,6 @@ static int init_pitch_v1(struct snd_usb_audio *chip, int iface,
 
 	ep = get_endpoint(alts, 0)->bEndpointAddress;
 
-	/* if endpoint doesn't have pitch control, bail out */
-	if (!(fmt->attributes & UAC_EP_CS_ATTR_PITCH_CONTROL))
-		return 0;
-
 	data[0] = 1;
 	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
 				   USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_OUT,
@@ -137,8 +134,32 @@ static int init_pitch_v1(struct snd_usb_audio *chip, int iface,
 	return 0;
 }
 
+static int init_pitch_v2(struct snd_usb_audio *chip, int iface,
+			 struct usb_host_interface *alts,
+			 struct audioformat *fmt)
+{
+	struct usb_device *dev = chip->dev;
+	unsigned char data[1];
+	unsigned int ep;
+	int err;
+
+	ep = get_endpoint(alts, 0)->bEndpointAddress;
+
+	data[0] = 1;
+	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC2_CS_CUR,
+				   USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_OUT,
+				   UAC2_EP_CS_PITCH << 8, 0,
+				   data, sizeof(data), 1000)) < 0) {
+		snd_printk(KERN_ERR "%d:%d:%d: cannot set enable PITCH (v2)\n",
+			   dev->devnum, iface, fmt->altsetting);
+		return err;
+	}
+
+	return 0;
+}
+
 /*
- * initialize the picth control and sample rate
+ * initialize the pitch control and sample rate
  */
 int snd_usb_init_pitch(struct snd_usb_audio *chip, int iface,
 		       struct usb_host_interface *alts,
@@ -146,113 +167,18 @@ int snd_usb_init_pitch(struct snd_usb_audio *chip, int iface,
 {
 	struct usb_interface_descriptor *altsd = get_iface_desc(alts);
 
+	/* if endpoint doesn't have pitch control, bail out */
+	if (!(fmt->attributes & UAC_EP_CS_ATTR_PITCH_CONTROL))
+		return 0;
+
 	switch (altsd->bInterfaceProtocol) {
 	case UAC_VERSION_1:
+	default:
 		return init_pitch_v1(chip, iface, alts, fmt);
 
 	case UAC_VERSION_2:
-		/* not implemented yet */
-		return 0;
+		return init_pitch_v2(chip, iface, alts, fmt);
 	}
-
-	return -EINVAL;
-}
-
-static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
-			      struct usb_host_interface *alts,
-			      struct audioformat *fmt, int rate)
-{
-	struct usb_device *dev = chip->dev;
-	unsigned int ep;
-	unsigned char data[3];
-	int err, crate;
-
-	ep = get_endpoint(alts, 0)->bEndpointAddress;
-	/* if endpoint doesn't have sampling rate control, bail out */
-	if (!(fmt->attributes & UAC_EP_CS_ATTR_SAMPLE_RATE)) {
-		snd_printk(KERN_WARNING "%d:%d:%d: endpoint lacks sample rate attribute bit, cannot set.\n",
-				   dev->devnum, iface, fmt->altsetting);
-		return 0;
-	}
-
-	data[0] = rate;
-	data[1] = rate >> 8;
-	data[2] = rate >> 16;
-	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
-				   USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_OUT,
-				   UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,
-				   data, sizeof(data), 1000)) < 0) {
-		snd_printk(KERN_ERR "%d:%d:%d: cannot set freq %d to ep %#x\n",
-			   dev->devnum, iface, fmt->altsetting, rate, ep);
-		return err;
-	}
-	if ((err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC_GET_CUR,
-				   USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_IN,
-				   UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,
-				   data, sizeof(data), 1000)) < 0) {
-		snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq at ep %#x\n",
-			   dev->devnum, iface, fmt->altsetting, ep);
-		return 0; /* some devices don't support reading */
-	}
-	crate = data[0] | (data[1] << 8) | (data[2] << 16);
-	if (crate != rate) {
-		snd_printd(KERN_WARNING "current rate %d is different from the runtime rate %d\n", crate, rate);
-		// runtime->rate = crate;
-	}
-
-	return 0;
-}
-
-static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
-			      struct usb_host_interface *alts,
-			      struct audioformat *fmt, int rate)
-{
-	struct usb_device *dev = chip->dev;
-	unsigned char data[4];
-	int err, crate;
-
-	data[0] = rate;
-	data[1] = rate >> 8;
-	data[2] = rate >> 16;
-	data[3] = rate >> 24;
-	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC2_CS_CUR,
-				   USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT,
-				   UAC2_CS_CONTROL_SAM_FREQ << 8, chip->clock_id << 8,
-				   data, sizeof(data), 1000)) < 0) {
-		snd_printk(KERN_ERR "%d:%d:%d: cannot set freq %d (v2)\n",
-			   dev->devnum, iface, fmt->altsetting, rate);
-		return err;
-	}
-	if ((err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
-				   USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-				   UAC2_CS_CONTROL_SAM_FREQ << 8, chip->clock_id << 8,
-				   data, sizeof(data), 1000)) < 0) {
-		snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq (v2)\n",
-			   dev->devnum, iface, fmt->altsetting);
-		return err;
-	}
-	crate = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
-	if (crate != rate)
-		snd_printd(KERN_WARNING "current rate %d is different from the runtime rate %d\n", crate, rate);
-
-	return 0;
-}
-
-int snd_usb_init_sample_rate(struct snd_usb_audio *chip, int iface,
-			     struct usb_host_interface *alts,
-			     struct audioformat *fmt, int rate)
-{
-	struct usb_interface_descriptor *altsd = get_iface_desc(alts);
-
-	switch (altsd->bInterfaceProtocol) {
-	case UAC_VERSION_1:
-		return set_sample_rate_v1(chip, iface, alts, fmt, rate);
-
-	case UAC_VERSION_2:
-		return set_sample_rate_v2(chip, iface, alts, fmt, rate);
-	}
-
-	return -EINVAL;
 }
 
 /*
@@ -311,6 +237,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	subs->datainterval = fmt->datainterval;
 	subs->syncpipe = subs->syncinterval = 0;
 	subs->maxpacksize = fmt->maxpacksize;
+	subs->syncmaxsize = 0;
 	subs->fill_max = 0;
 
 	/* we need a sync pipe in async OUT or adaptive IN mode */
@@ -357,6 +284,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 			subs->syncinterval = get_endpoint(alts, 1)->bInterval - 1;
 		else
 			subs->syncinterval = 3;
+		subs->syncmaxsize = le16_to_cpu(get_endpoint(alts, 1)->wMaxPacketSize);
 	}
 
 	/* always fill max packet size */
@@ -540,7 +468,7 @@ static int hw_check_valid_format(struct snd_usb_substream *subs,
 		return 0;
 	}
 	/* check whether the period time is >= the data packet interval */
-	if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH) {
+	if (snd_usb_get_speed(subs->dev) != USB_SPEED_FULL) {
 		ptime = 125 * (1 << fp->datainterval);
 		if (ptime > pt->max || (ptime == pt->max && pt->openmax)) {
 			hwc_debug("   > check: ptime %u > max %u\n", ptime, pt->max);
@@ -709,7 +637,7 @@ static int hw_rule_period_time(struct snd_pcm_hw_params *params,
 		min_datainterval = min(min_datainterval, fp->datainterval);
 	}
 	if (min_datainterval == 0xff) {
-		hwc_debug("  --> get emtpy\n");
+		hwc_debug("  --> get empty\n");
 		it->empty = 1;
 		return -EINVAL;
 	}
@@ -748,8 +676,10 @@ static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
 	if (!needs_knot)
 		return 0;
 
-	subs->rate_list.count = count;
 	subs->rate_list.list = kmalloc(sizeof(int) * count, GFP_KERNEL);
+	if (!subs->rate_list.list)
+		return -ENOMEM;
+	subs->rate_list.count = count;
 	subs->rate_list.mask = 0;
 	count = 0;
 	list_for_each_entry(fp, &subs->fmt_list, list) {
@@ -808,7 +738,7 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 	}
 
 	param_period_time_if_needed = SNDRV_PCM_HW_PARAM_PERIOD_TIME;
-	if (snd_usb_get_speed(subs->dev) != USB_SPEED_HIGH)
+	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL)
 		/* full speed devices have fixed data packet interval */
 		ptmin = 1000;
 	if (ptmin == 1000)

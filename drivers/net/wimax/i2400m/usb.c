@@ -491,6 +491,7 @@ int i2400mu_probe(struct usb_interface *iface,
 	switch (id->idProduct) {
 	case USB_DEVICE_ID_I6050:
 	case USB_DEVICE_ID_I6050_2:
+	case USB_DEVICE_ID_I6250:
 		i2400mu->i6050 = 1;
 		break;
 	default:
@@ -513,7 +514,7 @@ int i2400mu_probe(struct usb_interface *iface,
 #ifdef CONFIG_PM
 	iface->needs_remote_wakeup = 1;		/* autosuspend (15s delay) */
 	device_init_wakeup(dev, 1);
-	usb_dev->autosuspend_delay = 15 * HZ;
+	pm_runtime_set_autosuspend_delay(&usb_dev->dev, 15000);
 	usb_enable_autosuspend(usb_dev);
 #endif
 
@@ -739,6 +740,7 @@ static
 struct usb_device_id i2400mu_id_table[] = {
 	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050) },
 	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050_2) },
+	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6250) },
 	{ USB_DEVICE(0x8086, 0x0181) },
 	{ USB_DEVICE(0x8086, 0x1403) },
 	{ USB_DEVICE(0x8086, 0x1405) },
@@ -778,7 +780,6 @@ module_init(i2400mu_driver_init);
 static
 void __exit i2400mu_driver_exit(void)
 {
-	flush_scheduled_work();	/* for the stuff we schedule from sysfs.c */
 	usb_deregister(&i2400mu_driver);
 }
 module_exit(i2400mu_driver_exit);

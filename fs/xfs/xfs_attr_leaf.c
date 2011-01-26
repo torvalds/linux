@@ -24,8 +24,6 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
@@ -33,7 +31,6 @@
 #include "xfs_ialloc_btree.h"
 #include "xfs_alloc.h"
 #include "xfs_btree.h"
-#include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
@@ -640,7 +637,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	 * It didn't all fit, so we have to sort everything on hashval.
 	 */
 	sbsize = sf->hdr.count * sizeof(*sbuf);
-	sbp = sbuf = kmem_alloc(sbsize, KM_SLEEP);
+	sbp = sbuf = kmem_alloc(sbsize, KM_SLEEP | KM_NOFS);
 
 	/*
 	 * Scan the attribute list for the rest of the entries, storing
@@ -2389,7 +2386,7 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
 				args.dp = context->dp;
 				args.whichfork = XFS_ATTR_FORK;
 				args.valuelen = valuelen;
-				args.value = kmem_alloc(valuelen, KM_SLEEP);
+				args.value = kmem_alloc(valuelen, KM_SLEEP | KM_NOFS);
 				args.rmtblkno = be32_to_cpu(name_rmt->valueblk);
 				args.rmtblkcnt = XFS_B_TO_FSB(args.dp->i_mount, valuelen);
 				retval = xfs_attr_rmtval_get(&args);
@@ -2931,7 +2928,7 @@ xfs_attr_leaf_freextent(xfs_trans_t **trans, xfs_inode_t *dp,
 		nmap = 1;
 		error = xfs_bmapi(*trans, dp, (xfs_fileoff_t)tblkno, tblkcnt,
 					XFS_BMAPI_ATTRFORK | XFS_BMAPI_METADATA,
-					NULL, 0, &map, &nmap, NULL, NULL);
+					NULL, 0, &map, &nmap, NULL);
 		if (error) {
 			return(error);
 		}

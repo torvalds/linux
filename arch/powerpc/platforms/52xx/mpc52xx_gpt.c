@@ -63,6 +63,7 @@
 #include <linux/of_gpio.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/fs.h>
 #include <linux/watchdog.h>
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
@@ -78,7 +79,7 @@ MODULE_LICENSE("GPL");
  * @dev: pointer to device structure
  * @regs: virtual address of GPT registers
  * @lock: spinlock to coordinate between different functions.
- * @of_gc: of_gpio_chip instance structure; used when GPIO is enabled
+ * @gc: gpio_chip instance structure; used when GPIO is enabled
  * @irqhost: Pointer to irq_host instance; used when IRQ mode is supported
  * @wdt_mode: only relevant for gpt0: bit 0 (MPC52xx_GPT_CAN_WDT) indicates
  *   if the gpt may be used as wdt, bit 1 (MPC52xx_GPT_IS_WDT) indicates
@@ -94,7 +95,7 @@ struct mpc52xx_gpt_priv {
 	u8 wdt_mode;
 
 #if defined(CONFIG_GPIOLIB)
-	struct of_gpio_chip of_gc;
+	struct gpio_chip gc;
 #endif
 };
 
@@ -280,7 +281,7 @@ mpc52xx_gpt_irq_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
 #if defined(CONFIG_GPIOLIB)
 static inline struct mpc52xx_gpt_priv *gc_to_mpc52xx_gpt(struct gpio_chip *gc)
 {
-	return container_of(to_of_gpio_chip(gc), struct mpc52xx_gpt_priv,of_gc);
+	return container_of(gc, struct mpc52xx_gpt_priv, gc);
 }
 
 static int mpc52xx_gpt_gpio_get(struct gpio_chip *gc, unsigned int gpio)
@@ -336,28 +337,25 @@ mpc52xx_gpt_gpio_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
 	if (!of_find_property(node, "gpio-controller", NULL))
 		return;
 
-	gpt->of_gc.gc.label = kstrdup(node->full_name, GFP_KERNEL);
-	if (!gpt->of_gc.gc.label) {
+	gpt->gc.label = kstrdup(node->full_name, GFP_KERNEL);
+	if (!gpt->gc.label) {
 		dev_err(gpt->dev, "out of memory\n");
 		return;
 	}
 
-	gpt->of_gc.gpio_cells = 2;
-	gpt->of_gc.gc.ngpio = 1;
-	gpt->of_gc.gc.direction_input  = mpc52xx_gpt_gpio_dir_in;
-	gpt->of_gc.gc.direction_output = mpc52xx_gpt_gpio_dir_out;
-	gpt->of_gc.gc.get = mpc52xx_gpt_gpio_get;
-	gpt->of_gc.gc.set = mpc52xx_gpt_gpio_set;
-	gpt->of_gc.gc.base = -1;
-	gpt->of_gc.xlate = of_gpio_simple_xlate;
-	node->data = &gpt->of_gc;
-	of_node_get(node);
+	gpt->gc.ngpio = 1;
+	gpt->gc.direction_input  = mpc52xx_gpt_gpio_dir_in;
+	gpt->gc.direction_output = mpc52xx_gpt_gpio_dir_out;
+	gpt->gc.get = mpc52xx_gpt_gpio_get;
+	gpt->gc.set = mpc52xx_gpt_gpio_set;
+	gpt->gc.base = -1;
+	gpt->gc.of_node = node;
 
 	/* Setup external pin in GPIO mode */
 	clrsetbits_be32(&gpt->regs->mode, MPC52xx_GPT_MODE_MS_MASK,
 			MPC52xx_GPT_MODE_MS_GPIO);
 
-	rc = gpiochip_add(&gpt->of_gc.gc);
+	rc = gpiochip_add(&gpt->gc);
 	if (rc)
 		dev_err(gpt->dev, "gpiochip_add() failed; rc=%i\n", rc);
 
@@ -723,7 +721,7 @@ static inline int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt,
 /* ---------------------------------------------------------------------
  * of_platform bus binding code
  */
-static int __devinit mpc52xx_gpt_probe(struct of_device *ofdev,
+static int __devinit mpc52xx_gpt_probe(struct platform_device *ofdev,
 				       const struct of_device_id *match)
 {
 	struct mpc52xx_gpt_priv *gpt;
@@ -769,7 +767,7 @@ static int __devinit mpc52xx_gpt_probe(struct of_device *ofdev,
 	return 0;
 }
 
-static int mpc52xx_gpt_remove(struct of_device *ofdev)
+static int mpc52xx_gpt_remove(struct platform_device *ofdev)
 {
 	return -EBUSY;
 }

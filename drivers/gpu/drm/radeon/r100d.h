@@ -48,10 +48,12 @@
 #define		PACKET3_3D_DRAW_IMMD		0x29
 #define		PACKET3_3D_DRAW_INDX		0x2A
 #define		PACKET3_3D_LOAD_VBPNTR		0x2F
+#define		PACKET3_3D_CLEAR_ZMASK		0x32
 #define		PACKET3_INDX_BUFFER		0x33
 #define		PACKET3_3D_DRAW_VBUF_2		0x34
 #define		PACKET3_3D_DRAW_IMMD_2		0x35
 #define		PACKET3_3D_DRAW_INDX_2		0x36
+#define		PACKET3_3D_CLEAR_HIZ		0x37
 #define		PACKET3_BITBLT_MULTI		0x9B
 
 #define PACKET0(reg, n)	(CP_PACKET0 |					\
@@ -549,7 +551,7 @@
 #define   S_000360_CUR2_LOCK(x)                        (((x) & 0x1) << 31)
 #define   G_000360_CUR2_LOCK(x)                        (((x) >> 31) & 0x1)
 #define   C_000360_CUR2_LOCK                           0x7FFFFFFF
-#define R_0003C2_GENMO_WT                            0x0003C0
+#define R_0003C2_GENMO_WT                            0x0003C2
 #define   S_0003C2_GENMO_MONO_ADDRESS_B(x)             (((x) & 0x1) << 0)
 #define   G_0003C2_GENMO_MONO_ADDRESS_B(x)             (((x) >> 0) & 0x1)
 #define   C_0003C2_GENMO_MONO_ADDRESS_B                0xFE

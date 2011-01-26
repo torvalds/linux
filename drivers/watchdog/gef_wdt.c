@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
+#include <linux/fs.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
@@ -260,7 +261,7 @@ static struct miscdevice gef_wdt_miscdev = {
 };
 
 
-static int __devinit gef_wdt_probe(struct of_device *dev,
+static int __devinit gef_wdt_probe(struct platform_device *dev,
 	const struct of_device_id *match)
 {
 	int timeout = 10;
@@ -273,7 +274,7 @@ static int __devinit gef_wdt_probe(struct of_device *dev,
 		bus_clk = freq;
 
 	/* Map devices registers into memory */
-	gef_wdt_regs = of_iomap(dev->node, 0);
+	gef_wdt_regs = of_iomap(dev->dev.of_node, 0);
 	if (gef_wdt_regs == NULL)
 		return -ENOMEM;
 

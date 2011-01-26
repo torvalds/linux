@@ -22,5 +22,3 @@ struct map_desc;
 
 void v2m_map_io(struct map_desc *tile, size_t num);
 extern struct sys_timer v2m_timer;
-
-extern void __iomem *gic_cpu_base_addr;

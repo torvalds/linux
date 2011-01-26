@@ -66,6 +66,11 @@ struct xt_standard_target {
 	int verdict;
 };
 
+struct xt_error_target {
+	struct xt_entry_target target;
+	char errorname[XT_FUNCTION_MAXNAMELEN];
+};
+
 /* The argument to IPT_SO_GET_REVISION_*.  Returns highest revision
  * kernel supports, if >= revision. */
 struct xt_get_revision {
@@ -333,7 +338,7 @@ struct xt_target {
 	/* Called when user tries to insert an entry of this type:
            hook_mask is a bitmask of hooks from which it can be
            called. */
-	/* Should return true or false, or an error code (-Exxxx). */
+	/* Should return 0 on success or an error code otherwise (-Exxxx). */
 	int (*checkentry)(const struct xt_tgchk_param *);
 
 	/* Called when entry of this type deleted. */
@@ -397,7 +402,7 @@ struct xt_table_info {
 	 * @stacksize jumps (number of user chains) can possibly be made.
 	 */
 	unsigned int stacksize;
-	unsigned int *stackptr;
+	unsigned int __percpu *stackptr;
 	void ***jumpstack;
 	/* ipt_entry tables: one per CPU */
 	/* Note : this field MUST be the last one, see XT_TABLE_INFO_SZ */
@@ -467,7 +472,7 @@ extern void xt_free_table_info(struct xt_table_info *info);
  *  necessary for reading the counters.
  */
 struct xt_info_lock {
-	spinlock_t lock;
+	seqlock_t lock;
 	unsigned char readers;
 };
 DECLARE_PER_CPU(struct xt_info_lock, xt_info_locks);
@@ -492,7 +497,7 @@ static inline void xt_info_rdlock_bh(void)
 	local_bh_disable();
 	lock = &__get_cpu_var(xt_info_locks);
 	if (likely(!lock->readers++))
-		spin_lock(&lock->lock);
+		write_seqlock(&lock->lock);
 }
 
 static inline void xt_info_rdunlock_bh(void)
@@ -500,7 +505,7 @@ static inline void xt_info_rdunlock_bh(void)
 	struct xt_info_lock *lock = &__get_cpu_var(xt_info_locks);
 
 	if (likely(!--lock->readers))
-		spin_unlock(&lock->lock);
+		write_sequnlock(&lock->lock);
 	local_bh_enable();
 }
 
@@ -511,12 +516,12 @@ static inline void xt_info_rdunlock_bh(void)
  */
 static inline void xt_info_wrlock(unsigned int cpu)
 {
-	spin_lock(&per_cpu(xt_info_locks, cpu).lock);
+	write_seqlock(&per_cpu(xt_info_locks, cpu).lock);
 }
 
 static inline void xt_info_wrunlock(unsigned int cpu)
 {
-	spin_unlock(&per_cpu(xt_info_locks, cpu).lock);
+	write_sequnlock(&per_cpu(xt_info_locks, cpu).lock);
 }
 
 /*

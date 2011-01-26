@@ -162,16 +162,8 @@ do {						\
 
 #endif /* !CONFIG_HUGETLB_PAGE */
 
-#ifdef MODULE
-#define __page_aligned __attribute__((__aligned__(PAGE_SIZE)))
-#else
-#define __page_aligned \
-	__attribute__((__aligned__(PAGE_SIZE), \
-		__section__(".data.page_aligned")))
-#endif
-
 #define VM_DATA_DEFAULT_FLAGS \
-	(test_thread_flag(TIF_32BIT) ? \
+	(is_32bit_task() ? \
 	 VM_DATA_DEFAULT_FLAGS32 : VM_DATA_DEFAULT_FLAGS64)
 
 /*
@@ -187,7 +179,7 @@ do {						\
 					 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #define VM_STACK_DEFAULT_FLAGS \
-	(test_thread_flag(TIF_32BIT) ? \
+	(is_32bit_task() ? \
 	 VM_STACK_DEFAULT_FLAGS32 : VM_STACK_DEFAULT_FLAGS64)
 
 #include <asm-generic/getorder.h>

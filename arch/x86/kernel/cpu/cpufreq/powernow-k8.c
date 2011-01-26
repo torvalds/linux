@@ -9,7 +9,7 @@
  *  Based on the powernow-k7.c module written by Dave Jones.
  *  (C) 2003 Dave Jones on behalf of SuSE Labs
  *  (C) 2004 Dominik Brodowski <linux@brodo.de>
- *  (C) 2004 Pavel Machek <pavel@suse.cz>
+ *  (C) 2004 Pavel Machek <pavel@ucw.cz>
  *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon datasheets & sample CPUs kindly provided by AMD.
  *
@@ -521,7 +521,7 @@ static void check_supported_cpu(void *_rc)
 
 	*rc = -ENODEV;
 
-	if (current_cpu_data.x86_vendor != X86_VENDOR_AMD)
+	if (__this_cpu_read(cpu_info.x86_vendor) != X86_VENDOR_AMD)
 		return;
 
 	eax = cpuid_eax(CPUID_PROCESSOR_SIGNATURE);
@@ -806,6 +806,8 @@ static int find_psb_table(struct powernow_k8_data *data)
 	 * www.amd.com
 	 */
 	printk(KERN_ERR FW_BUG PFX "No PSB or ACPI _PSS objects\n");
+	printk(KERN_ERR PFX "Make sure that your BIOS is up to date"
+		" and Cool'N'Quiet support is enabled in BIOS setup\n");
 	return -ENODEV;
 }
 
@@ -910,8 +912,8 @@ static int fill_powernow_table_pstate(struct powernow_k8_data *data,
 {
 	int i;
 	u32 hi = 0, lo = 0;
-	rdmsr(MSR_PSTATE_CUR_LIMIT, hi, lo);
-	data->max_hw_pstate = (hi & HW_PSTATE_MAX_MASK) >> HW_PSTATE_MAX_SHIFT;
+	rdmsr(MSR_PSTATE_CUR_LIMIT, lo, hi);
+	data->max_hw_pstate = (lo & HW_PSTATE_MAX_MASK) >> HW_PSTATE_MAX_SHIFT;
 
 	for (i = 0; i < data->acpi_data.state_count; i++) {
 		u32 index;
@@ -1023,13 +1025,12 @@ static int get_transition_latency(struct powernow_k8_data *data)
 	}
 	if (max_latency == 0) {
 		/*
-		 * Fam 11h always returns 0 as transition latency.
-		 * This is intended and means "very fast". While cpufreq core
-		 * and governors currently can handle that gracefully, better
-		 * set it to 1 to avoid problems in the future.
-		 * For all others it's a BIOS bug.
+		 * Fam 11h and later may return 0 as transition latency. This
+		 * is intended and means "very fast". While cpufreq core and
+		 * governors currently can handle that gracefully, better set it
+		 * to 1 to avoid problems in the future.
 		 */
-		if (boot_cpu_data.x86 != 0x11)
+		if (boot_cpu_data.x86 < 0x11)
 			printk(KERN_ERR FW_WARN PFX "Invalid zero transition "
 				"latency\n");
 		max_latency = 1;
@@ -1376,7 +1377,7 @@ static int __devexit powernowk8_cpu_exit(struct cpufreq_policy *pol)
 static void query_values_on_cpu(void *_err)
 {
 	int *err = _err;
-	struct powernow_k8_data *data = __get_cpu_var(powernow_data);
+	struct powernow_k8_data *data = __this_cpu_read(powernow_data);
 
 	*err = query_current_values_with_pending_wait(data);
 }
@@ -1497,8 +1498,8 @@ static struct cpufreq_driver cpufreq_amd64_driver = {
  * simply keep the boost-disable flag in sync with the current global
  * state.
  */
-static int __cpuinit cpb_notify(struct notifier_block *nb, unsigned long action,
-				void *hcpu)
+static int cpb_notify(struct notifier_block *nb, unsigned long action,
+		      void *hcpu)
 {
 	unsigned cpu = (long)hcpu;
 	u32 lo, hi;
@@ -1528,7 +1529,7 @@ static int __cpuinit cpb_notify(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata cpb_nb = {
+static struct notifier_block cpb_nb = {
 	.notifier_call		= cpb_notify,
 };
 

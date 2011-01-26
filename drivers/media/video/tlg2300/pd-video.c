@@ -512,19 +512,20 @@ int alloc_bulk_urbs_generic(struct urb **urb_array, int num,
 			int buf_size, gfp_t gfp_flags,
 			usb_complete_t complete_fn, void *context)
 {
-	struct urb *urb;
-	void *mem;
-	int i;
+	int i = 0;
 
-	for (i = 0; i < num; i++) {
-		urb = usb_alloc_urb(0, gfp_flags);
+	for (; i < num; i++) {
+		void *mem;
+		struct urb *urb = usb_alloc_urb(0, gfp_flags);
 		if (urb == NULL)
 			return i;
 
 		mem = usb_alloc_coherent(udev, buf_size, gfp_flags,
 					 &urb->transfer_dma);
-		if (mem == NULL)
+		if (mem == NULL) {
+			usb_free_urb(urb);
 			return i;
+		}
 
 		usb_fill_bulk_urb(urb, udev, usb_rcvbulkpipe(udev, ep_addr),
 				mem, buf_size, complete_fn, context);
@@ -1434,7 +1435,7 @@ static int pd_video_open(struct file *file)
 				V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				V4L2_FIELD_INTERLACED,/* video is interlacd */
 				sizeof(struct videobuf_buffer),/*it's enough*/
-				front);
+				front, NULL);
 	} else if (vfd->vfl_type == VFL_TYPE_VBI
 		&& !(pd->state & POSEIDON_STATE_VBI)) {
 		front = kzalloc(sizeof(struct front_face), GFP_KERNEL);
@@ -1451,7 +1452,7 @@ static int pd_video_open(struct file *file)
 				V4L2_BUF_TYPE_VBI_CAPTURE,
 				V4L2_FIELD_NONE, /* vbi is NONE mode */
 				sizeof(struct videobuf_buffer),
-				front);
+				front, NULL);
 	} else {
 		/* maybe add FM support here */
 		log("other ");

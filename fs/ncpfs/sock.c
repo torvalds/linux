@@ -28,7 +28,7 @@
 #include <linux/poll.h>
 #include <linux/file.h>
 
-#include <linux/ncp_fs.h>
+#include "ncp_fs.h"
 
 #include "ncpsign_kernel.h"
 
@@ -746,7 +746,6 @@ static int ncp_do_request(struct ncp_server *server, int size,
 		return -EIO;
 	}
 	if (!ncp_conn_valid(server)) {
-		printk(KERN_ERR "ncpfs: Connection invalid!\n");
 		return -EIO;
 	}
 	{

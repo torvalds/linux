@@ -713,7 +713,7 @@ int mthca_RUN_FW(struct mthca_dev *dev, u8 *status)
 
 static void mthca_setup_cmd_doorbells(struct mthca_dev *dev, u64 base)
 {
-	unsigned long addr;
+	phys_addr_t addr;
 	u16 max_off = 0;
 	int i;
 
@@ -1817,7 +1817,7 @@ int mthca_CONF_SPECIAL_QP(struct mthca_dev *dev, int type, u32 qpn,
 	case IB_QPT_RAW_IPV6:
 		op_mod = 2;
 		break;
-	case IB_QPT_RAW_ETY:
+	case IB_QPT_RAW_ETHERTYPE:
 		op_mod = 3;
 		break;
 	default:

@@ -185,7 +185,6 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 	struct elantech_data *etd = psmouse->private;
 	unsigned char *packet = psmouse->packet;
 	int fingers;
-	static int old_fingers;
 
 	if (etd->fw_version < 0x020000) {
 		/*
@@ -203,10 +202,13 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 	}
 
 	if (etd->jumpy_cursor) {
-		/* Discard packets that are likely to have bogus coordinates */
-		if (fingers > old_fingers) {
+		if (fingers != 1) {
+			etd->single_finger_reports = 0;
+		} else if (etd->single_finger_reports < 2) {
+			/* Discard first 2 reports of one finger, bogus */
+			etd->single_finger_reports++;
 			elantech_debug("discarding packet\n");
-			goto discard_packet_v1;
+			return;
 		}
 	}
 
@@ -238,9 +240,6 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 	}
 
 	input_sync(dev);
-
- discard_packet_v1:
-	old_fingers = fingers;
 }
 
 /*
@@ -258,6 +257,14 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 	input_report_key(dev, BTN_TOUCH, fingers != 0);
 
 	switch (fingers) {
+	case 3:
+		/*
+		 * Same as one finger, except report of more than 3 fingers:
+		 * byte 3:  n4  .   w1  w0   .   .   .   .
+		 */
+		if (packet[3] & 0x80)
+			fingers = 4;
+		/* pass through... */
 	case 1:
 		/*
 		 * byte 1:  .   .   .   .   .  x10 x9  x8
@@ -310,6 +317,7 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 	input_report_key(dev, BTN_TOOL_FINGER, fingers == 1);
 	input_report_key(dev, BTN_TOOL_DOUBLETAP, fingers == 2);
 	input_report_key(dev, BTN_TOOL_TRIPLETAP, fingers == 3);
+	input_report_key(dev, BTN_TOOL_QUADTAP, fingers == 4);
 	input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
 	input_report_key(dev, BTN_RIGHT, packet[0] & 0x02);
 
@@ -467,6 +475,7 @@ static void elantech_set_input_params(struct psmouse *psmouse)
 		break;
 
 	case 2:
+		__set_bit(BTN_TOOL_QUADTAP, dev->keybit);
 		input_set_abs_params(dev, ABS_X, ETP_XMIN_V2, ETP_XMAX_V2, 0, 0);
 		input_set_abs_params(dev, ABS_Y, ETP_YMIN_V2, ETP_YMAX_V2, 0, 0);
 		input_set_abs_params(dev, ABS_HAT0X, ETP_2FT_XMIN, ETP_2FT_XMAX, 0, 0);
@@ -690,7 +699,7 @@ int elantech_init(struct psmouse *psmouse)
 
 	psmouse->private = etd = kzalloc(sizeof(struct elantech_data), GFP_KERNEL);
 	if (!etd)
-		return -1;
+		return -ENOMEM;
 
 	etd->parity[0] = 1;
 	for (i = 1; i < 256; i++)
@@ -733,13 +742,13 @@ int elantech_init(struct psmouse *psmouse)
 	etd->capabilities = param[0];
 
 	/*
-	 * This firmware seems to suffer from misreporting coordinates when
+	 * This firmware suffers from misreporting coordinates when
 	 * a touch action starts causing the mouse cursor or scrolled page
 	 * to jump. Enable a workaround.
 	 */
-	if (etd->fw_version == 0x020022) {
-		pr_info("firmware version 2.0.34 detected, enabling jumpy cursor workaround\n");
-		etd->jumpy_cursor = 1;
+	if (etd->fw_version == 0x020022 || etd->fw_version == 0x020600) {
+		pr_info("firmware version 2.0.34/2.6.0 detected, enabling jumpy cursor workaround\n");
+		etd->jumpy_cursor = true;
 	}
 
 	if (elantech_set_absolute_mode(psmouse)) {

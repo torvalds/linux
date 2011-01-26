@@ -30,12 +30,10 @@
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <linux/bitrev.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -56,7 +54,7 @@
 			   __func__ , ## args);		\
 	} while (0)
 
-static char *version = "cm4000_cs.c v2.4.0gm6 - All bugs added by Harald Welte";
+static DEFINE_MUTEX(cmm_mutex);
 
 #define	T_1SEC		(HZ)
 #define	T_10MSEC	msecs_to_jiffies(10)
@@ -422,7 +420,7 @@ static struct card_fixup card_fixups[] = {
 static void set_cardparameter(struct cm4000_dev *dev)
 {
 	int i;
-	unsigned int iobase = dev->p_dev->io.BasePort1;
+	unsigned int iobase = dev->p_dev->resource[0]->start;
 	u_int8_t stopbits = 0x02; /* ISO default */
 
 	DEBUGP(3, dev, "-> set_cardparameter\n");
@@ -455,7 +453,7 @@ static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
 	unsigned short num_bytes_read;
 	unsigned char pts_reply[4];
 	ssize_t rc;
-	unsigned int iobase = dev->p_dev->io.BasePort1;
+	unsigned int iobase = dev->p_dev->resource[0]->start;
 
 	rc = 0;
 
@@ -664,7 +662,7 @@ static void terminate_monitor(struct cm4000_dev *dev)
 static void monitor_card(unsigned long p)
 {
 	struct cm4000_dev *dev = (struct cm4000_dev *) p;
-	unsigned int iobase = dev->p_dev->io.BasePort1;
+	unsigned int iobase = dev->p_dev->resource[0]->start;
 	unsigned short s;
 	struct ptsreq ptsreq;
 	int i, atrc;
@@ -925,7 +923,7 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 			loff_t *ppos)
 {
 	struct cm4000_dev *dev = filp->private_data;
-	unsigned int iobase = dev->p_dev->io.BasePort1;
+	unsigned int iobase = dev->p_dev->resource[0]->start;
 	ssize_t rc;
 	int i, j, k;
 
@@ -981,8 +979,9 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 		if (dev->flags0 & 1) {
 			set_bit(IS_CMM_ABSENT, &dev->flags);
 			rc = -ENODEV;
+		} else {
+			rc = -EIO;
 		}
-		rc = -EIO;
 		goto release_io;
 	}
 
@@ -1048,7 +1047,7 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	struct cm4000_dev *dev = filp->private_data;
-	unsigned int iobase = dev->p_dev->io.BasePort1;
+	unsigned int iobase = dev->p_dev->resource[0]->start;
 	unsigned short s;
 	unsigned char tmp;
 	unsigned char infolen;
@@ -1401,7 +1400,7 @@ static void stop_monitor(struct cm4000_dev *dev)
 static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct cm4000_dev *dev = filp->private_data;
-	unsigned int iobase = dev->p_dev->io.BasePort1;
+	unsigned int iobase = dev->p_dev->resource[0]->start;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct pcmcia_device *link;
 	int size;
@@ -1419,7 +1418,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	       iminor(inode), ioctl_names[_IOC_NR(cmd)]);
 #endif
 
-	lock_kernel();
+	mutex_lock(&cmm_mutex);
 	rc = -ENODEV;
 	link = dev_table[iminor(inode)];
 	if (!pcmcia_dev_present(link)) {
@@ -1627,7 +1626,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		rc = -ENOTTY;
 	}
 out:
-	unlock_kernel();
+	mutex_unlock(&cmm_mutex);
 	return rc;
 }
 
@@ -1641,7 +1640,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	if (minor >= CM4000_MAX_DEV)
 		return -ENODEV;
 
-	lock_kernel();
+	mutex_lock(&cmm_mutex);
 	link = dev_table[minor];
 	if (link == NULL || !pcmcia_dev_present(link)) {
 		ret = -ENODEV;
@@ -1668,7 +1667,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	/* opening will always block since the
 	 * monitor will be started by open, which
 	 * means we have to wait for ATR becoming
-	 * vaild = block until valid (or card
+	 * valid = block until valid (or card
 	 * inserted)
 	 */
 	if (filp->f_flags & O_NONBLOCK) {
@@ -1686,7 +1685,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	DEBUGP(2, dev, "<- cmm_open\n");
 	ret = nonseekable_open(inode, filp);
 out:
-	unlock_kernel();
+	mutex_unlock(&cmm_mutex);
 	return ret;
 }
 
@@ -1743,39 +1742,22 @@ static void cmm_cm4000_release(struct pcmcia_device * link)
 
 /*==== Interface to PCMCIA Layer =======================================*/
 
-static int cm4000_config_check(struct pcmcia_device *p_dev,
-			       cistpl_cftable_entry_t *cfg,
-			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
-			       void *priv_data)
+static int cm4000_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if (!cfg->io.nwin)
-		return -ENODEV;
-
-	/* Get the IOaddr */
-	p_dev->io.BasePort1 = cfg->io.win[0].base;
-	p_dev->io.NumPorts1 = cfg->io.win[0].len;
-	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	if (!(cfg->io.flags & CISTPL_IO_8BIT))
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	if (!(cfg->io.flags & CISTPL_IO_16BIT))
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
-
-	return pcmcia_request_io(p_dev, &p_dev->io);
+	return pcmcia_request_io(p_dev);
 }
 
 static int cm4000_config(struct pcmcia_device * link, int devno)
 {
 	struct cm4000_dev *dev;
 
+	link->config_flags |= CONF_AUTO_SET_IO;
+
 	/* read the config-tuples */
 	if (pcmcia_loop_config(link, cm4000_config_check, NULL))
 		goto cs_release;
 
-	link->conf.IntType = 00000002;
-
-	if (pcmcia_request_configuration(link, &link->conf))
+	if (pcmcia_enable_device(link))
 		goto cs_release;
 
 	dev = link->priv;
@@ -1835,7 +1817,6 @@ static int cm4000_probe(struct pcmcia_device *link)
 
 	dev->p_dev = link;
 	link->priv = dev;
-	link->conf.IntType = INT_MEMORY_AND_IO;
 	dev_table[i] = link;
 
 	init_waitqueue_head(&dev->devq);
@@ -1886,6 +1867,7 @@ static const struct file_operations cm4000_fops = {
 	.unlocked_ioctl	= cmm_ioctl,
 	.open	= cmm_open,
 	.release= cmm_close,
+	.llseek = no_llseek,
 };
 
 static struct pcmcia_device_id cm4000_ids[] = {
@@ -1897,9 +1879,7 @@ MODULE_DEVICE_TABLE(pcmcia, cm4000_ids);
 
 static struct pcmcia_driver cm4000_driver = {
 	.owner	  = THIS_MODULE,
-	.drv	  = {
-		.name = "cm4000_cs",
-		},
+	.name	  = "cm4000_cs",
 	.probe    = cm4000_probe,
 	.remove   = cm4000_detach,
 	.suspend  = cm4000_suspend,
@@ -1910,8 +1890,6 @@ static struct pcmcia_driver cm4000_driver = {
 static int __init cmm_init(void)
 {
 	int rc;
-
-	printk(KERN_INFO "%s\n", version);
 
 	cmm_class = class_create(THIS_MODULE, "cardman_4000");
 	if (IS_ERR(cmm_class))
@@ -1937,7 +1915,6 @@ static int __init cmm_init(void)
 
 static void __exit cmm_exit(void)
 {
-	printk(KERN_INFO MODULE_NAME ": unloading\n");
 	pcmcia_unregister_driver(&cm4000_driver);
 	unregister_chrdev(major, DEVICE_NAME);
 	class_destroy(cmm_class);

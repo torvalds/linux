@@ -11,7 +11,9 @@ ip_forward - BOOLEAN
 	for routers)
 
 ip_default_ttl - INTEGER
-	default 64
+	Default value of TTL field (Time To Live) for outgoing (but not
+	forwarded) IP packets. Should be between 1 and 255 inclusive.
+	Default: 64 (as recommended by RFC1700)
 
 ip_no_pmtu_disc - BOOLEAN
 	Disable Path MTU Discovery.
@@ -19,6 +21,15 @@ ip_no_pmtu_disc - BOOLEAN
 
 min_pmtu - INTEGER
 	default 562 - minimum discovered Path MTU
+
+route/max_size - INTEGER
+	Maximum number of routes allowed in the kernel.  Increase
+	this when using large numbers of interfaces and/or routes.
+
+neigh/default/gc_thresh3 - INTEGER
+	Maximum number of neighbor entries allowed.  Increase this
+	when using large numbers of interfaces and when communicating
+	with large numbers of directly-connected peers.
 
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
@@ -135,6 +146,7 @@ tcp_adv_win_scale - INTEGER
 	Count buffering overhead as bytes/2^tcp_adv_win_scale
 	(if tcp_adv_win_scale > 0) or bytes-bytes/2^(-tcp_adv_win_scale),
 	if it is <= 0.
+	Possible values are [-31, 31], inclusive.
 	Default: 2
 
 tcp_allowed_congestion_control - STRING
@@ -698,10 +710,28 @@ igmp_max_memberships - INTEGER
 	Change the maximum number of multicast groups we can subscribe to.
 	Default: 20
 
-conf/interface/*  changes special settings per interface (where "interface" is
-		  the name of your network interface)
-conf/all/*	  is special, changes the settings for all interfaces
+	Theoretical maximum value is bounded by having to send a membership
+	report in a single datagram (i.e. the report can't span multiple
+	datagrams, or risk confusing the switch and leaving groups you don't
+	intend to).
 
+	The number of supported groups 'M' is bounded by the number of group
+	report entries you can fit into a single datagram of 65535 bytes.
+
+	M = 65536-sizeof (ip header)/(sizeof(Group record))
+
+	Group records are variable length, with a minimum of 12 bytes.
+	So net.ipv4.igmp_max_memberships should not be set higher than:
+
+	(65536-24) / 12 = 5459
+
+	The value 5459 assumes no IP header options, so in practice
+	this number may be lower.
+
+	conf/interface/*  changes special settings per interface (where
+	"interface" is the name of your network interface)
+
+	conf/all/*	  is special, changes the settings for all interfaces
 
 log_martians - BOOLEAN
 	Log packets with impossible addresses to kernel log.
@@ -903,7 +933,7 @@ arp_ignore - INTEGER
 arp_notify - BOOLEAN
 	Define mode for notification of address and device changes.
 	0 - (default): do nothing
-	1 - Generate gratuitous arp replies when device is brought up
+	1 - Generate gratuitous arp requests when device is brought up
 	    or hardware address changes.
 
 arp_accept - BOOLEAN
@@ -1014,6 +1044,12 @@ conf/interface/*:
 accept_ra - BOOLEAN
 	Accept Router Advertisements; autoconfigure using them.
 
+	Possible values are:
+		0 Do not accept Router Advertisements.
+		1 Accept Router Advertisements if forwarding is disabled.
+		2 Overrule forwarding behaviour. Accept Router Advertisements
+		  even if forwarding is enabled.
+
 	Functional default: enabled if local forwarding is disabled.
 			    disabled if local forwarding is enabled.
 
@@ -1075,7 +1111,12 @@ forwarding - BOOLEAN
 	Note: It is recommended to have the same setting on all
 	interfaces; mixed router/host scenarios are rather uncommon.
 
-	FALSE:
+	Possible values are:
+		0 Forwarding disabled
+		1 Forwarding enabled
+		2 Forwarding enabled (Hybrid Mode)
+
+	FALSE (0):
 
 	By default, Host behaviour is assumed.  This means:
 
@@ -1085,18 +1126,24 @@ forwarding - BOOLEAN
 	   Advertisements (and do autoconfiguration).
 	4. If accept_redirects is TRUE (default), accept Redirects.
 
-	TRUE:
+	TRUE (1):
 
 	If local forwarding is enabled, Router behaviour is assumed.
 	This means exactly the reverse from the above:
 
 	1. IsRouter flag is set in Neighbour Advertisements.
 	2. Router Solicitations are not sent.
-	3. Router Advertisements are ignored.
+	3. Router Advertisements are ignored unless accept_ra is 2.
 	4. Redirects are ignored.
 
-	Default: FALSE if global forwarding is disabled (default),
-		 otherwise TRUE.
+	TRUE (2):
+
+	Hybrid mode. Same behaviour as TRUE, except for:
+
+	2. Router Solicitations are being sent when necessary.
+
+	Default: 0 (disabled) if global forwarding is disabled (default),
+		 otherwise 1 (enabled).
 
 hop_limit - INTEGER
 	Default Hop Limit to set.

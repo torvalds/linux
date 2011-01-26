@@ -2461,8 +2461,10 @@ static int ocfs2_dx_dir_attach_index(struct ocfs2_super *osb,
 
 	di->i_dx_root = cpu_to_le64(dr_blkno);
 
+	spin_lock(&OCFS2_I(dir)->ip_lock);
 	OCFS2_I(dir)->ip_dyn_features |= OCFS2_INDEXED_DIR_FL;
 	di->i_dyn_features = cpu_to_le16(OCFS2_I(dir)->ip_dyn_features);
+	spin_unlock(&OCFS2_I(dir)->ip_lock);
 
 	ocfs2_journal_dirty(handle, di_bh);
 
@@ -3931,6 +3933,15 @@ static int ocfs2_dx_dir_rebalance(struct ocfs2_super *osb, struct inode *dir,
 		goto out_commit;
 	}
 
+	cpos = split_hash;
+	ret = ocfs2_dx_dir_new_cluster(dir, &et, cpos, handle,
+				       data_ac, meta_ac, new_dx_leaves,
+				       num_dx_leaves);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
 	for (i = 0; i < num_dx_leaves; i++) {
 		ret = ocfs2_journal_access_dl(handle, INODE_CACHE(dir),
 					      orig_dx_leaves[i],
@@ -3939,15 +3950,14 @@ static int ocfs2_dx_dir_rebalance(struct ocfs2_super *osb, struct inode *dir,
 			mlog_errno(ret);
 			goto out_commit;
 		}
-	}
 
-	cpos = split_hash;
-	ret = ocfs2_dx_dir_new_cluster(dir, &et, cpos, handle,
-				       data_ac, meta_ac, new_dx_leaves,
-				       num_dx_leaves);
-	if (ret) {
-		mlog_errno(ret);
-		goto out_commit;
+		ret = ocfs2_journal_access_dl(handle, INODE_CACHE(dir),
+					      new_dx_leaves[i],
+					      OCFS2_JOURNAL_ACCESS_WRITE);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_commit;
+		}
 	}
 
 	ocfs2_dx_dir_transfer_leaf(dir, split_hash, handle, tmp_dx_leaf,
@@ -4458,8 +4468,10 @@ static int ocfs2_dx_dir_remove_index(struct inode *dir,
 		goto out_commit;
 	}
 
+	spin_lock(&OCFS2_I(dir)->ip_lock);
 	OCFS2_I(dir)->ip_dyn_features &= ~OCFS2_INDEXED_DIR_FL;
 	di->i_dyn_features = cpu_to_le16(OCFS2_I(dir)->ip_dyn_features);
+	spin_unlock(&OCFS2_I(dir)->ip_lock);
 	di->i_dx_root = cpu_to_le64(0ULL);
 
 	ocfs2_journal_dirty(handle, di_bh);

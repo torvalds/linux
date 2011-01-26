@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,7 +109,7 @@ void acpi_ex_enter_interpreter(void)
  *
  * DESCRIPTION: Reacquire the interpreter execution region from within the
  *              interpreter code. Failure to enter the interpreter region is a
- *              fatal system error. Used in  conjuction with
+ *              fatal system error. Used in  conjunction with
  *              relinquish_interpreter
  *
  ******************************************************************************/

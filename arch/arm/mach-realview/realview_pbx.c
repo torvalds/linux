@@ -24,6 +24,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
+#include <linux/amba/pl022.h>
 #include <linux/io.h>
 
 #include <asm/irq.h>
@@ -31,6 +32,7 @@
 #include <asm/mach-types.h>
 #include <asm/pmu.h>
 #include <asm/smp_twd.h>
+#include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 
@@ -135,6 +137,12 @@ static struct pl061_platform_data gpio2_plat_data = {
 	.irq_base	= -1,
 };
 
+static struct pl022_ssp_controller ssp0_plat_data = {
+	.bus_id = 0,
+	.enable_dma = 0,
+	.num_chipselect = 1,
+};
+
 /*
  * RealView PBXCore AMBA devices
  */
@@ -201,7 +209,7 @@ AMBA_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
 AMBA_DEVICE(uart0,	"dev:uart0",	PBX_UART0,	NULL);
 AMBA_DEVICE(uart1,	"dev:uart1",	PBX_UART1,	NULL);
 AMBA_DEVICE(uart2,	"dev:uart2",	PBX_UART2,	NULL);
-AMBA_DEVICE(ssp0,	"dev:ssp0",	PBX_SSP,	NULL);
+AMBA_DEVICE(ssp0,	"dev:ssp0",	PBX_SSP,	&ssp0_plat_data);
 
 /* Primecells on the NEC ISSP chip */
 AMBA_DEVICE(clcd,	"issp:clcd",	PBX_CLCD,	&clcd_plat_data);
@@ -305,15 +313,12 @@ static void __init gic_init_irq(void)
 {
 	/* ARM PBX on-board GIC */
 	if (core_tile_pbx11mp() || core_tile_pbxa9mp()) {
-		gic_cpu_base_addr = __io_address(REALVIEW_PBX_TILE_GIC_CPU_BASE);
-		gic_dist_init(0, __io_address(REALVIEW_PBX_TILE_GIC_DIST_BASE),
-			      29);
-		gic_cpu_init(0, __io_address(REALVIEW_PBX_TILE_GIC_CPU_BASE));
+		gic_init(0, 29, __io_address(REALVIEW_PBX_TILE_GIC_DIST_BASE),
+			 __io_address(REALVIEW_PBX_TILE_GIC_CPU_BASE));
 	} else {
-		gic_cpu_base_addr = __io_address(REALVIEW_PBX_GIC_CPU_BASE);
-		gic_dist_init(0, __io_address(REALVIEW_PBX_GIC_DIST_BASE),
-			      IRQ_PBX_GIC_START);
-		gic_cpu_init(0, __io_address(REALVIEW_PBX_GIC_CPU_BASE));
+		gic_init(0, IRQ_PBX_GIC_START,
+			 __io_address(REALVIEW_PBX_GIC_DIST_BASE),
+			 __io_address(REALVIEW_PBX_GIC_CPU_BASE));
 	}
 }
 
@@ -409,8 +414,6 @@ static void __init realview_pbx_init(void)
 
 MACHINE_START(REALVIEW_PBX, "ARM-RealView PBX")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.phys_io	= REALVIEW_PBX_UART0_BASE,
-	.io_pg_offst	= (IO_ADDRESS(REALVIEW_PBX_UART0_BASE) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.fixup		= realview_pbx_fixup,
 	.map_io		= realview_pbx_map_io,

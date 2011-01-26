@@ -66,7 +66,7 @@ static void cmd_done(struct fsc_state *, int result);
 static void set_dma_cmds(struct fsc_state *, struct scsi_cmnd *);
 
 
-static int mac53c94_queue(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+static int mac53c94_queue_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
 	struct fsc_state *state;
 
@@ -98,6 +98,8 @@ static int mac53c94_queue(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(mac53c94_queue)
 
 static int mac53c94_host_reset(struct scsi_cmnd *cmd)
 {
@@ -542,8 +544,11 @@ MODULE_DEVICE_TABLE (of, mac53c94_match);
 
 static struct macio_driver mac53c94_driver = 
 {
-	.name 		= "mac53c94",
-	.match_table	= mac53c94_match,
+	.driver = {
+		.name 		= "mac53c94",
+		.owner		= THIS_MODULE,
+		.of_match_table	= mac53c94_match,
+	},
 	.probe		= mac53c94_probe,
 	.remove		= mac53c94_remove,
 };

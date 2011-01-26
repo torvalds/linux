@@ -76,39 +76,11 @@ int intc_evt_to_irq[(0xE20/0x20)+1] = {
 };
 
 static unsigned long intc_virt;
-
-static unsigned int startup_intc_irq(unsigned int irq);
-static void shutdown_intc_irq(unsigned int irq);
-static void enable_intc_irq(unsigned int irq);
-static void disable_intc_irq(unsigned int irq);
-static void mask_and_ack_intc(unsigned int);
-static void end_intc_irq(unsigned int irq);
-
-static struct irq_chip intc_irq_type = {
-	.name = "INTC",
-	.startup = startup_intc_irq,
-	.shutdown = shutdown_intc_irq,
-	.enable = enable_intc_irq,
-	.disable = disable_intc_irq,
-	.ack = mask_and_ack_intc,
-	.end = end_intc_irq
-};
-
 static int irlm;		/* IRL mode */
 
-static unsigned int startup_intc_irq(unsigned int irq)
+static void enable_intc_irq(struct irq_data *data)
 {
-	enable_intc_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static void shutdown_intc_irq(unsigned int irq)
-{
-	disable_intc_irq(irq);
-}
-
-static void enable_intc_irq(unsigned int irq)
-{
+	unsigned int irq = data->irq;
 	unsigned long reg;
 	unsigned long bitmask;
 
@@ -126,8 +98,9 @@ static void enable_intc_irq(unsigned int irq)
 	__raw_writel(bitmask, reg);
 }
 
-static void disable_intc_irq(unsigned int irq)
+static void disable_intc_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	unsigned long reg;
 	unsigned long bitmask;
 
@@ -142,15 +115,11 @@ static void disable_intc_irq(unsigned int irq)
 	__raw_writel(bitmask, reg);
 }
 
-static void mask_and_ack_intc(unsigned int irq)
-{
-	disable_intc_irq(irq);
-}
-
-static void end_intc_irq(unsigned int irq)
-{
-	enable_intc_irq(irq);
-}
+static struct irq_chip intc_irq_type = {
+	.name = "INTC",
+	.irq_enable = enable_intc_irq,
+	.irq_disable = disable_intc_irq,
+};
 
 void __init plat_irq_setup(void)
 {

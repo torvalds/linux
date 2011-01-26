@@ -133,49 +133,36 @@ Description:
 		The symbolic link points to the PCI device sysfs entry of the
 		Physical Function this device associates with.
 
-
-What:		/sys/bus/pci/slots/...
-Date:		April 2005 (possibly older)
-KernelVersion:	2.6.12 (possibly older)
-Contact:	linux-pci@vger.kernel.org
-Description:
-		When the appropriate driver is loaded, it will create a
-		directory per claimed physical PCI slot in
-		/sys/bus/pci/slots/.  The names of these directories are
-		specific to the driver, which in turn, are specific to the
-		platform, but in general, should match the label on the
-		machine's physical chassis.
-
-		The drivers that can create slot directories include the
-		PCI hotplug drivers, and as of 2.6.27, the pci_slot driver.
-
-		The slot directories contain, at a minimum, a file named
-		'address' which contains the PCI bus:device:function tuple.
-		Other files may appear as well, but are specific to the
-		driver.
-
-What:		/sys/bus/pci/slots/.../function[0-7]
-Date:		March 2010
-KernelVersion:	2.6.35
-Contact:	linux-pci@vger.kernel.org
-Description:
-		If PCI slot directories (as described above) are created,
-		and the physical slot is actually populated with a device,
-		symbolic links in the slot directory pointing to the
-		device's PCI functions are created as well.
-
-What:		/sys/bus/pci/devices/.../slot
-Date:		March 2010
-KernelVersion:	2.6.35
-Contact:	linux-pci@vger.kernel.org
-Description:
-		If PCI slot directories (as described above) are created,
-		a symbolic link pointing to the slot directory will be
-		created as well.
-
 What:		/sys/bus/pci/slots/.../module
 Date:		June 2009
 Contact:	linux-pci@vger.kernel.org
 Description:
 		This symbolic link points to the PCI hotplug controller driver
 		module that manages the hotplug slot.
+
+What:		/sys/bus/pci/devices/.../label
+Date:		July 2010
+Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Description:
+		Reading this attribute will provide the firmware
+		given name(SMBIOS type 41 string) of the PCI device.
+		The attribute will be created only if the firmware
+		has given a name to the PCI device.
+Users:
+		Userspace applications interested in knowing the
+		firmware assigned name of the PCI device.
+
+What:		/sys/bus/pci/devices/.../index
+Date:		July 2010
+Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Description:
+		Reading this attribute will provide the firmware
+		given instance(SMBIOS type 41 device type instance)
+		of the PCI device. The attribute will be created
+		only if the firmware has given a device type instance
+		to the PCI device.
+Users:
+		Userspace applications interested in knowing the
+		firmware assigned device type instance of the PCI
+		device that can help in understanding the firmware
+		intended order of the PCI device.

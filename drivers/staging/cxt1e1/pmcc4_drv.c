@@ -119,12 +119,10 @@ char        OSSIid_pmcc4_drvc[] =
 #define KERN_WARN KERN_WARNING
 
 /* forward references */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,41)
 status_t    c4_wk_chan_init (mpi_t *, mch_t *);
 void        c4_wq_port_cleanup (mpi_t *);
 status_t    c4_wq_port_init (mpi_t *);
 
-#endif
 int         c4_loop_port (ci_t *, int, u_int8_t);
 status_t    c4_set_port (ci_t *, int);
 status_t    musycc_chan_down (ci_t *, int);
@@ -137,9 +135,9 @@ void        musycc_serv_req (mpi_t *, u_int32_t);
 void        musycc_update_timeslots (mpi_t *);
 
 extern void musycc_update_tx_thp (mch_t *);
-extern int  log_level;
-extern int  max_mru;
-extern int  max_mtu;
+extern int  cxt1e1_log_level;
+extern int  cxt1e1_max_mru;
+extern int  cxt1e1_max_mtu;
 extern int  max_rxdesc_used, max_rxdesc_default;
 extern int  max_txdesc_used, max_txdesc_default;
 
@@ -170,12 +168,12 @@ sbecom_set_loglevel (int d)
                                                          * for card 0 only */
     } else
     {
-        if (log_level != d)
+        if (cxt1e1_log_level != d)
         {
-            pr_info("log level changed from %d to %d\n", log_level, d);
-            log_level = d;          /* set new */
+            pr_info("log level changed from %d to %d\n", cxt1e1_log_level, d);
+            cxt1e1_log_level = d;          /* set new */
         } else
-            pr_info("log level is %d\n", log_level);
+            pr_info("log level is %d\n", cxt1e1_log_level);
     }
 }
 
@@ -515,7 +513,7 @@ checkPorts (ci_t * ci)
             if ((value == 0x1c) || (value == 0x19) || (value == 0x12))
                 c4_loop_port (ci, portnum, COMET_MDIAG_LBOFF);  /* take port out of any
                                                                  * loopbk mode */
-            if (log_level >= LOG_DEBUG)
+            if (cxt1e1_log_level >= LOG_DEBUG)
                 if (value != 0x3f)
                     pr_warning("%s: BOC value = %x on Port %d\n",
                                ci->devname, value, portnum);
@@ -533,145 +531,15 @@ checkPorts (ci_t * ci)
 STATIC void
 c4_watchdog (ci_t * ci)
 {
-#if 0
-    //unsigned long flags;
-#endif
-
     if (drvr_state != SBE_DRVR_AVAILABLE)
     {
-        if (log_level >= LOG_MONITOR)
+        if (cxt1e1_log_level >= LOG_MONITOR)
             pr_info("drvr not available (%x)\n", drvr_state);
         return;
     }
-#if 0
-    SD_SEM_TAKE (&ci->sem_wdbusy, "_wd_");    /* only 1 thru here, per
-                                               * board */
-#endif
-
     ci->wdcount++;
     checkPorts (ci);
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,41)
-    if (ci->wd_notify)
-    {                               /* is there a state change to search for */
-        int         port, gchan;
-
-        ci->wd_notify = 0;          /* reset notification */
-        for (gchan = 0; gchan < MUSYCC_NCHANS; gchan++)
-        {
-            for (port = 0; port < ci->max_port; port++)
-            {
-                mch_t      *ch = ci->port[port].chan[gchan];
-
-                if (!ch || ci->state != C_RUNNING)      /* state changed while
-                                                         * acquiring semaphore */
-                    break;
-                if (ch->state == UP)/* channel must be set up */
-                {
-#if 0
-#ifdef RLD_TRANS_DEBUG
-                    if (1 || log_level >= LOG_MONITOR)
-#else
-                    if (log_level >= LOG_MONITOR)
-#endif
-                        pr_info("%s: watchdog reviving Port %d Channel %d [%d] sts %x/%x, start_TX %x free %x start_RX %x\n",
-                         ci->devname, ch->channum, port, gchan, ch->channum,
-                                ch->p.status, ch->status,
-                            ch->ch_start_tx, ch->txd_free, ch->ch_start_rx);
-#endif
-
-                    /**********************************/
-                    /** check for RX restart request **/
-                    /**********************************/
-
-                    if (ch->ch_start_rx &&
-                        (ch->status & RX_ENABLED))      /* requires start on
-                                                         * enabled RX */
-                    {
-                        ch->ch_start_rx = 0;    /* we are restarting RX... */
-#ifdef RLD_TRANS_DEBUG
-                        pr_info("++ c4_watchdog() CHAN RX ACTIVATE: chan %d\n",
-                                ch->channum);
-#endif
-#ifdef RLD_RXACT_DEBUG
-                        {
-                            struct mdesc *md;
-                            static int  hereb4 = 7;
-
-                            if (hereb4)
-                            {
-                                hereb4--;
-                                md = &ch->mdr[ch->rxix_irq_srv];
-                                pr_info("++ c4_watchdog[%d] CHAN RX ACTIVATE: rxix_irq_srv %d, md %p sts %x, rxpkt %lu\n",
-                                        ch->channum, ch->rxix_irq_srv, md, le32_to_cpu (md->status), ch->s.rx_packets);
-                                musycc_dump_rxbuffer_ring (ch, 1);      /* RLD DEBUG */
-                            }
-                        }
-#endif
-                        musycc_serv_req (ch->up, SR_CHANNEL_ACTIVATE | SR_RX_DIRECTION | gchan);
-                    }
-                    /**********************************/
-                    /** check for TX restart request **/
-                    /**********************************/
-
-                    if (ch->ch_start_tx &&
-                        (ch->status & TX_ENABLED))      /* requires start on
-                                                         * enabled TX */
-                    {
-                        struct mdesc *md;
-
-                        /*
-                         * find next unprocessed message, then set TX thp to
-                         * it
-                         */
-                        musycc_update_tx_thp (ch);
-
-#if 0
-                        spin_lock_irqsave (&ch->ch_txlock, flags);
-#endif
-                        md = ch->txd_irq_srv;
-                        if (!md)
-                        {
-                            pr_info("-- c4_watchdog[%d]: WARNING, starting NULL md\n",
-                                    ch->channum);
-                            pr_info("--   chan %d txd_irq_srv %p sts %x usr_add %p sts %x, txpkt %lu\n",
-                                    ch->channum, ch->txd_irq_srv, le32_to_cpu ((struct mdesc *) (ch->txd_irq_srv)->status),
-                                    ch->txd_usr_add, le32_to_cpu ((struct mdesc *) (ch->txd_usr_add)->status),
-                                    ch->s.tx_packets);
-#if 0
-                            spin_unlock_irqrestore (&ch->ch_txlock, flags);
-#endif
-                        } else if (md->data && ((le32_to_cpu (md->status)) & MUSYCC_TX_OWNED))
-                        {
-#ifdef RLD_TRANS_DEBUG
-                            pr_info("++ c4_watchdog[%d] CHAN TX ACTIVATE: start_tx %x\n",
-                                    ch->channum, ch->ch_start_tx);
-#endif
-                            ch->ch_start_tx = 0;        /* we are restarting
-                                                         * TX... */
-#if 0
-                            spin_unlock_irqrestore (&ch->ch_txlock, flags);   /* allow interrupts for
-                                                                               * service request */
-#endif
-                            musycc_serv_req (ch->up, SR_CHANNEL_ACTIVATE | SR_TX_DIRECTION | gchan);
-#ifdef RLD_TRANS_DEBUG
-                            if (1 || log_level >= LOG_MONITOR)
-#else
-                            if (log_level >= LOG_MONITOR)
-#endif
-                                pr_info("++ SACK[P%d/C%d] ack'd, continuing...\n",
-                                        ch->up->portnum, ch->channum);
-                        }
-                    }
-                }
-            }
-        }
-    }
-#else
     ci->wd_notify = 0;
-#endif
-#if 0
-    SD_SEM_GIVE (&ci->sem_wdbusy);/* release per-board hold */
-#endif
 }
 
 
@@ -690,9 +558,7 @@ c4_cleanup (void)
         for (portnum = 0; portnum < ci->max_port; portnum++)
         {
             pi = &ci->port[portnum];
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,41)
             c4_wq_port_cleanup (pi);
-#endif
             for (j = 0; j < MUSYCC_NCHANS; j++)
             {
                 if (pi->chan[j])
@@ -700,10 +566,6 @@ c4_cleanup (void)
             }
             OS_kfree (pi->regram_saved);
         }
-#if 0
-        /* obsolete - watchdog is now static w/in ci_t */
-        OS_free_watchdog (ci->wd);
-#endif
         OS_kfree (ci->iqd_p_saved);
         OS_kfree (ci);
         ci = next;                  /* cleanup next board, if any */
@@ -932,19 +794,19 @@ c4_loop_port (ci_t * ci, int portnum, u_int8_t cmd)
         }
 
         pci_write_32 ((u_int32_t *) &comet->mdiag, cmd);
-        if (log_level >= LOG_WARN)
+        if (cxt1e1_log_level >= LOG_WARN)
             pr_info("%s: loopback mode changed to %2x from %2x on Port %d\n",
                     ci->devname, cmd, loopValue, portnum);
         loopValue = pci_read_32 ((u_int32_t *) &comet->mdiag) & COMET_MDIAG_LBMASK;
         if (loopValue != cmd)
         {
-            if (log_level >= LOG_ERROR)
+            if (cxt1e1_log_level >= LOG_ERROR)
                 pr_info("%s: write to loop register failed, unknown state for Port %d\n",
                         ci->devname, portnum);
         }
     } else
     {
-        if (log_level >= LOG_WARN)
+        if (cxt1e1_log_level >= LOG_WARN)
             pr_info("%s: loopback already in that mode (%2x)\n",
                     ci->devname, loopValue);
     }
@@ -1135,7 +997,7 @@ c4_set_port (ci_t * ci, int portnum)
     pi = &ci->port[portnum];
     pp = &ci->port[portnum].p;
     e1mode = IS_FRAME_ANY_E1 (pp->port_mode);
-    if (log_level >= LOG_MONITOR2)
+    if (cxt1e1_log_level >= LOG_MONITOR2)
     {
         pr_info("%s: c4_set_port[%d]:  entered, e1mode = %x, openchans %d.\n",
                 ci->devname,
@@ -1145,7 +1007,6 @@ c4_set_port (ci_t * ci, int portnum)
         return EBUSY;               /* group needs initialization only for
                                      * first channel of a group */
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,41)
     {
         status_t    ret;
 
@@ -1153,7 +1014,6 @@ c4_set_port (ci_t * ci, int portnum)
                                                  * workqueue_struct */
             return (ret);
     }
-#endif
 
     init_comet (ci, pi->cometbase, pp->port_mode, 1 /* clockmaster == true */ , pp->portP);
     clck = pci_read_32 ((u_int32_t *) &ci->cpldbase->mclk) & PMCC4_CPLD_MCLK_MASK;
@@ -1187,7 +1047,7 @@ c4_set_port (ci_t * ci, int portnum)
                                 MUSYCC_PCD_RXDATA_RISING);
 
     /* Message length descriptor */
-    pi->regram->mld = __constant_cpu_to_le32 (max_mru | (max_mru << 16));
+       pi->regram->mld = __constant_cpu_to_le32 (cxt1e1_max_mru | (cxt1e1_max_mru << 16));
 
     /* tsm algorithm */
     for (i = 0; i < 32; i++)
@@ -1269,14 +1129,12 @@ c4_new_chan (ci_t * ci, int portnum, int channum, void *user)
     spin_lock_init (&ch->ch_rxlock);
     spin_lock_init (&ch->ch_txlock);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,41)
     {
         status_t    ret;
 
         if ((ret = c4_wk_chan_init (pi, ch)))
             return ret;
     }
-#endif
 
     /* save off interface assignments which bound a board */
     if (ci->first_if == 0)          /* first channel registered is assumed to
@@ -1420,12 +1278,12 @@ c4_fifo_alloc (mpi_t * pi, int chan, int *len)
     }
     if (max != *len)
     {
-        if (log_level >= LOG_WARN)
+        if (cxt1e1_log_level >= LOG_WARN)
             pr_info("%s: wanted to allocate %d fifo space, but got only %d\n",
                     pi->up->devname, *len, max);
         *len = max;
     }
-    if (log_level >= LOG_DEBUG)
+    if (cxt1e1_log_level >= LOG_DEBUG)
         pr_info("%s: allocated %d fifo at %d for channel %d/%d\n",
                 pi->up->devname, max, start, chan, pi->p.portnum);
     for (i = maxstart; i < (maxstart + max); i++)
@@ -1438,7 +1296,7 @@ c4_fifo_free (mpi_t * pi, int chan)
 {
     int         i;
 
-    if (log_level >= LOG_DEBUG)
+    if (cxt1e1_log_level >= LOG_DEBUG)
         pr_info("%s: deallocated fifo for channel %d/%d\n",
                 pi->up->devname, chan, pi->p.portnum);
     for (i = 0; i < 32; i++)
@@ -1463,7 +1321,7 @@ c4_chan_up (ci_t * ci, int channum)
         return ENOENT;
     if (ch->state == UP)
     {
-        if (log_level >= LOG_MONITOR)
+        if (cxt1e1_log_level >= LOG_MONITOR)
             pr_info("%s: channel already UP, graceful early exit\n",
                     ci->devname);
         return 0;
@@ -1476,7 +1334,7 @@ c4_chan_up (ci_t * ci, int channum)
     {
         if (ch->p.bitmask[i] & pi->tsm[i])
         {
-            if (1 || log_level >= LOG_WARN)
+            if (1 || cxt1e1_log_level >= LOG_WARN)
             {
                 pr_info("%s: c4_chan_up[%d] EINVAL (attempt to cfg in-use or unavailable TimeSlot[%d])\n",
                         ci->devname, channum, i);
@@ -1493,7 +1351,7 @@ c4_chan_up (ci_t * ci, int channum)
     nbuf = nts / 8 ? nts / 8 : 1;
     if (!nbuf)
     {
-        /* if( log_level >= LOG_WARN)  */
+        /* if( cxt1e1_log_level >= LOG_WARN)  */
         pr_info("%s: c4_chan_up[%d] ENOBUFS (no TimeSlots assigned)\n",
                 ci->devname, channum);
         return ENOBUFS;             /* this should not happen */
@@ -1562,7 +1420,7 @@ c4_chan_up (ci_t * ci, int channum)
 
 #if 0
     /* DEBUG INFO */
-    if (log_level >= LOG_MONITOR)
+    if (cxt1e1_log_level >= LOG_MONITOR)
         pr_info("%s: mode %x rxnum %d (rxused %d def %d) txnum %d (txused %d def %d)\n",
                 ci->devname, ch->p.chan_mode,
                 rxnum, max_rxdesc_used, max_rxdesc_default,
@@ -1576,9 +1434,9 @@ c4_chan_up (ci_t * ci, int channum)
     ch->mdr = OS_kmalloc (sizeof (struct mdesc) * rxnum);
     ch->mdt = OS_kmalloc (sizeof (struct mdesc) * txnum);
     if (ch->p.chan_mode == CFG_CH_PROTO_TRANS)
-        tmp = __constant_cpu_to_le32 (max_mru | EOBIRQ_ENABLE);
+               tmp = __constant_cpu_to_le32 (cxt1e1_max_mru | EOBIRQ_ENABLE);
     else
-        tmp = __constant_cpu_to_le32 (max_mru);
+               tmp = __constant_cpu_to_le32 (cxt1e1_max_mru);
 
     for (i = 0, md = ch->mdr; i < rxnum; i++, md++)
     {
@@ -1591,11 +1449,11 @@ c4_chan_up (ci_t * ci, int channum)
         }
         md->next = cpu_to_le32 (OS_vtophys (md->snext));
 
-        if (!(m = OS_mem_token_alloc (max_mru)))
+               if (!(m = OS_mem_token_alloc (cxt1e1_max_mru)))
         {
-            if (log_level >= LOG_MONITOR)
+            if (cxt1e1_log_level >= LOG_MONITOR)
                 pr_info("%s: c4_chan_up[%d] - token alloc failure, size = %d.\n",
-                        ci->devname, channum, max_mru);
+                                               ci->devname, channum, cxt1e1_max_mru);
             goto errfree;
         }
         md->mem_token = m;
@@ -1705,31 +1563,23 @@ sbecom_get_brdinfo (ci_t * ci, struct sbe_brd_info * bip, u_int8_t *bsn)
 
     if (ci->first_if)
     {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-        np = (char *) hdlc_to_name (ci->first_if);
-#else
         {
             struct net_device *dev;
 
             dev = (struct net_device *) ci->first_if;
             np = (char *) dev->name;
         }
-#endif
         strncpy (bip->first_iname, np, CHNM_STRLEN - 1);
     } else
         strcpy (bip->first_iname, "<NULL>");
     if (ci->last_if)
     {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-        np = (char *) hdlc_to_name (ci->last_if);
-#else
         {
             struct net_device *dev;
 
             dev = (struct net_device *) ci->last_if;
             np = (char *) dev->name;
         }
-#endif
         strncpy (bip->last_iname, np, CHNM_STRLEN - 1);
     } else
         strcpy (bip->last_iname, "<NULL>");
@@ -1763,11 +1613,7 @@ c4_get_iidinfo (ci_t * ci, struct sbe_iid_info * iip)
     if (!(dev = getuserbychan (iip->channum)))
         return ENOENT;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-    np = (char *) hdlc_to_name (dev_to_hdlc (dev));
-#else
     np = dev->name;
-#endif
     strncpy (iip->iname, np, CHNM_STRLEN - 1);
     return 0;
 }
@@ -1826,11 +1672,7 @@ c4_ebus_intr_th_handler (void *devp)
     pci_write_32 ((u_int32_t *) &ci->reg->glcd, GCD_MAGIC | MUSYCC_GCD_INTB_DISABLE);
 #endif
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,4,20)
-    return;
-#else
     return IRQ_RETVAL (handled);
-#endif
 }
 
 

@@ -171,7 +171,8 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		 * less than the blocksize * 8 ( which is the size
 		 * of bitmap ), set rest of the block bitmap to 1
 		 */
-		mark_bitmap_end(group_blocks, sb->s_blocksize * 8, bh->b_data);
+		ext4_mark_bitmap_end(group_blocks, sb->s_blocksize * 8,
+				     bh->b_data);
 	}
 	return free_blocks - ext4_group_used_meta_blocks(sb, block_group, gdp);
 }
@@ -377,14 +378,11 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	ext4_grpblk_t bit;
 	unsigned int i;
 	struct ext4_group_desc *desc;
-	struct ext4_super_block *es;
-	struct ext4_sb_info *sbi;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	int err = 0, ret, blk_free_count;
 	ext4_grpblk_t blocks_freed;
 	struct ext4_group_info *grp;
 
-	sbi = EXT4_SB(sb);
-	es = sbi->s_es;
 	ext4_debug("Adding block(s) %llu-%llu\n", block, block + count - 1);
 
 	ext4_get_group_no_and_offset(sb, block, &block_group, &bit);
@@ -477,7 +475,6 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	ret = ext4_handle_dirty_metadata(handle, NULL, gd_bh);
 	if (!err)
 		err = ret;
-	sb->s_dirt = 1;
 
 error_return:
 	brelse(bitmap_bh);
@@ -493,7 +490,7 @@ error_return:
  * Check if filesystem has nblocks free & available for allocation.
  * On success return 1, return 0 on failure.
  */
-int ext4_has_free_blocks(struct ext4_sb_info *sbi, s64 nblocks)
+static int ext4_has_free_blocks(struct ext4_sb_info *sbi, s64 nblocks)
 {
 	s64 free_blocks, dirty_blocks, root_blocks;
 	struct percpu_counter *fbc = &sbi->s_freeblocks_counter;
@@ -591,14 +588,16 @@ ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 	ret = ext4_mb_new_blocks(handle, &ar, errp);
 	if (count)
 		*count = ar.len;
-
 	/*
-	 * Account for the allocated meta blocks
+	 * Account for the allocated meta blocks.  We will never
+	 * fail EDQUOT for metdata, but we do account for it.
 	 */
-	if (!(*errp) && EXT4_I(inode)->i_delalloc_reserved_flag) {
+	if (!(*errp) &&
+	    ext4_test_inode_state(inode, EXT4_STATE_DELALLOC_RESERVED)) {
 		spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 		EXT4_I(inode)->i_allocated_meta_blocks += ar.len;
 		spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+		dquot_alloc_block_nofail(inode, ar.len);
 	}
 	return ret;
 }

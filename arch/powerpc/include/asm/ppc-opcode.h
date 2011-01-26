@@ -36,6 +36,8 @@
 #define PPC_INST_NOP			0x60000000
 #define PPC_INST_POPCNTB		0x7c0000f4
 #define PPC_INST_POPCNTB_MASK		0xfc0007fe
+#define PPC_INST_POPCNTD		0x7c0003f4
+#define PPC_INST_POPCNTW		0x7c0002f4
 #define PPC_INST_RFCI			0x4c000066
 #define PPC_INST_RFDI			0x4c00004e
 #define PPC_INST_RFMCI			0x4c00004c
@@ -52,13 +54,17 @@
 #define PPC_INST_WAIT			0x7c00007c
 #define PPC_INST_TLBIVAX		0x7c000624
 #define PPC_INST_TLBSRX_DOT		0x7c0006a5
+#define PPC_INST_XXLOR			0xf0000510
 
 /* macros to insert fields into opcodes */
 #define __PPC_RA(a)	(((a) & 0x1f) << 16)
 #define __PPC_RB(b)	(((b) & 0x1f) << 11)
 #define __PPC_RS(s)	(((s) & 0x1f) << 21)
 #define __PPC_RT(s)	__PPC_RS(s)
+#define __PPC_XA(a)	((((a) & 0x1f) << 16) | (((a) & 0x20) >> 3))
+#define __PPC_XB(b)	((((b) & 0x1f) << 11) | (((b) & 0x20) >> 4))
 #define __PPC_XS(s)	((((s) & 0x1f) << 21) | (((s) & 0x20) >> 5))
+#define __PPC_XT(s)	__PPC_XS(s)
 #define __PPC_T_TLB(t)	(((t) & 0x3) << 21)
 #define __PPC_WC(w)	(((w) & 0x3) << 21)
 /*
@@ -84,6 +90,12 @@
 					__PPC_RB(b) | __PPC_EH(eh))
 #define PPC_MSGSND(b)		stringify_in_c(.long PPC_INST_MSGSND | \
 					__PPC_RB(b))
+#define PPC_POPCNTB(a, s)	stringify_in_c(.long PPC_INST_POPCNTB | \
+					__PPC_RA(a) | __PPC_RS(s))
+#define PPC_POPCNTD(a, s)	stringify_in_c(.long PPC_INST_POPCNTD | \
+					__PPC_RA(a) | __PPC_RS(s))
+#define PPC_POPCNTW(a, s)	stringify_in_c(.long PPC_INST_POPCNTW | \
+					__PPC_RA(a) | __PPC_RS(s))
 #define PPC_RFCI		stringify_in_c(.long PPC_INST_RFCI)
 #define PPC_RFDI		stringify_in_c(.long PPC_INST_RFDI)
 #define PPC_RFMCI		stringify_in_c(.long PPC_INST_RFMCI)
@@ -106,9 +118,12 @@
  * the 128 bit load store instructions based on that.
  */
 #define VSX_XX1(s, a, b)	(__PPC_XS(s) | __PPC_RA(a) | __PPC_RB(b))
+#define VSX_XX3(t, a, b)	(__PPC_XT(t) | __PPC_XA(a) | __PPC_XB(b))
 #define STXVD2X(s, a, b)	stringify_in_c(.long PPC_INST_STXVD2X | \
 					       VSX_XX1((s), (a), (b)))
 #define LXVD2X(s, a, b)		stringify_in_c(.long PPC_INST_LXVD2X | \
 					       VSX_XX1((s), (a), (b)))
+#define XXLOR(t, a, b)		stringify_in_c(.long PPC_INST_XXLOR | \
+					       VSX_XX3((t), (a), (b)))
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */

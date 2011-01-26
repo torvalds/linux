@@ -780,7 +780,7 @@ static int mptspi_slave_configure(struct scsi_device *sdev)
 }
 
 static int
-mptspi_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+mptspi_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
 	struct _MPT_SCSI_HOST *hd = shost_priv(SCpnt->device->host);
 	VirtDevice	*vdevice = SCpnt->device->hostdata;
@@ -804,6 +804,8 @@ mptspi_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	return mptscsih_qcmd(SCpnt,done);
 }
+
+static DEF_SCSI_QCMD(mptspi_qcmd)
 
 static void mptspi_slave_destroy(struct scsi_device *sdev)
 {
@@ -1551,9 +1553,12 @@ mptspi_init(void)
 	if (!mptspi_transport_template)
 		return -ENODEV;
 
-	mptspiDoneCtx = mpt_register(mptscsih_io_done, MPTSPI_DRIVER);
-	mptspiTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTSPI_DRIVER);
-	mptspiInternalCtx = mpt_register(mptscsih_scandv_complete, MPTSPI_DRIVER);
+	mptspiDoneCtx = mpt_register(mptscsih_io_done, MPTSPI_DRIVER,
+	    "mptscsih_io_done");
+	mptspiTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTSPI_DRIVER,
+	    "mptscsih_taskmgmt_complete");
+	mptspiInternalCtx = mpt_register(mptscsih_scandv_complete,
+	    MPTSPI_DRIVER, "mptscsih_scandv_complete");
 
 	mpt_event_register(mptspiDoneCtx, mptspi_event_process);
 	mpt_reset_register(mptspiDoneCtx, mptspi_ioc_reset);

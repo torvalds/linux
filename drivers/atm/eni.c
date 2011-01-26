@@ -1736,9 +1736,10 @@ static int __devinit eni_do_init(struct atm_dev *dev)
 		eprom = (base+EPROM_SIZE-sizeof(struct midway_eprom));
 		if (readl(&eprom->magic) != ENI155_MAGIC) {
 			printk("\n");
-			printk(KERN_ERR KERN_ERR DEV_LABEL "(itf %d): bad "
-			    "magic - expected 0x%x, got 0x%x\n",dev->number,
-			    ENI155_MAGIC,(unsigned) readl(&eprom->magic));
+			printk(KERN_ERR DEV_LABEL
+			       "(itf %d): bad magic - expected 0x%x, got 0x%x\n",
+			       dev->number, ENI155_MAGIC,
+			       (unsigned)readl(&eprom->magic));
 			error = -EINVAL;
 			goto unmap;
 		}
@@ -2243,7 +2244,7 @@ static int __devinit eni_init_one(struct pci_dev *pci_dev,
 		    &zeroes);
 		if (!cpu_zeroes) goto out1;
 	}
-	dev = atm_dev_register(DEV_LABEL,&ops,-1,NULL);
+	dev = atm_dev_register(DEV_LABEL, &pci_dev->dev, &ops, -1, NULL);
 	if (!dev) goto out2;
 	pci_set_drvdata(pci_dev, dev);
 	eni_dev->pci_dev = pci_dev;
@@ -2269,10 +2270,8 @@ out0:
 
 
 static struct pci_device_id eni_pci_tbl[] = {
-	{ PCI_VENDOR_ID_EF, PCI_DEVICE_ID_EF_ATM_FPGA, PCI_ANY_ID, PCI_ANY_ID,
-	  0, 0, 0 /* FPGA */ },
-	{ PCI_VENDOR_ID_EF, PCI_DEVICE_ID_EF_ATM_ASIC, PCI_ANY_ID, PCI_ANY_ID,
-	  0, 0, 1 /* ASIC */ },
+	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_FPGA), 0 /* FPGA */ },
+	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_ASIC), 1 /* ASIC */ },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci,eni_pci_tbl);

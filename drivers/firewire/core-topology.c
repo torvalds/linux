@@ -174,12 +174,7 @@ static inline struct fw_node *fw_node(struct list_head *l)
 	return list_entry(l, struct fw_node, link);
 }
 
-/**
- * build_tree - Build the tree representation of the topology
- * @self_ids: array of self IDs to create the tree from
- * @self_id_count: the length of the self_ids array
- * @local_id: the node ID of the local node
- *
+/*
  * This function builds the tree representation of the topology given
  * by the self IDs from the latest bus reset.  During the construction
  * of the tree, the function checks that the self IDs are valid and
@@ -420,11 +415,10 @@ static void move_tree(struct fw_node *node0, struct fw_node *node1, int port)
 	}
 }
 
-/**
- * update_tree - compare the old topology tree for card with the new
- * one specified by root.  Queue the nodes and mark them as either
- * found, lost or updated.  Update the nodes in the card topology tree
- * as we go.
+/*
+ * Compare the old topology tree for card with the new one specified by root.
+ * Queue the nodes and mark them as either found, lost or updated.
+ * Update the nodes in the card topology tree as we go.
  */
 static void update_tree(struct fw_card *card, struct fw_node *root)
 {
@@ -524,7 +518,7 @@ static void update_topology_map(struct fw_card *card,
 }
 
 void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
-			      int self_id_count, u32 *self_ids)
+			      int self_id_count, u32 *self_ids, bool bm_abdicate)
 {
 	struct fw_node *local_node;
 	unsigned long flags;
@@ -543,7 +537,7 @@ void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
 
 	spin_lock_irqsave(&card->lock, flags);
 
-	card->broadcast_channel_allocated = false;
+	card->broadcast_channel_allocated = card->broadcast_channel_auto_allocated;
 	card->node_id = node_id;
 	/*
 	 * Update node_id before generation to prevent anybody from using
@@ -552,6 +546,8 @@ void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
 	smp_wmb();
 	card->generation = generation;
 	card->reset_jiffies = jiffies;
+	card->bm_node_id  = 0xffff;
+	card->bm_abdicate = bm_abdicate;
 	fw_schedule_bm_work(card, 0);
 
 	local_node = build_tree(card, self_ids, self_id_count);

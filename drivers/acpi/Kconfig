@@ -9,7 +9,6 @@ menuconfig ACPI
 	depends on PCI
 	depends on PM
 	select PNP
-	select CPU_IDLE
 	default y
 	help
 	  Advanced Configuration and Power Interface (ACPI) support for 
@@ -52,19 +51,7 @@ config ACPI_PROCFS
 	  For backwards compatibility, this option allows
 	  deprecated /proc/acpi/ files to exist, even when
 	  they have been replaced by functions in /sys.
-	  The deprecated files (and their replacements) include:
 
-	  /proc/acpi/sleep (/sys/power/state)
-	  /proc/acpi/info (/sys/module/acpi/parameters/acpica_version)
-	  /proc/acpi/dsdt (/sys/firmware/acpi/tables/DSDT)
-	  /proc/acpi/fadt (/sys/firmware/acpi/tables/FACP)
-	  /proc/acpi/debug_layer (/sys/module/acpi/parameters/debug_layer)
-	  /proc/acpi/debug_level (/sys/module/acpi/parameters/debug_level)
-	  /proc/acpi/processor/*/power (/sys/devices/system/cpu/*/cpuidle/*)
-	  /proc/acpi/processor/*/performance (/sys/devices/system/cpu/*/
-		cpufreq/*)
-	  /proc/acpi/processor/*/throttling (/sys/class/thermal/
-		cooling_device*/*)
 	  This option has no effect on /proc/acpi/ files
 	  and functions which do not yet exist in /sys.
 
@@ -73,7 +60,6 @@ config ACPI_PROCFS
 config ACPI_PROCFS_POWER
 	bool "Deprecated power /proc/acpi directories"
 	depends on PROC_FS
-	default y
 	help
 	  For backwards compatibility, this option allows
           deprecated power /proc/acpi/ directories to exist, even when
@@ -83,6 +69,8 @@ config ACPI_PROCFS_POWER
 	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*)
 	  This option has no effect on /proc/acpi/ directories
 	  and functions, which do not yet exist in /sys
+	  This option, together with the proc directories, will be
+	  deleted in 2.6.39.
 
 	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
 
@@ -97,12 +85,23 @@ config ACPI_POWER_METER
 	  To compile this driver as a module, choose M here:
 	  the module will be called power-meter.
 
-config ACPI_SYSFS_POWER
-	bool "Future power /sys interface"
-	select POWER_SUPPLY
-	default y
+config ACPI_EC_DEBUGFS
+	tristate "EC read/write access through /sys/kernel/debug/ec"
+	default n
 	help
-	  Say N to disable power /sys interface
+	  Say N to disable Embedded Controller /sys/kernel/debug interface
+
+	  Be aware that using this interface can confuse your Embedded
+	  Controller in a way that a normal reboot is not enough. You then
+	  have to power off your system, and remove the laptop battery for
+	  some seconds.
+	  An Embedded Controller typically is available on laptops and reads
+	  sensor values like battery state and temperature.
+	  The kernel accesses the EC through ACPI parsed code provided by BIOS
+	  tables. This option allows to access the EC directly without ACPI
+	  code being involved.
+	  Thus this option is a debug option that helps to write ACPI drivers
+	  and can be used to identify ACPI code or EC firmware bugs.
 
 config ACPI_PROC_EVENT
 	bool "Deprecated /proc/acpi/event support"
@@ -125,6 +124,7 @@ config ACPI_PROC_EVENT
 config ACPI_AC
 	tristate "AC Adapter"
 	depends on X86
+	select POWER_SUPPLY
 	default y
 	help
 	  This driver supports the AC Adapter object, which indicates
@@ -137,6 +137,7 @@ config ACPI_AC
 config ACPI_BATTERY
 	tristate "Battery"
 	depends on X86
+	select POWER_SUPPLY
 	default y
 	help
 	  This driver adds support for battery information through
@@ -195,6 +196,7 @@ config ACPI_DOCK
 config ACPI_PROCESSOR
 	tristate "Processor"
 	select THERMAL
+	select CPU_IDLE
 	default y
 	help
 	  This driver installs ACPI as the idle handler for Linux and uses
@@ -204,6 +206,17 @@ config ACPI_PROCESSOR
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called processor.
+config ACPI_IPMI
+	tristate "IPMI"
+	depends on EXPERIMENTAL && IPMI_SI && IPMI_HANDLER
+	default n
+	help
+	  This driver enables the ACPI to access the BMC controller. And it
+	  uses the IPMI request/response message to communicate with BMC
+	  controller, which can be found on on the server.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called as acpi_ipmi.
 
 config ACPI_HOTPLUG_CPU
 	bool
@@ -305,7 +318,7 @@ config ACPI_PCI_SLOT
 	  the module will be called pci_slot.
 
 config X86_PM_TIMER
-	bool "Power Management Timer Support" if EMBEDDED
+	bool "Power Management Timer Support" if EXPERT
 	depends on X86
 	default y
 	help
@@ -353,11 +366,21 @@ config ACPI_HOTPLUG_MEMORY
 config ACPI_SBS
 	tristate "Smart Battery System"
 	depends on X86
+	select POWER_SUPPLY
 	help
 	  This driver supports the Smart Battery System, another
 	  type of access to battery information, found on some laptops.
 
 	  To compile this driver as a module, choose M here:
 	  the modules will be called sbs and sbshc.
+
+config ACPI_HED
+	tristate "Hardware Error Device"
+	help
+	  This driver supports the Hardware Error Device (PNP0C33),
+	  which is used to report some hardware errors notified via
+	  SCI, mainly the corrected errors.
+
+source "drivers/acpi/apei/Kconfig"
 
 endif	# ACPI

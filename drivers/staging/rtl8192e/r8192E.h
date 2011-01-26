@@ -1468,7 +1468,6 @@ typedef	union _AC_PARAM{
 
 #endif
 bool init_firmware(struct net_device *dev);
-void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
 u32 read_cam(struct net_device *dev, u8 addr);
 void write_cam(struct net_device *dev, u8 addr, u32 data);
@@ -1480,7 +1479,6 @@ void write_nic_byte(struct net_device *dev, int x,u8 y);
 void write_nic_byte_E(struct net_device *dev, int x,u8 y);
 void write_nic_word(struct net_device *dev, int x,u16 y);
 void write_nic_dword(struct net_device *dev, int x,u32 y);
-void force_pci_posting(struct net_device *dev);
 
 void rtl8192_halt_adapter(struct net_device *dev, bool reset);
 void rtl8192_rx_enable(struct net_device *);
@@ -1503,14 +1501,12 @@ void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
 void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
 void rtl8187_set_rxconf(struct net_device *dev);
 //short check_nic_enough_desc(struct net_device *dev, priority_t priority);
-void rtl8192_start_beacon(struct net_device *dev);
 void CamResetAllEntry(struct net_device* dev);
 void EnableHWSecurityConfig8192(struct net_device *dev);
-void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
-void CamPrintDbgReg(struct net_device* dev);
-extern	void	dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
-extern void firmware_init_param(struct net_device *dev);
-extern RT_STATUS cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);
+void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
+void dm_cck_txpower_adjust(struct net_device *dev, bool binch14);
+void firmware_init_param(struct net_device *dev);
+RT_STATUS cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);
 void rtl8192_hw_wakeup_wq (struct work_struct *work);
 
 short rtl8192_is_tx_queue_empty(struct net_device *dev);

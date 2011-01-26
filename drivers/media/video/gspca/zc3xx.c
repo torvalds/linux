@@ -22,7 +22,6 @@
 #define MODULE_NAME "zc3xx"
 
 #include <linux/input.h>
-#include <linux/slab.h>
 #include "gspca.h"
 #include "jpeg.h"
 
@@ -36,62 +35,81 @@ static int force_sensor = -1;
 #define QUANT_VAL 1		/* quantization table */
 #include "zc3xx-reg.h"
 
+/* controls */
+enum e_ctrl {
+	BRIGHTNESS,
+	CONTRAST,
+	GAMMA,
+	AUTOGAIN,
+	LIGHTFREQ,
+	SHARPNESS,
+	NCTRLS		/* number of controls */
+};
+
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	u8 contrast;
-	u8 gamma;
-	u8 autogain;
-	u8 lightfreq;
-	u8 sharpness;
+	struct gspca_ctrl ctrls[NCTRLS];
+
 	u8 quality;			/* image quality */
-#define QUALITY_MIN 40
-#define QUALITY_MAX 60
-#define QUALITY_DEF 50
+#define QUALITY_MIN 50
+#define QUALITY_MAX 80
+#define QUALITY_DEF 70
 
+	u8 bridge;
 	u8 sensor;		/* Type of image sensor chip */
-/* !! values used in different tables */
-#define SENSOR_ADCM2700 0
-#define SENSOR_CS2102 1
-#define SENSOR_CS2102K 2
-#define SENSOR_GC0305 3
-#define SENSOR_HDCS2020b 4
-#define SENSOR_HV7131B 5
-#define SENSOR_HV7131C 6
-#define SENSOR_ICM105A 7
-#define SENSOR_MC501CB 8
-#define SENSOR_MI0360SOC 9
-#define SENSOR_OV7620 10
-/*#define SENSOR_OV7648 10 - same values */
-#define SENSOR_OV7630C 11
-#define SENSOR_PAS106 12
-#define SENSOR_PAS202B 13
-#define SENSOR_PB0330 14	/* (MI0360) */
-#define SENSOR_PO2030 15
-#define SENSOR_TAS5130CK 16
-#define SENSOR_TAS5130CXX 17
-#define SENSOR_TAS5130C_VF0250 18
-#define SENSOR_MAX 19
-	unsigned short chip_revision;
+	u16 chip_revision;
 
-	u8 *jpeg_hdr;
+	u8 jpeg_hdr[JPEG_HDR_SZ];
+};
+enum bridges {
+	BRIDGE_ZC301,
+	BRIDGE_ZC303,
+};
+enum sensors {
+	SENSOR_ADCM2700,
+	SENSOR_CS2102,
+	SENSOR_CS2102K,
+	SENSOR_GC0303,
+	SENSOR_GC0305,
+	SENSOR_HDCS2020b,
+	SENSOR_HV7131B,
+	SENSOR_HV7131R,
+	SENSOR_ICM105A,
+	SENSOR_MC501CB,
+	SENSOR_MT9V111_1,	/* (mi360soc) zc301 */
+	SENSOR_MT9V111_3,	/* (mi360soc) zc303 */
+	SENSOR_OV7620,		/* OV7648 - same values */
+	SENSOR_OV7630C,
+	SENSOR_PAS106,
+	SENSOR_PAS202B,
+	SENSOR_PB0330,
+	SENSOR_PO2030,
+	SENSOR_TAS5130C,
+	SENSOR_MAX
 };
 
 /* V4L2 controls supported by the driver */
-static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setgamma(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getgamma(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
+static void setcontrast(struct gspca_dev *gspca_dev);
+static void setautogain(struct gspca_dev *gspca_dev);
+static void setlightfreq(struct gspca_dev *gspca_dev);
+static void setsharpness(struct gspca_dev *gspca_dev);
 
-static const struct ctrl sd_ctrls[] = {
-	{
+static const struct ctrl sd_ctrls[NCTRLS] = {
+[BRIGHTNESS] = {
+	    {
+		.id      = V4L2_CID_BRIGHTNESS,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Brightness",
+		.minimum = 0,
+		.maximum = 255,
+		.step    = 1,
+		.default_value = 128,
+	    },
+	    .set_control = setcontrast
+	},
+[CONTRAST] = {
 	    {
 		.id      = V4L2_CID_CONTRAST,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
@@ -99,13 +117,11 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step    = 1,
-#define CONTRAST_DEF 128
-		.default_value = CONTRAST_DEF,
+		.default_value = 128,
 	    },
-	    .set = sd_setcontrast,
-	    .get = sd_getcontrast,
+	    .set_control = setcontrast
 	},
-	{
+[GAMMA] = {
 	    {
 		.id      = V4L2_CID_GAMMA,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
@@ -115,10 +131,9 @@ static const struct ctrl sd_ctrls[] = {
 		.step    = 1,
 		.default_value = 4,
 	    },
-	    .set = sd_setgamma,
-	    .get = sd_getgamma,
+	    .set_control = setcontrast
 	},
-	{
+[AUTOGAIN] = {
 	    {
 		.id      = V4L2_CID_AUTOGAIN,
 		.type    = V4L2_CTRL_TYPE_BOOLEAN,
@@ -126,14 +141,11 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-#define AUTOGAIN_DEF 1
-		.default_value = AUTOGAIN_DEF,
+		.default_value = 1,
 	    },
-	    .set = sd_setautogain,
-	    .get = sd_getautogain,
+	    .set_control = setautogain
 	},
-#define LIGHTFREQ_IDX 3
-	{
+[LIGHTFREQ] = {
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
 		.type    = V4L2_CTRL_TYPE_MENU,
@@ -141,13 +153,11 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
 		.step    = 1,
-#define FREQ_DEF 0
-		.default_value = FREQ_DEF,
+		.default_value = 0,
 	    },
-	    .set = sd_setfreq,
-	    .get = sd_getfreq,
+	    .set_control = setlightfreq
 	},
-	{
+[SHARPNESS] = {
 	    {
 		.id	 = V4L2_CID_SHARPNESS,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
@@ -155,11 +165,9 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 3,
 		.step    = 1,
-#define SHARPNESS_DEF 2
-		.default_value = SHARPNESS_DEF,
+		.default_value = 2,
 	    },
-	    .set = sd_setsharpness,
-	    .get = sd_getsharpness,
+	    .set_control = setsharpness
 	},
 };
 
@@ -2058,6 +2066,7 @@ static const struct usb_action hv7131b_NoFlikerScale[] = { /* 320x240 */
 	{}
 };
 
+/* from lPEPI264v.inf (hv7131b!) */
 static const struct usb_action hv7131r_InitialScale[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT},
@@ -2065,8 +2074,8 @@ static const struct usb_action hv7131r_InitialScale[] = {
 	{0xa0, 0x01, ZC3XX_R001_SYSTEMOPERATING},
 	{0xa0, 0x77, ZC3XX_R101_SENSORCORRECTION},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
-	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xa0, 0x07, ZC3XX_R012_VIDEOCONTROLFUNC},
+	{0xa0, 0x01, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xa0, 0x02, ZC3XX_R003_FRAMEWIDTHHIGH},
 	{0xa0, 0x80, ZC3XX_R004_FRAMEWIDTHLOW},
 	{0xa0, 0x01, ZC3XX_R005_FRAMEHEIGHTHIGH},
@@ -2079,6 +2088,8 @@ static const struct usb_action hv7131r_InitialScale[] = {
 	{0xa0, 0x88, ZC3XX_R09E_WINWIDTHLOW},
 	{0xa0, 0x00, ZC3XX_R11A_FIRSTYLOW},
 	{0xa0, 0x00, ZC3XX_R11C_FIRSTXLOW},
+	{0xa0, 0x07, ZC3XX_R012_VIDEOCONTROLFUNC},
+	{0xdd, 0x00, 0x0200},
 	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xaa, 0x01, 0x000c},
 	{0xaa, 0x11, 0x0000},
@@ -2087,10 +2098,10 @@ static const struct usb_action hv7131r_InitialScale[] = {
 	{0xaa, 0x15, 0x00e8},
 	{0xaa, 0x16, 0x0002},
 	{0xaa, 0x17, 0x0088},
-
+	{0xaa, 0x30, 0x000b},
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},
-	{0xa0, 0x89, ZC3XX_R18D_YTARGET},
+	{0xa0, 0x78, ZC3XX_R18D_YTARGET},
 	{0xa0, 0x50, ZC3XX_R1A8_DIGITALGAIN},
 	{0xa0, 0x00, 0x01ad},
 	{0xa0, 0xc0, 0x019b},
@@ -2100,96 +2111,44 @@ static const struct usb_action hv7131r_InitialScale[] = {
 	{0xa0, 0x13, ZC3XX_R1CB_SHARPNESS05},
 	{0xa0, 0x08, ZC3XX_R250_DEADPIXELSMODE},
 	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
-	{0xa1, 0x01, 0x0002},
-	{0xa0, 0x00, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x02, ZC3XX_R090_I2CCOMMAND},
-	{0xa1, 0x01, 0x0091},
-	{0xa1, 0x01, 0x0095},
-	{0xa1, 0x01, 0x0096},
-
-	{0xa1, 0x01, 0x0008},
-	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},	/* clock ? */
-	{0xa0, 0x08, ZC3XX_R1C6_SHARPNESS00},	/* sharpness+ */
-	{0xa1, 0x01, 0x01c8},
-	{0xa1, 0x01, 0x01c9},
-	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, ZC3XX_R1CB_SHARPNESS05},	/* sharpness- */
-
-	{0xa0, 0x60, ZC3XX_R10A_RGB00},	/* matrix */
-	{0xa0, 0xf0, ZC3XX_R10B_RGB01},
-	{0xa0, 0xf0, ZC3XX_R10C_RGB02},
-	{0xa0, 0xf0, ZC3XX_R10D_RGB10},
-	{0xa0, 0x60, ZC3XX_R10E_RGB11},
-	{0xa0, 0xf0, ZC3XX_R10F_RGB12},
-	{0xa0, 0xf0, ZC3XX_R110_RGB20},
-	{0xa0, 0xf0, ZC3XX_R111_RGB21},
-	{0xa0, 0x60, ZC3XX_R112_RGB22},
-	{0xa1, 0x01, 0x0180},
-	{0xa0, 0x10, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
-	{0xaa, 0x25, 0x0007},
-	{0xaa, 0x26, 0x0053},
-	{0xaa, 0x27, 0x0000},
-
-	{0xa0, 0x10, ZC3XX_R190_EXPOSURELIMITHIGH},	/* 2f */
-	{0xa0, 0x04, ZC3XX_R191_EXPOSURELIMITMID},	/* 9b */
-	{0xa0, 0x60, ZC3XX_R192_EXPOSURELIMITLOW},	/* 80 */
-	{0xa0, 0x01, ZC3XX_R195_ANTIFLICKERHIGH},
-	{0xa0, 0xd4, ZC3XX_R196_ANTIFLICKERMID},
-	{0xa0, 0xc0, ZC3XX_R197_ANTIFLICKERLOW},
-	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE},
-	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},
-	{0xa0, 0x60, ZC3XX_R1A8_DIGITALGAIN},
-	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF},
-	{0xa0, 0x13, ZC3XX_R1AA_DIGITALGAINSTEP},
-	{0xa1, 0x01, 0x001d},
-	{0xa1, 0x01, 0x001e},
-	{0xa1, 0x01, 0x001f},
-	{0xa1, 0x01, 0x0020},
-	{0xa0, 0x40, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa1, 0x01, 0x0180},
-	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
 	{}
 };
-
 static const struct usb_action hv7131r_Initial[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
-
-	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},	/* diff */
+	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},
 	{0xa0, 0x01, ZC3XX_R001_SYSTEMOPERATING},
 	{0xa0, 0x77, ZC3XX_R101_SENSORCORRECTION},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
-
-	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xa0, 0x07, ZC3XX_R012_VIDEOCONTROLFUNC},
-
+	{0xa0, 0x01, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xa0, 0x02, ZC3XX_R003_FRAMEWIDTHHIGH},
 	{0xa0, 0x80, ZC3XX_R004_FRAMEWIDTHLOW},
 	{0xa0, 0x01, ZC3XX_R005_FRAMEHEIGHTHIGH},
-	{0xa0, 0xe0, ZC3XX_R006_FRAMEHEIGHTLOW},	/* 1e0 */
+	{0xa0, 0xe0, ZC3XX_R006_FRAMEHEIGHTLOW},
 
 	{0xa0, 0x00, ZC3XX_R098_WINYSTARTLOW},
 	{0xa0, 0x00, ZC3XX_R09A_WINXSTARTLOW},
 	{0xa0, 0x01, ZC3XX_R09B_WINHEIGHTHIGH},
-	{0xa0, 0xe8, ZC3XX_R09C_WINHEIGHTLOW},
+	{0xa0, 0xe6, ZC3XX_R09C_WINHEIGHTLOW},
 	{0xa0, 0x02, ZC3XX_R09D_WINWIDTHHIGH},
-	{0xa0, 0x88, ZC3XX_R09E_WINWIDTHLOW},
+	{0xa0, 0x86, ZC3XX_R09E_WINWIDTHLOW},
 	{0xa0, 0x00, ZC3XX_R11A_FIRSTYLOW},
 	{0xa0, 0x00, ZC3XX_R11C_FIRSTXLOW},
+	{0xa0, 0x07, ZC3XX_R012_VIDEOCONTROLFUNC},
+	{0xdd, 0x00, 0x0200},
 	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xaa, 0x01, 0x000c},
 	{0xaa, 0x11, 0x0000},
 	{0xaa, 0x13, 0x0000},
 	{0xaa, 0x14, 0x0001},
-	{0xaa, 0x15, 0x00e8},
+	{0xaa, 0x15, 0x00e6},
 	{0xaa, 0x16, 0x0002},
-	{0xaa, 0x17, 0x0088},
-
-	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},	/* 00 */
-
+	{0xaa, 0x17, 0x0086},
+	{0xaa, 0x30, 0x000b},
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},
-	{0xa0, 0x89, ZC3XX_R18D_YTARGET},
+	{0xa0, 0x78, ZC3XX_R18D_YTARGET},
 	{0xa0, 0x50, ZC3XX_R1A8_DIGITALGAIN},
 	{0xa0, 0x00, 0x01ad},
 	{0xa0, 0xc0, 0x019b},
@@ -2199,58 +2158,114 @@ static const struct usb_action hv7131r_Initial[] = {
 	{0xa0, 0x13, ZC3XX_R1CB_SHARPNESS05},
 	{0xa0, 0x08, ZC3XX_R250_DEADPIXELSMODE},
 	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
-	{0xa1, 0x01, 0x0002},
-	{0xa0, 0x00, ZC3XX_R092_I2CADDRESSSELECT},
-						/* read the i2c chips ident */
-	{0xa0, 0x02, ZC3XX_R090_I2CCOMMAND},
-	{0xa1, 0x01, 0x0091},
-	{0xa1, 0x01, 0x0095},
-	{0xa1, 0x01, 0x0096},
-
-	{0xa1, 0x01, 0x0008},
-	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},	/* clock ? */
-	{0xa0, 0x08, ZC3XX_R1C6_SHARPNESS00},	/* sharpness+ */
-	{0xa1, 0x01, 0x01c8},
-	{0xa1, 0x01, 0x01c9},
-	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, ZC3XX_R1CB_SHARPNESS05},	/* sharpness- */
-
-	{0xa0, 0x60, ZC3XX_R10A_RGB00},	/* matrix */
-	{0xa0, 0xf0, ZC3XX_R10B_RGB01},
-	{0xa0, 0xf0, ZC3XX_R10C_RGB02},
-	{0xa0, 0xf0, ZC3XX_R10D_RGB10},
-	{0xa0, 0x60, ZC3XX_R10E_RGB11},
-	{0xa0, 0xf0, ZC3XX_R10F_RGB12},
-	{0xa0, 0xf0, ZC3XX_R110_RGB20},
-	{0xa0, 0xf0, ZC3XX_R111_RGB21},
-	{0xa0, 0x60, ZC3XX_R112_RGB22},
-	{0xa1, 0x01, 0x0180},
-	{0xa0, 0x10, ZC3XX_R180_AUTOCORRECTENABLE},
+	{}
+};
+static const struct usb_action hv7131r_50HZ[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
-	{0xaa, 0x25, 0x0007},
-	{0xaa, 0x26, 0x0053},
-	{0xaa, 0x27, 0x0000},
-
-	{0xa0, 0x10, ZC3XX_R190_EXPOSURELIMITHIGH},	/* 2f */
-	{0xa0, 0x04, ZC3XX_R191_EXPOSURELIMITMID},	/* 9b */
-	{0xa0, 0x60, ZC3XX_R192_EXPOSURELIMITLOW},	/* 80 */
-
+	{0xa0, 0x06, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0x68, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0xa0, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0xea, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x60, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x18, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x66, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0x00, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0xd0, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0x00, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0x08, ZC3XX_R020_HSYNC_3},
+	{}
+};
+static const struct usb_action hv7131r_50HZScale[] = {
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xa0, 0x0c, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0xd1, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0x40, ZC3XX_R192_EXPOSURELIMITLOW},
 	{0xa0, 0x01, ZC3XX_R195_ANTIFLICKERHIGH},
 	{0xa0, 0xd4, ZC3XX_R196_ANTIFLICKERMID},
 	{0xa0, 0xc0, ZC3XX_R197_ANTIFLICKERLOW},
-
-	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x18, ZC3XX_R18C_AEFREEZE},
 	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},
-	{0xa0, 0x60, ZC3XX_R1A8_DIGITALGAIN},
 	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF},
-	{0xa0, 0x13, ZC3XX_R1AA_DIGITALGAINSTEP},
-	{0xa1, 0x01, 0x001d},
-	{0xa1, 0x01, 0x001e},
-	{0xa1, 0x01, 0x001f},
-	{0xa1, 0x01, 0x0020},
-	{0xa0, 0x40, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa1, 0x01, 0x0180},
-	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
+	{0xa0, 0x66, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0x00, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0xd0, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0x00, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0x08, ZC3XX_R020_HSYNC_3},
+	{}
+};
+static const struct usb_action hv7131r_60HZ[] = {
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xa0, 0x06, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0x1a, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0x80, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0xc3, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x50, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x18, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x66, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0x00, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0xd0, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0x00, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0x08, ZC3XX_R020_HSYNC_3},
+	{}
+};
+static const struct usb_action hv7131r_60HZScale[] = {
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xa0, 0x0c, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0x35, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0x00, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x01, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x86, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0xa0, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x18, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x66, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0x00, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0xd0, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0x00, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0x08, ZC3XX_R020_HSYNC_3},
+	{}
+};
+static const struct usb_action hv7131r_NoFliker[] = {
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xa0, 0x2f, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0xf8, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0x00, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x02, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x58, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x0c, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x18, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x00, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x00, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0x00, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0xd0, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0x00, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0x08, ZC3XX_R020_HSYNC_3},
+	{}
+};
+static const struct usb_action hv7131r_NoFlikerScale[] = {
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xa0, 0x2f, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0xf8, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0x00, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x04, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0xb0, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x0c, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x18, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x00, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x00, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0x00, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0xd0, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0x00, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0x08, ZC3XX_R020_HSYNC_3},
 	{}
 };
 
@@ -2923,7 +2938,7 @@ static const struct usb_action mc501cb_Initial[] = {
 	{}
 };
 
-static const struct usb_action mc501cb_InitialScale[] = {	 /* 320x240 */
+static const struct usb_action mc501cb_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL}, /* 00,00,01,cc */
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT}, /* 00,02,10,cc */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT}, /* 00,10,01,cc */
@@ -3334,7 +3349,7 @@ static const struct usb_action ov7620_NoFliker[] = {
 	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID}, /* 01,96,00,cc */
 	{0xa0, 0x01, ZC3XX_R197_ANTIFLICKERLOW}, /* 01,97,01,cc */
 /*	{0xa0, 0x44, ZC3XX_R002_CLOCKSELECT},	 * 00,02,44,cc
-						 - if mode1 (320x240) */
+						 * if mode1 (320x240) */
 /* ?? was
 	{0xa0, 0x00, 0x0039},  * 00,00,00,dd *
 	{0xa1, 0x01, 0x0037},		*/
@@ -3423,7 +3438,6 @@ static const struct usb_action ov7630c_InitialScale[] = {
 	{0xa0, 0xf8, ZC3XX_R110_RGB20},
 	{0xa0, 0xf8, ZC3XX_R111_RGB21},
 	{0xa0, 0x50, ZC3XX_R112_RGB22},
-/* 0x03, */
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},	/* clock ? */
 	{0xa0, 0x08, ZC3XX_R1C6_SHARPNESS00},	/* sharpness+ */
@@ -3702,8 +3716,7 @@ static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 	{0xaa, 0x0d, 0x0000},
 	{0xaa, 0x0e, 0x0002},
 	{0xaa, 0x14, 0x0081},
-
-/* Other registors */
+/* Other registers */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
 /* Frame retreiving */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
@@ -3714,7 +3727,7 @@ static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 /* Sharpness */
 	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},
 	{0xa0, 0x13, ZC3XX_R1CB_SHARPNESS05},
-/* Other registors */
+/* Other registers */
 	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},
 /* Auto exposure and white balance */
 	{0xa0, 0x06, ZC3XX_R189_AWBSTATUS},
@@ -3756,7 +3769,6 @@ static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 	{0xa0, 0x05, ZC3XX_R185_WINYWIDTH},
 	{0xa0, 0x14, ZC3XX_R186_WINYCENTER},
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
-
 /* Auto exposure and white balance */
 	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
 	{0xa0, 0x03, ZC3XX_R191_EXPOSURELIMITMID},
@@ -3820,8 +3832,7 @@ static const struct usb_action pas106b_Initial[] = {	/* 352x288 */
 	{0xaa, 0x0d, 0x0000},
 	{0xaa, 0x0e, 0x0002},
 	{0xaa, 0x14, 0x0081},
-
-/* Other registors */
+/* Other registers */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
 /* Frame retreiving */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
@@ -3832,7 +3843,7 @@ static const struct usb_action pas106b_Initial[] = {	/* 352x288 */
 /* Sharpness */
 	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},
 	{0xa0, 0x13, ZC3XX_R1CB_SHARPNESS05},
-/* Other registors */
+/* Other registers */
 	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},
 /* Auto exposure and white balance */
 	{0xa0, 0x06, ZC3XX_R189_AWBSTATUS},
@@ -4225,8 +4236,8 @@ static const struct usb_action pas202b_NoFlikerScale[] = {
 	{}
 };
 
-/* mi0360soc and pb0330 from vm30x.inf for 0ac8:301b and 0ac8:303b 07/02/13 */
-static const struct usb_action mi0360soc_Initial[] = {	/* 640x480 */
+/* mt9v111 (mi0360soc) and pb0330 from vm30x.inf 0ac8:301b 07/02/13 */
+static const struct usb_action mt9v111_1_Initial[] = {	/* 640x480 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
 	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},
@@ -4237,14 +4248,14 @@ static const struct usb_action mi0360soc_Initial[] = {	/* 640x480 */
 	{0xa0, 0xe0, ZC3XX_R006_FRAMEHEIGHTLOW},
 	{0xa0, 0xdc, ZC3XX_R08B_I2CDEVICEADDR},
 	{0xa0, 0x01, ZC3XX_R001_SYSTEMOPERATING},
-	{0xa0, 0x07, ZC3XX_R012_VIDEOCONTROLFUNC},	/*jfm: was 03*/
-/*	{0xa0, 0x01, ZC3XX_R012_VIDEOCONTROLFUNC}, */
+	{0xa0, 0x07, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xa0, 0x00, ZC3XX_R098_WINYSTARTLOW},
 	{0xa0, 0x00, ZC3XX_R09A_WINXSTARTLOW},
 	{0xa0, 0x00, ZC3XX_R11A_FIRSTYLOW},
 	{0xa0, 0x00, ZC3XX_R11C_FIRSTXLOW},
 	{0xa0, 0xdc, ZC3XX_R08B_I2CDEVICEADDR},
 	{0xdd, 0x00, 0x0200},
+	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xaa, 0x01, 0x0001},
 	{0xaa, 0x06, 0x0000},
 	{0xaa, 0x08, 0x0483},
@@ -4254,18 +4265,18 @@ static const struct usb_action mi0360soc_Initial[] = {	/* 640x480 */
 	{0xaa, 0x03, 0x01e5},			/*jfm: was 01e7*/
 	{0xaa, 0x04, 0x0285},			/*jfm: was 0287*/
 	{0xaa, 0x07, 0x3002},
-	{0xaa, 0x20, 0x5100},			/*jfm: was 1100*/
-	{0xaa, 0x35, 0x507f},			/*jfm: was 0050*/
+	{0xaa, 0x20, 0x5100},
+	{0xaa, 0x35, 0x507f},
 	{0xaa, 0x30, 0x0005},
 	{0xaa, 0x31, 0x0000},
 	{0xaa, 0x58, 0x0078},
 	{0xaa, 0x62, 0x0411},
-	{0xaa, 0x2b, 0x0028},
+	{0xaa, 0x2b, 0x007f},
 	{0xaa, 0x2c, 0x007f},			/*jfm: was 0030*/
 	{0xaa, 0x2d, 0x007f},			/*jfm: was 0030*/
 	{0xaa, 0x2e, 0x007f},			/*jfm: was 0030*/
 	{0xa0, 0x10, ZC3XX_R087_EXPTIMEMID},
-	{0xa0, 0xb7, ZC3XX_R101_SENSORCORRECTION}, /*jfm: was 37*/
+	{0xa0, 0xb7, ZC3XX_R101_SENSORCORRECTION},
 	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},
 	{0xa0, 0x06, ZC3XX_R189_AWBSTATUS},
@@ -4275,12 +4286,12 @@ static const struct usb_action mi0360soc_Initial[] = {	/* 640x480 */
 	{0xa0, 0x08, ZC3XX_R250_DEADPIXELSMODE},
 	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
 	{0xa0, 0x60, ZC3XX_R1A8_DIGITALGAIN},
-	{0xa0, 0x6c, ZC3XX_R18D_YTARGET},	/* jfm: was 78 */
+	{0xa0, 0x6c, ZC3XX_R18D_YTARGET},
 	{0xa0, 0x61, ZC3XX_R116_RGAIN},
 	{0xa0, 0x65, ZC3XX_R118_BGAIN},
 	{}
 };
-static const struct usb_action mi0360soc_InitialScale[] = {	/* 320x240 */
+static const struct usb_action mt9v111_1_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
 	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},
@@ -4291,14 +4302,14 @@ static const struct usb_action mi0360soc_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0xe0, ZC3XX_R006_FRAMEHEIGHTLOW},
 	{0xa0, 0xdc, ZC3XX_R08B_I2CDEVICEADDR},
 	{0xa0, 0x01, ZC3XX_R001_SYSTEMOPERATING},
-	{0xa0, 0x07, ZC3XX_R012_VIDEOCONTROLFUNC},	/*jfm: was 03*/
-/*	{0xa0, 0x01, ZC3XX_R012_VIDEOCONTROLFUNC}, */
+	{0xa0, 0x07, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xa0, 0x00, ZC3XX_R098_WINYSTARTLOW},
 	{0xa0, 0x00, ZC3XX_R09A_WINXSTARTLOW},
 	{0xa0, 0x00, ZC3XX_R11A_FIRSTYLOW},
 	{0xa0, 0x00, ZC3XX_R11C_FIRSTXLOW},
 	{0xa0, 0xdc, ZC3XX_R08B_I2CDEVICEADDR},
 	{0xdd, 0x00, 0x0200},
+	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xaa, 0x01, 0x0001},
 	{0xaa, 0x06, 0x0000},
 	{0xaa, 0x08, 0x0483},
@@ -4308,7 +4319,7 @@ static const struct usb_action mi0360soc_InitialScale[] = {	/* 320x240 */
 	{0xaa, 0x03, 0x01e7},
 	{0xaa, 0x04, 0x0287},
 	{0xaa, 0x07, 0x3002},
-	{0xaa, 0x20, 0x5100},			/*jfm: was 1100*/
+	{0xaa, 0x20, 0x5100},
 	{0xaa, 0x35, 0x007f},			/*jfm: was 0050*/
 	{0xaa, 0x30, 0x0005},
 	{0xaa, 0x31, 0x0000},
@@ -4319,7 +4330,7 @@ static const struct usb_action mi0360soc_InitialScale[] = {	/* 320x240 */
 	{0xaa, 0x2d, 0x007f},			/*jfm: was 30*/
 	{0xaa, 0x2e, 0x007f},			/*jfm: was 28*/
 	{0xa0, 0x10, ZC3XX_R087_EXPTIMEMID},
-	{0xa0, 0xb7, ZC3XX_R101_SENSORCORRECTION},	/*jfm: was 37*/
+	{0xa0, 0xb7, ZC3XX_R101_SENSORCORRECTION},
 	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},
 	{0xa0, 0x06, ZC3XX_R189_AWBSTATUS},
@@ -4329,12 +4340,12 @@ static const struct usb_action mi0360soc_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x08, ZC3XX_R250_DEADPIXELSMODE},
 	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
 	{0xa0, 0x60, ZC3XX_R1A8_DIGITALGAIN},
-	{0xa0, 0x6c, ZC3XX_R18D_YTARGET},	/*jfm: was 78*/
+	{0xa0, 0x6c, ZC3XX_R18D_YTARGET},
 	{0xa0, 0x61, ZC3XX_R116_RGAIN},
 	{0xa0, 0x65, ZC3XX_R118_BGAIN},
 	{}
 };
-static const struct usb_action mi360soc_AE50HZ[] = {
+static const struct usb_action mt9v111_1_AE50HZ[] = {
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xbb, 0x00, 0x0562},
@@ -4357,7 +4368,7 @@ static const struct usb_action mi360soc_AE50HZ[] = {
 	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
 	{}
 };
-static const struct usb_action mi360soc_AE50HZScale[] = {
+static const struct usb_action mt9v111_1_AE50HZScale[] = {
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xbb, 0x00, 0x0509},
@@ -4379,11 +4390,11 @@ static const struct usb_action mi360soc_AE50HZScale[] = {
 	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
 	{}
 };
-static const struct usb_action mi360soc_AE60HZ[] = {
+static const struct usb_action mt9v111_1_AE60HZ[] = {
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
-	{0xbb, 0x00, 0x053d},
-	{0xbb, 0x01, 0x096e},
+	{0xaa, 0x05, 0x003d},
+	{0xaa, 0x09, 0x016e},
 	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
 	{0xa0, 0x07, ZC3XX_R191_EXPOSURELIMITMID},
 	{0xa0, 0xdd, ZC3XX_R192_EXPOSURELIMITLOW},
@@ -4402,7 +4413,7 @@ static const struct usb_action mi360soc_AE60HZ[] = {
 	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
 	{}
 };
-static const struct usb_action mi360soc_AE60HZScale[] = {
+static const struct usb_action mt9v111_1_AE60HZScale[] = {
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xbb, 0x00, 0x0509},
@@ -4424,7 +4435,7 @@ static const struct usb_action mi360soc_AE60HZScale[] = {
 	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
 	{}
 };
-static const struct usb_action mi360soc_AENoFliker[] = {
+static const struct usb_action mt9v111_1_AENoFliker[] = {
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xbb, 0x00, 0x0509},
@@ -4447,11 +4458,256 @@ static const struct usb_action mi360soc_AENoFliker[] = {
 	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
 	{}
 };
-static const struct usb_action mi360soc_AENoFlikerScale[] = {
+static const struct usb_action mt9v111_1_AENoFlikerScale[] = {
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xbb, 0x00, 0x0534},
 	{0xbb, 0x02, 0x0960},
+	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0x07, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0xf0, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x04, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x0e, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x1c, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x00, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x00, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0x34, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0x60, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0x90, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0xe0, ZC3XX_R020_HSYNC_3},
+	{0xa0, 0x60, ZC3XX_R11D_GLOBALGAIN},
+	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
+	{}
+};
+/* from usbvm303.inf 0ac8:303b 07/03/25 (3 - tas5130c) */
+static const struct usb_action mt9v111_3_Initial[] = {
+	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
+	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
+	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},
+	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},
+	{0xa0, 0x02, ZC3XX_R003_FRAMEWIDTHHIGH},
+	{0xa0, 0x80, ZC3XX_R004_FRAMEWIDTHLOW},
+	{0xa0, 0x01, ZC3XX_R005_FRAMEHEIGHTHIGH},
+	{0xa0, 0xe0, ZC3XX_R006_FRAMEHEIGHTLOW},
+	{0xa0, 0xdc, ZC3XX_R08B_I2CDEVICEADDR},
+	{0xa0, 0x01, ZC3XX_R001_SYSTEMOPERATING},
+	{0xa0, 0x07, ZC3XX_R012_VIDEOCONTROLFUNC},
+	{0xa0, 0x00, ZC3XX_R098_WINYSTARTLOW},
+	{0xa0, 0x00, ZC3XX_R09A_WINXSTARTLOW},
+	{0xa0, 0x00, ZC3XX_R11A_FIRSTYLOW},
+	{0xa0, 0x00, ZC3XX_R11C_FIRSTXLOW},
+	{0xa0, 0xdc, ZC3XX_R08B_I2CDEVICEADDR},
+	{0xdd, 0x00, 0x0200},
+	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
+	{0xaa, 0x01, 0x0001},		/* select IFP/SOC registers */
+	{0xaa, 0x06, 0x0000},		/* operating mode control */
+	{0xaa, 0x08, 0x0483},		/* output format control */
+					/* H red first, V red or blue first,
+					 * raw Bayer, auto flicker */
+	{0xaa, 0x01, 0x0004},		/* select sensor core registers */
+	{0xaa, 0x08, 0x0006},		/* row start */
+	{0xaa, 0x02, 0x0011},		/* column start */
+	{0xaa, 0x03, 0x01e5},		/* window height - 1 */
+	{0xaa, 0x04, 0x0285},		/* window width - 1 */
+	{0xaa, 0x07, 0x3002},		/* output control */
+	{0xaa, 0x20, 0x1100},		/* read mode: bits 8 & 12 (?) */
+	{0xaa, 0x35, 0x007f},		/* global gain */
+	{0xaa, 0x30, 0x0005},
+	{0xaa, 0x31, 0x0000},
+	{0xaa, 0x58, 0x0078},
+	{0xaa, 0x62, 0x0411},
+	{0xaa, 0x2b, 0x007f},		/* green1 gain */
+	{0xaa, 0x2c, 0x007f},		/* blue gain */
+	{0xaa, 0x2d, 0x007f},		/* red gain */
+	{0xaa, 0x2e, 0x007f},		/* green2 gain */
+	{0xa0, 0x10, ZC3XX_R087_EXPTIMEMID},
+	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
+	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
+	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},
+	{0xa0, 0x06, ZC3XX_R189_AWBSTATUS},
+	{0xa0, 0x00, 0x01ad},
+	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},
+	{0xa0, 0x13, ZC3XX_R1CB_SHARPNESS05},
+	{0xa0, 0x08, ZC3XX_R250_DEADPIXELSMODE},
+	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
+	{0xa0, 0x60, ZC3XX_R1A8_DIGITALGAIN},
+	{0xa0, 0x80, ZC3XX_R18D_YTARGET},
+	{0xa0, 0x61, ZC3XX_R116_RGAIN},
+	{0xa0, 0x65, ZC3XX_R118_BGAIN},
+	{}
+};
+static const struct usb_action mt9v111_3_InitialScale[] = {
+	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
+	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
+	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},
+	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT},
+	{0xa0, 0x02, ZC3XX_R003_FRAMEWIDTHHIGH},
+	{0xa0, 0x80, ZC3XX_R004_FRAMEWIDTHLOW},
+	{0xa0, 0x01, ZC3XX_R005_FRAMEHEIGHTHIGH},
+	{0xa0, 0xe0, ZC3XX_R006_FRAMEHEIGHTLOW},
+	{0xa0, 0xdc, ZC3XX_R08B_I2CDEVICEADDR},
+	{0xa0, 0x01, ZC3XX_R001_SYSTEMOPERATING},
+	{0xa0, 0x07, ZC3XX_R012_VIDEOCONTROLFUNC},
+	{0xa0, 0x00, ZC3XX_R098_WINYSTARTLOW},
+	{0xa0, 0x00, ZC3XX_R09A_WINXSTARTLOW},
+	{0xa0, 0x00, ZC3XX_R11A_FIRSTYLOW},
+	{0xa0, 0x00, ZC3XX_R11C_FIRSTXLOW},
+	{0xa0, 0xdc, ZC3XX_R08B_I2CDEVICEADDR},
+	{0xdd, 0x00, 0x0200},
+	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
+	{0xaa, 0x01, 0x0001},
+	{0xaa, 0x06, 0x0000},
+	{0xaa, 0x08, 0x0483},
+	{0xaa, 0x01, 0x0004},
+	{0xaa, 0x08, 0x0006},
+	{0xaa, 0x02, 0x0011},
+	{0xaa, 0x03, 0x01e7},
+	{0xaa, 0x04, 0x0287},
+	{0xaa, 0x07, 0x3002},
+	{0xaa, 0x20, 0x1100},
+	{0xaa, 0x35, 0x007f},
+	{0xaa, 0x30, 0x0005},
+	{0xaa, 0x31, 0x0000},
+	{0xaa, 0x58, 0x0078},
+	{0xaa, 0x62, 0x0411},
+	{0xaa, 0x2b, 0x007f},
+	{0xaa, 0x2c, 0x007f},
+	{0xaa, 0x2d, 0x007f},
+	{0xaa, 0x2e, 0x007f},
+	{0xa0, 0x10, ZC3XX_R087_EXPTIMEMID},
+	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
+	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
+	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},
+	{0xa0, 0x06, ZC3XX_R189_AWBSTATUS},
+	{0xa0, 0x00, 0x01ad},
+	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},
+	{0xa0, 0x13, ZC3XX_R1CB_SHARPNESS05},
+	{0xa0, 0x08, ZC3XX_R250_DEADPIXELSMODE},
+	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
+	{0xa0, 0x60, ZC3XX_R1A8_DIGITALGAIN},
+	{0xa0, 0x80, ZC3XX_R18D_YTARGET},
+	{0xa0, 0x61, ZC3XX_R116_RGAIN},
+	{0xa0, 0x65, ZC3XX_R118_BGAIN},
+	{}
+};
+static const struct usb_action mt9v111_3_AE50HZ[] = {
+	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xaa, 0x05, 0x0009},		/* horizontal blanking */
+	{0xaa, 0x09, 0x01ce},		/* shutter width */
+	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0x07, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0xd2, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x9a, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x0e, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x1c, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x14, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x24, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0xd7, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0xf4, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0xf9, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
+	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
+	{}
+};
+static const struct usb_action mt9v111_3_AE50HZScale[] = {
+	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xaa, 0x05, 0x0009},
+	{0xaa, 0x09, 0x01ce},
+	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0x07, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0xd2, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x9a, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x0e, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x1c, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x14, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x24, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0xd7, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0xf4, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0xf9, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
+	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
+	{}
+};
+static const struct usb_action mt9v111_3_AE60HZ[] = {
+	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xaa, 0x05, 0x0009},
+	{0xaa, 0x09, 0x0083},
+	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0x07, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0x8f, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x81, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x0e, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x1c, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x14, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x24, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0xd7, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0xf4, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0xf9, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
+	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
+	{}
+};
+static const struct usb_action mt9v111_3_AE60HZScale[] = {
+	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xaa, 0x05, 0x0009},
+	{0xaa, 0x09, 0x0083},
+	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0x07, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0x8f, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x81, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x0e, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x1c, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x14, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x24, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0xd7, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0xf4, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0xf9, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
+	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
+	{}
+};
+static const struct usb_action mt9v111_3_AENoFliker[] = {
+	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xaa, 0x05, 0x0034},
+	{0xaa, 0x09, 0x0260},
+	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0x07, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0xf0, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x04, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x0e, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x1c, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x00, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x00, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0x34, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0x60, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0x90, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0xe0, ZC3XX_R020_HSYNC_3},
+	{0xa0, 0x60, ZC3XX_R11D_GLOBALGAIN},
+	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
+	{}
+};
+static const struct usb_action mt9v111_3_AENoFlikerScale[] = {
+	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xaa, 0x05, 0x0034},
+	{0xaa, 0x09, 0x0260},
 	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
 	{0xa0, 0x07, ZC3XX_R191_EXPOSURELIMITMID},
 	{0xa0, 0xf0, ZC3XX_R192_EXPOSURELIMITLOW},
@@ -4912,419 +5168,7 @@ static const struct usb_action po2030_NoFliker[] = {
 	{}
 };
 
-/* TEST */
-static const struct usb_action tas5130cK_InitialScale[] = {
-	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
-	{0xa0, 0x01, 0x003b},
-	{0xa0, 0x0e, 0x003a},
-	{0xa0, 0x01, 0x0038},
-	{0xa0, 0x0b, 0x0039},
-	{0xa0, 0x00, 0x0038},
-	{0xa0, 0x0b, 0x0039},
-	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
-	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
-	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},
-	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT},
-	{0xa0, 0x02, ZC3XX_R003_FRAMEWIDTHHIGH},
-	{0xa0, 0x80, ZC3XX_R004_FRAMEWIDTHLOW},
-	{0xa0, 0x01, ZC3XX_R005_FRAMEHEIGHTHIGH},
-	{0xa0, 0xe0, ZC3XX_R006_FRAMEHEIGHTLOW},
-	{0xa0, 0xdc, ZC3XX_R08B_I2CDEVICEADDR},
-	{0xa0, 0x01, ZC3XX_R001_SYSTEMOPERATING},
-	{0xa0, 0x07, ZC3XX_R012_VIDEOCONTROLFUNC},
-	{0xa0, 0x00, ZC3XX_R098_WINYSTARTLOW},
-	{0xa0, 0x00, ZC3XX_R09A_WINXSTARTLOW},
-	{0xa0, 0x00, ZC3XX_R11A_FIRSTYLOW},
-	{0xa0, 0x00, ZC3XX_R11C_FIRSTXLOW},
-	{0xa0, 0xdc, ZC3XX_R08B_I2CDEVICEADDR},
-	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
-	{0xa0, 0x01, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x01, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x06, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x00, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x08, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x83, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x04, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x01, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x04, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x08, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x06, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x02, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x11, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x03, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0xE7, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x01, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x04, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x87, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x02, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x07, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x02, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x30, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x20, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x00, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x51, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x35, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x7F, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x30, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x05, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x31, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x00, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x58, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x78, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x62, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x11, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x04, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x2B, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x7f, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x2c, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x7f, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x2D, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x7f, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x2e, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x7f, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x10, ZC3XX_R087_EXPTIMEMID},
-	{0xa0, 0xb7, ZC3XX_R101_SENSORCORRECTION},
-	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
-	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},
-	{0xa0, 0x06, ZC3XX_R189_AWBSTATUS},
-	{0xa0, 0x09, 0x01ad},
-	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},
-	{0xa0, 0x13, ZC3XX_R1CB_SHARPNESS05},
-	{0xa0, 0x08, ZC3XX_R250_DEADPIXELSMODE},
-	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
-	{0xa0, 0x60, ZC3XX_R1A8_DIGITALGAIN},
-	{0xa0, 0x6c, ZC3XX_R18D_YTARGET},
-	{0xa0, 0x61, ZC3XX_R116_RGAIN},
-	{0xa0, 0x65, ZC3XX_R118_BGAIN},
-	{0xa0, 0x09, 0x01ad},
-	{0xa0, 0x15, 0x01ae},
-	{0xa0, 0x4c, ZC3XX_R10A_RGB00},	/* matrix */
-	{0xa0, 0xf1, ZC3XX_R10B_RGB01},
-	{0xa0, 0x03, ZC3XX_R10C_RGB02},
-	{0xa0, 0xfe, ZC3XX_R10D_RGB10},
-	{0xa0, 0x51, ZC3XX_R10E_RGB11},
-	{0xa0, 0xf1, ZC3XX_R10F_RGB12},
-	{0xa0, 0xec, ZC3XX_R110_RGB20},
-	{0xa0, 0x03, ZC3XX_R111_RGB21},
-	{0xa0, 0x51, ZC3XX_R112_RGB22},
-	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
-	{0xa0, 0x08, ZC3XX_R1C6_SHARPNESS00},	/* sharpness+ */
-	{0xa0, 0x0f, ZC3XX_R1CB_SHARPNESS05},	/* sharpness- */
-	{0xa0, 0x38, ZC3XX_R120_GAMMA00},	/* gamma > 5 */
-	{0xa0, 0x51, ZC3XX_R121_GAMMA01},
-	{0xa0, 0x6e, ZC3XX_R122_GAMMA02},
-	{0xa0, 0x8c, ZC3XX_R123_GAMMA03},
-	{0xa0, 0xa2, ZC3XX_R124_GAMMA04},
-	{0xa0, 0xb6, ZC3XX_R125_GAMMA05},
-	{0xa0, 0xc8, ZC3XX_R126_GAMMA06},
-	{0xa0, 0xd6, ZC3XX_R127_GAMMA07},
-	{0xa0, 0xe2, ZC3XX_R128_GAMMA08},
-	{0xa0, 0xed, ZC3XX_R129_GAMMA09},
-	{0xa0, 0xf5, ZC3XX_R12A_GAMMA0A},
-	{0xa0, 0xfc, ZC3XX_R12B_GAMMA0B},
-	{0xa0, 0xff, ZC3XX_R12C_GAMMA0C},
-	{0xa0, 0xff, ZC3XX_R12D_GAMMA0D},
-	{0xa0, 0xff, ZC3XX_R12E_GAMMA0E},
-	{0xa0, 0xff, ZC3XX_R12F_GAMMA0F},
-	{0xa0, 0x12, ZC3XX_R130_GAMMA10},
-	{0xa0, 0x1b, ZC3XX_R131_GAMMA11},
-	{0xa0, 0x1d, ZC3XX_R132_GAMMA12},
-	{0xa0, 0x1a, ZC3XX_R133_GAMMA13},
-	{0xa0, 0x15, ZC3XX_R134_GAMMA14},
-	{0xa0, 0x12, ZC3XX_R135_GAMMA15},
-	{0xa0, 0x0f, ZC3XX_R136_GAMMA16},
-	{0xa0, 0x0d, ZC3XX_R137_GAMMA17},
-	{0xa0, 0x0b, ZC3XX_R138_GAMMA18},
-	{0xa0, 0x09, ZC3XX_R139_GAMMA19},
-	{0xa0, 0x07, ZC3XX_R13A_GAMMA1A},
-	{0xa0, 0x05, ZC3XX_R13B_GAMMA1B},
-	{0xa0, 0x00, ZC3XX_R13C_GAMMA1C},
-	{0xa0, 0x00, ZC3XX_R13D_GAMMA1D},
-	{0xa0, 0x00, ZC3XX_R13E_GAMMA1E},
-	{0xa0, 0x01, ZC3XX_R13F_GAMMA1F},
-	{0xa0, 0x4c, ZC3XX_R10A_RGB00},	/* matrix */
-	{0xa0, 0xf1, ZC3XX_R10B_RGB01},
-	{0xa0, 0x03, ZC3XX_R10C_RGB02},
-	{0xa0, 0xfe, ZC3XX_R10D_RGB10},
-	{0xa0, 0x51, ZC3XX_R10E_RGB11},
-	{0xa0, 0xf1, ZC3XX_R10F_RGB12},
-	{0xa0, 0xec, ZC3XX_R110_RGB20},
-	{0xa0, 0x03, ZC3XX_R111_RGB21},
-	{0xa0, 0x51, ZC3XX_R112_RGB22},
-	{0xa0, 0x10, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
-	{0xa0, 0x05, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x09, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x09, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x34, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x01, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
-	{0xa0, 0x07, ZC3XX_R191_EXPOSURELIMITMID},
-	{0xa0, 0xd2, ZC3XX_R192_EXPOSURELIMITLOW},
-	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
-	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID},
-	{0xa0, 0x9a, ZC3XX_R197_ANTIFLICKERLOW},
-	{0xa0, 0x0e, ZC3XX_R18C_AEFREEZE},
-	{0xa0, 0x1c, ZC3XX_R18F_AEUNFREEZE},
-	{0xa0, 0x14, ZC3XX_R1A9_DIGITALLIMITDIFF},
-	{0xa0, 0x66, ZC3XX_R1AA_DIGITALGAINSTEP},
-	{0xa0, 0xd7, ZC3XX_R01D_HSYNC_0},
-	{0xa0, 0xf4, ZC3XX_R01E_HSYNC_1},
-	{0xa0, 0xf9, ZC3XX_R01F_HSYNC_2},
-	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
-	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x09, 0x01ad},
-	{0xa0, 0x15, 0x01ae},
-	{0xa0, 0x40, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
-	{}
-};
-
-static const struct usb_action tas5130cK_Initial[] = {
-	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
-	{0xa0, 0x01, 0x003b},
-	{0xa0, 0x0e, 0x003a},
-	{0xa0, 0x01, 0x0038},
-	{0xa0, 0x0b, 0x0039},
-	{0xa0, 0x00, 0x0038},
-	{0xa0, 0x0b, 0x0039},
-	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
-	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
-	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},
-	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},
-	{0xa0, 0x02, ZC3XX_R003_FRAMEWIDTHHIGH},
-	{0xa0, 0x80, ZC3XX_R004_FRAMEWIDTHLOW},
-	{0xa0, 0x01, ZC3XX_R005_FRAMEHEIGHTHIGH},
-	{0xa0, 0xe0, ZC3XX_R006_FRAMEHEIGHTLOW},
-	{0xa0, 0xdc, ZC3XX_R08B_I2CDEVICEADDR},
-	{0xa0, 0x01, ZC3XX_R001_SYSTEMOPERATING},
-	{0xa0, 0x07, ZC3XX_R012_VIDEOCONTROLFUNC},
-	{0xa0, 0x00, ZC3XX_R098_WINYSTARTLOW},
-	{0xa0, 0x00, ZC3XX_R09A_WINXSTARTLOW},
-	{0xa0, 0x00, ZC3XX_R11A_FIRSTYLOW},
-	{0xa0, 0x00, ZC3XX_R11C_FIRSTXLOW},
-	{0xa0, 0xdc, ZC3XX_R08B_I2CDEVICEADDR},
-	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
-	{0xa0, 0x01, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x01, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x06, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x00, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x08, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x83, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x04, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x01, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x04, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x08, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x06, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x02, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x11, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x03, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0xe5, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x01, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x04, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x85, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x02, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x07, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x02, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x30, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x20, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x00, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x51, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x35, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x7F, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x50, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x30, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x05, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x31, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x00, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x58, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x78, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x62, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x11, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x04, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x2B, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x7f, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x2C, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x7F, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x2D, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x7f, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x2e, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x7f, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x10, ZC3XX_R087_EXPTIMEMID},
-	{0xa0, 0xb7, ZC3XX_R101_SENSORCORRECTION},
-	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
-	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},
-	{0xa0, 0x06, ZC3XX_R189_AWBSTATUS},
-	{0xa0, 0x09, 0x01ad},
-	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},
-	{0xa0, 0x13, ZC3XX_R1CB_SHARPNESS05},
-	{0xa0, 0x08, ZC3XX_R250_DEADPIXELSMODE},
-	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
-	{0xa0, 0x60, ZC3XX_R1A8_DIGITALGAIN},
-	{0xa0, 0x6c, ZC3XX_R18D_YTARGET},
-	{0xa0, 0x61, ZC3XX_R116_RGAIN},
-	{0xa0, 0x65, ZC3XX_R118_BGAIN},
-	{0xa0, 0x09, 0x01ad},
-	{0xa0, 0x15, 0x01ae},
-	{0xa0, 0x4c, ZC3XX_R10A_RGB00},	/* matrix */
-	{0xa0, 0xf1, ZC3XX_R10B_RGB01},
-	{0xa0, 0x03, ZC3XX_R10C_RGB02},
-	{0xa0, 0xfe, ZC3XX_R10D_RGB10},
-	{0xa0, 0x51, ZC3XX_R10E_RGB11},
-	{0xa0, 0xf1, ZC3XX_R10F_RGB12},
-	{0xa0, 0xec, ZC3XX_R110_RGB20},
-	{0xa0, 0x03, ZC3XX_R111_RGB21},
-	{0xa0, 0x51, ZC3XX_R112_RGB22},
-	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
-	{0xa0, 0x08, ZC3XX_R1C6_SHARPNESS00},	/* sharpness+ */
-	{0xa0, 0x0f, ZC3XX_R1CB_SHARPNESS05},	/* sharpness- */
-	{0xa0, 0x38, ZC3XX_R120_GAMMA00},	/* gamma > 5 */
-	{0xa0, 0x51, ZC3XX_R121_GAMMA01},
-	{0xa0, 0x6e, ZC3XX_R122_GAMMA02},
-	{0xa0, 0x8c, ZC3XX_R123_GAMMA03},
-	{0xa0, 0xa2, ZC3XX_R124_GAMMA04},
-	{0xa0, 0xb6, ZC3XX_R125_GAMMA05},
-	{0xa0, 0xc8, ZC3XX_R126_GAMMA06},
-	{0xa0, 0xd6, ZC3XX_R127_GAMMA07},
-	{0xa0, 0xe2, ZC3XX_R128_GAMMA08},
-	{0xa0, 0xed, ZC3XX_R129_GAMMA09},
-	{0xa0, 0xf5, ZC3XX_R12A_GAMMA0A},
-	{0xa0, 0xfc, ZC3XX_R12B_GAMMA0B},
-	{0xa0, 0xff, ZC3XX_R12C_GAMMA0C},
-	{0xa0, 0xff, ZC3XX_R12D_GAMMA0D},
-	{0xa0, 0xff, ZC3XX_R12E_GAMMA0E},
-	{0xa0, 0xff, ZC3XX_R12F_GAMMA0F},
-	{0xa0, 0x12, ZC3XX_R130_GAMMA10},
-	{0xa0, 0x1b, ZC3XX_R131_GAMMA11},
-	{0xa0, 0x1d, ZC3XX_R132_GAMMA12},
-	{0xa0, 0x1a, ZC3XX_R133_GAMMA13},
-	{0xa0, 0x15, ZC3XX_R134_GAMMA14},
-	{0xa0, 0x12, ZC3XX_R135_GAMMA15},
-	{0xa0, 0x0f, ZC3XX_R136_GAMMA16},
-	{0xa0, 0x0d, ZC3XX_R137_GAMMA17},
-	{0xa0, 0x0b, ZC3XX_R138_GAMMA18},
-	{0xa0, 0x09, ZC3XX_R139_GAMMA19},
-	{0xa0, 0x07, ZC3XX_R13A_GAMMA1A},
-	{0xa0, 0x05, ZC3XX_R13B_GAMMA1B},
-	{0xa0, 0x00, ZC3XX_R13C_GAMMA1C},
-	{0xa0, 0x00, ZC3XX_R13D_GAMMA1D},
-	{0xa0, 0x00, ZC3XX_R13E_GAMMA1E},
-	{0xa0, 0x01, ZC3XX_R13F_GAMMA1F},
-	{0xa0, 0x4c, ZC3XX_R10A_RGB00},	/* matrix */
-	{0xa0, 0xf1, ZC3XX_R10B_RGB01},
-	{0xa0, 0x03, ZC3XX_R10C_RGB02},
-	{0xa0, 0xfe, ZC3XX_R10D_RGB10},
-	{0xa0, 0x51, ZC3XX_R10E_RGB11},
-	{0xa0, 0xf1, ZC3XX_R10F_RGB12},
-	{0xa0, 0xec, ZC3XX_R110_RGB20},
-	{0xa0, 0x03, ZC3XX_R111_RGB21},
-	{0xa0, 0x51, ZC3XX_R112_RGB22},
-	{0xa0, 0x10, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
-	{0xa0, 0x05, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0x62, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x00, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x09, ZC3XX_R092_I2CADDRESSSELECT},
-	{0xa0, 0xaa, ZC3XX_R093_I2CSETVALUE},
-	{0xa0, 0x01, ZC3XX_R094_I2CWRITEACK},
-	{0xa0, 0x01, ZC3XX_R090_I2CCOMMAND},
-	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
-	{0xa0, 0x03, ZC3XX_R191_EXPOSURELIMITMID},
-	{0xa0, 0x9b, ZC3XX_R192_EXPOSURELIMITLOW},
-	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
-	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID},
-	{0xa0, 0x47, ZC3XX_R197_ANTIFLICKERLOW},
-	{0xa0, 0x0e, ZC3XX_R18C_AEFREEZE},
-	{0xa0, 0x1c, ZC3XX_R18F_AEUNFREEZE},
-	{0xa0, 0x14, ZC3XX_R1A9_DIGITALLIMITDIFF},
-	{0xa0, 0x66, ZC3XX_R1AA_DIGITALGAINSTEP},
-	{0xa0, 0x62, ZC3XX_R01D_HSYNC_0},
-	{0xa0, 0x90, ZC3XX_R01E_HSYNC_1},
-	{0xa0, 0xc8, ZC3XX_R01F_HSYNC_2},
-	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
-	{0xa0, 0x60, ZC3XX_R11D_GLOBALGAIN},
-	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x09, 0x01ad},
-	{0xa0, 0x15, 0x01ae},
-	{0xa0, 0x40, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x30, 0x0007},
-	{0xa0, 0x02, ZC3XX_R008_CLOCKSETTING},
-	{0xa0, 0x00, 0x0007},
-	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
-	{}
-};
-
-static const struct usb_action tas5130cxx_InitialScale[] = {	/* 320x240 */
+static const struct usb_action tas5130c_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x50, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
@@ -5361,7 +5205,7 @@ static const struct usb_action tas5130cxx_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x02, ZC3XX_R0A6_EXPOSUREBLACKLVL},
 	{}
 };
-static const struct usb_action tas5130cxx_Initial[] = {	/* 640x480 */
+static const struct usb_action tas5130c_Initial[] = {	/* 640x480 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x40, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x00, ZC3XX_R008_CLOCKSETTING},
@@ -5397,7 +5241,7 @@ static const struct usb_action tas5130cxx_Initial[] = {	/* 640x480 */
 	{0xa0, 0x02, ZC3XX_R0A6_EXPOSUREBLACKLVL},
 	{}
 };
-static const struct usb_action tas5130cxx_50HZ[] = {
+static const struct usb_action tas5130c_50HZ[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0xa3, 0x0001}, /* 00,a3,01,aa */
 	{0xaa, 0xa4, 0x0063}, /* 00,a4,63,aa */
@@ -5422,7 +5266,7 @@ static const struct usb_action tas5130cxx_50HZ[] = {
 	{0xa0, 0x50, ZC3XX_R11D_GLOBALGAIN},
 	{}
 };
-static const struct usb_action tas5130cxx_50HZScale[] = {
+static const struct usb_action tas5130c_50HZScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0xa3, 0x0001}, /* 00,a3,01,aa */
 	{0xaa, 0xa4, 0x0077}, /* 00,a4,77,aa */
@@ -5447,7 +5291,7 @@ static const struct usb_action tas5130cxx_50HZScale[] = {
 	{0xa0, 0x50, ZC3XX_R11D_GLOBALGAIN},
 	{}
 };
-static const struct usb_action tas5130cxx_60HZ[] = {
+static const struct usb_action tas5130c_60HZ[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0xa3, 0x0001}, /* 00,a3,01,aa */
 	{0xaa, 0xa4, 0x0036}, /* 00,a4,36,aa */
@@ -5472,7 +5316,7 @@ static const struct usb_action tas5130cxx_60HZ[] = {
 	{0xa0, 0x50, ZC3XX_R11D_GLOBALGAIN},
 	{}
 };
-static const struct usb_action tas5130cxx_60HZScale[] = {
+static const struct usb_action tas5130c_60HZScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0xa3, 0x0001}, /* 00,a3,01,aa */
 	{0xaa, 0xa4, 0x0077}, /* 00,a4,77,aa */
@@ -5497,7 +5341,7 @@ static const struct usb_action tas5130cxx_60HZScale[] = {
 	{0xa0, 0x50, ZC3XX_R11D_GLOBALGAIN},
 	{}
 };
-static const struct usb_action tas5130cxx_NoFliker[] = {
+static const struct usb_action tas5130c_NoFliker[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0xa3, 0x0001}, /* 00,a3,01,aa */
 	{0xaa, 0xa4, 0x0040}, /* 00,a4,40,aa */
@@ -5523,7 +5367,7 @@ static const struct usb_action tas5130cxx_NoFliker[] = {
 	{}
 };
 
-static const struct usb_action tas5130cxx_NoFlikerScale[] = {
+static const struct usb_action tas5130c_NoFlikerScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0xa3, 0x0001}, /* 00,a3,01,aa */
 	{0xaa, 0xa4, 0x0090}, /* 00,a4,90,aa */
@@ -5549,7 +5393,7 @@ static const struct usb_action tas5130cxx_NoFlikerScale[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_InitialScale[] = {
+static const struct usb_action gc0303_InitialScale[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},		/* 00,00,01,cc, */
 	{0xa0, 0x02, ZC3XX_R008_CLOCKSETTING},		/* 00,08,02,cc, */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc, */
@@ -5616,7 +5460,7 @@ static const struct usb_action tas5130c_vf0250_InitialScale[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_Initial[] = {
+static const struct usb_action gc0303_Initial[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},		/* 00,00,01,cc, */
 	{0xa0, 0x02, ZC3XX_R008_CLOCKSETTING},		/* 00,08,02,cc, */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc, */
@@ -5681,7 +5525,7 @@ static const struct usb_action tas5130c_vf0250_Initial[] = {
 	{0xa0, 0x65, ZC3XX_R118_BGAIN},		/* 01,18,65,cc */
 	{}
 };
-static const struct usb_action tas5130c_vf0250_50HZScale[] = {
+static const struct usb_action gc0303_50HZScale[] = {
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0001},		/* 00,83,01,aa */
 	{0xaa, 0x84, 0x00aa},		/* 00,84,aa,aa */
@@ -5705,7 +5549,7 @@ static const struct usb_action tas5130c_vf0250_50HZScale[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_50HZ[] = {
+static const struct usb_action gc0303_50HZ[] = {
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0003},		/* 00,83,03,aa */
 	{0xaa, 0x84, 0x0054},		/* 00,84,54,aa */
@@ -5729,7 +5573,7 @@ static const struct usb_action tas5130c_vf0250_50HZ[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_60HZScale[] = {
+static const struct usb_action gc0303_60HZScale[] = {
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0001},		/* 00,83,01,aa */
 	{0xaa, 0x84, 0x0062},		/* 00,84,62,aa */
@@ -5753,7 +5597,7 @@ static const struct usb_action tas5130c_vf0250_60HZScale[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_60HZ[] = {
+static const struct usb_action gc0303_60HZ[] = {
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0002},		/* 00,83,02,aa */
 	{0xaa, 0x84, 0x00c4},		/* 00,84,c4,aa */
@@ -5777,7 +5621,7 @@ static const struct usb_action tas5130c_vf0250_60HZ[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_NoFlikerScale[] = {
+static const struct usb_action gc0303_NoFlikerScale[] = {
 	{0xa0, 0x0c, ZC3XX_R100_OPERATIONMODE},		/* 01,00,0c,cc, */
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0000},		/* 00,83,00,aa */
@@ -5799,7 +5643,7 @@ static const struct usb_action tas5130c_vf0250_NoFlikerScale[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_NoFliker[] = {
+static const struct usb_action gc0303_NoFliker[] = {
 	{0xa0, 0x0c, ZC3XX_R100_OPERATIONMODE},		/* 01,00,0c,cc, */
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0000},		/* 00,83,00,aa */
@@ -5824,13 +5668,22 @@ static const struct usb_action tas5130c_vf0250_NoFliker[] = {
 static u8 reg_r_i(struct gspca_dev *gspca_dev,
 		u16 index)
 {
-	usb_control_msg(gspca_dev->dev,
+	int ret;
+
+	if (gspca_dev->usb_err < 0)
+		return 0;
+	ret = usb_control_msg(gspca_dev->dev,
 			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			0xa1,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0x01,			/* value */
 			index, gspca_dev->usb_buf, 1,
 			500);
+	if (ret < 0) {
+		err("reg_r_i err %d", ret);
+		gspca_dev->usb_err = ret;
+		return 0;
+	}
 	return gspca_dev->usb_buf[0];
 }
 
@@ -5844,24 +5697,32 @@ static u8 reg_r(struct gspca_dev *gspca_dev,
 	return ret;
 }
 
-static void reg_w_i(struct usb_device *dev,
+static void reg_w_i(struct gspca_dev *gspca_dev,
 			u8 value,
 			u16 index)
 {
-	usb_control_msg(dev,
-			usb_sndctrlpipe(dev, 0),
+	int ret;
+
+	if (gspca_dev->usb_err < 0)
+		return;
+	ret = usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0xa0,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			value, index, NULL, 0,
 			500);
+	if (ret < 0) {
+		err("reg_w_i err %d", ret);
+		gspca_dev->usb_err = ret;
+	}
 }
 
-static void reg_w(struct usb_device *dev,
+static void reg_w(struct gspca_dev *gspca_dev,
 			u8 value,
 			u16 index)
 {
 	PDEBUG(D_USBO, "reg w [%04x] = %02x", index, value);
-	reg_w_i(dev, value, index);
+	reg_w_i(gspca_dev, value, index);
 }
 
 static u16 i2c_read(struct gspca_dev *gspca_dev,
@@ -5870,8 +5731,10 @@ static u16 i2c_read(struct gspca_dev *gspca_dev,
 	u8 retbyte;
 	u16 retval;
 
-	reg_w_i(gspca_dev->dev, reg, 0x0092);
-	reg_w_i(gspca_dev->dev, 0x02, 0x0090);		/* <- read command */
+	if (gspca_dev->usb_err < 0)
+		return 0;
+	reg_w_i(gspca_dev, reg, 0x0092);
+	reg_w_i(gspca_dev, 0x02, 0x0090);		/* <- read command */
 	msleep(20);
 	retbyte = reg_r_i(gspca_dev, 0x0091);		/* read status */
 	if (retbyte != 0x00)
@@ -5890,10 +5753,12 @@ static u8 i2c_write(struct gspca_dev *gspca_dev,
 {
 	u8 retbyte;
 
-	reg_w_i(gspca_dev->dev, reg, 0x92);
-	reg_w_i(gspca_dev->dev, valL, 0x93);
-	reg_w_i(gspca_dev->dev, valH, 0x94);
-	reg_w_i(gspca_dev->dev, 0x01, 0x90);		/* <- write command */
+	if (gspca_dev->usb_err < 0)
+		return 0;
+	reg_w_i(gspca_dev, reg, 0x92);
+	reg_w_i(gspca_dev, valL, 0x93);
+	reg_w_i(gspca_dev, valH, 0x94);
+	reg_w_i(gspca_dev, 0x01, 0x90);		/* <- write command */
 	msleep(1);
 	retbyte = reg_r_i(gspca_dev, 0x0091);		/* read status */
 	if (retbyte != 0x00)
@@ -5909,7 +5774,7 @@ static void usb_exchange(struct gspca_dev *gspca_dev,
 	while (action->req) {
 		switch (action->req) {
 		case 0xa0:	/* write register */
-			reg_w(gspca_dev->dev, action->val, action->idx);
+			reg_w(gspca_dev, action->val, action->idx);
 			break;
 		case 0xa1:	/* read status */
 			reg_r(gspca_dev, action->idx);
@@ -5955,41 +5820,40 @@ static void setmatrix(struct gspca_dev *gspca_dev)
 		{0x60, 0xf0, 0xf0, 0xf0, 0x60, 0xf0, 0xf0, 0xf0, 0x60};
 	static const u8 tas5130c_matrix[9] =
 		{0x68, 0xec, 0xec, 0xec, 0x68, 0xec, 0xec, 0xec, 0x68};
-	static const u8 vf0250_matrix[9] =
+	static const u8 gc0303_matrix[9] =
 		{0x7b, 0xea, 0xea, 0xea, 0x7b, 0xea, 0xea, 0xea, 0x7b};
 	static const u8 *matrix_tb[SENSOR_MAX] = {
-		adcm2700_matrix, /* SENSOR_ADCM2700 0 */
-		ov7620_matrix,	/* SENSOR_CS2102 1 */
-		NULL,		/* SENSOR_CS2102K 2 */
-		gc0305_matrix,	/* SENSOR_GC0305 3 */
-		NULL,		/* SENSOR_HDCS2020b 4 */
-		NULL,		/* SENSOR_HV7131B 5 */
-		NULL,		/* SENSOR_HV7131C 6 */
-		NULL,		/* SENSOR_ICM105A 7 */
-		NULL,		/* SENSOR_MC501CB 8 */
-		gc0305_matrix,	/* SENSOR_MI0360SOC 9 */
-		ov7620_matrix,	/* SENSOR_OV7620 10 */
-		NULL,		/* SENSOR_OV7630C 11 */
-		NULL,		/* SENSOR_PAS106 12 */
-		pas202b_matrix,	/* SENSOR_PAS202B 13 */
-		gc0305_matrix,	/* SENSOR_PB0330 14 */
-		po2030_matrix,	/* SENSOR_PO2030 15 */
-		NULL,		/* SENSOR_TAS5130CK 16 */
-		tas5130c_matrix, /* SENSOR_TAS5130CXX 17 */
-		vf0250_matrix,	/* SENSOR_TAS5130C_VF0250 18 */
+		[SENSOR_ADCM2700] =	adcm2700_matrix,
+		[SENSOR_CS2102] =	ov7620_matrix,
+		[SENSOR_CS2102K] =	NULL,
+		[SENSOR_GC0303] =	gc0303_matrix,
+		[SENSOR_GC0305] =	gc0305_matrix,
+		[SENSOR_HDCS2020b] =	NULL,
+		[SENSOR_HV7131B] =	NULL,
+		[SENSOR_HV7131R] =	NULL,
+		[SENSOR_ICM105A] =	po2030_matrix,
+		[SENSOR_MC501CB] =	NULL,
+		[SENSOR_MT9V111_1] =	gc0305_matrix,
+		[SENSOR_MT9V111_3] =	gc0305_matrix,
+		[SENSOR_OV7620] =	ov7620_matrix,
+		[SENSOR_OV7630C] =	NULL,
+		[SENSOR_PAS106] =	NULL,
+		[SENSOR_PAS202B] =	pas202b_matrix,
+		[SENSOR_PB0330] =	gc0305_matrix,
+		[SENSOR_PO2030] =	po2030_matrix,
+		[SENSOR_TAS5130C] =	tas5130c_matrix,
 	};
 
 	matrix = matrix_tb[sd->sensor];
 	if (matrix == NULL)
 		return;		/* matrix already loaded */
 	for (i = 0; i < ARRAY_SIZE(ov7620_matrix); i++)
-		reg_w(gspca_dev->dev, matrix[i], 0x010a + i);
+		reg_w(gspca_dev, matrix[i], 0x010a + i);
 }
 
 static void setsharpness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	int sharpness;
 	static const u8 sharpness_tb[][2] = {
 		{0x02, 0x03},
@@ -5998,22 +5862,24 @@ static void setsharpness(struct gspca_dev *gspca_dev)
 		{0x10, 0x1e}
 	};
 
-	sharpness = sd->sharpness;
-	reg_w(dev, sharpness_tb[sharpness][0], 0x01c6);
+	sharpness = sd->ctrls[SHARPNESS].val;
+	reg_w(gspca_dev, sharpness_tb[sharpness][0], 0x01c6);
 	reg_r(gspca_dev, 0x01c8);
 	reg_r(gspca_dev, 0x01c9);
 	reg_r(gspca_dev, 0x01ca);
-	reg_w(dev, sharpness_tb[sharpness][1], 0x01cb);
+	reg_w(gspca_dev, sharpness_tb[sharpness][1], 0x01cb);
 }
 
 static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	const u8 *Tgamma;
-	int g, i, k, adj, gp;
+	int g, i, brightness, contrast, adj, gp1, gp2;
 	u8 gr[16];
-	static const u8 delta_tb[16] =		/* delta for contrast */
+	static const u8 delta_b[16] =		/* delta for brightness */
+		{0x50, 0x38, 0x2d, 0x28, 0x24, 0x21, 0x1e, 0x1d,
+		 0x1d, 0x1b, 0x1b, 0x1b, 0x19, 0x18, 0x18, 0x18};
+	static const u8 delta_c[16] =		/* delta for contrast */
 		{0x2c, 0x1a, 0x12, 0x0c, 0x0a, 0x06, 0x06, 0x06,
 		 0x04, 0x06, 0x04, 0x04, 0x03, 0x03, 0x02, 0x02};
 	static const u8 gamma_tb[6][16] = {
@@ -6031,40 +5897,39 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		 0xe0, 0xeb, 0xf4, 0xff, 0xff, 0xff, 0xff, 0xff},
 	};
 
-	Tgamma = gamma_tb[sd->gamma - 1];
+	Tgamma = gamma_tb[sd->ctrls[GAMMA].val - 1];
 
-	k = ((int) sd->contrast - 128);		/* -128 / 128 */
+	contrast = ((int) sd->ctrls[CONTRAST].val - 128); /* -128 / 127 */
+	brightness = ((int) sd->ctrls[BRIGHTNESS].val - 128); /* -128 / 92 */
 	adj = 0;
-	gp = 0;
+	gp1 = gp2 = 0;
 	for (i = 0; i < 16; i++) {
-		g = Tgamma[i] - delta_tb[i] * k / 256 - adj / 2;
+		g = Tgamma[i] + delta_b[i] * brightness / 256
+				- delta_c[i] * contrast / 256 - adj / 2;
 		if (g > 0xff)
 			g = 0xff;
 		else if (g < 0)
 			g = 0;
-		reg_w(dev, g, 0x0120 + i);	/* gamma */
-		if (k > 0)
+		reg_w(gspca_dev, g, 0x0120 + i);	/* gamma */
+		if (contrast > 0)
 			adj--;
-		else
+		else if (contrast < 0)
 			adj++;
-
-		if (i != 0) {
-			if (gp == 0)
-				gr[i - 1] = 0;
-			else
-				gr[i - 1] = g - gp;
-		}
-		gp = g;
+		if (i > 1)
+			gr[i - 1] = (g - gp2) / 2;
+		else if (i != 0)
+			gr[0] = gp1 == 0 ? 0 : (g - gp1);
+		gp2 = gp1;
+		gp1 = g;
 	}
-	gr[15] = gr[14] / 2;
+	gr[15] = (0xff - gp2) / 2;
 	for (i = 0; i < 16; i++)
-		reg_w(dev, gr[i], 0x0130 + i);	/* gradient */
+		reg_w(gspca_dev, gr[i], 0x0130 + i);	/* gradient */
 }
 
 static void setquality(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	u8 frxt;
 
 	switch (sd->sensor) {
@@ -6077,9 +5942,9 @@ static void setquality(struct gspca_dev *gspca_dev)
 		return;
 	}
 /*fixme: is it really 0008 0007 0018 for all other sensors? */
-	reg_w(dev, QUANT_VAL, 0x0008);
+	reg_w(gspca_dev, QUANT_VAL, 0x0008);
 	frxt = 0x30;
-	reg_w(dev, frxt, 0x0007);
+	reg_w(gspca_dev, frxt, 0x0007);
 #if QUANT_VAL == 0 || QUANT_VAL == 1 || QUANT_VAL == 2
 	frxt = 0xff;
 #elif QUANT_VAL == 3
@@ -6089,7 +5954,7 @@ static void setquality(struct gspca_dev *gspca_dev)
 #else
 	frxt = 0x20;
 #endif
-	reg_w(dev, frxt, 0x0018);
+	reg_w(gspca_dev, frxt, 0x0018);
 }
 
 /* Matches the sensor's internal frame rate to the lighting frequency.
@@ -6097,120 +5962,118 @@ static void setquality(struct gspca_dev *gspca_dev)
  *	50Hz, for European and Asian lighting (default)
  *	60Hz, for American lighting
  *	0 = No Fliker (for outdoore usage)
- * Returns: 0 for success
  */
-static int setlightfreq(struct gspca_dev *gspca_dev)
+static void setlightfreq(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i, mode;
 	const struct usb_action *zc3_freq;
 	static const struct usb_action *freq_tb[SENSOR_MAX][6] = {
-/* SENSOR_ADCM2700 0 */
+	[SENSOR_ADCM2700] =
 		{adcm2700_NoFliker, adcm2700_NoFliker,
 		 adcm2700_50HZ, adcm2700_50HZ,
 		 adcm2700_60HZ, adcm2700_60HZ},
-/* SENSOR_CS2102 1 */
+	[SENSOR_CS2102] =
 		{cs2102_NoFliker, cs2102_NoFlikerScale,
 		 cs2102_50HZ, cs2102_50HZScale,
 		 cs2102_60HZ, cs2102_60HZScale},
-/* SENSOR_CS2102K 2 */
+	[SENSOR_CS2102K] =
 		{cs2102_NoFliker, cs2102_NoFlikerScale,
 		 NULL, NULL, /* currently disabled */
 		 NULL, NULL},
-/* SENSOR_GC0305 3 */
+	[SENSOR_GC0303] =
+		{gc0303_NoFliker, gc0303_NoFlikerScale,
+		 gc0303_50HZ, gc0303_50HZScale,
+		 gc0303_60HZ, gc0303_60HZScale},
+	[SENSOR_GC0305] =
 		{gc0305_NoFliker, gc0305_NoFliker,
 		 gc0305_50HZ, gc0305_50HZ,
 		 gc0305_60HZ, gc0305_60HZ},
-/* SENSOR_HDCS2020b 4 */
+	[SENSOR_HDCS2020b] =
 		{hdcs2020b_NoFliker, hdcs2020b_NoFliker,
 		 hdcs2020b_50HZ, hdcs2020b_50HZ,
 		 hdcs2020b_60HZ, hdcs2020b_60HZ},
-/* SENSOR_HV7131B 5 */
+	[SENSOR_HV7131B] =
 		{hv7131b_NoFliker, hv7131b_NoFlikerScale,
 		 hv7131b_50HZ, hv7131b_50HZScale,
 		 hv7131b_60HZ, hv7131b_60HZScale},
-/* SENSOR_HV7131C 6 */
-		{NULL, NULL,
-		 NULL, NULL,
-		 NULL, NULL},
-/* SENSOR_ICM105A 7 */
+	[SENSOR_HV7131R] =
+		{hv7131r_NoFliker, hv7131r_NoFlikerScale,
+		 hv7131r_50HZ, hv7131r_50HZScale,
+		 hv7131r_60HZ, hv7131r_60HZScale},
+	[SENSOR_ICM105A] =
 		{icm105a_NoFliker, icm105a_NoFlikerScale,
 		 icm105a_50HZ, icm105a_50HZScale,
 		 icm105a_60HZ, icm105a_60HZScale},
-/* SENSOR_MC501CB 8 */
+	[SENSOR_MC501CB] =
 		{mc501cb_NoFliker, mc501cb_NoFlikerScale,
 		 mc501cb_50HZ, mc501cb_50HZScale,
 		 mc501cb_60HZ, mc501cb_60HZScale},
-/* SENSOR_MI0360SOC 9 */
-		{mi360soc_AENoFliker, mi360soc_AENoFlikerScale,
-		 mi360soc_AE50HZ, mi360soc_AE50HZScale,
-		 mi360soc_AE60HZ, mi360soc_AE60HZScale},
-/* SENSOR_OV7620 10 */
+	[SENSOR_MT9V111_1] =
+		{mt9v111_1_AENoFliker, mt9v111_1_AENoFlikerScale,
+		 mt9v111_1_AE50HZ, mt9v111_1_AE50HZScale,
+		 mt9v111_1_AE60HZ, mt9v111_1_AE60HZScale},
+	[SENSOR_MT9V111_3] =
+		{mt9v111_3_AENoFliker, mt9v111_3_AENoFlikerScale,
+		 mt9v111_3_AE50HZ, mt9v111_3_AE50HZScale,
+		 mt9v111_3_AE60HZ, mt9v111_3_AE60HZScale},
+	[SENSOR_OV7620] =
 		{ov7620_NoFliker, ov7620_NoFliker,
 		 ov7620_50HZ, ov7620_50HZ,
 		 ov7620_60HZ, ov7620_60HZ},
-/* SENSOR_OV7630C 11 */
+	[SENSOR_OV7630C] =
 		{NULL, NULL,
 		 NULL, NULL,
 		 NULL, NULL},
-/* SENSOR_PAS106 12 */
+	[SENSOR_PAS106] =
 		{pas106b_NoFliker, pas106b_NoFliker,
 		 pas106b_50HZ, pas106b_50HZ,
 		 pas106b_60HZ, pas106b_60HZ},
-/* SENSOR_PAS202B 13 */
+	[SENSOR_PAS202B] =
 		{pas202b_NoFliker, pas202b_NoFlikerScale,
 		 pas202b_50HZ, pas202b_50HZScale,
 		 pas202b_60HZ, pas202b_60HZScale},
-/* SENSOR_PB0330 14 */
+	[SENSOR_PB0330] =
 		{pb0330_NoFliker, pb0330_NoFlikerScale,
 		 pb0330_50HZ, pb0330_50HZScale,
 		 pb0330_60HZ, pb0330_60HZScale},
-/* SENSOR_PO2030 15 */
+	[SENSOR_PO2030] =
 		{po2030_NoFliker, po2030_NoFliker,
 		 po2030_50HZ, po2030_50HZ,
 		 po2030_60HZ, po2030_60HZ},
-/* SENSOR_TAS5130CK 16 */
-		{tas5130cxx_NoFliker, tas5130cxx_NoFlikerScale,
-		 tas5130cxx_50HZ, tas5130cxx_50HZScale,
-		 tas5130cxx_60HZ, tas5130cxx_60HZScale},
-/* SENSOR_TAS5130CXX 17 */
-		{tas5130cxx_NoFliker, tas5130cxx_NoFlikerScale,
-		 tas5130cxx_50HZ, tas5130cxx_50HZScale,
-		 tas5130cxx_60HZ, tas5130cxx_60HZScale},
-/* SENSOR_TAS5130C_VF0250 18 */
-		{tas5130c_vf0250_NoFliker, tas5130c_vf0250_NoFlikerScale,
-		 tas5130c_vf0250_50HZ, tas5130c_vf0250_50HZScale,
-		 tas5130c_vf0250_60HZ, tas5130c_vf0250_60HZScale},
+	[SENSOR_TAS5130C] =
+		{tas5130c_NoFliker, tas5130c_NoFlikerScale,
+		 tas5130c_50HZ, tas5130c_50HZScale,
+		 tas5130c_60HZ, tas5130c_60HZScale},
 	};
 
-	i = sd->lightfreq * 2;
-	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
+	i = sd->ctrls[LIGHTFREQ].val * 2;
+	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
 	if (mode)
 		i++;			/* 320x240 */
 	zc3_freq = freq_tb[sd->sensor][i];
-	if (zc3_freq != NULL) {
-		usb_exchange(gspca_dev, zc3_freq);
-		switch (sd->sensor) {
-		case SENSOR_GC0305:
-			if (mode			/* if 320x240 */
-			    && sd->lightfreq == 1)	/* and 50Hz */
-				reg_w(gspca_dev->dev, 0x85, 0x018d);
-						/* win: 0x80, 0x018d */
-			break;
-		case SENSOR_OV7620:
-			if (!mode) {			/* if 640x480 */
-				if (sd->lightfreq != 0)	/* and 50 or 60 Hz */
-					reg_w(gspca_dev->dev, 0x40, 0x0002);
-				else
-					reg_w(gspca_dev->dev, 0x44, 0x0002);
-			}
-			break;
-		case SENSOR_PAS202B:
-			reg_w(gspca_dev->dev, 0x00, 0x01a7);
-			break;
+	if (zc3_freq == NULL)
+		return;
+	usb_exchange(gspca_dev, zc3_freq);
+	switch (sd->sensor) {
+	case SENSOR_GC0305:
+		if (mode				/* if 320x240 */
+		    && sd->ctrls[LIGHTFREQ].val == 1)	/* and 50Hz */
+			reg_w(gspca_dev, 0x85, 0x018d);
+					/* win: 0x80, 0x018d */
+		break;
+	case SENSOR_OV7620:
+		if (!mode) {				/* if 640x480 */
+			if (sd->ctrls[LIGHTFREQ].val != 0) /* and filter */
+				reg_w(gspca_dev, 0x40, 0x0002);
+			else
+				reg_w(gspca_dev, 0x44, 0x0002);
 		}
+		break;
+	case SENSOR_PAS202B:
+		reg_w(gspca_dev, 0x00, 0x01a7);
+		break;
 	}
-	return 0;
 }
 
 static void setautogain(struct gspca_dev *gspca_dev)
@@ -6218,49 +6081,50 @@ static void setautogain(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 autoval;
 
-	if (sd->autogain)
+	if (sd->ctrls[AUTOGAIN].val)
 		autoval = 0x42;
 	else
 		autoval = 0x02;
-	reg_w(gspca_dev->dev, autoval, 0x0180);
+	reg_w(gspca_dev, autoval, 0x0180);
 }
 
-static void send_unknown(struct usb_device *dev, int sensor)
+static void send_unknown(struct gspca_dev *gspca_dev, int sensor)
 {
-	reg_w(dev, 0x01, 0x0000);		/* led off */
+	reg_w(gspca_dev, 0x01, 0x0000);		/* led off */
 	switch (sensor) {
 	case SENSOR_PAS106:
-		reg_w(dev, 0x03, 0x003a);
-		reg_w(dev, 0x0c, 0x003b);
-		reg_w(dev, 0x08, 0x0038);
+		reg_w(gspca_dev, 0x03, 0x003a);
+		reg_w(gspca_dev, 0x0c, 0x003b);
+		reg_w(gspca_dev, 0x08, 0x0038);
 		break;
 	case SENSOR_ADCM2700:
 	case SENSOR_GC0305:
 	case SENSOR_OV7620:
-	case SENSOR_MI0360SOC:
+	case SENSOR_MT9V111_1:
+	case SENSOR_MT9V111_3:
 	case SENSOR_PB0330:
 	case SENSOR_PO2030:
-		reg_w(dev, 0x0d, 0x003a);
-		reg_w(dev, 0x02, 0x003b);
-		reg_w(dev, 0x00, 0x0038);
+		reg_w(gspca_dev, 0x0d, 0x003a);
+		reg_w(gspca_dev, 0x02, 0x003b);
+		reg_w(gspca_dev, 0x00, 0x0038);
 		break;
 	case SENSOR_PAS202B:
-		reg_w(dev, 0x03, 0x003b);
-		reg_w(dev, 0x0c, 0x003a);
-		reg_w(dev, 0x0b, 0x0039);
-		reg_w(dev, 0x0b, 0x0038);
+		reg_w(gspca_dev, 0x03, 0x003b);
+		reg_w(gspca_dev, 0x0c, 0x003a);
+		reg_w(gspca_dev, 0x0b, 0x0039);
+		reg_w(gspca_dev, 0x0b, 0x0038);
 		break;
 	}
 }
 
 /* start probe 2 wires */
-static void start_2wr_probe(struct usb_device *dev, int sensor)
+static void start_2wr_probe(struct gspca_dev *gspca_dev, int sensor)
 {
-	reg_w(dev, 0x01, 0x0000);
-	reg_w(dev, sensor, 0x0010);
-	reg_w(dev, 0x01, 0x0001);
-	reg_w(dev, 0x03, 0x0012);
-	reg_w(dev, 0x01, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0000);
+	reg_w(gspca_dev, sensor, 0x0010);
+	reg_w(gspca_dev, 0x01, 0x0001);
+	reg_w(gspca_dev, 0x03, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0012);
 /*	msleep(2); */
 }
 
@@ -6268,14 +6132,14 @@ static int sif_probe(struct gspca_dev *gspca_dev)
 {
 	u16 checkword;
 
-	start_2wr_probe(gspca_dev->dev, 0x0f);		/* PAS106 */
-	reg_w(gspca_dev->dev, 0x08, 0x008d);
+	start_2wr_probe(gspca_dev, 0x0f);		/* PAS106 */
+	reg_w(gspca_dev, 0x08, 0x008d);
 	msleep(150);
 	checkword = ((i2c_read(gspca_dev, 0x00) & 0x0f) << 4)
 			| ((i2c_read(gspca_dev, 0x01) & 0xf0) >> 4);
 	PDEBUG(D_PROBE, "probe sif 0x%04x", checkword);
 	if (checkword == 0x0007) {
-		send_unknown(gspca_dev->dev, SENSOR_PAS106);
+		send_unknown(gspca_dev, SENSOR_PAS106);
 		return 0x0f;			/* PAS106 */
 	}
 	return -1;
@@ -6283,23 +6147,22 @@ static int sif_probe(struct gspca_dev *gspca_dev)
 
 static int vga_2wr_probe(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
 	u16 retword;
 
-	start_2wr_probe(dev, 0x00);		/* HV7131B */
+	start_2wr_probe(gspca_dev, 0x00);	/* HV7131B */
 	i2c_write(gspca_dev, 0x01, 0xaa, 0x00);
 	retword = i2c_read(gspca_dev, 0x01);
 	if (retword != 0)
 		return 0x00;			/* HV7131B */
 
-	start_2wr_probe(dev, 0x04);		/* CS2102 */
+	start_2wr_probe(gspca_dev, 0x04);	/* CS2102 */
 	i2c_write(gspca_dev, 0x01, 0xaa, 0x00);
 	retword = i2c_read(gspca_dev, 0x01);
 	if (retword != 0)
 		return 0x04;			/* CS2102 */
 
-	start_2wr_probe(dev, 0x06);		/* OmniVision */
-	reg_w(dev, 0x08, 0x008d);
+	start_2wr_probe(gspca_dev, 0x06);	/* OmniVision */
+	reg_w(gspca_dev, 0x08, 0x008d);
 	i2c_write(gspca_dev, 0x11, 0xaa, 0x00);
 	retword = i2c_read(gspca_dev, 0x11);
 	if (retword != 0) {
@@ -6308,14 +6171,14 @@ static int vga_2wr_probe(struct gspca_dev *gspca_dev)
 		goto ov_check;
 	}
 
-	start_2wr_probe(dev, 0x08);		/* HDCS2020 */
+	start_2wr_probe(gspca_dev, 0x08);	/* HDCS2020 */
 	i2c_write(gspca_dev, 0x1c, 0x00, 0x00);
 	i2c_write(gspca_dev, 0x15, 0xaa, 0x00);
 	retword = i2c_read(gspca_dev, 0x15);
 	if (retword != 0)
 		return 0x08;			/* HDCS2020 */
 
-	start_2wr_probe(dev, 0x0a);		/* PB0330 */
+	start_2wr_probe(gspca_dev, 0x0a);	/* PB0330 */
 	i2c_write(gspca_dev, 0x07, 0xaa, 0xaa);
 	retword = i2c_read(gspca_dev, 0x07);
 	if (retword != 0)
@@ -6327,23 +6190,23 @@ static int vga_2wr_probe(struct gspca_dev *gspca_dev)
 	if (retword != 0)
 		return 0x0a;			/* PB0330 ?? */
 
-	start_2wr_probe(dev, 0x0c);		/* ICM105A */
+	start_2wr_probe(gspca_dev, 0x0c);	/* ICM105A */
 	i2c_write(gspca_dev, 0x01, 0x11, 0x00);
 	retword = i2c_read(gspca_dev, 0x01);
 	if (retword != 0)
 		return 0x0c;			/* ICM105A */
 
-	start_2wr_probe(dev, 0x0e);		/* PAS202BCB */
-	reg_w(dev, 0x08, 0x008d);
+	start_2wr_probe(gspca_dev, 0x0e);	/* PAS202BCB */
+	reg_w(gspca_dev, 0x08, 0x008d);
 	i2c_write(gspca_dev, 0x03, 0xaa, 0x00);
 	msleep(50);
 	retword = i2c_read(gspca_dev, 0x03);
 	if (retword != 0) {
-		send_unknown(dev, SENSOR_PAS202B);
+		send_unknown(gspca_dev, SENSOR_PAS202B);
 		return 0x0e;			/* PAS202BCB */
 	}
 
-	start_2wr_probe(dev, 0x02);		/* TAS5130C */
+	start_2wr_probe(gspca_dev, 0x02);	/* TAS5130C */
 	i2c_write(gspca_dev, 0x01, 0xaa, 0x00);
 	retword = i2c_read(gspca_dev, 0x01);
 	if (retword != 0)
@@ -6352,20 +6215,20 @@ ov_check:
 	reg_r(gspca_dev, 0x0010);		/* ?? */
 	reg_r(gspca_dev, 0x0010);
 
-	reg_w(dev, 0x01, 0x0000);
-	reg_w(dev, 0x01, 0x0001);
-	reg_w(dev, 0x06, 0x0010);		/* OmniVision */
-	reg_w(dev, 0xa1, 0x008b);
-	reg_w(dev, 0x08, 0x008d);
+	reg_w(gspca_dev, 0x01, 0x0000);
+	reg_w(gspca_dev, 0x01, 0x0001);
+	reg_w(gspca_dev, 0x06, 0x0010);		/* OmniVision */
+	reg_w(gspca_dev, 0xa1, 0x008b);
+	reg_w(gspca_dev, 0x08, 0x008d);
 	msleep(500);
-	reg_w(dev, 0x01, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0012);
 	i2c_write(gspca_dev, 0x12, 0x80, 0x00);	/* sensor reset */
 	retword = i2c_read(gspca_dev, 0x0a) << 8;
 	retword |= i2c_read(gspca_dev, 0x0b);
 	PDEBUG(D_PROBE, "probe 2wr ov vga 0x%04x", retword);
 	switch (retword) {
 	case 0x7631:				/* OV7630C */
-		reg_w(dev, 0x06, 0x0010);
+		reg_w(gspca_dev, 0x06, 0x0010);
 		break;
 	case 0x7620:				/* OV7620 */
 	case 0x7648:				/* OV7648 */
@@ -6382,32 +6245,31 @@ struct sensor_by_chipset_revision {
 };
 static const struct sensor_by_chipset_revision chipset_revision_sensor[] = {
 	{0xc000, 0x12},		/* TAS5130C */
-	{0xc001, 0x13},		/* MI0360SOC */
+	{0xc001, 0x13},		/* MT9V111 */
 	{0xe001, 0x13},
 	{0x8001, 0x13},
 	{0x8000, 0x14},		/* CS2102K */
-	{0x8400, 0x15},		/* TAS5130K */
+	{0x8400, 0x15},		/* MT9V111 */
 	{0xe400, 0x15},
 };
 
 static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	int i;
 	u8 retbyte;
 	u16 retword;
 
 /*fixme: lack of 8b=b3 (11,12)-> 10, 8b=e0 (14,15,16)-> 12 found in gspcav1*/
-	reg_w(dev, 0x02, 0x0010);
+	reg_w(gspca_dev, 0x02, 0x0010);
 	reg_r(gspca_dev, 0x0010);
-	reg_w(dev, 0x01, 0x0000);
-	reg_w(dev, 0x00, 0x0010);
-	reg_w(dev, 0x01, 0x0001);
-	reg_w(dev, 0x91, 0x008b);
-	reg_w(dev, 0x03, 0x0012);
-	reg_w(dev, 0x01, 0x0012);
-	reg_w(dev, 0x05, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0000);
+	reg_w(gspca_dev, 0x00, 0x0010);
+	reg_w(gspca_dev, 0x01, 0x0001);
+	reg_w(gspca_dev, 0x91, 0x008b);
+	reg_w(gspca_dev, 0x03, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0012);
+	reg_w(gspca_dev, 0x05, 0x0012);
 	retword = i2c_read(gspca_dev, 0x14);
 	if (retword != 0)
 		return 0x11;			/* HV7131R */
@@ -6418,93 +6280,89 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	if (retword != 0)
 		return 0x11;			/* HV7131R */
 
-	reg_w(dev, 0x02, 0x0010);
+	reg_w(gspca_dev, 0x02, 0x0010);
 	retword = reg_r(gspca_dev, 0x000b) << 8;
 	retword |= reg_r(gspca_dev, 0x000a);
 	PDEBUG(D_PROBE, "probe 3wr vga 1 0x%04x", retword);
 	reg_r(gspca_dev, 0x0010);
-	/* value 0x4001 is meaningless */
-	if (retword != 0x4001) {
-		if ((retword & 0xff00) == 0x6400)
-			return 0x02;		/* TAS5130C */
-		for (i = 0; i < ARRAY_SIZE(chipset_revision_sensor); i++) {
-			if (chipset_revision_sensor[i].revision == retword) {
-				sd->chip_revision = retword;
-				send_unknown(dev, SENSOR_PB0330);
-				return chipset_revision_sensor[i]
-							.internal_sensor_id;
-			}
+	if ((retword & 0xff00) == 0x6400)
+		return 0x02;		/* TAS5130C */
+	for (i = 0; i < ARRAY_SIZE(chipset_revision_sensor); i++) {
+		if (chipset_revision_sensor[i].revision == retword) {
+			sd->chip_revision = retword;
+			send_unknown(gspca_dev, SENSOR_PB0330);
+			return chipset_revision_sensor[i].internal_sensor_id;
 		}
 	}
 
-	reg_w(dev, 0x01, 0x0000);	/* check PB0330 */
-	reg_w(dev, 0x01, 0x0001);
-	reg_w(dev, 0xdd, 0x008b);
-	reg_w(dev, 0x0a, 0x0010);
-	reg_w(dev, 0x03, 0x0012);
-	reg_w(dev, 0x01, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0000);	/* check PB0330 */
+	reg_w(gspca_dev, 0x01, 0x0001);
+	reg_w(gspca_dev, 0xdd, 0x008b);
+	reg_w(gspca_dev, 0x0a, 0x0010);
+	reg_w(gspca_dev, 0x03, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0012);
 	retword = i2c_read(gspca_dev, 0x00);
 	if (retword != 0) {
-		PDEBUG(D_PROBE, "probe 3wr vga type 0a ?");
+		PDEBUG(D_PROBE, "probe 3wr vga type 0a");
 		return 0x0a;			/* PB0330 */
 	}
 
-	reg_w(dev, 0x01, 0x0000);
-	reg_w(dev, 0x01, 0x0001);
-	reg_w(dev, 0x98, 0x008b);
-	reg_w(dev, 0x01, 0x0010);
-	reg_w(dev, 0x03, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0000);
+	reg_w(gspca_dev, 0x01, 0x0001);
+	reg_w(gspca_dev, 0x98, 0x008b);
+	reg_w(gspca_dev, 0x01, 0x0010);
+	reg_w(gspca_dev, 0x03, 0x0012);
 	msleep(2);
-	reg_w(dev, 0x01, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0012);
 	retword = i2c_read(gspca_dev, 0x00);
 	if (retword != 0) {
 		PDEBUG(D_PROBE, "probe 3wr vga type %02x", retword);
-		if (retword == 0x0011)			/* VF0250 */
-			return 0x0250;
+		if (retword == 0x0011)			/* gc0303 */
+			return 0x0303;
 		if (retword == 0x0029)			/* gc0305 */
-			send_unknown(dev, SENSOR_GC0305);
+			send_unknown(gspca_dev, SENSOR_GC0305);
 		return retword;
 	}
 
-	reg_w(dev, 0x01, 0x0000);	/* check OmniVision */
-	reg_w(dev, 0x01, 0x0001);
-	reg_w(dev, 0xa1, 0x008b);
-	reg_w(dev, 0x08, 0x008d);
-	reg_w(dev, 0x06, 0x0010);
-	reg_w(dev, 0x01, 0x0012);
-	reg_w(dev, 0x05, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0000);	/* check OmniVision */
+	reg_w(gspca_dev, 0x01, 0x0001);
+	reg_w(gspca_dev, 0xa1, 0x008b);
+	reg_w(gspca_dev, 0x08, 0x008d);
+	reg_w(gspca_dev, 0x06, 0x0010);
+	reg_w(gspca_dev, 0x01, 0x0012);
+	reg_w(gspca_dev, 0x05, 0x0012);
 	if (i2c_read(gspca_dev, 0x1c) == 0x007f	/* OV7610 - manufacturer ID */
 	    && i2c_read(gspca_dev, 0x1d) == 0x00a2) {
-		send_unknown(dev, SENSOR_OV7620);
+		send_unknown(gspca_dev, SENSOR_OV7620);
 		return 0x06;		/* OmniVision confirm ? */
 	}
 
-	reg_w(dev, 0x01, 0x0000);
-	reg_w(dev, 0x00, 0x0002);
-	reg_w(dev, 0x01, 0x0010);
-	reg_w(dev, 0x01, 0x0001);
-	reg_w(dev, 0xee, 0x008b);
-	reg_w(dev, 0x03, 0x0012);
-	reg_w(dev, 0x01, 0x0012);
-	reg_w(dev, 0x05, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0000);
+	reg_w(gspca_dev, 0x00, 0x0002);
+	reg_w(gspca_dev, 0x01, 0x0010);
+	reg_w(gspca_dev, 0x01, 0x0001);
+	reg_w(gspca_dev, 0xee, 0x008b);
+	reg_w(gspca_dev, 0x03, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0012);
+	reg_w(gspca_dev, 0x05, 0x0012);
 	retword = i2c_read(gspca_dev, 0x00) << 8;	/* ID 0 */
 	retword |= i2c_read(gspca_dev, 0x01);		/* ID 1 */
 	PDEBUG(D_PROBE, "probe 3wr vga 2 0x%04x", retword);
 	if (retword == 0x2030) {
 		retbyte = i2c_read(gspca_dev, 0x02);	/* revision number */
 		PDEBUG(D_PROBE, "sensor PO2030 rev 0x%02x", retbyte);
-		send_unknown(dev, SENSOR_PO2030);
+		send_unknown(gspca_dev, SENSOR_PO2030);
 		return retword;
 	}
 
-	reg_w(dev, 0x01, 0x0000);
-	reg_w(dev, 0x0a, 0x0010);
-	reg_w(dev, 0xd3, 0x008b);
-	reg_w(dev, 0x01, 0x0001);
-	reg_w(dev, 0x03, 0x0012);
-	reg_w(dev, 0x01, 0x0012);
-	reg_w(dev, 0x05, 0x0012);
-	reg_w(dev, 0xd3, 0x008b);
+	reg_w(gspca_dev, 0x01, 0x0000);
+	reg_w(gspca_dev, 0x0a, 0x0010);
+	reg_w(gspca_dev, 0xd3, 0x008b);
+	reg_w(gspca_dev, 0x01, 0x0001);
+	reg_w(gspca_dev, 0x03, 0x0012);
+	reg_w(gspca_dev, 0x01, 0x0012);
+	reg_w(gspca_dev, 0x05, 0x0012);
+	reg_w(gspca_dev, 0xd3, 0x008b);
 	retword = i2c_read(gspca_dev, 0x01);
 	if (retword != 0) {
 		PDEBUG(D_PROBE, "probe 3wr vga type 0a ? ret: %04x", retword);
@@ -6521,7 +6379,7 @@ static int zcxx_probeSensor(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_MC501CB:
 		return -1;		/* don't probe */
-	case SENSOR_TAS5130C_VF0250:
+	case SENSOR_GC0303:
 			/* may probe but with no write in reg 0x0010 */
 		return -1;		/* don't probe */
 	case SENSOR_PAS106:
@@ -6541,54 +6399,70 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (id->idProduct == 0x301b)
+		sd->bridge = BRIDGE_ZC301;
+	else
+		sd->bridge = BRIDGE_ZC303;
+
+	/* define some sensors from the vendor/product */
+	sd->sensor = id->driver_info;
+
+	gspca_dev->cam.ctrls = sd->ctrls;
+	sd->quality = QUALITY_DEF;
+
+	return 0;
+}
+
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
 	int sensor;
 	static const u8 gamma[SENSOR_MAX] = {
-		4,	/* SENSOR_ADCM2700 0 */
-		4,	/* SENSOR_CS2102 1 */
-		5,	/* SENSOR_CS2102K 2 */
-		4,	/* SENSOR_GC0305 3 */
-		4,	/* SENSOR_HDCS2020b 4 */
-		4,	/* SENSOR_HV7131B 5 */
-		4,	/* SENSOR_HV7131C 6 */
-		4,	/* SENSOR_ICM105A 7 */
-		4,	/* SENSOR_MC501CB 8 */
-		4,	/* SENSOR_MI0360SOC 9 */
-		3,	/* SENSOR_OV7620 10 */
-		4,	/* SENSOR_OV7630C 11 */
-		4,	/* SENSOR_PAS106 12 */
-		4,	/* SENSOR_PAS202B 13 */
-		4,	/* SENSOR_PB0330 14 */
-		4,	/* SENSOR_PO2030 15 */
-		4,	/* SENSOR_TAS5130CK 16 */
-		3,	/* SENSOR_TAS5130CXX 17 */
-		3,	/* SENSOR_TAS5130C_VF0250 18 */
+		[SENSOR_ADCM2700] =	4,
+		[SENSOR_CS2102] =	4,
+		[SENSOR_CS2102K] =	5,
+		[SENSOR_GC0303] =	3,
+		[SENSOR_GC0305] =	4,
+		[SENSOR_HDCS2020b] =	4,
+		[SENSOR_HV7131B] =	4,
+		[SENSOR_HV7131R] =	4,
+		[SENSOR_ICM105A] =	4,
+		[SENSOR_MC501CB] =	4,
+		[SENSOR_MT9V111_1] =	4,
+		[SENSOR_MT9V111_3] =	4,
+		[SENSOR_OV7620] =	3,
+		[SENSOR_OV7630C] =	4,
+		[SENSOR_PAS106] =	4,
+		[SENSOR_PAS202B] =	4,
+		[SENSOR_PB0330] =	4,
+		[SENSOR_PO2030] =	4,
+		[SENSOR_TAS5130C] =	3,
 	};
 	static const u8 mode_tb[SENSOR_MAX] = {
-		2,	/* SENSOR_ADCM2700 0 */
-		1,	/* SENSOR_CS2102 1 */
-		1,	/* SENSOR_CS2102K 2 */
-		1,	/* SENSOR_GC0305 3 */
-		1,	/* SENSOR_HDCS2020b 4 */
-		1,	/* SENSOR_HV7131B 5 */
-		1,	/* SENSOR_HV7131C 6 */
-		1,	/* SENSOR_ICM105A 7 */
-		2,	/* SENSOR_MC501CB 8 */
-		1,	/* SENSOR_MI0360SOC 9 */
-		2,	/* SENSOR_OV7620 10 */
-		1,	/* SENSOR_OV7630C 11 */
-		0,	/* SENSOR_PAS106 12 */
-		1,	/* SENSOR_PAS202B 13 */
-		1,	/* SENSOR_PB0330 14 */
-		1,	/* SENSOR_PO2030 15 */
-		1,	/* SENSOR_TAS5130CK 16 */
-		1,	/* SENSOR_TAS5130CXX 17 */
-		1,	/* SENSOR_TAS5130C_VF0250 18 */
+		[SENSOR_ADCM2700] =	2,
+		[SENSOR_CS2102] =	1,
+		[SENSOR_CS2102K] =	1,
+		[SENSOR_GC0303] =	1,
+		[SENSOR_GC0305] =	1,
+		[SENSOR_HDCS2020b] =	1,
+		[SENSOR_HV7131B] =	1,
+		[SENSOR_HV7131R] =	1,
+		[SENSOR_ICM105A] =	1,
+		[SENSOR_MC501CB] =	2,
+		[SENSOR_MT9V111_1] =	1,
+		[SENSOR_MT9V111_3] =	1,
+		[SENSOR_OV7620] =	2,
+		[SENSOR_OV7630C] =	1,
+		[SENSOR_PAS106] =	0,
+		[SENSOR_PAS202B] =	1,
+		[SENSOR_PB0330] =	1,
+		[SENSOR_PO2030] =	1,
+		[SENSOR_TAS5130C] =	1,
 	};
 
-	/* define some sensors from the vendor/product */
-	sd->sharpness = SHARPNESS_DEF;
-	sd->sensor = id->driver_info;
 	sensor = zcxx_probeSensor(gspca_dev);
 	if (sensor >= 0)
 		PDEBUG(D_PROBE, "probe sensor -> %04x", sensor);
@@ -6602,13 +6476,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			case SENSOR_MC501CB:
 				PDEBUG(D_PROBE, "Sensor MC501CB");
 				break;
-			case SENSOR_TAS5130C_VF0250:
-				PDEBUG(D_PROBE, "Sensor Tas5130 (VF0250)");
+			case SENSOR_GC0303:
+				PDEBUG(D_PROBE, "Sensor GC0303");
 				break;
 			default:
-				PDEBUG(D_PROBE,
-					"Sensor UNKNOWN_0 force Tas5130");
-				sd->sensor = SENSOR_TAS5130CXX;
+				warn("Unknown sensor - set to TAS5130C");
+				sd->sensor = SENSOR_TAS5130C;
 			}
 			break;
 		case 0:
@@ -6623,14 +6496,14 @@ static int sd_config(struct gspca_dev *gspca_dev,
 				break;
 			default:
 /*			case 2:			 * hv7131r */
-				PDEBUG(D_PROBE, "Find Sensor HV7131R(c)");
-				sd->sensor = SENSOR_HV7131C;
+				PDEBUG(D_PROBE, "Find Sensor HV7131R");
+				sd->sensor = SENSOR_HV7131R;
 				break;
 			}
 			break;
 		case 0x02:
 			PDEBUG(D_PROBE, "Sensor TAS5130C");
-			sd->sensor = SENSOR_TAS5130CXX;
+			sd->sensor = SENSOR_TAS5130C;
 			break;
 		case 0x04:
 			PDEBUG(D_PROBE, "Find Sensor CS2102");
@@ -6662,29 +6535,26 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		case 0x10:
 		case 0x12:
 			PDEBUG(D_PROBE, "Find Sensor TAS5130C");
-			sd->sensor = SENSOR_TAS5130CXX;
+			sd->sensor = SENSOR_TAS5130C;
 			break;
 		case 0x11:
-			PDEBUG(D_PROBE, "Find Sensor HV7131R(c)");
-			sd->sensor = SENSOR_HV7131C;
+			PDEBUG(D_PROBE, "Find Sensor HV7131R");
+			sd->sensor = SENSOR_HV7131R;
 			break;
 		case 0x13:
+		case 0x15:
 			PDEBUG(D_PROBE,
-				"Find Sensor MI0360SOC. Chip revision %x",
+				"Sensor MT9V111. Chip revision %04x",
 				sd->chip_revision);
-			sd->sensor = SENSOR_MI0360SOC;
+			sd->sensor = sd->bridge == BRIDGE_ZC301
+					? SENSOR_MT9V111_1
+					: SENSOR_MT9V111_3;
 			break;
 		case 0x14:
 			PDEBUG(D_PROBE,
 				"Find Sensor CS2102K?. Chip revision %x",
 				sd->chip_revision);
 			sd->sensor = SENSOR_CS2102K;
-			break;
-		case 0x15:
-			PDEBUG(D_PROBE,
-				"Find Sensor TAS5130CK?. Chip revision %x",
-				sd->chip_revision);
-			sd->sensor = SENSOR_TAS5130CK;
 			break;
 		case 0x16:
 			PDEBUG(D_PROBE, "Find Sensor ADCM2700");
@@ -6694,14 +6564,14 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			PDEBUG(D_PROBE, "Find Sensor GC0305");
 			sd->sensor = SENSOR_GC0305;
 			break;
-		case 0x0250:
-			PDEBUG(D_PROBE, "Sensor Tas5130 (VF0250)");
-			sd->sensor =  SENSOR_TAS5130C_VF0250;
+		case 0x0303:
+			PDEBUG(D_PROBE, "Sensor GC0303");
+			sd->sensor =  SENSOR_GC0303;
 			break;
 		case 0x2030:
 			PDEBUG(D_PROBE, "Find Sensor PO2030");
 			sd->sensor = SENSOR_PO2030;
-			sd->sharpness = 0;		/* from win traces */
+			sd->ctrls[SHARPNESS].def = 0;	/* from win traces */
 			break;
 		case 0x7620:
 			PDEBUG(D_PROBE, "Find Sensor OV7620");
@@ -6716,19 +6586,17 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor = SENSOR_OV7620;	/* same sensor (?) */
 			break;
 		default:
-			PDEBUG(D_ERR|D_PROBE, "Unknown sensor %04x", sensor);
+			err("Unknown sensor %04x", sensor);
 			return -EINVAL;
 		}
 	}
 	if (sensor < 0x20) {
 		if (sensor == -1 || sensor == 0x10 || sensor == 0x12)
-			reg_w(gspca_dev->dev, 0x02, 0x0010);
+			reg_w(gspca_dev, 0x02, 0x0010);
 		reg_r(gspca_dev, 0x0010);
 	}
 
 	cam = &gspca_dev->cam;
-/*fixme:test*/
-	gspca_dev->nbalt--;
 	switch (mode_tb[sd->sensor]) {
 	case 0:
 		cam->cam_mode = sif_mode;
@@ -6744,70 +6612,73 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->nmodes = ARRAY_SIZE(broken_vga_mode);
 		break;
 	}
-	sd->contrast = CONTRAST_DEF;
-	sd->gamma = gamma[sd->sensor];
-	sd->autogain = AUTOGAIN_DEF;
-	sd->lightfreq = FREQ_DEF;
-	sd->quality = QUALITY_DEF;
+
+	sd->ctrls[GAMMA].def = gamma[sd->sensor];
 
 	switch (sd->sensor) {
-	case SENSOR_HV7131B:
-	case SENSOR_HV7131C:
 	case SENSOR_OV7630C:
-		gspca_dev->ctrl_dis = (1 << LIGHTFREQ_IDX);
+		gspca_dev->ctrl_dis = (1 << LIGHTFREQ);
 		break;
 	}
 
-	return 0;
-}
-
-/* this function is called at probe and resume time */
-static int sd_init(struct gspca_dev *gspca_dev)
-{
 	/* switch off the led */
-	reg_w(gspca_dev->dev, 0x01, 0x0000);
-	return 0;
+	reg_w(gspca_dev, 0x01, 0x0000);
+	return gspca_dev->usb_err;
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	int mode;
 	static const struct usb_action *init_tb[SENSOR_MAX][2] = {
-		{adcm2700_Initial, adcm2700_InitialScale},	/* 0 */
-		{cs2102_Initial, cs2102_InitialScale},		/* 1 */
-		{cs2102K_Initial, cs2102K_InitialScale},	/* 2 */
-		{gc0305_Initial, gc0305_InitialScale},		/* 3 */
-		{hdcs2020b_Initial, hdcs2020b_InitialScale},	/* 4 */
-		{hv7131b_Initial, hv7131b_InitialScale},	/* 5 */
-		{hv7131r_Initial, hv7131r_InitialScale},	/* 6 */
-		{icm105a_Initial, icm105a_InitialScale},	/* 7 */
-		{mc501cb_Initial, mc501cb_InitialScale},	/* 8 */
-		{mi0360soc_Initial, mi0360soc_InitialScale},	/* 9 */
-		{ov7620_Initial, ov7620_InitialScale},		/* 10 */
-		{ov7630c_Initial, ov7630c_InitialScale},	/* 11 */
-		{pas106b_Initial, pas106b_InitialScale},	/* 12 */
-		{pas202b_Initial, pas202b_InitialScale},	/* 13 */
-		{pb0330_Initial, pb0330_InitialScale},		/* 14 */
-		{po2030_Initial, po2030_InitialScale},		/* 15 */
-		{tas5130cK_Initial, tas5130cK_InitialScale},	/* 16 */
-		{tas5130cxx_Initial, tas5130cxx_InitialScale},	/* 17 */
-		{tas5130c_vf0250_Initial, tas5130c_vf0250_InitialScale},
-								/* 18 */
+	[SENSOR_ADCM2700] =
+			{adcm2700_Initial, adcm2700_InitialScale},
+	[SENSOR_CS2102]	=
+			{cs2102_Initial, cs2102_InitialScale},
+	[SENSOR_CS2102K] =
+			{cs2102K_Initial, cs2102K_InitialScale},
+	[SENSOR_GC0303] =
+		{gc0303_Initial, gc0303_InitialScale},
+	[SENSOR_GC0305] =
+			{gc0305_Initial, gc0305_InitialScale},
+	[SENSOR_HDCS2020b] =
+			{hdcs2020b_Initial, hdcs2020b_InitialScale},
+	[SENSOR_HV7131B] =
+			{hv7131b_Initial, hv7131b_InitialScale},
+	[SENSOR_HV7131R] =
+			{hv7131r_Initial, hv7131r_InitialScale},
+	[SENSOR_ICM105A] =
+			{icm105a_Initial, icm105a_InitialScale},
+	[SENSOR_MC501CB] =
+			{mc501cb_Initial, mc501cb_InitialScale},
+	[SENSOR_MT9V111_1] =
+			{mt9v111_1_Initial, mt9v111_1_InitialScale},
+	[SENSOR_MT9V111_3] =
+			{mt9v111_3_Initial, mt9v111_3_InitialScale},
+	[SENSOR_OV7620] =
+			{ov7620_Initial, ov7620_InitialScale},
+	[SENSOR_OV7630C] =
+			{ov7630c_Initial, ov7630c_InitialScale},
+	[SENSOR_PAS106] =
+			{pas106b_Initial, pas106b_InitialScale},
+	[SENSOR_PAS202B] =
+			{pas202b_Initial, pas202b_InitialScale},
+	[SENSOR_PB0330] =
+			{pb0330_Initial, pb0330_InitialScale},
+	[SENSOR_PO2030] =
+			{po2030_Initial, po2030_InitialScale},
+	[SENSOR_TAS5130C] =
+			{tas5130c_Initial, tas5130c_InitialScale},
 	};
 
 	/* create the JPEG header */
-	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
-	if (!sd->jpeg_hdr)
-		return -ENOMEM;
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x21);		/* JPEG 422 */
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 
 	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
 	switch (sd->sensor) {
-	case SENSOR_HV7131C:
+	case SENSOR_HV7131R:
 		zcxx_probeSensor(gspca_dev);
 		break;
 	case SENSOR_PAS106:
@@ -6821,22 +6692,22 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_GC0305:
 	case SENSOR_OV7620:
 	case SENSOR_PO2030:
-	case SENSOR_TAS5130CXX:
-	case SENSOR_TAS5130C_VF0250:
+	case SENSOR_TAS5130C:
+	case SENSOR_GC0303:
 /*		msleep(100);			 * ?? */
 		reg_r(gspca_dev, 0x0002);	/* --> 0x40 */
-		reg_w(dev, 0x09, 0x01ad);	/* (from win traces) */
-		reg_w(dev, 0x15, 0x01ae);
-		if (sd->sensor == SENSOR_TAS5130CXX)
+		reg_w(gspca_dev, 0x09, 0x01ad);	/* (from win traces) */
+		reg_w(gspca_dev, 0x15, 0x01ae);
+		if (sd->sensor == SENSOR_TAS5130C)
 			break;
-		reg_w(dev, 0x0d, 0x003a);
-		reg_w(dev, 0x02, 0x003b);
-		reg_w(dev, 0x00, 0x0038);
+		reg_w(gspca_dev, 0x0d, 0x003a);
+		reg_w(gspca_dev, 0x02, 0x003b);
+		reg_w(gspca_dev, 0x00, 0x0038);
 		break;
 	case SENSOR_PAS202B:
-		reg_w(dev, 0x03, 0x003b);
-		reg_w(dev, 0x0c, 0x003a);
-		reg_w(dev, 0x0b, 0x0039);
+		reg_w(gspca_dev, 0x03, 0x003b);
+		reg_w(gspca_dev, 0x0c, 0x003a);
+		reg_w(gspca_dev, 0x0b, 0x0039);
 		break;
 	}
 
@@ -6845,15 +6716,15 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_ADCM2700:
 	case SENSOR_OV7620:
 		reg_r(gspca_dev, 0x0008);
-		reg_w(dev, 0x00, 0x0008);
+		reg_w(gspca_dev, 0x00, 0x0008);
 		break;
 	case SENSOR_PAS202B:
 	case SENSOR_GC0305:
-	case SENSOR_TAS5130CXX:
+	case SENSOR_TAS5130C:
 		reg_r(gspca_dev, 0x0008);
 		/* fall thru */
 	case SENSOR_PO2030:
-		reg_w(dev, 0x03, 0x0008);
+		reg_w(gspca_dev, 0x03, 0x0008);
 		break;
 	}
 	setsharpness(gspca_dev);
@@ -6863,7 +6734,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_CS2102K:		/* gamma set in xxx_Initial */
 	case SENSOR_HDCS2020b:
 	case SENSOR_OV7630C:
-	case SENSOR_TAS5130CK:
 		break;
 	default:
 		setcontrast(gspca_dev);
@@ -6874,7 +6744,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_OV7620:
 	case SENSOR_PAS202B:
 		reg_r(gspca_dev, 0x0180);	/* from win */
-		reg_w(dev, 0x00, 0x0180);
+		reg_w(gspca_dev, 0x00, 0x0180);
 		break;
 	default:
 		setquality(gspca_dev);
@@ -6884,29 +6754,29 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	switch (sd->sensor) {
 	case SENSOR_ADCM2700:
-		reg_w(dev, 0x09, 0x01ad);	/* (from win traces) */
-		reg_w(dev, 0x15, 0x01ae);
-		reg_w(dev, 0x02, 0x0180);
+		reg_w(gspca_dev, 0x09, 0x01ad);	/* (from win traces) */
+		reg_w(gspca_dev, 0x15, 0x01ae);
+		reg_w(gspca_dev, 0x02, 0x0180);
 						/* ms-win + */
-		reg_w(dev, 0x40, 0x0117);
+		reg_w(gspca_dev, 0x40, 0x0117);
 		break;
 	case SENSOR_GC0305:
-	case SENSOR_TAS5130CXX:
-		reg_w(dev, 0x09, 0x01ad);	/* (from win traces) */
-		reg_w(dev, 0x15, 0x01ae);
+	case SENSOR_TAS5130C:
+		reg_w(gspca_dev, 0x09, 0x01ad);	/* (from win traces) */
+		reg_w(gspca_dev, 0x15, 0x01ae);
 		/* fall thru */
 	case SENSOR_PAS202B:
 	case SENSOR_PO2030:
-/*		reg_w(dev, 0x40, ZC3XX_R117_GGAIN);  * (from win traces) */
+/*		reg_w(gspca_dev, 0x40, ZC3XX_R117_GGAIN); in win traces */
 		reg_r(gspca_dev, 0x0180);
 		break;
 	case SENSOR_OV7620:
-		reg_w(dev, 0x09, 0x01ad);
-		reg_w(dev, 0x15, 0x01ae);
+		reg_w(gspca_dev, 0x09, 0x01ad);
+		reg_w(gspca_dev, 0x15, 0x01ae);
 		i2c_read(gspca_dev, 0x13);	/*fixme: returns 0xa3 */
 		i2c_write(gspca_dev, 0x13, 0xa3, 0x00);
-					 /*fixme: returned value to send? */
-		reg_w(dev, 0x40, 0x0117);
+					/*fixme: returned value to send? */
+		reg_w(gspca_dev, 0x40, 0x0117);
 		reg_r(gspca_dev, 0x0180);
 		break;
 	}
@@ -6915,15 +6785,11 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_PO2030:
 		msleep(50);
-		reg_w(dev, 0x00, 0x0007);	/* (from win traces) */
-		reg_w(dev, 0x02, ZC3XX_R008_CLOCKSETTING);
-		break;
-	case SENSOR_PAS202B:
-		reg_w(dev, 0x32, 0x0007);	/* (from win traces) */
-		reg_w(dev, 0x02, ZC3XX_R008_CLOCKSETTING);
+		reg_w(gspca_dev, 0x00, 0x0007);	/* (from win traces) */
+		reg_w(gspca_dev, 0x02, ZC3XX_R008_CLOCKSETTING);
 		break;
 	}
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 /* called on streamoff with alt 0 and on disconnect */
@@ -6931,10 +6797,9 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	kfree(sd->jpeg_hdr);
 	if (!gspca_dev->present)
 		return;
-	send_unknown(gspca_dev->dev, sd->sensor);
+	send_unknown(gspca_dev, sd->sensor);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -6953,103 +6818,13 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		/* remove the webcam's header:
 		 * ff d8 ff fe 00 0e 00 00 ss ss 00 01 ww ww hh hh pp pp
 		 *	- 'ss ss' is the frame sequence number (BE)
-		 * 	- 'ww ww' and 'hh hh' are the window dimensions (BE)
+		 *	- 'ww ww' and 'hh hh' are the window dimensions (BE)
 		 *	- 'pp pp' is the packet sequence number (BE)
 		 */
 		data += 18;
 		len -= 18;
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
-}
-
-static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->contrast = val;
-	if (gspca_dev->streaming)
-		setcontrast(gspca_dev);
-	return 0;
-}
-
-static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->contrast;
-	return 0;
-}
-
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->autogain = val;
-	if (gspca_dev->streaming)
-		setautogain(gspca_dev);
-	return 0;
-}
-
-static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->autogain;
-	return 0;
-}
-
-static int sd_setgamma(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->gamma = val;
-	if (gspca_dev->streaming)
-		setcontrast(gspca_dev);
-	return 0;
-}
-
-static int sd_getgamma(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->gamma;
-	return 0;
-}
-
-static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->lightfreq = val;
-	if (gspca_dev->streaming)
-		setlightfreq(gspca_dev);
-	return 0;
-}
-
-static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->lightfreq;
-	return 0;
-}
-
-static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->sharpness = val;
-	if (gspca_dev->streaming)
-		setsharpness(gspca_dev);
-	return 0;
-}
-
-static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->sharpness;
-	return 0;
 }
 
 static int sd_querymenu(struct gspca_dev *gspca_dev,
@@ -7086,7 +6861,7 @@ static int sd_set_jcomp(struct gspca_dev *gspca_dev,
 		sd->quality = jcomp->quality;
 	if (gspca_dev->streaming)
 		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_get_jcomp(struct gspca_dev *gspca_dev,
@@ -7101,7 +6876,7 @@ static int sd_get_jcomp(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet data */
 			int len)		/* interrput packet length */
@@ -7129,12 +6904,12 @@ static const struct sd_desc sd_desc = {
 	.querymenu = sd_querymenu,
 	.get_jcomp = sd_get_jcomp,
 	.set_jcomp = sd_set_jcomp,
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	.int_pkt_scan = sd_int_pkt_scan,
 #endif
 };
 
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x041e)},
 	{USB_DEVICE(0x041e, 0x4017)},
 	{USB_DEVICE(0x041e, 0x401c), .driver_info = SENSOR_PAS106},
@@ -7146,8 +6921,8 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4035), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x041e, 0x4036)},
 	{USB_DEVICE(0x041e, 0x403a)},
-	{USB_DEVICE(0x041e, 0x4051), .driver_info = SENSOR_TAS5130C_VF0250},
-	{USB_DEVICE(0x041e, 0x4053), .driver_info = SENSOR_TAS5130C_VF0250},
+	{USB_DEVICE(0x041e, 0x4051), .driver_info = SENSOR_GC0303},
+	{USB_DEVICE(0x041e, 0x4053), .driver_info = SENSOR_GC0303},
 	{USB_DEVICE(0x0458, 0x7007)},
 	{USB_DEVICE(0x0458, 0x700c)},
 	{USB_DEVICE(0x0458, 0x700f)},
@@ -7163,14 +6938,12 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x08aa)},
 	{USB_DEVICE(0x046d, 0x08ac)},
 	{USB_DEVICE(0x046d, 0x08ad)},
-#if !defined CONFIG_USB_ZC0301 && !defined CONFIG_USB_ZC0301_MODULE
 	{USB_DEVICE(0x046d, 0x08ae)},
-#endif
 	{USB_DEVICE(0x046d, 0x08af)},
 	{USB_DEVICE(0x046d, 0x08b9)},
 	{USB_DEVICE(0x046d, 0x08d7)},
-	{USB_DEVICE(0x046d, 0x08d9)},
 	{USB_DEVICE(0x046d, 0x08d8)},
+	{USB_DEVICE(0x046d, 0x08d9)},
 	{USB_DEVICE(0x046d, 0x08da)},
 	{USB_DEVICE(0x046d, 0x08dd), .driver_info = SENSOR_MC501CB},
 	{USB_DEVICE(0x0471, 0x0325), .driver_info = SENSOR_PAS106},
@@ -7192,7 +6965,6 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x10fd, 0x8050)},
 	{}			/* end of entry */
 };
-#undef DVNAME
 MODULE_DEVICE_TABLE(usb, device_table);
 
 /* -- device connect -- */
@@ -7217,18 +6989,12 @@ static struct usb_driver sd_driver = {
 
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

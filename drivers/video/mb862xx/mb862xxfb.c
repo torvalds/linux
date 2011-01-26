@@ -550,10 +550,10 @@ static int mb862xx_gdc_init(struct mb862xxfb_par *par)
 	return 0;
 }
 
-static int __devinit of_platform_mb862xx_probe(struct of_device *ofdev,
+static int __devinit of_platform_mb862xx_probe(struct platform_device *ofdev,
 					       const struct of_device_id *id)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct device *dev = &ofdev->dev;
 	struct mb862xxfb_par *par;
 	struct fb_info *info;
@@ -669,7 +669,7 @@ fbrel:
 	return ret;
 }
 
-static int __devexit of_platform_mb862xx_remove(struct of_device *ofdev)
+static int __devexit of_platform_mb862xx_remove(struct platform_device *ofdev)
 {
 	struct fb_info *fbi = dev_get_drvdata(&ofdev->dev);
 	struct mb862xxfb_par *par = fbi->par;

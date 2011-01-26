@@ -17,64 +17,11 @@
 
 /*
  * this file provides support for:
- * /proc/acpi/sleep
  * /proc/acpi/alarm
  * /proc/acpi/wakeup
  */
 
 ACPI_MODULE_NAME("sleep")
-#ifdef	CONFIG_ACPI_PROCFS
-static int acpi_system_sleep_seq_show(struct seq_file *seq, void *offset)
-{
-	int i;
-
-	for (i = 0; i <= ACPI_STATE_S5; i++) {
-		if (sleep_states[i]) {
-			seq_printf(seq, "S%d ", i);
-		}
-	}
-
-	seq_puts(seq, "\n");
-
-	return 0;
-}
-
-static int acpi_system_sleep_open_fs(struct inode *inode, struct file *file)
-{
-	return single_open(file, acpi_system_sleep_seq_show, PDE(inode)->data);
-}
-
-static ssize_t
-acpi_system_write_sleep(struct file *file,
-			const char __user * buffer, size_t count, loff_t * ppos)
-{
-	char str[12];
-	u32 state = 0;
-	int error = 0;
-
-	if (count > sizeof(str) - 1)
-		goto Done;
-	memset(str, 0, sizeof(str));
-	if (copy_from_user(str, buffer, count))
-		return -EFAULT;
-
-	/* Check for S4 bios request */
-	if (!strcmp(str, "4b")) {
-		error = acpi_suspend(4);
-		goto Done;
-	}
-	state = simple_strtoul(str, NULL, 0);
-#ifdef CONFIG_HIBERNATION
-	if (state == 4) {
-		error = hibernate();
-		goto Done;
-	}
-#endif
-	error = acpi_suspend(state);
-      Done:
-	return error ? error : count;
-}
-#endif				/* CONFIG_ACPI_PROCFS */
 
 #if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE) || !defined(CONFIG_X86)
 /* use /sys/class/rtc/rtcX/wakealarm instead; it's not ACPI-specific */
@@ -364,7 +311,9 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 			   dev->pnp.bus_id,
 			   (u32) dev->wakeup.sleep_state,
 			   dev->wakeup.flags.run_wake ? '*' : ' ',
-			   dev->wakeup.state.enabled ? "enabled" : "disabled");
+			   (device_may_wakeup(&dev->dev)
+			     || (ldev && device_may_wakeup(ldev))) ?
+			       "enabled" : "disabled");
 		if (ldev)
 			seq_printf(seq, "%s:%s",
 				   ldev->bus ? ldev->bus->name : "no-bus",
@@ -381,8 +330,10 @@ static void physical_device_enable_wakeup(struct acpi_device *adev)
 {
 	struct device *dev = acpi_get_physical_device(adev->handle);
 
-	if (dev && device_can_wakeup(dev))
-		device_set_wakeup_enable(dev, adev->wakeup.state.enabled);
+	if (dev && device_can_wakeup(dev)) {
+		bool enable = !device_may_wakeup(dev);
+		device_set_wakeup_enable(dev, enable);
+	}
 }
 
 static ssize_t
@@ -394,7 +345,6 @@ acpi_system_write_wakeup_device(struct file *file,
 	char strbuf[5];
 	char str[5] = "";
 	unsigned int len = count;
-	struct acpi_device *found_dev = NULL;
 
 	if (len > 4)
 		len = 4;
@@ -414,33 +364,13 @@ acpi_system_write_wakeup_device(struct file *file,
 			continue;
 
 		if (!strncmp(dev->pnp.bus_id, str, 4)) {
-			dev->wakeup.state.enabled =
-			    dev->wakeup.state.enabled ? 0 : 1;
-			found_dev = dev;
-			break;
-		}
-	}
-	if (found_dev) {
-		physical_device_enable_wakeup(found_dev);
-		list_for_each_safe(node, next, &acpi_wakeup_device_list) {
-			struct acpi_device *dev = container_of(node,
-							       struct
-							       acpi_device,
-							       wakeup_list);
-
-			if ((dev != found_dev) &&
-			    (dev->wakeup.gpe_number ==
-			     found_dev->wakeup.gpe_number)
-			    && (dev->wakeup.gpe_device ==
-				found_dev->wakeup.gpe_device)) {
-				printk(KERN_WARNING
-				       "ACPI: '%s' and '%s' have the same GPE, "
-				       "can't disable/enable one separately\n",
-				       dev->pnp.bus_id, found_dev->pnp.bus_id);
-				dev->wakeup.state.enabled =
-				    found_dev->wakeup.state.enabled;
+			if (device_can_wakeup(&dev->dev)) {
+				bool enable = !device_may_wakeup(&dev->dev);
+				device_set_wakeup_enable(&dev->dev, enable);
+			} else {
 				physical_device_enable_wakeup(dev);
 			}
+			break;
 		}
 	}
 	mutex_unlock(&acpi_device_lock);
@@ -463,17 +393,6 @@ static const struct file_operations acpi_system_wakeup_device_fops = {
 	.release = single_release,
 };
 
-#ifdef	CONFIG_ACPI_PROCFS
-static const struct file_operations acpi_system_sleep_fops = {
-	.owner = THIS_MODULE,
-	.open = acpi_system_sleep_open_fs,
-	.read = seq_read,
-	.write = acpi_system_write_sleep,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-#endif				/* CONFIG_ACPI_PROCFS */
-
 #ifdef	HAVE_ACPI_LEGACY_ALARM
 static const struct file_operations acpi_system_alarm_fops = {
 	.owner = THIS_MODULE,
@@ -495,12 +414,6 @@ static u32 rtc_handler(void *context)
 
 int __init acpi_sleep_proc_init(void)
 {
-#ifdef	CONFIG_ACPI_PROCFS
-	/* 'sleep' [R/W] */
-	proc_create("sleep", S_IFREG | S_IRUGO | S_IWUSR,
-		    acpi_root_dir, &acpi_system_sleep_fops);
-#endif				/* CONFIG_ACPI_PROCFS */
-
 #ifdef	HAVE_ACPI_LEGACY_ALARM
 	/* 'alarm' [R/W] */
 	proc_create("alarm", S_IFREG | S_IRUGO | S_IWUSR,

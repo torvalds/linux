@@ -63,7 +63,7 @@ module_param(nowayout,    int, 0);
 module_param(soft_noboot, int, 0);
 module_param(debug,	  int, 0);
 
-MODULE_PARM_DESC(tmr_margin, "Watchdog tmr_margin in seconds. default="
+MODULE_PARM_DESC(tmr_margin, "Watchdog tmr_margin in seconds. (default="
 		__MODULE_STRING(CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME) ")");
 MODULE_PARM_DESC(tmr_atboot,
 		"Watchdog is started at boot time if set to 1, default="
@@ -71,8 +71,8 @@ MODULE_PARM_DESC(tmr_atboot,
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 MODULE_PARM_DESC(soft_noboot, "Watchdog action, set to 1 to ignore reboots, "
-			"0 to reboot (default depends on ONLY_TESTING)");
-MODULE_PARM_DESC(debug, "Watchdog debug, set to >1 for debug, (default 0)");
+			"0 to reboot (default 0)");
+MODULE_PARM_DESC(debug, "Watchdog debug, set to >1 for debug (default 0)");
 
 static unsigned long open_lock;
 static struct device    *wdt_dev;	/* platform device attached to */
@@ -426,8 +426,7 @@ static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 	wdt_mem = request_mem_region(res->start, size, pdev->name);
 	if (wdt_mem == NULL) {
 		dev_err(dev, "failed to get memory region\n");
-		ret = -ENOENT;
-		goto err_req;
+		return -EBUSY;
 	}
 
 	wdt_base = ioremap(res->start, size);
@@ -533,21 +532,22 @@ static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 
 static int __devexit s3c2410wdt_remove(struct platform_device *dev)
 {
+	misc_deregister(&s3c2410wdt_miscdev);
+
 	s3c2410wdt_cpufreq_deregister();
-
-	release_resource(wdt_mem);
-	kfree(wdt_mem);
-	wdt_mem = NULL;
-
-	free_irq(wdt_irq->start, dev);
-	wdt_irq = NULL;
 
 	clk_disable(wdt_clock);
 	clk_put(wdt_clock);
 	wdt_clock = NULL;
 
+	free_irq(wdt_irq->start, dev);
+	wdt_irq = NULL;
+
 	iounmap(wdt_base);
-	misc_deregister(&s3c2410wdt_miscdev);
+
+	release_resource(wdt_mem);
+	kfree(wdt_mem);
+	wdt_mem = NULL;
 	return 0;
 }
 

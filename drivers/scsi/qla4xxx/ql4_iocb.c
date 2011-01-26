@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2006 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -19,7 +19,7 @@ qla4xxx_space_in_req_ring(struct scsi_qla_host *ha, uint16_t req_cnt)
 
 	/* Calculate number of free request entries. */
 	if ((req_cnt + 2) >= ha->req_q_count) {
-		cnt = (uint16_t) le32_to_cpu(ha->shadow_regs->req_q_out);
+		cnt = (uint16_t) ha->isp_ops->rd_shdw_req_q_out(ha);
 		if (ha->request_in < cnt)
 			ha->req_q_count = cnt - ha->request_in;
 		else
@@ -108,8 +108,7 @@ int qla4xxx_send_marker_iocb(struct scsi_qla_host *ha,
 	wmb();
 
 	/* Tell ISP it's got a new I/O request */
-	writel(ha->request_in, &ha->reg->req_q_in);
-	readl(&ha->reg->req_q_in);
+	ha->isp_ops->queue_iocb(ha);
 
 exit_send_marker:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -191,6 +190,64 @@ static void qla4xxx_build_scsi_iocbs(struct srb *srb,
 
 		cur_dsd++;
 	}
+}
+
+/**
+ * qla4_8xxx_queue_iocb - Tell ISP it's got new request(s)
+ * @ha: pointer to host adapter structure.
+ *
+ * This routine notifies the ISP that one or more new request
+ * queue entries have been placed on the request queue.
+ **/
+void qla4_8xxx_queue_iocb(struct scsi_qla_host *ha)
+{
+	uint32_t dbval = 0;
+
+	dbval = 0x14 | (ha->func_num << 5);
+	dbval = dbval | (0 << 8) | (ha->request_in << 16);
+
+	qla4_8xxx_wr_32(ha, ha->nx_db_wr_ptr, ha->request_in);
+}
+
+/**
+ * qla4_8xxx_complete_iocb - Tell ISP we're done with response(s)
+ * @ha: pointer to host adapter structure.
+ *
+ * This routine notifies the ISP that one or more response/completion
+ * queue entries have been processed by the driver.
+ * This also clears the interrupt.
+ **/
+void qla4_8xxx_complete_iocb(struct scsi_qla_host *ha)
+{
+	writel(ha->response_out, &ha->qla4_8xxx_reg->rsp_q_out);
+	readl(&ha->qla4_8xxx_reg->rsp_q_out);
+}
+
+/**
+ * qla4xxx_queue_iocb - Tell ISP it's got new request(s)
+ * @ha: pointer to host adapter structure.
+ *
+ * This routine is notifies the ISP that one or more new request
+ * queue entries have been placed on the request queue.
+ **/
+void qla4xxx_queue_iocb(struct scsi_qla_host *ha)
+{
+	writel(ha->request_in, &ha->reg->req_q_in);
+	readl(&ha->reg->req_q_in);
+}
+
+/**
+ * qla4xxx_complete_iocb - Tell ISP we're done with response(s)
+ * @ha: pointer to host adapter structure.
+ *
+ * This routine is notifies the ISP that one or more response/completion
+ * queue entries have been processed by the driver.
+ * This also clears the interrupt.
+ **/
+void qla4xxx_complete_iocb(struct scsi_qla_host *ha)
+{
+	writel(ha->response_out, &ha->reg->rsp_q_out);
+	readl(&ha->reg->rsp_q_out);
 }
 
 /**
@@ -310,9 +367,7 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 	srb->iocb_cnt = req_cnt;
 	ha->req_q_count -= req_cnt;
 
-	/* Debug print statements */
-	writel(ha->request_in, &ha->reg->req_q_in);
-	readl(&ha->reg->req_q_in);
+	ha->isp_ops->queue_iocb(ha);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return QLA_SUCCESS;

@@ -5,13 +5,12 @@
  *
  *  sep_dev.h - Security Processor Device Structures
  *
- *  Copyright(c) 2009 Intel Corporation. All rights reserved.
- *  Copyright(c) 2009 Discretix. All rights reserved.
+ *  Copyright(c) 2009,2010 Intel Corporation. All rights reserved.
+ *  Contributions(c) 2009,2010 Discretix. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the Free
- *  Software Foundation; either version 2 of the License, or (at your option)
- *  any later version.
+ *  Software Foundation; version 2 of the License.
  *
  *  This program is distributed in the hope that it will be useful, but WITHOUT
  *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -24,66 +23,113 @@
  *
  *  CONTACTS:
  *
- *  Alan Cox		alan@linux.intel.com
+ *  Mark Allyn		mark.a.allyn@intel.com
+ *  Jayant Mangalampalli jayant.mangalampalli@intel.com
  *
+ *  CHANGES
+ *  2010.09.14  upgrade to Medfield
  */
 
 struct sep_device {
 	/* pointer to pci dev */
 	struct pci_dev *pdev;
 
-	unsigned long in_use;
+	/* character device file */
+	struct cdev sep_cdev;
+	struct cdev sep_daemon_cdev;
+	struct cdev sep_singleton_cdev;
+
+	/* devices (using misc dev) */
+	struct miscdevice miscdev_sep;
+	struct miscdevice miscdev_singleton;
+	struct miscdevice miscdev_daemon;
+
+	/* major / minor numbers of device */
+	dev_t sep_devno;
+	dev_t sep_daemon_devno;
+	dev_t sep_singleton_devno;
+
+	struct mutex sep_mutex;
+	struct mutex ioctl_mutex;
+	spinlock_t snd_rply_lck;
+
+	/* flags to indicate use and lock status of sep */
+	u32 pid_doing_transaction;
+	unsigned long in_use_flags;
+
+	/* request daemon alread open */
+	unsigned long request_daemon_open;
+
+	/* 1 = Moorestown; 0 = Medfield */
+	int mrst;
 
 	/* address of the shared memory allocated during init for SEP driver
 	   (coherent alloc) */
-	void *shared_addr;
-	/* the physical address of the shared area */
 	dma_addr_t shared_bus;
+	size_t shared_size;
+	void *shared_addr;
 
 	/* restricted access region (coherent alloc) */
 	dma_addr_t rar_bus;
+	size_t rar_size;
 	void *rar_addr;
-	/* firmware regions: cache is at rar_addr */
-	unsigned long cache_size;
 
-	/* follows the cache */
+	/* Firmware regions; cache is at rar for Moorestown and
+	   resident is at rar for Medfield */
+	dma_addr_t cache_bus;
+	size_t cache_size;
+	void *cache_addr;
+
 	dma_addr_t resident_bus;
-	unsigned long resident_size;
+	size_t resident_size;
 	void *resident_addr;
 
+	/* sep's scratchpad */
+	dma_addr_t dcache_bus;
+	size_t dcache_size;
+	void *dcache_addr;
+
+	/* Only used on Medfield */
+	dma_addr_t extapp_bus;
+	size_t extapp_size;
+	void *extapp_addr;
+
 	/* start address of the access to the SEP registers from driver */
+	dma_addr_t reg_physical_addr;
+	dma_addr_t reg_physical_end;
 	void __iomem *reg_addr;
-	/* transaction counter that coordinates the transactions between SEP and HOST */
+
+	/* wait queue head (event) of the driver */
+	wait_queue_head_t event;
+	wait_queue_head_t event_request_daemon;
+	wait_queue_head_t event_mmap;
+
+	struct sep_caller_id_entry
+		caller_id_table[SEP_CALLER_ID_TABLE_NUM_ENTRIES];
+
+	/* access flag for singleton device */
+	unsigned long singleton_access_flag;
+
+	/* transaction counter that coordinates the
+	   transactions between SEP and HOST */
 	unsigned long send_ct;
 	/* counter for the messages from sep */
 	unsigned long reply_ct;
-	/* counter for the number of bytes allocated in the pool for the current
-	   transaction */
-	unsigned long data_pool_bytes_allocated;
+	/* counter for the number of bytes allocated in the pool for the
+	   current transaction */
+	long data_pool_bytes_allocated;
 
-	/* array of pointers to the pages that represent input data for the synchronic
-	   DMA action */
-	struct page **in_page_array;
+	u32 num_of_data_allocations;
 
-	/* array of pointers to the pages that represent out data for the synchronic
-	   DMA action */
-	struct page **out_page_array;
+	/* number of the lli tables created in the current transaction */
+	u32     num_lli_tables_created;
 
-	/* number of pages in the sep_in_page_array */
-	unsigned long in_num_pages;
+	/* number of data control blocks */
+	u32 nr_dcb_creat;
 
-	/* number of pages in the sep_out_page_array */
-	unsigned long out_num_pages;
-
-	/* global data for every flow */
-	struct sep_flow_context_t flows[SEP_DRIVER_NUM_FLOWS];
-
-	/* pointer to the workqueue that handles the flow done interrupts */
-	struct workqueue_struct *flow_wq;
+	struct sep_dma_resource dma_res_arr[SEP_MAX_NUM_SYNC_DMA_OPS];
 
 };
-
-static struct sep_device *sep_dev;
 
 static inline void sep_write_reg(struct sep_device *dev, int reg, u32 value)
 {
@@ -101,9 +147,9 @@ static inline u32 sep_read_reg(struct sep_device *dev, int reg)
 static inline void sep_wait_sram_write(struct sep_device *dev)
 {
 	u32 reg_val;
-	do
+	do {
 		reg_val = sep_read_reg(dev, HW_SRAM_DATA_READY_REG_ADDR);
-	while (!(reg_val & 1));
+	} while (!(reg_val & 1));
 }
 
 

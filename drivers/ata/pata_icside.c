@@ -470,7 +470,7 @@ static int __devinit pata_icside_add_ports(struct pata_icside_info *info)
 		pata_icside_setup_ioaddr(ap, info->base, info, info->port[i]);
 	}
 
-	return ata_host_activate(host, ec->irq, ata_sff_interrupt, 0,
+	return ata_host_activate(host, ec->irq, ata_bmdma_interrupt, 0,
 				 &pata_icside_sht);
 }
 

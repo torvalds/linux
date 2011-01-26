@@ -165,7 +165,7 @@ struct lsi_umts {
 	u8 gw_addr_len; /* NW-supplied GW address len */
 	u8 gw_addr[16]; /* NW-supplied GW address (bigendian) */
 	u8 reserved[8];
-} __attribute__ ((packed));
+} __packed;
 
 #define SIERRA_NET_LSI_COMMON_LEN      4
 #define SIERRA_NET_LSI_UMTS_LEN        (sizeof(struct lsi_umts))
@@ -203,7 +203,7 @@ static inline void sierra_net_set_private(struct usbnet *dev,
 /* is packet IPv4 */
 static inline int is_ip(struct sk_buff *skb)
 {
-	return (skb->protocol == cpu_to_be16(ETH_P_IP));
+	return skb->protocol == cpu_to_be16(ETH_P_IP);
 }
 
 /*
@@ -354,7 +354,7 @@ static void sierra_net_set_ctx_index(struct sierra_net_data *priv, u8 ctx_ix)
 
 static inline int sierra_net_is_valid_addrlen(u8 len)
 {
-	return (len == sizeof(struct in_addr));
+	return len == sizeof(struct in_addr);
 }
 
 static int sierra_net_parse_lsi(struct usbnet *dev, char *data, int datalen)
@@ -802,10 +802,9 @@ static void sierra_net_unbind(struct usbnet *dev, struct usb_interface *intf)
 
 	dev_dbg(&dev->udev->dev, "%s", __func__);
 
-	/* Kill the timer then flush the work queue */
+	/* kill the timer and work */
 	del_timer_sync(&priv->sync_timer);
-
-	flush_scheduled_work();
+	cancel_work_sync(&priv->sierra_net_kevent);
 
 	/* tell modem we are going away */
 	status = sierra_net_send_cmd(dev, priv->shdwn_msg,

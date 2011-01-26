@@ -1014,8 +1014,7 @@ static int snd_ac97_free(struct snd_ac97 *ac97)
 {
 	if (ac97) {
 #ifdef CONFIG_SND_AC97_POWER_SAVE
-		cancel_delayed_work(&ac97->power_work);
-		flush_scheduled_work();
+		cancel_delayed_work_sync(&ac97->power_work);
 #endif
 		snd_ac97_proc_done(ac97);
 		if (ac97->bus)
@@ -1962,7 +1961,7 @@ static int snd_ac97_dev_disconnect(struct snd_device *device)
 }
 
 /* build_ops to do nothing */
-static struct snd_ac97_build_ops null_build_ops;
+static const struct snd_ac97_build_ops null_build_ops;
 
 #ifdef CONFIG_SND_AC97_POWER_SAVE
 static void do_update_power(struct work_struct *work)
@@ -2456,8 +2455,7 @@ void snd_ac97_suspend(struct snd_ac97 *ac97)
 	if (ac97->build_ops->suspend)
 		ac97->build_ops->suspend(ac97);
 #ifdef CONFIG_SND_AC97_POWER_SAVE
-	cancel_delayed_work(&ac97->power_work);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&ac97->power_work);
 #endif
 	snd_ac97_powerdown(ac97);
 }

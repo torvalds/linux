@@ -28,10 +28,11 @@
 #include <linux/amba/clcd.h>
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
+#include <linux/amba/pl022.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
@@ -45,10 +46,11 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/clkdev.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <plat/timer-sp.h>
+#include <asm/hardware/timer-sp.h>
+
+#include <plat/sched_clock.h>
 
 #include "core.h"
 
@@ -61,23 +63,25 @@
 #define VA_VIC_BASE		__io_address(VERSATILE_VIC_BASE)
 #define VA_SIC_BASE		__io_address(VERSATILE_SIC_BASE)
 
-static void sic_mask_irq(unsigned int irq)
+static void sic_mask_irq(struct irq_data *d)
 {
-	irq -= IRQ_SIC_START;
+	unsigned int irq = d->irq - IRQ_SIC_START;
+
 	writel(1 << irq, VA_SIC_BASE + SIC_IRQ_ENABLE_CLEAR);
 }
 
-static void sic_unmask_irq(unsigned int irq)
+static void sic_unmask_irq(struct irq_data *d)
 {
-	irq -= IRQ_SIC_START;
+	unsigned int irq = d->irq - IRQ_SIC_START;
+
 	writel(1 << irq, VA_SIC_BASE + SIC_IRQ_ENABLE_SET);
 }
 
 static struct irq_chip sic_chip = {
-	.name	= "SIC",
-	.ack	= sic_mask_irq,
-	.mask	= sic_mask_irq,
-	.unmask	= sic_unmask_irq,
+	.name		= "SIC",
+	.irq_ack	= sic_mask_irq,
+	.irq_mask	= sic_mask_irq,
+	.irq_unmask	= sic_unmask_irq,
 };
 
 static void
@@ -354,6 +358,21 @@ static struct mmci_platform_data mmc0_plat_data = {
 	.gpio_cd	= -1,
 };
 
+static struct resource char_lcd_resources[] = {
+	{
+		.start = VERSATILE_CHAR_LCD_BASE,
+		.end   = (VERSATILE_CHAR_LCD_BASE + SZ_4K - 1),
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device char_lcd_device = {
+	.name           =       "arm-charlcd",
+	.id             =       -1,
+	.num_resources  =       ARRAY_SIZE(char_lcd_resources),
+	.resource       =       char_lcd_resources,
+};
+
 /*
  * Clock handling
  */
@@ -400,8 +419,13 @@ static struct clk ref24_clk = {
 	.rate	= 24000000,
 };
 
+static struct clk dummy_apb_pclk;
+
 static struct clk_lookup lookups[] = {
-	{	/* UART0 */
+	{	/* AMBA bus clock */
+		.con_id		= "apb_pclk",
+		.clk		= &dummy_apb_pclk,
+	}, {	/* UART0 */
 		.dev_id		= "dev:f1",
 		.clk		= &ref24_clk,
 	}, {	/* UART1 */
@@ -424,6 +448,9 @@ static struct clk_lookup lookups[] = {
 		.clk		= &ref24_clk,
 	}, {	/* MMC1 */
 		.dev_id		= "fpga:0b",
+		.clk		= &ref24_clk,
+	}, {	/* SSP */
+		.dev_id		= "dev:f4",
 		.clk		= &ref24_clk,
 	}, {	/* CLCD */
 		.dev_id		= "dev:20",
@@ -703,6 +730,12 @@ static struct pl061_platform_data gpio1_plat_data = {
 	.irq_base	= IRQ_GPIO1_START,
 };
 
+static struct pl022_ssp_controller ssp0_plat_data = {
+	.bus_id = 0,
+	.enable_dma = 0,
+	.num_chipselect = 1,
+};
+
 #define AACI_IRQ	{ IRQ_AACI, NO_IRQ }
 #define AACI_DMA	{ 0x80, 0x81 }
 #define MMCI0_IRQ	{ IRQ_MMCI0A,IRQ_SIC_MMCI0B }
@@ -772,7 +805,7 @@ AMBA_DEVICE(sci0,  "dev:f0",  SCI,      NULL);
 AMBA_DEVICE(uart0, "dev:f1",  UART0,    NULL);
 AMBA_DEVICE(uart1, "dev:f2",  UART1,    NULL);
 AMBA_DEVICE(uart2, "dev:f3",  UART2,    NULL);
-AMBA_DEVICE(ssp0,  "dev:f4",  SSP,      NULL);
+AMBA_DEVICE(ssp0,  "dev:f4",  SSP,      &ssp0_plat_data);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&dmac_device,
@@ -843,6 +876,7 @@ void __init versatile_init(void)
 	platform_device_register(&versatile_flash_device);
 	platform_device_register(&versatile_i2c_device);
 	platform_device_register(&smc91x_device);
+	platform_device_register(&char_lcd_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
@@ -853,6 +887,12 @@ void __init versatile_init(void)
 	leds_event = versatile_leds_event;
 #endif
 }
+
+/*
+ * The sched_clock counter
+ */
+#define REFCOUNTER		(__io_address(VERSATILE_SYS_BASE) + \
+				 VERSATILE_SYS_24MHz_OFFSET)
 
 /*
  * Where is the timer (VA)?
@@ -868,6 +908,8 @@ void __init versatile_init(void)
 static void __init versatile_timer_init(void)
 {
 	u32 val;
+
+	versatile_sched_clock_init(REFCOUNTER, 24000000);
 
 	/* 
 	 * set clock frequency: 

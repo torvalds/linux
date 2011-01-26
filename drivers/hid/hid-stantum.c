@@ -222,7 +222,7 @@ static int stantum_probe(struct hid_device *hdev,
 
 	sd = kmalloc(sizeof(struct stantum_data), GFP_KERNEL);
 	if (!sd) {
-		dev_err(&hdev->dev, "cannot allocate Stantum data\n");
+		hid_err(hdev, "cannot allocate Stantum data\n");
 		return -ENOMEM;
 	}
 	sd->valid = false;
@@ -249,6 +249,8 @@ static void stantum_remove(struct hid_device *hdev)
 
 static const struct hid_device_id stantum_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_STANTUM, USB_DEVICE_ID_MTP) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_STANTUM_STM, USB_DEVICE_ID_MTP_STM) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_STANTUM_SITRONIX, USB_DEVICE_ID_MTP_SITRONIX) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, stantum_devices);

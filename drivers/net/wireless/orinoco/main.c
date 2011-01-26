@@ -172,7 +172,7 @@ struct hermes_txexc_data {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
-} __attribute__ ((packed));
+} __packed;
 
 /* Rx frame header except compatibility 802.3 header */
 struct hermes_rx_descriptor {
@@ -196,7 +196,7 @@ struct hermes_rx_descriptor {
 
 	/* Data length */
 	__le16 data_len;
-} __attribute__ ((packed));
+} __packed;
 
 struct orinoco_rx_data {
 	struct hermes_rx_descriptor *desc;
@@ -390,7 +390,7 @@ int orinoco_process_xmit_skb(struct sk_buff *skb,
 		struct header_struct {
 			struct ethhdr eth;	/* 802.3 header */
 			u8 encap[6];		/* 802.2 header */
-		} __attribute__ ((packed)) hdr;
+		} __packed hdr;
 		int len = skb->len + sizeof(encaps_hdr) - (2 * ETH_ALEN);
 
 		if (skb_headroom(skb) < ENCAPS_OVERHEAD) {
@@ -1170,7 +1170,7 @@ static void orinoco_join_ap(struct work_struct *work)
 	struct join_req {
 		u8 bssid[ETH_ALEN];
 		__le16 channel;
-	} __attribute__ ((packed)) req;
+	} __packed req;
 	const int atom_len = offsetof(struct prism2_scan_apinfo, atim);
 	struct prism2_scan_apinfo *atom = NULL;
 	int offset = 4;
@@ -1392,10 +1392,9 @@ static void orinoco_process_scan_results(struct work_struct *work)
 				orinoco_add_hostscan_results(priv, buf, len);
 
 			kfree(buf);
-		} else if (priv->scan_request) {
+		} else {
 			/* Either abort or complete the scan */
-			cfg80211_scan_done(priv->scan_request, (len < 0));
-			priv->scan_request = NULL;
+			orinoco_scan_done(priv, (len < 0));
 		}
 
 		spin_lock_irqsave(&priv->scan_lock, flags);
@@ -1410,7 +1409,7 @@ void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 	struct {
 		__le16 len;
 		__le16 type;
-	} __attribute__ ((packed)) info;
+	} __packed info;
 	int len, type;
 	int err;
 
@@ -1684,6 +1683,8 @@ static int __orinoco_down(struct orinoco_private *priv)
 		hermes_write_regn(hw, EVACK, 0xffff);
 	}
 
+	orinoco_scan_done(priv, true);
+
 	/* firmware will have to reassociate */
 	netif_carrier_off(dev);
 	priv->last_linkstatus = 0xffff;
@@ -1762,10 +1763,7 @@ void orinoco_reset(struct work_struct *work)
 	orinoco_unlock(priv, &flags);
 
 	/* Scanning support: Notify scan cancellation */
-	if (priv->scan_request) {
-		cfg80211_scan_done(priv->scan_request, 1);
-		priv->scan_request = NULL;
-	}
+	orinoco_scan_done(priv, true);
 
 	if (priv->hard_reset) {
 		err = (*priv->hard_reset)(priv);
@@ -1812,6 +1810,12 @@ static int __orinoco_commit(struct orinoco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 	int err = 0;
+
+	/* If we've called commit, we are reconfiguring or bringing the
+	 * interface up. Maintaining countermeasures across this would
+	 * be confusing, so note that we've disabled them. The port will
+	 * be enabled later in orinoco_commit or __orinoco_up. */
+	priv->tkip_cm_active = 0;
 
 	err = orinoco_hw_program_rids(priv);
 

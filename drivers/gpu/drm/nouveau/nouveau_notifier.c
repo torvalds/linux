@@ -28,6 +28,7 @@
 #include "drmP.h"
 #include "drm.h"
 #include "nouveau_drv.h"
+#include "nouveau_ramht.h"
 
 int
 nouveau_notifier_init_channel(struct nouveau_channel *chan)
@@ -55,7 +56,7 @@ nouveau_notifier_init_channel(struct nouveau_channel *chan)
 	if (ret)
 		goto out_err;
 
-	ret = nouveau_mem_init_heap(&chan->notifier_heap, 0, ntfy->bo.mem.size);
+	ret = drm_mm_init(&chan->notifier_heap, 0, ntfy->bo.mem.size);
 	if (ret)
 		goto out_err;
 
@@ -80,7 +81,7 @@ nouveau_notifier_takedown_channel(struct nouveau_channel *chan)
 	nouveau_bo_unpin(chan->notifier_bo);
 	mutex_unlock(&dev->struct_mutex);
 	drm_gem_object_unreference_unlocked(chan->notifier_bo->gem);
-	nouveau_mem_takedown(&chan->notifier_heap);
+	drm_mm_takedown(&chan->notifier_heap);
 }
 
 static void
@@ -90,7 +91,7 @@ nouveau_notifier_gpuobj_dtor(struct drm_device *dev,
 	NV_DEBUG(dev, "\n");
 
 	if (gpuobj->priv)
-		nouveau_mem_free_block(gpuobj->priv);
+		drm_mm_put_block(gpuobj->priv);
 }
 
 int
@@ -98,64 +99,42 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 		       int size, uint32_t *b_offset)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *nobj = NULL;
-	struct mem_block *mem;
+	struct drm_mm_node *mem;
 	uint32_t offset;
 	int target, ret;
 
-	if (!chan->notifier_heap) {
-		NV_ERROR(dev, "Channel %d doesn't have a notifier heap!\n",
-			 chan->id);
-		return -EINVAL;
-	}
-
-	mem = nouveau_mem_alloc_block(chan->notifier_heap, size, 0,
-				      (struct drm_file *)-2, 0);
+	mem = drm_mm_search_free(&chan->notifier_heap, size, 0, 0);
+	if (mem)
+		mem = drm_mm_get_block(mem, size, 0);
 	if (!mem) {
 		NV_ERROR(dev, "Channel %d notifier block full\n", chan->id);
 		return -ENOMEM;
 	}
 
-	offset = chan->notifier_bo->bo.mem.mm_node->start << PAGE_SHIFT;
-	if (chan->notifier_bo->bo.mem.mem_type == TTM_PL_VRAM) {
-		target = NV_DMA_TARGET_VIDMEM;
-	} else
-	if (chan->notifier_bo->bo.mem.mem_type == TTM_PL_TT) {
-		if (dev_priv->gart_info.type == NOUVEAU_GART_SGDMA &&
-		    dev_priv->card_type < NV_50) {
-			ret = nouveau_sgdma_get_page(dev, offset, &offset);
-			if (ret)
-				return ret;
-			target = NV_DMA_TARGET_PCI;
-		} else {
-			target = NV_DMA_TARGET_AGP;
-			if (dev_priv->card_type >= NV_50)
-				offset += dev_priv->vm_gart_base;
-		}
-	} else {
-		NV_ERROR(dev, "Bad DMA target, mem_type %d!\n",
-			 chan->notifier_bo->bo.mem.mem_type);
-		return -EINVAL;
-	}
+	if (chan->notifier_bo->bo.mem.mem_type == TTM_PL_VRAM)
+		target = NV_MEM_TARGET_VRAM;
+	else
+		target = NV_MEM_TARGET_GART;
+	offset  = chan->notifier_bo->bo.mem.start << PAGE_SHIFT;
 	offset += mem->start;
 
 	ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, offset,
-				     mem->size, NV_DMA_ACCESS_RW, target,
+				     mem->size, NV_MEM_ACCESS_RW, target,
 				     &nobj);
 	if (ret) {
-		nouveau_mem_free_block(mem);
+		drm_mm_put_block(mem);
 		NV_ERROR(dev, "Error creating notifier ctxdma: %d\n", ret);
 		return ret;
 	}
-	nobj->dtor   = nouveau_notifier_gpuobj_dtor;
-	nobj->priv   = mem;
+	nobj->dtor = nouveau_notifier_gpuobj_dtor;
+	nobj->priv = mem;
 
-	ret = nouveau_gpuobj_ref_add(dev, chan, handle, nobj, NULL);
+	ret = nouveau_ramht_insert(chan, handle, nobj);
+	nouveau_gpuobj_ref(NULL, &nobj);
 	if (ret) {
-		nouveau_gpuobj_del(dev, &nobj);
-		nouveau_mem_free_block(mem);
-		NV_ERROR(dev, "Error referencing notifier ctxdma: %d\n", ret);
+		drm_mm_put_block(mem);
+		NV_ERROR(dev, "Error adding notifier to ramht: %d\n", ret);
 		return ret;
 	}
 
@@ -170,7 +149,7 @@ nouveau_notifier_offset(struct nouveau_gpuobj *nobj, uint32_t *poffset)
 		return -EINVAL;
 
 	if (poffset) {
-		struct mem_block *mem = nobj->priv;
+		struct drm_mm_node *mem = nobj->priv;
 
 		if (*poffset >= mem->size)
 			return false;
@@ -185,16 +164,20 @@ int
 nouveau_ioctl_notifier_alloc(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct drm_nouveau_notifierobj_alloc *na = data;
 	struct nouveau_channel *chan;
 	int ret;
 
-	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;
-	NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(na->channel, file_priv, chan);
+	/* completely unnecessary for these chipsets... */
+	if (unlikely(dev_priv->card_type >= NV_C0))
+		return -EINVAL;
+
+	chan = nouveau_channel_get(dev, file_priv, na->channel);
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
 
 	ret = nouveau_notifier_alloc(chan, na->handle, na->size, &na->offset);
-	if (ret)
-		return ret;
-
-	return 0;
+	nouveau_channel_put(&chan);
+	return ret;
 }

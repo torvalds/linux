@@ -198,12 +198,13 @@ static void ar9170_print_txheader(struct ar9170 *ar, struct sk_buff *skb)
 	struct ar9170_tx_info *arinfo = (void *) txinfo->rate_driver_data;
 	struct ieee80211_hdr *hdr = (void *) txc->frame_data;
 
-	printk(KERN_DEBUG "%s: => FRAME [skb:%p, q:%d, DA:[%pM] s:%d "
-			  "mac_ctrl:%04x, phy_ctrl:%08x, timeout:[%d ms]]\n",
-	       wiphy_name(ar->hw->wiphy), skb, skb_get_queue_mapping(skb),
-	       ieee80211_get_DA(hdr), ar9170_get_seq_h(hdr),
-	       le16_to_cpu(txc->mac_control), le32_to_cpu(txc->phy_control),
-	       jiffies_to_msecs(arinfo->timeout - jiffies));
+	wiphy_debug(ar->hw->wiphy,
+		    "=> FRAME [skb:%p, q:%d, DA:[%pM] s:%d "
+		    "mac_ctrl:%04x, phy_ctrl:%08x, timeout:[%d ms]]\n",
+		    skb, skb_get_queue_mapping(skb),
+		    ieee80211_get_DA(hdr), ar9170_get_seq_h(hdr),
+		    le16_to_cpu(txc->mac_control), le32_to_cpu(txc->phy_control),
+		    jiffies_to_msecs(arinfo->timeout - jiffies));
 }
 
 static void __ar9170_dump_txqueue(struct ar9170 *ar,
@@ -213,8 +214,8 @@ static void __ar9170_dump_txqueue(struct ar9170 *ar,
 	int i = 0;
 
 	printk(KERN_DEBUG "---[ cut here ]---\n");
-	printk(KERN_DEBUG "%s: %d entries in queue.\n",
-	       wiphy_name(ar->hw->wiphy), skb_queue_len(queue));
+	wiphy_debug(ar->hw->wiphy, "%d entries in queue.\n",
+		    skb_queue_len(queue));
 
 	skb_queue_walk(queue, skb) {
 		printk(KERN_DEBUG "index:%d =>\n", i++);
@@ -244,15 +245,14 @@ static void __ar9170_dump_txstats(struct ar9170 *ar)
 {
 	int i;
 
-	printk(KERN_DEBUG "%s: QoS queue stats\n",
-	       wiphy_name(ar->hw->wiphy));
+	wiphy_debug(ar->hw->wiphy, "QoS queue stats\n");
 
 	for (i = 0; i < __AR9170_NUM_TXQ; i++)
-		printk(KERN_DEBUG "%s: queue:%d limit:%d len:%d waitack:%d "
-		       " stopped:%d\n", wiphy_name(ar->hw->wiphy), i,
-		       ar->tx_stats[i].limit, ar->tx_stats[i].len,
-		       skb_queue_len(&ar->tx_status[i]),
-		       ieee80211_queue_stopped(ar->hw, i));
+		wiphy_debug(ar->hw->wiphy,
+			    "queue:%d limit:%d len:%d waitack:%d stopped:%d\n",
+			    i, ar->tx_stats[i].limit, ar->tx_stats[i].len,
+			    skb_queue_len(&ar->tx_status[i]),
+			    ieee80211_queue_stopped(ar->hw, i));
 }
 #endif /* AR9170_QUEUE_STOP_DEBUG */
 
@@ -274,9 +274,9 @@ static void ar9170_recycle_expired(struct ar9170 *ar,
 
 		if (time_is_before_jiffies(arinfo->timeout)) {
 #ifdef AR9170_QUEUE_DEBUG
-			printk(KERN_DEBUG "%s: [%ld > %ld] frame expired => "
-			       "recycle\n", wiphy_name(ar->hw->wiphy),
-			       jiffies, arinfo->timeout);
+			wiphy_debug(ar->hw->wiphy,
+				    "[%ld > %ld] frame expired => recycle\n",
+				    jiffies, arinfo->timeout);
 			ar9170_print_txheader(ar, skb);
 #endif /* AR9170_QUEUE_DEBUG */
 			__skb_unlink(skb, queue);
@@ -317,8 +317,8 @@ static void ar9170_tx_status(struct ar9170 *ar, struct sk_buff *skb,
 		break;
 
 	default:
-		printk(KERN_ERR "%s: invalid tx_status response (%x).\n",
-		       wiphy_name(ar->hw->wiphy), tx_status);
+		wiphy_err(ar->hw->wiphy,
+			  "invalid tx_status response (%x)\n", tx_status);
 		break;
 	}
 
@@ -339,8 +339,7 @@ void ar9170_tx_callback(struct ar9170 *ar, struct sk_buff *skb)
 
 	if (ar->tx_stats[queue].len < AR9170_NUM_TX_LIMIT_SOFT) {
 #ifdef AR9170_QUEUE_STOP_DEBUG
-		printk(KERN_DEBUG "%s: wake queue %d\n",
-		       wiphy_name(ar->hw->wiphy), queue);
+		wiphy_debug(ar->hw->wiphy, "wake queue %d\n", queue);
 		__ar9170_dump_txstats(ar);
 #endif /* AR9170_QUEUE_STOP_DEBUG */
 		ieee80211_wake_queue(ar->hw, queue);
@@ -387,9 +386,9 @@ static struct sk_buff *ar9170_get_queued_skb(struct ar9170 *ar,
 
 		if (mac && compare_ether_addr(ieee80211_get_DA(hdr), mac)) {
 #ifdef AR9170_QUEUE_DEBUG
-			printk(KERN_DEBUG "%s: skip frame => DA %pM != %pM\n",
-			       wiphy_name(ar->hw->wiphy), mac,
-			       ieee80211_get_DA(hdr));
+			wiphy_debug(ar->hw->wiphy,
+				    "skip frame => DA %pM != %pM\n",
+				    mac, ieee80211_get_DA(hdr));
 			ar9170_print_txheader(ar, skb);
 #endif /* AR9170_QUEUE_DEBUG */
 			continue;
@@ -400,8 +399,8 @@ static struct sk_buff *ar9170_get_queued_skb(struct ar9170 *ar,
 
 		if ((rate != AR9170_TX_INVALID_RATE) && (r != rate)) {
 #ifdef AR9170_QUEUE_DEBUG
-			printk(KERN_DEBUG "%s: skip frame => rate %d != %d\n",
-			       wiphy_name(ar->hw->wiphy), rate, r);
+			wiphy_debug(ar->hw->wiphy,
+				    "skip frame => rate %d != %d\n", rate, r);
 			ar9170_print_txheader(ar, skb);
 #endif /* AR9170_QUEUE_DEBUG */
 			continue;
@@ -413,9 +412,9 @@ static struct sk_buff *ar9170_get_queued_skb(struct ar9170 *ar,
 	}
 
 #ifdef AR9170_QUEUE_DEBUG
-	printk(KERN_ERR "%s: ESS:[%pM] does not have any "
-			"outstanding frames in queue.\n",
-			wiphy_name(ar->hw->wiphy), mac);
+	wiphy_err(ar->hw->wiphy,
+		  "ESS:[%pM] does not have any outstanding frames in queue.\n",
+		  mac);
 	__ar9170_dump_txqueue(ar, queue);
 #endif /* AR9170_QUEUE_DEBUG */
 	spin_unlock_irqrestore(&queue->lock, flags);
@@ -444,8 +443,8 @@ static void ar9170_tx_janitor(struct work_struct *work)
 
 	for (i = 0; i < __AR9170_NUM_TXQ; i++) {
 #ifdef AR9170_QUEUE_DEBUG
-		printk(KERN_DEBUG "%s: garbage collector scans queue:%d\n",
-		       wiphy_name(ar->hw->wiphy), i);
+		wiphy_debug(ar->hw->wiphy, "garbage collector scans queue:%d\n",
+			    i);
 		ar9170_dump_txqueue(ar, &ar->tx_pending[i]);
 		ar9170_dump_txqueue(ar, &ar->tx_status[i]);
 #endif /* AR9170_QUEUE_DEBUG */
@@ -495,8 +494,9 @@ void ar9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 		u32 q = (phy & AR9170_TX_PHY_QOS_MASK) >>
 			AR9170_TX_PHY_QOS_SHIFT;
 #ifdef AR9170_QUEUE_DEBUG
-		printk(KERN_DEBUG "%s: recv tx_status for %pM, p:%08x, q:%d\n",
-		       wiphy_name(ar->hw->wiphy), cmd->tx_status.dst, phy, q);
+		wiphy_debug(ar->hw->wiphy,
+			    "recv tx_status for %pm, p:%08x, q:%d\n",
+			    cmd->tx_status.dst, phy, q);
 #endif /* AR9170_QUEUE_DEBUG */
 
 		skb = ar9170_get_queued_skb(ar, cmd->tx_status.dst,
@@ -582,7 +582,7 @@ void ar9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 		break;
 
 	default:
-		printk(KERN_INFO "received unhandled event %x\n", cmd->type);
+		pr_info("received unhandled event %x\n", cmd->type);
 		print_hex_dump_bytes("dump:", DUMP_PREFIX_NONE, buf, len);
 		break;
 	}
@@ -675,9 +675,9 @@ static int ar9170_rx_mac_status(struct ar9170 *ar,
 		/* TODO: update netdevice's RX dropped/errors statistics */
 
 		if (ar9170_nag_limiter(ar))
-			printk(KERN_DEBUG "%s: received frame with "
-			       "suspicious error code (%#x).\n",
-			       wiphy_name(ar->hw->wiphy), error);
+			wiphy_debug(ar->hw->wiphy,
+				    "received frame with suspicious error code (%#x).\n",
+				    error);
 
 		return -EINVAL;
 	}
@@ -704,9 +704,9 @@ static int ar9170_rx_mac_status(struct ar9170 *ar,
 			break;
 		default:
 			if (ar9170_nag_limiter(ar))
-				printk(KERN_ERR "%s: invalid plcp cck rate "
-				       "(%x).\n", wiphy_name(ar->hw->wiphy),
-				       head->plcp[0]);
+				wiphy_err(ar->hw->wiphy,
+					  "invalid plcp cck rate (%x).\n",
+					  head->plcp[0]);
 			return -EINVAL;
 		}
 		break;
@@ -740,9 +740,9 @@ static int ar9170_rx_mac_status(struct ar9170 *ar,
 			break;
 		default:
 			if (ar9170_nag_limiter(ar))
-				printk(KERN_ERR "%s: invalid plcp ofdm rate "
-				       "(%x).\n", wiphy_name(ar->hw->wiphy),
-				       head->plcp[0]);
+				wiphy_err(ar->hw->wiphy,
+					  "invalid plcp ofdm rate (%x).\n",
+					  head->plcp[0]);
 			return -EINVAL;
 		}
 		if (status->band == IEEE80211_BAND_2GHZ)
@@ -761,8 +761,7 @@ static int ar9170_rx_mac_status(struct ar9170 *ar,
 
 	default:
 		if (ar9170_nag_limiter(ar))
-			printk(KERN_ERR "%s: invalid modulation\n",
-			       wiphy_name(ar->hw->wiphy));
+			wiphy_err(ar->hw->wiphy, "invalid modulation\n");
 		return -EINVAL;
 	}
 
@@ -863,8 +862,8 @@ static void ar9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 			ar->rx_mpdu.has_plcp = true;
 		} else {
 			if (ar9170_nag_limiter(ar))
-				printk(KERN_ERR "%s: plcp info is clipped.\n",
-				       wiphy_name(ar->hw->wiphy));
+				wiphy_err(ar->hw->wiphy,
+					  "plcp info is clipped.\n");
 			return ;
 		}
 		break;
@@ -877,8 +876,8 @@ static void ar9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 			phy = (void *)(buf + mpdu_len);
 		} else {
 			if (ar9170_nag_limiter(ar))
-				printk(KERN_ERR "%s: frame tail is clipped.\n",
-				       wiphy_name(ar->hw->wiphy));
+				wiphy_err(ar->hw->wiphy,
+					  "frame tail is clipped.\n");
 			return ;
 		}
 
@@ -888,9 +887,8 @@ static void ar9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 			if (!ar9170_nag_limiter(ar))
 				return ;
 
-			printk(KERN_ERR "%s: rx stream did not start "
-					"with a first_mpdu frame tag.\n",
-			       wiphy_name(ar->hw->wiphy));
+			wiphy_err(ar->hw->wiphy,
+				  "rx stream did not start with a first_mpdu frame tag.\n");
 
 			return ;
 		}
@@ -954,8 +952,8 @@ void ar9170_rx(struct ar9170 *ar, struct sk_buff *skb)
 			if (!ar->rx_failover_missing) {
 				/* this is no "short read". */
 				if (ar9170_nag_limiter(ar)) {
-					printk(KERN_ERR "%s: missing tag!\n",
-					       wiphy_name(ar->hw->wiphy));
+					wiphy_err(ar->hw->wiphy,
+						  "missing tag!\n");
 					goto err_telluser;
 				} else
 					goto err_silent;
@@ -963,9 +961,8 @@ void ar9170_rx(struct ar9170 *ar, struct sk_buff *skb)
 
 			if (ar->rx_failover_missing > tlen) {
 				if (ar9170_nag_limiter(ar)) {
-					printk(KERN_ERR "%s: possible multi "
-					       "stream corruption!\n",
-					       wiphy_name(ar->hw->wiphy));
+					wiphy_err(ar->hw->wiphy,
+						  "possible multi stream corruption!\n");
 					goto err_telluser;
 				} else
 					goto err_silent;
@@ -997,9 +994,8 @@ void ar9170_rx(struct ar9170 *ar, struct sk_buff *skb)
 			if (ar->rx_failover_missing) {
 				/* TODO: handle double stream corruption. */
 				if (ar9170_nag_limiter(ar)) {
-					printk(KERN_ERR "%s: double rx stream "
-					       "corruption!\n",
-						wiphy_name(ar->hw->wiphy));
+					wiphy_err(ar->hw->wiphy,
+						  "double rx stream corruption!\n");
 					goto err_telluser;
 				} else
 					goto err_silent;
@@ -1042,9 +1038,9 @@ void ar9170_rx(struct ar9170 *ar, struct sk_buff *skb)
 
 	if (tlen) {
 		if (net_ratelimit())
-			printk(KERN_ERR "%s: %d bytes of unprocessed "
-					"data left in rx stream!\n",
-			       wiphy_name(ar->hw->wiphy), tlen);
+			wiphy_err(ar->hw->wiphy,
+				  "%d bytes of unprocessed data left in rx stream!\n",
+				  tlen);
 
 		goto err_telluser;
 	}
@@ -1052,10 +1048,9 @@ void ar9170_rx(struct ar9170 *ar, struct sk_buff *skb)
 	return ;
 
 err_telluser:
-	printk(KERN_ERR "%s: damaged RX stream data [want:%d, "
-			"data:%d, rx:%d, pending:%d ]\n",
-	       wiphy_name(ar->hw->wiphy), clen, wlen, tlen,
-	       ar->rx_failover_missing);
+	wiphy_err(ar->hw->wiphy,
+		  "damaged RX stream data [want:%d, data:%d, rx:%d, pending:%d ]\n",
+		  clen, wlen, tlen, ar->rx_failover_missing);
 
 	if (ar->rx_failover_missing)
 		print_hex_dump_bytes("rxbuf:", DUMP_PREFIX_OFFSET,
@@ -1065,9 +1060,8 @@ err_telluser:
 	print_hex_dump_bytes("stream:", DUMP_PREFIX_OFFSET,
 			     skb->data, skb->len);
 
-	printk(KERN_ERR "%s: please check your hardware and cables, if "
-			"you see this message frequently.\n",
-	       wiphy_name(ar->hw->wiphy));
+	wiphy_err(ar->hw->wiphy,
+		  "If you see this message frequently, please check your hardware and cables.\n");
 
 err_silent:
 	if (ar->rx_failover_missing) {
@@ -1196,14 +1190,13 @@ static int ar9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 	if (info->control.hw_key) {
 		icv = info->control.hw_key->icv_len;
 
-		switch (info->control.hw_key->alg) {
-		case ALG_WEP:
+		switch (info->control.hw_key->cipher) {
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+		case WLAN_CIPHER_SUITE_TKIP:
 			keytype = AR9170_TX_MAC_ENCR_RC4;
 			break;
-		case ALG_TKIP:
-			keytype = AR9170_TX_MAC_ENCR_RC4;
-			break;
-		case ALG_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP:
 			keytype = AR9170_TX_MAC_ENCR_AES;
 			break;
 		default:
@@ -1384,10 +1377,10 @@ static void ar9170_tx(struct ar9170 *ar)
 
 		if (remaining_space < frames) {
 #ifdef AR9170_QUEUE_DEBUG
-			printk(KERN_DEBUG "%s: tx quota reached queue:%d, "
-			       "remaining slots:%d, needed:%d\n",
-			       wiphy_name(ar->hw->wiphy), i, remaining_space,
-			       frames);
+			wiphy_debug(ar->hw->wiphy,
+				    "tx quota reached queue:%d, "
+				    "remaining slots:%d, needed:%d\n",
+				    i, remaining_space, frames);
 #endif /* AR9170_QUEUE_DEBUG */
 			frames = remaining_space;
 		}
@@ -1396,18 +1389,14 @@ static void ar9170_tx(struct ar9170 *ar)
 		ar->tx_stats[i].count += frames;
 		if (ar->tx_stats[i].len >= ar->tx_stats[i].limit) {
 #ifdef AR9170_QUEUE_DEBUG
-			printk(KERN_DEBUG "%s: queue %d full\n",
-			       wiphy_name(ar->hw->wiphy), i);
-
-			printk(KERN_DEBUG "%s: stuck frames: ===>\n",
-			       wiphy_name(ar->hw->wiphy));
+			wiphy_debug(ar->hw->wiphy, "queue %d full\n", i);
+			wiphy_debug(ar->hw->wiphy, "stuck frames: ===>\n");
 			ar9170_dump_txqueue(ar, &ar->tx_pending[i]);
 			ar9170_dump_txqueue(ar, &ar->tx_status[i]);
 #endif /* AR9170_QUEUE_DEBUG */
 
 #ifdef AR9170_QUEUE_STOP_DEBUG
-			printk(KERN_DEBUG "%s: stop queue %d\n",
-			       wiphy_name(ar->hw->wiphy), i);
+			wiphy_debug(ar->hw->wiphy, "stop queue %d\n", i);
 			__ar9170_dump_txstats(ar);
 #endif /* AR9170_QUEUE_STOP_DEBUG */
 			ieee80211_stop_queue(ar->hw, i);
@@ -1435,8 +1424,7 @@ static void ar9170_tx(struct ar9170 *ar)
 					  msecs_to_jiffies(AR9170_TX_TIMEOUT);
 
 #ifdef AR9170_QUEUE_DEBUG
-			printk(KERN_DEBUG "%s: send frame q:%d =>\n",
-			       wiphy_name(ar->hw->wiphy), i);
+			wiphy_debug(ar->hw->wiphy, "send frame q:%d =>\n", i);
 			ar9170_print_txheader(ar, skb);
 #endif /* AR9170_QUEUE_DEBUG */
 
@@ -1453,26 +1441,25 @@ static void ar9170_tx(struct ar9170 *ar)
 		}
 
 #ifdef AR9170_QUEUE_DEBUG
-		printk(KERN_DEBUG "%s: ar9170_tx report for queue %d\n",
-		       wiphy_name(ar->hw->wiphy), i);
+		wiphy_debug(ar->hw->wiphy,
+			    "ar9170_tx report for queue %d\n", i);
 
-		printk(KERN_DEBUG "%s: unprocessed pending frames left:\n",
-		       wiphy_name(ar->hw->wiphy));
+		wiphy_debug(ar->hw->wiphy,
+			    "unprocessed pending frames left:\n");
 		ar9170_dump_txqueue(ar, &ar->tx_pending[i]);
 #endif /* AR9170_QUEUE_DEBUG */
 
 		if (unlikely(frames_failed)) {
 #ifdef AR9170_QUEUE_DEBUG
-			printk(KERN_DEBUG "%s: frames failed %d =>\n",
-			       wiphy_name(ar->hw->wiphy), frames_failed);
+			wiphy_debug(ar->hw->wiphy,
+				    "frames failed %d =>\n", frames_failed);
 #endif /* AR9170_QUEUE_DEBUG */
 
 			spin_lock_irqsave(&ar->tx_stats_lock, flags);
 			ar->tx_stats[i].len -= frames_failed;
 			ar->tx_stats[i].count -= frames_failed;
 #ifdef AR9170_QUEUE_STOP_DEBUG
-			printk(KERN_DEBUG "%s: wake queue %d\n",
-			       wiphy_name(ar->hw->wiphy), i);
+			wiphy_debug(ar->hw->wiphy, "wake queue %d\n", i);
 			__ar9170_dump_txstats(ar);
 #endif /* AR9170_QUEUE_STOP_DEBUG */
 			ieee80211_wake_queue(ar->hw, i);
@@ -1790,17 +1777,17 @@ static int ar9170_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if ((!ar->vif) || (ar->disable_offload))
 		return -EOPNOTSUPP;
 
-	switch (key->alg) {
-	case ALG_WEP:
-		if (key->keylen == WLAN_KEY_LEN_WEP40)
-			ktype = AR9170_ENC_ALG_WEP64;
-		else
-			ktype = AR9170_ENC_ALG_WEP128;
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		ktype = AR9170_ENC_ALG_WEP64;
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_WEP104:
+		ktype = AR9170_ENC_ALG_WEP128;
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
 		ktype = AR9170_ENC_ALG_TKIP;
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		ktype = AR9170_ENC_ALG_AESCCMP;
 		break;
 	default:
@@ -1839,7 +1826,7 @@ static int ar9170_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		if (err)
 			goto out;
 
-		if (key->alg == ALG_TKIP) {
+		if (key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 			err = ar9170_upload_key(ar, i, sta ? sta->addr : NULL,
 						ktype, 1, key->key + 16, 16);
 			if (err)
@@ -1876,7 +1863,7 @@ static int ar9170_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			if (err)
 				goto out;
 
-			if (key->alg == ALG_TKIP) {
+			if (key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 				err = ar9170_upload_key(ar, key->hw_key_idx,
 							NULL,
 							AR9170_ENC_ALG_NONE, 1,
@@ -1913,6 +1900,24 @@ static int ar9170_get_stats(struct ieee80211_hw *hw,
 
 	memcpy(stats, &ar->stats, sizeof(*stats));
 	mutex_unlock(&ar->mutex);
+
+	return 0;
+}
+
+static int ar9170_get_survey(struct ieee80211_hw *hw, int idx,
+				struct survey_info *survey)
+{
+	struct ar9170 *ar = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+
+	if (idx != 0)
+		return -ENOENT;
+
+	/* TODO: update noise value, e.g. call ar9170_set_channel */
+
+	survey->channel = conf->channel;
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = ar->noise[0];
 
 	return 0;
 }
@@ -1969,6 +1974,7 @@ static const struct ieee80211_ops ar9170_ops = {
 	.get_tsf		= ar9170_op_get_tsf,
 	.set_key		= ar9170_set_key,
 	.get_stats		= ar9170_get_stats,
+	.get_survey		= ar9170_get_survey,
 	.ampdu_action		= ar9170_ampdu_action,
 };
 

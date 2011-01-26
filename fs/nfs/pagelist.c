@@ -26,12 +26,9 @@ static struct kmem_cache *nfs_page_cachep;
 static inline struct nfs_page *
 nfs_page_alloc(void)
 {
-	struct nfs_page	*p;
-	p = kmem_cache_alloc(nfs_page_cachep, GFP_KERNEL);
-	if (p) {
-		memset(p, 0, sizeof(*p));
+	struct nfs_page	*p = kmem_cache_zalloc(nfs_page_cachep, GFP_KERNEL);
+	if (p)
 		INIT_LIST_HEAD(&p->wb_list);
-	}
 	return p;
 }
 
@@ -64,6 +61,13 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 	req = nfs_page_alloc();
 	if (req == NULL)
 		return ERR_PTR(-ENOMEM);
+
+	/* get lock context early so we can deal with alloc failures */
+	req->wb_lock_context = nfs_get_lock_context(ctx);
+	if (req->wb_lock_context == NULL) {
+		nfs_page_free(req);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	/* Initialize the request struct. Initially, we assume a
 	 * long write-back delay. This will be adjusted in
@@ -108,7 +112,7 @@ int nfs_set_page_tag_locked(struct nfs_page *req)
 {
 	if (!nfs_lock_request_dontget(req))
 		return 0;
-	if (req->wb_page != NULL)
+	if (test_bit(PG_MAPPED, &req->wb_flags))
 		radix_tree_tag_set(&NFS_I(req->wb_context->path.dentry->d_inode)->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
 	return 1;
 }
@@ -118,7 +122,7 @@ int nfs_set_page_tag_locked(struct nfs_page *req)
  */
 void nfs_clear_page_tag_locked(struct nfs_page *req)
 {
-	if (req->wb_page != NULL) {
+	if (test_bit(PG_MAPPED, &req->wb_flags)) {
 		struct inode *inode = req->wb_context->path.dentry->d_inode;
 		struct nfs_inode *nfsi = NFS_I(inode);
 
@@ -141,10 +145,15 @@ void nfs_clear_request(struct nfs_page *req)
 {
 	struct page *page = req->wb_page;
 	struct nfs_open_context *ctx = req->wb_context;
+	struct nfs_lock_context *l_ctx = req->wb_lock_context;
 
 	if (page != NULL) {
 		page_cache_release(page);
 		req->wb_page = NULL;
+	}
+	if (l_ctx != NULL) {
+		nfs_put_lock_context(l_ctx);
+		req->wb_lock_context = NULL;
 	}
 	if (ctx != NULL) {
 		put_nfs_open_context(ctx);
@@ -235,7 +244,7 @@ static int nfs_can_coalesce_requests(struct nfs_page *prev,
 {
 	if (req->wb_context->cred != prev->wb_context->cred)
 		return 0;
-	if (req->wb_context->lockowner != prev->wb_context->lockowner)
+	if (req->wb_lock_context->lockowner != prev->wb_lock_context->lockowner)
 		return 0;
 	if (req->wb_context->state != prev->wb_context->state)
 		return 0;

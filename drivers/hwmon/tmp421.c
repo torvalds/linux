@@ -36,8 +36,8 @@
 #include <linux/sysfs.h>
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x2a, 0x4c, 0x4d, 0x4e, 0x4f,
-				       I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x2a, 0x4c, 0x4d, 0x4e, 0x4f,
+					     I2C_CLIENT_END };
 
 enum chips { tmp421, tmp422, tmp423 };
 
@@ -295,7 +295,6 @@ exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &tmp421_group);
 
 exit_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 
 	return err;
@@ -308,7 +307,6 @@ static int tmp421_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &tmp421_group);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 
 	return 0;

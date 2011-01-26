@@ -390,8 +390,7 @@ cbq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	ret = qdisc_enqueue(skb, cl->q);
 	if (ret == NET_XMIT_SUCCESS) {
 		sch->q.qlen++;
-		sch->bstats.packets++;
-		sch->bstats.bytes += qdisc_pkt_len(skb);
+		qdisc_bstats_update(sch, skb);
 		cbq_mark_toplevel(q, cl);
 		if (!cl->next_alive)
 			cbq_activate_class(cl);
@@ -650,8 +649,7 @@ static int cbq_reshape_fail(struct sk_buff *skb, struct Qdisc *child)
 		ret = qdisc_enqueue(skb, cl->q);
 		if (ret == NET_XMIT_SUCCESS) {
 			sch->q.qlen++;
-			sch->bstats.packets++;
-			sch->bstats.bytes += qdisc_pkt_len(skb);
+			qdisc_bstats_update(sch, skb);
 			if (!cl->next_alive)
 				cbq_activate_class(cl);
 			return 0;
@@ -1379,9 +1377,9 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->link.sibling = &q->link;
 	q->link.common.classid = sch->handle;
 	q->link.qdisc = sch;
-	if (!(q->link.q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
-					    &pfifo_qdisc_ops,
-					    sch->handle)))
+	q->link.q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
+				      sch->handle);
+	if (!q->link.q)
 		q->link.q = &noop_qdisc;
 
 	q->link.priority = TC_CBQ_MAXPRIO-1;
@@ -1623,7 +1621,7 @@ static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	struct cbq_class *cl = (struct cbq_class*)arg;
 
 	if (new == NULL) {
-		new = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
+		new = qdisc_create_dflt(sch->dev_queue,
 					&pfifo_qdisc_ops, cl->common.classid);
 		if (new == NULL)
 			return -ENOBUFS;
@@ -1874,8 +1872,8 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	cl->R_tab = rtab;
 	rtab = NULL;
 	cl->refcnt = 1;
-	if (!(cl->q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
-					&pfifo_qdisc_ops, classid)))
+	cl->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, classid);
+	if (!cl->q)
 		cl->q = &noop_qdisc;
 	cl->common.classid = classid;
 	cl->tparent = parent;

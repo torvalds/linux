@@ -571,7 +571,7 @@ do_more:
 error_return:
 	brelse(bitmap_bh);
 	release_blocks(sb, freed);
-	dquot_free_block(inode, freed);
+	dquot_free_block_nodirty(inode, freed);
 }
 
 /**
@@ -646,10 +646,9 @@ find_next_usable_block(int start, struct buffer_head *bh, int maxblocks)
 	return here;
 }
 
-/*
+/**
  * ext2_try_to_allocate()
  * @sb:			superblock
- * @handle:		handle to this transaction
  * @group:		given allocation block group
  * @bitmap_bh:		bufferhead holds the block bitmap
  * @grp_goal:		given target block within the group
@@ -1418,7 +1417,8 @@ allocated:
 
 	*errp = 0;
 	brelse(bitmap_bh);
-	dquot_free_block(inode, *count-num);
+	dquot_free_block_nodirty(inode, *count-num);
+	mark_inode_dirty(inode);
 	*count = num;
 	return ret_block;
 
@@ -1428,8 +1428,10 @@ out:
 	/*
 	 * Undo the block allocation
 	 */
-	if (!performed_allocation)
-		dquot_free_block(inode, *count);
+	if (!performed_allocation) {
+		dquot_free_block_nodirty(inode, *count);
+		mark_inode_dirty(inode);
+	}
 	brelse(bitmap_bh);
 	return 0;
 }

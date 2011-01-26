@@ -65,9 +65,45 @@
 
 #include "iwl-dev.h"
 
+/* configuration for the _agn devices */
+extern struct iwl_cfg iwl4965_agn_cfg;
+extern struct iwl_cfg iwl5300_agn_cfg;
+extern struct iwl_cfg iwl5100_agn_cfg;
+extern struct iwl_cfg iwl5350_agn_cfg;
+extern struct iwl_cfg iwl5100_bgn_cfg;
+extern struct iwl_cfg iwl5100_abg_cfg;
+extern struct iwl_cfg iwl5150_agn_cfg;
+extern struct iwl_cfg iwl5150_abg_cfg;
+extern struct iwl_cfg iwl6005_2agn_cfg;
+extern struct iwl_cfg iwl6005_2abg_cfg;
+extern struct iwl_cfg iwl6005_2bg_cfg;
+extern struct iwl_cfg iwl1030_bgn_cfg;
+extern struct iwl_cfg iwl1030_bg_cfg;
+extern struct iwl_cfg iwl6030_2agn_cfg;
+extern struct iwl_cfg iwl6030_2abg_cfg;
+extern struct iwl_cfg iwl6030_2bgn_cfg;
+extern struct iwl_cfg iwl6030_2bg_cfg;
+extern struct iwl_cfg iwl6000i_2agn_cfg;
+extern struct iwl_cfg iwl6000i_2abg_cfg;
+extern struct iwl_cfg iwl6000i_2bg_cfg;
+extern struct iwl_cfg iwl6000_3agn_cfg;
+extern struct iwl_cfg iwl6050_2agn_cfg;
+extern struct iwl_cfg iwl6050_2abg_cfg;
+extern struct iwl_cfg iwl6150_bgn_cfg;
+extern struct iwl_cfg iwl1000_bgn_cfg;
+extern struct iwl_cfg iwl1000_bg_cfg;
+extern struct iwl_cfg iwl100_bgn_cfg;
+extern struct iwl_cfg iwl100_bg_cfg;
+extern struct iwl_cfg iwl130_bgn_cfg;
+extern struct iwl_cfg iwl130_bg_cfg;
+
 extern struct iwl_mod_params iwlagn_mod_params;
 extern struct iwl_hcmd_ops iwlagn_hcmd;
+extern struct iwl_hcmd_ops iwlagn_bt_hcmd;
 extern struct iwl_hcmd_utils_ops iwlagn_hcmd_utils;
+
+extern struct ieee80211_ops iwlagn_hw_ops;
+extern struct ieee80211_ops iwl4965_hw_ops;
 
 int iwl_reset_ict(struct iwl_priv *priv);
 void iwl_disable_ict(struct iwl_priv *priv);
@@ -93,6 +129,17 @@ int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 			   u16 ssn_idx, u8 tx_fifo);
 void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask);
+void iwl_free_tfds_in_queue(struct iwl_priv *priv,
+			    int sta_id, int tid, int freed);
+
+/* RXON */
+int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed);
+void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *bss_conf,
+			     u32 changes);
 
 /* uCode */
 int iwlagn_load_ucode(struct iwl_priv *priv);
@@ -102,6 +149,9 @@ void iwlagn_rx_calib_complete(struct iwl_priv *priv,
 			   struct iwl_rx_mem_buffer *rxb);
 void iwlagn_init_alive_start(struct iwl_priv *priv);
 int iwlagn_alive_notify(struct iwl_priv *priv);
+int iwl_verify_ucode(struct iwl_priv *priv);
+void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
+void iwlagn_send_prio_tbl(struct iwl_priv *priv);
 
 /* lib */
 void iwl_check_abort_status(struct iwl_priv *priv,
@@ -117,6 +167,11 @@ const u8 *iwlagn_eeprom_query_addr(const struct iwl_priv *priv,
 void iwlagn_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_hw_nic_init(struct iwl_priv *priv);
+int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv);
+int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
+void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
+void iwl_dump_csr(struct iwl_priv *priv);
+int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display);
 
 /* rx */
 void iwlagn_rx_queue_restock(struct iwl_priv *priv);
@@ -130,8 +185,15 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 		     struct iwl_rx_mem_buffer *rxb);
 void iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
 			 struct iwl_rx_mem_buffer *rxb);
+void iwl_rx_handle(struct iwl_priv *priv);
 
 /* tx */
+void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
+int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
+				 struct iwl_tx_queue *txq,
+				 dma_addr_t addr, u16 len, u8 reset, u8 pad);
+int iwl_hw_tx_queue_init(struct iwl_priv *priv,
+			 struct iwl_tx_queue *txq);
 void iwlagn_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 			      struct ieee80211_tx_info *info);
 int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
@@ -171,11 +233,128 @@ static inline bool iwl_is_tx_success(u32 status)
 	       (status == TX_STATUS_DIRECT_DONE);
 }
 
+u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
+
+/* rx */
+void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
+				struct iwl_rx_mem_buffer *rxb);
+bool iwl_good_plcp_health(struct iwl_priv *priv,
+			  struct iwl_rx_packet *pkt);
+void iwl_rx_statistics(struct iwl_priv *priv,
+		       struct iwl_rx_mem_buffer *rxb);
+void iwl_reply_statistics(struct iwl_priv *priv,
+			  struct iwl_rx_mem_buffer *rxb);
+
 /* scan */
-void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);
+int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);
+void iwlagn_post_scan(struct iwl_priv *priv);
 
 /* station mgmt */
 int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 			       struct ieee80211_vif *vif, bool add);
+
+/* hcmd */
+int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
+			   struct iwl_rxon_context *ctx);
+int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant);
+int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
+
+/* bt coex */
+void iwlagn_send_advance_bt_config(struct iwl_priv *priv);
+void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
+				  struct iwl_rx_mem_buffer *rxb);
+void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv);
+void iwlagn_bt_setup_deferred_work(struct iwl_priv *priv);
+void iwlagn_bt_cancel_deferred_work(struct iwl_priv *priv);
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+const char *iwl_get_tx_fail_reason(u32 status);
+const char *iwl_get_agg_tx_fail_reason(u16 status);
+#else
+static inline const char *iwl_get_tx_fail_reason(u32 status) { return ""; }
+static inline const char *iwl_get_agg_tx_fail_reason(u16 status) { return ""; }
+#endif
+
+/* station management */
+int iwlagn_alloc_bcast_station(struct iwl_priv *priv,
+			       struct iwl_rxon_context *ctx);
+int iwlagn_add_bssid_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+			     const u8 *addr, u8 *sta_id_r);
+int iwl_remove_default_wep_key(struct iwl_priv *priv,
+			       struct iwl_rxon_context *ctx,
+			       struct ieee80211_key_conf *key);
+int iwl_set_default_wep_key(struct iwl_priv *priv,
+			    struct iwl_rxon_context *ctx,
+			    struct ieee80211_key_conf *key);
+int iwl_restore_default_wep_keys(struct iwl_priv *priv,
+				 struct iwl_rxon_context *ctx);
+int iwl_set_dynamic_key(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+			struct ieee80211_key_conf *key, u8 sta_id);
+int iwl_remove_dynamic_key(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+			   struct ieee80211_key_conf *key, u8 sta_id);
+void iwl_update_tkip_key(struct iwl_priv *priv,
+			 struct iwl_rxon_context *ctx,
+			 struct ieee80211_key_conf *keyconf,
+			 struct ieee80211_sta *sta, u32 iv32, u16 *phase1key);
+int iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);
+int iwl_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
+			 int tid, u16 ssn);
+int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
+			int tid);
+void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
+int iwl_update_bcast_stations(struct iwl_priv *priv);
+void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif,
+			   enum sta_notify_cmd cmd,
+			   struct ieee80211_sta *sta);
+
+/* rate */
+static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
+{
+	return BIT(ant_idx) << RATE_MCS_ANT_POS;
+}
+
+static inline u8 iwl_hw_get_rate(__le32 rate_n_flags)
+{
+	return le32_to_cpu(rate_n_flags) & 0xFF;
+}
+
+static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
+{
+	return cpu_to_le32(flags|(u32)rate);
+}
+
+/* eeprom */
+void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv);
+void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac);
+int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv);
+void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv);
+
+/* mac80211 handlers (for 4965) */
+int iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
+int iwlagn_mac_start(struct ieee80211_hw *hw);
+void iwlagn_mac_stop(struct ieee80211_hw *hw);
+void iwlagn_configure_filter(struct ieee80211_hw *hw,
+			     unsigned int changed_flags,
+			     unsigned int *total_flags,
+			     u64 multicast);
+int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+		       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		       struct ieee80211_key_conf *key);
+void iwlagn_mac_update_tkip_key(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_key_conf *keyconf,
+				struct ieee80211_sta *sta,
+				u32 iv32, u16 *phase1key);
+int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    enum ieee80211_ampdu_mlme_action action,
+			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
+		       struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta);
+void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
+			       struct ieee80211_channel_switch *ch_switch);
+void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop);
 
 #endif /* __iwl_agn_h__ */

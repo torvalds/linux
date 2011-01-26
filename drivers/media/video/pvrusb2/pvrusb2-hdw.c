@@ -2082,29 +2082,20 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 		return -EINVAL;
 	}
 
-	/* Note how the 2nd and 3rd arguments are the same for
-	 * v4l2_i2c_new_subdev().  Why?
-	 * Well the 2nd argument is the module name to load, while the 3rd
-	 * argument is documented in the framework as being the "chipid" -
-	 * and every other place where I can find examples of this, the
-	 * "chipid" appears to just be the module name again.  So here we
-	 * just do the same thing. */
 	if (i2ccnt == 1) {
 		pvr2_trace(PVR2_TRACE_INIT,
 			   "Module ID %u:"
 			   " Setting up with specified i2c address 0x%x",
 			   mid, i2caddr[0]);
 		sd = v4l2_i2c_new_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
-					 fname, fname,
-					 i2caddr[0], NULL);
+					 fname, i2caddr[0], NULL);
 	} else {
 		pvr2_trace(PVR2_TRACE_INIT,
 			   "Module ID %u:"
 			   " Setting up with address probe list",
 			   mid);
 		sd = v4l2_i2c_new_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
-						fname, fname,
-						0, i2caddr);
+					 fname, 0, i2caddr);
 	}
 
 	if (!sd) {
@@ -2459,6 +2450,19 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		   hdw,hdw_desc->description);
 	pvr2_trace(PVR2_TRACE_INFO, "Hardware description: %s",
 		hdw_desc->description);
+	if (hdw_desc->flag_is_experimental) {
+		pvr2_trace(PVR2_TRACE_INFO, "**********");
+		pvr2_trace(PVR2_TRACE_INFO,
+			   "WARNING: Support for this device (%s) is"
+			   " experimental.", hdw_desc->description);
+		pvr2_trace(PVR2_TRACE_INFO,
+			   "Important functionality might not be"
+			   " entirely working.");
+		pvr2_trace(PVR2_TRACE_INFO,
+			   "Please consider contacting the driver author to"
+			   " help with further stabilization of the driver.");
+		pvr2_trace(PVR2_TRACE_INFO, "**********");
+	}
 	if (!hdw) goto fail;
 
 	init_timer(&hdw->quiescent_timer);
@@ -3056,14 +3060,14 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 	}
 
 	if (hdw->res_hor_dirty || hdw->res_ver_dirty || hdw->force_dirty) {
-		struct v4l2_format fmt;
+		struct v4l2_mbus_framefmt fmt;
 		memset(&fmt, 0, sizeof(fmt));
-		fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		fmt.fmt.pix.width = hdw->res_hor_val;
-		fmt.fmt.pix.height = hdw->res_ver_val;
+		fmt.width = hdw->res_hor_val;
+		fmt.height = hdw->res_ver_val;
+		fmt.code = V4L2_MBUS_FMT_FIXED;
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_size(%dx%d)",
-			   fmt.fmt.pix.width, fmt.fmt.pix.height);
-		v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_fmt, &fmt);
+			   fmt.width, fmt.height);
+		v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_mbus_fmt, &fmt);
 	}
 
 	if (hdw->srate_dirty || hdw->force_dirty) {
@@ -4084,11 +4088,19 @@ void pvr2_hdw_device_reset(struct pvr2_hdw *hdw)
 
 void pvr2_hdw_cpureset_assert(struct pvr2_hdw *hdw,int val)
 {
-	char da[1];
+	char *da;
 	unsigned int pipe;
 	int ret;
 
 	if (!hdw->usb_dev) return;
+
+	da = kmalloc(16, GFP_KERNEL);
+
+	if (da == NULL) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Unable to allocate memory to control CPU reset");
+		return;
+	}
 
 	pvr2_trace(PVR2_TRACE_INIT,"cpureset_assert(%d)",val);
 
@@ -4103,6 +4115,8 @@ void pvr2_hdw_cpureset_assert(struct pvr2_hdw *hdw,int val)
 			   "cpureset_assert(%d) error=%d",val,ret);
 		pvr2_hdw_render_useless(hdw);
 	}
+
+	kfree(da);
 }
 
 

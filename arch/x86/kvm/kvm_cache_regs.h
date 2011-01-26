@@ -36,11 +36,20 @@ static inline void kvm_rip_write(struct kvm_vcpu *vcpu, unsigned long val)
 
 static inline u64 kvm_pdptr_read(struct kvm_vcpu *vcpu, int index)
 {
+	might_sleep();  /* on svm */
+
 	if (!test_bit(VCPU_EXREG_PDPTR,
 		      (unsigned long *)&vcpu->arch.regs_avail))
 		kvm_x86_ops->cache_reg(vcpu, VCPU_EXREG_PDPTR);
 
-	return vcpu->arch.pdptrs[index];
+	return vcpu->arch.walk_mmu->pdptrs[index];
+}
+
+static inline u64 kvm_pdptr_read_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu, int index)
+{
+	load_pdptrs(vcpu, mmu, mmu->get_cr3(vcpu));
+
+	return mmu->pdptrs[index];
 }
 
 static inline ulong kvm_read_cr0_bits(struct kvm_vcpu *vcpu, ulong mask)
@@ -64,9 +73,37 @@ static inline ulong kvm_read_cr4_bits(struct kvm_vcpu *vcpu, ulong mask)
 	return vcpu->arch.cr4 & mask;
 }
 
+static inline ulong kvm_read_cr3(struct kvm_vcpu *vcpu)
+{
+	if (!test_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail))
+		kvm_x86_ops->decache_cr3(vcpu);
+	return vcpu->arch.cr3;
+}
+
 static inline ulong kvm_read_cr4(struct kvm_vcpu *vcpu)
 {
 	return kvm_read_cr4_bits(vcpu, ~0UL);
+}
+
+static inline u64 kvm_read_edx_eax(struct kvm_vcpu *vcpu)
+{
+	return (kvm_register_read(vcpu, VCPU_REGS_RAX) & -1u)
+		| ((u64)(kvm_register_read(vcpu, VCPU_REGS_RDX) & -1u) << 32);
+}
+
+static inline void enter_guest_mode(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.hflags |= HF_GUEST_MASK;
+}
+
+static inline void leave_guest_mode(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.hflags &= ~HF_GUEST_MASK;
+}
+
+static inline bool is_guest_mode(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.hflags & HF_GUEST_MASK;
 }
 
 #endif

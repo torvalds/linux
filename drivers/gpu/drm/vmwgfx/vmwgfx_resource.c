@@ -211,6 +211,7 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 	cmd->body.cid = cpu_to_le32(res->id);
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_3d_resource_dec(dev_priv);
 }
 
 static int vmw_context_init(struct vmw_private *dev_priv,
@@ -247,6 +248,7 @@ static int vmw_context_init(struct vmw_private *dev_priv,
 	cmd->body.cid = cpu_to_le32(res->id);
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	(void) vmw_3d_resource_inc(dev_priv);
 	vmw_resource_activate(res, vmw_hw_context_destroy);
 	return 0;
 }
@@ -406,6 +408,7 @@ static void vmw_hw_surface_destroy(struct vmw_resource *res)
 	cmd->body.sid = cpu_to_le32(res->id);
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_3d_resource_dec(dev_priv);
 }
 
 void vmw_surface_res_free(struct vmw_resource *res)
@@ -473,6 +476,7 @@ int vmw_surface_init(struct vmw_private *dev_priv,
 	}
 
 	vmw_fifo_commit(dev_priv, submit_size);
+	(void) vmw_3d_resource_inc(dev_priv);
 	vmw_resource_activate(res, vmw_hw_surface_destroy);
 	return 0;
 }
@@ -597,8 +601,10 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	ret = copy_from_user(srf->sizes, user_sizes,
 			     srf->num_sizes * sizeof(*srf->sizes));
-	if (unlikely(ret != 0))
+	if (unlikely(ret != 0)) {
+		ret = -EFAULT;
 		goto out_err1;
+	}
 
 	if (srf->scanout &&
 	    srf->num_sizes == 1 &&
@@ -697,9 +703,11 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	if (user_sizes)
 		ret = copy_to_user(user_sizes, srf->sizes,
 				   srf->num_sizes * sizeof(*srf->sizes));
-	if (unlikely(ret != 0))
+	if (unlikely(ret != 0)) {
 		DRM_ERROR("copy_to_user failed %p %u\n",
 			  user_sizes, srf->num_sizes);
+		ret = -EFAULT;
+	}
 out_bad_resource:
 out_no_reference:
 	ttm_base_object_unref(&base);
@@ -757,28 +765,11 @@ static size_t vmw_dmabuf_acc_size(struct ttm_bo_global *glob,
 	return bo_user_size + page_array_size;
 }
 
-void vmw_dmabuf_gmr_unbind(struct ttm_buffer_object *bo)
-{
-	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
-	struct ttm_bo_global *glob = bo->glob;
-	struct vmw_private *dev_priv =
-		container_of(bo->bdev, struct vmw_private, bdev);
-
-	if (vmw_bo->gmr_bound) {
-		vmw_gmr_unbind(dev_priv, vmw_bo->gmr_id);
-		spin_lock(&glob->lru_lock);
-		ida_remove(&dev_priv->gmr_ida, vmw_bo->gmr_id);
-		spin_unlock(&glob->lru_lock);
-		vmw_bo->gmr_bound = false;
-	}
-}
-
 void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo)
 {
 	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
 	struct ttm_bo_global *glob = bo->glob;
 
-	vmw_dmabuf_gmr_unbind(bo);
 	ttm_mem_global_free(glob->mem_glob, bo->acc_size);
 	kfree(vmw_bo);
 }
@@ -810,10 +801,7 @@ int vmw_dmabuf_init(struct vmw_private *dev_priv,
 
 	memset(vmw_bo, 0, sizeof(*vmw_bo));
 
-	INIT_LIST_HEAD(&vmw_bo->gmr_lru);
 	INIT_LIST_HEAD(&vmw_bo->validate_list);
-	vmw_bo->gmr_id = 0;
-	vmw_bo->gmr_bound = false;
 
 	ret = ttm_bo_init(bdev, &vmw_bo->base, size,
 			  ttm_bo_type_device, placement,
@@ -827,7 +815,6 @@ static void vmw_user_dmabuf_destroy(struct ttm_buffer_object *bo)
 	struct vmw_user_dma_buffer *vmw_user_bo = vmw_user_dma_buffer(bo);
 	struct ttm_bo_global *glob = bo->glob;
 
-	vmw_dmabuf_gmr_unbind(bo);
 	ttm_mem_global_free(glob->mem_glob, bo->acc_size);
 	kfree(vmw_user_bo);
 }
@@ -875,7 +862,7 @@ int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
 			      &vmw_vram_sys_placement, true,
 			      &vmw_user_dmabuf_destroy);
 	if (unlikely(ret != 0))
-		return ret;
+		goto out_no_dmabuf;
 
 	tmp = ttm_bo_reference(&vmw_user_bo->dma.base);
 	ret = ttm_base_object_init(vmw_fpriv(file_priv)->tfile,
@@ -883,19 +870,21 @@ int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
 				   false,
 				   ttm_buffer_type,
 				   &vmw_user_dmabuf_release, NULL);
-	if (unlikely(ret != 0)) {
-		ttm_bo_unref(&tmp);
-	} else {
+	if (unlikely(ret != 0))
+		goto out_no_base_object;
+	else {
 		rep->handle = vmw_user_bo->base.hash.key;
 		rep->map_handle = vmw_user_bo->dma.base.addr_space_offset;
 		rep->cur_gmr_id = vmw_user_bo->base.hash.key;
 		rep->cur_gmr_offset = 0;
 	}
-	ttm_bo_unref(&tmp);
 
+out_no_base_object:
+	ttm_bo_unref(&tmp);
+out_no_dmabuf:
 	ttm_read_unlock(&vmaster->lock);
 
-	return 0;
+	return ret;
 }
 
 int vmw_dmabuf_unref_ioctl(struct drm_device *dev, void *data,
@@ -930,25 +919,6 @@ void vmw_dmabuf_validate_clear(struct ttm_buffer_object *bo)
 	vmw_bo->on_validate_list = false;
 }
 
-uint32_t vmw_dmabuf_gmr(struct ttm_buffer_object *bo)
-{
-	struct vmw_dma_buffer *vmw_bo;
-
-	if (bo->mem.mem_type == TTM_PL_VRAM)
-		return SVGA_GMR_FRAMEBUFFER;
-
-	vmw_bo = vmw_dma_buffer(bo);
-
-	return (vmw_bo->gmr_bound) ? vmw_bo->gmr_id : SVGA_GMR_NULL;
-}
-
-void vmw_dmabuf_set_gmr(struct ttm_buffer_object *bo, uint32_t id)
-{
-	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
-	vmw_bo->gmr_bound = true;
-	vmw_bo->gmr_id = id;
-}
-
 int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
 			   uint32_t handle, struct vmw_dma_buffer **out)
 {
@@ -977,43 +947,8 @@ int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
 	return 0;
 }
 
-/**
- * TODO: Implement a gmr id eviction mechanism. Currently we just fail
- * when we're out of ids, causing GMR space to be allocated
- * out of VRAM.
- */
-
-int vmw_gmr_id_alloc(struct vmw_private *dev_priv, uint32_t *p_id)
-{
-	struct ttm_bo_global *glob = dev_priv->bdev.glob;
-	int id;
-	int ret;
-
-	do {
-		if (unlikely(ida_pre_get(&dev_priv->gmr_ida, GFP_KERNEL) == 0))
-			return -ENOMEM;
-
-		spin_lock(&glob->lru_lock);
-		ret = ida_get_new(&dev_priv->gmr_ida, &id);
-		spin_unlock(&glob->lru_lock);
-	} while (ret == -EAGAIN);
-
-	if (unlikely(ret != 0))
-		return ret;
-
-	if (unlikely(id >= dev_priv->max_gmr_ids)) {
-		spin_lock(&glob->lru_lock);
-		ida_remove(&dev_priv->gmr_ida, id);
-		spin_unlock(&glob->lru_lock);
-		return -EBUSY;
-	}
-
-	*p_id = (uint32_t) id;
-	return 0;
-}
-
 /*
- * Stream managment
+ * Stream management
  */
 
 static void vmw_stream_destroy(struct vmw_resource *res)

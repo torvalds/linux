@@ -5,6 +5,7 @@
 menuconfig X86_PLATFORM_DEVICES
 	bool "X86 Platform Specific Device Drivers"
 	default y
+	depends on X86
 	---help---
 	  Say Y here to get to see options for device drivers for various
 	  x86 platforms, including vendor-specific laptop extension drivers.
@@ -17,12 +18,14 @@ if X86_PLATFORM_DEVICES
 config ACER_WMI
 	tristate "Acer WMI Laptop Extras"
 	depends on ACPI
-	depends on LEDS_CLASS
-	depends on NEW_LEDS
+	select LEDS_CLASS
+	select NEW_LEDS
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on SERIO_I8042
+	depends on INPUT
 	depends on RFKILL || RFKILL = n
-	select ACPI_WMI
+	depends on ACPI_WMI
+	select INPUT_SPARSEKMAP
 	---help---
 	  This is a driver for newer Acer (and Wistron) laptops. It adds
 	  wireless radio and bluetooth control, and on some laptops,
@@ -91,6 +94,7 @@ config DELL_WMI
 	tristate "Dell WMI extras"
 	depends on ACPI_WMI
 	depends on INPUT
+	select INPUT_SPARSEKMAP
 	---help---
 	  Say Y here if you want to support WMI-based hotkeys on Dell laptops.
 
@@ -129,7 +133,7 @@ config TC1100_WMI
 	depends on !X86_64
 	depends on EXPERIMENTAL
 	depends on ACPI
-	select ACPI_WMI
+	depends on ACPI_WMI
 	---help---
 	  This is a driver for the WMI extensions (wireless and bluetooth power
 	  control) of the HP Compaq TC1100 tablet.
@@ -139,6 +143,7 @@ config HP_WMI
 	depends on ACPI_WMI
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
+	select INPUT_SPARSEKMAP
 	help
 	 Say Y here if you want to support WMI-based hotkeys on HP laptops and
 	 to read data from WMI such as docking or ambient light sensor state.
@@ -151,6 +156,7 @@ config MSI_LAPTOP
 	depends on ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL
+	depends on SERIO_I8042
 	---help---
 	  This is a driver for laptops built by MSI (MICRO-STAR
 	  INTERNATIONAL):
@@ -169,6 +175,7 @@ config PANASONIC_LAPTOP
 	tristate "Panasonic Laptop Extras"
 	depends on INPUT && ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
+	select INPUT_SPARSEKMAP
 	---help---
 	  This driver adds support for access to backlight control and hotkeys
 	  on Panasonic Let's Note laptops.
@@ -181,6 +188,8 @@ config COMPAL_LAPTOP
 	depends on ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL
+	depends on HWMON
+	depends on POWER_SUPPLY
 	---help---
 	  This is a driver for laptops built by Compal:
 
@@ -214,6 +223,14 @@ config SONYPI_COMPAT
 	depends on SONY_LAPTOP
 	  ---help---
 	  Build the sonypi driver compatibility code into the sony-laptop driver.
+
+config IDEAPAD_LAPTOP
+	tristate "Lenovo IdeaPad Laptop Extras"
+	depends on ACPI
+	depends on RFKILL
+	select INPUT_SPARSEKMAP
+	help
+	  This is a driver for the rfkill switches on Lenovo IdeaPad netbooks.
 
 config THINKPAD_ACPI
 	tristate "ThinkPad ACPI Laptop Extras"
@@ -354,6 +371,26 @@ config THINKPAD_ACPI_HOTKEY_POLL
 	  If you are not sure, say Y here.  The driver enables polling only if
 	  it is strictly necessary to do so.
 
+config SENSORS_HDAPS
+	tristate "Thinkpad Hard Drive Active Protection System (hdaps)"
+	depends on INPUT && X86
+	select INPUT_POLLDEV
+	default n
+	help
+	  This driver provides support for the IBM Hard Drive Active Protection
+	  System (hdaps), which provides an accelerometer and other misc. data.
+	  ThinkPads starting with the R50, T41, and X40 are supported.  The
+	  accelerometer data is readable via sysfs.
+
+	  This driver also provides an absolute input class device, allowing
+	  the laptop to act as a pinball machine-esque joystick.
+
+	  If your ThinkPad is not recognized by the driver, please update to latest
+	  BIOS. This is especially the case for some R52 ThinkPads.
+
+	  Say Y here if you have an applicable laptop and want to experience
+	  the awesome power of hdaps.
+
 config INTEL_MENLOW
 	tristate "Thermal Management driver for Intel menlow platform"
 	depends on ACPI_THERMAL
@@ -391,7 +428,10 @@ config EEEPC_WMI
 	depends on INPUT
 	depends on EXPERIMENTAL
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on RFKILL || RFKILL = n
 	select INPUT_SPARSEKMAP
+	select LEDS_CLASS
+	select NEW_LEDS
 	---help---
 	  Say Y here if you want to support WMI-based hotkeys on Eee PC laptops.
 
@@ -467,6 +507,7 @@ config TOPSTAR_LAPTOP
 	tristate "Topstar Laptop Extras"
 	depends on ACPI
 	depends on INPUT
+	select INPUT_SPARSEKMAP
 	---help---
 	  This driver adds support for hotkeys found on Topstar laptops.
 
@@ -475,10 +516,13 @@ config TOPSTAR_LAPTOP
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on ACPI
+	select LEDS_CLASS
+	select NEW_LEDS
+	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
 	select INPUT_POLLDEV
-	select BACKLIGHT_CLASS_DEVICE
+	select INPUT_SPARSEKMAP
 	---help---
 	  This driver adds support for access to certain system settings
 	  on "legacy free" Toshiba laptops.  These laptops can be recognized by
@@ -520,6 +564,7 @@ config TOSHIBA_BT_RFKILL
 config ACPI_CMPC
 	tristate "CMPC Laptop Extras"
 	depends on X86 && ACPI
+	depends on RFKILL || RFKILL=n
 	select INPUT
 	select BACKLIGHT_CLASS_DEVICE
 	default n
@@ -536,5 +581,77 @@ config INTEL_SCU_IPC
 	  IPC is used to bridge the communications between kernel and SCU on
 	  some embedded Intel x86 platforms. This is not needed for PC-type
 	  machines.
+
+config INTEL_SCU_IPC_UTIL
+	tristate "Intel SCU IPC utility driver"
+	depends on INTEL_SCU_IPC
+	default y
+	---help---
+	  The IPC Util driver provides an interface with the SCU enabling
+	  low level access for debug work and updating the firmware. Say
+	  N unless you will be doing this on an Intel MID platform.
+
+config GPIO_INTEL_PMIC
+	bool "Intel PMIC GPIO support"
+	depends on INTEL_SCU_IPC && GPIOLIB
+	---help---
+	  Say Y here to support GPIO via the SCU IPC interface
+	  on Intel MID platforms.
+
+config RAR_REGISTER
+	bool "Restricted Access Region Register Driver"
+	depends on PCI && X86_MRST
+	default n
+	---help---
+	  This driver allows other kernel drivers access to the
+	  contents of the restricted access region control registers.
+
+	  The restricted access region control registers
+	  (rar_registers) are used to pass address and
+	  locking information on restricted access regions
+	  to other drivers that use restricted access regions.
+
+	  The restricted access regions are regions of memory
+	  on the Intel MID Platform that are not accessible to
+	  the x86 processor, but are accessible to dedicated
+	  processors on board peripheral devices.
+
+	  The purpose of the restricted access regions is to
+	  protect sensitive data from compromise by unauthorized
+	  programs running on the x86 processor.
+
+config INTEL_IPS
+	tristate "Intel Intelligent Power Sharing"
+	depends on ACPI
+	---help---
+	  Intel Calpella platforms support dynamic power sharing between the
+	  CPU and GPU, maximizing performance in a given TDP.  This driver,
+	  along with the CPU frequency and i915 drivers, provides that
+	  functionality.  If in doubt, say Y here; it will only load on
+	  supported platforms.
+
+config IBM_RTL
+	tristate "Device driver to enable PRTL support"
+	depends on X86 && PCI
+	---help---
+	 Enable support for IBM Premium Real Time Mode (PRTM).
+	 This module will allow you the enter and exit PRTM in the BIOS via
+	 sysfs on platforms that support this feature.  System in PRTM will
+	 not receive CPU-generated SMIs for recoverable errors.  Use of this
+	 feature without proper support may void your hardware warranty.
+
+	 If the proper BIOS support is found the driver will load and create
+	 /sys/devices/system/ibm_rtl/.  The "state" variable will indicate
+	 whether or not the BIOS is in PRTM.
+	 state = 0 (BIOS SMIs on)
+	 state = 1 (BIOS SMIs off)
+
+config XO1_RFKILL
+	tristate "OLPC XO-1 software RF kill switch"
+	depends on OLPC
+	depends on RFKILL
+	---help---
+	  Support for enabling/disabling the WLAN interface on the OLPC XO-1
+	  laptop.
 
 endif # X86_PLATFORM_DEVICES

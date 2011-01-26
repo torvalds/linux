@@ -36,6 +36,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -78,7 +79,13 @@ static const char	hcd_name [] = "ehci_hcd";
 #define	EHCI_TUNE_RL_TT		0
 #define	EHCI_TUNE_MULT_HS	1	/* 1-3 transactions/uframe; 4.10.3 */
 #define	EHCI_TUNE_MULT_TT	1
-#define	EHCI_TUNE_FLS		2	/* (small) 256 frame schedule */
+/*
+ * Some drivers think it's safe to schedule isochronous transfers more than
+ * 256 ms into the future (partly as a result of an old bug in the scheduling
+ * code).  In an attempt to avoid trouble, we will use a minimum scheduling
+ * length of 512 frames instead of 256.
+ */
+#define	EHCI_TUNE_FLS		1	/* (medium) 512-frame schedule */
 
 #define EHCI_IAA_MSECS		10		/* arbitrary */
 #define EHCI_IO_JIFFIES		(HZ/10)		/* io watchdog > irq_thresh */
@@ -100,7 +107,15 @@ static int ignore_oc = 0;
 module_param (ignore_oc, bool, S_IRUGO);
 MODULE_PARM_DESC (ignore_oc, "ignore bogus hardware overcurrent indications");
 
+/* for link power management(LPM) feature */
+static unsigned int hird;
+module_param(hird, int, S_IRUGO);
+MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us\n");
+
 #define	INTR_MASK (STS_IAA | STS_FATAL | STS_PCD | STS_ERR | STS_INT)
+
+/* for ASPM quirk of ISOC on AMD SB800 */
+static struct pci_dev *amd_nb_dev;
 
 /*-------------------------------------------------------------------------*/
 
@@ -182,6 +197,17 @@ static int handshake (struct ehci_hcd *ehci, void __iomem *ptr,
 	return -ETIMEDOUT;
 }
 
+/* check TDI/ARC silicon is in host mode */
+static int tdi_in_host_mode (struct ehci_hcd *ehci)
+{
+	u32 __iomem	*reg_ptr;
+	u32		tmp;
+
+	reg_ptr = (u32 __iomem *)(((u8 __iomem *)ehci->regs) + USBMODE);
+	tmp = ehci_readl(ehci, reg_ptr);
+	return (tmp & 3) == USBMODE_CM_HC;
+}
+
 /* force HC to halt state from unknown (EHCI spec section 2.3) */
 static int ehci_halt (struct ehci_hcd *ehci)
 {
@@ -189,6 +215,10 @@ static int ehci_halt (struct ehci_hcd *ehci)
 
 	/* disable any irqs left enabled by previous code */
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
+
+	if (ehci_is_TDI(ehci) && tdi_in_host_mode(ehci) == 0) {
+		return 0;
+	}
 
 	if ((temp & STS_HALT) != 0)
 		return 0;
@@ -304,6 +334,7 @@ static void end_unlink_async(struct ehci_hcd *ehci);
 static void ehci_work(struct ehci_hcd *ehci);
 
 #include "ehci-hub.c"
+#include "ehci-lpm.c"
 #include "ehci-mem.c"
 #include "ehci-q.c"
 #include "ehci-sched.c"
@@ -501,6 +532,11 @@ static void ehci_stop (struct usb_hcd *hcd)
 	spin_unlock_irq (&ehci->lock);
 	ehci_mem_cleanup (ehci);
 
+	if (amd_nb_dev) {
+		pci_dev_put(amd_nb_dev);
+		amd_nb_dev = NULL;
+	}
+
 #ifdef	EHCI_STATS
 	ehci_dbg (ehci, "irq normal %ld err %ld reclaim %ld (lost %ld)\n",
 		ehci->stats.normal, ehci->stats.error, ehci->stats.reclaim,
@@ -577,6 +613,11 @@ static int ehci_init(struct usb_hcd *hcd)
 	if (log2_irq_thresh < 0 || log2_irq_thresh > 6)
 		log2_irq_thresh = 0;
 	temp = 1 << (16 + log2_irq_thresh);
+	if (HCC_PER_PORT_CHANGE_EVENT(hcc_params)) {
+		ehci->has_ppcd = 1;
+		ehci_dbg(ehci, "enable per-port change event\n");
+		temp |= CMD_PPCEE;
+	}
 	if (HCC_CANPARK(hcc_params)) {
 		/* HW default park == 3, on hardware that supports it (like
 		 * NVidia and ALI silicon), maximizes throughput on the async
@@ -603,10 +644,22 @@ static int ehci_init(struct usb_hcd *hcd)
 		default:	BUG();
 		}
 	}
+	if (HCC_LPM(hcc_params)) {
+		/* support link power management EHCI 1.1 addendum */
+		ehci_dbg(ehci, "support lpm\n");
+		ehci->has_lpm = 1;
+		if (hird > 0xf) {
+			ehci_dbg(ehci, "hird %d invalid, use default 0",
+			hird);
+			hird = 0;
+		}
+		temp |= hird << 24;
+	}
 	ehci->command = temp;
 
 	/* Accept arbitrarily long scatter-gather lists */
-	hcd->self.sg_tablesize = ~0;
+	if (!(hcd->driver->flags & HCD_LOCAL_MEM))
+		hcd->self.sg_tablesize = ~0;
 	return 0;
 }
 
@@ -619,7 +672,6 @@ static int ehci_run (struct usb_hcd *hcd)
 	u32			hcc_params;
 
 	hcd->uses_new_polling = 1;
-	hcd->poll_rh = 0;
 
 	/* EHCI spec section 4.1 */
 	if ((retval = ehci_reset(ehci)) != 0) {
@@ -764,6 +816,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	/* remote wakeup [4.3.1] */
 	if (status & STS_PCD) {
 		unsigned	i = HCS_N_PORTS (ehci->hcs_params);
+		u32		ppcd = 0;
 
 		/* kick root hub later */
 		pcd_status = status;
@@ -772,9 +825,18 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		if (!(cmd & CMD_RUN))
 			usb_hcd_resume_root_hub(hcd);
 
+		/* get per-port change detect bits */
+		if (ehci->has_ppcd)
+			ppcd = status >> 16;
+
 		while (i--) {
-			int pstatus = ehci_readl(ehci,
-						 &ehci->regs->port_status [i]);
+			int pstatus;
+
+			/* leverage per-port change bits feature */
+			if (ehci->has_ppcd && !(ppcd & (1 << i)))
+				continue;
+			pstatus = ehci_readl(ehci,
+					 &ehci->regs->port_status[i]);
 
 			if (pstatus & PORT_OWNER)
 				continue;
@@ -1009,10 +1071,11 @@ rescan:
 				tmp && tmp != qh;
 				tmp = tmp->qh_next.qh)
 			continue;
-		/* periodic qh self-unlinks on empty */
-		if (!tmp)
-			goto nogood;
-		unlink_async (ehci, qh);
+		/* periodic qh self-unlinks on empty, and a COMPLETING qh
+		 * may already be unlinked.
+		 */
+		if (tmp)
+			unlink_async(ehci, qh);
 		/* FALL THROUGH */
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 	case QH_STATE_UNLINK_WAIT:
@@ -1029,7 +1092,6 @@ idle_timeout:
 		}
 		/* else FALL THROUGH */
 	default:
-nogood:
 		/* caller was supposed to have unlinked any requests;
 		 * that's not our job.  just leak this memory.
 		 */
@@ -1041,7 +1103,6 @@ nogood:
 	ep->hcpriv = NULL;
 done:
 	spin_unlock_irqrestore (&ehci->lock, flags);
-	return;
 }
 
 static void
@@ -1113,12 +1174,17 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_mxc_driver
 #endif
 
+#ifdef CONFIG_CPU_SUBTYPE_SH7786
+#include "ehci-sh.c"
+#define PLATFORM_DRIVER		ehci_hcd_sh_driver
+#endif
+
 #ifdef CONFIG_SOC_AU1200
 #include "ehci-au1xxx.c"
 #define	PLATFORM_DRIVER		ehci_hcd_au1xxx_driver
 #endif
 
-#ifdef CONFIG_ARCH_OMAP3
+#ifdef CONFIG_USB_EHCI_HCD_OMAP
 #include "ehci-omap.c"
 #define        PLATFORM_DRIVER         ehci_hcd_omap_driver
 #endif
@@ -1135,7 +1201,7 @@ MODULE_LICENSE ("GPL");
 
 #ifdef CONFIG_XPS_USB_HCD_XILINX
 #include "ehci-xilinx-of.c"
-#define OF_PLATFORM_DRIVER	ehci_hcd_xilinx_of_driver
+#define XILINX_OF_PLATFORM_DRIVER	ehci_hcd_xilinx_of_driver
 #endif
 
 #ifdef CONFIG_PLAT_ORION
@@ -1158,8 +1224,34 @@ MODULE_LICENSE ("GPL");
 #define	PLATFORM_DRIVER		ehci_atmel_driver
 #endif
 
+#ifdef CONFIG_USB_OCTEON_EHCI
+#include "ehci-octeon.c"
+#define PLATFORM_DRIVER		ehci_octeon_driver
+#endif
+
+#ifdef CONFIG_USB_CNS3XXX_EHCI
+#include "ehci-cns3xxx.c"
+#define PLATFORM_DRIVER		cns3xxx_ehci_driver
+#endif
+
+#ifdef CONFIG_ARCH_VT8500
+#include "ehci-vt8500.c"
+#define	PLATFORM_DRIVER		vt8500_ehci_driver
+#endif
+
+#ifdef CONFIG_PLAT_SPEAR
+#include "ehci-spear.c"
+#define PLATFORM_DRIVER		spear_ehci_hcd_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_MSM
+#include "ehci-msm.c"
+#define PLATFORM_DRIVER		ehci_msm_driver
+#endif
+
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \
-    !defined(PS3_SYSTEM_BUS_DRIVER) && !defined(OF_PLATFORM_DRIVER)
+    !defined(PS3_SYSTEM_BUS_DRIVER) && !defined(OF_PLATFORM_DRIVER) && \
+    !defined(XILINX_OF_PLATFORM_DRIVER)
 #error "missing bus glue for ehci-hcd"
 #endif
 
@@ -1213,10 +1305,20 @@ static int __init ehci_hcd_init(void)
 	if (retval < 0)
 		goto clean3;
 #endif
+
+#ifdef XILINX_OF_PLATFORM_DRIVER
+	retval = of_register_platform_driver(&XILINX_OF_PLATFORM_DRIVER);
+	if (retval < 0)
+		goto clean4;
+#endif
 	return retval;
 
+#ifdef XILINX_OF_PLATFORM_DRIVER
+	/* of_unregister_platform_driver(&XILINX_OF_PLATFORM_DRIVER); */
+clean4:
+#endif
 #ifdef OF_PLATFORM_DRIVER
-	/* of_unregister_platform_driver(&OF_PLATFORM_DRIVER); */
+	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
 clean3:
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
@@ -1243,6 +1345,9 @@ module_init(ehci_hcd_init);
 
 static void __exit ehci_hcd_cleanup(void)
 {
+#ifdef XILINX_OF_PLATFORM_DRIVER
+	of_unregister_platform_driver(&XILINX_OF_PLATFORM_DRIVER);
+#endif
 #ifdef OF_PLATFORM_DRIVER
 	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
 #endif

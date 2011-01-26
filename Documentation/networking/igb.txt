@@ -1,0 +1,109 @@
+Linux* Base Driver for Intel(R) Network Connection
+==================================================
+
+Intel Gigabit Linux driver.
+Copyright(c) 1999 - 2010 Intel Corporation.
+
+Contents
+========
+
+- Identifying Your Adapter
+- Additional Configurations
+- Support
+
+Identifying Your Adapter
+========================
+
+This driver supports all 82575, 82576 and 82580-based Intel (R) gigabit network
+connections.
+
+For specific information on how to identify your adapter, go to the Adapter &
+Driver ID Guide at:
+
+    http://support.intel.com/support/go/network/adapter/idguide.htm
+
+Command Line Parameters
+=======================
+
+The default value for each parameter is generally the recommended setting,
+unless otherwise noted.
+
+max_vfs
+-------
+Valid Range:   0-7
+Default Value: 0
+
+This parameter adds support for SR-IOV.  It causes the driver to spawn up to
+max_vfs worth of virtual function.
+
+
+Additional Configurations
+=========================
+
+  Jumbo Frames
+  ------------
+  Jumbo Frames support is enabled by changing the MTU to a value larger than
+  the default of 1500.  Use the ifconfig command to increase the MTU size.
+  For example:
+
+       ifconfig eth<x> mtu 9000 up
+
+  This setting is not saved across reboots.
+
+  Notes:
+
+  - The maximum MTU setting for Jumbo Frames is 9216.  This value coincides
+    with the maximum Jumbo Frames size of 9234 bytes.
+
+  - Using Jumbo Frames at 10 or 100 Mbps may result in poor performance or
+    loss of link.
+
+  Ethtool
+  -------
+  The driver utilizes the ethtool interface for driver configuration and
+  diagnostics, as well as displaying statistical information. The latest
+  version of ethtool can be found at:
+
+  http://ftp.kernel.org/pub/software/network/ethtool/
+
+  Enabling Wake on LAN* (WoL)
+  ---------------------------
+  WoL is configured through the ethtool* utility.
+
+  For instructions on enabling WoL with ethtool, refer to the ethtool man page.
+
+  WoL will be enabled on the system during the next shut down or reboot.
+  For this driver version, in order to enable WoL, the igb driver must be
+  loaded when shutting down or rebooting the system.
+
+  Wake On LAN is only supported on port A of multi-port adapters.
+
+  Wake On LAN is not supported for the Intel(R) Gigabit VT Quad Port Server
+  Adapter.
+
+  Multiqueue
+  ----------
+  In this mode, a separate MSI-X vector is allocated for each queue and one
+  for "other" interrupts such as link status change and errors.  All
+  interrupts are throttled via interrupt moderation.  Interrupt moderation
+  must be used to avoid interrupt storms while the driver is processing one
+  interrupt.  The moderation value should be at least as large as the expected
+  time for the driver to process an interrupt. Multiqueue is off by default.
+
+  REQUIREMENTS: MSI-X support is required for Multiqueue. If MSI-X is not
+  found, the system will fallback to MSI or to Legacy interrupts.
+
+Support
+=======
+
+For general information, go to the Intel support website at:
+
+    www.intel.com/support/
+
+or the Intel Wired Networking project hosted by Sourceforge at:
+
+    http://sourceforge.net/projects/e1000
+
+If an issue is identified with the released source code on the supported
+kernel with a supported adapter, email the specific information related
+to the issue to e1000-devel@lists.sf.net

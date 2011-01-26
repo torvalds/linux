@@ -1,0 +1,90 @@
+#
+# DSP Bridge Driver Support
+#
+
+menuconfig TIDSPBRIDGE
+	tristate "DSP Bridge driver"
+	depends on ARCH_OMAP3
+	select OMAP_MBOX_FWK
+	help
+	  DSP/BIOS Bridge is designed for platforms that contain a GPP and
+	  one or more attached DSPs.  The GPP is considered the master or
+	  "host" processor, and the attached DSPs are processing resources
+	  that can be utilized by applications and drivers running on the GPP.
+
+	  This driver depends on OMAP Mailbox (OMAP_MBOX_FWK).
+
+config TIDSPBRIDGE_DVFS
+	bool "Enable Bridge Dynamic Voltage and Frequency Scaling (DVFS)"
+	depends on TIDSPBRIDGE && OMAP_PM_SRF && CPU_FREQ
+	help
+	  DVFS allows DSP Bridge to initiate the operating point change to
+	  scale the chip voltage and frequency in order to match the
+	  performance and power consumption to the current processing
+	  requirements.
+
+config TIDSPBRIDGE_MEMPOOL_SIZE
+	hex "Physical memory pool size (Byte)"
+	depends on TIDSPBRIDGE
+	default 0x600000
+	help
+	  Allocate specified size of memory at booting time to avoid allocation
+	  failure under heavy memory fragmentation after some use time.
+
+config TIDSPBRIDGE_DEBUG
+	bool "Debug Support"
+	depends on TIDSPBRIDGE
+	help
+	  Say Y to enable Bridge debugging capabilities
+
+config TIDSPBRIDGE_RECOVERY
+	bool "Recovery Support"
+	depends on TIDSPBRIDGE
+	default y
+	help
+	  In case of DSP fatal error, BRIDGE driver will try to
+	  recover itself.
+
+config TIDSPBRIDGE_CACHE_LINE_CHECK
+	bool "Check buffers to be 128 byte aligned"
+	depends on TIDSPBRIDGE
+	help
+	  When the DSP processes data, the DSP cache controller loads 128-Byte
+	  chunks (lines) from SDRAM and writes the data back in 128-Byte chunks.
+	  If a DMM buffer does not start and end on a 128-Byte boundary, the data
+	  preceding the start address (SA) from the 128-Byte boundary to the SA
+	  and the data at addresses trailing the end address (EA) from the EA to
+	  the next 128-Byte boundary will be loaded and written back as well.
+	  This can lead to heap corruption. Say Y, to enforce the check for 128
+	  byte alignment, buffers failing this check will be rejected.
+
+config TIDSPBRIDGE_WDT3
+	bool "Enable watchdog timer"
+	depends on TIDSPBRIDGE
+	help
+	  WTD3 is managed by DSP and once it is enabled, DSP side bridge is in
+	  charge of refreshing the timer before overflow, if the DSP hangs MPU
+	  will caught the interrupt and try to recover DSP.
+
+config TIDSPBRIDGE_WDT_TIMEOUT
+	int "Watchdog timer timeout (in secs)"
+	depends on TIDSPBRIDGE && TIDSPBRIDGE_WDT3
+	default 5
+	help
+	   Watchdog timer timeout value, after that time if the watchdog timer
+	   counter is not reset the wdt overflow interrupt will be triggered
+
+config TIDSPBRIDGE_NTFY_PWRERR
+	bool "Notify power errors"
+	depends on TIDSPBRIDGE
+	help
+	  Enable notifications to registered clients on the event of power errror
+	  trying to suspend bridge driver. Say Y, to signal this event as a fatal
+	  error, this will require a bridge restart to recover.
+
+config TIDSPBRIDGE_BACKTRACE
+	bool "Dump backtraces on fatal errors"
+	depends on TIDSPBRIDGE
+	help
+	  Enable useful information to backtrace fatal errors. Say Y if you
+	  want to dump information for testing purposes.

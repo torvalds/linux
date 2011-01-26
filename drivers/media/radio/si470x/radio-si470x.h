@@ -31,14 +31,12 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/input.h>
 #include <linux/version.h>
 #include <linux/videodev2.h>
 #include <linux/mutex.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
-#include <media/rds.h>
 #include <asm/unaligned.h>
 
 
@@ -177,7 +175,6 @@ struct si470x_device {
 
 	/* driver management */
 	unsigned char disconnected;
-	struct mutex disconnect_lock;
 #endif
 
 #if defined(CONFIG_I2C_SI470X) || defined(CONFIG_I2C_SI470X_MODULE)
@@ -221,7 +218,6 @@ int si470x_disconnect_check(struct si470x_device *radio);
 int si470x_set_freq(struct si470x_device *radio, unsigned int freq);
 int si470x_start(struct si470x_device *radio);
 int si470x_stop(struct si470x_device *radio);
-int si470x_rds_on(struct si470x_device *radio);
 int si470x_fops_open(struct file *file);
 int si470x_fops_release(struct file *file);
 int si470x_vidioc_querycap(struct file *file, void *priv,

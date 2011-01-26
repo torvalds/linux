@@ -65,13 +65,6 @@ alcor_mask_and_ack_irq(unsigned int irq)
 	*(vuip)GRU_INT_CLEAR = 0; mb();
 }
 
-static unsigned int
-alcor_startup_irq(unsigned int irq)
-{
-	alcor_enable_irq(irq);
-	return 0;
-}
-
 static void
 alcor_isa_mask_and_ack_irq(unsigned int irq)
 {
@@ -82,21 +75,11 @@ alcor_isa_mask_and_ack_irq(unsigned int irq)
 	*(vuip)GRU_INT_CLEAR = 0; mb();
 }
 
-static void
-alcor_end_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		alcor_enable_irq(irq);
-}
-
 static struct irq_chip alcor_irq_type = {
 	.name		= "ALCOR",
-	.startup	= alcor_startup_irq,
-	.shutdown	= alcor_disable_irq,
-	.enable		= alcor_enable_irq,
-	.disable	= alcor_disable_irq,
-	.ack		= alcor_mask_and_ack_irq,
-	.end		= alcor_end_irq,
+	.unmask		= alcor_enable_irq,
+	.mask		= alcor_disable_irq,
+	.mask_ack	= alcor_mask_and_ack_irq,
 };
 
 static void
@@ -142,8 +125,8 @@ alcor_init_irq(void)
 		   on while IRQ probing.  */
 		if (i >= 16+20 && i <= 16+30)
 			continue;
-		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].chip = &alcor_irq_type;
+		set_irq_chip_and_handler(i, &alcor_irq_type, handle_level_irq);
+		irq_to_desc(i)->status |= IRQ_LEVEL;
 	}
 	i8259a_irq_type.ack = alcor_isa_mask_and_ack_irq;
 

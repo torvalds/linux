@@ -28,6 +28,7 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
+#include "nouveau_ramht.h"
 
 void
 nouveau_dma_pre_init(struct nouveau_channel *chan)
@@ -35,7 +36,7 @@ nouveau_dma_pre_init(struct nouveau_channel *chan)
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct nouveau_bo *pushbuf = chan->pushbuf_bo;
 
-	if (dev_priv->card_type == NV_50) {
+	if (dev_priv->card_type >= NV_50) {
 		const int ib_size = pushbuf->bo.mem.size / 2;
 
 		chan->dma.ib_base = (pushbuf->bo.mem.size - ib_size) >> 2;
@@ -58,26 +59,26 @@ nouveau_dma_init(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *m2mf = NULL;
-	struct nouveau_gpuobj *nvsw = NULL;
 	int ret, i;
 
+	if (dev_priv->card_type >= NV_C0) {
+		ret = nouveau_gpuobj_gr_new(chan, 0x9039, 0x9039);
+		if (ret)
+			return ret;
+
+		ret = RING_SPACE(chan, 2);
+		if (ret)
+			return ret;
+
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0000, 1);
+		OUT_RING  (chan, 0x00009039);
+		FIRE_RING (chan);
+		return 0;
+	}
+
 	/* Create NV_MEMORY_TO_MEMORY_FORMAT for buffer moves */
-	ret = nouveau_gpuobj_gr_new(chan, dev_priv->card_type < NV_50 ?
-				    0x0039 : 0x5039, &m2mf);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_ref_add(dev, chan, NvM2MF, m2mf, NULL);
-	if (ret)
-		return ret;
-
-	/* Create an NV_SW object for various sync purposes */
-	ret = nouveau_gpuobj_sw_new(chan, NV_SW, &nvsw);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_ref_add(dev, chan, NvSw, nvsw, NULL);
+	ret = nouveau_gpuobj_gr_new(chan, NvM2MF, dev_priv->card_type < NV_50 ?
+				    0x0039 : 0x5039);
 	if (ret)
 		return ret;
 
@@ -85,18 +86,6 @@ nouveau_dma_init(struct nouveau_channel *chan)
 	ret = nouveau_notifier_alloc(chan, NvNotify0, 32, &chan->m2mf_ntfy);
 	if (ret)
 		return ret;
-
-	/* Map push buffer */
-	ret = nouveau_bo_map(chan->pushbuf_bo);
-	if (ret)
-		return ret;
-
-	/* Map M2MF notifier object - fbcon. */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = nouveau_bo_map(chan->notifier_bo);
-		if (ret)
-			return ret;
-	}
 
 	/* Insert NOPS for NOUVEAU_DMA_SKIPS */
 	ret = RING_SPACE(chan, NOUVEAU_DMA_SKIPS);
@@ -114,13 +103,6 @@ nouveau_dma_init(struct nouveau_channel *chan)
 	OUT_RING(chan, NvM2MF);
 	BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
 	OUT_RING(chan, NvNotify0);
-
-	/* Initialise NV_SW */
-	ret = RING_SPACE(chan, 2);
-	if (ret)
-		return ret;
-	BEGIN_RING(chan, NvSubSw, 0, 1);
-	OUT_RING(chan, NvSw);
 
 	/* Sit back and pray the channel works.. */
 	FIRE_RING(chan);
@@ -219,7 +201,7 @@ nv50_dma_push_wait(struct nouveau_channel *chan, int count)
 
 		chan->dma.ib_free = get - chan->dma.ib_put;
 		if (chan->dma.ib_free <= 0)
-			chan->dma.ib_free += chan->dma.ib_max + 1;
+			chan->dma.ib_free += chan->dma.ib_max;
 	}
 
 	return 0;

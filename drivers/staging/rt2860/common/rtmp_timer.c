@@ -143,8 +143,8 @@ int RtmpTimerQThread(IN void *Context)
 	struct rt_rtmp_os_task *pTask;
 	struct rt_rtmp_adapter *pAd;
 
-	pTask = (struct rt_rtmp_os_task *)Context;
-	pAd = (struct rt_rtmp_adapter *)pTask->priv;
+	pTask = Context;
+	pAd = pTask->priv;
 
 	RtmpOSTaskCustomize(pTask);
 

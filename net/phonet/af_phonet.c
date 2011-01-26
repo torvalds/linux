@@ -37,7 +37,7 @@
 /* Transport protocol registration */
 static struct phonet_protocol *proto_tab[PHONET_NPROTO] __read_mostly;
 
-static struct phonet_protocol *phonet_proto_get(int protocol)
+static struct phonet_protocol *phonet_proto_get(unsigned int protocol)
 {
 	struct phonet_protocol *pp;
 
@@ -251,6 +251,16 @@ int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 	else if (phonet_address_lookup(net, daddr) == 0) {
 		dev = phonet_device_get(net);
 		skb->pkt_type = PACKET_LOOPBACK;
+	} else if (pn_sockaddr_get_object(target) == 0) {
+		/* Resource routing (small race until phonet_rcv()) */
+		struct sock *sk = pn_find_sock_by_res(net,
+							target->spn_resource);
+		if (sk)	{
+			sock_put(sk);
+			dev = phonet_device_get(net);
+			skb->pkt_type = PACKET_LOOPBACK;
+		} else
+			dev = phonet_route_output(net, daddr);
 	} else
 		dev = phonet_route_output(net, daddr);
 
@@ -383,6 +393,13 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 		goto out;
 	}
 
+	/* resource routing */
+	if (pn_sockaddr_get_object(&sa) == 0) {
+		struct sock *sk = pn_find_sock_by_res(net, sa.spn_resource);
+		if (sk)
+			return sk_receive_skb(sk, skb, 0);
+	}
+
 	/* check if we are the destination */
 	if (phonet_address_lookup(net, pn_sockaddr_get_addr(&sa)) == 0) {
 		/* Phonet packet input */
@@ -441,7 +458,7 @@ static struct packet_type phonet_packet_type __read_mostly = {
 
 static DEFINE_MUTEX(proto_tab_lock);
 
-int __init_or_module phonet_proto_register(int protocol,
+int __init_or_module phonet_proto_register(unsigned int protocol,
 						struct phonet_protocol *pp)
 {
 	int err = 0;
@@ -464,7 +481,7 @@ int __init_or_module phonet_proto_register(int protocol,
 }
 EXPORT_SYMBOL(phonet_proto_register);
 
-void phonet_proto_unregister(int protocol, struct phonet_protocol *pp)
+void phonet_proto_unregister(unsigned int protocol, struct phonet_protocol *pp)
 {
 	mutex_lock(&proto_tab_lock);
 	BUG_ON(proto_tab[protocol] != pp);

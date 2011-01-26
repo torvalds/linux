@@ -32,7 +32,7 @@
 #define IRQ_GPIOINT		S5P_IRQ_VIC0(30)
 
 /* VIC1 */
-#define IRQ_nPMUIRQ 		S5P_IRQ_VIC1(0)
+#define IRQ_PMU			S5P_IRQ_VIC1(0)
 #define IRQ_ONENAND 		S5P_IRQ_VIC1(7)
 #define IRQ_UART0 		S5P_IRQ_VIC1(10)
 #define IRQ_UART1 		S5P_IRQ_VIC1(11)
@@ -77,8 +77,9 @@
 
 #define S5P_IRQ_EINT_BASE	(IRQ_VIC_END + 1)
 
-#define IRQ_EINT(x)             ((x) < 16 ? S5P_IRQ_VIC0(x) : \
-					(S5P_IRQ_EINT_BASE + (x)-16))
+#define S5P_EINT_BASE1		(S5P_IRQ_VIC0(0))
+#define S5P_EINT_BASE2		(S5P_IRQ_EINT_BASE)
+
 /* Set the default NR_IRQS */
 
 #define NR_IRQS 		(IRQ_EINT(31) + 1)

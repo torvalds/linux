@@ -17,6 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pci-acpi.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -70,6 +71,11 @@ static int pcie_aer_disable;
 void pci_no_aer(void)
 {
 	pcie_aer_disable = 1;	/* has priority over 'forceload' */
+}
+
+bool pci_aer_available(void)
+{
+	return !pcie_aer_disable && pci_msi_enabled();
 }
 
 static int set_device_error_reporting(struct pci_dev *dev, void *data)
@@ -411,9 +417,7 @@ static void aer_error_resume(struct pci_dev *dev)
  */
 static int __init aer_service_init(void)
 {
-	if (pcie_aer_disable)
-		return -ENXIO;
-	if (!pci_msi_enabled())
+	if (!pci_aer_available() || aer_acpi_firmware_first())
 		return -ENXIO;
 	return pcie_port_service_register(&aerdriver);
 }

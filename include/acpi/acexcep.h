@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -212,7 +212,7 @@ char const *acpi_gbl_exception_names_env[] = {
 	"AE_NO_GLOBAL_LOCK",
 	"AE_ABORT_METHOD",
 	"AE_SAME_HANDLER",
-	"AE_WAKE_ONLY_GPE",
+	"AE_NO_HANDLER",
 	"AE_OWNER_ID_LIMIT"
 };
 

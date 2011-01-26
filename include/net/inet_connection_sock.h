@@ -43,7 +43,7 @@ struct inet_connection_sock_af_ops {
 	struct sock *(*syn_recv_sock)(struct sock *sk, struct sk_buff *skb,
 				      struct request_sock *req,
 				      struct dst_entry *dst);
-	int	    (*remember_stamp)(struct sock *sk);
+	struct inet_peer *(*get_peer)(struct sock *sk, bool *release_it);
 	u16	    net_header_len;
 	u16	    sockaddr_len;
 	int	    (*setsockopt)(struct sock *sk, int level, int optname, 
@@ -125,13 +125,13 @@ struct inet_connection_sock {
 		int		  probe_size;
 	} icsk_mtup;
 	u32			  icsk_ca_priv[16];
+	u32			  icsk_user_timeout;
 #define ICSK_CA_PRIV_SIZE	(16 * sizeof(u32))
 };
 
 #define ICSK_TIME_RETRANS	1	/* Retransmit timer */
 #define ICSK_TIME_DACK		2	/* Delayed ack timer */
 #define ICSK_TIME_PROBE0	3	/* Zero window probe timer */
-#define ICSK_TIME_KEEPOPEN	4	/* Keepalive timer */
 
 static inline struct inet_connection_sock *inet_csk(const struct sock *sk)
 {

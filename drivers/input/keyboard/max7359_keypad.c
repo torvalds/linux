@@ -265,7 +265,6 @@ static int __devexit max7359_remove(struct i2c_client *client)
 
 	free_irq(client->irq, keypad);
 	input_unregister_device(keypad->input_dev);
-	i2c_set_clientdata(client, NULL);
 	kfree(keypad);
 
 	return 0;

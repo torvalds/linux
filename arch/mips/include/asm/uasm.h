@@ -10,44 +10,55 @@
 
 #include <linux/types.h>
 
+#ifdef CONFIG_EXPORT_UASM
+#include <linux/module.h>
+#define __uasminit
+#define __uasminitdata
+#define UASM_EXPORT_SYMBOL(sym) EXPORT_SYMBOL(sym)
+#else
+#define __uasminit __cpuinit
+#define __uasminitdata __cpuinitdata
+#define UASM_EXPORT_SYMBOL(sym)
+#endif
+
 #define Ip_u1u2u3(op)							\
-void __cpuinit								\
+void __uasminit								\
 uasm_i##op(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
 
 #define Ip_u2u1u3(op)							\
-void __cpuinit								\
+void __uasminit								\
 uasm_i##op(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
 
 #define Ip_u3u1u2(op)							\
-void __cpuinit								\
+void __uasminit								\
 uasm_i##op(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
 
 #define Ip_u1u2s3(op)							\
-void __cpuinit								\
+void __uasminit								\
 uasm_i##op(u32 **buf, unsigned int a, unsigned int b, signed int c)
 
 #define Ip_u2s3u1(op)							\
-void __cpuinit								\
+void __uasminit								\
 uasm_i##op(u32 **buf, unsigned int a, signed int b, unsigned int c)
 
 #define Ip_u2u1s3(op)							\
-void __cpuinit								\
+void __uasminit								\
 uasm_i##op(u32 **buf, unsigned int a, unsigned int b, signed int c)
 
 #define Ip_u2u1msbu3(op)						\
-void __cpuinit								\
+void __uasminit								\
 uasm_i##op(u32 **buf, unsigned int a, unsigned int b, unsigned int c,	\
 	   unsigned int d)
 
 #define Ip_u1u2(op)							\
-void __cpuinit uasm_i##op(u32 **buf, unsigned int a, unsigned int b)
+void __uasminit uasm_i##op(u32 **buf, unsigned int a, unsigned int b)
 
 #define Ip_u1s2(op)							\
-void __cpuinit uasm_i##op(u32 **buf, unsigned int a, signed int b)
+void __uasminit uasm_i##op(u32 **buf, unsigned int a, signed int b)
 
-#define Ip_u1(op) void __cpuinit uasm_i##op(u32 **buf, unsigned int a)
+#define Ip_u1(op) void __uasminit uasm_i##op(u32 **buf, unsigned int a)
 
-#define Ip_0(op) void __cpuinit uasm_i##op(u32 **buf)
+#define Ip_0(op) void __uasminit uasm_i##op(u32 **buf)
 
 Ip_u2u1s3(_addiu);
 Ip_u3u1u2(_addu);
@@ -71,6 +82,7 @@ Ip_u2u1u3(_dsra);
 Ip_u2u1u3(_dsrl);
 Ip_u2u1u3(_dsrl32);
 Ip_u2u1u3(_drotr);
+Ip_u2u1u3(_drotr32);
 Ip_u3u1u2(_dsubu);
 Ip_0(_eret);
 Ip_u1(_j);
@@ -103,7 +115,12 @@ Ip_0(_tlbwr);
 Ip_u3u1u2(_xor);
 Ip_u2u1u3(_xori);
 Ip_u2u1msbu3(_dins);
+Ip_u2u1msbu3(_dinsm);
 Ip_u1(_syscall);
+Ip_u1u2s3(_bbit0);
+Ip_u1u2s3(_bbit1);
+Ip_u3u1u2(_lwx);
+Ip_u3u1u2(_ldx);
 
 /* Handle labels. */
 struct uasm_label {
@@ -111,7 +128,7 @@ struct uasm_label {
 	int lab;
 };
 
-void __cpuinit uasm_build_label(struct uasm_label **lab, u32 *addr, int lid);
+void __uasminit uasm_build_label(struct uasm_label **lab, u32 *addr, int lid);
 #ifdef CONFIG_64BIT
 int uasm_in_compat_space_p(long addr);
 #endif
@@ -121,7 +138,7 @@ void UASM_i_LA_mostly(u32 **buf, unsigned int rs, long addr);
 void UASM_i_LA(u32 **buf, unsigned int rs, long addr);
 
 #define UASM_L_LA(lb)							\
-static inline void __cpuinit uasm_l##lb(struct uasm_label **lab, u32 *addr) \
+static inline void __uasminit uasm_l##lb(struct uasm_label **lab, u32 *addr) \
 {									\
 	uasm_build_label(lab, addr, label##lb);				\
 }
@@ -141,6 +158,7 @@ static inline void __cpuinit uasm_l##lb(struct uasm_label **lab, u32 *addr) \
 # define UASM_i_SUBU(buf, rs, rt, rd) uasm_i_dsubu(buf, rs, rt, rd)
 # define UASM_i_LL(buf, rs, rt, off) uasm_i_lld(buf, rs, rt, off)
 # define UASM_i_SC(buf, rs, rt, off) uasm_i_scd(buf, rs, rt, off)
+# define UASM_i_LWX(buf, rs, rt, rd) uasm_i_ldx(buf, rs, rt, rd)
 #else
 # define UASM_i_LW(buf, rs, rt, off) uasm_i_lw(buf, rs, rt, off)
 # define UASM_i_SW(buf, rs, rt, off) uasm_i_sw(buf, rs, rt, off)
@@ -155,6 +173,7 @@ static inline void __cpuinit uasm_l##lb(struct uasm_label **lab, u32 *addr) \
 # define UASM_i_SUBU(buf, rs, rt, rd) uasm_i_subu(buf, rs, rt, rd)
 # define UASM_i_LL(buf, rs, rt, off) uasm_i_ll(buf, rs, rt, off)
 # define UASM_i_SC(buf, rs, rt, off) uasm_i_sc(buf, rs, rt, off)
+# define UASM_i_LWX(buf, rs, rt, rd) uasm_i_lwx(buf, rs, rt, rd)
 #endif
 
 #define uasm_i_b(buf, off) uasm_i_beq(buf, 0, 0, off)
@@ -174,6 +193,15 @@ static inline void uasm_i_dsrl_safe(u32 **p, unsigned int a1,
 		uasm_i_dsrl(p, a1, a2, a3);
 	else
 		uasm_i_dsrl32(p, a1, a2, a3 - 32);
+}
+
+static inline void uasm_i_drotr_safe(u32 **p, unsigned int a1,
+				     unsigned int a2, unsigned int a3)
+{
+	if (a3 < 32)
+		uasm_i_drotr(p, a1, a2, a3);
+	else
+		uasm_i_drotr32(p, a1, a2, a3 - 32);
 }
 
 static inline void uasm_i_dsll_safe(u32 **p, unsigned int a1,
@@ -213,3 +241,7 @@ void uasm_il_bne(u32 **p, struct uasm_reloc **r, unsigned int reg1,
 void uasm_il_bnez(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
 void uasm_il_bgezl(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
 void uasm_il_bgez(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
+void uasm_il_bbit0(u32 **p, struct uasm_reloc **r, unsigned int reg,
+		   unsigned int bit, int lid);
+void uasm_il_bbit1(u32 **p, struct uasm_reloc **r, unsigned int reg,
+		   unsigned int bit, int lid);

@@ -73,15 +73,6 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 		return -EINVAL;
 
 	sd_iattr = sd->s_iattr;
-
-	error = inode_change_ok(inode, iattr);
-	if (error)
-		return error;
-
-	error = inode_setattr(inode, iattr);
-	if (error)
-		return error;
-
 	if (!sd_iattr) {
 		/* setting attributes for the first time, allocate now */
 		sd_iattr = kzalloc(sizeof(struct iattr), GFP_KERNEL);
@@ -94,8 +85,11 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 		sd_iattr->ia_atime = sd_iattr->ia_mtime = sd_iattr->ia_ctime = CURRENT_TIME;
 		sd->s_iattr = sd_iattr;
 	}
-
 	/* attributes were changed atleast once in past */
+
+	error = simple_setattr(dentry, iattr);
+	if (error)
+		return error;
 
 	if (ia_valid & ATTR_UID)
 		sd_iattr->ia_uid = iattr->ia_uid;
@@ -141,6 +135,7 @@ struct inode * configfs_new_inode(mode_t mode, struct configfs_dirent * sd)
 {
 	struct inode * inode = new_inode(configfs_sb);
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode->i_mapping->a_ops = &configfs_aops;
 		inode->i_mapping->backing_dev_info = &configfs_backing_dev_info;
 		inode->i_op = &configfs_inode_operations;
@@ -255,18 +250,14 @@ void configfs_drop_dentry(struct configfs_dirent * sd, struct dentry * parent)
 	struct dentry * dentry = sd->s_dentry;
 
 	if (dentry) {
-		spin_lock(&dcache_lock);
 		spin_lock(&dentry->d_lock);
 		if (!(d_unhashed(dentry) && dentry->d_inode)) {
-			dget_locked(dentry);
+			dget_dlock(dentry);
 			__d_drop(dentry);
 			spin_unlock(&dentry->d_lock);
-			spin_unlock(&dcache_lock);
 			simple_unlink(parent->d_inode, dentry);
-		} else {
+		} else
 			spin_unlock(&dentry->d_lock);
-			spin_unlock(&dcache_lock);
-		}
 	}
 }
 

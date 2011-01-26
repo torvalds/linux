@@ -125,16 +125,15 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 {
 	struct tcf_pedit *p = a->priv;
 	int i, munged = 0;
-	u8 *pptr;
+	unsigned int off;
 
-	if (!(skb->tc_verd & TC_OK2MUNGE)) {
-		/* should we set skb->cloned? */
+	if (skb_cloned(skb)) {
 		if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
 			return p->tcf_action;
 		}
 	}
 
-	pptr = skb_network_header(skb);
+	off = skb_network_offset(skb);
 
 	spin_lock(&p->tcf_lock);
 
@@ -144,17 +143,17 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 		struct tc_pedit_key *tkey = p->tcfp_keys;
 
 		for (i = p->tcfp_nkeys; i > 0; i--, tkey++) {
-			u32 *ptr;
+			u32 *ptr, _data;
 			int offset = tkey->off;
 
 			if (tkey->offmask) {
-				if (skb->len > tkey->at) {
-					 char *j = pptr + tkey->at;
-					 offset += ((*j & tkey->offmask) >>
-						   tkey->shift);
-				} else {
+				char *d, _d;
+
+				d = skb_header_pointer(skb, off + tkey->at, 1,
+						       &_d);
+				if (!d)
 					goto bad;
-				}
+				offset += (*d & tkey->offmask) >> tkey->shift;
 			}
 
 			if (offset % 4) {
@@ -169,9 +168,13 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 				goto bad;
 			}
 
-			ptr = (u32 *)(pptr+offset);
+			ptr = skb_header_pointer(skb, off + offset, 4, &_data);
+			if (!ptr)
+				goto bad;
 			/* just do it, baby */
 			*ptr = ((*ptr & tkey->mask) ^ tkey->val);
+			if (ptr == &_data)
+				skb_store_bits(skb, off + offset, ptr, 4);
 			munged++;
 		}
 
@@ -184,8 +187,7 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 bad:
 	p->tcf_qstats.overlimits++;
 done:
-	p->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	p->tcf_bstats.packets++;
+	bstats_update(&p->tcf_bstats, skb);
 	spin_unlock(&p->tcf_lock);
 	return p->tcf_action;
 }

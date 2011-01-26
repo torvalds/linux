@@ -58,7 +58,7 @@ struct ipv6_opt_hdr {
 	/* 
 	 * TLV encoded option data follows.
 	 */
-} __attribute__ ((packed));	/* required for some archs */
+} __attribute__((packed));	/* required for some archs */
 
 #define ipv6_destopt_hdr ipv6_opt_hdr
 #define ipv6_hopopt_hdr  ipv6_opt_hdr
@@ -99,7 +99,7 @@ struct ipv6_destopt_hao {
 	__u8			type;
 	__u8			length;
 	struct in6_addr		addr;
-} __attribute__ ((__packed__));
+} __attribute__((packed));
 
 /*
  *	IPv6 fixed header
@@ -246,7 +246,7 @@ struct inet6_skb_parm {
 	__u16			srcrt;
 	__u16			dst1;
 	__u16			lastopt;
-	__u32			nhoff;
+	__u16			nhoff;
 	__u16			flags;
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 	__u16			dsthao;
@@ -341,7 +341,9 @@ struct ipv6_pinfo {
 				odstopts:1,
                                 rxflow:1,
 				rxtclass:1,
-				rxpmtu:1;
+				rxpmtu:1,
+				rxorigdstaddr:1;
+				/* 2 bits hole */
 		} bits;
 		__u16		all;
 	} rxopt;
@@ -362,7 +364,7 @@ struct ipv6_pinfo {
 
 	__u32			dst_cookie;
 
-	struct ipv6_mc_socklist	*ipv6_mc_list;
+	struct ipv6_mc_socklist	__rcu *ipv6_mc_list;
 	struct ipv6_ac_socklist	*ipv6_ac_list;
 	struct ipv6_fl_socklist *ipv6_fl_list;
 

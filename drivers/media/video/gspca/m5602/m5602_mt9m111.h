@@ -70,7 +70,7 @@
 #define MT9M111_COLORPIPE			0x01
 #define MT9M111_CAMERA_CONTROL			0x02
 
-#define MT9M111_RESET 				(1 << 0)
+#define MT9M111_RESET				(1 << 0)
 #define MT9M111_RESTART				(1 << 1)
 #define MT9M111_ANALOG_STANDBY			(1 << 2)
 #define MT9M111_CHIP_ENABLE			(1 << 3)
@@ -97,7 +97,7 @@
 #define MT9M111_2D_DEFECT_CORRECTION_ENABLE	(1 << 0)
 
 #define INITIAL_MAX_GAIN			64
-#define MT9M111_DEFAULT_GAIN 			283
+#define MT9M111_DEFAULT_GAIN			283
 #define MT9M111_GREEN_GAIN_DEFAULT		0x20
 #define MT9M111_BLUE_GAIN_DEFAULT		0x20
 #define MT9M111_RED_GAIN_DEFAULT		0x20
@@ -125,8 +125,7 @@ static const struct m5602_sensor mt9m111 = {
 	.start = mt9m111_start,
 };
 
-static const unsigned char preinit_mt9m111[][4] =
-{
+static const unsigned char preinit_mt9m111[][4] = {
 	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02, 0x00},
 	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
@@ -165,8 +164,7 @@ static const unsigned char preinit_mt9m111[][4] =
 	{BRIDGE, M5602_XB_I2C_CLK_DIV, 0x0a, 0x00}
 };
 
-static const unsigned char init_mt9m111[][4] =
-{
+static const unsigned char init_mt9m111[][4] = {
 	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02, 0x00},
 	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
@@ -257,8 +255,7 @@ static const unsigned char init_mt9m111[][4] =
 	{SENSOR, MT9M111_SC_SHUTTER_WIDTH, 0x01, 0x90},
 };
 
-static const unsigned char start_mt9m111[][4] =
-{
+static const unsigned char start_mt9m111[][4] = {
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x06, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0, 0x00},
 	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0, 0x00},
@@ -271,5 +268,4 @@ static const unsigned char start_mt9m111[][4] =
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00, 0x00},
 	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00, 0x00},
 };
-
 #endif

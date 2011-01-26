@@ -112,8 +112,8 @@ void ax25_ds_heartbeat_expiry(ax25_cb *ax25)
 			if (sk) {
 				sock_hold(sk);
 				ax25_destroy_socket(ax25);
-				sock_put(sk);
 				bh_unlock_sock(sk);
+				sock_put(sk);
 			} else
 				ax25_destroy_socket(ax25);
 			return;

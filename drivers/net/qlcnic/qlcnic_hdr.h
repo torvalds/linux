@@ -1,25 +1,8 @@
 /*
- * Copyright (C) 2009 - QLogic Corporation.
- * All rights reserved.
+ * QLogic qlcnic NIC Driver
+ * Copyright (c)  2009-2010 QLogic Corporation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
- * MA  02111-1307, USA.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called "COPYING".
- *
+ * See LICENSE.qlcnic for copyright and licensing details.
  */
 
 #ifndef __QLCNIC_HDR_H_
@@ -207,6 +190,39 @@ enum {
 	QLCNIC_HW_PX_MAP_CRB_PGNC,
 	QLCNIC_HW_PX_MAP_CRB_PGR0
 };
+
+#define	BIT_0	0x1
+#define	BIT_1	0x2
+#define	BIT_2	0x4
+#define	BIT_3	0x8
+#define	BIT_4	0x10
+#define	BIT_5	0x20
+#define	BIT_6	0x40
+#define	BIT_7	0x80
+#define	BIT_8	0x100
+#define	BIT_9	0x200
+#define	BIT_10	0x400
+#define	BIT_11	0x800
+#define	BIT_12	0x1000
+#define	BIT_13	0x2000
+#define	BIT_14	0x4000
+#define	BIT_15	0x8000
+#define	BIT_16	0x10000
+#define	BIT_17	0x20000
+#define	BIT_18	0x40000
+#define	BIT_19	0x80000
+#define	BIT_20	0x100000
+#define	BIT_21	0x200000
+#define	BIT_22	0x400000
+#define	BIT_23	0x800000
+#define	BIT_24	0x1000000
+#define	BIT_25	0x2000000
+#define	BIT_26	0x4000000
+#define	BIT_27	0x8000000
+#define	BIT_28	0x10000000
+#define	BIT_29	0x20000000
+#define	BIT_30	0x40000000
+#define	BIT_31	0x80000000
 
 /*  This field defines CRB adr [31:20] of the agents */
 
@@ -523,18 +539,18 @@ enum {
 #define XG_LINK_UP	0x10
 #define XG_LINK_DOWN	0x20
 
-#define XG_LINK_UP_P3	0x01
-#define XG_LINK_DOWN_P3	0x02
-#define XG_LINK_STATE_P3_MASK 0xf
-#define XG_LINK_STATE_P3(pcifn, val) \
-	(((val) >> ((pcifn) * 4)) & XG_LINK_STATE_P3_MASK)
+#define XG_LINK_UP_P3P	0x01
+#define XG_LINK_DOWN_P3P	0x02
+#define XG_LINK_STATE_P3P_MASK 0xf
+#define XG_LINK_STATE_P3P(pcifn, val) \
+	(((val) >> ((pcifn) * 4)) & XG_LINK_STATE_P3P_MASK)
 
-#define P3_LINK_SPEED_MHZ	100
-#define P3_LINK_SPEED_MASK	0xff
-#define P3_LINK_SPEED_REG(pcifn)	\
+#define P3P_LINK_SPEED_MHZ	100
+#define P3P_LINK_SPEED_MASK	0xff
+#define P3P_LINK_SPEED_REG(pcifn)	\
 	(CRB_PF_LINK_SPEED_1 + (((pcifn) / 4) * 4))
-#define P3_LINK_SPEED_VAL(pcifn, reg)	\
-	(((reg) >> (8 * ((pcifn) & 0x3))) & P3_LINK_SPEED_MASK)
+#define P3P_LINK_SPEED_VAL(pcifn, reg)	\
+	(((reg) >> (8 * ((pcifn) & 0x3))) & P3P_LINK_SPEED_MASK)
 
 #define QLCNIC_CAM_RAM_BASE	(QLCNIC_CRB_CAM + 0x02000)
 #define QLCNIC_CAM_RAM(reg)	(QLCNIC_CAM_RAM_BASE + (reg))
@@ -559,7 +575,7 @@ enum {
 #define CRB_CMDPEG_STATE		(QLCNIC_REG(0x50))
 #define CRB_RCVPEG_STATE		(QLCNIC_REG(0x13c))
 
-#define CRB_XG_STATE_P3 		(QLCNIC_REG(0x98))
+#define CRB_XG_STATE_P3P		(QLCNIC_REG(0x98))
 #define CRB_PF_LINK_SPEED_1		(QLCNIC_REG(0xe8))
 #define CRB_PF_LINK_SPEED_2		(QLCNIC_REG(0xec))
 
@@ -605,7 +621,7 @@ enum {
 #define PCIX_INT_MASK		(0x10104)
 
 #define PCIX_OCM_WINDOW		(0x10800)
-#define PCIX_OCM_WINDOW_REG(func)	(PCIX_OCM_WINDOW + 0x20 * (func))
+#define PCIX_OCM_WINDOW_REG(func)	(PCIX_OCM_WINDOW + 0x4 * (func))
 
 #define PCIX_TARGET_STATUS	(0x10118)
 #define PCIX_TARGET_STATUS_F1	(0x10160)
@@ -665,13 +681,14 @@ enum {
 #define QLCNIC_PEG_ALIVE_COUNTER	(QLCNIC_CAM_RAM(0xb0))
 #define QLCNIC_PEG_HALT_STATUS1 	(QLCNIC_CAM_RAM(0xa8))
 #define QLCNIC_PEG_HALT_STATUS2 	(QLCNIC_CAM_RAM(0xac))
-#define QLCNIC_CRB_DEV_REF_COUNT	(QLCNIC_CAM_RAM(0x138))
+#define QLCNIC_CRB_DRV_ACTIVE	(QLCNIC_CAM_RAM(0x138))
 #define QLCNIC_CRB_DEV_STATE		(QLCNIC_CAM_RAM(0x140))
 
-#define QLCNIC_CRB_DRV_STATE               (QLCNIC_CAM_RAM(0x144))
-#define QLCNIC_CRB_DRV_SCRATCH             (QLCNIC_CAM_RAM(0x148))
-#define QLCNIC_CRB_DEV_PARTITION_INFO      (QLCNIC_CAM_RAM(0x14c))
+#define QLCNIC_CRB_DRV_STATE		(QLCNIC_CAM_RAM(0x144))
+#define QLCNIC_CRB_DRV_SCRATCH		(QLCNIC_CAM_RAM(0x148))
+#define QLCNIC_CRB_DEV_PARTITION_INFO	(QLCNIC_CAM_RAM(0x14c))
 #define QLCNIC_CRB_DRV_IDC_VER		(QLCNIC_CAM_RAM(0x174))
+#define QLCNIC_CRB_DEV_NPAR_STATE	(QLCNIC_CAM_RAM(0x19c))
 #define QLCNIC_ROM_DEV_INIT_TIMEOUT	(0x3e885c)
 #define QLCNIC_ROM_DRV_RESET_TIMEOUT	(0x3e8860)
 
@@ -684,20 +701,41 @@ enum {
 #define QLCNIC_DEV_FAILED		0x6
 #define QLCNIC_DEV_QUISCENT		0x7
 
+#define QLCNIC_DEV_NPAR_NON_OPER	0 /* NON Operational */
+#define QLCNIC_DEV_NPAR_OPER		1 /* NPAR Operational */
+#define QLCNIC_DEV_NPAR_OPER_TIMEO	30 /* Operational time out */
+
+#define QLC_DEV_CHECK_ACTIVE(VAL, FN)		((VAL) & (1 << (FN * 4)))
 #define QLC_DEV_SET_REF_CNT(VAL, FN)		((VAL) |= (1 << (FN * 4)))
 #define QLC_DEV_CLR_REF_CNT(VAL, FN)		((VAL) &= ~(1 << (FN * 4)))
 #define QLC_DEV_SET_RST_RDY(VAL, FN)		((VAL) |= (1 << (FN * 4)))
 #define QLC_DEV_SET_QSCNT_RDY(VAL, FN)		((VAL) |= (2 << (FN * 4)))
 #define QLC_DEV_CLR_RST_QSCNT(VAL, FN)		((VAL) &= ~(3 << (FN * 4)))
 
+#define QLC_DEV_GET_DRV(VAL, FN)		(0xf & ((VAL) >> (FN * 4)))
+#define QLC_DEV_SET_DRV(VAL, FN)		((VAL) << (FN * 4))
+
+#define QLCNIC_TYPE_NIC		1
+#define QLCNIC_TYPE_FCOE		2
+#define QLCNIC_TYPE_ISCSI		3
+
 #define QLCNIC_RCODE_DRIVER_INFO		0x20000000
-#define QLCNIC_RCODE_DRIVER_CAN_RELOAD		0x40000000
-#define QLCNIC_RCODE_FATAL_ERROR		0x80000000
+#define QLCNIC_RCODE_DRIVER_CAN_RELOAD		BIT_30
+#define QLCNIC_RCODE_FATAL_ERROR		BIT_31
 #define QLCNIC_FWERROR_PEGNUM(code)		((code) & 0xff)
 #define QLCNIC_FWERROR_CODE(code)		((code >> 8) & 0xfffff)
 
 #define FW_POLL_DELAY		(1 * HZ)
 #define FW_FAIL_THRESH		2
+
+#define QLCNIC_RESET_TIMEOUT_SECS	10
+#define QLCNIC_INIT_TIMEOUT_SECS	30
+#define QLCNIC_RCVPEG_CHECK_RETRY_COUNT	2000
+#define QLCNIC_RCVPEG_CHECK_DELAY	10
+#define QLCNIC_CMDPEG_CHECK_RETRY_COUNT	60
+#define QLCNIC_CMDPEG_CHECK_DELAY	500
+#define QLCNIC_HEARTBEAT_PERIOD_MSECS	200
+#define QLCNIC_HEARTBEAT_CHECK_RETRY_COUNT	45
 
 #define	ISR_MSI_INT_TRIGGER(FUNC) (QLCNIC_PCIX_PS_REG(PCIX_MSI_F(FUNC)))
 #define ISR_LEGACY_INT_TRIGGERED(VAL)	(((VAL) & 0x300) == 0x200)
@@ -720,6 +758,36 @@ struct qlcnic_legacy_intr_set {
 	u32	tgt_mask_reg;
 	u32	pci_int_reg;
 };
+
+#define QLCNIC_FW_API		0x1b216c
+#define QLCNIC_DRV_OP_MODE	0x1b2170
+#define QLCNIC_MSIX_BASE	0x132110
+#define QLCNIC_MAX_PCI_FUNC	8
+#define QLCNIC_MAX_VLAN_FILTERS	64
+
+/* PCI function operational mode */
+enum {
+	QLCNIC_MGMT_FUNC	= 0,
+	QLCNIC_PRIV_FUNC	= 1,
+	QLCNIC_NON_PRIV_FUNC	= 2
+};
+
+enum {
+	QLCNIC_PORT_DEFAULTS	= 0,
+	QLCNIC_ADD_VLAN	= 1,
+	QLCNIC_DEL_VLAN	= 2
+};
+
+#define QLC_DEV_DRV_DEFAULT 0x11111111
+
+#define LSB(x)	((uint8_t)(x))
+#define MSB(x)	((uint8_t)((uint16_t)(x) >> 8))
+
+#define LSW(x)  ((uint16_t)((uint32_t)(x)))
+#define MSW(x)  ((uint16_t)((uint32_t)(x) >> 16))
+
+#define LSD(x)  ((uint32_t)((uint64_t)(x)))
+#define MSD(x)  ((uint32_t)((((uint64_t)(x)) >> 16) >> 16))
 
 #define	QLCNIC_LEGACY_INTR_CONFIG					\
 {									\

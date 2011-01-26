@@ -143,6 +143,7 @@ struct xfrm_state {
 	struct xfrm_id		id;
 	struct xfrm_selector	sel;
 	struct xfrm_mark	mark;
+	u32			tfcpad;
 
 	u32			genid;
 
@@ -298,8 +299,8 @@ struct xfrm_state_afinfo {
 	const struct xfrm_type	*type_map[IPPROTO_MAX];
 	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];
 	int			(*init_flags)(struct xfrm_state *x);
-	void			(*init_tempsel)(struct xfrm_state *x, struct flowi *fl,
-						struct xfrm_tmpl *tmpl,
+	void			(*init_tempsel)(struct xfrm_selector *sel, struct flowi *fl);
+	void			(*init_temprop)(struct xfrm_state *x, struct xfrm_tmpl *tmpl,
 						xfrm_address_t *daddr, xfrm_address_t *saddr);
 	int			(*tmpl_sort)(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n);
 	int			(*state_sort)(struct xfrm_state **dst, struct xfrm_state **src, int n);
@@ -805,6 +806,9 @@ __be16 xfrm_flowi_sport(struct flowi *fl)
 	case IPPROTO_MH:
 		port = htons(fl->fl_mh_type);
 		break;
+	case IPPROTO_GRE:
+		port = htons(ntohl(fl->fl_gre_key) >> 16);
+		break;
 	default:
 		port = 0;	/*XXX*/
 	}
@@ -825,6 +829,9 @@ __be16 xfrm_flowi_dport(struct flowi *fl)
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
 		port = htons(fl->fl_icmp_code);
+		break;
+	case IPPROTO_GRE:
+		port = htons(ntohl(fl->fl_gre_key) & 0xffff);
 		break;
 	default:
 		port = 0;	/*XXX*/
@@ -1264,7 +1271,7 @@ struct xfrm_tunnel {
 	int (*handler)(struct sk_buff *skb);
 	int (*err_handler)(struct sk_buff *skb, u32 info);
 
-	struct xfrm_tunnel *next;
+	struct xfrm_tunnel __rcu *next;
 	int priority;
 };
 
@@ -1272,7 +1279,7 @@ struct xfrm6_tunnel {
 	int (*handler)(struct sk_buff *skb);
 	int (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			   u8 type, u8 code, int offset, __be32 info);
-	struct xfrm6_tunnel *next;
+	struct xfrm6_tunnel __rcu *next;
 	int priority;
 };
 
@@ -1419,7 +1426,6 @@ extern int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 extern int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family);
 extern int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family);
 extern __be32 xfrm6_tunnel_alloc_spi(struct net *net, xfrm_address_t *saddr);
-extern void xfrm6_tunnel_free_spi(struct net *net, xfrm_address_t *saddr);
 extern __be32 xfrm6_tunnel_spi_lookup(struct net *net, xfrm_address_t *saddr);
 extern int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
@@ -1466,8 +1472,6 @@ struct xfrm_state *xfrm_find_acq(struct net *net, struct xfrm_mark *mark,
 				 xfrm_address_t *saddr, int create,
 				 unsigned short family);
 extern int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol);
-extern int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *xdst,
-			  struct flowi *fl, int family, int strict);
 
 #ifdef CONFIG_XFRM_MIGRATE
 extern int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
@@ -1586,7 +1590,7 @@ static inline struct xfrm_state *xfrm_input_state(struct sk_buff *skb)
 static inline int xfrm_mark_get(struct nlattr **attrs, struct xfrm_mark *m)
 {
 	if (attrs[XFRMA_MARK])
-		memcpy(m, nla_data(attrs[XFRMA_MARK]), sizeof(m));
+		memcpy(m, nla_data(attrs[XFRMA_MARK]), sizeof(struct xfrm_mark));
 	else
 		m->v = m->m = 0;
 

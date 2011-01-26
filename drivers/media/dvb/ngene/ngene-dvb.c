@@ -35,16 +35,12 @@
 #include <linux/io.h>
 #include <asm/div64.h>
 #include <linux/pci.h>
-#include <linux/smp_lock.h>
 #include <linux/timer.h>
-#include <linux/version.h>
 #include <linux/byteorder/generic.h>
 #include <linux/firmware.h>
 #include <linux/vmalloc.h>
 
 #include "ngene.h"
-
-#define COMMAND_TIMEOUT_WORKAROUND
 
 
 /****************************************************************************/
@@ -69,9 +65,7 @@ void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 	struct ngene_channel *chan = priv;
 
 
-#ifdef COMMAND_TIMEOUT_WORKAROUND
 	if (chan->users > 0)
-#endif
 		dvb_dmx_swfilter(&chan->demux, buf, len);
 	return NULL;
 }
@@ -106,11 +100,8 @@ int ngene_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	struct ngene_channel *chan = dvbdmx->priv;
 
 	if (chan->users == 0) {
-#ifdef COMMAND_TIMEOUT_WORKAROUND
-		if (!chan->running)
-#endif
+		if (!chan->dev->cmd_timeout_workaround || !chan->running)
 			set_transfer(chan, 1);
-		/* msleep(10); */
 	}
 
 	return ++chan->users;
@@ -124,9 +115,8 @@ int ngene_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (--chan->users)
 		return chan->users;
 
-#ifndef COMMAND_TIMEOUT_WORKAROUND
-	set_transfer(chan, 0);
-#endif
+	if (!chan->dev->cmd_timeout_workaround)
+		set_transfer(chan, 0);
 
 	return 0;
 }

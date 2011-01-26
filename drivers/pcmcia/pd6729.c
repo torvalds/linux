@@ -17,9 +17,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
-#include <pcmcia/cs.h>
 
 #include <asm/system.h>
 
@@ -647,7 +645,7 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	if (!pci_resource_start(dev, 0)) {
 		dev_warn(&dev->dev, "refusing to load the driver as the "
 			"io_base is NULL.\n");
-		goto err_out_free_mem;
+		goto err_out_disable;
 	}
 
 	dev_info(&dev->dev, "Cirrus PD6729 PCI to PCMCIA Bridge at 0x%llx "
@@ -727,17 +725,17 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 
 	return 0;
 
- err_out_free_res2:
+err_out_free_res2:
 	if (irq_mode == 1)
 		free_irq(dev->irq, socket);
 	else
 		del_timer_sync(&socket->poll_timer);
- err_out_free_res:
+err_out_free_res:
 	pci_release_regions(dev);
- err_out_disable:
+err_out_disable:
 	pci_disable_device(dev);
 
- err_out_free_mem:
+err_out_free_mem:
 	kfree(socket);
 	return ret;
 }

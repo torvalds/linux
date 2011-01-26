@@ -118,17 +118,18 @@ static int siena_probe_port(struct efx_nic *efx)
 				  MC_CMD_MAC_NSTATS * sizeof(u64));
 	if (rc)
 		return rc;
-	EFX_LOG(efx, "stats buffer at %llx (virt %p phys %llx)\n",
-		(u64)efx->stats_buffer.dma_addr,
-		efx->stats_buffer.addr,
-		(u64)virt_to_phys(efx->stats_buffer.addr));
+	netif_dbg(efx, probe, efx->net_dev,
+		  "stats buffer at %llx (virt %p phys %llx)\n",
+		  (u64)efx->stats_buffer.dma_addr,
+		  efx->stats_buffer.addr,
+		  (u64)virt_to_phys(efx->stats_buffer.addr));
 
 	efx_mcdi_mac_stats(efx, efx->stats_buffer.dma_addr, 0, 0, 1);
 
 	return 0;
 }
 
-void siena_remove_port(struct efx_nic *efx)
+static void siena_remove_port(struct efx_nic *efx)
 {
 	efx->phy_op->remove(efx);
 	efx_nic_free_buffer(efx, &efx->stats_buffer);
@@ -193,19 +194,14 @@ static int siena_reset_hw(struct efx_nic *efx, enum reset_type method)
 
 static int siena_probe_nvconfig(struct efx_nic *efx)
 {
-	int rc;
-
-	rc = efx_mcdi_get_board_cfg(efx, efx->mac_address, NULL);
-	if (rc)
-		return rc;
-
-	return 0;
+	return efx_mcdi_get_board_cfg(efx, efx->net_dev->perm_addr, NULL);
 }
 
 static int siena_probe_nic(struct efx_nic *efx)
 {
 	struct siena_nic_data *nic_data;
 	bool already_attached = 0;
+	efx_oword_t reg;
 	int rc;
 
 	/* Allocate storage for hardware specific data */
@@ -215,10 +211,14 @@ static int siena_probe_nic(struct efx_nic *efx)
 	efx->nic_data = nic_data;
 
 	if (efx_nic_fpga_ver(efx) != 0) {
-		EFX_ERR(efx, "Siena FPGA not supported\n");
+		netif_err(efx, probe, efx->net_dev,
+			  "Siena FPGA not supported\n");
 		rc = -ENODEV;
 		goto fail1;
 	}
+
+	efx_reado(efx, &reg, FR_AZ_CS_DEBUG);
+	efx->net_dev->dev_id = EFX_OWORD_FIELD(reg, FRF_CZ_CS_PORT_NUM) - 1;
 
 	efx_mcdi_init(efx);
 
@@ -229,8 +229,8 @@ static int siena_probe_nic(struct efx_nic *efx)
 
 	rc = efx_mcdi_fwver(efx, &nic_data->fw_version, &nic_data->fw_build);
 	if (rc) {
-		EFX_ERR(efx, "Failed to read MCPU firmware version - "
-			"rc %d\n", rc);
+		netif_err(efx, probe, efx->net_dev,
+			  "Failed to read MCPU firmware version - rc %d\n", rc);
 		goto fail1; /* MCPU absent? */
 	}
 
@@ -238,17 +238,19 @@ static int siena_probe_nic(struct efx_nic *efx)
 	 * filter settings. We must do this before we reset the NIC */
 	rc = efx_mcdi_drv_attach(efx, true, &already_attached);
 	if (rc) {
-		EFX_ERR(efx, "Unable to register driver with MCPU\n");
+		netif_err(efx, probe, efx->net_dev,
+			  "Unable to register driver with MCPU\n");
 		goto fail2;
 	}
 	if (already_attached)
 		/* Not a fatal error */
-		EFX_ERR(efx, "Host already registered with MCPU\n");
+		netif_err(efx, probe, efx->net_dev,
+			  "Host already registered with MCPU\n");
 
 	/* Now we can reset the NIC */
 	rc = siena_reset_hw(efx, RESET_TYPE_ALL);
 	if (rc) {
-		EFX_ERR(efx, "failed to reset NIC\n");
+		netif_err(efx, probe, efx->net_dev, "failed to reset NIC\n");
 		goto fail3;
 	}
 
@@ -260,23 +262,22 @@ static int siena_probe_nic(struct efx_nic *efx)
 		goto fail4;
 	BUG_ON(efx->irq_status.dma_addr & 0x0f);
 
-	EFX_LOG(efx, "INT_KER at %llx (virt %p phys %llx)\n",
-		(unsigned long long)efx->irq_status.dma_addr,
-		efx->irq_status.addr,
-		(unsigned long long)virt_to_phys(efx->irq_status.addr));
+	netif_dbg(efx, probe, efx->net_dev,
+		  "INT_KER at %llx (virt %p phys %llx)\n",
+		  (unsigned long long)efx->irq_status.dma_addr,
+		  efx->irq_status.addr,
+		  (unsigned long long)virt_to_phys(efx->irq_status.addr));
 
 	/* Read in the non-volatile configuration */
 	rc = siena_probe_nvconfig(efx);
 	if (rc == -EINVAL) {
-		EFX_ERR(efx, "NVRAM is invalid therefore using defaults\n");
+		netif_err(efx, probe, efx->net_dev,
+			  "NVRAM is invalid therefore using defaults\n");
 		efx->phy_type = PHY_TYPE_NONE;
 		efx->mdio.prtad = MDIO_PRTAD_NONE;
 	} else if (rc) {
 		goto fail5;
 	}
-
-	get_random_bytes(&nic_data->ipv6_rss_key,
-			 sizeof(nic_data->ipv6_rss_key));
 
 	return 0;
 
@@ -297,7 +298,6 @@ fail1:
  */
 static int siena_init_nic(struct efx_nic *efx)
 {
-	struct siena_nic_data *nic_data = efx->nic_data;
 	efx_oword_t temp;
 	int rc;
 
@@ -322,25 +322,36 @@ static int siena_init_nic(struct efx_nic *efx)
 	efx_reado(efx, &temp, FR_AZ_RX_CFG);
 	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_DESC_PUSH_EN, 0);
 	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_INGR_EN, 1);
+	/* Enable hash insertion. This is broken for the 'Falcon' hash
+	 * if IPv6 hashing is also enabled, so also select Toeplitz
+	 * TCP/IPv4 and IPv4 hashes. */
+	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_HASH_INSRT_HDR, 1);
+	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_HASH_ALG, 1);
+	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_IP_HASH, 1);
 	efx_writeo(efx, &temp, FR_AZ_RX_CFG);
 
+	/* Set hash key for IPv4 */
+	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
+	efx_writeo(efx, &temp, FR_BZ_RX_RSS_TKEY);
+
 	/* Enable IPv6 RSS */
-	BUILD_BUG_ON(sizeof(nic_data->ipv6_rss_key) !=
+	BUILD_BUG_ON(sizeof(efx->rx_hash_key) <
 		     2 * sizeof(temp) + FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8 ||
 		     FRF_CZ_RX_RSS_IPV6_TKEY_HI_LBN != 0);
-	memcpy(&temp, nic_data->ipv6_rss_key, sizeof(temp));
+	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
 	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG1);
-	memcpy(&temp, nic_data->ipv6_rss_key + sizeof(temp), sizeof(temp));
+	memcpy(&temp, efx->rx_hash_key + sizeof(temp), sizeof(temp));
 	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG2);
 	EFX_POPULATE_OWORD_2(temp, FRF_CZ_RX_RSS_IPV6_THASH_ENABLE, 1,
 			     FRF_CZ_RX_RSS_IPV6_IP_THASH_ENABLE, 1);
-	memcpy(&temp, nic_data->ipv6_rss_key + 2 * sizeof(temp),
+	memcpy(&temp, efx->rx_hash_key + 2 * sizeof(temp),
 	       FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8);
 	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG3);
 
 	if (efx_nic_rx_xoff_thresh >= 0 || efx_nic_rx_xon_thresh >= 0)
 		/* No MCDI operation has been defined to set thresholds */
-		EFX_ERR(efx, "ignoring RX flow control thresholds\n");
+		netif_err(efx, hw, efx->net_dev,
+			  "ignoring RX flow control thresholds\n");
 
 	/* Enable event logging */
 	rc = efx_mcdi_log_ctrl(efx, true, false, 0);
@@ -433,7 +444,7 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 				    mac_stats->rx_bad_bytes);
 	MAC_STAT(rx_packets, RX_PKTS);
 	MAC_STAT(rx_good, RX_GOOD_PKTS);
-	mac_stats->rx_bad = mac_stats->rx_packets - mac_stats->rx_good;
+	MAC_STAT(rx_bad, RX_BAD_FCS_PKTS);
 	MAC_STAT(rx_pause, RX_PAUSE_PKTS);
 	MAC_STAT(rx_control, RX_CONTROL_PKTS);
 	MAC_STAT(rx_unicast, RX_UNICAST_PKTS);
@@ -545,7 +556,7 @@ static int siena_set_wol(struct efx_nic *efx, u32 type)
 		if (nic_data->wol_filter_id != -1)
 			efx_mcdi_wol_filter_remove(efx,
 						   nic_data->wol_filter_id);
-		rc = efx_mcdi_wol_filter_set_magic(efx, efx->mac_address,
+		rc = efx_mcdi_wol_filter_set_magic(efx, efx->net_dev->dev_addr,
 						   &nic_data->wol_filter_id);
 		if (rc)
 			goto fail;
@@ -561,7 +572,8 @@ static int siena_set_wol(struct efx_nic *efx, u32 type)
 
 	return 0;
  fail:
-	EFX_ERR(efx, "%s failed: type=%d rc=%d\n", __func__, type, rc);
+	netif_err(efx, hw, efx->net_dev, "%s failed: type=%d rc=%d\n",
+		  __func__, type, rc);
 	return rc;
 }
 
@@ -624,6 +636,7 @@ struct efx_nic_type siena_a0_nic_type = {
 	.evq_ptr_tbl_base = FR_BZ_EVQ_PTR_TBL,
 	.evq_rptr_tbl_base = FR_BZ_EVQ_RPTR,
 	.max_dma_mask = DMA_BIT_MASK(FSF_AZ_TX_KER_BUF_ADDR_WIDTH),
+	.rx_buffer_hash_size = 0x10,
 	.rx_buffer_padding = 0,
 	.max_interrupt_mode = EFX_INT_MODE_MSIX,
 	.phys_addr_channels = 32, /* Hardware limit is 64, but the legacy
@@ -631,6 +644,7 @@ struct efx_nic_type siena_a0_nic_type = {
 				   * channels */
 	.tx_dc_base = 0x88000,
 	.rx_dc_base = 0x68000,
-	.offload_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM,
+	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			     NETIF_F_RXHASH | NETIF_F_NTUPLE),
 	.reset_world_flags = ETH_RESET_MGMT << ETH_RESET_SHARED_SHIFT,
 };

@@ -53,6 +53,7 @@ static const struct file_operations default_file_ops = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		default_open,
+	.llseek =	noop_llseek,
 };
 
 static struct inode *get_inode(struct super_block *sb, int mode, dev_t dev)
@@ -60,6 +61,7 @@ static struct inode *get_inode(struct super_block *sb, int mode, dev_t dev)
 	struct inode *inode = new_inode(sb);
 
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		switch (mode & S_IFMT) {
@@ -86,7 +88,7 @@ static int mknod(struct inode *dir, struct dentry *dentry,
 			 int mode, dev_t dev)
 {
 	struct inode *inode;
-	int error = -EPERM;
+	int error = -ENOMEM;
 
 	if (dentry->d_inode)
 		return -EEXIST;
@@ -129,17 +131,17 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 	return simple_fill_super(sb, SECURITYFS_MAGIC, files);
 }
 
-static int get_sb(struct file_system_type *fs_type,
+static struct dentry *get_sb(struct file_system_type *fs_type,
 		  int flags, const char *dev_name,
-		  void *data, struct vfsmount *mnt)
+		  void *data)
 {
-	return get_sb_single(fs_type, flags, data, fill_super, mnt);
+	return mount_single(fs_type, flags, data, fill_super);
 }
 
 static struct file_system_type fs_type = {
 	.owner =	THIS_MODULE,
 	.name =		"securityfs",
-	.get_sb =	get_sb,
+	.mount =	get_sb,
 	.kill_sb =	kill_litter_super,
 };
 
@@ -166,6 +168,8 @@ static int create_by_name(const char *name, mode_t mode,
 			error = mkdir(parent->d_inode, *dentry, mode);
 		else
 			error = create(parent->d_inode, *dentry, mode);
+		if (error)
+			dput(*dentry);
 	} else
 		error = PTR_ERR(*dentry);
 	mutex_unlock(&parent->d_inode->i_mutex);

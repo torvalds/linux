@@ -44,15 +44,11 @@ ENTRY(cpu_arm946_switch_mm)
  * cpu_arm946_proc_fin()
  */
 ENTRY(cpu_arm946_proc_fin)
-	stmfd	sp!, {lr}
-	mov	ip, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
-	msr	cpsr_c, ip
-	bl	arm946_flush_kern_cache_all
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x00001000		@ i-cache
 	bic	r0, r0, #0x00000004		@ d-cache
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	ldmfd	sp!, {pc}
+	mov	pc, lr
 
 /*
  * cpu_arm946_reset(loc)
@@ -77,6 +73,17 @@ ENTRY(cpu_arm946_reset)
 ENTRY(cpu_arm946_do_idle)
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
 	mov	pc, lr
+
+/*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(arm946_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(arm946_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
@@ -300,6 +307,7 @@ ENTRY(arm946_dma_unmap_area)
 ENDPROC(arm946_dma_unmap_area)
 
 ENTRY(arm946_cache_fns)
+	.long	arm946_flush_icache_all
 	.long	arm946_flush_kern_cache_all
 	.long	arm946_flush_user_cache_all
 	.long	arm946_flush_user_cache_range
@@ -321,7 +329,7 @@ ENTRY(cpu_arm946_dcache_clean_area)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__arm946_setup, #function
 __arm946_setup:

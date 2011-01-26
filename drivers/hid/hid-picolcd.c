@@ -127,6 +127,26 @@ static const struct fb_var_screeninfo picolcdfb_var = {
 	.height         = 26,
 	.bits_per_pixel = 1,
 	.grayscale      = 1,
+	.red            = {
+		.offset = 0,
+		.length = 1,
+		.msb_right = 0,
+	},
+	.green          = {
+		.offset = 0,
+		.length = 1,
+		.msb_right = 0,
+	},
+	.blue           = {
+		.offset = 0,
+		.length = 1,
+		.msb_right = 0,
+	},
+	.transp         = {
+		.offset = 0,
+		.length = 0,
+		.msb_right = 0,
+	},
 };
 #endif /* CONFIG_HID_PICOLCD_FB */
 
@@ -188,6 +208,7 @@ struct picolcd_data {
 	/* Framebuffer stuff */
 	u8 fb_update_rate;
 	u8 fb_bpp;
+	u8 fb_force;
 	u8 *fb_vbitmap;		/* local copy of what was sent to PicoLCD */
 	u8 *fb_bitmap;		/* framebuffer */
 	struct fb_info *fb_info;
@@ -232,7 +253,7 @@ static struct hid_report *picolcd_report(int id, struct hid_device *hdev, int di
 		if (report->id == id)
 			return report;
 	}
-	dev_warn(&hdev->dev, "No report with id 0x%x found\n", id);
+	hid_warn(hdev, "No report with id 0x%x found\n", id);
 	return NULL;
 }
 
@@ -346,7 +367,7 @@ static int picolcd_fb_update_tile(u8 *vbitmap, const u8 *bitmap, int bpp,
 			const u8 *bdata = bitmap + tile * 256 + chip * 8 + b * 32;
 			for (i = 0; i < 64; i++) {
 				tdata[i] <<= 1;
-				tdata[i] |= (bdata[i/8] >> (7 - i % 8)) & 0x01;
+				tdata[i] |= (bdata[i/8] >> (i % 8)) & 0x01;
 			}
 		}
 	} else if (bpp == 8) {
@@ -399,13 +420,10 @@ static int picolcd_fb_reset(struct picolcd_data *data, int clear)
 
 	if (data->fb_bitmap) {
 		if (clear) {
-			memset(data->fb_vbitmap, 0xff, PICOLCDFB_SIZE);
+			memset(data->fb_vbitmap, 0, PICOLCDFB_SIZE);
 			memset(data->fb_bitmap, 0, PICOLCDFB_SIZE*data->fb_bpp);
-		} else {
-			/* invert 1 byte in each tile to force resend */
-			for (i = 0; i < PICOLCDFB_SIZE; i += 64)
-				data->fb_vbitmap[i] = ~data->fb_vbitmap[i];
 		}
+		data->fb_force = 1;
 	}
 
 	/* schedule first output of framebuffer */
@@ -420,6 +438,9 @@ static void picolcd_fb_update(struct picolcd_data *data)
 {
 	int chip, tile, n;
 	unsigned long flags;
+
+	if (!data)
+		return;
 
 	spin_lock_irqsave(&data->lock, flags);
 	if (!(data->status & PICOLCD_READY_FB)) {
@@ -440,14 +461,18 @@ static void picolcd_fb_update(struct picolcd_data *data)
 	for (chip = 0; chip < 4; chip++)
 		for (tile = 0; tile < 8; tile++)
 			if (picolcd_fb_update_tile(data->fb_vbitmap,
-					data->fb_bitmap, data->fb_bpp, chip, tile)) {
+					data->fb_bitmap, data->fb_bpp, chip, tile) ||
+				data->fb_force) {
 				n += 2;
+				if (!data->fb_info->par)
+					return; /* device lost! */
 				if (n >= HID_OUTPUT_FIFO_SIZE / 2) {
 					usbhid_wait_io(data->hdev);
 					n = 0;
 				}
 				picolcd_fb_send_tile(data->hdev, chip, tile);
 			}
+	data->fb_force = false;
 	if (n)
 		usbhid_wait_io(data->hdev);
 }
@@ -511,11 +536,23 @@ static int picolcd_fb_blank(int blank, struct fb_info *info)
 static void picolcd_fb_destroy(struct fb_info *info)
 {
 	struct picolcd_data *data = info->par;
+	u32 *ref_cnt = info->pseudo_palette;
+	int may_release;
+
 	info->par = NULL;
 	if (data)
 		data->fb_info = NULL;
 	fb_deferred_io_cleanup(info);
-	framebuffer_release(info);
+
+	ref_cnt--;
+	mutex_lock(&info->lock);
+	(*ref_cnt)--;
+	may_release = !*ref_cnt;
+	mutex_unlock(&info->lock);
+	if (may_release) {
+		vfree((u8 *)info->fix.smem_start);
+		framebuffer_release(info);
+	}
 }
 
 static int picolcd_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
@@ -526,29 +563,37 @@ static int picolcd_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *i
 	/* only allow 1/8 bit depth (8-bit is grayscale) */
 	*var = picolcdfb_var;
 	var->activate = activate;
-	if (bpp >= 8)
+	if (bpp >= 8) {
 		var->bits_per_pixel = 8;
-	else
+		var->red.length     = 8;
+		var->green.length   = 8;
+		var->blue.length    = 8;
+	} else {
 		var->bits_per_pixel = 1;
+		var->red.length     = 1;
+		var->green.length   = 1;
+		var->blue.length    = 1;
+	}
 	return 0;
 }
 
 static int picolcd_set_par(struct fb_info *info)
 {
 	struct picolcd_data *data = info->par;
-	u8 *o_fb, *n_fb;
+	u8 *tmp_fb, *o_fb;
+	if (!data)
+		return -ENODEV;
 	if (info->var.bits_per_pixel == data->fb_bpp)
 		return 0;
 	/* switch between 1/8 bit depths */
 	if (info->var.bits_per_pixel != 1 && info->var.bits_per_pixel != 8)
 		return -EINVAL;
 
-	o_fb = data->fb_bitmap;
-	n_fb = vmalloc(PICOLCDFB_SIZE*info->var.bits_per_pixel);
-	if (!n_fb)
+	o_fb   = data->fb_bitmap;
+	tmp_fb = kmalloc(PICOLCDFB_SIZE*info->var.bits_per_pixel, GFP_KERNEL);
+	if (!tmp_fb)
 		return -ENOMEM;
 
-	fb_deferred_io_cleanup(info);
 	/* translate FB content to new bits-per-pixel */
 	if (info->var.bits_per_pixel == 1) {
 		int i, b;
@@ -558,24 +603,87 @@ static int picolcd_set_par(struct fb_info *info)
 				p <<= 1;
 				p |= o_fb[i*8+b] ? 0x01 : 0x00;
 			}
+			tmp_fb[i] = p;
 		}
+		memcpy(o_fb, tmp_fb, PICOLCDFB_SIZE);
 		info->fix.visual = FB_VISUAL_MONO01;
 		info->fix.line_length = PICOLCDFB_WIDTH / 8;
 	} else {
 		int i;
+		memcpy(tmp_fb, o_fb, PICOLCDFB_SIZE);
 		for (i = 0; i < PICOLCDFB_SIZE * 8; i++)
-			n_fb[i] = o_fb[i/8] & (0x01 << (7 - i % 8)) ? 0xff : 0x00;
-		info->fix.visual = FB_VISUAL_TRUECOLOR;
+			o_fb[i] = tmp_fb[i/8] & (0x01 << (7 - i % 8)) ? 0xff : 0x00;
+		info->fix.visual = FB_VISUAL_DIRECTCOLOR;
 		info->fix.line_length = PICOLCDFB_WIDTH;
 	}
 
-	data->fb_bitmap   = n_fb;
+	kfree(tmp_fb);
 	data->fb_bpp      = info->var.bits_per_pixel;
-	info->screen_base = (char __force __iomem *)n_fb;
-	info->fix.smem_start = (unsigned long)n_fb;
-	info->fix.smem_len   = PICOLCDFB_SIZE*data->fb_bpp;
-	fb_deferred_io_init(info);
-	vfree(o_fb);
+	return 0;
+}
+
+/* Do refcounting on our FB and cleanup per worker if FB is
+ * closed after unplug of our device
+ * (fb_release holds info->lock and still touches info after
+ *  we return so we can't release it immediately.
+ */
+struct picolcd_fb_cleanup_item {
+	struct fb_info *info;
+	struct picolcd_fb_cleanup_item *next;
+};
+static struct picolcd_fb_cleanup_item *fb_pending;
+DEFINE_SPINLOCK(fb_pending_lock);
+
+static void picolcd_fb_do_cleanup(struct work_struct *data)
+{
+	struct picolcd_fb_cleanup_item *item;
+	unsigned long flags;
+
+	do {
+		spin_lock_irqsave(&fb_pending_lock, flags);
+		item = fb_pending;
+		fb_pending = item ? item->next : NULL;
+		spin_unlock_irqrestore(&fb_pending_lock, flags);
+
+		if (item) {
+			u8 *fb = (u8 *)item->info->fix.smem_start;
+			/* make sure we do not race against fb core when
+			 * releasing */
+			mutex_lock(&item->info->lock);
+			mutex_unlock(&item->info->lock);
+			framebuffer_release(item->info);
+			vfree(fb);
+		}
+	} while (item);
+}
+
+DECLARE_WORK(picolcd_fb_cleanup, picolcd_fb_do_cleanup);
+
+static int picolcd_fb_open(struct fb_info *info, int u)
+{
+	u32 *ref_cnt = info->pseudo_palette;
+	ref_cnt--;
+
+	(*ref_cnt)++;
+	return 0;
+}
+
+static int picolcd_fb_release(struct fb_info *info, int u)
+{
+	u32 *ref_cnt = info->pseudo_palette;
+	ref_cnt--;
+
+	(*ref_cnt)++;
+	if (!*ref_cnt) {
+		unsigned long flags;
+		struct picolcd_fb_cleanup_item *item = (struct picolcd_fb_cleanup_item *)ref_cnt;
+		item--;
+		spin_lock_irqsave(&fb_pending_lock, flags);
+		item->next = fb_pending;
+		fb_pending = item;
+		spin_unlock_irqrestore(&fb_pending_lock, flags);
+		schedule_work(&picolcd_fb_cleanup);
+	}
 	return 0;
 }
 
@@ -583,6 +691,8 @@ static int picolcd_set_par(struct fb_info *info)
 static struct fb_ops picolcdfb_ops = {
 	.owner        = THIS_MODULE,
 	.fb_destroy   = picolcd_fb_destroy,
+	.fb_open      = picolcd_fb_open,
+	.fb_release   = picolcd_fb_release,
 	.fb_read      = fb_sys_read,
 	.fb_write     = picolcd_fb_write,
 	.fb_blank     = picolcd_fb_blank,
@@ -660,11 +770,12 @@ static int picolcd_init_framebuffer(struct picolcd_data *data)
 {
 	struct device *dev = &data->hdev->dev;
 	struct fb_info *info = NULL;
-	int error = -ENOMEM;
+	int i, error = -ENOMEM;
 	u8 *fb_vbitmap = NULL;
 	u8 *fb_bitmap  = NULL;
+	u32 *palette;
 
-	fb_bitmap = vmalloc(PICOLCDFB_SIZE*picolcdfb_var.bits_per_pixel);
+	fb_bitmap = vmalloc(PICOLCDFB_SIZE*8);
 	if (fb_bitmap == NULL) {
 		dev_err(dev, "can't get a free page for framebuffer\n");
 		goto err_nomem;
@@ -678,18 +789,29 @@ static int picolcd_init_framebuffer(struct picolcd_data *data)
 
 	data->fb_update_rate = PICOLCDFB_UPDATE_RATE_DEFAULT;
 	data->fb_defio = picolcd_fb_defio;
-	info = framebuffer_alloc(0, dev);
+	/* The extra memory is:
+	 * - struct picolcd_fb_cleanup_item
+	 * - u32 for ref_count
+	 * - 256*u32 for pseudo_palette
+	 */
+	info = framebuffer_alloc(257 * sizeof(u32) + sizeof(struct picolcd_fb_cleanup_item), dev);
 	if (info == NULL) {
 		dev_err(dev, "failed to allocate a framebuffer\n");
 		goto err_nomem;
 	}
 
+	palette  = info->par + sizeof(struct picolcd_fb_cleanup_item);
+	*palette = 1;
+	palette++;
+	for (i = 0; i < 256; i++)
+		palette[i] = i > 0 && i < 16 ? 0xff : 0;
+	info->pseudo_palette = palette;
 	info->fbdefio = &data->fb_defio;
 	info->screen_base = (char __force __iomem *)fb_bitmap;
 	info->fbops = &picolcdfb_ops;
 	info->var = picolcdfb_var;
 	info->fix = picolcdfb_fix;
-	info->fix.smem_len   = PICOLCDFB_SIZE;
+	info->fix.smem_len   = PICOLCDFB_SIZE*8;
 	info->fix.smem_start = (unsigned long)fb_bitmap;
 	info->par = data;
 	info->flags = FBINFO_FLAG_DEFAULT;
@@ -707,18 +829,20 @@ static int picolcd_init_framebuffer(struct picolcd_data *data)
 		dev_err(dev, "failed to create sysfs attributes\n");
 		goto err_cleanup;
 	}
+	fb_deferred_io_init(info);
 	data->fb_info    = info;
 	error = register_framebuffer(info);
 	if (error) {
 		dev_err(dev, "failed to register framebuffer\n");
 		goto err_sysfs;
 	}
-	fb_deferred_io_init(info);
 	/* schedule first output of framebuffer */
+	data->fb_force = 1;
 	schedule_delayed_work(&info->deferred_work, 0);
 	return 0;
 
 err_sysfs:
+	fb_deferred_io_cleanup(info);
 	device_remove_file(dev, &dev_attr_fb_update_rate);
 err_cleanup:
 	data->fb_vbitmap = NULL;
@@ -737,19 +861,17 @@ static void picolcd_exit_framebuffer(struct picolcd_data *data)
 {
 	struct fb_info *info = data->fb_info;
 	u8 *fb_vbitmap = data->fb_vbitmap;
-	u8 *fb_bitmap  = data->fb_bitmap;
 
 	if (!info)
 		return;
 
+	info->par = NULL;
+	device_remove_file(&data->hdev->dev, &dev_attr_fb_update_rate);
+	unregister_framebuffer(info);
 	data->fb_vbitmap = NULL;
 	data->fb_bitmap  = NULL;
 	data->fb_bpp     = 0;
 	data->fb_info    = NULL;
-	device_remove_file(&data->hdev->dev, &dev_attr_fb_update_rate);
-	fb_deferred_io_cleanup(info);
-	unregister_framebuffer(info);
-	vfree(fb_bitmap);
 	kfree(fb_vbitmap);
 }
 
@@ -1207,7 +1329,7 @@ static int picolcd_check_version(struct hid_device *hdev)
 
 	verinfo = picolcd_send_and_wait(hdev, REPORT_VERSION, NULL, 0);
 	if (!verinfo) {
-		dev_err(&hdev->dev, "no version response from PicoLCD");
+		hid_err(hdev, "no version response from PicoLCD\n");
 		return -ENODEV;
 	}
 
@@ -1215,14 +1337,14 @@ static int picolcd_check_version(struct hid_device *hdev)
 		data->version[0] = verinfo->raw_data[1];
 		data->version[1] = verinfo->raw_data[0];
 		if (data->status & PICOLCD_BOOTLOADER) {
-			dev_info(&hdev->dev, "PicoLCD, bootloader version %d.%d\n",
-					verinfo->raw_data[1], verinfo->raw_data[0]);
+			hid_info(hdev, "PicoLCD, bootloader version %d.%d\n",
+				 verinfo->raw_data[1], verinfo->raw_data[0]);
 		} else {
-			dev_info(&hdev->dev, "PicoLCD, firmware version %d.%d\n",
-					verinfo->raw_data[1], verinfo->raw_data[0]);
+			hid_info(hdev, "PicoLCD, firmware version %d.%d\n",
+				 verinfo->raw_data[1], verinfo->raw_data[0]);
 		}
 	} else {
-		dev_err(&hdev->dev, "confused, got unexpected version response from PicoLCD\n");
+		hid_err(hdev, "confused, got unexpected version response from PicoLCD\n");
 		ret = -EINVAL;
 	}
 	kfree(verinfo);
@@ -1422,7 +1544,7 @@ static ssize_t picolcd_debug_eeprom_read(struct file *f, char __user *u,
 
 	/* prepare buffer with info about what we want to read (addr & len) */
 	raw_data[0] = *off & 0xff;
-	raw_data[1] = (*off >> 8) && 0xff;
+	raw_data[1] = (*off >> 8) & 0xff;
 	raw_data[2] = s < 20 ? s : 20;
 	if (*off + raw_data[2] > 0xff)
 		raw_data[2] = 0x100 - *off;
@@ -1461,7 +1583,7 @@ static ssize_t picolcd_debug_eeprom_write(struct file *f, const char __user *u,
 
 	memset(raw_data, 0, sizeof(raw_data));
 	raw_data[0] = *off & 0xff;
-	raw_data[1] = (*off >> 8) && 0xff;
+	raw_data[1] = (*off >> 8) & 0xff;
 	raw_data[2] = s < 20 ? s : 20;
 	if (*off + raw_data[2] > 0xff)
 		raw_data[2] = 0x100 - *off;
@@ -1745,6 +1867,7 @@ static void picolcd_debug_out_report(struct picolcd_data *data,
 			report->id, raw_size);
 	hid_debug_event(hdev, buff);
 	if (raw_size + 5 > sizeof(raw_data)) {
+		kfree(buff);
 		hid_debug_event(hdev, " TOO BIG\n");
 		return;
 	} else {
@@ -2206,8 +2329,7 @@ static void picolcd_init_devfs(struct picolcd_data *data,
 			(flash_w ? S_IWUSR : 0) | (flash_r ? S_IRUSR : 0),
 			hdev->debug_dir, data, &picolcd_debug_flash_fops);
 	} else if (flash_r || flash_w)
-		dev_warn(&hdev->dev, "Unexpected FLASH access reports, "
-				"please submit rdesc for review\n");
+		hid_warn(hdev, "Unexpected FLASH access reports, please submit rdesc for review\n");
 }
 
 static void picolcd_exit_devfs(struct picolcd_data *data)
@@ -2335,13 +2457,13 @@ static int picolcd_init_keys(struct picolcd_data *data,
 		return -ENODEV;
 	if (report->maxfield != 1 || report->field[0]->report_count != 2 ||
 			report->field[0]->report_size != 8) {
-		dev_err(&hdev->dev, "unsupported KEY_STATE report");
+		hid_err(hdev, "unsupported KEY_STATE report\n");
 		return -EINVAL;
 	}
 
 	idev = input_allocate_device();
 	if (idev == NULL) {
-		dev_err(&hdev->dev, "failed to allocate input device");
+		hid_err(hdev, "failed to allocate input device\n");
 		return -ENOMEM;
 	}
 	input_set_drvdata(idev, hdev);
@@ -2363,7 +2485,7 @@ static int picolcd_init_keys(struct picolcd_data *data,
 		input_set_capability(idev, EV_KEY, data->keycode[i]);
 	error = input_register_device(idev);
 	if (error) {
-		dev_err(&hdev->dev, "error registering the input device");
+		hid_err(hdev, "error registering the input device\n");
 		input_free_device(idev);
 		return error;
 	}
@@ -2400,9 +2522,8 @@ static int picolcd_probe_lcd(struct hid_device *hdev, struct picolcd_data *data)
 		return error;
 
 	if (data->version[0] != 0 && data->version[1] != 3)
-		dev_info(&hdev->dev, "Device with untested firmware revision, "
-				"please submit /sys/kernel/debug/hid/%s/rdesc for this device.\n",
-				dev_name(&hdev->dev));
+		hid_info(hdev, "Device with untested firmware revision, please submit /sys/kernel/debug/hid/%s/rdesc for this device.\n",
+			 dev_name(&hdev->dev));
 
 	/* Setup keypad input device */
 	error = picolcd_init_keys(data, picolcd_in_report(REPORT_KEY_STATE, hdev));
@@ -2459,9 +2580,8 @@ static int picolcd_probe_bootloader(struct hid_device *hdev, struct picolcd_data
 		return error;
 
 	if (data->version[0] != 1 && data->version[1] != 0)
-		dev_info(&hdev->dev, "Device with untested bootloader revision, "
-				"please submit /sys/kernel/debug/hid/%s/rdesc for this device.\n",
-				dev_name(&hdev->dev));
+		hid_info(hdev, "Device with untested bootloader revision, please submit /sys/kernel/debug/hid/%s/rdesc for this device.\n",
+			 dev_name(&hdev->dev));
 
 	picolcd_init_devfs(data, NULL, NULL,
 			picolcd_out_report(REPORT_BL_READ_MEMORY, hdev),
@@ -2483,7 +2603,7 @@ static int picolcd_probe(struct hid_device *hdev,
 	 */
 	data = kzalloc(sizeof(struct picolcd_data), GFP_KERNEL);
 	if (data == NULL) {
-		dev_err(&hdev->dev, "can't allocate space for Minibox PicoLCD device data\n");
+		hid_err(hdev, "can't allocate space for Minibox PicoLCD device data\n");
 		error = -ENOMEM;
 		goto err_no_cleanup;
 	}
@@ -2499,7 +2619,7 @@ static int picolcd_probe(struct hid_device *hdev,
 	/* Parse the device reports and start it up */
 	error = hid_parse(hdev);
 	if (error) {
-		dev_err(&hdev->dev, "device report parse failed\n");
+		hid_err(hdev, "device report parse failed\n");
 		goto err_cleanup_data;
 	}
 
@@ -2509,25 +2629,25 @@ static int picolcd_probe(struct hid_device *hdev,
 	error = hid_hw_start(hdev, 0);
 	hdev->claimed = 0;
 	if (error) {
-		dev_err(&hdev->dev, "hardware start failed\n");
+		hid_err(hdev, "hardware start failed\n");
 		goto err_cleanup_data;
 	}
 
-	error = hdev->ll_driver->open(hdev);
+	error = hid_hw_open(hdev);
 	if (error) {
-		dev_err(&hdev->dev, "failed to open input interrupt pipe for key and IR events\n");
+		hid_err(hdev, "failed to open input interrupt pipe for key and IR events\n");
 		goto err_cleanup_hid_hw;
 	}
 
 	error = device_create_file(&hdev->dev, &dev_attr_operation_mode_delay);
 	if (error) {
-		dev_err(&hdev->dev, "failed to create sysfs attributes\n");
+		hid_err(hdev, "failed to create sysfs attributes\n");
 		goto err_cleanup_hid_ll;
 	}
 
 	error = device_create_file(&hdev->dev, &dev_attr_operation_mode);
 	if (error) {
-		dev_err(&hdev->dev, "failed to create sysfs attributes\n");
+		hid_err(hdev, "failed to create sysfs attributes\n");
 		goto err_cleanup_sysfs1;
 	}
 
@@ -2546,7 +2666,7 @@ err_cleanup_sysfs2:
 err_cleanup_sysfs1:
 	device_remove_file(&hdev->dev, &dev_attr_operation_mode_delay);
 err_cleanup_hid_ll:
-	hdev->ll_driver->close(hdev);
+	hid_hw_close(hdev);
 err_cleanup_hid_hw:
 	hid_hw_stop(hdev);
 err_cleanup_data:
@@ -2566,11 +2686,18 @@ static void picolcd_remove(struct hid_device *hdev)
 	spin_lock_irqsave(&data->lock, flags);
 	data->status |= PICOLCD_FAILED;
 	spin_unlock_irqrestore(&data->lock, flags);
+#ifdef CONFIG_HID_PICOLCD_FB
+	/* short-circuit FB as early as possible in order to
+	 * avoid long delays if we host console.
+	 */
+	if (data->fb_info)
+		data->fb_info->par = NULL;
+#endif
 
 	picolcd_exit_devfs(data);
 	device_remove_file(&hdev->dev, &dev_attr_operation_mode);
 	device_remove_file(&hdev->dev, &dev_attr_operation_mode_delay);
-	hdev->ll_driver->close(hdev);
+	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 	hid_set_drvdata(hdev, NULL);
 
@@ -2623,6 +2750,10 @@ static int __init picolcd_init(void)
 static void __exit picolcd_exit(void)
 {
 	hid_unregister_driver(&picolcd_driver);
+#ifdef CONFIG_HID_PICOLCD_FB
+	flush_work_sync(&picolcd_fb_cleanup);
+	WARN_ON(fb_pending);
+#endif
 }
 
 module_init(picolcd_init);

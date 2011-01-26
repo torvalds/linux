@@ -89,7 +89,6 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
-#include <linux/smp_lock.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/byteorder.h>
@@ -174,6 +173,7 @@ struct cosa_data {
  * Character device major number. 117 was allocated for us.
  * The value of 0 means to allocate a first free one.
  */
+static DEFINE_MUTEX(cosa_chardev_mutex);
 static int cosa_major = 117;
 
 /*
@@ -575,7 +575,7 @@ static int cosa_probe(int base, int irq, int dma)
 
 		/* Initialize the chardev data structures */
 		mutex_init(&chan->rlock);
-		init_MUTEX(&chan->wsem);
+		sema_init(&chan->wsem, 1);
 
 		/* Register the network interface */
 		if (!(chan->netdev = alloc_hdlcdev(chan))) {
@@ -944,7 +944,7 @@ static int cosa_open(struct inode *inode, struct file *file)
 	int n;
 	int ret = 0;
 
-	lock_kernel();
+	mutex_lock(&cosa_chardev_mutex);
 	if ((n=iminor(file->f_path.dentry->d_inode)>>CARD_MINOR_BITS)
 		>= nr_cards) {
 		ret = -ENODEV;
@@ -976,7 +976,7 @@ static int cosa_open(struct inode *inode, struct file *file)
 	chan->rx_done = chrdev_rx_done;
 	spin_unlock_irqrestore(&cosa->lock, flags);
 out:
-	unlock_kernel();
+	mutex_unlock(&cosa_chardev_mutex);
 	return ret;
 }
 
@@ -1212,10 +1212,10 @@ static long cosa_chardev_ioctl(struct file *file, unsigned int cmd,
 	struct cosa_data *cosa;
 	long ret;
 
-	lock_kernel();
+	mutex_lock(&cosa_chardev_mutex);
 	cosa = channel->cosa;
 	ret = cosa_ioctl_common(cosa, channel, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&cosa_chardev_mutex);
 	return ret;
 }
 

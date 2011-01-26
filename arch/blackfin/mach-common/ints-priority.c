@@ -132,8 +132,8 @@ static void bfin_ack_noop(unsigned int irq)
 static void bfin_core_mask_irq(unsigned int irq)
 {
 	bfin_irq_flags &= ~(1 << irq);
-	if (!irqs_disabled_hw())
-		local_irq_enable_hw();
+	if (!hard_irqs_disabled())
+		hard_local_irq_enable();
 }
 
 static void bfin_core_unmask_irq(unsigned int irq)
@@ -148,8 +148,8 @@ static void bfin_core_unmask_irq(unsigned int irq)
 	 * local_irq_enable just does "STI bfin_irq_flags", so it's exactly
 	 * what we need.
 	 */
-	if (!irqs_disabled_hw())
-		local_irq_enable_hw();
+	if (!hard_irqs_disabled())
+		hard_local_irq_enable();
 	return;
 }
 
@@ -158,12 +158,12 @@ static void bfin_internal_mask_irq(unsigned int irq)
 	unsigned long flags;
 
 #ifdef CONFIG_BF53x
-	local_irq_save_hw(flags);
+	flags = hard_local_irq_save();
 	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() &
 			     ~(1 << SIC_SYSIRQ(irq)));
 #else
 	unsigned mask_bank, mask_bit;
-	local_irq_save_hw(flags);
+	flags = hard_local_irq_save();
 	mask_bank = SIC_SYSIRQ(irq) / 32;
 	mask_bit = SIC_SYSIRQ(irq) % 32;
 	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) &
@@ -173,7 +173,7 @@ static void bfin_internal_mask_irq(unsigned int irq)
 			     ~(1 << mask_bit));
 #endif
 #endif
-	local_irq_restore_hw(flags);
+	hard_local_irq_restore(flags);
 }
 
 #ifdef CONFIG_SMP
@@ -186,12 +186,12 @@ static void bfin_internal_unmask_irq(unsigned int irq)
 	unsigned long flags;
 
 #ifdef CONFIG_BF53x
-	local_irq_save_hw(flags);
+	flags = hard_local_irq_save();
 	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() |
 			     (1 << SIC_SYSIRQ(irq)));
 #else
 	unsigned mask_bank, mask_bit;
-	local_irq_save_hw(flags);
+	flags = hard_local_irq_save();
 	mask_bank = SIC_SYSIRQ(irq) / 32;
 	mask_bit = SIC_SYSIRQ(irq) % 32;
 #ifdef CONFIG_SMP
@@ -207,7 +207,7 @@ static void bfin_internal_unmask_irq(unsigned int irq)
 			(1 << mask_bit));
 #endif
 #endif
-	local_irq_restore_hw(flags);
+	hard_local_irq_restore(flags);
 }
 
 #ifdef CONFIG_SMP
@@ -264,7 +264,7 @@ int bfin_internal_set_wake(unsigned int irq, unsigned int state)
 	break;
 	}
 
-	local_irq_save_hw(flags);
+	flags = hard_local_irq_save();
 
 	if (state) {
 		bfin_sic_iwr[bank] |= (1 << bit);
@@ -275,7 +275,7 @@ int bfin_internal_set_wake(unsigned int irq, unsigned int state)
 		vr_wakeup  &= ~wakeup;
 	}
 
-	local_irq_restore_hw(flags);
+	hard_local_irq_restore(flags);
 
 	return 0;
 }
@@ -511,7 +511,7 @@ static void bfin_demux_mac_status_irq(unsigned int int_err_irq,
 	int i, irq = 0;
 	u32 status = bfin_read_EMAC_SYSTAT();
 
-	for (i = 0; i < (IRQ_MAC_STMDONE - IRQ_MAC_PHYINT); i++)
+	for (i = 0; i <= (IRQ_MAC_STMDONE - IRQ_MAC_PHYINT); i++)
 		if (status & (1L << i)) {
 			irq = IRQ_MAC_PHYINT + i;
 			break;
@@ -529,8 +529,9 @@ static void bfin_demux_mac_status_irq(unsigned int int_err_irq,
 	} else
 		printk(KERN_ERR
 		       "%s : %s : LINE %d :\nIRQ ?: MAC ERROR"
-		       " INTERRUPT ASSERTED BUT NO SOURCE FOUND\n",
-		       __func__, __FILE__, __LINE__);
+		       " INTERRUPT ASSERTED BUT NO SOURCE FOUND"
+		       "(EMAC_SYSTAT=0x%X)\n",
+		       __func__, __FILE__, __LINE__, status);
 }
 #endif
 
@@ -865,7 +866,6 @@ static void bfin_gpio_unmask_irq(unsigned int irq)
 	u32 pintbit = PINT_BIT(pint_val);
 	u32 bank = PINT_2_BANK(pint_val);
 
-	pint[bank]->request = pintbit;
 	pint[bank]->mask_set = pintbit;
 }
 
@@ -1298,7 +1298,7 @@ void do_irq(int vec, struct pt_regs *fp)
 	} else {
 		struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
 		struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
-#if defined(SIC_ISR0) || defined(SICA_ISR0)
+#if defined(SIC_ISR0)
 		unsigned long sic_status[3];
 
 		if (smp_processor_id()) {
@@ -1378,7 +1378,7 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 	if (likely(vec == EVT_IVTMR_P))
 		irq = IRQ_CORETMR;
 	else {
-#if defined(SIC_ISR0) || defined(SICA_ISR0)
+#if defined(SIC_ISR0)
 		unsigned long sic_status[3];
 
 		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();

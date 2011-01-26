@@ -34,6 +34,15 @@ static const struct dmi_system_id pci_use_crs_table[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "x3800"),
 		},
 	},
+	/* https://bugzilla.kernel.org/show_bug.cgi?id=16007 */
+	/* 2006 AMD HT/VIA system with two host bridges */
+        {
+		.callback = set_use_crs,
+		.ident = "ASRock ALiveSATA2-GLAN",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "ALiveSATA2-GLAN"),
+                },
+        },
 	{}
 };
 
@@ -129,7 +138,6 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	struct acpi_resource_address64 addr;
 	acpi_status status;
 	unsigned long flags;
-	struct resource *root, *conflict;
 	u64 start, end;
 
 	status = resource_to_addr(acpi_res, &addr);
@@ -137,12 +145,10 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 		return AE_OK;
 
 	if (addr.resource_type == ACPI_MEMORY_RANGE) {
-		root = &iomem_resource;
 		flags = IORESOURCE_MEM;
 		if (addr.info.mem.caching == ACPI_PREFETCHABLE_MEMORY)
 			flags |= IORESOURCE_PREFETCH;
 	} else if (addr.resource_type == ACPI_IO_RANGE) {
-		root = &ioport_resource;
 		flags = IORESOURCE_IO;
 	} else
 		return AE_OK;
@@ -163,25 +169,90 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 		return AE_OK;
 	}
 
-	conflict = insert_resource_conflict(root, res);
-	if (conflict) {
-		dev_err(&info->bridge->dev,
-			"address space collision: host bridge window %pR "
-			"conflicts with %s %pR\n",
-			res, conflict->name, conflict);
-	} else {
-		pci_bus_add_resource(info->bus, res, 0);
-		info->res_num++;
-		if (addr.translation_offset)
-			dev_info(&info->bridge->dev, "host bridge window %pR "
-				 "(PCI address [%#llx-%#llx])\n",
-				 res, res->start - addr.translation_offset,
-				 res->end - addr.translation_offset);
-		else
-			dev_info(&info->bridge->dev,
-				 "host bridge window %pR\n", res);
-	}
+	info->res_num++;
+	if (addr.translation_offset)
+		dev_info(&info->bridge->dev, "host bridge window %pR "
+			 "(PCI address [%#llx-%#llx])\n",
+			 res, res->start - addr.translation_offset,
+			 res->end - addr.translation_offset);
+	else
+		dev_info(&info->bridge->dev, "host bridge window %pR\n", res);
+
 	return AE_OK;
+}
+
+static bool resource_contains(struct resource *res, resource_size_t point)
+{
+	if (res->start <= point && point <= res->end)
+		return true;
+	return false;
+}
+
+static void coalesce_windows(struct pci_root_info *info, int type)
+{
+	int i, j;
+	struct resource *res1, *res2;
+
+	for (i = 0; i < info->res_num; i++) {
+		res1 = &info->res[i];
+		if (!(res1->flags & type))
+			continue;
+
+		for (j = i + 1; j < info->res_num; j++) {
+			res2 = &info->res[j];
+			if (!(res2->flags & type))
+				continue;
+
+			/*
+			 * I don't like throwing away windows because then
+			 * our resources no longer match the ACPI _CRS, but
+			 * the kernel resource tree doesn't allow overlaps.
+			 */
+			if (resource_contains(res1, res2->start) ||
+			    resource_contains(res1, res2->end) ||
+			    resource_contains(res2, res1->start) ||
+			    resource_contains(res2, res1->end)) {
+				res1->start = min(res1->start, res2->start);
+				res1->end = max(res1->end, res2->end);
+				dev_info(&info->bridge->dev,
+					 "host bridge window expanded to %pR; %pR ignored\n",
+					 res1, res2);
+				res2->flags = 0;
+			}
+		}
+	}
+}
+
+static void add_resources(struct pci_root_info *info)
+{
+	int i;
+	struct resource *res, *root, *conflict;
+
+	if (!pci_use_crs)
+		return;
+
+	coalesce_windows(info, IORESOURCE_MEM);
+	coalesce_windows(info, IORESOURCE_IO);
+
+	for (i = 0; i < info->res_num; i++) {
+		res = &info->res[i];
+
+		if (res->flags & IORESOURCE_MEM)
+			root = &iomem_resource;
+		else if (res->flags & IORESOURCE_IO)
+			root = &ioport_resource;
+		else
+			continue;
+
+		conflict = insert_resource_conflict(root, res);
+		if (conflict)
+			dev_err(&info->bridge->dev,
+				"address space collision: host bridge window %pR "
+				"conflicts with %s %pR\n",
+				res, conflict->name, conflict);
+		else
+			pci_bus_add_resource(info->bus, res, 0);
+	}
 }
 
 static void
@@ -207,15 +278,15 @@ get_current_resources(struct acpi_device *device, int busnum,
 	if (!info.res)
 		goto res_alloc_fail;
 
-	info.name = kmalloc(16, GFP_KERNEL);
+	info.name = kasprintf(GFP_KERNEL, "PCI Bus %04x:%02x", domain, busnum);
 	if (!info.name)
 		goto name_alloc_fail;
-	sprintf(info.name, "PCI Bus %04x:%02x", domain, busnum);
 
 	info.res_num = 0;
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, setup_resource,
 				&info);
 
+	add_resources(&info);
 	return;
 
 name_alloc_fail:
@@ -224,8 +295,11 @@ res_alloc_fail:
 	return;
 }
 
-struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int domain, int busnum)
+struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 {
+	struct acpi_device *device = root->device;
+	int domain = root->segment;
+	int busnum = root->secondary.start;
 	struct pci_bus *bus;
 	struct pci_sysdata *sd;
 	int node;

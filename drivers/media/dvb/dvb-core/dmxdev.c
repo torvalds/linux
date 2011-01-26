@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <linux/ioctl.h>
 #include <linux/wait.h>
@@ -207,7 +206,7 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 	}
 	/* TODO */
 	dvbdev->users--;
-	if(dvbdev->users==-1 && dmxdev->exit==1) {
+	if (dvbdev->users == 1 && dmxdev->exit == 1) {
 		fops_put(file->f_op);
 		file->f_op = NULL;
 		mutex_unlock(&dmxdev->mutex);
@@ -573,13 +572,13 @@ static int dvb_dmxdev_start_feed(struct dmxdev *dmxdev,
 	dmx_output_t otype;
 	int ret;
 	int ts_type;
-	enum dmx_ts_pes ts_pes;
+	dmx_pes_type_t ts_pes;
 	struct dmx_ts_feed *tsfeed;
 
 	feed->ts = NULL;
 	otype = para->output;
 
-	ts_pes = (enum dmx_ts_pes)para->pes_type;
+	ts_pes = para->pes_type;
 
 	if (ts_pes < DMX_PES_OTHER)
 		ts_type = TS_DECODER;
@@ -1088,13 +1087,7 @@ static int dvb_demux_do_ioctl(struct file *file,
 static long dvb_demux_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
-	int ret;
-
-	lock_kernel();
-	ret = dvb_usercopy(file, cmd, arg, dvb_demux_do_ioctl);
-	unlock_kernel();
-
-	return ret;
+	return dvb_usercopy(file, cmd, arg, dvb_demux_do_ioctl);
 }
 
 static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
@@ -1150,6 +1143,7 @@ static const struct file_operations dvb_demux_fops = {
 	.open = dvb_demux_open,
 	.release = dvb_demux_release,
 	.poll = dvb_demux_poll,
+	.llseek = default_llseek,
 };
 
 static struct dvb_device dvbdev_demux = {
@@ -1186,13 +1180,7 @@ static int dvb_dvr_do_ioctl(struct file *file,
 static long dvb_dvr_ioctl(struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
-	int ret;
-
-	lock_kernel();
-	ret = dvb_usercopy(file, cmd, arg, dvb_dvr_do_ioctl);
-	unlock_kernel();
-
-	return ret;
+	return dvb_usercopy(file, cmd, arg, dvb_dvr_do_ioctl);
 }
 
 static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
@@ -1225,6 +1213,7 @@ static const struct file_operations dvb_dvr_fops = {
 	.open = dvb_dvr_open,
 	.release = dvb_dvr_release,
 	.poll = dvb_dvr_poll,
+	.llseek = default_llseek,
 };
 
 static struct dvb_device dvbdev_dvr = {

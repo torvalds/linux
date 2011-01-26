@@ -100,15 +100,6 @@ menuconfig COMEDI_ISA_DRIVERS
 
 if COMEDI_ISA_DRIVERS && ISA
 
-config COMEDI_8255
-	tristate "Generic 8255 support"
-	default N
-	---help---
-	  Enable generic 8255 support.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called 8255.
-
 config COMEDI_ACL7225B
 	tristate "ADlink NuDAQ ACL-7225b and compatibles support"
 	default N
@@ -130,6 +121,7 @@ config COMEDI_PCL711
 
 config COMEDI_PCL724
 	tristate "Advantech PCL-722/724/731 and ADlink ACL-7122/7124/PET-48DIO"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for Advantech PCL-724, PCL-722, PCL-731 and
@@ -198,6 +190,7 @@ config COMEDI_PCL818
 
 config COMEDI_PCM3724
 	tristate "Advantech PCM-3724 PC/104 card support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for Advantech PCM-3724 PC/104 cards.
@@ -232,18 +225,9 @@ config COMEDI_RTI802
 	  To compile this driver as a module, choose M here: the module will be
 	  called rti802.
 
-config COMEDI_DAS08
-	tristate "DAS-08 compatible ISA, PC/104 and PCMCIA card support"
-	default N
-	---help---
-	  Enable support for Keithley Metrabyte/ComputerBoards DAS08
-	  and compatible ISA and PC/104 cards
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called das08.
-
 config COMEDI_DAS16M1
 	tristate "MeasurementComputing CIO-DAS16/M1DAS-16 ISA card support"
+	select COMEDI_8255
 	select COMEDI_FC
 	default N
 	---help---
@@ -254,6 +238,7 @@ config COMEDI_DAS16M1
 
 config COMEDI_DAS16
 	tristate "DAS-16 compatible ISA and PC/104 card support"
+	select COMEDI_8255
 	select COMEDI_FC
 	default N
 	---help---
@@ -385,6 +370,7 @@ config COMEDI_FL512
 
 config COMEDI_AIO_AIO12_8
 	tristate "I/O Products PC/104 AIO12-8 Analog I/O Board support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for I/O Products PC/104 AIO12-8 Analog I/O Board
@@ -466,6 +452,7 @@ config COMEDI_NI_ATMIO
 config COMEDI_NI_ATMIO16D
 	tristate "NI AT-MIO16/AT-MIO16D series ISA-PNP card support"
 	depends on ISAPNP && COMEDI_NI_COMMON
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for National Instruments AT-MIO16/AT-MIO16D cards.
@@ -667,6 +654,7 @@ config COMEDI_ADDI_APCI_3XXX
 
 config COMEDI_ADL_PCI6208
 	tristate "ADLink PCI-6208A support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for ADLink PCI-6208A cards
@@ -751,6 +739,7 @@ config COMEDI_ADV_PCI1723
 
 config COMEDI_ADV_PCI_DIO
 	tristate "Advantech PCI DIO card support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for Advantech PCI DIO cards
@@ -762,6 +751,7 @@ config COMEDI_ADV_PCI_DIO
 
 config COMEDI_AMPLC_DIO200
 	tristate "Amplicon PC272E and PCI272 DIO board support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for Amplicon PC272E and PCI272 DIO boards
@@ -771,6 +761,7 @@ config COMEDI_AMPLC_DIO200
 
 config COMEDI_AMPLC_PC236
 	tristate "Amplicon PC36AT and PCI236 DIO board support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for Amplicon PC36AT and PCI236 DIO boards
@@ -799,6 +790,7 @@ config COMEDI_AMPLC_PCI224
 
 config COMEDI_AMPLC_PCI230
 	tristate "Amplicon PCI230 and PCI260 support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for Amplicon PCI230 and PCI260 Multifunction I/O
@@ -869,6 +861,7 @@ config COMEDI_II_PCI20KC
 
 config COMEDI_DAQBOARD2000
 	tristate "IOtech DAQboard/2000 support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for the IOtech DAQboard/2000
@@ -896,6 +889,7 @@ config COMEDI_KE_COUNTER
 
 config COMEDI_CB_PCIDAS64
 	tristate "MeasurementComputing PCI-DAS 64xx, 60xx, and 4020 support"
+	select COMEDI_8255
 	select COMEDI_FC
 	default N
 	---help---
@@ -907,6 +901,7 @@ config COMEDI_CB_PCIDAS64
 
 config COMEDI_CB_PCIDAS
 	tristate "MeasurementComputing PCI-DAS support"
+	select COMEDI_8255
 	select COMEDI_FC
 	default N
 	---help---
@@ -920,6 +915,7 @@ config COMEDI_CB_PCIDAS
 
 config COMEDI_CB_PCIDDA
 	tristate "MeasurementComputing PCI-DDA series support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for ComputerBoards/MeasurementComputing PCI-DDA
@@ -931,6 +927,7 @@ config COMEDI_CB_PCIDDA
 
 config COMEDI_CB_PCIDIO
 	tristate "MeasurementComputing PCI-DIO series support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for ComputerBoards/MeasurementComputing PCI-DIO series
@@ -941,6 +938,7 @@ config COMEDI_CB_PCIDIO
 
 config COMEDI_CB_PCIMDAS
 	tristate "MeasurementComputing PCIM-DAS1602/16 support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for ComputerBoards/MeasurementComputing PCI Migration
@@ -951,6 +949,7 @@ config COMEDI_CB_PCIMDAS
 
 config COMEDI_CB_PCIMDDA
 	tristate "MeasurementComputing PCIM-DDA06-16 support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for ComputerBoards/MeasurementComputing PCIM-DDA06-16
@@ -1026,6 +1025,7 @@ config COMEDI_NI_670X
 config COMEDI_NI_PCIDIO
 	tristate "NI PCI-DIO32HS, PCI-DIO96, PCI-6533, PCI-6503 support"
 	depends on COMEDI_MITE
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for National Instruments PCI-DIO-32HS, PXI-6533,
@@ -1058,6 +1058,7 @@ config COMEDI_NI_PCIMIO
 
 config COMEDI_RTD520
 	tristate "Real Time Devices PCI4520/DM7520 support"
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for Real Time Devices PCI4520/DM7520
@@ -1097,7 +1098,7 @@ endif # COMEDI_PCI_DRIVERS
 
 menuconfig COMEDI_PCMCIA_DRIVERS
 	tristate "Comedi PCMCIA drivers"
-	depends on COMEDI && PCMCIA && PCCARD
+	depends on COMEDI && (PCMCIA || PCCARD)
 	default N
 	---help---
 	  Enable comedi PCMCIA and PCCARD drivers to be built
@@ -1142,6 +1143,7 @@ config COMEDI_NI_DAQ_700_CS
 config COMEDI_NI_DAQ_DIO24_CS
 	tristate "NI DAQ-Card DIO-24 PCMCIA support"
 	depends on COMEDI_NI_COMMON
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for the National Instruments PCMCIA DAQ-Card DIO-24
@@ -1162,8 +1164,8 @@ config COMEDI_NI_LABPC_CS
 config COMEDI_NI_MIO_CS
 	tristate "NI DAQCard E series PCMCIA support"
 	depends on COMEDI_NI_TIO && COMEDI_NI_COMMON
-	default N
 	select COMEDI_FC
+	default N
 	---help---
 	  Enable support for the National Instruments PCMCIA DAQCard E series
 	  DAQCard-ai-16xe-50, DAQCard-ai-16e-4, DAQCard-6062E, DAQCard-6024E
@@ -1265,7 +1267,8 @@ config COMEDI_MITE
 
 config COMEDI_NI_TIO
 	tristate "NI general purpose counter support"
-	select COMEDI_MITE
+	depends on COMEDI_MITE
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for National Instruments general purpose counters.
@@ -1278,6 +1281,8 @@ config COMEDI_NI_TIO
 
 config COMEDI_NI_LABPC
 	tristate "NI Lab-PC and compatibles ISA and PCI support"
+	depends on COMEDI_MITE
+	select COMEDI_8255
 	select COMEDI_FC
 	default N
 	---help---
@@ -1291,8 +1296,40 @@ config COMEDI_NI_LABPC
 
 endif # COMEDI_NI_COMMON
 
+config COMEDI_8255
+	tristate "Generic 8255 support"
+	depends on COMEDI
+	default N
+	---help---
+	  Enable generic 8255 support.
+
+	  You should enable compilation this driver if you plan to use a board
+	  that has an 8255 chip. For multifunction boards, the main driver will
+	  configure the 8255 subdevice automatically.
+
+	  Note that most PCI 8255 boards do NOT work with this driver, and
+	  need a separate driver as a wrapper.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called 8255.
+
+config COMEDI_DAS08
+	tristate "DAS-08 compatible support"
+	depends on COMEDI
+	select COMEDI_8255
+	default N
+	---help---
+	  Enable support for DAS08 and compatible ISA, PC/104 and PCI cards.
+
+	  Note that PCMCIA DAS08 cards are not directly supported by this
+	  driver, and need a separate driver as a wrapper.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called das08.
+
 config COMEDI_FC
 	tristate "Comedi shared functions for low-level driver support"
+	depends on COMEDI
 	default N
 	---help---
 	  Enable support for shared functions for low-level drivers.

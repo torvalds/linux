@@ -358,6 +358,8 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 	if (stream->buf != buf)
 		stream->buf = vmw_dmabuf_reference(buf);
 	stream->saved = *arg;
+	/* stream is no longer stopped/paused */
+	stream->paused = false;
 
 	return 0;
 }
@@ -583,7 +585,7 @@ int vmw_overlay_init(struct vmw_private *dev_priv)
 		return -ENOSYS;
 	}
 
-	overlay = kmalloc(GFP_KERNEL, sizeof(*overlay));
+	overlay = kmalloc(sizeof(*overlay), GFP_KERNEL);
 	if (!overlay)
 		return -ENOMEM;
 

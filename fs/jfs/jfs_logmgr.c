@@ -1010,15 +1010,13 @@ static int lmLogSync(struct jfs_log * log, int hard_sync)
 		 * option 2 - shutdown file systems
 		 *	      associated with log ?
 		 * option 3 - extend log ?
-		 */
-		/*
 		 * option 4 - second chance
 		 *
 		 * mark log wrapped, and continue.
 		 * when all active transactions are completed,
-		 * mark log vaild for recovery.
+		 * mark log valid for recovery.
 		 * if crashed during invalid state, log state
-		 * implies invald log, forcing fsck().
+		 * implies invalid log, forcing fsck().
 		 */
 		/* mark log state log wrap in log superblock */
 		/* log->state = LOGWRAP; */
@@ -1122,14 +1120,11 @@ int lmLogOpen(struct super_block *sb)
 	 * file systems to log may have n-to-1 relationship;
 	 */
 
-	bdev = open_by_devnum(sbi->logdev, FMODE_READ|FMODE_WRITE);
+	bdev = blkdev_get_by_dev(sbi->logdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL,
+				 log);
 	if (IS_ERR(bdev)) {
 		rc = -PTR_ERR(bdev);
 		goto free;
-	}
-
-	if ((rc = bd_claim(bdev, log))) {
-		goto close;
 	}
 
 	log->bdev = bdev;
@@ -1139,7 +1134,7 @@ int lmLogOpen(struct super_block *sb)
 	 * initialize log:
 	 */
 	if ((rc = lmLogInit(log)))
-		goto unclaim;
+		goto close;
 
 	list_add(&log->journal_list, &jfs_external_logs);
 
@@ -1165,11 +1160,8 @@ journal_found:
 	list_del(&log->journal_list);
 	lbmLogShutdown(log);
 
-      unclaim:
-	bd_release(bdev);
-
       close:		/* close external log device */
-	blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
+	blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 
       free:		/* free log descriptor */
 	mutex_unlock(&jfs_log_mutex);
@@ -1514,8 +1506,7 @@ int lmLogClose(struct super_block *sb)
 	bdev = log->bdev;
 	rc = lmLogShutdown(log);
 
-	bd_release(bdev);
-	blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
+	blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 
 	kfree(log);
 

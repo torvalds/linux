@@ -36,7 +36,7 @@ static int init_one_level2_page(struct kimage *image, pgd_t *pgd,
 		if (!page)
 			goto out;
 		pud = (pud_t *)page_address(page);
-		memset(pud, 0, PAGE_SIZE);
+		clear_page(pud);
 		set_pgd(pgd, __pgd(__pa(pud) | _KERNPG_TABLE));
 	}
 	pud = pud_offset(pgd, addr);
@@ -45,7 +45,7 @@ static int init_one_level2_page(struct kimage *image, pgd_t *pgd,
 		if (!page)
 			goto out;
 		pmd = (pmd_t *)page_address(page);
-		memset(pmd, 0, PAGE_SIZE);
+		clear_page(pmd);
 		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
 	}
 	pmd = pmd_offset(pud, addr);

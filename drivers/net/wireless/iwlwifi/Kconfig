@@ -3,6 +3,9 @@ config IWLWIFI
 	depends on PCI && MAC80211
 	select FW_LOADER
 
+menu "Debugging Options"
+	depends on IWLWIFI
+
 config IWLWIFI_DEBUG
 	bool "Enable full debugging output in iwlagn and iwl3945 drivers"
 	depends on IWLWIFI
@@ -30,9 +33,17 @@ config IWLWIFI_DEBUG
 
 config IWLWIFI_DEBUGFS
         bool "iwlagn debugfs support"
-        depends on IWLWIFI && IWLWIFI_DEBUG && MAC80211_DEBUGFS
+        depends on IWLWIFI && MAC80211_DEBUGFS
         ---help---
-	  Enable creation of debugfs files for the iwlwifi drivers.
+	  Enable creation of debugfs files for the iwlwifi drivers. This
+	  is a low-impact option that allows getting insight into the
+	  driver's state at runtime.
+
+config IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
+        bool "Experimental uCode support"
+        depends on IWLWIFI && IWLWIFI_DEBUG
+        ---help---
+	  Enable use of experimental ucode for testing and debugging.
 
 config IWLWIFI_DEVICE_TRACING
 	bool "iwlwifi device access tracing"
@@ -51,6 +62,7 @@ config IWLWIFI_DEVICE_TRACING
 
 	  If unsure, say Y so we can help you better when problems
 	  occur.
+endmenu
 
 config IWLAGN
 	tristate "Intel Wireless WiFi Next Gen AGN (iwlagn)"
@@ -85,10 +97,18 @@ config IWL4965
 	  This option enables support for Intel Wireless WiFi Link 4965AGN
 
 config IWL5000
-	bool "Intel Wireless WiFi 5000AGN; Intel WiFi Link 1000, 6000, and 6050 Series"
+	bool "Intel Wireless-N/Advanced-N/Ultimate-N WiFi Link"
 	depends on IWLAGN
 	---help---
-	  This option enables support for Intel Wireless WiFi Link 5000AGN Family
+	  This option enables support for use with the following hardware:
+		Intel Wireless WiFi Link 6250AGN Adapter
+		Intel 6000 Series Wi-Fi Adapters (6200AGN and 6300AGN)
+		Intel WiFi Link 1000BGN
+		Intel Wireless WiFi 5150AGN
+		Intel Wireless WiFi 5100AGN, 5300AGN, and 5350AGN
+		Intel 6000 Gen 2 Series Wi-Fi Adapters (6000G2A and 6000G2B)
+		Intel WIreless WiFi Link 6050BGN Gen 2 Adapter
+		Intel 100 Series Wi-Fi Adapters (100BGN and 130BGN)
 
 config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection (iwl3945)"

@@ -128,7 +128,6 @@ static struct platform_device hmt_backlight_device = {
 
 static struct s3c_fb_pd_win hmt_fb_win0 = {
 	.win_mode	= {
-		.pixclock	= 41094,
 		.left_margin	= 8,
 		.right_margin	= 13,
 		.upper_margin	= 7,
@@ -266,8 +265,6 @@ static void __init hmt_machine_init(void)
 
 MACHINE_START(HMT, "Airgoo-HMT")
 	/* Maintainer: Peter Korsgaard <jacmet@sunsite.dk> */
-	.phys_io	= S3C_PA_UART & 0xfff00000,
-	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= hmt_map_io,

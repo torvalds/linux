@@ -50,6 +50,23 @@
 #define bfin_write16(addr, val) _bfin_writeX(addr, val, 16, w)
 #define bfin_write32(addr, val) _bfin_writeX(addr, val, 32,  )
 
+#define bfin_read(addr) \
+({ \
+    sizeof(*(addr)) == 1 ? bfin_read8(addr)  : \
+    sizeof(*(addr)) == 2 ? bfin_read16(addr) : \
+    sizeof(*(addr)) == 4 ? bfin_read32(addr) : \
+    ({ BUG(); 0; }); \
+})
+#define bfin_write(addr, val) \
+({ \
+	switch (sizeof(*(addr))) { \
+	case 1: bfin_write8(addr, val);  break; \
+	case 2: bfin_write16(addr, val); break; \
+	case 4: bfin_write32(addr, val); break; \
+	default: BUG(); \
+	} \
+})
+
 #endif /* __ASSEMBLY__ */
 
 /**************************************************
@@ -377,6 +394,7 @@
 #define EVT13              0xFFE02034	/* Event Vector 13 ESR Address */
 #define EVT14              0xFFE02038	/* Event Vector 14 ESR Address */
 #define EVT15              0xFFE0203C	/* Event Vector 15 ESR Address */
+#define EVT_OVERRIDE       0xFFE02100	/* Event Vector Override Register */
 #define IMASK              0xFFE02104	/* Interrupt Mask Register */
 #define IPEND              0xFFE02108	/* Interrupt Pending Register */
 #define ILAT               0xFFE0210C	/* Interrupt Latch Register */

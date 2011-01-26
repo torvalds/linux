@@ -4,8 +4,8 @@
 source "virt/kvm/Kconfig"
 
 menuconfig VIRTUALIZATION
-	bool "Virtualization"
-	default y
+	def_bool y
+	prompt "Virtualization"
 	---help---
 	  Say Y here to get to see options for using your Linux host to run other
 	  operating systems inside virtual machines (guests).
@@ -16,7 +16,8 @@ menuconfig VIRTUALIZATION
 if VIRTUALIZATION
 
 config KVM
-	tristate "Kernel-based Virtual Machine (KVM) support"
+	def_tristate y
+	prompt "Kernel-based Virtual Machine (KVM) support"
 	depends on HAVE_KVM && EXPERIMENTAL
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
@@ -30,17 +31,6 @@ config KVM
 
 	  To compile this as a module, choose M here: the module
 	  will be called kvm.
-
-	  If unsure, say N.
-
-config KVM_AWARE_CMF
-	depends on KVM
-	bool "KVM aware sampling"
-	---help---
-	  This option enhances the sampling data from the CPU Measurement
-	  Facility with additional information, that allows to distinguish
-	  guest(s) and host when using the kernel based virtual machine
-	  functionality.
 
 	  If unsure, say N.
 

@@ -564,7 +564,7 @@ static void cxacru_timeout_kill(unsigned long data)
 }
 
 static int cxacru_start_wait_urb(struct urb *urb, struct completion *done,
-				 int* actual_length)
+				 int *actual_length)
 {
 	struct timer_list timer;
 
@@ -866,50 +866,50 @@ static void cxacru_poll_status(struct work_struct *work)
 	instance->line_status = buf[CXINF_LINE_STATUS];
 	switch (instance->line_status) {
 	case 0:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: down\n");
 		break;
 
 	case 1:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: attempting to activate\n");
 		break;
 
 	case 2:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: training\n");
 		break;
 
 	case 3:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: channel analysis\n");
 		break;
 
 	case 4:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: exchange\n");
 		break;
 
 	case 5:
 		atm_dev->link_rate = buf[CXINF_DOWNSTREAM_RATE] * 1000 / 424;
-		atm_dev->signal = ATM_PHY_SIG_FOUND;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_FOUND);
 
 		atm_info(usbatm, "ADSL line: up (%d kb/s down | %d kb/s up)\n",
 		     buf[CXINF_DOWNSTREAM_RATE], buf[CXINF_UPSTREAM_RATE]);
 		break;
 
 	case 6:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: waiting\n");
 		break;
 
 	case 7:
-		atm_dev->signal = ATM_PHY_SIG_LOST;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 		atm_info(usbatm, "ADSL line: initializing\n");
 		break;
 
 	default:
-		atm_dev->signal = ATM_PHY_SIG_UNKNOWN;
+		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_UNKNOWN);
 		atm_info(usbatm, "Unknown line state %02x\n", instance->line_status);
 		break;
 	}
@@ -952,7 +952,7 @@ static int cxacru_fw(struct usb_device *usb_dev, enum cxacru_fw_request fw,
 		put_unaligned(cpu_to_le32(addr), (__le32 *)(buf + offb));
 		offb += 4;
 		addr += l;
-		if(l)
+		if (l)
 			memcpy(buf + offb, data + offd, l);
 		if (l < stride)
 			memset(buf + offb + l, 0, stride - l);
@@ -967,7 +967,7 @@ static int cxacru_fw(struct usb_device *usb_dev, enum cxacru_fw_request fw,
 			}
 			offb = 0;
 		}
-	} while(offd < size);
+	} while (offd < size);
 	dbg("sent fw %#x", fw);
 
 	ret = 0;
@@ -1043,8 +1043,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 	if (instance->modem_type->boot_rom_patch) {
 		val = cpu_to_le32(BR_ADDR);
 		ret = cxacru_fw(usb_dev, FW_WRITE_MEM, 0x2, 0x0, BR_STACK_ADDR, (u8 *) &val, 4);
-	}
-	else {
+	} else {
 		ret = cxacru_fw(usb_dev, FW_GOTO_MEM, 0x0, 0x0, FW_ADDR, NULL, 0);
 	}
 	if (ret) {
@@ -1068,7 +1067,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 }
 
 static int cxacru_find_firmware(struct cxacru_data *instance,
-				char* phase, const struct firmware **fw_p)
+				char *phase, const struct firmware **fw_p)
 {
 	struct usbatm_data *usbatm = instance->usbatm;
 	struct device *dev = &usbatm->usb_intf->dev;
@@ -1128,6 +1127,7 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 {
 	struct cxacru_data *instance;
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
+	struct usb_host_endpoint *cmd_ep = usb_dev->ep_in[CXACRU_EP_CMD];
 	int ret;
 
 	/* instance init */
@@ -1172,15 +1172,34 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 		goto fail;
 	}
 
-	usb_fill_int_urb(instance->rcv_urb,
+	if (!cmd_ep) {
+		dbg("cxacru_bind: no command endpoint");
+		ret = -ENODEV;
+		goto fail;
+	}
+
+	if ((cmd_ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+			== USB_ENDPOINT_XFER_INT) {
+		usb_fill_int_urb(instance->rcv_urb,
 			usb_dev, usb_rcvintpipe(usb_dev, CXACRU_EP_CMD),
 			instance->rcv_buf, PAGE_SIZE,
 			cxacru_blocking_completion, &instance->rcv_done, 1);
 
-	usb_fill_int_urb(instance->snd_urb,
+		usb_fill_int_urb(instance->snd_urb,
 			usb_dev, usb_sndintpipe(usb_dev, CXACRU_EP_CMD),
 			instance->snd_buf, PAGE_SIZE,
 			cxacru_blocking_completion, &instance->snd_done, 4);
+	} else {
+		usb_fill_bulk_urb(instance->rcv_urb,
+			usb_dev, usb_rcvbulkpipe(usb_dev, CXACRU_EP_CMD),
+			instance->rcv_buf, PAGE_SIZE,
+			cxacru_blocking_completion, &instance->rcv_done);
+
+		usb_fill_bulk_urb(instance->snd_urb,
+			usb_dev, usb_sndbulkpipe(usb_dev, CXACRU_EP_CMD),
+			instance->snd_buf, PAGE_SIZE,
+			cxacru_blocking_completion, &instance->snd_done);
+	}
 
 	mutex_init(&instance->cm_serialize);
 
@@ -1228,7 +1247,7 @@ static void cxacru_unbind(struct usbatm_data *usbatm_instance,
 	mutex_unlock(&instance->poll_state_serialize);
 
 	if (is_polling)
-		cancel_rearming_delayed_work(&instance->poll_work);
+		cancel_delayed_work_sync(&instance->poll_work);
 
 	usb_kill_urb(instance->snd_urb);
 	usb_kill_urb(instance->rcv_urb);
@@ -1325,8 +1344,24 @@ static struct usbatm_driver cxacru_driver = {
 	.tx_padding	= 11,
 };
 
-static int cxacru_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int cxacru_usb_probe(struct usb_interface *intf,
+		const struct usb_device_id *id)
 {
+	struct usb_device *usb_dev = interface_to_usbdev(intf);
+	char buf[15];
+
+	/* Avoid ADSL routers (cx82310_eth).
+	 * Abort if bDeviceClass is 0xff and iProduct is "USB NET CARD".
+	 */
+	if (usb_dev->descriptor.bDeviceClass == USB_CLASS_VENDOR_SPEC
+			&& usb_string(usb_dev, usb_dev->descriptor.iProduct,
+				buf, sizeof(buf)) > 0) {
+		if (!strcmp(buf, "USB NET CARD")) {
+			dev_info(&intf->dev, "ignoring cx82310_eth device\n");
+			return -ENODEV;
+		}
+	}
+
 	return usbatm_usb_probe(intf, id, &cxacru_driver);
 }
 

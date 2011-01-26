@@ -2,7 +2,7 @@
  *  cx18 driver PCI memory mapped IO access routines
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 /*
  * Readback and retry of MMIO access for reliability:
  * The concept was suggested by Steve Toth <stoth@linuxtv.org>.
- * The implmentation is the fault of Andy Walls <awalls@radix.net>.
+ * The implmentation is the fault of Andy Walls <awalls@md.metrocast.net>.
  *
  * *write* functions are implied to retry the mmio unless suffixed with _noretry
  * *read* functions never retry the mmio (it never helps to do so)

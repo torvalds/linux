@@ -72,6 +72,9 @@ struct e820map {
 #define BIOS_BEGIN		0x000a0000
 #define BIOS_END		0x00100000
 
+#define BIOS_ROM_BASE		0xffe00000
+#define BIOS_ROM_END		0xffffffff
+
 #ifdef __KERNEL__
 /* see comment in arch/x86/kernel/e820.c */
 extern struct e820map e820;
@@ -112,23 +115,13 @@ static inline void early_memtest(unsigned long start, unsigned long end)
 }
 #endif
 
-extern unsigned long end_user_pfn;
-
-extern u64 find_e820_area(u64 start, u64 end, u64 size, u64 align);
-extern u64 find_e820_area_size(u64 start, u64 *sizep, u64 align);
-extern u64 early_reserve_e820(u64 startt, u64 sizet, u64 align);
-#include <linux/early_res.h>
-
 extern unsigned long e820_end_of_ram_pfn(void);
 extern unsigned long e820_end_of_low_ram_pfn(void);
-extern int e820_find_active_region(const struct e820entry *ei,
-				  unsigned long start_pfn,
-				  unsigned long last_pfn,
-				  unsigned long *ei_startpfn,
-				  unsigned long *ei_endpfn);
-extern void e820_register_active_regions(int nid, unsigned long start_pfn,
-					 unsigned long end_pfn);
-extern u64 e820_hole_size(u64 start, u64 end);
+extern u64 early_reserve_e820(u64 startt, u64 sizet, u64 align);
+
+void memblock_x86_fill(void);
+void memblock_find_dma_reserve(void);
+
 extern void finish_e820_parsing(void);
 extern void e820_reserve_resources(void);
 extern void e820_reserve_resources_late(void);

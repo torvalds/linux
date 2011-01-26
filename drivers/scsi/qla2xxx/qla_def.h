@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2008 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -202,6 +202,7 @@ struct sd_dif_tuple {
  * SCSI Request Block
  */
 typedef struct srb {
+	atomic_t ref_count;
 	struct fc_port *fcport;
 	uint32_t handle;
 
@@ -249,16 +250,6 @@ struct srb_iocb {
 			uint32_t lun;
 			uint32_t data;
 		} tmf;
-		struct {
-			/*
-			 * values for modif field below are as
-			 * defined in mrk_entry_24xx struct
-			 * for the modifier field in qla_fw.h.
-			 */
-			uint8_t modif;
-			uint16_t lun;
-			uint32_t data;
-		} marker;
 	} u;
 
 	struct timer_list timer;
@@ -276,7 +267,6 @@ struct srb_iocb {
 #define SRB_CT_CMD	5
 #define SRB_ADISC_CMD	6
 #define SRB_TM_CMD	7
-#define SRB_MARKER_CMD	8
 
 struct srb_ctx {
 	uint16_t type;
@@ -713,6 +703,13 @@ typedef struct {
 #define MBC_SEND_RNFT_ELS		0x5e	/* Send RNFT ELS request */
 #define MBC_GET_LINK_PRIV_STATS		0x6d	/* Get link & private data. */
 #define MBC_SET_VENDOR_ID		0x76	/* Set Vendor ID. */
+#define MBC_SET_PORT_CONFIG		0x122	/* Set port configuration */
+#define MBC_GET_PORT_CONFIG		0x123	/* Get port configuration */
+
+/*
+ * ISP81xx mailbox commands
+ */
+#define MBC_WRITE_MPI_REGISTER		0x01    /* Write MPI Register. */
 
 /* Firmware return data sizes */
 #define FCAL_MAP_SIZE	128
@@ -1660,7 +1657,13 @@ typedef struct {
 	uint8_t port_name[WWN_SIZE];
 	uint8_t fabric_port_name[WWN_SIZE];
 	uint16_t fp_speed;
+	uint8_t fc4_type;
 } sw_info_t;
+
+/* FCP-4 types */
+#define FC4_TYPE_FCP_SCSI	0x08
+#define FC4_TYPE_OTHER		0x0
+#define FC4_TYPE_UNKNOWN	0xff
 
 /*
  * Fibre channel port type.
@@ -1697,14 +1700,13 @@ typedef struct fc_port {
 	atomic_t state;
 	uint32_t flags;
 
-	int port_login_retry_count;
 	int login_retry;
-	atomic_t port_down_timer;
 
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
 
 	uint16_t vp_idx;
+	uint8_t fc4_type;
 } fc_port_t;
 
 /*
@@ -1787,6 +1789,9 @@ typedef struct fc_port {
 #define	GPSC_REQ_SIZE	(16 + 8)
 #define	GPSC_RSP_SIZE	(16 + 2 + 2)
 
+#define GFF_ID_CMD	0x011F
+#define GFF_ID_REQ_SIZE	(16 + 4)
+#define GFF_ID_RSP_SIZE (16 + 128)
 
 /*
  * HBA attribute types.
@@ -1988,6 +1993,11 @@ struct ct_sns_req {
 		struct {
 			uint8_t port_name[8];
 		} gpsc;
+
+		struct {
+			uint8_t reserved;
+			uint8_t port_name[3];
+		} gff_id;
 	} req;
 };
 
@@ -2060,6 +2070,11 @@ struct ct_sns_rsp {
 			uint16_t speeds;
 			uint16_t speed;
 		} gpsc;
+
+#define GFF_FCP_SCSI_OFFSET	7
+		struct {
+			uint8_t fc4_features[128];
+		} gff_id;
 	} rsp;
 };
 
@@ -2394,7 +2409,6 @@ struct qla_hw_data {
 		uint32_t	enable_target_reset	:1;
 		uint32_t	enable_lip_full_login	:1;
 		uint32_t	enable_led_scheme	:1;
-		uint32_t	inta_enabled		:1;
 		uint32_t	msi_enabled		:1;
 		uint32_t	msix_enabled		:1;
 		uint32_t	disable_serdes		:1;
@@ -2410,6 +2424,10 @@ struct qla_hw_data {
 		uint32_t	cpu_affinity_enabled	:1;
 		uint32_t	disable_msix_handshake	:1;
 		uint32_t	fcp_prio_enabled	:1;
+		uint32_t	fw_hung	:1;
+		uint32_t        quiesce_owner:1;
+		uint32_t	thermal_supported:1;
+		/* 26 bits */
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
@@ -2628,8 +2646,11 @@ struct qla_hw_data {
 #define MBX_UPDATE_FLASH_ACTIVE	3
 
 	struct mutex vport_lock;        /* Virtual port synchronization */
+	spinlock_t vport_slock; /* order is hardware_lock, then vport_slock */
 	struct completion mbx_cmd_comp; /* Serialize mbx access */
 	struct completion mbx_intr_comp;  /* Used for completion notification */
+	struct completion dcbx_comp;	/* For set port config notification */
+	int notify_dcbx_comp;
 
 	/* Basic firmware related information. */
 	uint16_t	fw_major_version;
@@ -2698,6 +2719,8 @@ struct qla_hw_data {
 	uint8_t 	efi_revision[2];
 	uint8_t 	fcode_revision[16];
 	uint32_t	fw_revision[4];
+
+	uint32_t	gold_fw_version[4];
 
 	/* Offsets for flash/nvram access (set to ~0 if not used). */
 	uint32_t	flash_conf_off;
@@ -2783,6 +2806,9 @@ struct qla_hw_data {
 	uint16_t	gbl_dsd_avail;
 	struct list_head gbl_dsd_list;
 #define NUM_DSD_CHAIN 4096
+
+	uint8_t fw_type;
+	__le32 file_prd_off;	/* File firmware product offset */
 };
 
 /*
@@ -2808,6 +2834,7 @@ typedef struct scsi_qla_host {
 		uint32_t	management_server_logged_in :1;
 		uint32_t	process_response_queue	:1;
 		uint32_t	difdix_supported:1;
+		uint32_t	delete_progress:1;
 	} flags;
 
 	atomic_t	loop_state;
@@ -2838,6 +2865,8 @@ typedef struct scsi_qla_host {
 #define NPIV_CONFIG_NEEDED	16
 #define ISP_UNRECOVERABLE	17
 #define FCOE_CTX_RESET_NEEDED	18	/* Initiate FCoE context reset */
+#define MPI_RESET_NEEDED	19	/* Initiate MPI FW reset */
+#define ISP_QUIESCE_NEEDED	20	/* Driver need some quiescence */
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0
@@ -2902,6 +2931,8 @@ typedef struct scsi_qla_host {
 	struct req_que *req;
 	int		fw_heartbeat_counter;
 	int		seconds_since_last_heartbeat;
+
+	atomic_t	vref_count;
 } scsi_qla_host_t;
 
 /*
@@ -2911,6 +2942,22 @@ typedef struct scsi_qla_host {
 	(test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) || \
 	 test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) || \
 	 atomic_read(&ha->loop_state) == LOOP_DOWN)
+
+#define QLA_VHA_MARK_BUSY(__vha, __bail) do {		     \
+	atomic_inc(&__vha->vref_count);			     \
+	mb();						     \
+	if (__vha->flags.delete_progress) {		     \
+		atomic_dec(&__vha->vref_count);		     \
+		__bail = 1;				     \
+	} else {					     \
+		__bail = 0;				     \
+	}						     \
+} while (0)
+
+#define QLA_VHA_MARK_NOT_BUSY(__vha) do {		     \
+	atomic_dec(&__vha->vref_count);			     \
+} while (0)
+
 
 #define qla_printk(level, ha, format, arg...) \
 	dev_printk(level , &((ha)->pdev->dev) , format , ## arg)
@@ -2961,9 +3008,17 @@ typedef struct scsi_qla_host {
 
 #define	QLA_DSDS_PER_IOCB	37
 
+#define CMD_SP(Cmnd)		((Cmnd)->SCp.ptr)
+
+#define QLA_SG_ALL	1024
+
+enum nexus_wait_type {
+	WAIT_HOST = 0,
+	WAIT_TARGET,
+	WAIT_LUN,
+};
+
 #include "qla_gbl.h"
 #include "qla_dbg.h"
 #include "qla_inline.h"
-
-#define CMD_SP(Cmnd)		((Cmnd)->SCp.ptr)
 #endif

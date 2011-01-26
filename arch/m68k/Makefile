@@ -18,7 +18,7 @@ KBUILD_DEFCONFIG := multi_defconfig
 # override top level makefile
 AS += -m68020
 LDFLAGS := -m m68kelf
-LDFLAGS_MODULE += -T $(srctree)/arch/m68k/kernel/module.lds
+KBUILD_LDFLAGS_MODULE += -T $(srctree)/arch/m68k/kernel/module.lds
 ifneq ($(SUBARCH),$(ARCH))
 	ifeq ($(CROSS_COMPILE),)
 		CROSS_COMPILE := $(call cc-cross-prefix, \

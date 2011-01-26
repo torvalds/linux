@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2008 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -26,6 +26,7 @@
 #define CRB_RCVPEG_STATE		QLA82XX_REG(0x13c)
 #define BOOT_LOADER_DIMM_STATUS		QLA82XX_REG(0x54)
 #define CRB_DMA_SHIFT			QLA82XX_REG(0xcc)
+#define QLA82XX_DMA_SHIFT_VALUE		0x55555555
 
 #define QLA82XX_HW_H0_CH_HUB_ADR    0x05
 #define QLA82XX_HW_H1_CH_HUB_ADR    0x0E
@@ -522,8 +523,6 @@
 # define QLA82XX_CAM_RAM_BASE		(QLA82XX_CRB_CAM + 0x02000)
 # define QLA82XX_CAM_RAM(reg)		(QLA82XX_CAM_RAM_BASE + (reg))
 
-#define QLA82XX_PEG_TUNE_MN_SPD_ZEROED	0x80000000
-#define QLA82XX_BOOT_LOADER_MN_ISSUE	0xff00ffff
 #define QLA82XX_PORT_MODE_ADDR		(QLA82XX_CAM_RAM(0x24))
 #define QLA82XX_PEG_HALT_STATUS1	(QLA82XX_CAM_RAM(0xa8))
 #define QLA82XX_PEG_HALT_STATUS2	(QLA82XX_CAM_RAM(0xac))
@@ -538,11 +537,10 @@
 /* Driver Coexistence Defines */
 #define QLA82XX_CRB_DRV_ACTIVE	     (QLA82XX_CAM_RAM(0x138))
 #define QLA82XX_CRB_DEV_STATE	     (QLA82XX_CAM_RAM(0x140))
-#define QLA82XX_CRB_DEV_PART_INFO    (QLA82XX_CAM_RAM(0x14c))
-#define QLA82XX_CRB_DRV_IDC_VERSION  (QLA82XX_CAM_RAM(0x174))
 #define QLA82XX_CRB_DRV_STATE	     (QLA82XX_CAM_RAM(0x144))
 #define QLA82XX_CRB_DRV_SCRATCH      (QLA82XX_CAM_RAM(0x148))
 #define QLA82XX_CRB_DEV_PART_INFO    (QLA82XX_CAM_RAM(0x14c))
+#define QLA82XX_CRB_DRV_IDC_VERSION  (QLA82XX_CAM_RAM(0x174))
 
 /* Every driver should use these Device State */
 #define QLA82XX_DEV_COLD		1
@@ -583,6 +581,10 @@
 #define QLA82XX_DRVST_NOT_RDY		0
 #define	QLA82XX_DRVST_RST_RDY		1
 #define QLA82XX_DRVST_QSNT_RDY		2
+
+/* Different drive active state */
+#define QLA82XX_DRV_NOT_ACTIVE		0
+#define QLA82XX_DRV_ACTIVE		1
 
 /*
  * The PCI VendorID and DeviceID for our board.
@@ -774,15 +776,49 @@ struct qla82xx_legacy_intr_set {
 		.pci_int_reg	=	ISR_MSI_INT_TRIGGER(7) },	\
 }
 
+#define BRDCFG_START		0x4000
 #define	BOOTLD_START		0x10000
 #define	IMAGE_START		0x100000
 #define FLASH_ADDR_START	0x43000
 
 /* Magic number to let user know flash is programmed */
 #define QLA82XX_BDINFO_MAGIC	0x12345678
+#define QLA82XX_FW_MAGIC_OFFSET	(BRDCFG_START + 0x128)
 #define FW_SIZE_OFFSET		(0x3e840c)
+#define QLA82XX_FW_MIN_SIZE	0x3fffff
 
-#define QLA82XX_IS_REVISION_P3PLUS(_rev_)	((_rev_) >= 0x50)
+/* UNIFIED ROMIMAGE START */
+#define QLA82XX_URI_FW_MIN_SIZE			0xc8000
+#define QLA82XX_URI_DIR_SECT_PRODUCT_TBL	0x0
+#define QLA82XX_URI_DIR_SECT_BOOTLD		0x6
+#define QLA82XX_URI_DIR_SECT_FW			0x7
+
+/* Offsets */
+#define QLA82XX_URI_CHIP_REV_OFF	10
+#define QLA82XX_URI_FLAGS_OFF		11
+#define QLA82XX_URI_BIOS_VERSION_OFF	12
+#define QLA82XX_URI_BOOTLD_IDX_OFF	27
+#define QLA82XX_URI_FIRMWARE_IDX_OFF	29
+
+struct qla82xx_uri_table_desc{
+	uint32_t	findex;
+	uint32_t	num_entries;
+	uint32_t	entry_size;
+	uint32_t	reserved[5];
+};
+
+struct qla82xx_uri_data_desc{
+	uint32_t	findex;
+	uint32_t	size;
+	uint32_t	reserved[5];
+};
+
+/* UNIFIED ROMIMAGE END */
+
+#define QLA82XX_UNIFIED_ROMIMAGE	3
+#define QLA82XX_FLASH_ROMIMAGE		4
+#define QLA82XX_UNKNOWN_ROMIMAGE	0xff
+
 #define MIU_TEST_AGT_WRDATA_UPPER_LO		(0x0b0)
 #define	MIU_TEST_AGT_WRDATA_UPPER_HI		(0x0b4)
 
@@ -832,7 +868,7 @@ struct fcp_cmnd {
 	struct scsi_lun lun;
 	uint8_t crn;
 	uint8_t task_attribute;
-	uint8_t task_managment;
+	uint8_t task_management;
 	uint8_t additional_cdb_len;
 	uint8_t cdb[260]; /* 256 for CDB len and 4 for FCP_DL */
 };
@@ -853,7 +889,7 @@ struct ct6_dsd {
 	struct list_head dsd_list;
 };
 
-#define MBC_TOGGLE_INTR			0x10
+#define MBC_TOGGLE_INTERRUPT	0x10
 
 /* Flash  offset */
 #define FLT_REG_BOOTLOAD_82XX	0x72

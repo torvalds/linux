@@ -1,8 +1,8 @@
 /*
  *      uvc_queue.c  --  USB Video Class driver - Buffers management
  *
- *      Copyright (C) 2005-2009
- *          Laurent Pinchart (laurent.pinchart@skynet.be)
+ *      Copyright (C) 2005-2010
+ *          Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -78,13 +78,48 @@
  *
  */
 
-void uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type)
+void uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
+		    int drop_corrupted)
 {
 	mutex_init(&queue->mutex);
 	spin_lock_init(&queue->irqlock);
 	INIT_LIST_HEAD(&queue->mainqueue);
 	INIT_LIST_HEAD(&queue->irqqueue);
+	queue->flags = drop_corrupted ? UVC_QUEUE_DROP_CORRUPTED : 0;
 	queue->type = type;
+}
+
+/*
+ * Free the video buffers.
+ *
+ * This function must be called with the queue lock held.
+ */
+static int __uvc_free_buffers(struct uvc_video_queue *queue)
+{
+	unsigned int i;
+
+	for (i = 0; i < queue->count; ++i) {
+		if (queue->buffer[i].vma_use_count != 0)
+			return -EBUSY;
+	}
+
+	if (queue->count) {
+		vfree(queue->mem);
+		queue->count = 0;
+	}
+
+	return 0;
+}
+
+int uvc_free_buffers(struct uvc_video_queue *queue)
+{
+	int ret;
+
+	mutex_lock(&queue->mutex);
+	ret = __uvc_free_buffers(queue);
+	mutex_unlock(&queue->mutex);
+
+	return ret;
 }
 
 /*
@@ -108,7 +143,7 @@ int uvc_alloc_buffers(struct uvc_video_queue *queue, unsigned int nbuffers,
 
 	mutex_lock(&queue->mutex);
 
-	if ((ret = uvc_free_buffers(queue)) < 0)
+	if ((ret = __uvc_free_buffers(queue)) < 0)
 		goto done;
 
 	/* Bail out if no buffers should be allocated. */
@@ -133,7 +168,6 @@ int uvc_alloc_buffers(struct uvc_video_queue *queue, unsigned int nbuffers,
 		queue->buffer[i].buf.m.offset = i * bufsize;
 		queue->buffer[i].buf.length = buflength;
 		queue->buffer[i].buf.type = queue->type;
-		queue->buffer[i].buf.sequence = 0;
 		queue->buffer[i].buf.field = V4L2_FIELD_NONE;
 		queue->buffer[i].buf.memory = V4L2_MEMORY_MMAP;
 		queue->buffer[i].buf.flags = 0;
@@ -148,28 +182,6 @@ int uvc_alloc_buffers(struct uvc_video_queue *queue, unsigned int nbuffers,
 done:
 	mutex_unlock(&queue->mutex);
 	return ret;
-}
-
-/*
- * Free the video buffers.
- *
- * This function must be called with the queue lock held.
- */
-int uvc_free_buffers(struct uvc_video_queue *queue)
-{
-	unsigned int i;
-
-	for (i = 0; i < queue->count; ++i) {
-		if (queue->buffer[i].vma_use_count != 0)
-			return -EBUSY;
-	}
-
-	if (queue->count) {
-		vfree(queue->mem);
-		queue->count = 0;
-	}
-
-	return 0;
 }
 
 /*
@@ -368,6 +380,82 @@ done:
 }
 
 /*
+ * VMA operations.
+ */
+static void uvc_vm_open(struct vm_area_struct *vma)
+{
+	struct uvc_buffer *buffer = vma->vm_private_data;
+	buffer->vma_use_count++;
+}
+
+static void uvc_vm_close(struct vm_area_struct *vma)
+{
+	struct uvc_buffer *buffer = vma->vm_private_data;
+	buffer->vma_use_count--;
+}
+
+static const struct vm_operations_struct uvc_vm_ops = {
+	.open		= uvc_vm_open,
+	.close		= uvc_vm_close,
+};
+
+/*
+ * Memory-map a video buffer.
+ *
+ * This function implements video buffers memory mapping and is intended to be
+ * used by the device mmap handler.
+ */
+int uvc_queue_mmap(struct uvc_video_queue *queue, struct vm_area_struct *vma)
+{
+	struct uvc_buffer *uninitialized_var(buffer);
+	struct page *page;
+	unsigned long addr, start, size;
+	unsigned int i;
+	int ret = 0;
+
+	start = vma->vm_start;
+	size = vma->vm_end - vma->vm_start;
+
+	mutex_lock(&queue->mutex);
+
+	for (i = 0; i < queue->count; ++i) {
+		buffer = &queue->buffer[i];
+		if ((buffer->buf.m.offset >> PAGE_SHIFT) == vma->vm_pgoff)
+			break;
+	}
+
+	if (i == queue->count || size != queue->buf_size) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	/*
+	 * VM_IO marks the area as being an mmaped region for I/O to a
+	 * device. It also prevents the region from being core dumped.
+	 */
+	vma->vm_flags |= VM_IO;
+
+	addr = (unsigned long)queue->mem + buffer->buf.m.offset;
+	while (size > 0) {
+		page = vmalloc_to_page((void *)addr);
+		if ((ret = vm_insert_page(vma, start, page)) < 0)
+			goto done;
+
+		start += PAGE_SIZE;
+		addr += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+
+	vma->vm_ops = &uvc_vm_ops;
+	vma->vm_private_data = buffer;
+	uvc_vm_open(vma);
+
+done:
+	mutex_unlock(&queue->mutex);
+	return ret;
+}
+
+/*
  * Poll the video queue.
  *
  * This function implements video queue polling and is intended to be used by
@@ -408,8 +496,7 @@ done:
  * state can be properly initialized before buffers are accessed from the
  * interrupt handler.
  *
- * Enabling the video queue initializes parameters (such as sequence number,
- * sync pattern, ...). If the queue is already enabled, return -EBUSY.
+ * Enabling the video queue returns -EBUSY if the queue is already enabled.
  *
  * Disabling the video queue cancels the queue and removes all buffers from
  * the main queue.
@@ -428,15 +515,16 @@ int uvc_queue_enable(struct uvc_video_queue *queue, int enable)
 			ret = -EBUSY;
 			goto done;
 		}
-		queue->sequence = 0;
 		queue->flags |= UVC_QUEUE_STREAMING;
 		queue->buf_used = 0;
 	} else {
 		uvc_queue_cancel(queue, 0);
 		INIT_LIST_HEAD(&queue->mainqueue);
 
-		for (i = 0; i < queue->count; ++i)
+		for (i = 0; i < queue->count; ++i) {
+			queue->buffer[i].error = 0;
 			queue->buffer[i].state = UVC_BUF_STATE_IDLE;
+		}
 
 		queue->flags &= ~UVC_QUEUE_STREAMING;
 	}
@@ -488,8 +576,8 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 	struct uvc_buffer *nextbuf;
 	unsigned long flags;
 
-	if ((queue->flags & UVC_QUEUE_DROP_INCOMPLETE) &&
-	    buf->buf.length != buf->buf.bytesused) {
+	if ((queue->flags & UVC_QUEUE_DROP_CORRUPTED) && buf->error) {
+		buf->error = 0;
 		buf->state = UVC_BUF_STATE_QUEUED;
 		buf->buf.bytesused = 0;
 		return buf;
@@ -497,6 +585,7 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 
 	spin_lock_irqsave(&queue->irqlock, flags);
 	list_del(&buf->queue);
+	buf->error = 0;
 	buf->state = UVC_BUF_STATE_DONE;
 	if (!list_empty(&queue->irqqueue))
 		nextbuf = list_first_entry(&queue->irqqueue, struct uvc_buffer,
@@ -504,8 +593,6 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 	else
 		nextbuf = NULL;
 	spin_unlock_irqrestore(&queue->irqlock, flags);
-
-	buf->buf.sequence = queue->sequence++;
 
 	wake_up(&buf->wait);
 	return nextbuf;

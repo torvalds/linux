@@ -243,6 +243,7 @@ enum {
 	NWayState		= (1 << 14) | (1 << 13) | (1 << 12),
 	NWayRestart		= (1 << 12),
 	NonselPortActive	= (1 << 9),
+	SelPortActive		= (1 << 8),
 	LinkFailStatus		= (1 << 2),
 	NetCxnErr		= (1 << 1),
 };
@@ -262,13 +263,13 @@ struct de_srom_media_block {
 	u16			csr13;
 	u16			csr14;
 	u16			csr15;
-} __attribute__((packed));
+} __packed;
 
 struct de_srom_info_leaf {
 	u16			default_media;
 	u8			n_blocks;
 	u8			unused;
-} __attribute__((packed));
+} __packed;
 
 struct de_desc {
 	__le32			opts1;
@@ -363,12 +364,14 @@ static u16 t21040_csr15[] = { 0, 0, 0x0006, 0x0000, 0x0000, };
 
 /* 21041 transceiver register settings: TP AUTO, BNC, AUI, TP, TP FD*/
 static u16 t21041_csr13[] = { 0xEF01, 0xEF09, 0xEF09, 0xEF01, 0xEF09, };
-static u16 t21041_csr14[] = { 0xFFFF, 0xF7FD, 0xF7FD, 0x6F3F, 0x6F3D, };
+static u16 t21041_csr14[] = { 0xFFFF, 0xF7FD, 0xF7FD, 0x7F3F, 0x7F3D, };
+/* If on-chip autonegotiation is broken, use half-duplex (FF3F) instead */
+static u16 t21041_csr14_brk[] = { 0xFF3F, 0xF7FD, 0xF7FD, 0x7F3F, 0x7F3D, };
 static u16 t21041_csr15[] = { 0x0008, 0x0006, 0x000E, 0x0008, 0x0008, };
 
 
-#define dr32(reg)		readl(de->regs + (reg))
-#define dw32(reg,val)		writel((val), de->regs + (reg))
+#define dr32(reg)	ioread32(de->regs + (reg))
+#define dw32(reg, val)	iowrite32((val), de->regs + (reg))
 
 
 static void de_rx_err_acct (struct de_private *de, unsigned rx_tail,
@@ -945,8 +948,9 @@ static void de_set_media (struct de_private *de)
 	else
 		macmode &= ~FullDuplex;
 
-	if (netif_msg_link(de)) {
+	if (netif_msg_link(de))
 		dev_info(&de->dev->dev, "set link %s\n", media_name[media]);
+	if (netif_msg_hw(de)) {
 		dev_info(&de->dev->dev, "mode 0x%x, sia 0x%x,0x%x,0x%x,0x%x\n",
 			 dr32(MacMode), dr32(SIAStatus),
 			 dr32(CSR13), dr32(CSR14), dr32(CSR15));
@@ -960,7 +964,7 @@ static void de_set_media (struct de_private *de)
 		dw32(MacMode, macmode);
 }
 
-static void de_next_media (struct de_private *de, u32 *media,
+static void de_next_media (struct de_private *de, const u32 *media,
 			   unsigned int n_media)
 {
 	unsigned int i;
@@ -1004,10 +1008,10 @@ static void de21040_media_timer (unsigned long data)
 		return;
 
 	if (de->media_type == DE_MEDIA_AUI) {
-		u32 next_state = DE_MEDIA_TP;
+		static const u32 next_state = DE_MEDIA_TP;
 		de_next_media(de, &next_state, 1);
 	} else {
-		u32 next_state = DE_MEDIA_AUI;
+		static const u32 next_state = DE_MEDIA_AUI;
 		de_next_media(de, &next_state, 1);
 	}
 
@@ -1063,6 +1067,9 @@ static void de21041_media_timer (unsigned long data)
 	u32 status = dr32(SIAStatus);
 	unsigned int carrier;
 	unsigned long flags;
+
+	/* clear port active bits */
+	dw32(SIAStatus, NonselPortActive | SelPortActive);
 
 	carrier = (status & NetCxnErr) ? 0 : 1;
 
@@ -1129,13 +1136,19 @@ static void de21041_media_timer (unsigned long data)
 	 * simply resets the PHY and reloads the current media settings.
 	 */
 	if (de->media_type == DE_MEDIA_AUI) {
-		u32 next_states[] = { DE_MEDIA_BNC, DE_MEDIA_TP_AUTO };
+		static const u32 next_states[] = {
+			DE_MEDIA_BNC, DE_MEDIA_TP_AUTO
+		};
 		de_next_media(de, next_states, ARRAY_SIZE(next_states));
 	} else if (de->media_type == DE_MEDIA_BNC) {
-		u32 next_states[] = { DE_MEDIA_TP_AUTO, DE_MEDIA_AUI };
+		static const u32 next_states[] = {
+			DE_MEDIA_TP_AUTO, DE_MEDIA_AUI
+		};
 		de_next_media(de, next_states, ARRAY_SIZE(next_states));
 	} else {
-		u32 next_states[] = { DE_MEDIA_AUI, DE_MEDIA_BNC, DE_MEDIA_TP_AUTO };
+		static const u32 next_states[] = {
+			DE_MEDIA_AUI, DE_MEDIA_BNC, DE_MEDIA_TP_AUTO
+		};
 		de_next_media(de, next_states, ARRAY_SIZE(next_states));
 	}
 
@@ -1158,14 +1171,29 @@ no_link_yet:
 static void de_media_interrupt (struct de_private *de, u32 status)
 {
 	if (status & LinkPass) {
+		/* Ignore if current media is AUI or BNC and we can't use TP */
+		if ((de->media_type == DE_MEDIA_AUI ||
+		     de->media_type == DE_MEDIA_BNC) &&
+		    (de->media_lock ||
+		     !de_ok_to_advertise(de, DE_MEDIA_TP_AUTO)))
+			return;
+		/* If current media is not TP, change it to TP */
+		if ((de->media_type == DE_MEDIA_AUI ||
+		     de->media_type == DE_MEDIA_BNC)) {
+			de->media_type = DE_MEDIA_TP_AUTO;
+			de_stop_rxtx(de);
+			de_set_media(de);
+			de_start_rxtx(de);
+		}
 		de_link_up(de);
 		mod_timer(&de->media_timer, jiffies + DE_TIMER_LINK);
 		return;
 	}
 
 	BUG_ON(!(status & LinkFail));
-
-	if (netif_carrier_ok(de->dev)) {
+	/* Mark the link as down only if current media is TP */
+	if (netif_carrier_ok(de->dev) && de->media_type != DE_MEDIA_AUI &&
+	    de->media_type != DE_MEDIA_BNC) {
 		de_link_down(de);
 		mod_timer(&de->media_timer, jiffies + DE_TIMER_NO_LINK);
 	}
@@ -1229,6 +1257,7 @@ static void de_adapter_sleep (struct de_private *de)
 	if (de->de21040)
 		return;
 
+	dw32(CSR13, 0); /* Reset phy */
 	pci_read_config_dword(de->pdev, PCIPM, &pmctl);
 	pmctl |= PM_Sleep;
 	pci_write_config_dword(de->pdev, PCIPM, pmctl);
@@ -1574,12 +1603,15 @@ static int __de_set_settings(struct de_private *de, struct ethtool_cmd *ecmd)
 		return 0; /* nothing to change */
 
 	de_link_down(de);
+	mod_timer(&de->media_timer, jiffies + DE_TIMER_NO_LINK);
 	de_stop_rxtx(de);
 
 	de->media_type = new_media;
 	de->media_lock = media_lock;
 	de->media_advertise = ecmd->advertising;
 	de_set_media(de);
+	if (netif_running(de->dev))
+		de_start_rxtx(de);
 
 	return 0;
 }
@@ -1706,6 +1738,7 @@ static void __devinit de21040_get_mac_address (struct de_private *de)
 		int value, boguscnt = 100000;
 		do {
 			value = dr32(ROMCmd);
+			rmb();
 		} while (value < 0 && --boguscnt > 0);
 		de->dev->dev_addr[i] = value;
 		udelay(1);
@@ -1910,8 +1943,14 @@ fill_defaults:
 	for (i = 0; i < DE_MAX_MEDIA; i++) {
 		if (de->media[i].csr13 == 0xffff)
 			de->media[i].csr13 = t21041_csr13[i];
-		if (de->media[i].csr14 == 0xffff)
-			de->media[i].csr14 = t21041_csr14[i];
+		if (de->media[i].csr14 == 0xffff) {
+			/* autonegotiation is broken at least on some chip
+			   revisions - rev. 0x21 works, 0x11 does not */
+			if (de->pdev->revision < 0x20)
+				de->media[i].csr14 = t21041_csr14_brk[i];
+			else
+				de->media[i].csr14 = t21041_csr14[i];
+		}
 		if (de->media[i].csr15 == 0xffff)
 			de->media[i].csr15 = t21041_csr15[i];
 	}
@@ -1988,7 +2027,6 @@ static int __devinit de_init_one (struct pci_dev *pdev,
 	de->media_timer.data = (unsigned long) de;
 
 	netif_carrier_off(dev);
-	netif_stop_queue(dev);
 
 	/* wake up device, assign resources */
 	rc = pci_enable_device(pdev);
@@ -2157,6 +2195,8 @@ static int de_resume (struct pci_dev *pdev)
 		dev_err(&dev->dev, "pci_enable_device failed in resume\n");
 		goto out;
 	}
+	pci_set_master(pdev);
+	de_init_rings(de);
 	de_init_hw(de);
 out_attach:
 	netif_device_attach(dev);

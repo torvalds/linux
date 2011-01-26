@@ -41,7 +41,7 @@
 #define	 TIOCPKT_START		0x08	/* start output */
 #define	 TIOCPKT_NOSTOP		0x10	/* no more ^S, ^Q */
 #define	 TIOCPKT_DOSTOP		0x20	/* now do ^S ^Q */
-/* #define  TIOCPKT_IOCTL		0x40	state change of pty driver */
+#define  TIOCPKT_IOCTL		0x40	/* state change of pty driver */
 #define TIOCSWINSZ	_IOW('t', 103, struct winsize)	/* set window size */
 #define TIOCGWINSZ	_IOR('t', 104, struct winsize)	/* get window size */
 #define TIOCNOTTY	0x5471		/* void tty association */
@@ -83,6 +83,8 @@
 #define TCSETSF2	_IOW('T', 0x2D, struct termios2)
 #define TIOCGPTN	_IOR('T', 0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
 #define TIOCSPTLCK	_IOW('T', 0x31, int)  /* Lock/unlock Pty */
+#define TIOCGDEV	_IOR('T', 0x32, unsigned int) /* Get primary device node of /dev/console */
+#define TIOCSIG		_IOW('T', 0x36, int)  /* Generate signal on Pty slave */
 
 /* I hope the range from 0x5480 on is free ... */
 #define TIOCSCTTY	0x5480		/* become controlling tty */
@@ -103,7 +105,5 @@
 #define TIOCSERSETMULTI 0x5490 /* Set multiport config */
 #define TIOCMIWAIT      0x5491 /* wait for a change on serial input line(s) */
 #define TIOCGICOUNT     0x5492 /* read serial port inline interrupt counts */
-#define TIOCGHAYESESP	0x5493 /* Get Hayes ESP configuration */
-#define TIOCSHAYESESP	0x5494 /* Set Hayes ESP configuration */
 
 #endif /* __ASM_IOCTLS_H */

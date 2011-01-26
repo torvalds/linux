@@ -161,7 +161,7 @@ enum commands {
 #define	 RX_SUSPEND	0x0030
 #define	 RX_ABORT	0x0040
 
-#define TX_TIMEOUT	5
+#define TX_TIMEOUT	(HZ/20)
 
 
 struct i596_reg {
@@ -1343,7 +1343,7 @@ static void set_multicast_list(struct net_device *dev)
 	DEB(DEB_MULTI,
 	    printk(KERN_DEBUG
 		   "%s: set multicast list, %d entries, promisc %s, allmulti %s\n",
-		   dev->name, dev->mc_count,
+		   dev->name, netdev_mc_count(dev),
 		   dev->flags & IFF_PROMISC ? "ON" : "OFF",
 		   dev->flags & IFF_ALLMULTI ? "ON" : "OFF"));
 

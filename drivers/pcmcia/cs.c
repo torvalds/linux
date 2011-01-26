@@ -32,9 +32,7 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -252,38 +250,6 @@ struct pcmcia_socket *pcmcia_get_socket_by_nr(unsigned int nr)
 }
 EXPORT_SYMBOL(pcmcia_get_socket_by_nr);
 
-/*
- * The central event handler.  Send_event() sends an event to the
- * 16-bit subsystem, which then calls the relevant device drivers.
- * Parse_events() interprets the event bits from
- * a card status change report.  Do_shutdown() handles the high
- * priority stuff associated with a card removal.
- */
-
-/* NOTE: send_event needs to be called with skt->sem held. */
-
-static int send_event(struct pcmcia_socket *s, event_t event, int priority)
-{
-	int ret;
-
-	if ((s->state & SOCKET_CARDBUS) && (event != CS_EVENT_CARD_REMOVAL))
-		return 0;
-
-	dev_dbg(&s->dev, "send_event(event %d, pri %d, callback 0x%p)\n",
-	   event, priority, s->callback);
-
-	if (!s->callback)
-		return 0;
-	if (!try_module_get(s->callback->owner))
-		return 0;
-
-	ret = s->callback->event(s, event, priority);
-
-	module_put(s->callback->owner);
-
-	return ret;
-}
-
 static int socket_reset(struct pcmcia_socket *skt)
 {
 	int status, i;
@@ -326,7 +292,8 @@ static void socket_shutdown(struct pcmcia_socket *s)
 
 	dev_dbg(&s->dev, "shutdown\n");
 
-	send_event(s, CS_EVENT_CARD_REMOVAL, CS_EVENT_PRI_HIGH);
+	if (s->callback)
+		s->callback->remove(s);
 
 	mutex_lock(&s->ops_mutex);
 	s->state &= SOCKET_INUSE | SOCKET_PRESENT;
@@ -477,7 +444,8 @@ static int socket_insert(struct pcmcia_socket *skt)
 		dev_dbg(&skt->dev, "insert done\n");
 		mutex_unlock(&skt->ops_mutex);
 
-		send_event(skt, CS_EVENT_CARD_INSERTION, CS_EVENT_PRI_LOW);
+		if (!(skt->state & SOCKET_CARDBUS) && (skt->callback))
+			skt->callback->add(skt);
 	} else {
 		mutex_unlock(&skt->ops_mutex);
 		socket_shutdown(skt);
@@ -494,7 +462,6 @@ static int socket_suspend(struct pcmcia_socket *skt)
 	mutex_lock(&skt->ops_mutex);
 	skt->suspended_state = skt->state;
 
-	send_event(skt, CS_EVENT_PM_SUSPEND, CS_EVENT_PRI_LOW);
 	skt->socket = dead_socket;
 	skt->ops->set_socket(skt, &skt->socket);
 	if (skt->ops->suspend)
@@ -555,8 +522,8 @@ static int socket_late_resume(struct pcmcia_socket *skt)
 		return 0;
 	}
 #endif
-
-	send_event(skt, CS_EVENT_PM_RESUME, CS_EVENT_PRI_LOW);
+	if (!(skt->state & SOCKET_CARDBUS) && (skt->callback))
+		skt->callback->early_resume(skt);
 	return 0;
 }
 
@@ -654,16 +621,8 @@ static int pccardd(void *__skt)
 		spin_unlock_irqrestore(&skt->thread_lock, flags);
 
 		mutex_lock(&skt->skt_mutex);
-		if (events) {
-			if (events & SS_DETECT)
-				socket_detect_change(skt);
-			if (events & SS_BATDEAD)
-				send_event(skt, CS_EVENT_BATTERY_DEAD, CS_EVENT_PRI_LOW);
-			if (events & SS_BATWARN)
-				send_event(skt, CS_EVENT_BATTERY_LOW, CS_EVENT_PRI_LOW);
-			if (events & SS_READY)
-				send_event(skt, CS_EVENT_READY_CHANGE, CS_EVENT_PRI_LOW);
-		}
+		if (events & SS_DETECT)
+			socket_detect_change(skt);
 
 		if (sysfs_events) {
 			if (sysfs_events & PCMCIA_UEVENT_EJECT)
@@ -783,7 +742,7 @@ int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c)
 		s->callback = c;
 
 		if ((s->state & (SOCKET_PRESENT|SOCKET_CARDBUS)) == SOCKET_PRESENT)
-			send_event(s, CS_EVENT_CARD_INSERTION, CS_EVENT_PRI_LOW);
+			s->callback->add(s);
 	} else
 		s->callback = NULL;
  err:
@@ -823,20 +782,13 @@ int pcmcia_reset_card(struct pcmcia_socket *skt)
 			break;
 		}
 
-		ret = send_event(skt, CS_EVENT_RESET_REQUEST, CS_EVENT_PRI_LOW);
-		if (ret == 0) {
-			send_event(skt, CS_EVENT_RESET_PHYSICAL, CS_EVENT_PRI_LOW);
-			if (skt->callback)
-				skt->callback->suspend(skt);
-			mutex_lock(&skt->ops_mutex);
-			ret = socket_reset(skt);
-			mutex_unlock(&skt->ops_mutex);
-			if (ret == 0) {
-				send_event(skt, CS_EVENT_CARD_RESET, CS_EVENT_PRI_LOW);
-				if (skt->callback)
-					skt->callback->resume(skt);
-			}
-		}
+		if (skt->callback)
+			skt->callback->suspend(skt);
+		mutex_lock(&skt->ops_mutex);
+		ret = socket_reset(skt);
+		mutex_unlock(&skt->ops_mutex);
+		if ((ret == 0) && (skt->callback))
+			skt->callback->resume(skt);
 
 		ret = 0;
 	} while (0);
@@ -892,7 +844,7 @@ static int pcmcia_socket_dev_resume_noirq(struct device *dev)
 	return __pcmcia_pm_op(dev, socket_early_resume);
 }
 
-static int pcmcia_socket_dev_resume(struct device *dev)
+static int __used pcmcia_socket_dev_resume(struct device *dev)
 {
 	return __pcmcia_pm_op(dev, socket_late_resume);
 }

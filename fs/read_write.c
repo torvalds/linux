@@ -9,7 +9,6 @@
 #include <linux/fcntl.h>
 #include <linux/file.h>
 #include <linux/uio.h>
-#include <linux/smp_lock.h>
 #include <linux/fsnotify.h>
 #include <linux/security.h>
 #include <linux/module.h>
@@ -30,6 +29,11 @@ const struct file_operations generic_ro_fops = {
 };
 
 EXPORT_SYMBOL(generic_ro_fops);
+
+static inline int unsigned_offsets(struct file *file)
+{
+	return file->f_mode & FMODE_UNSIGNED_OFFSET;
+}
 
 /**
  * generic_file_llseek_unlocked - lockless generic llseek implementation
@@ -62,7 +66,9 @@ generic_file_llseek_unlocked(struct file *file, loff_t offset, int origin)
 		break;
 	}
 
-	if (offset < 0 || offset > inode->i_sb->s_maxbytes)
+	if (offset < 0 && !unsigned_offsets(file))
+		return -EINVAL;
+	if (offset > inode->i_sb->s_maxbytes)
 		return -EINVAL;
 
 	/* Special lock needed here? */
@@ -97,6 +103,23 @@ loff_t generic_file_llseek(struct file *file, loff_t offset, int origin)
 }
 EXPORT_SYMBOL(generic_file_llseek);
 
+/**
+ * noop_llseek - No Operation Performed llseek implementation
+ * @file:	file structure to seek on
+ * @offset:	file offset to seek to
+ * @origin:	type of seek
+ *
+ * This is an implementation of ->llseek useable for the rare special case when
+ * userspace expects the seek to succeed but the (device) file is actually not
+ * able to perform the seek. In this case you use noop_llseek() instead of
+ * falling back to the default implementation of ->llseek.
+ */
+loff_t noop_llseek(struct file *file, loff_t offset, int origin)
+{
+	return file->f_pos;
+}
+EXPORT_SYMBOL(noop_llseek);
+
 loff_t no_llseek(struct file *file, loff_t offset, int origin)
 {
 	return -ESPIPE;
@@ -107,7 +130,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 {
 	loff_t retval;
 
-	lock_kernel();
+	mutex_lock(&file->f_dentry->d_inode->i_mutex);
 	switch (origin) {
 		case SEEK_END:
 			offset += i_size_read(file->f_path.dentry->d_inode);
@@ -120,7 +143,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 			offset += file->f_pos;
 	}
 	retval = -EINVAL;
-	if (offset >= 0) {
+	if (offset >= 0 || unsigned_offsets(file)) {
 		if (offset != file->f_pos) {
 			file->f_pos = offset;
 			file->f_version = 0;
@@ -128,7 +151,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 		retval = offset;
 	}
 out:
-	unlock_kernel();
+	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 	return retval;
 }
 EXPORT_SYMBOL(default_llseek);
@@ -139,7 +162,6 @@ loff_t vfs_llseek(struct file *file, loff_t offset, int origin)
 
 	fn = no_llseek;
 	if (file->f_mode & FMODE_LSEEK) {
-		fn = default_llseek;
 		if (file->f_op && file->f_op->llseek)
 			fn = file->f_op->llseek;
 	}
@@ -205,13 +227,12 @@ bad:
 }
 #endif
 
+
 /*
  * rw_verify_area doesn't like huge counts. We limit
  * them to something that fits in "int" so that others
  * won't have to do range checks all the time.
  */
-#define MAX_RW_COUNT (INT_MAX & PAGE_CACHE_MASK)
-
 int rw_verify_area(int read_write, struct file *file, loff_t *ppos, size_t count)
 {
 	struct inode *inode;
@@ -222,8 +243,15 @@ int rw_verify_area(int read_write, struct file *file, loff_t *ppos, size_t count
 	if (unlikely((ssize_t) count < 0))
 		return retval;
 	pos = *ppos;
-	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0))
-		return retval;
+	if (unlikely(pos < 0)) {
+		if (!unsigned_offsets(file))
+			return retval;
+		if (count >= -pos) /* both values are in 0..LLONG_MAX */
+			return -EOVERFLOW;
+	} else if (unlikely((loff_t) (pos + count) < 0)) {
+		if (!unsigned_offsets(file))
+			return retval;
+	}
 
 	if (unlikely(inode->i_flock && mandatory_lock(inode))) {
 		retval = locks_mandatory_area(
@@ -294,7 +322,7 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 		else
 			ret = do_sync_read(file, buf, count, pos);
 		if (ret > 0) {
-			fsnotify_access(file->f_path.dentry);
+			fsnotify_access(file);
 			add_rchar(current, ret);
 		}
 		inc_syscr(current);
@@ -350,7 +378,7 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 		else
 			ret = do_sync_write(file, buf, count, pos);
 		if (ret > 0) {
-			fsnotify_modify(file->f_path.dentry);
+			fsnotify_modify(file);
 			add_wchar(current, ret);
 		}
 		inc_syscw(current);
@@ -548,65 +576,71 @@ ssize_t rw_copy_check_uvector(int type, const struct iovec __user * uvector,
 			      unsigned long nr_segs, unsigned long fast_segs,
 			      struct iovec *fast_pointer,
 			      struct iovec **ret_pointer)
-  {
+{
 	unsigned long seg;
-  	ssize_t ret;
+	ssize_t ret;
 	struct iovec *iov = fast_pointer;
 
-  	/*
-  	 * SuS says "The readv() function *may* fail if the iovcnt argument
-  	 * was less than or equal to 0, or greater than {IOV_MAX}.  Linux has
-  	 * traditionally returned zero for zero segments, so...
-  	 */
+	/*
+	 * SuS says "The readv() function *may* fail if the iovcnt argument
+	 * was less than or equal to 0, or greater than {IOV_MAX}.  Linux has
+	 * traditionally returned zero for zero segments, so...
+	 */
 	if (nr_segs == 0) {
 		ret = 0;
-  		goto out;
+		goto out;
 	}
 
-  	/*
-  	 * First get the "struct iovec" from user memory and
-  	 * verify all the pointers
-  	 */
+	/*
+	 * First get the "struct iovec" from user memory and
+	 * verify all the pointers
+	 */
 	if (nr_segs > UIO_MAXIOV) {
 		ret = -EINVAL;
-  		goto out;
+		goto out;
 	}
 	if (nr_segs > fast_segs) {
-  		iov = kmalloc(nr_segs*sizeof(struct iovec), GFP_KERNEL);
+		iov = kmalloc(nr_segs*sizeof(struct iovec), GFP_KERNEL);
 		if (iov == NULL) {
 			ret = -ENOMEM;
-  			goto out;
+			goto out;
 		}
-  	}
+	}
 	if (copy_from_user(iov, uvector, nr_segs*sizeof(*uvector))) {
 		ret = -EFAULT;
-  		goto out;
+		goto out;
 	}
 
-  	/*
+	/*
 	 * According to the Single Unix Specification we should return EINVAL
 	 * if an element length is < 0 when cast to ssize_t or if the
 	 * total length would overflow the ssize_t return value of the
 	 * system call.
-  	 */
+	 *
+	 * Linux caps all read/write calls to MAX_RW_COUNT, and avoids the
+	 * overflow case.
+	 */
 	ret = 0;
-  	for (seg = 0; seg < nr_segs; seg++) {
-  		void __user *buf = iov[seg].iov_base;
-  		ssize_t len = (ssize_t)iov[seg].iov_len;
+	for (seg = 0; seg < nr_segs; seg++) {
+		void __user *buf = iov[seg].iov_base;
+		ssize_t len = (ssize_t)iov[seg].iov_len;
 
 		/* see if we we're about to use an invalid len or if
 		 * it's about to overflow ssize_t */
-		if (len < 0 || (ret + len < ret)) {
+		if (len < 0) {
 			ret = -EINVAL;
-  			goto out;
+			goto out;
 		}
 		if (unlikely(!access_ok(vrfy_dir(type), buf, len))) {
 			ret = -EFAULT;
-  			goto out;
+			goto out;
 		}
-
+		if (len > MAX_RW_COUNT - ret) {
+			len = MAX_RW_COUNT - ret;
+			iov[seg].iov_len = len;
+		}
 		ret += len;
-  	}
+	}
 out:
 	*ret_pointer = iov;
 	return ret;
@@ -658,9 +692,9 @@ out:
 		kfree(iov);
 	if ((ret + (type == READ)) > 0) {
 		if (type == READ)
-			fsnotify_access(file->f_path.dentry);
+			fsnotify_access(file);
 		else
-			fsnotify_modify(file->f_path.dentry);
+			fsnotify_modify(file);
 	}
 	return ret;
 }

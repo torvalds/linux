@@ -30,15 +30,6 @@ config FS_MBCACHE
 source "fs/reiserfs/Kconfig"
 source "fs/jfs/Kconfig"
 
-config FS_POSIX_ACL
-# Posix ACL utility routines (for now, only ext2/ext3/jfs/reiserfs/nfs4)
-#
-# NOTE: you can implement Posix ACLs without these helpers (XFS does).
-# 	Never use this symbol for ifdefs.
-#
-	bool
-	default n
-
 source "fs/xfs/Kconfig"
 source "fs/gfs2/Kconfig"
 source "fs/ocfs2/Kconfig"
@@ -47,8 +38,19 @@ source "fs/nilfs2/Kconfig"
 
 endif # BLOCK
 
+# Posix ACL utility routines
+#
+# Note: Posix ACLs can be implemented without these helpers.  Never use
+# this symbol for ifdefs in core code.
+#
+config FS_POSIX_ACL
+	def_bool n
+
+config EXPORTFS
+	tristate
+
 config FILE_LOCKING
-	bool "Enable POSIX file locking API" if EMBEDDED
+	bool "Enable POSIX file locking API" if EXPERT
 	default y
 	help
 	  This option enables standard file locking support, required
@@ -59,12 +61,11 @@ source "fs/notify/Kconfig"
 
 source "fs/quota/Kconfig"
 
-source "fs/autofs/Kconfig"
 source "fs/autofs4/Kconfig"
 source "fs/fuse/Kconfig"
 
 config CUSE
-	tristate "Character device in Userpace support"
+	tristate "Character device in Userspace support"
 	depends on FUSE_FS
 	help
 	  This FUSE extension allows character devices to be
@@ -221,9 +222,6 @@ config LOCKD_V4
 	depends on FILE_LOCKING
 	default y
 
-config EXPORTFS
-	tristate
-
 config NFS_ACL_SUPPORT
 	tristate
 	select FS_POSIX_ACL
@@ -234,7 +232,6 @@ config NFS_COMMON
 	default y
 
 source "net/sunrpc/Kconfig"
-source "fs/smbfs/Kconfig"
 source "fs/ceph/Kconfig"
 source "fs/cifs/Kconfig"
 source "fs/ncpfs/Kconfig"

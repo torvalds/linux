@@ -1763,7 +1763,15 @@ static struct dvb_frontend_ops dst_dvbt_ops = {
 		.frequency_min = 137000000,
 		.frequency_max = 858000000,
 		.frequency_stepsize = 166667,
-		.caps = FE_CAN_FEC_AUTO | FE_CAN_QAM_AUTO | FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_GUARD_INTERVAL_AUTO
+		.caps = FE_CAN_FEC_AUTO			|
+			FE_CAN_QAM_AUTO			|
+			FE_CAN_QAM_16			|
+			FE_CAN_QAM_32			|
+			FE_CAN_QAM_64			|
+			FE_CAN_QAM_128			|
+			FE_CAN_QAM_256			|
+			FE_CAN_TRANSMISSION_MODE_AUTO	|
+			FE_CAN_GUARD_INTERVAL_AUTO
 	},
 
 	.release = dst_release,

@@ -173,7 +173,7 @@ static struct resource bfin_uart0_resources[] = {
 	},
 };
 
-unsigned short bfin_uart0_peripherals[] = {
+static unsigned short bfin_uart0_peripherals[] = {
 	P_UART0_TX, P_UART0_RX, 0
 };
 
@@ -231,7 +231,7 @@ static struct resource isp1362_hcd_resources[] = {
 	},{
 		.start = IRQ_PF11,
 		.end   = IRQ_PF11,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
 
@@ -294,15 +294,7 @@ static int __init ip0x_init(void)
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	platform_add_devices(ip0x_devices, ARRAY_SIZE(ip0x_devices));
 
-#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
-	for (i = 0; i < ARRAY_SIZE(bfin_spi_board_info); ++i) {
-		int j = 1 << bfin_spi_board_info[i].chip_select;
-		/* set spi cs to 1 */
-		bfin_write_FIO_DIR(bfin_read_FIO_DIR() | j);
-		bfin_write_FIO_FLAG_S(j);
-	}
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
-#endif
 
 	return 0;
 }

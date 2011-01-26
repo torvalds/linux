@@ -41,8 +41,6 @@
 #include <asm/system.h>
 #include <asm/io.h>
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -104,7 +102,7 @@ typedef struct {
 	u8 type;
 	u8 zero;
 	u16 len;
-} __attribute__ ((packed)) nsh_t;	/* Nokia Specific Header */
+} __packed nsh_t;	/* Nokia Specific Header */
 
 #define NSHL  4				/* Nokia Specific Header Length */
 
@@ -150,7 +148,7 @@ static void dtl1_write_wakeup(dtl1_info_t *info)
 	}
 
 	do {
-		register unsigned int iobase = info->p_dev->io.BasePort1;
+		register unsigned int iobase = info->p_dev->resource[0]->start;
 		register struct sk_buff *skb;
 		register int len;
 
@@ -215,7 +213,7 @@ static void dtl1_receive(dtl1_info_t *info)
 		return;
 	}
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	do {
 		info->hdev->stat.byte_rx++;
@@ -302,7 +300,7 @@ static irqreturn_t dtl1_interrupt(int irq, void *dev_inst)
 		/* our irq handler is shared */
 		return IRQ_NONE;
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	spin_lock(&(info->lock));
 
@@ -462,7 +460,7 @@ static int dtl1_hci_ioctl(struct hci_dev *hdev, unsigned int cmd,  unsigned long
 static int dtl1_open(dtl1_info_t *info)
 {
 	unsigned long flags;
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 	struct hci_dev *hdev;
 
 	spin_lock_init(&(info->lock));
@@ -509,7 +507,8 @@ static int dtl1_open(dtl1_info_t *info)
 	outb(UART_LCR_WLEN8, iobase + UART_LCR);	/* Reset DLAB */
 	outb((UART_MCR_DTR | UART_MCR_RTS | UART_MCR_OUT2), iobase + UART_MCR);
 
-	info->ri_latch = inb(info->p_dev->io.BasePort1 + UART_MSR) & UART_MSR_RI;
+	info->ri_latch = inb(info->p_dev->resource[0]->start + UART_MSR)
+				& UART_MSR_RI;
 
 	/* Turn on interrupts */
 	outb(UART_IER_RLSI | UART_IER_RDI | UART_IER_THRI, iobase + UART_IER);
@@ -534,7 +533,7 @@ static int dtl1_open(dtl1_info_t *info)
 static int dtl1_close(dtl1_info_t *info)
 {
 	unsigned long flags;
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 	struct hci_dev *hdev = info->hdev;
 
 	if (!hdev)
@@ -572,11 +571,7 @@ static int dtl1_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	link->io.NumPorts1 = 8;
-
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	return dtl1_config(link);
 }
@@ -591,20 +586,15 @@ static void dtl1_detach(struct pcmcia_device *link)
 	kfree(info);
 }
 
-static int dtl1_confcheck(struct pcmcia_device *p_dev,
-			  cistpl_cftable_entry_t *cf,
-			  cistpl_cftable_entry_t *dflt,
-			  unsigned int vcc,
-			  void *priv_data)
+static int dtl1_confcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if ((cf->io.nwin == 1) && (cf->io.win[0].len > 8)) {
-		p_dev->io.BasePort1 = cf->io.win[0].base;
-		p_dev->io.NumPorts1 = cf->io.win[0].len;	/*yo */
-		p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
-			return 0;
-	}
-	return -ENODEV;
+	if ((p_dev->resource[1]->end) || (p_dev->resource[1]->end < 8))
+		return -ENODEV;
+
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+
+	return pcmcia_request_io(p_dev);
 }
 
 static int dtl1_config(struct pcmcia_device *link)
@@ -613,7 +603,7 @@ static int dtl1_config(struct pcmcia_device *link)
 	int i;
 
 	/* Look for a generic full-sized window */
-	link->io.NumPorts1 = 8;
+	link->resource[0]->end = 8;
 	if (pcmcia_loop_config(link, dtl1_confcheck, NULL) < 0)
 		goto failed;
 
@@ -621,7 +611,7 @@ static int dtl1_config(struct pcmcia_device *link)
 	if (i != 0)
 		goto failed;
 
-	i = pcmcia_request_configuration(link, &link->conf);
+	i = pcmcia_enable_device(link);
 	if (i != 0)
 		goto failed;
 
@@ -657,9 +647,7 @@ MODULE_DEVICE_TABLE(pcmcia, dtl1_ids);
 
 static struct pcmcia_driver dtl1_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "dtl1_cs",
-	},
+	.name		= "dtl1_cs",
 	.probe		= dtl1_probe,
 	.remove		= dtl1_detach,
 	.id_table	= dtl1_ids,

@@ -28,13 +28,22 @@
 #include <linux/tick.h>
 #include <linux/utsname.h>
 #include <linux/uaccess.h>
+#include <linux/random.h>
+#include <linux/hw_breakpoint.h>
 
+#include <asm/cacheflush.h>
 #include <asm/leds.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/thread_notify.h>
 #include <asm/stacktrace.h>
 #include <asm/mach/time.h>
+
+#ifdef CONFIG_CC_STACKPROTECTOR
+#include <linux/stackprotector.h>
+unsigned long __stack_chk_guard __read_mostly;
+EXPORT_SYMBOL(__stack_chk_guard);
+#endif
 
 static const char *processor_modes[] = {
   "USER_26", "FIQ_26" , "IRQ_26" , "SVC_26" , "UK4_26" , "UK5_26" , "UK6_26" , "UK7_26" ,
@@ -84,10 +93,9 @@ __setup("hlt", hlt_setup);
 
 void arm_machine_restart(char mode, const char *cmd)
 {
-	/*
-	 * Clean and disable cache, and turn off interrupts
-	 */
-	cpu_proc_fin();
+	/* Disable interrupts first */
+	local_irq_disable();
+	local_fiq_disable();
 
 	/*
 	 * Tell the mm system that we are going to reboot -
@@ -95,6 +103,15 @@ void arm_machine_restart(char mode, const char *cmd)
 	 * soft boot works.
 	 */
 	setup_mm_for_reboot(mode);
+
+	/* Clean and invalidate caches */
+	flush_cache_all();
+
+	/* Turn off caching */
+	cpu_proc_fin();
+
+	/* Push out any further dirty data, and ensure cache is empty */
+	flush_cache_all();
 
 	/*
 	 * Now call the architecture specific reboot code.
@@ -119,6 +136,25 @@ EXPORT_SYMBOL(pm_power_off);
 void (*arm_pm_restart)(char str, const char *cmd) = arm_machine_restart;
 EXPORT_SYMBOL_GPL(arm_pm_restart);
 
+static void do_nothing(void *unused)
+{
+}
+
+/*
+ * cpu_idle_wait - Used to ensure that all the CPUs discard old value of
+ * pm_idle and update to new pm_idle value. Required while changing pm_idle
+ * handler on SMP systems.
+ *
+ * Caller must have changed pm_idle to the new value before the call. Old
+ * pm_idle value will not be used by any CPU after the return of this function.
+ */
+void cpu_idle_wait(void)
+{
+	smp_mb();
+	/* kick all the CPUs so that they exit out of pm_idle */
+	smp_call_function(do_nothing, NULL, 1);
+}
+EXPORT_SYMBOL_GPL(cpu_idle_wait);
 
 /*
  * This is our default idle handler.  We need to disable
@@ -189,19 +225,29 @@ int __init reboot_setup(char *str)
 
 __setup("reboot=", reboot_setup);
 
-void machine_halt(void)
+void machine_shutdown(void)
 {
+#ifdef CONFIG_SMP
+	smp_send_stop();
+#endif
 }
 
+void machine_halt(void)
+{
+	machine_shutdown();
+	while (1);
+}
 
 void machine_power_off(void)
 {
+	machine_shutdown();
 	if (pm_power_off)
 		pm_power_off();
 }
 
 void machine_restart(char *cmd)
 {
+	machine_shutdown();
 	arm_pm_restart(reboot_mode, cmd);
 }
 
@@ -291,6 +337,8 @@ void flush_thread(void)
 	struct thread_info *thread = current_thread_info();
 	struct task_struct *tsk = current;
 
+	flush_ptrace_hw_breakpoint(tsk);
+
 	memset(thread->used_cp, 0, sizeof(thread->used_cp));
 	memset(&tsk->thread.debug, 0, sizeof(struct debug_info));
 	memset(&thread->fpstate, 0, sizeof(union fp_state));
@@ -318,6 +366,8 @@ copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	memset(&thread->cpu_context, 0, sizeof(struct cpu_context_save));
 	thread->cpu_context.sp = (unsigned long)childregs;
 	thread->cpu_context.pc = (unsigned long)ret_from_fork;
+
+	clear_ptrace_hw_breakpoint(p);
 
 	if (clone_flags & CLONE_SETTLS)
 		thread->tp_value = regs->ARM_r3;
@@ -351,17 +401,21 @@ EXPORT_SYMBOL(dump_fpu);
 
 /*
  * Shuffle the argument into the correct register before calling the
- * thread function.  r1 is the thread argument, r2 is the pointer to
- * the thread function, and r3 points to the exit function.
+ * thread function.  r4 is the thread argument, r5 is the pointer to
+ * the thread function, and r6 points to the exit function.
  */
 extern void kernel_thread_helper(void);
 asm(	".pushsection .text\n"
 "	.align\n"
 "	.type	kernel_thread_helper, #function\n"
 "kernel_thread_helper:\n"
-"	mov	r0, r1\n"
-"	mov	lr, r3\n"
-"	mov	pc, r2\n"
+#ifdef CONFIG_TRACE_IRQFLAGS
+"	bl	trace_hardirqs_on\n"
+#endif
+"	msr	cpsr_c, r7\n"
+"	mov	r0, r4\n"
+"	mov	lr, r6\n"
+"	mov	pc, r5\n"
 "	.size	kernel_thread_helper, . - kernel_thread_helper\n"
 "	.popsection");
 
@@ -391,11 +445,12 @@ pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 
 	memset(&regs, 0, sizeof(regs));
 
-	regs.ARM_r1 = (unsigned long)arg;
-	regs.ARM_r2 = (unsigned long)fn;
-	regs.ARM_r3 = (unsigned long)kernel_thread_exit;
+	regs.ARM_r4 = (unsigned long)arg;
+	regs.ARM_r5 = (unsigned long)fn;
+	regs.ARM_r6 = (unsigned long)kernel_thread_exit;
+	regs.ARM_r7 = SVC_MODE | PSR_ENDSTATE | PSR_ISETSTATE;
 	regs.ARM_pc = (unsigned long)kernel_thread_helper;
-	regs.ARM_cpsr = SVC_MODE | PSR_ENDSTATE | PSR_ISETSTATE;
+	regs.ARM_cpsr = regs.ARM_r7 | PSR_I_BIT;
 
 	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
 }
@@ -421,3 +476,32 @@ unsigned long get_wchan(struct task_struct *p)
 	} while (count ++ < 16);
 	return 0;
 }
+
+unsigned long arch_randomize_brk(struct mm_struct *mm)
+{
+	unsigned long range_end = mm->brk + 0x02000000;
+	return randomize_range(mm->brk, range_end, 0) ? : mm->brk;
+}
+
+#ifdef CONFIG_MMU
+/*
+ * The vectors page is always readable from user space for the
+ * atomic helpers and the signal restart code.  Let's declare a mapping
+ * for it so it is visible through ptrace and /proc/<pid>/mem.
+ */
+
+int vectors_user_mapping(void)
+{
+	struct mm_struct *mm = current->mm;
+	return install_special_mapping(mm, 0xffff0000, PAGE_SIZE,
+				       VM_READ | VM_EXEC |
+				       VM_MAYREAD | VM_MAYEXEC |
+				       VM_ALWAYSDUMP | VM_RESERVED,
+				       NULL);
+}
+
+const char *arch_vma_name(struct vm_area_struct *vma)
+{
+	return (vma->vm_start == 0xffff0000) ? "[vectors]" : NULL;
+}
+#endif

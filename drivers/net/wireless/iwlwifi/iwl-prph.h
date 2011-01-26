@@ -83,9 +83,9 @@
 #define APMG_DIGITAL_SVR_REG		(APMG_BASE + 0x0058)
 #define APMG_ANALOG_SVR_REG		(APMG_BASE + 0x006C)
 
+#define APMS_CLK_VAL_MRB_FUNC_MODE	(0x00000001)
 #define APMG_CLK_VAL_DMA_CLK_RQT	(0x00000200)
 #define APMG_CLK_VAL_BSM_CLK_RQT	(0x00000800)
-
 
 #define APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS	(0x00400000)
 #define APMG_PS_CTRL_VAL_RESET_REQ		(0x04000000)
@@ -306,7 +306,7 @@
  *     at a time, until receiving ACK from receiving station, or reaching
  *     retry limit and giving up.
  *
- *     The command queue (#4) must use this mode!
+ *     The command queue (#4/#9) must use this mode!
  *     This mode does not require use of the Byte Count table in host DRAM.
  *
  * Driver controls scheduler operation via 3 means:
@@ -322,7 +322,7 @@
  *     (1024 bytes for each queue).
  *
  * After receiving "Alive" response from uCode, driver must initialize
- * the scheduler (especially for queue #4, the command queue, otherwise
+ * the scheduler (especially for queue #4/#9, the command queue, otherwise
  * the driver can't issue commands!):
  */
 
@@ -555,8 +555,9 @@
 #define IWLAGN_SCD_TRANSLATE_TBL_OFFSET_QUEUE(x) \
 	((IWLAGN_SCD_TRANSLATE_TBL_OFFSET + ((x) * 2)) & 0xfffc)
 
-#define IWLAGN_SCD_QUEUECHAIN_SEL_ALL(x)		(((1<<(x)) - 1) &\
-	(~(1<<IWL_CMD_QUEUE_NUM)))
+#define IWLAGN_SCD_QUEUECHAIN_SEL_ALL(priv)	\
+	(((1<<(priv)->hw_params.max_txq_num) - 1) &\
+	(~(1<<(priv)->cmd_queue)))
 
 #define IWLAGN_SCD_BASE			(PRPH_BASE + 0xa02c00)
 

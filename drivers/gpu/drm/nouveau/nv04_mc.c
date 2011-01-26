@@ -11,6 +11,10 @@ nv04_mc_init(struct drm_device *dev)
 	 */
 
 	nv_wr32(dev, NV03_PMC_ENABLE, 0xFFFFFFFF);
+
+	/* Disable PROM access. */
+	nv_wr32(dev, NV_PBUS_PCI_NV_20, NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
+
 	return 0;
 }
 

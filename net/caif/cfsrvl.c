@@ -4,6 +4,8 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
+
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -24,8 +26,10 @@ static void cfservl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 				int phyid)
 {
 	struct cfsrvl *service = container_obj(layr);
+
 	caif_assert(layr->up != NULL);
 	caif_assert(layr->up->ctrlcmd != NULL);
+
 	switch (ctrl) {
 	case CAIF_CTRLCMD_INIT_RSP:
 		service->open = true;
@@ -77,8 +81,7 @@ static void cfservl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 		layr->up->ctrlcmd(layr->up, ctrl, phyid);
 		break;
 	default:
-		pr_warning("CAIF: %s(): "
-			   "Unexpected ctrl in cfsrvl (%d)\n", __func__, ctrl);
+		pr_warn("Unexpected ctrl in cfsrvl (%d)\n", ctrl);
 		/* We have both modem and phy flow on, send flow on */
 		layr->up->ctrlcmd(layr->up, ctrl, phyid);
 		service->phy_flow_on = true;
@@ -89,9 +92,14 @@ static void cfservl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 static int cfservl_modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl)
 {
 	struct cfsrvl *service = container_obj(layr);
+
 	caif_assert(layr != NULL);
 	caif_assert(layr->dn != NULL);
 	caif_assert(layr->dn->transmit != NULL);
+
+	if (!service->supports_flowctrl)
+		return 0;
+
 	switch (ctrl) {
 	case CAIF_MODEMCMD_FLOW_ON_REQ:
 		{
@@ -100,14 +108,12 @@ static int cfservl_modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl)
 			u8 flow_on = SRVL_FLOW_ON;
 			pkt = cfpkt_create(SRVL_CTRL_PKT_SIZE);
 			if (!pkt) {
-				pr_warning("CAIF: %s(): Out of memory\n",
-					__func__);
+				pr_warn("Out of memory\n");
 				return -ENOMEM;
 			}
 
 			if (cfpkt_add_head(pkt, &flow_on, 1) < 0) {
-				pr_err("CAIF: %s(): Packet is erroneous!\n",
-					__func__);
+				pr_err("Packet is erroneous!\n");
 				cfpkt_destroy(pkt);
 				return -EPROTO;
 			}
@@ -123,9 +129,13 @@ static int cfservl_modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl)
 			struct caif_payload_info *info;
 			u8 flow_off = SRVL_FLOW_OFF;
 			pkt = cfpkt_create(SRVL_CTRL_PKT_SIZE);
+			if (!pkt) {
+				pr_warn("Out of memory\n");
+				return -ENOMEM;
+			}
+
 			if (cfpkt_add_head(pkt, &flow_off, 1) < 0) {
-				pr_err("CAIF: %s(): Packet is erroneous!\n",
-					__func__);
+				pr_err("Packet is erroneous!\n");
 				cfpkt_destroy(pkt);
 				return -EPROTO;
 			}
@@ -146,9 +156,17 @@ void cfservl_destroy(struct cflayer *layer)
 	kfree(layer);
 }
 
+void cfsrvl_release(struct kref *kref)
+{
+	struct cfsrvl *service = container_of(kref, struct cfsrvl, ref);
+	kfree(service);
+}
+
 void cfsrvl_init(struct cfsrvl *service,
-		 u8 channel_id,
-		 struct dev_info *dev_info)
+			u8 channel_id,
+			struct dev_info *dev_info,
+			bool supports_flowctrl
+			)
 {
 	caif_assert(offsetof(struct cfsrvl, layer) == 0);
 	service->open = false;
@@ -158,14 +176,11 @@ void cfsrvl_init(struct cfsrvl *service,
 	service->layer.ctrlcmd = cfservl_ctrlcmd;
 	service->layer.modemcmd = cfservl_modemcmd;
 	service->dev_info = *dev_info;
+	service->supports_flowctrl = supports_flowctrl;
+	service->release = cfsrvl_release;
 	kref_init(&service->ref);
 }
 
-void cfsrvl_release(struct kref *kref)
-{
-	struct cfsrvl *service = container_of(kref, struct cfsrvl, ref);
-	kfree(service);
-}
 
 bool cfsrvl_ready(struct cfsrvl *service, int *err)
 {

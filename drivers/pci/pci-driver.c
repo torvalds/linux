@@ -289,8 +289,26 @@ struct drv_dev_and_id {
 static long local_pci_probe(void *_ddi)
 {
 	struct drv_dev_and_id *ddi = _ddi;
+	struct device *dev = &ddi->dev->dev;
+	int rc;
 
-	return ddi->drv->probe(ddi->dev, ddi->id);
+	/* Unbound PCI devices are always set to disabled and suspended.
+	 * During probe, the device is set to enabled and active and the
+	 * usage count is incremented.  If the driver supports runtime PM,
+	 * it should call pm_runtime_put_noidle() in its probe routine and
+	 * pm_runtime_get_noresume() in its remove routine.
+	 */
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	rc = ddi->drv->probe(ddi->dev, ddi->id);
+	if (rc) {
+		pm_runtime_disable(dev);
+		pm_runtime_set_suspended(dev);
+		pm_runtime_put_noidle(dev);
+	}
+	return rc;
 }
 
 static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
@@ -320,7 +338,7 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 }
 
 /**
- * __pci_device_probe()
+ * __pci_device_probe - check if a driver wants to claim a specific PCI device
  * @drv: driver to call to check if it wants the PCI device
  * @pci_dev: PCI device being probed
  * 
@@ -369,10 +387,18 @@ static int pci_device_remove(struct device * dev)
 	struct pci_driver * drv = pci_dev->driver;
 
 	if (drv) {
-		if (drv->remove)
+		if (drv->remove) {
+			pm_runtime_get_sync(dev);
 			drv->remove(pci_dev);
+			pm_runtime_put_noidle(dev);
+		}
 		pci_dev->driver = NULL;
 	}
+
+	/* Undo the runtime PM settings in local_pci_probe() */
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_put_noidle(dev);
 
 	/*
 	 * If the device is still on, set the power state as "unknown",
@@ -423,7 +449,8 @@ static int pci_restore_standard_config(struct pci_dev *pci_dev)
 			return error;
 	}
 
-	return pci_restore_state(pci_dev);
+	pci_restore_state(pci_dev);
+	return 0;
 }
 
 static void pci_pm_default_resume_early(struct pci_dev *pci_dev)

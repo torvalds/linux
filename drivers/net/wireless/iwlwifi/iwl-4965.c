@@ -43,11 +43,12 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
-#include "iwl-calib.h"
+#include "iwl-agn-calib.h"
 #include "iwl-sta.h"
 #include "iwl-agn-led.h"
 #include "iwl-agn.h"
 #include "iwl-agn-debugfs.h"
+#include "iwl-legacy.h"
 
 static int iwl4965_send_tx_power(struct iwl_priv *priv);
 static int iwl4965_hw_get_temperature(struct iwl_priv *priv);
@@ -346,8 +347,18 @@ static void iwl4965_chain_noise_reset(struct iwl_priv *priv)
 {
 	struct iwl_chain_noise_data *data = &(priv->chain_noise_data);
 
-	if ((data->state == IWL_CHAIN_NOISE_ALIVE) && iwl_is_associated(priv)) {
+	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
+	    iwl_is_any_associated(priv)) {
 		struct iwl_calib_diff_gain_cmd cmd;
+
+		/* clear data for chain noise calibration algorithm */
+		data->chain_noise_a = 0;
+		data->chain_noise_b = 0;
+		data->chain_noise_c = 0;
+		data->chain_signal_a = 0;
+		data->chain_signal_b = 0;
+		data->chain_signal_c = 0;
+		data->beacon_count = 0;
 
 		memset(&cmd, 0, sizeof(cmd));
 		cmd.hdr.op_code = IWL_PHY_CALIBRATE_DIFF_GAIN_CMD;
@@ -419,13 +430,6 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 		/* Mark so we run this algo only once! */
 		data->state = IWL_CHAIN_NOISE_CALIBRATED;
 	}
-	data->chain_noise_a = 0;
-	data->chain_noise_b = 0;
-	data->chain_noise_c = 0;
-	data->chain_signal_a = 0;
-	data->chain_signal_b = 0;
-	data->chain_signal_c = 0;
-	data->beacon_count = 0;
 }
 
 static void iwl4965_bg_txpower_work(struct work_struct *work)
@@ -573,7 +577,7 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 	/* Activate all Tx DMA/FIFO channels */
 	priv->cfg->ops->lib->txq_set_sched(priv, IWL_MASK(0, 6));
 
-	iwl4965_set_wr_ptrs(priv, IWL_CMD_QUEUE_NUM, 0);
+	iwl4965_set_wr_ptrs(priv, IWL_DEFAULT_CMD_QUEUE_NUM, 0);
 
 	/* make sure all queue are not stopped */
 	memset(&priv->queue_stopped[0], 0, sizeof(priv->queue_stopped));
@@ -584,6 +588,7 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 	priv->txq_ctx_active_msk = 0;
 	/* Map each Tx/cmd queue to its corresponding fifo */
 	BUILD_BUG_ON(ARRAY_SIZE(default_queue_to_tx_fifo) != 7);
+
 	for (i = 0; i < ARRAY_SIZE(default_queue_to_tx_fifo); i++) {
 		int ac = default_queue_to_tx_fifo[i];
 
@@ -643,17 +648,17 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    priv->cfg->mod_params->num_of_queues <= IWL49_NUM_QUEUES)
-		priv->cfg->num_of_queues =
+		priv->cfg->base_params->num_of_queues =
 			priv->cfg->mod_params->num_of_queues;
 
-	priv->hw_params.max_txq_num = priv->cfg->num_of_queues;
+	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
 	priv->hw_params.dma_chnl_num = FH49_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
-			priv->cfg->num_of_queues *
+			priv->cfg->base_params->num_of_queues *
 			sizeof(struct iwl4965_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWL4965_STATION_COUNT;
-	priv->hw_params.bcast_sta_id = IWL4965_BROADCAST_ID;
+	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWL4965_BROADCAST_ID;
 	priv->hw_params.max_data_size = IWL49_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWL49_RTC_INST_SIZE;
 	priv->hw_params.max_bsm_size = BSM_SRAM_SIZE;
@@ -665,10 +670,11 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
 	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
 	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
-	if (priv->cfg->ops->lib->temp_ops.set_ct_kill)
-		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
+
+	iwl4965_set_ct_threshold(priv);
 
 	priv->hw_params.sens = &iwl4965_sensitivity;
+	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
 
 	return 0;
 }
@@ -1370,28 +1376,24 @@ static int iwl4965_send_tx_power(struct iwl_priv *priv)
 	u8 band = 0;
 	bool is_ht40 = false;
 	u8 ctrl_chan_high = 0;
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
-	if (test_bit(STATUS_SCANNING, &priv->status)) {
-		/* If this gets hit a lot, switch it to a BUG() and catch
-		 * the stack trace to find out who is calling this during
-		 * a scan. */
-		IWL_WARN(priv, "TX Power requested while scanning!\n");
+	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->status),
+		      "TX Power requested while scanning!\n"))
 		return -EAGAIN;
-	}
 
 	band = priv->band == IEEE80211_BAND_2GHZ;
 
-	is_ht40 =  is_ht40_channel(priv->active_rxon.flags);
+	is_ht40 = is_ht40_channel(ctx->active.flags);
 
-	if (is_ht40 &&
-	    (priv->active_rxon.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
+	if (is_ht40 && (ctx->active.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
 		ctrl_chan_high = 1;
 
 	cmd.band = band;
-	cmd.channel = priv->active_rxon.channel;
+	cmd.channel = ctx->active.channel;
 
 	ret = iwl4965_fill_txpower_tbl(priv, band,
-				le16_to_cpu(priv->active_rxon.channel),
+				le16_to_cpu(ctx->active.channel),
 				is_ht40, ctrl_chan_high, &cmd.tx_power);
 	if (ret)
 		goto out;
@@ -1402,12 +1404,13 @@ out:
 	return ret;
 }
 
-static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
+static int iwl4965_send_rxon_assoc(struct iwl_priv *priv,
+				   struct iwl_rxon_context *ctx)
 {
 	int ret = 0;
 	struct iwl4965_rxon_assoc_cmd rxon_assoc;
-	const struct iwl_rxon_cmd *rxon1 = &priv->staging_rxon;
-	const struct iwl_rxon_cmd *rxon2 = &priv->active_rxon;
+	const struct iwl_rxon_cmd *rxon1 = &ctx->staging;
+	const struct iwl_rxon_cmd *rxon2 = &ctx->active;
 
 	if ((rxon1->flags == rxon2->flags) &&
 	    (rxon1->filter_flags == rxon2->filter_flags) &&
@@ -1422,16 +1425,16 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 		return 0;
 	}
 
-	rxon_assoc.flags = priv->staging_rxon.flags;
-	rxon_assoc.filter_flags = priv->staging_rxon.filter_flags;
-	rxon_assoc.ofdm_basic_rates = priv->staging_rxon.ofdm_basic_rates;
-	rxon_assoc.cck_basic_rates = priv->staging_rxon.cck_basic_rates;
+	rxon_assoc.flags = ctx->staging.flags;
+	rxon_assoc.filter_flags = ctx->staging.filter_flags;
+	rxon_assoc.ofdm_basic_rates = ctx->staging.ofdm_basic_rates;
+	rxon_assoc.cck_basic_rates = ctx->staging.cck_basic_rates;
 	rxon_assoc.reserved = 0;
 	rxon_assoc.ofdm_ht_single_stream_basic_rates =
-	    priv->staging_rxon.ofdm_ht_single_stream_basic_rates;
+	    ctx->staging.ofdm_ht_single_stream_basic_rates;
 	rxon_assoc.ofdm_ht_dual_stream_basic_rates =
-	    priv->staging_rxon.ofdm_ht_dual_stream_basic_rates;
-	rxon_assoc.rx_chain_select_flags = priv->staging_rxon.rx_chain;
+	    ctx->staging.ofdm_ht_dual_stream_basic_rates;
+	rxon_assoc.rx_chain_select_flags = ctx->staging.rx_chain;
 
 	ret = iwl_send_cmd_pdu_async(priv, REPLY_RXON_ASSOC,
 				     sizeof(rxon_assoc), &rxon_assoc, NULL);
@@ -1441,47 +1444,218 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 	return ret;
 }
 
-static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
+static int iwl4965_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
+	/* cast away the const for active_rxon in this function */
+	struct iwl_rxon_cmd *active_rxon = (void *)&ctx->active;
+	int ret;
+	bool new_assoc =
+		!!(ctx->staging.filter_flags & RXON_FILTER_ASSOC_MSK);
+
+	if (!iwl_is_alive(priv))
+		return -EBUSY;
+
+	if (!ctx->is_active)
+		return 0;
+
+	/* always get timestamp with Rx frame */
+	ctx->staging.flags |= RXON_FLG_TSF2HOST_MSK;
+
+	ret = iwl_check_rxon_cmd(priv, ctx);
+	if (ret) {
+		IWL_ERR(priv, "Invalid RXON configuration.  Not committing.\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * receive commit_rxon request
+	 * abort any previous channel switch if still in process
+	 */
+	if (priv->switch_rxon.switch_in_progress &&
+	    (priv->switch_rxon.channel != ctx->staging.channel)) {
+		IWL_DEBUG_11H(priv, "abort channel switch on %d\n",
+		      le16_to_cpu(priv->switch_rxon.channel));
+		iwl_chswitch_done(priv, false);
+	}
+
+	/* If we don't need to send a full RXON, we can use
+	 * iwl_rxon_assoc_cmd which is used to reconfigure filter
+	 * and other flags for the current radio configuration. */
+	if (!iwl_full_rxon_required(priv, ctx)) {
+		ret = iwl_send_rxon_assoc(priv, ctx);
+		if (ret) {
+			IWL_ERR(priv, "Error setting RXON_ASSOC (%d)\n", ret);
+			return ret;
+		}
+
+		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
+		iwl_print_rx_config_cmd(priv, ctx);
+		return 0;
+	}
+
+	/* If we are currently associated and the new config requires
+	 * an RXON_ASSOC and the new config wants the associated mask enabled,
+	 * we must clear the associated from the active configuration
+	 * before we apply the new config */
+	if (iwl_is_associated_ctx(ctx) && new_assoc) {
+		IWL_DEBUG_INFO(priv, "Toggling associated bit on current RXON\n");
+		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+
+		ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd,
+				       sizeof(struct iwl_rxon_cmd),
+				       active_rxon);
+
+		/* If the mask clearing failed then we set
+		 * active_rxon back to what it was previously */
+		if (ret) {
+			active_rxon->filter_flags |= RXON_FILTER_ASSOC_MSK;
+			IWL_ERR(priv, "Error clearing ASSOC_MSK (%d)\n", ret);
+			return ret;
+		}
+		iwl_clear_ucode_stations(priv, ctx);
+		iwl_restore_stations(priv, ctx);
+		ret = iwl_restore_default_wep_keys(priv, ctx);
+		if (ret) {
+			IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
+			return ret;
+		}
+	}
+
+	IWL_DEBUG_INFO(priv, "Sending RXON\n"
+		       "* with%s RXON_FILTER_ASSOC_MSK\n"
+		       "* channel = %d\n"
+		       "* bssid = %pM\n",
+		       (new_assoc ? "" : "out"),
+		       le16_to_cpu(ctx->staging.channel),
+		       ctx->staging.bssid_addr);
+
+	iwl_set_rxon_hwcrypto(priv, ctx, !priv->cfg->mod_params->sw_crypto);
+
+	/* Apply the new configuration
+	 * RXON unassoc clears the station table in uCode so restoration of
+	 * stations is needed after it (the RXON command) completes
+	 */
+	if (!new_assoc) {
+		ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd,
+			      sizeof(struct iwl_rxon_cmd), &ctx->staging);
+		if (ret) {
+			IWL_ERR(priv, "Error setting new RXON (%d)\n", ret);
+			return ret;
+		}
+		IWL_DEBUG_INFO(priv, "Return from !new_assoc RXON.\n");
+		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
+		iwl_clear_ucode_stations(priv, ctx);
+		iwl_restore_stations(priv, ctx);
+		ret = iwl_restore_default_wep_keys(priv, ctx);
+		if (ret) {
+			IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
+			return ret;
+		}
+	}
+	if (new_assoc) {
+		priv->start_calib = 0;
+		/* Apply the new configuration
+		 * RXON assoc doesn't clear the station table in uCode,
+		 */
+		ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd,
+			      sizeof(struct iwl_rxon_cmd), &ctx->staging);
+		if (ret) {
+			IWL_ERR(priv, "Error setting new RXON (%d)\n", ret);
+			return ret;
+		}
+		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
+	}
+	iwl_print_rx_config_cmd(priv, ctx);
+
+	iwl_init_sensitivity(priv);
+
+	/* If we issue a new RXON command which required a tune then we must
+	 * send a new TXPOWER command or we won't be able to Tx any frames */
+	ret = iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
+	if (ret) {
+		IWL_ERR(priv, "Error sending TX power (%d)\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int iwl4965_hw_channel_switch(struct iwl_priv *priv,
+				     struct ieee80211_channel_switch *ch_switch)
+{
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	int rc;
 	u8 band = 0;
 	bool is_ht40 = false;
 	u8 ctrl_chan_high = 0;
 	struct iwl4965_channel_switch_cmd cmd;
 	const struct iwl_channel_info *ch_info;
-
+	u32 switch_time_in_usec, ucode_switch_time;
+	u16 ch;
+	u32 tsf_low;
+	u8 switch_count;
+	u16 beacon_interval = le16_to_cpu(ctx->timing.beacon_interval);
+	struct ieee80211_vif *vif = ctx->vif;
 	band = priv->band == IEEE80211_BAND_2GHZ;
 
-	ch_info = iwl_get_channel_info(priv, priv->band, channel);
-
-	is_ht40 = is_ht40_channel(priv->staging_rxon.flags);
+	is_ht40 = is_ht40_channel(ctx->staging.flags);
 
 	if (is_ht40 &&
-	    (priv->staging_rxon.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
+	    (ctx->staging.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
 		ctrl_chan_high = 1;
 
 	cmd.band = band;
 	cmd.expect_beacon = 0;
-	cmd.channel = cpu_to_le16(channel);
-	cmd.rxon_flags = priv->staging_rxon.flags;
-	cmd.rxon_filter_flags = priv->staging_rxon.filter_flags;
-	cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
+	ch = ch_switch->channel->hw_value;
+	cmd.channel = cpu_to_le16(ch);
+	cmd.rxon_flags = ctx->staging.flags;
+	cmd.rxon_filter_flags = ctx->staging.filter_flags;
+	switch_count = ch_switch->count;
+	tsf_low = ch_switch->timestamp & 0x0ffffffff;
+	/*
+	 * calculate the ucode channel switch time
+	 * adding TSF as one of the factor for when to switch
+	 */
+	if ((priv->ucode_beacon_time > tsf_low) && beacon_interval) {
+		if (switch_count > ((priv->ucode_beacon_time - tsf_low) /
+		    beacon_interval)) {
+			switch_count -= (priv->ucode_beacon_time -
+				tsf_low) / beacon_interval;
+		} else
+			switch_count = 0;
+	}
+	if (switch_count <= 1)
+		cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
+	else {
+		switch_time_in_usec =
+			vif->bss_conf.beacon_int * switch_count * TIME_UNIT;
+		ucode_switch_time = iwl_usecs_to_beacons(priv,
+							 switch_time_in_usec,
+							 beacon_interval);
+		cmd.switch_time = iwl_add_beacon_time(priv,
+						      priv->ucode_beacon_time,
+						      ucode_switch_time,
+						      beacon_interval);
+	}
+	IWL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
+		      cmd.switch_time);
+	ch_info = iwl_get_channel_info(priv, priv->band, ch);
 	if (ch_info)
 		cmd.expect_beacon = is_channel_radar(ch_info);
 	else {
 		IWL_ERR(priv, "invalid channel switch from %u to %u\n",
-			priv->active_rxon.channel, channel);
+			ctx->active.channel, ch);
 		return -EFAULT;
 	}
 
-	rc = iwl4965_fill_txpower_tbl(priv, band, channel, is_ht40,
+	rc = iwl4965_fill_txpower_tbl(priv, band, ch, is_ht40,
 				      ctrl_chan_high, &cmd.tx_power);
 	if (rc) {
 		IWL_DEBUG_11H(priv, "error:%d  fill txpower_tbl\n", rc);
 		return rc;
 	}
 
-	priv->switch_rxon.channel = cpu_to_le16(channel);
+	priv->switch_rxon.channel = cmd.channel;
 	priv->switch_rxon.switch_in_progress = true;
 
 	return iwl_send_cmd_pdu(priv, REPLY_CHANNEL_SWITCH, sizeof(cmd), &cmd);
@@ -1513,22 +1687,6 @@ static void iwl4965_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 }
 
 /**
- * sign_extend - Sign extend a value using specified bit as sign-bit
- *
- * Example: sign_extend(9, 3) would return -7 as bit3 of 1001b is 1
- * and bit0..2 is 001b which when sign extended to 1111111111111001b is -7.
- *
- * @param oper value to sign extend
- * @param index 0 based bit index (0<=index<32) to sign bit
- */
-static s32 sign_extend(u32 oper, int index)
-{
-	u8 shift = 31 - index;
-
-	return (s32)(oper << shift) >> shift;
-}
-
-/**
  * iwl4965_hw_get_temperature - return the calibrated temperature (in Kelvin)
  * @statistics: Provides the temperature reading from the uCode
  *
@@ -1542,7 +1700,8 @@ static int iwl4965_hw_get_temperature(struct iwl_priv *priv)
 	u32 R4;
 
 	if (test_bit(STATUS_TEMPERATURE, &priv->status) &&
-		(priv->statistics.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
+	    (priv->_agn.statistics.flag &
+			STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
 		IWL_DEBUG_TEMP(priv, "Running HT40 temperature calibration\n");
 		R1 = (s32)le32_to_cpu(priv->card_alive_init.therm_r1[1]);
 		R2 = (s32)le32_to_cpu(priv->card_alive_init.therm_r2[1]);
@@ -1564,10 +1723,10 @@ static int iwl4965_hw_get_temperature(struct iwl_priv *priv)
 	 * "initialize" ALIVE response.
 	 */
 	if (!test_bit(STATUS_TEMPERATURE, &priv->status))
-		vt = sign_extend(R4, 23);
+		vt = sign_extend32(R4, 23);
 	else
-		vt = sign_extend(
-			le32_to_cpu(priv->statistics.general.temperature), 23);
+		vt = sign_extend32(le32_to_cpu(priv->_agn.statistics.
+				 general.common.temperature), 23);
 
 	IWL_DEBUG_TEMP(priv, "Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
 
@@ -1682,13 +1841,13 @@ static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 				   u16 ssn_idx, u8 tx_fifo)
 {
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWL49_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
-	     <= txq_id)) {
+	    (IWL49_FIRST_AMPDU_QUEUE +
+		priv->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
 		IWL_WARN(priv,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL49_FIRST_AMPDU_QUEUE,
 			IWL49_FIRST_AMPDU_QUEUE +
-			priv->cfg->num_of_ampdu_queues - 1);
+			priv->cfg->base_params->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
 
@@ -1747,22 +1906,25 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 {
 	unsigned long flags;
 	u16 ra_tid;
+	int ret;
 
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWL49_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
-	     <= txq_id)) {
+	    (IWL49_FIRST_AMPDU_QUEUE +
+		priv->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
 		IWL_WARN(priv,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL49_FIRST_AMPDU_QUEUE,
 			IWL49_FIRST_AMPDU_QUEUE +
-			priv->cfg->num_of_ampdu_queues - 1);
+			priv->cfg->base_params->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
 
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
 	/* Modify device's station table to Tx this TID */
-	iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
+	ret = iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
+	if (ret)
+		return ret;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -1870,7 +2032,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 		IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, StartIdx=%d idx=%d\n",
 				   agg->frame_count, agg->start_idx, idx);
 
-		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
+		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb);
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		info->flags |= iwl_tx_status_to_mac80211(status);
@@ -1965,7 +2127,7 @@ static u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
 		start = IWL_STA_ID;
 
 	if (is_broadcast_ether_addr(addr))
-		return priv->hw_params.bcast_sta_id;
+		return priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	for (i = start; i < priv->hw_params.max_stations; i++)
@@ -2026,6 +2188,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	int sta_id;
 	int freed;
 	u8 *qc = NULL;
+	unsigned long flags;
 
 	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
 		IWL_ERR(priv, "Read index for DMA queue txq_id (%d) index %d "
@@ -2035,7 +2198,8 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		return;
 	}
 
-	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb[0]);
+	txq->time_stamp = jiffies;
+	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb);
 	memset(&info->status, 0, sizeof(info->status));
 
 	hdr = iwl_tx_queue_get_hdr(priv, txq_id, index);
@@ -2050,10 +2214,10 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		return;
 	}
 
+	spin_lock_irqsave(&priv->sta_lock, flags);
 	if (txq->sched_retry) {
 		const u32 scd_ssn = iwl4965_get_scd_ssn(tx_resp);
 		struct iwl_ht_agg *agg = NULL;
-
 		WARN_ON(!qc);
 
 		agg = &priv->stations[sta_id].tid[tid].agg;
@@ -2075,12 +2239,8 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 
 			if (priv->mac80211_registered &&
 			    (iwl_queue_space(&txq->q) > txq->q.low_mark) &&
-			    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA)) {
-				if (agg->state == IWL_AGG_OFF)
-					iwl_wake_queue(priv, txq_id);
-				else
-					iwl_wake_queue(priv, txq->swq_id);
-			}
+			    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA))
+				iwl_wake_queue(priv, txq);
 		}
 	} else {
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
@@ -2104,12 +2264,14 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 
 		if (priv->mac80211_registered &&
 		    (iwl_queue_space(&txq->q) > txq->q.low_mark))
-			iwl_wake_queue(priv, txq_id);
+			iwl_wake_queue(priv, txq);
 	}
 	if (qc && likely(sta_id != IWL_INVALID_STATION))
 		iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
+
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
 static int iwl4965_calc_rssi(struct iwl_priv *priv,
@@ -2168,19 +2330,175 @@ static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
 
 static struct iwl_hcmd_ops iwl4965_hcmd = {
 	.rxon_assoc = iwl4965_send_rxon_assoc,
-	.commit_rxon = iwl_commit_rxon,
-	.set_rxon_chain = iwl_set_rxon_chain,
+	.commit_rxon = iwl4965_commit_rxon,
+	.set_rxon_chain = iwlagn_set_rxon_chain,
 	.send_bt_config = iwl_send_bt_config,
 };
+
+static void iwl4965_post_scan(struct iwl_priv *priv)
+{
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+
+	/*
+	 * Since setting the RXON may have been deferred while
+	 * performing the scan, fire one off if needed
+	 */
+	if (memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
+		iwlcore_commit_rxon(priv, ctx);
+}
+
+static void iwl4965_post_associate(struct iwl_priv *priv)
+{
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+	struct ieee80211_vif *vif = ctx->vif;
+	struct ieee80211_conf *conf = NULL;
+	int ret = 0;
+
+	if (!vif || !priv->is_open)
+		return;
+
+	if (vif->type == NL80211_IFTYPE_AP) {
+		IWL_ERR(priv, "%s Should not be called in AP mode\n", __func__);
+		return;
+	}
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	iwl_scan_cancel_timeout(priv, 200);
+
+	conf = ieee80211_get_hw_conf(priv->hw);
+
+	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+	iwlcore_commit_rxon(priv, ctx);
+
+	ret = iwl_send_rxon_timing(priv, ctx);
+	if (ret)
+		IWL_WARN(priv, "RXON timing - "
+			    "Attempting to continue.\n");
+
+	ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
+
+	iwl_set_rxon_ht(priv, &priv->current_ht_config);
+
+	if (priv->cfg->ops->hcmd->set_rxon_chain)
+		priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
+
+	ctx->staging.assoc_id = cpu_to_le16(vif->bss_conf.aid);
+
+	IWL_DEBUG_ASSOC(priv, "assoc id %d beacon interval %d\n",
+			vif->bss_conf.aid, vif->bss_conf.beacon_int);
+
+	if (vif->bss_conf.use_short_preamble)
+		ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
+	else
+		ctx->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
+
+	if (ctx->staging.flags & RXON_FLG_BAND_24G_MSK) {
+		if (vif->bss_conf.use_short_slot)
+			ctx->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
+		else
+			ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
+	}
+
+	iwlcore_commit_rxon(priv, ctx);
+
+	IWL_DEBUG_ASSOC(priv, "Associated as %d to: %pM\n",
+			vif->bss_conf.aid, ctx->active.bssid_addr);
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		iwlagn_send_beacon_cmd(priv);
+		break;
+	default:
+		IWL_ERR(priv, "%s Should not be called in %d mode\n",
+			  __func__, vif->type);
+		break;
+	}
+
+	/* the chain noise calibration will enabled PM upon completion
+	 * If chain noise has already been run, then we need to enable
+	 * power management here */
+	if (priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE)
+		iwl_power_update_mode(priv, false);
+
+	/* Enable Rx differential gain and sensitivity calibrations */
+	iwl_chain_noise_reset(priv);
+	priv->start_calib = 1;
+}
+
+static void iwl4965_config_ap(struct iwl_priv *priv)
+{
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+	struct ieee80211_vif *vif = ctx->vif;
+	int ret = 0;
+
+	lockdep_assert_held(&priv->mutex);
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	/* The following should be done only at AP bring up */
+	if (!iwl_is_associated_ctx(ctx)) {
+
+		/* RXON - unassoc (to set timing command) */
+		ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		iwlcore_commit_rxon(priv, ctx);
+
+		/* RXON Timing */
+		ret = iwl_send_rxon_timing(priv, ctx);
+		if (ret)
+			IWL_WARN(priv, "RXON timing failed - "
+					"Attempting to continue.\n");
+
+		/* AP has all antennas */
+		priv->chain_noise_data.active_chains =
+			priv->hw_params.valid_rx_ant;
+		iwl_set_rxon_ht(priv, &priv->current_ht_config);
+		if (priv->cfg->ops->hcmd->set_rxon_chain)
+			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
+
+		ctx->staging.assoc_id = 0;
+
+		if (vif->bss_conf.use_short_preamble)
+			ctx->staging.flags |=
+				RXON_FLG_SHORT_PREAMBLE_MSK;
+		else
+			ctx->staging.flags &=
+				~RXON_FLG_SHORT_PREAMBLE_MSK;
+
+		if (ctx->staging.flags & RXON_FLG_BAND_24G_MSK) {
+			if (vif->bss_conf.use_short_slot)
+				ctx->staging.flags |=
+					RXON_FLG_SHORT_SLOT_MSK;
+			else
+				ctx->staging.flags &=
+					~RXON_FLG_SHORT_SLOT_MSK;
+		}
+		/* need to send beacon cmd before committing assoc RXON! */
+		iwlagn_send_beacon_cmd(priv);
+		/* restore RXON assoc */
+		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
+		iwlcore_commit_rxon(priv, ctx);
+	}
+	iwlagn_send_beacon_cmd(priv);
+
+	/* FIXME - we need to add code here to detect a totally new
+	 * configuration, reset the AP, unassoc, rxon timing, assoc,
+	 * clear sta table, add BCAST sta... */
+}
 
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.get_hcmd_size = iwl4965_get_hcmd_size,
 	.build_addsta_hcmd = iwl4965_build_addsta_hcmd,
 	.chain_noise_reset = iwl4965_chain_noise_reset,
 	.gain_computation = iwl4965_gain_computation,
-	.rts_tx_cmd_flag = iwlcore_rts_tx_cmd_flag,
+	.tx_cmd_protection = iwl_legacy_tx_cmd_protection,
 	.calc_rssi = iwl4965_calc_rssi,
 	.request_scan = iwlagn_request_scan,
+	.post_scan = iwl4965_post_scan,
 };
 
 static struct iwl_lib_ops iwl4965_lib = {
@@ -2205,9 +2523,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.set_channel_switch = iwl4965_hw_channel_switch,
 	.apm_ops = {
 		.init = iwl_apm_init,
-		.stop = iwl_apm_stop,
 		.config = iwl4965_nic_config,
-		.set_pwr_src = iwl_set_pwr_src,
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {
@@ -2219,7 +2535,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 			EEPROM_4965_REGULATORY_BAND_24_HT40_CHANNELS,
 			EEPROM_4965_REGULATORY_BAND_52_HT40_CHANNELS
 		},
-		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
 		.calib_version = iwl4965_eeprom_calib_version,
@@ -2227,20 +2542,50 @@ static struct iwl_lib_ops iwl4965_lib = {
 	},
 	.send_tx_power	= iwl4965_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
-	.post_associate = iwl_post_associate,
-	.config_ap = iwl_config_ap,
-	.isr = iwl_isr_legacy,
+	.isr_ops = {
+		.isr = iwl_isr_legacy,
+	},
 	.temp_ops = {
 		.temperature = iwl4965_temperature_calib,
-		.set_ct_kill = iwl4965_set_ct_threshold,
 	},
-	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
 		.general_stats_read = iwl_ucode_general_stats_read,
+		.bt_stats_read = iwl_ucode_bt_stats_read,
+		.reply_tx_error = iwl_reply_tx_error_read,
 	},
 	.check_plcp_health = iwl_good_plcp_health,
+};
+
+static const struct iwl_legacy_ops iwl4965_legacy_ops = {
+	.post_associate = iwl4965_post_associate,
+	.config_ap = iwl4965_config_ap,
+	.manage_ibss_station = iwlagn_manage_ibss_station,
+	.update_bcast_stations = iwl_update_bcast_stations,
+};
+
+struct ieee80211_ops iwl4965_hw_ops = {
+	.tx = iwlagn_mac_tx,
+	.start = iwlagn_mac_start,
+	.stop = iwlagn_mac_stop,
+	.add_interface = iwl_mac_add_interface,
+	.remove_interface = iwl_mac_remove_interface,
+	.change_interface = iwl_mac_change_interface,
+	.config = iwl_legacy_mac_config,
+	.configure_filter = iwlagn_configure_filter,
+	.set_key = iwlagn_mac_set_key,
+	.update_tkip_key = iwlagn_mac_update_tkip_key,
+	.conf_tx = iwl_mac_conf_tx,
+	.reset_tsf = iwl_legacy_mac_reset_tsf,
+	.bss_info_changed = iwl_legacy_mac_bss_info_changed,
+	.ampdu_action = iwlagn_mac_ampdu_action,
+	.hw_scan = iwl_mac_hw_scan,
+	.sta_add = iwlagn_mac_sta_add,
+	.sta_remove = iwl_mac_sta_remove,
+	.channel_switch = iwlagn_mac_channel_switch,
+	.flush = iwlagn_mac_flush,
+	.tx_last_beacon = iwl_mac_tx_last_beacon,
 };
 
 static const struct iwl_ops iwl4965_ops = {
@@ -2248,6 +2593,30 @@ static const struct iwl_ops iwl4965_ops = {
 	.hcmd = &iwl4965_hcmd,
 	.utils = &iwl4965_hcmd_utils,
 	.led = &iwlagn_led_ops,
+	.legacy = &iwl4965_legacy_ops,
+	.ieee80211_ops = &iwl4965_hw_ops,
+};
+
+static struct iwl_base_params iwl4965_base_params = {
+	.eeprom_size = IWL4965_EEPROM_IMG_SIZE,
+	.num_of_queues = IWL49_NUM_QUEUES,
+	.num_of_ampdu_queues = IWL49_NUM_AMPDU_QUEUES,
+	.pll_cfg_val = 0,
+	.set_l0s = true,
+	.use_bsm = true,
+	.use_isr_legacy = true,
+	.broken_powersave = true,
+	.led_compensation = 61,
+	.chain_noise_num_beacons = IWL4965_CAL_NUM_BEACONS,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.wd_timeout = IWL_DEF_WD_TIMEOUT,
+	.temperature_kelvin = true,
+	.max_event_log_size = 512,
+	.tx_power_by_driver = true,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
+	.no_agg_framecnt_info = true,
 };
 
 struct iwl_cfg iwl4965_agn_cfg = {
@@ -2255,37 +2624,19 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.fw_name_pre = IWL4965_FW_PRE,
 	.ucode_api_max = IWL4965_UCODE_API_MAX,
 	.ucode_api_min = IWL4965_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.eeprom_size = IWL4965_EEPROM_IMG_SIZE,
+	.valid_tx_ant = ANT_AB,
+	.valid_rx_ant = ANT_ABC,
 	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
 	.ops = &iwl4965_ops,
-	.num_of_queues = IWL49_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL49_NUM_AMPDU_QUEUES,
 	.mod_params = &iwlagn_mod_params,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_ABC,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = true,
-	.use_isr_legacy = true,
-	.ht_greenfield_support = false,
-	.broken_powersave = true,
-	.led_compensation = 61,
-	.chain_noise_num_beacons = IWL4965_CAL_NUM_BEACONS,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.monitor_recover_period = IWL_MONITORING_PERIOD,
-	.temperature_kelvin = true,
-	.max_event_log_size = 512,
-	.tx_power_by_driver = true,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
+	.base_params = &iwl4965_base_params,
+	.led_mode = IWL_LED_BLINK,
 	/*
 	 * Force use of chains B and C for scan RX on 5 GHz band
 	 * because the device has off-channel reception on chain A.
 	 */
-	.scan_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
+	.scan_rx_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
 };
 
 /* Module firmware */

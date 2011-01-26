@@ -83,7 +83,7 @@ config MMC_RICOH_MMC
 
 config MMC_SDHCI_OF
 	tristate "SDHCI support on OpenFirmware platforms"
-	depends on MMC_SDHCI && PPC_OF
+	depends on MMC_SDHCI && OF
 	help
 	  This selects the OF support for Secure Digital Host Controller
 	  Interfaces.
@@ -93,6 +93,7 @@ config MMC_SDHCI_OF
 config MMC_SDHCI_OF_ESDHC
 	bool "SDHCI OF support for the Freescale eSDHC controller"
 	depends on MMC_SDHCI_OF
+	depends on PPC_OF
 	select MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 	help
 	  This selects the Freescale eSDHC controller support.
@@ -102,6 +103,7 @@ config MMC_SDHCI_OF_ESDHC
 config MMC_SDHCI_OF_HLWD
 	bool "SDHCI OF support for the Nintendo Wii SDHCI controllers"
 	depends on MMC_SDHCI_OF
+	depends on PPC_OF
 	select MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
@@ -121,9 +123,49 @@ config MMC_SDHCI_PLTFM
 
 	  If unsure, say N.
 
+config MMC_SDHCI_CNS3XXX
+	bool "SDHCI support on the Cavium Networks CNS3xxx SoC"
+	depends on ARCH_CNS3XXX
+	depends on MMC_SDHCI_PLTFM
+	help
+	  This selects the SDHCI support for CNS3xxx System-on-Chip devices.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_ESDHC_IMX
+	bool "SDHCI platform support for the Freescale eSDHC i.MX controller"
+	depends on MMC_SDHCI_PLTFM && (ARCH_MX25 || ARCH_MX35 || ARCH_MX5)
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Freescale eSDHC controller support on the platform
+	  bus, found on platforms like mx35/51.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_DOVE
+	bool "SDHCI support on Marvell's Dove SoC"
+	depends on ARCH_DOVE
+	depends on MMC_SDHCI_PLTFM
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Secure Digital Host Controller Interface in
+	  Marvell's Dove SoC.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_TEGRA
+	tristate "SDHCI platform support for the Tegra SD/MMC Controller"
+	depends on MMC_SDHCI_PLTFM && ARCH_TEGRA
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Tegra SD/MMC controller. If you have a Tegra
+	  platform with SD or MMC devices, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_S3C
 	tristate "SDHCI support on Samsung S3C SoC"
-	depends on MMC_SDHCI && (PLAT_S3C24XX || PLAT_S3C64XX)
+	depends on MMC_SDHCI && PLAT_SAMSUNG
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  often referrered to as the HSMMC block in some of the Samsung S3C
@@ -131,6 +173,30 @@ config MMC_SDHCI_S3C
 
 	  Note, due to the problems with DMA, the DMA support is only
 	  available with CONFIG_EXPERIMENTAL is selected.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_PXA
+	tristate "Marvell PXA168/PXA910/MMP2 SD Host Controller support"
+	depends on ARCH_PXA || ARCH_MMP
+	select MMC_SDHCI
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Marvell(R) PXA168/PXA910/MMP2 SD Host Controller.
+	  If you have a PXA168/PXA910/MMP2 platform with SD Host Controller
+	  and a card slot, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_SPEAR
+	tristate "SDHCI support on ST SPEAr platform"
+	depends on MMC_SDHCI && PLAT_SPEAR
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  often referrered to as the HSMMC block in some of the ST SPEAR range
+	  of SoC
 
 	  If you have a controller with this interface, say Y or M here.
 
@@ -216,7 +282,7 @@ endchoice
 
 config MMC_ATMELMCI_DMA
 	bool "Atmel MCI DMA support (EXPERIMENTAL)"
-	depends on MMC_ATMELMCI && AVR32 && DMA_ENGINE && EXPERIMENTAL
+	depends on MMC_ATMELMCI && (AVR32 || ARCH_AT91SAM9G45) && DMA_ENGINE && EXPERIMENTAL
 	help
 	  Say Y here to have the Atmel MCI driver use a DMA engine to
 	  do data transfers and thus increase the throughput and
@@ -235,12 +301,13 @@ config MMC_IMX
 
 	  If unsure, say N.
 
-config MMC_MSM7X00A
-	tristate "Qualcomm MSM 7X00A SDCC Controller Support"
+config MMC_MSM
+	tristate "Qualcomm SDCC Controller Support"
 	depends on MMC && ARCH_MSM
 	help
 	  This provides support for the SD/MMC cell found in the
-          MSM 7X00A controllers from Qualcomm.
+	  MSM and QSD SOCs from Qualcomm. The controller also has
+	  support for SDIO devices.
 
 config MMC_MXC
 	tristate "Freescale i.MX2/3 Multimedia Card Interface support"
@@ -373,6 +440,7 @@ config MMC_TMIO
 config MMC_CB710
 	tristate "ENE CB710 MMC/SD Interface support"
 	depends on PCI
+	select MISC_DEVICES
 	select CB710_CORE
 	help
 	  This option enables support for MMC/SD part of ENE CB710/720 Flash
@@ -412,3 +480,50 @@ config SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND
 	depends on SDH_BFIN
 	help
 	  If you say yes here SD-Cards may work on the EZkit.
+
+config MMC_DW
+	tristate "Synopsys DesignWare Memory Card Interface"
+	depends on ARM
+	help
+	  This selects support for the Synopsys DesignWare Mobile Storage IP
+	  block, this provides host support for SD and MMC interfaces, in both
+	  PIO and external DMA modes.
+
+config MMC_DW_IDMAC
+	bool "Internal DMAC interface"
+	depends on MMC_DW
+	help
+	  This selects support for the internal DMAC block within the Synopsys
+	  Designware Mobile Storage IP block. This disables the external DMA
+	  interface.
+
+config MMC_SH_MMCIF
+	tristate "SuperH Internal MMCIF support"
+	depends on MMC_BLOCK && (SUPERH || ARCH_SHMOBILE)
+	help
+	  This selects the MMC Host Interface controller (MMCIF).
+
+	  This driver supports MMCIF in sh7724/sh7757/sh7372.
+
+config MMC_JZ4740
+	tristate "JZ4740 SD/Multimedia Card Interface support"
+	depends on MACH_JZ4740
+	help
+	  This selects support for the SD/MMC controller on Ingenic JZ4740
+	  SoCs.
+	  If you have a board based on such a SoC and with a SD/MMC slot,
+	  say Y or M here.
+
+config MMC_USHC
+	tristate "USB SD Host Controller (USHC) support"
+	depends on USB
+	help
+	  This selects support for USB SD Host Controllers based on
+	  the Cypress Astoria chip with firmware compliant with CSR's
+	  USB SD Host Controller specification (CS-118793-SP).
+
+	  CSR boards with this device include: USB<>SDIO (M1985v2),
+	  and Ultrasira.
+
+	  Note: These controllers only support SDIO cards and do not
+	  support MMC or SD memory cards.

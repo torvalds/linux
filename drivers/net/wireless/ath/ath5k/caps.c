@@ -34,7 +34,6 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 {
 	u16 ee_header;
 
-	ATH5K_TRACE(ah->ah_sc);
 	/* Capabilities stored in the EEPROM */
 	ee_header = ah->ah_capabilities.cap_eeprom.ee_header;
 
@@ -50,7 +49,6 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 
 		/* Set supported modes */
 		__set_bit(AR5K_MODE_11A, ah->ah_capabilities.cap_mode);
-		__set_bit(AR5K_MODE_11A_TURBO, ah->ah_capabilities.cap_mode);
 	} else {
 		/*
 		 * XXX The tranceiver supports frequencies from 4920 to 6100GHz
@@ -75,11 +73,6 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 			/* Set supported modes */
 			__set_bit(AR5K_MODE_11A,
 					ah->ah_capabilities.cap_mode);
-			__set_bit(AR5K_MODE_11A_TURBO,
-					ah->ah_capabilities.cap_mode);
-			if (ah->ah_version == AR5K_AR5212)
-				__set_bit(AR5K_MODE_11G_TURBO,
-						ah->ah_capabilities.cap_mode);
 		}
 
 		/* Enable  802.11b if a 2GHz capable radio (2111/5112) is
@@ -123,8 +116,6 @@ int ath5k_hw_get_capability(struct ath5k_hw *ah,
 		enum ath5k_capability_type cap_type,
 		u32 capability, u32 *result)
 {
-	ATH5K_TRACE(ah->ah_sc);
-
 	switch (cap_type) {
 	case AR5K_CAP_NUM_TXQUEUES:
 		if (result) {
@@ -173,8 +164,6 @@ yes:
 int ath5k_hw_enable_pspoll(struct ath5k_hw *ah, u8 *bssid,
 		u16 assoc_id)
 {
-	ATH5K_TRACE(ah->ah_sc);
-
 	if (ah->ah_version == AR5K_AR5210) {
 		AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1,
 			AR5K_STA_ID1_NO_PSPOLL | AR5K_STA_ID1_DEFAULT_ANTENNA);
@@ -186,8 +175,6 @@ int ath5k_hw_enable_pspoll(struct ath5k_hw *ah, u8 *bssid,
 
 int ath5k_hw_disable_pspoll(struct ath5k_hw *ah)
 {
-	ATH5K_TRACE(ah->ah_sc);
-
 	if (ah->ah_version == AR5K_AR5210) {
 		AR5K_REG_ENABLE_BITS(ah, AR5K_STA_ID1,
 			AR5K_STA_ID1_NO_PSPOLL | AR5K_STA_ID1_DEFAULT_ANTENNA);

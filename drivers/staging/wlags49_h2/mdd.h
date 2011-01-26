@@ -727,10 +727,10 @@ XX1( CFG_SCAN,					SCAN_RS_STRCT, scan_result[32]		 ) /*Scan results											*
 #define CFG_FCBE	0xFCBE	//FW codes ahead of available documentation, so ???????
 #define CFG_FCBF	0xFCBF	//FW codes ahead of available documentation, so ???????
 
-#define CFG_HANDOVER_ADDR				0xFCC0		//[AP] Station MAC Adrress re-associated with other AP
+#define CFG_HANDOVER_ADDR				0xFCC0		//[AP] Station MAC Address re-associated with other AP
 #define CFG_SCAN_CHANNEL				0xFCC2		//Channel set for host requested scan
 //;?#define CFG_SCAN_CHANNEL_MASK			0xFCC2		// contains
-#define CFG_DISASSOCIATE_ADDR			0xFCC4		//[AP] Station MAC Adrress to be disassociated
+#define CFG_DISASSOCIATE_ADDR			0xFCC4		//[AP] Station MAC Address to be disassociated
 #define CFG_PROBE_DATA_RATE				0xFCC5		//WARP connection control
 #define CFG_FRAME_BURST_LIMIT			0xFCC6		//
 #define CFG_COEXISTENSE_BEHAVIOUR		0xFCC7		//[AP]
@@ -1002,7 +1002,7 @@ XX1( CFG_SCAN,					SCAN_RS_STRCT, scan_result[32]		 ) /*Scan results											*
 #define CFG_CONNECTION_MODE				0x0908		//controls the mode of the FW (ESS/AP/IBSS/ADHOC)
 #define CFG_IFB							0x0909		//byte wise copy of IFB
 #define CFG_MSF_TALLIES					0x090A		//MSF tallies (int's, rx and tx)
-#define CFG_CURRENT_LINK_STATUS			0x090B		//Latest link status got trough 0xF200 LinkEvent
+#define CFG_CURRENT_LINK_STATUS			0x090B		//Latest link status got through 0xF200 LinkEvent
 
 /*============================================================ INFORMATION FRAMES =========================*/
 #define CFG_INFO_FRAME_MIN				0xF000		//lowest value representing an Informatio Frame

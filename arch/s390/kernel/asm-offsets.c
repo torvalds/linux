@@ -23,14 +23,16 @@ int main(void)
 {
 	DEFINE(__THREAD_info, offsetof(struct task_struct, stack));
 	DEFINE(__THREAD_ksp, offsetof(struct task_struct, thread.ksp));
-	DEFINE(__THREAD_per, offsetof(struct task_struct, thread.per_info));
 	DEFINE(__THREAD_mm_segment, offsetof(struct task_struct, thread.mm_segment));
 	BLANK();
 	DEFINE(__TASK_pid, offsetof(struct task_struct, pid));
 	BLANK();
-	DEFINE(__PER_atmid, offsetof(per_struct, lowcore.words.perc_atmid));
-	DEFINE(__PER_address, offsetof(per_struct, lowcore.words.address));
-	DEFINE(__PER_access_id, offsetof(per_struct, lowcore.words.access_id));
+	DEFINE(__THREAD_per_cause,
+	       offsetof(struct task_struct, thread.per_event.cause));
+	DEFINE(__THREAD_per_address,
+	       offsetof(struct task_struct, thread.per_event.address));
+	DEFINE(__THREAD_per_paid,
+	       offsetof(struct task_struct, thread.per_event.paid));
 	BLANK();
 	DEFINE(__TI_task, offsetof(struct thread_info, task));
 	DEFINE(__TI_domain, offsetof(struct thread_info, exec_domain));
@@ -66,9 +68,9 @@ int main(void)
 	DEFINE(__VDSO_ECTG_BASE, offsetof(struct vdso_per_cpu_data, ectg_timer_base));
 	DEFINE(__VDSO_ECTG_USER, offsetof(struct vdso_per_cpu_data, ectg_user_time));
 	/* constants used by the vdso */
-	DEFINE(CLOCK_REALTIME, CLOCK_REALTIME);
-	DEFINE(CLOCK_MONOTONIC, CLOCK_MONOTONIC);
-	DEFINE(CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
+	DEFINE(__CLOCK_REALTIME, CLOCK_REALTIME);
+	DEFINE(__CLOCK_MONOTONIC, CLOCK_MONOTONIC);
+	DEFINE(__CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
 	BLANK();
 	/* constants for SIGP */
 	DEFINE(__SIGP_STOP, sigp_stop);
@@ -84,9 +86,10 @@ int main(void)
 	DEFINE(__LC_SVC_INT_CODE, offsetof(struct _lowcore, svc_code));
 	DEFINE(__LC_PGM_ILC, offsetof(struct _lowcore, pgm_ilc));
 	DEFINE(__LC_PGM_INT_CODE, offsetof(struct _lowcore, pgm_code));
-	DEFINE(__LC_PER_ATMID, offsetof(struct _lowcore, per_perc_atmid));
+	DEFINE(__LC_TRANS_EXC_CODE, offsetof(struct _lowcore, trans_exc_code));
+	DEFINE(__LC_PER_CAUSE, offsetof(struct _lowcore, per_perc_atmid));
 	DEFINE(__LC_PER_ADDRESS, offsetof(struct _lowcore, per_address));
-	DEFINE(__LC_PER_ACCESS_ID, offsetof(struct _lowcore, per_access_id));
+	DEFINE(__LC_PER_PAID, offsetof(struct _lowcore, per_access_id));
 	DEFINE(__LC_AR_MODE_ID, offsetof(struct _lowcore, ar_access_id));
 	DEFINE(__LC_SUBCHANNEL_ID, offsetof(struct _lowcore, subchannel_id));
 	DEFINE(__LC_SUBCHANNEL_NR, offsetof(struct _lowcore, subchannel_nr));
@@ -132,8 +135,6 @@ int main(void)
 	DEFINE(__LC_MCCK_CLOCK, offsetof(struct _lowcore, mcck_clock));
 	DEFINE(__LC_MACHINE_FLAGS, offsetof(struct _lowcore, machine_flags));
 	DEFINE(__LC_FTRACE_FUNC, offsetof(struct _lowcore, ftrace_func));
-	DEFINE(__LC_SIE_HOOK, offsetof(struct _lowcore, sie_hook));
-	DEFINE(__LC_CMF_HPP, offsetof(struct _lowcore, cmf_hpp));
 	DEFINE(__LC_IRB, offsetof(struct _lowcore, irb));
 	DEFINE(__LC_CPU_TIMER_SAVE_AREA, offsetof(struct _lowcore, cpu_timer_save_area));
 	DEFINE(__LC_CLOCK_COMP_SAVE_AREA, offsetof(struct _lowcore, clock_comp_save_area));
@@ -144,16 +145,16 @@ int main(void)
 	DEFINE(__LC_GPREGS_SAVE_AREA, offsetof(struct _lowcore, gpregs_save_area));
 	DEFINE(__LC_CREGS_SAVE_AREA, offsetof(struct _lowcore, cregs_save_area));
 #ifdef CONFIG_32BIT
-	DEFINE(__LC_PFAULT_INTPARM, offsetof(struct _lowcore, ext_params));
 	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, extended_save_area_addr));
 #else /* CONFIG_32BIT */
-	DEFINE(__LC_PFAULT_INTPARM, offsetof(struct _lowcore, ext_params2));
 	DEFINE(__LC_EXT_PARAMS2, offsetof(struct _lowcore, ext_params2));
 	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, floating_pt_save_area));
 	DEFINE(__LC_PASTE, offsetof(struct _lowcore, paste));
 	DEFINE(__LC_FP_CREG_SAVE_AREA, offsetof(struct _lowcore, fpt_creg_save_area));
 	DEFINE(__LC_LAST_BREAK, offsetof(struct _lowcore, breaking_event_addr));
 	DEFINE(__LC_VDSO_PER_CPU, offsetof(struct _lowcore, vdso_per_cpu_data));
+	DEFINE(__LC_SIE_HOOK, offsetof(struct _lowcore, sie_hook));
+	DEFINE(__LC_CMF_HPP, offsetof(struct _lowcore, cmf_hpp));
 #endif /* CONFIG_32BIT */
 	return 0;
 }

@@ -16,13 +16,12 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
-#include "xfs_dmapi.h"
 #include "xfs_sb.h"
 #include "xfs_inum.h"
+#include "xfs_log.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_quota.h"
-#include "xfs_log.h"
 #include "xfs_trans.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
@@ -69,15 +68,15 @@ xfs_fs_set_xstate(
 	if (op != Q_XQUOTARM && !XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
 
-	if (uflags & XFS_QUOTA_UDQ_ACCT)
+	if (uflags & FS_QUOTA_UDQ_ACCT)
 		flags |= XFS_UQUOTA_ACCT;
-	if (uflags & XFS_QUOTA_PDQ_ACCT)
+	if (uflags & FS_QUOTA_PDQ_ACCT)
 		flags |= XFS_PQUOTA_ACCT;
-	if (uflags & XFS_QUOTA_GDQ_ACCT)
+	if (uflags & FS_QUOTA_GDQ_ACCT)
 		flags |= XFS_GQUOTA_ACCT;
-	if (uflags & XFS_QUOTA_UDQ_ENFD)
+	if (uflags & FS_QUOTA_UDQ_ENFD)
 		flags |= XFS_UQUOTA_ENFD;
-	if (uflags & (XFS_QUOTA_PDQ_ENFD|XFS_QUOTA_GDQ_ENFD))
+	if (uflags & (FS_QUOTA_PDQ_ENFD|FS_QUOTA_GDQ_ENFD))
 		flags |= XFS_OQUOTA_ENFD;
 
 	switch (op) {

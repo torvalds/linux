@@ -599,6 +599,8 @@ struct net_device *alloc_sja1000dev(int sizeof_priv)
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
 		CAN_CTRLMODE_BERR_REPORTING;
 
+	spin_lock_init(&priv->cmdreg_lock);
+
 	if (sizeof_priv)
 		priv->priv = (void *)priv + sizeof(struct sja1000_priv);
 

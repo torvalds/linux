@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -222,6 +222,12 @@ acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width)
 	u32 one_byte;
 	u32 i;
 
+	/* Truncate address to 16 bits if requested */
+
+	if (acpi_gbl_truncate_io_addresses) {
+		address &= ACPI_UINT16_MAX;
+	}
+
 	/* Validate the entire request and perform the I/O */
 
 	status = acpi_hw_validate_io_request(address, width);
@@ -278,6 +284,12 @@ acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width)
 {
 	acpi_status status;
 	u32 i;
+
+	/* Truncate address to 16 bits if requested */
+
+	if (acpi_gbl_truncate_io_addresses) {
+		address &= ACPI_UINT16_MAX;
+	}
 
 	/* Validate the entire request and perform the I/O */
 

@@ -320,6 +320,7 @@ void flush_iotlb_page(struct iommu *obj, u32 da)
 		if ((start <= da) && (da < start + bytes)) {
 			dev_dbg(obj->dev, "%s: %08x<=%08x(%x)\n",
 				__func__, start, da, bytes);
+			iotlb_load_cr(obj, &cr);
 			iommu_write_reg(obj, 1, MMU_FLUSH_ENTRY);
 		}
 	}
@@ -369,6 +370,23 @@ void flush_iotlb_all(struct iommu *obj)
 	clk_disable(obj->clk);
 }
 EXPORT_SYMBOL_GPL(flush_iotlb_all);
+
+/**
+ * iommu_set_twl - enable/disable table walking logic
+ * @obj:	target iommu
+ * @on:		enable/disable
+ *
+ * Function used to enable/disable TWL. If one wants to work
+ * exclusively with locked TLB entries and receive notifications
+ * for TLB miss then call this function to disable TWL.
+ */
+void iommu_set_twl(struct iommu *obj, bool on)
+{
+	clk_enable(obj->clk);
+	arch_iommu->set_twl(obj, on);
+	clk_disable(obj->clk);
+}
+EXPORT_SYMBOL_GPL(iommu_set_twl);
 
 #if defined(CONFIG_OMAP_IOMMU_DEBUG_MODULE)
 
@@ -653,7 +671,7 @@ void iopgtable_lookup_entry(struct iommu *obj, u32 da, u32 **ppgd, u32 **ppte)
 	if (!*iopgd)
 		goto out;
 
-	if (*iopgd & IOPGD_TABLE)
+	if (iopgd_is_table(*iopgd))
 		iopte = iopte_offset(iopgd, da);
 out:
 	*ppgd = iopgd;
@@ -670,7 +688,7 @@ static size_t iopgtable_clear_entry_core(struct iommu *obj, u32 da)
 	if (!*iopgd)
 		return 0;
 
-	if (*iopgd & IOPGD_TABLE) {
+	if (iopgd_is_table(*iopgd)) {
 		int i;
 		u32 *iopte = iopte_offset(iopgd, da);
 
@@ -745,7 +763,7 @@ static void iopgtable_clear_entry_all(struct iommu *obj)
 		if (!*iopgd)
 			continue;
 
-		if (*iopgd & IOPGD_TABLE)
+		if (iopgd_is_table(*iopgd))
 			iopte_free(iopte_offset(iopgd, 0));
 
 		*iopgd = 0;
@@ -783,9 +801,11 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 	if (!stat)
 		return IRQ_HANDLED;
 
+	iommu_disable(obj);
+
 	iopgd = iopgd_offset(obj, da);
 
-	if (!(*iopgd & IOPGD_TABLE)) {
+	if (!iopgd_is_table(*iopgd)) {
 		dev_err(obj->dev, "%s: da:%08x pgd:%p *pgd:%08x\n", __func__,
 			da, iopgd, *iopgd);
 		return IRQ_NONE;
@@ -808,6 +828,28 @@ static int device_match_by_alias(struct device *dev, void *data)
 
 	return strcmp(obj->name, name) == 0;
 }
+
+/**
+ * iommu_set_da_range - Set a valid device address range
+ * @obj:		target iommu
+ * @start		Start of valid range
+ * @end			End of valid range
+ **/
+int iommu_set_da_range(struct iommu *obj, u32 start, u32 end)
+{
+
+	if (!obj)
+		return -EFAULT;
+
+	if (end < start || !PAGE_ALIGN(start | end))
+		return -EINVAL;
+
+	obj->da_start = start;
+	obj->da_end = end;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_set_da_range);
 
 /**
  * iommu_get - Get iommu handler
@@ -902,6 +944,8 @@ static int __devinit omap_iommu_probe(struct platform_device *pdev)
 	obj->name = pdata->name;
 	obj->dev = &pdev->dev;
 	obj->ctx = (void *)obj + sizeof(*obj);
+	obj->da_start = pdata->da_start;
+	obj->da_end = pdata->da_end;
 
 	mutex_init(&obj->iommu_lock);
 	mutex_init(&obj->mmap_lock);

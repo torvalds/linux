@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/topology.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <asm/proto.h>
 #include <asm/numa.h>
@@ -98,15 +99,15 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 	unsigned long phys;
 
 	length = slit->header.length;
-	phys = find_e820_area(0, max_pfn_mapped<<PAGE_SHIFT, length,
+	phys = memblock_find_in_range(0, max_pfn_mapped<<PAGE_SHIFT, length,
 		 PAGE_SIZE);
 
-	if (phys == -1L)
+	if (phys == MEMBLOCK_ERROR)
 		panic(" Can not save slit!\n");
 
 	acpi_slit = __va(phys);
 	memcpy(acpi_slit, slit, length);
-	reserve_early(phys, phys + length, "ACPI SLIT");
+	memblock_x86_reserve_range(phys, phys + length, "ACPI SLIT");
 }
 
 /* Callback for Proximity Domain -> x2APIC mapping */
@@ -133,6 +134,10 @@ acpi_numa_x2apic_affinity_init(struct acpi_srat_x2apic_cpu_affinity *pa)
 	}
 
 	apic_id = pa->apic_id;
+	if (apic_id >= MAX_LOCAL_APIC) {
+		printk(KERN_INFO "SRAT: PXM %u -> APIC 0x%04x -> Node %u skipped apicid that is too big\n", pxm, apic_id, node);
+		return;
+	}
 	apicid_to_node[apic_id] = node;
 	node_set(node, cpu_nodes_parsed);
 	acpi_numa = 1;
@@ -167,6 +172,12 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 		apic_id = (pa->apic_id << 8) | pa->local_sapic_eid;
 	else
 		apic_id = pa->apic_id;
+
+	if (apic_id >= MAX_LOCAL_APIC) {
+		printk(KERN_INFO "SRAT: PXM %u -> APIC 0x%02x -> Node %u skipped apicid that is too big\n", pxm, apic_id, node);
+		return;
+	}
+
 	apicid_to_node[apic_id] = node;
 	node_set(node, cpu_nodes_parsed);
 	acpi_numa = 1;
@@ -324,7 +335,7 @@ static int __init nodes_cover_memory(const struct bootnode *nodes)
 			pxmram = 0;
 	}
 
-	e820ram = max_pfn - (e820_hole_size(0, max_pfn<<PAGE_SHIFT)>>PAGE_SHIFT);
+	e820ram = max_pfn - (memblock_x86_hole_size(0, max_pfn<<PAGE_SHIFT)>>PAGE_SHIFT);
 	/* We seem to lose 3 pages somewhere. Allow 1M of slack. */
 	if ((long)(e820ram - pxmram) >= (1<<(20 - PAGE_SHIFT))) {
 		printk(KERN_ERR
@@ -338,18 +349,19 @@ static int __init nodes_cover_memory(const struct bootnode *nodes)
 
 void __init acpi_numa_arch_fixup(void) {}
 
-int __init acpi_get_nodes(struct bootnode *physnodes)
+#ifdef CONFIG_NUMA_EMU
+void __init acpi_get_nodes(struct bootnode *physnodes, unsigned long start,
+				unsigned long end)
 {
 	int i;
-	int ret = 0;
 
 	for_each_node_mask(i, nodes_parsed) {
-		physnodes[ret].start = nodes[i].start;
-		physnodes[ret].end = nodes[i].end;
-		ret++;
+		cutoff_node(i, start, end);
+		physnodes[i].start = nodes[i].start;
+		physnodes[i].end = nodes[i].end;
 	}
-	return ret;
 }
+#endif /* CONFIG_NUMA_EMU */
 
 /* Use the information discovered above to actually set up the nodes. */
 int __init acpi_scan_nodes(unsigned long start, unsigned long end)
@@ -420,9 +432,11 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 		return -1;
 	}
 
-	for_each_node_mask(i, nodes_parsed)
-		e820_register_active_regions(i, nodes[i].start >> PAGE_SHIFT,
-						nodes[i].end >> PAGE_SHIFT);
+	for (i = 0; i < num_node_memblks; i++)
+		memblock_x86_register_active_regions(memblk_nodeid[i],
+				node_memblk_range[i].start >> PAGE_SHIFT,
+				node_memblk_range[i].end >> PAGE_SHIFT);
+
 	/* for out of order entries in SRAT */
 	sort_node_map();
 	if (!nodes_cover_memory(nodes)) {
@@ -492,8 +506,6 @@ void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 {
 	int i, j;
 
-	printk(KERN_INFO "Faking PXM affinity for fake nodes on real "
-			 "topology.\n");
 	for (i = 0; i < num_nodes; i++) {
 		int nid, pxm;
 
@@ -513,6 +525,17 @@ void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 			    fake_apicid_to_node[j] == NUMA_NO_NODE)
 				fake_apicid_to_node[j] = i;
 	}
+
+	/*
+	 * If there are apicid-to-node mappings for physical nodes that do not
+	 * have a corresponding emulated node, it should default to a guaranteed
+	 * value.
+	 */
+	for (i = 0; i < MAX_LOCAL_APIC; i++)
+		if (apicid_to_node[i] != NUMA_NO_NODE &&
+		    fake_apicid_to_node[i] == NUMA_NO_NODE)
+			fake_apicid_to_node[i] = 0;
+
 	for (i = 0; i < num_nodes; i++)
 		__acpi_map_pxm_to_node(fake_node_to_pxm_map[i], i);
 	memcpy(apicid_to_node, fake_apicid_to_node, sizeof(apicid_to_node));

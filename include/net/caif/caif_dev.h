@@ -28,7 +28,7 @@ struct caif_param {
  * @sockaddr:		Socket address to connect.
  * @priority:		Priority of the connection.
  * @link_selector:	Link selector (high bandwidth or low latency)
- * @link_name:		Name of the CAIF Link Layer to use.
+ * @ifindex:		kernel index of the interface.
  * @param:		Connect Request parameters (CAIF_SO_REQ_PARAM).
  *
  * This struct is used when connecting a CAIF channel.
@@ -39,7 +39,7 @@ struct caif_connect_request {
 	struct sockaddr_caif sockaddr;
 	enum caif_channel_priority priority;
 	enum caif_link_selector link_selector;
-	char link_name[16];
+	int ifindex;
 	struct caif_param param;
 };
 
@@ -50,6 +50,9 @@ struct caif_connect_request {
  * @client_layer:	User implementation of client layer. This layer
  *			MUST have receive and control callback functions
  *			implemented.
+ * @ifindex:		Link layer interface index used for this connection.
+ * @headroom:		Head room needed by CAIF protocol.
+ * @tailroom:		Tail room needed by CAIF protocol.
  *
  * This function connects a CAIF channel. The Client must implement
  * the struct cflayer. This layer represents the Client layer and holds
@@ -59,8 +62,9 @@ struct caif_connect_request {
  * E.g. CAIF Socket will call this function for each socket it connects
  * and have one client_layer instance for each socket.
  */
-int caif_connect_client(struct caif_connect_request *config,
-			   struct cflayer *client_layer);
+int caif_connect_client(struct caif_connect_request *conn_req,
+			struct cflayer *client_layer, int *ifindex,
+			int *headroom, int *tailroom);
 
 /**
  * caif_disconnect_client - Disconnects a client from the CAIF stack.

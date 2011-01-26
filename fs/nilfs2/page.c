@@ -37,7 +37,8 @@
 
 #define NILFS_BUFFER_INHERENT_BITS  \
 	((1UL << BH_Uptodate) | (1UL << BH_Mapped) | (1UL << BH_NILFS_Node) | \
-	 (1UL << BH_NILFS_Volatile) | (1UL << BH_NILFS_Allocated))
+	 (1UL << BH_NILFS_Volatile) | (1UL << BH_NILFS_Allocated) | \
+	 (1UL << BH_NILFS_Checked))
 
 static struct buffer_head *
 __nilfs_get_page_block(struct page *page, unsigned long block, pgoff_t index,
@@ -78,8 +79,8 @@ struct buffer_head *nilfs_grab_buffer(struct inode *inode,
 {
 	int blkbits = inode->i_blkbits;
 	pgoff_t index = blkoff >> (PAGE_CACHE_SHIFT - blkbits);
-	struct page *page, *opage;
-	struct buffer_head *bh, *obh;
+	struct page *page;
+	struct buffer_head *bh;
 
 	page = grab_cache_page(mapping, index);
 	if (unlikely(!page))
@@ -90,30 +91,6 @@ struct buffer_head *nilfs_grab_buffer(struct inode *inode,
 		unlock_page(page);
 		page_cache_release(page);
 		return NULL;
-	}
-	if (!buffer_uptodate(bh) && mapping->assoc_mapping != NULL) {
-		/*
-		 * Shadow page cache uses assoc_mapping to point its original
-		 * page cache.  The following code tries the original cache
-		 * if the given cache is a shadow and it didn't hit.
-		 */
-		opage = find_lock_page(mapping->assoc_mapping, index);
-		if (!opage)
-			return bh;
-
-		obh = __nilfs_get_page_block(opage, blkoff, index, blkbits,
-					     b_state);
-		if (buffer_uptodate(obh)) {
-			nilfs_copy_buffer(bh, obh);
-			if (buffer_dirty(obh)) {
-				nilfs_mark_buffer_dirty(bh);
-				if (!buffer_nilfs_node(bh) && NILFS_MDT(inode))
-					nilfs_mdt_mark_dirty(inode);
-			}
-		}
-		brelse(obh);
-		unlock_page(opage);
-		page_cache_release(opage);
 	}
 	return bh;
 }
@@ -129,6 +106,8 @@ void nilfs_forget_buffer(struct buffer_head *bh)
 
 	lock_buffer(bh);
 	clear_buffer_nilfs_volatile(bh);
+	clear_buffer_nilfs_checked(bh);
+	clear_buffer_nilfs_redirected(bh);
 	clear_buffer_dirty(bh);
 	if (nilfs_page_buffers_clean(page))
 		__nilfs_clear_page_dirty(page);
@@ -480,6 +459,8 @@ void nilfs_clear_dirty_pages(struct address_space *mapping)
 				lock_buffer(bh);
 				clear_buffer_dirty(bh);
 				clear_buffer_nilfs_volatile(bh);
+				clear_buffer_nilfs_checked(bh);
+				clear_buffer_nilfs_redirected(bh);
 				clear_buffer_uptodate(bh);
 				clear_buffer_mapped(bh);
 				unlock_buffer(bh);
@@ -511,6 +492,31 @@ unsigned nilfs_page_count_clean_buffers(struct page *page,
 	return nc;
 }
 
+void nilfs_mapping_init_once(struct address_space *mapping)
+{
+	memset(mapping, 0, sizeof(*mapping));
+	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
+	spin_lock_init(&mapping->tree_lock);
+	INIT_LIST_HEAD(&mapping->private_list);
+	spin_lock_init(&mapping->private_lock);
+
+	spin_lock_init(&mapping->i_mmap_lock);
+	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
+	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
+}
+
+void nilfs_mapping_init(struct address_space *mapping,
+			struct backing_dev_info *bdi,
+			const struct address_space_operations *aops)
+{
+	mapping->host = NULL;
+	mapping->flags = 0;
+	mapping_set_gfp_mask(mapping, GFP_NOFS);
+	mapping->assoc_mapping = NULL;
+	mapping->backing_dev_info = bdi;
+	mapping->a_ops = aops;
+}
+
 /*
  * NILFS2 needs clear_page_dirty() in the following two cases:
  *
@@ -539,4 +545,88 @@ int __nilfs_clear_page_dirty(struct page *page)
 		return 0;
 	}
 	return TestClearPageDirty(page);
+}
+
+/**
+ * nilfs_find_uncommitted_extent - find extent of uncommitted data
+ * @inode: inode
+ * @start_blk: start block offset (in)
+ * @blkoff: start offset of the found extent (out)
+ *
+ * This function searches an extent of buffers marked "delayed" which
+ * starts from a block offset equal to or larger than @start_blk.  If
+ * such an extent was found, this will store the start offset in
+ * @blkoff and return its length in blocks.  Otherwise, zero is
+ * returned.
+ */
+unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
+					    sector_t start_blk,
+					    sector_t *blkoff)
+{
+	unsigned int i;
+	pgoff_t index;
+	unsigned int nblocks_in_page;
+	unsigned long length = 0;
+	sector_t b;
+	struct pagevec pvec;
+	struct page *page;
+
+	if (inode->i_mapping->nrpages == 0)
+		return 0;
+
+	index = start_blk >> (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	nblocks_in_page = 1U << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+
+	pagevec_init(&pvec, 0);
+
+repeat:
+	pvec.nr = find_get_pages_contig(inode->i_mapping, index, PAGEVEC_SIZE,
+					pvec.pages);
+	if (pvec.nr == 0)
+		return length;
+
+	if (length > 0 && pvec.pages[0]->index > index)
+		goto out;
+
+	b = pvec.pages[0]->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	i = 0;
+	do {
+		page = pvec.pages[i];
+
+		lock_page(page);
+		if (page_has_buffers(page)) {
+			struct buffer_head *bh, *head;
+
+			bh = head = page_buffers(page);
+			do {
+				if (b < start_blk)
+					continue;
+				if (buffer_delay(bh)) {
+					if (length == 0)
+						*blkoff = b;
+					length++;
+				} else if (length > 0) {
+					goto out_locked;
+				}
+			} while (++b, bh = bh->b_this_page, bh != head);
+		} else {
+			if (length > 0)
+				goto out_locked;
+
+			b += nblocks_in_page;
+		}
+		unlock_page(page);
+
+	} while (++i < pagevec_count(&pvec));
+
+	index = page->index + 1;
+	pagevec_release(&pvec);
+	cond_resched();
+	goto repeat;
+
+out_locked:
+	unlock_page(page);
+out:
+	pagevec_release(&pvec);
+	return length;
 }

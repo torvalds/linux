@@ -2,23 +2,25 @@
  * Versatile Express Core Tile Cortex A9x4 Support
  */
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
+#include <asm/pgtable.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/pmu.h>
+#include <asm/smp_twd.h>
 
-#include <mach/clkdev.h>
 #include <mach/ct-ca9x4.h>
 
-#include <plat/timer-sp.h>
+#include <asm/hardware/timer-sp.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -51,20 +53,20 @@ static struct map_desc ct_ca9x4_io_desc[] __initdata = {
 
 static void __init ct_ca9x4_map_io(void)
 {
+#ifdef CONFIG_LOCAL_TIMERS
+	twd_base = MMIO_P2V(A9_MPCORE_TWD);
+#endif
 	v2m_map_io(ct_ca9x4_io_desc, ARRAY_SIZE(ct_ca9x4_io_desc));
 }
 
-void __iomem *gic_cpu_base_addr;
-
 static void __init ct_ca9x4_init_irq(void)
 {
-	gic_cpu_base_addr = MMIO_P2V(A9_MPCORE_GIC_CPU);
-	gic_dist_init(0, MMIO_P2V(A9_MPCORE_GIC_DIST), 29);
-	gic_cpu_init(0, gic_cpu_base_addr);
+	gic_init(0, 29, MMIO_P2V(A9_MPCORE_GIC_DIST),
+		 MMIO_P2V(A9_MPCORE_GIC_CPU));
 }
 
 #if 0
-static void ct_ca9x4_timer_init(void)
+static void __init ct_ca9x4_timer_init(void)
 {
 	writel(0, MMIO_P2V(CT_CA9X4_TIMER0) + TIMER_CTRL);
 	writel(0, MMIO_P2V(CT_CA9X4_TIMER1) + TIMER_CTRL);
@@ -218,12 +220,18 @@ static struct platform_device pmu_device = {
 	.resource	= pmu_resources,
 };
 
-static void ct_ca9x4_init(void)
+static void __init ct_ca9x4_init(void)
 {
 	int i;
 
 #ifdef CONFIG_CACHE_L2X0
-	l2x0_init(MMIO_P2V(CT_CA9X4_L2CC), 0x00000000, 0xfe0fffff);
+	void __iomem *l2x0_base = MMIO_P2V(CT_CA9X4_L2CC);
+
+	/* set RAM latencies to 1 cycle for this core tile. */
+	writel(0, l2x0_base + L2X0_TAG_LATENCY_CTRL);
+	writel(0, l2x0_base + L2X0_DATA_LATENCY_CTRL);
+
+	l2x0_init(l2x0_base, 0x00400000, 0xfe0fffff);
 #endif
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
@@ -235,8 +243,6 @@ static void ct_ca9x4_init(void)
 }
 
 MACHINE_START(VEXPRESS, "ARM-Versatile Express CA9x4")
-	.phys_io	= V2M_UART0,
-	.io_pg_offst	= (__MMIO_P2V(V2M_UART0) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.map_io		= ct_ca9x4_map_io,
 	.init_irq	= ct_ca9x4_init_irq,

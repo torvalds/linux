@@ -11,6 +11,10 @@
 #define	m527xsim_h
 /****************************************************************************/
 
+#define	CPU_NAME		"COLDFIRE(m527x)"
+#define	CPU_INSTR_PER_JIFFY	3
+
+#include <asm/m52xxacr.h>
 
 /*
  *	Define the 5270/5271 SIM register set addresses.
@@ -31,6 +35,7 @@
 #define	MCFINT_UART0		13		/* Interrupt number for UART0 */
 #define	MCFINT_UART1		14		/* Interrupt number for UART1 */
 #define	MCFINT_UART2		15		/* Interrupt number for UART2 */
+#define	MCFINT_QSPI		18		/* Interrupt number for QSPI */
 #define	MCFINT_PIT1		36		/* Interrupt number for PIT1 */
 
 /*
@@ -54,6 +59,12 @@
 #define	MCFSIM_DMR1		0x5c		/* SDRAM address mask 1 */
 #endif
 
+/*
+ *	UART module.
+ */
+#define MCFUART_BASE1		0x200           /* Base address of UART1 */
+#define MCFUART_BASE2		0x240           /* Base address of UART2 */
+#define MCFUART_BASE3		0x280           /* Base address of UART3 */
 
 #ifdef CONFIG_M5271
 #define MCFGPIO_PODR_ADDR	(MCF_IPSBAR + 0x100000)
@@ -120,6 +131,9 @@
 #define MCFGPIO_PIN_MAX			100
 #define MCFGPIO_IRQ_MAX			8
 #define MCFGPIO_IRQ_VECBASE		MCFINT_VECBASE
+
+#define MCFGPIO_PAR_QSPI	(MCF_IPSBAR + 0x10004A)
+#define MCFGPIO_PAR_TIMER	(MCF_IPSBAR + 0x10004C)
 #endif
 
 #ifdef CONFIG_M5275
@@ -212,6 +226,8 @@
 #define MCFGPIO_PIN_MAX			148
 #define MCFGPIO_IRQ_MAX			8
 #define MCFGPIO_IRQ_VECBASE		MCFINT_VECBASE
+
+#define MCFGPIO_PAR_QSPI	(MCF_IPSBAR + 0x10007E)
 #endif
 
 /*
@@ -221,6 +237,7 @@
 #define MCFEPORT_EPDDR		(MCF_IPSBAR + 0x130002)
 #define MCFEPORT_EPDR		(MCF_IPSBAR + 0x130004)
 #define MCFEPORT_EPPDR		(MCF_IPSBAR + 0x130005)
+
 
 
 /*

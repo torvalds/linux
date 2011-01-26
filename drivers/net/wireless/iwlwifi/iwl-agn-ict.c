@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/etherdevice.h>
 #include <linux/sched.h>
+#include <linux/gfp.h>
 #include <net/mac80211.h>
 
 #include "iwl-dev.h"
@@ -58,7 +59,7 @@ void iwl_free_isr_ict(struct iwl_priv *priv)
 int iwl_alloc_isr_ict(struct iwl_priv *priv)
 {
 
-	if (priv->cfg->use_isr_legacy)
+	if (priv->cfg->base_params->use_isr_legacy)
 		return 0;
 	/* allocate shrared data table */
 	priv->_agn.ict_tbl_vir =
@@ -196,7 +197,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 
  none:
 	/* re-enable interrupts here since we don't have anything to service. */
-	/* only Re-enable if diabled by irq  and no schedules tasklet. */
+	/* only Re-enable if disabled by irq  and no schedules tasklet. */
 	if (test_bit(STATUS_INT_ENABLED, &priv->status) && !priv->_agn.inta)
 		iwl_enable_interrupts(priv);
 

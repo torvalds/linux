@@ -273,6 +273,10 @@ struct sge {
 	struct cmdQ cmdQ[SGE_CMDQ_N] ____cacheline_aligned_in_smp;
 };
 
+static const u8 ch_mac_addr[ETH_ALEN] = {
+	0x0, 0x7, 0x43, 0x0, 0x0, 0x0
+};
+
 /*
  * stop tasklet and free all pending skb's
  */
@@ -1388,7 +1392,7 @@ static void sge_rx(struct sge *sge, struct freelQ *fl, unsigned int len)
 		++st->rx_cso_good;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 
 	if (unlikely(adapter->vlan_grp && p->vlan_valid)) {
 		st->vlan_xtract++;
@@ -1551,7 +1555,7 @@ static inline int responses_pending(const struct adapter *adapter)
 	const struct respQ *Q = &adapter->sge->respQ;
 	const struct respQ_e *e = &Q->entries[Q->cidx];
 
-	return (e->GenerationBit == Q->genbit);
+	return e->GenerationBit == Q->genbit;
 }
 
 /*
@@ -1870,7 +1874,7 @@ netdev_tx_t t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	cpl->iff = dev->if_port;
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-	if (adapter->vlan_grp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		cpl->vlan_valid = 1;
 		cpl->vlan = htons(vlan_tx_tag_get(skb));
 		st->vlan_insert++;
@@ -2012,10 +2016,6 @@ static void espibug_workaround_t204(unsigned long data)
 				continue;
 
 			if (!skb->cb[0]) {
-				u8 ch_mac_addr[ETH_ALEN] = {
-					0x0, 0x7, 0x43, 0x0, 0x0, 0x0
-				};
-
 				skb_copy_to_linear_data_offset(skb,
 						    sizeof(struct cpl_tx_pkt),
 							       ch_mac_addr,
@@ -2048,8 +2048,6 @@ static void espibug_workaround(unsigned long data)
 
 	        if ((seop & 0xfff0fff) == 0xfff && skb) {
 	                if (!skb->cb[0]) {
-	                        u8 ch_mac_addr[ETH_ALEN] =
-	                            {0x0, 0x7, 0x43, 0x0, 0x0, 0x0};
 	                        skb_copy_to_linear_data_offset(skb,
 						     sizeof(struct cpl_tx_pkt),
 							       ch_mac_addr,

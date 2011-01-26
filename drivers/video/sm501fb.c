@@ -2010,9 +2010,9 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 
 	/* tell console/fb driver we are suspending */
 
-	acquire_console_sem();
+	console_lock();
 	fb_set_suspend(fbi, 1);
-	release_console_sem();
+	console_unlock();
 
 	/* backup copies in case chip is powered down over suspend */
 
@@ -2069,9 +2069,9 @@ static void sm501fb_resume_fb(struct sm501fb_info *info,
 		memcpy_toio(par->cursor.k_addr, par->store_cursor,
 			    par->cursor.size);
 
-	acquire_console_sem();
+	console_lock();
 	fb_set_suspend(fbi, 0);
-	release_console_sem();
+	console_unlock();
 
 	vfree(par->store_fb);
 	vfree(par->store_cursor);

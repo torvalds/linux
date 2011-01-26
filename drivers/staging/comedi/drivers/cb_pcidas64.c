@@ -1028,46 +1028,26 @@ static const struct pcidas64_board pcidas64_boards[] = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(pcidas64_pci_table) = {
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x001d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x001e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0035, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0036, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0037, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0052, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x005d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x005e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x005f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0061, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0062, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0063, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0064, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0066, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0067, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0068, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x006f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0078, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0079, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x001d) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x001e) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0035) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0036) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0037) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0052) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x005d) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x005e) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x005f) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0061) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0062) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0063) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0064) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0066) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0067) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0068) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x006f) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0078) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0079) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, pcidas64_pci_table);
@@ -1237,7 +1217,43 @@ static unsigned int get_ao_divisor(unsigned int ns, unsigned int flags);
 static void load_ao_dma(struct comedi_device *dev,
 			const struct comedi_cmd *cmd);
 
-COMEDI_PCI_INITCLEANUP(driver_cb_pcidas, pcidas64_pci_table);
+static int __devinit driver_cb_pcidas_pci_probe(struct pci_dev *dev,
+						const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_cb_pcidas.driver_name);
+}
+
+static void __devexit driver_cb_pcidas_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_cb_pcidas_pci_driver = {
+	.id_table = pcidas64_pci_table,
+	.probe = &driver_cb_pcidas_pci_probe,
+	.remove = __devexit_p(&driver_cb_pcidas_pci_remove)
+};
+
+static int __init driver_cb_pcidas_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_cb_pcidas);
+	if (retval < 0)
+		return retval;
+
+	driver_cb_pcidas_pci_driver.name = (char *)driver_cb_pcidas.driver_name;
+	return pci_register_driver(&driver_cb_pcidas_pci_driver);
+}
+
+static void __exit driver_cb_pcidas_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_cb_pcidas_pci_driver);
+	comedi_driver_unregister(&driver_cb_pcidas);
+}
+
+module_init(driver_cb_pcidas_init_module);
+module_exit(driver_cb_pcidas_cleanup_module);
 
 static unsigned int ai_range_bits_6xxx(const struct comedi_device *dev,
 				       unsigned int range_index)
@@ -1718,7 +1734,7 @@ static inline void warn_external_queue(struct comedi_device *dev)
  */
 static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	int index;
 	uint32_t local_range, local_decode;
 	int retval;
@@ -1735,9 +1751,7 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * Probe the device to determine what device in the series it is.
  */
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		/*  is it not a computer boards card? */
 		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
@@ -3064,7 +3078,7 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 			spin_unlock_irqrestore(&dev->spinlock, flags);
 	}
 	/*  if we are have all the data, then quit */
-	if ((cmd->stop_src == TRIG_COUNT && priv(dev)->ai_count <= 0) ||
+	if ((cmd->stop_src == TRIG_COUNT && (int)priv(dev)->ai_count <= 0) ||
 	    (cmd->stop_src == TRIG_EXT && (status & ADC_STOP_BIT))) {
 		async->events |= COMEDI_CB_EOA;
 	}
@@ -4303,3 +4317,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	}
 	i2c_stop(dev);
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

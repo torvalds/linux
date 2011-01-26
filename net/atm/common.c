@@ -37,6 +37,8 @@ EXPORT_SYMBOL(vcc_hash);
 DEFINE_RWLOCK(vcc_sklist_lock);
 EXPORT_SYMBOL(vcc_sklist_lock);
 
+static ATOMIC_NOTIFIER_HEAD(atm_dev_notify_chain);
+
 static void __vcc_insert_socket(struct sock *sk)
 {
 	struct atm_vcc *vcc = atm_sk(sk);
@@ -212,6 +214,22 @@ void vcc_release_async(struct atm_vcc *vcc, int reply)
 }
 EXPORT_SYMBOL(vcc_release_async);
 
+void atm_dev_signal_change(struct atm_dev *dev, char signal)
+{
+	pr_debug("%s signal=%d dev=%p number=%d dev->signal=%d\n",
+		__func__, signal, dev, dev->number, dev->signal);
+
+	/* atm driver sending invalid signal */
+	WARN_ON(signal < ATM_PHY_SIG_LOST || signal > ATM_PHY_SIG_FOUND);
+
+	if (dev->signal == signal)
+		return; /* no change */
+
+	dev->signal = signal;
+
+	atomic_notifier_call_chain(&atm_dev_notify_chain, signal, dev);
+}
+EXPORT_SYMBOL(atm_dev_signal_change);
 
 void atm_dev_release_vccs(struct atm_dev *dev)
 {
@@ -774,12 +792,24 @@ int vcc_getsockopt(struct socket *sock, int level, int optname,
 	default:
 		if (level == SOL_SOCKET)
 			return -EINVAL;
-			break;
+		break;
 	}
 	if (!vcc->dev || !vcc->dev->ops->getsockopt)
 		return -EINVAL;
 	return vcc->dev->ops->getsockopt(vcc, level, optname, optval, len);
 }
+
+int register_atmdevice_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&atm_dev_notify_chain, nb);
+}
+EXPORT_SYMBOL_GPL(register_atmdevice_notifier);
+
+void unregister_atmdevice_notifier(struct notifier_block *nb)
+{
+	atomic_notifier_chain_unregister(&atm_dev_notify_chain, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_atmdevice_notifier);
 
 static int __init atm_init(void)
 {

@@ -79,6 +79,8 @@ struct musb_ep {
 
 	/* true if lock must be dropped but req_list may not be advanced */
 	u8				busy;
+
+	u8				hb_mult;
 };
 
 static inline struct musb_ep *to_musb_ep(struct usb_ep *ep)
@@ -104,5 +106,7 @@ extern int musb_gadget_setup(struct musb *);
 extern void musb_gadget_cleanup(struct musb *);
 
 extern void musb_g_giveback(struct musb_ep *, struct usb_request *, int);
+
+extern void musb_ep_restart(struct musb *, struct musb_request *);
 
 #endif		/* __MUSB_GADGET_H */

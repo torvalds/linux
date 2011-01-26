@@ -146,19 +146,16 @@ int strict_strtoul(const char *cp, unsigned int base, unsigned long *res)
 {
 	char *tail;
 	unsigned long val;
-	size_t len;
 
 	*res = 0;
-	len = strlen(cp);
-	if (len == 0)
+	if (!*cp)
 		return -EINVAL;
 
 	val = simple_strtoul(cp, &tail, base);
 	if (tail == cp)
 		return -EINVAL;
 
-	if ((*tail == '\0') ||
-		((len == (size_t)(tail - cp) + 1) && (*tail == '\n'))) {
+	if ((tail[0] == '\0') || (tail[0] == '\n' && tail[1] == '\0')) {
 		*res = val;
 		return 0;
 	}
@@ -220,18 +217,15 @@ int strict_strtoull(const char *cp, unsigned int base, unsigned long long *res)
 {
 	char *tail;
 	unsigned long long val;
-	size_t len;
 
 	*res = 0;
-	len = strlen(cp);
-	if (len == 0)
+	if (!*cp)
 		return -EINVAL;
 
 	val = simple_strtoull(cp, &tail, base);
 	if (tail == cp)
 		return -EINVAL;
-	if ((*tail == '\0') ||
-		((len == (size_t)(tail - cp) + 1) && (*tail == '\n'))) {
+	if ((tail[0] == '\0') || (tail[0] == '\n' && tail[1] == '\0')) {
 		*res = val;
 		return 0;
 	}
@@ -267,7 +261,8 @@ int strict_strtoll(const char *cp, unsigned int base, long long *res)
 }
 EXPORT_SYMBOL(strict_strtoll);
 
-static int skip_atoi(const char **s)
+static noinline_for_stack
+int skip_atoi(const char **s)
 {
 	int i = 0;
 
@@ -287,7 +282,8 @@ static int skip_atoi(const char **s)
 /* Formats correctly any integer in [0,99999].
  * Outputs from one to five digits depending on input.
  * On i386 gcc 4.1.2 -O2: ~250 bytes of code. */
-static char *put_dec_trunc(char *buf, unsigned q)
+static noinline_for_stack
+char *put_dec_trunc(char *buf, unsigned q)
 {
 	unsigned d3, d2, d1, d0;
 	d1 = (q>>4) & 0xf;
@@ -324,7 +320,8 @@ static char *put_dec_trunc(char *buf, unsigned q)
 	return buf;
 }
 /* Same with if's removed. Always emits five digits */
-static char *put_dec_full(char *buf, unsigned q)
+static noinline_for_stack
+char *put_dec_full(char *buf, unsigned q)
 {
 	/* BTW, if q is in [0,9999], 8-bit ints will be enough, */
 	/* but anyway, gcc produces better code with full-sized ints */
@@ -366,7 +363,8 @@ static char *put_dec_full(char *buf, unsigned q)
 	return buf;
 }
 /* No inlining helps gcc to use registers better */
-static noinline char *put_dec(char *buf, unsigned long long num)
+static noinline_for_stack
+char *put_dec(char *buf, unsigned long long num)
 {
 	while (1) {
 		unsigned rem;
@@ -417,8 +415,9 @@ struct printf_spec {
 	s16	precision;	/* # of digits/chars */
 };
 
-static char *number(char *buf, char *end, unsigned long long num,
-			struct printf_spec spec)
+static noinline_for_stack
+char *number(char *buf, char *end, unsigned long long num,
+	     struct printf_spec spec)
 {
 	/* we are called with base 8, 10 or 16, only, thus don't need "G..."  */
 	static const char digits[16] = "0123456789ABCDEF"; /* "GHIJKLMNOPQRSTUVWXYZ"; */
@@ -537,7 +536,8 @@ static char *number(char *buf, char *end, unsigned long long num,
 	return buf;
 }
 
-static char *string(char *buf, char *end, const char *s, struct printf_spec spec)
+static noinline_for_stack
+char *string(char *buf, char *end, const char *s, struct printf_spec spec)
 {
 	int len, i;
 
@@ -567,8 +567,9 @@ static char *string(char *buf, char *end, const char *s, struct printf_spec spec
 	return buf;
 }
 
-static char *symbol_string(char *buf, char *end, void *ptr,
-				struct printf_spec spec, char ext)
+static noinline_for_stack
+char *symbol_string(char *buf, char *end, void *ptr,
+		    struct printf_spec spec, char ext)
 {
 	unsigned long value = (unsigned long) ptr;
 #ifdef CONFIG_KALLSYMS
@@ -588,8 +589,9 @@ static char *symbol_string(char *buf, char *end, void *ptr,
 #endif
 }
 
-static char *resource_string(char *buf, char *end, struct resource *res,
-				struct printf_spec spec, const char *fmt)
+static noinline_for_stack
+char *resource_string(char *buf, char *end, struct resource *res,
+		      struct printf_spec spec, const char *fmt)
 {
 #ifndef IO_RSRC_PRINTK_SIZE
 #define IO_RSRC_PRINTK_SIZE	6
@@ -690,8 +692,9 @@ static char *resource_string(char *buf, char *end, struct resource *res,
 	return string(buf, end, sym, spec);
 }
 
-static char *mac_address_string(char *buf, char *end, u8 *addr,
-				struct printf_spec spec, const char *fmt)
+static noinline_for_stack
+char *mac_address_string(char *buf, char *end, u8 *addr,
+			 struct printf_spec spec, const char *fmt)
 {
 	char mac_addr[sizeof("xx:xx:xx:xx:xx:xx")];
 	char *p = mac_addr;
@@ -714,7 +717,8 @@ static char *mac_address_string(char *buf, char *end, u8 *addr,
 	return string(buf, end, mac_addr, spec);
 }
 
-static char *ip4_string(char *p, const u8 *addr, const char *fmt)
+static noinline_for_stack
+char *ip4_string(char *p, const u8 *addr, const char *fmt)
 {
 	int i;
 	bool leading_zeros = (fmt[0] == 'i');
@@ -763,7 +767,8 @@ static char *ip4_string(char *p, const u8 *addr, const char *fmt)
 	return p;
 }
 
-static char *ip6_compressed_string(char *p, const char *addr)
+static noinline_for_stack
+char *ip6_compressed_string(char *p, const char *addr)
 {
 	int i, j, range;
 	unsigned char zerolength[8];
@@ -843,7 +848,8 @@ static char *ip6_compressed_string(char *p, const char *addr)
 	return p;
 }
 
-static char *ip6_string(char *p, const char *addr, const char *fmt)
+static noinline_for_stack
+char *ip6_string(char *p, const char *addr, const char *fmt)
 {
 	int i;
 
@@ -858,8 +864,9 @@ static char *ip6_string(char *p, const char *addr, const char *fmt)
 	return p;
 }
 
-static char *ip6_addr_string(char *buf, char *end, const u8 *addr,
-			     struct printf_spec spec, const char *fmt)
+static noinline_for_stack
+char *ip6_addr_string(char *buf, char *end, const u8 *addr,
+		      struct printf_spec spec, const char *fmt)
 {
 	char ip6_addr[sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255")];
 
@@ -871,8 +878,9 @@ static char *ip6_addr_string(char *buf, char *end, const u8 *addr,
 	return string(buf, end, ip6_addr, spec);
 }
 
-static char *ip4_addr_string(char *buf, char *end, const u8 *addr,
-			     struct printf_spec spec, const char *fmt)
+static noinline_for_stack
+char *ip4_addr_string(char *buf, char *end, const u8 *addr,
+		      struct printf_spec spec, const char *fmt)
 {
 	char ip4_addr[sizeof("255.255.255.255")];
 
@@ -881,8 +889,9 @@ static char *ip4_addr_string(char *buf, char *end, const u8 *addr,
 	return string(buf, end, ip4_addr, spec);
 }
 
-static char *uuid_string(char *buf, char *end, const u8 *addr,
-			 struct printf_spec spec, const char *fmt)
+static noinline_for_stack
+char *uuid_string(char *buf, char *end, const u8 *addr,
+		  struct printf_spec spec, const char *fmt)
 {
 	char uuid[sizeof("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")];
 	char *p = uuid;
@@ -927,6 +936,8 @@ static char *uuid_string(char *buf, char *end, const u8 *addr,
 	return string(buf, end, uuid, spec);
 }
 
+int kptr_restrict = 1;
+
 /*
  * Show a '%p' thing.  A kernel extension is that the '%p' is followed
  * by an extra set of alphanumeric characters that are extended format
@@ -965,16 +976,30 @@ static char *uuid_string(char *buf, char *end, const u8 *addr,
  *             [0][1][2][3]-[4][5]-[6][7]-[8][9]-[10][11][12][13][14][15]
  *           little endian output byte order is:
  *             [3][2][1][0]-[5][4]-[7][6]-[8][9]-[10][11][12][13][14][15]
+ * - 'V' For a struct va_format which contains a format string * and va_list *,
+ *       call vsnprintf(->format, *->va_list).
+ *       Implements a "recursive vsnprintf".
+ *       Do not use this feature without some mechanism to verify the
+ *       correctness of the format string and va_list arguments.
+ * - 'K' For a kernel pointer that should be hidden from unprivileged users
  *
  * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
  * function pointers are really function descriptors, which contain a
  * pointer to the real address.
  */
-static char *pointer(const char *fmt, char *buf, char *end, void *ptr,
-			struct printf_spec spec)
+static noinline_for_stack
+char *pointer(const char *fmt, char *buf, char *end, void *ptr,
+	      struct printf_spec spec)
 {
-	if (!ptr)
+	if (!ptr) {
+		/*
+		 * Print (null) with the same width as a pointer so it makes
+		 * tabular output look nice.
+		 */
+		if (spec.field_width == -1)
+			spec.field_width = 2 * sizeof(void *);
 		return string(buf, end, "(null)", spec);
+	}
 
 	switch (*fmt) {
 	case 'F':
@@ -1009,10 +1034,33 @@ static char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		break;
 	case 'U':
 		return uuid_string(buf, end, ptr, spec, fmt);
+	case 'V':
+		return buf + vsnprintf(buf, end - buf,
+				       ((struct va_format *)ptr)->fmt,
+				       *(((struct va_format *)ptr)->va));
+	case 'K':
+		/*
+		 * %pK cannot be used in IRQ context because its test
+		 * for CAP_SYSLOG would be meaningless.
+		 */
+		if (in_irq() || in_serving_softirq() || in_nmi()) {
+			if (spec.field_width == -1)
+				spec.field_width = 2 * sizeof(void *);
+			return string(buf, end, "pK-error", spec);
+		} else if ((kptr_restrict == 0) ||
+			 (kptr_restrict == 1 &&
+			  has_capability_noaudit(current, CAP_SYSLOG)))
+			break;
+
+		if (spec.field_width == -1) {
+			spec.field_width = 2 * sizeof(void *);
+			spec.flags |= ZEROPAD;
+		}
+		return number(buf, end, 0, spec);
 	}
 	spec.flags |= SMALL;
 	if (spec.field_width == -1) {
-		spec.field_width = 2*sizeof(void *);
+		spec.field_width = 2 * sizeof(void *);
 		spec.flags |= ZEROPAD;
 	}
 	spec.base = 16;
@@ -1040,7 +1088,8 @@ static char *pointer(const char *fmt, char *buf, char *end, void *ptr,
  * @precision: precision of a number
  * @qualifier: qualifier of a number (long, size_t, ...)
  */
-static int format_decode(const char *fmt, struct printf_spec *spec)
+static noinline_for_stack
+int format_decode(const char *fmt, struct printf_spec *spec)
 {
 	const char *start = fmt;
 
@@ -1424,7 +1473,7 @@ EXPORT_SYMBOL(vsnprintf);
  * @args: Arguments for the format string
  *
  * The return value is the number of characters which have been written into
- * the @buf not including the trailing '\0'. If @size is <= 0 the function
+ * the @buf not including the trailing '\0'. If @size is == 0 the function
  * returns 0.
  *
  * Call this function if you are already dealing with a va_list.
@@ -1438,7 +1487,11 @@ int vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
 
 	i = vsnprintf(buf, size, fmt, args);
 
-	return (i >= size) ? (size - 1) : i;
+	if (likely(i < size))
+		return i;
+	if (size != 0)
+		return size - 1;
+	return 0;
 }
 EXPORT_SYMBOL(vscnprintf);
 
@@ -1477,7 +1530,7 @@ EXPORT_SYMBOL(snprintf);
  * @...: Arguments for the format string
  *
  * The return value is the number of characters written into @buf not including
- * the trailing '\0'. If @size is <= 0 the function returns 0.
+ * the trailing '\0'. If @size is == 0 the function returns 0.
  */
 
 int scnprintf(char *buf, size_t size, const char *fmt, ...)
@@ -1486,10 +1539,10 @@ int scnprintf(char *buf, size_t size, const char *fmt, ...)
 	int i;
 
 	va_start(args, fmt);
-	i = vsnprintf(buf, size, fmt, args);
+	i = vscnprintf(buf, size, fmt, args);
 	va_end(args);
 
-	return (i >= size) ? (size - 1) : i;
+	return i;
 }
 EXPORT_SYMBOL(scnprintf);
 
@@ -1980,7 +2033,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		{
 			char *s = (char *)va_arg(args, char *);
 			if (field_width == -1)
-				field_width = SHORT_MAX;
+				field_width = SHRT_MAX;
 			/* first, skip leading white space in buffer */
 			str = skip_spaces(str);
 

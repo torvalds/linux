@@ -97,7 +97,6 @@ static int __devexit ad714x_i2c_remove(struct i2c_client *client)
 	struct ad714x_chip *chip = i2c_get_clientdata(client);
 
 	ad714x_remove(chip);
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }

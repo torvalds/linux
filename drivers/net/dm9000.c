@@ -961,7 +961,7 @@ struct dm9000_rxhdr {
 	u8	RxPktReady;
 	u8	RxStatus;
 	__le16	RxLen;
-} __attribute__((__packed__));
+} __packed;
 
 /*
  *  Received a packet and pass to upper layer
@@ -1056,7 +1056,7 @@ dm9000_rx(struct net_device *dev)
 				if ((((rxbyte & 0x1c) << 3) & rxbyte) == 0)
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
 				else
-					skb->ip_summed = CHECKSUM_NONE;
+					skb_checksum_none_assert(skb);
 			}
 			netif_rx(skb);
 			dev->stats.rx_packets++;
@@ -1675,7 +1675,7 @@ dm9000_drv_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(ndev);
-	dm9000_release_board(pdev, (board_info_t *) netdev_priv(ndev));
+	dm9000_release_board(pdev, netdev_priv(ndev));
 	free_netdev(ndev);		/* free device structure */
 
 	dev_dbg(&pdev->dev, "released and freed device\n");

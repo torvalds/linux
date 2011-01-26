@@ -20,9 +20,10 @@ struct snd_soc_ops {
 	int (*trigger)(struct snd_pcm_substream *, int);
 };
 
-The platform driver exports its DMA functionality via struct snd_soc_platform:-
+The platform driver exports its DMA functionality via struct
+snd_soc_platform_driver:-
 
-struct snd_soc_platform {
+struct snd_soc_platform_driver {
 	char *name;
 
 	int (*probe)(struct platform_device *pdev);
@@ -34,12 +35,19 @@ struct snd_soc_platform {
 	int (*pcm_new)(struct snd_card *, struct snd_soc_codec_dai *, struct snd_pcm *);
 	void (*pcm_free)(struct snd_pcm *);
 
+	/*
+	 * For platform caused delay reporting.
+	 * Optional.
+	 */
+	snd_pcm_sframes_t (*delay)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
+
 	/* platform stream ops */
 	struct snd_pcm_ops *pcm_ops;
 };
 
 Please refer to the ALSA driver documentation for details of audio DMA.
-http://www.alsa-project.org/~iwai/writing-an-alsa-driver/c436.htm
+http://www.alsa-project.org/~iwai/writing-an-alsa-driver/
 
 An example DMA driver is soc/pxa/pxa2xx-pcm.c
 

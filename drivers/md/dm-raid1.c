@@ -259,9 +259,9 @@ static int mirror_flush(struct dm_target *ti)
 	struct dm_io_region io[ms->nr_mirrors];
 	struct mirror *m;
 	struct dm_io_request io_req = {
-		.bi_rw = WRITE_BARRIER,
+		.bi_rw = WRITE_FLUSH,
 		.mem.type = DM_IO_KMEM,
-		.mem.ptr.bvec = NULL,
+		.mem.ptr.addr = NULL,
 		.client = ms->io_client,
 	};
 
@@ -445,7 +445,7 @@ static sector_t map_sector(struct mirror *m, struct bio *bio)
 {
 	if (unlikely(!bio->bi_size))
 		return 0;
-	return m->offset + (bio->bi_sector - m->ms->ti->begin);
+	return m->offset + dm_target_offset(m->ms->ti, bio->bi_sector);
 }
 
 static void map_bio(struct mirror *m, struct bio *bio)
@@ -629,13 +629,19 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 	struct dm_io_region io[ms->nr_mirrors], *dest = io;
 	struct mirror *m;
 	struct dm_io_request io_req = {
-		.bi_rw = WRITE | (bio->bi_rw & WRITE_BARRIER),
+		.bi_rw = WRITE | (bio->bi_rw & WRITE_FLUSH_FUA),
 		.mem.type = DM_IO_BVEC,
 		.mem.ptr.bvec = bio->bi_io_vec + bio->bi_idx,
 		.notify.fn = write_callback,
 		.notify.context = bio,
 		.client = ms->io_client,
 	};
+
+	if (bio->bi_rw & REQ_DISCARD) {
+		io_req.bi_rw |= REQ_DISCARD;
+		io_req.mem.type = DM_IO_KMEM;
+		io_req.mem.ptr.addr = NULL;
+	}
 
 	for (i = 0, m = ms->mirror; i < ms->nr_mirrors; i++, m++)
 		map_region(dest++, m, bio);
@@ -670,7 +676,8 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	bio_list_init(&requeue);
 
 	while ((bio = bio_list_pop(writes))) {
-		if (unlikely(bio_empty_barrier(bio))) {
+		if ((bio->bi_rw & REQ_FLUSH) ||
+		    (bio->bi_rw & REQ_DISCARD)) {
 			bio_list_add(&sync, bio);
 			continue;
 		}
@@ -1076,8 +1083,10 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->private = ms;
 	ti->split_io = dm_rh_get_region_size(ms->rh);
 	ti->num_flush_requests = 1;
+	ti->num_discard_requests = 1;
 
-	ms->kmirrord_wq = create_singlethread_workqueue("kmirrord");
+	ms->kmirrord_wq = alloc_workqueue("kmirrord",
+					  WQ_NON_REENTRANT | WQ_MEM_RECLAIM, 0);
 	if (!ms->kmirrord_wq) {
 		DMERR("couldn't start kmirrord");
 		r = -ENOMEM;
@@ -1130,7 +1139,7 @@ static void mirror_dtr(struct dm_target *ti)
 
 	del_timer_sync(&ms->timer);
 	flush_workqueue(ms->kmirrord_wq);
-	flush_scheduled_work();
+	flush_work_sync(&ms->trigger_event);
 	dm_kcopyd_client_destroy(ms->kcopyd_client);
 	destroy_workqueue(ms->kmirrord_wq);
 	free_context(ms, ti, ms->nr_mirrors);
@@ -1203,7 +1212,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	 * We need to dec pending if this was a write.
 	 */
 	if (rw == WRITE) {
-		if (likely(!bio_empty_barrier(bio)))
+		if (!(bio->bi_rw & REQ_FLUSH))
 			dm_rh_dec(ms->rh, map_context->ll);
 		return error;
 	}
@@ -1211,7 +1220,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	if (error == -EOPNOTSUPP)
 		goto out;
 
-	if ((error == -EWOULDBLOCK) && bio_rw_flagged(bio, BIO_RW_AHEAD))
+	if ((error == -EWOULDBLOCK) && (bio->bi_rw & REQ_RAHEAD))
 		goto out;
 
 	if (unlikely(error)) {
@@ -1406,7 +1415,7 @@ static int mirror_iterate_devices(struct dm_target *ti,
 
 static struct target_type mirror_target = {
 	.name	 = "mirror",
-	.version = {1, 12, 0},
+	.version = {1, 12, 1},
 	.module	 = THIS_MODULE,
 	.ctr	 = mirror_ctr,
 	.dtr	 = mirror_dtr,

@@ -589,6 +589,7 @@ static int acpi_evalf(acpi_handle handle,
 		default:
 			printk(TPACPI_ERR "acpi_evalf() called "
 			       "with invalid format character '%c'\n", c);
+			va_end(ap);
 			return 0;
 		}
 	}
@@ -1911,6 +1912,17 @@ enum {	/* hot key scan codes (derived from ACPI DSDT) */
 	TP_ACPI_HOTKEYSCAN_VOLUMEDOWN,
 	TP_ACPI_HOTKEYSCAN_MUTE,
 	TP_ACPI_HOTKEYSCAN_THINKPAD,
+	TP_ACPI_HOTKEYSCAN_UNK1,
+	TP_ACPI_HOTKEYSCAN_UNK2,
+	TP_ACPI_HOTKEYSCAN_UNK3,
+	TP_ACPI_HOTKEYSCAN_UNK4,
+	TP_ACPI_HOTKEYSCAN_UNK5,
+	TP_ACPI_HOTKEYSCAN_UNK6,
+	TP_ACPI_HOTKEYSCAN_UNK7,
+	TP_ACPI_HOTKEYSCAN_UNK8,
+
+	/* Hotkey keymap size */
+	TPACPI_HOTKEY_MAP_LEN
 };
 
 enum {	/* Keys/events available through NVRAM polling */
@@ -3082,6 +3094,9 @@ static const struct tpacpi_quirk tpacpi_hotkey_qtable[] __initconst = {
 	TPACPI_Q_IBM('1', 'D', TPACPI_HK_Q_INIMASK), /* X22, X23, X24 */
 };
 
+typedef u16 tpacpi_keymap_entry_t;
+typedef tpacpi_keymap_entry_t tpacpi_keymap_t[TPACPI_HOTKEY_MAP_LEN];
+
 static int __init hotkey_init(struct ibm_init_struct *iibm)
 {
 	/* Requirements for changing the default keymaps:
@@ -3113,9 +3128,17 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	 * If the above is too much to ask, don't change the keymap.
 	 * Ask the thinkpad-acpi maintainer to do it, instead.
 	 */
-	static u16 ibm_keycode_map[] __initdata = {
+
+	enum keymap_index {
+		TPACPI_KEYMAP_IBM_GENERIC = 0,
+		TPACPI_KEYMAP_LENOVO_GENERIC,
+	};
+
+	static const tpacpi_keymap_t tpacpi_keymaps[] __initconst = {
+	/* Generic keymap for IBM ThinkPads */
+	[TPACPI_KEYMAP_IBM_GENERIC] = {
 		/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
-		KEY_FN_F1,	KEY_FN_F2,	KEY_COFFEE,	KEY_SLEEP,
+		KEY_FN_F1,	KEY_BATTERY,	KEY_COFFEE,	KEY_SLEEP,
 		KEY_WLAN,	KEY_FN_F6, KEY_SWITCHVIDEOMODE, KEY_FN_F8,
 		KEY_FN_F9,	KEY_FN_F10,	KEY_FN_F11,	KEY_SUSPEND,
 
@@ -3146,11 +3169,13 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		/* (assignments unknown, please report if found) */
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-	};
-	static u16 lenovo_keycode_map[] __initdata = {
+		},
+
+	/* Generic keymap for Lenovo ThinkPads */
+	[TPACPI_KEYMAP_LENOVO_GENERIC] = {
 		/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
 		KEY_FN_F1,	KEY_COFFEE,	KEY_BATTERY,	KEY_SLEEP,
-		KEY_WLAN,	KEY_FN_F6, KEY_SWITCHVIDEOMODE, KEY_FN_F8,
+		KEY_WLAN,	KEY_CAMERA, KEY_SWITCHVIDEOMODE, KEY_FN_F8,
 		KEY_FN_F9,	KEY_FN_F10,	KEY_FN_F11,	KEY_SUSPEND,
 
 		/* Scan codes 0x0C to 0x1F: Other ACPI HKEY hot keys */
@@ -3189,11 +3214,25 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		/* (assignments unknown, please report if found) */
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+		},
 	};
 
-#define TPACPI_HOTKEY_MAP_LEN		ARRAY_SIZE(ibm_keycode_map)
-#define TPACPI_HOTKEY_MAP_SIZE		sizeof(ibm_keycode_map)
-#define TPACPI_HOTKEY_MAP_TYPESIZE	sizeof(ibm_keycode_map[0])
+	static const struct tpacpi_quirk tpacpi_keymap_qtable[] __initconst = {
+		/* Generic maps (fallback) */
+		{
+		  .vendor = PCI_VENDOR_ID_IBM,
+		  .bios = TPACPI_MATCH_ANY, .ec = TPACPI_MATCH_ANY,
+		  .quirks = TPACPI_KEYMAP_IBM_GENERIC,
+		},
+		{
+		  .vendor = PCI_VENDOR_ID_LENOVO,
+		  .bios = TPACPI_MATCH_ANY, .ec = TPACPI_MATCH_ANY,
+		  .quirks = TPACPI_KEYMAP_LENOVO_GENERIC,
+		},
+	};
+
+#define TPACPI_HOTKEY_MAP_SIZE		sizeof(tpacpi_keymap_t)
+#define TPACPI_HOTKEY_MAP_TYPESIZE	sizeof(tpacpi_keymap_entry_t)
 
 	int res, i;
 	int status;
@@ -3202,6 +3241,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	bool tabletsw_state = false;
 
 	unsigned long quirks;
+	unsigned long keymap_id;
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 			"initializing hotkey subdriver\n");
@@ -3342,7 +3382,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		goto err_exit;
 
 	/* Set up key map */
-
 	hotkey_keycode_map = kmalloc(TPACPI_HOTKEY_MAP_SIZE,
 					GFP_KERNEL);
 	if (!hotkey_keycode_map) {
@@ -3352,17 +3391,14 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		goto err_exit;
 	}
 
-	if (tpacpi_is_lenovo()) {
-		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
-			   "using Lenovo default hot key map\n");
-		memcpy(hotkey_keycode_map, &lenovo_keycode_map,
-			TPACPI_HOTKEY_MAP_SIZE);
-	} else {
-		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
-			   "using IBM default hot key map\n");
-		memcpy(hotkey_keycode_map, &ibm_keycode_map,
-			TPACPI_HOTKEY_MAP_SIZE);
-	}
+	keymap_id = tpacpi_check_quirks(tpacpi_keymap_qtable,
+					ARRAY_SIZE(tpacpi_keymap_qtable));
+	BUG_ON(keymap_id >= ARRAY_SIZE(tpacpi_keymaps));
+	dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
+		   "using keymap number %lu\n", keymap_id);
+
+	memcpy(hotkey_keycode_map, &tpacpi_keymaps[keymap_id],
+		TPACPI_HOTKEY_MAP_SIZE);
 
 	input_set_capability(tpacpi_inputdev, EV_MSC, MSC_SCAN);
 	tpacpi_inputdev->keycodesize = TPACPI_HOTKEY_MAP_TYPESIZE;
@@ -3469,7 +3505,8 @@ static bool hotkey_notify_hotkey(const u32 hkey,
 	*send_acpi_ev = true;
 	*ignore_acpi_ev = false;
 
-	if (scancode > 0 && scancode < 0x21) {
+	/* HKEY event 0x1001 is scancode 0x00 */
+	if (scancode > 0 && scancode <= TPACPI_HOTKEY_MAP_LEN) {
 		scancode--;
 		if (!(hotkey_source_mask & (1 << scancode))) {
 			tpacpi_input_send_key_masked(scancode);
@@ -5838,75 +5875,6 @@ static struct ibm_struct thermal_driver_data = {
 };
 
 /*************************************************************************
- * EC Dump subdriver
- */
-
-static u8 ecdump_regs[256];
-
-static int ecdump_read(struct seq_file *m)
-{
-	int i, j;
-	u8 v;
-
-	seq_printf(m, "EC      "
-		       " +00 +01 +02 +03 +04 +05 +06 +07"
-		       " +08 +09 +0a +0b +0c +0d +0e +0f\n");
-	for (i = 0; i < 256; i += 16) {
-		seq_printf(m, "EC 0x%02x:", i);
-		for (j = 0; j < 16; j++) {
-			if (!acpi_ec_read(i + j, &v))
-				break;
-			if (v != ecdump_regs[i + j])
-				seq_printf(m, " *%02x", v);
-			else
-				seq_printf(m, "  %02x", v);
-			ecdump_regs[i + j] = v;
-		}
-		seq_putc(m, '\n');
-		if (j != 16)
-			break;
-	}
-
-	/* These are way too dangerous to advertise openly... */
-#if 0
-	seq_printf(m, "commands:\t0x<offset> 0x<value>"
-		       " (<offset> is 00-ff, <value> is 00-ff)\n");
-	seq_printf(m, "commands:\t0x<offset> <value>  "
-		       " (<offset> is 00-ff, <value> is 0-255)\n");
-#endif
-	return 0;
-}
-
-static int ecdump_write(char *buf)
-{
-	char *cmd;
-	int i, v;
-
-	while ((cmd = next_cmd(&buf))) {
-		if (sscanf(cmd, "0x%x 0x%x", &i, &v) == 2) {
-			/* i and v set */
-		} else if (sscanf(cmd, "0x%x %u", &i, &v) == 2) {
-			/* i and v set */
-		} else
-			return -EINVAL;
-		if (i >= 0 && i < 256 && v >= 0 && v < 256) {
-			if (!acpi_ec_write(i, v))
-				return -EIO;
-		} else
-			return -EINVAL;
-	}
-
-	return 0;
-}
-
-static struct ibm_struct ecdump_driver_data = {
-	.name = "ecdump",
-	.read = ecdump_read,
-	.write = ecdump_write,
-	.flags.experimental = 1,
-};
-
-/*************************************************************************
  * Backlight/brightness subdriver
  */
 
@@ -6142,12 +6110,17 @@ static void tpacpi_brightness_notify_change(void)
 			       BACKLIGHT_UPDATE_HOTKEY);
 }
 
-static struct backlight_ops ibm_backlight_data = {
+static const struct backlight_ops ibm_backlight_data = {
 	.get_brightness = brightness_get,
 	.update_status  = brightness_update_status,
 };
 
 /* --------------------------------------------------------------------- */
+
+/*
+ * Call _BCL method of video device.  On some ThinkPads this will
+ * switch the firmware to the ACPI brightness control mode.
+ */
 
 static int __init tpacpi_query_bcl_levels(acpi_handle handle)
 {
@@ -6155,7 +6128,7 @@ static int __init tpacpi_query_bcl_levels(acpi_handle handle)
 	union acpi_object *obj;
 	int rc;
 
-	if (ACPI_SUCCESS(acpi_evaluate_object(handle, NULL, NULL, &buffer))) {
+	if (ACPI_SUCCESS(acpi_evaluate_object(handle, "_BCL", NULL, &buffer))) {
 		obj = (union acpi_object *)buffer.pointer;
 		if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
 			printk(TPACPI_ERR "Unknown _BCL data, "
@@ -6172,55 +6145,22 @@ static int __init tpacpi_query_bcl_levels(acpi_handle handle)
 	return rc;
 }
 
-static acpi_status __init tpacpi_acpi_walk_find_bcl(acpi_handle handle,
-					u32 lvl, void *context, void **rv)
-{
-	char name[ACPI_PATH_SEGMENT_LENGTH];
-	struct acpi_buffer buffer = { sizeof(name), &name };
-
-	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
-	    !strncmp("_BCL", name, sizeof(name) - 1)) {
-		BUG_ON(!rv || !*rv);
-		**(int **)rv = tpacpi_query_bcl_levels(handle);
-		return AE_CTRL_TERMINATE;
-	} else {
-		return AE_OK;
-	}
-}
 
 /*
  * Returns 0 (no ACPI _BCL or _BCL invalid), or size of brightness map
  */
 static unsigned int __init tpacpi_check_std_acpi_brightness_support(void)
 {
-	int status;
+	acpi_handle video_device;
 	int bcl_levels = 0;
-	void *bcl_ptr = &bcl_levels;
 
-	if (!vid_handle)
-		TPACPI_ACPIHANDLE_INIT(vid);
+	tpacpi_acpi_handle_locate("video", ACPI_VIDEO_HID, &video_device);
+	if (video_device)
+		bcl_levels = tpacpi_query_bcl_levels(video_device);
 
-	if (!vid_handle)
-		return 0;
+	tp_features.bright_acpimode = (bcl_levels > 0);
 
-	/*
-	 * Search for a _BCL method, and execute it.  This is safe on all
-	 * ThinkPads, and as a side-effect, _BCL will place a Lenovo Vista
-	 * BIOS in ACPI backlight control mode.  We do NOT have to care
-	 * about calling the _BCL method in an enabled video device, any
-	 * will do for our purposes.
-	 */
-
-	status = acpi_walk_namespace(ACPI_TYPE_METHOD, vid_handle, 3,
-				     tpacpi_acpi_walk_find_bcl, NULL, NULL,
-				     &bcl_ptr);
-
-	if (ACPI_SUCCESS(status) && bcl_levels > 2) {
-		tp_features.bright_acpimode = 1;
-		return bcl_levels - 2;
-	}
-
-	return 0;
+	return (bcl_levels > 2) ? (bcl_levels - 2) : 0;
 }
 
 /*
@@ -6313,33 +6253,31 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	if (tp_features.bright_unkfw)
 		return 1;
 
-	if (tp_features.bright_acpimode) {
-		if (acpi_video_backlight_support()) {
-			if (brightness_enable > 1) {
-				printk(TPACPI_NOTICE
-				       "Standard ACPI backlight interface "
-				       "available, not loading native one.\n");
-				return 1;
-			} else if (brightness_enable == 1) {
-				printk(TPACPI_NOTICE
-				       "Backlight control force enabled, even if standard "
-				       "ACPI backlight interface is available\n");
-			}
-		} else {
-			if (brightness_enable > 1) {
-				printk(TPACPI_NOTICE
-				       "Standard ACPI backlight interface not "
-				       "available, thinkpad_acpi native "
-				       "brightness control enabled\n");
-			}
-		}
-	}
-
 	if (!brightness_enable) {
 		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
 			   "brightness support disabled by "
 			   "module parameter\n");
 		return 1;
+	}
+
+	if (acpi_video_backlight_support()) {
+		if (brightness_enable > 1) {
+			printk(TPACPI_INFO
+			       "Standard ACPI backlight interface "
+			       "available, not loading native one.\n");
+			return 1;
+		} else if (brightness_enable == 1) {
+			printk(TPACPI_WARN
+				"Cannot enable backlight brightness support, "
+				"ACPI is already handling it.  Refer to the "
+				"acpi_backlight kernel parameter\n");
+			return 1;
+		}
+	} else if (tp_features.bright_acpimode && brightness_enable > 1) {
+		printk(TPACPI_NOTICE
+			"Standard ACPI backlight interface not "
+			"available, thinkpad_acpi native "
+			"brightness control enabled\n");
 	}
 
 	/*
@@ -6408,7 +6346,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 			"as change notification\n");
 	tpacpi_hotkey_driver_mask_set(hotkey_driver_mask
 				| TP_ACPI_HKEY_BRGHTUP_MASK
-				| TP_ACPI_HKEY_BRGHTDWN_MASK);;
+				| TP_ACPI_HKEY_BRGHTDWN_MASK);
 	return 0;
 }
 
@@ -7256,7 +7194,7 @@ static struct ibm_struct volume_driver_data = {
  * 		TPACPI_FAN_WR_ACPI_FANS (X31/X40/X41)
  *
  *	FIRMWARE BUG: on some models, EC 0x2f might not be initialized at
- *	boot. Apparently the EC does not intialize it, so unless ACPI DSDT
+ *	boot. Apparently the EC does not initialize it, so unless ACPI DSDT
  *	does so, its initial value is meaningless (0x07).
  *
  *	For firmware bugs, refer to:
@@ -8560,7 +8498,6 @@ static void ibm_exit(struct ibm_struct *ibm)
 					   ibm->acpi->type,
 					   dispatch_acpi_notify);
 		ibm->flags.acpi_notify_installed = 0;
-		ibm->flags.acpi_notify_installed = 0;
 	}
 
 	if (ibm->flags.proc_created) {
@@ -8883,9 +8820,6 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 		.data = &thermal_driver_data,
 	},
 	{
-		.data = &ecdump_driver_data,
-	},
-	{
 		.init = brightness_init,
 		.data = &brightness_driver_data,
 	},
@@ -8993,7 +8927,6 @@ TPACPI_PARAM(light);
 TPACPI_PARAM(cmos);
 TPACPI_PARAM(led);
 TPACPI_PARAM(beep);
-TPACPI_PARAM(ecdump);
 TPACPI_PARAM(brightness);
 TPACPI_PARAM(volume);
 TPACPI_PARAM(fan);

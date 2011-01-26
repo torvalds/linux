@@ -2,6 +2,18 @@
 #define _ASM_POWERPC_KEXEC_H
 #ifdef __KERNEL__
 
+#ifdef CONFIG_FSL_BOOKE
+
+/*
+ * On FSL-BookE we setup a 1:1 mapping which covers the first 2GiB of memory
+ * and therefore we can only deal with memory within this range
+ */
+#define KEXEC_SOURCE_MEMORY_LIMIT	(2 * 1024 * 1024 * 1024UL - 1)
+#define KEXEC_DESTINATION_MEMORY_LIMIT	(2 * 1024 * 1024 * 1024UL - 1)
+#define KEXEC_CONTROL_MEMORY_LIMIT	(2 * 1024 * 1024 * 1024UL - 1)
+
+#else
+
 /*
  * Maximum page that is mapped directly into kernel memory.
  * XXX: Since we copy virt we can use any page we allocate
@@ -20,6 +32,7 @@
 #else
 /* TASK_SIZE, probably left over from use_mm ?? */
 #define KEXEC_CONTROL_MEMORY_LIMIT TASK_SIZE
+#endif
 #endif
 
 #define KEXEC_CONTROL_PAGE_SIZE 4096
@@ -78,6 +91,7 @@ extern void machine_kexec_simple(struct kimage *image);
 extern void crash_kexec_secondary(struct pt_regs *regs);
 extern int overlaps_crashkernel(unsigned long start, unsigned long size);
 extern void reserve_crashkernel(void);
+extern void machine_kexec_mask_interrupts(void);
 
 #else /* !CONFIG_KEXEC */
 static inline int kexec_sr_activated(int cpu) { return 0; }

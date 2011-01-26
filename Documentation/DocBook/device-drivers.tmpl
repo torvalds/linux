@@ -46,13 +46,17 @@
 
      <sect1><title>Atomic and pointer manipulation</title>
 !Iarch/x86/include/asm/atomic.h
-!Iarch/x86/include/asm/unaligned.h
      </sect1>
 
      <sect1><title>Delaying, scheduling, and timer routines</title>
 !Iinclude/linux/sched.h
 !Ekernel/sched.c
+!Iinclude/linux/completion.h
 !Ekernel/timer.c
+     </sect1>
+     <sect1><title>Wait queues and Wake events</title>
+!Iinclude/linux/wait.h
+!Ekernel/wait.c
      </sect1>
      <sect1><title>High-resolution timers</title>
 !Iinclude/linux/ktime.h
@@ -111,6 +115,7 @@ X!Edrivers/base/attribute_container.c
 <!--
 X!Edrivers/base/interface.c
 -->
+!Iinclude/linux/platform_device.h
 !Edrivers/base/platform.c
 !Edrivers/base/bus.c
      </sect1>
@@ -212,8 +217,8 @@ X!Isound/sound_firmware.c
   <chapter id="uart16x50">
      <title>16x50 UART Driver</title>
 !Iinclude/linux/serial_core.h
-!Edrivers/serial/serial_core.c
-!Edrivers/serial/8250.c
+!Edrivers/tty/serial/serial_core.c
+!Edrivers/tty/serial/8250.c
   </chapter>
 
   <chapter id="fbdev">
@@ -298,6 +303,10 @@ X!Idrivers/video/console/fonts.c
 !Edrivers/input/input.c
 !Edrivers/input/ff-core.c
 !Edrivers/input/ff-memless.c
+     </sect1>
+     <sect1><title>Multitouch Library</title>
+!Iinclude/linux/input/mt.h
+!Edrivers/input/input-mt.c
      </sect1>
      <sect1><title>Polled input devices</title>
 !Iinclude/linux/input-polldev.h

@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
@@ -316,14 +315,14 @@ void dump(struct pt_regs *fp)
 		fp->d0, fp->d1, fp->d2, fp->d3);
 	printk(KERN_EMERG "d4: %08lx    d5: %08lx    a0: %08lx    a1: %08lx\n",
 		fp->d4, fp->d5, fp->a0, fp->a1);
-	printk(KERN_EMERG "\nUSP: %08x   TRAPFRAME: %08x\n",
-		(unsigned int) rdusp(), (unsigned int) fp);
+	printk(KERN_EMERG "\nUSP: %08x   TRAPFRAME: %p\n",
+		(unsigned int) rdusp(), fp);
 
 	printk(KERN_EMERG "\nCODE:");
 	tp = ((unsigned char *) fp->pc) - 0x20;
 	for (sp = (unsigned long *) tp, i = 0; (i < 0x40);  i += 4) {
 		if ((i % 0x10) == 0)
-			printk(KERN_EMERG "%08x: ", (int) (tp + i));
+			printk(KERN_EMERG "%p: ", tp + i);
 		printk("%08x ", (int) *sp++);
 	}
 	printk(KERN_EMERG "\n");
@@ -332,7 +331,7 @@ void dump(struct pt_regs *fp)
 	tp = ((unsigned char *) fp) - 0x40;
 	for (sp = (unsigned long *) tp, i = 0; (i < 0xc0); i += 4) {
 		if ((i % 0x10) == 0)
-			printk(KERN_EMERG "%08x: ", (int) (tp + i));
+			printk(KERN_EMERG "%p: ", tp + i);
 		printk("%08x ", (int) *sp++);
 	}
 	printk(KERN_EMERG "\n");
@@ -341,7 +340,7 @@ void dump(struct pt_regs *fp)
 	tp = (unsigned char *) (rdusp() - 0x10);
 	for (sp = (unsigned long *) tp, i = 0; (i < 0x80); i += 4) {
 		if ((i % 0x10) == 0)
-			printk(KERN_EMERG "%08x: ", (int) (tp + i));
+			printk(KERN_EMERG "%p: ", tp + i);
 		printk("%08x ", (int) *sp++);
 	}
 	printk(KERN_EMERG "\n");
@@ -350,7 +349,9 @@ void dump(struct pt_regs *fp)
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(char *name, char **argv, char **envp)
+asmlinkage int sys_execve(const char *name,
+			  const char *const *argv,
+			  const char *const *envp)
 {
 	int error;
 	char * filename;

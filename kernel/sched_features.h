@@ -52,8 +52,6 @@ SCHED_FEAT(ARCH_POWER, 0)
 SCHED_FEAT(HRTICK, 0)
 SCHED_FEAT(DOUBLE_TICK, 0)
 SCHED_FEAT(LB_BIAS, 1)
-SCHED_FEAT(LB_SHARES_UPDATE, 1)
-SCHED_FEAT(ASYM_EFF_LOAD, 1)
 
 /*
  * Spin-wait on mutex acquisition when the mutex owner is running on
@@ -61,3 +59,8 @@ SCHED_FEAT(ASYM_EFF_LOAD, 1)
  * release the lock. Decreases scheduling overhead.
  */
 SCHED_FEAT(OWNER_SPIN, 1)
+
+/*
+ * Decrement CPU power based on irq activity
+ */
+SCHED_FEAT(NONIRQ_POWER, 1)

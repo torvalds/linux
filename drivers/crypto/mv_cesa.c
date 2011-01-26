@@ -857,7 +857,7 @@ static int mv_cra_hash_init(struct crypto_tfm *tfm, const char *base_hash_name,
 			printk(KERN_WARNING MV_CESA
 			       "Base driver '%s' could not be loaded!\n",
 			       base_hash_name);
-			err = PTR_ERR(fallback_tfm);
+			err = PTR_ERR(base_hash);
 			goto err_bad_base;
 		}
 	}
@@ -1055,20 +1055,20 @@ static int mv_probe(struct platform_device *pdev)
 	cp->queue_th = kthread_run(queue_manag, cp, "mv_crypto");
 	if (IS_ERR(cp->queue_th)) {
 		ret = PTR_ERR(cp->queue_th);
-		goto err_thread;
+		goto err_unmap_sram;
 	}
 
 	ret = request_irq(irq, crypto_int, IRQF_DISABLED, dev_name(&pdev->dev),
 			cp);
 	if (ret)
-		goto err_unmap_sram;
+		goto err_thread;
 
 	writel(SEC_INT_ACCEL0_DONE, cpg->reg + SEC_ACCEL_INT_MASK);
 	writel(SEC_CFG_STOP_DIG_ERR, cpg->reg + SEC_ACCEL_CFG);
 
 	ret = crypto_register_alg(&mv_aes_alg_ecb);
 	if (ret)
-		goto err_reg;
+		goto err_irq;
 
 	ret = crypto_register_alg(&mv_aes_alg_cbc);
 	if (ret)
@@ -1091,9 +1091,9 @@ static int mv_probe(struct platform_device *pdev)
 	return 0;
 err_unreg_ecb:
 	crypto_unregister_alg(&mv_aes_alg_ecb);
-err_thread:
+err_irq:
 	free_irq(irq, cp);
-err_reg:
+err_thread:
 	kthread_stop(cp->queue_th);
 err_unmap_sram:
 	iounmap(cp->sram);

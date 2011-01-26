@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -94,7 +94,5 @@
 
 /* forward declaration of the HW struct */
 struct ixgbe_hw;
-
-s32 ixgbevf_init_mbx_params_vf(struct ixgbe_hw *);
 
 #endif /* _IXGBE_MBX_H_ */

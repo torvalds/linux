@@ -4,7 +4,7 @@
  *  Derived from ivtv-streams.h
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,7 +33,8 @@ void cx18_stream_rotate_idx_mdls(struct cx18 *cx);
 
 static inline bool cx18_stream_enabled(struct cx18_stream *s)
 {
-	return s->video_dev || s->dvb.enabled ||
+	return s->video_dev ||
+	       (s->dvb && s->dvb->enabled) ||
 	       (s->type == CX18_ENC_STREAM_TYPE_IDX &&
 		s->cx->stream_buffers[CX18_ENC_STREAM_TYPE_IDX] != 0);
 }
@@ -41,8 +42,7 @@ static inline bool cx18_stream_enabled(struct cx18_stream *s)
 /* Related to submission of mdls to firmware */
 static inline void cx18_stream_load_fw_queue(struct cx18_stream *s)
 {
-	struct cx18 *cx = s->cx;
-	queue_work(cx->out_work_queue, &s->out_work_order);
+	schedule_work(&s->out_work_order);
 }
 
 static inline void cx18_stream_put_mdl_fw(struct cx18_stream *s,

@@ -44,8 +44,6 @@ int VmbusConnect(void)
 	struct vmbus_channel_initiate_contact *msg;
 	unsigned long flags;
 
-	DPRINT_ENTER(VMBUS);
-
 	/* Make sure we are not connecting or connected */
 	if (gVmbusConnection.ConnectState != Disconnected)
 		return -1;
@@ -68,7 +66,7 @@ int VmbusConnect(void)
 	 * Setup the vmbus event connection for channel interrupt
 	 * abstraction stuff
 	 */
-	gVmbusConnection.InterruptPage = osd_PageAlloc(1);
+	gVmbusConnection.InterruptPage = osd_page_alloc(1);
 	if (gVmbusConnection.InterruptPage == NULL) {
 		ret = -1;
 		goto Cleanup;
@@ -83,7 +81,7 @@ int VmbusConnect(void)
 	 * Setup the monitor notification facility. The 1st page for
 	 * parent->child and the 2nd page for child->parent
 	 */
-	gVmbusConnection.MonitorPages = osd_PageAlloc(2);
+	gVmbusConnection.MonitorPages = osd_page_alloc(2);
 	if (gVmbusConnection.MonitorPages == NULL) {
 		ret = -1;
 		goto Cleanup;
@@ -97,19 +95,19 @@ int VmbusConnect(void)
 		goto Cleanup;
 	}
 
-	msgInfo->WaitEvent = osd_WaitEventCreate();
-	if (!msgInfo->WaitEvent) {
+	msgInfo->waitevent = osd_waitevent_create();
+	if (!msgInfo->waitevent) {
 		ret = -ENOMEM;
 		goto Cleanup;
 	}
 
-	msg = (struct vmbus_channel_initiate_contact *)msgInfo->Msg;
+	msg = (struct vmbus_channel_initiate_contact *)msgInfo->msg;
 
-	msg->Header.MessageType = ChannelMessageInitiateContact;
-	msg->VMBusVersionRequested = VMBUS_REVISION_NUMBER;
-	msg->InterruptPage = virt_to_phys(gVmbusConnection.InterruptPage);
-	msg->MonitorPage1 = virt_to_phys(gVmbusConnection.MonitorPages);
-	msg->MonitorPage2 = virt_to_phys(
+	msg->header.msgtype = CHANNELMSG_INITIATE_CONTACT;
+	msg->vmbus_version_requested = VMBUS_REVISION_NUMBER;
+	msg->interrupt_page = virt_to_phys(gVmbusConnection.InterruptPage);
+	msg->monitor_page1 = virt_to_phys(gVmbusConnection.MonitorPages);
+	msg->monitor_page2 = virt_to_phys(
 			(void *)((unsigned long)gVmbusConnection.MonitorPages +
 				 PAGE_SIZE));
 
@@ -118,30 +116,30 @@ int VmbusConnect(void)
 	 * receive the response before returning from this routine
 	 */
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
-	list_add_tail(&msgInfo->MsgListEntry,
+	list_add_tail(&msgInfo->msglistentry,
 		      &gVmbusConnection.ChannelMsgList);
 
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	DPRINT_DBG(VMBUS, "Vmbus connection - interrupt pfn %llx, "
 		   "monitor1 pfn %llx,, monitor2 pfn %llx",
-		   msg->InterruptPage, msg->MonitorPage1, msg->MonitorPage2);
+		   msg->interrupt_page, msg->monitor_page1, msg->monitor_page2);
 
 	DPRINT_DBG(VMBUS, "Sending channel initiate msg...");
 	ret = VmbusPostMessage(msg,
 			       sizeof(struct vmbus_channel_initiate_contact));
 	if (ret != 0) {
-		list_del(&msgInfo->MsgListEntry);
+		list_del(&msgInfo->msglistentry);
 		goto Cleanup;
 	}
 
 	/* Wait for the connection response */
-	osd_WaitEventWait(msgInfo->WaitEvent);
+	osd_waitevent_wait(msgInfo->waitevent);
 
-	list_del(&msgInfo->MsgListEntry);
+	list_del(&msgInfo->msglistentry);
 
 	/* Check if successful */
-	if (msgInfo->Response.VersionResponse.VersionSupported) {
+	if (msgInfo->response.version_response.version_supported) {
 		DPRINT_INFO(VMBUS, "Vmbus connected!!");
 		gVmbusConnection.ConnectState = Connected;
 
@@ -153,10 +151,8 @@ int VmbusConnect(void)
 		goto Cleanup;
 	}
 
-	kfree(msgInfo->WaitEvent);
+	kfree(msgInfo->waitevent);
 	kfree(msgInfo);
-	DPRINT_EXIT(VMBUS);
-
 	return 0;
 
 Cleanup:
@@ -166,21 +162,19 @@ Cleanup:
 		destroy_workqueue(gVmbusConnection.WorkQueue);
 
 	if (gVmbusConnection.InterruptPage) {
-		osd_PageFree(gVmbusConnection.InterruptPage, 1);
+		osd_page_free(gVmbusConnection.InterruptPage, 1);
 		gVmbusConnection.InterruptPage = NULL;
 	}
 
 	if (gVmbusConnection.MonitorPages) {
-		osd_PageFree(gVmbusConnection.MonitorPages, 2);
+		osd_page_free(gVmbusConnection.MonitorPages, 2);
 		gVmbusConnection.MonitorPages = NULL;
 	}
 
 	if (msgInfo) {
-		kfree(msgInfo->WaitEvent);
+		kfree(msgInfo->waitevent);
 		kfree(msgInfo);
 	}
-
-	DPRINT_EXIT(VMBUS);
 
 	return ret;
 }
@@ -193,8 +187,6 @@ int VmbusDisconnect(void)
 	int ret = 0;
 	struct vmbus_channel_message_header *msg;
 
-	DPRINT_ENTER(VMBUS);
-
 	/* Make sure we are connected */
 	if (gVmbusConnection.ConnectState != Connected)
 		return -1;
@@ -203,14 +195,14 @@ int VmbusDisconnect(void)
 	if (!msg)
 		return -ENOMEM;
 
-	msg->MessageType = ChannelMessageUnload;
+	msg->msgtype = CHANNELMSG_UNLOAD;
 
 	ret = VmbusPostMessage(msg,
 			       sizeof(struct vmbus_channel_message_header));
 	if (ret != 0)
 		goto Cleanup;
 
-	osd_PageFree(gVmbusConnection.InterruptPage, 1);
+	osd_page_free(gVmbusConnection.InterruptPage, 1);
 
 	/* TODO: iterate thru the msg list and free up */
 	destroy_workqueue(gVmbusConnection.WorkQueue);
@@ -221,7 +213,6 @@ int VmbusDisconnect(void)
 
 Cleanup:
 	kfree(msg);
-	DPRINT_EXIT(VMBUS);
 	return ret;
 }
 
@@ -235,8 +226,8 @@ struct vmbus_channel *GetChannelFromRelId(u32 relId)
 	unsigned long flags;
 
 	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
-	list_for_each_entry(channel, &gVmbusConnection.ChannelList, ListEntry) {
-		if (channel->OfferMsg.ChildRelId == relId) {
+	list_for_each_entry(channel, &gVmbusConnection.ChannelList, listentry) {
+		if (channel->offermsg.child_relid == relId) {
 			foundChannel = channel;
 			break;
 		}
@@ -263,10 +254,10 @@ static void VmbusProcessChannelEvent(void *context)
 	channel = GetChannelFromRelId(relId);
 
 	if (channel) {
-		VmbusChannelOnChannelEvent(channel);
+		vmbus_onchannel_event(channel);
 		/*
 		 * WorkQueueQueueWorkItem(channel->dataWorkQueue,
-		 *			  VmbusChannelOnChannelEvent,
+		 *			  vmbus_onchannel_event,
 		 *			  (void*)channel);
 		 */
 	} else {
@@ -284,8 +275,6 @@ void VmbusOnEvents(void)
 	int bit;
 	int relid;
 	u32 *recvInterruptPage = gVmbusConnection.RecvInterruptPage;
-
-	DPRINT_ENTER(VMBUS);
 
 	/* Check events */
 	if (recvInterruptPage) {
@@ -310,8 +299,6 @@ void VmbusOnEvents(void)
 			}
 		 }
 	}
-	DPRINT_EXIT(VMBUS);
-
 	return;
 }
 
@@ -322,9 +309,9 @@ int VmbusPostMessage(void *buffer, size_t bufferLen)
 {
 	union hv_connection_id connId;
 
-	connId.Asu32 = 0;
-	connId.u.Id = VMBUS_MESSAGE_CONNECTION_ID;
-	return HvPostMessage(connId, 1, buffer, bufferLen);
+	connId.asu32 = 0;
+	connId.u.id = VMBUS_MESSAGE_CONNECTION_ID;
+	return hv_post_message(connId, 1, buffer, bufferLen);
 }
 
 /*
@@ -332,18 +319,10 @@ int VmbusPostMessage(void *buffer, size_t bufferLen)
  */
 int VmbusSetEvent(u32 childRelId)
 {
-	int ret = 0;
-
-	DPRINT_ENTER(VMBUS);
-
 	/* Each u32 represents 32 channels */
 	set_bit(childRelId & 31,
 		(unsigned long *)gVmbusConnection.SendInterruptPage +
 		(childRelId >> 5));
 
-	ret = HvSignalEvent();
-
-	DPRINT_EXIT(VMBUS);
-
-	return ret;
+	return hv_signal_event();
 }

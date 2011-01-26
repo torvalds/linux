@@ -25,17 +25,10 @@
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_rtalloc.h"
@@ -46,6 +39,7 @@
 #include "xfs_trans_space.h"
 #include "xfs_utils.h"
 #include "xfs_trace.h"
+#include "xfs_buf.h"
 
 
 /*
@@ -129,7 +123,7 @@ xfs_growfs_rt_alloc(
 		cancelflags |= XFS_TRANS_ABORT;
 		error = xfs_bmapi(tp, ip, oblocks, nblocks - oblocks,
 			XFS_BMAPI_WRITE | XFS_BMAPI_METADATA, &firstblock,
-			resblks, &map, &nmap, &flist, NULL);
+			resblks, &map, &nmap, &flist);
 		if (!error && nmap < 1)
 			error = XFS_ERROR(ENOSPC);
 		if (error)
@@ -1890,13 +1884,13 @@ xfs_growfs_rt(
 	/*
 	 * Read in the last block of the device, make sure it exists.
 	 */
-	error = xfs_read_buf(mp, mp->m_rtdev_targp,
-			XFS_FSB_TO_BB(mp, nrblocks - 1),
-			XFS_FSB_TO_BB(mp, 1), 0, &bp);
-	if (error)
-		return error;
-	ASSERT(bp);
+	bp = xfs_buf_read_uncached(mp, mp->m_rtdev_targp,
+				XFS_FSB_TO_BB(mp, nrblocks - 1),
+				XFS_FSB_TO_B(mp, 1), 0);
+	if (!bp)
+		return EIO;
 	xfs_buf_relse(bp);
+
 	/*
 	 * Calculate new parameters.  These are the final values to be reached.
 	 */
@@ -2222,7 +2216,6 @@ xfs_rtmount_init(
 {
 	xfs_buf_t	*bp;	/* buffer for last block of subvolume */
 	xfs_daddr_t	d;	/* address of last block of subvolume */
-	int		error;	/* error return value */
 	xfs_sb_t	*sbp;	/* filesystem superblock copy in mount */
 
 	sbp = &mp->m_sb;
@@ -2247,17 +2240,14 @@ xfs_rtmount_init(
 		cmn_err(CE_WARN, "XFS: realtime mount -- %llu != %llu",
 			(unsigned long long) XFS_BB_TO_FSB(mp, d),
 			(unsigned long long) mp->m_sb.sb_rblocks);
-		return XFS_ERROR(E2BIG);
+		return XFS_ERROR(EFBIG);
 	}
-	error = xfs_read_buf(mp, mp->m_rtdev_targp,
-				d - XFS_FSB_TO_BB(mp, 1),
-				XFS_FSB_TO_BB(mp, 1), 0, &bp);
-	if (error) {
-		cmn_err(CE_WARN,
-	"XFS: realtime mount -- xfs_read_buf failed, returned %d", error);
-		if (error == ENOSPC)
-			return XFS_ERROR(E2BIG);
-		return error;
+	bp = xfs_buf_read_uncached(mp, mp->m_rtdev_targp,
+					d - XFS_FSB_TO_BB(mp, 1),
+					XFS_FSB_TO_B(mp, 1), 0);
+	if (!bp) {
+		cmn_err(CE_WARN, "XFS: realtime device size check failed");
+		return EIO;
 	}
 	xfs_buf_relse(bp);
 	return 0;
@@ -2277,12 +2267,12 @@ xfs_rtmount_inodes(
 	sbp = &mp->m_sb;
 	if (sbp->sb_rbmino == NULLFSINO)
 		return 0;
-	error = xfs_iget(mp, NULL, sbp->sb_rbmino, 0, 0, &mp->m_rbmip, 0);
+	error = xfs_iget(mp, NULL, sbp->sb_rbmino, 0, 0, &mp->m_rbmip);
 	if (error)
 		return error;
 	ASSERT(mp->m_rbmip != NULL);
 	ASSERT(sbp->sb_rsumino != NULLFSINO);
-	error = xfs_iget(mp, NULL, sbp->sb_rsumino, 0, 0, &mp->m_rsumip, 0);
+	error = xfs_iget(mp, NULL, sbp->sb_rsumino, 0, 0, &mp->m_rsumip);
 	if (error) {
 		IRELE(mp->m_rbmip);
 		return error;

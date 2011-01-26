@@ -17,7 +17,6 @@
 #include <net/mac80211.h>
 
 #include "../ath.h"
-#include "../debug.h"
 
 #include "hw.h"
 #include "hw-ops.h"
@@ -31,10 +30,11 @@
 #define WME_MAX_BA              WME_BA_BMP_SIZE
 #define ATH_TID_MAX_BUFS        (2 * WME_MAX_BA)
 
-#define WME_AC_BE   0
-#define WME_AC_BK   1
-#define WME_AC_VI   2
-#define WME_AC_VO   3
+/* These must match mac80211 skb queue mapping numbers */
+#define WME_AC_VO   0
+#define WME_AC_VI   1
+#define WME_AC_BE   2
+#define WME_AC_BK   3
 #define WME_NUM_AC  4
 
 #define ATH_RSSI_DUMMY_MARKER   0x127
@@ -52,91 +52,21 @@
 #define ATH_EP_RND(x, mul) 						\
 	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
 
-struct ath_atx_ac {
-	int sched;
-	int qnum;
-	struct list_head list;
-	struct list_head tid_q;
+/* Defines the BT AR_BT_COEX_WGHT used */
+enum ath_stomp_type {
+	ATH_BTCOEX_NO_STOMP,
+	ATH_BTCOEX_STOMP_ALL,
+	ATH_BTCOEX_STOMP_LOW,
+	ATH_BTCOEX_STOMP_NONE
 };
-
-struct ath_buf_state {
-	int bfs_nframes;
-	u16 bfs_al;
-	u16 bfs_frmlen;
-	int bfs_seqno;
-	int bfs_tidno;
-	int bfs_retries;
-	u8 bf_type;
-	u32 bfs_keyix;
-	enum ath9k_key_type bfs_keytype;
-};
-
-struct ath_buf {
-	struct list_head list;
-	struct ath_buf *bf_lastbf;	/* last buf of this unit (a frame or
-					   an aggregate) */
-	struct ath_buf *bf_next;	/* next subframe in the aggregate */
-	struct sk_buff *bf_mpdu;	/* enclosing frame structure */
-	void *bf_desc;			/* virtual addr of desc */
-	dma_addr_t bf_daddr;		/* physical addr of desc */
-	dma_addr_t bf_buf_addr;		/* physical addr of data buffer */
-	bool bf_stale;
-	bool bf_isnullfunc;
-	bool bf_tx_aborted;
-	u16 bf_flags;
-	struct ath_buf_state bf_state;
-	dma_addr_t bf_dmacontext;
-	struct ath_wiphy *aphy;
-};
-
-struct ath_atx_tid {
-	struct list_head list;
-	struct list_head buf_q;
-	struct ath_node *an;
-	struct ath_atx_ac *ac;
-	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS];
-	u16 seq_start;
-	u16 seq_next;
-	u16 baw_size;
-	int tidno;
-	int baw_head;   /* first un-acked tx buffer */
-	int baw_tail;   /* next unused tx buffer slot */
-	int sched;
-	int paused;
-	u8 state;
-};
-
-struct ath_node {
-	struct ath_common *common;
-	struct ath_atx_tid tid[WME_NUM_TID];
-	struct ath_atx_ac ac[WME_NUM_AC];
-	u16 maxampdu;
-	u8 mpdudensity;
-	int last_rssi;
-};
-
-int ath9k_cmn_rx_skb_preprocess(struct ath_common *common,
-				struct ieee80211_hw *hw,
-				struct sk_buff *skb,
-				struct ath_rx_status *rx_stats,
-				struct ieee80211_rx_status *rx_status,
-				bool *decrypt_error);
-
-void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
-				  struct sk_buff *skb,
-				  struct ath_rx_status *rx_stats,
-				  struct ieee80211_rx_status *rxs,
-				  bool decrypt_error);
 
 int ath9k_cmn_padpos(__le16 frame_control);
 int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb);
-void ath9k_cmn_update_ichannel(struct ieee80211_hw *hw,
-			       struct ath9k_channel *ichan);
+void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
+			       struct ieee80211_channel *chan,
+			       enum nl80211_channel_type channel_type);
 struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
 					       struct ath_hw *ah);
-int ath9k_cmn_key_config(struct ath_common *common,
-			 struct ieee80211_vif *vif,
-			 struct ieee80211_sta *sta,
-			 struct ieee80211_key_conf *key);
-void ath9k_cmn_key_delete(struct ath_common *common,
-			  struct ieee80211_key_conf *key);
+int ath9k_cmn_count_streams(unsigned int chainmask, int max);
+void ath9k_cmn_btcoex_bt_stomp(struct ath_common *common,
+				  enum ath_stomp_type stomp_type);

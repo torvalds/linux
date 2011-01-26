@@ -20,10 +20,10 @@ extern void restore_current(void);
 static char promlib_buf[128];
 
 /* Internal version of prom_getchild that does not alter return values. */
-int __prom_getchild(int node)
+static phandle __prom_getchild(phandle node)
 {
 	unsigned long flags;
-	int cnode;
+	phandle cnode;
 
 	spin_lock_irqsave(&prom_lock, flags);
 	cnode = prom_nodeops->no_child(node);
@@ -36,15 +36,15 @@ int __prom_getchild(int node)
 /* Return the child of node 'node' or zero if no this node has no
  * direct descendent.
  */
-int prom_getchild(int node)
+phandle prom_getchild(phandle node)
 {
-	int cnode;
+	phandle cnode;
 
-	if (node == -1)
+	if ((s32)node == -1)
 		return 0;
 
 	cnode = __prom_getchild(node);
-	if (cnode == 0 || cnode == -1)
+	if (cnode == 0 || (s32)cnode == -1)
 		return 0;
 
 	return cnode;
@@ -52,10 +52,10 @@ int prom_getchild(int node)
 EXPORT_SYMBOL(prom_getchild);
 
 /* Internal version of prom_getsibling that does not alter return values. */
-int __prom_getsibling(int node)
+static phandle __prom_getsibling(phandle node)
 {
 	unsigned long flags;
-	int cnode;
+	phandle cnode;
 
 	spin_lock_irqsave(&prom_lock, flags);
 	cnode = prom_nodeops->no_nextnode(node);
@@ -68,15 +68,15 @@ int __prom_getsibling(int node)
 /* Return the next sibling of node 'node' or zero if no more siblings
  * at this level of depth in the tree.
  */
-int prom_getsibling(int node)
+phandle prom_getsibling(phandle node)
 {
-	int sibnode;
+	phandle sibnode;
 
-	if (node == -1)
+	if ((s32)node == -1)
 		return 0;
 
 	sibnode = __prom_getsibling(node);
-	if (sibnode == 0 || sibnode == -1)
+	if (sibnode == 0 || (s32)sibnode == -1)
 		return 0;
 
 	return sibnode;
@@ -86,7 +86,7 @@ EXPORT_SYMBOL(prom_getsibling);
 /* Return the length in bytes of property 'prop' at node 'node'.
  * Return -1 on error.
  */
-int prom_getproplen(int node, const char *prop)
+int prom_getproplen(phandle node, const char *prop)
 {
 	int ret;
 	unsigned long flags;
@@ -106,7 +106,7 @@ EXPORT_SYMBOL(prom_getproplen);
  * 'buffer' which has a size of 'bufsize'.  If the acquisition
  * was successful the length will be returned, else -1 is returned.
  */
-int prom_getproperty(int node, const char *prop, char *buffer, int bufsize)
+int prom_getproperty(phandle node, const char *prop, char *buffer, int bufsize)
 {
 	int plen, ret;
 	unsigned long flags;
@@ -126,7 +126,7 @@ EXPORT_SYMBOL(prom_getproperty);
 /* Acquire an integer property and return its value.  Returns -1
  * on failure.
  */
-int prom_getint(int node, char *prop)
+int prom_getint(phandle node, char *prop)
 {
 	static int intprop;
 
@@ -140,7 +140,7 @@ EXPORT_SYMBOL(prom_getint);
 /* Acquire an integer property, upon error return the passed default
  * integer.
  */
-int prom_getintdefault(int node, char *property, int deflt)
+int prom_getintdefault(phandle node, char *property, int deflt)
 {
 	int retval;
 
@@ -152,7 +152,7 @@ int prom_getintdefault(int node, char *property, int deflt)
 EXPORT_SYMBOL(prom_getintdefault);
 
 /* Acquire a boolean property, 1=TRUE 0=FALSE. */
-int prom_getbool(int node, char *prop)
+int prom_getbool(phandle node, char *prop)
 {
 	int retval;
 
@@ -166,7 +166,7 @@ EXPORT_SYMBOL(prom_getbool);
  * string on error.  The char pointer is the user supplied string
  * buffer.
  */
-void prom_getstring(int node, char *prop, char *user_buf, int ubuf_size)
+void prom_getstring(phandle node, char *prop, char *user_buf, int ubuf_size)
 {
 	int len;
 
@@ -177,27 +177,14 @@ void prom_getstring(int node, char *prop, char *user_buf, int ubuf_size)
 EXPORT_SYMBOL(prom_getstring);
 
 
-/* Does the device at node 'node' have name 'name'?
- * YES = 1   NO = 0
- */
-int prom_nodematch(int node, char *name)
-{
-	int error;
-
-	static char namebuf[128];
-	error = prom_getproperty(node, "name", namebuf, sizeof(namebuf));
-	if (error == -1) return 0;
-	if(strcmp(namebuf, name) == 0) return 1;
-	return 0;
-}
-
 /* Search siblings at 'node_start' for a node with name
  * 'nodename'.  Return node if successful, zero if not.
  */
-int prom_searchsiblings(int node_start, char *nodename)
+phandle prom_searchsiblings(phandle node_start, char *nodename)
 {
 
-	int thisnode, error;
+	phandle thisnode;
+	int error;
 
 	for(thisnode = node_start; thisnode;
 	    thisnode=prom_getsibling(thisnode)) {
@@ -213,7 +200,7 @@ int prom_searchsiblings(int node_start, char *nodename)
 EXPORT_SYMBOL(prom_searchsiblings);
 
 /* Interal version of nextprop that does not alter return values. */
-char * __prom_nextprop(int node, char * oprop)
+static char *__prom_nextprop(phandle node, char * oprop)
 {
 	unsigned long flags;
 	char *prop;
@@ -226,35 +213,24 @@ char * __prom_nextprop(int node, char * oprop)
 	return prop;
 }
 
-/* Return the first property name for node 'node'. */
-/* buffer is unused argument, but as v9 uses it, we need to have the same interface */
-char * prom_firstprop(int node, char *bufer)
-{
-	if (node == 0 || node == -1)
-		return "";
-
-	return __prom_nextprop(node, "");
-}
-EXPORT_SYMBOL(prom_firstprop);
-
 /* Return the property type string after property type 'oprop'
  * at node 'node' .  Returns empty string if no more
  * property types for this node.
  */
-char * prom_nextprop(int node, char *oprop, char *buffer)
+char *prom_nextprop(phandle node, char *oprop, char *buffer)
 {
-	if (node == 0 || node == -1)
+	if (node == 0 || (s32)node == -1)
 		return "";
 
 	return __prom_nextprop(node, oprop);
 }
 EXPORT_SYMBOL(prom_nextprop);
 
-int prom_finddevice(char *name)
+phandle prom_finddevice(char *name)
 {
 	char nbuf[128];
 	char *s = name, *d;
-	int node = prom_root_node, node2;
+	phandle node = prom_root_node, node2;
 	unsigned int which_io, phys_addr;
 	struct linux_prom_registers reg[PROMREG_MAX];
 
@@ -277,7 +253,7 @@ int prom_finddevice(char *name)
 				if (d != s + 3 && (!*d || *d == '/')
 				    && d <= s + 3 + 8) {
 					node2 = node;
-					while (node2 && node2 != -1) {
+					while (node2 && (s32)node2 != -1) {
 						if (prom_getproperty (node2, "reg", (char *)reg, sizeof (reg)) > 0) {
 							if (which_io == reg[0].which_io && phys_addr == reg[0].phys_addr) {
 								node = node2;
@@ -285,7 +261,7 @@ int prom_finddevice(char *name)
 							}
 						}
 						node2 = prom_getsibling(node2);
-						if (!node2 || node2 == -1)
+						if (!node2 || (s32)node2 == -1)
 							break;
 						node2 = prom_searchsiblings(prom_getsibling(node2), nbuf);
 					}
@@ -298,29 +274,18 @@ int prom_finddevice(char *name)
 }
 EXPORT_SYMBOL(prom_finddevice);
 
-int prom_node_has_property(int node, char *prop)
-{
-	char *current_property = "";
-
-	do {
-		current_property = prom_nextprop(node, current_property, NULL);
-		if(!strcmp(current_property, prop))
-		   return 1;
-	} while (*current_property);
-	return 0;
-}
-EXPORT_SYMBOL(prom_node_has_property);
-
 /* Set property 'pname' at node 'node' to value 'value' which has a length
  * of 'size' bytes.  Return the number of bytes the prom accepted.
  */
-int prom_setprop(int node, const char *pname, char *value, int size)
+int prom_setprop(phandle node, const char *pname, char *value, int size)
 {
 	unsigned long flags;
 	int ret;
 
-	if(size == 0) return 0;
-	if((pname == 0) || (value == 0)) return 0;
+	if (size == 0)
+		return 0;
+	if ((pname == NULL) || (value == NULL))
+		return 0;
 	spin_lock_irqsave(&prom_lock, flags);
 	ret = prom_nodeops->no_setprop(node, pname, value, size);
 	restore_current();
@@ -329,30 +294,16 @@ int prom_setprop(int node, const char *pname, char *value, int size)
 }
 EXPORT_SYMBOL(prom_setprop);
 
-int prom_inst2pkg(int inst)
+phandle prom_inst2pkg(int inst)
 {
-	int node;
+	phandle node;
 	unsigned long flags;
 	
 	spin_lock_irqsave(&prom_lock, flags);
 	node = (*romvec->pv_v2devops.v2_inst2pkg)(inst);
 	restore_current();
 	spin_unlock_irqrestore(&prom_lock, flags);
-	if (node == -1) return 0;
-	return node;
-}
-
-/* Return 'node' assigned to a particular prom 'path'
- * FIXME: Should work for v0 as well
- */
-int prom_pathtoinode(char *path)
-{
-	int node, inst;
-	
-	inst = prom_devopen (path);
-	if (inst == -1) return 0;
-	node = prom_inst2pkg (inst);
-	prom_devclose (inst);
-	if (node == -1) return 0;
+	if ((s32)node == -1)
+		return 0;
 	return node;
 }

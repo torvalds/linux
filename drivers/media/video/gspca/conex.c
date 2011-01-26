@@ -41,7 +41,7 @@ struct sd {
 #define QUALITY_MAX 60
 #define QUALITY_DEF 40
 
-	u8 *jpeg_hdr;
+	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 /* V4L2 controls supported by the driver */
@@ -687,7 +687,7 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 	reg_w_val(gspca_dev, 0x00c0, 0x00);
 	reg_r(gspca_dev, 0x0001, 1);
 	length = 8;
-	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
+	switch (gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv) {
 	case 0:
 		for (i = 0; i < 27; i++) {
 			if (i == 26)
@@ -845,9 +845,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	/* create the JPEG header */
-	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
-	if (!sd->jpeg_hdr)
-		return -ENOMEM;
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x22);		/* JPEG 411 */
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
@@ -862,10 +859,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 /* called on streamoff with alt 0 and on disconnect */
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	int retry = 50;
-
-	kfree(sd->jpeg_hdr);
 
 	if (!gspca_dev->present)
 		return;
@@ -907,7 +901,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
-static void setbrightness(struct gspca_dev*gspca_dev)
+static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 regE5cbx[] = { 0x88, 0x00, 0xd4, 0x01, 0x88, 0x01, 0x01, 0x01 };
@@ -930,7 +924,7 @@ static void setbrightness(struct gspca_dev*gspca_dev)
 	reg_w_val(gspca_dev, 0x0070, reg70);
 }
 
-static void setcontrast(struct gspca_dev*gspca_dev)
+static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 regE5acx[] = { 0x88, 0x0a, 0x0c, 0x01 };	/* seem MSB */
@@ -1046,14 +1040,14 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static const struct usb_device_id device_table[] __devinitconst = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0572, 0x0041)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
 
 /* -- device connect -- */
-static int __devinit sd_probe(struct usb_interface *intf,
+static int sd_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
 	return gspca_dev_probe(intf, id, &sd_desc, sizeof(struct sd),
@@ -1074,17 +1068,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

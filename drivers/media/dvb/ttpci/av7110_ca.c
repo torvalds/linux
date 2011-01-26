@@ -25,7 +25,7 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org/dvb/
+ * the project's page is at http://www.linuxtv.org/ 
  */
 
 #include <linux/kernel.h>
@@ -277,7 +277,7 @@ static int dvb_ca_ioctl(struct file *file, unsigned int cmd, void *parg)
 	{
 		ca_slot_info_t *info=(ca_slot_info_t *)parg;
 
-		if (info->num > 1)
+		if (info->num < 0 || info->num > 1)
 			return -EINVAL;
 		av7110->ci_slot[info->num].num = info->num;
 		av7110->ci_slot[info->num].type = FW_CI_LL_SUPPORT(av7110->arm_app) ?
@@ -353,6 +353,7 @@ static const struct file_operations dvb_ca_fops = {
 	.open		= dvb_ca_open,
 	.release	= dvb_generic_release,
 	.poll		= dvb_ca_poll,
+	.llseek		= default_llseek,
 };
 
 static struct dvb_device dvbdev_ca = {

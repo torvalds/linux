@@ -21,11 +21,11 @@
  * 02110-1301 USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
-#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/jiffies.h>
 #include <linux/hwmon.h>
 #include <linux/sysfs.h>
 #include <linux/hwmon-sysfs.h>
@@ -39,7 +39,7 @@
 
 #define DRVNAME	"via_cputemp"
 
-enum { SHOW_TEMP, SHOW_LABEL, SHOW_NAME } SHOW;
+enum { SHOW_TEMP, SHOW_LABEL, SHOW_NAME };
 
 /*
  * Functions declaration
@@ -204,7 +204,7 @@ static int __cpuinit via_cputemp_device_add(unsigned int cpu)
 	pdev = platform_device_alloc(DRVNAME, cpu);
 	if (!pdev) {
 		err = -ENOMEM;
-		printk(KERN_ERR DRVNAME ": Device allocation failed\n");
+		pr_err("Device allocation failed\n");
 		goto exit;
 	}
 
@@ -216,8 +216,7 @@ static int __cpuinit via_cputemp_device_add(unsigned int cpu)
 
 	err = platform_device_add(pdev);
 	if (err) {
-		printk(KERN_ERR DRVNAME ": Device addition failed (%d)\n",
-		       err);
+		pr_err("Device addition failed (%d)\n", err);
 		goto exit_device_free;
 	}
 
@@ -237,16 +236,18 @@ exit:
 	return err;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-static void via_cputemp_device_remove(unsigned int cpu)
+static void __cpuinit via_cputemp_device_remove(unsigned int cpu)
 {
-	struct pdev_entry *p, *n;
+	struct pdev_entry *p;
+
 	mutex_lock(&pdev_list_mutex);
-	list_for_each_entry_safe(p, n, &pdev_list, list) {
+	list_for_each_entry(p, &pdev_list, list) {
 		if (p->cpu == cpu) {
 			platform_device_unregister(p->pdev);
 			list_del(&p->list);
+			mutex_unlock(&pdev_list_mutex);
 			kfree(p);
+			return;
 		}
 	}
 	mutex_unlock(&pdev_list_mutex);
@@ -272,12 +273,10 @@ static int __cpuinit via_cputemp_cpu_callback(struct notifier_block *nfb,
 static struct notifier_block via_cputemp_cpu_notifier __refdata = {
 	.notifier_call = via_cputemp_cpu_callback,
 };
-#endif				/* !CONFIG_HOTPLUG_CPU */
 
 static int __init via_cputemp_init(void)
 {
 	int i, err;
-	struct pdev_entry *p, *n;
 
 	if (cpu_data(0).x86_vendor != X86_VENDOR_CENTAUR) {
 		printk(KERN_DEBUG DRVNAME ": Not a VIA CPU\n");
@@ -299,35 +298,27 @@ static int __init via_cputemp_init(void)
 			continue;
 
 		if (c->x86_model > 0x0f) {
-			printk(KERN_WARNING DRVNAME ": Unknown CPU "
-				"model 0x%x\n", c->x86_model);
+			pr_warn("Unknown CPU model 0x%x\n", c->x86_model);
 			continue;
 		}
 
-		err = via_cputemp_device_add(i);
-		if (err)
-			goto exit_devices_unreg;
+		via_cputemp_device_add(i);
 	}
+
+#ifndef CONFIG_HOTPLUG_CPU
 	if (list_empty(&pdev_list)) {
 		err = -ENODEV;
 		goto exit_driver_unreg;
 	}
-
-#ifdef CONFIG_HOTPLUG_CPU
-	register_hotcpu_notifier(&via_cputemp_cpu_notifier);
 #endif
+
+	register_hotcpu_notifier(&via_cputemp_cpu_notifier);
 	return 0;
 
-exit_devices_unreg:
-	mutex_lock(&pdev_list_mutex);
-	list_for_each_entry_safe(p, n, &pdev_list, list) {
-		platform_device_unregister(p->pdev);
-		list_del(&p->list);
-		kfree(p);
-	}
-	mutex_unlock(&pdev_list_mutex);
+#ifndef CONFIG_HOTPLUG_CPU
 exit_driver_unreg:
 	platform_driver_unregister(&via_cputemp_driver);
+#endif
 exit:
 	return err;
 }
@@ -335,9 +326,8 @@ exit:
 static void __exit via_cputemp_exit(void)
 {
 	struct pdev_entry *p, *n;
-#ifdef CONFIG_HOTPLUG_CPU
+
 	unregister_hotcpu_notifier(&via_cputemp_cpu_notifier);
-#endif
 	mutex_lock(&pdev_list_mutex);
 	list_for_each_entry_safe(p, n, &pdev_list, list) {
 		platform_device_unregister(p->pdev);

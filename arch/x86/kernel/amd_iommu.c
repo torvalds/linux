@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009 Advanced Micro Devices, Inc.
+ * Copyright (C) 2007-2010 Advanced Micro Devices, Inc.
  * Author: Joerg Roedel <joerg.roedel@amd.com>
  *         Leo Duran <leo.duran@amd.com>
  *
@@ -1086,7 +1086,7 @@ static int alloc_new_range(struct dma_ops_domain *dma_dom,
 
 	dma_dom->aperture_size += APERTURE_RANGE_SIZE;
 
-	/* Intialize the exclusion range if necessary */
+	/* Initialize the exclusion range if necessary */
 	for_each_iommu(iommu) {
 		if (iommu->exclusion_start &&
 		    iommu->exclusion_start >= dma_dom->aperture[index]->offset
@@ -1353,7 +1353,7 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
 
 /*
  * Allocates a new protection domain usable for the dma_ops functions.
- * It also intializes the page table and the address allocator data
+ * It also initializes the page table and the address allocator data
  * structures required for the dma_ops interface
  */
 static struct dma_ops_domain *dma_ops_domain_alloc(void)
@@ -1487,6 +1487,7 @@ static int __attach_device(struct device *dev,
 			   struct protection_domain *domain)
 {
 	struct iommu_dev_data *dev_data, *alias_data;
+	int ret;
 
 	dev_data   = get_dev_data(dev);
 	alias_data = get_dev_data(dev_data->alias);
@@ -1498,13 +1499,14 @@ static int __attach_device(struct device *dev,
 	spin_lock(&domain->lock);
 
 	/* Some sanity checks */
+	ret = -EBUSY;
 	if (alias_data->domain != NULL &&
 	    alias_data->domain != domain)
-		return -EBUSY;
+		goto out_unlock;
 
 	if (dev_data->domain != NULL &&
 	    dev_data->domain != domain)
-		return -EBUSY;
+		goto out_unlock;
 
 	/* Do real assignment */
 	if (dev_data->alias != dev) {
@@ -1520,10 +1522,14 @@ static int __attach_device(struct device *dev,
 
 	atomic_inc(&dev_data->bind);
 
+	ret = 0;
+
+out_unlock:
+
 	/* ready */
 	spin_unlock(&domain->lock);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -1947,6 +1953,7 @@ static void __unmap_single(struct dma_ops_domain *dma_dom,
 			   size_t size,
 			   int dir)
 {
+	dma_addr_t flush_addr;
 	dma_addr_t i, start;
 	unsigned int pages;
 
@@ -1954,6 +1961,7 @@ static void __unmap_single(struct dma_ops_domain *dma_dom,
 	    (dma_addr + size > dma_dom->aperture_size))
 		return;
 
+	flush_addr = dma_addr;
 	pages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
 	dma_addr &= PAGE_MASK;
 	start = dma_addr;
@@ -1968,7 +1976,7 @@ static void __unmap_single(struct dma_ops_domain *dma_dom,
 	dma_ops_free_addresses(dma_dom, dma_addr, pages);
 
 	if (amd_iommu_unmap_flush || dma_dom->need_flush) {
-		iommu_flush_pages(&dma_dom->domain, dma_addr, size);
+		iommu_flush_pages(&dma_dom->domain, flush_addr, size);
 		dma_dom->need_flush = false;
 	}
 }
@@ -2324,10 +2332,6 @@ int __init amd_iommu_init_dma_ops(void)
 
 	iommu_detected = 1;
 	swiotlb = 0;
-#ifdef CONFIG_GART_IOMMU
-	gart_iommu_aperture_disabled = 1;
-	gart_iommu_aperture = 0;
-#endif
 
 	/* Make the driver finally visible to the drivers */
 	dma_ops = &amd_iommu_dma_ops;
@@ -2570,6 +2574,11 @@ static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
 static int amd_iommu_domain_has_cap(struct iommu_domain *domain,
 				    unsigned long cap)
 {
+	switch (cap) {
+	case IOMMU_CAP_CACHE_COHERENCY:
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -2607,8 +2616,7 @@ int __init amd_iommu_init_passthrough(void)
 
 	pt_domain->mode |= PAGE_MODE_NONE;
 
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-
+	for_each_pci_dev(dev) {
 		if (!check_device(&dev->dev))
 			continue;
 

@@ -8,7 +8,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.14
+ *  mpi2.h Version:  02.00.16
  *
  *  Version History
  *  ---------------
@@ -57,6 +57,12 @@
  *                      Added MSI-x index mask and shift for Reply Post Host
  *                      Index register.
  *                      Added function code for Host Based Discovery Action.
+ *  02-10-10  02.00.15  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added define for MPI2_FUNCTION_PWR_MGMT_CONTROL.
+ *                      Added defines for product-specific range of message
+ *                      function codes, 0xF0 to 0xFF.
+ *  05-12-10  02.00.16  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added alternative defines for the SGE Direction bit.
  *  --------------------------------------------------------------------------
  */
 
@@ -82,7 +88,7 @@
 #define MPI2_VERSION_02_00                  (0x0200)
 
 /* versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x0E)
+#define MPI2_HEADER_VERSION_UNIT            (0x10)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
@@ -473,8 +479,6 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 /*****************************************************************************
 *
 *        Message Functions
-*              0x80 -> 0x8F reserved for private message use per product
-*
 *
 *****************************************************************************/
 
@@ -506,6 +510,13 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 #define MPI2_FUNCTION_RAID_ACCELERATOR              (0x2C) /* RAID Accelerator*/
 /* Host Based Discovery Action */
 #define MPI2_FUNCTION_HOST_BASED_DISCOVERY_ACTION   (0x2F)
+/* Power Management Control */
+#define MPI2_FUNCTION_PWR_MGMT_CONTROL              (0x30)
+/* beginning of product-specific range */
+#define MPI2_FUNCTION_MIN_PRODUCT_SPECIFIC          (0xF0)
+/* end of product-specific range */
+#define MPI2_FUNCTION_MAX_PRODUCT_SPECIFIC          (0xFF)
+
 
 
 
@@ -919,6 +930,9 @@ typedef struct _MPI2_MPI_SGE_UNION
 
 #define MPI2_SGE_FLAGS_IOC_TO_HOST              (0x00)
 #define MPI2_SGE_FLAGS_HOST_TO_IOC              (0x04)
+
+#define MPI2_SGE_FLAGS_DEST                     (MPI2_SGE_FLAGS_IOC_TO_HOST)
+#define MPI2_SGE_FLAGS_SOURCE                   (MPI2_SGE_FLAGS_HOST_TO_IOC)
 
 /* Address Size */
 

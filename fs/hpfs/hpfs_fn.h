@@ -87,7 +87,7 @@ struct hpfs_sb_info {
 	unsigned *sb_bmp_dir;		/* main bitmap directory */
 	unsigned sb_c_bitmap;		/* current bitmap */
 	unsigned sb_max_fwd_alloc;	/* max forwad allocation */
-	struct semaphore hpfs_creation_de; /* when creating dirents, nobody else
+	struct mutex hpfs_creation_de;	/* when creating dirents, nobody else
 					   can alloc blocks */
 	/*unsigned sb_mounting : 1;*/
 	int sb_timeshift;
@@ -233,7 +233,7 @@ void hpfs_mark_4buffers_dirty(struct quad_buffer_head *);
 
 /* dentry.c */
 
-void hpfs_set_dentry_operations(struct dentry *);
+extern const struct dentry_operations hpfs_dentry_operations;
 
 /* dir.c */
 
@@ -268,7 +268,7 @@ void hpfs_set_ea(struct inode *, struct fnode *, const char *,
 
 /* file.c */
 
-int hpfs_file_fsync(struct file *, struct dentry *, int);
+int hpfs_file_fsync(struct file *, int);
 extern const struct file_operations hpfs_file_ops;
 extern const struct inode_operations hpfs_file_iops;
 extern const struct address_space_operations hpfs_aops;
@@ -281,7 +281,7 @@ void hpfs_write_inode(struct inode *);
 void hpfs_write_inode_nolock(struct inode *);
 int hpfs_setattr(struct dentry *, struct iattr *);
 void hpfs_write_if_changed(struct inode *);
-void hpfs_delete_inode(struct inode *);
+void hpfs_evict_inode(struct inode *);
 
 /* map.c */
 

@@ -166,7 +166,6 @@ EXPORT_SYMBOL_GPL(xprt_unregister_transport);
 int xprt_load_transport(const char *transport_name)
 {
 	struct xprt_class *t;
-	char module_name[sizeof t->name + 5];
 	int result;
 
 	result = 0;
@@ -178,9 +177,7 @@ int xprt_load_transport(const char *transport_name)
 		}
 	}
 	spin_unlock(&xprt_list_lock);
-	strcpy(module_name, "xprt");
-	strncat(module_name, transport_name, sizeof t->name);
-	result = request_module(module_name);
+	result = request_module("xprt%s", transport_name);
 out:
 	return result;
 }
@@ -202,8 +199,6 @@ int xprt_reserve_xprt(struct rpc_task *task)
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->state)) {
 		if (task == xprt->snd_task)
 			return 1;
-		if (task == NULL)
-			return 0;
 		goto out_sleep;
 	}
 	xprt->snd_task = task;
@@ -760,13 +755,11 @@ static void xprt_connect_status(struct rpc_task *task)
  */
 struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid)
 {
-	struct list_head *pos;
+	struct rpc_rqst *entry;
 
-	list_for_each(pos, &xprt->recv) {
-		struct rpc_rqst *entry = list_entry(pos, struct rpc_rqst, rq_list);
+	list_for_each_entry(entry, &xprt->recv, rq_list)
 		if (entry->rq_xid == xid)
 			return entry;
-	}
 
 	dprintk("RPC:       xprt_lookup_rqst did not find xid %08x\n",
 			ntohl(xid));
@@ -965,6 +958,38 @@ static void xprt_free_slot(struct rpc_xprt *xprt, struct rpc_rqst *req)
 	spin_unlock(&xprt->reserve_lock);
 }
 
+struct rpc_xprt *xprt_alloc(struct net *net, int size, int max_req)
+{
+	struct rpc_xprt *xprt;
+
+	xprt = kzalloc(size, GFP_KERNEL);
+	if (xprt == NULL)
+		goto out;
+	kref_init(&xprt->kref);
+
+	xprt->max_reqs = max_req;
+	xprt->slot = kcalloc(max_req, sizeof(struct rpc_rqst), GFP_KERNEL);
+	if (xprt->slot == NULL)
+		goto out_free;
+
+	xprt->xprt_net = get_net(net);
+	return xprt;
+
+out_free:
+	kfree(xprt);
+out:
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(xprt_alloc);
+
+void xprt_free(struct rpc_xprt *xprt)
+{
+	put_net(xprt->xprt_net);
+	kfree(xprt->slot);
+	kfree(xprt);
+}
+EXPORT_SYMBOL_GPL(xprt_free);
+
 /**
  * xprt_reserve - allocate an RPC request slot
  * @task: RPC task requesting a slot allocation
@@ -1035,6 +1060,8 @@ void xprt_release(struct rpc_task *task)
 	spin_unlock_bh(&xprt->transport_lock);
 	if (req->rq_buffer)
 		xprt->ops->buf_free(req->rq_buffer);
+	if (req->rq_cred != NULL)
+		put_rpccred(req->rq_cred);
 	task->tk_rqstp = NULL;
 	if (req->rq_release_snd_buf)
 		req->rq_release_snd_buf(req);
@@ -1075,8 +1102,10 @@ found:
 				-PTR_ERR(xprt));
 		return xprt;
 	}
+	if (test_and_set_bit(XPRT_INITIALIZED, &xprt->state))
+		/* ->setup returned a pre-initialized xprt: */
+		return xprt;
 
-	kref_init(&xprt->kref);
 	spin_lock_init(&xprt->transport_lock);
 	spin_lock_init(&xprt->reserve_lock);
 
@@ -1132,6 +1161,7 @@ static void xprt_destroy(struct kref *kref)
 	rpc_destroy_wait_queue(&xprt->sending);
 	rpc_destroy_wait_queue(&xprt->resend);
 	rpc_destroy_wait_queue(&xprt->backlog);
+	cancel_work_sync(&xprt->task_cleanup);
 	/*
 	 * Tear down transport state and free the rpc_xprt
 	 */

@@ -58,28 +58,11 @@ rx164_disable_irq(unsigned int irq)
 	rx164_update_irq_hw(cached_irq_mask &= ~(1UL << (irq - 16)));
 }
 
-static unsigned int
-rx164_startup_irq(unsigned int irq)
-{
-	rx164_enable_irq(irq);
-	return 0;
-}
-
-static void
-rx164_end_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		rx164_enable_irq(irq);
-}
-
 static struct irq_chip rx164_irq_type = {
 	.name		= "RX164",
-	.startup	= rx164_startup_irq,
-	.shutdown	= rx164_disable_irq,
-	.enable		= rx164_enable_irq,
-	.disable	= rx164_disable_irq,
-	.ack		= rx164_disable_irq,
-	.end		= rx164_end_irq,
+	.unmask		= rx164_enable_irq,
+	.mask		= rx164_disable_irq,
+	.mask_ack	= rx164_disable_irq,
 };
 
 static void 
@@ -116,8 +99,8 @@ rx164_init_irq(void)
 
 	rx164_update_irq_hw(0);
 	for (i = 16; i < 40; ++i) {
-		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].chip = &rx164_irq_type;
+		irq_to_desc(i)->status |= IRQ_LEVEL;
+		set_irq_chip_and_handler(i, &rx164_irq_type, handle_level_irq);
 	}
 
 	init_i8259a_irqs();

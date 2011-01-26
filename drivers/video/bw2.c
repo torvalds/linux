@@ -273,9 +273,9 @@ static int __devinit bw2_do_default_mode(struct bw2_par *par,
 	return 0;
 }
 
-static int __devinit bw2_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit bw2_probe(struct platform_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct bw2_par *par;
 	int linebytes, err;
@@ -350,7 +350,7 @@ out_err:
 	return err;
 }
 
-static int __devexit bw2_remove(struct of_device *op)
+static int __devexit bw2_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct bw2_par *par = info->par;
@@ -390,12 +390,12 @@ static int __init bw2_init(void)
 	if (fb_get_options("bw2fb", NULL))
 		return -ENODEV;
 
-	return of_register_driver(&bw2_driver, &of_bus_type);
+	return of_register_platform_driver(&bw2_driver);
 }
 
 static void __exit bw2_exit(void)
 {
-	of_unregister_driver(&bw2_driver);
+	of_unregister_platform_driver(&bw2_driver);
 }
 
 module_init(bw2_init);

@@ -27,7 +27,6 @@
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"
-#include "squashfs_fs_i.h"
 #include "decompressor.h"
 #include "squashfs.h"
 
@@ -40,9 +39,17 @@ static const struct squashfs_decompressor squashfs_lzma_unsupported_comp_ops = {
 	NULL, NULL, NULL, LZMA_COMPRESSION, "lzma", 0
 };
 
-static const struct squashfs_decompressor squashfs_lzo_unsupported_comp_ops = {
+#ifndef CONFIG_SQUASHFS_LZO
+static const struct squashfs_decompressor squashfs_lzo_comp_ops = {
 	NULL, NULL, NULL, LZO_COMPRESSION, "lzo", 0
 };
+#endif
+
+#ifndef CONFIG_SQUASHFS_XZ
+static const struct squashfs_decompressor squashfs_xz_comp_ops = {
+	NULL, NULL, NULL, XZ_COMPRESSION, "xz", 0
+};
+#endif
 
 static const struct squashfs_decompressor squashfs_unknown_comp_ops = {
 	NULL, NULL, NULL, 0, "unknown", 0
@@ -50,8 +57,9 @@ static const struct squashfs_decompressor squashfs_unknown_comp_ops = {
 
 static const struct squashfs_decompressor *decompressor[] = {
 	&squashfs_zlib_comp_ops,
+	&squashfs_lzo_comp_ops,
+	&squashfs_xz_comp_ops,
 	&squashfs_lzma_unsupported_comp_ops,
-	&squashfs_lzo_unsupported_comp_ops,
 	&squashfs_unknown_comp_ops
 };
 

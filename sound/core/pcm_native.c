@@ -22,12 +22,10 @@
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/time.h>
 #include <linux/pm_qos_params.h>
 #include <linux/uio.h>
 #include <linux/dma-mapping.h>
-#include <linux/math64.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/info.h>
@@ -143,7 +141,7 @@ int snd_pcm_info_user(struct snd_pcm_substream *substream,
 
 #ifdef RULES_DEBUG
 #define HW_PARAM(v) [SNDRV_PCM_HW_PARAM_##v] = #v
-char *snd_pcm_hw_param_names[] = {
+static const char * const snd_pcm_hw_param_names[] = {
 	HW_PARAM(ACCESS),
 	HW_PARAM(FORMAT),
 	HW_PARAM(SUBFORMAT),
@@ -370,38 +368,6 @@ static int period_to_usecs(struct snd_pcm_runtime *runtime)
 	return usecs;
 }
 
-static int calc_boundary(struct snd_pcm_runtime *runtime)
-{
-	u_int64_t boundary;
-
-	boundary = (u_int64_t)runtime->buffer_size *
-		   (u_int64_t)runtime->period_size;
-#if BITS_PER_LONG < 64
-	/* try to find lowest common multiple for buffer and period */
-	if (boundary > LONG_MAX - runtime->buffer_size) {
-		u_int32_t remainder = -1;
-		u_int32_t divident = runtime->buffer_size;
-		u_int32_t divisor = runtime->period_size;
-		while (remainder) {
-			remainder = divident % divisor;
-			if (remainder) {
-				divident = divisor;
-				divisor = remainder;
-			}
-		}
-		boundary = div_u64(boundary, divisor);
-		if (boundary > LONG_MAX - runtime->buffer_size)
-			return -ERANGE;
-	}
-#endif
-	if (boundary == 0)
-		return -ERANGE;
-	runtime->boundary = boundary;
-	while (runtime->boundary * 2 <= LONG_MAX - runtime->buffer_size)
-		runtime->boundary *= 2;
-	return 0;
-}
-
 static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
@@ -456,6 +422,9 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 	runtime->info = params->info;
 	runtime->rate_num = params->rate_num;
 	runtime->rate_den = params->rate_den;
+	runtime->no_period_wakeup =
+			(params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
+			(params->flags & SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP);
 
 	bits = snd_pcm_format_physical_width(runtime->format);
 	runtime->sample_bits = bits;
@@ -477,20 +446,18 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 	runtime->stop_threshold = runtime->buffer_size;
 	runtime->silence_threshold = 0;
 	runtime->silence_size = 0;
-	err = calc_boundary(runtime);
-	if (err < 0)
-		goto _error;
+	runtime->boundary = runtime->buffer_size;
+	while (runtime->boundary * 2 <= LONG_MAX - runtime->buffer_size)
+		runtime->boundary *= 2;
 
 	snd_pcm_timer_resolution_change(substream);
 	runtime->status->state = SNDRV_PCM_STATE_SETUP;
 
-	if (substream->latency_pm_qos_req) {
-		pm_qos_remove_request(substream->latency_pm_qos_req);
-		substream->latency_pm_qos_req = NULL;
-	}
+	if (pm_qos_request_active(&substream->latency_pm_qos_req))
+		pm_qos_remove_request(&substream->latency_pm_qos_req);
 	if ((usecs = period_to_usecs(runtime)) >= 0)
-		substream->latency_pm_qos_req = pm_qos_add_request(
-					PM_QOS_CPU_DMA_LATENCY, usecs);
+		pm_qos_add_request(&substream->latency_pm_qos_req,
+				   PM_QOS_CPU_DMA_LATENCY, usecs);
 	return 0;
  _error:
 	/* hardware might be unuseable from this time,
@@ -545,8 +512,7 @@ static int snd_pcm_hw_free(struct snd_pcm_substream *substream)
 	if (substream->ops->hw_free)
 		result = substream->ops->hw_free(substream);
 	runtime->status->state = SNDRV_PCM_STATE_OPEN;
-	pm_qos_remove_request(substream->latency_pm_qos_req);
-	substream->latency_pm_qos_req = NULL;
+	pm_qos_remove_request(&substream->latency_pm_qos_req);
 	return result;
 }
 
@@ -900,6 +866,8 @@ static void snd_pcm_post_start(struct snd_pcm_substream *substream, int state)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_trigger_tstamp(substream);
 	runtime->hw_ptr_jiffies = jiffies;
+	runtime->hw_ptr_buffer_jiffies = (runtime->buffer_size * HZ) / 
+							    runtime->rate;
 	runtime->status->state = state;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    runtime->silence_size > 0)
@@ -1014,8 +982,12 @@ static int snd_pcm_do_pause(struct snd_pcm_substream *substream, int push)
 {
 	if (substream->runtime->trigger_master != substream)
 		return 0;
+	/* some drivers might use hw_ptr to recover from the pause -
+	   update the hw_ptr now */
+	if (push)
+		snd_pcm_update_hw_ptr(substream);
 	/* The jiffies check in snd_pcm_update_hw_ptr*() is done by
-	 * a delta betwen the current jiffies, this gives a large enough
+	 * a delta between the current jiffies, this gives a large enough
 	 * delta, effectively to skip the check once.
 	 */
 	substream->runtime->hw_ptr_jiffies = jiffies - HZ * 1000;
@@ -2024,6 +1996,8 @@ void snd_pcm_release_substream(struct snd_pcm_substream *substream)
 		substream->ops->close(substream);
 		substream->hw_opened = 0;
 	}
+	if (pm_qos_request_active(&substream->latency_pm_qos_req))
+		pm_qos_remove_request(&substream->latency_pm_qos_req);
 	if (substream->pcm_release) {
 		substream->pcm_release(substream);
 		substream->pcm_release = NULL;

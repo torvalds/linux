@@ -720,15 +720,6 @@
 #define STDMSK_CLKMULT		((uint16_t)(3 << STDBIT_CLKMULT))
 #define STDMSK_CLKENAB		((uint16_t)(1 << STDBIT_CLKENAB))
 
-/* typedef struct indexCounter */
-/* { */
-/*   unsigned int ao; */
-/*   unsigned int ai; */
-/*   unsigned int digout; */
-/*   unsigned int digin; */
-/*   unsigned int enc; */
-/* }CallCounter; */
-
 struct bufferDMA {
 	dma_addr_t PhysicalBase;
 	void *LogicalBase;

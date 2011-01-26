@@ -73,7 +73,6 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/serial.h>
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/fcntl.h>
 #include <linux/ptrace.h>
@@ -1017,6 +1016,7 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
 
+	mutex_lock(&port->mutex);
 	cp = &info->channel;
 	/*
 	 * Before we drop DTR, make sure the UART transmitter
@@ -1060,9 +1060,13 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 			info->xmit_buf = NULL;
 		}
 	}
+	spin_lock_irq(&port->lock);
 	info->port.flags &= ~(ASYNC_INITIALIZED | ASYNC_CLOSING | ASYNC_NORMAL_ACTIVE);
 	tty->closing = 0;
+	spin_unlock_irq(&port->lock);
+	mutex_unlock(&port->mutex);
 	tty_port_tty_set(port, NULL);
+
 	wake_up_interruptible(&port->close_wait);
 	complete_all(&info->close_wait);
 	atomic_dec(&rp_num_ports_open);
@@ -1210,11 +1214,13 @@ static int get_config(struct r_port *info, struct rocket_config __user *retinfo)
 	if (!retinfo)
 		return -EFAULT;
 	memset(&tmp, 0, sizeof (tmp));
+	mutex_lock(&info->port.mutex);
 	tmp.line = info->line;
 	tmp.flags = info->flags;
 	tmp.close_delay = info->port.close_delay;
 	tmp.closing_wait = info->port.closing_wait;
 	tmp.port = rcktpt_io_addr[(info->line >> 5) & 3];
+	mutex_unlock(&info->port.mutex);
 
 	if (copy_to_user(retinfo, &tmp, sizeof (*retinfo)))
 		return -EFAULT;
@@ -1229,12 +1235,16 @@ static int set_config(struct tty_struct *tty, struct r_port *info,
 	if (copy_from_user(&new_serial, new_info, sizeof (new_serial)))
 		return -EFAULT;
 
+	mutex_lock(&info->port.mutex);
 	if (!capable(CAP_SYS_ADMIN))
 	{
-		if ((new_serial.flags & ~ROCKET_USR_MASK) != (info->flags & ~ROCKET_USR_MASK))
+		if ((new_serial.flags & ~ROCKET_USR_MASK) != (info->flags & ~ROCKET_USR_MASK)) {
+			mutex_unlock(&info->port.mutex);
 			return -EPERM;
+		}
 		info->flags = ((info->flags & ~ROCKET_USR_MASK) | (new_serial.flags & ROCKET_USR_MASK));
 		configure_r_port(tty, info, NULL);
+		mutex_unlock(&info->port.mutex);
 		return 0;
 	}
 
@@ -1250,6 +1260,7 @@ static int set_config(struct tty_struct *tty, struct r_port *info,
 		tty->alt_speed = 230400;
 	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_WARP)
 		tty->alt_speed = 460800;
+	mutex_unlock(&info->port.mutex);
 
 	configure_r_port(tty, info, NULL);
 	return 0;
@@ -1325,8 +1336,6 @@ static int rp_ioctl(struct tty_struct *tty, struct file *file,
 	if (cmd != RCKP_GET_PORTS && rocket_paranoia_check(info, "rp_ioctl"))
 		return -ENXIO;
 
-	lock_kernel();
-
 	switch (cmd) {
 	case RCKP_GET_STRUCT:
 		if (copy_to_user(argp, info, sizeof (struct r_port)))
@@ -1350,7 +1359,6 @@ static int rp_ioctl(struct tty_struct *tty, struct file *file,
 	default:
 		ret = -ENOIOCTLCMD;
 	}
-	unlock_kernel();
 	return ret;
 }
 
@@ -1471,7 +1479,6 @@ static void rp_wait_until_sent(struct tty_struct *tty, int timeout)
 	       jiffies);
 	printk(KERN_INFO "cps=%d...\n", info->cps);
 #endif
-	lock_kernel();
 	while (1) {
 		txcnt = sGetTxCnt(cp);
 		if (!txcnt) {
@@ -1499,7 +1506,6 @@ static void rp_wait_until_sent(struct tty_struct *tty, int timeout)
 			break;
 	}
 	__set_current_state(TASK_RUNNING);
-	unlock_kernel();
 #ifdef ROCKET_DEBUG_WAIT_UNTIL_SENT
 	printk(KERN_INFO "txcnt = %d (jiff=%lu)...done\n", txcnt, jiffies);
 #endif
@@ -1512,6 +1518,7 @@ static void rp_hangup(struct tty_struct *tty)
 {
 	CHANNEL_t *cp;
 	struct r_port *info = tty->driver_data;
+	unsigned long flags;
 
 	if (rocket_paranoia_check(info, "rp_hangup"))
 		return;
@@ -1520,11 +1527,15 @@ static void rp_hangup(struct tty_struct *tty)
 	printk(KERN_INFO "rp_hangup of ttyR%d...\n", info->line);
 #endif
 	rp_flush_buffer(tty);
-	if (info->port.flags & ASYNC_CLOSING)
+	spin_lock_irqsave(&info->port.lock, flags);
+	if (info->port.flags & ASYNC_CLOSING) {
+		spin_unlock_irqrestore(&info->port.lock, flags);
 		return;
+	}
 	if (info->port.count)
 		atomic_dec(&rp_num_ports_open);
 	clear_bit((info->aiop * 8) + info->chan, (void *) &xmit_flags[info->board]);
+	spin_unlock_irqrestore(&info->port.lock, flags);
 
 	tty_port_hangup(&info->port);
 
@@ -1535,7 +1546,7 @@ static void rp_hangup(struct tty_struct *tty)
 	sDisCTSFlowCtl(cp);
 	sDisTxSoftFlowCtl(cp);
 	sClrTxXOFF(cp);
-	info->port.flags &= ~ASYNC_INITIALIZED;
+	clear_bit(ASYNCB_INITIALIZED, &info->port.flags);
 
 	wake_up_interruptible(&info->port.open_wait);
 }
@@ -1753,7 +1764,7 @@ static void rp_flush_buffer(struct tty_struct *tty)
 
 #ifdef CONFIG_PCI
 
-static struct pci_device_id __devinitdata rocket_pci_ids[] = {
+static struct pci_device_id __devinitdata __used rocket_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_ANY_ID) },
 	{ }
 };
@@ -2334,7 +2345,7 @@ static int __init rp_init(void)
 	ret = tty_register_driver(rocket_driver);
 	if (ret < 0) {
 		printk(KERN_ERR "Couldn't install tty RocketPort driver\n");
-		goto err_tty;
+		goto err_controller;
 	}
 
 #ifdef ROCKET_DEBUG_OPEN
@@ -2369,6 +2380,9 @@ static int __init rp_init(void)
 	return 0;
 err_ttyu:
 	tty_unregister_driver(rocket_driver);
+err_controller:
+	if (controller)
+		release_region(controller, 4);
 err_tty:
 	put_tty_driver(rocket_driver);
 err:

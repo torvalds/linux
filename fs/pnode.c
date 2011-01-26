@@ -126,6 +126,9 @@ static int do_make_slave(struct vfsmount *mnt)
 	return 0;
 }
 
+/*
+ * vfsmount lock must be held for write
+ */
 void change_mnt_propagation(struct vfsmount *mnt, int type)
 {
 	if (type == MS_SHARED) {
@@ -270,12 +273,12 @@ int propagate_mnt(struct vfsmount *dest_mnt, struct dentry *dest_dentry,
 		prev_src_mnt  = child;
 	}
 out:
-	spin_lock(&vfsmount_lock);
+	br_write_lock(vfsmount_lock);
 	while (!list_empty(&tmp_list)) {
 		child = list_first_entry(&tmp_list, struct vfsmount, mnt_hash);
 		umount_tree(child, 0, &umount_list);
 	}
-	spin_unlock(&vfsmount_lock);
+	br_write_unlock(vfsmount_lock);
 	release_mounts(&umount_list);
 	return ret;
 }
@@ -285,7 +288,7 @@ out:
  */
 static inline int do_refcount_check(struct vfsmount *mnt, int count)
 {
-	int mycount = atomic_read(&mnt->mnt_count) - mnt->mnt_ghosts;
+	int mycount = mnt_get_count(mnt) - mnt->mnt_ghosts;
 	return (mycount > count);
 }
 
@@ -296,6 +299,8 @@ static inline int do_refcount_check(struct vfsmount *mnt, int count)
  * other mounts its parent propagates to.
  * Check if any of these mounts that **do not have submounts**
  * have more references than 'refcnt'. If so return busy.
+ *
+ * vfsmount lock must be held for write
  */
 int propagate_mount_busy(struct vfsmount *mnt, int refcnt)
 {
@@ -353,6 +358,8 @@ static void __propagate_umount(struct vfsmount *mnt)
  * collect all mounts that receive propagation from the mount in @list,
  * and return these additional mounts in the same list.
  * @list: the list of mounts to be unmounted.
+ *
+ * vfsmount lock must be held for write
  */
 int propagate_umount(struct list_head *list)
 {

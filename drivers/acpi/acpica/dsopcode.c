@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -213,7 +213,7 @@ acpi_ds_get_buffer_field_arguments(union acpi_operand_object *obj_desc)
 
 	/* Execute the AML code for the term_arg arguments */
 
-	status = acpi_ds_execute_arguments(node, acpi_ns_get_parent_node(node),
+	status = acpi_ds_execute_arguments(node, node->parent,
 					   extra_desc->extra.aml_length,
 					   extra_desc->extra.aml_start);
 	return_ACPI_STATUS(status);
@@ -257,7 +257,7 @@ acpi_ds_get_bank_field_arguments(union acpi_operand_object *obj_desc)
 
 	/* Execute the AML code for the term_arg arguments */
 
-	status = acpi_ds_execute_arguments(node, acpi_ns_get_parent_node(node),
+	status = acpi_ds_execute_arguments(node, node->parent,
 					   extra_desc->extra.aml_length,
 					   extra_desc->extra.aml_start);
 	return_ACPI_STATUS(status);
@@ -394,7 +394,7 @@ acpi_status acpi_ds_get_region_arguments(union acpi_operand_object *obj_desc)
 
 	/* Execute the argument AML */
 
-	status = acpi_ds_execute_arguments(node, acpi_ns_get_parent_node(node),
+	status = acpi_ds_execute_arguments(node, node->parent,
 					   extra_desc->extra.aml_length,
 					   extra_desc->extra.aml_start);
 	if (ACPI_FAILURE(status)) {

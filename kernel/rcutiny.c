@@ -36,28 +36,21 @@
 #include <linux/time.h>
 #include <linux/cpu.h>
 
-/* Global control variables for rcupdate callback mechanism. */
-struct rcu_ctrlblk {
-	struct rcu_head *rcucblist;	/* List of pending callbacks (CBs). */
-	struct rcu_head **donetail;	/* ->next pointer of last "done" CB. */
-	struct rcu_head **curtail;	/* ->next pointer of last CB. */
-};
+/* Controls for rcu_kthread() kthread, replacing RCU_SOFTIRQ used previously. */
+static struct task_struct *rcu_kthread_task;
+static DECLARE_WAIT_QUEUE_HEAD(rcu_kthread_wq);
+static unsigned long have_rcu_kthread_work;
+static void invoke_rcu_kthread(void);
 
-/* Definition for rcupdate control block. */
-static struct rcu_ctrlblk rcu_sched_ctrlblk = {
-	.donetail	= &rcu_sched_ctrlblk.rcucblist,
-	.curtail	= &rcu_sched_ctrlblk.rcucblist,
-};
+/* Forward declarations for rcutiny_plugin.h. */
+struct rcu_ctrlblk;
+static void rcu_process_callbacks(struct rcu_ctrlblk *rcp);
+static int rcu_kthread(void *arg);
+static void __call_rcu(struct rcu_head *head,
+		       void (*func)(struct rcu_head *rcu),
+		       struct rcu_ctrlblk *rcp);
 
-static struct rcu_ctrlblk rcu_bh_ctrlblk = {
-	.donetail	= &rcu_bh_ctrlblk.rcucblist,
-	.curtail	= &rcu_bh_ctrlblk.rcucblist,
-};
-
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-int rcu_scheduler_active __read_mostly;
-EXPORT_SYMBOL_GPL(rcu_scheduler_active);
-#endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#include "rcutiny_plugin.h"
 
 #ifdef CONFIG_NO_HZ
 
@@ -115,7 +108,7 @@ void rcu_sched_qs(int cpu)
 {
 	if (rcu_qsctr_help(&rcu_sched_ctrlblk) +
 	    rcu_qsctr_help(&rcu_bh_ctrlblk))
-		raise_softirq(RCU_SOFTIRQ);
+		invoke_rcu_kthread();
 }
 
 /*
@@ -124,7 +117,7 @@ void rcu_sched_qs(int cpu)
 void rcu_bh_qs(int cpu)
 {
 	if (rcu_qsctr_help(&rcu_bh_ctrlblk))
-		raise_softirq(RCU_SOFTIRQ);
+		invoke_rcu_kthread();
 }
 
 /*
@@ -140,16 +133,18 @@ void rcu_check_callbacks(int cpu, int user)
 		rcu_sched_qs(cpu);
 	else if (!in_softirq())
 		rcu_bh_qs(cpu);
+	rcu_preempt_check_callbacks();
 }
 
 /*
- * Helper function for rcu_process_callbacks() that operates on the
- * specified rcu_ctrlkblk structure.
+ * Invoke the RCU callbacks on the specified rcu_ctrlkblk structure
+ * whose grace period has elapsed.
  */
-static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
+static void rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 {
 	struct rcu_head *next, *list;
 	unsigned long flags;
+	RCU_TRACE(int cb_count = 0);
 
 	/* If no RCU callbacks ready to invoke, just return. */
 	if (&rcp->rcucblist == rcp->donetail)
@@ -162,6 +157,7 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	*rcp->donetail = NULL;
 	if (rcp->curtail == rcp->donetail)
 		rcp->curtail = &rcp->rcucblist;
+	rcu_preempt_remove_callbacks(rcp);
 	rcp->donetail = &rcp->rcucblist;
 	local_irq_restore(flags);
 
@@ -169,18 +165,60 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	while (list) {
 		next = list->next;
 		prefetch(next);
+		debug_rcu_head_unqueue(list);
+		local_bh_disable();
 		list->func(list);
+		local_bh_enable();
 		list = next;
+		RCU_TRACE(cb_count++);
 	}
+	RCU_TRACE(rcu_trace_sub_qlen(rcp, cb_count));
 }
 
 /*
- * Invoke any callbacks whose grace period has completed.
+ * This kthread invokes RCU callbacks whose grace periods have
+ * elapsed.  It is awakened as needed, and takes the place of the
+ * RCU_SOFTIRQ that was used previously for this purpose.
+ * This is a kthread, but it is never stopped, at least not until
+ * the system goes down.
  */
-static void rcu_process_callbacks(struct softirq_action *unused)
+static int rcu_kthread(void *arg)
 {
-	__rcu_process_callbacks(&rcu_sched_ctrlblk);
-	__rcu_process_callbacks(&rcu_bh_ctrlblk);
+	unsigned long work;
+	unsigned long morework;
+	unsigned long flags;
+
+	for (;;) {
+		wait_event_interruptible(rcu_kthread_wq,
+					 have_rcu_kthread_work != 0);
+		morework = rcu_boost();
+		local_irq_save(flags);
+		work = have_rcu_kthread_work;
+		have_rcu_kthread_work = morework;
+		local_irq_restore(flags);
+		if (work) {
+			rcu_process_callbacks(&rcu_sched_ctrlblk);
+			rcu_process_callbacks(&rcu_bh_ctrlblk);
+			rcu_preempt_process_callbacks();
+		}
+		schedule_timeout_interruptible(1); /* Leave CPU for others. */
+	}
+
+	return 0;  /* Not reached, but needed to shut gcc up. */
+}
+
+/*
+ * Wake up rcu_kthread() to process callbacks now eligible for invocation
+ * or to boost readers.
+ */
+static void invoke_rcu_kthread(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	have_rcu_kthread_work = 1;
+	wake_up(&rcu_kthread_wq);
+	local_irq_restore(flags);
 }
 
 /*
@@ -211,25 +249,27 @@ static void __call_rcu(struct rcu_head *head,
 {
 	unsigned long flags;
 
+	debug_rcu_head_queue(head);
 	head->func = func;
 	head->next = NULL;
 
 	local_irq_save(flags);
 	*rcp->curtail = head;
 	rcp->curtail = &head->next;
+	RCU_TRACE(rcp->qlen++);
 	local_irq_restore(flags);
 }
 
 /*
- * Post an RCU callback to be invoked after the end of an RCU grace
+ * Post an RCU callback to be invoked after the end of an RCU-sched grace
  * period.  But since we have but one CPU, that would be after any
  * quiescent state.
  */
-void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
+void call_rcu_sched(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 {
 	__call_rcu(head, func, &rcu_sched_ctrlblk);
 }
-EXPORT_SYMBOL_GPL(call_rcu);
+EXPORT_SYMBOL_GPL(call_rcu_sched);
 
 /*
  * Post an RCU bottom-half callback to be invoked after any subsequent
@@ -240,20 +280,6 @@ void call_rcu_bh(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 	__call_rcu(head, func, &rcu_bh_ctrlblk);
 }
 EXPORT_SYMBOL_GPL(call_rcu_bh);
-
-void rcu_barrier(void)
-{
-	struct rcu_synchronize rcu;
-
-	init_rcu_head_on_stack(&rcu.head);
-	init_completion(&rcu.completion);
-	/* Will wake me after RCU finished. */
-	call_rcu(&rcu.head, wakeme_after_rcu);
-	/* Wait for it. */
-	wait_for_completion(&rcu.completion);
-	destroy_rcu_head_on_stack(&rcu.head);
-}
-EXPORT_SYMBOL_GPL(rcu_barrier);
 
 void rcu_barrier_bh(void)
 {
@@ -283,9 +309,16 @@ void rcu_barrier_sched(void)
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_sched);
 
-void __init rcu_init(void)
+/*
+ * Spawn the kthread that invokes RCU callbacks.
+ */
+static int __init rcu_spawn_kthreads(void)
 {
-	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
-}
+	struct sched_param sp;
 
-#include "rcutiny_plugin.h"
+	rcu_kthread_task = kthread_run(rcu_kthread, NULL, "rcu_kthread");
+	sp.sched_priority = RCU_BOOST_PRIO;
+	sched_setscheduler_nocheck(rcu_kthread_task, SCHED_FIFO, &sp);
+	return 0;
+}
+early_initcall(rcu_spawn_kthreads);

@@ -81,10 +81,12 @@ static struct dvb_usb_device_properties dibusb_mc_properties = {
 	},
 	.power_ctrl       = dibusb2_0_power_ctrl,
 
-	.rc_interval      = DEFAULT_RC_INTERVAL,
-	.rc_key_map       = ir_codes_dibusb_table,
-	.rc_key_map_size  = 111, /* FIXME */
-	.rc_query         = dibusb_rc_query,
+	.rc.legacy = {
+		.rc_interval      = DEFAULT_RC_INTERVAL,
+		.rc_map_table     = rc_map_dibusb_table,
+		.rc_map_size      = 111, /* FIXME */
+		.rc_query         = dibusb_rc_query,
+	},
 
 	.i2c_algo         = &dibusb_i2c_algo,
 

@@ -365,14 +365,14 @@ static int __cpuinit profile_cpu_callback(struct notifier_block *info,
 	switch (action) {
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
-		node = cpu_to_node(cpu);
+		node = cpu_to_mem(cpu);
 		per_cpu(cpu_profile_flip, cpu) = 0;
 		if (!per_cpu(cpu_profile_hits, cpu)[1]) {
 			page = alloc_pages_exact_node(node,
 					GFP_KERNEL | __GFP_ZERO,
 					0);
 			if (!page)
-				return NOTIFY_BAD;
+				return notifier_from_errno(-ENOMEM);
 			per_cpu(cpu_profile_hits, cpu)[1] = page_address(page);
 		}
 		if (!per_cpu(cpu_profile_hits, cpu)[0]) {
@@ -388,7 +388,7 @@ out_free:
 		page = virt_to_page(per_cpu(cpu_profile_hits, cpu)[1]);
 		per_cpu(cpu_profile_hits, cpu)[1] = NULL;
 		__free_page(page);
-		return NOTIFY_BAD;
+		return notifier_from_errno(-ENOMEM);
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
 		if (prof_cpu_mask != NULL)
@@ -555,6 +555,7 @@ static ssize_t write_profile(struct file *file, const char __user *buf,
 static const struct file_operations proc_profile_operations = {
 	.read		= read_profile,
 	.write		= write_profile,
+	.llseek		= default_llseek,
 };
 
 #ifdef CONFIG_SMP
@@ -567,7 +568,7 @@ static int create_hash_tables(void)
 	int cpu;
 
 	for_each_online_cpu(cpu) {
-		int node = cpu_to_node(cpu);
+		int node = cpu_to_mem(cpu);
 		struct page *page;
 
 		page = alloc_pages_exact_node(node,

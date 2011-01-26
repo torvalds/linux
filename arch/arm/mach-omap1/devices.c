@@ -9,6 +9,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -16,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/spi/spi.h>
 
+#include <mach/camera.h>
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
 
@@ -25,6 +27,7 @@
 #include <mach/gpio.h>
 #include <plat/mmc.h>
 #include <plat/omap7xx.h>
+#include <plat/mcbsp.h>
 
 /*-------------------------------------------------------------------------*/
 
@@ -63,44 +66,7 @@ static void omap_init_rtc(void)
 static inline void omap_init_rtc(void) {}
 #endif
 
-#if defined(CONFIG_OMAP_DSP) || defined(CONFIG_OMAP_DSP_MODULE)
-
-#if defined(CONFIG_ARCH_OMAP15XX)
-#  define OMAP1_MBOX_SIZE	0x23
-#  define INT_DSP_MAILBOX1	INT_1510_DSP_MAILBOX1
-#elif defined(CONFIG_ARCH_OMAP16XX)
-#  define OMAP1_MBOX_SIZE	0x2f
-#  define INT_DSP_MAILBOX1	INT_1610_DSP_MAILBOX1
-#endif
-
-#define OMAP1_MBOX_BASE		OMAP16XX_MAILBOX_BASE
-
-static struct resource mbox_resources[] = {
-	{
-		.start		= OMAP1_MBOX_BASE,
-		.end		= OMAP1_MBOX_BASE + OMAP1_MBOX_SIZE,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= INT_DSP_MAILBOX1,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mbox_device = {
-	.name		= "omap1-mailbox",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(mbox_resources),
-	.resource	= mbox_resources,
-};
-
-static inline void omap_init_mbox(void)
-{
-	platform_device_register(&mbox_device);
-}
-#else
 static inline void omap_init_mbox(void) { }
-#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -228,43 +194,74 @@ static inline void omap_init_spi100k(void)
 }
 #endif
 
+
+#define OMAP1_CAMERA_BASE	0xfffb6800
+#define OMAP1_CAMERA_IOSIZE	0x1c
+
+static struct resource omap1_camera_resources[] = {
+	[0] = {
+		.start	= OMAP1_CAMERA_BASE,
+		.end	= OMAP1_CAMERA_BASE + OMAP1_CAMERA_IOSIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= INT_CAMERA,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 omap1_camera_dma_mask = DMA_BIT_MASK(32);
+
+static struct platform_device omap1_camera_device = {
+	.name		= "omap1-camera",
+	.id		= 0, /* This is used to put cameras on this interface */
+	.dev		= {
+		.dma_mask		= &omap1_camera_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(omap1_camera_resources),
+	.resource	= omap1_camera_resources,
+};
+
+void __init omap1_camera_init(void *info)
+{
+	struct platform_device *dev = &omap1_camera_device;
+	int ret;
+
+	dev->dev.platform_data = info;
+
+	ret = platform_device_register(dev);
+	if (ret)
+		dev_err(&dev->dev, "unable to register device: %d\n", ret);
+}
+
+
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_OMAP_STI)
-
-#define OMAP1_STI_BASE		0xfffea000
-#define OMAP1_STI_CHANNEL_BASE	(OMAP1_STI_BASE + 0x400)
-
-static struct resource sti_resources[] = {
-	{
-		.start		= OMAP1_STI_BASE,
-		.end		= OMAP1_STI_BASE + SZ_1K - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP1_STI_CHANNEL_BASE,
-		.end		= OMAP1_STI_CHANNEL_BASE + SZ_1K - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= INT_1610_STI,
-		.flags		= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device sti_device = {
-	.name		= "sti",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(sti_resources),
-	.resource	= sti_resources,
-};
-
-static inline void omap_init_sti(void)
-{
-	platform_device_register(&sti_device);
-}
-#else
 static inline void omap_init_sti(void) {}
+
+#if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
+
+static struct platform_device omap_pcm = {
+	.name	= "omap-pcm-audio",
+	.id	= -1,
+};
+
+OMAP_MCBSP_PLATFORM_DEVICE(1);
+OMAP_MCBSP_PLATFORM_DEVICE(2);
+OMAP_MCBSP_PLATFORM_DEVICE(3);
+
+static void omap_init_audio(void)
+{
+	platform_device_register(&omap_mcbsp1);
+	platform_device_register(&omap_mcbsp2);
+	if (!cpu_is_omap7xx())
+		platform_device_register(&omap_mcbsp3);
+	platform_device_register(&omap_pcm);
+}
+
+#else
+static inline void omap_init_audio(void) {}
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -291,6 +288,9 @@ static inline void omap_init_sti(void) {}
  */
 static int __init omap1_init_devices(void)
 {
+	if (!cpu_class_is_omap1())
+		return -ENODEV;
+
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
@@ -299,8 +299,35 @@ static int __init omap1_init_devices(void)
 	omap_init_rtc();
 	omap_init_spi100k();
 	omap_init_sti();
+	omap_init_audio();
 
 	return 0;
 }
 arch_initcall(omap1_init_devices);
 
+#if defined(CONFIG_OMAP_WATCHDOG) || defined(CONFIG_OMAP_WATCHDOG_MODULE)
+
+static struct resource wdt_resources[] = {
+	{
+		.start		= 0xfffeb000,
+		.end		= 0xfffeb07F,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device omap_wdt_device = {
+	.name	   = "omap_wdt",
+	.id	     = -1,
+	.num_resources	= ARRAY_SIZE(wdt_resources),
+	.resource	= wdt_resources,
+};
+
+static int __init omap_init_wdt(void)
+{
+	if (!cpu_is_omap16xx())
+		return -ENODEV;
+
+	return platform_device_register(&omap_wdt_device);
+}
+subsys_initcall(omap_init_wdt);
+#endif

@@ -103,6 +103,7 @@ ieee80211_rate_control_ops_get(const char *name)
 	struct rate_control_ops *ops;
 	const char *alg_name;
 
+	kparam_block_sysfs_write(ieee80211_default_rc_algo);
 	if (!name)
 		alg_name = ieee80211_default_rc_algo;
 	else
@@ -120,6 +121,7 @@ ieee80211_rate_control_ops_get(const char *name)
 	/* try built-in one if specific alg requested but not found */
 	if (!ops && strlen(CONFIG_MAC80211_RC_DEFAULT))
 		ops = ieee80211_try_rate_control_ops_get(CONFIG_MAC80211_RC_DEFAULT);
+	kparam_unblock_sysfs_write(ieee80211_default_rc_algo);
 
 	return ops;
 }
@@ -143,6 +145,7 @@ static ssize_t rcname_read(struct file *file, char __user *userbuf,
 static const struct file_operations rcname_ops = {
 	.read = rcname_read,
 	.open = mac80211_open_file_generic,
+	.llseek = default_llseek,
 };
 #endif
 
@@ -205,10 +208,11 @@ static bool rc_no_data_or_no_ack(struct ieee80211_tx_rate_control *txrc)
 
 	fc = hdr->frame_control;
 
-	return ((info->flags & IEEE80211_TX_CTL_NO_ACK) || !ieee80211_is_data(fc));
+	return (info->flags & IEEE80211_TX_CTL_NO_ACK) || !ieee80211_is_data(fc);
 }
 
-static void rc_send_low_broadcast(s8 *idx, u32 basic_rates, u8 max_rate_idx)
+static void rc_send_low_broadcast(s8 *idx, u32 basic_rates,
+				  struct ieee80211_supported_band *sband)
 {
 	u8 i;
 
@@ -219,7 +223,7 @@ static void rc_send_low_broadcast(s8 *idx, u32 basic_rates, u8 max_rate_idx)
 	if (basic_rates & (1 << *idx))
 		return; /* selected rate is a basic rate */
 
-	for (i = *idx + 1; i <= max_rate_idx; i++) {
+	for (i = *idx + 1; i <= sband->n_bitrates; i++) {
 		if (basic_rates & (1 << i)) {
 			*idx = i;
 			return;
@@ -234,16 +238,25 @@ bool rate_control_send_low(struct ieee80211_sta *sta,
 			   struct ieee80211_tx_rate_control *txrc)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(txrc->skb);
+	struct ieee80211_supported_band *sband = txrc->sband;
+	int mcast_rate;
 
 	if (!sta || !priv_sta || rc_no_data_or_no_ack(txrc)) {
 		info->control.rates[0].idx = rate_lowest_index(txrc->sband, sta);
 		info->control.rates[0].count =
 			(info->flags & IEEE80211_TX_CTL_NO_ACK) ?
 			1 : txrc->hw->max_rate_tries;
-		if (!sta && txrc->ap)
+		if (!sta && txrc->bss) {
+			mcast_rate = txrc->bss_conf->mcast_rate[sband->band];
+			if (mcast_rate > 0) {
+				info->control.rates[0].idx = mcast_rate - 1;
+				return true;
+			}
+
 			rc_send_low_broadcast(&info->control.rates[0].idx,
 					      txrc->bss_conf->basic_rates,
-					      txrc->sband->n_bitrates);
+					      sband);
+		}
 		return true;
 	}
 	return false;
@@ -326,6 +339,9 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 		 * if needed.
 		 */
 		for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+			/* Skip invalid rates */
+			if (info->control.rates[i].idx < 0)
+				break;
 			/* Rate masking supports only legacy rates for now */
 			if (info->control.rates[i].flags & IEEE80211_TX_RC_MCS)
 				continue;
@@ -366,8 +382,8 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 
 	ref = rate_control_alloc(name, local);
 	if (!ref) {
-		printk(KERN_WARNING "%s: Failed to select rate control "
-		       "algorithm\n", wiphy_name(local->hw.wiphy));
+		wiphy_warn(local->hw.wiphy,
+			   "Failed to select rate control algorithm\n");
 		return -ENOENT;
 	}
 
@@ -378,9 +394,8 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 		sta_info_flush(local, NULL);
 	}
 
-	printk(KERN_DEBUG "%s: Selected rate control "
-	       "algorithm '%s'\n", wiphy_name(local->hw.wiphy),
-	       ref->ops->name);
+	wiphy_debug(local->hw.wiphy, "Selected rate control algorithm '%s'\n",
+		    ref->ops->name);
 
 	return 0;
 }

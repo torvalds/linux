@@ -43,7 +43,6 @@
 #include <linux/fcntl.h>
 #include <linux/stat.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/workqueue.h>
 #include <linux/writeback.h>
@@ -136,13 +135,6 @@ static int reiserfs_clean_and_file_buffer(struct buffer_head *bh)
 		clear_buffer_journal_test(bh);
 	}
 	return 0;
-}
-
-static void disable_barrier(struct super_block *s)
-{
-	REISERFS_SB(s)->s_mount_opt &= ~(1 << REISERFS_BARRIER_FLUSH);
-	printk("reiserfs: disabling flush barriers on %s\n",
-	       reiserfs_bdevname(s));
 }
 
 static struct reiserfs_bitmap_node *allocate_bitmap_node(struct super_block
@@ -677,30 +669,6 @@ static void submit_ordered_buffer(struct buffer_head *bh)
 	submit_bh(WRITE, bh);
 }
 
-static int submit_barrier_buffer(struct buffer_head *bh)
-{
-	get_bh(bh);
-	bh->b_end_io = reiserfs_end_ordered_io;
-	clear_buffer_dirty(bh);
-	if (!buffer_uptodate(bh))
-		BUG();
-	return submit_bh(WRITE_BARRIER, bh);
-}
-
-static void check_barrier_completion(struct super_block *s,
-				     struct buffer_head *bh)
-{
-	if (buffer_eopnotsupp(bh)) {
-		clear_buffer_eopnotsupp(bh);
-		disable_barrier(s);
-		set_buffer_uptodate(bh);
-		set_buffer_dirty(bh);
-		reiserfs_write_unlock(s);
-		sync_dirty_buffer(bh);
-		reiserfs_write_lock(s);
-	}
-}
-
 #define CHUNK_SIZE 32
 struct buffer_chunk {
 	struct buffer_head *bh[CHUNK_SIZE];
@@ -983,7 +951,6 @@ static int flush_older_commits(struct super_block *s,
 
 static int reiserfs_async_progress_wait(struct super_block *s)
 {
-	DEFINE_WAIT(wait);
 	struct reiserfs_journal *j = SB_JOURNAL(s);
 
 	if (atomic_read(&j->j_async_throttle)) {
@@ -1010,7 +977,6 @@ static int flush_commit_list(struct super_block *s,
 	struct buffer_head *tbh = NULL;
 	unsigned int trans_id = jl->j_trans_id;
 	struct reiserfs_journal *journal = SB_JOURNAL(s);
-	int barrier = 0;
 	int retval = 0;
 	int write_len;
 
@@ -1095,24 +1061,6 @@ static int flush_commit_list(struct super_block *s,
 	}
 	atomic_dec(&journal->j_async_throttle);
 
-	/* We're skipping the commit if there's an error */
-	if (retval || reiserfs_is_journal_aborted(journal))
-		barrier = 0;
-
-	/* wait on everything written so far before writing the commit
-	 * if we are in barrier mode, send the commit down now
-	 */
-	barrier = reiserfs_barrier_flush(s);
-	if (barrier) {
-		int ret;
-		lock_buffer(jl->j_commit_bh);
-		ret = submit_barrier_buffer(jl->j_commit_bh);
-		if (ret == -EOPNOTSUPP) {
-			set_buffer_uptodate(jl->j_commit_bh);
-			disable_barrier(s);
-			barrier = 0;
-		}
-	}
 	for (i = 0; i < (jl->j_len + 1); i++) {
 		bn = SB_ONDISK_JOURNAL_1st_BLOCK(s) +
 		    (jl->j_start + i) % SB_ONDISK_JOURNAL_SIZE(s);
@@ -1144,26 +1092,21 @@ static int flush_commit_list(struct super_block *s,
 
 	BUG_ON(atomic_read(&(jl->j_commit_left)) != 1);
 
-	if (!barrier) {
-		/* If there was a write error in the journal - we can't commit
-		 * this transaction - it will be invalid and, if successful,
-		 * will just end up propagating the write error out to
-		 * the file system. */
-		if (likely(!retval && !reiserfs_is_journal_aborted (journal))) {
-			if (buffer_dirty(jl->j_commit_bh))
-				BUG();
-			mark_buffer_dirty(jl->j_commit_bh) ;
-			reiserfs_write_unlock(s);
-			sync_dirty_buffer(jl->j_commit_bh) ;
-			reiserfs_write_lock(s);
-		}
-	} else {
+	/* If there was a write error in the journal - we can't commit
+	 * this transaction - it will be invalid and, if successful,
+	 * will just end up propagating the write error out to
+	 * the file system. */
+	if (likely(!retval && !reiserfs_is_journal_aborted (journal))) {
+		if (buffer_dirty(jl->j_commit_bh))
+			BUG();
+		mark_buffer_dirty(jl->j_commit_bh) ;
 		reiserfs_write_unlock(s);
-		wait_on_buffer(jl->j_commit_bh);
+		if (reiserfs_barrier_flush(s))
+			__sync_dirty_buffer(jl->j_commit_bh, WRITE_FLUSH_FUA);
+		else
+			sync_dirty_buffer(jl->j_commit_bh);
 		reiserfs_write_lock(s);
 	}
-
-	check_barrier_completion(s, jl->j_commit_bh);
 
 	/* If there was a write error in the journal - we can't commit this
 	 * transaction - it will be invalid and, if successful, will just end
@@ -1320,26 +1263,15 @@ static int _update_journal_header_block(struct super_block *sb,
 		jh->j_first_unflushed_offset = cpu_to_le32(offset);
 		jh->j_mount_id = cpu_to_le32(journal->j_mount_id);
 
-		if (reiserfs_barrier_flush(sb)) {
-			int ret;
-			lock_buffer(journal->j_header_bh);
-			ret = submit_barrier_buffer(journal->j_header_bh);
-			if (ret == -EOPNOTSUPP) {
-				set_buffer_uptodate(journal->j_header_bh);
-				disable_barrier(sb);
-				goto sync;
-			}
-			reiserfs_write_unlock(sb);
-			wait_on_buffer(journal->j_header_bh);
-			reiserfs_write_lock(sb);
-			check_barrier_completion(sb, journal->j_header_bh);
-		} else {
-		      sync:
-			set_buffer_dirty(journal->j_header_bh);
-			reiserfs_write_unlock(sb);
+		set_buffer_dirty(journal->j_header_bh);
+		reiserfs_write_unlock(sb);
+
+		if (reiserfs_barrier_flush(sb))
+			__sync_dirty_buffer(journal->j_header_bh, WRITE_FLUSH_FUA);
+		else
 			sync_dirty_buffer(journal->j_header_bh);
-			reiserfs_write_lock(sb);
-		}
+
+		reiserfs_write_lock(sb);
 		if (!buffer_uptodate(journal->j_header_bh)) {
 			reiserfs_warning(sb, "journal-837",
 					 "IO error during journal replay");
@@ -2312,7 +2244,7 @@ static int journal_read_transaction(struct super_block *sb,
 	/* flush out the real blocks */
 	for (i = 0; i < get_desc_trans_len(desc); i++) {
 		set_buffer_dirty(real_blocks[i]);
-		ll_rw_block(SWRITE, 1, real_blocks + i);
+		write_dirty_buffer(real_blocks[i], WRITE);
 	}
 	for (i = 0; i < get_desc_trans_len(desc); i++) {
 		wait_on_buffer(real_blocks[i]);
@@ -2619,8 +2551,6 @@ static int release_journal_dev(struct super_block *super,
 	result = 0;
 
 	if (journal->j_dev_bd != NULL) {
-		if (journal->j_dev_bd->bd_dev != super->s_dev)
-			bd_release(journal->j_dev_bd);
 		result = blkdev_put(journal->j_dev_bd, journal->j_dev_mode);
 		journal->j_dev_bd = NULL;
 	}
@@ -2638,7 +2568,7 @@ static int journal_init_dev(struct super_block *super,
 {
 	int result;
 	dev_t jdev;
-	fmode_t blkdev_mode = FMODE_READ | FMODE_WRITE;
+	fmode_t blkdev_mode = FMODE_READ | FMODE_WRITE | FMODE_EXCL;
 	char b[BDEVNAME_SIZE];
 
 	result = 0;
@@ -2652,7 +2582,10 @@ static int journal_init_dev(struct super_block *super,
 
 	/* there is no "jdev" option and journal is on separate device */
 	if ((!jdev_name || !jdev_name[0])) {
-		journal->j_dev_bd = open_by_devnum(jdev, blkdev_mode);
+		if (jdev == super->s_dev)
+			blkdev_mode &= ~FMODE_EXCL;
+		journal->j_dev_bd = blkdev_get_by_dev(jdev, blkdev_mode,
+						      journal);
 		journal->j_dev_mode = blkdev_mode;
 		if (IS_ERR(journal->j_dev_bd)) {
 			result = PTR_ERR(journal->j_dev_bd);
@@ -2661,22 +2594,14 @@ static int journal_init_dev(struct super_block *super,
 					 "cannot init journal device '%s': %i",
 					 __bdevname(jdev, b), result);
 			return result;
-		} else if (jdev != super->s_dev) {
-			result = bd_claim(journal->j_dev_bd, journal);
-			if (result) {
-				blkdev_put(journal->j_dev_bd, blkdev_mode);
-				return result;
-			}
-
+		} else if (jdev != super->s_dev)
 			set_blocksize(journal->j_dev_bd, super->s_blocksize);
-		}
 
 		return 0;
 	}
 
 	journal->j_dev_mode = blkdev_mode;
-	journal->j_dev_bd = open_bdev_exclusive(jdev_name,
-						blkdev_mode, journal);
+	journal->j_dev_bd = blkdev_get_by_path(jdev_name, blkdev_mode, journal);
 	if (IS_ERR(journal->j_dev_bd)) {
 		result = PTR_ERR(journal->j_dev_bd);
 		journal->j_dev_bd = NULL;

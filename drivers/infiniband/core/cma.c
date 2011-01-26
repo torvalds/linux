@@ -59,6 +59,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define CMA_CM_RESPONSE_TIMEOUT 20
 #define CMA_MAX_CM_RETRIES 15
 #define CMA_CM_MRA_SETTING (IB_CM_MRA_FLAG_DELAY | 24)
+#define CMA_IBOE_PACKET_LIFETIME 18
 
 static void cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device);
@@ -157,6 +158,7 @@ struct cma_multicast {
 	struct list_head	list;
 	void			*context;
 	struct sockaddr_storage	addr;
+	struct kref		mcref;
 };
 
 struct cma_work {
@@ -171,6 +173,12 @@ struct cma_ndev_work {
 	struct work_struct	work;
 	struct rdma_id_private	*id;
 	struct rdma_cm_event	event;
+};
+
+struct iboe_mcast_work {
+	struct work_struct	 work;
+	struct rdma_id_private	*id;
+	struct cma_multicast	*mc;
 };
 
 union cma_ip_addr {
@@ -281,6 +289,8 @@ static void cma_attach_to_dev(struct rdma_id_private *id_priv,
 	atomic_inc(&cma_dev->refcount);
 	id_priv->cma_dev = cma_dev;
 	id_priv->id.device = cma_dev->device;
+	id_priv->id.route.addr.dev_addr.transport =
+		rdma_node_get_transport(cma_dev->device->node_type);
 	list_add_tail(&id_priv->list, &cma_dev->id_list);
 }
 
@@ -288,6 +298,14 @@ static inline void cma_deref_dev(struct cma_device *cma_dev)
 {
 	if (atomic_dec_and_test(&cma_dev->refcount))
 		complete(&cma_dev->comp);
+}
+
+static inline void release_mc(struct kref *kref)
+{
+	struct cma_multicast *mc = container_of(kref, struct cma_multicast, mcref);
+
+	kfree(mc->multicast.ib);
+	kfree(mc);
 }
 
 static void cma_detach_from_dev(struct rdma_id_private *id_priv)
@@ -323,22 +341,63 @@ static int cma_set_qkey(struct rdma_id_private *id_priv)
 	return ret;
 }
 
+static int find_gid_port(struct ib_device *device, union ib_gid *gid, u8 port_num)
+{
+	int i;
+	int err;
+	struct ib_port_attr props;
+	union ib_gid tmp;
+
+	err = ib_query_port(device, port_num, &props);
+	if (err)
+		return 1;
+
+	for (i = 0; i < props.gid_tbl_len; ++i) {
+		err = ib_query_gid(device, port_num, i, &tmp);
+		if (err)
+			return 1;
+		if (!memcmp(&tmp, gid, sizeof tmp))
+			return 0;
+	}
+
+	return -EAGAIN;
+}
+
 static int cma_acquire_dev(struct rdma_id_private *id_priv)
 {
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
 	struct cma_device *cma_dev;
-	union ib_gid gid;
+	union ib_gid gid, iboe_gid;
 	int ret = -ENODEV;
+	u8 port;
+	enum rdma_link_layer dev_ll = dev_addr->dev_type == ARPHRD_INFINIBAND ?
+		IB_LINK_LAYER_INFINIBAND : IB_LINK_LAYER_ETHERNET;
 
-	rdma_addr_get_sgid(dev_addr, &gid);
+	iboe_addr_get_sgid(dev_addr, &iboe_gid);
+	memcpy(&gid, dev_addr->src_dev_addr +
+	       rdma_addr_gid_offset(dev_addr), sizeof gid);
 	list_for_each_entry(cma_dev, &dev_list, list) {
-		ret = ib_find_cached_gid(cma_dev->device, &gid,
-					 &id_priv->id.port_num, NULL);
-		if (!ret) {
-			cma_attach_to_dev(id_priv, cma_dev);
-			break;
+		for (port = 1; port <= cma_dev->device->phys_port_cnt; ++port) {
+			if (rdma_port_get_link_layer(cma_dev->device, port) == dev_ll) {
+				if (rdma_node_get_transport(cma_dev->device->node_type) == RDMA_TRANSPORT_IB &&
+				    rdma_port_get_link_layer(cma_dev->device, port) == IB_LINK_LAYER_ETHERNET)
+					ret = find_gid_port(cma_dev->device, &iboe_gid, port);
+				else
+					ret = find_gid_port(cma_dev->device, &gid, port);
+
+				if (!ret) {
+					id_priv->id.port_num = port;
+					goto out;
+				} else if (ret == 1)
+					break;
+			}
 		}
 	}
+
+out:
+	if (!ret)
+		cma_attach_to_dev(id_priv, cma_dev);
+
 	return ret;
 }
 
@@ -556,10 +615,16 @@ static int cma_ib_init_qp_attr(struct rdma_id_private *id_priv,
 {
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
 	int ret;
+	u16 pkey;
+
+	if (rdma_port_get_link_layer(id_priv->id.device, id_priv->id.port_num) ==
+	    IB_LINK_LAYER_INFINIBAND)
+		pkey = ib_addr_get_pkey(dev_addr);
+	else
+		pkey = 0xffff;
 
 	ret = ib_find_cached_pkey(id_priv->id.device, id_priv->id.port_num,
-				  ib_addr_get_pkey(dev_addr),
-				  &qp_attr->pkey_index);
+				  pkey, &qp_attr->pkey_index);
 	if (ret)
 		return ret;
 
@@ -737,8 +802,8 @@ static inline int cma_user_data_offset(enum rdma_port_space ps)
 
 static void cma_cancel_route(struct rdma_id_private *id_priv)
 {
-	switch (rdma_node_get_transport(id_priv->id.device->node_type)) {
-	case RDMA_TRANSPORT_IB:
+	switch (rdma_port_get_link_layer(id_priv->id.device, id_priv->id.port_num)) {
+	case IB_LINK_LAYER_INFINIBAND:
 		if (id_priv->query)
 			ib_sa_cancel_query(id_priv->query_id, id_priv->query);
 		break;
@@ -816,8 +881,17 @@ static void cma_leave_mc_groups(struct rdma_id_private *id_priv)
 		mc = container_of(id_priv->mc_list.next,
 				  struct cma_multicast, list);
 		list_del(&mc->list);
-		ib_sa_free_multicast(mc->multicast.ib);
-		kfree(mc);
+		switch (rdma_port_get_link_layer(id_priv->cma_dev->device, id_priv->id.port_num)) {
+		case IB_LINK_LAYER_INFINIBAND:
+			ib_sa_free_multicast(mc->multicast.ib);
+			kfree(mc);
+			break;
+		case IB_LINK_LAYER_ETHERNET:
+			kref_put(&mc->mcref, release_mc);
+			break;
+		default:
+			break;
+		}
 	}
 }
 
@@ -833,7 +907,7 @@ void rdma_destroy_id(struct rdma_cm_id *id)
 	mutex_lock(&lock);
 	if (id_priv->cma_dev) {
 		mutex_unlock(&lock);
-		switch (rdma_node_get_transport(id->device->node_type)) {
+		switch (rdma_node_get_transport(id_priv->id.device->node_type)) {
 		case RDMA_TRANSPORT_IB:
 			if (id_priv->cm_id.ib && !IS_ERR(id_priv->cm_id.ib))
 				ib_destroy_cm_id(id_priv->cm_id.ib);
@@ -1708,6 +1782,81 @@ static int cma_resolve_iw_route(struct rdma_id_private *id_priv, int timeout_ms)
 	return 0;
 }
 
+static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
+{
+	struct rdma_route *route = &id_priv->id.route;
+	struct rdma_addr *addr = &route->addr;
+	struct cma_work *work;
+	int ret;
+	struct sockaddr_in *src_addr = (struct sockaddr_in *)&route->addr.src_addr;
+	struct sockaddr_in *dst_addr = (struct sockaddr_in *)&route->addr.dst_addr;
+	struct net_device *ndev = NULL;
+	u16 vid;
+
+	if (src_addr->sin_family != dst_addr->sin_family)
+		return -EINVAL;
+
+	work = kzalloc(sizeof *work, GFP_KERNEL);
+	if (!work)
+		return -ENOMEM;
+
+	work->id = id_priv;
+	INIT_WORK(&work->work, cma_work_handler);
+
+	route->path_rec = kzalloc(sizeof *route->path_rec, GFP_KERNEL);
+	if (!route->path_rec) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+
+	route->num_paths = 1;
+
+	if (addr->dev_addr.bound_dev_if)
+		ndev = dev_get_by_index(&init_net, addr->dev_addr.bound_dev_if);
+	if (!ndev) {
+		ret = -ENODEV;
+		goto err2;
+	}
+
+	vid = rdma_vlan_dev_vlan_id(ndev);
+
+	iboe_mac_vlan_to_ll(&route->path_rec->sgid, addr->dev_addr.src_dev_addr, vid);
+	iboe_mac_vlan_to_ll(&route->path_rec->dgid, addr->dev_addr.dst_dev_addr, vid);
+
+	route->path_rec->hop_limit = 1;
+	route->path_rec->reversible = 1;
+	route->path_rec->pkey = cpu_to_be16(0xffff);
+	route->path_rec->mtu_selector = IB_SA_EQ;
+	route->path_rec->sl = id_priv->tos >> 5;
+
+	route->path_rec->mtu = iboe_get_mtu(ndev->mtu);
+	route->path_rec->rate_selector = IB_SA_EQ;
+	route->path_rec->rate = iboe_get_rate(ndev);
+	dev_put(ndev);
+	route->path_rec->packet_life_time_selector = IB_SA_EQ;
+	route->path_rec->packet_life_time = CMA_IBOE_PACKET_LIFETIME;
+	if (!route->path_rec->mtu) {
+		ret = -EINVAL;
+		goto err2;
+	}
+
+	work->old_state = CMA_ROUTE_QUERY;
+	work->new_state = CMA_ROUTE_RESOLVED;
+	work->event.event = RDMA_CM_EVENT_ROUTE_RESOLVED;
+	work->event.status = 0;
+
+	queue_work(cma_wq, &work->work);
+
+	return 0;
+
+err2:
+	kfree(route->path_rec);
+	route->path_rec = NULL;
+err1:
+	kfree(work);
+	return ret;
+}
+
 int rdma_resolve_route(struct rdma_cm_id *id, int timeout_ms)
 {
 	struct rdma_id_private *id_priv;
@@ -1720,7 +1869,16 @@ int rdma_resolve_route(struct rdma_cm_id *id, int timeout_ms)
 	atomic_inc(&id_priv->refcount);
 	switch (rdma_node_get_transport(id->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		ret = cma_resolve_ib_route(id_priv, timeout_ms);
+		switch (rdma_port_get_link_layer(id->device, id->port_num)) {
+		case IB_LINK_LAYER_INFINIBAND:
+			ret = cma_resolve_ib_route(id_priv, timeout_ms);
+			break;
+		case IB_LINK_LAYER_ETHERNET:
+			ret = cma_resolve_iboe_route(id_priv);
+			break;
+		default:
+			ret = -ENOSYS;
+		}
 		break;
 	case RDMA_TRANSPORT_IWARP:
 		ret = cma_resolve_iw_route(id_priv, timeout_ms);
@@ -1773,7 +1931,7 @@ port_found:
 		goto out;
 
 	id_priv->id.route.addr.dev_addr.dev_type =
-		(rdma_node_get_transport(cma_dev->device->node_type) == RDMA_TRANSPORT_IB) ?
+		(rdma_port_get_link_layer(cma_dev->device, p) == IB_LINK_LAYER_INFINIBAND) ?
 		ARPHRD_INFINIBAND : ARPHRD_ETHER;
 
 	rdma_addr_set_sgid(&id_priv->id.route.addr.dev_addr, &gid);
@@ -2758,6 +2916,102 @@ static int cma_join_ib_multicast(struct rdma_id_private *id_priv,
 	return 0;
 }
 
+static void iboe_mcast_work_handler(struct work_struct *work)
+{
+	struct iboe_mcast_work *mw = container_of(work, struct iboe_mcast_work, work);
+	struct cma_multicast *mc = mw->mc;
+	struct ib_sa_multicast *m = mc->multicast.ib;
+
+	mc->multicast.ib->context = mc;
+	cma_ib_mc_handler(0, m);
+	kref_put(&mc->mcref, release_mc);
+	kfree(mw);
+}
+
+static void cma_iboe_set_mgid(struct sockaddr *addr, union ib_gid *mgid)
+{
+	struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)addr;
+
+	if (cma_any_addr(addr)) {
+		memset(mgid, 0, sizeof *mgid);
+	} else if (addr->sa_family == AF_INET6) {
+		memcpy(mgid, &sin6->sin6_addr, sizeof *mgid);
+	} else {
+		mgid->raw[0] = 0xff;
+		mgid->raw[1] = 0x0e;
+		mgid->raw[2] = 0;
+		mgid->raw[3] = 0;
+		mgid->raw[4] = 0;
+		mgid->raw[5] = 0;
+		mgid->raw[6] = 0;
+		mgid->raw[7] = 0;
+		mgid->raw[8] = 0;
+		mgid->raw[9] = 0;
+		mgid->raw[10] = 0xff;
+		mgid->raw[11] = 0xff;
+		*(__be32 *)(&mgid->raw[12]) = sin->sin_addr.s_addr;
+	}
+}
+
+static int cma_iboe_join_multicast(struct rdma_id_private *id_priv,
+				   struct cma_multicast *mc)
+{
+	struct iboe_mcast_work *work;
+	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
+	int err;
+	struct sockaddr *addr = (struct sockaddr *)&mc->addr;
+	struct net_device *ndev = NULL;
+
+	if (cma_zero_addr((struct sockaddr *)&mc->addr))
+		return -EINVAL;
+
+	work = kzalloc(sizeof *work, GFP_KERNEL);
+	if (!work)
+		return -ENOMEM;
+
+	mc->multicast.ib = kzalloc(sizeof(struct ib_sa_multicast), GFP_KERNEL);
+	if (!mc->multicast.ib) {
+		err = -ENOMEM;
+		goto out1;
+	}
+
+	cma_iboe_set_mgid(addr, &mc->multicast.ib->rec.mgid);
+
+	mc->multicast.ib->rec.pkey = cpu_to_be16(0xffff);
+	if (id_priv->id.ps == RDMA_PS_UDP)
+		mc->multicast.ib->rec.qkey = cpu_to_be32(RDMA_UDP_QKEY);
+
+	if (dev_addr->bound_dev_if)
+		ndev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
+	if (!ndev) {
+		err = -ENODEV;
+		goto out2;
+	}
+	mc->multicast.ib->rec.rate = iboe_get_rate(ndev);
+	mc->multicast.ib->rec.hop_limit = 1;
+	mc->multicast.ib->rec.mtu = iboe_get_mtu(ndev->mtu);
+	dev_put(ndev);
+	if (!mc->multicast.ib->rec.mtu) {
+		err = -EINVAL;
+		goto out2;
+	}
+	iboe_addr_get_sgid(dev_addr, &mc->multicast.ib->rec.port_gid);
+	work->id = id_priv;
+	work->mc = mc;
+	INIT_WORK(&work->work, iboe_mcast_work_handler);
+	kref_get(&mc->mcref);
+	queue_work(cma_wq, &work->work);
+
+	return 0;
+
+out2:
+	kfree(mc->multicast.ib);
+out1:
+	kfree(work);
+	return err;
+}
+
 int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
 			void *context)
 {
@@ -2784,7 +3038,17 @@ int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
 
 	switch (rdma_node_get_transport(id->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		ret = cma_join_ib_multicast(id_priv, mc);
+		switch (rdma_port_get_link_layer(id->device, id->port_num)) {
+		case IB_LINK_LAYER_INFINIBAND:
+			ret = cma_join_ib_multicast(id_priv, mc);
+			break;
+		case IB_LINK_LAYER_ETHERNET:
+			kref_init(&mc->mcref);
+			ret = cma_iboe_join_multicast(id_priv, mc);
+			break;
+		default:
+			ret = -EINVAL;
+		}
 		break;
 	default:
 		ret = -ENOSYS;
@@ -2817,8 +3081,19 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 				ib_detach_mcast(id->qp,
 						&mc->multicast.ib->rec.mgid,
 						mc->multicast.ib->rec.mlid);
-			ib_sa_free_multicast(mc->multicast.ib);
-			kfree(mc);
+			if (rdma_node_get_transport(id_priv->cma_dev->device->node_type) == RDMA_TRANSPORT_IB) {
+				switch (rdma_port_get_link_layer(id->device, id->port_num)) {
+				case IB_LINK_LAYER_INFINIBAND:
+					ib_sa_free_multicast(mc->multicast.ib);
+					kfree(mc);
+					break;
+				case IB_LINK_LAYER_ETHERNET:
+					kref_put(&mc->mcref, release_mc);
+					break;
+				default:
+					break;
+				}
+			}
 			return;
 		}
 	}

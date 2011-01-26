@@ -126,7 +126,6 @@
  * struct adis16400_state - device instance specific data
  * @us:			actual spi_device
  * @work_trigger_to_ring: bh for triggered event handling
- * @work_cont_thresh: CLEAN
  * @inter:		used to check if new interrupt has been triggered
  * @last_timestamp:	passing timestamp from th to bh of interrupt handler
  * @indio_dev:		industrial I/O device structure
@@ -138,7 +137,6 @@
 struct adis16400_state {
 	struct spi_device		*us;
 	struct work_struct		work_trigger_to_ring;
-	struct iio_work_cont		work_cont_thresh;
 	s64				last_timestamp;
 	struct iio_dev			*indio_dev;
 	struct iio_trigger		*trig;
@@ -147,33 +145,25 @@ struct adis16400_state {
 	struct mutex			buf_lock;
 };
 
-int adis16400_spi_read_burst(struct device *dev, u8 *rx);
-
 int adis16400_set_irq(struct device *dev, bool enable);
-
-int adis16400_reset(struct device *dev);
-
-int adis16400_check_status(struct device *dev);
 
 #ifdef CONFIG_IIO_RING_BUFFER
 /* At the moment triggers are only used for ring buffer
  * filling. This may change!
  */
 
-enum adis16400_scan {
-	ADIS16400_SCAN_SUPPLY,
-	ADIS16400_SCAN_GYRO_X,
-	ADIS16400_SCAN_GYRO_Y,
-	ADIS16400_SCAN_GYRO_Z,
-	ADIS16400_SCAN_ACC_X,
-	ADIS16400_SCAN_ACC_Y,
-	ADIS16400_SCAN_ACC_Z,
-	ADIS16400_SCAN_MAGN_X,
-	ADIS16400_SCAN_MAGN_Y,
-	ADIS16400_SCAN_MAGN_Z,
-	ADIS16400_SCAN_TEMP,
-	ADIS16400_SCAN_ADC_0
-};
+#define ADIS16400_SCAN_SUPPLY	0
+#define ADIS16400_SCAN_GYRO_X	1
+#define ADIS16400_SCAN_GYRO_Y	2
+#define ADIS16400_SCAN_GYRO_Z	3
+#define ADIS16400_SCAN_ACC_X	4
+#define ADIS16400_SCAN_ACC_Y	5
+#define ADIS16400_SCAN_ACC_Z	6
+#define ADIS16400_SCAN_MAGN_X	7
+#define ADIS16400_SCAN_MAGN_Y	8
+#define ADIS16400_SCAN_MAGN_Z	9
+#define ADIS16400_SCAN_TEMP	10
+#define ADIS16400_SCAN_ADC_0	11
 
 void adis16400_remove_trigger(struct iio_dev *indio_dev);
 int adis16400_probe_trigger(struct iio_dev *indio_dev);
@@ -186,8 +176,6 @@ ssize_t adis16400_read_data_from_ring(struct device *dev,
 int adis16400_configure_ring(struct iio_dev *indio_dev);
 void adis16400_unconfigure_ring(struct iio_dev *indio_dev);
 
-int adis16400_initialize_ring(struct iio_ring_buffer *ring);
-void adis16400_uninitialize_ring(struct iio_ring_buffer *ring);
 #else /* CONFIG_IIO_RING_BUFFER */
 
 static inline void adis16400_remove_trigger(struct iio_dev *indio_dev)
@@ -213,15 +201,6 @@ static int adis16400_configure_ring(struct iio_dev *indio_dev)
 }
 
 static inline void adis16400_unconfigure_ring(struct iio_dev *indio_dev)
-{
-}
-
-static inline int adis16400_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return 0;
-}
-
-static inline void adis16400_uninitialize_ring(struct iio_ring_buffer *ring)
 {
 }
 

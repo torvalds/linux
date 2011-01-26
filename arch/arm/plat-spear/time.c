@@ -58,6 +58,11 @@
 
 #define INT_STATUS		0x1
 
+/*
+ * Minimum clocksource/clockevent timer range in seconds
+ */
+#define SPEAR_MIN_RANGE 4
+
 static __iomem void *gpt_base;
 static struct clk *gpt_clk;
 
@@ -65,44 +70,6 @@ static void clockevent_set_mode(enum clock_event_mode mode,
 				struct clock_event_device *clk_event_dev);
 static int clockevent_next_event(unsigned long evt,
 				 struct clock_event_device *clk_event_dev);
-
-/*
- * Following clocksource_set_clock and clockevent_set_clock picked
- * from arch/mips/kernel/time.c
- */
-
-void __init clocksource_set_clock(struct clocksource *cs, unsigned int clock)
-{
-	u64 temp;
-	u32 shift;
-
-	/* Find a shift value */
-	for (shift = 32; shift > 0; shift--) {
-		temp = (u64) NSEC_PER_SEC << shift;
-		do_div(temp, clock);
-		if ((temp >> 32) == 0)
-			break;
-	}
-	cs->shift = shift;
-	cs->mult = (u32) temp;
-}
-
-void __init clockevent_set_clock(struct clock_event_device *cd,
-	unsigned int clock)
-{
-	u64 temp;
-	u32 shift;
-
-	/* Find a shift value */
-	for (shift = 32; shift > 0; shift--) {
-		temp = (u64) clock << shift;
-		do_div(temp, NSEC_PER_SEC);
-		if ((temp >> 32) == 0)
-			break;
-	}
-	cd->shift = shift;
-	cd->mult = (u32) temp;
-}
 
 static cycle_t clocksource_read_cycles(struct clocksource *cs)
 {
@@ -114,8 +81,6 @@ static struct clocksource clksrc = {
 	.rating = 200,		/* its a pretty decent clock */
 	.read = clocksource_read_cycles,
 	.mask = 0xFFFF,		/* 16 bits */
-	.mult = 0,		/* to be computed */
-	.shift = 0,		/* to be computed */
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -138,10 +103,8 @@ static void spear_clocksource_init(void)
 	val |= CTRL_ENABLE ;
 	writew(val, gpt_base + CR(CLKSRC));
 
-	clocksource_set_clock(&clksrc, tick_rate);
-
 	/* register the clocksource */
-	clocksource_register(&clksrc);
+	clocksource_register_hz(&clksrc, tick_rate);
 }
 
 static struct clock_event_device clkevt = {
@@ -233,7 +196,7 @@ static void __init spear_clockevent_init(void)
 	tick_rate = clk_get_rate(gpt_clk);
 	tick_rate >>= CTRL_PRESCALER16;
 
-	clockevent_set_clock(&clkevt, tick_rate);
+	clockevents_calc_mult_shift(&clkevt, tick_rate, SPEAR_MIN_RANGE);
 
 	clkevt.max_delta_ns = clockevent_delta2ns(0xfff0,
 			&clkevt);

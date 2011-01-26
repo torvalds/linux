@@ -347,11 +347,12 @@ static const struct xfrm_type mip6_destopt_type =
 
 static int mip6_rthdr_input(struct xfrm_state *x, struct sk_buff *skb)
 {
+	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct rt2_hdr *rt2 = (struct rt2_hdr *)skb->data;
 	int err = rt2->rt_hdr.nexthdr;
 
 	spin_lock(&x->lock);
-	if (!ipv6_addr_equal(&rt2->addr, (struct in6_addr *)x->coaddr) &&
+	if (!ipv6_addr_equal(&iph->daddr, (struct in6_addr *)x->coaddr) &&
 	    !ipv6_addr_any((struct in6_addr *)x->coaddr))
 		err = -ENOENT;
 	spin_unlock(&x->lock);

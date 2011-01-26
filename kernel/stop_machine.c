@@ -35,9 +35,9 @@ struct cpu_stop_done {
 /* the actual stopper, one per every possible cpu, enabled on online cpus */
 struct cpu_stopper {
 	spinlock_t		lock;
+	bool			enabled;	/* is this stopper enabled? */
 	struct list_head	works;		/* list of pending works */
 	struct task_struct	*thread;	/* stopper thread */
-	bool			enabled;	/* is this stopper enabled? */
 };
 
 static DEFINE_PER_CPU(struct cpu_stopper, cpu_stopper);
@@ -262,7 +262,7 @@ repeat:
 		cpu_stop_fn_t fn = work->fn;
 		void *arg = work->arg;
 		struct cpu_stop_done *done = work->done;
-		char ksym_buf[KSYM_NAME_LEN];
+		char ksym_buf[KSYM_NAME_LEN] __maybe_unused;
 
 		__set_current_state(TASK_RUNNING);
 
@@ -287,11 +287,12 @@ repeat:
 	goto repeat;
 }
 
+extern void sched_set_stop_task(int cpu, struct task_struct *stop);
+
 /* manage stopper for a cpu, mostly lifted from sched migration thread mgmt */
 static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
 					   unsigned long action, void *hcpu)
 {
-	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 	unsigned int cpu = (unsigned long)hcpu;
 	struct cpu_stopper *stopper = &per_cpu(cpu_stopper, cpu);
 	struct task_struct *p;
@@ -303,14 +304,14 @@ static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
 		p = kthread_create(cpu_stopper_thread, stopper, "migration/%d",
 				   cpu);
 		if (IS_ERR(p))
-			return NOTIFY_BAD;
-		sched_setscheduler_nocheck(p, SCHED_FIFO, &param);
+			return notifier_from_errno(PTR_ERR(p));
 		get_task_struct(p);
+		kthread_bind(p, cpu);
+		sched_set_stop_task(cpu, p);
 		stopper->thread = p;
 		break;
 
 	case CPU_ONLINE:
-		kthread_bind(stopper->thread, cpu);
 		/* strictly unnecessary, as first user will wake it */
 		wake_up_process(stopper->thread);
 		/* mark enabled */
@@ -321,10 +322,11 @@ static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
 
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
-	case CPU_DEAD:
+	case CPU_POST_DEAD:
 	{
 		struct cpu_stop_work *work;
 
+		sched_set_stop_task(cpu, NULL);
 		/* kill the stopper */
 		kthread_stop(stopper->thread);
 		/* drain remaining works */
@@ -370,7 +372,7 @@ static int __init cpu_stop_init(void)
 	/* start one for the boot cpu */
 	err = cpu_stop_cpu_callback(&cpu_stop_cpu_notifier, CPU_UP_PREPARE,
 				    bcpu);
-	BUG_ON(err == NOTIFY_BAD);
+	BUG_ON(err != NOTIFY_OK);
 	cpu_stop_cpu_callback(&cpu_stop_cpu_notifier, CPU_ONLINE, bcpu);
 	register_cpu_notifier(&cpu_stop_cpu_notifier);
 

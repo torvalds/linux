@@ -204,6 +204,7 @@ ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 				return error;
 			else {
 				inode->i_mode = mode;
+				inode->i_ctime = ext4_current_time(inode);
 				ext4_mark_inode_dirty(handle, inode);
 				if (error == 0)
 					acl = NULL;
@@ -237,10 +238,17 @@ ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 }
 
 int
-ext4_check_acl(struct inode *inode, int mask)
+ext4_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
-	struct posix_acl *acl = ext4_get_acl(inode, ACL_TYPE_ACCESS);
+	struct posix_acl *acl;
 
+	if (flags & IPERM_FLAG_RCU) {
+		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
+			return -ECHILD;
+		return -EAGAIN;
+	}
+
+	acl = ext4_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl) {

@@ -337,10 +337,10 @@ el2_probe1(struct net_device *dev, int ioaddr)
     /* Finish setting the board's parameters. */
     ei_status.stop_page = EL2_MB1_STOP_PG;
     ei_status.word16 = wordlength;
-    ei_status.reset_8390 = &el2_reset_8390;
-    ei_status.get_8390_hdr = &el2_get_8390_hdr;
-    ei_status.block_input = &el2_block_input;
-    ei_status.block_output = &el2_block_output;
+    ei_status.reset_8390 = el2_reset_8390;
+    ei_status.get_8390_hdr = el2_get_8390_hdr;
+    ei_status.block_input = el2_block_input;
+    ei_status.block_output = el2_block_output;
 
     if (dev->irq == 2)
 	dev->irq = 9;
@@ -392,8 +392,8 @@ el2_open(struct net_device *dev)
     int retval;
 
     if (dev->irq < 2) {
-	int irqlist[] = {5, 9, 3, 4, 0};
-	int *irqp = irqlist;
+	static const int irqlist[] = {5, 9, 3, 4, 0};
+	const int *irqp = irqlist;
 
 	outb(EGACFR_NORM, E33G_GACFR);	/* Enable RAM and interrupts. */
 	do {

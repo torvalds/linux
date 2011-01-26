@@ -15,15 +15,16 @@
  */
 
 #include "hw.h"
+#include "hw-ops.h"
 
 static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 					struct ath9k_tx_queue_info *qi)
 {
-	ath_print(ath9k_hw_common(ah), ATH_DBG_INTERRUPT,
-		  "tx ok 0x%x err 0x%x desc 0x%x eol 0x%x urn 0x%x\n",
-		  ah->txok_interrupt_mask, ah->txerr_interrupt_mask,
-		  ah->txdesc_interrupt_mask, ah->txeol_interrupt_mask,
-		  ah->txurn_interrupt_mask);
+	ath_dbg(ath9k_hw_common(ah), ATH_DBG_INTERRUPT,
+		"tx ok 0x%x err 0x%x desc 0x%x eol 0x%x urn 0x%x\n",
+		ah->txok_interrupt_mask, ah->txerr_interrupt_mask,
+		ah->txdesc_interrupt_mask, ah->txeol_interrupt_mask,
+		ah->txurn_interrupt_mask);
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
@@ -39,7 +40,6 @@ static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 	REG_WRITE(ah, AR_IMR_S2, ah->imrs2_reg);
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q)
@@ -56,8 +56,8 @@ EXPORT_SYMBOL(ath9k_hw_puttxbuf);
 
 void ath9k_hw_txstart(struct ath_hw *ah, u32 q)
 {
-	ath_print(ath9k_hw_common(ah), ATH_DBG_QUEUE,
-		  "Enable TXE on queue: %u\n", q);
+	ath_dbg(ath9k_hw_common(ah), ATH_DBG_QUEUE,
+		"Enable TXE on queue: %u\n", q);
 	REG_WRITE(ah, AR_Q_TXE, 1 << q);
 }
 EXPORT_SYMBOL(ath9k_hw_txstart);
@@ -117,12 +117,11 @@ EXPORT_SYMBOL(ath9k_hw_numtxpending);
 bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 {
 	u32 txcfg, curLevel, newLevel;
-	enum ath9k_int omask;
 
 	if (ah->tx_trig_level >= ah->config.max_txtrig_level)
 		return false;
 
-	omask = ath9k_hw_set_interrupts(ah, ah->imask & ~ATH9K_INT_GLOBAL);
+	ath9k_hw_disable_interrupts(ah);
 
 	txcfg = REG_READ(ah, AR_TXCFG);
 	curLevel = MS(txcfg, AR_FTRIG);
@@ -136,7 +135,7 @@ bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 		REG_WRITE(ah, AR_TXCFG,
 			  (txcfg & ~AR_FTRIG) | SM(newLevel, AR_FTRIG));
 
-	ath9k_hw_set_interrupts(ah, omask);
+	ath9k_hw_enable_interrupts(ah);
 
 	ah->tx_trig_level = newLevel;
 
@@ -155,15 +154,15 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 	u32 wait_time = ATH9K_TX_STOP_DMA_TIMEOUT / ATH9K_TIME_QUANTUM;
 
 	if (q >= pCap->total_queues) {
-		ath_print(common, ATH_DBG_QUEUE, "Stopping TX DMA, "
-			  "invalid queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Stopping TX DMA, invalid queue: %u\n", q);
 		return false;
 	}
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		ath_print(common, ATH_DBG_QUEUE, "Stopping TX DMA, "
-			  "inactive queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Stopping TX DMA, inactive queue: %u\n", q);
 		return false;
 	}
 
@@ -176,9 +175,9 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 	}
 
 	if (ath9k_hw_numtxpending(ah, q)) {
-		ath_print(common, ATH_DBG_QUEUE,
-			  "%s: Num of pending TX Frames %d on Q %d\n",
-			  __func__, ath9k_hw_numtxpending(ah, q), q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"%s: Num of pending TX Frames %d on Q %d\n",
+			__func__, ath9k_hw_numtxpending(ah, q), q);
 
 		for (j = 0; j < 2; j++) {
 			tsfLow = REG_READ(ah, AR_TSF_L32);
@@ -192,9 +191,9 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 			if ((REG_READ(ah, AR_TSF_L32) >> 10) == (tsfLow >> 10))
 				break;
 
-			ath_print(common, ATH_DBG_QUEUE,
-				  "TSF has moved while trying to set "
-				  "quiet time TSF: 0x%08x\n", tsfLow);
+			ath_dbg(common, ATH_DBG_QUEUE,
+				"TSF has moved while trying to set quiet time TSF: 0x%08x\n",
+				tsfLow);
 		}
 
 		REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_FORCE_CH_IDLE_HIGH);
@@ -205,9 +204,8 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 		wait = wait_time;
 		while (ath9k_hw_numtxpending(ah, q)) {
 			if ((--wait) == 0) {
-				ath_print(common, ATH_DBG_FATAL,
-					  "Failed to stop TX DMA in 100 "
-					  "msec after killing last frame\n");
+				ath_err(common,
+					"Failed to stop TX DMA in 100 msec after killing last frame\n");
 				break;
 			}
 			udelay(ATH9K_TIME_QUANTUM);
@@ -240,19 +238,19 @@ bool ath9k_hw_set_txq_props(struct ath_hw *ah, int q,
 	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
-		ath_print(common, ATH_DBG_QUEUE, "Set TXQ properties, "
-			  "invalid queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Set TXQ properties, invalid queue: %u\n", q);
 		return false;
 	}
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		ath_print(common, ATH_DBG_QUEUE, "Set TXQ properties, "
-			  "inactive queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Set TXQ properties, inactive queue: %u\n", q);
 		return false;
 	}
 
-	ath_print(common, ATH_DBG_QUEUE, "Set queue properties for: %u\n", q);
+	ath_dbg(common, ATH_DBG_QUEUE, "Set queue properties for: %u\n", q);
 
 	qi->tqi_ver = qinfo->tqi_ver;
 	qi->tqi_subtype = qinfo->tqi_subtype;
@@ -311,15 +309,15 @@ bool ath9k_hw_get_txq_props(struct ath_hw *ah, int q,
 	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
-		ath_print(common, ATH_DBG_QUEUE, "Get TXQ properties, "
-			  "invalid queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Get TXQ properties, invalid queue: %u\n", q);
 		return false;
 	}
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		ath_print(common, ATH_DBG_QUEUE, "Get TXQ properties, "
-			  "inactive queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Get TXQ properties, inactive queue: %u\n", q);
 		return false;
 	}
 
@@ -369,23 +367,20 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 			    ATH9K_TX_QUEUE_INACTIVE)
 				break;
 		if (q == pCap->total_queues) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "No available TX queue\n");
+			ath_err(common, "No available TX queue\n");
 			return -1;
 		}
 		break;
 	default:
-		ath_print(common, ATH_DBG_FATAL,
-			  "Invalid TX queue type: %u\n", type);
+		ath_err(common, "Invalid TX queue type: %u\n", type);
 		return -1;
 	}
 
-	ath_print(common, ATH_DBG_QUEUE, "Setup TX queue: %u\n", q);
+	ath_dbg(common, ATH_DBG_QUEUE, "Setup TX queue: %u\n", q);
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type != ATH9K_TX_QUEUE_INACTIVE) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "TX queue: %u already active\n", q);
+		ath_err(common, "TX queue: %u already active\n", q);
 		return -1;
 	}
 	memset(qi, 0, sizeof(struct ath9k_tx_queue_info));
@@ -417,18 +412,18 @@ bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q)
 	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
-		ath_print(common, ATH_DBG_QUEUE, "Release TXQ, "
-			  "invalid queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Release TXQ, invalid queue: %u\n", q);
 		return false;
 	}
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		ath_print(common, ATH_DBG_QUEUE, "Release TXQ, "
-			  "inactive queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Release TXQ, inactive queue: %u\n", q);
 		return false;
 	}
 
-	ath_print(common, ATH_DBG_QUEUE, "Release TX queue: %u\n", q);
+	ath_dbg(common, ATH_DBG_QUEUE, "Release TX queue: %u\n", q);
 
 	qi->tqi_type = ATH9K_TX_QUEUE_INACTIVE;
 	ah->txok_interrupt_mask &= ~(1 << q);
@@ -451,19 +446,19 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	u32 cwMin, chanCwMin, value;
 
 	if (q >= pCap->total_queues) {
-		ath_print(common, ATH_DBG_QUEUE, "Reset TXQ, "
-			  "invalid queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Reset TXQ, invalid queue: %u\n", q);
 		return false;
 	}
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		ath_print(common, ATH_DBG_QUEUE, "Reset TXQ, "
-			  "inactive queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Reset TXQ, inactive queue: %u\n", q);
 		return true;
 	}
 
-	ath_print(common, ATH_DBG_QUEUE, "Reset TX queue: %u\n", q);
+	ath_dbg(common, ATH_DBG_QUEUE, "Reset TX queue: %u\n", q);
 
 	if (qi->tqi_cwmin == ATH9K_TXQ_USEDEFAULT) {
 		if (chan && IS_CHAN_B(chan))
@@ -491,8 +486,6 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	REG_WRITE(ah, AR_DMISC(q),
 		  AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x2);
 
-	REGWRITE_BUFFER_FLUSH(ah);
-
 	if (qi->tqi_cbrPeriod) {
 		REG_WRITE(ah, AR_QCBRCFG(q),
 			  SM(qi->tqi_cbrPeriod, AR_Q_CBRCFG_INTERVAL) |
@@ -507,8 +500,6 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			  SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_DURATION) |
 			  AR_Q_RDYTIMECFG_EN);
 	}
-
-	REGWRITE_BUFFER_FLUSH(ah);
 
 	REG_WRITE(ah, AR_DCHNTIME(q),
 		  SM(qi->tqi_burstTime, AR_D_CHNTIME_DUR) |
@@ -529,7 +520,6 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	}
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 
 	if (qi->tqi_qflags & TXQ_FLAG_FRAG_BURST_BACKOFF_ENABLE) {
 		REG_WRITE(ah, AR_DMISC(q),
@@ -552,10 +542,14 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			  | AR_D_MISC_POST_FR_BKOFF_DIS);
 
 		REGWRITE_BUFFER_FLUSH(ah);
-		DISABLE_REGWRITE_BUFFER(ah);
 
-		/* cwmin and cwmax should be 0 for beacon queue */
-		if (AR_SREV_9300_20_OR_LATER(ah)) {
+		/*
+		 * cwmin and cwmax should be 0 for beacon queue
+		 * but not for IBSS as we would create an imbalance
+		 * on beaconing fairness for participating nodes.
+		 */
+		if (AR_SREV_9300_20_OR_LATER(ah) &&
+		    ah->opmode != NL80211_IFTYPE_ADHOC) {
 			REG_WRITE(ah, AR_DLCL_IFS(q), SM(0, AR_D_LCL_IFS_CWMIN)
 				  | SM(0, AR_D_LCL_IFS_CWMAX)
 				  | SM(qi->tqi_aifs, AR_D_LCL_IFS_AIFS));
@@ -579,7 +573,6 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			     AR_D_MISC_ARB_LOCKOUT_CNTRL_S));
 
 		REGWRITE_BUFFER_FLUSH(ah);
-		DISABLE_REGWRITE_BUFFER(ah);
 
 		break;
 	case ATH9K_TX_QUEUE_PSPOLL:
@@ -699,14 +692,17 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 	if ((ads.ds_rxstatus8 & AR_RxFrameOK) == 0) {
 		if (ads.ds_rxstatus8 & AR_CRCErr)
 			rs->rs_status |= ATH9K_RXERR_CRC;
-		else if (ads.ds_rxstatus8 & AR_PHYErr) {
+		if (ads.ds_rxstatus8 & AR_PHYErr) {
 			rs->rs_status |= ATH9K_RXERR_PHY;
 			phyerr = MS(ads.ds_rxstatus8, AR_PHYErrCode);
 			rs->rs_phyerr = phyerr;
-		} else if (ads.ds_rxstatus8 & AR_DecryptCRCErr)
+		}
+		if (ads.ds_rxstatus8 & AR_DecryptCRCErr)
 			rs->rs_status |= ATH9K_RXERR_DECRYPT;
-		else if (ads.ds_rxstatus8 & AR_MichaelErr)
+		if (ads.ds_rxstatus8 & AR_MichaelErr)
 			rs->rs_status |= ATH9K_RXERR_MIC;
+		if (ads.ds_rxstatus8 & AR_KeyMiss)
+			rs->rs_status |= ATH9K_RXERR_DECRYPT;
 	}
 
 	return 0;
@@ -735,9 +731,9 @@ bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set)
 				     AR_DIAG_RX_ABORT));
 
 			reg = REG_READ(ah, AR_OBS_BUS_1);
-			ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-				  "RX failed to go idle in 10 ms RXSM=0x%x\n",
-				  reg);
+			ath_err(ath9k_hw_common(ah),
+				"RX failed to go idle in 10 ms RXSM=0x%x\n",
+				reg);
 
 			return false;
 		}
@@ -756,23 +752,15 @@ void ath9k_hw_putrxbuf(struct ath_hw *ah, u32 rxdp)
 }
 EXPORT_SYMBOL(ath9k_hw_putrxbuf);
 
-void ath9k_hw_startpcureceive(struct ath_hw *ah)
+void ath9k_hw_startpcureceive(struct ath_hw *ah, bool is_scanning)
 {
 	ath9k_enable_mib_counters(ah);
 
-	ath9k_ani_reset(ah);
+	ath9k_ani_reset(ah, is_scanning);
 
 	REG_CLR_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 }
 EXPORT_SYMBOL(ath9k_hw_startpcureceive);
-
-void ath9k_hw_stoppcurecv(struct ath_hw *ah)
-{
-	REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_DIS);
-
-	ath9k_hw_disable_mib_counters(ah);
-}
-EXPORT_SYMBOL(ath9k_hw_stoppcurecv);
 
 void ath9k_hw_abortpcurecv(struct ath_hw *ah)
 {
@@ -799,12 +787,11 @@ bool ath9k_hw_stopdmarecv(struct ath_hw *ah)
 	}
 
 	if (i == 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "DMA failed to stop in %d ms "
-			  "AR_CR=0x%08x AR_DIAG_SW=0x%08x\n",
-			  AH_RX_STOP_DMA_TIMEOUT / 1000,
-			  REG_READ(ah, AR_CR),
-			  REG_READ(ah, AR_DIAG_SW));
+		ath_err(common,
+			"DMA failed to stop in %d ms AR_CR=0x%08x AR_DIAG_SW=0x%08x\n",
+			AH_RX_STOP_DMA_TIMEOUT / 1000,
+			REG_READ(ah, AR_CR),
+			REG_READ(ah, AR_DIAG_SW));
 		return false;
 	} else {
 		return true;
@@ -848,28 +835,59 @@ bool ath9k_hw_intrpend(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_intrpend);
 
-enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah,
-					      enum ath9k_int ints)
+void ath9k_hw_disable_interrupts(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	ath_dbg(common, ATH_DBG_INTERRUPT, "disable IER\n");
+	REG_WRITE(ah, AR_IER, AR_IER_DISABLE);
+	(void) REG_READ(ah, AR_IER);
+	if (!AR_SREV_9100(ah)) {
+		REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, 0);
+		(void) REG_READ(ah, AR_INTR_ASYNC_ENABLE);
+
+		REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
+		(void) REG_READ(ah, AR_INTR_SYNC_ENABLE);
+	}
+}
+EXPORT_SYMBOL(ath9k_hw_disable_interrupts);
+
+void ath9k_hw_enable_interrupts(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!(ah->imask & ATH9K_INT_GLOBAL))
+		return;
+
+	ath_dbg(common, ATH_DBG_INTERRUPT, "enable IER\n");
+	REG_WRITE(ah, AR_IER, AR_IER_ENABLE);
+	if (!AR_SREV_9100(ah)) {
+		REG_WRITE(ah, AR_INTR_ASYNC_ENABLE,
+			  AR_INTR_MAC_IRQ);
+		REG_WRITE(ah, AR_INTR_ASYNC_MASK, AR_INTR_MAC_IRQ);
+
+
+		REG_WRITE(ah, AR_INTR_SYNC_ENABLE,
+			  AR_INTR_SYNC_DEFAULT);
+		REG_WRITE(ah, AR_INTR_SYNC_MASK,
+			  AR_INTR_SYNC_DEFAULT);
+	}
+	ath_dbg(common, ATH_DBG_INTERRUPT, "AR_IMR 0x%x IER 0x%x\n",
+		REG_READ(ah, AR_IMR), REG_READ(ah, AR_IER));
+}
+EXPORT_SYMBOL(ath9k_hw_enable_interrupts);
+
+void ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 {
 	enum ath9k_int omask = ah->imask;
 	u32 mask, mask2;
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	ath_print(common, ATH_DBG_INTERRUPT, "0x%x => 0x%x\n", omask, ints);
+	if (!(ints & ATH9K_INT_GLOBAL))
+		ath9k_hw_enable_interrupts(ah);
 
-	if (omask & ATH9K_INT_GLOBAL) {
-		ath_print(common, ATH_DBG_INTERRUPT, "disable IER\n");
-		REG_WRITE(ah, AR_IER, AR_IER_DISABLE);
-		(void) REG_READ(ah, AR_IER);
-		if (!AR_SREV_9100(ah)) {
-			REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, 0);
-			(void) REG_READ(ah, AR_INTR_ASYNC_ENABLE);
-
-			REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
-			(void) REG_READ(ah, AR_INTR_SYNC_ENABLE);
-		}
-	}
+	ath_dbg(common, ATH_DBG_INTERRUPT, "0x%x => 0x%x\n", omask, ints);
 
 	/* TODO: global int Ref count */
 	mask = ints & ATH9K_INT_COMMON;
@@ -930,7 +948,7 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah,
 			mask2 |= AR_IMR_S2_CST;
 	}
 
-	ath_print(common, ATH_DBG_INTERRUPT, "new IMR 0x%x\n", mask);
+	ath_dbg(common, ATH_DBG_INTERRUPT, "new IMR 0x%x\n", mask);
 	REG_WRITE(ah, AR_IMR, mask);
 	ah->imrs2_reg &= ~(AR_IMR_S2_TIM | AR_IMR_S2_DTIM | AR_IMR_S2_DTIMSYNC |
 			   AR_IMR_S2_CABEND | AR_IMR_S2_CABTO |
@@ -945,24 +963,8 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah,
 			REG_CLR_BIT(ah, AR_IMR_S5, AR_IMR_S5_TIM_TIMER);
 	}
 
-	if (ints & ATH9K_INT_GLOBAL) {
-		ath_print(common, ATH_DBG_INTERRUPT, "enable IER\n");
-		REG_WRITE(ah, AR_IER, AR_IER_ENABLE);
-		if (!AR_SREV_9100(ah)) {
-			REG_WRITE(ah, AR_INTR_ASYNC_ENABLE,
-				  AR_INTR_MAC_IRQ);
-			REG_WRITE(ah, AR_INTR_ASYNC_MASK, AR_INTR_MAC_IRQ);
+	ath9k_hw_enable_interrupts(ah);
 
-
-			REG_WRITE(ah, AR_INTR_SYNC_ENABLE,
-				  AR_INTR_SYNC_DEFAULT);
-			REG_WRITE(ah, AR_INTR_SYNC_MASK,
-				  AR_INTR_SYNC_DEFAULT);
-		}
-		ath_print(common, ATH_DBG_INTERRUPT, "AR_IMR 0x%x IER 0x%x\n",
-			  REG_READ(ah, AR_IMR), REG_READ(ah, AR_IER));
-	}
-
-	return omask;
+	return;
 }
 EXPORT_SYMBOL(ath9k_hw_set_interrupts);

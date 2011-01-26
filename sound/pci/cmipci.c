@@ -2507,14 +2507,12 @@ static int snd_cmipci_line_in_mode_info(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *uinfo)
 {
 	struct cmipci *cm = snd_kcontrol_chip(kcontrol);
-	static char *texts[3] = { "Line-In", "Rear Output", "Bass Output" };
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = cm->chip_version >= 39 ? 3 : 2;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	static const char *const texts[3] = {
+		"Line-In", "Rear Output", "Bass Output"
+	};
+
+	return snd_ctl_enum_info(uinfo, 1,
+				 cm->chip_version >= 39 ? 3 : 2, texts);
 }
 
 static inline unsigned int get_line_in_mode(struct cmipci *cm)
@@ -2564,14 +2562,9 @@ static int snd_cmipci_line_in_mode_put(struct snd_kcontrol *kcontrol,
 static int snd_cmipci_mic_in_mode_info(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[2] = { "Mic-In", "Center/LFE Output" };
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	static const char *const texts[2] = { "Mic-In", "Center/LFE Output" };
+
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int snd_cmipci_mic_in_mode_get(struct snd_kcontrol *kcontrol,

@@ -231,3 +231,16 @@ config USB_ISIGHTFW
 	  driver beforehand. Tools for doing so are available at
 	  http://bersace03.free.fr
 
+config USB_YUREX
+	tristate "USB YUREX driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a YUREX to your computer's
+	  USB port. The YUREX is a leg-shakes sensor. See
+	  <http://bbu.kayac.com/en/> for further information.
+	  This driver supports read/write of leg-shakes counter and
+	  fasync for the counter update via a device file /dev/yurex*.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called yurex.
+

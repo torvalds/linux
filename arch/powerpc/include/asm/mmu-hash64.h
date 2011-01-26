@@ -250,7 +250,9 @@ extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		     pte_t *ptep, unsigned long trap, int local, int ssize,
 		     unsigned int shift, unsigned int mmu_psize);
-
+extern void hash_failure_debug(unsigned long ea, unsigned long access,
+			       unsigned long vsid, unsigned long trap,
+			       int ssize, int psize, unsigned long pte);
 extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long prot,
 			     int psize, int ssize);
@@ -431,7 +433,7 @@ typedef struct {
  * with.  However gcc is not clever enough to compute the
  * modulus (2^n-1) without a second multiply.
  */
-#define vsid_scrample(protovsid, size) \
+#define vsid_scramble(protovsid, size) \
 	((((protovsid) * VSID_MULTIPLIER_##size) % VSID_MODULUS_##size))
 
 #else /* 1 */

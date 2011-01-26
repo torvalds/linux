@@ -34,7 +34,6 @@
 #include <linux/io.h>
 #include <asm/div64.h>
 #include <linux/pci.h>
-#include <linux/smp_lock.h>
 #include <linux/timer.h>
 #include <linux/byteorder/generic.h>
 #include <linux/firmware.h>
@@ -52,8 +51,6 @@ module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "Print debugging information.");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
-
-#define COMMAND_TIMEOUT_WORKAROUND
 
 #define dprintk	if (debug) printk
 
@@ -147,24 +144,24 @@ static void demux_tasklet(unsigned long data)
 		} else {
 			if (chan->HWState == HWSTATE_RUN) {
 				u32 Flags = 0;
+				IBufferExchange *exch1 = chan->pBufferExchange;
+				IBufferExchange *exch2 = chan->pBufferExchange2;
 				if (Cur->ngeneBuffer.SR.Flags & 0x01)
 					Flags |= BEF_EVEN_FIELD;
 				if (Cur->ngeneBuffer.SR.Flags & 0x20)
 					Flags |= BEF_OVERFLOW;
-				if (chan->pBufferExchange)
-					chan->pBufferExchange(chan,
-							      Cur->Buffer1,
-							      chan->
-							      Capture1Length,
-							      Cur->ngeneBuffer.
-							      SR.Clock, Flags);
-				if (chan->pBufferExchange2)
-					chan->pBufferExchange2(chan,
-							       Cur->Buffer2,
-							       chan->
-							       Capture2Length,
-							       Cur->ngeneBuffer.
-							       SR.Clock, Flags);
+				spin_unlock_irq(&chan->state_lock);
+				if (exch1)
+					exch1(chan, Cur->Buffer1,
+						chan->Capture1Length,
+						Cur->ngeneBuffer.SR.Clock,
+						Flags);
+				if (exch2)
+					exch2(chan, Cur->Buffer2,
+						chan->Capture2Length,
+						Cur->ngeneBuffer.SR.Clock,
+						Flags);
+				spin_lock_irq(&chan->state_lock);
 			} else if (chan->HWState != HWSTATE_STOP)
 				chan->HWState = HWSTATE_RUN;
 		}
@@ -572,11 +569,7 @@ static int ngene_command_stream_control(struct ngene *dev, u8 stream,
 	u16 BsSPI = ((stream & 1) ? 0x9800 : 0x9700);
 	u16 BsSDO = 0x9B00;
 
-	/* down(&dev->stream_mutex); */
-	while (down_trylock(&dev->stream_mutex)) {
-		printk(KERN_INFO DEVICE_NAME ": SC locked\n");
-		msleep(1);
-	}
+	down(&dev->stream_mutex);
 	memset(&com, 0, sizeof(com));
 	com.cmd.hdr.Opcode = CMD_CONTROL;
 	com.cmd.hdr.Length = sizeof(struct FW_STREAM_CONTROL) - 2;
@@ -1252,14 +1245,17 @@ static int ngene_load_firm(struct ngene *dev)
 		version = 15;
 		size = 23466;
 		fw_name = "ngene_15.fw";
+		dev->cmd_timeout_workaround = true;
 		break;
 	case 16:
 		size = 23498;
 		fw_name = "ngene_16.fw";
+		dev->cmd_timeout_workaround = true;
 		break;
 	case 17:
 		size = 24446;
 		fw_name = "ngene_17.fw";
+		dev->cmd_timeout_workaround = true;
 		break;
 	}
 
@@ -1299,6 +1295,10 @@ static void ngene_stop(struct ngene *dev)
 	ngwritel(0, NGENE_EVENT);
 	ngwritel(0, NGENE_EVENT_HI);
 	free_irq(dev->pci_dev->irq, dev);
+#ifdef CONFIG_PCI_MSI
+	if (dev->msi_enabled)
+		pci_disable_msi(dev->pci_dev);
+#endif
 }
 
 static int ngene_start(struct ngene *dev)
@@ -1333,6 +1333,30 @@ static int ngene_start(struct ngene *dev)
 	if (stat < 0)
 		goto fail;
 
+#ifdef CONFIG_PCI_MSI
+	/* enable MSI if kernel and card support it */
+	if (pci_msi_enabled() && dev->card_info->msi_supported) {
+		unsigned long flags;
+
+		ngwritel(0, NGENE_INT_ENABLE);
+		free_irq(dev->pci_dev->irq, dev);
+		stat = pci_enable_msi(dev->pci_dev);
+		if (stat) {
+			printk(KERN_INFO DEVICE_NAME
+				": MSI not available\n");
+			flags = IRQF_SHARED;
+		} else {
+			flags = 0;
+			dev->msi_enabled = true;
+		}
+		stat = request_irq(dev->pci_dev->irq, irq_handler,
+					flags, "nGene", dev);
+		if (stat < 0)
+			goto fail2;
+		ngwritel(1, NGENE_INT_ENABLE);
+	}
+#endif
+
 	stat = ngene_i2c_init(dev, 0);
 	if (stat < 0)
 		goto fail;
@@ -1358,10 +1382,18 @@ static int ngene_start(struct ngene *dev)
 			bconf = BUFFER_CONFIG_3333;
 		stat = ngene_command_config_buf(dev, bconf);
 	}
-	return stat;
+	if (!stat)
+		return stat;
+
+	/* otherwise error: fall through */
 fail:
 	ngwritel(0, NGENE_INT_ENABLE);
 	free_irq(dev->pci_dev->irq, dev);
+#ifdef CONFIG_PCI_MSI
+fail2:
+	if (dev->msi_enabled)
+		pci_disable_msi(dev->pci_dev);
+#endif
 	return stat;
 }
 
@@ -1379,10 +1411,8 @@ static void release_channel(struct ngene_channel *chan)
 	struct ngene_info *ni = dev->card_info;
 	int io = ni->io_type[chan->number];
 
-#ifdef COMMAND_TIMEOUT_WORKAROUND
-	if (chan->running)
+	if (chan->dev->cmd_timeout_workaround && chan->running)
 		set_transfer(chan, 0);
-#endif
 
 	tasklet_kill(&chan->demux_tasklet);
 
@@ -1486,7 +1516,7 @@ static int init_channels(struct ngene *dev)
 
 void __devexit ngene_remove(struct pci_dev *pdev)
 {
-	struct ngene *dev = (struct ngene *)pci_get_drvdata(pdev);
+	struct ngene *dev = pci_get_drvdata(pdev);
 	int i;
 
 	tasklet_kill(&dev->event_tasklet);
@@ -1507,12 +1537,11 @@ int __devinit ngene_probe(struct pci_dev *pci_dev,
 	if (pci_enable_device(pci_dev) < 0)
 		return -ENODEV;
 
-	dev = vmalloc(sizeof(struct ngene));
+	dev = vzalloc(sizeof(struct ngene));
 	if (dev == NULL) {
 		stat = -ENOMEM;
 		goto fail0;
 	}
-	memset(dev, 0, sizeof(struct ngene));
 
 	dev->pci_dev = pci_dev;
 	dev->card_info = (struct ngene_info *)id->driver_data;

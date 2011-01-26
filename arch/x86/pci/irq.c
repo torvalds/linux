@@ -584,27 +584,29 @@ static __init int intel_router_probe(struct irq_router *r, struct pci_dev *route
 	case PCI_DEVICE_ID_INTEL_ICH9_3:
 	case PCI_DEVICE_ID_INTEL_ICH9_4:
 	case PCI_DEVICE_ID_INTEL_ICH9_5:
-	case PCI_DEVICE_ID_INTEL_TOLAPAI_0:
+	case PCI_DEVICE_ID_INTEL_EP80579_0:
 	case PCI_DEVICE_ID_INTEL_ICH10_0:
 	case PCI_DEVICE_ID_INTEL_ICH10_1:
 	case PCI_DEVICE_ID_INTEL_ICH10_2:
 	case PCI_DEVICE_ID_INTEL_ICH10_3:
+	case PCI_DEVICE_ID_INTEL_PATSBURG_LPC_0:
+	case PCI_DEVICE_ID_INTEL_PATSBURG_LPC_1:
 		r->name = "PIIX/ICH";
 		r->get = pirq_piix_get;
 		r->set = pirq_piix_set;
 		return 1;
 	}
 
-	if ((device >= PCI_DEVICE_ID_INTEL_PCH_LPC_MIN) && 
-		(device <= PCI_DEVICE_ID_INTEL_PCH_LPC_MAX)) {
+	if ((device >= PCI_DEVICE_ID_INTEL_5_3400_SERIES_LPC_MIN) && 
+		(device <= PCI_DEVICE_ID_INTEL_5_3400_SERIES_LPC_MAX)) {
 		r->name = "PIIX/ICH";
 		r->get = pirq_piix_get;
 		r->set = pirq_piix_set;
 		return 1;
 	}
 
-	if ((device >= PCI_DEVICE_ID_INTEL_CPT_LPC_MIN) && 
-		(device <= PCI_DEVICE_ID_INTEL_CPT_LPC_MAX)) {
+	if ((device >= PCI_DEVICE_ID_INTEL_COUGARPOINT_LPC_MIN) && 
+		(device <= PCI_DEVICE_ID_INTEL_COUGARPOINT_LPC_MAX)) {
 		r->name = "PIIX/ICH";
 		r->get = pirq_piix_get;
 		r->set = pirq_piix_set;
@@ -989,7 +991,7 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	dev_info(&dev->dev, "%s PCI INT %c -> IRQ %d\n", msg, 'A' + pin - 1, irq);
 
 	/* Update IRQ for all devices with the same pirq value */
-	while ((dev2 = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev2)) != NULL) {
+	for_each_pci_dev(dev2) {
 		pci_read_config_byte(dev2, PCI_INTERRUPT_PIN, &pin);
 		if (!pin)
 			continue;
@@ -1028,7 +1030,7 @@ void __init pcibios_fixup_irqs(void)
 	u8 pin;
 
 	DBG(KERN_DEBUG "PCI: IRQ fixup\n");
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	for_each_pci_dev(dev) {
 		/*
 		 * If the BIOS has set an out of range IRQ number, just
 		 * ignore it.  Also keep track of which IRQ's are
@@ -1052,7 +1054,7 @@ void __init pcibios_fixup_irqs(void)
 		return;
 
 	dev = NULL;
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	for_each_pci_dev(dev) {
 		pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
 		if (!pin)
 			continue;

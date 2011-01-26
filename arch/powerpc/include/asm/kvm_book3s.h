@@ -38,15 +38,6 @@ struct kvmppc_slb {
 	bool class	: 1;
 };
 
-struct kvmppc_sr {
-	u32 raw;
-	u32 vsid;
-	bool Ks		: 1;
-	bool Kp		: 1;
-	bool nx		: 1;
-	bool valid	: 1;
-};
-
 struct kvmppc_bat {
 	u64 raw;
 	u32 bepi;
@@ -69,6 +60,13 @@ struct kvmppc_sid_map {
 #define SID_MAP_NUM     (1 << SID_MAP_BITS)
 #define SID_MAP_MASK    (SID_MAP_NUM - 1)
 
+#ifdef CONFIG_PPC_BOOK3S_64
+#define SID_CONTEXTS	1
+#else
+#define SID_CONTEXTS	128
+#define VSID_POOL_SIZE	(SID_CONTEXTS * 16)
+#endif
+
 struct kvmppc_vcpu_book3s {
 	struct kvm_vcpu vcpu;
 	struct kvmppc_book3s_shadow_vcpu *shadow_vcpu;
@@ -79,20 +77,22 @@ struct kvmppc_vcpu_book3s {
 		u64 vsid;
 	} slb_shadow[64];
 	u8 slb_shadow_max;
-	struct kvmppc_sr sr[16];
 	struct kvmppc_bat ibat[8];
 	struct kvmppc_bat dbat[8];
 	u64 hid[6];
 	u64 gqr[8];
 	int slb_nr;
-	u32 dsisr;
 	u64 sdr1;
 	u64 hior;
 	u64 msr_mask;
-	u64 vsid_first;
 	u64 vsid_next;
+#ifdef CONFIG_PPC_BOOK3S_32
+	u32 vsid_pool[VSID_POOL_SIZE];
+#else
+	u64 vsid_first;
 	u64 vsid_max;
-	int context_id;
+#endif
+	int context_id[SID_CONTEXTS];
 	ulong prog_flags; /* flags to inject when giving a 700 trap */
 };
 
@@ -115,7 +115,15 @@ extern void kvmppc_mmu_book3s_32_init(struct kvm_vcpu *vcpu);
 extern int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte);
 extern int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr);
 extern void kvmppc_mmu_flush_segments(struct kvm_vcpu *vcpu);
-extern struct kvmppc_pte *kvmppc_mmu_find_pte(struct kvm_vcpu *vcpu, u64 ea, bool data);
+
+extern void kvmppc_mmu_hpte_cache_map(struct kvm_vcpu *vcpu, struct hpte_cache *pte);
+extern struct hpte_cache *kvmppc_mmu_hpte_cache_next(struct kvm_vcpu *vcpu);
+extern void kvmppc_mmu_hpte_destroy(struct kvm_vcpu *vcpu);
+extern int kvmppc_mmu_hpte_init(struct kvm_vcpu *vcpu);
+extern void kvmppc_mmu_invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte);
+extern int kvmppc_mmu_hpte_sysinit(void);
+extern void kvmppc_mmu_hpte_sysexit(void);
+
 extern int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr, bool data);
 extern int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr, bool data);
 extern void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec);
@@ -123,9 +131,10 @@ extern void kvmppc_set_bat(struct kvm_vcpu *vcpu, struct kvmppc_bat *bat,
 			   bool upper, u32 val);
 extern void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr);
 extern int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu);
+extern pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn);
 
-extern u32 kvmppc_trampoline_lowmem;
-extern u32 kvmppc_trampoline_enter;
+extern ulong kvmppc_trampoline_lowmem;
+extern ulong kvmppc_trampoline_enter;
 extern void kvmppc_rmcall(ulong srr0, ulong srr1);
 extern void kvmppc_load_up_fpu(void);
 extern void kvmppc_load_up_altivec(void);

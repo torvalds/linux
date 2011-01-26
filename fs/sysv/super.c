@@ -332,6 +332,10 @@ static int complete_read_super(struct super_block *sb, int silent, int size)
 	sb->s_magic = SYSV_MAGIC_BASE + sbi->s_type;
 	/* set up enough so that it can read an inode */
 	sb->s_op = &sysv_sops;
+	if (sbi->s_forced_ro)
+		sb->s_flags |= MS_RDONLY;
+	if (sbi->s_truncate)
+		sb->s_d_op = &sysv_dentry_operations;
 	root_inode = sysv_iget(sb, SYSV_ROOT_INO);
 	if (IS_ERR(root_inode)) {
 		printk("SysV FS: get root inode failed\n");
@@ -343,11 +347,6 @@ static int complete_read_super(struct super_block *sb, int silent, int size)
 		printk("SysV FS: get root dentry failed\n");
 		return 0;
 	}
-	if (sbi->s_forced_ro)
-		sb->s_flags |= MS_RDONLY;
-	if (sbi->s_truncate)
-		sb->s_root->d_op = &sysv_dentry_operations;
-	sb->s_dirt = 1;
 	return 1;
 }
 
@@ -435,12 +434,46 @@ Ebadsize:
 	goto failed;
 }
 
+static int v7_sanity_check(struct super_block *sb, struct buffer_head *bh)
+{
+	struct v7_super_block *v7sb;
+	struct sysv_inode *v7i;
+	struct buffer_head *bh2;
+	struct sysv_sb_info *sbi;
+
+	sbi = sb->s_fs_info;
+
+	/* plausibility check on superblock */
+	v7sb = (struct v7_super_block *) bh->b_data;
+	if (fs16_to_cpu(sbi, v7sb->s_nfree) > V7_NICFREE ||
+	    fs16_to_cpu(sbi, v7sb->s_ninode) > V7_NICINOD ||
+	    fs32_to_cpu(sbi, v7sb->s_fsize) > V7_MAXSIZE)
+		return 0;
+
+	/* plausibility check on root inode: it is a directory,
+	   with a nonzero size that is a multiple of 16 */
+	bh2 = sb_bread(sb, 2);
+	if (bh2 == NULL)
+		return 0;
+
+	v7i = (struct sysv_inode *)(bh2->b_data + 64);
+	if ((fs16_to_cpu(sbi, v7i->i_mode) & ~0777) != S_IFDIR ||
+	    (fs32_to_cpu(sbi, v7i->i_size) == 0) ||
+	    (fs32_to_cpu(sbi, v7i->i_size) & 017) ||
+	    (fs32_to_cpu(sbi, v7i->i_size) > V7_NFILES *
+	     sizeof(struct sysv_dir_entry))) {
+		brelse(bh2);
+		return 0;
+	}
+
+	brelse(bh2);
+	return 1;
+}
+
 static int v7_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct sysv_sb_info *sbi;
-	struct buffer_head *bh, *bh2 = NULL;
-	struct v7_super_block *v7sb;
-	struct sysv_inode *v7i;
+	struct buffer_head *bh;
 
 	if (440 != sizeof (struct v7_super_block))
 		panic("V7 FS: bad super-block size");
@@ -454,7 +487,6 @@ static int v7_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_sb = sb;
 	sbi->s_block_base = 0;
 	sbi->s_type = FSTYPE_V7;
-	sbi->s_bytesex = BYTESEX_PDP;
 	sb->s_fs_info = sbi;
 	
 	sb_set_blocksize(sb, 512);
@@ -466,32 +498,27 @@ static int v7_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed;
 	}
 
-	/* plausibility check on superblock */
-	v7sb = (struct v7_super_block *) bh->b_data;
-	if (fs16_to_cpu(sbi, v7sb->s_nfree) > V7_NICFREE ||
-	    fs16_to_cpu(sbi, v7sb->s_ninode) > V7_NICINOD ||
-	    fs32_to_cpu(sbi, v7sb->s_time) == 0)
-		goto failed;
+	/* Try PDP-11 UNIX */
+	sbi->s_bytesex = BYTESEX_PDP;
+	if (v7_sanity_check(sb, bh))
+		goto detected;
 
-	/* plausibility check on root inode: it is a directory,
-	   with a nonzero size that is a multiple of 16 */
-	if ((bh2 = sb_bread(sb, 2)) == NULL)
-		goto failed;
-	v7i = (struct sysv_inode *)(bh2->b_data + 64);
-	if ((fs16_to_cpu(sbi, v7i->i_mode) & ~0777) != S_IFDIR ||
-	    (fs32_to_cpu(sbi, v7i->i_size) == 0) ||
-	    (fs32_to_cpu(sbi, v7i->i_size) & 017) != 0)
-		goto failed;
-	brelse(bh2);
-	bh2 = NULL;
+	/* Try PC/IX, v7/x86 */
+	sbi->s_bytesex = BYTESEX_LE;
+	if (v7_sanity_check(sb, bh))
+		goto detected;
 
+	goto failed;
+
+detected:
 	sbi->s_bh1 = bh;
 	sbi->s_bh2 = bh;
 	if (complete_read_super(sb, silent, 1))
 		return 0;
 
 failed:
-	brelse(bh2);
+	printk(KERN_ERR "VFS: could not find a valid V7 on %s.\n",
+		sb->s_id);
 	brelse(bh);
 	kfree(sbi);
 	return -EINVAL;
@@ -499,23 +526,22 @@ failed:
 
 /* Every kernel module contains stuff like this. */
 
-static int sysv_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *sysv_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, sysv_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, sysv_fill_super);
 }
 
-static int v7_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *v7_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, v7_fill_super, mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, v7_fill_super);
 }
 
 static struct file_system_type sysv_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "sysv",
-	.get_sb		= sysv_get_sb,
+	.mount		= sysv_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
@@ -523,7 +549,7 @@ static struct file_system_type sysv_fs_type = {
 static struct file_system_type v7_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "v7",
-	.get_sb		= v7_get_sb,
+	.mount		= v7_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
@@ -560,4 +586,5 @@ static void __exit exit_sysv_fs(void)
 
 module_init(init_sysv_fs)
 module_exit(exit_sysv_fs)
+MODULE_ALIAS("v7");
 MODULE_LICENSE("GPL");

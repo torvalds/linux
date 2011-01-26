@@ -199,16 +199,8 @@ static cycle_t sh_tmu_clocksource_read(struct clocksource *cs)
 static int sh_tmu_clocksource_enable(struct clocksource *cs)
 {
 	struct sh_tmu_priv *p = cs_to_sh_tmu(cs);
-	int ret;
 
-	ret = sh_tmu_enable(p);
-	if (ret)
-		return ret;
-
-	/* TODO: calculate good shift from rate and counter bit width */
-	cs->shift = 10;
-	cs->mult = clocksource_hz2mult(p->rate, cs->shift);
-	return 0;
+	return sh_tmu_enable(p);
 }
 
 static void sh_tmu_clocksource_disable(struct clocksource *cs)
@@ -228,6 +220,16 @@ static int sh_tmu_register_clocksource(struct sh_tmu_priv *p,
 	cs->disable = sh_tmu_clocksource_disable;
 	cs->mask = CLOCKSOURCE_MASK(32);
 	cs->flags = CLOCK_SOURCE_IS_CONTINUOUS;
+
+	/* clk_get_rate() needs an enabled clock */
+	clk_enable(p->clk);
+	/* channel will be configured at parent clock / 4 */
+	p->rate = clk_get_rate(p->clk) / 4;
+	clk_disable(p->clk);
+	/* TODO: calculate good shift from rate and counter bit width */
+	cs->shift = 10;
+	cs->mult = clocksource_hz2mult(p->rate, cs->shift);
+
 	dev_info(&p->pdev->dev, "used as clock source\n");
 	clocksource_register(cs);
 	return 0;
@@ -391,13 +393,9 @@ static int sh_tmu_setup(struct sh_tmu_priv *p, struct platform_device *pdev)
 	/* get hold of clock */
 	p->clk = clk_get(&p->pdev->dev, "tmu_fck");
 	if (IS_ERR(p->clk)) {
-		dev_warn(&p->pdev->dev, "using deprecated clock lookup\n");
-		p->clk = clk_get(&p->pdev->dev, cfg->clk);
-		if (IS_ERR(p->clk)) {
-			dev_err(&p->pdev->dev, "cannot get clock\n");
-			ret = PTR_ERR(p->clk);
-			goto err1;
-		}
+		dev_err(&p->pdev->dev, "cannot get clock\n");
+		ret = PTR_ERR(p->clk);
+		goto err1;
 	}
 
 	return sh_tmu_register(p, (char *)dev_name(&p->pdev->dev),

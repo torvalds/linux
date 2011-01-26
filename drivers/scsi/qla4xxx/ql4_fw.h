@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2006 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -11,7 +11,7 @@
 
 #define MAX_PRST_DEV_DB_ENTRIES		64
 #define MIN_DISC_DEV_DB_ENTRY		MAX_PRST_DEV_DB_ENTRIES
-#define MAX_DEV_DB_ENTRIES 512
+#define MAX_DEV_DB_ENTRIES		512
 
 /*************************************************************************
  *
@@ -35,6 +35,33 @@ struct host_mem_cfg_regs {
 	__le32 rsrvd0[12];	/* 0x50-0x79 */
 	__le32 req_q_out;	/* 0x80 */
 	__le32 rsrvd1[31];	/* 0x84-0xFF */
+};
+
+/*
+ * ISP 82xx I/O Register Set structure definitions.
+ */
+struct device_reg_82xx {
+	__le32 req_q_out;	/* 0x0000 (R): Request Queue out-Pointer. */
+	__le32 reserve1[63];	/* Request Queue out-Pointer. (64 * 4) */
+	__le32 rsp_q_in;	/* 0x0100 (R/W): Response Queue In-Pointer. */
+	__le32 reserve2[63];	/* Response Queue In-Pointer. */
+	__le32 rsp_q_out;	/* 0x0200 (R/W): Response Queue Out-Pointer. */
+	__le32 reserve3[63];	/* Response Queue Out-Pointer. */
+
+	__le32 mailbox_in[8];	/* 0x0300 (R/W): Mail box In registers */
+	__le32 reserve4[24];
+	__le32 hint;		/* 0x0380 (R/W): Host interrupt register */
+#define HINT_MBX_INT_PENDING	BIT_0
+	__le32 reserve5[31];
+	__le32 mailbox_out[8];	/* 0x0400 (R): Mail box Out registers */
+	__le32 reserve6[56];
+
+	__le32 host_status;	/* Offset 0x500 (R): host status */
+#define HSRX_RISC_MB_INT	BIT_0  /* RISC to Host Mailbox interrupt */
+#define HSRX_RISC_IOCB_INT	BIT_1  /* RISC to Host IOCB interrupt */
+
+	__le32 host_int;	/* Offset 0x0504 (R/W): Interrupt status. */
+#define ISRX_82XX_RISC_INT	BIT_0 /* RISC interrupt. */
 };
 
 /*  remote register set (access via PCI memory read/write) */
@@ -206,6 +233,79 @@ union external_hw_config_reg {
 	uint32_t Asuint32_t;
 };
 
+/* 82XX Support  start */
+/* 82xx Default FLT Addresses */
+#define FA_FLASH_LAYOUT_ADDR_82		0xFC400
+#define FA_FLASH_DESCR_ADDR_82		0xFC000
+#define FA_BOOT_LOAD_ADDR_82		0x04000
+#define FA_BOOT_CODE_ADDR_82		0x20000
+#define FA_RISC_CODE_ADDR_82		0x40000
+#define FA_GOLD_RISC_CODE_ADDR_82	0x80000
+
+/* Flash Description Table */
+struct qla_fdt_layout {
+	uint8_t sig[4];
+	uint16_t version;
+	uint16_t len;
+	uint16_t checksum;
+	uint8_t unused1[2];
+	uint8_t model[16];
+	uint16_t man_id;
+	uint16_t id;
+	uint8_t flags;
+	uint8_t erase_cmd;
+	uint8_t alt_erase_cmd;
+	uint8_t wrt_enable_cmd;
+	uint8_t wrt_enable_bits;
+	uint8_t wrt_sts_reg_cmd;
+	uint8_t unprotect_sec_cmd;
+	uint8_t read_man_id_cmd;
+	uint32_t block_size;
+	uint32_t alt_block_size;
+	uint32_t flash_size;
+	uint32_t wrt_enable_data;
+	uint8_t read_id_addr_len;
+	uint8_t wrt_disable_bits;
+	uint8_t read_dev_id_len;
+	uint8_t chip_erase_cmd;
+	uint16_t read_timeout;
+	uint8_t protect_sec_cmd;
+	uint8_t unused2[65];
+};
+
+/* Flash Layout Table */
+
+struct qla_flt_location {
+	uint8_t sig[4];
+	uint16_t start_lo;
+	uint16_t start_hi;
+	uint8_t version;
+	uint8_t unused[5];
+	uint16_t checksum;
+};
+
+struct qla_flt_header {
+	uint16_t version;
+	uint16_t length;
+	uint16_t checksum;
+	uint16_t unused;
+};
+
+/* 82xx FLT Regions */
+#define FLT_REG_FDT		0x1a
+#define FLT_REG_FLT		0x1c
+#define FLT_REG_BOOTLOAD_82	0x72
+#define FLT_REG_FW_82		0x74
+#define FLT_REG_GOLD_FW_82	0x75
+#define FLT_REG_BOOT_CODE_82	0x78
+
+struct qla_flt_region {
+	uint32_t code;
+	uint32_t size;
+	uint32_t start;
+	uint32_t end;
+};
+
 /*************************************************************************
  *
  *		Mailbox Commands Structures and Definitions
@@ -215,6 +315,10 @@ union external_hw_config_reg {
 /*  Mailbox command definitions */
 #define MBOX_CMD_ABOUT_FW			0x0009
 #define MBOX_CMD_PING				0x000B
+#define MBOX_CMD_ENABLE_INTRS			0x0010
+#define INTR_DISABLE				0
+#define INTR_ENABLE				1
+#define MBOX_CMD_STOP_FW			0x0014
 #define MBOX_CMD_ABORT_TASK			0x0015
 #define MBOX_CMD_LUN_RESET			0x0016
 #define MBOX_CMD_TARGET_WARM_RESET		0x0017
@@ -243,6 +347,7 @@ union external_hw_config_reg {
 #define DDB_DS_LOGIN_IN_PROCESS			0x07
 #define MBOX_CMD_GET_FW_STATE			0x0069
 #define MBOX_CMD_GET_INIT_FW_CTRL_BLOCK_DEFAULTS 0x006A
+#define MBOX_CMD_GET_SYS_INFO			0x0078
 #define MBOX_CMD_RESTORE_FACTORY_DEFAULTS	0x0087
 #define MBOX_CMD_SET_ACB			0x0088
 #define MBOX_CMD_GET_ACB			0x0089
@@ -311,12 +416,23 @@ union external_hw_config_reg {
 #define MBOX_ASTS_IPV6_ND_PREFIX_IGNORED	0x802C
 #define MBOX_ASTS_IPV6_LCL_PREFIX_IGNORED	0x802D
 #define MBOX_ASTS_ICMPV6_ERROR_MSG_RCVD		0x802E
+#define MBOX_ASTS_TXSCVR_INSERTED		0x8130
+#define MBOX_ASTS_TXSCVR_REMOVED		0x8131
 
 #define ISNS_EVENT_DATA_RECEIVED		0x0000
 #define ISNS_EVENT_CONNECTION_OPENED		0x0001
 #define ISNS_EVENT_CONNECTION_FAILED		0x0002
 #define MBOX_ASTS_IPSEC_SYSTEM_FATAL_ERROR	0x8022
 #define MBOX_ASTS_SUBNET_STATE_CHANGE		0x8027
+
+/* ACB State Defines */
+#define ACB_STATE_UNCONFIGURED	0x00
+#define ACB_STATE_INVALID	0x01
+#define ACB_STATE_ACQUIRING	0x02
+#define ACB_STATE_TENTATIVE	0x03
+#define ACB_STATE_DEPRICATED	0x04
+#define ACB_STATE_VALID		0x05
+#define ACB_STATE_DISABLING	0x06
 
 /*************************************************************************/
 
@@ -332,6 +448,7 @@ struct addr_ctrl_blk {
 #define	 FWOPT_SESSION_MODE		  0x0040
 #define	 FWOPT_INITIATOR_MODE		  0x0020
 #define	 FWOPT_TARGET_MODE		  0x0010
+#define	 FWOPT_ENABLE_CRBDB		  0x8000
 
 	uint16_t exec_throttle;	/* 04-05 */
 	uint8_t zio_count;	/* 06 */
@@ -557,6 +674,20 @@ struct flash_sys_info {
 	 */
 	uint32_t reserved1[39]; /* 170-1ff */
 };	/* 200 */
+
+struct mbx_sys_info {
+	uint8_t board_id_str[16];   /*  0-f  Keep board ID string first */
+				/* in this structure for GUI. */
+	uint16_t board_id;	/* 10-11 board ID code */
+	uint16_t phys_port_cnt;	/* 12-13 number of physical network ports */
+	uint16_t port_num;	/* 14-15 network port for this PCI function */
+				/* (port 0 is first port) */
+	uint8_t mac_addr[6];	/* 16-1b MAC address for this PCI function */
+	uint32_t iscsi_pci_func_cnt;  /* 1c-1f number of iSCSI PCI functions */
+	uint32_t pci_func;	      /* 20-23 this PCI function */
+	unsigned char serial_number[16];  /* 24-33 serial number string */
+	uint8_t reserved[12];		  /* 34-3f */
+};
 
 struct crash_record {
 	uint16_t fw_major_version;	/* 00 - 01 */
@@ -812,6 +943,15 @@ struct passthru_status {
 	uint8_t res2[12];	/* 20-2B */
 	uint32_t inResidual;	/* 2C-2F */
 	uint8_t res4[16];	/* 30-3F */
+};
+
+/*
+ * ISP queue - response queue entry definition.
+ */
+struct response {
+	uint8_t data[60];
+	uint32_t signature;
+#define RESPONSE_PROCESSED	0xDEADDEAD	/* Signature */
 };
 
 #endif /*  _QLA4X_FW_H */

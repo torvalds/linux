@@ -42,6 +42,7 @@ static const char *r8a66597_ep_name[] = {
 	"ep8", "ep9",
 };
 
+static void init_controller(struct r8a66597 *r8a66597);
 static void disable_controller(struct r8a66597 *r8a66597);
 static void irq_ep0_write(struct r8a66597_ep *ep, struct r8a66597_request *req);
 static void irq_packet_write(struct r8a66597_ep *ep,
@@ -104,6 +105,8 @@ __acquires(r8a66597->lock)
 	spin_lock(&r8a66597->lock);
 
 	disable_controller(r8a66597);
+	init_controller(r8a66597);
+	r8a66597_bset(r8a66597, VBSE, INTENB0);
 	INIT_LIST_HEAD(&r8a66597->ep[0].queue);
 }
 
@@ -274,7 +277,7 @@ static int pipe_buffer_setting(struct r8a66597 *r8a66597,
 	}
 
 	if (buf_bsize && ((bufnum + 16) >= R8A66597_MAX_BUFNUM)) {
-		pr_err(KERN_ERR "r8a66597 pipe memory is insufficient\n");
+		pr_err("r8a66597 pipe memory is insufficient\n");
 		return -ENOMEM;
 	}
 
@@ -1405,14 +1408,15 @@ static struct usb_ep_ops r8a66597_ep_ops = {
 /*-------------------------------------------------------------------------*/
 static struct r8a66597 *the_controller;
 
-int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	struct r8a66597 *r8a66597 = the_controller;
 	int retval;
 
 	if (!driver
 			|| driver->speed != USB_SPEED_HIGH
-			|| !driver->bind
+			|| !bind
 			|| !driver->setup)
 		return -EINVAL;
 	if (!r8a66597)
@@ -1431,7 +1435,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		goto error;
 	}
 
-	retval = driver->bind(&r8a66597->gadget);
+	retval = bind(&r8a66597->gadget);
 	if (retval) {
 		printk(KERN_ERR "bind to driver error (%d)\n", retval);
 		device_del(&r8a66597->gadget.dev);
@@ -1456,7 +1460,7 @@ error:
 
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {
@@ -1500,7 +1504,7 @@ static int __exit r8a66597_remove(struct platform_device *pdev)
 	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
 
 	del_timer_sync(&r8a66597->timer);
-	iounmap((void *)r8a66597->reg);
+	iounmap(r8a66597->reg);
 	free_irq(platform_get_irq(pdev, 0), r8a66597);
 	r8a66597_free_request(&r8a66597->ep[0].ep, r8a66597->ep0_req);
 #ifdef CONFIG_HAVE_CLK
@@ -1557,6 +1561,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	/* initialize ucd */
 	r8a66597 = kzalloc(sizeof(struct r8a66597), GFP_KERNEL);
 	if (r8a66597 == NULL) {
+		ret = -ENOMEM;
 		printk(KERN_ERR "kzalloc error\n");
 		goto clean_up;
 	}
@@ -1578,7 +1583,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	init_timer(&r8a66597->timer);
 	r8a66597->timer.function = r8a66597_timer;
 	r8a66597->timer.data = (unsigned long)r8a66597;
-	r8a66597->reg = (unsigned long)reg;
+	r8a66597->reg = reg;
 
 #ifdef CONFIG_HAVE_CLK
 	if (r8a66597->pdata->on_chip) {

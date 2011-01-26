@@ -188,7 +188,7 @@
 #define PLAYBACK_LIST_PTR	0x02		/* Pointer to the current period being played */
 						/* PTR[5:0], Default: 0x0 */
 #define PLAYBACK_UNKNOWN3	0x03		/* Not used ?? */
-#define PLAYBACK_DMA_ADDR	0x04		/* Playback DMA addresss */
+#define PLAYBACK_DMA_ADDR	0x04		/* Playback DMA address */
 						/* DMA[31:0], Default: 0x0 */
 #define PLAYBACK_PERIOD_SIZE	0x05		/* Playback period size. win2000 uses 0x04000000 */
 						/* SIZE[31:16], Default: 0x0 */
@@ -670,8 +670,9 @@ struct snd_ca0106_details {
 			   gpio_type = 2 -> shared side-out/line-in. */
 	int i2c_adc;	/* with i2c_adc=1, the driver adds some capture volume
 			   controls, phone, mic, line-in and aux. */
-	int spi_dac;	/* spi_dac=1 adds the mute switch for each analog
-			   output, front, rear, etc. */
+	u16 spi_dac;	/* spi_dac = 0 -> no spi interface for DACs
+			   spi_dac = 0x<front><rear><center-lfe><side>
+			   -> specifies DAC id for each channel pair. */
 };
 
 // definition of the chip-specific record

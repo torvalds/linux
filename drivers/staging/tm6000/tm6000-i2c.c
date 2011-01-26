@@ -1,23 +1,23 @@
 /*
-   tm6000-i2c.c - driver for TM5600/TM6000/TM6010 USB video capture devices
-
-   Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
-
-   Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
-	- Fix SMBus Read Byte command
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation version 2
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  tm6000-i2c.c - driver for TM5600/TM6000/TM6010 USB video capture devices
+ *
+ *  Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *
+ *  Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
+ *	- Fix SMBus Read Byte command
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation version 2
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -32,15 +32,13 @@
 #include "tuner-xc2028.h"
 
 
-/*FIXME: Hack to avoid needing to patch i2c-id.h */
-#define I2C_HW_B_TM6000 I2C_HW_B_EM28XX
 /* ----------------------------------------------------------- */
 
-static unsigned int i2c_debug = 0;
+static unsigned int i2c_debug;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
-#define i2c_dprintk(lvl,fmt, args...) if (i2c_debug>=lvl) do{ \
+#define i2c_dprintk(lvl, fmt, args...) if (i2c_debug >= lvl) do { \
 			printk(KERN_DEBUG "%s at %s: " fmt, \
 			dev->name, __FUNCTION__ , ##args); } while (0)
 
@@ -171,7 +169,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 		return 0;
 	for (i = 0; i < num; i++) {
 		addr = (msgs[i].addr << 1) & 0xff;
-		i2c_dprintk(2,"%s %s addr=0x%x len=%d:",
+		i2c_dprintk(2, "%s %s addr=0x%x len=%d:",
 			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
 			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
 		if (msgs[i].flags & I2C_M_RD) {
@@ -235,7 +233,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	return num;
 err:
-	i2c_dprintk(2," ERROR: %i\n", rc);
+	i2c_dprintk(2, " ERROR: %i\n", rc);
 	return rc;
 }
 
@@ -266,11 +264,10 @@ static int tm6000_i2c_eeprom(struct tm6000_core *dev,
 		if (0 == (i % 16))
 			printk(KERN_INFO "%s: i2c eeprom %02x:", dev->name, i);
 		printk(" %02x", eedata[i]);
-		if ((eedata[i] >= ' ') && (eedata[i] <= 'z')) {
+		if ((eedata[i] >= ' ') && (eedata[i] <= 'z'))
 			bytes[i%16] = eedata[i];
-		} else {
-			bytes[i%16]='.';
-		}
+		else
+			bytes[i%16] = '.';
 
 		i++;
 
@@ -304,33 +301,9 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-#define mass_write(addr, reg, data...)					\
-	{ const static u8 _val[] = data;				\
-	rc=tm6000_read_write_usb(dev,USB_DIR_OUT | USB_TYPE_VENDOR,	\
-	REQ_16_SET_GET_I2C_WR1_RDN,(reg<<8)+addr, 0x00, (u8 *) _val,	\
-	ARRAY_SIZE(_val));						\
-	if (rc<0) {							\
-		printk(KERN_ERR "Error on line %d: %d\n",__LINE__,rc);	\
-		return rc;						\
-	}								\
-	msleep (10);							\
-	}
-
-static struct i2c_algorithm tm6000_algo = {
+static const struct i2c_algorithm tm6000_algo = {
 	.master_xfer   = tm6000_i2c_xfer,
 	.functionality = functionality,
-};
-
-static struct i2c_adapter tm6000_adap_template = {
-	.owner = THIS_MODULE,
-	.class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
-	.name = "tm6000",
-	.id = I2C_HW_B_TM6000,
-	.algo = &tm6000_algo,
-};
-
-static struct i2c_client tm6000_client_template = {
-	.name = "tm6000 internal",
 };
 
 /* ----------------------------------------------------------- */
@@ -342,17 +315,20 @@ static struct i2c_client tm6000_client_template = {
 int tm6000_i2c_register(struct tm6000_core *dev)
 {
 	unsigned char eedata[256];
+	int rc;
 
-	dev->i2c_adap = tm6000_adap_template;
+	dev->i2c_adap.owner = THIS_MODULE;
+	dev->i2c_adap.algo = &tm6000_algo;
 	dev->i2c_adap.dev.parent = &dev->udev->dev;
-	strcpy(dev->i2c_adap.name, dev->name);
+	strlcpy(dev->i2c_adap.name, dev->name, sizeof(dev->i2c_adap.name));
 	dev->i2c_adap.algo_data = dev;
-	i2c_add_adapter(&dev->i2c_adap);
-
-	dev->i2c_client = tm6000_client_template;
-	dev->i2c_client.adapter = &dev->i2c_adap;
-
 	i2c_set_adapdata(&dev->i2c_adap, &dev->v4l2_dev);
+	rc = i2c_add_adapter(&dev->i2c_adap);
+	if (rc)
+		return rc;
+
+	dev->i2c_client.adapter = &dev->i2c_adap;
+	strlcpy(dev->i2c_client.name, "tm6000 internal", I2C_NAME_SIZE);
 
 	tm6000_i2c_eeprom(dev, eedata, sizeof(eedata));
 

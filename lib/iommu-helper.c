@@ -38,12 +38,3 @@ again:
 	return -1;
 }
 EXPORT_SYMBOL(iommu_area_alloc);
-
-unsigned long iommu_num_pages(unsigned long addr, unsigned long len,
-			      unsigned long io_page_size)
-{
-	unsigned long size = (addr & (io_page_size - 1)) + len;
-
-	return DIV_ROUND_UP(size, io_page_size);
-}
-EXPORT_SYMBOL(iommu_num_pages);

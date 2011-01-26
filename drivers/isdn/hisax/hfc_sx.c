@@ -179,7 +179,7 @@ write_fifo(struct IsdnCardState *cs, struct sk_buff *skb, u_char fifo, int trans
 	  count += fifo_size;	/* count now contains available bytes */
 
 	if (cs->debug & L1_DEB_ISAC_FIFO)
-	  debugl1(cs, "hfcsx_write_fifo %d count(%ld/%d)",
+	  debugl1(cs, "hfcsx_write_fifo %d count(%u/%d)",
 		  fifo, skb->len, count);
 	if (count < skb->len) {
 	  if (cs->debug & L1_DEB_ISAC_FIFO)
@@ -234,13 +234,14 @@ read_fifo(struct IsdnCardState *cs, u_char fifo, int trans_max)
 	  count++;
 	  if (count > trans_max) 
 	    count = trans_max; /* limit length */
-	    if ((skb = dev_alloc_skb(count))) {
-	      dst = skb_put(skb, count);
-	      while (count--) 
+	  skb = dev_alloc_skb(count);
+	  if (skb) {
+	    dst = skb_put(skb, count);
+	    while (count--)
 		*dst++ = Read_hfc(cs, HFCSX_FIF_DRD);
-	      return(skb);
-	    }
-	    else return(NULL); /* no memory */
+	    return skb;
+	  } else
+		return NULL; /* no memory */
 	}
 
 	do {
@@ -264,7 +265,7 @@ read_fifo(struct IsdnCardState *cs, u_char fifo, int trans_max)
 	  count++;
 
 	  if (cs->debug & L1_DEB_ISAC_FIFO)
-	    debugl1(cs, "hfcsx_read_fifo %d count %ld)",
+	    debugl1(cs, "hfcsx_read_fifo %d count %u)",
 		    fifo, count);
 
 	  if ((count > fifo_size) || (count < 4)) {
@@ -985,7 +986,7 @@ HFCSX_l1hw(struct PStack *st, int pr, void *arg)
 				default:
 					spin_unlock_irqrestore(&cs->lock, flags);
 					if (cs->debug & L1_DEB_WARN)
-						debugl1(cs, "hfcsx_l1hw loop invalid %4lx", arg);
+						debugl1(cs, "hfcsx_l1hw loop invalid %4lx", (unsigned long)arg);
 					return;
 			}
 			cs->hw.hfcsx.trm |= 0x80;	/* enable IOM-loop */

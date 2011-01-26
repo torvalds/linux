@@ -635,7 +635,7 @@ static int sh_irda_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	ret = sh_irda_set_baudrate(self, speed);
 	if (ret < 0)
-		return ret;
+		goto sh_irda_hard_xmit_end;
 
 	self->tx_buff.len = 0;
 	if (skb->len) {
@@ -652,11 +652,21 @@ static int sh_irda_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 		sh_irda_write(self, IRTFLR, self->tx_buff.len);
 		sh_irda_write(self, IRTCTR, ARMOD | TE);
-	}
+	} else
+		goto sh_irda_hard_xmit_end;
 
 	dev_kfree_skb(skb);
 
 	return 0;
+
+sh_irda_hard_xmit_end:
+	sh_irda_set_baudrate(self, 9600);
+	netif_wake_queue(self->ndev);
+	sh_irda_rcv_ctrl(self, 1);
+	dev_kfree_skb(skb);
+
+	return ret;
+
 }
 
 static int sh_irda_ioctl(struct net_device *ndev, struct ifreq *ifreq, int cmd)
@@ -748,8 +758,7 @@ static int __devinit sh_irda_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct sh_irda_self *self;
 	struct resource *res;
-	char clk_name[8];
-	unsigned int irq;
+	int irq;
 	int err = -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -775,10 +784,9 @@ static int __devinit sh_irda_probe(struct platform_device *pdev)
 	if (err)
 		goto err_mem_2;
 
-	snprintf(clk_name, sizeof(clk_name), "irda%d", pdev->id);
-	self->clk = clk_get(&pdev->dev, clk_name);
+	self->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(self->clk)) {
-		dev_err(&pdev->dev, "cannot get clock \"%s\"\n", clk_name);
+		dev_err(&pdev->dev, "cannot get irda clock\n");
 		goto err_mem_3;
 	}
 

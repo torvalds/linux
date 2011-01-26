@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2003 Patrick Mochel
  * Copyright (c) 2003 Open Source Development Lab
- * Copyright (c) 2004 Pavel Machek <pavel@suse.cz>
+ * Copyright (c) 2004 Pavel Machek <pavel@ucw.cz>
  * Copyright (c) 2009 Rafael J. Wysocki, Novell Inc.
  *
  * This file is released under the GPLv2.
@@ -29,6 +29,7 @@
 #include "power.h"
 
 
+static int nocompress = 0;
 static int noresume = 0;
 static char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
@@ -50,18 +51,18 @@ enum {
 
 static int hibernation_mode = HIBERNATION_SHUTDOWN;
 
-static struct platform_hibernation_ops *hibernation_ops;
+static const struct platform_hibernation_ops *hibernation_ops;
 
 /**
  * hibernation_set_ops - set the global hibernate operations
  * @ops: the hibernation operations to use in subsequent hibernation transitions
  */
 
-void hibernation_set_ops(struct platform_hibernation_ops *ops)
+void hibernation_set_ops(const struct platform_hibernation_ops *ops)
 {
 	if (ops && !(ops->begin && ops->end &&  ops->pre_snapshot
 	    && ops->prepare && ops->finish && ops->enter && ops->pre_restore
-	    && ops->restore_cleanup)) {
+	    && ops->restore_cleanup && ops->leave)) {
 		WARN_ON(1);
 		return;
 	}
@@ -277,7 +278,7 @@ static int create_image(int platform_mode)
 		goto Enable_irqs;
 	}
 
-	if (hibernation_test(TEST_CORE))
+	if (hibernation_test(TEST_CORE) || pm_wakeup_pending())
 		goto Power_up;
 
 	in_suspend = 1;
@@ -288,8 +289,10 @@ static int create_image(int platform_mode)
 			error);
 	/* Restore control flow magically appears here */
 	restore_processor_state();
-	if (!in_suspend)
+	if (!in_suspend) {
+		events_check_enabled = false;
 		platform_leave(platform_mode);
+	}
 
  Power_up:
 	sysdev_resume();
@@ -324,11 +327,10 @@ static int create_image(int platform_mode)
 int hibernation_snapshot(int platform_mode)
 {
 	int error;
-	gfp_t saved_mask;
 
 	error = platform_begin(platform_mode);
 	if (error)
-		return error;
+		goto Close;
 
 	/* Preallocate image memory before shutting down devices. */
 	error = hibernate_preallocate_memory();
@@ -336,7 +338,7 @@ int hibernation_snapshot(int platform_mode)
 		goto Close;
 
 	suspend_console();
-	saved_mask = clear_gfp_allowed_mask(GFP_IOFS);
+	pm_restrict_gfp_mask();
 	error = dpm_suspend_start(PMSG_FREEZE);
 	if (error)
 		goto Recover_platform;
@@ -345,7 +347,10 @@ int hibernation_snapshot(int platform_mode)
 		goto Recover_platform;
 
 	error = create_image(platform_mode);
-	/* Control returns here after successful restore */
+	/*
+	 * Control returns here (1) after the image has been created or the
+	 * image creation has failed and (2) after a successful restore.
+	 */
 
  Resume_devices:
 	/* We may need to release the preallocated image pages here. */
@@ -354,7 +359,10 @@ int hibernation_snapshot(int platform_mode)
 
 	dpm_resume_end(in_suspend ?
 		(error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE);
-	set_gfp_allowed_mask(saved_mask);
+
+	if (error || !in_suspend)
+		pm_restore_gfp_mask();
+
 	resume_console();
  Close:
 	platform_end(platform_mode);
@@ -449,17 +457,16 @@ static int resume_target_kernel(bool platform_mode)
 int hibernation_restore(int platform_mode)
 {
 	int error;
-	gfp_t saved_mask;
 
 	pm_prepare_console();
 	suspend_console();
-	saved_mask = clear_gfp_allowed_mask(GFP_IOFS);
+	pm_restrict_gfp_mask();
 	error = dpm_suspend_start(PMSG_QUIESCE);
 	if (!error) {
 		error = resume_target_kernel(platform_mode);
 		dpm_resume_end(PMSG_RECOVER);
 	}
-	set_gfp_allowed_mask(saved_mask);
+	pm_restore_gfp_mask();
 	resume_console();
 	pm_restore_console();
 	return error;
@@ -473,7 +480,6 @@ int hibernation_restore(int platform_mode)
 int hibernation_platform_enter(void)
 {
 	int error;
-	gfp_t saved_mask;
 
 	if (!hibernation_ops)
 		return -ENOSYS;
@@ -489,7 +495,6 @@ int hibernation_platform_enter(void)
 
 	entering_platform_hibernation = true;
 	suspend_console();
-	saved_mask = clear_gfp_allowed_mask(GFP_IOFS);
 	error = dpm_suspend_start(PMSG_HIBERNATE);
 	if (error) {
 		if (hibernation_ops->recover)
@@ -511,23 +516,28 @@ int hibernation_platform_enter(void)
 
 	local_irq_disable();
 	sysdev_suspend(PMSG_HIBERNATE);
+	if (pm_wakeup_pending()) {
+		error = -EAGAIN;
+		goto Power_up;
+	}
+
 	hibernation_ops->enter();
 	/* We should never get here */
 	while (1);
 
-	/*
-	 * We don't need to reenable the nonboot CPUs or resume consoles, since
-	 * the system is going to be halted anyway.
-	 */
+ Power_up:
+	sysdev_resume();
+	local_irq_enable();
+	enable_nonboot_cpus();
+
  Platform_finish:
 	hibernation_ops->finish();
 
-	dpm_suspend_noirq(PMSG_RESTORE);
+	dpm_resume_noirq(PMSG_RESTORE);
 
  Resume_devices:
 	entering_platform_hibernation = false;
 	dpm_resume_end(PMSG_RESTORE);
-	set_gfp_allowed_mask(saved_mask);
 	resume_console();
 
  Close:
@@ -630,11 +640,15 @@ int hibernate(void)
 
 		if (hibernation_mode == HIBERNATION_PLATFORM)
 			flags |= SF_PLATFORM_MODE;
+		if (nocompress)
+			flags |= SF_NOCOMPRESS_MODE;
 		pr_debug("PM: writing image.\n");
 		error = swsusp_write(flags);
 		swsusp_free();
 		if (!error)
 			power_down();
+		in_suspend = 0;
+		pm_restore_gfp_mask();
 	} else {
 		pr_debug("PM: Image restored successfully.\n");
 	}
@@ -697,7 +711,7 @@ static int software_resume(void)
 		goto Unlock;
 	}
 
-	pr_debug("PM: Checking image partition %s\n", resume_file);
+	pr_debug("PM: Checking hibernation image partition %s\n", resume_file);
 
 	/* Check if the device is there */
 	swsusp_resume_device = name_to_dev_t(resume_file);
@@ -722,10 +736,10 @@ static int software_resume(void)
 	}
 
  Check_image:
-	pr_debug("PM: Resume from partition %d:%d\n",
+	pr_debug("PM: Hibernation image partition %d:%d present\n",
 		MAJOR(swsusp_resume_device), MINOR(swsusp_resume_device));
 
-	pr_debug("PM: Checking hibernation image.\n");
+	pr_debug("PM: Looking for hibernation image.\n");
 	error = swsusp_check();
 	if (error)
 		goto Unlock;
@@ -757,14 +771,14 @@ static int software_resume(void)
 		goto Done;
 	}
 
-	pr_debug("PM: Reading hibernation image.\n");
+	pr_debug("PM: Loading hibernation image.\n");
 
 	error = swsusp_read(&flags);
 	swsusp_close(FMODE_READ);
 	if (!error)
 		hibernation_restore(flags & SF_PLATFORM_MODE);
 
-	printk(KERN_ERR "PM: Restore failed, recovering.\n");
+	printk(KERN_ERR "PM: Failed to load hibernation image, recovering.\n");
 	swsusp_free();
 	thaw_processes();
  Done:
@@ -777,7 +791,7 @@ static int software_resume(void)
 	/* For success case, the suspend path will release the lock */
  Unlock:
 	mutex_unlock(&pm_mutex);
-	pr_debug("PM: Resume from disk failed.\n");
+	pr_debug("PM: Hibernation image not present or could not be loaded.\n");
 	return error;
 close_finish:
 	swsusp_close(FMODE_READ);
@@ -996,6 +1010,15 @@ static int __init resume_offset_setup(char *str)
 	return 1;
 }
 
+static int __init hibernate_setup(char *str)
+{
+	if (!strncmp(str, "noresume", 8))
+		noresume = 1;
+	else if (!strncmp(str, "nocompress", 10))
+		nocompress = 1;
+	return 1;
+}
+
 static int __init noresume_setup(char *str)
 {
 	noresume = 1;
@@ -1005,3 +1028,4 @@ static int __init noresume_setup(char *str)
 __setup("noresume", noresume_setup);
 __setup("resume_offset=", resume_offset_setup);
 __setup("resume=", resume_setup);
+__setup("hibernate=", hibernate_setup);

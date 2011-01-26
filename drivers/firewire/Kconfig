@@ -3,9 +3,6 @@ menu "IEEE 1394 (FireWire) support"
 	# firewire-core does not depend on PCI but is
 	# not useful without PCI controller driver
 
-comment "You can enable one or both FireWire driver stacks."
-comment "The newer stack is recommended."
-
 config FIREWIRE
 	tristate "FireWire driver stack"
 	select CRC_ITU_T
@@ -22,7 +19,7 @@ config FIREWIRE
 
 config FIREWIRE_OHCI
 	tristate "OHCI-1394 controllers"
-	depends on PCI && FIREWIRE
+	depends on PCI && FIREWIRE && MMU
 	help
 	  Enable this driver if you have a FireWire controller based
 	  on the OHCI specification.  For all practical purposes, this
@@ -52,18 +49,38 @@ config FIREWIRE_SBP2
 	  configuration section.
 
 config FIREWIRE_NET
-	tristate "IP networking over 1394 (EXPERIMENTAL)"
-	depends on FIREWIRE && INET && EXPERIMENTAL
+	tristate "IP networking over 1394"
+	depends on FIREWIRE && INET
 	help
 	  This enables IPv4 over IEEE 1394, providing IP connectivity with
 	  other implementations of RFC 2734 as found on several operating
 	  systems.  Multicast support is currently limited.
 
-	  NOTE, this driver is not stable yet!
-
 	  To compile this driver as a module, say M here:  The module will be
 	  called firewire-net.
 
-source "drivers/ieee1394/Kconfig"
+config FIREWIRE_NOSY
+	tristate "Nosy - a FireWire traffic sniffer for PCILynx cards"
+	depends on PCI
+	help
+	  Nosy is an IEEE 1394 packet sniffer that is used for protocol
+	  analysis and in development of IEEE 1394 drivers, applications,
+	  or firmwares.
+
+	  This driver lets you use a Texas Instruments PCILynx 1394 to PCI
+	  link layer controller TSB12LV21/A/B as a low-budget bus analyzer.
+	  PCILynx is a nowadays very rare IEEE 1394 controller which is
+	  not OHCI 1394 compliant.
+
+	  The following cards are known to be based on PCILynx or PCILynx-2:
+	  IOI IOI-1394TT (PCI card), Unibrain Fireboard 400 PCI Lynx-2
+	  (PCI card), Newer Technology FireWire 2 Go (CardBus card),
+	  Apple Power Mac G3 blue & white (onboard controller).
+
+	  To compile this driver as a module, say M here:  The module will be
+	  called nosy.  Source code of a userspace interface to nosy, called
+	  nosy-dump, can be found in tools/firewire/ of the kernel sources.
+
+	  If unsure, say N.
 
 endmenu

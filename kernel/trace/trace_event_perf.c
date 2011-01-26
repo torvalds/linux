@@ -9,13 +9,7 @@
 #include <linux/kprobes.h>
 #include "trace.h"
 
-DEFINE_PER_CPU(struct pt_regs, perf_trace_regs);
-EXPORT_PER_CPU_SYMBOL_GPL(perf_trace_regs);
-
-EXPORT_SYMBOL_GPL(perf_arch_fetch_caller_regs);
-
-static char *perf_trace_buf;
-static char *perf_trace_buf_nmi;
+static char __percpu *perf_trace_buf[PERF_NR_CONTEXTS];
 
 /*
  * Force it to be aligned to unsigned long to avoid misaligned accesses
@@ -27,57 +21,107 @@ typedef typeof(unsigned long [PERF_MAX_TRACE_SIZE / sizeof(unsigned long)])
 /* Count the events in use (per event id, not per instance) */
 static int	total_ref_count;
 
-static int perf_trace_event_enable(struct ftrace_event_call *event)
+static int perf_trace_event_perm(struct ftrace_event_call *tp_event,
+				 struct perf_event *p_event)
 {
-	char *buf;
-	int ret = -ENOMEM;
-
-	if (event->perf_refcount++ > 0)
+	/* No tracing, just counting, so no obvious leak */
+	if (!(p_event->attr.sample_type & PERF_SAMPLE_RAW))
 		return 0;
 
-	if (!total_ref_count) {
-		buf = (char *)alloc_percpu(perf_trace_t);
-		if (!buf)
-			goto fail_buf;
-
-		rcu_assign_pointer(perf_trace_buf, buf);
-
-		buf = (char *)alloc_percpu(perf_trace_t);
-		if (!buf)
-			goto fail_buf_nmi;
-
-		rcu_assign_pointer(perf_trace_buf_nmi, buf);
+	/* Some events are ok to be traced by non-root users... */
+	if (p_event->attach_state == PERF_ATTACH_TASK) {
+		if (tp_event->flags & TRACE_EVENT_FL_CAP_ANY)
+			return 0;
 	}
 
-	ret = event->perf_event_enable(event);
-	if (!ret) {
-		total_ref_count++;
+	/*
+	 * ...otherwise raw tracepoint data can be a severe data leak,
+	 * only allow root to have these.
+	 */
+	if (perf_paranoid_tracepoint_raw() && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	return 0;
+}
+
+static int perf_trace_event_init(struct ftrace_event_call *tp_event,
+				 struct perf_event *p_event)
+{
+	struct hlist_head __percpu *list;
+	int ret;
+	int cpu;
+
+	ret = perf_trace_event_perm(tp_event, p_event);
+	if (ret)
+		return ret;
+
+	p_event->tp_event = tp_event;
+	if (tp_event->perf_refcount++ > 0)
 		return 0;
+
+	ret = -ENOMEM;
+
+	list = alloc_percpu(struct hlist_head);
+	if (!list)
+		goto fail;
+
+	for_each_possible_cpu(cpu)
+		INIT_HLIST_HEAD(per_cpu_ptr(list, cpu));
+
+	tp_event->perf_events = list;
+
+	if (!total_ref_count) {
+		char __percpu *buf;
+		int i;
+
+		for (i = 0; i < PERF_NR_CONTEXTS; i++) {
+			buf = (char __percpu *)alloc_percpu(perf_trace_t);
+			if (!buf)
+				goto fail;
+
+			perf_trace_buf[i] = buf;
+		}
 	}
 
-fail_buf_nmi:
+	ret = tp_event->class->reg(tp_event, TRACE_REG_PERF_REGISTER);
+	if (ret)
+		goto fail;
+
+	total_ref_count++;
+	return 0;
+
+fail:
 	if (!total_ref_count) {
-		free_percpu(perf_trace_buf_nmi);
-		free_percpu(perf_trace_buf);
-		perf_trace_buf_nmi = NULL;
-		perf_trace_buf = NULL;
+		int i;
+
+		for (i = 0; i < PERF_NR_CONTEXTS; i++) {
+			free_percpu(perf_trace_buf[i]);
+			perf_trace_buf[i] = NULL;
+		}
 	}
-fail_buf:
-	event->perf_refcount--;
+
+	if (!--tp_event->perf_refcount) {
+		free_percpu(tp_event->perf_events);
+		tp_event->perf_events = NULL;
+	}
 
 	return ret;
 }
 
-int perf_trace_enable(int event_id)
+int perf_trace_init(struct perf_event *p_event)
 {
-	struct ftrace_event_call *event;
+	struct ftrace_event_call *tp_event;
+	int event_id = p_event->attr.config;
 	int ret = -EINVAL;
 
 	mutex_lock(&event_mutex);
-	list_for_each_entry(event, &ftrace_events, list) {
-		if (event->id == event_id && event->perf_event_enable &&
-		    try_module_get(event->mod)) {
-			ret = perf_trace_event_enable(event);
+	list_for_each_entry(tp_event, &ftrace_events, list) {
+		if (tp_event->event.type == event_id &&
+		    tp_event->class && tp_event->class->reg &&
+		    try_module_get(tp_event->mod)) {
+			ret = perf_trace_event_init(tp_event, p_event);
+			if (ret)
+				module_put(tp_event->mod);
 			break;
 		}
 	}
@@ -86,90 +130,87 @@ int perf_trace_enable(int event_id)
 	return ret;
 }
 
-static void perf_trace_event_disable(struct ftrace_event_call *event)
+int perf_trace_add(struct perf_event *p_event, int flags)
 {
-	char *buf, *nmi_buf;
+	struct ftrace_event_call *tp_event = p_event->tp_event;
+	struct hlist_head __percpu *pcpu_list;
+	struct hlist_head *list;
 
-	if (--event->perf_refcount > 0)
-		return;
+	pcpu_list = tp_event->perf_events;
+	if (WARN_ON_ONCE(!pcpu_list))
+		return -EINVAL;
 
-	event->perf_event_disable(event);
+	if (!(flags & PERF_EF_START))
+		p_event->hw.state = PERF_HES_STOPPED;
 
-	if (!--total_ref_count) {
-		buf = perf_trace_buf;
-		rcu_assign_pointer(perf_trace_buf, NULL);
+	list = this_cpu_ptr(pcpu_list);
+	hlist_add_head_rcu(&p_event->hlist_entry, list);
 
-		nmi_buf = perf_trace_buf_nmi;
-		rcu_assign_pointer(perf_trace_buf_nmi, NULL);
-
-		/*
-		 * Ensure every events in profiling have finished before
-		 * releasing the buffers
-		 */
-		synchronize_sched();
-
-		free_percpu(buf);
-		free_percpu(nmi_buf);
-	}
+	return 0;
 }
 
-void perf_trace_disable(int event_id)
+void perf_trace_del(struct perf_event *p_event, int flags)
 {
-	struct ftrace_event_call *event;
+	hlist_del_rcu(&p_event->hlist_entry);
+}
+
+void perf_trace_destroy(struct perf_event *p_event)
+{
+	struct ftrace_event_call *tp_event = p_event->tp_event;
+	int i;
 
 	mutex_lock(&event_mutex);
-	list_for_each_entry(event, &ftrace_events, list) {
-		if (event->id == event_id) {
-			perf_trace_event_disable(event);
-			module_put(event->mod);
-			break;
+	if (--tp_event->perf_refcount > 0)
+		goto out;
+
+	tp_event->class->reg(tp_event, TRACE_REG_PERF_UNREGISTER);
+
+	/*
+	 * Ensure our callback won't be called anymore. The buffers
+	 * will be freed after that.
+	 */
+	tracepoint_synchronize_unregister();
+
+	free_percpu(tp_event->perf_events);
+	tp_event->perf_events = NULL;
+
+	if (!--total_ref_count) {
+		for (i = 0; i < PERF_NR_CONTEXTS; i++) {
+			free_percpu(perf_trace_buf[i]);
+			perf_trace_buf[i] = NULL;
 		}
 	}
+out:
+	module_put(tp_event->mod);
 	mutex_unlock(&event_mutex);
 }
 
 __kprobes void *perf_trace_buf_prepare(int size, unsigned short type,
-				       int *rctxp, unsigned long *irq_flags)
+				       struct pt_regs *regs, int *rctxp)
 {
 	struct trace_entry *entry;
-	char *trace_buf, *raw_data;
-	int pc, cpu;
+	unsigned long flags;
+	char *raw_data;
+	int pc;
 
 	BUILD_BUG_ON(PERF_MAX_TRACE_SIZE % sizeof(unsigned long));
 
 	pc = preempt_count();
 
-	/* Protect the per cpu buffer, begin the rcu read side */
-	local_irq_save(*irq_flags);
-
 	*rctxp = perf_swevent_get_recursion_context();
 	if (*rctxp < 0)
-		goto err_recursion;
+		return NULL;
 
-	cpu = smp_processor_id();
-
-	if (in_nmi())
-		trace_buf = rcu_dereference_sched(perf_trace_buf_nmi);
-	else
-		trace_buf = rcu_dereference_sched(perf_trace_buf);
-
-	if (!trace_buf)
-		goto err;
-
-	raw_data = per_cpu_ptr(trace_buf, cpu);
+	raw_data = this_cpu_ptr(perf_trace_buf[*rctxp]);
 
 	/* zero the dead bytes from align to not leak stack to user */
 	memset(&raw_data[size - sizeof(u64)], 0, sizeof(u64));
 
 	entry = (struct trace_entry *)raw_data;
-	tracing_generic_entry_update(entry, *irq_flags, pc);
+	local_save_flags(flags);
+	tracing_generic_entry_update(entry, flags, pc);
 	entry->type = type;
 
 	return raw_data;
-err:
-	perf_swevent_put_recursion_context(*rctxp);
-err_recursion:
-	local_irq_restore(*irq_flags);
-	return NULL;
 }
 EXPORT_SYMBOL_GPL(perf_trace_buf_prepare);

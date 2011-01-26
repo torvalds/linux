@@ -74,12 +74,12 @@ static struct mfd_cell backlight_devs[] = {
 }
 
 static struct resource led_resources[] = {
-	PM8606_LED_RESOURCE(PM8606_LED1_RED, RGB2B),
-	PM8606_LED_RESOURCE(PM8606_LED1_GREEN, RGB2C),
-	PM8606_LED_RESOURCE(PM8606_LED1_BLUE, RGB2D),
-	PM8606_LED_RESOURCE(PM8606_LED2_RED, RGB1B),
-	PM8606_LED_RESOURCE(PM8606_LED2_GREEN, RGB1C),
-	PM8606_LED_RESOURCE(PM8606_LED2_BLUE, RGB1D),
+	PM8606_LED_RESOURCE(PM8606_LED1_RED, RGB1B),
+	PM8606_LED_RESOURCE(PM8606_LED1_GREEN, RGB1C),
+	PM8606_LED_RESOURCE(PM8606_LED1_BLUE, RGB1D),
+	PM8606_LED_RESOURCE(PM8606_LED2_RED, RGB2B),
+	PM8606_LED_RESOURCE(PM8606_LED2_GREEN, RGB2C),
+	PM8606_LED_RESOURCE(PM8606_LED2_BLUE, RGB2D),
 };
 
 #define PM8606_LED_DEVS(_i)				\
@@ -158,6 +158,43 @@ static struct mfd_cell onkey_devs[] = {
 	},
 };
 
+static struct resource codec_resources[] = {
+	{
+		/* Headset microphone insertion or removal */
+		.name		= "micin",
+		.start		= PM8607_IRQ_MICIN,
+		.end		= PM8607_IRQ_MICIN,
+		.flags		= IORESOURCE_IRQ,
+	}, {
+		/* Hook-switch press or release */
+		.name		= "hook",
+		.start		= PM8607_IRQ_HOOK,
+		.end		= PM8607_IRQ_HOOK,
+		.flags		= IORESOURCE_IRQ,
+	}, {
+		/* Headset insertion or removal */
+		.name		= "headset",
+		.start		= PM8607_IRQ_HEADSET,
+		.end		= PM8607_IRQ_HEADSET,
+		.flags		= IORESOURCE_IRQ,
+	}, {
+		/* Audio short */
+		.name		= "audio-short",
+		.start		= PM8607_IRQ_AUDIO_SHORT,
+		.end		= PM8607_IRQ_AUDIO_SHORT,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct mfd_cell codec_devs[] = {
+	{
+		.name		= "88pm860x-codec",
+		.num_resources	= ARRAY_SIZE(codec_resources),
+		.resources	= &codec_resources[0],
+		.id		= -1,
+	},
+};
+
 static struct resource regulator_resources[] = {
 	PM8607_REG_RESOURCE(BUCK1, BUCK1),
 	PM8607_REG_RESOURCE(BUCK2, BUCK2),
@@ -173,33 +210,35 @@ static struct resource regulator_resources[] = {
 	PM8607_REG_RESOURCE(LDO9,  LDO9),
 	PM8607_REG_RESOURCE(LDO10, LDO10),
 	PM8607_REG_RESOURCE(LDO12, LDO12),
+	PM8607_REG_RESOURCE(VIBRATOR_SET, VIBRATOR_SET),
 	PM8607_REG_RESOURCE(LDO14, LDO14),
 };
 
-#define PM8607_REG_DEVS(_name, _id)					\
+#define PM8607_REG_DEVS(_id)						\
 {									\
-	.name		= "88pm8607-" #_name,				\
+	.name		= "88pm860x-regulator",				\
 	.num_resources	= 1,						\
 	.resources	= &regulator_resources[PM8607_ID_##_id],	\
 	.id		= PM8607_ID_##_id,				\
 }
 
 static struct mfd_cell regulator_devs[] = {
-	PM8607_REG_DEVS(buck1, BUCK1),
-	PM8607_REG_DEVS(buck2, BUCK2),
-	PM8607_REG_DEVS(buck3, BUCK3),
-	PM8607_REG_DEVS(ldo1,  LDO1),
-	PM8607_REG_DEVS(ldo2,  LDO2),
-	PM8607_REG_DEVS(ldo3,  LDO3),
-	PM8607_REG_DEVS(ldo4,  LDO4),
-	PM8607_REG_DEVS(ldo5,  LDO5),
-	PM8607_REG_DEVS(ldo6,  LDO6),
-	PM8607_REG_DEVS(ldo7,  LDO7),
-	PM8607_REG_DEVS(ldo8,  LDO8),
-	PM8607_REG_DEVS(ldo9,  LDO9),
-	PM8607_REG_DEVS(ldo10, LDO10),
-	PM8607_REG_DEVS(ldo12, LDO12),
-	PM8607_REG_DEVS(ldo14, LDO14),
+	PM8607_REG_DEVS(BUCK1),
+	PM8607_REG_DEVS(BUCK2),
+	PM8607_REG_DEVS(BUCK3),
+	PM8607_REG_DEVS(LDO1),
+	PM8607_REG_DEVS(LDO2),
+	PM8607_REG_DEVS(LDO3),
+	PM8607_REG_DEVS(LDO4),
+	PM8607_REG_DEVS(LDO5),
+	PM8607_REG_DEVS(LDO6),
+	PM8607_REG_DEVS(LDO7),
+	PM8607_REG_DEVS(LDO8),
+	PM8607_REG_DEVS(LDO9),
+	PM8607_REG_DEVS(LDO10),
+	PM8607_REG_DEVS(LDO12),
+	PM8607_REG_DEVS(LDO13),
+	PM8607_REG_DEVS(LDO14),
 };
 
 struct pm860x_irq_data {
@@ -322,12 +361,6 @@ static struct pm860x_irq_data pm860x_irqs[] = {
 	},
 };
 
-static inline struct pm860x_irq_data *irq_to_pm860x(struct pm860x_chip *chip,
-						    int irq)
-{
-	return &pm860x_irqs[irq - chip->irq_base];
-}
-
 static irqreturn_t pm860x_irq(int irq, void *data)
 {
 	struct pm860x_chip *chip = data;
@@ -349,16 +382,16 @@ static irqreturn_t pm860x_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void pm860x_irq_lock(unsigned int irq)
+static void pm860x_irq_lock(struct irq_data *data)
 {
-	struct pm860x_chip *chip = get_irq_chip_data(irq);
+	struct pm860x_chip *chip = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&chip->irq_lock);
 }
 
-static void pm860x_irq_sync_unlock(unsigned int irq)
+static void pm860x_irq_sync_unlock(struct irq_data *data)
 {
-	struct pm860x_chip *chip = get_irq_chip_data(irq);
+	struct pm860x_chip *chip = irq_data_get_irq_chip_data(data);
 	struct pm860x_irq_data *irq_data;
 	struct i2c_client *i2c;
 	static unsigned char cached[3] = {0x0, 0x0, 0x0};
@@ -400,25 +433,25 @@ static void pm860x_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&chip->irq_lock);
 }
 
-static void pm860x_irq_enable(unsigned int irq)
+static void pm860x_irq_enable(struct irq_data *data)
 {
-	struct pm860x_chip *chip = get_irq_chip_data(irq);
-	pm860x_irqs[irq - chip->irq_base].enable
-		= pm860x_irqs[irq - chip->irq_base].offs;
+	struct pm860x_chip *chip = irq_data_get_irq_chip_data(data);
+	pm860x_irqs[data->irq - chip->irq_base].enable
+		= pm860x_irqs[data->irq - chip->irq_base].offs;
 }
 
-static void pm860x_irq_disable(unsigned int irq)
+static void pm860x_irq_disable(struct irq_data *data)
 {
-	struct pm860x_chip *chip = get_irq_chip_data(irq);
-	pm860x_irqs[irq - chip->irq_base].enable = 0;
+	struct pm860x_chip *chip = irq_data_get_irq_chip_data(data);
+	pm860x_irqs[data->irq - chip->irq_base].enable = 0;
 }
 
 static struct irq_chip pm860x_irq_chip = {
 	.name		= "88pm860x",
-	.bus_lock	= pm860x_irq_lock,
-	.bus_sync_unlock = pm860x_irq_sync_unlock,
-	.enable		= pm860x_irq_enable,
-	.disable	= pm860x_irq_disable,
+	.irq_bus_lock	= pm860x_irq_lock,
+	.irq_bus_sync_unlock = pm860x_irq_sync_unlock,
+	.irq_enable	= pm860x_irq_enable,
+	.irq_disable	= pm860x_irq_disable,
 };
 
 static int __devinit device_gpadc_init(struct pm860x_chip *chip,
@@ -426,52 +459,44 @@ static int __devinit device_gpadc_init(struct pm860x_chip *chip,
 {
 	struct i2c_client *i2c = (chip->id == CHIP_PM8607) ? chip->client \
 				: chip->companion;
-	int use_gpadc = 0, data, ret;
+	int data;
+	int ret;
 
 	/* initialize GPADC without activating it */
 
-	if (pdata && pdata->touch) {
-		/* set GPADC MISC1 register */
-		data = 0;
-		data |= (pdata->touch->gpadc_prebias << 1)
-			& PM8607_GPADC_PREBIAS_MASK;
-		data |= (pdata->touch->slot_cycle << 3)
-			& PM8607_GPADC_SLOT_CYCLE_MASK;
-		data |= (pdata->touch->off_scale << 5)
-			& PM8607_GPADC_OFF_SCALE_MASK;
-		data |= (pdata->touch->sw_cal << 7)
-			& PM8607_GPADC_SW_CAL_MASK;
-		if (data) {
-			ret = pm860x_reg_write(i2c, PM8607_GPADC_MISC1, data);
-			if (ret < 0)
-				goto out;
-		}
-		/* set tsi prebias time */
-		if (pdata->touch->tsi_prebias) {
-			data = pdata->touch->tsi_prebias;
-			ret = pm860x_reg_write(i2c, PM8607_TSI_PREBIAS, data);
-			if (ret < 0)
-				goto out;
-		}
-		/* set prebias & prechg time of pen detect */
-		data = 0;
-		data |= pdata->touch->pen_prebias & PM8607_PD_PREBIAS_MASK;
-		data |= (pdata->touch->pen_prechg << 5)
-			& PM8607_PD_PRECHG_MASK;
-		if (data) {
-			ret = pm860x_reg_write(i2c, PM8607_PD_PREBIAS, data);
-			if (ret < 0)
-				goto out;
-		}
+	if (!pdata || !pdata->touch)
+		return -EINVAL;
 
-		use_gpadc = 1;
+	/* set GPADC MISC1 register */
+	data = 0;
+	data |= (pdata->touch->gpadc_prebias << 1) & PM8607_GPADC_PREBIAS_MASK;
+	data |= (pdata->touch->slot_cycle << 3) & PM8607_GPADC_SLOT_CYCLE_MASK;
+	data |= (pdata->touch->off_scale << 5) & PM8607_GPADC_OFF_SCALE_MASK;
+	data |= (pdata->touch->sw_cal << 7) & PM8607_GPADC_SW_CAL_MASK;
+	if (data) {
+		ret = pm860x_reg_write(i2c, PM8607_GPADC_MISC1, data);
+		if (ret < 0)
+			goto out;
+	}
+	/* set tsi prebias time */
+	if (pdata->touch->tsi_prebias) {
+		data = pdata->touch->tsi_prebias;
+		ret = pm860x_reg_write(i2c, PM8607_TSI_PREBIAS, data);
+		if (ret < 0)
+			goto out;
+	}
+	/* set prebias & prechg time of pen detect */
+	data = 0;
+	data |= pdata->touch->pen_prebias & PM8607_PD_PREBIAS_MASK;
+	data |= (pdata->touch->pen_prechg << 5) & PM8607_PD_PRECHG_MASK;
+	if (data) {
+		ret = pm860x_reg_write(i2c, PM8607_PD_PREBIAS, data);
+		if (ret < 0)
+			goto out;
 	}
 
-	/* turn on GPADC */
-	if (use_gpadc) {
-		ret = pm860x_set_bits(i2c, PM8607_GPADC_MISC1,
-				      PM8607_GPADC_EN, PM8607_GPADC_EN);
-	}
+	ret = pm860x_set_bits(i2c, PM8607_GPADC_MISC1,
+			      PM8607_GPADC_EN, PM8607_GPADC_EN);
 out:
 	return ret;
 }
@@ -564,7 +589,7 @@ out:
 	return ret;
 }
 
-static void __devexit device_irq_exit(struct pm860x_chip *chip)
+static void device_irq_exit(struct pm860x_chip *chip)
 {
 	if (chip->core_irq)
 		free_irq(chip->core_irq, chip);
@@ -614,10 +639,13 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to read CHIP ID: %d\n", ret);
 		goto out;
 	}
-	if ((ret & PM8607_VERSION_MASK) == PM8607_VERSION)
+	switch (ret & PM8607_VERSION_MASK) {
+	case 0x40:
+	case 0x50:
 		dev_info(chip->dev, "Marvell 88PM8607 (ID: %02x) detected\n",
 			 ret);
-	else {
+		break;
+	default:
 		dev_err(chip->dev, "Failed to detect Marvell 88PM8607. "
 			"Chip ID: %02x\n", ret);
 		goto out;
@@ -693,6 +721,13 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 		goto out_dev;
 	}
 
+	ret = mfd_add_devices(chip->dev, 0, &codec_devs[0],
+			      ARRAY_SIZE(codec_devs),
+			      &codec_resources[0], 0);
+	if (ret < 0) {
+		dev_err(chip->dev, "Failed to add codec subdev\n");
+		goto out_dev;
+	}
 	return;
 out_dev:
 	mfd_remove_devices(chip->dev);
@@ -701,7 +736,7 @@ out:
 	return;
 }
 
-int pm860x_device_init(struct pm860x_chip *chip,
+int __devinit pm860x_device_init(struct pm860x_chip *chip,
 		       struct pm860x_platform_data *pdata)
 {
 	chip->core_irq = 0;
@@ -729,7 +764,7 @@ int pm860x_device_init(struct pm860x_chip *chip,
 	return 0;
 }
 
-void pm860x_device_exit(struct pm860x_chip *chip)
+void __devexit pm860x_device_exit(struct pm860x_chip *chip)
 {
 	device_irq_exit(chip);
 	mfd_remove_devices(chip->dev);

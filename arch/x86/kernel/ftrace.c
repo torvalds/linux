@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
 #include <trace/syscall.h>
 
@@ -49,6 +50,7 @@ static DEFINE_PER_CPU(int, save_modifying_code);
 int ftrace_arch_code_modify_prepare(void)
 {
 	set_kernel_text_rw();
+	set_all_modules_text_rw();
 	modifying_code = 1;
 	return 0;
 }
@@ -56,6 +58,7 @@ int ftrace_arch_code_modify_prepare(void)
 int ftrace_arch_code_modify_post_process(void)
 {
 	modifying_code = 0;
+	set_all_modules_text_ro();
 	set_kernel_text_ro();
 	return 0;
 }
@@ -167,9 +170,9 @@ static void ftrace_mod_code(void)
 
 void ftrace_nmi_enter(void)
 {
-	__get_cpu_var(save_modifying_code) = modifying_code;
+	__this_cpu_write(save_modifying_code, modifying_code);
 
-	if (!__get_cpu_var(save_modifying_code))
+	if (!__this_cpu_read(save_modifying_code))
 		return;
 
 	if (atomic_inc_return(&nmi_running) & MOD_CODE_WRITE_FLAG) {
@@ -183,7 +186,7 @@ void ftrace_nmi_enter(void)
 
 void ftrace_nmi_exit(void)
 {
-	if (!__get_cpu_var(save_modifying_code))
+	if (!__this_cpu_read(save_modifying_code))
 		return;
 
 	/* Finish all executions before clearing nmi_running */
@@ -257,14 +260,9 @@ do_ftrace_mod_code(unsigned long ip, void *new_code)
 	return mod_code_status;
 }
 
-
-
-
-static unsigned char ftrace_nop[MCOUNT_INSN_SIZE];
-
 static unsigned char *ftrace_nop_replace(void)
 {
-	return ftrace_nop;
+	return ideal_nop5;
 }
 
 static int
@@ -338,62 +336,6 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 
 int __init ftrace_dyn_arch_init(void *data)
 {
-	extern const unsigned char ftrace_test_p6nop[];
-	extern const unsigned char ftrace_test_nop5[];
-	extern const unsigned char ftrace_test_jmp[];
-	int faulted = 0;
-
-	/*
-	 * There is no good nop for all x86 archs.
-	 * We will default to using the P6_NOP5, but first we
-	 * will test to make sure that the nop will actually
-	 * work on this CPU. If it faults, we will then
-	 * go to a lesser efficient 5 byte nop. If that fails
-	 * we then just use a jmp as our nop. This isn't the most
-	 * efficient nop, but we can not use a multi part nop
-	 * since we would then risk being preempted in the middle
-	 * of that nop, and if we enabled tracing then, it might
-	 * cause a system crash.
-	 *
-	 * TODO: check the cpuid to determine the best nop.
-	 */
-	asm volatile (
-		"ftrace_test_jmp:"
-		"jmp ftrace_test_p6nop\n"
-		"nop\n"
-		"nop\n"
-		"nop\n"  /* 2 byte jmp + 3 bytes */
-		"ftrace_test_p6nop:"
-		P6_NOP5
-		"jmp 1f\n"
-		"ftrace_test_nop5:"
-		".byte 0x66,0x66,0x66,0x66,0x90\n"
-		"1:"
-		".section .fixup, \"ax\"\n"
-		"2:	movl $1, %0\n"
-		"	jmp ftrace_test_nop5\n"
-		"3:	movl $2, %0\n"
-		"	jmp 1b\n"
-		".previous\n"
-		_ASM_EXTABLE(ftrace_test_p6nop, 2b)
-		_ASM_EXTABLE(ftrace_test_nop5, 3b)
-		: "=r"(faulted) : "0" (faulted));
-
-	switch (faulted) {
-	case 0:
-		pr_info("converting mcount calls to 0f 1f 44 00 00\n");
-		memcpy(ftrace_nop, ftrace_test_p6nop, MCOUNT_INSN_SIZE);
-		break;
-	case 1:
-		pr_info("converting mcount calls to 66 66 66 66 90\n");
-		memcpy(ftrace_nop, ftrace_test_nop5, MCOUNT_INSN_SIZE);
-		break;
-	case 2:
-		pr_info("converting mcount calls to jmp . + 5\n");
-		memcpy(ftrace_nop, ftrace_test_jmp, MCOUNT_INSN_SIZE);
-		break;
-	}
-
 	/* The return code is retured via data */
 	*(unsigned long *)data = 0;
 

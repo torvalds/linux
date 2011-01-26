@@ -8,7 +8,7 @@ Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 	D-77833 Ottersweier
 	Tel: +19(0)7223/9493-0
 	Fax: +49(0)7223/9493-92
-	http://www.addi-data-com
+	http://www.addi-data.com
 	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
@@ -1008,7 +1008,7 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device *dev,
 	b_ExternGate = (unsigned char) data[3];
 	b_CycleMode = (unsigned char) data[4];
 	b_InterruptEnable = (unsigned char) data[5];
-	i_ReturnValue = insn->n;;
+	i_ReturnValue = insn->n;
 	devpriv->tsk_Current = current;	/*  Save the current process task structure */
 	/**************************/
 	/* Test the module number */

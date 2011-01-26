@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/types.h>
@@ -26,7 +22,6 @@
 #include <linux/i2c.h>
 #include <linux/irq.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -34,7 +29,6 @@
 #include <asm/mach/map.h>
 #include <mach/common.h>
 #include <mach/board-mx31ads.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 
 #ifdef CONFIG_MACH_MX31ADS_WM1133_EV1
@@ -43,14 +37,40 @@
 #include <linux/mfd/wm8350/pmic.h>
 #endif
 
+#include "devices-imx31.h"
 #include "devices.h"
 
-/*!
- * @file mx31ads.c
- *
- * @brief This file contains the board-specific initialization routines.
- *
- * @ingroup System
+/* PBC Board interrupt status register */
+#define PBC_INTSTATUS           0x000016
+
+/* PBC Board interrupt current status register */
+#define PBC_INTCURR_STATUS      0x000018
+
+/* PBC Interrupt mask register set address */
+#define PBC_INTMASK_SET         0x00001A
+
+/* PBC Interrupt mask register clear address */
+#define PBC_INTMASK_CLEAR       0x00001C
+
+/* External UART A */
+#define PBC_SC16C652_UARTA      0x010000
+
+/* External UART B */
+#define PBC_SC16C652_UARTB      0x010010
+
+#define PBC_INTSTATUS_REG	(PBC_INTSTATUS + PBC_BASE_ADDRESS)
+#define PBC_INTMASK_SET_REG	(PBC_INTMASK_SET + PBC_BASE_ADDRESS)
+#define PBC_INTMASK_CLEAR_REG	(PBC_INTMASK_CLEAR + PBC_BASE_ADDRESS)
+#define EXPIO_PARENT_INT	IOMUX_TO_IRQ(MX31_PIN_GPIO1_4)
+
+#define MXC_IRQ_TO_EXPIO(irq)	((irq) - MXC_EXP_IO_BASE)
+
+#define EXPIO_INT_XUART_INTA	(MXC_EXP_IO_BASE + 10)
+#define EXPIO_INT_XUART_INTB	(MXC_EXP_IO_BASE + 11)
+
+#define MXC_MAX_EXP_IO_LINES	16
+/*
+ * This file contains the board-specific initialization routines.
  */
 
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
@@ -98,7 +118,7 @@ static inline int mxc_init_extuart(void)
 #endif
 
 #if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -112,7 +132,7 @@ static unsigned int uart_pins[] = {
 static inline void mxc_init_imx_uart(void)
 {
 	mxc_iomux_setup_multiple_pins(uart_pins, ARRAY_SIZE(uart_pins), "uart-0");
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	imx31_add_imx_uart0(&uart_pdata);
 }
 #else /* !SERIAL_IMX */
 static inline void mxc_init_imx_uart(void)
@@ -142,9 +162,9 @@ static void mx31ads_expio_irq_handler(u32 irq, struct irq_desc *desc)
  * Disable an expio pin's interrupt by setting the bit in the imr.
  * @param irq           an expio virtual irq number
  */
-static void expio_mask_irq(u32 irq)
+static void expio_mask_irq(struct irq_data *d)
 {
-	u32 expio = MXC_IRQ_TO_EXPIO(irq);
+	u32 expio = MXC_IRQ_TO_EXPIO(d->irq);
 	/* mask the interrupt */
 	__raw_writew(1 << expio, PBC_INTMASK_CLEAR_REG);
 	__raw_readw(PBC_INTMASK_CLEAR_REG);
@@ -154,9 +174,9 @@ static void expio_mask_irq(u32 irq)
  * Acknowledge an expanded io pin's interrupt by clearing the bit in the isr.
  * @param irq           an expanded io virtual irq number
  */
-static void expio_ack_irq(u32 irq)
+static void expio_ack_irq(struct irq_data *d)
 {
-	u32 expio = MXC_IRQ_TO_EXPIO(irq);
+	u32 expio = MXC_IRQ_TO_EXPIO(d->irq);
 	/* clear the interrupt status */
 	__raw_writew(1 << expio, PBC_INTSTATUS_REG);
 }
@@ -165,18 +185,18 @@ static void expio_ack_irq(u32 irq)
  * Enable a expio pin's interrupt by clearing the bit in the imr.
  * @param irq           a expio virtual irq number
  */
-static void expio_unmask_irq(u32 irq)
+static void expio_unmask_irq(struct irq_data *d)
 {
-	u32 expio = MXC_IRQ_TO_EXPIO(irq);
+	u32 expio = MXC_IRQ_TO_EXPIO(d->irq);
 	/* unmask the interrupt */
 	__raw_writew(1 << expio, PBC_INTMASK_SET_REG);
 }
 
 static struct irq_chip expio_irq_chip = {
 	.name = "EXPIO(CPLD)",
-	.ack = expio_ack_irq,
-	.mask = expio_mask_irq,
-	.unmask = expio_unmask_irq,
+	.irq_ack = expio_ack_irq,
+	.irq_mask = expio_mask_irq,
+	.irq_unmask = expio_unmask_irq,
 };
 
 static void __init mx31ads_init_expio(void)
@@ -475,7 +495,7 @@ static void mxc_init_i2c(void)
 	mxc_iomux_mode(IOMUX_MODE(MX31_PIN_CSPI2_MOSI, IOMUX_CONFIG_ALT1));
 	mxc_iomux_mode(IOMUX_MODE(MX31_PIN_CSPI2_MISO, IOMUX_CONFIG_ALT1));
 
-	mxc_register_device(&mxc_i2c_device1, NULL);
+	imx31_add_imx_i2c1(NULL);
 }
 #else
 static void mxc_init_i2c(void)
@@ -492,7 +512,7 @@ static unsigned int ssi_pins[] = {
 
 static void mxc_init_audio(void)
 {
-	mxc_register_device(&imx_ssi_device0, NULL);
+	imx31_add_imx_ssi(0, NULL);
 	mxc_iomux_setup_multiple_pins(ssi_pins, ARRAY_SIZE(ssi_pins), "ssi");
 }
 
@@ -549,8 +569,6 @@ static struct sys_timer mx31ads_timer = {
  */
 MACHINE_START(MX31ADS, "Freescale MX31ADS")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.phys_io	= MX31_AIPS1_BASE_ADDR,
-	.io_pg_offst	= (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
 	.map_io         = mx31ads_map_io,
 	.init_irq       = mx31ads_init_irq,

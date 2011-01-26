@@ -37,7 +37,10 @@
 #include "drmP.h"
 #include <linux/poll.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+
+/* from BKL pushdown: note that nothing else serializes idr_find() */
+DEFINE_MUTEX(drm_global_mutex);
+EXPORT_SYMBOL(drm_global_mutex);
 
 static int drm_open_helper(struct inode *inode, struct file *filp,
 			   struct drm_device * dev);
@@ -132,15 +135,9 @@ int drm_open(struct inode *inode, struct file *filp)
 	retcode = drm_open_helper(inode, filp, dev);
 	if (!retcode) {
 		atomic_inc(&dev->counts[_DRM_STAT_OPENS]);
-		spin_lock(&dev->count_lock);
-		if (!dev->open_count++) {
-			spin_unlock(&dev->count_lock);
+		if (!dev->open_count++)
 			retcode = drm_setup(dev);
-			goto out;
-		}
-		spin_unlock(&dev->count_lock);
 	}
-out:
 	if (!retcode) {
 		mutex_lock(&dev->struct_mutex);
 		if (minor->type == DRM_MINOR_LEGACY) {
@@ -175,8 +172,7 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 
 	DRM_DEBUG("\n");
 
-	/* BKL pushdown: note that nothing else serializes idr_find() */
-	lock_kernel();
+	mutex_lock(&drm_global_mutex);
 	minor = idr_find(&drm_minors_idr, minor_id);
 	if (!minor)
 		goto out;
@@ -197,7 +193,7 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 	fops_put(old_fops);
 
 out:
-	unlock_kernel();
+	mutex_unlock(&drm_global_mutex);
 	return err;
 }
 
@@ -239,6 +235,8 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	if (filp->f_flags & O_EXCL)
 		return -EBUSY;	/* No exclusive opens */
 	if (!drm_cpu_valid())
+		return -EINVAL;
+	if (dev->switch_power_state != DRM_SWITCH_POWER_ON)
 		return -EINVAL;
 
 	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor_id);
@@ -472,7 +470,7 @@ int drm_release(struct inode *inode, struct file *filp)
 	struct drm_device *dev = file_priv->minor->dev;
 	int retcode = 0;
 
-	lock_kernel();
+	mutex_lock(&drm_global_mutex);
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 
@@ -568,22 +566,15 @@ int drm_release(struct inode *inode, struct file *filp)
 	 */
 
 	atomic_inc(&dev->counts[_DRM_STAT_CLOSES]);
-	spin_lock(&dev->count_lock);
 	if (!--dev->open_count) {
 		if (atomic_read(&dev->ioctl_count)) {
 			DRM_ERROR("Device busy: %d\n",
 				  atomic_read(&dev->ioctl_count));
-			spin_unlock(&dev->count_lock);
-			unlock_kernel();
-			return -EBUSY;
-		}
-		spin_unlock(&dev->count_lock);
-		unlock_kernel();
-		return drm_lastclose(dev);
+			retcode = -EBUSY;
+		} else
+			retcode = drm_lastclose(dev);
 	}
-	spin_unlock(&dev->count_lock);
-
-	unlock_kernel();
+	mutex_unlock(&drm_global_mutex);
 
 	return retcode;
 }

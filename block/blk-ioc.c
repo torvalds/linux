@@ -64,7 +64,7 @@ static void cfq_exit(struct io_context *ioc)
 	rcu_read_unlock();
 }
 
-/* Called by the exitting task */
+/* Called by the exiting task */
 void exit_io_context(struct task_struct *task)
 {
 	struct io_context *ioc;
@@ -74,10 +74,9 @@ void exit_io_context(struct task_struct *task)
 	task->io_context = NULL;
 	task_unlock(task);
 
-	if (atomic_dec_and_test(&ioc->nr_tasks)) {
+	if (atomic_dec_and_test(&ioc->nr_tasks))
 		cfq_exit(ioc);
 
-	}
 	put_io_context(ioc);
 }
 
@@ -152,20 +151,6 @@ struct io_context *get_io_context(gfp_t gfp_flags, int node)
 	return ret;
 }
 EXPORT_SYMBOL(get_io_context);
-
-void copy_io_context(struct io_context **pdst, struct io_context **psrc)
-{
-	struct io_context *src = *psrc;
-	struct io_context *dst = *pdst;
-
-	if (src) {
-		BUG_ON(atomic_long_read(&src->refcount) == 0);
-		atomic_long_inc(&src->refcount);
-		put_io_context(dst);
-		*pdst = src;
-	}
-}
-EXPORT_SYMBOL(copy_io_context);
 
 static int __init blk_ioc_init(void)
 {

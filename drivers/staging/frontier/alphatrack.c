@@ -89,7 +89,7 @@ static int debug = ALPHATRACK_DEBUG;
 
 /* Use our own dbg macro */
 #define dbg_info(dev, format, arg...) do \
-    { if (debug) dev_info(dev , format , ## arg); } while (0)
+	{ if (debug) dev_info(dev , format , ## arg); } while (0)
 
 #define alphatrack_ocmd_info(dev, cmd, format, arg...)
 
@@ -641,6 +641,7 @@ static const struct file_operations usb_alphatrack_fops = {
 	.open = usb_alphatrack_open,
 	.release = usb_alphatrack_release,
 	.poll = usb_alphatrack_poll,
+	.llseek = no_llseek,
 };
 
 /*
@@ -671,7 +672,7 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 	int true_size;
 	int retval = -ENOMEM;
 
-	/* allocate memory for our device state and intialize it */
+	/* allocate memory for our device state and initialize it */
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
@@ -768,7 +769,7 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 	}
 
 	dev->write_buffer =
-	    kmalloc(sizeof(struct alphatrack_ocmd) * true_size, GFP_KERNEL);
+	    kmalloc(true_size * sizeof(struct alphatrack_ocmd), GFP_KERNEL);
 
 	if (!dev->write_buffer) {
 		dev_err(&intf->dev, "Couldn't allocate write_buffer\n");

@@ -1,13 +1,11 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
 config FRV
 	bool
 	default y
 	select HAVE_IDE
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
+	select HAVE_GENERIC_HARDIRQS
 
 config ZONE_DMA
 	bool
@@ -32,18 +30,6 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default n
 
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	bool
-	default y
-
-config GENERIC_TIME
-	bool
-	default y
-
 config TIME_LOW_RES
 	bool
 	default y
@@ -63,8 +49,6 @@ config ARCH_HAS_ILOG2_U64
 config HZ
 	int
 	default 1000
-
-mainmenu "Fujitsu FR-V Kernel Configuration"
 
 source "init/Kconfig"
 

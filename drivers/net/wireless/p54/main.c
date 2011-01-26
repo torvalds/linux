@@ -429,8 +429,8 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 
 	mutex_lock(&priv->conf_mutex);
 	if (cmd == SET_KEY) {
-		switch (key->alg) {
-		case ALG_TKIP:
+		switch (key->cipher) {
+		case WLAN_CIPHER_SUITE_TKIP:
 			if (!(priv->privacy_caps & (BR_DESC_PRIV_CAP_MICHAEL |
 			      BR_DESC_PRIV_CAP_TKIP))) {
 				ret = -EOPNOTSUPP;
@@ -439,7 +439,8 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 			algo = P54_CRYPTO_TKIPMICHAEL;
 			break;
-		case ALG_WEP:
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
 			if (!(priv->privacy_caps & BR_DESC_PRIV_CAP_WEP)) {
 				ret = -EOPNOTSUPP;
 				goto out_unlock;
@@ -447,7 +448,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 			algo = P54_CRYPTO_WEP;
 			break;
-		case ALG_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP:
 			if (!(priv->privacy_caps & BR_DESC_PRIV_CAP_AESCCMP)) {
 				ret = -EOPNOTSUPP;
 				goto out_unlock;
@@ -507,6 +508,22 @@ out_unlock:
 	return ret;
 }
 
+static int p54_get_survey(struct ieee80211_hw *dev, int idx,
+				struct survey_info *survey)
+{
+	struct p54_common *priv = dev->priv;
+	struct ieee80211_conf *conf = &dev->conf;
+
+	if (idx != 0)
+		return -ENOENT;
+
+	survey->channel = conf->channel;
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = clamp_t(s8, priv->noise, -128, 127);
+
+	return 0;
+}
+
 static const struct ieee80211_ops p54_ops = {
 	.tx			= p54_tx_80211,
 	.start			= p54_start,
@@ -523,6 +540,7 @@ static const struct ieee80211_ops p54_ops = {
 	.configure_filter	= p54_configure_filter,
 	.conf_tx		= p54_conf_tx,
 	.get_stats		= p54_get_stats,
+	.get_survey		= p54_get_survey,
 };
 
 struct ieee80211_hw *p54_init_common(size_t priv_data_len)

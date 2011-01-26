@@ -119,16 +119,20 @@
  * by making a change here, in moschip_port_id_table, and in
  * moschip_id_table_combined
  */
-#define USB_VENDOR_ID_BANDB             0x0856
-#define BANDB_DEVICE_ID_USO9ML2_2	0xAC22
-#define BANDB_DEVICE_ID_USO9ML2_4	0xAC24
-#define BANDB_DEVICE_ID_US9ML2_2	0xAC29
-#define BANDB_DEVICE_ID_US9ML2_4	0xAC30
-#define BANDB_DEVICE_ID_USPTL4_2	0xAC31
-#define BANDB_DEVICE_ID_USPTL4_4	0xAC32
-#define BANDB_DEVICE_ID_USOPTL4_2	0xAC42
-#define BANDB_DEVICE_ID_USOPTL4_4	0xAC44
-#define BANDB_DEVICE_ID_USOPTL2_4	0xAC24
+#define USB_VENDOR_ID_BANDB              0x0856
+#define BANDB_DEVICE_ID_USO9ML2_2        0xAC22
+#define BANDB_DEVICE_ID_USO9ML2_2P       0xBC00
+#define BANDB_DEVICE_ID_USO9ML2_4        0xAC24
+#define BANDB_DEVICE_ID_USO9ML2_4P       0xBC01
+#define BANDB_DEVICE_ID_US9ML2_2         0xAC29
+#define BANDB_DEVICE_ID_US9ML2_4         0xAC30
+#define BANDB_DEVICE_ID_USPTL4_2         0xAC31
+#define BANDB_DEVICE_ID_USPTL4_4         0xAC32
+#define BANDB_DEVICE_ID_USOPTL4_2        0xAC42
+#define BANDB_DEVICE_ID_USOPTL4_2P       0xBC02
+#define BANDB_DEVICE_ID_USOPTL4_4        0xAC44
+#define BANDB_DEVICE_ID_USOPTL4_4P       0xBC03
+#define BANDB_DEVICE_ID_USOPTL2_4        0xAC24
 
 /* This driver also supports
  * ATEN UC2324 device using Moschip MCS7840
@@ -184,13 +188,17 @@ static const struct usb_device_id moschip_port_id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7840)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7820)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_2)},
+	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_2P)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_4)},
+	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_4P)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_US9ML2_2)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_US9ML2_4)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USPTL4_2)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USPTL4_4)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL4_2)},
+	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL4_2P)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL4_4)},
+	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL4_4P)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL2_4)},
 	{USB_DEVICE(USB_VENDOR_ID_ATENINTL, ATENINTL_DEVICE_ID_UC2324)},
 	{USB_DEVICE(USB_VENDOR_ID_ATENINTL, ATENINTL_DEVICE_ID_UC2322)},
@@ -201,13 +209,17 @@ static const struct usb_device_id moschip_id_table_combined[] __devinitconst = {
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7840)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7820)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_2)},
+	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_2P)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_4)},
+	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_4P)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_US9ML2_2)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_US9ML2_4)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USPTL4_2)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USPTL4_4)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL4_2)},
+	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL4_2P)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL4_4)},
+	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL4_4P)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USOPTL2_4)},
 	{USB_DEVICE(USB_VENDOR_ID_ATENINTL, ATENINTL_DEVICE_ID_UC2324)},
 	{USB_DEVICE(USB_VENDOR_ID_ATENINTL, ATENINTL_DEVICE_ID_UC2322)},
@@ -730,7 +742,6 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	mos7840_port = urb->context;
 	if (!mos7840_port) {
 		dbg("%s", "NULL mos7840_port pointer");
-		mos7840_port->read_urb_busy = false;
 		return;
 	}
 
@@ -1356,8 +1367,6 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 	    mos7840_port->shadowLCR);
 	mos7840_set_uart_reg(port, LINE_CONTROL_REGISTER,
 			     mos7840_port->shadowLCR);
-
-	return;
 }
 
 /*****************************************************************************
@@ -1588,8 +1597,6 @@ static void mos7840_throttle(struct tty_struct *tty)
 		if (status < 0)
 			return;
 	}
-
-	return;
 }
 
 /*****************************************************************************
@@ -2064,8 +2071,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	mos7840_port->delta_msr_cond = 1;
 	dbg("mos7840_change_port_settings mos7840_port->shadowLCR is End %x",
 	    mos7840_port->shadowLCR);
-
-	return;
 }
 
 /*****************************************************************************
@@ -2134,7 +2139,6 @@ static void mos7840_set_termios(struct tty_struct *tty,
 			mos7840_port->read_urb_busy = false;
 		}
 	}
-	return;
 }
 
 /*****************************************************************************
@@ -2198,6 +2202,34 @@ static int mos7840_get_serial_info(struct moschip_port *mos7840_port,
 	return 0;
 }
 
+static int mos7840_get_icount(struct tty_struct *tty,
+			struct serial_icounter_struct *icount)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct moschip_port *mos7840_port;
+	struct async_icount cnow;
+
+	mos7840_port = mos7840_get_port_private(port);
+	cnow = mos7840_port->icount;
+
+	smp_rmb();
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+
+	dbg("%s (%d) TIOCGICOUNT RX=%d, TX=%d", __func__,
+		port->number, icount->rx, icount->tx);
+	return 0;
+}
+
 /*****************************************************************************
  * SerialIoctl
  *	this function handles any ioctl calls to the driver
@@ -2212,7 +2244,6 @@ static int mos7840_ioctl(struct tty_struct *tty, struct file *file,
 
 	struct async_icount cnow;
 	struct async_icount cprev;
-	struct serial_icounter_struct icount;
 
 	if (mos7840_port_paranoia_check(port, __func__)) {
 		dbg("%s", "Invalid port");
@@ -2271,26 +2302,6 @@ static int mos7840_ioctl(struct tty_struct *tty, struct file *file,
 		/* NOTREACHED */
 		break;
 
-	case TIOCGICOUNT:
-		cnow = mos7840_port->icount;
-		smp_rmb();
-		icount.cts = cnow.cts;
-		icount.dsr = cnow.dsr;
-		icount.rng = cnow.rng;
-		icount.dcd = cnow.dcd;
-		icount.rx = cnow.rx;
-		icount.tx = cnow.tx;
-		icount.frame = cnow.frame;
-		icount.overrun = cnow.overrun;
-		icount.parity = cnow.parity;
-		icount.brk = cnow.brk;
-		icount.buf_overrun = cnow.buf_overrun;
-
-		dbg("%s (%d) TIOCGICOUNT RX=%d, TX=%d", __func__,
-		    port->number, icount.rx, icount.tx);
-		if (copy_to_user(argp, &icount, sizeof(icount)))
-			return -EFAULT;
-		return 0;
 	default:
 		break;
 	}
@@ -2660,6 +2671,7 @@ static struct usb_serial_driver moschip7840_4port_device = {
 	.break_ctl = mos7840_break,
 	.tiocmget = mos7840_tiocmget,
 	.tiocmset = mos7840_tiocmset,
+	.get_icount = mos7840_get_icount,
 	.attach = mos7840_startup,
 	.disconnect = mos7840_disconnect,
 	.release = mos7840_release,

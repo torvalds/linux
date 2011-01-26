@@ -45,7 +45,7 @@ static const struct {
 /* Firmware version encoding */
 struct comp_id {
 	u16 id, variant, major, minor;
-} __attribute__ ((packed));
+} __packed;
 
 static inline fwtype_t determine_firmware_type(struct comp_id *nic_id)
 {
@@ -762,14 +762,17 @@ int orinoco_hw_get_act_bitrate(struct orinoco_private *priv, int *bitrate)
 	case FIRMWARE_TYPE_INTERSIL: /* Intersil style rate */
 	case FIRMWARE_TYPE_SYMBOL: /* Symbol style rate */
 		for (i = 0; i < BITRATE_TABLE_SIZE; i++)
-			if (bitrate_table[i].intersil_txratectrl == val)
+			if (bitrate_table[i].intersil_txratectrl == val) {
+				*bitrate = bitrate_table[i].bitrate * 100000;
 				break;
+			}
 
-		if (i >= BITRATE_TABLE_SIZE)
+		if (i >= BITRATE_TABLE_SIZE) {
 			printk(KERN_INFO "%s: Unable to determine current bitrate (0x%04hx)\n",
 			       priv->ndev->name, val);
+			err = -EIO;
+		}
 
-		*bitrate = bitrate_table[i].bitrate * 100000;
 		break;
 	default:
 		BUG();
@@ -995,7 +998,7 @@ int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
 		u8 tx_mic[MIC_KEYLEN];
 		u8 rx_mic[MIC_KEYLEN];
 		u8 tsc[ORINOCO_SEQ_LEN];
-	} __attribute__ ((packed)) buf;
+	} __packed buf;
 	hermes_t *hw = &priv->hw;
 	int ret;
 	int err;
@@ -1326,7 +1329,7 @@ int orinoco_hw_disassociate(struct orinoco_private *priv,
 	struct {
 		u8 addr[ETH_ALEN];
 		__le16 reason_code;
-	} __attribute__ ((packed)) buf;
+	} __packed buf;
 
 	/* Currently only supported by WPA enabled Agere fw */
 	if (!priv->has_wpa)

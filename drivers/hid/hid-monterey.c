@@ -22,14 +22,14 @@
 
 #include "hid-ids.h"
 
-static void mr_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int rsize)
+static __u8 *mr_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
 {
-	if (rsize >= 30 && rdesc[29] == 0x05 && rdesc[30] == 0x09) {
-		dev_info(&hdev->dev, "fixing up button/consumer in HID report "
-				"descriptor\n");
+	if (*rsize >= 30 && rdesc[29] == 0x05 && rdesc[30] == 0x09) {
+		hid_info(hdev, "fixing up button/consumer in HID report descriptor\n");
 		rdesc[30] = 0x0c;
 	}
+	return rdesc;
 }
 
 #define mr_map_key_clear(c)	hid_map_usage_clear(hi, usage, bit, max, \

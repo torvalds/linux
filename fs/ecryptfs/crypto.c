@@ -348,7 +348,7 @@ static int encrypt_scatterlist(struct ecryptfs_crypt_stat *crypt_stat,
 	BUG_ON(!crypt_stat || !crypt_stat->tfm
 	       || !(crypt_stat->flags & ECRYPTFS_STRUCT_INITIALIZED));
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Key size [%d]; key:\n",
+		ecryptfs_printk(KERN_DEBUG, "Key size [%zd]; key:\n",
 				crypt_stat->key_size);
 		ecryptfs_dump_hex(crypt_stat->key,
 				  crypt_stat->key_size);
@@ -413,10 +413,9 @@ static int ecryptfs_encrypt_extent(struct page *enc_extent_page,
 	rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
 				(extent_base + extent_offset));
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error attempting to "
-				"derive IV for extent [0x%.16x]; "
-				"rc = [%d]\n", (extent_base + extent_offset),
-				rc);
+		ecryptfs_printk(KERN_ERR, "Error attempting to derive IV for "
+			"extent [0x%.16llx]; rc = [%d]\n",
+			(unsigned long long)(extent_base + extent_offset), rc);
 		goto out;
 	}
 	if (unlikely(ecryptfs_verbosity > 0)) {
@@ -443,9 +442,9 @@ static int ecryptfs_encrypt_extent(struct page *enc_extent_page,
 	}
 	rc = 0;
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Encrypt extent [0x%.16x]; "
-				"rc = [%d]\n", (extent_base + extent_offset),
-				rc);
+		ecryptfs_printk(KERN_DEBUG, "Encrypt extent [0x%.16llx]; "
+			"rc = [%d]\n",
+			(unsigned long long)(extent_base + extent_offset), rc);
 		ecryptfs_printk(KERN_DEBUG, "First 8 bytes after "
 				"encryption:\n");
 		ecryptfs_dump_hex((char *)(page_address(enc_extent_page)), 8);
@@ -540,10 +539,9 @@ static int ecryptfs_decrypt_extent(struct page *page,
 	rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
 				(extent_base + extent_offset));
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error attempting to "
-				"derive IV for extent [0x%.16x]; "
-				"rc = [%d]\n", (extent_base + extent_offset),
-				rc);
+		ecryptfs_printk(KERN_ERR, "Error attempting to derive IV for "
+			"extent [0x%.16llx]; rc = [%d]\n",
+			(unsigned long long)(extent_base + extent_offset), rc);
 		goto out;
 	}
 	if (unlikely(ecryptfs_verbosity > 0)) {
@@ -571,9 +569,9 @@ static int ecryptfs_decrypt_extent(struct page *page,
 	}
 	rc = 0;
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Decrypt extent [0x%.16x]; "
-				"rc = [%d]\n", (extent_base + extent_offset),
-				rc);
+		ecryptfs_printk(KERN_DEBUG, "Decrypt extent [0x%.16llx]; "
+			"rc = [%d]\n",
+			(unsigned long long)(extent_base + extent_offset), rc);
 		ecryptfs_printk(KERN_DEBUG, "First 8 bytes after "
 				"decryption:\n");
 		ecryptfs_dump_hex((char *)(page_address(page)
@@ -762,7 +760,7 @@ ecryptfs_decrypt_page_offset(struct ecryptfs_crypt_stat *crypt_stat,
 
 /**
  * ecryptfs_init_crypt_ctx
- * @crypt_stat: Uninitilized crypt stats structure
+ * @crypt_stat: Uninitialized crypt stats structure
  *
  * Initialize the crypto context.
  *
@@ -780,7 +778,7 @@ int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat)
 	}
 	ecryptfs_printk(KERN_DEBUG,
 			"Initializing cipher [%s]; strlen = [%d]; "
-			"key_size_bits = [%d]\n",
+			"key_size_bits = [%zd]\n",
 			crypt_stat->cipher, (int)strlen(crypt_stat->cipher),
 			crypt_stat->key_size << 3);
 	if (crypt_stat->tfm) {
@@ -1793,7 +1791,7 @@ struct kmem_cache *ecryptfs_key_tfm_cache;
 static struct list_head key_tfm_list;
 struct mutex key_tfm_list_mutex;
 
-int ecryptfs_init_crypto(void)
+int __init ecryptfs_init_crypto(void)
 {
 	mutex_init(&key_tfm_list_mutex);
 	INIT_LIST_HEAD(&key_tfm_list);
@@ -2169,7 +2167,6 @@ int ecryptfs_encrypt_and_encode_filename(
 				(ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE
 				 + encoded_name_no_prefix_size);
 			(*encoded_name)[(*encoded_name_size)] = '\0';
-			(*encoded_name_size)++;
 		} else {
 			rc = -EOPNOTSUPP;
 		}

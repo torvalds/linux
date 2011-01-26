@@ -34,6 +34,9 @@ bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
 	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
 	uint32_t fifo_min, hwversion;
 
+	if (!(dev_priv->capabilities & SVGA_CAP_EXTENDED_FIFO))
+		return false;
+
 	fifo_min = ioread32(fifo_mem  + SVGA_FIFO_MIN);
 	if (fifo_min <= SVGA_FIFO_3D_HWVERSION * sizeof(unsigned int))
 		return false;
@@ -46,6 +49,21 @@ bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
 		return false;
 
 	return true;
+}
+
+bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv)
+{
+	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+	uint32_t caps;
+
+	if (!(dev_priv->capabilities & SVGA_CAP_EXTENDED_FIFO))
+		return false;
+
+	caps = ioread32(fifo_mem + SVGA_FIFO_CAPABILITIES);
+	if (caps & SVGA_FIFO_CAP_PITCHLOCK)
+		return true;
+
+	return false;
 }
 
 int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
@@ -88,6 +106,7 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	mutex_lock(&dev_priv->hw_mutex);
 	dev_priv->enable_state = vmw_read(dev_priv, SVGA_REG_ENABLE);
 	dev_priv->config_done_state = vmw_read(dev_priv, SVGA_REG_CONFIG_DONE);
+	dev_priv->traces_state = vmw_read(dev_priv, SVGA_REG_TRACES);
 	vmw_write(dev_priv, SVGA_REG_ENABLE, 1);
 
 	min = 4;
@@ -120,7 +139,7 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 
 	atomic_set(&dev_priv->fence_seq, dev_priv->last_read_sequence);
 	iowrite32(dev_priv->last_read_sequence, fifo_mem + SVGA_FIFO_FENCE);
-
+	vmw_fence_queue_init(&fifo->fence_queue);
 	return vmw_fifo_send_fence(dev_priv, &dummy);
 out_err:
 	vfree(fifo->static_buffer);
@@ -157,8 +176,11 @@ void vmw_fifo_release(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 		  dev_priv->config_done_state);
 	vmw_write(dev_priv, SVGA_REG_ENABLE,
 		  dev_priv->enable_state);
+	vmw_write(dev_priv, SVGA_REG_TRACES,
+		  dev_priv->traces_state);
 
 	mutex_unlock(&dev_priv->hw_mutex);
+	vmw_fence_queue_takedown(&fifo->fence_queue);
 
 	if (likely(fifo->last_buffer != NULL)) {
 		vfree(fifo->last_buffer);
@@ -484,6 +506,8 @@ int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *sequence)
 	fifo_state->last_buffer_add = true;
 	vmw_fifo_commit(dev_priv, bytes);
 	fifo_state->last_buffer_add = false;
+	(void) vmw_fence_push(&fifo_state->fence_queue, *sequence);
+	vmw_update_sequence(dev_priv, fifo_state);
 
 out_err:
 	return ret;
@@ -521,7 +545,7 @@ int vmw_fifo_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_file *file_priv;
 	struct vmw_private *dev_priv;
 
-	file_priv = (struct drm_file *)filp->private_data;
+	file_priv = filp->private_data;
 	dev_priv = vmw_priv(file_priv->minor->dev);
 
 	if (vma->vm_pgoff != (dev_priv->mmio_start >> PAGE_SHIFT) ||

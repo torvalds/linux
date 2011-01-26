@@ -1,5 +1,6 @@
 /*
  *  Copyright (C) 2001  MandrakeSoft S.A.
+ *  Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  *    MandrakeSoft S.A.
  *    43, rue d'Aboukir
@@ -151,7 +152,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		update_handled_vectors(ioapic);
 		mask_after = e->fields.mask;
 		if (mask_before != mask_after)
-			kvm_fire_mask_notifiers(ioapic->kvm, index, mask_after);
+			kvm_fire_mask_notifiers(ioapic->kvm, KVM_IRQCHIP_IOAPIC, index, mask_after);
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG
 		    && ioapic->irr & (1 << index))
 			ioapic_service(ioapic, index);
@@ -192,12 +193,13 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 {
-	u32 old_irr = ioapic->irr;
+	u32 old_irr;
 	u32 mask = 1 << irq;
 	union kvm_ioapic_redirect_entry entry;
 	int ret = 1;
 
 	spin_lock(&ioapic->lock);
+	old_irr = ioapic->irr;
 	if (irq >= 0 && irq < IOAPIC_NUM_PINS) {
 		entry = ioapic->redirtbl[irq];
 		level ^= entry.fields.polarity;

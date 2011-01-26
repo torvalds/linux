@@ -271,7 +271,7 @@ error:
  * This function fills the available USB requests (listed in req_free) with
  * video data from the queued buffers.
  */
-int
+static int
 uvc_video_pump(struct uvc_video *video)
 {
 	struct usb_request *req;
@@ -328,7 +328,7 @@ uvc_video_pump(struct uvc_video *video)
 /*
  * Enable or disable the video stream.
  */
-int
+static int
 uvc_video_enable(struct uvc_video *video, int enable)
 {
 	unsigned int i;
@@ -367,7 +367,7 @@ uvc_video_enable(struct uvc_video *video, int enable)
 /*
  * Initialize the UVC video stream.
  */
-int
+static int
 uvc_video_init(struct uvc_video *video)
 {
 	INIT_LIST_HEAD(&video->req_free);

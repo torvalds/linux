@@ -48,16 +48,12 @@
 #include <asm/mach/map.h>
 
 #include <mach/common.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
-#include <mach/board-armadillo5x0.h>
-#include <mach/mmc.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
-#include <mach/mxc_nand.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 #include "crm_regs.h"
 
@@ -247,13 +243,13 @@ h2_free_cs:
 	return err;
 }
 
-static struct mxc_usbh_platform_data usbotg_pdata = {
+static struct mxc_usbh_platform_data usbotg_pdata __initdata = {
 	.init	= usbotg_init,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh2_pdata = {
+static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.init	= usbh2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_DIFF_UNI,
@@ -301,7 +297,8 @@ static struct platform_device armadillo5x0_button_device = {
 /*
  * NAND Flash
  */
-static struct mxc_nand_platform_data armadillo5x0_nand_flash_pdata = {
+static const struct mxc_nand_platform_data
+armadillo5x0_nand_board_info __initconst = {
 	.width		= 1,
 	.hw_ecc		= 1,
 };
@@ -454,7 +451,7 @@ static void armadillo5x0_sdhc1_exit(struct device *dev, void *data)
 	gpio_free(IOMUX_TO_GPIO(MX31_PIN_ATA_RESET_B));
 }
 
-static struct imxmmc_platform_data sdhc_pdata = {
+static const struct imxmmc_platform_data sdhc_pdata __initconst = {
 	.get_ro = armadillo5x0_sdhc1_get_ro,
 	.init = armadillo5x0_sdhc1_init,
 	.exit = armadillo5x0_sdhc1_exit,
@@ -493,13 +490,12 @@ static struct platform_device armadillo5x0_smc911x_device = {
 };
 
 /* UART device data */
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 static struct platform_device *devices[] __initdata = {
 	&armadillo5x0_smc911x_device,
-	&mxc_i2c_device1,
 	&armadillo5x0_button_device,
 };
 
@@ -512,16 +508,17 @@ static void __init armadillo5x0_init(void)
 			ARRAY_SIZE(armadillo5x0_pins), "armadillo5x0");
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	imx31_add_imx_i2c1(NULL);
 
 	/* Register UART */
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
+	imx31_add_imx_uart0(&uart_pdata);
+	imx31_add_imx_uart1(&uart_pdata);
 
 	/* SMSC9118 IRQ pin */
 	gpio_direction_input(MX31_PIN_GPIO1_0);
 
 	/* Register SDHC */
-	mxc_register_device(&mxcsdhc_device0, &sdhc_pdata);
+	imx31_add_mxc_mmc(0, &sdhc_pdata);
 
 	/* Register FB */
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
@@ -532,7 +529,7 @@ static void __init armadillo5x0_init(void)
 			    &armadillo5x0_nor_flash_pdata);
 
 	/* Register NAND Flash */
-	mxc_register_device(&mxc_nand_device, &armadillo5x0_nand_flash_pdata);
+	imx31_add_mxc_nand(&armadillo5x0_nand_board_info);
 
 	/* set NAND page size to 2k if not configured via boot mode pins */
 	__raw_writel(__raw_readl(MXC_CCM_RCSR) | (1 << 30), MXC_CCM_RCSR);
@@ -552,12 +549,12 @@ static void __init armadillo5x0_init(void)
 	/* USB */
 #if defined(CONFIG_USB_ULPI)
 	usbotg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-			USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-			USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-	mxc_register_device(&mxc_otg_host, &usbotg_pdata);
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	imx31_add_mxc_ehci_otg(&usbotg_pdata);
+	imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
 #endif
 }
 
@@ -572,8 +569,6 @@ static struct sys_timer armadillo5x0_timer = {
 
 MACHINE_START(ARMADILLO5X0, "Armadillo-500")
 	/* Maintainer: Alberto Panizzo  */
-	.phys_io	= MX31_AIPS1_BASE_ADDR,
-	.io_pg_offst	= (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params	= MX3x_PHYS_OFFSET + 0x100,
 	.map_io		= mx31_map_io,
 	.init_irq	= mx31_init_irq,

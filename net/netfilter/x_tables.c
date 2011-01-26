@@ -116,10 +116,8 @@ EXPORT_SYMBOL(xt_register_targets);
 void
 xt_unregister_targets(struct xt_target *target, unsigned int n)
 {
-	unsigned int i;
-
-	for (i = 0; i < n; i++)
-		xt_unregister_target(&target[i]);
+	while (n-- > 0)
+		xt_unregister_target(&target[n]);
 }
 EXPORT_SYMBOL(xt_unregister_targets);
 
@@ -174,10 +172,8 @@ EXPORT_SYMBOL(xt_register_matches);
 void
 xt_unregister_matches(struct xt_match *match, unsigned int n)
 {
-	unsigned int i;
-
-	for (i = 0; i < n; i++)
-		xt_unregister_match(&match[i]);
+	while (n-- > 0)
+		xt_unregister_match(&match[n]);
 }
 EXPORT_SYMBOL(xt_unregister_matches);
 
@@ -699,10 +695,8 @@ void xt_free_table_info(struct xt_table_info *info)
 		vfree(info->jumpstack);
 	else
 		kfree(info->jumpstack);
-	if (sizeof(unsigned int) * nr_cpu_ids > PAGE_SIZE)
-		vfree(info->stackptr);
-	else
-		kfree(info->stackptr);
+
+	free_percpu(info->stackptr);
 
 	kfree(info);
 }
@@ -753,14 +747,9 @@ static int xt_jumpstack_alloc(struct xt_table_info *i)
 	unsigned int size;
 	int cpu;
 
-	size = sizeof(unsigned int) * nr_cpu_ids;
-	if (size > PAGE_SIZE)
-		i->stackptr = vmalloc(size);
-	else
-		i->stackptr = kmalloc(size, GFP_KERNEL);
+	i->stackptr = alloc_percpu(unsigned int);
 	if (i->stackptr == NULL)
 		return -ENOMEM;
-	memset(i->stackptr, 0, size);
 
 	size = sizeof(void **) * nr_cpu_ids;
 	if (size > PAGE_SIZE)
@@ -843,10 +832,6 @@ struct xt_table *xt_register_table(struct net *net,
 	int ret;
 	struct xt_table_info *private;
 	struct xt_table *t, *table;
-
-	ret = xt_jumpstack_alloc(newinfo);
-	if (ret < 0)
-		return ERR_PTR(ret);
 
 	/* Don't add one object to multiple lists. */
 	table = kmemdup(input_table, sizeof(struct xt_table), GFP_KERNEL);
@@ -1340,7 +1325,8 @@ static int __init xt_init(void)
 
 	for_each_possible_cpu(i) {
 		struct xt_info_lock *lock = &per_cpu(xt_info_locks, i);
-		spin_lock_init(&lock->lock);
+
+		seqlock_init(&lock->lock);
 		lock->readers = 0;
 	}
 

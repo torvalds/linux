@@ -134,10 +134,6 @@ static int aout_core_dump(struct coredump_params *cprm)
 		if (!dump_write(file, dump_start, dump_size))
 			goto end_coredump;
 	}
-/* Finally dump the task struct.  Not be used by gdb, but could be useful */
-	set_fs(KERNEL_DS);
-	if (!dump_write(file, current, sizeof(*current)))
-		goto end_coredump;
 end_coredump:
 	set_fs(fs);
 	return has_dumped;

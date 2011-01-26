@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/device.h>
+#include <linux/pm_runtime.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -250,6 +251,7 @@ shost_rd_attr(host_busy, "%hu\n");
 shost_rd_attr(cmd_per_lun, "%hd\n");
 shost_rd_attr(can_queue, "%hd\n");
 shost_rd_attr(sg_tablesize, "%hu\n");
+shost_rd_attr(sg_prot_tablesize, "%hu\n");
 shost_rd_attr(unchecked_isa_dma, "%d\n");
 shost_rd_attr(prot_capabilities, "%u\n");
 shost_rd_attr(prot_guard_type, "%hd\n");
@@ -261,6 +263,7 @@ static struct attribute *scsi_sysfs_shost_attrs[] = {
 	&dev_attr_cmd_per_lun.attr,
 	&dev_attr_can_queue.attr,
 	&dev_attr_sg_tablesize.attr,
+	&dev_attr_sg_prot_tablesize.attr,
 	&dev_attr_unchecked_isa_dma.attr,
 	&dev_attr_proc_name.attr,
 	&dev_attr_scan.attr,
@@ -376,57 +379,13 @@ static int scsi_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static int scsi_bus_suspend(struct device * dev, pm_message_t state)
-{
-	struct device_driver *drv;
-	struct scsi_device *sdev;
-	int err;
-
-	if (dev->type != &scsi_dev_type)
-		return 0;
-
-	drv = dev->driver;
-	sdev = to_scsi_device(dev);
-
-	err = scsi_device_quiesce(sdev);
-	if (err)
-		return err;
-
-	if (drv && drv->suspend) {
-		err = drv->suspend(dev, state);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
-static int scsi_bus_resume(struct device * dev)
-{
-	struct device_driver *drv;
-	struct scsi_device *sdev;
-	int err = 0;
-
-	if (dev->type != &scsi_dev_type)
-		return 0;
-
-	drv = dev->driver;
-	sdev = to_scsi_device(dev);
-
-	if (drv && drv->resume)
-		err = drv->resume(dev);
-
-	scsi_device_resume(sdev);
-
-	return err;
-}
-
 struct bus_type scsi_bus_type = {
         .name		= "scsi",
         .match		= scsi_bus_match,
 	.uevent		= scsi_bus_uevent,
-	.suspend	= scsi_bus_suspend,
-	.resume		= scsi_bus_resume,
+#ifdef CONFIG_PM_OPS
+	.pm		= &scsi_bus_pm_ops,
+#endif
 };
 EXPORT_SYMBOL_GPL(scsi_bus_type);
 
@@ -848,8 +807,6 @@ static int scsi_target_add(struct scsi_target *starget)
 	if (starget->state != STARGET_CREATED)
 		return 0;
 
-	device_enable_async_suspend(&starget->dev);
-
 	error = device_add(&starget->dev);
 	if (error) {
 		dev_err(&starget->dev, "target device_add failed, error %d\n", error);
@@ -857,6 +814,10 @@ static int scsi_target_add(struct scsi_target *starget)
 	}
 	transport_add_device(&starget->dev);
 	starget->state = STARGET_RUNNING;
+
+	pm_runtime_set_active(&starget->dev);
+	pm_runtime_enable(&starget->dev);
+	device_enable_async_suspend(&starget->dev);
 
 	return 0;
 }
@@ -887,16 +848,31 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 		return error;
 
 	transport_configure_device(&starget->dev);
+
 	device_enable_async_suspend(&sdev->sdev_gendev);
+	scsi_autopm_get_target(starget);
+	pm_runtime_set_active(&sdev->sdev_gendev);
+	pm_runtime_forbid(&sdev->sdev_gendev);
+	pm_runtime_enable(&sdev->sdev_gendev);
+	scsi_autopm_put_target(starget);
+
+	/* The following call will keep sdev active indefinitely, until
+	 * its driver does a corresponding scsi_autopm_pm_device().  Only
+	 * drivers supporting autosuspend will do this.
+	 */
+	scsi_autopm_get_device(sdev);
+
 	error = device_add(&sdev->sdev_gendev);
 	if (error) {
-		printk(KERN_INFO "error 1\n");
+		sdev_printk(KERN_INFO, sdev,
+				"failed to add device: %d\n", error);
 		return error;
 	}
 	device_enable_async_suspend(&sdev->sdev_dev);
 	error = device_add(&sdev->sdev_dev);
 	if (error) {
-		printk(KERN_INFO "error 2\n");
+		sdev_printk(KERN_INFO, sdev,
+				"failed to add class device: %d\n", error);
 		device_del(&sdev->sdev_gendev);
 		return error;
 	}
@@ -990,10 +966,11 @@ static void __scsi_remove_target(struct scsi_target *starget)
 	list_for_each_entry(sdev, &shost->__devices, siblings) {
 		if (sdev->channel != starget->channel ||
 		    sdev->id != starget->id ||
-		    sdev->sdev_state == SDEV_DEL)
+		    scsi_device_get(sdev))
 			continue;
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		scsi_remove_device(sdev);
+		scsi_device_put(sdev);
 		spin_lock_irqsave(shost->host_lock, flags);
 		goto restart;
 	}
@@ -1018,16 +995,14 @@ static int __remove_child (struct device * dev, void * data)
  */
 void scsi_remove_target(struct device *dev)
 {
-	struct device *rdev;
-
 	if (scsi_is_target_device(dev)) {
 		__scsi_remove_target(to_scsi_target(dev));
 		return;
 	}
 
-	rdev = get_device(dev);
+	get_device(dev);
 	device_for_each_child(dev, NULL, __remove_child);
-	put_device(rdev);
+	put_device(dev);
 }
 EXPORT_SYMBOL(scsi_remove_target);
 

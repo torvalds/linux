@@ -1,0 +1,16 @@
+TODO:
+	- checkpatch.pl cleanups
+	- see if vx855 gpio API can be made similar enough to cs5535 so we can
+	  share more code
+	- allow simultaneous XO-1 and XO-1.5 support
+	- console event notifier support
+	- drop global variables, use a proper olpc_dcon_priv struct
+	- audit code for unnecessary code; old unsupported prototype
+	  workarounds, ancient variables (noaa?), etc
+	- verify sane i2c API usage, update to new stuff if necessary
+
+Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
+copy:
+	Andres Salomon <dilinger@queued.net>
+	Chris Ball <cjb@laptop.org>
+	Jon Nettleton <jon.nettleton@gmail.com>

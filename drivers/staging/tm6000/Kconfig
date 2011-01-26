@@ -1,8 +1,9 @@
 config VIDEO_TM6000
 	tristate "TV Master TM5600/6000/6010 driver"
-	depends on VIDEO_DEV && I2C && INPUT && USB && EXPERIMENTAL
+	depends on VIDEO_DEV && I2C && INPUT && RC_CORE && USB && EXPERIMENTAL
 	select VIDEO_TUNER
-	select TUNER_XC2028
+	select MEDIA_TUNER_XC2028
+	select MEDIA_TUNER_XC5000
 	select VIDEOBUF_VMALLOC
 	help
 	  Support for TM5600/TM6000/TM6010 USB Device
@@ -25,8 +26,8 @@ config VIDEO_TM6000_ALSA
 	  module will be called tm6000-alsa.
 
 config VIDEO_TM6000_DVB
-	bool "DVB Support for tm6000 based TV cards"
-	depends on VIDEO_TM6000 && DVB_CORE && EXPERIMENTAL
+	tristate "DVB Support for tm6000 based TV cards"
+	depends on VIDEO_TM6000 && DVB_CORE && USB && EXPERIMENTAL
 	select DVB_ZL10353
 	---help---
 	  This adds support for DVB cards based on the tm5600/tm6000 chip.

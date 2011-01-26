@@ -27,19 +27,19 @@ struct zc_device {
 * Zydacron remote control has an invalid HID report descriptor,
 * that needs fixing before we can parse it.
 */
-static void zc_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-	unsigned int rsize)
+static __u8 *zc_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+	unsigned int *rsize)
 {
-	if (rsize >= 253 &&
+	if (*rsize >= 253 &&
 		rdesc[0x96] == 0xbc && rdesc[0x97] == 0xff &&
 		rdesc[0xca] == 0xbc && rdesc[0xcb] == 0xff &&
 		rdesc[0xe1] == 0xbc && rdesc[0xe2] == 0xff) {
-			dev_info(&hdev->dev,
-				"fixing up zydacron remote control report "
-				"descriptor\n");
+			hid_info(hdev,
+				"fixing up zydacron remote control report descriptor\n");
 			rdesc[0x96] = rdesc[0xca] = rdesc[0xe1] = 0x0c;
 			rdesc[0x97] = rdesc[0xcb] = rdesc[0xe2] = 0x00;
 		}
+	return rdesc;
 }
 
 #define zc_map_key_clear(c) \
@@ -171,7 +171,7 @@ static int zc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	zc = kzalloc(sizeof(*zc), GFP_KERNEL);
 	if (zc == NULL) {
-		dev_err(&hdev->dev, "zydacron: can't alloc descriptor\n");
+		hid_err(hdev, "can't alloc descriptor\n");
 		return -ENOMEM;
 	}
 
@@ -179,13 +179,13 @@ static int zc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "zydacron: parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err_free;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
-		dev_err(&hdev->dev, "zydacron: hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err_free;
 	}
 

@@ -89,20 +89,12 @@ __setup("security=", choose_lsm);
  * Return true if:
  *	-The passed LSM is the one chosen by user at boot time,
  *	-or the passed LSM is configured as the default and the user did not
- *	 choose an alternate LSM at boot time,
- *	-or there is no default LSM set and the user didn't specify a
- *	 specific LSM and we're the first to ask for registration permission,
- *	-or the passed LSM is currently loaded.
+ *	 choose an alternate LSM at boot time.
  * Otherwise, return false.
  */
 int __init security_module_enable(struct security_operations *ops)
 {
-	if (!*chosen_lsm)
-		strncpy(chosen_lsm, ops->name, SECURITY_NAME_MAX);
-	else if (strncmp(ops->name, chosen_lsm, SECURITY_NAME_MAX))
-		return 0;
-
-	return 1;
+	return !strcmp(ops->name, chosen_lsm);
 }
 
 /**
@@ -205,9 +197,9 @@ int security_quota_on(struct dentry *dentry)
 	return security_ops->quota_on(dentry);
 }
 
-int security_syslog(int type, bool from_file)
+int security_syslog(int type)
 {
-	return security_ops->syslog(type, from_file);
+	return security_ops->syslog(type);
 }
 
 int security_settime(struct timespec *ts, struct timezone *tz)
@@ -333,16 +325,8 @@ EXPORT_SYMBOL(security_sb_parse_opts_str);
 
 int security_inode_alloc(struct inode *inode)
 {
-	int ret;
-
 	inode->i_security = NULL;
-	ret =  security_ops->inode_alloc_security(inode);
-	if (ret)
-		return ret;
-	ret = ima_inode_alloc(inode);
-	if (ret)
-		security_inode_free(inode);
-	return ret;
+	return security_ops->inode_alloc_security(inode);
 }
 
 void security_inode_free(struct inode *inode)
@@ -417,12 +401,11 @@ int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 					 new_dentry);
 }
 
-int security_path_truncate(struct path *path, loff_t length,
-			   unsigned int time_attrs)
+int security_path_truncate(struct path *path)
 {
 	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
 		return 0;
-	return security_ops->path_truncate(path, length, time_attrs);
+	return security_ops->path_truncate(path);
 }
 
 int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
@@ -530,6 +513,15 @@ int security_inode_permission(struct inode *inode, int mask)
 	return security_ops->inode_permission(inode, mask);
 }
 
+int security_inode_exec_permission(struct inode *inode, unsigned int flags)
+{
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
+	if (flags)
+		return -ECHILD;
+	return security_ops->inode_permission(inode, MAY_EXEC);
+}
+
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	if (unlikely(IS_PRIVATE(dentry->d_inode)))
@@ -620,7 +612,13 @@ void security_inode_getsecid(const struct inode *inode, u32 *secid)
 
 int security_file_permission(struct file *file, int mask)
 {
-	return security_ops->file_permission(file, mask);
+	int ret;
+
+	ret = security_ops->file_permission(file, mask);
+	if (ret)
+		return ret;
+
+	return fsnotify_perm(file, mask);
 }
 
 int security_file_alloc(struct file *file)
@@ -684,7 +682,13 @@ int security_file_receive(struct file *file)
 
 int security_dentry_open(struct file *file, const struct cred *cred)
 {
-	return security_ops->dentry_open(file, cred);
+	int ret;
+
+	ret = security_ops->dentry_open(file, cred);
+	if (ret)
+		return ret;
+
+	return fsnotify_perm(file, MAY_OPEN);
 }
 
 int security_task_create(unsigned long clone_flags)
@@ -769,15 +773,15 @@ int security_task_getioprio(struct task_struct *p)
 	return security_ops->task_getioprio(p);
 }
 
-int security_task_setrlimit(unsigned int resource, struct rlimit *new_rlim)
+int security_task_setrlimit(struct task_struct *p, unsigned int resource,
+		struct rlimit *new_rlim)
 {
-	return security_ops->task_setrlimit(resource, new_rlim);
+	return security_ops->task_setrlimit(p, resource, new_rlim);
 }
 
-int security_task_setscheduler(struct task_struct *p,
-				int policy, struct sched_param *lp)
+int security_task_setscheduler(struct task_struct *p)
 {
-	return security_ops->task_setscheduler(p, policy, lp);
+	return security_ops->task_setscheduler(p);
 }
 
 int security_task_getscheduler(struct task_struct *p)
@@ -982,8 +986,7 @@ EXPORT_SYMBOL(security_inode_getsecctx);
 
 #ifdef CONFIG_SECURITY_NETWORK
 
-int security_unix_stream_connect(struct socket *sock, struct socket *other,
-				 struct sock *newsk)
+int security_unix_stream_connect(struct sock *sock, struct sock *other, struct sock *newsk)
 {
 	return security_ops->unix_stream_connect(sock, other, newsk);
 }
@@ -1132,6 +1135,24 @@ void security_inet_conn_established(struct sock *sk,
 {
 	security_ops->inet_conn_established(sk, skb);
 }
+
+int security_secmark_relabel_packet(u32 secid)
+{
+	return security_ops->secmark_relabel_packet(secid);
+}
+EXPORT_SYMBOL(security_secmark_relabel_packet);
+
+void security_secmark_refcount_inc(void)
+{
+	security_ops->secmark_refcount_inc();
+}
+EXPORT_SYMBOL(security_secmark_refcount_inc);
+
+void security_secmark_refcount_dec(void)
+{
+	security_ops->secmark_refcount_dec();
+}
+EXPORT_SYMBOL(security_secmark_refcount_dec);
 
 int security_tun_dev_create(void)
 {

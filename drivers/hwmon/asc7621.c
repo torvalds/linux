@@ -28,7 +28,7 @@
 #include <linux/mutex.h>
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = {
+static const unsigned short normal_i2c[] = {
 	0x2c, 0x2d, 0x2e, I2C_CLIENT_END
 };
 
@@ -52,7 +52,7 @@ struct asc7621_chip {
 	u8 company_id;
 	u8 verstep_reg;
 	u8 verstep_id;
-	unsigned short *addresses;
+	const unsigned short *addresses;
 };
 
 static struct asc7621_chip asc7621_chips[] = {
@@ -1141,7 +1141,6 @@ exit_remove:
 				   &(asc7621_params[i].sda.dev_attr));
 	}
 
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return err;
 }
@@ -1151,9 +1150,6 @@ static int asc7621_detect(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int company, verstep, chip_index;
-	struct device *dev;
-
-	dev = &client->dev;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
@@ -1170,13 +1166,11 @@ static int asc7621_detect(struct i2c_client *client,
 
 		if (company == asc7621_chips[chip_index].company_id &&
 		    verstep == asc7621_chips[chip_index].verstep_id) {
-			strlcpy(client->name, asc7621_chips[chip_index].name,
-				I2C_NAME_SIZE);
 			strlcpy(info->type, asc7621_chips[chip_index].name,
 				I2C_NAME_SIZE);
 
-			dev_info(&adapter->dev, "Matched %s\n",
-				 asc7621_chips[chip_index].name);
+			dev_info(&adapter->dev, "Matched %s at 0x%02x\n",
+				 asc7621_chips[chip_index].name, client->addr);
 			return 0;
 		}
 	}
@@ -1196,7 +1190,6 @@ static int asc7621_remove(struct i2c_client *client)
 				   &(asc7621_params[i].sda.dev_attr));
 	}
 
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return 0;
 }

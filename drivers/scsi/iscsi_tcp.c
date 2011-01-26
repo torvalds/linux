@@ -601,10 +601,8 @@ static void iscsi_sw_tcp_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
 	write_unlock_bh(&tcp_sw_conn->sock->sk->sk_callback_lock);
 
-	if (sk_sleep(sock->sk)) {
-		sock->sk->sk_err = EIO;
-		wake_up_interruptible(sk_sleep(sock->sk));
-	}
+	sock->sk->sk_err = EIO;
+	wake_up_interruptible(sk_sleep(sock->sk));
 
 	iscsi_conn_stop(cls_conn, flag);
 	iscsi_sw_tcp_release_conn(conn);

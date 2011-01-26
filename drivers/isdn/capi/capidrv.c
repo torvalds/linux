@@ -1450,12 +1450,9 @@ static void handle_dtrace_data(capidrv_contr *card,
     	}
 
 	for (p = data, end = data+len; p < end; p++) {
-		u8 w;
 		PUTBYTE_TO_STATUS(card, ' ');
-		w = (*p >> 4) & 0xf;
-		PUTBYTE_TO_STATUS(card, (w < 10) ? '0'+w : 'A'-10+w);
-		w = *p & 0xf;
-		PUTBYTE_TO_STATUS(card, (w < 10) ? '0'+w : 'A'-10+w);
+		PUTBYTE_TO_STATUS(card, hex_asc_hi(*p));
+		PUTBYTE_TO_STATUS(card, hex_asc_lo(*p));
 	}
 	PUTBYTE_TO_STATUS(card, '\n');
 
@@ -1518,8 +1515,13 @@ static int decodeFVteln(char *teln, unsigned long *bmaskp, int *activep)
 	while (*s) {
 		int digit1 = 0;
 		int digit2 = 0;
-		if (!isdigit(*s)) return -3;
-		while (isdigit(*s)) { digit1 = digit1*10 + (*s - '0'); s++; }
+		char *endp;
+
+		digit1 = simple_strtoul(s, &endp, 10);
+		if (s == endp)
+			return -3;
+		s = endp;
+
 		if (digit1 <= 0 || digit1 > 30) return -4;
 		if (*s == 0 || *s == ',' || *s == ' ') {
 			bmask |= (1 << digit1);
@@ -1529,8 +1531,12 @@ static int decodeFVteln(char *teln, unsigned long *bmaskp, int *activep)
 		}
 		if (*s != '-') return -5;
 		s++;
-		if (!isdigit(*s)) return -3;
-		while (isdigit(*s)) { digit2 = digit2*10 + (*s - '0'); s++; }
+
+		digit2 = simple_strtoul(s, &endp, 10);
+		if (s == endp)
+			return -3;
+		s = endp;
+
 		if (digit2 <= 0 || digit2 > 30) return -4;
 		if (*s == 0 || *s == ',' || *s == ' ') {
 			if (digit1 > digit2)
@@ -2291,6 +2297,7 @@ static int __init capidrv_init(void)
 
 	errcode = capi20_get_profile(0, &profile);
 	if (errcode != CAPI_NOERROR) {
+		unregister_capictr_notifier(&capictr_nb);
 		capi20_release(&global.ap);
 		return -EIO;
 	}

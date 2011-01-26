@@ -59,6 +59,8 @@ typedef struct user_fp elf_fpregset_t;
 
 #define R_ARM_THM_CALL		10
 #define R_ARM_THM_JUMP24	30
+#define R_ARM_THM_MOVW_ABS_NC	47
+#define R_ARM_THM_MOVT_ABS	48
 
 /*
  * These are used to set parameters in the core dumps.
@@ -97,6 +99,8 @@ struct elf32_hdr;
 extern int elf_check_arch(const struct elf32_hdr *);
 #define elf_check_arch elf_check_arch
 
+#define vmcore_elf64_check_arch(x) (0)
+
 extern int arm_elf_read_implies_exec(const struct elf32_hdr *, int);
 #define elf_read_implies_exec(ex,stk) arm_elf_read_implies_exec(&(ex), stk)
 
@@ -120,5 +124,13 @@ int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs);
 
 extern void elf_set_personality(const struct elf32_hdr *);
 #define SET_PERSONALITY(ex)	elf_set_personality(&(ex))
+
+struct mm_struct;
+extern unsigned long arch_randomize_brk(struct mm_struct *mm);
+#define arch_randomize_brk arch_randomize_brk
+
+extern int vectors_user_mapping(void);
+#define arch_setup_additional_pages(bprm, uses_interp) vectors_user_mapping()
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES
 
 #endif

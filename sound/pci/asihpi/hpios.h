@@ -166,13 +166,4 @@ struct hpi_adapter {
 	void __iomem *ap_remapped_mem_base[HPI_MAX_ADAPTER_MEM_SPACES];
 };
 
-static inline void hpios_unmap_io(void __iomem *addr,
-	unsigned long size)
-{
-	iounmap(addr);
-}
-
-void __iomem *hpios_map_io(struct pci_dev *pci_dev, int idx,
-	unsigned int length);
-
 #endif

@@ -9,103 +9,114 @@
 #ifndef _ASM_MICROBLAZE_IRQFLAGS_H
 #define _ASM_MICROBLAZE_IRQFLAGS_H
 
-#include <linux/irqflags.h>
+#include <linux/types.h>
 #include <asm/registers.h>
 
-# if CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR
+#ifdef CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR
 
-# define raw_local_irq_save(flags)			\
-	do {						\
-		asm volatile ("	msrclr %0, %1;		\
-				nop;"			\
-				: "=r"(flags)		\
-				: "i"(MSR_IE)		\
-				: "memory");		\
-	} while (0)
-
-# define raw_local_irq_disable()			\
-	do {						\
-		asm volatile ("	msrclr r0, %0;		\
-				nop;"			\
-				:			\
-				: "i"(MSR_IE)		\
-				: "memory");		\
-	} while (0)
-
-# define raw_local_irq_enable()				\
-	do {						\
-		asm volatile ("	msrset	r0, %0;		\
-				nop;"			\
-				:			\
-				: "i"(MSR_IE)		\
-				: "memory");		\
-	} while (0)
-
-# else /* CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR == 0 */
-
-# define raw_local_irq_save(flags)				\
-	do {							\
-		register unsigned tmp;				\
-		asm volatile ("	mfs	%0, rmsr;		\
-				nop;				\
-				andi	%1, %0, %2;		\
-				mts	rmsr, %1;		\
-				nop;"				\
-				: "=r"(flags), "=r" (tmp)	\
-				: "i"(~MSR_IE)			\
-				: "memory");			\
-	} while (0)
-
-# define raw_local_irq_disable()				\
-	do {							\
-		register unsigned tmp;				\
-		asm volatile ("	mfs	%0, rmsr;		\
-				nop;				\
-				andi	%0, %0, %1;		\
-				mts	rmsr, %0;		\
-				nop;"			\
-				: "=r"(tmp)			\
-				: "i"(~MSR_IE)			\
-				: "memory");			\
-	} while (0)
-
-# define raw_local_irq_enable()					\
-	do {							\
-		register unsigned tmp;				\
-		asm volatile ("	mfs	%0, rmsr;		\
-				nop;				\
-				ori	%0, %0, %1;		\
-				mts	rmsr, %0;		\
-				nop;"				\
-				: "=r"(tmp)			\
-				: "i"(MSR_IE)			\
-				: "memory");			\
-	} while (0)
-
-# endif /* CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR */
-
-#define raw_local_irq_restore(flags)				\
-	do {							\
-		asm volatile ("	mts	rmsr, %0;		\
-				nop;"				\
-				:				\
-				: "r"(flags)			\
-				: "memory");			\
-	} while (0)
-
-static inline unsigned long get_msr(void)
+static inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags;
-	asm volatile ("	mfs	%0, rmsr;	\
-			nop;"			\
-			: "=r"(flags)		\
-			:			\
-			: "memory");		\
+	asm volatile("	msrclr %0, %1	\n"
+		     "	nop		\n"
+		     : "=r"(flags)
+		     : "i"(MSR_IE)
+		     : "memory");
 	return flags;
 }
 
-#define raw_local_save_flags(flags)	((flags) = get_msr())
-#define raw_irqs_disabled()		((get_msr() & MSR_IE) == 0)
-#define raw_irqs_disabled_flags(flags)	((flags & MSR_IE) == 0)
+static inline void arch_local_irq_disable(void)
+{
+	/* this uses r0 without declaring it - is that correct? */
+	asm volatile("	msrclr r0, %0	\n"
+		     "	nop		\n"
+		     :
+		     : "i"(MSR_IE)
+		     : "memory");
+}
+
+static inline void arch_local_irq_enable(void)
+{
+	/* this uses r0 without declaring it - is that correct? */
+	asm volatile("	msrset	r0, %0	\n"
+		     "	nop		\n"
+		     :
+		     : "i"(MSR_IE)
+		     : "memory");
+}
+
+#else /* !CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR */
+
+static inline unsigned long arch_local_irq_save(void)
+{
+	unsigned long flags, tmp;
+	asm volatile ("	mfs	%0, rmsr	\n"
+		      "	nop			\n"
+		      "	andi	%1, %0, %2	\n"
+		      "	mts	rmsr, %1	\n"
+		      "	nop			\n"
+		      : "=r"(flags), "=r"(tmp)
+		      : "i"(~MSR_IE)
+		      : "memory");
+	return flags;
+}
+
+static inline void arch_local_irq_disable(void)
+{
+	unsigned long tmp;
+	asm volatile("	mfs	%0, rmsr	\n"
+		     "	nop			\n"
+		     "	andi	%0, %0, %1	\n"
+		     "	mts	rmsr, %0	\n"
+		     "	nop			\n"
+		     : "=r"(tmp)
+		     : "i"(~MSR_IE)
+		     : "memory");
+}
+
+static inline void arch_local_irq_enable(void)
+{
+	unsigned long tmp;
+	asm volatile("	mfs	%0, rmsr	\n"
+		     "	nop			\n"
+		     "	ori	%0, %0, %1	\n"
+		     "	mts	rmsr, %0	\n"
+		     "	nop			\n"
+		     : "=r"(tmp)
+		     : "i"(MSR_IE)
+		     : "memory");
+}
+
+#endif /* CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR */
+
+static inline unsigned long arch_local_save_flags(void)
+{
+	unsigned long flags;
+	asm volatile("	mfs	%0, rmsr	\n"
+		     "	nop			\n"
+		     : "=r"(flags)
+		     :
+		     : "memory");
+	return flags;
+}
+
+static inline void arch_local_irq_restore(unsigned long flags)
+{
+	asm volatile("	mts	rmsr, %0	\n"
+		     "	nop			\n"
+		     :
+		     : "r"(flags)
+		     : "memory");
+}
+
+static inline bool arch_irqs_disabled_flags(unsigned long flags)
+{
+	return (flags & MSR_IE) == 0;
+}
+
+static inline bool arch_irqs_disabled(void)
+{
+	return arch_irqs_disabled_flags(arch_local_save_flags());
+}
 
 #endif /* _ASM_MICROBLAZE_IRQFLAGS_H */

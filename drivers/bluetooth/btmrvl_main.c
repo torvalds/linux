@@ -117,8 +117,8 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 				(event->data[2] == MODULE_ALREADY_UP)) ?
 				"Bring-up succeed" : "Bring-up failed");
 
-			if (event->length > 3)
-				priv->btmrvl_dev.dev_type = event->data[3];
+			if (event->length > 3 && event->data[3])
+				priv->btmrvl_dev.dev_type = HCI_AMP;
 			else
 				priv->btmrvl_dev.dev_type = HCI_BREDR;
 
@@ -502,14 +502,17 @@ static int btmrvl_service_main_thread(void *data)
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		if (adapter->int_count) {
 			adapter->int_count = 0;
+			spin_unlock_irqrestore(&priv->driver_lock, flags);
+			priv->hw_process_int_status(priv);
 		} else if (adapter->ps_state == PS_SLEEP &&
 					!skb_queue_empty(&adapter->tx_queue)) {
 			spin_unlock_irqrestore(&priv->driver_lock, flags);
 			adapter->wakeup_tries++;
 			priv->hw_wakeup_firmware(priv);
 			continue;
+		} else {
+			spin_unlock_irqrestore(&priv->driver_lock, flags);
 		}
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 		if (adapter->ps_state == PS_SLEEP)
 			continue;

@@ -31,14 +31,22 @@ source "drivers/pci/pcie/aer/Kconfig"
 # PCI Express ASPM
 #
 config PCIEASPM
-	bool "PCI Express ASPM support(Experimental)"
-	depends on PCI && EXPERIMENTAL && PCIEPORTBUS
-	default n
+	bool "PCI Express ASPM control" if EXPERT
+	depends on PCI && PCIEPORTBUS
+	default y
 	help
-	  This enables PCI Express ASPM (Active State Power Management) and
-	  Clock Power Management. ASPM supports state L0/L0s/L1.
+	  This enables OS control over PCI Express ASPM (Active State
+	  Power Management) and Clock Power Management. ASPM supports
+	  state L0/L0s/L1.
 
-	  When in doubt, say N.
+	  ASPM is initially set up the the firmware. With this option enabled,
+	  Linux can modify this state in order to disable ASPM on known-bad
+	  hardware or configurations and enable it when known-safe.
+
+	  ASPM can be disabled or enabled at runtime via
+	  /sys/module/pcie_aspm/parameters/policy
+
+	  When in doubt, say Y.
 config PCIEASPM_DEBUG
 	bool "Debug PCI Express ASPM"
 	depends on PCIEASPM

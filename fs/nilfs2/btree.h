@@ -31,14 +31,6 @@
 #include "bmap.h"
 
 /**
- * struct nilfs_btree - B-tree structure
- * @bt_bmap: bmap base structure
- */
-struct nilfs_btree {
-	struct nilfs_bmap bt_bmap;
-};
-
-/**
  * struct nilfs_btree_path - A path on which B-tree operations are executed
  * @bp_bh: buffer head of node block
  * @bp_sib_bh: buffer head of sibling node block
@@ -54,7 +46,7 @@ struct nilfs_btree_path {
 	union nilfs_bmap_ptr_req bp_oldreq;
 	union nilfs_bmap_ptr_req bp_newreq;
 	struct nilfs_btnode_chkey_ctxt bp_ctxt;
-	void (*bp_op)(struct nilfs_btree *, struct nilfs_btree_path *,
+	void (*bp_op)(struct nilfs_bmap *, struct nilfs_btree_path *,
 		      int, __u64 *, __u64 *);
 };
 
@@ -75,11 +67,11 @@ struct nilfs_btree_path {
 
 extern struct kmem_cache *nilfs_btree_path_cache;
 
-int nilfs_btree_path_cache_init(void);
-void nilfs_btree_path_cache_destroy(void);
 int nilfs_btree_init(struct nilfs_bmap *);
 int nilfs_btree_convert_and_insert(struct nilfs_bmap *, __u64, __u64,
 				   const __u64 *, const __u64 *, int);
 void nilfs_btree_init_gc(struct nilfs_bmap *);
+
+int nilfs_btree_broken_node_block(struct buffer_head *bh);
 
 #endif	/* _NILFS_BTREE_H */

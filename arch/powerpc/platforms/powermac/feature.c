@@ -21,6 +21,8 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/spinlock.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
@@ -2191,7 +2193,11 @@ static struct pmac_mb_def pmac_mb_defs[] = {
 		PMAC_TYPE_UNKNOWN_INTREPID,	intrepid_features,
 		PMAC_MB_MAY_SLEEP,
 	},
-	{	"iMac,1",			"iMac (first generation)",
+	{       "PowerMac10,2",                 "Mac mini (Late 2005)",
+		PMAC_TYPE_UNKNOWN_INTREPID,     intrepid_features,
+		PMAC_MB_MAY_SLEEP,
+	},
+ 	{	"iMac,1",			"iMac (first generation)",
 		PMAC_TYPE_ORIG_IMAC,		paddington_features,
 		0
 	},
@@ -2867,12 +2873,11 @@ set_initial_features(void)
 
 		/* Switch airport off */
 		for_each_node_by_name(np, "radio") {
-			if (np && np->parent == macio_chips[0].of_node) {
+			if (np->parent == macio_chips[0].of_node) {
 				macio_chips[0].flags |= MACIO_FLAG_AIRPORT_ON;
 				core99_airport_enable(np, 0, 0);
 			}
 		}
-		of_node_put(np);
 	}
 
 	/* On all machines that support sound PM, switch sound off */

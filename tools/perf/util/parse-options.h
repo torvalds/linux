@@ -119,6 +119,10 @@ struct option {
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), (a), .help = (h), .callback = (f), .flags = PARSE_OPT_NOARG }
 #define OPT_CALLBACK_DEFAULT(s, l, v, a, h, f, d) \
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), (a), .help = (h), .callback = (f), .defval = (intptr_t)d, .flags = PARSE_OPT_LASTARG_DEFAULT }
+#define OPT_CALLBACK_DEFAULT_NOOPT(s, l, v, a, h, f, d) \
+	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l),\
+	.value = (v), (a), .help = (h), .callback = (f), .defval = (intptr_t)d,\
+	.flags = PARSE_OPT_LASTARG_DEFAULT | PARSE_OPT_NOARG}
 
 /* parse_options() will filter out the processed options and leave the
  * non-option argments in argv[].

@@ -279,6 +279,9 @@ static int acpi_lid_send_state(struct acpi_device *device)
 	input_report_switch(button->input, SW_LID, !state);
 	input_sync(button->input);
 
+	if (state)
+		pm_wakeup_event(&device->dev, 0);
+
 	ret = blocking_notifier_call_chain(&acpi_lid_notifier, state, device);
 	if (ret == NOTIFY_DONE)
 		ret = blocking_notifier_call_chain(&acpi_lid_notifier, state,
@@ -314,6 +317,8 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 			input_sync(input);
 			input_report_key(input, keycode, 0);
 			input_sync(input);
+
+			pm_wakeup_event(&device->dev, 0);
 		}
 
 		acpi_bus_generate_proc_event(device, event, ++button->pushed);
@@ -338,7 +343,8 @@ static int acpi_button_add(struct acpi_device *device)
 {
 	struct acpi_button *button;
 	struct input_dev *input;
-	char *hid, *name, *class;
+	const char *hid = acpi_device_hid(device);
+	char *name, *class;
 	int error;
 
 	button = kzalloc(sizeof(struct acpi_button), GFP_KERNEL);
@@ -353,7 +359,6 @@ static int acpi_button_add(struct acpi_device *device)
 		goto err_free_button;
 	}
 
-	hid = acpi_device_hid(device);
 	name = acpi_device_name(device);
 	class = acpi_device_class(device);
 
@@ -424,10 +429,9 @@ static int acpi_button_add(struct acpi_device *device)
 	if (device->wakeup.flags.valid) {
 		/* Button's GPE is run-wake GPE */
 		acpi_enable_gpe(device->wakeup.gpe_device,
-				device->wakeup.gpe_number,
-				ACPI_GPE_TYPE_WAKE_RUN);
+				device->wakeup.gpe_number);
 		device->wakeup.run_wake_count++;
-		device->wakeup.state.enabled = 1;
+		device_set_wakeup_enable(&device->dev, true);
 	}
 
 	printk(KERN_INFO PREFIX "%s [%s]\n", name, acpi_device_bid(device));
@@ -448,10 +452,9 @@ static int acpi_button_remove(struct acpi_device *device, int type)
 
 	if (device->wakeup.flags.valid) {
 		acpi_disable_gpe(device->wakeup.gpe_device,
-				device->wakeup.gpe_number,
-				ACPI_GPE_TYPE_WAKE_RUN);
+				device->wakeup.gpe_number);
 		device->wakeup.run_wake_count--;
-		device->wakeup.state.enabled = 0;
+		device_set_wakeup_enable(&device->dev, false);
 	}
 
 	acpi_button_remove_fs(device);

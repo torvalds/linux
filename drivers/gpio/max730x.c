@@ -54,7 +54,7 @@ static int max7301_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct max7301 *ts = container_of(chip, struct max7301, chip);
 	u8 *config;
-	u8 offset_bits;
+	u8 offset_bits, pin_config;
 	int ret;
 
 	/* First 4 pins are unused in the controller */
@@ -63,12 +63,15 @@ static int max7301_direction_input(struct gpio_chip *chip, unsigned offset)
 
 	config = &ts->port_config[offset >> 2];
 
+	if (ts->input_pullup_active & BIT(offset))
+		pin_config = PIN_CONFIG_IN_PULLUP;
+	else
+		pin_config = PIN_CONFIG_IN_WO_PULLUP;
+
 	mutex_lock(&ts->lock);
 
-	/* Standard GPIO API doesn't support pull-ups, has to be extended.
-	 * Hard-coding no pollup for now. */
 	*config = (*config & ~(PIN_CONFIG_MASK << offset_bits))
-			   | (PIN_CONFIG_IN_WO_PULLUP << offset_bits);
+			   | (pin_config << offset_bits);
 
 	ret = ts->write(ts->dev, 0x08 + (offset >> 2), *config);
 
@@ -177,6 +180,7 @@ int __devinit __max730x_probe(struct max7301 *ts)
 	/* Power up the chip and disable IRQ output */
 	ts->write(dev, 0x04, 0x01);
 
+	ts->input_pullup_active = pdata->input_pullup_active;
 	ts->chip.label = dev->driver->name;
 
 	ts->chip.direction_input = max7301_direction_input;
@@ -191,13 +195,17 @@ int __devinit __max730x_probe(struct max7301 *ts)
 	ts->chip.owner = THIS_MODULE;
 
 	/*
-	 * tristate all pins in hardware and cache the
+	 * initialize pullups according to platform data and cache the
 	 * register values for later use.
 	 */
 	for (i = 1; i < 8; i++) {
 		int j;
-		/* 0xAA means input with internal pullup disabled */
-		ts->write(dev, 0x08 + i, 0xAA);
+		/*
+		 * initialize port_config with "0xAA", which means
+		 * input with internal pullup disabled. This is needed
+		 * to avoid writing zeros (in the inner for loop),
+		 * which is not allowed according to the datasheet.
+		 */
 		ts->port_config[i] = 0xAA;
 		for (j = 0; j < 4; j++) {
 			int offset = (i - 1) * 4 + j;

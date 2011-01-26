@@ -136,17 +136,17 @@ extern struct ctl_path net_ipv6_ctl_path[];
 /* MIBs */
 
 #define IP6_INC_STATS(net, idev,field)		\
-		_DEVINC(net, ipv6, , idev, field)
+		_DEVINC(net, ipv6, 64, idev, field)
 #define IP6_INC_STATS_BH(net, idev,field)	\
-		_DEVINC(net, ipv6, _BH, idev, field)
+		_DEVINC(net, ipv6, 64_BH, idev, field)
 #define IP6_ADD_STATS(net, idev,field,val)	\
-		_DEVADD(net, ipv6, , idev, field, val)
+		_DEVADD(net, ipv6, 64, idev, field, val)
 #define IP6_ADD_STATS_BH(net, idev,field,val)	\
-		_DEVADD(net, ipv6, _BH, idev, field, val)
+		_DEVADD(net, ipv6, 64_BH, idev, field, val)
 #define IP6_UPD_PO_STATS(net, idev,field,val)   \
-		_DEVUPD(net, ipv6, , idev, field, val)
+		_DEVUPD(net, ipv6, 64, idev, field, val)
 #define IP6_UPD_PO_STATS_BH(net, idev,field,val)   \
-		_DEVUPD(net, ipv6, _BH, idev, field, val)
+		_DEVUPD(net, ipv6, 64_BH, idev, field, val)
 #define ICMP6_INC_STATS(net, idev, field)	\
 		_DEVINC(net, icmpv6, , idev, field)
 #define ICMP6_INC_STATS_BH(net, idev, field)	\
@@ -262,7 +262,7 @@ static inline int ipv6_addr_scope(const struct in6_addr *addr)
 
 static inline int __ipv6_addr_src_scope(int type)
 {
-	return (type == IPV6_ADDR_ANY ? __IPV6_ADDR_SCOPE_INVALID : (type >> 16));
+	return (type == IPV6_ADDR_ANY) ? __IPV6_ADDR_SCOPE_INVALID : (type >> 16);
 }
 
 static inline int ipv6_addr_src_scope(const struct in6_addr *addr)
@@ -279,10 +279,10 @@ static inline int
 ipv6_masked_addr_cmp(const struct in6_addr *a1, const struct in6_addr *m,
 		     const struct in6_addr *a2)
 {
-	return (!!(((a1->s6_addr32[0] ^ a2->s6_addr32[0]) & m->s6_addr32[0]) |
-		   ((a1->s6_addr32[1] ^ a2->s6_addr32[1]) & m->s6_addr32[1]) |
-		   ((a1->s6_addr32[2] ^ a2->s6_addr32[2]) & m->s6_addr32[2]) |
-		   ((a1->s6_addr32[3] ^ a2->s6_addr32[3]) & m->s6_addr32[3])));
+	return !!(((a1->s6_addr32[0] ^ a2->s6_addr32[0]) & m->s6_addr32[0]) |
+		  ((a1->s6_addr32[1] ^ a2->s6_addr32[1]) & m->s6_addr32[1]) |
+		  ((a1->s6_addr32[2] ^ a2->s6_addr32[2]) & m->s6_addr32[2]) |
+		  ((a1->s6_addr32[3] ^ a2->s6_addr32[3]) & m->s6_addr32[3]));
 }
 
 static inline void ipv6_addr_copy(struct in6_addr *a1, const struct in6_addr *a2)
@@ -317,10 +317,10 @@ static inline void ipv6_addr_set(struct in6_addr *addr,
 static inline int ipv6_addr_equal(const struct in6_addr *a1,
 				  const struct in6_addr *a2)
 {
-	return (((a1->s6_addr32[0] ^ a2->s6_addr32[0]) |
-		 (a1->s6_addr32[1] ^ a2->s6_addr32[1]) |
-		 (a1->s6_addr32[2] ^ a2->s6_addr32[2]) |
-		 (a1->s6_addr32[3] ^ a2->s6_addr32[3])) == 0);
+	return ((a1->s6_addr32[0] ^ a2->s6_addr32[0]) |
+		(a1->s6_addr32[1] ^ a2->s6_addr32[1]) |
+		(a1->s6_addr32[2] ^ a2->s6_addr32[2]) |
+		(a1->s6_addr32[3] ^ a2->s6_addr32[3])) == 0;
 }
 
 static inline int __ipv6_prefix_equal(const __be32 *a1, const __be32 *a2,
@@ -354,11 +354,11 @@ struct inet_frag_queue;
 enum ip6_defrag_users {
 	IP6_DEFRAG_LOCAL_DELIVER,
 	IP6_DEFRAG_CONNTRACK_IN,
-	__IP6_DEFRAG_CONNTRACK_IN	= IP6_DEFRAG_CONNTRACK_IN + USHORT_MAX,
+	__IP6_DEFRAG_CONNTRACK_IN	= IP6_DEFRAG_CONNTRACK_IN + USHRT_MAX,
 	IP6_DEFRAG_CONNTRACK_OUT,
-	__IP6_DEFRAG_CONNTRACK_OUT	= IP6_DEFRAG_CONNTRACK_OUT + USHORT_MAX,
+	__IP6_DEFRAG_CONNTRACK_OUT	= IP6_DEFRAG_CONNTRACK_OUT + USHRT_MAX,
 	IP6_DEFRAG_CONNTRACK_BRIDGE_IN,
-	__IP6_DEFRAG_CONNTRACK_BRIDGE_IN = IP6_DEFRAG_CONNTRACK_BRIDGE_IN + USHORT_MAX,
+	__IP6_DEFRAG_CONNTRACK_BRIDGE_IN = IP6_DEFRAG_CONNTRACK_BRIDGE_IN + USHRT_MAX,
 };
 
 struct ip6_create_arg {
@@ -373,20 +373,20 @@ int ip6_frag_match(struct inet_frag_queue *q, void *a);
 
 static inline int ipv6_addr_any(const struct in6_addr *a)
 {
-	return ((a->s6_addr32[0] | a->s6_addr32[1] | 
-		 a->s6_addr32[2] | a->s6_addr32[3] ) == 0); 
+	return (a->s6_addr32[0] | a->s6_addr32[1] |
+		a->s6_addr32[2] | a->s6_addr32[3]) == 0;
 }
 
 static inline int ipv6_addr_loopback(const struct in6_addr *a)
 {
-	return ((a->s6_addr32[0] | a->s6_addr32[1] |
-		 a->s6_addr32[2] | (a->s6_addr32[3] ^ htonl(1))) == 0);
+	return (a->s6_addr32[0] | a->s6_addr32[1] |
+		a->s6_addr32[2] | (a->s6_addr32[3] ^ htonl(1))) == 0;
 }
 
 static inline int ipv6_addr_v4mapped(const struct in6_addr *a)
 {
-	return ((a->s6_addr32[0] | a->s6_addr32[1] |
-		 (a->s6_addr32[2] ^ htonl(0x0000ffff))) == 0);
+	return (a->s6_addr32[0] | a->s6_addr32[1] |
+		 (a->s6_addr32[2] ^ htonl(0x0000ffff))) == 0;
 }
 
 /*
@@ -395,8 +395,7 @@ static inline int ipv6_addr_v4mapped(const struct in6_addr *a)
  */
 static inline int ipv6_addr_orchid(const struct in6_addr *a)
 {
-	return ((a->s6_addr32[0] & htonl(0xfffffff0))
-		== htonl(0x20010010));
+	return (a->s6_addr32[0] & htonl(0xfffffff0)) == htonl(0x20010010);
 }
 
 static inline void ipv6_addr_set_v4mapped(const __be32 addr,
@@ -441,7 +440,7 @@ static inline int __ipv6_addr_diff(const void *token1, const void *token2, int a
 	 *	if returned value is greater than prefix length.
 	 *					--ANK (980803)
 	 */
-	return (addrlen << 5);
+	return addrlen << 5;
 }
 
 static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_addr *a2)
@@ -550,6 +549,10 @@ extern int			ipv6_skip_exthdr(const struct sk_buff *, int start,
 extern int 			ipv6_ext_hdr(u8 nexthdr);
 
 extern int ipv6_find_tlv(struct sk_buff *skb, int offset, int type);
+
+extern struct in6_addr *fl6_update_dst(struct flowi *fl,
+				       const struct ipv6_txoptions *opt,
+				       struct in6_addr *orig);
 
 /*
  *	socket options (ipv6_sockglue.c)

@@ -43,9 +43,10 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data);
 static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf);
 static int ext2_sync_fs(struct super_block *sb, int wait);
 
-void ext2_error (struct super_block * sb, const char * function,
-		 const char * fmt, ...)
+void ext2_error(struct super_block *sb, const char *function,
+		const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 	struct ext2_super_block *es = sbi->s_es;
@@ -59,9 +60,13 @@ void ext2_error (struct super_block * sb, const char * function,
 	}
 
 	va_start(args, fmt);
-	printk(KERN_CRIT "EXT2-fs (%s): error: %s: ", sb->s_id, function);
-	vprintk(fmt, args);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_CRIT "EXT2-fs (%s): error: %s: %pV\n",
+	       sb->s_id, function, &vaf);
+
 	va_end(args);
 
 	if (test_opt(sb, ERRORS_PANIC))
@@ -76,12 +81,16 @@ void ext2_error (struct super_block * sb, const char * function,
 void ext2_msg(struct super_block *sb, const char *prefix,
 		const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	printk("%sEXT2-fs (%s): ", prefix, sb->s_id);
-	vprintk(fmt, args);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk("%sEXT2-fs (%s): %pV\n", prefix, sb->s_id, &vaf);
+
 	va_end(args);
 }
 
@@ -118,6 +127,8 @@ static void ext2_put_super (struct super_block * sb)
 	int db_count;
 	int i;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
+
+	dquot_disable(sb, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
 
 	if (sb->s_dirt)
 		ext2_write_super(sb);
@@ -159,9 +170,16 @@ static struct inode *ext2_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void ext2_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(ext2_inode_cachep, EXT2_I(inode));
+}
+
 static void ext2_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(ext2_inode_cachep, EXT2_I(inode));
+	call_rcu(&inode->i_rcu, ext2_i_callback);
 }
 
 static void init_once(void *foo)
@@ -191,17 +209,6 @@ static int init_inodecache(void)
 static void destroy_inodecache(void)
 {
 	kmem_cache_destroy(ext2_inode_cachep);
-}
-
-static void ext2_clear_inode(struct inode *inode)
-{
-	struct ext2_block_alloc_info *rsv = EXT2_I(inode)->i_block_alloc_info;
-
-	dquot_drop(inode);
-	ext2_discard_reservation(inode);
-	EXT2_I(inode)->i_block_alloc_info = NULL;
-	if (unlikely(rsv))
-		kfree(rsv);
 }
 
 static int ext2_show_options(struct seq_file *seq, struct vfsmount *vfs)
@@ -297,13 +304,12 @@ static const struct super_operations ext2_sops = {
 	.alloc_inode	= ext2_alloc_inode,
 	.destroy_inode	= ext2_destroy_inode,
 	.write_inode	= ext2_write_inode,
-	.delete_inode	= ext2_delete_inode,
+	.evict_inode	= ext2_evict_inode,
 	.put_super	= ext2_put_super,
 	.write_super	= ext2_write_super,
 	.sync_fs	= ext2_sync_fs,
 	.statfs		= ext2_statfs,
 	.remount_fs	= ext2_remount,
-	.clear_inode	= ext2_clear_inode,
 	.show_options	= ext2_show_options,
 #ifdef CONFIG_QUOTA
 	.quota_read	= ext2_quota_read,
@@ -757,15 +763,16 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	__le32 features;
 	int err;
 
+	err = -ENOMEM;
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		goto failed_unlock;
 
 	sbi->s_blockgroup_lock =
 		kzalloc(sizeof(struct blockgroup_lock), GFP_KERNEL);
 	if (!sbi->s_blockgroup_lock) {
 		kfree(sbi);
-		return -ENOMEM;
+		goto failed_unlock;
 	}
 	sb->s_fs_info = sbi;
 	sbi->s_sb_block = sb_block;
@@ -1063,6 +1070,12 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &ext2_sops;
 	sb->s_export_op = &ext2_export_ops;
 	sb->s_xattr = ext2_xattr_handlers;
+
+#ifdef CONFIG_QUOTA
+	sb->dq_op = &dquot_operations;
+	sb->s_qcop = &dquot_quotactl_ops;
+#endif
+
 	root = ext2_iget(sb, EXT2_ROOT_INO);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
@@ -1111,6 +1124,7 @@ failed_sbi:
 	sb->s_fs_info = NULL;
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
+failed_unlock:
 	return ret;
 }
 
@@ -1223,9 +1237,7 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 	}
 
 	es = sbi->s_es;
-	if (((sbi->s_mount_opt & EXT2_MOUNT_XIP) !=
-	    (old_mount_opt & EXT2_MOUNT_XIP)) &&
-	    invalidate_inodes(sb)) {
+	if ((sbi->s_mount_opt ^ old_mount_opt) & EXT2_MOUNT_XIP) {
 		ext2_msg(sb, KERN_WARNING, "warning: refusing change of "
 			 "xip flag with busy inodes while remounting");
 		sbi->s_mount_opt &= ~EXT2_MOUNT_XIP;
@@ -1241,6 +1253,7 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 			spin_unlock(&sbi->s_lock);
 			return 0;
 		}
+
 		/*
 		 * OK, we are remounting a valid rw partition rdonly, so set
 		 * the rdonly flag and then mark the partition as valid again.
@@ -1248,6 +1261,13 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
 		es->s_mtime = cpu_to_le32(get_seconds());
 		spin_unlock(&sbi->s_lock);
+
+		err = dquot_suspend(sb, -1);
+		if (err < 0) {
+			spin_lock(&sbi->s_lock);
+			goto restore_opts;
+		}
+
 		ext2_sync_super(sb, es, 1);
 	} else {
 		__le32 ret = EXT2_HAS_RO_COMPAT_FEATURE(sb,
@@ -1269,8 +1289,12 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 		if (!ext2_setup_super (sb, es, 0))
 			sb->s_flags &= ~MS_RDONLY;
 		spin_unlock(&sbi->s_lock);
+
 		ext2_write_super(sb);
+
+		dquot_resume(sb, -1);
 	}
+
 	return 0;
 restore_opts:
 	sbi->s_mount_opt = old_opts.s_mount_opt;
@@ -1348,10 +1372,10 @@ static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 	return 0;
 }
 
-static int ext2_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *ext2_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, ext2_fill_super, mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, ext2_fill_super);
 }
 
 #ifdef CONFIG_QUOTA
@@ -1465,7 +1489,7 @@ out:
 static struct file_system_type ext2_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ext2",
-	.get_sb		= ext2_get_sb,
+	.mount		= ext2_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

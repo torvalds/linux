@@ -184,7 +184,7 @@ static int mt9v022_init(struct i2c_client *client)
 
 static int mt9v022_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 
 	if (enable)
@@ -273,7 +273,7 @@ static unsigned long mt9v022_query_bus_param(struct soc_camera_device *icd)
 
 static int mt9v022_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 	struct v4l2_rect rect = a->c;
 	int ret;
@@ -334,7 +334,7 @@ static int mt9v022_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 
 static int mt9v022_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 
 	a->c	= mt9v022->rect;
@@ -360,7 +360,7 @@ static int mt9v022_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 static int mt9v022_g_fmt(struct v4l2_subdev *sd,
 			 struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 
 	mf->width	= mt9v022->rect.width;
@@ -375,7 +375,7 @@ static int mt9v022_g_fmt(struct v4l2_subdev *sd,
 static int mt9v022_s_fmt(struct v4l2_subdev *sd,
 			 struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 	struct v4l2_crop a = {
 		.c = {
@@ -402,9 +402,6 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd,
 		if (mt9v022->model != V4L2_IDENT_MT9V022IX7ATC)
 			return -EINVAL;
 		break;
-	case 0:
-		/* No format change, only geometry */
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -425,7 +422,7 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd,
 static int mt9v022_try_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 	const struct mt9v022_datafmt *fmt;
 	int align = mf->code == V4L2_MBUS_FMT_SBGGR8_1X8 ||
@@ -451,7 +448,7 @@ static int mt9v022_try_fmt(struct v4l2_subdev *sd,
 static int mt9v022_g_chip_ident(struct v4l2_subdev *sd,
 				struct v4l2_dbg_chip_ident *id)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 
 	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
@@ -470,7 +467,7 @@ static int mt9v022_g_chip_ident(struct v4l2_subdev *sd,
 static int mt9v022_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0xff)
 		return -EINVAL;
@@ -490,7 +487,7 @@ static int mt9v022_g_register(struct v4l2_subdev *sd,
 static int mt9v022_s_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0xff)
 		return -EINVAL;
@@ -568,7 +565,7 @@ static struct soc_camera_ops mt9v022_ops = {
 
 static int mt9v022_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	const struct v4l2_queryctrl *qctrl;
 	unsigned long range;
 	int data;
@@ -625,7 +622,7 @@ static int mt9v022_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 static int mt9v022_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	int data;
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	const struct v4l2_queryctrl *qctrl;
 
 	qctrl = soc_camera_find_qctrl(&mt9v022_ops, ctrl->id);
@@ -820,7 +817,7 @@ static void mt9v022_video_remove(struct soc_camera_device *icd)
 
 static int mt9v022_g_skip_top_lines(struct v4l2_subdev *sd, u32 *lines)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 
 	*lines = mt9v022->y_skip_top;
@@ -838,13 +835,13 @@ static struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
 #endif
 };
 
-static int mt9v022_enum_fmt(struct v4l2_subdev *sd, int index,
+static int mt9v022_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			    enum v4l2_mbus_pixelcode *code)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 
-	if ((unsigned int)index >= mt9v022->num_fmts)
+	if (index >= mt9v022->num_fmts)
 		return -EINVAL;
 
 	*code = mt9v022->fmts[index].code;
@@ -920,7 +917,6 @@ static int mt9v022_probe(struct i2c_client *client,
 	ret = mt9v022_video_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(mt9v022);
 	}
 
@@ -934,8 +930,6 @@ static int mt9v022_remove(struct i2c_client *client)
 
 	icd->ops = NULL;
 	mt9v022_video_remove(icd);
-	i2c_set_clientdata(client, NULL);
-	client->driver = NULL;
 	kfree(mt9v022);
 
 	return 0;

@@ -144,7 +144,7 @@ nfsd_proc_read(struct svc_rqst *rqstp, struct nfsd_readargs *argp,
 	svc_reserve_auth(rqstp, (19<<2) + argp->count + 4);
 
 	resp->count = argp->count;
-	nfserr = nfsd_read(rqstp, fh_copy(&resp->fh, &argp->fh), NULL,
+	nfserr = nfsd_read(rqstp, fh_copy(&resp->fh, &argp->fh),
 				  argp->offset,
 			   	  rqstp->rq_vec, argp->vlen,
 				  &resp->count);
@@ -290,7 +290,6 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 	 * gospel of sun micro
 	 */
 	if (type != S_IFREG) {
-		int	is_borc = 0;
 		if (type != S_IFBLK && type != S_IFCHR) {
 			rdev = 0;
 		} else if (type == S_IFCHR && !(attr->ia_valid & ATTR_SIZE)) {
@@ -298,7 +297,6 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 			type = S_IFIFO;
 		} else {
 			/* Okay, char or block special */
-			is_borc = 1;
 			if (!rdev)
 				rdev = wanted;
 		}
@@ -737,9 +735,9 @@ nfserrno (int errno)
 		{ nfserr_stale, -ESTALE },
 		{ nfserr_jukebox, -ETIMEDOUT },
 		{ nfserr_jukebox, -ERESTARTSYS },
-		{ nfserr_dropit, -EAGAIN },
-		{ nfserr_dropit, -ENOMEM },
-		{ nfserr_badname, -ESRCH },
+		{ nfserr_jukebox, -EAGAIN },
+		{ nfserr_jukebox, -EWOULDBLOCK },
+		{ nfserr_jukebox, -ENOMEM },
 		{ nfserr_io, -ETXTBSY },
 		{ nfserr_notsupp, -EOPNOTSUPP },
 		{ nfserr_toosmall, -ETOOSMALL },

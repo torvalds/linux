@@ -1,6 +1,8 @@
-/* 
+/*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated
+   Copyright (C) 2009-2010 Gustavo F. Padovan <gustavo@padovan.org>
+   Copyright (C) 2010 Google Inc.
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -12,13 +14,13 @@
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
    IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
+   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
+   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS,
+   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS
    SOFTWARE IS DISCLAIMED.
 */
 
@@ -31,9 +33,9 @@
 #define L2CAP_DEFAULT_FLUSH_TO		0xffff
 #define L2CAP_DEFAULT_TX_WINDOW		63
 #define L2CAP_DEFAULT_MAX_TX		3
-#define L2CAP_DEFAULT_RETRANS_TO	1000    /* 1 second */
+#define L2CAP_DEFAULT_RETRANS_TO	2000    /* 2 seconds */
 #define L2CAP_DEFAULT_MONITOR_TO	12000   /* 12 seconds */
-#define L2CAP_DEFAULT_MAX_PDU_SIZE	672
+#define L2CAP_DEFAULT_MAX_PDU_SIZE	1009    /* Sized for 3-DH5 packet */
 #define L2CAP_DEFAULT_ACK_TO		200
 #define L2CAP_LOCAL_BUSY_TRIES		12
 
@@ -129,31 +131,31 @@ struct l2cap_conninfo {
 struct l2cap_hdr {
 	__le16     len;
 	__le16     cid;
-} __attribute__ ((packed));
+} __packed;
 #define L2CAP_HDR_SIZE		4
 
 struct l2cap_cmd_hdr {
 	__u8       code;
 	__u8       ident;
 	__le16     len;
-} __attribute__ ((packed));
+} __packed;
 #define L2CAP_CMD_HDR_SIZE	4
 
 struct l2cap_cmd_rej {
 	__le16     reason;
-} __attribute__ ((packed));
+} __packed;
 
 struct l2cap_conn_req {
 	__le16     psm;
 	__le16     scid;
-} __attribute__ ((packed));
+} __packed;
 
 struct l2cap_conn_rsp {
 	__le16     dcid;
 	__le16     scid;
 	__le16     result;
 	__le16     status;
-} __attribute__ ((packed));
+} __packed;
 
 /* channel indentifier */
 #define L2CAP_CID_SIGNALING	0x0001
@@ -177,14 +179,14 @@ struct l2cap_conf_req {
 	__le16     dcid;
 	__le16     flags;
 	__u8       data[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct l2cap_conf_rsp {
 	__le16     scid;
 	__le16     flags;
 	__le16     result;
 	__u8       data[0];
-} __attribute__ ((packed));
+} __packed;
 
 #define L2CAP_CONF_SUCCESS	0x0000
 #define L2CAP_CONF_UNACCEPT	0x0001
@@ -195,7 +197,7 @@ struct l2cap_conf_opt {
 	__u8       type;
 	__u8       len;
 	__u8       val[0];
-} __attribute__ ((packed));
+} __packed;
 #define L2CAP_CONF_OPT_SIZE	2
 
 #define L2CAP_CONF_HINT		0x80
@@ -216,7 +218,7 @@ struct l2cap_conf_rfc {
 	__le16     retrans_timeout;
 	__le16     monitor_timeout;
 	__le16     max_pdu_size;
-} __attribute__ ((packed));
+} __packed;
 
 #define L2CAP_MODE_BASIC	0x00
 #define L2CAP_MODE_RETRANS	0x01
@@ -227,22 +229,22 @@ struct l2cap_conf_rfc {
 struct l2cap_disconn_req {
 	__le16     dcid;
 	__le16     scid;
-} __attribute__ ((packed));
+} __packed;
 
 struct l2cap_disconn_rsp {
 	__le16     dcid;
 	__le16     scid;
-} __attribute__ ((packed));
+} __packed;
 
 struct l2cap_info_req {
 	__le16      type;
-} __attribute__ ((packed));
+} __packed;
 
 struct l2cap_info_rsp {
 	__le16      type;
 	__le16      result;
 	__u8        data[0];
-} __attribute__ ((packed));
+} __packed;
 
 /* info type */
 #define L2CAP_IT_CL_MTU     0x0001
@@ -285,6 +287,11 @@ struct l2cap_conn {
 	__u8		disc_reason;
 
 	struct l2cap_chan_list chan_list;
+};
+
+struct sock_del_list {
+	struct sock *sk;
+	struct list_head list;
 };
 
 #define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
@@ -353,7 +360,6 @@ struct l2cap_pinfo {
 
 	__le16		sport;
 
-	spinlock_t		send_lock;
 	struct timer_list	retrans_timer;
 	struct timer_list	monitor_timer;
 	struct timer_list	ack_timer;
@@ -408,14 +414,14 @@ static inline int l2cap_tx_window_full(struct sock *sk)
 	if (sub < 0)
 		sub += 64;
 
-	return (sub == pi->remote_tx_win);
+	return sub == pi->remote_tx_win;
 }
 
-#define __get_txseq(ctrl) ((ctrl) & L2CAP_CTRL_TXSEQ) >> 1
-#define __get_reqseq(ctrl) ((ctrl) & L2CAP_CTRL_REQSEQ) >> 8
-#define __is_iframe(ctrl) !((ctrl) & L2CAP_CTRL_FRAME_TYPE)
-#define __is_sframe(ctrl) (ctrl) & L2CAP_CTRL_FRAME_TYPE
-#define __is_sar_start(ctrl) ((ctrl) & L2CAP_CTRL_SAR) == L2CAP_SDU_START
+#define __get_txseq(ctrl)	(((ctrl) & L2CAP_CTRL_TXSEQ) >> 1)
+#define __get_reqseq(ctrl)	(((ctrl) & L2CAP_CTRL_REQSEQ) >> 8)
+#define __is_iframe(ctrl)	(!((ctrl) & L2CAP_CTRL_FRAME_TYPE))
+#define __is_sframe(ctrl)	((ctrl) & L2CAP_CTRL_FRAME_TYPE)
+#define __is_sar_start(ctrl)	(((ctrl) & L2CAP_CTRL_SAR) == L2CAP_SDU_START)
 
 void l2cap_load(void);
 

@@ -198,6 +198,7 @@ out:
 	atomic_set(&dc->may_delay, 1);
 
 	ti->num_flush_requests = 1;
+	ti->num_discard_requests = 1;
 	ti->private = dc;
 	return 0;
 
@@ -281,14 +282,13 @@ static int delay_map(struct dm_target *ti, struct bio *bio,
 		bio->bi_bdev = dc->dev_write->bdev;
 		if (bio_sectors(bio))
 			bio->bi_sector = dc->start_write +
-					 (bio->bi_sector - ti->begin);
+					 dm_target_offset(ti, bio->bi_sector);
 
 		return delay_bio(dc, dc->write_delay, bio);
 	}
 
 	bio->bi_bdev = dc->dev_read->bdev;
-	bio->bi_sector = dc->start_read +
-			 (bio->bi_sector - ti->begin);
+	bio->bi_sector = dc->start_read + dm_target_offset(ti, bio->bi_sector);
 
 	return delay_bio(dc, dc->read_delay, bio);
 }
@@ -352,7 +352,7 @@ static int __init dm_delay_init(void)
 {
 	int r = -ENOMEM;
 
-	kdelayd_wq = create_workqueue("kdelayd");
+	kdelayd_wq = alloc_workqueue("kdelayd", WQ_MEM_RECLAIM, 0);
 	if (!kdelayd_wq) {
 		DMERR("Couldn't start kdelayd");
 		goto bad_queue;

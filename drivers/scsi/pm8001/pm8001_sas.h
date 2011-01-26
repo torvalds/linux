@@ -50,7 +50,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
 #include <scsi/libsas.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/sas_ata.h>

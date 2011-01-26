@@ -28,12 +28,8 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_attr_sf.h"
-#include "xfs_dir2_sf.h"
 #include "xfs_vnode.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
@@ -168,7 +164,8 @@ xfs_ioctl32_bstat_copyin(
 	    get_user(bstat->bs_extsize,	&bstat32->bs_extsize)	||
 	    get_user(bstat->bs_extents,	&bstat32->bs_extents)	||
 	    get_user(bstat->bs_gen,	&bstat32->bs_gen)	||
-	    get_user(bstat->bs_projid,	&bstat32->bs_projid)	||
+	    get_user(bstat->bs_projid_lo, &bstat32->bs_projid_lo) ||
+	    get_user(bstat->bs_projid_hi, &bstat32->bs_projid_hi) ||
 	    get_user(bstat->bs_dmevmask, &bstat32->bs_dmevmask)	||
 	    get_user(bstat->bs_dmstate,	&bstat32->bs_dmstate)	||
 	    get_user(bstat->bs_aextents, &bstat32->bs_aextents))
@@ -222,6 +219,7 @@ xfs_bulkstat_one_fmt_compat(
 	    put_user(buffer->bs_extents,  &p32->bs_extents)	||
 	    put_user(buffer->bs_gen,	  &p32->bs_gen)		||
 	    put_user(buffer->bs_projid,	  &p32->bs_projid)	||
+	    put_user(buffer->bs_projid_hi,	&p32->bs_projid_hi)	||
 	    put_user(buffer->bs_dmevmask, &p32->bs_dmevmask)	||
 	    put_user(buffer->bs_dmstate,  &p32->bs_dmstate)	||
 	    put_user(buffer->bs_aextents, &p32->bs_aextents))
@@ -237,15 +235,12 @@ xfs_bulkstat_one_compat(
 	xfs_ino_t	ino,		/* inode number to get data for */
 	void		__user *buffer,	/* buffer to place output in */
 	int		ubsize,		/* size of buffer */
-	void		*private_data,	/* my private data */
-	xfs_daddr_t	bno,		/* starting bno of inode cluster */
 	int		*ubused,	/* bytes used by me */
-	void		*dibuff,	/* on-disk inode buffer */
 	int		*stat)		/* BULKSTAT_RV_... */
 {
 	return xfs_bulkstat_one_int(mp, ino, buffer, ubsize,
-				    xfs_bulkstat_one_fmt_compat, bno,
-				    ubused, dibuff, stat);
+				    xfs_bulkstat_one_fmt_compat,
+				    ubused, stat);
 }
 
 /* copied from xfs_ioctl.c */
@@ -298,13 +293,11 @@ xfs_compat_ioc_bulkstat(
 		int res;
 
 		error = xfs_bulkstat_one_compat(mp, inlast, bulkreq.ubuffer,
-				sizeof(compat_xfs_bstat_t),
-				NULL, 0, NULL, NULL, &res);
+				sizeof(compat_xfs_bstat_t), 0, &res);
 	} else if (cmd == XFS_IOC_FSBULKSTAT_32) {
 		error = xfs_bulkstat(mp, &inlast, &count,
-			xfs_bulkstat_one_compat, NULL,
-			sizeof(compat_xfs_bstat_t), bulkreq.ubuffer,
-			BULKSTAT_FG_QUICK, &done);
+			xfs_bulkstat_one_compat, sizeof(compat_xfs_bstat_t),
+			bulkreq.ubuffer, &done);
 	} else
 		error = XFS_ERROR(EINVAL);
 	if (error)
@@ -549,7 +542,7 @@ xfs_file_compat_ioctl(
 	if (filp->f_mode & FMODE_NOCMTIME)
 		ioflags |= IO_INVIS;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_file_compat_ioctl(ip);
 
 	switch (cmd) {
 	/* No size or alignment issues on any arch */
@@ -583,6 +576,7 @@ xfs_file_compat_ioctl(
 	case XFS_IOC_FSGEOMETRY_V1:
 	case XFS_IOC_FSGROWFSDATA:
 	case XFS_IOC_FSGROWFSRT:
+	case XFS_IOC_ZERO_RANGE:
 		return xfs_file_ioctl(filp, cmd, p);
 #else
 	case XFS_IOC_ALLOCSP_32:

@@ -29,7 +29,6 @@
 #include "vmbus_api.h"
 #include "channel.h"
 #include "channel_mgmt.h"
-#include "channel_interface.h"
 #include "ring_buffer.h"
 #include <linux/list.h>
 
@@ -103,13 +102,14 @@ extern struct VMBUS_CONNECTION gVmbusConnection;
 
 /* General vmbus interface */
 
-struct hv_device *VmbusChildDeviceCreate(struct hv_guid *deviceType,
+struct hv_device *vmbus_child_device_create(struct hv_guid *deviceType,
 					 struct hv_guid *deviceInstance,
-					 void *context);
+					 struct vmbus_channel *channel);
 
 int VmbusChildDeviceAdd(struct hv_device *Device);
-
-void VmbusChildDeviceRemove(struct hv_device *Device);
+int vmbus_child_device_register(struct hv_device *root_device_obj,
+				struct hv_device *child_device_obj);
+void vmbus_child_device_unregister(struct hv_device *device_obj);
 
 /* static void */
 /* VmbusChildDeviceDestroy( */

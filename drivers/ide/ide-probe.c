@@ -1448,19 +1448,13 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		if (hwif == NULL)
 			continue;
 
-		if (hwif->present)
-			hwif_register_devices(hwif);
-	}
-
-	ide_host_for_each_port(i, hwif, host) {
-		if (hwif == NULL)
-			continue;
-
 		ide_sysfs_register_port(hwif);
 		ide_proc_register_port(hwif);
 
-		if (hwif->present)
+		if (hwif->present) {
 			ide_proc_port_register_devices(hwif);
+			hwif_register_devices(hwif);
+		}
 	}
 
 	return j ? 0 : -1;

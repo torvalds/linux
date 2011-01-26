@@ -1,3 +1,7 @@
+if ARCH_OMAP1
+
+menu "TI OMAP1 specific features"
+
 comment "OMAP Core Type"
 	depends on ARCH_OMAP1
 
@@ -5,6 +9,7 @@ config ARCH_OMAP730
 	depends on ARCH_OMAP1
 	bool "OMAP730 Based System"
 	select CPU_ARM926T
+	select OMAP_MPU_TIMER
 	select ARCH_OMAP_OTG
 
 config ARCH_OMAP850
@@ -18,6 +23,7 @@ config ARCH_OMAP15XX
 	default y
 	bool "OMAP15xx Based System"
 	select CPU_ARM925T
+	select OMAP_MPU_TIMER
 
 config ARCH_OMAP16XX
 	depends on ARCH_OMAP1
@@ -124,7 +130,7 @@ config MACH_OMAP_PALMTT
 	help
 	  Support for the Palm Tungsten|T PDA. To boot the kernel, you'll
 	  need a PalmOS compatible bootloader (Garux); check out
-	  http://www.hackndev.com/palm/tt/ for more information.
+	  http://garux.sourceforge.net/ for more information.
 	  Say Y here if you have this PDA model, say N otherwise.
 
 config MACH_SX1
@@ -148,19 +154,10 @@ config MACH_NOKIA770
 config MACH_AMS_DELTA
 	bool "Amstrad E3 (Delta)"
 	depends on ARCH_OMAP1 && ARCH_OMAP15XX
+	select FIQ
 	help
 	  Support for the Amstrad E3 (codename Delta) videophone. Say Y here
 	  if you have such a device.
-
-config AMS_DELTA_FIQ
-	bool "Fast Interrupt Request (FIQ) support for the E3"
-	depends on MACH_AMS_DELTA
-	select FIQ
-	help
-	  Provide a FIQ handler for the E3.
-	  This allows for fast handling of interrupts generated
-	  by the clock line of the E3 mailboard (or a PS/2 keyboard)
-	  connected to the GPIO based external keyboard port.
 
 config MACH_OMAP_GENERIC
 	bool "Generic OMAP board"
@@ -224,6 +221,12 @@ config OMAP_ARM_120MHZ
 	help
           Enable 120MHz clock for OMAP CPU. If unsure, say N.
 
+config OMAP_ARM_96MHZ
+	bool "OMAP ARM 96 MHz CPU"
+	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 || ARCH_OMAP850)
+	help
+          Enable 96MHz clock for OMAP CPU. If unsure, say N.
+
 config OMAP_ARM_60MHZ
 	bool "OMAP ARM 60 MHz CPU"
 	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 || ARCH_OMAP850)
@@ -237,3 +240,6 @@ config OMAP_ARM_30MHZ
 	help
           Enable 30MHz clock for OMAP CPU. If unsure, say N.
 
+endmenu
+
+endif

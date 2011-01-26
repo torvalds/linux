@@ -43,7 +43,7 @@ int prom_argc;
 char **prom_argv;
 char **prom_envp;
 
-void prom_init_cmdline(void)
+void __init prom_init_cmdline(void)
 {
 	int i;
 
@@ -104,7 +104,7 @@ static inline void str2eaddr(unsigned char *ea, unsigned char *str)
 	}
 }
 
-int prom_get_ethernet_addr(char *ethernet_addr)
+int __init prom_get_ethernet_addr(char *ethernet_addr)
 {
 	char *ethaddr_str;
 
@@ -123,7 +123,6 @@ int prom_get_ethernet_addr(char *ethernet_addr)
 
 	return 0;
 }
-EXPORT_SYMBOL(prom_get_ethernet_addr);
 
 void __init prom_free_prom_memory(void)
 {

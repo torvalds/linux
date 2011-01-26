@@ -48,6 +48,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
+#include "common.h"
+
 /* 
  * All IO addresses are mapped onto VA 0xFFFx.xxxx, where x.xxxx
  * is the (PA >> 12).
@@ -154,21 +156,21 @@ static void __init ap_map_io(void)
 
 #define INTEGRATOR_SC_VALID_INT	0x003fffff
 
-static void sc_mask_irq(unsigned int irq)
+static void sc_mask_irq(struct irq_data *d)
 {
-	writel(1 << irq, VA_IC_BASE + IRQ_ENABLE_CLEAR);
+	writel(1 << d->irq, VA_IC_BASE + IRQ_ENABLE_CLEAR);
 }
 
-static void sc_unmask_irq(unsigned int irq)
+static void sc_unmask_irq(struct irq_data *d)
 {
-	writel(1 << irq, VA_IC_BASE + IRQ_ENABLE_SET);
+	writel(1 << d->irq, VA_IC_BASE + IRQ_ENABLE_SET);
 }
 
 static struct irq_chip sc_chip = {
-	.name	= "SC",
-	.ack	= sc_mask_irq,
-	.mask	= sc_mask_irq,
-	.unmask = sc_unmask_irq,
+	.name		= "SC",
+	.irq_ack	= sc_mask_irq,
+	.irq_mask	= sc_mask_irq,
+	.irq_unmask	= sc_unmask_irq,
 };
 
 static void __init ap_init_irq(void)
@@ -370,7 +372,6 @@ static struct clocksource clocksource_timersp = {
 	.rating		= 200,
 	.read		= timersp_read,
 	.mask		= CLOCKSOURCE_MASK(16),
-	.shift		= 16,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -388,8 +389,7 @@ static void integrator_clocksource_init(u32 khz)
 	writel(ctrl, base + TIMER_CTRL);
 	writel(0xffff, base + TIMER_LOAD);
 
-	cs->mult = clocksource_khz2mult(khz, cs->shift);
-	clocksource_register(cs);
+	clocksource_register_khz(cs, khz);
 }
 
 static void __iomem * const clkevt_base = (void __iomem *)TIMER1_VA_BASE;
@@ -498,10 +498,9 @@ static struct sys_timer ap_timer = {
 
 MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.phys_io	= 0x16000000,
-	.io_pg_offst	= ((0xf1600000) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.map_io		= ap_map_io,
+	.reserve	= integrator_reserve,
 	.init_irq	= ap_init_irq,
 	.timer		= &ap_timer,
 	.init_machine	= ap_init,

@@ -132,6 +132,8 @@
 
 #define CSR_LED_REG             (CSR_BASE+0x094)
 #define CSR_DRAM_INT_TBL_REG	(CSR_BASE+0x0A0)
+#define CSR_MAC_SHADOW_REG_CTRL	(CSR_BASE+0x0A8) /* 6000 and up */
+
 
 /* GIO Chicken Bits (PCI Express bus link power management) */
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
@@ -298,6 +300,7 @@
 #define CSR_HW_REV_TYPE_1000           (0x0000060)
 #define CSR_HW_REV_TYPE_6x00           (0x0000070)
 #define CSR_HW_REV_TYPE_6x50           (0x0000080)
+#define CSR_HW_REV_TYPE_6x50g2         (0x0000084)
 #define CSR_HW_REV_TYPE_6x00g2         (0x00000B0)
 #define CSR_HW_REV_TYPE_NONE           (0x00000F0)
 
@@ -370,7 +373,8 @@
 #define CSR_GP_DRIVER_REG_BIT_RADIO_SKU_3x3_HYB	    (0x00000000)
 #define CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_HYB	    (0x00000001)
 #define CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA	    (0x00000002)
-#define CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6	(0x00000004)
+#define CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6	    (0x00000004)
+#define CSR_GP_DRIVER_REG_BIT_6050_1x2		    (0x00000008)
 
 /* GIO Chicken Bits (PCI Express bus link power management) */
 #define CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX  (0x00800000)

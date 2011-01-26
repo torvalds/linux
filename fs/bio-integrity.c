@@ -413,10 +413,10 @@ int bio_integrity_prep(struct bio *bio)
 
 	/* Allocate kernel buffer for protection data */
 	len = sectors * blk_integrity_tuple_size(bi);
-	buf = kmalloc(len, GFP_NOIO | __GFP_NOFAIL | q->bounce_gfp);
+	buf = kmalloc(len, GFP_NOIO | q->bounce_gfp);
 	if (unlikely(buf == NULL)) {
 		printk(KERN_ERR "could not allocate integrity buffer\n");
-		return -EIO;
+		return -ENOMEM;
 	}
 
 	end = (((unsigned long) buf) + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -782,7 +782,12 @@ void __init bio_integrity_init(void)
 {
 	unsigned int i;
 
-	kintegrityd_wq = create_workqueue("kintegrityd");
+	/*
+	 * kintegrityd won't block much but may burn a lot of CPU cycles.
+	 * Make it highpri CPU intensive wq with max concurrency of 1.
+	 */
+	kintegrityd_wq = alloc_workqueue("kintegrityd", WQ_MEM_RECLAIM |
+					 WQ_HIGHPRI | WQ_CPU_INTENSIVE, 1);
 	if (!kintegrityd_wq)
 		panic("Failed to create kintegrityd\n");
 

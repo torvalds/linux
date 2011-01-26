@@ -26,6 +26,9 @@
 struct squashfs_inode_info {
 	u64		start;
 	int		offset;
+	u64		xattr;
+	unsigned int	xattr_size;
+	int		xattr_count;
 	union {
 		struct {
 			u64		fragment_block;
@@ -42,4 +45,10 @@ struct squashfs_inode_info {
 	};
 	struct inode	vfs_inode;
 };
+
+
+static inline struct squashfs_inode_info *squashfs_i(struct inode *inode)
+{
+	return list_entry(inode, struct squashfs_inode_info, vfs_inode);
+}
 #endif

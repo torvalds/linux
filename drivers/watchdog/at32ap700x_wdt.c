@@ -346,9 +346,13 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 	} else {
 		wdt->users = 0;
 	}
-	wdt->miscdev.minor = WATCHDOG_MINOR;
-	wdt->miscdev.name = "watchdog";
-	wdt->miscdev.fops = &at32_wdt_fops;
+
+	wdt->miscdev.minor	= WATCHDOG_MINOR;
+	wdt->miscdev.name	= "watchdog";
+	wdt->miscdev.fops	= &at32_wdt_fops;
+	wdt->miscdev.parent	= &pdev->dev;
+
+	platform_set_drvdata(pdev, wdt);
 
 	if (at32_wdt_settimeout(timeout)) {
 		at32_wdt_settimeout(TIMEOUT_DEFAULT);
@@ -360,17 +364,17 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 	ret = misc_register(&wdt->miscdev);
 	if (ret) {
 		dev_dbg(&pdev->dev, "failed to register wdt miscdev\n");
-		goto err_iounmap;
+		goto err_register;
 	}
 
-	platform_set_drvdata(pdev, wdt);
-	wdt->miscdev.parent = &pdev->dev;
 	dev_info(&pdev->dev,
 		"AT32AP700X WDT at 0x%p, timeout %d sec (nowayout=%d)\n",
 		wdt->regs, wdt->timeout, nowayout);
 
 	return 0;
 
+err_register:
+	platform_set_drvdata(pdev, NULL);
 err_iounmap:
 	iounmap(wdt->regs);
 err_free:

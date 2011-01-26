@@ -187,15 +187,13 @@ static struct map_desc idp_io_desc[] __initdata = {
 
 static void __init idp_map_io(void)
 {
-	pxa_map_io();
+	pxa25x_map_io();
 	iotable_init(idp_io_desc, ARRAY_SIZE(idp_io_desc));
 }
 
 
 MACHINE_START(PXA_IDP, "Vibren PXA255 IDP")
 	/* Maintainer: Vibren Technologies */
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= idp_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.timer		= &pxa_timer,

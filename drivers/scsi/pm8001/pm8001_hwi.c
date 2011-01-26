@@ -1082,7 +1082,7 @@ static void pm8001_hw_chip_rst(struct pm8001_hba_info *pm8001_ha)
 }
 
 /**
- * pm8001_chip_iounmap - which maped when initilized.
+ * pm8001_chip_iounmap - which maped when initialized.
  * @pm8001_ha: our hba card information
  */
 static void pm8001_chip_iounmap(struct pm8001_hba_info *pm8001_ha)
@@ -1480,7 +1480,7 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
 			",param = %d \n", param));
 		if (param == 0) {
 			ts->resp = SAS_TASK_COMPLETE;
-			ts->stat = SAM_GOOD;
+			ts->stat = SAM_STAT_GOOD;
 		} else {
 			ts->resp = SAS_TASK_COMPLETE;
 			ts->stat = SAS_PROTO_RESPONSE;
@@ -1909,7 +1909,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk("IO_SUCCESS\n"));
 		if (param == 0) {
 			ts->resp = SAS_TASK_COMPLETE;
-			ts->stat = SAM_GOOD;
+			ts->stat = SAM_STAT_GOOD;
 		} else {
 			u8 len;
 			ts->resp = SAS_TASK_COMPLETE;
@@ -2450,7 +2450,7 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case IO_SUCCESS:
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk("IO_SUCCESS\n"));
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAM_GOOD;
+		ts->stat = SAM_STAT_GOOD;
 	if (pm8001_dev)
 			pm8001_dev->running_req--;
 		break;
@@ -2479,19 +2479,19 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_ERROR_HW_TIMEOUT\n"));
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAM_BUSY;
+		ts->stat = SAM_STAT_BUSY;
 		break;
 	case IO_XFER_ERROR_BREAK:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_XFER_ERROR_BREAK\n"));
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAM_BUSY;
+		ts->stat = SAM_STAT_BUSY;
 		break;
 	case IO_XFER_ERROR_PHY_NOT_READY:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_XFER_ERROR_PHY_NOT_READY\n"));
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAM_BUSY;
+		ts->stat = SAM_STAT_BUSY;
 		break;
 	case IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED:
 		PM8001_IO_DBG(pm8001_ha,
@@ -3260,7 +3260,7 @@ mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case IO_SUCCESS:
 		PM8001_EH_DBG(pm8001_ha, pm8001_printk("IO_SUCCESS\n"));
 		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAM_GOOD;
+		ts->stat = SAM_STAT_GOOD;
 		break;
 	case IO_NOT_VALID:
 		PM8001_EH_DBG(pm8001_ha, pm8001_printk("IO_NOT_VALID\n"));
@@ -4152,7 +4152,7 @@ static int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
 }
 
 /**
- * pm8001_chip_ssp_tm_req - built the task managment command.
+ * pm8001_chip_ssp_tm_req - built the task management command.
  * @pm8001_ha: our hba card information.
  * @ccb: the ccb information.
  * @tmf: task management function.
@@ -4194,13 +4194,17 @@ static int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 
 	nvmd_type = ioctl_payload->minor_function;
 	fw_control_context = kzalloc(sizeof(struct fw_control_ex), GFP_KERNEL);
+	if (!fw_control_context)
+		return -ENOMEM;
 	fw_control_context->usrAddr = (u8 *)&ioctl_payload->func_specific[0];
 	fw_control_context->len = ioctl_payload->length;
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	memset(&nvmd_req, 0, sizeof(nvmd_req));
 	rc = pm8001_tag_alloc(pm8001_ha, &tag);
-	if (rc)
+	if (rc) {
+		kfree(fw_control_context);
 		return rc;
+	}
 	ccb = &pm8001_ha->ccb_info[tag];
 	ccb->ccb_tag = tag;
 	ccb->fw_control_context = fw_control_context;
@@ -4270,14 +4274,18 @@ static int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 
 	nvmd_type = ioctl_payload->minor_function;
 	fw_control_context = kzalloc(sizeof(struct fw_control_ex), GFP_KERNEL);
+	if (!fw_control_context)
+		return -ENOMEM;
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	memcpy(pm8001_ha->memoryMap.region[NVMD].virt_ptr,
 		ioctl_payload->func_specific,
 		ioctl_payload->length);
 	memset(&nvmd_req, 0, sizeof(nvmd_req));
 	rc = pm8001_tag_alloc(pm8001_ha, &tag);
-	if (rc)
+	if (rc) {
+		kfree(fw_control_context);
 		return rc;
+	}
 	ccb = &pm8001_ha->ccb_info[tag];
 	ccb->fw_control_context = fw_control_context;
 	ccb->ccb_tag = tag;
@@ -4377,6 +4385,8 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 	struct pm8001_ioctl_payload *ioctl_payload = payload;
 
 	fw_control_context = kzalloc(sizeof(struct fw_control_ex), GFP_KERNEL);
+	if (!fw_control_context)
+		return -ENOMEM;
 	fw_control = (struct fw_control_info *)&ioctl_payload->func_specific[0];
 	if (fw_control->len != 0) {
 		if (pm8001_mem_alloc(pm8001_ha->pdev,
@@ -4387,6 +4397,7 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 			fw_control->len, 0) != 0) {
 				PM8001_FAIL_DBG(pm8001_ha,
 					pm8001_printk("Mem alloc failure\n"));
+				kfree(fw_control_context);
 				return -ENOMEM;
 		}
 	}
@@ -4401,8 +4412,10 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 	fw_control_context->virtAddr = buffer;
 	fw_control_context->len = fw_control->len;
 	rc = pm8001_tag_alloc(pm8001_ha, &tag);
-	if (rc)
+	if (rc) {
+		kfree(fw_control_context);
 		return rc;
+	}
 	ccb = &pm8001_ha->ccb_info[tag];
 	ccb->fw_control_context = fw_control_context;
 	ccb->ccb_tag = tag;

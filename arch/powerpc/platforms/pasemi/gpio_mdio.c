@@ -216,7 +216,7 @@ static int gpio_mdio_reset(struct mii_bus *bus)
 }
 
 
-static int __devinit gpio_mdio_probe(struct of_device *ofdev,
+static int __devinit gpio_mdio_probe(struct platform_device *ofdev,
 				     const struct of_device_id *match)
 {
 	struct device *dev = &ofdev->dev;
@@ -275,7 +275,7 @@ out:
 }
 
 
-static int gpio_mdio_remove(struct of_device *dev)
+static int gpio_mdio_remove(struct platform_device *dev)
 {
 	struct mii_bus *bus = dev_get_drvdata(&dev->dev);
 

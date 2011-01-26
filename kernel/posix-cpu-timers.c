@@ -16,13 +16,13 @@
  * siglock protection since other code may update expiration cache as
  * well.
  */
-void update_rlimit_cpu(unsigned long rlim_new)
+void update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new)
 {
 	cputime_t cputime = secs_to_cputime(rlim_new);
 
-	spin_lock_irq(&current->sighand->siglock);
-	set_process_cpu_timer(current, CPUCLOCK_PROF, &cputime, NULL);
-	spin_unlock_irq(&current->sighand->siglock);
+	spin_lock_irq(&task->sighand->siglock);
+	set_process_cpu_timer(task, CPUCLOCK_PROF, &cputime, NULL);
+	spin_unlock_irq(&task->sighand->siglock);
 }
 
 static int check_clock(const clockid_t which_clock)
@@ -37,13 +37,13 @@ static int check_clock(const clockid_t which_clock)
 	if (pid == 0)
 		return 0;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	p = find_task_by_vpid(pid);
 	if (!p || !(CPUCLOCK_PERTHREAD(which_clock) ?
-		   same_thread_group(p, current) : thread_group_leader(p))) {
+		   same_thread_group(p, current) : has_group_leader_pid(p))) {
 		error = -EINVAL;
 	}
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 
 	return error;
 }
@@ -232,31 +232,24 @@ static int cpu_clock_sample(const clockid_t which_clock, struct task_struct *p,
 
 void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 {
-	struct sighand_struct *sighand;
-	struct signal_struct *sig;
+	struct signal_struct *sig = tsk->signal;
 	struct task_struct *t;
 
-	*times = INIT_CPUTIME;
+	times->utime = sig->utime;
+	times->stime = sig->stime;
+	times->sum_exec_runtime = sig->sum_sched_runtime;
 
 	rcu_read_lock();
-	sighand = rcu_dereference(tsk->sighand);
-	if (!sighand)
+	/* make sure we can trust tsk->thread_group list */
+	if (!likely(pid_alive(tsk)))
 		goto out;
-
-	sig = tsk->signal;
 
 	t = tsk;
 	do {
 		times->utime = cputime_add(times->utime, t->utime);
 		times->stime = cputime_add(times->stime, t->stime);
 		times->sum_exec_runtime += t->se.sum_exec_runtime;
-
-		t = next_thread(t);
-	} while (t != tsk);
-
-	times->utime = cputime_add(times->utime, sig->utime);
-	times->stime = cputime_add(times->stime, sig->stime);
-	times->sum_exec_runtime += sig->sum_sched_runtime;
+	} while_each_thread(tsk, t);
 out:
 	rcu_read_unlock();
 }
@@ -363,7 +356,7 @@ int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *tp)
 				}
 			} else {
 				read_lock(&tasklist_lock);
-				if (thread_group_leader(p) && p->signal) {
+				if (thread_group_leader(p) && p->sighand) {
 					error =
 					    cpu_clock_sample_group(which_clock,
 							           p, &rtn);
@@ -397,7 +390,7 @@ int posix_cpu_timer_create(struct k_itimer *new_timer)
 
 	INIT_LIST_HEAD(&new_timer->it.cpu.entry);
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	if (CPUCLOCK_PERTHREAD(new_timer->it_clock)) {
 		if (pid == 0) {
 			p = current;
@@ -411,7 +404,7 @@ int posix_cpu_timer_create(struct k_itimer *new_timer)
 			p = current->group_leader;
 		} else {
 			p = find_task_by_vpid(pid);
-			if (p && !thread_group_leader(p))
+			if (p && !has_group_leader_pid(p))
 				p = NULL;
 		}
 	}
@@ -421,7 +414,7 @@ int posix_cpu_timer_create(struct k_itimer *new_timer)
 	} else {
 		ret = -EINVAL;
 	}
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 
 	return ret;
 }
@@ -439,7 +432,7 @@ int posix_cpu_timer_del(struct k_itimer *timer)
 
 	if (likely(p != NULL)) {
 		read_lock(&tasklist_lock);
-		if (unlikely(p->signal == NULL)) {
+		if (unlikely(p->sighand == NULL)) {
 			/*
 			 * We raced with the reaping of the task.
 			 * The deletion should have cleared us off the list.
@@ -691,10 +684,10 @@ int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 	read_lock(&tasklist_lock);
 	/*
 	 * We need the tasklist_lock to protect against reaping that
-	 * clears p->signal.  If p has just been reaped, we can no
+	 * clears p->sighand.  If p has just been reaped, we can no
 	 * longer get any information about it at all.
 	 */
-	if (unlikely(p->signal == NULL)) {
+	if (unlikely(p->sighand == NULL)) {
 		read_unlock(&tasklist_lock);
 		put_task_struct(p);
 		timer->it.cpu.task = NULL;
@@ -863,7 +856,7 @@ void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 		clear_dead = p->exit_state;
 	} else {
 		read_lock(&tasklist_lock);
-		if (unlikely(p->signal == NULL)) {
+		if (unlikely(p->sighand == NULL)) {
 			/*
 			 * The process has been reaped.
 			 * We can't even collect a sample any more.
@@ -1199,7 +1192,7 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 		spin_lock(&p->sighand->siglock);
 	} else {
 		read_lock(&tasklist_lock);
-		if (unlikely(p->signal == NULL)) {
+		if (unlikely(p->sighand == NULL)) {
 			/*
 			 * The process has been reaped.
 			 * We can't even collect a sample any more.
@@ -1279,10 +1272,6 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 {
 	struct signal_struct *sig;
 
-	/* tsk == current, ensure it is safe to use ->signal/sighand */
-	if (unlikely(tsk->exit_state))
-		return 0;
-
 	if (!task_cputime_zero(&tsk->cputime_expires)) {
 		struct task_cputime task_sample = {
 			.utime = tsk->utime,
@@ -1298,7 +1287,10 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 	if (sig->cputimer.running) {
 		struct task_cputime group_sample;
 
-		thread_group_cputimer(tsk, &group_sample);
+		spin_lock(&sig->cputimer.lock);
+		group_sample = sig->cputimer.cputime;
+		spin_unlock(&sig->cputimer.lock);
+
 		if (task_cputime_expired(&group_sample, &sig->cputime_expires))
 			return 1;
 	}
@@ -1315,6 +1307,7 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 {
 	LIST_HEAD(firing);
 	struct k_itimer *timer, *next;
+	unsigned long flags;
 
 	BUG_ON(!irqs_disabled());
 
@@ -1325,7 +1318,8 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 	if (!fastpath_timer_check(tsk))
 		return;
 
-	spin_lock(&tsk->sighand->siglock);
+	if (!lock_task_sighand(tsk, &flags))
+		return;
 	/*
 	 * Here we take off tsk->signal->cpu_timers[N] and
 	 * tsk->cpu_timers[N] all the timers that are firing, and
@@ -1347,7 +1341,7 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 	 * that gets the timer lock before we do will give it up and
 	 * spin until we've taken care of that timer below.
 	 */
-	spin_unlock(&tsk->sighand->siglock);
+	unlock_task_sighand(tsk, &flags);
 
 	/*
 	 * Now that all the timers on our list have the firing flag,

@@ -447,6 +447,7 @@ static const struct file_operations mon_fops = {
 	.release = &mon_close,
 	.read    = &mon_read,
 	.poll    = &mon_poll,
+	.llseek  = noop_llseek,
 };
 
 static struct miscdevice mon_dev = {
@@ -627,7 +628,7 @@ out_iucv:
 static void __exit mon_exit(void)
 {
 	segment_unload(mon_dcss_name);
-	WARN_ON(misc_deregister(&mon_dev) != 0);
+	misc_deregister(&mon_dev);
 	device_unregister(monreader_device);
 	driver_unregister(&monreader_driver);
 	iucv_unregister(&monreader_iucv_handler, 1);

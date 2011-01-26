@@ -73,6 +73,7 @@ struct ehci_hcd {			/* one per controller */
 
 	/* async schedule support */
 	struct ehci_qh		*async;
+	struct ehci_qh		*dummy;		/* For AMD quirk use */
 	struct ehci_qh		*reclaim;
 	unsigned		scanning : 1;
 
@@ -130,6 +131,9 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		has_amcc_usb23:1;
 	unsigned		need_io_watchdog:1;
 	unsigned		broken_periodic:1;
+	unsigned		amd_l1_fix:1;
+	unsigned		fs_i_thresh:1;	/* Intel iso scheduling */
+	unsigned		use_dummy_qh:1;	/* AMD Frame List table quirk*/
 
 	/* required for usb32 quirk */
 	#define OHCI_CTRL_HCFS          (3 << 6)
@@ -140,7 +144,8 @@ struct ehci_hcd {			/* one per controller */
 	#define OHCI_HCCTRL_LEN         0x4
 	__hc32			*ohci_hcctrl_reg;
 	unsigned		has_hostpc:1;
-
+	unsigned		has_lpm:1;  /* support link power management */
+	unsigned		has_ppcd:1; /* support per-port change bits */
 	u8			sbrn;		/* packed release number */
 
 	/* irq statistics */
@@ -154,9 +159,6 @@ struct ehci_hcd {			/* one per controller */
 	/* debug files */
 #ifdef DEBUG
 	struct dentry		*debug_dir;
-	struct dentry		*debug_async;
-	struct dentry		*debug_periodic;
-	struct dentry		*debug_registers;
 #endif
 };
 
@@ -401,15 +403,12 @@ struct ehci_iso_stream {
 	u32			refcount;
 	u8			bEndpointAddress;
 	u8			highspeed;
-	u16			depth;		/* depth in uframes */
 	struct list_head	td_list;	/* queued itds/sitds */
 	struct list_head	free_list;	/* list of unused itds/sitds */
 	struct usb_device	*udev;
 	struct usb_host_endpoint *ep;
 
 	/* output of (re)scheduling */
-	unsigned long		start;		/* jiffies */
-	unsigned long		rescheduled;
 	int			next_uframe;
 	__hc32			splits;
 
@@ -538,11 +537,11 @@ struct ehci_fstn {
 
 /* Prepare the PORTSC wakeup flags during controller suspend/resume */
 
-#define ehci_prepare_ports_for_controller_suspend(ehci)		\
-		ehci_adjust_port_wakeup_flags(ehci, true);
+#define ehci_prepare_ports_for_controller_suspend(ehci, do_wakeup)	\
+		ehci_adjust_port_wakeup_flags(ehci, true, do_wakeup);
 
-#define ehci_prepare_ports_for_controller_resume(ehci)		\
-		ehci_adjust_port_wakeup_flags(ehci, false);
+#define ehci_prepare_ports_for_controller_resume(ehci)			\
+		ehci_adjust_port_wakeup_flags(ehci, false, false);
 
 /*-------------------------------------------------------------------------*/
 

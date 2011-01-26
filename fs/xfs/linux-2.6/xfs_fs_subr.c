@@ -21,10 +21,6 @@
 #include "xfs_inode.h"
 #include "xfs_trace.h"
 
-int  fs_noerr(void) { return 0; }
-int  fs_nosys(void) { return ENOSYS; }
-void fs_noval(void) { return; }
-
 /*
  * note: all filemap functions return negative error codes. These
  * need to be inverted before returning to the xfs core functions.
@@ -36,10 +32,9 @@ xfs_tosspages(
 	xfs_off_t	last,
 	int		fiopt)
 {
-	struct address_space *mapping = VFS_I(ip)->i_mapping;
-
-	if (mapping->nrpages)
-		truncate_inode_pages(mapping, first);
+	/* can't toss partial tail pages, so mask them out */
+	last &= ~(PAGE_SIZE - 1);
+	truncate_inode_pages_range(VFS_I(ip)->i_mapping, first, last - 1);
 }
 
 int
@@ -54,12 +49,11 @@ xfs_flushinval_pages(
 
 	trace_xfs_pagecache_inval(ip, first, last);
 
-	if (mapping->nrpages) {
-		xfs_iflags_clear(ip, XFS_ITRUNCATED);
-		ret = filemap_write_and_wait(mapping);
-		if (!ret)
-			truncate_inode_pages(mapping, first);
-	}
+	xfs_iflags_clear(ip, XFS_ITRUNCATED);
+	ret = filemap_write_and_wait_range(mapping, first,
+				last == -1 ? LLONG_MAX : last);
+	if (!ret)
+		truncate_inode_pages_range(mapping, first, last);
 	return -ret;
 }
 
@@ -75,10 +69,9 @@ xfs_flush_pages(
 	int		ret = 0;
 	int		ret2;
 
-	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
-		xfs_iflags_clear(ip, XFS_ITRUNCATED);
-		ret = -filemap_fdatawrite(mapping);
-	}
+	xfs_iflags_clear(ip, XFS_ITRUNCATED);
+	ret = -filemap_fdatawrite_range(mapping, first,
+				last == -1 ? LLONG_MAX : last);
 	if (flags & XBF_ASYNC)
 		return ret;
 	ret2 = xfs_wait_on_pages(ip, first, last);
@@ -95,7 +88,9 @@ xfs_wait_on_pages(
 {
 	struct address_space *mapping = VFS_I(ip)->i_mapping;
 
-	if (mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK))
-		return -filemap_fdatawait(mapping);
+	if (mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK)) {
+		return -filemap_fdatawait_range(mapping, first,
+					last == -1 ? ip->i_size - 1 : last);
+	}
 	return 0;
 }

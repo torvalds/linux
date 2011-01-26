@@ -239,7 +239,7 @@ static int device_process(struct m2mtest_ctx *ctx,
 		return -EFAULT;
 	}
 
-	if (in_buf->vb.size < out_buf->vb.size) {
+	if (in_buf->vb.size > out_buf->vb.size) {
 		v4l2_err(&dev->v4l2_dev, "Output buffer is too small\n");
 		return -EINVAL;
 	}
@@ -524,7 +524,6 @@ static int vidioc_s_fmt(struct m2mtest_ctx *ctx, struct v4l2_format *f)
 {
 	struct m2mtest_q_data *q_data;
 	struct videobuf_queue *vq;
-	int ret = 0;
 
 	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, f->type);
 	if (!vq)
@@ -534,12 +533,9 @@ static int vidioc_s_fmt(struct m2mtest_ctx *ctx, struct v4l2_format *f)
 	if (!q_data)
 		return -EINVAL;
 
-	mutex_lock(&vq->vb_lock);
-
 	if (videobuf_queue_is_busy(vq)) {
 		v4l2_err(&ctx->dev->v4l2_dev, "%s queue busy\n", __func__);
-		ret = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 
 	q_data->fmt		= find_format(f);
@@ -553,9 +549,7 @@ static int vidioc_s_fmt(struct m2mtest_ctx *ctx, struct v4l2_format *f)
 		"Setting format for type %d, wxh: %dx%d, fmt: %d\n",
 		f->type, q_data->width, q_data->height, q_data->fmt->fourcc);
 
-out:
-	mutex_unlock(&vq->vb_lock);
-	return ret;
+	return 0;
 }
 
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
@@ -845,10 +839,12 @@ static void queue_init(void *priv, struct videobuf_queue *vq,
 		       enum v4l2_buf_type type)
 {
 	struct m2mtest_ctx *ctx = priv;
+	struct m2mtest_dev *dev = ctx->dev;
 
-	videobuf_queue_vmalloc_init(vq, &m2mtest_qops, ctx->dev->v4l2_dev.dev,
-				    &ctx->dev->irqlock, type, V4L2_FIELD_NONE,
-				    sizeof(struct m2mtest_buffer), priv);
+	videobuf_queue_vmalloc_init(vq, &m2mtest_qops, dev->v4l2_dev.dev,
+				    &dev->irqlock, type, V4L2_FIELD_NONE,
+				    sizeof(struct m2mtest_buffer), priv,
+				    &dev->dev_mutex);
 }
 
 
@@ -903,14 +899,14 @@ static int m2mtest_release(struct file *file)
 static unsigned int m2mtest_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
-	struct m2mtest_ctx *ctx = (struct m2mtest_ctx *)file->private_data;
+	struct m2mtest_ctx *ctx = file->private_data;
 
 	return v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
 }
 
 static int m2mtest_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct m2mtest_ctx *ctx = (struct m2mtest_ctx *)file->private_data;
+	struct m2mtest_ctx *ctx = file->private_data;
 
 	return v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
 }
@@ -920,7 +916,7 @@ static const struct v4l2_file_operations m2mtest_fops = {
 	.open		= m2mtest_open,
 	.release	= m2mtest_release,
 	.poll		= m2mtest_poll,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 	.mmap		= m2mtest_mmap,
 };
 
@@ -965,6 +961,7 @@ static int m2mtest_probe(struct platform_device *pdev)
 	}
 
 	*vfd = m2mtest_videodev;
+	vfd->lock = &dev->dev_mutex;
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
@@ -987,6 +984,9 @@ static int m2mtest_probe(struct platform_device *pdev)
 		ret = PTR_ERR(dev->m2m_dev);
 		goto err_m2m;
 	}
+
+	q_data[V4L2_M2M_SRC].fmt = &formats[0];
+	q_data[V4L2_M2M_DST].fmt = &formats[0];
 
 	return 0;
 
@@ -1011,6 +1011,7 @@ static int m2mtest_remove(struct platform_device *pdev)
 	v4l2_m2m_release(dev->m2m_dev);
 	del_timer_sync(&dev->timer);
 	video_unregister_device(dev->vfd);
+	video_device_release(dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 

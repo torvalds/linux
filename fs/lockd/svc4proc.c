@@ -9,7 +9,6 @@
 
 #include <linux/types.h>
 #include <linux/time.h>
-#include <linux/smp_lock.h>
 #include <linux/lockd/lockd.h>
 #include <linux/lockd/share.h>
 
@@ -52,7 +51,7 @@ nlm4svc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 	return 0;
 
 no_locks:
-	nlm_release_host(host);
+	nlmsvc_release_host(host);
  	if (error)
 		return error;	
 	return nlm_lck_denied_nolocks;
@@ -93,7 +92,7 @@ nlm4svc_proc_test(struct svc_rqst *rqstp, struct nlm_args *argp,
 	else
 		dprintk("lockd: TEST4        status %d\n", ntohl(resp->status));
 
-	nlm_release_host(host);
+	nlmsvc_release_host(host);
 	nlm_release_file(file);
 	return rc;
 }
@@ -135,7 +134,7 @@ nlm4svc_proc_lock(struct svc_rqst *rqstp, struct nlm_args *argp,
 	else
 		dprintk("lockd: LOCK         status %d\n", ntohl(resp->status));
 
-	nlm_release_host(host);
+	nlmsvc_release_host(host);
 	nlm_release_file(file);
 	return rc;
 }
@@ -165,7 +164,7 @@ nlm4svc_proc_cancel(struct svc_rqst *rqstp, struct nlm_args *argp,
 	resp->status = nlmsvc_cancel_blocked(file, &argp->lock);
 
 	dprintk("lockd: CANCEL        status %d\n", ntohl(resp->status));
-	nlm_release_host(host);
+	nlmsvc_release_host(host);
 	nlm_release_file(file);
 	return rpc_success;
 }
@@ -198,7 +197,7 @@ nlm4svc_proc_unlock(struct svc_rqst *rqstp, struct nlm_args *argp,
 	resp->status = nlmsvc_unlock(file, &argp->lock);
 
 	dprintk("lockd: UNLOCK        status %d\n", ntohl(resp->status));
-	nlm_release_host(host);
+	nlmsvc_release_host(host);
 	nlm_release_file(file);
 	return rpc_success;
 }
@@ -230,9 +229,7 @@ static void nlm4svc_callback_exit(struct rpc_task *task, void *data)
 
 static void nlm4svc_callback_release(void *data)
 {
-	lock_kernel();
-	nlm_release_call(data);
-	unlock_kernel();
+	nlmsvc_release_call(data);
 }
 
 static const struct rpc_call_ops nlm4svc_callback_ops = {
@@ -264,7 +261,7 @@ static __be32 nlm4svc_callback(struct svc_rqst *rqstp, u32 proc, struct nlm_args
 
 	stat = func(rqstp, argp, &call->a_res);
 	if (stat != 0) {
-		nlm_release_call(call);
+		nlmsvc_release_call(call);
 		return stat;
 	}
 
@@ -337,7 +334,7 @@ nlm4svc_proc_share(struct svc_rqst *rqstp, struct nlm_args *argp,
 	resp->status = nlmsvc_share_file(host, file, argp);
 
 	dprintk("lockd: SHARE         status %d\n", ntohl(resp->status));
-	nlm_release_host(host);
+	nlmsvc_release_host(host);
 	nlm_release_file(file);
 	return rpc_success;
 }
@@ -370,7 +367,7 @@ nlm4svc_proc_unshare(struct svc_rqst *rqstp, struct nlm_args *argp,
 	resp->status = nlmsvc_unshare_file(host, file, argp);
 
 	dprintk("lockd: UNSHARE       status %d\n", ntohl(resp->status));
-	nlm_release_host(host);
+	nlmsvc_release_host(host);
 	nlm_release_file(file);
 	return rpc_success;
 }
@@ -402,7 +399,7 @@ nlm4svc_proc_free_all(struct svc_rqst *rqstp, struct nlm_args *argp,
 		return rpc_success;
 
 	nlmsvc_free_host_resources(host);
-	nlm_release_host(host);
+	nlmsvc_release_host(host);
 	return rpc_success;
 }
 

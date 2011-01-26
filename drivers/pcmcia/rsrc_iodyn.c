@@ -16,9 +16,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
 
@@ -88,7 +86,7 @@ static struct resource *__iodyn_find_io_region(struct pcmcia_socket *s,
 
 static int iodyn_find_io(struct pcmcia_socket *s, unsigned int attr,
 			unsigned int *base, unsigned int num,
-			unsigned int align)
+			unsigned int align, struct resource **parent)
 {
 	int i, ret = 0;
 
@@ -129,6 +127,7 @@ static int iodyn_find_io(struct pcmcia_socket *s, unsigned int attr,
 				((res->flags & ~IORESOURCE_BITS) |
 					(attr & IORESOURCE_BITS));
 			s->io[i].InUse = num;
+			*parent = res;
 			return 0;
 		}
 
@@ -140,6 +139,7 @@ static int iodyn_find_io(struct pcmcia_socket *s, unsigned int attr,
 				continue;
 			*base = try;
 			s->io[i].InUse += num;
+			*parent = res;
 			return 0;
 		}
 
@@ -152,6 +152,7 @@ static int iodyn_find_io(struct pcmcia_socket *s, unsigned int attr,
 				continue;
 			*base = try;
 			s->io[i].InUse += num;
+			*parent = res;
 			return 0;
 		}
 	}
@@ -164,8 +165,6 @@ struct pccard_resource_ops pccard_iodyn_ops = {
 	.validate_mem = NULL,
 	.find_io = iodyn_find_io,
 	.find_mem = NULL,
-	.add_io = NULL,
-	.add_mem = NULL,
 	.init = static_init,
 	.exit = NULL,
 };

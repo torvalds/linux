@@ -1400,8 +1400,11 @@ static struct of_device_id pmac_ide_macio_match[] =
 
 static struct macio_driver pmac_ide_macio_driver = 
 {
-	.name 		= "ide-pmac",
-	.match_table	= pmac_ide_macio_match,
+	.driver = {
+		.name 		= "ide-pmac",
+		.owner		= THIS_MODULE,
+		.of_match_table	= pmac_ide_macio_match,
+	},
 	.probe		= pmac_ide_macio_attach,
 	.suspend	= pmac_ide_macio_suspend,
 	.resume		= pmac_ide_macio_resume,

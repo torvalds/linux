@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,6 @@ acpi_status acpi_ev_initialize_events(void);
 
 acpi_status acpi_ev_install_xrupt_handlers(void);
 
-acpi_status acpi_ev_install_fadt_gpes(void);
-
 u32 acpi_ev_fixed_event_detect(void);
 
 /*
@@ -78,11 +76,13 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node *node,
 u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list);
 
 acpi_status
-acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info);
+acpi_ev_update_gpe_enable_mask(struct acpi_gpe_event_info *gpe_event_info);
 
 acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info);
 
-acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info);
+acpi_status acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info);
+
+acpi_status acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_info);
 
 struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 						       u32 gpe_number);
@@ -90,6 +90,8 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 struct acpi_gpe_event_info *acpi_ev_low_get_gpe_info(u32 gpe_number,
 						     struct acpi_gpe_block_info
 						     *gpe_block);
+
+acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info);
 
 /*
  * evgpeblk - Upper-level GPE block support
@@ -103,13 +105,15 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 			 struct acpi_gpe_block_info **return_gpe_block);
 
 acpi_status
-acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
-			     struct acpi_gpe_block_info *gpe_block);
+acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+			     struct acpi_gpe_block_info *gpe_block,
+			     void *context);
 
 acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block);
 
 u32
-acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info,
+acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
+		     struct acpi_gpe_event_info *gpe_event_info,
 		     u32 gpe_number);
 
 /*
@@ -123,10 +127,6 @@ acpi_status
 acpi_ev_match_gpe_method(acpi_handle obj_handle,
 			 u32 level, void *context, void **return_value);
 
-acpi_status
-acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
-			  u32 level, void *context, void **return_value);
-
 /*
  * evgpeutil - GPE utilities
  */
@@ -134,6 +134,10 @@ acpi_status
 acpi_ev_walk_gpe_list(acpi_gpe_callback gpe_walk_callback, void *context);
 
 u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info);
+
+acpi_status
+acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+		       struct acpi_gpe_block_info *gpe_block, void *context);
 
 struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32 interrupt_number);
 

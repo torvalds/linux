@@ -127,11 +127,17 @@ int s3c64xx_sclk_ctrl(struct clk *clk, int enable)
 	return s3c64xx_gate(S3C_SCLK_GATE, clk, enable);
 }
 
-static struct clk init_clocks_disable[] = {
+static struct clk init_clocks_off[] = {
 	{
 		.name		= "nand",
 		.id		= -1,
 		.parent		= &clk_h,
+	}, {
+		.name		= "rtc",
+		.id		= -1,
+		.parent		= &clk_p,
+		.enable		= s3c64xx_pclk_ctrl,
+		.ctrlbit	= S3C_CLKCON_PCLK_RTC,
 	}, {
 		.name		= "adc",
 		.id		= -1,
@@ -165,6 +171,12 @@ static struct clk init_clocks_disable[] = {
 		.ctrlbit	= S3C6410_CLKCON_PCLK_IIS2,
 	}, {
 #endif
+		.name		= "keypad",
+		.id		= -1,
+		.parent		= &clk_p,
+		.enable		= s3c64xx_pclk_ctrl,
+		.ctrlbit	= S3C_CLKCON_PCLK_KEYPAD,
+	}, {
 		.name		= "spi",
 		.id		= 0,
 		.parent		= &clk_p,
@@ -259,6 +271,12 @@ static struct clk init_clocks[] = {
 		.enable		= s3c64xx_hclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_HCLK_HSMMC2,
 	}, {
+		.name		= "otg",
+		.id		= -1,
+		.parent		= &clk_h,
+		.enable		= s3c64xx_hclk_ctrl,
+		.ctrlbit	= S3C_CLKCON_HCLK_USB,
+	}, {
 		.name		= "timers",
 		.id		= -1,
 		.parent		= &clk_p,
@@ -289,12 +307,6 @@ static struct clk init_clocks[] = {
 		.enable		= s3c64xx_pclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_PCLK_UART3,
 	}, {
-		.name		= "rtc",
-		.id		= -1,
-		.parent		= &clk_p,
-		.enable		= s3c64xx_pclk_ctrl,
-		.ctrlbit	= S3C_CLKCON_PCLK_RTC,
-	}, {
 		.name		= "watchdog",
 		.id		= -1,
 		.parent		= &clk_p,
@@ -304,6 +316,12 @@ static struct clk init_clocks[] = {
 		.id		= -1,
 		.parent		= &clk_p,
 		.ctrlbit	= S3C_CLKCON_PCLK_AC97,
+	}, {
+		.name		= "cfcon",
+		.id		= -1,
+		.parent		= &clk_h,
+		.enable		= s3c64xx_hclk_ctrl,
+		.ctrlbit	= S3C_CLKCON_HCLK_IHOST,
 	}
 };
 
@@ -677,7 +695,7 @@ static struct clksrc_clk clksrcs[] = {
 	}, {
 		.clk	= {
 			.name		= "audio-bus",
-			.id		= -1,  /* There's only one IISv4 port */
+			.id		= 2,
 			.ctrlbit        = S3C6410_CLKCON_SCLK_AUDIO2,
 			.enable		= s3c64xx_sclk_ctrl,
 		},
@@ -816,10 +834,6 @@ static struct clk *clks[] __initdata = {
 void __init s3c64xx_register_clocks(unsigned long xtal, 
 				    unsigned armclk_divlimit)
 {
-	struct clk *clkp;
-	int ret;
-	int ptr;
-
 	armclk_mask = armclk_divlimit;
 
 	s3c24xx_register_baseclocks(xtal);
@@ -827,17 +841,8 @@ void __init s3c64xx_register_clocks(unsigned long xtal,
 
 	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
 
-	clkp = init_clocks_disable;
-	for (ptr = 0; ptr < ARRAY_SIZE(init_clocks_disable); ptr++, clkp++) {
-
-		ret = s3c24xx_register_clock(clkp);
-		if (ret < 0) {
-			printk(KERN_ERR "Failed to register clock %s (%d)\n",
-			       clkp->name, ret);
-		}
-
-		(clkp->enable)(clkp, 0);
-	}
+	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
+	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 
 	s3c24xx_register_clocks(clks1, ARRAY_SIZE(clks1));
 	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));

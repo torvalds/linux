@@ -38,18 +38,38 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
+#include "iwl-agn-calib.h"
 
-static const s8 iwlagn_default_queue_to_tx_fifo[] = {
-	IWL_TX_FIFO_VO,
-	IWL_TX_FIFO_VI,
-	IWL_TX_FIFO_BE,
-	IWL_TX_FIFO_BK,
-	IWLAGN_CMD_FIFO_NUM,
-	IWL_TX_FIFO_UNUSED,
-	IWL_TX_FIFO_UNUSED,
-	IWL_TX_FIFO_UNUSED,
-	IWL_TX_FIFO_UNUSED,
-	IWL_TX_FIFO_UNUSED,
+#define IWL_AC_UNSET -1
+
+struct queue_to_fifo_ac {
+	s8 fifo, ac;
+};
+
+static const struct queue_to_fifo_ac iwlagn_default_queue_to_tx_fifo[] = {
+	{ IWL_TX_FIFO_VO, IEEE80211_AC_VO, },
+	{ IWL_TX_FIFO_VI, IEEE80211_AC_VI, },
+	{ IWL_TX_FIFO_BE, IEEE80211_AC_BE, },
+	{ IWL_TX_FIFO_BK, IEEE80211_AC_BK, },
+	{ IWLAGN_CMD_FIFO_NUM, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+};
+
+static const struct queue_to_fifo_ac iwlagn_ipan_queue_to_tx_fifo[] = {
+	{ IWL_TX_FIFO_VO, IEEE80211_AC_VO, },
+	{ IWL_TX_FIFO_VI, IEEE80211_AC_VI, },
+	{ IWL_TX_FIFO_BE, IEEE80211_AC_BE, },
+	{ IWL_TX_FIFO_BK, IEEE80211_AC_BK, },
+	{ IWL_TX_FIFO_BK_IPAN, IEEE80211_AC_BK, },
+	{ IWL_TX_FIFO_BE_IPAN, IEEE80211_AC_BE, },
+	{ IWL_TX_FIFO_VI_IPAN, IEEE80211_AC_VI, },
+	{ IWL_TX_FIFO_VO_IPAN, IEEE80211_AC_VO, },
+	{ IWL_TX_FIFO_BE_IPAN, 2, },
+	{ IWLAGN_CMD_FIFO_NUM, IWL_AC_UNSET, },
 };
 
 static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
@@ -201,6 +221,25 @@ static int iwlagn_set_Xtal_calib(struct iwl_priv *priv)
 			     (u8 *)&cmd, sizeof(cmd));
 }
 
+static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
+{
+	struct iwl_calib_temperature_offset_cmd cmd;
+	__le16 *offset_calib =
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_TEMPERATURE);
+	cmd.hdr.op_code = IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD;
+	cmd.hdr.first_group = 0;
+	cmd.hdr.groups_num = 1;
+	cmd.hdr.data_valid = 1;
+	cmd.radio_sensor_offset = le16_to_cpu(offset_calib[1]);
+	if (!(cmd.radio_sensor_offset))
+		cmd.radio_sensor_offset = DEFAULT_RADIO_SENSOR_OFFSET;
+	cmd.reserved = 0;
+	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
+			cmd.radio_sensor_offset);
+	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],
+			     (u8 *)&cmd, sizeof(cmd));
+}
+
 static int iwlagn_send_calib_cfg(struct iwl_priv *priv)
 {
 	struct iwl_calib_cfg_cmd calib_cfg_cmd;
@@ -294,7 +333,27 @@ void iwlagn_init_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
+		/*
+		 * Tell uCode we are ready to perform calibration
+		 * need to perform this before any calibration
+		 * no need to close the envlope since we are going
+		 * to load the runtime uCode later.
+		 */
+		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
+			BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
+
+	}
 	iwlagn_send_calib_cfg(priv);
+
+	/**
+	 * temperature offset calibration is only needed for runtime ucode,
+	 * so prepare the value now.
+	 */
+	if (priv->cfg->need_temp_offset_calib)
+		iwlagn_set_temperature_offset_calib(priv);
+
 	return;
 
 restart:
@@ -306,7 +365,7 @@ static int iwlagn_send_wimax_coex(struct iwl_priv *priv)
 {
 	struct iwl_wimax_coex_cmd coex_cmd;
 
-	if (priv->cfg->support_wimax_coexist) {
+	if (priv->cfg->base_params->support_wimax_coexist) {
 		/* UnMask wake up src at associated sleep */
 		coex_cmd.flags = COEX_FLAGS_ASSOC_WA_UNMASK_MSK;
 
@@ -329,8 +388,54 @@ static int iwlagn_send_wimax_coex(struct iwl_priv *priv)
 				sizeof(coex_cmd), &coex_cmd);
 }
 
+static const u8 iwlagn_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
+	((BT_COEX_PRIO_TBL_PRIO_BYPASS << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_BYPASS << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(1 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_LOW << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_LOW << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(1 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_HIGH << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_HIGH << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(1 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_BYPASS << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_COEX_OFF << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_COEX_ON << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	0, 0, 0, 0, 0, 0, 0
+};
+
+void iwlagn_send_prio_tbl(struct iwl_priv *priv)
+{
+	struct iwl_bt_coex_prio_table_cmd prio_tbl_cmd;
+
+	memcpy(prio_tbl_cmd.prio_tbl, iwlagn_bt_prio_tbl,
+		sizeof(iwlagn_bt_prio_tbl));
+	if (iwl_send_cmd_pdu(priv, REPLY_BT_COEX_PRIO_TABLE,
+				sizeof(prio_tbl_cmd), &prio_tbl_cmd))
+		IWL_ERR(priv, "failed to send BT prio tbl command\n");
+}
+
+void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
+{
+	struct iwl_bt_coex_prot_env_cmd env_cmd;
+
+	env_cmd.action = action;
+	env_cmd.type = type;
+	if (iwl_send_cmd_pdu(priv, REPLY_BT_COEX_PROT_ENV,
+			     sizeof(env_cmd), &env_cmd))
+		IWL_ERR(priv, "failed to send BT env command\n");
+}
+
+
 int iwlagn_alive_notify(struct iwl_priv *priv)
 {
+	const struct queue_to_fifo_ac *queue_to_fifo;
 	u32 a;
 	unsigned long flags;
 	int i, chan;
@@ -365,7 +470,7 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	iwl_write_prph(priv, IWLAGN_SCD_QUEUECHAIN_SEL,
-		IWLAGN_SCD_QUEUECHAIN_SEL_ALL(priv->hw_params.max_txq_num));
+		IWLAGN_SCD_QUEUECHAIN_SEL_ALL(priv));
 	iwl_write_prph(priv, IWLAGN_SCD_AGGR_SEL, 0);
 
 	/* initiate the queues */
@@ -391,7 +496,13 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	/* Activate all Tx DMA/FIFO channels */
 	priv->cfg->ops->lib->txq_set_sched(priv, IWL_MASK(0, 7));
 
-	iwlagn_set_wr_ptrs(priv, IWL_CMD_QUEUE_NUM, 0);
+	/* map queues to FIFOs */
+	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
+		queue_to_fifo = iwlagn_ipan_queue_to_tx_fifo;
+	else
+		queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
+
+	iwlagn_set_wr_ptrs(priv, priv->cmd_queue, 0);
 
 	/* make sure all queue are not stopped */
 	memset(&priv->queue_stopped[0], 0, sizeof(priv->queue_stopped));
@@ -400,21 +511,29 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 
 	/* reset to 0 to enable all the queue first */
 	priv->txq_ctx_active_msk = 0;
-	/* map qos queues to fifos one-to-one */
-	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo) != 10);
 
-	for (i = 0; i < ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo); i++) {
-		int ac = iwlagn_default_queue_to_tx_fifo[i];
+	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo) != 10);
+	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo) != 10);
+
+	for (i = 0; i < 10; i++) {
+		int fifo = queue_to_fifo[i].fifo;
+		int ac = queue_to_fifo[i].ac;
 
 		iwl_txq_ctx_activate(priv, i);
 
-		if (ac == IWL_TX_FIFO_UNUSED)
+		if (fifo == IWL_TX_FIFO_UNUSED)
 			continue;
 
-		iwlagn_tx_queue_set_status(priv, &priv->txq[i], ac, 0);
+		if (ac != IWL_AC_UNSET)
+			iwl_set_swq_id(&priv->txq[i], ac, i);
+		iwlagn_tx_queue_set_status(priv, &priv->txq[i], fifo, 0);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	/* Enable L1-Active */
+	iwl_clear_bits_prph(priv, APMG_PCIDEV_STT_REG,
+			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
 	iwlagn_send_wimax_coex(priv);
 
@@ -422,4 +541,127 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	iwl_send_calib_results(priv);
 
 	return 0;
+}
+
+
+/**
+ * iwl_verify_inst_sparse - verify runtime uCode image in card vs. host,
+ *   using sample data 100 bytes apart.  If these sample points are good,
+ *   it's a pretty good bet that everything between them is good, too.
+ */
+static int iwlcore_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 len)
+{
+	u32 val;
+	int ret = 0;
+	u32 errcnt = 0;
+	u32 i;
+
+	IWL_DEBUG_INFO(priv, "ucode inst image size is %u\n", len);
+
+	for (i = 0; i < len; i += 100, image += 100/sizeof(u32)) {
+		/* read data comes through single port, auto-incr addr */
+		/* NOTE: Use the debugless read so we don't flood kernel log
+		 * if IWL_DL_IO is set */
+		iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
+			i + IWLAGN_RTC_INST_LOWER_BOUND);
+		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		if (val != le32_to_cpu(*image)) {
+			ret = -EIO;
+			errcnt++;
+			if (errcnt >= 3)
+				break;
+		}
+	}
+
+	return ret;
+}
+
+/**
+ * iwlcore_verify_inst_full - verify runtime uCode image in card vs. host,
+ *     looking at all data.
+ */
+static int iwl_verify_inst_full(struct iwl_priv *priv, __le32 *image,
+				 u32 len)
+{
+	u32 val;
+	u32 save_len = len;
+	int ret = 0;
+	u32 errcnt;
+
+	IWL_DEBUG_INFO(priv, "ucode inst image size is %u\n", len);
+
+	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
+			   IWLAGN_RTC_INST_LOWER_BOUND);
+
+	errcnt = 0;
+	for (; len > 0; len -= sizeof(u32), image++) {
+		/* read data comes through single port, auto-incr addr */
+		/* NOTE: Use the debugless read so we don't flood kernel log
+		 * if IWL_DL_IO is set */
+		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		if (val != le32_to_cpu(*image)) {
+			IWL_ERR(priv, "uCode INST section is invalid at "
+				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
+				  save_len - len, val, le32_to_cpu(*image));
+			ret = -EIO;
+			errcnt++;
+			if (errcnt >= 20)
+				break;
+		}
+	}
+
+	if (!errcnt)
+		IWL_DEBUG_INFO(priv,
+		    "ucode image in INSTRUCTION memory is good\n");
+
+	return ret;
+}
+
+/**
+ * iwl_verify_ucode - determine which instruction image is in SRAM,
+ *    and verify its contents
+ */
+int iwl_verify_ucode(struct iwl_priv *priv)
+{
+	__le32 *image;
+	u32 len;
+	int ret;
+
+	/* Try bootstrap */
+	image = (__le32 *)priv->ucode_boot.v_addr;
+	len = priv->ucode_boot.len;
+	ret = iwlcore_verify_inst_sparse(priv, image, len);
+	if (!ret) {
+		IWL_DEBUG_INFO(priv, "Bootstrap uCode is good in inst SRAM\n");
+		return 0;
+	}
+
+	/* Try initialize */
+	image = (__le32 *)priv->ucode_init.v_addr;
+	len = priv->ucode_init.len;
+	ret = iwlcore_verify_inst_sparse(priv, image, len);
+	if (!ret) {
+		IWL_DEBUG_INFO(priv, "Initialize uCode is good in inst SRAM\n");
+		return 0;
+	}
+
+	/* Try runtime/protocol */
+	image = (__le32 *)priv->ucode_code.v_addr;
+	len = priv->ucode_code.len;
+	ret = iwlcore_verify_inst_sparse(priv, image, len);
+	if (!ret) {
+		IWL_DEBUG_INFO(priv, "Runtime uCode is good in inst SRAM\n");
+		return 0;
+	}
+
+	IWL_ERR(priv, "NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
+
+	/* Since nothing seems to match, show first several data entries in
+	 * instruction SRAM, so maybe visual inspection will give a clue.
+	 * Selection of bootstrap image (vs. other images) is arbitrary. */
+	image = (__le32 *)priv->ucode_boot.v_addr;
+	len = priv->ucode_boot.len;
+	ret = iwl_verify_inst_full(priv, image, len);
+
+	return ret;
 }

@@ -801,6 +801,16 @@ static void closecard(int cardnr)
 	ll_unload(csta);
 }
 
+static irqreturn_t card_irq(int intno, void *dev_id)
+{
+	struct IsdnCardState *cs = dev_id;
+	irqreturn_t ret = cs->irq_func(intno, cs);
+
+	if (ret == IRQ_HANDLED)
+		cs->irq_cnt++;
+	return ret;
+}
+
 static int init_card(struct IsdnCardState *cs)
 {
 	int 	irq_cnt, cnt = 3, ret;
@@ -809,10 +819,10 @@ static int init_card(struct IsdnCardState *cs)
 		ret = cs->cardmsg(cs, CARD_INIT, NULL);
 		return(ret);
 	}
-	irq_cnt = kstat_irqs(cs->irq);
+	irq_cnt = cs->irq_cnt = 0;
 	printk(KERN_INFO "%s: IRQ %d count %d\n", CardType[cs->typ],
 	       cs->irq, irq_cnt);
-	if (request_irq(cs->irq, cs->irq_func, cs->irq_flags, "HiSax", cs)) {
+	if (request_irq(cs->irq, card_irq, cs->irq_flags, "HiSax", cs)) {
 		printk(KERN_WARNING "HiSax: couldn't get interrupt %d\n",
 		       cs->irq);
 		return 1;
@@ -822,8 +832,8 @@ static int init_card(struct IsdnCardState *cs)
 		/* Timeout 10ms */
 		msleep(10);
 		printk(KERN_INFO "%s: IRQ %d count %d\n",
-		       CardType[cs->typ], cs->irq, kstat_irqs(cs->irq));
-		if (kstat_irqs(cs->irq) == irq_cnt) {
+		       CardType[cs->typ], cs->irq, cs->irq_cnt);
+		if (cs->irq_cnt == irq_cnt) {
 			printk(KERN_WARNING
 			       "%s: IRQ(%d) getting no interrupts during init %d\n",
 			       CardType[cs->typ], cs->irq, 4 - cnt);
@@ -1907,70 +1917,70 @@ static void EChannel_proc_rcv(struct hisax_d_if *d_if)
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
 
-static struct pci_device_id hisax_pci_tbl[] __devinitdata = {
+static struct pci_device_id hisax_pci_tbl[] __devinitdata __used = {
 #ifdef CONFIG_HISAX_FRITZPCI
-	{PCI_VENDOR_ID_AVM,      PCI_DEVICE_ID_AVM_A1,           PCI_ANY_ID, PCI_ANY_ID},
+	{PCI_VDEVICE(AVM,      PCI_DEVICE_ID_AVM_A1)			},
 #endif
 #ifdef CONFIG_HISAX_DIEHLDIVA
-	{PCI_VENDOR_ID_EICON,    PCI_DEVICE_ID_EICON_DIVA20,     PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_EICON,    PCI_DEVICE_ID_EICON_DIVA20_U,   PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_EICON,    PCI_DEVICE_ID_EICON_DIVA201,    PCI_ANY_ID, PCI_ANY_ID},
-//#########################################################################################	
-	{PCI_VENDOR_ID_EICON,    PCI_DEVICE_ID_EICON_DIVA202,    PCI_ANY_ID, PCI_ANY_ID},
-//#########################################################################################	
+	{PCI_VDEVICE(EICON,    PCI_DEVICE_ID_EICON_DIVA20)		},
+	{PCI_VDEVICE(EICON,    PCI_DEVICE_ID_EICON_DIVA20_U)	},
+	{PCI_VDEVICE(EICON,    PCI_DEVICE_ID_EICON_DIVA201)		},
+/*##########################################################################*/
+	{PCI_VDEVICE(EICON,    PCI_DEVICE_ID_EICON_DIVA202)		},
+/*##########################################################################*/
 #endif
 #ifdef CONFIG_HISAX_ELSA
-	{PCI_VENDOR_ID_ELSA,     PCI_DEVICE_ID_ELSA_MICROLINK,   PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_ELSA,     PCI_DEVICE_ID_ELSA_QS3000,      PCI_ANY_ID, PCI_ANY_ID},
+	{PCI_VDEVICE(ELSA,     PCI_DEVICE_ID_ELSA_MICROLINK)	},
+	{PCI_VDEVICE(ELSA,     PCI_DEVICE_ID_ELSA_QS3000)		},
 #endif
 #ifdef CONFIG_HISAX_GAZEL
-	{PCI_VENDOR_ID_PLX,      PCI_DEVICE_ID_PLX_R685,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_PLX,      PCI_DEVICE_ID_PLX_R753,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_PLX,      PCI_DEVICE_ID_PLX_DJINN_ITOO,   PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_PLX,      PCI_DEVICE_ID_PLX_OLITEC,       PCI_ANY_ID, PCI_ANY_ID},
+	{PCI_VDEVICE(PLX,      PCI_DEVICE_ID_PLX_R685)			},
+	{PCI_VDEVICE(PLX,      PCI_DEVICE_ID_PLX_R753)			},
+	{PCI_VDEVICE(PLX,      PCI_DEVICE_ID_PLX_DJINN_ITOO)	},
+	{PCI_VDEVICE(PLX,      PCI_DEVICE_ID_PLX_OLITEC)		},
 #endif
 #ifdef CONFIG_HISAX_SCT_QUADRO
-	{PCI_VENDOR_ID_PLX,      PCI_DEVICE_ID_PLX_9050,         PCI_ANY_ID, PCI_ANY_ID},
+	{PCI_VDEVICE(PLX,      PCI_DEVICE_ID_PLX_9050)			},
 #endif
 #ifdef CONFIG_HISAX_NICCY
-	{PCI_VENDOR_ID_SATSAGEM, PCI_DEVICE_ID_SATSAGEM_NICCY,   PCI_ANY_ID,PCI_ANY_ID},
+	{PCI_VDEVICE(SATSAGEM, PCI_DEVICE_ID_SATSAGEM_NICCY)	},
 #endif
 #ifdef CONFIG_HISAX_SEDLBAUER
-	{PCI_VENDOR_ID_TIGERJET, PCI_DEVICE_ID_TIGERJET_100,     PCI_ANY_ID,PCI_ANY_ID},
+	{PCI_VDEVICE(TIGERJET, PCI_DEVICE_ID_TIGERJET_100)		},
 #endif
 #if defined(CONFIG_HISAX_NETJET) || defined(CONFIG_HISAX_NETJET_U)
-	{PCI_VENDOR_ID_TIGERJET, PCI_DEVICE_ID_TIGERJET_300,     PCI_ANY_ID,PCI_ANY_ID},
+	{PCI_VDEVICE(TIGERJET, PCI_DEVICE_ID_TIGERJET_300)		},
 #endif
 #if defined(CONFIG_HISAX_TELESPCI) || defined(CONFIG_HISAX_SCT_QUADRO)
-	{PCI_VENDOR_ID_ZORAN,    PCI_DEVICE_ID_ZORAN_36120,      PCI_ANY_ID,PCI_ANY_ID},
+	{PCI_VDEVICE(ZORAN,    PCI_DEVICE_ID_ZORAN_36120)		},
 #endif
 #ifdef CONFIG_HISAX_W6692
-	{PCI_VENDOR_ID_DYNALINK, PCI_DEVICE_ID_DYNALINK_IS64PH,  PCI_ANY_ID,PCI_ANY_ID},
-	{PCI_VENDOR_ID_WINBOND2, PCI_DEVICE_ID_WINBOND2_6692,    PCI_ANY_ID,PCI_ANY_ID},
+	{PCI_VDEVICE(DYNALINK, PCI_DEVICE_ID_DYNALINK_IS64PH)	},
+	{PCI_VDEVICE(WINBOND2, PCI_DEVICE_ID_WINBOND2_6692)		},
 #endif
 #ifdef CONFIG_HISAX_HFC_PCI
-	{PCI_VENDOR_ID_CCD,      PCI_DEVICE_ID_CCD_2BD0,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_CCD,      PCI_DEVICE_ID_CCD_B000,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_CCD,      PCI_DEVICE_ID_CCD_B006,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_CCD,      PCI_DEVICE_ID_CCD_B007,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_CCD,      PCI_DEVICE_ID_CCD_B008,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_CCD,      PCI_DEVICE_ID_CCD_B009,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_CCD,      PCI_DEVICE_ID_CCD_B00A,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_CCD,      PCI_DEVICE_ID_CCD_B00B,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_CCD,      PCI_DEVICE_ID_CCD_B00C,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_CCD,      PCI_DEVICE_ID_CCD_B100,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_CCD,      PCI_DEVICE_ID_CCD_B700,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_CCD,      PCI_DEVICE_ID_CCD_B701,         PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_ABOCOM,   PCI_DEVICE_ID_ABOCOM_2BD1,      PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_ASUSTEK,  PCI_DEVICE_ID_ASUSTEK_0675,     PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_BERKOM,   PCI_DEVICE_ID_BERKOM_T_CONCEPT, PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_BERKOM,   PCI_DEVICE_ID_BERKOM_A1T,       PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_ANIGMA,   PCI_DEVICE_ID_ANIGMA_MC145575,  PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_ZOLTRIX,  PCI_DEVICE_ID_ZOLTRIX_2BD0,     PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_DIGI,     PCI_DEVICE_ID_DIGI_DF_M_IOM2_E, PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_DIGI,     PCI_DEVICE_ID_DIGI_DF_M_E,      PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_DIGI,     PCI_DEVICE_ID_DIGI_DF_M_IOM2_A, PCI_ANY_ID, PCI_ANY_ID},
-	{PCI_VENDOR_ID_DIGI,     PCI_DEVICE_ID_DIGI_DF_M_A,      PCI_ANY_ID, PCI_ANY_ID},
+	{PCI_VDEVICE(CCD,      PCI_DEVICE_ID_CCD_2BD0)			},
+	{PCI_VDEVICE(CCD,      PCI_DEVICE_ID_CCD_B000)			},
+	{PCI_VDEVICE(CCD,      PCI_DEVICE_ID_CCD_B006)			},
+	{PCI_VDEVICE(CCD,      PCI_DEVICE_ID_CCD_B007)			},
+	{PCI_VDEVICE(CCD,      PCI_DEVICE_ID_CCD_B008)			},
+	{PCI_VDEVICE(CCD,      PCI_DEVICE_ID_CCD_B009)			},
+	{PCI_VDEVICE(CCD,      PCI_DEVICE_ID_CCD_B00A)			},
+	{PCI_VDEVICE(CCD,      PCI_DEVICE_ID_CCD_B00B)			},
+	{PCI_VDEVICE(CCD,      PCI_DEVICE_ID_CCD_B00C)			},
+	{PCI_VDEVICE(CCD,      PCI_DEVICE_ID_CCD_B100)			},
+	{PCI_VDEVICE(CCD,      PCI_DEVICE_ID_CCD_B700)			},
+	{PCI_VDEVICE(CCD,      PCI_DEVICE_ID_CCD_B701)			},
+	{PCI_VDEVICE(ABOCOM,   PCI_DEVICE_ID_ABOCOM_2BD1)		},
+	{PCI_VDEVICE(ASUSTEK,  PCI_DEVICE_ID_ASUSTEK_0675)		},
+	{PCI_VDEVICE(BERKOM,   PCI_DEVICE_ID_BERKOM_T_CONCEPT)	},
+	{PCI_VDEVICE(BERKOM,   PCI_DEVICE_ID_BERKOM_A1T)		},
+	{PCI_VDEVICE(ANIGMA,   PCI_DEVICE_ID_ANIGMA_MC145575)	},
+	{PCI_VDEVICE(ZOLTRIX,  PCI_DEVICE_ID_ZOLTRIX_2BD0)		},
+	{PCI_VDEVICE(DIGI,     PCI_DEVICE_ID_DIGI_DF_M_IOM2_E)	},
+	{PCI_VDEVICE(DIGI,     PCI_DEVICE_ID_DIGI_DF_M_E)		},
+	{PCI_VDEVICE(DIGI,     PCI_DEVICE_ID_DIGI_DF_M_IOM2_A)	},
+	{PCI_VDEVICE(DIGI,     PCI_DEVICE_ID_DIGI_DF_M_A)		},
 #endif
 	{ }				/* Terminating entry */
 };

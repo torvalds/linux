@@ -18,9 +18,8 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/seq_file.h>
-#include <linux/kexec.h>
 #include <linux/of_platform.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <mm/mmu_decl.h>
 
 #include <asm/io.h>
@@ -65,7 +64,7 @@ static int __init page_aligned(unsigned long x)
 
 void __init wii_memory_fixups(void)
 {
-	struct lmb_property *p = lmb.memory.region;
+	struct memblock_region *p = memblock.memory.regions;
 
 	/*
 	 * This is part of a workaround to allow the use of two
@@ -77,7 +76,7 @@ void __init wii_memory_fixups(void)
 	 * between both ranges.
 	 */
 
-	BUG_ON(lmb.memory.cnt != 2);
+	BUG_ON(memblock.memory.cnt != 2);
 	BUG_ON(!page_aligned(p[0].base) || !page_aligned(p[1].base));
 
 	p[0].size = _ALIGN_DOWN(p[0].size, PAGE_SIZE);
@@ -92,11 +91,11 @@ void __init wii_memory_fixups(void)
 
 	p[0].size += wii_hole_size + p[1].size;
 
-	lmb.memory.cnt = 1;
-	lmb_analyze();
+	memblock.memory.cnt = 1;
+	memblock_analyze();
 
 	/* reserve the hole */
-	lmb_reserve(wii_hole_start, wii_hole_size);
+	memblock_reserve(wii_hole_start, wii_hole_size);
 
 	/* allow ioremapping the address space in the hole */
 	__allow_ioremap_reserved = 1;
@@ -226,13 +225,6 @@ static void wii_shutdown(void)
 	flipper_quiesce();
 }
 
-#ifdef CONFIG_KEXEC
-static int wii_machine_kexec_prepare(struct kimage *image)
-{
-	return 0;
-}
-#endif /* CONFIG_KEXEC */
-
 define_machine(wii) {
 	.name			= "wii",
 	.probe			= wii_probe,
@@ -246,9 +238,6 @@ define_machine(wii) {
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 	.machine_shutdown	= wii_shutdown,
-#ifdef CONFIG_KEXEC
-	.machine_kexec_prepare	= wii_machine_kexec_prepare,
-#endif
 };
 
 static struct of_device_id wii_of_bus[] = {

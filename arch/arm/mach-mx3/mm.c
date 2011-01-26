@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/mm.h>
@@ -40,40 +36,16 @@
  * @ingroup Memory
  */
 
-/*!
- * This table defines static virtual address mappings for I/O regions.
- * These are the mappings common across all MX3 boards.
- */
-static struct map_desc mxc_io_desc[] __initdata = {
-	{
-		.virtual	= X_MEMC_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(X_MEMC_BASE_ADDR),
-		.length		= X_MEMC_SIZE,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= AVIC_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AVIC_BASE_ADDR),
-		.length		= AVIC_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual	= AIPS1_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS1_BASE_ADDR),
-		.length		= AIPS1_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual	= AIPS2_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS2_BASE_ADDR),
-		.length		= AIPS2_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual = SPBA0_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(SPBA0_BASE_ADDR),
-		.length = SPBA0_SIZE,
-		.type = MT_DEVICE_NONSHARED
-	},
+#ifdef CONFIG_SOC_IMX31
+static struct map_desc mx31_io_desc[] __initdata = {
+	imx_map_entry(MX31, X_MEMC, MT_DEVICE),
+	imx_map_entry(MX31, AVIC, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX31, AIPS1, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX31, AIPS2, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX31, SPBA0, MT_DEVICE_NONSHARED),
 };
 
-/*!
+/*
  * This function initializes the memory map. It is called during the
  * system startup to create static physical to virtual memory mappings
  * for the IO modules.
@@ -81,38 +53,69 @@ static struct map_desc mxc_io_desc[] __initdata = {
 void __init mx31_map_io(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX31);
-	mxc_arch_reset_init(IO_ADDRESS(WDOG_BASE_ADDR));
+	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
 
-	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
+	iotable_init(mx31_io_desc, ARRAY_SIZE(mx31_io_desc));
 }
 
-#ifdef CONFIG_ARCH_MX35
+int imx31_register_gpios(void);
+void __init mx31_init_irq(void)
+{
+	mxc_init_irq(MX31_IO_ADDRESS(MX31_AVIC_BASE_ADDR));
+	imx31_register_gpios();
+}
+#endif /* ifdef CONFIG_SOC_IMX31 */
+
+#ifdef CONFIG_SOC_IMX35
+static struct map_desc mx35_io_desc[] __initdata = {
+	imx_map_entry(MX35, X_MEMC, MT_DEVICE),
+	imx_map_entry(MX35, AVIC, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, AIPS1, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, AIPS2, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, SPBA0, MT_DEVICE_NONSHARED),
+};
+
 void __init mx35_map_io(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX35);
-	mxc_iomux_v3_init(IO_ADDRESS(IOMUXC_BASE_ADDR));
-	mxc_arch_reset_init(IO_ADDRESS(WDOG_BASE_ADDR));
+	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
+	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
 
-	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
-}
-#endif
-
-void __init mx31_init_irq(void)
-{
-	mxc_init_irq(IO_ADDRESS(AVIC_BASE_ADDR));
+	iotable_init(mx35_io_desc, ARRAY_SIZE(mx35_io_desc));
 }
 
+int imx35_register_gpios(void);
 void __init mx35_init_irq(void)
 {
-	mx31_init_irq();
+	mxc_init_irq(MX35_IO_ADDRESS(MX35_AVIC_BASE_ADDR));
+	imx35_register_gpios();
 }
+#endif /* ifdef CONFIG_SOC_IMX35 */
 
 #ifdef CONFIG_CACHE_L2X0
 static int mxc_init_l2x0(void)
 {
 	void __iomem *l2x0_base;
+	void __iomem *clkctl_base;
+/*
+ * First of all, we must repair broken chip settings. There are some
+ * i.MX35 CPUs in the wild, comming with bogus L2 cache settings. These
+ * misconfigured CPUs will run amok immediately when the L2 cache gets enabled.
+ * Workaraound is to setup the correct register setting prior enabling the
+ * L2 cache. This should not hurt already working CPUs, as they are using the
+ * same value
+ */
+#define L2_MEM_VAL 0x10
 
-	l2x0_base = ioremap(L2CC_BASE_ADDR, 4096);
+	clkctl_base = ioremap(MX35_CLKCTL_BASE_ADDR, 4096);
+	if (clkctl_base != NULL) {
+		writel(0x00000515, clkctl_base + L2_MEM_VAL);
+		iounmap(clkctl_base);
+	} else {
+		pr_err("L2 cache: Cannot fix timing. Trying to continue without\n");
+	}
+
+	l2x0_base = ioremap(MX3x_L2CC_BASE_ADDR, 4096);
 	if (IS_ERR(l2x0_base)) {
 		printk(KERN_ERR "remapping L2 cache area failed with %ld\n",
 				PTR_ERR(l2x0_base));

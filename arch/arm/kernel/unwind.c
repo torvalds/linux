@@ -26,6 +26,7 @@
  * http://infocenter.arm.com/help/topic/com.arm.doc.subset.swdev.abi/index.html
  */
 
+#ifndef __CHECKER__
 #if !defined (__ARM_EABI__)
 #warning Your compiler does not have EABI support.
 #warning    ARM unwind is known to compile only with EABI compilers.
@@ -34,6 +35,7 @@
 #warning Your compiler is too buggy; it is known to not compile ARM unwind support.
 #warning    Change compiler or disable ARM_UNWIND option.
 #endif
+#endif /* __CHECKER__ */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -144,6 +146,8 @@ static struct unwind_idx *unwind_find_idx(unsigned long addr)
 			    addr < table->end_addr) {
 				idx = search_index(addr, table->start,
 						   table->stop - 1);
+				/* Move-to-front to exploit common traces */
+				list_move(&table->list, &unwind_tables);
 				break;
 			}
 		}
@@ -275,7 +279,7 @@ int unwind_frame(struct stackframe *frame)
 
 	/* only go to a higher address on the stack */
 	low = frame->sp;
-	high = ALIGN(low, THREAD_SIZE) + THREAD_SIZE;
+	high = ALIGN(low, THREAD_SIZE);
 
 	pr_debug("%s(pc = %08lx lr = %08lx sp = %08lx)\n", __func__,
 		 frame->pc, frame->lr, frame->sp);

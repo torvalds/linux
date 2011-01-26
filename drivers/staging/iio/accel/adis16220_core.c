@@ -14,7 +14,7 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
-
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
 
@@ -72,13 +72,13 @@ static int adis16220_spi_write_reg_16(struct device *dev,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = 25,
+			.delay_usecs = 35,
 		}, {
 			.tx_buf = st->tx + 2,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = 25,
+			.delay_usecs = 35,
 		},
 	};
 
@@ -118,13 +118,13 @@ static int adis16220_spi_read_reg_16(struct device *dev,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = 25,
+			.delay_usecs = 35,
 		}, {
 			.rx_buf = st->rx,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = 25,
+			.delay_usecs = 35,
 		},
 	};
 
@@ -291,9 +291,9 @@ static int adis16220_check_status(struct device *dev)
 	if (status & ADIS16220_DIAG_STAT_FLASH_UPT)
 		dev_err(dev, "Flash update failed\n");
 	if (status & ADIS16220_DIAG_STAT_POWER_HIGH)
-		dev_err(dev, "Power supply above 5.25V\n");
+		dev_err(dev, "Power supply above 3.625V\n");
 	if (status & ADIS16220_DIAG_STAT_POWER_LOW)
-		dev_err(dev, "Power supply below 4.75V\n");
+		dev_err(dev, "Power supply below 3.15V\n");
 
 error_ret:
 	return ret;
@@ -414,7 +414,7 @@ static ssize_t adis16220_capture_buffer_read(struct adis16220_state *st,
 	return count;
 }
 
-static ssize_t adis16220_accel_bin_read(struct kobject *kobj,
+static ssize_t adis16220_accel_bin_read(struct file *filp, struct kobject *kobj,
 					struct bin_attribute *attr,
 					char *buf,
 					loff_t off,
@@ -438,7 +438,7 @@ static struct bin_attribute accel_bin = {
 	.size = ADIS16220_CAPTURE_SIZE,
 };
 
-static ssize_t adis16220_adc1_bin_read(struct kobject *kobj,
+static ssize_t adis16220_adc1_bin_read(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr,
 				char *buf, loff_t off,
 				size_t count)
@@ -461,7 +461,7 @@ static struct bin_attribute adc1_bin = {
 	.size = ADIS16220_CAPTURE_SIZE,
 };
 
-static ssize_t adis16220_adc2_bin_read(struct kobject *kobj,
+static ssize_t adis16220_adc2_bin_read(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr,
 				char *buf, loff_t off,
 				size_t count)
@@ -485,9 +485,9 @@ static struct bin_attribute adc2_bin = {
 	.size = ADIS16220_CAPTURE_SIZE,
 };
 
-static IIO_DEV_ATTR_IN_NAMED_RAW(supply, adis16220_read_12bit_unsigned,
+static IIO_DEV_ATTR_IN_NAMED_RAW(0, supply, adis16220_read_12bit_unsigned,
 		ADIS16220_CAPT_SUPPLY);
-static IIO_CONST_ATTR(in_supply_scale, "0.0012207");
+static IIO_CONST_ATTR_IN_NAMED_SCALE(0, supply, "0.0012207");
 static IIO_DEV_ATTR_ACCEL(adis16220_read_16bit, ADIS16220_CAPT_BUFA);
 static IIO_DEVICE_ATTR(accel_peak_raw, S_IRUGO, adis16220_read_16bit,
 		NULL, ADIS16220_CAPT_PEAKA);
@@ -495,18 +495,19 @@ static IIO_DEV_ATTR_ACCEL_OFFSET(S_IWUSR | S_IRUGO,
 		adis16220_read_16bit,
 		adis16220_write_16bit,
 		ADIS16220_ACCL_NULL);
+static IIO_CONST_ATTR_ACCEL_SCALE("0.18704223545");
 static IIO_DEV_ATTR_TEMP_RAW(adis16220_read_12bit_unsigned);
-static IIO_CONST_ATTR(temp_offset, "25");
-static IIO_CONST_ATTR(temp_scale, "-0.47");
+static IIO_CONST_ATTR_TEMP_OFFSET("25");
+static IIO_CONST_ATTR_TEMP_SCALE("-0.47");
 
-static IIO_DEV_ATTR_IN_RAW(0, adis16220_read_16bit, ADIS16220_CAPT_BUF1);
-static IIO_DEV_ATTR_IN_RAW(1, adis16220_read_16bit, ADIS16220_CAPT_BUF2);
+static IIO_DEV_ATTR_IN_RAW(1, adis16220_read_16bit, ADIS16220_CAPT_BUF1);
+static IIO_DEV_ATTR_IN_RAW(2, adis16220_read_16bit, ADIS16220_CAPT_BUF2);
 
 static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL,
 		adis16220_write_reset, 0);
 
 #define IIO_DEV_ATTR_CAPTURE(_store)				\
-	IIO_DEVICE_ATTR(capture, S_IWUGO, NULL, _store, 0)
+	IIO_DEVICE_ATTR(capture, S_IWUSR, NULL, _store, 0)
 
 static IIO_DEV_ATTR_CAPTURE(adis16220_write_capture);
 
@@ -518,22 +519,23 @@ static IIO_DEV_ATTR_CAPTURE_COUNT(S_IWUSR | S_IRUGO,
 		adis16220_write_16bit,
 		ADIS16220_CAPT_PNTR);
 
-static IIO_CONST_ATTR_AVAIL_SAMP_FREQ("100200");
+static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("100200");
 
-static IIO_CONST_ATTR(name, "adis16220");
+static IIO_CONST_ATTR_NAME("adis16220");
 
 static struct attribute *adis16220_attributes[] = {
-	&iio_dev_attr_in_supply_raw.dev_attr.attr,
-	&iio_const_attr_in_supply_scale.dev_attr.attr,
+	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
+	&iio_const_attr_in0_supply_scale.dev_attr.attr,
 	&iio_dev_attr_accel_raw.dev_attr.attr,
 	&iio_dev_attr_accel_offset.dev_attr.attr,
 	&iio_dev_attr_accel_peak_raw.dev_attr.attr,
+	&iio_const_attr_accel_scale.dev_attr.attr,
 	&iio_dev_attr_temp_raw.dev_attr.attr,
-	&iio_dev_attr_in0_raw.dev_attr.attr,
 	&iio_dev_attr_in1_raw.dev_attr.attr,
+	&iio_dev_attr_in2_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
-	&iio_const_attr_available_sampling_frequency.dev_attr.attr,
+	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_capture.dev_attr.attr,
 	&iio_dev_attr_capture_count.dev_attr.attr,

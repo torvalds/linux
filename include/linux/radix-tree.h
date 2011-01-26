@@ -34,19 +34,15 @@
  * needed for RCU lookups (because root->height is unreliable). The only
  * time callers need worry about this is when doing a lookup_slot under
  * RCU.
+ *
+ * Indirect pointer in fact is also used to tag the last pointer of a node
+ * when it is shrunk, before we rcu free the node. See shrink code for
+ * details.
  */
 #define RADIX_TREE_INDIRECT_PTR	1
-#define RADIX_TREE_RETRY ((void *)-1UL)
 
-static inline void *radix_tree_ptr_to_indirect(void *ptr)
-{
-	return (void *)((unsigned long)ptr | RADIX_TREE_INDIRECT_PTR);
-}
-
-static inline void *radix_tree_indirect_to_ptr(void *ptr)
-{
-	return (void *)((unsigned long)ptr & ~RADIX_TREE_INDIRECT_PTR);
-}
+#define radix_tree_indirect_to_ptr(ptr) \
+	radix_tree_indirect_to_ptr((void __force *)(ptr))
 
 static inline int radix_tree_is_indirect_ptr(void *ptr)
 {
@@ -55,13 +51,13 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
 
 /*** radix-tree API starts here ***/
 
-#define RADIX_TREE_MAX_TAGS 2
+#define RADIX_TREE_MAX_TAGS 3
 
 /* root tags are stored in gfp_mask, shifted by __GFP_BITS_SHIFT */
 struct radix_tree_root {
 	unsigned int		height;
 	gfp_t			gfp_mask;
-	struct radix_tree_node	*rnode;
+	struct radix_tree_node	__rcu *rnode;
 };
 
 #define RADIX_TREE_INIT(mask)	{					\
@@ -138,16 +134,45 @@ do {									\
  *		removed.
  *
  * For use with radix_tree_lookup_slot().  Caller must hold tree at least read
- * locked across slot lookup and dereference.  More likely, will be used with
- * radix_tree_replace_slot(), as well, so caller will hold tree write locked.
+ * locked across slot lookup and dereference. Not required if write lock is
+ * held (ie. items cannot be concurrently inserted).
+ *
+ * radix_tree_deref_retry must be used to confirm validity of the pointer if
+ * only the read lock is held.
  */
 static inline void *radix_tree_deref_slot(void **pslot)
 {
-	void *ret = rcu_dereference(*pslot);
-	if (unlikely(radix_tree_is_indirect_ptr(ret)))
-		ret = RADIX_TREE_RETRY;
-	return ret;
+	return rcu_dereference(*pslot);
 }
+
+/**
+ * radix_tree_deref_slot_protected	- dereference a slot without RCU lock but with tree lock held
+ * @pslot:	pointer to slot, returned by radix_tree_lookup_slot
+ * Returns:	item that was stored in that slot with any direct pointer flag
+ *		removed.
+ *
+ * Similar to radix_tree_deref_slot but only used during migration when a pages
+ * mapping is being moved. The caller does not hold the RCU read lock but it
+ * must hold the tree lock to prevent parallel updates.
+ */
+static inline void *radix_tree_deref_slot_protected(void **pslot,
+							spinlock_t *treelock)
+{
+	return rcu_dereference_protected(*pslot, lockdep_is_held(treelock));
+}
+
+/**
+ * radix_tree_deref_retry	- check radix_tree_deref_slot
+ * @arg:	pointer returned by radix_tree_deref_slot
+ * Returns:	0 if retry is not required, otherwise retry is required
+ *
+ * radix_tree_deref_retry must be used with radix_tree_deref_slot.
+ */
+static inline int radix_tree_deref_retry(void *arg)
+{
+	return unlikely((unsigned long)arg & RADIX_TREE_INDIRECT_PTR);
+}
+
 /**
  * radix_tree_replace_slot	- replace item in a slot
  * @pslot:	pointer to slot, returned by radix_tree_lookup_slot
@@ -192,6 +217,10 @@ unsigned int
 radix_tree_gang_lookup_tag_slot(struct radix_tree_root *root, void ***results,
 		unsigned long first_index, unsigned int max_items,
 		unsigned int tag);
+unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
+		unsigned long *first_indexp, unsigned long last_index,
+		unsigned long nr_to_tag,
+		unsigned int fromtag, unsigned int totag);
 int radix_tree_tagged(struct radix_tree_root *root, unsigned int tag);
 
 static inline void radix_tree_preload_end(void)

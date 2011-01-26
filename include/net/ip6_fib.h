@@ -21,6 +21,7 @@
 #include <net/dst.h>
 #include <net/flow.h>
 #include <net/netlink.h>
+#include <net/inetpeer.h>
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 #define FIB6_TABLE_HASHSZ 256
@@ -84,13 +85,11 @@ struct rt6key {
 struct fib6_table;
 
 struct rt6_info {
-	union {
-		struct dst_entry	dst;
-	} u;
+	struct dst_entry		dst;
 
-#define rt6i_dev			u.dst.dev
-#define rt6i_nexthop			u.dst.neighbour
-#define rt6i_expires			u.dst.expires
+#define rt6i_dev			dst.dev
+#define rt6i_nexthop			dst.neighbour
+#define rt6i_expires			dst.expires
 
 	/*
 	 * Tail elements of dst_entry (__refcnt etc.)
@@ -111,6 +110,7 @@ struct rt6_info {
 	u32				rt6i_metric;
 
 	struct inet6_dev		*rt6i_idev;
+	struct inet_peer		*rt6i_peer;
 
 #ifdef CONFIG_XFRM
 	u32				rt6i_flow_cache_genid;

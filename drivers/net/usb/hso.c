@@ -73,7 +73,6 @@
 #include <linux/serial.h>
 
 
-#define DRIVER_VERSION			"1.2"
 #define MOD_AUTHOR			"Option Wireless"
 #define MOD_DESCRIPTION			"USB High Speed Option driver"
 #define MOD_LICENSE			"GPL"
@@ -211,7 +210,7 @@ struct hso_serial_state_notification {
 	u16 wIndex;
 	u16 wLength;
 	u16 UART_state_bitmap;
-} __attribute__((packed));
+} __packed;
 
 struct hso_tiocmget {
 	struct mutex mutex;
@@ -401,7 +400,7 @@ static int disable_net;
 /* driver info */
 static const char driver_name[] = "hso";
 static const char tty_filename[] = "ttyHS";
-static const char *version = __FILE__ ": " DRIVER_VERSION " " MOD_AUTHOR;
+static const char *version = __FILE__ ": " MOD_AUTHOR;
 /* the usb driver itself (registered in hso_init) */
 static struct usb_driver hso_driver;
 /* serial structures */
@@ -475,6 +474,10 @@ static const struct usb_device_id hso_ids[] = {
 	{USB_DEVICE(0x0af0, 0x8302)},
 	{USB_DEVICE(0x0af0, 0x8304)},
 	{USB_DEVICE(0x0af0, 0x8400)},
+	{USB_DEVICE(0x0af0, 0x8600)},
+	{USB_DEVICE(0x0af0, 0x8800)},
+	{USB_DEVICE(0x0af0, 0x8900)},
+	{USB_DEVICE(0x0af0, 0x9000)},
 	{USB_DEVICE(0x0af0, 0xd035)},
 	{USB_DEVICE(0x0af0, 0xd055)},
 	{USB_DEVICE(0x0af0, 0xd155)},
@@ -840,17 +843,7 @@ static netdev_tx_t hso_net_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static void hso_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info)
-{
-	struct hso_net *odev = netdev_priv(net);
-
-	strncpy(info->driver, driver_name, ETHTOOL_BUSINFO_LEN);
-	strncpy(info->version, DRIVER_VERSION, ETHTOOL_BUSINFO_LEN);
-	usb_make_path(odev->parent->usb, info->bus_info, sizeof info->bus_info);
-}
-
 static const struct ethtool_ops ops = {
-	.get_drvinfo = hso_get_drvinfo,
 	.get_link = ethtool_op_get_link
 };
 
@@ -965,10 +958,6 @@ static void packetizeRx(struct hso_net *odev, unsigned char *ip_pkt,
 				/* Packet is complete. Inject into stack. */
 				/* We have IP packet here */
 				odev->skb_rx_buf->protocol = cpu_to_be16(ETH_P_IP);
-				/* don't check it */
-				odev->skb_rx_buf->ip_summed =
-					CHECKSUM_UNNECESSARY;
-
 				skb_reset_mac_header(odev->skb_rx_buf);
 
 				/* Ship it off to the kernel */
@@ -1008,6 +997,18 @@ static void packetizeRx(struct hso_net *odev, unsigned char *ip_pkt,
 	}
 }
 
+static void fix_crc_bug(struct urb *urb, __le16 max_packet_size)
+{
+	static const u8 crc_check[4] = { 0xDE, 0xAD, 0xBE, 0xEF };
+	u32 rest = urb->actual_length % le16_to_cpu(max_packet_size);
+
+	if (((rest == 5) || (rest == 6)) &&
+	    !memcmp(((u8 *)urb->transfer_buffer) + urb->actual_length - 4,
+		    crc_check, 4)) {
+		urb->actual_length -= 4;
+	}
+}
+
 /* Moving data from usb to kernel (in interrupt state) */
 static void read_bulk_callback(struct urb *urb)
 {
@@ -1036,17 +1037,8 @@ static void read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	if (odev->parent->port_spec & HSO_INFO_CRC_BUG) {
-		u32 rest;
-		u8 crc_check[4] = { 0xDE, 0xAD, 0xBE, 0xEF };
-		rest = urb->actual_length %
-			le16_to_cpu(odev->in_endp->wMaxPacketSize);
-		if (((rest == 5) || (rest == 6)) &&
-		    !memcmp(((u8 *) urb->transfer_buffer) +
-			    urb->actual_length - 4, crc_check, 4)) {
-			urb->actual_length -= 4;
-		}
-	}
+	if (odev->parent->port_spec & HSO_INFO_CRC_BUG)
+		fix_crc_bug(urb, odev->in_endp->wMaxPacketSize);
 
 	/* do we even have a packet? */
 	if (urb->actual_length) {
@@ -1238,18 +1230,8 @@ static void hso_std_serial_read_bulk_callback(struct urb *urb)
 		return;
 
 	if (status == 0) {
-		if (serial->parent->port_spec & HSO_INFO_CRC_BUG) {
-			u32 rest;
-			u8 crc_check[4] = { 0xDE, 0xAD, 0xBE, 0xEF };
-			rest =
-			    urb->actual_length %
-			    le16_to_cpu(serial->in_endp->wMaxPacketSize);
-			if (((rest == 5) || (rest == 6)) &&
-			    !memcmp(((u8 *) urb->transfer_buffer) +
-				    urb->actual_length - 4, crc_check, 4)) {
-				urb->actual_length -= 4;
-			}
-		}
+		if (serial->parent->port_spec & HSO_INFO_CRC_BUG)
+			fix_crc_bug(urb, serial->in_endp->wMaxPacketSize);
 		/* Valid data, handle RX data */
 		spin_lock(&serial->serial_lock);
 		serial->rx_urb_filled[hso_urb_to_index(serial, urb)] = 1;
@@ -1331,7 +1313,6 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 	/* check for port already opened, if not set the termios */
 	serial->open_count++;
 	if (serial->open_count == 1) {
-		tty->low_latency = 1;
 		serial->rx_state = RX_IDLE;
 		/* Force default termio settings */
 		_hso_serial_set_termios(tty, NULL);
@@ -1644,12 +1625,14 @@ hso_wait_modem_status(struct hso_serial *serial, unsigned long arg)
  * NB: both 1->0 and 0->1 transitions are counted except for
  *     RI where only 0->1 is counted.
  */
-static int hso_get_count(struct hso_serial *serial,
-			  struct serial_icounter_struct __user *icnt)
+static int hso_get_count(struct tty_struct *tty,
+		  struct serial_icounter_struct *icount)
 {
-	struct serial_icounter_struct icount;
 	struct uart_icount cnow;
+	struct hso_serial *serial = get_serial_by_tty(tty);
 	struct hso_tiocmget  *tiocmget = serial->tiocmget;
+
+	memset(&icount, 0, sizeof(struct serial_icounter_struct));
 
 	if (!tiocmget)
 		 return -ENOENT;
@@ -1657,19 +1640,19 @@ static int hso_get_count(struct hso_serial *serial,
 	memcpy(&cnow, &tiocmget->icount, sizeof(struct uart_icount));
 	spin_unlock_irq(&serial->serial_lock);
 
-	icount.cts         = cnow.cts;
-	icount.dsr         = cnow.dsr;
-	icount.rng         = cnow.rng;
-	icount.dcd         = cnow.dcd;
-	icount.rx          = cnow.rx;
-	icount.tx          = cnow.tx;
-	icount.frame       = cnow.frame;
-	icount.overrun     = cnow.overrun;
-	icount.parity      = cnow.parity;
-	icount.brk         = cnow.brk;
-	icount.buf_overrun = cnow.buf_overrun;
+	icount->cts         = cnow.cts;
+	icount->dsr         = cnow.dsr;
+	icount->rng         = cnow.rng;
+	icount->dcd         = cnow.dcd;
+	icount->rx          = cnow.rx;
+	icount->tx          = cnow.tx;
+	icount->frame       = cnow.frame;
+	icount->overrun     = cnow.overrun;
+	icount->parity      = cnow.parity;
+	icount->brk         = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
 
-	return copy_to_user(icnt, &icount, sizeof(icount)) ? -EFAULT : 0;
+	return 0;
 }
 
 
@@ -1751,7 +1734,6 @@ static int hso_serial_ioctl(struct tty_struct *tty, struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
 	struct hso_serial *serial =  get_serial_by_tty(tty);
-	void __user *uarg = (void __user *)arg;
 	int ret = 0;
 	D4("IOCTL cmd: %d, arg: %ld", cmd, arg);
 
@@ -1760,10 +1742,6 @@ static int hso_serial_ioctl(struct tty_struct *tty, struct file *file,
 	switch (cmd) {
 	case TIOCMIWAIT:
 		ret = hso_wait_modem_status(serial, arg);
-		break;
-
-	case TIOCGICOUNT:
-		ret = hso_get_count(serial, uarg);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -3004,12 +2982,14 @@ static int hso_probe(struct usb_interface *interface,
 
 	case HSO_INTF_BULK:
 		/* It's a regular bulk interface */
-		if (((port_spec & HSO_PORT_MASK) == HSO_PORT_NETWORK) &&
-		    !disable_net)
-			hso_dev = hso_create_net_device(interface, port_spec);
-		else
+		if ((port_spec & HSO_PORT_MASK) == HSO_PORT_NETWORK) {
+			if (!disable_net)
+				hso_dev =
+				    hso_create_net_device(interface, port_spec);
+		} else {
 			hso_dev =
 			    hso_create_bulk_serial_device(interface, port_spec);
+		}
 		if (!hso_dev)
 			goto exit;
 		break;
@@ -3297,6 +3277,7 @@ static const struct tty_operations hso_serial_ops = {
 	.chars_in_buffer = hso_serial_chars_in_buffer,
 	.tiocmget = hso_serial_tiocmget,
 	.tiocmset = hso_serial_tiocmset,
+	.get_icount = hso_get_count,
 	.unthrottle = hso_unthrottle
 };
 
@@ -3386,7 +3367,6 @@ module_exit(hso_exit);
 MODULE_AUTHOR(MOD_AUTHOR);
 MODULE_DESCRIPTION(MOD_DESCRIPTION);
 MODULE_LICENSE(MOD_LICENSE);
-MODULE_INFO(Version, DRIVER_VERSION);
 
 /* change the debug level (eg: insmod hso.ko debug=0x04) */
 MODULE_PARM_DESC(debug, "Level of debug [0x01 | 0x02 | 0x04 | 0x08 | 0x10]");

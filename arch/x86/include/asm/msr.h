@@ -148,8 +148,8 @@ static inline unsigned long long native_read_pmc(int counter)
 #define rdmsr(msr, val1, val2)					\
 do {								\
 	u64 __val = native_read_msr((msr));			\
-	(val1) = (u32)__val;					\
-	(val2) = (u32)(__val >> 32);				\
+	(void)((val1) = (u32)__val);				\
+	(void)((val2) = (u32)(__val >> 32));			\
 } while (0)
 
 static inline void wrmsr(unsigned msr, unsigned low, unsigned high)

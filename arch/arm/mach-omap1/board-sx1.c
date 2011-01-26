@@ -164,36 +164,35 @@ EXPORT_SYMBOL(sx1_setusbpower);
 
 /*----------- Keypad -------------------------*/
 
-static int sx1_keymap[] = {
-	KEY(5, 3, GROUP_0 | 117), /* camera Qt::Key_F17 */
-	KEY(0, 4, GROUP_0 | 114), /* voice memo Qt::Key_F14 */
-	KEY(1, 4, GROUP_2 | 114), /* voice memo */
-	KEY(2, 4, GROUP_3 | 114), /* voice memo */
+static const unsigned int sx1_keymap[] = {
+	KEY(3, 5, GROUP_0 | 117), /* camera Qt::Key_F17 */
+	KEY(4, 0, GROUP_0 | 114), /* voice memo Qt::Key_F14 */
+	KEY(4, 1, GROUP_2 | 114), /* voice memo */
+	KEY(4, 2, GROUP_3 | 114), /* voice memo */
 	KEY(0, 0, GROUP_1 | KEY_F12),	/* red button Qt::Key_Hangup */
-	KEY(4, 3, GROUP_1 | KEY_LEFT),
-	KEY(2, 3, GROUP_1 | KEY_DOWN),
-	KEY(1, 3, GROUP_1 | KEY_RIGHT),
-	KEY(0, 3, GROUP_1 | KEY_UP),
+	KEY(3, 4, GROUP_1 | KEY_LEFT),
+	KEY(3, 2, GROUP_1 | KEY_DOWN),
+	KEY(3, 1, GROUP_1 | KEY_RIGHT),
+	KEY(3, 0, GROUP_1 | KEY_UP),
 	KEY(3, 3, GROUP_1 | KEY_POWER), /* joystick press or Qt::Key_Select */
-	KEY(5, 0, GROUP_1 | KEY_1),
-	KEY(4, 0, GROUP_1 | KEY_2),
-	KEY(3, 0, GROUP_1 | KEY_3),
-	KEY(3, 4, GROUP_1 | KEY_4),
+	KEY(0, 5, GROUP_1 | KEY_1),
+	KEY(0, 4, GROUP_1 | KEY_2),
+	KEY(0, 3, GROUP_1 | KEY_3),
+	KEY(4, 3, GROUP_1 | KEY_4),
 	KEY(4, 4, GROUP_1 | KEY_5),
-	KEY(5, 4, GROUP_1 | KEY_KPASTERISK),/* "*" */
-	KEY(4, 1, GROUP_1 | KEY_6),
-	KEY(5, 1, GROUP_1 | KEY_7),
-	KEY(3, 1, GROUP_1 | KEY_8),
-	KEY(3, 2, GROUP_1 | KEY_9),
-	KEY(5, 2, GROUP_1 | KEY_0),
-	KEY(4, 2, GROUP_1 | 113),	/* # F13 Toggle input method Qt::Key_F13 */
-	KEY(0, 1, GROUP_1 | KEY_F11),	/* green button Qt::Key_Call */
-	KEY(1, 2, GROUP_1 | KEY_YEN),	/* left soft Qt::Key_Context1 */
+	KEY(4, 5, GROUP_1 | KEY_KPASTERISK),/* "*" */
+	KEY(1, 4, GROUP_1 | KEY_6),
+	KEY(1, 5, GROUP_1 | KEY_7),
+	KEY(1, 3, GROUP_1 | KEY_8),
+	KEY(2, 3, GROUP_1 | KEY_9),
+	KEY(2, 5, GROUP_1 | KEY_0),
+	KEY(2, 4, GROUP_1 | 113), /* # F13 Toggle input method Qt::Key_F13 */
+	KEY(1, 0, GROUP_1 | KEY_F11),	/* green button Qt::Key_Call */
+	KEY(2, 1, GROUP_1 | KEY_YEN),	/* left soft Qt::Key_Context1 */
 	KEY(2, 2, GROUP_1 | KEY_F8),	/* right soft Qt::Key_Back */
-	KEY(2, 1, GROUP_1 | KEY_LEFTSHIFT), /* shift */
+	KEY(1, 2, GROUP_1 | KEY_LEFTSHIFT), /* shift */
 	KEY(1, 1, GROUP_1 | KEY_BACKSPACE), /* C (clear) */
-	KEY(0, 2, GROUP_1 | KEY_F7),	/* menu Qt::Key_Menu */
-	0
+	KEY(2, 0, GROUP_1 | KEY_F7),	/* menu Qt::Key_Menu */
 };
 
 static struct resource sx1_kp_resources[] = {
@@ -204,11 +203,15 @@ static struct resource sx1_kp_resources[] = {
 	},
 };
 
+static const struct matrix_keymap_data sx1_keymap_data = {
+	.keymap		= sx1_keymap,
+	.keymap_size	= ARRAY_SIZE(sx1_keymap),
+};
+
 static struct omap_kp_platform_data sx1_kp_data = {
 	.rows		= 6,
 	.cols		= 6,
-	.keymap	= sx1_keymap,
-	.keymapsize = ARRAY_SIZE(sx1_keymap),
+	.keymap_data	= &sx1_keymap_data,
 	.delay	= 80,
 };
 
@@ -392,7 +395,7 @@ static void __init omap_sx1_init(void)
 	omap_board_config_size = ARRAY_SIZE(sx1_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
-	omap_usb_init(&sx1_usb_config);
+	omap1_usb_init(&sx1_usb_config);
 	sx1_mmc_init();
 
 	/* turn on USB power */
@@ -409,7 +412,6 @@ static void __init omap_sx1_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
 }
 /*----------------------------------------*/
 
@@ -419,11 +421,10 @@ static void __init omap_sx1_map_io(void)
 }
 
 MACHINE_START(SX1, "OMAP310 based Siemens SX1")
-	.phys_io	= 0xfff00000,
-	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= omap_sx1_map_io,
-	.init_irq		= omap_sx1_init_irq,
+	.reserve	= omap_reserve,
+	.init_irq	= omap_sx1_init_irq,
 	.init_machine	= omap_sx1_init,
 	.timer		= &omap_timer,
 MACHINE_END

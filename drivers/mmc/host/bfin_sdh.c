@@ -469,7 +469,7 @@ static int __devinit sdh_probe(struct platform_device *pdev)
 	}
 
 	mmc->ops = &sdh_ops;
-	mmc->max_phys_segs = 32;
+	mmc->max_segs = 32;
 	mmc->max_seg_size = 1 << 16;
 	mmc->max_blk_size = 1 << 11;
 	mmc->max_blk_count = 1 << 11;
@@ -576,7 +576,7 @@ static int sdh_suspend(struct platform_device *dev, pm_message_t state)
 	int ret = 0;
 
 	if (mmc)
-		ret = mmc_suspend_host(mmc, state);
+		ret = mmc_suspend_host(mmc);
 
 	bfin_write_SDH_PWR_CTL(bfin_read_SDH_PWR_CTL() & ~PWR_ON);
 	peripheral_free_list(drv_data->pin_req);

@@ -121,13 +121,10 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 	memcpy(&vp3054_i2c->algo, &vp3054_i2c_algo_template,
 	       sizeof(vp3054_i2c->algo));
 
-	vp3054_i2c->adap.class |= I2C_CLASS_TV_DIGITAL;
-
 	vp3054_i2c->adap.dev.parent = &dev->pci->dev;
 	strlcpy(vp3054_i2c->adap.name, core->name,
 		sizeof(vp3054_i2c->adap.name));
 	vp3054_i2c->adap.owner = THIS_MODULE;
-	vp3054_i2c->adap.id = I2C_HW_B_CX2388x;
 	vp3054_i2c->algo.data = dev;
 	i2c_set_adapdata(&vp3054_i2c->adap, dev);
 	vp3054_i2c->adap.algo_data = &vp3054_i2c->algo;

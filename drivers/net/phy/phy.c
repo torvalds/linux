@@ -47,11 +47,11 @@ void phy_print_status(struct phy_device *phydev)
 	pr_info("PHY: %s - Link is %s", dev_name(&phydev->dev),
 			phydev->link ? "Up" : "Down");
 	if (phydev->link)
-		printk(" - %d/%s", phydev->speed,
+		printk(KERN_CONT " - %d/%s", phydev->speed,
 				DUPLEX_FULL == phydev->duplex ?
 				"Full" : "Half");
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 EXPORT_SYMBOL(phy_print_status);
 
@@ -65,7 +65,7 @@ EXPORT_SYMBOL(phy_print_status);
  *
  * Returns 0 on success on < 0 on error.
  */
-int phy_clear_interrupt(struct phy_device *phydev)
+static int phy_clear_interrupt(struct phy_device *phydev)
 {
 	int err = 0;
 
@@ -82,7 +82,7 @@ int phy_clear_interrupt(struct phy_device *phydev)
  *
  * Returns 0 on success on < 0 on error.
  */
-int phy_config_interrupt(struct phy_device *phydev, u32 interrupts)
+static int phy_config_interrupt(struct phy_device *phydev, u32 interrupts)
 {
 	int err = 0;
 
@@ -208,7 +208,7 @@ static inline int phy_find_valid(int idx, u32 features)
  *   duplexes.  Drop down by one in this order:  1000/FULL,
  *   1000/HALF, 100/FULL, 100/HALF, 10/FULL, 10/HALF.
  */
-void phy_sanitize_settings(struct phy_device *phydev)
+static void phy_sanitize_settings(struct phy_device *phydev)
 {
 	u32 features = phydev->supported;
 	int idx;
@@ -223,7 +223,6 @@ void phy_sanitize_settings(struct phy_device *phydev)
 	phydev->speed = settings[idx].speed;
 	phydev->duplex = settings[idx].duplex;
 }
-EXPORT_SYMBOL(phy_sanitize_settings);
 
 /**
  * phy_ethtool_sset - generic ethtool sset function, handles all the details
@@ -301,7 +300,7 @@ EXPORT_SYMBOL(phy_ethtool_gset);
 /**
  * phy_mii_ioctl - generic PHY MII ioctl interface
  * @phydev: the phy_device struct
- * @mii_data: MII ioctl data
+ * @ifr: &struct ifreq for socket ioctl's
  * @cmd: ioctl cmd to execute
  *
  * Note that this function is currently incompatible with the
@@ -309,8 +308,9 @@ EXPORT_SYMBOL(phy_ethtool_gset);
  * current state.  Use at own risk.
  */
 int phy_mii_ioctl(struct phy_device *phydev,
-		struct mii_ioctl_data *mii_data, int cmd)
+		struct ifreq *ifr, int cmd)
 {
+	struct mii_ioctl_data *mii_data = if_mii(ifr);
 	u16 val = mii_data->val_in;
 
 	switch (cmd) {
@@ -359,6 +359,11 @@ int phy_mii_ioctl(struct phy_device *phydev,
 			phydev->drv->config_init(phydev);
 		}
 		break;
+
+	case SIOCSHWTSTAMP:
+		if (phydev->drv->hwtstamp)
+			return phydev->drv->hwtstamp(phydev, ifr);
+		/* fall through */
 
 	default:
 		return -EOPNOTSUPP;
@@ -526,7 +531,7 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
  * phy_enable_interrupts - Enable the interrupts from the PHY side
  * @phydev: target phy_device struct
  */
-int phy_enable_interrupts(struct phy_device *phydev)
+static int phy_enable_interrupts(struct phy_device *phydev)
 {
 	int err;
 
@@ -539,13 +544,12 @@ int phy_enable_interrupts(struct phy_device *phydev)
 
 	return err;
 }
-EXPORT_SYMBOL(phy_enable_interrupts);
 
 /**
  * phy_disable_interrupts - Disable the PHY interrupts from the PHY side
  * @phydev: target phy_device struct
  */
-int phy_disable_interrupts(struct phy_device *phydev)
+static int phy_disable_interrupts(struct phy_device *phydev)
 {
 	int err;
 
@@ -568,7 +572,6 @@ phy_err:
 
 	return err;
 }
-EXPORT_SYMBOL(phy_disable_interrupts);
 
 /**
  * phy_start_interrupts - request and enable interrupts for a PHY device

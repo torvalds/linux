@@ -18,10 +18,8 @@ int ip6_route_me_harder(struct sk_buff *skb)
 	struct flowi fl = {
 		.oif = skb->sk ? skb->sk->sk_bound_dev_if : 0,
 		.mark = skb->mark,
-		.nl_u =
-		{ .ip6_u =
-		  { .daddr = iph->daddr,
-		    .saddr = iph->saddr, } },
+		.fl6_dst = iph->daddr,
+		.fl6_src = iph->saddr,
 	};
 
 	dst = ip6_route_output(net, skb->sk, &fl);
@@ -151,9 +149,7 @@ static __sum16 nf_ip6_checksum_partial(struct sk_buff *skb, unsigned int hook,
 							 protocol,
 							 csum_sub(0, hsum)));
 		skb->ip_summed = CHECKSUM_NONE;
-		csum = __skb_checksum_complete_head(skb, dataoff + len);
-		if (!csum)
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		return __skb_checksum_complete_head(skb, dataoff + len);
 	}
 	return csum;
 };

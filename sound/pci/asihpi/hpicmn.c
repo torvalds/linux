@@ -347,20 +347,20 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 			found = 0;
 		break;
 	case HPI_CONTROL_TUNER:
-		{
-			struct hpi_control_cache_single *pCT =
-				(struct hpi_control_cache_single *)pI;
-			if (phm->u.c.attribute == HPI_TUNER_FREQ)
-				phr->u.c.param1 = pCT->u.t.freq_ink_hz;
-			else if (phm->u.c.attribute == HPI_TUNER_BAND)
-				phr->u.c.param1 = pCT->u.t.band;
-			else if ((phm->u.c.attribute == HPI_TUNER_LEVEL)
-				&& (phm->u.c.param1 ==
-					HPI_TUNER_LEVEL_AVERAGE))
-				phr->u.c.param1 = pCT->u.t.level;
-			else
-				found = 0;
-		}
+		if (phm->u.c.attribute == HPI_TUNER_FREQ)
+			phr->u.c.param1 = pC->u.t.freq_ink_hz;
+		else if (phm->u.c.attribute == HPI_TUNER_BAND)
+			phr->u.c.param1 = pC->u.t.band;
+		else if ((phm->u.c.attribute == HPI_TUNER_LEVEL)
+			&& (phm->u.c.param1 == HPI_TUNER_LEVEL_AVERAGE))
+			if (pC->u.t.level == HPI_ERROR_ILLEGAL_CACHE_VALUE) {
+				phr->u.c.param1 = 0;
+				phr->error =
+					HPI_ERROR_INVALID_CONTROL_ATTRIBUTE;
+			} else
+				phr->u.c.param1 = pC->u.t.level;
+		else
+			found = 0;
 		break;
 	case HPI_CONTROL_AESEBU_RECEIVER:
 		if (phm->u.c.attribute == HPI_AESEBURX_ERRORSTATUS)
@@ -402,7 +402,8 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 			if (pC->u.clk.source_index ==
 				HPI_ERROR_ILLEGAL_CACHE_VALUE) {
 				phr->u.c.param1 = 0;
-				phr->error = HPI_ERROR_INVALID_OPERATION;
+				phr->error =
+					HPI_ERROR_INVALID_CONTROL_ATTRIBUTE;
 			} else
 				phr->u.c.param1 = pC->u.clk.source_index;
 		} else if (phm->u.c.attribute == HPI_SAMPLECLOCK_SAMPLERATE)
@@ -503,6 +504,9 @@ void hpi_sync_control_cache(struct hpi_control_cache *p_cache,
 	struct hpi_control_cache_single *pC;
 	struct hpi_control_cache_info *pI;
 
+	if (phr->error)
+		return;
+
 	if (!find_control(phm, p_cache, &pI, &control_index))
 		return;
 
@@ -520,8 +524,6 @@ void hpi_sync_control_cache(struct hpi_control_cache *p_cache,
 		break;
 	case HPI_CONTROL_MULTIPLEXER:
 		/* mux does not return its setting on Set command. */
-		if (phr->error)
-			return;
 		if (phm->u.c.attribute == HPI_MULTIPLEXER_SOURCE) {
 			pC->u.x.source_node_type = (u16)phm->u.c.param1;
 			pC->u.x.source_node_index = (u16)phm->u.c.param2;
@@ -529,8 +531,6 @@ void hpi_sync_control_cache(struct hpi_control_cache *p_cache,
 		break;
 	case HPI_CONTROL_CHANNEL_MODE:
 		/* mode does not return its setting on Set command. */
-		if (phr->error)
-			return;
 		if (phm->u.c.attribute == HPI_CHANNEL_MODE_MODE)
 			pC->u.m.mode = (u16)phm->u.c.param1;
 		break;
@@ -545,20 +545,14 @@ void hpi_sync_control_cache(struct hpi_control_cache *p_cache,
 			pC->u.phantom_power.state = (u16)phm->u.c.param1;
 		break;
 	case HPI_CONTROL_AESEBU_TRANSMITTER:
-		if (phr->error)
-			return;
 		if (phm->u.c.attribute == HPI_AESEBUTX_FORMAT)
 			pC->u.aes3tx.format = phm->u.c.param1;
 		break;
 	case HPI_CONTROL_AESEBU_RECEIVER:
-		if (phr->error)
-			return;
 		if (phm->u.c.attribute == HPI_AESEBURX_FORMAT)
 			pC->u.aes3rx.source = phm->u.c.param1;
 		break;
 	case HPI_CONTROL_SAMPLECLOCK:
-		if (phr->error)
-			return;
 		if (phm->u.c.attribute == HPI_SAMPLECLOCK_SOURCE)
 			pC->u.clk.source = (u16)phm->u.c.param1;
 		else if (phm->u.c.attribute == HPI_SAMPLECLOCK_SOURCE_INDEX)
@@ -577,20 +571,26 @@ struct hpi_control_cache *hpi_alloc_control_cache(const u32
 {
 	struct hpi_control_cache *p_cache =
 		kmalloc(sizeof(*p_cache), GFP_KERNEL);
+	if (!p_cache)
+		return NULL;
+	p_cache->p_info =
+		kmalloc(sizeof(*p_cache->p_info) * number_of_controls,
+			GFP_KERNEL);
+	if (!p_cache->p_info) {
+		kfree(p_cache);
+		return NULL;
+	}
 	p_cache->cache_size_in_bytes = size_in_bytes;
 	p_cache->control_count = number_of_controls;
 	p_cache->p_cache =
 		(struct hpi_control_cache_single *)pDSP_control_buffer;
 	p_cache->init = 0;
-	p_cache->p_info =
-		kmalloc(sizeof(*p_cache->p_info) * p_cache->control_count,
-		GFP_KERNEL);
 	return p_cache;
 }
 
 void hpi_free_control_cache(struct hpi_control_cache *p_cache)
 {
-	if ((p_cache->init) && (p_cache->p_info)) {
+	if (p_cache->init) {
 		kfree(p_cache->p_info);
 		p_cache->p_info = NULL;
 		p_cache->init = 0;

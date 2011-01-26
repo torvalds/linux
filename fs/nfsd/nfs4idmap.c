@@ -33,10 +33,11 @@
  */
 
 #include <linux/module.h>
-#include <linux/nfsd_idmap.h>
 #include <linux/seq_file.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include "idmap.h"
+#include "nfsd.h"
 
 /*
  * Cache entry
@@ -482,109 +483,26 @@ nfsd_idmap_shutdown(void)
 	cache_unregister(&nametoid_cache);
 }
 
-/*
- * Deferred request handling
- */
-
-struct idmap_defer_req {
-       struct cache_req		req;
-       struct cache_deferred_req deferred_req;
-       wait_queue_head_t	waitq;
-       atomic_t			count;
-};
-
-static inline void
-put_mdr(struct idmap_defer_req *mdr)
-{
-	if (atomic_dec_and_test(&mdr->count))
-		kfree(mdr);
-}
-
-static inline void
-get_mdr(struct idmap_defer_req *mdr)
-{
-	atomic_inc(&mdr->count);
-}
-
-static void
-idmap_revisit(struct cache_deferred_req *dreq, int toomany)
-{
-	struct idmap_defer_req *mdr =
-		container_of(dreq, struct idmap_defer_req, deferred_req);
-
-	wake_up(&mdr->waitq);
-	put_mdr(mdr);
-}
-
-static struct cache_deferred_req *
-idmap_defer(struct cache_req *req)
-{
-	struct idmap_defer_req *mdr =
-		container_of(req, struct idmap_defer_req, req);
-
-	mdr->deferred_req.revisit = idmap_revisit;
-	get_mdr(mdr);
-	return (&mdr->deferred_req);
-}
-
-static inline int
-do_idmap_lookup(struct ent *(*lookup_fn)(struct ent *), struct ent *key,
-		struct cache_detail *detail, struct ent **item,
-		struct idmap_defer_req *mdr)
-{
-	*item = lookup_fn(key);
-	if (!*item)
-		return -ENOMEM;
-	return cache_check(detail, &(*item)->h, &mdr->req);
-}
-
-static inline int
-do_idmap_lookup_nowait(struct ent *(*lookup_fn)(struct ent *),
-			struct ent *key, struct cache_detail *detail,
-			struct ent **item)
-{
-	int ret = -ENOMEM;
-
-	*item = lookup_fn(key);
-	if (!*item)
-		goto out_err;
-	ret = -ETIMEDOUT;
-	if (!test_bit(CACHE_VALID, &(*item)->h.flags)
-			|| (*item)->h.expiry_time < get_seconds()
-			|| detail->flush_time > (*item)->h.last_refresh)
-		goto out_put;
-	ret = -ENOENT;
-	if (test_bit(CACHE_NEGATIVE, &(*item)->h.flags))
-		goto out_put;
-	return 0;
-out_put:
-	cache_put(&(*item)->h, detail);
-out_err:
-	*item = NULL;
-	return ret;
-}
-
 static int
 idmap_lookup(struct svc_rqst *rqstp,
 		struct ent *(*lookup_fn)(struct ent *), struct ent *key,
 		struct cache_detail *detail, struct ent **item)
 {
-	struct idmap_defer_req *mdr;
 	int ret;
 
-	mdr = kzalloc(sizeof(*mdr), GFP_KERNEL);
-	if (!mdr)
+	*item = lookup_fn(key);
+	if (!*item)
 		return -ENOMEM;
-	atomic_set(&mdr->count, 1);
-	init_waitqueue_head(&mdr->waitq);
-	mdr->req.defer = idmap_defer;
-	ret = do_idmap_lookup(lookup_fn, key, detail, item, mdr);
-	if (ret == -EAGAIN) {
-		wait_event_interruptible_timeout(mdr->waitq,
-			test_bit(CACHE_VALID, &(*item)->h.flags), 1 * HZ);
-		ret = do_idmap_lookup_nowait(lookup_fn, key, detail, item);
+ retry:
+	ret = cache_check(detail, &(*item)->h, &rqstp->rq_chandle);
+
+	if (ret == -ETIMEDOUT) {
+		struct ent *prev_item = *item;
+		*item = lookup_fn(key);
+		if (*item != prev_item)
+			goto retry;
+		cache_put(&(*item)->h, detail);
 	}
-	put_mdr(mdr);
 	return ret;
 }
 
@@ -597,7 +515,7 @@ rqst_authname(struct svc_rqst *rqstp)
 	return clp->name;
 }
 
-static int
+static __be32
 idmap_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen,
 		uid_t *id)
 {
@@ -607,15 +525,15 @@ idmap_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen
 	int ret;
 
 	if (namelen + 1 > sizeof(key.name))
-		return -EINVAL;
+		return nfserr_badowner;
 	memcpy(key.name, name, namelen);
 	key.name[namelen] = '\0';
 	strlcpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
 	ret = idmap_lookup(rqstp, nametoid_lookup, &key, &nametoid_cache, &item);
 	if (ret == -ENOENT)
-		ret = -ESRCH; /* nfserr_badname */
+		return nfserr_badowner;
 	if (ret)
-		return ret;
+		return nfserrno(ret);
 	*id = item->id;
 	cache_put(&item->h, &nametoid_cache);
 	return 0;
@@ -643,14 +561,14 @@ idmap_id_to_name(struct svc_rqst *rqstp, int type, uid_t id, char *name)
 	return ret;
 }
 
-int
+__be32
 nfsd_map_name_to_uid(struct svc_rqst *rqstp, const char *name, size_t namelen,
 		__u32 *id)
 {
 	return idmap_name_to_id(rqstp, IDMAP_TYPE_USER, name, namelen, id);
 }
 
-int
+__be32
 nfsd_map_name_to_gid(struct svc_rqst *rqstp, const char *name, size_t namelen,
 		__u32 *id)
 {

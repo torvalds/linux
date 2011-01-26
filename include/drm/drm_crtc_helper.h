@@ -39,6 +39,11 @@
 
 #include <linux/fb.h>
 
+enum mode_set_atomic {
+	LEAVE_ATOMIC_MODE_SET,
+	ENTER_ATOMIC_MODE_SET,
+};
+
 struct drm_crtc_helper_funcs {
 	/*
 	 * Control power levels on the CRTC.  If the mode passed in is
@@ -60,9 +65,15 @@ struct drm_crtc_helper_funcs {
 	/* Move the crtc on the current fb to the given position *optional* */
 	int (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
 			     struct drm_framebuffer *old_fb);
+	int (*mode_set_base_atomic)(struct drm_crtc *crtc,
+				    struct drm_framebuffer *fb, int x, int y,
+				    enum mode_set_atomic);
 
 	/* reload the current crtc LUT */
 	void (*load_lut)(struct drm_crtc *crtc);
+
+	/* disable crtc when not in use - more explicit than dpms off */
+	void (*disable)(struct drm_crtc *crtc);
 };
 
 struct drm_encoder_helper_funcs {
@@ -130,4 +141,7 @@ extern int drm_helper_resume_force_mode(struct drm_device *dev);
 extern void drm_kms_helper_poll_init(struct drm_device *dev);
 extern void drm_kms_helper_poll_fini(struct drm_device *dev);
 extern void drm_helper_hpd_irq_event(struct drm_device *dev);
+
+extern void drm_kms_helper_poll_disable(struct drm_device *dev);
+extern void drm_kms_helper_poll_enable(struct drm_device *dev);
 #endif

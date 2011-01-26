@@ -18,7 +18,6 @@
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 
 #include "platform.h"
@@ -402,7 +401,6 @@ static unsigned int um_idi_poll(struct file *file, poll_table * wait)
 
 static int um_idi_open(struct inode *inode, struct file *file)
 {
-	cycle_kernel_lock();
 	return (0);
 }
 

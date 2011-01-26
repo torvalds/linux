@@ -94,11 +94,11 @@ typedef struct net_device netdevice_t;
 #endif
 
 /*--- NSD Capabilities Flags ------------------------------*/
-#define P80211_NSDCAP_HARDWAREWEP           0x01	/* hardware wep engine */
-#define P80211_NSDCAP_SHORT_PREAMBLE        0x10	/* hardware supports */
-#define P80211_NSDCAP_HWFRAGMENT            0x80	/* nsd handles frag/defrag */
-#define P80211_NSDCAP_AUTOJOIN              0x100	/* nsd does autojoin */
-#define P80211_NSDCAP_NOSCAN                0x200	/* nsd can scan */
+#define P80211_NSDCAP_HARDWAREWEP           0x01  /* hardware wep engine */
+#define P80211_NSDCAP_SHORT_PREAMBLE        0x10  /* hardware supports */
+#define P80211_NSDCAP_HWFRAGMENT            0x80  /* nsd handles frag/defrag */
+#define P80211_NSDCAP_AUTOJOIN              0x100 /* nsd does autojoin */
+#define P80211_NSDCAP_NOSCAN                0x200 /* nsd can scan */
 
 /* Received frame statistics */
 typedef struct p80211_frmrx_t {
@@ -148,6 +148,7 @@ int p80211wext_event_associated(struct wlandevice *wlandev, int assoc);
 #define MAX_KEYLEN 32
 
 #define HOSTWEP_DEFAULTKEY_MASK (BIT(1)|BIT(0))
+#define HOSTWEP_SHAREDKEY BIT(3)
 #define HOSTWEP_DECRYPT  BIT(4)
 #define HOSTWEP_ENCRYPT  BIT(5)
 #define HOSTWEP_PRIVACYINVOKED BIT(6)
@@ -183,9 +184,9 @@ typedef struct wlandevice {
 	int (*close) (struct wlandevice *wlandev);
 	void (*reset) (struct wlandevice *wlandev);
 	int (*txframe) (struct wlandevice *wlandev, struct sk_buff *skb,
-			p80211_hdr_t *p80211_hdr,
-			p80211_metawep_t *p80211_wep);
-	int (*mlmerequest) (struct wlandevice *wlandev, p80211msg_t *msg);
+			union p80211_hdr *p80211_hdr,
+			struct p80211_metawep *p80211_wep);
+	int (*mlmerequest) (struct wlandevice *wlandev, struct p80211msg *msg);
 	int (*set_multicast_list) (struct wlandevice *wlandev,
 				   netdevice_t *dev);
 	void (*tx_timeout) (struct wlandevice *wlandev);
@@ -233,7 +234,7 @@ int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override,
 int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
 		u8 *iv, u8 *icv);
 
-int wlan_setup(wlandevice_t *wlandev);
+int wlan_setup(wlandevice_t *wlandev, struct device *physdev);
 int wlan_unsetup(wlandevice_t *wlandev);
 int register_wlandev(wlandevice_t *wlandev);
 int unregister_wlandev(wlandevice_t *wlandev);

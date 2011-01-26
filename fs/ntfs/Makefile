@@ -6,7 +6,7 @@ ntfs-objs := aops.o attrib.o collate.o compress.o debug.o dir.o file.o \
 	     index.o inode.o mft.o mst.o namei.o runlist.o super.o sysctl.o \
 	     unistr.o upcase.o
 
-EXTRA_CFLAGS = -DNTFS_VERSION=\"2.1.29\"
+EXTRA_CFLAGS = -DNTFS_VERSION=\"2.1.30\"
 
 ifeq ($(CONFIG_NTFS_DEBUG),y)
 EXTRA_CFLAGS += -DDEBUG

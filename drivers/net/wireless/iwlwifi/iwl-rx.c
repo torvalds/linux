@@ -36,7 +36,6 @@
 #include "iwl-core.h"
 #include "iwl-sta.h"
 #include "iwl-io.h"
-#include "iwl-calib.h"
 #include "iwl-helpers.h"
 /************************** RX-FUNCTIONS ****************************/
 /*
@@ -135,28 +134,37 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q
 	if (q->need_update == 0)
 		goto exit_unlock;
 
-	/* If power-saving is in use, make sure device is awake */
-	if (test_bit(STATUS_POWER_PMI, &priv->status)) {
-		reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
-
-		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			IWL_DEBUG_INFO(priv, "Rx queue requesting wakeup, GP1 = 0x%x\n",
-				      reg);
-			iwl_set_bit(priv, CSR_GP_CNTRL,
-				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-			goto exit_unlock;
-		}
-
-		q->write_actual = (q->write & ~0x7);
-		iwl_write_direct32(priv, rx_wrt_ptr_reg, q->write_actual);
-
-	/* Else device is assumed to be awake */
-	} else {
+	if (priv->cfg->base_params->shadow_reg_enable) {
+		/* shadow register enabled */
 		/* Device expects a multiple of 8 */
 		q->write_actual = (q->write & ~0x7);
-		iwl_write_direct32(priv, rx_wrt_ptr_reg, q->write_actual);
-	}
+		iwl_write32(priv, rx_wrt_ptr_reg, q->write_actual);
+	} else {
+		/* If power-saving is in use, make sure device is awake */
+		if (test_bit(STATUS_POWER_PMI, &priv->status)) {
+			reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
 
+			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
+				IWL_DEBUG_INFO(priv,
+					"Rx queue requesting wakeup,"
+					" GP1 = 0x%x\n", reg);
+				iwl_set_bit(priv, CSR_GP_CNTRL,
+					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+				goto exit_unlock;
+			}
+
+			q->write_actual = (q->write & ~0x7);
+			iwl_write_direct32(priv, rx_wrt_ptr_reg,
+					q->write_actual);
+
+		/* Else device is assumed to be awake */
+		} else {
+			/* Device expects a multiple of 8 */
+			q->write_actual = (q->write & ~0x7);
+			iwl_write_direct32(priv, rx_wrt_ptr_reg,
+				q->write_actual);
+		}
+	}
 	q->need_update = 0;
 
  exit_unlock:
@@ -175,7 +183,7 @@ int iwl_rx_queue_alloc(struct iwl_priv *priv)
 	INIT_LIST_HEAD(&rxq->rx_used);
 
 	/* Alloc the circular buffer of Read Buffer Descriptors (RBDs) */
-	rxq->bd = dma_alloc_coherent(dev, 4 * RX_QUEUE_SIZE, &rxq->dma_addr,
+	rxq->bd = dma_alloc_coherent(dev, 4 * RX_QUEUE_SIZE, &rxq->bd_dma,
 				     GFP_KERNEL);
 	if (!rxq->bd)
 		goto err_bd;
@@ -199,32 +207,12 @@ int iwl_rx_queue_alloc(struct iwl_priv *priv)
 
 err_rb:
 	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			  rxq->dma_addr);
+			  rxq->bd_dma);
 err_bd:
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(iwl_rx_queue_alloc);
 
-void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
-				struct iwl_rx_mem_buffer *rxb)
-
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_missed_beacon_notif *missed_beacon;
-
-	missed_beacon = &pkt->u.missed_beacon;
-	if (le32_to_cpu(missed_beacon->consecutive_missed_beacons) >
-	    priv->missed_beacon_threshold) {
-		IWL_DEBUG_CALIB(priv, "missed bcn cnsq %d totl %d rcd %d expctd %d\n",
-		    le32_to_cpu(missed_beacon->consecutive_missed_beacons),
-		    le32_to_cpu(missed_beacon->total_missed_becons),
-		    le32_to_cpu(missed_beacon->num_recvd_beacons),
-		    le32_to_cpu(missed_beacon->num_expected_beacons));
-		if (!test_bit(STATUS_SCANNING, &priv->status))
-			iwl_init_sensitivity(priv);
-	}
-}
-EXPORT_SYMBOL(iwl_rx_missed_beacon_notif);
 
 void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
 					  struct iwl_rx_mem_buffer *rxb)
@@ -243,167 +231,12 @@ void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwl_rx_spectrum_measure_notif);
 
-
-
-/* Calculate noise level, based on measurements during network silence just
- *   before arriving beacon.  This measurement can be done only if we know
- *   exactly when to expect beacons, therefore only when we're associated. */
-static void iwl_rx_calc_noise(struct iwl_priv *priv)
-{
-	struct statistics_rx_non_phy *rx_info
-				= &(priv->statistics.rx.general);
-	int num_active_rx = 0;
-	int total_silence = 0;
-	int bcn_silence_a =
-		le32_to_cpu(rx_info->beacon_silence_rssi_a) & IN_BAND_FILTER;
-	int bcn_silence_b =
-		le32_to_cpu(rx_info->beacon_silence_rssi_b) & IN_BAND_FILTER;
-	int bcn_silence_c =
-		le32_to_cpu(rx_info->beacon_silence_rssi_c) & IN_BAND_FILTER;
-	int last_rx_noise;
-
-	if (bcn_silence_a) {
-		total_silence += bcn_silence_a;
-		num_active_rx++;
-	}
-	if (bcn_silence_b) {
-		total_silence += bcn_silence_b;
-		num_active_rx++;
-	}
-	if (bcn_silence_c) {
-		total_silence += bcn_silence_c;
-		num_active_rx++;
-	}
-
-	/* Average among active antennas */
-	if (num_active_rx)
-		last_rx_noise = (total_silence / num_active_rx) - 107;
-	else
-		last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
-
-	IWL_DEBUG_CALIB(priv, "inband silence a %u, b %u, c %u, dBm %d\n",
-			bcn_silence_a, bcn_silence_b, bcn_silence_c,
-			last_rx_noise);
-}
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-/*
- *  based on the assumption of all statistics counter are in DWORD
- *  FIXME: This function is for debugging, do not deal with
- *  the case of counters roll-over.
- */
-static void iwl_accumulative_statistics(struct iwl_priv *priv,
-					__le32 *stats)
-{
-	int i;
-	__le32 *prev_stats;
-	u32 *accum_stats;
-	u32 *delta, *max_delta;
-
-	prev_stats = (__le32 *)&priv->statistics;
-	accum_stats = (u32 *)&priv->accum_statistics;
-	delta = (u32 *)&priv->delta_statistics;
-	max_delta = (u32 *)&priv->max_delta;
-
-	for (i = sizeof(__le32); i < sizeof(struct iwl_notif_statistics);
-	     i += sizeof(__le32), stats++, prev_stats++, delta++,
-	     max_delta++, accum_stats++) {
-		if (le32_to_cpu(*stats) > le32_to_cpu(*prev_stats)) {
-			*delta = (le32_to_cpu(*stats) -
-				le32_to_cpu(*prev_stats));
-			*accum_stats += *delta;
-			if (*delta > *max_delta)
-				*max_delta = *delta;
-		}
-	}
-
-	/* reset accumulative statistics for "no-counter" type statistics */
-	priv->accum_statistics.general.temperature =
-		priv->statistics.general.temperature;
-	priv->accum_statistics.general.temperature_m =
-		priv->statistics.general.temperature_m;
-	priv->accum_statistics.general.ttl_timestamp =
-		priv->statistics.general.ttl_timestamp;
-	priv->accum_statistics.tx.tx_power.ant_a =
-		priv->statistics.tx.tx_power.ant_a;
-	priv->accum_statistics.tx.tx_power.ant_b =
-		priv->statistics.tx.tx_power.ant_b;
-	priv->accum_statistics.tx.tx_power.ant_c =
-		priv->statistics.tx.tx_power.ant_c;
-}
-#endif
-
-#define REG_RECALIB_PERIOD (60)
-
-/**
- * iwl_good_plcp_health - checks for plcp error.
- *
- * When the plcp error is exceeding the thresholds, reset the radio
- * to improve the throughput.
- */
-bool iwl_good_plcp_health(struct iwl_priv *priv,
-				struct iwl_rx_packet *pkt)
-{
-	bool rc = true;
-	int combined_plcp_delta;
-	unsigned int plcp_msec;
-	unsigned long plcp_received_jiffies;
-
-	/*
-	 * check for plcp_err and trigger radio reset if it exceeds
-	 * the plcp error threshold plcp_delta.
-	 */
-	plcp_received_jiffies = jiffies;
-	plcp_msec = jiffies_to_msecs((long) plcp_received_jiffies -
-					(long) priv->plcp_jiffies);
-	priv->plcp_jiffies = plcp_received_jiffies;
-	/*
-	 * check to make sure plcp_msec is not 0 to prevent division
-	 * by zero.
-	 */
-	if (plcp_msec) {
-		combined_plcp_delta =
-			(le32_to_cpu(pkt->u.stats.rx.ofdm.plcp_err) -
-			le32_to_cpu(priv->statistics.rx.ofdm.plcp_err)) +
-			(le32_to_cpu(pkt->u.stats.rx.ofdm_ht.plcp_err) -
-			le32_to_cpu(priv->statistics.rx.ofdm_ht.plcp_err));
-
-		if ((combined_plcp_delta > 0) &&
-		    ((combined_plcp_delta * 100) / plcp_msec) >
-			priv->cfg->plcp_delta_threshold) {
-			/*
-			 * if plcp_err exceed the threshold,
-			 * the following data is printed in csv format:
-			 *    Text: plcp_err exceeded %d,
-			 *    Received ofdm.plcp_err,
-			 *    Current ofdm.plcp_err,
-			 *    Received ofdm_ht.plcp_err,
-			 *    Current ofdm_ht.plcp_err,
-			 *    combined_plcp_delta,
-			 *    plcp_msec
-			 */
-			IWL_DEBUG_RADIO(priv, "plcp_err exceeded %u, "
-				"%u, %u, %u, %u, %d, %u mSecs\n",
-				priv->cfg->plcp_delta_threshold,
-				le32_to_cpu(pkt->u.stats.rx.ofdm.plcp_err),
-				le32_to_cpu(priv->statistics.rx.ofdm.plcp_err),
-				le32_to_cpu(pkt->u.stats.rx.ofdm_ht.plcp_err),
-				le32_to_cpu(
-				  priv->statistics.rx.ofdm_ht.plcp_err),
-				combined_plcp_delta, plcp_msec);
-			rc = false;
-		}
-	}
-	return rc;
-}
-EXPORT_SYMBOL(iwl_good_plcp_health);
-
 void iwl_recover_from_statistics(struct iwl_priv *priv,
 				struct iwl_rx_packet *pkt)
 {
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
-	if (iwl_is_associated(priv)) {
+	if (iwl_is_any_associated(priv)) {
 		if (priv->cfg->ops->lib->check_ack_health) {
 			if (!priv->cfg->ops->lib->check_ack_health(
 			    priv, pkt)) {
@@ -413,7 +246,7 @@ void iwl_recover_from_statistics(struct iwl_priv *priv,
 				 */
 				IWL_ERR(priv, "low ack count detected, "
 					"restart firmware\n");
-				if (!iwl_force_reset(priv, IWL_FW_RESET))
+				if (!iwl_force_reset(priv, IWL_FW_RESET, false))
 					return;
 			}
 		}
@@ -424,75 +257,12 @@ void iwl_recover_from_statistics(struct iwl_priv *priv,
 				 * high plcp error detected
 				 * reset Radio
 				 */
-				iwl_force_reset(priv, IWL_RF_RESET);
+				iwl_force_reset(priv, IWL_RF_RESET, false);
 			}
 		}
 	}
 }
 EXPORT_SYMBOL(iwl_recover_from_statistics);
-
-void iwl_rx_statistics(struct iwl_priv *priv,
-			      struct iwl_rx_mem_buffer *rxb)
-{
-	int change;
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-
-
-	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
-		     (int)sizeof(priv->statistics),
-		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
-
-	change = ((priv->statistics.general.temperature !=
-		   pkt->u.stats.general.temperature) ||
-		  ((priv->statistics.flag &
-		    STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
-		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-	iwl_accumulative_statistics(priv, (__le32 *)&pkt->u.stats);
-#endif
-	iwl_recover_from_statistics(priv, pkt);
-
-	memcpy(&priv->statistics, &pkt->u.stats, sizeof(priv->statistics));
-
-	set_bit(STATUS_STATISTICS, &priv->status);
-
-	/* Reschedule the statistics timer to occur in
-	 * REG_RECALIB_PERIOD seconds to ensure we get a
-	 * thermal update even if the uCode doesn't give
-	 * us one */
-	mod_timer(&priv->statistics_periodic, jiffies +
-		  msecs_to_jiffies(REG_RECALIB_PERIOD * 1000));
-
-	if (unlikely(!test_bit(STATUS_SCANNING, &priv->status)) &&
-	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
-		iwl_rx_calc_noise(priv);
-		queue_work(priv->workqueue, &priv->run_time_calib_work);
-	}
-	if (priv->cfg->ops->lib->temp_ops.temperature && change)
-		priv->cfg->ops->lib->temp_ops.temperature(priv);
-}
-EXPORT_SYMBOL(iwl_rx_statistics);
-
-void iwl_reply_statistics(struct iwl_priv *priv,
-			      struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-
-	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATISTICS_CLEAR_MSK) {
-#ifdef CONFIG_IWLWIFI_DEBUG
-		memset(&priv->accum_statistics, 0,
-			sizeof(struct iwl_notif_statistics));
-		memset(&priv->delta_statistics, 0,
-			sizeof(struct iwl_notif_statistics));
-		memset(&priv->max_delta, 0,
-			sizeof(struct iwl_notif_statistics));
-#endif
-		IWL_DEBUG_RX(priv, "Statistics have been cleared\n");
-	}
-	iwl_rx_statistics(priv, rxb);
-}
-EXPORT_SYMBOL(iwl_reply_statistics);
 
 /*
  * returns non-zero if packet should be dropped
@@ -504,7 +274,12 @@ int iwl_set_decrypted_flag(struct iwl_priv *priv,
 {
 	u16 fc = le16_to_cpu(hdr->frame_control);
 
-	if (priv->active_rxon.filter_flags & RXON_FILTER_DIS_DECRYPT_MSK)
+	/*
+	 * All contexts have the same setting here due to it being
+	 * a module parameter, so OK to check any context.
+	 */
+	if (priv->contexts[IWL_RXON_CTX_BSS].active.filter_flags &
+						RXON_FILTER_DIS_DECRYPT_MSK)
 		return 0;
 
 	if (!(fc & IEEE80211_FCTL_PROTECTED))

@@ -1,5 +1,5 @@
 Tools that manage md devices can be found at
-   http://www.<country>.kernel.org/pub/linux/utils/raid/....
+   http://www.kernel.org/pub/linux/utils/raid/ 
 
 
 Boot time assembly of RAID arrays

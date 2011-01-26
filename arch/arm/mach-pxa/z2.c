@@ -3,8 +3,9 @@
  *
  *  Support for the Zipit Z2 Handheld device.
  *
- *  Author: 	Ken McGuire
- *  Created:	Jan 25, 2009
+ *  Copyright (C) 2009-2010 Marek Vasut <marek.vasut@gmail.com>
+ *
+ *  Based on research and code by: Ken McGuire
  *  Based on mainstone.c as modified for the Zipit Z2.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,8 +17,10 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/pwm_backlight.h>
+#include <linux/z2_battery.h>
 #include <linux/dma-mapping.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/spi/libertas_spi.h>
 #include <linux/spi/lms283gf05.h>
 #include <linux/power_supply.h>
@@ -25,6 +28,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/delay.h>
+#include <linux/regulator/machine.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -34,8 +38,7 @@
 #include <mach/z2.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
-#include <mach/pxa27x_keypad.h>
-#include <mach/pxa2xx_spi.h>
+#include <plat/pxa27x_keypad.h>
 
 #include <plat/i2c.h>
 
@@ -157,21 +160,14 @@ static struct mtd_partition z2_flash_parts[] = {
 	{
 		.name	= "U-Boot Bootloader",
 		.offset	= 0x0,
-		.size	= 0x20000,
-	},
-	{
-		.name	= "Linux Kernel",
-		.offset	= 0x20000,
-		.size	= 0x220000,
-	},
-	{
-		.name	= "Filesystem",
-		.offset	= 0x240000,
-		.size	= 0x5b0000,
-	},
-	{
+		.size	= 0x40000,
+	}, {
 		.name	= "U-Boot Environment",
-		.offset	= 0x7f0000,
+		.offset	= 0x40000,
+		.size	= 0x20000,
+	}, {
+		.name	= "Flash",
+		.offset	= 0x60000,
 		.size	= MTDPART_SIZ_FULL,
 	},
 };
@@ -458,6 +454,42 @@ static inline void z2_keys_init(void) {}
 #endif
 
 /******************************************************************************
+ * Battery
+ ******************************************************************************/
+#if defined(CONFIG_I2C_PXA) || defined(CONFIG_I2C_PXA_MODULE)
+static struct z2_battery_info batt_chip_info = {
+	.batt_I2C_bus	= 0,
+	.batt_I2C_addr	= 0x55,
+	.batt_I2C_reg	= 2,
+	.charge_gpio	= GPIO0_ZIPITZ2_AC_DETECT,
+	.min_voltage	= 2400000,
+	.max_voltage	= 3700000,
+	.batt_div	= 69,
+	.batt_mult	= 1000000,
+	.batt_tech	= POWER_SUPPLY_TECHNOLOGY_LION,
+	.batt_name	= "Z2",
+};
+
+static struct i2c_board_info __initdata z2_i2c_board_info[] = {
+	{
+		I2C_BOARD_INFO("aer915", 0x55),
+		.platform_data	= &batt_chip_info,
+	}, {
+		I2C_BOARD_INFO("wm8750", 0x1b),
+	},
+
+};
+
+static void __init z2_i2c_init(void)
+{
+	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(0, ARRAY_AND_SIZE(z2_i2c_board_info));
+}
+#else
+static inline void z2_i2c_init(void) {}
+#endif
+
+/******************************************************************************
  * SSP Devices - WiFi and LCD control
  ******************************************************************************/
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
@@ -579,30 +611,100 @@ static inline void z2_spi_init(void) {}
 #endif
 
 /******************************************************************************
+ * Core power regulator
+ ******************************************************************************/
+#if defined(CONFIG_REGULATOR_TPS65023) || \
+	defined(CONFIG_REGULATOR_TPS65023_MODULE)
+static struct regulator_consumer_supply z2_tps65021_consumers[] = {
+	{
+		.supply	= "vcc_core",
+	}
+};
+
+static struct regulator_init_data z2_tps65021_info[] = {
+	{
+		.constraints = {
+			.name		= "vcc_core range",
+			.min_uV		= 800000,
+			.max_uV		= 1600000,
+			.always_on	= 1,
+			.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE,
+		},
+		.consumer_supplies	= z2_tps65021_consumers,
+		.num_consumer_supplies	= ARRAY_SIZE(z2_tps65021_consumers),
+	}, {
+		.constraints = {
+			.name		= "DCDC2",
+			.min_uV		= 3300000,
+			.max_uV		= 3300000,
+			.always_on	= 1,
+		},
+	}, {
+		.constraints = {
+			.name		= "DCDC3",
+			.min_uV		= 1800000,
+			.max_uV		= 1800000,
+			.always_on	= 1,
+		},
+	}, {
+		.constraints = {
+			.name		= "LDO1",
+			.min_uV		= 1000000,
+			.max_uV		= 3150000,
+			.always_on	= 1,
+		},
+	}, {
+		.constraints = {
+			.name		= "LDO2",
+			.min_uV		= 1050000,
+			.max_uV		= 3300000,
+			.always_on	= 1,
+		},
+	}
+};
+
+static struct i2c_board_info __initdata z2_pi2c_board_info[] = {
+	{
+		I2C_BOARD_INFO("tps65021", 0x48),
+		.platform_data	= &z2_tps65021_info,
+	},
+};
+
+static void __init z2_pmic_init(void)
+{
+	pxa27x_set_i2c_power_info(NULL);
+	i2c_register_board_info(1, ARRAY_AND_SIZE(z2_pi2c_board_info));
+}
+#else
+static inline void z2_pmic_init(void) {}
+#endif
+
+/******************************************************************************
  * Machine init
  ******************************************************************************/
 static void __init z2_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(z2_pin_config));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	z2_lcd_init();
 	z2_mmc_init();
 	z2_mkp_init();
-
-	pxa_set_i2c_info(NULL);
-
+	z2_i2c_init();
 	z2_spi_init();
 	z2_nor_init();
 	z2_pwm_init();
 	z2_leds_init();
 	z2_keys_init();
+	z2_pmic_init();
 }
 
 MACHINE_START(ZIPIT2, "Zipit Z2")
-	.phys_io	= 0x40000000,
 	.boot_params	= 0xa0000100,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= z2_init,

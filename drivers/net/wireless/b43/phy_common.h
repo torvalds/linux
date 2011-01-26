@@ -2,6 +2,7 @@
 #define LINUX_B43_PHY_COMMON_H_
 
 #include <linux/types.h>
+#include <linux/nl80211.h>
 
 struct b43_wldev;
 
@@ -37,6 +38,9 @@ struct b43_c32 { s32 i, q; };
 #define B43_PHYVER_TYPE			0x0F00
 #define B43_PHYVER_TYPE_SHIFT		8
 #define B43_PHYVER_VERSION		0x00FF
+
+/* PHY writes need to be flushed if we reach limit */
+#define B43_MAX_WRITES_IN_ROW		24
 
 /**
  * enum b43_interference_mitigation - Interference Mitigation mode
@@ -231,6 +235,9 @@ struct b43_phy {
 	/* PHY revision number. */
 	u8 rev;
 
+	/* Count writes since last read */
+	u8 writes_counter;
+
 	/* Radio versioning */
 	u16 radio_manuf;	/* Radio manufacturer */
 	u16 radio_ver;		/* Radio version */
@@ -250,8 +257,10 @@ struct b43_phy {
 	 * check is needed. */
 	unsigned long next_txpwr_check_time;
 
-	/* current channel */
+	/* Current channel */
 	unsigned int channel;
+	u16 channel_freq;
+	enum nl80211_channel_type channel_type;
 
 	/* PHY TX errors counter. */
 	atomic_t txerr_cnt;
@@ -426,6 +435,8 @@ int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset);
  * for struct b43_phy_operations.
  */
 void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on);
+
+bool b43_channel_type_is_40mhz(enum nl80211_channel_type channel_type);
 
 struct b43_c32 b43_cordic(int theta);
 

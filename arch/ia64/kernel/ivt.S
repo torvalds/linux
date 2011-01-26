@@ -82,7 +82,7 @@
 	mov r19=n;;			/* prepare to save predicates */		\
 	br.sptk.many dispatch_to_fault_handler
 
-	.section .text.ivt,"ax"
+	.section .text..ivt,"ax"
 
 	.align 32768	// align on 32KB boundary
 	.global ia64_ivt

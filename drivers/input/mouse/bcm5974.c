@@ -55,6 +55,14 @@
 #define USB_DEVICE_ID_APPLE_WELLSPRING3_ANSI	0x0236
 #define USB_DEVICE_ID_APPLE_WELLSPRING3_ISO	0x0237
 #define USB_DEVICE_ID_APPLE_WELLSPRING3_JIS	0x0238
+/* MacbookAir3,2 (unibody), aka wellspring5 */
+#define USB_DEVICE_ID_APPLE_WELLSPRING4_ANSI	0x023f
+#define USB_DEVICE_ID_APPLE_WELLSPRING4_ISO	0x0240
+#define USB_DEVICE_ID_APPLE_WELLSPRING4_JIS	0x0241
+/* MacbookAir3,1 (unibody), aka wellspring4 */
+#define USB_DEVICE_ID_APPLE_WELLSPRING4A_ANSI	0x0242
+#define USB_DEVICE_ID_APPLE_WELLSPRING4A_ISO	0x0243
+#define USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS	0x0244
 
 #define BCM5974_DEVICE(prod) {					\
 	.match_flags = (USB_DEVICE_ID_MATCH_DEVICE |		\
@@ -80,6 +88,14 @@ static const struct usb_device_id bcm5974_table[] = {
 	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING3_ANSI),
 	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING3_ISO),
 	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING3_JIS),
+	/* MacbookAir3,2 */
+	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING4_ANSI),
+	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING4_ISO),
+	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING4_JIS),
+	/* MacbookAir3,1 */
+	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING4A_ANSI),
+	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING4A_ISO),
+	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS),
 	/* Terminating entry */
 	{}
 };
@@ -234,6 +250,30 @@ static const struct bcm5974_config bcm5974_config_table[] = {
 		{ DIM_X, DIM_X / SN_COORD, -4460, 5166 },
 		{ DIM_Y, DIM_Y / SN_COORD, -75, 6700 }
 	},
+	{
+		USB_DEVICE_ID_APPLE_WELLSPRING4_ANSI,
+		USB_DEVICE_ID_APPLE_WELLSPRING4_ISO,
+		USB_DEVICE_ID_APPLE_WELLSPRING4_JIS,
+		HAS_INTEGRATED_BUTTON,
+		0x84, sizeof(struct bt_data),
+		0x81, TYPE2, FINGER_TYPE2, FINGER_TYPE2 + SIZEOF_ALL_FINGERS,
+		{ DIM_PRESSURE, DIM_PRESSURE / SN_PRESSURE, 0, 300 },
+		{ DIM_WIDTH, DIM_WIDTH / SN_WIDTH, 0, 2048 },
+		{ DIM_X, DIM_X / SN_COORD, -4620, 5140 },
+		{ DIM_Y, DIM_Y / SN_COORD, -150, 6600 }
+	},
+	{
+		USB_DEVICE_ID_APPLE_WELLSPRING4A_ANSI,
+		USB_DEVICE_ID_APPLE_WELLSPRING4A_ISO,
+		USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS,
+		HAS_INTEGRATED_BUTTON,
+		0x84, sizeof(struct bt_data),
+		0x81, TYPE2, FINGER_TYPE2, FINGER_TYPE2 + SIZEOF_ALL_FINGERS,
+		{ DIM_PRESSURE, DIM_PRESSURE / SN_PRESSURE, 0, 300 },
+		{ DIM_WIDTH, DIM_WIDTH / SN_WIDTH, 0, 2048 },
+		{ DIM_X, DIM_X / SN_COORD, -4616, 5112 },
+		{ DIM_Y, DIM_Y / SN_COORD, -142, 5234 }
+	},
 	{}
 };
 
@@ -312,6 +352,8 @@ static void setup_events_to_report(struct input_dev *input_dev,
 	__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
 	__set_bit(BTN_TOOL_QUADTAP, input_dev->keybit);
 	__set_bit(BTN_LEFT, input_dev->keybit);
+
+	input_set_events_per_packet(input_dev, 60);
 }
 
 /* report button data as logical button state */
@@ -335,10 +377,14 @@ static void report_finger_data(struct input_dev *input,
 			       const struct bcm5974_config *cfg,
 			       const struct tp_finger *f)
 {
-	input_report_abs(input, ABS_MT_TOUCH_MAJOR, raw2int(f->force_major));
-	input_report_abs(input, ABS_MT_TOUCH_MINOR, raw2int(f->force_minor));
-	input_report_abs(input, ABS_MT_WIDTH_MAJOR, raw2int(f->size_major));
-	input_report_abs(input, ABS_MT_WIDTH_MINOR, raw2int(f->size_minor));
+	input_report_abs(input, ABS_MT_TOUCH_MAJOR,
+			 raw2int(f->force_major) << 1);
+	input_report_abs(input, ABS_MT_TOUCH_MINOR,
+			 raw2int(f->force_minor) << 1);
+	input_report_abs(input, ABS_MT_WIDTH_MAJOR,
+			 raw2int(f->size_major) << 1);
+	input_report_abs(input, ABS_MT_WIDTH_MINOR,
+			 raw2int(f->size_minor) << 1);
 	input_report_abs(input, ABS_MT_ORIENTATION,
 			 MAX_FINGER_ORIENTATION - raw2int(f->orientation));
 	input_report_abs(input, ABS_MT_POSITION_X, raw2int(f->abs_x));
@@ -580,23 +626,30 @@ exit:
  */
 static int bcm5974_start_traffic(struct bcm5974 *dev)
 {
-	if (bcm5974_wellspring_mode(dev, true)) {
+	int error;
+
+	error = bcm5974_wellspring_mode(dev, true);
+	if (error) {
 		dprintk(1, "bcm5974: mode switch failed\n");
-		goto error;
+		goto err_out;
 	}
 
-	if (usb_submit_urb(dev->bt_urb, GFP_KERNEL))
-		goto error;
+	error = usb_submit_urb(dev->bt_urb, GFP_KERNEL);
+	if (error)
+		goto err_reset_mode;
 
-	if (usb_submit_urb(dev->tp_urb, GFP_KERNEL))
+	error = usb_submit_urb(dev->tp_urb, GFP_KERNEL);
+	if (error)
 		goto err_kill_bt;
 
 	return 0;
 
 err_kill_bt:
 	usb_kill_urb(dev->bt_urb);
-error:
-	return -EIO;
+err_reset_mode:
+	bcm5974_wellspring_mode(dev, false);
+err_out:
+	return error;
 }
 
 static void bcm5974_pause_traffic(struct bcm5974 *dev)

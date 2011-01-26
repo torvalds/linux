@@ -21,18 +21,22 @@
 #define D_CACHE_LINE_SIZE	32
 #define BTB_FLUSH_SIZE		8
 
-#ifdef CONFIG_ARM_ERRATA_411920
 /*
- * Invalidate the entire I cache (this code is a workaround for the ARM1136
- * erratum 411920 - Invalidate Instruction Cache operation can fail. This
- * erratum is present in 1136, 1156 and 1176. It does not affect the MPCore.
+ *	v6_flush_icache_all()
  *
- * Registers:
- *   r0 - set to 0
- *   r1 - corrupted
+ *	Flush the whole I-cache.
+ *
+ *	ARM1136 erratum 411920 - Invalidate Instruction Cache operation can fail.
+ *	This erratum is present in 1136, 1156 and 1176. It does not affect the
+ *	MPCore.
+ *
+ *	Registers:
+ *	r0 - set to 0
+ *	r1 - corrupted
  */
-ENTRY(v6_icache_inval_all)
+ENTRY(v6_flush_icache_all)
 	mov	r0, #0
+#ifdef CONFIG_ARM_ERRATA_411920
 	mrs	r1, cpsr
 	cpsid	ifa				@ disable interrupts
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate entire I-cache
@@ -43,8 +47,11 @@ ENTRY(v6_icache_inval_all)
 	.rept	11				@ ARM Ltd recommends at least
 	nop					@ 11 NOPs
 	.endr
-	mov	pc, lr
+#else
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I-cache
 #endif
+	mov	pc, lr
+ENDPROC(v6_flush_icache_all)
 
 /*
  *	v6_flush_cache_all()
@@ -60,7 +67,7 @@ ENTRY(v6_flush_kern_cache_all)
 #ifndef CONFIG_ARM_ERRATA_411920
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
 #else
-	b	v6_icache_inval_all
+	b	v6_flush_icache_all
 #endif
 #else
 	mcr	p15, 0, r0, c7, c15, 0		@ Cache clean+invalidate
@@ -138,7 +145,7 @@ ENTRY(v6_coherent_user_range)
 #ifndef CONFIG_ARM_ERRATA_411920
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
 #else
-	b	v6_icache_inval_all
+	b	v6_flush_icache_all
 #endif
 #else
 	mcr	p15, 0, r0, c7, c5, 6		@ invalidate BTB
@@ -196,6 +203,10 @@ ENTRY(v6_flush_kern_dcache_area)
  *	- end     - virtual end address of region
  */
 v6_dma_inv_range:
+#ifdef CONFIG_DMA_CACHE_RWFO
+	ldrb	r2, [r0]			@ read for ownership
+	strb	r2, [r0]			@ write for ownership
+#endif
 	tst	r0, #D_CACHE_LINE_SIZE - 1
 	bic	r0, r0, #D_CACHE_LINE_SIZE - 1
 #ifdef HARVARD_CACHE
@@ -204,6 +215,10 @@ v6_dma_inv_range:
 	mcrne	p15, 0, r0, c7, c11, 1		@ clean unified line
 #endif
 	tst	r1, #D_CACHE_LINE_SIZE - 1
+#ifdef CONFIG_DMA_CACHE_RWFO
+	ldrneb	r2, [r1, #-1]			@ read for ownership
+	strneb	r2, [r1, #-1]			@ write for ownership
+#endif
 	bic	r1, r1, #D_CACHE_LINE_SIZE - 1
 #ifdef HARVARD_CACHE
 	mcrne	p15, 0, r1, c7, c14, 1		@ clean & invalidate D line
@@ -211,9 +226,6 @@ v6_dma_inv_range:
 	mcrne	p15, 0, r1, c7, c15, 1		@ clean & invalidate unified line
 #endif
 1:
-#ifdef CONFIG_SMP
-	str	r0, [r0]			@ write for ownership
-#endif
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r0, c7, c6, 1		@ invalidate D line
 #else
@@ -221,6 +233,10 @@ v6_dma_inv_range:
 #endif
 	add	r0, r0, #D_CACHE_LINE_SIZE
 	cmp	r0, r1
+#ifdef CONFIG_DMA_CACHE_RWFO
+	ldrlo	r2, [r0]			@ read for ownership
+	strlo	r2, [r0]			@ write for ownership
+#endif
 	blo	1b
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
@@ -234,7 +250,7 @@ v6_dma_inv_range:
 v6_dma_clean_range:
 	bic	r0, r0, #D_CACHE_LINE_SIZE - 1
 1:
-#ifdef CONFIG_SMP
+#ifdef CONFIG_DMA_CACHE_RWFO
 	ldr	r2, [r0]			@ read for ownership
 #endif
 #ifdef HARVARD_CACHE
@@ -255,12 +271,12 @@ v6_dma_clean_range:
  *	- end     - virtual end address of region
  */
 ENTRY(v6_dma_flush_range)
+#ifdef CONFIG_DMA_CACHE_RWFO
+	ldrb	r2, [r0]		@ read for ownership
+	strb	r2, [r0]		@ write for ownership
+#endif
 	bic	r0, r0, #D_CACHE_LINE_SIZE - 1
 1:
-#ifdef CONFIG_SMP
-	ldr	r2, [r0]			@ read for ownership
-	str	r2, [r0]			@ write for ownership
-#endif
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r0, c7, c14, 1		@ clean & invalidate D line
 #else
@@ -268,6 +284,10 @@ ENTRY(v6_dma_flush_range)
 #endif
 	add	r0, r0, #D_CACHE_LINE_SIZE
 	cmp	r0, r1
+#ifdef CONFIG_DMA_CACHE_RWFO
+	ldrlob	r2, [r0]			@ read for ownership
+	strlob	r2, [r0]			@ write for ownership
+#endif
 	blo	1b
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
@@ -283,9 +303,13 @@ ENTRY(v6_dma_map_area)
 	add	r1, r1, r0
 	teq	r2, #DMA_FROM_DEVICE
 	beq	v6_dma_inv_range
+#ifndef CONFIG_DMA_CACHE_RWFO
+	b	v6_dma_clean_range
+#else
 	teq	r2, #DMA_TO_DEVICE
 	beq	v6_dma_clean_range
 	b	v6_dma_flush_range
+#endif
 ENDPROC(v6_dma_map_area)
 
 /*
@@ -295,6 +319,11 @@ ENDPROC(v6_dma_map_area)
  *	- dir	- DMA direction
  */
 ENTRY(v6_dma_unmap_area)
+#ifndef CONFIG_DMA_CACHE_RWFO
+	add	r1, r1, r0
+	teq	r2, #DMA_TO_DEVICE
+	bne	v6_dma_inv_range
+#endif
 	mov	pc, lr
 ENDPROC(v6_dma_unmap_area)
 
@@ -302,6 +331,7 @@ ENDPROC(v6_dma_unmap_area)
 
 	.type	v6_cache_fns, #object
 ENTRY(v6_cache_fns)
+	.long	v6_flush_icache_all
 	.long	v6_flush_kern_cache_all
 	.long	v6_flush_user_cache_all
 	.long	v6_flush_user_cache_range

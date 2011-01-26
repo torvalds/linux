@@ -2,6 +2,7 @@
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
  * Copyright © 2001-2007 Red Hat, Inc.
+ * Copyright © 2004-2010 David Woodhouse <dwmw2@infradead.org>
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
  *
@@ -22,7 +23,7 @@ static void jffs2_build_remove_unlinked_inode(struct jffs2_sb_info *,
 static inline struct jffs2_inode_cache *
 first_inode_chain(int *i, struct jffs2_sb_info *c)
 {
-	for (; *i < INOCACHE_HASHSIZE; (*i)++) {
+	for (; *i < c->inocache_hashsize; (*i)++) {
 		if (c->inocache_list[*i])
 			return c->inocache_list[*i];
 	}
@@ -335,14 +336,13 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 	size = sizeof(struct jffs2_eraseblock) * c->nr_blocks;
 #ifndef __ECOS
 	if (jffs2_blocks_use_vmalloc(c))
-		c->blocks = vmalloc(size);
+		c->blocks = vzalloc(size);
 	else
 #endif
-		c->blocks = kmalloc(size, GFP_KERNEL);
+		c->blocks = kzalloc(size, GFP_KERNEL);
 	if (!c->blocks)
 		return -ENOMEM;
 
-	memset(c->blocks, 0, size);
 	for (i=0; i<c->nr_blocks; i++) {
 		INIT_LIST_HEAD(&c->blocks[i].list);
 		c->blocks[i].offset = i * c->sector_size;

@@ -5,7 +5,7 @@
  * Copyright (c) 2001-2007 Anton Altaparmakov
  * Copyright (C) 2001,2002 Jakob Kemi <jakob.kemi@telia.com>
  *
- * Documentation is available at http://www.linux-ntfs.org/content/view/19/37/
+ * Documentation is available at http://www.linux-ntfs.org/doku.php?id=downloads 
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/stringify.h>
+#include <linux/kernel.h>
 #include "ldm.h"
 #include "check.h"
 #include "msdos.h"
@@ -77,17 +78,16 @@ static int ldm_parse_hexbyte (const u8 *src)
 	int h;
 
 	/* high part */
-	if      ((x = src[0] - '0') <= '9'-'0') h = x;
-	else if ((x = src[0] - 'a') <= 'f'-'a') h = x+10;
-	else if ((x = src[0] - 'A') <= 'F'-'A') h = x+10;
-	else return -1;
-	h <<= 4;
+	x = h = hex_to_bin(src[0]);
+	if (h < 0)
+		return -1;
 
 	/* low part */
-	if ((x = src[1] - '0') <= '9'-'0') return h | x;
-	if ((x = src[1] - 'a') <= 'f'-'a') return h | (x+10);
-	if ((x = src[1] - 'A') <= 'F'-'A') return h | (x+10);
-	return -1;
+	h = hex_to_bin(src[1]);
+	if (h < 0)
+		return -1;
+
+	return (x << 4) + h;
 }
 
 /**
@@ -643,7 +643,7 @@ static bool ldm_create_data_partitions (struct parsed_partitions *pp,
 		return false;
 	}
 
-	printk (" [LDM]");
+	strlcat(pp->pp_buf, " [LDM]", PAGE_SIZE);
 
 	/* Create the data partitions */
 	list_for_each (item, &ldb->v_part) {
@@ -658,7 +658,7 @@ static bool ldm_create_data_partitions (struct parsed_partitions *pp,
 		part_num++;
 	}
 
-	printk ("\n");
+	strlcat(pp->pp_buf, "\n", PAGE_SIZE);
 	return true;
 }
 

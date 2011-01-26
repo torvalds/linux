@@ -79,21 +79,6 @@ static inline void *cplhdr(struct sk_buff *skb)
 	return skb->data;
 }
 
-#define C4IW_WR_TO (10*HZ)
-
-struct c4iw_wr_wait {
-	wait_queue_head_t wait;
-	int done;
-	int ret;
-};
-
-static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
-{
-	wr_waitp->ret = 0;
-	wr_waitp->done = 0;
-	init_waitqueue_head(&wr_waitp->wait);
-}
-
 struct c4iw_resource {
 	struct kfifo tpt_fifo;
 	spinlock_t tpt_fifo_lock;
@@ -127,8 +112,11 @@ struct c4iw_rdev {
 	struct c4iw_dev_ucontext uctx;
 	struct gen_pool *pbl_pool;
 	struct gen_pool *rqt_pool;
+	struct gen_pool *ocqp_pool;
 	u32 flags;
 	struct cxgb4_lld_info lldi;
+	unsigned long oc_mw_pa;
+	void __iomem *oc_mw_kva;
 };
 
 static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
@@ -141,6 +129,44 @@ static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 	return min((int)T4_MAX_NUM_STAG, (int)(rdev->lldi.vr->stag.size >> 5));
 }
 
+#define C4IW_WR_TO (10*HZ)
+
+struct c4iw_wr_wait {
+	wait_queue_head_t wait;
+	int done;
+	int ret;
+};
+
+static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
+{
+	wr_waitp->ret = 0;
+	wr_waitp->done = 0;
+	init_waitqueue_head(&wr_waitp->wait);
+}
+
+static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
+				 struct c4iw_wr_wait *wr_waitp,
+				 u32 hwtid, u32 qpid,
+				 const char *func)
+{
+	unsigned to = C4IW_WR_TO;
+	do {
+
+		wait_event_timeout(wr_waitp->wait, wr_waitp->done, to);
+		if (!wr_waitp->done) {
+			printk(KERN_ERR MOD "%s - Device %s not responding - "
+			       "tid %u qpid %u\n", func,
+			       pci_name(rdev->lldi.pdev), hwtid, qpid);
+			to = to << 2;
+		}
+	} while (!wr_waitp->done);
+	if (wr_waitp->ret)
+		printk(KERN_WARNING MOD "%s: FW reply %d tid %u qpid %u\n",
+		       pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
+	return wr_waitp->ret;
+}
+
+
 struct c4iw_dev {
 	struct ib_device ibdev;
 	struct c4iw_rdev rdev;
@@ -152,6 +178,7 @@ struct c4iw_dev {
 	struct list_head entry;
 	struct delayed_work db_drop_task;
 	struct dentry *debugfs_root;
+	u8 registered;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
@@ -260,7 +287,7 @@ static inline struct c4iw_mw *to_c4iw_mw(struct ib_mw *ibmw)
 
 struct c4iw_fr_page_list {
 	struct ib_fast_reg_page_list ibpl;
-	DECLARE_PCI_UNMAP_ADDR(mapping);
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	dma_addr_t dma_addr;
 	struct c4iw_dev *dev;
 	int size;
@@ -326,6 +353,7 @@ struct c4iw_qp {
 	struct c4iw_qp_attributes attr;
 	struct t4_wq wq;
 	spinlock_t lock;
+	struct mutex mutex;
 	atomic_t refcnt;
 	wait_queue_head_t wait;
 	struct timer_list timer;
@@ -578,12 +606,10 @@ struct c4iw_ep_common {
 	struct c4iw_dev *dev;
 	enum c4iw_ep_state state;
 	struct kref kref;
-	spinlock_t lock;
+	struct mutex mutex;
 	struct sockaddr_in local_addr;
 	struct sockaddr_in remote_addr;
-	wait_queue_head_t waitq;
-	int rpl_done;
-	int rpl_err;
+	struct c4iw_wr_wait wr_wait;
 	unsigned long flags;
 };
 
@@ -618,6 +644,7 @@ struct c4iw_ep {
 	u16 plen;
 	u16 rss_qid;
 	u16 txq_idx;
+	u16 ctrlq_idx;
 	u8 tos;
 };
 
@@ -652,8 +679,10 @@ int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt, u32 nr_pdid);
 int c4iw_init_ctrl_qp(struct c4iw_rdev *rdev);
 int c4iw_pblpool_create(struct c4iw_rdev *rdev);
 int c4iw_rqtpool_create(struct c4iw_rdev *rdev);
+int c4iw_ocqp_pool_create(struct c4iw_rdev *rdev);
 void c4iw_pblpool_destroy(struct c4iw_rdev *rdev);
 void c4iw_rqtpool_destroy(struct c4iw_rdev *rdev);
+void c4iw_ocqp_pool_destroy(struct c4iw_rdev *rdev);
 void c4iw_destroy_resource(struct c4iw_resource *rscp);
 int c4iw_destroy_ctrl_qp(struct c4iw_rdev *rdev);
 int c4iw_register_device(struct c4iw_dev *dev);
@@ -719,6 +748,8 @@ u32 c4iw_rqtpool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_rqtpool_free(struct c4iw_rdev *rdev, u32 addr, int size);
 u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_pblpool_free(struct c4iw_rdev *rdev, u32 addr, int size);
+u32 c4iw_ocqp_pool_alloc(struct c4iw_rdev *rdev, int size);
+void c4iw_ocqp_pool_free(struct c4iw_rdev *rdev, u32 addr, int size);
 int c4iw_ofld_send(struct c4iw_rdev *rdev, struct sk_buff *skb);
 void c4iw_flush_hw_cq(struct t4_cq *cq);
 void c4iw_count_rcqes(struct t4_cq *cq, struct t4_wq *wq, int *count);
@@ -728,7 +759,6 @@ int c4iw_flush_rq(struct t4_wq *wq, struct t4_cq *cq, int count);
 int c4iw_flush_sq(struct t4_wq *wq, struct t4_cq *cq, int count);
 int c4iw_ev_handler(struct c4iw_dev *rnicp, u32 qid);
 u16 c4iw_rqes_posted(struct c4iw_qp *qhp);
-int c4iw_post_zb_read(struct c4iw_qp *qhp);
 int c4iw_post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe);
 u32 c4iw_get_cqid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx);
 void c4iw_put_cqid(struct c4iw_rdev *rdev, u32 qid,

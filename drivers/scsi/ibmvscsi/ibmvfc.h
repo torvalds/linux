@@ -29,8 +29,8 @@
 #include "viosrp.h"
 
 #define IBMVFC_NAME	"ibmvfc"
-#define IBMVFC_DRIVER_VERSION		"1.0.7"
-#define IBMVFC_DRIVER_DATE		"(October 16, 2009)"
+#define IBMVFC_DRIVER_VERSION		"1.0.9"
+#define IBMVFC_DRIVER_DATE		"(August 5, 2010)"
 
 #define IBMVFC_DEFAULT_TIMEOUT	60
 #define IBMVFC_ADISC_CANCEL_TIMEOUT	45
@@ -38,6 +38,7 @@
 #define IBMVFC_ADISC_PLUS_CANCEL_TIMEOUT	\
 		(IBMVFC_ADISC_TIMEOUT + IBMVFC_ADISC_CANCEL_TIMEOUT)
 #define IBMVFC_INIT_TIMEOUT		120
+#define IBMVFC_ABORT_TIMEOUT		8
 #define IBMVFC_ABORT_WAIT_TIMEOUT	40
 #define IBMVFC_MAX_REQUESTS_DEFAULT	100
 
@@ -540,6 +541,12 @@ enum ibmvfc_async_event {
 	IBMVFC_AE_ADAPTER_FAILED	= 0x1000,
 };
 
+struct ibmvfc_async_desc {
+	const char *desc;
+	enum ibmvfc_async_event ae;
+	int log_level;
+};
+
 struct ibmvfc_crq {
 	volatile u8 valid;
 	volatile u8 format;
@@ -597,6 +604,7 @@ enum ibmvfc_target_action {
 	IBMVFC_TGT_ACTION_INIT,
 	IBMVFC_TGT_ACTION_INIT_WAIT,
 	IBMVFC_TGT_ACTION_DEL_RPORT,
+	IBMVFC_TGT_ACTION_DELETED_RPORT,
 };
 
 struct ibmvfc_target {
@@ -649,6 +657,8 @@ struct ibmvfc_event_pool {
 
 enum ibmvfc_host_action {
 	IBMVFC_HOST_ACTION_NONE = 0,
+	IBMVFC_HOST_ACTION_RESET,
+	IBMVFC_HOST_ACTION_REENABLE,
 	IBMVFC_HOST_ACTION_LOGO,
 	IBMVFC_HOST_ACTION_LOGO_WAIT,
 	IBMVFC_HOST_ACTION_INIT,

@@ -907,12 +907,21 @@ enum {
 	MQ_MG_MODE
 };
 
+/*
+ * Per TX queue stats
+ */
+struct tx_q_stats {
+	unsigned long tx_packets;
+	unsigned long tx_bytes;
+};
+
 /**
  *	struct gfar_priv_tx_q - per tx queue structure
  *	@txlock: per queue tx spin lock
  *	@tx_skbuff:skb pointers
  *	@skb_curtx: to be used skb pointer
  *	@skb_dirtytx:the last used skb pointer
+ *	@stats: bytes/packets stats
  *	@qindex: index of this queue
  *	@dev: back pointer to the dev structure
  *	@grp: back pointer to the group to which this queue belongs
@@ -934,6 +943,7 @@ struct gfar_priv_tx_q {
 	struct	txbd8 *tx_bd_base;
 	struct	txbd8 *cur_tx;
 	struct	txbd8 *dirty_tx;
+	struct tx_q_stats stats;
 	struct	net_device *dev;
 	struct gfar_priv_grp *grp;
 	u16	skb_curtx;
@@ -1025,6 +1035,12 @@ struct gfar_priv_grp {
 	char int_name_er[GFAR_INT_NAME_MAX];
 };
 
+enum gfar_errata {
+	GFAR_ERRATA_74		= 0x01,
+	GFAR_ERRATA_76		= 0x02,
+	GFAR_ERRATA_A002	= 0x04,
+};
+
 /* Struct stolen almost completely (and shamelessly) from the FCC enet source
  * (Ok, that's not so true anymore, but there is a family resemblence)
  * The GFAR buffer descriptors track the ring buffers.  The rx_bd_base
@@ -1048,7 +1064,8 @@ struct gfar_private {
 
 	struct device_node *node;
 	struct net_device *ndev;
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
+	enum gfar_errata errata;
 
 	struct gfar_priv_grp gfargrp[MAXGROUPS];
 	struct gfar_priv_tx_q *tx_queue[MAX_TX_QS];
@@ -1110,6 +1127,12 @@ struct gfar_private {
 
 extern unsigned int ftp_rqfpr[MAX_FILER_IDX + 1];
 extern unsigned int ftp_rqfcr[MAX_FILER_IDX + 1];
+
+static inline int gfar_has_errata(struct gfar_private *priv,
+				  enum gfar_errata err)
+{
+	return priv->errata & err;
+}
 
 static inline u32 gfar_read(volatile unsigned __iomem *addr)
 {

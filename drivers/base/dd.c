@@ -51,6 +51,10 @@ static int driver_sysfs_add(struct device *dev)
 {
 	int ret;
 
+	if (dev->bus)
+		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
+					     BUS_NOTIFY_BIND_DRIVER, dev);
+
 	ret = sysfs_create_link(&dev->driver->p->kobj, &dev->kobj,
 			  kobject_name(&dev->kobj));
 	if (ret == 0) {

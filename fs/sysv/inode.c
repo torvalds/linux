@@ -43,6 +43,7 @@ static int sysv_sync_fs(struct super_block *sb, int wait)
 	 * then attach current time stamp.
 	 * But if the filesystem was marked clean, keep it clean.
 	 */
+	sb->s_dirt = 0;
 	old_time = fs32_to_cpu(sbi, *sbi->s_sb_time);
 	if (sbi->s_type == FSTYPE_SYSV4) {
 		if (*sbi->s_sb_state == cpu_to_fs32(sbi, 0x7c269d38 - old_time))
@@ -70,8 +71,8 @@ static int sysv_remount(struct super_block *sb, int *flags, char *data)
 	lock_super(sb);
 	if (sbi->s_forced_ro)
 		*flags |= MS_RDONLY;
-	if (!(*flags & MS_RDONLY))
-		sb->s_dirt = 1;
+	if (*flags & MS_RDONLY)
+		sysv_write_super(sb);
 	unlock_super(sb);
 	return 0;
 }
@@ -307,12 +308,17 @@ int sysv_sync_inode(struct inode *inode)
 	return __sysv_write_inode(inode, 1);
 }
 
-static void sysv_delete_inode(struct inode *inode)
+static void sysv_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
-	inode->i_size = 0;
-	sysv_truncate(inode);
-	sysv_free_inode(inode);
+	if (!inode->i_nlink) {
+		inode->i_size = 0;
+		sysv_truncate(inode);
+	}
+	invalidate_inode_buffers(inode);
+	end_writeback(inode);
+	if (!inode->i_nlink)
+		sysv_free_inode(inode);
 }
 
 static struct kmem_cache *sysv_inode_cachep;
@@ -327,9 +333,16 @@ static struct inode *sysv_alloc_inode(struct super_block *sb)
 	return &si->vfs_inode;
 }
 
+static void sysv_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(sysv_inode_cachep, SYSV_I(inode));
+}
+
 static void sysv_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(sysv_inode_cachep, SYSV_I(inode));
+	call_rcu(&inode->i_rcu, sysv_i_callback);
 }
 
 static void init_once(void *p)
@@ -343,7 +356,7 @@ const struct super_operations sysv_sops = {
 	.alloc_inode	= sysv_alloc_inode,
 	.destroy_inode	= sysv_destroy_inode,
 	.write_inode	= sysv_write_inode,
-	.delete_inode	= sysv_delete_inode,
+	.evict_inode	= sysv_evict_inode,
 	.put_super	= sysv_put_super,
 	.write_super	= sysv_write_super,
 	.sync_fs	= sysv_sync_fs,

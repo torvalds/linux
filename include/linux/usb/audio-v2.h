@@ -18,6 +18,31 @@
 /* v1.0 and v2.0 of this standard have many things in common. For the rest
  * of the definitions, please refer to audio.h */
 
+/*
+ * bmControl field decoders
+ *
+ * From the USB Audio spec v2.0:
+ *
+ *   bmaControls() is a (ch+1)-element array of 4-byte bitmaps,
+ *   each containing a set of bit pairs. If a Control is present,
+ *   it must be Host readable. If a certain Control is not
+ *   present then the bit pair must be set to 0b00.
+ *   If a Control is present but read-only, the bit pair must be
+ *   set to 0b01. If a Control is also Host programmable, the bit
+ *   pair must be set to 0b11. The value 0b10 is not allowed.
+ *
+ */
+
+static inline bool uac2_control_is_readable(u32 bmControls, u8 control)
+{
+	return (bmControls >> (control * 2)) & 0x1;
+}
+
+static inline bool uac2_control_is_writeable(u32 bmControls, u8 control)
+{
+	return (bmControls >> (control * 2)) & 0x2;
+}
+
 /* 4.7.2.1 Clock Source Descriptor */
 
 struct uac_clock_source_descriptor {
@@ -31,6 +56,13 @@ struct uac_clock_source_descriptor {
 	__u8 iClockSource;
 } __attribute__((packed));
 
+/* bmAttribute fields */
+#define UAC_CLOCK_SOURCE_TYPE_EXT	0x0
+#define UAC_CLOCK_SOURCE_TYPE_INT_FIXED	0x1
+#define UAC_CLOCK_SOURCE_TYPE_INT_VAR	0x2
+#define UAC_CLOCK_SOURCE_TYPE_INT_PROG	0x3
+#define UAC_CLOCK_SOURCE_SYNCED_TO_SOF	(1 << 2)
+
 /* 4.7.2.2 Clock Source Descriptor */
 
 struct uac_clock_selector_descriptor {
@@ -39,8 +71,20 @@ struct uac_clock_selector_descriptor {
 	__u8 bDescriptorSubtype;
 	__u8 bClockID;
 	__u8 bNrInPins;
-	__u8 bmControls;
 	__u8 baCSourceID[];
+	/* bmControls, bAssocTerminal and iClockSource omitted */
+} __attribute__((packed));
+
+/* 4.7.2.3 Clock Multiplier Descriptor */
+
+struct uac_clock_multiplier_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bClockID;
+	__u8 bCSourceID;
+	__u8 bmControls;
+	__u8 iClockMultiplier;
 } __attribute__((packed));
 
 /* 4.7.2.4 Input terminal descriptor */
@@ -92,7 +136,7 @@ struct uac2_feature_unit_descriptor {
 
 /* 4.9.2 Class-Specific AS Interface Descriptor */
 
-struct uac_as_header_descriptor_v2 {
+struct uac2_as_header_descriptor {
 	__u8 bLength;
 	__u8 bDescriptorType;
 	__u8 bDescriptorSubtype;
@@ -104,6 +148,22 @@ struct uac_as_header_descriptor_v2 {
 	__u32 bmChannelConfig;
 	__u8 iChannelNames;
 } __attribute__((packed));
+
+/* 4.10.1.2 Class-Specific AS Isochronous Audio Data Endpoint Descriptor */
+
+struct uac2_iso_endpoint_descriptor {
+	__u8  bLength;			/* in bytes: 8 */
+	__u8  bDescriptorType;		/* USB_DT_CS_ENDPOINT */
+	__u8  bDescriptorSubtype;	/* EP_GENERAL */
+	__u8  bmAttributes;
+	__u8  bmControls;
+	__u8  bLockDelayUnits;
+	__le16 wLockDelay;
+} __attribute__((packed));
+
+#define UAC2_CONTROL_PITCH		(3 << 0)
+#define UAC2_CONTROL_DATA_OVERRUN	(3 << 2)
+#define UAC2_CONTROL_DATA_UNDERRUN	(3 << 4)
 
 /* 6.1 Interrupt Data Message */
 

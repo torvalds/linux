@@ -10,6 +10,8 @@
  * the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -61,9 +63,9 @@ static bool i8042_noloop;
 module_param_named(noloop, i8042_noloop, bool, 0);
 MODULE_PARM_DESC(noloop, "Disable the AUX Loopback command while probing for the AUX port");
 
-static unsigned int i8042_blink_frequency = 500;
-module_param_named(panicblink, i8042_blink_frequency, uint, 0600);
-MODULE_PARM_DESC(panicblink, "Frequency with which keyboard LEDs should blink when kernel panics");
+static bool i8042_notimeout;
+module_param_named(notimeout, i8042_notimeout, bool, 0);
+MODULE_PARM_DESC(notimeout, "Ignore timeouts signalled by i8042");
 
 #ifdef CONFIG_X86
 static bool i8042_dritek;
@@ -229,8 +231,8 @@ static int i8042_flush(void)
 		udelay(50);
 		data = i8042_read_data();
 		i++;
-		dbg("%02x <- i8042 (flush, %s)", data,
-			str & I8042_STR_AUXDATA ? "aux" : "kbd");
+		dbg("%02x <- i8042 (flush, %s)\n",
+		    data, str & I8042_STR_AUXDATA ? "aux" : "kbd");
 	}
 
 	spin_unlock_irqrestore(&i8042_lock, flags);
@@ -257,32 +259,32 @@ static int __i8042_command(unsigned char *param, int command)
 	if (error)
 		return error;
 
-	dbg("%02x -> i8042 (command)", command & 0xff);
+	dbg("%02x -> i8042 (command)\n", command & 0xff);
 	i8042_write_command(command & 0xff);
 
 	for (i = 0; i < ((command >> 12) & 0xf); i++) {
 		error = i8042_wait_write();
 		if (error)
 			return error;
-		dbg("%02x -> i8042 (parameter)", param[i]);
+		dbg("%02x -> i8042 (parameter)\n", param[i]);
 		i8042_write_data(param[i]);
 	}
 
 	for (i = 0; i < ((command >> 8) & 0xf); i++) {
 		error = i8042_wait_read();
 		if (error) {
-			dbg("     -- i8042 (timeout)");
+			dbg("     -- i8042 (timeout)\n");
 			return error;
 		}
 
 		if (command == I8042_CMD_AUX_LOOP &&
 		    !(i8042_read_status() & I8042_STR_AUXDATA)) {
-			dbg("     -- i8042 (auxerr)");
+			dbg("     -- i8042 (auxerr)\n");
 			return -1;
 		}
 
 		param[i] = i8042_read_data();
-		dbg("%02x <- i8042 (return)", param[i]);
+		dbg("%02x <- i8042 (return)\n", param[i]);
 	}
 
 	return 0;
@@ -313,7 +315,7 @@ static int i8042_kbd_write(struct serio *port, unsigned char c)
 	spin_lock_irqsave(&i8042_lock, flags);
 
 	if (!(retval = i8042_wait_write())) {
-		dbg("%02x -> i8042 (kbd-data)", c);
+		dbg("%02x -> i8042 (kbd-data)\n", c);
 		i8042_write_data(c);
 	}
 
@@ -359,17 +361,14 @@ static void i8042_port_close(struct serio *serio)
 
 	i8042_ctr &= ~irq_bit;
 	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR))
-		printk(KERN_WARNING
-			"i8042.c: Can't write CTR while closing %s port.\n",
-			port_name);
+		pr_warn("Can't write CTR while closing %s port\n", port_name);
 
 	udelay(50);
 
 	i8042_ctr &= ~disable_bit;
 	i8042_ctr |= irq_bit;
 	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR))
-		printk(KERN_ERR "i8042.c: Can't reactivate %s port.\n",
-			port_name);
+		pr_err("Can't reactivate %s port\n", port_name);
 
 	/*
 	 * See if there is any data appeared while we were messing with
@@ -460,7 +459,8 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 	str = i8042_read_status();
 	if (unlikely(~str & I8042_STR_OBF)) {
 		spin_unlock_irqrestore(&i8042_lock, flags);
-		if (irq) dbg("Interrupt %d, without any data", irq);
+		if (irq)
+			dbg("Interrupt %d, without any data\n", irq);
 		ret = 0;
 		goto out;
 	}
@@ -473,7 +473,8 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 
 		dfl = 0;
 		if (str & I8042_STR_MUXERR) {
-			dbg("MUX error, status is %02x, data is %02x", str, data);
+			dbg("MUX error, status is %02x, data is %02x\n",
+			    str, data);
 /*
  * When MUXERR condition is signalled the data register can only contain
  * 0xfd, 0xfe or 0xff if implementation follows the spec. Unfortunately
@@ -507,7 +508,7 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 	} else {
 
 		dfl = ((str & I8042_STR_PARITY) ? SERIO_PARITY : 0) |
-		      ((str & I8042_STR_TIMEOUT) ? SERIO_TIMEOUT : 0);
+		      ((str & I8042_STR_TIMEOUT && !i8042_notimeout) ? SERIO_TIMEOUT : 0);
 
 		port_no = (str & I8042_STR_AUXDATA) ?
 				I8042_AUX_PORT_NO : I8042_KBD_PORT_NO;
@@ -516,7 +517,7 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 	port = &i8042_ports[port_no];
 	serio = port->exists ? port->serio : NULL;
 
-	dbg("%02x <- i8042 (interrupt, %d, %d%s%s)",
+	dbg("%02x <- i8042 (interrupt, %d, %d%s%s)\n",
 	    data, port_no, irq,
 	    dfl & SERIO_PARITY ? ", bad parity" : "",
 	    dfl & SERIO_TIMEOUT ? ", timeout" : "");
@@ -544,7 +545,7 @@ static int i8042_enable_kbd_port(void)
 	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR)) {
 		i8042_ctr &= ~I8042_CTR_KBDINT;
 		i8042_ctr |= I8042_CTR_KBDDIS;
-		printk(KERN_ERR "i8042.c: Failed to enable KBD port.\n");
+		pr_err("Failed to enable KBD port\n");
 		return -EIO;
 	}
 
@@ -563,7 +564,7 @@ static int i8042_enable_aux_port(void)
 	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR)) {
 		i8042_ctr &= ~I8042_CTR_AUXINT;
 		i8042_ctr |= I8042_CTR_AUXDIS;
-		printk(KERN_ERR "i8042.c: Failed to enable AUX port.\n");
+		pr_err("Failed to enable AUX port\n");
 		return -EIO;
 	}
 
@@ -645,7 +646,7 @@ static int __init i8042_check_mux(void)
 	if (i8042_set_mux_mode(true, &mux_version))
 		return -1;
 
-	printk(KERN_INFO "i8042.c: Detected active multiplexing controller, rev %d.%d.\n",
+	pr_info("Detected active multiplexing controller, rev %d.%d\n",
 		(mux_version >> 4) & 0xf, mux_version & 0xf);
 
 /*
@@ -655,7 +656,7 @@ static int __init i8042_check_mux(void)
 	i8042_ctr &= ~I8042_CTR_AUXINT;
 
 	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR)) {
-		printk(KERN_ERR "i8042.c: Failed to disable AUX port, can't use MUX.\n");
+		pr_err("Failed to disable AUX port, can't use MUX\n");
 		return -EIO;
 	}
 
@@ -680,8 +681,8 @@ static irqreturn_t __init i8042_aux_test_irq(int irq, void *dev_id)
 	str = i8042_read_status();
 	if (str & I8042_STR_OBF) {
 		data = i8042_read_data();
-		dbg("%02x <- i8042 (aux_test_irq, %s)",
-			data, str & I8042_STR_AUXDATA ? "aux" : "kbd");
+		dbg("%02x <- i8042 (aux_test_irq, %s)\n",
+		    data, str & I8042_STR_AUXDATA ? "aux" : "kbd");
 		if (i8042_irq_being_tested &&
 		    data == 0xa5 && (str & I8042_STR_AUXDATA))
 			complete(&i8042_aux_irq_delivered);
@@ -774,8 +775,8 @@ static int __init i8042_check_aux(void)
  */
 
 	if (i8042_toggle_aux(false)) {
-		printk(KERN_WARNING "Failed to disable AUX port, but continuing anyway... Is this a SiS?\n");
-		printk(KERN_WARNING "If AUX port is really absent please use the 'i8042.noaux' option.\n");
+		pr_warn("Failed to disable AUX port, but continuing anyway... Is this a SiS?\n");
+		pr_warn("If AUX port is really absent please use the 'i8042.noaux' option\n");
 	}
 
 	if (i8042_toggle_aux(true))
@@ -823,7 +824,7 @@ static int __init i8042_check_aux(void)
  * AUX IRQ was never delivered so we need to flush the controller to
  * get rid of the byte we put there; otherwise keyboard may not work.
  */
-		dbg("     -- i8042 (aux irq test timeout)");
+		dbg("     -- i8042 (aux irq test timeout)\n");
 		i8042_flush();
 		retval = -1;
 	}
@@ -849,7 +850,7 @@ static int __init i8042_check_aux(void)
 static int i8042_controller_check(void)
 {
 	if (i8042_flush() == I8042_BUFFER_SIZE) {
-		printk(KERN_ERR "i8042.c: No controller found.\n");
+		pr_err("No controller found\n");
 		return -ENODEV;
 	}
 
@@ -861,9 +862,6 @@ static int i8042_controller_selftest(void)
 	unsigned char param;
 	int i = 0;
 
-	if (!i8042_reset)
-		return 0;
-
 	/*
 	 * We try this 5 times; on some really fragile systems this does not
 	 * take the first time...
@@ -871,15 +869,15 @@ static int i8042_controller_selftest(void)
 	do {
 
 		if (i8042_command(&param, I8042_CMD_CTL_TEST)) {
-			printk(KERN_ERR "i8042.c: i8042 controller self test timeout.\n");
+			pr_err("i8042 controller self test timeout\n");
 			return -ENODEV;
 		}
 
 		if (param == I8042_RET_CTL_TEST)
 			return 0;
 
-		printk(KERN_ERR "i8042.c: i8042 controller selftest failed. (%#x != %#x)\n",
-			param, I8042_RET_CTL_TEST);
+		pr_err("i8042 controller selftest failed. (%#x != %#x)\n",
+		       param, I8042_RET_CTL_TEST);
 		msleep(50);
 	} while (i++ < 5);
 
@@ -890,8 +888,7 @@ static int i8042_controller_selftest(void)
 	 * and user will still get a working keyboard. This is especially
 	 * important on netbooks. On other arches we trust hardware more.
 	 */
-	printk(KERN_INFO
-		"i8042: giving up on controller selftest, continuing anyway...\n");
+	pr_info("giving up on controller selftest, continuing anyway...\n");
 	return 0;
 #else
 	return -EIO;
@@ -916,8 +913,7 @@ static int i8042_controller_init(void)
 
 	do {
 		if (n >= 10) {
-			printk(KERN_ERR
-				"i8042.c: Unable to get stable CTR read.\n");
+			pr_err("Unable to get stable CTR read\n");
 			return -EIO;
 		}
 
@@ -925,8 +921,7 @@ static int i8042_controller_init(void)
 			udelay(50);
 
 		if (i8042_command(&ctr[n++ % 2], I8042_CMD_CTL_RCTR)) {
-			printk(KERN_ERR
-				"i8042.c: Can't read CTR while initializing i8042.\n");
+			pr_err("Can't read CTR while initializing i8042\n");
 			return -EIO;
 		}
 
@@ -950,7 +945,7 @@ static int i8042_controller_init(void)
 		if (i8042_unlock)
 			i8042_ctr |= I8042_CTR_IGNKEYLOCK;
 		else
-			printk(KERN_WARNING "i8042.c: Warning: Keylock active.\n");
+			pr_warn("Warning: Keylock active\n");
 	}
 	spin_unlock_irqrestore(&i8042_lock, flags);
 
@@ -977,7 +972,7 @@ static int i8042_controller_init(void)
  */
 
 	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR)) {
-		printk(KERN_ERR "i8042.c: Can't write CTR while initializing i8042.\n");
+		pr_err("Can't write CTR while initializing i8042\n");
 		return -EIO;
 	}
 
@@ -1007,7 +1002,7 @@ static void i8042_controller_reset(void)
 	i8042_ctr &= ~(I8042_CTR_KBDINT | I8042_CTR_AUXINT);
 
 	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR))
-		printk(KERN_WARNING "i8042.c: Can't write CTR while resetting.\n");
+		pr_warn("Can't write CTR while resetting\n");
 
 /*
  * Disable MUX mode if present.
@@ -1020,20 +1015,21 @@ static void i8042_controller_reset(void)
  * Reset the controller if requested.
  */
 
-	i8042_controller_selftest();
+	if (i8042_reset)
+		i8042_controller_selftest();
 
 /*
  * Restore the original control register setting.
  */
 
 	if (i8042_command(&i8042_initial_ctr, I8042_CMD_CTL_WCTR))
-		printk(KERN_WARNING "i8042.c: Can't restore CTR.\n");
+		pr_warn("Can't restore CTR\n");
 }
 
 
 /*
- * i8042_panic_blink() will flash the keyboard LEDs and is called when
- * kernel panics. Flashing LEDs is useful for users running X who may
+ * i8042_panic_blink() will turn the keyboard LEDs on or off and is called
+ * when kernel panics. Flashing LEDs is useful for users running X who may
  * not see the console and will help distingushing panics from "real"
  * lockups.
  *
@@ -1043,35 +1039,24 @@ static void i8042_controller_reset(void)
 
 #define DELAY do { mdelay(1); if (++delay > 10) return delay; } while(0)
 
-static long i8042_panic_blink(long count)
+static long i8042_panic_blink(int state)
 {
 	long delay = 0;
-	static long last_blink;
-	static char led;
+	char led;
 
-	/*
-	 * We expect frequency to be about 1/2s. KDB uses about 1s.
-	 * Make sure they are different.
-	 */
-	if (!i8042_blink_frequency)
-		return 0;
-	if (count - last_blink < i8042_blink_frequency)
-		return 0;
-
-	led ^= 0x01 | 0x04;
+	led = (state) ? 0x01 | 0x04 : 0;
 	while (i8042_read_status() & I8042_STR_IBF)
 		DELAY;
-	dbg("%02x -> i8042 (panic blink)", 0xed);
+	dbg("%02x -> i8042 (panic blink)\n", 0xed);
 	i8042_suppress_kbd_ack = 2;
 	i8042_write_data(0xed); /* set leds */
 	DELAY;
 	while (i8042_read_status() & I8042_STR_IBF)
 		DELAY;
 	DELAY;
-	dbg("%02x -> i8042 (panic blink)", led);
+	dbg("%02x -> i8042 (panic blink)\n", led);
 	i8042_write_data(led);
 	DELAY;
-	last_blink = count;
 	return delay;
 }
 
@@ -1080,18 +1065,73 @@ static long i8042_panic_blink(long count)
 #ifdef CONFIG_X86
 static void i8042_dritek_enable(void)
 {
-	char param = 0x90;
+	unsigned char param = 0x90;
 	int error;
 
 	error = i8042_command(&param, 0x1059);
 	if (error)
-		printk(KERN_WARNING
-			"Failed to enable DRITEK extension: %d\n",
-			error);
+		pr_warn("Failed to enable DRITEK extension: %d\n", error);
 }
 #endif
 
 #ifdef CONFIG_PM
+
+/*
+ * Here we try to reset everything back to a state we had
+ * before suspending.
+ */
+
+static int i8042_controller_resume(bool force_reset)
+{
+	int error;
+
+	error = i8042_controller_check();
+	if (error)
+		return error;
+
+	if (i8042_reset || force_reset) {
+		error = i8042_controller_selftest();
+		if (error)
+			return error;
+	}
+
+/*
+ * Restore original CTR value and disable all ports
+ */
+
+	i8042_ctr = i8042_initial_ctr;
+	if (i8042_direct)
+		i8042_ctr &= ~I8042_CTR_XLATE;
+	i8042_ctr |= I8042_CTR_AUXDIS | I8042_CTR_KBDDIS;
+	i8042_ctr &= ~(I8042_CTR_AUXINT | I8042_CTR_KBDINT);
+	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR)) {
+		pr_warn("Can't write CTR to resume, retrying...\n");
+		msleep(50);
+		if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR)) {
+			pr_err("CTR write retry failed\n");
+			return -EIO;
+		}
+	}
+
+
+#ifdef CONFIG_X86
+	if (i8042_dritek)
+		i8042_dritek_enable();
+#endif
+
+	if (i8042_mux_present) {
+		if (i8042_set_mux_mode(true, NULL) || i8042_enable_mux_ports())
+			pr_warn("failed to resume active multiplexor, mouse won't work\n");
+	} else if (i8042_ports[I8042_AUX_PORT_NO].serio)
+		i8042_enable_aux_port();
+
+	if (i8042_ports[I8042_KBD_PORT_NO].serio)
+		i8042_enable_kbd_port();
+
+	i8042_interrupt(0, NULL);
+
+	return 0;
+}
 
 /*
  * Here we try to restore the original BIOS settings to avoid
@@ -1105,61 +1145,14 @@ static int i8042_pm_reset(struct device *dev)
 	return 0;
 }
 
-/*
- * Here we try to reset everything back to a state we had
- * before suspending.
- */
-
-static int i8042_pm_restore(struct device *dev)
+static int i8042_pm_resume(struct device *dev)
 {
-	int error;
-
-	error = i8042_controller_check();
-	if (error)
-		return error;
-
-	error = i8042_controller_selftest();
-	if (error)
-		return error;
-
-/*
- * Restore original CTR value and disable all ports
- */
-
-	i8042_ctr = i8042_initial_ctr;
-	if (i8042_direct)
-		i8042_ctr &= ~I8042_CTR_XLATE;
-	i8042_ctr |= I8042_CTR_AUXDIS | I8042_CTR_KBDDIS;
-	i8042_ctr &= ~(I8042_CTR_AUXINT | I8042_CTR_KBDINT);
-	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR)) {
-		printk(KERN_WARNING "i8042: Can't write CTR to resume, retrying...\n");
-		msleep(50);
-		if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR)) {
-			printk(KERN_ERR "i8042: CTR write retry failed\n");
-			return -EIO;
-		}
-	}
-
-
-#ifdef CONFIG_X86
-	if (i8042_dritek)
-		i8042_dritek_enable();
-#endif
-
-	if (i8042_mux_present) {
-		if (i8042_set_mux_mode(true, NULL) || i8042_enable_mux_ports())
-			printk(KERN_WARNING
-				"i8042: failed to resume active multiplexor, "
-				"mouse won't work.\n");
-	} else if (i8042_ports[I8042_AUX_PORT_NO].serio)
-		i8042_enable_aux_port();
-
-	if (i8042_ports[I8042_KBD_PORT_NO].serio)
-		i8042_enable_kbd_port();
-
-	i8042_interrupt(0, NULL);
-
-	return 0;
+	/*
+	 * On resume from S2R we always try to reset the controller
+	 * to bring it in a sane state. (In case of S2D we expect
+	 * BIOS to reset the controller for us.)
+	 */
+	return i8042_controller_resume(true);
 }
 
 static int i8042_pm_thaw(struct device *dev)
@@ -1169,9 +1162,14 @@ static int i8042_pm_thaw(struct device *dev)
 	return 0;
 }
 
+static int i8042_pm_restore(struct device *dev)
+{
+	return i8042_controller_resume(false);
+}
+
 static const struct dev_pm_ops i8042_pm_ops = {
 	.suspend	= i8042_pm_reset,
-	.resume		= i8042_pm_restore,
+	.resume		= i8042_pm_resume,
 	.thaw		= i8042_pm_thaw,
 	.poweroff	= i8042_pm_reset,
 	.restore	= i8042_pm_restore,
@@ -1389,9 +1387,11 @@ static int __init i8042_probe(struct platform_device *dev)
 
 	i8042_platform_device = dev;
 
-	error = i8042_controller_selftest();
-	if (error)
-		return error;
+	if (i8042_reset) {
+		error = i8042_controller_selftest();
+		if (error)
+			return error;
+	}
 
 	error = i8042_controller_init();
 	if (error)
@@ -1483,8 +1483,8 @@ static int __init i8042_init(void)
 
 static void __exit i8042_exit(void)
 {
-	platform_driver_unregister(&i8042_driver);
 	platform_device_unregister(i8042_platform_device);
+	platform_driver_unregister(&i8042_driver);
 	i8042_platform_exit();
 
 	panic_blink = NULL;

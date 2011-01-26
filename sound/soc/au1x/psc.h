@@ -8,18 +8,10 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * NOTE: all of these drivers can only work with a SINGLE instance
- *	 of a PSC. Multiple independent audio devices are impossible
- *	 with ASoC v1.
  */
 
 #ifndef _AU1X_PCM_H
 #define _AU1X_PCM_H
-
-extern struct snd_soc_dai au1xpsc_ac97_dai;
-extern struct snd_soc_dai au1xpsc_i2s_dai;
-extern struct snd_soc_platform au1xpsc_soc_platform;
-extern struct snd_ac97_bus_ops soc_ac97_ops;
 
 /* DBDMA helpers */
 extern struct platform_device *au1xpsc_pcm_add(struct platform_device *pdev);
@@ -31,8 +23,9 @@ struct au1xpsc_audio_data {
 	unsigned long cfg;
 	unsigned long rate;
 
+	struct snd_soc_dai_driver dai_drv;
+
 	unsigned long pm[2];
-	struct resource *ioarea;
 	struct mutex lock;
 	struct platform_device *dmapd;
 };

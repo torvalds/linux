@@ -16,12 +16,42 @@
 
 #include "htc.h"
 
-#define ATH9K_FW_USB_DEV(devid, fw)					\
-	{ USB_DEVICE(0x0cf3, devid), .driver_info = (unsigned long) fw }
+/* identify firmware images */
+#define FIRMWARE_AR7010		"ar7010.fw"
+#define FIRMWARE_AR7010_1_1	"ar7010_1_1.fw"
+#define FIRMWARE_AR9271		"ar9271.fw"
+
+MODULE_FIRMWARE(FIRMWARE_AR7010);
+MODULE_FIRMWARE(FIRMWARE_AR7010_1_1);
+MODULE_FIRMWARE(FIRMWARE_AR9271);
 
 static struct usb_device_id ath9k_hif_usb_ids[] = {
-	ATH9K_FW_USB_DEV(0x9271, "ar9271.fw"),
-	ATH9K_FW_USB_DEV(0x1006, "ar9271.fw"),
+	{ USB_DEVICE(0x0cf3, 0x9271) }, /* Atheros */
+	{ USB_DEVICE(0x0cf3, 0x1006) }, /* Atheros */
+	{ USB_DEVICE(0x0846, 0x9030) }, /* Netgear N150 */
+	{ USB_DEVICE(0x07D1, 0x3A10) }, /* Dlink Wireless 150 */
+	{ USB_DEVICE(0x13D3, 0x3327) }, /* Azurewave */
+	{ USB_DEVICE(0x13D3, 0x3328) }, /* Azurewave */
+	{ USB_DEVICE(0x13D3, 0x3346) }, /* IMC Networks */
+	{ USB_DEVICE(0x13D3, 0x3348) }, /* Azurewave */
+	{ USB_DEVICE(0x13D3, 0x3349) }, /* Azurewave */
+	{ USB_DEVICE(0x13D3, 0x3350) }, /* Azurewave */
+	{ USB_DEVICE(0x04CA, 0x4605) }, /* Liteon */
+	{ USB_DEVICE(0x040D, 0x3801) }, /* VIA */
+	{ USB_DEVICE(0x0cf3, 0xb003) }, /* Ubiquiti WifiStation Ext */
+
+	{ USB_DEVICE(0x0cf3, 0x7015),
+	  .driver_info = AR9287_USB },  /* Atheros */
+	{ USB_DEVICE(0x1668, 0x1200),
+	  .driver_info = AR9287_USB },  /* Verizon */
+
+	{ USB_DEVICE(0x0cf3, 0x7010),
+	  .driver_info = AR9280_USB },  /* Atheros */
+	{ USB_DEVICE(0x0846, 0x9018),
+	  .driver_info = AR9280_USB },  /* Netgear WNDA3200 */
+	{ USB_DEVICE(0x083A, 0xA704),
+	  .driver_info = AR9280_USB },  /* SMC Networks */
+
 	{ },
 };
 
@@ -77,10 +107,10 @@ static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
 	cmd->skb = skb;
 	cmd->hif_dev = hif_dev;
 
-	usb_fill_int_urb(urb, hif_dev->udev,
-			 usb_sndintpipe(hif_dev->udev, USB_REG_OUT_PIPE),
+	usb_fill_bulk_urb(urb, hif_dev->udev,
+			 usb_sndbulkpipe(hif_dev->udev, USB_REG_OUT_PIPE),
 			 skb->data, skb->len,
-			 hif_usb_regout_cb, cmd, 1);
+			 hif_usb_regout_cb, cmd);
 
 	usb_anchor_urb(urb, &hif_dev->regout_submitted);
 	ret = usb_submit_urb(urb, GFP_KERNEL);
@@ -107,11 +137,13 @@ static inline void ath9k_skb_queue_purge(struct hif_device_usb *hif_dev,
 static void hif_usb_tx_cb(struct urb *urb)
 {
 	struct tx_buf *tx_buf = (struct tx_buf *) urb->context;
-	struct hif_device_usb *hif_dev = tx_buf->hif_dev;
+	struct hif_device_usb *hif_dev;
 	struct sk_buff *skb;
 
-	if (!hif_dev || !tx_buf)
+	if (!tx_buf || !tx_buf->hif_dev)
 		return;
+
+	hif_dev = tx_buf->hif_dev;
 
 	switch (urb->status) {
 	case 0:
@@ -121,16 +153,36 @@ static void hif_usb_tx_cb(struct urb *urb)
 	case -ENODEV:
 	case -ESHUTDOWN:
 		/*
-		 * The URB has been killed, free the SKBs
-		 * and return.
+		 * The URB has been killed, free the SKBs.
 		 */
 		ath9k_skb_queue_purge(hif_dev, &tx_buf->skb_queue);
-		return;
+
+		/*
+		 * If the URBs are being flushed, no need to add this
+		 * URB to the free list.
+		 */
+		spin_lock(&hif_dev->tx.tx_lock);
+		if (hif_dev->tx.flags & HIF_USB_TX_FLUSH) {
+			spin_unlock(&hif_dev->tx.tx_lock);
+			return;
+		}
+		spin_unlock(&hif_dev->tx.tx_lock);
+
+		/*
+		 * In the stop() case, this URB has to be added to
+		 * the free list.
+		 */
+		goto add_free;
 	default:
 		break;
 	}
 
-	/* Check if TX has been stopped */
+	/*
+	 * Check if TX has been stopped, this is needed because
+	 * this CB could have been invoked just after the TX lock
+	 * was released in hif_stop() and kill_urb() hasn't been
+	 * called yet.
+	 */
 	spin_lock(&hif_dev->tx.tx_lock);
 	if (hif_dev->tx.flags & HIF_USB_TX_STOP) {
 		spin_unlock(&hif_dev->tx.tx_lock);
@@ -282,6 +334,7 @@ static void hif_usb_start(void *hif_handle, u8 pipe_id)
 static void hif_usb_stop(void *hif_handle, u8 pipe_id)
 {
 	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
+	struct tx_buf *tx_buf = NULL, *tx_buf_tmp = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hif_dev->tx.tx_lock, flags);
@@ -289,6 +342,12 @@ static void hif_usb_stop(void *hif_handle, u8 pipe_id)
 	hif_dev->tx.tx_skb_cnt = 0;
 	hif_dev->tx.flags |= HIF_USB_TX_STOP;
 	spin_unlock_irqrestore(&hif_dev->tx.tx_lock, flags);
+
+	/* The pending URBs have to be canceled. */
+	list_for_each_entry_safe(tx_buf, tx_buf_tmp,
+				 &hif_dev->tx.tx_pending, list) {
+		usb_kill_urb(tx_buf->urb);
+	}
 }
 
 static int hif_usb_send(void *hif_handle, u8 pipe_id, struct sk_buff *skb,
@@ -330,9 +389,9 @@ static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 				    struct sk_buff *skb)
 {
 	struct sk_buff *nskb, *skb_pool[MAX_PKT_NUM_IN_TRANSFER];
-	int index = 0, i = 0, chk_idx, len = skb->len;
-	int rx_remain_len = 0, rx_pkt_len = 0;
-	u16 pkt_len, pkt_tag, pool_index = 0;
+	int index = 0, i = 0, len = skb->len;
+	int rx_remain_len, rx_pkt_len;
+	u16 pool_index = 0;
 	u8 *ptr;
 
 	spin_lock(&hif_dev->rx_lock);
@@ -366,64 +425,64 @@ static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 	spin_unlock(&hif_dev->rx_lock);
 
 	while (index < len) {
+		u16 pkt_len;
+		u16 pkt_tag;
+		u16 pad_len;
+		int chk_idx;
+
 		ptr = (u8 *) skb->data;
 
 		pkt_len = ptr[index] + (ptr[index+1] << 8);
 		pkt_tag = ptr[index+2] + (ptr[index+3] << 8);
 
-		if (pkt_tag == ATH_USB_RX_STREAM_MODE_TAG) {
-			u16 pad_len;
-
-			pad_len = 4 - (pkt_len & 0x3);
-			if (pad_len == 4)
-				pad_len = 0;
-
-			chk_idx = index;
-			index = index + 4 + pkt_len + pad_len;
-
-			if (index > MAX_RX_BUF_SIZE) {
-				spin_lock(&hif_dev->rx_lock);
-				hif_dev->rx_remain_len = index - MAX_RX_BUF_SIZE;
-				hif_dev->rx_transfer_len =
-					MAX_RX_BUF_SIZE - chk_idx - 4;
-				hif_dev->rx_pad_len = pad_len;
-
-				nskb = __dev_alloc_skb(pkt_len + 32,
-						       GFP_ATOMIC);
-				if (!nskb) {
-					dev_err(&hif_dev->udev->dev,
-					"ath9k_htc: RX memory allocation"
-					" error\n");
-					spin_unlock(&hif_dev->rx_lock);
-					goto err;
-				}
-				skb_reserve(nskb, 32);
-				RX_STAT_INC(skb_allocated);
-
-				memcpy(nskb->data, &(skb->data[chk_idx+4]),
-				       hif_dev->rx_transfer_len);
-
-				/* Record the buffer pointer */
-				hif_dev->remain_skb = nskb;
-				spin_unlock(&hif_dev->rx_lock);
-			} else {
-				nskb = __dev_alloc_skb(pkt_len + 32, GFP_ATOMIC);
-				if (!nskb) {
-					dev_err(&hif_dev->udev->dev,
-					"ath9k_htc: RX memory allocation"
-					" error\n");
-					goto err;
-				}
-				skb_reserve(nskb, 32);
-				RX_STAT_INC(skb_allocated);
-
-				memcpy(nskb->data, &(skb->data[chk_idx+4]), pkt_len);
-				skb_put(nskb, pkt_len);
-				skb_pool[pool_index++] = nskb;
-			}
-		} else {
+		if (pkt_tag != ATH_USB_RX_STREAM_MODE_TAG) {
 			RX_STAT_INC(skb_dropped);
 			return;
+		}
+
+		pad_len = 4 - (pkt_len & 0x3);
+		if (pad_len == 4)
+			pad_len = 0;
+
+		chk_idx = index;
+		index = index + 4 + pkt_len + pad_len;
+
+		if (index > MAX_RX_BUF_SIZE) {
+			spin_lock(&hif_dev->rx_lock);
+			hif_dev->rx_remain_len = index - MAX_RX_BUF_SIZE;
+			hif_dev->rx_transfer_len =
+				MAX_RX_BUF_SIZE - chk_idx - 4;
+			hif_dev->rx_pad_len = pad_len;
+
+			nskb = __dev_alloc_skb(pkt_len + 32, GFP_ATOMIC);
+			if (!nskb) {
+				dev_err(&hif_dev->udev->dev,
+					"ath9k_htc: RX memory allocation error\n");
+				spin_unlock(&hif_dev->rx_lock);
+				goto err;
+			}
+			skb_reserve(nskb, 32);
+			RX_STAT_INC(skb_allocated);
+
+			memcpy(nskb->data, &(skb->data[chk_idx+4]),
+			       hif_dev->rx_transfer_len);
+
+			/* Record the buffer pointer */
+			hif_dev->remain_skb = nskb;
+			spin_unlock(&hif_dev->rx_lock);
+		} else {
+			nskb = __dev_alloc_skb(pkt_len + 32, GFP_ATOMIC);
+			if (!nskb) {
+				dev_err(&hif_dev->udev->dev,
+					"ath9k_htc: RX memory allocation error\n");
+				goto err;
+			}
+			skb_reserve(nskb, 32);
+			RX_STAT_INC(skb_allocated);
+
+			memcpy(nskb->data, &(skb->data[chk_idx+4]), pkt_len);
+			skb_put(nskb, pkt_len);
+			skb_pool[pool_index++] = nskb;
 		}
 	}
 
@@ -438,7 +497,7 @@ err:
 static void ath9k_hif_usb_rx_cb(struct urb *urb)
 {
 	struct sk_buff *skb = (struct sk_buff *) urb->context;
-	struct hif_device_usb *hif_dev = (struct hif_device_usb *)
+	struct hif_device_usb *hif_dev =
 		usb_get_intfdata(usb_ifnum_to_if(urb->dev, 0));
 	int ret;
 
@@ -485,7 +544,7 @@ static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 {
 	struct sk_buff *skb = (struct sk_buff *) urb->context;
 	struct sk_buff *nskb;
-	struct hif_device_usb *hif_dev = (struct hif_device_usb *)
+	struct hif_device_usb *hif_dev =
 		usb_get_intfdata(usb_ifnum_to_if(urb->dev, 0));
 	int ret;
 
@@ -523,10 +582,11 @@ static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 			return;
 		}
 
-		usb_fill_int_urb(urb, hif_dev->udev,
-				 usb_rcvintpipe(hif_dev->udev, USB_REG_IN_PIPE),
+		usb_fill_bulk_urb(urb, hif_dev->udev,
+				 usb_rcvbulkpipe(hif_dev->udev,
+						 USB_REG_IN_PIPE),
 				 nskb->data, MAX_REG_IN_BUF_SIZE,
-				 ath9k_hif_usb_reg_in_cb, nskb, 1);
+				 ath9k_hif_usb_reg_in_cb, nskb);
 
 		ret = usb_submit_urb(urb, GFP_ATOMIC);
 		if (ret) {
@@ -554,6 +614,7 @@ free:
 static void ath9k_hif_usb_dealloc_tx_urbs(struct hif_device_usb *hif_dev)
 {
 	struct tx_buf *tx_buf = NULL, *tx_buf_tmp = NULL;
+	unsigned long flags;
 
 	list_for_each_entry_safe(tx_buf, tx_buf_tmp,
 				 &hif_dev->tx.tx_buf, list) {
@@ -563,6 +624,10 @@ static void ath9k_hif_usb_dealloc_tx_urbs(struct hif_device_usb *hif_dev)
 		kfree(tx_buf->buf);
 		kfree(tx_buf);
 	}
+
+	spin_lock_irqsave(&hif_dev->tx.tx_lock, flags);
+	hif_dev->tx.flags |= HIF_USB_TX_FLUSH;
+	spin_unlock_irqrestore(&hif_dev->tx.tx_lock, flags);
 
 	list_for_each_entry_safe(tx_buf, tx_buf_tmp,
 				 &hif_dev->tx.tx_pending, list) {
@@ -607,6 +672,10 @@ static int ath9k_hif_usb_alloc_tx_urbs(struct hif_device_usb *hif_dev)
 
 	return 0;
 err:
+	if (tx_buf) {
+		kfree(tx_buf->buf);
+		kfree(tx_buf);
+	}
 	ath9k_hif_usb_dealloc_tx_urbs(hif_dev);
 	return -ENOMEM;
 }
@@ -698,10 +767,11 @@ static int ath9k_hif_usb_alloc_reg_in_urb(struct hif_device_usb *hif_dev)
 	if (!skb)
 		goto err;
 
-	usb_fill_int_urb(hif_dev->reg_in_urb, hif_dev->udev,
-			 usb_rcvintpipe(hif_dev->udev, USB_REG_IN_PIPE),
+	usb_fill_bulk_urb(hif_dev->reg_in_urb, hif_dev->udev,
+			 usb_rcvbulkpipe(hif_dev->udev,
+					 USB_REG_IN_PIPE),
 			 skb->data, MAX_REG_IN_BUF_SIZE,
-			 ath9k_hif_usb_reg_in_cb, skb, 1);
+			 ath9k_hif_usb_reg_in_cb, skb);
 
 	if (usb_submit_urb(hif_dev->reg_in_urb, GFP_KERNEL) != 0)
 		goto err;
@@ -724,13 +794,17 @@ static int ath9k_hif_usb_alloc_urbs(struct hif_device_usb *hif_dev)
 
 	/* RX */
 	if (ath9k_hif_usb_alloc_rx_urbs(hif_dev) < 0)
-		goto err;
+		goto err_rx;
 
 	/* Register Read */
 	if (ath9k_hif_usb_alloc_reg_in_urb(hif_dev) < 0)
-		goto err;
+		goto err_reg;
 
 	return 0;
+err_reg:
+	ath9k_hif_usb_dealloc_rx_urbs(hif_dev);
+err_rx:
+	ath9k_hif_usb_dealloc_tx_urbs(hif_dev);
 err:
 	return -ENOMEM;
 }
@@ -743,13 +817,15 @@ static void ath9k_hif_usb_dealloc_urbs(struct hif_device_usb *hif_dev)
 	ath9k_hif_usb_dealloc_rx_urbs(hif_dev);
 }
 
-static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
+static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev,
+				     u32 drv_info)
 {
 	int transfer, err;
 	const void *data = hif_dev->firmware->data;
 	size_t len = hif_dev->firmware->size;
 	u32 addr = AR9271_FIRMWARE;
 	u8 *buf = kzalloc(4096, GFP_KERNEL);
+	u32 firm_offset;
 
 	if (!buf)
 		return -ENOMEM;
@@ -773,33 +849,63 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 	}
 	kfree(buf);
 
+	if (IS_AR7010_DEVICE(drv_info))
+		firm_offset = AR7010_FIRMWARE_TEXT;
+	else
+		firm_offset = AR9271_FIRMWARE_TEXT;
+
 	/*
 	 * Issue FW download complete command to firmware.
 	 */
 	err = usb_control_msg(hif_dev->udev, usb_sndctrlpipe(hif_dev->udev, 0),
 			      FIRMWARE_DOWNLOAD_COMP,
 			      0x40 | USB_DIR_OUT,
-			      AR9271_FIRMWARE_TEXT >> 8, 0, NULL, 0, HZ);
+			      firm_offset >> 8, 0, NULL, 0, HZ);
 	if (err)
 		return -EIO;
 
 	dev_info(&hif_dev->udev->dev, "ath9k_htc: Transferred FW: %s, size: %ld\n",
-		 "ar9271.fw", (unsigned long) hif_dev->firmware->size);
+		 hif_dev->fw_name, (unsigned long) hif_dev->firmware->size);
 
 	return 0;
 }
 
-static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev,
-				  const char *fw_name)
+static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev, u32 drv_info)
 {
-	int ret;
+	int ret, idx;
+	struct usb_host_interface *alt = &hif_dev->interface->altsetting[0];
+	struct usb_endpoint_descriptor *endp;
 
 	/* Request firmware */
-	ret = request_firmware(&hif_dev->firmware, fw_name, &hif_dev->udev->dev);
+	ret = request_firmware(&hif_dev->firmware, hif_dev->fw_name,
+			       &hif_dev->udev->dev);
 	if (ret) {
 		dev_err(&hif_dev->udev->dev,
-			"ath9k_htc: Firmware - %s not found\n", fw_name);
+			"ath9k_htc: Firmware - %s not found\n", hif_dev->fw_name);
 		goto err_fw_req;
+	}
+
+	/* Download firmware */
+	ret = ath9k_hif_usb_download_fw(hif_dev, drv_info);
+	if (ret) {
+		dev_err(&hif_dev->udev->dev,
+			"ath9k_htc: Firmware - %s download failed\n",
+			hif_dev->fw_name);
+		goto err_fw_download;
+	}
+
+	/* On downloading the firmware to the target, the USB descriptor of EP4
+	 * is 'patched' to change the type of the endpoint to Bulk. This will
+	 * bring down CPU usage during the scan period.
+	 */
+	for (idx = 0; idx < alt->desc.bNumEndpoints; idx++) {
+		endp = &alt->endpoint[idx].desc;
+		if ((endp->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+				== USB_ENDPOINT_XFER_INT) {
+			endp->bmAttributes &= ~USB_ENDPOINT_XFERTYPE_MASK;
+			endp->bmAttributes |= USB_ENDPOINT_XFER_BULK;
+			endp->bInterval = 0;
+		}
 	}
 
 	/* Alloc URBs */
@@ -810,19 +916,11 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev,
 		goto err_urb;
 	}
 
-	/* Download firmware */
-	ret = ath9k_hif_usb_download_fw(hif_dev);
-	if (ret) {
-		dev_err(&hif_dev->udev->dev,
-			"ath9k_htc: Firmware - %s download failed\n", fw_name);
-		goto err_fw_download;
-	}
-
 	return 0;
 
-err_fw_download:
-	ath9k_hif_usb_dealloc_urbs(hif_dev);
 err_urb:
+	ath9k_hif_usb_dealloc_urbs(hif_dev);
+err_fw_download:
 	release_firmware(hif_dev->firmware);
 err_fw_req:
 	hif_dev->firmware = NULL;
@@ -841,7 +939,6 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct hif_device_usb *hif_dev;
-	const char *fw_name = (const char *) id->driver_info;
 	int ret = 0;
 
 	hif_dev = kzalloc(sizeof(struct hif_device_usb), GFP_KERNEL);
@@ -866,14 +963,25 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 		goto err_htc_hw_alloc;
 	}
 
-	ret = ath9k_hif_usb_dev_init(hif_dev, fw_name);
+	/* Find out which firmware to load */
+
+	if (IS_AR7010_DEVICE(id->driver_info))
+		if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x0202)
+			hif_dev->fw_name = FIRMWARE_AR7010_1_1;
+		else
+			hif_dev->fw_name = FIRMWARE_AR7010;
+	else
+		hif_dev->fw_name = FIRMWARE_AR9271;
+
+	ret = ath9k_hif_usb_dev_init(hif_dev, id->driver_info);
 	if (ret) {
 		ret = -EINVAL;
 		goto err_hif_init_usb;
 	}
 
 	ret = ath9k_htc_hw_init(hif_dev->htc_handle,
-				&hif_dev->udev->dev, hif_dev->device_id);
+				&hif_dev->udev->dev, hif_dev->device_id,
+				hif_dev->udev->product, id->driver_info);
 	if (ret) {
 		ret = -EINVAL;
 		goto err_htc_hw_init;
@@ -901,11 +1009,9 @@ static void ath9k_hif_usb_reboot(struct usb_device *udev)
 	void *buf;
 	int ret;
 
-	buf = kmalloc(4, GFP_KERNEL);
+	buf = kmemdup(&reboot_cmd, 4, GFP_KERNEL);
 	if (!buf)
 		return;
-
-	memcpy(buf, &reboot_cmd, 4);
 
 	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, USB_REG_OUT_PIPE),
 			   buf, 4, NULL, HZ);
@@ -918,18 +1024,17 @@ static void ath9k_hif_usb_reboot(struct usb_device *udev)
 static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
-	struct hif_device_usb *hif_dev =
-		(struct hif_device_usb *) usb_get_intfdata(interface);
+	struct hif_device_usb *hif_dev = usb_get_intfdata(interface);
+	bool unplugged = (udev->state == USB_STATE_NOTATTACHED) ? true : false;
 
 	if (hif_dev) {
-		ath9k_htc_hw_deinit(hif_dev->htc_handle,
-		    (udev->state == USB_STATE_NOTATTACHED) ? true : false);
+		ath9k_htc_hw_deinit(hif_dev->htc_handle, unplugged);
 		ath9k_htc_hw_free(hif_dev->htc_handle);
 		ath9k_hif_usb_dev_deinit(hif_dev);
 		usb_set_intfdata(interface, NULL);
 	}
 
-	if (hif_dev->flags & HIF_USB_START)
+	if (!unplugged && (hif_dev->flags & HIF_USB_START))
 		ath9k_hif_usb_reboot(udev);
 
 	kfree(hif_dev);
@@ -941,8 +1046,14 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 static int ath9k_hif_usb_suspend(struct usb_interface *interface,
 				 pm_message_t message)
 {
-	struct hif_device_usb *hif_dev =
-		(struct hif_device_usb *) usb_get_intfdata(interface);
+	struct hif_device_usb *hif_dev = usb_get_intfdata(interface);
+
+	/*
+	 * The device has to be set to FULLSLEEP mode in case no
+	 * interface is up.
+	 */
+	if (!(hif_dev->flags & HIF_USB_START))
+		ath9k_htc_suspend(hif_dev->htc_handle);
 
 	ath9k_hif_usb_dealloc_urbs(hif_dev);
 
@@ -951,8 +1062,8 @@ static int ath9k_hif_usb_suspend(struct usb_interface *interface,
 
 static int ath9k_hif_usb_resume(struct usb_interface *interface)
 {
-	struct hif_device_usb *hif_dev =
-		(struct hif_device_usb *) usb_get_intfdata(interface);
+	struct hif_device_usb *hif_dev = usb_get_intfdata(interface);
+	struct htc_target *htc_handle = hif_dev->htc_handle;
 	int ret;
 
 	ret = ath9k_hif_usb_alloc_urbs(hif_dev);
@@ -960,7 +1071,8 @@ static int ath9k_hif_usb_resume(struct usb_interface *interface)
 		return ret;
 
 	if (hif_dev->firmware) {
-		ret = ath9k_hif_usb_download_fw(hif_dev);
+		ret = ath9k_hif_usb_download_fw(hif_dev,
+				htc_handle->drv_priv->ah->hw_version.usbdev);
 		if (ret)
 			goto fail_resume;
 	} else {
@@ -970,7 +1082,7 @@ static int ath9k_hif_usb_resume(struct usb_interface *interface)
 
 	mdelay(100);
 
-	ret = ath9k_htc_resume(hif_dev->htc_handle);
+	ret = ath9k_htc_resume(htc_handle);
 
 	if (ret)
 		goto fail_resume;

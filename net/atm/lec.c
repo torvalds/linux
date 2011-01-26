@@ -220,7 +220,6 @@ static unsigned char *get_tr_dst(unsigned char *packet, unsigned char *rdesc)
 static int lec_open(struct net_device *dev)
 {
 	netif_start_queue(dev);
-	memset(&dev->stats, 0, sizeof(struct net_device_stats));
 
 	return 0;
 }
@@ -817,8 +816,7 @@ static int lec_mcast_attach(struct atm_vcc *vcc, int arg)
 	if (arg < 0 || arg >= MAX_LEC_ITF || !dev_lec[arg])
 		return -EINVAL;
 	vcc->proto_data = dev_lec[arg];
-	return lec_mcast_make((struct lec_priv *)netdev_priv(dev_lec[arg]),
-				vcc);
+	return lec_mcast_make(netdev_priv(dev_lec[arg]), vcc);
 }
 
 /* Initialize device. */
@@ -1609,7 +1607,7 @@ static void lec_arp_destroy(struct lec_priv *priv)
 	struct lec_arp_table *entry;
 	int i;
 
-	cancel_rearming_delayed_work(&priv->lec_arp_work);
+	cancel_delayed_work_sync(&priv->lec_arp_work);
 
 	/*
 	 * Remove all entries

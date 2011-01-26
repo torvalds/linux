@@ -17,21 +17,13 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/highmem.h>
 
 #include <asm/memory.h>
 #include <asm/highmem.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/sizes.h>
-
-/* Sanity check size */
-#if (CONSISTENT_DMA_SIZE % SZ_2M)
-#error "CONSISTENT_DMA_SIZE must be multiple of 2MiB"
-#endif
-
-#define CONSISTENT_OFFSET(x)	(((unsigned long)(x) - CONSISTENT_BASE) >> PAGE_SHIFT)
-#define CONSISTENT_PTE_INDEX(x) (((unsigned long)(x) - CONSISTENT_BASE) >> PGDIR_SHIFT)
-#define NUM_CONSISTENT_PTES (CONSISTENT_DMA_SIZE >> PGDIR_SHIFT)
 
 static u64 get_coherent_dma_mask(struct device *dev)
 {
@@ -123,6 +115,15 @@ static void __dma_free_buffer(struct page *page, size_t size)
 }
 
 #ifdef CONFIG_MMU
+/* Sanity check size */
+#if (CONSISTENT_DMA_SIZE % SZ_2M)
+#error "CONSISTENT_DMA_SIZE must be multiple of 2MiB"
+#endif
+
+#define CONSISTENT_OFFSET(x)	(((unsigned long)(x) - CONSISTENT_BASE) >> PAGE_SHIFT)
+#define CONSISTENT_PTE_INDEX(x) (((unsigned long)(x) - CONSISTENT_BASE) >> PGDIR_SHIFT)
+#define NUM_CONSISTENT_PTES (CONSISTENT_DMA_SIZE >> PGDIR_SHIFT)
+
 /*
  * These are the page tables (2MB each) covering uncached, DMA consistent allocations
  */
@@ -183,6 +184,8 @@ static void *
 __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot)
 {
 	struct arm_vmregion *c;
+	size_t align;
+	int bit;
 
 	if (!consistent_pte[0]) {
 		printk(KERN_ERR "%s: not initialised\n", __func__);
@@ -191,9 +194,20 @@ __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot)
 	}
 
 	/*
+	 * Align the virtual region allocation - maximum alignment is
+	 * a section size, minimum is a page size.  This helps reduce
+	 * fragmentation of the DMA space, and also prevents allocations
+	 * smaller than a section from crossing a section boundary.
+	 */
+	bit = fls(size - 1);
+	if (bit > SECTION_SHIFT)
+		bit = SECTION_SHIFT;
+	align = 1 << bit;
+
+	/*
 	 * Allocate a virtual address in the consistent mapping region.
 	 */
-	c = arm_vmregion_alloc(&consistent_head, size,
+	c = arm_vmregion_alloc(&consistent_head, align, size,
 			    gfp & ~(__GFP_DMA | __GFP_HIGHMEM));
 	if (c) {
 		pte_t *pte;
@@ -215,6 +229,8 @@ __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot)
 				pte = consistent_pte[++idx];
 			}
 		} while (size -= PAGE_SIZE);
+
+		dsb();
 
 		return (void *)c->vm_start;
 	}
@@ -296,7 +312,7 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 		addr = page_address(page);
 
 	if (addr)
-		*handle = page_to_dma(dev, page);
+		*handle = pfn_to_dma(dev, page_to_pfn(page));
 
 	return addr;
 }
@@ -391,7 +407,7 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 	if (!arch_is_coherent())
 		__dma_free_remap(cpu_addr, size);
 
-	__dma_free_buffer(dma_to_page(dev, handle), size);
+	__dma_free_buffer(pfn_to_page(dma_to_pfn(dev, handle)), size);
 }
 EXPORT_SYMBOL(dma_free_coherent);
 
@@ -465,10 +481,10 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 				op(vaddr, len, dir);
 				kunmap_high(page);
 			} else if (cache_is_vipt()) {
-				pte_t saved_pte;
-				vaddr = kmap_high_l1_vipt(page, &saved_pte);
+				/* unmapped pages might still be cached */
+				vaddr = kmap_atomic(page);
 				op(vaddr + offset, len, dir);
-				kunmap_high_l1_vipt(page, saved_pte);
+				kunmap_atomic(vaddr);
 			}
 		} else {
 			vaddr = page_address(page) + offset;
@@ -508,6 +524,12 @@ void ___dma_page_dev_to_cpu(struct page *page, unsigned long off,
 		outer_inv_range(paddr, paddr + size);
 
 	dma_cache_maint_page(page, off, size, dir, dmac_unmap_area);
+
+	/*
+	 * Mark the D-cache clean for this page to avoid extra flushing.
+	 */
+	if (dir != DMA_TO_DEVICE && off == 0 && size >= PAGE_SIZE)
+		set_bit(PG_dcache_clean, &page->flags);
 }
 EXPORT_SYMBOL(___dma_page_dev_to_cpu);
 
@@ -533,17 +555,20 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	struct scatterlist *s;
 	int i, j;
 
+	BUG_ON(!valid_dma_direction(dir));
+
 	for_each_sg(sg, s, nents, i) {
-		s->dma_address = dma_map_page(dev, sg_page(s), s->offset,
+		s->dma_address = __dma_map_page(dev, sg_page(s), s->offset,
 						s->length, dir);
 		if (dma_mapping_error(dev, s->dma_address))
 			goto bad_mapping;
 	}
+	debug_dma_map_sg(dev, sg, nents, nents, dir);
 	return nents;
 
  bad_mapping:
 	for_each_sg(sg, s, i, j)
-		dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir);
+		__dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir);
 	return 0;
 }
 EXPORT_SYMBOL(dma_map_sg);
@@ -552,7 +577,7 @@ EXPORT_SYMBOL(dma_map_sg);
  * dma_unmap_sg - unmap a set of SG buffers mapped by dma_map_sg
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
  * @sg: list of buffers
- * @nents: number of buffers to unmap (returned from dma_map_sg)
+ * @nents: number of buffers to unmap (same as was passed to dma_map_sg)
  * @dir: DMA transfer direction (same as was passed to dma_map_sg)
  *
  * Unmap a set of streaming mode DMA translations.  Again, CPU access
@@ -564,8 +589,10 @@ void dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 	struct scatterlist *s;
 	int i;
 
+	debug_dma_unmap_sg(dev, sg, nents, dir);
+
 	for_each_sg(sg, s, nents, i)
-		dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir);
+		__dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir);
 }
 EXPORT_SYMBOL(dma_unmap_sg);
 
@@ -590,6 +617,8 @@ void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 		__dma_page_dev_to_cpu(sg_page(s), s->offset,
 				      s->length, dir);
 	}
+
+	debug_dma_sync_sg_for_cpu(dev, sg, nents, dir);
 }
 EXPORT_SYMBOL(dma_sync_sg_for_cpu);
 
@@ -614,5 +643,16 @@ void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 		__dma_page_cpu_to_dev(sg_page(s), s->offset,
 				      s->length, dir);
 	}
+
+	debug_dma_sync_sg_for_device(dev, sg, nents, dir);
 }
 EXPORT_SYMBOL(dma_sync_sg_for_device);
+
+#define PREALLOC_DMA_DEBUG_ENTRIES	4096
+
+static int __init dma_debug_do_init(void)
+{
+	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
+	return 0;
+}
+fs_initcall(dma_debug_do_init);

@@ -1,12 +1,9 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
 config M68K
 	bool
 	default y
 	select HAVE_AOUT
 	select HAVE_IDE
+	select GENERIC_ATOMIC64
 
 config MMU
 	bool
@@ -58,13 +55,8 @@ config HZ
 	int
 	default 100
 
-config GENERIC_TIME
-	def_bool y
-
 config ARCH_USES_GETTIMEOFFSET
 	def_bool y
-
-mainmenu "Linux/68k Kernel Configuration"
 
 source "init/Kconfig"
 
@@ -436,7 +428,7 @@ config PROC_HARDWARE
 
 config ISA
 	bool
-	depends on Q40 || AMIGA_PCMCIA || GG2
+	depends on Q40 || AMIGA_PCMCIA
 	default y
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
@@ -447,7 +439,7 @@ config ISA
 
 config GENERIC_ISA_DMA
 	bool
-	depends on Q40 || AMIGA_PCMCIA || GG2
+	depends on Q40 || AMIGA_PCMCIA
 	default y
 
 config ZONE_DMA

@@ -662,7 +662,7 @@ static int netdev_open(struct net_device *dev)
 	init_timer(&np->timer);
 	np->timer.expires = jiffies + 1*HZ;
 	np->timer.data = (unsigned long)dev;
-	np->timer.function = &netdev_timer;				/* timer handler */
+	np->timer.function = netdev_timer;				/* timer handler */
 	add_timer(&np->timer);
 	return 0;
 out_err:
@@ -1514,12 +1514,12 @@ static int netdev_close(struct net_device *dev)
 	if (debug > 2) {
 		int i;
 
-		printk(KERN_DEBUG"  Tx ring at %08x:\n", (int)np->tx_ring);
+		printk(KERN_DEBUG"  Tx ring at %p:\n", np->tx_ring);
 		for (i = 0; i < TX_RING_SIZE; i++)
 			printk(KERN_DEBUG " #%d desc. %04x %04x %08x\n",
 			       i, np->tx_ring[i].length,
 			       np->tx_ring[i].status, np->tx_ring[i].buffer1);
-		printk(KERN_DEBUG "  Rx ring %08x:\n", (int)np->rx_ring);
+		printk(KERN_DEBUG "  Rx ring %p:\n", np->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++) {
 			printk(KERN_DEBUG " #%d desc. %04x %04x %08x\n",
 			       i, np->rx_ring[i].length,

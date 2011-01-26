@@ -20,6 +20,7 @@ extern int number_of_cpusets;	/* How many cpusets are defined in system? */
 
 extern int cpuset_init(void);
 extern void cpuset_init_smp(void);
+extern void cpuset_update_active_cpus(void);
 extern void cpuset_cpus_allowed(struct task_struct *p, struct cpumask *mask);
 extern int cpuset_cpus_allowed_fallback(struct task_struct *p);
 extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
@@ -69,6 +70,7 @@ extern void cpuset_task_status_allowed(struct seq_file *m,
 					struct task_struct *task);
 
 extern int cpuset_mem_spread_node(void);
+extern int cpuset_slab_spread_node(void);
 
 static inline int cpuset_do_page_mem_spread(void)
 {
@@ -86,15 +88,55 @@ extern void rebuild_sched_domains(void);
 
 extern void cpuset_print_task_mems_allowed(struct task_struct *p);
 
+/*
+ * reading current mems_allowed and mempolicy in the fastpath must protected
+ * by get_mems_allowed()
+ */
+static inline void get_mems_allowed(void)
+{
+	current->mems_allowed_change_disable++;
+
+	/*
+	 * ensure that reading mems_allowed and mempolicy happens after the
+	 * update of ->mems_allowed_change_disable.
+	 *
+	 * the write-side task finds ->mems_allowed_change_disable is not 0,
+	 * and knows the read-side task is reading mems_allowed or mempolicy,
+	 * so it will clear old bits lazily.
+	 */
+	smp_mb();
+}
+
+static inline void put_mems_allowed(void)
+{
+	/*
+	 * ensure that reading mems_allowed and mempolicy before reducing
+	 * mems_allowed_change_disable.
+	 *
+	 * the write-side task will know that the read-side task is still
+	 * reading mems_allowed or mempolicy, don't clears old bits in the
+	 * nodemask.
+	 */
+	smp_mb();
+	--ACCESS_ONCE(current->mems_allowed_change_disable);
+}
+
 static inline void set_mems_allowed(nodemask_t nodemask)
 {
+	task_lock(current);
 	current->mems_allowed = nodemask;
+	task_unlock(current);
 }
 
 #else /* !CONFIG_CPUSETS */
 
 static inline int cpuset_init(void) { return 0; }
 static inline void cpuset_init_smp(void) {}
+
+static inline void cpuset_update_active_cpus(void)
+{
+	partition_sched_domains(1, NULL, NULL);
+}
 
 static inline void cpuset_cpus_allowed(struct task_struct *p,
 				       struct cpumask *mask)
@@ -159,6 +201,11 @@ static inline int cpuset_mem_spread_node(void)
 	return 0;
 }
 
+static inline int cpuset_slab_spread_node(void)
+{
+	return 0;
+}
+
 static inline int cpuset_do_page_mem_spread(void)
 {
 	return 0;
@@ -184,6 +231,14 @@ static inline void cpuset_print_task_mems_allowed(struct task_struct *p)
 }
 
 static inline void set_mems_allowed(nodemask_t nodemask)
+{
+}
+
+static inline void get_mems_allowed(void)
+{
+}
+
+static inline void put_mems_allowed(void)
 {
 }
 

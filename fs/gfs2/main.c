@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/gfs2_ondisk.h>
 #include <asm/atomic.h>
-#include <linux/slow-work.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -24,6 +23,8 @@
 #include "util.h"
 #include "glock.h"
 #include "quota.h"
+#include "recovery.h"
+#include "dir.h"
 
 static struct shrinker qd_shrinker = {
 	.shrink = gfs2_shrink_qd_memory,
@@ -77,6 +78,9 @@ static void gfs2_init_gl_aspace_once(void *foo)
 static int __init init_gfs2_fs(void)
 {
 	int error;
+
+	gfs2_str2qstr(&gfs2_qdot, ".");
+	gfs2_str2qstr(&gfs2_qdotdot, "..");
 
 	error = gfs2_sys_init();
 	if (error)
@@ -138,9 +142,11 @@ static int __init init_gfs2_fs(void)
 	if (error)
 		goto fail_unregister;
 
-	error = slow_work_register_user(THIS_MODULE);
-	if (error)
-		goto fail_slow;
+	error = -ENOMEM;
+	gfs_recovery_wq = alloc_workqueue("gfs_recovery",
+					  WQ_MEM_RECLAIM | WQ_FREEZEABLE, 0);
+	if (!gfs_recovery_wq)
+		goto fail_wq;
 
 	gfs2_register_debugfs();
 
@@ -148,7 +154,7 @@ static int __init init_gfs2_fs(void)
 
 	return 0;
 
-fail_slow:
+fail_wq:
 	unregister_filesystem(&gfs2meta_fs_type);
 fail_unregister:
 	unregister_filesystem(&gfs2_fs_type);
@@ -190,7 +196,7 @@ static void __exit exit_gfs2_fs(void)
 	gfs2_unregister_debugfs();
 	unregister_filesystem(&gfs2_fs_type);
 	unregister_filesystem(&gfs2meta_fs_type);
-	slow_work_unregister_user(THIS_MODULE);
+	destroy_workqueue(gfs_recovery_wq);
 
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);

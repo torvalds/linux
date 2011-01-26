@@ -332,10 +332,6 @@ void __init vmem_map_init(void)
 	unsigned long start, end;
 	int i;
 
-	spin_lock_init(&init_mm.context.list_lock);
-	INIT_LIST_HEAD(&init_mm.context.crst_list);
-	INIT_LIST_HEAD(&init_mm.context.pgtable_list);
-	init_mm.context.noexec = 0;
 	ro_start = ((unsigned long)&_stext) & PAGE_MASK;
 	ro_end = PFN_ALIGN((unsigned long)&_eshared);
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {

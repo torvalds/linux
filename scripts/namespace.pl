@@ -84,6 +84,64 @@ my %ksymtab = ();	# names that appear in __ksymtab_
 my %ref = ();		# $ref{$name} exists if there is a true external reference to $name
 my %export = ();	# $export{$name} exists if there is an EXPORT_... of $name
 
+my %nmexception = (
+    'fs/ext3/bitmap'			=> 1,
+    'fs/ext4/bitmap'			=> 1,
+    'arch/x86/lib/thunk_32'		=> 1,
+    'arch/x86/lib/cmpxchg'		=> 1,
+    'arch/x86/vdso/vdso32/note'		=> 1,
+    'lib/irq_regs'			=> 1,
+    'usr/initramfs_data'		=> 1,
+    'drivers/scsi/aic94xx/aic94xx_dump'	=> 1,
+    'drivers/scsi/libsas/sas_dump'	=> 1,
+    'lib/dec_and_lock'			=> 1,
+    'drivers/ide/ide-probe-mini'	=> 1,
+    'usr/initramfs_data'		=> 1,
+    'drivers/acpi/acpia/exdump'		=> 1,
+    'drivers/acpi/acpia/rsdump'		=> 1,
+    'drivers/acpi/acpia/nsdumpdv'	=> 1,
+    'drivers/acpi/acpia/nsdump'		=> 1,
+    'arch/ia64/sn/kernel/sn2/io'	=> 1,
+    'arch/ia64/kernel/gate-data'	=> 1,
+    'security/capability'		=> 1,
+    'fs/ntfs/sysctl'			=> 1,
+    'fs/jfs/jfs_debug'			=> 1,
+);
+
+my %nameexception = (
+    'mod_use_count_'	 => 1,
+    '__initramfs_end'	=> 1,
+    '__initramfs_start'	=> 1,
+    '_einittext'	=> 1,
+    '_sinittext'	=> 1,
+    'kallsyms_names'	=> 1,
+    'kallsyms_num_syms'	=> 1,
+    'kallsyms_addresses'=> 1,
+    '__this_module'	=> 1,
+    '_etext'		=> 1,
+    '_edata'		=> 1,
+    '_end'		=> 1,
+    '__bss_start'	=> 1,
+    '_text'		=> 1,
+    '_stext'		=> 1,
+    '__gp'		=> 1,
+    'ia64_unw_start'	=> 1,
+    'ia64_unw_end'	=> 1,
+    '__init_begin'	=> 1,
+    '__init_end'	=> 1,
+    '__bss_stop'	=> 1,
+    '__nosave_begin'	=> 1,
+    '__nosave_end'	=> 1,
+    'pg0'		=> 1,
+    'vdso_enabled'	=> 1,
+    '__stack_chk_fail'  => 1,
+    'VDSO32_PRELINK'	=> 1,
+    'VDSO32_vsyscall'	=> 1,
+    'VDSO32_rt_sigreturn'=>1,
+    'VDSO32_sigreturn'	=> 1,
+);
+
+
 &find(\&linux_objects, '.');	# find the objects and do_nm on them
 &list_multiply_defined();
 &resolve_external_references();
@@ -105,7 +163,8 @@ sub linux_objects
 	if (/.*\.o$/ &&
 		! (
 		m:/built-in.o$:
-		|| m:arch/x86/kernel/vsyscall-syms.o$:
+		|| m:arch/x86/vdso/:
+		|| m:arch/x86/boot/:
 		|| m:arch/ia64/ia32/ia32.o$:
 		|| m:arch/ia64/kernel/gate-syms.o$:
 		|| m:arch/ia64/lib/__divdi3.o$:
@@ -148,6 +207,7 @@ sub linux_objects
 		|| m:^.*/\.tmp_:
 		|| m:^\.tmp_:
 		|| m:/vmlinux-obj.o$:
+		|| m:^tools/:
 		)
 	) {
 		do_nm($basename, $_);
@@ -167,20 +227,19 @@ sub do_nm
 		printf STDERR "$fullname is not an object file\n";
 		return;
 	}
-	($source = $fullname) =~ s/\.o$//;
-	if (-e "$objtree$source.c" || -e "$objtree$source.S") {
-		$source = "$objtree$source";
+	($source = $basename) =~ s/\.o$//;
+	if (-e "$source.c" || -e "$source.S") {
+		$source = "$objtree$File::Find::dir/$source";
 	} else {
-		$source = "$srctree$source";
+		$source = "$srctree$File::Find::dir/$source";
 	}
 	if (! -e "$source.c" && ! -e "$source.S") {
 		# No obvious source, exclude the object if it is conglomerate
-		if (! open(OBJDUMPDATA, "$objdump $basename|")) {
-			printf STDERR "$objdump $fullname failed $!\n";
-			return;
-		}
+	        open(my $objdumpdata, "$objdump $basename|")
+		    or die "$objdump $fullname failed $!\n";
+
 		my $comment;
-		while (<OBJDUMPDATA>) {
+		while (<$objdumpdata>) {
 			chomp();
 			if (/^In archive/) {
 				# Archives are always conglomerate
@@ -190,18 +249,18 @@ sub do_nm
 			next if (! /^[ 0-9a-f]{5,} /);
 			$comment .= substr($_, 43);
 		}
-		close(OBJDUMPDATA);
+		close($objdumpdata);
+
 		if (!defined($comment) || $comment !~ /GCC\:.*GCC\:/m) {
 			printf STDERR "No source file found for $fullname\n";
 		}
 		return;
 	}
-	if (! open(NMDATA, "$nm $basename|")) {
-		printf STDERR "$nm $fullname failed $!\n";
-		return;
-	}
+	open (my $nmdata, "$nm $basename|")
+	    or die "$nm $fullname failed $!\n";
+
 	my @nmdata;
-	while (<NMDATA>) {
+	while (<$nmdata>) {
 		chop;
 		($type, $name) = (split(/ +/, $_, 3))[1..2];
 		# Expected types
@@ -215,6 +274,7 @@ sub do_nm
 		# T global label/procedure
 		# U external reference
 		# W weak external reference to text that has been resolved
+		# V similar to W, but the value of the weak symbol becomes zero with no error.
 		# a assembler equate
 		# b static variable, uninitialised
 		# d static variable, initialised
@@ -223,8 +283,9 @@ sub do_nm
 		# s static variable, uninitialised, small bss
 		# t static label/procedures
 		# w weak external reference to text that has not been resolved
+		# v similar to w
 		# ? undefined type, used a lot by modules
-		if ($type !~ /^[ABCDGRSTUWabdgrstw?]$/) {
+		if ($type !~ /^[ABCDGRSTUWVabdgrstwv?]$/) {
 			printf STDERR "nm output for $fullname contains unknown type '$_'\n";
 		}
 		elsif ($name =~ /\./) {
@@ -235,7 +296,7 @@ sub do_nm
 			# binutils keeps changing the type for exported symbols, force it to R
 			$type = 'R' if ($name =~ /^__ksymtab/ || $name =~ /^__kstrtab/);
 			$name =~ s/_R[a-f0-9]{8}$//;	# module versions adds this
-			if ($type =~ /[ABCDGRSTW]/ &&
+			if ($type =~ /[ABCDGRSTWV]/ &&
 				$name ne 'init_module' &&
 				$name ne 'cleanup_module' &&
 				$name ne 'Using_Versions' &&
@@ -268,29 +329,12 @@ sub do_nm
 			}
 		}
 	}
-	close(NMDATA);
+	close($nmdata);
+
 	if ($#nmdata < 0) {
-		if (
-			$fullname ne "lib/brlock.o"
-			&& $fullname ne "lib/dec_and_lock.o"
-			&& $fullname ne "fs/xfs/xfs_macros.o"
-			&& $fullname ne "drivers/ide/ide-probe-mini.o"
-			&& $fullname ne "usr/initramfs_data.o"
-			&& $fullname ne "drivers/acpi/executer/exdump.o"
-			&& $fullname ne "drivers/acpi/resources/rsdump.o"
-			&& $fullname ne "drivers/acpi/namespace/nsdumpdv.o"
-			&& $fullname ne "drivers/acpi/namespace/nsdump.o"
-			&& $fullname ne "arch/ia64/sn/kernel/sn2/io.o"
-			&& $fullname ne "arch/ia64/kernel/gate-data.o"
-			&& $fullname ne "drivers/ieee1394/oui.o"
-			&& $fullname ne "security/capability.o"
-			&& $fullname ne "sound/core/wrappers.o"
-			&& $fullname ne "fs/ntfs/sysctl.o"
-			&& $fullname ne "fs/jfs/jfs_debug.o"
-		) {
-			printf "No nm data for $fullname\n";
-		}
-		return;
+	    printf "No nm data for $fullname\n"
+		unless $nmexception{$fullname};
+	    return;
 	}
 	$nmdata{$fullname} = \@nmdata;
 }
@@ -316,25 +360,21 @@ sub drop_def
 
 sub list_multiply_defined
 {
-	my ($name, $module);
-	foreach $name (keys(%def)) {
+	foreach my $name (keys(%def)) {
 		if ($#{$def{$name}} > 0) {
 			# Special case for cond_syscall
-			if ($#{$def{$name}} == 1 && $name =~ /^sys_/ &&
-			    ($def{$name}[0] eq "kernel/sys.o" ||
-			     $def{$name}[1] eq "kernel/sys.o")) {
-				&drop_def("kernel/sys.o", $name);
-				next;
+			if ($#{$def{$name}} == 1 &&
+			   ($name =~ /^sys_/ || $name =~ /^compat_sys_/ ||
+			    $name =~ /^sys32_/)) {
+				if($def{$name}[0] eq "kernel/sys_ni.o" ||
+				   $def{$name}[1] eq "kernel/sys_ni.o") {
+					&drop_def("kernel/sys_ni.o", $name);
+					next;
+				}
 			}
-			# Special case for i386 entry code
-			if ($#{$def{$name}} == 1 && $name =~ /^__kernel_/ &&
-			    $def{$name}[0] eq "arch/x86/kernel/vsyscall-int80_32.o" &&
-			    $def{$name}[1] eq "arch/x86/kernel/vsyscall-sysenter_32.o") {
-				&drop_def("arch/x86/kernel/vsyscall-sysenter_32.o", $name);
-				next;
-			}
+
 			printf "$name is multiply defined in :-\n";
-			foreach $module (@{$def{$name}}) {
+			foreach my $module (@{$def{$name}}) {
 				printf "\t$module\n";
 			}
 		}
@@ -343,12 +383,13 @@ sub list_multiply_defined
 
 sub resolve_external_references
 {
-	my ($object, $type, $name, $i, $j, $kstrtab, $ksymtab, $export);
+	my ($kstrtab, $ksymtab, $export);
+
 	printf "\n";
-	foreach $object (keys(%nmdata)) {
+	foreach my $object (keys(%nmdata)) {
 		my $nmdata = $nmdata{$object};
-		for ($i = 0; $i <= $#{$nmdata}; ++$i) {
-			($type, $name) = split(' ', $nmdata->[$i], 2);
+		for (my $i = 0; $i <= $#{$nmdata}; ++$i) {
+			my ($type, $name) = split(' ', $nmdata->[$i], 2);
 			if ($type eq "U" || $type eq "w") {
 				if (exists($def{$name}) || exists($ksymtab{$name})) {
 					# add the owning object to the nmdata
@@ -357,7 +398,7 @@ sub resolve_external_references
 					$kstrtab = "R __kstrtab_$name";
 					$ksymtab = "R __ksymtab_$name";
 					$export = 0;
-					for ($j = 0; $j <= $#{$nmdata}; ++$j) {
+					for (my $j = 0; $j <= $#{$nmdata}; ++$j) {
 						if ($nmdata->[$j] eq $kstrtab ||
 						    $nmdata->[$j] eq $ksymtab) {
 							$export = 1;
@@ -371,31 +412,7 @@ sub resolve_external_references
 						$ref{$name} = ""
 					}
 				}
-				elsif (    $name ne "mod_use_count_"
-					&& $name ne "__initramfs_end"
-					&& $name ne "__initramfs_start"
-					&& $name ne "_einittext"
-					&& $name ne "_sinittext"
-					&& $name ne "kallsyms_names"
-					&& $name ne "kallsyms_num_syms"
-					&& $name ne "kallsyms_addresses"
-					&& $name ne "__this_module"
-					&& $name ne "_etext"
-					&& $name ne "_edata"
-					&& $name ne "_end"
-					&& $name ne "__bss_start"
-					&& $name ne "_text"
-					&& $name ne "_stext"
-					&& $name ne "__gp"
-					&& $name ne "ia64_unw_start"
-					&& $name ne "ia64_unw_end"
-					&& $name ne "__init_begin"
-					&& $name ne "__init_end"
-					&& $name ne "__bss_stop"
-					&& $name ne "__nosave_begin"
-					&& $name ne "__nosave_end"
-					&& $name ne "pg0"
-					&& $name ne "__module_text_address"
+				elsif ( ! $nameexception{$name}
 					&& $name !~ /^__sched_text_/
 					&& $name !~ /^__start_/
 					&& $name !~ /^__end_/
@@ -406,7 +423,6 @@ sub resolve_external_references
 					&& $name !~ /^__.*per_cpu_end/
 					&& $name !~ /^__alt_instructions/
 					&& $name !~ /^__setup_/
-					&& $name !~ /^jiffies/
 					&& $name !~ /^__mod_timer/
 					&& $name !~ /^__mod_page_state/
 					&& $name !~ /^init_module/
@@ -424,11 +440,11 @@ sub resolve_external_references
 sub list_extra_externals
 {
 	my %noref = ();
-	my ($name, @module, $module, $export);
-	foreach $name (keys(%def)) {
+
+	foreach my $name (keys(%def)) {
 		if (! exists($ref{$name})) {
-			@module = @{$def{$name}};
-			foreach $module (@module) {
+			my @module = @{$def{$name}};
+			foreach my $module (@module) {
 				if (! exists($noref{$module})) {
 					$noref{$module} = [];
 				}
@@ -438,16 +454,16 @@ sub list_extra_externals
 	}
 	if (%noref) {
 		printf "\nExternally defined symbols with no external references\n";
-		foreach $module (sort(keys(%noref))) {
+		foreach my $module (sort(keys(%noref))) {
 			printf "  $module\n";
 			foreach (sort(@{$noref{$module}})) {
-				if (exists($export{$_})) {
-					$export = " (export only)";
-				}
-				else {
-					$export = "";
-				}
-				printf "    $_$export\n";
+			    my $export;
+			    if (exists($export{$_})) {
+				$export = " (export only)";
+			    } else {
+				$export = "";
+			    }
+			    printf "    $_$export\n";
 			}
 		}
 	}

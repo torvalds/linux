@@ -102,6 +102,7 @@ static struct dmi_system_id __initdata nas_led_whitelist[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "1.00.00")
 		}
 	},
+	{}
 };
 
 /*
@@ -534,7 +535,7 @@ static int __init nas_gpio_init(void)
 	set_power_light_amber_noblink();
 	return 0;
 out_err:
-	for (; i >= 0; i--)
+	for (i--; i >= 0; i--)
 		unregister_nasgpio_led(i);
 	pci_unregister_driver(&nas_gpio_pci_driver);
 	return ret;

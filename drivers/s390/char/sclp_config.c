@@ -33,6 +33,7 @@ static void sclp_cpu_capability_notify(struct work_struct *work)
 	int cpu;
 	struct sys_device *sysdev;
 
+	s390_adjust_jiffies();
 	pr_warning("cpu capability changed.\n");
 	get_online_cpus();
 	for_each_online_cpu(cpu) {

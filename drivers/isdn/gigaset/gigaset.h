@@ -45,17 +45,6 @@
 #define MAX_EVENTS 64		/* size of event queue */
 
 #define RBUFSIZE 8192
-#define SBUFSIZE 4096		/* sk_buff payload size */
-
-#define TRANSBUFSIZE 768	/* bytes per skb for transparent receive */
-#define MAX_BUF_SIZE (SBUFSIZE - 2)	/* Max. size of a data packet from LL */
-
-/* compile time options */
-#define GIG_MAJOR 0
-
-#define GIG_MAYINITONDIAL
-#define GIG_RETRYCID
-#define GIG_X75
 
 #define GIG_TICK 100		/* in milliseconds */
 
@@ -81,7 +70,6 @@ enum debuglevel {
 	DEBUG_STREAM_DUMP = 0x00080, /* application data stream content */
 	DEBUG_LLDATA	  = 0x00100, /* sent/received LL data */
 	DEBUG_EVENT	  = 0x00200, /* event processing */
-	DEBUG_DRIVER	  = 0x00400, /* driver structure */
 	DEBUG_HDLC	  = 0x00800, /* M10x HDLC processing */
 	DEBUG_CHANNEL	  = 0x01000, /* channel allocation/deallocation */
 	DEBUG_TRANSCMD	  = 0x02000, /* AT-COMMANDS+RESPONSES */
@@ -190,17 +178,15 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 #define AT_BC		3
 #define AT_PROTO	4
 #define AT_TYPE		5
-#define AT_HLC		6
-#define AT_CLIP		7
+#define AT_CLIP		6
 /* total number */
-#define AT_NUM		8
+#define AT_NUM		7
 
 /* variables in struct at_state_t */
 #define VAR_ZSAU	0
 #define VAR_ZDLE	1
-#define VAR_ZVLS	2
-#define VAR_ZCTP	3
-#define VAR_NUM		4
+#define VAR_ZCTP	2
+#define VAR_NUM		3
 
 #define STR_NMBR	0
 #define STR_ZCPN	1
@@ -380,8 +366,10 @@ struct bc_state {
 
 	struct at_state_t at_state;
 
-	__u16 fcs;
-	struct sk_buff *skb;
+	/* receive buffer */
+	unsigned rx_bufsize;		/* max size accepted by application */
+	struct sk_buff *rx_skb;
+	__u16 rx_fcs;
 	int inputstate;			/* see INS_XXXX */
 
 	int channel;
@@ -406,7 +394,9 @@ struct bc_state {
 		struct bas_bc_state *bas;	/* usb hardware driver (base) */
 	} hw;
 
-	void *ap;			/* LL application structure */
+	void *ap;			/* associated LL application */
+	int apconnstate;		/* LL application connection state */
+	spinlock_t aplock;
 };
 
 struct cardstate {
@@ -575,9 +565,7 @@ struct bas_bc_state {
 struct gigaset_ops {
 	/* Called from ev-layer.c/interface.c for sending AT commands to the
 	   device */
-	int (*write_cmd)(struct cardstate *cs,
-			 const unsigned char *buf, int len,
-			 struct tasklet_struct *wake_tasklet);
+	int (*write_cmd)(struct cardstate *cs, struct cmdbuf_t *cb);
 
 	/* Called from interface.c for additional device control */
 	int (*write_room)(struct cardstate *cs);
@@ -738,7 +726,7 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 
 /* Deallocate driver structure. */
 void gigaset_freedriver(struct gigaset_driver *drv);
-void gigaset_debugdrivers(void);
+
 struct cardstate *gigaset_get_cs_by_tty(struct tty_struct *tty);
 struct cardstate *gigaset_get_cs_by_id(int id);
 void gigaset_blockdriver(struct gigaset_driver *drv);
@@ -801,8 +789,23 @@ static inline void gigaset_bchannel_up(struct bc_state *bcs)
 	gigaset_schedule_event(bcs->cs);
 }
 
-/* handling routines for sk_buff */
-/* ============================= */
+/* set up next receive skb for data mode */
+static inline struct sk_buff *gigaset_new_rx_skb(struct bc_state *bcs)
+{
+	struct cardstate *cs = bcs->cs;
+	unsigned short hw_hdr_len = cs->hw_hdr_len;
+
+	if (bcs->ignore) {
+		bcs->rx_skb = NULL;
+	} else {
+		bcs->rx_skb = dev_alloc_skb(bcs->rx_bufsize + hw_hdr_len);
+		if (bcs->rx_skb == NULL)
+			dev_warn(cs->dev, "could not allocate skb\n");
+		else
+			skb_reserve(bcs->rx_skb, hw_hdr_len);
+	}
+	return bcs->rx_skb;
+}
 
 /* append received bytes to inbuf */
 int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,

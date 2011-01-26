@@ -411,6 +411,26 @@ err_out:
 	return result;
 }
 
+static int ark3116_get_icount(struct tty_struct *tty,
+					struct serial_icounter_struct *icount)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct ark3116_private *priv = usb_get_serial_port_data(port);
+	struct async_icount cnow = priv->icount;
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+	return 0;
+}
+
 static int ark3116_ioctl(struct tty_struct *tty, struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
@@ -460,25 +480,6 @@ static int ark3116_ioctl(struct tty_struct *tty, struct file *file,
 				return 0;
 		}
 		break;
-	case TIOCGICOUNT: {
-		struct serial_icounter_struct icount;
-		struct async_icount cnow = priv->icount;
-		memset(&icount, 0, sizeof(icount));
-		icount.cts = cnow.cts;
-		icount.dsr = cnow.dsr;
-		icount.rng = cnow.rng;
-		icount.dcd = cnow.dcd;
-		icount.rx = cnow.rx;
-		icount.tx = cnow.tx;
-		icount.frame = cnow.frame;
-		icount.overrun = cnow.overrun;
-		icount.parity = cnow.parity;
-		icount.brk = cnow.brk;
-		icount.buf_overrun = cnow.buf_overrun;
-		if (copy_to_user(user_arg, &icount, sizeof(icount)))
-			return -EFAULT;
-		return 0;
-	}
 	}
 
 	return -ENOIOCTLCMD;
@@ -736,6 +737,7 @@ static struct usb_serial_driver ark3116_device = {
 	.ioctl =		ark3116_ioctl,
 	.tiocmget =		ark3116_tiocmget,
 	.tiocmset =		ark3116_tiocmset,
+	.get_icount =		ark3116_get_icount,
 	.open =			ark3116_open,
 	.close =		ark3116_close,
 	.break_ctl = 		ark3116_break_ctl,

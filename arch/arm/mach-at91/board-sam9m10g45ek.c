@@ -24,6 +24,7 @@
 #include <linux/input.h>
 #include <linux/leds.h>
 #include <linux/clk.h>
+#include <linux/atmel-mci.h>
 
 #include <mach/hardware.h>
 #include <video/atmel_lcdc.h>
@@ -36,7 +37,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 #include <mach/at91sam9_smc.h>
@@ -99,6 +99,25 @@ static struct spi_board_info ek_spi_devices[] = {
 
 
 /*
+ * MCI (SD/MMC)
+ */
+static struct mci_platform_data __initdata mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PD10,
+	},
+};
+
+static struct mci_platform_data __initdata mci1_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PD11,
+		.wp_pin		= AT91_PIN_PD29,
+	},
+};
+
+
+/*
  * MACB Ethernet device
  */
 static struct at91_eth_data __initdata ek_macb_data = {
@@ -136,7 +155,7 @@ static struct atmel_nand_data __initdata ek_nand_data = {
 	.rdy_pin	= AT91_PIN_PC8,
 	.enable_pin	= AT91_PIN_PC14,
 	.partition_info	= nand_partitions,
-#if defined(CONFIG_MTD_NAND_AT91_BUSWIDTH_16)
+#if defined(CONFIG_MTD_NAND_ATMEL_BUSWIDTH_16)
 	.bus_width_16	= 1,
 #else
 	.bus_width_16	= 0,
@@ -381,6 +400,9 @@ static void __init ek_board_init(void)
 	at91_add_device_usba(&ek_usba_udc_data);
 	/* SPI */
 	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
+	/* MMC */
+	at91_add_device_mci(0, &mci0_data);
+	at91_add_device_mci(1, &mci1_data);
 	/* Ethernet */
 	at91_add_device_eth(&ek_macb_data);
 	/* NAND */
@@ -400,10 +422,8 @@ static void __init ek_board_init(void)
 	at91_pwm_leds(ek_pwm_led, ARRAY_SIZE(ek_pwm_led));
 }
 
-MACHINE_START(AT91SAM9G45EKES, "Atmel AT91SAM9G45-EKES")
+MACHINE_START(AT91SAM9M10G45EK, "Atmel AT91SAM9M10G45-EK")
 	/* Maintainer: Atmel */
-	.phys_io	= AT91_BASE_SYS,
-	.io_pg_offst	= (AT91_VA_BASE_SYS >> 18) & 0xfffc,
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
 	.map_io		= ek_map_io,

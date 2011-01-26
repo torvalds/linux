@@ -36,6 +36,8 @@
 
 #include <plat/omap_hwmod.h>
 
+extern struct device omap_device_parent;
+
 /* omap_device._state values */
 #define OMAP_DEVICE_STATE_UNKNOWN	0
 #define OMAP_DEVICE_STATE_ENABLED	1
@@ -62,7 +64,6 @@
  *
  */
 struct omap_device {
-	u32                             magic;
 	struct platform_device		pdev;
 	struct omap_hwmod		**hwmods;
 	struct omap_device_pm_latency	*pm_lats;
@@ -82,7 +83,6 @@ int omap_device_shutdown(struct platform_device *pdev);
 
 /* Core code interface */
 
-bool omap_device_is_valid(struct omap_device *od);
 int omap_device_count_resources(struct omap_device *od);
 int omap_device_fill_resources(struct omap_device *od, struct resource *res);
 
@@ -101,10 +101,13 @@ struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 int omap_device_register(struct omap_device *od);
 int omap_early_device_register(struct omap_device *od);
 
+void __iomem *omap_device_get_rt_va(struct omap_device *od);
+
 /* OMAP PM interface */
 int omap_device_align_pm_lat(struct platform_device *pdev,
 			     u32 new_wakeup_lat_limit);
 struct powerdomain *omap_device_get_pwrdm(struct omap_device *od);
+u32 omap_device_get_context_loss_count(struct platform_device *pdev);
 
 /* Other */
 

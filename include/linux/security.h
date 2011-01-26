@@ -23,6 +23,7 @@
 #define __LINUX_SECURITY_H
 
 #include <linux/fs.h>
+#include <linux/fsnotify.h>
 #include <linux/binfmts.h>
 #include <linux/signal.h>
 #include <linux/resource.h>
@@ -73,10 +74,9 @@ extern int cap_file_mmap(struct file *file, unsigned long reqprot,
 extern int cap_task_fix_setuid(struct cred *new, const struct cred *old, int flags);
 extern int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			  unsigned long arg4, unsigned long arg5);
-extern int cap_task_setscheduler(struct task_struct *p, int policy, struct sched_param *lp);
+extern int cap_task_setscheduler(struct task_struct *p);
 extern int cap_task_setioprio(struct task_struct *p, int ioprio);
 extern int cap_task_setnice(struct task_struct *p, int nice);
-extern int cap_syslog(int type, bool from_file);
 extern int cap_vm_enough_memory(struct mm_struct *mm, long pages);
 
 struct msghdr;
@@ -457,7 +457,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	called when the actual read/write operations are performed.
  *	@inode contains the inode structure to check.
  *	@mask contains the permission mask.
- *	@nd contains the nameidata (may be NULL).
  *	Return 0 if permission is granted.
  * @inode_setattr:
  *	Check permission before setting file attributes.  Note that the kernel
@@ -470,8 +469,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * @path_truncate:
  *	Check permission before truncating a file.
  *	@path contains the path structure for the file.
- *	@length is the new length of the file.
- *	@time_attrs is the flags passed to do_truncate().
  *	Return 0 if permission is granted.
  * @inode_getattr:
  *	Check permission before obtaining file attributes.
@@ -798,8 +795,9 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * @unix_stream_connect:
  *	Check permissions before establishing a Unix domain stream connection
  *	between @sock and @other.
- *	@sock contains the socket structure.
- *	@other contains the peer socket structure.
+ *	@sock contains the sock structure.
+ *	@other contains the peer sock structure.
+ *	@newsk contains the new sock structure.
  *	Return 0 if permission is granted.
  * @unix_may_send:
  *	Check permissions before connecting or sending datagrams from @sock to
@@ -960,6 +958,12 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Sets the new child socket's sid to the openreq sid.
  * @inet_conn_established:
  *	Sets the connection's peersid to the secmark on skb.
+ * @secmark_relabel_packet:
+ *	check if the process should be allowed to relabel packets to the given secid
+ * @security_secmark_refcount_inc
+ *	tells the LSM to increment the number of secmark labeling rules loaded
+ * @security_secmark_refcount_dec
+ *	tells the LSM to decrement the number of secmark labeling rules loaded
  * @req_classify_flow:
  *	Sets the flow's sid to the openreq sid.
  * @tun_dev_create:
@@ -1054,8 +1058,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@cred points to the credentials to provide the context against which to
  *	evaluate the security data on the key.
  *	@perm describes the combination of permissions required of this key.
- *	Return 1 if permission granted, 0 if permission denied and -ve it the
- *	normal permissions model should be effected.
+ *	Return 0 if permission is granted, -ve error otherwise.
  * @key_getsecurity:
  *	Get a textual representation of the security context attached to a key
  *	for the purposes of honouring KEYCTL_GETSECURITY.  This function
@@ -1280,9 +1283,13 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Return 0 if permission is granted.
  *
  * @secid_to_secctx:
- *	Convert secid to security context.
+ *	Convert secid to security context.  If secdata is NULL the length of
+ *	the result will be returned in seclen, but no secdata will be returned.
+ *	This does mean that the length could change between calls to check the
+ *	length and the next call which actually allocates and returns the secdata.
  *	@secid contains the security ID.
  *	@secdata contains the pointer that stores the converted security context.
+ *	@seclen pointer which contains the length of the data
  * @secctx_to_secid:
  *	Convert security context to secid.
  *	@secid contains the pointer to the generated security ID.
@@ -1379,7 +1386,7 @@ struct security_operations {
 	int (*sysctl) (struct ctl_table *table, int op);
 	int (*quotactl) (int cmds, int type, int id, struct super_block *sb);
 	int (*quota_on) (struct dentry *dentry);
-	int (*syslog) (int type, bool from_file);
+	int (*syslog) (int type);
 	int (*settime) (struct timespec *ts, struct timezone *tz);
 	int (*vm_enough_memory) (struct mm_struct *mm, long pages);
 
@@ -1412,8 +1419,7 @@ struct security_operations {
 	int (*path_rmdir) (struct path *dir, struct dentry *dentry);
 	int (*path_mknod) (struct path *dir, struct dentry *dentry, int mode,
 			   unsigned int dev);
-	int (*path_truncate) (struct path *path, loff_t length,
-			      unsigned int time_attrs);
+	int (*path_truncate) (struct path *path);
 	int (*path_symlink) (struct path *dir, struct dentry *dentry,
 			     const char *old_name);
 	int (*path_link) (struct dentry *old_dentry, struct path *new_dir,
@@ -1501,9 +1507,9 @@ struct security_operations {
 	int (*task_setnice) (struct task_struct *p, int nice);
 	int (*task_setioprio) (struct task_struct *p, int ioprio);
 	int (*task_getioprio) (struct task_struct *p);
-	int (*task_setrlimit) (unsigned int resource, struct rlimit *new_rlim);
-	int (*task_setscheduler) (struct task_struct *p, int policy,
-				  struct sched_param *lp);
+	int (*task_setrlimit) (struct task_struct *p, unsigned int resource,
+			struct rlimit *new_rlim);
+	int (*task_setscheduler) (struct task_struct *p);
 	int (*task_getscheduler) (struct task_struct *p);
 	int (*task_movememory) (struct task_struct *p);
 	int (*task_kill) (struct task_struct *p,
@@ -1561,8 +1567,7 @@ struct security_operations {
 	int (*inode_getsecctx)(struct inode *inode, void **ctx, u32 *ctxlen);
 
 #ifdef CONFIG_SECURITY_NETWORK
-	int (*unix_stream_connect) (struct socket *sock,
-				    struct socket *other, struct sock *newsk);
+	int (*unix_stream_connect) (struct sock *sock, struct sock *other, struct sock *newsk);
 	int (*unix_may_send) (struct socket *sock, struct socket *other);
 
 	int (*socket_create) (int family, int type, int protocol, int kern);
@@ -1595,6 +1600,9 @@ struct security_operations {
 				  struct request_sock *req);
 	void (*inet_csk_clone) (struct sock *newsk, const struct request_sock *req);
 	void (*inet_conn_established) (struct sock *sk, struct sk_buff *skb);
+	int (*secmark_relabel_packet) (u32 secid);
+	void (*secmark_refcount_inc) (void);
+	void (*secmark_refcount_dec) (void);
 	void (*req_classify_flow) (const struct request_sock *req, struct flowi *fl);
 	int (*tun_dev_create)(void);
 	void (*tun_dev_post_create)(struct sock *sk);
@@ -1660,7 +1668,7 @@ int security_real_capable_noaudit(struct task_struct *tsk, int cap);
 int security_sysctl(struct ctl_table *table, int op);
 int security_quotactl(int cmds, int type, int id, struct super_block *sb);
 int security_quota_on(struct dentry *dentry);
-int security_syslog(int type, bool from_file);
+int security_syslog(int type);
 int security_settime(struct timespec *ts, struct timezone *tz);
 int security_vm_enough_memory(long pages);
 int security_vm_enough_memory_mm(struct mm_struct *mm, long pages);
@@ -1703,6 +1711,7 @@ int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
 int security_inode_readlink(struct dentry *dentry);
 int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
 int security_inode_permission(struct inode *inode, int mask);
+int security_inode_exec_permission(struct inode *inode, unsigned int flags);
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr);
 int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry);
 int security_inode_setxattr(struct dentry *dentry, const char *name,
@@ -1751,9 +1760,9 @@ void security_task_getsecid(struct task_struct *p, u32 *secid);
 int security_task_setnice(struct task_struct *p, int nice);
 int security_task_setioprio(struct task_struct *p, int ioprio);
 int security_task_getioprio(struct task_struct *p);
-int security_task_setrlimit(unsigned int resource, struct rlimit *new_rlim);
-int security_task_setscheduler(struct task_struct *p,
-				int policy, struct sched_param *lp);
+int security_task_setrlimit(struct task_struct *p, unsigned int resource,
+		struct rlimit *new_rlim);
+int security_task_setscheduler(struct task_struct *p);
 int security_task_getscheduler(struct task_struct *p);
 int security_task_movememory(struct task_struct *p);
 int security_task_kill(struct task_struct *p, struct siginfo *info,
@@ -1890,9 +1899,9 @@ static inline int security_quota_on(struct dentry *dentry)
 	return 0;
 }
 
-static inline int security_syslog(int type, bool from_file)
+static inline int security_syslog(int type)
 {
-	return cap_syslog(type, from_file);
+	return 0;
 }
 
 static inline int security_settime(struct timespec *ts, struct timezone *tz)
@@ -2088,6 +2097,12 @@ static inline int security_inode_follow_link(struct dentry *dentry,
 }
 
 static inline int security_inode_permission(struct inode *inode, int mask)
+{
+	return 0;
+}
+
+static inline int security_inode_exec_permission(struct inode *inode,
+						  unsigned int flags)
 {
 	return 0;
 }
@@ -2313,17 +2328,16 @@ static inline int security_task_getioprio(struct task_struct *p)
 	return 0;
 }
 
-static inline int security_task_setrlimit(unsigned int resource,
+static inline int security_task_setrlimit(struct task_struct *p,
+					  unsigned int resource,
 					  struct rlimit *new_rlim)
 {
 	return 0;
 }
 
-static inline int security_task_setscheduler(struct task_struct *p,
-					     int policy,
-					     struct sched_param *lp)
+static inline int security_task_setscheduler(struct task_struct *p)
 {
-	return cap_task_setscheduler(p, policy, lp);
+	return cap_task_setscheduler(p);
 }
 
 static inline int security_task_getscheduler(struct task_struct *p)
@@ -2516,8 +2530,7 @@ static inline int security_inode_getsecctx(struct inode *inode, void **ctx, u32 
 
 #ifdef CONFIG_SECURITY_NETWORK
 
-int security_unix_stream_connect(struct socket *sock, struct socket *other,
-				 struct sock *newsk);
+int security_unix_stream_connect(struct sock *sock, struct sock *other, struct sock *newsk);
 int security_unix_may_send(struct socket *sock,  struct socket *other);
 int security_socket_create(int family, int type, int protocol, int kern);
 int security_socket_post_create(struct socket *sock, int family,
@@ -2550,13 +2563,16 @@ void security_inet_csk_clone(struct sock *newsk,
 			const struct request_sock *req);
 void security_inet_conn_established(struct sock *sk,
 			struct sk_buff *skb);
+int security_secmark_relabel_packet(u32 secid);
+void security_secmark_refcount_inc(void);
+void security_secmark_refcount_dec(void);
 int security_tun_dev_create(void);
 void security_tun_dev_post_create(struct sock *sk);
 int security_tun_dev_attach(struct sock *sk);
 
 #else	/* CONFIG_SECURITY_NETWORK */
-static inline int security_unix_stream_connect(struct socket *sock,
-					       struct socket *other,
+static inline int security_unix_stream_connect(struct sock *sock,
+					       struct sock *other,
 					       struct sock *newsk)
 {
 	return 0;
@@ -2704,6 +2720,19 @@ static inline void security_inet_conn_established(struct sock *sk,
 {
 }
 
+static inline int security_secmark_relabel_packet(u32 secid)
+{
+	return 0;
+}
+
+static inline void security_secmark_refcount_inc(void)
+{
+}
+
+static inline void security_secmark_refcount_dec(void)
+{
+}
+
 static inline int security_tun_dev_create(void)
 {
 	return 0;
@@ -2806,8 +2835,7 @@ int security_path_mkdir(struct path *dir, struct dentry *dentry, int mode);
 int security_path_rmdir(struct path *dir, struct dentry *dentry);
 int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
 			unsigned int dev);
-int security_path_truncate(struct path *path, loff_t length,
-			   unsigned int time_attrs);
+int security_path_truncate(struct path *path);
 int security_path_symlink(struct path *dir, struct dentry *dentry,
 			  const char *old_name);
 int security_path_link(struct dentry *old_dentry, struct path *new_dir,
@@ -2841,8 +2869,7 @@ static inline int security_path_mknod(struct path *dir, struct dentry *dentry,
 	return 0;
 }
 
-static inline int security_path_truncate(struct path *path, loff_t length,
-					 unsigned int time_attrs)
+static inline int security_path_truncate(struct path *path)
 {
 	return 0;
 }

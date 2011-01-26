@@ -373,7 +373,7 @@ gss_handle_downcall_result(struct gss_cred *gss_cred, struct gss_upcall_msg *gss
 static void
 gss_upcall_callback(struct rpc_task *task)
 {
-	struct gss_cred *gss_cred = container_of(task->tk_msg.rpc_cred,
+	struct gss_cred *gss_cred = container_of(task->tk_rqstp->rq_cred,
 			struct gss_cred, gc_base);
 	struct gss_upcall_msg *gss_msg = gss_cred->gc_upcall;
 	struct inode *inode = &gss_msg->inode->vfs_inode;
@@ -502,7 +502,7 @@ static void warn_gssd(void)
 static inline int
 gss_refresh_upcall(struct rpc_task *task)
 {
-	struct rpc_cred *cred = task->tk_msg.rpc_cred;
+	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 	struct gss_auth *gss_auth = container_of(cred->cr_auth,
 			struct gss_auth, rpc_auth);
 	struct gss_cred *gss_cred = container_of(cred,
@@ -745,17 +745,18 @@ gss_pipe_release(struct inode *inode)
 	struct rpc_inode *rpci = RPC_I(inode);
 	struct gss_upcall_msg *gss_msg;
 
+restart:
 	spin_lock(&inode->i_lock);
-	while (!list_empty(&rpci->in_downcall)) {
+	list_for_each_entry(gss_msg, &rpci->in_downcall, list) {
 
-		gss_msg = list_entry(rpci->in_downcall.next,
-				struct gss_upcall_msg, list);
+		if (!list_empty(&gss_msg->msg.list))
+			continue;
 		gss_msg->msg.errno = -EPIPE;
 		atomic_inc(&gss_msg->count);
 		__gss_unhash_msg(gss_msg);
 		spin_unlock(&inode->i_lock);
 		gss_release_msg(gss_msg);
-		spin_lock(&inode->i_lock);
+		goto restart;
 	}
 	spin_unlock(&inode->i_lock);
 
@@ -928,6 +929,7 @@ gss_do_free_ctx(struct gss_cl_ctx *ctx)
 {
 	dprintk("RPC:       gss_free_ctx\n");
 
+	gss_delete_sec_context(&ctx->gc_gss_ctx);
 	kfree(ctx->gc_wire_ctx.data);
 	kfree(ctx);
 }
@@ -942,13 +944,7 @@ gss_free_ctx_callback(struct rcu_head *head)
 static void
 gss_free_ctx(struct gss_cl_ctx *ctx)
 {
-	struct gss_ctx *gc_gss_ctx;
-
-	gc_gss_ctx = rcu_dereference(ctx->gc_gss_ctx);
-	rcu_assign_pointer(ctx->gc_gss_ctx, NULL);
 	call_rcu(&ctx->gc_rcu, gss_free_ctx_callback);
-	if (gc_gss_ctx)
-		gss_delete_sec_context(&gc_gss_ctx);
 }
 
 static void
@@ -1054,7 +1050,7 @@ gss_match(struct auth_cred *acred, struct rpc_cred *rc, int flags)
 out:
 	if (acred->machine_cred != gss_cred->gc_machine_cred)
 		return 0;
-	return (rc->cr_uid == acred->uid);
+	return rc->cr_uid == acred->uid;
 }
 
 /*
@@ -1064,12 +1060,12 @@ out:
 static __be32 *
 gss_marshal(struct rpc_task *task, __be32 *p)
 {
-	struct rpc_cred *cred = task->tk_msg.rpc_cred;
+	struct rpc_rqst *req = task->tk_rqstp;
+	struct rpc_cred *cred = req->rq_cred;
 	struct gss_cred	*gss_cred = container_of(cred, struct gss_cred,
 						 gc_base);
 	struct gss_cl_ctx	*ctx = gss_cred_get_ctx(cred);
 	__be32		*cred_len;
-	struct rpc_rqst *req = task->tk_rqstp;
 	u32             maj_stat = 0;
 	struct xdr_netobj mic;
 	struct kvec	iov;
@@ -1119,7 +1115,7 @@ out_put_ctx:
 
 static int gss_renew_cred(struct rpc_task *task)
 {
-	struct rpc_cred *oldcred = task->tk_msg.rpc_cred;
+	struct rpc_cred *oldcred = task->tk_rqstp->rq_cred;
 	struct gss_cred *gss_cred = container_of(oldcred,
 						 struct gss_cred,
 						 gc_base);
@@ -1133,7 +1129,7 @@ static int gss_renew_cred(struct rpc_task *task)
 	new = gss_lookup_cred(auth, &acred, RPCAUTH_LOOKUP_NEW);
 	if (IS_ERR(new))
 		return PTR_ERR(new);
-	task->tk_msg.rpc_cred = new;
+	task->tk_rqstp->rq_cred = new;
 	put_rpccred(oldcred);
 	return 0;
 }
@@ -1161,7 +1157,7 @@ static int gss_cred_is_negative_entry(struct rpc_cred *cred)
 static int
 gss_refresh(struct rpc_task *task)
 {
-	struct rpc_cred *cred = task->tk_msg.rpc_cred;
+	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 	int ret = 0;
 
 	if (gss_cred_is_negative_entry(cred))
@@ -1172,7 +1168,7 @@ gss_refresh(struct rpc_task *task)
 		ret = gss_renew_cred(task);
 		if (ret < 0)
 			goto out;
-		cred = task->tk_msg.rpc_cred;
+		cred = task->tk_rqstp->rq_cred;
 	}
 
 	if (test_bit(RPCAUTH_CRED_NEW, &cred->cr_flags))
@@ -1191,7 +1187,7 @@ gss_refresh_null(struct rpc_task *task)
 static __be32 *
 gss_validate(struct rpc_task *task, __be32 *p)
 {
-	struct rpc_cred *cred = task->tk_msg.rpc_cred;
+	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
 	__be32		seq;
 	struct kvec	iov;
@@ -1235,9 +1231,19 @@ out_bad:
 	return NULL;
 }
 
+static void gss_wrap_req_encode(kxdreproc_t encode, struct rpc_rqst *rqstp,
+				__be32 *p, void *obj)
+{
+	struct xdr_stream xdr;
+
+	xdr_init_encode(&xdr, &rqstp->rq_snd_buf, p);
+	encode(rqstp, &xdr, obj);
+}
+
 static inline int
 gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
-		kxdrproc_t encode, struct rpc_rqst *rqstp, __be32 *p, void *obj)
+		   kxdreproc_t encode, struct rpc_rqst *rqstp,
+		   __be32 *p, void *obj)
 {
 	struct xdr_buf	*snd_buf = &rqstp->rq_snd_buf;
 	struct xdr_buf	integ_buf;
@@ -1253,9 +1259,7 @@ gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	offset = (u8 *)p - (u8 *)snd_buf->head[0].iov_base;
 	*p++ = htonl(rqstp->rq_seqno);
 
-	status = encode(rqstp, p, obj);
-	if (status)
-		return status;
+	gss_wrap_req_encode(encode, rqstp, p, obj);
 
 	if (xdr_buf_subsegment(snd_buf, &integ_buf,
 				offset, snd_buf->len - offset))
@@ -1329,7 +1333,8 @@ out:
 
 static inline int
 gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
-		kxdrproc_t encode, struct rpc_rqst *rqstp, __be32 *p, void *obj)
+		  kxdreproc_t encode, struct rpc_rqst *rqstp,
+		  __be32 *p, void *obj)
 {
 	struct xdr_buf	*snd_buf = &rqstp->rq_snd_buf;
 	u32		offset;
@@ -1346,9 +1351,7 @@ gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	offset = (u8 *)p - (u8 *)snd_buf->head[0].iov_base;
 	*p++ = htonl(rqstp->rq_seqno);
 
-	status = encode(rqstp, p, obj);
-	if (status)
-		return status;
+	gss_wrap_req_encode(encode, rqstp, p, obj);
 
 	status = alloc_enc_pages(rqstp);
 	if (status)
@@ -1398,9 +1401,9 @@ gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 
 static int
 gss_wrap_req(struct rpc_task *task,
-	     kxdrproc_t encode, void *rqstp, __be32 *p, void *obj)
+	     kxdreproc_t encode, void *rqstp, __be32 *p, void *obj)
 {
-	struct rpc_cred *cred = task->tk_msg.rpc_cred;
+	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 	struct gss_cred	*gss_cred = container_of(cred, struct gss_cred,
 			gc_base);
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
@@ -1411,12 +1414,14 @@ gss_wrap_req(struct rpc_task *task,
 		/* The spec seems a little ambiguous here, but I think that not
 		 * wrapping context destruction requests makes the most sense.
 		 */
-		status = encode(rqstp, p, obj);
+		gss_wrap_req_encode(encode, rqstp, p, obj);
+		status = 0;
 		goto out;
 	}
 	switch (gss_cred->gc_service) {
 		case RPC_GSS_SVC_NONE:
-			status = encode(rqstp, p, obj);
+			gss_wrap_req_encode(encode, rqstp, p, obj);
+			status = 0;
 			break;
 		case RPC_GSS_SVC_INTEGRITY:
 			status = gss_wrap_req_integ(cred, ctx, encode,
@@ -1498,12 +1503,21 @@ gss_unwrap_resp_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	return 0;
 }
 
+static int
+gss_unwrap_req_decode(kxdrdproc_t decode, struct rpc_rqst *rqstp,
+		      __be32 *p, void *obj)
+{
+	struct xdr_stream xdr;
+
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	return decode(rqstp, &xdr, obj);
+}
 
 static int
 gss_unwrap_resp(struct rpc_task *task,
-		kxdrproc_t decode, void *rqstp, __be32 *p, void *obj)
+		kxdrdproc_t decode, void *rqstp, __be32 *p, void *obj)
 {
-	struct rpc_cred *cred = task->tk_msg.rpc_cred;
+	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred,
 			gc_base);
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
@@ -1532,7 +1546,7 @@ gss_unwrap_resp(struct rpc_task *task,
 	cred->cr_auth->au_rslack = cred->cr_auth->au_verfsize + (p - savedp)
 						+ (savedlen - head->iov_len);
 out_decode:
-	status = decode(rqstp, p, obj);
+	status = gss_unwrap_req_decode(decode, rqstp, p, obj);
 out:
 	gss_put_ctx(ctx);
 	dprintk("RPC: %5u gss_unwrap_resp returning %d\n", task->tk_pid,

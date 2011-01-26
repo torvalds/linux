@@ -77,7 +77,7 @@
 /*
  * OMAP-1610 specific IRQ numbers for interrupt handler 1
  */
-#define INT_1610_IH2_IRQ	0
+#define INT_1610_IH2_IRQ	INT_1510_IH2_IRQ
 #define INT_1610_IH2_FIQ	2
 #define INT_1610_McBSP2_TX	4
 #define INT_1610_McBSP2_RX	5
@@ -344,6 +344,8 @@
 #define INT_34XX_PARTHASH_IRQ	79
 #define INT_34XX_MMC3_IRQ	94
 #define INT_34XX_GPT12_IRQ	95
+
+#define INT_36XX_UART4_IRQ	80
 
 #define INT_35XX_HECC0_IRQ		24
 #define INT_35XX_HECC1_IRQ		28

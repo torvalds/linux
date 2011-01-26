@@ -26,7 +26,7 @@
 
 struct sca_entry {
 	atomic_t scn;
-	__u64	reserved;
+	__u32	reserved;
 	__u64	sda;
 	__u64	reserved2[2];
 } __attribute__((packed));
@@ -41,7 +41,8 @@ struct sca_block {
 } __attribute__((packed));
 
 #define KVM_NR_PAGE_SIZES 2
-#define KVM_HPAGE_SHIFT(x) (PAGE_SHIFT + ((x) - 1) * 8)
+#define KVM_HPAGE_GFN_SHIFT(x) (((x) - 1) * 8)
+#define KVM_HPAGE_SHIFT(x) (PAGE_SHIFT + KVM_HPAGE_GFN_SHIFT(x))
 #define KVM_HPAGE_SIZE(x) (1UL << KVM_HPAGE_SHIFT(x))
 #define KVM_HPAGE_MASK(x)	(~(KVM_HPAGE_SIZE(x) - 1))
 #define KVM_PAGES_PER_HPAGE(x)	(KVM_HPAGE_SIZE(x) / PAGE_SIZE)

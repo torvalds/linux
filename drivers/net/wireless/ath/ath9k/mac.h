@@ -104,13 +104,11 @@ struct ath_tx_status {
 	u32 ts_tstamp;
 	u16 ts_seqnum;
 	u8 ts_status;
-	u8 ts_ratecode;
 	u8 ts_rateindex;
 	int8_t ts_rssi;
 	u8 ts_shortretry;
 	u8 ts_longretry;
 	u8 ts_virtcol;
-	u8 ts_antenna;
 	u8 ts_flags;
 	int8_t ts_rssi_ctl0;
 	int8_t ts_rssi_ctl1;
@@ -121,7 +119,6 @@ struct ath_tx_status {
 	u8 qid;
 	u16 desc_id;
 	u8 tid;
-	u8 pad[2];
 	u32 ba_low;
 	u32 ba_high;
 	u32 evm0;
@@ -240,7 +237,7 @@ struct ath_desc {
 	u32 ds_ctl1;
 	u32 ds_hw[20];
 	void *ds_vdata;
-} __packed;
+} __packed __aligned(4);
 
 #define ATH9K_TXDESC_CLRDMASK		0x0001
 #define ATH9K_TXDESC_NOACK		0x0002
@@ -310,7 +307,7 @@ struct ar5416_desc {
 			u32 status8;
 		} rx;
 	} u;
-} __packed;
+} __packed __aligned(4);
 
 #define AR5416DESC(_ds)         ((struct ar5416_desc *)(_ds))
 #define AR5416DESC_CONST(_ds)   ((const struct ar5416_desc *)(_ds))
@@ -485,6 +482,9 @@ struct ar5416_desc {
 #define AR_TxRSSICombined   0xff000000
 #define AR_TxRSSICombined_S 24
 
+#define AR_TxTid	0xf0000000
+#define AR_TxTid_S	28
+
 #define AR_TxEVM0           ds_txstatus5
 #define AR_TxEVM1           ds_txstatus6
 #define AR_TxEVM2           ds_txstatus7
@@ -577,13 +577,8 @@ enum ath9k_tx_queue {
 
 #define	ATH9K_NUM_TX_QUEUES 10
 
-enum ath9k_tx_queue_subtype {
-	ATH9K_WME_AC_BK = 0,
-	ATH9K_WME_AC_BE,
-	ATH9K_WME_AC_VI,
-	ATH9K_WME_AC_VO,
-	ATH9K_WME_UPSD
-};
+/* Used as a queue subtype instead of a WMM AC */
+#define ATH9K_WME_UPSD	4
 
 enum ath9k_tx_queue_flags {
 	TXQ_FLAG_TXOKINT_ENABLE = 0x0001,
@@ -617,7 +612,7 @@ enum ath9k_pkt_type {
 struct ath9k_tx_queue_info {
 	u32 tqi_ver;
 	enum ath9k_tx_queue tqi_type;
-	enum ath9k_tx_queue_subtype tqi_subtype;
+	int tqi_subtype;
 	enum ath9k_tx_queue_flags tqi_qflags;
 	u32 tqi_priority;
 	u32 tqi_aifs;
@@ -662,17 +657,6 @@ struct ath9k_11n_rate_series {
 	u32 RateFlags;
 };
 
-struct ath9k_keyval {
-	u8 kv_type;
-	u8 kv_pad;
-	u16 kv_len;
-	u8 kv_val[16]; /* TK */
-	u8 kv_mic[8]; /* Michael MIC key */
-	u8 kv_txmic[8]; /* Michael MIC TX key (used only if the hardware
-			 * supports both MIC keys in the same key cache entry;
-			 * in that case, kv_mic is the RX key) */
-};
-
 enum ath9k_key_type {
 	ATH9K_KEY_TYPE_CLEAR,
 	ATH9K_KEY_TYPE_WEP,
@@ -680,18 +664,9 @@ enum ath9k_key_type {
 	ATH9K_KEY_TYPE_TKIP,
 };
 
-enum ath9k_cipher {
-	ATH9K_CIPHER_WEP = 0,
-	ATH9K_CIPHER_AES_OCB = 1,
-	ATH9K_CIPHER_AES_CCM = 2,
-	ATH9K_CIPHER_CKIP = 3,
-	ATH9K_CIPHER_TKIP = 4,
-	ATH9K_CIPHER_CLR = 5,
-	ATH9K_CIPHER_MIC = 127
-};
-
 struct ath_hw;
 struct ath9k_channel;
+enum ath9k_int;
 
 u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q);
 void ath9k_hw_puttxbuf(struct ath_hw *ah, u32 q, u32 txdp);
@@ -715,16 +690,16 @@ void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			  u32 size, u32 flags);
 bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set);
 void ath9k_hw_putrxbuf(struct ath_hw *ah, u32 rxdp);
-void ath9k_hw_startpcureceive(struct ath_hw *ah);
-void ath9k_hw_stoppcurecv(struct ath_hw *ah);
+void ath9k_hw_startpcureceive(struct ath_hw *ah, bool is_scanning);
 void ath9k_hw_abortpcurecv(struct ath_hw *ah);
 bool ath9k_hw_stopdmarecv(struct ath_hw *ah);
 int ath9k_hw_beaconq_setup(struct ath_hw *ah);
 
 /* Interrupt Handling */
 bool ath9k_hw_intrpend(struct ath_hw *ah);
-enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah,
-				       enum ath9k_int ints);
+void ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints);
+void ath9k_hw_enable_interrupts(struct ath_hw *ah);
+void ath9k_hw_disable_interrupts(struct ath_hw *ah);
 
 void ar9002_hw_attach_mac_ops(struct ath_hw *ah);
 

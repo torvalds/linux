@@ -373,7 +373,7 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 
 static inline int rawv6_rcv_skb(struct sock * sk, struct sk_buff * skb)
 {
-	if ((raw6_sk(sk)->checksum || sk->sk_filter) &&
+	if ((raw6_sk(sk)->checksum || rcu_dereference_raw(sk->sk_filter)) &&
 	    skb_checksum_complete(skb)) {
 		atomic_inc(&sk->sk_drops);
 		kfree_skb(skb);
@@ -602,31 +602,33 @@ out:
 }
 
 static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
-			struct flowi *fl, struct rt6_info *rt,
+			struct flowi *fl, struct dst_entry **dstp,
 			unsigned int flags)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6hdr *iph;
 	struct sk_buff *skb;
 	int err;
+	struct rt6_info *rt = (struct rt6_info *)*dstp;
 
-	if (length > rt->u.dst.dev->mtu) {
-		ipv6_local_error(sk, EMSGSIZE, fl, rt->u.dst.dev->mtu);
+	if (length > rt->dst.dev->mtu) {
+		ipv6_local_error(sk, EMSGSIZE, fl, rt->dst.dev->mtu);
 		return -EMSGSIZE;
 	}
 	if (flags&MSG_PROBE)
 		goto out;
 
 	skb = sock_alloc_send_skb(sk,
-				  length + LL_ALLOCATED_SPACE(rt->u.dst.dev) + 15,
+				  length + LL_ALLOCATED_SPACE(rt->dst.dev) + 15,
 				  flags & MSG_DONTWAIT, &err);
 	if (skb == NULL)
 		goto error;
-	skb_reserve(skb, LL_RESERVED_SPACE(rt->u.dst.dev));
+	skb_reserve(skb, LL_RESERVED_SPACE(rt->dst.dev));
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
-	skb_dst_set(skb, dst_clone(&rt->u.dst));
+	skb_dst_set(skb, &rt->dst);
+	*dstp = NULL;
 
 	skb_put(skb, length);
 	skb_reset_network_header(skb);
@@ -641,7 +643,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 
 	IP6_UPD_PO_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUT, skb->len);
 	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb, NULL,
-		      rt->u.dst.dev, dst_output);
+		      rt->dst.dev, dst_output);
 	if (err > 0)
 		err = net_xmit_errno(err);
 	if (err)
@@ -725,7 +727,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 {
 	struct ipv6_txoptions opt_space;
 	struct sockaddr_in6 * sin6 = (struct sockaddr_in6 *) msg->msg_name;
-	struct in6_addr *daddr, *final_p = NULL, final;
+	struct in6_addr *daddr, *final_p, final;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct raw6_sock *rp = raw6_sk(sk);
@@ -762,7 +764,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 			return -EINVAL;
 
 		if (sin6->sin6_family && sin6->sin6_family != AF_INET6)
-			return(-EAFNOSUPPORT);
+			return -EAFNOSUPPORT;
 
 		/* port is the proto value [0..255] carried in nexthdr */
 		proto = ntohs(sin6->sin6_port);
@@ -770,10 +772,10 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		if (!proto)
 			proto = inet->inet_num;
 		else if (proto != inet->inet_num)
-			return(-EINVAL);
+			return -EINVAL;
 
 		if (proto > 255)
-			return(-EINVAL);
+			return -EINVAL;
 
 		daddr = &sin6->sin6_addr;
 		if (np->sndflow) {
@@ -847,13 +849,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	if (ipv6_addr_any(&fl.fl6_src) && !ipv6_addr_any(&np->saddr))
 		ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 
-	/* merge ip6_build_xmit from ip6_output */
-	if (opt && opt->srcrt) {
-		struct rt0_hdr *rt0 = (struct rt0_hdr *) opt->srcrt;
-		ipv6_addr_copy(&final, &fl.fl6_dst);
-		ipv6_addr_copy(&fl.fl6_dst, rt0->addr);
-		final_p = &final;
-	}
+	final_p = fl6_update_dst(&fl, opt, &final);
 
 	if (!fl.oif && ipv6_addr_is_multicast(&fl.fl6_dst))
 		fl.oif = np->mcast_oif;
@@ -892,9 +888,9 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		goto do_confirm;
 
 back_from_confirm:
-	if (inet->hdrincl) {
-		err = rawv6_send_hdrinc(sk, msg->msg_iov, len, &fl, (struct rt6_info*)dst, msg->msg_flags);
-	} else {
+	if (inet->hdrincl)
+		err = rawv6_send_hdrinc(sk, msg->msg_iov, len, &fl, &dst, msg->msg_flags);
+	else {
 		lock_sock(sk);
 		err = ip6_append_data(sk, ip_generic_getfrag, msg->msg_iov,
 			len, 0, hlimit, tclass, opt, &fl, (struct rt6_info*)dst,
@@ -989,7 +985,7 @@ static int do_rawv6_setsockopt(struct sock *sk, int level, int optname,
 			/* You may get strange result with a positive odd offset;
 			   RFC2292bis agrees with me. */
 			if (val > 0 && (val&1))
-				return(-EINVAL);
+				return -EINVAL;
 			if (val < 0) {
 				rp->checksum = 0;
 			} else {
@@ -1001,7 +997,7 @@ static int do_rawv6_setsockopt(struct sock *sk, int level, int optname,
 			break;
 
 		default:
-			return(-ENOPROTOOPT);
+			return -ENOPROTOOPT;
 	}
 }
 
@@ -1194,7 +1190,7 @@ static int rawv6_init_sk(struct sock *sk)
 	default:
 		break;
 	}
-	return(0);
+	return 0;
 }
 
 struct proto rawv6_prot = {

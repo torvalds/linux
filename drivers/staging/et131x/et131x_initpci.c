@@ -726,7 +726,7 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	/* Initialize link state */
 	et131x_link_detection_handler((unsigned long)adapter);
 
-	/* Intialize variable for counting how long we do not have
+	/* Initialize variable for counting how long we do not have
 							link status */
 	adapter->PoMgmt.TransPhyComaModeOnBoot = 0;
 
@@ -783,7 +783,7 @@ static void __devexit et131x_pci_remove(struct pci_dev *pdev)
 	/* Retrieve the net_device pointer from the pci_dev struct, as well
 	 * as the private adapter struct
 	 */
-	netdev = (struct net_device *) pci_get_drvdata(pdev);
+	netdev = pci_get_drvdata(pdev);
 	adapter = netdev_priv(netdev);
 
 	/* Perform device cleanup */

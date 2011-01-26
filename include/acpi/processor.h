@@ -48,20 +48,9 @@ struct acpi_power_register {
 	u8 space_id;
 	u8 bit_width;
 	u8 bit_offset;
-	u8 reserved;
+	u8 access_size;
 	u64 address;
 } __attribute__ ((packed));
-
-struct acpi_processor_cx_policy {
-	u32 count;
-	struct acpi_processor_cx *state;
-	struct {
-		u32 time;
-		u32 ticks;
-		u32 count;
-		u32 bm;
-	} threshold;
-};
 
 struct acpi_processor_cx {
 	u8 valid;
@@ -74,8 +63,7 @@ struct acpi_processor_cx {
 	u32 power;
 	u32 usage;
 	u64 time;
-	struct acpi_processor_cx_policy promotion;
-	struct acpi_processor_cx_policy demotion;
+	u8 bm_sts_skip;
 	char desc[ACPI_CX_DESC_LEN];
 };
 
@@ -336,6 +324,12 @@ int acpi_processor_tstate_has_changed(struct acpi_processor *pr);
 int acpi_processor_get_throttling_info(struct acpi_processor *pr);
 extern int acpi_processor_set_throttling(struct acpi_processor *pr,
 					 int state, bool force);
+/*
+ * Reevaluate whether the T-state is invalid after one cpu is
+ * onlined/offlined. In such case the flags.throttling will be updated.
+ */
+extern void acpi_processor_reevaluate_tstate(struct acpi_processor *pr,
+			unsigned long action);
 extern const struct file_operations acpi_processor_throttling_fops;
 extern void acpi_processor_throttling_init(void);
 /* in processor_idle.c */
@@ -350,7 +344,6 @@ extern struct cpuidle_driver acpi_idle_driver;
 
 /* in processor_thermal.c */
 int acpi_processor_get_limit_info(struct acpi_processor *pr);
-extern const struct file_operations acpi_processor_limit_fops;
 extern struct thermal_cooling_device_ops processor_cooling_ops;
 #ifdef CONFIG_CPU_FREQ
 void acpi_thermal_cpufreq_init(void);

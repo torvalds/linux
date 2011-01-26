@@ -820,13 +820,10 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct vivi_dev *dev = video_drvdata(file);
-	struct videobuf_queue *q = &dev->vb_vidq;
 
 	int ret = vidioc_try_fmt_vid_cap(file, priv, f);
 	if (ret < 0)
 		return ret;
-
-	mutex_lock(&q->vb_lock);
 
 	if (vivi_is_generating(dev)) {
 		dprintk(dev, 1, "%s device busy\n", __func__);
@@ -840,7 +837,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->vb_vidq.field = f->fmt.pix.field;
 	ret = 0;
 out:
-	mutex_unlock(&q->vb_lock);
 	return ret;
 }
 
@@ -873,15 +869,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	return videobuf_dqbuf(&dev->vb_vidq, p,
 				file->f_flags & O_NONBLOCK);
 }
-
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	struct vivi_dev *dev = video_drvdata(file);
-
-	return videobuf_cgmbuf(&dev->vb_vidq, mbuf, 8);
-}
-#endif
 
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
@@ -1086,7 +1073,7 @@ static const struct v4l2_file_operations vivi_fops = {
 	.release        = vivi_close,
 	.read           = vivi_read,
 	.poll		= vivi_poll,
-	.ioctl          = video_ioctl2, /* V4L2 ioctl handler */
+	.unlocked_ioctl = video_ioctl2, /* V4L2 ioctl handler */
 	.mmap           = vivi_mmap,
 };
 
@@ -1109,9 +1096,6 @@ static const struct v4l2_ioctl_ops vivi_ioctl_ops = {
 	.vidioc_queryctrl     = vidioc_queryctrl,
 	.vidioc_g_ctrl        = vidioc_g_ctrl,
 	.vidioc_s_ctrl        = vidioc_s_ctrl,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf          = vidiocgmbuf,
-#endif
 };
 
 static struct video_device vivi_template = {
@@ -1173,18 +1157,18 @@ static int __init vivi_create_instance(int inst)
 	dev->saturation = 127;
 	dev->hue = 0;
 
+	/* initialize locks */
+	spin_lock_init(&dev->slock);
+	mutex_init(&dev->mutex);
+
 	videobuf_queue_vmalloc_init(&dev->vb_vidq, &vivi_video_qops,
 			NULL, &dev->slock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			V4L2_FIELD_INTERLACED,
-			sizeof(struct vivi_buffer), dev);
+			sizeof(struct vivi_buffer), dev, &dev->mutex);
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
 	init_waitqueue_head(&dev->vidq.wq);
-
-	/* initialize locks */
-	spin_lock_init(&dev->slock);
-	mutex_init(&dev->mutex);
 
 	ret = -ENOMEM;
 	vfd = video_device_alloc();
@@ -1194,6 +1178,7 @@ static int __init vivi_create_instance(int inst)
 	*vfd = vivi_template;
 	vfd->debug = debug;
 	vfd->v4l2_dev = &dev->v4l2_dev;
+	vfd->lock = &dev->mutex;
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
 	if (ret < 0)

@@ -252,9 +252,8 @@ struct boardtype {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(pci9118_pci_table) = {
-	{
-	PCI_VENDOR_ID_AMCC, 0x80d9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMCC, 0x80d9) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, pci9118_pci_table);
@@ -289,7 +288,43 @@ static struct comedi_driver driver_pci9118 = {
 	.offset = sizeof(struct boardtype),
 };
 
-COMEDI_PCI_INITCLEANUP(driver_pci9118, pci9118_pci_table);
+static int __devinit driver_pci9118_pci_probe(struct pci_dev *dev,
+					      const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_pci9118.driver_name);
+}
+
+static void __devexit driver_pci9118_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_pci9118_pci_driver = {
+	.id_table = pci9118_pci_table,
+	.probe = &driver_pci9118_pci_probe,
+	.remove = __devexit_p(&driver_pci9118_pci_remove)
+};
+
+static int __init driver_pci9118_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_pci9118);
+	if (retval < 0)
+		return retval;
+
+	driver_pci9118_pci_driver.name = (char *)driver_pci9118.driver_name;
+	return pci_register_driver(&driver_pci9118_pci_driver);
+}
+
+static void __exit driver_pci9118_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_pci9118_pci_driver);
+	comedi_driver_unregister(&driver_pci9118);
+}
+
+module_init(driver_pci9118_init_module);
+module_exit(driver_pci9118_cleanup_module);
 
 struct pci9118_private {
 	unsigned long iobase_a;	/* base+size for AMCC chip */
@@ -599,7 +634,7 @@ static unsigned int defragment_dma_buffer(struct comedi_device *dev,
 /*
 ==============================================================================
 */
-static unsigned int move_block_from_dma(struct comedi_device *dev,
+static int move_block_from_dma(struct comedi_device *dev,
 					struct comedi_subdevice *s,
 					short *dma_buffer,
 					unsigned int num_samples)
@@ -1199,7 +1234,7 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 							 * align to 32bit down
 							 */
 	}
-	DPRINTK("2 dmalen0=%d dmalen1=%d \n", dmalen0, dmalen1);
+	DPRINTK("2 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 
 	/* we want wake up every scan? */
 	if (devpriv->ai_flags & TRIG_WAKE_EOS) {
@@ -1259,7 +1294,7 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 		}
 	}
 
-	DPRINTK("3 dmalen0=%d dmalen1=%d \n", dmalen0, dmalen1);
+	DPRINTK("3 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 	/* transfer without TRIG_WAKE_EOS */
 	if (!(devpriv->ai_flags & TRIG_WAKE_EOS)) {
 		/* if it's possible then allign DMA buffers to length of scan */
@@ -1287,13 +1322,13 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 			    ((devpriv->ai_n_realscanlen << 1) *
 			     devpriv->ai_scans)) {
 				DPRINTK
-				    ("3.0 ai_n_realscanlen=%d ai_scans=%d \n",
+				    ("3.0 ai_n_realscanlen=%d ai_scans=%d\n",
 				     devpriv->ai_n_realscanlen,
 				     devpriv->ai_scans);
 				dmalen0 =
 				    (devpriv->ai_n_realscanlen << 1) *
 				    devpriv->ai_scans;
-				DPRINTK("3.1 dmalen0=%d dmalen1=%d \n", dmalen0,
+				DPRINTK("3.1 dmalen0=%d dmalen1=%d\n", dmalen0,
 					dmalen1);
 				dmalen0 &= ~3L;
 			} else {	/*
@@ -1306,21 +1341,21 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 					dmalen1 =
 					    (devpriv->ai_n_realscanlen << 1) *
 					    devpriv->ai_scans - dmalen0;
-				DPRINTK("3.2 dmalen0=%d dmalen1=%d \n", dmalen0,
+				DPRINTK("3.2 dmalen0=%d dmalen1=%d\n", dmalen0,
 					dmalen1);
 				dmalen1 &= ~3L;
 			}
 		}
 	}
 
-	DPRINTK("4 dmalen0=%d dmalen1=%d \n", dmalen0, dmalen1);
+	DPRINTK("4 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 
 	/* these DMA buffer size will be used */
 	devpriv->dma_actbuf = 0;
 	devpriv->dmabuf_use_size[0] = dmalen0;
 	devpriv->dmabuf_use_size[1] = dmalen1;
 
-	DPRINTK("5 dmalen0=%d dmalen1=%d \n", dmalen0, dmalen1);
+	DPRINTK("5 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 #if 0
 	if (devpriv->ai_n_scanlen < this_board->half_fifo_size) {
 		devpriv->dmabuf_panic_size[0] =
@@ -1540,12 +1575,12 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* use sample&hold signal? */
-	if (cmd->convert_src == TRIG_NOW) {
+	if (cmd->convert_src == TRIG_NOW)
 		devpriv->usessh = 1;
-	} /* yes */
-	else {
+	/* yes */
+	else
 		devpriv->usessh = 0;
-	}			/*  no */
+				/*  no */
 
 	DPRINTK("1 neverending=%d scans=%u usessh=%d ai_startstop=0x%2x\n",
 		devpriv->ai_neverending, devpriv->ai_scans, devpriv->usessh,
@@ -1562,9 +1597,8 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->usedma = 1;
 		if ((cmd->flags & TRIG_WAKE_EOS) &&
 		    (devpriv->ai_n_scanlen == 1)) {
-			if (cmd->convert_src == TRIG_NOW) {
+			if (cmd->convert_src == TRIG_NOW)
 				devpriv->ai_add_back = 1;
-			}
 			if (cmd->convert_src == TRIG_TIMER) {
 				devpriv->usedma = 0;
 					/*
@@ -1659,11 +1693,10 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		(cmd->scan_begin_src == TRIG_INT)) &&
 		(cmd->convert_src == TRIG_TIMER)) {
 					/* both timer is used for one time */
-		if (cmd->scan_begin_src == TRIG_EXT) {
+		if (cmd->scan_begin_src == TRIG_EXT)
 			devpriv->ai_do = 4;
-		} else {
+		else
 			devpriv->ai_do = 1;
-		}
 		pci9118_calc_divisors(devpriv->ai_do, dev, s,
 				      &cmd->scan_begin_arg, &cmd->convert_arg,
 				      devpriv->ai_flags,
@@ -2177,11 +2210,10 @@ static int pci9118_attach(struct comedi_device *dev,
 
 	opt_bus = it->options[0];
 	opt_slot = it->options[1];
-	if (it->options[3] & 1) {
+	if (it->options[3] & 1)
 		master = 0;	/* user don't want use bus master */
-	} else {
+	else
 		master = 1;
-	}
 
 	ret = alloc_private(dev, sizeof(struct pci9118_private));
 	if (ret < 0) {
@@ -2432,3 +2464,7 @@ static int pci9118_detach(struct comedi_device *dev)
 /*
 ==============================================================================
 */
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

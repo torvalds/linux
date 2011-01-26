@@ -32,7 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/errno.h>
 #include <linux/random.h>
 #include <linux/poll.h>
@@ -72,6 +72,7 @@ struct rio_usb_data {
 	struct mutex lock;          /* general race avoidance */
 };
 
+static DEFINE_MUTEX(rio500_mutex);
 static struct rio_usb_data rio_instance;
 
 static int open_rio(struct inode *inode, struct file *file)
@@ -79,12 +80,12 @@ static int open_rio(struct inode *inode, struct file *file)
 	struct rio_usb_data *rio = &rio_instance;
 
 	/* against disconnect() */
-	lock_kernel();
+	mutex_lock(&rio500_mutex);
 	mutex_lock(&(rio->lock));
 
 	if (rio->isopen || !rio->present) {
 		mutex_unlock(&(rio->lock));
-		unlock_kernel();
+		mutex_unlock(&rio500_mutex);
 		return -EBUSY;
 	}
 	rio->isopen = 1;
@@ -94,7 +95,7 @@ static int open_rio(struct inode *inode, struct file *file)
 	mutex_unlock(&(rio->lock));
 
 	dev_info(&rio->rio_dev->dev, "Rio opened.\n");
-	unlock_kernel();
+	mutex_unlock(&rio500_mutex);
 
 	return 0;
 }
@@ -438,6 +439,7 @@ static const struct file_operations usb_rio_fops = {
 	.unlocked_ioctl = ioctl_rio,
 	.open =		open_rio,
 	.release =	close_rio,
+	.llseek =	noop_llseek,
 };
 
 static struct usb_class_driver usb_rio_class = {
@@ -491,7 +493,7 @@ static void disconnect_rio(struct usb_interface *intf)
 	struct rio_usb_data *rio = usb_get_intfdata (intf);
 
 	usb_set_intfdata (intf, NULL);
-	lock_kernel();
+	mutex_lock(&rio500_mutex);
 	if (rio) {
 		usb_deregister_dev(intf, &usb_rio_class);
 
@@ -501,7 +503,7 @@ static void disconnect_rio(struct usb_interface *intf)
 			/* better let it finish - the release will do whats needed */
 			rio->rio_dev = NULL;
 			mutex_unlock(&(rio->lock));
-			unlock_kernel();
+			mutex_unlock(&rio500_mutex);
 			return;
 		}
 		kfree(rio->ibuf);
@@ -512,7 +514,7 @@ static void disconnect_rio(struct usb_interface *intf)
 		rio->present = 0;
 		mutex_unlock(&(rio->lock));
 	}
-	unlock_kernel();
+	mutex_unlock(&rio500_mutex);
 }
 
 static const struct usb_device_id rio_table[] = {

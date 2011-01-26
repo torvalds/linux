@@ -40,12 +40,22 @@
 unsigned int drm_debug = 0;	/* 1 to enable debug output */
 EXPORT_SYMBOL(drm_debug);
 
+unsigned int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
+EXPORT_SYMBOL(drm_vblank_offdelay);
+
+unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
+EXPORT_SYMBOL(drm_timestamp_precision);
+
 MODULE_AUTHOR(CORE_AUTHOR);
 MODULE_DESCRIPTION(CORE_DESC);
 MODULE_LICENSE("GPL and additional rights");
 MODULE_PARM_DESC(debug, "Enable debug output");
+MODULE_PARM_DESC(vblankoffdelay, "Delay until vblank irq auto-disable [msecs]");
+MODULE_PARM_DESC(timestamp_precision_usec, "Max. error on timestamps [usecs]");
 
 module_param_named(debug, drm_debug, int, 0600);
+module_param_named(vblankoffdelay, drm_vblank_offdelay, int, 0600);
+module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600);
 
 struct idr drm_minors_idr;
 
@@ -156,6 +166,9 @@ static void drm_master_destroy(struct kref *kref)
 		master->unique_len = 0;
 	}
 
+	kfree(dev->devname);
+	dev->devname = NULL;
+
 	list_for_each_entry_safe(pt, next, &master->magicfree, head) {
 		list_del(&pt->head);
 		drm_ht_remove_item(&master->magiclist, &pt->hash_item);
@@ -224,7 +237,7 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
+int drm_fill_in_dev(struct drm_device *dev,
 			   const struct pci_device_id *ent,
 			   struct drm_driver *driver)
 {
@@ -237,21 +250,9 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 	INIT_LIST_HEAD(&dev->vblank_event_list);
 
 	spin_lock_init(&dev->count_lock);
-	spin_lock_init(&dev->drw_lock);
 	spin_lock_init(&dev->event_lock);
-	init_timer(&dev->timer);
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->ctxlist_mutex);
-
-	idr_init(&dev->drw_idr);
-
-	dev->pdev = pdev;
-	dev->pci_device = pdev->device;
-	dev->pci_vendor = pdev->vendor;
-
-#ifdef __alpha__
-	dev->hose = pdev->sysdata;
-#endif
 
 	if (drm_ht_create(&dev->map_hash, 12)) {
 		return -ENOMEM;
@@ -321,7 +322,7 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
  * create the proc init entry via proc_init(). This routines assigns
  * minor numbers to secondary heads of multi-headed cards
  */
-static int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type)
+int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type)
 {
 	struct drm_minor *new_minor;
 	int ret;
@@ -386,83 +387,6 @@ err_idr:
 	*minor = NULL;
 	return ret;
 }
-
-/**
- * Register.
- *
- * \param pdev - PCI device structure
- * \param ent entry from the PCI ID table with device type flags
- * \return zero on success or a negative number on failure.
- *
- * Attempt to gets inter module "drm" information. If we are first
- * then register the character device and inter module information.
- * Try and register, if we fail to register, backout previous work.
- */
-int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
-		struct drm_driver *driver)
-{
-	struct drm_device *dev;
-	int ret;
-
-	DRM_DEBUG("\n");
-
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
-
-	ret = pci_enable_device(pdev);
-	if (ret)
-		goto err_g1;
-
-	pci_set_master(pdev);
-	if ((ret = drm_fill_in_dev(dev, pdev, ent, driver))) {
-		printk(KERN_ERR "DRM: Fill_in_dev failed.\n");
-		goto err_g2;
-	}
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		pci_set_drvdata(pdev, dev);
-		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
-		if (ret)
-			goto err_g2;
-	}
-
-	if ((ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY)))
-		goto err_g3;
-
-	if (dev->driver->load) {
-		ret = dev->driver->load(dev, ent->driver_data);
-		if (ret)
-			goto err_g4;
-	}
-
-        /* setup the grouping for the legacy output */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = drm_mode_group_init_legacy_group(dev, &dev->primary->mode_group);
-		if (ret)
-			goto err_g4;
-	}
-
-	list_add_tail(&dev->driver_item, &driver->device_list);
-
-	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
-		 driver->name, driver->major, driver->minor, driver->patchlevel,
-		 driver->date, pci_name(pdev), dev->primary->index);
-
-	return 0;
-
-err_g4:
-	drm_put_minor(&dev->primary);
-err_g3:
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_put_minor(&dev->control);
-err_g2:
-	pci_disable_device(pdev);
-err_g1:
-	kfree(dev);
-	return ret;
-}
-EXPORT_SYMBOL(drm_get_dev);
 
 /**
  * Put a secondary minor number.

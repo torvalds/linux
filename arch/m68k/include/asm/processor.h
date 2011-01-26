@@ -20,23 +20,26 @@
 
 static inline unsigned long rdusp(void)
 {
-#ifdef CONFIG_COLDFIRE
+#ifdef CONFIG_COLDFIRE_SW_A7
 	extern unsigned int sw_usp;
 	return sw_usp;
 #else
-	unsigned long usp;
-	__asm__ __volatile__("move %/usp,%0" : "=a" (usp));
+	register unsigned long usp __asm__("a0");
+	/* move %usp,%a0 */
+	__asm__ __volatile__(".word 0x4e68" : "=a" (usp));
 	return usp;
 #endif
 }
 
 static inline void wrusp(unsigned long usp)
 {
-#ifdef CONFIG_COLDFIRE
+#ifdef CONFIG_COLDFIRE_SW_A7
 	extern unsigned int sw_usp;
 	sw_usp = usp;
 #else
-	__asm__ __volatile__("move %0,%/usp" : : "a" (usp));
+	register unsigned long a0 __asm__("a0") = usp;
+	/* move %a0,%usp */
+	__asm__ __volatile__(".word 0x4e60" : : "a" (a0) );
 #endif
 }
 
@@ -44,10 +47,14 @@ static inline void wrusp(unsigned long usp)
  * User space process size: 3.75GB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.
  */
+#ifdef CONFIG_MMU
 #ifndef CONFIG_SUN3
 #define TASK_SIZE	(0xF0000000UL)
 #else
 #define TASK_SIZE	(0x0E000000UL)
+#endif
+#else
+#define TASK_SIZE	(0xFFFFFFFFUL)
 #endif
 
 #ifdef __KERNEL__

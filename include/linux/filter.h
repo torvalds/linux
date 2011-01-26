@@ -124,7 +124,9 @@ struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
 #define SKF_AD_MARK 	20
 #define SKF_AD_QUEUE	24
 #define SKF_AD_HATYPE	28
-#define SKF_AD_MAX	32
+#define SKF_AD_RXHASH	32
+#define SKF_AD_CPU	36
+#define SKF_AD_MAX	40
 #define SKF_NET_OFF   (-0x100000)
 #define SKF_LL_OFF    (-0x200000)
 
@@ -146,8 +148,8 @@ struct sk_buff;
 struct sock;
 
 extern int sk_filter(struct sock *sk, struct sk_buff *skb);
-extern unsigned int sk_run_filter(struct sk_buff *skb,
-				  struct sock_filter *filter, int flen);
+extern unsigned int sk_run_filter(const struct sk_buff *skb,
+				  const struct sock_filter *filter);
 extern int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 extern int sk_detach_filter(struct sock *sk);
 extern int sk_chk_filter(struct sock_filter *filter, int flen);

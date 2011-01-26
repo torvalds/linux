@@ -108,7 +108,7 @@ int b43_modparam_verbose = B43_VERBOSITY_DEFAULT;
 module_param_named(verbose, b43_modparam_verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "Log message verbosity: 0=error, 1=warn, 2=info(default), 3=debug");
 
-int b43_modparam_pio = B43_PIO_DEFAULT;
+static int b43_modparam_pio = B43_PIO_DEFAULT;
 module_param_named(pio, b43_modparam_pio, int, 0644);
 MODULE_PARM_DESC(pio, "Use PIO accesses by default: 0=DMA, 1=PIO");
 
@@ -322,59 +322,83 @@ static int b43_ratelimit(struct b43_wl *wl)
 
 void b43info(struct b43_wl *wl, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	if (b43_modparam_verbose < B43_VERBOSITY_INFO)
 		return;
 	if (!b43_ratelimit(wl))
 		return;
+
 	va_start(args, fmt);
-	printk(KERN_INFO "b43-%s: ",
-	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan");
-	vprintk(fmt, args);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_INFO "b43-%s: %pV",
+	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
+
 	va_end(args);
 }
 
 void b43err(struct b43_wl *wl, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	if (b43_modparam_verbose < B43_VERBOSITY_ERROR)
 		return;
 	if (!b43_ratelimit(wl))
 		return;
+
 	va_start(args, fmt);
-	printk(KERN_ERR "b43-%s ERROR: ",
-	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan");
-	vprintk(fmt, args);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_ERR "b43-%s ERROR: %pV",
+	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
+
 	va_end(args);
 }
 
 void b43warn(struct b43_wl *wl, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	if (b43_modparam_verbose < B43_VERBOSITY_WARN)
 		return;
 	if (!b43_ratelimit(wl))
 		return;
+
 	va_start(args, fmt);
-	printk(KERN_WARNING "b43-%s warning: ",
-	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan");
-	vprintk(fmt, args);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_WARNING "b43-%s warning: %pV",
+	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
+
 	va_end(args);
 }
 
 void b43dbg(struct b43_wl *wl, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	if (b43_modparam_verbose < B43_VERBOSITY_DEBUG)
 		return;
+
 	va_start(args, fmt);
-	printk(KERN_DEBUG "b43-%s debug: ",
-	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan");
-	vprintk(fmt, args);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_DEBUG "b43-%s debug: %pV",
+	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
+
 	va_end(args);
 }
 
@@ -1126,6 +1150,8 @@ void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 
 	flags |= B43_TMSLOW_PHYCLKEN;
 	flags |= B43_TMSLOW_PHYRESET;
+	if (dev->phy.type == B43_PHYTYPE_N)
+		flags |= B43_TMSLOW_PHY_BANDWIDTH_20MHZ; /* Make 20 MHz def */
 	ssb_device_enable(dev->dev, flags);
 	msleep(2);		/* Wait for the PLL to turn on. */
 
@@ -1804,7 +1830,7 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 			       dma_reason[2], dma_reason[3],
 			       dma_reason[4], dma_reason[5]);
 			b43err(dev->wl, "This device does not support DMA "
-			       "on your system. Please use PIO instead.\n");
+			       "on your system. It will now be switched to PIO.\n");
 			/* Fall back to PIO transfers if we get fatal DMA errors! */
 			dev->use_pio = 1;
 			b43_controller_restart(dev, "DMA error");
@@ -2095,8 +2121,10 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 		filename = "ucode13";
 	else if (rev == 14)
 		filename = "ucode14";
-	else if (rev >= 15)
+	else if (rev == 15)
 		filename = "ucode15";
+	else if ((rev >= 16) && (rev <= 20))
+		filename = "ucode16_mimo";
 	else
 		goto err_no_ucode;
 	err = b43_do_request_fw(ctx, filename, &fw->ucode);
@@ -2139,7 +2167,9 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 			goto err_no_initvals;
 		break;
 	case B43_PHYTYPE_N:
-		if ((rev >= 11) && (rev <= 12))
+		if (rev >= 16)
+			filename = "n0initvals16";
+		else if ((rev >= 11) && (rev <= 12))
 			filename = "n0initvals11";
 		else
 			goto err_no_initvals;
@@ -2183,7 +2213,9 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 			goto err_no_initvals;
 		break;
 	case B43_PHYTYPE_N:
-		if ((rev >= 11) && (rev <= 12))
+		if (rev >= 16)
+			filename = "n0bsinitvals16";
+		else if ((rev >= 11) && (rev <= 12))
 			filename = "n0bsinitvals11";
 		else
 			goto err_no_initvals;
@@ -2280,6 +2312,7 @@ out:
 
 static int b43_upload_microcode(struct b43_wldev *dev)
 {
+	struct wiphy *wiphy = dev->wl->hw->wiphy;
 	const size_t hdr_len = sizeof(struct b43_fw_header);
 	const __be32 *data;
 	unsigned int i, len;
@@ -2404,6 +2437,10 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 			b43_print_fw_helptext(dev->wl, 0);
 		}
 	}
+
+	snprintf(wiphy->fw_version, sizeof(wiphy->fw_version), "%u.%u",
+			dev->fw.rev, dev->fw.patch);
+	wiphy->hw_version = dev->dev->id.coreid;
 
 	if (b43_is_old_txhdr_format(dev)) {
 		/* We're over the deadline, but we keep support for old fw
@@ -3754,17 +3791,17 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 
 	err = -EINVAL;
-	switch (key->alg) {
-	case ALG_WEP:
-		if (key->keylen == WLAN_KEY_LEN_WEP40)
-			algorithm = B43_SEC_ALGO_WEP40;
-		else
-			algorithm = B43_SEC_ALGO_WEP104;
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		algorithm = B43_SEC_ALGO_WEP40;
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_WEP104:
+		algorithm = B43_SEC_ALGO_WEP104;
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
 		algorithm = B43_SEC_ALGO_TKIP;
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		algorithm = B43_SEC_ALGO_AES;
 		break;
 	default:
@@ -4017,9 +4054,9 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		if (phy_rev > 9)
 			unsupported = 1;
 		break;
-#ifdef CONFIG_B43_NPHY
+#ifdef CONFIG_B43_PHY_N
 	case B43_PHYTYPE_N:
-		if (phy_rev > 4)
+		if (phy_rev > 9)
 			unsupported = 1;
 		break;
 #endif
@@ -4250,6 +4287,10 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 	B43_WARN_ON(dev && b43_status(dev) > B43_STAT_INITIALIZED);
 	if (!dev || b43_status(dev) != B43_STAT_INITIALIZED)
 		return;
+
+	/* Unregister HW RNG driver */
+	b43_rng_exit(dev->wl);
+
 	b43_set_status(dev, B43_STAT_UNINIT);
 
 	/* Stop the microcode PSM. */
@@ -4378,6 +4419,9 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	ieee80211_wake_queues(dev->wl->hw);
 
 	b43_set_status(dev, B43_STAT_INITIALIZED);
+
+	/* Register HW RNG driver */
+	b43_rng_init(dev->wl);
 
 out:
 	return err;
@@ -4984,7 +5028,6 @@ static int b43_probe(struct ssb_device *dev, const struct ssb_device_id *id)
 		if (err)
 			goto err_one_core_detach;
 		b43_leds_register(wl->current_dev);
-		b43_rng_init(wl);
 	}
 
       out:
@@ -5020,7 +5063,6 @@ static void b43_remove(struct ssb_device *dev)
 	b43_one_core_detach(dev);
 
 	if (list_empty(&wl->devlist)) {
-		b43_rng_exit(wl);
 		b43_leds_unregister(wl);
 		/* Last core on the chip unregistered.
 		 * We can destroy common struct b43_wl.
@@ -5057,7 +5099,7 @@ static void b43_print_driverinfo(void)
 #ifdef CONFIG_B43_PCMCIA
 	feat_pcmcia = "M";
 #endif
-#ifdef CONFIG_B43_NPHY
+#ifdef CONFIG_B43_PHY_N
 	feat_nphy = "N";
 #endif
 #ifdef CONFIG_B43_LEDS

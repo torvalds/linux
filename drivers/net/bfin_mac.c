@@ -1,12 +1,17 @@
 /*
  * Blackfin On-Chip MAC Driver
  *
- * Copyright 2004-2007 Analog Devices Inc.
+ * Copyright 2004-2010 Analog Devices Inc.
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *
  * Licensed under the GPL-2 or later.
  */
+
+#define DRV_VERSION	"1.1"
+#define DRV_DESC	"Blackfin on-chip Ethernet MAC driver"
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -23,7 +28,6 @@
 #include <linux/device.h>
 #include <linux/spinlock.h>
 #include <linux/mii.h>
-#include <linux/phy.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -38,15 +42,11 @@
 #include <asm/blackfin.h>
 #include <asm/cacheflush.h>
 #include <asm/portmux.h>
+#include <mach/pll.h>
 
 #include "bfin_mac.h"
 
-#define DRV_NAME	"bfin_mac"
-#define DRV_VERSION	"1.1"
-#define DRV_AUTHOR	"Bryan Wu, Luke Yang"
-#define DRV_DESC	"Blackfin on-chip Ethernet MAC driver"
-
-MODULE_AUTHOR(DRV_AUTHOR);
+MODULE_AUTHOR("Bryan Wu, Luke Yang");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_ALIAS("platform:bfin_mac");
@@ -74,12 +74,6 @@ static struct net_dma_desc_rx *current_rx_ptr;
 static struct net_dma_desc_tx *current_tx_ptr;
 static struct net_dma_desc_tx *tx_desc;
 static struct net_dma_desc_rx *rx_desc;
-
-#if defined(CONFIG_BFIN_MAC_RMII)
-static u16 pin_req[] = P_RMII0;
-#else
-static u16 pin_req[] = P_MII0;
-#endif
 
 static void desc_list_free(void)
 {
@@ -195,8 +189,7 @@ static int desc_list_init(void)
 		/* allocate a new skb for next time receive */
 		new_skb = dev_alloc_skb(PKT_BUF_SZ + NET_IP_ALIGN);
 		if (!new_skb) {
-			printk(KERN_NOTICE DRV_NAME
-			       ": init: low on mem - packet dropped\n");
+			pr_notice("init: low on mem - packet dropped\n");
 			goto init_error;
 		}
 		skb_reserve(new_skb, NET_IP_ALIGN);
@@ -246,7 +239,7 @@ static int desc_list_init(void)
 
 init_error:
 	desc_list_free();
-	printk(KERN_ERR DRV_NAME ": kmalloc failed\n");
+	pr_err("kmalloc failed\n");
 	return -ENOMEM;
 }
 
@@ -265,8 +258,7 @@ static int bfin_mdio_poll(void)
 	while ((bfin_read_EMAC_STAADD()) & STABUSY) {
 		udelay(1);
 		if (timeout_cnt-- < 0) {
-			printk(KERN_ERR DRV_NAME
-			": wait MDC/MDIO transaction to complete timeout\n");
+			pr_err("wait MDC/MDIO transaction to complete timeout\n");
 			return -ETIMEDOUT;
 		}
 	}
@@ -346,23 +338,23 @@ static void bfin_mac_adjust_link(struct net_device *dev)
 		}
 
 		if (phydev->speed != lp->old_speed) {
-#if defined(CONFIG_BFIN_MAC_RMII)
-			u32 opmode = bfin_read_EMAC_OPMODE();
-			switch (phydev->speed) {
-			case 10:
-				opmode |= RMII_10;
-				break;
-			case 100:
-				opmode &= ~(RMII_10);
-				break;
-			default:
-				printk(KERN_WARNING
-					"%s: Ack!  Speed (%d) is not 10/100!\n",
-					DRV_NAME, phydev->speed);
-				break;
+			if (phydev->interface == PHY_INTERFACE_MODE_RMII) {
+				u32 opmode = bfin_read_EMAC_OPMODE();
+				switch (phydev->speed) {
+				case 10:
+					opmode |= RMII_10;
+					break;
+				case 100:
+					opmode &= ~RMII_10;
+					break;
+				default:
+					netdev_warn(dev,
+						"Ack! Speed (%d) is not 10/100!\n",
+						phydev->speed);
+					break;
+				}
+				bfin_write_EMAC_OPMODE(opmode);
 			}
-			bfin_write_EMAC_OPMODE(opmode);
-#endif
 
 			new_state = 1;
 			lp->old_speed = phydev->speed;
@@ -391,7 +383,7 @@ static void bfin_mac_adjust_link(struct net_device *dev)
 /* MDC  = 2.5 MHz */
 #define MDC_CLK 2500000
 
-static int mii_probe(struct net_device *dev)
+static int mii_probe(struct net_device *dev, int phy_mode)
 {
 	struct bfin_mac_local *lp = netdev_priv(dev);
 	struct phy_device *phydev = NULL;
@@ -410,8 +402,8 @@ static int mii_probe(struct net_device *dev)
 	sysctl = (sysctl & ~MDCDIV) | SET_MDCDIV(mdc_div);
 	bfin_write_EMAC_SYSCTL(sysctl);
 
-	/* search for connect PHY device */
-	for (i = 0; i < PHY_MAX_ADDR; i++) {
+	/* search for connected PHY device */
+	for (i = 0; i < PHY_MAX_ADDR; ++i) {
 		struct phy_device *const tmp_phydev = lp->mii_bus->phy_map[i];
 
 		if (!tmp_phydev)
@@ -423,21 +415,21 @@ static int mii_probe(struct net_device *dev)
 
 	/* now we are supposed to have a proper phydev, to attach to... */
 	if (!phydev) {
-		printk(KERN_INFO "%s: Don't found any phy device at all\n",
-			dev->name);
+		netdev_err(dev, "no phy device found\n");
 		return -ENODEV;
 	}
 
-#if defined(CONFIG_BFIN_MAC_RMII)
+	if (phy_mode != PHY_INTERFACE_MODE_RMII &&
+		phy_mode != PHY_INTERFACE_MODE_MII) {
+		netdev_err(dev, "invalid phy interface mode\n");
+		return -EINVAL;
+	}
+
 	phydev = phy_connect(dev, dev_name(&phydev->dev), &bfin_mac_adjust_link,
-			0, PHY_INTERFACE_MODE_RMII);
-#else
-	phydev = phy_connect(dev, dev_name(&phydev->dev), &bfin_mac_adjust_link,
-			0, PHY_INTERFACE_MODE_MII);
-#endif
+			0, phy_mode);
 
 	if (IS_ERR(phydev)) {
-		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
+		netdev_err(dev, "could not attach PHY\n");
 		return PTR_ERR(phydev);
 	}
 
@@ -458,11 +450,10 @@ static int mii_probe(struct net_device *dev)
 	lp->old_duplex = -1;
 	lp->phydev = phydev;
 
-	printk(KERN_INFO "%s: attached PHY driver [%s] "
-	       "(mii_bus:phy_addr=%s, irq=%d, mdc_clk=%dHz(mdc_div=%d)"
-	       "@sclk=%dMHz)\n",
-	       DRV_NAME, phydev->drv->name, dev_name(&phydev->dev), phydev->irq,
-	       MDC_CLK, mdc_div, sclk/1000000);
+	pr_info("attached PHY driver [%s] "
+	        "(mii_bus:phy_addr=%s, irq=%d, mdc_clk=%dHz(mdc_div=%d)@sclk=%dMHz)\n",
+	        phydev->drv->name, dev_name(&phydev->dev), phydev->irq,
+	        MDC_CLK, mdc_div, sclk/1000000);
 
 	return 0;
 }
@@ -507,7 +498,7 @@ bfin_mac_ethtool_setsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void bfin_mac_ethtool_getdrvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRV_NAME);
+	strcpy(info->driver, KBUILD_MODNAME);
 	strcpy(info->version, DRV_VERSION);
 	strcpy(info->fw_version, "N/A");
 	strcpy(info->bus_info, dev_name(&dev->dev));
@@ -567,8 +558,10 @@ static const struct ethtool_ops bfin_mac_ethtool_ops = {
 };
 
 /**************************************************************************/
-void setup_system_regs(struct net_device *dev)
+static void setup_system_regs(struct net_device *dev)
 {
+	struct bfin_mac_local *lp = netdev_priv(dev);
+	int i;
 	unsigned short sysctl;
 
 	/*
@@ -576,6 +569,15 @@ void setup_system_regs(struct net_device *dev)
 	 * Configure checksum support and rcve frame word alignment
 	 */
 	sysctl = bfin_read_EMAC_SYSCTL();
+	/*
+	 * check if interrupt is requested for any PHY,
+	 * enable PHY interrupt only if needed
+	 */
+	for (i = 0; i < PHY_MAX_ADDR; ++i)
+		if (lp->mii_bus->irq[i] != PHY_POLL)
+			break;
+	if (i < PHY_MAX_ADDR)
+		sysctl |= PHYIE;
 	sysctl |= RXDWA;
 #if defined(BFIN_MAC_CSUM_OFFLOAD)
 	sysctl |= RXCKS;
@@ -585,6 +587,10 @@ void setup_system_regs(struct net_device *dev)
 	bfin_write_EMAC_SYSCTL(sysctl);
 
 	bfin_write_EMAC_MMC_CTL(RSTC | CROLL);
+
+	/* Set vlan regs to let 1522 bytes long packets pass through */
+	bfin_write_EMAC_VLAN1(lp->vlan1_mask);
+	bfin_write_EMAC_VLAN2(lp->vlan2_mask);
 
 	/* Initialize the TX DMA channel registers */
 	bfin_write_DMA2_X_COUNT(0);
@@ -803,15 +809,14 @@ static void bfin_dump_hwtamp(char *s, ktime_t *hw, ktime_t *ts, struct timecompa
 static void bfin_tx_hwtstamp(struct net_device *netdev, struct sk_buff *skb)
 {
 	struct bfin_mac_local *lp = netdev_priv(netdev);
-	union skb_shared_tx *shtx = skb_tx(skb);
 
-	if (shtx->hardware) {
+	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		int timeout_cnt = MAX_TIMEOUT_CNT;
 
 		/* When doing time stamping, keep the connection to the socket
 		 * a while longer
 		 */
-		shtx->in_progress = 1;
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
 		/*
 		 * The timestamping is done at the EMAC module's MII/RMII interface
@@ -822,8 +827,7 @@ static void bfin_tx_hwtstamp(struct net_device *netdev, struct sk_buff *skb)
 		while ((!(bfin_read_EMAC_PTP_ISTAT() & TXTL)) && (--timeout_cnt))
 			udelay(1);
 		if (timeout_cnt == 0)
-			printk(KERN_ERR DRV_NAME
-					": fails to timestamp the TX packet\n");
+			netdev_err(netdev, "timestamp the TX packet failed\n");
 		else {
 			struct skb_shared_hwtstamps shhwtstamps;
 			u64 ns;
@@ -922,64 +926,75 @@ static void bfin_mac_hwtstamp_init(struct net_device *netdev)
 # define bfin_tx_hwtstamp(dev, skb)
 #endif
 
-static void adjust_tx_list(void)
+static inline void _tx_reclaim_skb(void)
 {
-	int timeout_cnt = MAX_TIMEOUT_CNT;
-
-	if (tx_list_head->status.status_word != 0 &&
-	    current_tx_ptr != tx_list_head) {
-		goto adjust_head;	/* released something, just return; */
-	}
-
-	/*
-	 * if nothing released, check wait condition
-	 * current's next can not be the head,
-	 * otherwise the dma will not stop as we want
-	 */
-	if (current_tx_ptr->next->next == tx_list_head) {
-		while (tx_list_head->status.status_word == 0) {
-			udelay(10);
-			if (tx_list_head->status.status_word != 0 ||
-			    !(bfin_read_DMA2_IRQ_STATUS() & DMA_RUN)) {
-				goto adjust_head;
-			}
-			if (timeout_cnt-- < 0) {
-				printk(KERN_ERR DRV_NAME
-				": wait for adjust tx list head timeout\n");
-				break;
-			}
-		}
-		if (tx_list_head->status.status_word != 0) {
-			goto adjust_head;
-		}
-	}
-
-	return;
-
-adjust_head:
 	do {
 		tx_list_head->desc_a.config &= ~DMAEN;
 		tx_list_head->status.status_word = 0;
 		if (tx_list_head->skb) {
 			dev_kfree_skb(tx_list_head->skb);
 			tx_list_head->skb = NULL;
-		} else {
-			printk(KERN_ERR DRV_NAME
-			       ": no sk_buff in a transmitted frame!\n");
 		}
 		tx_list_head = tx_list_head->next;
-	} while (tx_list_head->status.status_word != 0 &&
-		 current_tx_ptr != tx_list_head);
-	return;
 
+	} while (tx_list_head->status.status_word != 0);
+}
+
+static void tx_reclaim_skb(struct bfin_mac_local *lp)
+{
+	int timeout_cnt = MAX_TIMEOUT_CNT;
+
+	if (tx_list_head->status.status_word != 0)
+		_tx_reclaim_skb();
+
+	if (current_tx_ptr->next == tx_list_head) {
+		while (tx_list_head->status.status_word == 0) {
+			/* slow down polling to avoid too many queue stop. */
+			udelay(10);
+			/* reclaim skb if DMA is not running. */
+			if (!(bfin_read_DMA2_IRQ_STATUS() & DMA_RUN))
+				break;
+			if (timeout_cnt-- < 0)
+				break;
+		}
+
+		if (timeout_cnt >= 0)
+			_tx_reclaim_skb();
+		else
+			netif_stop_queue(lp->ndev);
+	}
+
+	if (current_tx_ptr->next != tx_list_head &&
+		netif_queue_stopped(lp->ndev))
+		netif_wake_queue(lp->ndev);
+
+	if (tx_list_head != current_tx_ptr) {
+		/* shorten the timer interval if tx queue is stopped */
+		if (netif_queue_stopped(lp->ndev))
+			lp->tx_reclaim_timer.expires =
+				jiffies + (TX_RECLAIM_JIFFIES >> 4);
+		else
+			lp->tx_reclaim_timer.expires =
+				jiffies + TX_RECLAIM_JIFFIES;
+
+		mod_timer(&lp->tx_reclaim_timer,
+			lp->tx_reclaim_timer.expires);
+	}
+
+	return;
+}
+
+static void tx_reclaim_skb_timeout(unsigned long lp)
+{
+	tx_reclaim_skb((struct bfin_mac_local *)lp);
 }
 
 static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *dev)
 {
+	struct bfin_mac_local *lp = netdev_priv(dev);
 	u16 *data;
 	u32 data_align = (unsigned long)(skb->data) & 0x3;
-	union skb_shared_tx *shtx = skb_tx(skb);
 
 	current_tx_ptr->skb = skb;
 
@@ -993,7 +1008,7 @@ static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 		 * of this field are the length of the packet payload in bytes and the higher
 		 * 4 bits are the timestamping enable field.
 		 */
-		if (shtx->hardware)
+		if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)
 			*data |= 0x1000;
 
 		current_tx_ptr->desc_a.start_addr = (u32)data;
@@ -1003,14 +1018,12 @@ static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 	} else {
 		*((u16 *)(current_tx_ptr->packet)) = (u16)(skb->len);
 		/* enable timestamping for the sent packet */
-		if (shtx->hardware)
+		if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)
 			*((u16 *)(current_tx_ptr->packet)) |= 0x1000;
 		memcpy((u8 *)(current_tx_ptr->packet + 2), skb->data,
 			skb->len);
 		current_tx_ptr->desc_a.start_addr =
 			(u32)current_tx_ptr->packet;
-		if (current_tx_ptr->status.status_word != 0)
-			current_tx_ptr->status.status_word = 0;
 		blackfin_dcache_flush_range(
 			(u32)current_tx_ptr->packet,
 			(u32)(current_tx_ptr->packet + skb->len + 2));
@@ -1021,6 +1034,9 @@ static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 	 * DMA engine goes to fetch them below
 	 */
 	SSYNC();
+
+	/* always clear status buffer before start tx dma */
+	current_tx_ptr->status.status_word = 0;
 
 	/* enable this packet's dma */
 	current_tx_ptr->desc_a.config |= DMAEN;
@@ -1037,13 +1053,14 @@ static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 	bfin_write_EMAC_OPMODE(bfin_read_EMAC_OPMODE() | TE);
 
 out:
-	adjust_tx_list();
-
 	bfin_tx_hwtstamp(dev, skb);
 
 	current_tx_ptr = current_tx_ptr->next;
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += (skb->len);
+
+	tx_reclaim_skb(lp);
+
 	return NETDEV_TX_OK;
 }
 
@@ -1065,8 +1082,7 @@ static void bfin_mac_rx(struct net_device *dev)
 	 * we which case we simply drop the packet
 	 */
 	if (current_rx_ptr->status.status_word & RX_ERROR_MASK) {
-		printk(KERN_NOTICE DRV_NAME
-		       ": rx: receive error - packet dropped\n");
+		netdev_notice(dev, "rx: receive error - packet dropped\n");
 		dev->stats.rx_dropped++;
 		goto out;
 	}
@@ -1076,8 +1092,7 @@ static void bfin_mac_rx(struct net_device *dev)
 
 	new_skb = dev_alloc_skb(PKT_BUF_SZ + NET_IP_ALIGN);
 	if (!new_skb) {
-		printk(KERN_NOTICE DRV_NAME
-		       ": rx: low on mem - packet dropped\n");
+		netdev_notice(dev, "rx: low on mem - packet dropped\n");
 		dev->stats.rx_dropped++;
 		goto out;
 	}
@@ -1167,8 +1182,11 @@ real_rx:
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void bfin_mac_poll(struct net_device *dev)
 {
+	struct bfin_mac_local *lp = netdev_priv(dev);
+
 	disable_irq(IRQ_MAC_RX);
 	bfin_mac_interrupt(IRQ_MAC_RX, dev);
+	tx_reclaim_skb(lp);
 	enable_irq(IRQ_MAC_RX);
 }
 #endif				/* CONFIG_NET_POLL_CONTROLLER */
@@ -1187,12 +1205,12 @@ static void bfin_mac_disable(void)
 /*
  * Enable Interrupts, Receive, and Transmit
  */
-static int bfin_mac_enable(void)
+static int bfin_mac_enable(struct phy_device *phydev)
 {
 	int ret;
 	u32 opmode;
 
-	pr_debug("%s: %s\n", DRV_NAME, __func__);
+	pr_debug("%s\n", __func__);
 
 	/* Set RX DMA */
 	bfin_write_DMA1_NEXT_DESC_PTR(&(rx_list_head->desc_a));
@@ -1217,12 +1235,13 @@ static int bfin_mac_enable(void)
 		opmode |= DRO | DC | PSF;
 	opmode |= RE;
 
-#if defined(CONFIG_BFIN_MAC_RMII)
-	opmode |= RMII; /* For Now only 100MBit are supported */
+	if (phydev->interface == PHY_INTERFACE_MODE_RMII) {
+		opmode |= RMII; /* For Now only 100MBit are supported */
 #if (defined(CONFIG_BF537) || defined(CONFIG_BF536)) && CONFIG_BF_REV_0_2
-	opmode |= TE;
+		opmode |= TE;
 #endif
-#endif
+	}
+
 	/* Turn on the EMAC rx */
 	bfin_write_EMAC_OPMODE(opmode);
 
@@ -1232,14 +1251,29 @@ static int bfin_mac_enable(void)
 /* Our watchdog timed out. Called by the networking layer */
 static void bfin_mac_timeout(struct net_device *dev)
 {
+	struct bfin_mac_local *lp = netdev_priv(dev);
+
 	pr_debug("%s: %s\n", dev->name, __func__);
 
 	bfin_mac_disable();
 
-	/* reset tx queue */
-	tx_list_tail = tx_list_head->next;
+	del_timer(&lp->tx_reclaim_timer);
 
-	bfin_mac_enable();
+	/* reset tx queue and free skb */
+	while (tx_list_head != current_tx_ptr) {
+		tx_list_head->desc_a.config &= ~DMAEN;
+		tx_list_head->status.status_word = 0;
+		if (tx_list_head->skb) {
+			dev_kfree_skb(tx_list_head->skb);
+			tx_list_head->skb = NULL;
+		}
+		tx_list_head = tx_list_head->next;
+	}
+
+	if (netif_queue_stopped(lp->ndev))
+		netif_wake_queue(lp->ndev);
+
+	bfin_mac_enable(lp->phydev);
 
 	/* We can accept TX packets again */
 	dev->trans_start = jiffies; /* prevent tx timeout */
@@ -1250,19 +1284,12 @@ static void bfin_mac_multicast_hash(struct net_device *dev)
 {
 	u32 emac_hashhi, emac_hashlo;
 	struct netdev_hw_addr *ha;
-	char *addrs;
 	u32 crc;
 
 	emac_hashhi = emac_hashlo = 0;
 
 	netdev_for_each_mc_addr(ha, dev) {
-		addrs = ha->addr;
-
-		/* skip non-multicast addresses */
-		if (!(*addrs & 1))
-			continue;
-
-		crc = ether_crc(ETH_ALEN, addrs);
+		crc = ether_crc(ETH_ALEN, ha->addr);
 		crc >>= 26;
 
 		if (crc & 0x20)
@@ -1286,7 +1313,7 @@ static void bfin_mac_set_multicast_list(struct net_device *dev)
 	u32 sysctl;
 
 	if (dev->flags & IFF_PROMISC) {
-		printk(KERN_INFO "%s: set to promisc mode\n", dev->name);
+		netdev_info(dev, "set promisc mode\n");
 		sysctl = bfin_read_EMAC_OPMODE();
 		sysctl |= PR;
 		bfin_write_EMAC_OPMODE(sysctl);
@@ -1311,11 +1338,19 @@ static void bfin_mac_set_multicast_list(struct net_device *dev)
 
 static int bfin_mac_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
+	struct bfin_mac_local *lp = netdev_priv(netdev);
+
+	if (!netif_running(netdev))
+		return -EINVAL;
+
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
 		return bfin_mac_hwtstamp_ioctl(netdev, ifr, cmd);
 	default:
-		return -EOPNOTSUPP;
+		if (lp->phydev)
+			return phy_mii_ioctl(lp->phydev, ifr, cmd);
+		else
+			return -EOPNOTSUPP;
 	}
 }
 
@@ -1348,7 +1383,7 @@ static int bfin_mac_open(struct net_device *dev)
 	 * address using ifconfig eth0 hw ether xx:xx:xx:xx:xx:xx
 	 */
 	if (!is_valid_ether_addr(dev->dev_addr)) {
-		printk(KERN_WARNING DRV_NAME ": no valid ethernet hw addr\n");
+		netdev_warn(dev, "no valid ethernet hw addr\n");
 		return -EINVAL;
 	}
 
@@ -1363,7 +1398,7 @@ static int bfin_mac_open(struct net_device *dev)
 	setup_mac_addr(dev->dev_addr);
 
 	bfin_mac_disable();
-	ret = bfin_mac_enable();
+	ret = bfin_mac_enable(lp->phydev);
 	if (ret)
 		return ret;
 	pr_debug("hardware init finished\n");
@@ -1419,6 +1454,7 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct bfin_mac_local *lp;
 	struct platform_device *pd;
+	struct bfin_mii_bus_platform_data *mii_bus_data;
 	int rc;
 
 	ndev = alloc_etherdev(sizeof(struct bfin_mac_local));
@@ -1430,6 +1466,7 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	platform_set_drvdata(pdev, ndev);
 	lp = netdev_priv(ndev);
+	lp->ndev = ndev;
 
 	/* Grab the MAC address in the MAC */
 	*(__le32 *) (&(ndev->dev_addr[0])) = cpu_to_le32(bfin_read_EMAC_ADDRLO());
@@ -1469,21 +1506,29 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	if (!lp->mii_bus) {
 		dev_err(&pdev->dev, "Cannot get mii_bus!\n");
 		rc = -ENODEV;
-		goto out_err_mii_bus_probe;
+		goto out_err_probe_mac;
 	}
 	lp->mii_bus->priv = ndev;
+	mii_bus_data = pd->dev.platform_data;
 
-	rc = mii_probe(ndev);
+	rc = mii_probe(ndev, mii_bus_data->phy_mode);
 	if (rc) {
 		dev_err(&pdev->dev, "MII Probe failed!\n");
 		goto out_err_mii_probe;
 	}
+
+	lp->vlan1_mask = ETH_P_8021Q | mii_bus_data->vlan1_mask;
+	lp->vlan2_mask = ETH_P_8021Q | mii_bus_data->vlan2_mask;
 
 	/* Fill in the fields of the device structure with ethernet values. */
 	ether_setup(ndev);
 
 	ndev->netdev_ops = &bfin_mac_netdev_ops;
 	ndev->ethtool_ops = &bfin_mac_ethtool_ops;
+
+	init_timer(&lp->tx_reclaim_timer);
+	lp->tx_reclaim_timer.data = (unsigned long)lp;
+	lp->tx_reclaim_timer.function = tx_reclaim_skb_timeout;
 
 	spin_lock_init(&lp->lock);
 
@@ -1506,7 +1551,7 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	bfin_mac_hwtstamp_init(ndev);
 
 	/* now, print out the card info, in a short format.. */
-	dev_info(&pdev->dev, "%s, Version %s\n", DRV_DESC, DRV_VERSION);
+	netdev_info(ndev, "%s, Version %s\n", DRV_DESC, DRV_VERSION);
 
 	return 0;
 
@@ -1516,8 +1561,6 @@ out_err_request_irq:
 out_err_mii_probe:
 	mdiobus_unregister(lp->mii_bus);
 	mdiobus_free(lp->mii_bus);
-out_err_mii_bus_probe:
-	peripheral_free_list(pin_req);
 out_err_probe_mac:
 	platform_set_drvdata(pdev, NULL);
 	free_netdev(ndev);
@@ -1539,8 +1582,6 @@ static int __devexit bfin_mac_remove(struct platform_device *pdev)
 	free_irq(IRQ_MAC_RX, ndev);
 
 	free_netdev(ndev);
-
-	peripheral_free_list(pin_req);
 
 	return 0;
 }
@@ -1587,13 +1628,22 @@ static int bfin_mac_resume(struct platform_device *pdev)
 static int __devinit bfin_mii_bus_probe(struct platform_device *pdev)
 {
 	struct mii_bus *miibus;
+	struct bfin_mii_bus_platform_data *mii_bus_pd;
+	const unsigned short *pin_req;
 	int rc, i;
+
+	mii_bus_pd = dev_get_platdata(&pdev->dev);
+	if (!mii_bus_pd) {
+		dev_err(&pdev->dev, "No peripherals in platform data!\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * We are setting up a network card,
 	 * so set the GPIO pins to Ethernet mode
 	 */
-	rc = peripheral_request_list(pin_req, DRV_NAME);
+	pin_req = mii_bus_pd->mac_peripherals;
+	rc = peripheral_request_list(pin_req, KBUILD_MODNAME);
 	if (rc) {
 		dev_err(&pdev->dev, "Requesting peripherals failed!\n");
 		return rc;
@@ -1609,12 +1659,29 @@ static int __devinit bfin_mii_bus_probe(struct platform_device *pdev)
 
 	miibus->parent = &pdev->dev;
 	miibus->name = "bfin_mii_bus";
+	miibus->phy_mask = mii_bus_pd->phy_mask;
+
 	snprintf(miibus->id, MII_BUS_ID_SIZE, "0");
 	miibus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-	if (miibus->irq == NULL)
-		goto out_err_alloc;
-	for (i = 0; i < PHY_MAX_ADDR; ++i)
+	if (!miibus->irq)
+		goto out_err_irq_alloc;
+
+	for (i = rc; i < PHY_MAX_ADDR; ++i)
 		miibus->irq[i] = PHY_POLL;
+
+	rc = clamp(mii_bus_pd->phydev_number, 0, PHY_MAX_ADDR);
+	if (rc != mii_bus_pd->phydev_number)
+		dev_err(&pdev->dev, "Invalid number (%i) of phydevs\n",
+			mii_bus_pd->phydev_number);
+	for (i = 0; i < rc; ++i) {
+		unsigned short phyaddr = mii_bus_pd->phydev_data[i].addr;
+		if (phyaddr < PHY_MAX_ADDR)
+			miibus->irq[phyaddr] = mii_bus_pd->phydev_data[i].irq;
+		else
+			dev_err(&pdev->dev,
+				"Invalid PHY address %i for phydev %i\n",
+				phyaddr, i);
+	}
 
 	rc = mdiobus_register(miibus);
 	if (rc) {
@@ -1626,6 +1693,8 @@ static int __devinit bfin_mii_bus_probe(struct platform_device *pdev)
 	return 0;
 
 out_err_mdiobus_register:
+	kfree(miibus->irq);
+out_err_irq_alloc:
 	mdiobus_free(miibus);
 out_err_alloc:
 	peripheral_free_list(pin_req);
@@ -1636,10 +1705,15 @@ out_err_alloc:
 static int __devexit bfin_mii_bus_remove(struct platform_device *pdev)
 {
 	struct mii_bus *miibus = platform_get_drvdata(pdev);
+	struct bfin_mii_bus_platform_data *mii_bus_pd =
+		dev_get_platdata(&pdev->dev);
+
 	platform_set_drvdata(pdev, NULL);
 	mdiobus_unregister(miibus);
+	kfree(miibus->irq);
 	mdiobus_free(miibus);
-	peripheral_free_list(pin_req);
+	peripheral_free_list(mii_bus_pd->mac_peripherals);
+
 	return 0;
 }
 
@@ -1658,7 +1732,7 @@ static struct platform_driver bfin_mac_driver = {
 	.resume = bfin_mac_resume,
 	.suspend = bfin_mac_suspend,
 	.driver = {
-		.name = DRV_NAME,
+		.name = KBUILD_MODNAME,
 		.owner	= THIS_MODULE,
 	},
 };

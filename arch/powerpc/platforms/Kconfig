@@ -21,6 +21,16 @@ source "arch/powerpc/platforms/44x/Kconfig"
 source "arch/powerpc/platforms/40x/Kconfig"
 source "arch/powerpc/platforms/amigaone/Kconfig"
 
+config KVM_GUEST
+	bool "KVM Guest support"
+	default y
+	---help---
+	  This option enables various optimizations for running under the KVM
+	  hypervisor. Overhead for the kernel when not running inside KVM should
+	  be minimal.
+
+	  In case of doubt, say Y
+
 config PPC_NATIVE
 	bool
 	depends on 6xx || PPC64
@@ -106,8 +116,7 @@ config MMIO_NVRAM
 
 config MPIC_U3_HT_IRQS
 	bool
-	depends on PPC_MAPLE
-	default y
+	default n
 
 config MPIC_BROKEN_REGREAD
 	bool
@@ -304,13 +313,14 @@ config OF_RTC
 source "arch/powerpc/sysdev/bestcomm/Kconfig"
 
 config MPC8xxx_GPIO
-	bool "MPC8xxx GPIO support"
-	depends on PPC_MPC831x || PPC_MPC834x || PPC_MPC837x || FSL_SOC_BOOKE || PPC_86xx
+	bool "MPC512x/MPC8xxx GPIO support"
+	depends on PPC_MPC512x || PPC_MPC831x || PPC_MPC834x || PPC_MPC837x || \
+		   FSL_SOC_BOOKE || PPC_86xx
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Say Y here if you're going to use hardware that connects to the
-	  MPC831x/834x/837x/8572/8610 GPIOs.
+	  MPC512x/831x/834x/837x/8572/8610 GPIOs.
 
 config SIMPLE_GPIO
 	bool "Support for simple, memory-mapped GPIO controllers"

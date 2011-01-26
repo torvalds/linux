@@ -34,68 +34,25 @@
 
 #include "i2c/ch7006.h"
 
-static struct {
-	struct i2c_board_info board_info;
-	struct drm_encoder_funcs funcs;
-	struct drm_encoder_helper_funcs hfuncs;
-	void *params;
-
-} nv04_tv_encoder_info[] = {
+static struct i2c_board_info nv04_tv_encoder_info[] = {
 	{
-		.board_info = { I2C_BOARD_INFO("ch7006", 0x75) },
-		.params = &(struct ch7006_encoder_params) {
+		I2C_BOARD_INFO("ch7006", 0x75),
+		.platform_data = &(struct ch7006_encoder_params) {
 			CH7006_FORMAT_RGB24m12I, CH7006_CLOCK_MASTER,
 			0, 0, 0,
 			CH7006_SYNC_SLAVE, CH7006_SYNC_SEPARATED,
 			CH7006_POUT_3_3V, CH7006_ACTIVE_HSYNC
-		},
+		}
 	},
+	{ }
 };
-
-static bool probe_i2c_addr(struct i2c_adapter *adapter, int addr)
-{
-	struct i2c_msg msg = {
-		.addr = addr,
-		.len = 0,
-	};
-
-	return i2c_transfer(adapter, &msg, 1) == 1;
-}
 
 int nv04_tv_identify(struct drm_device *dev, int i2c_index)
 {
-	struct nouveau_i2c_chan *i2c;
-	bool was_locked;
-	int i, ret;
-
-	NV_TRACE(dev, "Probing TV encoders on I2C bus: %d\n", i2c_index);
-
-	i2c = nouveau_i2c_find(dev, i2c_index);
-	if (!i2c)
-		return -ENODEV;
-
-	was_locked = NVLockVgaCrtcs(dev, false);
-
-	for (i = 0; i < ARRAY_SIZE(nv04_tv_encoder_info); i++) {
-		if (probe_i2c_addr(&i2c->adapter,
-				   nv04_tv_encoder_info[i].board_info.addr)) {
-			ret = i;
-			break;
-		}
-	}
-
-	if (i < ARRAY_SIZE(nv04_tv_encoder_info)) {
-		NV_TRACE(dev, "Detected TV encoder: %s\n",
-			 nv04_tv_encoder_info[i].board_info.type);
-
-	} else {
-		NV_TRACE(dev, "No TV encoders found.\n");
-		i = -ENODEV;
-	}
-
-	NVLockVgaCrtcs(dev, was_locked);
-	return i;
+	return nouveau_i2c_identify(dev, "TV encoder", nv04_tv_encoder_info,
+				    NULL, i2c_index);
 }
+
 
 #define PLLSEL_TV_CRTC1_MASK				\
 	(NV_PRAMDAC_PLL_COEFF_SELECT_TV_VSCLK1		\
@@ -132,7 +89,7 @@ static void nv04_tv_dpms(struct drm_encoder *encoder, int mode)
 
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_PLL_COEFF_SELECT, state->pllsel);
 
-	to_encoder_slave(encoder)->slave_funcs->dpms(encoder, mode);
+	get_slave_funcs(encoder)->dpms(encoder, mode);
 }
 
 static void nv04_tv_bind(struct drm_device *dev, int head, bool bind)
@@ -142,12 +99,10 @@ static void nv04_tv_bind(struct drm_device *dev, int head, bool bind)
 
 	state->tv_setup = 0;
 
-	if (bind) {
-		state->CRTC[NV_CIO_CRE_LCD__INDEX] = 0;
+	if (bind)
 		state->CRTC[NV_CIO_CRE_49] |= 0x10;
-	} else {
+	else
 		state->CRTC[NV_CIO_CRE_49] &= ~0x10;
-	}
 
 	NVWriteVgaCrtc(dev, head, NV_CIO_CRE_LCD__INDEX,
 		       state->CRTC[NV_CIO_CRE_LCD__INDEX]);
@@ -195,7 +150,7 @@ static void nv04_tv_mode_set(struct drm_encoder *encoder,
 	regp->tv_vskew = 1;
 	regp->tv_vsync_delay = 1;
 
-	to_encoder_slave(encoder)->slave_funcs->mode_set(encoder, mode, adjusted_mode);
+	get_slave_funcs(encoder)->mode_set(encoder, mode, adjusted_mode);
 }
 
 static void nv04_tv_commit(struct drm_encoder *encoder)
@@ -214,30 +169,31 @@ static void nv04_tv_commit(struct drm_encoder *encoder)
 
 static void nv04_tv_destroy(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-
-	to_encoder_slave(encoder)->slave_funcs->destroy(encoder);
-
+	get_slave_funcs(encoder)->destroy(encoder);
 	drm_encoder_cleanup(encoder);
 
-	kfree(nv_encoder);
+	kfree(encoder->helper_private);
+	kfree(nouveau_encoder(encoder));
 }
 
-int nv04_tv_create(struct drm_device *dev, struct dcb_entry *entry)
+static const struct drm_encoder_funcs nv04_tv_funcs = {
+	.destroy = nv04_tv_destroy,
+};
+
+int
+nv04_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
 {
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct i2c_adapter *adap;
-	struct drm_encoder_funcs *funcs = NULL;
-	struct drm_encoder_helper_funcs *hfuncs = NULL;
-	struct drm_encoder_slave_funcs *sfuncs = NULL;
-	int i2c_index = entry->i2c_index;
+	struct drm_device *dev = connector->dev;
+	struct drm_encoder_helper_funcs *hfuncs;
+	struct drm_encoder_slave_funcs *sfuncs;
+	struct nouveau_i2c_chan *i2c =
+		nouveau_i2c_find(dev, entry->i2c_index);
 	int type, ret;
-	bool was_locked;
 
 	/* Ensure that we can talk to this encoder */
-	type = nv04_tv_identify(dev, i2c_index);
+	type = nv04_tv_identify(dev, entry->i2c_index);
 	if (type < 0)
 		return type;
 
@@ -246,40 +202,31 @@ int nv04_tv_create(struct drm_device *dev, struct dcb_entry *entry)
 	if (!nv_encoder)
 		return -ENOMEM;
 
+	hfuncs = kzalloc(sizeof(*hfuncs), GFP_KERNEL);
+	if (!hfuncs) {
+		ret = -ENOMEM;
+		goto fail_free;
+	}
+
 	/* Initialize the common members */
 	encoder = to_drm_encoder(nv_encoder);
 
-	funcs = &nv04_tv_encoder_info[type].funcs;
-	hfuncs = &nv04_tv_encoder_info[type].hfuncs;
-
-	drm_encoder_init(dev, encoder, funcs, DRM_MODE_ENCODER_TVDAC);
+	drm_encoder_init(dev, encoder, &nv04_tv_funcs, DRM_MODE_ENCODER_TVDAC);
 	drm_encoder_helper_add(encoder, hfuncs);
 
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
-
 	nv_encoder->dcb = entry;
 	nv_encoder->or = ffs(entry->or) - 1;
 
 	/* Run the slave-specific initialization */
-	adap = &dev_priv->vbios.dcb.i2c[i2c_index].chan->adapter;
-
-	was_locked = NVLockVgaCrtcs(dev, false);
-
-	ret = drm_i2c_encoder_init(encoder->dev, to_encoder_slave(encoder), adap,
-				   &nv04_tv_encoder_info[type].board_info);
-
-	NVLockVgaCrtcs(dev, was_locked);
-
+	ret = drm_i2c_encoder_init(dev, to_encoder_slave(encoder),
+				   &i2c->adapter, &nv04_tv_encoder_info[type]);
 	if (ret < 0)
-		goto fail;
+		goto fail_cleanup;
 
 	/* Fill the function pointers */
-	sfuncs = to_encoder_slave(encoder)->slave_funcs;
-
-	*funcs = (struct drm_encoder_funcs) {
-		.destroy = nv04_tv_destroy,
-	};
+	sfuncs = get_slave_funcs(encoder);
 
 	*hfuncs = (struct drm_encoder_helper_funcs) {
 		.dpms = nv04_tv_dpms,
@@ -292,14 +239,16 @@ int nv04_tv_create(struct drm_device *dev, struct dcb_entry *entry)
 		.detect = sfuncs->detect,
 	};
 
-	/* Set the slave encoder configuration */
-	sfuncs->set_config(encoder, nv04_tv_encoder_info[type].params);
+	/* Attach it to the specified connector. */
+	sfuncs->create_resources(encoder, connector);
+	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return 0;
 
-fail:
+fail_cleanup:
 	drm_encoder_cleanup(encoder);
-
+	kfree(hfuncs);
+fail_free:
 	kfree(nv_encoder);
 	return ret;
 }

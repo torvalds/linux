@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,15 +79,6 @@ struct acpi_namespace_node *acpi_ns_get_next_node(struct acpi_namespace_node
 		return parent_node->child;
 	}
 
-	/*
-	 * Get the next node.
-	 *
-	 * If we are at the end of this peer list, return NULL
-	 */
-	if (child_node->flags & ANOBJ_END_OF_PEER_LIST) {
-		return NULL;
-	}
-
 	/* Otherwise just return the next peer */
 
 	return child_node->peer;
@@ -146,9 +137,9 @@ struct acpi_namespace_node *acpi_ns_get_next_node_typed(acpi_object_type type,
 			return (next_node);
 		}
 
-		/* Otherwise, move on to the next node */
+		/* Otherwise, move on to the next peer node */
 
-		next_node = acpi_ns_get_next_valid_node(next_node);
+		next_node = next_node->peer;
 	}
 
 	/* Not found */
@@ -355,7 +346,7 @@ acpi_ns_walk_namespace(acpi_object_type type,
 			 */
 			level--;
 			child_node = parent_node;
-			parent_node = acpi_ns_get_parent_node(parent_node);
+			parent_node = parent_node->parent;
 
 			node_previously_visited = TRUE;
 		}

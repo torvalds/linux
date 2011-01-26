@@ -34,8 +34,7 @@
  * memtype_lock protects the rbtree.
  */
 
-static void memtype_rb_augment_cb(struct rb_node *node);
-static struct rb_root memtype_rbroot = RB_AUGMENT_ROOT(&memtype_rb_augment_cb);
+static struct rb_root memtype_rbroot = RB_ROOT;
 
 static int is_node_overlap(struct memtype *node, u64 start, u64 end)
 {
@@ -56,7 +55,7 @@ static u64 get_subtree_max_end(struct rb_node *node)
 }
 
 /* Update 'subtree_max_end' for a node, based on node and its children */
-static void update_node_max_end(struct rb_node *node)
+static void memtype_rb_augment_cb(struct rb_node *node, void *__unused)
 {
 	struct memtype *data;
 	u64 max_end, child_max_end;
@@ -76,25 +75,6 @@ static void update_node_max_end(struct rb_node *node)
 		max_end = child_max_end;
 
 	data->subtree_max_end = max_end;
-}
-
-/* Update 'subtree_max_end' for a node and all its ancestors */
-static void update_path_max_end(struct rb_node *node)
-{
-	u64 old_max_end, new_max_end;
-
-	while (node) {
-		struct memtype *data = container_of(node, struct memtype, rb);
-
-		old_max_end = data->subtree_max_end;
-		update_node_max_end(node);
-		new_max_end = data->subtree_max_end;
-
-		if (new_max_end == old_max_end)
-			break;
-
-		node = rb_parent(node);
-	}
 }
 
 /* Find the first (lowest start addr) overlapping range from rb tree */
@@ -190,12 +170,6 @@ failure:
 	return -EBUSY;
 }
 
-static void memtype_rb_augment_cb(struct rb_node *node)
-{
-	if (node)
-		update_path_max_end(node);
-}
-
 static void memtype_rb_insert(struct rb_root *root, struct memtype *newdata)
 {
 	struct rb_node **node = &(root->rb_node);
@@ -213,6 +187,7 @@ static void memtype_rb_insert(struct rb_root *root, struct memtype *newdata)
 
 	rb_link_node(&newdata->rb, parent, node);
 	rb_insert_color(&newdata->rb, root);
+	rb_augment_insert(&newdata->rb, memtype_rb_augment_cb, NULL);
 }
 
 int rbt_memtype_check_insert(struct memtype *new, unsigned long *ret_type)
@@ -226,21 +201,26 @@ int rbt_memtype_check_insert(struct memtype *new, unsigned long *ret_type)
 		if (ret_type)
 			new->type = *ret_type;
 
+		new->subtree_max_end = new->end;
 		memtype_rb_insert(&memtype_rbroot, new);
 	}
 	return err;
 }
 
-int rbt_memtype_erase(u64 start, u64 end)
+struct memtype *rbt_memtype_erase(u64 start, u64 end)
 {
+	struct rb_node *deepest;
 	struct memtype *data;
 
 	data = memtype_rb_exact_match(&memtype_rbroot, start, end);
 	if (!data)
-		return -EINVAL;
+		goto out;
 
+	deepest = rb_augment_erase_begin(&data->rb);
 	rb_erase(&data->rb, &memtype_rbroot);
-	return 0;
+	rb_augment_erase_end(deepest, memtype_rb_augment_cb, NULL);
+out:
+	return data;
 }
 
 struct memtype *rbt_memtype_lookup(u64 addr)

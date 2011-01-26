@@ -177,18 +177,6 @@ Doing it all yourself
  
    A convenience function to print out the PHY status neatly.
 
- int phy_clear_interrupt(struct phy_device *phydev);
- int phy_config_interrupt(struct phy_device *phydev, u32 interrupts);
-   
-   Clear the PHY's interrupt, and configure which ones are allowed,
-   respectively.  Currently only supports all on, or all off.
- 
- int phy_enable_interrupts(struct phy_device *phydev);
- int phy_disable_interrupts(struct phy_device *phydev);
-
-   Functions which enable/disable PHY interrupts, clearing them
-   before and after, respectively.
-
  int phy_start_interrupts(struct phy_device *phydev);
  int phy_stop_interrupts(struct phy_device *phydev);
 
@@ -212,12 +200,6 @@ Doing it all yourself
 
    Fills the phydev structure with up-to-date information about the current
    settings in the PHY.
-
- void phy_sanitize_settings(struct phy_device *phydev)
-   
-   Resolves differences between currently desired settings, and
-   supported settings for the given PHY device.  Does not make
-   the changes in the hardware, though.
 
  int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
  int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd);

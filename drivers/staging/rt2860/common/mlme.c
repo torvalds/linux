@@ -38,6 +38,7 @@
 
 #include "../rt_config.h"
 #include <stdarg.h>
+#include <linux/kernel.h>
 
 u8 CISCO_OUI[] = { 0x00, 0x40, 0x96 };
 
@@ -549,7 +550,7 @@ void MlmeHandler(struct rt_rtmp_adapter *pAd)
 			Elem->MsgLen = 0;
 
 		} else {
-			DBGPRINT_ERR(("MlmeHandler: MlmeQueue empty\n"));
+			DBGPRINT_ERR("MlmeHandler: MlmeQueue empty\n");
 		}
 	}
 
@@ -1536,10 +1537,8 @@ void MlmeAutoReconnectLastSSID(struct rt_rtmp_adapter *pAd)
 {
 	if (pAd->StaCfg.bAutoConnectByBssid) {
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("Driver auto reconnect to last OID_802_11_BSSID setting - %02X:%02X:%02X:%02X:%02X:%02X\n",
-			  pAd->MlmeAux.Bssid[0], pAd->MlmeAux.Bssid[1],
-			  pAd->MlmeAux.Bssid[2], pAd->MlmeAux.Bssid[3],
-			  pAd->MlmeAux.Bssid[4], pAd->MlmeAux.Bssid[5]));
+			("Driver auto reconnect to last OID_802_11_BSSID "
+				"setting - %pM\n", pAd->MlmeAux.Bssid));
 
 		pAd->MlmeAux.Channel = pAd->CommonCfg.Channel;
 		MlmeEnqueue(pAd,
@@ -4699,8 +4698,7 @@ BOOLEAN MlmeEnqueue(struct rt_rtmp_adapter *pAd,
 
 	/* First check the size, it MUST not exceed the mlme queue size */
 	if (MsgLen > MGMT_DMA_BUFFER_SIZE) {
-		DBGPRINT_ERR(("MlmeEnqueue: msg too large, size = %ld \n",
-			      MsgLen));
+		DBGPRINT_ERR("MlmeEnqueue: msg too large, size = %ld \n", MsgLen);
 		return FALSE;
 	}
 
@@ -4763,12 +4761,12 @@ BOOLEAN MlmeEnqueueForRecv(struct rt_rtmp_adapter *pAd,
 	if (RTMP_TEST_FLAG
 	    (pAd,
 	     fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST)) {
-		DBGPRINT_ERR(("MlmeEnqueueForRecv: fRTMP_ADAPTER_HALT_IN_PROGRESS\n"));
+		DBGPRINT_ERR("MlmeEnqueueForRecv: fRTMP_ADAPTER_HALT_IN_PROGRESS\n");
 		return FALSE;
 	}
 	/* First check the size, it MUST not exceed the mlme queue size */
 	if (MsgLen > MGMT_DMA_BUFFER_SIZE) {
-		DBGPRINT_ERR(("MlmeEnqueueForRecv: frame too large, size = %ld \n", MsgLen));
+		DBGPRINT_ERR("MlmeEnqueueForRecv: frame too large, size = %ld \n", MsgLen);
 		return FALSE;
 	}
 
@@ -4778,7 +4776,7 @@ BOOLEAN MlmeEnqueueForRecv(struct rt_rtmp_adapter *pAd,
 
 	{
 		if (!MsgTypeSubst(pAd, pFrame, &Machine, &MsgType)) {
-			DBGPRINT_ERR(("MlmeEnqueueForRecv: un-recongnized mgmt->subtype=%d\n", pFrame->Hdr.FC.SubType));
+			DBGPRINT_ERR("MlmeEnqueueForRecv: un-recongnized mgmt->subtype=%d\n", pFrame->Hdr.FC.SubType);
 			return FALSE;
 		}
 	}
@@ -4868,7 +4866,7 @@ void MlmeRestartStateMachine(struct rt_rtmp_adapter *pAd)
 			Elem->MsgLen = 0;
 
 		} else {
-			DBGPRINT_ERR(("MlmeRestartStateMachine: MlmeQueue empty\n"));
+			DBGPRINT_ERR("MlmeRestartStateMachine: MlmeQueue empty\n");
 		}
 	}
 #endif /* RTMP_MAC_PCI // */

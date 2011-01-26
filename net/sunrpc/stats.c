@@ -22,11 +22,10 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/sunrpc/metrics.h>
-#include <net/net_namespace.h>
+
+#include "netns.h"
 
 #define RPCDBG_FACILITY	RPCDBG_MISC
-
-struct proc_dir_entry	*proc_net_rpc = NULL;
 
 /*
  * Get RPC client stats
@@ -116,9 +115,7 @@ EXPORT_SYMBOL_GPL(svc_seq_show);
  */
 struct rpc_iostats *rpc_alloc_iostats(struct rpc_clnt *clnt)
 {
-	struct rpc_iostats *new;
-	new = kcalloc(clnt->cl_maxproc, sizeof(struct rpc_iostats), GFP_KERNEL);
-	return new;
+	return kcalloc(clnt->cl_maxproc, sizeof(struct rpc_iostats), GFP_KERNEL);
 }
 EXPORT_SYMBOL_GPL(rpc_alloc_iostats);
 
@@ -218,10 +215,11 @@ EXPORT_SYMBOL_GPL(rpc_print_iostats);
 static inline struct proc_dir_entry *
 do_register(const char *name, void *data, const struct file_operations *fops)
 {
-	rpc_proc_init();
-	dprintk("RPC:       registering /proc/net/rpc/%s\n", name);
+	struct sunrpc_net *sn;
 
-	return proc_create_data(name, 0, proc_net_rpc, fops, data);
+	dprintk("RPC:       registering /proc/net/rpc/%s\n", name);
+	sn = net_generic(&init_net, sunrpc_net_id);
+	return proc_create_data(name, 0, sn->proc_net_rpc, fops, data);
 }
 
 struct proc_dir_entry *
@@ -234,7 +232,10 @@ EXPORT_SYMBOL_GPL(rpc_proc_register);
 void
 rpc_proc_unregister(const char *name)
 {
-	remove_proc_entry(name, proc_net_rpc);
+	struct sunrpc_net *sn;
+
+	sn = net_generic(&init_net, sunrpc_net_id);
+	remove_proc_entry(name, sn->proc_net_rpc);
 }
 EXPORT_SYMBOL_GPL(rpc_proc_unregister);
 
@@ -248,25 +249,29 @@ EXPORT_SYMBOL_GPL(svc_proc_register);
 void
 svc_proc_unregister(const char *name)
 {
-	remove_proc_entry(name, proc_net_rpc);
+	struct sunrpc_net *sn;
+
+	sn = net_generic(&init_net, sunrpc_net_id);
+	remove_proc_entry(name, sn->proc_net_rpc);
 }
 EXPORT_SYMBOL_GPL(svc_proc_unregister);
 
-void
-rpc_proc_init(void)
+int rpc_proc_init(struct net *net)
 {
+	struct sunrpc_net *sn;
+
 	dprintk("RPC:       registering /proc/net/rpc\n");
-	if (!proc_net_rpc)
-		proc_net_rpc = proc_mkdir("rpc", init_net.proc_net);
+	sn = net_generic(net, sunrpc_net_id);
+	sn->proc_net_rpc = proc_mkdir("rpc", net->proc_net);
+	if (sn->proc_net_rpc == NULL)
+		return -ENOMEM;
+
+	return 0;
 }
 
-void
-rpc_proc_exit(void)
+void rpc_proc_exit(struct net *net)
 {
 	dprintk("RPC:       unregistering /proc/net/rpc\n");
-	if (proc_net_rpc) {
-		proc_net_rpc = NULL;
-		remove_proc_entry("rpc", init_net.proc_net);
-	}
+	remove_proc_entry("rpc", net->proc_net);
 }
 

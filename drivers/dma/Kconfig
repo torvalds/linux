@@ -33,15 +33,35 @@ if DMADEVICES
 
 comment "DMA Devices"
 
-config ASYNC_TX_DISABLE_CHANNEL_SWITCH
+config INTEL_MID_DMAC
+	tristate "Intel MID DMA support for Peripheral DMA controllers"
+	depends on PCI && X86
+	select DMA_ENGINE
+	default n
+	help
+	  Enable support for the Intel(R) MID DMA engine present
+	  in Intel MID chipsets.
+
+	  Say Y here if you have such a chipset.
+
+	  If unsure, say N.
+
+config ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	bool
+
+config AMBA_PL08X
+	bool "ARM PrimeCell PL080 or PL081 support"
+	depends on ARM_AMBA && EXPERIMENTAL
+	select DMA_ENGINE
+	help
+	  Platform has a PL08x DMAC device
+	  which can provide DMA engine support
 
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
 	depends on PCI && X86
 	select DMA_ENGINE
 	select DCA
-	select ASYNC_TX_DISABLE_CHANNEL_SWITCH
 	select ASYNC_TX_DISABLE_PQ_VAL_DMA
 	select ASYNC_TX_DISABLE_XOR_VAL_DMA
 	help
@@ -56,6 +76,7 @@ config INTEL_IOP_ADMA
 	tristate "Intel IOP ADMA support"
 	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX
 	select DMA_ENGINE
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	help
 	  Enable support for the Intel(R) IOP Series RAID engines.
 
@@ -80,6 +101,7 @@ config FSL_DMA
 	tristate "Freescale Elo and Elo Plus DMA support"
 	depends on FSL_SOC
 	select DMA_ENGINE
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	---help---
 	  Enable support for the Freescale Elo and Elo Plus DMA controllers.
 	  The Elo is the DMA controller on some 82xx and 83xx parts, and the
@@ -87,7 +109,7 @@ config FSL_DMA
 
 config MPC512X_DMA
 	tristate "Freescale MPC512x built-in DMA engine support"
-	depends on PPC_MPC512x
+	depends on PPC_MPC512x || PPC_MPC831x
 	select DMA_ENGINE
 	---help---
 	  Enable support for the Freescale MPC512x built-in DMA engine.
@@ -96,6 +118,7 @@ config MV_XOR
 	bool "Marvell XOR engine support"
 	depends on PLAT_ORION
 	select DMA_ENGINE
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	---help---
 	  Enable support for the Marvell XOR engine.
 
@@ -128,7 +151,7 @@ config TXX9_DMAC
 
 config SH_DMAE
 	tristate "Renesas SuperH DMAC support"
-	depends on SUPERH && SH_DMA
+	depends on (SUPERH && SH_DMA) || (ARM && ARCH_SHMOBILE)
 	depends on !SH_DMA_API
 	select DMA_ENGINE
 	help
@@ -153,6 +176,7 @@ config AMCC_PPC440SPE_ADMA
 	depends on 440SPe || 440SP
 	select DMA_ENGINE
 	select ARCH_HAS_ASYNC_TX_FIND_CHANNEL
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	help
 	  Enable support for the AMCC PPC440SPe RAID engines.
 
@@ -165,6 +189,43 @@ config TIMB_DMA
 
 config ARCH_HAS_ASYNC_TX_FIND_CHANNEL
 	bool
+
+config PL330_DMA
+	tristate "DMA API Driver for PL330"
+	select DMA_ENGINE
+	depends on PL330
+	help
+	  Select if your platform has one or more PL330 DMACs.
+	  You need to provide platform specific settings via
+	  platform_data for a dma-pl330 device.
+
+config PCH_DMA
+	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR ML7213 IOH DMA support"
+	depends on PCI && X86
+	select DMA_ENGINE
+	help
+	  Enable support for Intel EG20T PCH DMA engine.
+
+	  This driver also can be used for OKI SEMICONDUCTOR ML7213 IOH(Input/
+	  Output Hub) which is for IVI(In-Vehicle Infotainment) use.
+	  ML7213 is companion chip for Intel Atom E6xx series.
+	  ML7213 is completely compatible for Intel EG20T PCH.
+
+config IMX_SDMA
+	tristate "i.MX SDMA support"
+	depends on ARCH_MX25 || ARCH_MX3 || ARCH_MX5
+	select DMA_ENGINE
+	help
+	  Support the i.MX SDMA engine. This engine is integrated into
+	  Freescale i.MX25/31/35/51 chips.
+
+config IMX_DMA
+	tristate "i.MX DMA support"
+	depends on ARCH_MX1 || ARCH_MX21 || MACH_MX27
+	select DMA_ENGINE
+	help
+	  Support the i.MX DMA engine. This engine is integrated into
+	  Freescale i.MX1/21/27 chips.
 
 config DMA_ENGINE
 	bool

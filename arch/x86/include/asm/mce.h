@@ -38,6 +38,10 @@
 #define MCM_ADDR_MEM	 3	/* memory address */
 #define MCM_ADDR_GENERIC 7	/* generic */
 
+/* CTL2 register defines */
+#define MCI_CTL2_CMCI_EN		(1ULL << 30)
+#define MCI_CTL2_CMCI_THRESHOLD_MASK	0x7fffULL
+
 #define MCJ_CTX_MASK		3
 #define MCJ_CTX(flags)		((flags) & MCJ_CTX_MASK)
 #define MCJ_CTX_RANDOM		0    /* inject context: random */
@@ -219,11 +223,22 @@ void intel_init_thermal(struct cpuinfo_x86 *c);
 
 void mce_log_therm_throt_event(__u64 status);
 
+/* Interrupt Handler for core thermal thresholds */
+extern int (*platform_thermal_notify)(__u64 msr_val);
+
 #ifdef CONFIG_X86_THERMAL_VECTOR
 extern void mcheck_intel_therm_init(void);
 #else
 static inline void mcheck_intel_therm_init(void) { }
 #endif
+
+/*
+ * Used by APEI to report memory error via /dev/mcelog
+ */
+
+struct cper_sec_mem_err;
+extern void apei_mce_report_mem_error(int corrected,
+				      struct cper_sec_mem_err *mem_err);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_MCE_H */

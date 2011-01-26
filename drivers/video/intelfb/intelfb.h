@@ -371,10 +371,6 @@ struct intelfb_info {
 			((dinfo)->chipset == INTEL_965G) ||	\
 			((dinfo)->chipset == INTEL_965GM))
 
-#ifndef FBIO_WAITFORVSYNC
-#define FBIO_WAITFORVSYNC	_IOW('F', 0x20, __u32)
-#endif
-
 /*** function prototypes ***/
 
 extern int intelfb_var_to_depth(const struct fb_var_screeninfo *var);

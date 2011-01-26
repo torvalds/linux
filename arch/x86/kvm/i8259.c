@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2003-2004 Fabrice Bellard
  * Copyright (c) 2007 Intel Corporation
+ * Copyright 2009 Red Hat, Inc. and/or its affiliates.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,26 +34,41 @@
 #include <linux/kvm_host.h>
 #include "trace.h"
 
+static void pic_irq_request(struct kvm *kvm, int level);
+
 static void pic_lock(struct kvm_pic *s)
 	__acquires(&s->lock)
 {
-	raw_spin_lock(&s->lock);
+	spin_lock(&s->lock);
 }
 
 static void pic_unlock(struct kvm_pic *s)
 	__releases(&s->lock)
 {
 	bool wakeup = s->wakeup_needed;
-	struct kvm_vcpu *vcpu;
+	struct kvm_vcpu *vcpu, *found = NULL;
+	int i;
 
 	s->wakeup_needed = false;
 
-	raw_spin_unlock(&s->lock);
+	spin_unlock(&s->lock);
 
 	if (wakeup) {
-		vcpu = s->kvm->bsp_vcpu;
-		if (vcpu)
-			kvm_vcpu_kick(vcpu);
+		kvm_for_each_vcpu(i, vcpu, s->kvm) {
+			if (kvm_apic_accept_pic_intr(vcpu)) {
+				found = vcpu;
+				break;
+			}
+		}
+
+		if (!found)
+			found = s->kvm->bsp_vcpu;
+
+		if (!found)
+			return;
+
+		kvm_make_request(KVM_REQ_EVENT, found);
+		kvm_vcpu_kick(found);
 	}
 }
 
@@ -173,10 +189,7 @@ static void pic_update_irq(struct kvm_pic *s)
 		pic_set_irq1(&s->pics[0], 2, 0);
 	}
 	irq = pic_get_irq(&s->pics[0]);
-	if (irq >= 0)
-		s->irq_request(s->irq_request_opaque, 1);
-	else
-		s->irq_request(s->irq_request_opaque, 0);
+	pic_irq_request(s->kvm, irq >= 0);
 }
 
 void kvm_pic_update_irq(struct kvm_pic *s)
@@ -261,8 +274,7 @@ int kvm_pic_read_irq(struct kvm *kvm)
 void kvm_pic_reset(struct kvm_kpic_state *s)
 {
 	int irq;
-	struct kvm *kvm = s->pics_state->irq_request_opaque;
-	struct kvm_vcpu *vcpu0 = kvm->bsp_vcpu;
+	struct kvm_vcpu *vcpu0 = s->pics_state->kvm->bsp_vcpu;
 	u8 irr = s->irr, isr = s->imr;
 
 	s->last_irr = 0;
@@ -297,14 +309,17 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 	addr &= 1;
 	if (addr == 0) {
 		if (val & 0x10) {
-			kvm_pic_reset(s);	/* init */
-			/*
-			 * deassert a pending interrupt
-			 */
-			s->pics_state->irq_request(s->pics_state->
-						   irq_request_opaque, 0);
-			s->init_state = 1;
 			s->init4 = val & 1;
+			s->last_irr = 0;
+			s->imr = 0;
+			s->priority_add = 0;
+			s->special_mask = 0;
+			s->read_reg_select = 0;
+			if (!s->init4) {
+				s->special_fully_nested_mode = 0;
+				s->auto_eoi = 0;
+			}
+			s->init_state = 1;
 			if (val & 0x02)
 				printk(KERN_ERR "single mode not supported");
 			if (val & 0x08)
@@ -356,10 +371,20 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 		}
 	} else
 		switch (s->init_state) {
-		case 0:		/* normal mode */
+		case 0: { /* normal mode */
+			u8 imr_diff = s->imr ^ val,
+				off = (s == &s->pics_state->pics[0]) ? 0 : 8;
 			s->imr = val;
+			for (irq = 0; irq < PIC_NUM_PINS/2; irq++)
+				if (imr_diff & (1 << irq))
+					kvm_fire_mask_notifiers(
+						s->pics_state->kvm,
+						SELECT_PIC(irq + off),
+						irq + off,
+						!!(s->imr & (1 << irq)));
 			pic_update_irq(s->pics_state);
 			break;
+		}
 		case 1:
 			s->irq_base = val & 0xf8;
 			s->init_state = 2;
@@ -518,9 +543,8 @@ static int picdev_read(struct kvm_io_device *this,
 /*
  * callback when PIC0 irq status changed
  */
-static void pic_irq_request(void *opaque, int level)
+static void pic_irq_request(struct kvm *kvm, int level)
 {
-	struct kvm *kvm = opaque;
 	struct kvm_vcpu *vcpu = kvm->bsp_vcpu;
 	struct kvm_pic *s = pic_irqchip(kvm);
 	int irq = pic_get_irq(&s->pics[0]);
@@ -545,14 +569,14 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 	s = kzalloc(sizeof(struct kvm_pic), GFP_KERNEL);
 	if (!s)
 		return NULL;
-	raw_spin_lock_init(&s->lock);
+	spin_lock_init(&s->lock);
 	s->kvm = kvm;
 	s->pics[0].elcr_mask = 0xf8;
 	s->pics[1].elcr_mask = 0xde;
-	s->irq_request = pic_irq_request;
-	s->irq_request_opaque = kvm;
 	s->pics[0].pics_state = s;
 	s->pics[1].pics_state = s;
+	s->pics[0].isr_ack = 0xff;
+	s->pics[1].isr_ack = 0xff;
 
 	/*
 	 * Initialize PIO device

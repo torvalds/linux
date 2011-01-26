@@ -19,7 +19,9 @@
 #define ARCH_P4_RESERVED_ESCR	(2) /* IQ_ESCR(0,1) not always present */
 #define ARCH_P4_MAX_ESCR	(ARCH_P4_TOTAL_ESCR - ARCH_P4_RESERVED_ESCR)
 #define ARCH_P4_MAX_CCCR	(18)
-#define ARCH_P4_MAX_COUNTER	(ARCH_P4_MAX_CCCR / 2)
+
+#define ARCH_P4_CNTRVAL_BITS	(40)
+#define ARCH_P4_CNTRVAL_MASK	((1ULL << ARCH_P4_CNTRVAL_BITS) - 1)
 
 #define P4_ESCR_EVENT_MASK	0x7e000000U
 #define P4_ESCR_EVENT_SHIFT	25
@@ -36,19 +38,6 @@
 #define P4_ESCR_EVENT(v)	((v) << P4_ESCR_EVENT_SHIFT)
 #define P4_ESCR_EMASK(v)	((v) << P4_ESCR_EVENTMASK_SHIFT)
 #define P4_ESCR_TAG(v)		((v) << P4_ESCR_TAG_SHIFT)
-
-/* Non HT mask */
-#define P4_ESCR_MASK			\
-	(P4_ESCR_EVENT_MASK	|	\
-	P4_ESCR_EVENTMASK_MASK	|	\
-	P4_ESCR_TAG_MASK	|	\
-	P4_ESCR_TAG_ENABLE	|	\
-	P4_ESCR_T0_OS		|	\
-	P4_ESCR_T0_USR)
-
-/* HT mask */
-#define P4_ESCR_MASK_HT			\
-	(P4_ESCR_MASK |	P4_ESCR_T1_OS | P4_ESCR_T1_USR)
 
 #define P4_CCCR_OVF			0x80000000U
 #define P4_CCCR_CASCADE			0x40000000U
@@ -71,26 +60,6 @@
 #define P4_CCCR_THRESHOLD(v)		((v) << P4_CCCR_THRESHOLD_SHIFT)
 #define P4_CCCR_ESEL(v)			((v) << P4_CCCR_ESCR_SELECT_SHIFT)
 
-/* Custom bits in reerved CCCR area */
-#define P4_CCCR_CACHE_OPS_MASK		0x0000003fU
-
-
-/* Non HT mask */
-#define P4_CCCR_MASK				\
-	(P4_CCCR_OVF			|	\
-	P4_CCCR_CASCADE			|	\
-	P4_CCCR_OVF_PMI_T0		|	\
-	P4_CCCR_FORCE_OVF		|	\
-	P4_CCCR_EDGE			|	\
-	P4_CCCR_THRESHOLD_MASK		|	\
-	P4_CCCR_COMPLEMENT		|	\
-	P4_CCCR_COMPARE			|	\
-	P4_CCCR_ESCR_SELECT_MASK	|	\
-	P4_CCCR_ENABLE)
-
-/* HT mask */
-#define P4_CCCR_MASK_HT	(P4_CCCR_MASK | P4_CCCR_THREAD_ANY)
-
 #define P4_GEN_ESCR_EMASK(class, name, bit)	\
 	class##__##name = ((1 << bit) << P4_ESCR_EVENTMASK_SHIFT)
 #define P4_ESCR_EMASK_BIT(class, name)		class##__##name
@@ -105,8 +74,7 @@
  * ESCR and CCCR but rather an only packed value should
  * be unpacked and written to a proper addresses
  *
- * the base idea is to pack as much info as
- * possible
+ * the base idea is to pack as much info as possible
  */
 #define p4_config_pack_escr(v)		(((u64)(v)) << 32)
 #define p4_config_pack_cccr(v)		(((u64)(v)) & 0xffffffffULL)
@@ -129,10 +97,30 @@
 		t;					\
 	})
 
-#define p4_config_unpack_cache_event(v)	(((u64)(v)) & P4_CCCR_CACHE_OPS_MASK)
-
 #define P4_CONFIG_HT_SHIFT		63
 #define P4_CONFIG_HT			(1ULL << P4_CONFIG_HT_SHIFT)
+
+/*
+ * The bits we allow to pass for RAW events
+ */
+#define P4_CONFIG_MASK_ESCR		\
+	P4_ESCR_EVENT_MASK	|	\
+	P4_ESCR_EVENTMASK_MASK	|	\
+	P4_ESCR_TAG_MASK	|	\
+	P4_ESCR_TAG_ENABLE
+
+#define P4_CONFIG_MASK_CCCR		\
+	P4_CCCR_EDGE		|	\
+	P4_CCCR_THRESHOLD_MASK	|	\
+	P4_CCCR_COMPLEMENT	|	\
+	P4_CCCR_COMPARE		|	\
+	P4_CCCR_THREAD_ANY	|	\
+	P4_CCCR_RESERVED
+
+/* some dangerous bits are reserved for kernel internals */
+#define P4_CONFIG_MASK				  	  \
+	(p4_config_pack_escr(P4_CONFIG_MASK_ESCR))	| \
+	(p4_config_pack_cccr(P4_CONFIG_MASK_CCCR))
 
 static inline bool p4_is_event_cascaded(u64 config)
 {
@@ -213,6 +201,12 @@ static inline u32 p4_default_escr_conf(int cpu, int exclude_os, int exclude_usr)
 	return escr;
 }
 
+/*
+ * This are the events which should be used in "Event Select"
+ * field of ESCR register, they are like unique keys which allow
+ * the kernel to determinate which CCCR and COUNTER should be
+ * used to track an event
+ */
 enum P4_EVENTS {
 	P4_EVENT_TC_DELIVER_MODE,
 	P4_EVENT_BPU_FETCH_REQUEST,
@@ -560,7 +554,7 @@ enum P4_EVENT_OPCODES {
  * a caller should use P4_ESCR_EMASK_NAME helper to
  * pick the EventMask needed, for example
  *
- *	P4_ESCR_EMASK_NAME(P4_EVENT_TC_DELIVER_MODE, DD)
+ *	P4_ESCR_EMASK_BIT(P4_EVENT_TC_DELIVER_MODE, DD)
  */
 enum P4_ESCR_EMASKS {
 	P4_GEN_ESCR_EMASK(P4_EVENT_TC_DELIVER_MODE, DD, 0),
@@ -752,43 +746,97 @@ enum P4_ESCR_EMASKS {
 	P4_GEN_ESCR_EMASK(P4_EVENT_INSTR_COMPLETED, BOGUS, 1),
 };
 
-/* P4 PEBS: stale for a while */
-#define P4_PEBS_METRIC_MASK	0x00001fffU
-#define P4_PEBS_UOB_TAG		0x01000000U
-#define P4_PEBS_ENABLE		0x02000000U
+/*
+ * Note we have UOP and PEBS bits reserved for now
+ * just in case if we will need them once
+ */
+#define P4_PEBS_CONFIG_ENABLE		(1 << 7)
+#define P4_PEBS_CONFIG_UOP_TAG		(1 << 8)
+#define P4_PEBS_CONFIG_METRIC_MASK	0x3f
+#define P4_PEBS_CONFIG_MASK		0xff
 
-/* Replay metrics for MSR_IA32_PEBS_ENABLE and MSR_P4_PEBS_MATRIX_VERT */
-#define P4_PEBS__1stl_cache_load_miss_retired	0x3000001
-#define P4_PEBS__2ndl_cache_load_miss_retired	0x3000002
-#define P4_PEBS__dtlb_load_miss_retired		0x3000004
-#define P4_PEBS__dtlb_store_miss_retired	0x3000004
-#define P4_PEBS__dtlb_all_miss_retired		0x3000004
-#define P4_PEBS__tagged_mispred_branch		0x3018000
-#define P4_PEBS__mob_load_replay_retired	0x3000200
-#define P4_PEBS__split_load_retired		0x3000400
-#define P4_PEBS__split_store_retired		0x3000400
+/*
+ * mem: Only counters MSR_IQ_COUNTER4 (16) and
+ * MSR_IQ_COUNTER5 (17) are allowed for PEBS sampling
+ */
+#define P4_PEBS_ENABLE			0x02000000U
+#define P4_PEBS_ENABLE_UOP_TAG		0x01000000U
 
-#define P4_VERT__1stl_cache_load_miss_retired	0x0000001
-#define P4_VERT__2ndl_cache_load_miss_retired	0x0000001
-#define P4_VERT__dtlb_load_miss_retired		0x0000001
-#define P4_VERT__dtlb_store_miss_retired	0x0000002
-#define P4_VERT__dtlb_all_miss_retired		0x0000003
-#define P4_VERT__tagged_mispred_branch		0x0000010
-#define P4_VERT__mob_load_replay_retired	0x0000001
-#define P4_VERT__split_load_retired		0x0000001
-#define P4_VERT__split_store_retired		0x0000002
+#define p4_config_unpack_metric(v)	(((u64)(v)) & P4_PEBS_CONFIG_METRIC_MASK)
+#define p4_config_unpack_pebs(v)	(((u64)(v)) & P4_PEBS_CONFIG_MASK)
 
-enum P4_CACHE_EVENTS {
-	P4_CACHE__NONE,
+#define p4_config_pebs_has(v, mask)	(p4_config_unpack_pebs(v) & (mask))
 
-	P4_CACHE__1stl_cache_load_miss_retired,
-	P4_CACHE__2ndl_cache_load_miss_retired,
-	P4_CACHE__dtlb_load_miss_retired,
-	P4_CACHE__dtlb_store_miss_retired,
-	P4_CACHE__itlb_reference_hit,
-	P4_CACHE__itlb_reference_miss,
+enum P4_PEBS_METRIC {
+	P4_PEBS_METRIC__none,
 
-	P4_CACHE__MAX
+	P4_PEBS_METRIC__1stl_cache_load_miss_retired,
+	P4_PEBS_METRIC__2ndl_cache_load_miss_retired,
+	P4_PEBS_METRIC__dtlb_load_miss_retired,
+	P4_PEBS_METRIC__dtlb_store_miss_retired,
+	P4_PEBS_METRIC__dtlb_all_miss_retired,
+	P4_PEBS_METRIC__tagged_mispred_branch,
+	P4_PEBS_METRIC__mob_load_replay_retired,
+	P4_PEBS_METRIC__split_load_retired,
+	P4_PEBS_METRIC__split_store_retired,
+
+	P4_PEBS_METRIC__max
 };
 
+/*
+ * Notes on internal configuration of ESCR+CCCR tuples
+ *
+ * Since P4 has quite the different architecture of
+ * performance registers in compare with "architectural"
+ * once and we have on 64 bits to keep configuration
+ * of performance event, the following trick is used.
+ *
+ * 1) Since both ESCR and CCCR registers have only low
+ *    32 bits valuable, we pack them into a single 64 bit
+ *    configuration. Low 32 bits of such config correspond
+ *    to low 32 bits of CCCR register and high 32 bits
+ *    correspond to low 32 bits of ESCR register.
+ *
+ * 2) The meaning of every bit of such config field can
+ *    be found in Intel SDM but it should be noted that
+ *    we "borrow" some reserved bits for own usage and
+ *    clean them or set to a proper value when we do
+ *    a real write to hardware registers.
+ *
+ * 3) The format of bits of config is the following
+ *    and should be either 0 or set to some predefined
+ *    values:
+ *
+ *    Low 32 bits
+ *    -----------
+ *      0-6: P4_PEBS_METRIC enum
+ *     7-11:                    reserved
+ *       12:                    reserved (Enable)
+ *    13-15:                    reserved (ESCR select)
+ *    16-17: Active Thread
+ *       18: Compare
+ *       19: Complement
+ *    20-23: Threshold
+ *       24: Edge
+ *       25:                    reserved (FORCE_OVF)
+ *       26:                    reserved (OVF_PMI_T0)
+ *       27:                    reserved (OVF_PMI_T1)
+ *    28-29:                    reserved
+ *       30:                    reserved (Cascade)
+ *       31:                    reserved (OVF)
+ *
+ *    High 32 bits
+ *    ------------
+ *        0:                    reserved (T1_USR)
+ *        1:                    reserved (T1_OS)
+ *        2:                    reserved (T0_USR)
+ *        3:                    reserved (T0_OS)
+ *        4: Tag Enable
+ *      5-8: Tag Value
+ *     9-24: Event Mask (may use P4_ESCR_EMASK_BIT helper)
+ *    25-30: enum P4_EVENTS
+ *       31:                    reserved (HT thread)
+ */
+
 #endif /* PERF_EVENT_P4_H */
+

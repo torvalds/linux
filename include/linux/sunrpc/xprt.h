@@ -64,6 +64,7 @@ struct rpc_rqst {
 	 * This is the private part
 	 */
 	struct rpc_task *	rq_task;	/* RPC task data */
+	struct rpc_cred *	rq_cred;	/* Bound cred */
 	__be32			rq_xid;		/* request XID */
 	int			rq_cong;	/* has incremented xprt->cong */
 	u32			rq_seqno;	/* gss seq no. used on req. */
@@ -223,6 +224,7 @@ struct rpc_xprt {
 					bklog_u;	/* backlog queue utilization */
 	} stat;
 
+	struct net		*xprt_net;
 	const char		*address_strings[RPC_DISPLAY_MAX];
 };
 
@@ -248,6 +250,7 @@ static inline int bc_prealloc(struct rpc_rqst *req)
 
 struct xprt_create {
 	int			ident;		/* XPRT_TRANSPORT identifier */
+	struct net *		net;
 	struct sockaddr *	srcaddr;	/* optional local address */
 	struct sockaddr *	dstaddr;	/* remote peer address */
 	size_t			addrlen;
@@ -279,6 +282,8 @@ void			xprt_release_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task);
 void			xprt_release(struct rpc_task *task);
 struct rpc_xprt *	xprt_get(struct rpc_xprt *xprt);
 void			xprt_put(struct rpc_xprt *xprt);
+struct rpc_xprt *	xprt_alloc(struct net *net, int size, int max_req);
+void			xprt_free(struct rpc_xprt *);
 
 static inline __be32 *xprt_skip_transport_header(struct rpc_xprt *xprt, __be32 *p)
 {
@@ -316,6 +321,7 @@ void			xprt_conditional_disconnect(struct rpc_xprt *xprt, unsigned int cookie);
 #define XPRT_CLOSING		(6)
 #define XPRT_CONNECTION_ABORT	(7)
 #define XPRT_CONNECTION_CLOSE	(8)
+#define XPRT_INITIALIZED	(9)
 
 static inline void xprt_set_connected(struct rpc_xprt *xprt)
 {

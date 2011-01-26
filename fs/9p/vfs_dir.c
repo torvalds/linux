@@ -87,6 +87,42 @@ static void p9stat_init(struct p9_wstat *stbuf)
 }
 
 /**
+ * v9fs_alloc_rdir_buf - Allocate buffer used for read and readdir
+ * @filp: opened file structure
+ * @buflen: Length in bytes of buffer to allocate
+ *
+ */
+
+static int v9fs_alloc_rdir_buf(struct file *filp, int buflen)
+{
+	struct p9_rdir *rdir;
+	struct p9_fid *fid;
+	int err = 0;
+
+	fid = filp->private_data;
+	if (!fid->rdir) {
+		rdir = kmalloc(sizeof(struct p9_rdir) + buflen, GFP_KERNEL);
+
+		if (rdir == NULL) {
+			err = -ENOMEM;
+			goto exit;
+		}
+		spin_lock(&filp->f_dentry->d_lock);
+		if (!fid->rdir) {
+			rdir->buf = (uint8_t *)rdir + sizeof(struct p9_rdir);
+			mutex_init(&rdir->mutex);
+			rdir->head = rdir->tail = 0;
+			fid->rdir = (void *) rdir;
+			rdir = NULL;
+		}
+		spin_unlock(&filp->f_dentry->d_lock);
+		kfree(rdir);
+	}
+exit:
+	return err;
+}
+
+/**
  * v9fs_dir_readdir - read a directory
  * @filp: opened file structure
  * @dirent: directory structure ???
@@ -109,25 +145,9 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	buflen = fid->clnt->msize - P9_IOHDRSZ;
 
-	/* allocate rdir on demand */
-	if (!fid->rdir) {
-		rdir = kmalloc(sizeof(struct p9_rdir) + buflen, GFP_KERNEL);
-
-		if (rdir == NULL) {
-			err = -ENOMEM;
-			goto exit;
-		}
-		spin_lock(&filp->f_dentry->d_lock);
-		if (!fid->rdir) {
-			rdir->buf = (uint8_t *)rdir + sizeof(struct p9_rdir);
-			mutex_init(&rdir->mutex);
-			rdir->head = rdir->tail = 0;
-			fid->rdir = (void *) rdir;
-			rdir = NULL;
-		}
-		spin_unlock(&filp->f_dentry->d_lock);
-		kfree(rdir);
-	}
+	err = v9fs_alloc_rdir_buf(filp, buflen);
+	if (err)
+		goto exit;
 	rdir = (struct p9_rdir *) fid->rdir;
 
 	err = mutex_lock_interruptible(&rdir->mutex);
@@ -146,7 +166,7 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		while (rdir->head < rdir->tail) {
 			p9stat_init(&st);
 			err = p9stat_read(rdir->buf + rdir->head,
-						buflen - rdir->head, &st,
+						rdir->tail - rdir->head, &st,
 						fid->clnt->proto_version);
 			if (err) {
 				P9_DPRINTK(P9_DEBUG_VFS, "returned %d\n", err);
@@ -176,6 +196,89 @@ exit:
 	return err;
 }
 
+/**
+ * v9fs_dir_readdir_dotl - read a directory
+ * @filp: opened file structure
+ * @dirent: buffer to fill dirent structures
+ * @filldir: function to populate dirent structures
+ *
+ */
+static int v9fs_dir_readdir_dotl(struct file *filp, void *dirent,
+						filldir_t filldir)
+{
+	int over;
+	int err = 0;
+	struct p9_fid *fid;
+	int buflen;
+	struct p9_rdir *rdir;
+	struct p9_dirent curdirent;
+	u64 oldoffset = 0;
+
+	P9_DPRINTK(P9_DEBUG_VFS, "name %s\n", filp->f_path.dentry->d_name.name);
+	fid = filp->private_data;
+
+	buflen = fid->clnt->msize - P9_READDIRHDRSZ;
+
+	err = v9fs_alloc_rdir_buf(filp, buflen);
+	if (err)
+		goto exit;
+	rdir = (struct p9_rdir *) fid->rdir;
+
+	err = mutex_lock_interruptible(&rdir->mutex);
+	if (err)
+		return err;
+
+	while (err == 0) {
+		if (rdir->tail == rdir->head) {
+			err = p9_client_readdir(fid, rdir->buf, buflen,
+								filp->f_pos);
+			if (err <= 0)
+				goto unlock_and_exit;
+
+			rdir->head = 0;
+			rdir->tail = err;
+		}
+
+		while (rdir->head < rdir->tail) {
+
+			err = p9dirent_read(rdir->buf + rdir->head,
+						rdir->tail - rdir->head,
+						&curdirent,
+						fid->clnt->proto_version);
+			if (err < 0) {
+				P9_DPRINTK(P9_DEBUG_VFS, "returned %d\n", err);
+				err = -EIO;
+				goto unlock_and_exit;
+			}
+
+			/* d_off in dirent structure tracks the offset into
+			 * the next dirent in the dir. However, filldir()
+			 * expects offset into the current dirent. Hence
+			 * while calling filldir send the offset from the
+			 * previous dirent structure.
+			 */
+			over = filldir(dirent, curdirent.d_name,
+					strlen(curdirent.d_name),
+					oldoffset, v9fs_qid2ino(&curdirent.qid),
+					curdirent.d_type);
+			oldoffset = curdirent.d_off;
+
+			if (over) {
+				err = 0;
+				goto unlock_and_exit;
+			}
+
+			filp->f_pos = curdirent.d_off;
+			rdir->head += err;
+		}
+	}
+
+unlock_and_exit:
+	mutex_unlock(&rdir->mutex);
+exit:
+	return err;
+}
+
 
 /**
  * v9fs_dir_release - close a directory
@@ -190,9 +293,11 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 
 	fid = filp->private_data;
 	P9_DPRINTK(P9_DEBUG_VFS,
-			"inode: %p filp: %p fid: %d\n", inode, filp, fid->fid);
+			"v9fs_dir_release: inode: %p filp: %p fid: %d\n",
+			inode, filp, fid ? fid->fid : -1);
 	filemap_write_and_wait(inode->i_mapping);
-	p9_client_clunk(fid);
+	if (fid)
+		p9_client_clunk(fid);
 	return 0;
 }
 
@@ -207,7 +312,8 @@ const struct file_operations v9fs_dir_operations = {
 const struct file_operations v9fs_dir_operations_dotl = {
 	.read = generic_read_dir,
 	.llseek = generic_file_llseek,
-	.readdir = v9fs_dir_readdir,
+	.readdir = v9fs_dir_readdir_dotl,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
+        .fsync = v9fs_file_fsync_dotl,
 };

@@ -155,7 +155,7 @@ static struct resource __devinitdata tc6393xb_nand_resources[] = {
 	},
 };
 
-static struct resource __devinitdata tc6393xb_mmc_resources[] = {
+static struct resource tc6393xb_mmc_resources[] = {
 	{
 		.start	= 0x800,
 		.end	= 0x9ff,
@@ -527,41 +527,41 @@ tc6393xb_irq(unsigned int irq, struct irq_desc *desc)
 		}
 }
 
-static void tc6393xb_irq_ack(unsigned int irq)
+static void tc6393xb_irq_ack(struct irq_data *data)
 {
 }
 
-static void tc6393xb_irq_mask(unsigned int irq)
+static void tc6393xb_irq_mask(struct irq_data *data)
 {
-	struct tc6393xb *tc6393xb = get_irq_chip_data(irq);
+	struct tc6393xb *tc6393xb = irq_data_get_irq_chip_data(data);
 	unsigned long flags;
 	u8 imr;
 
 	spin_lock_irqsave(&tc6393xb->lock, flags);
 	imr = tmio_ioread8(tc6393xb->scr + SCR_IMR);
-	imr |= 1 << (irq - tc6393xb->irq_base);
+	imr |= 1 << (data->irq - tc6393xb->irq_base);
 	tmio_iowrite8(imr, tc6393xb->scr + SCR_IMR);
 	spin_unlock_irqrestore(&tc6393xb->lock, flags);
 }
 
-static void tc6393xb_irq_unmask(unsigned int irq)
+static void tc6393xb_irq_unmask(struct irq_data *data)
 {
-	struct tc6393xb *tc6393xb = get_irq_chip_data(irq);
+	struct tc6393xb *tc6393xb = irq_data_get_irq_chip_data(data);
 	unsigned long flags;
 	u8 imr;
 
 	spin_lock_irqsave(&tc6393xb->lock, flags);
 	imr = tmio_ioread8(tc6393xb->scr + SCR_IMR);
-	imr &= ~(1 << (irq - tc6393xb->irq_base));
+	imr &= ~(1 << (data->irq - tc6393xb->irq_base));
 	tmio_iowrite8(imr, tc6393xb->scr + SCR_IMR);
 	spin_unlock_irqrestore(&tc6393xb->lock, flags);
 }
 
 static struct irq_chip tc6393xb_chip = {
-	.name	= "tc6393xb",
-	.ack	= tc6393xb_irq_ack,
-	.mask	= tc6393xb_irq_mask,
-	.unmask	= tc6393xb_irq_unmask,
+	.name		= "tc6393xb",
+	.irq_ack	= tc6393xb_irq_ack,
+	.irq_mask	= tc6393xb_irq_mask,
+	.irq_unmask	= tc6393xb_irq_unmask,
 };
 
 static void tc6393xb_attach_irq(struct platform_device *dev)
@@ -732,9 +732,9 @@ err_gpio_add:
 	if (tc6393xb->gpio.base != -1)
 		temp = gpiochip_remove(&tc6393xb->gpio);
 	tcpd->disable(dev);
-err_clk_enable:
-	clk_disable(tc6393xb->clk);
 err_enable:
+	clk_disable(tc6393xb->clk);
+err_clk_enable:
 	iounmap(tc6393xb->scr);
 err_ioremap:
 	release_resource(&tc6393xb->rscr);

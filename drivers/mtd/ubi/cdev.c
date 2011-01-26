@@ -189,8 +189,7 @@ static loff_t vol_cdev_llseek(struct file *file, loff_t offset, int origin)
 	return new_offset;
 }
 
-static int vol_cdev_fsync(struct file *file, struct dentry *dentry,
-			  int datasync)
+static int vol_cdev_fsync(struct file *file, int datasync)
 {
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_device *ubi = desc->vol->ubi;
@@ -799,18 +798,18 @@ static int rename_volumes(struct ubi_device *ubi,
 			goto out_free;
 		}
 
-		re = kzalloc(sizeof(struct ubi_rename_entry), GFP_KERNEL);
-		if (!re) {
+		re1 = kzalloc(sizeof(struct ubi_rename_entry), GFP_KERNEL);
+		if (!re1) {
 			err = -ENOMEM;
 			ubi_close_volume(desc);
 			goto out_free;
 		}
 
-		re->remove = 1;
-		re->desc = desc;
-		list_add(&re->list, &rename_list);
+		re1->remove = 1;
+		re1->desc = desc;
+		list_add(&re1->list, &rename_list);
 		dbg_msg("will remove volume %d, name \"%s\"",
-			re->desc->vol->vol_id, re->desc->vol->name);
+			re1->desc->vol->vol_id, re1->desc->vol->name);
 	}
 
 	mutex_lock(&ubi->device_mutex);
@@ -1101,4 +1100,5 @@ const struct file_operations ubi_ctrl_cdev_operations = {
 	.owner          = THIS_MODULE,
 	.unlocked_ioctl = ctrl_cdev_ioctl,
 	.compat_ioctl   = ctrl_cdev_compat_ioctl,
+	.llseek		= noop_llseek,
 };

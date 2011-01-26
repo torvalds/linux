@@ -351,7 +351,7 @@ static ssize_t bd2802_store_reg##reg_addr(struct device *dev,		\
 	return count;							\
 }									\
 static struct device_attribute bd2802_reg##reg_addr##_attr = {		\
-	.attr = {.name = reg_name, .mode = 0644, .owner = THIS_MODULE},	\
+	.attr = {.name = reg_name, .mode = 0644},			\
 	.store = bd2802_store_reg##reg_addr,				\
 };
 
@@ -482,7 +482,6 @@ static struct device_attribute bd2802_adv_conf_attr = {
 	.attr = {
 		.name = "advanced_configuration",
 		.mode = 0644,
-		.owner = THIS_MODULE
 	},
 	.show = bd2802_show_adv_conf,
 	.store = bd2802_store_adv_conf,
@@ -519,7 +518,6 @@ static struct device_attribute bd2802_##attr_name##_attr = {		\
 	.attr = {							\
 		.name = name_str,					\
 		.mode = 0644,						\
-		.owner = THIS_MODULE					\
 	},								\
 	.show = bd2802_show_##attr_name,				\
 	.store = bd2802_store_##attr_name,				\
@@ -742,7 +740,6 @@ failed_unregister_dev_file:
 	for (i--; i >= 0; i--)
 		device_remove_file(&led->client->dev, bd2802_attributes[i]);
 failed_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(led);
 
 	return ret;
@@ -759,7 +756,6 @@ static int __exit bd2802_remove(struct i2c_client *client)
 		bd2802_disable_adv_conf(led);
 	for (i = 0; i < ARRAY_SIZE(bd2802_attributes); i++)
 		device_remove_file(&led->client->dev, bd2802_attributes[i]);
-	i2c_set_clientdata(client, NULL);
 	kfree(led);
 
 	return 0;

@@ -95,10 +95,11 @@ config I2C_I801
 	    ESB2
 	    ICH8
 	    ICH9
-	    Tolapai
+	    EP80579 (Tolapai)
 	    ICH10
-	    3400/5 Series (PCH)
+	    5/3400 Series (PCH)
 	    Cougar Point (PCH)
+	    Patsburg (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -396,6 +397,16 @@ config I2C_IMX
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-imx.
 
+config I2C_INTEL_MID
+	tristate "Intel Moorestown/Medfield Platform I2C controller"
+	depends on PCI
+	help
+	  Say Y here if you have an Intel Moorestown/Medfield platform I2C
+	  controller.
+
+	  This support is also available as a module. If so, the module
+	  will be called i2c-intel-mid.
+
 config I2C_IOP3XX
 	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
 	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX || ARCH_IOP13XX
@@ -448,6 +459,13 @@ config I2C_NOMADIK
 	  If you say yes to this option, support will be included for the
 	  I2C interface from ST-Ericsson's Nomadik and Ux500 architectures.
 
+config I2C_NUC900
+	tristate "NUC900 I2C Driver"
+	depends on ARCH_W90X900
+	help
+	  Say Y here to include support for I2C controller in the
+	  Winbond/Nuvoton NUC900 based System-on-Chip devices.
+
 config I2C_OCORES
 	tristate "OpenCores I2C Controller"
 	depends on EXPERIMENTAL
@@ -475,9 +493,29 @@ config I2C_PASEMI
 	help
 	  Supports the PA Semi PWRficient on-chip SMBus interfaces.
 
+config I2C_PCA_PLATFORM
+	tristate "PCA9564/PCA9665 as platform device"
+	select I2C_ALGOPCA
+	default n
+	help
+	  This driver supports a memory mapped Philips PCA9564/PCA9665
+	  parallel bus to I2C bus controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-pca-platform.
+
+config I2C_PMCMSP
+	tristate "PMC MSP I2C TWI Controller"
+	depends on PMC_MSP
+	help
+	  This driver supports the PMC TWI controller on MSP devices.
+
+	  This driver can also be built as module. If so, the module
+	  will be called i2c-pmcmsp.
+
 config I2C_PNX
-	tristate "I2C bus support for Philips PNX targets"
-	depends on ARCH_PNX4008
+	tristate "I2C bus support for Philips PNX and NXP LPC targets"
+	depends on ARCH_PNX4008 || ARCH_LPC32XX
 	help
 	  This driver supports the Philips IP3204 I2C IP block master and/or
 	  slave controller
@@ -501,12 +539,19 @@ config I2C_PXA_SLAVE
 	  is necessary for systems where the PXA may be a target on the
 	  I2C bus.
 
+config HAVE_S3C2410_I2C
+	bool
+	help
+	  This will include I2C support for Samsung SoCs. If you want to
+	  include I2C support for any machine, kindly select this in the
+	  respective Kconfig file.
+
 config I2C_S3C2410
 	tristate "S3C2410 I2C Driver"
-	depends on ARCH_S3C2410 || ARCH_S3C64XX
+	depends on HAVE_S3C2410_I2C
 	help
 	  Say Y here to include support for I2C controller in the
-	  Samsung S3C2410 based System-on-Chip devices.
+	  Samsung SoCs.
 
 config I2C_S6000
 	tristate "S6000 I2C support"
@@ -529,7 +574,7 @@ config I2C_SH7760
 
 config I2C_SH_MOBILE
 	tristate "SuperH Mobile I2C Controller"
-	depends on SUPERH
+	depends on SUPERH || ARCH_SHMOBILE
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Renesas SH-Mobile processor.
@@ -592,6 +637,14 @@ config I2C_XILINX
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called xilinx_i2c.
+
+config I2C_EG20T
+        tristate "PCH I2C of Intel EG20T"
+        depends on PCI
+        help
+          This driver is for PCH(Platform controller Hub) I2C of EG20T which
+          is an IOH(Input/Output Hub) for x86 embedded processor.
+          This driver can access PCH I2C bus device.
 
 comment "External I2C/SMBus adapter drivers"
 
@@ -710,26 +763,6 @@ config I2C_PCA_ISA
 	  system which doesn't have this device will result in long
 	  delays when I2C/SMBus chip drivers are loaded (e.g. at boot
 	  time).  If unsure, say N.
-
-config I2C_PCA_PLATFORM
-	tristate "PCA9564/PCA9665 as platform device"
-	select I2C_ALGOPCA
-	default n
-	help
-	  This driver supports a memory mapped Philips PCA9564/PCA9665
-	  parallel bus to I2C bus controller.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-pca-platform.
-
-config I2C_PMCMSP
-	tristate "PMC MSP I2C TWI Controller"
-	depends on PMC_MSP
-	help
-	  This driver supports the PMC TWI controller on MSP devices.
-
-	  This driver can also be built as module. If so, the module
-	  will be called i2c-pmcmsp.
 
 config I2C_SIBYTE
 	tristate "SiByte SMBus interface"

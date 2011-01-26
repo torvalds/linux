@@ -87,12 +87,11 @@ static struct device_node *new_node(const char *path,
 
 	if (!np)
 		return NULL;
-	np->full_name = kmalloc(strlen(path) + 1, GFP_KERNEL);
+	np->full_name = kstrdup(path, GFP_KERNEL);
 	if (!np->full_name) {
 		kfree(np);
 		return NULL;
 	}
-	strcpy(np->full_name, path);
 	of_node_set_flag(np, OF_DYNAMIC);
 	kref_init(&np->kref);
 	np->parent = of_node_get(parent);

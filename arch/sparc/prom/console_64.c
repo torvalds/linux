@@ -13,61 +13,34 @@
 #include <asm/system.h>
 #include <linux/string.h>
 
-extern int prom_stdin, prom_stdout;
-
-/* Non blocking get character from console input device, returns -1
- * if no input was taken.  This can be used for polling.
- */
-inline int
-prom_nbgetchar(void)
+static int __prom_console_write_buf(const char *buf, int len)
 {
-	char inc;
+	unsigned long args[7];
+	int ret;
 
-	if (p1275_cmd("read", P1275_ARG(1,P1275_ARG_OUT_BUF)|
-			      P1275_INOUT(3,1),
-			      prom_stdin, &inc, P1275_SIZE(1)) == 1)
-		return inc;
-	else
+	args[0] = (unsigned long) "write";
+	args[1] = 3;
+	args[2] = 1;
+	args[3] = (unsigned int) prom_stdout;
+	args[4] = (unsigned long) buf;
+	args[5] = (unsigned int) len;
+	args[6] = (unsigned long) -1;
+
+	p1275_cmd_direct(args);
+
+	ret = (int) args[6];
+	if (ret < 0)
 		return -1;
+	return ret;
 }
 
-/* Non blocking put character to console device, returns -1 if
- * unsuccessful.
- */
-inline int
-prom_nbputchar(char c)
+void prom_console_write_buf(const char *buf, int len)
 {
-	char outc;
-	
-	outc = c;
-	if (p1275_cmd("write", P1275_ARG(1,P1275_ARG_IN_BUF)|
-			       P1275_INOUT(3,1),
-			       prom_stdout, &outc, P1275_SIZE(1)) == 1)
-		return 0;
-	else
-		return -1;
-}
-
-/* Blocking version of get character routine above. */
-char
-prom_getchar(void)
-{
-	int character;
-	while((character = prom_nbgetchar()) == -1) ;
-	return (char) character;
-}
-
-/* Blocking version of put character routine above. */
-void
-prom_putchar(char c)
-{
-	prom_nbputchar(c);
-}
-
-void
-prom_puts(const char *s, int len)
-{
-	p1275_cmd("write", P1275_ARG(1,P1275_ARG_IN_BUF)|
-			   P1275_INOUT(3,1),
-			   prom_stdout, s, P1275_SIZE(len));
+	while (len) {
+		int n = __prom_console_write_buf(buf, len);
+		if (n < 0)
+			continue;
+		len -= n;
+		buf += len;
+	}
 }

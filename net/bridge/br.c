@@ -22,8 +22,6 @@
 
 #include "br_private.h"
 
-int (*br_should_route_hook)(struct sk_buff *skb);
-
 static const struct stp_proto br_stp_proto = {
 	.rcv	= br_stp_rcv,
 };
@@ -63,7 +61,6 @@ static int __init br_init(void)
 		goto err_out4;
 
 	brioctl_set(br_ioctl_deviceless_stub);
-	br_handle_frame_hook = br_handle_frame;
 
 #if defined(CONFIG_ATM_LANE) || defined(CONFIG_ATM_LANE_MODULE)
 	br_fdb_test_addr_hook = br_fdb_test_addr;
@@ -100,11 +97,8 @@ static void __exit br_deinit(void)
 	br_fdb_test_addr_hook = NULL;
 #endif
 
-	br_handle_frame_hook = NULL;
 	br_fdb_fini();
 }
-
-EXPORT_SYMBOL(br_should_route_hook);
 
 module_init(br_init)
 module_exit(br_deinit)

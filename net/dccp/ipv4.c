@@ -105,7 +105,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		goto failure;
 
 	/* OK, now commit destination to socket.  */
-	sk_setup_caps(sk, &rt->u.dst);
+	sk_setup_caps(sk, &rt->dst);
 
 	dp->dccps_iss = secure_dccp_sequence_number(inet->inet_saddr,
 						    inet->inet_daddr,
@@ -392,7 +392,7 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	newsk = dccp_create_openreq_child(sk, req, skb);
 	if (newsk == NULL)
-		goto exit;
+		goto exit_nonewsk;
 
 	sk_setup_caps(newsk, dst);
 
@@ -409,16 +409,20 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	dccp_sync_mss(newsk, dst_mtu(dst));
 
+	if (__inet_inherit_port(sk, newsk) < 0) {
+		sock_put(newsk);
+		goto exit;
+	}
 	__inet_hash_nolisten(newsk, NULL);
-	__inet_inherit_port(sk, newsk);
 
 	return newsk;
 
 exit_overflow:
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
+exit_nonewsk:
+	dst_release(dst);
 exit:
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
-	dst_release(dst);
 	return NULL;
 }
 
@@ -458,15 +462,12 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 {
 	struct rtable *rt;
 	struct flowi fl = { .oif = skb_rtable(skb)->rt_iif,
-			    .nl_u = { .ip4_u =
-				      { .daddr = ip_hdr(skb)->saddr,
-					.saddr = ip_hdr(skb)->daddr,
-					.tos = RT_CONN_FLAGS(sk) } },
+			    .fl4_dst = ip_hdr(skb)->saddr,
+			    .fl4_src = ip_hdr(skb)->daddr,
+			    .fl4_tos = RT_CONN_FLAGS(sk),
 			    .proto = sk->sk_protocol,
-			    .uli_u = { .ports =
-				       { .sport = dccp_hdr(skb)->dccph_dport,
-					 .dport = dccp_hdr(skb)->dccph_sport }
-				     }
+			    .fl_ip_sport = dccp_hdr(skb)->dccph_dport,
+			    .fl_ip_dport = dccp_hdr(skb)->dccph_sport
 			  };
 
 	security_skb_classify_flow(skb, &fl);
@@ -475,7 +476,7 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 		return NULL;
 	}
 
-	return &rt->u.dst;
+	return &rt->dst;
 }
 
 static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,

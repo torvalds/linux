@@ -61,13 +61,7 @@ struct rpc_cred {
 /*
  * Client authentication handle
  */
-#define RPC_CREDCACHE_HASHBITS	4
-#define RPC_CREDCACHE_NR	(1 << RPC_CREDCACHE_HASHBITS)
-struct rpc_cred_cache {
-	struct hlist_head	hashtable[RPC_CREDCACHE_NR];
-	spinlock_t		lock;
-};
-
+struct rpc_cred_cache;
 struct rpc_authops;
 struct rpc_auth {
 	unsigned int		au_cslack;	/* call cred size estimate */
@@ -112,24 +106,25 @@ struct rpc_credops {
 	void			(*crdestroy)(struct rpc_cred *);
 
 	int			(*crmatch)(struct auth_cred *, struct rpc_cred *, int);
-	void			(*crbind)(struct rpc_task *, struct rpc_cred *, int);
+	struct rpc_cred *	(*crbind)(struct rpc_task *, struct rpc_cred *, int);
 	__be32 *		(*crmarshal)(struct rpc_task *, __be32 *);
 	int			(*crrefresh)(struct rpc_task *);
 	__be32 *		(*crvalidate)(struct rpc_task *, __be32 *);
-	int			(*crwrap_req)(struct rpc_task *, kxdrproc_t,
+	int			(*crwrap_req)(struct rpc_task *, kxdreproc_t,
 						void *, __be32 *, void *);
-	int			(*crunwrap_resp)(struct rpc_task *, kxdrproc_t,
+	int			(*crunwrap_resp)(struct rpc_task *, kxdrdproc_t,
 						void *, __be32 *, void *);
 };
 
 extern const struct rpc_authops	authunix_ops;
 extern const struct rpc_authops	authnull_ops;
 
-void __init		rpc_init_authunix(void);
-void __init		rpc_init_generic_auth(void);
-void __init		rpcauth_init_module(void);
-void __exit		rpcauth_remove_module(void);
-void __exit		rpc_destroy_generic_auth(void);
+int __init		rpc_init_authunix(void);
+int __init		rpc_init_generic_auth(void);
+int __init		rpcauth_init_module(void);
+void			rpcauth_remove_module(void);
+void			rpc_destroy_generic_auth(void);
+void 			rpc_destroy_authunix(void);
 
 struct rpc_cred *	rpc_lookup_cred(void);
 struct rpc_cred *	rpc_lookup_machine_cred(void);
@@ -140,14 +135,12 @@ void			rpcauth_release(struct rpc_auth *);
 struct rpc_cred *	rpcauth_lookup_credcache(struct rpc_auth *, struct auth_cred *, int);
 void			rpcauth_init_cred(struct rpc_cred *, const struct auth_cred *, struct rpc_auth *, const struct rpc_credops *);
 struct rpc_cred *	rpcauth_lookupcred(struct rpc_auth *, int);
-void			rpcauth_bindcred(struct rpc_task *, struct rpc_cred *, int);
-void			rpcauth_generic_bind_cred(struct rpc_task *, struct rpc_cred *, int);
+struct rpc_cred *	rpcauth_generic_bind_cred(struct rpc_task *, struct rpc_cred *, int);
 void			put_rpccred(struct rpc_cred *);
-void			rpcauth_unbindcred(struct rpc_task *);
 __be32 *		rpcauth_marshcred(struct rpc_task *, __be32 *);
 __be32 *		rpcauth_checkverf(struct rpc_task *, __be32 *);
-int			rpcauth_wrap_req(struct rpc_task *task, kxdrproc_t encode, void *rqstp, __be32 *data, void *obj);
-int			rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp, __be32 *data, void *obj);
+int			rpcauth_wrap_req(struct rpc_task *task, kxdreproc_t encode, void *rqstp, __be32 *data, void *obj);
+int			rpcauth_unwrap_resp(struct rpc_task *task, kxdrdproc_t decode, void *rqstp, __be32 *data, void *obj);
 int			rpcauth_refreshcred(struct rpc_task *);
 void			rpcauth_invalcred(struct rpc_task *);
 int			rpcauth_uptodatecred(struct rpc_task *);

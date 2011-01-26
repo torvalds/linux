@@ -14,13 +14,11 @@
 		.equ	io_virt, IO_BASE
 		.equ	io_phys, IO_START
 
-		.macro	addruart, rx, tmp
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
-		moveq	\rx, #io_phys		@ physical base address
-		movne	\rx, #io_virt		@ virtual address
-		add	\rx, \rx, #0x00044000	@ UART1
-@		add	\rx, \rx, #0x00045000	@ UART2
+		.macro	addruart, rp, rv
+		mov	\rp, #0x00044000	@ UART1
+@		mov	\rp, #0x00045000	@ UART2
+		add	\rv, \rp, #io_virt	@ virtual address
+		add	\rp, \rp, #io_phys	@ physical base address
 		.endm
 
 		.macro	senduart,rd,rx

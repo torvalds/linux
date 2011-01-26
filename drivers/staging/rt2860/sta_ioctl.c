@@ -31,10 +31,11 @@
     IOCTL related subroutines
 
     Revision History:
-    Who         When          What
+    	Who        		 When          What
     --------    ----------    ----------------------------------------------
-    Rory Chen   01-03-2003    created
-	Rory Chen   02-14-2005    modify to support RT61
+   	Rory Chen   		01-03-2003    	created
+	Rory Chen   		02-14-2005    	modify to support RT61
+	Justin P. Mattock	11/07/2010	Fix typos
 */
 
 #include	"rt_config.h"
@@ -614,9 +615,7 @@ int rt_ioctl_siwap(struct net_device *dev,
 		    OID_802_11_BSSID,
 		    sizeof(NDIS_802_11_MAC_ADDRESS), (void *) & Bssid);
 
-	DBGPRINT(RT_DEBUG_TRACE,
-		 ("IOCTL::SIOCSIWAP %02x:%02x:%02x:%02x:%02x:%02x\n", Bssid[0],
-		  Bssid[1], Bssid[2], Bssid[3], Bssid[4], Bssid[5]));
+	DBGPRINT(RT_DEBUG_TRACE, ("IOCTL::SIOCSIWAP %pM\n", Bssid));
 
 	return 0;
 }
@@ -853,7 +852,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 
 		/*
 		   Protocol:
-		   it will show scanned AP's WirelessMode .
+		   it will show scanned AP's WirelessMode.
 		   it might be
 		   802.11a
 		   802.11a/n
@@ -877,13 +876,13 @@ int rt_ioctl_giwscan(struct net_device *dev,
 					strcpy(iwe.u.name, "802.11a");
 			} else {
 				/*
-				   if one of non B mode rate is set supported rate . it mean G only.
+				   if one of non B mode rate is set supported rate, it means G only.
 				 */
 				for (rateCnt = 0;
 				     rateCnt < pBssEntry->SupRateLen;
 				     rateCnt++) {
 					/*
-					   6Mbps(140) 9Mbps(146) and >=12Mbps(152) are supported rate , it mean G only.
+					   6Mbps(140) 9Mbps(146) and >=12Mbps(152) are supported rate, it means G only.
 					 */
 					if (pBssEntry->SupRate[rateCnt] == 140
 					    || pBssEntry->SupRate[rateCnt] ==
@@ -1419,7 +1418,7 @@ int rt_ioctl_siwencode(struct net_device *dev,
 		if ((index >= 0) && (index < 4)) {
 			pAdapter->StaCfg.DefaultKeyId = index;
 		} else
-			/* Don't complain if only change the mode */
+			/* Don't complain if the mode is only changed */
 		if (!(erq->flags & IW_ENCODE_MODE))
 			return -EINVAL;
 	}
@@ -1513,11 +1512,8 @@ void getBaInfo(struct rt_rtmp_adapter *pAd, char *pOutBuf)
 		if (((pEntry->ValidAsCLI || pEntry->ValidAsApCli)
 		     && (pEntry->Sst == SST_ASSOC))
 		    || (pEntry->ValidAsWDS) || (pEntry->ValidAsMesh)) {
-			sprintf(pOutBuf + strlen(pOutBuf),
-				"\n%02X:%02X:%02X:%02X:%02X:%02X (Aid = %d) (AP) -\n",
-				pEntry->Addr[0], pEntry->Addr[1],
-				pEntry->Addr[2], pEntry->Addr[3],
-				pEntry->Addr[4], pEntry->Addr[5], pEntry->Aid);
+			sprintf(pOutBuf + strlen(pOutBuf), "\n%pM (Aid = %d) "
+				"(AP) -\n", pEntry->Addr, pEntry->Aid);
 
 			sprintf(pOutBuf, "%s[Recipient]\n", pOutBuf);
 			for (j = 0; j < NUM_OF_TID; j++) {
@@ -2522,6 +2518,8 @@ int rt28xx_sta_ioctl(IN struct net_device *net_dev,
 			Status =
 			    copy_to_user(erq->pointer, pAd->nickname,
 					 erq->length);
+			if (Status)
+				Status = -EFAULT;
 			break;
 		}
 	case SIOCGIWRATE:	/*get default bit rate (bps) */
@@ -2735,8 +2733,8 @@ int Set_NetworkType_Proc(struct rt_rtmp_adapter *pAdapter, char *arg)
 			}
 			if (INFRA_ON(pAdapter)) {
 				/*BOOLEAN Cancelled; */
-				/* Set the AutoReconnectSsid to prevent it reconnect to old SSID */
-				/* Since calling this indicate user don't want to connect to that SSID anymore. */
+				/* Set the AutoReconnectSsid to prevent it from reconnecting to the old SSID */
+				/* Since calling this indicates users don't want to connect to that SSID anymore. */
 				pAdapter->MlmeAux.AutoReconnectSsidLen = 32;
 				NdisZeroMemory(pAdapter->MlmeAux.
 					       AutoReconnectSsid,
@@ -2769,8 +2767,8 @@ int Set_NetworkType_Proc(struct rt_rtmp_adapter *pAdapter, char *arg)
 				LinkDown(pAdapter, FALSE);
 			}
 			if (ADHOC_ON(pAdapter)) {
-				/* Set the AutoReconnectSsid to prevent it reconnect to old SSID */
-				/* Since calling this indicate user don't want to connect to that SSID anymore. */
+				/* Set the AutoReconnectSsid to prevent it from reconnecting to the old SSID */
+				/* Since calling this indicates users don't want to connect to that SSID anymore. */
 				pAdapter->MlmeAux.AutoReconnectSsidLen = 32;
 				NdisZeroMemory(pAdapter->MlmeAux.
 					       AutoReconnectSsid,
@@ -2887,7 +2885,7 @@ int Set_NetworkType_Proc(struct rt_rtmp_adapter *pAdapter, char *arg)
 		}
 		/* Enable Rx with promiscuous reception */
 		RTMP_IO_WRITE32(pAdapter, RX_FILTR_CFG, 0x3);
-		/* ASIC supporsts sniffer function with replacing RSSI with timestamp. */
+		/* ASIC supports sniffer function with replacing RSSI with timestamp. */
 		/*RTMP_IO_READ32(pAdapter, MAC_SYS_CTRL, &Value); */
 		/*Value |= (0x80); */
 		/*RTMP_IO_WRITE32(pAdapter, MAC_SYS_CTRL, Value); */

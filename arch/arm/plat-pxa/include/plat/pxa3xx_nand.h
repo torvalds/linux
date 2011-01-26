@@ -30,15 +30,15 @@ struct pxa3xx_nand_cmdset {
 };
 
 struct pxa3xx_nand_flash {
-	const struct pxa3xx_nand_timing *timing; /* NAND Flash timing */
-	const struct pxa3xx_nand_cmdset *cmdset;
+	uint32_t	chip_id;
+	unsigned int	page_per_block; /* Pages per block (PG_PER_BLK) */
+	unsigned int	page_size;	/* Page size in bytes (PAGE_SZ) */
+	unsigned int	flash_width;	/* Width of Flash memory (DWIDTH_M) */
+	unsigned int	dfc_width;	/* Width of flash controller(DWIDTH_C) */
+	unsigned int	num_blocks;	/* Number of physical blocks in Flash */
 
-	uint32_t page_per_block;/* Pages per block (PG_PER_BLK) */
-	uint32_t page_size;	/* Page size in bytes (PAGE_SZ) */
-	uint32_t flash_width;	/* Width of Flash memory (DWIDTH_M) */
-	uint32_t dfc_width;	/* Width of flash controller(DWIDTH_C) */
-	uint32_t num_blocks;	/* Number of physical blocks in Flash */
-	uint32_t chip_id;
+	struct pxa3xx_nand_cmdset *cmdset;	/* NAND command set */
+	struct pxa3xx_nand_timing *timing;	/* NAND Flash timing */
 };
 
 struct pxa3xx_nand_platform_data {

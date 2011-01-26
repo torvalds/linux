@@ -289,6 +289,7 @@ struct mv643xx_eth_shared_private {
 	unsigned int t_clk;
 	int extended_rx_coal_limit;
 	int tx_bw_control;
+	int tx_csum_limit;
 };
 
 #define TX_BW_CONTROL_ABSENT		0
@@ -776,13 +777,16 @@ static int txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 	l4i_chk = 0;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		int hdr_len;
 		int tag_bytes;
 
 		BUG_ON(skb->protocol != htons(ETH_P_IP) &&
 		       skb->protocol != htons(ETH_P_8021Q));
 
-		tag_bytes = (void *)ip_hdr(skb) - (void *)skb->data - ETH_HLEN;
-		if (unlikely(tag_bytes & ~12)) {
+		hdr_len = (void *)ip_hdr(skb) - (void *)skb->data;
+		tag_bytes = hdr_len - ETH_HLEN;
+		if (skb->len - hdr_len > mp->shared->tx_csum_limit ||
+		    unlikely(tag_bytes & ~12)) {
 			if (skb_checksum_help(skb) == 0)
 				goto no_csum;
 			kfree_skb(skb);
@@ -1510,11 +1514,6 @@ static int mv643xx_eth_nway_reset(struct net_device *dev)
 	return genphy_restart_aneg(mp->phy);
 }
 
-static u32 mv643xx_eth_get_link(struct net_device *dev)
-{
-	return !!netif_carrier_ok(dev);
-}
-
 static int
 mv643xx_eth_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 {
@@ -1636,6 +1635,11 @@ static void mv643xx_eth_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
+static int mv643xx_eth_set_flags(struct net_device *dev, u32 data)
+{
+	return ethtool_op_set_flags(dev, data, ETH_FLAG_LRO);
+}
+
 static int mv643xx_eth_get_sset_count(struct net_device *dev, int sset)
 {
 	if (sset == ETH_SS_STATS)
@@ -1649,7 +1653,7 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.set_settings		= mv643xx_eth_set_settings,
 	.get_drvinfo		= mv643xx_eth_get_drvinfo,
 	.nway_reset		= mv643xx_eth_nway_reset,
-	.get_link		= mv643xx_eth_get_link,
+	.get_link		= ethtool_op_get_link,
 	.get_coalesce		= mv643xx_eth_get_coalesce,
 	.set_coalesce		= mv643xx_eth_set_coalesce,
 	.get_ringparam		= mv643xx_eth_get_ringparam,
@@ -1661,7 +1665,7 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.get_strings		= mv643xx_eth_get_strings,
 	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
 	.get_flags		= ethtool_op_get_flags,
-	.set_flags		= ethtool_op_set_flags,
+	.set_flags		= mv643xx_eth_set_flags,
 	.get_sset_count		= mv643xx_eth_get_sset_count,
 };
 
@@ -2452,7 +2456,7 @@ static int mv643xx_eth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	if (mp->phy != NULL)
-		return phy_mii_ioctl(mp->phy, if_mii(ifr), cmd);
+		return phy_mii_ioctl(mp->phy, ifr, cmd);
 
 	return -EOPNOTSUPP;
 }
@@ -2666,6 +2670,8 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	 * Detect hardware parameters.
 	 */
 	msp->t_clk = (pd != NULL && pd->t_clk != 0) ? pd->t_clk : 133000000;
+	msp->tx_csum_limit = (pd != NULL && pd->tx_csum_limit) ?
+					pd->tx_csum_limit : 9 * 1024;
 	infer_hw_params(msp);
 
 	platform_set_drvdata(pdev, msp);
@@ -2890,7 +2896,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	mp->dev = dev;
 
 	set_params(mp, pd);
-	dev->real_num_tx_queues = mp->txq_count;
+	netif_set_real_num_tx_queues(dev, mp->txq_count);
+	netif_set_real_num_rx_queues(dev, mp->rxq_count);
 
 	if (pd->phy_addr != MV643XX_ETH_PHY_NONE)
 		mp->phy = phy_scan(mp, pd->phy_addr);
@@ -2971,7 +2978,7 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 	unregister_netdev(mp->dev);
 	if (mp->phy != NULL)
 		phy_detach(mp->phy);
-	flush_scheduled_work();
+	cancel_work_sync(&mp->tx_timeout_task);
 	free_netdev(mp->dev);
 
 	platform_set_drvdata(pdev, NULL);

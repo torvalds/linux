@@ -52,7 +52,6 @@
 #include <linux/interrupt.h>
 #include <linux/serial.h>
 #include <linux/serialP.h>
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/fcntl.h>
 #include <linux/ptrace.h>
@@ -1505,7 +1504,7 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 	printk("cy_ioctl %s, cmd = %x arg = %lx\n", tty->name, cmd, arg);	/* */
 #endif
 
-	lock_kernel();
+	tty_lock();
 
 	switch (cmd) {
 	case CYGETMON:
@@ -1561,7 +1560,7 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 	default:
 		ret_val = -ENOIOCTLCMD;
 	}
-	unlock_kernel();
+	tty_unlock();
 
 #ifdef SERIAL_DEBUG_OTHER
 	printk("cy_ioctl done\n");
@@ -1786,7 +1785,9 @@ block_til_ready(struct tty_struct *tty, struct file *filp,
 		       tty->name, info->count);
 		/**/
 #endif
-		    schedule();
+		tty_unlock();
+		schedule();
+		tty_lock();
 	}
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&info->open_wait, &wait);

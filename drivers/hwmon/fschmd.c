@@ -38,7 +38,6 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/smp_lock.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
@@ -850,7 +849,7 @@ static ssize_t watchdog_write(struct file *filp, const char __user *buf,
 
 static long watchdog_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	static struct watchdog_info ident = {
+	struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT |
 				WDIOF_CARDRESET,
 		.identity = "FSC watchdog"
@@ -858,7 +857,6 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 	int i, ret = 0;
 	struct fschmd_data *data = filp->private_data;
 
-	lock_kernel();
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
 		ident.firmware_version = data->revision;
@@ -915,7 +913,6 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 	default:
 		ret = -ENOTTY;
 	}
-	unlock_kernel();
 	return ret;
 }
 

@@ -449,14 +449,9 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 
 	/* uprog.len is unsigned short, so no overflow here */
 	len = uprog.len * sizeof(struct sock_filter);
-	code = kmalloc(len, GFP_KERNEL);
-	if (code == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(code, uprog.filter, len)) {
-		kfree(code);
-		return -EFAULT;
-	}
+	code = memdup_user(uprog.filter, len);
+	if (IS_ERR(code))
+		return PTR_ERR(code);
 
 	err = sk_chk_filter(code, uprog.len);
 	if (err) {
@@ -482,7 +477,7 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 	struct isdn_ppp_comp_data data;
 	void __user *argp = (void __user *)arg;
 
-	is = (struct ippp_struct *) file->private_data;
+	is = file->private_data;
 	lp = is->lp;
 
 	if (is->debug & 0x1)
@@ -1152,15 +1147,14 @@ isdn_ppp_push_higher(isdn_net_dev * net_dev, isdn_net_local * lp, struct sk_buff
 	}
 
 	if (is->pass_filter
-	    && sk_run_filter(skb, is->pass_filter, is->pass_len) == 0) {
+	    && sk_run_filter(skb, is->pass_filter) == 0) {
 		if (is->debug & 0x2)
 			printk(KERN_DEBUG "IPPP: inbound frame filtered.\n");
 		kfree_skb(skb);
 		return;
 	}
 	if (!(is->active_filter
-	      && sk_run_filter(skb, is->active_filter,
-	                       is->active_len) == 0)) {
+	      && sk_run_filter(skb, is->active_filter) == 0)) {
 		if (is->debug & 0x2)
 			printk(KERN_DEBUG "IPPP: link-active filter: reseting huptimer.\n");
 		lp->huptimer = 0;
@@ -1226,7 +1220,7 @@ isdn_ppp_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct ippp_struct *ipt,*ipts;
 	int slot, retval = NETDEV_TX_OK;
 
-	mlp = (isdn_net_local *) netdev_priv(netdev);
+	mlp = netdev_priv(netdev);
 	nd = mlp->netdev;       /* get master lp */
 
 	slot = mlp->ppp_slot;
@@ -1299,15 +1293,14 @@ isdn_ppp_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if (ipt->pass_filter
-	    && sk_run_filter(skb, ipt->pass_filter, ipt->pass_len) == 0) {
+	    && sk_run_filter(skb, ipt->pass_filter) == 0) {
 		if (ipt->debug & 0x4)
 			printk(KERN_DEBUG "IPPP: outbound frame filtered.\n");
 		kfree_skb(skb);
 		goto unlock;
 	}
 	if (!(ipt->active_filter
-	      && sk_run_filter(skb, ipt->active_filter,
-		               ipt->active_len) == 0)) {
+	      && sk_run_filter(skb, ipt->active_filter) == 0)) {
 		if (ipt->debug & 0x4)
 			printk(KERN_DEBUG "IPPP: link-active filter: reseting huptimer.\n");
 		lp->huptimer = 0;
@@ -1497,9 +1490,9 @@ int isdn_ppp_autodial_filter(struct sk_buff *skb, isdn_net_local *lp)
 	}
 	
 	drop |= is->pass_filter
-	        && sk_run_filter(skb, is->pass_filter, is->pass_len) == 0;
+	        && sk_run_filter(skb, is->pass_filter) == 0;
 	drop |= is->active_filter
-	        && sk_run_filter(skb, is->active_filter, is->active_len) == 0;
+	        && sk_run_filter(skb, is->active_filter) == 0;
 	
 	skb_push(skb, IPPP_MAX_HEADER - 4);
 	return drop;
@@ -1990,7 +1983,7 @@ isdn_ppp_dev_ioctl_stats(int slot, struct ifreq *ifr, struct net_device *dev)
 {
 	struct ppp_stats __user *res = ifr->ifr_data;
 	struct ppp_stats t;
-	isdn_net_local *lp = (isdn_net_local *) netdev_priv(dev);
+	isdn_net_local *lp = netdev_priv(dev);
 
 	if (!access_ok(VERIFY_WRITE, res, sizeof(struct ppp_stats)))
 		return -EFAULT;
@@ -2029,7 +2022,7 @@ isdn_ppp_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	int error=0;
 	int len;
-	isdn_net_local *lp = (isdn_net_local *) netdev_priv(dev);
+	isdn_net_local *lp = netdev_priv(dev);
 
 
 	if (lp->p_encap != ISDN_NET_ENCAP_SYNCPPP)
@@ -2096,7 +2089,7 @@ isdn_ppp_dial_slave(char *name)
 
 	sdev = lp->slave;
 	while (sdev) {
-		isdn_net_local *mlp = (isdn_net_local *) netdev_priv(sdev);
+		isdn_net_local *mlp = netdev_priv(sdev);
 		if (!(mlp->flags & ISDN_NET_CONNECTED))
 			break;
 		sdev = mlp->slave;
@@ -2104,7 +2097,7 @@ isdn_ppp_dial_slave(char *name)
 	if (!sdev)
 		return 2;
 
-	isdn_net_dial_req((isdn_net_local *) netdev_priv(sdev));
+	isdn_net_dial_req(netdev_priv(sdev));
 	return 0;
 #else
 	return -1;
@@ -2127,7 +2120,7 @@ isdn_ppp_hangup_slave(char *name)
 
 	sdev = lp->slave;
 	while (sdev) {
-		isdn_net_local *mlp = (isdn_net_local *) netdev_priv(sdev);
+		isdn_net_local *mlp = netdev_priv(sdev);
 
 		if (mlp->slave) { /* find last connected link in chain */
 			isdn_net_local *nlp = ISDN_SLAVE_PRIV(mlp);

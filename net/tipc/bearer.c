@@ -36,17 +36,13 @@
 
 #include "core.h"
 #include "config.h"
-#include "dbg.h"
 #include "bearer.h"
-#include "link.h"
-#include "port.h"
 #include "discover.h"
-#include "bcast.h"
 
 #define MAX_ADDR_STR 32
 
 static struct media media_list[MAX_MEDIA];
-static u32 media_count = 0;
+static u32 media_count;
 
 struct bearer tipc_bearers[MAX_BEARERS];
 
@@ -63,7 +59,7 @@ static int media_name_valid(const char *name)
 	len = strlen(name);
 	if ((len + 1) > TIPC_MAX_MEDIA_NAME)
 		return 0;
-	return (strspn(name, tipc_alphabet) == len);
+	return strspn(name, tipc_alphabet) == len;
 }
 
 /**
@@ -167,7 +163,6 @@ int  tipc_register_media(u32 media_type,
 	m_ptr->priority = bearer_priority;
 	m_ptr->tolerance = link_tolerance;
 	m_ptr->window = send_window_limit;
-	dbg("Media <%s> registered\n", name);
 	res = 0;
 exit:
 	write_unlock_bh(&tipc_net_lock);
@@ -199,9 +194,8 @@ void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a)
 		unchar *addr = (unchar *)&a->dev_addr;
 
 		tipc_printf(pb, "UNKNOWN(%u)", media_type);
-		for (i = 0; i < (sizeof(*a) - sizeof(a->type)); i++) {
+		for (i = 0; i < (sizeof(*a) - sizeof(a->type)); i++)
 			tipc_printf(pb, "-%02x", addr[i]);
-		}
 	}
 }
 
@@ -256,7 +250,8 @@ static int bearer_name_validate(const char *name,
 	/* ensure all component parts of bearer name are present */
 
 	media_name = name_copy;
-	if ((if_name = strchr(media_name, ':')) == NULL)
+	if_name = strchr(media_name, ':');
+	if (if_name == NULL)
 		return 0;
 	*(if_name++) = 0;
 	media_len = if_name - media_name;
@@ -287,9 +282,6 @@ static struct bearer *bearer_find(const char *name)
 {
 	struct bearer *b_ptr;
 	u32 i;
-
-	if (tipc_mode != TIPC_NET_MODE)
-		return NULL;
 
 	for (i = 0, b_ptr = tipc_bearers; i < MAX_BEARERS; i++, b_ptr++) {
 		if (b_ptr->active && (!strcmp(b_ptr->publ.name, name)))
@@ -559,8 +551,6 @@ restart:
 	}
 
 	b_ptr = &tipc_bearers[bearer_id];
-	memset(b_ptr, 0, sizeof(struct bearer));
-
 	strcpy(b_ptr->publ.name, name);
 	res = m_ptr->enable_bearer(&b_ptr->publ);
 	if (res) {
@@ -630,44 +620,38 @@ int tipc_block_bearer(const char *name)
  * Note: This routine assumes caller holds tipc_net_lock.
  */
 
-static int bearer_disable(const char *name)
+static void bearer_disable(struct bearer *b_ptr)
 {
-	struct bearer *b_ptr;
 	struct link *l_ptr;
 	struct link *temp_l_ptr;
 
-	b_ptr = bearer_find(name);
-	if (!b_ptr) {
-		warn("Attempt to disable unknown bearer <%s>\n", name);
-		return -EINVAL;
-	}
-
-	info("Disabling bearer <%s>\n", name);
+	info("Disabling bearer <%s>\n", b_ptr->publ.name);
 	tipc_disc_stop_link_req(b_ptr->link_req);
 	spin_lock_bh(&b_ptr->publ.lock);
 	b_ptr->link_req = NULL;
 	b_ptr->publ.blocked = 1;
-	if (b_ptr->media->disable_bearer) {
-		spin_unlock_bh(&b_ptr->publ.lock);
-		write_unlock_bh(&tipc_net_lock);
-		b_ptr->media->disable_bearer(&b_ptr->publ);
-		write_lock_bh(&tipc_net_lock);
-		spin_lock_bh(&b_ptr->publ.lock);
-	}
+	b_ptr->media->disable_bearer(&b_ptr->publ);
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
 		tipc_link_delete(l_ptr);
 	}
 	spin_unlock_bh(&b_ptr->publ.lock);
 	memset(b_ptr, 0, sizeof(struct bearer));
-	return 0;
 }
 
 int tipc_disable_bearer(const char *name)
 {
+	struct bearer *b_ptr;
 	int res;
 
 	write_lock_bh(&tipc_net_lock);
-	res = bearer_disable(name);
+	b_ptr = bearer_find(name);
+	if (b_ptr == NULL) {
+		warn("Attempt to disable unknown bearer <%s>\n", name);
+		res = -EINVAL;
+	} else {
+		bearer_disable(b_ptr);
+		res = 0;
+	}
 	write_unlock_bh(&tipc_net_lock);
 	return res;
 }
@@ -680,13 +664,7 @@ void tipc_bearer_stop(void)
 
 	for (i = 0; i < MAX_BEARERS; i++) {
 		if (tipc_bearers[i].active)
-			tipc_bearers[i].publ.blocked = 1;
-	}
-	for (i = 0; i < MAX_BEARERS; i++) {
-		if (tipc_bearers[i].active)
-			bearer_disable(tipc_bearers[i].publ.name);
+			bearer_disable(&tipc_bearers[i]);
 	}
 	media_count = 0;
 }
-
-

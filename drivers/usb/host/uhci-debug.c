@@ -12,12 +12,10 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/debugfs.h>
-#include <linux/smp_lock.h>
 #include <asm/io.h>
 
 #include "uhci-hcd.h"
 
-#define uhci_debug_operations (* (const struct file_operations *) NULL)
 static struct dentry *uhci_debugfs_root;
 
 #ifdef DEBUG
@@ -495,18 +493,16 @@ static int uhci_debug_open(struct inode *inode, struct file *file)
 {
 	struct uhci_hcd *uhci = inode->i_private;
 	struct uhci_debug *up;
-	int ret = -ENOMEM;
 	unsigned long flags;
 
-	lock_kernel();
 	up = kmalloc(sizeof(*up), GFP_KERNEL);
 	if (!up)
-		goto out;
+		return -ENOMEM;
 
 	up->data = kmalloc(MAX_OUTPUT, GFP_KERNEL);
 	if (!up->data) {
 		kfree(up);
-		goto out;
+		return -ENOMEM;
 	}
 
 	up->size = 0;
@@ -517,10 +513,7 @@ static int uhci_debug_open(struct inode *inode, struct file *file)
 
 	file->private_data = up;
 
-	ret = 0;
-out:
-	unlock_kernel();
-	return ret;
+	return 0;
 }
 
 static loff_t uhci_debug_lseek(struct file *file, loff_t off, int whence)
@@ -528,9 +521,9 @@ static loff_t uhci_debug_lseek(struct file *file, loff_t off, int whence)
 	struct uhci_debug *up;
 	loff_t new = -1;
 
-	lock_kernel();
 	up = file->private_data;
 
+	/* XXX: atomic 64bit seek access, but that needs to be fixed in the VFS */
 	switch (whence) {
 	case 0:
 		new = off;
@@ -539,11 +532,10 @@ static loff_t uhci_debug_lseek(struct file *file, loff_t off, int whence)
 		new = file->f_pos + off;
 		break;
 	}
-	if (new < 0 || new > up->size) {
-		unlock_kernel();
+
+	if (new < 0 || new > up->size)
 		return -EINVAL;
-	}
-	unlock_kernel();
+
 	return (file->f_pos = new);
 }
 
@@ -564,7 +556,6 @@ static int uhci_debug_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#undef uhci_debug_operations
 static const struct file_operations uhci_debug_operations = {
 	.owner =	THIS_MODULE,
 	.open =		uhci_debug_open,
@@ -572,6 +563,7 @@ static const struct file_operations uhci_debug_operations = {
 	.read =		uhci_debug_read,
 	.release =	uhci_debug_release,
 };
+#define UHCI_DEBUG_OPS
 
 #endif	/* CONFIG_DEBUG_FS */
 

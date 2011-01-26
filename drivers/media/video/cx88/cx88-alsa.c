@@ -54,6 +54,12 @@
 	Data type declarations - Can be moded to a header file later
  ****************************************************************************/
 
+struct cx88_audio_buffer {
+	unsigned int               bpl;
+	struct btcx_riscmem        risc;
+	struct videobuf_dmabuf     dma;
+};
+
 struct cx88_audio_dev {
 	struct cx88_core           *core;
 	struct cx88_dmaqueue       q;
@@ -75,7 +81,7 @@ struct cx88_audio_dev {
 
 	struct videobuf_dmabuf     *dma_risc;
 
-	struct cx88_buffer	   *buf;
+	struct cx88_audio_buffer   *buf;
 
 	struct snd_pcm_substream   *substream;
 };
@@ -88,7 +94,7 @@ typedef struct cx88_audio_dev snd_cx88_card_t;
  ****************************************************************************/
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
-static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
+static const char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 1};
 
 module_param_array(enable, bool, NULL, 0444);
@@ -123,9 +129,9 @@ MODULE_PARM_DESC(debug,"enable debug messages");
 
 static int _cx88_start_audio_dma(snd_cx88_card_t *chip)
 {
-	struct cx88_buffer   *buf = chip->buf;
+	struct cx88_audio_buffer *buf = chip->buf;
 	struct cx88_core *core=chip->core;
-	struct sram_channel *audio_ch = &cx88_sram_channels[SRAM_CH25];
+	const struct sram_channel *audio_ch = &cx88_sram_channels[SRAM_CH25];
 
 	/* Make sure RISC/FIFO are off before changing FIFO/RISC settings */
 	cx_clear(MO_AUD_DMACNTRL, 0x11);
@@ -191,7 +197,7 @@ static int _cx88_stop_audio_dma(snd_cx88_card_t *chip)
 /*
  * BOARD Specific: IRQ dma bits
  */
-static char *cx88_aud_irqs[32] = {
+static const char *cx88_aud_irqs[32] = {
 	"dn_risci1", "up_risci1", "rds_dn_risc1", /* 0-2 */
 	NULL,					  /* reserved */
 	"dn_risci2", "up_risci2", "rds_dn_risc2", /* 4-6 */
@@ -283,7 +289,7 @@ static int dsp_buffer_free(snd_cx88_card_t *chip)
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2,"Freeing buffer\n");
-	videobuf_sg_dma_unmap(&chip->pci->dev, chip->dma_risc);
+	videobuf_dma_unmap(&chip->pci->dev, chip->dma_risc);
 	videobuf_dma_free(chip->dma_risc);
 	btcx_riscmem_free(chip->pci,&chip->buf->risc);
 	kfree(chip->buf);
@@ -302,7 +308,7 @@ static int dsp_buffer_free(snd_cx88_card_t *chip)
  * Digital hardware definition
  */
 #define DEFAULT_FIFO_SIZE	4096
-static struct snd_pcm_hardware snd_cx88_digital_hw = {
+static const struct snd_pcm_hardware snd_cx88_digital_hw = {
 	.info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -376,7 +382,7 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
 	struct videobuf_dmabuf *dma;
 
-	struct cx88_buffer *buf;
+	struct cx88_audio_buffer *buf;
 	int ret;
 
 	if (substream->runtime->dma_area) {
@@ -391,30 +397,25 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 	BUG_ON(!chip->dma_size);
 	BUG_ON(chip->num_periods & (chip->num_periods-1));
 
-	buf = videobuf_sg_alloc(sizeof(*buf));
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (NULL == buf)
 		return -ENOMEM;
 
-	buf->vb.memory = V4L2_MEMORY_MMAP;
-	buf->vb.field  = V4L2_FIELD_NONE;
-	buf->vb.width  = chip->period_size;
-	buf->bpl       = chip->period_size;
-	buf->vb.height = chip->num_periods;
-	buf->vb.size   = chip->dma_size;
+	buf->bpl = chip->period_size;
 
-	dma = videobuf_to_dma(&buf->vb);
+	dma = &buf->dma;
 	videobuf_dma_init(dma);
 	ret = videobuf_dma_init_kernel(dma, PCI_DMA_FROMDEVICE,
-			(PAGE_ALIGN(buf->vb.size) >> PAGE_SHIFT));
+			(PAGE_ALIGN(chip->dma_size) >> PAGE_SHIFT));
 	if (ret < 0)
 		goto error;
 
-	ret = videobuf_sg_dma_map(&chip->pci->dev, dma);
+	ret = videobuf_dma_map(&chip->pci->dev, dma);
 	if (ret < 0)
 		goto error;
 
 	ret = cx88_risc_databuffer(chip->pci, &buf->risc, dma->sglist,
-				   buf->vb.width, buf->vb.height, 1);
+				   chip->period_size, chip->num_periods, 1);
 	if (ret < 0)
 		goto error;
 
@@ -422,12 +423,10 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 	buf->risc.jmp[0] = cpu_to_le32(RISC_JUMP|RISC_IRQ1|RISC_CNT_INC);
 	buf->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 
-	buf->vb.state = VIDEOBUF_PREPARED;
-
 	chip->buf = buf;
 	chip->dma_risc = dma;
 
-	substream->runtime->dma_area = chip->dma_risc->vmalloc;
+	substream->runtime->dma_area = chip->dma_risc->vaddr;
 	substream->runtime->dma_bytes = chip->dma_size;
 	substream->runtime->dma_addr = 0;
 	return 0;
@@ -534,7 +533,7 @@ static struct snd_pcm_ops snd_cx88_pcm_ops = {
 /*
  * create a PCM device
  */
-static int __devinit snd_cx88_pcm(snd_cx88_card_t *chip, int device, char *name)
+static int __devinit snd_cx88_pcm(snd_cx88_card_t *chip, int device, const char *name)
 {
 	int err;
 	struct snd_pcm *pcm;
@@ -615,7 +614,7 @@ static int snd_cx88_volume_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(snd_cx88_db_scale, -6300, 100, 0);
 
-static struct snd_kcontrol_new snd_cx88_volume = {
+static const struct snd_kcontrol_new snd_cx88_volume = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
@@ -657,7 +656,7 @@ static int snd_cx88_switch_put(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
-static struct snd_kcontrol_new snd_cx88_dac_switch = {
+static const struct snd_kcontrol_new snd_cx88_dac_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Playback Switch",
 	.info = snd_ctl_boolean_mono_info,
@@ -666,7 +665,7 @@ static struct snd_kcontrol_new snd_cx88_dac_switch = {
 	.private_value = (1<<8),
 };
 
-static struct snd_kcontrol_new snd_cx88_source_switch = {
+static const struct snd_kcontrol_new snd_cx88_source_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Switch",
 	.info = snd_ctl_boolean_mono_info,
@@ -684,7 +683,7 @@ static struct snd_kcontrol_new snd_cx88_source_switch = {
  * Only boards with eeprom and byte 1 at eeprom=1 have it
  */
 
-static struct pci_device_id cx88_audio_pci_tbl[] __devinitdata = {
+static const struct pci_device_id const cx88_audio_pci_tbl[] __devinitdata = {
 	{0x14f1,0x8801,PCI_ANY_ID,PCI_ANY_ID,0,0,0},
 	{0x14f1,0x8811,PCI_ANY_ID,PCI_ANY_ID,0,0,0},
 	{0, }
@@ -740,7 +739,7 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 
 	pci_set_master(pci);
 
-	chip = (snd_cx88_card_t *) card->private_data;
+	chip = card->private_data;
 
 	core = cx88_core_get(pci);
 	if (NULL == core) {

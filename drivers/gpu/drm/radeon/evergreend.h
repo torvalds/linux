@@ -164,17 +164,26 @@
 #define		SE_SC_BUSY					(1 << 29)
 #define		SE_DB_BUSY					(1 << 30)
 #define		SE_CB_BUSY					(1 << 31)
+/* evergreen */
+#define	CG_MULT_THERMAL_STATUS				0x740
+#define		ASIC_T(x)			        ((x) << 16)
+#define		ASIC_T_MASK			        0x7FF0000
+#define		ASIC_T_SHIFT			        16
+/* APU */
+#define	CG_THERMAL_STATUS			        0x678
 
 #define	HDP_HOST_PATH_CNTL				0x2C00
 #define	HDP_NONSURFACE_BASE				0x2C04
 #define	HDP_NONSURFACE_INFO				0x2C08
 #define	HDP_NONSURFACE_SIZE				0x2C0C
+#define HDP_MEM_COHERENCY_FLUSH_CNTL			0x5480
 #define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 #define	HDP_TILING_CONFIG				0x2F3C
 
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x00003000
+#define MC_SHARED_CHREMAP					0x2008
 
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0
@@ -194,6 +203,7 @@
 #define	MC_VM_AGP_BOT					0x202C
 #define	MC_VM_AGP_BASE					0x2030
 #define	MC_VM_FB_LOCATION				0x2024
+#define	MC_FUS_VM_FB_OFFSET				0x2898
 #define	MC_VM_MB_L1_TLB0_CNTL				0x2234
 #define	MC_VM_MB_L1_TLB1_CNTL				0x2238
 #define	MC_VM_MB_L1_TLB2_CNTL				0x223C
@@ -218,6 +228,8 @@
 #define		CLIP_VTX_REORDER_ENA				(1 << 0)
 #define		NUM_CLIP_SEQ(x)					((x) << 1)
 #define PA_SC_AA_CONFIG					0x28C04
+#define         MSAA_NUM_SAMPLES_SHIFT                  0
+#define         MSAA_NUM_SAMPLES_MASK                   0x3
 #define PA_SC_CLIPRECT_RULE				0x2820C
 #define	PA_SC_EDGERULE					0x28230
 #define	PA_SC_FIFO_SIZE					0x8BCC
@@ -341,6 +353,9 @@
 #define		SYNC_WALKER					(1 << 25)
 #define		SYNC_ALIGNER					(1 << 26)
 
+#define	TCP_CHAN_STEER_LO				0x960c
+#define	TCP_CHAN_STEER_HI				0x9610
+
 #define	VGT_CACHE_INVALIDATION				0x88C4
 #define		CACHE_INVALIDATION(x)				((x) << 0)
 #define			VC_ONLY						0
@@ -404,6 +419,19 @@
 #define		SOFT_RESET_TST				(1 << 21)
 #define		SOFT_RESET_REGBB		       	(1 << 22)
 #define		SOFT_RESET_ORB				(1 << 23)
+
+/* display watermarks */
+#define	DC_LB_MEMORY_SPLIT				  0x6b0c
+#define	PRIORITY_A_CNT			                  0x6b18
+#define		PRIORITY_MARK_MASK			  0x7fff
+#define		PRIORITY_OFF				  (1 << 16)
+#define		PRIORITY_ALWAYS_ON			  (1 << 20)
+#define	PRIORITY_B_CNT			                  0x6b1c
+#define	PIPE0_ARBITRATION_CONTROL3			  0x0bf0
+#       define LATENCY_WATERMARK_MASK(x)                  ((x) << 16)
+#define	PIPE0_LATENCY_CONTROL			          0x0bf4
+#       define LATENCY_LOW_WATERMARK(x)                   ((x) << 0)
+#       define LATENCY_HIGH_WATERMARK(x)                  ((x) << 16)
 
 #define IH_RB_CNTL                                        0x3e00
 #       define IH_RB_ENABLE                               (1 << 0)
@@ -552,5 +580,515 @@
 #       define DC_HPDx_CONNECTION_TIMER(x)                ((x) << 0)
 #       define DC_HPDx_RX_INT_TIMER(x)                    ((x) << 16)
 #       define DC_HPDx_EN                                 (1 << 28)
+
+/* PCIE link stuff */
+#define PCIE_LC_TRAINING_CNTL                             0xa1 /* PCIE_P */
+#define PCIE_LC_LINK_WIDTH_CNTL                           0xa2 /* PCIE_P */
+#       define LC_LINK_WIDTH_SHIFT                        0
+#       define LC_LINK_WIDTH_MASK                         0x7
+#       define LC_LINK_WIDTH_X0                           0
+#       define LC_LINK_WIDTH_X1                           1
+#       define LC_LINK_WIDTH_X2                           2
+#       define LC_LINK_WIDTH_X4                           3
+#       define LC_LINK_WIDTH_X8                           4
+#       define LC_LINK_WIDTH_X16                          6
+#       define LC_LINK_WIDTH_RD_SHIFT                     4
+#       define LC_LINK_WIDTH_RD_MASK                      0x70
+#       define LC_RECONFIG_ARC_MISSING_ESCAPE             (1 << 7)
+#       define LC_RECONFIG_NOW                            (1 << 8)
+#       define LC_RENEGOTIATION_SUPPORT                   (1 << 9)
+#       define LC_RENEGOTIATE_EN                          (1 << 10)
+#       define LC_SHORT_RECONFIG_EN                       (1 << 11)
+#       define LC_UPCONFIGURE_SUPPORT                     (1 << 12)
+#       define LC_UPCONFIGURE_DIS                         (1 << 13)
+#define PCIE_LC_SPEED_CNTL                                0xa4 /* PCIE_P */
+#       define LC_GEN2_EN_STRAP                           (1 << 0)
+#       define LC_TARGET_LINK_SPEED_OVERRIDE_EN           (1 << 1)
+#       define LC_FORCE_EN_HW_SPEED_CHANGE                (1 << 5)
+#       define LC_FORCE_DIS_HW_SPEED_CHANGE               (1 << 6)
+#       define LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_MASK      (0x3 << 8)
+#       define LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_SHIFT     3
+#       define LC_CURRENT_DATA_RATE                       (1 << 11)
+#       define LC_VOLTAGE_TIMER_SEL_MASK                  (0xf << 14)
+#       define LC_CLR_FAILED_SPD_CHANGE_CNT               (1 << 21)
+#       define LC_OTHER_SIDE_EVER_SENT_GEN2               (1 << 23)
+#       define LC_OTHER_SIDE_SUPPORTS_GEN2                (1 << 24)
+#define MM_CFGREGS_CNTL                                   0x544c
+#       define MM_WR_TO_CFG_EN                            (1 << 3)
+#define LINK_CNTL2                                        0x88 /* F0 */
+#       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
+#       define SELECTABLE_DEEMPHASIS                      (1 << 6)
+
+/*
+ * PM4
+ */
+#define	PACKET_TYPE0	0
+#define	PACKET_TYPE1	1
+#define	PACKET_TYPE2	2
+#define	PACKET_TYPE3	3
+
+#define CP_PACKET_GET_TYPE(h) (((h) >> 30) & 3)
+#define CP_PACKET_GET_COUNT(h) (((h) >> 16) & 0x3FFF)
+#define CP_PACKET0_GET_REG(h) (((h) & 0xFFFF) << 2)
+#define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
+#define PACKET0(reg, n)	((PACKET_TYPE0 << 30) |				\
+			 (((reg) >> 2) & 0xFFFF) |			\
+			 ((n) & 0x3FFF) << 16)
+#define CP_PACKET2			0x80000000
+#define		PACKET2_PAD_SHIFT		0
+#define		PACKET2_PAD_MASK		(0x3fffffff << 0)
+
+#define PACKET2(v)	(CP_PACKET2 | REG_SET(PACKET2_PAD, (v)))
+
+#define PACKET3(op, n)	((PACKET_TYPE3 << 30) |				\
+			 (((op) & 0xFF) << 8) |				\
+			 ((n) & 0x3FFF) << 16)
+
+/* Packet 3 types */
+#define	PACKET3_NOP					0x10
+#define	PACKET3_SET_BASE				0x11
+#define	PACKET3_CLEAR_STATE				0x12
+#define	PACKET3_INDEX_BUFFER_SIZE			0x13
+#define	PACKET3_DISPATCH_DIRECT				0x15
+#define	PACKET3_DISPATCH_INDIRECT			0x16
+#define	PACKET3_INDIRECT_BUFFER_END			0x17
+#define	PACKET3_SET_PREDICATION				0x20
+#define	PACKET3_REG_RMW					0x21
+#define	PACKET3_COND_EXEC				0x22
+#define	PACKET3_PRED_EXEC				0x23
+#define	PACKET3_DRAW_INDIRECT				0x24
+#define	PACKET3_DRAW_INDEX_INDIRECT			0x25
+#define	PACKET3_INDEX_BASE				0x26
+#define	PACKET3_DRAW_INDEX_2				0x27
+#define	PACKET3_CONTEXT_CONTROL				0x28
+#define	PACKET3_DRAW_INDEX_OFFSET			0x29
+#define	PACKET3_INDEX_TYPE				0x2A
+#define	PACKET3_DRAW_INDEX				0x2B
+#define	PACKET3_DRAW_INDEX_AUTO				0x2D
+#define	PACKET3_DRAW_INDEX_IMMD				0x2E
+#define	PACKET3_NUM_INSTANCES				0x2F
+#define	PACKET3_DRAW_INDEX_MULTI_AUTO			0x30
+#define	PACKET3_STRMOUT_BUFFER_UPDATE			0x34
+#define	PACKET3_DRAW_INDEX_OFFSET_2			0x35
+#define	PACKET3_DRAW_INDEX_MULTI_ELEMENT		0x36
+#define	PACKET3_MEM_SEMAPHORE				0x39
+#define	PACKET3_MPEG_INDEX				0x3A
+#define	PACKET3_WAIT_REG_MEM				0x3C
+#define	PACKET3_MEM_WRITE				0x3D
+#define	PACKET3_INDIRECT_BUFFER				0x32
+#define	PACKET3_SURFACE_SYNC				0x43
+#              define PACKET3_CB0_DEST_BASE_ENA    (1 << 6)
+#              define PACKET3_CB1_DEST_BASE_ENA    (1 << 7)
+#              define PACKET3_CB2_DEST_BASE_ENA    (1 << 8)
+#              define PACKET3_CB3_DEST_BASE_ENA    (1 << 9)
+#              define PACKET3_CB4_DEST_BASE_ENA    (1 << 10)
+#              define PACKET3_CB5_DEST_BASE_ENA    (1 << 11)
+#              define PACKET3_CB6_DEST_BASE_ENA    (1 << 12)
+#              define PACKET3_CB7_DEST_BASE_ENA    (1 << 13)
+#              define PACKET3_DB_DEST_BASE_ENA     (1 << 14)
+#              define PACKET3_CB8_DEST_BASE_ENA    (1 << 15)
+#              define PACKET3_CB9_DEST_BASE_ENA    (1 << 16)
+#              define PACKET3_CB10_DEST_BASE_ENA   (1 << 17)
+#              define PACKET3_CB11_DEST_BASE_ENA   (1 << 18)
+#              define PACKET3_FULL_CACHE_ENA       (1 << 20)
+#              define PACKET3_TC_ACTION_ENA        (1 << 23)
+#              define PACKET3_VC_ACTION_ENA        (1 << 24)
+#              define PACKET3_CB_ACTION_ENA        (1 << 25)
+#              define PACKET3_DB_ACTION_ENA        (1 << 26)
+#              define PACKET3_SH_ACTION_ENA        (1 << 27)
+#              define PACKET3_SX_ACTION_ENA        (1 << 28)
+#define	PACKET3_ME_INITIALIZE				0x44
+#define		PACKET3_ME_INITIALIZE_DEVICE_ID(x) ((x) << 16)
+#define	PACKET3_COND_WRITE				0x45
+#define	PACKET3_EVENT_WRITE				0x46
+#define	PACKET3_EVENT_WRITE_EOP				0x47
+#define	PACKET3_EVENT_WRITE_EOS				0x48
+#define	PACKET3_PREAMBLE_CNTL				0x4A
+#              define PACKET3_PREAMBLE_BEGIN_CLEAR_STATE     (2 << 28)
+#              define PACKET3_PREAMBLE_END_CLEAR_STATE       (3 << 28)
+#define	PACKET3_RB_OFFSET				0x4B
+#define	PACKET3_ALU_PS_CONST_BUFFER_COPY		0x4C
+#define	PACKET3_ALU_VS_CONST_BUFFER_COPY		0x4D
+#define	PACKET3_ALU_PS_CONST_UPDATE		        0x4E
+#define	PACKET3_ALU_VS_CONST_UPDATE		        0x4F
+#define	PACKET3_ONE_REG_WRITE				0x57
+#define	PACKET3_SET_CONFIG_REG				0x68
+#define		PACKET3_SET_CONFIG_REG_START			0x00008000
+#define		PACKET3_SET_CONFIG_REG_END			0x0000ac00
+#define	PACKET3_SET_CONTEXT_REG				0x69
+#define		PACKET3_SET_CONTEXT_REG_START			0x00028000
+#define		PACKET3_SET_CONTEXT_REG_END			0x00029000
+#define	PACKET3_SET_ALU_CONST				0x6A
+/* alu const buffers only; no reg file */
+#define	PACKET3_SET_BOOL_CONST				0x6B
+#define		PACKET3_SET_BOOL_CONST_START			0x0003a500
+#define		PACKET3_SET_BOOL_CONST_END			0x0003a518
+#define	PACKET3_SET_LOOP_CONST				0x6C
+#define		PACKET3_SET_LOOP_CONST_START			0x0003a200
+#define		PACKET3_SET_LOOP_CONST_END			0x0003a500
+#define	PACKET3_SET_RESOURCE				0x6D
+#define		PACKET3_SET_RESOURCE_START			0x00030000
+#define		PACKET3_SET_RESOURCE_END			0x00038000
+#define	PACKET3_SET_SAMPLER				0x6E
+#define		PACKET3_SET_SAMPLER_START			0x0003c000
+#define		PACKET3_SET_SAMPLER_END				0x0003c600
+#define	PACKET3_SET_CTL_CONST				0x6F
+#define		PACKET3_SET_CTL_CONST_START			0x0003cff0
+#define		PACKET3_SET_CTL_CONST_END			0x0003ff0c
+#define	PACKET3_SET_RESOURCE_OFFSET			0x70
+#define	PACKET3_SET_ALU_CONST_VS			0x71
+#define	PACKET3_SET_ALU_CONST_DI			0x72
+#define	PACKET3_SET_CONTEXT_REG_INDIRECT		0x73
+#define	PACKET3_SET_RESOURCE_INDIRECT			0x74
+#define	PACKET3_SET_APPEND_CNT			        0x75
+
+#define	SQ_RESOURCE_CONSTANT_WORD7_0				0x3001c
+#define		S__SQ_CONSTANT_TYPE(x)			(((x) & 3) << 30)
+#define		G__SQ_CONSTANT_TYPE(x)			(((x) >> 30) & 3)
+#define			SQ_TEX_VTX_INVALID_TEXTURE			0x0
+#define			SQ_TEX_VTX_INVALID_BUFFER			0x1
+#define			SQ_TEX_VTX_VALID_TEXTURE			0x2
+#define			SQ_TEX_VTX_VALID_BUFFER				0x3
+
+#define SQ_CONST_MEM_BASE				0x8df8
+
+#define SQ_ESGS_RING_SIZE				0x8c44
+#define SQ_GSVS_RING_SIZE				0x8c4c
+#define SQ_ESTMP_RING_SIZE				0x8c54
+#define SQ_GSTMP_RING_SIZE				0x8c5c
+#define SQ_VSTMP_RING_SIZE				0x8c64
+#define SQ_PSTMP_RING_SIZE				0x8c6c
+#define SQ_LSTMP_RING_SIZE				0x8e14
+#define SQ_HSTMP_RING_SIZE				0x8e1c
+#define VGT_TF_RING_SIZE				0x8988
+
+#define SQ_ESGS_RING_ITEMSIZE				0x28900
+#define SQ_GSVS_RING_ITEMSIZE				0x28904
+#define SQ_ESTMP_RING_ITEMSIZE				0x28908
+#define SQ_GSTMP_RING_ITEMSIZE				0x2890c
+#define SQ_VSTMP_RING_ITEMSIZE				0x28910
+#define SQ_PSTMP_RING_ITEMSIZE				0x28914
+#define SQ_LSTMP_RING_ITEMSIZE				0x28830
+#define SQ_HSTMP_RING_ITEMSIZE				0x28834
+
+#define SQ_GS_VERT_ITEMSIZE				0x2891c
+#define SQ_GS_VERT_ITEMSIZE_1				0x28920
+#define SQ_GS_VERT_ITEMSIZE_2				0x28924
+#define SQ_GS_VERT_ITEMSIZE_3				0x28928
+#define SQ_GSVS_RING_OFFSET_1				0x2892c
+#define SQ_GSVS_RING_OFFSET_2				0x28930
+#define SQ_GSVS_RING_OFFSET_3				0x28934
+
+#define SQ_ALU_CONST_BUFFER_SIZE_PS_0			0x28140
+#define SQ_ALU_CONST_BUFFER_SIZE_HS_0			0x28f80
+
+#define SQ_ALU_CONST_CACHE_PS_0				0x28940
+#define SQ_ALU_CONST_CACHE_PS_1				0x28944
+#define SQ_ALU_CONST_CACHE_PS_2				0x28948
+#define SQ_ALU_CONST_CACHE_PS_3				0x2894c
+#define SQ_ALU_CONST_CACHE_PS_4				0x28950
+#define SQ_ALU_CONST_CACHE_PS_5				0x28954
+#define SQ_ALU_CONST_CACHE_PS_6				0x28958
+#define SQ_ALU_CONST_CACHE_PS_7				0x2895c
+#define SQ_ALU_CONST_CACHE_PS_8				0x28960
+#define SQ_ALU_CONST_CACHE_PS_9				0x28964
+#define SQ_ALU_CONST_CACHE_PS_10			0x28968
+#define SQ_ALU_CONST_CACHE_PS_11			0x2896c
+#define SQ_ALU_CONST_CACHE_PS_12			0x28970
+#define SQ_ALU_CONST_CACHE_PS_13			0x28974
+#define SQ_ALU_CONST_CACHE_PS_14			0x28978
+#define SQ_ALU_CONST_CACHE_PS_15			0x2897c
+#define SQ_ALU_CONST_CACHE_VS_0				0x28980
+#define SQ_ALU_CONST_CACHE_VS_1				0x28984
+#define SQ_ALU_CONST_CACHE_VS_2				0x28988
+#define SQ_ALU_CONST_CACHE_VS_3				0x2898c
+#define SQ_ALU_CONST_CACHE_VS_4				0x28990
+#define SQ_ALU_CONST_CACHE_VS_5				0x28994
+#define SQ_ALU_CONST_CACHE_VS_6				0x28998
+#define SQ_ALU_CONST_CACHE_VS_7				0x2899c
+#define SQ_ALU_CONST_CACHE_VS_8				0x289a0
+#define SQ_ALU_CONST_CACHE_VS_9				0x289a4
+#define SQ_ALU_CONST_CACHE_VS_10			0x289a8
+#define SQ_ALU_CONST_CACHE_VS_11			0x289ac
+#define SQ_ALU_CONST_CACHE_VS_12			0x289b0
+#define SQ_ALU_CONST_CACHE_VS_13			0x289b4
+#define SQ_ALU_CONST_CACHE_VS_14			0x289b8
+#define SQ_ALU_CONST_CACHE_VS_15			0x289bc
+#define SQ_ALU_CONST_CACHE_GS_0				0x289c0
+#define SQ_ALU_CONST_CACHE_GS_1				0x289c4
+#define SQ_ALU_CONST_CACHE_GS_2				0x289c8
+#define SQ_ALU_CONST_CACHE_GS_3				0x289cc
+#define SQ_ALU_CONST_CACHE_GS_4				0x289d0
+#define SQ_ALU_CONST_CACHE_GS_5				0x289d4
+#define SQ_ALU_CONST_CACHE_GS_6				0x289d8
+#define SQ_ALU_CONST_CACHE_GS_7				0x289dc
+#define SQ_ALU_CONST_CACHE_GS_8				0x289e0
+#define SQ_ALU_CONST_CACHE_GS_9				0x289e4
+#define SQ_ALU_CONST_CACHE_GS_10			0x289e8
+#define SQ_ALU_CONST_CACHE_GS_11			0x289ec
+#define SQ_ALU_CONST_CACHE_GS_12			0x289f0
+#define SQ_ALU_CONST_CACHE_GS_13			0x289f4
+#define SQ_ALU_CONST_CACHE_GS_14			0x289f8
+#define SQ_ALU_CONST_CACHE_GS_15			0x289fc
+#define SQ_ALU_CONST_CACHE_HS_0				0x28f00
+#define SQ_ALU_CONST_CACHE_HS_1				0x28f04
+#define SQ_ALU_CONST_CACHE_HS_2				0x28f08
+#define SQ_ALU_CONST_CACHE_HS_3				0x28f0c
+#define SQ_ALU_CONST_CACHE_HS_4				0x28f10
+#define SQ_ALU_CONST_CACHE_HS_5				0x28f14
+#define SQ_ALU_CONST_CACHE_HS_6				0x28f18
+#define SQ_ALU_CONST_CACHE_HS_7				0x28f1c
+#define SQ_ALU_CONST_CACHE_HS_8				0x28f20
+#define SQ_ALU_CONST_CACHE_HS_9				0x28f24
+#define SQ_ALU_CONST_CACHE_HS_10			0x28f28
+#define SQ_ALU_CONST_CACHE_HS_11			0x28f2c
+#define SQ_ALU_CONST_CACHE_HS_12			0x28f30
+#define SQ_ALU_CONST_CACHE_HS_13			0x28f34
+#define SQ_ALU_CONST_CACHE_HS_14			0x28f38
+#define SQ_ALU_CONST_CACHE_HS_15			0x28f3c
+#define SQ_ALU_CONST_CACHE_LS_0				0x28f40
+#define SQ_ALU_CONST_CACHE_LS_1				0x28f44
+#define SQ_ALU_CONST_CACHE_LS_2				0x28f48
+#define SQ_ALU_CONST_CACHE_LS_3				0x28f4c
+#define SQ_ALU_CONST_CACHE_LS_4				0x28f50
+#define SQ_ALU_CONST_CACHE_LS_5				0x28f54
+#define SQ_ALU_CONST_CACHE_LS_6				0x28f58
+#define SQ_ALU_CONST_CACHE_LS_7				0x28f5c
+#define SQ_ALU_CONST_CACHE_LS_8				0x28f60
+#define SQ_ALU_CONST_CACHE_LS_9				0x28f64
+#define SQ_ALU_CONST_CACHE_LS_10			0x28f68
+#define SQ_ALU_CONST_CACHE_LS_11			0x28f6c
+#define SQ_ALU_CONST_CACHE_LS_12			0x28f70
+#define SQ_ALU_CONST_CACHE_LS_13			0x28f74
+#define SQ_ALU_CONST_CACHE_LS_14			0x28f78
+#define SQ_ALU_CONST_CACHE_LS_15			0x28f7c
+
+#define PA_SC_SCREEN_SCISSOR_TL                         0x28030
+#define PA_SC_GENERIC_SCISSOR_TL                        0x28240
+#define PA_SC_WINDOW_SCISSOR_TL                         0x28204
+#define VGT_PRIMITIVE_TYPE                              0x8958
+
+#define DB_DEPTH_CONTROL				0x28800
+#define DB_DEPTH_VIEW					0x28008
+#define DB_HTILE_DATA_BASE				0x28014
+#define DB_Z_INFO					0x28040
+#       define Z_ARRAY_MODE(x)                          ((x) << 4)
+#define DB_STENCIL_INFO					0x28044
+#define DB_Z_READ_BASE					0x28048
+#define DB_STENCIL_READ_BASE				0x2804c
+#define DB_Z_WRITE_BASE					0x28050
+#define DB_STENCIL_WRITE_BASE				0x28054
+#define DB_DEPTH_SIZE					0x28058
+
+#define SQ_PGM_START_PS					0x28840
+#define SQ_PGM_START_VS					0x2885c
+#define SQ_PGM_START_GS					0x28874
+#define SQ_PGM_START_ES					0x2888c
+#define SQ_PGM_START_FS					0x288a4
+#define SQ_PGM_START_HS					0x288b8
+#define SQ_PGM_START_LS					0x288d0
+
+#define VGT_STRMOUT_CONFIG				0x28b94
+#define VGT_STRMOUT_BUFFER_CONFIG			0x28b98
+
+#define CB_TARGET_MASK					0x28238
+#define CB_SHADER_MASK					0x2823c
+
+#define GDS_ADDR_BASE					0x28720
+
+#define	CB_IMMED0_BASE					0x28b9c
+#define	CB_IMMED1_BASE					0x28ba0
+#define	CB_IMMED2_BASE					0x28ba4
+#define	CB_IMMED3_BASE					0x28ba8
+#define	CB_IMMED4_BASE					0x28bac
+#define	CB_IMMED5_BASE					0x28bb0
+#define	CB_IMMED6_BASE					0x28bb4
+#define	CB_IMMED7_BASE					0x28bb8
+#define	CB_IMMED8_BASE					0x28bbc
+#define	CB_IMMED9_BASE					0x28bc0
+#define	CB_IMMED10_BASE					0x28bc4
+#define	CB_IMMED11_BASE					0x28bc8
+
+/* all 12 CB blocks have these regs */
+#define	CB_COLOR0_BASE					0x28c60
+#define	CB_COLOR0_PITCH					0x28c64
+#define	CB_COLOR0_SLICE					0x28c68
+#define	CB_COLOR0_VIEW					0x28c6c
+#define	CB_COLOR0_INFO					0x28c70
+#       define CB_ARRAY_MODE(x)                         ((x) << 8)
+#       define ARRAY_LINEAR_GENERAL                     0
+#       define ARRAY_LINEAR_ALIGNED                     1
+#       define ARRAY_1D_TILED_THIN1                     2
+#       define ARRAY_2D_TILED_THIN1                     4
+#define	CB_COLOR0_ATTRIB				0x28c74
+#define	CB_COLOR0_DIM					0x28c78
+/* only CB0-7 blocks have these regs */
+#define	CB_COLOR0_CMASK					0x28c7c
+#define	CB_COLOR0_CMASK_SLICE				0x28c80
+#define	CB_COLOR0_FMASK					0x28c84
+#define	CB_COLOR0_FMASK_SLICE				0x28c88
+#define	CB_COLOR0_CLEAR_WORD0				0x28c8c
+#define	CB_COLOR0_CLEAR_WORD1				0x28c90
+#define	CB_COLOR0_CLEAR_WORD2				0x28c94
+#define	CB_COLOR0_CLEAR_WORD3				0x28c98
+
+#define	CB_COLOR1_BASE					0x28c9c
+#define	CB_COLOR2_BASE					0x28cd8
+#define	CB_COLOR3_BASE					0x28d14
+#define	CB_COLOR4_BASE					0x28d50
+#define	CB_COLOR5_BASE					0x28d8c
+#define	CB_COLOR6_BASE					0x28dc8
+#define	CB_COLOR7_BASE					0x28e04
+#define	CB_COLOR8_BASE					0x28e40
+#define	CB_COLOR9_BASE					0x28e5c
+#define	CB_COLOR10_BASE					0x28e78
+#define	CB_COLOR11_BASE					0x28e94
+
+#define	CB_COLOR1_PITCH					0x28ca0
+#define	CB_COLOR2_PITCH					0x28cdc
+#define	CB_COLOR3_PITCH					0x28d18
+#define	CB_COLOR4_PITCH					0x28d54
+#define	CB_COLOR5_PITCH					0x28d90
+#define	CB_COLOR6_PITCH					0x28dcc
+#define	CB_COLOR7_PITCH					0x28e08
+#define	CB_COLOR8_PITCH					0x28e44
+#define	CB_COLOR9_PITCH					0x28e60
+#define	CB_COLOR10_PITCH				0x28e7c
+#define	CB_COLOR11_PITCH				0x28e98
+
+#define	CB_COLOR1_SLICE					0x28ca4
+#define	CB_COLOR2_SLICE					0x28ce0
+#define	CB_COLOR3_SLICE					0x28d1c
+#define	CB_COLOR4_SLICE					0x28d58
+#define	CB_COLOR5_SLICE					0x28d94
+#define	CB_COLOR6_SLICE					0x28dd0
+#define	CB_COLOR7_SLICE					0x28e0c
+#define	CB_COLOR8_SLICE					0x28e48
+#define	CB_COLOR9_SLICE					0x28e64
+#define	CB_COLOR10_SLICE				0x28e80
+#define	CB_COLOR11_SLICE				0x28e9c
+
+#define	CB_COLOR1_VIEW					0x28ca8
+#define	CB_COLOR2_VIEW					0x28ce4
+#define	CB_COLOR3_VIEW					0x28d20
+#define	CB_COLOR4_VIEW					0x28d5c
+#define	CB_COLOR5_VIEW					0x28d98
+#define	CB_COLOR6_VIEW					0x28dd4
+#define	CB_COLOR7_VIEW					0x28e10
+#define	CB_COLOR8_VIEW					0x28e4c
+#define	CB_COLOR9_VIEW					0x28e68
+#define	CB_COLOR10_VIEW					0x28e84
+#define	CB_COLOR11_VIEW					0x28ea0
+
+#define	CB_COLOR1_INFO					0x28cac
+#define	CB_COLOR2_INFO					0x28ce8
+#define	CB_COLOR3_INFO					0x28d24
+#define	CB_COLOR4_INFO					0x28d60
+#define	CB_COLOR5_INFO					0x28d9c
+#define	CB_COLOR6_INFO					0x28dd8
+#define	CB_COLOR7_INFO					0x28e14
+#define	CB_COLOR8_INFO					0x28e50
+#define	CB_COLOR9_INFO					0x28e6c
+#define	CB_COLOR10_INFO					0x28e88
+#define	CB_COLOR11_INFO					0x28ea4
+
+#define	CB_COLOR1_ATTRIB				0x28cb0
+#define	CB_COLOR2_ATTRIB				0x28cec
+#define	CB_COLOR3_ATTRIB				0x28d28
+#define	CB_COLOR4_ATTRIB				0x28d64
+#define	CB_COLOR5_ATTRIB				0x28da0
+#define	CB_COLOR6_ATTRIB				0x28ddc
+#define	CB_COLOR7_ATTRIB				0x28e18
+#define	CB_COLOR8_ATTRIB				0x28e54
+#define	CB_COLOR9_ATTRIB				0x28e70
+#define	CB_COLOR10_ATTRIB				0x28e8c
+#define	CB_COLOR11_ATTRIB				0x28ea8
+
+#define	CB_COLOR1_DIM					0x28cb4
+#define	CB_COLOR2_DIM					0x28cf0
+#define	CB_COLOR3_DIM					0x28d2c
+#define	CB_COLOR4_DIM					0x28d68
+#define	CB_COLOR5_DIM					0x28da4
+#define	CB_COLOR6_DIM					0x28de0
+#define	CB_COLOR7_DIM					0x28e1c
+#define	CB_COLOR8_DIM					0x28e58
+#define	CB_COLOR9_DIM					0x28e74
+#define	CB_COLOR10_DIM					0x28e90
+#define	CB_COLOR11_DIM					0x28eac
+
+#define	CB_COLOR1_CMASK					0x28cb8
+#define	CB_COLOR2_CMASK					0x28cf4
+#define	CB_COLOR3_CMASK					0x28d30
+#define	CB_COLOR4_CMASK					0x28d6c
+#define	CB_COLOR5_CMASK					0x28da8
+#define	CB_COLOR6_CMASK					0x28de4
+#define	CB_COLOR7_CMASK					0x28e20
+
+#define	CB_COLOR1_CMASK_SLICE				0x28cbc
+#define	CB_COLOR2_CMASK_SLICE				0x28cf8
+#define	CB_COLOR3_CMASK_SLICE				0x28d34
+#define	CB_COLOR4_CMASK_SLICE				0x28d70
+#define	CB_COLOR5_CMASK_SLICE				0x28dac
+#define	CB_COLOR6_CMASK_SLICE				0x28de8
+#define	CB_COLOR7_CMASK_SLICE				0x28e24
+
+#define	CB_COLOR1_FMASK					0x28cc0
+#define	CB_COLOR2_FMASK					0x28cfc
+#define	CB_COLOR3_FMASK					0x28d38
+#define	CB_COLOR4_FMASK					0x28d74
+#define	CB_COLOR5_FMASK					0x28db0
+#define	CB_COLOR6_FMASK					0x28dec
+#define	CB_COLOR7_FMASK					0x28e28
+
+#define	CB_COLOR1_FMASK_SLICE				0x28cc4
+#define	CB_COLOR2_FMASK_SLICE				0x28d00
+#define	CB_COLOR3_FMASK_SLICE				0x28d3c
+#define	CB_COLOR4_FMASK_SLICE				0x28d78
+#define	CB_COLOR5_FMASK_SLICE				0x28db4
+#define	CB_COLOR6_FMASK_SLICE				0x28df0
+#define	CB_COLOR7_FMASK_SLICE				0x28e2c
+
+#define	CB_COLOR1_CLEAR_WORD0				0x28cc8
+#define	CB_COLOR2_CLEAR_WORD0				0x28d04
+#define	CB_COLOR3_CLEAR_WORD0				0x28d40
+#define	CB_COLOR4_CLEAR_WORD0				0x28d7c
+#define	CB_COLOR5_CLEAR_WORD0				0x28db8
+#define	CB_COLOR6_CLEAR_WORD0				0x28df4
+#define	CB_COLOR7_CLEAR_WORD0				0x28e30
+
+#define	CB_COLOR1_CLEAR_WORD1				0x28ccc
+#define	CB_COLOR2_CLEAR_WORD1				0x28d08
+#define	CB_COLOR3_CLEAR_WORD1				0x28d44
+#define	CB_COLOR4_CLEAR_WORD1				0x28d80
+#define	CB_COLOR5_CLEAR_WORD1				0x28dbc
+#define	CB_COLOR6_CLEAR_WORD1				0x28df8
+#define	CB_COLOR7_CLEAR_WORD1				0x28e34
+
+#define	CB_COLOR1_CLEAR_WORD2				0x28cd0
+#define	CB_COLOR2_CLEAR_WORD2				0x28d0c
+#define	CB_COLOR3_CLEAR_WORD2				0x28d48
+#define	CB_COLOR4_CLEAR_WORD2				0x28d84
+#define	CB_COLOR5_CLEAR_WORD2				0x28dc0
+#define	CB_COLOR6_CLEAR_WORD2				0x28dfc
+#define	CB_COLOR7_CLEAR_WORD2				0x28e38
+
+#define	CB_COLOR1_CLEAR_WORD3				0x28cd4
+#define	CB_COLOR2_CLEAR_WORD3				0x28d10
+#define	CB_COLOR3_CLEAR_WORD3				0x28d4c
+#define	CB_COLOR4_CLEAR_WORD3				0x28d88
+#define	CB_COLOR5_CLEAR_WORD3				0x28dc4
+#define	CB_COLOR6_CLEAR_WORD3				0x28e00
+#define	CB_COLOR7_CLEAR_WORD3				0x28e3c
+
+#define SQ_TEX_RESOURCE_WORD0_0                         0x30000
+#define SQ_TEX_RESOURCE_WORD1_0                         0x30004
+#       define TEX_ARRAY_MODE(x)                        ((x) << 28)
+#define SQ_TEX_RESOURCE_WORD2_0                         0x30008
+#define SQ_TEX_RESOURCE_WORD3_0                         0x3000C
+#define SQ_TEX_RESOURCE_WORD4_0                         0x30010
+#define SQ_TEX_RESOURCE_WORD5_0                         0x30014
+#define SQ_TEX_RESOURCE_WORD6_0                         0x30018
+#define SQ_TEX_RESOURCE_WORD7_0                         0x3001c
+
 
 #endif

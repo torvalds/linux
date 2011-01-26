@@ -704,7 +704,7 @@ static void __devexit qpti_chain_del(struct qlogicpti *qpti)
 
 static int __devinit qpti_map_regs(struct qlogicpti *qpti)
 {
-	struct of_device *op = qpti->op;
+	struct platform_device *op = qpti->op;
 
 	qpti->qregs = of_ioremap(&op->resource[0], 0,
 				 resource_size(&op->resource[0]),
@@ -727,9 +727,9 @@ static int __devinit qpti_map_regs(struct qlogicpti *qpti)
 
 static int __devinit qpti_register_irq(struct qlogicpti *qpti)
 {
-	struct of_device *op = qpti->op;
+	struct platform_device *op = qpti->op;
 
-	qpti->qhost->irq = qpti->irq = op->irqs[0];
+	qpti->qhost->irq = qpti->irq = op->archdata.irqs[0];
 
 	/* We used to try various overly-clever things to
 	 * reduce the interrupt processing overhead on
@@ -752,7 +752,7 @@ fail:
 
 static void __devinit qpti_get_scsi_id(struct qlogicpti *qpti)
 {
-	struct of_device *op = qpti->op;
+	struct platform_device *op = qpti->op;
 	struct device_node *dp;
 
 	dp = op->dev.of_node;
@@ -773,7 +773,7 @@ static void __devinit qpti_get_scsi_id(struct qlogicpti *qpti)
 
 static void qpti_get_bursts(struct qlogicpti *qpti)
 {
-	struct of_device *op = qpti->op;
+	struct platform_device *op = qpti->op;
 	u8 bursts, bmask;
 
 	bursts = of_getintprop_default(op->dev.of_node, "burst-sizes", 0xff);
@@ -806,7 +806,7 @@ static void qpti_get_clock(struct qlogicpti *qpti)
  */
 static int __devinit qpti_map_queues(struct qlogicpti *qpti)
 {
-	struct of_device *op = qpti->op;
+	struct platform_device *op = qpti->op;
 
 #define QSIZE(entries)	(((entries) + 1) * QUEUE_ENTRY_LEN)
 	qpti->res_cpu = dma_alloc_coherent(&op->dev,
@@ -1003,7 +1003,7 @@ static int qlogicpti_slave_configure(struct scsi_device *sdev)
  *
  * "This code must fly." -davem
  */
-static int qlogicpti_queuecommand(struct scsi_cmnd *Cmnd, void (*done)(struct scsi_cmnd *))
+static int qlogicpti_queuecommand_lck(struct scsi_cmnd *Cmnd, void (*done)(struct scsi_cmnd *))
 {
 	struct Scsi_Host *host = Cmnd->device->host;
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
@@ -1051,6 +1051,8 @@ toss_command:
 	done(Cmnd);
 	return 1;
 }
+
+static DEF_SCSI_QCMD(qlogicpti_queuecommand)
 
 static int qlogicpti_return_status(struct Status_Entry *sts, int id)
 {
@@ -1290,7 +1292,7 @@ static struct scsi_host_template qpti_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 };
 
-static int __devinit qpti_sbus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit qpti_sbus_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct scsi_host_template *tpnt = match->data;
 	struct device_node *dp = op->dev.of_node;
@@ -1302,7 +1304,7 @@ static int __devinit qpti_sbus_probe(struct of_device *op, const struct of_devic
 	/* Sometimes Antares cards come up not completely
 	 * setup, and we get a report of a zero IRQ.
 	 */
-	if (op->irqs[0] == 0)
+	if (op->archdata.irqs[0] == 0)
 		return -ENODEV;
 
 	host = scsi_host_alloc(tpnt, sizeof(struct qlogicpti));
@@ -1401,7 +1403,7 @@ fail_unlink:
 	return -ENODEV;
 }
 
-static int __devexit qpti_sbus_remove(struct of_device *op)
+static int __devexit qpti_sbus_remove(struct platform_device *op)
 {
 	struct qlogicpti *qpti = dev_get_drvdata(&op->dev);
 
@@ -1467,12 +1469,12 @@ static struct of_platform_driver qpti_sbus_driver = {
 
 static int __init qpti_init(void)
 {
-	return of_register_driver(&qpti_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&qpti_sbus_driver);
 }
 
 static void __exit qpti_exit(void)
 {
-	of_unregister_driver(&qpti_sbus_driver);
+	of_unregister_platform_driver(&qpti_sbus_driver);
 }
 
 MODULE_DESCRIPTION("QlogicISP SBUS driver");

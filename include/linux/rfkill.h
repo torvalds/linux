@@ -81,7 +81,7 @@ struct rfkill_event {
 	__u8  type;
 	__u8  op;
 	__u8  soft, hard;
-} __packed;
+} __attribute__((packed));
 
 /*
  * We are planning to be backward and forward compatible with changes
@@ -353,37 +353,6 @@ static inline bool rfkill_blocked(struct rfkill *rfkill)
 	return false;
 }
 #endif /* RFKILL || RFKILL_MODULE */
-
-
-#ifdef CONFIG_RFKILL_LEDS
-/**
- * rfkill_get_led_trigger_name - Get the LED trigger name for the button's LED.
- * This function might return a NULL pointer if registering of the
- * LED trigger failed. Use this as "default_trigger" for the LED.
- */
-const char *rfkill_get_led_trigger_name(struct rfkill *rfkill);
-
-/**
- * rfkill_set_led_trigger_name -- set the LED trigger name
- * @rfkill: rfkill struct
- * @name: LED trigger name
- *
- * This function sets the LED trigger name of the radio LED
- * trigger that rfkill creates. It is optional, but if called
- * must be called before rfkill_register() to be effective.
- */
-void rfkill_set_led_trigger_name(struct rfkill *rfkill, const char *name);
-#else
-static inline const char *rfkill_get_led_trigger_name(struct rfkill *rfkill)
-{
-	return NULL;
-}
-
-static inline void
-rfkill_set_led_trigger_name(struct rfkill *rfkill, const char *name)
-{
-}
-#endif
 
 #endif /* __KERNEL__ */
 

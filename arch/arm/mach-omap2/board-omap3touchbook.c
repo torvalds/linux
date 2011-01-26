@@ -27,6 +27,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
+#include <linux/mmc/host.h>
 
 #include <plat/mcspi.h>
 #include <linux/spi/spi.h>
@@ -47,15 +48,12 @@
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
-#include <plat/timer-gp.h>
 
 #include "mux.h"
 #include "hsmmc.h"
+#include "timer-gp.h"
 
 #include <asm/setup.h>
-
-#define GPMC_CS0_BASE  0x60
-#define GPMC_CS_SIZE   0x30
 
 #define NAND_BLOCK_SIZE		SZ_128K
 
@@ -64,7 +62,7 @@
 #define TB_BL_PWM_TIMER		9
 #define TB_KILL_POWER_GPIO	168
 
-unsigned long touchbook_revision;
+static unsigned long touchbook_revision;
 
 static struct mtd_partition omap3touchbook_nand_partitions[] = {
 	/* All the partition sizes are listed in terms of NAND block size */
@@ -106,26 +104,12 @@ static struct omap_nand_platform_data omap3touchbook_nand_data = {
 	.dev_ready	= NULL,
 };
 
-static struct resource omap3touchbook_nand_resource = {
-	.flags		= IORESOURCE_MEM,
-};
-
-static struct platform_device omap3touchbook_nand_device = {
-	.name		= "omap2-nand",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &omap3touchbook_nand_data,
-	},
-	.num_resources	= 1,
-	.resource	= &omap3touchbook_nand_resource,
-};
-
 #include "sdram-micron-mt46h32m32lf-6.h"
 
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
-		.wires		= 8,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
 		.gpio_wp	= 29,
 	},
 	{}	/* Terminator */
@@ -328,8 +312,7 @@ static void __init omap3_ads7846_init(void)
 	}
 
 	gpio_direction_input(OMAP3_TS_GPIO);
-	omap_set_gpio_debounce(OMAP3_TS_GPIO, 1);
-	omap_set_gpio_debounce_time(OMAP3_TS_GPIO, 0xa);
+	gpio_set_debounce(OMAP3_TS_GPIO, 310);
 }
 
 static struct ads7846_platform_data ads7846_config = {
@@ -430,8 +413,6 @@ static struct omap_board_config_kernel omap3_touchbook_config[] __initdata = {
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux	NULL
 #endif
 
 static void __init omap3_touchbook_init_irq(void)
@@ -439,13 +420,13 @@ static void __init omap3_touchbook_init_irq(void)
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_board_config = omap3_touchbook_config;
 	omap_board_config_size = ARRAY_SIZE(omap3_touchbook_config);
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-			     mt46h32m32lf6_sdrc_params);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
+				  mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(12);
 #endif
-	omap_gpio_init();
 }
 
 static struct platform_device *omap3_touchbook_devices[] __initdata = {
@@ -458,8 +439,6 @@ static void __init omap3touchbook_flash_init(void)
 {
 	u8 cs = 0;
 	u8 nandcs = GPMC_CS_NUM + 1;
-
-	u32 gpmc_base_add = OMAP34XX_GPMC_VIRT;
 
 	/* find out the chip-select on which NAND exists */
 	while (cs < GPMC_CS_NUM) {
@@ -482,13 +461,9 @@ static void __init omap3touchbook_flash_init(void)
 
 	if (nandcs < GPMC_CS_NUM) {
 		omap3touchbook_nand_data.cs = nandcs;
-		omap3touchbook_nand_data.gpmc_cs_baseaddr = (void *)
-			(gpmc_base_add + GPMC_CS0_BASE + nandcs * GPMC_CS_SIZE);
-		omap3touchbook_nand_data.gpmc_baseaddr =
-						(void *) (gpmc_base_add);
 
 		printk(KERN_INFO "Registering NAND on CS%d\n", nandcs);
-		if (platform_device_register(&omap3touchbook_nand_device) < 0)
+		if (gpmc_nand_init(&omap3touchbook_nand_data) < 0)
 			printk(KERN_ERR "Unable to register NAND device\n");
 	}
 }
@@ -560,18 +535,11 @@ static void __init omap3_touchbook_init(void)
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
 }
 
-static void __init omap3_touchbook_map_io(void)
-{
-	omap2_set_globals_343x();
-	omap34xx_map_common_io();
-}
-
 MACHINE_START(TOUCHBOOK, "OMAP3 touchbook Board")
 	/* Maintainer: Gregoire Gentil - http://www.alwaysinnovating.com */
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_touchbook_map_io,
+	.map_io		= omap3_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap3_touchbook_init_irq,
 	.init_machine	= omap3_touchbook_init,
 	.timer		= &omap_timer,

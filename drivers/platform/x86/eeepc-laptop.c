@@ -53,7 +53,7 @@ MODULE_LICENSE("GPL");
 
 static bool hotplug_disabled;
 
-module_param(hotplug_disabled, bool, 0644);
+module_param(hotplug_disabled, bool, 0444);
 MODULE_PARM_DESC(hotplug_disabled,
 		 "Disable hotplug for wireless device. "
 		 "If your laptop need that, please report to "
@@ -165,6 +165,7 @@ struct eeepc_laptop {
 	u16 event_count[128];		/* count for each event */
 
 	struct platform_device *platform_device;
+	struct acpi_device *device;		/* the device we are in */
 	struct device *hwmon_device;
 	struct backlight_device *backlight_device;
 
@@ -528,6 +529,15 @@ static void tpd_led_set(struct led_classdev *led_cdev,
 	queue_work(eeepc->led_workqueue, &eeepc->tpd_led_work);
 }
 
+static enum led_brightness tpd_led_get(struct led_classdev *led_cdev)
+{
+	struct eeepc_laptop *eeepc;
+
+	eeepc = container_of(led_cdev, struct eeepc_laptop, tpd_led);
+
+	return get_acpi(eeepc, CM_ASL_TPD);
+}
+
 static int eeepc_led_init(struct eeepc_laptop *eeepc)
 {
 	int rv;
@@ -542,6 +552,8 @@ static int eeepc_led_init(struct eeepc_laptop *eeepc)
 
 	eeepc->tpd_led.name = "eeepc::touchpad";
 	eeepc->tpd_led.brightness_set = tpd_led_set;
+	if (get_acpi(eeepc, CM_ASL_TPD) >= 0) /* if method is available */
+	  eeepc->tpd_led.brightness_get = tpd_led_get;
 	eeepc->tpd_led.max_brightness = 1;
 
 	rv = led_classdev_register(&eeepc->platform_device->dev,
@@ -1114,7 +1126,7 @@ static int update_bl_status(struct backlight_device *bd)
 	return set_brightness(bd, bd->props.brightness);
 }
 
-static struct backlight_ops eeepcbl_ops = {
+static const struct backlight_ops eeepcbl_ops = {
 	.get_brightness = read_brightness,
 	.update_status = update_bl_status,
 };
@@ -1193,9 +1205,9 @@ static int eeepc_input_init(struct eeepc_laptop *eeepc)
 	eeepc->inputdev = input;
 	return 0;
 
- err_free_keymap:
+err_free_keymap:
 	sparse_keymap_free(input);
- err_free_dev:
+err_free_dev:
 	input_free_device(input);
 	return error;
 }
@@ -1206,6 +1218,7 @@ static void eeepc_input_exit(struct eeepc_laptop *eeepc)
 		sparse_keymap_free(eeepc->inputdev);
 		input_unregister_device(eeepc->inputdev);
 	}
+	eeepc->inputdev = NULL;
 }
 
 /*
@@ -1326,16 +1339,15 @@ static void cmsg_quirks(struct eeepc_laptop *eeepc)
 	cmsg_quirk(eeepc, CM_ASL_TPD, "TPD");
 }
 
-static int eeepc_acpi_init(struct eeepc_laptop *eeepc,
-			   struct acpi_device *device)
+static int __devinit eeepc_acpi_init(struct eeepc_laptop *eeepc)
 {
 	unsigned int init_flags;
 	int result;
 
-	result = acpi_bus_get_status(device);
+	result = acpi_bus_get_status(eeepc->device);
 	if (result)
 		return result;
-	if (!device->status.present) {
+	if (!eeepc->device->status.present) {
 		pr_err("Hotkey device not present, aborting\n");
 		return -ENODEV;
 	}
@@ -1384,12 +1396,13 @@ static int __devinit eeepc_acpi_add(struct acpi_device *device)
 	strcpy(acpi_device_name(device), EEEPC_ACPI_DEVICE_NAME);
 	strcpy(acpi_device_class(device), EEEPC_ACPI_CLASS);
 	device->driver_data = eeepc;
+	eeepc->device = device;
 
 	eeepc->hotplug_disabled = hotplug_disabled;
 
 	eeepc_dmi_check(eeepc);
 
-	result = eeepc_acpi_init(eeepc, device);
+	result = eeepc_acpi_init(eeepc);
 	if (result)
 		goto fail_platform;
 	eeepc_enable_camera(eeepc);

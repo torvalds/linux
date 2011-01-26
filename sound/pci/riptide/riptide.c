@@ -97,6 +97,7 @@
 #include <linux/gameport.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
+#include <linux/kernel.h>
 #include <asm/io.h>
 #include <sound/core.h>
 #include <sound/info.h>
@@ -667,13 +668,12 @@ static u32 atoh(const unsigned char *in, unsigned int len)
 	unsigned char c;
 
 	while (len) {
+		int value;
+
 		c = in[len - 1];
-		if ((c >= '0') && (c <= '9'))
-			sum += mult * (c - '0');
-		else if ((c >= 'A') && (c <= 'F'))
-			sum += mult * (c - ('A' - 10));
-		else if ((c >= 'a') && (c <= 'f'))
-			sum += mult * (c - ('a' - 10));
+		value = hex_to_bin(c);
+		if (value >= 0)
+			sum += mult * value;
 		mult *= 16;
 		--len;
 	}
@@ -1224,15 +1224,14 @@ static int try_to_load_firmware(struct cmdif *cif, struct snd_riptide *chip)
 		    firmware.firmware.ASIC, firmware.firmware.CODEC,
 		    firmware.firmware.AUXDSP, firmware.firmware.PROG);
 
+	if (!chip)
+		return 1;
+
 	for (i = 0; i < FIRMWARE_VERSIONS; i++) {
 		if (!memcmp(&firmware_versions[i], &firmware, sizeof(firmware)))
-			break;
-	}
-	if (i >= FIRMWARE_VERSIONS)
-		return 0; /* no match */
+			return 1; /* OK */
 
-	if (!chip)
-		return 1; /* OK */
+	}
 
 	snd_printdd("Writing Firmware\n");
 	if (!chip->fw_entry) {
@@ -1615,7 +1614,10 @@ static int snd_riptide_playback_open(struct snd_pcm_substream *substream)
 
 	chip->playback_substream[sub_num] = substream;
 	runtime->hw = snd_riptide_playback;
+
 	data = kzalloc(sizeof(struct pcmhw), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
 	data->paths = lbus_play_paths[sub_num];
 	data->id = play_ids[sub_num];
 	data->source = play_sources[sub_num];
@@ -1635,7 +1637,10 @@ static int snd_riptide_capture_open(struct snd_pcm_substream *substream)
 
 	chip->capture_substream = substream;
 	runtime->hw = snd_riptide_capture;
+
 	data = kzalloc(sizeof(struct pcmhw), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
 	data->paths = lbus_rec_path;
 	data->id = PADC;
 	data->source = ACLNK2PADC;

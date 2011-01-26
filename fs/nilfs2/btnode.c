@@ -37,15 +37,7 @@
 
 void nilfs_btnode_cache_init_once(struct address_space *btnc)
 {
-	memset(btnc, 0, sizeof(*btnc));
-	INIT_RADIX_TREE(&btnc->page_tree, GFP_ATOMIC);
-	spin_lock_init(&btnc->tree_lock);
-	INIT_LIST_HEAD(&btnc->private_list);
-	spin_lock_init(&btnc->private_lock);
-
-	spin_lock_init(&btnc->i_mmap_lock);
-	INIT_RAW_PRIO_TREE_ROOT(&btnc->i_mmap);
-	INIT_LIST_HEAD(&btnc->i_mmap_nonlinear);
+	nilfs_mapping_init_once(btnc);
 }
 
 static const struct address_space_operations def_btnode_aops = {
@@ -55,12 +47,7 @@ static const struct address_space_operations def_btnode_aops = {
 void nilfs_btnode_cache_init(struct address_space *btnc,
 			     struct backing_dev_info *bdi)
 {
-	btnc->host = NULL;  /* can safely set to host inode ? */
-	btnc->flags = 0;
-	mapping_set_gfp_mask(btnc, GFP_NOFS);
-	btnc->assoc_mapping = NULL;
-	btnc->backing_dev_info = bdi;
-	btnc->a_ops = &def_btnode_aops;
+	nilfs_mapping_init(btnc, bdi, &def_btnode_aops);
 }
 
 void nilfs_btnode_cache_clear(struct address_space *btnc)
@@ -96,10 +83,12 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 }
 
 int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
-			      sector_t pblocknr, struct buffer_head **pbh)
+			      sector_t pblocknr, int mode,
+			      struct buffer_head **pbh, sector_t *submit_ptr)
 {
 	struct buffer_head *bh;
 	struct inode *inode = NILFS_BTNC_I(btnc);
+	struct page *page;
 	int err;
 
 	bh = nilfs_grab_buffer(inode, btnc, blocknr, 1 << BH_NILFS_Node);
@@ -107,6 +96,7 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 		return -ENOMEM;
 
 	err = -EEXIST; /* internal code */
+	page = bh->b_page;
 
 	if (buffer_uptodate(bh) || buffer_dirty(bh))
 		goto found;
@@ -114,8 +104,7 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 	if (pblocknr == 0) {
 		pblocknr = blocknr;
 		if (inode->i_ino != NILFS_DAT_INO) {
-			struct inode *dat =
-				nilfs_dat_inode(NILFS_I_NILFS(inode));
+			struct inode *dat = NILFS_I_NILFS(inode)->ns_dat;
 
 			/* blocknr is a virtual block number */
 			err = nilfs_dat_translate(dat, blocknr, &pblocknr);
@@ -125,7 +114,16 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 			}
 		}
 	}
-	lock_buffer(bh);
+
+	if (mode == READA) {
+		if (pblocknr != *submit_ptr + 1 || !trylock_buffer(bh)) {
+			err = -EBUSY; /* internal code */
+			brelse(bh);
+			goto out_locked;
+		}
+	} else { /* mode == READ */
+		lock_buffer(bh);
+	}
 	if (buffer_uptodate(bh)) {
 		unlock_buffer(bh);
 		err = -EEXIST; /* internal code */
@@ -136,15 +134,16 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 	bh->b_blocknr = pblocknr; /* set block address for read */
 	bh->b_end_io = end_buffer_read_sync;
 	get_bh(bh);
-	submit_bh(READ, bh);
+	submit_bh(mode, bh);
 	bh->b_blocknr = blocknr; /* set back to the given block address */
+	*submit_ptr = pblocknr;
 	err = 0;
 found:
 	*pbh = bh;
 
 out_locked:
-	unlock_page(bh->b_page);
-	page_cache_release(bh->b_page);
+	unlock_page(page);
+	page_cache_release(page);
 	return err;
 }
 

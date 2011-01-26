@@ -61,7 +61,7 @@ static void divil_lbar_enable(void)
 	for (offset = DIVIL_LBAR_SMB; offset <= DIVIL_LBAR_PMS; offset++) {
 		_rdmsr(DIVIL_MSR_REG(offset), &hi, &lo);
 		hi |= 0x01;
-		_wrmsr(DIVIL_MSR_REG(DIVIL_LBAR_SMB), hi, lo);
+		_wrmsr(DIVIL_MSR_REG(offset), hi, lo);
 	}
 }
 
@@ -76,7 +76,7 @@ static void divil_lbar_disable(void)
 	for (offset = DIVIL_LBAR_SMB; offset <= DIVIL_LBAR_PMS; offset++) {
 		_rdmsr(DIVIL_MSR_REG(offset), &hi, &lo);
 		hi &= ~0x01;
-		_wrmsr(DIVIL_MSR_REG(DIVIL_LBAR_SMB), hi, lo);
+		_wrmsr(DIVIL_MSR_REG(offset), hi, lo);
 	}
 }
 

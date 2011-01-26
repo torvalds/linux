@@ -129,10 +129,9 @@ struct socket_wq {
  *  @type: socket type (%SOCK_STREAM, etc)
  *  @flags: socket flags (%SOCK_ASYNC_NOSPACE, etc)
  *  @ops: protocol specific socket operations
- *  @fasync_list: Asynchronous wake up list
  *  @file: File back pointer for gc
  *  @sk: internal networking protocol agnostic socket representation
- *  @wait: wait queue for several uses
+ *  @wq: wait queue for several uses
  */
 struct socket {
 	socket_state		state;
@@ -230,6 +229,8 @@ enum {
 extern int	     sock_wake_async(struct socket *sk, int how, int band);
 extern int	     sock_register(const struct net_proto_family *fam);
 extern void	     sock_unregister(int family);
+extern int	     __sock_create(struct net *net, int family, int type, int proto,
+				 struct socket **res, int kern);
 extern int	     sock_create(int family, int type, int proto,
 				 struct socket **res);
 extern int	     sock_create_kern(int family, int type, int proto,

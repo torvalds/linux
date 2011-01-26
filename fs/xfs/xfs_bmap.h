@@ -28,20 +28,6 @@ struct xfs_trans;
 extern kmem_zone_t	*xfs_bmap_free_item_zone;
 
 /*
- * DELTA: describe a change to the in-core extent list.
- *
- * Internally the use of xed_blockount is somewhat funky.
- * xed_blockcount contains an offset much of the time because this
- * makes merging changes easier.  (xfs_fileoff_t and xfs_filblks_t are
- * the same underlying type).
- */
-typedef struct xfs_extdelta
-{
-	xfs_fileoff_t		xed_startoff;	/* offset of range */
-	xfs_filblks_t		xed_blockcount;	/* blocks in range */
-} xfs_extdelta_t;
-
-/*
  * List of extents to be free "later".
  * The list is kept sorted on xbf_startblock.
  */
@@ -82,27 +68,25 @@ typedef	struct xfs_bmap_free
 #define XFS_BMAPI_DELAY		0x002	/* delayed write operation */
 #define XFS_BMAPI_ENTIRE	0x004	/* return entire extent, not trimmed */
 #define XFS_BMAPI_METADATA	0x008	/* mapping metadata not user data */
-#define XFS_BMAPI_EXACT		0x010	/* allocate only to spec'd bounds */
-#define XFS_BMAPI_ATTRFORK	0x020	/* use attribute fork not data */
-#define XFS_BMAPI_ASYNC		0x040	/* bunmapi xactions can be async */
-#define XFS_BMAPI_RSVBLOCKS	0x080	/* OK to alloc. reserved data blocks */
-#define	XFS_BMAPI_PREALLOC	0x100	/* preallocation op: unwritten space */
-#define	XFS_BMAPI_IGSTATE	0x200	/* Ignore state - */
+#define XFS_BMAPI_ATTRFORK	0x010	/* use attribute fork not data */
+#define XFS_BMAPI_RSVBLOCKS	0x020	/* OK to alloc. reserved data blocks */
+#define	XFS_BMAPI_PREALLOC	0x040	/* preallocation op: unwritten space */
+#define	XFS_BMAPI_IGSTATE	0x080	/* Ignore state - */
 					/* combine contig. space */
-#define	XFS_BMAPI_CONTIG	0x400	/* must allocate only one extent */
-/*	XFS_BMAPI_DIRECT_IO	0x800	*/
-#define XFS_BMAPI_CONVERT	0x1000	/* unwritten extent conversion - */
-					/* need write cache flushing and no */
-					/* additional allocation alignments */
+#define	XFS_BMAPI_CONTIG	0x100	/* must allocate only one extent */
+/*
+ * unwritten extent conversion - this needs write cache flushing and no additional
+ * allocation alignments. When specified with XFS_BMAPI_PREALLOC it converts
+ * from written to unwritten, otherwise convert from unwritten to written.
+ */
+#define XFS_BMAPI_CONVERT	0x200
 
 #define XFS_BMAPI_FLAGS \
 	{ XFS_BMAPI_WRITE,	"WRITE" }, \
 	{ XFS_BMAPI_DELAY,	"DELAY" }, \
 	{ XFS_BMAPI_ENTIRE,	"ENTIRE" }, \
 	{ XFS_BMAPI_METADATA,	"METADATA" }, \
-	{ XFS_BMAPI_EXACT,	"EXACT" }, \
 	{ XFS_BMAPI_ATTRFORK,	"ATTRFORK" }, \
-	{ XFS_BMAPI_ASYNC,	"ASYNC" }, \
 	{ XFS_BMAPI_RSVBLOCKS,	"RSVBLOCKS" }, \
 	{ XFS_BMAPI_PREALLOC,	"PREALLOC" }, \
 	{ XFS_BMAPI_IGSTATE,	"IGSTATE" }, \
@@ -310,9 +294,7 @@ xfs_bmapi(
 	xfs_extlen_t		total,		/* total blocks needed */
 	struct xfs_bmbt_irec	*mval,		/* output: map values */
 	int			*nmap,		/* i/o: mval size/count */
-	xfs_bmap_free_t		*flist,		/* i/o: list extents to free */
-	xfs_extdelta_t		*delta);	/* o: change made to incore
-						   extents */
+	xfs_bmap_free_t		*flist);	/* i/o: list extents to free */
 
 /*
  * Map file blocks to filesystem blocks, simple version.
@@ -346,8 +328,6 @@ xfs_bunmapi(
 	xfs_fsblock_t		*firstblock,	/* first allocated block
 						   controls a.g. for allocs */
 	xfs_bmap_free_t		*flist,		/* i/o: list extents to free */
-	xfs_extdelta_t		*delta,		/* o: change made to incore
-						   extents */
 	int			*done);		/* set if not done yet */
 
 /*
@@ -414,6 +394,11 @@ xfs_bmap_count_blocks(
 	int			whichfork,
 	int			*count);
 
+int
+xfs_bmap_punch_delalloc_range(
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		start_fsb,
+	xfs_fileoff_t		length);
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_BMAP_H__ */

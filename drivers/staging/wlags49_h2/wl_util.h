@@ -71,18 +71,11 @@ int is_valid_key_string( char *s );
 
 void key_string2key( char *ks, KEY_STRCT *key );
 
-int hexdigit2int( char c );
-
 void wl_hcf_error( struct net_device *dev, int hcfStatus );
 
 void wl_endian_translate_event( ltv_t *pLtv );
 
 int wl_has_wep( IFBP ifbp );
-
-
-#if DBG
-const char *DbgHwAddr( unsigned char *hwAddr );
-#endif // DBG
 
 hcf_8   wl_parse_ds_ie( PROBE_RESP *probe_rsp );
 hcf_8 * wl_parse_wpa_ie( PROBE_RESP *probe_rsp, hcf_16 *length );

@@ -182,8 +182,7 @@ static int dlmfs_file_release(struct inode *inode,
 {
 	int level, status;
 	struct dlmfs_inode_private *ip = DLMFS_I(inode);
-	struct dlmfs_filp_private *fp =
-		(struct dlmfs_filp_private *) file->private_data;
+	struct dlmfs_filp_private *fp = file->private_data;
 
 	if (S_ISDIR(inode->i_mode))
 		BUG();
@@ -214,10 +213,12 @@ static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
 
 	attr->ia_valid &= ~ATTR_SIZE;
 	error = inode_change_ok(inode, attr);
-	if (!error)
-		error = inode_setattr(inode, attr);
+	if (error)
+		return error;
 
-	return error;
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 static unsigned int dlmfs_file_poll(struct file *file, poll_table *wait)
@@ -350,18 +351,24 @@ static struct inode *dlmfs_alloc_inode(struct super_block *sb)
 	return &ip->ip_vfs_inode;
 }
 
-static void dlmfs_destroy_inode(struct inode *inode)
+static void dlmfs_i_callback(struct rcu_head *head)
 {
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(dlmfs_inode_cache, DLMFS_I(inode));
 }
 
-static void dlmfs_clear_inode(struct inode *inode)
+static void dlmfs_destroy_inode(struct inode *inode)
+{
+	call_rcu(&inode->i_rcu, dlmfs_i_callback);
+}
+
+static void dlmfs_evict_inode(struct inode *inode)
 {
 	int status;
 	struct dlmfs_inode_private *ip;
 
-	if (!inode)
-		return;
+	end_writeback(inode);
 
 	mlog(0, "inode %lu\n", inode->i_ino);
 
@@ -400,6 +407,7 @@ static struct inode *dlmfs_get_root_inode(struct super_block *sb)
 	if (inode) {
 		ip = DLMFS_I(inode);
 
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_uid = current_fsuid();
 		inode->i_gid = current_fsgid();
@@ -425,6 +433,7 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 	if (!inode)
 		return NULL;
 
+	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
@@ -612,6 +621,7 @@ static const struct file_operations dlmfs_file_operations = {
 	.poll		= dlmfs_file_poll,
 	.read		= dlmfs_file_read,
 	.write		= dlmfs_file_write,
+	.llseek		= default_llseek,
 };
 
 static const struct inode_operations dlmfs_dir_inode_operations = {
@@ -631,7 +641,7 @@ static const struct super_operations dlmfs_ops = {
 	.statfs		= simple_statfs,
 	.alloc_inode	= dlmfs_alloc_inode,
 	.destroy_inode	= dlmfs_destroy_inode,
-	.clear_inode	= dlmfs_clear_inode,
+	.evict_inode	= dlmfs_evict_inode,
 	.drop_inode	= generic_delete_inode,
 };
 
@@ -640,16 +650,16 @@ static const struct inode_operations dlmfs_file_inode_operations = {
 	.setattr	= dlmfs_file_setattr,
 };
 
-static int dlmfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *dlmfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, dlmfs_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, dlmfs_fill_super);
 }
 
 static struct file_system_type dlmfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ocfs2_dlmfs",
-	.get_sb		= dlmfs_get_sb,
+	.mount		= dlmfs_mount,
 	.kill_sb	= kill_litter_super,
 };
 

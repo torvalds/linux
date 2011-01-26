@@ -22,7 +22,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
@@ -94,40 +93,60 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	u16 reg, reg_l, reg_r, dcs_cfg;
 
-	/* Set for 32 series updates */
-	snd_soc_update_bits(codec, WM8993_DC_SERVO_1,
-			    WM8993_DCS_SERIES_NO_01_MASK,
-			    32 << WM8993_DCS_SERIES_NO_01_SHIFT);
-	wait_for_dc_servo(codec,
-			  WM8993_DCS_TRIG_SERIES_0 | WM8993_DCS_TRIG_SERIES_1);
+	/* If we're using a digital only path and have a previously
+	 * callibrated DC servo offset stored then use that. */
+	if (hubs->class_w && hubs->class_w_dcs) {
+		dev_dbg(codec->dev, "Using cached DC servo offset %x\n",
+			hubs->class_w_dcs);
+		snd_soc_write(codec, WM8993_DC_SERVO_3, hubs->class_w_dcs);
+		wait_for_dc_servo(codec,
+				  WM8993_DCS_TRIG_DAC_WR_0 |
+				  WM8993_DCS_TRIG_DAC_WR_1);
+		return;
+	}
+
+	/* Devices not using a DCS code correction have startup mode */
+	if (hubs->dcs_codes) {
+		/* Set for 32 series updates */
+		snd_soc_update_bits(codec, WM8993_DC_SERVO_1,
+				    WM8993_DCS_SERIES_NO_01_MASK,
+				    32 << WM8993_DCS_SERIES_NO_01_SHIFT);
+		wait_for_dc_servo(codec,
+				  WM8993_DCS_TRIG_SERIES_0 |
+				  WM8993_DCS_TRIG_SERIES_1);
+	} else {
+		wait_for_dc_servo(codec,
+				  WM8993_DCS_TRIG_STARTUP_0 |
+				  WM8993_DCS_TRIG_STARTUP_1);
+	}
+
+	/* Different chips in the family support different readback
+	 * methods.
+	 */
+	switch (hubs->dcs_readback_mode) {
+	case 0:
+		reg_l = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_1)
+			& WM8993_DCS_INTEG_CHAN_0_MASK;
+		reg_r = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_2)
+			& WM8993_DCS_INTEG_CHAN_1_MASK;
+		break;
+	case 1:
+		reg = snd_soc_read(codec, WM8993_DC_SERVO_3);
+		reg_l = (reg & WM8993_DCS_DAC_WR_VAL_1_MASK)
+			>> WM8993_DCS_DAC_WR_VAL_1_SHIFT;
+		reg_r = reg & WM8993_DCS_DAC_WR_VAL_0_MASK;
+		break;
+	default:
+		WARN(1, "Unknown DCS readback method\n");
+		break;
+	}
+
+	dev_dbg(codec->dev, "DCS input: %x %x\n", reg_l, reg_r);
 
 	/* Apply correction to DC servo result */
 	if (hubs->dcs_codes) {
 		dev_dbg(codec->dev, "Applying %d code DC servo correction\n",
 			hubs->dcs_codes);
-
-		/* Different chips in the family support different
-		 * readback methods.
-		 */
-		switch (hubs->dcs_readback_mode) {
-		case 0:
-			reg_l = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_1)
-				& WM8993_DCS_INTEG_CHAN_0_MASK;;
-			reg_r = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_2)
-				& WM8993_DCS_INTEG_CHAN_1_MASK;
-			break;
-		case 1:
-			reg = snd_soc_read(codec, WM8993_DC_SERVO_3);
-			reg_l = (reg & WM8993_DCS_DAC_WR_VAL_1_MASK)
-				>> WM8993_DCS_DAC_WR_VAL_1_SHIFT;
-			reg_r = reg & WM8993_DCS_DAC_WR_VAL_0_MASK;
-			break;
-		default:
-			WARN(1, "Unknown DCS readback method");
-			break;
-		}
-
-		dev_dbg(codec->dev, "DCS input: %x %x\n", reg_l, reg_r);
 
 		/* HPOUT1L */
 		if (reg_l + hubs->dcs_codes > 0 &&
@@ -148,7 +167,15 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 		wait_for_dc_servo(codec,
 				  WM8993_DCS_TRIG_DAC_WR_0 |
 				  WM8993_DCS_TRIG_DAC_WR_1);
+	} else {
+		dcs_cfg = reg_l << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
+		dcs_cfg |= reg_r;
 	}
+
+	/* Save the callibrated offset if we're in class W mode and
+	 * therefore don't have any analogue signal mixed in. */
+	if (hubs->class_w)
+		hubs->class_w_dcs = dcs_cfg;
 }
 
 /*
@@ -162,6 +189,9 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 	int ret;
 
 	ret = snd_soc_put_volsw_2r(kcontrol, ucontrol);
+
+	/* Updating the analogue gains invalidates the DC servo cache */
+	hubs->class_w_dcs = 0;
 
 	/* If we're applying an offset correction then updating the
 	 * callibration would be likely to introduce further offsets. */
@@ -293,7 +323,7 @@ SOC_DOUBLE_R("Speaker Switch",
 SOC_DOUBLE_R("Speaker ZC Switch",
 	     WM8993_SPEAKER_VOLUME_LEFT, WM8993_SPEAKER_VOLUME_RIGHT,
 	     7, 1, 0),
-SOC_DOUBLE_TLV("Speaker Boost Volume", WM8993_SPKOUT_BOOST, 0, 3, 7, 0,
+SOC_DOUBLE_TLV("Speaker Boost Volume", WM8993_SPKOUT_BOOST, 3, 0, 7, 0,
 	       spkboost_tlv),
 SOC_ENUM("Speaker Reference", speaker_ref),
 SOC_ENUM("Speaker Mode", speaker_mode),
@@ -409,6 +439,8 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, WM8993_ANALOGUE_HP_0,
 				    WM8993_HPOUT1L_DLY |
 				    WM8993_HPOUT1R_DLY, 0);
+
+		snd_soc_write(codec, WM8993_DC_SERVO_0, 0);
 
 		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_1,
 				    WM8993_HPOUT1L_ENA | WM8993_HPOUT1R_ENA,
@@ -789,6 +821,8 @@ static const struct snd_soc_dapm_route lineout2_se_routes[] = {
 
 int wm_hubs_add_analogue_controls(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
 	/* Latch volume update bits & default ZC on */
 	snd_soc_update_bits(codec, WM8993_LEFT_LINE_INPUT_1_2_VOLUME,
 			    WM8993_IN1_VU, WM8993_IN1_VU);
@@ -817,7 +851,7 @@ int wm_hubs_add_analogue_controls(struct snd_soc_codec *codec)
 	snd_soc_add_controls(codec, analogue_snd_controls,
 			     ARRAY_SIZE(analogue_snd_controls));
 
-	snd_soc_dapm_new_controls(codec, analogue_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, analogue_dapm_widgets,
 				  ARRAY_SIZE(analogue_dapm_widgets));
 	return 0;
 }
@@ -826,24 +860,26 @@ EXPORT_SYMBOL_GPL(wm_hubs_add_analogue_controls);
 int wm_hubs_add_analogue_routes(struct snd_soc_codec *codec,
 				int lineout1_diff, int lineout2_diff)
 {
-	snd_soc_dapm_add_routes(codec, analogue_routes,
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
+	snd_soc_dapm_add_routes(dapm, analogue_routes,
 				ARRAY_SIZE(analogue_routes));
 
 	if (lineout1_diff)
-		snd_soc_dapm_add_routes(codec,
+		snd_soc_dapm_add_routes(dapm,
 					lineout1_diff_routes,
 					ARRAY_SIZE(lineout1_diff_routes));
 	else
-		snd_soc_dapm_add_routes(codec,
+		snd_soc_dapm_add_routes(dapm,
 					lineout1_se_routes,
 					ARRAY_SIZE(lineout1_se_routes));
 
 	if (lineout2_diff)
-		snd_soc_dapm_add_routes(codec,
+		snd_soc_dapm_add_routes(dapm,
 					lineout2_diff_routes,
 					ARRAY_SIZE(lineout2_diff_routes));
 	else
-		snd_soc_dapm_add_routes(codec,
+		snd_soc_dapm_add_routes(dapm,
 					lineout2_se_routes,
 					ARRAY_SIZE(lineout2_se_routes));
 
@@ -870,7 +906,7 @@ int wm_hubs_handle_analogue_pdata(struct snd_soc_codec *codec,
 	 * VMID as an output and can disable it.
 	 */
 	if (lineout1_diff && lineout2_diff)
-		codec->idle_bias_off = 1;
+		codec->dapm.idle_bias_off = 1;
 
 	if (lineout1fb)
 		snd_soc_update_bits(codec, WM8993_ADDITIONAL_CONTROL,

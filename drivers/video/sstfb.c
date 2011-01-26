@@ -536,7 +536,7 @@ static int sstfb_set_par(struct fb_info *info)
 	fbiinit2 = sst_read(FBIINIT2);
 	fbiinit3 = sst_read(FBIINIT3);
 
-	/* everything is reset. we enable fbiinit2/3 remap : dac acces ok */
+	/* everything is reset. we enable fbiinit2/3 remap : dac access ok */
 	pci_write_config_dword(sst_dev, PCI_INIT_ENABLE,
 	                       PCI_EN_INIT_WR | PCI_REMAP_DAC );
 

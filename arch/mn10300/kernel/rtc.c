@@ -20,21 +20,22 @@
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
-/* last time the RTC got updated */
-static long last_rtc_update;
-
-/* time for RTC to update itself in ioclks */
-static unsigned long mn10300_rtc_update_period;
-
+/*
+ * Read the current RTC time
+ */
 void read_persistent_clock(struct timespec *ts)
 {
 	struct rtc_time tm;
 
 	get_rtc_time(&tm);
 
-	ts->tv_sec = mktime(tm.tm_year, tm.tm_mon, tm.tm_mday,
-		      tm.tm_hour, tm.tm_min, tm.tm_sec);
 	ts->tv_nsec = 0;
+	ts->tv_sec = mktime(tm.tm_year, tm.tm_mon, tm.tm_mday,
+			    tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+	/* if rtc is way off in the past, set something reasonable */
+	if (ts->tv_sec < 0)
+		ts->tv_sec = mktime(2009, 1, 1, 12, 0, 0);
 }
 
 /*
@@ -88,7 +89,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 		CMOS_WRITE(real_seconds, RTC_SECONDS);
 		CMOS_WRITE(real_minutes, RTC_MINUTES);
 	} else {
-		printk(KERN_WARNING
+		printk_once(KERN_NOTICE
 		       "set_rtc_mmss: can't update from %d to %d\n",
 		       cmos_minutes, real_minutes);
 		retval = -1;
@@ -110,7 +111,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 
 int update_persistent_clock(struct timespec now)
 {
-	return set_rtc_mms(now.tv_sec);
+	return set_rtc_mmss(now.tv_sec);
 }
 
 /*
@@ -118,39 +119,14 @@ int update_persistent_clock(struct timespec now)
  */
 void __init calibrate_clock(void)
 {
-	unsigned long count0, counth, count1;
 	unsigned char status;
 
 	/* make sure the RTC is running and is set to operate in 24hr mode */
 	status = RTSRC;
 	RTCRB |= RTCRB_SET;
 	RTCRB |= RTCRB_TM_24HR;
+	RTCRB &= ~RTCRB_DM_BINARY;
 	RTCRA |= RTCRA_DVR;
 	RTCRA &= ~RTCRA_DVR;
 	RTCRB &= ~RTCRB_SET;
-
-	/* work out the clock speed by counting clock cycles between ends of
-	 * the RTC update cycle - track the RTC through one complete update
-	 * cycle (1 second)
-	 */
-	startup_timestamp_counter();
-
-	while (!(RTCRA & RTCRA_UIP)) {}
-	while ((RTCRA & RTCRA_UIP)) {}
-
-	count0 = TMTSCBC;
-
-	while (!(RTCRA & RTCRA_UIP)) {}
-
-	counth = TMTSCBC;
-
-	while ((RTCRA & RTCRA_UIP)) {}
-
-	count1 = TMTSCBC;
-
-	shutdown_timestamp_counter();
-
-	MN10300_TSCCLK = count0 - count1; /* the timers count down */
-	mn10300_rtc_update_period = counth - count1;
-	MN10300_TSC_PER_HZ = MN10300_TSCCLK / HZ;
 }

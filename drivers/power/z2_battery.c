@@ -9,19 +9,13 @@
  *
  */
 
-#include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/power_supply.h>
-#include <linux/i2c.h>
-#include <linux/spinlock.h>
-#include <linux/interrupt.h>
 #include <linux/gpio.h>
+#include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <asm/irq.h>
-#include <asm/mach/irq.h>
+#include <linux/power_supply.h>
+#include <linux/slab.h>
 #include <linux/z2_battery.h>
 
 #define	Z2_DEFAULT_NAME	"Z2"
@@ -260,7 +254,7 @@ static int __devexit z2_batt_remove(struct i2c_client *client)
 	struct z2_charger *charger = i2c_get_clientdata(client);
 	struct z2_battery_info *info = charger->info;
 
-	flush_scheduled_work();
+	cancel_work_sync(&charger->bat_work);
 	power_supply_unregister(&charger->batt_ps);
 
 	kfree(charger->batt_ps.properties);
@@ -277,7 +271,9 @@ static int __devexit z2_batt_remove(struct i2c_client *client)
 #ifdef CONFIG_PM
 static int z2_batt_suspend(struct i2c_client *client, pm_message_t state)
 {
-	flush_scheduled_work();
+	struct z2_charger *charger = i2c_get_clientdata(client);
+
+	flush_work_sync(&charger->bat_work);
 	return 0;
 }
 

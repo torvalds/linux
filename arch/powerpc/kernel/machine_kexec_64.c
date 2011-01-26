@@ -15,6 +15,8 @@
 #include <linux/thread_info.h>
 #include <linux/init_task.h>
 #include <linux/errno.h>
+#include <linux/kernel.h>
+#include <linux/cpu.h>
 
 #include <asm/page.h>
 #include <asm/current.h>
@@ -25,6 +27,7 @@
 #include <asm/sections.h>	/* _end */
 #include <asm/prom.h>
 #include <asm/smp.h>
+#include <asm/hw_breakpoint.h>
 
 int default_machine_kexec_prepare(struct kimage *image)
 {
@@ -165,6 +168,7 @@ static void kexec_smp_down(void *arg)
 	while(kexec_all_irq_disabled == 0)
 		cpu_relax();
 	mb(); /* make sure all irqs are disabled before this */
+	hw_breakpoint_disable();
 	/*
 	 * Now every CPU has IRQs off, we can clear out any pending
 	 * IPIs and be sure that no more will come in after this.
@@ -180,34 +184,32 @@ static void kexec_prepare_cpus_wait(int wait_state)
 {
 	int my_cpu, i, notified=-1;
 
+	hw_breakpoint_disable();
 	my_cpu = get_cpu();
-	/* Make sure each CPU has atleast made it to the state we need */
-	for (i=0; i < NR_CPUS; i++) {
+	/* Make sure each CPU has at least made it to the state we need.
+	 *
+	 * FIXME: There is a (slim) chance of a problem if not all of the CPUs
+	 * are correctly onlined.  If somehow we start a CPU on boot with RTAS
+	 * start-cpu, but somehow that CPU doesn't write callin_cpu_map[] in
+	 * time, the boot CPU will timeout.  If it does eventually execute
+	 * stuff, the secondary will start up (paca[].cpu_start was written) and
+	 * get into a peculiar state.  If the platform supports
+	 * smp_ops->take_timebase(), the secondary CPU will probably be spinning
+	 * in there.  If not (i.e. pseries), the secondary will continue on and
+	 * try to online itself/idle/etc. If it survives that, we need to find
+	 * these possible-but-not-online-but-should-be CPUs and chaperone them
+	 * into kexec_smp_wait().
+	 */
+	for_each_online_cpu(i) {
 		if (i == my_cpu)
 			continue;
 
 		while (paca[i].kexec_state < wait_state) {
 			barrier();
-			if (!cpu_possible(i)) {
-				printk("kexec: cpu %d hw_cpu_id %d is not"
-						" possible, ignoring\n",
-						i, paca[i].hw_cpu_id);
-				break;
-			}
-			if (!cpu_online(i)) {
-				/* Fixme: this can be spinning in
-				 * pSeries_secondary_wait with a paca
-				 * waiting for it to go online.
-				 */
-				printk("kexec: cpu %d hw_cpu_id %d is not"
-						" online, ignoring\n",
-						i, paca[i].hw_cpu_id);
-				break;
-			}
 			if (i != notified) {
-				printk( "kexec: waiting for cpu %d (physical"
-						" %d) to enter %i state\n",
-					i, paca[i].hw_cpu_id, wait_state);
+				printk(KERN_INFO "kexec: waiting for cpu %d "
+				       "(physical %d) to enter %i state\n",
+				       i, paca[i].hw_cpu_id, wait_state);
 				notified = i;
 			}
 		}
@@ -215,9 +217,32 @@ static void kexec_prepare_cpus_wait(int wait_state)
 	mb();
 }
 
+/*
+ * We need to make sure each present CPU is online.  The next kernel will scan
+ * the device tree and assume primary threads are online and query secondary
+ * threads via RTAS to online them if required.  If we don't online primary
+ * threads, they will be stuck.  However, we also online secondary threads as we
+ * may be using 'cede offline'.  In this case RTAS doesn't see the secondary
+ * threads as offline -- and again, these CPUs will be stuck.
+ *
+ * So, we online all CPUs that should be running, including secondary threads.
+ */
+static void wake_offline_cpus(void)
+{
+	int cpu = 0;
+
+	for_each_present_cpu(cpu) {
+		if (!cpu_online(cpu)) {
+			printk(KERN_INFO "kexec: Waking offline cpu %d.\n",
+			       cpu);
+			cpu_up(cpu);
+		}
+	}
+}
+
 static void kexec_prepare_cpus(void)
 {
-
+	wake_offline_cpus();
 	smp_call_function(kexec_smp_down, NULL, /* wait */0);
 	local_irq_disable();
 	mb(); /* make sure IRQs are disabled before we say they are */
@@ -231,7 +256,10 @@ static void kexec_prepare_cpus(void)
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(0, 0);
 
-	/* Before removing MMU mapings make sure all CPUs have entered real mode */
+	/*
+	 * Before removing MMU mappings make sure all CPUs have entered real
+	 * mode:
+	 */
 	kexec_prepare_cpus_wait(KEXEC_STATE_REAL_MODE);
 
 	put_cpu();
@@ -273,6 +301,12 @@ static void kexec_prepare_cpus(void)
 static union thread_union kexec_stack __init_task_data =
 	{ };
 
+/*
+ * For similar reasons to the stack above, the kexecing CPU needs to be on a
+ * static PACA; we switch to kexec_paca.
+ */
+struct paca_struct kexec_paca;
+
 /* Our assembly helper, in kexec_stub.S */
 extern NORET_TYPE void kexec_sequence(void *newstack, unsigned long start,
 					void *image, void *control,
@@ -294,11 +328,27 @@ void default_machine_kexec(struct kimage *image)
 	if (crashing_cpu == -1)
 		kexec_prepare_cpus();
 
+	pr_debug("kexec: Starting switchover sequence.\n");
+
 	/* switch to a staticly allocated stack.  Based on irq stack code.
 	 * XXX: the task struct will likely be invalid once we do the copy!
 	 */
 	kexec_stack.thread_info.task = current_thread_info()->task;
 	kexec_stack.thread_info.flags = 0;
+
+	/* We need a static PACA, too; copy this CPU's PACA over and switch to
+	 * it.  Also poison per_cpu_offset to catch anyone using non-static
+	 * data.
+	 */
+	memcpy(&kexec_paca, get_paca(), sizeof(struct paca_struct));
+	kexec_paca.data_offset = 0xedeaddeadeeeeeeeUL;
+	paca = (struct paca_struct *)RELOC_HIDE(&kexec_paca, 0) -
+		kexec_paca.paca_index;
+	setup_paca(&kexec_paca);
+
+	/* XXX: If anyone does 'dynamic lppacas' this will also need to be
+	 * switched to a static version!
+	 */
 
 	/* Some things are best done in assembly.  Finding globals with
 	 * a toc is easier in C, so pass in what we can.

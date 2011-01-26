@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/sh_mobile_sdhi.h>
+#include <linux/mmc/host.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/onenand.h>
@@ -126,6 +127,21 @@ static struct platform_device kfr2r09_sh_keysc_device = {
 	},
 };
 
+const static struct fb_videomode kfr2r09_lcdc_modes[] = {
+	{
+		.name = "TX07D34VM0AAA",
+		.xres = 240,
+		.yres = 400,
+		.left_margin = 0,
+		.right_margin = 16,
+		.hsync_len = 8,
+		.upper_margin = 0,
+		.lower_margin = 1,
+		.vsync_len = 1,
+		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+	},
+};
+
 static struct sh_mobile_lcdc_info kfr2r09_sh_lcdc_info = {
 	.clock_source = LCDC_CLK_BUS,
 	.ch[0] = {
@@ -134,18 +150,8 @@ static struct sh_mobile_lcdc_info kfr2r09_sh_lcdc_info = {
 		.interface_type = SYS18,
 		.clock_divider = 6,
 		.flags = LCDC_FLAGS_DWPOL,
-		.lcd_cfg = {
-			.name = "TX07D34VM0AAA",
-			.xres = 240,
-			.yres = 400,
-			.left_margin = 0,
-			.right_margin = 16,
-			.hsync_len = 8,
-			.upper_margin = 0,
-			.lower_margin = 1,
-			.vsync_len = 1,
-			.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		},
+		.lcd_cfg = kfr2r09_lcdc_modes,
+		.num_cfg = ARRAY_SIZE(kfr2r09_lcdc_modes),
 		.lcd_size_cfg = {
 			.width = 35,
 			.height = 58,
@@ -333,7 +339,6 @@ static struct soc_camera_link rj54n1_link = {
 	.power		= camera_power,
 	.board_info	= &kfr2r09_i2c_camera,
 	.i2c_adapter_id	= 1,
-	.module_name	= "rj54n1cb0c",
 	.priv		= &rj54n1_priv,
 };
 
@@ -362,6 +367,7 @@ static struct sh_mobile_sdhi_info sh7724_sdhi0_data = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
 	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE,
+	.tmio_caps      = MMC_CAP_SDIO_IRQ,
 };
 
 static struct platform_device kfr2r09_sh_sdhi0_device = {

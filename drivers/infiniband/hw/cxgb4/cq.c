@@ -43,7 +43,7 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	int ret;
 
 	wr_len = sizeof *res_wr + sizeof *res;
-	skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_NOFAIL);
+	skb = alloc_skb(wr_len, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
@@ -55,7 +55,7 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			V_FW_RI_RES_WR_NRES(1) |
 			FW_WR_COMPL(1));
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (u64)&wr_wait;
+	res_wr->cookie = (unsigned long) &wr_wait;
 	res = res_wr->res;
 	res->u.cq.restype = FW_RI_RES_TYPE_CQ;
 	res->u.cq.op = FW_RI_RES_OP_RESET;
@@ -64,20 +64,13 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	c4iw_init_wr_wait(&wr_wait);
 	ret = c4iw_ofld_send(rdev, skb);
 	if (!ret) {
-		wait_event_timeout(wr_wait.wait, wr_wait.done, C4IW_WR_TO);
-		if (!wr_wait.done) {
-			printk(KERN_ERR MOD "Device %s not responding!\n",
-			       pci_name(rdev->lldi.pdev));
-			rdev->flags = T4_FATAL_ERROR;
-			ret = -EIO;
-		} else
-			ret = wr_wait.ret;
+		ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, __func__);
 	}
 
 	kfree(cq->sw_queue);
 	dma_free_coherent(&(rdev->lldi.pdev->dev),
 			  cq->memsize, cq->queue,
-			  pci_unmap_addr(cq, mapping));
+			  dma_unmap_addr(cq, mapping));
 	c4iw_put_cqid(rdev, cq->cqid, uctx);
 	return ret;
 }
@@ -112,13 +105,13 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 		ret = -ENOMEM;
 		goto err3;
 	}
-	pci_unmap_addr_set(cq, mapping, cq->dma_addr);
+	dma_unmap_addr_set(cq, mapping, cq->dma_addr);
 	memset(cq->queue, 0, cq->memsize);
 
 	/* build fw_ri_res_wr */
 	wr_len = sizeof *res_wr + sizeof *res;
 
-	skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_NOFAIL);
+	skb = alloc_skb(wr_len, GFP_KERNEL);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto err4;
@@ -132,7 +125,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			V_FW_RI_RES_WR_NRES(1) |
 			FW_WR_COMPL(1));
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (u64)&wr_wait;
+	res_wr->cookie = (unsigned long) &wr_wait;
 	res = res_wr->res;
 	res->u.cq.restype = FW_RI_RES_TYPE_CQ;
 	res->u.cq.op = FW_RI_RES_OP_WRITE;
@@ -157,14 +150,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	if (ret)
 		goto err4;
 	PDBG("%s wait_event wr_wait %p\n", __func__, &wr_wait);
-	wait_event_timeout(wr_wait.wait, wr_wait.done, C4IW_WR_TO);
-	if (!wr_wait.done) {
-		printk(KERN_ERR MOD "Device %s not responding!\n",
-		       pci_name(rdev->lldi.pdev));
-		rdev->flags = T4_FATAL_ERROR;
-		ret = -EIO;
-	} else
-		ret = wr_wait.ret;
+	ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, __func__);
 	if (ret)
 		goto err4;
 
@@ -179,7 +165,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	return 0;
 err4:
 	dma_free_coherent(&rdev->lldi.pdev->dev, cq->memsize, cq->queue,
-			  pci_unmap_addr(cq, mapping));
+			  dma_unmap_addr(cq, mapping));
 err3:
 	kfree(cq->sw_queue);
 err2:
@@ -373,6 +359,7 @@ static void create_read_req_cqe(struct t4_wq *wq, struct t4_cqe *hw_cqe,
 				 V_CQE_SWCQE(SW_CQE(hw_cqe)) |
 				 V_CQE_OPCODE(FW_RI_READ_REQ) |
 				 V_CQE_TYPE(1));
+	read_cqe->bits_type_ts = hw_cqe->bits_type_ts;
 }
 
 /*
@@ -473,6 +460,11 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 		*cqe_flushed = t4_wq_in_error(wq);
 		t4_set_wq_in_error(wq);
 		goto proc_cqe;
+	}
+
+	if (CQE_OPCODE(hw_cqe) == FW_RI_TERMINATE) {
+		ret = -EAGAIN;
+		goto skip_cqe;
 	}
 
 	/*
@@ -695,6 +687,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 		case T4_ERR_MSN_RANGE:
 		case T4_ERR_IRD_OVERFLOW:
 		case T4_ERR_OPCODE:
+		case T4_ERR_INTERNAL_ERR:
 			wc->status = IB_WC_FATAL_ERR;
 			break;
 		case T4_ERR_SWFLUSH:
@@ -763,7 +756,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	struct c4iw_create_cq_resp uresp;
 	struct c4iw_ucontext *ucontext = NULL;
 	int ret;
-	size_t memsize;
+	size_t memsize, hwentries;
 	struct c4iw_mm_entry *mm, *mm2;
 
 	PDBG("%s ib_dev %p entries %d\n", __func__, ibdev, entries);
@@ -780,18 +773,36 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	/* account for the status page. */
 	entries++;
 
+	/* IQ needs one extra entry to differentiate full vs empty. */
+	entries++;
+
 	/*
 	 * entries must be multiple of 16 for HW.
 	 */
 	entries = roundup(entries, 16);
-	memsize = entries * sizeof *chp->cq.queue;
+
+	/*
+	 * Make actual HW queue 2x to avoid cdix_inc overflows.
+	 */
+	hwentries = entries * 2;
+
+	/*
+	 * Make HW queue at least 64 entries so GTS updates aren't too
+	 * frequent.
+	 */
+	if (hwentries < 64)
+		hwentries = 64;
+
+	memsize = hwentries * sizeof *chp->cq.queue;
 
 	/*
 	 * memsize must be a multiple of the page size if its a user cq.
 	 */
-	if (ucontext)
+	if (ucontext) {
 		memsize = roundup(memsize, PAGE_SIZE);
-	chp->cq.size = entries;
+		hwentries = memsize / sizeof *chp->cq.queue;
+	}
+	chp->cq.size = hwentries;
 	chp->cq.memsize = memsize;
 
 	ret = create_cq(&rhp->rdev, &chp->cq,
@@ -801,7 +812,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 
 	chp->rhp = rhp;
 	chp->cq.size--;				/* status page */
-	chp->ibcq.cqe = chp->cq.size;
+	chp->ibcq.cqe = entries - 2;
 	spin_lock_init(&chp->lock);
 	atomic_set(&chp->refcnt, 1);
 	init_waitqueue_head(&chp->wait);

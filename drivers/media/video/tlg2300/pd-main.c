@@ -36,7 +36,6 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/firmware.h>
-#include <linux/smp_lock.h>
 
 #include "vendorcmds.h"
 #include "pd-common.h"
@@ -227,12 +226,11 @@ static int firmware_download(struct usb_device *udev)
 
 	fwlength = fw->size;
 
-	fwbuf = kzalloc(fwlength, GFP_KERNEL);
+	fwbuf = kmemdup(fw->data, fwlength, GFP_KERNEL);
 	if (!fwbuf) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memcpy(fwbuf, fw->data, fwlength);
 
 	max_packet_size = udev->ep_out[0x1]->desc.wMaxPacketSize;
 	log("\t\t download size : %d", (int)max_packet_size);
@@ -454,7 +452,8 @@ static int poseidon_probe(struct usb_interface *interface,
 
 	device_init_wakeup(&udev->dev, 1);
 #ifdef CONFIG_PM
-	pd->udev->autosuspend_delay = HZ * PM_SUSPEND_DELAY;
+	pm_runtime_set_autosuspend_delay(&pd->udev->dev,
+			1000 * PM_SUSPEND_DELAY);
 	usb_enable_autosuspend(pd->udev);
 
 	if (in_hibernation(pd)) {
@@ -486,15 +485,11 @@ static void poseidon_disconnect(struct usb_interface *interface)
 	/*unregister v4l2 device */
 	v4l2_device_unregister(&pd->v4l2_dev);
 
-	lock_kernel();
-	{
-		pd_dvb_usb_device_exit(pd);
-		poseidon_fm_exit(pd);
+	pd_dvb_usb_device_exit(pd);
+	poseidon_fm_exit(pd);
 
-		poseidon_audio_free(pd);
-		pd_video_exit(pd);
-	}
-	unlock_kernel();
+	poseidon_audio_free(pd);
+	pd_video_exit(pd);
 
 	usb_set_intfdata(interface, NULL);
 	kref_put(&pd->kref, poseidon_delete);

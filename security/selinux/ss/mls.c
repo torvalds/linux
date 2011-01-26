@@ -45,7 +45,7 @@ int mls_compute_context_len(struct context *context)
 	len = 1; /* for the beginning ":" */
 	for (l = 0; l < 2; l++) {
 		int index_sens = context->range.level[l].sens;
-		len += strlen(policydb.p_sens_val_to_name[index_sens - 1]);
+		len += strlen(sym_name(&policydb, SYM_LEVELS, index_sens - 1));
 
 		/* categories */
 		head = -2;
@@ -55,17 +55,17 @@ int mls_compute_context_len(struct context *context)
 			if (i - prev > 1) {
 				/* one or more negative bits are skipped */
 				if (head != prev) {
-					nm = policydb.p_cat_val_to_name[prev];
+					nm = sym_name(&policydb, SYM_CATS, prev);
 					len += strlen(nm) + 1;
 				}
-				nm = policydb.p_cat_val_to_name[i];
+				nm = sym_name(&policydb, SYM_CATS, i);
 				len += strlen(nm) + 1;
 				head = i;
 			}
 			prev = i;
 		}
 		if (prev != head) {
-			nm = policydb.p_cat_val_to_name[prev];
+			nm = sym_name(&policydb, SYM_CATS, prev);
 			len += strlen(nm) + 1;
 		}
 		if (l == 0) {
@@ -102,8 +102,8 @@ void mls_sid_to_context(struct context *context,
 	scontextp++;
 
 	for (l = 0; l < 2; l++) {
-		strcpy(scontextp,
-		       policydb.p_sens_val_to_name[context->range.level[l].sens - 1]);
+		strcpy(scontextp, sym_name(&policydb, SYM_LEVELS,
+					   context->range.level[l].sens - 1));
 		scontextp += strlen(scontextp);
 
 		/* categories */
@@ -118,7 +118,7 @@ void mls_sid_to_context(struct context *context,
 						*scontextp++ = '.';
 					else
 						*scontextp++ = ',';
-					nm = policydb.p_cat_val_to_name[prev];
+					nm = sym_name(&policydb, SYM_CATS, prev);
 					strcpy(scontextp, nm);
 					scontextp += strlen(nm);
 				}
@@ -126,7 +126,7 @@ void mls_sid_to_context(struct context *context,
 					*scontextp++ = ':';
 				else
 					*scontextp++ = ',';
-				nm = policydb.p_cat_val_to_name[i];
+				nm = sym_name(&policydb, SYM_CATS, i);
 				strcpy(scontextp, nm);
 				scontextp += strlen(nm);
 				head = i;
@@ -139,7 +139,7 @@ void mls_sid_to_context(struct context *context,
 				*scontextp++ = '.';
 			else
 				*scontextp++ = ',';
-			nm = policydb.p_cat_val_to_name[prev];
+			nm = sym_name(&policydb, SYM_CATS, prev);
 			strcpy(scontextp, nm);
 			scontextp += strlen(nm);
 		}
@@ -166,7 +166,7 @@ int mls_level_isvalid(struct policydb *p, struct mls_level *l)
 	if (!l->sens || l->sens > p->p_levels.nprim)
 		return 0;
 	levdatum = hashtab_search(p->p_levels.table,
-				  p->p_sens_val_to_name[l->sens - 1]);
+				  sym_name(p, SYM_LEVELS, l->sens - 1));
 	if (!levdatum)
 		return 0;
 
@@ -482,7 +482,8 @@ int mls_convert_context(struct policydb *oldp,
 
 	for (l = 0; l < 2; l++) {
 		levdatum = hashtab_search(newp->p_levels.table,
-			oldp->p_sens_val_to_name[c->range.level[l].sens - 1]);
+					  sym_name(oldp, SYM_LEVELS,
+						   c->range.level[l].sens - 1));
 
 		if (!levdatum)
 			return -EINVAL;
@@ -493,7 +494,7 @@ int mls_convert_context(struct policydb *oldp,
 			int rc;
 
 			catdatum = hashtab_search(newp->p_cats.table,
-						  oldp->p_cat_val_to_name[i]);
+						  sym_name(oldp, SYM_CATS, i));
 			if (!catdatum)
 				return -EINVAL;
 			rc = ebitmap_set_bit(&bitmap, catdatum->value - 1, 1);

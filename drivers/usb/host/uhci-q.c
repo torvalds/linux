@@ -29,7 +29,7 @@ static void uhci_set_next_interrupt(struct uhci_hcd *uhci)
 {
 	if (uhci->is_stopped)
 		mod_timer(&uhci_to_hcd(uhci)->rh_timer, jiffies);
-	uhci->term_td->status |= cpu_to_le32(TD_CTRL_IOC); 
+	uhci->term_td->status |= cpu_to_le32(TD_CTRL_IOC);
 }
 
 static inline void uhci_clear_next_interrupt(struct uhci_hcd *uhci)
@@ -195,7 +195,9 @@ static inline void uhci_remove_td_from_frame_list(struct uhci_hcd *uhci,
 		} else {
 			struct uhci_td *ntd;
 
-			ntd = list_entry(td->fl_list.next, struct uhci_td, fl_list);
+			ntd = list_entry(td->fl_list.next,
+					 struct uhci_td,
+					 fl_list);
 			uhci->frame[td->frame] = LINK_TO_TD(ntd);
 			uhci->frame_cpu[td->frame] = ntd;
 		}
@@ -565,7 +567,7 @@ static void uhci_unlink_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	qh->unlink_frame = uhci->frame_number;
 
 	/* Force an interrupt so we know when the QH is fully unlinked */
-	if (list_empty(&uhci->skel_unlink_qh->node))
+	if (list_empty(&uhci->skel_unlink_qh->node) || uhci->is_stopped)
 		uhci_set_next_interrupt(uhci);
 
 	/* Move the QH from its old list to the end of the unlinking list */
@@ -728,7 +730,7 @@ static inline struct urb_priv *uhci_alloc_urb_priv(struct uhci_hcd *uhci,
 
 	urbp->urb = urb;
 	urb->hcpriv = urbp;
-	
+
 	INIT_LIST_HEAD(&urbp->node);
 	INIT_LIST_HEAD(&urbp->td_list);
 
@@ -846,7 +848,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 
 		/* Alternate Data0/1 (start with Data1) */
 		destination ^= TD_TOKEN_TOGGLE;
-	
+
 		uhci_add_td_to_urbp(td, urbp);
 		uhci_fill_td(td, status, destination | uhci_explen(pktsze),
 				data);
@@ -857,7 +859,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	}
 
 	/*
-	 * Build the final TD for control status 
+	 * Build the final TD for control status
 	 */
 	td = uhci_alloc_td(uhci);
 	if (!td)
@@ -917,10 +919,13 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	unsigned long destination, status;
 	int maxsze = le16_to_cpu(qh->hep->desc.wMaxPacketSize);
 	int len = urb->transfer_buffer_length;
-	dma_addr_t data = urb->transfer_dma;
+	int this_sg_len;
+	dma_addr_t data;
 	__le32 *plink;
 	struct urb_priv *urbp = urb->hcpriv;
 	unsigned int toggle;
+	struct scatterlist  *sg;
+	int i;
 
 	if (len < 0)
 		return -EINVAL;
@@ -937,12 +942,26 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	if (usb_pipein(urb->pipe))
 		status |= TD_CTRL_SPD;
 
+	i = urb->num_sgs;
+	if (len > 0 && i > 0) {
+		sg = urb->sg;
+		data = sg_dma_address(sg);
+
+		/* urb->transfer_buffer_length may be smaller than the
+		 * size of the scatterlist (or vice versa)
+		 */
+		this_sg_len = min_t(int, sg_dma_len(sg), len);
+	} else {
+		sg = NULL;
+		data = urb->transfer_dma;
+		this_sg_len = len;
+	}
 	/*
 	 * Build the DATA TDs
 	 */
 	plink = NULL;
 	td = qh->dummy_td;
-	do {	/* Allow zero length packets */
+	for (;;) {	/* Allow zero length packets */
 		int pktsze = maxsze;
 
 		if (len <= pktsze) {		/* The last packet */
@@ -965,10 +984,18 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 		plink = &td->link;
 		status |= TD_CTRL_ACTIVE;
 
-		data += pktsze;
-		len -= maxsze;
 		toggle ^= 1;
-	} while (len > 0);
+		data += pktsze;
+		this_sg_len -= pktsze;
+		len -= maxsze;
+		if (this_sg_len <= 0) {
+			if (--i <= 0 || len <= 0)
+				break;
+			sg = sg_next(sg);
+			data = sg_dma_address(sg);
+			this_sg_len = min_t(int, sg_dma_len(sg), len);
+		}
+	}
 
 	/*
 	 * URB_ZERO_PACKET means adding a 0-length packet, if direction
@@ -1667,7 +1694,7 @@ static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 			qh->advance_jiffies = jiffies;
 			goto done;
 		}
-		ret = 0;
+		ret = uhci->is_stopped;
 	}
 
 	/* The queue hasn't advanced; check for timeout */

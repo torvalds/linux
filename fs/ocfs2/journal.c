@@ -301,7 +301,6 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 {
 	int status = 0;
 	unsigned int flushed;
-	unsigned long old_id;
 	struct ocfs2_journal *journal = NULL;
 
 	mlog_entry_void();
@@ -326,7 +325,7 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 		goto finally;
 	}
 
-	old_id = ocfs2_inc_trans_id(journal);
+	ocfs2_inc_trans_id(journal);
 
 	flushed = atomic_read(&journal->j_num_trans);
 	atomic_set(&journal->j_num_trans, 0);
@@ -342,9 +341,6 @@ finally:
 	return status;
 }
 
-/* pass it NULL and it will allocate a new handle object for you.  If
- * you pass it a handle however, it may still return error, in which
- * case it has free'd the passed handle for you. */
 handle_t *ocfs2_start_trans(struct ocfs2_super *osb, int max_buffs)
 {
 	journal_t *journal = osb->journal->j_journal;
@@ -472,7 +468,7 @@ static inline struct ocfs2_triggers *to_ocfs2_trigger(struct jbd2_buffer_trigger
 	return container_of(triggers, struct ocfs2_triggers, ot_triggers);
 }
 
-static void ocfs2_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
+static void ocfs2_frozen_trigger(struct jbd2_buffer_trigger_type *triggers,
 				 struct buffer_head *bh,
 				 void *data, size_t size)
 {
@@ -491,7 +487,7 @@ static void ocfs2_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
  * Quota blocks have their own trigger because the struct ocfs2_block_check
  * offset depends on the blocksize.
  */
-static void ocfs2_dq_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
+static void ocfs2_dq_frozen_trigger(struct jbd2_buffer_trigger_type *triggers,
 				 struct buffer_head *bh,
 				 void *data, size_t size)
 {
@@ -511,7 +507,7 @@ static void ocfs2_dq_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
  * Directory blocks also have their own trigger because the
  * struct ocfs2_block_check offset depends on the blocksize.
  */
-static void ocfs2_db_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
+static void ocfs2_db_frozen_trigger(struct jbd2_buffer_trigger_type *triggers,
 				 struct buffer_head *bh,
 				 void *data, size_t size)
 {
@@ -544,7 +540,7 @@ static void ocfs2_abort_trigger(struct jbd2_buffer_trigger_type *triggers,
 
 static struct ocfs2_triggers di_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_dinode, i_check),
@@ -552,7 +548,7 @@ static struct ocfs2_triggers di_triggers = {
 
 static struct ocfs2_triggers eb_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_extent_block, h_check),
@@ -560,7 +556,7 @@ static struct ocfs2_triggers eb_triggers = {
 
 static struct ocfs2_triggers rb_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_refcount_block, rf_check),
@@ -568,7 +564,7 @@ static struct ocfs2_triggers rb_triggers = {
 
 static struct ocfs2_triggers gd_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_group_desc, bg_check),
@@ -576,14 +572,14 @@ static struct ocfs2_triggers gd_triggers = {
 
 static struct ocfs2_triggers db_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_db_commit_trigger,
+		.t_frozen = ocfs2_db_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 };
 
 static struct ocfs2_triggers xb_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_xattr_block, xb_check),
@@ -591,14 +587,14 @@ static struct ocfs2_triggers xb_triggers = {
 
 static struct ocfs2_triggers dq_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_dq_commit_trigger,
+		.t_frozen = ocfs2_dq_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 };
 
 static struct ocfs2_triggers dr_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_dx_root_block, dr_check),
@@ -606,7 +602,7 @@ static struct ocfs2_triggers dr_triggers = {
 
 static struct ocfs2_triggers dl_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_dx_leaf, dl_check),
@@ -760,13 +756,13 @@ void ocfs2_set_journal_params(struct ocfs2_super *osb)
 	if (osb->osb_commit_interval)
 		commit_interval = osb->osb_commit_interval;
 
-	spin_lock(&journal->j_state_lock);
+	write_lock(&journal->j_state_lock);
 	journal->j_commit_interval = commit_interval;
 	if (osb->s_mount_opt & OCFS2_MOUNT_BARRIER)
 		journal->j_flags |= JBD2_BARRIER;
 	else
 		journal->j_flags &= ~JBD2_BARRIER;
-	spin_unlock(&journal->j_state_lock);
+	write_unlock(&journal->j_state_lock);
 }
 
 int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
@@ -1888,6 +1884,8 @@ void ocfs2_queue_orphan_scan(struct ocfs2_super *osb)
 
 	os = &osb->osb_orphan_scan;
 
+	mlog(0, "Begin orphan scan\n");
+
 	if (atomic_read(&os->os_state) == ORPHAN_SCAN_INACTIVE)
 		goto out;
 
@@ -1920,6 +1918,7 @@ void ocfs2_queue_orphan_scan(struct ocfs2_super *osb)
 unlock:
 	ocfs2_orphan_scan_unlock(osb, seqno);
 out:
+	mlog(0, "Orphan scan completed\n");
 	return;
 }
 
@@ -1936,7 +1935,7 @@ void ocfs2_orphan_scan_work(struct work_struct *work)
 	mutex_lock(&os->os_lock);
 	ocfs2_queue_orphan_scan(osb);
 	if (atomic_read(&os->os_state) == ORPHAN_SCAN_ACTIVE)
-		schedule_delayed_work(&os->os_orphan_scan_work,
+		queue_delayed_work(ocfs2_wq, &os->os_orphan_scan_work,
 				      ocfs2_orphan_scan_timeout());
 	mutex_unlock(&os->os_lock);
 }
@@ -1976,8 +1975,8 @@ void ocfs2_orphan_scan_start(struct ocfs2_super *osb)
 		atomic_set(&os->os_state, ORPHAN_SCAN_INACTIVE);
 	else {
 		atomic_set(&os->os_state, ORPHAN_SCAN_ACTIVE);
-		schedule_delayed_work(&os->os_orphan_scan_work,
-				      ocfs2_orphan_scan_timeout());
+		queue_delayed_work(ocfs2_wq, &os->os_orphan_scan_work,
+				   ocfs2_orphan_scan_timeout());
 	}
 }
 

@@ -45,7 +45,6 @@ struct hpsa_scsi_dev_t {
 	unsigned char device_id[16];    /* from inquiry pg. 0x83 */
 	unsigned char vendor[8];        /* bytes 8-15 of inquiry data */
 	unsigned char model[16];        /* bytes 16-31 of inquiry data */
-	unsigned char revision[4];      /* bytes 32-35 of inquiry data */
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
 };
 
@@ -53,7 +52,6 @@ struct ctlr_info {
 	int	ctlr;
 	char	devname[8];
 	char    *product_name;
-	char	firm_ver[4]; /* Firmware version */
 	struct pci_dev *pdev;
 	u32	board_id;
 	void __iomem *vaddr;

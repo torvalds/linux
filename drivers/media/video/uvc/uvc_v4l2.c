@@ -1,8 +1,8 @@
 /*
  *      uvc_v4l2.c  --  USB Video Class driver - V4L2 API
  *
- *      Copyright (C) 2005-2009
- *          Laurent Pinchart (laurent.pinchart@skynet.be)
+ *      Copyright (C) 2005-2010
+ *          Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -29,42 +29,76 @@
 #include "uvcvideo.h"
 
 /* ------------------------------------------------------------------------
+ * UVC ioctls
+ */
+static int uvc_ioctl_ctrl_map(struct uvc_video_chain *chain,
+	struct uvc_xu_control_mapping *xmap, int old)
+{
+	struct uvc_control_mapping *map;
+	unsigned int size;
+	int ret;
+
+	map = kzalloc(sizeof *map, GFP_KERNEL);
+	if (map == NULL)
+		return -ENOMEM;
+
+	map->id = xmap->id;
+	memcpy(map->name, xmap->name, sizeof map->name);
+	memcpy(map->entity, xmap->entity, sizeof map->entity);
+	map->selector = xmap->selector;
+	map->size = xmap->size;
+	map->offset = xmap->offset;
+	map->v4l2_type = xmap->v4l2_type;
+	map->data_type = xmap->data_type;
+
+	switch (xmap->v4l2_type) {
+	case V4L2_CTRL_TYPE_INTEGER:
+	case V4L2_CTRL_TYPE_BOOLEAN:
+	case V4L2_CTRL_TYPE_BUTTON:
+		break;
+
+	case V4L2_CTRL_TYPE_MENU:
+		if (old) {
+			uvc_trace(UVC_TRACE_CONTROL, "V4L2_CTRL_TYPE_MENU not "
+				  "supported for UVCIOC_CTRL_MAP_OLD.\n");
+			ret = -EINVAL;
+			goto done;
+		}
+
+		size = xmap->menu_count * sizeof(*map->menu_info);
+		map->menu_info = kmalloc(size, GFP_KERNEL);
+		if (map->menu_info == NULL) {
+			ret = -ENOMEM;
+			goto done;
+		}
+
+		if (copy_from_user(map->menu_info, xmap->menu_info, size)) {
+			ret = -EFAULT;
+			goto done;
+		}
+
+		map->menu_count = xmap->menu_count;
+		break;
+
+	default:
+		uvc_trace(UVC_TRACE_CONTROL, "Unsupported V4L2 control type "
+			  "%u.\n", xmap->v4l2_type);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	ret = uvc_ctrl_add_mapping(chain, map);
+
+done:
+	kfree(map->menu_info);
+	kfree(map);
+
+	return ret;
+}
+
+/* ------------------------------------------------------------------------
  * V4L2 interface
  */
-
-/*
- * Mapping V4L2 controls to UVC controls can be straighforward if done well.
- * Most of the UVC controls exist in V4L2, and can be mapped directly. Some
- * must be grouped (for instance the Red Balance, Blue Balance and Do White
- * Balance V4L2 controls use the White Balance Component UVC control) or
- * otherwise translated. The approach we take here is to use a translation
- * table for the controls that can be mapped directly, and handle the others
- * manually.
- */
-static int uvc_v4l2_query_menu(struct uvc_video_chain *chain,
-	struct v4l2_querymenu *query_menu)
-{
-	struct uvc_menu_info *menu_info;
-	struct uvc_control_mapping *mapping;
-	struct uvc_control *ctrl;
-	u32 index = query_menu->index;
-	u32 id = query_menu->id;
-
-	ctrl = uvc_find_control(chain, query_menu->id, &mapping);
-	if (ctrl == NULL || mapping->v4l2_type != V4L2_CTRL_TYPE_MENU)
-		return -EINVAL;
-
-	if (query_menu->index >= mapping->menu_count)
-		return -EINVAL;
-
-	memset(query_menu, 0, sizeof(*query_menu));
-	query_menu->id = id;
-	query_menu->index = index;
-
-	menu_info = &mapping->menu_info[query_menu->index];
-	strlcpy(query_menu->name, menu_info->name, sizeof query_menu->name);
-	return 0;
-}
 
 /*
  * Find the frame interval closest to the requested frame interval for the
@@ -192,12 +226,14 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	 * developers test their webcams with the Linux driver as well as with
 	 * the Windows driver).
 	 */
+	mutex_lock(&stream->mutex);
 	if (stream->dev->quirks & UVC_QUIRK_PROBE_EXTRAFIELDS)
 		probe->dwMaxVideoFrameSize =
 			stream->ctrl.dwMaxVideoFrameSize;
 
 	/* Probe the device. */
 	ret = uvc_probe_video(stream, probe);
+	mutex_unlock(&stream->mutex);
 	if (ret < 0)
 		goto done;
 
@@ -221,14 +257,21 @@ done:
 static int uvc_v4l2_get_format(struct uvc_streaming *stream,
 	struct v4l2_format *fmt)
 {
-	struct uvc_format *format = stream->cur_format;
-	struct uvc_frame *frame = stream->cur_frame;
+	struct uvc_format *format;
+	struct uvc_frame *frame;
+	int ret = 0;
 
 	if (fmt->type != stream->type)
 		return -EINVAL;
 
-	if (format == NULL || frame == NULL)
-		return -EINVAL;
+	mutex_lock(&stream->mutex);
+	format = stream->cur_format;
+	frame = stream->cur_frame;
+
+	if (format == NULL || frame == NULL) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	fmt->fmt.pix.pixelformat = format->fcc;
 	fmt->fmt.pix.width = frame->wWidth;
@@ -239,7 +282,9 @@ static int uvc_v4l2_get_format(struct uvc_streaming *stream,
 	fmt->fmt.pix.colorspace = format->colorspace;
 	fmt->fmt.pix.priv = 0;
 
-	return 0;
+done:
+	mutex_unlock(&stream->mutex);
+	return ret;
 }
 
 static int uvc_v4l2_set_format(struct uvc_streaming *stream,
@@ -253,18 +298,24 @@ static int uvc_v4l2_set_format(struct uvc_streaming *stream,
 	if (fmt->type != stream->type)
 		return -EINVAL;
 
-	if (uvc_queue_allocated(&stream->queue))
-		return -EBUSY;
-
 	ret = uvc_v4l2_try_format(stream, fmt, &probe, &format, &frame);
 	if (ret < 0)
 		return ret;
+
+	mutex_lock(&stream->mutex);
+
+	if (uvc_queue_allocated(&stream->queue)) {
+		ret = -EBUSY;
+		goto done;
+	}
 
 	memcpy(&stream->ctrl, &probe, sizeof probe);
 	stream->cur_format = format;
 	stream->cur_frame = frame;
 
-	return 0;
+done:
+	mutex_unlock(&stream->mutex);
+	return ret;
 }
 
 static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
@@ -275,7 +326,10 @@ static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
 	if (parm->type != stream->type)
 		return -EINVAL;
 
+	mutex_lock(&stream->mutex);
 	numerator = stream->ctrl.dwFrameInterval;
+	mutex_unlock(&stream->mutex);
+
 	denominator = 10000000;
 	uvc_simplify_fraction(&numerator, &denominator, 8, 333);
 
@@ -302,7 +356,6 @@ static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
 static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 		struct v4l2_streamparm *parm)
 {
-	struct uvc_frame *frame = stream->cur_frame;
 	struct uvc_streaming_control probe;
 	struct v4l2_fract timeperframe;
 	uint32_t interval;
@@ -311,28 +364,36 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 	if (parm->type != stream->type)
 		return -EINVAL;
 
-	if (uvc_queue_streaming(&stream->queue))
-		return -EBUSY;
-
 	if (parm->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		timeperframe = parm->parm.capture.timeperframe;
 	else
 		timeperframe = parm->parm.output.timeperframe;
 
-	memcpy(&probe, &stream->ctrl, sizeof probe);
 	interval = uvc_fraction_to_interval(timeperframe.numerator,
 		timeperframe.denominator);
-
 	uvc_trace(UVC_TRACE_FORMAT, "Setting frame interval to %u/%u (%u).\n",
 		timeperframe.numerator, timeperframe.denominator, interval);
-	probe.dwFrameInterval = uvc_try_frame_interval(frame, interval);
+
+	mutex_lock(&stream->mutex);
+
+	if (uvc_queue_streaming(&stream->queue)) {
+		mutex_unlock(&stream->mutex);
+		return -EBUSY;
+	}
+
+	memcpy(&probe, &stream->ctrl, sizeof probe);
+	probe.dwFrameInterval =
+		uvc_try_frame_interval(stream->cur_frame, interval);
 
 	/* Probe the device with the new settings. */
 	ret = uvc_probe_video(stream, &probe);
-	if (ret < 0)
+	if (ret < 0) {
+		mutex_unlock(&stream->mutex);
 		return ret;
+	}
 
 	memcpy(&stream->ctrl, &probe, sizeof probe);
+	mutex_unlock(&stream->mutex);
 
 	/* Return the actual frame period. */
 	timeperframe.numerator = probe.dwFrameInterval;
@@ -451,7 +512,7 @@ static int uvc_v4l2_open(struct file *file)
 
 static int uvc_v4l2_release(struct file *file)
 {
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_release\n");
@@ -460,11 +521,9 @@ static int uvc_v4l2_release(struct file *file)
 	if (uvc_has_privileges(handle)) {
 		uvc_video_enable(stream, 0);
 
-		mutex_lock(&stream->queue.mutex);
 		if (uvc_free_buffers(&stream->queue) < 0)
 			uvc_printk(KERN_ERR, "uvc_v4l2_release: Unable to "
 					"free buffers.\n");
-		mutex_unlock(&stream->queue.mutex);
 	}
 
 	/* Release the file handle. */
@@ -482,7 +541,7 @@ static int uvc_v4l2_release(struct file *file)
 static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_video_chain *chain = handle->chain;
 	struct uvc_streaming *stream = handle->stream;
 	long ret = 0;
@@ -556,7 +615,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	}
 
 	case VIDIOC_QUERYMENU:
-		return uvc_v4l2_query_menu(chain, arg);
+		return uvc_query_v4l2_menu(chain, arg);
 
 	case VIDIOC_G_EXT_CTRLS:
 	{
@@ -837,15 +896,17 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_CROPCAP:
 	{
 		struct v4l2_cropcap *ccap = arg;
-		struct uvc_frame *frame = stream->cur_frame;
 
 		if (ccap->type != stream->type)
 			return -EINVAL;
 
 		ccap->bounds.left = 0;
 		ccap->bounds.top = 0;
-		ccap->bounds.width = frame->wWidth;
-		ccap->bounds.height = frame->wHeight;
+
+		mutex_lock(&stream->mutex);
+		ccap->bounds.width = stream->cur_frame->wWidth;
+		ccap->bounds.height = stream->cur_frame->wHeight;
+		mutex_unlock(&stream->mutex);
 
 		ccap->defrect = ccap->bounds;
 
@@ -862,8 +923,6 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_REQBUFS:
 	{
 		struct v4l2_requestbuffers *rb = arg;
-		unsigned int bufsize =
-			stream->ctrl.dwMaxVideoFrameSize;
 
 		if (rb->type != stream->type ||
 		    rb->memory != V4L2_MEMORY_MMAP)
@@ -872,7 +931,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if ((ret = uvc_acquire_privileges(handle)) < 0)
 			return ret;
 
-		ret = uvc_alloc_buffers(&stream->queue, rb->count, bufsize);
+		mutex_lock(&stream->mutex);
+		ret = uvc_alloc_buffers(&stream->queue, rb->count,
+					stream->ctrl.dwMaxVideoFrameSize);
+		mutex_unlock(&stream->mutex);
 		if (ret < 0)
 			return ret;
 
@@ -920,7 +982,9 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (!uvc_has_privileges(handle))
 			return -EBUSY;
 
+		mutex_lock(&stream->mutex);
 		ret = uvc_video_enable(stream, 1);
+		mutex_unlock(&stream->mutex);
 		if (ret < 0)
 			return ret;
 		break;
@@ -956,58 +1020,13 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	/* Dynamic controls. */
 	case UVCIOC_CTRL_ADD:
-	{
-		struct uvc_xu_control_info *xinfo = arg;
-		struct uvc_control_info *info;
+		/* Legacy ioctl, kept for API compatibility reasons */
+		return -EEXIST;
 
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		info = kzalloc(sizeof *info, GFP_KERNEL);
-		if (info == NULL)
-			return -ENOMEM;
-
-		memcpy(info->entity, xinfo->entity, sizeof info->entity);
-		info->index = xinfo->index;
-		info->selector = xinfo->selector;
-		info->size = xinfo->size;
-		info->flags = xinfo->flags;
-
-		info->flags |= UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX |
-				UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF;
-
-		ret = uvc_ctrl_add_info(info);
-		if (ret < 0)
-			kfree(info);
-		break;
-	}
-
+	case UVCIOC_CTRL_MAP_OLD:
 	case UVCIOC_CTRL_MAP:
-	{
-		struct uvc_xu_control_mapping *xmap = arg;
-		struct uvc_control_mapping *map;
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		map = kzalloc(sizeof *map, GFP_KERNEL);
-		if (map == NULL)
-			return -ENOMEM;
-
-		map->id = xmap->id;
-		memcpy(map->name, xmap->name, sizeof map->name);
-		memcpy(map->entity, xmap->entity, sizeof map->entity);
-		map->selector = xmap->selector;
-		map->size = xmap->size;
-		map->offset = xmap->offset;
-		map->v4l2_type = xmap->v4l2_type;
-		map->data_type = xmap->data_type;
-
-		ret = uvc_ctrl_add_mapping(map);
-		if (ret < 0)
-			kfree(map);
-		break;
-	}
+		return uvc_ioctl_ctrl_map(chain, arg,
+					  cmd == UVCIOC_CTRL_MAP_OLD);
 
 	case UVCIOC_CTRL_GET:
 		return uvc_xu_ctrl_query(chain, arg, 0);
@@ -1016,11 +1035,8 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		return uvc_xu_ctrl_query(chain, arg, 1);
 
 	default:
-		if ((ret = v4l_compat_translate_ioctl(file, cmd, arg,
-			uvc_v4l2_do_ioctl)) == -ENOIOCTLCMD)
-			uvc_trace(UVC_TRACE_IOCTL, "Unknown ioctl 0x%08x\n",
-				  cmd);
-		return ret;
+		uvc_trace(UVC_TRACE_IOCTL, "Unknown ioctl 0x%08x\n", cmd);
+		return -EINVAL;
 	}
 
 	return ret;
@@ -1045,84 +1061,19 @@ static ssize_t uvc_v4l2_read(struct file *file, char __user *data,
 	return -EINVAL;
 }
 
-/*
- * VMA operations.
- */
-static void uvc_vm_open(struct vm_area_struct *vma)
-{
-	struct uvc_buffer *buffer = vma->vm_private_data;
-	buffer->vma_use_count++;
-}
-
-static void uvc_vm_close(struct vm_area_struct *vma)
-{
-	struct uvc_buffer *buffer = vma->vm_private_data;
-	buffer->vma_use_count--;
-}
-
-static const struct vm_operations_struct uvc_vm_ops = {
-	.open		= uvc_vm_open,
-	.close		= uvc_vm_close,
-};
-
 static int uvc_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
-	struct uvc_video_queue *queue = &stream->queue;
-	struct uvc_buffer *uninitialized_var(buffer);
-	struct page *page;
-	unsigned long addr, start, size;
-	unsigned int i;
-	int ret = 0;
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_mmap\n");
 
-	start = vma->vm_start;
-	size = vma->vm_end - vma->vm_start;
-
-	mutex_lock(&queue->mutex);
-
-	for (i = 0; i < queue->count; ++i) {
-		buffer = &queue->buffer[i];
-		if ((buffer->buf.m.offset >> PAGE_SHIFT) == vma->vm_pgoff)
-			break;
-	}
-
-	if (i == queue->count || size != queue->buf_size) {
-		ret = -EINVAL;
-		goto done;
-	}
-
-	/*
-	 * VM_IO marks the area as being an mmaped region for I/O to a
-	 * device. It also prevents the region from being core dumped.
-	 */
-	vma->vm_flags |= VM_IO;
-
-	addr = (unsigned long)queue->mem + buffer->buf.m.offset;
-	while (size > 0) {
-		page = vmalloc_to_page((void *)addr);
-		if ((ret = vm_insert_page(vma, start, page)) < 0)
-			goto done;
-
-		start += PAGE_SIZE;
-		addr += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-
-	vma->vm_ops = &uvc_vm_ops;
-	vma->vm_private_data = buffer;
-	uvc_vm_open(vma);
-
-done:
-	mutex_unlock(&queue->mutex);
-	return ret;
+	return uvc_queue_mmap(&stream->queue, vma);
 }
 
 static unsigned int uvc_v4l2_poll(struct file *file, poll_table *wait)
 {
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_poll\n");
@@ -1134,7 +1085,7 @@ const struct v4l2_file_operations uvc_fops = {
 	.owner		= THIS_MODULE,
 	.open		= uvc_v4l2_open,
 	.release	= uvc_v4l2_release,
-	.ioctl		= uvc_v4l2_ioctl,
+	.unlocked_ioctl	= uvc_v4l2_ioctl,
 	.read		= uvc_v4l2_read,
 	.mmap		= uvc_v4l2_mmap,
 	.poll		= uvc_v4l2_poll,

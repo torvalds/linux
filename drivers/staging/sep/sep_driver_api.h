@@ -2,13 +2,12 @@
  *
  *  sep_driver_api.h - Security Processor Driver api definitions
  *
- *  Copyright(c) 2009 Intel Corporation. All rights reserved.
- *  Copyright(c) 2009 Discretix. All rights reserved.
+ *  Copyright(c) 2009,2010 Intel Corporation. All rights reserved.
+ *  Contributions(c) 2009,2010 Discretix. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the Free
- *  Software Foundation; either version 2 of the License, or (at your option)
- *  any later version.
+ *  Software Foundation; version 2 of the License.
  *
  *  This program is distributed in the hope that it will be useful, but WITHOUT
  *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -22,404 +21,277 @@
  *  CONTACTS:
  *
  *  Mark Allyn		mark.a.allyn@intel.com
+ *  Jayant Mangalampalli jayant.mangalampalli@intel.com
  *
  *  CHANGES:
  *
- *  2009.06.26	Initial publish
+ *  2010.09.14  Upgrade to Medfield
  *
  */
 
 #ifndef __SEP_DRIVER_API_H__
 #define __SEP_DRIVER_API_H__
 
+/* Type of request from device */
+#define SEP_DRIVER_SRC_REPLY		1
+#define SEP_DRIVER_SRC_REQ		2
+#define SEP_DRIVER_SRC_PRINTF		3
 
-
-/*----------------------------------------------------------------
-  IOCTL command defines
-  -----------------------------------------------------------------*/
-
-/* magic number 1 of the sep IOCTL command */
-#define SEP_IOC_MAGIC_NUMBER                           's'
-
-/* sends interrupt to sep that message is ready */
-#define SEP_IOCSENDSEPCOMMAND                 _IO(SEP_IOC_MAGIC_NUMBER , 0)
-
-/* sends interrupt to sep that message is ready */
-#define SEP_IOCSENDSEPRPLYCOMMAND             _IO(SEP_IOC_MAGIC_NUMBER , 1)
-
-/* allocate memory in data pool */
-#define SEP_IOCALLOCDATAPOLL                  _IO(SEP_IOC_MAGIC_NUMBER , 2)
-
-/* write to pre-allocated  memory in data pool */
-#define SEP_IOCWRITEDATAPOLL                  _IO(SEP_IOC_MAGIC_NUMBER , 3)
-
-/* read from  pre-allocated  memory in data pool */
-#define SEP_IOCREADDATAPOLL                   _IO(SEP_IOC_MAGIC_NUMBER , 4)
-
-/* create sym dma lli tables */
-#define SEP_IOCCREATESYMDMATABLE              _IO(SEP_IOC_MAGIC_NUMBER , 5)
-
-/* create flow dma lli tables */
-#define SEP_IOCCREATEFLOWDMATABLE             _IO(SEP_IOC_MAGIC_NUMBER , 6)
-
-/* free dynamic data aalocated during table creation */
-#define SEP_IOCFREEDMATABLEDATA                _IO(SEP_IOC_MAGIC_NUMBER , 7)
-
-/* get the static pool area addersses (physical and virtual) */
-#define SEP_IOCGETSTATICPOOLADDR               _IO(SEP_IOC_MAGIC_NUMBER , 8)
-
-/* set flow id command */
-#define SEP_IOCSETFLOWID                       _IO(SEP_IOC_MAGIC_NUMBER , 9)
-
-/* add tables to the dynamic flow */
-#define SEP_IOCADDFLOWTABLE                    _IO(SEP_IOC_MAGIC_NUMBER , 10)
-
-/* add flow add tables message */
-#define SEP_IOCADDFLOWMESSAGE                  _IO(SEP_IOC_MAGIC_NUMBER , 11)
-
-/* start sep command */
-#define SEP_IOCSEPSTART                        _IO(SEP_IOC_MAGIC_NUMBER , 12)
-
-/* init sep command */
-#define SEP_IOCSEPINIT                         _IO(SEP_IOC_MAGIC_NUMBER , 13)
-
-/* end transaction command */
-#define SEP_IOCENDTRANSACTION                  _IO(SEP_IOC_MAGIC_NUMBER , 15)
-
-/* reallocate cache and resident */
-#define SEP_IOCREALLOCCACHERES                 _IO(SEP_IOC_MAGIC_NUMBER , 16)
-
-/* get the offset of the address starting from the beginnnig of the map area */
-#define SEP_IOCGETMAPPEDADDROFFSET             _IO(SEP_IOC_MAGIC_NUMBER , 17)
-
-/* get time address and value */
-#define SEP_IOCGETIME                          _IO(SEP_IOC_MAGIC_NUMBER , 19)
 
 /*-------------------------------------------
     TYPEDEFS
 ----------------------------------------------*/
 
 /*
-  init command struct
-*/
-struct sep_driver_init_t {
-	/* start of the 1G of the host memory address that SEP can access */
-	unsigned long message_addr;
-
-	/* start address of resident */
-	unsigned long message_size_in_words;
-
-};
-
+ * Note that several members of these structres are only here
+ * for campatability with the middleware; they are not used
+ * by this driver.
+ * All user space buffer addresses are set to aligned u64
+ * in order to ensure compatibility with 64 bit systems
+ */
 
 /*
-  realloc cache resident command
+  init command struct; this will go away when SCU does init
 */
-struct sep_driver_realloc_cache_resident_t {
-	/* new cache address */
-	u64 new_cache_addr;
-	/* new resident address */
-	u64 new_resident_addr;
-	/* new resident address */
-	u64  new_shared_area_addr;
-	/* new base address */
-	u64 new_base_addr;
+struct init_struct {
+	/* address that SEP can access for message */
+	aligned_u64   message_addr;
+
+	/* message size */
+	u32   message_size_in_words;
+
+	/* offset of the init message in the sep sram */
+	u32   sep_sram_addr;
+
+	/* -not used- resident size in bytes*/
+	u32   unused_resident_size_in_bytes;
+
+	/* -not used- cache size in bytes*/
+	u32   unused_cache_size_in_bytes;
+
+	/* -not used- ext cache current address */
+	aligned_u64   unused_extcache_addr;
+
+	/* -not used- ext cache size in bytes*/
+	u32   unused_extcache_size_in_bytes;
 };
 
-struct sep_driver_alloc_t {
-	/* virtual address of allocated space */
-	unsigned long offset;
+struct realloc_ext_struct {
+	/* -not used- current external cache address */
+	aligned_u64   unused_ext_cache_addr;
 
-	/* physical address of allocated space */
-	unsigned long phys_address;
+	/* -not used- external cache size in bytes*/
+	u32   unused_ext_cache_size_in_bytes;
+};
 
+struct alloc_struct {
+	/* offset from start of shared pool area */
+	u32  offset;
 	/* number of bytes to allocate */
-	unsigned long num_bytes;
+	u32  num_bytes;
 };
 
 /*
- */
-struct sep_driver_write_t {
-	/* application space address */
-	unsigned long app_address;
-
-	/* address of the data pool */
-	unsigned long datapool_address;
-
-	/* number of bytes to write */
-	unsigned long num_bytes;
-};
-
-/*
- */
-struct sep_driver_read_t {
-	/* application space address */
-	unsigned long app_address;
-
-	/* address of the data pool */
-	unsigned long datapool_address;
-
-	/* number of bytes to read */
-	unsigned long num_bytes;
-};
-
-/*
+	Note that all app addresses are cast as u32; the sep
+	middleware sends them as fixed 32 bit words
 */
-struct sep_driver_build_sync_table_t {
-	/* address value of the data in */
-	unsigned long app_in_address;
+struct bld_syn_tab_struct {
+	/* address value of the data in (user space addr) */
+	aligned_u64 app_in_address;
 
 	/* size of data in */
-	unsigned long data_in_size;
+	u32 data_in_size;
 
-	/* address of the data out */
-	unsigned long app_out_address;
+	/* address of the data out (user space addr) */
+	aligned_u64 app_out_address;
 
 	/* the size of the block of the operation - if needed,
 	   every table will be modulo this parameter */
-	unsigned long block_size;
+	u32 block_size;
 
-	/* the physical address of the first input DMA table */
-	unsigned long in_table_address;
-
-	/* number of entries in the first input DMA table */
-	unsigned long in_table_num_entries;
-
-	/* the physical address of the first output DMA table */
-	unsigned long out_table_address;
-
-	/* number of entries in the first output DMA table */
-	unsigned long out_table_num_entries;
-
-	/* data in the first input table */
-	unsigned long table_data_size;
-
-	/* distinct user/kernel layout */
+	/* -not used- distinct user/kernel layout */
 	bool isKernelVirtualAddress;
 
+};
+
+/* command struct for getting caller id value and address */
+struct caller_id_struct {
+	/* pid of the process */
+	u32 pid;
+	/* virtual address of the caller id hash */
+	aligned_u64 callerIdAddress;
+	/* caller id hash size in bytes */
+	u32 callerIdSizeInBytes;
 };
 
 /*
+  structure that represents DCB
 */
-struct sep_driver_build_flow_table_t {
-	/* flow type */
-	unsigned long flow_type;
-
-	/* flag for input output */
-	unsigned long input_output_flag;
-
-	/* address value of the data in */
-	unsigned long virt_buff_data_addr;
-
-	/* size of data in */
-	unsigned long num_virtual_buffers;
-
-	/* the physical address of the first input DMA table */
-	unsigned long first_table_addr;
-
-	/* number of entries in the first input DMA table */
-	unsigned long first_table_num_entries;
-
-	/* data in the first input table */
-	unsigned long first_table_data_size;
-
-	/* distinct user/kernel layout */
-	bool isKernelVirtualAddress;
+struct sep_dcblock {
+	/* physical address of the first input mlli */
+	u32	input_mlli_address;
+	/* num of entries in the first input mlli */
+	u32	input_mlli_num_entries;
+	/* size of data in the first input mlli */
+	u32	input_mlli_data_size;
+	/* physical address of the first output mlli */
+	u32	output_mlli_address;
+	/* num of entries in the first output mlli */
+	u32	output_mlli_num_entries;
+	/* size of data in the first output mlli */
+	u32	output_mlli_data_size;
+	/* pointer to the output virtual tail */
+	u32	out_vr_tail_pt;
+	/* size of tail data */
+	u32	tail_data_size;
+	/* input tail data array */
+	u8	tail_data[64];
 };
 
-
-struct sep_driver_add_flow_table_t {
-	/* flow id  */
-	unsigned long flow_id;
-
-	/* flag for input output */
-	unsigned long inputOutputFlag;
-
-	/* address value of the data in */
-	unsigned long virt_buff_data_addr;
-
-	/* size of data in */
-	unsigned long num_virtual_buffers;
-
-	/* address of the first table */
-	unsigned long first_table_addr;
-
-	/* number of entries in the first table */
-	unsigned long first_table_num_entries;
-
-	/* data size of the first table */
-	unsigned long first_table_data_size;
-
-	/* distinct user/kernel layout */
-	bool isKernelVirtualAddress;
-
+struct sep_caller_id_entry {
+	int pid;
+	unsigned char callerIdHash[SEP_CALLER_ID_HASH_SIZE_IN_BYTES];
 };
 
 /*
-  command struct for set flow id
+	command structure for building dcb block (currently for ext app only
 */
-struct sep_driver_set_flow_id_t {
-	/* flow id to set */
-	unsigned long flow_id;
+struct build_dcb_struct {
+	/* address value of the data in */
+	aligned_u64 app_in_address;
+	/* size of data in */
+	u32  data_in_size;
+	/* address of the data out */
+	aligned_u64 app_out_address;
+	/* the size of the block of the operation - if needed,
+	every table will be modulo this parameter */
+	u32  block_size;
+	/* the size of the block of the operation - if needed,
+	every table will be modulo this parameter */
+	u32  tail_block_size;
+};
+
+/**
+ * @struct sep_dma_map
+ *
+ * Structure that contains all information needed for mapping the user pages
+ *	     or kernel buffers for dma operations
+ *
+ *
+ */
+struct sep_dma_map {
+	/* mapped dma address */
+	dma_addr_t    dma_addr;
+	/* size of the mapped data */
+	size_t        size;
+};
+
+struct sep_dma_resource {
+	/* array of pointers to the pages that represent
+	input data for the synchronic DMA action */
+	struct page **in_page_array;
+
+	/* array of pointers to the pages that represent out
+	data for the synchronic DMA action */
+	struct page **out_page_array;
+
+	/* number of pages in the sep_in_page_array */
+	u32 in_num_pages;
+
+	/* number of pages in the sep_out_page_array */
+	u32 out_num_pages;
+
+	/* map array of the input data */
+	struct sep_dma_map *in_map_array;
+
+	/* map array of the output data */
+	struct sep_dma_map *out_map_array;
+
+	/* number of entries of the input mapp array */
+	u32 in_map_num_entries;
+
+	/* number of entries of the output mapp array */
+	u32 out_map_num_entries;
 };
 
 
-/* command struct for add tables message */
-struct sep_driver_add_message_t {
-	/* flow id to set */
-	unsigned long flow_id;
+/* command struct for translating rar handle to bus address
+   and setting it at predefined location */
+struct rar_hndl_to_bus_struct {
 
-	/* message size in bytes */
-	unsigned long message_size_in_bytes;
-
-	/* address of the message */
-	unsigned long message_address;
+	/* rar handle */
+	aligned_u64 rar_handle;
 };
-
-/* command struct for static pool addresses  */
-struct sep_driver_static_pool_addr_t {
-	/* physical address of the static pool */
-	unsigned long physical_static_address;
-
-	/* virtual address of the static pool */
-	unsigned long virtual_static_address;
-};
-
-/* command struct for getiing offset of the physical address from
-	the start of the mapped area  */
-struct sep_driver_get_mapped_offset_t {
-	/* physical address of the static pool */
-	unsigned long physical_address;
-
-	/* virtual address of the static pool */
-	unsigned long offset;
-};
-
-/* command struct for getting time value and address */
-struct sep_driver_get_time_t {
-	/* physical address of stored time */
-	unsigned long time_physical_address;
-
-	/* value of the stored time */
-	unsigned long time_value;
-};
-
 
 /*
   structure that represent one entry in the DMA LLI table
 */
-struct sep_lli_entry_t {
+struct sep_lli_entry {
 	/* physical address */
-	unsigned long physical_address;
+	u32 bus_address;
 
 	/* block size */
-	unsigned long block_size;
+	u32 block_size;
 };
 
-/*
-  structure that reperesents data needed for lli table construction
-*/
-struct sep_lli_prepare_table_data_t {
-	/* pointer to the memory where the first lli entry to be built */
-	struct sep_lli_entry_t *lli_entry_ptr;
+/*----------------------------------------------------------------
+	IOCTL command defines
+	-----------------------------------------------------------------*/
 
-	/* pointer to the array of lli entries from which the table is to be built */
-	struct sep_lli_entry_t *lli_array_ptr;
+/* magic number 1 of the sep IOCTL command */
+#define SEP_IOC_MAGIC_NUMBER	                     's'
 
-	/* number of elements in lli array */
-	int lli_array_size;
+/* sends interrupt to sep that message is ready */
+#define SEP_IOCSENDSEPCOMMAND	 \
+	_IO(SEP_IOC_MAGIC_NUMBER, 0)
 
-	/* number of entries in the created table */
-	int num_table_entries;
+/* sends interrupt to sep that message is ready */
+#define SEP_IOCSENDSEPRPLYCOMMAND	 \
+	_IO(SEP_IOC_MAGIC_NUMBER, 1)
 
-	/* number of array entries processed during table creation */
-	int num_array_entries_processed;
+/* allocate memory in data pool */
+#define SEP_IOCALLOCDATAPOLL	\
+	_IOW(SEP_IOC_MAGIC_NUMBER, 2, struct alloc_struct)
 
-	/* the totatl data size in the created table */
-	int lli_table_total_data_size;
-};
+/* create sym dma lli tables */
+#define SEP_IOCCREATESYMDMATABLE	\
+	_IOW(SEP_IOC_MAGIC_NUMBER, 5, struct bld_syn_tab_struct)
 
-/*
-  structure that represent tone table - it is not used in code, jkust
-  to show what table looks like
-*/
-struct sep_lli_table_t {
-	/* number of pages mapped in this tables. If 0 - means that the table
-	   is not defined (used as a valid flag) */
-	unsigned long num_pages;
-	/*
-	   pointer to array of page pointers that represent the mapping of the
-	   virtual buffer defined by the table to the physical memory. If this
-	   pointer is NULL, it means that the table is not defined
-	   (used as a valid flag)
-	 */
-	struct page **table_page_array_ptr;
+/* free dynamic data aalocated during table creation */
+#define SEP_IOCFREEDMATABLEDATA	 \
+	_IO(SEP_IOC_MAGIC_NUMBER, 7)
 
-	/* maximum flow entries in table */
-	struct sep_lli_entry_t lli_entries[SEP_DRIVER_MAX_FLOW_NUM_ENTRIES_IN_TABLE];
-};
+/* get the static pool area addersses (physical and virtual) */
+#define SEP_IOCGETSTATICPOOLADDR	\
+	_IO(SEP_IOC_MAGIC_NUMBER, 8)
 
+/* start sep command */
+#define SEP_IOCSEPSTART	 \
+	_IO(SEP_IOC_MAGIC_NUMBER, 12)
 
-/*
-  structure for keeping the mapping of the virtual buffer into physical pages
-*/
-struct sep_flow_buffer_data {
-	/* pointer to the array of page structs pointers to the pages of the
-	   virtual buffer */
-	struct page **page_array_ptr;
+/* init sep command */
+#define SEP_IOCSEPINIT	\
+	_IOW(SEP_IOC_MAGIC_NUMBER, 13, struct init_struct)
 
-	/* number of pages taken by the virtual buffer */
-	unsigned long num_pages;
+/* end transaction command */
+#define SEP_IOCENDTRANSACTION	 \
+	_IO(SEP_IOC_MAGIC_NUMBER, 15)
 
-	/* this flag signals if this page_array is the last one among many that were
-	   sent in one setting to SEP */
-	unsigned long last_page_array_flag;
-};
+/* reallocate external app; unused structure still needed for
+ * compatability with middleware */
+#define SEP_IOCREALLOCEXTCACHE	\
+	_IOW(SEP_IOC_MAGIC_NUMBER, 18, struct realloc_ext_struct)
 
-/*
-  struct that keeps all the data for one flow
-*/
-struct sep_flow_context_t {
-	/*
-	   work struct for handling the flow done interrupt in the workqueue
-	   this structure must be in the first place, since it will be used
-	   forcasting to the containing flow context
-	 */
-	struct work_struct flow_wq;
+#define SEP_IOCRARPREPAREMESSAGE	\
+	_IOW(SEP_IOC_MAGIC_NUMBER, 20, struct rar_hndl_to_bus_struct)
 
-	/* flow id */
-	unsigned long flow_id;
+#define SEP_IOCTLSETCALLERID	\
+	_IOW(SEP_IOC_MAGIC_NUMBER, 34, struct caller_id_struct)
 
-	/* additional input tables exists */
-	unsigned long input_tables_flag;
+#define SEP_IOCPREPAREDCB					\
+	_IOW(SEP_IOC_MAGIC_NUMBER, 35, struct build_dcb_struct)
 
-	/* additional output tables exists */
-	unsigned long output_tables_flag;
-
-	/*  data of the first input file */
-	struct sep_lli_entry_t first_input_table;
-
-	/* data of the first output table */
-	struct sep_lli_entry_t first_output_table;
-
-	/* last input table data */
-	struct sep_lli_entry_t last_input_table;
-
-	/* last output table data */
-	struct sep_lli_entry_t last_output_table;
-
-	/* first list of table */
-	struct sep_lli_entry_t input_tables_in_process;
-
-	/* output table in process (in sep) */
-	struct sep_lli_entry_t output_tables_in_process;
-
-	/* size of messages in bytes */
-	unsigned long message_size_in_bytes;
-
-	/* message */
-	unsigned char message[SEP_MAX_ADD_MESSAGE_LENGTH_IN_BYTES];
-};
-
+#define SEP_IOCFREEDCB					\
+	_IO(SEP_IOC_MAGIC_NUMBER, 36)
 
 #endif

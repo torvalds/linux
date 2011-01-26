@@ -3,14 +3,10 @@ config DEFCONFIG_LIST
 	option defconfig_list
 	default "arch/$ARCH/defconfig"
 
-# UML uses the generic IRQ subsystem
-config GENERIC_HARDIRQS
-	bool
-	default y
-
 config UML
 	bool
 	default y
+	select HAVE_GENERIC_HARDIRQS
 
 config MMU
 	bool
@@ -18,8 +14,6 @@ config MMU
 
 config NO_IOMEM
 	def_bool y
-
-mainmenu "Linux/Usermode Kernel Configuration"
 
 config ISA
 	bool
@@ -54,10 +48,6 @@ config GENERIC_BUG
 	bool
 	default y
 	depends on BUG
-
-config GENERIC_TIME
-	bool
-	default y
 
 config GENERIC_CLOCKEVENTS
 	bool

@@ -174,7 +174,7 @@ static int vp702x_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 }
 
 /* keys for the enclosed remote control */
-static struct dvb_usb_rc_key ir_codes_vp702x_table[] = {
+static struct rc_map_table rc_map_vp702x_table[] = {
 	{ 0x0001, KEY_1 },
 	{ 0x0002, KEY_2 },
 };
@@ -197,10 +197,10 @@ static int vp702x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		return 0;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(ir_codes_vp702x_table); i++)
-		if (rc5_custom(&ir_codes_vp702x_table[i]) == key[1]) {
+	for (i = 0; i < ARRAY_SIZE(rc_map_vp702x_table); i++)
+		if (rc5_custom(&rc_map_vp702x_table[i]) == key[1]) {
 			*state = REMOTE_KEY_PRESSED;
-			*event = ir_codes_vp702x_table[i].event;
+			*event = rc_map_vp702x_table[i].keycode;
 			break;
 		}
 	return 0;
@@ -283,10 +283,12 @@ static struct dvb_usb_device_properties vp702x_properties = {
 	},
 	.read_mac_address = vp702x_read_mac_addr,
 
-	.rc_key_map       = ir_codes_vp702x_table,
-	.rc_key_map_size  = ARRAY_SIZE(ir_codes_vp702x_table),
-	.rc_interval      = 400,
-	.rc_query         = vp702x_rc_query,
+	.rc.legacy = {
+		.rc_map_table       = rc_map_vp702x_table,
+		.rc_map_size  = ARRAY_SIZE(rc_map_vp702x_table),
+		.rc_interval      = 400,
+		.rc_query         = vp702x_rc_query,
+	},
 
 	.num_device_descs = 1,
 	.devices = {

@@ -349,7 +349,7 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
  * Routine to send a scsi cdb
  * Called with host_lock held and interrupts disabled.
  */
-int fnic_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
+static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 {
 	struct fc_lport *lp;
 	struct fc_rport *rport;
@@ -456,6 +456,8 @@ out:
 	spin_lock(lp->host->host_lock);
 	return ret;
 }
+
+DEF_SCSI_QCMD(fnic_queuecommand)
 
 /*
  * fnic_fcpio_fw_reset_cmpl_handler
@@ -1246,11 +1248,10 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 	lp = shost_priv(sc->device->host);
 
 	fnic = lport_priv(lp);
-	FNIC_SCSI_DBG(KERN_DEBUG,
-		      fnic->lport->host,
-		      "Abort Cmd called FCID 0x%x, LUN 0x%x TAG %d\n",
-		      (starget_to_rport(scsi_target(sc->device)))->port_id,
-		      sc->device->lun, sc->request->tag);
+	rport = starget_to_rport(scsi_target(sc->device));
+	FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
+			"Abort Cmd called FCID 0x%x, LUN 0x%x TAG %d\n",
+			rport->port_id, sc->device->lun, sc->request->tag);
 
 	if (lp->state != LPORT_ST_READY || !(lp->link_up)) {
 		ret = FAILED;
@@ -1299,7 +1300,6 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 	 * port is up, then send abts to the remote port to terminate
 	 * the IO. Else, just locally terminate the IO in the firmware
 	 */
-	rport = starget_to_rport(scsi_target(sc->device));
 	if (fc_remote_port_chkready(rport) == 0)
 		task_req = FCPIO_ITMF_ABT_TASK;
 	else
@@ -1418,7 +1418,6 @@ static int fnic_clean_pending_aborts(struct fnic *fnic,
 	unsigned long flags;
 	int ret = 0;
 	struct scsi_cmnd *sc;
-	struct fc_rport *rport;
 	struct scsi_lun fc_lun;
 	struct scsi_device *lun_dev = lr_sc->device;
 	DECLARE_COMPLETION_ONSTACK(tm_done);
@@ -1458,7 +1457,6 @@ static int fnic_clean_pending_aborts(struct fnic *fnic,
 
 		/* Now queue the abort command to firmware */
 		int_to_scsilun(sc->device->lun, &fc_lun);
-		rport = starget_to_rport(scsi_target(sc->device));
 
 		if (fnic_queue_abort_io_req(fnic, tag,
 					    FCPIO_ITMF_ABT_TASK_TERM,
@@ -1528,18 +1526,16 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 	lp = shost_priv(sc->device->host);
 
 	fnic = lport_priv(lp);
-	FNIC_SCSI_DBG(KERN_DEBUG,
-		      fnic->lport->host,
-		      "Device reset called FCID 0x%x, LUN 0x%x\n",
-		      (starget_to_rport(scsi_target(sc->device)))->port_id,
-		      sc->device->lun);
 
+	rport = starget_to_rport(scsi_target(sc->device));
+	FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
+			"Device reset called FCID 0x%x, LUN 0x%x\n",
+			rport->port_id, sc->device->lun);
 
 	if (lp->state != LPORT_ST_READY || !(lp->link_up))
 		goto fnic_device_reset_end;
 
 	/* Check if remote port up */
-	rport = starget_to_rport(scsi_target(sc->device));
 	if (fc_remote_port_chkready(rport))
 		goto fnic_device_reset_end;
 

@@ -36,7 +36,7 @@ struct hdlc_header {
 	u8 address;
 	u8 control;
 	__be16 protocol;
-}__attribute__ ((packed));
+}__packed;
 
 
 struct cisco_packet {
@@ -45,7 +45,7 @@ struct cisco_packet {
 	__be32 par2;
 	__be16 rel;		/* reliability */
 	__be32 time;
-}__attribute__ ((packed));
+}__packed;
 #define	CISCO_PACKET_LEN	18
 #define	CISCO_BIG_PACKET_LEN	20
 
@@ -191,7 +191,8 @@ static int cisco_rx(struct sk_buff *skb)
 
 		switch (ntohl (cisco_data->type)) {
 		case CISCO_ADDR_REQ: /* Stolen from syncppp.c :-) */
-			in_dev = dev->ip_ptr;
+			rcu_read_lock();
+			in_dev = __in_dev_get_rcu(dev);
 			addr = 0;
 			mask = ~cpu_to_be32(0); /* is the mask correct? */
 
@@ -211,6 +212,7 @@ static int cisco_rx(struct sk_buff *skb)
 				cisco_keepalive_send(dev, CISCO_ADDR_REPLY,
 						     addr, mask);
 			}
+			rcu_read_unlock();
 			dev_kfree_skb_any(skb);
 			return NET_RX_SUCCESS;
 

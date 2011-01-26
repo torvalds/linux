@@ -9,6 +9,7 @@
 #include <linux/rcupdate.h>
 #include <linux/timer.h>
 #include <linux/sysctl.h>
+#include <linux/rtnetlink.h>
 
 enum
 {
@@ -40,10 +41,12 @@ enum
 	__IPV4_DEVCONF_MAX
 };
 
+#define IPV4_DEVCONF_MAX (__IPV4_DEVCONF_MAX - 1)
+
 struct ipv4_devconf {
 	void	*sysctl;
-	int	data[__IPV4_DEVCONF_MAX - 1];
-	DECLARE_BITMAP(state, __IPV4_DEVCONF_MAX - 1);
+	int	data[IPV4_DEVCONF_MAX];
+	DECLARE_BITMAP(state, IPV4_DEVCONF_MAX);
 };
 
 struct in_device {
@@ -51,9 +54,8 @@ struct in_device {
 	atomic_t		refcnt;
 	int			dead;
 	struct in_ifaddr	*ifa_list;	/* IP ifaddr chain		*/
-	rwlock_t		mc_list_lock;
-	struct ip_mc_list	*mc_list;	/* IP multicast filter chain    */
-	int			mc_count;	          /* Number of installed mcasts	*/
+	struct ip_mc_list __rcu	*mc_list;	/* IP multicast filter chain    */
+	int			mc_count;	/* Number of installed mcasts	*/
 	spinlock_t		mc_tomb_lock;
 	struct ip_mc_list	*mc_tomb;
 	unsigned long		mr_v1_seen;
@@ -90,7 +92,7 @@ static inline void ipv4_devconf_set(struct in_device *in_dev, int index,
 
 static inline void ipv4_devconf_setall(struct in_device *in_dev)
 {
-	bitmap_fill(in_dev->cnf.state, __IPV4_DEVCONF_MAX - 1);
+	bitmap_fill(in_dev->cnf.state, IPV4_DEVCONF_MAX);
 }
 
 #define IN_DEV_CONF_GET(in_dev, attr) \
@@ -158,7 +160,12 @@ struct in_ifaddr {
 extern int register_inetaddr_notifier(struct notifier_block *nb);
 extern int unregister_inetaddr_notifier(struct notifier_block *nb);
 
-extern struct net_device *ip_dev_find(struct net *net, __be32 addr);
+extern struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref);
+static inline struct net_device *ip_dev_find(struct net *net, __be32 addr)
+{
+	return __ip_dev_find(net, addr, true);
+}
+
 extern int		inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b);
 extern int		devinet_ioctl(struct net *net, unsigned int cmd, void __user *);
 extern void		devinet_init(void);
@@ -198,14 +205,10 @@ static __inline__ int bad_mask(__be32 mask, __be32 addr)
 
 static inline struct in_device *__in_dev_get_rcu(const struct net_device *dev)
 {
-	struct in_device *in_dev = dev->ip_ptr;
-	if (in_dev)
-		in_dev = rcu_dereference(in_dev);
-	return in_dev;
+	return rcu_dereference(dev->ip_ptr);
 }
 
-static __inline__ struct in_device *
-in_dev_get(const struct net_device *dev)
+static inline struct in_device *in_dev_get(const struct net_device *dev)
 {
 	struct in_device *in_dev;
 
@@ -217,10 +220,9 @@ in_dev_get(const struct net_device *dev)
 	return in_dev;
 }
 
-static __inline__ struct in_device *
-__in_dev_get_rtnl(const struct net_device *dev)
+static inline struct in_device *__in_dev_get_rtnl(const struct net_device *dev)
 {
-	return (struct in_device*)dev->ip_ptr;
+	return rtnl_dereference(dev->ip_ptr);
 }
 
 extern void in_dev_finish_destroy(struct in_device *idev);

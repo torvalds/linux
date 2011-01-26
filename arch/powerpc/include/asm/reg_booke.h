@@ -4,6 +4,12 @@
  * are not true Book E PowerPCs, they borrowed a number of features
  * before Book E was finalized, and are included here as well.  Unfortunatly,
  * they sometimes used different locations than true Book E CPUs did.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation.
+ *
+ * Copyright 2009-2010 Freescale Semiconductor, Inc.
  */
 #ifdef __KERNEL__
 #ifndef __ASM_POWERPC_REG_BOOKE_H__
@@ -23,8 +29,8 @@
 #if defined(CONFIG_PPC_BOOK3E_64)
 #define MSR_		MSR_ME | MSR_CE
 #define MSR_KERNEL      MSR_ | MSR_CM
-#define MSR_USER32	MSR_ | MSR_PR | MSR_EE
-#define MSR_USER64	MSR_USER32 | MSR_CM
+#define MSR_USER32	MSR_ | MSR_PR | MSR_EE | MSR_DE
+#define MSR_USER64	MSR_USER32 | MSR_CM | MSR_DE
 #elif defined (CONFIG_40x)
 #define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_IR|MSR_DR|MSR_CE)
 #define MSR_USER	(MSR_KERNEL|MSR_PR|MSR_EE)
@@ -56,6 +62,7 @@
 #define SPRN_TLB0PS	0x158	/* TLB 0 Page Size Register */
 #define SPRN_MAS5_MAS6	0x15c	/* MMU Assist Register 5 || 6 */
 #define SPRN_MAS8_MAS1	0x15d	/* MMU Assist Register 8 || 1 */
+#define SPRN_EPTCFG	0x15e	/* Embedded Page Table Config */
 #define SPRN_MAS7_MAS3	0x174	/* MMU Assist Register 7 || 3 */
 #define SPRN_MAS0_MAS1	0x175	/* MMU Assist Register 0 || 1 */
 #define SPRN_IVOR0	0x190	/* Interrupt Vector Offset Register 0 */
@@ -88,6 +95,7 @@
 #define SPRN_IVOR35	0x213	/* Interrupt Vector Offset Register 35 */
 #define SPRN_IVOR36	0x214	/* Interrupt Vector Offset Register 36 */
 #define SPRN_IVOR37	0x215	/* Interrupt Vector Offset Register 37 */
+#define SPRN_MCARU	0x239	/* Machine Check Address Register Upper */
 #define SPRN_MCSRR0	0x23A	/* Machine Check Save and Restore Register 0 */
 #define SPRN_MCSRR1	0x23B	/* Machine Check Save and Restore Register 1 */
 #define SPRN_MCSR	0x23C	/* Machine Check Status Register */
@@ -196,8 +204,11 @@
 #define PPC47x_MCSR_IPR	0x00400000 /* Imprecise Machine Check Exception */
 
 #ifdef CONFIG_E500
+/* All e500 */
 #define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
 #define MCSR_ICPERR 	0x40000000UL /* I-Cache Parity Error */
+
+/* e500v1/v2 */
 #define MCSR_DCP_PERR 	0x20000000UL /* D-Cache Push Parity Error */
 #define MCSR_DCPERR 	0x10000000UL /* D-Cache Parity Error */
 #define MCSR_BUS_IAERR 	0x00000080UL /* Instruction Address Error */
@@ -209,12 +220,20 @@
 #define MCSR_BUS_IPERR 	0x00000002UL /* Instruction parity Error */
 #define MCSR_BUS_RPERR 	0x00000001UL /* Read parity Error */
 
-/* e500 parts may set unused bits in MCSR; mask these off */
-#define MCSR_MASK	(MCSR_MCP | MCSR_ICPERR | MCSR_DCP_PERR | \
-			MCSR_DCPERR | MCSR_BUS_IAERR | MCSR_BUS_RAERR | \
-			MCSR_BUS_WAERR | MCSR_BUS_IBERR | MCSR_BUS_RBERR | \
-			MCSR_BUS_WBERR | MCSR_BUS_IPERR | MCSR_BUS_RPERR)
+/* e500mc */
+#define MCSR_DCPERR_MC	0x20000000UL /* D-Cache Parity Error */
+#define MCSR_L2MMU_MHIT	0x04000000UL /* Hit on multiple TLB entries */
+#define MCSR_NMI	0x00100000UL /* Non-Maskable Interrupt */
+#define MCSR_MAV	0x00080000UL /* MCAR address valid */
+#define MCSR_MEA	0x00040000UL /* MCAR is effective address */
+#define MCSR_IF		0x00010000UL /* Instruction Fetch */
+#define MCSR_LD		0x00008000UL /* Load */
+#define MCSR_ST		0x00004000UL /* Store */
+#define MCSR_LDG	0x00002000UL /* Guarded Load */
+#define MCSR_TLBSYNC	0x00000002UL /* Multiple tlbsyncs detected */
+#define MCSR_BSL2_ERR	0x00000001UL /* Backside L2 cache error */
 #endif
+
 #ifdef CONFIG_E200
 #define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
 #define MCSR_CP_PERR 	0x20000000UL /* Cache Push Parity Error */
@@ -225,11 +244,20 @@
 #define MCSR_BUS_DRERR 	0x00000008UL /* Read Bus Error on data load */
 #define MCSR_BUS_WRERR 	0x00000004UL /* Write Bus Error on buffered
 					store or cache line push */
+#endif
 
-/* e200 parts may set unused bits in MCSR; mask these off */
-#define MCSR_MASK	(MCSR_MCP | MCSR_CP_PERR | MCSR_CPERR | \
-			MCSR_EXCP_ERR | MCSR_BUS_IRERR | MCSR_BUS_DRERR | \
-			MCSR_BUS_WRERR)
+/* Bit definitions for the HID1 */
+#ifdef CONFIG_E500
+/* e500v1/v2 */
+#define HID1_PLL_CFG_MASK 0xfc000000	/* PLL_CFG input pins */
+#define HID1_RFXE	0x00020000	/* Read fault exception enable */
+#define HID1_R1DPE	0x00008000	/* R1 data bus parity enable */
+#define HID1_R2DPE	0x00004000	/* R2 data bus parity enable */
+#define HID1_ASTME	0x00002000	/* Address bus streaming mode enable */
+#define HID1_ABE	0x00001000	/* Address broadcast enable */
+#define HID1_MPXTT	0x00000400	/* MPX re-map transfer type */
+#define HID1_ATS	0x00000080	/* Atomic status */
+#define HID1_MID_MASK	0x0000000f	/* MID input pins */
 #endif
 
 /* Bit definitions for the DBSR. */

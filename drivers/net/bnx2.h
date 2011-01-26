@@ -295,6 +295,9 @@ struct l2_fhdr {
 		#define L2_FHDR_ERRORS_TCP_XSUM		(1<<28)
 		#define L2_FHDR_ERRORS_UDP_XSUM		(1<<31)
 
+		#define L2_FHDR_STATUS_USE_RXHASH	\
+			(L2_FHDR_STATUS_TCP_SEGMENT | L2_FHDR_STATUS_RSS_HASH)
+
 	u32 l2_fhdr_hash;
 #if defined(__BIG_ENDIAN)
 	u16 l2_fhdr_pkt_len;
@@ -349,12 +352,7 @@ struct l2_fhdr {
 #define BNX2_L2CTX_BD_PRE_READ				0x00000000
 #define BNX2_L2CTX_CTX_SIZE				0x00000000
 #define BNX2_L2CTX_CTX_TYPE				0x00000000
-#define BNX2_L2CTX_LO_WATER_MARK_DEFAULT		 4
-#define BNX2_L2CTX_LO_WATER_MARK_SCALE			 4
-#define BNX2_L2CTX_LO_WATER_MARK_DIS			 0
-#define BNX2_L2CTX_HI_WATER_MARK_SHIFT			 4
-#define BNX2_L2CTX_HI_WATER_MARK_SCALE			 16
-#define BNX2_L2CTX_WATER_MARKS_MSK			 0x000000ff
+#define BNX2_L2CTX_FLOW_CTRL_ENABLE			 0x000000ff
 #define BNX2_L2CTX_CTX_TYPE_SIZE_L2			 ((0x20/20)<<16)
 #define BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE		 (0xf<<28)
 #define BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_UNDEFINED	 (0<<28)
@@ -463,6 +461,8 @@ struct l2_fhdr {
 #define BNX2_PCICFG_MAILBOX_QUEUE_ADDR			0x00000090
 #define BNX2_PCICFG_MAILBOX_QUEUE_DATA			0x00000094
 
+#define BNX2_PCICFG_DEVICE_CONTROL			0x000000b4
+#define BNX2_PCICFG_DEVICE_STATUS_NO_PEND		 ((1L<<5)<<16)
 
 /*
  *  pci_reg definition
@@ -4182,6 +4182,15 @@ struct l2_fhdr {
 #define BNX2_RLUP_RSS_CONFIG_IPV6_RSS_TYPE_IP_ONLY_XI	 (2L<<2)
 #define BNX2_RLUP_RSS_CONFIG_IPV6_RSS_TYPE_RES_XI	 (3L<<2)
 
+#define BNX2_RLUP_RSS_COMMAND				0x00002048
+#define BNX2_RLUP_RSS_COMMAND_RSS_IND_TABLE_ADDR	 (0xfUL<<0)
+#define BNX2_RLUP_RSS_COMMAND_RSS_WRITE_MASK		 (0xffUL<<4)
+#define BNX2_RLUP_RSS_COMMAND_WRITE			 (1UL<<12)
+#define BNX2_RLUP_RSS_COMMAND_READ			 (1UL<<13)
+#define BNX2_RLUP_RSS_COMMAND_HASH_MASK			 (0x7UL<<14)
+
+#define BNX2_RLUP_RSS_DATA				0x0000204c
+
 
 /*
  *  rbuf_reg definition
@@ -6074,6 +6083,7 @@ struct l2_fhdr {
 
 #define BNX2_COM_SCRATCH				0x00120000
 
+#define BNX2_FW_RX_LOW_LATENCY				 0x00120058
 #define BNX2_FW_RX_DROP_COUNT				 0x00120084
 
 
@@ -6494,8 +6504,8 @@ struct l2_fhdr {
 #define TX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct tx_bd))
 #define MAX_TX_DESC_CNT (TX_DESC_CNT - 1)
 
-#define MAX_RX_RINGS	4
-#define MAX_RX_PG_RINGS	16
+#define MAX_RX_RINGS	8
+#define MAX_RX_PG_RINGS	32
 #define RX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
 #define MAX_RX_DESC_CNT (RX_DESC_CNT - 1)
 #define MAX_TOTAL_RX_DESC_CNT (MAX_RX_DESC_CNT * MAX_RX_RINGS)
@@ -6634,9 +6644,12 @@ struct flash_spec {
 
 #define BNX2_MAX_MSIX_HW_VEC	9
 #define BNX2_MAX_MSIX_VEC	9
-#define BNX2_BASE_VEC		0
-#define BNX2_TX_VEC		1
-#define BNX2_TX_INT_NUM	(BNX2_TX_VEC << BNX2_PCICFG_INT_ACK_CMD_INT_NUM_SHIFT)
+#ifdef BCM_CNIC
+#define BNX2_MIN_MSIX_VEC	2
+#else
+#define BNX2_MIN_MSIX_VEC	1
+#endif
+
 
 struct bnx2_irq {
 	irq_handler_t	handler;
@@ -6730,10 +6743,6 @@ struct bnx2 {
 #define BNX2_FLAG_BROKEN_STATS		0x00002000
 
 	struct bnx2_napi	bnx2_napi[BNX2_MAX_MSIX_VEC];
-
-#ifdef BCM_VLAN
-	struct			vlan_group *vlgrp;
-#endif
 
 	u32			rx_buf_use_size;	/* useable size */
 	u32			rx_buf_size;		/* with alignment */

@@ -275,6 +275,7 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 {
 	struct cfg80211_registered_device *dev = wiphy_to_dev(wiphy);
 	struct cfg80211_internal_bss *bss, *res = NULL;
+	unsigned long now = jiffies;
 
 	spin_lock_bh(&dev->bss_lock);
 
@@ -282,6 +283,10 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 		if ((bss->pub.capability & capa_mask) != capa_val)
 			continue;
 		if (channel && bss->pub.channel != channel)
+			continue;
+		/* Don't get expired BSS structs */
+		if (time_after(now, bss->ts + IEEE80211_SCAN_RESULT_EXPIRE) &&
+		    !atomic_read(&bss->hold))
 			continue;
 		if (is_bss(&bss->pub, bssid, ssid, ssid_len)) {
 			res = bss;
@@ -459,6 +464,9 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		if (res->pub.beacon_ies) {
 			size_t used = dev->wiphy.bss_priv_size + sizeof(*res);
 			size_t ielen = res->pub.len_beacon_ies;
+			bool information_elements_is_beacon_ies =
+				(found->pub.information_elements ==
+				 found->pub.beacon_ies);
 
 			if (found->pub.beacon_ies &&
 			    !found->beacon_ies_allocated &&
@@ -481,6 +489,14 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 					found->pub.beacon_ies = ies;
 					found->pub.len_beacon_ies = ielen;
 				}
+			}
+
+			/* Override IEs if they were from a beacon before */
+			if (information_elements_is_beacon_ies) {
+				found->pub.information_elements =
+					found->pub.beacon_ies;
+				found->pub.len_information_elements =
+					found->pub.len_beacon_ies;
 			}
 		}
 
@@ -515,7 +531,7 @@ cfg80211_inform_bss(struct wiphy *wiphy,
 
 	privsz = wiphy->bss_priv_size;
 
-	if (WARN_ON(wiphy->signal_type == NL80211_BSS_SIGNAL_UNSPEC &&
+	if (WARN_ON(wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
 			(signal < 0 || signal > 100)))
 		return NULL;
 
@@ -571,7 +587,7 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 				      u.probe_resp.variable);
 	size_t privsz = wiphy->bss_priv_size;
 
-	if (WARN_ON(wiphy->signal_type == NL80211_BSS_SIGNAL_UNSPEC &&
+	if (WARN_ON(wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
 	            (signal < 0 || signal > 100)))
 		return NULL;
 
@@ -645,14 +661,14 @@ void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 	bss = container_of(pub, struct cfg80211_internal_bss, pub);
 
 	spin_lock_bh(&dev->bss_lock);
+	if (!list_empty(&bss->list)) {
+		list_del_init(&bss->list);
+		dev->bss_generation++;
+		rb_erase(&bss->rbn, &dev->bss_tree);
 
-	list_del(&bss->list);
-	dev->bss_generation++;
-	rb_erase(&bss->rbn, &dev->bss_tree);
-
+		kref_put(&bss->ref, bss_release);
+	}
 	spin_unlock_bh(&dev->bss_lock);
-
-	kref_put(&bss->ref, bss_release);
 }
 EXPORT_SYMBOL(cfg80211_unlink_bss);
 

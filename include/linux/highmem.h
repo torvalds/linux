@@ -2,8 +2,10 @@
 #define _LINUX_HIGHMEM_H
 
 #include <linux/fs.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
+#include <linux/hardirq.h>
 
 #include <asm/cacheflush.h>
 
@@ -26,18 +28,6 @@ static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
 #endif
 
 #include <asm/kmap_types.h>
-
-#if defined(CONFIG_DEBUG_HIGHMEM) && defined(CONFIG_TRACE_IRQFLAGS_SUPPORT)
-
-void debug_kmap_atomic(enum km_type type);
-
-#else
-
-static inline void debug_kmap_atomic(enum km_type type)
-{
-}
-
-#endif
 
 #ifdef CONFIG_HIGHMEM
 #include <asm/highmem.h>
@@ -65,21 +55,73 @@ static inline void kunmap(struct page *page)
 {
 }
 
-static inline void *kmap_atomic(struct page *page, enum km_type idx)
+static inline void *__kmap_atomic(struct page *page)
 {
 	pagefault_disable();
 	return page_address(page);
 }
-#define kmap_atomic_prot(page, idx, prot)	kmap_atomic(page, idx)
+#define kmap_atomic_prot(page, prot)	__kmap_atomic(page)
 
-#define kunmap_atomic(addr, idx)	do { pagefault_enable(); } while (0)
-#define kmap_atomic_pfn(pfn, idx)	kmap_atomic(pfn_to_page(pfn), (idx))
+static inline void __kunmap_atomic(void *addr)
+{
+	pagefault_enable();
+}
+
+#define kmap_atomic_pfn(pfn)	kmap_atomic(pfn_to_page(pfn))
 #define kmap_atomic_to_page(ptr)	virt_to_page(ptr)
 
 #define kmap_flush_unused()	do {} while(0)
 #endif
 
 #endif /* CONFIG_HIGHMEM */
+
+#if defined(CONFIG_HIGHMEM) || defined(CONFIG_X86_32)
+
+DECLARE_PER_CPU(int, __kmap_atomic_idx);
+
+static inline int kmap_atomic_idx_push(void)
+{
+	int idx = __this_cpu_inc_return(__kmap_atomic_idx) - 1;
+
+#ifdef CONFIG_DEBUG_HIGHMEM
+	WARN_ON_ONCE(in_irq() && !irqs_disabled());
+	BUG_ON(idx > KM_TYPE_NR);
+#endif
+	return idx;
+}
+
+static inline int kmap_atomic_idx(void)
+{
+	return __this_cpu_read(__kmap_atomic_idx) - 1;
+}
+
+static inline void kmap_atomic_idx_pop(void)
+{
+#ifdef CONFIG_DEBUG_HIGHMEM
+	int idx = __this_cpu_dec_return(__kmap_atomic_idx);
+
+	BUG_ON(idx < 0);
+#else
+	__this_cpu_dec(__kmap_atomic_idx);
+#endif
+}
+
+#endif
+
+/*
+ * Make both: kmap_atomic(page, idx) and kmap_atomic(page) work.
+ */
+#define kmap_atomic(page, args...) __kmap_atomic(page)
+
+/*
+ * Prevent people trying to call kunmap_atomic() as if it were kunmap()
+ * kunmap_atomic() should get the return value of kmap_atomic, not the page.
+ */
+#define kunmap_atomic(addr, args...)				\
+do {								\
+	BUILD_BUG_ON(__same_type((addr), struct page *));	\
+	__kunmap_atomic(addr);					\
+} while (0)
 
 /* when CONFIG_HIGHMEM is not set these will be plain clear/copy_page */
 #ifndef clear_user_highpage
@@ -189,8 +231,8 @@ static inline void copy_user_highpage(struct page *to, struct page *from,
 	vfrom = kmap_atomic(from, KM_USER0);
 	vto = kmap_atomic(to, KM_USER1);
 	copy_user_page(vto, vfrom, vaddr, to);
-	kunmap_atomic(vfrom, KM_USER0);
 	kunmap_atomic(vto, KM_USER1);
+	kunmap_atomic(vfrom, KM_USER0);
 }
 
 #endif
@@ -202,8 +244,8 @@ static inline void copy_highpage(struct page *to, struct page *from)
 	vfrom = kmap_atomic(from, KM_USER0);
 	vto = kmap_atomic(to, KM_USER1);
 	copy_page(vto, vfrom);
-	kunmap_atomic(vfrom, KM_USER0);
 	kunmap_atomic(vto, KM_USER1);
+	kunmap_atomic(vfrom, KM_USER0);
 }
 
 #endif /* _LINUX_HIGHMEM_H */

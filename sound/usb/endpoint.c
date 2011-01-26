@@ -33,6 +33,7 @@
 #include "pcm.h"
 #include "helper.h"
 #include "format.h"
+#include "clock.h"
 
 /*
  * free a substream
@@ -149,6 +150,79 @@ int snd_usb_add_audio_endpoint(struct snd_usb_audio *chip, int stream, struct au
 	return 0;
 }
 
+static int parse_uac_endpoint_attributes(struct snd_usb_audio *chip,
+					 struct usb_host_interface *alts,
+					 int protocol, int iface_no)
+{
+	/* parsed with a v1 header here. that's ok as we only look at the
+	 * header first which is the same for both versions */
+	struct uac_iso_endpoint_descriptor *csep;
+	struct usb_interface_descriptor *altsd = get_iface_desc(alts);
+	int attributes = 0;
+
+	csep = snd_usb_find_desc(alts->endpoint[0].extra, alts->endpoint[0].extralen, NULL, USB_DT_CS_ENDPOINT);
+
+	/* Creamware Noah has this descriptor after the 2nd endpoint */
+	if (!csep && altsd->bNumEndpoints >= 2)
+		csep = snd_usb_find_desc(alts->endpoint[1].extra, alts->endpoint[1].extralen, NULL, USB_DT_CS_ENDPOINT);
+
+	if (!csep || csep->bLength < 7 ||
+	    csep->bDescriptorSubtype != UAC_EP_GENERAL) {
+		snd_printk(KERN_WARNING "%d:%u:%d : no or invalid"
+			   " class specific endpoint descriptor\n",
+			   chip->dev->devnum, iface_no,
+			   altsd->bAlternateSetting);
+		return 0;
+	}
+
+	if (protocol == UAC_VERSION_1) {
+		attributes = csep->bmAttributes;
+	} else {
+		struct uac2_iso_endpoint_descriptor *csep2 =
+			(struct uac2_iso_endpoint_descriptor *) csep;
+
+		attributes = csep->bmAttributes & UAC_EP_CS_ATTR_FILL_MAX;
+
+		/* emulate the endpoint attributes of a v1 device */
+		if (csep2->bmControls & UAC2_CONTROL_PITCH)
+			attributes |= UAC_EP_CS_ATTR_PITCH_CONTROL;
+	}
+
+	return attributes;
+}
+
+static struct uac2_input_terminal_descriptor *
+	snd_usb_find_input_terminal_descriptor(struct usb_host_interface *ctrl_iface,
+					       int terminal_id)
+{
+	struct uac2_input_terminal_descriptor *term = NULL;
+
+	while ((term = snd_usb_find_csint_desc(ctrl_iface->extra,
+					       ctrl_iface->extralen,
+					       term, UAC_INPUT_TERMINAL))) {
+		if (term->bTerminalID == terminal_id)
+			return term;
+	}
+
+	return NULL;
+}
+
+static struct uac2_output_terminal_descriptor *
+	snd_usb_find_output_terminal_descriptor(struct usb_host_interface *ctrl_iface,
+						int terminal_id)
+{
+	struct uac2_output_terminal_descriptor *term = NULL;
+
+	while ((term = snd_usb_find_csint_desc(ctrl_iface->extra,
+					       ctrl_iface->extralen,
+					       term, UAC_OUTPUT_TERMINAL))) {
+		if (term->bTerminalID == terminal_id)
+			return term;
+	}
+
+	return NULL;
+}
+
 int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 {
 	struct usb_device *dev;
@@ -158,8 +232,8 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 	int i, altno, err, stream;
 	int format = 0, num_channels = 0;
 	struct audioformat *fp = NULL;
-	unsigned char *fmt, *csep;
-	int num, protocol;
+	int num, protocol, clock = 0;
+	struct uac_format_type_i_continuous_descriptor *fmt;
 
 	dev = chip->dev;
 
@@ -201,8 +275,14 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 
 		/* get audio formats */
 		switch (protocol) {
+		default:
+			snd_printdd(KERN_WARNING "%d:%u:%d: unknown interface protocol %#02x, assuming v1\n",
+				    dev->devnum, iface_no, altno, protocol);
+			protocol = UAC_VERSION_1;
+			/* fall through */
+
 		case UAC_VERSION_1: {
-			struct uac_as_header_descriptor_v1 *as =
+			struct uac1_as_header_descriptor *as =
 				snd_usb_find_csint_desc(alts->extra, alts->extralen, NULL, UAC_AS_GENERAL);
 
 			if (!as) {
@@ -222,7 +302,9 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		}
 
 		case UAC_VERSION_2: {
-			struct uac_as_header_descriptor_v2 *as =
+			struct uac2_input_terminal_descriptor *input_term;
+			struct uac2_output_terminal_descriptor *output_term;
+			struct uac2_as_header_descriptor *as =
 				snd_usb_find_csint_desc(alts->extra, alts->extralen, NULL, UAC_AS_GENERAL);
 
 			if (!as) {
@@ -240,13 +322,26 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 			num_channels = as->bNrChannels;
 			format = le32_to_cpu(as->bmFormats);
 
-			break;
-		}
+			/* lookup the terminal associated to this interface
+			 * to extract the clock */
+			input_term = snd_usb_find_input_terminal_descriptor(chip->ctrl_intf,
+									    as->bTerminalLink);
+			if (input_term) {
+				clock = input_term->bCSourceID;
+				break;
+			}
 
-		default:
-			snd_printk(KERN_ERR "%d:%u:%d : unknown interface protocol %04x\n",
-				   dev->devnum, iface_no, altno, protocol);
+			output_term = snd_usb_find_output_terminal_descriptor(chip->ctrl_intf,
+									      as->bTerminalLink);
+			if (output_term) {
+				clock = output_term->bCSourceID;
+				break;
+			}
+
+			snd_printk(KERN_ERR "%d:%u:%d : bogus bTerminalLink %d\n",
+				   dev->devnum, iface_no, altno, as->bTerminalLink);
 			continue;
+		}
 		}
 
 		/* get format type */
@@ -256,8 +351,8 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 				   dev->devnum, iface_no, altno);
 			continue;
 		}
-		if (((protocol == UAC_VERSION_1) && (fmt[0] < 8)) ||
-		    ((protocol == UAC_VERSION_2) && (fmt[0] != 6))) {
+		if (((protocol == UAC_VERSION_1) && (fmt->bLength < 8)) ||
+		    ((protocol == UAC_VERSION_2) && (fmt->bLength != 6))) {
 			snd_printk(KERN_ERR "%d:%u:%d : invalid UAC_FORMAT_TYPE desc\n",
 				   dev->devnum, iface_no, altno);
 			continue;
@@ -268,24 +363,15 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		 * with the previous one, except for a larger packet size, but
 		 * is actually a mislabeled two-channel setting; ignore it.
 		 */
-		if (fmt[4] == 1 && fmt[5] == 2 && altno == 2 && num == 3 &&
+		if (fmt->bNrChannels == 1 &&
+		    fmt->bSubframeSize == 2 &&
+		    altno == 2 && num == 3 &&
 		    fp && fp->altsetting == 1 && fp->channels == 1 &&
 		    fp->formats == SNDRV_PCM_FMTBIT_S16_LE &&
 		    protocol == UAC_VERSION_1 &&
 		    le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize) ==
 							fp->maxpacksize * 2)
 			continue;
-
-		csep = snd_usb_find_desc(alts->endpoint[0].extra, alts->endpoint[0].extralen, NULL, USB_DT_CS_ENDPOINT);
-		/* Creamware Noah has this descriptor after the 2nd endpoint */
-		if (!csep && altsd->bNumEndpoints >= 2)
-			csep = snd_usb_find_desc(alts->endpoint[1].extra, alts->endpoint[1].extralen, NULL, USB_DT_CS_ENDPOINT);
-		if (!csep || csep[0] < 7 || csep[2] != UAC_EP_GENERAL) {
-			snd_printk(KERN_WARNING "%d:%u:%d : no or invalid"
-				   " class specific endpoint descriptor\n",
-				   dev->devnum, iface_no, altno);
-			csep = NULL;
-		}
 
 		fp = kzalloc(sizeof(*fp), GFP_KERNEL);
 		if (! fp) {
@@ -305,7 +391,8 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		if (snd_usb_get_speed(dev) == USB_SPEED_HIGH)
 			fp->maxpacksize = (((fp->maxpacksize >> 11) & 3) + 1)
 					* (fp->maxpacksize & 0x7ff);
-		fp->attributes = csep ? csep[3] : 0;
+		fp->attributes = parse_uac_endpoint_attributes(chip, alts, protocol, iface_no);
+		fp->clock = clock;
 
 		/* some quirks for attributes here */
 
@@ -318,8 +405,6 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 			break;
 		case USB_ID(0x041e, 0x3020): /* Creative SB Audigy 2 NX */
 		case USB_ID(0x0763, 0x2003): /* M-Audio Audiophile USB */
-		case USB_ID(0x0763, 0x2080): /* M-Audio Fast Track Ultra 8 */
-		case USB_ID(0x0763, 0x2081): /* M-Audio Fast Track Ultra 8R */
 			/* doesn't set the sample rate attribute, but supports it */
 			fp->attributes |= UAC_EP_CS_ATTR_SAMPLE_RATE;
 			break;
@@ -342,6 +427,7 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		if (snd_usb_parse_audio_format(chip, fp, format, fmt, stream, alts) < 0) {
 			kfree(fp->rate_table);
 			kfree(fp);
+			fp = NULL;
 			continue;
 		}
 

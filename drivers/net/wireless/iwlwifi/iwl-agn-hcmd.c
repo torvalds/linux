@@ -37,12 +37,13 @@
 #include "iwl-io.h"
 #include "iwl-agn.h"
 
-static int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
+int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
+			   struct iwl_rxon_context *ctx)
 {
 	int ret = 0;
 	struct iwl5000_rxon_assoc_cmd rxon_assoc;
-	const struct iwl_rxon_cmd *rxon1 = &priv->staging_rxon;
-	const struct iwl_rxon_cmd *rxon2 = &priv->active_rxon;
+	const struct iwl_rxon_cmd *rxon1 = &ctx->staging;
+	const struct iwl_rxon_cmd *rxon2 = &ctx->active;
 
 	if ((rxon1->flags == rxon2->flags) &&
 	    (rxon1->filter_flags == rxon2->filter_flags) &&
@@ -60,23 +61,23 @@ static int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
 		return 0;
 	}
 
-	rxon_assoc.flags = priv->staging_rxon.flags;
-	rxon_assoc.filter_flags = priv->staging_rxon.filter_flags;
-	rxon_assoc.ofdm_basic_rates = priv->staging_rxon.ofdm_basic_rates;
-	rxon_assoc.cck_basic_rates = priv->staging_rxon.cck_basic_rates;
+	rxon_assoc.flags = ctx->staging.flags;
+	rxon_assoc.filter_flags = ctx->staging.filter_flags;
+	rxon_assoc.ofdm_basic_rates = ctx->staging.ofdm_basic_rates;
+	rxon_assoc.cck_basic_rates = ctx->staging.cck_basic_rates;
 	rxon_assoc.reserved1 = 0;
 	rxon_assoc.reserved2 = 0;
 	rxon_assoc.reserved3 = 0;
 	rxon_assoc.ofdm_ht_single_stream_basic_rates =
-	    priv->staging_rxon.ofdm_ht_single_stream_basic_rates;
+	    ctx->staging.ofdm_ht_single_stream_basic_rates;
 	rxon_assoc.ofdm_ht_dual_stream_basic_rates =
-	    priv->staging_rxon.ofdm_ht_dual_stream_basic_rates;
-	rxon_assoc.rx_chain_select_flags = priv->staging_rxon.rx_chain;
+	    ctx->staging.ofdm_ht_dual_stream_basic_rates;
+	rxon_assoc.rx_chain_select_flags = ctx->staging.rx_chain;
 	rxon_assoc.ofdm_ht_triple_stream_basic_rates =
-		 priv->staging_rxon.ofdm_ht_triple_stream_basic_rates;
-	rxon_assoc.acquisition_data = priv->staging_rxon.acquisition_data;
+		 ctx->staging.ofdm_ht_triple_stream_basic_rates;
+	rxon_assoc.acquisition_data = ctx->staging.acquisition_data;
 
-	ret = iwl_send_cmd_pdu_async(priv, REPLY_RXON_ASSOC,
+	ret = iwl_send_cmd_pdu_async(priv, ctx->rxon_assoc_cmd,
 				     sizeof(rxon_assoc), &rxon_assoc, NULL);
 	if (ret)
 		return ret;
@@ -84,7 +85,7 @@ static int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
 	return ret;
 }
 
-static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
+int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 {
 	struct iwl_tx_ant_config_cmd tx_ant_cmd = {
 	  .valid = cpu_to_le32(valid_tx_ant),
@@ -136,7 +137,7 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 			continue;
 		}
 
-		delta_g = (priv->cfg->chain_noise_scale *
+		delta_g = (priv->cfg->base_params->chain_noise_scale *
 			((s32)average_noise[default_chain] -
 			(s32)average_noise[i])) / 1500;
 
@@ -164,7 +165,7 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 
 		memset(&cmd, 0, sizeof(cmd));
 
-		cmd.hdr.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD;
+		cmd.hdr.op_code = priv->_agn.phy_calib_chain_noise_gain_cmd;
 		cmd.hdr.first_group = 0;
 		cmd.hdr.groups_num = 1;
 		cmd.hdr.data_valid = 1;
@@ -176,14 +177,6 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 		data->radio_write = 1;
 		data->state = IWL_CHAIN_NOISE_CALIBRATED;
 	}
-
-	data->chain_noise_a = 0;
-	data->chain_noise_b = 0;
-	data->chain_noise_c = 0;
-	data->chain_signal_a = 0;
-	data->chain_signal_b = 0;
-	data->chain_signal_c = 0;
-	data->beacon_count = 0;
 }
 
 static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
@@ -191,11 +184,21 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
 	int ret;
 
-	if ((data->state == IWL_CHAIN_NOISE_ALIVE) && iwl_is_associated(priv)) {
+	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
+	    iwl_is_any_associated(priv)) {
 		struct iwl_calib_chain_noise_reset_cmd cmd;
-		memset(&cmd, 0, sizeof(cmd));
 
-		cmd.hdr.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD;
+		/* clear data for chain noise calibration algorithm */
+		data->chain_noise_a = 0;
+		data->chain_noise_b = 0;
+		data->chain_noise_c = 0;
+		data->chain_signal_a = 0;
+		data->chain_signal_b = 0;
+		data->chain_signal_c = 0;
+		data->beacon_count = 0;
+
+		memset(&cmd, 0, sizeof(cmd));
+		cmd.hdr.op_code = priv->_agn.phy_calib_chain_noise_reset_cmd;
 		cmd.hdr.first_group = 0;
 		cmd.hdr.groups_num = 1;
 		cmd.hdr.data_valid = 1;
@@ -209,14 +212,22 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 	}
 }
 
-static void iwlagn_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
-			__le32 *tx_flags)
+static void iwlagn_tx_cmd_protection(struct iwl_priv *priv,
+				     struct ieee80211_tx_info *info,
+				     __le16 fc, __le32 *tx_flags)
 {
-	if ((info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) ||
-	    (info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT))
-		*tx_flags |= TX_CMD_FLG_RTS_CTS_MSK;
-	else
-		*tx_flags &= ~TX_CMD_FLG_RTS_CTS_MSK;
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS ||
+	    info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
+		*tx_flags |= TX_CMD_FLG_PROT_REQUIRE_MSK;
+		return;
+	}
+
+	if (priv->cfg->ht_params &&
+	    priv->cfg->ht_params->use_rts_for_aggregation &&
+	    info->flags & IEEE80211_TX_CTL_AMPDU) {
+		*tx_flags |= TX_CMD_FLG_PROT_REQUIRE_MSK;
+		return;
+	}
 }
 
 /* Calc max signal level (dBm) among 3 possible receivers */
@@ -226,13 +237,13 @@ static int iwlagn_calc_rssi(struct iwl_priv *priv,
 	/* data from PHY/DSP regarding signal strength, etc.,
 	 *   contents are always there, not configurable by host
 	 */
-	struct iwl5000_non_cfg_phy *ncphy =
-		(struct iwl5000_non_cfg_phy *)rx_resp->non_cfg_phy_buf;
+	struct iwlagn_non_cfg_phy *ncphy =
+		(struct iwlagn_non_cfg_phy *)rx_resp->non_cfg_phy_buf;
 	u32 val, rssi_a, rssi_b, rssi_c, max_rssi;
 	u8 agc;
 
-	val  = le32_to_cpu(ncphy->non_cfg_phy[IWL50_RX_RES_AGC_IDX]);
-	agc = (val & IWL50_OFDM_AGC_MSK) >> IWL50_OFDM_AGC_BIT_POS;
+	val  = le32_to_cpu(ncphy->non_cfg_phy[IWLAGN_RX_RES_AGC_IDX]);
+	agc = (val & IWLAGN_OFDM_AGC_MSK) >> IWLAGN_OFDM_AGC_BIT_POS;
 
 	/* Find max rssi among 3 possible receivers.
 	 * These values are measured by the digital signal processor (DSP).
@@ -240,11 +251,14 @@ static int iwlagn_calc_rssi(struct iwl_priv *priv,
 	 *   if the radio's automatic gain control (AGC) is working right.
 	 * AGC value (see below) will provide the "interesting" info.
 	 */
-	val = le32_to_cpu(ncphy->non_cfg_phy[IWL50_RX_RES_RSSI_AB_IDX]);
-	rssi_a = (val & IWL50_OFDM_RSSI_A_MSK) >> IWL50_OFDM_RSSI_A_BIT_POS;
-	rssi_b = (val & IWL50_OFDM_RSSI_B_MSK) >> IWL50_OFDM_RSSI_B_BIT_POS;
-	val = le32_to_cpu(ncphy->non_cfg_phy[IWL50_RX_RES_RSSI_C_IDX]);
-	rssi_c = (val & IWL50_OFDM_RSSI_C_MSK) >> IWL50_OFDM_RSSI_C_BIT_POS;
+	val = le32_to_cpu(ncphy->non_cfg_phy[IWLAGN_RX_RES_RSSI_AB_IDX]);
+	rssi_a = (val & IWLAGN_OFDM_RSSI_INBAND_A_BITMSK) >>
+		IWLAGN_OFDM_RSSI_A_BIT_POS;
+	rssi_b = (val & IWLAGN_OFDM_RSSI_INBAND_B_BITMSK) >>
+		IWLAGN_OFDM_RSSI_B_BIT_POS;
+	val = le32_to_cpu(ncphy->non_cfg_phy[IWLAGN_RX_RES_RSSI_C_IDX]);
+	rssi_c = (val & IWLAGN_OFDM_RSSI_INBAND_C_BITMSK) >>
+		IWLAGN_OFDM_RSSI_C_BIT_POS;
 
 	max_rssi = max_t(u32, rssi_a, rssi_b);
 	max_rssi = max_t(u32, max_rssi, rssi_c);
@@ -257,12 +271,110 @@ static int iwlagn_calc_rssi(struct iwl_priv *priv,
 	return max_rssi - agc - IWLAGN_RSSI_OFFSET;
 }
 
+static int iwlagn_set_pan_params(struct iwl_priv *priv)
+{
+	struct iwl_wipan_params_cmd cmd;
+	struct iwl_rxon_context *ctx_bss, *ctx_pan;
+	int slot0 = 300, slot1 = 0;
+	int ret;
+
+	if (priv->valid_contexts == BIT(IWL_RXON_CTX_BSS))
+		return 0;
+
+	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
+
+	lockdep_assert_held(&priv->mutex);
+
+	ctx_bss = &priv->contexts[IWL_RXON_CTX_BSS];
+	ctx_pan = &priv->contexts[IWL_RXON_CTX_PAN];
+
+	/*
+	 * If the PAN context is inactive, then we don't need
+	 * to update the PAN parameters, the last thing we'll
+	 * have done before it goes inactive is making the PAN
+	 * parameters be WLAN-only.
+	 */
+	if (!ctx_pan->is_active)
+		return 0;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	/* only 2 slots are currently allowed */
+	cmd.num_slots = 2;
+
+	cmd.slots[0].type = 0; /* BSS */
+	cmd.slots[1].type = 1; /* PAN */
+
+	if (ctx_bss->vif && ctx_pan->vif) {
+		int bcnint = ctx_pan->vif->bss_conf.beacon_int;
+		int dtim = ctx_pan->vif->bss_conf.dtim_period ?: 1;
+
+		/* should be set, but seems unused?? */
+		cmd.flags |= cpu_to_le16(IWL_WIPAN_PARAMS_FLG_SLOTTED_MODE);
+
+		if (ctx_pan->vif->type == NL80211_IFTYPE_AP &&
+		    bcnint &&
+		    bcnint != ctx_bss->vif->bss_conf.beacon_int) {
+			IWL_ERR(priv,
+				"beacon intervals don't match (%d, %d)\n",
+				ctx_bss->vif->bss_conf.beacon_int,
+				ctx_pan->vif->bss_conf.beacon_int);
+		} else
+			bcnint = max_t(int, bcnint,
+				       ctx_bss->vif->bss_conf.beacon_int);
+		if (!bcnint)
+			bcnint = DEFAULT_BEACON_INTERVAL;
+		slot0 = bcnint / 2;
+		slot1 = bcnint - slot0;
+
+		if (test_bit(STATUS_SCAN_HW, &priv->status) ||
+		    (!ctx_bss->vif->bss_conf.idle &&
+		     !ctx_bss->vif->bss_conf.assoc)) {
+			slot0 = dtim * bcnint * 3 - 20;
+			slot1 = 20;
+		} else if (!ctx_pan->vif->bss_conf.idle &&
+			   !ctx_pan->vif->bss_conf.assoc) {
+			slot1 = bcnint * 3 - 20;
+			slot0 = 20;
+		}
+	} else if (ctx_pan->vif) {
+		slot0 = 0;
+		slot1 = max_t(int, 1, ctx_pan->vif->bss_conf.dtim_period) *
+					ctx_pan->vif->bss_conf.beacon_int;
+		slot1 = max_t(int, DEFAULT_BEACON_INTERVAL, slot1);
+
+		if (test_bit(STATUS_SCAN_HW, &priv->status)) {
+			slot0 = slot1 * 3 - 20;
+			slot1 = 20;
+		}
+	}
+
+	cmd.slots[0].width = cpu_to_le16(slot0);
+	cmd.slots[1].width = cpu_to_le16(slot1);
+
+	ret = iwl_send_cmd_pdu(priv, REPLY_WIPAN_PARAMS, sizeof(cmd), &cmd);
+	if (ret)
+		IWL_ERR(priv, "Error setting PAN parameters (%d)\n", ret);
+
+	return ret;
+}
+
 struct iwl_hcmd_ops iwlagn_hcmd = {
 	.rxon_assoc = iwlagn_send_rxon_assoc,
-	.commit_rxon = iwl_commit_rxon,
-	.set_rxon_chain = iwl_set_rxon_chain,
+	.commit_rxon = iwlagn_commit_rxon,
+	.set_rxon_chain = iwlagn_set_rxon_chain,
 	.set_tx_ant = iwlagn_send_tx_ant_config,
 	.send_bt_config = iwl_send_bt_config,
+	.set_pan_params = iwlagn_set_pan_params,
+};
+
+struct iwl_hcmd_ops iwlagn_bt_hcmd = {
+	.rxon_assoc = iwlagn_send_rxon_assoc,
+	.commit_rxon = iwlagn_commit_rxon,
+	.set_rxon_chain = iwlagn_set_rxon_chain,
+	.set_tx_ant = iwlagn_send_tx_ant_config,
+	.send_bt_config = iwlagn_send_advance_bt_config,
+	.set_pan_params = iwlagn_set_pan_params,
 };
 
 struct iwl_hcmd_utils_ops iwlagn_hcmd_utils = {
@@ -270,7 +382,8 @@ struct iwl_hcmd_utils_ops iwlagn_hcmd_utils = {
 	.build_addsta_hcmd = iwlagn_build_addsta_hcmd,
 	.gain_computation = iwlagn_gain_computation,
 	.chain_noise_reset = iwlagn_chain_noise_reset,
-	.rts_tx_cmd_flag = iwlagn_rts_tx_cmd_flag,
+	.tx_cmd_protection = iwlagn_tx_cmd_protection,
 	.calc_rssi = iwlagn_calc_rssi,
 	.request_scan = iwlagn_request_scan,
+	.post_scan = iwlagn_post_scan,
 };

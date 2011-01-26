@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -51,12 +51,14 @@ char ixgbevf_driver_name[] = "ixgbevf";
 static const char ixgbevf_driver_string[] =
 	"Intel(R) 82599 Virtual Function";
 
-#define DRV_VERSION "1.0.0-k0"
+#define DRV_VERSION "1.0.19-k0"
 const char ixgbevf_driver_version[] = DRV_VERSION;
-static char ixgbevf_copyright[] = "Copyright (c) 2009 Intel Corporation.";
+static char ixgbevf_copyright[] =
+	"Copyright (c) 2009 - 2010 Intel Corporation.";
 
 static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
-	[board_82599_vf] = &ixgbevf_vf_info,
+	[board_82599_vf] = &ixgbevf_82599_vf_info,
+	[board_X540_vf]  = &ixgbevf_X540_vf_info,
 };
 
 /* ixgbevf_pci_tbl - PCI Device ID Table
@@ -70,6 +72,8 @@ static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
 static struct pci_device_id ixgbevf_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF),
 	board_82599_vf},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF),
+	board_X540_vf},
 
 	/* required last entry */
 	{0, }
@@ -231,6 +235,7 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_adapter *adapter,
 	while ((eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)) &&
 	       (count < tx_ring->work_limit)) {
 		bool cleaned = false;
+		rmb(); /* read buffer_info after eop_desc */
 		for ( ; !cleaned; count++) {
 			struct sk_buff *skb;
 			tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, i);
@@ -307,10 +312,10 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_adapter *adapter,
 	tx_ring->total_bytes += total_bytes;
 	tx_ring->total_packets += total_packets;
 
-	adapter->net_stats.tx_bytes += total_bytes;
-	adapter->net_stats.tx_packets += total_packets;
+	netdev->stats.tx_bytes += total_bytes;
+	netdev->stats.tx_packets += total_packets;
 
-	return (count < tx_ring->work_limit);
+	return count < tx_ring->work_limit;
 }
 
 /**
@@ -355,7 +360,7 @@ static void ixgbevf_receive_skb(struct ixgbevf_q_vector *q_vector,
 static inline void ixgbevf_rx_checksum(struct ixgbevf_adapter *adapter,
 				       u32 status_err, struct sk_buff *skb)
 {
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	/* Rx csum disabled */
 	if (!(adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED))
@@ -518,6 +523,7 @@ static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 			break;
 		(*work_done)++;
 
+		rmb(); /* read descriptor and rx_buffer_info after status DD */
 		if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
 			hdr_info = le16_to_cpu(ixgbevf_get_hdr_info(rx_desc));
 			len = (hdr_info & IXGBE_RXDADV_HDRBUFLEN_MASK) >>
@@ -637,8 +643,8 @@ next_desc:
 
 	rx_ring->total_packets += total_rx_packets;
 	rx_ring->total_bytes += total_rx_bytes;
-	adapter->net_stats.rx_bytes += total_rx_bytes;
-	adapter->net_stats.rx_packets += total_rx_packets;
+	adapter->netdev->stats.rx_bytes += total_rx_bytes;
+	adapter->netdev->stats.rx_packets += total_rx_packets;
 
 	return cleaned;
 }
@@ -1463,18 +1469,10 @@ static void ixgbevf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	struct net_device *v_netdev;
 
 	/* add VID to filter table */
 	if (hw->mac.ops.set_vfta)
 		hw->mac.ops.set_vfta(hw, vid, 0, true);
-	/*
-	 * Copy feature flags from netdev to the vlan netdev for this vid.
-	 * This allows things like TSO to bubble down to our vlan device.
-	 */
-	v_netdev = vlan_group_get_device(adapter->vlgrp, vid);
-	v_netdev->features |= adapter->netdev->features;
-	vlan_group_set_device(adapter->vlgrp, vid, v_netdev);
 }
 
 static void ixgbevf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
@@ -1501,7 +1499,7 @@ static void ixgbevf_restore_vlan(struct ixgbevf_adapter *adapter)
 
 	if (adapter->vlgrp) {
 		u16 vid;
-		for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
+		for (vid = 0; vid < VLAN_N_VID; vid++) {
 			if (!vlan_group_get_device(adapter->vlgrp, vid))
 				continue;
 			ixgbevf_vlan_rx_add_vid(adapter->netdev, vid);
@@ -2229,7 +2227,7 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	if (err) {
 		dev_info(&pdev->dev,
 		         "PF still in reset state, assigning new address\n");
-		random_ether_addr(hw->mac.addr);
+		dev_hw_addr_random(adapter->netdev, hw->mac.addr);
 	} else {
 		err = hw->mac.ops.init_hw(hw);
 		if (err) {
@@ -2303,7 +2301,7 @@ void ixgbevf_update_stats(struct ixgbevf_adapter *adapter)
 				adapter->stats.vfmprc);
 
 	/* Fill out the OS statistics structure */
-	adapter->net_stats.multicast = adapter->stats.vfmprc -
+	adapter->netdev->stats.multicast = adapter->stats.vfmprc -
 		adapter->stats.base_vfmprc;
 }
 
@@ -2494,10 +2492,9 @@ int ixgbevf_setup_tx_resources(struct ixgbevf_adapter *adapter,
 	int size;
 
 	size = sizeof(struct ixgbevf_tx_buffer) * tx_ring->count;
-	tx_ring->tx_buffer_info = vmalloc(size);
+	tx_ring->tx_buffer_info = vzalloc(size);
 	if (!tx_ring->tx_buffer_info)
 		goto err;
-	memset(tx_ring->tx_buffer_info, 0, size);
 
 	/* round up to nearest 4K */
 	tx_ring->size = tx_ring->count * sizeof(union ixgbe_adv_tx_desc);
@@ -2561,14 +2558,13 @@ int ixgbevf_setup_rx_resources(struct ixgbevf_adapter *adapter,
 	int size;
 
 	size = sizeof(struct ixgbevf_rx_buffer) * rx_ring->count;
-	rx_ring->rx_buffer_info = vmalloc(size);
+	rx_ring->rx_buffer_info = vzalloc(size);
 	if (!rx_ring->rx_buffer_info) {
 		hw_dbg(&adapter->hw,
 		       "Unable to vmalloc buffer memory for "
 		       "the receive descriptor ring\n");
 		goto alloc_failed;
 	}
-	memset(rx_ring->rx_buffer_info, 0, size);
 
 	/* Round up to nearest 4K */
 	rx_ring->size = rx_ring->count * sizeof(union ixgbe_adv_rx_desc);
@@ -2935,7 +2931,8 @@ static int ixgbevf_tx_map(struct ixgbevf_adapter *adapter,
 	struct ixgbevf_tx_buffer *tx_buffer_info;
 	unsigned int len;
 	unsigned int total = skb->len;
-	unsigned int offset = 0, size, count = 0;
+	unsigned int offset = 0, size;
+	int count = 0;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int f;
 	int i;
@@ -3139,7 +3136,7 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	tx_ring = &adapter->tx_ring[r_idx];
 
-	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= vlan_tx_tag_get(skb);
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
@@ -3183,21 +3180,6 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	ixgbevf_maybe_stop_tx(netdev, tx_ring, DESC_NEEDED);
 
 	return NETDEV_TX_OK;
-}
-
-/**
- * ixgbevf_get_stats - Get System Network Statistics
- * @netdev: network interface device structure
- *
- * Returns the address of the device statistics structure.
- * The statistics are actually updated from the timer callback.
- **/
-static struct net_device_stats *ixgbevf_get_stats(struct net_device *netdev)
-{
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
-
-	/* only return the current stats */
-	return &adapter->net_stats;
 }
 
 /**
@@ -3277,7 +3259,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= &ixgbevf_open,
 	.ndo_stop		= &ixgbevf_close,
 	.ndo_start_xmit		= &ixgbevf_xmit_frame,
-	.ndo_get_stats		= &ixgbevf_get_stats,
 	.ndo_set_rx_mode	= &ixgbevf_set_rx_mode,
 	.ndo_set_multicast_list	= &ixgbevf_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -3401,7 +3382,6 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	/* setup the private structure */
 	err = ixgbevf_sw_init(adapter);
 
-#ifdef MAX_SKB_FRAGS
 	netdev->features = NETIF_F_SG |
 			   NETIF_F_IP_CSUM |
 			   NETIF_F_HW_VLAN_TX |
@@ -3411,15 +3391,15 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	netdev->features |= NETIF_F_IPV6_CSUM;
 	netdev->features |= NETIF_F_TSO;
 	netdev->features |= NETIF_F_TSO6;
+	netdev->features |= NETIF_F_GRO;
 	netdev->vlan_features |= NETIF_F_TSO;
 	netdev->vlan_features |= NETIF_F_TSO6;
 	netdev->vlan_features |= NETIF_F_IP_CSUM;
+	netdev->vlan_features |= NETIF_F_IPV6_CSUM;
 	netdev->vlan_features |= NETIF_F_SG;
 
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
-
-#endif /* MAX_SKB_FRAGS */
 
 	/* The HW MAC address was set and/or determined in sw_init */
 	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
@@ -3432,7 +3412,7 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	}
 
 	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &ixgbevf_watchdog;
+	adapter->watchdog_timer.function = ixgbevf_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 
 	INIT_WORK(&adapter->reset_task, ixgbevf_reset_task);
@@ -3446,10 +3426,6 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	if (hw->mac.ops.get_bus_info)
 		hw->mac.ops.get_bus_info(hw);
 
-
-	netif_carrier_off(netdev);
-	netif_tx_stop_all_queues(netdev);
-
 	strcpy(netdev->name, "eth%d");
 
 	err = register_netdev(netdev);
@@ -3457,6 +3433,8 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 		goto err_register;
 
 	adapter->netdev_registered = true;
+
+	netif_carrier_off(netdev);
 
 	ixgbevf_init_last_counter_stats(adapter);
 
@@ -3509,9 +3487,8 @@ static void __devexit ixgbevf_remove(struct pci_dev *pdev)
 
 	del_timer_sync(&adapter->watchdog_timer);
 
+	cancel_work_sync(&adapter->reset_task);
 	cancel_work_sync(&adapter->watchdog_task);
-
-	flush_scheduled_work();
 
 	if (adapter->netdev_registered) {
 		unregister_netdev(netdev);

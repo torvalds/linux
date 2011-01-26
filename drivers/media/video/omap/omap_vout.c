@@ -38,8 +38,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
 #include <linux/videodev2.h>
+#include <linux/slab.h>
 
-#include <media/videobuf-dma-sg.h>
+#include <media/videobuf-dma-contig.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
@@ -1053,9 +1054,9 @@ static int omap_vout_buffer_prepare(struct videobuf_queue *q,
 			    struct videobuf_buffer *vb,
 			    enum v4l2_field field)
 {
+	dma_addr_t dmabuf;
 	struct vid_vrfb_dma *tx;
 	enum dss_rotation rotation;
-	struct videobuf_dmabuf *dmabuf = NULL;
 	struct omap_vout_device *vout = q->priv_data;
 	u32 dest_frame_index = 0, src_element_index = 0;
 	u32 dest_element_index = 0, src_frame_index = 0;
@@ -1074,24 +1075,17 @@ static int omap_vout_buffer_prepare(struct videobuf_queue *q,
 	if (V4L2_MEMORY_USERPTR == vb->memory) {
 		if (0 == vb->baddr)
 			return -EINVAL;
-		/* Virtual address */
-		/* priv points to struct videobuf_pci_sg_memory. But we went
-		 * pointer to videobuf_dmabuf, which is member of
-		 * videobuf_pci_sg_memory */
-		dmabuf = videobuf_to_dma(q->bufs[vb->i]);
-		dmabuf->vmalloc = (void *) vb->baddr;
-
 		/* Physical address */
-		dmabuf->bus_addr =
-			(dma_addr_t) omap_vout_uservirt_to_phys(vb->baddr);
+		vout->queued_buf_addr[vb->i] = (u8 *)
+			omap_vout_uservirt_to_phys(vb->baddr);
+	} else {
+		vout->queued_buf_addr[vb->i] = (u8 *)vout->buf_phy_addr[vb->i];
 	}
 
-	if (!rotation_enabled(vout)) {
-		dmabuf = videobuf_to_dma(q->bufs[vb->i]);
-		vout->queued_buf_addr[vb->i] = (u8 *) dmabuf->bus_addr;
+	if (!rotation_enabled(vout))
 		return 0;
-	}
-	dmabuf = videobuf_to_dma(q->bufs[vb->i]);
+
+	dmabuf = vout->buf_phy_addr[vb->i];
 	/* If rotation is enabled, copy input buffer into VRFB
 	 * memory space using DMA. We are copying input buffer
 	 * into VRFB memory space of desired angle and DSS will
@@ -1120,7 +1114,7 @@ static int omap_vout_buffer_prepare(struct videobuf_queue *q,
 			tx->dev_id, 0x0);
 	/* src_port required only for OMAP1 */
 	omap_set_dma_src_params(tx->dma_ch, 0, OMAP_DMA_AMODE_POST_INC,
-			dmabuf->bus_addr, src_element_index, src_frame_index);
+			dmabuf, src_element_index, src_frame_index);
 	/*set dma source burst mode for VRFB */
 	omap_set_dma_src_burst_mode(tx->dma_ch, OMAP_DMA_DATA_BURST_16);
 	rotation = calc_rotation(vout);
@@ -1211,7 +1205,6 @@ static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
 	void *pos;
 	unsigned long start = vma->vm_start;
 	unsigned long size = (vma->vm_end - vma->vm_start);
-	struct videobuf_dmabuf *dmabuf = NULL;
 	struct omap_vout_device *vout = file->private_data;
 	struct videobuf_queue *q = &vout->vbq;
 
@@ -1241,8 +1234,7 @@ static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	vma->vm_ops = &omap_vout_vm_ops;
 	vma->vm_private_data = (void *) vout;
-	dmabuf = videobuf_to_dma(q->bufs[i]);
-	pos = dmabuf->vmalloc;
+	pos = (void *)vout->buf_virt_addr[i];
 	vma->vm_pgoff = virt_to_phys((void *)pos) >> PAGE_SHIFT;
 	while (size > 0) {
 		unsigned long pfn;
@@ -1294,7 +1286,7 @@ static int omap_vout_release(struct file *file)
 	videobuf_mmap_free(q);
 
 	/* Even if apply changes fails we should continue
-	   freeing allocated memeory */
+	   freeing allocated memory */
 	if (vout->streaming) {
 		u32 mask = 0;
 
@@ -1347,9 +1339,9 @@ static int omap_vout_open(struct file *file)
 	video_vbq_ops.buf_queue = omap_vout_buffer_queue;
 	spin_lock_init(&vout->vbq_lock);
 
-	videobuf_queue_sg_init(q, &video_vbq_ops, NULL, &vout->vbq_lock,
-			vout->type, V4L2_FIELD_NONE,
-			sizeof(struct videobuf_buffer), vout);
+	videobuf_queue_dma_contig_init(q, &video_vbq_ops, q->dev,
+			&vout->vbq_lock, vout->type, V4L2_FIELD_NONE,
+			sizeof(struct videobuf_buffer), vout, NULL);
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
 	return 0;
@@ -1799,7 +1791,6 @@ static int vidioc_reqbufs(struct file *file, void *fh,
 	unsigned int i, num_buffers = 0;
 	struct omap_vout_device *vout = fh;
 	struct videobuf_queue *q = &vout->vbq;
-	struct videobuf_dmabuf *dmabuf = NULL;
 
 	if ((req->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) || (req->count < 0))
 		return -EINVAL;
@@ -1825,8 +1816,7 @@ static int vidioc_reqbufs(struct file *file, void *fh,
 		num_buffers = (vout->vid == OMAP_VIDEO1) ?
 			video1_numbuffers : video2_numbuffers;
 		for (i = num_buffers; i < vout->buffer_allocated; i++) {
-			dmabuf = videobuf_to_dma(q->bufs[i]);
-			omap_vout_free_buffer((u32)dmabuf->vmalloc,
+			omap_vout_free_buffer(vout->buf_virt_addr[i],
 					vout->buffer_size);
 			vout->buf_virt_addr[i] = 0;
 			vout->buf_phy_addr[i] = 0;
@@ -1855,12 +1845,7 @@ static int vidioc_reqbufs(struct file *file, void *fh,
 		goto reqbuf_err;
 
 	vout->buffer_allocated = req->count;
-	for (i = 0; i < req->count; i++) {
-		dmabuf = videobuf_to_dma(q->bufs[i]);
-		dmabuf->vmalloc = (void *) vout->buf_virt_addr[i];
-		dmabuf->bus_addr = (dma_addr_t) vout->buf_phy_addr[i];
-		dmabuf->sglen = 1;
-	}
+
 reqbuf_err:
 	mutex_unlock(&vout->lock);
 	return ret;
@@ -2245,7 +2230,6 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 
 	strlcpy(vfd->name, VOUT_NAME, sizeof(vfd->name));
 
-	/* need to register for a VID_HARDWARE_* ID in videodev.h */
 	vfd->fops = &omap_vout_fops;
 	vfd->v4l2_dev = &vout->vid_dev->v4l2_dev;
 	mutex_init(&vout->lock);
@@ -2371,12 +2355,11 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 
 	for (k = 0; k < pdev->num_resources; k++) {
 
-		vout = kmalloc(sizeof(struct omap_vout_device), GFP_KERNEL);
+		vout = kzalloc(sizeof(struct omap_vout_device), GFP_KERNEL);
 		if (!vout) {
 			dev_err(&pdev->dev, ": could not allocate memory\n");
 			return -ENOMEM;
 		}
-		memset(vout, 0, sizeof(struct omap_vout_device));
 
 		vout->vid = k;
 		vid_dev->vouts[k] = vout;
@@ -2489,7 +2472,7 @@ static int omap_vout_remove(struct platform_device *pdev)
 
 	for (k = 0; k < vid_dev->num_displays; k++) {
 		if (vid_dev->displays[k]->state != OMAP_DSS_DISPLAY_DISABLED)
-			vid_dev->displays[k]->disable(vid_dev->displays[k]);
+			vid_dev->displays[k]->driver->disable(vid_dev->displays[k]);
 
 		omap_dss_put_device(vid_dev->displays[k]);
 	}
@@ -2546,7 +2529,9 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 			def_display = NULL;
 		}
 		if (def_display) {
-			ret = def_display->enable(def_display);
+			struct omap_dss_driver *dssdrv = def_display->driver;
+
+			ret = dssdrv->enable(def_display);
 			if (ret) {
 				/* Here we are not considering a error
 				 *  as display may be enabled by frame
@@ -2559,22 +2544,14 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 			/* set the update mode */
 			if (def_display->caps &
 					OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
-#ifdef CONFIG_FB_OMAP2_FORCE_AUTO_UPDATE
-				if (def_display->enable_te)
-					def_display->enable_te(def_display, 1);
-				if (def_display->set_update_mode)
-					def_display->set_update_mode(def_display,
-							OMAP_DSS_UPDATE_AUTO);
-#else	/* MANUAL_UPDATE */
-				if (def_display->enable_te)
-					def_display->enable_te(def_display, 0);
-				if (def_display->set_update_mode)
-					def_display->set_update_mode(def_display,
+				if (dssdrv->enable_te)
+					dssdrv->enable_te(def_display, 0);
+				if (dssdrv->set_update_mode)
+					dssdrv->set_update_mode(def_display,
 							OMAP_DSS_UPDATE_MANUAL);
-#endif
 			} else {
-				if (def_display->set_update_mode)
-					def_display->set_update_mode(def_display,
+				if (dssdrv->set_update_mode)
+					dssdrv->set_update_mode(def_display,
 							OMAP_DSS_UPDATE_AUTO);
 			}
 		}
@@ -2593,8 +2570,8 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 	for (i = 0; i < vid_dev->num_displays; i++) {
 		struct omap_dss_device *display = vid_dev->displays[i];
 
-		if (display->update)
-			display->update(display, 0, 0,
+		if (display->driver->update)
+			display->driver->update(display, 0, 0,
 					display->panel.timings.x_res,
 					display->panel.timings.y_res);
 	}
@@ -2609,8 +2586,8 @@ probe_err1:
 		if (ovl->manager && ovl->manager->device)
 			def_display = ovl->manager->device;
 
-		if (def_display)
-			def_display->disable(def_display);
+		if (def_display && def_display->driver)
+			def_display->driver->disable(def_display);
 	}
 probe_err0:
 	kfree(vid_dev);

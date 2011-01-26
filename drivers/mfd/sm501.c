@@ -26,7 +26,7 @@
 #include <linux/sm501-regs.h>
 #include <linux/serial_8250.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 struct sm501_device {
 	struct list_head		list;
@@ -745,11 +745,8 @@ static int sm501_register_device(struct sm501_devdata *sm,
 	int ret;
 
 	for (ptr = 0; ptr < pdev->num_resources; ptr++) {
-		printk(KERN_DEBUG "%s[%d] flags %08lx: %08llx..%08llx\n",
-		       pdev->name, ptr,
-		       pdev->resource[ptr].flags,
-		       (unsigned long long)pdev->resource[ptr].start,
-		       (unsigned long long)pdev->resource[ptr].end);
+		printk(KERN_DEBUG "%s[%d] %pR\n",
+		       pdev->name, ptr, &pdev->resource[ptr]);
 	}
 
 	ret = platform_device_register(pdev);

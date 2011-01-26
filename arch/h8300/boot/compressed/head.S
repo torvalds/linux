@@ -9,7 +9,7 @@
 
 #define SRAM_START 0xff4000
 
-	.section	.text.startup
+	.section	.text..startup
 	.global	startup
 startup:
 	mov.l	#SRAM_START+0x8000, sp

@@ -4,15 +4,24 @@ config MIPS
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
 	select HAVE_ARCH_KGDB
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_C_RECORDMCOUNT
 	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_KPROBES
+	select HAVE_KRETPROBES
 	select RTC_LIB if !MACH_LOONGSON
-
-mainmenu "Linux/MIPS Kernel Configuration"
+	select GENERIC_ATOMIC64 if !64BIT
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_PROBE
+	select HAVE_ARCH_JUMP_LABEL
 
 menu "Machine selection"
 
@@ -23,8 +32,17 @@ choice
 	prompt "System type"
 	default SGI_IP22
 
-config MACH_ALCHEMY
+config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
+	select 64BIT_PHYS_ADDR
+	select CEVT_R4K_LIB
+	select CSRC_R4K_LIB
+	select IRQ_CPU
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_APM_EMULATION
+	select GENERIC_GPIO
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select SYS_SUPPORTS_ZBOOT
 
 config AR7
@@ -48,6 +66,22 @@ config AR7
 	  Support for the Texas Instruments AR7 System-on-a-Chip
 	  family: TNETD7100, 7200 and 7300.
 
+config ATH79
+	bool "Atheros AR71XX/AR724X/AR913X based boards"
+	select ARCH_REQUIRE_GPIOLIB
+	select BOOT_RAW
+	select CEVT_R4K
+	select CSRC_R4K
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select MIPS_MACHINE
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	help
+	  Support for the Atheros AR71XX/AR724X/AR913X SoCs.
+
 config BCM47XX
 	bool "Broadcom BCM47XX based boards"
 	select CEVT_R4K
@@ -62,6 +96,7 @@ config BCM47XX
 	select SSB_DRIVER_MIPS
 	select SSB_DRIVER_EXTIF
 	select SSB_EMBEDDED
+	select SSB_B43_PCI_BRIDGE if PCI
 	select SSB_PCICORE_HOSTMODE if PCI
 	select GENERIC_GPIO
 	select SYS_HAS_EARLY_PRINTK
@@ -161,6 +196,18 @@ config MACH_JAZZ
 	 used by several vendors to build RISC/os and Windows NT workstations.
 	 Members include the Acer PICA, MIPS Magnum 4000, MIPS Millennium and
 	 Olivetti M700-10 workstations.
+
+config MACH_JZ4740
+	bool "Ingenic JZ4740 based machines"
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select SYS_HAS_EARLY_PRINTK
+	select HAVE_PWM
 
 config LASAT
 	bool "LASAT Networks platforms"
@@ -668,6 +715,9 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 	select SWAP_IO_SPACE
 	select HW_HAS_PCI
 	select ARCH_SUPPORTS_MSI
+	select ZONE_DMA32
+	select USB_ARCH_HAS_OHCI
+	select USB_ARCH_HAS_EHCI
 	help
 	  This option supports all of the Octeon reference boards from Cavium
 	  Networks. It builds a kernel that dynamically determines the Octeon
@@ -684,8 +734,10 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 endchoice
 
 source "arch/mips/alchemy/Kconfig"
+source "arch/mips/ath79/Kconfig"
 source "arch/mips/bcm63xx/Kconfig"
 source "arch/mips/jazz/Kconfig"
+source "arch/mips/jz4740/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
 source "arch/mips/powertv/Kconfig"
@@ -733,10 +785,6 @@ config GENERIC_CLOCKEVENTS
 	bool
 	default y
 
-config GENERIC_TIME
-	bool
-	default y
-
 config GENERIC_CMOS_UPDATE
 	bool
 	default y
@@ -744,9 +792,6 @@ config GENERIC_CMOS_UPDATE
 config SCHED_OMIT_FRAME_POINTER
 	bool
 	default y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
 
 #
 # Select some configuration options automatically based on user selections.
@@ -853,16 +898,23 @@ config MIPS_DISABLE_OBSOLETE_IDE
 config SYNC_R4K
 	bool
 
+config MIPS_MACHINE
+	def_bool n
+
 config NO_IOPORT
 	def_bool n
 
 config GENERIC_ISA_DMA
 	bool
 	select ZONE_DMA if GENERIC_ISA_DMA_SUPPORT_BROKEN=n
+	select ISA_DMA_API
 
 config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	bool
 	select GENERIC_ISA_DMA
+
+config ISA_DMA_API
+	bool
 
 config GENERIC_GPIO
 	bool
@@ -891,6 +943,9 @@ config CPU_LITTLE_ENDIAN
 	help
 
 endchoice
+
+config EXPORT_UASM
+	bool
 
 config SYS_SUPPORTS_APM_EMULATION
 	bool
@@ -1307,6 +1362,57 @@ config CPU_CAVIUM_OCTEON
 	  can have up to 16 Mips64v2 cores and 8 integrated gigabit ethernets.
 	  Full details can be found at http://www.caviumnetworks.com.
 
+config CPU_BMIPS3300
+	bool "BMIPS3300"
+	depends on SYS_HAS_CPU_BMIPS3300
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select WEAK_ORDERING
+	help
+	  Broadcom BMIPS3300 processors.
+
+config CPU_BMIPS4350
+	bool "BMIPS4350"
+	depends on SYS_HAS_CPU_BMIPS4350
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+	select WEAK_ORDERING
+	help
+	  Broadcom BMIPS4350 ("VIPER") processors.
+
+config CPU_BMIPS4380
+	bool "BMIPS4380"
+	depends on SYS_HAS_CPU_BMIPS4380
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+	select WEAK_ORDERING
+	help
+	  Broadcom BMIPS4380 processors.
+
+config CPU_BMIPS5000
+	bool "BMIPS5000"
+	depends on SYS_HAS_CPU_BMIPS5000
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+	select WEAK_ORDERING
+	help
+	  Broadcom BMIPS5000 processors.
+
 endchoice
 
 if CPU_LOONGSON2F
@@ -1423,6 +1529,18 @@ config SYS_HAS_CPU_SB1
 	bool
 
 config SYS_HAS_CPU_CAVIUM_OCTEON
+	bool
+
+config SYS_HAS_CPU_BMIPS3300
+	bool
+
+config SYS_HAS_CPU_BMIPS4350
+	bool
+
+config SYS_HAS_CPU_BMIPS4380
+	bool
+
+config SYS_HAS_CPU_BMIPS5000
 	bool
 
 #
@@ -1566,6 +1684,28 @@ config PAGE_SIZE_64KB
 
 endchoice
 
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	range 13 64 if SYS_SUPPORTS_HUGETLBFS && PAGE_SIZE_32KB
+	default "13" if SYS_SUPPORTS_HUGETLBFS && PAGE_SIZE_32KB
+	range 12 64 if SYS_SUPPORTS_HUGETLBFS && PAGE_SIZE_16KB
+	default "12" if SYS_SUPPORTS_HUGETLBFS && PAGE_SIZE_16KB
+	range 11 64
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
+
+	  The page size is not necessarily 4KB.  Keep this in mind
+	  when choosing a value for this option.
+
 config BOARD_SCACHE
 	bool
 
@@ -1622,8 +1762,16 @@ config MIPS_MT_SMP
 	select SYS_SUPPORTS_SMP
 	select SMP_UP
 	help
-	  This is a kernel model which is also known a VSMP or lately
-	  has been marketesed into SMVP.
+	  This is a kernel model which is known a VSMP but lately has been
+	  marketesed into SMVP.
+	  Virtual SMP uses the processor's VPEs  to implement virtual
+	  processors. In currently available configuration of the 34K processor
+	  this allows for a dual processor. Both processors will share the same
+	  primary caches; each will obtain the half of the TLB for it's own
+	  exclusive use. For a layman this model can be described as similar to
+	  what Intel calls Hyperthreading.
+
+	  For further information see http://www.linux-mips.org/wiki/34K#VSMP
 
 config MIPS_MT_SMTC
 	bool "SMTC: Use all TCs on all VPEs for SMP"
@@ -1640,6 +1788,14 @@ config MIPS_MT_SMTC
 	help
 	  This is a kernel model which is known a SMTC or lately has been
 	  marketesed into SMVP.
+	  is presenting the available TC's of the core as processors to Linux.
+	  On currently available 34K processors this means a Linux system will
+	  see up to 5 processors. The implementation of the SMTC kernel differs
+	  significantly from VSMP and cannot efficiently coexist in the same
+	  kernel binary so the choice between VSMP and SMTC is a compile time
+	  decision.
+
+	  For further information see http://www.linux-mips.org/wiki/34K#SMTC
 
 endchoice
 
@@ -1808,20 +1964,6 @@ config CPU_R4400_WORKAROUNDS
 	bool
 
 #
-# Use the generic interrupt handling code in kernel/irq/:
-#
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_IRQ_PROBE
-	bool
-	default y
-
-config IRQ_PER_CPU
-	bool
-
-#
 # - Highmem only makes sense for the 32-bit kernel.
 # - The current highmem code will only work properly on physically indexed
 #   caches such as R3000, SB1, R7000 or those that look like they're virtually
@@ -1884,6 +2026,14 @@ config NODES_SHIFT
 	int
 	default "6"
 	depends on NEED_MULTIPLE_NODES
+
+config HW_PERF_EVENTS
+	bool "Enable hardware performance counter support for perf events"
+	depends on PERF_EVENTS && !MIPS_MT_SMTC && OPROFILE=n && CPU_MIPS32
+	default y
+	help
+	  Enable hardware performance counter support for perf events. If
+	  disabled, perf events will use software events only.
 
 source "mm/Kconfig"
 
@@ -2083,6 +2233,13 @@ config SECCOMP
 
 	  If unsure, say Y. Only embedded should say N here.
 
+config USE_OF
+	bool "Flattened Device Tree support"
+	select OF
+	select OF_EARLY_FLATTREE
+	help
+	  Include support for flattened device tree machine descriptions.
+
 endmenu
 
 config LOCKDEP_SUPPORT
@@ -2151,10 +2308,14 @@ config TC
 	bool "TURBOchannel support"
 	depends on MACH_DECSTATION
 	help
-	  TurboChannel is a DEC (now Compaq (now HP)) bus for Alpha and MIPS
-	  processors.  Documentation on writing device drivers for TurboChannel
-	  is available at:
-	  <http://www.cs.arizona.edu/computer.help/policy/DIGITAL_unix/AA-PS3HD-TET1_html/TITLE.html>.
+	  TURBOchannel is a DEC (now Compaq (now HP)) bus for Alpha and MIPS
+	  processors.  TURBOchannel programming specifications are available
+	  at:
+	  <ftp://ftp.hp.com/pub/alphaserver/archive/triadd/>
+	  and:
+	  <http://www.computer-refuge.org/classiccmp/ftp.digital.com/pub/DEC/TriAdd/>
+	  Linux driver support status is documented at:
+	  <http://www.linux-mips.org/wiki/DECstation>
 
 #config ACCESSBUS
 #	bool "Access.Bus support"
@@ -2256,5 +2417,21 @@ source "arch/mips/Kconfig.debug"
 source "security/Kconfig"
 
 source "crypto/Kconfig"
+
+menuconfig VIRTUALIZATION
+	bool "Virtualization"
+	default n
+	---help---
+	  Say Y here to get to see options for using your Linux host to run other
+	  operating systems inside virtual machines (guests).
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if VIRTUALIZATION
+
+source drivers/virtio/Kconfig
+
+endif # VIRTUALIZATION
 
 source "lib/Kconfig"

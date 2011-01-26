@@ -33,6 +33,7 @@ config ARCH_AT91SAM9260
 	select HAVE_AT91_USART3
 	select HAVE_AT91_USART4
 	select HAVE_AT91_USART5
+	select HAVE_NET_MACB
 
 config ARCH_AT91SAM9261
 	bool "AT91SAM9261"
@@ -51,6 +52,7 @@ config ARCH_AT91SAM9263
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
 	select HAVE_FB_ATMEL
+	select HAVE_NET_MACB
 
 config ARCH_AT91SAM9RL
 	bool "AT91SAM9RL"
@@ -66,6 +68,7 @@ config ARCH_AT91SAM9G20
 	select HAVE_AT91_USART3
 	select HAVE_AT91_USART4
 	select HAVE_AT91_USART5
+	select HAVE_NET_MACB
 
 config ARCH_AT91SAM9G45
 	bool "AT91SAM9G45"
@@ -73,6 +76,7 @@ config ARCH_AT91SAM9G45
 	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_USART3
 	select HAVE_FB_ATMEL
+	select HAVE_NET_MACB
 
 config ARCH_AT91CAP9
 	bool "AT91CAP9"
@@ -105,7 +109,7 @@ config MACH_ONEARM
 	bool "Ajeco 1ARM Single Board Computer"
 	help
 	  Select this if you are using Ajeco's 1ARM Single Board Computer.
-	  <http://www.ajeco.fi/products.htm>
+	  <http://www.ajeco.fi/>
 
 config ARCH_AT91RM9200DK
 	bool "Atmel AT91RM9200-DK Development board"
@@ -137,7 +141,7 @@ config MACH_CARMEVA
 	bool "Conitec ARM&EVA"
 	help
 	  Select this if you are using Conitec's AT91RM9200-MCU-Module.
-	  <http://www.conitec.net/english/linuxboard.htm>
+	  <http://www.conitec.net/english/linuxboard.php>
 
 config MACH_ATEB9200
 	bool "Embest ATEB9200"
@@ -149,7 +153,7 @@ config MACH_KB9200
 	bool "KwikByte KB920x"
 	help
 	  Select this if you are using KwikByte's KB920x board.
-	  <http://kwikbyte.com/KB9202_description_new.htm>
+	  <http://www.kwikbyte.com/KB9202.html>
 
 config MACH_PICOTUX2XX
 	bool "picotux 200"
@@ -248,6 +252,12 @@ config MACH_CPU9260
 	  Select this if you are using a Eukrea Electromatique's
 	  CPU9260 Board <http://www.eukrea.com/>
 
+config MACH_FLEXIBITY
+	bool "Flexibity Connect board"
+	help
+	  Select this if you are using Flexibity Connect board
+	  <http://www.flexibity.com>
+
 endif
 
 # ----------------------------------------------------------
@@ -338,6 +348,7 @@ config MACH_AT91SAM9G20EK
 	  that embeds only one SD/MMC slot.
 
 config MACH_AT91SAM9G20EK_2MMC
+	depends on MACH_AT91SAM9G20EK
 	bool "Atmel AT91SAM9G20-EK Evaluation Kit with 2 SD/MMC Slots"
 	select HAVE_NAND_ATMEL_BUSWIDTH_16
 	help
@@ -350,6 +361,12 @@ config MACH_CPU9G20
 	help
 	  Select this if you are using a Eukrea Electromatique's
 	  CPU9G20 Board <http://www.eukrea.com/>
+
+config MACH_ACMENETUSFOXG20
+	bool "Acme Systems srl FOX Board G20"
+	help
+	  Select this if you are using Acme Systems
+	  FOX Board G20 <http://www.acmesystems.it>
 
 config MACH_PORTUXG20
 	bool "taskit PortuxG20"
@@ -364,6 +381,30 @@ config MACH_STAMP9G20
 	  evaluation board.
 	  <http://www.taskit.de/en/>
 
+config MACH_PCONTROL_G20
+	bool "PControl G20 CPU module"
+	help
+	  Select this if you are using taskit's Stamp9G20 CPU module on this
+	  carrier board, beeing the decentralized unit of a building automation
+	  system; featuring nvram, eth-switch, iso-rs485, display, io
+
+config MACH_GSIA18S
+	bool "GS_IA18_S board"
+	help
+	  This enables support for the GS_IA18_S board
+	  produced by GeoSIG Ltd company. This is an internet accelerograph.
+	  <http://www.geosig.com>
+endif
+
+if (ARCH_AT91SAM9260 || ARCH_AT91SAM9G20)
+comment "AT91SAM9260/AT91SAM9G20 boards"
+
+config MACH_SNAPPER_9260
+        bool "Bluewater Systems Snapper 9260/9G20 module"
+        help
+          Select this if you are using the Bluewater Systems Snapper 9260 or
+          Snapper 9G20 modules.
+          <http://www.bluewatersys.com/>
 endif
 
 # ----------------------------------------------------------
@@ -372,8 +413,8 @@ if ARCH_AT91SAM9G45
 
 comment "AT91SAM9G45 Board Type"
 
-config MACH_AT91SAM9G45EKES
-	bool "Atmel AT91SAM9G45-EKES Evaluation Kit"
+config MACH_AT91SAM9M10G45EK
+	bool "Atmel AT91SAM9M10G45-EK Evaluation Kits"
 	select HAVE_NAND_ATMEL_BUSWIDTH_16
 	help
 	  Select this if you are using Atmel's AT91SAM9G45-EKES Evaluation Kit.

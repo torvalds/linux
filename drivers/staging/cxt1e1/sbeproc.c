@@ -142,9 +142,8 @@ sbecom_proc_get_sbe_info (char *buffer, char **start, off_t offset,
     len += sprintf (buffer + len, "Board Number:  %d\n", bip->brdno);
     len += sprintf (buffer + len, "Hardware ID:   0x%02X\n", ci->hdw_bid);
     len += sprintf (buffer + len, "Board SN:      %06X\n", bip->brd_sn);
-    len += sprintf (buffer + len, "Board MAC:     %02X-%02X-%02X-%02X-%02X-%02X\n",
-           bip->brd_mac_addr[0], bip->brd_mac_addr[1], bip->brd_mac_addr[2],
-          bip->brd_mac_addr[3], bip->brd_mac_addr[4], bip->brd_mac_addr[5]);
+	len += sprintf(buffer + len, "Board MAC:     %pMF\n",
+		bip->brd_mac_addr);
     len += sprintf (buffer + len, "Ports:         %d\n", ci->max_port);
     len += sprintf (buffer + len, "Channels:      %d\n", bip->brd_chan_cnt);
 #if 1
@@ -172,17 +171,17 @@ sbecom_proc_get_sbe_info (char *buffer, char **start, off_t offset,
 
 #ifdef SBE_PMCC4_ENABLE
     {
-        extern int max_mru;
+               extern int cxt1e1_max_mru;
 #if 0
         extern int max_chans_used;
-        extern int max_mtu;
+        extern int cxt1e1_max_mtu;
 #endif
         extern int max_rxdesc_used, max_txdesc_used;
 
-        len += sprintf (buffer + len, "\nmax_mru:         %d\n", max_mru);
+        len += sprintf (buffer + len, "\ncxt1e1_max_mru:         %d\n", cxt1e1_max_mru);
 #if 0
         len += sprintf (buffer + len, "\nmax_chans_used:  %d\n", max_chans_used);
-        len += sprintf (buffer + len, "max_mtu:         %d\n", max_mtu);
+        len += sprintf (buffer + len, "cxt1e1_max_mtu:         %d\n", cxt1e1_max_mtu);
 #endif
         len += sprintf (buffer + len, "max_rxdesc_used: %d\n", max_rxdesc_used);
         len += sprintf (buffer + len, "max_txdesc_used: %d\n", max_txdesc_used);

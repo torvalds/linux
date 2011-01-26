@@ -1,5 +1,11 @@
 /*
  * ad1980.h  --  ad1980 Soc Audio driver
+ *
+ * WARNING:
+ *
+ * Because Analog Devices Inc. discontinued the ad1980 sound chip since
+ * Sep. 2009, this ad1980 driver is not maintained, tested and supported
+ * by ADI now.
  */
 
 #ifndef _AD1980_H
@@ -16,8 +22,5 @@
 #define PR4		0x1000
 #define PR5		0x2000
 #define PR6		0x4000
-
-extern struct snd_soc_dai ad1980_dai;
-extern struct snd_soc_codec_device soc_codec_dev_ad1980;
 
 #endif

@@ -47,7 +47,6 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/screen_info.h>
-#include <linux/smp_lock.h>
 #include <video/vga.h>
 #include <asm/io.h>
 
@@ -203,11 +202,7 @@ static void vgacon_scrollback_init(int pitch)
 	}
 }
 
-/*
- * Called only duing init so call of alloc_bootmen is ok.
- * Marked __init_refok to silence modpost.
- */
-static void __init_refok vgacon_scrollback_startup(void)
+static void vgacon_scrollback_startup(void)
 {
 	vgacon_scrollback = kcalloc(CONFIG_VGACON_SOFT_SCROLLBACK_SIZE, 1024, GFP_NOWAIT);
 	vgacon_scrollback_init(vga_video_num_columns * 2);
@@ -376,7 +371,8 @@ static const char *vgacon_startup(void)
 	u16 saved1, saved2;
 	volatile u16 *p;
 
-	if (screen_info.orig_video_isVGA == VIDEO_TYPE_VLFB) {
+	if (screen_info.orig_video_isVGA == VIDEO_TYPE_VLFB ||
+	    screen_info.orig_video_isVGA == VIDEO_TYPE_EFI) {
 	      no_vga:
 #ifdef CONFIG_DUMMY_CONSOLE
 		conswitchp = &dummy_con;
@@ -1108,7 +1104,6 @@ static int vgacon_do_font_op(struct vgastate *state,char *arg,int set,int ch512)
 		charmap += 4 * cmapsz;
 #endif
 
-	unlock_kernel();
 	spin_lock_irq(&vga_lock);
 	/* First, the Sequencer */
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x1);
@@ -1192,7 +1187,6 @@ static int vgacon_do_font_op(struct vgastate *state,char *arg,int set,int ch512)
 		vga_wattr(state->vgabase, VGA_AR_ENABLE_DISPLAY, 0);	
 	}
 	spin_unlock_irq(&vga_lock);
-	lock_kernel();
 	return 0;
 }
 

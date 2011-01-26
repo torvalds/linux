@@ -35,10 +35,8 @@
  */
 
 #include "core.h"
-#include "dbg.h"
 #include "name_table.h"
 #include "port.h"
-#include "ref.h"
 #include "subscr.h"
 
 /**
@@ -66,14 +64,26 @@ struct subscriber {
  */
 
 struct top_srv {
-	u32 user_ref;
 	u32 setup_port;
 	atomic_t subscription_count;
 	struct list_head subscriber_list;
 	spinlock_t lock;
 };
 
-static struct top_srv topsrv = { 0 };
+static struct top_srv topsrv;
+
+/**
+ * htohl - convert value to endianness used by destination
+ * @in: value to convert
+ * @swap: non-zero if endianness must be reversed
+ *
+ * Returns converted value
+ */
+
+static u32 htohl(u32 in, int swap)
+{
+	return swap ? swab32(in) : in;
+}
 
 /**
  * subscr_send_event - send a message containing a tipc_event to the subscriber
@@ -94,11 +104,11 @@ static void subscr_send_event(struct subscription *sub,
 	msg_sect.iov_base = (void *)&sub->evt;
 	msg_sect.iov_len = sizeof(struct tipc_event);
 
-	sub->evt.event = htonl(event);
-	sub->evt.found_lower = htonl(found_lower);
-	sub->evt.found_upper = htonl(found_upper);
-	sub->evt.port.ref = htonl(port_ref);
-	sub->evt.port.node = htonl(node);
+	sub->evt.event = htohl(event, sub->swap);
+	sub->evt.found_lower = htohl(found_lower, sub->swap);
+	sub->evt.found_upper = htohl(found_upper, sub->swap);
+	sub->evt.port.ref = htohl(port_ref, sub->swap);
+	sub->evt.port.node = htohl(node, sub->swap);
 	tipc_send(sub->server_ref, 1, &msg_sect);
 }
 
@@ -239,8 +249,6 @@ static void subscr_terminate(struct subscriber *subscriber)
 			k_cancel_timer(&sub->timer);
 			k_term_timer(&sub->timer);
 		}
-		dbg("Term: Removing sub %u,%u,%u from subscriber %x list\n",
-		    sub->seq.type, sub->seq.lower, sub->seq.upper, subscriber);
 		subscr_del(sub);
 	}
 
@@ -274,29 +282,16 @@ static void subscr_cancel(struct tipc_subscr *s,
 {
 	struct subscription *sub;
 	struct subscription *sub_temp;
-	__u32 type, lower, upper, timeout, filter;
 	int found = 0;
 
 	/* Find first matching subscription, exit if not found */
 
-	type = ntohl(s->seq.type);
-	lower = ntohl(s->seq.lower);
-	upper = ntohl(s->seq.upper);
-	timeout = ntohl(s->timeout);
-	filter = ntohl(s->filter) & ~TIPC_SUB_CANCEL;
-
 	list_for_each_entry_safe(sub, sub_temp, &subscriber->subscription_list,
 				 subscription_list) {
-			if ((type == sub->seq.type) &&
-			    (lower == sub->seq.lower) &&
-			    (upper == sub->seq.upper) &&
-			    (timeout == sub->timeout) &&
-                            (filter == sub->filter) &&
-                             !memcmp(s->usr_handle,sub->evt.s.usr_handle,
-				     sizeof(s->usr_handle)) ){
-				found = 1;
-				break;
-			}
+		if (!memcmp(s, &sub->evt.s, sizeof(struct tipc_subscr))) {
+			found = 1;
+			break;
+		}
 	}
 	if (!found)
 		return;
@@ -310,8 +305,6 @@ static void subscr_cancel(struct tipc_subscr *s,
 		k_term_timer(&sub->timer);
 		spin_lock_bh(subscriber->lock);
 	}
-	dbg("Cancel: removing sub %u,%u,%u from subscriber %p list\n",
-	    sub->seq.type, sub->seq.lower, sub->seq.upper, subscriber);
 	subscr_del(sub);
 }
 
@@ -325,10 +318,16 @@ static struct subscription *subscr_subscribe(struct tipc_subscr *s,
 					     struct subscriber *subscriber)
 {
 	struct subscription *sub;
+	int swap;
+
+	/* Determine subscriber's endianness */
+
+	swap = !(s->filter & (TIPC_SUB_PORTS | TIPC_SUB_SERVICE));
 
 	/* Detect & process a subscription cancellation request */
 
-	if (ntohl(s->filter) & TIPC_SUB_CANCEL) {
+	if (s->filter & htohl(TIPC_SUB_CANCEL, swap)) {
+		s->filter &= ~htohl(TIPC_SUB_CANCEL, swap);
 		subscr_cancel(s, subscriber);
 		return NULL;
 	}
@@ -353,12 +352,13 @@ static struct subscription *subscr_subscribe(struct tipc_subscr *s,
 
 	/* Initialize subscription object */
 
-	sub->seq.type = ntohl(s->seq.type);
-	sub->seq.lower = ntohl(s->seq.lower);
-	sub->seq.upper = ntohl(s->seq.upper);
-	sub->timeout = ntohl(s->timeout);
-	sub->filter = ntohl(s->filter);
-	if ((sub->filter && (sub->filter != TIPC_SUB_PORTS)) ||
+	sub->seq.type = htohl(s->seq.type, swap);
+	sub->seq.lower = htohl(s->seq.lower, swap);
+	sub->seq.upper = htohl(s->seq.upper, swap);
+	sub->timeout = htohl(s->timeout, swap);
+	sub->filter = htohl(s->filter, swap);
+	if ((!(sub->filter & TIPC_SUB_PORTS) ==
+	     !(sub->filter & TIPC_SUB_SERVICE)) ||
 	    (sub->seq.lower > sub->seq.upper)) {
 		warn("Subscription rejected, illegal request\n");
 		kfree(sub);
@@ -369,6 +369,7 @@ static struct subscription *subscr_subscribe(struct tipc_subscr *s,
 	INIT_LIST_HEAD(&sub->nameseq_list);
 	list_add(&sub->subscription_list, &subscriber->subscription_list);
 	sub->server_ref = subscriber->port_ref;
+	sub->swap = swap;
 	memcpy(&sub->evt.s, s, sizeof(struct tipc_subscr));
 	atomic_inc(&topsrv.subscription_count);
 	if (sub->timeout != TIPC_WAIT_FOREVER) {
@@ -488,8 +489,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Create server port & establish connection to subscriber */
 
-	tipc_createport(topsrv.user_ref,
-			subscriber,
+	tipc_createport(subscriber,
 			importance,
 			NULL,
 			NULL,
@@ -536,21 +536,14 @@ static void subscr_named_msg_event(void *usr_handle,
 int tipc_subscr_start(void)
 {
 	struct tipc_name_seq seq = {TIPC_TOP_SRV, TIPC_TOP_SRV, TIPC_TOP_SRV};
-	int res = -1;
+	int res;
 
-	memset(&topsrv, 0, sizeof (topsrv));
+	memset(&topsrv, 0, sizeof(topsrv));
 	spin_lock_init(&topsrv.lock);
 	INIT_LIST_HEAD(&topsrv.subscriber_list);
 
 	spin_lock_bh(&topsrv.lock);
-	res = tipc_attach(&topsrv.user_ref, NULL, NULL);
-	if (res) {
-		spin_unlock_bh(&topsrv.lock);
-		return res;
-	}
-
-	res = tipc_createport(topsrv.user_ref,
-			      NULL,
+	res = tipc_createport(NULL,
 			      TIPC_CRITICAL_IMPORTANCE,
 			      NULL,
 			      NULL,
@@ -564,16 +557,17 @@ int tipc_subscr_start(void)
 		goto failed;
 
 	res = tipc_nametbl_publish_rsv(topsrv.setup_port, TIPC_NODE_SCOPE, &seq);
-	if (res)
+	if (res) {
+		tipc_deleteport(topsrv.setup_port);
+		topsrv.setup_port = 0;
 		goto failed;
+	}
 
 	spin_unlock_bh(&topsrv.lock);
 	return 0;
 
 failed:
 	err("Failed to create subscription service\n");
-	tipc_detach(topsrv.user_ref);
-	topsrv.user_ref = 0;
 	spin_unlock_bh(&topsrv.lock);
 	return res;
 }
@@ -584,8 +578,10 @@ void tipc_subscr_stop(void)
 	struct subscriber *subscriber_temp;
 	spinlock_t *subscriber_lock;
 
-	if (topsrv.user_ref) {
+	if (topsrv.setup_port) {
 		tipc_deleteport(topsrv.setup_port);
+		topsrv.setup_port = 0;
+
 		list_for_each_entry_safe(subscriber, subscriber_temp,
 					 &topsrv.subscriber_list,
 					 subscriber_list) {
@@ -594,16 +590,5 @@ void tipc_subscr_stop(void)
 			subscr_terminate(subscriber);
 			spin_unlock_bh(subscriber_lock);
 		}
-		tipc_detach(topsrv.user_ref);
-		topsrv.user_ref = 0;
 	}
 }
-
-
-int tipc_ispublished(struct tipc_name const *name)
-{
-	u32 domain = 0;
-
-	return(tipc_nametbl_translate(name->type, name->instance,&domain) != 0);
-}
-

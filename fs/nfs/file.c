@@ -27,6 +27,7 @@
 #include <linux/pagemap.h>
 #include <linux/aio.h>
 #include <linux/gfp.h>
+#include <linux/swap.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -35,6 +36,7 @@
 #include "internal.h"
 #include "iostat.h"
 #include "fscache.h"
+#include "pnfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_FILE
 
@@ -53,7 +55,7 @@ static ssize_t nfs_file_splice_write(struct pipe_inode_info *pipe,
 static ssize_t nfs_file_write(struct kiocb *, const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos);
 static int  nfs_file_flush(struct file *, fl_owner_t id);
-static int  nfs_file_fsync(struct file *, struct dentry *dentry, int datasync);
+static int  nfs_file_fsync(struct file *, int datasync);
 static int nfs_check_flags(int flags);
 static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl);
 static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl);
@@ -202,37 +204,11 @@ static loff_t nfs_file_llseek(struct file *filp, loff_t offset, int origin)
 }
 
 /*
- * Helper for nfs_file_flush() and nfs_file_fsync()
- *
- * Notice that it clears the NFS_CONTEXT_ERROR_WRITE before synching to
- * disk, but it retrieves and clears ctx->error after synching, despite
- * the two being set at the same time in nfs_context_set_write_error().
- * This is because the former is used to notify the _next_ call to
- * nfs_file_write() that a write error occured, and hence cause it to
- * fall back to doing a synchronous write.
- */
-static int nfs_do_fsync(struct nfs_open_context *ctx, struct inode *inode)
-{
-	int have_error, status;
-	int ret = 0;
-
-	have_error = test_and_clear_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
-	status = nfs_wb_all(inode);
-	have_error |= test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
-	if (have_error)
-		ret = xchg(&ctx->error, 0);
-	if (!ret)
-		ret = status;
-	return ret;
-}
-
-/*
  * Flush all dirty pages, and check for write errors.
  */
 static int
 nfs_file_flush(struct file *file, fl_owner_t id)
 {
-	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct dentry	*dentry = file->f_path.dentry;
 	struct inode	*inode = dentry->d_inode;
 
@@ -245,7 +221,7 @@ nfs_file_flush(struct file *file, fl_owner_t id)
 		return 0;
 
 	/* Flush writes to the server and return any errors */
-	return nfs_do_fsync(ctx, inode);
+	return vfs_fsync(file, 0);
 }
 
 static ssize_t
@@ -320,19 +296,37 @@ nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
  * Flush any dirty pages for this process, and check for write errors.
  * The return status from this call provides a reliable indication of
  * whether any write errors occurred for this process.
+ *
+ * Notice that it clears the NFS_CONTEXT_ERROR_WRITE before synching to
+ * disk, but it retrieves and clears ctx->error after synching, despite
+ * the two being set at the same time in nfs_context_set_write_error().
+ * This is because the former is used to notify the _next_ call to
+ * nfs_file_write() that a write error occured, and hence cause it to
+ * fall back to doing a synchronous write.
  */
 static int
-nfs_file_fsync(struct file *file, struct dentry *dentry, int datasync)
+nfs_file_fsync(struct file *file, int datasync)
 {
+	struct dentry *dentry = file->f_path.dentry;
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct inode *inode = dentry->d_inode;
+	int have_error, status;
+	int ret = 0;
+
 
 	dprintk("NFS: fsync file(%s/%s) datasync %d\n",
 			dentry->d_parent->d_name.name, dentry->d_name.name,
 			datasync);
 
 	nfs_inc_stats(inode, NFSIOS_VFSFSYNC);
-	return nfs_do_fsync(ctx, inode);
+	have_error = test_and_clear_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
+	status = nfs_commit_inode(inode, FLUSH_SYNC);
+	have_error |= test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
+	if (have_error)
+		ret = xchg(&ctx->error, 0);
+	if (!ret && status < 0)
+		ret = status;
+	return ret;
 }
 
 /*
@@ -392,6 +386,10 @@ static int nfs_write_begin(struct file *file, struct address_space *mapping,
 		file->f_path.dentry->d_parent->d_name.name,
 		file->f_path.dentry->d_name.name,
 		mapping->host->i_ino, len, (long long) pos);
+
+	pnfs_update_layout(mapping->host,
+			   nfs_file_open_context(file),
+			   IOMODE_RW);
 
 start:
 	/*
@@ -492,11 +490,19 @@ static void nfs_invalidate_page(struct page *page, unsigned long offset)
  */
 static int nfs_release_page(struct page *page, gfp_t gfp)
 {
+	struct address_space *mapping = page->mapping;
+
 	dfprintk(PAGECACHE, "NFS: release_page(%p)\n", page);
 
 	/* Only do I/O if gfp is a superset of GFP_KERNEL */
-	if ((gfp & GFP_KERNEL) == GFP_KERNEL)
-		nfs_wb_page(page->mapping->host, page);
+	if (mapping && (gfp & GFP_KERNEL) == GFP_KERNEL) {
+		int how = FLUSH_SYNC;
+
+		/* Don't let kswapd deadlock waiting for OOM RPC calls */
+		if (current_is_kswapd())
+			how = 0;
+		nfs_commit_inode(mapping->host, how);
+	}
 	/* If PagePrivate() is set, then the page is not freeable */
 	if (PagePrivate(page))
 		return 0;
@@ -550,7 +556,7 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct file *filp = vma->vm_file;
 	struct dentry *dentry = filp->f_path.dentry;
 	unsigned pagelen;
-	int ret = -EINVAL;
+	int ret = VM_FAULT_NOPAGE;
 	struct address_space *mapping;
 
 	dfprintk(PAGECACHE, "NFS: vm_page_mkwrite(%s/%s(%ld), offset %lld)\n",
@@ -566,21 +572,20 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (mapping != dentry->d_inode->i_mapping)
 		goto out_unlock;
 
-	ret = 0;
 	pagelen = nfs_page_length(page);
 	if (pagelen == 0)
 		goto out_unlock;
 
-	ret = nfs_flush_incompatible(filp, page);
-	if (ret != 0)
-		goto out_unlock;
+	ret = VM_FAULT_LOCKED;
+	if (nfs_flush_incompatible(filp, page) == 0 &&
+	    nfs_updatepage(filp, page, 0, pagelen) == 0)
+		goto out;
 
-	ret = nfs_updatepage(filp, page, 0, pagelen);
+	ret = VM_FAULT_SIGBUS;
 out_unlock:
-	if (!ret)
-		return VM_FAULT_LOCKED;
 	unlock_page(page);
-	return VM_FAULT_SIGBUS;
+out:
+	return ret;
 }
 
 static const struct vm_operations_struct nfs_file_vm_ops = {
@@ -638,7 +643,7 @@ static ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
 
 	/* Return error values for O_DSYNC and IS_SYNC() */
 	if (result >= 0 && nfs_need_sync_write(iocb->ki_filp, inode)) {
-		int err = nfs_do_fsync(nfs_file_open_context(iocb->ki_filp), inode);
+		int err = vfs_fsync(iocb->ki_filp, 0);
 		if (err < 0)
 			result = err;
 	}
@@ -674,7 +679,7 @@ static ssize_t nfs_file_splice_write(struct pipe_inode_info *pipe,
 		written = ret;
 
 	if (ret >= 0 && nfs_need_sync_write(filp, inode)) {
-		int err = nfs_do_fsync(nfs_file_open_context(filp), inode);
+		int err = vfs_fsync(filp, 0);
 		if (err < 0)
 			ret = err;
 	}
@@ -683,10 +688,12 @@ static ssize_t nfs_file_splice_write(struct pipe_inode_info *pipe,
 	return ret;
 }
 
-static int do_getlk(struct file *filp, int cmd, struct file_lock *fl)
+static int
+do_getlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 {
 	struct inode *inode = filp->f_mapping->host;
 	int status = 0;
+	unsigned int saved_type = fl->fl_type;
 
 	/* Try local locking first */
 	posix_test_lock(filp, fl);
@@ -694,11 +701,12 @@ static int do_getlk(struct file *filp, int cmd, struct file_lock *fl)
 		/* found a conflict */
 		goto out;
 	}
+	fl->fl_type = saved_type;
 
 	if (nfs_have_delegation(inode, FMODE_READ))
 		goto out_noconflict;
 
-	if (NFS_SERVER(inode)->flags & NFS_MOUNT_NONLM)
+	if (is_local)
 		goto out_noconflict;
 
 	status = NFS_PROTO(inode)->lock(filp, cmd, fl);
@@ -722,14 +730,11 @@ static int do_vfs_lock(struct file *file, struct file_lock *fl)
 		default:
 			BUG();
 	}
-	if (res < 0)
-		dprintk(KERN_WARNING "%s: VFS is out of sync with lock manager"
-			" - error %d!\n",
-				__func__, res);
 	return res;
 }
 
-static int do_unlk(struct file *filp, int cmd, struct file_lock *fl)
+static int
+do_unlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 {
 	struct inode *inode = filp->f_mapping->host;
 	int status;
@@ -744,15 +749,24 @@ static int do_unlk(struct file *filp, int cmd, struct file_lock *fl)
 	 * 	If we're signalled while cleaning up locks on process exit, we
 	 * 	still need to complete the unlock.
 	 */
-	/* Use local locking if mounted with "-onolock" */
-	if (!(NFS_SERVER(inode)->flags & NFS_MOUNT_NONLM))
+	/*
+	 * Use local locking if mounted with "-onolock" or with appropriate
+	 * "-olocal_lock="
+	 */
+	if (!is_local)
 		status = NFS_PROTO(inode)->lock(filp, cmd, fl);
 	else
 		status = do_vfs_lock(filp, fl);
 	return status;
 }
 
-static int do_setlk(struct file *filp, int cmd, struct file_lock *fl)
+static int
+is_time_granular(struct timespec *ts) {
+	return ((ts->tv_sec == 0) && (ts->tv_nsec <= 1000));
+}
+
+static int
+do_setlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 {
 	struct inode *inode = filp->f_mapping->host;
 	int status;
@@ -765,20 +779,31 @@ static int do_setlk(struct file *filp, int cmd, struct file_lock *fl)
 	if (status != 0)
 		goto out;
 
-	/* Use local locking if mounted with "-onolock" */
-	if (!(NFS_SERVER(inode)->flags & NFS_MOUNT_NONLM))
+	/*
+	 * Use local locking if mounted with "-onolock" or with appropriate
+	 * "-olocal_lock="
+	 */
+	if (!is_local)
 		status = NFS_PROTO(inode)->lock(filp, cmd, fl);
 	else
 		status = do_vfs_lock(filp, fl);
 	if (status < 0)
 		goto out;
+
 	/*
-	 * Make sure we clear the cache whenever we try to get the lock.
+	 * Revalidate the cache if the server has time stamps granular
+	 * enough to detect subsecond changes.  Otherwise, clear the
+	 * cache to prevent missing any changes.
+	 *
 	 * This makes locking act as a cache coherency point.
 	 */
 	nfs_sync_mapping(filp->f_mapping);
-	if (!nfs_have_delegation(inode, FMODE_READ))
-		nfs_zap_caches(inode);
+	if (!nfs_have_delegation(inode, FMODE_READ)) {
+		if (is_time_granular(&NFS_SERVER(inode)->time_delta))
+			__nfs_revalidate_inode(NFS_SERVER(inode), inode);
+		else
+			nfs_zap_caches(inode);
+	}
 out:
 	return status;
 }
@@ -790,6 +815,7 @@ static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	struct inode *inode = filp->f_mapping->host;
 	int ret = -ENOLCK;
+	int is_local = 0;
 
 	dprintk("NFS: lock(%s/%s, t=%x, fl=%x, r=%lld:%lld)\n",
 			filp->f_path.dentry->d_parent->d_name.name,
@@ -803,6 +829,9 @@ static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl)
 	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
 		goto out_err;
 
+	if (NFS_SERVER(inode)->flags & NFS_MOUNT_LOCAL_FCNTL)
+		is_local = 1;
+
 	if (NFS_PROTO(inode)->lock_check_bounds != NULL) {
 		ret = NFS_PROTO(inode)->lock_check_bounds(fl);
 		if (ret < 0)
@@ -810,11 +839,11 @@ static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl)
 	}
 
 	if (IS_GETLK(cmd))
-		ret = do_getlk(filp, cmd, fl);
+		ret = do_getlk(filp, cmd, fl, is_local);
 	else if (fl->fl_type == F_UNLCK)
-		ret = do_unlk(filp, cmd, fl);
+		ret = do_unlk(filp, cmd, fl, is_local);
 	else
-		ret = do_setlk(filp, cmd, fl);
+		ret = do_setlk(filp, cmd, fl, is_local);
 out_err:
 	return ret;
 }
@@ -824,6 +853,9 @@ out_err:
  */
 static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl)
 {
+	struct inode *inode = filp->f_mapping->host;
+	int is_local = 0;
+
 	dprintk("NFS: flock(%s/%s, t=%x, fl=%x)\n",
 			filp->f_path.dentry->d_parent->d_name.name,
 			filp->f_path.dentry->d_name.name,
@@ -832,14 +864,17 @@ static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl)
 	if (!(fl->fl_flags & FL_FLOCK))
 		return -ENOLCK;
 
+	if (NFS_SERVER(inode)->flags & NFS_MOUNT_LOCAL_FLOCK)
+		is_local = 1;
+
 	/* We're simulating flock() locks using posix locks on the server */
 	fl->fl_owner = (fl_owner_t)filp;
 	fl->fl_start = 0;
 	fl->fl_end = OFFSET_MAX;
 
 	if (fl->fl_type == F_UNLCK)
-		return do_unlk(filp, cmd, fl);
-	return do_setlk(filp, cmd, fl);
+		return do_unlk(filp, cmd, fl, is_local);
+	return do_setlk(filp, cmd, fl, is_local);
 }
 
 /*
@@ -851,6 +886,5 @@ static int nfs_setlease(struct file *file, long arg, struct file_lock **fl)
 	dprintk("NFS: setlease(%s/%s, arg=%ld)\n",
 			file->f_path.dentry->d_parent->d_name.name,
 			file->f_path.dentry->d_name.name, arg);
-
 	return -EINVAL;
 }

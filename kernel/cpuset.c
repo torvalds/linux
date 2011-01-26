@@ -105,7 +105,7 @@ struct cpuset {
 	/* for custom sched domain */
 	int relax_domain_level;
 
-	/* used for walking a cpuset heirarchy */
+	/* used for walking a cpuset hierarchy */
 	struct list_head stack_list;
 };
 
@@ -231,18 +231,17 @@ static DEFINE_SPINLOCK(cpuset_buffer_lock);
  * users. If someone tries to mount the "cpuset" filesystem, we
  * silently switch it to mount "cgroup" instead
  */
-static int cpuset_get_sb(struct file_system_type *fs_type,
-			 int flags, const char *unused_dev_name,
-			 void *data, struct vfsmount *mnt)
+static struct dentry *cpuset_mount(struct file_system_type *fs_type,
+			 int flags, const char *unused_dev_name, void *data)
 {
 	struct file_system_type *cgroup_fs = get_fs_type("cgroup");
-	int ret = -ENODEV;
+	struct dentry *ret = ERR_PTR(-ENODEV);
 	if (cgroup_fs) {
 		char mountopts[] =
 			"cpuset,noprefix,"
 			"release_agent=/sbin/cpuset_release_agent";
-		ret = cgroup_fs->get_sb(cgroup_fs, flags,
-					   unused_dev_name, mountopts, mnt);
+		ret = cgroup_fs->mount(cgroup_fs, flags,
+					   unused_dev_name, mountopts);
 		put_filesystem(cgroup_fs);
 	}
 	return ret;
@@ -250,7 +249,7 @@ static int cpuset_get_sb(struct file_system_type *fs_type,
 
 static struct file_system_type cpuset_fs_type = {
 	.name = "cpuset",
-	.get_sb = cpuset_get_sb,
+	.mount = cpuset_mount,
 };
 
 /*
@@ -946,16 +945,62 @@ static void cpuset_migrate_mm(struct mm_struct *mm, const nodemask_t *from,
  * In order to avoid seeing no nodes if the old and new nodes are disjoint,
  * we structure updates as setting all new allowed nodes, then clearing newly
  * disallowed ones.
- *
- * Called with task's alloc_lock held
  */
 static void cpuset_change_task_nodemask(struct task_struct *tsk,
 					nodemask_t *newmems)
 {
+repeat:
+	/*
+	 * Allow tasks that have access to memory reserves because they have
+	 * been OOM killed to get memory anywhere.
+	 */
+	if (unlikely(test_thread_flag(TIF_MEMDIE)))
+		return;
+	if (current->flags & PF_EXITING) /* Let dying task have memory */
+		return;
+
+	task_lock(tsk);
 	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
-	mpol_rebind_task(tsk, &tsk->mems_allowed);
-	mpol_rebind_task(tsk, newmems);
+	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
+
+
+	/*
+	 * ensure checking ->mems_allowed_change_disable after setting all new
+	 * allowed nodes.
+	 *
+	 * the read-side task can see an nodemask with new allowed nodes and
+	 * old allowed nodes. and if it allocates page when cpuset clears newly
+	 * disallowed ones continuous, it can see the new allowed bits.
+	 *
+	 * And if setting all new allowed nodes is after the checking, setting
+	 * all new allowed nodes and clearing newly disallowed ones will be done
+	 * continuous, and the read-side task may find no node to alloc page.
+	 */
+	smp_mb();
+
+	/*
+	 * Allocation of memory is very fast, we needn't sleep when waiting
+	 * for the read-side.
+	 */
+	while (ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
+		task_unlock(tsk);
+		if (!task_curr(tsk))
+			yield();
+		goto repeat;
+	}
+
+	/*
+	 * ensure checking ->mems_allowed_change_disable before clearing all new
+	 * disallowed nodes.
+	 *
+	 * if clearing newly disallowed bits before the checking, the read-side
+	 * task may find no node to alloc page.
+	 */
+	smp_mb();
+
+	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
 	tsk->mems_allowed = *newmems;
+	task_unlock(tsk);
 }
 
 /*
@@ -978,9 +1023,7 @@ static void cpuset_change_nodemask(struct task_struct *p,
 	cs = cgroup_cs(scan->cg);
 	guarantee_online_mems(cs, newmems);
 
-	task_lock(p);
 	cpuset_change_task_nodemask(p, newmems);
-	task_unlock(p);
 
 	NODEMASK_FREE(newmems);
 
@@ -1353,7 +1396,7 @@ static int cpuset_can_attach(struct cgroup_subsys *ss, struct cgroup *cont,
 	if (tsk->flags & PF_THREAD_BOUND)
 		return -EINVAL;
 
-	ret = security_task_setscheduler(tsk, 0, NULL);
+	ret = security_task_setscheduler(tsk);
 	if (ret)
 		return ret;
 	if (threadgroup) {
@@ -1361,7 +1404,7 @@ static int cpuset_can_attach(struct cgroup_subsys *ss, struct cgroup *cont,
 
 		rcu_read_lock();
 		list_for_each_entry_rcu(c, &tsk->thread_group, thread_group) {
-			ret = security_task_setscheduler(c, 0, NULL);
+			ret = security_task_setscheduler(c);
 			if (ret) {
 				rcu_read_unlock();
 				return ret;
@@ -1383,9 +1426,7 @@ static void cpuset_attach_task(struct task_struct *tsk, nodemask_t *to,
 	err = set_cpus_allowed_ptr(tsk, cpus_attach);
 	WARN_ON_ONCE(err);
 
-	task_lock(tsk);
 	cpuset_change_task_nodemask(tsk, to);
-	task_unlock(tsk);
 	cpuset_update_task_spread_flag(cs, tsk);
 
 }
@@ -2071,30 +2112,16 @@ static void scan_for_empty_cpusets(struct cpuset *root)
  * but making no active use of cpusets.
  *
  * This routine ensures that top_cpuset.cpus_allowed tracks
- * cpu_online_map on each CPU hotplug (cpuhp) event.
+ * cpu_active_mask on each CPU hotplug (cpuhp) event.
  *
  * Called within get_online_cpus().  Needs to call cgroup_lock()
  * before calling generate_sched_domains().
  */
-static int cpuset_track_online_cpus(struct notifier_block *unused_nb,
-				unsigned long phase, void *unused_cpu)
+void cpuset_update_active_cpus(void)
 {
 	struct sched_domain_attr *attr;
 	cpumask_var_t *doms;
 	int ndoms;
-
-	switch (phase) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-	case CPU_DOWN_PREPARE:
-	case CPU_DOWN_PREPARE_FROZEN:
-	case CPU_DOWN_FAILED:
-	case CPU_DOWN_FAILED_FROZEN:
-		break;
-
-	default:
-		return NOTIFY_DONE;
-	}
 
 	cgroup_lock();
 	mutex_lock(&callback_mutex);
@@ -2106,8 +2133,6 @@ static int cpuset_track_online_cpus(struct notifier_block *unused_nb,
 
 	/* Have scheduler rebuild the domains */
 	partition_sched_domains(ndoms, doms, attr);
-
-	return NOTIFY_OK;
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -2161,7 +2186,6 @@ void __init cpuset_init_smp(void)
 	cpumask_copy(top_cpuset.cpus_allowed, cpu_active_mask);
 	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
 
-	hotcpu_notifier(cpuset_track_online_cpus, 0);
 	hotplug_memory_notifier(cpuset_track_online_nodes, 10);
 
 	cpuset_wq = create_singlethread_workqueue("cpuset");
@@ -2427,7 +2451,8 @@ void cpuset_unlock(void)
 }
 
 /**
- * cpuset_mem_spread_node() - On which node to begin search for a page
+ * cpuset_mem_spread_node() - On which node to begin search for a file page
+ * cpuset_slab_spread_node() - On which node to begin search for a slab page
  *
  * If a task is marked PF_SPREAD_PAGE or PF_SPREAD_SLAB (as for
  * tasks in a cpuset with is_spread_page or is_spread_slab set),
@@ -2452,16 +2477,27 @@ void cpuset_unlock(void)
  * See kmem_cache_alloc_node().
  */
 
-int cpuset_mem_spread_node(void)
+static int cpuset_spread_node(int *rotor)
 {
 	int node;
 
-	node = next_node(current->cpuset_mem_spread_rotor, current->mems_allowed);
+	node = next_node(*rotor, current->mems_allowed);
 	if (node == MAX_NUMNODES)
 		node = first_node(current->mems_allowed);
-	current->cpuset_mem_spread_rotor = node;
+	*rotor = node;
 	return node;
 }
+
+int cpuset_mem_spread_node(void)
+{
+	return cpuset_spread_node(&current->cpuset_mem_spread_rotor);
+}
+
+int cpuset_slab_spread_node(void)
+{
+	return cpuset_spread_node(&current->cpuset_slab_spread_rotor);
+}
+
 EXPORT_SYMBOL_GPL(cpuset_mem_spread_node);
 
 /**

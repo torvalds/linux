@@ -467,8 +467,8 @@ void wireless_send_event(struct net_device *	dev,
 		 * The best the driver could do is to log an error message.
 		 * We will do it ourselves instead...
 		 */
-		printk(KERN_ERR "%s (WE) : Invalid/Unknown Wireless Event (0x%04X)\n",
-		       dev->name, cmd);
+		netdev_err(dev, "(WE) : Invalid/Unknown Wireless Event (0x%04X)\n",
+			   cmd);
 		return;
 	}
 
@@ -476,11 +476,13 @@ void wireless_send_event(struct net_device *	dev,
 	if (descr->header_type == IW_HEADER_TYPE_POINT) {
 		/* Check if number of token fits within bounds */
 		if (wrqu->data.length > descr->max_tokens) {
-			printk(KERN_ERR "%s (WE) : Wireless Event too big (%d)\n", dev->name, wrqu->data.length);
+			netdev_err(dev, "(WE) : Wireless Event too big (%d)\n",
+				   wrqu->data.length);
 			return;
 		}
 		if (wrqu->data.length < descr->min_tokens) {
-			printk(KERN_ERR "%s (WE) : Wireless Event too small (%d)\n", dev->name, wrqu->data.length);
+			netdev_err(dev, "(WE) : Wireless Event too small (%d)\n",
+				   wrqu->data.length);
 			return;
 		}
 		/* Calculate extra_len - extra is NULL for restricted events */
@@ -611,7 +613,7 @@ struct iw_statistics *get_wireless_stats(struct net_device *dev)
 #endif
 
 #ifdef CONFIG_CFG80211_WEXT
-	if (dev->ieee80211_ptr && dev->ieee80211_ptr &&
+	if (dev->ieee80211_ptr &&
 	    dev->ieee80211_ptr->wiphy &&
 	    dev->ieee80211_ptr->wiphy->wext &&
 	    dev->ieee80211_ptr->wiphy->wext->get_wireless_stats)
@@ -780,6 +782,22 @@ static int ioctl_standard_iw_point(struct iw_point *iwp, unsigned int cmd,
 			if (iwp->length < sizeof(*ee) + ee->key_len)
 				return -EFAULT;
 		}
+	}
+
+	if (IW_IS_GET(cmd) && !(descr->flags & IW_DESCR_FLAG_NOMAX)) {
+		/*
+		 * If this is a GET, but not NOMAX, it means that the extra
+		 * data is not bounded by userspace, but by max_tokens. Thus
+		 * set the length to max_tokens. This matches the extra data
+		 * allocation.
+		 * The driver should fill it with the number of tokens it
+		 * provided, and it may check iwp->length rather than having
+		 * knowledge of max_tokens. If the driver doesn't change the
+		 * iwp->length, this ioctl just copies back max_token tokens
+		 * filled with zeroes. Hopefully the driver isn't claiming
+		 * them to be valid data.
+		 */
+		iwp->length = descr->max_tokens;
 	}
 
 	err = handler(dev, info, (union iwreq_data *) iwp, extra);

@@ -67,7 +67,7 @@ static long __estimate_accuracy(struct timespec *tv)
 	return slack;
 }
 
-static long estimate_accuracy(struct timespec *tv)
+long select_estimate_accuracy(struct timespec *tv)
 {
 	unsigned long ret;
 	struct timespec now;
@@ -306,6 +306,8 @@ static int poll_select_copy_remaining(struct timespec *end_time, void __user *p,
 		rts.tv_sec = rts.tv_nsec = 0;
 
 	if (timeval) {
+		if (sizeof(rtv) > sizeof(rtv.tv_sec) + sizeof(rtv.tv_usec))
+			memset(&rtv, 0, sizeof(rtv));
 		rtv.tv_sec = rts.tv_sec;
 		rtv.tv_usec = rts.tv_nsec / NSEC_PER_USEC;
 
@@ -417,7 +419,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 	}
 
 	if (end_time && !timed_out)
-		slack = estimate_accuracy(end_time);
+		slack = select_estimate_accuracy(end_time);
 
 	retval = 0;
 	for (;;) {
@@ -769,7 +771,7 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 	}
 
 	if (end_time && !timed_out)
-		slack = estimate_accuracy(end_time);
+		slack = select_estimate_accuracy(end_time);
 
 	for (;;) {
 		struct poll_list *walk;

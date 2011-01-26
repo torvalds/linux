@@ -37,6 +37,7 @@
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
 #include "zfcp_fsf.h"
+#include "zfcp_fc.h"
 #include "zfcp_qdio.h"
 
 struct zfcp_reqlist;
@@ -72,18 +73,20 @@ struct zfcp_reqlist;
 
 /* adapter status */
 #define ZFCP_STATUS_ADAPTER_QDIOUP		0x00000002
+#define ZFCP_STATUS_ADAPTER_SIOSL_ISSUED	0x00000004
 #define ZFCP_STATUS_ADAPTER_XCONFIG_OK		0x00000008
 #define ZFCP_STATUS_ADAPTER_HOST_CON_INIT	0x00000010
 #define ZFCP_STATUS_ADAPTER_ERP_PENDING		0x00000100
 #define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED	0x00000200
+#define ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED	0x00000400
 
 /* remote port status */
 #define ZFCP_STATUS_PORT_PHYS_OPEN		0x00000001
 #define ZFCP_STATUS_PORT_LINK_TEST		0x00000002
 
 /* logical unit status */
-#define ZFCP_STATUS_UNIT_SHARED			0x00000004
-#define ZFCP_STATUS_UNIT_READONLY		0x00000008
+#define ZFCP_STATUS_LUN_SHARED			0x00000004
+#define ZFCP_STATUS_LUN_READONLY		0x00000008
 
 /* FSF request status (this does not have a common part) */
 #define ZFCP_STATUS_FSFREQ_TASK_MANAGEMENT	0x00000002
@@ -115,7 +118,7 @@ struct zfcp_erp_action {
 	int action;	              /* requested action code */
 	struct zfcp_adapter *adapter; /* device which should be recovered */
 	struct zfcp_port *port;
-	struct zfcp_unit *unit;
+	struct scsi_device *sdev;
 	u32		status;	      /* recovery status */
 	u32 step;	              /* active step of this erp action */
 	unsigned long		fsf_req_id;
@@ -190,6 +193,7 @@ struct zfcp_adapter {
 	struct service_level	service_level;
 	struct workqueue_struct	*work_queue;
 	struct device_dma_parameters dma_parms;
+	struct zfcp_fc_events events;
 };
 
 struct zfcp_port {
@@ -212,21 +216,67 @@ struct zfcp_port {
 	struct work_struct     test_link_work;
 	struct work_struct     rport_work;
 	enum { RPORT_NONE, RPORT_ADD, RPORT_DEL }  rport_task;
+	unsigned int		starget_id;
 };
 
+/**
+ * struct zfcp_unit - LUN configured via zfcp sysfs
+ * @dev: struct device for sysfs representation and reference counting
+ * @list: entry in LUN/unit list per zfcp_port
+ * @port: reference to zfcp_port where this LUN is configured
+ * @fcp_lun: 64 bit LUN value
+ * @scsi_work: for running scsi_scan_target
+ *
+ * This is the representation of a LUN that has been configured for
+ * usage. The main data here is the 64 bit LUN value, data for
+ * running I/O and recovery is in struct zfcp_scsi_dev.
+ */
 struct zfcp_unit {
-	struct device          dev;
-	struct list_head       list;	       /* list of logical units */
-	struct zfcp_port       *port;	       /* remote port of unit */
-	atomic_t	       status;	       /* status of this logical unit */
-	u64		       fcp_lun;	       /* own FCP_LUN */
-	u32		       handle;	       /* handle assigned by FSF */
-        struct scsi_device     *device;        /* scsi device struct pointer */
-	struct zfcp_erp_action erp_action;     /* pending error recovery */
-        atomic_t               erp_counter;
-	struct zfcp_latencies	latencies;
+	struct device		dev;
+	struct list_head	list;
+	struct zfcp_port	*port;
+	u64			fcp_lun;
 	struct work_struct	scsi_work;
 };
+
+/**
+ * struct zfcp_scsi_dev - zfcp data per SCSI device
+ * @status: zfcp internal status flags
+ * @lun_handle: handle from "open lun" for issuing FSF requests
+ * @erp_action: zfcp erp data for opening and recovering this LUN
+ * @erp_counter: zfcp erp counter for this LUN
+ * @latencies: FSF channel and fabric latencies
+ * @port: zfcp_port where this LUN belongs to
+ */
+struct zfcp_scsi_dev {
+	atomic_t		status;
+	u32			lun_handle;
+	struct zfcp_erp_action	erp_action;
+	atomic_t		erp_counter;
+	struct zfcp_latencies	latencies;
+	struct zfcp_port	*port;
+};
+
+/**
+ * sdev_to_zfcp - Access zfcp LUN data for SCSI device
+ * @sdev: scsi_device where to get the zfcp_scsi_dev pointer
+ */
+static inline struct zfcp_scsi_dev *sdev_to_zfcp(struct scsi_device *sdev)
+{
+	return scsi_transport_device_data(sdev);
+}
+
+/**
+ * zfcp_scsi_dev_lun - Return SCSI device LUN as 64 bit FCP LUN
+ * @sdev: SCSI device where to get the LUN from
+ */
+static inline u64 zfcp_scsi_dev_lun(struct scsi_device *sdev)
+{
+	u64 fcp_lun;
+
+	int_to_scsilun(sdev->lun, (struct scsi_lun *)&fcp_lun);
+	return fcp_lun;
+}
 
 /**
  * struct zfcp_fsf_req - basic FSF request structure
@@ -244,7 +294,6 @@ struct zfcp_unit {
  * @erp_action: reference to erp action if request issued on behalf of ERP
  * @pool: reference to memory pool if used for this request
  * @issued: time when request was send (STCK)
- * @unit: reference to unit if this request is a SCSI request
  * @handler: handler which should be called to process response
  */
 struct zfcp_fsf_req {
@@ -262,7 +311,6 @@ struct zfcp_fsf_req {
 	struct zfcp_erp_action	*erp_action;
 	mempool_t		*pool;
 	unsigned long long	issued;
-	struct zfcp_unit	*unit;
 	void			(*handler)(struct zfcp_fsf_req *);
 };
 
@@ -276,10 +324,5 @@ struct zfcp_data {
 	struct kmem_cache	*gid_pn_cache;
 	struct kmem_cache	*adisc_cache;
 };
-
-/********************** ZFCP SPECIFIC DEFINES ********************************/
-
-#define ZFCP_SET                0x00000100
-#define ZFCP_CLEAR              0x00000200
 
 #endif /* ZFCP_DEF_H */

@@ -120,8 +120,6 @@ static void qs_host_stop(struct ata_host *host);
 static void qs_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int qs_qc_issue(struct ata_queued_cmd *qc);
 static int qs_check_atapi_dma(struct ata_queued_cmd *qc);
-static void qs_bmdma_stop(struct ata_queued_cmd *qc);
-static u8 qs_bmdma_status(struct ata_port *ap);
 static void qs_freeze(struct ata_port *ap);
 static void qs_thaw(struct ata_port *ap);
 static int qs_prereset(struct ata_link *link, unsigned long deadline);
@@ -137,8 +135,6 @@ static struct ata_port_operations qs_ata_ops = {
 	.inherits		= &ata_sff_port_ops,
 
 	.check_atapi_dma	= qs_check_atapi_dma,
-	.bmdma_stop		= qs_bmdma_stop,
-	.bmdma_status		= qs_bmdma_status,
 	.qc_prep		= qs_qc_prep,
 	.qc_issue		= qs_qc_issue,
 
@@ -188,16 +184,6 @@ static void __iomem *qs_mmio_base(struct ata_host *host)
 static int qs_check_atapi_dma(struct ata_queued_cmd *qc)
 {
 	return 1;	/* ATAPI DMA not supported */
-}
-
-static void qs_bmdma_stop(struct ata_queued_cmd *qc)
-{
-	/* nothing */
-}
-
-static u8 qs_bmdma_status(struct ata_port *ap)
-{
-	return 0;
 }
 
 static inline void qs_enter_reg_mode(struct ata_port *ap)
@@ -454,7 +440,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host *host)
 		if (!pp || pp->state != qs_state_mmio)
 			continue;
 		if (!(qc->tf.flags & ATA_TFLAG_POLLING))
-			handled |= ata_sff_host_intr(ap, qc);
+			handled |= ata_sff_port_intr(ap, qc);
 	}
 	return handled;
 }

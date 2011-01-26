@@ -420,7 +420,7 @@ volatile unsigned long __iomem *sun4c_memerr_reg = NULL;
 
 void __init sun4c_probe_memerr_reg(void)
 {
-	int node;
+	phandle node;
 	struct linux_prom_registers regs[1];
 
 	node = prom_getchild(prom_root_node);
@@ -435,16 +435,14 @@ void __init sun4c_probe_memerr_reg(void)
 
 static inline void sun4c_init_ss2_cache_bug(void)
 {
-	extern unsigned long start;
-
 	if ((idprom->id_machtype == (SM_SUN4C | SM_4C_SS2)) ||
 	    (idprom->id_machtype == (SM_SUN4C | SM_4C_IPX)) ||
 	    (idprom->id_machtype == (SM_SUN4C | SM_4C_ELC))) {
 		/* Whee.. */
 		printk("SS2 cache bug detected, uncaching trap table page\n");
-		sun4c_flush_page((unsigned int) &start);
-		sun4c_put_pte(((unsigned long) &start),
-			(sun4c_get_pte((unsigned long) &start) | _SUN4C_PAGE_NOCACHE));
+		sun4c_flush_page((unsigned int) &_start);
+		sun4c_put_pte(((unsigned long) &_start),
+			(sun4c_get_pte((unsigned long) &_start) | _SUN4C_PAGE_NOCACHE));
 	}
 }
 
@@ -2086,9 +2084,6 @@ void __init ld_mmu_sun4c(void)
 	BTFIXUPSET_CALL(flush_sig_insns, sun4c_flush_sig_insns, BTFIXUPCALL_NOP);
 
 	BTFIXUPSET_CALL(set_pte, sun4c_set_pte, BTFIXUPCALL_STO1O0);
-
-	/* The 2.4.18 code does not set this on sun4c, how does it work? XXX */
-	/* BTFIXUPSET_SETHI(none_mask, 0x00000000); */	/* Defaults to zero? */
 
 	BTFIXUPSET_CALL(pte_pfn, sun4c_pte_pfn, BTFIXUPCALL_NORM);
 #if 0 /* PAGE_SHIFT <= 12 */ /* Eek. Investigate. XXX */

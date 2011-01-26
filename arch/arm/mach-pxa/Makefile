@@ -16,9 +16,10 @@ endif
 # Generic drivers that other drivers may depend upon
 
 # SoC-specific code
-obj-$(CONFIG_PXA25x)		+= mfp-pxa2xx.o pxa2xx.o pxa25x.o
-obj-$(CONFIG_PXA27x)		+= mfp-pxa2xx.o pxa2xx.o pxa27x.o
-obj-$(CONFIG_PXA3xx)		+= mfp-pxa3xx.o pxa3xx.o smemc.o
+obj-$(CONFIG_PXA25x)		+= mfp-pxa2xx.o clock-pxa2xx.o pxa2xx.o pxa25x.o
+obj-$(CONFIG_PXA27x)		+= mfp-pxa2xx.o clock-pxa2xx.o pxa2xx.o pxa27x.o
+obj-$(CONFIG_PXA3xx)		+= mfp-pxa3xx.o clock-pxa3xx.o pxa3xx.o smemc.o pxa3xx-ulpi.o
+obj-$(CONFIG_PXA95x)		+= mfp-pxa3xx.o clock-pxa3xx.o pxa95x.o smemc.o
 obj-$(CONFIG_CPU_PXA300)	+= pxa300.o
 obj-$(CONFIG_CPU_PXA320)	+= pxa320.o
 obj-$(CONFIG_CPU_PXA930)	+= pxa930.o
@@ -32,7 +33,9 @@ obj-$(CONFIG_MACH_ZYLONITE300)	+= zylonite.o zylonite_pxa300.o
 obj-$(CONFIG_MACH_ZYLONITE320)	+= zylonite.o zylonite_pxa320.o
 obj-$(CONFIG_MACH_LITTLETON)	+= littleton.o
 obj-$(CONFIG_MACH_TAVOREVB)	+= tavorevb.o
+obj-$(CONFIG_MACH_TAVOREVB3)	+= tavorevb3.o
 obj-$(CONFIG_MACH_SAAR)		+= saar.o
+obj-$(CONFIG_MACH_SAARB)	+= saarb.o
 
 # 3rd Party Dev Platforms
 obj-$(CONFIG_ARCH_PXA_IDP)	+= idp.o
@@ -51,14 +54,16 @@ obj-$(CONFIG_MACH_CAPC7117)     += capc7117.o mxm8x10.o
 obj-$(CONFIG_ARCH_GUMSTIX)	+= gumstix.o
 obj-$(CONFIG_GUMSTIX_AM200EPD)	+= am200epd.o
 obj-$(CONFIG_GUMSTIX_AM300EPD)	+= am300epd.o
-obj-$(CONFIG_MACH_INTELMOTE2)   += imote2.o
+obj-$(CONFIG_MACH_INTELMOTE2)	+= stargate2.o
 obj-$(CONFIG_MACH_STARGATE2)	+= stargate2.o
 obj-$(CONFIG_MACH_XCEP)         += xcep.o
 obj-$(CONFIG_MACH_TRIZEPS4)	+= trizeps4.o
 obj-$(CONFIG_MACH_LOGICPD_PXA270)	+= lpd270.o
 obj-$(CONFIG_MACH_PCM027)		+= pcm027.o
 obj-$(CONFIG_MACH_PCM990_BASEBOARD)	+= pcm990-baseboard.o
-obj-$(CONFIG_MACH_COLIBRI)	+= colibri-pxa270.o
+obj-$(CONFIG_MACH_COLIBRI)			+= colibri-pxa270.o
+obj-$(CONFIG_MACH_COLIBRI_EVALBOARD)	+= colibri-evalboard.o
+obj-$(CONFIG_MACH_COLIBRI_PXA270_INCOME)	+= colibri-pxa270-income.o
 obj-$(CONFIG_MACH_COLIBRI300)	+= colibri-pxa3xx.o colibri-pxa300.o
 obj-$(CONFIG_MACH_COLIBRI320)	+= colibri-pxa3xx.o colibri-pxa320.o
 obj-$(CONFIG_MACH_VPAC270)	+= vpac270.o
@@ -73,6 +78,7 @@ obj-$(CONFIG_PXA_EZX)           += ezx.o
 obj-$(CONFIG_MACH_MP900C)	+= mp900.o
 obj-$(CONFIG_MACH_PALMTE2)	+= palmte2.o
 obj-$(CONFIG_MACH_PALMTC)	+= palmtc.o
+obj-$(CONFIG_MACH_PALM27X)	+= palm27x.o
 obj-$(CONFIG_MACH_PALMT5)	+= palmt5.o
 obj-$(CONFIG_MACH_PALMTX)	+= palmtx.o
 obj-$(CONFIG_MACH_PALMZ72)	+= palmz72.o
@@ -84,12 +90,6 @@ obj-$(CONFIG_MACH_POODLE)	+= poodle.o
 obj-$(CONFIG_MACH_TOSA)		+= tosa.o
 obj-$(CONFIG_MACH_ICONTROL)     += icontrol.o mxm8x10.o
 obj-$(CONFIG_ARCH_PXA_ESERIES)	+= eseries.o
-obj-$(CONFIG_MACH_E330)		+= e330.o
-obj-$(CONFIG_MACH_E350)		+= e350.o
-obj-$(CONFIG_MACH_E740)		+= e740.o
-obj-$(CONFIG_MACH_E750)		+= e750.o
-obj-$(CONFIG_MACH_E400)		+= e400.o
-obj-$(CONFIG_MACH_E800)		+= e800.o
 obj-$(CONFIG_MACH_RAUMFELD_RC)		+= raumfeld.o
 obj-$(CONFIG_MACH_RAUMFELD_CONNECTOR)	+= raumfeld.o
 obj-$(CONFIG_MACH_RAUMFELD_SPEAKER)	+= raumfeld.o

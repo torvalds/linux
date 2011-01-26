@@ -50,6 +50,9 @@ static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family);
 static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo);
 static void xfrm_init_pmtu(struct dst_entry *dst);
 static int stale_bundle(struct dst_entry *dst);
+static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *xdst,
+			  struct flowi *fl, int family, int strict);
+
 
 static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 						int dir);
@@ -1175,9 +1178,8 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, struct flowi *fl,
 		    tmpl->mode == XFRM_MODE_BEET) {
 			remote = &tmpl->id.daddr;
 			local = &tmpl->saddr;
-			family = tmpl->encap_family;
-			if (xfrm_addr_any(local, family)) {
-				error = xfrm_get_saddr(net, &tmp, remote, family);
+			if (xfrm_addr_any(local, tmpl->encap_family)) {
+				error = xfrm_get_saddr(net, &tmp, remote, tmpl->encap_family);
 				if (error)
 					goto fail;
 				local = &tmp;
@@ -1431,7 +1433,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 		}
 
 		xdst->route = dst;
-		memcpy(&dst1->metrics, &dst->metrics, sizeof(dst->metrics));
+		dst_copy_metrics(dst1, dst);
 
 		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
 			family = xfrm[i]->props.family;
@@ -1594,8 +1596,8 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 
 	/* Try to instantiate a bundle */
 	err = xfrm_tmpl_resolve(pols, num_pols, fl, xfrm, family);
-	if (err < 0) {
-		if (err != -EAGAIN)
+	if (err <= 0) {
+		if (err != 0 && err != -EAGAIN)
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTPOLERROR);
 		return ERR_PTR(err);
 	}
@@ -1676,6 +1678,13 @@ xfrm_bundle_lookup(struct net *net, struct flowi *fl, u16 family, u8 dir,
 			goto error;
 		if (oldflo == NULL)
 			goto make_dummy_bundle;
+		dst_hold(&xdst->u.dst);
+		return oldflo;
+	} else if (new_xdst == NULL) {
+		num_xfrms = 0;
+		if (oldflo == NULL)
+			goto make_dummy_bundle;
+		xdst->num_xfrms = 0;
 		dst_hold(&xdst->u.dst);
 		return oldflo;
 	}
@@ -1760,6 +1769,10 @@ restart:
 				xfrm_pols_put(pols, num_pols);
 				err = PTR_ERR(xdst);
 				goto dropdst;
+			} else if (xdst == NULL) {
+				num_xfrms = 0;
+				drop_pols = num_pols;
+				goto no_transform;
 			}
 
 			spin_lock_bh(&xfrm_policy_sk_bundle_lock);
@@ -2153,6 +2166,7 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 		return 0;
 	}
 
+	skb_dst_force(skb);
 	dst = skb_dst(skb);
 
 	res = xfrm_lookup(net, &dst, &fl, NULL, 0) == 0;
@@ -2257,7 +2271,7 @@ static void xfrm_init_pmtu(struct dst_entry *dst)
 		if (pmtu > route_mtu_cached)
 			pmtu = route_mtu_cached;
 
-		dst->metrics[RTAX_MTU-1] = pmtu;
+		dst_metric_set(dst, RTAX_MTU, pmtu);
 	} while ((dst = dst->next));
 }
 
@@ -2265,7 +2279,7 @@ static void xfrm_init_pmtu(struct dst_entry *dst)
  * still valid.
  */
 
-int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
+static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 		struct flowi *fl, int family, int strict)
 {
 	struct dst_entry *dst = &first->u.dst;
@@ -2299,7 +2313,8 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 			return 0;
 		if (xdst->xfrm_genid != dst->xfrm->genid)
 			return 0;
-		if (xdst->policy_genid != atomic_read(&xdst->pols[0]->genid))
+		if (xdst->num_pols > 0 &&
+		    xdst->policy_genid != atomic_read(&xdst->pols[0]->genid))
 			return 0;
 
 		if (strict && fl &&
@@ -2334,7 +2349,7 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 		mtu = xfrm_state_mtu(dst->xfrm, mtu);
 		if (mtu > last->route_mtu_cached)
 			mtu = last->route_mtu_cached;
-		dst->metrics[RTAX_MTU-1] = mtu;
+		dst_metric_set(dst, RTAX_MTU, mtu);
 
 		if (last == first)
 			break;
@@ -2346,7 +2361,15 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 	return 1;
 }
 
-EXPORT_SYMBOL(xfrm_bundle_ok);
+static unsigned int xfrm_default_advmss(const struct dst_entry *dst)
+{
+	return dst_metric_advmss(dst->path);
+}
+
+static unsigned int xfrm_default_mtu(const struct dst_entry *dst)
+{
+	return dst_mtu(dst->path);
+}
 
 int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 {
@@ -2365,6 +2388,10 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			dst_ops->kmem_cachep = xfrm_dst_cache;
 		if (likely(dst_ops->check == NULL))
 			dst_ops->check = xfrm_dst_check;
+		if (likely(dst_ops->default_advmss == NULL))
+			dst_ops->default_advmss = xfrm_default_advmss;
+		if (likely(dst_ops->default_mtu == NULL))
+			dst_ops->default_mtu = xfrm_default_mtu;
 		if (likely(dst_ops->negative_advice == NULL))
 			dst_ops->negative_advice = xfrm_negative_advice;
 		if (likely(dst_ops->link_failure == NULL))
@@ -2479,7 +2506,8 @@ static int __net_init xfrm_statistics_init(struct net *net)
 	int rv;
 
 	if (snmp_mib_init((void __percpu **)net->mib.xfrm_statistics,
-			  sizeof(struct linux_xfrm_mib)) < 0)
+			  sizeof(struct linux_xfrm_mib),
+			  __alignof__(struct linux_xfrm_mib)) < 0)
 		return -ENOMEM;
 	rv = xfrm_proc_init(net);
 	if (rv < 0)

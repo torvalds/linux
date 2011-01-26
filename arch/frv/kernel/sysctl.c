@@ -46,8 +46,9 @@ static void frv_change_dcache_mode(unsigned long newmode)
 /*
  * handle requests to dynamically switch the write caching mode delivered by /proc
  */
-static int procctl_frv_cachemode(ctl_table *table, int write, struct file *filp,
-				 void __user *buffer, size_t *lenp, loff_t *ppos)
+static int procctl_frv_cachemode(ctl_table *table, int write,
+				 void __user *buffer, size_t *lenp,
+				 loff_t *ppos)
 {
 	unsigned long hsr0;
 	char buff[8];
@@ -84,7 +85,7 @@ static int procctl_frv_cachemode(ctl_table *table, int write, struct file *filp,
 	}
 
 	/* read the state */
-	if (filp->f_pos > 0) {
+	if (*ppos > 0) {
 		*lenp = 0;
 		return 0;
 	}
@@ -110,7 +111,7 @@ static int procctl_frv_cachemode(ctl_table *table, int write, struct file *filp,
 		return -EFAULT;
 
 	*lenp = len;
-	filp->f_pos = len;
+	*ppos = len;
 	return 0;
 
 } /* end procctl_frv_cachemode() */
@@ -120,8 +121,9 @@ static int procctl_frv_cachemode(ctl_table *table, int write, struct file *filp,
  * permit the mm_struct the nominated process is using have its MMU context ID pinned
  */
 #ifdef CONFIG_MMU
-static int procctl_frv_pin_cxnr(ctl_table *table, int write, struct file *filp,
-				void __user *buffer, size_t *lenp, loff_t *ppos)
+static int procctl_frv_pin_cxnr(ctl_table *table, int write,
+				void __user *buffer, size_t *lenp,
+				loff_t *ppos)
 {
 	pid_t pid;
 	char buff[16], *p;
@@ -150,7 +152,7 @@ static int procctl_frv_pin_cxnr(ctl_table *table, int write, struct file *filp,
 	}
 
 	/* read the currently pinned CXN */
-	if (filp->f_pos > 0) {
+	if (*ppos > 0) {
 		*lenp = 0;
 		return 0;
 	}
@@ -163,7 +165,7 @@ static int procctl_frv_pin_cxnr(ctl_table *table, int write, struct file *filp,
 		return -EFAULT;
 
 	*lenp = len;
-	filp->f_pos = len;
+	*ppos = len;
 	return 0;
 
 } /* end procctl_frv_pin_cxnr() */

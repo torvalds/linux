@@ -61,18 +61,14 @@
 #include "rf.h"
 #include "datarate.h"
 #include "usbpipe.h"
-
-#ifdef WPA_SM_Transtatus
 #include "iocmd.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
-//static int          msglevel                =MSG_LEVEL_DEBUG;
-static int          msglevel                =MSG_LEVEL_INFO;
+static int          msglevel                = MSG_LEVEL_INFO;
 
 /*---------------------  Static Functions  --------------------------*/
 
@@ -304,10 +300,9 @@ s_vSaveTxPktInfo(PSDevice pDevice, BYTE byPktNum, PBYTE pbyDestAddr, WORD wPktLe
 {
     PSStatCounter           pStatistic=&(pDevice->scStatistic);
 
-
-    if (IS_BROADCAST_ADDRESS(pbyDestAddr))
+    if (is_broadcast_ether_addr(pbyDestAddr))
         pStatistic->abyTxPktInfo[byPktNum].byBroadMultiUni = TX_PKT_BROAD;
-    else if (IS_MULTICAST_ADDRESS(pbyDestAddr))
+    else if (is_multicast_ether_addr(pbyDestAddr))
         pStatistic->abyTxPktInfo[byPktNum].byBroadMultiUni = TX_PKT_MULTI;
     else
         pStatistic->abyTxPktInfo[byPktNum].byBroadMultiUni = TX_PKT_UNI;
@@ -318,9 +313,6 @@ s_vSaveTxPktInfo(PSDevice pDevice, BYTE byPktNum, PBYTE pbyDestAddr, WORD wPktLe
 	   pbyDestAddr,
 	   ETH_ALEN);
 }
-
-
-
 
 static
 void
@@ -848,8 +840,8 @@ s_uFillDataHead (
     }
 
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
-        if((uDMAIdx==TYPE_ATIMDMA)||(uDMAIdx==TYPE_BEACONDMA)) {
-            PSTxDataHead_ab pBuf = (PSTxDataHead_ab)pTxDataHead;
+	if ((uDMAIdx == TYPE_ATIMDMA) || (uDMAIdx == TYPE_BEACONDMA)) {
+		PSTxDataHead_ab pBuf = (PSTxDataHead_ab) pTxDataHead;
             //Get SignalField,ServiceField,Length
             BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                 (PWORD)&(pBuf->wTransmitLength), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
@@ -1473,7 +1465,7 @@ s_bPacketToWirelessUsb(
     memset(pTxBufHead, 0, sizeof(TX_BUFFER));
 
     // Get pkt type
-    if (ntohs(psEthHeader->wType) > MAX_DATA_LEN) {
+    if (ntohs(psEthHeader->wType) > ETH_DATA_LEN) {
         if (pDevice->dwDiagRefCount == 0) {
             cb802_1_H_len = 8;
         } else {
@@ -1492,17 +1484,16 @@ s_bPacketToWirelessUsb(
         bNeedACK = FALSE;
         pTxBufHead->wFIFOCtl = pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
     } else { //if (pDevice->dwDiagRefCount != 0) {
-        if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-            (pDevice->eOPMode == OP_MODE_AP)) {
-            if (IS_MULTICAST_ADDRESS(&(psEthHeader->abyDstAddr[0])) ||
-                IS_BROADCAST_ADDRESS(&(psEthHeader->abyDstAddr[0]))) {
-                bNeedACK = FALSE;
-                pTxBufHead->wFIFOCtl = pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
-            }
-            else {
-                bNeedACK = TRUE;
-                pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
-            }
+	if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
+	    (pDevice->eOPMode == OP_MODE_AP)) {
+		if (is_multicast_ether_addr(psEthHeader->abyDstAddr)) {
+			bNeedACK = FALSE;
+			pTxBufHead->wFIFOCtl =
+				pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
+		} else {
+			bNeedACK = TRUE;
+			pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
+		}
         }
         else {
             // MSDUs in Infra mode always need ACK
@@ -1708,11 +1699,12 @@ s_bPacketToWirelessUsb(
     }
 
     // 802.1H
-    if (ntohs(psEthHeader->wType) > MAX_DATA_LEN) {
-        if (pDevice->dwDiagRefCount == 0) {
-            if ( (psEthHeader->wType == TYPE_PKT_IPX) ||
-                 (psEthHeader->wType == cpu_to_le16(0xF380))) {
-                memcpy((PBYTE) (pbyPayloadHead), &abySNAP_Bridgetunnel[0], 6);
+    if (ntohs(psEthHeader->wType) > ETH_DATA_LEN) {
+	if (pDevice->dwDiagRefCount == 0) {
+		if ((psEthHeader->wType == cpu_to_le16(ETH_P_IPX)) ||
+		    (psEthHeader->wType == cpu_to_le16(0xF380))) {
+			memcpy((PBYTE) (pbyPayloadHead),
+			       abySNAP_Bridgetunnel, 6);
             } else {
                 memcpy((PBYTE) (pbyPayloadHead), &abySNAP_RFC1042[0], 6);
             }
@@ -2037,9 +2029,7 @@ CMD_STATUS csMgmt_xmit(
     pTxBufHead->wFIFOCtl |= FIFOCTL_TMOEN;
     pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
-
-    if (IS_MULTICAST_ADDRESS(&(pPacket->p80211Header->sA3.abyAddr1[0])) ||
-        IS_BROADCAST_ADDRESS(&(pPacket->p80211Header->sA3.abyAddr1[0]))) {
+    if (is_multicast_ether_addr(pPacket->p80211Header->sA3.abyAddr1)) {
         bNeedACK = FALSE;
     }
     else {
@@ -2446,9 +2436,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
     pTxBufHead->wFIFOCtl |= FIFOCTL_TMOEN;
     pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
-
-    if (IS_MULTICAST_ADDRESS(&(p80211Header->sA3.abyAddr1[0])) ||
-        IS_BROADCAST_ADDRESS(&(p80211Header->sA3.abyAddr1[0]))) {
+    if (is_multicast_ether_addr(p80211Header->sA3.abyAddr1)) {
         bNeedACK = FALSE;
         if (pDevice->bEnableHostWEP) {
             uNodeIndex = 0;
@@ -2741,14 +2729,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
  * Return Value: NULL
  */
 
-
-
-NTSTATUS
-nsDMA_tx_packet(
-      PSDevice pDevice,
-      unsigned int    uDMAIdx,
-      struct sk_buff *skb
-    )
+int nsDMA_tx_packet(PSDevice pDevice, unsigned int uDMAIdx, struct sk_buff *skb)
 {
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
     unsigned int BytesToWrite = 0, uHeaderLen = 0;
@@ -2770,9 +2751,6 @@ nsDMA_tx_packet(
     unsigned int            status;
     WORD            wKeepRate = pDevice->wCurrentRate;
     struct net_device_stats* pStats = &pDevice->stats;
-//#ifdef WPA_SM_Transtatus
-  //  extern SWPAResult wpa_Result;
-//#endif
      BOOL            bTxeapol_key = FALSE;
 
 
@@ -2783,7 +2761,7 @@ nsDMA_tx_packet(
             return 0;
         }
 
-        if (IS_MULTICAST_ADDRESS((PBYTE)(skb->data))) {
+	if (is_multicast_ether_addr((PBYTE)(skb->data))) {
             uNodeIndex = 0;
             bNodeExist = TRUE;
             if (pMgmt->sNodeDBTable[0].bPSEnable) {
@@ -2862,9 +2840,10 @@ nsDMA_tx_packet(
     Packet_Type = skb->data[ETH_HLEN+1];
     Descriptor_type = skb->data[ETH_HLEN+1+1+2];
     Key_info = (skb->data[ETH_HLEN+1+1+2+1] << 8)|(skb->data[ETH_HLEN+1+1+2+2]);
-   if (pDevice->sTxEthHeader.wType == TYPE_PKT_802_1x) {
-           if(((Protocol_Version==1) ||(Protocol_Version==2)) &&
-	        (Packet_Type==3)) {  //802.1x OR eapol-key challenge frame transfer
+    if (pDevice->sTxEthHeader.wType == cpu_to_le16(ETH_P_PAE)) {
+	/* 802.1x OR eapol-key challenge frame transfer */
+	if (((Protocol_Version == 1) || (Protocol_Version == 2)) &&
+		(Packet_Type == 3)) {
                         bTxeapol_key = TRUE;
                        if(!(Key_info & BIT3) &&  //WPA or RSN group-key challenge
 			   (Key_info & BIT8) && (Key_info & BIT9)) {    //send 2/2 key
@@ -2975,7 +2954,7 @@ nsDMA_tx_packet(
     else {
         if (pDevice->eOPMode == OP_MODE_ADHOC) {
             // Adhoc Tx rate decided from node DB
-            if (IS_MULTICAST_ADDRESS(&(pDevice->sTxEthHeader.abyDstAddr[0]))) {
+	    if (is_multicast_ether_addr(pDevice->sTxEthHeader.abyDstAddr)) {
                 // Multicast use highest data rate
                 pDevice->wCurrentRate = pMgmt->sNodeDBTable[0].wTxDataRate;
                 // preamble type
@@ -3010,7 +2989,7 @@ nsDMA_tx_packet(
         }
     }
 
-    if (pDevice->sTxEthHeader.wType == TYPE_PKT_802_1x) {
+    if (pDevice->sTxEthHeader.wType == cpu_to_le16(ETH_P_PAE)) {
         if (pDevice->byBBType != BB_TYPE_11A) {
             pDevice->wCurrentRate = RATE_1M;
             pDevice->byACKRate = RATE_1M;
@@ -3038,8 +3017,8 @@ nsDMA_tx_packet(
 
     if (bNeedEncryption == TRUE) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ntohs Pkt Type=%04x\n", ntohs(pDevice->sTxEthHeader.wType));
-        if ((pDevice->sTxEthHeader.wType) == TYPE_PKT_802_1x) {
-            bNeedEncryption = FALSE;
+	if ((pDevice->sTxEthHeader.wType) == cpu_to_le16(ETH_P_PAE)) {
+		bNeedEncryption = FALSE;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Pkt Type=%04x\n", (pDevice->sTxEthHeader.wType));
             if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) && (pMgmt->eCurrState == WMAC_STATE_ASSOC)) {
                 if (pTransmitKey == NULL) {
@@ -3071,28 +3050,12 @@ nsDMA_tx_packet(
         }
         else {
 
-#if 0
-            if((pDevice->fWPA_Authened == FALSE) &&
-		((pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK)||(pMgmt->eAuthenMode = WMAC_AUTH_WPA2PSK))){
-                  dev_kfree_skb_irq(skb);
-                  pStats->tx_dropped++;
-                  return STATUS_FAILURE;
-            }
-	        else if (pTransmitKey == NULL) {
-                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"return no tx key\n");
-                dev_kfree_skb_irq(skb);
-                pStats->tx_dropped++;
-                return STATUS_FAILURE;
-            }
-#else
             if (pTransmitKey == NULL) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"return no tx key\n");
                 dev_kfree_skb_irq(skb);
                 pStats->tx_dropped++;
                 return STATUS_FAILURE;
             }
-#endif
-
         }
     }
 
@@ -3261,7 +3224,8 @@ bRelayPacketSend (
     if (pDevice->wCurrentRate <= RATE_11M)
         byPktType = PK_TYPE_11B;
 
-    BytesToWrite = uDataLen + U_CRC_LEN;
+    BytesToWrite = uDataLen + ETH_FCS_LEN;
+
     // Convert the packet to an usb frame and copy into our buffer
     // and send the irp.
 

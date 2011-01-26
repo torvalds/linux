@@ -113,7 +113,7 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 {
 	struct kvm_s390_interrupt_info *inti;
 
-	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
+	inti = kzalloc(sizeof(*inti), GFP_ATOMIC);
 	if (!inti)
 		return -ENOMEM;
 	inti->type = KVM_S390_SIGP_STOP;

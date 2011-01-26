@@ -12,16 +12,17 @@
 #include <linux/string.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/gpio.h>
 
 #include <mach/dma.h>
 #include <mach/map.h>
-#include <mach/gpio.h>
 #include <mach/gpio-bank-c.h>
 #include <mach/spi-clocks.h>
+#include <mach/irqs.h>
 
 #include <plat/s3c64xx-spi.h>
 #include <plat/gpio-cfg.h>
-#include <plat/irqs.h>
+#include <plat/devs.h>
 
 static char *spi_src_clks[] = {
 	[S3C64XX_SPI_SRCCLK_PCLK] = "pclk",

@@ -54,8 +54,6 @@ static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 	/* queue full, remove one skb to fulfill the limit */
 	skb_head = qdisc_dequeue_head(sch);
-	sch->bstats.bytes -= qdisc_pkt_len(skb_head);
-	sch->bstats.packets--;
 	sch->qstats.drops++;
 	kfree_skb(skb_head);
 
@@ -172,8 +170,7 @@ struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
 	struct Qdisc *q;
 	int err = -ENOMEM;
 
-	q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
-			      ops, TC_H_MAKE(sch->handle, 1));
+	q = qdisc_create_dflt(sch->dev_queue, ops, TC_H_MAKE(sch->handle, 1));
 	if (q) {
 		err = fifo_set_limit(q, limit);
 		if (err < 0) {

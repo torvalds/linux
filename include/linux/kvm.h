@@ -414,6 +414,14 @@ struct kvm_enable_cap {
 	__u8  pad[64];
 };
 
+/* for KVM_PPC_GET_PVINFO */
+struct kvm_ppc_pvinfo {
+	/* out */
+	__u32 flags;
+	__u32 hcall[4];
+	__u8  pad[108];
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -524,6 +532,15 @@ struct kvm_enable_cap {
 #define KVM_CAP_PPC_OSI 52
 #define KVM_CAP_PPC_UNSET_IRQ 53
 #define KVM_CAP_ENABLE_CAP 54
+#ifdef __KVM_HAVE_XSAVE
+#define KVM_CAP_XSAVE 55
+#endif
+#ifdef __KVM_HAVE_XCRS
+#define KVM_CAP_XCRS 56
+#endif
+#define KVM_CAP_PPC_GET_PVINFO 57
+#define KVM_CAP_PPC_IRQ_LEVEL 58
+#define KVM_CAP_ASYNC_PF 59
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -613,6 +630,7 @@ struct kvm_clock_data {
  */
 #define KVM_CREATE_VCPU           _IO(KVMIO,   0x41)
 #define KVM_GET_DIRTY_LOG         _IOW(KVMIO,  0x42, struct kvm_dirty_log)
+/* KVM_SET_MEMORY_ALIAS is obsolete: */
 #define KVM_SET_MEMORY_ALIAS      _IOW(KVMIO,  0x43, struct kvm_memory_alias)
 #define KVM_SET_NR_MMU_PAGES      _IO(KVMIO,   0x44)
 #define KVM_GET_NR_MMU_PAGES      _IO(KVMIO,   0x45)
@@ -657,6 +675,8 @@ struct kvm_clock_data {
 /* Available with KVM_CAP_PIT_STATE2 */
 #define KVM_GET_PIT2              _IOR(KVMIO,  0x9f, struct kvm_pit_state2)
 #define KVM_SET_PIT2              _IOW(KVMIO,  0xa0, struct kvm_pit_state2)
+/* Available with KVM_CAP_PPC_GET_PVINFO */
+#define KVM_PPC_GET_PVINFO	  _IOW(KVMIO,  0xa1, struct kvm_ppc_pvinfo)
 
 /*
  * ioctls for vcpu fds
@@ -714,6 +734,12 @@ struct kvm_clock_data {
 #define KVM_GET_DEBUGREGS         _IOR(KVMIO,  0xa1, struct kvm_debugregs)
 #define KVM_SET_DEBUGREGS         _IOW(KVMIO,  0xa2, struct kvm_debugregs)
 #define KVM_ENABLE_CAP            _IOW(KVMIO,  0xa3, struct kvm_enable_cap)
+/* Available with KVM_CAP_XSAVE */
+#define KVM_GET_XSAVE		  _IOR(KVMIO,  0xa4, struct kvm_xsave)
+#define KVM_SET_XSAVE		  _IOW(KVMIO,  0xa5, struct kvm_xsave)
+/* Available with KVM_CAP_XCRS */
+#define KVM_GET_XCRS		  _IOR(KVMIO,  0xa6, struct kvm_xcrs)
+#define KVM_SET_XCRS		  _IOW(KVMIO,  0xa7, struct kvm_xcrs)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 

@@ -15,11 +15,7 @@
  */
 #define __PAGE_OFFSET		_AC(CONFIG_PAGE_OFFSET, UL)
 
-#ifdef CONFIG_4KSTACKS
-#define THREAD_ORDER	0
-#else
 #define THREAD_ORDER	1
-#endif
 #define THREAD_SIZE 	(PAGE_SIZE << THREAD_ORDER)
 
 #define STACKFAULT_STACK 0

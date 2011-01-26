@@ -239,86 +239,119 @@ static inline bool n2_should_run_async(struct spu_queue *qp, int this_len)
 }
 #endif
 
-struct n2_base_ctx {
-	struct list_head		list;
+struct n2_ahash_alg {
+	struct list_head	entry;
+	const char		*hash_zero;
+	const u32		*hash_init;
+	u8			hw_op_hashsz;
+	u8			digest_size;
+	u8			auth_type;
+	u8			hmac_type;
+	struct ahash_alg	alg;
 };
 
-static void n2_base_ctx_init(struct n2_base_ctx *ctx)
+static inline struct n2_ahash_alg *n2_ahash_alg(struct crypto_tfm *tfm)
 {
-	INIT_LIST_HEAD(&ctx->list);
+	struct crypto_alg *alg = tfm->__crt_alg;
+	struct ahash_alg *ahash_alg;
+
+	ahash_alg = container_of(alg, struct ahash_alg, halg.base);
+
+	return container_of(ahash_alg, struct n2_ahash_alg, alg);
+}
+
+struct n2_hmac_alg {
+	const char		*child_alg;
+	struct n2_ahash_alg	derived;
+};
+
+static inline struct n2_hmac_alg *n2_hmac_alg(struct crypto_tfm *tfm)
+{
+	struct crypto_alg *alg = tfm->__crt_alg;
+	struct ahash_alg *ahash_alg;
+
+	ahash_alg = container_of(alg, struct ahash_alg, halg.base);
+
+	return container_of(ahash_alg, struct n2_hmac_alg, derived.alg);
 }
 
 struct n2_hash_ctx {
-	struct n2_base_ctx		base;
+	struct crypto_ahash		*fallback_tfm;
+};
 
-	struct crypto_ahash		*fallback;
+#define N2_HASH_KEY_MAX			32 /* HW limit for all HMAC requests */
 
-	/* These next three members must match the layout created by
-	 * crypto_init_shash_ops_async.  This allows us to properly
-	 * plumb requests we can't do in hardware down to the fallback
-	 * operation, providing all of the data structures and layouts
-	 * expected by those paths.
-	 */
-	struct ahash_request		fallback_req;
-	struct shash_desc		fallback_desc;
+struct n2_hmac_ctx {
+	struct n2_hash_ctx		base;
+
+	struct crypto_shash		*child_shash;
+
+	int				hash_key_len;
+	unsigned char			hash_key[N2_HASH_KEY_MAX];
+};
+
+struct n2_hash_req_ctx {
 	union {
 		struct md5_state	md5;
 		struct sha1_state	sha1;
 		struct sha256_state	sha256;
 	} u;
 
-	unsigned char			hash_key[64];
-	unsigned char			keyed_zero_hash[32];
+	struct ahash_request		fallback_req;
 };
 
 static int n2_hash_async_init(struct ahash_request *req)
 {
+	struct n2_hash_req_ctx *rctx = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 
-	ctx->fallback_req.base.tfm = crypto_ahash_tfm(ctx->fallback);
-	ctx->fallback_req.base.flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
+	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+	rctx->fallback_req.base.flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
 
-	return crypto_ahash_init(&ctx->fallback_req);
+	return crypto_ahash_init(&rctx->fallback_req);
 }
 
 static int n2_hash_async_update(struct ahash_request *req)
 {
+	struct n2_hash_req_ctx *rctx = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 
-	ctx->fallback_req.base.tfm = crypto_ahash_tfm(ctx->fallback);
-	ctx->fallback_req.base.flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-	ctx->fallback_req.nbytes = req->nbytes;
-	ctx->fallback_req.src = req->src;
+	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+	rctx->fallback_req.base.flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
+	rctx->fallback_req.nbytes = req->nbytes;
+	rctx->fallback_req.src = req->src;
 
-	return crypto_ahash_update(&ctx->fallback_req);
+	return crypto_ahash_update(&rctx->fallback_req);
 }
 
 static int n2_hash_async_final(struct ahash_request *req)
 {
+	struct n2_hash_req_ctx *rctx = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 
-	ctx->fallback_req.base.tfm = crypto_ahash_tfm(ctx->fallback);
-	ctx->fallback_req.base.flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-	ctx->fallback_req.result = req->result;
+	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+	rctx->fallback_req.base.flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
+	rctx->fallback_req.result = req->result;
 
-	return crypto_ahash_final(&ctx->fallback_req);
+	return crypto_ahash_final(&rctx->fallback_req);
 }
 
 static int n2_hash_async_finup(struct ahash_request *req)
 {
+	struct n2_hash_req_ctx *rctx = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 
-	ctx->fallback_req.base.tfm = crypto_ahash_tfm(ctx->fallback);
-	ctx->fallback_req.base.flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-	ctx->fallback_req.nbytes = req->nbytes;
-	ctx->fallback_req.src = req->src;
-	ctx->fallback_req.result = req->result;
+	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+	rctx->fallback_req.base.flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
+	rctx->fallback_req.nbytes = req->nbytes;
+	rctx->fallback_req.src = req->src;
+	rctx->fallback_req.result = req->result;
 
-	return crypto_ahash_finup(&ctx->fallback_req);
+	return crypto_ahash_finup(&rctx->fallback_req);
 }
 
 static int n2_hash_cra_init(struct crypto_tfm *tfm)
@@ -338,7 +371,10 @@ static int n2_hash_cra_init(struct crypto_tfm *tfm)
 		goto out;
 	}
 
-	ctx->fallback = fallback_tfm;
+	crypto_ahash_set_reqsize(ahash, (sizeof(struct n2_hash_req_ctx) +
+					 crypto_ahash_reqsize(fallback_tfm)));
+
+	ctx->fallback_tfm = fallback_tfm;
 	return 0;
 
 out:
@@ -350,7 +386,95 @@ static void n2_hash_cra_exit(struct crypto_tfm *tfm)
 	struct crypto_ahash *ahash = __crypto_ahash_cast(tfm);
 	struct n2_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 
-	crypto_free_ahash(ctx->fallback);
+	crypto_free_ahash(ctx->fallback_tfm);
+}
+
+static int n2_hmac_cra_init(struct crypto_tfm *tfm)
+{
+	const char *fallback_driver_name = tfm->__crt_alg->cra_name;
+	struct crypto_ahash *ahash = __crypto_ahash_cast(tfm);
+	struct n2_hmac_ctx *ctx = crypto_ahash_ctx(ahash);
+	struct n2_hmac_alg *n2alg = n2_hmac_alg(tfm);
+	struct crypto_ahash *fallback_tfm;
+	struct crypto_shash *child_shash;
+	int err;
+
+	fallback_tfm = crypto_alloc_ahash(fallback_driver_name, 0,
+					  CRYPTO_ALG_NEED_FALLBACK);
+	if (IS_ERR(fallback_tfm)) {
+		pr_warning("Fallback driver '%s' could not be loaded!\n",
+			   fallback_driver_name);
+		err = PTR_ERR(fallback_tfm);
+		goto out;
+	}
+
+	child_shash = crypto_alloc_shash(n2alg->child_alg, 0, 0);
+	if (IS_ERR(child_shash)) {
+		pr_warning("Child shash '%s' could not be loaded!\n",
+			   n2alg->child_alg);
+		err = PTR_ERR(child_shash);
+		goto out_free_fallback;
+	}
+
+	crypto_ahash_set_reqsize(ahash, (sizeof(struct n2_hash_req_ctx) +
+					 crypto_ahash_reqsize(fallback_tfm)));
+
+	ctx->child_shash = child_shash;
+	ctx->base.fallback_tfm = fallback_tfm;
+	return 0;
+
+out_free_fallback:
+	crypto_free_ahash(fallback_tfm);
+
+out:
+	return err;
+}
+
+static void n2_hmac_cra_exit(struct crypto_tfm *tfm)
+{
+	struct crypto_ahash *ahash = __crypto_ahash_cast(tfm);
+	struct n2_hmac_ctx *ctx = crypto_ahash_ctx(ahash);
+
+	crypto_free_ahash(ctx->base.fallback_tfm);
+	crypto_free_shash(ctx->child_shash);
+}
+
+static int n2_hmac_async_setkey(struct crypto_ahash *tfm, const u8 *key,
+				unsigned int keylen)
+{
+	struct n2_hmac_ctx *ctx = crypto_ahash_ctx(tfm);
+	struct crypto_shash *child_shash = ctx->child_shash;
+	struct crypto_ahash *fallback_tfm;
+	struct {
+		struct shash_desc shash;
+		char ctx[crypto_shash_descsize(child_shash)];
+	} desc;
+	int err, bs, ds;
+
+	fallback_tfm = ctx->base.fallback_tfm;
+	err = crypto_ahash_setkey(fallback_tfm, key, keylen);
+	if (err)
+		return err;
+
+	desc.shash.tfm = child_shash;
+	desc.shash.flags = crypto_ahash_get_flags(tfm) &
+		CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	bs = crypto_shash_blocksize(child_shash);
+	ds = crypto_shash_digestsize(child_shash);
+	BUG_ON(ds > N2_HASH_KEY_MAX);
+	if (keylen > bs) {
+		err = crypto_shash_digest(&desc.shash, key, keylen,
+					  ctx->hash_key);
+		if (err)
+			return err;
+		keylen = ds;
+	} else if (keylen <= N2_HASH_KEY_MAX)
+		memcpy(ctx->hash_key, key, keylen);
+
+	ctx->hash_key_len = keylen;
+
+	return err;
 }
 
 static unsigned long wait_for_tail(struct spu_queue *qp)
@@ -382,12 +506,12 @@ static unsigned long submit_and_wait_for_tail(struct spu_queue *qp,
 	return hv_ret;
 }
 
-static int n2_hash_async_digest(struct ahash_request *req,
-				unsigned int auth_type, unsigned int digest_size,
-				unsigned int result_size, void *hash_loc)
+static int n2_do_async_digest(struct ahash_request *req,
+			      unsigned int auth_type, unsigned int digest_size,
+			      unsigned int result_size, void *hash_loc,
+			      unsigned long auth_key, unsigned int auth_key_len)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct cwq_initial_entry *ent;
 	struct crypto_hash_walk walk;
 	struct spu_queue *qp;
@@ -399,17 +523,18 @@ static int n2_hash_async_digest(struct ahash_request *req,
 	 * exceed 2^16.
 	 */
 	if (unlikely(req->nbytes > (1 << 16))) {
-		ctx->fallback_req.base.tfm = crypto_ahash_tfm(ctx->fallback);
-		ctx->fallback_req.base.flags =
+		struct n2_hash_req_ctx *rctx = ahash_request_ctx(req);
+		struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
+
+		ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+		rctx->fallback_req.base.flags =
 			req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-		ctx->fallback_req.nbytes = req->nbytes;
-		ctx->fallback_req.src = req->src;
-		ctx->fallback_req.result = req->result;
+		rctx->fallback_req.nbytes = req->nbytes;
+		rctx->fallback_req.src = req->src;
+		rctx->fallback_req.result = req->result;
 
-		return crypto_ahash_digest(&ctx->fallback_req);
+		return crypto_ahash_digest(&rctx->fallback_req);
 	}
-
-	n2_base_ctx_init(&ctx->base);
 
 	nbytes = crypto_hash_walk_first(req, &walk);
 
@@ -425,13 +550,13 @@ static int n2_hash_async_digest(struct ahash_request *req,
 	 */
 	ent = qp->q + qp->tail;
 
-	ent->control = control_word_base(nbytes, 0, 0,
+	ent->control = control_word_base(nbytes, auth_key_len, 0,
 					 auth_type, digest_size,
 					 false, true, false, false,
 					 OPCODE_INPLACE_BIT |
 					 OPCODE_AUTH_MAC);
 	ent->src_addr = __pa(walk.data);
-	ent->auth_key_addr = 0UL;
+	ent->auth_key_addr = auth_key;
 	ent->auth_iv_addr = __pa(hash_loc);
 	ent->final_auth_state_addr = 0UL;
 	ent->enc_key_addr = 0UL;
@@ -470,118 +595,55 @@ out:
 	return err;
 }
 
-static int n2_md5_async_digest(struct ahash_request *req)
+static int n2_hash_async_digest(struct ahash_request *req)
 {
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct md5_state *m = &ctx->u.md5;
+	struct n2_ahash_alg *n2alg = n2_ahash_alg(req->base.tfm);
+	struct n2_hash_req_ctx *rctx = ahash_request_ctx(req);
+	int ds;
 
+	ds = n2alg->digest_size;
 	if (unlikely(req->nbytes == 0)) {
-		static const char md5_zero[MD5_DIGEST_SIZE] = {
-			0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
-			0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e,
-		};
-
-		memcpy(req->result, md5_zero, MD5_DIGEST_SIZE);
+		memcpy(req->result, n2alg->hash_zero, ds);
 		return 0;
 	}
-	m->hash[0] = cpu_to_le32(0x67452301);
-	m->hash[1] = cpu_to_le32(0xefcdab89);
-	m->hash[2] = cpu_to_le32(0x98badcfe);
-	m->hash[3] = cpu_to_le32(0x10325476);
+	memcpy(&rctx->u, n2alg->hash_init, n2alg->hw_op_hashsz);
 
-	return n2_hash_async_digest(req, AUTH_TYPE_MD5,
-				    MD5_DIGEST_SIZE, MD5_DIGEST_SIZE,
-				    m->hash);
+	return n2_do_async_digest(req, n2alg->auth_type,
+				  n2alg->hw_op_hashsz, ds,
+				  &rctx->u, 0UL, 0);
 }
 
-static int n2_sha1_async_digest(struct ahash_request *req)
+static int n2_hmac_async_digest(struct ahash_request *req)
 {
+	struct n2_hmac_alg *n2alg = n2_hmac_alg(req->base.tfm);
+	struct n2_hash_req_ctx *rctx = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct sha1_state *s = &ctx->u.sha1;
+	struct n2_hmac_ctx *ctx = crypto_ahash_ctx(tfm);
+	int ds;
 
-	if (unlikely(req->nbytes == 0)) {
-		static const char sha1_zero[SHA1_DIGEST_SIZE] = {
-			0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d, 0x32,
-			0x55, 0xbf, 0xef, 0x95, 0x60, 0x18, 0x90, 0xaf, 0xd8,
-			0x07, 0x09
-		};
+	ds = n2alg->derived.digest_size;
+	if (unlikely(req->nbytes == 0) ||
+	    unlikely(ctx->hash_key_len > N2_HASH_KEY_MAX)) {
+		struct n2_hash_req_ctx *rctx = ahash_request_ctx(req);
+		struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 
-		memcpy(req->result, sha1_zero, SHA1_DIGEST_SIZE);
-		return 0;
+		ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+		rctx->fallback_req.base.flags =
+			req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
+		rctx->fallback_req.nbytes = req->nbytes;
+		rctx->fallback_req.src = req->src;
+		rctx->fallback_req.result = req->result;
+
+		return crypto_ahash_digest(&rctx->fallback_req);
 	}
-	s->state[0] = SHA1_H0;
-	s->state[1] = SHA1_H1;
-	s->state[2] = SHA1_H2;
-	s->state[3] = SHA1_H3;
-	s->state[4] = SHA1_H4;
+	memcpy(&rctx->u, n2alg->derived.hash_init,
+	       n2alg->derived.hw_op_hashsz);
 
-	return n2_hash_async_digest(req, AUTH_TYPE_SHA1,
-				    SHA1_DIGEST_SIZE, SHA1_DIGEST_SIZE,
-				    s->state);
-}
-
-static int n2_sha256_async_digest(struct ahash_request *req)
-{
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct sha256_state *s = &ctx->u.sha256;
-
-	if (req->nbytes == 0) {
-		static const char sha256_zero[SHA256_DIGEST_SIZE] = {
-			0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a,
-			0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae,
-			0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99,
-			0x1b, 0x78, 0x52, 0xb8, 0x55
-		};
-
-		memcpy(req->result, sha256_zero, SHA256_DIGEST_SIZE);
-		return 0;
-	}
-	s->state[0] = SHA256_H0;
-	s->state[1] = SHA256_H1;
-	s->state[2] = SHA256_H2;
-	s->state[3] = SHA256_H3;
-	s->state[4] = SHA256_H4;
-	s->state[5] = SHA256_H5;
-	s->state[6] = SHA256_H6;
-	s->state[7] = SHA256_H7;
-
-	return n2_hash_async_digest(req, AUTH_TYPE_SHA256,
-				    SHA256_DIGEST_SIZE, SHA256_DIGEST_SIZE,
-				    s->state);
-}
-
-static int n2_sha224_async_digest(struct ahash_request *req)
-{
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct sha256_state *s = &ctx->u.sha256;
-
-	if (req->nbytes == 0) {
-		static const char sha224_zero[SHA224_DIGEST_SIZE] = {
-			0xd1, 0x4a, 0x02, 0x8c, 0x2a, 0x3a, 0x2b, 0xc9, 0x47,
-			0x61, 0x02, 0xbb, 0x28, 0x82, 0x34, 0xc4, 0x15, 0xa2,
-			0xb0, 0x1f, 0x82, 0x8e, 0xa6, 0x2a, 0xc5, 0xb3, 0xe4,
-			0x2f
-		};
-
-		memcpy(req->result, sha224_zero, SHA224_DIGEST_SIZE);
-		return 0;
-	}
-	s->state[0] = SHA224_H0;
-	s->state[1] = SHA224_H1;
-	s->state[2] = SHA224_H2;
-	s->state[3] = SHA224_H3;
-	s->state[4] = SHA224_H4;
-	s->state[5] = SHA224_H5;
-	s->state[6] = SHA224_H6;
-	s->state[7] = SHA224_H7;
-
-	return n2_hash_async_digest(req, AUTH_TYPE_SHA256,
-				    SHA256_DIGEST_SIZE, SHA224_DIGEST_SIZE,
-				    s->state);
+	return n2_do_async_digest(req, n2alg->derived.hmac_type,
+				  n2alg->derived.hw_op_hashsz, ds,
+				  &rctx->u,
+				  __pa(&ctx->hash_key),
+				  ctx->hash_key_len);
 }
 
 struct n2_cipher_context {
@@ -1208,35 +1270,92 @@ static LIST_HEAD(cipher_algs);
 
 struct n2_hash_tmpl {
 	const char	*name;
-	int		(*digest)(struct ahash_request *req);
+	const char	*hash_zero;
+	const u32	*hash_init;
+	u8		hw_op_hashsz;
 	u8		digest_size;
 	u8		block_size;
+	u8		auth_type;
+	u8		hmac_type;
 };
+
+static const char md5_zero[MD5_DIGEST_SIZE] = {
+	0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
+	0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e,
+};
+static const u32 md5_init[MD5_HASH_WORDS] = {
+	cpu_to_le32(0x67452301),
+	cpu_to_le32(0xefcdab89),
+	cpu_to_le32(0x98badcfe),
+	cpu_to_le32(0x10325476),
+};
+static const char sha1_zero[SHA1_DIGEST_SIZE] = {
+	0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d, 0x32,
+	0x55, 0xbf, 0xef, 0x95, 0x60, 0x18, 0x90, 0xaf, 0xd8,
+	0x07, 0x09
+};
+static const u32 sha1_init[SHA1_DIGEST_SIZE / 4] = {
+	SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4,
+};
+static const char sha256_zero[SHA256_DIGEST_SIZE] = {
+	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a,
+	0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae,
+	0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99,
+	0x1b, 0x78, 0x52, 0xb8, 0x55
+};
+static const u32 sha256_init[SHA256_DIGEST_SIZE / 4] = {
+	SHA256_H0, SHA256_H1, SHA256_H2, SHA256_H3,
+	SHA256_H4, SHA256_H5, SHA256_H6, SHA256_H7,
+};
+static const char sha224_zero[SHA224_DIGEST_SIZE] = {
+	0xd1, 0x4a, 0x02, 0x8c, 0x2a, 0x3a, 0x2b, 0xc9, 0x47,
+	0x61, 0x02, 0xbb, 0x28, 0x82, 0x34, 0xc4, 0x15, 0xa2,
+	0xb0, 0x1f, 0x82, 0x8e, 0xa6, 0x2a, 0xc5, 0xb3, 0xe4,
+	0x2f
+};
+static const u32 sha224_init[SHA256_DIGEST_SIZE / 4] = {
+	SHA224_H0, SHA224_H1, SHA224_H2, SHA224_H3,
+	SHA224_H4, SHA224_H5, SHA224_H6, SHA224_H7,
+};
+
 static const struct n2_hash_tmpl hash_tmpls[] = {
 	{ .name		= "md5",
-	  .digest	= n2_md5_async_digest,
+	  .hash_zero	= md5_zero,
+	  .hash_init	= md5_init,
+	  .auth_type	= AUTH_TYPE_MD5,
+	  .hmac_type	= AUTH_TYPE_HMAC_MD5,
+	  .hw_op_hashsz	= MD5_DIGEST_SIZE,
 	  .digest_size	= MD5_DIGEST_SIZE,
 	  .block_size	= MD5_HMAC_BLOCK_SIZE },
 	{ .name		= "sha1",
-	  .digest	= n2_sha1_async_digest,
+	  .hash_zero	= sha1_zero,
+	  .hash_init	= sha1_init,
+	  .auth_type	= AUTH_TYPE_SHA1,
+	  .hmac_type	= AUTH_TYPE_HMAC_SHA1,
+	  .hw_op_hashsz	= SHA1_DIGEST_SIZE,
 	  .digest_size	= SHA1_DIGEST_SIZE,
 	  .block_size	= SHA1_BLOCK_SIZE },
 	{ .name		= "sha256",
-	  .digest	= n2_sha256_async_digest,
+	  .hash_zero	= sha256_zero,
+	  .hash_init	= sha256_init,
+	  .auth_type	= AUTH_TYPE_SHA256,
+	  .hmac_type	= AUTH_TYPE_HMAC_SHA256,
+	  .hw_op_hashsz	= SHA256_DIGEST_SIZE,
 	  .digest_size	= SHA256_DIGEST_SIZE,
 	  .block_size	= SHA256_BLOCK_SIZE },
 	{ .name		= "sha224",
-	  .digest	= n2_sha224_async_digest,
+	  .hash_zero	= sha224_zero,
+	  .hash_init	= sha224_init,
+	  .auth_type	= AUTH_TYPE_SHA256,
+	  .hmac_type	= AUTH_TYPE_RESERVED,
+	  .hw_op_hashsz	= SHA256_DIGEST_SIZE,
 	  .digest_size	= SHA224_DIGEST_SIZE,
 	  .block_size	= SHA224_BLOCK_SIZE },
 };
 #define NUM_HASH_TMPLS ARRAY_SIZE(hash_tmpls)
 
-struct n2_ahash_alg {
-	struct list_head	entry;
-	struct ahash_alg	alg;
-};
 static LIST_HEAD(ahash_algs);
+static LIST_HEAD(hmac_algs);
 
 static int algs_registered;
 
@@ -1244,11 +1363,17 @@ static void __n2_unregister_algs(void)
 {
 	struct n2_cipher_alg *cipher, *cipher_tmp;
 	struct n2_ahash_alg *alg, *alg_tmp;
+	struct n2_hmac_alg *hmac, *hmac_tmp;
 
 	list_for_each_entry_safe(cipher, cipher_tmp, &cipher_algs, entry) {
 		crypto_unregister_alg(&cipher->alg);
 		list_del(&cipher->entry);
 		kfree(cipher);
+	}
+	list_for_each_entry_safe(hmac, hmac_tmp, &hmac_algs, derived.entry) {
+		crypto_unregister_ahash(&hmac->derived.alg);
+		list_del(&hmac->derived.entry);
+		kfree(hmac);
 	}
 	list_for_each_entry_safe(alg, alg_tmp, &ahash_algs, entry) {
 		crypto_unregister_ahash(&alg->alg);
@@ -1289,8 +1414,49 @@ static int __devinit __n2_register_one_cipher(const struct n2_cipher_tmpl *tmpl)
 	list_add(&p->entry, &cipher_algs);
 	err = crypto_register_alg(alg);
 	if (err) {
+		pr_err("%s alg registration failed\n", alg->cra_name);
 		list_del(&p->entry);
 		kfree(p);
+	} else {
+		pr_info("%s alg registered\n", alg->cra_name);
+	}
+	return err;
+}
+
+static int __devinit __n2_register_one_hmac(struct n2_ahash_alg *n2ahash)
+{
+	struct n2_hmac_alg *p = kzalloc(sizeof(*p), GFP_KERNEL);
+	struct ahash_alg *ahash;
+	struct crypto_alg *base;
+	int err;
+
+	if (!p)
+		return -ENOMEM;
+
+	p->child_alg = n2ahash->alg.halg.base.cra_name;
+	memcpy(&p->derived, n2ahash, sizeof(struct n2_ahash_alg));
+	INIT_LIST_HEAD(&p->derived.entry);
+
+	ahash = &p->derived.alg;
+	ahash->digest = n2_hmac_async_digest;
+	ahash->setkey = n2_hmac_async_setkey;
+
+	base = &ahash->halg.base;
+	snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "hmac(%s)", p->child_alg);
+	snprintf(base->cra_driver_name, CRYPTO_MAX_ALG_NAME, "hmac-%s-n2", p->child_alg);
+
+	base->cra_ctxsize = sizeof(struct n2_hmac_ctx);
+	base->cra_init = n2_hmac_cra_init;
+	base->cra_exit = n2_hmac_cra_exit;
+
+	list_add(&p->derived.entry, &hmac_algs);
+	err = crypto_register_ahash(ahash);
+	if (err) {
+		pr_err("%s alg registration failed\n", base->cra_name);
+		list_del(&p->derived.entry);
+		kfree(p);
+	} else {
+		pr_info("%s alg registered\n", base->cra_name);
 	}
 	return err;
 }
@@ -1306,12 +1472,19 @@ static int __devinit __n2_register_one_ahash(const struct n2_hash_tmpl *tmpl)
 	if (!p)
 		return -ENOMEM;
 
+	p->hash_zero = tmpl->hash_zero;
+	p->hash_init = tmpl->hash_init;
+	p->auth_type = tmpl->auth_type;
+	p->hmac_type = tmpl->hmac_type;
+	p->hw_op_hashsz = tmpl->hw_op_hashsz;
+	p->digest_size = tmpl->digest_size;
+
 	ahash = &p->alg;
 	ahash->init = n2_hash_async_init;
 	ahash->update = n2_hash_async_update;
 	ahash->final = n2_hash_async_final;
 	ahash->finup = n2_hash_async_finup;
-	ahash->digest = tmpl->digest;
+	ahash->digest = n2_hash_async_digest;
 
 	halg = &ahash->halg;
 	halg->digestsize = tmpl->digest_size;
@@ -1330,9 +1503,14 @@ static int __devinit __n2_register_one_ahash(const struct n2_hash_tmpl *tmpl)
 	list_add(&p->entry, &ahash_algs);
 	err = crypto_register_ahash(ahash);
 	if (err) {
+		pr_err("%s alg registration failed\n", base->cra_name);
 		list_del(&p->entry);
 		kfree(p);
+	} else {
+		pr_info("%s alg registered\n", base->cra_name);
 	}
+	if (!err && p->hmac_type != AUTH_TYPE_RESERVED)
+		err = __n2_register_one_hmac(p);
 	return err;
 }
 
@@ -1364,7 +1542,7 @@ out:
 	return err;
 }
 
-static void __exit n2_unregister_algs(void)
+static void __devexit n2_unregister_algs(void)
 {
 	mutex_lock(&spu_lock);
 	if (!--algs_registered)
@@ -1374,7 +1552,7 @@ static void __exit n2_unregister_algs(void)
 
 /* To map CWQ queues to interrupt sources, the hypervisor API provides
  * a devino.  This isn't very useful to us because all of the
- * interrupts listed in the of_device node have been translated to
+ * interrupts listed in the device_node have been translated to
  * Linux virtual IRQ cookie numbers.
  *
  * So we have to back-translate, going through the 'intr' and 'ino'
@@ -1382,7 +1560,7 @@ static void __exit n2_unregister_algs(void)
  * 'interrupts' property entries, in order to to figure out which
  * devino goes to which already-translated IRQ.
  */
-static int find_devino_index(struct of_device *dev, struct spu_mdesc_info *ip,
+static int find_devino_index(struct platform_device *dev, struct spu_mdesc_info *ip,
 			     unsigned long dev_ino)
 {
 	const unsigned int *dev_intrs;
@@ -1398,11 +1576,11 @@ static int find_devino_index(struct of_device *dev, struct spu_mdesc_info *ip,
 
 	intr = ip->ino_table[i].intr;
 
-	dev_intrs = of_get_property(dev->node, "interrupts", NULL);
+	dev_intrs = of_get_property(dev->dev.of_node, "interrupts", NULL);
 	if (!dev_intrs)
 		return -ENODEV;
 
-	for (i = 0; i < dev->num_irqs; i++) {
+	for (i = 0; i < dev->archdata.num_irqs; i++) {
 		if (dev_intrs[i] == intr)
 			return i;
 	}
@@ -1410,7 +1588,7 @@ static int find_devino_index(struct of_device *dev, struct spu_mdesc_info *ip,
 	return -ENODEV;
 }
 
-static int spu_map_ino(struct of_device *dev, struct spu_mdesc_info *ip,
+static int spu_map_ino(struct platform_device *dev, struct spu_mdesc_info *ip,
 		       const char *irq_name, struct spu_queue *p,
 		       irq_handler_t handler)
 {
@@ -1425,7 +1603,7 @@ static int spu_map_ino(struct of_device *dev, struct spu_mdesc_info *ip,
 	if (index < 0)
 		return index;
 
-	p->irq = dev->irqs[index];
+	p->irq = dev->archdata.irqs[index];
 
 	sprintf(p->irq_name, "%s-%d", irq_name, index);
 
@@ -1449,7 +1627,7 @@ static int queue_cache_init(void)
 {
 	if (!queue_cache[HV_NCS_QTYPE_MAU - 1])
 		queue_cache[HV_NCS_QTYPE_MAU - 1] =
-			kmem_cache_create("cwq_queue",
+			kmem_cache_create("mau_queue",
 					  (MAU_NUM_ENTRIES *
 					   MAU_ENTRY_SIZE),
 					  MAU_ENTRY_SIZE, 0, NULL);
@@ -1558,7 +1736,7 @@ static void spu_list_destroy(struct list_head *list)
  * gathering cpu membership information.
  */
 static int spu_mdesc_walk_arcs(struct mdesc_handle *mdesc,
-			       struct of_device *dev,
+			       struct platform_device *dev,
 			       u64 node, struct spu_queue *p,
 			       struct spu_queue **table)
 {
@@ -1574,7 +1752,7 @@ static int spu_mdesc_walk_arcs(struct mdesc_handle *mdesc,
 		id = mdesc_get_property(mdesc, tgt, "id", NULL);
 		if (table[*id] != NULL) {
 			dev_err(&dev->dev, "%s: SPU cpu slot already set.\n",
-				dev->node->full_name);
+				dev->dev.of_node->full_name);
 			return -EINVAL;
 		}
 		cpu_set(*id, p->sharing);
@@ -1585,7 +1763,7 @@ static int spu_mdesc_walk_arcs(struct mdesc_handle *mdesc,
 
 /* Process an 'exec-unit' MDESC node of type 'cwq'.  */
 static int handle_exec_unit(struct spu_mdesc_info *ip, struct list_head *list,
-			    struct of_device *dev, struct mdesc_handle *mdesc,
+			    struct platform_device *dev, struct mdesc_handle *mdesc,
 			    u64 node, const char *iname, unsigned long q_type,
 			    irq_handler_t handler, struct spu_queue **table)
 {
@@ -1595,7 +1773,7 @@ static int handle_exec_unit(struct spu_mdesc_info *ip, struct list_head *list,
 	p = kzalloc(sizeof(struct spu_queue), GFP_KERNEL);
 	if (!p) {
 		dev_err(&dev->dev, "%s: Could not allocate SPU queue.\n",
-			dev->node->full_name);
+			dev->dev.of_node->full_name);
 		return -ENOMEM;
 	}
 
@@ -1616,7 +1794,7 @@ static int handle_exec_unit(struct spu_mdesc_info *ip, struct list_head *list,
 	return spu_map_ino(dev, ip, iname, p, handler);
 }
 
-static int spu_mdesc_scan(struct mdesc_handle *mdesc, struct of_device *dev,
+static int spu_mdesc_scan(struct mdesc_handle *mdesc, struct platform_device *dev,
 			  struct spu_mdesc_info *ip, struct list_head *list,
 			  const char *exec_name, unsigned long q_type,
 			  irq_handler_t handler, struct spu_queue **table)
@@ -1654,7 +1832,7 @@ static int __devinit get_irq_props(struct mdesc_handle *mdesc, u64 node,
 		return -ENODEV;
 
 	ino = mdesc_get_property(mdesc, node, "ino", &ino_len);
-	if (!intr)
+	if (!ino)
 		return -ENODEV;
 
 	if (intr_len != ino_len)
@@ -1677,14 +1855,14 @@ static int __devinit get_irq_props(struct mdesc_handle *mdesc, u64 node,
 }
 
 static int __devinit grab_mdesc_irq_props(struct mdesc_handle *mdesc,
-					  struct of_device *dev,
+					  struct platform_device *dev,
 					  struct spu_mdesc_info *ip,
 					  const char *node_name)
 {
 	const unsigned int *reg;
 	u64 node;
 
-	reg = of_get_property(dev->node, "reg", NULL);
+	reg = of_get_property(dev->dev.of_node, "reg", NULL);
 	if (!reg)
 		return -ENODEV;
 
@@ -1826,7 +2004,7 @@ static void __devinit n2_spu_driver_version(void)
 		pr_info("%s", version);
 }
 
-static int __devinit n2_crypto_probe(struct of_device *dev,
+static int __devinit n2_crypto_probe(struct platform_device *dev,
 				     const struct of_device_id *match)
 {
 	struct mdesc_handle *mdesc;
@@ -1836,7 +2014,7 @@ static int __devinit n2_crypto_probe(struct of_device *dev,
 
 	n2_spu_driver_version();
 
-	full_name = dev->node->full_name;
+	full_name = dev->dev.of_node->full_name;
 	pr_info("Found N2CP at %s\n", full_name);
 
 	np = alloc_n2cp();
@@ -1903,7 +2081,7 @@ out_free_n2cp:
 	return err;
 }
 
-static int __devexit n2_crypto_remove(struct of_device *dev)
+static int __devexit n2_crypto_remove(struct platform_device *dev)
 {
 	struct n2_crypto *np = dev_get_drvdata(&dev->dev);
 
@@ -1938,7 +2116,7 @@ static void free_ncp(struct n2_mau *mp)
 	kfree(mp);
 }
 
-static int __devinit n2_mau_probe(struct of_device *dev,
+static int __devinit n2_mau_probe(struct platform_device *dev,
 				     const struct of_device_id *match)
 {
 	struct mdesc_handle *mdesc;
@@ -1948,7 +2126,7 @@ static int __devinit n2_mau_probe(struct of_device *dev,
 
 	n2_spu_driver_version();
 
-	full_name = dev->node->full_name;
+	full_name = dev->dev.of_node->full_name;
 	pr_info("Found NCP at %s\n", full_name);
 
 	mp = alloc_ncp();
@@ -2006,7 +2184,7 @@ out_free_ncp:
 	return err;
 }
 
-static int __devexit n2_mau_remove(struct of_device *dev)
+static int __devexit n2_mau_remove(struct platform_device *dev)
 {
 	struct n2_mau *mp = dev_get_drvdata(&dev->dev);
 
@@ -2034,8 +2212,11 @@ static struct of_device_id n2_crypto_match[] = {
 MODULE_DEVICE_TABLE(of, n2_crypto_match);
 
 static struct of_platform_driver n2_crypto_driver = {
-	.name		=	"n2cp",
-	.match_table	=	n2_crypto_match,
+	.driver = {
+		.name		=	"n2cp",
+		.owner		=	THIS_MODULE,
+		.of_match_table	=	n2_crypto_match,
+	},
 	.probe		=	n2_crypto_probe,
 	.remove		=	__devexit_p(n2_crypto_remove),
 };
@@ -2055,28 +2236,31 @@ static struct of_device_id n2_mau_match[] = {
 MODULE_DEVICE_TABLE(of, n2_mau_match);
 
 static struct of_platform_driver n2_mau_driver = {
-	.name		=	"ncp",
-	.match_table	=	n2_mau_match,
+	.driver = {
+		.name		=	"ncp",
+		.owner		=	THIS_MODULE,
+		.of_match_table	=	n2_mau_match,
+	},
 	.probe		=	n2_mau_probe,
 	.remove		=	__devexit_p(n2_mau_remove),
 };
 
 static int __init n2_init(void)
 {
-	int err = of_register_driver(&n2_crypto_driver, &of_bus_type);
+	int err = of_register_platform_driver(&n2_crypto_driver);
 
 	if (!err) {
-		err = of_register_driver(&n2_mau_driver, &of_bus_type);
+		err = of_register_platform_driver(&n2_mau_driver);
 		if (err)
-			of_unregister_driver(&n2_crypto_driver);
+			of_unregister_platform_driver(&n2_crypto_driver);
 	}
 	return err;
 }
 
 static void __exit n2_exit(void)
 {
-	of_unregister_driver(&n2_mau_driver);
-	of_unregister_driver(&n2_crypto_driver);
+	of_unregister_platform_driver(&n2_mau_driver);
+	of_unregister_platform_driver(&n2_crypto_driver);
 }
 
 module_init(n2_init);

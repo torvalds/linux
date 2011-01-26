@@ -347,10 +347,9 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
     if (WLAN_GET_FC_MOREFRAG(pHeader->wFrameCtl))
         pStatistic->dwRsrRxFragment++;
 
-    if (cbFrameLength < MIN_PACKET_LEN + 4) {
+    if (cbFrameLength < ETH_ZLEN + 4) {
         pStatistic->dwRsrRunt++;
-    }
-    else if (cbFrameLength == MIN_PACKET_LEN + 4) {
+    } else if (cbFrameLength == ETH_ZLEN + 4) {
         pStatistic->dwRsrRxFrmLen64++;
     }
     else if ((65 <= cbFrameLength) && (cbFrameLength <= 127)) {
@@ -364,16 +363,13 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
     }
     else if ((512 <= cbFrameLength) && (cbFrameLength <= 1023)) {
         pStatistic->dwRsrRxFrmLen512_1023++;
-    }
-    else if ((1024 <= cbFrameLength) && (cbFrameLength <= MAX_PACKET_LEN + 4)) {
+    } else if ((1024 <= cbFrameLength) &&
+	       (cbFrameLength <= ETH_FRAME_LEN + 4)) {
         pStatistic->dwRsrRxFrmLen1024_1518++;
-    } else if (cbFrameLength > MAX_PACKET_LEN + 4) {
+    } else if (cbFrameLength > ETH_FRAME_LEN + 4) {
         pStatistic->dwRsrLong++;
     }
-
 }
-
-
 
 /*
  * Description: Update Rx Statistic Counter and copy Rx buffer
@@ -467,12 +463,10 @@ STAvUpdateTDStatCounter (
     }
     if ( !(byTSR & (TSR_TMO | TSR_RETRYTMO))) {
 
-#ifdef Calcu_LinkQual
    if (byRetyCnt < 2)
         pStatistic->TxNoRetryOkCount ++;
    else
         pStatistic->TxRetryOkCount ++;
-#endif
 
         pStatistic->ullTsrOK++;
         pStatistic->CustomStat.ullTsrAllOK++;
@@ -493,9 +487,7 @@ STAvUpdateTDStatCounter (
     }
     else {
 
-#ifdef Calcu_LinkQual
         pStatistic->TxFailCount ++;
-#endif
 
         pStatistic->dwTsrErr++;
         if (byTSR & TSR_RETRYTMO)
@@ -591,10 +583,7 @@ STAvClear802_11Counter(PSDot11Counters p802_11Counter)
  *
  */
 
-void
-STAvUpdateUSBCounter(PSUSBCounter pUsbCounter,
-                     NTSTATUS ntStatus
-                     )
+void STAvUpdateUSBCounter(PSUSBCounter pUsbCounter, int ntStatus)
 {
 
 //    if ( ntStatus == USBD_STATUS_CRC ) {
@@ -602,5 +591,3 @@ STAvUpdateUSBCounter(PSUSBCounter pUsbCounter,
 //    }
 
 }
-
-

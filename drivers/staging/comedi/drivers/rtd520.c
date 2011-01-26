@@ -59,7 +59,7 @@ Configuration options:
     Data sheet: http://www.rtdusa.com/pdf/dm7520.pdf
     Example source: http://www.rtdusa.com/examples/dm/dm7520.zip
     Call them and ask for the register level manual.
-    PCI chip: http://www.plxtech.com/products/toolbox/9080.htm
+    PCI chip: http://www.plxtech.com/products/io/pci9080 
 
     Notes:
     This board is memory mapped.  There is some IO stuff, but it isn't needed.
@@ -329,10 +329,9 @@ static const struct rtdBoard rtd520Boards[] = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
-	{
-	PCI_VENDOR_ID_RTD, 0x7520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_RTD, 0x4520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_RTD, 0x7520) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RTD, 0x4520) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, rtd520_pci_table);
@@ -754,7 +753,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	struct pci_dev *pcidev;
 	int ret;
-	resource_size_t physLas0;	/* configuation */
+	resource_size_t physLas0;	/* configuration */
 	resource_size_t physLas1;	/* data area */
 	resource_size_t physLcfg;	/* PLX9080 */
 #ifdef USE_DMA
@@ -2356,4 +2355,44 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_PCI_INITCLEANUP(rtd520Driver, rtd520_pci_table);
+static int __devinit rtd520Driver_pci_probe(struct pci_dev *dev,
+					    const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, rtd520Driver.driver_name);
+}
+
+static void __devexit rtd520Driver_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver rtd520Driver_pci_driver = {
+	.id_table = rtd520_pci_table,
+	.probe = &rtd520Driver_pci_probe,
+	.remove = __devexit_p(&rtd520Driver_pci_remove)
+};
+
+static int __init rtd520Driver_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&rtd520Driver);
+	if (retval < 0)
+		return retval;
+
+	rtd520Driver_pci_driver.name = (char *)rtd520Driver.driver_name;
+	return pci_register_driver(&rtd520Driver_pci_driver);
+}
+
+static void __exit rtd520Driver_cleanup_module(void)
+{
+	pci_unregister_driver(&rtd520Driver_pci_driver);
+	comedi_driver_unregister(&rtd520Driver);
+}
+
+module_init(rtd520Driver_init_module);
+module_exit(rtd520Driver_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

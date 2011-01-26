@@ -40,6 +40,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
+#include <linux/of_net.h>
 
 #include <linux/vmalloc.h>
 #include <asm/pgtable.h>
@@ -963,12 +964,11 @@ static const struct ethtool_ops fs_ethtool_ops = {
 static int fs_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	struct mii_ioctl_data *mii = (struct mii_ioctl_data *)&rq->ifr_data;
 
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	return phy_mii_ioctl(fep->phydev, mii, cmd);
+	return phy_mii_ioctl(fep->phydev, rq, cmd);
 }
 
 extern int fs_mii_connect(struct net_device *dev);
@@ -998,7 +998,7 @@ static const struct net_device_ops fs_enet_netdev_ops = {
 #endif
 };
 
-static int __devinit fs_enet_probe(struct of_device *ofdev,
+static int __devinit fs_enet_probe(struct platform_device *ofdev,
                                    const struct of_device_id *match)
 {
 	struct net_device *ndev;
@@ -1037,7 +1037,7 @@ static int __devinit fs_enet_probe(struct of_device *ofdev,
 	ndev = alloc_etherdev(privsize);
 	if (!ndev) {
 		ret = -ENOMEM;
-		goto out_free_fpi;
+		goto out_put;
 	}
 
 	SET_NETDEV_DEV(ndev, &ofdev->dev);
@@ -1100,13 +1100,14 @@ out_cleanup_data:
 out_free_dev:
 	free_netdev(ndev);
 	dev_set_drvdata(&ofdev->dev, NULL);
+out_put:
 	of_node_put(fpi->phy_node);
 out_free_fpi:
 	kfree(fpi);
 	return ret;
 }
 
-static int fs_enet_remove(struct of_device *ofdev)
+static int fs_enet_remove(struct platform_device *ofdev)
 {
 	struct net_device *ndev = dev_get_drvdata(&ofdev->dev);
 	struct fs_enet_private *fep = netdev_priv(ndev);

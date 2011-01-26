@@ -42,7 +42,8 @@ static ssize_t power_supply_show_property(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf) {
 	static char *type_text[] = {
-		"Battery", "UPS", "Mains", "USB"
+		"Battery", "UPS", "Mains", "USB",
+		"USB_DCP", "USB_CDP", "USB_ACA"
 	};
 	static char *status_text[] = {
 		"Unknown", "Charging", "Discharging", "Not charging", "Full"
@@ -138,6 +139,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(voltage_min_design),
 	POWER_SUPPLY_ATTR(voltage_now),
 	POWER_SUPPLY_ATTR(voltage_avg),
+	POWER_SUPPLY_ATTR(current_max),
 	POWER_SUPPLY_ATTR(current_now),
 	POWER_SUPPLY_ATTR(current_avg),
 	POWER_SUPPLY_ATTR(power_now),
@@ -179,14 +181,16 @@ static mode_t power_supply_attr_is_visible(struct kobject *kobj,
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct power_supply *psy = dev_get_drvdata(dev);
+	mode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
 	int i;
+
+	if (attrno == POWER_SUPPLY_PROP_TYPE)
+		return mode;
 
 	for (i = 0; i < psy->num_properties; i++) {
 		int property = psy->properties[i];
 
 		if (property == attrno) {
-			mode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
-
 			if (psy->property_is_writeable &&
 			    psy->property_is_writeable(psy, property) > 0)
 				mode |= S_IWUSR;

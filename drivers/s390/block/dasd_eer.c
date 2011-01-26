@@ -17,7 +17,6 @@
 #include <linux/device.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 
@@ -474,6 +473,7 @@ int dasd_eer_enable(struct dasd_device *device)
 	cqr->retries = 255;
 	cqr->expires = 10 * HZ;
 	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
+	set_bit(DASD_CQR_ALLOW_SLOCK, &cqr->flags);
 
 	ccw = cqr->cpaddr;
 	ccw->cmd_code = DASD_ECKD_CCW_SNSS;
@@ -670,6 +670,7 @@ static const struct file_operations dasd_eer_fops = {
 	.read		= &dasd_eer_read,
 	.poll		= &dasd_eer_poll,
 	.owner		= THIS_MODULE,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice *dasd_eer_dev = NULL;
@@ -701,7 +702,7 @@ int __init dasd_eer_init(void)
 void dasd_eer_exit(void)
 {
 	if (dasd_eer_dev) {
-		WARN_ON(misc_deregister(dasd_eer_dev) != 0);
+		misc_deregister(dasd_eer_dev);
 		kfree(dasd_eer_dev);
 		dasd_eer_dev = NULL;
 	}

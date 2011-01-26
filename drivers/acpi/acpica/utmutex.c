@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,6 +85,13 @@ acpi_status acpi_ut_mutex_initialize(void)
 
 	spin_lock_init(acpi_gbl_gpe_lock);
 	spin_lock_init(acpi_gbl_hardware_lock);
+	spin_lock_init(acpi_ev_global_lock_pending_lock);
+
+	/* Mutex for _OSI support */
+	status = acpi_os_create_mutex(&acpi_gbl_osi_mutex);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	/* Create the reader/writer lock for namespace access */
 
@@ -116,6 +123,8 @@ void acpi_ut_mutex_terminate(void)
 	for (i = 0; i < ACPI_NUM_MUTEX; i++) {
 		acpi_ut_delete_mutex(i);
 	}
+
+	acpi_os_delete_mutex(acpi_gbl_osi_mutex);
 
 	/* Delete the spinlocks */
 
@@ -220,18 +229,17 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 			if (acpi_gbl_mutex_info[i].thread_id == this_thread_id) {
 				if (i == mutex_id) {
 					ACPI_ERROR((AE_INFO,
-						    "Mutex [%s] already acquired by this thread [%p]",
+						    "Mutex [%s] already acquired by this thread [%u]",
 						    acpi_ut_get_mutex_name
 						    (mutex_id),
-						    ACPI_CAST_PTR(void,
-								  this_thread_id)));
+						    (u32)this_thread_id));
 
 					return (AE_ALREADY_ACQUIRED);
 				}
 
 				ACPI_ERROR((AE_INFO,
-					    "Invalid acquire order: Thread %p owns [%s], wants [%s]",
-					    ACPI_CAST_PTR(void, this_thread_id),
+					    "Invalid acquire order: Thread %u owns [%s], wants [%s]",
+					    (u32)this_thread_id,
 					    acpi_ut_get_mutex_name(i),
 					    acpi_ut_get_mutex_name(mutex_id)));
 
@@ -242,24 +250,24 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 #endif
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
-			  "Thread %p attempting to acquire Mutex [%s]\n",
-			  ACPI_CAST_PTR(void, this_thread_id),
+			  "Thread %u attempting to acquire Mutex [%s]\n",
+			  (u32)this_thread_id,
 			  acpi_ut_get_mutex_name(mutex_id)));
 
 	status = acpi_os_acquire_mutex(acpi_gbl_mutex_info[mutex_id].mutex,
 				       ACPI_WAIT_FOREVER);
 	if (ACPI_SUCCESS(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
-				  "Thread %p acquired Mutex [%s]\n",
-				  ACPI_CAST_PTR(void, this_thread_id),
+				  "Thread %u acquired Mutex [%s]\n",
+				  (u32)this_thread_id,
 				  acpi_ut_get_mutex_name(mutex_id)));
 
 		acpi_gbl_mutex_info[mutex_id].use_count++;
 		acpi_gbl_mutex_info[mutex_id].thread_id = this_thread_id;
 	} else {
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Thread %p could not acquire Mutex [0x%X]",
-				ACPI_CAST_PTR(void, this_thread_id), mutex_id));
+				"Thread %u could not acquire Mutex [0x%X]",
+				(u32)this_thread_id, mutex_id));
 	}
 
 	return (status);
@@ -284,8 +292,9 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 	ACPI_FUNCTION_NAME(ut_release_mutex);
 
 	this_thread_id = acpi_os_get_thread_id();
-	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Thread %p releasing Mutex [%s]\n",
-			  ACPI_CAST_PTR(void, this_thread_id),
+
+	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Thread %u releasing Mutex [%s]\n",
+			  (u32)this_thread_id,
 			  acpi_ut_get_mutex_name(mutex_id)));
 
 	if (mutex_id > ACPI_MAX_MUTEX) {

@@ -45,6 +45,7 @@
 #define CAPI_FACILITY_LI	0x0005
 
 #define CAPI_SUPPSVC_GETSUPPORTED	0x0000
+#define CAPI_SUPPSVC_LISTEN		0x0001
 
 /* missing from capiutil.h */
 #define CAPIMSG_PLCI_PART(m)	CAPIMSG_U8(m, 9)
@@ -70,7 +71,7 @@
 #define MAX_NUMBER_DIGITS 20
 #define MAX_FMT_IE_LEN 20
 
-/* values for gigaset_capi_appl.connected */
+/* values for bcs->apconnstate */
 #define APCONN_NONE	0	/* inactive/listening */
 #define APCONN_SETUP	1	/* connecting */
 #define APCONN_ACTIVE	2	/* B channel up */
@@ -80,10 +81,10 @@ struct gigaset_capi_appl {
 	struct list_head ctrlist;
 	struct gigaset_capi_appl *bcnext;
 	u16 id;
+	struct capi_register_params rp;
 	u16 nextMessageNumber;
 	u32 listenInfoMask;
 	u32 listenCIPmask;
-	int connected;
 };
 
 /* CAPI specific controller data structure */
@@ -170,17 +171,6 @@ static inline void ignore_cstruct_param(struct cardstate *cs, _cstruct param,
 }
 
 /*
- * convert hex to binary
- */
-static inline u8 hex2bin(char c)
-{
-	int result = c & 0x0f;
-	if (c & 0x40)
-		result += 9;
-	return result;
-}
-
-/*
  * convert an IE from Gigaset hex string to ETSI binary representation
  * including length byte
  * return value: result length, -1 on error
@@ -191,7 +181,7 @@ static int encode_ie(char *in, u8 *out, int maxlen)
 	while (*in) {
 		if (!isxdigit(in[0]) || !isxdigit(in[1]) || l >= maxlen)
 			return -1;
-		out[++l] = (hex2bin(in[0]) << 4) + hex2bin(in[1]);
+		out[++l] = (hex_to_bin(in[0]) << 4) + hex_to_bin(in[1]);
 		in += 2;
 	}
 	out[0] = l;
@@ -281,9 +271,13 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
 	kfree(dbgline);
 	if (CAPIMSG_COMMAND(data) == CAPI_DATA_B3 &&
 	    (CAPIMSG_SUBCOMMAND(data) == CAPI_REQ ||
-	     CAPIMSG_SUBCOMMAND(data) == CAPI_IND) &&
-	    CAPIMSG_DATALEN(data) > 0) {
+	     CAPIMSG_SUBCOMMAND(data) == CAPI_IND)) {
 		l = CAPIMSG_DATALEN(data);
+		gig_dbg(level, "   DataLength=%d", l);
+		if (l <= 0 || !(gigaset_debuglevel & DEBUG_LLDATA))
+			return;
+		if (l > 64)
+			l = 64; /* arbitrary limit */
 		dbgline = kmalloc(3*l, GFP_ATOMIC);
 		if (!dbgline)
 			return;
@@ -330,6 +324,39 @@ static const char *format_ie(const char *ie)
 	return result;
 }
 
+/*
+ * emit DATA_B3_CONF message
+ */
+static void send_data_b3_conf(struct cardstate *cs, struct capi_ctr *ctr,
+			      u16 appl, u16 msgid, int channel,
+			      u16 handle, u16 info)
+{
+	struct sk_buff *cskb;
+	u8 *msg;
+
+	cskb = alloc_skb(CAPI_DATA_B3_CONF_LEN, GFP_ATOMIC);
+	if (!cskb) {
+		dev_err(cs->dev, "%s: out of memory\n", __func__);
+		return;
+	}
+	/* frequent message, avoid _cmsg overhead */
+	msg = __skb_put(cskb, CAPI_DATA_B3_CONF_LEN);
+	CAPIMSG_SETLEN(msg, CAPI_DATA_B3_CONF_LEN);
+	CAPIMSG_SETAPPID(msg, appl);
+	CAPIMSG_SETCOMMAND(msg, CAPI_DATA_B3);
+	CAPIMSG_SETSUBCOMMAND(msg,  CAPI_CONF);
+	CAPIMSG_SETMSGID(msg, msgid);
+	CAPIMSG_SETCONTROLLER(msg, ctr->cnr);
+	CAPIMSG_SETPLCI_PART(msg, channel);
+	CAPIMSG_SETNCCI_PART(msg, 1);
+	CAPIMSG_SETHANDLE_CONF(msg, handle);
+	CAPIMSG_SETINFO_CONF(msg, info);
+
+	/* emit message */
+	dump_rawmsg(DEBUG_MCMD, __func__, msg);
+	capi_ctr_handle_message(ctr, appl, cskb);
+}
+
 
 /*
  * driver interface functions
@@ -350,51 +377,33 @@ void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *dskb)
 	struct gigaset_capi_ctr *iif = cs->iif;
 	struct gigaset_capi_appl *ap = bcs->ap;
 	unsigned char *req = skb_mac_header(dskb);
-	struct sk_buff *cskb;
 	u16 flags;
 
 	/* update statistics */
 	++bcs->trans_up;
 
 	if (!ap) {
-		dev_err(cs->dev, "%s: no application\n", __func__);
+		gig_dbg(DEBUG_MCMD, "%s: application gone", __func__);
 		return;
 	}
 
 	/* don't send further B3 messages if disconnected */
-	if (ap->connected < APCONN_ACTIVE) {
-		gig_dbg(DEBUG_LLDATA, "disconnected, discarding ack");
+	if (bcs->apconnstate < APCONN_ACTIVE) {
+		gig_dbg(DEBUG_MCMD, "%s: disconnected", __func__);
 		return;
 	}
 
-	/* ToDo: honor unset "delivery confirmation" bit */
+	/*
+	 * send DATA_B3_CONF if "delivery confirmation" bit was set in request;
+	 * otherwise it has already been sent by do_data_b3_req()
+	 */
 	flags = CAPIMSG_FLAGS(req);
-
-	/* build DATA_B3_CONF message */
-	cskb = alloc_skb(CAPI_DATA_B3_CONF_LEN, GFP_ATOMIC);
-	if (!cskb) {
-		dev_err(cs->dev, "%s: out of memory\n", __func__);
-		return;
-	}
-	/* frequent message, avoid _cmsg overhead */
-	CAPIMSG_SETLEN(cskb->data, CAPI_DATA_B3_CONF_LEN);
-	CAPIMSG_SETAPPID(cskb->data, ap->id);
-	CAPIMSG_SETCOMMAND(cskb->data, CAPI_DATA_B3);
-	CAPIMSG_SETSUBCOMMAND(cskb->data,  CAPI_CONF);
-	CAPIMSG_SETMSGID(cskb->data, CAPIMSG_MSGID(req));
-	CAPIMSG_SETCONTROLLER(cskb->data, iif->ctr.cnr);
-	CAPIMSG_SETPLCI_PART(cskb->data, bcs->channel + 1);
-	CAPIMSG_SETNCCI_PART(cskb->data, 1);
-	CAPIMSG_SETHANDLE_CONF(cskb->data, CAPIMSG_HANDLE_REQ(req));
-	if (flags & ~CAPI_FLAGS_DELIVERY_CONFIRMATION)
-		CAPIMSG_SETINFO_CONF(cskb->data,
-				     CapiFlagsNotSupportedByProtocol);
-	else
-		CAPIMSG_SETINFO_CONF(cskb->data, CAPI_NOERROR);
-
-	/* emit message */
-	dump_rawmsg(DEBUG_LLDATA, "DATA_B3_CONF", cskb->data);
-	capi_ctr_handle_message(&iif->ctr, ap->id, cskb);
+	if (flags & CAPI_FLAGS_DELIVERY_CONFIRMATION)
+		send_data_b3_conf(cs, &iif->ctr, ap->id, CAPIMSG_MSGID(req),
+				  bcs->channel + 1, CAPIMSG_HANDLE_REQ(req),
+				  (flags & ~CAPI_FLAGS_DELIVERY_CONFIRMATION) ?
+					CapiFlagsNotSupportedByProtocol :
+					CAPI_NOERROR);
 }
 EXPORT_SYMBOL_GPL(gigaset_skb_sent);
 
@@ -418,13 +427,14 @@ void gigaset_skb_rcvd(struct bc_state *bcs, struct sk_buff *skb)
 	bcs->trans_down++;
 
 	if (!ap) {
-		dev_err(cs->dev, "%s: no application\n", __func__);
+		gig_dbg(DEBUG_MCMD, "%s: application gone", __func__);
+		dev_kfree_skb_any(skb);
 		return;
 	}
 
 	/* don't send further B3 messages if disconnected */
-	if (ap->connected < APCONN_ACTIVE) {
-		gig_dbg(DEBUG_LLDATA, "disconnected, discarding data");
+	if (bcs->apconnstate < APCONN_ACTIVE) {
+		gig_dbg(DEBUG_MCMD, "%s: disconnected", __func__);
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -450,7 +460,7 @@ void gigaset_skb_rcvd(struct bc_state *bcs, struct sk_buff *skb)
 	/* Data64 parameter not present */
 
 	/* emit message */
-	dump_rawmsg(DEBUG_LLDATA, "DATA_B3_IND", skb->data);
+	dump_rawmsg(DEBUG_MCMD, __func__, skb->data);
 	capi_ctr_handle_message(&iif->ctr, ap->id, skb);
 }
 EXPORT_SYMBOL_GPL(gigaset_skb_rcvd);
@@ -495,6 +505,7 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 	u32 actCIPmask;
 	struct sk_buff *skb;
 	unsigned int msgsize;
+	unsigned long flags;
 	int i;
 
 	/*
@@ -619,7 +630,14 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 		format_ie(iif->hcmsg.CalledPartyNumber));
 
 	/* scan application list for matching listeners */
-	bcs->ap = NULL;
+	spin_lock_irqsave(&bcs->aplock, flags);
+	if (bcs->ap != NULL || bcs->apconnstate != APCONN_NONE) {
+		dev_warn(cs->dev, "%s: channel not properly cleared (%p/%d)\n",
+			 __func__, bcs->ap, bcs->apconnstate);
+		bcs->ap = NULL;
+		bcs->apconnstate = APCONN_NONE;
+	}
+	spin_unlock_irqrestore(&bcs->aplock, flags);
 	actCIPmask = 1 | (1 << iif->hcmsg.CIPValue);
 	list_for_each_entry(ap, &iif->appls, ctrlist)
 		if (actCIPmask & ap->listenCIPmask) {
@@ -637,10 +655,12 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 			dump_cmsg(DEBUG_CMD, __func__, &iif->hcmsg);
 
 			/* add to listeners on this B channel, update state */
+			spin_lock_irqsave(&bcs->aplock, flags);
 			ap->bcnext = bcs->ap;
 			bcs->ap = ap;
 			bcs->chstate |= CHS_NOTIFY_LL;
-			ap->connected = APCONN_SETUP;
+			bcs->apconnstate = APCONN_SETUP;
+			spin_unlock_irqrestore(&bcs->aplock, flags);
 
 			/* emit message */
 			capi_ctr_handle_message(&iif->ctr, ap->id, skb);
@@ -665,7 +685,7 @@ static void send_disconnect_ind(struct bc_state *bcs,
 	struct gigaset_capi_ctr *iif = cs->iif;
 	struct sk_buff *skb;
 
-	if (ap->connected == APCONN_NONE)
+	if (bcs->apconnstate == APCONN_NONE)
 		return;
 
 	capi_cmsg_header(&iif->hcmsg, ap->id, CAPI_DISCONNECT, CAPI_IND,
@@ -679,7 +699,6 @@ static void send_disconnect_ind(struct bc_state *bcs,
 	}
 	capi_cmsg2message(&iif->hcmsg, __skb_put(skb, CAPI_DISCONNECT_IND_LEN));
 	dump_cmsg(DEBUG_CMD, __func__, &iif->hcmsg);
-	ap->connected = APCONN_NONE;
 	capi_ctr_handle_message(&iif->ctr, ap->id, skb);
 }
 
@@ -696,9 +715,9 @@ static void send_disconnect_b3_ind(struct bc_state *bcs,
 	struct sk_buff *skb;
 
 	/* nothing to do if no logical connection active */
-	if (ap->connected < APCONN_ACTIVE)
+	if (bcs->apconnstate < APCONN_ACTIVE)
 		return;
-	ap->connected = APCONN_SETUP;
+	bcs->apconnstate = APCONN_SETUP;
 
 	capi_cmsg_header(&iif->hcmsg, ap->id, CAPI_DISCONNECT_B3, CAPI_IND,
 			 ap->nextMessageNumber++,
@@ -725,14 +744,25 @@ void gigaset_isdn_connD(struct bc_state *bcs)
 {
 	struct cardstate *cs = bcs->cs;
 	struct gigaset_capi_ctr *iif = cs->iif;
-	struct gigaset_capi_appl *ap = bcs->ap;
+	struct gigaset_capi_appl *ap;
 	struct sk_buff *skb;
 	unsigned int msgsize;
+	unsigned long flags;
 
+	spin_lock_irqsave(&bcs->aplock, flags);
+	ap = bcs->ap;
 	if (!ap) {
-		dev_err(cs->dev, "%s: no application\n", __func__);
+		spin_unlock_irqrestore(&bcs->aplock, flags);
+		gig_dbg(DEBUG_CMD, "%s: application gone", __func__);
 		return;
 	}
+	if (bcs->apconnstate == APCONN_NONE) {
+		spin_unlock_irqrestore(&bcs->aplock, flags);
+		dev_warn(cs->dev, "%s: application %u not connected\n",
+			 __func__, ap->id);
+		return;
+	}
+	spin_unlock_irqrestore(&bcs->aplock, flags);
 	while (ap->bcnext) {
 		/* this should never happen */
 		dev_warn(cs->dev, "%s: dropping extra application %u\n",
@@ -740,11 +770,6 @@ void gigaset_isdn_connD(struct bc_state *bcs)
 		send_disconnect_ind(bcs, ap->bcnext,
 				    CapiCallGivenToOtherApplication);
 		ap->bcnext = ap->bcnext->bcnext;
-	}
-	if (ap->connected == APCONN_NONE) {
-		dev_warn(cs->dev, "%s: application %u not connected\n",
-			 __func__, ap->id);
-		return;
 	}
 
 	/* prepare CONNECT_ACTIVE_IND message
@@ -783,17 +808,24 @@ void gigaset_isdn_connD(struct bc_state *bcs)
 void gigaset_isdn_hupD(struct bc_state *bcs)
 {
 	struct gigaset_capi_appl *ap;
+	unsigned long flags;
 
 	/*
 	 * ToDo: pass on reason code reported by device
 	 * (requires ev-layer state machine extension to collect
 	 * ZCAU device reply)
 	 */
-	for (ap = bcs->ap; ap != NULL; ap = ap->bcnext) {
+	spin_lock_irqsave(&bcs->aplock, flags);
+	while (bcs->ap != NULL) {
+		ap = bcs->ap;
+		bcs->ap = ap->bcnext;
+		spin_unlock_irqrestore(&bcs->aplock, flags);
 		send_disconnect_b3_ind(bcs, ap);
 		send_disconnect_ind(bcs, ap, 0);
+		spin_lock_irqsave(&bcs->aplock, flags);
 	}
-	bcs->ap = NULL;
+	bcs->apconnstate = APCONN_NONE;
+	spin_unlock_irqrestore(&bcs->aplock, flags);
 }
 
 /**
@@ -807,24 +839,21 @@ void gigaset_isdn_connB(struct bc_state *bcs)
 {
 	struct cardstate *cs = bcs->cs;
 	struct gigaset_capi_ctr *iif = cs->iif;
-	struct gigaset_capi_appl *ap = bcs->ap;
+	struct gigaset_capi_appl *ap;
 	struct sk_buff *skb;
+	unsigned long flags;
 	unsigned int msgsize;
 	u8 command;
 
+	spin_lock_irqsave(&bcs->aplock, flags);
+	ap = bcs->ap;
 	if (!ap) {
-		dev_err(cs->dev, "%s: no application\n", __func__);
+		spin_unlock_irqrestore(&bcs->aplock, flags);
+		gig_dbg(DEBUG_CMD, "%s: application gone", __func__);
 		return;
 	}
-	while (ap->bcnext) {
-		/* this should never happen */
-		dev_warn(cs->dev, "%s: dropping extra application %u\n",
-			 __func__, ap->bcnext->id);
-		send_disconnect_ind(bcs, ap->bcnext,
-				    CapiCallGivenToOtherApplication);
-		ap->bcnext = ap->bcnext->bcnext;
-	}
-	if (!ap->connected) {
+	if (!bcs->apconnstate) {
+		spin_unlock_irqrestore(&bcs->aplock, flags);
 		dev_warn(cs->dev, "%s: application %u not connected\n",
 			 __func__, ap->id);
 		return;
@@ -836,13 +865,26 @@ void gigaset_isdn_connB(struct bc_state *bcs)
 	 * CONNECT_B3_ACTIVE_IND in reply to CONNECT_B3_RESP
 	 * Parameters in both cases always: NCCI = 1, NCPI empty
 	 */
-	if (ap->connected >= APCONN_ACTIVE) {
+	if (bcs->apconnstate >= APCONN_ACTIVE) {
 		command = CAPI_CONNECT_B3_ACTIVE;
 		msgsize = CAPI_CONNECT_B3_ACTIVE_IND_BASELEN;
 	} else {
 		command = CAPI_CONNECT_B3;
 		msgsize = CAPI_CONNECT_B3_IND_BASELEN;
 	}
+	bcs->apconnstate = APCONN_ACTIVE;
+
+	spin_unlock_irqrestore(&bcs->aplock, flags);
+
+	while (ap->bcnext) {
+		/* this should never happen */
+		dev_warn(cs->dev, "%s: dropping extra application %u\n",
+			 __func__, ap->bcnext->id);
+		send_disconnect_ind(bcs, ap->bcnext,
+				    CapiCallGivenToOtherApplication);
+		ap->bcnext = ap->bcnext->bcnext;
+	}
+
 	capi_cmsg_header(&iif->hcmsg, ap->id, command, CAPI_IND,
 			 ap->nextMessageNumber++,
 			 iif->ctr.cnr | ((bcs->channel + 1) << 8) | (1 << 16));
@@ -853,7 +895,6 @@ void gigaset_isdn_connB(struct bc_state *bcs)
 	}
 	capi_cmsg2message(&iif->hcmsg, __skb_put(skb, msgsize));
 	dump_cmsg(DEBUG_CMD, __func__, &iif->hcmsg);
-	ap->connected = APCONN_ACTIVE;
 	capi_ctr_handle_message(&iif->ctr, ap->id, skb);
 }
 
@@ -866,13 +907,12 @@ void gigaset_isdn_connB(struct bc_state *bcs)
  */
 void gigaset_isdn_hupB(struct bc_state *bcs)
 {
-	struct cardstate *cs = bcs->cs;
 	struct gigaset_capi_appl *ap = bcs->ap;
 
 	/* ToDo: assure order of DISCONNECT_B3_IND and DISCONNECT_IND ? */
 
 	if (!ap) {
-		dev_err(cs->dev, "%s: no application\n", __func__);
+		gig_dbg(DEBUG_CMD, "%s: application gone", __func__);
 		return;
 	}
 
@@ -933,30 +973,6 @@ void gigaset_isdn_stop(struct cardstate *cs)
  */
 
 /*
- * load firmware
- */
-static int gigaset_load_firmware(struct capi_ctr *ctr, capiloaddata *data)
-{
-	struct cardstate *cs = ctr->driverdata;
-
-	/* AVM specific operation, not needed for Gigaset -- ignore */
-	dev_notice(cs->dev, "load_firmware ignored\n");
-
-	return 0;
-}
-
-/*
- * reset (deactivate) controller
- */
-static void gigaset_reset_ctr(struct capi_ctr *ctr)
-{
-	struct cardstate *cs = ctr->driverdata;
-
-	/* AVM specific operation, not needed for Gigaset -- ignore */
-	dev_notice(cs->dev, "reset_ctr ignored\n");
-}
-
-/*
  * register CAPI application
  */
 static void gigaset_register_appl(struct capi_ctr *ctr, u16 appl,
@@ -966,6 +982,9 @@ static void gigaset_register_appl(struct capi_ctr *ctr, u16 appl,
 		= container_of(ctr, struct gigaset_capi_ctr, ctr);
 	struct cardstate *cs = ctr->driverdata;
 	struct gigaset_capi_appl *ap;
+
+	gig_dbg(DEBUG_CMD, "%s [%u] l3cnt=%u blkcnt=%u blklen=%u",
+		__func__, appl, rp->level3cnt, rp->datablkcnt, rp->datablklen);
 
 	list_for_each_entry(ap, &iif->appls, ctrlist)
 		if (ap->id == appl) {
@@ -980,8 +999,65 @@ static void gigaset_register_appl(struct capi_ctr *ctr, u16 appl,
 		return;
 	}
 	ap->id = appl;
+	ap->rp = *rp;
 
 	list_add(&ap->ctrlist, &iif->appls);
+	dev_info(cs->dev, "application %u registered\n", ap->id);
+}
+
+/*
+ * remove CAPI application from channel
+ * helper function to keep indentation levels down and stay in 80 columns
+ */
+
+static inline void remove_appl_from_channel(struct bc_state *bcs,
+					    struct gigaset_capi_appl *ap)
+{
+	struct cardstate *cs = bcs->cs;
+	struct gigaset_capi_appl *bcap;
+	unsigned long flags;
+	int prevconnstate;
+
+	spin_lock_irqsave(&bcs->aplock, flags);
+	bcap = bcs->ap;
+	if (bcap == NULL) {
+		spin_unlock_irqrestore(&bcs->aplock, flags);
+		return;
+	}
+
+	/* check first application on channel */
+	if (bcap == ap) {
+		bcs->ap = ap->bcnext;
+		if (bcs->ap != NULL) {
+			spin_unlock_irqrestore(&bcs->aplock, flags);
+			return;
+		}
+
+		/* none left, clear channel state */
+		prevconnstate = bcs->apconnstate;
+		bcs->apconnstate = APCONN_NONE;
+		spin_unlock_irqrestore(&bcs->aplock, flags);
+
+		if (prevconnstate == APCONN_ACTIVE) {
+			dev_notice(cs->dev, "%s: hanging up channel %u\n",
+				   __func__, bcs->channel);
+			gigaset_add_event(cs, &bcs->at_state,
+					  EV_HUP, NULL, 0, NULL);
+			gigaset_schedule_event(cs);
+		}
+		return;
+	}
+
+	/* check remaining list */
+	do {
+		if (bcap->bcnext == ap) {
+			bcap->bcnext = bcap->bcnext->bcnext;
+			spin_unlock_irqrestore(&bcs->aplock, flags);
+			return;
+		}
+		bcap = bcap->bcnext;
+	} while (bcap != NULL);
+	spin_unlock_irqrestore(&bcs->aplock, flags);
 }
 
 /*
@@ -993,19 +1069,21 @@ static void gigaset_release_appl(struct capi_ctr *ctr, u16 appl)
 		= container_of(ctr, struct gigaset_capi_ctr, ctr);
 	struct cardstate *cs = iif->ctr.driverdata;
 	struct gigaset_capi_appl *ap, *tmp;
+	unsigned ch;
+
+	gig_dbg(DEBUG_CMD, "%s [%u]", __func__, appl);
 
 	list_for_each_entry_safe(ap, tmp, &iif->appls, ctrlist)
 		if (ap->id == appl) {
-			if (ap->connected != APCONN_NONE) {
-				dev_err(cs->dev,
-					"%s: application %u still connected\n",
-					__func__, ap->id);
-				/* ToDo: clear active connection */
-			}
+			/* remove from any channels */
+			for (ch = 0; ch < cs->channels; ch++)
+				remove_appl_from_channel(&cs->bcs[ch], ap);
+
+			/* remove from registration list */
 			list_del(&ap->ctrlist);
 			kfree(ap);
+			dev_info(cs->dev, "application %u released\n", appl);
 		}
-
 }
 
 /*
@@ -1075,7 +1153,7 @@ static void do_facility_req(struct gigaset_capi_ctr *iif,
 	case CAPI_FACILITY_SUPPSVC:
 		/* decode Function parameter */
 		pparam = cmsg->FacilityRequestParameter;
-		if (pparam == NULL || *pparam < 2) {
+		if (pparam == NULL || pparam[0] < 2) {
 			dev_notice(cs->dev, "%s: %s missing\n", "FACILITY_REQ",
 				   "Facility Request Parameter");
 			send_conf(iif, ap, skb, CapiIllMessageParmCoding);
@@ -1092,8 +1170,32 @@ static void do_facility_req(struct gigaset_capi_ctr *iif,
 			/* Supported Services: none */
 			capimsg_setu32(confparam, 6, 0);
 			break;
+		case CAPI_SUPPSVC_LISTEN:
+			if (pparam[0] < 7 || pparam[3] < 4) {
+				dev_notice(cs->dev, "%s: %s missing\n",
+					   "FACILITY_REQ", "Notification Mask");
+				send_conf(iif, ap, skb,
+					  CapiIllMessageParmCoding);
+				return;
+			}
+			if (CAPIMSG_U32(pparam, 4) != 0) {
+				dev_notice(cs->dev,
+	"%s: unsupported supplementary service notification mask 0x%x\n",
+				   "FACILITY_REQ", CAPIMSG_U32(pparam, 4));
+				info = CapiFacilitySpecificFunctionNotSupported;
+				confparam[3] = 2;	/* length */
+				capimsg_setu16(confparam, 4,
+					CapiSupplementaryServiceNotSupported);
+			}
+			info = CapiSuccess;
+			confparam[3] = 2;	/* length */
+			capimsg_setu16(confparam, 4, CapiSuccess);
+			break;
 		/* ToDo: add supported services */
 		default:
+			dev_notice(cs->dev,
+		"%s: unsupported supplementary service function 0x%04x\n",
+				   "FACILITY_REQ", function);
 			info = CapiFacilitySpecificFunctionNotSupported;
 			/* Supplementary Service specific parameter */
 			confparam[3] = 2;	/* length */
@@ -1184,7 +1286,8 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	char **commands;
 	char *s;
 	u8 *pp;
-	int i, l;
+	unsigned long flags;
+	int i, l, lbc, lhlc;
 	u16 info;
 
 	/* decode message */
@@ -1199,8 +1302,18 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 		send_conf(iif, ap, skb, CapiNoPlciAvailable);
 		return;
 	}
+	spin_lock_irqsave(&bcs->aplock, flags);
+	if (bcs->ap != NULL || bcs->apconnstate != APCONN_NONE)
+		dev_warn(cs->dev, "%s: channel not properly cleared (%p/%d)\n",
+			 __func__, bcs->ap, bcs->apconnstate);
 	ap->bcnext = NULL;
 	bcs->ap = ap;
+	bcs->apconnstate = APCONN_SETUP;
+	spin_unlock_irqrestore(&bcs->aplock, flags);
+
+	bcs->rx_bufsize = ap->rp.datablklen;
+	dev_kfree_skb(bcs->rx_skb);
+	gigaset_new_rx_skb(bcs);
 	cmsg->adr.adrPLCI |= (bcs->channel + 1) << 8;
 
 	/* build command table */
@@ -1308,42 +1421,59 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 		goto error;
 	}
 
-	/* check/encode parameter: BC */
-	if (cmsg->BC && cmsg->BC[0]) {
-		/* explicit BC overrides CIP */
-		l = 2*cmsg->BC[0] + 7;
+	/*
+	 * check/encode parameters: BC & HLC
+	 * must be encoded together as device doesn't accept HLC separately
+	 * explicit parameters override values derived from CIP
+	 */
+
+	/* determine lengths */
+	if (cmsg->BC && cmsg->BC[0])		/* BC specified explicitly */
+		lbc = 2*cmsg->BC[0];
+	else if (cip2bchlc[cmsg->CIPValue].bc)	/* BC derived from CIP */
+		lbc = strlen(cip2bchlc[cmsg->CIPValue].bc);
+	else					/* no BC */
+		lbc = 0;
+	if (cmsg->HLC && cmsg->HLC[0])		/* HLC specified explicitly */
+		lhlc = 2*cmsg->HLC[0];
+	else if (cip2bchlc[cmsg->CIPValue].hlc)	/* HLC derived from CIP */
+		lhlc = strlen(cip2bchlc[cmsg->CIPValue].hlc);
+	else					/* no HLC */
+		lhlc = 0;
+
+	if (lbc) {
+		/* have BC: allocate and assemble command string */
+		l = lbc + 7;		/* "^SBC=" + value + "\r" + null byte */
+		if (lhlc)
+			l += lhlc + 7;	/* ";^SHLC=" + value */
 		commands[AT_BC] = kmalloc(l, GFP_KERNEL);
 		if (!commands[AT_BC])
 			goto oom;
 		strcpy(commands[AT_BC], "^SBC=");
-		decode_ie(cmsg->BC, commands[AT_BC]+5);
+		if (cmsg->BC && cmsg->BC[0])	/* BC specified explicitly */
+			decode_ie(cmsg->BC, commands[AT_BC] + 5);
+		else				/* BC derived from CIP */
+			strcpy(commands[AT_BC] + 5,
+			       cip2bchlc[cmsg->CIPValue].bc);
+		if (lhlc) {
+			strcpy(commands[AT_BC] + lbc + 5, ";^SHLC=");
+			if (cmsg->HLC && cmsg->HLC[0])
+				/* HLC specified explicitly */
+				decode_ie(cmsg->HLC,
+					  commands[AT_BC] + lbc + 12);
+			else	/* HLC derived from CIP */
+				strcpy(commands[AT_BC] + lbc + 12,
+				       cip2bchlc[cmsg->CIPValue].hlc);
+		}
 		strcpy(commands[AT_BC] + l - 2, "\r");
-	} else if (cip2bchlc[cmsg->CIPValue].bc) {
-		l = strlen(cip2bchlc[cmsg->CIPValue].bc) + 7;
-		commands[AT_BC] = kmalloc(l, GFP_KERNEL);
-		if (!commands[AT_BC])
-			goto oom;
-		snprintf(commands[AT_BC], l, "^SBC=%s\r",
-			 cip2bchlc[cmsg->CIPValue].bc);
-	}
-
-	/* check/encode parameter: HLC */
-	if (cmsg->HLC && cmsg->HLC[0]) {
-		/* explicit HLC overrides CIP */
-		l = 2*cmsg->HLC[0] + 7;
-		commands[AT_HLC] = kmalloc(l, GFP_KERNEL);
-		if (!commands[AT_HLC])
-			goto oom;
-		strcpy(commands[AT_HLC], "^SHLC=");
-		decode_ie(cmsg->HLC, commands[AT_HLC]+5);
-		strcpy(commands[AT_HLC] + l - 2, "\r");
-	} else if (cip2bchlc[cmsg->CIPValue].hlc) {
-		l = strlen(cip2bchlc[cmsg->CIPValue].hlc) + 7;
-		commands[AT_HLC] = kmalloc(l, GFP_KERNEL);
-		if (!commands[AT_HLC])
-			goto oom;
-		snprintf(commands[AT_HLC], l, "^SHLC=%s\r",
-			 cip2bchlc[cmsg->CIPValue].hlc);
+	} else {
+		/* no BC */
+		if (lhlc) {
+			dev_notice(cs->dev, "%s: cannot set HLC without BC\n",
+				   "CONNECT_REQ");
+			info = CapiIllMessageParmCoding; /* ? */
+			goto error;
+		}
 	}
 
 	/* check/encode parameter: B Protocol */
@@ -1357,13 +1487,13 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 			bcs->proto2 = L2_HDLC;
 			break;
 		case 1:
-			bcs->proto2 = L2_BITSYNC;
+			bcs->proto2 = L2_VOICE;
 			break;
 		default:
 			dev_warn(cs->dev,
 			    "B1 Protocol %u unsupported, using Transparent\n",
 				 cmsg->B1protocol);
-			bcs->proto2 = L2_BITSYNC;
+			bcs->proto2 = L2_VOICE;
 		}
 		if (cmsg->B2protocol != 1)
 			dev_warn(cs->dev,
@@ -1417,7 +1547,6 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 		goto error;
 	}
 	gigaset_schedule_event(cs);
-	ap->connected = APCONN_SETUP;
 	send_conf(iif, ap, skb, CapiSuccess);
 	return;
 
@@ -1445,6 +1574,7 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 	_cmsg *cmsg = &iif->acmsg;
 	struct bc_state *bcs;
 	struct gigaset_capi_appl *oap;
+	unsigned long flags;
 	int channel;
 
 	/* decode message */
@@ -1464,12 +1594,24 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 	switch (cmsg->Reject) {
 	case 0:		/* Accept */
 		/* drop all competing applications, keep only this one */
-		for (oap = bcs->ap; oap != NULL; oap = oap->bcnext)
-			if (oap != ap)
+		spin_lock_irqsave(&bcs->aplock, flags);
+		while (bcs->ap != NULL) {
+			oap = bcs->ap;
+			bcs->ap = oap->bcnext;
+			if (oap != ap) {
+				spin_unlock_irqrestore(&bcs->aplock, flags);
 				send_disconnect_ind(bcs, oap,
 					CapiCallGivenToOtherApplication);
+				spin_lock_irqsave(&bcs->aplock, flags);
+			}
+		}
 		ap->bcnext = NULL;
 		bcs->ap = ap;
+		spin_unlock_irqrestore(&bcs->aplock, flags);
+
+		bcs->rx_bufsize = ap->rp.datablklen;
+		dev_kfree_skb(bcs->rx_skb);
+		gigaset_new_rx_skb(bcs);
 		bcs->chstate |= CHS_NOTIFY_LL;
 
 		/* check/encode B channel protocol */
@@ -1483,13 +1625,13 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 				bcs->proto2 = L2_HDLC;
 				break;
 			case 1:
-				bcs->proto2 = L2_BITSYNC;
+				bcs->proto2 = L2_VOICE;
 				break;
 			default:
 				dev_warn(cs->dev,
 			"B1 Protocol %u unsupported, using Transparent\n",
 					 cmsg->B1protocol);
-				bcs->proto2 = L2_BITSYNC;
+				bcs->proto2 = L2_VOICE;
 			}
 			if (cmsg->B2protocol != 1)
 				dev_warn(cs->dev,
@@ -1537,31 +1679,45 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 		send_disconnect_ind(bcs, ap, 0);
 
 		/* remove it from the list of listening apps */
+		spin_lock_irqsave(&bcs->aplock, flags);
 		if (bcs->ap == ap) {
 			bcs->ap = ap->bcnext;
-			if (bcs->ap == NULL)
+			if (bcs->ap == NULL) {
 				/* last one: stop ev-layer hupD notifications */
+				bcs->apconnstate = APCONN_NONE;
 				bcs->chstate &= ~CHS_NOTIFY_LL;
+			}
+			spin_unlock_irqrestore(&bcs->aplock, flags);
 			return;
 		}
 		for (oap = bcs->ap; oap != NULL; oap = oap->bcnext) {
 			if (oap->bcnext == ap) {
 				oap->bcnext = oap->bcnext->bcnext;
+				spin_unlock_irqrestore(&bcs->aplock, flags);
 				return;
 			}
 		}
+		spin_unlock_irqrestore(&bcs->aplock, flags);
 		dev_err(cs->dev, "%s: application %u not found\n",
 			__func__, ap->id);
 		return;
 
 	default:		/* Reject */
 		/* drop all competing applications, keep only this one */
-		for (oap = bcs->ap; oap != NULL; oap = oap->bcnext)
-			if (oap != ap)
+		spin_lock_irqsave(&bcs->aplock, flags);
+		while (bcs->ap != NULL) {
+			oap = bcs->ap;
+			bcs->ap = oap->bcnext;
+			if (oap != ap) {
+				spin_unlock_irqrestore(&bcs->aplock, flags);
 				send_disconnect_ind(bcs, oap,
 					CapiCallGivenToOtherApplication);
+				spin_lock_irqsave(&bcs->aplock, flags);
+			}
+		}
 		ap->bcnext = NULL;
 		bcs->ap = ap;
+		spin_unlock_irqrestore(&bcs->aplock, flags);
 
 		/* reject call - will trigger DISCONNECT_IND for this app */
 		dev_info(cs->dev, "%s: Reject=%x\n",
@@ -1584,6 +1740,7 @@ static void do_connect_b3_req(struct gigaset_capi_ctr *iif,
 {
 	struct cardstate *cs = iif->ctr.driverdata;
 	_cmsg *cmsg = &iif->acmsg;
+	struct bc_state *bcs;
 	int channel;
 
 	/* decode message */
@@ -1598,9 +1755,10 @@ static void do_connect_b3_req(struct gigaset_capi_ctr *iif,
 		send_conf(iif, ap, skb, CapiIllContrPlciNcci);
 		return;
 	}
+	bcs = &cs->bcs[channel-1];
 
 	/* mark logical connection active */
-	ap->connected = APCONN_ACTIVE;
+	bcs->apconnstate = APCONN_ACTIVE;
 
 	/* build NCCI: always 1 (one B3 connection only) */
 	cmsg->adr.adrNCCI |= 1 << 16;
@@ -1646,7 +1804,7 @@ static void do_connect_b3_resp(struct gigaset_capi_ctr *iif,
 
 	if (cmsg->Reject) {
 		/* Reject: clear B3 connect received flag */
-		ap->connected = APCONN_SETUP;
+		bcs->apconnstate = APCONN_SETUP;
 
 		/* trigger hangup, causing eventual DISCONNECT_IND */
 		if (!gigaset_add_event(cs, &bcs->at_state,
@@ -1718,11 +1876,11 @@ static void do_disconnect_req(struct gigaset_capi_ctr *iif,
 	}
 
 	/* skip if DISCONNECT_IND already sent */
-	if (!ap->connected)
+	if (!bcs->apconnstate)
 		return;
 
 	/* check for active logical connection */
-	if (ap->connected >= APCONN_ACTIVE) {
+	if (bcs->apconnstate >= APCONN_ACTIVE) {
 		/*
 		 * emit DISCONNECT_B3_IND with cause 0x3301
 		 * use separate cmsg structure, as the content of iif->acmsg
@@ -1742,6 +1900,7 @@ static void do_disconnect_req(struct gigaset_capi_ctr *iif,
 		if (b3skb == NULL) {
 			dev_err(cs->dev, "%s: out of memory\n", __func__);
 			send_conf(iif, ap, skb, CAPI_MSGOSRESOURCEERR);
+			kfree(b3cmsg);
 			return;
 		}
 		capi_cmsg2message(b3cmsg,
@@ -1771,6 +1930,7 @@ static void do_disconnect_b3_req(struct gigaset_capi_ctr *iif,
 {
 	struct cardstate *cs = iif->ctr.driverdata;
 	_cmsg *cmsg = &iif->acmsg;
+	struct bc_state *bcs;
 	int channel;
 
 	/* decode message */
@@ -1786,17 +1946,17 @@ static void do_disconnect_b3_req(struct gigaset_capi_ctr *iif,
 		send_conf(iif, ap, skb, CapiIllContrPlciNcci);
 		return;
 	}
+	bcs = &cs->bcs[channel-1];
 
 	/* reject if logical connection not active */
-	if (ap->connected < APCONN_ACTIVE) {
+	if (bcs->apconnstate < APCONN_ACTIVE) {
 		send_conf(iif, ap, skb,
 			  CapiMessageNotSupportedInCurrentState);
 		return;
 	}
 
 	/* trigger hangup, causing eventual DISCONNECT_B3_IND */
-	if (!gigaset_add_event(cs, &cs->bcs[channel-1].at_state,
-			       EV_HUP, NULL, 0, NULL)) {
+	if (!gigaset_add_event(cs, &bcs->at_state, EV_HUP, NULL, 0, NULL)) {
 		send_conf(iif, ap, skb, CAPI_MSGOSRESOURCEERR);
 		return;
 	}
@@ -1817,18 +1977,17 @@ static void do_data_b3_req(struct gigaset_capi_ctr *iif,
 			   struct sk_buff *skb)
 {
 	struct cardstate *cs = iif->ctr.driverdata;
+	struct bc_state *bcs;
 	int channel = CAPIMSG_PLCI_PART(skb->data);
 	u16 ncci = CAPIMSG_NCCI_PART(skb->data);
 	u16 msglen = CAPIMSG_LEN(skb->data);
 	u16 datalen = CAPIMSG_DATALEN(skb->data);
 	u16 flags = CAPIMSG_FLAGS(skb->data);
+	u16 msgid = CAPIMSG_MSGID(skb->data);
+	u16 handle = CAPIMSG_HANDLE_REQ(skb->data);
 
 	/* frequent message, avoid _cmsg overhead */
-	dump_rawmsg(DEBUG_LLDATA, "DATA_B3_REQ", skb->data);
-
-	gig_dbg(DEBUG_LLDATA,
-		"Receiving data from LL (ch: %d, flg: %x, sz: %d|%d)",
-		channel, flags, msglen, datalen);
+	dump_rawmsg(DEBUG_MCMD, __func__, skb->data);
 
 	/* check parameters */
 	if (channel == 0 || channel > cs->channels || ncci != 1) {
@@ -1837,6 +1996,7 @@ static void do_data_b3_req(struct gigaset_capi_ctr *iif,
 		send_conf(iif, ap, skb, CapiIllContrPlciNcci);
 		return;
 	}
+	bcs = &cs->bcs[channel-1];
 	if (msglen != CAPI_DATA_B3_REQ_LEN && msglen != CAPI_DATA_B3_REQ_LEN64)
 		dev_notice(cs->dev, "%s: unexpected length %d\n",
 			   "DATA_B3_REQ", msglen);
@@ -1856,7 +2016,7 @@ static void do_data_b3_req(struct gigaset_capi_ctr *iif,
 	}
 
 	/* reject if logical connection not active */
-	if (ap->connected < APCONN_ACTIVE) {
+	if (bcs->apconnstate < APCONN_ACTIVE) {
 		send_conf(iif, ap, skb, CapiMessageNotSupportedInCurrentState);
 		return;
 	}
@@ -1867,17 +2027,19 @@ static void do_data_b3_req(struct gigaset_capi_ctr *iif,
 	skb_pull(skb, msglen);
 
 	/* pass to device-specific module */
-	if (cs->ops->send_skb(&cs->bcs[channel-1], skb) < 0) {
+	if (cs->ops->send_skb(bcs, skb) < 0) {
 		send_conf(iif, ap, skb, CAPI_MSGOSRESOURCEERR);
 		return;
 	}
 
-	/* DATA_B3_CONF reply will be sent by gigaset_skb_sent() */
-
 	/*
-	 * ToDo: honor unset "delivery confirmation" bit
-	 * (send DATA_B3_CONF immediately?)
+	 * DATA_B3_CONF will be sent by gigaset_skb_sent() only if "delivery
+	 * confirmation" bit is set; otherwise we have to send it now
 	 */
+	if (!(flags & CAPI_FLAGS_DELIVERY_CONFIRMATION))
+		send_data_b3_conf(cs, &iif->ctr, ap->id, msgid, channel, handle,
+				  flags ? CapiFlagsNotSupportedByProtocol
+					: CAPI_NOERROR);
 }
 
 /*
@@ -1934,7 +2096,7 @@ static void do_data_b3_resp(struct gigaset_capi_ctr *iif,
 			    struct gigaset_capi_appl *ap,
 			    struct sk_buff *skb)
 {
-	dump_rawmsg(DEBUG_LLDATA, __func__, skb->data);
+	dump_rawmsg(DEBUG_MCMD, __func__, skb->data);
 	dev_kfree_skb_any(skb);
 }
 
@@ -2213,8 +2375,8 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	iif->ctr.driverdata    = cs;
 	strncpy(iif->ctr.name, isdnid, sizeof(iif->ctr.name));
 	iif->ctr.driver_name   = "gigaset";
-	iif->ctr.load_firmware = gigaset_load_firmware;
-	iif->ctr.reset_ctr     = gigaset_reset_ctr;
+	iif->ctr.load_firmware = NULL;
+	iif->ctr.reset_ctr     = NULL;
 	iif->ctr.register_appl = gigaset_register_appl;
 	iif->ctr.release_appl  = gigaset_release_appl;
 	iif->ctr.send_message  = gigaset_send_message;

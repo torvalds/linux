@@ -22,6 +22,7 @@ unsigned int pci_probe = PCI_PROBE_BIOS | PCI_PROBE_CONF1 | PCI_PROBE_CONF2 |
 
 unsigned int pci_early_dump_regs;
 static int pci_bf_sort;
+static int smbios_type_b1_flag;
 int pci_routeirq;
 int noioapicquirk;
 #ifdef CONFIG_X86_REROUTE_FOR_BROKEN_BOOT_IRQS
@@ -125,6 +126,23 @@ void __init dmi_check_skip_isa_align(void)
 static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 {
 	struct resource *rom_r = &dev->resource[PCI_ROM_RESOURCE];
+	struct resource *bar_r;
+	int bar;
+
+	if (pci_probe & PCI_NOASSIGN_BARS) {
+		/*
+		* If the BIOS did not assign the BAR, zero out the
+		* resource so the kernel doesn't attmept to assign
+		* it later on in pci_assign_unassigned_resources
+		*/
+		for (bar = 0; bar <= PCI_STD_RESOURCE_END; bar++) {
+			bar_r = &dev->resource[bar];
+			if (bar_r->start == 0 && bar_r->end != 0) {
+				bar_r->flags = 0;
+				bar_r->end = 0;
+			}
+		}
+	}
 
 	if (pci_probe & PCI_NOASSIGN_ROMS) {
 		if (rom_r->parent)
@@ -168,6 +186,39 @@ static int __devinit set_bf_sort(const struct dmi_system_id *d)
 	return 0;
 }
 
+static void __devinit read_dmi_type_b1(const struct dmi_header *dm,
+				       void *private_data)
+{
+	u8 *d = (u8 *)dm + 4;
+
+	if (dm->type != 0xB1)
+		return;
+	switch (((*(u32 *)d) >> 9) & 0x03) {
+	case 0x00:
+		printk(KERN_INFO "dmi type 0xB1 record - unknown flag\n");
+		break;
+	case 0x01: /* set pci=bfsort */
+		smbios_type_b1_flag = 1;
+		break;
+	case 0x02: /* do not set pci=bfsort */
+		smbios_type_b1_flag = 2;
+		break;
+	default:
+		break;
+	}
+}
+
+static int __devinit find_sort_method(const struct dmi_system_id *d)
+{
+	dmi_walk(read_dmi_type_b1, NULL);
+
+	if (smbios_type_b1_flag == 1) {
+		set_bf_sort(d);
+		return 0;
+	}
+	return -1;
+}
+
 /*
  * Enable renumbering of PCI bus# ranges to reach all PCI busses (Cardbus)
  */
@@ -195,6 +246,13 @@ static const struct dmi_system_id __devinitconst pciprobe_dmi_table[] = {
 		},
 	},
 #endif		/* __i386__ */
+	{
+		.callback = find_sort_method,
+		.ident = "Dell System",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+		},
+	},
 	{
 		.callback = set_bf_sort,
 		.ident = "Dell PowerEdge 1950",
@@ -404,15 +462,9 @@ struct pci_bus * __devinit pcibios_scan_root(int busnum)
 
 	return bus;
 }
-
-int __init pcibios_init(void)
+void __init pcibios_set_cache_line_size(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
-
-	if (!raw_pci_ops) {
-		printk(KERN_WARNING "PCI: System does not support PCI\n");
-		return 0;
-	}
 
 	/*
 	 * Set PCI cacheline size to that of the CPU if the CPU has reported it.
@@ -428,7 +480,16 @@ int __init pcibios_init(void)
  		pci_dfl_cache_line_size = 32 >> 2;
 		printk(KERN_DEBUG "PCI: Unknown cacheline size. Setting to 32 bytes\n");
 	}
+}
 
+int __init pcibios_init(void)
+{
+	if (!raw_pci_ops) {
+		printk(KERN_WARNING "PCI: System does not support PCI\n");
+		return 0;
+	}
+
+	pcibios_set_cache_line_size();
 	pcibios_resource_survey();
 
 	if (pci_bf_sort >= pci_force_bf)
@@ -508,6 +569,9 @@ char * __devinit  pcibios_setup(char *str)
 		return NULL;
 	} else if (!strcmp(str, "norom")) {
 		pci_probe |= PCI_NOASSIGN_ROMS;
+		return NULL;
+	} else if (!strcmp(str, "nobar")) {
+		pci_probe |= PCI_NOASSIGN_BARS;
 		return NULL;
 	} else if (!strcmp(str, "assign-busses")) {
 		pci_probe |= PCI_ASSIGN_ALL_BUSSES;

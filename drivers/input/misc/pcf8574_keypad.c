@@ -69,7 +69,7 @@ static irqreturn_t pcf8574_kp_irq_handler(int irq, void *dev_id)
 	unsigned char nextstate = read_state(lp);
 
 	if (lp->laststate != nextstate) {
-		int key_down = nextstate <= ARRAY_SIZE(lp->btncode);
+		int key_down = nextstate < ARRAY_SIZE(lp->btncode);
 		unsigned short keycode = key_down ?
 			lp->btncode[nextstate] : lp->btncode[lp->laststate];
 
@@ -127,14 +127,6 @@ static int __devinit pcf8574_kp_probe(struct i2c_client *client, const struct i2
 	idev->id.product = 0x0001;
 	idev->id.version = 0x0100;
 
-	input_set_drvdata(idev, lp);
-
-	ret = input_register_device(idev);
-	if (ret) {
-		dev_err(&client->dev, "input_register_device() failed\n");
-		goto fail_register;
-	}
-
 	lp->laststate = read_state(lp);
 
 	ret = request_threaded_irq(client->irq, NULL, pcf8574_kp_irq_handler,
@@ -142,16 +134,21 @@ static int __devinit pcf8574_kp_probe(struct i2c_client *client, const struct i2
 				   DRV_NAME, lp);
 	if (ret) {
 		dev_err(&client->dev, "IRQ %d is not free\n", client->irq);
-		goto fail_irq;
+		goto fail_free_device;
+	}
+
+	ret = input_register_device(idev);
+	if (ret) {
+		dev_err(&client->dev, "input_register_device() failed\n");
+		goto fail_free_irq;
 	}
 
 	i2c_set_clientdata(client, lp);
 	return 0;
 
- fail_irq:
-	input_unregister_device(idev);
- fail_register:
-	input_set_drvdata(idev, NULL);
+ fail_free_irq:
+	free_irq(client->irq, lp);
+ fail_free_device:
 	input_free_device(idev);
  fail_allocate:
 	kfree(lp);
@@ -168,25 +165,33 @@ static int __devexit pcf8574_kp_remove(struct i2c_client *client)
 	input_unregister_device(lp->idev);
 	kfree(lp);
 
-	i2c_set_clientdata(client, NULL);
-
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int pcf8574_kp_resume(struct i2c_client *client)
+static int pcf8574_kp_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+
 	enable_irq(client->irq);
 
 	return 0;
 }
 
-static int pcf8574_kp_suspend(struct i2c_client *client, pm_message_t mesg)
+static int pcf8574_kp_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+
 	disable_irq(client->irq);
 
 	return 0;
 }
+
+static const struct dev_pm_ops pcf8574_kp_pm_ops = {
+	.suspend	= pcf8574_kp_suspend,
+	.resume		= pcf8574_kp_resume,
+};
+
 #else
 # define pcf8574_kp_resume  NULL
 # define pcf8574_kp_suspend NULL
@@ -202,11 +207,12 @@ static struct i2c_driver pcf8574_kp_driver = {
 	.driver = {
 		.name  = DRV_NAME,
 		.owner = THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm = &pcf8574_kp_pm_ops,
+#endif
 	},
 	.probe    = pcf8574_kp_probe,
 	.remove   = __devexit_p(pcf8574_kp_remove),
-	.suspend  = pcf8574_kp_suspend,
-	.resume   = pcf8574_kp_resume,
 	.id_table = pcf8574_kp_id,
 };
 

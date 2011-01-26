@@ -60,34 +60,6 @@ int rt2x00pci_regbusy_read(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_regbusy_read);
 
-/*
- * TX data handlers.
- */
-int rt2x00pci_write_tx_data(struct queue_entry *entry,
-			    struct txentry_desc *txdesc)
-{
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-
-	/*
-	 * This should not happen, we already checked the entry
-	 * was ours. When the hardware disagrees there has been
-	 * a queue corruption!
-	 */
-	if (unlikely(rt2x00dev->ops->lib->get_entry_state(entry))) {
-		ERROR(rt2x00dev,
-		      "Corrupt queue %d, accessing entry which is not ours.\n"
-		      "Please file bug report to %s.\n",
-		      entry->queue->qid, DRV_PROJECT);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rt2x00pci_write_tx_data);
-
-/*
- * TX/RX data handlers.
- */
 void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue = rt2x00dev->rx;
@@ -110,9 +82,16 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		skbdesc->desc_len = entry->queue->desc_size;
 
 		/*
+		 * DMA is already done, notify rt2x00lib that
+		 * it finished successfully.
+		 */
+		rt2x00lib_dmastart(entry);
+		rt2x00lib_dmadone(entry);
+
+		/*
 		 * Send the frame to rt2x00lib for further processing.
 		 */
-		rt2x00lib_rxdone(rt2x00dev, entry);
+		rt2x00lib_rxdone(entry);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_rxdone);
@@ -133,7 +112,7 @@ static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 	 */
 	addr = dma_alloc_coherent(rt2x00dev->dev,
 				  queue->limit * queue->desc_size,
-				  &dma, GFP_KERNEL | GFP_DMA);
+				  &dma, GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
 
@@ -181,8 +160,10 @@ int rt2x00pci_initialize(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Register interrupt handler.
 	 */
-	status = request_irq(rt2x00dev->irq, rt2x00dev->ops->lib->irq_handler,
-			     IRQF_SHARED, rt2x00dev->name, rt2x00dev);
+	status = request_threaded_irq(rt2x00dev->irq,
+				      rt2x00dev->ops->lib->irq_handler,
+				      rt2x00dev->ops->lib->irq_handler_thread,
+				      IRQF_SHARED, rt2x00dev->name, rt2x00dev);
 	if (status) {
 		ERROR(rt2x00dev, "IRQ %d allocation failed (error %d).\n",
 		      rt2x00dev->irq, status);
@@ -206,7 +187,7 @@ void rt2x00pci_uninitialize(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Free irq line.
 	 */
-	free_irq(to_pci_dev(rt2x00dev->dev)->irq, rt2x00dev);
+	free_irq(rt2x00dev->irq, rt2x00dev);
 
 	/*
 	 * Free DMA
@@ -266,16 +247,16 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	struct rt2x00_dev *rt2x00dev;
 	int retval;
 
-	retval = pci_request_regions(pci_dev, pci_name(pci_dev));
-	if (retval) {
-		ERROR_PROBE("PCI request regions failed.\n");
-		return retval;
-	}
-
 	retval = pci_enable_device(pci_dev);
 	if (retval) {
 		ERROR_PROBE("Enable device failed.\n");
-		goto exit_release_regions;
+		return retval;
+	}
+
+	retval = pci_request_regions(pci_dev, pci_name(pci_dev));
+	if (retval) {
+		ERROR_PROBE("PCI request regions failed.\n");
+		goto exit_disable_device;
 	}
 
 	pci_set_master(pci_dev);
@@ -286,14 +267,14 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	if (dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32))) {
 		ERROR_PROBE("PCI DMA not supported.\n");
 		retval = -EIO;
-		goto exit_disable_device;
+		goto exit_release_regions;
 	}
 
 	hw = ieee80211_alloc_hw(sizeof(struct rt2x00_dev), ops->hw);
 	if (!hw) {
 		ERROR_PROBE("Failed to allocate hardware.\n");
 		retval = -ENOMEM;
-		goto exit_disable_device;
+		goto exit_release_regions;
 	}
 
 	pci_set_drvdata(pci_dev, hw);
@@ -305,7 +286,10 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	rt2x00dev->irq = pci_dev->irq;
 	rt2x00dev->name = pci_name(pci_dev);
 
-	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCI);
+	if (pci_is_pcie(pci_dev))
+		rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCIE);
+	else
+		rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCI);
 
 	retval = rt2x00pci_alloc_reg(rt2x00dev);
 	if (retval)
@@ -323,12 +307,11 @@ exit_free_reg:
 exit_free_device:
 	ieee80211_free_hw(hw);
 
-exit_disable_device:
-	if (retval != -EBUSY)
-		pci_disable_device(pci_dev);
-
 exit_release_regions:
 	pci_release_regions(pci_dev);
+
+exit_disable_device:
+	pci_disable_device(pci_dev);
 
 	pci_set_drvdata(pci_dev, NULL);
 
@@ -380,12 +363,12 @@ int rt2x00pci_resume(struct pci_dev *pci_dev)
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 
 	if (pci_set_power_state(pci_dev, PCI_D0) ||
-	    pci_enable_device(pci_dev) ||
-	    pci_restore_state(pci_dev)) {
+	    pci_enable_device(pci_dev)) {
 		ERROR(rt2x00dev, "Failed to resume device.\n");
 		return -EIO;
 	}
 
+	pci_restore_state(pci_dev);
 	return rt2x00lib_resume(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_resume);

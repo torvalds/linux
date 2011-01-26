@@ -23,11 +23,11 @@
 #ifndef __MEDUSA_REGISTERS__
 #define __MEDUSA_REGISTERS__
 
-// Serial Slave Registers
+/* Serial Slave Registers */
 #define	HOST_REGISTER1				0x0000
 #define	HOST_REGISTER2				0x0001
 
-// Chip Configuration Registers
+/* Chip Configuration Registers */
 #define	CHIP_CTRL					0x0100
 #define	AFE_AB_CTRL					0x0104
 #define	AFE_CD_CTRL					0x0108
@@ -92,7 +92,7 @@
 #define	ABIST_CLAMP_E				0x01F4
 #define	ABIST_CLAMP_F				0x01F8
 
-//              Digital Video Encoder A Registers
+/*              Digital Video Encoder A Registers */
 #define	DENC_A_REG_1					0x0200
 #define	DENC_A_REG_2					0x0204
 #define	DENC_A_REG_3					0x0208
@@ -102,7 +102,7 @@
 #define	DENC_A_REG_7					0x0218
 #define	DENC_A_REG_8					0x021C
 
-//      Digital Video Encoder B Registers
+/*      Digital Video Encoder B Registers */
 #define	DENC_B_REG_1					0x0300
 #define	DENC_B_REG_2					0x0304
 #define	DENC_B_REG_3					0x0308
@@ -112,7 +112,7 @@
 #define	DENC_B_REG_7					0x0318
 #define	DENC_B_REG_8					0x031C
 
-//              Video Decoder A Registers
+/*              Video Decoder A Registers */
 #define	MODE_CTRL						0x1000
 #define	OUT_CTRL1						0x1004
 #define	OUT_CTRL_NS						0x1008
@@ -153,7 +153,7 @@
 #define	VERSION							0x11F8
 #define	SOFT_RST_CTRL					0x11FC
 
-//      Video Decoder B Registers
+/*      Video Decoder B Registers */
 #define	VDEC_B_MODE_CTRL				0x1200
 #define	VDEC_B_OUT_CTRL1				0x1204
 #define	VDEC_B_OUT_CTRL_NS				0x1208
@@ -194,7 +194,7 @@
 #define	VDEC_B_VERSION					0x13F8
 #define	VDEC_B_SOFT_RST_CTRL			0x13FC
 
-// Video Decoder C Registers
+/* Video Decoder C Registers */
 #define	VDEC_C_MODE_CTRL				0x1400
 #define	VDEC_C_OUT_CTRL1				0x1404
 #define	VDEC_C_OUT_CTRL_NS				0x1408
@@ -235,7 +235,7 @@
 #define	VDEC_C_VERSION					0x15F8
 #define	VDEC_C_SOFT_RST_CTRL			0x15FC
 
-// Video Decoder D Registers
+/* Video Decoder D Registers */
 #define VDEC_D_MODE_CTRL				0x1600
 #define VDEC_D_OUT_CTRL1				0x1604
 #define VDEC_D_OUT_CTRL_NS				0x1608
@@ -276,7 +276,7 @@
 #define VDEC_D_VERSION					0x17F8
 #define VDEC_D_SOFT_RST_CTRL			0x17FC
 
-// Video Decoder E Registers
+/* Video Decoder E Registers */
 #define	VDEC_E_MODE_CTRL				0x1800
 #define	VDEC_E_OUT_CTRL1				0x1804
 #define	VDEC_E_OUT_CTRL_NS				0x1808
@@ -317,7 +317,7 @@
 #define	VDEC_E_VERSION					0x19F8
 #define	VDEC_E_SOFT_RST_CTRL			0x19FC
 
-// Video Decoder F Registers
+/* Video Decoder F Registers */
 #define	VDEC_F_MODE_CTRL				0x1A00
 #define	VDEC_F_OUT_CTRL1				0x1A04
 #define	VDEC_F_OUT_CTRL_NS				0x1A08
@@ -358,7 +358,7 @@
 #define	VDEC_F_VERSION					0x1BF8
 #define	VDEC_F_SOFT_RST_CTRL			0x1BFC
 
-// Video Decoder G Registers
+/* Video Decoder G Registers */
 #define	VDEC_G_MODE_CTRL				0x1C00
 #define	VDEC_G_OUT_CTRL1				0x1C04
 #define	VDEC_G_OUT_CTRL_NS				0x1C08
@@ -399,7 +399,7 @@
 #define	VDEC_G_VERSION					0x1DF8
 #define	VDEC_G_SOFT_RST_CTRL			0x1DFC
 
-//              Video Decoder H Registers
+/*              Video Decoder H Registers  */
 #define	VDEC_H_MODE_CTRL				0x1E00
 #define	VDEC_H_OUT_CTRL1				0x1E04
 #define	VDEC_H_OUT_CTRL_NS				0x1E08
@@ -440,16 +440,16 @@
 #define	VDEC_H_VERSION					0x1FF8
 #define	VDEC_H_SOFT_RST_CTRL			0x1FFC
 
-//*****************************************************************************
-// LUMA_CTRL register fields
+/*****************************************************************************/
+/* LUMA_CTRL register fields */
 #define VDEC_A_BRITE_CTRL				0x1014
-#define VDEC_A_CNTRST_CTRL       		0x1015
-#define VDEC_A_PEAK_SEL          		0x1016
+#define VDEC_A_CNTRST_CTRL			0x1015
+#define VDEC_A_PEAK_SEL				0x1016
 
-//*****************************************************************************
-// CHROMA_CTRL register fields
-#define VDEC_A_USAT_CTRL         		0x1018
-#define VDEC_A_VSAT_CTRL         		0x1019
-#define VDEC_A_HUE_CTRL          		0x101A
+/*****************************************************************************/
+/* CHROMA_CTRL register fields */
+#define VDEC_A_USAT_CTRL			0x1018
+#define VDEC_A_VSAT_CTRL			0x1019
+#define VDEC_A_HUE_CTRL				0x101A
 
 #endif

@@ -32,6 +32,7 @@
 #include "helper.h"
 #include "endpoint.h"
 #include "pcm.h"
+#include "clock.h"
 
 /*
  * handle the quirks for the contained interfaces
@@ -286,9 +287,10 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 		[QUIRK_MIDI_YAMAHA] = create_any_midi_quirk,
 		[QUIRK_MIDI_MIDIMAN] = create_any_midi_quirk,
 		[QUIRK_MIDI_NOVATION] = create_any_midi_quirk,
-		[QUIRK_MIDI_FASTLANE] = create_any_midi_quirk,
+		[QUIRK_MIDI_RAW_BYTES] = create_any_midi_quirk,
 		[QUIRK_MIDI_EMAGIC] = create_any_midi_quirk,
 		[QUIRK_MIDI_CME] = create_any_midi_quirk,
+		[QUIRK_MIDI_AKAI] = create_any_midi_quirk,
 		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_audio_quirk,
 		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
 		[QUIRK_AUDIO_EDIROL_UAXX] = create_uaxx_quirk,

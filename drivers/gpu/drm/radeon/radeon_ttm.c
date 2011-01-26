@@ -59,28 +59,28 @@ static struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev)
 /*
  * Global memory.
  */
-static int radeon_ttm_mem_global_init(struct ttm_global_reference *ref)
+static int radeon_ttm_mem_global_init(struct drm_global_reference *ref)
 {
 	return ttm_mem_global_init(ref->object);
 }
 
-static void radeon_ttm_mem_global_release(struct ttm_global_reference *ref)
+static void radeon_ttm_mem_global_release(struct drm_global_reference *ref)
 {
 	ttm_mem_global_release(ref->object);
 }
 
 static int radeon_ttm_global_init(struct radeon_device *rdev)
 {
-	struct ttm_global_reference *global_ref;
+	struct drm_global_reference *global_ref;
 	int r;
 
 	rdev->mman.mem_global_referenced = false;
 	global_ref = &rdev->mman.mem_global_ref;
-	global_ref->global_type = TTM_GLOBAL_TTM_MEM;
+	global_ref->global_type = DRM_GLOBAL_TTM_MEM;
 	global_ref->size = sizeof(struct ttm_mem_global);
 	global_ref->init = &radeon_ttm_mem_global_init;
 	global_ref->release = &radeon_ttm_mem_global_release;
-	r = ttm_global_item_ref(global_ref);
+	r = drm_global_item_ref(global_ref);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up TTM memory accounting "
 			  "subsystem.\n");
@@ -90,14 +90,14 @@ static int radeon_ttm_global_init(struct radeon_device *rdev)
 	rdev->mman.bo_global_ref.mem_glob =
 		rdev->mman.mem_global_ref.object;
 	global_ref = &rdev->mman.bo_global_ref.ref;
-	global_ref->global_type = TTM_GLOBAL_TTM_BO;
+	global_ref->global_type = DRM_GLOBAL_TTM_BO;
 	global_ref->size = sizeof(struct ttm_bo_global);
 	global_ref->init = &ttm_bo_global_init;
 	global_ref->release = &ttm_bo_global_release;
-	r = ttm_global_item_ref(global_ref);
+	r = drm_global_item_ref(global_ref);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		ttm_global_item_unref(&rdev->mman.mem_global_ref);
+		drm_global_item_unref(&rdev->mman.mem_global_ref);
 		return r;
 	}
 
@@ -108,8 +108,8 @@ static int radeon_ttm_global_init(struct radeon_device *rdev)
 static void radeon_ttm_global_fini(struct radeon_device *rdev)
 {
 	if (rdev->mman.mem_global_referenced) {
-		ttm_global_item_unref(&rdev->mman.bo_global_ref.ref);
-		ttm_global_item_unref(&rdev->mman.mem_global_ref);
+		drm_global_item_unref(&rdev->mman.bo_global_ref.ref);
+		drm_global_item_unref(&rdev->mman.mem_global_ref);
 		rdev->mman.mem_global_referenced = false;
 	}
 }
@@ -152,6 +152,7 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_TT:
+		man->func = &ttm_bo_manager_func;
 		man->gpu_offset = rdev->mc.gtt_start;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
@@ -173,6 +174,7 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		break;
 	case TTM_PL_VRAM:
 		/* "On-card" video ram */
+		man->func = &ttm_bo_manager_func;
 		man->gpu_offset = rdev->mc.vram_start;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED |
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
@@ -246,8 +248,8 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	if (unlikely(r)) {
 		return r;
 	}
-	old_start = old_mem->mm_node->start << PAGE_SHIFT;
-	new_start = new_mem->mm_node->start << PAGE_SHIFT;
+	old_start = old_mem->start << PAGE_SHIFT;
+	new_start = new_mem->start << PAGE_SHIFT;
 
 	switch (old_mem->mem_type) {
 	case TTM_PL_VRAM:
@@ -326,14 +328,7 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 	}
 	r = ttm_bo_move_ttm(bo, true, no_wait_reserve, no_wait_gpu, new_mem);
 out_cleanup:
-	if (tmp_mem.mm_node) {
-		struct ttm_bo_global *glob = rdev->mman.bdev.glob;
-
-		spin_lock(&glob->lru_lock);
-		drm_mm_put_block(tmp_mem.mm_node);
-		spin_unlock(&glob->lru_lock);
-		return r;
-	}
+	ttm_bo_mem_put(bo, &tmp_mem);
 	return r;
 }
 
@@ -372,14 +367,7 @@ static int radeon_move_ram_vram(struct ttm_buffer_object *bo,
 		goto out_cleanup;
 	}
 out_cleanup:
-	if (tmp_mem.mm_node) {
-		struct ttm_bo_global *glob = rdev->mman.bdev.glob;
-
-		spin_lock(&glob->lru_lock);
-		drm_mm_put_block(tmp_mem.mm_node);
-		spin_unlock(&glob->lru_lock);
-		return r;
-	}
+	ttm_bo_mem_put(bo, &tmp_mem);
 	return r;
 }
 
@@ -449,14 +437,14 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 #if __OS_HAS_AGP
 		if (rdev->flags & RADEON_IS_AGP) {
 			/* RADEON_IS_AGP is set only if AGP is active */
-			mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
+			mem->bus.offset = mem->start << PAGE_SHIFT;
 			mem->bus.base = rdev->mc.agp_base;
 			mem->bus.is_iomem = !rdev->ddev->agp->cant_use_aperture;
 		}
 #endif
 		break;
 	case TTM_PL_VRAM:
-		mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
+		mem->bus.offset = mem->start << PAGE_SHIFT;
 		/* check if it's visible */
 		if ((mem->bus.offset + mem->bus.size) > rdev->mc.visible_vram_size)
 			return -EINVAL;
@@ -541,7 +529,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
 	}
-	r = radeon_bo_create(rdev, NULL, 256 * 1024, true,
+	r = radeon_bo_create(rdev, NULL, 256 * 1024, PAGE_SIZE, true,
 				RADEON_GEM_DOMAIN_VRAM,
 				&rdev->stollen_vga_memory);
 	if (r) {
@@ -631,7 +619,7 @@ int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
 		return drm_mmap(filp, vma);
 	}
 
-	file_priv = (struct drm_file *)filp->private_data;
+	file_priv = filp->private_data;
 	rdev = file_priv->minor->dev->dev_private;
 	if (rdev == NULL) {
 		return -EINVAL;
@@ -699,9 +687,10 @@ static int radeon_ttm_backend_bind(struct ttm_backend *backend,
 	int r;
 
 	gtt = container_of(backend, struct radeon_ttm_backend, backend);
-	gtt->offset = bo_mem->mm_node->start << PAGE_SHIFT;
+	gtt->offset = bo_mem->start << PAGE_SHIFT;
 	if (!gtt->num_pages) {
-		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n", gtt->num_pages, bo_mem, backend);
+		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
+		     gtt->num_pages, bo_mem, backend);
 	}
 	r = radeon_gart_bind(gtt->rdev, gtt->offset,
 			     gtt->num_pages, gtt->pages);
@@ -798,9 +787,9 @@ static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 		radeon_mem_types_list[i].show = &radeon_mm_dump_table;
 		radeon_mem_types_list[i].driver_features = 0;
 		if (i == 0)
-			radeon_mem_types_list[i].data = &rdev->mman.bdev.man[TTM_PL_VRAM].manager;
+			radeon_mem_types_list[i].data = &rdev->mman.bdev.man[TTM_PL_VRAM].priv;
 		else
-			radeon_mem_types_list[i].data = &rdev->mman.bdev.man[TTM_PL_TT].manager;
+			radeon_mem_types_list[i].data = &rdev->mman.bdev.man[TTM_PL_TT].priv;
 
 	}
 	/* Add ttm page pool to debugfs */

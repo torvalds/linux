@@ -128,7 +128,7 @@ config NR_CPUS
 
 config HIGHMEM
 	bool "Highmem support (EXPERIMENTAL)"
-	depends on !64BIT && EXPERIMENTAL
+	depends on !64BIT && BROKEN
 	default n
 	help
 	  This was used to allow UML to run with big amounts of memory.
@@ -147,3 +147,6 @@ config KERNEL_STACK_ORDER
 	  This option determines the size of UML kernel stacks.  They will
 	  be 1 << order pages.  The default is OK unless you're running Valgrind
 	  on UML, in which case, set this to 3.
+
+config NO_DMA
+	def_bool y

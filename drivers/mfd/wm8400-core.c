@@ -118,7 +118,7 @@ static int wm8400_read(struct wm8400 *wm8400, u8 reg, int num_regs, u16 *dest)
 {
 	int i, ret = 0;
 
-	BUG_ON(reg + num_regs - 1 > ARRAY_SIZE(wm8400->reg_cache));
+	BUG_ON(reg + num_regs > ARRAY_SIZE(wm8400->reg_cache));
 
 	/* If there are any volatile reads then read back the entire block */
 	for (i = reg; i < reg + num_regs; i++)
@@ -144,7 +144,7 @@ static int wm8400_write(struct wm8400 *wm8400, u8 reg, int num_regs,
 {
 	int ret, i;
 
-	BUG_ON(reg + num_regs - 1 > ARRAY_SIZE(wm8400->reg_cache));
+	BUG_ON(reg + num_regs > ARRAY_SIZE(wm8400->reg_cache));
 
 	for (i = 0; i < num_regs; i++) {
 		BUG_ON(!reg_data[reg + i].writable);
@@ -415,7 +415,6 @@ static int wm8400_i2c_probe(struct i2c_client *i2c,
 	return 0;
 
 struct_err:
-	i2c_set_clientdata(i2c, NULL);
 	kfree(wm8400);
 err:
 	return ret;
@@ -426,7 +425,6 @@ static int wm8400_i2c_remove(struct i2c_client *i2c)
 	struct wm8400 *wm8400 = i2c_get_clientdata(i2c);
 
 	wm8400_release(wm8400);
-	i2c_set_clientdata(i2c, NULL);
 	kfree(wm8400);
 
 	return 0;

@@ -16,7 +16,10 @@
 #include "gigaset.h"
 #include <linux/isdnif.h>
 
+#define SBUFSIZE	4096	/* sk_buff payload size */
+#define TRANSBUFSIZE	768	/* bytes per skb for transparent receive */
 #define HW_HDR_LEN	2	/* Header size used to store ack info */
+#define MAX_BUF_SIZE	(SBUFSIZE - HW_HDR_LEN)	/* max data packet from LL */
 
 /* == Handling of I4L IO =====================================================*/
 
@@ -198,8 +201,6 @@ static int command_from_LL(isdn_ctrl *cntrl)
 	int i;
 	size_t l;
 
-	gigaset_debugdrivers();
-
 	gig_dbg(DEBUG_CMD, "driver: %d, command: %d, arg: 0x%lx",
 		cntrl->driver, cntrl->command, cntrl->arg);
 
@@ -231,6 +232,15 @@ static int command_from_LL(isdn_ctrl *cntrl)
 			dev_err(cs->dev, "ISDN_CMD_DIAL: channel not free\n");
 			return -EBUSY;
 		}
+		switch (bcs->proto2) {
+		case L2_HDLC:
+			bcs->rx_bufsize = SBUFSIZE;
+			break;
+		default:			/* assume transparent */
+			bcs->rx_bufsize = TRANSBUFSIZE;
+		}
+		dev_kfree_skb(bcs->rx_skb);
+		gigaset_new_rx_skb(bcs);
 
 		commands = kzalloc(AT_NUM*(sizeof *commands), GFP_ATOMIC);
 		if (!commands) {
@@ -314,6 +324,15 @@ static int command_from_LL(isdn_ctrl *cntrl)
 			return -EINVAL;
 		}
 		bcs = cs->bcs + ch;
+		switch (bcs->proto2) {
+		case L2_HDLC:
+			bcs->rx_bufsize = SBUFSIZE;
+			break;
+		default:			/* assume transparent */
+			bcs->rx_bufsize = TRANSBUFSIZE;
+		}
+		dev_kfree_skb(bcs->rx_skb);
+		gigaset_new_rx_skb(bcs);
 		if (!gigaset_add_event(cs, &bcs->at_state,
 				       EV_ACCEPT, NULL, 0, NULL))
 			return -ENOMEM;
@@ -398,6 +417,8 @@ oom:
 	dev_err(bcs->cs->dev, "out of memory\n");
 	for (i = 0; i < AT_NUM; ++i)
 		kfree(commands[i]);
+	kfree(commands);
+	gigaset_free_channel(bcs);
 	return -ENOMEM;
 }
 
@@ -622,9 +643,7 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	iif->maxbufsize = MAX_BUF_SIZE;
 	iif->features = ISDN_FEATURE_L2_TRANS |
 		ISDN_FEATURE_L2_HDLC |
-#ifdef GIG_X75
 		ISDN_FEATURE_L2_X75I |
-#endif
 		ISDN_FEATURE_L3_TRANS |
 		ISDN_FEATURE_P_EURO;
 	iif->hl_hdrlen = HW_HDR_LEN;		/* Area for storing ack */

@@ -592,22 +592,13 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags, int pull)
 	lh->lh_hash = cpu_to_be32(hash);
 
 	bh->b_end_io = end_buffer_write_sync;
-	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags))
-		goto skip_barrier;
 	get_bh(bh);
-	submit_bh(WRITE_SYNC | (1 << BIO_RW_BARRIER) | (1 << BIO_RW_META), bh);
+	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags))
+		submit_bh(WRITE_SYNC | REQ_META, bh);
+	else
+		submit_bh(WRITE_FLUSH_FUA | REQ_META, bh);
 	wait_on_buffer(bh);
-	if (buffer_eopnotsupp(bh)) {
-		clear_buffer_eopnotsupp(bh);
-		set_buffer_uptodate(bh);
-		fs_info(sdp, "barrier sync failed - disabling barriers\n");
-		set_bit(SDF_NOBARRIERS, &sdp->sd_flags);
-		lock_buffer(bh);
-skip_barrier:
-		get_bh(bh);
-		submit_bh(WRITE_SYNC | (1 << BIO_RW_META), bh);
-		wait_on_buffer(bh);
-	}
+
 	if (!buffer_uptodate(bh))
 		gfs2_io_error_bh(sdp, bh);
 	brelse(bh);
@@ -696,7 +687,7 @@ static void gfs2_ordered_wait(struct gfs2_sbd *sdp)
  *
  */
 
-void __gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
+void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 {
 	struct gfs2_ail *ai;
 
@@ -932,7 +923,7 @@ int gfs2_logd(void *data)
 
 		do {
 			prepare_to_wait(&sdp->sd_logd_waitq, &wait,
-					TASK_UNINTERRUPTIBLE);
+					TASK_INTERRUPTIBLE);
 			if (!gfs2_ail_flush_reqd(sdp) &&
 			    !gfs2_jrnl_flush_reqd(sdp) &&
 			    !kthread_should_stop())

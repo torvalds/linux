@@ -240,6 +240,9 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 	size += out->maxpacket - 1;
 	size -= size % out->maxpacket;
 
+	if (dev->port_usb->is_fixed)
+		size = max(size, dev->port_usb->fixed_out_len);
+
 	skb = alloc_skb(size + NET_IP_ALIGN, gfp_flags);
 	if (skb == NULL) {
 		DBG(dev, "no rx skb\n");
@@ -578,12 +581,19 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	req->context = skb;
 	req->complete = tx_complete;
 
+	/* NCM requires no zlp if transfer is dwNtbInMaxSize */
+	if (dev->port_usb->is_fixed &&
+	    length == dev->port_usb->fixed_in_len &&
+	    (length % in->maxpacket) == 0)
+		req->zero = 0;
+	else
+		req->zero = 1;
+
 	/* use zlp framing on tx for strict CDC-Ether conformance,
 	 * though any robust network rx path ignores extra padding.
 	 * and some hardware doesn't like to write zlps.
 	 */
-	req->zero = 1;
-	if (!dev->zlp && (length % in->maxpacket) == 0)
+	if (req->zero && !dev->zlp && (length % in->maxpacket) == 0)
 		length++;
 
 	req->length = length;
@@ -704,17 +714,6 @@ static char *host_addr;
 module_param(host_addr, charp, S_IRUGO);
 MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 
-
-static u8 __init nibble(unsigned char c)
-{
-	if (isdigit(c))
-		return c - '0';
-	c = toupper(c);
-	if (isxdigit(c))
-		return 10 + c - 'A';
-	return 0;
-}
-
 static int get_ether_addr(const char *str, u8 *dev_addr)
 {
 	if (str) {
@@ -725,8 +724,8 @@ static int get_ether_addr(const char *str, u8 *dev_addr)
 
 			if ((*str == '.') || (*str == ':'))
 				str++;
-			num = nibble(*str++) << 4;
-			num |= (nibble(*str++));
+			num = hex_to_bin(*str++) << 4;
+			num |= hex_to_bin(*str++);
 			dev_addr [i] = num;
 		}
 		if (is_valid_ether_addr(dev_addr))
@@ -808,7 +807,6 @@ int gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
 	 *  - iff DATA transfer is active, carrier is "on"
 	 *  - tx queueing enabled if open *and* carrier is "on"
 	 */
-	netif_stop_queue(net);
 	netif_carrier_off(net);
 
 	dev->gadget = g;
@@ -841,10 +839,8 @@ void gether_cleanup(void)
 		return;
 
 	unregister_netdev(the_dev->net);
+	flush_work_sync(&the_dev->work);
 	free_netdev(the_dev->net);
-
-	/* assuming we used keventd, it must quiesce too */
-	flush_scheduled_work();
 
 	the_dev = NULL;
 }

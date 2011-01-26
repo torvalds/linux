@@ -751,7 +751,7 @@ static void hptiop_post_req_mv(struct hptiop_hba *hba,
 		MVIOP_MU_QUEUE_ADDR_HOST_BIT | size_bit, hba);
 }
 
-static int hptiop_queuecommand(struct scsi_cmnd *scp,
+static int hptiop_queuecommand_lck(struct scsi_cmnd *scp,
 				void (*done)(struct scsi_cmnd *))
 {
 	struct Scsi_Host *host = scp->device->host;
@@ -818,6 +818,8 @@ cmd_done:
 	scp->scsi_done(scp);
 	return 0;
 }
+
+static DEF_SCSI_QCMD(hptiop_queuecommand)
 
 static const char *hptiop_info(struct Scsi_Host *host)
 {
@@ -1157,7 +1159,7 @@ free_pci_regions:
 disable_pci_device:
 	pci_disable_device(pcidev);
 
-	dprintk("scsi%d: hptiop_probe fail\n", host->host_no);
+	dprintk("scsi%d: hptiop_probe fail\n", host ? host->host_no : 0);
 	return -ENODEV;
 }
 

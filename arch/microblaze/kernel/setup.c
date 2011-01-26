@@ -92,12 +92,6 @@ inline unsigned get_romfs_len(unsigned *addr)
 }
 #endif	/* CONFIG_MTD_UCLINUX_EBSS */
 
-#if defined(CONFIG_EARLY_PRINTK) && defined(CONFIG_SERIAL_UARTLITE_CONSOLE)
-#define eprintk early_printk
-#else
-#define eprintk printk
-#endif
-
 void __init machine_early_init(const char *cmdline, unsigned int ram,
 		unsigned int fdt, unsigned int msr)
 {
@@ -213,15 +207,9 @@ static struct notifier_block dflt_plat_bus_notifier = {
 	.priority = INT_MAX,
 };
 
-static struct notifier_block dflt_of_bus_notifier = {
-	.notifier_call = dflt_bus_notify,
-	.priority = INT_MAX,
-};
-
 static int __init setup_bus_notifier(void)
 {
 	bus_register_notifier(&platform_bus_type, &dflt_plat_bus_notifier);
-	bus_register_notifier(&of_platform_bus_type, &dflt_of_bus_notifier);
 
 	return 0;
 }

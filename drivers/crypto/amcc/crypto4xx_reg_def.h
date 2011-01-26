@@ -113,7 +113,7 @@
 #define CRYPTO4XX_PRNG_LFSR_H			0x00070034
 
 /**
- * Initilize CRYPTO ENGINE registers, and memory bases.
+ * Initialize CRYPTO ENGINE registers, and memory bases.
  */
 #define PPC4XX_PDR_POLL				0x3ff
 #define PPC4XX_OUTPUT_THRESHOLD			2

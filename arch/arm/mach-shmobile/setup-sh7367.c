@@ -31,11 +31,15 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+/* SCIFA0 */
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xe6c40000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIF,
-	.irqs		= { 80, 80, 80, 80 },
+	.irqs		= { evt2irq(0xc00), evt2irq(0xc00),
+			    evt2irq(0xc00), evt2irq(0xc00) },
 };
 
 static struct platform_device scif0_device = {
@@ -46,11 +50,15 @@ static struct platform_device scif0_device = {
 	},
 };
 
+/* SCIFA1 */
 static struct plat_sci_port scif1_platform_data = {
 	.mapbase	= 0xe6c50000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIF,
-	.irqs           = { 81, 81, 81, 81 },
+	.irqs		= { evt2irq(0xc20), evt2irq(0xc20),
+			    evt2irq(0xc20), evt2irq(0xc20) },
 };
 
 static struct platform_device scif1_device = {
@@ -61,11 +69,15 @@ static struct platform_device scif1_device = {
 	},
 };
 
+/* SCIFA2 */
 static struct plat_sci_port scif2_platform_data = {
 	.mapbase	= 0xe6c60000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIF,
-	.irqs           = { 82, 82, 82, 82 },
+	.irqs		= { evt2irq(0xc40), evt2irq(0xc40),
+			    evt2irq(0xc40), evt2irq(0xc40) },
 };
 
 static struct platform_device scif2_device = {
@@ -76,11 +88,15 @@ static struct platform_device scif2_device = {
 	},
 };
 
+/* SCIFA3 */
 static struct plat_sci_port scif3_platform_data = {
 	.mapbase	= 0xe6c70000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIF,
-	.irqs           = { 83, 83, 83, 83 },
+	.irqs		= { evt2irq(0xc60), evt2irq(0xc60),
+			    evt2irq(0xc60), evt2irq(0xc60) },
 };
 
 static struct platform_device scif3_device = {
@@ -91,11 +107,15 @@ static struct platform_device scif3_device = {
 	},
 };
 
+/* SCIFA4 */
 static struct plat_sci_port scif4_platform_data = {
 	.mapbase	= 0xe6c80000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIF,
-	.irqs           = { 89, 89, 89, 89 },
+	.irqs		= { evt2irq(0xd20), evt2irq(0xd20),
+			    evt2irq(0xd20), evt2irq(0xd20) },
 };
 
 static struct platform_device scif4_device = {
@@ -106,11 +126,15 @@ static struct platform_device scif4_device = {
 	},
 };
 
+/* SCIFA5 */
 static struct plat_sci_port scif5_platform_data = {
 	.mapbase	= 0xe6cb0000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIF,
-	.irqs           = { 90, 90, 90, 90 },
+	.irqs		= { evt2irq(0xd40), evt2irq(0xd40),
+			    evt2irq(0xd40), evt2irq(0xd40) },
 };
 
 static struct platform_device scif5_device = {
@@ -121,11 +145,15 @@ static struct platform_device scif5_device = {
 	},
 };
 
+/* SCIFB */
 static struct plat_sci_port scif6_platform_data = {
 	.mapbase	= 0xe6c30000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIF,
-	.irqs           = { 91, 91, 91, 91 },
+	.irqs		= { evt2irq(0xd60), evt2irq(0xd60),
+			    evt2irq(0xd60), evt2irq(0xd60) },
 };
 
 static struct platform_device scif6_device = {
@@ -140,7 +168,6 @@ static struct sh_timer_config cmt10_platform_data = {
 	.name = "CMT10",
 	.channel_offset = 0x10,
 	.timer_bit = 0,
-	.clk = "r_clk",
 	.clockevent_rating = 125,
 	.clocksource_rating = 125,
 };
@@ -153,7 +180,7 @@ static struct resource cmt10_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 72,
+		.start	= evt2irq(0xb00), /* CMT1_CMT10 */
 		.flags	= IORESOURCE_IRQ,
 	},
 };

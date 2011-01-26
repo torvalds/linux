@@ -162,10 +162,10 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	struct timeval timestamp;
 	u32 data_len;
 
-	do_gettimeofday(&timestamp);
-
-	if (!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags))
+	if (likely(!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags)))
 		return;
+
+	do_gettimeofday(&timestamp);
 
 	if (skb_queue_len(&intf->frame_dump_skbqueue) > 20) {
 		DEBUG(rt2x00dev, "txrx dump queue length exceeded.\n");
@@ -211,6 +211,7 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	if (!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags))
 		skb_queue_purge(&intf->frame_dump_skbqueue);
 }
+EXPORT_SYMBOL_GPL(rt2x00debug_dump_frame);
 
 static int rt2x00debug_file_open(struct inode *inode, struct file *file)
 {
@@ -314,6 +315,7 @@ static const struct file_operations rt2x00debug_fop_queue_dump = {
 	.poll		= rt2x00debug_poll_queue_dump,
 	.open		= rt2x00debug_open_queue_dump,
 	.release	= rt2x00debug_release_queue_dump,
+	.llseek		= default_llseek,
 };
 
 static ssize_t rt2x00debug_read_queue_stats(struct file *file,
@@ -332,23 +334,24 @@ static ssize_t rt2x00debug_read_queue_stats(struct file *file,
 	if (*offset)
 		return 0;
 
-	data = kzalloc(lines * MAX_LINE_LENGTH, GFP_KERNEL);
+	data = kcalloc(lines, MAX_LINE_LENGTH, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
 	temp = data +
-	    sprintf(data, "qid\tcount\tlimit\tlength\tindex\tdone\tcrypto\n");
+	    sprintf(data, "qid\tflags\t\tcount\tlimit\tlength\tindex\tdma done\tdone\n");
 
 	queue_for_each(intf->rt2x00dev, queue) {
-		spin_lock_irqsave(&queue->lock, irqflags);
+		spin_lock_irqsave(&queue->index_lock, irqflags);
 
-		temp += sprintf(temp, "%d\t%d\t%d\t%d\t%d\t%d\t%d\n", queue->qid,
+		temp += sprintf(temp, "%d\t0x%.8x\t%d\t%d\t%d\t%d\t%d\t\t%d\n",
+				queue->qid, (unsigned int)queue->flags,
 				queue->count, queue->limit, queue->length,
 				queue->index[Q_INDEX],
-				queue->index[Q_INDEX_DONE],
-				queue->index[Q_INDEX_CRYPTO]);
+				queue->index[Q_INDEX_DMA_DONE],
+				queue->index[Q_INDEX_DONE]);
 
-		spin_unlock_irqrestore(&queue->lock, irqflags);
+		spin_unlock_irqrestore(&queue->index_lock, irqflags);
 	}
 
 	size = strlen(data);
@@ -370,6 +373,7 @@ static const struct file_operations rt2x00debug_fop_queue_stats = {
 	.read		= rt2x00debug_read_queue_stats,
 	.open		= rt2x00debug_file_open,
 	.release	= rt2x00debug_file_release,
+	.llseek		= default_llseek,
 };
 
 #ifdef CONFIG_RT2X00_LIB_CRYPTO
@@ -379,7 +383,7 @@ static ssize_t rt2x00debug_read_crypto_stats(struct file *file,
 					     loff_t *offset)
 {
 	struct rt2x00debug_intf *intf = file->private_data;
-	char *name[] = { "WEP64", "WEP128", "TKIP", "AES" };
+	static const char * const name[] = { "WEP64", "WEP128", "TKIP", "AES" };
 	char *data;
 	char *temp;
 	size_t size;
@@ -422,6 +426,7 @@ static const struct file_operations rt2x00debug_fop_crypto_stats = {
 	.read		= rt2x00debug_read_crypto_stats,
 	.open		= rt2x00debug_file_open,
 	.release	= rt2x00debug_file_release,
+	.llseek		= default_llseek,
 };
 #endif
 
@@ -480,6 +485,9 @@ static ssize_t rt2x00debug_write_##__name(struct file *file,	\
 	if (index >= debug->__name.word_count)			\
 		return -EINVAL;					\
 								\
+	if (length > sizeof(line))				\
+		return -EINVAL;					\
+								\
 	if (copy_from_user(line, buf, length))			\
 		return -EFAULT;					\
 								\
@@ -508,6 +516,7 @@ static const struct file_operations rt2x00debug_fop_##__name = {\
 	.write		= rt2x00debug_write_##__name,		\
 	.open		= rt2x00debug_file_open,		\
 	.release	= rt2x00debug_file_release,		\
+	.llseek		= generic_file_llseek,			\
 };
 
 RT2X00DEBUGFS_OPS(csr, "0x%.8x\n", u32);
@@ -541,6 +550,7 @@ static const struct file_operations rt2x00debug_fop_dev_flags = {
 	.read		= rt2x00debug_read_dev_flags,
 	.open		= rt2x00debug_file_open,
 	.release	= rt2x00debug_file_release,
+	.llseek		= default_llseek,
 };
 
 static struct dentry *rt2x00debug_create_file_driver(const char *name,

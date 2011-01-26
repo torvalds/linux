@@ -1,8 +1,8 @@
 config CONFIGFS_FS
 	tristate "Userspace-driven configuration filesystem"
-	depends on SYSFS
+	select SYSFS
 	help
-	  configfs is a ram-based filesystem that provides the converse
+	  configfs is a RAM-based filesystem that provides the converse
 	  of sysfs's functionality. Where sysfs is a filesystem-based
 	  view of kernel objects, configfs is a filesystem-based manager
 	  of kernel objects, or config_items.

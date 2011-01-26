@@ -165,6 +165,14 @@ struct dsi_reg { u16 idx; };
 #define DSI_CIO_IRQ_ERRCONTENTIONLP1_3	(1 << 25)
 #define DSI_CIO_IRQ_ULPSACTIVENOT_ALL0	(1 << 30)
 #define DSI_CIO_IRQ_ULPSACTIVENOT_ALL1	(1 << 31)
+#define DSI_CIO_IRQ_ERROR_MASK \
+	(DSI_CIO_IRQ_ERRSYNCESC1 | DSI_CIO_IRQ_ERRSYNCESC2 | \
+	 DSI_CIO_IRQ_ERRSYNCESC3 | DSI_CIO_IRQ_ERRESC1 | DSI_CIO_IRQ_ERRESC2 | \
+	 DSI_CIO_IRQ_ERRESC3 | DSI_CIO_IRQ_ERRCONTROL1 | \
+	 DSI_CIO_IRQ_ERRCONTROL2 | DSI_CIO_IRQ_ERRCONTROL3 | \
+	 DSI_CIO_IRQ_ERRCONTENTIONLP0_1 | DSI_CIO_IRQ_ERRCONTENTIONLP1_1 | \
+	 DSI_CIO_IRQ_ERRCONTENTIONLP0_2 | DSI_CIO_IRQ_ERRCONTENTIONLP1_2 | \
+	 DSI_CIO_IRQ_ERRCONTENTIONLP0_3 | DSI_CIO_IRQ_ERRCONTENTIONLP1_3)
 
 #define DSI_DT_DCS_SHORT_WRITE_0	0x05
 #define DSI_DT_DCS_SHORT_WRITE_1	0x15
@@ -232,13 +240,15 @@ static struct
 	unsigned pll_locked;
 
 	struct completion bta_completion;
+	void (*bta_callback)(void);
 
 	int update_channel;
 	struct dsi_update_region update_region;
 
 	bool te_enabled;
 
-	struct work_struct framedone_work;
+	struct workqueue_struct *workqueue;
+
 	void (*framedone_callback)(int, void *);
 	void *framedone_data;
 
@@ -509,8 +519,12 @@ void dsi_irq_handler(void)
 		dss_collect_irq_stats(vcstatus, dsi.irq_stats.vc_irqs[i]);
 #endif
 
-		if (vcstatus & DSI_VC_IRQ_BTA)
+		if (vcstatus & DSI_VC_IRQ_BTA) {
 			complete(&dsi.bta_completion);
+
+			if (dsi.bta_callback)
+				dsi.bta_callback();
+		}
 
 		if (vcstatus & DSI_VC_IRQ_ERROR_MASK) {
 			DSSERR("DSI VC(%d) error, vc irqstatus %x\n",
@@ -536,8 +550,12 @@ void dsi_irq_handler(void)
 		/* flush posted write */
 		dsi_read_reg(DSI_COMPLEXIO_IRQ_STATUS);
 
-		DSSERR("DSI CIO error, cio irqstatus %x\n", ciostatus);
-		print_irq_status_cio(ciostatus);
+		if (ciostatus & DSI_CIO_IRQ_ERROR_MASK) {
+			DSSERR("DSI CIO error, cio irqstatus %x\n", ciostatus);
+			print_irq_status_cio(ciostatus);
+		} else if (debug_irq) {
+			print_irq_status_cio(ciostatus);
+		}
 	}
 
 	dsi_write_reg(DSI_IRQSTATUS, irqstatus & ~DSI_IRQ_CHANNEL_MASK);
@@ -584,11 +602,8 @@ static void _dsi_initialize_irq(void)
 	for (i = 0; i < 4; ++i)
 		dsi_write_reg(DSI_VC_IRQENABLE(i), l);
 
-	/* XXX zonda responds incorrectly, causing control error:
-	   Exit from LP-ESC mode to LP11 uses wrong transition states on the
-	   data lines LP0 and LN0. */
-	dsi_write_reg(DSI_COMPLEXIO_IRQ_ENABLE,
-			-1 & (~DSI_CIO_IRQ_ERRCONTROL2));
+	l = DSI_CIO_IRQ_ERROR_MASK;
+	dsi_write_reg(DSI_COMPLEXIO_IRQ_ENABLE, l);
 }
 
 static u32 dsi_get_errors(void)
@@ -777,7 +792,8 @@ static int dsi_pll_power(enum dsi_pll_power_state state)
 }
 
 /* calculate clock rates using dividers in cinfo */
-static int dsi_calc_clock_rates(struct dsi_clock_info *cinfo)
+static int dsi_calc_clock_rates(struct omap_dss_device *dssdev,
+		struct dsi_clock_info *cinfo)
 {
 	if (cinfo->regn == 0 || cinfo->regn > REGN_MAX)
 		return -EINVAL;
@@ -797,7 +813,7 @@ static int dsi_calc_clock_rates(struct dsi_clock_info *cinfo)
 		 * with DSS2_FCK source also */
 		cinfo->highfreq = 0;
 	} else {
-		cinfo->clkin = dispc_pclk_rate();
+		cinfo->clkin = dispc_pclk_rate(dssdev->manager->id);
 
 		if (cinfo->clkin < 32000000)
 			cinfo->highfreq = 0;
@@ -1098,6 +1114,7 @@ int dsi_pll_init(struct omap_dss_device *dssdev, bool enable_hsclk,
 	if (wait_for_bit_change(DSI_PLL_STATUS, 0, 1) != 1) {
 		DSSERR("PLL not coming out of reset.\n");
 		r = -ENODEV;
+		dispc_pck_free_enable(0);
 		goto err1;
 	}
 
@@ -1190,8 +1207,8 @@ void dsi_dump_clocks(struct seq_file *s)
 
 	seq_printf(s,	"VP_CLK\t\t%lu\n"
 			"VP_PCLK\t\t%lu\n",
-			dispc_lclk_rate(),
-			dispc_pclk_rate());
+			dispc_lclk_rate(OMAP_DSS_CHANNEL_LCD),
+			dispc_pclk_rate(OMAP_DSS_CHANNEL_LCD));
 
 	enable_clocks(0);
 }
@@ -1740,42 +1757,52 @@ static void dsi_vc_initial_config(int channel)
 	dsi.vc[channel].mode = DSI_VC_MODE_L4;
 }
 
-static void dsi_vc_config_l4(int channel)
+static int dsi_vc_config_l4(int channel)
 {
 	if (dsi.vc[channel].mode == DSI_VC_MODE_L4)
-		return;
+		return 0;
 
 	DSSDBGF("%d", channel);
 
 	dsi_vc_enable(channel, 0);
 
-	if (REG_GET(DSI_VC_CTRL(channel), 15, 15)) /* VC_BUSY */
+	/* VC_BUSY */
+	if (wait_for_bit_change(DSI_VC_CTRL(channel), 15, 0) != 0) {
 		DSSERR("vc(%d) busy when trying to config for L4\n", channel);
+		return -EIO;
+	}
 
 	REG_FLD_MOD(DSI_VC_CTRL(channel), 0, 1, 1); /* SOURCE, 0 = L4 */
 
 	dsi_vc_enable(channel, 1);
 
 	dsi.vc[channel].mode = DSI_VC_MODE_L4;
+
+	return 0;
 }
 
-static void dsi_vc_config_vp(int channel)
+static int dsi_vc_config_vp(int channel)
 {
 	if (dsi.vc[channel].mode == DSI_VC_MODE_VP)
-		return;
+		return 0;
 
 	DSSDBGF("%d", channel);
 
 	dsi_vc_enable(channel, 0);
 
-	if (REG_GET(DSI_VC_CTRL(channel), 15, 15)) /* VC_BUSY */
+	/* VC_BUSY */
+	if (wait_for_bit_change(DSI_VC_CTRL(channel), 15, 0) != 0) {
 		DSSERR("vc(%d) busy when trying to config for VP\n", channel);
+		return -EIO;
+	}
 
 	REG_FLD_MOD(DSI_VC_CTRL(channel), 1, 1, 1); /* SOURCE, 1 = video port */
 
 	dsi_vc_enable(channel, 1);
 
 	dsi.vc[channel].mode = DSI_VC_MODE_VP;
+
+	return 0;
 }
 
 
@@ -1854,19 +1881,19 @@ static u16 dsi_vc_flush_receive_data(int channel)
 		u32 val;
 		u8 dt;
 		val = dsi_read_reg(DSI_VC_SHORT_PACKET_HEADER(channel));
-		DSSDBG("\trawval %#08x\n", val);
+		DSSERR("\trawval %#08x\n", val);
 		dt = FLD_GET(val, 5, 0);
 		if (dt == DSI_DT_RX_ACK_WITH_ERR) {
 			u16 err = FLD_GET(val, 23, 8);
 			dsi_show_rx_ack_with_err(err);
 		} else if (dt == DSI_DT_RX_SHORT_READ_1) {
-			DSSDBG("\tDCS short response, 1 byte: %#x\n",
+			DSSERR("\tDCS short response, 1 byte: %#x\n",
 					FLD_GET(val, 23, 8));
 		} else if (dt == DSI_DT_RX_SHORT_READ_2) {
-			DSSDBG("\tDCS short response, 2 byte: %#x\n",
+			DSSERR("\tDCS short response, 2 byte: %#x\n",
 					FLD_GET(val, 23, 8));
 		} else if (dt == DSI_DT_RX_DCS_LONG_READ) {
-			DSSDBG("\tDCS long response, len %d\n",
+			DSSERR("\tDCS long response, len %d\n",
 					FLD_GET(val, 23, 8));
 			dsi_vc_flush_long_data(channel);
 		} else {
@@ -2087,6 +2114,13 @@ int dsi_vc_dcs_write(int channel, u8 *data, int len)
 	if (r)
 		goto err;
 
+	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {	/* RX_FIFO_NOT_EMPTY */
+		DSSERR("rx fifo not empty after write, dumping data:\n");
+		dsi_vc_flush_receive_data(channel);
+		r = -EIO;
+		goto err;
+	}
+
 	return 0;
 err:
 	DSSERR("dsi_vc_dcs_write(ch %d, cmd 0x%02x, len %d) failed\n",
@@ -2233,11 +2267,12 @@ int dsi_vc_dcs_read_1(int channel, u8 dcs_cmd, u8 *data)
 }
 EXPORT_SYMBOL(dsi_vc_dcs_read_1);
 
-int dsi_vc_dcs_read_2(int channel, u8 dcs_cmd, u16 *data)
+int dsi_vc_dcs_read_2(int channel, u8 dcs_cmd, u8 *data1, u8 *data2)
 {
+	u8 buf[2];
 	int r;
 
-	r = dsi_vc_dcs_read(channel, dcs_cmd, (u8 *)data, 2);
+	r = dsi_vc_dcs_read(channel, dcs_cmd, buf, 2);
 
 	if (r < 0)
 		return r;
@@ -2245,231 +2280,122 @@ int dsi_vc_dcs_read_2(int channel, u8 dcs_cmd, u16 *data)
 	if (r != 2)
 		return -EIO;
 
+	*data1 = buf[0];
+	*data2 = buf[1];
+
 	return 0;
 }
 EXPORT_SYMBOL(dsi_vc_dcs_read_2);
 
 int dsi_vc_set_max_rx_packet_size(int channel, u16 len)
 {
-	int r;
-	r = dsi_vc_send_short(channel, DSI_DT_SET_MAX_RET_PKG_SIZE,
+	return dsi_vc_send_short(channel, DSI_DT_SET_MAX_RET_PKG_SIZE,
 			len, 0);
-
-	if (r)
-		return r;
-
-	r = dsi_vc_send_bta_sync(channel);
-
-	return r;
 }
 EXPORT_SYMBOL(dsi_vc_set_max_rx_packet_size);
 
-static void dsi_set_lp_rx_timeout(unsigned long ns)
+static void dsi_set_lp_rx_timeout(unsigned ticks, bool x4, bool x16)
 {
-	u32 r;
-	unsigned x4, x16;
 	unsigned long fck;
-	unsigned long ticks;
+	unsigned long total_ticks;
+	u32 r;
+
+	BUG_ON(ticks > 0x1fff);
 
 	/* ticks in DSI_FCK */
-
 	fck = dsi_fclk_rate();
-	ticks = (fck / 1000 / 1000) * ns / 1000;
-	x4 = 0;
-	x16 = 0;
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 4;
-		x4 = 1;
-		x16 = 0;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 16;
-		x4 = 0;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / (4 * 16);
-		x4 = 1;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		DSSWARN("LP_TX_TO over limit, setting it to max\n");
-		ticks = 0x1fff;
-		x4 = 1;
-		x16 = 1;
-	}
 
 	r = dsi_read_reg(DSI_TIMING2);
 	r = FLD_MOD(r, 1, 15, 15);	/* LP_RX_TO */
-	r = FLD_MOD(r, x16, 14, 14);	/* LP_RX_TO_X16 */
-	r = FLD_MOD(r, x4, 13, 13);	/* LP_RX_TO_X4 */
+	r = FLD_MOD(r, x16 ? 1 : 0, 14, 14);	/* LP_RX_TO_X16 */
+	r = FLD_MOD(r, x4 ? 1 : 0, 13, 13);	/* LP_RX_TO_X4 */
 	r = FLD_MOD(r, ticks, 12, 0);	/* LP_RX_COUNTER */
 	dsi_write_reg(DSI_TIMING2, r);
 
-	DSSDBG("LP_RX_TO %lu ns (%#lx ticks%s%s)\n",
-			(ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1) * 1000) /
-			(fck / 1000 / 1000),
-			ticks, x4 ? " x4" : "", x16 ? " x16" : "");
+	total_ticks = ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1);
+
+	DSSDBG("LP_RX_TO %lu ticks (%#x%s%s) = %lu ns\n",
+			total_ticks,
+			ticks, x4 ? " x4" : "", x16 ? " x16" : "",
+			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
 
-static void dsi_set_ta_timeout(unsigned long ns)
+static void dsi_set_ta_timeout(unsigned ticks, bool x8, bool x16)
 {
-	u32 r;
-	unsigned x8, x16;
 	unsigned long fck;
-	unsigned long ticks;
+	unsigned long total_ticks;
+	u32 r;
+
+	BUG_ON(ticks > 0x1fff);
 
 	/* ticks in DSI_FCK */
 	fck = dsi_fclk_rate();
-	ticks = (fck / 1000 / 1000) * ns / 1000;
-	x8 = 0;
-	x16 = 0;
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 8;
-		x8 = 1;
-		x16 = 0;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 16;
-		x8 = 0;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / (8 * 16);
-		x8 = 1;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		DSSWARN("TA_TO over limit, setting it to max\n");
-		ticks = 0x1fff;
-		x8 = 1;
-		x16 = 1;
-	}
 
 	r = dsi_read_reg(DSI_TIMING1);
 	r = FLD_MOD(r, 1, 31, 31);	/* TA_TO */
-	r = FLD_MOD(r, x16, 30, 30);	/* TA_TO_X16 */
-	r = FLD_MOD(r, x8, 29, 29);	/* TA_TO_X8 */
+	r = FLD_MOD(r, x16 ? 1 : 0, 30, 30);	/* TA_TO_X16 */
+	r = FLD_MOD(r, x8 ? 1 : 0, 29, 29);	/* TA_TO_X8 */
 	r = FLD_MOD(r, ticks, 28, 16);	/* TA_TO_COUNTER */
 	dsi_write_reg(DSI_TIMING1, r);
 
-	DSSDBG("TA_TO %lu ns (%#lx ticks%s%s)\n",
-			(ticks * (x16 ? 16 : 1) * (x8 ? 8 : 1) * 1000) /
-			(fck / 1000 / 1000),
-			ticks, x8 ? " x8" : "", x16 ? " x16" : "");
+	total_ticks = ticks * (x16 ? 16 : 1) * (x8 ? 8 : 1);
+
+	DSSDBG("TA_TO %lu ticks (%#x%s%s) = %lu ns\n",
+			total_ticks,
+			ticks, x8 ? " x8" : "", x16 ? " x16" : "",
+			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
 
-static void dsi_set_stop_state_counter(unsigned long ns)
+static void dsi_set_stop_state_counter(unsigned ticks, bool x4, bool x16)
 {
-	u32 r;
-	unsigned x4, x16;
 	unsigned long fck;
-	unsigned long ticks;
+	unsigned long total_ticks;
+	u32 r;
+
+	BUG_ON(ticks > 0x1fff);
 
 	/* ticks in DSI_FCK */
-
 	fck = dsi_fclk_rate();
-	ticks = (fck / 1000 / 1000) * ns / 1000;
-	x4 = 0;
-	x16 = 0;
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 4;
-		x4 = 1;
-		x16 = 0;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 16;
-		x4 = 0;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / (4 * 16);
-		x4 = 1;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		DSSWARN("STOP_STATE_COUNTER_IO over limit, "
-				"setting it to max\n");
-		ticks = 0x1fff;
-		x4 = 1;
-		x16 = 1;
-	}
 
 	r = dsi_read_reg(DSI_TIMING1);
 	r = FLD_MOD(r, 1, 15, 15);	/* FORCE_TX_STOP_MODE_IO */
-	r = FLD_MOD(r, x16, 14, 14);	/* STOP_STATE_X16_IO */
-	r = FLD_MOD(r, x4, 13, 13);	/* STOP_STATE_X4_IO */
+	r = FLD_MOD(r, x16 ? 1 : 0, 14, 14);	/* STOP_STATE_X16_IO */
+	r = FLD_MOD(r, x4 ? 1 : 0, 13, 13);	/* STOP_STATE_X4_IO */
 	r = FLD_MOD(r, ticks, 12, 0);	/* STOP_STATE_COUNTER_IO */
 	dsi_write_reg(DSI_TIMING1, r);
 
-	DSSDBG("STOP_STATE_COUNTER %lu ns (%#lx ticks%s%s)\n",
-			(ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1) * 1000) /
-			(fck / 1000 / 1000),
-			ticks, x4 ? " x4" : "", x16 ? " x16" : "");
+	total_ticks = ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1);
+
+	DSSDBG("STOP_STATE_COUNTER %lu ticks (%#x%s%s) = %lu ns\n",
+			total_ticks,
+			ticks, x4 ? " x4" : "", x16 ? " x16" : "",
+			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
 
-static void dsi_set_hs_tx_timeout(unsigned long ns)
+static void dsi_set_hs_tx_timeout(unsigned ticks, bool x4, bool x16)
 {
-	u32 r;
-	unsigned x4, x16;
 	unsigned long fck;
-	unsigned long ticks;
+	unsigned long total_ticks;
+	u32 r;
+
+	BUG_ON(ticks > 0x1fff);
 
 	/* ticks in TxByteClkHS */
-
 	fck = dsi_get_txbyteclkhs();
-	ticks = (fck / 1000 / 1000) * ns / 1000;
-	x4 = 0;
-	x16 = 0;
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 4;
-		x4 = 1;
-		x16 = 0;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 16;
-		x4 = 0;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / (4 * 16);
-		x4 = 1;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		DSSWARN("HS_TX_TO over limit, setting it to max\n");
-		ticks = 0x1fff;
-		x4 = 1;
-		x16 = 1;
-	}
 
 	r = dsi_read_reg(DSI_TIMING2);
 	r = FLD_MOD(r, 1, 31, 31);	/* HS_TX_TO */
-	r = FLD_MOD(r, x16, 30, 30);	/* HS_TX_TO_X16 */
-	r = FLD_MOD(r, x4, 29, 29);	/* HS_TX_TO_X8 (4 really) */
+	r = FLD_MOD(r, x16 ? 1 : 0, 30, 30);	/* HS_TX_TO_X16 */
+	r = FLD_MOD(r, x4 ? 1 : 0, 29, 29);	/* HS_TX_TO_X8 (4 really) */
 	r = FLD_MOD(r, ticks, 28, 16);	/* HS_TX_TO_COUNTER */
 	dsi_write_reg(DSI_TIMING2, r);
 
-	DSSDBG("HS_TX_TO %lu ns (%#lx ticks%s%s)\n",
-			(ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1) * 1000) /
-			(fck / 1000 / 1000),
-			ticks, x4 ? " x4" : "", x16 ? " x16" : "");
+	total_ticks = ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1);
+
+	DSSDBG("HS_TX_TO %lu ticks (%#x%s%s) = %lu ns\n",
+			total_ticks,
+			ticks, x4 ? " x4" : "", x16 ? " x16" : "",
+			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
 static int dsi_proto_config(struct omap_dss_device *dssdev)
 {
@@ -2487,10 +2413,10 @@ static int dsi_proto_config(struct omap_dss_device *dssdev)
 			DSI_FIFO_SIZE_32);
 
 	/* XXX what values for the timeouts? */
-	dsi_set_stop_state_counter(1000);
-	dsi_set_ta_timeout(6400000);
-	dsi_set_lp_rx_timeout(48000);
-	dsi_set_hs_tx_timeout(1000000);
+	dsi_set_stop_state_counter(0x1000, false, false);
+	dsi_set_ta_timeout(0x1fff, true, true);
+	dsi_set_lp_rx_timeout(0x1fff, true, true);
+	dsi_set_hs_tx_timeout(0x1fff, true, true);
 
 	switch (dssdev->ctrl.pixel_size) {
 	case 16:
@@ -2759,6 +2685,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	unsigned packet_payload;
 	unsigned packet_len;
 	u32 l;
+	int r;
 	const unsigned channel = dsi.update_channel;
 	/* line buffer is 1024 x 24bits */
 	/* XXX: for some reason using full buffer size causes considerable TX
@@ -2809,8 +2736,9 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 
 	dsi_perf_mark_start();
 
-	schedule_delayed_work(&dsi.framedone_timeout_work,
+	r = queue_delayed_work(dsi.workqueue, &dsi.framedone_timeout_work,
 			msecs_to_jiffies(250));
+	BUG_ON(r == 0);
 
 	dss_start_update(dssdev);
 
@@ -2834,107 +2762,108 @@ static void dsi_te_timeout(unsigned long arg)
 }
 #endif
 
+static void dsi_handle_framedone(int error)
+{
+	const int channel = dsi.update_channel;
+
+	cancel_delayed_work(&dsi.framedone_timeout_work);
+
+	dsi_vc_disable_bta_irq(channel);
+
+	/* SIDLEMODE back to smart-idle */
+	dispc_enable_sidle();
+
+	dsi.bta_callback = NULL;
+
+	if (dsi.te_enabled) {
+		/* enable LP_RX_TO again after the TE */
+		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
+	}
+
+	/* RX_FIFO_NOT_EMPTY */
+	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {
+		DSSERR("Received error during frame transfer:\n");
+		dsi_vc_flush_receive_data(channel);
+		if (!error)
+			error = -EIO;
+	}
+
+	dsi.framedone_callback(error, dsi.framedone_data);
+
+	if (!error)
+		dsi_perf_show("DISPC");
+}
+
 static void dsi_framedone_timeout_work_callback(struct work_struct *work)
 {
-	int r;
-	const int channel = dsi.update_channel;
+	/* XXX While extremely unlikely, we could get FRAMEDONE interrupt after
+	 * 250ms which would conflict with this timeout work. What should be
+	 * done is first cancel the transfer on the HW, and then cancel the
+	 * possibly scheduled framedone work. However, cancelling the transfer
+	 * on the HW is buggy, and would probably require resetting the whole
+	 * DSI */
 
 	DSSERR("Framedone not received for 250ms!\n");
 
-	/* SIDLEMODE back to smart-idle */
-	dispc_enable_sidle();
-
-	if (dsi.te_enabled) {
-		/* enable LP_RX_TO again after the TE */
-		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
-	}
-
-	/* Send BTA after the frame. We need this for the TE to work, as TE
-	 * trigger is only sent for BTAs without preceding packet. Thus we need
-	 * to BTA after the pixel packets so that next BTA will cause TE
-	 * trigger.
-	 *
-	 * This is not needed when TE is not in use, but we do it anyway to
-	 * make sure that the transfer has been completed. It would be more
-	 * optimal, but more complex, to wait only just before starting next
-	 * transfer. */
-	r = dsi_vc_send_bta_sync(channel);
-	if (r)
-		DSSERR("BTA after framedone failed\n");
-
-	/* RX_FIFO_NOT_EMPTY */
-	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {
-		DSSERR("Received error during frame transfer:\n");
-		dsi_vc_flush_receive_data(channel);
-	}
-
-	dsi.framedone_callback(-ETIMEDOUT, dsi.framedone_data);
+	dsi_handle_framedone(-ETIMEDOUT);
 }
 
-static void dsi_framedone_irq_callback(void *data, u32 mask)
+static void dsi_framedone_bta_callback(void)
 {
-	/* Note: We get FRAMEDONE when DISPC has finished sending pixels and
-	 * turns itself off. However, DSI still has the pixels in its buffers,
-	 * and is sending the data.
-	 */
-
-	/* SIDLEMODE back to smart-idle */
-	dispc_enable_sidle();
-
-	schedule_work(&dsi.framedone_work);
-}
-
-static void dsi_handle_framedone(void)
-{
-	int r;
-	const int channel = dsi.update_channel;
-
-	DSSDBG("FRAMEDONE\n");
-
-	if (dsi.te_enabled) {
-		/* enable LP_RX_TO again after the TE */
-		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
-	}
-
-	/* Send BTA after the frame. We need this for the TE to work, as TE
-	 * trigger is only sent for BTAs without preceding packet. Thus we need
-	 * to BTA after the pixel packets so that next BTA will cause TE
-	 * trigger.
-	 *
-	 * This is not needed when TE is not in use, but we do it anyway to
-	 * make sure that the transfer has been completed. It would be more
-	 * optimal, but more complex, to wait only just before starting next
-	 * transfer. */
-	r = dsi_vc_send_bta_sync(channel);
-	if (r)
-		DSSERR("BTA after framedone failed\n");
-
-	/* RX_FIFO_NOT_EMPTY */
-	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {
-		DSSERR("Received error during frame transfer:\n");
-		dsi_vc_flush_receive_data(channel);
-	}
+	dsi_handle_framedone(0);
 
 #ifdef CONFIG_OMAP2_DSS_FAKE_VSYNC
 	dispc_fake_vsync_irq();
 #endif
 }
 
-static void dsi_framedone_work_callback(struct work_struct *work)
+static void dsi_framedone_irq_callback(void *data, u32 mask)
 {
-	DSSDBGF();
+	const int channel = dsi.update_channel;
+	int r;
 
-	cancel_delayed_work_sync(&dsi.framedone_timeout_work);
+	/* Note: We get FRAMEDONE when DISPC has finished sending pixels and
+	 * turns itself off. However, DSI still has the pixels in its buffers,
+	 * and is sending the data.
+	 */
 
-	dsi_handle_framedone();
+	if (dsi.te_enabled) {
+		/* enable LP_RX_TO again after the TE */
+		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
+	}
 
-	dsi_perf_show("DISPC");
+	/* Send BTA after the frame. We need this for the TE to work, as TE
+	 * trigger is only sent for BTAs without preceding packet. Thus we need
+	 * to BTA after the pixel packets so that next BTA will cause TE
+	 * trigger.
+	 *
+	 * This is not needed when TE is not in use, but we do it anyway to
+	 * make sure that the transfer has been completed. It would be more
+	 * optimal, but more complex, to wait only just before starting next
+	 * transfer.
+	 *
+	 * Also, as there's no interrupt telling when the transfer has been
+	 * done and the channel could be reconfigured, the only way is to
+	 * busyloop until TE_SIZE is zero. With BTA we can do this
+	 * asynchronously.
+	 * */
 
-	dsi.framedone_callback(0, dsi.framedone_data);
+	dsi.bta_callback = dsi_framedone_bta_callback;
+
+	barrier();
+
+	dsi_vc_enable_bta_irq(channel);
+
+	r = dsi_vc_send_bta(channel);
+	if (r) {
+		DSSERR("BTA after framedone failed\n");
+		dsi_handle_framedone(-EIO);
+	}
 }
 
 int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
-				    u16 *x, u16 *y, u16 *w, u16 *h)
+				    u16 *x, u16 *y, u16 *w, u16 *h,
+				    bool enlarge_update_area)
 {
 	u16 dw, dh;
 
@@ -2958,8 +2887,9 @@ int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
 	dsi_perf_mark_setup();
 
 	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
-		dss_setup_partial_planes(dssdev, x, y, w, h);
-		dispc_set_lcd_size(*w, *h);
+		dss_setup_partial_planes(dssdev, x, y, w, h,
+				enlarge_update_area);
+		dispc_set_lcd_size(dssdev->manager->id, *w, *h);
 	}
 
 	return 0;
@@ -2973,6 +2903,12 @@ int omap_dsi_update(struct omap_dss_device *dssdev,
 {
 	dsi.update_channel = channel;
 
+	/* OMAP DSS cannot send updates of odd widths.
+	 * omap_dsi_prepare_update() makes the widths even, but add a BUG_ON
+	 * here to make sure we catch erroneous updates. Otherwise we'll only
+	 * see rather obscure HW error happening, as DSS halts. */
+	BUG_ON(x % 2 == 1);
+
 	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
 		dsi.framedone_callback = callback;
 		dsi.framedone_data = data;
@@ -2985,7 +2921,12 @@ int omap_dsi_update(struct omap_dss_device *dssdev,
 
 		dsi_update_screen_dispc(dssdev, x, y, w, h);
 	} else {
-		dsi_update_screen_l4(dssdev, x, y, w, h);
+		int r;
+
+		r = dsi_update_screen_l4(dssdev, x, y, w, h);
+		if (r)
+			return r;
+
 		dsi_perf_show("L4");
 		callback(0, data);
 	}
@@ -3007,12 +2948,14 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 		return r;
 	}
 
-	dispc_set_lcd_display_type(OMAP_DSS_LCD_DISPLAY_TFT);
+	dispc_set_lcd_display_type(dssdev->manager->id,
+			OMAP_DSS_LCD_DISPLAY_TFT);
 
-	dispc_set_parallel_interface_mode(OMAP_DSS_PARALLELMODE_DSI);
-	dispc_enable_fifohandcheck(1);
+	dispc_set_parallel_interface_mode(dssdev->manager->id,
+			OMAP_DSS_PARALLELMODE_DSI);
+	dispc_enable_fifohandcheck(dssdev->manager->id, 1);
 
-	dispc_set_tft_data_lines(dssdev->ctrl.pixel_size);
+	dispc_set_tft_data_lines(dssdev->manager->id, dssdev->ctrl.pixel_size);
 
 	{
 		struct omap_video_timings timings = {
@@ -3024,7 +2967,7 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 			.vbp		= 0,
 		};
 
-		dispc_set_lcd_timings(&timings);
+		dispc_set_lcd_timings(dssdev->manager->id, &timings);
 	}
 
 	return 0;
@@ -3047,9 +2990,11 @@ static int dsi_configure_dsi_clocks(struct omap_dss_device *dssdev)
 	cinfo.regm  = dssdev->phy.dsi.div.regm;
 	cinfo.regm3 = dssdev->phy.dsi.div.regm3;
 	cinfo.regm4 = dssdev->phy.dsi.div.regm4;
-	r = dsi_calc_clock_rates(&cinfo);
-	if (r)
+	r = dsi_calc_clock_rates(dssdev, &cinfo);
+	if (r) {
+		DSSERR("Failed to calc dsi clocks\n");
 		return r;
+	}
 
 	r = dsi_pll_set_clock_div(&cinfo);
 	if (r) {
@@ -3077,7 +3022,7 @@ static int dsi_configure_dispc_clocks(struct omap_dss_device *dssdev)
 		return r;
 	}
 
-	r = dispc_set_clock_div(&dispc_cinfo);
+	r = dispc_set_clock_div(dssdev->manager->id, &dispc_cinfo);
 	if (r) {
 		DSSERR("Failed to set dispc clocks\n");
 		return r;
@@ -3147,6 +3092,13 @@ err0:
 
 static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev)
 {
+	/* disable interface */
+	dsi_if_enable(0);
+	dsi_vc_enable(0, 0);
+	dsi_vc_enable(1, 0);
+	dsi_vc_enable(2, 0);
+	dsi_vc_enable(3, 0);
+
 	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
 	dss_select_dsi_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
 	dsi_complexio_uninit();
@@ -3257,7 +3209,7 @@ void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 	burst_size_bytes = 16 * 32 / 8;
 
 	*fifo_high = fifo_size - burst_size_bytes;
-	*fifo_low = fifo_size - burst_size_bytes * 8;
+	*fifo_low = fifo_size - burst_size_bytes * 2;
 }
 
 int dsi_init_display(struct omap_dss_device *dssdev)
@@ -3272,6 +3224,18 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 	dsi.vc[1].dssdev = dssdev;
 
 	return 0;
+}
+
+void dsi_wait_dsi1_pll_active(void)
+{
+	if (wait_for_bit_change(DSI_PLL_STATUS, 7, 1) != 1)
+		DSSERR("DSI1 PLL clock not active\n");
+}
+
+void dsi_wait_dsi2_pll_active(void)
+{
+	if (wait_for_bit_change(DSI_PLL_STATUS, 8, 1) != 1)
+		DSSERR("DSI2 PLL clock not active\n");
 }
 
 int dsi_init(struct platform_device *pdev)
@@ -3292,7 +3256,10 @@ int dsi_init(struct platform_device *pdev)
 	mutex_init(&dsi.lock);
 	sema_init(&dsi.bus_lock, 1);
 
-	INIT_WORK(&dsi.framedone_work, dsi_framedone_work_callback);
+	dsi.workqueue = create_singlethread_workqueue("dsi");
+	if (dsi.workqueue == NULL)
+		return -ENOMEM;
+
 	INIT_DELAYED_WORK_DEFERRABLE(&dsi.framedone_timeout_work,
 			dsi_framedone_timeout_work_callback);
 
@@ -3310,7 +3277,6 @@ int dsi_init(struct platform_device *pdev)
 
 	dsi.vdds_dsi_reg = dss_get_vdds_dsi();
 	if (IS_ERR(dsi.vdds_dsi_reg)) {
-		iounmap(dsi.base);
 		DSSERR("can't get VDDS_DSI regulator\n");
 		r = PTR_ERR(dsi.vdds_dsi_reg);
 		goto err2;
@@ -3328,12 +3294,15 @@ int dsi_init(struct platform_device *pdev)
 err2:
 	iounmap(dsi.base);
 err1:
+	destroy_workqueue(dsi.workqueue);
 	return r;
 }
 
 void dsi_exit(void)
 {
 	iounmap(dsi.base);
+
+	destroy_workqueue(dsi.workqueue);
 
 	DSSDBG("omap_dsi_exit\n");
 }

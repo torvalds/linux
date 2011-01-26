@@ -1,4 +1,4 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/bug.h>
 #include <linux/err.h>
@@ -6,9 +6,9 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#include "mdsmap.h"
-#include "messenger.h"
-#include "decode.h"
+#include <linux/ceph/mdsmap.h>
+#include <linux/ceph/messenger.h>
+#include <linux/ceph/decode.h>
 
 #include "super.h"
 
@@ -85,6 +85,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		struct ceph_entity_addr addr;
 		u32 num_export_targets;
 		void *pexport_targets = NULL;
+		struct ceph_timespec laggy_since;
 
 		ceph_decode_need(p, end, sizeof(u64)*2 + 1 + sizeof(u32), bad);
 		global_id = ceph_decode_64(p);
@@ -103,7 +104,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		state_seq = ceph_decode_64(p);
 		ceph_decode_copy(p, &addr, sizeof(addr));
 		ceph_decode_addr(&addr);
-		*p += sizeof(struct ceph_timespec);
+		ceph_decode_copy(p, &laggy_since, sizeof(laggy_since));
 		*p += sizeof(u32);
 		ceph_decode_32_safe(p, end, namelen, bad);
 		*p += namelen;
@@ -116,12 +117,16 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		}
 
 		dout("mdsmap_decode %d/%d %lld mds%d.%d %s %s\n",
-		     i+1, n, global_id, mds, inc, pr_addr(&addr.in_addr),
+		     i+1, n, global_id, mds, inc,
+		     ceph_pr_addr(&addr.in_addr),
 		     ceph_mds_state_name(state));
 		if (mds >= 0 && mds < m->m_max_mds && state > 0) {
 			m->m_info[mds].global_id = global_id;
 			m->m_info[mds].state = state;
 			m->m_info[mds].addr = addr;
+			m->m_info[mds].laggy =
+				(laggy_since.tv_sec != 0 ||
+				 laggy_since.tv_nsec != 0);
 			m->m_info[mds].num_export_targets = num_export_targets;
 			if (num_export_targets) {
 				m->m_info[mds].export_targets =

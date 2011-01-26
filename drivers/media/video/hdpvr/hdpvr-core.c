@@ -60,6 +60,7 @@ static struct usb_device_id hdpvr_table[] = {
 	{ USB_DEVICE(HD_PVR_VENDOR_ID, HD_PVR_PRODUCT_ID1) },
 	{ USB_DEVICE(HD_PVR_VENDOR_ID, HD_PVR_PRODUCT_ID2) },
 	{ USB_DEVICE(HD_PVR_VENDOR_ID, HD_PVR_PRODUCT_ID3) },
+	{ USB_DEVICE(HD_PVR_VENDOR_ID, HD_PVR_PRODUCT_ID4) },
 	{ }					/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, hdpvr_table);
@@ -152,19 +153,26 @@ static int device_authorization(struct hdpvr_device *dev)
 			 ret, print_buf);
 	}
 #endif
-	if (dev->usbc_buf[1] == HDPVR_FIRMWARE_VERSION) {
+
+	v4l2_info(&dev->v4l2_dev, "firmware version 0x%x dated %s\n",
+			  dev->usbc_buf[1], &dev->usbc_buf[2]);
+
+	switch (dev->usbc_buf[1]) {
+	case HDPVR_FIRMWARE_VERSION:
 		dev->flags &= ~HDPVR_FLAG_AC3_CAP;
-	} else if (dev->usbc_buf[1] == HDPVR_FIRMWARE_VERSION_AC3) {
+		break;
+	case HDPVR_FIRMWARE_VERSION_AC3:
+	case HDPVR_FIRMWARE_VERSION_0X12:
+	case HDPVR_FIRMWARE_VERSION_0X15:
 		dev->flags |= HDPVR_FLAG_AC3_CAP;
-	} else if (dev->usbc_buf[1] > HDPVR_FIRMWARE_VERSION_AC3) {
-		v4l2_info(&dev->v4l2_dev, "untested firmware version 0x%x, "
-			  "the driver might not work\n", dev->usbc_buf[1]);
-		dev->flags |= HDPVR_FLAG_AC3_CAP;
-	} else {
-		v4l2_err(&dev->v4l2_dev, "unknown firmware version 0x%x\n",
-			dev->usbc_buf[1]);
-		ret = -EINVAL;
-		goto unlock;
+		break;
+	default:
+		v4l2_info(&dev->v4l2_dev, "untested firmware, the driver might"
+			  " not work.\n");
+		if (dev->usbc_buf[1] >= HDPVR_FIRMWARE_VERSION_AC3)
+			dev->flags |= HDPVR_FLAG_AC3_CAP;
+		else
+			dev->flags &= ~HDPVR_FLAG_AC3_CAP;
 	}
 
 	response = dev->usbc_buf+38;
@@ -286,6 +294,8 @@ static int hdpvr_probe(struct usb_interface *interface,
 		goto error;
 	}
 
+	dev->workqueue = 0;
+
 	/* register v4l2_device early so it can be used for printks */
 	if (v4l2_device_register(&interface->dev, &dev->v4l2_dev)) {
 		err("v4l2_device_register failed");
@@ -317,8 +327,12 @@ static int hdpvr_probe(struct usb_interface *interface,
 	if (default_video_input < HDPVR_VIDEO_INPUTS)
 		dev->options.video_input = default_video_input;
 
-	if (default_audio_input < HDPVR_AUDIO_INPUTS)
+	if (default_audio_input < HDPVR_AUDIO_INPUTS) {
 		dev->options.audio_input = default_audio_input;
+		if (default_audio_input == HDPVR_SPDIF)
+			dev->options.audio_codec =
+				V4L2_MPEG_AUDIO_ENCODING_AC3;
+	}
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 
@@ -364,14 +378,17 @@ static int hdpvr_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-#ifdef CONFIG_I2C
-	/* until i2c is working properly */
-	retval = 0; /* hdpvr_register_i2c_adapter(dev); */
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	retval = hdpvr_register_i2c_adapter(dev);
 	if (retval < 0) {
 		v4l2_err(&dev->v4l2_dev, "registering i2c adapter failed\n");
 		goto error;
 	}
-#endif /* CONFIG_I2C */
+
+	retval = hdpvr_register_i2c_ir(dev);
+	if (retval < 0)
+		v4l2_err(&dev->v4l2_dev, "registering i2c IR devices failed\n");
+#endif
 
 	/* let the user know what node this device is now attached to */
 	v4l2_info(&dev->v4l2_dev, "device now attached to %s\n",
@@ -380,6 +397,9 @@ static int hdpvr_probe(struct usb_interface *interface,
 
 error:
 	if (dev) {
+		/* Destroy single thread */
+		if (dev->workqueue)
+			destroy_workqueue(dev->workqueue);
 		/* this frees allocated memory */
 		hdpvr_delete(dev);
 	}

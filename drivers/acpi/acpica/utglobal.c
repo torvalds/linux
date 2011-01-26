@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -154,14 +154,16 @@ ACPI_EXPORT_SYMBOL(acpi_format_exception)
  * 1) _SB_ is defined to be a device to allow \_SB_._INI to be run
  *    during the initialization sequence.
  * 2) _TZ_ is defined to be a thermal zone in order to allow ASL code to
- *    perform a Notify() operation on it.
+ *    perform a Notify() operation on it. 09/2010: Changed to type Device.
+ *    This still allows notifies, but does not confuse host code that
+ *    searches for valid thermal_zone objects.
  */
 const struct acpi_predefined_names acpi_gbl_pre_defined_names[] = {
 	{"_GPE", ACPI_TYPE_LOCAL_SCOPE, NULL},
 	{"_PR_", ACPI_TYPE_LOCAL_SCOPE, NULL},
 	{"_SB_", ACPI_TYPE_DEVICE, NULL},
 	{"_SI_", ACPI_TYPE_LOCAL_SCOPE, NULL},
-	{"_TZ_", ACPI_TYPE_THERMAL, NULL},
+	{"_TZ_", ACPI_TYPE_DEVICE, NULL},
 	{"_REV", ACPI_TYPE_INTEGER, (char *)ACPI_CA_SUPPORT_LEVEL},
 	{"_OS_", ACPI_TYPE_STRING, ACPI_OS_NAME},
 	{"_GL_", ACPI_TYPE_MUTEX, (char *)1},
@@ -766,6 +768,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_gpe_fadt_blocks[0] = NULL;
 	acpi_gbl_gpe_fadt_blocks[1] = NULL;
 	acpi_current_gpe_count = 0;
+	acpi_gbl_all_gpes_initialized = FALSE;
 
 	/* Global handlers */
 
@@ -774,6 +777,8 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_exception_handler = NULL;
 	acpi_gbl_init_handler = NULL;
 	acpi_gbl_table_handler = NULL;
+	acpi_gbl_interface_handler = NULL;
+	acpi_gbl_global_event_handler = NULL;
 
 	/* Global Lock support */
 
@@ -800,6 +805,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_debugger_configuration = DEBUGGER_THREADING;
 	acpi_gbl_db_output_flags = ACPI_DB_CONSOLE_OUTPUT;
 	acpi_gbl_osi_data = 0;
+	acpi_gbl_osi_mutex = NULL;
 
 	/* Hardware oriented */
 
@@ -813,10 +819,10 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_root_node_struct.name.integer = ACPI_ROOT_NAME;
 	acpi_gbl_root_node_struct.descriptor_type = ACPI_DESC_TYPE_NAMED;
 	acpi_gbl_root_node_struct.type = ACPI_TYPE_DEVICE;
+	acpi_gbl_root_node_struct.parent = NULL;
 	acpi_gbl_root_node_struct.child = NULL;
 	acpi_gbl_root_node_struct.peer = NULL;
 	acpi_gbl_root_node_struct.object = NULL;
-	acpi_gbl_root_node_struct.flags = ANOBJ_END_OF_PEER_LIST;
 
 #ifdef ACPI_DEBUG_OUTPUT
 	acpi_gbl_lowest_stack_pointer = ACPI_CAST_PTR(acpi_size, ACPI_SIZE_MAX);

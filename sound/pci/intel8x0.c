@@ -716,7 +716,7 @@ static void snd_intel8x0_setup_periods(struct intel8x0 *chip, struct ichdev *ich
  * Intel 82443MX running a 100MHz processor system bus has a hardware bug,
  * which aborts PCI busmaster for audio transfer.  A workaround is to set
  * the pages as non-cached.  For details, see the errata in
- *	http://www.intel.com/design/chipsets/specupdt/245051.htm
+ *	http://download.intel.com/design/chipsets/specupdt/24505108.pdf
  */
 static void fill_nocache(void *buf, int size, int nocache)
 {
@@ -1776,6 +1776,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
         },
 	{
 		.subvendor = 0x1014,
+		.subdevice = 0x0534,
+		.name = "ThinkPad X31",
+		.type = AC97_TUNE_INV_EAPD
+	},
+	{
+		.subvendor = 0x1014,
 		.subdevice = 0x1f00,
 		.name = "MS-9128",
 		.type = AC97_TUNE_ALC_JACK
@@ -1856,6 +1862,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.subvendor = 0x1028,
 		.subdevice = 0x016a,
 		.name = "Dell Inspiron 8600",	/* STAC9750/51 */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x1028,
+		.subdevice = 0x0182,
+		.name = "Dell Latitude D610",	/* STAC9750/51 */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{

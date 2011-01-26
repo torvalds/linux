@@ -6,6 +6,9 @@
  *
  *  Modified to also support BTC "Emprex 3009URF III Vista MCE Remote" by
  *  Wayne Thomas 2010.
+ *
+ *  Modified to support Conceptronic CLLRCMCE by
+ *  Kees Bakker 2010.
  */
 
 /*
@@ -34,6 +37,7 @@ static int ts_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	case 0x00d: ts_map_key_clear(KEY_MEDIA);	break;
 	case 0x024: ts_map_key_clear(KEY_MENU);		break;
 	case 0x025: ts_map_key_clear(KEY_TV);		break;
+	case 0x027: ts_map_key_clear(KEY_MODE);		break;
 	case 0x031: ts_map_key_clear(KEY_AUDIO);	break;
 	case 0x032: ts_map_key_clear(KEY_TEXT);		break;
 	case 0x033: ts_map_key_clear(KEY_CHANNEL);	break;
@@ -60,6 +64,9 @@ static int ts_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 static const struct hid_device_id ts_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_TOPSEED, USB_DEVICE_ID_TOPSEED_CYBERLINK) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_BTC, USB_DEVICE_ID_BTC_EMPREX_REMOTE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_BTC, USB_DEVICE_ID_BTC_EMPREX_REMOTE_2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_TOPSEED2, USB_DEVICE_ID_TOPSEED2_RF_COMBO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_WIRELESS) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, ts_devices);

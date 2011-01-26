@@ -173,7 +173,6 @@ static int smbalert_remove(struct i2c_client *ara)
 
 	cancel_work_sync(&alert->alert);
 
-	i2c_set_clientdata(ara, NULL);
 	kfree(alert);
 	return 0;
 }

@@ -4,6 +4,7 @@
 menuconfig IP_VS
 	tristate "IP virtual server support"
 	depends on NET && INET && NETFILTER
+	depends on (NF_CONNTRACK || NF_CONNTRACK=n)
 	---help---
 	  IP Virtual Server support will let you build a high-performance
 	  virtual server based on cluster of two or more real servers. This
@@ -26,7 +27,7 @@ if IP_VS
 
 config	IP_VS_IPV6
 	bool "IPv6 support for IPVS"
-	depends on EXPERIMENTAL && (IPV6 = y || IP_VS = IPV6)
+	depends on IPV6 = y || IP_VS = IPV6
 	---help---
 	  Add IPv6 support to IPVS. This is incomplete and might be dangerous.
 
@@ -87,19 +88,16 @@ config	IP_VS_PROTO_UDP
 	  protocol. Say Y if unsure.
 
 config	IP_VS_PROTO_AH_ESP
-	bool
-	depends on UNDEFINED
+	def_bool IP_VS_PROTO_ESP || IP_VS_PROTO_AH
 
 config	IP_VS_PROTO_ESP
 	bool "ESP load balancing support"
-	select IP_VS_PROTO_AH_ESP
 	---help---
 	  This option enables support for load balancing ESP (Encapsulation
 	  Security Payload) transport protocol. Say Y if unsure.
 
 config	IP_VS_PROTO_AH
 	bool "AH load balancing support"
-	select IP_VS_PROTO_AH_ESP
 	---help---
 	  This option enables support for load balancing AH (Authentication
 	  Header) transport protocol. Say Y if unsure.
@@ -238,7 +236,8 @@ comment 'IPVS application helper'
 
 config	IP_VS_FTP
   	tristate "FTP protocol helper"
-        depends on IP_VS_PROTO_TCP
+        depends on IP_VS_PROTO_TCP && NF_CONNTRACK && NF_NAT
+	select IP_VS_NFCT
 	---help---
 	  FTP is a protocol that transfers IP address and/or port number in
 	  the payload. In the virtual server via Network Address Translation,
@@ -249,5 +248,20 @@ config	IP_VS_FTP
 
 	  If you want to compile it in kernel, say Y. To compile it as a
 	  module, choose M here. If unsure, say N.
+
+config	IP_VS_NFCT
+	bool "Netfilter connection tracking"
+	depends on NF_CONNTRACK
+	---help---
+	  The Netfilter connection tracking support allows the IPVS
+	  connection state to be exported to the Netfilter framework
+	  for filtering purposes.
+
+config	IP_VS_PE_SIP
+	tristate "SIP persistence engine"
+        depends on IP_VS_PROTO_UDP
+	depends on NF_CONNTRACK_SIP
+	---help---
+	  Allow persistence based on the SIP Call-ID
 
 endif # IP_VS

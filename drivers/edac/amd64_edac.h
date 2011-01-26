@@ -72,13 +72,28 @@
 #include <linux/edac.h>
 #include <asm/msr.h>
 #include "edac_core.h"
-#include "edac_mce_amd.h"
+#include "mce_amd.h"
 
-#define amd64_printk(level, fmt, arg...) \
-	edac_printk(level, "amd64", fmt, ##arg)
+#define amd64_debug(fmt, arg...) \
+	edac_printk(KERN_DEBUG, "amd64", fmt, ##arg)
 
-#define amd64_mc_printk(mci, level, fmt, arg...) \
-	edac_mc_chipset_printk(mci, level, "amd64", fmt, ##arg)
+#define amd64_info(fmt, arg...) \
+	edac_printk(KERN_INFO, "amd64", fmt, ##arg)
+
+#define amd64_notice(fmt, arg...) \
+	edac_printk(KERN_NOTICE, "amd64", fmt, ##arg)
+
+#define amd64_warn(fmt, arg...) \
+	edac_printk(KERN_WARNING, "amd64", fmt, ##arg)
+
+#define amd64_err(fmt, arg...) \
+	edac_printk(KERN_ERR, "amd64", fmt, ##arg)
+
+#define amd64_mc_warn(mci, fmt, arg...) \
+	edac_mc_chipset_printk(mci, KERN_WARNING, "amd64", fmt, ##arg)
+
+#define amd64_mc_err(mci, fmt, arg...) \
+	edac_mc_chipset_printk(mci, KERN_ERR, "amd64", fmt, ##arg)
 
 /*
  * Throughout the comments in this code, the following terms are used:
@@ -129,10 +144,8 @@
  *         sections 3.5.4 and 3.5.5 for more information.
  */
 
-#define EDAC_AMD64_VERSION		" Ver: 3.3.0 " __DATE__
+#define EDAC_AMD64_VERSION		"v3.3.0"
 #define EDAC_MOD_STR			"amd64_edac"
-
-#define EDAC_MAX_NUMNODES		8
 
 /* Extended Model from CPUID, for CPU Revision numbers */
 #define K8_REV_D			1
@@ -244,43 +257,16 @@
 
 
 #define F10_DCTL_SEL_LOW		0x110
-
-#define dct_sel_baseaddr(pvt)    \
-	((pvt->dram_ctl_select_low) & 0xFFFFF800)
-
-#define dct_sel_interleave_addr(pvt)    \
-	(((pvt->dram_ctl_select_low) >> 6) & 0x3)
-
-enum {
-	F10_DCTL_SEL_LOW_DctSelHiRngEn	= BIT(0),
-	F10_DCTL_SEL_LOW_DctSelIntLvEn	= BIT(2),
-	F10_DCTL_SEL_LOW_DctGangEn	= BIT(4),
-	F10_DCTL_SEL_LOW_DctDatIntLv	= BIT(5),
-	F10_DCTL_SEL_LOW_DramEnable	= BIT(8),
-	F10_DCTL_SEL_LOW_MemCleared	= BIT(10),
-};
-
-#define    dct_high_range_enabled(pvt)    \
-	(pvt->dram_ctl_select_low & F10_DCTL_SEL_LOW_DctSelHiRngEn)
-
-#define dct_interleave_enabled(pvt)	   \
-	(pvt->dram_ctl_select_low & F10_DCTL_SEL_LOW_DctSelIntLvEn)
-
-#define dct_ganging_enabled(pvt)        \
-	(pvt->dram_ctl_select_low & F10_DCTL_SEL_LOW_DctGangEn)
-
-#define dct_data_intlv_enabled(pvt)    \
-	(pvt->dram_ctl_select_low & F10_DCTL_SEL_LOW_DctDatIntLv)
-
-#define dct_dram_enabled(pvt)    \
-	(pvt->dram_ctl_select_low & F10_DCTL_SEL_LOW_DramEnable)
-
-#define dct_memory_cleared(pvt)    \
-	(pvt->dram_ctl_select_low & F10_DCTL_SEL_LOW_MemCleared)
-
+#define dct_sel_baseaddr(pvt)		((pvt->dram_ctl_select_low) & 0xFFFFF800)
+#define dct_sel_interleave_addr(pvt)	(((pvt->dram_ctl_select_low) >> 6) & 0x3)
+#define dct_high_range_enabled(pvt)	(pvt->dram_ctl_select_low & BIT(0))
+#define dct_interleave_enabled(pvt)	(pvt->dram_ctl_select_low & BIT(2))
+#define dct_ganging_enabled(pvt)	(pvt->dram_ctl_select_low & BIT(4))
+#define dct_data_intlv_enabled(pvt)	(pvt->dram_ctl_select_low & BIT(5))
+#define dct_dram_enabled(pvt)		(pvt->dram_ctl_select_low & BIT(8))
+#define dct_memory_cleared(pvt)		(pvt->dram_ctl_select_low & BIT(10))
 
 #define F10_DCTL_SEL_HIGH		0x114
-
 
 /*
  * Function 3 - Misc Control
@@ -349,9 +335,6 @@ enum {
 #define K8_SCRCTRL			0x58
 
 #define F10_NB_CFG_LOW			0x88
-#define	F10_NB_CFG_LOW_ENABLE_EXT_CFG	BIT(14)
-
-#define F10_NB_CFG_HIGH			0x8C
 
 #define F10_ONLINE_SPARE		0xB0
 #define F10_ONLINE_SPARE_SWAPDONE0(x)	((x) & BIT(1))
@@ -382,6 +365,8 @@ enum {
 #define K8_NBCAP_SECDED			BIT(3)
 #define K8_NBCAP_DCT_DUAL		BIT(0)
 
+#define EXT_NB_MCA_CFG			0x180
+
 /* MSRs */
 #define K8_MSR_MCGCTL_NBE		BIT(4)
 
@@ -398,7 +383,6 @@ static inline int get_node_id(struct pci_dev *pdev)
 enum amd64_chipset_families {
 	K8_CPUS = 0,
 	F10_CPUS,
-	F11_CPUS,
 };
 
 /* Error injection control structure */
@@ -409,16 +393,13 @@ struct error_injection {
 };
 
 struct amd64_pvt {
+	struct low_ops *ops;
+
 	/* pci_device handles which we utilize */
-	struct pci_dev *addr_f1_ctl;
-	struct pci_dev *dram_f2_ctl;
-	struct pci_dev *misc_f3_ctl;
+	struct pci_dev *F1, *F2, *F3;
 
 	int mc_node_id;		/* MC index of this MC node */
 	int ext_model;		/* extended model value of this node */
-
-	struct low_ops *ops;	/* pointer to per PCI Device ID func table */
-
 	int channel_count;
 
 	/* Raw registers */
@@ -471,44 +452,46 @@ struct amd64_pvt {
 	u32 dram_ctl_select_high;	/* DRAM Controller Select High Reg */
 	u32 online_spare;               /* On-Line spare Reg */
 
+	/* x4 or x8 syndromes in use */
+	u8 syn_type;
+
 	/* temp storage for when input is received from sysfs */
 	struct err_regs ctl_error_info;
 
 	/* place to store error injection parameters prior to issue */
 	struct error_injection injection;
 
-	/* Save old hw registers' values before we modified them */
-	u32 nbctl_mcgctl_saved;		/* When true, following 2 are valid */
+	/* DCT per-family scrubrate setting */
+	u32 min_scrubrate;
+
+	/* family name this instance is running on */
+	const char *ctl_name;
+
+};
+
+/*
+ * per-node ECC settings descriptor
+ */
+struct ecc_settings {
 	u32 old_nbctl;
+	bool nbctl_valid;
 
-	/* MC Type Index value: socket F vs Family 10h */
-	u32 mc_type_index;
-
-	/* misc settings */
 	struct flags {
-		unsigned long cf8_extcfg:1;
 		unsigned long nb_mce_enable:1;
 		unsigned long nb_ecc_prev:1;
 	} flags;
 };
 
-struct scrubrate {
-       u32 scrubval;           /* bit pattern for scrub rate */
-       u32 bandwidth;          /* bandwidth consumed (bytes/sec) */
-};
-
-extern struct scrubrate scrubrates[23];
 extern const char *tt_msgs[4];
 extern const char *ll_msgs[4];
 extern const char *rrrr_msgs[16];
 extern const char *to_msgs[2];
 extern const char *pp_msgs[4];
 extern const char *ii_msgs[4];
-extern const char *ext_msgs[32];
 extern const char *htlink_msgs[8];
 
 #ifdef CONFIG_EDAC_DEBUG
-#define NUM_DBG_ATTRS 9
+#define NUM_DBG_ATTRS 5
 #else
 #define NUM_DBG_ATTRS 0
 #endif
@@ -540,22 +523,9 @@ struct low_ops {
 
 struct amd64_family_type {
 	const char *ctl_name;
-	u16 addr_f1_ctl;
-	u16 misc_f3_ctl;
+	u16 f1_id, f3_id;
 	struct low_ops ops;
 };
-
-static struct amd64_family_type amd64_family_types[];
-
-static inline const char *get_amd_family_name(int index)
-{
-	return amd64_family_types[index].ctl_name;
-}
-
-static inline struct low_ops *family_ops(int index)
-{
-	return &amd64_family_types[index].ops;
-}
 
 static inline int amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
 					   u32 *val, const char *func)
@@ -564,8 +534,8 @@ static inline int amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
 
 	err = pci_read_config_dword(pdev, offset, val);
 	if (err)
-		amd64_printk(KERN_WARNING, "%s: error reading F%dx%x.\n",
-			     func, PCI_FUNC(pdev->devfn), offset);
+		amd64_warn("%s: error reading F%dx%x.\n",
+			   func, PCI_FUNC(pdev->devfn), offset);
 
 	return err;
 }
@@ -579,7 +549,6 @@ static inline int amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
  */
 #define K8_MIN_SCRUB_RATE_BITS	0x0
 #define F10_MIN_SCRUB_RATE_BITS	0x5
-#define F11_MIN_SCRUB_RATE_BITS	0x6
 
 int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 			     u64 *hole_offset, u64 *hole_size);

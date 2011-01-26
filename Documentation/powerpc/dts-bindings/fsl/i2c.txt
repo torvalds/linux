@@ -20,6 +20,7 @@ Recommended properties :
  - fsl,preserve-clocking : boolean; if defined, the clock settings
    from the bootloader are preserved (not touched).
  - clock-frequency : desired I2C bus clock frequency in Hz.
+ - fsl,timeout : I2C bus timeout in microseconds.
 
 Examples :
 
@@ -59,4 +60,5 @@ Examples :
 		interrupts = <43 2>;
 		interrupt-parent = <&mpic>;
 		clock-frequency = <400000>;
+		fsl,timeout = <10000>;
 	};

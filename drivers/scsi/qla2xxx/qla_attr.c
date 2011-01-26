@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2008 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -1187,6 +1187,21 @@ qla2x00_optrom_fw_version_show(struct device *dev,
 }
 
 static ssize_t
+qla2x00_optrom_gold_fw_version_show(struct device *dev,
+    struct device_attribute *attr, char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA81XX(ha))
+		return snprintf(buf, PAGE_SIZE, "\n");
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d (%d)\n",
+	    ha->gold_fw_version[0], ha->gold_fw_version[1],
+	    ha->gold_fw_version[2], ha->gold_fw_version[3]);
+}
+
+static ssize_t
 qla2x00_total_isp_aborts_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -1208,7 +1223,7 @@ qla24xx_84xx_fw_version_show(struct device *dev,
 	if (!IS_QLA84XX(ha))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
-	if (ha->cs84xx && ha->cs84xx->op_fw_version == 0)
+	if (ha->cs84xx->op_fw_version == 0)
 		rval = qla84xx_verify_chip(vha, status);
 
 	if ((rval == QLA_SUCCESS) && (status[0] == 0))
@@ -1294,6 +1309,31 @@ qla2x00_fabric_param_show(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
+qla2x00_thermal_temp_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	int rval = QLA_FUNCTION_FAILED;
+	uint16_t temp, frac;
+
+	if (!vha->hw->flags.thermal_supported)
+		return snprintf(buf, PAGE_SIZE, "\n");
+
+	temp = frac = 0;
+	if (test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
+	    test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags))
+		DEBUG2_3_11(printk(KERN_WARNING
+		    "%s(%ld): isp reset in progress.\n",
+		    __func__, vha->host_no));
+	else if (!vha->hw->flags.eeh_busy)
+		rval = qla2x00_get_thermal_temp(vha, &temp, &frac);
+	if (rval != QLA_SUCCESS)
+		temp = frac = 0;
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", temp, frac);
+}
+
+static ssize_t
 qla2x00_fw_state_show(struct device *dev, struct device_attribute *attr,
     char *buf)
 {
@@ -1336,6 +1376,8 @@ static DEVICE_ATTR(optrom_fcode_version, S_IRUGO,
 		   qla2x00_optrom_fcode_version_show, NULL);
 static DEVICE_ATTR(optrom_fw_version, S_IRUGO, qla2x00_optrom_fw_version_show,
 		   NULL);
+static DEVICE_ATTR(optrom_gold_fw_version, S_IRUGO,
+    qla2x00_optrom_gold_fw_version_show, NULL);
 static DEVICE_ATTR(84xx_fw_version, S_IRUGO, qla24xx_84xx_fw_version_show,
 		   NULL);
 static DEVICE_ATTR(total_isp_aborts, S_IRUGO, qla2x00_total_isp_aborts_show,
@@ -1349,6 +1391,7 @@ static DEVICE_ATTR(vn_port_mac_address, S_IRUGO,
 		   qla2x00_vn_port_mac_address_show, NULL);
 static DEVICE_ATTR(fabric_param, S_IRUGO, qla2x00_fabric_param_show, NULL);
 static DEVICE_ATTR(fw_state, S_IRUGO, qla2x00_fw_state_show, NULL);
+static DEVICE_ATTR(thermal_temp, S_IRUGO, qla2x00_thermal_temp_show, NULL);
 
 struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_driver_version,
@@ -1376,6 +1419,8 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_vn_port_mac_address,
 	&dev_attr_fabric_param,
 	&dev_attr_fw_state,
+	&dev_attr_optrom_gold_fw_version,
+	&dev_attr_thermal_temp,
 	NULL,
 };
 
@@ -1520,6 +1565,19 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 	if (!fcport)
 		return;
 
+	/* Now that the rport has been deleted, set the fcport state to
+	   FCS_DEVICE_DEAD */
+	atomic_set(&fcport->state, FCS_DEVICE_DEAD);
+
+	/*
+	 * Transport has effectively 'deleted' the rport, clear
+	 * all local references.
+	 */
+	spin_lock_irq(host->host_lock);
+	fcport->rport = fcport->drport = NULL;
+	*((fc_port_t **)rport->dd_data) = NULL;
+	spin_unlock_irq(host->host_lock);
+
 	if (test_bit(ABORT_ISP_ACTIVE, &fcport->vha->dpc_flags))
 		return;
 
@@ -1527,15 +1585,6 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 		qla2x00_abort_all_cmds(fcport->vha, DID_NO_CONNECT << 16);
 		return;
 	}
-
-	/*
-	 * Transport has effectively 'deleted' the rport, clear
-	 * all local references.
-	 */
-	spin_lock_irq(host->host_lock);
-	fcport->rport = NULL;
-	*((fc_port_t **)rport->dd_data) = NULL;
-	spin_unlock_irq(host->host_lock);
 }
 
 static void
@@ -1658,14 +1707,14 @@ static void
 qla2x00_get_host_fabric_name(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
-	u64 node_name;
+	uint8_t node_name[WWN_SIZE] = { 0xFF, 0xFF, 0xFF, 0xFF, \
+		0xFF, 0xFF, 0xFF, 0xFF};
+	u64 fabric_name = wwn_to_u64(node_name);
 
 	if (vha->device_flags & SWITCH_FOUND)
-		node_name = wwn_to_u64(vha->fabric_node_name);
-	else
-		node_name = wwn_to_u64(vha->node_name);
+		fabric_name = wwn_to_u64(vha->fabric_node_name);
 
-	fc_host_fabric_name(shost) = node_name;
+	fc_host_fabric_name(shost) = fabric_name;
 }
 
 static void
@@ -1732,7 +1781,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 			fc_vport_set_state(fc_vport, FC_VPORT_LINKDOWN);
 	}
 
-	if (IS_QLA25XX(ha) && ql2xenabledif) {
+	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && ql2xenabledif) {
 		if (ha->fw_attributes & BIT_4) {
 			vha->flags.difdix_supported = 1;
 			DEBUG18(qla_printk(KERN_INFO, ha,
@@ -1740,8 +1789,10 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 			    " protection.\n"));
 			scsi_host_set_prot(vha->host,
 			    SHOST_DIF_TYPE1_PROTECTION
+			    | SHOST_DIF_TYPE2_PROTECTION
 			    | SHOST_DIF_TYPE3_PROTECTION
 			    | SHOST_DIX_TYPE1_PROTECTION
+			    | SHOST_DIX_TYPE2_PROTECTION
 			    | SHOST_DIX_TYPE3_PROTECTION);
 			scsi_host_set_guard(vha->host, SHOST_DIX_GUARD_CRC);
 		} else
@@ -1756,6 +1807,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	}
 
 	/* initialize attributes */
+	fc_host_dev_loss_tmo(vha->host) = ha->port_down_retry_count;
 	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
 	fc_host_port_name(vha->host) = wwn_to_u64(vha->port_name);
 	fc_host_supported_classes(vha->host) =
@@ -1809,7 +1861,6 @@ static int
 qla24xx_vport_delete(struct fc_vport *fc_vport)
 {
 	scsi_qla_host_t *vha = fc_vport->dd_data;
-	fc_port_t *fcport, *tfcport;
 	struct qla_hw_data *ha = vha->hw;
 	uint16_t id = vha->vp_idx;
 
@@ -1819,29 +1870,32 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 
 	qla24xx_disable_vp(vha);
 
+	vha->flags.delete_progress = 1;
+
 	fc_remove_host(vha->host);
 
 	scsi_remove_host(vha->host);
 
-	list_for_each_entry_safe(fcport, tfcport, &vha->vp_fcports, list) {
-		list_del(&fcport->list);
-		kfree(fcport);
-		fcport = NULL;
+	if (vha->timer_active) {
+		qla2x00_vp_stop_timer(vha);
+		DEBUG15(printk(KERN_INFO "scsi(%ld): timer for the vport[%d]"
+		" = %p has stopped\n", vha->host_no, vha->vp_idx, vha));
 	}
 
 	qla24xx_deallocate_vp_id(vha);
+
+	/* No pending activities shall be there on the vha now */
+	DEBUG(msleep(random32()%10));  /* Just to see if something falls on
+					* the net we have placed below */
+
+	BUG_ON(atomic_read(&vha->vref_count));
+
+	qla2x00_free_fcports(vha);
 
 	mutex_lock(&ha->vport_lock);
 	ha->cur_vport_count--;
 	clear_bit(vha->vp_idx, ha->vp_idx_map);
 	mutex_unlock(&ha->vport_lock);
-
-	if (vha->timer_active) {
-		qla2x00_vp_stop_timer(vha);
-		DEBUG15(printk ("scsi(%ld): timer for the vport[%d] = %p "
-		    "has stopped\n",
-		    vha->host_no, vha->vp_idx, vha));
-        }
 
 	if (vha->req->id && !ha->flags.cpu_affinity_enabled) {
 		if (qla25xx_delete_req_que(vha, vha->req) != QLA_SUCCESS)
@@ -1962,6 +2016,7 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	u32 speed = FC_PORTSPEED_UNKNOWN;
 
+	fc_host_dev_loss_tmo(vha->host) = ha->port_down_retry_count;
 	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
 	fc_host_port_name(vha->host) = wwn_to_u64(vha->port_name);
 	fc_host_supported_classes(vha->host) = FC_COS_CLASS3;

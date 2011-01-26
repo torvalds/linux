@@ -19,23 +19,25 @@
 #define	__XFS_ALLOC_H__
 
 struct xfs_buf;
+struct xfs_btree_cur;
 struct xfs_mount;
 struct xfs_perag;
 struct xfs_trans;
+struct xfs_busy_extent;
 
 /*
  * Freespace allocation types.  Argument to xfs_alloc_[v]extent.
  */
-typedef enum xfs_alloctype
-{
-	XFS_ALLOCTYPE_ANY_AG,		/* allocate anywhere, use rotor */
-	XFS_ALLOCTYPE_FIRST_AG,		/* ... start at ag 0 */
-	XFS_ALLOCTYPE_START_AG,		/* anywhere, start in this a.g. */
-	XFS_ALLOCTYPE_THIS_AG,		/* anywhere in this a.g. */
-	XFS_ALLOCTYPE_START_BNO,	/* near this block else anywhere */
-	XFS_ALLOCTYPE_NEAR_BNO,		/* in this a.g. and near this block */
-	XFS_ALLOCTYPE_THIS_BNO		/* at exactly this block */
-} xfs_alloctype_t;
+#define XFS_ALLOCTYPE_ANY_AG	0x01	/* allocate anywhere, use rotor */
+#define XFS_ALLOCTYPE_FIRST_AG	0x02	/* ... start at ag 0 */
+#define XFS_ALLOCTYPE_START_AG	0x04	/* anywhere, start in this a.g. */
+#define XFS_ALLOCTYPE_THIS_AG	0x08	/* anywhere in this a.g. */
+#define XFS_ALLOCTYPE_START_BNO	0x10	/* near this block else anywhere */
+#define XFS_ALLOCTYPE_NEAR_BNO	0x20	/* in this a.g. and near this block */
+#define XFS_ALLOCTYPE_THIS_BNO	0x40	/* at exactly this block */
+
+/* this should become an enum again when the tracing code is fixed */
+typedef unsigned int xfs_alloctype_t;
 
 #define XFS_ALLOC_TYPES \
 	{ XFS_ALLOCTYPE_ANY_AG,		"ANY_AG" }, \
@@ -117,18 +119,16 @@ xfs_alloc_longest_free_extent(struct xfs_mount *mp,
 		struct xfs_perag *pag);
 
 #ifdef __KERNEL__
+void
+xfs_alloc_busy_insert(struct xfs_trans *tp, xfs_agnumber_t agno,
+	xfs_agblock_t bno, xfs_extlen_t len);
 
 void
-xfs_alloc_mark_busy(xfs_trans_t *tp,
-		xfs_agnumber_t agno,
-		xfs_agblock_t bno,
-		xfs_extlen_t len);
+xfs_alloc_busy_clear(struct xfs_mount *mp, struct xfs_busy_extent *busyp);
 
-void
-xfs_alloc_clear_busy(xfs_trans_t *tp,
-		xfs_agnumber_t ag,
-		int idx);
-
+int
+xfs_alloc_busy_search(struct xfs_mount *mp, xfs_agnumber_t agno,
+	xfs_agblock_t bno, xfs_extlen_t len);
 #endif	/* __KERNEL__ */
 
 /*
@@ -205,5 +205,19 @@ xfs_free_extent(
 	struct xfs_trans *tp,	/* transaction pointer */
 	xfs_fsblock_t	bno,	/* starting block number of extent */
 	xfs_extlen_t	len);	/* length of extent */
+
+int					/* error */
+xfs_alloc_lookup_le(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agblock_t		bno,	/* starting block of extent */
+	xfs_extlen_t		len,	/* length of extent */
+	int			*stat);	/* success/failure */
+
+int					/* error */
+xfs_alloc_get_rec(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agblock_t		*bno,	/* output: starting block of extent */
+	xfs_extlen_t		*len,	/* output: length of extent */
+	int			*stat);	/* output: success/failure */
 
 #endif	/* __XFS_ALLOC_H__ */

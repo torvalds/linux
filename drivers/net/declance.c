@@ -1022,7 +1022,7 @@ static const struct net_device_ops lance_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 
-static int __init dec_lance_probe(struct device *bdev, const int type)
+static int __devinit dec_lance_probe(struct device *bdev, const int type)
 {
 	static unsigned version_printed;
 	static const char fmt[] = "declance%d";
@@ -1255,7 +1255,7 @@ static int __init dec_lance_probe(struct device *bdev, const int type)
 	 */
 	init_timer(&lp->multicast_timer);
 	lp->multicast_timer.data = (unsigned long) dev;
-	lp->multicast_timer.function = &lance_set_multicast_retry;
+	lp->multicast_timer.function = lance_set_multicast_retry;
 
 	ret = register_netdev(dev);
 	if (ret) {
@@ -1326,7 +1326,7 @@ static void __exit dec_lance_platform_remove(void)
 }
 
 #ifdef CONFIG_TC
-static int __init dec_lance_tc_probe(struct device *dev);
+static int __devinit dec_lance_tc_probe(struct device *dev);
 static int __exit dec_lance_tc_remove(struct device *dev);
 
 static const struct tc_device_id dec_lance_tc_table[] = {
@@ -1345,7 +1345,7 @@ static struct tc_driver dec_lance_tc_driver = {
 	},
 };
 
-static int __init dec_lance_tc_probe(struct device *dev)
+static int __devinit dec_lance_tc_probe(struct device *dev)
 {
         int status = dec_lance_probe(dev, PMAD_LANCE);
         if (!status)

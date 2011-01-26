@@ -6,6 +6,7 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
 
@@ -16,39 +17,40 @@
 #include "../trigger.h"
 #include "adis16240.h"
 
-/**
- * combine_8_to_16() utility function to munge to u8s into u16
- **/
-static inline u16 combine_8_to_16(u8 lower, u8 upper)
-{
-	u16 _lower = lower;
-	u16 _upper = upper;
-	return _lower | (_upper << 8);
-}
-
-static IIO_SCAN_EL_C(supply, ADIS16240_SCAN_SUPPLY, IIO_UNSIGNED(10),
+static IIO_SCAN_EL_C(in_supply, ADIS16240_SCAN_SUPPLY,
 		ADIS16240_SUPPLY_OUT, NULL);
-static IIO_SCAN_EL_C(accel_x, ADIS16240_SCAN_ACC_X, IIO_SIGNED(10),
-		ADIS16240_XACCL_OUT, NULL);
-static IIO_SCAN_EL_C(accel_y, ADIS16240_SCAN_ACC_Y, IIO_SIGNED(10),
-		ADIS16240_YACCL_OUT, NULL);
-static IIO_SCAN_EL_C(accel_z, ADIS16240_SCAN_ACC_Z, IIO_SIGNED(10),
-		ADIS16240_ZACCL_OUT, NULL);
-static IIO_SCAN_EL_C(aux_adc, ADIS16240_SCAN_AUX_ADC, IIO_UNSIGNED(10),
-		ADIS16240_AUX_ADC, NULL);
-static IIO_SCAN_EL_C(temp, ADIS16240_SCAN_TEMP, IIO_UNSIGNED(10),
-		ADIS16240_TEMP_OUT, NULL);
-
+static IIO_CONST_ATTR_SCAN_EL_TYPE(in_supply, u, 10, 16);
+static IIO_SCAN_EL_C(accel_x, ADIS16240_SCAN_ACC_X, ADIS16240_XACCL_OUT, NULL);
+static IIO_SCAN_EL_C(accel_y, ADIS16240_SCAN_ACC_Y, ADIS16240_YACCL_OUT, NULL);
+static IIO_SCAN_EL_C(accel_z, ADIS16240_SCAN_ACC_Z, ADIS16240_ZACCL_OUT, NULL);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(accel, s, 10, 16);
+static IIO_SCAN_EL_C(in0, ADIS16240_SCAN_AUX_ADC, ADIS16240_AUX_ADC, NULL);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(in0, u, 10, 16);
+static IIO_SCAN_EL_C(temp, ADIS16240_SCAN_TEMP, ADIS16240_TEMP_OUT, NULL);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(temp, u, 10, 16);
 static IIO_SCAN_EL_TIMESTAMP(6);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
 
 static struct attribute *adis16240_scan_el_attrs[] = {
-	&iio_scan_el_supply.dev_attr.attr,
+	&iio_scan_el_in_supply.dev_attr.attr,
+	&iio_const_attr_in_supply_index.dev_attr.attr,
+	&iio_const_attr_in_supply_type.dev_attr.attr,
 	&iio_scan_el_accel_x.dev_attr.attr,
+	&iio_const_attr_accel_x_index.dev_attr.attr,
 	&iio_scan_el_accel_y.dev_attr.attr,
+	&iio_const_attr_accel_y_index.dev_attr.attr,
 	&iio_scan_el_accel_z.dev_attr.attr,
-	&iio_scan_el_aux_adc.dev_attr.attr,
+	&iio_const_attr_accel_z_index.dev_attr.attr,
+	&iio_const_attr_accel_type.dev_attr.attr,
+	&iio_scan_el_in0.dev_attr.attr,
+	&iio_const_attr_in0_index.dev_attr.attr,
+	&iio_const_attr_in0_type.dev_attr.attr,
 	&iio_scan_el_temp.dev_attr.attr,
+	&iio_const_attr_temp_index.dev_attr.attr,
+	&iio_const_attr_temp_type.dev_attr.attr,
 	&iio_scan_el_timestamp.dev_attr.attr,
+	&iio_const_attr_timestamp_index.dev_attr.attr,
+	&iio_const_attr_timestamp_type.dev_attr.attr,
 	NULL,
 };
 
@@ -61,10 +63,10 @@ static struct attribute_group adis16240_scan_el_group = {
  * adis16240_poll_func_th() top half interrupt handler called by trigger
  * @private_data:	iio_dev
  **/
-static void adis16240_poll_func_th(struct iio_dev *indio_dev)
+static void adis16240_poll_func_th(struct iio_dev *indio_dev, s64 time)
 {
 	struct adis16240_state *st = iio_dev_get_devdata(indio_dev);
-	st->last_timestamp = indio_dev->trig->timestamp;
+	st->last_timestamp = time;
 	schedule_work(&st->work_trigger_to_ring);
 }
 
@@ -116,11 +118,11 @@ static void adis16240_trigger_bh_to_ring(struct work_struct *work_s)
 	struct adis16240_state *st
 		= container_of(work_s, struct adis16240_state,
 				work_trigger_to_ring);
+	struct iio_ring_buffer *ring = st->indio_dev->ring;
 
 	int i = 0;
 	s16 *data;
-	size_t datasize = st->indio_dev
-		->ring->access.get_bpd(st->indio_dev->ring);
+	size_t datasize = ring->access.get_bytes_per_datum(ring);
 
 	data = kmalloc(datasize , GFP_KERNEL);
 	if (data == NULL) {
@@ -128,18 +130,17 @@ static void adis16240_trigger_bh_to_ring(struct work_struct *work_s)
 		return;
 	}
 
-	if (st->indio_dev->scan_count)
+	if (ring->scan_count)
 		if (adis16240_read_ring_data(&st->indio_dev->dev, st->rx) >= 0)
-			for (; i < st->indio_dev->scan_count; i++) {
-				data[i] = combine_8_to_16(st->rx[i*2+1],
-						st->rx[i*2]);
-			}
+			for (; i < ring->scan_count; i++)
+				data[i] = be16_to_cpup(
+					(__be16 *)&(st->rx[i*2]));
 
 	/* Guaranteed to be aligned with 8 byte boundary */
-	if (st->indio_dev->scan_timestamp)
+	if (ring->scan_timestamp)
 		*((s64 *)(data + ((i + 3)/4)*4)) = st->last_timestamp;
 
-	st->indio_dev->ring->access.store_to(st->indio_dev->ring,
+	ring->access.store_to(ring,
 			(u8 *)data,
 			st->last_timestamp);
 
@@ -147,48 +148,6 @@ static void adis16240_trigger_bh_to_ring(struct work_struct *work_s)
 	kfree(data);
 
 	return;
-}
-
-static int adis16240_data_rdy_ring_preenable(struct iio_dev *indio_dev)
-{
-	size_t size;
-	dev_dbg(&indio_dev->dev, "%s\n", __func__);
-	/* Check if there are any scan elements enabled, if not fail*/
-	if (!(indio_dev->scan_count || indio_dev->scan_timestamp))
-		return -EINVAL;
-
-	if (indio_dev->ring->access.set_bpd) {
-		if (indio_dev->scan_timestamp)
-			if (indio_dev->scan_count)
-				/* Timestamp (aligned sizeof(s64) and data */
-				size = (((indio_dev->scan_count * sizeof(s16))
-					 + sizeof(s64) - 1)
-					& ~(sizeof(s64) - 1))
-					+ sizeof(s64);
-			else /* Timestamp only  */
-				size = sizeof(s64);
-		else /* Data only */
-			size = indio_dev->scan_count*sizeof(s16);
-		indio_dev->ring->access.set_bpd(indio_dev->ring, size);
-	}
-
-	return 0;
-}
-
-static int adis16240_data_rdy_ring_postenable(struct iio_dev *indio_dev)
-{
-	return indio_dev->trig
-		? iio_trigger_attach_poll_func(indio_dev->trig,
-				indio_dev->pollfunc)
-		: 0;
-}
-
-static int adis16240_data_rdy_ring_predisable(struct iio_dev *indio_dev)
-{
-	return indio_dev->trig
-		? iio_trigger_dettach_poll_func(indio_dev->trig,
-				indio_dev->pollfunc)
-		: 0;
 }
 
 void adis16240_unconfigure_ring(struct iio_dev *indio_dev)
@@ -203,17 +162,6 @@ int adis16240_configure_ring(struct iio_dev *indio_dev)
 	struct adis16240_state *st = indio_dev->dev_data;
 	struct iio_ring_buffer *ring;
 	INIT_WORK(&st->work_trigger_to_ring, adis16240_trigger_bh_to_ring);
-	/* Set default scan mode */
-
-	iio_scan_mask_set(indio_dev, iio_scan_el_supply.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_accel_x.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_accel_y.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_accel_z.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_temp.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_aux_adc.number);
-	indio_dev->scan_timestamp = true;
-
-	indio_dev->scan_el_attrs = &adis16240_scan_el_group;
 
 	ring = iio_sw_rb_allocate(indio_dev);
 	if (!ring) {
@@ -223,18 +171,26 @@ int adis16240_configure_ring(struct iio_dev *indio_dev)
 	indio_dev->ring = ring;
 	/* Effectively select the ring buffer implementation */
 	iio_ring_sw_register_funcs(&ring->access);
-	ring->preenable = &adis16240_data_rdy_ring_preenable;
-	ring->postenable = &adis16240_data_rdy_ring_postenable;
-	ring->predisable = &adis16240_data_rdy_ring_predisable;
+	ring->bpe = 2;
+	ring->scan_el_attrs = &adis16240_scan_el_group;
+	ring->scan_timestamp = true;
+	ring->preenable = &iio_sw_ring_preenable;
+	ring->postenable = &iio_triggered_ring_postenable;
+	ring->predisable = &iio_triggered_ring_predisable;
 	ring->owner = THIS_MODULE;
 
-	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_iio_sw_rb_free;;
-	}
-	indio_dev->pollfunc->poll_func_main = &adis16240_poll_func_th;
-	indio_dev->pollfunc->private_data = indio_dev;
+	/* Set default scan mode */
+	iio_scan_mask_set(ring, iio_scan_el_in_supply.number);
+	iio_scan_mask_set(ring, iio_scan_el_accel_x.number);
+	iio_scan_mask_set(ring, iio_scan_el_accel_y.number);
+	iio_scan_mask_set(ring, iio_scan_el_accel_z.number);
+	iio_scan_mask_set(ring, iio_scan_el_temp.number);
+	iio_scan_mask_set(ring, iio_scan_el_in0.number);
+
+	ret = iio_alloc_pollfunc(indio_dev, NULL, &adis16240_poll_func_th);
+	if (ret)
+		goto error_iio_sw_rb_free;
+
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
 	return 0;
 
@@ -243,12 +199,3 @@ error_iio_sw_rb_free:
 	return ret;
 }
 
-int adis16240_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return iio_ring_buffer_register(ring, 0);
-}
-
-void adis16240_uninitialize_ring(struct iio_ring_buffer *ring)
-{
-	iio_ring_buffer_unregister(ring);
-}

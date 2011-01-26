@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux/M32R Kernel Configuration"
-
 config M32R
 	bool
 	default y
@@ -14,6 +7,9 @@ config M32R
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_HARDIRQS_NO_DEPRECATED
+	select GENERIC_IRQ_PROBE
 
 config SBUS
 	bool
@@ -26,14 +22,6 @@ config ZONE_DMA
 	bool
 	default y
 
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_IRQ_PROBE
-	bool
-	default y
-
 config NO_IOPORT
 	def_bool y
 
@@ -43,9 +31,6 @@ config NO_DMA
 config HZ
 	int
 	default 100
-
-config GENERIC_TIME
-	def_bool y
 
 config ARCH_USES_GETTIMEOFFSET
 	def_bool y
@@ -318,7 +303,7 @@ config SMP
 	  Management" code will be disabled if you say Y here.
 
 	  See also the SMP-HOWTO available at
-	  <http://www.linuxdoc.org/docs.html#howto>.
+	  <http://tldp.org/HOWTO/SMP-HOWTO.html>.
 
 	  If you don't know what to do here, say N.
 

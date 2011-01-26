@@ -7,9 +7,10 @@
 
 config PLAT_S5P
 	bool
-	depends on (ARCH_S5P6440 || ARCH_S5P6442 || ARCH_S5PV210)
+	depends on (ARCH_S5P64X0 || ARCH_S5P6442 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5PV310)
 	default y
-	select ARM_VIC
+	select ARM_VIC if !ARCH_S5PV310
+	select ARM_GIC if ARCH_S5PV310
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
 	select S3C_GPIO_TRACK
@@ -24,3 +25,60 @@ config PLAT_S5P
 	select SAMSUNG_IRQ_UART
 	help
 	  Base platform code for Samsung's S5P series SoC.
+
+config S5P_EXT_INT
+	bool
+	help
+	  Use the external interrupts (other than GPIO interrupts.)
+	  Note: Do not choose this for S5P6440 and S5P6450.
+
+config S5P_GPIO_INT
+	bool
+	help
+	  Common code for the GPIO interrupts (other than external interrupts.)
+
+config S5P_DEV_FIMC0
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 0
+
+config S5P_DEV_FIMC1
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 1
+
+config S5P_DEV_FIMC2
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 2
+
+config S5P_DEV_ONENAND
+	bool
+	help
+	  Compile in platform device definition for OneNAND controller
+
+config S5P_DEV_CSIS0
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 0
+
+config S5P_DEV_CSIS1
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 1
+
+menuconfig S5P_SYSMMU
+	bool "SYSMMU support"
+	depends on ARCH_S5PV310
+	help
+	  This is a System MMU driver for Samsung ARM based Soc.
+
+if S5P_SYSMMU
+
+config S5P_SYSMMU_DEBUG
+	bool "Enables debug messages"
+	depends on S5P_SYSMMU
+	help
+	  This enables SYSMMU driver debug massages.
+
+endif

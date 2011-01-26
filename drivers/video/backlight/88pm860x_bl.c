@@ -21,7 +21,7 @@
 #define MAX_BRIGHTNESS		(0xFF)
 #define MIN_BRIGHTNESS		(0)
 
-#define CURRENT_MASK		(0x1F << 1)
+#define CURRENT_BITMASK		(0x1F << 1)
 
 struct pm860x_backlight_data {
 	struct pm860x_chip *chip;
@@ -85,7 +85,7 @@ static int pm860x_backlight_set(struct backlight_device *bl, int brightness)
 	if ((data->current_brightness == 0) && brightness) {
 		if (data->iset) {
 			ret = pm860x_set_bits(data->i2c, wled_idc(data->port),
-					      CURRENT_MASK, data->iset);
+					      CURRENT_BITMASK, data->iset);
 			if (ret < 0)
 				goto out;
 		}
@@ -155,7 +155,7 @@ out:
 	return -EINVAL;
 }
 
-static struct backlight_ops pm860x_backlight_ops = {
+static const struct backlight_ops pm860x_backlight_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 	.update_status	= pm860x_backlight_update_status,
 	.get_brightness	= pm860x_backlight_get_brightness,
@@ -222,6 +222,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	data->port = __check_device(pdata, name);
 	if (data->port < 0) {
 		dev_err(&pdev->dev, "wrong platform data is assigned");
+		kfree(data);
 		return -EINVAL;
 	}
 
@@ -266,6 +267,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	backlight_update_status(bl);
 	return 0;
 out:
+	backlight_device_unregister(bl);
 	kfree(data);
 	return ret;
 }

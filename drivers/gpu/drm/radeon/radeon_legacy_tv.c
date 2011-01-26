@@ -496,7 +496,7 @@ static bool radeon_legacy_tv_init_restarts(struct drm_encoder *encoder)
 
 	restart -= v_offset + h_offset;
 
-	DRM_DEBUG("compute_restarts: def = %u h = %d v = %d, p1 = %04x, p2 = %04x, restart = %d\n",
+	DRM_DEBUG_KMS("compute_restarts: def = %u h = %d v = %d, p1 = %04x, p2 = %04x, restart = %d\n",
 		  const_ptr->def_restart, tv_dac->h_pos, tv_dac->v_pos, p1, p2, restart);
 
 	tv_dac->tv.hrestart = restart % h_total;
@@ -505,7 +505,7 @@ static bool radeon_legacy_tv_init_restarts(struct drm_encoder *encoder)
 	restart /= v_total;
 	tv_dac->tv.frestart = restart % f_total;
 
-	DRM_DEBUG("compute_restart: F/H/V=%u,%u,%u\n",
+	DRM_DEBUG_KMS("compute_restart: F/H/V=%u,%u,%u\n",
 		  (unsigned)tv_dac->tv.frestart,
 		  (unsigned)tv_dac->tv.vrestart,
 		  (unsigned)tv_dac->tv.hrestart);
@@ -523,7 +523,7 @@ static bool radeon_legacy_tv_init_restarts(struct drm_encoder *encoder)
 	tv_dac->tv.timing_cntl = (tv_dac->tv.timing_cntl & ~RADEON_H_INC_MASK) |
 		((u32)h_inc << RADEON_H_INC_SHIFT);
 
-	DRM_DEBUG("compute_restart: h_size = %d h_inc = %d\n", tv_dac->h_size, h_inc);
+	DRM_DEBUG_KMS("compute_restart: h_size = %d h_inc = %d\n", tv_dac->h_size, h_inc);
 
 	return h_changed;
 }
@@ -642,8 +642,8 @@ void radeon_legacy_tv_mode_set(struct drm_encoder *encoder,
 	}
 	flicker_removal = (tmp + 500) / 1000;
 
-	if (flicker_removal < 2)
-		flicker_removal = 2;
+	if (flicker_removal < 3)
+		flicker_removal = 3;
 	for (i = 0; i < ARRAY_SIZE(SLOPE_limit); ++i) {
 		if (flicker_removal == SLOPE_limit[i])
 			break;

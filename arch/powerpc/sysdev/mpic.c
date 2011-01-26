@@ -674,7 +674,8 @@ void mpic_unmask_irq(unsigned int irq)
 	/* make sure mask gets to controller before we return to user */
 	do {
 		if (!loops--) {
-			printk(KERN_ERR "mpic_enable_irq timeout\n");
+			printk(KERN_ERR "%s: timeout on hwirq %u\n",
+			       __func__, src);
 			break;
 		}
 	} while(mpic_irq_read(src, MPIC_INFO(IRQ_VECTOR_PRI)) & MPIC_VECPRI_MASK);
@@ -695,7 +696,8 @@ void mpic_mask_irq(unsigned int irq)
 	/* make sure mask gets to controller before we return to user */
 	do {
 		if (!loops--) {
-			printk(KERN_ERR "mpic_enable_irq timeout\n");
+			printk(KERN_ERR "%s: timeout on hwirq %u\n",
+			       __func__, src);
 			break;
 		}
 	} while(!(mpic_irq_read(src, MPIC_INFO(IRQ_VECTOR_PRI)) & MPIC_VECPRI_MASK));
@@ -1636,6 +1638,24 @@ void __devinit smp_mpic_setup_cpu(int cpu)
 {
 	mpic_setup_this_cpu();
 }
+
+void mpic_reset_core(int cpu)
+{
+	struct mpic *mpic = mpic_primary;
+	u32 pir;
+	int cpuid = get_hard_smp_processor_id(cpu);
+
+	/* Set target bit for core reset */
+	pir = mpic_read(mpic->gregs, MPIC_INFO(GREG_PROCESSOR_INIT));
+	pir |= (1 << cpuid);
+	mpic_write(mpic->gregs, MPIC_INFO(GREG_PROCESSOR_INIT), pir);
+	mpic_read(mpic->gregs, MPIC_INFO(GREG_PROCESSOR_INIT));
+
+	/* Restore target bit after reset complete */
+	pir &= ~(1 << cpuid);
+	mpic_write(mpic->gregs, MPIC_INFO(GREG_PROCESSOR_INIT), pir);
+	mpic_read(mpic->gregs, MPIC_INFO(GREG_PROCESSOR_INIT));
+}
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PM
@@ -1666,7 +1686,7 @@ static int mpic_resume(struct sys_device *dev)
 			       mpic->save_data[i].dest);
 
 #ifdef CONFIG_MPIC_U3_HT_IRQS
-	{
+	if (mpic->fixups) {
 		struct mpic_irq_fixup *fixup = &mpic->fixups[i];
 
 		if (fixup->base) {

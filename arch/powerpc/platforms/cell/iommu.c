@@ -29,7 +29,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -477,7 +477,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 
 	ioid = cell_iommu_get_ioid(np);
 
-	window = kmalloc_node(sizeof(*window), GFP_KERNEL, iommu->nid);
+	window = kzalloc_node(sizeof(*window), GFP_KERNEL, iommu->nid);
 	BUG_ON(window == NULL);
 
 	window->offset = offset;
@@ -845,10 +845,10 @@ static int __init cell_iommu_init_disabled(void)
 	/* If we found a DMA window, we check if it's big enough to enclose
 	 * all of physical memory. If not, we force enable IOMMU
 	 */
-	if (np && size < lmb_end_of_DRAM()) {
+	if (np && size < memblock_end_of_DRAM()) {
 		printk(KERN_WARNING "iommu: force-enabled, dma window"
 		       " (%ldMB) smaller than total memory (%lldMB)\n",
-		       size >> 20, lmb_end_of_DRAM() >> 20);
+		       size >> 20, memblock_end_of_DRAM() >> 20);
 		return -ENODEV;
 	}
 
@@ -1064,9 +1064,9 @@ static int __init cell_iommu_fixed_mapping_init(void)
 	}
 
 	fbase = _ALIGN_UP(fbase, 1 << IO_SEGMENT_SHIFT);
-	fsize = lmb_phys_mem_size();
+	fsize = memblock_phys_mem_size();
 
-	if ((fbase + fsize) <= 0x800000000)
+	if ((fbase + fsize) <= 0x800000000ul)
 		hbase = 0; /* use the device tree window */
 	else {
 		/* If we're over 32 GB we need to cheat. We can't map all of
@@ -1169,7 +1169,7 @@ static int __init cell_iommu_init(void)
 	 * Note: should we make sure we have the IOMMU actually disabled ?
 	 */
 	if (iommu_is_off ||
-	    (!iommu_force_on && lmb_end_of_DRAM() <= 0x80000000ull))
+	    (!iommu_force_on && memblock_end_of_DRAM() <= 0x80000000ull))
 		if (cell_iommu_init_disabled() == 0)
 			goto bail;
 
@@ -1204,7 +1204,7 @@ static int __init cell_iommu_init(void)
 	/* Register callbacks on OF platform device addition/removal
 	 * to handle linking them to the right DMA operations
 	 */
-	bus_register_notifier(&of_platform_bus_type, &cell_of_bus_notifier);
+	bus_register_notifier(&platform_bus_type, &cell_of_bus_notifier);
 
 	return 0;
 }

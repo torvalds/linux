@@ -24,9 +24,9 @@ struct timer_list {
 	int slack;
 
 #ifdef CONFIG_TIMER_STATS
+	int start_pid;
 	void *start_site;
 	char start_comm[16];
-	int start_pid;
 #endif
 #ifdef CONFIG_LOCKDEP
 	struct lockdep_map lockdep_map;
@@ -48,12 +48,38 @@ extern struct tvec_base boot_tvec_bases;
 #define __TIMER_LOCKDEP_MAP_INITIALIZER(_kn)
 #endif
 
+/*
+ * Note that all tvec_bases are 2 byte aligned and lower bit of
+ * base in timer_list is guaranteed to be zero. Use the LSB to
+ * indicate whether the timer is deferrable.
+ *
+ * A deferrable timer will work normally when the system is busy, but
+ * will not cause a CPU to come out of idle just to service it; instead,
+ * the timer will be serviced when the CPU eventually wakes up with a
+ * subsequent non-deferrable timer.
+ */
+#define TBASE_DEFERRABLE_FLAG		(0x1)
+
 #define TIMER_INITIALIZER(_function, _expires, _data) {		\
 		.entry = { .prev = TIMER_ENTRY_STATIC },	\
 		.function = (_function),			\
 		.expires = (_expires),				\
 		.data = (_data),				\
 		.base = &boot_tvec_bases,			\
+		.slack = -1,					\
+		__TIMER_LOCKDEP_MAP_INITIALIZER(		\
+			__FILE__ ":" __stringify(__LINE__))	\
+	}
+
+#define TBASE_MAKE_DEFERRED(ptr) ((struct tvec_base *)		\
+		  ((unsigned char *)(ptr) + TBASE_DEFERRABLE_FLAG))
+
+#define TIMER_DEFERRED_INITIALIZER(_function, _expires, _data) {\
+		.entry = { .prev = TIMER_ENTRY_STATIC },	\
+		.function = (_function),			\
+		.expires = (_expires),				\
+		.data = (_data),				\
+		.base = TBASE_MAKE_DEFERRED(&boot_tvec_bases),	\
 		__TIMER_LOCKDEP_MAP_INITIALIZER(		\
 			__FILE__ ":" __stringify(__LINE__))	\
 	}
@@ -100,6 +126,13 @@ void init_timer_deferrable_key(struct timer_list *timer,
 		setup_timer_on_stack_key((timer), #timer, &__key,	\
 					 (fn), (data));			\
 	} while (0)
+#define setup_deferrable_timer_on_stack(timer, fn, data)		\
+	do {								\
+		static struct lock_class_key __key;			\
+		setup_deferrable_timer_on_stack_key((timer), #timer,	\
+						    &__key, (fn),	\
+						    (data));		\
+	} while (0)
 #else
 #define init_timer(timer)\
 	init_timer_key((timer), NULL, NULL)
@@ -111,6 +144,8 @@ void init_timer_deferrable_key(struct timer_list *timer,
 	setup_timer_key((timer), NULL, NULL, (fn), (data))
 #define setup_timer_on_stack(timer, fn, data)\
 	setup_timer_on_stack_key((timer), NULL, NULL, (fn), (data))
+#define setup_deferrable_timer_on_stack(timer, fn, data)\
+	setup_deferrable_timer_on_stack_key((timer), NULL, NULL, (fn), (data))
 #endif
 
 #ifdef CONFIG_DEBUG_OBJECTS_TIMERS
@@ -149,6 +184,12 @@ static inline void setup_timer_on_stack_key(struct timer_list *timer,
 	timer->data = data;
 	init_timer_on_stack_key(timer, name, key);
 }
+
+extern void setup_deferrable_timer_on_stack_key(struct timer_list *timer,
+						const char *name,
+						struct lock_class_key *key,
+						void (*function)(unsigned long),
+						unsigned long data);
 
 /**
  * timer_pending - is a timer pending?
@@ -233,11 +274,11 @@ static inline void timer_stats_timer_clear_start_info(struct timer_list *timer)
 
 extern void add_timer(struct timer_list *timer);
 
+extern int try_to_del_timer_sync(struct timer_list *timer);
+
 #ifdef CONFIG_SMP
-  extern int try_to_del_timer_sync(struct timer_list *timer);
   extern int del_timer_sync(struct timer_list *timer);
 #else
-# define try_to_del_timer_sync(t)	del_timer(t)
 # define del_timer_sync(t)		del_timer(t)
 #endif
 

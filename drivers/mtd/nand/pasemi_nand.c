@@ -89,7 +89,7 @@ int pasemi_device_ready(struct mtd_info *mtd)
 	return !!(inl(lpcctl) & LBICTRL_LPCCTL_NR);
 }
 
-static int __devinit pasemi_nand_probe(struct of_device *ofdev,
+static int __devinit pasemi_nand_probe(struct platform_device *ofdev,
 				      const struct of_device_id *match)
 {
 	struct pci_dev *pdev;
@@ -107,7 +107,7 @@ static int __devinit pasemi_nand_probe(struct of_device *ofdev,
 	if (pasemi_nand_mtd)
 		return -ENODEV;
 
-	pr_debug("pasemi_nand at %llx-%llx\n", res.start, res.end);
+	pr_debug("pasemi_nand at %pR\n", &res);
 
 	/* Allocate memory for MTD device structure and private data */
 	pasemi_nand_mtd = kzalloc(sizeof(struct mtd_info) +
@@ -185,7 +185,7 @@ static int __devinit pasemi_nand_probe(struct of_device *ofdev,
 	return err;
 }
 
-static int __devexit pasemi_nand_remove(struct of_device *ofdev)
+static int __devexit pasemi_nand_remove(struct platform_device *ofdev)
 {
 	struct nand_chip *chip;
 

@@ -31,11 +31,10 @@
 #include <linux/ioctl.h>
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
+#include <media/v4l2-ctrls.h>
 
 MODULE_DESCRIPTION("wm8775 driver");
 MODULE_AUTHOR("Ulf Eklund, Hans Verkuil");
@@ -53,13 +52,19 @@ enum {
 
 struct wm8775_state {
 	struct v4l2_subdev sd;
+	struct v4l2_ctrl_handler hdl;
+	struct v4l2_ctrl *mute;
 	u8 input;		/* Last selected input (0-0xf) */
-	u8 muted;
 };
 
 static inline struct wm8775_state *to_state(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct wm8775_state, sd);
+}
+
+static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
+{
+	return &container_of(ctrl->handler, struct wm8775_state, hdl)->sd;
 }
 
 static int wm8775_write(struct v4l2_subdev *sd, int reg, u16 val)
@@ -95,7 +100,7 @@ static int wm8775_s_routing(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 	state->input = input;
-	if (state->muted)
+	if (!v4l2_ctrl_g_ctrl(state->mute))
 		return 0;
 	wm8775_write(sd, R21, 0x0c0);
 	wm8775_write(sd, R14, 0x1d4);
@@ -104,29 +109,21 @@ static int wm8775_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int wm8775_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+static int wm8775_s_ctrl(struct v4l2_ctrl *ctrl)
 {
+	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct wm8775_state *state = to_state(sd);
 
-	if (ctrl->id != V4L2_CID_AUDIO_MUTE)
-		return -EINVAL;
-	ctrl->value = state->muted;
-	return 0;
-}
-
-static int wm8775_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct wm8775_state *state = to_state(sd);
-
-	if (ctrl->id != V4L2_CID_AUDIO_MUTE)
-		return -EINVAL;
-	state->muted = ctrl->value;
-	wm8775_write(sd, R21, 0x0c0);
-	wm8775_write(sd, R14, 0x1d4);
-	wm8775_write(sd, R15, 0x1d4);
-	if (!state->muted)
-		wm8775_write(sd, R21, 0x100 + state->input);
-	return 0;
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		wm8775_write(sd, R21, 0x0c0);
+		wm8775_write(sd, R14, 0x1d4);
+		wm8775_write(sd, R15, 0x1d4);
+		if (!ctrl->val)
+			wm8775_write(sd, R21, 0x100 + state->input);
+		return 0;
+	}
+	return -EINVAL;
 }
 
 static int wm8775_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
@@ -140,8 +137,8 @@ static int wm8775_log_status(struct v4l2_subdev *sd)
 {
 	struct wm8775_state *state = to_state(sd);
 
-	v4l2_info(sd, "Input: %d%s\n", state->input,
-			state->muted ? " (muted)" : "");
+	v4l2_info(sd, "Input: %d\n", state->input);
+	v4l2_ctrl_handler_log_status(&state->hdl, sd->name);
 	return 0;
 }
 
@@ -162,11 +159,20 @@ static int wm8775_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *fre
 
 /* ----------------------------------------------------------------------- */
 
+static const struct v4l2_ctrl_ops wm8775_ctrl_ops = {
+	.s_ctrl = wm8775_s_ctrl,
+};
+
 static const struct v4l2_subdev_core_ops wm8775_core_ops = {
 	.log_status = wm8775_log_status,
 	.g_chip_ident = wm8775_g_chip_ident,
-	.g_ctrl = wm8775_g_ctrl,
-	.s_ctrl = wm8775_s_ctrl,
+	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
+	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
+	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
+	.g_ctrl = v4l2_subdev_g_ctrl,
+	.s_ctrl = v4l2_subdev_s_ctrl,
+	.queryctrl = v4l2_subdev_queryctrl,
+	.querymenu = v4l2_subdev_querymenu,
 };
 
 static const struct v4l2_subdev_tuner_ops wm8775_tuner_ops = {
@@ -205,13 +211,24 @@ static int wm8775_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	state = kmalloc(sizeof(struct wm8775_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct wm8775_state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &wm8775_ops);
 	state->input = 2;
-	state->muted = 0;
+
+	v4l2_ctrl_handler_init(&state->hdl, 1);
+	state->mute = v4l2_ctrl_new_std(&state->hdl, &wm8775_ctrl_ops,
+			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 0);
+	sd->ctrl_handler = &state->hdl;
+	if (state->hdl.error) {
+		int err = state->hdl.error;
+
+		v4l2_ctrl_handler_free(&state->hdl);
+		kfree(state);
+		return err;
+	}
 
 	/* Initialize wm8775 */
 
@@ -248,9 +265,11 @@ static int wm8775_probe(struct i2c_client *client,
 static int wm8775_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct wm8775_state *state = to_state(sd);
 
 	v4l2_device_unregister_subdev(sd);
-	kfree(to_state(sd));
+	v4l2_ctrl_handler_free(&state->hdl);
+	kfree(state);
 	return 0;
 }
 
@@ -260,9 +279,25 @@ static const struct i2c_device_id wm8775_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8775_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "wm8775",
-	.probe = wm8775_probe,
-	.remove = wm8775_remove,
-	.id_table = wm8775_id,
+static struct i2c_driver wm8775_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "wm8775",
+	},
+	.probe		= wm8775_probe,
+	.remove		= wm8775_remove,
+	.id_table	= wm8775_id,
 };
+
+static __init int init_wm8775(void)
+{
+	return i2c_add_driver(&wm8775_driver);
+}
+
+static __exit void exit_wm8775(void)
+{
+	i2c_del_driver(&wm8775_driver);
+}
+
+module_init(init_wm8775);
+module_exit(exit_wm8775);

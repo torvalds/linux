@@ -6,7 +6,7 @@
 
 config PLAT_SAMSUNG
 	bool
-	depends on ARCH_S3C2410 || ARCH_S3C24A0 || ARCH_S3C64XX || ARCH_S5PC1XX
+	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P
 	select NO_IOPORT
 	default y
 	help
@@ -95,6 +95,12 @@ config S3C_GPIO_PULL_UPDOWN
 	help
 	  Internal configuration to enable the correct GPIO pull helper
 
+config S3C_GPIO_PULL_S3C2443
+	bool
+	select S3C_GPIO_PULL_UPDOWN
+	help
+	  Internal configuration to enable the correct GPIO pull helper for S3C2443-style GPIO
+
 config S3C_GPIO_PULL_DOWN
 	bool
 	help
@@ -160,6 +166,11 @@ config S3C_DEV_HSMMC2
 	help
 	  Compile in platform device definitions for HSMMC channel 2
 
+config S3C_DEV_HSMMC3
+	bool
+	help
+	  Compile in platform device definitions for HSMMC channel 3
+
 config S3C_DEV_HWMON
 	bool
 	help
@@ -169,6 +180,36 @@ config S3C_DEV_I2C1
 	bool
 	help
 	  Compile in platform device definitions for I2C channel 1
+
+config S3C_DEV_I2C2
+	bool
+	help
+	  Compile in platform device definitions for I2C channel 2
+
+config S3C_DEV_I2C3
+	bool
+	help
+	  Compile in platform device definition for I2C controller 3
+
+config S3C_DEV_I2C4
+	bool
+	help
+	  Compile in platform device definition for I2C controller 4
+
+config S3C_DEV_I2C5
+	bool
+	help
+	  Compile in platform device definition for I2C controller 5
+
+config S3C_DEV_I2C6
+	bool
+	help
+	  Compile in platform device definition for I2C controller 6
+
+config S3C_DEV_I2C7
+	bool
+	help
+	  Compile in platform device definition for I2C controller 7
 
 config S3C_DEV_FB
 	bool
@@ -185,10 +226,21 @@ config S3C_DEV_USB_HSOTG
 	help
 	  Compile in platform device definition for USB high-speed OtG
 
+config S3C_DEV_WDT
+	bool
+	default y if ARCH_S3C2410
+	help
+	  Complie in platform device definition for Watchdog Timer
+
 config S3C_DEV_NAND
 	bool
 	help
 	  Compile in platform device definition for NAND controller
+
+config S3C_DEV_ONENAND
+	bool
+	help
+	  Compile in platform device definition for OneNAND controller
 
 config S3C_DEV_RTC
 	bool
@@ -200,6 +252,11 @@ config SAMSUNG_DEV_ADC
 	help
 	  Compile in platform device definition for ADC controller
 
+config SAMSUNG_DEV_IDE
+	bool
+	help
+	  Compile in platform device definitions for IDE
+
 config S3C64XX_DEV_SPI
 	bool
 	help
@@ -210,6 +267,11 @@ config SAMSUNG_DEV_TS
 	bool
 	help
 	    Common in platform device definitions for touchscreen device
+
+config SAMSUNG_DEV_KEYPAD
+	bool
+	help
+	  Compile in platform device definitions for keypad
 
 # DMA
 
@@ -268,5 +330,21 @@ config SAMSUNG_PM_CHECK_CHUNKSIZE
 	  faults with better precision.
 
 	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+
+config SAMSUNG_WAKEMASK
+	bool
+	depends on PM
+	help
+	  Compile support for wakeup-mask controls found on the S3C6400
+	  and above. This code allows a set of interrupt to wakeup-mask
+	  mappings. See <plat/wakeup-mask.h>
+
+comment "Power Domain"
+
+config SAMSUNG_PD
+	bool "Samsung Power Domain"
+	depends on PM_RUNTIME
+	help
+	  Say Y here if you want to control Power Domain by Runtime PM.
 
 endif

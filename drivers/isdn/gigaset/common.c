@@ -399,8 +399,8 @@ static void gigaset_freebcs(struct bc_state *bcs)
 	gig_dbg(DEBUG_INIT, "clearing bcs[%d]->at_state", bcs->channel);
 	clear_at_state(&bcs->at_state);
 	gig_dbg(DEBUG_INIT, "freeing bcs[%d]->skb", bcs->channel);
-	dev_kfree_skb(bcs->skb);
-	bcs->skb = NULL;
+	dev_kfree_skb(bcs->rx_skb);
+	bcs->rx_skb = NULL;
 
 	for (i = 0; i < AT_NUM; ++i) {
 		kfree(bcs->commands[i]);
@@ -634,19 +634,10 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	bcs->emptycount = 0;
 #endif
 
-	gig_dbg(DEBUG_INIT, "allocating bcs[%d]->skb", channel);
-	bcs->fcs = PPP_INITFCS;
+	bcs->rx_bufsize = 0;
+	bcs->rx_skb = NULL;
+	bcs->rx_fcs = PPP_INITFCS;
 	bcs->inputstate = 0;
-	if (cs->ignoreframes) {
-		bcs->skb = NULL;
-	} else {
-		bcs->skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
-		if (bcs->skb != NULL)
-			skb_reserve(bcs->skb, cs->hw_hdr_len);
-		else
-			pr_err("out of memory\n");
-	}
-
 	bcs->channel = channel;
 	bcs->cs = cs;
 
@@ -658,16 +649,15 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	for (i = 0; i < AT_NUM; ++i)
 		bcs->commands[i] = NULL;
 
+	spin_lock_init(&bcs->aplock);
+	bcs->ap = NULL;
+	bcs->apconnstate = 0;
+
 	gig_dbg(DEBUG_INIT, "  setting up bcs[%d]->hw", channel);
 	if (cs->ops->initbcshw(bcs))
 		return bcs;
 
 	gig_dbg(DEBUG_INIT, "  failed");
-
-	gig_dbg(DEBUG_INIT, "  freeing bcs[%d]->skb", channel);
-	dev_kfree_skb(bcs->skb);
-	bcs->skb = NULL;
-
 	return NULL;
 }
 
@@ -801,8 +791,6 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	spin_unlock_irqrestore(&cs->lock, flags);
 	setup_timer(&cs->timer, timer_tick, (unsigned long) cs);
 	cs->timer.expires = jiffies + msecs_to_jiffies(GIG_TICK);
-	/* FIXME: can jiffies increase too much until the timer is added?
-	 * Same problem(?) with mod_timer() in timer_tick(). */
 	add_timer(&cs->timer);
 
 	gig_dbg(DEBUG_INIT, "cs initialized");
@@ -839,14 +827,12 @@ void gigaset_bcs_reinit(struct bc_state *bcs)
 	bcs->emptycount = 0;
 #endif
 
-	bcs->fcs = PPP_INITFCS;
+	bcs->rx_fcs = PPP_INITFCS;
 	bcs->chstate = 0;
 
 	bcs->ignore = cs->ignoreframes;
-	if (bcs->ignore) {
-		dev_kfree_skb(bcs->skb);
-		bcs->skb = NULL;
-	}
+	dev_kfree_skb(bcs->rx_skb);
+	bcs->rx_skb = NULL;
 
 	cs->ops->reinitbcshw(bcs);
 }
@@ -1038,32 +1024,6 @@ struct cardstate *gigaset_get_cs_by_id(int id)
 	}
 	spin_unlock_irqrestore(&driver_lock, flags);
 	return ret;
-}
-
-void gigaset_debugdrivers(void)
-{
-	unsigned long flags;
-	static struct cardstate *cs;
-	struct gigaset_driver *drv;
-	unsigned i;
-
-	spin_lock_irqsave(&driver_lock, flags);
-	list_for_each_entry(drv, &drivers, list) {
-		gig_dbg(DEBUG_DRIVER, "driver %p", drv);
-		spin_lock(&drv->lock);
-		for (i = 0; i < drv->minors; ++i) {
-			gig_dbg(DEBUG_DRIVER, "  index %u", i);
-			cs = drv->cs + i;
-			gig_dbg(DEBUG_DRIVER, "    cardstate %p", cs);
-			gig_dbg(DEBUG_DRIVER, "    flags 0x%02x", cs->flags);
-			gig_dbg(DEBUG_DRIVER, "    minor_index %u",
-				cs->minor_index);
-			gig_dbg(DEBUG_DRIVER, "    driver %p", cs->driver);
-			gig_dbg(DEBUG_DRIVER, "    i4l id %d", cs->myid);
-		}
-		spin_unlock(&drv->lock);
-	}
-	spin_unlock_irqrestore(&driver_lock, flags);
 }
 
 static struct cardstate *gigaset_get_cs_by_minor(unsigned minor)

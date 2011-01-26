@@ -42,11 +42,12 @@ struct iio_gpio_trigger_info {
 
 static irqreturn_t iio_gpio_trigger_poll(int irq, void *private)
 {
-	iio_trigger_poll(private);
+	/* Timestamp not currently provided */
+	iio_trigger_poll(private, 0);
 	return IRQ_HANDLED;
 }
 
-static DEVICE_ATTR(name, S_IRUGO, iio_trigger_read_name, NULL);
+static IIO_TRIGGER_NAME_ATTR;
 
 static struct attribute *iio_gpio_trigger_attrs[] = {
 	&dev_attr_name.attr,
@@ -93,16 +94,11 @@ static int iio_gpio_trigger_probe(struct platform_device *pdev)
 			trig->private_data = trig_info;
 			trig_info->irq = irq;
 			trig->owner = THIS_MODULE;
-			trig->name = kmalloc(IIO_TRIGGER_NAME_LENGTH,
-					GFP_KERNEL);
-			if (!trig->name) {
+			trig->name = kasprintf(GFP_KERNEL, "irqtrig%d", irq);
+			if (trig->name == NULL) {
 				ret = -ENOMEM;
 				goto error_free_trig_info;
 			}
-			snprintf((char *)trig->name,
-				 IIO_TRIGGER_NAME_LENGTH,
-				 "irqtrig%d", irq);
-
 			ret = request_irq(irq, iio_gpio_trigger_poll,
 					  irqflags, trig->name, trig);
 			if (ret) {

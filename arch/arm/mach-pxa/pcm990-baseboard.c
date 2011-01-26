@@ -241,23 +241,23 @@ static struct platform_device pcm990_backlight_device = {
 
 static unsigned long pcm990_irq_enabled;
 
-static void pcm990_mask_ack_irq(unsigned int irq)
+static void pcm990_mask_ack_irq(struct irq_data *d)
 {
-	int pcm990_irq = (irq - PCM027_IRQ(0));
+	int pcm990_irq = (d->irq - PCM027_IRQ(0));
 	PCM990_INTMSKENA = (pcm990_irq_enabled &= ~(1 << pcm990_irq));
 }
 
-static void pcm990_unmask_irq(unsigned int irq)
+static void pcm990_unmask_irq(struct irq_data *d)
 {
-	int pcm990_irq = (irq - PCM027_IRQ(0));
+	int pcm990_irq = (d->irq - PCM027_IRQ(0));
 	/* the irq can be acknowledged only if deasserted, so it's done here */
 	PCM990_INTSETCLR |= 1 << pcm990_irq;
 	PCM990_INTMSKENA  = (pcm990_irq_enabled |= (1 << pcm990_irq));
 }
 
 static struct irq_chip pcm990_irq_chip = {
-	.mask_ack	= pcm990_mask_ack_irq,
-	.unmask		= pcm990_unmask_irq,
+	.irq_mask_ack	= pcm990_mask_ack_irq,
+	.irq_unmask	= pcm990_unmask_irq,
 };
 
 static void pcm990_irq_handler(unsigned int irq, struct irq_desc *desc)
@@ -265,7 +265,8 @@ static void pcm990_irq_handler(unsigned int irq, struct irq_desc *desc)
 	unsigned long pending = (~PCM990_INTSETCLR) & pcm990_irq_enabled;
 
 	do {
-		desc->chip->ack(irq);	/* clear our parent IRQ */
+		/* clear our parent IRQ */
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 		if (likely(pending)) {
 			irq = PCM027_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);
@@ -453,7 +454,6 @@ static struct soc_camera_link iclink[] = {
 		.query_bus_param	= pcm990_camera_query_bus_param,
 		.set_bus_param		= pcm990_camera_set_bus_param,
 		.free_bus		= pcm990_camera_free_bus,
-		.module_name		= "mt9v022",
 	}, {
 		.bus_id			= 0, /* Must match with the camera ID */
 		.board_info		= &pcm990_camera_i2c[1],
@@ -461,7 +461,6 @@ static struct soc_camera_link iclink[] = {
 		.query_bus_param	= pcm990_camera_query_bus_param,
 		.set_bus_param		= pcm990_camera_set_bus_param,
 		.free_bus		= pcm990_camera_free_bus,
-		.module_name		= "mt9m001",
 	},
 };
 

@@ -94,6 +94,22 @@ rdma_node_get_transport(enum rdma_node_type node_type)
 }
 EXPORT_SYMBOL(rdma_node_get_transport);
 
+enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device, u8 port_num)
+{
+	if (device->get_link_layer)
+		return device->get_link_layer(device, port_num);
+
+	switch (rdma_node_get_transport(device->node_type)) {
+	case RDMA_TRANSPORT_IB:
+		return IB_LINK_LAYER_INFINIBAND;
+	case RDMA_TRANSPORT_IWARP:
+		return IB_LINK_LAYER_ETHERNET;
+	default:
+		return IB_LINK_LAYER_UNSPECIFIED;
+	}
+}
+EXPORT_SYMBOL(rdma_port_get_link_layer);
+
 /* Protection domains */
 
 struct ib_pd *ib_alloc_pd(struct ib_device *device)
@@ -310,8 +326,8 @@ EXPORT_SYMBOL(ib_create_qp);
 
 static const struct {
 	int			valid;
-	enum ib_qp_attr_mask	req_param[IB_QPT_RAW_ETY + 1];
-	enum ib_qp_attr_mask	opt_param[IB_QPT_RAW_ETY + 1];
+	enum ib_qp_attr_mask	req_param[IB_QPT_RAW_ETHERTYPE + 1];
+	enum ib_qp_attr_mask	opt_param[IB_QPT_RAW_ETHERTYPE + 1];
 } qp_state_table[IB_QPS_ERR + 1][IB_QPS_ERR + 1] = {
 	[IB_QPS_RESET] = {
 		[IB_QPS_RESET] = { .valid = 1 },

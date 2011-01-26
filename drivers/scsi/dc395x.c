@@ -1080,7 +1080,7 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
  *        and is expected to be held on return.
  *
  **/
-static int dc395x_queue_command(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+static int dc395x_queue_command_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
 	struct DeviceCtlBlk *dcb;
 	struct ScsiReqBlk *srb;
@@ -1154,6 +1154,7 @@ complete:
 	return 0;
 }
 
+static DEF_SCSI_QCMD(dc395x_queue_command)
 
 /*
  * Return the disk geometry for the given SCSI device.
@@ -1597,7 +1598,7 @@ static u8 start_scsi(struct AdapterCtlBlk* acb, struct DeviceCtlBlk* dcb,
 		u32 tag_mask = 1;
 		u8 tag_number = 0;
 		while (tag_mask & dcb->tag_mask
-		       && tag_number <= dcb->max_command) {
+		       && tag_number < dcb->max_command) {
 			tag_mask = tag_mask << 1;
 			tag_number++;
 		}
@@ -3795,7 +3796,7 @@ static struct DeviceCtlBlk *device_alloc(struct AdapterCtlBlk *acb,
  * adapter_add_device - Adds the device instance to the adaptor instance.
  *
  * @acb: The adapter device to be updated
- * @dcb: A newly created and intialised device instance to add.
+ * @dcb: A newly created and initialised device instance to add.
  **/
 static void adapter_add_device(struct AdapterCtlBlk *acb,
 		struct DeviceCtlBlk *dcb)
@@ -4497,7 +4498,7 @@ static void __devinit adapter_init_chip(struct AdapterCtlBlk *acb)
  * init_adapter - Grab the resource for the card, setup the adapter
  * information, set the card into a known state, create the various
  * tables etc etc. This basically gets all adapter information all up
- * to date, intialised and gets the chip in sync with it.
+ * to date, initialised and gets the chip in sync with it.
  *
  * @host:	This hosts adapter structure
  * @io_port:	The base I/O port
@@ -4788,7 +4789,7 @@ static void banner_display(void)
  * that it finds in the system. The pci_dev strcuture indicates which
  * instance we are being called from.
  * 
- * @dev: The PCI device to intialize.
+ * @dev: The PCI device to initialize.
  * @id: Looks like a pointer to the entry in our pci device table
  * that was actually matched by the PCI subsystem.
  *
@@ -4859,7 +4860,7 @@ fail:
  * dc395x_remove_one - Called to remove a single instance of the
  * adapter.
  *
- * @dev: The PCI device to intialize.
+ * @dev: The PCI device to initialize.
  **/
 static void __devexit dc395x_remove_one(struct pci_dev *dev)
 {

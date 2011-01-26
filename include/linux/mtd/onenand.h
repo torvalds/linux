@@ -68,6 +68,7 @@ struct onenand_bufferram {
  * @write_word:		[REPLACEABLE] hardware specific function for write
  *			register of OneNAND
  * @mmcontrol:		sync burst read function
+ * @chip_probe:		[REPLACEABLE] hardware specific function for chip probe
  * @block_markbad:	function to mark a block as bad
  * @scan_bbt:		[REPLACEALBE] hardware specific function for scanning
  *			Bad block Table
@@ -114,8 +115,11 @@ struct onenand_chip {
 	unsigned short (*read_word)(void __iomem *addr);
 	void (*write_word)(unsigned short value, void __iomem *addr);
 	void (*mmcontrol)(struct mtd_info *mtd, int sync_read);
+	int (*chip_probe)(struct mtd_info *mtd);
 	int (*block_markbad)(struct mtd_info *mtd, loff_t ofs);
 	int (*scan_bbt)(struct mtd_info *mtd);
+	int (*enable)(struct mtd_info *mtd);
+	int (*disable)(struct mtd_info *mtd);
 
 	struct completion	complete;
 	int			irq;
@@ -135,6 +139,14 @@ struct onenand_chip {
 	void			*bbm;
 
 	void			*priv;
+
+	/*
+	 * Shows that the current operation is composed
+	 * of sequence of commands. For example, cache program.
+	 * Such command status OnGo bit is checked at the end of
+	 * sequence.
+	 */
+	unsigned int		ongoing;
 };
 
 /*
@@ -169,6 +181,9 @@ struct onenand_chip {
 #define ONENAND_IS_2PLANE(this)			(0)
 #endif
 
+#define ONENAND_IS_CACHE_PROGRAM(this)					\
+	(this->options & ONENAND_HAS_CACHE_PROGRAM)
+
 /* Check byte access in OneNAND */
 #define ONENAND_CHECK_BYTE_ACCESS(addr)		(addr & 0x1)
 
@@ -179,6 +194,7 @@ struct onenand_chip {
 #define ONENAND_HAS_UNLOCK_ALL		(0x0002)
 #define ONENAND_HAS_2PLANE		(0x0004)
 #define ONENAND_HAS_4KB_PAGE		(0x0008)
+#define ONENAND_HAS_CACHE_PROGRAM	(0x0010)
 #define ONENAND_SKIP_UNLOCK_CHECK	(0x0100)
 #define ONENAND_PAGEBUF_ALLOC		(0x1000)
 #define ONENAND_OOBBUF_ALLOC		(0x2000)

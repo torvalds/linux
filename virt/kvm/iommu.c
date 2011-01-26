@@ -16,6 +16,8 @@
  *
  * Copyright (C) 2006-2008 Intel Corporation
  * Copyright IBM Corporation, 2008
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
+ *
  * Author: Allen M. Kay <allen.m.kay@intel.com>
  * Author: Weidong Han <weidong.han@intel.com>
  * Author: Ben-Ami Yassour <benami@il.ibm.com>
@@ -106,7 +108,7 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 			      get_order(page_size), flags);
 		if (r) {
 			printk(KERN_ERR "kvm_iommu_map_address:"
-			       "iommu failed to map pfn=%lx\n", pfn);
+			       "iommu failed to map pfn=%llx\n", pfn);
 			goto unmap_pages;
 		}
 
@@ -124,9 +126,10 @@ unmap_pages:
 
 static int kvm_iommu_map_memslots(struct kvm *kvm)
 {
-	int i, r = 0;
+	int i, idx, r = 0;
 	struct kvm_memslots *slots;
 
+	idx = srcu_read_lock(&kvm->srcu);
 	slots = kvm_memslots(kvm);
 
 	for (i = 0; i < slots->nmemslots; i++) {
@@ -134,6 +137,7 @@ static int kvm_iommu_map_memslots(struct kvm *kvm)
 		if (r)
 			break;
 	}
+	srcu_read_unlock(&kvm->srcu, idx);
 
 	return r;
 }
@@ -271,7 +275,7 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 		pfn  = phys >> PAGE_SHIFT;
 
 		/* Unmap address from IO address space */
-		order       = iommu_unmap(domain, gfn_to_gpa(gfn), PAGE_SIZE);
+		order       = iommu_unmap(domain, gfn_to_gpa(gfn), 0);
 		unmap_pages = 1ULL << order;
 
 		/* Unpin all pages we just unmapped to not leak any memory */
@@ -283,15 +287,17 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 
 static int kvm_iommu_unmap_memslots(struct kvm *kvm)
 {
-	int i;
+	int i, idx;
 	struct kvm_memslots *slots;
 
+	idx = srcu_read_lock(&kvm->srcu);
 	slots = kvm_memslots(kvm);
 
 	for (i = 0; i < slots->nmemslots; i++) {
 		kvm_iommu_put_pages(kvm, slots->memslots[i].base_gfn,
 				    slots->memslots[i].npages);
 	}
+	srcu_read_unlock(&kvm->srcu, idx);
 
 	return 0;
 }

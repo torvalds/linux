@@ -23,14 +23,12 @@
 #define UDA134X_DATA000 10
 #define UDA134X_DATA001 11
 #define UDA134X_DATA010 12
-#define UDA134X_DATA1	13
+#define UDA134X_DATA011 13
+#define UDA134X_DATA1   14
 
-#define UDA134X_REGS_NUM 14
+#define UDA134X_REGS_NUM 15
 
 #define STATUS0_DAIFMT_MASK (~(7<<1))
 #define STATUS0_SYSCLK_MASK (~(3<<4))
-
-extern struct snd_soc_dai uda134x_dai;
-extern struct snd_soc_codec_device soc_codec_dev_uda134x;
 
 #endif

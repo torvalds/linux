@@ -28,7 +28,6 @@ struct videobuf_dma_contig_memory {
 	void *vaddr;
 	dma_addr_t dma_handle;
 	unsigned long size;
-	int is_userptr;
 };
 
 #define MAGIC_DC_MEM 0x0733ac61
@@ -63,7 +62,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 		struct videobuf_dma_contig_memory *mem;
 
 		dev_dbg(q->dev, "munmap %p q=%p\n", map, q);
-		mutex_lock(&q->vb_lock);
+		videobuf_queue_lock(q);
 
 		/* We need first to cancel streams, before unmapping */
 		if (q->streaming)
@@ -103,7 +102,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 
 		kfree(map);
 
-		mutex_unlock(&q->vb_lock);
+		videobuf_queue_unlock(q);
 	}
 }
 
@@ -120,7 +119,6 @@ static const struct vm_operations_struct videobuf_vm_ops = {
  */
 static void videobuf_dma_contig_user_put(struct videobuf_dma_contig_memory *mem)
 {
-	mem->is_userptr = 0;
 	mem->dma_handle = 0;
 	mem->size = 0;
 }
@@ -147,7 +145,6 @@ static int videobuf_dma_contig_user_get(struct videobuf_dma_contig_memory *mem,
 
 	offset = vb->baddr & ~PAGE_MASK;
 	mem->size = PAGE_ALIGN(vb->size + offset);
-	mem->is_userptr = 0;
 	ret = -EINVAL;
 
 	down_read(&mm->mmap_sem);
@@ -181,16 +178,13 @@ static int videobuf_dma_contig_user_get(struct videobuf_dma_contig_memory *mem,
 		pages_done++;
 	}
 
-	if (!ret)
-		mem->is_userptr = 1;
-
  out_up:
 	up_read(&current->mm->mmap_sem);
 
 	return ret;
 }
 
-static struct videobuf_buffer *__videobuf_alloc(size_t size)
+static struct videobuf_buffer *__videobuf_alloc_vb(size_t size)
 {
 	struct videobuf_dma_contig_memory *mem;
 	struct videobuf_buffer *vb;
@@ -280,8 +274,6 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 		return -ENOMEM;
 
 	buf->map = map;
-	map->start = vma->vm_start;
-	map->end = vma->vm_end;
 	map->q = q;
 
 	buf->baddr = vma->vm_start;
@@ -338,7 +330,7 @@ error:
 static struct videobuf_qtype_ops qops = {
 	.magic        = MAGIC_QTYPE_OPS,
 
-	.alloc        = __videobuf_alloc,
+	.alloc_vb     = __videobuf_alloc_vb,
 	.iolock       = __videobuf_iolock,
 	.mmap_mapper  = __videobuf_mmap_mapper,
 	.vaddr        = __videobuf_to_vaddr,
@@ -351,10 +343,11 @@ void videobuf_queue_dma_contig_init(struct videobuf_queue *q,
 				    enum v4l2_buf_type type,
 				    enum v4l2_field field,
 				    unsigned int msize,
-				    void *priv)
+				    void *priv,
+				    struct mutex *ext_lock)
 {
 	videobuf_queue_core_init(q, ops, dev, irqlock, type, field, msize,
-				 priv, &qops);
+				 priv, &qops, ext_lock);
 }
 EXPORT_SYMBOL_GPL(videobuf_queue_dma_contig_init);
 
@@ -395,8 +388,10 @@ void videobuf_dma_contig_free(struct videobuf_queue *q,
 	}
 
 	/* read() method */
-	dma_free_coherent(q->dev, mem->size, mem->vaddr, mem->dma_handle);
-	mem->vaddr = NULL;
+	if (mem->vaddr) {
+		dma_free_coherent(q->dev, mem->size, mem->vaddr, mem->dma_handle);
+		mem->vaddr = NULL;
+	}
 }
 EXPORT_SYMBOL_GPL(videobuf_dma_contig_free);
 

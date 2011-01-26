@@ -2,15 +2,20 @@
  * sleep.c - x86-specific ACPI sleep support.
  *
  *  Copyright (C) 2001-2003 Patrick Mochel
- *  Copyright (C) 2001-2003 Pavel Machek <pavel@suse.cz>
+ *  Copyright (C) 2001-2003 Pavel Machek <pavel@ucw.cz>
  */
 
 #include <linux/acpi.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/dmi.h>
 #include <linux/cpumask.h>
 #include <asm/segment.h>
 #include <asm/desc.h>
+
+#ifdef CONFIG_X86_32
+#include <asm/pgtable.h>
+#endif
 
 #include "realmode/wakeup.h"
 #include "sleep.h"
@@ -90,7 +95,7 @@ int acpi_save_state_mem(void)
 
 #ifndef CONFIG_64BIT
 	header->pmode_entry = (u32)&wakeup_pmode_return;
-	header->pmode_cr3 = (u32)(swsusp_pg_dir - __PAGE_OFFSET);
+	header->pmode_cr3 = (u32)__pa(&initial_page_table);
 	saved_magic = 0x12345678;
 #else /* CONFIG_64BIT */
 	header->trampoline_segment = setup_trampoline() >> 4;
@@ -125,7 +130,7 @@ void acpi_restore_state_mem(void)
  */
 void __init acpi_reserve_wakeup_memory(void)
 {
-	unsigned long mem;
+	phys_addr_t mem;
 
 	if ((&wakeup_code_end - &wakeup_code_start) > WAKEUP_SIZE) {
 		printk(KERN_ERR
@@ -133,15 +138,15 @@ void __init acpi_reserve_wakeup_memory(void)
 		return;
 	}
 
-	mem = find_e820_area(0, 1<<20, WAKEUP_SIZE, PAGE_SIZE);
+	mem = memblock_find_in_range(0, 1<<20, WAKEUP_SIZE, PAGE_SIZE);
 
-	if (mem == -1L) {
+	if (mem == MEMBLOCK_ERROR) {
 		printk(KERN_ERR "ACPI: Cannot allocate lowmem, S3 disabled.\n");
 		return;
 	}
 	acpi_realmode = (unsigned long) phys_to_virt(mem);
 	acpi_wakeup_address = mem;
-	reserve_early(mem, mem + WAKEUP_SIZE, "ACPI WAKEUP");
+	memblock_x86_reserve_range(mem, mem + WAKEUP_SIZE, "ACPI WAKEUP");
 }
 
 
@@ -157,13 +162,16 @@ static int __init acpi_sleep_setup(char *str)
 #ifdef CONFIG_HIBERNATION
 		if (strncmp(str, "s4_nohwsig", 10) == 0)
 			acpi_no_s4_hw_signature();
-		if (strncmp(str, "s4_nonvs", 8) == 0)
-			acpi_s4_no_nvs();
+		if (strncmp(str, "s4_nonvs", 8) == 0) {
+			pr_warning("ACPI: acpi_sleep=s4_nonvs is deprecated, "
+					"please use acpi_sleep=nonvs instead");
+			acpi_nvs_nosave();
+		}
 #endif
+		if (strncmp(str, "nonvs", 5) == 0)
+			acpi_nvs_nosave();
 		if (strncmp(str, "old_ordering", 12) == 0)
 			acpi_old_suspend_ordering();
-		if (strncmp(str, "sci_force_enable", 16) == 0)
-			acpi_set_sci_en_on_resume();
 		str = strchr(str, ',');
 		if (str != NULL)
 			str += strspn(str, ", \t");

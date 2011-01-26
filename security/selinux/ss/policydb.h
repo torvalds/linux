@@ -24,6 +24,8 @@
 #ifndef _SS_POLICYDB_H_
 #define _SS_POLICYDB_H_
 
+#include <linux/flex_array.h>
+
 #include "symtab.h"
 #include "avtab.h"
 #include "sidtab.h"
@@ -201,21 +203,13 @@ struct policydb {
 #define p_cats symtab[SYM_CATS]
 
 	/* symbol names indexed by (value - 1) */
-	char **sym_val_to_name[SYM_NUM];
-#define p_common_val_to_name sym_val_to_name[SYM_COMMONS]
-#define p_class_val_to_name sym_val_to_name[SYM_CLASSES]
-#define p_role_val_to_name sym_val_to_name[SYM_ROLES]
-#define p_type_val_to_name sym_val_to_name[SYM_TYPES]
-#define p_user_val_to_name sym_val_to_name[SYM_USERS]
-#define p_bool_val_to_name sym_val_to_name[SYM_BOOLS]
-#define p_sens_val_to_name sym_val_to_name[SYM_LEVELS]
-#define p_cat_val_to_name sym_val_to_name[SYM_CATS]
+	struct flex_array *sym_val_to_name[SYM_NUM];
 
 	/* class, role, and user attributes indexed by (value - 1) */
 	struct class_datum **class_val_to_struct;
 	struct role_datum **role_val_to_struct;
 	struct user_datum **user_val_to_struct;
-	struct type_datum **type_val_to_struct;
+	struct flex_array *type_val_to_struct_array;
 
 	/* type enforcement access vectors and transitions */
 	struct avtab te_avtab;
@@ -246,11 +240,14 @@ struct policydb {
 	struct hashtab *range_tr;
 
 	/* type -> attribute reverse mapping */
-	struct ebitmap *type_attr_map;
+	struct flex_array *type_attr_map_array;
 
 	struct ebitmap policycaps;
 
 	struct ebitmap permissive_map;
+
+	/* length of this policy when it was loaded */
+	size_t len;
 
 	unsigned int policyvers;
 
@@ -268,6 +265,7 @@ extern int policydb_class_isvalid(struct policydb *p, unsigned int class);
 extern int policydb_type_isvalid(struct policydb *p, unsigned int type);
 extern int policydb_role_isvalid(struct policydb *p, unsigned int role);
 extern int policydb_read(struct policydb *p, void *fp);
+extern int policydb_write(struct policydb *p, void *fp);
 
 #define PERM_SYMTAB_SIZE 32
 
@@ -288,6 +286,11 @@ struct policy_file {
 	size_t len;
 };
 
+struct policy_data {
+	struct policydb *p;
+	void *fp;
+};
+
 static inline int next_entry(void *buf, struct policy_file *fp, size_t bytes)
 {
 	if (bytes > fp->len)
@@ -297,6 +300,24 @@ static inline int next_entry(void *buf, struct policy_file *fp, size_t bytes)
 	fp->data += bytes;
 	fp->len -= bytes;
 	return 0;
+}
+
+static inline int put_entry(void *buf, size_t bytes, int num, struct policy_file *fp)
+{
+	size_t len = bytes * num;
+
+	memcpy(fp->data, buf, len);
+	fp->data += len;
+	fp->len -= len;
+
+	return 0;
+}
+
+static inline char *sym_name(struct policydb *p, unsigned int sym_num, unsigned int element_nr)
+{
+	struct flex_array *fa = p->sym_val_to_name[sym_num];
+
+	return flex_array_get_ptr(fa, element_nr);
 }
 
 extern u16 string_to_security_class(struct policydb *p, const char *name);

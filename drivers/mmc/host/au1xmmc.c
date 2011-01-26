@@ -192,7 +192,7 @@ static inline void SEND_STOP(struct au1xmmc_host *host)
 	au_writel(config2 | SD_CONFIG2_DF, HOST_CONFIG2(host));
 	au_sync();
 
-	/* Send the stop commmand */
+	/* Send the stop command */
 	au_writel(STOP_CMD, HOST_CMD(host));
 }
 
@@ -964,7 +964,7 @@ static int __devinit au1xmmc_probe(struct platform_device *pdev)
 		goto out1;
 	}
 
-	host->ioarea = request_mem_region(r->start, r->end - r->start + 1,
+	host->ioarea = request_mem_region(r->start, resource_size(r),
 					   pdev->name);
 	if (!host->ioarea) {
 		dev_err(&pdev->dev, "mmio already in use\n");
@@ -998,7 +998,7 @@ static int __devinit au1xmmc_probe(struct platform_device *pdev)
 	mmc->f_max = 24000000;
 
 	mmc->max_seg_size = AU1XMMC_DESCRIPTOR_SIZE;
-	mmc->max_phys_segs = AU1XMMC_DESCRIPTOR_COUNT;
+	mmc->max_segs = AU1XMMC_DESCRIPTOR_COUNT;
 
 	mmc->max_blk_size = 2048;
 	mmc->max_blk_count = 512;
@@ -1142,7 +1142,7 @@ static int au1xmmc_suspend(struct platform_device *pdev, pm_message_t state)
 	struct au1xmmc_host *host = platform_get_drvdata(pdev);
 	int ret;
 
-	ret = mmc_suspend_host(host->mmc, state);
+	ret = mmc_suspend_host(host->mmc);
 	if (ret)
 		return ret;
 

@@ -15,8 +15,8 @@
  *  May be copied or modified under the terms of the GNU General Public License
  *  Based in part on the ITE vendor provided SCSI driver.
  *
- *  Documentation available from
- * 	http://www.ite.com.tw/pc/IT8212F_V04.pdf
+ *  Documentation available from IT8212F_V04.pdf
+ * 	http://www.ite.com.tw/EN/products_more.aspx?CategoryID=3&ID=5,91
  *  Some other documents are NDA.
  *
  *  The ITE8212 isn't exactly a standard IDE controller. It has two
@@ -933,7 +933,7 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		else
 			ppi[0] = &info_smart;
 	}
-	return ata_pci_sff_init_one(pdev, ppi, &it821x_sht, NULL, 0);
+	return ata_pci_bmdma_init_one(pdev, ppi, &it821x_sht, NULL, 0);
 }
 
 #ifdef CONFIG_PM

@@ -371,7 +371,7 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	}
 	num_wrs = Q_FREECNT(qhp->wq.sq_rptr, qhp->wq.sq_wptr,
 		  qhp->wq.sq_size_log2);
-	if (num_wrs <= 0) {
+	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
 		err = -ENOMEM;
 		goto out;
@@ -554,7 +554,7 @@ int iwch_bind_mw(struct ib_qp *qp,
 	}
 	num_wrs = Q_FREECNT(qhp->wq.sq_rptr, qhp->wq.sq_wptr,
 			    qhp->wq.sq_size_log2);
-	if ((num_wrs) <= 0) {
+	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
 		return -ENOMEM;
 	}
@@ -802,21 +802,19 @@ int iwch_post_terminate(struct iwch_qp *qhp, struct respQ_msg_t *rsp_msg)
 /*
  * Assumes qhp lock is held.
  */
-static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
+static void __flush_qp(struct iwch_qp *qhp, struct iwch_cq *rchp,
+				struct iwch_cq *schp, unsigned long *flag)
 {
-	struct iwch_cq *rchp, *schp;
 	int count;
 	int flushed;
 
-	rchp = get_chp(qhp->rhp, qhp->attr.rcq);
-	schp = get_chp(qhp->rhp, qhp->attr.scq);
 
 	PDBG("%s qhp %p rchp %p schp %p\n", __func__, qhp, rchp, schp);
 	/* take a ref on the qhp since we must release the lock */
 	atomic_inc(&qhp->refcnt);
 	spin_unlock_irqrestore(&qhp->lock, *flag);
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&rchp->lock, *flag);
 	spin_lock(&qhp->lock);
 	cxio_flush_hw_cq(&rchp->cq);
@@ -827,7 +825,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	if (flushed)
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, *flag);
 	spin_lock(&qhp->lock);
 	cxio_flush_hw_cq(&schp->cq);
@@ -847,10 +845,23 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 
 static void flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 {
-	if (qhp->ibqp.uobject)
+	struct iwch_cq *rchp, *schp;
+
+	rchp = get_chp(qhp->rhp, qhp->attr.rcq);
+	schp = get_chp(qhp->rhp, qhp->attr.scq);
+
+	if (qhp->ibqp.uobject) {
 		cxio_set_wq_in_error(&qhp->wq);
-	else
-		__flush_qp(qhp, flag);
+		cxio_set_cq_in_error(&rchp->cq);
+		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
+		if (schp != rchp) {
+			cxio_set_cq_in_error(&schp->cq);
+			(*schp->ibcq.comp_handler)(&schp->ibcq,
+						   schp->ibcq.cq_context);
+		}
+		return;
+	}
+	__flush_qp(qhp, rchp, schp, flag);
 }
 
 
@@ -1137,60 +1148,4 @@ out:
 
 	PDBG("%s exit state %d\n", __func__, qhp->attr.state);
 	return ret;
-}
-
-static int quiesce_qp(struct iwch_qp *qhp)
-{
-	spin_lock_irq(&qhp->lock);
-	iwch_quiesce_tid(qhp->ep);
-	qhp->flags |= QP_QUIESCED;
-	spin_unlock_irq(&qhp->lock);
-	return 0;
-}
-
-static int resume_qp(struct iwch_qp *qhp)
-{
-	spin_lock_irq(&qhp->lock);
-	iwch_resume_tid(qhp->ep);
-	qhp->flags &= ~QP_QUIESCED;
-	spin_unlock_irq(&qhp->lock);
-	return 0;
-}
-
-int iwch_quiesce_qps(struct iwch_cq *chp)
-{
-	int i;
-	struct iwch_qp *qhp;
-
-	for (i=0; i < T3_MAX_NUM_QP; i++) {
-		qhp = get_qhp(chp->rhp, i);
-		if (!qhp)
-			continue;
-		if ((qhp->attr.rcq == chp->cq.cqid) && !qp_quiesced(qhp)) {
-			quiesce_qp(qhp);
-			continue;
-		}
-		if ((qhp->attr.scq == chp->cq.cqid) && !qp_quiesced(qhp))
-			quiesce_qp(qhp);
-	}
-	return 0;
-}
-
-int iwch_resume_qps(struct iwch_cq *chp)
-{
-	int i;
-	struct iwch_qp *qhp;
-
-	for (i=0; i < T3_MAX_NUM_QP; i++) {
-		qhp = get_qhp(chp->rhp, i);
-		if (!qhp)
-			continue;
-		if ((qhp->attr.rcq == chp->cq.cqid) && qp_quiesced(qhp)) {
-			resume_qp(qhp);
-			continue;
-		}
-		if ((qhp->attr.scq == chp->cq.cqid) && qp_quiesced(qhp))
-			resume_qp(qhp);
-	}
-	return 0;
 }

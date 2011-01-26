@@ -473,15 +473,18 @@ static u8 rc_request[] = { REQUEST_POLL_RC, 0 };
 /* Number of keypresses to ignore before start repeating */
 #define RC_REPEAT_DELAY 6
 
-static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+/*
+ * This function is used only when firmware is < 1.20 version. Newer
+ * firmwares use bulk mode, with functions implemented at dib0700_core,
+ * at dib0700_rc_urb_completion()
+ */
+static int dib0700_rc_query_old_firmware(struct dvb_usb_device *d)
 {
 	u8 key[4];
+	u32 keycode;
+	u8 toggle;
 	int i;
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
 	struct dib0700_state *st = d->priv;
-
-	*event = 0;
-	*state = REMOTE_NO_KEY_PRESSED;
 
 	if (st->fw_version >= 0x10200) {
 		/* For 1.20 firmware , We need to keep the RC polling
@@ -491,347 +494,44 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		return 0;
 	}
 
-	i=dib0700_ctrl_rd(d,rc_request,2,key,4);
-	if (i<=0) {
+	i = dib0700_ctrl_rd(d, rc_request, 2, key, 4);
+	if (i <= 0) {
 		err("RC Query Failed");
 		return -1;
 	}
 
 	/* losing half of KEY_0 events from Philipps rc5 remotes.. */
-	if (key[0]==0 && key[1]==0 && key[2]==0 && key[3]==0) return 0;
+	if (key[0] == 0 && key[1] == 0 && key[2] == 0 && key[3] == 0)
+		return 0;
 
 	/* info("%d: %2X %2X %2X %2X",dvb_usb_dib0700_ir_proto,(int)key[3-2],(int)key[3-3],(int)key[3-1],(int)key[3]);  */
 
 	dib0700_rc_setup(d); /* reset ir sensor data to prevent false events */
 
-	switch (dvb_usb_dib0700_ir_proto) {
-	case 0: {
+	d->last_event = 0;
+	switch (d->props.rc.core.protocol) {
+	case RC_TYPE_NEC:
 		/* NEC protocol sends repeat code as 0 0 0 FF */
 		if ((key[3-2] == 0x00) && (key[3-3] == 0x00) &&
-		    (key[3] == 0xFF)) {
-			st->rc_counter++;
-			if (st->rc_counter > RC_REPEAT_DELAY) {
-				*event = d->last_event;
-				*state = REMOTE_KEY_PRESSED;
-				st->rc_counter = RC_REPEAT_DELAY;
-			}
-			return 0;
+		    (key[3] == 0xff))
+			keycode = d->last_event;
+		else {
+			keycode = key[3-2] << 8 | key[3-3];
+			d->last_event = keycode;
 		}
-		for (i=0;i<d->props.rc_key_map_size; i++) {
-			if (rc5_custom(&keymap[i]) == key[3-2] &&
-			    rc5_data(&keymap[i]) == key[3-3]) {
-				st->rc_counter = 0;
-				*event = keymap[i].event;
-				*state = REMOTE_KEY_PRESSED;
-				d->last_event = keymap[i].event;
-				return 0;
-			}
-		}
-		break;
-	}
-	default: {
-		/* RC-5 protocol changes toggle bit on new keypress */
-		for (i = 0; i < d->props.rc_key_map_size; i++) {
-			if (rc5_custom(&keymap[i]) == key[3-2] &&
-			    rc5_data(&keymap[i]) == key[3-3]) {
-				if (d->last_event == keymap[i].event &&
-					key[3-1] == st->rc_toggle) {
-					st->rc_counter++;
-					/* prevents unwanted double hits */
-					if (st->rc_counter > RC_REPEAT_DELAY) {
-						*event = d->last_event;
-						*state = REMOTE_KEY_PRESSED;
-						st->rc_counter = RC_REPEAT_DELAY;
-					}
 
-					return 0;
-				}
-				st->rc_counter = 0;
-				*event = keymap[i].event;
-				*state = REMOTE_KEY_PRESSED;
-				st->rc_toggle = key[3-1];
-				d->last_event = keymap[i].event;
-				return 0;
-			}
-		}
+		rc_keydown(d->rc_dev, keycode, 0);
+		break;
+	default:
+		/* RC-5 protocol changes toggle bit on new keypress */
+		keycode = key[3-2] << 8 | key[3-3];
+		toggle = key[3-1];
+		rc_keydown(d->rc_dev, keycode, toggle);
+
 		break;
 	}
-	}
-	err("Unknown remote controller key: %2X %2X %2X %2X", (int) key[3-2], (int) key[3-3], (int) key[3-1], (int) key[3]);
-	d->last_event = 0;
 	return 0;
 }
-
-static struct dvb_usb_rc_key ir_codes_dib0700_table[] = {
-	/* Key codes for the tiny Pinnacle remote*/
-	{ 0x0700, KEY_MUTE },
-	{ 0x0701, KEY_MENU }, /* Pinnacle logo */
-	{ 0x0739, KEY_POWER },
-	{ 0x0703, KEY_VOLUMEUP },
-	{ 0x0709, KEY_VOLUMEDOWN },
-	{ 0x0706, KEY_CHANNELUP },
-	{ 0x070c, KEY_CHANNELDOWN },
-	{ 0x070f, KEY_1 },
-	{ 0x0715, KEY_2 },
-	{ 0x0710, KEY_3 },
-	{ 0x0718, KEY_4 },
-	{ 0x071b, KEY_5 },
-	{ 0x071e, KEY_6 },
-	{ 0x0711, KEY_7 },
-	{ 0x0721, KEY_8 },
-	{ 0x0712, KEY_9 },
-	{ 0x0727, KEY_0 },
-	{ 0x0724, KEY_SCREEN }, /* 'Square' key */
-	{ 0x072a, KEY_TEXT },   /* 'T' key */
-	{ 0x072d, KEY_REWIND },
-	{ 0x0730, KEY_PLAY },
-	{ 0x0733, KEY_FASTFORWARD },
-	{ 0x0736, KEY_RECORD },
-	{ 0x073c, KEY_STOP },
-	{ 0x073f, KEY_CANCEL }, /* '?' key */
-	/* Key codes for the Terratec Cinergy DT XS Diversity, similar to cinergyT2.c */
-	{ 0xeb01, KEY_POWER },
-	{ 0xeb02, KEY_1 },
-	{ 0xeb03, KEY_2 },
-	{ 0xeb04, KEY_3 },
-	{ 0xeb05, KEY_4 },
-	{ 0xeb06, KEY_5 },
-	{ 0xeb07, KEY_6 },
-	{ 0xeb08, KEY_7 },
-	{ 0xeb09, KEY_8 },
-	{ 0xeb0a, KEY_9 },
-	{ 0xeb0b, KEY_VIDEO },
-	{ 0xeb0c, KEY_0 },
-	{ 0xeb0d, KEY_REFRESH },
-	{ 0xeb0f, KEY_EPG },
-	{ 0xeb10, KEY_UP },
-	{ 0xeb11, KEY_LEFT },
-	{ 0xeb12, KEY_OK },
-	{ 0xeb13, KEY_RIGHT },
-	{ 0xeb14, KEY_DOWN },
-	{ 0xeb16, KEY_INFO },
-	{ 0xeb17, KEY_RED },
-	{ 0xeb18, KEY_GREEN },
-	{ 0xeb19, KEY_YELLOW },
-	{ 0xeb1a, KEY_BLUE },
-	{ 0xeb1b, KEY_CHANNELUP },
-	{ 0xeb1c, KEY_VOLUMEUP },
-	{ 0xeb1d, KEY_MUTE },
-	{ 0xeb1e, KEY_VOLUMEDOWN },
-	{ 0xeb1f, KEY_CHANNELDOWN },
-	{ 0xeb40, KEY_PAUSE },
-	{ 0xeb41, KEY_HOME },
-	{ 0xeb42, KEY_MENU }, /* DVD Menu */
-	{ 0xeb43, KEY_SUBTITLE },
-	{ 0xeb44, KEY_TEXT }, /* Teletext */
-	{ 0xeb45, KEY_DELETE },
-	{ 0xeb46, KEY_TV },
-	{ 0xeb47, KEY_DVD },
-	{ 0xeb48, KEY_STOP },
-	{ 0xeb49, KEY_VIDEO },
-	{ 0xeb4a, KEY_AUDIO }, /* Music */
-	{ 0xeb4b, KEY_SCREEN }, /* Pic */
-	{ 0xeb4c, KEY_PLAY },
-	{ 0xeb4d, KEY_BACK },
-	{ 0xeb4e, KEY_REWIND },
-	{ 0xeb4f, KEY_FASTFORWARD },
-	{ 0xeb54, KEY_PREVIOUS },
-	{ 0xeb58, KEY_RECORD },
-	{ 0xeb5c, KEY_NEXT },
-
-	/* Key codes for the Haupauge WinTV Nova-TD, copied from nova-t-usb2.c (Nova-T USB2) */
-	{ 0x1e00, KEY_0 },
-	{ 0x1e01, KEY_1 },
-	{ 0x1e02, KEY_2 },
-	{ 0x1e03, KEY_3 },
-	{ 0x1e04, KEY_4 },
-	{ 0x1e05, KEY_5 },
-	{ 0x1e06, KEY_6 },
-	{ 0x1e07, KEY_7 },
-	{ 0x1e08, KEY_8 },
-	{ 0x1e09, KEY_9 },
-	{ 0x1e0a, KEY_KPASTERISK },
-	{ 0x1e0b, KEY_RED },
-	{ 0x1e0c, KEY_RADIO },
-	{ 0x1e0d, KEY_MENU },
-	{ 0x1e0e, KEY_GRAVE }, /* # */
-	{ 0x1e0f, KEY_MUTE },
-	{ 0x1e10, KEY_VOLUMEUP },
-	{ 0x1e11, KEY_VOLUMEDOWN },
-	{ 0x1e12, KEY_CHANNEL },
-	{ 0x1e14, KEY_UP },
-	{ 0x1e15, KEY_DOWN },
-	{ 0x1e16, KEY_LEFT },
-	{ 0x1e17, KEY_RIGHT },
-	{ 0x1e18, KEY_VIDEO },
-	{ 0x1e19, KEY_AUDIO },
-	{ 0x1e1a, KEY_MEDIA },
-	{ 0x1e1b, KEY_EPG },
-	{ 0x1e1c, KEY_TV },
-	{ 0x1e1e, KEY_NEXT },
-	{ 0x1e1f, KEY_BACK },
-	{ 0x1e20, KEY_CHANNELUP },
-	{ 0x1e21, KEY_CHANNELDOWN },
-	{ 0x1e24, KEY_LAST }, /* Skip backwards */
-	{ 0x1e25, KEY_OK },
-	{ 0x1e29, KEY_BLUE},
-	{ 0x1e2e, KEY_GREEN },
-	{ 0x1e30, KEY_PAUSE },
-	{ 0x1e32, KEY_REWIND },
-	{ 0x1e34, KEY_FASTFORWARD },
-	{ 0x1e35, KEY_PLAY },
-	{ 0x1e36, KEY_STOP },
-	{ 0x1e37, KEY_RECORD },
-	{ 0x1e38, KEY_YELLOW },
-	{ 0x1e3b, KEY_GOTO },
-	{ 0x1e3d, KEY_POWER },
-
-	/* Key codes for the Leadtek Winfast DTV Dongle */
-	{ 0x0042, KEY_POWER },
-	{ 0x077c, KEY_TUNER },
-	{ 0x0f4e, KEY_PRINT }, /* PREVIEW */
-	{ 0x0840, KEY_SCREEN }, /* full screen toggle*/
-	{ 0x0f71, KEY_DOT }, /* frequency */
-	{ 0x0743, KEY_0 },
-	{ 0x0c41, KEY_1 },
-	{ 0x0443, KEY_2 },
-	{ 0x0b7f, KEY_3 },
-	{ 0x0e41, KEY_4 },
-	{ 0x0643, KEY_5 },
-	{ 0x097f, KEY_6 },
-	{ 0x0d7e, KEY_7 },
-	{ 0x057c, KEY_8 },
-	{ 0x0a40, KEY_9 },
-	{ 0x0e4e, KEY_CLEAR },
-	{ 0x047c, KEY_CHANNEL }, /* show channel number */
-	{ 0x0f41, KEY_LAST }, /* recall */
-	{ 0x0342, KEY_MUTE },
-	{ 0x064c, KEY_RESERVED }, /* PIP button*/
-	{ 0x0172, KEY_SHUFFLE }, /* SNAPSHOT */
-	{ 0x0c4e, KEY_PLAYPAUSE }, /* TIMESHIFT */
-	{ 0x0b70, KEY_RECORD },
-	{ 0x037d, KEY_VOLUMEUP },
-	{ 0x017d, KEY_VOLUMEDOWN },
-	{ 0x0242, KEY_CHANNELUP },
-	{ 0x007d, KEY_CHANNELDOWN },
-
-	/* Key codes for Nova-TD "credit card" remote control. */
-	{ 0x1d00, KEY_0 },
-	{ 0x1d01, KEY_1 },
-	{ 0x1d02, KEY_2 },
-	{ 0x1d03, KEY_3 },
-	{ 0x1d04, KEY_4 },
-	{ 0x1d05, KEY_5 },
-	{ 0x1d06, KEY_6 },
-	{ 0x1d07, KEY_7 },
-	{ 0x1d08, KEY_8 },
-	{ 0x1d09, KEY_9 },
-	{ 0x1d0a, KEY_TEXT },
-	{ 0x1d0d, KEY_MENU },
-	{ 0x1d0f, KEY_MUTE },
-	{ 0x1d10, KEY_VOLUMEUP },
-	{ 0x1d11, KEY_VOLUMEDOWN },
-	{ 0x1d12, KEY_CHANNEL },
-	{ 0x1d14, KEY_UP },
-	{ 0x1d15, KEY_DOWN },
-	{ 0x1d16, KEY_LEFT },
-	{ 0x1d17, KEY_RIGHT },
-	{ 0x1d1c, KEY_TV },
-	{ 0x1d1e, KEY_NEXT },
-	{ 0x1d1f, KEY_BACK },
-	{ 0x1d20, KEY_CHANNELUP },
-	{ 0x1d21, KEY_CHANNELDOWN },
-	{ 0x1d24, KEY_LAST },
-	{ 0x1d25, KEY_OK },
-	{ 0x1d30, KEY_PAUSE },
-	{ 0x1d32, KEY_REWIND },
-	{ 0x1d34, KEY_FASTFORWARD },
-	{ 0x1d35, KEY_PLAY },
-	{ 0x1d36, KEY_STOP },
-	{ 0x1d37, KEY_RECORD },
-	{ 0x1d3b, KEY_GOTO },
-	{ 0x1d3d, KEY_POWER },
-
-	/* Key codes for the Pixelview SBTVD remote (proto NEC) */
-	{ 0x8613, KEY_MUTE },
-	{ 0x8612, KEY_POWER },
-	{ 0x8601, KEY_1 },
-	{ 0x8602, KEY_2 },
-	{ 0x8603, KEY_3 },
-	{ 0x8604, KEY_4 },
-	{ 0x8605, KEY_5 },
-	{ 0x8606, KEY_6 },
-	{ 0x8607, KEY_7 },
-	{ 0x8608, KEY_8 },
-	{ 0x8609, KEY_9 },
-	{ 0x8600, KEY_0 },
-	{ 0x860d, KEY_CHANNELUP },
-	{ 0x8619, KEY_CHANNELDOWN },
-	{ 0x8610, KEY_VOLUMEUP },
-	{ 0x860c, KEY_VOLUMEDOWN },
-
-	{ 0x860a, KEY_CAMERA },
-	{ 0x860b, KEY_ZOOM },
-	{ 0x861b, KEY_BACKSPACE },
-	{ 0x8615, KEY_ENTER },
-
-	{ 0x861d, KEY_UP },
-	{ 0x861e, KEY_DOWN },
-	{ 0x860e, KEY_LEFT },
-	{ 0x860f, KEY_RIGHT },
-
-	{ 0x8618, KEY_RECORD },
-	{ 0x861a, KEY_STOP },
-
-	/* Key codes for the EvolutePC TVWay+ remote (proto NEC) */
-	{ 0x7a00, KEY_MENU },
-	{ 0x7a01, KEY_RECORD },
-	{ 0x7a02, KEY_PLAY },
-	{ 0x7a03, KEY_STOP },
-	{ 0x7a10, KEY_CHANNELUP },
-	{ 0x7a11, KEY_CHANNELDOWN },
-	{ 0x7a12, KEY_VOLUMEUP },
-	{ 0x7a13, KEY_VOLUMEDOWN },
-	{ 0x7a40, KEY_POWER },
-	{ 0x7a41, KEY_MUTE },
-
-	/* Key codes for the Elgato EyeTV Diversity silver remote,
-	   set dvb_usb_dib0700_ir_proto=0 */
-	{ 0x4501, KEY_POWER },
-	{ 0x4502, KEY_MUTE },
-	{ 0x4503, KEY_1 },
-	{ 0x4504, KEY_2 },
-	{ 0x4505, KEY_3 },
-	{ 0x4506, KEY_4 },
-	{ 0x4507, KEY_5 },
-	{ 0x4508, KEY_6 },
-	{ 0x4509, KEY_7 },
-	{ 0x450a, KEY_8 },
-	{ 0x450b, KEY_9 },
-	{ 0x450c, KEY_LAST },
-	{ 0x450d, KEY_0 },
-	{ 0x450e, KEY_ENTER },
-	{ 0x450f, KEY_RED },
-	{ 0x4510, KEY_CHANNELUP },
-	{ 0x4511, KEY_GREEN },
-	{ 0x4512, KEY_VOLUMEDOWN },
-	{ 0x4513, KEY_OK },
-	{ 0x4514, KEY_VOLUMEUP },
-	{ 0x4515, KEY_YELLOW },
-	{ 0x4516, KEY_CHANNELDOWN },
-	{ 0x4517, KEY_BLUE },
-	{ 0x4518, KEY_LEFT }, /* Skip backwards */
-	{ 0x4519, KEY_PLAYPAUSE },
-	{ 0x451a, KEY_RIGHT }, /* Skip forward */
-	{ 0x451b, KEY_REWIND },
-	{ 0x451c, KEY_L }, /* Live */
-	{ 0x451d, KEY_FASTFORWARD },
-	{ 0x451e, KEY_STOP }, /* 'Reveal' for Teletext */
-	{ 0x451f, KEY_MENU }, /* KEY_TEXT for Teletext */
-	{ 0x4540, KEY_RECORD }, /* Font 'Size' for Teletext */
-	{ 0x4541, KEY_SCREEN }, /*  Full screen toggle, 'Hold' for Teletext */
-	{ 0x4542, KEY_SELECT }, /* Select video input, 'Select' for Teletext */
-};
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
 static struct dibx000_agc_config stk7700p_7000m_mt2060_agc_config = {
@@ -1237,6 +937,58 @@ static int stk7070p_frontend_attach(struct dvb_usb_adapter *adap)
 
 	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
 		&dib7070p_dib7000p_config);
+	return adap->fe == NULL ? -ENODEV : 0;
+}
+
+/* STK7770P */
+static struct dib7000p_config dib7770p_dib7000p_config = {
+	.output_mpeg2_in_188_bytes = 1,
+
+	.agc_config_count = 1,
+	.agc = &dib7070_agc_config,
+	.bw  = &dib7070_bw_config_12_mhz,
+	.tuner_is_baseband = 1,
+	.spur_protect = 1,
+
+	.gpio_dir = DIB7000P_GPIO_DEFAULT_DIRECTIONS,
+	.gpio_val = DIB7000P_GPIO_DEFAULT_VALUES,
+	.gpio_pwm_pos = DIB7000P_GPIO_DEFAULT_PWM_POS,
+
+	.hostbus_diversity = 1,
+	.enable_current_mirror = 1,
+	.disable_sample_and_hold = 0,
+};
+
+static int stk7770p_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct usb_device_descriptor *p = &adap->dev->udev->descriptor;
+	if (p->idVendor  == cpu_to_le16(USB_VID_PINNACLE) &&
+	    p->idProduct == cpu_to_le16(USB_PID_PINNACLE_PCTV72E))
+		dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 0);
+	else
+		dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
+	msleep(10);
+	dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
+	dib0700_set_gpio(adap->dev, GPIO4, GPIO_OUT, 1);
+	dib0700_set_gpio(adap->dev, GPIO7, GPIO_OUT, 1);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
+
+	dib0700_ctrl_clock(adap->dev, 72, 1);
+
+	msleep(10);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
+	msleep(10);
+	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
+
+	if (dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
+				     &dib7770p_dib7000p_config) != 0) {
+		err("%s: dib7000p_i2c_enumeration failed.  Cannot continue\n",
+		    __func__);
+		return -ENODEV;
+	}
+
+	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
+		&dib7770p_dib7000p_config);
 	return adap->fe == NULL ? -ENODEV : 0;
 }
 
@@ -2081,7 +1833,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 /* 60 */{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_T_XXS_2) },
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XPVR) },
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XP) },
-	{ USB_DEVICE(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD) },
+	{ USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x000, 0x3f00) },
 	{ USB_DEVICE(USB_VID_EVOLUTEPC, USB_PID_TVWAY_PLUS) },
 /* 65 */{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV73ESE) },
 	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV282E) },
@@ -2168,10 +1920,15 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol  = dib0700_change_protocol,
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 2,
@@ -2197,10 +1954,15 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol = dib0700_change_protocol,
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 2,
@@ -2251,11 +2013,15 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
-
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol = dib0700_change_protocol,
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 1,
@@ -2288,10 +2054,16 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol = dib0700_change_protocol,
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 1,
@@ -2358,11 +2130,16 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
-
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol  = dib0700_change_protocol,
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 1,
@@ -2397,11 +2174,16 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
-
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol  = dib0700_change_protocol,
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 2,
@@ -2431,7 +2213,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.num_device_descs = 7,
+		.num_device_descs = 6,
 		.devices = {
 			{   "DiBcom STK7070PD reference design",
 				{ &dib0700_usb_id_table[17], NULL },
@@ -2458,15 +2240,65 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ &dib0700_usb_id_table[44], NULL },
 				{ NULL },
 			},
+		},
+
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol = dib0700_change_protocol,
+		},
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+
+		.num_adapters = 2,
+		.adapter = {
+			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
+				.frontend_attach  = stk7070pd_frontend_attach0,
+				.tuner_attach     = dib7070p_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+
+				.size_of_priv     = sizeof(struct dib0700_adapter_state),
+			}, {
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
+				.frontend_attach  = stk7070pd_frontend_attach1,
+				.tuner_attach     = dib7070p_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x03),
+
+				.size_of_priv     = sizeof(struct dib0700_adapter_state),
+			}
+		},
+
+		.num_device_descs = 1,
+		.devices = {
 			{   "Elgato EyeTV Diversity",
 				{ &dib0700_usb_id_table[68], NULL },
 				{ NULL },
 			},
 		},
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_NEC_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol  = dib0700_change_protocol,
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 1,
@@ -2525,10 +2357,17 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 		},
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol  = dib0700_change_protocol,
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
 		.adapter = {
@@ -2554,10 +2393,17 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 		},
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol  = dib0700_change_protocol,
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
 		.adapter = {
@@ -2592,7 +2438,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				.pid_filter_count = 32,
 				.pid_filter       = stk70x0p_pid_filter,
 				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
-				.frontend_attach  = stk7070p_frontend_attach,
+				.frontend_attach  = stk7770p_frontend_attach,
 				.tuner_attach     = dib7770p_tuner_attach,
 
 				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
@@ -2615,10 +2461,17 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 		},
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol  = dib0700_change_protocol,
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
 		.adapter = {
@@ -2653,11 +2506,16 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
-
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_NEC_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol  = dib0700_change_protocol,
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 2,
 		.adapter = {
@@ -2697,10 +2555,16 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol  = dib0700_change_protocol,
+		},
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
 		.adapter = {
@@ -2728,10 +2592,16 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = ir_codes_dib0700_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
-		.rc_query         = dib0700_rc_query
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol  = dib0700_change_protocol,
+		},
 	},
 };
 

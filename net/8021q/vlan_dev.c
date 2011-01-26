@@ -141,7 +141,8 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		  struct packet_type *ptype, struct net_device *orig_dev)
 {
 	struct vlan_hdr *vhdr;
-	struct vlan_rx_stats *rx_stats;
+	struct vlan_pcpu_stats *rx_stats;
+	struct net_device *vlan_dev;
 	u16 vlan_id;
 	u16 vlan_tci;
 
@@ -157,62 +158,82 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	vlan_id = vlan_tci & VLAN_VID_MASK;
 
 	rcu_read_lock();
-	skb->dev = __find_vlan_dev(dev, vlan_id);
-	if (!skb->dev) {
-		pr_debug("%s: ERROR: No net_device for VID: %u on dev: %s\n",
-			 __func__, vlan_id, dev->name);
-		goto err_unlock;
-	}
+	vlan_dev = vlan_find_dev(dev, vlan_id);
 
-	rx_stats = per_cpu_ptr(vlan_dev_info(skb->dev)->vlan_rx_stats,
-			       smp_processor_id());
-	rx_stats->rx_packets++;
-	rx_stats->rx_bytes += skb->len;
+	/* If the VLAN device is defined, we use it.
+	 * If not, and the VID is 0, it is a 802.1p packet (not
+	 * really a VLAN), so we will just netif_rx it later to the
+	 * original interface, but with the skb->proto set to the
+	 * wrapped proto: we do nothing here.
+	 */
+
+	if (!vlan_dev) {
+		if (vlan_id) {
+			pr_debug("%s: ERROR: No net_device for VID: %u on dev: %s\n",
+				 __func__, vlan_id, dev->name);
+			goto err_unlock;
+		}
+		rx_stats = NULL;
+	} else {
+		skb->dev = vlan_dev;
+
+		rx_stats = this_cpu_ptr(vlan_dev_info(skb->dev)->vlan_pcpu_stats);
+
+		u64_stats_update_begin(&rx_stats->syncp);
+		rx_stats->rx_packets++;
+		rx_stats->rx_bytes += skb->len;
+
+		skb->priority = vlan_get_ingress_priority(skb->dev, vlan_tci);
+
+		pr_debug("%s: priority: %u for TCI: %hu\n",
+			 __func__, skb->priority, vlan_tci);
+
+		switch (skb->pkt_type) {
+		case PACKET_BROADCAST:
+			/* Yeah, stats collect these together.. */
+			/* stats->broadcast ++; // no such counter :-( */
+			break;
+
+		case PACKET_MULTICAST:
+			rx_stats->rx_multicast++;
+			break;
+
+		case PACKET_OTHERHOST:
+			/* Our lower layer thinks this is not local, let's make
+			 * sure.
+			 * This allows the VLAN to have a different MAC than the
+			 * underlying device, and still route correctly.
+			 */
+			if (!compare_ether_addr(eth_hdr(skb)->h_dest,
+						skb->dev->dev_addr))
+				skb->pkt_type = PACKET_HOST;
+			break;
+		default:
+			break;
+		}
+		u64_stats_update_end(&rx_stats->syncp);
+	}
 
 	skb_pull_rcsum(skb, VLAN_HLEN);
-
-	skb->priority = vlan_get_ingress_priority(skb->dev, vlan_tci);
-
-	pr_debug("%s: priority: %u for TCI: %hu\n",
-		 __func__, skb->priority, vlan_tci);
-
-	switch (skb->pkt_type) {
-	case PACKET_BROADCAST: /* Yeah, stats collect these together.. */
-		/* stats->broadcast ++; // no such counter :-( */
-		break;
-
-	case PACKET_MULTICAST:
-		rx_stats->multicast++;
-		break;
-
-	case PACKET_OTHERHOST:
-		/* Our lower layer thinks this is not local, let's make sure.
-		 * This allows the VLAN to have a different MAC than the
-		 * underlying device, and still route correctly.
-		 */
-		if (!compare_ether_addr(eth_hdr(skb)->h_dest,
-					skb->dev->dev_addr))
-			skb->pkt_type = PACKET_HOST;
-		break;
-	default:
-		break;
-	}
-
 	vlan_set_encap_proto(skb, vhdr);
 
-	skb = vlan_check_reorder_header(skb);
-	if (!skb) {
-		rx_stats->rx_errors++;
-		goto err_unlock;
+	if (vlan_dev) {
+		skb = vlan_check_reorder_header(skb);
+		if (!skb) {
+			rx_stats->rx_errors++;
+			goto err_unlock;
+		}
 	}
 
 	netif_rx(skb);
+
 	rcu_read_unlock();
 	return NET_RX_SUCCESS;
 
 err_unlock:
 	rcu_read_unlock();
 err_free:
+	atomic_long_inc(&dev->rx_dropped);
 	kfree_skb(skb);
 	return NET_RX_DROP;
 }
@@ -253,9 +274,6 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	u16 vlan_tci = 0;
 	int rc;
 
-	if (WARN_ON(skb_headroom(skb) < dev->hard_header_len))
-		return -ENOSPC;
-
 	if (!(vlan_dev_info(dev)->flags & VLAN_FLAG_REORDER_HDR)) {
 		vhdr = (struct vlan_hdr *) skb_push(skb, VLAN_HLEN);
 
@@ -292,8 +310,6 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 					    struct net_device *dev)
 {
-	int i = skb_get_queue_mapping(skb);
-	struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)(skb->data);
 	unsigned int len;
 	int ret;
@@ -305,69 +321,29 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 	 */
 	if (veth->h_vlan_proto != htons(ETH_P_8021Q) ||
 	    vlan_dev_info(dev)->flags & VLAN_FLAG_REORDER_HDR) {
-		unsigned int orig_headroom = skb_headroom(skb);
 		u16 vlan_tci;
-
-		vlan_dev_info(dev)->cnt_encap_on_xmit++;
-
 		vlan_tci = vlan_dev_info(dev)->vlan_id;
 		vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb);
-		skb = __vlan_put_tag(skb, vlan_tci);
-		if (!skb) {
-			txq->tx_dropped++;
-			return NETDEV_TX_OK;
-		}
-
-		if (orig_headroom < VLAN_HLEN)
-			vlan_dev_info(dev)->cnt_inc_headroom_on_tx++;
+		skb = __vlan_hwaccel_put_tag(skb, vlan_tci);
 	}
-
 
 	skb_set_dev(skb, vlan_dev_info(dev)->real_dev);
 	len = skb->len;
 	ret = dev_queue_xmit(skb);
 
 	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
-		txq->tx_packets++;
-		txq->tx_bytes += len;
-	} else
-		txq->tx_dropped++;
+		struct vlan_pcpu_stats *stats;
+
+		stats = this_cpu_ptr(vlan_dev_info(dev)->vlan_pcpu_stats);
+		u64_stats_update_begin(&stats->syncp);
+		stats->tx_packets++;
+		stats->tx_bytes += len;
+		u64_stats_update_begin(&stats->syncp);
+	} else {
+		this_cpu_inc(vlan_dev_info(dev)->vlan_pcpu_stats->tx_dropped);
+	}
 
 	return ret;
-}
-
-static netdev_tx_t vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
-						    struct net_device *dev)
-{
-	int i = skb_get_queue_mapping(skb);
-	struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-	u16 vlan_tci;
-	unsigned int len;
-	int ret;
-
-	vlan_tci = vlan_dev_info(dev)->vlan_id;
-	vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb);
-	skb = __vlan_hwaccel_put_tag(skb, vlan_tci);
-
-	skb->dev = vlan_dev_info(dev)->real_dev;
-	len = skb->len;
-	ret = dev_queue_xmit(skb);
-
-	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
-		txq->tx_packets++;
-		txq->tx_bytes += len;
-	} else
-		txq->tx_dropped++;
-
-	return ret;
-}
-
-static u16 vlan_dev_select_queue(struct net_device *dev, struct sk_buff *skb)
-{
-	struct net_device *rdev = vlan_dev_info(dev)->real_dev;
-	const struct net_device_ops *ops = rdev->netdev_ops;
-
-	return ops->ndo_select_queue(rdev, skb);
 }
 
 static int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
@@ -491,7 +467,8 @@ static int vlan_dev_open(struct net_device *dev)
 	if (vlan->flags & VLAN_FLAG_GVRP)
 		vlan_gvrp_request_join(dev);
 
-	netif_carrier_on(dev);
+	if (netif_carrier_ok(real_dev))
+		netif_carrier_on(dev);
 	return 0;
 
 clear_allmulti:
@@ -697,8 +674,7 @@ static const struct header_ops vlan_header_ops = {
 	.parse	 = eth_header_parse,
 };
 
-static const struct net_device_ops vlan_netdev_ops, vlan_netdev_accel_ops,
-		    vlan_netdev_ops_sq, vlan_netdev_accel_ops_sq;
+static const struct net_device_ops vlan_netdev_ops;
 
 static int vlan_dev_init(struct net_device *dev)
 {
@@ -708,13 +684,15 @@ static int vlan_dev_init(struct net_device *dev)
 	netif_carrier_off(dev);
 
 	/* IFF_BROADCAST|IFF_MULTICAST; ??? */
-	dev->flags  = real_dev->flags & ~(IFF_UP | IFF_PROMISC | IFF_ALLMULTI);
+	dev->flags  = real_dev->flags & ~(IFF_UP | IFF_PROMISC | IFF_ALLMULTI |
+					  IFF_MASTER | IFF_SLAVE);
 	dev->iflink = real_dev->ifindex;
 	dev->state  = (real_dev->state & ((1<<__LINK_STATE_NOCARRIER) |
 					  (1<<__LINK_STATE_DORMANT))) |
 		      (1<<__LINK_STATE_PRESENT);
 
 	dev->features |= real_dev->features & real_dev->vlan_features;
+	dev->features |= NETIF_F_LLTX;
 	dev->gso_max_size = real_dev->gso_max_size;
 
 	/* ipv6 shared card related stuff */
@@ -732,26 +710,20 @@ static int vlan_dev_init(struct net_device *dev)
 	if (real_dev->features & NETIF_F_HW_VLAN_TX) {
 		dev->header_ops      = real_dev->header_ops;
 		dev->hard_header_len = real_dev->hard_header_len;
-		if (real_dev->netdev_ops->ndo_select_queue)
-			dev->netdev_ops = &vlan_netdev_accel_ops_sq;
-		else
-			dev->netdev_ops = &vlan_netdev_accel_ops;
 	} else {
 		dev->header_ops      = &vlan_header_ops;
 		dev->hard_header_len = real_dev->hard_header_len + VLAN_HLEN;
-		if (real_dev->netdev_ops->ndo_select_queue)
-			dev->netdev_ops = &vlan_netdev_ops_sq;
-		else
-			dev->netdev_ops = &vlan_netdev_ops;
 	}
+
+	dev->netdev_ops = &vlan_netdev_ops;
 
 	if (is_vlan_dev(real_dev))
 		subclass = 1;
 
 	vlan_dev_set_lockdep_class(dev, subclass);
 
-	vlan_dev_info(dev)->vlan_rx_stats = alloc_percpu(struct vlan_rx_stats);
-	if (!vlan_dev_info(dev)->vlan_rx_stats)
+	vlan_dev_info(dev)->vlan_pcpu_stats = alloc_percpu(struct vlan_pcpu_stats);
+	if (!vlan_dev_info(dev)->vlan_pcpu_stats)
 		return -ENOMEM;
 
 	return 0;
@@ -763,8 +735,8 @@ static void vlan_dev_uninit(struct net_device *dev)
 	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	int i;
 
-	free_percpu(vlan->vlan_rx_stats);
-	vlan->vlan_rx_stats = NULL;
+	free_percpu(vlan->vlan_pcpu_stats);
+	vlan->vlan_pcpu_stats = NULL;
 	for (i = 0; i < ARRAY_SIZE(vlan->egress_priority_map); i++) {
 		while ((pm = vlan->egress_priority_map[i]) != NULL) {
 			vlan->egress_priority_map[i] = pm->next;
@@ -800,29 +772,60 @@ static u32 vlan_ethtool_get_flags(struct net_device *dev)
 	return dev_ethtool_get_flags(vlan->real_dev);
 }
 
-static struct net_device_stats *vlan_dev_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
-	struct net_device_stats *stats = &dev->stats;
 
-	dev_txq_stats_fold(dev, stats);
-
-	if (vlan_dev_info(dev)->vlan_rx_stats) {
-		struct vlan_rx_stats *p, rx = {0};
+	if (vlan_dev_info(dev)->vlan_pcpu_stats) {
+		struct vlan_pcpu_stats *p;
+		u32 rx_errors = 0, tx_dropped = 0;
 		int i;
 
 		for_each_possible_cpu(i) {
-			p = per_cpu_ptr(vlan_dev_info(dev)->vlan_rx_stats, i);
-			rx.rx_packets += p->rx_packets;
-			rx.rx_bytes   += p->rx_bytes;
-			rx.rx_errors  += p->rx_errors;
-			rx.multicast  += p->multicast;
+			u64 rxpackets, rxbytes, rxmulticast, txpackets, txbytes;
+			unsigned int start;
+
+			p = per_cpu_ptr(vlan_dev_info(dev)->vlan_pcpu_stats, i);
+			do {
+				start = u64_stats_fetch_begin_bh(&p->syncp);
+				rxpackets	= p->rx_packets;
+				rxbytes		= p->rx_bytes;
+				rxmulticast	= p->rx_multicast;
+				txpackets	= p->tx_packets;
+				txbytes		= p->tx_bytes;
+			} while (u64_stats_fetch_retry_bh(&p->syncp, start));
+
+			stats->rx_packets	+= rxpackets;
+			stats->rx_bytes		+= rxbytes;
+			stats->multicast	+= rxmulticast;
+			stats->tx_packets	+= txpackets;
+			stats->tx_bytes		+= txbytes;
+			/* rx_errors & tx_dropped are u32 */
+			rx_errors	+= p->rx_errors;
+			tx_dropped	+= p->tx_dropped;
 		}
-		stats->rx_packets = rx.rx_packets;
-		stats->rx_bytes   = rx.rx_bytes;
-		stats->rx_errors  = rx.rx_errors;
-		stats->multicast  = rx.multicast;
+		stats->rx_errors  = rx_errors;
+		stats->tx_dropped = tx_dropped;
 	}
 	return stats;
+}
+
+static int vlan_ethtool_set_tso(struct net_device *dev, u32 data)
+{
+       if (data) {
+		struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
+
+		/* Underlying device must support TSO for VLAN-tagged packets
+		 * and must have TSO enabled now.
+		 */
+		if (!(real_dev->vlan_features & NETIF_F_TSO))
+			return -EOPNOTSUPP;
+		if (!(real_dev->features & NETIF_F_TSO))
+			return -EINVAL;
+		dev->features |= NETIF_F_TSO;
+	} else {
+		dev->features &= ~NETIF_F_TSO;
+	}
+	return 0;
 }
 
 static const struct ethtool_ops vlan_ethtool_ops = {
@@ -831,6 +834,7 @@ static const struct ethtool_ops vlan_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_rx_csum		= vlan_ethtool_get_rx_csum,
 	.get_flags		= vlan_ethtool_get_flags,
+	.set_tso                = vlan_ethtool_set_tso,
 };
 
 static const struct net_device_ops vlan_netdev_ops = {
@@ -847,81 +851,7 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
 	.ndo_do_ioctl		= vlan_dev_ioctl,
 	.ndo_neigh_setup	= vlan_dev_neigh_setup,
-	.ndo_get_stats		= vlan_dev_get_stats,
-#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
-	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
-	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
-	.ndo_fcoe_enable	= vlan_dev_fcoe_enable,
-	.ndo_fcoe_disable	= vlan_dev_fcoe_disable,
-	.ndo_fcoe_get_wwn	= vlan_dev_fcoe_get_wwn,
-#endif
-};
-
-static const struct net_device_ops vlan_netdev_accel_ops = {
-	.ndo_change_mtu		= vlan_dev_change_mtu,
-	.ndo_init		= vlan_dev_init,
-	.ndo_uninit		= vlan_dev_uninit,
-	.ndo_open		= vlan_dev_open,
-	.ndo_stop		= vlan_dev_stop,
-	.ndo_start_xmit =  vlan_dev_hwaccel_hard_start_xmit,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= vlan_dev_set_mac_address,
-	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
-	.ndo_set_multicast_list	= vlan_dev_set_rx_mode,
-	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
-	.ndo_do_ioctl		= vlan_dev_ioctl,
-	.ndo_neigh_setup	= vlan_dev_neigh_setup,
-	.ndo_get_stats		= vlan_dev_get_stats,
-#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
-	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
-	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
-	.ndo_fcoe_enable	= vlan_dev_fcoe_enable,
-	.ndo_fcoe_disable	= vlan_dev_fcoe_disable,
-	.ndo_fcoe_get_wwn	= vlan_dev_fcoe_get_wwn,
-#endif
-};
-
-static const struct net_device_ops vlan_netdev_ops_sq = {
-	.ndo_select_queue	= vlan_dev_select_queue,
-	.ndo_change_mtu		= vlan_dev_change_mtu,
-	.ndo_init		= vlan_dev_init,
-	.ndo_uninit		= vlan_dev_uninit,
-	.ndo_open		= vlan_dev_open,
-	.ndo_stop		= vlan_dev_stop,
-	.ndo_start_xmit =  vlan_dev_hard_start_xmit,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= vlan_dev_set_mac_address,
-	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
-	.ndo_set_multicast_list	= vlan_dev_set_rx_mode,
-	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
-	.ndo_do_ioctl		= vlan_dev_ioctl,
-	.ndo_neigh_setup	= vlan_dev_neigh_setup,
-	.ndo_get_stats		= vlan_dev_get_stats,
-#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
-	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
-	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
-	.ndo_fcoe_enable	= vlan_dev_fcoe_enable,
-	.ndo_fcoe_disable	= vlan_dev_fcoe_disable,
-	.ndo_fcoe_get_wwn	= vlan_dev_fcoe_get_wwn,
-#endif
-};
-
-static const struct net_device_ops vlan_netdev_accel_ops_sq = {
-	.ndo_select_queue	= vlan_dev_select_queue,
-	.ndo_change_mtu		= vlan_dev_change_mtu,
-	.ndo_init		= vlan_dev_init,
-	.ndo_uninit		= vlan_dev_uninit,
-	.ndo_open		= vlan_dev_open,
-	.ndo_stop		= vlan_dev_stop,
-	.ndo_start_xmit =  vlan_dev_hwaccel_hard_start_xmit,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= vlan_dev_set_mac_address,
-	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
-	.ndo_set_multicast_list	= vlan_dev_set_rx_mode,
-	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
-	.ndo_do_ioctl		= vlan_dev_ioctl,
-	.ndo_neigh_setup	= vlan_dev_neigh_setup,
-	.ndo_get_stats		= vlan_dev_get_stats,
+	.ndo_get_stats64	= vlan_dev_get_stats64,
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
 	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,

@@ -192,7 +192,6 @@ ecryptfs_get_key_payload_data(struct key *key)
 		(((struct user_key_payload*)key->payload.data)->data);
 }
 
-#define ECRYPTFS_SUPER_MAGIC 0xf15f
 #define ECRYPTFS_MAX_KEYSET_SIZE 1024
 #define ECRYPTFS_MAX_CIPHER_NAME_SIZE 32
 #define ECRYPTFS_MAX_NUM_ENC_KEYS 64
@@ -377,6 +376,7 @@ struct ecryptfs_mount_crypt_stat {
 #define ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES      0x00000010
 #define ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK   0x00000020
 #define ECRYPTFS_GLOBAL_ENCFN_USE_FEK          0x00000040
+#define ECRYPTFS_GLOBAL_MOUNT_AUTH_TOK_ONLY    0x00000080
 	u32 flags;
 	struct list_head global_auth_tok_list;
 	struct mutex global_auth_tok_list_mutex;
@@ -477,7 +477,7 @@ ecryptfs_lower_header_size(struct ecryptfs_crypt_stat *crypt_stat)
 static inline struct ecryptfs_file_info *
 ecryptfs_file_to_private(struct file *file)
 {
-	return (struct ecryptfs_file_info *)file->private_data;
+	return file->private_data;
 }
 
 static inline void
@@ -583,6 +583,7 @@ ecryptfs_set_dentry_lower_mnt(struct dentry *dentry, struct vfsmount *lower_mnt)
 
 #define ecryptfs_printk(type, fmt, arg...) \
         __ecryptfs_printk(type "%s: " fmt, __func__, ## arg);
+__attribute__ ((format(printf, 1, 2)))
 void __ecryptfs_printk(const char *fmt, ...);
 
 extern const struct file_operations ecryptfs_main_fops;

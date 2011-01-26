@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/string.h>
 #ifdef CONFIG_RTC_DRV_M41T80_WDT
 #include <linux/fs.h>
@@ -68,6 +68,7 @@
 
 #define DRV_VERSION "0.05"
 
+static DEFINE_MUTEX(m41t80_rtc_mutex);
 static const struct i2c_device_id m41t80_id[] = {
 	{ "m41t62", M41T80_FEATURE_SQ | M41T80_FEATURE_SQ_ALT },
 	{ "m41t65", M41T80_FEATURE_HT | M41T80_FEATURE_WD },
@@ -121,7 +122,7 @@ static int m41t80_get_datetime(struct i2c_client *client,
 
 	/* assume 20YY not 19YY, and ignore the Century Bit */
 	tm->tm_year = bcd2bin(buf[M41T80_REG_YEAR]) + 100;
-	return 0;
+	return rtc_valid_tm(tm);
 }
 
 /* Sets the given date and time to the real time clock. */
@@ -595,10 +596,6 @@ static void wdt_disable(void)
 static ssize_t wdt_write(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	/*  Can't seek (pwrite) on this device
-	if (ppos != &file->f_pos)
-	return -ESPIPE;
-	*/
 	if (count) {
 		wdt_ping();
 		return 1;
@@ -681,9 +678,9 @@ static long wdt_unlocked_ioctl(struct file *file, unsigned int cmd,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&m41t80_rtc_mutex);
 	ret = wdt_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&m41t80_rtc_mutex);
 
 	return ret;
 }
@@ -697,17 +694,17 @@ static long wdt_unlocked_ioctl(struct file *file, unsigned int cmd,
 static int wdt_open(struct inode *inode, struct file *file)
 {
 	if (MINOR(inode->i_rdev) == WATCHDOG_MINOR) {
-		lock_kernel();
+		mutex_lock(&m41t80_rtc_mutex);
 		if (test_and_set_bit(0, &wdt_is_open)) {
-			unlock_kernel();
+			mutex_unlock(&m41t80_rtc_mutex);
 			return -EBUSY;
 		}
 		/*
 		 *	Activate
 		 */
 		wdt_is_open = 1;
-		unlock_kernel();
-		return 0;
+		mutex_unlock(&m41t80_rtc_mutex);
+		return nonseekable_open(inode, file);
 	}
 	return -ENODEV;
 }
@@ -752,6 +749,7 @@ static const struct file_operations wdt_fops = {
 	.write	= wdt_write,
 	.open	= wdt_open,
 	.release = wdt_release,
+	.llseek = no_llseek,
 };
 
 static struct miscdevice wdt_dev = {

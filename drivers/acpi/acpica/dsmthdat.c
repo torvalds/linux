@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -102,8 +102,7 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
 		walk_state->arguments[i].name.integer |= (i << 24);
 		walk_state->arguments[i].descriptor_type = ACPI_DESC_TYPE_NAMED;
 		walk_state->arguments[i].type = ACPI_TYPE_ANY;
-		walk_state->arguments[i].flags =
-		    ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_ARG;
+		walk_state->arguments[i].flags = ANOBJ_METHOD_ARG;
 	}
 
 	/* Init the method locals */
@@ -116,8 +115,7 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
 		walk_state->local_variables[i].descriptor_type =
 		    ACPI_DESC_TYPE_NAMED;
 		walk_state->local_variables[i].type = ACPI_TYPE_ANY;
-		walk_state->local_variables[i].flags =
-		    ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_LOCAL;
+		walk_state->local_variables[i].flags = ANOBJ_METHOD_LOCAL;
 	}
 
 	return_VOID;
@@ -146,7 +144,7 @@ void acpi_ds_method_data_delete_all(struct acpi_walk_state *walk_state)
 
 	for (index = 0; index < ACPI_METHOD_NUM_LOCALS; index++) {
 		if (walk_state->local_variables[index].object) {
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Deleting Local%d=%p\n",
+			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Deleting Local%u=%p\n",
 					  index,
 					  walk_state->local_variables[index].
 					  object));
@@ -162,7 +160,7 @@ void acpi_ds_method_data_delete_all(struct acpi_walk_state *walk_state)
 
 	for (index = 0; index < ACPI_METHOD_NUM_ARGS; index++) {
 		if (walk_state->arguments[index].object) {
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Deleting Arg%d=%p\n",
+			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Deleting Arg%u=%p\n",
 					  index,
 					  walk_state->arguments[index].object));
 
@@ -226,7 +224,7 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
 		index++;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%d args passed to method\n", index));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%u args passed to method\n", index));
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -323,7 +321,7 @@ acpi_ds_method_data_set_value(u8 type,
 	ACPI_FUNCTION_TRACE(ds_method_data_set_value);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-			  "NewObj %p Type %2.2X, Refs=%d [%s]\n", object,
+			  "NewObj %p Type %2.2X, Refs=%u [%s]\n", object,
 			  type, object->common.reference_count,
 			  acpi_ut_get_type_name(object->common.type)));
 
@@ -543,7 +541,7 @@ acpi_ds_store_object_to_local(u8 type,
 	union acpi_operand_object *new_obj_desc;
 
 	ACPI_FUNCTION_TRACE(ds_store_object_to_local);
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Type=%2.2X Index=%d Obj=%p\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Type=%2.2X Index=%u Obj=%p\n",
 			  type, index, obj_desc));
 
 	/* Parameter validation */

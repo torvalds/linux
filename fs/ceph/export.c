@@ -1,10 +1,11 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/exportfs.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #include "super.h"
+#include "mds_client.h"
 
 /*
  * NFS export support
@@ -42,32 +43,37 @@ struct ceph_nfs_confh {
 static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 			  int connectable)
 {
+	int type;
 	struct ceph_nfs_fh *fh = (void *)rawfh;
 	struct ceph_nfs_confh *cfh = (void *)rawfh;
 	struct dentry *parent = dentry->d_parent;
 	struct inode *inode = dentry->d_inode;
-	int type;
+	int connected_handle_length = sizeof(*cfh)/4;
+	int handle_length = sizeof(*fh)/4;
 
 	/* don't re-export snaps */
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EINVAL;
 
-	if (*max_len >= sizeof(*cfh)) {
+	if (*max_len >= connected_handle_length) {
 		dout("encode_fh %p connectable\n", dentry);
 		cfh->ino = ceph_ino(dentry->d_inode);
 		cfh->parent_ino = ceph_ino(parent->d_inode);
-		cfh->parent_name_hash = parent->d_name.hash;
-		*max_len = sizeof(*cfh);
+		cfh->parent_name_hash = ceph_dentry_hash(parent);
+		*max_len = connected_handle_length;
 		type = 2;
-	} else if (*max_len > sizeof(*fh)) {
-		if (connectable)
-			return -ENOSPC;
+	} else if (*max_len >= handle_length) {
+		if (connectable) {
+			*max_len = connected_handle_length;
+			return 255;
+		}
 		dout("encode_fh %p\n", dentry);
 		fh->ino = ceph_ino(dentry->d_inode);
-		*max_len = sizeof(*fh);
+		*max_len = handle_length;
 		type = 1;
 	} else {
-		return -ENOSPC;
+		*max_len = handle_length;
+		return 255;
 	}
 	return type;
 }
@@ -115,7 +121,7 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 static struct dentry *__cfh_to_dentry(struct super_block *sb,
 				      struct ceph_nfs_confh *cfh)
 {
-	struct ceph_mds_client *mdsc = &ceph_sb_to_client(sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(sb)->mdsc;
 	struct inode *inode;
 	struct dentry *dentry;
 	struct ceph_vino vino;
@@ -133,7 +139,7 @@ static struct dentry *__cfh_to_dentry(struct super_block *sb,
 		req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_LOOKUPHASH,
 					       USE_ANY_MDS);
 		if (IS_ERR(req))
-			return ERR_PTR(PTR_ERR(req));
+			return ERR_CAST(req);
 
 		req->r_ino1 = vino;
 		req->r_ino2.ino = cfh->parent_ino;

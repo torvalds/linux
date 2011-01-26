@@ -388,9 +388,9 @@ void __init atari_init_IRQ(void)
 	}
 
 	if (ATARIHW_PRESENT(SCC) && !atari_SCC_reset_done) {
-		scc.cha_a_ctrl = 9;
+		atari_scc.cha_a_ctrl = 9;
 		MFPDELAY();
-		scc.cha_a_ctrl = (char) 0xc0; /* hardware reset */
+		atari_scc.cha_a_ctrl = (char) 0xc0; /* hardware reset */
 	}
 
 	if (ATARIHW_PRESENT(SCU)) {

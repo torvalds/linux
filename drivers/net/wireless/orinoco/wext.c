@@ -128,7 +128,7 @@ static struct iw_statistics *orinoco_get_wireless_stats(struct net_device *dev)
 	} else {
 		struct {
 			__le16 qual, signal, noise, unused;
-		} __attribute__ ((packed)) cq;
+		} __packed cq;
 
 		err = HERMES_READ_RECORD(hw, USER_BAP,
 					 HERMES_RID_COMMSQUALITY, &cq);
@@ -589,8 +589,15 @@ static int orinoco_ioctl_getrate(struct net_device *dev,
 
 	/* If the interface is running we try to find more about the
 	   current mode */
-	if (netif_running(dev))
-		err = orinoco_hw_get_act_bitrate(priv, &bitrate);
+	if (netif_running(dev)) {
+		int act_bitrate;
+		int lerr;
+
+		/* Ignore errors if we can't get the actual bitrate */
+		lerr = orinoco_hw_get_act_bitrate(priv, &act_bitrate);
+		if (!lerr)
+			bitrate = act_bitrate;
+	}
 
 	orinoco_unlock(priv, &flags);
 
@@ -886,6 +893,14 @@ static int orinoco_ioctl_set_auth(struct net_device *dev,
 		 */
 		break;
 
+	case IW_AUTH_MFP:
+		/* Management Frame Protection not supported.
+		 * Only fail if set to required.
+		 */
+		if (param->value == IW_AUTH_MFP_REQUIRED)
+			ret = -EINVAL;
+		break;
+
 	case IW_AUTH_KEY_MGMT:
 		/* wl_lkm implies value 2 == PSK for Hermes I
 		 * which ties in with WEXT
@@ -904,10 +919,10 @@ static int orinoco_ioctl_set_auth(struct net_device *dev,
 		 */
 		if (param->value) {
 			priv->tkip_cm_active = 1;
-			ret = hermes_enable_port(hw, 0);
+			ret = hermes_disable_port(hw, 0);
 		} else {
 			priv->tkip_cm_active = 0;
-			ret = hermes_disable_port(hw, 0);
+			ret = hermes_enable_port(hw, 0);
 		}
 		break;
 
@@ -993,11 +1008,9 @@ static int orinoco_ioctl_set_genie(struct net_device *dev,
 		return -EINVAL;
 
 	if (wrqu->data.length) {
-		buf = kmalloc(wrqu->data.length, GFP_KERNEL);
+		buf = kmemdup(extra, wrqu->data.length, GFP_KERNEL);
 		if (buf == NULL)
 			return -ENOMEM;
-
-		memcpy(buf, extra, wrqu->data.length);
 	} else
 		buf = NULL;
 

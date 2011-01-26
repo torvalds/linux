@@ -18,26 +18,13 @@
 #include "ar5008_initvals.h"
 #include "ar9001_initvals.h"
 #include "ar9002_initvals.h"
+#include "ar9002_phy.h"
+
+int modparam_force_new_ani;
+module_param_named(force_new_ani, modparam_force_new_ani, int, 0444);
+MODULE_PARM_DESC(force_new_ani, "Force new ANI for AR5008, AR9001, AR9002");
 
 /* General hardware code for the A5008/AR9001/AR9002 hadware families */
-
-static bool ar9002_hw_macversion_supported(u32 macversion)
-{
-	switch (macversion) {
-	case AR_SREV_VERSION_5416_PCI:
-	case AR_SREV_VERSION_5416_PCIE:
-	case AR_SREV_VERSION_9160:
-	case AR_SREV_VERSION_9100:
-	case AR_SREV_VERSION_9280:
-	case AR_SREV_VERSION_9285:
-	case AR_SREV_VERSION_9287:
-	case AR_SREV_VERSION_9271:
-		return true;
-	default:
-		break;
-	}
-	return false;
-}
 
 static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 {
@@ -80,21 +67,6 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			ar9287PciePhy_clkreq_always_on_L1_9287_1_1,
 			ARRAY_SIZE(ar9287PciePhy_clkreq_always_on_L1_9287_1_1),
 					2);
-	} else if (AR_SREV_9287_10_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar9287Modes_9287_1_0,
-				ARRAY_SIZE(ar9287Modes_9287_1_0), 6);
-		INIT_INI_ARRAY(&ah->iniCommon, ar9287Common_9287_1_0,
-				ARRAY_SIZE(ar9287Common_9287_1_0), 2);
-
-		if (ah->config.pcie_clock_req)
-			INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			ar9287PciePhy_clkreq_off_L1_9287_1_0,
-			ARRAY_SIZE(ar9287PciePhy_clkreq_off_L1_9287_1_0), 2);
-		else
-			INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			ar9287PciePhy_clkreq_always_on_L1_9287_1_0,
-			ARRAY_SIZE(ar9287PciePhy_clkreq_always_on_L1_9287_1_0),
-				  2);
 	} else if (AR_SREV_9285_12_OR_LATER(ah)) {
 
 
@@ -112,21 +84,6 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			ar9285PciePhy_clkreq_always_on_L1_9285_1_2,
 			ARRAY_SIZE(ar9285PciePhy_clkreq_always_on_L1_9285_1_2),
 				  2);
-		}
-	} else if (AR_SREV_9285_10_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar9285Modes_9285,
-			       ARRAY_SIZE(ar9285Modes_9285), 6);
-		INIT_INI_ARRAY(&ah->iniCommon, ar9285Common_9285,
-			       ARRAY_SIZE(ar9285Common_9285), 2);
-
-		if (ah->config.pcie_clock_req) {
-			INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			ar9285PciePhy_clkreq_off_L1_9285,
-			ARRAY_SIZE(ar9285PciePhy_clkreq_off_L1_9285), 2);
-		} else {
-			INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			ar9285PciePhy_clkreq_always_on_L1_9285,
-			ARRAY_SIZE(ar9285PciePhy_clkreq_always_on_L1_9285), 2);
 		}
 	} else if (AR_SREV_9280_20_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar9280Modes_9280_2,
@@ -146,11 +103,6 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniModesAdditional,
 			       ar9280Modes_fast_clock_9280_2,
 			       ARRAY_SIZE(ar9280Modes_fast_clock_9280_2), 3);
-	} else if (AR_SREV_9280_10_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar9280Modes_9280,
-			       ARRAY_SIZE(ar9280Modes_9280), 6);
-		INIT_INI_ARRAY(&ah->iniCommon, ar9280Common_9280,
-			       ARRAY_SIZE(ar9280Common_9280), 2);
 	} else if (AR_SREV_9160_10_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes_9160,
 			       ARRAY_SIZE(ar5416Modes_9160), 6);
@@ -174,8 +126,8 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			       ARRAY_SIZE(ar5416Bank7_9160), 2);
 		if (AR_SREV_9160_11(ah)) {
 			INIT_INI_ARRAY(&ah->iniAddac,
-				       ar5416Addac_91601_1,
-				       ARRAY_SIZE(ar5416Addac_91601_1), 2);
+				       ar5416Addac_9160_1_1,
+				       ARRAY_SIZE(ar5416Addac_9160_1_1), 2);
 		} else {
 			INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac_9160,
 				       ARRAY_SIZE(ar5416Addac_9160), 2);
@@ -234,12 +186,12 @@ void ar9002_hw_cck_chan14_spread(struct ath_hw *ah)
 {
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniCckfirNormal,
-		       ar9287Common_normal_cck_fir_coeff_92871_1,
-		       ARRAY_SIZE(ar9287Common_normal_cck_fir_coeff_92871_1),
+		       ar9287Common_normal_cck_fir_coeff_9287_1_1,
+		       ARRAY_SIZE(ar9287Common_normal_cck_fir_coeff_9287_1_1),
 		       2);
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
-		       ar9287Common_japan_2484_cck_fir_coeff_92871_1,
-		       ARRAY_SIZE(ar9287Common_japan_2484_cck_fir_coeff_92871_1),
+		       ar9287Common_japan_2484_cck_fir_coeff_9287_1_1,
+		       ARRAY_SIZE(ar9287Common_japan_2484_cck_fir_coeff_9287_1_1),
 		       2);
 	}
 }
@@ -300,10 +252,6 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 		ar9287Modes_rx_gain_9287_1_1,
 		ARRAY_SIZE(ar9287Modes_rx_gain_9287_1_1), 6);
-	else if (AR_SREV_9287_10(ah))
-		INIT_INI_ARRAY(&ah->iniModesRxGain,
-		ar9287Modes_rx_gain_9287_1_0,
-		ARRAY_SIZE(ar9287Modes_rx_gain_9287_1_0), 6);
 	else if (AR_SREV_9280_20(ah))
 		ar9280_20_hw_init_rxgain_ini(ah);
 
@@ -311,10 +259,6 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 		ar9287Modes_tx_gain_9287_1_1,
 		ARRAY_SIZE(ar9287Modes_tx_gain_9287_1_1), 6);
-	} else if (AR_SREV_9287_10(ah)) {
-		INIT_INI_ARRAY(&ah->iniModesTxGain,
-		ar9287Modes_tx_gain_9287_1_0,
-		ARRAY_SIZE(ar9287Modes_tx_gain_9287_1_0), 6);
 	} else if (AR_SREV_9280_20(ah)) {
 		ar9280_20_hw_init_txgain_ini(ah);
 	} else if (AR_SREV_9285_12_OR_LATER(ah)) {
@@ -384,29 +328,6 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 				REG_WRITE(ah, INI_RA(&ah->iniPcieSerdes, i, 0),
 					  INI_RA(&ah->iniPcieSerdes, i, 1));
 			}
-		} else if (AR_SREV_9280(ah) &&
-			   (ah->hw_version.macRev == AR_SREV_REVISION_9280_10)) {
-			REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fd00);
-			REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
-
-			/* RX shut off when elecidle is asserted */
-			REG_WRITE(ah, AR_PCIE_SERDES, 0xa8000019);
-			REG_WRITE(ah, AR_PCIE_SERDES, 0x13160820);
-			REG_WRITE(ah, AR_PCIE_SERDES, 0xe5980560);
-
-			/* Shut off CLKREQ active in L1 */
-			if (ah->config.pcie_clock_req)
-				REG_WRITE(ah, AR_PCIE_SERDES, 0x401deffc);
-			else
-				REG_WRITE(ah, AR_PCIE_SERDES, 0x401deffd);
-
-			REG_WRITE(ah, AR_PCIE_SERDES, 0x1aaabe40);
-			REG_WRITE(ah, AR_PCIE_SERDES, 0xbe105554);
-			REG_WRITE(ah, AR_PCIE_SERDES, 0x00043007);
-
-			/* Load the new settings */
-			REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
-
 		} else {
 			ENABLE_REGWRITE_BUFFER(ah);
 
@@ -432,59 +353,90 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 			REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
 
 			REGWRITE_BUFFER_FLUSH(ah);
-			DISABLE_REGWRITE_BUFFER(ah);
 		}
 
 		udelay(1000);
+	}
 
-		/* set bit 19 to allow forcing of pcie core into L1 state */
-		REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+	if (power_off) {
+		/* clear bit 19 to disable L1 */
+		REG_CLR_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 
-		/* Several PCIe massages to ensure proper behaviour */
+		val = REG_READ(ah, AR_WA);
+
+		/*
+		 * Set PCIe workaround bits
+		 * In AR9280 and AR9285, bit 14 in WA register (disable L1)
+		 * should only  be set when device enters D3 and be
+		 * cleared when device comes back to D0.
+		 */
+		if (ah->config.pcie_waen) {
+			if (ah->config.pcie_waen & AR_WA_D3_L1_DISABLE)
+				val |= AR_WA_D3_L1_DISABLE;
+		} else {
+			if (((AR_SREV_9285(ah) ||
+			      AR_SREV_9271(ah) ||
+			      AR_SREV_9287(ah)) &&
+			     (AR9285_WA_DEFAULT & AR_WA_D3_L1_DISABLE)) ||
+			    (AR_SREV_9280(ah) &&
+			     (AR9280_WA_DEFAULT & AR_WA_D3_L1_DISABLE))) {
+				val |= AR_WA_D3_L1_DISABLE;
+			}
+		}
+
+		if (AR_SREV_9280(ah) || AR_SREV_9285(ah) || AR_SREV_9287(ah)) {
+			/*
+			 * Disable bit 6 and 7 before entering D3 to
+			 * prevent system hang.
+			 */
+			val &= ~(AR_WA_BIT6 | AR_WA_BIT7);
+		}
+
+		if (AR_SREV_9280(ah))
+			val |= AR_WA_BIT22;
+
+		if (AR_SREV_9285E_20(ah))
+			val |= AR_WA_BIT23;
+
+		REG_WRITE(ah, AR_WA, val);
+	} else {
 		if (ah->config.pcie_waen) {
 			val = ah->config.pcie_waen;
 			if (!power_off)
 				val &= (~AR_WA_D3_L1_DISABLE);
 		} else {
-			if (AR_SREV_9285(ah) || AR_SREV_9271(ah) ||
+			if (AR_SREV_9285(ah) ||
+			    AR_SREV_9271(ah) ||
 			    AR_SREV_9287(ah)) {
 				val = AR9285_WA_DEFAULT;
 				if (!power_off)
 					val &= (~AR_WA_D3_L1_DISABLE);
-			} else if (AR_SREV_9280(ah)) {
+			}
+			else if (AR_SREV_9280(ah)) {
 				/*
-				 * On AR9280 chips bit 22 of 0x4004 needs to be
-				 * set otherwise card may disappear.
+				 * For AR9280 chips, bit 22 of 0x4004
+				 * needs to be set.
 				 */
 				val = AR9280_WA_DEFAULT;
 				if (!power_off)
 					val &= (~AR_WA_D3_L1_DISABLE);
-			} else
+			} else {
 				val = AR_WA_DEFAULT;
-		}
-
-		REG_WRITE(ah, AR_WA, val);
-	}
-
-	if (power_off) {
-		/*
-		 * Set PCIe workaround bits
-		 * bit 14 in WA register (disable L1) should only
-		 * be set when device enters D3 and be cleared
-		 * when device comes back to D0.
-		 */
-		if (ah->config.pcie_waen) {
-			if (ah->config.pcie_waen & AR_WA_D3_L1_DISABLE)
-				REG_SET_BIT(ah, AR_WA, AR_WA_D3_L1_DISABLE);
-		} else {
-			if (((AR_SREV_9285(ah) || AR_SREV_9271(ah) ||
-			      AR_SREV_9287(ah)) &&
-			     (AR9285_WA_DEFAULT & AR_WA_D3_L1_DISABLE)) ||
-			    (AR_SREV_9280(ah) &&
-			     (AR9280_WA_DEFAULT & AR_WA_D3_L1_DISABLE))) {
-				REG_SET_BIT(ah, AR_WA, AR_WA_D3_L1_DISABLE);
 			}
 		}
+
+		/* WAR for ASPM system hang */
+		if (AR_SREV_9280(ah) || AR_SREV_9285(ah) || AR_SREV_9287(ah)) {
+			val |= (AR_WA_BIT6 | AR_WA_BIT7);
+		}
+
+		if (AR_SREV_9285E_20(ah))
+			val |= AR_WA_BIT23;
+
+		REG_WRITE(ah, AR_WA, val);
+
+		/* set bit 19 to allow forcing of pcie core into L1 state */
+		REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 	}
 }
 
@@ -500,7 +452,6 @@ static int ar9002_hw_get_radiorev(struct ath_hw *ah)
 		REG_WRITE(ah, AR_PHY(0x20), 0x00010000);
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 
 	val = (REG_READ(ah, AR_PHY(256)) >> 24) & 0xff;
 	val = ((val & 0xf0) >> 4) | ((val & 0x0f) << 4);
@@ -525,9 +476,9 @@ int ar9002_hw_rf_claim(struct ath_hw *ah)
 	case AR_RAD2122_SREV_MAJOR:
 		break;
 	default:
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "Radio Chip Rev 0x%02X not supported\n",
-			  val & AR_RADIO_SREV_MAJOR);
+		ath_err(ath9k_hw_common(ah),
+			"Radio Chip Rev 0x%02X not supported\n",
+			val & AR_RADIO_SREV_MAJOR);
 		return -EOPNOTSUPP;
 	}
 
@@ -536,18 +487,29 @@ int ar9002_hw_rf_claim(struct ath_hw *ah)
 	return 0;
 }
 
+void ar9002_hw_enable_async_fifo(struct ath_hw *ah)
+{
+	if (AR_SREV_9287_13_OR_LATER(ah)) {
+		REG_SET_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
+				AR_MAC_PCU_ASYNC_FIFO_REG3_DATAPATH_SEL);
+		REG_SET_BIT(ah, AR_PHY_MODE, AR_PHY_MODE_ASYNCFIFO);
+		REG_CLR_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
+				AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET);
+		REG_SET_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
+				AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET);
+	}
+}
+
 /*
- * Enable ASYNC FIFO
- *
  * If Async FIFO is enabled, the following counters change as MAC now runs
  * at 117 Mhz instead of 88/44MHz when async FIFO is disabled.
  *
  * The values below tested for ht40 2 chain.
  * Overwrite the delay/timeouts initialized in process ini.
  */
-void ar9002_hw_enable_async_fifo(struct ath_hw *ah)
+void ar9002_hw_update_async_fifo(struct ath_hw *ah)
 {
-	if (AR_SREV_9287_12_OR_LATER(ah)) {
+	if (AR_SREV_9287_13_OR_LATER(ah)) {
 		REG_WRITE(ah, AR_D_GBL_IFS_SIFS,
 			  AR_D_GBL_IFS_SIFS_ASYNC_FIFO_DUR);
 		REG_WRITE(ah, AR_D_GBL_IFS_SLOT,
@@ -571,9 +533,9 @@ void ar9002_hw_enable_async_fifo(struct ath_hw *ah)
  */
 void ar9002_hw_enable_wep_aggregation(struct ath_hw *ah)
 {
-	if (AR_SREV_9287_12_OR_LATER(ah)) {
+	if (AR_SREV_9287_13_OR_LATER(ah)) {
 		REG_SET_BIT(ah, AR_PCU_MISC_MODE2,
-				AR_PCU_MISC_MODE2_ENABLE_AGGWEP);
+			    AR_PCU_MISC_MODE2_ENABLE_AGGWEP);
 	}
 }
 
@@ -585,14 +547,61 @@ void ar9002_hw_attach_ops(struct ath_hw *ah)
 
 	priv_ops->init_mode_regs = ar9002_hw_init_mode_regs;
 	priv_ops->init_mode_gain_regs = ar9002_hw_init_mode_gain_regs;
-	priv_ops->macversion_supported = ar9002_hw_macversion_supported;
 
 	ops->config_pci_powersave = ar9002_hw_configpcipowersave;
 
 	ar5008_hw_attach_phy_ops(ah);
-	if (AR_SREV_9280_10_OR_LATER(ah))
+	if (AR_SREV_9280_20_OR_LATER(ah))
 		ar9002_hw_attach_phy_ops(ah);
 
 	ar9002_hw_attach_calib_ops(ah);
 	ar9002_hw_attach_mac_ops(ah);
+}
+
+void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	u32 modesIndex;
+	int i;
+
+	switch (chan->chanmode) {
+	case CHANNEL_A:
+	case CHANNEL_A_HT20:
+		modesIndex = 1;
+		break;
+	case CHANNEL_A_HT40PLUS:
+	case CHANNEL_A_HT40MINUS:
+		modesIndex = 2;
+		break;
+	case CHANNEL_G:
+	case CHANNEL_G_HT20:
+	case CHANNEL_B:
+		modesIndex = 4;
+		break;
+	case CHANNEL_G_HT40PLUS:
+	case CHANNEL_G_HT40MINUS:
+		modesIndex = 3;
+		break;
+
+	default:
+		return;
+	}
+
+	ENABLE_REGWRITE_BUFFER(ah);
+
+	for (i = 0; i < ah->iniModes_9271_ANI_reg.ia_rows; i++) {
+		u32 reg = INI_RA(&ah->iniModes_9271_ANI_reg, i, 0);
+		u32 val = INI_RA(&ah->iniModes_9271_ANI_reg, i, modesIndex);
+		u32 val_orig;
+
+		if (reg == AR_PHY_CCK_DETECT) {
+			val_orig = REG_READ(ah, reg);
+			val &= AR_PHY_CCK_DETECT_WEAK_SIG_THR_CCK;
+			val_orig &= ~AR_PHY_CCK_DETECT_WEAK_SIG_THR_CCK;
+
+			REG_WRITE(ah, reg, val|val_orig);
+		} else
+			REG_WRITE(ah, reg, val);
+	}
+
+	REGWRITE_BUFFER_FLUSH(ah);
 }

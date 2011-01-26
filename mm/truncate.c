@@ -390,6 +390,10 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
 	__remove_from_page_cache(page);
 	spin_unlock_irq(&mapping->tree_lock);
 	mem_cgroup_uncharge_cache_page(page);
+
+	if (mapping->a_ops->freepage)
+		mapping->a_ops->freepage(page);
+
 	page_cache_release(page);	/* pagecache ref */
 	return 1;
 failed:
@@ -541,28 +545,47 @@ void truncate_pagecache(struct inode *inode, loff_t old, loff_t new)
 EXPORT_SYMBOL(truncate_pagecache);
 
 /**
+ * truncate_setsize - update inode and pagecache for a new file size
+ * @inode: inode
+ * @newsize: new file size
+ *
+ * truncate_setsize updates i_size and performs pagecache truncation (if
+ * necessary) to @newsize. It will be typically be called from the filesystem's
+ * setattr function when ATTR_SIZE is passed in.
+ *
+ * Must be called with inode_mutex held and before all filesystem specific
+ * block truncation has been performed.
+ */
+void truncate_setsize(struct inode *inode, loff_t newsize)
+{
+	loff_t oldsize;
+
+	oldsize = inode->i_size;
+	i_size_write(inode, newsize);
+
+	truncate_pagecache(inode, oldsize, newsize);
+}
+EXPORT_SYMBOL(truncate_setsize);
+
+/**
  * vmtruncate - unmap mappings "freed" by truncate() syscall
  * @inode: inode of the file used
  * @offset: file offset to start truncating
  *
- * NOTE! We have to be ready to update the memory sharing
- * between the file and the memory map for a potential last
- * incomplete page.  Ugly, but necessary.
+ * This function is deprecated and truncate_setsize or truncate_pagecache
+ * should be used instead, together with filesystem specific block truncation.
  */
 int vmtruncate(struct inode *inode, loff_t offset)
 {
-	loff_t oldsize;
 	int error;
 
 	error = inode_newsize_ok(inode, offset);
 	if (error)
 		return error;
-	oldsize = inode->i_size;
-	i_size_write(inode, offset);
-	truncate_pagecache(inode, oldsize, offset);
+
+	truncate_setsize(inode, offset);
 	if (inode->i_op->truncate)
 		inode->i_op->truncate(inode);
-
-	return error;
+	return 0;
 }
 EXPORT_SYMBOL(vmtruncate);

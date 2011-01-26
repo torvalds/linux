@@ -42,6 +42,7 @@
 #include "ivtv-yuv.h"
 #include "ivtv-cards.h"
 #include "ivtv-streams.h"
+#include "ivtv-firmware.h"
 #include <media/v4l2-event.h>
 
 static const struct v4l2_file_operations ivtv_v4l2_enc_fops = {
@@ -209,6 +210,7 @@ static int ivtv_prep_dev(struct ivtv *itv, int type)
 
 	s->vdev->num = num;
 	s->vdev->v4l2_dev = &itv->v4l2_dev;
+	s->vdev->ctrl_handler = itv->v4l2_dev.ctrl_handler;
 	s->vdev->fops = ivtv_stream_info[type].fops;
 	s->vdev->release = video_device_release;
 	s->vdev->tvnorms = V4L2_STD_ALL;
@@ -450,7 +452,6 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 {
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	struct ivtv *itv = s->itv;
-	struct cx2341x_mpeg_params *p = &itv->params;
 	int captype = 0, subtype = 0;
 	int enable_passthrough = 0;
 
@@ -471,7 +472,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		}
 		itv->mpg_data_received = itv->vbi_data_inserted = 0;
 		itv->dualwatch_jiffies = jiffies;
-		itv->dualwatch_stereo_mode = p->audio_properties & 0x0300;
+		itv->dualwatch_stereo_mode = v4l2_ctrl_g_ctrl(itv->cxhdl.audio_mode);
 		itv->search_pack_header = 0;
 		break;
 
@@ -559,12 +560,12 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 				itv->pgm_info_offset, itv->pgm_info_num);
 
 		/* Setup API for Stream */
-		cx2341x_update(itv, ivtv_api_func, NULL, p);
+		cx2341x_handler_setup(&itv->cxhdl);
 
 		/* mute if capturing radio */
 		if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags))
 			ivtv_vapi(itv, CX2341X_ENC_MUTE_VIDEO, 1,
-				1 | (p->video_mute_yuv << 8));
+				1 | (v4l2_ctrl_g_ctrl(itv->cxhdl.video_mute_yuv) << 8));
 	}
 
 	/* Vsync Setup */
@@ -579,6 +580,8 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		ivtv_set_irq_mask(itv, IVTV_IRQ_MASK_CAPTURE);
 
 		clear_bit(IVTV_F_I_EOS, &itv->i_flags);
+
+		cx2341x_handler_set_busy(&itv->cxhdl, 1);
 
 		/* Initialize Digitizer for Capture */
 		/* Avoid tinny audio problem - ensure audio clocks are going */
@@ -616,13 +619,17 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 {
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	struct ivtv *itv = s->itv;
-	struct cx2341x_mpeg_params *p = &itv->params;
 	int datatype;
+	u16 width;
+	u16 height;
 
 	if (s->vdev == NULL)
 		return -EINVAL;
 
 	IVTV_DEBUG_INFO("Setting some initial decoder settings\n");
+
+	width = itv->cxhdl.width;
+	height = itv->cxhdl.height;
 
 	/* set audio mode to left/stereo  for dual/stereo mode. */
 	ivtv_vapi(itv, CX2341X_DEC_SET_AUDIO_MODE, 2, itv->audio_bilingual_mode, itv->audio_stereo_mode);
@@ -646,7 +653,14 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 	   2 = yuv_from_host */
 	switch (s->type) {
 	case IVTV_DEC_STREAM_TYPE_YUV:
-		datatype = itv->output_mode == OUT_PASSTHROUGH ? 1 : 2;
+		if (itv->output_mode == OUT_PASSTHROUGH) {
+			datatype = 1;
+		} else {
+			/* Fake size to avoid switching video standard */
+			datatype = 2;
+			width = 720;
+			height = itv->is_out_50hz ? 576 : 480;
+		}
 		IVTV_DEBUG_INFO("Setup DEC YUV Stream data[0] = %d\n", datatype);
 		break;
 	case IVTV_DEC_STREAM_TYPE_MPG:
@@ -655,15 +669,21 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 		break;
 	}
 	if (ivtv_vapi(itv, CX2341X_DEC_SET_DECODER_SOURCE, 4, datatype,
-			p->width, p->height, p->audio_properties)) {
+			width, height, itv->cxhdl.audio_properties)) {
 		IVTV_DEBUG_WARN("Couldn't initialize decoder source\n");
 	}
-	return 0;
+
+	/* Decoder sometimes dies here, so wait a moment */
+	ivtv_msleep_timeout(10, 0);
+
+	/* Known failure point for firmware, so check */
+	return ivtv_firmware_check(itv, "ivtv_setup_v4l2_decode_stream");
 }
 
 int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 {
 	struct ivtv *itv = s->itv;
+	int rc;
 
 	if (s->vdev == NULL)
 		return -EINVAL;
@@ -673,7 +693,11 @@ int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 
 	IVTV_DEBUG_INFO("Starting decode stream %s (gop_offset %d)\n", s->name, gop_offset);
 
-	ivtv_setup_v4l2_decode_stream(s);
+	rc = ivtv_setup_v4l2_decode_stream(s);
+	if (rc < 0) {
+		clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
+		return rc;
+	}
 
 	/* set dma size to 65536 bytes */
 	ivtv_vapi(itv, CX2341X_DEC_SET_DMA_BLOCK_SIZE, 1, 65536);
@@ -696,6 +720,9 @@ int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 
 	/* start playback */
 	ivtv_vapi(itv, CX2341X_DEC_START_PLAYBACK, 2, gop_offset, 0);
+
+	/* Let things settle before we actually start */
+	ivtv_msleep_timeout(10, 0);
 
 	/* Clear the following Interrupt mask bits for decoding */
 	ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_DECODE);
@@ -821,6 +848,8 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 		return 0;
 	}
 
+	cx2341x_handler_set_busy(&itv->cxhdl, 0);
+
 	/* Set the following Interrupt mask bits for capture */
 	ivtv_set_irq_mask(itv, IVTV_IRQ_MASK_CAPTURE);
 	del_timer(&itv->dma_timer);
@@ -893,6 +922,9 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 	clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
 	ivtv_flush_queues(s);
 
+	/* decoder needs time to settle */
+	ivtv_msleep_timeout(40, 0);
+
 	/* decrement decoding */
 	atomic_dec(&itv->decoding);
 
@@ -938,7 +970,8 @@ int ivtv_passthrough_mode(struct ivtv *itv, int enable)
 
 		/* Setup capture if not already done */
 		if (atomic_read(&itv->capturing) == 0) {
-			cx2341x_update(itv, ivtv_api_func, NULL, &itv->params);
+			cx2341x_handler_setup(&itv->cxhdl);
+			cx2341x_handler_set_busy(&itv->cxhdl, 1);
 		}
 
 		/* Start Passthrough Mode */
@@ -959,6 +992,8 @@ int ivtv_passthrough_mode(struct ivtv *itv, int enable)
 	clear_bit(IVTV_F_S_PASSTHROUGH, &dec_stream->s_flags);
 	clear_bit(IVTV_F_S_STREAMING, &dec_stream->s_flags);
 	itv->output_mode = OUT_NONE;
+	if (atomic_read(&itv->capturing) == 0)
+		cx2341x_handler_set_busy(&itv->cxhdl, 0);
 
 	return 0;
 }

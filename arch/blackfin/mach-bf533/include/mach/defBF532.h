@@ -1,16 +1,13 @@
 /*
  * System & MMR bit and Address definitions for ADSP-BF532
  *
- * Copyright 2005-2008 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
  * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _DEF_BF532_H
 #define _DEF_BF532_H
-
-/* include all Core registers and bit definitions */
-#include <asm/def_LPBlackfin.h>
 
 /*********************************************************************************** */
 /* System MMR Register Map */
@@ -182,12 +179,8 @@
 #define EBIU_SDSTAT			0xFFC00A1C	/* SDRAM Status Register */
 
 /* DMA Traffic controls */
-#define DMA_TC_PER 0xFFC00B0C	/* Traffic Control Periods Register */
-#define DMA_TC_CNT 0xFFC00B10	/* Traffic Control Current Counts Register */
-
-/* Alternate deprecated register names (below) provided for backwards code compatibility */
-#define DMA_TCPER 0xFFC00B0C	/* Traffic Control Periods Register */
-#define DMA_TCCNT 0xFFC00B10	/* Traffic Control Current Counts Register */
+#define DMAC_TC_PER 0xFFC00B0C	/* Traffic Control Periods Register */
+#define DMAC_TC_CNT 0xFFC00B10	/* Traffic Control Current Counts Register */
 
 /* DMA Controller (0xFFC00C00 - 0xFFC00FFF) */
 #define DMA0_CONFIG		0xFFC00C08	/* DMA Channel 0 Configuration Register */
@@ -432,175 +425,6 @@
 #define IWR_ENABLE(x)	       (1 << (x))	/* Wakeup Enable Peripheral #x */
 #define IWR_DISABLE(x) (0xFFFFFFFF ^ (1 << (x)))	/* Wakeup Disable Peripheral #x */
 
-/* ***************************** UART CONTROLLER MASKS ********************** */
-
-/* UART_LCR Register */
-
-#define DLAB	0x80
-#define SB      0x40
-#define STP      0x20
-#define EPS     0x10
-#define PEN	0x08
-#define STB	0x04
-#define WLS(x)	((x-5) & 0x03)
-
-#define DLAB_P	0x07
-#define SB_P	0x06
-#define STP_P	0x05
-#define EPS_P	0x04
-#define PEN_P	0x03
-#define STB_P	0x02
-#define WLS_P1	0x01
-#define WLS_P0	0x00
-
-/* UART_MCR Register */
-#define LOOP_ENA	0x10
-#define LOOP_ENA_P	0x04
-
-/* UART_LSR Register */
-#define TEMT	0x40
-#define THRE	0x20
-#define BI	0x10
-#define FE	0x08
-#define PE	0x04
-#define OE	0x02
-#define DR	0x01
-
-#define TEMP_P	0x06
-#define THRE_P	0x05
-#define BI_P	0x04
-#define FE_P	0x03
-#define PE_P	0x02
-#define OE_P	0x01
-#define DR_P	0x00
-
-/* UART_IER Register */
-#define ELSI	0x04
-#define ETBEI	0x02
-#define ERBFI	0x01
-
-#define ELSI_P	0x02
-#define ETBEI_P	0x01
-#define ERBFI_P	0x00
-
-/* UART_IIR Register */
-#define STATUS(x)	((x << 1) & 0x06)
-#define NINT		0x01
-#define STATUS_P1	0x02
-#define STATUS_P0	0x01
-#define NINT_P		0x00
-#define IIR_TX_READY    0x02	/* UART_THR empty                               */
-#define IIR_RX_READY    0x04	/* Receive data ready                           */
-#define IIR_LINE_CHANGE 0x06	/* Receive line status                          */
-#define IIR_STATUS	0x06
-
-/* UART_GCTL Register */
-#define FFE	0x20
-#define FPE	0x10
-#define RPOLC	0x08
-#define TPOLC	0x04
-#define IREN	0x02
-#define UCEN	0x01
-
-#define FFE_P	0x05
-#define FPE_P	0x04
-#define RPOLC_P	0x03
-#define TPOLC_P	0x02
-#define IREN_P	0x01
-#define UCEN_P	0x00
-
-/* **********  SERIAL PORT MASKS  ********************** */
-
-/* SPORTx_TCR1 Masks */
-#define TSPEN    0x0001		/* TX enable  */
-#define ITCLK    0x0002		/* Internal TX Clock Select  */
-#define TDTYPE   0x000C		/* TX Data Formatting Select */
-#define DTYPE_NORM	0x0000		/* Data Format Normal							*/
-#define DTYPE_ULAW	0x0008		/* Compand Using u-Law							*/
-#define DTYPE_ALAW	0x000C		/* Compand Using A-Law							*/
-#define TLSBIT   0x0010		/* TX Bit Order */
-#define ITFS     0x0200		/* Internal TX Frame Sync Select  */
-#define TFSR     0x0400		/* TX Frame Sync Required Select  */
-#define DITFS    0x0800		/* Data Independent TX Frame Sync Select  */
-#define LTFS     0x1000		/* Low TX Frame Sync Select  */
-#define LATFS    0x2000		/* Late TX Frame Sync Select  */
-#define TCKFE    0x4000		/* TX Clock Falling Edge Select  */
-
-/* SPORTx_TCR2 Masks */
-#if defined(__ADSPBF531__) || defined(__ADSPBF532__) || \
-    defined(__ADSPBF533__)
-# define SLEN	    0x001F	/*TX Word Length  */
-#else
-# define SLEN(x)		((x)&0x1F)	/* SPORT TX Word Length (2 - 31)				*/
-#endif
-#define TXSE        0x0100	/*TX Secondary Enable */
-#define TSFSE       0x0200	/*TX Stereo Frame Sync Enable */
-#define TRFST       0x0400	/*TX Right-First Data Order  */
-
-/* SPORTx_RCR1 Masks */
-#define RSPEN    0x0001		/* RX enable  */
-#define IRCLK    0x0002		/* Internal RX Clock Select  */
-#define RDTYPE   0x000C		/* RX Data Formatting Select */
-#define DTYPE_NORM	0x0000		/* no companding							*/
-#define DTYPE_ULAW	0x0008		/* Compand Using u-Law							*/
-#define DTYPE_ALAW	0x000C		/* Compand Using A-Law							*/
-#define RLSBIT   0x0010		/* RX Bit Order */
-#define IRFS     0x0200		/* Internal RX Frame Sync Select  */
-#define RFSR     0x0400		/* RX Frame Sync Required Select  */
-#define LRFS     0x1000		/* Low RX Frame Sync Select  */
-#define LARFS    0x2000		/* Late RX Frame Sync Select  */
-#define RCKFE    0x4000		/* RX Clock Falling Edge Select  */
-
-/* SPORTx_RCR2 Masks */
-/* SLEN defined above */
-#define RXSE        0x0100	/*RX Secondary Enable */
-#define RSFSE       0x0200	/*RX Stereo Frame Sync Enable */
-#define RRFST       0x0400	/*Right-First Data Order  */
-
-/*SPORTx_STAT Masks */
-#define RXNE		0x0001	/*RX FIFO Not Empty Status */
-#define RUVF	    	0x0002	/*RX Underflow Status */
-#define ROVF		0x0004	/*RX Overflow Status */
-#define TXF		0x0008	/*TX FIFO Full Status */
-#define TUVF         	0x0010	/*TX Underflow Status */
-#define TOVF         	0x0020	/*TX Overflow Status */
-#define TXHRE        	0x0040	/*TX Hold Register Empty */
-
-/*SPORTx_MCMC1 Masks */
-#define SP_WSIZE		0x0000F000	/*Multichannel Window Size Field */
-#define SP_WOFF		0x000003FF	/*Multichannel Window Offset Field */
-/* SPORTx_MCMC1 Macros															*/
-#define SET_SP_WOFF(x)	((x) & 0x3FF) 	/* Multichannel Window Offset Field			*/
-/* Only use SET_WSIZE Macro With Logic OR While Setting Lower Order Bits						*/
-#define SET_SP_WSIZE(x)	(((((x)>>0x3)-1)&0xF) << 0xC)	/* Multichannel Window Size = (x/8)-1	*/
-
-/*SPORTx_MCMC2 Masks */
-#define MCCRM		0x00000003 	/*Multichannel Clock Recovery Mode */
-#define REC_BYPASS	0x0000		/* Bypass Mode (No Clock Recovery)				*/
-#define REC_2FROM4	0x0002		/* Recover 2 MHz Clock from 4 MHz Clock			*/
-#define REC_8FROM16	0x0003		/* Recover 8 MHz Clock from 16 MHz Clock		*/
-#define MCDTXPE		0x00000004 	/*Multichannel DMA Transmit Packing */
-#define MCDRXPE		0x00000008 	/*Multichannel DMA Receive Packing */
-#define MCMEN		0x00000010 	/*Multichannel Frame Mode Enable */
-#define FSDR		0x00000080 	/*Multichannel Frame Sync to Data Relationship */
-#define MFD		0x0000F000 	/*Multichannel Frame Delay    */
-#define MFD_0		0x0000		/* Multichannel Frame Delay = 0					*/
-#define MFD_1		0x1000		/* Multichannel Frame Delay = 1					*/
-#define MFD_2		0x2000		/* Multichannel Frame Delay = 2					*/
-#define MFD_3		0x3000		/* Multichannel Frame Delay = 3					*/
-#define MFD_4		0x4000		/* Multichannel Frame Delay = 4					*/
-#define MFD_5		0x5000		/* Multichannel Frame Delay = 5					*/
-#define MFD_6		0x6000		/* Multichannel Frame Delay = 6					*/
-#define MFD_7		0x7000		/* Multichannel Frame Delay = 7					*/
-#define MFD_8		0x8000		/* Multichannel Frame Delay = 8					*/
-#define MFD_9		0x9000		/* Multichannel Frame Delay = 9					*/
-#define MFD_10		0xA000		/* Multichannel Frame Delay = 10				*/
-#define MFD_11		0xB000		/* Multichannel Frame Delay = 11				*/
-#define MFD_12		0xC000		/* Multichannel Frame Delay = 12				*/
-#define MFD_13		0xD000		/* Multichannel Frame Delay = 13				*/
-#define MFD_14		0xE000		/* Multichannel Frame Delay = 14				*/
-#define MFD_15		0xF000		/* Multichannel Frame Delay = 15				*/
-
 /*  *********  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS ****************   */
 
 /*  PPI_CONTROL Masks         */
@@ -734,114 +558,6 @@
 #define EMU_RUN_P		0x09
 #define ERR_TYP_P0		0x0E
 #define ERR_TYP_P1		0x0F
-
-/*/ ******************   PROGRAMMABLE FLAG MASKS  ********************* */
-
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  Masks */
-#define PF0         0x0001
-#define PF1         0x0002
-#define PF2         0x0004
-#define PF3         0x0008
-#define PF4         0x0010
-#define PF5         0x0020
-#define PF6         0x0040
-#define PF7         0x0080
-#define PF8         0x0100
-#define PF9         0x0200
-#define PF10        0x0400
-#define PF11        0x0800
-#define PF12        0x1000
-#define PF13        0x2000
-#define PF14        0x4000
-#define PF15        0x8000
-
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  BIT POSITIONS */
-#define PF0_P         0
-#define PF1_P         1
-#define PF2_P         2
-#define PF3_P         3
-#define PF4_P         4
-#define PF5_P         5
-#define PF6_P         6
-#define PF7_P         7
-#define PF8_P         8
-#define PF9_P         9
-#define PF10_P        10
-#define PF11_P        11
-#define PF12_P        12
-#define PF13_P        13
-#define PF14_P        14
-#define PF15_P        15
-
-/* ***********  SERIAL PERIPHERAL INTERFACE (SPI) MASKS  **************** */
-
-/* SPI_CTL Masks */
-#define TIMOD                  0x00000003	/* Transfer initiation mode and interrupt generation */
-#define RDBR_CORE	0x0000		/* 		RDBR Read Initiates, IRQ When RDBR Full		*/
-#define	TDBR_CORE	0x0001		/* 		TDBR Write Initiates, IRQ When TDBR Empty	*/
-#define RDBR_DMA	0x0002		/* 		DMA Read, DMA Until FIFO Empty				*/
-#define TDBR_DMA	0x0003		/* 		DMA Write, DMA Until FIFO Full				*/
-#define SZ                     0x00000004	/* Send Zero (=0) or last (=1) word when TDBR empty. */
-#define GM                     0x00000008	/* When RDBR full, get more (=1) data or discard (=0) incoming Data */
-#define PSSE                   0x00000010	/* Enable (=1) Slave-Select input for Master. */
-#define EMISO                  0x00000020	/* Enable (=1) MISO pin as an output. */
-#define SIZE                   0x00000100	/* Word length (0 => 8 bits, 1 => 16 bits) */
-#define LSBF                   0x00000200	/* Data format (0 => MSB sent/received first 1 => LSB sent/received first) */
-#define CPHA                   0x00000400	/* Clock phase (0 => SPICLK starts toggling in middle of xfer, 1 => SPICLK toggles at the beginning of xfer. */
-#define CPOL                   0x00000800	/* Clock polarity (0 => active-high, 1 => active-low) */
-#define MSTR                   0x00001000	/* Configures SPI as master (=1) or slave (=0) */
-#define WOM                    0x00002000	/* Open drain (=1) data output enable (for MOSI and MISO) */
-#define SPE                    0x00004000	/* SPI module enable (=1), disable (=0) */
-
-/* SPI_FLG Masks */
-#define FLS1                   0x00000002	/* Enables (=1) SPI_FLOUT1 as flag output for SPI Slave-select */
-#define FLS2                   0x00000004	/* Enables (=1) SPI_FLOUT2 as flag output for SPI Slave-select */
-#define FLS3                   0x00000008	/* Enables (=1) SPI_FLOUT3 as flag output for SPI Slave-select */
-#define FLS4                   0x00000010	/* Enables (=1) SPI_FLOUT4 as flag output for SPI Slave-select */
-#define FLS5                   0x00000020	/* Enables (=1) SPI_FLOUT5 as flag output for SPI Slave-select */
-#define FLS6                   0x00000040	/* Enables (=1) SPI_FLOUT6 as flag output for SPI Slave-select */
-#define FLS7                   0x00000080	/* Enables (=1) SPI_FLOUT7 as flag output for SPI Slave-select */
-#define FLG1                   0x00000200	/* Activates (=0) SPI_FLOUT1 as flag output for SPI Slave-select  */
-#define FLG2                   0x00000400	/* Activates (=0) SPI_FLOUT2 as flag output for SPI Slave-select */
-#define FLG3                   0x00000800	/* Activates (=0) SPI_FLOUT3 as flag output for SPI Slave-select  */
-#define FLG4                   0x00001000	/* Activates (=0) SPI_FLOUT4 as flag output for SPI Slave-select  */
-#define FLG5                   0x00002000	/* Activates (=0) SPI_FLOUT5 as flag output for SPI Slave-select  */
-#define FLG6                   0x00004000	/* Activates (=0) SPI_FLOUT6 as flag output for SPI Slave-select  */
-#define FLG7                   0x00008000	/* Activates (=0) SPI_FLOUT7 as flag output for SPI Slave-select */
-
-/* SPI_FLG Bit Positions */
-#define FLS1_P                 0x00000001	/* Enables (=1) SPI_FLOUT1 as flag output for SPI Slave-select */
-#define FLS2_P                 0x00000002	/* Enables (=1) SPI_FLOUT2 as flag output for SPI Slave-select */
-#define FLS3_P                 0x00000003	/* Enables (=1) SPI_FLOUT3 as flag output for SPI Slave-select */
-#define FLS4_P                 0x00000004	/* Enables (=1) SPI_FLOUT4 as flag output for SPI Slave-select */
-#define FLS5_P                 0x00000005	/* Enables (=1) SPI_FLOUT5 as flag output for SPI Slave-select */
-#define FLS6_P                 0x00000006	/* Enables (=1) SPI_FLOUT6 as flag output for SPI Slave-select */
-#define FLS7_P                 0x00000007	/* Enables (=1) SPI_FLOUT7 as flag output for SPI Slave-select */
-#define FLG1_P                 0x00000009	/* Activates (=0) SPI_FLOUT1 as flag output for SPI Slave-select  */
-#define FLG2_P                 0x0000000A	/* Activates (=0) SPI_FLOUT2 as flag output for SPI Slave-select */
-#define FLG3_P                 0x0000000B	/* Activates (=0) SPI_FLOUT3 as flag output for SPI Slave-select  */
-#define FLG4_P                 0x0000000C	/* Activates (=0) SPI_FLOUT4 as flag output for SPI Slave-select  */
-#define FLG5_P                 0x0000000D	/* Activates (=0) SPI_FLOUT5 as flag output for SPI Slave-select  */
-#define FLG6_P                 0x0000000E	/* Activates (=0) SPI_FLOUT6 as flag output for SPI Slave-select  */
-#define FLG7_P                 0x0000000F	/* Activates (=0) SPI_FLOUT7 as flag output for SPI Slave-select */
-
-/* SPI_STAT Masks */
-#define SPIF                   0x00000001	/* Set (=1) when SPI single-word transfer complete */
-#define MODF                   0x00000002	/* Set (=1) in a master device when some other device tries to become master */
-#define TXE                    0x00000004	/* Set (=1) when transmission occurs with no new data in SPI_TDBR */
-#define TXS                    0x00000008	/* SPI_TDBR Data Buffer Status (0=Empty, 1=Full) */
-#define RBSY                   0x00000010	/* Set (=1) when data is received with RDBR full */
-#define RXS                    0x00000020	/* SPI_RDBR Data Buffer Status (0=Empty, 1=Full)  */
-#define TXCOL                  0x00000040	/* When set (=1), corrupt data may have been transmitted  */
-
-/* SPIx_FLG Masks																	*/
-#define FLG1E	0xFDFF		/* Activates SPI_FLOUT1 							*/
-#define FLG2E	0xFBFF		/* Activates SPI_FLOUT2								*/
-#define FLG3E	0xF7FF		/* Activates SPI_FLOUT3								*/
-#define FLG4E	0xEFFF		/* Activates SPI_FLOUT4								*/
-#define FLG5E	0xDFFF		/* Activates SPI_FLOUT5								*/
-#define FLG6E	0xBFFF		/* Activates SPI_FLOUT6								*/
-#define FLG7E	0x7FFF		/* Activates SPI_FLOUT7								*/
 
 /* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  ************* */
 

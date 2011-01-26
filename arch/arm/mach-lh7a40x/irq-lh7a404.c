@@ -43,64 +43,64 @@ static unsigned char irq_pri_vic2[] = {
 
   /* CPU IRQ handling */
 
-static void lh7a404_vic1_mask_irq (u32 irq)
+static void lh7a404_vic1_mask_irq(struct irq_data *d)
 {
-	VIC1_INTENCLR = (1 << irq);
+	VIC1_INTENCLR = (1 << d->irq);
 }
 
-static void lh7a404_vic1_unmask_irq (u32 irq)
+static void lh7a404_vic1_unmask_irq(struct irq_data *d)
 {
-	VIC1_INTEN = (1 << irq);
+	VIC1_INTEN = (1 << d->irq);
 }
 
-static void lh7a404_vic2_mask_irq (u32 irq)
+static void lh7a404_vic2_mask_irq(struct irq_data *d)
 {
-	VIC2_INTENCLR = (1 << (irq - 32));
+	VIC2_INTENCLR = (1 << (d->irq - 32));
 }
 
-static void lh7a404_vic2_unmask_irq (u32 irq)
+static void lh7a404_vic2_unmask_irq(struct irq_data *d)
 {
-	VIC2_INTEN = (1 << (irq - 32));
+	VIC2_INTEN = (1 << (d->irq - 32));
 }
 
-static void lh7a404_vic1_ack_gpio_irq (u32 irq)
+static void lh7a404_vic1_ack_gpio_irq(struct irq_data *d)
 {
-	GPIO_GPIOFEOI = (1 << IRQ_TO_GPIO (irq));
-	VIC1_INTENCLR = (1 << irq);
+	GPIO_GPIOFEOI = (1 << IRQ_TO_GPIO (d->irq));
+	VIC1_INTENCLR = (1 << d->irq);
 }
 
-static void lh7a404_vic2_ack_gpio_irq (u32 irq)
+static void lh7a404_vic2_ack_gpio_irq(struct irq_data *d)
 {
-	GPIO_GPIOFEOI = (1 << IRQ_TO_GPIO (irq));
-	VIC2_INTENCLR = (1 << irq);
+	GPIO_GPIOFEOI = (1 << IRQ_TO_GPIO (d->irq));
+	VIC2_INTENCLR = (1 << d->irq);
 }
 
 static struct irq_chip lh7a404_vic1_chip = {
-	.name	= "VIC1",
-	.ack	= lh7a404_vic1_mask_irq, /* Because level-triggered */
-	.mask	= lh7a404_vic1_mask_irq,
-	.unmask	= lh7a404_vic1_unmask_irq,
+	.name		= "VIC1",
+	.irq_ack	= lh7a404_vic1_mask_irq, /* Because level-triggered */
+	.irq_mask	= lh7a404_vic1_mask_irq,
+	.irq_unmask	= lh7a404_vic1_unmask_irq,
 };
 
 static struct irq_chip lh7a404_vic2_chip = {
-	.name	= "VIC2",
-	.ack	= lh7a404_vic2_mask_irq, /* Because level-triggered */
-	.mask	= lh7a404_vic2_mask_irq,
-	.unmask	= lh7a404_vic2_unmask_irq,
+	.name		= "VIC2",
+	.irq_ack	= lh7a404_vic2_mask_irq, /* Because level-triggered */
+	.irq_mask	= lh7a404_vic2_mask_irq,
+	.irq_unmask	= lh7a404_vic2_unmask_irq,
 };
 
 static struct irq_chip lh7a404_gpio_vic1_chip = {
-	.name	= "GPIO-VIC1",
-	.ack	= lh7a404_vic1_ack_gpio_irq,
-	.mask	= lh7a404_vic1_mask_irq,
-	.unmask	= lh7a404_vic1_unmask_irq,
+	.name		= "GPIO-VIC1",
+	.irq_ack	= lh7a404_vic1_ack_gpio_irq,
+	.irq_mask	= lh7a404_vic1_mask_irq,
+	.irq_unmask	= lh7a404_vic1_unmask_irq,
 };
 
 static struct irq_chip lh7a404_gpio_vic2_chip = {
-	.name	= "GPIO-VIC2",
-	.ack	= lh7a404_vic2_ack_gpio_irq,
-	.mask	= lh7a404_vic2_mask_irq,
-	.unmask	= lh7a404_vic2_unmask_irq,
+	.name		= "GPIO-VIC2",
+	.irq_ack	= lh7a404_vic2_ack_gpio_irq,
+	.irq_mask	= lh7a404_vic2_mask_irq,
+	.irq_unmask	= lh7a404_vic2_unmask_irq,
 };
 
   /* IRQ initialization */

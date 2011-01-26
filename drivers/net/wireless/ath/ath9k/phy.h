@@ -19,6 +19,7 @@
 
 #define CHANSEL_DIV		15
 #define CHANSEL_2G(_freq)	(((_freq) * 0x10000) / CHANSEL_DIV)
+#define CHANSEL_2G_9485(_freq)	((((_freq) * 0x10000) - 215) / CHANSEL_DIV)
 #define CHANSEL_5G(_freq)	(((_freq) * 0x8000) / CHANSEL_DIV)
 
 #define AR_PHY_BASE     0x9800
@@ -44,9 +45,6 @@
 			DO_DELAY(regWr);				\
 		}							\
 	} while (0)
-
-#define ATH9K_IS_MIC_ENABLED(ah)					\
-	((ah)->sta_id1_defaults & AR_STA_ID1_CRPT_MIC_ENABLE)
 
 #define ANTSWAP_AB 0x0001
 #define REDUCE_CHAIN_0 0x00000050

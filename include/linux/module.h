@@ -58,6 +58,12 @@ struct module_attribute {
 	void (*free)(struct module *);
 };
 
+struct module_version_attribute {
+	struct module_attribute mattr;
+	const char *module_name;
+	const char *version;
+};
+
 struct module_kobject
 {
 	struct kobject kobj;
@@ -161,7 +167,28 @@ extern struct module __this_module;
   Using this automatically adds a checksum of the .c files and the
   local headers in "srcversion".
 */
+
+#if defined(MODULE) || !defined(CONFIG_SYSFS)
 #define MODULE_VERSION(_version) MODULE_INFO(version, _version)
+#else
+#define MODULE_VERSION(_version)					\
+	extern ssize_t __modver_version_show(struct module_attribute *,	\
+					     struct module *, char *);	\
+	static struct module_version_attribute __modver_version_attr	\
+	__used								\
+    __attribute__ ((__section__ ("__modver"),aligned(sizeof(void *)))) \
+	= {								\
+		.mattr	= {						\
+			.attr	= {					\
+				.name	= "version",			\
+				.mode	= S_IRUGO,			\
+			},						\
+			.show	= __modver_version_show,		\
+		},							\
+		.module_name	= KBUILD_MODNAME,			\
+		.version	= _version,				\
+	}
+#endif
 
 /* Optional firmware file (or files) needed by the module
  * format is simply firmware file name.  Multiple firmware
@@ -180,6 +207,13 @@ extern int modules_disabled; /* for sysctl */
 void *__symbol_get(const char *symbol);
 void *__symbol_get_gpl(const char *symbol);
 #define symbol_get(x) ((typeof(&x))(__symbol_get(MODULE_SYMBOL_PREFIX #x)))
+
+/* modules using other modules: kdb wants to see this. */
+struct module_use {
+	struct list_head source_list;
+	struct list_head target_list;
+	struct module *source, *target;
+};
 
 #ifndef __GENKSYMS__
 #ifdef CONFIG_MODVERSIONS
@@ -301,6 +335,9 @@ struct module
 	/* The size of the executable code in each section.  */
 	unsigned int init_text_size, core_text_size;
 
+	/* Size of RO sections of the module (text+rodata) */
+	unsigned int init_ro_size, core_ro_size;
+
 	/* Arch-specific module values */
 	struct mod_arch_specific arch;
 
@@ -343,7 +380,10 @@ struct module
 	struct tracepoint *tracepoints;
 	unsigned int num_tracepoints;
 #endif
-
+#ifdef HAVE_JUMP_LABEL
+	struct jump_entry *jump_entries;
+	unsigned int num_jump_entries;
+#endif
 #ifdef CONFIG_TRACING
 	const char **trace_bprintk_fmt_start;
 	unsigned int num_trace_bprintk_fmt;
@@ -359,7 +399,9 @@ struct module
 
 #ifdef CONFIG_MODULE_UNLOAD
 	/* What modules depend on me? */
-	struct list_head modules_which_use_me;
+	struct list_head source_list;
+	/* What modules do I depend on? */
+	struct list_head target_list;
 
 	/* Who is waiting for us to be unloaded */
 	struct task_struct *waiter;
@@ -505,7 +547,7 @@ static inline void __module_get(struct module *module)
 #define symbol_put_addr(p) do { } while(0)
 
 #endif /* CONFIG_MODULE_UNLOAD */
-int use_module(struct module *a, struct module *b);
+int ref_module(struct module *a, struct module *b);
 
 /* This is a #define so the string doesn't get put in every .o file */
 #define module_name(mod)			\
@@ -660,46 +702,12 @@ static inline int module_get_iter_tracepoints(struct tracepoint_iter *iter)
 {
 	return 0;
 }
-
 #endif /* CONFIG_MODULES */
 
-struct device_driver;
 #ifdef CONFIG_SYSFS
-struct module;
-
 extern struct kset *module_kset;
 extern struct kobj_type module_ktype;
 extern int module_sysfs_initialized;
-
-int mod_sysfs_init(struct module *mod);
-int mod_sysfs_setup(struct module *mod,
-			   struct kernel_param *kparam,
-			   unsigned int num_params);
-int module_add_modinfo_attrs(struct module *mod);
-void module_remove_modinfo_attrs(struct module *mod);
-
-#else /* !CONFIG_SYSFS */
-
-static inline int mod_sysfs_init(struct module *mod)
-{
-	return 0;
-}
-
-static inline int mod_sysfs_setup(struct module *mod,
-			   struct kernel_param *kparam,
-			   unsigned int num_params)
-{
-	return 0;
-}
-
-static inline int module_add_modinfo_attrs(struct module *mod)
-{
-	return 0;
-}
-
-static inline void module_remove_modinfo_attrs(struct module *mod)
-{ }
-
 #endif /* CONFIG_SYSFS */
 
 #define symbol_request(x) try_then_request_module(symbol_get(x), "symbol:" #x)
@@ -708,19 +716,25 @@ static inline void module_remove_modinfo_attrs(struct module *mod)
 
 #define __MODULE_STRING(x) __stringify(x)
 
+#ifdef CONFIG_DEBUG_SET_MODULE_RONX
+extern void set_all_modules_text_rw(void);
+extern void set_all_modules_text_ro(void);
+#else
+static inline void set_all_modules_text_rw(void) { }
+static inline void set_all_modules_text_ro(void) { }
+#endif
 
 #ifdef CONFIG_GENERIC_BUG
-int  module_bug_finalize(const Elf_Ehdr *, const Elf_Shdr *,
+void module_bug_finalize(const Elf_Ehdr *, const Elf_Shdr *,
 			 struct module *);
 void module_bug_cleanup(struct module *);
 
 #else	/* !CONFIG_GENERIC_BUG */
 
-static inline int  module_bug_finalize(const Elf_Ehdr *hdr,
+static inline void module_bug_finalize(const Elf_Ehdr *hdr,
 					const Elf_Shdr *sechdrs,
 					struct module *mod)
 {
-	return 0;
 }
 static inline void module_bug_cleanup(struct module *mod) {}
 #endif	/* CONFIG_GENERIC_BUG */

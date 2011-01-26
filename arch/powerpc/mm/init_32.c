@@ -30,7 +30,7 @@
 #include <linux/highmem.h>
 #include <linux/initrd.h>
 #include <linux/pagemap.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/gfp.h>
 
 #include <asm/pgalloc.h>
@@ -92,12 +92,6 @@ int __allow_ioremap_reserved;
 unsigned long __max_low_memory = MAX_LOW_MEM;
 
 /*
- * address of the limit of what is accessible with initial MMU setup -
- * 256MB usually, but only 16MB on 601.
- */
-phys_addr_t __initial_memory_limit_addr = (phys_addr_t)0x10000000;
-
-/*
  * Check for command-line options that affect what MMU_init will do.
  */
 void MMU_setup(void)
@@ -126,27 +120,20 @@ void __init MMU_init(void)
 	if (ppc_md.progress)
 		ppc_md.progress("MMU:enter", 0x111);
 
-	/* 601 can only access 16MB at the moment */
-	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
-		__initial_memory_limit_addr = 0x01000000;
-	/* 8xx can only access 8MB at the moment */
-	if (PVR_VER(mfspr(SPRN_PVR)) == 0x50)
-		__initial_memory_limit_addr = 0x00800000;
-
 	/* parse args from command line */
 	MMU_setup();
 
-	if (lmb.memory.cnt > 1) {
+	if (memblock.memory.cnt > 1) {
 #ifndef CONFIG_WII
-		lmb.memory.cnt = 1;
-		lmb_analyze();
+		memblock.memory.cnt = 1;
+		memblock_analyze();
 		printk(KERN_WARNING "Only using first contiguous memory region");
 #else
 		wii_memory_fixups();
 #endif
 	}
 
-	total_lowmem = total_memory = lmb_end_of_DRAM() - memstart_addr;
+	total_lowmem = total_memory = memblock_end_of_DRAM() - memstart_addr;
 	lowmem_end_addr = memstart_addr + total_lowmem;
 
 #ifdef CONFIG_FSL_BOOKE
@@ -161,8 +148,8 @@ void __init MMU_init(void)
 		lowmem_end_addr = memstart_addr + total_lowmem;
 #ifndef CONFIG_HIGHMEM
 		total_memory = total_lowmem;
-		lmb_enforce_memory_limit(lowmem_end_addr);
-		lmb_analyze();
+		memblock_enforce_memory_limit(lowmem_end_addr);
+		memblock_analyze();
 #endif /* CONFIG_HIGHMEM */
 	}
 
@@ -190,20 +177,18 @@ void __init MMU_init(void)
 #ifdef CONFIG_BOOTX_TEXT
 	btext_unmap();
 #endif
+
+	/* Shortly after that, the entire linear mapping will be available */
+	memblock_set_current_limit(lowmem_end_addr);
 }
 
 /* This is only called until mem_init is done. */
 void __init *early_get_page(void)
 {
-	void *p;
-
-	if (init_bootmem_done) {
-		p = alloc_bootmem_pages(PAGE_SIZE);
-	} else {
-		p = __va(lmb_alloc_base(PAGE_SIZE, PAGE_SIZE,
-					__initial_memory_limit_addr));
-	}
-	return p;
+	if (init_bootmem_done)
+		return alloc_bootmem_pages(PAGE_SIZE);
+	else
+		return __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
 }
 
 /* Free up now-unused memory */
@@ -252,3 +237,17 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
+
+#ifdef CONFIG_8xx /* No 8xx specific .c file to put that in ... */
+void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+				phys_addr_t first_memblock_size)
+{
+	/* We don't currently support the first MEMBLOCK not mapping 0
+	 * physical on those processors
+	 */
+	BUG_ON(first_memblock_base != 0);
+
+	/* 8xx can only access 8MB at the moment */
+	memblock_set_current_limit(min_t(u64, first_memblock_size, 0x00800000));
+}
+#endif /* CONFIG_8xx */

@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/ab3100.h>
+#include <linux/mfd/abx500.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
@@ -30,7 +30,6 @@
 /**
  * struct ab3100_otp
  * @dev containing device
- * @ab3100 a pointer to the parent ab3100 device struct
  * @locked whether the OTP is locked, after locking, no more bits
  *       can be changed but before locking it is still possible
  *       to change bits from 1->0.
@@ -49,7 +48,6 @@
  */
 struct ab3100_otp {
 	struct device *dev;
-	struct ab3100 *ab3100;
 	bool locked;
 	u32 freq;
 	bool paf;
@@ -63,19 +61,19 @@ struct ab3100_otp {
 
 static int __init ab3100_otp_read(struct ab3100_otp *otp)
 {
-	struct ab3100 *ab = otp->ab3100;
 	u8 otpval[8];
 	u8 otpp;
 	int err;
 
-	err = ab3100_get_register_interruptible(ab, AB3100_OTPP, &otpp);
+	err = abx500_get_register_interruptible(otp->dev, 0,
+		AB3100_OTPP, &otpp);
 	if (err) {
 		dev_err(otp->dev, "unable to read OTPP register\n");
 		return err;
 	}
 
-	err = ab3100_get_register_page_interruptible(ab, AB3100_OTP0,
-						     otpval, 8);
+	err = abx500_get_register_page_interruptible(otp->dev, 0,
+		AB3100_OTP0, otpval, 8);
 	if (err) {
 		dev_err(otp->dev, "unable to read OTP register page\n");
 		return err;
@@ -197,12 +195,11 @@ static int __init ab3100_otp_probe(struct platform_device *pdev)
 	otp->dev = &pdev->dev;
 
 	/* Replace platform data coming in with a local struct */
-	otp->ab3100 = platform_get_drvdata(pdev);
 	platform_set_drvdata(pdev, otp);
 
 	err = ab3100_otp_read(otp);
 	if (err)
-		return err;
+		goto err_otp_read;
 
 	dev_info(&pdev->dev, "AB3100 OTP readout registered\n");
 
@@ -211,21 +208,21 @@ static int __init ab3100_otp_probe(struct platform_device *pdev)
 		err = device_create_file(&pdev->dev,
 					 &ab3100_otp_attrs[i]);
 		if (err)
-			goto out_no_sysfs;
+			goto err_create_file;
 	}
 
 	/* debugfs entries */
 	err = ab3100_otp_init_debugfs(&pdev->dev, otp);
 	if (err)
-		goto out_no_debugfs;
+		goto err_init_debugfs;
 
 	return 0;
 
-out_no_sysfs:
-	for (i = 0; i < ARRAY_SIZE(ab3100_otp_attrs); i++)
-		device_remove_file(&pdev->dev,
-				   &ab3100_otp_attrs[i]);
-out_no_debugfs:
+err_init_debugfs:
+err_create_file:
+	while (--i >= 0)
+		device_remove_file(&pdev->dev, &ab3100_otp_attrs[i]);
+err_otp_read:
 	kfree(otp);
 	return err;
 }

@@ -35,6 +35,8 @@ KBUILD_CFLAGS += -ffreestanding
 
 KBUILD_CFLAGS += -pipe -mlongcalls
 
+KBUILD_CFLAGS += $(call cc-option,-mforce-no-pic,)
+
 vardirs := $(patsubst %,arch/xtensa/variants/%/,$(variant-y))
 plfdirs := $(patsubst %,arch/xtensa/platforms/%/,$(platform-y))
 

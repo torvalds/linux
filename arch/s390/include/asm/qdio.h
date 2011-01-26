@@ -84,6 +84,7 @@ struct qdr {
 
 #define QIB_AC_OUTBOUND_PCI_SUPPORTED	0x40
 #define QIB_RFLAGS_ENABLE_QEBSM		0x80
+#define QIB_RFLAGS_ENABLE_DATA_DIV	0x02
 
 /**
  * struct qib - queue information block (QIB)
@@ -284,6 +285,9 @@ struct slsb {
 	u8 val[QDIO_MAX_BUFFERS_PER_Q];
 } __attribute__ ((packed, aligned(256)));
 
+#define CHSC_AC2_DATA_DIV_AVAILABLE	0x0010
+#define CHSC_AC2_DATA_DIV_ENABLED	0x0002
+
 struct qdio_ssqd_desc {
 	u8 flags;
 	u8:8;
@@ -332,6 +336,7 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @adapter_name: name for the adapter
  * @qib_param_field_format: format for qib_parm_field
  * @qib_param_field: pointer to 128 bytes or NULL, if no param field
+ * @qib_rflags: rflags to set
  * @input_slib_elements: pointer to no_input_qs * 128 words of data or NULL
  * @output_slib_elements: pointer to no_output_qs * 128 words of data or NULL
  * @no_input_qs: number of input queues
@@ -348,12 +353,15 @@ struct qdio_initialize {
 	unsigned char adapter_name[8];
 	unsigned int qib_param_field_format;
 	unsigned char *qib_param_field;
+	unsigned char qib_rflags;
 	unsigned long *input_slib_elements;
 	unsigned long *output_slib_elements;
 	unsigned int no_input_qs;
 	unsigned int no_output_qs;
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
+	void (*queue_start_poll) (struct ccw_device *, int, unsigned long);
+	int scan_threshold;
 	unsigned long int_parm;
 	void **input_sbal_addr_array;
 	void **output_sbal_addr_array;
@@ -371,11 +379,13 @@ struct qdio_initialize {
 extern int qdio_allocate(struct qdio_initialize *);
 extern int qdio_establish(struct qdio_initialize *);
 extern int qdio_activate(struct ccw_device *);
-
-extern int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
-		   int q_nr, unsigned int bufnr, unsigned int count);
-extern int qdio_shutdown(struct ccw_device*, int);
+extern int do_QDIO(struct ccw_device *, unsigned int, int, unsigned int,
+		   unsigned int);
+extern int qdio_start_irq(struct ccw_device *, int);
+extern int qdio_stop_irq(struct ccw_device *, int);
+extern int qdio_get_next_buffers(struct ccw_device *, int, int *, int *);
+extern int qdio_shutdown(struct ccw_device *, int);
 extern int qdio_free(struct ccw_device *);
-extern int qdio_get_ssqd_desc(struct ccw_device *dev, struct qdio_ssqd_desc*);
+extern int qdio_get_ssqd_desc(struct ccw_device *, struct qdio_ssqd_desc *);
 
 #endif /* __QDIO_H__ */

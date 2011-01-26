@@ -342,7 +342,6 @@ exit:
 	}
 
 	kfree(pca955x);
-	i2c_set_clientdata(client, NULL);
 
 	return err;
 }
@@ -358,7 +357,6 @@ static int __devexit pca955x_remove(struct i2c_client *client)
 	}
 
 	kfree(pca955x);
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }

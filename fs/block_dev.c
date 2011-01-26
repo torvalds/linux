@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/major.h>
-#include <linux/smp_lock.h>
 #include <linux/device_cgroup.h>
 #include <linux/highmem.h>
 #include <linux/blkdev.h>
@@ -47,6 +46,21 @@ inline struct block_device *I_BDEV(struct inode *inode)
 }
 
 EXPORT_SYMBOL(I_BDEV);
+
+/*
+ * move the inode from it's current bdi to the a new bdi. if the inode is dirty
+ * we need to move it onto the dirty list of @dst so that the inode is always
+ * on the right list.
+ */
+static void bdev_inode_switch_bdi(struct inode *inode,
+			struct backing_dev_info *dst)
+{
+	spin_lock(&inode_lock);
+	inode->i_data.backing_dev_info = dst;
+	if (inode->i_state & I_DIRTY)
+		list_move(&inode->i_wb_list, &dst->wb.b_dirty);
+	spin_unlock(&inode_lock);
+}
 
 static sector_t max_block(struct block_device *bdev)
 {
@@ -172,8 +186,8 @@ blkdev_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 
-	return blockdev_direct_IO_no_locking(rw, iocb, inode, I_BDEV(inode),
-				iov, offset, nr_segs, blkdev_get_blocks, NULL);
+	return __blockdev_direct_IO(rw, iocb, inode, I_BDEV(inode), iov, offset,
+				    nr_segs, blkdev_get_blocks, NULL, NULL, 0);
 }
 
 int __sync_blockdev(struct block_device *bdev, int wait)
@@ -308,9 +322,8 @@ static int blkdev_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
-	*pagep = NULL;
-	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				blkdev_get_block);
+	return block_write_begin(mapping, pos, len, flags, pagep,
+				 blkdev_get_block);
 }
 
 static int blkdev_write_end(struct file *file, struct address_space *mapping,
@@ -358,12 +371,7 @@ static loff_t block_llseek(struct file *file, loff_t offset, int origin)
 	return retval;
 }
 	
-/*
- *	Filp is never NULL; the only case when ->fsync() is called with
- *	NULL first argument is nfsd_sync_dir() and that's not a directory.
- */
- 
-int blkdev_fsync(struct file *filp, struct dentry *dentry, int datasync)
+int blkdev_fsync(struct file *filp, int datasync)
 {
 	struct inode *bd_inode = filp->f_mapping->host;
 	struct block_device *bdev = I_BDEV(bd_inode);
@@ -376,7 +384,7 @@ int blkdev_fsync(struct file *filp, struct dentry *dentry, int datasync)
 	 */
 	mutex_unlock(&bd_inode->i_mutex);
 
-	error = blkdev_issue_flush(bdev, GFP_KERNEL, NULL, BLKDEV_IFL_WAIT);
+	error = blkdev_issue_flush(bdev, GFP_KERNEL, NULL);
 	if (error == -EOPNOTSUPP)
 		error = 0;
 
@@ -401,11 +409,18 @@ static struct inode *bdev_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void bdev_destroy_inode(struct inode *inode)
+static void bdev_i_callback(struct rcu_head *head)
 {
+	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct bdev_inode *bdi = BDEV_I(inode);
 
+	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(bdev_cachep, bdi);
+}
+
+static void bdev_destroy_inode(struct inode *inode)
+{
+	call_rcu(&inode->i_rcu, bdev_i_callback);
 }
 
 static void init_once(void *foo)
@@ -418,7 +433,7 @@ static void init_once(void *foo)
 	INIT_LIST_HEAD(&bdev->bd_inodes);
 	INIT_LIST_HEAD(&bdev->bd_list);
 #ifdef CONFIG_SYSFS
-	INIT_LIST_HEAD(&bdev->bd_holder_list);
+	INIT_LIST_HEAD(&bdev->bd_holder_disks);
 #endif
 	inode_init_once(&ei->vfs_inode);
 	/* Initialize mutex for freeze. */
@@ -432,10 +447,13 @@ static inline void __bd_forget(struct inode *inode)
 	inode->i_mapping = &inode->i_data;
 }
 
-static void bdev_clear_inode(struct inode *inode)
+static void bdev_evict_inode(struct inode *inode)
 {
 	struct block_device *bdev = &BDEV_I(inode)->bdev;
 	struct list_head *p;
+	truncate_inode_pages(&inode->i_data, 0);
+	invalidate_inode_buffers(inode); /* is it needed here? */
+	end_writeback(inode);
 	spin_lock(&bdev_lock);
 	while ( (p = bdev->bd_inodes.next) != &bdev->bd_inodes ) {
 		__bd_forget(list_entry(p, struct inode, i_devices));
@@ -449,18 +467,18 @@ static const struct super_operations bdev_sops = {
 	.alloc_inode = bdev_alloc_inode,
 	.destroy_inode = bdev_destroy_inode,
 	.drop_inode = generic_delete_inode,
-	.clear_inode = bdev_clear_inode,
+	.evict_inode = bdev_evict_inode,
 };
 
-static int bd_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *bd_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_pseudo(fs_type, "bdev:", &bdev_sops, 0x62646576, mnt);
+	return mount_pseudo(fs_type, "bdev:", &bdev_sops, NULL, 0x62646576);
 }
 
 static struct file_system_type bd_type = {
 	.name		= "bdev",
-	.get_sb		= bd_get_sb,
+	.mount		= bd_mount,
 	.kill_sb	= kill_anon_super,
 };
 
@@ -553,7 +571,7 @@ EXPORT_SYMBOL(bdget);
  */
 struct block_device *bdgrab(struct block_device *bdev)
 {
-	atomic_inc(&bdev->bd_inode->i_count);
+	ihold(bdev->bd_inode);
 	return bdev;
 }
 
@@ -583,7 +601,7 @@ static struct block_device *bd_acquire(struct inode *inode)
 	spin_lock(&bdev_lock);
 	bdev = inode->i_bdev;
 	if (bdev) {
-		atomic_inc(&bdev->bd_inode->i_count);
+		ihold(bdev->bd_inode);
 		spin_unlock(&bdev_lock);
 		return bdev;
 	}
@@ -594,12 +612,12 @@ static struct block_device *bd_acquire(struct inode *inode)
 		spin_lock(&bdev_lock);
 		if (!inode->i_bdev) {
 			/*
-			 * We take an additional bd_inode->i_count for inode,
+			 * We take an additional reference to bd_inode,
 			 * and it's released in clear_inode() of inode.
 			 * So, we can access it via ->i_mapping always
 			 * without igrab().
 			 */
-			atomic_inc(&bdev->bd_inode->i_count);
+			ihold(bdev->bd_inode);
 			inode->i_bdev = bdev;
 			inode->i_mapping = bdev->bd_inode->i_mapping;
 			list_add(&inode->i_devices, &bdev->bd_inodes);
@@ -651,7 +669,7 @@ static bool bd_may_claim(struct block_device *bdev, struct block_device *whole,
 	else if (bdev->bd_contains == bdev)
 		return true;  	 /* is a whole device which isn't held */
 
-	else if (whole->bd_holder == bd_claim)
+	else if (whole->bd_holder == bd_may_claim)
 		return true; 	 /* is a partition of a device that is being partitioned */
 	else if (whole->bd_holder != NULL)
 		return false;	 /* is a partition of a held device */
@@ -685,8 +703,8 @@ retry:
 	if (!bd_may_claim(bdev, whole, holder))
 		return -EBUSY;
 
-	/* if someone else is claiming, wait for it to finish */
-	if (whole->bd_claiming && whole->bd_claiming != holder) {
+	/* if claiming is already in progress, wait for it to finish */
+	if (whole->bd_claiming) {
 		wait_queue_head_t *wq = bit_waitqueue(&whole->bd_claiming, 0);
 		DEFINE_WAIT(wait);
 
@@ -710,8 +728,13 @@ retry:
  * @bdev is about to be opened exclusively.  Check @bdev can be opened
  * exclusively and mark that an exclusive open is in progress.  Each
  * successful call to this function must be matched with a call to
- * either bd_claim() or bd_abort_claiming().  If this function
- * succeeds, the matching bd_claim() is guaranteed to succeed.
+ * either bd_finish_claiming() or bd_abort_claiming() (which do not
+ * fail).
+ *
+ * This function is used to gain exclusive access to the block device
+ * without actually causing other exclusive open attempts to fail. It
+ * should be used when the open sequence itself requires exclusive
+ * access but may subsequently fail.
  *
  * CONTEXT:
  * Might sleep.
@@ -738,6 +761,7 @@ static struct block_device *bd_start_claiming(struct block_device *bdev,
 		return ERR_PTR(-ENXIO);
 
 	whole = bdget_disk(disk, 0);
+	module_put(disk->fops->owner);
 	put_disk(disk);
 	if (!whole)
 		return ERR_PTR(-ENOMEM);
@@ -757,421 +781,142 @@ static struct block_device *bd_start_claiming(struct block_device *bdev,
 	}
 }
 
-/* releases bdev_lock */
-static void __bd_abort_claiming(struct block_device *whole, void *holder)
-{
-	BUG_ON(whole->bd_claiming != holder);
-	whole->bd_claiming = NULL;
-	wake_up_bit(&whole->bd_claiming, 0);
-
-	spin_unlock(&bdev_lock);
-	bdput(whole);
-}
-
-/**
- * bd_abort_claiming - abort claiming a block device
- * @whole: whole block device returned by bd_start_claiming()
- * @holder: holder trying to claim @bdev
- *
- * Abort a claiming block started by bd_start_claiming().  Note that
- * @whole is not the block device to be claimed but the whole device
- * returned by bd_start_claiming().
- *
- * CONTEXT:
- * Grabs and releases bdev_lock.
- */
-static void bd_abort_claiming(struct block_device *whole, void *holder)
-{
-	spin_lock(&bdev_lock);
-	__bd_abort_claiming(whole, holder);		/* releases bdev_lock */
-}
-
-/**
- * bd_claim - claim a block device
- * @bdev: block device to claim
- * @holder: holder trying to claim @bdev
- *
- * Try to claim @bdev which must have been opened successfully.  This
- * function may be called with or without preceding
- * blk_start_claiming().  In the former case, this function is always
- * successful and terminates the claiming block.
- *
- * CONTEXT:
- * Might sleep.
- *
- * RETURNS:
- * 0 if successful, -EBUSY if @bdev is already claimed.
- */
-int bd_claim(struct block_device *bdev, void *holder)
-{
-	struct block_device *whole = bdev->bd_contains;
-	int res;
-
-	might_sleep();
-
-	spin_lock(&bdev_lock);
-
-	res = bd_prepare_to_claim(bdev, whole, holder);
-	if (res == 0) {
-		/* note that for a whole device bd_holders
-		 * will be incremented twice, and bd_holder will
-		 * be set to bd_claim before being set to holder
-		 */
-		whole->bd_holders++;
-		whole->bd_holder = bd_claim;
-		bdev->bd_holders++;
-		bdev->bd_holder = holder;
-	}
-
-	if (whole->bd_claiming)
-		__bd_abort_claiming(whole, holder);	/* releases bdev_lock */
-	else
-		spin_unlock(&bdev_lock);
-
-	return res;
-}
-EXPORT_SYMBOL(bd_claim);
-
-void bd_release(struct block_device *bdev)
-{
-	spin_lock(&bdev_lock);
-	if (!--bdev->bd_contains->bd_holders)
-		bdev->bd_contains->bd_holder = NULL;
-	if (!--bdev->bd_holders)
-		bdev->bd_holder = NULL;
-	spin_unlock(&bdev_lock);
-}
-
-EXPORT_SYMBOL(bd_release);
-
 #ifdef CONFIG_SYSFS
-/*
- * Functions for bd_claim_by_kobject / bd_release_from_kobject
- *
- *     If a kobject is passed to bd_claim_by_kobject()
- *     and the kobject has a parent directory,
- *     following symlinks are created:
- *        o from the kobject to the claimed bdev
- *        o from "holders" directory of the bdev to the parent of the kobject
- *     bd_release_from_kobject() removes these symlinks.
- *
- *     Example:
- *        If /dev/dm-0 maps to /dev/sda, kobject corresponding to
- *        /sys/block/dm-0/slaves is passed to bd_claim_by_kobject(), then:
- *           /sys/block/dm-0/slaves/sda --> /sys/block/sda
- *           /sys/block/sda/holders/dm-0 --> /sys/block/dm-0
- */
+struct bd_holder_disk {
+	struct list_head	list;
+	struct gendisk		*disk;
+	int			refcnt;
+};
+
+static struct bd_holder_disk *bd_find_holder_disk(struct block_device *bdev,
+						  struct gendisk *disk)
+{
+	struct bd_holder_disk *holder;
+
+	list_for_each_entry(holder, &bdev->bd_holder_disks, list)
+		if (holder->disk == disk)
+			return holder;
+	return NULL;
+}
 
 static int add_symlink(struct kobject *from, struct kobject *to)
 {
-	if (!from || !to)
-		return 0;
 	return sysfs_create_link(from, to, kobject_name(to));
 }
 
 static void del_symlink(struct kobject *from, struct kobject *to)
 {
-	if (!from || !to)
-		return;
 	sysfs_remove_link(from, kobject_name(to));
 }
 
-/*
- * 'struct bd_holder' contains pointers to kobjects symlinked by
- * bd_claim_by_kobject.
- * It's connected to bd_holder_list which is protected by bdev->bd_sem.
- */
-struct bd_holder {
-	struct list_head list;	/* chain of holders of the bdev */
-	int count;		/* references from the holder */
-	struct kobject *sdir;	/* holder object, e.g. "/block/dm-0/slaves" */
-	struct kobject *hdev;	/* e.g. "/block/dm-0" */
-	struct kobject *hdir;	/* e.g. "/block/sda/holders" */
-	struct kobject *sdev;	/* e.g. "/block/sda" */
-};
-
-/*
- * Get references of related kobjects at once.
- * Returns 1 on success. 0 on failure.
- *
- * Should call bd_holder_release_dirs() after successful use.
- */
-static int bd_holder_grab_dirs(struct block_device *bdev,
-			struct bd_holder *bo)
-{
-	if (!bdev || !bo)
-		return 0;
-
-	bo->sdir = kobject_get(bo->sdir);
-	if (!bo->sdir)
-		return 0;
-
-	bo->hdev = kobject_get(bo->sdir->parent);
-	if (!bo->hdev)
-		goto fail_put_sdir;
-
-	bo->sdev = kobject_get(&part_to_dev(bdev->bd_part)->kobj);
-	if (!bo->sdev)
-		goto fail_put_hdev;
-
-	bo->hdir = kobject_get(bdev->bd_part->holder_dir);
-	if (!bo->hdir)
-		goto fail_put_sdev;
-
-	return 1;
-
-fail_put_sdev:
-	kobject_put(bo->sdev);
-fail_put_hdev:
-	kobject_put(bo->hdev);
-fail_put_sdir:
-	kobject_put(bo->sdir);
-
-	return 0;
-}
-
-/* Put references of related kobjects at once. */
-static void bd_holder_release_dirs(struct bd_holder *bo)
-{
-	kobject_put(bo->hdir);
-	kobject_put(bo->sdev);
-	kobject_put(bo->hdev);
-	kobject_put(bo->sdir);
-}
-
-static struct bd_holder *alloc_bd_holder(struct kobject *kobj)
-{
-	struct bd_holder *bo;
-
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
-	if (!bo)
-		return NULL;
-
-	bo->count = 1;
-	bo->sdir = kobj;
-
-	return bo;
-}
-
-static void free_bd_holder(struct bd_holder *bo)
-{
-	kfree(bo);
-}
-
 /**
- * find_bd_holder - find matching struct bd_holder from the block device
+ * bd_link_disk_holder - create symlinks between holding disk and slave bdev
+ * @bdev: the claimed slave bdev
+ * @disk: the holding disk
  *
- * @bdev:	struct block device to be searched
- * @bo:		target struct bd_holder
+ * DON'T USE THIS UNLESS YOU'RE ALREADY USING IT.
  *
- * Returns matching entry with @bo in @bdev->bd_holder_list.
- * If found, increment the reference count and return the pointer.
- * If not found, returns NULL.
+ * This functions creates the following sysfs symlinks.
+ *
+ * - from "slaves" directory of the holder @disk to the claimed @bdev
+ * - from "holders" directory of the @bdev to the holder @disk
+ *
+ * For example, if /dev/dm-0 maps to /dev/sda and disk for dm-0 is
+ * passed to bd_link_disk_holder(), then:
+ *
+ *   /sys/block/dm-0/slaves/sda --> /sys/block/sda
+ *   /sys/block/sda/holders/dm-0 --> /sys/block/dm-0
+ *
+ * The caller must have claimed @bdev before calling this function and
+ * ensure that both @bdev and @disk are valid during the creation and
+ * lifetime of these symlinks.
+ *
+ * CONTEXT:
+ * Might sleep.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
  */
-static struct bd_holder *find_bd_holder(struct block_device *bdev,
-					struct bd_holder *bo)
+int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 {
-	struct bd_holder *tmp;
-
-	list_for_each_entry(tmp, &bdev->bd_holder_list, list)
-		if (tmp->sdir == bo->sdir) {
-			tmp->count++;
-			return tmp;
-		}
-
-	return NULL;
-}
-
-/**
- * add_bd_holder - create sysfs symlinks for bd_claim() relationship
- *
- * @bdev:	block device to be bd_claimed
- * @bo:		preallocated and initialized by alloc_bd_holder()
- *
- * Add @bo to @bdev->bd_holder_list, create symlinks.
- *
- * Returns 0 if symlinks are created.
- * Returns -ve if something fails.
- */
-static int add_bd_holder(struct block_device *bdev, struct bd_holder *bo)
-{
-	int err;
-
-	if (!bo)
-		return -EINVAL;
-
-	if (!bd_holder_grab_dirs(bdev, bo))
-		return -EBUSY;
-
-	err = add_symlink(bo->sdir, bo->sdev);
-	if (err)
-		return err;
-
-	err = add_symlink(bo->hdir, bo->hdev);
-	if (err) {
-		del_symlink(bo->sdir, bo->sdev);
-		return err;
-	}
-
-	list_add_tail(&bo->list, &bdev->bd_holder_list);
-	return 0;
-}
-
-/**
- * del_bd_holder - delete sysfs symlinks for bd_claim() relationship
- *
- * @bdev:	block device to be bd_claimed
- * @kobj:	holder's kobject
- *
- * If there is matching entry with @kobj in @bdev->bd_holder_list
- * and no other bd_claim() from the same kobject,
- * remove the struct bd_holder from the list, delete symlinks for it.
- *
- * Returns a pointer to the struct bd_holder when it's removed from the list
- * and ready to be freed.
- * Returns NULL if matching claim isn't found or there is other bd_claim()
- * by the same kobject.
- */
-static struct bd_holder *del_bd_holder(struct block_device *bdev,
-					struct kobject *kobj)
-{
-	struct bd_holder *bo;
-
-	list_for_each_entry(bo, &bdev->bd_holder_list, list) {
-		if (bo->sdir == kobj) {
-			bo->count--;
-			BUG_ON(bo->count < 0);
-			if (!bo->count) {
-				list_del(&bo->list);
-				del_symlink(bo->sdir, bo->sdev);
-				del_symlink(bo->hdir, bo->hdev);
-				bd_holder_release_dirs(bo);
-				return bo;
-			}
-			break;
-		}
-	}
-
-	return NULL;
-}
-
-/**
- * bd_claim_by_kobject - bd_claim() with additional kobject signature
- *
- * @bdev:	block device to be claimed
- * @holder:	holder's signature
- * @kobj:	holder's kobject
- *
- * Do bd_claim() and if it succeeds, create sysfs symlinks between
- * the bdev and the holder's kobject.
- * Use bd_release_from_kobject() when relesing the claimed bdev.
- *
- * Returns 0 on success. (same as bd_claim())
- * Returns errno on failure.
- */
-static int bd_claim_by_kobject(struct block_device *bdev, void *holder,
-				struct kobject *kobj)
-{
-	int err;
-	struct bd_holder *bo, *found;
-
-	if (!kobj)
-		return -EINVAL;
-
-	bo = alloc_bd_holder(kobj);
-	if (!bo)
-		return -ENOMEM;
+	struct bd_holder_disk *holder;
+	int ret = 0;
 
 	mutex_lock(&bdev->bd_mutex);
 
-	err = bd_claim(bdev, holder);
-	if (err)
-		goto fail;
+	WARN_ON_ONCE(!bdev->bd_holder);
 
-	found = find_bd_holder(bdev, bo);
-	if (found)
-		goto fail;
+	/* FIXME: remove the following once add_disk() handles errors */
+	if (WARN_ON(!disk->slave_dir || !bdev->bd_part->holder_dir))
+		goto out_unlock;
 
-	err = add_bd_holder(bdev, bo);
-	if (err)
-		bd_release(bdev);
-	else
-		bo = NULL;
-fail:
+	holder = bd_find_holder_disk(bdev, disk);
+	if (holder) {
+		holder->refcnt++;
+		goto out_unlock;
+	}
+
+	holder = kzalloc(sizeof(*holder), GFP_KERNEL);
+	if (!holder) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
+
+	INIT_LIST_HEAD(&holder->list);
+	holder->disk = disk;
+	holder->refcnt = 1;
+
+	ret = add_symlink(disk->slave_dir, &part_to_dev(bdev->bd_part)->kobj);
+	if (ret)
+		goto out_free;
+
+	ret = add_symlink(bdev->bd_part->holder_dir, &disk_to_dev(disk)->kobj);
+	if (ret)
+		goto out_del;
+
+	list_add(&holder->list, &bdev->bd_holder_disks);
+	goto out_unlock;
+
+out_del:
+	del_symlink(disk->slave_dir, &part_to_dev(bdev->bd_part)->kobj);
+out_free:
+	kfree(holder);
+out_unlock:
 	mutex_unlock(&bdev->bd_mutex);
-	free_bd_holder(bo);
-	return err;
+	return ret;
 }
+EXPORT_SYMBOL_GPL(bd_link_disk_holder);
 
 /**
- * bd_release_from_kobject - bd_release() with additional kobject signature
+ * bd_unlink_disk_holder - destroy symlinks created by bd_link_disk_holder()
+ * @bdev: the calimed slave bdev
+ * @disk: the holding disk
  *
- * @bdev:	block device to be released
- * @kobj:	holder's kobject
+ * DON'T USE THIS UNLESS YOU'RE ALREADY USING IT.
  *
- * Do bd_release() and remove sysfs symlinks created by bd_claim_by_kobject().
+ * CONTEXT:
+ * Might sleep.
  */
-static void bd_release_from_kobject(struct block_device *bdev,
-					struct kobject *kobj)
+void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk)
 {
-	if (!kobj)
-		return;
+	struct bd_holder_disk *holder;
 
 	mutex_lock(&bdev->bd_mutex);
-	bd_release(bdev);
-	free_bd_holder(del_bd_holder(bdev, kobj));
+
+	holder = bd_find_holder_disk(bdev, disk);
+
+	if (!WARN_ON_ONCE(holder == NULL) && !--holder->refcnt) {
+		del_symlink(disk->slave_dir, &part_to_dev(bdev->bd_part)->kobj);
+		del_symlink(bdev->bd_part->holder_dir,
+			    &disk_to_dev(disk)->kobj);
+		list_del_init(&holder->list);
+		kfree(holder);
+	}
+
 	mutex_unlock(&bdev->bd_mutex);
 }
-
-/**
- * bd_claim_by_disk - wrapper function for bd_claim_by_kobject()
- *
- * @bdev:	block device to be claimed
- * @holder:	holder's signature
- * @disk:	holder's gendisk
- *
- * Call bd_claim_by_kobject() with getting @disk->slave_dir.
- */
-int bd_claim_by_disk(struct block_device *bdev, void *holder,
-			struct gendisk *disk)
-{
-	return bd_claim_by_kobject(bdev, holder, kobject_get(disk->slave_dir));
-}
-EXPORT_SYMBOL_GPL(bd_claim_by_disk);
-
-/**
- * bd_release_from_disk - wrapper function for bd_release_from_kobject()
- *
- * @bdev:	block device to be claimed
- * @disk:	holder's gendisk
- *
- * Call bd_release_from_kobject() and put @disk->slave_dir.
- */
-void bd_release_from_disk(struct block_device *bdev, struct gendisk *disk)
-{
-	bd_release_from_kobject(bdev, disk->slave_dir);
-	kobject_put(disk->slave_dir);
-}
-EXPORT_SYMBOL_GPL(bd_release_from_disk);
+EXPORT_SYMBOL_GPL(bd_unlink_disk_holder);
 #endif
-
-/*
- * Tries to open block device by device number.  Use it ONLY if you
- * really do not have anything better - i.e. when you are behind a
- * truly sucky interface and all you are given is a device number.  _Never_
- * to be used for internal purposes.  If you ever need it - reconsider
- * your API.
- */
-struct block_device *open_by_devnum(dev_t dev, fmode_t mode)
-{
-	struct block_device *bdev = bdget(dev);
-	int err = -ENOMEM;
-	if (bdev)
-		err = blkdev_get(bdev, mode);
-	return err ? ERR_PTR(err) : bdev;
-}
-
-EXPORT_SYMBOL(open_by_devnum);
 
 /**
  * flush_disk - invalidates all buffer-cache entries on a disk
@@ -1267,10 +1012,11 @@ int check_disk_change(struct block_device *bdev)
 {
 	struct gendisk *disk = bdev->bd_disk;
 	const struct block_device_operations *bdops = disk->fops;
+	unsigned int events;
 
-	if (!bdops->media_changed)
-		return 0;
-	if (!bdops->media_changed(bdev->bd_disk))
+	events = disk_clear_events(disk, DISK_EVENT_MEDIA_CHANGE |
+				   DISK_EVENT_EJECT_REQUEST);
+	if (!(events & DISK_EVENT_MEDIA_CHANGE))
 		return 0;
 
 	flush_disk(bdev);
@@ -1319,19 +1065,20 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	/*
 	 * hooks: /n/, see "layering violations".
 	 */
-	ret = devcgroup_inode_permission(bdev->bd_inode, perm);
-	if (ret != 0) {
-		bdput(bdev);
-		return ret;
+	if (!for_part) {
+		ret = devcgroup_inode_permission(bdev->bd_inode, perm);
+		if (ret != 0) {
+			bdput(bdev);
+			return ret;
+		}
 	}
 
-	lock_kernel();
  restart:
 
 	ret = -ENXIO;
 	disk = get_gendisk(bdev->bd_dev, &partno);
 	if (!disk)
-		goto out_unlock_kernel;
+		goto out;
 
 	mutex_lock_nested(&bdev->bd_mutex, for_part);
 	if (!bdev->bd_openers) {
@@ -1368,7 +1115,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				bdi = blk_get_backing_dev_info(bdev);
 				if (bdi == NULL)
 					bdi = &default_backing_dev_info;
-				bdev->bd_inode->i_data.backing_dev_info = bdi;
+				bdev_inode_switch_bdi(bdev->bd_inode, bdi);
 			}
 			if (bdev->bd_invalidated)
 				rescan_partitions(disk, bdev);
@@ -1383,8 +1130,8 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			if (ret)
 				goto out_clear;
 			bdev->bd_contains = whole;
-			bdev->bd_inode->i_data.backing_dev_info =
-			   whole->bd_inode->i_data.backing_dev_info;
+			bdev_inode_switch_bdi(bdev->bd_inode,
+				whole->bd_inode->i_data.backing_dev_info);
 			bdev->bd_part = disk_get_part(disk, partno);
 			if (!(disk->flags & GENHD_FL_UP) ||
 			    !bdev->bd_part || !bdev->bd_part->nr_sects) {
@@ -1411,22 +1158,19 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	if (for_part)
 		bdev->bd_part_count++;
 	mutex_unlock(&bdev->bd_mutex);
-	unlock_kernel();
 	return 0;
 
  out_clear:
 	disk_put_part(bdev->bd_part);
 	bdev->bd_disk = NULL;
 	bdev->bd_part = NULL;
-	bdev->bd_inode->i_data.backing_dev_info = &default_backing_dev_info;
+	bdev_inode_switch_bdi(bdev->bd_inode, &default_backing_dev_info);
 	if (bdev != bdev->bd_contains)
 		__blkdev_put(bdev->bd_contains, mode, 1);
 	bdev->bd_contains = NULL;
  out_unlock_bdev:
 	mutex_unlock(&bdev->bd_mutex);
- out_unlock_kernel:
-	unlock_kernel();
-
+ out:
 	if (disk)
 		module_put(disk->fops->owner);
 	put_disk(disk);
@@ -1435,17 +1179,171 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	return ret;
 }
 
-int blkdev_get(struct block_device *bdev, fmode_t mode)
+/**
+ * blkdev_get - open a block device
+ * @bdev: block_device to open
+ * @mode: FMODE_* mask
+ * @holder: exclusive holder identifier
+ *
+ * Open @bdev with @mode.  If @mode includes %FMODE_EXCL, @bdev is
+ * open with exclusive access.  Specifying %FMODE_EXCL with %NULL
+ * @holder is invalid.  Exclusive opens may nest for the same @holder.
+ *
+ * On success, the reference count of @bdev is unchanged.  On failure,
+ * @bdev is put.
+ *
+ * CONTEXT:
+ * Might sleep.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
+ */
+int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 {
-	return __blkdev_get(bdev, mode, 0);
+	struct block_device *whole = NULL;
+	int res;
+
+	WARN_ON_ONCE((mode & FMODE_EXCL) && !holder);
+
+	if ((mode & FMODE_EXCL) && holder) {
+		whole = bd_start_claiming(bdev, holder);
+		if (IS_ERR(whole)) {
+			bdput(bdev);
+			return PTR_ERR(whole);
+		}
+	}
+
+	res = __blkdev_get(bdev, mode, 0);
+
+	/* __blkdev_get() may alter read only status, check it afterwards */
+	if (!res && (mode & FMODE_WRITE) && bdev_read_only(bdev)) {
+		__blkdev_put(bdev, mode, 0);
+		res = -EACCES;
+	}
+
+	if (whole) {
+		/* finish claiming */
+		mutex_lock(&bdev->bd_mutex);
+		spin_lock(&bdev_lock);
+
+		if (!res) {
+			BUG_ON(!bd_may_claim(bdev, whole, holder));
+			/*
+			 * Note that for a whole device bd_holders
+			 * will be incremented twice, and bd_holder
+			 * will be set to bd_may_claim before being
+			 * set to holder
+			 */
+			whole->bd_holders++;
+			whole->bd_holder = bd_may_claim;
+			bdev->bd_holders++;
+			bdev->bd_holder = holder;
+		}
+
+		/* tell others that we're done */
+		BUG_ON(whole->bd_claiming != holder);
+		whole->bd_claiming = NULL;
+		wake_up_bit(&whole->bd_claiming, 0);
+
+		spin_unlock(&bdev_lock);
+
+		/*
+		 * Block event polling for write claims.  Any write
+		 * holder makes the write_holder state stick until all
+		 * are released.  This is good enough and tracking
+		 * individual writeable reference is too fragile given
+		 * the way @mode is used in blkdev_get/put().
+		 */
+		if (!res && (mode & FMODE_WRITE) && !bdev->bd_write_holder) {
+			bdev->bd_write_holder = true;
+			disk_block_events(bdev->bd_disk);
+		}
+
+		mutex_unlock(&bdev->bd_mutex);
+		bdput(whole);
+	}
+
+	return res;
 }
 EXPORT_SYMBOL(blkdev_get);
 
+/**
+ * blkdev_get_by_path - open a block device by name
+ * @path: path to the block device to open
+ * @mode: FMODE_* mask
+ * @holder: exclusive holder identifier
+ *
+ * Open the blockdevice described by the device file at @path.  @mode
+ * and @holder are identical to blkdev_get().
+ *
+ * On success, the returned block_device has reference count of one.
+ *
+ * CONTEXT:
+ * Might sleep.
+ *
+ * RETURNS:
+ * Pointer to block_device on success, ERR_PTR(-errno) on failure.
+ */
+struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
+					void *holder)
+{
+	struct block_device *bdev;
+	int err;
+
+	bdev = lookup_bdev(path);
+	if (IS_ERR(bdev))
+		return bdev;
+
+	err = blkdev_get(bdev, mode, holder);
+	if (err)
+		return ERR_PTR(err);
+
+	return bdev;
+}
+EXPORT_SYMBOL(blkdev_get_by_path);
+
+/**
+ * blkdev_get_by_dev - open a block device by device number
+ * @dev: device number of block device to open
+ * @mode: FMODE_* mask
+ * @holder: exclusive holder identifier
+ *
+ * Open the blockdevice described by device number @dev.  @mode and
+ * @holder are identical to blkdev_get().
+ *
+ * Use it ONLY if you really do not have anything better - i.e. when
+ * you are behind a truly sucky interface and all you are given is a
+ * device number.  _Never_ to be used for internal purposes.  If you
+ * ever need it - reconsider your API.
+ *
+ * On success, the returned block_device has reference count of one.
+ *
+ * CONTEXT:
+ * Might sleep.
+ *
+ * RETURNS:
+ * Pointer to block_device on success, ERR_PTR(-errno) on failure.
+ */
+struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder)
+{
+	struct block_device *bdev;
+	int err;
+
+	bdev = bdget(dev);
+	if (!bdev)
+		return ERR_PTR(-ENOMEM);
+
+	err = blkdev_get(bdev, mode, holder);
+	if (err)
+		return ERR_PTR(err);
+
+	return bdev;
+}
+EXPORT_SYMBOL(blkdev_get_by_dev);
+
 static int blkdev_open(struct inode * inode, struct file * filp)
 {
-	struct block_device *whole = NULL;
 	struct block_device *bdev;
-	int res;
 
 	/*
 	 * Preserve backwards compatibility and allow large file access
@@ -1466,26 +1364,9 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	if (bdev == NULL)
 		return -ENOMEM;
 
-	if (filp->f_mode & FMODE_EXCL) {
-		whole = bd_start_claiming(bdev, filp);
-		if (IS_ERR(whole)) {
-			bdput(bdev);
-			return PTR_ERR(whole);
-		}
-	}
-
 	filp->f_mapping = bdev->bd_inode->i_mapping;
 
-	res = blkdev_get(bdev, filp->f_mode);
-
-	if (whole) {
-		if (res == 0)
-			BUG_ON(bd_claim(bdev, filp) != 0);
-		else
-			bd_abort_claiming(whole, filp);
-	}
-
-	return res;
+	return blkdev_get(bdev, filp->f_mode, filp);
 }
 
 static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
@@ -1495,11 +1376,11 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 	struct block_device *victim = NULL;
 
 	mutex_lock_nested(&bdev->bd_mutex, for_part);
-	lock_kernel();
 	if (for_part)
 		bdev->bd_part_count--;
 
 	if (!--bdev->bd_openers) {
+		WARN_ON_ONCE(bdev->bd_holders);
 		sync_blockdev(bdev);
 		kill_bdev(bdev);
 	}
@@ -1515,12 +1396,12 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 		disk_put_part(bdev->bd_part);
 		bdev->bd_part = NULL;
 		bdev->bd_disk = NULL;
-		bdev->bd_inode->i_data.backing_dev_info = &default_backing_dev_info;
+		bdev_inode_switch_bdi(bdev->bd_inode,
+					&default_backing_dev_info);
 		if (bdev != bdev->bd_contains)
 			victim = bdev->bd_contains;
 		bdev->bd_contains = NULL;
 	}
-	unlock_kernel();
 	mutex_unlock(&bdev->bd_mutex);
 	bdput(bdev);
 	if (victim)
@@ -1530,6 +1411,44 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 
 int blkdev_put(struct block_device *bdev, fmode_t mode)
 {
+	if (mode & FMODE_EXCL) {
+		bool bdev_free;
+
+		/*
+		 * Release a claim on the device.  The holder fields
+		 * are protected with bdev_lock.  bd_mutex is to
+		 * synchronize disk_holder unlinking.
+		 */
+		mutex_lock(&bdev->bd_mutex);
+		spin_lock(&bdev_lock);
+
+		WARN_ON_ONCE(--bdev->bd_holders < 0);
+		WARN_ON_ONCE(--bdev->bd_contains->bd_holders < 0);
+
+		/* bd_contains might point to self, check in a separate step */
+		if ((bdev_free = !bdev->bd_holders))
+			bdev->bd_holder = NULL;
+		if (!bdev->bd_contains->bd_holders)
+			bdev->bd_contains->bd_holder = NULL;
+
+		spin_unlock(&bdev_lock);
+
+		/*
+		 * If this was the last claim, remove holder link and
+		 * unblock evpoll if it was a write holder.
+		 */
+		if (bdev_free) {
+			if (bdev->bd_write_holder) {
+				disk_unblock_events(bdev->bd_disk);
+				bdev->bd_write_holder = false;
+			} else
+				disk_check_events(bdev->bd_disk);
+		}
+
+		mutex_unlock(&bdev->bd_mutex);
+	} else
+		disk_check_events(bdev->bd_disk);
+
 	return __blkdev_put(bdev, mode, 0);
 }
 EXPORT_SYMBOL(blkdev_put);
@@ -1537,8 +1456,7 @@ EXPORT_SYMBOL(blkdev_put);
 static int blkdev_close(struct inode * inode, struct file * filp)
 {
 	struct block_device *bdev = I_BDEV(filp->f_mapping->host);
-	if (bdev->bd_holder == filp)
-		bd_release(bdev);
+
 	return blkdev_put(bdev, filp->f_mode);
 }
 
@@ -1682,67 +1600,6 @@ fail:
 	goto out;
 }
 EXPORT_SYMBOL(lookup_bdev);
-
-/**
- * open_bdev_exclusive  -  open a block device by name and set it up for use
- *
- * @path:	special file representing the block device
- * @mode:	FMODE_... combination to pass be used
- * @holder:	owner for exclusion
- *
- * Open the blockdevice described by the special file at @path, claim it
- * for the @holder.
- */
-struct block_device *open_bdev_exclusive(const char *path, fmode_t mode, void *holder)
-{
-	struct block_device *bdev, *whole;
-	int error;
-
-	bdev = lookup_bdev(path);
-	if (IS_ERR(bdev))
-		return bdev;
-
-	whole = bd_start_claiming(bdev, holder);
-	if (IS_ERR(whole)) {
-		bdput(bdev);
-		return whole;
-	}
-
-	error = blkdev_get(bdev, mode);
-	if (error)
-		goto out_abort_claiming;
-
-	error = -EACCES;
-	if ((mode & FMODE_WRITE) && bdev_read_only(bdev))
-		goto out_blkdev_put;
-
-	BUG_ON(bd_claim(bdev, holder) != 0);
-	return bdev;
-
-out_blkdev_put:
-	blkdev_put(bdev, mode);
-out_abort_claiming:
-	bd_abort_claiming(whole, holder);
-	return ERR_PTR(error);
-}
-
-EXPORT_SYMBOL(open_bdev_exclusive);
-
-/**
- * close_bdev_exclusive  -  close a blockdevice opened by open_bdev_exclusive()
- *
- * @bdev:	blockdevice to close
- * @mode:	mode, must match that used to open.
- *
- * This is the counterpart to open_bdev_exclusive().
- */
-void close_bdev_exclusive(struct block_device *bdev, fmode_t mode)
-{
-	bd_release(bdev);
-	blkdev_put(bdev, mode);
-}
-
-EXPORT_SYMBOL(close_bdev_exclusive);
 
 int __invalidate_device(struct block_device *bdev)
 {

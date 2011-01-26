@@ -55,6 +55,7 @@ static struct usb_device_id usb_ids[] = {
 	{ USB_DEVICE(0x129b, 0x1666), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x13b1, 0x001e), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x1435, 0x0711), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x14ea, 0xab10), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x14ea, 0xab13), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x157e, 0x300a), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x157e, 0x300b), .driver_info = DEVICE_ZD1211 },
@@ -92,6 +93,7 @@ static struct usb_device_id usb_ids[] = {
 	{ USB_DEVICE(0x157e, 0x300d), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x1582, 0x6003), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x2019, 0x5303), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x2019, 0xed01), .driver_info = DEVICE_ZD1211B },
 	/* "Driverless" devices that need ejecting */
 	{ USB_DEVICE(0x0ace, 0x2011), .driver_info = DEVICE_INSTALLER },
 	{ USB_DEVICE(0x0ace, 0x20ff), .driver_info = DEVICE_INSTALLER },
@@ -844,7 +846,7 @@ out:
  * @usb: a &struct zd_usb pointer
  * @urb: URB to be freed
  *
- * Frees the the transmission URB, which means to put it on the free URB
+ * Frees the transmission URB, which means to put it on the free URB
  * list.
  */
 static void free_tx_urb(struct zd_usb *usb, struct urb *urb)

@@ -665,6 +665,13 @@ ic_dhcp_init_options(u8 *options)
 		memcpy(e, ic_req_params, sizeof(ic_req_params));
 		e += sizeof(ic_req_params);
 
+		if (ic_host_name_set) {
+			*e++ = 12;	/* host-name */
+			len = strlen(utsname()->nodename);
+			*e++ = len;
+			memcpy(e, utsname()->nodename, len);
+			e += len;
+		}
 		if (*vendor_class_identifier) {
 			printk(KERN_INFO "DHCP: sending class identifier \"%s\"\n",
 			       vendor_class_identifier);
@@ -1184,13 +1191,13 @@ static int __init ic_dynamic(void)
 		    (ic_proto_enabled & IC_USE_DHCP) &&
 		    ic_dhcp_msgtype != DHCPACK) {
 			ic_got_reply = 0;
-			printk(",");
+			printk(KERN_CONT ",");
 			continue;
 		}
 #endif /* IPCONFIG_DHCP */
 
 		if (ic_got_reply) {
-			printk(" OK\n");
+			printk(KERN_CONT " OK\n");
 			break;
 		}
 
@@ -1198,7 +1205,7 @@ static int __init ic_dynamic(void)
 			continue;
 
 		if (! --retries) {
-			printk(" timed out!\n");
+			printk(KERN_CONT " timed out!\n");
 			break;
 		}
 
@@ -1208,7 +1215,7 @@ static int __init ic_dynamic(void)
 		if (timeout > CONF_TIMEOUT_MAX)
 			timeout = CONF_TIMEOUT_MAX;
 
-		printk(".");
+		printk(KERN_CONT ".");
 	}
 
 #ifdef IPCONFIG_BOOTP
@@ -1229,7 +1236,7 @@ static int __init ic_dynamic(void)
 		((ic_got_reply & IC_RARP) ? "RARP"
 		 : (ic_proto_enabled & IC_USE_DHCP) ? "DHCP" : "BOOTP"),
 		&ic_servaddr);
-	printk("my address is %pI4\n", &ic_myaddr);
+	printk(KERN_CONT "my address is %pI4\n", &ic_myaddr);
 
 	return 0;
 }
@@ -1461,19 +1468,19 @@ static int __init ip_auto_config(void)
 	/*
 	 * Clue in the operator.
 	 */
-	printk("IP-Config: Complete:");
-	printk("\n     device=%s", ic_dev->name);
-	printk(", addr=%pI4", &ic_myaddr);
-	printk(", mask=%pI4", &ic_netmask);
-	printk(", gw=%pI4", &ic_gateway);
-	printk(",\n     host=%s, domain=%s, nis-domain=%s",
+	printk("IP-Config: Complete:\n");
+	printk("     device=%s", ic_dev->name);
+	printk(KERN_CONT ", addr=%pI4", &ic_myaddr);
+	printk(KERN_CONT ", mask=%pI4", &ic_netmask);
+	printk(KERN_CONT ", gw=%pI4", &ic_gateway);
+	printk(KERN_CONT ",\n     host=%s, domain=%s, nis-domain=%s",
 	       utsname()->nodename, ic_domain, utsname()->domainname);
-	printk(",\n     bootserver=%pI4", &ic_servaddr);
-	printk(", rootserver=%pI4", &root_server_addr);
-	printk(", rootpath=%s", root_server_path);
+	printk(KERN_CONT ",\n     bootserver=%pI4", &ic_servaddr);
+	printk(KERN_CONT ", rootserver=%pI4", &root_server_addr);
+	printk(KERN_CONT ", rootpath=%s", root_server_path);
 	if (ic_dev_mtu)
-		printk(", mtu=%d", ic_dev_mtu);
-	printk("\n");
+		printk(KERN_CONT ", mtu=%d", ic_dev_mtu);
+	printk(KERN_CONT "\n");
 #endif /* !SILENT */
 
 	return 0;

@@ -101,10 +101,6 @@ EXPORT_SYMBOL(pci_dram_offset);
 EXPORT_SYMBOL(start_thread);
 EXPORT_SYMBOL(kernel_thread);
 
-#ifndef CONFIG_BOOKE
-EXPORT_SYMBOL_GPL(cvt_df);
-EXPORT_SYMBOL_GPL(cvt_fd);
-#endif
 EXPORT_SYMBOL(giveup_fpu);
 #ifdef CONFIG_ALTIVEC
 EXPORT_SYMBOL(giveup_altivec);
@@ -190,3 +186,10 @@ EXPORT_SYMBOL(__mtdcr);
 EXPORT_SYMBOL(__mfdcr);
 #endif
 EXPORT_SYMBOL(empty_zero_page);
+
+#ifdef CONFIG_PPC64
+EXPORT_SYMBOL(__arch_hweight8);
+EXPORT_SYMBOL(__arch_hweight16);
+EXPORT_SYMBOL(__arch_hweight32);
+EXPORT_SYMBOL(__arch_hweight64);
+#endif

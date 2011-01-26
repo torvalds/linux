@@ -437,9 +437,11 @@ static int i2sbus_shutdown(struct macio_dev* dev)
 }
 
 static struct macio_driver i2sbus_drv = {
-	.name = "soundbus-i2s",
-	.owner = THIS_MODULE,
-	.match_table = i2sbus_match,
+	.driver = {
+		.name = "soundbus-i2s",
+		.owner = THIS_MODULE,
+		.of_match_table = i2sbus_match,
+	},
 	.probe = i2sbus_probe,
 	.remove = i2sbus_remove,
 #ifdef CONFIG_PM

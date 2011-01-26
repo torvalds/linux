@@ -122,7 +122,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
 
     올바른 패치들을 만드는 법에 관한 훌륭한 다른 문서들이 있다.
     "The Perfect Patch"
-        http://www.zip.com.au/~akpm/linux/patches/stuff/tpp.txt
+        http://userweb.kernel.org/~akpm/stuff/tpp.txt
     "Linux kernel patch submission format"
         http://linux.yyz.us/patch-format.html
 
@@ -192,7 +192,7 @@ Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, H
 
 여러분이 어디서 시작해야 할진 모르지만 커널 개발 커뮤니티에 참여할 수
 있는 일들을 찾길 원한다면 리눅스 커널 Janitor 프로젝트를 살펴봐라.
-         http://janitor.kernelnewbies.org/
+	http://kernelnewbies.org/KernelJanitors
 그곳은 시작하기에 훌륭한 장소이다. 그곳은 리눅스 커널 소스 트리내에
 간단히 정리되고 수정될 수 있는 문제들에 관하여 설명한다. 여러분은 이
 프로젝트를 대표하는 개발자들과 일하면서 자신의 패치를 리눅스 커널 트리에
@@ -391,8 +391,8 @@ bugme-new 메일링 리스트나(새로운 버그 리포트들만이 이곳에�
 bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메일로 전해진다)
 에 등록하면 된다.
 
-      http://lists.osdl.org/mailman/listinfo/bugme-new
-      http://lists.osdl.org/mailman/listinfo/bugme-janitors
+      https://lists.linux-foundation.org/mailman/listinfo/bugme-new
+      https://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
 
 
 
@@ -596,7 +596,7 @@ Pat이라는 이름을 가진 여자가 있을 수도 있는 것이다. 리눅�
 
 이것이 무엇인지 더 자세한 것을 알고 싶다면 다음 문서의 ChageLog 항을 봐라.
    "The Perfect Patch"
-    http://www.zip.com.au/~akpm/linux/patches/stuff/tpp.txt
+    http://userweb.kernel.org/~akpm/stuff/tpp.txt
 
 
 
@@ -610,7 +610,7 @@ Pat이라는 이름을 가진 여자가 있을 수도 있는 것이다. 리눅�
 
 
 ----------
-"개발 프로세스"(http://linux.tar.gz/articles/2.6-development_process) 섹션을
+"개발 프로세스"(http://lwn.net/Articles/94386/) 섹션을
 작성하는데 있어 참고할 문서를 사용하도록 허락해준 Paolo Ciarrocchi에게
 감사한다. 여러분들이 말해야 할 것과 말해서는 안되는 것의 목록 중 일부를 제공해준
 Randy Dunlap과 Gerrit Huizenga에게 감사한다. 또한 검토와 의견 그리고

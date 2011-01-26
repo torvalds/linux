@@ -75,11 +75,6 @@ ENTRY(cpu_feroceon_proc_init)
  * cpu_feroceon_proc_fin()
  */
 ENTRY(cpu_feroceon_proc_fin)
-	stmfd	sp!, {lr}
-	mov	ip, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
-	msr	cpsr_c, ip
-	bl	feroceon_flush_kern_cache_all
-
 #if defined(CONFIG_CACHE_FEROCEON_L2) && \
 	!defined(CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH)
 	mov	r0, #0
@@ -91,7 +86,7 @@ ENTRY(cpu_feroceon_proc_fin)
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x000e			@ ............wca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	ldmfd	sp!, {pc}
+	mov	pc, lr
 
 /*
  * cpu_feroceon_reset(loc)
@@ -127,6 +122,17 @@ ENTRY(cpu_feroceon_do_idle)
 	mcr	p15, 0, r0, c7, c10, 4		@ Drain write buffer
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
 	mov	pc, lr
+
+/*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(feroceon_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(feroceon_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
@@ -406,6 +412,7 @@ ENTRY(feroceon_dma_unmap_area)
 ENDPROC(feroceon_dma_unmap_area)
 
 ENTRY(feroceon_cache_fns)
+	.long	feroceon_flush_icache_all
 	.long	feroceon_flush_kern_cache_all
 	.long	feroceon_flush_user_cache_all
 	.long	feroceon_flush_user_cache_range
@@ -417,6 +424,7 @@ ENTRY(feroceon_cache_fns)
 	.long	feroceon_dma_flush_range
 
 ENTRY(feroceon_range_cache_fns)
+	.long	feroceon_flush_icache_all
 	.long	feroceon_flush_kern_cache_all
 	.long	feroceon_flush_user_cache_all
 	.long	feroceon_flush_user_cache_range
@@ -499,7 +507,7 @@ ENTRY(cpu_feroceon_set_pte_ext)
 #endif
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__feroceon_setup, #function
 __feroceon_setup:

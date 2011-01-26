@@ -109,9 +109,12 @@ const char *smack_cipso_option = SMACK_CIPSO_OPTION;
  * SMK_ACCESSLEN: Maximum length for a rule access field
  * SMK_LOADLEN: Smack rule length
  */
-#define SMK_ACCESS    "rwxa"
-#define SMK_ACCESSLEN (sizeof(SMK_ACCESS) - 1)
-#define SMK_LOADLEN   (SMK_LABELLEN + SMK_LABELLEN + SMK_ACCESSLEN)
+#define SMK_OACCESS	"rwxa"
+#define SMK_ACCESS	"rwxat"
+#define SMK_OACCESSLEN	(sizeof(SMK_OACCESS) - 1)
+#define SMK_ACCESSLEN	(sizeof(SMK_ACCESS) - 1)
+#define SMK_OLOADLEN	(SMK_LABELLEN + SMK_LABELLEN + SMK_OACCESSLEN)
+#define SMK_LOADLEN	(SMK_LABELLEN + SMK_LABELLEN + SMK_ACCESSLEN)
 
 /**
  * smk_netlabel_audit_set - fill a netlbl_audit struct
@@ -121,7 +124,7 @@ static void smk_netlabel_audit_set(struct netlbl_audit *nap)
 {
 	nap->loginuid = audit_get_loginuid(current);
 	nap->sessionid = audit_get_sessionid(current);
-	nap->secid = smack_to_secid(current_security());
+	nap->secid = smack_to_secid(smk_of_current());
 }
 
 /*
@@ -175,6 +178,8 @@ static int load_seq_show(struct seq_file *s, void *v)
 		seq_putc(s, 'x');
 	if (srp->smk_access & MAY_APPEND)
 		seq_putc(s, 'a');
+	if (srp->smk_access & MAY_TRANSMUTE)
+		seq_putc(s, 't');
 	if (srp->smk_access == 0)
 		seq_putc(s, '-');
 
@@ -273,10 +278,15 @@ static ssize_t smk_write_load(struct file *file, const char __user *buf,
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;
 
-	if (*ppos != 0 || count != SMK_LOADLEN)
+	if (*ppos != 0)
+		return -EINVAL;
+	/*
+	 * Minor hack for backward compatability
+	 */
+	if (count < (SMK_OLOADLEN) || count > SMK_LOADLEN)
 		return -EINVAL;
 
-	data = kzalloc(count, GFP_KERNEL);
+	data = kzalloc(SMK_LOADLEN, GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -284,6 +294,12 @@ static ssize_t smk_write_load(struct file *file, const char __user *buf,
 		rc = -EFAULT;
 		goto out;
 	}
+
+	/*
+	 * More on the minor hack for backward compatability
+	 */
+	if (count == (SMK_OLOADLEN))
+		data[SMK_OLOADLEN] = '-';
 
 	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 	if (rule == NULL) {
@@ -340,6 +356,17 @@ static ssize_t smk_write_load(struct file *file, const char __user *buf,
 	case 'a':
 	case 'A':
 		rule->smk_access |= MAY_APPEND;
+		break;
+	default:
+		goto out_free_rule;
+	}
+
+	switch (data[SMK_LABELLEN + SMK_LABELLEN + 4]) {
+	case '-':
+		break;
+	case 't':
+	case 'T':
+		rule->smk_access |= MAY_TRANSMUTE;
 		break;
 	default:
 		goto out_free_rule;
@@ -968,6 +995,7 @@ static ssize_t smk_write_doi(struct file *file, const char __user *buf,
 static const struct file_operations smk_doi_ops = {
 	.read		= smk_read_doi,
 	.write		= smk_write_doi,
+	.llseek		= default_llseek,
 };
 
 /**
@@ -1031,6 +1059,7 @@ static ssize_t smk_write_direct(struct file *file, const char __user *buf,
 static const struct file_operations smk_direct_ops = {
 	.read		= smk_read_direct,
 	.write		= smk_write_direct,
+	.llseek		= default_llseek,
 };
 
 /**
@@ -1112,6 +1141,7 @@ static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 static const struct file_operations smk_ambient_ops = {
 	.read		= smk_read_ambient,
 	.write		= smk_write_ambient,
+	.llseek		= default_llseek,
 };
 
 /**
@@ -1157,7 +1187,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	char in[SMK_LABELLEN];
-	char *sp = current->cred->security;
+	char *sp = smk_of_task(current->cred->security);
 
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;
@@ -1191,6 +1221,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 static const struct file_operations smk_onlycap_ops = {
 	.read		= smk_read_onlycap,
 	.write		= smk_write_onlycap,
+	.llseek		= default_llseek,
 };
 
 /**
@@ -1255,6 +1286,7 @@ static ssize_t smk_write_logging(struct file *file, const char __user *buf,
 static const struct file_operations smk_logging_ops = {
 	.read		= smk_read_logging,
 	.write		= smk_write_logging,
+	.llseek		= default_llseek,
 };
 /**
  * smk_fill_super - fill the /smackfs superblock
@@ -1305,27 +1337,25 @@ static int smk_fill_super(struct super_block *sb, void *data, int silent)
 }
 
 /**
- * smk_get_sb - get the smackfs superblock
+ * smk_mount - get the smackfs superblock
  * @fs_type: passed along without comment
  * @flags: passed along without comment
  * @dev_name: passed along without comment
  * @data: passed along without comment
- * @mnt: passed along without comment
  *
  * Just passes everything along.
  *
  * Returns what the lower level code does.
  */
-static int smk_get_sb(struct file_system_type *fs_type,
-		      int flags, const char *dev_name, void *data,
-		      struct vfsmount *mnt)
+static struct dentry *smk_mount(struct file_system_type *fs_type,
+		      int flags, const char *dev_name, void *data)
 {
-	return get_sb_single(fs_type, flags, data, smk_fill_super, mnt);
+	return mount_single(fs_type, flags, data, smk_fill_super);
 }
 
 static struct file_system_type smk_fs_type = {
 	.name		= "smackfs",
-	.get_sb		= smk_get_sb,
+	.mount		= smk_mount,
 	.kill_sb	= kill_litter_super,
 };
 

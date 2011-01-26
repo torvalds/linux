@@ -15,15 +15,31 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/list.h>
+#include <linux/pm.h>
+#include <asm/olpc.h>
 
 /*
  * The default port config.
  */
 static struct via_port_cfg adap_configs[] = {
-	[VIA_PORT_26]	= { VIA_PORT_I2C,  VIA_MODE_OFF, VIASR, 0x26 },
+	[VIA_PORT_26]	= { VIA_PORT_I2C,  VIA_MODE_I2C, VIASR, 0x26 },
 	[VIA_PORT_31]	= { VIA_PORT_I2C,  VIA_MODE_I2C, VIASR, 0x31 },
 	[VIA_PORT_25]	= { VIA_PORT_GPIO, VIA_MODE_GPIO, VIASR, 0x25 },
 	[VIA_PORT_2C]	= { VIA_PORT_GPIO, VIA_MODE_I2C, VIASR, 0x2c },
+	[VIA_PORT_3D]	= { VIA_PORT_GPIO, VIA_MODE_GPIO, VIASR, 0x3d },
+	{ 0, 0, 0, 0 }
+};
+
+/*
+ * The OLPC XO-1.5 puts the camera power and reset lines onto
+ * GPIO 2C.
+ */
+static const struct via_port_cfg olpc_adap_configs[] = {
+	[VIA_PORT_26]	= { VIA_PORT_I2C,  VIA_MODE_I2C, VIASR, 0x26 },
+	[VIA_PORT_31]	= { VIA_PORT_I2C,  VIA_MODE_I2C, VIASR, 0x31 },
+	[VIA_PORT_25]	= { VIA_PORT_GPIO, VIA_MODE_GPIO, VIASR, 0x25 },
+	[VIA_PORT_2C]	= { VIA_PORT_GPIO, VIA_MODE_GPIO, VIASR, 0x2c },
 	[VIA_PORT_3D]	= { VIA_PORT_GPIO, VIA_MODE_GPIO, VIASR, 0x3d },
 	{ 0, 0, 0, 0 }
 };
@@ -64,7 +80,7 @@ static inline int viafb_mmio_read(int reg)
  */
 static u32 viafb_enabled_ints;
 
-static void viafb_int_init(void)
+static void __devinit viafb_int_init(void)
 {
 	viafb_enabled_ints = 0;
 
@@ -94,6 +110,13 @@ void viafb_irq_disable(u32 mask)
 EXPORT_SYMBOL_GPL(viafb_irq_disable);
 
 /* ---------------------------------------------------------------------- */
+/*
+ * Currently, the camera driver is the only user of the DMA code, so we
+ * only compile it in if the camera driver is being built.  Chances are,
+ * most viafb systems will not need to have this extra code for a while.
+ * As soon as another user comes long, the ifdef can be removed.
+ */
+#if defined(CONFIG_VIDEO_VIA_CAMERA) || defined(CONFIG_VIDEO_VIA_CAMERA_MODULE)
 /*
  * Access to the DMA engine.  This currently provides what the camera
  * driver needs (i.e. outgoing only) but is easily expandable if need
@@ -322,7 +345,7 @@ int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(viafb_dma_copy_out_sg);
-
+#endif /* CONFIG_VIDEO_VIA_CAMERA */
 
 /* ---------------------------------------------------------------------- */
 /*
@@ -333,7 +356,7 @@ EXPORT_SYMBOL_GPL(viafb_dma_copy_out_sg);
 static u16 via_function3[] = {
 	CLE266_FUNCTION3, KM400_FUNCTION3, CN400_FUNCTION3, CN700_FUNCTION3,
 	CX700_FUNCTION3, KM800_FUNCTION3, KM890_FUNCTION3, P4M890_FUNCTION3,
-	P4M900_FUNCTION3, VX800_FUNCTION3, VX855_FUNCTION3,
+	P4M900_FUNCTION3, VX800_FUNCTION3, VX855_FUNCTION3, VX900_FUNCTION3,
 };
 
 /* Get the BIOS-configured framebuffer size from PCI configuration space
@@ -370,6 +393,7 @@ static int viafb_get_fb_size_from_pci(int chip_type)
 		case P4M900_FUNCTION3:
 		case VX800_FUNCTION3:
 		case VX855_FUNCTION3:
+		case VX900_FUNCTION3:
 		/*case CN750_FUNCTION3: */
 			offset = 0xA0;
 			break;
@@ -474,7 +498,10 @@ static int __devinit via_pci_setup_mmio(struct viafb_dev *vdev)
 	 * Eventually we want to move away from mapping this
 	 * entire region.
 	 */
-	vdev->fbmem_start = pci_resource_start(vdev->pdev, 0);
+	if (vdev->chip_type == UNICHROME_VX900)
+		vdev->fbmem_start = pci_resource_start(vdev->pdev, 2);
+	else
+		vdev->fbmem_start = pci_resource_start(vdev->pdev, 0);
 	ret = vdev->fbmem_len = viafb_get_fb_size_from_pci(vdev->chip_type);
 	if (ret < 0)
 		goto out_unmap;
@@ -489,7 +516,7 @@ out_unmap:
 	return ret;
 }
 
-static void __devexit via_pci_teardown_mmio(struct viafb_dev *vdev)
+static void via_pci_teardown_mmio(struct viafb_dev *vdev)
 {
 	iounmap(vdev->fbmem);
 	iounmap(vdev->engine_mmio);
@@ -507,7 +534,12 @@ static struct viafb_subdev_info {
 	},
 	{
 		.name = "viafb-i2c",
-	}
+	},
+#if defined(CONFIG_VIDEO_VIA_CAMERA) || defined(CONFIG_VIDEO_VIA_CAMERA_MODULE)
+	{
+		.name = "viafb-camera",
+	},
+#endif
 };
 #define N_SUBDEVS ARRAY_SIZE(viafb_subdevs)
 
@@ -548,7 +580,7 @@ static int __devinit via_setup_subdevs(struct viafb_dev *vdev)
 	return 0;
 }
 
-static void __devexit via_teardown_subdevs(void)
+static void via_teardown_subdevs(void)
 {
 	int i;
 
@@ -559,6 +591,78 @@ static void __devexit via_teardown_subdevs(void)
 		}
 }
 
+/*
+ * Power management functions
+ */
+#ifdef CONFIG_PM
+static LIST_HEAD(viafb_pm_hooks);
+static DEFINE_MUTEX(viafb_pm_hooks_lock);
+
+void viafb_pm_register(struct viafb_pm_hooks *hooks)
+{
+	INIT_LIST_HEAD(&hooks->list);
+
+	mutex_lock(&viafb_pm_hooks_lock);
+	list_add_tail(&hooks->list, &viafb_pm_hooks);
+	mutex_unlock(&viafb_pm_hooks_lock);
+}
+EXPORT_SYMBOL_GPL(viafb_pm_register);
+
+void viafb_pm_unregister(struct viafb_pm_hooks *hooks)
+{
+	mutex_lock(&viafb_pm_hooks_lock);
+	list_del(&hooks->list);
+	mutex_unlock(&viafb_pm_hooks_lock);
+}
+EXPORT_SYMBOL_GPL(viafb_pm_unregister);
+
+static int via_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct viafb_pm_hooks *hooks;
+
+	if (state.event != PM_EVENT_SUSPEND)
+		return 0;
+	/*
+	 * "I've occasionally hit a few drivers that caused suspend
+	 * failures, and each and every time it was a driver bug, and
+	 * the right thing to do was to just ignore the error and suspend
+	 * anyway - returning an error code and trying to undo the suspend
+	 * is not what anybody ever really wants, even if our model
+	 *_allows_ for it."
+	 * -- Linus Torvalds, Dec. 7, 2009
+	 */
+	mutex_lock(&viafb_pm_hooks_lock);
+	list_for_each_entry_reverse(hooks, &viafb_pm_hooks, list)
+		hooks->suspend(hooks->private);
+	mutex_unlock(&viafb_pm_hooks_lock);
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	return 0;
+}
+
+static int via_resume(struct pci_dev *pdev)
+{
+	struct viafb_pm_hooks *hooks;
+
+	/* Get the bus side powered up */
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	if (pci_enable_device(pdev))
+		return 0;
+
+	pci_set_master(pdev);
+
+	/* Now bring back any subdevs */
+	mutex_lock(&viafb_pm_hooks_lock);
+	list_for_each_entry(hooks, &viafb_pm_hooks, list)
+		hooks->resume(hooks->private);
+	mutex_unlock(&viafb_pm_hooks_lock);
+
+	return 0;
+}
+#endif /* CONFIG_PM */
 
 static int __devinit via_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
@@ -568,6 +672,7 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	ret = pci_enable_device(pdev);
 	if (ret)
 		return ret;
+
 	/*
 	 * Global device initialization.
 	 */
@@ -575,6 +680,9 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	global_dev.pdev = pdev;
 	global_dev.chip_type = ent->driver_data;
 	global_dev.port_cfg = adap_configs;
+	if (machine_is_olpc())
+		global_dev.port_cfg = olpc_adap_configs;
+
 	spin_lock_init(&global_dev.reg_lock);
 	ret = via_pci_setup_mmio(&global_dev);
 	if (ret)
@@ -613,26 +721,30 @@ static void __devexit via_pci_remove(struct pci_dev *pdev)
 static struct pci_device_id via_pci_table[] __devinitdata = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_CLE266_DID),
 	  .driver_data = UNICHROME_CLE266 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_PM800_DID),
-	  .driver_data = UNICHROME_PM800 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_K400_DID),
 	  .driver_data = UNICHROME_K400 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_K800_DID),
 	  .driver_data = UNICHROME_K800 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_P4M890_DID),
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_PM800_DID),
+	  .driver_data = UNICHROME_PM800 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_CN700_DID),
 	  .driver_data = UNICHROME_CN700 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_K8M890_DID),
-	  .driver_data = UNICHROME_K8M890 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_CX700_DID),
 	  .driver_data = UNICHROME_CX700 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_P4M900_DID),
-	  .driver_data = UNICHROME_P4M900 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_CN750_DID),
 	  .driver_data = UNICHROME_CN750 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_K8M890_DID),
+	  .driver_data = UNICHROME_K8M890 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_P4M890_DID),
+	  .driver_data = UNICHROME_P4M890 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_P4M900_DID),
+	  .driver_data = UNICHROME_P4M900 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_VX800_DID),
 	  .driver_data = UNICHROME_VX800 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_VX855_DID),
 	  .driver_data = UNICHROME_VX855 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_VX900_DID),
+	  .driver_data = UNICHROME_VX900 },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, via_pci_table);
@@ -642,6 +754,10 @@ static struct pci_driver via_driver = {
 	.id_table	= via_pci_table,
 	.probe		= via_pci_probe,
 	.remove		= __devexit_p(via_pci_remove),
+#ifdef CONFIG_PM
+	.suspend	= via_suspend,
+	.resume		= via_resume,
+#endif
 };
 
 static int __init via_core_init(void)

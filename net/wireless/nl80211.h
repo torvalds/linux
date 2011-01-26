@@ -25,6 +25,12 @@ void nl80211_send_deauth(struct cfg80211_registered_device *rdev,
 void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
 			   struct net_device *netdev,
 			   const u8 *buf, size_t len, gfp_t gfp);
+void nl80211_send_unprot_deauth(struct cfg80211_registered_device *rdev,
+				struct net_device *netdev,
+				const u8 *buf, size_t len, gfp_t gfp);
+void nl80211_send_unprot_disassoc(struct cfg80211_registered_device *rdev,
+				  struct net_device *netdev,
+				  const u8 *buf, size_t len, gfp_t gfp);
 void nl80211_send_auth_timeout(struct cfg80211_registered_device *rdev,
 			       struct net_device *netdev,
 			       const u8 *addr, gfp_t gfp);
@@ -74,18 +80,22 @@ void nl80211_send_sta_event(struct cfg80211_registered_device *rdev,
 			    struct net_device *dev, const u8 *mac_addr,
 			    struct station_info *sinfo, gfp_t gfp);
 
-int nl80211_send_action(struct cfg80211_registered_device *rdev,
-			struct net_device *netdev, u32 nlpid, int freq,
-			const u8 *buf, size_t len, gfp_t gfp);
-void nl80211_send_action_tx_status(struct cfg80211_registered_device *rdev,
-				   struct net_device *netdev, u64 cookie,
-				   const u8 *buf, size_t len, bool ack,
-				   gfp_t gfp);
+int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
+		      struct net_device *netdev, u32 nlpid, int freq,
+		      const u8 *buf, size_t len, gfp_t gfp);
+void nl80211_send_mgmt_tx_status(struct cfg80211_registered_device *rdev,
+				 struct net_device *netdev, u64 cookie,
+				 const u8 *buf, size_t len, bool ack,
+				 gfp_t gfp);
 
 void
 nl80211_send_cqm_rssi_notify(struct cfg80211_registered_device *rdev,
 			     struct net_device *netdev,
 			     enum nl80211_cqm_rssi_threshold_event rssi_event,
 			     gfp_t gfp);
+void
+nl80211_send_cqm_pktloss_notify(struct cfg80211_registered_device *rdev,
+				struct net_device *netdev, const u8 *peer,
+				u32 num_packets, gfp_t gfp);
 
 #endif /* __NET_WIRELESS_NL80211_H */

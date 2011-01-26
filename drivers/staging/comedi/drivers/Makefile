@@ -12,7 +12,6 @@ obj-$(CONFIG_COMEDI_SERIAL2002)		+= serial2002.o
 obj-$(CONFIG_COMEDI_SKEL)		+= skel.o
 
 # Comedi ISA drivers
-obj-$(CONFIG_COMEDI_8255)		+= 8255.o
 obj-$(CONFIG_COMEDI_ACL7225B)		+= acl7225b.o
 obj-$(CONFIG_COMEDI_PCL711)		+= pcl711.o
 obj-$(CONFIG_COMEDI_PCL724)		+= pcl724.o
@@ -26,7 +25,6 @@ obj-$(CONFIG_COMEDI_PCM3724)		+= pcm3724.o
 obj-$(CONFIG_COMEDI_PCM3730)		+= pcm3730.o
 obj-$(CONFIG_COMEDI_RTI800)		+= rti800.o
 obj-$(CONFIG_COMEDI_RTI802)		+= rti802.o
-obj-$(CONFIG_COMEDI_DAS08)		+= das08.o
 obj-$(CONFIG_COMEDI_DAS16M1)		+= das16m1.o
 obj-$(CONFIG_COMEDI_DAS16)		+= das16.o
 obj-$(CONFIG_COMEDI_DAS800)		+= das800.o
@@ -135,4 +133,6 @@ obj-$(CONFIG_COMEDI_NI_TIO)		+= ni_tio.o
 obj-$(CONFIG_COMEDI_NI_TIO)		+= ni_tiocmd.o
 obj-$(CONFIG_COMEDI_NI_LABPC)		+= ni_labpc.o
 
+obj-$(CONFIG_COMEDI_8255)		+= 8255.o
+obj-$(CONFIG_COMEDI_DAS08)		+= das08.o
 obj-$(CONFIG_COMEDI_FC)			+= comedi_fc.o

@@ -158,7 +158,7 @@ extern const struct inode_operations jffs2_dir_inode_operations;
 extern const struct file_operations jffs2_file_operations;
 extern const struct inode_operations jffs2_file_inode_operations;
 extern const struct address_space_operations jffs2_file_address_operations;
-int jffs2_fsync(struct file *, struct dentry *, int);
+int jffs2_fsync(struct file *, int);
 int jffs2_do_readpage_unlock (struct inode *inode, struct page *pg);
 
 /* ioctl.c */
@@ -171,7 +171,7 @@ extern const struct inode_operations jffs2_symlink_inode_operations;
 int jffs2_setattr (struct dentry *, struct iattr *);
 int jffs2_do_setattr (struct inode *, struct iattr *);
 struct inode *jffs2_iget(struct super_block *, unsigned long);
-void jffs2_clear_inode (struct inode *);
+void jffs2_evict_inode (struct inode *);
 void jffs2_dirty_inode(struct inode *inode);
 struct inode *jffs2_new_inode (struct inode *dir_i, int mode,
 			       struct jffs2_raw_inode *ri);

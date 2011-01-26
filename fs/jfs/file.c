@@ -17,6 +17,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/quotaops.h>
 #include "jfs_incore.h"
@@ -27,9 +28,9 @@
 #include "jfs_acl.h"
 #include "jfs_debug.h"
 
-int jfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+int jfs_fsync(struct file *file, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	int rc = 0;
 
 	if (!(inode->i_state & I_DIRTY) ||
@@ -107,11 +108,18 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 			return rc;
 	}
 
-	rc = inode_setattr(inode, iattr);
+	if ((iattr->ia_valid & ATTR_SIZE) &&
+	    iattr->ia_size != i_size_read(inode)) {
+		rc = vmtruncate(inode, iattr->ia_size);
+		if (rc)
+			return rc;
+	}
 
-	if (!rc && (iattr->ia_valid & ATTR_MODE))
+	setattr_copy(inode, iattr);
+	mark_inode_dirty(inode);
+
+	if (iattr->ia_valid & ATTR_MODE)
 		rc = jfs_acl_chmod(inode);
-
 	return rc;
 }
 

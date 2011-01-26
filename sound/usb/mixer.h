@@ -3,7 +3,6 @@
 
 struct usb_mixer_interface {
 	struct snd_usb_audio *chip;
-	unsigned int ctrlif;
 	struct list_head list;
 	unsigned int ignore_ctl_error;
 	struct urb *urb;
@@ -34,6 +33,8 @@ struct usb_mixer_elem_info {
 	unsigned int id;
 	unsigned int control;	/* CS or ICN (high byte) */
 	unsigned int cmask; /* channel mask bitmap: 0 = master */
+	unsigned int ch_readonly;
+	unsigned int master_readonly;
 	int channels;
 	int val_type;
 	int min, max, res;

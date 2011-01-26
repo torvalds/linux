@@ -13,6 +13,7 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 #include <linux/workqueue.h>
+#include <linux/average.h>
 #include "key.h"
 
 /**
@@ -42,9 +43,6 @@
  *	be in the queues
  * @WLAN_STA_PSPOLL: Station sent PS-poll while driver was keeping
  *	station in power-save mode, reply when the driver unblocks.
- * @WLAN_STA_DISASSOC: Disassociation in progress.
- *	This is used to reject TX BA session requests when disassociation
- *	is in progress.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,
@@ -60,38 +58,49 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_BLOCK_BA	= 1<<11,
 	WLAN_STA_PS_DRIVER	= 1<<12,
 	WLAN_STA_PSPOLL		= 1<<13,
-	WLAN_STA_DISASSOC       = 1<<14,
 };
 
 #define STA_TID_NUM 16
 #define ADDBA_RESP_INTERVAL HZ
-#define HT_AGG_MAX_RETRIES		(0x3)
+#define HT_AGG_MAX_RETRIES		0x3
 
-#define HT_AGG_STATE_INITIATOR_SHIFT	(4)
-
-#define HT_ADDBA_REQUESTED_MSK		BIT(0)
-#define HT_ADDBA_DRV_READY_MSK		BIT(1)
-#define HT_ADDBA_RECEIVED_MSK		BIT(2)
-#define HT_AGG_STATE_REQ_STOP_BA_MSK	BIT(3)
-#define HT_AGG_STATE_INITIATOR_MSK      BIT(HT_AGG_STATE_INITIATOR_SHIFT)
-#define HT_AGG_STATE_IDLE		(0x0)
-#define HT_AGG_STATE_OPERATIONAL	(HT_ADDBA_REQUESTED_MSK |	\
-					 HT_ADDBA_DRV_READY_MSK |	\
-					 HT_ADDBA_RECEIVED_MSK)
+#define HT_AGG_STATE_DRV_READY		0
+#define HT_AGG_STATE_RESPONSE_RECEIVED	1
+#define HT_AGG_STATE_OPERATIONAL	2
+#define HT_AGG_STATE_STOPPING		3
+#define HT_AGG_STATE_WANT_START		4
+#define HT_AGG_STATE_WANT_STOP		5
 
 /**
  * struct tid_ampdu_tx - TID aggregation information (Tx).
  *
+ * @rcu_head: rcu head for freeing structure
  * @addba_resp_timer: timer for peer's response to addba request
  * @pending: pending frames queue -- use sta's spinlock to protect
- * @ssn: Starting Sequence Number expected to be aggregated.
  * @dialog_token: dialog token for aggregation session
+ * @timeout: session timeout value to be filled in ADDBA requests
+ * @state: session state (see above)
+ * @stop_initiator: initiator of a session stop
+ * @tx_stop: TX DelBA frame when stopping
+ *
+ * This structure's lifetime is managed by RCU, assignments to
+ * the array holding it must hold the aggregation mutex.
+ *
+ * The TX path can access it under RCU lock-free if, and
+ * only if, the state has the flag %HT_AGG_STATE_OPERATIONAL
+ * set. Otherwise, the TX path must also acquire the spinlock
+ * and re-check the state, see comments in the tx code
+ * touching it.
  */
 struct tid_ampdu_tx {
+	struct rcu_head rcu_head;
 	struct timer_list addba_resp_timer;
 	struct sk_buff_head pending;
-	u16 ssn;
+	unsigned long state;
+	u16 timeout;
 	u8 dialog_token;
+	u8 stop_initiator;
+	bool tx_stop;
 };
 
 /**
@@ -100,17 +109,31 @@ struct tid_ampdu_tx {
  * @reorder_buf: buffer to reorder incoming aggregated MPDUs
  * @reorder_time: jiffies when skb was added
  * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
+ * @reorder_timer: releases expired frames from the reorder buffer.
  * @head_seq_num: head sequence number in reordering buffer.
  * @stored_mpdu_num: number of MPDUs in reordering buffer
  * @ssn: Starting Sequence Number expected to be aggregated.
  * @buf_size: buffer size for incoming A-MPDUs
  * @timeout: reset timer value (in TUs).
  * @dialog_token: dialog token for aggregation session
+ * @rcu_head: RCU head used for freeing this struct
+ * @reorder_lock: serializes access to reorder buffer, see below.
+ *
+ * This structure's lifetime is managed by RCU, assignments to
+ * the array holding it must hold the aggregation mutex.
+ *
+ * The @reorder_lock is used to protect the members of this
+ * struct, except for @timeout, @buf_size and @dialog_token,
+ * which are constant across the lifetime of the struct (the
+ * dialog token being used only for debugging).
  */
 struct tid_ampdu_rx {
+	struct rcu_head rcu_head;
+	spinlock_t reorder_lock;
 	struct sk_buff **reorder_buf;
 	unsigned long *reorder_time;
 	struct timer_list session_timer;
+	struct timer_list reorder_timer;
 	u16 head_seq_num;
 	u16 stored_mpdu_num;
 	u16 ssn;
@@ -118,6 +141,32 @@ struct tid_ampdu_rx {
 	u16 timeout;
 	u8 dialog_token;
 };
+
+/**
+ * struct sta_ampdu_mlme - STA aggregation information.
+ *
+ * @tid_rx: aggregation info for Rx per TID -- RCU protected
+ * @tid_tx: aggregation info for Tx per TID
+ * @addba_req_num: number of times addBA request has been sent.
+ * @dialog_token_allocator: dialog token enumerator for each new session;
+ * @work: work struct for starting/stopping aggregation
+ * @tid_rx_timer_expired: bitmap indicating on which TIDs the
+ *	RX timer expired until the work for it runs
+ * @mtx: mutex to protect all TX data (except non-NULL assignments
+ *	to tid_tx[idx], which are protected by the sta spinlock)
+ */
+struct sta_ampdu_mlme {
+	struct mutex mtx;
+	/* rx */
+	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
+	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(STA_TID_NUM)];
+	/* tx */
+	struct work_struct work;
+	struct tid_ampdu_tx *tid_tx[STA_TID_NUM];
+	u8 addba_req_num[STA_TID_NUM];
+	u8 dialog_token_allocator;
+};
+
 
 /**
  * enum plink_state - state of a mesh peer link finite state machine
@@ -143,28 +192,6 @@ enum plink_state {
 };
 
 /**
- * struct sta_ampdu_mlme - STA aggregation information.
- *
- * @tid_state_rx: TID's state in Rx session state machine.
- * @tid_rx: aggregation info for Rx per TID
- * @tid_state_tx: TID's state in Tx session state machine.
- * @tid_tx: aggregation info for Tx per TID
- * @addba_req_num: number of times addBA request has been sent.
- * @dialog_token_allocator: dialog token enumerator for each new session;
- */
-struct sta_ampdu_mlme {
-	/* rx */
-	bool tid_active_rx[STA_TID_NUM];
-	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
-	/* tx */
-	u8 tid_state_tx[STA_TID_NUM];
-	struct tid_ampdu_tx *tid_tx[STA_TID_NUM];
-	u8 addba_req_num[STA_TID_NUM];
-	u8 dialog_token_allocator;
-};
-
-
-/**
  * struct sta_info - STA information
  *
  * This structure collects information about a station that
@@ -174,7 +201,8 @@ struct sta_ampdu_mlme {
  * @hnext: hash table linked list pointer
  * @local: pointer to the global information
  * @sdata: virtual interface this station belongs to
- * @key: peer key negotiated with this station, if any
+ * @ptk: peer key negotiated with this station, if any
+ * @gtk: group keys negotiated with this station, if any
  * @rate_ctrl: rate control algorithm reference
  * @rate_ctrl_priv: rate control private per-STA pointer
  * @last_tx_rate: rate used for last transmit, to report to userspace as
@@ -198,6 +226,7 @@ struct sta_ampdu_mlme {
  * @rx_fragments: number of received MPDUs
  * @rx_dropped: number of dropped MPDUs from this STA
  * @last_signal: signal of last received frame from this STA
+ * @avg_signal: moving average of signal of received frames from this STA
  * @last_seq_ctrl: last received seq/frag number from this STA (per RX queue)
  * @tx_filtered_count: number of frames the hardware filtered for this STA
  * @tx_retry_failed: number of frames that failed retry
@@ -222,6 +251,7 @@ struct sta_ampdu_mlme {
  * @sta: station information we share with the driver
  * @dead: set to true when sta is unlinked
  * @uploaded: set to true when sta is uploaded to the driver
+ * @lost_packets: number of consecutive lost packets
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -229,7 +259,8 @@ struct sta_info {
 	struct sta_info *hnext;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_key *key;
+	struct ieee80211_key *gtk[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
+	struct ieee80211_key *ptk;
 	struct rate_control_ref *rate_ctrl;
 	void *rate_ctrl_priv;
 	spinlock_t lock;
@@ -264,6 +295,7 @@ struct sta_info {
 	unsigned long rx_fragments;
 	unsigned long rx_dropped;
 	int last_signal;
+	struct ewma avg_signal;
 	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES];
 
 	/* Updated from TX status path only, no locking requirements */
@@ -307,6 +339,8 @@ struct sta_info {
 		bool add_has_run;
 	} debugfs;
 #endif
+
+	unsigned int lost_packets;
 
 	/* keep last! */
 	struct ieee80211_sta sta;
@@ -410,20 +444,20 @@ void for_each_sta_info_type_check(struct ieee80211_local *local,
 {
 }
 
-#define for_each_sta_info(local, _addr, sta, nxt) 			\
+#define for_each_sta_info(local, _addr, _sta, nxt) 			\
 	for (	/* initialise loop */					\
-		sta = rcu_dereference(local->sta_hash[STA_HASH(_addr)]),\
-		nxt = sta ? rcu_dereference(sta->hnext) : NULL;		\
+		_sta = rcu_dereference(local->sta_hash[STA_HASH(_addr)]),\
+		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL;	\
 		/* typecheck */						\
-		for_each_sta_info_type_check(local, (_addr), sta, nxt),	\
+		for_each_sta_info_type_check(local, (_addr), _sta, nxt),\
 		/* continue condition */				\
-		sta;							\
+		_sta;							\
 		/* advance loop */					\
-		sta = nxt,						\
-		nxt = sta ? rcu_dereference(sta->hnext) : NULL		\
+		_sta = nxt,						\
+		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL	\
 	     )								\
 	/* compare address and run code only if it matches */		\
-	if (memcmp(sta->sta.addr, (_addr), ETH_ALEN) == 0)
+	if (memcmp(_sta->sta.addr, (_addr), ETH_ALEN) == 0)
 
 /*
  * Get STA info by index, BROKEN!

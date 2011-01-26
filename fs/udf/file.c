@@ -32,12 +32,9 @@
 #include <linux/string.h> /* memset */
 #include <linux/capability.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
 #include <linux/pagemap.h>
-#include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/aio.h>
-#include <linux/smp_lock.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"
@@ -116,6 +113,7 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	size_t count = iocb->ki_left;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
+	down_write(&iinfo->i_data_sem);
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		if (file->f_flags & O_APPEND)
 			pos = inode->i_size;
@@ -128,6 +126,7 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 			udf_expand_file_adinicb(inode, pos + count, &err);
 			if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 				udf_debug("udf_expand_adinicb: err=%d\n", err);
+				up_write(&iinfo->i_data_sem);
 				return err;
 			}
 		} else {
@@ -137,6 +136,7 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 				iinfo->i_lenAlloc = inode->i_size;
 		}
 	}
+	up_write(&iinfo->i_data_sem);
 
 	retval = generic_file_aio_write(iocb, iov, nr_segs, ppos);
 	if (retval > 0)
@@ -150,8 +150,6 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct inode *inode = filp->f_dentry->d_inode;
 	long old_block, new_block;
 	int result = -EINVAL;
-
-	lock_kernel();
 
 	if (file_permission(filp, MAY_READ) != 0) {
 		udf_debug("no permission to access inode %lu\n", inode->i_ino);
@@ -198,7 +196,6 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 
 out:
-	unlock_kernel();
 	return result;
 }
 
@@ -206,10 +203,10 @@ static int udf_release_file(struct inode *inode, struct file *filp)
 {
 	if (filp->f_mode & FMODE_WRITE) {
 		mutex_lock(&inode->i_mutex);
-		lock_kernel();
+		down_write(&UDF_I(inode)->i_data_sem);
 		udf_discard_prealloc(inode);
 		udf_truncate_tail_extent(inode);
-		unlock_kernel();
+		up_write(&UDF_I(inode)->i_data_sem);
 		mutex_unlock(&inode->i_mutex);
 	}
 	return 0;
@@ -219,39 +216,38 @@ const struct file_operations udf_file_operations = {
 	.read			= do_sync_read,
 	.aio_read		= generic_file_aio_read,
 	.unlocked_ioctl		= udf_ioctl,
-	.open			= dquot_file_open,
+	.open			= generic_file_open,
 	.mmap			= generic_file_mmap,
 	.write			= do_sync_write,
 	.aio_write		= udf_file_aio_write,
 	.release		= udf_release_file,
-	.fsync			= simple_fsync,
+	.fsync			= generic_file_fsync,
 	.splice_read		= generic_file_splice_read,
 	.llseek			= generic_file_llseek,
 };
 
-int udf_setattr(struct dentry *dentry, struct iattr *iattr)
+static int udf_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
 	int error;
 
-	error = inode_change_ok(inode, iattr);
+	error = inode_change_ok(inode, attr);
 	if (error)
 		return error;
 
-	if (is_quota_modification(inode, iattr))
-		dquot_initialize(inode);
-
-	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
-            (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {
-		error = dquot_transfer(inode, iattr);
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, attr->ia_size);
 		if (error)
 			return error;
 	}
 
-	return inode_setattr(inode, iattr);
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 const struct inode_operations udf_file_inode_operations = {
-	.truncate		= udf_truncate,
 	.setattr		= udf_setattr,
+	.truncate		= udf_truncate,
 };

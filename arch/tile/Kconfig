@@ -1,0 +1,370 @@
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/config-language.txt.
+
+config TILE
+	def_bool y
+	select HAVE_KVM if !TILEGX
+	select GENERIC_FIND_FIRST_BIT
+	select GENERIC_FIND_NEXT_BIT
+	select USE_GENERIC_SMP_HELPERS
+	select CC_OPTIMIZE_FOR_SIZE
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_PROBE
+	select GENERIC_PENDING_IRQ if SMP
+
+# FIXME: investigate whether we need/want these options.
+#	select HAVE_IOREMAP_PROT
+#       select HAVE_OPTPROBES
+#       select HAVE_REGS_AND_STACK_ACCESS_API
+#       select HAVE_HW_BREAKPOINT
+#       select PERF_EVENTS
+#       select HAVE_USER_RETURN_NOTIFIER
+#       config NO_BOOTMEM
+#       config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+#       config HUGETLB_PAGE_SIZE_VARIABLE
+
+config MMU
+	def_bool y
+
+config GENERIC_CSUM
+	def_bool y
+
+config SEMAPHORE_SLEEPERS
+	def_bool y
+
+config HAVE_ARCH_ALLOC_REMAP
+	def_bool y
+
+config HAVE_SETUP_PER_CPU_AREA
+	def_bool y
+
+config NEED_PER_CPU_PAGE_FIRST_CHUNK
+        def_bool y
+
+config SYS_SUPPORTS_HUGETLBFS
+	def_bool y
+
+config GENERIC_TIME
+	def_bool y
+
+config GENERIC_CLOCKEVENTS
+	def_bool y
+
+# FIXME: tilegx can implement a more efficent rwsem.
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+# We have a very flat architecture from a migration point of view,
+# so save boot time by presetting this (particularly useful on tile-sim).
+config DEFAULT_MIGRATION_COST
+	int
+	default "10000000"
+
+# We only support gcc 4.4 and above, so this should work.
+config ARCH_SUPPORTS_OPTIMIZED_INLINING
+	def_bool y
+
+config ARCH_PHYS_ADDR_T_64BIT
+	def_bool y
+
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config STACKTRACE_SUPPORT
+	def_bool y
+	select STACKTRACE
+
+# We use discontigmem for now; at some point we may want to switch
+# to sparsemem (Tilera bug 7996).
+config ARCH_DISCONTIGMEM_ENABLE
+	def_bool y
+
+config ARCH_DISCONTIGMEM_DEFAULT
+	def_bool y
+
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
+
+config STRICT_DEVMEM
+	def_bool y
+
+# SMP is required for Tilera Linux.
+config SMP
+	def_bool y
+
+# Allow checking for compile-time determined overflow errors in
+# copy_from_user().  There are still unprovable places in the
+# generic code as of 2.6.34, so this option is not really compatible
+# with -Werror, which is more useful in general.
+config DEBUG_COPY_FROM_USER
+	def_bool n
+
+config HVC_TILE
+	select HVC_DRIVER
+	def_bool y
+
+# Please note: TILE-Gx support is not yet finalized; this is
+# the preliminary support.  TILE-Gx drivers are only provided
+# with the alpha or beta test versions for Tilera customers.
+config TILEGX
+	depends on EXPERIMENTAL
+	bool "Building with TILE-Gx (64-bit) compiler and toolchain"
+
+config 64BIT
+	depends on TILEGX
+	def_bool y
+
+config ARCH_DEFCONFIG
+	string
+	default "arch/tile/configs/tile_defconfig" if !TILEGX
+	default "arch/tile/configs/tilegx_defconfig" if TILEGX
+
+source "init/Kconfig"
+
+menu "Tilera-specific configuration"
+
+config NR_CPUS
+	int "Maximum number of tiles (2-255)"
+	range 2 255
+	depends on SMP
+	default "64"
+	---help---
+	  Building with 64 is the recommended value, but a slightly
+	  smaller kernel memory footprint results from using a smaller
+	  value on chips with fewer tiles.
+
+source "kernel/time/Kconfig"
+
+source "kernel/Kconfig.hz"
+
+config KEXEC
+	bool "kexec system call"
+	---help---
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is independent of the system firmware.   It is used
+	  to implement the "mboot" Tilera booter.
+
+	  The name comes from the similarity to the exec system call.
+
+config COMPAT
+	bool "Support 32-bit TILE-Gx binaries in addition to 64-bit"
+	depends on TILEGX
+	select COMPAT_BINFMT_ELF
+	default y
+	---help---
+	  If enabled, the kernel will support running TILE-Gx binaries
+	  that were built with the -m32 option.
+
+config SYSVIPC_COMPAT
+	def_bool y
+	depends on COMPAT && SYSVIPC
+
+# We do not currently support disabling HIGHMEM on tile64 and tilepro.
+config HIGHMEM
+	bool # "Support for more than 512 MB of RAM"
+	default !TILEGX
+	---help---
+	  Linux can use the full amount of RAM in the system by
+	  default.  However, the address space of TILE processors is
+	  only 4 Gigabytes large. That means that, if you have a large
+	  amount of physical memory, not all of it can be "permanently
+	  mapped" by the kernel. The physical memory that's not
+	  permanently mapped is called "high memory".
+
+	  If you are compiling a kernel which will never run on a
+	  machine with more than 512 MB total physical RAM, answer
+	  "false" here. This will result in the kernel mapping all of
+	  physical memory into the top 1 GB of virtual memory space.
+
+	  If unsure, say "true".
+
+# We do not currently support disabling NUMA.
+config NUMA
+	bool # "NUMA Memory Allocation and Scheduler Support"
+	depends on SMP && DISCONTIGMEM
+	default y
+	---help---
+	  NUMA memory allocation is required for TILE processors
+	  unless booting with memory striping enabled in the
+	  hypervisor, or with only a single memory controller.
+	  It is recommended that this option always be enabled.
+
+config NODES_SHIFT
+	int "Log base 2 of the max number of memory controllers"
+	default 2
+	depends on NEED_MULTIPLE_NODES
+	---help---
+	  By default, 2, i.e. 2^2 == 4 DDR2 controllers.
+	  In a system with more controllers, this value should be raised.
+
+# Need 16MB areas to enable hugetlb
+# See build-time check in arch/tile/mm/init.c.
+config FORCE_MAX_ZONEORDER
+	int
+	default 9
+
+choice
+	depends on !TILEGX
+	prompt "Memory split" if EXPERT
+	default VMSPLIT_3G
+	---help---
+	  Select the desired split between kernel and user memory.
+
+	  If the address range available to the kernel is less than the
+	  physical memory installed, the remaining memory will be available
+	  as "high memory". Accessing high memory is a little more costly
+	  than low memory, as it needs to be mapped into the kernel first.
+	  Note that increasing the kernel address space limits the range
+	  available to user programs, making the address space there
+	  tighter.  Selecting anything other than the default 3G/1G split
+	  will also likely make your kernel incompatible with binary-only
+	  kernel modules.
+
+	  If you are not absolutely sure what you are doing, leave this
+	  option alone!
+
+	config VMSPLIT_3_75G
+		bool "3.75G/0.25G user/kernel split (no kernel networking)"
+	config VMSPLIT_3_5G
+		bool "3.5G/0.5G user/kernel split"
+	config VMSPLIT_3G
+		bool "3G/1G user/kernel split"
+	config VMSPLIT_3G_OPT
+		bool "3G/1G user/kernel split (for full 1G low memory)"
+	config VMSPLIT_2G
+		bool "2G/2G user/kernel split"
+	config VMSPLIT_1G
+		bool "1G/3G user/kernel split"
+endchoice
+
+config PAGE_OFFSET
+	hex
+	default 0xF0000000 if VMSPLIT_3_75G
+	default 0xE0000000 if VMSPLIT_3_5G
+	default 0xB0000000 if VMSPLIT_3G_OPT
+	default 0x80000000 if VMSPLIT_2G
+	default 0x40000000 if VMSPLIT_1G
+	default 0xC0000000
+
+source "mm/Kconfig"
+
+config CMDLINE_BOOL
+	bool "Built-in kernel command line"
+	default n
+	---help---
+	  Allow for specifying boot arguments to the kernel at
+	  build time.  On some systems (e.g. embedded ones), it is
+	  necessary or convenient to provide some or all of the
+	  kernel boot arguments with the kernel itself (that is,
+	  to not rely on the boot loader to provide them.)
+
+	  To compile command line arguments into the kernel,
+	  set this option to 'Y', then fill in the
+	  the boot arguments in CONFIG_CMDLINE.
+
+	  Systems with fully functional boot loaders (e.g. mboot, or
+	  if booting over PCI) should leave this option set to 'N'.
+
+config CMDLINE
+	string "Built-in kernel command string"
+	depends on CMDLINE_BOOL
+	default ""
+	---help---
+	  Enter arguments here that should be compiled into the kernel
+	  image and used at boot time.  If the boot loader provides a
+	  command line at boot time, it is appended to this string to
+	  form the full kernel command line, when the system boots.
+
+	  However, you can use the CONFIG_CMDLINE_OVERRIDE option to
+	  change this behavior.
+
+	  In most cases, the command line (whether built-in or provided
+	  by the boot loader) should specify the device for the root
+	  file system.
+
+config CMDLINE_OVERRIDE
+	bool "Built-in command line overrides boot loader arguments"
+	default n
+	depends on CMDLINE_BOOL
+	---help---
+	  Set this option to 'Y' to have the kernel ignore the boot loader
+	  command line, and use ONLY the built-in command line.
+
+	  This is used to work around broken boot loaders.  This should
+	  be set to 'N' under normal conditions.
+
+config VMALLOC_RESERVE
+	hex
+	default 0x1000000
+
+config HARDWALL
+	bool "Hardwall support to allow access to user dynamic network"
+	default y
+
+config KERNEL_PL
+	int "Processor protection level for kernel"
+	range 1 2
+	default "1"
+	---help---
+	  This setting determines the processor protection level the
+	  kernel will be built to run at.  Generally you should use
+	  the default value here.
+
+endmenu  # Tilera-specific configuration
+
+menu "Bus options"
+
+config PCI
+	bool "PCI support"
+	default y
+	select PCI_DOMAINS
+	---help---
+	  Enable PCI root complex support, so PCIe endpoint devices can
+	  be attached to the Tile chip.  Many, but not all, PCI devices
+	  are supported under Tilera's root complex driver.
+
+config PCI_DOMAINS
+	bool
+
+config NO_IOMEM
+	def_bool !PCI
+
+config NO_IOPORT
+	def_bool !PCI
+
+source "drivers/pci/Kconfig"
+
+source "drivers/pci/hotplug/Kconfig"
+
+endmenu
+
+menu "Executable file formats"
+
+# only elf supported
+config KCORE_ELF
+	def_bool y
+	depends on PROC_FS
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+source "net/Kconfig"
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/tile/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"
+
+source "arch/tile/kvm/Kconfig"

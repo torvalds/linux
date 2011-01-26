@@ -68,8 +68,9 @@ union cpuid10_eax {
 
 union cpuid10_edx {
 	struct {
-		unsigned int num_counters_fixed:4;
-		unsigned int reserved:28;
+		unsigned int num_counters_fixed:5;
+		unsigned int bit_width_fixed:8;
+		unsigned int reserved:19;
 	} split;
 	unsigned int full;
 };
@@ -110,20 +111,20 @@ union cpuid10_edx {
 #define X86_PMC_IDX_FIXED_BTS				(X86_PMC_IDX_FIXED + 16)
 
 /* IbsFetchCtl bits/masks */
-#define IBS_FETCH_RAND_EN		(1ULL<<57)
-#define IBS_FETCH_VAL			(1ULL<<49)
-#define IBS_FETCH_ENABLE		(1ULL<<48)
-#define IBS_FETCH_CNT			0xFFFF0000ULL
-#define IBS_FETCH_MAX_CNT		0x0000FFFFULL
+#define IBS_FETCH_RAND_EN	(1ULL<<57)
+#define IBS_FETCH_VAL		(1ULL<<49)
+#define IBS_FETCH_ENABLE	(1ULL<<48)
+#define IBS_FETCH_CNT		0xFFFF0000ULL
+#define IBS_FETCH_MAX_CNT	0x0000FFFFULL
 
 /* IbsOpCtl bits */
-#define IBS_OP_CNT_CTL			(1ULL<<19)
-#define IBS_OP_VAL			(1ULL<<18)
-#define IBS_OP_ENABLE			(1ULL<<17)
-#define IBS_OP_MAX_CNT			0x0000FFFFULL
+#define IBS_OP_CNT_CTL		(1ULL<<19)
+#define IBS_OP_VAL		(1ULL<<18)
+#define IBS_OP_ENABLE		(1ULL<<17)
+#define IBS_OP_MAX_CNT		0x0000FFFFULL
+#define IBS_OP_MAX_CNT_EXT	0x007FFFFFULL	/* not a register bit mask */
 
 #ifdef CONFIG_PERF_EVENTS
-extern void init_hw_perf_events(void);
 extern void perf_events_lapic_init(void);
 
 #define PERF_EVENT_INDEX_OFFSET			0
@@ -140,8 +141,20 @@ extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
 extern unsigned long perf_misc_flags(struct pt_regs *regs);
 #define perf_misc_flags(regs)	perf_misc_flags(regs)
 
+#include <asm/stacktrace.h>
+
+/*
+ * We abuse bit 3 from flags to pass exact information, see perf_misc_flags
+ * and the comment with PERF_EFLAGS_EXACT.
+ */
+#define perf_arch_fetch_caller_regs(regs, __ip)		{	\
+	(regs)->ip = (__ip);					\
+	(regs)->bp = caller_frame_pointer();			\
+	(regs)->cs = __KERNEL_CS;				\
+	regs->flags = 0;					\
+}
+
 #else
-static inline void init_hw_perf_events(void)		{ }
 static inline void perf_events_lapic_init(void)	{ }
 #endif
 

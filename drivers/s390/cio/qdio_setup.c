@@ -161,6 +161,7 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 		setup_queues_misc(q, irq_ptr, qdio_init->input_handler, i);
 
 		q->is_input_q = 1;
+		q->u.in.queue_start_poll = qdio_init->queue_start_poll;
 		setup_storage_lists(q, irq_ptr, input_sbal_array, i);
 		input_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
 
@@ -177,6 +178,7 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 		setup_queues_misc(q, irq_ptr, qdio_init->output_handler, i);
 
 		q->is_input_q = 0;
+		q->u.out.scan_threshold = qdio_init->scan_threshold;
 		setup_storage_lists(q, irq_ptr, output_sbal_array, i);
 		output_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
 
@@ -195,14 +197,10 @@ static void process_ac_flags(struct qdio_irq *irq_ptr, unsigned char qdioac)
 		irq_ptr->siga_flag.output = 1;
 	if (qdioac & AC1_SIGA_SYNC_NEEDED)
 		irq_ptr->siga_flag.sync = 1;
-	if (qdioac & AC1_AUTOMATIC_SYNC_ON_THININT)
-		irq_ptr->siga_flag.no_sync_ti = 1;
-	if (qdioac & AC1_AUTOMATIC_SYNC_ON_OUT_PCI)
-		irq_ptr->siga_flag.no_sync_out_pci = 1;
-
-	if (irq_ptr->siga_flag.no_sync_out_pci &&
-	    irq_ptr->siga_flag.no_sync_ti)
-		irq_ptr->siga_flag.no_sync_out_ti = 1;
+	if (!(qdioac & AC1_AUTOMATIC_SYNC_ON_THININT))
+		irq_ptr->siga_flag.sync_after_ai = 1;
+	if (!(qdioac & AC1_AUTOMATIC_SYNC_ON_OUT_PCI))
+		irq_ptr->siga_flag.sync_out_after_pci = 1;
 }
 
 static void check_and_setup_qebsm(struct qdio_irq *irq_ptr,
@@ -368,6 +366,8 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 	if (qebsm_possible())
 		irq_ptr->qib.rflags |= QIB_RFLAGS_ENABLE_QEBSM;
 
+	irq_ptr->qib.rflags |= init_data->qib_rflags;
+
 	irq_ptr->qib.qfmt = init_data->q_format;
 	if (init_data->no_input_qs)
 		irq_ptr->qib.isliba =
@@ -448,7 +448,7 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 	char s[80];
 
 	snprintf(s, 80, "qdio: %s %s on SC %x using "
-		 "AI:%d QEBSM:%d PCI:%d TDD:%d SIGA:%s%s%s%s%s%s\n",
+		 "AI:%d QEBSM:%d PCI:%d TDD:%d SIGA:%s%s%s%s%s\n",
 		 dev_name(&cdev->dev),
 		 (irq_ptr->qib.qfmt == QDIO_QETH_QFMT) ? "OSA" :
 			((irq_ptr->qib.qfmt == QDIO_ZFCP_QFMT) ? "ZFCP" : "HS"),
@@ -460,9 +460,8 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 		 (irq_ptr->siga_flag.input) ? "R" : " ",
 		 (irq_ptr->siga_flag.output) ? "W" : " ",
 		 (irq_ptr->siga_flag.sync) ? "S" : " ",
-		 (!irq_ptr->siga_flag.no_sync_ti) ? "A" : " ",
-		 (!irq_ptr->siga_flag.no_sync_out_ti) ? "O" : " ",
-		 (!irq_ptr->siga_flag.no_sync_out_pci) ? "P" : " ");
+		 (irq_ptr->siga_flag.sync_after_ai) ? "A" : " ",
+		 (irq_ptr->siga_flag.sync_out_after_pci) ? "P" : " ");
 	printk(KERN_INFO "%s", s);
 }
 

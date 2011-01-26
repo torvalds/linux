@@ -26,14 +26,6 @@ static struct vfsmount *anon_inode_mnt __read_mostly;
 static struct inode *anon_inode_inode;
 static const struct file_operations anon_inode_fops;
 
-static int anon_inodefs_get_sb(struct file_system_type *fs_type, int flags,
-			       const char *dev_name, void *data,
-			       struct vfsmount *mnt)
-{
-	return get_sb_pseudo(fs_type, "anon_inode:", NULL, ANON_INODE_FS_MAGIC,
-			     mnt);
-}
-
 /*
  * anon_inodefs_dname() is called from d_path().
  */
@@ -43,13 +35,21 @@ static char *anon_inodefs_dname(struct dentry *dentry, char *buffer, int buflen)
 				dentry->d_name.name);
 }
 
-static struct file_system_type anon_inode_fs_type = {
-	.name		= "anon_inodefs",
-	.get_sb		= anon_inodefs_get_sb,
-	.kill_sb	= kill_anon_super,
-};
 static const struct dentry_operations anon_inodefs_dentry_operations = {
 	.d_dname	= anon_inodefs_dname,
+};
+
+static struct dentry *anon_inodefs_mount(struct file_system_type *fs_type,
+				int flags, const char *dev_name, void *data)
+{
+	return mount_pseudo(fs_type, "anon_inode:", NULL,
+			&anon_inodefs_dentry_operations, ANON_INODE_FS_MAGIC);
+}
+
+static struct file_system_type anon_inode_fs_type = {
+	.name		= "anon_inodefs",
+	.mount		= anon_inodefs_mount,
+	.kill_sb	= kill_anon_super,
 };
 
 /*
@@ -66,9 +66,9 @@ static const struct address_space_operations anon_aops = {
 };
 
 /**
- * anon_inode_getfd - creates a new file instance by hooking it up to an
- *                    anonymous inode, and a dentry that describe the "class"
- *                    of the file
+ * anon_inode_getfile - creates a new file instance by hooking it up to an
+ *                      anonymous inode, and a dentry that describe the "class"
+ *                      of the file
  *
  * @name:    [in]    name of the "class" of the new file
  * @fops:    [in]    file operations for the new file
@@ -104,19 +104,17 @@ struct file *anon_inode_getfile(const char *name,
 	this.name = name;
 	this.len = strlen(name);
 	this.hash = 0;
-	path.dentry = d_alloc(anon_inode_mnt->mnt_sb->s_root, &this);
+	path.dentry = d_alloc_pseudo(anon_inode_mnt->mnt_sb, &this);
 	if (!path.dentry)
 		goto err_module;
 
 	path.mnt = mntget(anon_inode_mnt);
 	/*
 	 * We know the anon_inode inode count is always greater than zero,
-	 * so we can avoid doing an igrab() and we can use an open-coded
-	 * atomic_inc().
+	 * so ihold() is safe.
 	 */
-	atomic_inc(&anon_inode_inode->i_count);
+	ihold(anon_inode_inode);
 
-	path.dentry->d_op = &anon_inodefs_dentry_operations;
 	d_instantiate(path.dentry, anon_inode_inode);
 
 	error = -ENFILE;
@@ -194,6 +192,7 @@ static struct inode *anon_inode_mkinode(void)
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
+	inode->i_ino = get_next_ino();
 	inode->i_fop = &anon_inode_fops;
 
 	inode->i_mapping->a_ops = &anon_aops;
@@ -205,7 +204,7 @@ static struct inode *anon_inode_mkinode(void)
 	 * that it already _is_ on the dirty list.
 	 */
 	inode->i_state = I_DIRTY;
-	inode->i_mode = S_IFREG | S_IRUSR | S_IWUSR;
+	inode->i_mode = S_IRUSR | S_IWUSR;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
 	inode->i_flags |= S_PRIVATE;

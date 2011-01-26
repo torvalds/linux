@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -200,6 +200,14 @@ acpi_status acpi_ex_system_do_sleep(u64 how_long)
 	/* Since this thread will sleep, we must release the interpreter */
 
 	acpi_ex_relinquish_interpreter();
+
+	/*
+	 * For compatibility with other ACPI implementations and to prevent
+	 * accidental deep sleeps, limit the sleep time to something reasonable.
+	 */
+	if (how_long > ACPI_MAX_SLEEP) {
+		how_long = ACPI_MAX_SLEEP;
+	}
 
 	acpi_os_sleep(how_long);
 

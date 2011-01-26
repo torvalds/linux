@@ -98,13 +98,13 @@ void fhci_usb_enable_interrupt(struct fhci_usb *usb)
 	usb->intr_nesting_cnt--;
 }
 
-/* diable the usb interrupt */
+/* disable the usb interrupt */
 void fhci_usb_disable_interrupt(struct fhci_usb *usb)
 {
 	struct fhci_hcd *fhci = usb->fhci;
 
 	if (usb->intr_nesting_cnt == 0) {
-		/* diable the timer interrupt */
+		/* disable the timer interrupt */
 		disable_irq_nosync(fhci->timer->irq);
 
 		/* disable the usb interrupt */
@@ -561,7 +561,7 @@ static const struct hc_driver fhci_driver = {
 	.hub_control = fhci_hub_control,
 };
 
-static int __devinit of_fhci_probe(struct of_device *ofdev,
+static int __devinit of_fhci_probe(struct platform_device *ofdev,
 				   const struct of_device_id *ofid)
 {
 	struct device *dev = &ofdev->dev;
@@ -801,7 +801,7 @@ static int __devexit fhci_remove(struct device *dev)
 	return 0;
 }
 
-static int __devexit of_fhci_remove(struct of_device *ofdev)
+static int __devexit of_fhci_remove(struct platform_device *ofdev)
 {
 	return fhci_remove(&ofdev->dev);
 }

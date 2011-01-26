@@ -617,17 +617,19 @@ pfm_get_unmapped_area(struct file *file, unsigned long addr, unsigned long len, 
 	return get_unmapped_area(file, addr, len, pgoff, flags);
 }
 
+/* forward declaration */
+static const struct dentry_operations pfmfs_dentry_operations;
 
-static int
-pfmfs_get_sb(struct file_system_type *fs_type, int flags, const char *dev_name, void *data,
-	     struct vfsmount *mnt)
+static struct dentry *
+pfmfs_mount(struct file_system_type *fs_type, int flags, const char *dev_name, void *data)
 {
-	return get_sb_pseudo(fs_type, "pfm:", NULL, PFMFS_MAGIC, mnt);
+	return mount_pseudo(fs_type, "pfm:", NULL, &pfmfs_dentry_operations,
+			PFMFS_MAGIC);
 }
 
 static struct file_system_type pfm_fs_type = {
 	.name     = "pfmfs",
-	.get_sb   = pfmfs_get_sb,
+	.mount    = pfmfs_mount,
 	.kill_sb  = kill_anon_super,
 };
 
@@ -830,10 +832,9 @@ pfm_rvmalloc(unsigned long size)
 	unsigned long addr;
 
 	size = PAGE_ALIGN(size);
-	mem  = vmalloc(size);
+	mem  = vzalloc(size);
 	if (mem) {
 		//printk("perfmon: CPU%d pfm_rvmalloc(%ld)=%p\n", smp_processor_id(), size, mem);
-		memset(mem, 0, size);
 		addr = (unsigned long)mem;
 		while (size > 0) {
 			pfm_reserve_page(addr);
@@ -1543,7 +1544,7 @@ pfm_exit_smpl_buffer(pfm_buffer_fmt_t *fmt)
  * any operations on the root directory. However, we need a non-trivial
  * d_name - pfm: will go nicely and kill the special-casing in procfs.
  */
-static struct vfsmount *pfmfs_mnt;
+static struct vfsmount *pfmfs_mnt __read_mostly;
 
 static int __init
 init_pfm_fs(void)
@@ -1573,7 +1574,7 @@ pfm_read(struct file *filp, char __user *buf, size_t size, loff_t *ppos)
 		return -EINVAL;
 	}
 
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_read: NULL ctx [%d]\n", task_pid_nr(current));
 		return -EINVAL;
@@ -1673,7 +1674,7 @@ pfm_poll(struct file *filp, poll_table * wait)
 		return 0;
 	}
 
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_poll: NULL ctx [%d]\n", task_pid_nr(current));
 		return 0;
@@ -1696,8 +1697,8 @@ pfm_poll(struct file *filp, poll_table * wait)
 	return mask;
 }
 
-static int
-pfm_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long
+pfm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	DPRINT(("pfm_ioctl called\n"));
 	return -EINVAL;
@@ -1733,7 +1734,7 @@ pfm_fasync(int fd, struct file *filp, int on)
 		return -EBADF;
 	}
 
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_fasync NULL ctx [%d]\n", task_pid_nr(current));
 		return -EBADF;
@@ -1841,7 +1842,7 @@ pfm_flush(struct file *filp, fl_owner_t id)
 		return -EBADF;
 	}
 
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_flush: NULL ctx [%d]\n", task_pid_nr(current));
 		return -EBADF;
@@ -1984,7 +1985,7 @@ pfm_close(struct inode *inode, struct file *filp)
 		return -EBADF;
 	}
 	
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_close: NULL ctx [%d]\n", task_pid_nr(current));
 		return -EBADF;
@@ -2174,25 +2175,32 @@ pfm_no_open(struct inode *irrelevant, struct file *dontcare)
 
 
 static const struct file_operations pfm_file_ops = {
-	.llseek   = no_llseek,
-	.read     = pfm_read,
-	.write    = pfm_write,
-	.poll     = pfm_poll,
-	.ioctl    = pfm_ioctl,
-	.open     = pfm_no_open,	/* special open code to disallow open via /proc */
-	.fasync   = pfm_fasync,
-	.release  = pfm_close,
-	.flush	  = pfm_flush
+	.llseek		= no_llseek,
+	.read		= pfm_read,
+	.write		= pfm_write,
+	.poll		= pfm_poll,
+	.unlocked_ioctl = pfm_ioctl,
+	.open		= pfm_no_open,	/* special open code to disallow open via /proc */
+	.fasync		= pfm_fasync,
+	.release	= pfm_close,
+	.flush		= pfm_flush
 };
 
 static int
-pfmfs_delete_dentry(struct dentry *dentry)
+pfmfs_delete_dentry(const struct dentry *dentry)
 {
 	return 1;
 }
 
+static char *pfmfs_dname(struct dentry *dentry, char *buffer, int buflen)
+{
+	return dynamic_dname(dentry, buffer, buflen, "pfm:[%lu]",
+			     dentry->d_inode->i_ino);
+}
+
 static const struct dentry_operations pfmfs_dentry_operations = {
 	.d_delete = pfmfs_delete_dentry,
+	.d_dname = pfmfs_dname,
 };
 
 
@@ -2202,8 +2210,7 @@ pfm_alloc_file(pfm_context_t *ctx)
 	struct file *file;
 	struct inode *inode;
 	struct path path;
-	char name[32];
-	struct qstr this;
+	struct qstr this = { .name = "" };
 
 	/*
 	 * allocate a new inode
@@ -2218,11 +2225,6 @@ pfm_alloc_file(pfm_context_t *ctx)
 	inode->i_uid  = current_fsuid();
 	inode->i_gid  = current_fsgid();
 
-	sprintf(name, "[%lu]", inode->i_ino);
-	this.name = name;
-	this.len  = strlen(name);
-	this.hash = inode->i_ino;
-
 	/*
 	 * allocate a new dcache entry
 	 */
@@ -2233,7 +2235,6 @@ pfm_alloc_file(pfm_context_t *ctx)
 	}
 	path.mnt = mntget(pfmfs_mnt);
 
-	path.dentry->d_op = &pfmfs_dentry_operations;
 	d_add(path.dentry, inode);
 
 	file = alloc_file(&path, FMODE_READ, &pfm_file_ops);
@@ -4906,7 +4907,7 @@ restart_args:
 		goto error_args;
 	}
 
-	ctx = (pfm_context_t *)file->private_data;
+	ctx = file->private_data;
 	if (unlikely(ctx == NULL)) {
 		DPRINT(("no context for fd %d\n", fd));
 		goto error_args;

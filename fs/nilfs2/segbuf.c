@@ -371,7 +371,8 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
 	struct bio *bio = wi->bio;
 	int err;
 
-	if (segbuf->sb_nbio > 0 && bdi_write_congested(wi->nilfs->ns_bdi)) {
+	if (segbuf->sb_nbio > 0 &&
+	    bdi_write_congested(segbuf->sb_super->s_bdi)) {
 		wait_for_completion(&segbuf->sb_bio_event);
 		segbuf->sb_nbio--;
 		if (unlikely(atomic_read(&segbuf->sb_err))) {
@@ -508,7 +509,7 @@ static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
 		 * Last BIO is always sent through the following
 		 * submission.
 		 */
-		rw |= (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
+		rw |= REQ_SYNC | REQ_UNPLUG;
 		res = nilfs_segbuf_submit_bio(segbuf, &wi, rw);
 	}
 

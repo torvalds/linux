@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/sysdev.h>
@@ -32,9 +33,14 @@
 #include <mach/regs-s3c2443-clock.h>
 #include <mach/reset.h>
 
+#include <plat/gpio-core.h>
+#include <plat/gpio-cfg.h>
+#include <plat/gpio-cfg-helpers.h>
 #include <plat/s3c2443.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/fb-core.h>
+#include <plat/nand-core.h>
 
 static struct map_desc s3c2443_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),
@@ -61,7 +67,8 @@ int __init s3c2443_init(void)
 
 	s3c24xx_reset_hook = s3c2443_hard_reset;
 
-	s3c_device_nand.name = "s3c2412-nand";
+	s3c_nand_setname("s3c2412-nand");
+	s3c_fb_setname("s3c2443-fb");
 
 	/* change WDT IRQ number */
 	s3c_device_wdt.resource[1].start = IRQ_S3C2443_WDT;
@@ -83,6 +90,9 @@ void __init s3c2443_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 
 void __init s3c2443_map_io(void)
 {
+	s3c24xx_gpiocfg_default.set_pull = s3c_gpio_setpull_s3c2443;
+	s3c24xx_gpiocfg_default.get_pull = s3c_gpio_getpull_s3c2443;
+
 	iotable_init(s3c2443_iodesc, ARRAY_SIZE(s3c2443_iodesc));
 }
 

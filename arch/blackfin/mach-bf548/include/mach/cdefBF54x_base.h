@@ -1,15 +1,11 @@
 /*
- * Copyright 2007-2008 Analog Devices Inc.
+ * Copyright 2007-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
 
 #ifndef _CDEF_BF54X_H
 #define _CDEF_BF54X_H
-
-#include <asm/blackfin.h>
-
-#include "defBF54x_base.h"
 
 /* ************************************************************** */
 /* SYSTEM & MMR ADDRESS DEFINITIONS COMMON TO ALL ADSP-BF54x    */
@@ -40,6 +36,8 @@
 
 /* SIC Registers */
 
+#define bfin_read_SIC_RVECT()		bfin_read32(SIC_RVECT)
+#define bfin_write_SIC_RVECT(val)	bfin_write32(SIC_RVECT, val)
 #define bfin_read_SIC_IMASK0()		bfin_read32(SIC_IMASK0)
 #define bfin_write_SIC_IMASK0(val)	bfin_write32(SIC_IMASK0, val)
 #define bfin_read_SIC_IMASK1()		bfin_read32(SIC_IMASK1)
@@ -301,10 +299,10 @@
 
 /* DMAC0 Registers */
 
-#define bfin_read_DMAC0_TCPER()		bfin_read16(DMAC0_TCPER)
-#define bfin_write_DMAC0_TCPER(val)	bfin_write16(DMAC0_TCPER, val)
-#define bfin_read_DMAC0_TCCNT()		bfin_read16(DMAC0_TCCNT)
-#define bfin_write_DMAC0_TCCNT(val)	bfin_write16(DMAC0_TCCNT, val)
+#define bfin_read_DMAC0_TC_PER()		bfin_read16(DMAC0_TC_PER)
+#define bfin_write_DMAC0_TC_PER(val)	bfin_write16(DMAC0_TC_PER, val)
+#define bfin_read_DMAC0_TC_CNT()		bfin_read16(DMAC0_TC_CNT)
+#define bfin_write_DMAC0_TC_CNT(val)	bfin_write16(DMAC0_TC_CNT, val)
 
 /* DMA Channel 0 Registers */
 
@@ -1155,10 +1153,10 @@
 
 /* DMAC1 Registers */
 
-#define bfin_read_DMAC1_TCPER()			bfin_read16(DMAC1_TCPER)
-#define bfin_write_DMAC1_TCPER(val)		bfin_write16(DMAC1_TCPER, val)
-#define bfin_read_DMAC1_TCCNT()			bfin_read16(DMAC1_TCCNT)
-#define bfin_write_DMAC1_TCCNT(val)		bfin_write16(DMAC1_TCCNT, val)
+#define bfin_read_DMAC1_TC_PER()			bfin_read16(DMAC1_TC_PER)
+#define bfin_write_DMAC1_TC_PER(val)		bfin_write16(DMAC1_TC_PER, val)
+#define bfin_read_DMAC1_TC_CNT()			bfin_read16(DMAC1_TC_CNT)
+#define bfin_write_DMAC1_TC_CNT(val)		bfin_write16(DMAC1_TC_CNT, val)
 
 /* DMA Channel 12 Registers */
 
@@ -2630,79 +2628,6 @@
 #define bfin_write_DMAC1_PERIMUX(val)	bfin_write16(DMAC1_PERIMUX, val)
 
 /* Handshake MDMA is not defined in the shared file because it is not available on the ADSP-BF542 bfin_read_()rocessor */
-
-/* legacy definitions */
-#define bfin_read_EBIU_AMCBCTL0		bfin_read_EBIU_AMBCTL0
-#define bfin_write_EBIU_AMCBCTL0	bfin_write_EBIU_AMBCTL0
-#define bfin_read_EBIU_AMCBCTL1		bfin_read_EBIU_AMBCTL1
-#define bfin_write_EBIU_AMCBCTL1	bfin_write_EBIU_AMBCTL1
-#define bfin_read_PINT0_IRQ		bfin_read_PINT0_REQUEST
-#define bfin_write_PINT0_IRQ		bfin_write_PINT0_REQUEST
-#define bfin_read_PINT1_IRQ		bfin_read_PINT1_REQUEST
-#define bfin_write_PINT1_IRQ		bfin_write_PINT1_REQUEST
-#define bfin_read_PINT2_IRQ		bfin_read_PINT2_REQUEST
-#define bfin_write_PINT2_IRQ		bfin_write_PINT2_REQUEST
-#define bfin_read_PINT3_IRQ		bfin_read_PINT3_REQUEST
-#define bfin_write_PINT3_IRQ		bfin_write_PINT3_REQUEST
-
-/* These need to be last due to the cdef/linux inter-dependencies */
-#include <asm/irq.h>
-
-/* Writing to PLL_CTL initiates a PLL relock sequence. */
-static __inline__ void bfin_write_PLL_CTL(unsigned int val)
-{
-	unsigned long flags, iwr0, iwr1, iwr2;
-
-	if (val == bfin_read_PLL_CTL())
-		return;
-
-	local_irq_save_hw(flags);
-	/* Enable the PLL Wakeup bit in SIC IWR */
-	iwr0 = bfin_read32(SIC_IWR0);
-	iwr1 = bfin_read32(SIC_IWR1);
-	iwr2 = bfin_read32(SIC_IWR2);
-	/* Only allow PPL Wakeup) */
-	bfin_write32(SIC_IWR0, IWR_ENABLE(0));
-	bfin_write32(SIC_IWR1, 0);
-	bfin_write32(SIC_IWR2, 0);
-
-	bfin_write16(PLL_CTL, val);
-	SSYNC();
-	asm("IDLE;");
-
-	bfin_write32(SIC_IWR0, iwr0);
-	bfin_write32(SIC_IWR1, iwr1);
-	bfin_write32(SIC_IWR2, iwr2);
-	local_irq_restore_hw(flags);
-}
-
-/* Writing to VR_CTL initiates a PLL relock sequence. */
-static __inline__ void bfin_write_VR_CTL(unsigned int val)
-{
-	unsigned long flags, iwr0, iwr1, iwr2;
-
-	if (val == bfin_read_VR_CTL())
-		return;
-
-	local_irq_save_hw(flags);
-	/* Enable the PLL Wakeup bit in SIC IWR */
-	iwr0 = bfin_read32(SIC_IWR0);
-	iwr1 = bfin_read32(SIC_IWR1);
-	iwr2 = bfin_read32(SIC_IWR2);
-	/* Only allow PPL Wakeup) */
-	bfin_write32(SIC_IWR0, IWR_ENABLE(0));
-	bfin_write32(SIC_IWR1, 0);
-	bfin_write32(SIC_IWR2, 0);
-
-	bfin_write16(VR_CTL, val);
-	SSYNC();
-	asm("IDLE;");
-
-	bfin_write32(SIC_IWR0, iwr0);
-	bfin_write32(SIC_IWR1, iwr1);
-	bfin_write32(SIC_IWR2, iwr2);
-	local_irq_restore_hw(flags);
-}
 
 #endif /* _CDEF_BF54X_H */
 

@@ -32,7 +32,8 @@
 	Revision History:
 	Who			When			What
 	--------	----------		----------------------------------------------
-	John		2004-9-3		porting from RT2500
+	John			2004-9-3		porting from RT2500
+	Justin P. Mattock	11/07/2010		Fix typos
 */
 #include "../rt_config.h"
 
@@ -277,10 +278,10 @@ void MlmeAssocReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *
 	u16 VarIesOffset;
 	u16 Status;
 
-	/* Block all authentication request durning WPA block period */
+	/* Block all authentication request during WPA block period */
 	if (pAd->StaCfg.bBlockAssoc == TRUE) {
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("ASSOC - Block Assoc request durning WPA block period!\n"));
+			 ("ASSOC - Block Assoc request during WPA block period!\n"));
 		pAd->Mlme.AssocMachine.CurrState = ASSOC_IDLE;
 		Status = MLME_STATE_MACHINE_REJECT;
 		MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_ASSOC_CONF, 2,
@@ -605,10 +606,10 @@ void MlmeReassocReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem
 	u8 *pOutBuffer = NULL;
 	u16 Status;
 
-	/* Block all authentication request durning WPA block period */
+	/* Block all authentication request during WPA block period */
 	if (pAd->StaCfg.bBlockAssoc == TRUE) {
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("ASSOC - Block ReAssoc request durning WPA block period!\n"));
+			 ("ASSOC - Block ReAssoc request during WPA block period!\n"));
 		pAd->Mlme.AssocMachine.CurrState = ASSOC_IDLE;
 		Status = MLME_STATE_MACHINE_REJECT;
 		MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_REASSOC_CONF, 2,
@@ -794,11 +795,8 @@ void MlmeDisassocReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_ele
 	RTMPCancelTimer(&pAd->MlmeAux.DisassocTimer, &TimerCancelled);
 
 	DBGPRINT(RT_DEBUG_TRACE,
-		 ("ASSOC - Send DISASSOC request[BSSID::%02x:%02x:%02x:%02x:%02x:%02x (Reason=%d)\n",
-		  pDisassocReq->Addr[0], pDisassocReq->Addr[1],
-		  pDisassocReq->Addr[2], pDisassocReq->Addr[3],
-		  pDisassocReq->Addr[4], pDisassocReq->Addr[5],
-		  pDisassocReq->Reason));
+		("ASSOC - Send DISASSOC request[BSSID::%pM (Reason=%d)\n",
+			pDisassocReq->Addr, pDisassocReq->Reason));
 	MgtMacHeaderInit(pAd, &DisassocHdr, SUBTYPE_DISASSOC, 0, pDisassocReq->Addr, pDisassocReq->Addr);	/* patch peap ttls switching issue */
 	MakeOutgoingFrame(pOutBuffer, &FrameLen,
 			  sizeof(struct rt_header_802_11), &DisassocHdr,
@@ -1004,7 +1002,7 @@ void AssocPostProc(struct rt_rtmp_adapter *pAd, u8 *pAddr2, u16 CapabilityInfo, 
 	pAd->MlmeAux.CapabilityInfo =
 	    CapabilityInfo & SUPPORTED_CAPABILITY_INFO;
 
-	/* Some HT AP might lost WMM IE. We add WMM ourselves. beacuase HT requires QoS on. */
+	/* Some HT AP might lost WMM IE. We add WMM ourselves. because HT requires QoS on. */
 	if ((HtCapabilityLen > 0) && (pEdcaParm->bValid == FALSE)) {
 		pEdcaParm->bValid = TRUE;
 		pEdcaParm->Aifsn[0] = 3;
@@ -1057,7 +1055,7 @@ void AssocPostProc(struct rt_rtmp_adapter *pAd, u8 *pAddr2, u16 CapabilityInfo, 
 	/* Set New WPA information */
 	Idx = BssTableSearch(&pAd->ScanTab, pAddr2, pAd->MlmeAux.Channel);
 	if (Idx == BSS_NOT_FOUND) {
-		DBGPRINT_ERR(("ASSOC - Can't find BSS after receiving Assoc response\n"));
+		DBGPRINT_ERR("ASSOC - Can't find BSS after receiving Assoc response\n");
 	} else {
 		/* Init variable */
 		pAd->MacTab.Content[BSSID_WCID].RSNIE_Len = 0;

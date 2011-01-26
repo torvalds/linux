@@ -12,18 +12,40 @@
 #include <linux/kexec.h>
 #include <linux/reboot.h>
 #include <linux/threads.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/of.h>
+#include <linux/irq.h>
+#include <linux/ftrace.h>
+
 #include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/sections.h>
 
+void machine_kexec_mask_interrupts(void) {
+	unsigned int i;
+
+	for_each_irq(i) {
+		struct irq_desc *desc = irq_to_desc(i);
+
+		if (!desc || !desc->chip)
+			continue;
+
+		if (desc->chip->eoi &&
+		    desc->status & IRQ_INPROGRESS)
+			desc->chip->eoi(i);
+
+		if (desc->chip->mask)
+			desc->chip->mask(i);
+
+		if (desc->chip->disable &&
+		    !(desc->status & IRQ_DISABLED))
+			desc->chip->disable(i);
+	}
+}
+
 void machine_crash_shutdown(struct pt_regs *regs)
 {
-	if (ppc_md.machine_crash_shutdown)
-		ppc_md.machine_crash_shutdown(regs);
-	else
-		default_machine_crash_shutdown(regs);
+	default_machine_crash_shutdown(regs);
 }
 
 /*
@@ -41,8 +63,18 @@ int machine_kexec_prepare(struct kimage *image)
 
 void machine_kexec_cleanup(struct kimage *image)
 {
-	if (ppc_md.machine_kexec_cleanup)
-		ppc_md.machine_kexec_cleanup(image);
+}
+
+void arch_crash_save_vmcoreinfo(void)
+{
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	VMCOREINFO_SYMBOL(node_data);
+	VMCOREINFO_LENGTH(node_data, MAX_NUMNODES);
+#endif
+#ifndef CONFIG_NEED_MULTIPLE_NODES
+	VMCOREINFO_SYMBOL(contig_page_data);
+#endif
 }
 
 /*
@@ -51,10 +83,13 @@ void machine_kexec_cleanup(struct kimage *image)
  */
 void machine_kexec(struct kimage *image)
 {
-	if (ppc_md.machine_kexec)
-		ppc_md.machine_kexec(image);
-	else
-		default_machine_kexec(image);
+	int save_ftrace_enabled;
+
+	save_ftrace_enabled = __ftrace_enabled_save();
+
+	default_machine_kexec(image);
+
+	__ftrace_enabled_restore(save_ftrace_enabled);
 
 	/* Fall back to normal restart if we're still alive. */
 	machine_restart(NULL);
@@ -66,11 +101,11 @@ void __init reserve_crashkernel(void)
 	unsigned long long crash_size, crash_base;
 	int ret;
 
-	/* this is necessary because of lmb_phys_mem_size() */
-	lmb_analyze();
+	/* this is necessary because of memblock_phys_mem_size() */
+	memblock_analyze();
 
 	/* use common parsing */
-	ret = parse_crashkernel(boot_command_line, lmb_phys_mem_size(),
+	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
 			&crash_size, &crash_base);
 	if (ret == 0 && crash_size > 0) {
 		crashk_res.start = crash_base;
@@ -133,9 +168,9 @@ void __init reserve_crashkernel(void)
 			"for crashkernel (System RAM: %ldMB)\n",
 			(unsigned long)(crash_size >> 20),
 			(unsigned long)(crashk_res.start >> 20),
-			(unsigned long)(lmb_phys_mem_size() >> 20));
+			(unsigned long)(memblock_phys_mem_size() >> 20));
 
-	lmb_reserve(crashk_res.start, crash_size);
+	memblock_reserve(crashk_res.start, crash_size);
 }
 
 int overlaps_crashkernel(unsigned long start, unsigned long size)
@@ -144,24 +179,24 @@ int overlaps_crashkernel(unsigned long start, unsigned long size)
 }
 
 /* Values we need to export to the second kernel via the device tree. */
-static unsigned long kernel_end;
-static unsigned long crashk_size;
+static phys_addr_t kernel_end;
+static phys_addr_t crashk_size;
 
 static struct property kernel_end_prop = {
 	.name = "linux,kernel-end",
-	.length = sizeof(unsigned long),
+	.length = sizeof(phys_addr_t),
 	.value = &kernel_end,
 };
 
 static struct property crashk_base_prop = {
 	.name = "linux,crashkernel-base",
-	.length = sizeof(unsigned long),
+	.length = sizeof(phys_addr_t),
 	.value = &crashk_res.start,
 };
 
 static struct property crashk_size_prop = {
 	.name = "linux,crashkernel-size",
-	.length = sizeof(unsigned long),
+	.length = sizeof(phys_addr_t),
 	.value = &crashk_size,
 };
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -62,10 +62,9 @@ MODULE_PARM_DESC(copybreak,
 	module_param_array_named(X, X, int, &num_##X, 0);	\
 	MODULE_PARM_DESC(X, desc);
 
-
 /*
  * Transmit Interrupt Delay in units of 1.024 microseconds
- * Tx interrupt delay needs to typically be set to something non zero
+ * Tx interrupt delay needs to typically be set to something non-zero
  *
  * Valid Range: 0-65535
  */
@@ -91,7 +90,6 @@ E1000_PARAM(TxAbsIntDelay, "Transmit Absolute Interrupt Delay");
  * Valid Range: 0-65535
  */
 E1000_PARAM(RxIntDelay, "Receive Interrupt Delay");
-#define DEFAULT_RDTR 0
 #define MAX_RXDELAY 0xFFFF
 #define MIN_RXDELAY 0
 
@@ -101,7 +99,6 @@ E1000_PARAM(RxIntDelay, "Receive Interrupt Delay");
  * Valid Range: 0-65535
  */
 E1000_PARAM(RxAbsIntDelay, "Receive Absolute Interrupt Delay");
-#define DEFAULT_RADV 8
 #define MAX_RXABSDELAY 0xFFFF
 #define MIN_RXABSDELAY 0
 
@@ -114,6 +111,7 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
 #define DEFAULT_ITR 3
 #define MAX_ITR 100000
 #define MIN_ITR 100
+
 /* IntMode (Interrupt Mode)
  *
  * Valid Range: 0 - 2
@@ -423,7 +421,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		static const struct e1000_option opt = {
 			.type = enable_option,
 			.name = "CRC Stripping",
-			.err  = "defaulting to enabled",
+			.err  = "defaulting to Enabled",
 			.def  = OPTION_ENABLED
 		};
 

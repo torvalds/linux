@@ -127,8 +127,7 @@ struct scsi_host_template {
 	 *
 	 * STATUS: REQUIRED
 	 */
-	int (* queuecommand)(struct scsi_cmnd *,
-			     void (*done)(struct scsi_cmnd *));
+	int (* queuecommand)(struct Scsi_Host *, struct scsi_cmnd *);
 
 	/*
 	 * The transfer functions are used to queue a scsi command to
@@ -327,6 +326,14 @@ struct scsi_host_template {
 			sector_t, int []);
 
 	/*
+	 * This function is called when one or more partitions on the
+	 * device reach beyond the end of the device.
+	 *
+	 * Status: OPTIONAL
+	 */
+	void (*unlock_native_capacity)(struct scsi_device *);
+
+	/*
 	 * Can be used to export driver statistics and other infos to the
 	 * world outside the kernel ie. userspace and it also provides an
 	 * interface to feed the driver with information.
@@ -380,6 +387,7 @@ struct scsi_host_template {
 	 * of scatter-gather.
 	 */
 	unsigned short sg_tablesize;
+	unsigned short sg_prot_tablesize;
 
 	/*
 	 * Set this if the host adapter has limitations beside segment count.
@@ -496,6 +504,25 @@ struct scsi_host_template {
 };
 
 /*
+ * Temporary #define for host lock push down. Can be removed when all
+ * drivers have been updated to take advantage of unlocked
+ * queuecommand.
+ *
+ */
+#define DEF_SCSI_QCMD(func_name) \
+	int func_name(struct Scsi_Host *shost, struct scsi_cmnd *cmd)	\
+	{								\
+		unsigned long irq_flags;				\
+		int rc;							\
+		spin_lock_irqsave(shost->host_lock, irq_flags);		\
+		scsi_cmd_get_serial(shost, cmd);			\
+		rc = func_name##_lck (cmd, cmd->scsi_done);			\
+		spin_unlock_irqrestore(shost->host_lock, irq_flags);	\
+		return rc;						\
+	}
+
+
+/*
  * shost state: If you alter this, you also need to alter scsi_sysfs.c
  * (for the ascii descriptions) and the state model enforcer:
  * scsi_host_set_state()
@@ -591,6 +618,7 @@ struct Scsi_Host {
 	int can_queue;
 	short cmd_per_lun;
 	short unsigned int sg_tablesize;
+	short unsigned int sg_prot_tablesize;
 	short unsigned int max_sectors;
 	unsigned long dma_boundary;
 	/* 
@@ -742,6 +770,7 @@ extern struct Scsi_Host *scsi_host_get(struct Scsi_Host *);
 extern void scsi_host_put(struct Scsi_Host *t);
 extern struct Scsi_Host *scsi_host_lookup(unsigned short);
 extern const char *scsi_host_state_name(enum scsi_host_state);
+extern void scsi_cmd_get_serial(struct Scsi_Host *, struct scsi_cmnd *);
 
 extern u64 scsi_calculate_bounce_limit(struct Scsi_Host *);
 
@@ -813,6 +842,11 @@ static inline void scsi_host_set_prot(struct Scsi_Host *shost, unsigned int mask
 static inline unsigned int scsi_host_get_prot(struct Scsi_Host *shost)
 {
 	return shost->prot_capabilities;
+}
+
+static inline int scsi_host_prot_dma(struct Scsi_Host *shost)
+{
+	return shost->prot_capabilities >= SHOST_DIX_TYPE0_PROTECTION;
 }
 
 static inline unsigned int scsi_host_dif_capable(struct Scsi_Host *shost, unsigned int target_type)

@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2006 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -29,7 +29,7 @@ qla4xxx_lookup_ddb_by_fw_index(struct scsi_qla_host *ha, uint32_t fw_ddb_index)
 		ddb_entry = ha->fw_ddb_index_map[fw_ddb_index];
 	}
 
-	DEBUG3(printk("scsi%d: %s: index [%d], ddb_entry = %p\n",
+	DEBUG3(printk("scsi%d: %s: ddb [%d], ddb_entry = %p\n",
 	    ha->host_no, __func__, fw_ddb_index, ddb_entry));
 
 	return ddb_entry;

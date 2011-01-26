@@ -44,42 +44,6 @@
 #include "bond_alb.h"
 
 
-#define ALB_TIMER_TICKS_PER_SEC	    10	/* should be a divisor of HZ */
-#define BOND_TLB_REBALANCE_INTERVAL 10	/* In seconds, periodic re-balancing.
-					 * Used for division - never set
-					 * to zero !!!
-					 */
-#define BOND_ALB_LP_INTERVAL	    1	/* In seconds, periodic send of
-					 * learning packets to the switch
-					 */
-
-#define BOND_TLB_REBALANCE_TICKS (BOND_TLB_REBALANCE_INTERVAL \
-				  * ALB_TIMER_TICKS_PER_SEC)
-
-#define BOND_ALB_LP_TICKS (BOND_ALB_LP_INTERVAL \
-			   * ALB_TIMER_TICKS_PER_SEC)
-
-#define TLB_HASH_TABLE_SIZE 256	/* The size of the clients hash table.
-				 * Note that this value MUST NOT be smaller
-				 * because the key hash table is BYTE wide !
-				 */
-
-
-#define TLB_NULL_INDEX		0xffffffff
-#define MAX_LP_BURST		3
-
-/* rlb defs */
-#define RLB_HASH_TABLE_SIZE	256
-#define RLB_NULL_INDEX		0xffffffff
-#define RLB_UPDATE_DELAY	2*ALB_TIMER_TICKS_PER_SEC /* 2 seconds */
-#define RLB_ARP_BURST_SIZE	2
-#define RLB_UPDATE_RETRY	3	/* 3-ticks - must be smaller than the rlb
-					 * rebalance interval (5 min).
-					 */
-/* RLB_PROMISC_TIMEOUT = 10 sec equals the time that the current slave is
- * promiscuous after failover
- */
-#define RLB_PROMISC_TIMEOUT	10*ALB_TIMER_TICKS_PER_SEC
 
 #ifndef __long_aligned
 #define __long_aligned __attribute__((aligned((sizeof(long)))))
@@ -233,34 +197,27 @@ static void tlb_deinitialize(struct bonding *bond)
 	_unlock_tx_hashtbl(bond);
 }
 
+static long long compute_gap(struct slave *slave)
+{
+	return (s64) (slave->speed << 20) - /* Convert to Megabit per sec */
+	       (s64) (SLAVE_TLB_INFO(slave).load << 3); /* Bytes to bits */
+}
+
 /* Caller must hold bond lock for read */
 static struct slave *tlb_get_least_loaded_slave(struct bonding *bond)
 {
 	struct slave *slave, *least_loaded;
-	s64 max_gap;
-	int i, found = 0;
+	long long max_gap;
+	int i;
 
-	/* Find the first enabled slave */
-	bond_for_each_slave(bond, slave, i) {
-		if (SLAVE_IS_OK(slave)) {
-			found = 1;
-			break;
-		}
-	}
-
-	if (!found) {
-		return NULL;
-	}
-
-	least_loaded = slave;
-	max_gap = (s64)(slave->speed << 20) - /* Convert to Megabit per sec */
-			(s64)(SLAVE_TLB_INFO(slave).load << 3); /* Bytes to bits */
+	least_loaded = NULL;
+	max_gap = LLONG_MIN;
 
 	/* Find the slave with the largest gap */
-	bond_for_each_slave_from(bond, slave, i, least_loaded) {
+	bond_for_each_slave(bond, slave, i) {
 		if (SLAVE_IS_OK(slave)) {
-			s64 gap = (s64)(slave->speed << 20) -
-					(s64)(SLAVE_TLB_INFO(slave).load << 3);
+			long long gap = compute_gap(slave);
+
 			if (max_gap < gap) {
 				least_loaded = slave;
 				max_gap = gap;
@@ -340,7 +297,8 @@ static void rlb_update_entry_from_arp(struct bonding *bond, struct arp_pkt *arp)
 
 	if ((client_info->assigned) &&
 	    (client_info->ip_src == arp->ip_dst) &&
-	    (client_info->ip_dst == arp->ip_src)) {
+	    (client_info->ip_dst == arp->ip_src) &&
+	    (compare_ether_addr_64bits(client_info->mac_dst, arp->mac_src))) {
 		/* update the clients MAC address */
 		memcpy(client_info->mac_dst, arp->mac_src, ETH_ALEN);
 		client_info->ntt = 1;
@@ -367,6 +325,9 @@ static int rlb_arp_recv(struct sk_buff *skb, struct net_device *bond_dev, struct
 		pr_debug("Packet has no ARP data\n");
 		goto out;
 	}
+
+	if (!pskb_may_pull(skb, arp_hdr_len(bond_dev)))
+		goto out;
 
 	if (skb->len < sizeof(struct arp_pkt)) {
 		pr_debug("Packet is too small to be an ARP\n");
@@ -688,7 +649,7 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 			client_info->ntt = 0;
 		}
 
-		if (!list_empty(&bond->vlan_list)) {
+		if (bond->vlgrp) {
 			if (!vlan_get_tag(skb, &client_info->vlan_id))
 				client_info->tag = 1;
 		}
@@ -821,7 +782,7 @@ static int rlb_initialize(struct bonding *bond)
 
 	/*initialize packet type*/
 	pk_type->type = cpu_to_be16(ETH_P_ARP);
-	pk_type->dev = NULL;
+	pk_type->dev = bond->dev;
 	pk_type->func = rlb_arp_recv;
 
 	/* register to receive ARPs */
@@ -910,7 +871,7 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 		skb->priority = TC_PRIO_CONTROL;
 		skb->dev = slave->dev;
 
-		if (!list_empty(&bond->vlan_list)) {
+		if (bond->vlgrp) {
 			struct vlan_entry *vlan;
 
 			vlan = bond_next_vlan(bond,

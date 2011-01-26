@@ -23,6 +23,7 @@
 #define GRETH_BD_LEN 0x7FF
 
 #define GRETH_TXEN 0x1
+#define GRETH_INT_TE 0x2
 #define GRETH_INT_TX 0x8
 #define GRETH_TXI 0x4
 #define GRETH_TXBD_STATUS 0x0001C000
@@ -35,6 +36,7 @@
 #define GRETH_TXBD_ERR_UE 0x4000
 #define GRETH_TXBD_ERR_AL 0x8000
 
+#define GRETH_INT_RE         0x1
 #define GRETH_INT_RX         0x4
 #define GRETH_RXEN           0x2
 #define GRETH_RXI            0x8
@@ -118,7 +120,7 @@ struct greth_private {
 
 	int irq;
 
-	struct device *dev;	        /* Pointer to of_device->dev */
+	struct device *dev;	        /* Pointer to platform_device->dev */
 	struct net_device *netdev;
 	struct napi_struct napi;
 	spinlock_t devlock;

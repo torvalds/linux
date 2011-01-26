@@ -2,7 +2,7 @@
  * max6650.c - Part of lm_sensors, Linux kernel modules for hardware
  *             monitoring.
  *
- * (C) 2007 by Hans J. Koch <hjk@linutronix.de>
+ * (C) 2007 by Hans J. Koch <hjk@hansjkoch.de>
  *
  * based on code written by John Morris <john.morris@spirentcom.com>
  * Copyright (c) 2003 Spirent Communications

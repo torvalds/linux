@@ -64,29 +64,39 @@ struct lpfc_sli_intf {
 #define lpfc_sli_intf_valid_MASK		0x00000007
 #define lpfc_sli_intf_valid_WORD		word0
 #define LPFC_SLI_INTF_VALID		6
-#define lpfc_sli_intf_featurelevel2_SHIFT	24
-#define lpfc_sli_intf_featurelevel2_MASK	0x0000001F
-#define lpfc_sli_intf_featurelevel2_WORD	word0
-#define lpfc_sli_intf_featurelevel1_SHIFT	16
-#define lpfc_sli_intf_featurelevel1_MASK	0x000000FF
-#define lpfc_sli_intf_featurelevel1_WORD	word0
-#define LPFC_SLI_INTF_FEATURELEVEL1_1	1
-#define LPFC_SLI_INTF_FEATURELEVEL1_2	2
+#define lpfc_sli_intf_sli_hint2_SHIFT		24
+#define lpfc_sli_intf_sli_hint2_MASK		0x0000001F
+#define lpfc_sli_intf_sli_hint2_WORD		word0
+#define LPFC_SLI_INTF_SLI_HINT2_NONE	0
+#define lpfc_sli_intf_sli_hint1_SHIFT		16
+#define lpfc_sli_intf_sli_hint1_MASK		0x000000FF
+#define lpfc_sli_intf_sli_hint1_WORD		word0
+#define LPFC_SLI_INTF_SLI_HINT1_NONE	0
+#define LPFC_SLI_INTF_SLI_HINT1_1	1
+#define LPFC_SLI_INTF_SLI_HINT1_2	2
+#define lpfc_sli_intf_if_type_SHIFT		12
+#define lpfc_sli_intf_if_type_MASK		0x0000000F
+#define lpfc_sli_intf_if_type_WORD		word0
+#define LPFC_SLI_INTF_IF_TYPE_0		0
+#define LPFC_SLI_INTF_IF_TYPE_1		1
+#define LPFC_SLI_INTF_IF_TYPE_2		2
 #define lpfc_sli_intf_sli_family_SHIFT		8
-#define lpfc_sli_intf_sli_family_MASK		0x000000FF
+#define lpfc_sli_intf_sli_family_MASK		0x0000000F
 #define lpfc_sli_intf_sli_family_WORD		word0
-#define LPFC_SLI_INTF_FAMILY_BE2	0
-#define LPFC_SLI_INTF_FAMILY_BE3	1
+#define LPFC_SLI_INTF_FAMILY_BE2	0x0
+#define LPFC_SLI_INTF_FAMILY_BE3	0x1
+#define LPFC_SLI_INTF_FAMILY_LNCR_A0	0xa
+#define LPFC_SLI_INTF_FAMILY_LNCR_B0	0xb
 #define lpfc_sli_intf_slirev_SHIFT		4
 #define lpfc_sli_intf_slirev_MASK		0x0000000F
 #define lpfc_sli_intf_slirev_WORD		word0
 #define LPFC_SLI_INTF_REV_SLI3		3
 #define LPFC_SLI_INTF_REV_SLI4		4
-#define lpfc_sli_intf_if_type_SHIFT		0
-#define lpfc_sli_intf_if_type_MASK		0x00000007
-#define lpfc_sli_intf_if_type_WORD		word0
-#define LPFC_SLI_INTF_IF_TYPE_0		0
-#define LPFC_SLI_INTF_IF_TYPE_1		1
+#define lpfc_sli_intf_func_type_SHIFT		0
+#define lpfc_sli_intf_func_type_MASK		0x00000001
+#define lpfc_sli_intf_func_type_WORD		word0
+#define LPFC_SLI_INTF_IF_TYPE_PHYS	0
+#define LPFC_SLI_INTF_IF_TYPE_VIRT	1
 };
 
 #define LPFC_SLI4_MBX_EMBED	true
@@ -424,79 +434,6 @@ struct lpfc_rcqe {
 #define FCOE_SOFn3	0x36
 };
 
-struct lpfc_wqe_generic{
-	struct ulp_bde64 bde;
-	uint32_t word3;
-	uint32_t word4;
-	uint32_t word5;
-	uint32_t word6;
-#define lpfc_wqe_gen_context_SHIFT	16
-#define lpfc_wqe_gen_context_MASK	0x0000FFFF
-#define lpfc_wqe_gen_context_WORD	word6
-#define lpfc_wqe_gen_xri_SHIFT		0
-#define lpfc_wqe_gen_xri_MASK		0x0000FFFF
-#define lpfc_wqe_gen_xri_WORD		word6
-	uint32_t word7;
-#define lpfc_wqe_gen_lnk_SHIFT		23
-#define lpfc_wqe_gen_lnk_MASK		0x00000001
-#define lpfc_wqe_gen_lnk_WORD		word7
-#define lpfc_wqe_gen_erp_SHIFT		22
-#define lpfc_wqe_gen_erp_MASK		0x00000001
-#define lpfc_wqe_gen_erp_WORD		word7
-#define lpfc_wqe_gen_pu_SHIFT		20
-#define lpfc_wqe_gen_pu_MASK		0x00000003
-#define lpfc_wqe_gen_pu_WORD		word7
-#define lpfc_wqe_gen_class_SHIFT	16
-#define lpfc_wqe_gen_class_MASK		0x00000007
-#define lpfc_wqe_gen_class_WORD		word7
-#define lpfc_wqe_gen_command_SHIFT	8
-#define lpfc_wqe_gen_command_MASK	0x000000FF
-#define lpfc_wqe_gen_command_WORD	word7
-#define lpfc_wqe_gen_status_SHIFT	4
-#define lpfc_wqe_gen_status_MASK	0x0000000F
-#define lpfc_wqe_gen_status_WORD	word7
-#define lpfc_wqe_gen_ct_SHIFT		2
-#define lpfc_wqe_gen_ct_MASK		0x00000003
-#define lpfc_wqe_gen_ct_WORD		word7
-	uint32_t abort_tag;
-	uint32_t word9;
-#define lpfc_wqe_gen_request_tag_SHIFT	0
-#define lpfc_wqe_gen_request_tag_MASK	0x0000FFFF
-#define lpfc_wqe_gen_request_tag_WORD	word9
-	uint32_t word10;
-#define lpfc_wqe_gen_ccp_SHIFT		24
-#define lpfc_wqe_gen_ccp_MASK		0x000000FF
-#define lpfc_wqe_gen_ccp_WORD		word10
-#define lpfc_wqe_gen_ccpe_SHIFT		23
-#define lpfc_wqe_gen_ccpe_MASK		0x00000001
-#define lpfc_wqe_gen_ccpe_WORD		word10
-#define lpfc_wqe_gen_pv_SHIFT		19
-#define lpfc_wqe_gen_pv_MASK		0x00000001
-#define lpfc_wqe_gen_pv_WORD		word10
-#define lpfc_wqe_gen_pri_SHIFT		16
-#define lpfc_wqe_gen_pri_MASK		0x00000007
-#define lpfc_wqe_gen_pri_WORD		word10
-	uint32_t word11;
-#define lpfc_wqe_gen_cq_id_SHIFT	16
-#define lpfc_wqe_gen_cq_id_MASK		0x0000FFFF
-#define lpfc_wqe_gen_cq_id_WORD		word11
-#define LPFC_WQE_CQ_ID_DEFAULT	0xffff
-#define lpfc_wqe_gen_wqec_SHIFT		7
-#define lpfc_wqe_gen_wqec_MASK		0x00000001
-#define lpfc_wqe_gen_wqec_WORD		word11
-#define ELS_ID_FLOGI 3
-#define ELS_ID_FDISC 2
-#define ELS_ID_LOGO  1
-#define ELS_ID_DEFAULT 0
-#define lpfc_wqe_gen_els_id_SHIFT	4
-#define lpfc_wqe_gen_els_id_MASK	0x00000003
-#define lpfc_wqe_gen_els_id_WORD	word11
-#define lpfc_wqe_gen_cmd_type_SHIFT	0
-#define lpfc_wqe_gen_cmd_type_MASK	0x0000000F
-#define lpfc_wqe_gen_cmd_type_WORD	word11
-	uint32_t payload[4];
-};
-
 struct lpfc_rqe {
 	uint32_t address_hi;
 	uint32_t address_lo;
@@ -523,35 +460,40 @@ struct lpfc_register {
 	uint32_t word0;
 };
 
+/* The following BAR0 Registers apply to SLI4 if_type 0 UCNAs. */
 #define LPFC_UERR_STATUS_HI		0x00A4
 #define LPFC_UERR_STATUS_LO		0x00A0
 #define LPFC_UE_MASK_HI			0x00AC
 #define LPFC_UE_MASK_LO			0x00A8
+
+/* The following BAR0 register sets are defined for if_type 0 and 2 UCNAs. */
 #define LPFC_SLI_INTF			0x0058
 
-/* BAR0 Registers */
-#define LPFC_HST_STATE			0x00AC
-#define lpfc_hst_state_perr_SHIFT	31
-#define lpfc_hst_state_perr_MASK	0x1
-#define lpfc_hst_state_perr_WORD	word0
-#define lpfc_hst_state_sfi_SHIFT	30
-#define lpfc_hst_state_sfi_MASK		0x1
-#define lpfc_hst_state_sfi_WORD		word0
-#define lpfc_hst_state_nip_SHIFT	29
-#define lpfc_hst_state_nip_MASK		0x1
-#define lpfc_hst_state_nip_WORD		word0
-#define lpfc_hst_state_ipc_SHIFT	28
-#define lpfc_hst_state_ipc_MASK		0x1
-#define lpfc_hst_state_ipc_WORD		word0
-#define lpfc_hst_state_xrom_SHIFT	27
-#define lpfc_hst_state_xrom_MASK	0x1
-#define lpfc_hst_state_xrom_WORD	word0
-#define lpfc_hst_state_dl_SHIFT		26
-#define lpfc_hst_state_dl_MASK		0x1
-#define lpfc_hst_state_dl_WORD		word0
-#define lpfc_hst_state_port_status_SHIFT	0
-#define lpfc_hst_state_port_status_MASK		0xFFFF
-#define lpfc_hst_state_port_status_WORD		word0
+#define LPFC_SLIPORT_IF2_SMPHR		0x0400
+#define lpfc_port_smphr_perr_SHIFT	31
+#define lpfc_port_smphr_perr_MASK	0x1
+#define lpfc_port_smphr_perr_WORD	word0
+#define lpfc_port_smphr_sfi_SHIFT	30
+#define lpfc_port_smphr_sfi_MASK	0x1
+#define lpfc_port_smphr_sfi_WORD	word0
+#define lpfc_port_smphr_nip_SHIFT	29
+#define lpfc_port_smphr_nip_MASK	0x1
+#define lpfc_port_smphr_nip_WORD	word0
+#define lpfc_port_smphr_ipc_SHIFT	28
+#define lpfc_port_smphr_ipc_MASK	0x1
+#define lpfc_port_smphr_ipc_WORD	word0
+#define lpfc_port_smphr_scr1_SHIFT	27
+#define lpfc_port_smphr_scr1_MASK	0x1
+#define lpfc_port_smphr_scr1_WORD	word0
+#define lpfc_port_smphr_scr2_SHIFT	26
+#define lpfc_port_smphr_scr2_MASK	0x1
+#define lpfc_port_smphr_scr2_WORD	word0
+#define lpfc_port_smphr_host_scratch_SHIFT	16
+#define lpfc_port_smphr_host_scratch_MASK	0xFF
+#define lpfc_port_smphr_host_scratch_WORD	word0
+#define lpfc_port_smphr_port_status_SHIFT	0
+#define lpfc_port_smphr_port_status_MASK	0xFFFF
+#define lpfc_port_smphr_port_status_WORD	word0
 
 #define LPFC_POST_STAGE_POWER_ON_RESET			0x0000
 #define LPFC_POST_STAGE_AWAITING_HOST_RDY		0x0001
@@ -584,10 +526,46 @@ struct lpfc_register {
 #define LPFC_POST_STAGE_RC_DONE				0x0B07
 #define LPFC_POST_STAGE_REBOOT_SYSTEM			0x0B08
 #define LPFC_POST_STAGE_MAC_ADDRESS			0x0C00
-#define LPFC_POST_STAGE_ARMFW_READY			0xC000
-#define LPFC_POST_STAGE_ARMFW_UE 			0xF000
+#define LPFC_POST_STAGE_PORT_READY			0xC000
+#define LPFC_POST_STAGE_PORT_UE 			0xF000
 
-/* BAR1 Registers */
+#define LPFC_SLIPORT_STATUS		0x0404
+#define lpfc_sliport_status_err_SHIFT	31
+#define lpfc_sliport_status_err_MASK	0x1
+#define lpfc_sliport_status_err_WORD	word0
+#define lpfc_sliport_status_end_SHIFT	30
+#define lpfc_sliport_status_end_MASK	0x1
+#define lpfc_sliport_status_end_WORD	word0
+#define lpfc_sliport_status_oti_SHIFT	29
+#define lpfc_sliport_status_oti_MASK	0x1
+#define lpfc_sliport_status_oti_WORD	word0
+#define lpfc_sliport_status_rn_SHIFT	24
+#define lpfc_sliport_status_rn_MASK	0x1
+#define lpfc_sliport_status_rn_WORD	word0
+#define lpfc_sliport_status_rdy_SHIFT	23
+#define lpfc_sliport_status_rdy_MASK	0x1
+#define lpfc_sliport_status_rdy_WORD	word0
+#define MAX_IF_TYPE_2_RESETS	1000
+
+#define LPFC_SLIPORT_CNTRL		0x0408
+#define lpfc_sliport_ctrl_end_SHIFT	30
+#define lpfc_sliport_ctrl_end_MASK	0x1
+#define lpfc_sliport_ctrl_end_WORD	word0
+#define LPFC_SLIPORT_LITTLE_ENDIAN 0
+#define LPFC_SLIPORT_BIG_ENDIAN	   1
+#define lpfc_sliport_ctrl_ip_SHIFT	27
+#define lpfc_sliport_ctrl_ip_MASK	0x1
+#define lpfc_sliport_ctrl_ip_WORD	word0
+#define LPFC_SLIPORT_INIT_PORT	1
+
+#define LPFC_SLIPORT_ERR_1		0x040C
+#define LPFC_SLIPORT_ERR_2		0x0410
+
+/* The following Registers apply to SLI4 if_type 0 UCNAs. They typically
+ * reside in BAR 2.
+ */
+#define LPFC_SLIPORT_IF0_SMPHR	0x00AC
+
 #define LPFC_IMR_MASK_ALL	0xFFFFFFFF
 #define LPFC_ISCR_CLEAR_ALL	0xFFFFFFFF
 
@@ -642,14 +620,21 @@ struct lpfc_register {
 #define LPFC_SLI4_INTR30		BIT30
 #define LPFC_SLI4_INTR31		BIT31
 
-/* BAR2 Registers */
+/*
+ * The Doorbell registers defined here exist in different BAR
+ * register sets depending on the UCNA Port's reported if_type
+ * value.  For UCNA ports running SLI4 and if_type 0, they reside in
+ * BAR4.  For UCNA ports running SLI4 and if_type 2, they reside in
+ * BAR0.  The offsets are the same so the driver must account for
+ * any base address difference.
+ */
 #define LPFC_RQ_DOORBELL		0x00A0
 #define lpfc_rq_doorbell_num_posted_SHIFT	16
 #define lpfc_rq_doorbell_num_posted_MASK	0x3FFF
 #define lpfc_rq_doorbell_num_posted_WORD	word0
 #define LPFC_RQ_POST_BATCH		8	/* RQEs to post at one time */
 #define lpfc_rq_doorbell_id_SHIFT		0
-#define lpfc_rq_doorbell_id_MASK		0x03FF
+#define lpfc_rq_doorbell_id_MASK		0xFFFF
 #define lpfc_rq_doorbell_id_WORD		word0
 
 #define LPFC_WQ_DOORBELL		0x0040
@@ -664,6 +649,11 @@ struct lpfc_register {
 #define lpfc_wq_doorbell_id_WORD		word0
 
 #define LPFC_EQCQ_DOORBELL		0x0120
+#define lpfc_eqcq_doorbell_se_SHIFT		31
+#define lpfc_eqcq_doorbell_se_MASK		0x0001
+#define lpfc_eqcq_doorbell_se_WORD		word0
+#define LPFC_EQCQ_SOLICIT_ENABLE_OFF	0
+#define LPFC_EQCQ_SOLICIT_ENABLE_ON	1
 #define lpfc_eqcq_doorbell_arm_SHIFT		29
 #define lpfc_eqcq_doorbell_arm_MASK		0x0001
 #define lpfc_eqcq_doorbell_arm_WORD		word0
@@ -701,7 +691,7 @@ struct lpfc_register {
 #define lpfc_mq_doorbell_num_posted_MASK	0x3FFF
 #define lpfc_mq_doorbell_num_posted_WORD	word0
 #define lpfc_mq_doorbell_id_SHIFT		0
-#define lpfc_mq_doorbell_id_MASK		0x03FF
+#define lpfc_mq_doorbell_id_MASK		0xFFFF
 #define lpfc_mq_doorbell_id_WORD		word0
 
 struct lpfc_sli4_cfg_mhdr {
@@ -1121,12 +1111,18 @@ struct lpfc_mbx_mq_create_ext {
 #define lpfc_mbx_mq_create_ext_async_evt_link_SHIFT	LPFC_TRAILER_CODE_LINK
 #define lpfc_mbx_mq_create_ext_async_evt_link_MASK	0x00000001
 #define lpfc_mbx_mq_create_ext_async_evt_link_WORD	async_evt_bmap
-#define lpfc_mbx_mq_create_ext_async_evt_fcfste_SHIFT	LPFC_TRAILER_CODE_FCOE
-#define lpfc_mbx_mq_create_ext_async_evt_fcfste_MASK	0x00000001
-#define lpfc_mbx_mq_create_ext_async_evt_fcfste_WORD	async_evt_bmap
+#define lpfc_mbx_mq_create_ext_async_evt_fip_SHIFT	LPFC_TRAILER_CODE_FCOE
+#define lpfc_mbx_mq_create_ext_async_evt_fip_MASK	0x00000001
+#define lpfc_mbx_mq_create_ext_async_evt_fip_WORD	async_evt_bmap
 #define lpfc_mbx_mq_create_ext_async_evt_group5_SHIFT	LPFC_TRAILER_CODE_GRP5
 #define lpfc_mbx_mq_create_ext_async_evt_group5_MASK	0x00000001
 #define lpfc_mbx_mq_create_ext_async_evt_group5_WORD	async_evt_bmap
+#define lpfc_mbx_mq_create_ext_async_evt_fc_SHIFT	LPFC_TRAILER_CODE_FC
+#define lpfc_mbx_mq_create_ext_async_evt_fc_MASK	0x00000001
+#define lpfc_mbx_mq_create_ext_async_evt_fc_WORD	async_evt_bmap
+#define lpfc_mbx_mq_create_ext_async_evt_sli_SHIFT	LPFC_TRAILER_CODE_SLI
+#define lpfc_mbx_mq_create_ext_async_evt_sli_MASK	0x00000001
+#define lpfc_mbx_mq_create_ext_async_evt_sli_WORD	async_evt_bmap
 			struct mq_context context;
 			struct dma_address page[LPFC_MAX_MQ_PAGE];
 		} request;
@@ -1380,7 +1376,7 @@ struct lpfc_mbx_query_fw_cfg {
 #define lpfc_function_mode_dal_WORD		function_mode
 #define lpfc_function_mode_lro_SHIFT		9
 #define lpfc_function_mode_lro_MASK		0x00000001
-#define lpfc_function_mode_lro_WORD		function_mode9
+#define lpfc_function_mode_lro_WORD		function_mode
 #define lpfc_function_mode_flex10_SHIFT		10
 #define lpfc_function_mode_flex10_MASK		0x00000001
 #define lpfc_function_mode_flex10_WORD		function_mode
@@ -1431,10 +1427,16 @@ struct lpfc_mbx_init_vfi {
 #define lpfc_init_vfi_vf_SHIFT		29
 #define lpfc_init_vfi_vf_MASK		0x00000001
 #define lpfc_init_vfi_vf_WORD		word1
+#define lpfc_init_vfi_vp_SHIFT		28
+#define lpfc_init_vfi_vp_MASK		0x00000001
+#define lpfc_init_vfi_vp_WORD		word1
 #define lpfc_init_vfi_vfi_SHIFT		0
 #define lpfc_init_vfi_vfi_MASK		0x0000FFFF
 #define lpfc_init_vfi_vfi_WORD		word1
 	uint32_t word2;
+#define lpfc_init_vfi_vpi_SHIFT		16
+#define lpfc_init_vfi_vpi_MASK		0x0000FFFF
+#define lpfc_init_vfi_vpi_WORD		word2
 #define lpfc_init_vfi_fcfi_SHIFT	0
 #define lpfc_init_vfi_fcfi_MASK		0x0000FFFF
 #define lpfc_init_vfi_fcfi_WORD		word2
@@ -2142,6 +2144,8 @@ struct lpfc_mcqe {
 #define LPFC_TRAILER_CODE_FCOE	0x2
 #define LPFC_TRAILER_CODE_DCBX	0x3
 #define LPFC_TRAILER_CODE_GRP5	0x5
+#define LPFC_TRAILER_CODE_FC	0x10
+#define LPFC_TRAILER_CODE_SLI	0x11
 };
 
 struct lpfc_acqe_link {
@@ -2167,11 +2171,12 @@ struct lpfc_acqe_link {
 #define LPFC_ASYNC_LINK_STATUS_UP		0x1
 #define LPFC_ASYNC_LINK_STATUS_LOGICAL_DOWN	0x2
 #define LPFC_ASYNC_LINK_STATUS_LOGICAL_UP	0x3
-#define lpfc_acqe_link_physical_SHIFT		0
-#define lpfc_acqe_link_physical_MASK		0x000000FF
-#define lpfc_acqe_link_physical_WORD		word0
-#define LPFC_ASYNC_LINK_PORT_A			0x0
-#define LPFC_ASYNC_LINK_PORT_B			0x1
+#define lpfc_acqe_link_type_SHIFT		6
+#define lpfc_acqe_link_type_MASK		0x00000003
+#define lpfc_acqe_link_type_WORD		word0
+#define lpfc_acqe_link_number_SHIFT		0
+#define lpfc_acqe_link_number_MASK		0x0000003F
+#define lpfc_acqe_link_number_WORD		word0
 	uint32_t word1;
 #define lpfc_acqe_link_fault_SHIFT	0
 #define lpfc_acqe_link_fault_MASK	0x000000FF
@@ -2179,29 +2184,31 @@ struct lpfc_acqe_link {
 #define LPFC_ASYNC_LINK_FAULT_NONE	0x0
 #define LPFC_ASYNC_LINK_FAULT_LOCAL	0x1
 #define LPFC_ASYNC_LINK_FAULT_REMOTE	0x2
-#define lpfc_acqe_qos_link_speed_SHIFT	16
-#define lpfc_acqe_qos_link_speed_MASK	0x0000FFFF
-#define lpfc_acqe_qos_link_speed_WORD	word1
+#define lpfc_acqe_logical_link_speed_SHIFT	16
+#define lpfc_acqe_logical_link_speed_MASK	0x0000FFFF
+#define lpfc_acqe_logical_link_speed_WORD	word1
 	uint32_t event_tag;
 	uint32_t trailer;
+#define LPFC_LINK_EVENT_TYPE_PHYSICAL	0x0
+#define LPFC_LINK_EVENT_TYPE_VIRTUAL	0x1
 };
 
-struct lpfc_acqe_fcoe {
+struct lpfc_acqe_fip {
 	uint32_t index;
 	uint32_t word1;
-#define lpfc_acqe_fcoe_fcf_count_SHIFT		0
-#define lpfc_acqe_fcoe_fcf_count_MASK		0x0000FFFF
-#define lpfc_acqe_fcoe_fcf_count_WORD		word1
-#define lpfc_acqe_fcoe_event_type_SHIFT		16
-#define lpfc_acqe_fcoe_event_type_MASK		0x0000FFFF
-#define lpfc_acqe_fcoe_event_type_WORD		word1
-#define LPFC_FCOE_EVENT_TYPE_NEW_FCF		0x1
-#define LPFC_FCOE_EVENT_TYPE_FCF_TABLE_FULL	0x2
-#define LPFC_FCOE_EVENT_TYPE_FCF_DEAD		0x3
-#define LPFC_FCOE_EVENT_TYPE_CVL		0x4
-#define LPFC_FCOE_EVENT_TYPE_FCF_PARAM_MOD	0x5
+#define lpfc_acqe_fip_fcf_count_SHIFT		0
+#define lpfc_acqe_fip_fcf_count_MASK		0x0000FFFF
+#define lpfc_acqe_fip_fcf_count_WORD		word1
+#define lpfc_acqe_fip_event_type_SHIFT		16
+#define lpfc_acqe_fip_event_type_MASK		0x0000FFFF
+#define lpfc_acqe_fip_event_type_WORD		word1
 	uint32_t event_tag;
 	uint32_t trailer;
+#define LPFC_FIP_EVENT_TYPE_NEW_FCF		0x1
+#define LPFC_FIP_EVENT_TYPE_FCF_TABLE_FULL	0x2
+#define LPFC_FIP_EVENT_TYPE_FCF_DEAD		0x3
+#define LPFC_FIP_EVENT_TYPE_CVL			0x4
+#define LPFC_FIP_EVENT_TYPE_FCF_PARAM_MOD	0x5
 };
 
 struct lpfc_acqe_dcbx {
@@ -2213,15 +2220,80 @@ struct lpfc_acqe_dcbx {
 
 struct lpfc_acqe_grp5 {
 	uint32_t word0;
-#define lpfc_acqe_grp5_pport_SHIFT	0
-#define lpfc_acqe_grp5_pport_MASK	0x000000FF
-#define lpfc_acqe_grp5_pport_WORD	word0
+#define lpfc_acqe_grp5_type_SHIFT		6
+#define lpfc_acqe_grp5_type_MASK		0x00000003
+#define lpfc_acqe_grp5_type_WORD		word0
+#define lpfc_acqe_grp5_number_SHIFT		0
+#define lpfc_acqe_grp5_number_MASK		0x0000003F
+#define lpfc_acqe_grp5_number_WORD		word0
 	uint32_t word1;
 #define lpfc_acqe_grp5_llink_spd_SHIFT	16
 #define lpfc_acqe_grp5_llink_spd_MASK	0x0000FFFF
 #define lpfc_acqe_grp5_llink_spd_WORD	word1
 	uint32_t event_tag;
 	uint32_t trailer;
+};
+
+struct lpfc_acqe_fc_la {
+	uint32_t word0;
+#define lpfc_acqe_fc_la_speed_SHIFT		24
+#define lpfc_acqe_fc_la_speed_MASK		0x000000FF
+#define lpfc_acqe_fc_la_speed_WORD		word0
+#define LPFC_FC_LA_SPEED_UNKOWN		0x0
+#define LPFC_FC_LA_SPEED_1G		0x1
+#define LPFC_FC_LA_SPEED_2G		0x2
+#define LPFC_FC_LA_SPEED_4G		0x4
+#define LPFC_FC_LA_SPEED_8G		0x8
+#define LPFC_FC_LA_SPEED_10G		0xA
+#define LPFC_FC_LA_SPEED_16G		0x10
+#define lpfc_acqe_fc_la_topology_SHIFT		16
+#define lpfc_acqe_fc_la_topology_MASK		0x000000FF
+#define lpfc_acqe_fc_la_topology_WORD		word0
+#define LPFC_FC_LA_TOP_UNKOWN		0x0
+#define LPFC_FC_LA_TOP_P2P		0x1
+#define LPFC_FC_LA_TOP_FCAL		0x2
+#define LPFC_FC_LA_TOP_INTERNAL_LOOP	0x3
+#define LPFC_FC_LA_TOP_SERDES_LOOP	0x4
+#define lpfc_acqe_fc_la_att_type_SHIFT		8
+#define lpfc_acqe_fc_la_att_type_MASK		0x000000FF
+#define lpfc_acqe_fc_la_att_type_WORD		word0
+#define LPFC_FC_LA_TYPE_LINK_UP		0x1
+#define LPFC_FC_LA_TYPE_LINK_DOWN	0x2
+#define LPFC_FC_LA_TYPE_NO_HARD_ALPA	0x3
+#define lpfc_acqe_fc_la_port_type_SHIFT		6
+#define lpfc_acqe_fc_la_port_type_MASK		0x00000003
+#define lpfc_acqe_fc_la_port_type_WORD		word0
+#define LPFC_LINK_TYPE_ETHERNET		0x0
+#define LPFC_LINK_TYPE_FC		0x1
+#define lpfc_acqe_fc_la_port_number_SHIFT	0
+#define lpfc_acqe_fc_la_port_number_MASK	0x0000003F
+#define lpfc_acqe_fc_la_port_number_WORD	word0
+	uint32_t word1;
+#define lpfc_acqe_fc_la_llink_spd_SHIFT		16
+#define lpfc_acqe_fc_la_llink_spd_MASK		0x0000FFFF
+#define lpfc_acqe_fc_la_llink_spd_WORD		word1
+#define lpfc_acqe_fc_la_fault_SHIFT		0
+#define lpfc_acqe_fc_la_fault_MASK		0x000000FF
+#define lpfc_acqe_fc_la_fault_WORD		word1
+#define LPFC_FC_LA_FAULT_NONE		0x0
+#define LPFC_FC_LA_FAULT_LOCAL		0x1
+#define LPFC_FC_LA_FAULT_REMOTE		0x2
+	uint32_t event_tag;
+	uint32_t trailer;
+#define LPFC_FC_LA_EVENT_TYPE_FC_LINK		0x1
+#define LPFC_FC_LA_EVENT_TYPE_SHARED_LINK	0x2
+};
+
+struct lpfc_acqe_sli {
+	uint32_t event_data1;
+	uint32_t event_data2;
+	uint32_t reserved;
+	uint32_t trailer;
+#define LPFC_SLI_EVENT_TYPE_PORT_ERROR		0x1
+#define LPFC_SLI_EVENT_TYPE_OVER_TEMP		0x2
+#define LPFC_SLI_EVENT_TYPE_NORM_TEMP		0x3
+#define LPFC_SLI_EVENT_TYPE_NVLOG_POST		0x4
+#define LPFC_SLI_EVENT_TYPE_DIAG_DUMP		0x5
 };
 
 /*
@@ -2279,9 +2351,36 @@ struct wqe_common {
 #define wqe_reqtag_MASK       0x0000FFFF
 #define wqe_reqtag_WORD       word9
 #define wqe_rcvoxid_SHIFT     16
-#define wqe_rcvoxid_MASK       0x0000FFFF
-#define wqe_rcvoxid_WORD       word9
+#define wqe_rcvoxid_MASK      0x0000FFFF
+#define wqe_rcvoxid_WORD      word9
 	uint32_t word10;
+#define wqe_ebde_cnt_SHIFT    0
+#define wqe_ebde_cnt_MASK     0x0000000f
+#define wqe_ebde_cnt_WORD     word10
+#define wqe_lenloc_SHIFT      7
+#define wqe_lenloc_MASK       0x00000003
+#define wqe_lenloc_WORD       word10
+#define LPFC_WQE_LENLOC_NONE		0
+#define LPFC_WQE_LENLOC_WORD3	1
+#define LPFC_WQE_LENLOC_WORD12	2
+#define LPFC_WQE_LENLOC_WORD4	3
+#define wqe_qosd_SHIFT        9
+#define wqe_qosd_MASK         0x00000001
+#define wqe_qosd_WORD         word10
+#define wqe_xbl_SHIFT         11
+#define wqe_xbl_MASK          0x00000001
+#define wqe_xbl_WORD          word10
+#define wqe_iod_SHIFT         13
+#define wqe_iod_MASK          0x00000001
+#define wqe_iod_WORD          word10
+#define LPFC_WQE_IOD_WRITE	0
+#define LPFC_WQE_IOD_READ	1
+#define wqe_dbde_SHIFT        14
+#define wqe_dbde_MASK         0x00000001
+#define wqe_dbde_WORD         word10
+#define wqe_wqes_SHIFT        15
+#define wqe_wqes_MASK         0x00000001
+#define wqe_wqes_WORD         word10
 #define wqe_pri_SHIFT         16
 #define wqe_pri_MASK          0x00000007
 #define wqe_pri_WORD          word10
@@ -2295,18 +2394,26 @@ struct wqe_common {
 #define wqe_ccpe_MASK         0x00000001
 #define wqe_ccpe_WORD         word10
 #define wqe_ccp_SHIFT         24
-#define wqe_ccp_MASK         0x000000ff
-#define wqe_ccp_WORD         word10
+#define wqe_ccp_MASK          0x000000ff
+#define wqe_ccp_WORD          word10
 	uint32_t word11;
-#define wqe_cmd_type_SHIFT  0
-#define wqe_cmd_type_MASK   0x0000000f
-#define wqe_cmd_type_WORD   word11
-#define wqe_wqec_SHIFT      7
-#define wqe_wqec_MASK       0x00000001
-#define wqe_wqec_WORD       word11
-#define wqe_cqid_SHIFT      16
-#define wqe_cqid_MASK       0x0000ffff
-#define wqe_cqid_WORD       word11
+#define wqe_cmd_type_SHIFT    0
+#define wqe_cmd_type_MASK     0x0000000f
+#define wqe_cmd_type_WORD     word11
+#define wqe_els_id_SHIFT      4
+#define wqe_els_id_MASK       0x00000003
+#define wqe_els_id_WORD       word11
+#define LPFC_ELS_ID_FLOGI	3
+#define LPFC_ELS_ID_FDISC	2
+#define LPFC_ELS_ID_LOGO	1
+#define LPFC_ELS_ID_DEFAULT	0
+#define wqe_wqec_SHIFT        7
+#define wqe_wqec_MASK         0x00000001
+#define wqe_wqec_WORD         word11
+#define wqe_cqid_SHIFT        16
+#define wqe_cqid_MASK         0x0000ffff
+#define wqe_cqid_WORD         word11
+#define LPFC_WQE_CQ_ID_DEFAULT	0xffff
 };
 
 struct wqe_did {
@@ -2323,6 +2430,15 @@ struct wqe_did {
 #define wqe_xmit_bls_xo_SHIFT         31
 #define wqe_xmit_bls_xo_MASK          0x00000001
 #define wqe_xmit_bls_xo_WORD          word5
+};
+
+struct lpfc_wqe_generic{
+	struct ulp_bde64 bde;
+	uint32_t word3;
+	uint32_t word4;
+	uint32_t word5;
+	struct wqe_common wqe_com;
+	uint32_t payload[4];
 };
 
 struct els_request64_wqe {
@@ -2356,9 +2472,9 @@ struct els_request64_wqe {
 
 struct xmit_els_rsp64_wqe {
 	struct ulp_bde64 bde;
-	uint32_t rsvd3;
+	uint32_t response_payload_len;
 	uint32_t rsvd4;
-	struct wqe_did	wqe_dest;
+	struct wqe_did wqe_dest;
 	struct wqe_common wqe_com; /* words 6-11 */
 	uint32_t rsvd_12_15[4];
 };
@@ -2427,17 +2543,16 @@ struct wqe_rctl_dfctl {
 
 struct xmit_seq64_wqe {
 	struct ulp_bde64 bde;
-	uint32_t paylaod_offset;
+	uint32_t rsvd3;
 	uint32_t relative_offset;
 	struct wqe_rctl_dfctl wge_ctl;
 	struct wqe_common wqe_com; /* words 6-11 */
-	/* Note: word10 different REVISIT */
 	uint32_t xmit_len;
 	uint32_t rsvd_12_15[3];
 };
 struct xmit_bcast64_wqe {
 	struct ulp_bde64 bde;
-	uint32_t paylaod_len;
+	uint32_t seq_payload_len;
 	uint32_t rsvd4;
 	struct wqe_rctl_dfctl wge_ctl; /* word 5 */
 	struct wqe_common wqe_com;     /* words 6-11 */
@@ -2446,8 +2561,8 @@ struct xmit_bcast64_wqe {
 
 struct gen_req64_wqe {
 	struct ulp_bde64 bde;
-	uint32_t command_len;
-	uint32_t payload_len;
+	uint32_t request_payload_len;
+	uint32_t relative_offset;
 	struct wqe_rctl_dfctl wge_ctl; /* word 5 */
 	struct wqe_common wqe_com;     /* words 6-11 */
 	uint32_t rsvd_12_15[4];
@@ -2480,7 +2595,7 @@ struct abort_cmd_wqe {
 
 struct fcp_iwrite64_wqe {
 	struct ulp_bde64 bde;
-	uint32_t payload_len;
+	uint32_t payload_offset_len;
 	uint32_t total_xfer_len;
 	uint32_t initial_xfer_len;
 	struct wqe_common wqe_com;     /* words 6-11 */
@@ -2489,7 +2604,7 @@ struct fcp_iwrite64_wqe {
 
 struct fcp_iread64_wqe {
 	struct ulp_bde64 bde;
-	uint32_t payload_len;          /* word 3 */
+	uint32_t payload_offset_len;   /* word 3 */
 	uint32_t total_xfer_len;       /* word 4 */
 	uint32_t rsrvd5;               /* word 5 */
 	struct wqe_common wqe_com;     /* words 6-11 */
@@ -2497,10 +2612,12 @@ struct fcp_iread64_wqe {
 };
 
 struct fcp_icmnd64_wqe {
-	struct ulp_bde64 bde;	 /* words 0-2 */
-	uint32_t rsrvd[3];             /* words 3-5 */
+	struct ulp_bde64 bde;          /* words 0-2 */
+	uint32_t rsrvd3;               /* word 3 */
+	uint32_t rsrvd4;               /* word 4 */
+	uint32_t rsrvd5;               /* word 5 */
 	struct wqe_common wqe_com;     /* words 6-11 */
-	uint32_t rsvd_12_15[4];         /* word 12-15 */
+	uint32_t rsvd_12_15[4];        /* word 12-15 */
 };
 
 

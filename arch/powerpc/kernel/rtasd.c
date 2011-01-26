@@ -160,7 +160,7 @@ static int log_rtas_len(char * buf)
 	/* rtas fixed header */
 	len = 8;
 	err = (struct rtas_error_log *)buf;
-	if (err->extended_log_length) {
+	if (err->extended && err->extended_log_length) {
 
 		/* extended header */
 		len += err->extended_log_length;
@@ -354,6 +354,7 @@ static const struct file_operations proc_rtas_log_operations = {
 	.poll =		rtas_log_poll,
 	.open =		rtas_log_open,
 	.release =	rtas_log_release,
+	.llseek =	noop_llseek,
 };
 
 static int enable_surveillance(int timeout)

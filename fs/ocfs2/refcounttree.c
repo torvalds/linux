@@ -49,6 +49,7 @@
 
 struct ocfs2_cow_context {
 	struct inode *inode;
+	struct file *file;
 	u32 cow_start;
 	u32 cow_len;
 	struct ocfs2_extent_tree data_et;
@@ -2436,16 +2437,26 @@ static int ocfs2_calc_refcount_meta_credits(struct super_block *sb,
 		len = min((u64)cpos + clusters, le64_to_cpu(rec.r_cpos) +
 			  le32_to_cpu(rec.r_clusters)) - cpos;
 		/*
-		 * If the refcount rec already exist, cool. We just need
-		 * to check whether there is a split. Otherwise we just need
-		 * to increase the refcount.
-		 * If we will insert one, increases recs_add.
-		 *
 		 * We record all the records which will be inserted to the
 		 * same refcount block, so that we can tell exactly whether
 		 * we need a new refcount block or not.
+		 *
+		 * If we will insert a new one, this is easy and only happens
+		 * during adding refcounted flag to the extent, so we don't
+		 * have a chance of spliting. We just need one record.
+		 *
+		 * If the refcount rec already exists, that would be a little
+		 * complicated. we may have to:
+		 * 1) split at the beginning if the start pos isn't aligned.
+		 *    we need 1 more record in this case.
+		 * 2) split int the end if the end pos isn't aligned.
+		 *    we need 1 more record in this case.
+		 * 3) split in the middle because of file system fragmentation.
+		 *    we need 2 more records in this case(we can't detect this
+		 *    beforehand, so always think of the worst case).
 		 */
 		if (rec.r_refcount) {
+			recs_add += 2;
 			/* Check whether we need a split at the beginning. */
 			if (cpos == start_cpos &&
 			    cpos != le64_to_cpu(rec.r_cpos))
@@ -2922,15 +2933,24 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 	u64 new_block = ocfs2_clusters_to_blocks(sb, new_cluster);
 	struct page *page;
 	pgoff_t page_index;
-	unsigned int from, to;
+	unsigned int from, to, readahead_pages;
 	loff_t offset, end, map_end;
 	struct address_space *mapping = context->inode->i_mapping;
 
 	mlog(0, "old_cluster %u, new %u, len %u at offset %u\n", old_cluster,
 	     new_cluster, new_len, cpos);
 
+	readahead_pages =
+		(ocfs2_cow_contig_clusters(sb) <<
+		 OCFS2_SB(sb)->s_clustersize_bits) >> PAGE_CACHE_SHIFT;
 	offset = ((loff_t)cpos) << OCFS2_SB(sb)->s_clustersize_bits;
 	end = offset + (new_len << OCFS2_SB(sb)->s_clustersize_bits);
+	/*
+	 * We only duplicate pages until we reach the page contains i_size - 1.
+	 * So trim 'end' to i_size.
+	 */
+	if (end > i_size_read(context->inode))
+		end = i_size_read(context->inode);
 
 	while (offset < end) {
 		page_index = offset >> PAGE_CACHE_SHIFT;
@@ -2944,7 +2964,7 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 		if (map_end & (PAGE_CACHE_SIZE - 1))
 			to = map_end & (PAGE_CACHE_SIZE - 1);
 
-		page = grab_cache_page(mapping, page_index);
+		page = find_or_create_page(mapping, page_index, GFP_NOFS);
 
 		/*
 		 * In case PAGE_CACHE_SIZE <= CLUSTER_SIZE, This page
@@ -2952,6 +2972,14 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 		 */
 		if (PAGE_CACHE_SIZE <= OCFS2_SB(sb)->s_clustersize)
 			BUG_ON(PageDirty(page));
+
+		if (PageReadahead(page) && context->file) {
+			page_cache_async_readahead(mapping,
+						   &context->file->f_ra,
+						   context->file,
+						   page, page_index,
+						   readahead_pages);
+		}
 
 		if (!PageUptodate(page)) {
 			ret = block_read_full_page(page, ocfs2_get_block);
@@ -3163,7 +3191,8 @@ static int ocfs2_cow_sync_writeback(struct super_block *sb,
 		if (map_end > end)
 			map_end = end;
 
-		page = grab_cache_page(context->inode->i_mapping, page_index);
+		page = find_or_create_page(context->inode->i_mapping,
+					   page_index, GFP_NOFS);
 		BUG_ON(!page);
 
 		wait_on_page_writeback(page);
@@ -3392,12 +3421,35 @@ static int ocfs2_replace_cow(struct ocfs2_cow_context *context)
 	return ret;
 }
 
+static void ocfs2_readahead_for_cow(struct inode *inode,
+				    struct file *file,
+				    u32 start, u32 len)
+{
+	struct address_space *mapping;
+	pgoff_t index;
+	unsigned long num_pages;
+	int cs_bits = OCFS2_SB(inode->i_sb)->s_clustersize_bits;
+
+	if (!file)
+		return;
+
+	mapping = file->f_mapping;
+	num_pages = (len << cs_bits) >> PAGE_CACHE_SHIFT;
+	if (!num_pages)
+		num_pages = 1;
+
+	index = ((loff_t)start << cs_bits) >> PAGE_CACHE_SHIFT;
+	page_cache_sync_readahead(mapping, &file->f_ra, file,
+				  index, num_pages);
+}
+
 /*
  * Starting at cpos, try to CoW write_len clusters.  Don't CoW
  * past max_cpos.  This will stop when it runs into a hole or an
  * unrefcounted extent.
  */
 static int ocfs2_refcount_cow_hunk(struct inode *inode,
+				   struct file *file,
 				   struct buffer_head *di_bh,
 				   u32 cpos, u32 write_len, u32 max_cpos)
 {
@@ -3426,6 +3478,8 @@ static int ocfs2_refcount_cow_hunk(struct inode *inode,
 
 	BUG_ON(cow_len == 0);
 
+	ocfs2_readahead_for_cow(inode, file, cow_start, cow_len);
+
 	context = kzalloc(sizeof(struct ocfs2_cow_context), GFP_NOFS);
 	if (!context) {
 		ret = -ENOMEM;
@@ -3447,6 +3501,7 @@ static int ocfs2_refcount_cow_hunk(struct inode *inode,
 	context->ref_root_bh = ref_root_bh;
 	context->cow_duplicate_clusters = ocfs2_duplicate_clusters_by_page;
 	context->get_clusters = ocfs2_di_get_clusters;
+	context->file = file;
 
 	ocfs2_init_dinode_extent_tree(&context->data_et,
 				      INODE_CACHE(inode), di_bh);
@@ -3475,6 +3530,7 @@ out:
  * clusters between cpos and cpos+write_len are safe to modify.
  */
 int ocfs2_refcount_cow(struct inode *inode,
+		       struct file *file,
 		       struct buffer_head *di_bh,
 		       u32 cpos, u32 write_len, u32 max_cpos)
 {
@@ -3494,7 +3550,7 @@ int ocfs2_refcount_cow(struct inode *inode,
 			num_clusters = write_len;
 
 		if (ext_flags & OCFS2_EXT_REFCOUNTED) {
-			ret = ocfs2_refcount_cow_hunk(inode, di_bh, cpos,
+			ret = ocfs2_refcount_cow_hunk(inode, file, di_bh, cpos,
 						      num_clusters, max_cpos);
 			if (ret) {
 				mlog_errno(ret);
@@ -4166,6 +4222,12 @@ static int __ocfs2_reflink(struct dentry *old_dentry,
 	struct inode *inode = old_dentry->d_inode;
 	struct buffer_head *new_bh = NULL;
 
+	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_SYSTEM_FILE) {
+		ret = -EINVAL;
+		mlog_errno(ret);
+		goto out;
+	}
+
 	ret = filemap_fdatawrite(inode->i_mapping);
 	if (ret) {
 		mlog_errno(ret);
@@ -4178,8 +4240,9 @@ static int __ocfs2_reflink(struct dentry *old_dentry,
 		goto out;
 	}
 
-	mutex_lock(&new_inode->i_mutex);
-	ret = ocfs2_inode_lock(new_inode, &new_bh, 1);
+	mutex_lock_nested(&new_inode->i_mutex, I_MUTEX_CHILD);
+	ret = ocfs2_inode_lock_nested(new_inode, &new_bh, 1,
+				      OI_LS_REFLINK_TARGET);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_unlock;

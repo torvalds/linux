@@ -58,24 +58,24 @@ ath5k_ani_set_noise_immunity_level(struct ath5k_hw *ah, int level)
 {
 	/* TODO:
 	 * ANI documents suggest the following five levels to use, but the HAL
-	 * and ath9k use only use the last two levels, making this
+	 * and ath9k use only the last two levels, making this
 	 * essentially an on/off option. There *may* be a reason for this (???),
 	 * so i stick with the HAL version for now...
 	 */
 #if 0
-	const s8 hi[] = { -18, -18, -16, -14, -12 };
-	const s8 lo[] = { -52, -56, -60, -64, -70 };
-	const s8 sz[] = { -34, -41, -48, -55, -62 };
-	const s8 fr[] = { -70, -72, -75, -78, -80 };
+	static const s8 lo[] = { -52, -56, -60, -64, -70 };
+	static const s8 hi[] = { -18, -18, -16, -14, -12 };
+	static const s8 sz[] = { -34, -41, -48, -55, -62 };
+	static const s8 fr[] = { -70, -72, -75, -78, -80 };
 #else
-	const s8 sz[] = { -55, -62 };
-	const s8 lo[] = { -64, -70 };
-	const s8 hi[] = { -14, -12 };
-	const s8 fr[] = { -78, -80 };
+	static const s8 lo[] = { -64, -70 };
+	static const s8 hi[] = { -14, -12 };
+	static const s8 sz[] = { -55, -62 };
+	static const s8 fr[] = { -78, -80 };
 #endif
 	if (level < 0 || level >= ARRAY_SIZE(sz)) {
-		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI,
-			"level out of range %d", level);
+		ATH5K_ERR(ah->ah_sc, "noise immuniy level %d out of range",
+			  level);
 		return;
 	}
 
@@ -102,12 +102,12 @@ ath5k_ani_set_noise_immunity_level(struct ath5k_hw *ah, int level)
 void
 ath5k_ani_set_spur_immunity_level(struct ath5k_hw *ah, int level)
 {
-	const int val[] = { 2, 4, 6, 8, 10, 12, 14, 16 };
+	static const int val[] = { 2, 4, 6, 8, 10, 12, 14, 16 };
 
 	if (level < 0 || level >= ARRAY_SIZE(val) ||
 	    level > ah->ah_sc->ani_state.max_spur_level) {
-		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI,
-			"level out of range %d", level);
+		ATH5K_ERR(ah->ah_sc, "spur immunity level %d out of range",
+			  level);
 		return;
 	}
 
@@ -127,11 +127,10 @@ ath5k_ani_set_spur_immunity_level(struct ath5k_hw *ah, int level)
 void
 ath5k_ani_set_firstep_level(struct ath5k_hw *ah, int level)
 {
-	const int val[] = { 0, 4, 8 };
+	static const int val[] = { 0, 4, 8 };
 
 	if (level < 0 || level >= ARRAY_SIZE(val)) {
-		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI,
-			"level out of range %d", level);
+		ATH5K_ERR(ah->ah_sc, "firstep level %d out of range", level);
 		return;
 	}
 
@@ -152,12 +151,12 @@ ath5k_ani_set_firstep_level(struct ath5k_hw *ah, int level)
 void
 ath5k_ani_set_ofdm_weak_signal_detection(struct ath5k_hw *ah, bool on)
 {
-	const int m1l[] = { 127, 50 };
-	const int m2l[] = { 127, 40 };
-	const int m1[] = { 127, 0x4d };
-	const int m2[] = { 127, 0x40 };
-	const int m2cnt[] = { 31, 16 };
-	const int m2lcnt[] = { 63, 48 };
+	static const int m1l[] = { 127, 50 };
+	static const int m2l[] = { 127, 40 };
+	static const int m1[] = { 127, 0x4d };
+	static const int m2[] = { 127, 0x40 };
+	static const int m2cnt[] = { 31, 16 };
+	static const int m2lcnt[] = { 63, 48 };
 
 	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_WEAK_OFDM_LOW_THR,
 				AR5K_PHY_WEAK_OFDM_LOW_THR_M1, m1l[on]);
@@ -193,7 +192,7 @@ ath5k_ani_set_ofdm_weak_signal_detection(struct ath5k_hw *ah, bool on)
 void
 ath5k_ani_set_cck_weak_signal_detection(struct ath5k_hw *ah, bool on)
 {
-	const int val[] = { 8, 6 };
+	static const int val[] = { 8, 6 };
 	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_CCK_CROSSCORR,
 				AR5K_PHY_CCK_CROSSCORR_WEAK_SIG_THR, val[on]);
 	ah->ah_sc->ani_state.cck_weak_sig = on;
@@ -217,7 +216,7 @@ static void
 ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 			 bool ofdm_trigger)
 {
-	int rssi = ah->ah_beacon_rssi_avg.avg;
+	int rssi = ewma_read(&ah->ah_beacon_rssi_avg);
 
 	ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI, "raise immunity (%s)",
 		ofdm_trigger ? "ODFM" : "CCK");
@@ -302,7 +301,7 @@ ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 static void
 ath5k_ani_lower_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as)
 {
-	int rssi = ah->ah_beacon_rssi_avg.avg;
+	int rssi = ewma_read(&ah->ah_beacon_rssi_avg);
 
 	ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI, "lower immunity");
 
@@ -356,41 +355,28 @@ ath5k_ani_lower_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as)
 
 
 /**
- * ath5k_hw_ani_get_listen_time() - Calculate time spent listening
+ * ath5k_hw_ani_get_listen_time() - Update counters and return listening time
  *
  * Return an approximation of the time spent "listening" in milliseconds (ms)
- * since the last call of this function by deducting the cycles spent
- * transmitting and receiving from the total cycle count.
- * Save profile count values for debugging/statistics and because we might want
- * to use them later.
- *
- * We assume no one else clears these registers!
+ * since the last call of this function.
+ * Save a snapshot of the counter values for debugging/statistics.
  */
 static int
 ath5k_hw_ani_get_listen_time(struct ath5k_hw *ah, struct ath5k_ani_state *as)
 {
+	struct ath_common *common = ath5k_hw_common(ah);
 	int listen;
 
-	/* freeze */
-	ath5k_hw_reg_write(ah, AR5K_MIBC_FMC, AR5K_MIBC);
-	/* read */
-	as->pfc_cycles = ath5k_hw_reg_read(ah, AR5K_PROFCNT_CYCLE);
-	as->pfc_busy = ath5k_hw_reg_read(ah, AR5K_PROFCNT_RXCLR);
-	as->pfc_tx = ath5k_hw_reg_read(ah, AR5K_PROFCNT_TX);
-	as->pfc_rx = ath5k_hw_reg_read(ah, AR5K_PROFCNT_RX);
-	/* clear */
-	ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_TX);
-	ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_RX);
-	ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_RXCLR);
-	ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_CYCLE);
-	/* un-freeze */
-	ath5k_hw_reg_write(ah, 0, AR5K_MIBC);
+	spin_lock_bh(&common->cc_lock);
 
-	/* TODO: where does 44000 come from? (11g clock rate?) */
-	listen = (as->pfc_cycles - as->pfc_rx - as->pfc_tx) / 44000;
+	ath_hw_cycle_counters_update(common);
+	memcpy(&as->last_cc, &common->cc_ani, sizeof(as->last_cc));
 
-	if (as->pfc_cycles == 0 || listen < 0)
-		return 0;
+	/* clears common->cc_ani */
+	listen = ath_hw_get_listen_time(common);
+
+	spin_unlock_bh(&common->cc_lock);
+
 	return listen;
 }
 
@@ -481,13 +467,14 @@ ath5k_ani_calibration(struct ath5k_hw *ah)
 	struct ath5k_ani_state *as = &ah->ah_sc->ani_state;
 	int listen, ofdm_high, ofdm_low, cck_high, cck_low;
 
-	if (as->ani_mode != ATH5K_ANI_MODE_AUTO)
-		return;
-
 	/* get listen time since last call and add it to the counter because we
-	 * might not have restarted the "ani period" last time */
+	 * might not have restarted the "ani period" last time.
+	 * always do this to calculate the busy time also in manual mode */
 	listen = ath5k_hw_ani_get_listen_time(ah, as);
 	as->listen_time += listen;
+
+	if (as->ani_mode != ATH5K_ANI_MODE_AUTO)
+		return;
 
 	ath5k_ani_save_and_clear_phy_errors(ah, as);
 
@@ -552,9 +539,9 @@ ath5k_ani_mib_intr(struct ath5k_hw *ah)
 	if (ah->ah_sc->ani_state.ani_mode != ATH5K_ANI_MODE_AUTO)
 		return;
 
-	/* if one of the errors triggered, we can get a superfluous second
-	 * interrupt, even though we have already reset the register. the
-	 * function detects that so we can return early */
+	/* If one of the errors triggered, we can get a superfluous second
+	 * interrupt, even though we have already reset the register. The
+	 * function detects that so we can return early. */
 	if (ath5k_ani_save_and_clear_phy_errors(ah, as) == 0)
 		return;
 

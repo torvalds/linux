@@ -32,6 +32,7 @@
 #include <linux/gpio.h>
 #include <linux/pda_power.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/input/matrix_keypad.h>
 
 #include <asm/setup.h>
@@ -44,8 +45,8 @@
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/tosa_bt.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/audio.h>
+#include <mach/smemc.h>
 
 #include <asm/mach/arch.h>
 #include <mach/tosa.h>
@@ -893,9 +894,11 @@ static void tosa_poweroff(void)
 
 static void tosa_restart(char mode, const char *cmd)
 {
+	uint32_t msc0 = __raw_readl(MSC0);
+
 	/* Bootloader magic for a reboot */
-	if((MSC0 & 0xffff0000) == 0x7ff00000)
-		MSC0 = (MSC0 & 0xffff) | 0x7ee00000;
+	if((msc0 & 0xffff0000) == 0x7ff00000)
+		__raw_writel((msc0 & 0xffff) | 0x7ee00000, MSC0);
 
 	tosa_poweroff();
 }
@@ -948,15 +951,13 @@ static void __init fixup_tosa(struct machine_desc *desc,
 	sharpsl_save_param();
 	mi->nr_banks=1;
 	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].node = 0;
 	mi->bank[0].size = (64*1024*1024);
 }
 
 MACHINE_START(TOSA, "SHARP Tosa")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup          = fixup_tosa,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa25x_map_io,
+	.nr_irqs	= TOSA_NR_IRQS,
 	.init_irq       = pxa25x_init_irq,
 	.init_machine   = tosa_init,
 	.timer          = &pxa_timer,

@@ -9,7 +9,7 @@
 
 #define KEY(row, col, val)	((((row) & (MATRIX_MAX_ROWS - 1)) << 24) |\
 				 (((col) & (MATRIX_MAX_COLS - 1)) << 16) |\
-				 (val & 0xffff))
+				 ((val) & 0xffff))
 
 #define KEY_ROW(k)		(((k) >> 24) & 0xff)
 #define KEY_COL(k)		(((k) >> 16) & 0xff)
@@ -41,6 +41,9 @@ struct matrix_keymap_data {
  * @col_scan_delay_us: delay, measured in microseconds, that is
  *	needed before we can keypad after activating column gpio
  * @debounce_ms: debounce interval in milliseconds
+ * @clustered_irq: may be specified if interrupts of all row/column GPIOs
+ *	are bundled to one single irq
+ * @clustered_irq_flags: flags that are needed for the clustered irq
  * @active_low: gpio polarity
  * @wakeup: controls whether the device should be set up as wakeup
  *	source
@@ -62,6 +65,9 @@ struct matrix_keypad_platform_data {
 
 	/* key debounce interval in milli-second */
 	unsigned int	debounce_ms;
+
+	unsigned int	clustered_irq;
+	unsigned int	clustered_irq_flags;
 
 	bool		active_low;
 	bool		wakeup;

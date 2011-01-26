@@ -36,16 +36,58 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
-{
-	return gfn;
-}
-
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
-	return !(v->arch.msr & MSR_WE) || !!(v->arch.pending_exceptions);
+	return !(v->arch.shared->msr & MSR_WE) ||
+	       !!(v->arch.pending_exceptions);
 }
 
+int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
+{
+	int nr = kvmppc_get_gpr(vcpu, 11);
+	int r;
+	unsigned long __maybe_unused param1 = kvmppc_get_gpr(vcpu, 3);
+	unsigned long __maybe_unused param2 = kvmppc_get_gpr(vcpu, 4);
+	unsigned long __maybe_unused param3 = kvmppc_get_gpr(vcpu, 5);
+	unsigned long __maybe_unused param4 = kvmppc_get_gpr(vcpu, 6);
+	unsigned long r2 = 0;
+
+	if (!(vcpu->arch.shared->msr & MSR_SF)) {
+		/* 32 bit mode */
+		param1 &= 0xffffffff;
+		param2 &= 0xffffffff;
+		param3 &= 0xffffffff;
+		param4 &= 0xffffffff;
+	}
+
+	switch (nr) {
+	case HC_VENDOR_KVM | KVM_HC_PPC_MAP_MAGIC_PAGE:
+	{
+		vcpu->arch.magic_page_pa = param1;
+		vcpu->arch.magic_page_ea = param2;
+
+		r2 = KVM_MAGIC_FEAT_SR;
+
+		r = HC_EV_SUCCESS;
+		break;
+	}
+	case HC_VENDOR_KVM | KVM_HC_FEATURES:
+		r = HC_EV_SUCCESS;
+#if defined(CONFIG_PPC_BOOK3S) /* XXX Missing magic page on BookE */
+		r2 |= (1 << KVM_FEATURE_MAGIC_PAGE);
+#endif
+
+		/* Second return value is in r4 */
+		break;
+	default:
+		r = HC_EV_UNIMPLEMENTED;
+		break;
+	}
+
+	kvmppc_set_gpr(vcpu, 4, r2);
+
+	return r;
+}
 
 int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
@@ -103,18 +145,12 @@ void kvm_arch_check_processor_compat(void *rtn)
 	*(int *)rtn = kvmppc_core_check_processor_compat();
 }
 
-struct kvm *kvm_arch_create_vm(void)
+int kvm_arch_init_vm(struct kvm *kvm)
 {
-	struct kvm *kvm;
-
-	kvm = kzalloc(sizeof(struct kvm), GFP_KERNEL);
-	if (!kvm)
-		return ERR_PTR(-ENOMEM);
-
-	return kvm;
+	return 0;
 }
 
-static void kvmppc_free_vcpus(struct kvm *kvm)
+void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	unsigned int i;
 	struct kvm_vcpu *vcpu;
@@ -134,14 +170,6 @@ void kvm_arch_sync_events(struct kvm *kvm)
 {
 }
 
-void kvm_arch_destroy_vm(struct kvm *kvm)
-{
-	kvmppc_free_vcpus(kvm);
-	kvm_free_physmem(kvm);
-	cleanup_srcu_struct(&kvm->srcu);
-	kfree(kvm);
-}
-
 int kvm_dev_ioctl_check_extension(long ext)
 {
 	int r;
@@ -150,8 +178,10 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_SEGSTATE:
 	case KVM_CAP_PPC_PAIRED_SINGLES:
 	case KVM_CAP_PPC_UNSET_IRQ:
+	case KVM_CAP_PPC_IRQ_LEVEL:
 	case KVM_CAP_ENABLE_CAP:
 	case KVM_CAP_PPC_OSI:
+	case KVM_CAP_PPC_GET_PVINFO:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -287,7 +317,7 @@ static void kvmppc_complete_dcr_load(struct kvm_vcpu *vcpu,
 static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
                                       struct kvm_run *run)
 {
-	u64 gpr;
+	u64 uninitialized_var(gpr);
 
 	if (run->mmio.len > sizeof(gpr)) {
 		printk(KERN_ERR "bad MMIO length: %d\n", run->mmio.len);
@@ -423,8 +453,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	int r;
 	sigset_t sigsaved;
 
-	vcpu_load(vcpu);
-
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
@@ -455,8 +483,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
-
-	vcpu_put(vcpu);
 
 	return r;
 }
@@ -523,8 +549,9 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&irq, argp, sizeof(irq)))
 			goto out;
 		r = kvm_vcpu_ioctl_interrupt(vcpu, &irq);
-		break;
+		goto out;
 	}
+
 	case KVM_ENABLE_CAP:
 	{
 		struct kvm_enable_cap cap;
@@ -542,16 +569,54 @@ out:
 	return r;
 }
 
+static int kvm_vm_ioctl_get_pvinfo(struct kvm_ppc_pvinfo *pvinfo)
+{
+	u32 inst_lis = 0x3c000000;
+	u32 inst_ori = 0x60000000;
+	u32 inst_nop = 0x60000000;
+	u32 inst_sc = 0x44000002;
+	u32 inst_imm_mask = 0xffff;
+
+	/*
+	 * The hypercall to get into KVM from within guest context is as
+	 * follows:
+	 *
+	 *    lis r0, r0, KVM_SC_MAGIC_R0@h
+	 *    ori r0, KVM_SC_MAGIC_R0@l
+	 *    sc
+	 *    nop
+	 */
+	pvinfo->hcall[0] = inst_lis | ((KVM_SC_MAGIC_R0 >> 16) & inst_imm_mask);
+	pvinfo->hcall[1] = inst_ori | (KVM_SC_MAGIC_R0 & inst_imm_mask);
+	pvinfo->hcall[2] = inst_sc;
+	pvinfo->hcall[3] = inst_nop;
+
+	return 0;
+}
+
 long kvm_arch_vm_ioctl(struct file *filp,
                        unsigned int ioctl, unsigned long arg)
 {
+	void __user *argp = (void __user *)arg;
 	long r;
 
 	switch (ioctl) {
+	case KVM_PPC_GET_PVINFO: {
+		struct kvm_ppc_pvinfo pvinfo;
+		memset(&pvinfo, 0, sizeof(pvinfo));
+		r = kvm_vm_ioctl_get_pvinfo(&pvinfo);
+		if (copy_to_user(argp, &pvinfo, sizeof(pvinfo))) {
+			r = -EFAULT;
+			goto out;
+		}
+
+		break;
+	}
 	default:
 		r = -ENOTTY;
 	}
 
+out:
 	return r;
 }
 

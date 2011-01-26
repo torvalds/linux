@@ -503,30 +503,33 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
 		ks8851_wrreg16(ks, KS_RXQCR,
 			       ks->rc_rxqcr | RXQCR_SDA | RXQCR_ADRFE);
 
-		if (rxlen > 0) {
-			skb = netdev_alloc_skb(ks->netdev, rxlen + 2 + 8);
-			if (!skb) {
-				/* todo - dump frame and move on */
+		if (rxlen > 4) {
+			unsigned int rxalign;
+
+			rxlen -= 4;
+			rxalign = ALIGN(rxlen, 4);
+			skb = netdev_alloc_skb_ip_align(ks->netdev, rxalign);
+			if (skb) {
+
+				/* 4 bytes of status header + 4 bytes of
+				 * garbage: we put them before ethernet
+				 * header, so that they are copied,
+				 * but ignored.
+				 */
+
+				rxpkt = skb_put(skb, rxlen) - 8;
+
+				ks8851_rdfifo(ks, rxpkt, rxalign + 8);
+
+				if (netif_msg_pktdata(ks))
+					ks8851_dbg_dumpkkt(ks, rxpkt);
+
+				skb->protocol = eth_type_trans(skb, ks->netdev);
+				netif_rx(skb);
+
+				ks->netdev->stats.rx_packets++;
+				ks->netdev->stats.rx_bytes += rxlen;
 			}
-
-			/* two bytes to ensure ip is aligned, and four bytes
-			 * for the status header and 4 bytes of garbage */
-			skb_reserve(skb, 2 + 4 + 4);
-
-			rxpkt = skb_put(skb, rxlen - 4) - 8;
-
-			/* align the packet length to 4 bytes, and add 4 bytes
-			 * as we're getting the rx status header as well */
-			ks8851_rdfifo(ks, rxpkt, ALIGN(rxlen, 4) + 8);
-
-			if (netif_msg_pktdata(ks))
-				ks8851_dbg_dumpkkt(ks, rxpkt);
-
-			skb->protocol = eth_type_trans(skb, ks->netdev);
-			netif_rx(skb);
-
-			ks->netdev->stats.rx_packets++;
-			ks->netdev->stats.rx_bytes += rxlen - 4;
 		}
 
 		ks8851_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr);
@@ -1542,6 +1545,37 @@ static int ks8851_read_selftest(struct ks8851_net *ks)
 
 /* driver bus management functions */
 
+#ifdef CONFIG_PM
+static int ks8851_suspend(struct spi_device *spi, pm_message_t state)
+{
+	struct ks8851_net *ks = dev_get_drvdata(&spi->dev);
+	struct net_device *dev = ks->netdev;
+
+	if (netif_running(dev)) {
+		netif_device_detach(dev);
+		ks8851_net_stop(dev);
+	}
+
+	return 0;
+}
+
+static int ks8851_resume(struct spi_device *spi)
+{
+	struct ks8851_net *ks = dev_get_drvdata(&spi->dev);
+	struct net_device *dev = ks->netdev;
+
+	if (netif_running(dev)) {
+		ks8851_net_open(dev);
+		netif_device_attach(dev);
+	}
+
+	return 0;
+}
+#else
+#define ks8851_suspend NULL
+#define ks8851_resume NULL
+#endif
+
 static int __devinit ks8851_probe(struct spi_device *spi)
 {
 	struct net_device *ndev;
@@ -1676,6 +1710,8 @@ static struct spi_driver ks8851_driver = {
 	},
 	.probe = ks8851_probe,
 	.remove = __devexit_p(ks8851_remove),
+	.suspend = ks8851_suspend,
+	.resume = ks8851_resume,
 };
 
 static int __init ks8851_init(void)

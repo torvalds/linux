@@ -32,6 +32,8 @@
 #include <asm/time.h>
 
 #include <asm/octeon/octeon.h>
+#include <asm/octeon/pci-octeon.h>
+#include <asm/octeon/cvmx-mio-defs.h>
 
 #ifdef CONFIG_CAVIUM_DECODE_RSL
 extern void cvmx_interrupt_rsl_decode(void);
@@ -95,11 +97,20 @@ int octeon_is_pci_host(void)
  */
 uint64_t octeon_get_clock_rate(void)
 {
-	if (octeon_is_simulation())
-		octeon_bootinfo->eclock_hz = 6000000;
-	return octeon_bootinfo->eclock_hz;
+	struct cvmx_sysinfo *sysinfo = cvmx_sysinfo_get();
+
+	return sysinfo->cpu_clock_hz;
 }
 EXPORT_SYMBOL(octeon_get_clock_rate);
+
+static u64 octeon_io_clock_rate;
+
+u64 octeon_get_io_clock_rate(void)
+{
+	return octeon_io_clock_rate;
+}
+EXPORT_SYMBOL(octeon_get_io_clock_rate);
+
 
 /**
  * Write to the LCD display connected to the bootbus. This display
@@ -345,8 +356,18 @@ void octeon_user_io_init(void)
 	cvmmemctl.s.wbfltime = 0;
 	/* R/W If set, do not put Istream in the L2 cache. */
 	cvmmemctl.s.istrnol2 = 0;
-	/* R/W The write buffer threshold. */
-	cvmmemctl.s.wbthresh = 10;
+
+	/*
+	 * R/W The write buffer threshold. As per erratum Core-14752
+	 * for CN63XX, a sc/scd might fail if the write buffer is
+	 * full.  Lowering WBTHRESH greatly lowers the chances of the
+	 * write buffer ever being full and triggering the erratum.
+	 */
+	if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
+		cvmmemctl.s.wbthresh = 4;
+	else
+		cvmmemctl.s.wbthresh = 10;
+
 	/* R/W If set, CVMSEG is available for loads/stores in
 	 * kernel/debug mode. */
 #if CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0
@@ -364,13 +385,12 @@ void octeon_user_io_init(void)
 	 * is max legal value. */
 	cvmmemctl.s.lmemsz = CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE;
 
+	write_c0_cvmmemctl(cvmmemctl.u64);
 
 	if (smp_processor_id() == 0)
 		pr_notice("CVMSEG size: %d cache lines (%d bytes)\n",
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE,
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE * 128);
-
-	write_c0_cvmmemctl(cvmmemctl.u64);
 
 	/* Move the performance counter interrupts to IRQ 6 */
 	cvmctl = read_c0_cvmctl();
@@ -414,6 +434,41 @@ void __init prom_init(void)
 	octeon_bootinfo =
 		cvmx_phys_to_ptr(octeon_boot_desc_ptr->cvmx_desc_vaddr);
 	cvmx_bootmem_init(cvmx_phys_to_ptr(octeon_bootinfo->phy_mem_desc_addr));
+
+	sysinfo = cvmx_sysinfo_get();
+	memset(sysinfo, 0, sizeof(*sysinfo));
+	sysinfo->system_dram_size = octeon_bootinfo->dram_size << 20;
+	sysinfo->phy_mem_desc_ptr =
+		cvmx_phys_to_ptr(octeon_bootinfo->phy_mem_desc_addr);
+	sysinfo->core_mask = octeon_bootinfo->core_mask;
+	sysinfo->exception_base_addr = octeon_bootinfo->exception_base_addr;
+	sysinfo->cpu_clock_hz = octeon_bootinfo->eclock_hz;
+	sysinfo->dram_data_rate_hz = octeon_bootinfo->dclock_hz * 2;
+	sysinfo->board_type = octeon_bootinfo->board_type;
+	sysinfo->board_rev_major = octeon_bootinfo->board_rev_major;
+	sysinfo->board_rev_minor = octeon_bootinfo->board_rev_minor;
+	memcpy(sysinfo->mac_addr_base, octeon_bootinfo->mac_addr_base,
+	       sizeof(sysinfo->mac_addr_base));
+	sysinfo->mac_addr_count = octeon_bootinfo->mac_addr_count;
+	memcpy(sysinfo->board_serial_number,
+	       octeon_bootinfo->board_serial_number,
+	       sizeof(sysinfo->board_serial_number));
+	sysinfo->compact_flash_common_base_addr =
+		octeon_bootinfo->compact_flash_common_base_addr;
+	sysinfo->compact_flash_attribute_base_addr =
+		octeon_bootinfo->compact_flash_attribute_base_addr;
+	sysinfo->led_display_base_addr = octeon_bootinfo->led_display_base_addr;
+	sysinfo->dfa_ref_clock_hz = octeon_bootinfo->dfa_ref_clock_hz;
+	sysinfo->bootloader_config_flags = octeon_bootinfo->config_flags;
+
+	if (OCTEON_IS_MODEL(OCTEON_CN6XXX)) {
+		/* I/O clock runs at a different rate than the CPU. */
+		union cvmx_mio_rst_boot rst_boot;
+		rst_boot.u64 = cvmx_read_csr(CVMX_MIO_RST_BOOT);
+		octeon_io_clock_rate = 50000000 * rst_boot.s.pnr_mul;
+	} else {
+		octeon_io_clock_rate = sysinfo->cpu_clock_hz;
+	}
 
 	/*
 	 * Only enable the LED controller if we're running on a CN38XX, CN58XX,
@@ -477,33 +532,6 @@ void __init prom_init(void)
 #endif
 	}
 #endif
-
-	sysinfo = cvmx_sysinfo_get();
-	memset(sysinfo, 0, sizeof(*sysinfo));
-	sysinfo->system_dram_size = octeon_bootinfo->dram_size << 20;
-	sysinfo->phy_mem_desc_ptr =
-		cvmx_phys_to_ptr(octeon_bootinfo->phy_mem_desc_addr);
-	sysinfo->core_mask = octeon_bootinfo->core_mask;
-	sysinfo->exception_base_addr = octeon_bootinfo->exception_base_addr;
-	sysinfo->cpu_clock_hz = octeon_bootinfo->eclock_hz;
-	sysinfo->dram_data_rate_hz = octeon_bootinfo->dclock_hz * 2;
-	sysinfo->board_type = octeon_bootinfo->board_type;
-	sysinfo->board_rev_major = octeon_bootinfo->board_rev_major;
-	sysinfo->board_rev_minor = octeon_bootinfo->board_rev_minor;
-	memcpy(sysinfo->mac_addr_base, octeon_bootinfo->mac_addr_base,
-	       sizeof(sysinfo->mac_addr_base));
-	sysinfo->mac_addr_count = octeon_bootinfo->mac_addr_count;
-	memcpy(sysinfo->board_serial_number,
-	       octeon_bootinfo->board_serial_number,
-	       sizeof(sysinfo->board_serial_number));
-	sysinfo->compact_flash_common_base_addr =
-		octeon_bootinfo->compact_flash_common_base_addr;
-	sysinfo->compact_flash_attribute_base_addr =
-		octeon_bootinfo->compact_flash_attribute_base_addr;
-	sysinfo->led_display_base_addr = octeon_bootinfo->led_display_base_addr;
-	sysinfo->dfa_ref_clock_hz = octeon_bootinfo->dfa_ref_clock_hz;
-	sysinfo->bootloader_config_flags = octeon_bootinfo->config_flags;
-
 
 	octeon_check_cpu_bist();
 
@@ -578,9 +606,6 @@ void __init prom_init(void)
 	}
 
 	if (strstr(arcs_cmdline, "console=") == NULL) {
-#ifdef CONFIG_GDB_CONSOLE
-		strcat(arcs_cmdline, " console=gdb");
-#else
 #ifdef CONFIG_CAVIUM_OCTEON_2ND_KERNEL
 		strcat(arcs_cmdline, " console=ttyS0,115200");
 #else
@@ -588,7 +613,6 @@ void __init prom_init(void)
 			strcat(arcs_cmdline, " console=ttyS1,115200");
 		else
 			strcat(arcs_cmdline, " console=ttyS0,115200");
-#endif
 #endif
 	}
 
@@ -598,19 +622,35 @@ void __init prom_init(void)
 		 * the filesystem. Also specify the calibration delay
 		 * to avoid calculating it every time.
 		 */
-		strcat(arcs_cmdline, " rw root=1f00"
-		       " lpj=60176 slram=root,0x40000000,+1073741824");
+		strcat(arcs_cmdline, " rw root=1f00 slram=root,0x40000000,+1073741824");
 	}
 
 	mips_hpt_frequency = octeon_get_clock_rate();
 
 	octeon_init_cvmcount();
+	octeon_setup_delays();
 
 	_machine_restart = octeon_restart;
 	_machine_halt = octeon_halt;
 
 	octeon_user_io_init();
 	register_smp_ops(&octeon_smp_ops);
+}
+
+/* Exclude a single page from the regions obtained in plat_mem_setup. */
+static __init void memory_exclude_page(u64 addr, u64 *mem, u64 *size)
+{
+	if (addr > *mem && addr < *mem + *size) {
+		u64 inc = addr - *mem;
+		add_memory_region(*mem, inc, BOOT_MEM_RAM);
+		*mem += inc;
+		*size -= inc;
+	}
+
+	if (addr == *mem && *size > PAGE_SIZE) {
+		*mem += PAGE_SIZE;
+		*size -= PAGE_SIZE;
+	}
 }
 
 void __init plat_mem_setup(void)
@@ -663,12 +703,27 @@ void __init plat_mem_setup(void)
 						CVMX_BOOTMEM_FLAG_NO_LOCKING);
 #endif
 		if (memory >= 0) {
+			u64 size = mem_alloc_size;
+
+			/*
+			 * exclude a page at the beginning and end of
+			 * the 256MB PCIe 'hole' so the kernel will not
+			 * try to allocate multi-page buffers that
+			 * span the discontinuity.
+			 */
+			memory_exclude_page(CVMX_PCIE_BAR1_PHYS_BASE,
+					    &memory, &size);
+			memory_exclude_page(CVMX_PCIE_BAR1_PHYS_BASE +
+					    CVMX_PCIE_BAR1_PHYS_SIZE,
+					    &memory, &size);
+
 			/*
 			 * This function automatically merges address
 			 * regions next to each other if they are
 			 * received in incrementing order.
 			 */
-			add_memory_region(memory, mem_alloc_size, BOOT_MEM_RAM);
+			if (size)
+				add_memory_region(memory, size, BOOT_MEM_RAM);
 			total += mem_alloc_size;
 		} else {
 			break;
@@ -691,7 +746,10 @@ void __init plat_mem_setup(void)
 		      "cvmx_bootmem_phy_alloc\n");
 }
 
-
+/*
+ * Emit one character to the boot UART.  Exported for use by the
+ * watchdog timer.
+ */
 int prom_putchar(char c)
 {
 	uint64_t lsrval;
@@ -705,9 +763,35 @@ int prom_putchar(char c)
 	cvmx_write_csr(CVMX_MIO_UARTX_THR(octeon_uart), c & 0xffull);
 	return 1;
 }
+EXPORT_SYMBOL(prom_putchar);
 
 void prom_free_prom_memory(void)
 {
+	if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X)) {
+		/* Check for presence of Core-14449 fix.  */
+		u32 insn;
+		u32 *foo;
+
+		foo = &insn;
+
+		asm volatile("# before" : : : "memory");
+		prefetch(foo);
+		asm volatile(
+			".set push\n\t"
+			".set noreorder\n\t"
+			"bal 1f\n\t"
+			"nop\n"
+			"1:\tlw %0,-12($31)\n\t"
+			".set pop\n\t"
+			: "=r" (insn) : : "$31", "memory");
+
+		if ((insn >> 26) != 0x33)
+			panic("No PREF instruction at Core-14449 probe point.\n");
+
+		if (((insn >> 16) & 0x1f) != 28)
+			panic("Core-14449 WAR not in place (%04x).\n"
+			      "Please build kernel with proper options (CONFIG_CAVIUM_CN63XXP1).\n", insn);
+	}
 #ifdef CONFIG_CAVIUM_DECODE_RSL
 	cvmx_interrupt_rsl_enable();
 

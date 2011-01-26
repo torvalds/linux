@@ -66,8 +66,14 @@ static void request_modules(struct cx8802_dev *dev)
 	INIT_WORK(&dev->request_module_wk, request_module_async);
 	schedule_work(&dev->request_module_wk);
 }
+
+static void flush_request_modules(struct cx8802_dev *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
 #else
 #define request_modules(dev)
+#define flush_request_modules(dev)
 #endif /* CONFIG_MODULES */
 
 
@@ -313,7 +319,7 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 
 /* ----------------------------------------------------------- */
 
-static void do_cancel_buffers(struct cx8802_dev *dev, char *reason, int restart)
+static void do_cancel_buffers(struct cx8802_dev *dev, const char *reason, int restart)
 {
 	struct cx88_dmaqueue *q = &dev->mpegq;
 	struct cx88_buffer *buf;
@@ -358,7 +364,7 @@ static void cx8802_timeout(unsigned long data)
 	do_cancel_buffers(dev,"timeout",1);
 }
 
-static char *cx88_mpeg_irqs[32] = {
+static const char * cx88_mpeg_irqs[32] = {
 	"ts_risci1", NULL, NULL, NULL,
 	"ts_risci2", NULL, NULL, NULL,
 	"ts_oflow",  NULL, NULL, NULL,
@@ -819,6 +825,8 @@ static void __devexit cx8802_remove(struct pci_dev *pci_dev)
 
 	dprintk( 1, "%s\n", __func__);
 
+	flush_request_modules(dev);
+
 	if (!list_empty(&dev->drvlist)) {
 		struct cx8802_driver *drv, *tmp;
 		int err;
@@ -849,7 +857,7 @@ static void __devexit cx8802_remove(struct pci_dev *pci_dev)
 	kfree(dev);
 }
 
-static struct pci_device_id cx8802_pci_tbl[] = {
+static const struct pci_device_id cx8802_pci_tbl[] = {
 	{
 		.vendor       = 0x14f1,
 		.device       = 0x8802,

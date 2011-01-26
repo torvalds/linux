@@ -35,7 +35,12 @@ int arch_msi_check_device(struct pci_dev *dev, int nvec, int type)
 #endif
 
 #ifndef arch_setup_msi_irqs
-int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+# define arch_setup_msi_irqs default_setup_msi_irqs
+# define HAVE_DEFAULT_MSI_SETUP_IRQS
+#endif
+
+#ifdef HAVE_DEFAULT_MSI_SETUP_IRQS
+int default_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *entry;
 	int ret;
@@ -60,7 +65,12 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 #endif
 
 #ifndef arch_teardown_msi_irqs
-void arch_teardown_msi_irqs(struct pci_dev *dev)
+# define arch_teardown_msi_irqs default_teardown_msi_irqs
+# define HAVE_DEFAULT_MSI_TEARDOWN_IRQS
+#endif
+
+#ifdef HAVE_DEFAULT_MSI_TEARDOWN_IRQS
+void default_teardown_msi_irqs(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
 
@@ -158,8 +168,9 @@ static u32 __msix_mask_irq(struct msi_desc *desc, u32 flag)
 	u32 mask_bits = desc->masked;
 	unsigned offset = desc->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE +
 						PCI_MSIX_ENTRY_VECTOR_CTRL;
-	mask_bits &= ~1;
-	mask_bits |= flag;
+	mask_bits &= ~PCI_MSIX_ENTRY_CTRL_MASKBIT;
+	if (flag)
+		mask_bits |= PCI_MSIX_ENTRY_CTRL_MASKBIT;
 	writel(mask_bits, desc->mask_base + offset);
 
 	return mask_bits;
@@ -170,32 +181,33 @@ static void msix_mask_irq(struct msi_desc *desc, u32 flag)
 	desc->masked = __msix_mask_irq(desc, flag);
 }
 
-static void msi_set_mask_bit(unsigned irq, u32 flag)
+static void msi_set_mask_bit(struct irq_data *data, u32 flag)
 {
-	struct msi_desc *desc = get_irq_msi(irq);
+	struct msi_desc *desc = irq_data_get_msi(data);
 
 	if (desc->msi_attrib.is_msix) {
 		msix_mask_irq(desc, flag);
 		readl(desc->mask_base);		/* Flush write to device */
 	} else {
-		unsigned offset = irq - desc->dev->irq;
+		unsigned offset = data->irq - desc->dev->irq;
 		msi_mask_irq(desc, 1 << offset, flag << offset);
 	}
 }
 
-void mask_msi_irq(unsigned int irq)
+void mask_msi_irq(struct irq_data *data)
 {
-	msi_set_mask_bit(irq, 1);
+	msi_set_mask_bit(data, 1);
 }
 
-void unmask_msi_irq(unsigned int irq)
+void unmask_msi_irq(struct irq_data *data)
 {
-	msi_set_mask_bit(irq, 0);
+	msi_set_mask_bit(data, 0);
 }
 
-void read_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
+void __read_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
-	struct msi_desc *entry = get_irq_desc_msi(desc);
+	BUG_ON(entry->dev->current_state != PCI_D0);
+
 	if (entry->msi_attrib.is_msix) {
 		void __iomem *base = entry->mask_base +
 			entry->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE;
@@ -224,15 +236,33 @@ void read_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
 
 void read_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct msi_desc *entry = get_irq_msi(irq);
 
-	read_msi_msg_desc(desc, msg);
+	__read_msi_msg(entry, msg);
 }
 
-void write_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
+void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
-	struct msi_desc *entry = get_irq_desc_msi(desc);
-	if (entry->msi_attrib.is_msix) {
+	/* Assert that the cache is valid, assuming that
+	 * valid messages are not all-zeroes. */
+	BUG_ON(!(entry->msg.address_hi | entry->msg.address_lo |
+		 entry->msg.data));
+
+	*msg = entry->msg;
+}
+
+void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg)
+{
+	struct msi_desc *entry = get_irq_msi(irq);
+
+	__get_cached_msi_msg(entry, msg);
+}
+
+void __write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
+{
+	if (entry->dev->current_state != PCI_D0) {
+		/* Don't touch the hardware now */
+	} else if (entry->msi_attrib.is_msix) {
 		void __iomem *base;
 		base = entry->mask_base +
 			entry->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE;
@@ -267,9 +297,9 @@ void write_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
 
 void write_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct msi_desc *entry = get_irq_msi(irq);
 
-	write_msi_msg_desc(desc, msg);
+	__write_msi_msg(entry, msg);
 }
 
 static void free_msi_irqs(struct pci_dev *dev)
@@ -435,7 +465,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 static void __iomem *msix_map_region(struct pci_dev *dev, unsigned pos,
 							unsigned nr_entries)
 {
-	unsigned long phys_addr;
+	resource_size_t phys_addr;
 	u32 table_offset;
 	u8 bir;
 

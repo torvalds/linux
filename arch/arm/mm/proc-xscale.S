@@ -124,15 +124,11 @@ ENTRY(cpu_xscale_proc_init)
  * cpu_xscale_proc_fin()
  */
 ENTRY(cpu_xscale_proc_fin)
-	str	lr, [sp, #-4]!
-	mov	r0, #PSR_F_BIT|PSR_I_BIT|SVC_MODE
-	msr	cpsr_c, r0
-	bl	xscale_flush_kern_cache_all	@ clean caches
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1800			@ ...IZ...........
 	bic	r0, r0, #0x0006			@ .............CA.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	ldr	pc, [sp], #4
+	mov	pc, lr
 
 /*
  * cpu_xscale_reset(loc)
@@ -183,6 +179,17 @@ ENTRY(cpu_xscale_do_idle)
 	mov	pc, lr
 
 /* ================================= CACHE ================================ */
+
+/*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(xscale_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(xscale_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
@@ -401,6 +408,7 @@ ENTRY(xscale_dma_unmap_area)
 ENDPROC(xscale_dma_unmap_area)
 
 ENTRY(xscale_cache_fns)
+	.long	xscale_flush_icache_all
 	.long	xscale_flush_kern_cache_all
 	.long	xscale_flush_user_cache_all
 	.long	xscale_flush_user_cache_range
@@ -492,8 +500,8 @@ ENTRY(cpu_xscale_set_pte_ext)
 	@
 	@ Erratum 40: must set memory to write-through for user read-only pages
 	@
-	and	ip, r1, #(L_PTE_MT_MASK | L_PTE_USER | L_PTE_WRITE) & ~(4 << 2)
-	teq	ip, #L_PTE_MT_WRITEBACK | L_PTE_USER
+	and	ip, r1, #(L_PTE_MT_MASK | L_PTE_USER | L_PTE_RDONLY) & ~(4 << 2)
+	teq	ip, #L_PTE_MT_WRITEBACK | L_PTE_USER | L_PTE_RDONLY
 
 	moveq	r1, #L_PTE_MT_WRITETHROUGH
 	and	r1, r1, #L_PTE_MT_MASK
@@ -510,7 +518,7 @@ ENTRY(cpu_xscale_set_pte_ext)
 
 	.align
 
-	__INIT
+	__CPUINIT
 
 	.type	__xscale_setup, #function
 __xscale_setup:

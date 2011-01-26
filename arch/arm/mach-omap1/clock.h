@@ -107,7 +107,7 @@ extern struct clk *api_ck_p, *ck_dpll1_p, *ck_ref_p;
 
 extern const struct clkops clkops_dspck;
 extern const struct clkops clkops_dummy;
-extern const struct clkops clkops_uart;
+extern const struct clkops clkops_uart_16xx;
 extern const struct clkops clkops_generic;
 
 #endif

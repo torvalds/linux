@@ -60,6 +60,21 @@ struct via_port_cfg {
 };
 
 /*
+ * Allow subdevs to register suspend/resume hooks.
+ */
+#ifdef CONFIG_PM
+struct viafb_pm_hooks {
+	struct list_head list;
+	int (*suspend)(void *private);
+	int (*resume)(void *private);
+	void *private;
+};
+
+void viafb_pm_register(struct viafb_pm_hooks *hooks);
+void viafb_pm_unregister(struct viafb_pm_hooks *hooks);
+#endif /* CONFIG_PM */
+
+/*
  * This is the global viafb "device" containing stuff needed by
  * all subdevs.
  */
@@ -81,7 +96,7 @@ struct viafb_dev {
 	unsigned long fbmem_start;
 	long fbmem_len;
 	void __iomem *fbmem;
-#if defined(CONFIG_FB_VIA_CAMERA) || defined(CONFIG_FB_VIA_CAMERA_MODULE)
+#if defined(CONFIG_VIDEO_VIA_CAMERA) || defined(CONFIG_VIDEO_VIA_CAMERA_MODULE)
 	long camera_fbmem_offset;
 	long camera_fbmem_size;
 #endif
@@ -138,6 +153,7 @@ void viafb_irq_disable(u32 mask);
 #define   VDE_I_LVDSSIEN  0x40000000  /* LVDS Sense enable */
 #define   VDE_I_ENABLE	  0x80000000  /* Global interrupt enable */
 
+#if defined(CONFIG_VIDEO_VIA_CAMERA) || defined(CONFIG_VIDEO_VIA_CAMERA_MODULE)
 /*
  * DMA management.
  */
@@ -172,6 +188,7 @@ int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg);
  */
 #define VGA_WIDTH	640
 #define VGA_HEIGHT	480
+#endif /* CONFIG_VIDEO_VIA_CAMERA */
 
 /*
  * Indexed port operations.  Note that these are all multi-op

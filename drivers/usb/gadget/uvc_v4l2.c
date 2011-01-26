@@ -94,7 +94,7 @@ uvc_v4l2_set_format(struct uvc_video *video, struct v4l2_format *fmt)
 			break;
 	}
 
-	if (format == NULL || format->fcc != fmt->fmt.pix.pixelformat) {
+	if (i == ARRAY_SIZE(uvc_formats)) {
 		printk(KERN_INFO "Unsupported format 0x%08x.\n",
 			fmt->fmt.pix.pixelformat);
 		return -EINVAL;
@@ -363,7 +363,7 @@ uvc_v4l2_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-struct v4l2_file_operations uvc_v4l2_fops = {
+static struct v4l2_file_operations uvc_v4l2_fops = {
 	.owner		= THIS_MODULE,
 	.open		= uvc_v4l2_open,
 	.release	= uvc_v4l2_release,

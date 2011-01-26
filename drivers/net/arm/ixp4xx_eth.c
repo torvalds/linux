@@ -241,7 +241,7 @@ static inline void memcpy_swab32(u32 *dest, u32 *src, int cnt)
 
 static spinlock_t mdio_lock;
 static struct eth_regs __iomem *mdio_regs; /* mdio command and status only */
-struct mii_bus *mdio_bus;
+static struct mii_bus *mdio_bus;
 static int ports_open;
 static struct port *npe_port_tab[MAX_NPES];
 static struct dma_pool *dma_pool;
@@ -738,6 +738,17 @@ static void eth_set_mcast_list(struct net_device *dev)
 	struct netdev_hw_addr *ha;
 	u8 diffs[ETH_ALEN], *addr;
 	int i;
+	static const u8 allmulti[] = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+	if (dev->flags & IFF_ALLMULTI) {
+		for (i = 0; i < ETH_ALEN; i++) {
+			__raw_writel(allmulti[i], &port->regs->mcast_addr[i]);
+			__raw_writel(allmulti[i], &port->regs->mcast_mask[i]);
+		}
+		__raw_writel(DEFAULT_RX_CNTRL0 | RX_CNTRL0_ADDR_FLTR_EN,
+			&port->regs->rx_control[0]);
+		return;
+	}
 
 	if ((dev->flags & IFF_PROMISC) || netdev_mc_empty(dev)) {
 		__raw_writel(DEFAULT_RX_CNTRL0 & ~RX_CNTRL0_ADDR_FLTR_EN,
@@ -771,7 +782,8 @@ static int eth_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 
 	if (!netif_running(dev))
 		return -EINVAL;
-	return phy_mii_ioctl(port->phydev, if_mii(req), cmd);
+
+	return phy_mii_ioctl(port->phydev, req, cmd);
 }
 
 /* ethtool support */
@@ -1217,8 +1229,10 @@ static int __devinit eth_init_one(struct platform_device *pdev)
 	snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, "0", plat->phy);
 	port->phydev = phy_connect(dev, phy_id, &ixp4xx_adjust_link, 0,
 				   PHY_INTERFACE_MODE_MII);
-	if ((err = IS_ERR(port->phydev)))
+	if (IS_ERR(port->phydev)) {
+		err = PTR_ERR(port->phydev);
 		goto err_free_mem;
+	}
 
 	port->phydev->irq = PHY_POLL;
 

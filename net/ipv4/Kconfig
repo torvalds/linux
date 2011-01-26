@@ -46,7 +46,7 @@ config IP_ADVANCED_ROUTER
 	  rp_filter on use:
 
 	  echo 1 > /proc/sys/net/ipv4/conf/<device>/rp_filter
-	   and
+	   or
 	  echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
 
 	  Note that some distributions enable it in startup scripts.
@@ -84,7 +84,7 @@ config IP_FIB_TRIE
 
 	  An experimental study of compression methods for dynamic tries
 	  Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.
-	  http://www.nada.kth.se/~snilsson/public/papers/dyntrie2/
+	  <http://www.csc.kth.se/~snilsson/software/dyntrie2/>
 
 endchoice
 
@@ -215,8 +215,15 @@ config NET_IPIP
 	  be inserted in and removed from the running kernel whenever you
 	  want). Most people won't need this and can say N.
 
+config NET_IPGRE_DEMUX
+	tristate "IP: GRE demultiplexer"
+	help
+	 This is helper module to demultiplex GRE packets on GRE version field criteria.
+	 Required by ip_gre and pptp modules.
+
 config NET_IPGRE
 	tristate "IP: GRE tunnels over IP"
+	depends on (IPV6 || IPV6=n) && NET_IPGRE_DEMUX
 	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -303,7 +310,7 @@ config ARPD
 	  If unsure, say N.
 
 config SYN_COOKIES
-	bool "IP: TCP syncookie support (disabled per default)"
+	bool "IP: TCP syncookie support"
 	---help---
 	  Normal TCP/IP networking is open to an attack known as "SYN
 	  flooding". This denial-of-service attack prevents legitimate remote
@@ -328,13 +335,13 @@ config SYN_COOKIES
 	  server is really overloaded. If this happens frequently better turn
 	  them off.
 
-	  If you say Y here, note that SYN cookies aren't enabled by default;
-	  you can enable them by saying Y to "/proc file system support" and
+	  If you say Y here, you can disable SYN cookies at run time by
+	  saying Y to "/proc file system support" and
 	  "Sysctl support" below and executing the command
 
-	  echo 1 >/proc/sys/net/ipv4/tcp_syncookies
+	  echo 0 > /proc/sys/net/ipv4/tcp_syncookies
 
-	  at boot time after the /proc file system has been mounted.
+	  after the /proc file system has been mounted.
 
 	  If unsure, say N.
 
@@ -412,7 +419,7 @@ config INET_XFRM_MODE_BEET
 	  If unsure, say Y.
 
 config INET_LRO
-	bool "Large Receive Offload (ipv4/tcp)"
+	tristate "Large Receive Offload (ipv4/tcp)"
 	default y
 	---help---
 	  Support for Large Receive Offload (ipv4/tcp).
@@ -425,7 +432,9 @@ config INET_DIAG
 	---help---
 	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
 	  native Linux tools such as ss. ss is included in iproute2, currently
-	  downloadable at <http://linux-net.osdl.org/index.php/Iproute2>.
+	  downloadable at:
+	  
+	    http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2
 
 	  If unsure, say Y.
 
@@ -555,7 +564,7 @@ config TCP_CONG_VENO
 	distinguishing to circumvent the difficult judgment of the packet loss
 	type. TCP Veno cuts down less congestion window in response to random
 	loss packets.
-	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
+	See <http://ieeexplore.ieee.org/xpl/freeabs_all.jsp?arnumber=1177186> 
 
 config TCP_CONG_YEAH
 	tristate "YeAH TCP"

@@ -30,6 +30,7 @@ struct pipe_buffer {
  *	struct pipe_inode_info - a linux kernel pipe
  *	@wait: reader/writer wait point in case of empty/full pipe
  *	@nrbufs: the number of non-empty pipe buffers in this pipe
+ *	@buffers: total number of buffers (should be a power of 2)
  *	@curbuf: the current pipe buffer entry
  *	@tmp_page: cached released page
  *	@readers: number of current readers of this pipe
@@ -139,7 +140,9 @@ void pipe_lock(struct pipe_inode_info *);
 void pipe_unlock(struct pipe_inode_info *);
 void pipe_double_lock(struct pipe_inode_info *, struct pipe_inode_info *);
 
-extern unsigned int pipe_max_pages;
+extern unsigned int pipe_max_size, pipe_min_size;
+int pipe_proc_fn(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+
 
 /* Drop the inode semaphore and wait for a pipe event, atomically */
 void pipe_wait(struct pipe_inode_info *pipe);
@@ -158,5 +161,6 @@ void generic_pipe_buf_release(struct pipe_inode_info *, struct pipe_buffer *);
 
 /* for F_SETPIPE_SZ and F_GETPIPE_SZ */
 long pipe_fcntl(struct file *, unsigned int, unsigned long arg);
+struct pipe_inode_info *get_pipe_info(struct file *file);
 
 #endif

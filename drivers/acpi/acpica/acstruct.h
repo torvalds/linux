@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -127,22 +127,22 @@ struct acpi_walk_state {
 	acpi_parse_upwards ascending_callback;
 };
 
-/* Info used by acpi_ps_init_objects */
+/* Info used by acpi_ns_initialize_objects and acpi_ds_initialize_objects */
 
 struct acpi_init_walk_info {
-	u16 method_count;
-	u16 device_count;
-	u16 op_region_count;
-	u16 field_count;
-	u16 buffer_count;
-	u16 package_count;
-	u16 op_region_init;
-	u16 field_init;
-	u16 buffer_init;
-	u16 package_init;
-	u16 object_count;
-	acpi_owner_id owner_id;
 	u32 table_index;
+	u32 object_count;
+	u32 method_count;
+	u32 device_count;
+	u32 op_region_count;
+	u32 field_count;
+	u32 buffer_count;
+	u32 package_count;
+	u32 op_region_init;
+	u32 field_init;
+	u32 buffer_init;
+	u32 package_init;
+	acpi_owner_id owner_id;
 };
 
 struct acpi_get_devices_info {
@@ -201,11 +201,11 @@ struct acpi_evaluate_info {
 /* Info used by acpi_ns_initialize_devices */
 
 struct acpi_device_walk_info {
-	u16 device_count;
-	u16 num_STA;
-	u16 num_INI;
 	struct acpi_table_desc *table_desc;
 	struct acpi_evaluate_info *evaluate_info;
+	u32 device_count;
+	u32 num_STA;
+	u32 num_INI;
 };
 
 /* TBD: [Restructure] Merge with struct above */

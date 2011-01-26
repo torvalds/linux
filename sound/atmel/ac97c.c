@@ -657,7 +657,7 @@ static irqreturn_t atmel_ac97c_interrupt(int irq, void *dev)
 	if (sr & AC97C_SR_CAEVT) {
 		struct snd_pcm_runtime *runtime;
 		int offset, next_period, block_size;
-		dev_info(&chip->pdev->dev, "channel A event%s%s%s%s%s%s\n",
+		dev_dbg(&chip->pdev->dev, "channel A event%s%s%s%s%s%s\n",
 				casr & AC97C_CSR_OVRUN   ? " OVRUN"   : "",
 				casr & AC97C_CSR_RXRDY   ? " RXRDY"   : "",
 				casr & AC97C_CSR_UNRUN   ? " UNRUN"   : "",

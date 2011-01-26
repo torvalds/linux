@@ -112,11 +112,21 @@ static bool __devinit has_erratum_319(struct pci_dev *pdev)
 	if (pkg_type != CPUID_PKGTYPE_AM2R2_AM3)
 		return false;
 
-	/* Differentiate between AM2+ (bad) and AM3 (good) */
+	/* DDR3 memory implies socket AM3, which is good */
 	pci_bus_read_config_dword(pdev->bus,
 				  PCI_DEVFN(PCI_SLOT(pdev->devfn), 2),
 				  REG_DCT0_CONFIG_HIGH, &reg_dram_cfg);
-	return !(reg_dram_cfg & DDR3_MODE);
+	if (reg_dram_cfg & DDR3_MODE)
+		return false;
+
+	/*
+	 * Unfortunately it is possible to run a socket AM3 CPU with DDR2
+	 * memory. We blacklist all the cores which do exist in socket AM2+
+	 * format. It still isn't perfect, as RB-C2 cores exist in both AM2+
+	 * and AM3 formats, but that's the best we can do.
+	 */
+	return boot_cpu_data.x86_model < 4 ||
+	       (boot_cpu_data.x86_model == 4 && boot_cpu_data.x86_mask <= 2);
 }
 
 static int __devinit k10temp_probe(struct pci_dev *pdev,

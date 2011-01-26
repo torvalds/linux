@@ -95,7 +95,7 @@ static int sq905c_command(struct gspca_dev *gspca_dev, u16 command, u16 index)
 			      command, index, NULL, 0,
 			      SQ905C_CMD_TIMEOUT);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "%s: usb_control_msg failed (%d)",
+		err("%s: usb_control_msg failed (%d)",
 			__func__, ret);
 		return ret;
 	}
@@ -115,7 +115,7 @@ static int sq905c_read(struct gspca_dev *gspca_dev, u16 command, u16 index,
 			      command, index, gspca_dev->usb_buf, size,
 			      SQ905C_CMD_TIMEOUT);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "%s: usb_control_msg failed (%d)",
+		err("%s: usb_control_msg failed (%d)",
 		       __func__, ret);
 		return ret;
 	}
@@ -146,7 +146,7 @@ static void sq905c_dostream(struct work_struct *work)
 
 	buffer = kmalloc(SQ905C_MAX_TRANSFER, GFP_KERNEL | GFP_DMA);
 	if (!buffer) {
-		PDEBUG(D_ERR, "Couldn't allocate USB buffer");
+		err("Couldn't allocate USB buffer");
 		goto quit_stream;
 	}
 
@@ -298,9 +298,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 }
 
 /* Table of supported USB devices */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x2770, 0x905c)},
 	{USB_DEVICE(0x2770, 0x9050)},
+	{USB_DEVICE(0x2770, 0x9051)},
 	{USB_DEVICE(0x2770, 0x9052)},
 	{USB_DEVICE(0x2770, 0x913d)},
 	{}
@@ -341,19 +342,12 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

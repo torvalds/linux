@@ -37,9 +37,7 @@ static ssize_t show_link_type(struct device *dev, struct device_attribute *attr,
 static ssize_t show_link_address(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct hci_conn *conn = dev_get_drvdata(dev);
-	bdaddr_t bdaddr;
-	baswap(&bdaddr, &conn->dst);
-	return sprintf(buf, "%s\n", batostr(&bdaddr));
+	return sprintf(buf, "%s\n", batostr(&conn->dst));
 }
 
 static ssize_t show_link_features(struct device *dev, struct device_attribute *attr, char *buf)
@@ -196,8 +194,8 @@ static inline char *host_typetostr(int type)
 	switch (type) {
 	case HCI_BREDR:
 		return "BR/EDR";
-	case HCI_80211:
-		return "802.11";
+	case HCI_AMP:
+		return "AMP";
 	default:
 		return "UNKNOWN";
 	}
@@ -238,9 +236,7 @@ static ssize_t show_class(struct device *dev, struct device_attribute *attr, cha
 static ssize_t show_address(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	bdaddr_t bdaddr;
-	baswap(&bdaddr, &hdev->bdaddr);
-	return sprintf(buf, "%s\n", batostr(&bdaddr));
+	return sprintf(buf, "%s\n", batostr(&hdev->bdaddr));
 }
 
 static ssize_t show_features(struct device *dev, struct device_attribute *attr, char *buf)
@@ -408,10 +404,8 @@ static int inquiry_cache_show(struct seq_file *f, void *p)
 
 	for (e = cache->list; e; e = e->next) {
 		struct inquiry_data *data = &e->data;
-		bdaddr_t bdaddr;
-		baswap(&bdaddr, &data->bdaddr);
 		seq_printf(f, "%s %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %d %u\n",
-			   batostr(&bdaddr),
+			   batostr(&data->bdaddr),
 			   data->pscan_rep_mode, data->pscan_period_mode,
 			   data->pscan_mode, data->dev_class[2],
 			   data->dev_class[1], data->dev_class[0],
@@ -436,6 +430,37 @@ static const struct file_operations inquiry_cache_fops = {
 	.release	= single_release,
 };
 
+static int blacklist_show(struct seq_file *f, void *p)
+{
+	struct hci_dev *hdev = f->private;
+	struct list_head *l;
+
+	hci_dev_lock_bh(hdev);
+
+	list_for_each(l, &hdev->blacklist) {
+		struct bdaddr_list *b;
+
+		b = list_entry(l, struct bdaddr_list, list);
+
+		seq_printf(f, "%s\n", batostr(&b->bdaddr));
+	}
+
+	hci_dev_unlock_bh(hdev);
+
+	return 0;
+}
+
+static int blacklist_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, blacklist_show, inode->i_private);
+}
+
+static const struct file_operations blacklist_fops = {
+	.open		= blacklist_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 int hci_register_sysfs(struct hci_dev *hdev)
 {
 	struct device *dev = &hdev->dev;
@@ -464,6 +489,9 @@ int hci_register_sysfs(struct hci_dev *hdev)
 
 	debugfs_create_file("inquiry_cache", 0444, hdev->debugfs,
 						hdev, &inquiry_cache_fops);
+
+	debugfs_create_file("blacklist", 0444, hdev->debugfs,
+						hdev, &blacklist_fops);
 
 	return 0;
 }

@@ -14,18 +14,25 @@
  * See the file COPYING for more details.
  */
 
+#include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/rcupdate.h>
+#include <linux/jump_label.h>
 
 struct module;
 struct tracepoint;
+
+struct tracepoint_func {
+	void *func;
+	void *data;
+};
 
 struct tracepoint {
 	const char *name;		/* Tracepoint name */
 	int state;			/* State. */
 	void (*regfunc)(void);
 	void (*unregfunc)(void);
-	void **funcs;
+	struct tracepoint_func __rcu *funcs;
 } __attribute__((aligned(32)));		/*
 					 * Aligned on 32 bytes because it is
 					 * globally visible and gcc happily
@@ -37,16 +44,19 @@ struct tracepoint {
  * Connect a probe to a tracepoint.
  * Internal API, should not be used directly.
  */
-extern int tracepoint_probe_register(const char *name, void *probe);
+extern int tracepoint_probe_register(const char *name, void *probe, void *data);
 
 /*
  * Disconnect a probe from a tracepoint.
  * Internal API, should not be used directly.
  */
-extern int tracepoint_probe_unregister(const char *name, void *probe);
+extern int
+tracepoint_probe_unregister(const char *name, void *probe, void *data);
 
-extern int tracepoint_probe_register_noupdate(const char *name, void *probe);
-extern int tracepoint_probe_unregister_noupdate(const char *name, void *probe);
+extern int tracepoint_probe_register_noupdate(const char *name, void *probe,
+					      void *data);
+extern int tracepoint_probe_unregister_noupdate(const char *name, void *probe,
+						void *data);
 extern void tracepoint_probe_update_all(void);
 
 struct tracepoint_iter {
@@ -96,23 +106,36 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 
 #define TP_PROTO(args...)	args
 #define TP_ARGS(args...)	args
+#define TP_CONDITION(args...)	args
 
 #ifdef CONFIG_TRACEPOINTS
 
 /*
  * it_func[0] is never NULL because there is at least one element in the array
  * when the array itself is non NULL.
+ *
+ * Note, the proto and args passed in includes "__data" as the first parameter.
+ * The reason for this is to handle the "void" prototype. If a tracepoint
+ * has a "void" prototype, then it is invalid to declare a function
+ * as "(void *, void)". The DECLARE_TRACE_NOARGS() will pass in just
+ * "void *data", where as the DECLARE_TRACE() will pass in "void *data, proto".
  */
-#define __DO_TRACE(tp, proto, args)					\
+#define __DO_TRACE(tp, proto, args, cond)				\
 	do {								\
-		void **it_func;						\
+		struct tracepoint_func *it_func_ptr;			\
+		void *it_func;						\
+		void *__data;						\
 									\
+		if (!(cond))						\
+			return;						\
 		rcu_read_lock_sched_notrace();				\
-		it_func = rcu_dereference_sched((tp)->funcs);		\
-		if (it_func) {						\
+		it_func_ptr = rcu_dereference_sched((tp)->funcs);	\
+		if (it_func_ptr) {					\
 			do {						\
-				((void(*)(proto))(*it_func))(args);	\
-			} while (*(++it_func));				\
+				it_func = (it_func_ptr)->func;		\
+				__data = (it_func_ptr)->data;		\
+				((void(*)(proto))(it_func))(args);	\
+			} while ((++it_func_ptr)->func);		\
 		}							\
 		rcu_read_unlock_sched_notrace();			\
 	} while (0)
@@ -122,23 +145,34 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
  * not add unwanted padding between the beginning of the section and the
  * structure. Force alignment to the same alignment as the section start.
  */
-#define DECLARE_TRACE(name, proto, args)				\
+#define __DECLARE_TRACE(name, proto, args, cond, data_proto, data_args)	\
 	extern struct tracepoint __tracepoint_##name;			\
 	static inline void trace_##name(proto)				\
 	{								\
-		if (unlikely(__tracepoint_##name.state))		\
+		JUMP_LABEL(&__tracepoint_##name.state, do_trace);	\
+		return;							\
+do_trace:								\
 			__DO_TRACE(&__tracepoint_##name,		\
-				TP_PROTO(proto), TP_ARGS(args));	\
+				TP_PROTO(data_proto),			\
+				TP_ARGS(data_args),			\
+				TP_CONDITION(cond));			\
 	}								\
-	static inline int register_trace_##name(void (*probe)(proto))	\
+	static inline int						\
+	register_trace_##name(void (*probe)(data_proto), void *data)	\
 	{								\
-		return tracepoint_probe_register(#name, (void *)probe);	\
+		return tracepoint_probe_register(#name, (void *)probe,	\
+						 data);			\
 	}								\
-	static inline int unregister_trace_##name(void (*probe)(proto))	\
+	static inline int						\
+	unregister_trace_##name(void (*probe)(data_proto), void *data)	\
 	{								\
-		return tracepoint_probe_unregister(#name, (void *)probe);\
+		return tracepoint_probe_unregister(#name, (void *)probe, \
+						   data);		\
+	}								\
+	static inline void						\
+	check_trace_callback_type_##name(void (*cb)(data_proto))	\
+	{								\
 	}
-
 
 #define DEFINE_TRACE_FN(name, reg, unreg)				\
 	static const char __tpstrtab_##name[]				\
@@ -156,18 +190,23 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 	EXPORT_SYMBOL(__tracepoint_##name)
 
 #else /* !CONFIG_TRACEPOINTS */
-#define DECLARE_TRACE(name, proto, args)				\
-	static inline void _do_trace_##name(struct tracepoint *tp, proto) \
-	{ }								\
+#define __DECLARE_TRACE(name, proto, args, cond, data_proto, data_args)	\
 	static inline void trace_##name(proto)				\
 	{ }								\
-	static inline int register_trace_##name(void (*probe)(proto))	\
+	static inline int						\
+	register_trace_##name(void (*probe)(data_proto),		\
+			      void *data)				\
 	{								\
 		return -ENOSYS;						\
 	}								\
-	static inline int unregister_trace_##name(void (*probe)(proto))	\
+	static inline int						\
+	unregister_trace_##name(void (*probe)(data_proto),		\
+				void *data)				\
 	{								\
 		return -ENOSYS;						\
+	}								\
+	static inline void check_trace_callback_type_##name(void (*cb)(data_proto)) \
+	{								\
 	}
 
 #define DEFINE_TRACE_FN(name, reg, unreg)
@@ -176,6 +215,36 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 #define EXPORT_TRACEPOINT_SYMBOL(name)
 
 #endif /* CONFIG_TRACEPOINTS */
+
+/*
+ * The need for the DECLARE_TRACE_NOARGS() is to handle the prototype
+ * (void). "void" is a special value in a function prototype and can
+ * not be combined with other arguments. Since the DECLARE_TRACE()
+ * macro adds a data element at the beginning of the prototype,
+ * we need a way to differentiate "(void *data, proto)" from
+ * "(void *data, void)". The second prototype is invalid.
+ *
+ * DECLARE_TRACE_NOARGS() passes "void" as the tracepoint prototype
+ * and "void *__data" as the callback prototype.
+ *
+ * DECLARE_TRACE() passes "proto" as the tracepoint protoype and
+ * "void *__data, proto" as the callback prototype.
+ */
+#define DECLARE_TRACE_NOARGS(name)					\
+		__DECLARE_TRACE(name, void, , 1, void *__data, __data)
+
+#define DECLARE_TRACE(name, proto, args)				\
+		__DECLARE_TRACE(name, PARAMS(proto), PARAMS(args), 1,	\
+				PARAMS(void *__data, proto),		\
+				PARAMS(__data, args))
+
+#define DECLARE_TRACE_CONDITION(name, proto, args, cond)		\
+	__DECLARE_TRACE(name, PARAMS(proto), PARAMS(args), PARAMS(cond), \
+			PARAMS(void *__data, proto),			\
+			PARAMS(__data, args))
+
+#define TRACE_EVENT_FLAGS(event, flag)
+
 #endif /* DECLARE_TRACE */
 
 #ifndef TRACE_EVENT
@@ -257,7 +326,7 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
  *		memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
  *		__entry->next_pid	= next->pid;
  *		__entry->next_prio	= next->prio;
- *	)
+ *	),
  *
  *	*
  *	* Formatted output of a trace record via TP_printk().
@@ -289,11 +358,21 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
 #define DEFINE_EVENT_PRINT(template, name, proto, args, print)	\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+#define DEFINE_EVENT_CONDITION(template, name, proto,		\
+			       args, cond)			\
+	DECLARE_TRACE_CONDITION(name, PARAMS(proto),		\
+				PARAMS(args), PARAMS(cond))
 
 #define TRACE_EVENT(name, proto, args, struct, assign, print)	\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
 #define TRACE_EVENT_FN(name, proto, args, struct,		\
 		assign, print, reg, unreg)			\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+#define TRACE_EVENT_CONDITION(name, proto, args, cond,		\
+			      struct, assign, print)		\
+	DECLARE_TRACE_CONDITION(name, PARAMS(proto),		\
+				PARAMS(args), PARAMS(cond))
+
+#define TRACE_EVENT_FLAGS(event, flag)
 
 #endif /* ifdef TRACE_EVENT (see note above) */

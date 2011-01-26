@@ -5,13 +5,13 @@
 #include <linux/nl80211.h>
 #include "ieee80211_i.h"
 
-enum ieee80211_chan_mode
+static enum ieee80211_chan_mode
 __ieee80211_get_channel_mode(struct ieee80211_local *local,
 			     struct ieee80211_sub_if_data *ignore)
 {
 	struct ieee80211_sub_if_data *sdata;
 
-	WARN_ON(!mutex_is_locked(&local->iflist_mtx));
+	lockdep_assert_held(&local->iflist_mtx);
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata == ignore)

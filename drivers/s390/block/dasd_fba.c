@@ -73,6 +73,7 @@ static struct ccw_driver dasd_fba_driver = {
 	.set_offline = dasd_generic_set_offline,
 	.set_online  = dasd_fba_set_online,
 	.notify      = dasd_generic_notify,
+	.path_event  = dasd_generic_path_event,
 	.freeze      = dasd_generic_pm_freeze,
 	.thaw	     = dasd_generic_restore_device,
 	.restore     = dasd_generic_restore_device,
@@ -163,6 +164,9 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 		return rc;
 	}
 
+	device->default_expires = DASD_EXPIRES;
+	device->path_data.opm = LPM_ANYPATH;
+
 	readonly = dasd_device_is_ro(device);
 	if (readonly)
 		set_bit(DASD_FLAG_DEVICE_RO, &device->flags);
@@ -229,24 +233,16 @@ dasd_fba_erp_postaction(struct dasd_ccw_req * cqr)
 	return NULL;
 }
 
-static void dasd_fba_handle_unsolicited_interrupt(struct dasd_device *device,
-						   struct irb *irb)
+static void dasd_fba_check_for_device_change(struct dasd_device *device,
+					     struct dasd_ccw_req *cqr,
+					     struct irb *irb)
 {
 	char mask;
 
 	/* first of all check for state change pending interrupt */
 	mask = DEV_STAT_ATTENTION | DEV_STAT_DEV_END | DEV_STAT_UNIT_EXCEP;
-	if ((irb->scsw.cmd.dstat & mask) == mask) {
+	if ((irb->scsw.cmd.dstat & mask) == mask)
 		dasd_generic_handle_state_change(device);
-		return;
-	}
-
-	/* check for unsolicited interrupts */
-	DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-		    "unsolicited interrupt received");
-	device->discipline->dump_sense_dbf(device, irb, "unsolicited");
-	dasd_schedule_device_bh(device);
-	return;
 };
 
 static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
@@ -370,7 +366,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
 	cqr->startdev = memdev;
 	cqr->memdev = memdev;
 	cqr->block = block;
-	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */
+	cqr->expires = memdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->retries = 32;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
@@ -594,13 +590,14 @@ static struct dasd_discipline dasd_fba_discipline = {
 	.max_blocks = 96,
 	.check_device = dasd_fba_check_characteristics,
 	.do_analysis = dasd_fba_do_analysis,
+	.verify_path = dasd_generic_verify_path,
 	.fill_geometry = dasd_fba_fill_geometry,
 	.start_IO = dasd_start_IO,
 	.term_IO = dasd_term_IO,
 	.handle_terminated_request = dasd_fba_handle_terminated_request,
 	.erp_action = dasd_fba_erp_action,
 	.erp_postaction = dasd_fba_erp_postaction,
-	.handle_unsolicited_interrupt = dasd_fba_handle_unsolicited_interrupt,
+	.check_for_device_change = dasd_fba_check_for_device_change,
 	.build_cp = dasd_fba_build_cp,
 	.free_cp = dasd_fba_free_cp,
 	.dump_sense = dasd_fba_dump_sense,

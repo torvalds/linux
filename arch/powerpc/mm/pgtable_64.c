@@ -34,7 +34,7 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/slab.h>
 
 #include <asm/pgalloc.h>
@@ -67,7 +67,7 @@ static void *early_alloc_pgtable(unsigned long size)
 	if (init_bootmem_done)
 		pt = __alloc_bootmem(size, size, __pa(MAX_DMA_ADDRESS));
 	else
-		pt = __va(lmb_alloc_base(size, size,
+		pt = __va(memblock_alloc_base(size, size,
 					 __pa(MAX_DMA_ADDRESS)));
 	memset(pt, 0, size);
 
@@ -223,6 +223,8 @@ void __iomem * __ioremap_caller(phys_addr_t addr, unsigned long size,
 					    caller);
 		if (area == NULL)
 			return NULL;
+
+		area->phys_addr = paligned;
 		ret = __ioremap_at(paligned, area->addr, size, flags);
 		if (!ret)
 			vunmap(area->addr);

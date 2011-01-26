@@ -13,7 +13,6 @@
 
 #include <linux/types.h>
 #include <linux/amba/pl061.h>
-#include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/io.h>
 #include <asm/hardware/vic.h>
@@ -24,7 +23,7 @@
 #include <mach/spear.h>
 
 /* Add spear6xx machines common devices here */
-/* uart device registeration */
+/* uart device registration */
 struct amba_device uart_device[] = {
 	{
 		.dev = {
@@ -51,7 +50,7 @@ struct amba_device uart_device[] = {
 	}
 };
 
-/* gpio device registeration */
+/* gpio device registration */
 static struct pl061_platform_data gpio_plat_data[] = {
 	{
 		.gpio_base	= 0,

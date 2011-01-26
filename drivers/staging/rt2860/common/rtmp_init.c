@@ -169,14 +169,14 @@ int RTMPAllocAdapterBlock(void *handle,
 		pBeaconBuf = kmalloc(MAX_BEACON_SIZE, MEM_ALLOC_FLAG);
 		if (pBeaconBuf == NULL) {
 			Status = NDIS_STATUS_FAILURE;
-			DBGPRINT_ERR(("Failed to allocate memory - BeaconBuf!\n"));
+			DBGPRINT_ERR("Failed to allocate memory - BeaconBuf!\n");
 			break;
 		}
 		NdisZeroMemory(pBeaconBuf, MAX_BEACON_SIZE);
 
 		Status = AdapterBlockAllocateMemory(handle, (void **) & pAd);
 		if (Status != NDIS_STATUS_SUCCESS) {
-			DBGPRINT_ERR(("Failed to allocate memory - ADAPTER\n"));
+			DBGPRINT_ERR("Failed to allocate memory - ADAPTER\n");
 			break;
 		}
 		pAd->BeaconBuf = pBeaconBuf;
@@ -704,7 +704,7 @@ void NICReadEEPROMParameters(struct rt_rtmp_adapter *pAd, u8 *mac_addr)
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("--> EEPROMAddressNum = %d\n", pAd->EEPROMAddressNum));
 
-	/* RT2860 MAC no longer auto load MAC address from E2PROM. Driver has to intialize */
+	/* RT2860 MAC no longer auto load MAC address from E2PROM. Driver has to initialize */
 	/* MAC address registers according to E2PROM setting */
 	if (mac_addr == NULL ||
 	    strlen((char *)mac_addr) != 17 ||
@@ -749,13 +749,7 @@ void NICReadEEPROMParameters(struct rt_rtmp_adapter *pAd, u8 *mac_addr)
 		/*      pAd->PermanentAddress[5] = RandomByte(pAd)&0xf8; */
 
 		DBGPRINT_RAW(RT_DEBUG_TRACE,
-			     ("E2PROM MAC: =%02x:%02x:%02x:%02x:%02x:%02x\n",
-			      pAd->PermanentAddress[0],
-			      pAd->PermanentAddress[1],
-			      pAd->PermanentAddress[2],
-			      pAd->PermanentAddress[3],
-			      pAd->PermanentAddress[4],
-			      pAd->PermanentAddress[5]));
+			("E2PROM MAC: =%pM\n", pAd->PermanentAddress));
 		if (pAd->bLocalAdminMAC == FALSE) {
 			MAC_DW0_STRUC csr2;
 			MAC_DW1_STRUC csr3;
@@ -772,8 +766,8 @@ void NICReadEEPROMParameters(struct rt_rtmp_adapter *pAd, u8 *mac_addr)
 			csr3.field.U2MeMask = 0xff;
 			RTMP_IO_WRITE32(pAd, MAC_ADDR_DW1, csr3.word);
 			DBGPRINT_RAW(RT_DEBUG_TRACE,
-				     ("E2PROM MAC: =%02x:%02x:%02x:%02x:%02x:%02x\n",
-				      PRINT_MAC(pAd->PermanentAddress)));
+				("E2PROM MAC: =%pM\n",
+					pAd->PermanentAddress));
 		}
 	}
 
@@ -791,8 +785,7 @@ void NICReadEEPROMParameters(struct rt_rtmp_adapter *pAd, u8 *mac_addr)
 		  Version.field.Version, Version.field.FaeReleaseNumber));
 
 	if (Version.field.Version > VALID_EEPROM_VERSION) {
-		DBGPRINT_ERR(("E2PROM: WRONG VERSION 0x%x, should be %d\n",
-			      Version.field.Version, VALID_EEPROM_VERSION));
+		DBGPRINT_ERR("E2PROM: WRONG VERSION 0x%x, should be %d\n", Version.field.Version, VALID_EEPROM_VERSION);
 		/*pAd->SystemErrorBitmap |= 0x00000001;
 
 		   // hard-code default value when no proper E2PROM installed
@@ -2507,7 +2500,7 @@ void UserCfgInit(struct rt_rtmp_adapter *pAd)
 	DBGPRINT(RT_DEBUG_TRACE, ("--> UserCfgInit\n"));
 
 	/* */
-	/*  part I. intialize common configuration */
+	/*  part I. initialize common configuration */
 	/* */
 #ifdef RTMP_MAC_USB
 	pAd->BulkOutReq = 0;
@@ -2646,7 +2639,7 @@ void UserCfgInit(struct rt_rtmp_adapter *pAd)
 	pAd->CommonCfg.BeaconPeriod = 100;	/* in mSec */
 
 	/* */
-	/* part II. intialize STA specific configuration */
+	/* part II. initialize STA specific configuration */
 	/* */
 	{
 		RX_FILTER_SET_FLAG(pAd, fRX_FILTER_ACCEPT_DIRECT);
@@ -2810,17 +2803,6 @@ void UserCfgInit(struct rt_rtmp_adapter *pAd)
 }
 
 /* IRQL = PASSIVE_LEVEL */
-u8 BtoH(char ch)
-{
-	if (ch >= '0' && ch <= '9')
-		return (ch - '0');	/* Handle numerals */
-	if (ch >= 'A' && ch <= 'F')
-		return (ch - 'A' + 0xA);	/* Handle capitol hex digits */
-	if (ch >= 'a' && ch <= 'f')
-		return (ch - 'a' + 0xA);	/* Handle small hex digits */
-	return (255);
-}
-
 /* */
 /*  FUNCTION: AtoH(char *, u8 *, int) */
 /* */
@@ -2847,8 +2829,8 @@ void AtoH(char *src, u8 *dest, int destlen)
 	destTemp = (u8 *)dest;
 
 	while (destlen--) {
-		*destTemp = BtoH(*srcptr++) << 4;	/* Put 1st ascii byte in upper nibble. */
-		*destTemp += BtoH(*srcptr++);	/* Add 2nd ascii byte to above. */
+		*destTemp = hex_to_bin(*srcptr++) << 4;	/* Put 1st ascii byte in upper nibble. */
+		*destTemp += hex_to_bin(*srcptr++);	/* Add 2nd ascii byte to above. */
 		destTemp++;
 	}
 }
@@ -2928,7 +2910,7 @@ void RTMPSetTimer(struct rt_ralink_timer *pTimer, unsigned long Value)
 			RTMP_OS_Add_Timer(&pTimer->TimerObj, Value);
 		}
 	} else {
-		DBGPRINT_ERR(("RTMPSetTimer failed, Timer hasn't been initialize!\n"));
+		DBGPRINT_ERR("RTMPSetTimer failed, Timer hasn't been initialize!\n");
 	}
 }
 
@@ -2964,7 +2946,7 @@ void RTMPModTimer(struct rt_ralink_timer *pTimer, unsigned long Value)
 			RTMP_OS_Mod_Timer(&pTimer->TimerObj, Value);
 		}
 	} else {
-		DBGPRINT_ERR(("RTMPModTimer failed, Timer hasn't been initialize!\n"));
+		DBGPRINT_ERR("RTMPModTimer failed, Timer hasn't been initialize!\n");
 	}
 }
 
@@ -3006,7 +2988,7 @@ void RTMPCancelTimer(struct rt_ralink_timer *pTimer, OUT BOOLEAN * pCancelled)
 		RtmpTimerQRemove(pTimer->pAd, pTimer);
 #endif /* RTMP_TIMER_TASK_SUPPORT // */
 	} else {
-		DBGPRINT_ERR(("RTMPCancelTimer failed, Timer hasn't been initialize!\n"));
+		DBGPRINT_ERR("RTMPCancelTimer failed, Timer hasn't been initialize!\n");
 	}
 }
 
@@ -3268,8 +3250,7 @@ int rt28xx_init(struct rt_rtmp_adapter *pAd,
 	/* Load 8051 firmware */
 	Status = NICLoadFirmware(pAd);
 	if (Status != NDIS_STATUS_SUCCESS) {
-		DBGPRINT_ERR(("NICLoadFirmware failed, Status[=0x%08x]\n",
-			      Status));
+		DBGPRINT_ERR("NICLoadFirmware failed, Status[=0x%08x]\n", Status);
 		goto err1;
 	}
 
@@ -3285,8 +3266,7 @@ int rt28xx_init(struct rt_rtmp_adapter *pAd,
 
 	Status = RTMPAllocTxRxRingMemory(pAd);
 	if (Status != NDIS_STATUS_SUCCESS) {
-		DBGPRINT_ERR(("RTMPAllocDMAMemory failed, Status[=0x%08x]\n",
-			      Status));
+		DBGPRINT_ERR("RTMPAllocDMAMemory failed, Status[=0x%08x]\n", Status);
 		goto err1;
 	}
 
@@ -3301,7 +3281,7 @@ int rt28xx_init(struct rt_rtmp_adapter *pAd,
 
 	Status = MlmeInit(pAd);
 	if (Status != NDIS_STATUS_SUCCESS) {
-		DBGPRINT_ERR(("MlmeInit failed, Status[=0x%08x]\n", Status));
+		DBGPRINT_ERR("MlmeInit failed, Status[=0x%08x]\n", Status);
 		goto err2;
 	}
 	/* Initialize pAd->StaCfg, pAd->ApCfg, pAd->CommonCfg to manufacture default */
@@ -3326,8 +3306,7 @@ int rt28xx_init(struct rt_rtmp_adapter *pAd,
 	/* */
 	Status = NICInitializeAdapter(pAd, TRUE);
 	if (Status != NDIS_STATUS_SUCCESS) {
-		DBGPRINT_ERR(("NICInitializeAdapter failed, Status[=0x%08x]\n",
-			      Status));
+		DBGPRINT_ERR("NICInitializeAdapter failed, Status[=0x%08x]\n", Status);
 		if (Status != NDIS_STATUS_SUCCESS)
 			goto err3;
 	}
@@ -3520,7 +3499,7 @@ int RtmpRaDevCtrlInit(struct rt_rtmp_adapter *pAd, IN RTMP_INF_TYPE infType)
 		 ("STA Driver version-%s\n", STA_DRIVER_VERSION));
 
 #ifdef RTMP_MAC_USB
-	init_MUTEX(&(pAd->UsbVendorReq_semaphore));
+	sema_init(&(pAd->UsbVendorReq_semaphore), 1);
 	os_alloc_mem(pAd, (u8 **) & pAd->UsbVendorReqBuf,
 		     MAX_PARAM_BUFFER_SIZE - 1);
 	if (pAd->UsbVendorReqBuf == NULL) {

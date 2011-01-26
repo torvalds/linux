@@ -94,11 +94,19 @@ NodeList format is a comma-separated list of decimal numbers and ranges,
 a range being two hyphen-separated decimal numbers, the smallest and
 largest node numbers in the range.  For example, mpol=bind:0-3,5,7,9-15
 
+A memory policy with a valid NodeList will be saved, as specified, for
+use at file creation time.  When a task allocates a file in the file
+system, the mount option memory policy will be applied with a NodeList,
+if any, modified by the calling task's cpuset constraints
+[See Documentation/cgroups/cpusets.txt] and any optional flags, listed
+below.  If the resulting NodeLists is the empty set, the effective memory
+policy for the file will revert to "default" policy.
+
 NUMA memory allocation policies have optional flags that can be used in
 conjunction with their modes.  These optional flags can be specified
 when tmpfs is mounted by appending them to the mode before the NodeList.
 See Documentation/vm/numa_memory_policy.txt for a list of all available
-memory allocation policy mode flags.
+memory allocation policy mode flags and their effect on memory policy.
 
 	=static		is equivalent to	MPOL_F_STATIC_NODES
 	=relative	is equivalent to	MPOL_F_RELATIVE_NODES

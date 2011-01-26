@@ -58,10 +58,10 @@ static void do_msg(int fd, int len)
 		len = sizeof buf;
 
 	buf[0] = 0xaa;
-	xfer[0].tx_buf = (__u64) buf;
+	xfer[0].tx_buf = (unsigned long)buf;
 	xfer[0].len = 1;
 
-	xfer[1].rx_buf = (__u64) buf;
+	xfer[1].rx_buf = (unsigned long) buf;
 	xfer[1].len = len;
 
 	status = ioctl(fd, SPI_IOC_MESSAGE(2), xfer);

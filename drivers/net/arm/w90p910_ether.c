@@ -117,7 +117,7 @@
 #define TX_DESC_SIZE		10
 #define MAX_RBUFF_SZ		0x600
 #define MAX_TBUFF_SZ		0x600
-#define TX_TIMEOUT		50
+#define TX_TIMEOUT		(HZ/2)
 #define DELAY			1000
 #define CAM0			0x0
 
@@ -821,6 +821,9 @@ static int w90p910_ether_open(struct net_device *dev)
 	w90p910_enable_mac_interrupt(dev);
 	w90p910_set_global_maccmd(dev);
 	w90p910_enable_rx(dev, 1);
+
+	clk_enable(ether->rmiiclk);
+	clk_enable(ether->clk);
 
 	ether->rx_packets = 0x0;
 	ether->rx_bytes = 0x0;

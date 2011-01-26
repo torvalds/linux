@@ -41,8 +41,6 @@
 #include <asm/system.h>
 #include <asm/io.h>
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -143,7 +141,7 @@ static void btuart_write_wakeup(btuart_info_t *info)
 	}
 
 	do {
-		register unsigned int iobase = info->p_dev->io.BasePort1;
+		register unsigned int iobase = info->p_dev->resource[0]->start;
 		register struct sk_buff *skb;
 		register int len;
 
@@ -184,7 +182,7 @@ static void btuart_receive(btuart_info_t *info)
 		return;
 	}
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	do {
 		info->hdev->stat.byte_rx++;
@@ -298,7 +296,7 @@ static irqreturn_t btuart_interrupt(int irq, void *dev_inst)
 		/* our irq handler is shared */
 		return IRQ_NONE;
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	spin_lock(&(info->lock));
 
@@ -355,7 +353,7 @@ static void btuart_change_speed(btuart_info_t *info, unsigned int speed)
 		return;
 	}
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	spin_lock_irqsave(&(info->lock), flags);
 
@@ -479,7 +477,7 @@ static int btuart_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned lon
 static int btuart_open(btuart_info_t *info)
 {
 	unsigned long flags;
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 	struct hci_dev *hdev;
 
 	spin_lock_init(&(info->lock));
@@ -549,7 +547,7 @@ static int btuart_open(btuart_info_t *info)
 static int btuart_close(btuart_info_t *info)
 {
 	unsigned long flags;
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 	struct hci_dev *hdev = info->hdev;
 
 	if (!hdev)
@@ -587,11 +585,8 @@ static int btuart_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	link->io.NumPorts1 = 8;
-
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_VPP |
+		CONF_AUTO_SET_IO;
 
 	return btuart_config(link);
 }
@@ -605,43 +600,41 @@ static void btuart_detach(struct pcmcia_device *link)
 	kfree(info);
 }
 
-static int btuart_check_config(struct pcmcia_device *p_dev,
-			       cistpl_cftable_entry_t *cf,
-			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
-			       void *priv_data)
+static int btuart_check_config(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int *try = priv_data;
 
-	if (cf->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-	if ((cf->io.nwin > 0) && (cf->io.win[0].len == 8) &&
-	    (cf->io.win[0].base != 0)) {
-		p_dev->io.BasePort1 = cf->io.win[0].base;
-		p_dev->io.IOAddrLines = (*try == 0) ? 16 :
-			cf->io.flags & CISTPL_IO_LINES_MASK;
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
-			return 0;
-	}
-	return -ENODEV;
+	if (try == 0)
+		p_dev->io_lines = 16;
+
+	if ((p_dev->resource[0]->end != 8) || (p_dev->resource[0]->start == 0))
+		return -EINVAL;
+
+	p_dev->resource[0]->end = 8;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+
+	return pcmcia_request_io(p_dev);
 }
 
 static int btuart_check_config_notpicky(struct pcmcia_device *p_dev,
-					cistpl_cftable_entry_t *cf,
-					cistpl_cftable_entry_t *dflt,
-					unsigned int vcc,
 					void *priv_data)
 {
 	static unsigned int base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
 	int j;
 
-	if ((cf->io.nwin > 0) && ((cf->io.flags & CISTPL_IO_LINES_MASK) <= 3)) {
-		for (j = 0; j < 5; j++) {
-			p_dev->io.BasePort1 = base[j];
-			p_dev->io.IOAddrLines = base[j] ? 16 : 3;
-			if (!pcmcia_request_io(p_dev, &p_dev->io))
-				return 0;
-		}
+	if (p_dev->io_lines > 3)
+		return -ENODEV;
+
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->resource[0]->end = 8;
+
+	for (j = 0; j < 5; j++) {
+		p_dev->resource[0]->start = base[j];
+		p_dev->io_lines = base[j] ? 16 : 3;
+		if (!pcmcia_request_io(p_dev))
+			return 0;
 	}
 	return -ENODEV;
 }
@@ -672,7 +665,7 @@ found_port:
 	if (i != 0)
 		goto failed;
 
-	i = pcmcia_request_configuration(link, &link->conf);
+	i = pcmcia_enable_device(link);
 	if (i != 0)
 		goto failed;
 
@@ -704,9 +697,7 @@ MODULE_DEVICE_TABLE(pcmcia, btuart_ids);
 
 static struct pcmcia_driver btuart_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "btuart_cs",
-	},
+	.name		= "btuart_cs",
 	.probe		= btuart_probe,
 	.remove		= btuart_detach,
 	.id_table	= btuart_ids,

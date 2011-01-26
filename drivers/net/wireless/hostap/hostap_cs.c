@@ -12,8 +12,6 @@
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -23,7 +21,7 @@
 #include "hostap_wlan.h"
 
 
-static dev_info_t dev_info = "hostap_cs";
+static char *dev_info = "hostap_cs";
 
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Support for Intersil Prism2-based 802.11 wireless LAN "
@@ -225,27 +223,18 @@ static int prism2_pccard_card_present(local_info_t *local)
 static void sandisk_set_iobase(local_info_t *local)
 {
 	int res;
-	conf_reg_t reg;
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
 
-	reg.Function = 0;
-	reg.Action = CS_WRITE;
-	reg.Offset = 0x10; /* 0x3f0 IO base 1 */
-	reg.Value = hw_priv->link->io.BasePort1 & 0x00ff;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, 0x10,
+				hw_priv->link->resource[0]->start & 0x00ff);
 	if (res != 0) {
 		printk(KERN_DEBUG "Prism3 SanDisk - failed to set I/O base 0 -"
 		       " res=%d\n", res);
 	}
 	udelay(10);
 
-	reg.Function = 0;
-	reg.Action = CS_WRITE;
-	reg.Offset = 0x12; /* 0x3f2 IO base 2 */
-	reg.Value = (hw_priv->link->io.BasePort1 & 0xff00) >> 8;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, 0x12,
+				(hw_priv->link->resource[0]->start >> 8) & 0x00ff);
 	if (res != 0) {
 		printk(KERN_DEBUG "Prism3 SanDisk - failed to set I/O base 1 -"
 		       " res=%d\n", res);
@@ -271,12 +260,11 @@ static void sandisk_write_hcr(local_info_t *local, int hcr)
 static int sandisk_enable_wireless(struct net_device *dev)
 {
 	int res, ret = 0;
-	conf_reg_t reg;
 	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
 
-	if (hw_priv->link->io.NumPorts1 < 0x42) {
+	if (resource_size(hw_priv->link->resource[0]) < 0x42) {
 		/* Not enough ports to be SanDisk multi-function card */
 		ret = -ENODEV;
 		goto done;
@@ -298,12 +286,8 @@ static int sandisk_enable_wireless(struct net_device *dev)
 	       " - using vendor-specific initialization\n", dev->name);
 	hw_priv->sandisk_connectplus = 1;
 
-	reg.Function = 0;
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_COR;
-	reg.Value = COR_SOFT_RESET;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR,
+				COR_SOFT_RESET);
 	if (res != 0) {
 		printk(KERN_DEBUG "%s: SanDisk - COR sreset failed (%d)\n",
 		       dev->name, res);
@@ -311,16 +295,13 @@ static int sandisk_enable_wireless(struct net_device *dev)
 	}
 	mdelay(5);
 
-	reg.Function = 0;
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_COR;
 	/*
 	 * Do not enable interrupts here to avoid some bogus events. Interrupts
 	 * will be enabled during the first cor_sreset call.
 	 */
-	reg.Value = COR_LEVEL_REQ | 0x8 | COR_ADDR_DECODE | COR_FUNC_ENA;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR,
+				(COR_LEVEL_REQ | 0x8 | COR_ADDR_DECODE |
+					COR_FUNC_ENA));
 	if (res != 0) {
 		printk(KERN_DEBUG "%s: SanDisk - COR sreset failed (%d)\n",
 		       dev->name, res);
@@ -343,30 +324,23 @@ done:
 static void prism2_pccard_cor_sreset(local_info_t *local)
 {
 	int res;
-	conf_reg_t reg;
+	u8 val;
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
 
 	if (!prism2_pccard_card_present(local))
 	       return;
 
-	reg.Function = 0;
-	reg.Action = CS_READ;
-	reg.Offset = CISREG_COR;
-	reg.Value = 0;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_read_config_byte(hw_priv->link, CISREG_COR, &val);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_cor_sreset failed 1 (%d)\n",
 		       res);
 		return;
 	}
 	printk(KERN_DEBUG "prism2_pccard_cor_sreset: original COR %02x\n",
-	       reg.Value);
+		val);
 
-	reg.Action = CS_WRITE;
-	reg.Value |= COR_SOFT_RESET;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	val |= COR_SOFT_RESET;
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR, val);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_cor_sreset failed 2 (%d)\n",
 		       res);
@@ -375,11 +349,10 @@ static void prism2_pccard_cor_sreset(local_info_t *local)
 
 	mdelay(hw_priv->sandisk_connectplus ? 5 : 2);
 
-	reg.Value &= ~COR_SOFT_RESET;
+	val &= ~COR_SOFT_RESET;
 	if (hw_priv->sandisk_connectplus)
-		reg.Value |= COR_IREQ_ENA;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+		val |= COR_IREQ_ENA;
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR, val);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_cor_sreset failed 3 (%d)\n",
 		       res);
@@ -396,8 +369,7 @@ static void prism2_pccard_cor_sreset(local_info_t *local)
 static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 {
 	int res;
-	conf_reg_t reg;
-	int old_cor;
+	u8 old_cor;
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
 
 	if (!prism2_pccard_card_present(local))
@@ -408,25 +380,17 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 		return;
 	}
 
-	reg.Function = 0;
-	reg.Action = CS_READ;
-	reg.Offset = CISREG_COR;
-	reg.Value = 0;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_read_config_byte(hw_priv->link, CISREG_COR, &old_cor);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_genesis_sreset failed 1 "
 		       "(%d)\n", res);
 		return;
 	}
 	printk(KERN_DEBUG "prism2_pccard_genesis_sreset: original COR %02x\n",
-	       reg.Value);
-	old_cor = reg.Value;
+		old_cor);
 
-	reg.Action = CS_WRITE;
-	reg.Value |= COR_SOFT_RESET;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR,
+				old_cor | COR_SOFT_RESET);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_genesis_sreset failed 2 "
 		       "(%d)\n", res);
@@ -436,11 +400,7 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 	mdelay(10);
 
 	/* Setup Genesis mode */
-	reg.Action = CS_WRITE;
-	reg.Value = hcr;
-	reg.Offset = CISREG_CCSR;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_CCSR, hcr);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_genesis_sreset failed 3 "
 		       "(%d)\n", res);
@@ -448,11 +408,8 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 	}
 	mdelay(10);
 
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_COR;
-	reg.Value = old_cor & ~COR_SOFT_RESET;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR,
+				old_cor & ~COR_SOFT_RESET);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_genesis_sreset failed 4 "
 		       "(%d)\n", res);
@@ -479,7 +436,6 @@ static int hostap_cs_probe(struct pcmcia_device *p_dev)
 	int ret;
 
 	PDEBUG(DEBUG_HW, "%s: setting Vcc=33 (constant)\n", dev_info);
-	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
 	ret = prism2_config(p_dev);
 	if (ret) {
@@ -510,81 +466,12 @@ static void prism2_detach(struct pcmcia_device *link)
 }
 
 
-/* run after a CARD_INSERTION event is received to configure the PCMCIA
- * socket and make the device available to the system */
-
-static int prism2_config_check(struct pcmcia_device *p_dev,
-			       cistpl_cftable_entry_t *cfg,
-			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
-			       void *priv_data)
+static int prism2_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if (cfg->index == 0)
-		return -ENODEV;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
-	PDEBUG(DEBUG_EXTRA, "Checking CFTABLE_ENTRY 0x%02X "
-	       "(default 0x%02X)\n", cfg->index, dflt->index);
-
-	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
-		p_dev->conf.Status = CCSR_AUDIO_ENA;
-	}
-
-	/* Use power settings for Vcc and Vpp if present */
-	/*  Note that the CIS values need to be rescaled */
-	if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] /
-		    10000 && !ignore_cis_vcc) {
-			PDEBUG(DEBUG_EXTRA, "  Vcc mismatch - skipping"
-			       " this entry\n");
-			return -ENODEV;
-		}
-	} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] /
-		    10000 && !ignore_cis_vcc) {
-			PDEBUG(DEBUG_EXTRA, "  Vcc (default) mismatch "
-			       "- skipping this entry\n");
-			return -ENODEV;
-		}
-	}
-
-	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-	else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-
-	/* Do we need to allocate an interrupt? */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	PDEBUG(DEBUG_EXTRA, "IO window settings: cfg->io.nwin=%d "
-	       "dflt->io.nwin=%d\n",
-	       cfg->io.nwin, dflt->io.nwin);
-	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		PDEBUG(DEBUG_EXTRA, "io->flags = 0x%04X, "
-		       "io.base=0x%04x, len=%d\n", io->flags,
-		       io->win[0].base, io->win[0].len);
-		if (!(io->flags & CISTPL_IO_8BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(io->flags & CISTPL_IO_16BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		p_dev->io.IOAddrLines = io->flags &
-			CISTPL_IO_LINES_MASK;
-		p_dev->io.BasePort1 = io->win[0].base;
-		p_dev->io.NumPorts1 = io->win[0].len;
-		if (io->nwin > 1) {
-			p_dev->io.Attributes2 = p_dev->io.Attributes1;
-			p_dev->io.BasePort2 = io->win[1].base;
-			p_dev->io.NumPorts2 = io->win[1].len;
-		}
-	}
-
-	/* This reserves IO space but doesn't actually enable it */
-	return pcmcia_request_io(p_dev, &p_dev->io);
+	return pcmcia_request_io(p_dev);
 }
 
 static int prism2_config(struct pcmcia_device *link)
@@ -594,6 +481,7 @@ static int prism2_config(struct pcmcia_device *link)
 	local_info_t *local;
 	int ret = 1;
 	struct hostap_cs_priv *hw_priv;
+	unsigned long flags;
 
 	PDEBUG(DEBUG_FLOW, "prism2_config()\n");
 
@@ -604,6 +492,10 @@ static int prism2_config(struct pcmcia_device *link)
 	}
 
 	/* Look for an appropriate configuration table entry in the CIS */
+	link->config_flags |= CONF_AUTO_SET_VPP | CONF_AUTO_AUDIO |
+		CONF_AUTO_CHECK_VCC | CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
+	if (ignore_cis_vcc)
+		link->config_flags &= ~CONF_AUTO_CHECK_VCC;
 	ret = pcmcia_loop_config(link, prism2_config_check, NULL);
 	if (ret) {
 		if (!ignore_cis_vcc)
@@ -625,37 +517,23 @@ static int prism2_config(struct pcmcia_device *link)
 	local->hw_priv = hw_priv;
 	hw_priv->link = link;
 
+	/*
+	 * We enable IRQ here, but IRQ handler will not proceed
+	 * until dev->base_addr is set below. This protect us from
+	 * receive interrupts when driver is not initialized.
+	 */
 	ret = pcmcia_request_irq(link, prism2_interrupt);
 	if (ret)
 		goto failed;
 
-	/*
-	 * This actually configures the PCMCIA socket -- setting up
-	 * the I/O windows and the interrupt mapping, and putting the
-	 * card and host interface into "Memory and IO" mode.
-	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
+	spin_lock_irqsave(&local->irq_init_lock, flags);
 	dev->irq = link->irq;
-	dev->base_addr = link->io.BasePort1;
-
-	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x: ",
-	       dev_info, link->conf.ConfigIndex);
-	if (link->conf.Vpp)
-		printk(", Vpp %d.%d", link->conf.Vpp / 10,
-		       link->conf.Vpp % 10);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1+link->io.NumPorts1-1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2+link->io.NumPorts2-1);
-	printk("\n");
+	dev->base_addr = link->resource[0]->start;
+	spin_unlock_irqrestore(&local->irq_init_lock, flags);
 
 	local->shutdown = 0;
 
@@ -818,9 +696,7 @@ MODULE_DEVICE_TABLE(pcmcia, hostap_cs_ids);
 
 
 static struct pcmcia_driver hostap_driver = {
-	.drv		= {
-		.name	= "hostap_cs",
-	},
+	.name		= "hostap_cs",
 	.probe		= hostap_cs_probe,
 	.remove		= prism2_detach,
 	.owner		= THIS_MODULE,

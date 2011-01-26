@@ -25,59 +25,14 @@
  */
 #include <linux/slab.h>
 #include "../feat.h"
-#include "../ccid.h"
-#include "../dccp.h"
 #include "ccid2.h"
 
 
 #ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 static int ccid2_debug;
 #define ccid2_pr_debug(format, a...)	DCCP_PR_DEBUG(ccid2_debug, format, ##a)
-
-static void ccid2_hc_tx_check_sanity(const struct ccid2_hc_tx_sock *hc)
-{
-	int len = 0;
-	int pipe = 0;
-	struct ccid2_seq *seqp = hc->tx_seqh;
-
-	/* there is data in the chain */
-	if (seqp != hc->tx_seqt) {
-		seqp = seqp->ccid2s_prev;
-		len++;
-		if (!seqp->ccid2s_acked)
-			pipe++;
-
-		while (seqp != hc->tx_seqt) {
-			struct ccid2_seq *prev = seqp->ccid2s_prev;
-
-			len++;
-			if (!prev->ccid2s_acked)
-				pipe++;
-
-			/* packets are sent sequentially */
-			BUG_ON(dccp_delta_seqno(seqp->ccid2s_seq,
-						prev->ccid2s_seq ) >= 0);
-			BUG_ON(time_before(seqp->ccid2s_sent,
-					   prev->ccid2s_sent));
-
-			seqp = prev;
-		}
-	}
-
-	BUG_ON(pipe != hc->tx_pipe);
-	ccid2_pr_debug("len of chain=%d\n", len);
-
-	do {
-		seqp = seqp->ccid2s_prev;
-		len++;
-	} while (seqp != hc->tx_seqh);
-
-	ccid2_pr_debug("total len=%d\n", len);
-	BUG_ON(len != hc->tx_seqbufc * CCID2_SEQBUF_LEN);
-}
 #else
 #define ccid2_pr_debug(format, a...)
-#define ccid2_hc_tx_check_sanity(hc)
 #endif
 
 static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hc)
@@ -123,12 +78,9 @@ static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hc)
 
 static int ccid2_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
-	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
-
-	if (hc->tx_pipe < hc->tx_cwnd)
-		return 0;
-
-	return 1; /* XXX CCID should dequeue when ready instead of polling */
+	if (ccid2_cwnd_network_limited(ccid2_hc_tx_sk(sk)))
+		return CCID_PACKET_WILL_DEQUEUE_LATER;
+	return CCID_PACKET_SEND_AT_ONCE;
 }
 
 static void ccid2_change_l_ack_ratio(struct sock *sk, u32 val)
@@ -156,19 +108,11 @@ static void ccid2_change_l_ack_ratio(struct sock *sk, u32 val)
 	dp->dccps_l_ack_ratio = val;
 }
 
-static void ccid2_change_srtt(struct ccid2_hc_tx_sock *hc, long val)
-{
-	ccid2_pr_debug("change SRTT to %ld\n", val);
-	hc->tx_srtt = val;
-}
-
-static void ccid2_start_rto_timer(struct sock *sk);
-
 static void ccid2_hc_tx_rto_expire(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
-	long s;
+	const bool sender_was_blocked = ccid2_cwnd_network_limited(hc);
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
@@ -178,23 +122,17 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 
 	ccid2_pr_debug("RTO_EXPIRE\n");
 
-	ccid2_hc_tx_check_sanity(hc);
-
 	/* back-off timer */
 	hc->tx_rto <<= 1;
-
-	s = hc->tx_rto / HZ;
-	if (s > 60)
-		hc->tx_rto = 60 * HZ;
-
-	ccid2_start_rto_timer(sk);
+	if (hc->tx_rto > DCCP_RTO_MAX)
+		hc->tx_rto = DCCP_RTO_MAX;
 
 	/* adjust pipe, cwnd etc */
 	hc->tx_ssthresh = hc->tx_cwnd / 2;
 	if (hc->tx_ssthresh < 2)
 		hc->tx_ssthresh = 2;
-	hc->tx_cwnd	 = 1;
-	hc->tx_pipe	 = 0;
+	hc->tx_cwnd	= 1;
+	hc->tx_pipe	= 0;
 
 	/* clear state about stuff we sent */
 	hc->tx_seqt = hc->tx_seqh;
@@ -204,23 +142,18 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	hc->tx_rpseq    = 0;
 	hc->tx_rpdupack = -1;
 	ccid2_change_l_ack_ratio(sk, 1);
-	ccid2_hc_tx_check_sanity(hc);
+
+	/* if we were blocked before, we may now send cwnd=1 packet */
+	if (sender_was_blocked)
+		tasklet_schedule(&dccp_sk(sk)->dccps_xmitlet);
+	/* restart backed-off timer */
+	sk_reset_timer(sk, &hc->tx_rtotimer, jiffies + hc->tx_rto);
 out:
 	bh_unlock_sock(sk);
 	sock_put(sk);
 }
 
-static void ccid2_start_rto_timer(struct sock *sk)
-{
-	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
-
-	ccid2_pr_debug("setting RTO timeout=%ld\n", hc->tx_rto);
-
-	BUG_ON(timer_pending(&hc->tx_rtotimer));
-	sk_reset_timer(sk, &hc->tx_rtotimer, jiffies + hc->tx_rto);
-}
-
-static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
+static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
@@ -230,7 +163,7 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 
 	hc->tx_seqh->ccid2s_seq   = dp->dccps_gss;
 	hc->tx_seqh->ccid2s_acked = 0;
-	hc->tx_seqh->ccid2s_sent  = jiffies;
+	hc->tx_seqh->ccid2s_sent  = ccid2_time_stamp;
 
 	next = hc->tx_seqh->ccid2s_next;
 	/* check if we need to alloc more space */
@@ -296,99 +229,104 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 	}
 #endif
 
-	/* setup RTO timer */
-	if (!timer_pending(&hc->tx_rtotimer))
-		ccid2_start_rto_timer(sk);
+	sk_reset_timer(sk, &hc->tx_rtotimer, jiffies + hc->tx_rto);
 
 #ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 	do {
 		struct ccid2_seq *seqp = hc->tx_seqt;
 
 		while (seqp != hc->tx_seqh) {
-			ccid2_pr_debug("out seq=%llu acked=%d time=%lu\n",
+			ccid2_pr_debug("out seq=%llu acked=%d time=%u\n",
 				       (unsigned long long)seqp->ccid2s_seq,
 				       seqp->ccid2s_acked, seqp->ccid2s_sent);
 			seqp = seqp->ccid2s_next;
 		}
 	} while (0);
 	ccid2_pr_debug("=========\n");
-	ccid2_hc_tx_check_sanity(hc);
 #endif
 }
 
-/* XXX Lame code duplication!
- * returns -1 if none was found.
- * else returns the next offset to use in the function call.
+/**
+ * ccid2_rtt_estimator - Sample RTT and compute RTO using RFC2988 algorithm
+ * This code is almost identical with TCP's tcp_rtt_estimator(), since
+ * - it has a higher sampling frequency (recommended by RFC 1323),
+ * - the RTO does not collapse into RTT due to RTTVAR going towards zero,
+ * - it is simple (cf. more complex proposals such as Eifel timer or research
+ *   which suggests that the gain should be set according to window size),
+ * - in tests it was found to work well with CCID2 [gerrit].
  */
-static int ccid2_ackvector(struct sock *sk, struct sk_buff *skb, int offset,
-			   unsigned char **vec, unsigned char *veclen)
+static void ccid2_rtt_estimator(struct sock *sk, const long mrtt)
 {
-	const struct dccp_hdr *dh = dccp_hdr(skb);
-	unsigned char *options = (unsigned char *)dh + dccp_hdr_len(skb);
-	unsigned char *opt_ptr;
-	const unsigned char *opt_end = (unsigned char *)dh +
-					(dh->dccph_doff * 4);
-	unsigned char opt, len;
-	unsigned char *value;
+	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
+	long m = mrtt ? : 1;
 
-	BUG_ON(offset < 0);
-	options += offset;
-	opt_ptr = options;
-	if (opt_ptr >= opt_end)
-		return -1;
+	if (hc->tx_srtt == 0) {
+		/* First measurement m */
+		hc->tx_srtt = m << 3;
+		hc->tx_mdev = m << 1;
 
-	while (opt_ptr != opt_end) {
-		opt   = *opt_ptr++;
-		len   = 0;
-		value = NULL;
+		hc->tx_mdev_max = max(hc->tx_mdev, tcp_rto_min(sk));
+		hc->tx_rttvar   = hc->tx_mdev_max;
 
-		/* Check if this isn't a single byte option */
-		if (opt > DCCPO_MAX_RESERVED) {
-			if (opt_ptr == opt_end)
-				goto out_invalid_option;
+		hc->tx_rtt_seq  = dccp_sk(sk)->dccps_gss;
+	} else {
+		/* Update scaled SRTT as SRTT += 1/8 * (m - SRTT) */
+		m -= (hc->tx_srtt >> 3);
+		hc->tx_srtt += m;
 
-			len = *opt_ptr++;
-			if (len < 3)
-				goto out_invalid_option;
+		/* Similarly, update scaled mdev with regard to |m| */
+		if (m < 0) {
+			m = -m;
+			m -= (hc->tx_mdev >> 2);
 			/*
-			 * Remove the type and len fields, leaving
-			 * just the value size
+			 * This neutralises RTO increase when RTT < SRTT - mdev
+			 * (see P. Sarolahti, A. Kuznetsov,"Congestion Control
+			 * in Linux TCP", USENIX 2002, pp. 49-62).
 			 */
-			len     -= 2;
-			value   = opt_ptr;
-			opt_ptr += len;
+			if (m > 0)
+				m >>= 3;
+		} else {
+			m -= (hc->tx_mdev >> 2);
+		}
+		hc->tx_mdev += m;
 
-			if (opt_ptr > opt_end)
-				goto out_invalid_option;
+		if (hc->tx_mdev > hc->tx_mdev_max) {
+			hc->tx_mdev_max = hc->tx_mdev;
+			if (hc->tx_mdev_max > hc->tx_rttvar)
+				hc->tx_rttvar = hc->tx_mdev_max;
 		}
 
-		switch (opt) {
-		case DCCPO_ACK_VECTOR_0:
-		case DCCPO_ACK_VECTOR_1:
-			*vec	= value;
-			*veclen = len;
-			return offset + (opt_ptr - options);
+		/*
+		 * Decay RTTVAR at most once per flight, exploiting that
+		 *  1) pipe <= cwnd <= Sequence_Window = W  (RFC 4340, 7.5.2)
+		 *  2) AWL = GSS-W+1 <= GAR <= GSS          (RFC 4340, 7.5.1)
+		 * GAR is a useful bound for FlightSize = pipe.
+		 * AWL is probably too low here, as it over-estimates pipe.
+		 */
+		if (after48(dccp_sk(sk)->dccps_gar, hc->tx_rtt_seq)) {
+			if (hc->tx_mdev_max < hc->tx_rttvar)
+				hc->tx_rttvar -= (hc->tx_rttvar -
+						  hc->tx_mdev_max) >> 2;
+			hc->tx_rtt_seq  = dccp_sk(sk)->dccps_gss;
+			hc->tx_mdev_max = tcp_rto_min(sk);
 		}
 	}
 
-	return -1;
+	/*
+	 * Set RTO from SRTT and RTTVAR
+	 * As in TCP, 4 * RTTVAR >= TCP_RTO_MIN, giving a minimum RTO of 200 ms.
+	 * This agrees with RFC 4341, 5:
+	 *	"Because DCCP does not retransmit data, DCCP does not require
+	 *	 TCP's recommended minimum timeout of one second".
+	 */
+	hc->tx_rto = (hc->tx_srtt >> 3) + hc->tx_rttvar;
 
-out_invalid_option:
-	DCCP_BUG("Invalid option - this should not happen (previous parsing)!");
-	return -1;
+	if (hc->tx_rto > DCCP_RTO_MAX)
+		hc->tx_rto = DCCP_RTO_MAX;
 }
 
-static void ccid2_hc_tx_kill_rto_timer(struct sock *sk)
-{
-	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
-
-	sk_stop_timer(sk, &hc->tx_rtotimer);
-	ccid2_pr_debug("deleted RTO timer\n");
-}
-
-static inline void ccid2_new_ack(struct sock *sk,
-				 struct ccid2_seq *seqp,
-				 unsigned int *maxincr)
+static void ccid2_new_ack(struct sock *sk, struct ccid2_seq *seqp,
+			  unsigned int *maxincr)
 {
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
 
@@ -402,93 +340,27 @@ static inline void ccid2_new_ack(struct sock *sk,
 			hc->tx_cwnd += 1;
 			hc->tx_packets_acked = 0;
 	}
-
-	/* update RTO */
-	if (hc->tx_srtt == -1 ||
-	    time_after(jiffies, hc->tx_lastrtt + hc->tx_srtt)) {
-		unsigned long r = (long)jiffies - (long)seqp->ccid2s_sent;
-		int s;
-
-		/* first measurement */
-		if (hc->tx_srtt == -1) {
-			ccid2_pr_debug("R: %lu Time=%lu seq=%llu\n",
-				       r, jiffies,
-				       (unsigned long long)seqp->ccid2s_seq);
-			ccid2_change_srtt(hc, r);
-			hc->tx_rttvar = r >> 1;
-		} else {
-			/* RTTVAR */
-			long tmp = hc->tx_srtt - r;
-			long srtt;
-
-			if (tmp < 0)
-				tmp *= -1;
-
-			tmp >>= 2;
-			hc->tx_rttvar *= 3;
-			hc->tx_rttvar >>= 2;
-			hc->tx_rttvar += tmp;
-
-			/* SRTT */
-			srtt = hc->tx_srtt;
-			srtt *= 7;
-			srtt >>= 3;
-			tmp = r >> 3;
-			srtt += tmp;
-			ccid2_change_srtt(hc, srtt);
-		}
-		s = hc->tx_rttvar << 2;
-		/* clock granularity is 1 when based on jiffies */
-		if (!s)
-			s = 1;
-		hc->tx_rto = hc->tx_srtt + s;
-
-		/* must be at least a second */
-		s = hc->tx_rto / HZ;
-		/* DCCP doesn't require this [but I like it cuz my code sux] */
-#if 1
-		if (s < 1)
-			hc->tx_rto = HZ;
-#endif
-		/* max 60 seconds */
-		if (s > 60)
-			hc->tx_rto = HZ * 60;
-
-		hc->tx_lastrtt = jiffies;
-
-		ccid2_pr_debug("srtt: %ld rttvar: %ld rto: %ld (HZ=%d) R=%lu\n",
-			       hc->tx_srtt, hc->tx_rttvar,
-			       hc->tx_rto, HZ, r);
-	}
-
-	/* we got a new ack, so re-start RTO timer */
-	ccid2_hc_tx_kill_rto_timer(sk);
-	ccid2_start_rto_timer(sk);
-}
-
-static void ccid2_hc_tx_dec_pipe(struct sock *sk)
-{
-	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
-
-	if (hc->tx_pipe == 0)
-		DCCP_BUG("pipe == 0");
-	else
-		hc->tx_pipe--;
-
-	if (hc->tx_pipe == 0)
-		ccid2_hc_tx_kill_rto_timer(sk);
+	/*
+	 * FIXME: RTT is sampled several times per acknowledgment (for each
+	 * entry in the Ack Vector), instead of once per Ack (as in TCP SACK).
+	 * This causes the RTT to be over-estimated, since the older entries
+	 * in the Ack Vector have earlier sending times.
+	 * The cleanest solution is to not use the ccid2s_sent field at all
+	 * and instead use DCCP timestamps: requires changes in other places.
+	 */
+	ccid2_rtt_estimator(sk, ccid2_time_stamp - seqp->ccid2s_sent);
 }
 
 static void ccid2_congestion_event(struct sock *sk, struct ccid2_seq *seqp)
 {
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
 
-	if (time_before(seqp->ccid2s_sent, hc->tx_last_cong)) {
+	if ((s32)(seqp->ccid2s_sent - hc->tx_last_cong) < 0) {
 		ccid2_pr_debug("Multiple losses in an RTT---treating as one\n");
 		return;
 	}
 
-	hc->tx_last_cong = jiffies;
+	hc->tx_last_cong = ccid2_time_stamp;
 
 	hc->tx_cwnd      = hc->tx_cwnd / 2 ? : 1U;
 	hc->tx_ssthresh  = max(hc->tx_cwnd, 2U);
@@ -498,19 +370,31 @@ static void ccid2_congestion_event(struct sock *sk, struct ccid2_seq *seqp)
 		ccid2_change_l_ack_ratio(sk, hc->tx_cwnd);
 }
 
+static int ccid2_hc_tx_parse_options(struct sock *sk, u8 packet_type,
+				     u8 option, u8 *optval, u8 optlen)
+{
+	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
+
+	switch (option) {
+	case DCCPO_ACK_VECTOR_0:
+	case DCCPO_ACK_VECTOR_1:
+		return dccp_ackvec_parsed_add(&hc->tx_av_chunks, optval, optlen,
+					      option - DCCPO_ACK_VECTOR_0);
+	}
+	return 0;
+}
+
 static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
+	const bool sender_was_blocked = ccid2_cwnd_network_limited(hc);
+	struct dccp_ackvec_parsed *avp;
 	u64 ackno, seqno;
 	struct ccid2_seq *seqp;
-	unsigned char *vector;
-	unsigned char veclen;
-	int offset = 0;
 	int done = 0;
 	unsigned int maxincr = 0;
 
-	ccid2_hc_tx_check_sanity(hc);
 	/* check reverse path congestion */
 	seqno = DCCP_SKB_CB(skb)->dccpd_seq;
 
@@ -541,17 +425,12 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	}
 
 	/* check forward path congestion */
-	/* still didn't send out new data packets */
-	if (hc->tx_seqh == hc->tx_seqt)
+	if (dccp_packet_without_ack(skb))
 		return;
 
-	switch (DCCP_SKB_CB(skb)->dccpd_type) {
-	case DCCP_PKT_ACK:
-	case DCCP_PKT_DATAACK:
-		break;
-	default:
-		return;
-	}
+	/* still didn't send out new data packets */
+	if (hc->tx_seqh == hc->tx_seqt)
+		goto done;
 
 	ackno = DCCP_SKB_CB(skb)->dccpd_ack_seq;
 	if (after48(ackno, hc->tx_high_ack))
@@ -575,16 +454,16 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		maxincr = DIV_ROUND_UP(dp->dccps_l_ack_ratio, 2);
 
 	/* go through all ack vectors */
-	while ((offset = ccid2_ackvector(sk, skb, offset,
-					 &vector, &veclen)) != -1) {
+	list_for_each_entry(avp, &hc->tx_av_chunks, node) {
 		/* go through this ack vector */
-		while (veclen--) {
-			const u8 rl = *vector & DCCP_ACKVEC_LEN_MASK;
-			u64 ackno_end_rl = SUB48(ackno, rl);
+		for (; avp->len--; avp->vec++) {
+			u64 ackno_end_rl = SUB48(ackno,
+						 dccp_ackvec_runlen(avp->vec));
 
-			ccid2_pr_debug("ackvec start:%llu end:%llu\n",
+			ccid2_pr_debug("ackvec %llu |%u,%u|\n",
 				       (unsigned long long)ackno,
-				       (unsigned long long)ackno_end_rl);
+				       dccp_ackvec_state(avp->vec) >> 6,
+				       dccp_ackvec_runlen(avp->vec));
 			/* if the seqno we are analyzing is larger than the
 			 * current ackno, then move towards the tail of our
 			 * seqnos.
@@ -603,24 +482,22 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			 * run length
 			 */
 			while (between48(seqp->ccid2s_seq,ackno_end_rl,ackno)) {
-				const u8 state = *vector &
-						 DCCP_ACKVEC_STATE_MASK;
+				const u8 state = dccp_ackvec_state(avp->vec);
 
 				/* new packet received or marked */
-				if (state != DCCP_ACKVEC_STATE_NOT_RECEIVED &&
+				if (state != DCCPAV_NOT_RECEIVED &&
 				    !seqp->ccid2s_acked) {
-					if (state ==
-					    DCCP_ACKVEC_STATE_ECN_MARKED) {
+					if (state == DCCPAV_ECN_MARKED)
 						ccid2_congestion_event(sk,
 								       seqp);
-					} else
+					else
 						ccid2_new_ack(sk, seqp,
 							      &maxincr);
 
 					seqp->ccid2s_acked = 1;
 					ccid2_pr_debug("Got ack for %llu\n",
 						       (unsigned long long)seqp->ccid2s_seq);
-					ccid2_hc_tx_dec_pipe(sk);
+					hc->tx_pipe--;
 				}
 				if (seqp == hc->tx_seqt) {
 					done = 1;
@@ -632,7 +509,6 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 				break;
 
 			ackno = SUB48(ackno_end_rl, 1);
-			vector++;
 		}
 		if (done)
 			break;
@@ -677,7 +553,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 				 * one ack vector.
 				 */
 				ccid2_congestion_event(sk, seqp);
-				ccid2_hc_tx_dec_pipe(sk);
+				hc->tx_pipe--;
 			}
 			if (seqp == hc->tx_seqt)
 				break;
@@ -695,7 +571,16 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		hc->tx_seqt = hc->tx_seqt->ccid2s_next;
 	}
 
-	ccid2_hc_tx_check_sanity(hc);
+	/* restart RTO timer if not all outstanding data has been acked */
+	if (hc->tx_pipe == 0)
+		sk_stop_timer(sk, &hc->tx_rtotimer);
+	else
+		sk_reset_timer(sk, &hc->tx_rtotimer, jiffies + hc->tx_rto);
+done:
+	/* check if incoming Acks allow pending packets to be sent */
+	if (sender_was_blocked && !ccid2_cwnd_network_limited(hc))
+		tasklet_schedule(&dccp_sk(sk)->dccps_xmitlet);
+	dccp_ackvec_parsed_cleanup(&hc->tx_av_chunks);
 }
 
 static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
@@ -707,12 +592,8 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 	/* RFC 4341, 5: initialise ssthresh to arbitrarily high (max) value */
 	hc->tx_ssthresh = ~0U;
 
-	/*
-	 * RFC 4341, 5: "The cwnd parameter is initialized to at most four
-	 * packets for new connections, following the rules from [RFC3390]".
-	 * We need to convert the bytes of RFC3390 into the packets of RFC 4341.
-	 */
-	hc->tx_cwnd = clamp(4380U / dp->dccps_mss_cache, 2U, 4U);
+	/* Use larger initial windows (RFC 4341, section 5). */
+	hc->tx_cwnd = rfc3390_bytes_to_packets(dp->dccps_mss_cache);
 
 	/* Make sure that Ack Ratio is enabled and within bounds. */
 	max_ratio = DIV_ROUND_UP(hc->tx_cwnd, 2);
@@ -723,15 +604,12 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 	if (ccid2_hc_tx_alloc_seq(hc))
 		return -ENOMEM;
 
-	hc->tx_rto	 = 3 * HZ;
-	ccid2_change_srtt(hc, -1);
-	hc->tx_rttvar    = -1;
+	hc->tx_rto	 = DCCP_TIMEOUT_INIT;
 	hc->tx_rpdupack  = -1;
-	hc->tx_last_cong = jiffies;
+	hc->tx_last_cong = ccid2_time_stamp;
 	setup_timer(&hc->tx_rtotimer, ccid2_hc_tx_rto_expire,
 			(unsigned long)sk);
-
-	ccid2_hc_tx_check_sanity(hc);
+	INIT_LIST_HEAD(&hc->tx_av_chunks);
 	return 0;
 }
 
@@ -740,7 +618,7 @@ static void ccid2_hc_tx_exit(struct sock *sk)
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
 	int i;
 
-	ccid2_hc_tx_kill_rto_timer(sk);
+	sk_stop_timer(sk, &hc->tx_rtotimer);
 
 	for (i = 0; i < hc->tx_seqbufc; i++)
 		kfree(hc->tx_seqbuf[i]);
@@ -765,16 +643,17 @@ static void ccid2_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 }
 
 struct ccid_operations ccid2_ops = {
-	.ccid_id		= DCCPC_CCID2,
-	.ccid_name		= "TCP-like",
-	.ccid_hc_tx_obj_size	= sizeof(struct ccid2_hc_tx_sock),
-	.ccid_hc_tx_init	= ccid2_hc_tx_init,
-	.ccid_hc_tx_exit	= ccid2_hc_tx_exit,
-	.ccid_hc_tx_send_packet	= ccid2_hc_tx_send_packet,
-	.ccid_hc_tx_packet_sent	= ccid2_hc_tx_packet_sent,
-	.ccid_hc_tx_packet_recv	= ccid2_hc_tx_packet_recv,
-	.ccid_hc_rx_obj_size	= sizeof(struct ccid2_hc_rx_sock),
-	.ccid_hc_rx_packet_recv	= ccid2_hc_rx_packet_recv,
+	.ccid_id		  = DCCPC_CCID2,
+	.ccid_name		  = "TCP-like",
+	.ccid_hc_tx_obj_size	  = sizeof(struct ccid2_hc_tx_sock),
+	.ccid_hc_tx_init	  = ccid2_hc_tx_init,
+	.ccid_hc_tx_exit	  = ccid2_hc_tx_exit,
+	.ccid_hc_tx_send_packet	  = ccid2_hc_tx_send_packet,
+	.ccid_hc_tx_packet_sent	  = ccid2_hc_tx_packet_sent,
+	.ccid_hc_tx_parse_options = ccid2_hc_tx_parse_options,
+	.ccid_hc_tx_packet_recv	  = ccid2_hc_tx_packet_recv,
+	.ccid_hc_rx_obj_size	  = sizeof(struct ccid2_hc_rx_sock),
+	.ccid_hc_rx_packet_recv	  = ccid2_hc_rx_packet_recv,
 };
 
 #ifdef CONFIG_IP_DCCP_CCID2_DEBUG

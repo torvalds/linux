@@ -377,16 +377,15 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidas_pci_table) = {
-	{
-	PCI_VENDOR_ID_CB, 0x0001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x000f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x0010, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x0019, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x001c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x004c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x001a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x001b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0001) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x000f) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0010) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0019) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001c) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x004c) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001a) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001b) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, cb_pcidas_pci_table);
@@ -533,7 +532,7 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 			    struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	int index;
 	int i;
 
@@ -550,9 +549,7 @@ static int cb_pcidas_attach(struct comedi_device *dev,
  */
 	printk("\n");
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		/*  is it not a computer boards card? */
 		if (pcidev->vendor != PCI_VENDOR_ID_CB)
 			continue;
@@ -1871,4 +1868,44 @@ static int nvram_read(struct comedi_device *dev, unsigned int address,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_PCI_INITCLEANUP(driver_cb_pcidas, cb_pcidas_pci_table);
+static int __devinit driver_cb_pcidas_pci_probe(struct pci_dev *dev,
+						const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_cb_pcidas.driver_name);
+}
+
+static void __devexit driver_cb_pcidas_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_cb_pcidas_pci_driver = {
+	.id_table = cb_pcidas_pci_table,
+	.probe = &driver_cb_pcidas_pci_probe,
+	.remove = __devexit_p(&driver_cb_pcidas_pci_remove)
+};
+
+static int __init driver_cb_pcidas_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_cb_pcidas);
+	if (retval < 0)
+		return retval;
+
+	driver_cb_pcidas_pci_driver.name = (char *)driver_cb_pcidas.driver_name;
+	return pci_register_driver(&driver_cb_pcidas_pci_driver);
+}
+
+static void __exit driver_cb_pcidas_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_cb_pcidas_pci_driver);
+	comedi_driver_unregister(&driver_cb_pcidas);
+}
+
+module_init(driver_cb_pcidas_init_module);
+module_exit(driver_cb_pcidas_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

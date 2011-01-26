@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -200,7 +200,8 @@ out:
  *  returns SUCCESS if it successfully received a message notification and
  *  copied it into the receive buffer.
  **/
-s32 ixgbe_read_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
+static s32 ixgbe_read_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
+				 u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	s32 ret_val = IXGBE_ERR_MBX;
@@ -227,7 +228,7 @@ out:
  *  returns SUCCESS if it successfully copied message into the buffer and
  *  received an ack to that message within delay * timeout period
  **/
-s32 ixgbe_write_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
+static s32 ixgbe_write_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
                            u16 mbx_id)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
@@ -245,20 +246,6 @@ s32 ixgbe_write_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size,
 		ret_val = ixgbe_poll_for_ack(hw, mbx_id);
 out:
 	return ret_val;
-}
-
-/**
- *  ixgbe_init_mbx_ops_generic - Initialize MB function pointers
- *  @hw: pointer to the HW structure
- *
- *  Setup the mailbox read and write message function pointers
- **/
-void ixgbe_init_mbx_ops_generic(struct ixgbe_hw *hw)
-{
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
-
-	mbx->ops.read_posted = ixgbe_read_posted_mbx;
-	mbx->ops.write_posted = ixgbe_write_posted_mbx;
 }
 
 static s32 ixgbe_check_for_bit_pf(struct ixgbe_hw *hw, u32 mask, s32 index)
@@ -332,8 +319,16 @@ static s32 ixgbe_check_for_rst_pf(struct ixgbe_hw *hw, u16 vf_number)
 	u32 vflre = 0;
 	s32 ret_val = IXGBE_ERR_MBX;
 
-	if (hw->mac.type == ixgbe_mac_82599EB)
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
 		vflre = IXGBE_READ_REG(hw, IXGBE_VFLRE(reg_offset));
+		break;
+	case ixgbe_mac_X540:
+		vflre = IXGBE_READ_REG(hw, IXGBE_VFLREC(reg_offset));
+		break;
+	default:
+		break;
+	}
 
 	if (vflre & (1 << vf_shift)) {
 		ret_val = 0;
@@ -452,22 +447,26 @@ void ixgbe_init_mbx_params_pf(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 
-	if (hw->mac.type != ixgbe_mac_82599EB)
-		return;
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		mbx->timeout = 0;
+		mbx->usec_delay = 0;
 
-	mbx->timeout = 0;
-	mbx->usec_delay = 0;
+		mbx->size = IXGBE_VFMAILBOX_SIZE;
 
-	mbx->size = IXGBE_VFMAILBOX_SIZE;
-
-	mbx->stats.msgs_tx = 0;
-	mbx->stats.msgs_rx = 0;
-	mbx->stats.reqs = 0;
-	mbx->stats.acks = 0;
-	mbx->stats.rsts = 0;
+		mbx->stats.msgs_tx = 0;
+		mbx->stats.msgs_rx = 0;
+		mbx->stats.reqs = 0;
+		mbx->stats.acks = 0;
+		mbx->stats.rsts = 0;
+		break;
+	default:
+		break;
+	}
 }
 
-struct ixgbe_mbx_operations mbx_ops_82599 = {
+struct ixgbe_mbx_operations mbx_ops_generic = {
 	.read                   = ixgbe_read_mbx_pf,
 	.write                  = ixgbe_write_mbx_pf,
 	.read_posted            = ixgbe_read_posted_mbx,

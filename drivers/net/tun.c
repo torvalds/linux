@@ -149,6 +149,7 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 	tfile->tun = tun;
 	tun->tfile = tfile;
 	tun->socket.file = file;
+	netif_carrier_on(tun->dev);
 	dev_hold(tun->dev);
 	sock_hold(tun->socket.sk);
 	atomic_inc(&tfile->count);
@@ -162,6 +163,7 @@ static void __tun_detach(struct tun_struct *tun)
 {
 	/* Detach from net device */
 	netif_tx_lock_bh(tun->dev);
+	netif_carrier_off(tun->dev);
 	tun->tfile = NULL;
 	tun->socket.file = NULL;
 	netif_tx_unlock_bh(tun->dev);
@@ -526,6 +528,8 @@ static inline struct sk_buff *tun_alloc_skb(struct tun_struct *tun,
 	struct sk_buff *skb;
 	int err;
 
+	sock_update_classid(sk);
+
 	/* Under a page?  Don't bother with paged skb. */
 	if (prepad + len < PAGE_SIZE || !linear)
 		linear = len;
@@ -734,8 +738,18 @@ static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
 				gso.gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
 			else if (sinfo->gso_type & SKB_GSO_UDP)
 				gso.gso_type = VIRTIO_NET_HDR_GSO_UDP;
-			else
-				BUG();
+			else {
+				printk(KERN_ERR "tun: unexpected GSO type: "
+				       "0x%x, gso_size %d, hdr_len %d\n",
+				       sinfo->gso_type, gso.gso_size,
+				       gso.hdr_len);
+				print_hex_dump(KERN_ERR, "tun: ",
+					       DUMP_PREFIX_NONE,
+					       16, 1, skb->head,
+					       min((int)gso.hdr_len, 64), true);
+				WARN_ON_ONCE(1);
+				return -EINVAL;
+			}
 			if (sinfo->gso_type & SKB_GSO_TCP_ECN)
 				gso.gso_type |= VIRTIO_NET_HDR_GSO_ECN;
 		} else
@@ -743,7 +757,7 @@ static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			gso.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
-			gso.csum_start = skb->csum_start - skb_headroom(skb);
+			gso.csum_start = skb_checksum_start_offset(skb);
 			gso.csum_offset = skb->csum_offset;
 		} /* else everything is zero */
 
@@ -1295,7 +1309,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case SIOCGIFHWADDR:
-		/* Get hw addres */
+		/* Get hw address */
 		memcpy(ifr.ifr_hwaddr.sa_data, tun->dev->dev_addr, ETH_ALEN);
 		ifr.ifr_hwaddr.sa_family = tun->dev->type;
 		if (copy_to_user(argp, &ifr, ifreq_len))
@@ -1562,12 +1576,6 @@ static void tun_set_msglevel(struct net_device *dev, u32 value)
 #endif
 }
 
-static u32 tun_get_link(struct net_device *dev)
-{
-	struct tun_struct *tun = netdev_priv(dev);
-	return !!tun->tfile;
-}
-
 static u32 tun_get_rx_csum(struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
@@ -1589,7 +1597,7 @@ static const struct ethtool_ops tun_ethtool_ops = {
 	.get_drvinfo	= tun_get_drvinfo,
 	.get_msglevel	= tun_get_msglevel,
 	.set_msglevel	= tun_set_msglevel,
-	.get_link	= tun_get_link,
+	.get_link	= ethtool_op_get_link,
 	.get_rx_csum	= tun_get_rx_csum,
 	.set_rx_csum	= tun_set_rx_csum
 };
@@ -1649,3 +1657,4 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(TUN_MINOR);
+MODULE_ALIAS("devname:net/tun");

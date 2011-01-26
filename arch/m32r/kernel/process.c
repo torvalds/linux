@@ -288,8 +288,9 @@ asmlinkage int sys_vfork(unsigned long r0, unsigned long r1, unsigned long r2,
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(char __user *ufilename, char __user * __user *uargv,
-			  char __user * __user *uenvp,
+asmlinkage int sys_execve(const char __user *ufilename,
+			  const char __user *const __user *uargv,
+			  const char __user *const __user *uenvp,
 			  unsigned long r3, unsigned long r4, unsigned long r5,
 			  unsigned long r6, struct pt_regs regs)
 {

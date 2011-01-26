@@ -77,7 +77,6 @@
 
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/quotaops.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/stat.h>
@@ -697,6 +696,8 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned maxsymlen;
 	int ret = -EINVAL;
 
+	lock_kernel();
+
 	uspi = NULL;
 	ubh = NULL;
 	flags = 0;
@@ -918,6 +919,7 @@ again:
 	sbi->s_bytesex = BYTESEX_LE;
 	switch ((uspi->fs_magic = fs32_to_cpu(sb, usb3->fs_magic))) {
 		case UFS_MAGIC:
+		case UFS_MAGIC_BW:
 		case UFS2_MAGIC:
 		case UFS_MAGIC_LFN:
 	        case UFS_MAGIC_FEA:
@@ -927,6 +929,7 @@ again:
 	sbi->s_bytesex = BYTESEX_BE;
 	switch ((uspi->fs_magic = fs32_to_cpu(sb, usb3->fs_magic))) {
 		case UFS_MAGIC:
+		case UFS_MAGIC_BW:
 		case UFS2_MAGIC:
 		case UFS_MAGIC_LFN:
 	        case UFS_MAGIC_FEA:
@@ -1045,7 +1048,7 @@ magic_found:
 	 */
 	sb->s_op = &ufs_super_ops;
 	sb->s_export_op = &ufs_export_ops;
-	sb->dq_op = NULL; /***/
+
 	sb->s_magic = fs32_to_cpu(sb, usb3->fs_magic);
 
 	uspi->s_sblkno = fs32_to_cpu(sb, usb1->fs_sblkno);
@@ -1162,6 +1165,7 @@ magic_found:
 			goto failed;
 
 	UFSD("EXIT\n");
+	unlock_kernel();
 	return 0;
 
 dalloc_failed:
@@ -1173,10 +1177,12 @@ failed:
 	kfree(sbi);
 	sb->s_fs_info = NULL;
 	UFSD("EXIT (FAILED)\n");
+	unlock_kernel();
 	return ret;
 
 failed_nomem:
 	UFSD("EXIT (NOMEM)\n");
+	unlock_kernel();
 	return -ENOMEM;
 }
 
@@ -1406,9 +1412,16 @@ static struct inode *ufs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void ufs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(ufs_inode_cachep, UFS_I(inode));
+}
+
 static void ufs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(ufs_inode_cachep, UFS_I(inode));
+	call_rcu(&inode->i_rcu, ufs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -1435,136 +1448,29 @@ static void destroy_inodecache(void)
 	kmem_cache_destroy(ufs_inode_cachep);
 }
 
-static void ufs_clear_inode(struct inode *inode)
-{
-	dquot_drop(inode);
-}
-
-#ifdef CONFIG_QUOTA
-static ssize_t ufs_quota_read(struct super_block *, int, char *,size_t, loff_t);
-static ssize_t ufs_quota_write(struct super_block *, int, const char *, size_t, loff_t);
-#endif
-
 static const struct super_operations ufs_super_ops = {
 	.alloc_inode	= ufs_alloc_inode,
 	.destroy_inode	= ufs_destroy_inode,
 	.write_inode	= ufs_write_inode,
-	.delete_inode	= ufs_delete_inode,
-	.clear_inode	= ufs_clear_inode,
+	.evict_inode	= ufs_evict_inode,
 	.put_super	= ufs_put_super,
 	.write_super	= ufs_write_super,
 	.sync_fs	= ufs_sync_fs,
 	.statfs		= ufs_statfs,
 	.remount_fs	= ufs_remount,
 	.show_options   = ufs_show_options,
-#ifdef CONFIG_QUOTA
-	.quota_read	= ufs_quota_read,
-	.quota_write	= ufs_quota_write,
-#endif
 };
 
-#ifdef CONFIG_QUOTA
-
-/* Read data from quotafile - avoid pagecache and such because we cannot afford
- * acquiring the locks... As quota files are never truncated and quota code
- * itself serializes the operations (and noone else should touch the files)
- * we don't have to be afraid of races */
-static ssize_t ufs_quota_read(struct super_block *sb, int type, char *data,
-			       size_t len, loff_t off)
+static struct dentry *ufs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	struct inode *inode = sb_dqopt(sb)->files[type];
-	sector_t blk = off >> sb->s_blocksize_bits;
-	int err = 0;
-	int offset = off & (sb->s_blocksize - 1);
-	int tocopy;
-	size_t toread;
-	struct buffer_head *bh;
-	loff_t i_size = i_size_read(inode);
-
-	if (off > i_size)
-		return 0;
-	if (off+len > i_size)
-		len = i_size-off;
-	toread = len;
-	while (toread > 0) {
-		tocopy = sb->s_blocksize - offset < toread ?
-				sb->s_blocksize - offset : toread;
-
-		bh = ufs_bread(inode, blk, 0, &err);
-		if (err)
-			return err;
-		if (!bh)	/* A hole? */
-			memset(data, 0, tocopy);
-		else {
-			memcpy(data, bh->b_data+offset, tocopy);
-			brelse(bh);
-		}
-		offset = 0;
-		toread -= tocopy;
-		data += tocopy;
-		blk++;
-	}
-	return len;
-}
-
-/* Write to quotafile */
-static ssize_t ufs_quota_write(struct super_block *sb, int type,
-				const char *data, size_t len, loff_t off)
-{
-	struct inode *inode = sb_dqopt(sb)->files[type];
-	sector_t blk = off >> sb->s_blocksize_bits;
-	int err = 0;
-	int offset = off & (sb->s_blocksize - 1);
-	int tocopy;
-	size_t towrite = len;
-	struct buffer_head *bh;
-
-	mutex_lock_nested(&inode->i_mutex, I_MUTEX_QUOTA);
-	while (towrite > 0) {
-		tocopy = sb->s_blocksize - offset < towrite ?
-				sb->s_blocksize - offset : towrite;
-
-		bh = ufs_bread(inode, blk, 1, &err);
-		if (!bh)
-			goto out;
-		lock_buffer(bh);
-		memcpy(bh->b_data+offset, data, tocopy);
-		flush_dcache_page(bh->b_page);
-		set_buffer_uptodate(bh);
-		mark_buffer_dirty(bh);
-		unlock_buffer(bh);
-		brelse(bh);
-		offset = 0;
-		towrite -= tocopy;
-		data += tocopy;
-		blk++;
-	}
-out:
-	if (len == towrite) {
-		mutex_unlock(&inode->i_mutex);
-		return err;
-	}
-	if (inode->i_size < off+len-towrite)
-		i_size_write(inode, off+len-towrite);
-	inode->i_version++;
-	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
-	mark_inode_dirty(inode);
-	mutex_unlock(&inode->i_mutex);
-	return len - towrite;
-}
-
-#endif
-
-static int ufs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
-{
-	return get_sb_bdev(fs_type, flags, dev_name, data, ufs_fill_super, mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, ufs_fill_super);
 }
 
 static struct file_system_type ufs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ufs",
-	.get_sb		= ufs_get_sb,
+	.mount		= ufs_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

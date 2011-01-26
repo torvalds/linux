@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -194,7 +194,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 	    ((u64) address - (u64) mem_info->mapped_physical_address);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "System-Memory (width %d) R/W %d Address=%8.8X%8.8X\n",
+			  "System-Memory (width %u) R/W %u Address=%8.8X%8.8X\n",
 			  bit_width, function,
 			  ACPI_FORMAT_NATIVE_UINT(address)));
 
@@ -297,7 +297,7 @@ acpi_ex_system_io_space_handler(u32 function,
 	ACPI_FUNCTION_TRACE(ex_system_io_space_handler);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "System-IO (width %d) R/W %d Address=%8.8X%8.8X\n",
+			  "System-IO (width %u) R/W %u Address=%8.8X%8.8X\n",
 			  bit_width, function,
 			  ACPI_FORMAT_NATIVE_UINT(address)));
 
@@ -353,7 +353,6 @@ acpi_ex_pci_config_space_handler(u32 function,
 	acpi_status status = AE_OK;
 	struct acpi_pci_id *pci_id;
 	u16 pci_register;
-	u32 value32;
 
 	ACPI_FUNCTION_TRACE(ex_pci_config_space_handler);
 
@@ -373,7 +372,7 @@ acpi_ex_pci_config_space_handler(u32 function,
 	pci_register = (u16) (u32) address;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "Pci-Config %d (%d) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
+			  "Pci-Config %u (%u) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
 			  function, bit_width, pci_id->segment, pci_id->bus,
 			  pci_id->device, pci_id->function, pci_register));
 
@@ -381,8 +380,7 @@ acpi_ex_pci_config_space_handler(u32 function,
 	case ACPI_READ:
 
 		status = acpi_os_read_pci_configuration(pci_id, pci_register,
-							&value32, bit_width);
-		*value = value32;
+							value, bit_width);
 		break;
 
 	case ACPI_WRITE:

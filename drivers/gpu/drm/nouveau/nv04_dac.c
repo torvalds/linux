@@ -74,14 +74,14 @@ static int sample_load_twice(struct drm_device *dev, bool sense[2])
 		 * use a 10ms timeout (guards against crtc being inactive, in
 		 * which case blank state would never change)
 		 */
-		if (!nouveau_wait_until(dev, 10000000, NV_PRMCIO_INP0__COLOR,
-					0x00000001, 0x00000000))
+		if (!nouveau_wait_eq(dev, 10000000, NV_PRMCIO_INP0__COLOR,
+				     0x00000001, 0x00000000))
 			return -EBUSY;
-		if (!nouveau_wait_until(dev, 10000000, NV_PRMCIO_INP0__COLOR,
-					0x00000001, 0x00000001))
+		if (!nouveau_wait_eq(dev, 10000000, NV_PRMCIO_INP0__COLOR,
+				     0x00000001, 0x00000001))
 			return -EBUSY;
-		if (!nouveau_wait_until(dev, 10000000, NV_PRMCIO_INP0__COLOR,
-					0x00000001, 0x00000000))
+		if (!nouveau_wait_eq(dev, 10000000, NV_PRMCIO_INP0__COLOR,
+				     0x00000001, 0x00000000))
 			return -EBUSY;
 
 		udelay(100);
@@ -220,6 +220,7 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpio_engine *gpio = &dev_priv->engine.gpio;
 	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
 	uint32_t sample, testval, regoffset = nv04_dac_output_offset(encoder);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput,
@@ -251,22 +252,21 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 		nvWriteMC(dev, NV_PBUS_POWERCTRL_4, saved_powerctrl_4 & 0xffffffcf);
 	}
 
-	saved_gpio1 = nv17_gpio_get(dev, DCB_GPIO_TVDAC1);
-	saved_gpio0 = nv17_gpio_get(dev, DCB_GPIO_TVDAC0);
+	saved_gpio1 = gpio->get(dev, DCB_GPIO_TVDAC1);
+	saved_gpio0 = gpio->get(dev, DCB_GPIO_TVDAC0);
 
-	nv17_gpio_set(dev, DCB_GPIO_TVDAC1, dcb->type == OUTPUT_TV);
-	nv17_gpio_set(dev, DCB_GPIO_TVDAC0, dcb->type == OUTPUT_TV);
+	gpio->set(dev, DCB_GPIO_TVDAC1, dcb->type == OUTPUT_TV);
+	gpio->set(dev, DCB_GPIO_TVDAC0, dcb->type == OUTPUT_TV);
 
 	msleep(4);
 
 	saved_routput = NVReadRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset);
 	head = (saved_routput & 0x100) >> 8;
-#if 0
-	/* if there's a spare crtc, using it will minimise flicker for the case
-	 * where the in-use crtc is in use by an off-chip tmds encoder */
-	if (xf86_config->crtc[head]->enabled && !xf86_config->crtc[head ^ 1]->enabled)
+
+	/* if there's a spare crtc, using it will minimise flicker */
+	if (!(NVReadVgaCrtc(dev, head, NV_CIO_CRE_RPC1_INDEX) & 0xC0))
 		head ^= 1;
-#endif
+
 	/* nv driver and nv31 use 0xfffffeee, nv34 and 6600 use 0xfffffece */
 	routput = (saved_routput & 0xfffffece) | head << 8;
 
@@ -291,6 +291,8 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	msleep(5);
 
 	sample = NVReadRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset);
+	/* do it again just in case it's a residual current */
+	sample &= NVReadRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset);
 
 	temp = NVReadRAMDAC(dev, head, NV_PRAMDAC_TEST_CONTROL);
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_TEST_CONTROL,
@@ -304,8 +306,8 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 		nvWriteMC(dev, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);
 	nvWriteMC(dev, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
 
-	nv17_gpio_set(dev, DCB_GPIO_TVDAC1, saved_gpio1);
-	nv17_gpio_set(dev, DCB_GPIO_TVDAC0, saved_gpio0);
+	gpio->set(dev, DCB_GPIO_TVDAC1, saved_gpio1);
+	gpio->set(dev, DCB_GPIO_TVDAC0, saved_gpio0);
 
 	return sample;
 }
@@ -315,9 +317,12 @@ nv17_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
 	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
-	uint32_t sample = nv17_dac_sample_load(encoder);
 
-	if (sample & NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI) {
+	if (nv04_dac_in_use(encoder))
+		return connector_status_disconnected;
+
+	if (nv17_dac_sample_load(encoder) &
+	    NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI) {
 		NV_INFO(dev, "Load detected on output %c\n",
 			'@' + ffs(dcb->or));
 		return connector_status_connected;
@@ -330,6 +335,9 @@ static bool nv04_dac_mode_fixup(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
+	if (nv04_dac_in_use(encoder))
+		return false;
+
 	return true;
 }
 
@@ -337,21 +345,12 @@ static void nv04_dac_prepare(struct drm_encoder *encoder)
 {
 	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 	struct drm_device *dev = encoder->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int head = nouveau_crtc(encoder->crtc)->index;
-	struct nv04_crtc_reg *crtcstate = dev_priv->mode_reg.crtc_reg;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_OFF);
 
 	nv04_dfp_disable(dev, head);
-
-	/* Some NV4x have unknown values (0x3f, 0x50, 0x54, 0x6b, 0x79, 0x7f)
-	 * at LCD__INDEX which we don't alter
-	 */
-	if (!(crtcstate[head].CRTC[NV_CIO_CRE_LCD__INDEX] & 0x44))
-		crtcstate[head].CRTC[NV_CIO_CRE_LCD__INDEX] = 0;
 }
-
 
 static void nv04_dac_mode_set(struct drm_encoder *encoder,
 			      struct drm_display_mode *mode,
@@ -428,6 +427,17 @@ void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable)
 	}
 }
 
+/* Check if the DAC corresponding to 'encoder' is being used by
+ * someone else. */
+bool nv04_dac_in_use(struct drm_encoder *encoder)
+{
+	struct drm_nouveau_private *dev_priv = encoder->dev->dev_private;
+	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+
+	return nv_gf4_disp_arch(encoder->dev) &&
+		(dev_priv->dac_users[ffs(dcb->or) - 1] & ~(1 << dcb->index));
+}
+
 static void nv04_dac_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
@@ -501,11 +511,13 @@ static const struct drm_encoder_funcs nv04_dac_funcs = {
 	.destroy = nv04_dac_destroy,
 };
 
-int nv04_dac_create(struct drm_device *dev, struct dcb_entry *entry)
+int
+nv04_dac_create(struct drm_connector *connector, struct dcb_entry *entry)
 {
 	const struct drm_encoder_helper_funcs *helper;
-	struct drm_encoder *encoder;
 	struct nouveau_encoder *nv_encoder = NULL;
+	struct drm_device *dev = connector->dev;
+	struct drm_encoder *encoder;
 
 	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
 	if (!nv_encoder)
@@ -527,5 +539,6 @@ int nv04_dac_create(struct drm_device *dev, struct dcb_entry *entry)
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
 
+	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;
 }

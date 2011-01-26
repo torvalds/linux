@@ -59,7 +59,7 @@ static int write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len,
 		wr_len = roundup(sizeof *req + sizeof *sc +
 				 roundup(copy_len, T4_ULPTX_MIN_IO), 16);
 
-		skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_NOFAIL);
+		skb = alloc_skb(wr_len, GFP_KERNEL);
 		if (!skb)
 			return -ENOMEM;
 		set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
@@ -71,7 +71,7 @@ static int write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len,
 		if (i == (num_wqe-1)) {
 			req->wr.wr_hi = cpu_to_be32(FW_WR_OP(FW_ULPTX_WR) |
 						    FW_WR_COMPL(1));
-			req->wr.wr_lo = (__force __be64)&wr_wait;
+			req->wr.wr_lo = (__force __be64)(unsigned long) &wr_wait;
 		} else
 			req->wr.wr_hi = cpu_to_be32(FW_WR_OP(FW_ULPTX_WR));
 		req->wr.wr_mid = cpu_to_be32(
@@ -103,14 +103,7 @@ static int write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len,
 		len -= C4IW_MAX_INLINE_SIZE;
 	}
 
-	wait_event_timeout(wr_wait.wait, wr_wait.done, C4IW_WR_TO);
-	if (!wr_wait.done) {
-		printk(KERN_ERR MOD "Device %s not responding!\n",
-		       pci_name(rdev->lldi.pdev));
-		rdev->flags = T4_FATAL_ERROR;
-		ret = -EIO;
-	} else
-		ret = wr_wait.ret;
+	ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, __func__);
 	return ret;
 }
 
@@ -712,8 +705,10 @@ struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
-	if (!mhp)
+	if (!mhp) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	mhp->rhp = rhp;
 	ret = alloc_pbl(mhp, pbl_depth);
@@ -730,8 +725,10 @@ struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
 	mhp->attr.state = 1;
 	mmid = (stag) >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
-	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid))
+	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid)) {
+		ret = -ENOMEM;
 		goto err3;
+	}
 
 	PDBG("%s mmid 0x%x mhp %p stag 0x%x\n", __func__, mmid, mhp, stag);
 	return &(mhp->ibmr);
@@ -755,15 +752,12 @@ struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(struct ib_device *device,
 	dma_addr_t dma_addr;
 	int size = sizeof *c4pl + page_list_len * sizeof(u64);
 
-	if (page_list_len > T4_MAX_FR_DEPTH)
-		return ERR_PTR(-EINVAL);
-
 	c4pl = dma_alloc_coherent(&dev->rdev.lldi.pdev->dev, size,
 				  &dma_addr, GFP_KERNEL);
 	if (!c4pl)
 		return ERR_PTR(-ENOMEM);
 
-	pci_unmap_addr_set(c4pl, mapping, dma_addr);
+	dma_unmap_addr_set(c4pl, mapping, dma_addr);
 	c4pl->dma_addr = dma_addr;
 	c4pl->dev = dev;
 	c4pl->size = size;
@@ -778,7 +772,7 @@ void c4iw_free_fastreg_pbl(struct ib_fast_reg_page_list *ibpl)
 	struct c4iw_fr_page_list *c4pl = to_c4iw_fr_page_list(ibpl);
 
 	dma_free_coherent(&c4pl->dev->rdev.lldi.pdev->dev, c4pl->size,
-			  c4pl, pci_unmap_addr(c4pl, mapping));
+			  c4pl, dma_unmap_addr(c4pl, mapping));
 }
 
 int c4iw_dereg_mr(struct ib_mr *ib_mr)

@@ -13,12 +13,10 @@
 
 #include "hardware.h"
 
-		.macro	addruart, rx, tmp
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
-		moveq	\rx, #0x00100000		@ physical
-		movne	\rx, #io_p2v(0x00100000)	@ virtual
-		orr	\rx, \rx, #0x00000a00
+		.macro	addruart, rp, rv
+		mov	\rp, #0x00000a00
+		orr	\rv, \rp, #io_p2v(0x00100000)	@ virtual
+		orr	\rp, \rp, #0x00100000		@ physical
 		.endm
 
 		.macro	senduart,rd,rx

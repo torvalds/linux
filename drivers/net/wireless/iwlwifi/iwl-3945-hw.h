@@ -62,7 +62,7 @@
  *****************************************************************************/
 /*
  * Please use this file (iwl-3945-hw.h) only for hardware-related definitions.
- * Please use iwl-3945-commands.h for uCode API definitions.
+ * Please use iwl-commands.h for uCode API definitions.
  * Please use iwl-3945.h for driver implementation definitions.
  */
 
@@ -96,7 +96,7 @@ struct iwl3945_eeprom_txpower_sample {
 	u8 gain_index;		/* index into power (gain) setup table ... */
 	s8 power;		/* ... for this pwr level for this chnl group */
 	u16 v_det;		/* PA output voltage */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Mappings of Tx power levels -> nominal radio/DSP gain table indexes.
@@ -117,7 +117,7 @@ struct iwl3945_eeprom_txpower_group {
 	u8 group_channel;	/* "representative" channel # in this band */
 	s16 temperature;	/* h/w temperature at factory calib this band
 				 * (signed) */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Temperature-based Tx-power compensation data, not band-specific.
@@ -131,7 +131,7 @@ struct iwl3945_eeprom_temperature_corr {
 	u32 Tc;
 	u32 Td;
 	u32 Te;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * EEPROM map
@@ -215,7 +215,7 @@ struct iwl3945_eeprom {
 /* abs.ofs: 512 */
 	struct iwl3945_eeprom_temperature_corr corrections;  /* abs.ofs: 832 */
 	u8 reserved16[172];	/* fill out to full 1024 byte block */
-} __attribute__ ((packed));
+} __packed;
 
 #define IWL3945_EEPROM_IMG_SIZE 1024
 
@@ -226,6 +226,7 @@ struct iwl3945_eeprom {
 
 /* 4 DATA + 1 CMD. There are 2 HCCA queues that are not used. */
 #define IWL39_NUM_QUEUES        5
+#define IWL39_CMD_QUEUE_NUM	4
 
 #define IWL_DEFAULT_TX_RETRY  15
 
@@ -274,7 +275,7 @@ static inline int iwl3945_hw_valid_rtc_data_addr(u32 addr)
  * and &iwl3945_shared.rx_read_ptr[0] is provided to FH_RCSR_RPTR_ADDR(0) */
 struct iwl3945_shared {
 	__le32 tx_base_ptr[8];
-} __attribute__ ((packed));
+} __packed;
 
 static inline u8 iwl3945_hw_get_rate(__le16 rate_n_flags)
 {

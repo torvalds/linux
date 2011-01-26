@@ -86,6 +86,7 @@ config PM_SLEEP_SMP
 	depends on SMP
 	depends on ARCH_SUSPEND_POSSIBLE || ARCH_HIBERNATION_POSSIBLE
 	depends on PM_SLEEP
+	select HOTPLUG
 	select HOTPLUG_CPU
 	default y
 
@@ -130,13 +131,11 @@ config SUSPEND_FREEZER
 
 	  Turning OFF this setting is NOT recommended! If in doubt, say Y.
 
-config HIBERNATION_NVS
-	bool
-
 config HIBERNATION
 	bool "Hibernation (aka 'suspend to disk')"
 	depends on PM && SWAP && ARCH_HIBERNATION_POSSIBLE
-	select HIBERNATION_NVS if HAS_IOMEM
+	select LZO_COMPRESS
+	select LZO_DECOMPRESS
 	---help---
 	  Enable the suspend to disk (STD) functionality, which is usually
 	  called "hibernation" in user interfaces.  STD checkpoints the
@@ -241,3 +240,21 @@ config PM_OPS
 	bool
 	depends on PM_SLEEP || PM_RUNTIME
 	default y
+
+config ARCH_HAS_OPP
+	bool
+
+config PM_OPP
+	bool "Operating Performance Point (OPP) Layer library"
+	depends on PM
+	depends on ARCH_HAS_OPP
+	---help---
+	  SOCs have a standard set of tuples consisting of frequency and
+	  voltage pairs that the device will support per voltage domain. This
+	  is called Operating Performance Point or OPP. The actual definitions
+	  of OPP varies over silicon within the same family of devices.
+
+	  OPP layer organizes the data internally using device pointers
+	  representing individual voltage domains and provides SOC
+	  implementations a ready to use framework to manage OPPs.
+	  For more information, read <file:Documentation/power/opp.txt>

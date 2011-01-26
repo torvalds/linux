@@ -37,6 +37,7 @@
 #include <linux/of.h>		/* for struct device_node */
 
 extern struct bus_type i2c_bus_type;
+extern struct device_type i2c_adapter_type;
 
 /* --- General options ------------------------------------------------	*/
 
@@ -56,9 +57,10 @@ struct i2c_board_info;
  * transmit an arbitrary number of messages without interruption.
  * @count must be be less than 64k since msg.len is u16.
  */
-extern int i2c_master_send(struct i2c_client *client, const char *buf,
+extern int i2c_master_send(const struct i2c_client *client, const char *buf,
 			   int count);
-extern int i2c_master_recv(struct i2c_client *client, char *buf, int count);
+extern int i2c_master_recv(const struct i2c_client *client, char *buf,
+			   int count);
 
 /* Transfer num messages.
  */
@@ -77,23 +79,25 @@ extern s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 /* Now follow the 'nice' access routines. These also document the calling
    conventions of i2c_smbus_xfer. */
 
-extern s32 i2c_smbus_read_byte(struct i2c_client *client);
-extern s32 i2c_smbus_write_byte(struct i2c_client *client, u8 value);
-extern s32 i2c_smbus_read_byte_data(struct i2c_client *client, u8 command);
-extern s32 i2c_smbus_write_byte_data(struct i2c_client *client,
+extern s32 i2c_smbus_read_byte(const struct i2c_client *client);
+extern s32 i2c_smbus_write_byte(const struct i2c_client *client, u8 value);
+extern s32 i2c_smbus_read_byte_data(const struct i2c_client *client,
+				    u8 command);
+extern s32 i2c_smbus_write_byte_data(const struct i2c_client *client,
 				     u8 command, u8 value);
-extern s32 i2c_smbus_read_word_data(struct i2c_client *client, u8 command);
-extern s32 i2c_smbus_write_word_data(struct i2c_client *client,
+extern s32 i2c_smbus_read_word_data(const struct i2c_client *client,
+				    u8 command);
+extern s32 i2c_smbus_write_word_data(const struct i2c_client *client,
 				     u8 command, u16 value);
 /* Returns the number of read bytes */
-extern s32 i2c_smbus_read_block_data(struct i2c_client *client,
+extern s32 i2c_smbus_read_block_data(const struct i2c_client *client,
 				     u8 command, u8 *values);
-extern s32 i2c_smbus_write_block_data(struct i2c_client *client,
+extern s32 i2c_smbus_write_block_data(const struct i2c_client *client,
 				      u8 command, u8 length, const u8 *values);
 /* Returns the number of read bytes */
-extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client *client,
+extern s32 i2c_smbus_read_i2c_block_data(const struct i2c_client *client,
 					 u8 command, u8 length, u8 *values);
-extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client,
+extern s32 i2c_smbus_write_i2c_block_data(const struct i2c_client *client,
 					  u8 command, u8 length,
 					  const u8 *values);
 #endif /* I2C */
@@ -108,6 +112,7 @@ extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client,
  * @shutdown: Callback for device shutdown
  * @suspend: Callback for device suspend
  * @resume: Callback for device resume
+ * @alert: Alert callback, for example for the SMBus alert protocol
  * @command: Callback for bus-wide signaling (optional)
  * @driver: Device driver model driver
  * @id_table: List of I2C devices supported by this driver
@@ -233,6 +238,7 @@ static inline void i2c_set_clientdata(struct i2c_client *dev, void *data)
  * @addr: stored in i2c_client.addr
  * @platform_data: stored in i2c_client.dev.platform_data
  * @archdata: copied into i2c_client.dev.archdata
+ * @of_node: pointer to OpenFirmware device node
  * @irq: stored in i2c_client.irq
  *
  * I2C doesn't actually support hardware probing, although controllers and
@@ -282,12 +288,18 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info);
 
 /* If you don't know the exact address of an I2C device, use this variant
  * instead, which can probe for device presence in a list of possible
- * addresses.
+ * addresses. The "probe" callback function is optional. If it is provided,
+ * it must return 1 on successful probe, 0 otherwise. If it is not provided,
+ * a default probing method is used.
  */
 extern struct i2c_client *
 i2c_new_probed_device(struct i2c_adapter *adap,
 		      struct i2c_board_info *info,
-		      unsigned short const *addr_list);
+		      unsigned short const *addr_list,
+		      int (*probe)(struct i2c_adapter *, unsigned short addr));
+
+/* Common custom probe functions */
+extern int i2c_probe_func_quick_read(struct i2c_adapter *, unsigned short addr);
 
 /* For devices that use several addresses, use i2c_new_dummy() to make
  * client handles for the extra addresses.
@@ -344,7 +356,7 @@ struct i2c_algorithm {
  */
 struct i2c_adapter {
 	struct module *owner;
-	unsigned int id;
+	unsigned int id __deprecated;
 	unsigned int class;		  /* classes to allow probing for */
 	const struct i2c_algorithm *algo; /* the algorithm to access the bus */
 	void *algo_data;
@@ -360,6 +372,7 @@ struct i2c_adapter {
 	char name[48];
 	struct completion dev_released;
 
+	struct mutex userspace_clients_lock;
 	struct list_head userspace_clients;
 };
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
@@ -374,23 +387,20 @@ static inline void i2c_set_adapdata(struct i2c_adapter *dev, void *data)
 	dev_set_drvdata(&dev->dev, data);
 }
 
-/**
- * i2c_lock_adapter - Prevent access to an I2C bus segment
- * @adapter: Target I2C bus segment
- */
-static inline void i2c_lock_adapter(struct i2c_adapter *adapter)
+static inline struct i2c_adapter *
+i2c_parent_is_i2c_adapter(const struct i2c_adapter *adapter)
 {
-	rt_mutex_lock(&adapter->bus_lock);
+	struct device *parent = adapter->dev.parent;
+
+	if (parent != NULL && parent->type == &i2c_adapter_type)
+		return to_i2c_adapter(parent);
+	else
+		return NULL;
 }
 
-/**
- * i2c_unlock_adapter - Reauthorize access to an I2C bus segment
- * @adapter: Target I2C bus segment
- */
-static inline void i2c_unlock_adapter(struct i2c_adapter *adapter)
-{
-	rt_mutex_unlock(&adapter->bus_lock);
-}
+/* Adapter locking functions, exported for shared pin cases */
+void i2c_lock_adapter(struct i2c_adapter *);
+void i2c_unlock_adapter(struct i2c_adapter *);
 
 /*flags for the client struct: */
 #define I2C_CLIENT_PEC	0x04		/* Use Packet Error Checking */
@@ -400,8 +410,6 @@ static inline void i2c_unlock_adapter(struct i2c_adapter *adapter)
 
 /* i2c adapter classes (bitmask) */
 #define I2C_CLASS_HWMON		(1<<0)	/* lm_sensors, ... */
-#define I2C_CLASS_TV_ANALOG	(1<<1)	/* bttv + friends */
-#define I2C_CLASS_TV_DIGITAL	(1<<2)	/* dvb cards */
 #define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
 #define I2C_CLASS_SPD		(1<<7)	/* SPD EEPROMs and similar */
 

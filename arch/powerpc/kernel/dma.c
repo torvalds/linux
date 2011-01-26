@@ -9,9 +9,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-debug.h>
 #include <linux/gfp.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <asm/bug.h>
 #include <asm/abs_addr.h>
+#include <asm/machdep.h>
 
 /*
  * Generic direct DMA implementation
@@ -89,7 +90,7 @@ static int dma_direct_dma_supported(struct device *dev, u64 mask)
 	/* Could be improved so platforms can set the limit in case
 	 * they have limited DMA windows
 	 */
-	return mask >= (lmb_end_of_DRAM() - 1);
+	return mask >= get_dma_offset(dev) + (memblock_end_of_DRAM() - 1);
 #else
 	return 1;
 #endif
@@ -127,11 +128,11 @@ static inline void dma_direct_sync_sg(struct device *dev,
 		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
 }
 
-static inline void dma_direct_sync_single_range(struct device *dev,
-		dma_addr_t dma_handle, unsigned long offset, size_t size,
-		enum dma_data_direction direction)
+static inline void dma_direct_sync_single(struct device *dev,
+					  dma_addr_t dma_handle, size_t size,
+					  enum dma_data_direction direction)
 {
-	__dma_sync(bus_to_virt(dma_handle+offset), size, direction);
+	__dma_sync(bus_to_virt(dma_handle), size, direction);
 }
 #endif
 
@@ -144,8 +145,8 @@ struct dma_map_ops dma_direct_ops = {
 	.map_page	= dma_direct_map_page,
 	.unmap_page	= dma_direct_unmap_page,
 #ifdef CONFIG_NOT_COHERENT_CACHE
-	.sync_single_range_for_cpu 	= dma_direct_sync_single_range,
-	.sync_single_range_for_device 	= dma_direct_sync_single_range,
+	.sync_single_for_cpu 		= dma_direct_sync_single,
+	.sync_single_for_device 	= dma_direct_sync_single,
 	.sync_sg_for_cpu 		= dma_direct_sync_sg,
 	.sync_sg_for_device 		= dma_direct_sync_sg,
 #endif
@@ -153,6 +154,23 @@ struct dma_map_ops dma_direct_ops = {
 EXPORT_SYMBOL(dma_direct_ops);
 
 #define PREALLOC_DMA_DEBUG_ENTRIES (1 << 16)
+
+int dma_set_mask(struct device *dev, u64 dma_mask)
+{
+	struct dma_map_ops *dma_ops = get_dma_ops(dev);
+
+	if (ppc_md.dma_set_mask)
+		return ppc_md.dma_set_mask(dev, dma_mask);
+	if (unlikely(dma_ops == NULL))
+		return -EIO;
+	if (dma_ops->set_dma_mask != NULL)
+		return dma_ops->set_dma_mask(dev, dma_mask);
+	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
+		return -EIO;
+	*dev->dma_mask = dma_mask;
+	return 0;
+}
+EXPORT_SYMBOL(dma_set_mask);
 
 static int __init dma_init(void)
 {

@@ -327,8 +327,6 @@ static void __init n2100_init_machine(void)
 
 MACHINE_START(N2100, "Thecus N2100")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
-	.phys_io	= N2100_UART,
-	.io_pg_offst	= ((N2100_UART) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= n2100_map_io,
 	.init_irq	= iop32x_init_irq,

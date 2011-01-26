@@ -19,14 +19,14 @@
 
 #include "hid-ids.h"
 
-static void ortek_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int rsize)
+static __u8 *ortek_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
 {
-	if (rsize >= 56 && rdesc[54] == 0x25 && rdesc[55] == 0x01) {
-		dev_info(&hdev->dev, "Fixing up Ortek WKB-2000 "
-				"report descriptor.\n");
+	if (*rsize >= 56 && rdesc[54] == 0x25 && rdesc[55] == 0x01) {
+		hid_info(hdev, "Fixing up Ortek WKB-2000 report descriptor\n");
 		rdesc[55] = 0x92;
 	}
+	return rdesc;
 }
 
 static const struct hid_device_id ortek_devices[] = {

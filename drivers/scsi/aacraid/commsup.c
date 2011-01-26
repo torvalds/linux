@@ -91,7 +91,7 @@ void aac_fib_map_free(struct aac_dev *dev)
  *	aac_fib_setup	-	setup the fibs
  *	@dev: Adapter to set up
  *
- *	Allocate the PCI space for the fibs, map it and then intialise the
+ *	Allocate the PCI space for the fibs, map it and then initialise the
  *	fib area, the unmapped fib data and also the free list
  */
 
@@ -124,7 +124,7 @@ int aac_fib_setup(struct aac_dev * dev)
 		fibptr->hw_fib_va = hw_fib;
 		fibptr->data = (void *) fibptr->hw_fib_va->data;
 		fibptr->next = fibptr+1;	/* Forward chain the fibs */
-		init_MUTEX_LOCKED(&fibptr->event_wait);
+		sema_init(&fibptr->event_wait, 0);
 		spin_lock_init(&fibptr->event_lock);
 		hw_fib->header.XferState = cpu_to_le32(0xffffffff);
 		hw_fib->header.SenderSize = cpu_to_le16(dev->max_fib_size);

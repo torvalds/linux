@@ -31,9 +31,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/control.h>
 #include <mach/gpio.h>
-#include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/board.h>
 #include <plat/common.h>
@@ -41,6 +39,9 @@
 #include <plat/menelaus.h>
 #include <plat/dma.h>
 #include <plat/gpmc.h>
+
+#include "mux.h"
+#include "control.h"
 
 #define H4_FLASH_CS	0
 #define H4_SMC91X_CS	1
@@ -50,38 +51,37 @@
 static unsigned int row_gpios[6] = { 88, 89, 124, 11, 6, 96 };
 static unsigned int col_gpios[7] = { 90, 91, 100, 36, 12, 97, 98 };
 
-static int h4_keymap[] = {
+static const unsigned int h4_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
-	KEY(0, 1, KEY_RIGHT),
-	KEY(0, 2, KEY_A),
-	KEY(0, 3, KEY_B),
-	KEY(0, 4, KEY_C),
-	KEY(1, 0, KEY_DOWN),
+	KEY(1, 0, KEY_RIGHT),
+	KEY(2, 0, KEY_A),
+	KEY(3, 0, KEY_B),
+	KEY(4, 0, KEY_C),
+	KEY(0, 1, KEY_DOWN),
 	KEY(1, 1, KEY_UP),
-	KEY(1, 2, KEY_E),
-	KEY(1, 3, KEY_F),
-	KEY(1, 4, KEY_G),
-	KEY(2, 0, KEY_ENTER),
-	KEY(2, 1, KEY_I),
+	KEY(2, 1, KEY_E),
+	KEY(3, 1, KEY_F),
+	KEY(4, 1, KEY_G),
+	KEY(0, 2, KEY_ENTER),
+	KEY(1, 2, KEY_I),
 	KEY(2, 2, KEY_J),
-	KEY(2, 3, KEY_K),
-	KEY(2, 4, KEY_3),
-	KEY(3, 0, KEY_M),
-	KEY(3, 1, KEY_N),
-	KEY(3, 2, KEY_O),
+	KEY(3, 2, KEY_K),
+	KEY(4, 2, KEY_3),
+	KEY(0, 3, KEY_M),
+	KEY(1, 3, KEY_N),
+	KEY(2, 3, KEY_O),
 	KEY(3, 3, KEY_P),
-	KEY(3, 4, KEY_Q),
-	KEY(4, 0, KEY_R),
-	KEY(4, 1, KEY_4),
-	KEY(4, 2, KEY_T),
-	KEY(4, 3, KEY_U),
+	KEY(4, 3, KEY_Q),
+	KEY(0, 4, KEY_R),
+	KEY(1, 4, KEY_4),
+	KEY(2, 4, KEY_T),
+	KEY(3, 4, KEY_U),
 	KEY(4, 4, KEY_ENTER),
-	KEY(5, 0, KEY_V),
-	KEY(5, 1, KEY_W),
-	KEY(5, 2, KEY_L),
-	KEY(5, 3, KEY_S),
-	KEY(5, 4, KEY_ENTER),
-	0
+	KEY(0, 5, KEY_V),
+	KEY(1, 5, KEY_W),
+	KEY(2, 5, KEY_L),
+	KEY(3, 5, KEY_S),
+	KEY(4, 5, KEY_ENTER),
 };
 
 static struct mtd_partition h4_partitions[] = {
@@ -135,12 +135,16 @@ static struct platform_device h4_flash_device = {
 	.resource	= &h4_flash_resource,
 };
 
+static const struct matrix_keymap_data h4_keymap_data = {
+	.keymap		= h4_keymap,
+	.keymap_size	= ARRAY_SIZE(h4_keymap),
+};
+
 static struct omap_kp_platform_data h4_kp_data = {
 	.rows		= 6,
 	.cols		= 7,
-	.keymap 	= h4_keymap,
-	.keymapsize 	= ARRAY_SIZE(h4_keymap),
-	.rep		= 1,
+	.keymap_data	= &h4_keymap_data,
+	.rep		= true,
 	.row_gpios 	= row_gpios,
 	.col_gpios 	= col_gpios,
 };
@@ -246,7 +250,7 @@ static inline void __init h4_init_debug(void)
 
 	udelay(100);
 
-	omap_cfg_reg(M15_24XX_GPIO92);
+	omap_mux_init_gpio(92, 0);
 	if (debug_card_init(cs_mem_base, H4_ETHR_GPIO_IRQ) < 0)
 		gpmc_cs_free(eth_cs);
 
@@ -272,27 +276,6 @@ static struct omap_lcd_config h4_lcd_config __initdata = {
 };
 
 static struct omap_usb_config h4_usb_config __initdata = {
-#ifdef	CONFIG_MACH_OMAP2_H4_USB1
-	/* NOTE:  usb1 could also be used with 3 wire signaling */
-	.pins[1]	= 4,
-#endif
-
-#ifdef	CONFIG_MACH_OMAP_H4_OTG
-	/* S1.10 ON -- USB OTG port
-	 * usb0 switched to Mini-AB port and isp1301 transceiver;
-	 * S2.POS3 = OFF, S2.POS4 = ON ... to allow battery charging
-	 */
-	.otg		= 1,
-	.pins[0]	= 4,
-#ifdef	CONFIG_USB_GADGET_OMAP
-	/* use OTG cable, or standard A-to-MiniB */
-	.hmc_mode	= 0x14,	/* 0:dev/otg 1:host 2:disable */
-#elif	defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
-	/* use OTG cable, or NONSTANDARD (B-to-MiniB) */
-	.hmc_mode	= 0x11,	/* 0:host 1:host 2:disable */
-#endif	/* XX */
-
-#else
 	/* S1.10 OFF -- usb "download port"
 	 * usb0 switched to Mini-B port and isp1105 transceiver;
 	 * S2.POS3 = ON, S2.POS4 = OFF ... to enable battery charging
@@ -301,10 +284,9 @@ static struct omap_usb_config h4_usb_config __initdata = {
 	.pins[0]	= 3,
 /*	.hmc_mode	= 0x14,*/	/* 0:dev 1:host 2:disable */
 	.hmc_mode	= 0x00,		/* 0:dev|otg 1:disable 2:disable */
-#endif
 };
 
-static struct omap_board_config_kernel h4_config[] = {
+static struct omap_board_config_kernel h4_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&h4_lcd_config },
 };
 
@@ -312,9 +294,9 @@ static void __init omap_h4_init_irq(void)
 {
 	omap_board_config = h4_config;
 	omap_board_config_size = ARRAY_SIZE(h4_config);
-	omap2_init_common_hw(NULL, NULL);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
-	omap_gpio_init();
 	h4_init_flash();
 }
 
@@ -338,31 +320,52 @@ static struct i2c_board_info __initdata h4_i2c_board_info[] = {
 	},
 };
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#endif
+
 static void __init omap_h4_init(void)
 {
+	omap2420_mux_init(board_mux, OMAP_PACKAGE_ZAF);
+
 	/*
 	 * Make sure the serial ports are muxed on at this point.
 	 * You have to mux them off in device drivers later on
 	 * if not needed.
 	 */
-#if defined(CONFIG_OMAP_IR) || defined(CONFIG_OMAP_IR_MODULE)
-	omap_cfg_reg(K15_24XX_UART3_TX);
-	omap_cfg_reg(K14_24XX_UART3_RX);
-#endif
 
 #if defined(CONFIG_KEYBOARD_OMAP) || defined(CONFIG_KEYBOARD_OMAP_MODULE)
+	omap_mux_init_gpio(88, OMAP_PULL_ENA | OMAP_PULL_UP);
+	omap_mux_init_gpio(89, OMAP_PULL_ENA | OMAP_PULL_UP);
+	omap_mux_init_gpio(124, OMAP_PULL_ENA | OMAP_PULL_UP);
+	omap_mux_init_signal("mcbsp2_dr.gpio_11", OMAP_PULL_ENA | OMAP_PULL_UP);
 	if (omap_has_menelaus()) {
+		omap_mux_init_signal("sdrc_a14.gpio0",
+			OMAP_PULL_ENA | OMAP_PULL_UP);
+		omap_mux_init_signal("vlynq_rx0.gpio_15", 0);
+		omap_mux_init_signal("gpio_98", 0);
 		row_gpios[5] = 0;
 		col_gpios[2] = 15;
 		col_gpios[6] = 18;
+	} else {
+		omap_mux_init_signal("gpio_96", OMAP_PULL_ENA | OMAP_PULL_UP);
+		omap_mux_init_signal("gpio_100", 0);
+		omap_mux_init_signal("gpio_98", 0);
 	}
+	omap_mux_init_signal("gpio_90", 0);
+	omap_mux_init_signal("gpio_91", 0);
+	omap_mux_init_signal("gpio_36", 0);
+	omap_mux_init_signal("mcbsp2_clkx.gpio_12", 0);
+	omap_mux_init_signal("gpio_97", 0);
 #endif
 
 	i2c_register_board_info(1, h4_i2c_board_info,
 			ARRAY_SIZE(h4_i2c_board_info));
 
 	platform_add_devices(h4_devices, ARRAY_SIZE(h4_devices));
-	omap_usb_init(&h4_usb_config);
+	omap2_usbfs_init(&h4_usb_config);
 	omap_serial_init();
 }
 
@@ -374,10 +377,9 @@ static void __init omap_h4_map_io(void)
 
 MACHINE_START(OMAP_H4, "OMAP2420 H4 board")
 	/* Maintainer: Paul Mundt <paul.mundt@nokia.com> */
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_h4_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_h4_init_irq,
 	.init_machine	= omap_h4_init,
 	.timer		= &omap_timer,

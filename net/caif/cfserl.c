@@ -4,6 +4,8 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
+
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -14,7 +16,8 @@
 #define container_obj(layr) ((struct cfserl *) layr)
 
 #define CFSERL_STX 0x02
-#define CAIF_MINIUM_PACKET_SIZE 4
+#define SERIAL_MINIUM_PACKET_SIZE 4
+#define SERIAL_MAX_FRAMESIZE 4096
 struct cfserl {
 	struct cflayer layer;
 	struct cfpkt *incomplete_frm;
@@ -33,7 +36,7 @@ struct cflayer *cfserl_create(int type, int instance, bool use_stx)
 {
 	struct cfserl *this = kmalloc(sizeof(struct cfserl), GFP_ATOMIC);
 	if (!this) {
-		pr_warning("CAIF: %s(): Out of memory\n", __func__);
+		pr_warn("Out of memory\n");
 		return NULL;
 	}
 	caif_assert(offsetof(struct cfserl, layer) == 0);
@@ -59,14 +62,18 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 	u8 stx = CFSERL_STX;
 	int ret;
 	u16 expectlen = 0;
+
 	caif_assert(newpkt != NULL);
 	spin_lock(&layr->sync);
 
 	if (layr->incomplete_frm != NULL) {
-
 		layr->incomplete_frm =
 		    cfpkt_append(layr->incomplete_frm, newpkt, expectlen);
 		pkt = layr->incomplete_frm;
+		if (pkt == NULL) {
+			spin_unlock(&layr->sync);
+			return -ENOMEM;
+		}
 	} else {
 		pkt = newpkt;
 	}
@@ -115,8 +122,8 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 		/*
 		 * Frame error handling
 		 */
-		if (expectlen < CAIF_MINIUM_PACKET_SIZE
-		    || expectlen > CAIF_MAX_FRAMESIZE) {
+		if (expectlen < SERIAL_MINIUM_PACKET_SIZE
+		    || expectlen > SERIAL_MAX_FRAMESIZE) {
 			if (!layr->usestx) {
 				if (pkt != NULL)
 					cfpkt_destroy(pkt);
@@ -154,7 +161,6 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 			if (layr->usestx) {
 				if (tail_pkt != NULL)
 					pkt = cfpkt_append(pkt, tail_pkt, 0);
-
 				/* Start search for next STX if frame failed */
 				continue;
 			} else {

@@ -1,11 +1,6 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-
-mainmenu "Linux/Microblaze Kernel Configuration"
-
 config MICROBLAZE
 	def_bool y
-	select HAVE_LMB
+	select HAVE_MEMBLOCK
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -14,9 +9,14 @@ config MICROBLAZE
 	select USB_ARCH_HAS_EHCI
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_OPROFILE
+	select HAVE_ARCH_KGDB
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select TRACING_SUPPORT
+	select OF
+	select OF_EARLY_FLATTREE
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_PROBE
 
 config SWAP
 	def_bool n
@@ -39,25 +39,13 @@ config GENERIC_FIND_NEXT_BIT
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_HARDIRQS
-	def_bool y
-
-config GENERIC_IRQ_PROBE
-	def_bool y
-
 config GENERIC_CALIBRATE_DELAY
-	def_bool y
-
-config GENERIC_TIME
 	def_bool y
 
 config GENERIC_TIME_VSYSCALL
 	def_bool n
 
 config GENERIC_CLOCKEVENTS
-	def_bool y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
 	def_bool y
 
 config GENERIC_GPIO
@@ -73,9 +61,6 @@ config LOCKDEP_SUPPORT
 	def_bool y
 
 config HAVE_LATENCYTOP_SUPPORT
-	def_bool y
-
-config DTC
 	def_bool y
 
 source "init/Kconfig"
@@ -124,17 +109,22 @@ config CMDLINE_FORCE
 	  Set this to have arguments from the default kernel command string
 	  override those passed by the boot loader.
 
-config OF
-	def_bool y
-	select OF_FLATTREE
-
-config PROC_DEVICETREE
-	bool "Support for device tree in /proc"
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
 	depends on PROC_FS
+	default y
 	help
-	  This option adds a device-tree directory under /proc which contains
-	  an image of the device tree that the kernel copies from Open
-	  Firmware or other boot firmware. If unsure, say Y here.
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y. Only embedded should say N here.
 
 endmenu
 
@@ -222,6 +212,36 @@ config TASK_SIZE_BOOL
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
 	default "0x80000000"
+
+choice
+	prompt "Page size"
+	default MICROBLAZE_4K_PAGES
+	depends on ADVANCED_OPTIONS && !MMU
+	help
+	  Select the kernel logical page size. Increasing the page size
+	  will reduce software overhead at each page boundary, allow
+	  hardware prefetch mechanisms to be more effective, and allow
+	  larger dma transfers increasing IO efficiency and reducing
+	  overhead. However the utilization of memory will increase.
+	  For example, each cached file will using a multiple of the
+	  page size to hold its contents and the difference between the
+	  end of file and the end of page is wasted.
+
+	  If unsure, choose 4K_PAGES.
+
+config MICROBLAZE_4K_PAGES
+	bool "4k page size"
+
+config MICROBLAZE_8K_PAGES
+	bool "8k page size"
+
+config MICROBLAZE_16K_PAGES
+	bool "16k page size"
+
+config MICROBLAZE_32K_PAGES
+	bool "32k page size"
+
+endchoice
 
 endmenu
 

@@ -1457,7 +1457,6 @@ struct dev_info {
  * @adapter:		Adapter device information.
  * @port:		Port information.
  * @monitor_time_info:	Timer to monitor ports.
- * @stats:		Network statistics.
  * @proc_sem:		Semaphore for proc accessing.
  * @id:			Device ID.
  * @mii_if:		MII interface information.
@@ -1471,7 +1470,6 @@ struct dev_priv {
 	struct dev_info *adapter;
 	struct ksz_port port;
 	struct ksz_timer_info monitor_timer_info;
-	struct net_device_stats stats;
 
 	struct semaphore proc_sem;
 	int id;
@@ -3572,7 +3570,7 @@ static void hw_cfg_wol(struct ksz_hw *hw, u16 frame, int set)
  * This routine is used to program Wake-on-LAN pattern.
  */
 static void hw_set_wol_frame(struct ksz_hw *hw, int i, uint mask_size,
-	u8 *mask, uint frame_size, u8 *pattern)
+	const u8 *mask, uint frame_size, const u8 *pattern)
 {
 	int bits;
 	int from;
@@ -3628,9 +3626,9 @@ static void hw_set_wol_frame(struct ksz_hw *hw, int i, uint mask_size,
  *
  * This routine is used to add ARP pattern for waking up the host.
  */
-static void hw_add_wol_arp(struct ksz_hw *hw, u8 *ip_addr)
+static void hw_add_wol_arp(struct ksz_hw *hw, const u8 *ip_addr)
 {
-	u8 mask[6] = { 0x3F, 0xF0, 0x3F, 0x00, 0xC0, 0x03 };
+	static const u8 mask[6] = { 0x3F, 0xF0, 0x3F, 0x00, 0xC0, 0x03 };
 	u8 pattern[42] = {
 		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -3653,8 +3651,8 @@ static void hw_add_wol_arp(struct ksz_hw *hw, u8 *ip_addr)
  */
 static void hw_add_wol_bcast(struct ksz_hw *hw)
 {
-	u8 mask[] = { 0x3F };
-	u8 pattern[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+	static const u8 mask[] = { 0x3F };
+	static const u8 pattern[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 	hw_set_wol_frame(hw, 2, 1, mask, MAC_ADDR_LEN, pattern);
 }
@@ -3671,7 +3669,7 @@ static void hw_add_wol_bcast(struct ksz_hw *hw)
  */
 static void hw_add_wol_mcast(struct ksz_hw *hw)
 {
-	u8 mask[] = { 0x3F };
+	static const u8 mask[] = { 0x3F };
 	u8 pattern[] = { 0x33, 0x33, 0xFF, 0x00, 0x00, 0x00 };
 
 	memcpy(&pattern[3], &hw->override_addr[3], 3);
@@ -3689,7 +3687,7 @@ static void hw_add_wol_mcast(struct ksz_hw *hw)
  */
 static void hw_add_wol_ucast(struct ksz_hw *hw)
 {
-	u8 mask[] = { 0x3F };
+	static const u8 mask[] = { 0x3F };
 
 	hw_set_wol_frame(hw, 0, 1, mask, MAC_ADDR_LEN, hw->override_addr);
 }
@@ -3702,7 +3700,7 @@ static void hw_add_wol_ucast(struct ksz_hw *hw)
  *
  * This routine is used to enable Wake-on-LAN depending on driver settings.
  */
-static void hw_enable_wol(struct ksz_hw *hw, u32 wol_enable, u8 *net_addr)
+static void hw_enable_wol(struct ksz_hw *hw, u32 wol_enable, const u8 *net_addr)
 {
 	hw_cfg_wol(hw, KS8841_WOL_MAGIC_ENABLE, (wol_enable & WAKE_MAGIC));
 	hw_cfg_wol(hw, KS8841_WOL_FRAME0_ENABLE, (wol_enable & WAKE_UCAST));
@@ -4751,8 +4749,8 @@ static void send_packet(struct sk_buff *skb, struct net_device *dev)
 	hw_send_pkt(hw);
 
 	/* Update transmit statistics. */
-	priv->stats.tx_packets++;
-	priv->stats.tx_bytes += len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += len;
 }
 
 /**
@@ -4854,7 +4852,7 @@ static inline void copy_old_skb(struct sk_buff *old, struct sk_buff *skb)
  *
  * Return 0 if successful; otherwise an error code indicating failure.
  */
-static int netdev_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t netdev_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
@@ -5030,7 +5028,7 @@ static inline int rx_proc(struct net_device *dev, struct ksz_hw* hw,
 		/* skb->data != skb->head */
 		skb = dev_alloc_skb(packet_len + 2);
 		if (!skb) {
-			priv->stats.rx_dropped++;
+			dev->stats.rx_dropped++;
 			return -ENOMEM;
 		}
 
@@ -5050,8 +5048,8 @@ static inline int rx_proc(struct net_device *dev, struct ksz_hw* hw,
 		csum_verified(skb);
 
 	/* Update receive statistics. */
-	priv->stats.rx_packets++;
-	priv->stats.rx_bytes += packet_len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += packet_len;
 
 	/* Notify upper layer for received packet. */
 	rx_status = netif_rx(skb);
@@ -5291,7 +5289,7 @@ static irqreturn_t netdev_intr(int irq, void *dev_id)
 		}
 
 		if (unlikely(int_enable & KS884X_INT_RX_OVERRUN)) {
-			priv->stats.rx_fifo_errors++;
+			dev->stats.rx_fifo_errors++;
 			hw_resume_rx(hw);
 		}
 
@@ -5522,7 +5520,7 @@ static int netdev_open(struct net_device *dev)
 	priv->promiscuous = 0;
 
 	/* Reset device statistics. */
-	memset(&priv->stats, 0, sizeof(struct net_device_stats));
+	memset(&dev->stats, 0, sizeof(struct net_device_stats));
 	memset((void *) port->counter, 0,
 		(sizeof(u64) * OID_COUNTER_LAST));
 
@@ -5622,42 +5620,42 @@ static struct net_device_stats *netdev_query_statistics(struct net_device *dev)
 	int i;
 	int p;
 
-	priv->stats.rx_errors = port->counter[OID_COUNTER_RCV_ERROR];
-	priv->stats.tx_errors = port->counter[OID_COUNTER_XMIT_ERROR];
+	dev->stats.rx_errors = port->counter[OID_COUNTER_RCV_ERROR];
+	dev->stats.tx_errors = port->counter[OID_COUNTER_XMIT_ERROR];
 
 	/* Reset to zero to add count later. */
-	priv->stats.multicast = 0;
-	priv->stats.collisions = 0;
-	priv->stats.rx_length_errors = 0;
-	priv->stats.rx_crc_errors = 0;
-	priv->stats.rx_frame_errors = 0;
-	priv->stats.tx_window_errors = 0;
+	dev->stats.multicast = 0;
+	dev->stats.collisions = 0;
+	dev->stats.rx_length_errors = 0;
+	dev->stats.rx_crc_errors = 0;
+	dev->stats.rx_frame_errors = 0;
+	dev->stats.tx_window_errors = 0;
 
 	for (i = 0, p = port->first_port; i < port->mib_port_cnt; i++, p++) {
 		mib = &hw->port_mib[p];
 
-		priv->stats.multicast += (unsigned long)
+		dev->stats.multicast += (unsigned long)
 			mib->counter[MIB_COUNTER_RX_MULTICAST];
 
-		priv->stats.collisions += (unsigned long)
+		dev->stats.collisions += (unsigned long)
 			mib->counter[MIB_COUNTER_TX_TOTAL_COLLISION];
 
-		priv->stats.rx_length_errors += (unsigned long)(
+		dev->stats.rx_length_errors += (unsigned long)(
 			mib->counter[MIB_COUNTER_RX_UNDERSIZE] +
 			mib->counter[MIB_COUNTER_RX_FRAGMENT] +
 			mib->counter[MIB_COUNTER_RX_OVERSIZE] +
 			mib->counter[MIB_COUNTER_RX_JABBER]);
-		priv->stats.rx_crc_errors += (unsigned long)
+		dev->stats.rx_crc_errors += (unsigned long)
 			mib->counter[MIB_COUNTER_RX_CRC_ERR];
-		priv->stats.rx_frame_errors += (unsigned long)(
+		dev->stats.rx_frame_errors += (unsigned long)(
 			mib->counter[MIB_COUNTER_RX_ALIGNMENT_ERR] +
 			mib->counter[MIB_COUNTER_RX_SYMBOL_ERR]);
 
-		priv->stats.tx_window_errors += (unsigned long)
+		dev->stats.tx_window_errors += (unsigned long)
 			mib->counter[MIB_COUNTER_TX_LATE_COLLISION];
 	}
 
-	return &priv->stats;
+	return &dev->stats;
 }
 
 /**
@@ -5718,7 +5716,7 @@ static void dev_set_promiscuous(struct net_device *dev, struct dev_priv *priv,
 		 * from the bridge.
 		 */
 		if ((hw->features & STP_SUPPORT) && !promiscuous &&
-				dev->br_port) {
+		    (dev->priv_flags & IFF_BRIDGE_PORT)) {
 			struct ksz_switch *sw = hw->ksz_switch;
 			int port = priv->port.first_port;
 
@@ -6210,7 +6208,7 @@ static int netdev_set_wol(struct net_device *dev,
 	struct dev_info *hw_priv = priv->adapter;
 
 	/* Need to find a way to retrieve the device IP address. */
-	u8 net_addr[] = { 192, 168, 1, 1 };
+	static const u8 net_addr[] = { 192, 168, 1, 1 };
 
 	if (wol->wolopts & ~hw_priv->wol_support)
 		return -EINVAL;
@@ -6812,7 +6810,7 @@ static int stp;
 static int fast_aging;
 
 /**
- * netdev_init - initalize network device.
+ * netdev_init - initialize network device.
  * @dev:	Network device.
  *
  * This function initializes the network device.
@@ -6863,6 +6861,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_tx_timeout		= netdev_tx_timeout,
 	.ndo_change_mtu		= netdev_change_mtu,
 	.ndo_set_mac_address	= netdev_set_mac_address,
+	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= netdev_ioctl,
 	.ndo_set_rx_mode	= netdev_set_rx_mode,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -6895,13 +6894,12 @@ static void get_mac_addr(struct dev_info *hw_priv, u8 *macaddr, int port)
 	i = j = num = got_num = 0;
 	while (j < MAC_ADDR_LEN) {
 		if (macaddr[i]) {
+			int digit;
+
 			got_num = 1;
-			if ('0' <= macaddr[i] && macaddr[i] <= '9')
-				num = num * 16 + macaddr[i] - '0';
-			else if ('A' <= macaddr[i] && macaddr[i] <= 'F')
-				num = num * 16 + 10 + macaddr[i] - 'A';
-			else if ('a' <= macaddr[i] && macaddr[i] <= 'f')
-				num = num * 16 + 10 + macaddr[i] - 'a';
+			digit = hex_to_bin(macaddr[i]);
+			if (digit >= 0)
+				num = num * 16 + digit;
 			else if (':' == macaddr[i])
 				got_num = 2;
 			else
@@ -6955,7 +6953,7 @@ static void read_other_addr(struct ksz_hw *hw)
 #define PCI_VENDOR_ID_MICREL_KS		0x16c6
 #endif
 
-static int __init pcidev_init(struct pci_dev *pdev,
+static int __devinit pcidev_init(struct pci_dev *pdev,
 	const struct pci_device_id *id)
 {
 	struct net_device *dev;
@@ -7243,7 +7241,7 @@ static int pcidev_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct ksz_hw *hw = &hw_priv->hw;
 
 	/* Need to find a way to retrieve the device IP address. */
-	u8 net_addr[] = { 192, 168, 1, 1 };
+	static const u8 net_addr[] = { 192, 168, 1, 1 };
 
 	for (i = 0; i < hw->dev_count; i++) {
 		if (info->netdev[i]) {

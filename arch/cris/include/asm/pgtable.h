@@ -248,10 +248,8 @@ static inline pgd_t * pgd_offset(const struct mm_struct *mm, unsigned long addre
 	((pte_t *) pmd_page_vaddr(*(dir)) +  __pte_offset(address))
 #define pte_offset_map(dir, address) \
 	((pte_t *)page_address(pmd_page(*(dir))) + __pte_offset(address))
-#define pte_offset_map_nested(dir, address) pte_offset_map(dir, address)
 
 #define pte_unmap(pte) do { } while (0)
-#define pte_unmap_nested(pte) do { } while (0)
 #define pte_pfn(x)		((unsigned long)(__va((x).pte)) >> PAGE_SHIFT)
 #define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
@@ -259,6 +257,9 @@ static inline pgd_t * pgd_offset(const struct mm_struct *mm, unsigned long addre
         printk("%s:%d: bad pte %p(%08lx).\n", __FILE__, __LINE__, &(e), pte_val(e))
 #define pgd_ERROR(e) \
         printk("%s:%d: bad pgd %p(%08lx).\n", __FILE__, __LINE__, &(e), pgd_val(e))
+
+#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)         \
+		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD]; /* defined in head.S */

@@ -14,8 +14,6 @@
  * published by the Free Software Foundation.
  */
 
-#include "cm.h"
-
 /* Bits shared between registers */
 
 /* CM_FCLKEN1_CORE and CM_ICLKEN1_CORE shared bits */
@@ -649,6 +647,8 @@
 #define OMAP3430_ST_MCBSP2_MASK				(1 << 0)
 
 /* CM_AUTOIDLE_PER */
+#define OMAP3630_AUTO_UART4_MASK			(1 << 18)
+#define OMAP3630_AUTO_UART4_SHIFT			18
 #define OMAP3430_AUTO_GPIO6_MASK			(1 << 17)
 #define OMAP3430_AUTO_GPIO6_SHIFT			17
 #define OMAP3430_AUTO_GPIO5_MASK			(1 << 16)
@@ -797,5 +797,16 @@
 /* CM_CLKSTST_USBHOST */
 #define OMAP3430ES2_CLKACTIVITY_USBHOST_SHIFT		0
 #define OMAP3430ES2_CLKACTIVITY_USBHOST_MASK		(1 << 0)
+
+/*
+ *
+ */
+
+/* OMAP3XXX CM_CLKSTCTRL_*.CLKTRCTRL_* register bit values */
+#define OMAP34XX_CLKSTCTRL_DISABLE_AUTO		0x0
+#define OMAP34XX_CLKSTCTRL_FORCE_SLEEP		0x1
+#define OMAP34XX_CLKSTCTRL_FORCE_WAKEUP		0x2
+#define OMAP34XX_CLKSTCTRL_ENABLE_AUTO		0x3
+
 
 #endif

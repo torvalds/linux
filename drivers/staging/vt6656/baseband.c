@@ -963,7 +963,7 @@ BBvSetAntennaMode (PSDevice pDevice, BYTE byAntennaMode)
             break;
         case ANT_RXB:
             pDevice->byBBRxConf &= 0xFE;
-            pDevice->byBBRxConf |= 0x02;;
+            pDevice->byBBRxConf |= 0x02;
             break;
     }
 
@@ -989,10 +989,10 @@ BBvSetAntennaMode (PSDevice pDevice, BYTE byAntennaMode)
  * Return Value: none
  *
  */
-BOOL
-BBbVT3184Init (PSDevice pDevice)
+
+BOOL BBbVT3184Init(PSDevice pDevice)
 {
-    NTSTATUS                ntStatus;
+	int ntStatus;
     WORD                    wLength;
     PBYTE                   pbyAddr;
     PBYTE                   pbyAgc;
@@ -1010,11 +1010,9 @@ BBbVT3184Init (PSDevice pDevice)
     }
 
 
-    //20080215-01,<Add> by Mike Liu
 //    if ((pDevice->abyEEPROM[EEP_OFS_RADIOCTL]&0x06)==0x04)
 //        return FALSE;
 
-//20080804-01,<Add> by Mike Liu
 //zonetype initial
  pDevice->byOriginalZonetype = pDevice->abyEEPROM[EEP_OFS_ZONETYPE];
  if(pDevice->config_file.ZoneType >= 0) {         //read zonetype file ok!

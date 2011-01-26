@@ -66,7 +66,7 @@ static int tce_build_pSeries(struct iommu_table *tbl, long index,
 	tcep = ((u64 *)tbl->it_base) + index;
 
 	while (npages--) {
-		/* can't move this out since we might cross LMB boundary */
+		/* can't move this out since we might cross MEMBLOCK boundary */
 		rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
 		*tcep = proto_tce | (rpn & TCE_RPN_MASK) << TCE_RPN_SHIFT;
 
@@ -140,7 +140,7 @@ static int tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	return ret;
 }
 
-static DEFINE_PER_CPU(u64 *, tce_page) = NULL;
+static DEFINE_PER_CPU(u64 *, tce_page);
 
 static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 				     long npages, unsigned long uaddr,
@@ -323,14 +323,13 @@ static void iommu_table_setparms(struct pci_controller *phb,
 static void iommu_table_setparms_lpar(struct pci_controller *phb,
 				      struct device_node *dn,
 				      struct iommu_table *tbl,
-				      const void *dma_window,
-				      int bussubno)
+				      const void *dma_window)
 {
 	unsigned long offset, size;
 
-	tbl->it_busno  = bussubno;
 	of_parse_dma_window(dn, dma_window, &tbl->it_index, &offset, &size);
 
+	tbl->it_busno = phb->bus->number;
 	tbl->it_base   = 0;
 	tbl->it_blocksize  = 16;
 	tbl->it_type = TCE_PCI;
@@ -403,7 +402,7 @@ static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)
 	pci->phb->dma_window_size = 0x8000000ul;
 	pci->phb->dma_window_base_cur = 0x8000000ul;
 
-	tbl = kmalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
+	tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
 			   pci->phb->node);
 
 	iommu_table_setparms(pci->phb, dn, tbl);
@@ -448,16 +447,12 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 		 pdn->full_name, ppci->iommu_table);
 
 	if (!ppci->iommu_table) {
-		tbl = kmalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
+		tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
 				   ppci->phb->node);
-		iommu_table_setparms_lpar(ppci->phb, pdn, tbl, dma_window,
-			bus->number);
+		iommu_table_setparms_lpar(ppci->phb, pdn, tbl, dma_window);
 		ppci->iommu_table = iommu_init_table(tbl, ppci->phb->node);
 		pr_debug("  created table: %p\n", ppci->iommu_table);
 	}
-
-	if (pdn != dn)
-		PCI_DN(dn)->iommu_table = ppci->iommu_table;
 }
 
 
@@ -478,7 +473,7 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 		struct pci_controller *phb = PCI_DN(dn)->phb;
 
 		pr_debug(" --> first child, no bridge. Allocating iommu table.\n");
-		tbl = kmalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
+		tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
 				   phb->node);
 		iommu_table_setparms(phb, dn, tbl);
 		PCI_DN(dn)->iommu_table = iommu_init_table(tbl, phb->node);
@@ -533,21 +528,11 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	}
 	pr_debug("  parent is %s\n", pdn->full_name);
 
-	/* Check for parent == NULL so we don't try to setup the empty EADS
-	 * slots on POWER4 machines.
-	 */
-	if (dma_window == NULL || pdn->parent == NULL) {
-		pr_debug("  no dma window for device, linking to parent\n");
-		set_iommu_table_base(&dev->dev, PCI_DN(pdn)->iommu_table);
-		return;
-	}
-
 	pci = PCI_DN(pdn);
 	if (!pci->iommu_table) {
-		tbl = kmalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
+		tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
 				   pci->phb->node);
-		iommu_table_setparms_lpar(pci->phb, pdn, tbl, dma_window,
-			pci->phb->bus->number);
+		iommu_table_setparms_lpar(pci->phb, pdn, tbl, dma_window);
 		pci->iommu_table = iommu_init_table(tbl, pci->phb->node);
 		pr_debug("  created table: %p\n", pci->iommu_table);
 	} else {
@@ -571,8 +556,7 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 
 	switch (action) {
 	case PSERIES_RECONFIG_REMOVE:
-		if (pci && pci->iommu_table &&
-		    of_get_property(np, "ibm,dma-window", NULL))
+		if (pci && pci->iommu_table)
 			iommu_free_table(pci->iommu_table, np->full_name);
 		break;
 	default:
@@ -589,13 +573,8 @@ static struct notifier_block iommu_reconfig_nb = {
 /* These are called very early. */
 void iommu_init_early_pSeries(void)
 {
-	if (of_chosen && of_get_property(of_chosen, "linux,iommu-off", NULL)) {
-		/* Direct I/O, IOMMU off */
-		ppc_md.pci_dma_dev_setup = NULL;
-		ppc_md.pci_dma_bus_setup = NULL;
-		set_pci_dma_ops(&dma_direct_ops);
+	if (of_chosen && of_get_property(of_chosen, "linux,iommu-off", NULL))
 		return;
-	}
 
 	if (firmware_has_feature(FW_FEATURE_LPAR)) {
 		if (firmware_has_feature(FW_FEATURE_MULTITCE)) {
@@ -622,3 +601,17 @@ void iommu_init_early_pSeries(void)
 	set_pci_dma_ops(&dma_iommu_ops);
 }
 
+static int __init disable_multitce(char *str)
+{
+	if (strcmp(str, "off") == 0 &&
+	    firmware_has_feature(FW_FEATURE_LPAR) &&
+	    firmware_has_feature(FW_FEATURE_MULTITCE)) {
+		printk(KERN_INFO "Disabling MULTITCE firmware feature\n");
+		ppc_md.tce_build = tce_build_pSeriesLP;
+		ppc_md.tce_free	 = tce_free_pSeriesLP;
+		powerpc_firmware_features &= ~FW_FEATURE_MULTITCE;
+	}
+	return 1;
+}
+
+__setup("multitce=", disable_multitce);

@@ -1065,7 +1065,7 @@ static void r8a66597_usb_connect(struct r8a66597 *r8a66597, int port)
 	else if (speed == LSMODE)
 		rh->port |= USB_PORT_STAT_LOW_SPEED;
 
-	rh->port &= USB_PORT_STAT_RESET;
+	rh->port &= ~USB_PORT_STAT_RESET;
 	rh->port |= USB_PORT_STAT_ENABLE;
 }
 
@@ -2397,14 +2397,14 @@ static const struct dev_pm_ops r8a66597_dev_pm_ops = {
 #define R8A66597_DEV_PM_OPS	NULL
 #endif
 
-static int __init_or_module r8a66597_remove(struct platform_device *pdev)
+static int __devexit r8a66597_remove(struct platform_device *pdev)
 {
 	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
 	struct usb_hcd		*hcd = r8a66597_to_hcd(r8a66597);
 
 	del_timer_sync(&r8a66597->rh_timer);
 	usb_remove_hcd(hcd);
-	iounmap((void *)r8a66597->reg);
+	iounmap(r8a66597->reg);
 #ifdef CONFIG_HAVE_CLK
 	if (r8a66597->pdata->on_chip)
 		clk_put(r8a66597->clk);
@@ -2496,7 +2496,7 @@ static int __devinit r8a66597_probe(struct platform_device *pdev)
 	init_timer(&r8a66597->rh_timer);
 	r8a66597->rh_timer.function = r8a66597_timer;
 	r8a66597->rh_timer.data = (unsigned long)r8a66597;
-	r8a66597->reg = (unsigned long)reg;
+	r8a66597->reg = reg;
 
 	/* make sure no interrupts are pending */
 	ret = r8a66597_clock_enable(r8a66597);
@@ -2542,7 +2542,7 @@ clean_up:
 
 static struct platform_driver r8a66597_driver = {
 	.probe =	r8a66597_probe,
-	.remove =	r8a66597_remove,
+	.remove =	__devexit_p(r8a66597_remove),
 	.driver		= {
 		.name = (char *) hcd_name,
 		.owner	= THIS_MODULE,

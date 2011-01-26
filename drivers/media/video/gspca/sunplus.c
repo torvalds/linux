@@ -54,7 +54,7 @@ struct sd {
 #define MegapixV4 4
 #define MegaImageVI 5
 
-	u8 *jpeg_hdr;
+	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 /* V4L2 controls supported by the driver */
@@ -343,7 +343,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			len ? gspca_dev->usb_buf : NULL, len,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r err %d", ret);
+		err("reg_r err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -368,7 +368,7 @@ static void reg_w_1(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf, 1,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w_1 err %d", ret);
+		err("reg_w_1 err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -388,7 +388,7 @@ static void reg_w_riv(struct gspca_dev *gspca_dev,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			value, index, NULL, 0, 500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w_riv err %d", ret);
+		err("reg_w_riv err %d", ret);
 		gspca_dev->usb_err = ret;
 		return;
 	}
@@ -413,7 +413,7 @@ static u8 reg_r_1(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf, 1,
 			500);			/* timeout */
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r_1 err %d", ret);
+		err("reg_r_1 err %d", ret);
 		gspca_dev->usb_err = ret;
 		return 0;
 	}
@@ -440,7 +440,7 @@ static u16 reg_r_12(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf, length,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r_12 err %d", ret);
+		err("reg_r_12 err %d", ret);
 		gspca_dev->usb_err = ret;
 		return 0;
 	}
@@ -463,7 +463,7 @@ static void setup_qtable(struct gspca_dev *gspca_dev,
 
 	/* loop over y components */
 	for (i = 0; i < 64; i++)
-		 reg_w_riv(gspca_dev, 0x00, 0x2800 + i, qtable[0][i]);
+		reg_w_riv(gspca_dev, 0x00, 0x2800 + i, qtable[0][i]);
 
 	/* loop over c components */
 	for (i = 0; i < 64; i++)
@@ -712,8 +712,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->subtype = id->driver_info;
 
 	if (sd->subtype == AiptekMiniPenCam13) {
-/* try to get the firmware as some cam answer 2.0.1.2.2
- * and should be a spca504b then overwrite that setting */
+
+		/* try to get the firmware as some cam answer 2.0.1.2.2
+		 * and should be a spca504b then overwrite that setting */
 		reg_r(gspca_dev, 0x20, 0, 1);
 		switch (gspca_dev->usb_buf[0]) {
 		case 1:
@@ -733,7 +734,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /*	case BRIDGE_SPCA504: */
 /*	case BRIDGE_SPCA536: */
 		cam->cam_mode = vga_mode;
-		cam->nmodes =ARRAY_SIZE(vga_mode);
+		cam->nmodes = ARRAY_SIZE(vga_mode);
 		break;
 	case BRIDGE_SPCA533:
 		cam->cam_mode = custom_mode;
@@ -805,7 +806,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			/* Set AE AWB Banding Type 3-> 50Hz 2-> 60Hz */
 			spca504A_acknowledged_command(gspca_dev, 0x24,
 							8, 3, 0x9e, 1);
-			/* Twice sequencial need status 0xff->0x9e->0x9d */
+			/* Twice sequential need status 0xff->0x9e->0x9d */
 			spca504A_acknowledged_command(gspca_dev, 0x24,
 							8, 3, 0x9e, 0);
 
@@ -842,9 +843,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int enable;
 
 	/* create the JPEG header */
-	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
-	if (!sd->jpeg_hdr)
-		return -ENOMEM;
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x22);		/* JPEG 411 */
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
@@ -880,7 +878,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			/* Set AE AWB Banding Type 3-> 50Hz 2-> 60Hz */
 			spca504A_acknowledged_command(gspca_dev, 0x24,
 							8, 3, 0x9e, 1);
-			/* Twice sequencial need status 0xff->0x9e->0x9d */
+			/* Twice sequential need status 0xff->0x9e->0x9d */
 			spca504A_acknowledged_command(gspca_dev, 0x24,
 							8, 3, 0x9e, 0);
 			spca504A_acknowledged_command(gspca_dev, 0x24,
@@ -952,13 +950,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 		}
 		break;
 	}
-}
-
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	kfree(sd->jpeg_hdr);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -1162,7 +1153,6 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.get_jcomp = sd_get_jcomp,
 	.set_jcomp = sd_set_jcomp,
@@ -1172,7 +1162,7 @@ static const struct sd_desc sd_desc = {
 #define BS(bridge, subtype) \
 	.driver_info = (BRIDGE_ ## bridge << 8) \
 			| (subtype)
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x400b), BS(SPCA504C, 0)},
 	{USB_DEVICE(0x041e, 0x4012), BS(SPCA504C, 0)},
 	{USB_DEVICE(0x041e, 0x4013), BS(SPCA504C, 0)},
@@ -1258,17 +1248,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

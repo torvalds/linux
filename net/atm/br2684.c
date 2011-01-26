@@ -97,7 +97,7 @@ static LIST_HEAD(br2684_devs);
 
 static inline struct br2684_dev *BRPRIV(const struct net_device *net_dev)
 {
-	return (struct br2684_dev *)netdev_priv(net_dev);
+	return netdev_priv(net_dev);
 }
 
 static inline struct net_device *list_entry_brdev(const struct list_head *le)
@@ -138,6 +138,43 @@ static struct net_device *br2684_find_dev(const struct br2684_if_spec *s)
 	}
 	return NULL;
 }
+
+static int atm_dev_event(struct notifier_block *this, unsigned long event,
+		 void *arg)
+{
+	struct atm_dev *atm_dev = arg;
+	struct list_head *lh;
+	struct net_device *net_dev;
+	struct br2684_vcc *brvcc;
+	struct atm_vcc *atm_vcc;
+	unsigned long flags;
+
+	pr_debug("event=%ld dev=%p\n", event, atm_dev);
+
+	read_lock_irqsave(&devs_lock, flags);
+	list_for_each(lh, &br2684_devs) {
+		net_dev = list_entry_brdev(lh);
+
+		list_for_each_entry(brvcc, &BRPRIV(net_dev)->brvccs, brvccs) {
+			atm_vcc = brvcc->atmvcc;
+			if (atm_vcc && brvcc->atmvcc->dev == atm_dev) {
+
+				if (atm_vcc->dev->signal == ATM_PHY_SIG_LOST)
+					netif_carrier_off(net_dev);
+				else
+					netif_carrier_on(net_dev);
+
+			}
+		}
+	}
+	read_unlock_irqrestore(&devs_lock, flags);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block atm_dev_notifier = {
+	.notifier_call = atm_dev_event,
+};
 
 /* chained vcc->pop function.  Check if we should wake the netif_queue */
 static void br2684_pop(struct atm_vcc *vcc, struct sk_buff *skb)
@@ -530,6 +567,13 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 
 		br2684_push(atmvcc, skb);
 	}
+
+	/* initialize netdev carrier state */
+	if (atmvcc->dev->signal == ATM_PHY_SIG_LOST)
+		netif_carrier_off(net_dev);
+	else
+		netif_carrier_on(net_dev);
+
 	__module_get(THIS_MODULE);
 	return 0;
 
@@ -620,9 +664,15 @@ static int br2684_create(void __user *arg)
 	}
 
 	write_lock_irq(&devs_lock);
+
 	brdev->payload = payload;
-	brdev->number = list_empty(&br2684_devs) ? 1 :
-	    BRPRIV(list_entry_brdev(br2684_devs.prev))->number + 1;
+
+	if (list_empty(&br2684_devs)) {
+		/* 1st br2684 device */
+		brdev->number = 1;
+	} else
+		brdev->number = BRPRIV(list_entry_brdev(br2684_devs.prev))->number + 1;
+
 	list_add_tail(&brdev->br2684_devs, &br2684_devs);
 	write_unlock_irq(&devs_lock);
 	return 0;
@@ -758,6 +808,7 @@ static int __init br2684_init(void)
 		return -ENOMEM;
 #endif
 	register_atm_ioctl(&br2684_ioctl_ops);
+	register_atmdevice_notifier(&atm_dev_notifier);
 	return 0;
 }
 
@@ -771,6 +822,9 @@ static void __exit br2684_exit(void)
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("br2684", atm_proc_root);
 #endif
+
+
+	unregister_atmdevice_notifier(&atm_dev_notifier);
 
 	while (!list_empty(&br2684_devs)) {
 		net_dev = list_entry_brdev(br2684_devs.next);

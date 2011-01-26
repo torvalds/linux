@@ -22,6 +22,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/concat.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 
@@ -43,13 +44,13 @@ struct of_flash {
 #ifdef CONFIG_MTD_PARTITIONS
 #define OF_FLASH_PARTS(info)	((info)->parts)
 
-static int parse_obsolete_partitions(struct of_device *dev,
+static int parse_obsolete_partitions(struct platform_device *dev,
 				     struct of_flash *info,
 				     struct device_node *dp)
 {
 	int i, plen, nr_parts;
 	const struct {
-		u32 offset, len;
+		__be32 offset, len;
 	} *part;
 	const char *names;
 
@@ -68,9 +69,9 @@ static int parse_obsolete_partitions(struct of_device *dev,
 	names = of_get_property(dp, "partition-names", &plen);
 
 	for (i = 0; i < nr_parts; i++) {
-		info->parts[i].offset = part->offset;
-		info->parts[i].size   = part->len & ~1;
-		if (part->len & 1) /* bit 0 set signifies read only partition */
+		info->parts[i].offset = be32_to_cpu(part->offset);
+		info->parts[i].size   = be32_to_cpu(part->len) & ~1;
+		if (be32_to_cpu(part->len) & 1) /* bit 0 set signifies read only partition */
 			info->parts[i].mask_flags = MTD_WRITEABLE;
 
 		if (names && (plen > 0)) {
@@ -93,7 +94,7 @@ static int parse_obsolete_partitions(struct of_device *dev,
 #define parse_partitions(info, dev)	(0)
 #endif /* MTD_PARTITIONS */
 
-static int of_flash_remove(struct of_device *dev)
+static int of_flash_remove(struct platform_device *dev)
 {
 	struct of_flash *info;
 	int i;
@@ -140,7 +141,7 @@ static int of_flash_remove(struct of_device *dev)
 /* Helper function to handle probing of the obsolete "direct-mapped"
  * compatible binding, which has an extra "probe-type" property
  * describing the type of flash probe necessary. */
-static struct mtd_info * __devinit obsolete_probe(struct of_device *dev,
+static struct mtd_info * __devinit obsolete_probe(struct platform_device *dev,
 						  struct map_info *map)
 {
 	struct device_node *dp = dev->dev.of_node;
@@ -215,7 +216,7 @@ static void __devinit of_free_probes(const char **probes)
 }
 #endif
 
-static int __devinit of_flash_probe(struct of_device *dev,
+static int __devinit of_flash_probe(struct platform_device *dev,
 				    const struct of_device_id *match)
 {
 #ifdef CONFIG_MTD_PARTITIONS
@@ -225,11 +226,11 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	struct resource res;
 	struct of_flash *info;
 	const char *probe_type = match->data;
-	const u32 *width;
+	const __be32 *width;
 	int err;
 	int i;
 	int count;
-	const u32 *p;
+	const __be32 *p;
 	int reg_tuple_size;
 	struct mtd_info **mtd_list = NULL;
 	resource_size_t res_size;
@@ -266,14 +267,14 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	for (i = 0; i < count; i++) {
 		err = -ENXIO;
 		if (of_address_to_resource(dp, i, &res)) {
-			dev_err(&dev->dev, "Can't get IO address from device"
-				" tree\n");
-			goto err_out;
+			/*
+			 * Continue with next register tuple if this
+			 * one is not mappable
+			 */
+			continue;
 		}
 
-		dev_dbg(&dev->dev, "of_flash device: %.8llx-%.8llx\n",
-			(unsigned long long)res.start,
-			(unsigned long long)res.end);
+		dev_dbg(&dev->dev, "of_flash device: %pR\n", &res);
 
 		err = -EBUSY;
 		res_size = resource_size(&res);
@@ -293,7 +294,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 		info->list[i].map.name = dev_name(&dev->dev);
 		info->list[i].map.phys = res.start;
 		info->list[i].map.size = res_size;
-		info->list[i].map.bankwidth = *width;
+		info->list[i].map.bankwidth = be32_to_cpup(width);
 
 		err = -ENOMEM;
 		info->list[i].map.virt = ioremap(info->list[i].map.phys,
@@ -353,7 +354,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 				   &info->parts, 0);
 	if (err < 0) {
 		of_free_probes(part_probe_types);
-		return err;
+		goto err_out;
 	}
 	of_free_probes(part_probe_types);
 
@@ -361,14 +362,14 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	if (err == 0) {
 		err = of_mtd_parse_partitions(&dev->dev, dp, &info->parts);
 		if (err < 0)
-			return err;
+			goto err_out;
 	}
 #endif
 
 	if (err == 0) {
 		err = parse_obsolete_partitions(dev, info, dp);
 		if (err < 0)
-			return err;
+			goto err_out;
 	}
 
 	if (err > 0)

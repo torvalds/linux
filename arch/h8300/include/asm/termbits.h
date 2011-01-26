@@ -179,6 +179,7 @@ struct ktermios {
 #define FLUSHO	0010000
 #define PENDIN	0040000
 #define IEXTEN	0100000
+#define EXTPROC	0200000
 
 
 /* tcflow() and TCXONC use these */

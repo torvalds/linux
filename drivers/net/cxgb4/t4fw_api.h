@@ -71,6 +71,7 @@ struct fw_wr_hdr {
 #define FW_WR_ATOMIC(x)	 ((x) << 23)
 #define FW_WR_FLUSH(x)   ((x) << 22)
 #define FW_WR_COMPL(x)   ((x) << 21)
+#define FW_WR_IMMDLEN_MASK 0xff
 #define FW_WR_IMMDLEN(x) ((x) << 0)
 
 #define FW_WR_EQUIQ	(1U << 31)
@@ -447,7 +448,9 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_INTVER_RI	= 0x07,
 	FW_PARAMS_PARAM_DEV_INTVER_ISCSIPDU = 0x08,
 	FW_PARAMS_PARAM_DEV_INTVER_ISCSI = 0x09,
-	FW_PARAMS_PARAM_DEV_INTVER_FCOE = 0x0A
+	FW_PARAMS_PARAM_DEV_INTVER_FCOE = 0x0A,
+	FW_PARAMS_PARAM_DEV_FWREV = 0x0B,
+	FW_PARAMS_PARAM_DEV_TPREV = 0x0C,
 };
 
 /*
@@ -475,7 +478,20 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_PBL_END	= 0x12,
 	FW_PARAMS_PARAM_PFVF_L2T_START = 0x13,
 	FW_PARAMS_PARAM_PFVF_L2T_END = 0x14,
+	FW_PARAMS_PARAM_PFVF_SQRQ_START = 0x15,
+	FW_PARAMS_PARAM_PFVF_SQRQ_END	= 0x16,
+	FW_PARAMS_PARAM_PFVF_CQ_START	= 0x17,
+	FW_PARAMS_PARAM_PFVF_CQ_END	= 0x18,
 	FW_PARAMS_PARAM_PFVF_SCHEDCLASS_ETH = 0x20,
+	FW_PARAMS_PARAM_PFVF_VIID       = 0x24,
+	FW_PARAMS_PARAM_PFVF_CPMASK     = 0x25,
+	FW_PARAMS_PARAM_PFVF_OCQ_START  = 0x26,
+	FW_PARAMS_PARAM_PFVF_OCQ_END    = 0x27,
+	FW_PARAMS_PARAM_PFVF_CONM_MAP   = 0x28,
+	FW_PARAMS_PARAM_PFVF_IQFLINT_START = 0x29,
+	FW_PARAMS_PARAM_PFVF_IQFLINT_END = 0x2A,
+	FW_PARAMS_PARAM_PFVF_EQ_START	= 0x2B,
+	FW_PARAMS_PARAM_PFVF_EQ_END	= 0x2C,
 };
 
 /*
@@ -512,7 +528,7 @@ struct fw_pfvf_cmd {
 	__be32 op_to_vfn;
 	__be32 retval_len16;
 	__be32 niqflint_niq;
-	__be32 cmask_to_neq;
+	__be32 type_to_neq;
 	__be32 tc_to_nexactf;
 	__be32 r_caps_to_nethctrl;
 	__be16 nricq;
@@ -529,11 +545,16 @@ struct fw_pfvf_cmd {
 #define FW_PFVF_CMD_NIQ(x) ((x) << 0)
 #define FW_PFVF_CMD_NIQ_GET(x) (((x) >> 0) & 0xfffff)
 
+#define FW_PFVF_CMD_TYPE (1 << 31)
+#define FW_PFVF_CMD_TYPE_GET(x) (((x) >> 31) & 0x1)
+
 #define FW_PFVF_CMD_CMASK(x) ((x) << 24)
-#define FW_PFVF_CMD_CMASK_GET(x) (((x) >> 24) & 0xf)
+#define FW_PFVF_CMD_CMASK_MASK 0xf
+#define FW_PFVF_CMD_CMASK_GET(x) (((x) >> 24) & FW_PFVF_CMD_CMASK_MASK)
 
 #define FW_PFVF_CMD_PMASK(x) ((x) << 20)
-#define FW_PFVF_CMD_PMASK_GET(x) (((x) >> 20) & 0xf)
+#define FW_PFVF_CMD_PMASK_MASK 0xf
+#define FW_PFVF_CMD_PMASK_GET(x) (((x) >> 20) & FW_PFVF_CMD_PMASK_MASK)
 
 #define FW_PFVF_CMD_NEQ(x) ((x) << 0)
 #define FW_PFVF_CMD_NEQ_GET(x) (((x) >> 0) & 0xfffff)
@@ -686,6 +707,7 @@ struct fw_eq_eth_cmd {
 #define FW_EQ_ETH_CMD_EQID(x) ((x) << 0)
 #define FW_EQ_ETH_CMD_EQID_GET(x) (((x) >> 0) & 0xfffff)
 #define FW_EQ_ETH_CMD_PHYSEQID(x) ((x) << 0)
+#define FW_EQ_ETH_CMD_PHYSEQID_GET(x) (((x) >> 0) & 0xfffff)
 
 #define FW_EQ_ETH_CMD_FETCHSZM(x) ((x) << 26)
 #define FW_EQ_ETH_CMD_STATUSPGNS(x) ((x) << 25)
@@ -804,16 +826,16 @@ struct fw_eq_ofld_cmd {
 struct fw_vi_cmd {
 	__be32 op_to_vfn;
 	__be32 alloc_to_len16;
-	__be16 viid_pkd;
+	__be16 type_viid;
 	u8 mac[6];
 	u8 portid_pkd;
 	u8 nmac;
 	u8 nmac0[6];
 	__be16 rsssize_pkd;
 	u8 nmac1[6];
-	__be16 r7;
+	__be16 idsiiq_pkd;
 	u8 nmac2[6];
-	__be16 r8;
+	__be16 idseiq_pkd;
 	u8 nmac3[6];
 	__be64 r9;
 	__be64 r10;
@@ -824,13 +846,16 @@ struct fw_vi_cmd {
 #define FW_VI_CMD_ALLOC (1U << 31)
 #define FW_VI_CMD_FREE (1U << 30)
 #define FW_VI_CMD_VIID(x) ((x) << 0)
+#define FW_VI_CMD_VIID_GET(x) ((x) & 0xfff)
 #define FW_VI_CMD_PORTID(x) ((x) << 4)
+#define FW_VI_CMD_PORTID_GET(x) (((x) >> 4) & 0xf)
 #define FW_VI_CMD_RSSSIZE_GET(x) (((x) >> 0) & 0x7ff)
 
 /* Special VI_MAC command index ids */
 #define FW_VI_MAC_ADD_MAC		0x3FF
 #define FW_VI_MAC_ADD_PERSIST_MAC	0x3FE
 #define FW_VI_MAC_MAC_BASED_FREE	0x3FD
+#define FW_CLS_TCAM_NUM_ENTRIES		336
 
 enum fw_vi_mac_smac {
 	FW_VI_MAC_MPS_TCAM_ENTRY,
@@ -881,6 +906,7 @@ struct fw_vi_rxmode_cmd {
 };
 
 #define FW_VI_RXMODE_CMD_VIID(x) ((x) << 0)
+#define FW_VI_RXMODE_CMD_MTU_MASK 0xffff
 #define FW_VI_RXMODE_CMD_MTU(x) ((x) << 16)
 #define FW_VI_RXMODE_CMD_PROMISCEN_MASK 0x3
 #define FW_VI_RXMODE_CMD_PROMISCEN(x) ((x) << 14)
@@ -1136,6 +1162,11 @@ struct fw_port_cmd {
 			__be32 lstatus_to_modtype;
 			__be16 pcap;
 			__be16 acap;
+			__be16 mtu;
+			__u8   cbllen;
+			__u8   r9;
+			__be32 r10;
+			__be64 r11;
 		} info;
 		struct fw_port_ppp {
 			__be32 pppen_to_ncsich;
@@ -1161,6 +1192,7 @@ struct fw_port_cmd {
 #define FW_PORT_CMD_PORTID_GET(x) (((x) >> 0) & 0xf)
 
 #define FW_PORT_CMD_ACTION(x) ((x) << 16)
+#define FW_PORT_CMD_ACTION_GET(x) (((x) >> 16) & 0xffff)
 
 #define FW_PORT_CMD_CTLBF(x) ((x) << 10)
 #define FW_PORT_CMD_OVLAN3(x) ((x) << 7)
@@ -1196,14 +1228,18 @@ struct fw_port_cmd {
 #define FW_PORT_CMD_NCSICH(x) ((x) << 4)
 
 enum fw_port_type {
-	FW_PORT_TYPE_FIBER,
-	FW_PORT_TYPE_KX4,
+	FW_PORT_TYPE_FIBER_XFI,
+	FW_PORT_TYPE_FIBER_XAUI,
 	FW_PORT_TYPE_BT_SGMII,
-	FW_PORT_TYPE_KX,
+	FW_PORT_TYPE_BT_XFI,
 	FW_PORT_TYPE_BT_XAUI,
-	FW_PORT_TYPE_KR,
+	FW_PORT_TYPE_KX4,
 	FW_PORT_TYPE_CX4,
-	FW_PORT_TYPE_TWINAX,
+	FW_PORT_TYPE_KX,
+	FW_PORT_TYPE_KR,
+	FW_PORT_TYPE_SFP,
+	FW_PORT_TYPE_BP_AP,
+	FW_PORT_TYPE_BP4_AP,
 
 	FW_PORT_TYPE_NONE = FW_PORT_CMD_PTYPE_MASK
 };
@@ -1213,6 +1249,9 @@ enum fw_port_module_type {
 	FW_PORT_MOD_TYPE_LR,
 	FW_PORT_MOD_TYPE_SR,
 	FW_PORT_MOD_TYPE_ER,
+	FW_PORT_MOD_TYPE_TWINAX_PASSIVE,
+	FW_PORT_MOD_TYPE_TWINAX_ACTIVE,
+	FW_PORT_MOD_TYPE_LRM,
 
 	FW_PORT_MOD_TYPE_NONE = FW_PORT_CMD_MODTYPE_MASK
 };
@@ -1469,6 +1508,7 @@ struct fw_rss_glb_config_cmd {
 };
 
 #define FW_RSS_GLB_CONFIG_CMD_MODE(x)	((x) << 28)
+#define FW_RSS_GLB_CONFIG_CMD_MODE_GET(x) (((x) >> 28) & 0xf)
 
 #define FW_RSS_GLB_CONFIG_CMD_MODE_MANUAL	0
 #define FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL	1
@@ -1485,13 +1525,14 @@ struct fw_rss_vi_config_cmd {
 		} manual;
 		struct fw_rss_vi_config_basicvirtual {
 			__be32 r6;
-			__be32 defaultq_to_ip4udpen;
+			__be32 defaultq_to_udpen;
 #define FW_RSS_VI_CONFIG_CMD_DEFAULTQ(x)  ((x) << 16)
+#define FW_RSS_VI_CONFIG_CMD_DEFAULTQ_GET(x) (((x) >> 16) & 0x3ff)
 #define FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN (1U << 4)
 #define FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN  (1U << 3)
 #define FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN (1U << 2)
 #define FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN  (1U << 1)
-#define FW_RSS_VI_CONFIG_CMD_IP4UDPEN     (1U << 0)
+#define FW_RSS_VI_CONFIG_CMD_UDPEN        (1U << 0)
 			__be64 r9;
 			__be64 r10;
 		} basicvirtual;

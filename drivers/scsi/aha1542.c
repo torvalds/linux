@@ -52,22 +52,6 @@
 #define SCSI_BUF_PA(address)	isa_virt_to_bus(address)
 #define SCSI_SG_PA(sgent)	(isa_page_to_bus(sg_page((sgent))) + (sgent)->offset)
 
-static void BAD_SG_DMA(Scsi_Cmnd * SCpnt,
-		       struct scatterlist *sgp,
-		       int nseg,
-		       int badseg)
-{
-	printk(KERN_CRIT "sgpnt[%d:%d] page %p/0x%llx length %u\n",
-	       badseg, nseg, sg_virt(sgp),
-	       (unsigned long long)SCSI_SG_PA(sgp),
-	       sgp->length);
-
-	/*
-	 * Not safe to continue.
-	 */
-	panic("Buffer at physical address > 16Mb used for aha1542");
-}
-
 #include<linux/stat.h>
 
 #ifdef DEBUG
@@ -574,7 +558,7 @@ static void aha1542_intr_handle(struct Scsi_Host *shost)
 	};
 }
 
-static int aha1542_queuecommand(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
+static int aha1542_queuecommand_lck(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 {
 	unchar ahacmd = CMD_START_SCSI;
 	unchar direction;
@@ -691,8 +675,6 @@ static int aha1542_queuecommand(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 		}
 		scsi_for_each_sg(SCpnt, sg, sg_count, i) {
 			any2scsi(cptr[i].dataptr, SCSI_SG_PA(sg));
-			if (SCSI_SG_PA(sg) + sg->length - 1 > ISA_DMA_THRESHOLD)
-				BAD_SG_DMA(SCpnt, scsi_sglist(SCpnt), sg_count, i);
 			any2scsi(cptr[i].datalen, sg->length);
 		};
 		any2scsi(ccb[mbo].datalen, sg_count * sizeof(struct chain));
@@ -735,6 +717,8 @@ static int aha1542_queuecommand(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(aha1542_queuecommand)
 
 /* Initialize mailboxes */
 static void setup_mailboxes(int bse, struct Scsi_Host *shpnt)
@@ -1133,15 +1117,8 @@ static int __init aha1542_detect(struct scsi_host_template * tpnt)
 				release_region(bases[indx], 4);
 				continue;
 			}
-			/* For now we do this - until kmalloc is more intelligent
-			   we are resigned to stupid hacks like this */
-			if (SCSI_BUF_PA(shpnt) >= ISA_DMA_THRESHOLD) {
-				printk(KERN_ERR "Invalid address for shpnt with 1542.\n");
-				goto unregister;
-			}
 			if (!aha1542_test_port(bases[indx], shpnt))
 				goto unregister;
-
 
 			base_io = bases[indx];
 

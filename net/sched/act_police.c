@@ -97,6 +97,11 @@ nla_put_failure:
 	goto done;
 }
 
+static void tcf_police_free_rcu(struct rcu_head *head)
+{
+	kfree(container_of(head, struct tcf_police, tcf_rcu));
+}
+
 static void tcf_police_destroy(struct tcf_police *p)
 {
 	unsigned int h = tcf_hash(p->tcf_index, POL_TAB_MASK);
@@ -113,7 +118,11 @@ static void tcf_police_destroy(struct tcf_police *p)
 				qdisc_put_rtab(p->tcfp_R_tab);
 			if (p->tcfp_P_tab)
 				qdisc_put_rtab(p->tcfp_P_tab);
-			kfree(p);
+			/*
+			 * gen_estimator est_timer() might access p->tcf_lock
+			 * or bstats, wait a RCU grace period before freeing p
+			 */
+			call_rcu(&p->tcf_rcu, tcf_police_free_rcu);
 			return;
 		}
 	}
@@ -289,8 +298,7 @@ static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
 
 	spin_lock(&police->tcf_lock);
 
-	police->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	police->tcf_bstats.packets++;
+	bstats_update(&police->tcf_bstats, skb);
 
 	if (police->tcfp_ewma_rate &&
 	    police->tcf_rate_est.bps >= police->tcfp_ewma_rate) {
@@ -341,22 +349,19 @@ tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_police *police = a->priv;
-	struct tc_police opt;
+	struct tc_police opt = {
+		.index = police->tcf_index,
+		.action = police->tcf_action,
+		.mtu = police->tcfp_mtu,
+		.burst = police->tcfp_burst,
+		.refcnt = police->tcf_refcnt - ref,
+		.bindcnt = police->tcf_bindcnt - bind,
+	};
 
-	opt.index = police->tcf_index;
-	opt.action = police->tcf_action;
-	opt.mtu = police->tcfp_mtu;
-	opt.burst = police->tcfp_burst;
-	opt.refcnt = police->tcf_refcnt - ref;
-	opt.bindcnt = police->tcf_bindcnt - bind;
 	if (police->tcfp_R_tab)
 		opt.rate = police->tcfp_R_tab->rate;
-	else
-		memset(&opt.rate, 0, sizeof(opt.rate));
 	if (police->tcfp_P_tab)
 		opt.peakrate = police->tcfp_P_tab->rate;
-	else
-		memset(&opt.peakrate, 0, sizeof(opt.peakrate));
 	NLA_PUT(skb, TCA_POLICE_TBF, sizeof(opt), &opt);
 	if (police->tcfp_result)
 		NLA_PUT_U32(skb, TCA_POLICE_RESULT, police->tcfp_result);
@@ -397,6 +402,7 @@ static void __exit
 police_cleanup_module(void)
 {
 	tcf_unregister_action(&act_police_ops);
+	rcu_barrier(); /* Wait for completion of call_rcu()'s (tcf_police_free_rcu) */
 }
 
 module_init(police_init_module);

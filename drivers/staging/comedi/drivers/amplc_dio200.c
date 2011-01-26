@@ -460,6 +460,7 @@ struct dio200_subdev_8254 {
 	int has_clk_gat_sce;
 	unsigned clock_src[3];	/* Current clock sources */
 	unsigned gate_src[3];	/* Current gate sources */
+	spinlock_t spinlock;
 };
 
 struct dio200_subdev_intr {
@@ -493,9 +494,58 @@ static struct comedi_driver driver_amplc_dio200 = {
 };
 
 #ifdef CONFIG_COMEDI_PCI
-COMEDI_PCI_INITCLEANUP(driver_amplc_dio200, dio200_pci_table);
+static int __devinit driver_amplc_dio200_pci_probe(struct pci_dev *dev,
+						   const struct pci_device_id
+						   *ent)
+{
+	return comedi_pci_auto_config(dev, driver_amplc_dio200.driver_name);
+}
+
+static void __devexit driver_amplc_dio200_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_amplc_dio200_pci_driver = {
+	.id_table = dio200_pci_table,
+	.probe = &driver_amplc_dio200_pci_probe,
+	.remove = __devexit_p(&driver_amplc_dio200_pci_remove)
+};
+
+static int __init driver_amplc_dio200_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_amplc_dio200);
+	if (retval < 0)
+		return retval;
+
+	driver_amplc_dio200_pci_driver.name =
+	    (char *)driver_amplc_dio200.driver_name;
+	return pci_register_driver(&driver_amplc_dio200_pci_driver);
+}
+
+static void __exit driver_amplc_dio200_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_amplc_dio200_pci_driver);
+	comedi_driver_unregister(&driver_amplc_dio200);
+}
+
+module_init(driver_amplc_dio200_init_module);
+module_exit(driver_amplc_dio200_cleanup_module);
 #else
-COMEDI_INITCLEANUP(driver_amplc_dio200);
+static int __init driver_amplc_dio200_init_module(void)
+{
+	return comedi_driver_register(&driver_amplc_dio200);
+}
+
+static void __exit driver_amplc_dio200_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_amplc_dio200);
+}
+
+module_init(driver_amplc_dio200_init_module);
+module_exit(driver_amplc_dio200_cleanup_module);
 #endif
 
 /*
@@ -1042,8 +1092,11 @@ dio200_subdev_8254_read(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned long flags;
 
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	data[0] = i8254_read(subpriv->iobase, 0, chan);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 1;
 }
@@ -1057,8 +1110,11 @@ dio200_subdev_8254_write(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned long flags;
 
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	i8254_write(subpriv->iobase, 0, chan, data[0]);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 1;
 }
@@ -1151,14 +1207,16 @@ dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
 	struct dio200_subdev_8254 *subpriv = s->private;
-	int ret;
+	int ret = 0;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned long flags;
 
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
 		ret = i8254_set_mode(subpriv->iobase, 0, chan, data[1]);
 		if (ret < 0)
-			return -EINVAL;
+			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_8254_READ_STATUS:
 		data[1] = i8254_status(subpriv->iobase, 0, chan);
@@ -1166,30 +1224,35 @@ dio200_subdev_8254_config(struct comedi_device *dev, struct comedi_subdevice *s,
 	case INSN_CONFIG_SET_GATE_SRC:
 		ret = dio200_set_gate_src(subpriv, chan, data[2]);
 		if (ret < 0)
-			return -EINVAL;
+			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_GET_GATE_SRC:
 		ret = dio200_get_gate_src(subpriv, chan);
-		if (ret < 0)
-			return -EINVAL;
+		if (ret < 0) {
+			ret = -EINVAL;
+			break;
+		}
 		data[2] = ret;
 		break;
 	case INSN_CONFIG_SET_CLOCK_SRC:
 		ret = dio200_set_clock_src(subpriv, chan, data[1]);
 		if (ret < 0)
-			return -EINVAL;
+			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_GET_CLOCK_SRC:
 		ret = dio200_get_clock_src(subpriv, chan, &data[2]);
-		if (ret < 0)
-			return -EINVAL;
+		if (ret < 0) {
+			ret = -EINVAL;
+			break;
+		}
 		data[1] = ret;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 		break;
 	}
-	return insn->n;
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	return ret < 0 ? ret : insn->n;
 }
 
 /*
@@ -1222,6 +1285,7 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	s->insn_write = dio200_subdev_8254_write;
 	s->insn_config = dio200_subdev_8254_config;
 
+	spin_lock_init(&subpriv->spinlock);
 	subpriv->iobase = offset + iobase;
 	subpriv->has_clk_gat_sce = has_clk_gat_sce;
 	if (has_clk_gat_sce) {
@@ -1486,3 +1550,7 @@ static int dio200_detach(struct comedi_device *dev)
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

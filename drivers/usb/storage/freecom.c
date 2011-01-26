@@ -269,7 +269,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/* The firmware will time-out commands after 20 seconds. Some commands
 	 * can legitimately take longer than this, so we use a different
 	 * command that only waits for the interrupt and then sends status,
-	 * without having to send a new ATAPI command to the device. 
+	 * without having to send a new ATAPI command to the device.
 	 *
 	 * NOTE: There is some indication that a data transfer after a timeout
 	 * may not work, but that is a condition that should never happen.
@@ -324,14 +324,14 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	/* Find the length we desire to read. */
 	switch (srb->cmnd[0]) {
-		case INQUIRY:
-		case REQUEST_SENSE:		/* 16 or 18 bytes? spec says 18, lots of devices only have 16 */
-		case MODE_SENSE:
-		case MODE_SENSE_10:
-			length = le16_to_cpu(fst->Count);
-			break;
-		default:
-			length = scsi_bufflen(srb);
+	case INQUIRY:
+	case REQUEST_SENSE:	/* 16 or 18 bytes? spec says 18, lots of devices only have 16 */
+	case MODE_SENSE:
+	case MODE_SENSE_10:
+		length = le16_to_cpu(fst->Count);
+		break;
+	default:
+		length = scsi_bufflen(srb);
 	}
 
 	/* verify that this amount is legal */
@@ -414,7 +414,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 		/* should never hit here -- filtered in usb.c */
 		US_DEBUGP ("freecom unimplemented direction: %d\n",
 				us->srb->sc_data_direction);
-		// Return fail, SCSI seems to handle this better.
+		/* Return fail, SCSI seems to handle this better. */
 		return USB_STOR_TRANSPORT_FAILED;
 		break;
 	}
@@ -494,8 +494,7 @@ static void pdump (void *ibuffer, int length)
 				offset = 0;
 			}
 			offset += sprintf (line+offset, "%08x:", i);
-		}
-		else if ((i & 7) == 0) {
+		} else if ((i & 7) == 0) {
 			offset += sprintf (line+offset, " -");
 		}
 		offset += sprintf (line+offset, " %02x", buffer[i] & 0xff);

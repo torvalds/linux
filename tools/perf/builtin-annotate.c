@@ -28,7 +28,7 @@
 
 static char		const *input_name = "perf.data";
 
-static bool		force;
+static bool		force, use_tui, use_stdio;
 
 static bool		full_paths;
 
@@ -58,14 +58,12 @@ static int hists__add_entry(struct hists *self, struct addr_location *al)
 	return hist_entry__inc_addr_samples(he, al->addr);
 }
 
-static int process_sample_event(event_t *event, struct perf_session *session)
+static int process_sample_event(event_t *event, struct sample_data *sample,
+				struct perf_session *session)
 {
 	struct addr_location al;
 
-	dump_printf("(IP, %d): %d: %#Lx\n", event->header.misc,
-		    event->ip.pid, event->ip.ip);
-
-	if (event__preprocess_sample(event, session, &al, NULL) < 0) {
+	if (event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -214,7 +212,7 @@ get_source_line(struct hist_entry *he, int len, const char *filename)
 			continue;
 
 		offset = start + i;
-		sprintf(cmd, "addr2line -e %s %016llx", filename, offset);
+		sprintf(cmd, "addr2line -e %s %016" PRIx64, filename, offset);
 		fp = popen(cmd, "r");
 		if (!fp)
 			continue;
@@ -272,12 +270,12 @@ static void hist_entry__print_hits(struct hist_entry *self)
 
 	for (offset = 0; offset < len; ++offset)
 		if (h->ip[offset] != 0)
-			printf("%*Lx: %Lu\n", BITS_PER_LONG / 2,
+			printf("%*" PRIx64 ": %" PRIu64 "\n", BITS_PER_LONG / 2,
 			       sym->start + offset, h->ip[offset]);
-	printf("%*s: %Lu\n", BITS_PER_LONG / 2, "h->sum", h->sum);
+	printf("%*s: %" PRIu64 "\n", BITS_PER_LONG / 2, "h->sum", h->sum);
 }
 
-static void annotate_sym(struct hist_entry *he)
+static int hist_entry__tty_annotate(struct hist_entry *he)
 {
 	struct map *map = he->ms.map;
 	struct dso *dso = map->dso;
@@ -287,8 +285,8 @@ static void annotate_sym(struct hist_entry *he)
 	LIST_HEAD(head);
 	struct objdump_line *pos, *n;
 
-	if (hist_entry__annotate(he, &head) < 0)
-		return;
+	if (hist_entry__annotate(he, &head, 0) < 0)
+		return -1;
 
 	if (full_paths)
 		d_filename = filename;
@@ -317,30 +315,58 @@ static void annotate_sym(struct hist_entry *he)
 
 	if (print_line)
 		free_source_line(he, len);
+
+	return 0;
 }
 
 static void hists__find_annotations(struct hists *self)
 {
-	struct rb_node *nd;
+	struct rb_node *nd = rb_first(&self->entries), *next;
+	int key = KEY_RIGHT;
 
-	for (nd = rb_first(&self->entries); nd; nd = rb_next(nd)) {
+	while (nd) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
 		struct sym_priv *priv;
 
-		if (he->ms.sym == NULL)
-			continue;
+		if (he->ms.sym == NULL || he->ms.map->dso->annotate_warned)
+			goto find_next;
 
 		priv = symbol__priv(he->ms.sym);
-		if (priv->hist == NULL)
+		if (priv->hist == NULL) {
+find_next:
+			if (key == KEY_LEFT)
+				nd = rb_prev(nd);
+			else
+				nd = rb_next(nd);
 			continue;
+		}
 
-		annotate_sym(he);
-		/*
-		 * Since we have a hist_entry per IP for the same symbol, free
-		 * he->ms.sym->hist to signal we already processed this symbol.
-		 */
-		free(priv->hist);
-		priv->hist = NULL;
+		if (use_browser > 0) {
+			key = hist_entry__tui_annotate(he);
+			switch (key) {
+			case KEY_RIGHT:
+				next = rb_next(nd);
+				break;
+			case KEY_LEFT:
+				next = rb_prev(nd);
+				break;
+			default:
+				return;
+			}
+
+			if (next != NULL)
+				nd = next;
+		} else {
+			hist_entry__tty_annotate(he);
+			nd = rb_next(nd);
+			/*
+			 * Since we have a hist_entry per IP for the same
+			 * symbol, free he->ms.sym->hist to signal we already
+			 * processed this symbol.
+			 */
+			free(priv->hist);
+			priv->hist = NULL;
+		}
 	}
 }
 
@@ -349,6 +375,8 @@ static struct perf_event_ops event_ops = {
 	.mmap	= event__process_mmap,
 	.comm	= event__process_comm,
 	.fork	= event__process_task,
+	.ordered_samples = true,
+	.ordering_requires_timestamps = true,
 };
 
 static int __cmd_annotate(void)
@@ -356,7 +384,7 @@ static int __cmd_annotate(void)
 	int ret;
 	struct perf_session *session;
 
-	session = perf_session__new(input_name, O_RDONLY, force, false);
+	session = perf_session__new(input_name, O_RDONLY, force, false, &event_ops);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -401,6 +429,8 @@ static const struct option options[] = {
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_BOOLEAN(0, "tui", &use_tui, "Use the TUI interface"),
+	OPT_BOOLEAN(0, "stdio", &use_stdio, "Use the stdio interface"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
@@ -415,6 +445,13 @@ static const struct option options[] = {
 int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
+
+	if (use_stdio)
+		use_browser = 0;
+	else if (use_tui)
+		use_browser = 1;
+
+	setup_browser();
 
 	symbol_conf.priv_size = sizeof(struct sym_priv);
 	symbol_conf.try_vmlinux_path = true;
@@ -434,8 +471,6 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 
 		sym_hist_filter = argv[0];
 	}
-
-	setup_pager();
 
 	if (field_sep && *field_sep == '.') {
 		pr_err("'.' is the only non valid --field-separator argument\n");

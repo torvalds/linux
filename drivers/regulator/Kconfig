@@ -100,6 +100,22 @@ config REGULATOR_MAX8925
 	help
 	  Say y here to support the voltage regulaltor of Maxim MAX8925 PMIC.
 
+config REGULATOR_MAX8952
+	tristate "Maxim MAX8952 Power Management IC"
+	depends on I2C
+	help
+	  This driver controls a Maxim 8952 voltage output regulator
+	  via I2C bus. Maxim 8952 has one voltage output and supports 4 DVS
+	  modes ranging from 0.77V to 1.40V by 0.01V steps.
+
+config REGULATOR_MAX8998
+	tristate "Maxim 8998 voltage regulator"
+	depends on MFD_MAX8998
+	help
+	  This driver controls a Maxim 8998 voltage output regulator
+	  via I2C bus. The provided regulator is suitable for S3C6410
+	  and S5PC1XX chips to control VCC_CORE and VCC_USIM voltages.
+
 config REGULATOR_TWL4030
 	bool "TI TWL4030/TWL5030/TWL6030/TPS695x0 PMIC"
 	depends on TWL4030_CORE
@@ -156,6 +172,13 @@ config REGULATOR_LP3971
 	 Say Y here to support the voltage regulators and convertors
 	 on National Semiconductors LP3971 PMIC
 
+config REGULATOR_LP3972
+	tristate "National Semiconductors LP3972 PMIC regulator driver"
+	depends on I2C
+	help
+	 Say Y here to support the voltage regulators and convertors
+	 on National Semiconductors LP3972 PMIC
+
 config REGULATOR_PCAP
 	tristate "PCAP2 regulator driver"
 	depends on EZX_PCAP
@@ -163,11 +186,23 @@ config REGULATOR_PCAP
 	 This driver provides support for the voltage regulators of the
 	 PCAP2 PMIC.
 
+config REGULATOR_MC13XXX_CORE
+	tristate
+
 config REGULATOR_MC13783
 	tristate "Support regulators on Freescale MC13783 PMIC"
 	depends on MFD_MC13783
+	select REGULATOR_MC13XXX_CORE
 	help
 	  Say y here to support the regulators found on the Freescale MC13783
+	  PMIC.
+
+config REGULATOR_MC13892
+	tristate "Support regulators on Freescale MC13892 PMIC"
+	depends on MFD_MC13XXX
+	select REGULATOR_MC13XXX_CORE
+	help
+	  Say y here to support the regulators found on the Freescale MC13892
 	  PMIC.
 
 config REGULATOR_AB3100
@@ -200,6 +235,42 @@ config REGULATOR_88PM8607
 	depends on MFD_88PM860X=y
 	help
 	  This driver supports 88PM8607 voltage regulator chips.
+
+config REGULATOR_ISL6271A
+	tristate "Intersil ISL6271A Power regulator"
+	depends on I2C
+	help
+	  This driver supports ISL6271A voltage regulator chip.
+
+config REGULATOR_AD5398
+	tristate "Analog Devices AD5398/AD5821 regulators"
+	depends on I2C
+	help
+	  This driver supports AD5398 and AD5821 current regulator chips.
+	  If building into module, its name is ad5398.ko.
+
+config REGULATOR_AB8500
+	bool "ST-Ericsson AB8500 Power Regulators"
+	depends on AB8500_CORE
+	help
+	  This driver supports the regulators found on the ST-Ericsson mixed
+	  signal AB8500 PMIC
+
+config REGULATOR_TPS6586X
+	tristate "TI TPS6586X Power regulators"
+	depends on MFD_TPS6586X
+	help
+	  This driver supports TPS6586X voltage regulator chips.
+
+config REGULATOR_TPS6524X
+	tristate "TI TPS6524X Power regulators"
+	depends on SPI
+	help
+	  This driver supports TPS6524X voltage regulator chips. TPS6524X
+	  provides three step-down converters and two general-purpose LDO
+	  voltage regulators.  This device is interfaced using a customized
+	  serial interface currently supported on the sequencer serial
+	  port controller.
 
 endif
 
