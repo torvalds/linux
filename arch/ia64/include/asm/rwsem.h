@@ -27,15 +27,6 @@
 
 #include <asm/intrinsics.h>
 
-/*
- * the semaphore definition
- */
-struct rw_semaphore {
-	signed long		count;
-	spinlock_t		wait_lock;
-	struct list_head	wait_list;
-};
-
 #define RWSEM_UNLOCKED_VALUE		__IA64_UL_CONST(0x0000000000000000)
 #define RWSEM_ACTIVE_BIAS		(1L)
 #define RWSEM_ACTIVE_MASK		(0xffffffffL)

@@ -22,7 +22,18 @@ struct rw_semaphore;
 #ifdef CONFIG_RWSEM_GENERIC_SPINLOCK
 #include <linux/rwsem-spinlock.h> /* use a generic implementation */
 #else
-#include <asm/rwsem.h> /* use an arch-specific implementation */
+/* All arch specific implementations share the same struct */
+struct rw_semaphore {
+	long			count;
+	spinlock_t		wait_lock;
+	struct list_head	wait_list;
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	dep_map;
+#endif
+};
+
+/* Include the arch specific part */
+#include <asm/rwsem.h>
 #endif
 
 /*
