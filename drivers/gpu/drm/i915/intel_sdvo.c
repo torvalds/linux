@@ -1460,7 +1460,7 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
  * Note!  This is in reply order (see loop in get_tv_modes).
  * XXX: all 60Hz refresh?
  */
-struct drm_display_mode sdvo_tv_modes[] = {
+static const struct drm_display_mode sdvo_tv_modes[] = {
 	{ DRM_MODE("320x200", DRM_MODE_TYPE_DRIVER, 5815, 320, 321, 384,
 		   416, 0, 200, 201, 232, 233, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
