@@ -148,17 +148,17 @@ static const struct hv_guid device_id = {
 static struct hv_device *vmbus_device; /* vmbus root device */
 
 /*
- * VmbusChildDeviceAdd - Registers the child device with the vmbus
+ * vmbus_child_dev_add - Registers the child device with the vmbus
  */
-int VmbusChildDeviceAdd(struct hv_device *child_dev)
+int vmbus_child_dev_add(struct hv_device *child_dev)
 {
 	return vmbus_child_device_register(vmbus_device, child_dev);
 }
 
 /*
- * VmbusOnDeviceAdd - Callback when the root bus device is added
+ * vmbus_dev_add - Callback when the root bus device is added
  */
-static int VmbusOnDeviceAdd(struct hv_device *dev, void *info)
+static int vmbus_dev_add(struct hv_device *dev, void *info)
 {
 	u32 *irqvector = info;
 	int ret;
@@ -181,9 +181,9 @@ static int VmbusOnDeviceAdd(struct hv_device *dev, void *info)
 }
 
 /*
- * VmbusOnDeviceRemove - Callback when the root bus device is removed
+ * vmbus_dev_rm - Callback when the root bus device is removed
  */
-static int VmbusOnDeviceRemove(struct hv_device *dev)
+static int vmbus_dev_rm(struct hv_device *dev)
 {
 	int ret = 0;
 
@@ -194,9 +194,9 @@ static int VmbusOnDeviceRemove(struct hv_device *dev)
 }
 
 /*
- * VmbusOnCleanup - Perform any cleanup when the driver is removed
+ * vmbus_cleanup - Perform any cleanup when the driver is removed
  */
-static void VmbusOnCleanup(struct hv_driver *drv)
+static void vmbus_cleanup(struct hv_driver *drv)
 {
 	/* struct vmbus_driver *driver = (struct vmbus_driver *)drv; */
 
@@ -482,9 +482,9 @@ static int vmbus_bus_init(void)
 	memcpy(&driver->deviceType, &device_type, sizeof(struct hv_guid));
 
 	/* Setup dispatch table */
-	driver->OnDeviceAdd	= VmbusOnDeviceAdd;
-	driver->OnDeviceRemove	= VmbusOnDeviceRemove;
-	driver->OnCleanup	= VmbusOnCleanup;
+	driver->OnDeviceAdd	= vmbus_dev_add;
+	driver->OnDeviceRemove	= vmbus_dev_rm;
+	driver->OnCleanup	= vmbus_cleanup;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = hv_init();

@@ -391,7 +391,7 @@ static void vmbus_process_offer(struct work_struct *work)
 	/*
 	 * Start the process of binding this offer to the driver
 	 * We need to set the DeviceObject field before calling
-	 * VmbusChildDeviceAdd()
+	 * vmbus_child_dev_add()
 	 */
 	newchannel->device_obj = vmbus_child_device_create(
 		&newchannel->offermsg.offer.InterfaceType,
@@ -406,7 +406,7 @@ static void vmbus_process_offer(struct work_struct *work)
 	 * binding which eventually invokes the device driver's AddDevice()
 	 * method.
 	 */
-	ret = VmbusChildDeviceAdd(newchannel->device_obj);
+	ret = vmbus_child_dev_add(newchannel->device_obj);
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS,
 			   "unable to add child device object (relid %d)",
