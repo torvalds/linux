@@ -855,6 +855,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			break;
 		case PARSE_IRDATA:
 			ir->rem--;
+			init_ir_raw_event(&rawir);
 			rawir.pulse = ((ir->buf_in[i] & MCE_PULSE_BIT) != 0);
 			rawir.duration = (ir->buf_in[i] & MCE_PULSE_MASK)
 					 * US_TO_NS(MCE_TIME_UNIT);
@@ -883,6 +884,8 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 					     i, ir->rem + 1, false);
 			if (ir->rem)
 				ir->parser_state = PARSE_IRDATA;
+			else
+				ir_raw_event_reset(ir->rc);
 			break;
 		}
 
