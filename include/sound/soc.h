@@ -260,6 +260,9 @@ enum snd_soc_compress_type {
 
 int snd_soc_register_card(struct snd_soc_card *card);
 int snd_soc_unregister_card(struct snd_soc_card *card);
+int snd_soc_suspend(struct device *dev);
+int snd_soc_resume(struct device *dev);
+int snd_soc_poweroff(struct device *dev);
 int snd_soc_register_platform(struct device *dev,
 		struct snd_soc_platform_driver *platform_drv);
 void snd_soc_unregister_platform(struct device *dev);
@@ -801,5 +804,7 @@ static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *snd_soc_debugfs_root;
 #endif
+
+extern const struct dev_pm_ops snd_soc_pm_ops;
 
 #endif

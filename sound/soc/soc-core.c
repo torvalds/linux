@@ -965,12 +965,11 @@ static struct snd_pcm_ops soc_pcm_ops = {
 	.pointer	= soc_pcm_pointer,
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /* powers down audio subsystem for suspend */
-static int soc_suspend(struct device *dev)
+int snd_soc_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct snd_soc_card *card = dev_get_drvdata(dev);
 	struct snd_soc_codec *codec;
 	int i;
 
@@ -1082,6 +1081,7 @@ static int soc_suspend(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_soc_suspend);
 
 /* deferred resume work, so resume can complete before we finished
  * setting our codec back up, which can be very slow on I2C
@@ -1187,10 +1187,9 @@ static void soc_resume_deferred(struct work_struct *work)
 }
 
 /* powers up audio subsystem after a suspend */
-static int soc_resume(struct device *dev)
+int snd_soc_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct snd_soc_card *card = dev_get_drvdata(dev);
 	int i;
 
 	/* AC97 devices might have other drivers hanging off them so
@@ -1212,9 +1211,10 @@ static int soc_resume(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_soc_resume);
 #else
-#define soc_suspend	NULL
-#define soc_resume	NULL
+#define snd_soc_suspend NULL
+#define snd_soc_resume NULL
 #endif
 
 static struct snd_soc_dai_ops null_dai_ops = {
@@ -1924,10 +1924,9 @@ static int soc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int soc_poweroff(struct device *dev)
+int snd_soc_poweroff(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct snd_soc_card *card = dev_get_drvdata(dev);
 	int i;
 
 	if (!card->instantiated)
@@ -1944,11 +1943,12 @@ static int soc_poweroff(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_soc_poweroff);
 
-static const struct dev_pm_ops soc_pm_ops = {
-	.suspend = soc_suspend,
-	.resume = soc_resume,
-	.poweroff = soc_poweroff,
+const struct dev_pm_ops snd_soc_pm_ops = {
+	.suspend = snd_soc_suspend,
+	.resume = snd_soc_resume,
+	.poweroff = snd_soc_poweroff,
 };
 
 /* ASoC platform driver */
@@ -1956,7 +1956,7 @@ static struct platform_driver soc_driver = {
 	.driver		= {
 		.name		= "soc-audio",
 		.owner		= THIS_MODULE,
-		.pm		= &soc_pm_ops,
+		.pm		= &snd_soc_pm_ops,
 	},
 	.probe		= soc_probe,
 	.remove		= soc_remove,
