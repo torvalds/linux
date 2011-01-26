@@ -159,7 +159,7 @@ extern struct drbd_conf **minor_table;
 extern struct ratelimit_state drbd_ratelimit_state;
 
 /* on the wire */
-enum drbd_packets {
+enum drbd_packet {
 	/* receiver (data socket) */
 	P_DATA		      = 0x00,
 	P_DATA_REPLY	      = 0x01, /* Response to P_DATA_REQUEST */
@@ -221,7 +221,7 @@ enum drbd_packets {
 	P_HAND_SHAKE	      = 0xfffe	/* FIXED for the next century! */
 };
 
-extern const char *cmdname(enum drbd_packets cmd);
+extern const char *cmdname(enum drbd_packet cmd);
 
 /* for sending/receiving the bitmap,
  * possibly in some encoding scheme */
@@ -1189,36 +1189,34 @@ extern int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_f
 extern int _drbd_send_state(struct drbd_conf *mdev);
 extern int drbd_send_state(struct drbd_conf *mdev);
 extern int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
-			enum drbd_packets cmd, struct p_header *h,
-			size_t size, unsigned msg_flags);
+			  enum drbd_packet cmd, struct p_header *h,
+			  size_t size, unsigned msg_flags);
 #define USE_DATA_SOCKET 1
 #define USE_META_SOCKET 0
 extern int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
-			enum drbd_packets cmd, struct p_header *h,
-			size_t size);
-extern int drbd_send_cmd2(struct drbd_conf *mdev, enum drbd_packets cmd,
-			char *data, size_t size);
+			 enum drbd_packet cmd, struct p_header *h, size_t size);
+extern int drbd_send_cmd2(struct drbd_conf *mdev, enum drbd_packet cmd,
+			  char *data, size_t size);
 extern int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc);
 extern int drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
 			u32 set_size);
-extern int drbd_send_ack(struct drbd_conf *mdev, enum drbd_packets cmd,
-			struct drbd_epoch_entry *e);
-extern int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packets cmd,
-			struct p_block_req *rp);
-extern int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packets cmd,
-			struct p_data *dp, int data_size);
-extern int drbd_send_ack_ex(struct drbd_conf *mdev, enum drbd_packets cmd,
+extern int drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
+			 struct drbd_epoch_entry *e);
+extern int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
+			    struct p_block_req *rp);
+extern int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
+			    struct p_data *dp, int data_size);
+extern int drbd_send_ack_ex(struct drbd_conf *mdev, enum drbd_packet cmd,
 			    sector_t sector, int blksize, u64 block_id);
 extern int drbd_send_oos(struct drbd_conf *mdev, struct drbd_request *req);
-extern int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
+extern int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 			   struct drbd_epoch_entry *e);
 extern int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req);
 extern int drbd_send_drequest(struct drbd_conf *mdev, int cmd,
 			      sector_t sector, int size, u64 block_id);
-extern int drbd_send_drequest_csum(struct drbd_conf *mdev,
-				   sector_t sector,int size,
-				   void *digest, int digest_size,
-				   enum drbd_packets cmd);
+extern int drbd_send_drequest_csum(struct drbd_conf *mdev, sector_t sector,
+				   int size, void *digest, int digest_size,
+				   enum drbd_packet cmd);
 extern int drbd_send_ov_request(struct drbd_conf *mdev,sector_t sector,int size);
 
 extern int drbd_send_bitmap(struct drbd_conf *mdev);
@@ -1961,7 +1959,7 @@ static inline void request_ping(struct drbd_conf *mdev)
 }
 
 static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
-	enum drbd_packets cmd)
+				      enum drbd_packet cmd)
 {
 	struct p_header h;
 	return drbd_send_cmd(mdev, USE_DATA_SOCKET, cmd, &h, sizeof(h));
