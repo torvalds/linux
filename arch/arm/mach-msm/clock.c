@@ -37,13 +37,6 @@ struct clk *msm_clocks;
 unsigned msm_num_clocks;
 
 /*
- * Bitmap of enabled clocks, excluding ACPU which is always
- * enabled
- */
-static DECLARE_BITMAP(clock_map_enabled, NR_CLKS);
-static DEFINE_SPINLOCK(clock_map_lock);
-
-/*
  * Standard clock functions defined in include/linux/clk.h
  */
 struct clk *clk_get(struct device *dev, const char *id)
@@ -77,12 +70,8 @@ int clk_enable(struct clk *clk)
 	unsigned long flags;
 	spin_lock_irqsave(&clocks_lock, flags);
 	clk->count++;
-	if (clk->count == 1) {
+	if (clk->count == 1)
 		clk->ops->enable(clk->id);
-		spin_lock(&clock_map_lock);
-		clock_map_enabled[BIT_WORD(clk->id)] |= BIT_MASK(clk->id);
-		spin_unlock(&clock_map_lock);
-	}
 	spin_unlock_irqrestore(&clocks_lock, flags);
 	return 0;
 }
@@ -94,12 +83,8 @@ void clk_disable(struct clk *clk)
 	spin_lock_irqsave(&clocks_lock, flags);
 	BUG_ON(clk->count == 0);
 	clk->count--;
-	if (clk->count == 0) {
+	if (clk->count == 0)
 		clk->ops->disable(clk->id);
-		spin_lock(&clock_map_lock);
-		clock_map_enabled[BIT_WORD(clk->id)] &= ~BIT_MASK(clk->id);
-		spin_unlock(&clock_map_lock);
-	}
 	spin_unlock_irqrestore(&clocks_lock, flags);
 }
 EXPORT_SYMBOL(clk_disable);
@@ -196,7 +181,6 @@ void __init msm_clock_init(struct clk *clock_tbl, unsigned num_clocks)
 {
 	unsigned n;
 
-	spin_lock_init(&clocks_lock);
 	mutex_lock(&clocks_mutex);
 	msm_clocks = clock_tbl;
 	msm_num_clocks = num_clocks;
