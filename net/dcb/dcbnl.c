@@ -583,7 +583,7 @@ static int dcbnl_getapp(struct net_device *netdev, struct nlattr **tb,
 	u8 up, idtype;
 	int ret = -EINVAL;
 
-	if (!tb[DCB_ATTR_APP] || !netdev->dcbnl_ops->getapp)
+	if (!tb[DCB_ATTR_APP])
 		goto out;
 
 	ret = nla_parse_nested(app_tb, DCB_APP_ATTR_MAX, tb[DCB_ATTR_APP],
@@ -604,7 +604,16 @@ static int dcbnl_getapp(struct net_device *netdev, struct nlattr **tb,
 		goto out;
 
 	id = nla_get_u16(app_tb[DCB_APP_ATTR_ID]);
-	up = netdev->dcbnl_ops->getapp(netdev, idtype, id);
+
+	if (netdev->dcbnl_ops->getapp) {
+		up = netdev->dcbnl_ops->getapp(netdev, idtype, id);
+	} else {
+		struct dcb_app app = {
+					.selector = idtype,
+					.protocol = id,
+				     };
+		up = dcb_getapp(netdev, &app);
+	}
 
 	/* send this back */
 	dcbnl_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);

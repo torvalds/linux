@@ -184,6 +184,7 @@ struct hci_conn {
 	__u32		 link_mode;
 	__u8             auth_type;
 	__u8             sec_level;
+	__u8		 pending_sec_level;
 	__u8             power_save;
 	__u16            disc_timeout;
 	unsigned long	 pend;
