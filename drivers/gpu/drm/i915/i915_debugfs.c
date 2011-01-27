@@ -805,15 +805,20 @@ static int i915_error_state(struct seq_file *m, void *unused)
 		}
 	}
 
-	if (error->ringbuffer) {
-		struct drm_i915_error_object *obj = error->ringbuffer;
-
-		seq_printf(m, "--- ringbuffer = 0x%08x\n", obj->gtt_offset);
-		offset = 0;
-		for (page = 0; page < obj->page_count; page++) {
-			for (elt = 0; elt < PAGE_SIZE/4; elt++) {
-				seq_printf(m, "%08x :  %08x\n", offset, obj->pages[page][elt]);
-				offset += 4;
+	for (i = 0; i < ARRAY_SIZE(error->ringbuffer); i++) {
+		if (error->ringbuffer[i]) {
+			struct drm_i915_error_object *obj = error->ringbuffer[i];
+			seq_printf(m, "%s --- ringbuffer = 0x%08x\n",
+				   dev_priv->ring[i].name,
+				   obj->gtt_offset);
+			offset = 0;
+			for (page = 0; page < obj->page_count; page++) {
+				for (elt = 0; elt < PAGE_SIZE/4; elt++) {
+					seq_printf(m, "%08x :  %08x\n",
+						   offset,
+						   obj->pages[page][elt]);
+					offset += 4;
+				}
 			}
 		}
 	}

@@ -174,7 +174,7 @@ struct drm_i915_error_state {
 		int page_count;
 		u32 gtt_offset;
 		u32 *pages[0];
-	} *ringbuffer, *batchbuffer[I915_NUM_RINGS];
+	} *ringbuffer[I915_NUM_RINGS], *batchbuffer[I915_NUM_RINGS];
 	struct drm_i915_error_buffer {
 		u32 size;
 		u32 name;

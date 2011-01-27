@@ -648,9 +648,14 @@ static void
 i915_error_state_free(struct drm_device *dev,
 		      struct drm_i915_error_state *error)
 {
-	i915_error_object_free(error->batchbuffer[0]);
-	i915_error_object_free(error->batchbuffer[1]);
-	i915_error_object_free(error->ringbuffer);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(error->batchbuffer); i++)
+		i915_error_object_free(error->batchbuffer[i]);
+
+	for (i = 0; i < ARRAY_SIZE(error->ringbuffer); i++)
+		i915_error_object_free(error->ringbuffer[i]);
+
 	kfree(error->active_bo);
 	kfree(error->overlay);
 	kfree(error);
@@ -824,15 +829,16 @@ static void i915_capture_error_state(struct drm_device *dev)
 	}
 	i915_gem_record_fences(dev, error);
 
-	/* Record the active batchbuffers */
-	for (i = 0; i < I915_NUM_RINGS; i++)
+	/* Record the active batch and ring buffers */
+	for (i = 0; i < I915_NUM_RINGS; i++) {
 		error->batchbuffer[i] =
 			i915_error_first_batchbuffer(dev_priv,
 						     &dev_priv->ring[i]);
 
-	/* Record the ringbuffer */
-	error->ringbuffer = i915_error_object_create(dev_priv,
-						     dev_priv->ring[RCS].obj);
+		error->ringbuffer[i] =
+			i915_error_object_create(dev_priv,
+						 dev_priv->ring[i].obj);
+	}
 
 	/* Record buffers on the active and pinned lists. */
 	error->active_bo = NULL;
