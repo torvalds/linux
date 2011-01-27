@@ -264,7 +264,7 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 	if (IS_ERR(od)) {
 		pr_err("%s: Cant build omap_device for %s:%s.\n",
 			__func__, name, oh->name);
-		return IS_ERR(od);
+		return PTR_ERR(od);
 	}
 
 	mem = platform_get_resource(&od->pdev, IORESOURCE_MEM, 0);
