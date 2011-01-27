@@ -139,14 +139,11 @@ consider_steal_time(unsigned long new_itm)
 		run_posix_cpu_timers(p);
 		delta_itm += local_cpu_data->itm_delta * (stolen + blocked);
 
-		if (cpu == time_keeper_id) {
-			write_seqlock(&xtime_lock);
-			do_timer(stolen + blocked);
-			local_cpu_data->itm_next = delta_itm + new_itm;
-			write_sequnlock(&xtime_lock);
-		} else {
-			local_cpu_data->itm_next = delta_itm + new_itm;
-		}
+		if (cpu == time_keeper_id)
+			xtime_update(stolen + blocked);
+
+		local_cpu_data->itm_next = delta_itm + new_itm;
+
 		per_cpu(xen_stolen_time, cpu) += NS_PER_TICK * stolen;
 		per_cpu(xen_blocked_time, cpu) += NS_PER_TICK * blocked;
 	}
