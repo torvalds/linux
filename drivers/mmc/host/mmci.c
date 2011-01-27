@@ -142,9 +142,6 @@ mmci_request_end(struct mmci_host *host, struct mmc_request *mrq)
 	host->mrq = NULL;
 	host->cmd = NULL;
 
-	if (mrq->data)
-		mrq->data->bytes_xfered = host->data_xfered;
-
 	/*
 	 * Need to drop the host lock here; mmc_request_done may call
 	 * back into the driver...
@@ -202,7 +199,7 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 
 	host->data = data;
 	host->size = data->blksz * data->blocks;
-	host->data_xfered = 0;
+	data->bytes_xfered = 0;
 
 	mmci_init_sg(host, data);
 
@@ -311,7 +308,7 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 				success = 0;
 			data->error = -EIO;
 		}
-		host->data_xfered = round_down(success, data->blksz);
+		data->bytes_xfered = round_down(success, data->blksz);
 	}
 
 	if (status & MCI_DATABLOCKEND)
@@ -322,7 +319,7 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 
 		if (!data->error)
 			/* The error clause is handled above, success! */
-			host->data_xfered += data->blksz * data->blocks;
+			data->bytes_xfered = data->blksz * data->blocks;
 
 		if (!data->stop) {
 			mmci_request_end(host, data->mrq);

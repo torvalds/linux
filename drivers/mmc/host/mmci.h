@@ -161,8 +161,6 @@ struct mmci_host {
 	int			gpio_cd_irq;
 	bool			singleirq;
 
-	unsigned int		data_xfered;
-
 	spinlock_t		lock;
 
 	unsigned int		mclk;
