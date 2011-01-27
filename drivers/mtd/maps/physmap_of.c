@@ -274,9 +274,7 @@ static int __devinit of_flash_probe(struct platform_device *dev,
 			continue;
 		}
 
-		dev_dbg(&dev->dev, "of_flash device: %.8llx-%.8llx\n",
-			(unsigned long long)res.start,
-			(unsigned long long)res.end);
+		dev_dbg(&dev->dev, "of_flash device: %pR\n", &res);
 
 		err = -EBUSY;
 		res_size = resource_size(&res);

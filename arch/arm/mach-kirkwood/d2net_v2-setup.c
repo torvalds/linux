@@ -225,5 +225,5 @@ MACHINE_START(D2NET_V2, "LaCie d2 Network v2")
 	.init_machine	= d2net_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &lacie_v2_timer,
+	.timer		= &kirkwood_timer,
 MACHINE_END

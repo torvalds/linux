@@ -60,10 +60,13 @@ static int mdsc_show(struct seq_file *s, void *p)
 	for (rp = rb_first(&mdsc->request_tree); rp; rp = rb_next(rp)) {
 		req = rb_entry(rp, struct ceph_mds_request, r_node);
 
-		if (req->r_request)
-			seq_printf(s, "%lld\tmds%d\t", req->r_tid, req->r_mds);
-		else
+		if (req->r_request && req->r_session)
+			seq_printf(s, "%lld\tmds%d\t", req->r_tid,
+				   req->r_session->s_mds);
+		else if (!req->r_request)
 			seq_printf(s, "%lld\t(no request)\t", req->r_tid);
+		else
+			seq_printf(s, "%lld\t(no session)\t", req->r_tid);
 
 		seq_printf(s, "%s", ceph_mds_op_name(req->r_op));
 

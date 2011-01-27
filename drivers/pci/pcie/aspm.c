@@ -68,7 +68,7 @@ struct pcie_link_state {
 	struct aspm_latency acceptable[8];
 };
 
-static int aspm_disabled, aspm_force;
+static int aspm_disabled, aspm_force, aspm_clear_state;
 static DEFINE_MUTEX(aspm_lock);
 static LIST_HEAD(link_list);
 
@@ -139,7 +139,7 @@ static void pcie_set_clkpm(struct pcie_link_state *link, int enable)
 {
 	/* Don't enable Clock PM if the link is not Clock PM capable */
 	if (!link->clkpm_capable && enable)
-		return;
+		enable = 0;
 	/* Need nothing if the specified equals to current state */
 	if (link->clkpm_enabled == enable)
 		return;
@@ -498,6 +498,10 @@ static int pcie_aspm_sanity_check(struct pci_dev *pdev)
 	struct pci_dev *child;
 	int pos;
 	u32 reg32;
+
+	if (aspm_clear_state)
+		return -EINVAL;
+
 	/*
 	 * Some functions in a slot might not all be PCIe functions,
 	 * very strange. Disable ASPM for the whole slot
@@ -563,10 +567,13 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 	struct pcie_link_state *link;
 	int blacklist = !!pcie_aspm_sanity_check(pdev);
 
-	if (aspm_disabled || !pci_is_pcie(pdev) || pdev->link_state)
+	if (!pci_is_pcie(pdev) || pdev->link_state)
 		return;
 	if (pdev->pcie_type != PCI_EXP_TYPE_ROOT_PORT &&
 	    pdev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)
+		return;
+
+	if (aspm_disabled && !aspm_clear_state)
 		return;
 
 	/* VIA has a strange chipset, root port is under a bridge */
@@ -641,7 +648,7 @@ void pcie_aspm_exit_link_state(struct pci_dev *pdev)
 	struct pci_dev *parent = pdev->bus->self;
 	struct pcie_link_state *link, *root, *parent_link;
 
-	if (aspm_disabled || !pci_is_pcie(pdev) ||
+	if ((aspm_disabled && !aspm_clear_state) || !pci_is_pcie(pdev) ||
 	    !parent || !parent->link_state)
 		return;
 	if ((parent->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
@@ -898,6 +905,12 @@ static int __init pcie_aspm_disable(char *str)
 }
 
 __setup("pcie_aspm=", pcie_aspm_disable);
+
+void pcie_clear_aspm(void)
+{
+	if (!aspm_force)
+		aspm_clear_state = 1;
+}
 
 void pcie_no_aspm(void)
 {

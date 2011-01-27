@@ -64,7 +64,9 @@ static uint16_t cifs_server_get_key(const void *cookie_netfs_data,
 				   void *buffer, uint16_t maxbuf)
 {
 	const struct TCP_Server_Info *server = cookie_netfs_data;
-	const struct sockaddr *sa = (struct sockaddr *) &server->addr.sockAddr;
+	const struct sockaddr *sa = (struct sockaddr *) &server->dstaddr;
+	const struct sockaddr_in *addr = (struct sockaddr_in *) sa;
+	const struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) sa;
 	struct cifs_server_key *key = buffer;
 	uint16_t key_len = sizeof(struct cifs_server_key);
 
@@ -76,16 +78,16 @@ static uint16_t cifs_server_get_key(const void *cookie_netfs_data,
 	 */
 	switch (sa->sa_family) {
 	case AF_INET:
-		key->family = server->addr.sockAddr.sin_family;
-		key->port = server->addr.sockAddr.sin_port;
-		key->addr[0].ipv4_addr = server->addr.sockAddr.sin_addr;
+		key->family = sa->sa_family;
+		key->port = addr->sin_port;
+		key->addr[0].ipv4_addr = addr->sin_addr;
 		key_len += sizeof(key->addr[0].ipv4_addr);
 		break;
 
 	case AF_INET6:
-		key->family = server->addr.sockAddr6.sin6_family;
-		key->port = server->addr.sockAddr6.sin6_port;
-		key->addr[0].ipv6_addr = server->addr.sockAddr6.sin6_addr;
+		key->family = sa->sa_family;
+		key->port = addr6->sin6_port;
+		key->addr[0].ipv6_addr = addr6->sin6_addr;
 		key_len += sizeof(key->addr[0].ipv6_addr);
 		break;
 

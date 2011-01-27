@@ -18,12 +18,8 @@
 #include <linux/kernel.h>
 
 #define __OLD_VIDIOC_ /* To allow fixing old calls */
-#include <linux/videodev.h>
 #include <linux/videodev2.h>
 
-#ifdef CONFIG_VIDEO_V4L1
-#include <linux/videodev.h>
-#endif
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
@@ -183,42 +179,6 @@ static const char *v4l2_memory_names[] = {
 
 /* ------------------------------------------------------------------ */
 /* debug help functions                                               */
-
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static const char *v4l1_ioctls[] = {
-	[_IOC_NR(VIDIOCGCAP)]       = "VIDIOCGCAP",
-	[_IOC_NR(VIDIOCGCHAN)]      = "VIDIOCGCHAN",
-	[_IOC_NR(VIDIOCSCHAN)]      = "VIDIOCSCHAN",
-	[_IOC_NR(VIDIOCGTUNER)]     = "VIDIOCGTUNER",
-	[_IOC_NR(VIDIOCSTUNER)]     = "VIDIOCSTUNER",
-	[_IOC_NR(VIDIOCGPICT)]      = "VIDIOCGPICT",
-	[_IOC_NR(VIDIOCSPICT)]      = "VIDIOCSPICT",
-	[_IOC_NR(VIDIOCCAPTURE)]    = "VIDIOCCAPTURE",
-	[_IOC_NR(VIDIOCGWIN)]       = "VIDIOCGWIN",
-	[_IOC_NR(VIDIOCSWIN)]       = "VIDIOCSWIN",
-	[_IOC_NR(VIDIOCGFBUF)]      = "VIDIOCGFBUF",
-	[_IOC_NR(VIDIOCSFBUF)]      = "VIDIOCSFBUF",
-	[_IOC_NR(VIDIOCKEY)]        = "VIDIOCKEY",
-	[_IOC_NR(VIDIOCGFREQ)]      = "VIDIOCGFREQ",
-	[_IOC_NR(VIDIOCSFREQ)]      = "VIDIOCSFREQ",
-	[_IOC_NR(VIDIOCGAUDIO)]     = "VIDIOCGAUDIO",
-	[_IOC_NR(VIDIOCSAUDIO)]     = "VIDIOCSAUDIO",
-	[_IOC_NR(VIDIOCSYNC)]       = "VIDIOCSYNC",
-	[_IOC_NR(VIDIOCMCAPTURE)]   = "VIDIOCMCAPTURE",
-	[_IOC_NR(VIDIOCGMBUF)]      = "VIDIOCGMBUF",
-	[_IOC_NR(VIDIOCGUNIT)]      = "VIDIOCGUNIT",
-	[_IOC_NR(VIDIOCGCAPTURE)]   = "VIDIOCGCAPTURE",
-	[_IOC_NR(VIDIOCSCAPTURE)]   = "VIDIOCSCAPTURE",
-	[_IOC_NR(VIDIOCSPLAYMODE)]  = "VIDIOCSPLAYMODE",
-	[_IOC_NR(VIDIOCSWRITEMODE)] = "VIDIOCSWRITEMODE",
-	[_IOC_NR(VIDIOCGPLAYINFO)]  = "VIDIOCGPLAYINFO",
-	[_IOC_NR(VIDIOCSMICROCODE)] = "VIDIOCSMICROCODE",
-	[_IOC_NR(VIDIOCGVBIFMT)]    = "VIDIOCGVBIFMT",
-	[_IOC_NR(VIDIOCSVBIFMT)]    = "VIDIOCSVBIFMT"
-};
-#define V4L1_IOCTLS ARRAY_SIZE(v4l1_ioctls)
-#endif
-
 static const char *v4l2_ioctls[] = {
 	[_IOC_NR(VIDIOC_QUERYCAP)]         = "VIDIOC_QUERYCAP",
 	[_IOC_NR(VIDIOC_RESERVED)]         = "VIDIOC_RESERVED",
@@ -310,15 +270,6 @@ void v4l_printk_ioctl(unsigned int cmd)
 	case 'd':
 		type = "v4l2_int";
 		break;
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	case 'v':
-		if (_IOC_NR(cmd) >= V4L1_IOCTLS) {
-			type = "v4l1";
-			break;
-		}
-		printk("%s", v4l1_ioctls[_IOC_NR(cmd)]);
-		return;
-#endif
 	case 'V':
 		if (_IOC_NR(cmd) >= V4L2_IOCTLS) {
 			type = "v4l2";
@@ -622,20 +573,6 @@ static long __video_do_ioctl(struct file *file,
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	/********************************************************
-	 All other V4L1 calls are handled by v4l1_compat module.
-	 Those calls will be translated into V4L2 calls, and
-	 __video_do_ioctl will be called again, with one or more
-	 V4L2 ioctls.
-	 ********************************************************/
-	if (_IOC_TYPE(cmd) == 'v' && cmd != VIDIOCGMBUF &&
-				_IOC_NR(cmd) < BASE_VIDIOCPRIVATE) {
-		return v4l_compat_translate_ioctl(file, cmd, arg,
-						__video_do_ioctl);
-	}
-#endif
-
 	if ((vfd->debug & V4L2_DEBUG_IOCTL) &&
 				!(vfd->debug & V4L2_DEBUG_IOCTL_ARG)) {
 		v4l_print_ioctl(vfd->name, cmd);
@@ -643,29 +580,6 @@ static long __video_do_ioctl(struct file *file,
 	}
 
 	switch (cmd) {
-
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	/***********************************************************
-	 Handles calls to the obsoleted V4L1 API
-	 Due to the nature of VIDIOCGMBUF, each driver that supports
-	 V4L1 should implement its own handler for this ioctl.
-	 ***********************************************************/
-
-	/* --- streaming capture ------------------------------------- */
-	case VIDIOCGMBUF:
-	{
-		struct video_mbuf *p = arg;
-
-		if (!ops->vidiocgmbuf)
-			break;
-		ret = ops->vidiocgmbuf(file, fh, p);
-		if (!ret)
-			dbgarg(cmd, "size=%d, frames=%d, offsets=0x%08lx\n",
-						p->size, p->frames,
-						(unsigned long)p->offsets);
-		break;
-	}
-#endif
 
 	/* --- capabilities ------------------------------------------ */
 	case VIDIOC_QUERYCAP:
@@ -1745,20 +1659,24 @@ static long __video_do_ioctl(struct file *file,
 	{
 		struct v4l2_dbg_register *p = arg;
 
-		if (!capable(CAP_SYS_ADMIN))
-			ret = -EPERM;
-		else if (ops->vidioc_g_register)
-			ret = ops->vidioc_g_register(file, fh, p);
+		if (ops->vidioc_g_register) {
+			if (!capable(CAP_SYS_ADMIN))
+				ret = -EPERM;
+			else
+				ret = ops->vidioc_g_register(file, fh, p);
+		}
 		break;
 	}
 	case VIDIOC_DBG_S_REGISTER:
 	{
 		struct v4l2_dbg_register *p = arg;
 
-		if (!capable(CAP_SYS_ADMIN))
-			ret = -EPERM;
-		else if (ops->vidioc_s_register)
-			ret = ops->vidioc_s_register(file, fh, p);
+		if (ops->vidioc_s_register) {
+			if (!capable(CAP_SYS_ADMIN))
+				ret = -EPERM;
+			else
+				ret = ops->vidioc_s_register(file, fh, p);
+		}
 		break;
 	}
 #endif

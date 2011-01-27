@@ -190,11 +190,6 @@ static inline int nilfs_doing_construction(void)
 	return nilfs_test_transaction_flag(NILFS_TI_WRITER);
 }
 
-static inline struct inode *nilfs_dat_inode(const struct the_nilfs *nilfs)
-{
-	return nilfs->ns_dat;
-}
-
 /*
  * function prototype
  */
@@ -256,14 +251,14 @@ extern void nilfs_update_inode(struct inode *, struct buffer_head *);
 extern void nilfs_truncate(struct inode *);
 extern void nilfs_evict_inode(struct inode *);
 extern int nilfs_setattr(struct dentry *, struct iattr *);
-int nilfs_permission(struct inode *inode, int mask);
-extern int nilfs_load_inode_block(struct nilfs_sb_info *, struct inode *,
-				  struct buffer_head **);
+int nilfs_permission(struct inode *inode, int mask, unsigned int flags);
+int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh);
 extern int nilfs_inode_dirty(struct inode *);
-extern int nilfs_set_file_dirty(struct nilfs_sb_info *, struct inode *,
-				unsigned);
+int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty);
 extern int nilfs_mark_inode_dirty(struct inode *);
 extern void nilfs_dirty_inode(struct inode *);
+int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		 __u64 start, __u64 len);
 
 /* super.c */
 extern struct inode *nilfs_alloc_inode(struct super_block *);

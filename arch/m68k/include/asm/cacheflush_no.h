@@ -2,21 +2,22 @@
 #define _M68KNOMMU_CACHEFLUSH_H
 
 /*
- * (C) Copyright 2000-2004, Greg Ungerer <gerg@snapgear.com>
+ * (C) Copyright 2000-2010, Greg Ungerer <gerg@snapgear.com>
  */
 #include <linux/mm.h>
+#include <asm/mcfsim.h>
 
 #define flush_cache_all()			__flush_cache_all()
 #define flush_cache_mm(mm)			do { } while (0)
 #define flush_cache_dup_mm(mm)			do { } while (0)
-#define flush_cache_range(vma, start, end)	__flush_cache_all()
+#define flush_cache_range(vma, start, end)	do { } while (0)
 #define flush_cache_page(vma, vmaddr)		do { } while (0)
-#define flush_dcache_range(start,len)		__flush_cache_all()
+#define flush_dcache_range(start, len)		__flush_dcache_all()
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
 #define flush_dcache_page(page)			do { } while (0)
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
-#define flush_icache_range(start,len)		__flush_cache_all()
+#define flush_icache_range(start, len)		__flush_icache_all()
 #define flush_icache_page(vma,pg)		do { } while (0)
 #define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
 #define flush_cache_vmap(start, end)		do { } while (0)
@@ -27,66 +28,52 @@
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	memcpy(dst, src, len)
 
+void mcf_cache_push(void);
+
 static inline void __flush_cache_all(void)
 {
-#if defined(CONFIG_M5407) || defined(CONFIG_M548x)
-	/*
-	 *	Use cpushl to push and invalidate all cache lines.
-	 *	Gas doesn't seem to know how to generate the ColdFire
-	 *	cpushl instruction... Oh well, bit stuff it for now.
-	 */
+#ifdef CACHE_PUSH
+	mcf_cache_push();
+#endif
+#ifdef CACHE_INVALIDATE
 	__asm__ __volatile__ (
-		"nop\n\t"
-		"clrl	%%d0\n\t"
-		"1:\n\t"
-		"movel	%%d0,%%a0\n\t"
-		"2:\n\t"
-		".word	0xf468\n\t"
-		"addl	#0x10,%%a0\n\t"
-		"cmpl	#0x00000800,%%a0\n\t"
-		"blt	2b\n\t"
-		"addql	#1,%%d0\n\t"
-		"cmpil	#4,%%d0\n\t"
-		"bne	1b\n\t"
-		"movel	#0xb6088500,%%d0\n\t"
-		"movec	%%d0,%%CACR\n\t"
-		: : : "d0", "a0" );
-#endif /* CONFIG_M5407 */
-#if defined(CONFIG_M523x) || defined(CONFIG_M527x)
-	__asm__ __volatile__ (
-		"movel	#0x81400100, %%d0\n\t"
+		"movel	%0, %%d0\n\t"
 		"movec	%%d0, %%CACR\n\t"
 		"nop\n\t"
-		: : : "d0" );
-#endif /* CONFIG_M523x || CONFIG_M527x */
-#if defined(CONFIG_M528x)
-	__asm__ __volatile__ (
-		"movel	#0x81000200, %%d0\n\t"
-		"movec	%%d0, %%CACR\n\t"
-		"nop\n\t"
-		: : : "d0" );
-#endif /* CONFIG_M528x */
-#if defined(CONFIG_M5206) || defined(CONFIG_M5206e) || defined(CONFIG_M5272)
-	__asm__ __volatile__ (
-		"movel	#0x81000100, %%d0\n\t"
-		"movec	%%d0, %%CACR\n\t"
-		"nop\n\t"
-		: : : "d0" );
-#endif /* CONFIG_M5206 || CONFIG_M5206e || CONFIG_M5272 */
-#ifdef CONFIG_M5249
-	__asm__ __volatile__ (
-		"movel	#0xa1000200, %%d0\n\t"
-		"movec	%%d0, %%CACR\n\t"
-		"nop\n\t"
-		: : : "d0" );
-#endif /* CONFIG_M5249 */
-#ifdef CONFIG_M532x
-	__asm__ __volatile__ (
-		"movel	#0x81000200, %%d0\n\t"
-		"movec	%%d0, %%CACR\n\t"
-		"nop\n\t"
-		: : : "d0" );
-#endif /* CONFIG_M532x */
+		: : "i" (CACHE_INVALIDATE) : "d0" );
+#endif
 }
 
+/*
+ * Some ColdFire parts implement separate instruction and data caches,
+ * on those we should just flush the appropriate cache. If we don't need
+ * to do any specific flushing then this will be optimized away.
+ */
+static inline void __flush_icache_all(void)
+{
+#ifdef CACHE_INVALIDATEI
+	__asm__ __volatile__ (
+		"movel	%0, %%d0\n\t"
+		"movec	%%d0, %%CACR\n\t"
+		"nop\n\t"
+		: : "i" (CACHE_INVALIDATEI) : "d0" );
+#endif
+}
+
+static inline void __flush_dcache_all(void)
+{
+#ifdef CACHE_PUSH
+	mcf_cache_push();
+#endif
+#ifdef CACHE_INVALIDATED
+	__asm__ __volatile__ (
+		"movel	%0, %%d0\n\t"
+		"movec	%%d0, %%CACR\n\t"
+		"nop\n\t"
+		: : "i" (CACHE_INVALIDATED) : "d0" );
+#else
+	/* Flush the wrtite buffer */
+	__asm__ __volatile__ ( "nop" );
+#endif
+}
 #endif /* _M68KNOMMU_CACHEFLUSH_H */

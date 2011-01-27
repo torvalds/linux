@@ -2,7 +2,6 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
@@ -298,6 +297,8 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_release_count = 0;
 	ci->i_symlink = NULL;
 
+	memset(&ci->i_dir_layout, 0, sizeof(ci->i_dir_layout));
+
 	ci->i_fragtree = RB_ROOT;
 	mutex_init(&ci->i_fragtree_mutex);
 
@@ -369,6 +370,15 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	return &ci->vfs_inode;
 }
 
+static void ceph_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(ceph_inode_cachep, ci);
+}
+
 void ceph_destroy_inode(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -408,7 +418,7 @@ void ceph_destroy_inode(struct inode *inode)
 	if (ci->i_xattrs.prealloc_blob)
 		ceph_buffer_put(ci->i_xattrs.prealloc_blob);
 
-	kmem_cache_free(ceph_inode_cachep, ci);
+	call_rcu(&inode->i_rcu, ceph_i_callback);
 }
 
 
@@ -471,7 +481,9 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 
 	if (issued & (CEPH_CAP_FILE_EXCL|
 		      CEPH_CAP_FILE_WR|
-		      CEPH_CAP_FILE_BUFFER)) {
+		      CEPH_CAP_FILE_BUFFER|
+		      CEPH_CAP_AUTH_EXCL|
+		      CEPH_CAP_XATTR_EXCL)) {
 		if (timespec_compare(ctime, &inode->i_ctime) > 0) {
 			dout("ctime %ld.%09ld -> %ld.%09ld inc w/ cap\n",
 			     inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
@@ -511,7 +523,7 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 			warn = 1;
 		}
 	} else {
-		/* we have no write caps; whatever the MDS says is true */
+		/* we have no write|excl caps; whatever the MDS says is true */
 		if (ceph_seq_cmp(time_warp_seq, ci->i_time_warp_seq) >= 0) {
 			inode->i_ctime = *ctime;
 			inode->i_mtime = *mtime;
@@ -567,12 +579,17 @@ static int fill_inode(struct inode *inode,
 
 	/*
 	 * provided version will be odd if inode value is projected,
-	 * even if stable.  skip the update if we have a newer info
-	 * (e.g., due to inode info racing form multiple MDSs), or if
-	 * we are getting projected (unstable) inode info.
+	 * even if stable.  skip the update if we have newer stable
+	 * info (ours>=theirs, e.g. due to racing mds replies), unless
+	 * we are getting projected (unstable) info (in which case the
+	 * version is odd, and we want ours>theirs).
+	 *   us   them
+	 *   2    2     skip
+	 *   3    2     skip
+	 *   3    3     update
 	 */
 	if (le64_to_cpu(info->version) > 0 &&
-	    (ci->i_version & ~1) > le64_to_cpu(info->version))
+	    (ci->i_version & ~1) >= le64_to_cpu(info->version))
 		goto no_change;
 
 	issued = __ceph_caps_issued(ci, &implemented);
@@ -606,7 +623,14 @@ static int fill_inode(struct inode *inode,
 			    le32_to_cpu(info->time_warp_seq),
 			    &ctime, &mtime, &atime);
 
-	ci->i_max_size = le64_to_cpu(info->max_size);
+	/* only update max_size on auth cap */
+	if ((info->cap.flags & CEPH_CAP_FLAG_AUTH) &&
+	    ci->i_max_size != le64_to_cpu(info->max_size)) {
+		dout("max_size %lld -> %llu\n", ci->i_max_size,
+		     le64_to_cpu(info->max_size));
+		ci->i_max_size = le64_to_cpu(info->max_size);
+	}
+
 	ci->i_layout = info->layout;
 	inode->i_blkbits = fls(le32_to_cpu(info->layout.fl_stripe_unit)) - 1;
 
@@ -666,6 +690,8 @@ static int fill_inode(struct inode *inode,
 	case S_IFDIR:
 		inode->i_op = &ceph_dir_iops;
 		inode->i_fop = &ceph_dir_fops;
+
+		ci->i_dir_layout = iinfo->dir_layout;
 
 		ci->i_files = le64_to_cpu(info->files);
 		ci->i_subdirs = le64_to_cpu(info->subdirs);
@@ -828,13 +854,13 @@ static void ceph_set_dentry_offset(struct dentry *dn)
 	di->offset = ceph_inode(inode)->i_max_offset++;
 	spin_unlock(&inode->i_lock);
 
-	spin_lock(&dcache_lock);
-	spin_lock(&dn->d_lock);
+	spin_lock(&dir->d_lock);
+	spin_lock_nested(&dn->d_lock, DENTRY_D_LOCK_NESTED);
 	list_move(&dn->d_u.d_child, &dir->d_subdirs);
 	dout("set_dentry_offset %p %lld (%p %p)\n", dn, di->offset,
 	     dn->d_u.d_child.prev, dn->d_u.d_child.next);
 	spin_unlock(&dn->d_lock);
-	spin_unlock(&dcache_lock);
+	spin_unlock(&dir->d_lock);
 }
 
 /*
@@ -866,8 +892,8 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
 	} else if (realdn) {
 		dout("dn %p (%d) spliced with %p (%d) "
 		     "inode %p ino %llx.%llx\n",
-		     dn, atomic_read(&dn->d_count),
-		     realdn, atomic_read(&realdn->d_count),
+		     dn, dn->d_count,
+		     realdn, realdn->d_count,
 		     realdn->d_inode, ceph_vinop(realdn->d_inode));
 		dput(dn);
 		dn = realdn;
@@ -1055,7 +1081,8 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 		ininfo = rinfo->targeti.in;
 		vino.ino = le64_to_cpu(ininfo->ino);
 		vino.snap = le64_to_cpu(ininfo->snapid);
-		if (!dn->d_inode) {
+		in = dn->d_inode;
+		if (!in) {
 			in = ceph_get_inode(sb, vino);
 			if (IS_ERR(in)) {
 				pr_err("fill_trace bad get_inode "
@@ -1217,11 +1244,11 @@ retry_lookup:
 			goto retry_lookup;
 		} else {
 			/* reorder parent's d_subdirs */
-			spin_lock(&dcache_lock);
-			spin_lock(&dn->d_lock);
+			spin_lock(&parent->d_lock);
+			spin_lock_nested(&dn->d_lock, DENTRY_D_LOCK_NESTED);
 			list_move(&dn->d_u.d_child, &parent->d_subdirs);
 			spin_unlock(&dn->d_lock);
-			spin_unlock(&dcache_lock);
+			spin_unlock(&parent->d_lock);
 		}
 
 		di = dn->d_fsdata;
@@ -1386,11 +1413,8 @@ static void ceph_invalidate_work(struct work_struct *work)
 	spin_lock(&inode->i_lock);
 	dout("invalidate_pages %p gen %d revoking %d\n", inode,
 	     ci->i_rdcache_gen, ci->i_rdcache_revoking);
-	if (ci->i_rdcache_gen == 0 ||
-	    ci->i_rdcache_revoking != ci->i_rdcache_gen) {
-		BUG_ON(ci->i_rdcache_revoking > ci->i_rdcache_gen);
+	if (ci->i_rdcache_revoking != ci->i_rdcache_gen) {
 		/* nevermind! */
-		ci->i_rdcache_revoking = 0;
 		spin_unlock(&inode->i_lock);
 		goto out;
 	}
@@ -1400,15 +1424,16 @@ static void ceph_invalidate_work(struct work_struct *work)
 	ceph_invalidate_nondirty_pages(inode->i_mapping);
 
 	spin_lock(&inode->i_lock);
-	if (orig_gen == ci->i_rdcache_gen) {
+	if (orig_gen == ci->i_rdcache_gen &&
+	    orig_gen == ci->i_rdcache_revoking) {
 		dout("invalidate_pages %p gen %d successful\n", inode,
 		     ci->i_rdcache_gen);
-		ci->i_rdcache_gen = 0;
-		ci->i_rdcache_revoking = 0;
+		ci->i_rdcache_revoking--;
 		check = 1;
 	} else {
-		dout("invalidate_pages %p gen %d raced, gen now %d\n",
-		     inode, orig_gen, ci->i_rdcache_gen);
+		dout("invalidate_pages %p gen %d raced, now %d revoking %d\n",
+		     inode, orig_gen, ci->i_rdcache_gen,
+		     ci->i_rdcache_revoking);
 	}
 	spin_unlock(&inode->i_lock);
 
@@ -1739,7 +1764,7 @@ int ceph_do_getattr(struct inode *inode, int mask)
 		return 0;
 	}
 
-	dout("do_getattr inode %p mask %s\n", inode, ceph_cap_string(mask));
+	dout("do_getattr inode %p mask %s mode 0%o\n", inode, ceph_cap_string(mask), inode->i_mode);
 	if (ceph_caps_issued_mask(ceph_inode(inode), mask, 1))
 		return 0;
 
@@ -1760,12 +1785,17 @@ int ceph_do_getattr(struct inode *inode, int mask)
  * Check inode permissions.  We verify we have a valid value for
  * the AUTH cap, then call the generic handler.
  */
-int ceph_permission(struct inode *inode, int mask)
+int ceph_permission(struct inode *inode, int mask, unsigned int flags)
 {
-	int err = ceph_do_getattr(inode, CEPH_CAP_AUTH_SHARED);
+	int err;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
+
+	err = ceph_do_getattr(inode, CEPH_CAP_AUTH_SHARED);
 
 	if (!err)
-		err = generic_permission(inode, mask, NULL);
+		err = generic_permission(inode, mask, flags, NULL);
 	return err;
 }
 

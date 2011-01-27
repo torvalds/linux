@@ -107,7 +107,7 @@ static inline int check_range(struct da903x_regulator_info *info,
 
 /* DA9030/DA9034 common operations */
 static int da903x_set_ldo_voltage(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
+				  int min_uV, int max_uV, unsigned *selector)
 {
 	struct da903x_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *da9034_dev = to_da903x_dev(rdev);
@@ -119,6 +119,7 @@ static int da903x_set_ldo_voltage(struct regulator_dev *rdev,
 	}
 
 	val = (min_uV - info->min_uV + info->step_uV - 1) / info->step_uV;
+	*selector = val;
 	val <<= info->vol_shift;
 	mask = ((1 << info->vol_nbits) - 1)  << info->vol_shift;
 
@@ -187,7 +188,8 @@ static int da903x_list_voltage(struct regulator_dev *rdev, unsigned selector)
 
 /* DA9030 specific operations */
 static int da9030_set_ldo1_15_voltage(struct regulator_dev *rdev,
-				       int min_uV, int max_uV)
+				      int min_uV, int max_uV,
+				      unsigned *selector)
 {
 	struct da903x_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *da903x_dev = to_da903x_dev(rdev);
@@ -200,6 +202,7 @@ static int da9030_set_ldo1_15_voltage(struct regulator_dev *rdev,
 	}
 
 	val = (min_uV - info->min_uV + info->step_uV - 1) / info->step_uV;
+	*selector = val;
 	val <<= info->vol_shift;
 	mask = ((1 << info->vol_nbits) - 1)  << info->vol_shift;
 	val |= DA9030_LDO_UNLOCK; /* have to set UNLOCK bits */
@@ -214,7 +217,8 @@ static int da9030_set_ldo1_15_voltage(struct regulator_dev *rdev,
 }
 
 static int da9030_set_ldo14_voltage(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
+				    int min_uV, int max_uV,
+				    unsigned *selector)
 {
 	struct da903x_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *da903x_dev = to_da903x_dev(rdev);
@@ -234,6 +238,7 @@ static int da9030_set_ldo14_voltage(struct regulator_dev *rdev,
 		val = (min_uV - thresh + info->step_uV - 1) / info->step_uV;
 	}
 
+	*selector = val;
 	val <<= info->vol_shift;
 	mask = ((1 << info->vol_nbits) - 1)  << info->vol_shift;
 
@@ -263,7 +268,7 @@ static int da9030_get_ldo14_voltage(struct regulator_dev *rdev)
 
 /* DA9034 specific operations */
 static int da9034_set_dvc_voltage(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
+				  int min_uV, int max_uV, unsigned *selector)
 {
 	struct da903x_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *da9034_dev = to_da903x_dev(rdev);
@@ -276,6 +281,7 @@ static int da9034_set_dvc_voltage(struct regulator_dev *rdev,
 	}
 
 	val = (min_uV - info->min_uV + info->step_uV - 1) / info->step_uV;
+	*selector = val;
 	val <<= info->vol_shift;
 	mask = ((1 << info->vol_nbits) - 1)  << info->vol_shift;
 
@@ -289,7 +295,7 @@ static int da9034_set_dvc_voltage(struct regulator_dev *rdev,
 }
 
 static int da9034_set_ldo12_voltage(struct regulator_dev *rdev,
-				    int min_uV, int max_uV)
+				    int min_uV, int max_uV, unsigned *selector)
 {
 	struct da903x_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *da9034_dev = to_da903x_dev(rdev);
@@ -302,6 +308,7 @@ static int da9034_set_ldo12_voltage(struct regulator_dev *rdev,
 
 	val = (min_uV - info->min_uV + info->step_uV - 1) / info->step_uV;
 	val = (val >= 20) ? val - 12 : ((val > 7) ? 8 : val);
+	*selector = val;
 	val <<= info->vol_shift;
 	mask = ((1 << info->vol_nbits) - 1)  << info->vol_shift;
 

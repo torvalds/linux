@@ -392,8 +392,34 @@ void drm_mm_init_scan(struct drm_mm *mm, unsigned long size,
 	mm->scanned_blocks = 0;
 	mm->scan_hit_start = 0;
 	mm->scan_hit_size = 0;
+	mm->scan_check_range = 0;
 }
 EXPORT_SYMBOL(drm_mm_init_scan);
+
+/**
+ * Initializa lru scanning.
+ *
+ * This simply sets up the scanning routines with the parameters for the desired
+ * hole. This version is for range-restricted scans.
+ *
+ * Warning: As long as the scan list is non-empty, no other operations than
+ * adding/removing nodes to/from the scan list are allowed.
+ */
+void drm_mm_init_scan_with_range(struct drm_mm *mm, unsigned long size,
+				 unsigned alignment,
+				 unsigned long start,
+				 unsigned long end)
+{
+	mm->scan_alignment = alignment;
+	mm->scan_size = size;
+	mm->scanned_blocks = 0;
+	mm->scan_hit_start = 0;
+	mm->scan_hit_size = 0;
+	mm->scan_start = start;
+	mm->scan_end = end;
+	mm->scan_check_range = 1;
+}
+EXPORT_SYMBOL(drm_mm_init_scan_with_range);
 
 /**
  * Add a node to the scan list that might be freed to make space for the desired
@@ -406,6 +432,8 @@ int drm_mm_scan_add_block(struct drm_mm_node *node)
 	struct drm_mm *mm = node->mm;
 	struct list_head *prev_free, *next_free;
 	struct drm_mm_node *prev_node, *next_node;
+	unsigned long adj_start;
+	unsigned long adj_end;
 
 	mm->scanned_blocks++;
 
@@ -452,7 +480,17 @@ int drm_mm_scan_add_block(struct drm_mm_node *node)
 	node->free_stack.prev = prev_free;
 	node->free_stack.next = next_free;
 
-	if (check_free_hole(node->start, node->start + node->size,
+	if (mm->scan_check_range) {
+		adj_start = node->start < mm->scan_start ?
+			mm->scan_start : node->start;
+		adj_end = node->start + node->size > mm->scan_end ?
+			mm->scan_end : node->start + node->size;
+	} else {
+		adj_start = node->start;
+		adj_end = node->start + node->size;
+	}
+
+	if (check_free_hole(adj_start , adj_end,
 			    mm->scan_size, mm->scan_alignment)) {
 		mm->scan_hit_start = node->start;
 		mm->scan_hit_size = node->size;

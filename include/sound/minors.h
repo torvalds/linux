@@ -31,8 +31,8 @@
 /* these minors can still be used for autoloading devices (/dev/aload*) */
 #define SNDRV_MINOR_CONTROL		0	/* 0 */
 #define SNDRV_MINOR_GLOBAL		1	/* 1 */
-#define SNDRV_MINOR_SEQUENCER		(SNDRV_MINOR_GLOBAL + 0 * 32)
-#define SNDRV_MINOR_TIMER		(SNDRV_MINOR_GLOBAL + 1 * 32)
+#define SNDRV_MINOR_SEQUENCER		1	/* SNDRV_MINOR_GLOBAL + 0 * 32 */
+#define SNDRV_MINOR_TIMER		33	/* SNDRV_MINOR_GLOBAL + 1 * 32 */
 
 #ifndef CONFIG_SND_DYNAMIC_MINORS
 						/* 2 - 3 (reserved) */

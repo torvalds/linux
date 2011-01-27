@@ -28,15 +28,15 @@
  *  Common private declarations for SST
  */
 
-#define SST_DRIVER_VERSION "1.2.05"
-#define SST_VERSION_NUM 0x1205
+#define SST_DRIVER_VERSION "1.2.09"
+#define SST_VERSION_NUM 0x1209
 
 /* driver names */
 #define SST_DRV_NAME "intel_sst_driver"
-#define SST_FW_FILENAME_MRST "fw_sst_080a.bin"
-#define SST_FW_FILENAME_MFLD "fw_sst_082f.bin"
 #define SST_MRST_PCI_ID 0x080A
 #define SST_MFLD_PCI_ID 0x082F
+#define PCI_ID_LENGTH 4
+#define SST_SUSPEND_DELAY 2000
 
 enum sst_states {
 	SST_FW_LOADED = 1,
@@ -231,8 +231,8 @@ struct stream_info {
 	spinlock_t          pcm_lock;
 	bool			mmapped;
 	unsigned int		sg_index; /*  current buf Index  */
-	unsigned char		*cur_ptr; /*  Current static bufs  */
-	struct snd_sst_buf_entry *buf_entry;
+	unsigned char __user 	*cur_ptr; /*  Current static bufs  */
+	struct snd_sst_buf_entry __user *buf_entry;
 	struct sst_block	data_blk; /* stream ops block */
 	struct sst_block	ctrl_blk; /* stream control cmd block */
 	enum snd_sst_buf_type   buf_type;
@@ -392,7 +392,7 @@ struct intel_sst_drv {
 
 	struct stream_info	streams[MAX_NUM_STREAMS];
 	struct stream_alloc_block alloc_block[MAX_ACTIVE_STREAM];
-	struct sst_block	tgt_dev_blk, fw_info_blk,
+	struct sst_block	tgt_dev_blk, fw_info_blk, ppp_params_blk,
 				vol_info_blk, mute_info_blk, hs_info_blk;
 	struct mutex		list_lock;/* mutex for IPC list locking */
 	spinlock_t	list_spin_lock; /* mutex for IPC list locking */

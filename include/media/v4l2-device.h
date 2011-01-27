@@ -51,6 +51,8 @@ struct v4l2_device {
 			unsigned int notification, void *arg);
 	/* The control handler. May be NULL. */
 	struct v4l2_ctrl_handler *ctrl_handler;
+	/* BKL replacement mutex. Temporary solution only. */
+	struct mutex ioctl_lock;
 };
 
 /* Initialize v4l2_dev and make dev->driver_data point to v4l2_dev.

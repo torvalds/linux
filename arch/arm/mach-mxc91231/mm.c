@@ -27,48 +27,15 @@
 /*
  * This structure defines the MXC memory map.
  */
-static struct map_desc mxc_io_desc[] __initdata = {
-	{
-		.virtual	= MXC91231_L2CC_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(MXC91231_L2CC_BASE_ADDR),
-		.length		= MXC91231_L2CC_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= MXC91231_X_MEMC_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(MXC91231_X_MEMC_BASE_ADDR),
-		.length		= MXC91231_X_MEMC_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= MXC91231_ROMP_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(MXC91231_ROMP_BASE_ADDR),
-		.length		= MXC91231_ROMP_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= MXC91231_AVIC_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(MXC91231_AVIC_BASE_ADDR),
-		.length		= MXC91231_AVIC_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= MXC91231_AIPS1_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(MXC91231_AIPS1_BASE_ADDR),
-		.length		= MXC91231_AIPS1_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= MXC91231_SPBA0_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(MXC91231_SPBA0_BASE_ADDR),
-		.length		= MXC91231_SPBA0_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= MXC91231_SPBA1_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(MXC91231_SPBA1_BASE_ADDR),
-		.length		= MXC91231_SPBA1_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= MXC91231_AIPS2_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(MXC91231_AIPS2_BASE_ADDR),
-		.length		= MXC91231_AIPS2_SIZE,
-		.type		= MT_DEVICE,
-	},
+static struct map_desc mxc91231_io_desc[] __initdata = {
+	imx_map_entry(MXC91231, L2CC, MT_DEVICE),
+	imx_map_entry(MXC91231, X_MEMC, MT_DEVICE),
+	imx_map_entry(MXC91231, ROMP, MT_DEVICE),
+	imx_map_entry(MXC91231, AVIC, MT_DEVICE),
+	imx_map_entry(MXC91231, AIPS1, MT_DEVICE),
+	imx_map_entry(MXC91231, SPBA0, MT_DEVICE),
+	imx_map_entry(MXC91231, SPBA1, MT_DEVICE),
+	imx_map_entry(MXC91231, AIPS2, MT_DEVICE),
 };
 
 /*
@@ -80,7 +47,7 @@ void __init mxc91231_map_io(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MXC91231);
 
-	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
+	iotable_init(mxc91231_io_desc, ARRAY_SIZE(mxc91231_io_desc));
 }
 
 int mxc91231_register_gpios(void);

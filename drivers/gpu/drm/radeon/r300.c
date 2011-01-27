@@ -91,7 +91,7 @@ int rv370_pcie_gart_init(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->gart.table.vram.robj) {
-		WARN(1, "RV370 PCIE GART already initialized.\n");
+		WARN(1, "RV370 PCIE GART already initialized\n");
 		return 0;
 	}
 	/* Initialize common gart structure */
@@ -405,12 +405,13 @@ int r300_asic_reset(struct radeon_device *rdev)
 {
 	struct r100_mc_save save;
 	u32 status, tmp;
+	int ret = 0;
 
-	r100_mc_stop(rdev, &save);
 	status = RREG32(R_000E40_RBBM_STATUS);
 	if (!G_000E40_GUI_ACTIVE(status)) {
 		return 0;
 	}
+	r100_mc_stop(rdev, &save);
 	status = RREG32(R_000E40_RBBM_STATUS);
 	dev_info(rdev->dev, "(%s:%d) RBBM_STATUS=0x%08X\n", __func__, __LINE__, status);
 	/* stop CP */
@@ -451,11 +452,11 @@ int r300_asic_reset(struct radeon_device *rdev)
 	if (G_000E40_GA_BUSY(status) || G_000E40_VAP_BUSY(status)) {
 		dev_err(rdev->dev, "failed to reset GPU\n");
 		rdev->gpu_lockup = true;
-		return -1;
-	}
+		ret = -1;
+	} else
+		dev_info(rdev->dev, "GPU reset succeed\n");
 	r100_mc_resume(rdev, &save);
-	dev_info(rdev->dev, "GPU reset succeed\n");
-	return 0;
+	return ret;
 }
 
 /*
@@ -558,10 +559,7 @@ int rv370_get_pcie_lanes(struct radeon_device *rdev)
 
 	/* FIXME wait for idle */
 
-	if (rdev->family < CHIP_R600)
-		link_width_cntl = RREG32_PCIE(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
-	else
-		link_width_cntl = RREG32_PCIE_P(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+	link_width_cntl = RREG32_PCIE(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
 
 	switch ((link_width_cntl & RADEON_PCIE_LC_LINK_WIDTH_RD_MASK) >> RADEON_PCIE_LC_LINK_WIDTH_RD_SHIFT) {
 	case RADEON_PCIE_LC_LINK_WIDTH_X0:
@@ -745,6 +743,11 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		break;
 	case 0x4E00:
 		/* RB3D_CCTL */
+		if ((idx_value & (1 << 10)) && /* CMASK_ENABLE */
+		    p->rdev->cmask_filp != p->filp) {
+			DRM_ERROR("Invalid RB3D_CCTL: Cannot enable CMASK.\n");
+			return -EINVAL;
+		}
 		track->num_cb = ((idx_value >> 5) & 0x3) + 1;
 		break;
 	case 0x4E38:
@@ -787,6 +790,13 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		case 15:
 			track->cb[i].cpp = 2;
 			break;
+		case 5:
+			if (p->rdev->family < CHIP_RV515) {
+				DRM_ERROR("Invalid color buffer format (%d)!\n",
+					  ((idx_value >> 21) & 0xF));
+				return -EINVAL;
+			}
+			/* Pass through. */
 		case 6:
 			track->cb[i].cpp = 4;
 			break;
@@ -1197,6 +1207,10 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 	case PACKET3_3D_CLEAR_HIZ:
 	case PACKET3_3D_CLEAR_ZMASK:
 		if (p->rdev->hyperz_filp != p->filp)
+			return -EINVAL;
+		break;
+	case PACKET3_3D_CLEAR_CMASK:
+		if (p->rdev->cmask_filp != p->filp)
 			return -EINVAL;
 		break;
 	case PACKET3_NOP:

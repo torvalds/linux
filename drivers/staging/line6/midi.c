@@ -127,7 +127,7 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 
-	if (urb == 0) {
+	if (urb == NULL) {
 		dev_err(line6->ifcdev, "Out of memory\n");
 		return -ENOMEM;
 	}
@@ -137,7 +137,7 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 
 	transfer_buffer = kmalloc(length, GFP_ATOMIC);
 
-	if (transfer_buffer == 0) {
+	if (transfer_buffer == NULL) {
 		usb_free_urb(urb);
 		dev_err(line6->ifcdev, "Out of memory\n");
 		return -ENOMEM;
@@ -350,9 +350,9 @@ static ssize_t midi_set_midi_mask_receive(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(midi_mask_transmit, S_IWUGO | S_IRUGO,
+static DEVICE_ATTR(midi_mask_transmit, S_IWUSR | S_IRUGO,
 		   midi_get_midi_mask_transmit, midi_set_midi_mask_transmit);
-static DEVICE_ATTR(midi_mask_receive, S_IWUGO | S_IRUGO,
+static DEVICE_ATTR(midi_mask_receive, S_IWUSR | S_IRUGO,
 		   midi_get_midi_mask_receive, midi_set_midi_mask_receive);
 
 /* MIDI device destructor */

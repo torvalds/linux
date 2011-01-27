@@ -47,15 +47,15 @@ int mantis_frontend_power(struct mantis_pci *mantis, enum mantis_power power)
 	switch (power) {
 	case POWER_ON:
 		dprintk(MANTIS_DEBUG, 1, "Power ON");
-		gpio_set_bits(mantis, config->power, POWER_ON);
+		mantis_gpio_set_bits(mantis, config->power, POWER_ON);
 		msleep(100);
-		gpio_set_bits(mantis, config->power, POWER_ON);
+		mantis_gpio_set_bits(mantis, config->power, POWER_ON);
 		msleep(100);
 		break;
 
 	case POWER_OFF:
 		dprintk(MANTIS_DEBUG, 1, "Power OFF");
-		gpio_set_bits(mantis, config->power, POWER_OFF);
+		mantis_gpio_set_bits(mantis, config->power, POWER_OFF);
 		msleep(100);
 		break;
 
@@ -73,13 +73,13 @@ void mantis_frontend_soft_reset(struct mantis_pci *mantis)
 	struct mantis_hwconfig *config = mantis->hwconfig;
 
 	dprintk(MANTIS_DEBUG, 1, "Frontend RESET");
-	gpio_set_bits(mantis, config->reset, 0);
+	mantis_gpio_set_bits(mantis, config->reset, 0);
 	msleep(100);
-	gpio_set_bits(mantis, config->reset, 0);
+	mantis_gpio_set_bits(mantis, config->reset, 0);
 	msleep(100);
-	gpio_set_bits(mantis, config->reset, 1);
+	mantis_gpio_set_bits(mantis, config->reset, 1);
 	msleep(100);
-	gpio_set_bits(mantis, config->reset, 1);
+	mantis_gpio_set_bits(mantis, config->reset, 1);
 	msleep(100);
 
 	return;
@@ -117,6 +117,7 @@ static int mantis_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (mantis->feeds == 1)	 {
 		dprintk(MANTIS_DEBUG, 1, "mantis start feed & dma");
 		mantis_dma_start(mantis);
+		tasklet_enable(&mantis->tasklet);
 	}
 
 	return mantis->feeds;
@@ -136,6 +137,7 @@ static int mantis_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	mantis->feeds--;
 	if (mantis->feeds == 0) {
 		dprintk(MANTIS_DEBUG, 1, "mantis stop feed and dma");
+		tasklet_disable(&mantis->tasklet);
 		mantis_dma_stop(mantis);
 	}
 
@@ -216,6 +218,7 @@ int __devinit mantis_dvb_init(struct mantis_pci *mantis)
 
 	dvb_net_init(&mantis->dvb_adapter, &mantis->dvbnet, &mantis->demux.dmx);
 	tasklet_init(&mantis->tasklet, mantis_dma_xfer, (unsigned long) mantis);
+	tasklet_disable(&mantis->tasklet);
 	if (mantis->hwconfig) {
 		result = config->frontend_init(mantis, mantis->fe);
 		if (result < 0) {

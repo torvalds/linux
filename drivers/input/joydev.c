@@ -10,6 +10,8 @@
  * (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <asm/io.h>
 #include <asm/system.h>
 #include <linux/delay.h>
@@ -806,7 +808,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 			break;
 
 	if (minor == JOYDEV_MINORS) {
-		printk(KERN_ERR "joydev: no more free joydev devices\n");
+		pr_err("no more free joydev devices\n");
 		return -ENFILE;
 	}
 

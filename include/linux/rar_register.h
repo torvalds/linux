@@ -34,11 +34,27 @@
 
 struct rar_device;
 
+#if defined(CONFIG_RAR_REGISTER)
 int register_rar(int num,
 		int (*callback)(unsigned long data), unsigned long data);
 void unregister_rar(int num);
 int rar_get_address(int rar_index, dma_addr_t *start, dma_addr_t *end);
 int rar_lock(int rar_index);
+#else
+extern void unregister_rar(int num)  { }
+extern int rar_lock(int rar_index) { return -EIO; }
+
+extern inline int register_rar(int num,
+		int (*callback)(unsigned long data), unsigned long data)
+{
+	return -ENODEV;
+}
+
+extern int rar_get_address(int rar_index, dma_addr_t *start, dma_addr_t *end)
+{
+	return -ENODEV;
+}
+#endif	/* RAR_REGISTER */
 
 #endif  /* __KERNEL__ */
 #endif  /* _RAR_REGISTER_H */

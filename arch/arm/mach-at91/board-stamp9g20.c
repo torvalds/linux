@@ -32,13 +32,31 @@
 #include "generic.h"
 
 
-static void __init portuxg20_map_io(void)
+void __init stamp9g20_map_io(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91sam9260_initialize(18432000);
 
 	/* DGBU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
+
+	/* set serial console to ttyS0 (ie, DBGU) */
+	at91_set_serial_console(0);
+}
+
+static void __init stamp9g20evb_map_io(void)
+{
+	stamp9g20_map_io();
+
+	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
+						| ATMEL_UART_DTR | ATMEL_UART_DSR
+						| ATMEL_UART_DCD | ATMEL_UART_RI);
+}
+
+static void __init portuxg20_map_io(void)
+{
+	stamp9g20_map_io();
 
 	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
 	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
@@ -56,26 +74,6 @@ static void __init portuxg20_map_io(void)
 
 	/* USART5 on ttyS6. (Rx, Tx only) */
 	at91_register_uart(AT91SAM9260_ID_US5, 6, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
-}
-
-static void __init stamp9g20_map_io(void)
-{
-	/* Initialize processor: 18.432 MHz crystal */
-	at91sam9260_initialize(18432000);
-
-	/* DGBU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
-	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
-						| ATMEL_UART_DTR | ATMEL_UART_DSR
-						| ATMEL_UART_DCD | ATMEL_UART_RI);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 static void __init init_irq(void)
@@ -156,7 +154,7 @@ static struct at91_udc_data __initdata portuxg20_udc_data = {
 	.pullup_pin	= 0,		/* pull-up driven by UDC */
 };
 
-static struct at91_udc_data __initdata stamp9g20_udc_data = {
+static struct at91_udc_data __initdata stamp9g20evb_udc_data = {
 	.vbus_pin	= AT91_PIN_PA22,
 	.pullup_pin	= 0,		/* pull-up driven by UDC */
 };
@@ -190,7 +188,7 @@ static struct gpio_led portuxg20_leds[] = {
 	}
 };
 
-static struct gpio_led stamp9g20_leds[] = {
+static struct gpio_led stamp9g20evb_leds[] = {
 	{
 		.name			= "D8",
 		.gpio			= AT91_PIN_PB18,
@@ -250,7 +248,7 @@ void add_w1(void)
 }
 
 
-static void __init generic_board_init(void)
+void __init stamp9g20_board_init(void)
 {
 	/* Serial */
 	at91_add_device_serial();
@@ -262,34 +260,40 @@ static void __init generic_board_init(void)
 #else
 	at91_add_device_mmc(0, &mmc_data);
 #endif
-	/* USB Host */
-	at91_add_device_usbh(&usbh_data);
-	/* Ethernet */
-	at91_add_device_eth(&macb_data);
-	/* I2C */
-	at91_add_device_i2c(NULL, 0);
 	/* W1 */
 	add_w1();
 }
 
 static void __init portuxg20_board_init(void)
 {
-	generic_board_init();
-	/* SPI */
-	at91_add_device_spi(portuxg20_spi_devices, ARRAY_SIZE(portuxg20_spi_devices));
+	stamp9g20_board_init();
+	/* USB Host */
+	at91_add_device_usbh(&usbh_data);
 	/* USB Device */
 	at91_add_device_udc(&portuxg20_udc_data);
+	/* Ethernet */
+	at91_add_device_eth(&macb_data);
+	/* I2C */
+	at91_add_device_i2c(NULL, 0);
+	/* SPI */
+	at91_add_device_spi(portuxg20_spi_devices, ARRAY_SIZE(portuxg20_spi_devices));
 	/* LEDs */
 	at91_gpio_leds(portuxg20_leds, ARRAY_SIZE(portuxg20_leds));
 }
 
-static void __init stamp9g20_board_init(void)
+static void __init stamp9g20evb_board_init(void)
 {
-	generic_board_init();
+	stamp9g20_board_init();
+	/* USB Host */
+	at91_add_device_usbh(&usbh_data);
 	/* USB Device */
-	at91_add_device_udc(&stamp9g20_udc_data);
+	at91_add_device_udc(&stamp9g20evb_udc_data);
+	/* Ethernet */
+	at91_add_device_eth(&macb_data);
+	/* I2C */
+	at91_add_device_i2c(NULL, 0);
 	/* LEDs */
-	at91_gpio_leds(stamp9g20_leds, ARRAY_SIZE(stamp9g20_leds));
+	at91_gpio_leds(stamp9g20evb_leds, ARRAY_SIZE(stamp9g20evb_leds));
 }
 
 MACHINE_START(PORTUXG20, "taskit PortuxG20")
@@ -305,7 +309,7 @@ MACHINE_START(STAMP9G20, "taskit Stamp9G20")
 	/* Maintainer: taskit GmbH */
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= stamp9g20_map_io,
+	.map_io		= stamp9g20evb_map_io,
 	.init_irq	= init_irq,
-	.init_machine	= stamp9g20_board_init,
+	.init_machine	= stamp9g20evb_board_init,
 MACHINE_END

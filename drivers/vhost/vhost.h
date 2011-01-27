@@ -102,7 +102,7 @@ struct vhost_virtqueue {
 	 * flush the vhost_work instead of synchronize_rcu. Therefore readers do
 	 * not need to call rcu_read_lock/rcu_read_unlock: the beginning of
 	 * vhost_work execution acts instead of rcu_read_lock() and the end of
-	 * vhost_work execution acts instead of rcu_read_lock().
+	 * vhost_work execution acts instead of rcu_read_unlock().
 	 * Writers use virtqueue mutex. */
 	void __rcu *private_data;
 	/* Log write descriptors */

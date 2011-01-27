@@ -262,7 +262,7 @@ MACHINE_START(NETSPACE_V2, "LaCie Network Space v2")
 	.init_machine	= netspace_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &lacie_v2_timer,
+	.timer		= &kirkwood_timer,
 MACHINE_END
 #endif
 
@@ -272,7 +272,7 @@ MACHINE_START(INETSPACE_V2, "LaCie Internet Space v2")
 	.init_machine	= netspace_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &lacie_v2_timer,
+	.timer		= &kirkwood_timer,
 MACHINE_END
 #endif
 
@@ -282,6 +282,6 @@ MACHINE_START(NETSPACE_MAX_V2, "LaCie Network Space Max v2")
 	.init_machine	= netspace_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &lacie_v2_timer,
+	.timer		= &kirkwood_timer,
 MACHINE_END
 #endif

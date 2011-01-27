@@ -14,7 +14,7 @@
  * published by the Free Software Foundation.
  */
 
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
 
 /* Bits shared between registers */
 

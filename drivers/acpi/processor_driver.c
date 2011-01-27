@@ -40,10 +40,6 @@
 #include <linux/pm.h>
 #include <linux/cpufreq.h>
 #include <linux/cpu.h>
-#ifdef CONFIG_ACPI_PROCFS
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#endif
 #include <linux/dmi.h>
 #include <linux/moduleparam.h>
 #include <linux/cpuidle.h>
@@ -246,53 +242,6 @@ static int acpi_processor_errata(struct acpi_processor *pr)
 	return result;
 }
 
-#ifdef CONFIG_ACPI_PROCFS
-static struct proc_dir_entry *acpi_processor_dir = NULL;
-
-static int __cpuinit acpi_processor_add_fs(struct acpi_device *device)
-{
-	struct proc_dir_entry *entry = NULL;
-
-
-	if (!acpi_device_dir(device)) {
-		acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device),
-						     acpi_processor_dir);
-		if (!acpi_device_dir(device))
-			return -ENODEV;
-	}
-
-	/* 'throttling' [R/W] */
-	entry = proc_create_data(ACPI_PROCESSOR_FILE_THROTTLING,
-				 S_IFREG | S_IRUGO | S_IWUSR,
-				 acpi_device_dir(device),
-				 &acpi_processor_throttling_fops,
-				 acpi_driver_data(device));
-	if (!entry)
-		return -EIO;
-	return 0;
-}
-static int acpi_processor_remove_fs(struct acpi_device *device)
-{
-
-	if (acpi_device_dir(device)) {
-		remove_proc_entry(ACPI_PROCESSOR_FILE_THROTTLING,
-				  acpi_device_dir(device));
-		remove_proc_entry(acpi_device_bid(device), acpi_processor_dir);
-		acpi_device_dir(device) = NULL;
-	}
-
-	return 0;
-}
-#else
-static inline int acpi_processor_add_fs(struct acpi_device *device)
-{
-	return 0;
-}
-static inline int acpi_processor_remove_fs(struct acpi_device *device)
-{
-	return 0;
-}
-#endif
 /* --------------------------------------------------------------------------
                                  Driver Interface
    -------------------------------------------------------------------------- */
@@ -478,7 +427,12 @@ static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 	if (action == CPU_ONLINE && pr) {
 		acpi_processor_ppc_has_changed(pr, 0);
 		acpi_processor_cst_has_changed(pr);
+		acpi_processor_reevaluate_tstate(pr, action);
 		acpi_processor_tstate_has_changed(pr);
+	}
+	if (action == CPU_DEAD && pr) {
+		/* invalidate the flag.throttling after one CPU is offline */
+		acpi_processor_reevaluate_tstate(pr, action);
 	}
 	return NOTIFY_OK;
 }
@@ -537,14 +491,10 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 
 	per_cpu(processors, pr->id) = pr;
 
-	result = acpi_processor_add_fs(device);
-	if (result)
-		goto err_free_cpumask;
-
 	sysdev = get_cpu_sysdev(pr->id);
 	if (sysfs_create_link(&device->dev.kobj, &sysdev->kobj, "sysdev")) {
 		result = -EFAULT;
-		goto err_remove_fs;
+		goto err_free_cpumask;
 	}
 
 #ifdef CONFIG_CPU_FREQ
@@ -590,8 +540,6 @@ err_thermal_unregister:
 	thermal_cooling_device_unregister(pr->cdev);
 err_power_exit:
 	acpi_processor_power_exit(pr, device);
-err_remove_fs:
-	acpi_processor_remove_fs(device);
 err_free_cpumask:
 	free_cpumask_var(pr->throttling.shared_cpu_map);
 
@@ -619,8 +567,6 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 	acpi_processor_power_exit(pr, device);
 
 	sysfs_remove_link(&device->dev.kobj, "sysdev");
-
-	acpi_processor_remove_fs(device);
 
 	if (pr->cdev) {
 		sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
@@ -854,12 +800,6 @@ static int __init acpi_processor_init(void)
 
 	memset(&errata, 0, sizeof(errata));
 
-#ifdef CONFIG_ACPI_PROCFS
-	acpi_processor_dir = proc_mkdir(ACPI_PROCESSOR_CLASS, acpi_root_dir);
-	if (!acpi_processor_dir)
-		return -ENOMEM;
-#endif
-
 	if (!cpuidle_register_driver(&acpi_idle_driver)) {
 		printk(KERN_DEBUG "ACPI: %s registered with cpuidle\n",
 			acpi_idle_driver.name);
@@ -885,10 +825,6 @@ static int __init acpi_processor_init(void)
 out_cpuidle:
 	cpuidle_unregister_driver(&acpi_idle_driver);
 
-#ifdef CONFIG_ACPI_PROCFS
-	remove_proc_entry(ACPI_PROCESSOR_CLASS, acpi_root_dir);
-#endif
-
 	return result;
 }
 
@@ -906,10 +842,6 @@ static void __exit acpi_processor_exit(void)
 	acpi_bus_unregister_driver(&acpi_processor_driver);
 
 	cpuidle_unregister_driver(&acpi_idle_driver);
-
-#ifdef CONFIG_ACPI_PROCFS
-	remove_proc_entry(ACPI_PROCESSOR_CLASS, acpi_root_dir);
-#endif
 
 	return;
 }

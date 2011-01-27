@@ -124,6 +124,16 @@
 #define USB_DEVICE_DEBUG_MODE		6	/* (special devices only) */
 
 /*
+ * Test Mode Selectors
+ * See USB 2.0 spec Table 9-7
+ */
+#define	TEST_J		1
+#define	TEST_K		2
+#define	TEST_SE0_NAK	3
+#define	TEST_PACKET	4
+#define	TEST_FORCE_EN	5
+
+/*
  * New Feature Selectors as added by USB 3.0
  * See USB 3.0 spec Table 9-6
  */

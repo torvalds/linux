@@ -149,14 +149,9 @@ int nilfs_ifile_get_inode_block(struct inode *ifile, ino_t ino,
 	}
 
 	err = nilfs_palloc_get_entry_block(ifile, ino, 0, out_bh);
-	if (unlikely(err)) {
-		if (err == -EINVAL)
-			nilfs_error(sb, __func__, "ifile is broken");
-		else
-			nilfs_warning(sb, __func__,
-				      "unable to read inode: %lu",
-				      (unsigned long) ino);
-	}
+	if (unlikely(err))
+		nilfs_warning(sb, __func__, "unable to read inode: %lu",
+			      (unsigned long) ino);
 	return err;
 }
 

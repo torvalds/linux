@@ -37,13 +37,7 @@ static ssize_t mmapper_write(struct file *file, const char __user *buf,
 	if (*ppos > mmapper_size)
 		return -EINVAL;
 
-	if (count > mmapper_size - *ppos)
-		count = mmapper_size - *ppos;
-
-	if (copy_from_user(&v_buf[*ppos], buf, count))
-		return -EFAULT;
-
-	return count;
+	return simple_write_to_buffer(v_buf, mmapper_size, ppos, buf, count);
 }
 
 static long mmapper_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -137,3 +131,4 @@ module_exit(mmapper_exit);
 
 MODULE_AUTHOR("Greg Lonnon <glonnon@ridgerun.com>");
 MODULE_DESCRIPTION("DSPLinux simulator mmapper driver");
+MODULE_LICENSE("GPL");

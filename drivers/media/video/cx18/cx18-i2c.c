@@ -98,7 +98,7 @@ static int cx18_i2c_new_ir(struct cx18 *cx, struct i2c_adapter *adap, u32 hw,
 	case CX18_HW_Z8F0811_IR_RX_HAUP:
 		init_data->ir_codes = RC_MAP_HAUPPAUGE_NEW;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-		init_data->type = IR_TYPE_RC5;
+		init_data->type = RC_TYPE_RC5;
 		init_data->name = cx->card_name;
 		info.platform_data = init_data;
 		break;
@@ -122,15 +122,15 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 	if (hw == CX18_HW_TUNER) {
 		/* special tuner group handling */
 		sd = v4l2_i2c_new_subdev(&cx->v4l2_dev,
-				adap, NULL, type, 0, cx->card_i2c->radio);
+				adap, type, 0, cx->card_i2c->radio);
 		if (sd != NULL)
 			sd->grp_id = hw;
 		sd = v4l2_i2c_new_subdev(&cx->v4l2_dev,
-				adap, NULL, type, 0, cx->card_i2c->demod);
+				adap, type, 0, cx->card_i2c->demod);
 		if (sd != NULL)
 			sd->grp_id = hw;
 		sd = v4l2_i2c_new_subdev(&cx->v4l2_dev,
-				adap, NULL, type, 0, cx->card_i2c->tv);
+				adap, type, 0, cx->card_i2c->tv);
 		if (sd != NULL)
 			sd->grp_id = hw;
 		return sd != NULL ? 0 : -1;
@@ -144,7 +144,7 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 		return -1;
 
 	/* It's an I2C device other than an analog tuner or IR chip */
-	sd = v4l2_i2c_new_subdev(&cx->v4l2_dev, adap, NULL, type, hw_addrs[idx],
+	sd = v4l2_i2c_new_subdev(&cx->v4l2_dev, adap, type, hw_addrs[idx],
 				 NULL);
 	if (sd != NULL)
 		sd->grp_id = hw;

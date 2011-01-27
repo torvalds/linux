@@ -162,7 +162,7 @@ static const __u8 pac207_sensor_init[][8] = {
 	{0x10, 0x12, 0x0d, 0x12, 0x0c, 0x01, 0x29, 0x84},
 	{0x49, 0x64, 0x64, 0x64, 0x04, 0x10, 0xf0, 0x30},
 	{0x00, 0x00, 0x00, 0x70, 0xa0, 0xf8, 0x00, 0x00},
-	{0x32, 0x00, 0x96, 0x00, 0xA2, 0x02, 0xaf, 0x00},
+	{0x32, 0x00, 0x96, 0x00, 0xa2, 0x02, 0xaf, 0x00},
 };
 
 static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
@@ -228,7 +228,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	idreg[0] = pac207_read_reg(gspca_dev, 0x0000);
 	idreg[1] = pac207_read_reg(gspca_dev, 0x0001);
-	idreg[0] = ((idreg[0] & 0x0F) << 4) | ((idreg[1] & 0xf0) >> 4);
+	idreg[0] = ((idreg[0] & 0x0f) << 4) | ((idreg[1] & 0xf0) >> 4);
 	idreg[1] = idreg[1] & 0x0f;
 	PDEBUG(D_PROBE, "Pixart Sensor ID 0x%02X Chips ID 0x%02X",
 		idreg[0], idreg[1]);
@@ -530,7 +530,7 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4028)},
 	{USB_DEVICE(0x093a, 0x2460)},
 	{USB_DEVICE(0x093a, 0x2461)},

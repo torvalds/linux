@@ -17,7 +17,6 @@
 #include <linux/console.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
-#include <linux/i2c-id.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/interrupt.h>
@@ -28,7 +27,6 @@
 #include <asm/uaccess.h>
 #include <linux/ctype.h>
 #include <linux/reboot.h>
-#include <linux/gpio.h>
 #include <asm/tsc.h>
 #include <asm/olpc.h>
 
@@ -50,7 +48,7 @@ struct dcon_platform_data {
 	int (*init)(void);
 	void (*bus_stabilize_wiggle)(void);
 	void (*set_dconload)(int);
-	int (*read_status)(void);
+	u8 (*read_status)(void);
 };
 
 static struct dcon_platform_data *pdata;
@@ -616,7 +614,7 @@ static struct device_attribute dcon_device_files[] = {
 	__ATTR(resumeline, 0644, dcon_resumeline_show, dcon_resumeline_store),
 };
 
-static struct backlight_ops dcon_bl_ops = {
+static const struct backlight_ops dcon_bl_ops = {
 	.get_brightness = dconbl_get,
 	.update_status = dconbl_set
 };
@@ -733,7 +731,6 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
  edev:
 	platform_device_unregister(dcon_device);
 	dcon_device = NULL;
-	i2c_set_clientdata(client, NULL);
  eirq:
 	free_irq(DCON_IRQ, &dcon_driver);
  einit:
@@ -756,8 +753,6 @@ static int dcon_remove(struct i2c_client *client)
 	if (dcon_device != NULL)
 		platform_device_unregister(dcon_device);
 	cancel_work_sync(&dcon_work);
-
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }

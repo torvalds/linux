@@ -554,7 +554,7 @@ EXPORT_SYMBOL(handle_sysrq);
 #ifdef CONFIG_INPUT
 
 /* Simple translation table for the SysRq keys */
-static const unsigned char sysrq_xlate[KEY_MAX + 1] =
+static const unsigned char sysrq_xlate[KEY_CNT] =
         "\000\0331234567890-=\177\t"                    /* 0x00 - 0x0f */
         "qwertyuiop[]\r\000as"                          /* 0x10 - 0x1f */
         "dfghjkl;'`\000\\zxcv"                          /* 0x20 - 0x2f */
@@ -563,52 +563,128 @@ static const unsigned char sysrq_xlate[KEY_MAX + 1] =
         "230\177\000\000\213\214\000\000\000\000\000\000\000\000\000\000" /* 0x50 - 0x5f */
         "\r\000/";                                      /* 0x60 - 0x6f */
 
-static bool sysrq_down;
-static int sysrq_alt_use;
-static int sysrq_alt;
-static DEFINE_SPINLOCK(sysrq_event_lock);
+struct sysrq_state {
+	struct input_handle handle;
+	struct work_struct reinject_work;
+	unsigned long key_down[BITS_TO_LONGS(KEY_CNT)];
+	unsigned int alt;
+	unsigned int alt_use;
+	bool active;
+	bool need_reinject;
+};
 
-static bool sysrq_filter(struct input_handle *handle, unsigned int type,
-		         unsigned int code, int value)
+static void sysrq_reinject_alt_sysrq(struct work_struct *work)
 {
+	struct sysrq_state *sysrq =
+			container_of(work, struct sysrq_state, reinject_work);
+	struct input_handle *handle = &sysrq->handle;
+	unsigned int alt_code = sysrq->alt_use;
+
+	if (sysrq->need_reinject) {
+		/* Simulate press and release of Alt + SysRq */
+		input_inject_event(handle, EV_KEY, alt_code, 1);
+		input_inject_event(handle, EV_KEY, KEY_SYSRQ, 1);
+		input_inject_event(handle, EV_SYN, SYN_REPORT, 1);
+
+		input_inject_event(handle, EV_KEY, KEY_SYSRQ, 0);
+		input_inject_event(handle, EV_KEY, alt_code, 0);
+		input_inject_event(handle, EV_SYN, SYN_REPORT, 1);
+	}
+}
+
+static bool sysrq_filter(struct input_handle *handle,
+			 unsigned int type, unsigned int code, int value)
+{
+	struct sysrq_state *sysrq = handle->private;
+	bool was_active = sysrq->active;
 	bool suppress;
 
-	/* We are called with interrupts disabled, just take the lock */
-	spin_lock(&sysrq_event_lock);
+	switch (type) {
 
-	if (type != EV_KEY)
-		goto out;
-
-	switch (code) {
-
-	case KEY_LEFTALT:
-	case KEY_RIGHTALT:
-		if (value)
-			sysrq_alt = code;
-		else {
-			if (sysrq_down && code == sysrq_alt_use)
-				sysrq_down = false;
-
-			sysrq_alt = 0;
-		}
+	case EV_SYN:
+		suppress = false;
 		break;
 
-	case KEY_SYSRQ:
-		if (value == 1 && sysrq_alt) {
-			sysrq_down = true;
-			sysrq_alt_use = sysrq_alt;
+	case EV_KEY:
+		switch (code) {
+
+		case KEY_LEFTALT:
+		case KEY_RIGHTALT:
+			if (!value) {
+				/* One of ALTs is being released */
+				if (sysrq->active && code == sysrq->alt_use)
+					sysrq->active = false;
+
+				sysrq->alt = KEY_RESERVED;
+
+			} else if (value != 2) {
+				sysrq->alt = code;
+				sysrq->need_reinject = false;
+			}
+			break;
+
+		case KEY_SYSRQ:
+			if (value == 1 && sysrq->alt != KEY_RESERVED) {
+				sysrq->active = true;
+				sysrq->alt_use = sysrq->alt;
+				/*
+				 * If nothing else will be pressed we'll need
+				 * to * re-inject Alt-SysRq keysroke.
+				 */
+				sysrq->need_reinject = true;
+			}
+
+			/*
+			 * Pretend that sysrq was never pressed at all. This
+			 * is needed to properly handle KGDB which will try
+			 * to release all keys after exiting debugger. If we
+			 * do not clear key bit it KGDB will end up sending
+			 * release events for Alt and SysRq, potentially
+			 * triggering print screen function.
+			 */
+			if (sysrq->active)
+				clear_bit(KEY_SYSRQ, handle->dev->key);
+
+			break;
+
+		default:
+			if (sysrq->active && value && value != 2) {
+				sysrq->need_reinject = false;
+				__handle_sysrq(sysrq_xlate[code], true);
+			}
+			break;
+		}
+
+		suppress = sysrq->active;
+
+		if (!sysrq->active) {
+			/*
+			 * If we are not suppressing key presses keep track of
+			 * keyboard state so we can release keys that have been
+			 * pressed before entering SysRq mode.
+			 */
+			if (value)
+				set_bit(code, sysrq->key_down);
+			else
+				clear_bit(code, sysrq->key_down);
+
+			if (was_active)
+				schedule_work(&sysrq->reinject_work);
+
+		} else if (value == 0 &&
+			   test_and_clear_bit(code, sysrq->key_down)) {
+			/*
+			 * Pass on release events for keys that was pressed before
+			 * entering SysRq mode.
+			 */
+			suppress = false;
 		}
 		break;
 
 	default:
-		if (sysrq_down && value && value != 2)
-			__handle_sysrq(sysrq_xlate[code], true);
+		suppress = sysrq->active;
 		break;
 	}
-
-out:
-	suppress = sysrq_down;
-	spin_unlock(&sysrq_event_lock);
 
 	return suppress;
 }
@@ -617,28 +693,28 @@ static int sysrq_connect(struct input_handler *handler,
 			 struct input_dev *dev,
 			 const struct input_device_id *id)
 {
-	struct input_handle *handle;
+	struct sysrq_state *sysrq;
 	int error;
 
-	sysrq_down = false;
-	sysrq_alt = 0;
-
-	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
-	if (!handle)
+	sysrq = kzalloc(sizeof(struct sysrq_state), GFP_KERNEL);
+	if (!sysrq)
 		return -ENOMEM;
 
-	handle->dev = dev;
-	handle->handler = handler;
-	handle->name = "sysrq";
+	INIT_WORK(&sysrq->reinject_work, sysrq_reinject_alt_sysrq);
 
-	error = input_register_handle(handle);
+	sysrq->handle.dev = dev;
+	sysrq->handle.handler = handler;
+	sysrq->handle.name = "sysrq";
+	sysrq->handle.private = sysrq;
+
+	error = input_register_handle(&sysrq->handle);
 	if (error) {
 		pr_err("Failed to register input sysrq handler, error %d\n",
 			error);
 		goto err_free;
 	}
 
-	error = input_open_device(handle);
+	error = input_open_device(&sysrq->handle);
 	if (error) {
 		pr_err("Failed to open input device, error %d\n", error);
 		goto err_unregister;
@@ -647,17 +723,20 @@ static int sysrq_connect(struct input_handler *handler,
 	return 0;
 
  err_unregister:
-	input_unregister_handle(handle);
+	input_unregister_handle(&sysrq->handle);
  err_free:
-	kfree(handle);
+	kfree(sysrq);
 	return error;
 }
 
 static void sysrq_disconnect(struct input_handle *handle)
 {
+	struct sysrq_state *sysrq = handle->private;
+
 	input_close_device(handle);
+	cancel_work_sync(&sysrq->reinject_work);
 	input_unregister_handle(handle);
-	kfree(handle);
+	kfree(sysrq);
 }
 
 /*

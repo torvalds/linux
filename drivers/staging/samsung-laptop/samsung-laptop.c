@@ -269,7 +269,7 @@ static int update_status(struct backlight_device *bd)
 	return 0;
 }
 
-static struct backlight_ops backlight_ops = {
+static const struct backlight_ops backlight_ops = {
 	.get_brightness	= get_brightness,
 	.update_status	= update_status,
 };
@@ -356,7 +356,7 @@ static ssize_t set_silent_state(struct device *dev,
 	}
 	return count;
 }
-static DEVICE_ATTR(silent, S_IWUGO | S_IRUGO,
+static DEVICE_ATTR(silent, S_IWUSR | S_IRUGO,
 		   get_silent_state, set_silent_state);
 
 

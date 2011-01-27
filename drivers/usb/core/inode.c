@@ -39,7 +39,6 @@
 #include <linux/parser.h>
 #include <linux/notifier.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 #include <linux/usb/hcd.h>
 #include <asm/byteorder.h>
 #include "usb.h"
@@ -344,17 +343,19 @@ static int usbfs_empty (struct dentry *dentry)
 {
 	struct list_head *list;
 
-	spin_lock(&dcache_lock);
-
+	spin_lock(&dentry->d_lock);
 	list_for_each(list, &dentry->d_subdirs) {
 		struct dentry *de = list_entry(list, struct dentry, d_u.d_child);
+
+		spin_lock_nested(&de->d_lock, DENTRY_D_LOCK_NESTED);
 		if (usbfs_positive(de)) {
-			spin_unlock(&dcache_lock);
+			spin_unlock(&de->d_lock);
+			spin_unlock(&dentry->d_lock);
 			return 0;
 		}
+		spin_unlock(&de->d_lock);
 	}
-
-	spin_unlock(&dcache_lock);
+	spin_unlock(&dentry->d_lock);
 	return 1;
 }
 

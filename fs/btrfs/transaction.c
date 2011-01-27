@@ -181,6 +181,9 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 	struct btrfs_trans_handle *h;
 	struct btrfs_transaction *cur_trans;
 	int ret;
+
+	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
+		return ERR_PTR(-EROFS);
 again:
 	h = kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
 	if (!h)
@@ -902,6 +905,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root = pending->root;
 	struct btrfs_root *parent_root;
 	struct inode *parent_inode;
+	struct dentry *parent;
 	struct dentry *dentry;
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
@@ -909,6 +913,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	u64 to_reserve = 0;
 	u64 index = 0;
 	u64 objectid;
+	u64 root_flags;
 
 	new_root_item = kmalloc(sizeof(*new_root_item), GFP_NOFS);
 	if (!new_root_item) {
@@ -941,7 +946,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	trans->block_rsv = &pending->block_rsv;
 
 	dentry = pending->dentry;
-	parent_inode = dentry->d_parent->d_inode;
+	parent = dget_parent(dentry);
+	parent_inode = parent->d_inode;
 	parent_root = BTRFS_I(parent_inode)->root;
 	record_root_in_trans(trans, parent_root);
 
@@ -964,6 +970,13 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	record_root_in_trans(trans, root);
 	btrfs_set_root_last_snapshot(&root->root_item, trans->transid);
 	memcpy(new_root_item, &root->root_item, sizeof(*new_root_item));
+
+	root_flags = btrfs_root_flags(new_root_item);
+	if (pending->readonly)
+		root_flags |= BTRFS_ROOT_SUBVOL_RDONLY;
+	else
+		root_flags &= ~BTRFS_ROOT_SUBVOL_RDONLY;
+	btrfs_set_root_flags(new_root_item, root_flags);
 
 	old = btrfs_lock_root_node(root);
 	btrfs_cow_block(trans, root, old, NULL, 0, &old);
@@ -989,6 +1002,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 				 parent_inode->i_ino, index,
 				 dentry->d_name.name, dentry->d_name.len);
 	BUG_ON(ret);
+	dput(parent);
 
 	key.offset = (u64)-1;
 	pending->snap = btrfs_read_fs_root_no_name(root->fs_info, &key);

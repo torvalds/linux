@@ -43,11 +43,11 @@
 /*
  * IRQ handling
  */
-static void stmp37xx_ack_irq(unsigned int irq)
+static void stmp37xx_ack_irq(struct irq_data *d)
 {
 	/* Disable IRQ */
-	stmp3xxx_clearl(0x04 << ((irq % 4) * 8),
-		REGS_ICOLL_BASE + HW_ICOLL_PRIORITYn + irq / 4 * 0x10);
+	stmp3xxx_clearl(0x04 << ((d->irq % 4) * 8),
+		REGS_ICOLL_BASE + HW_ICOLL_PRIORITYn + d->irq / 4 * 0x10);
 
 	/* ACK current interrupt */
 	__raw_writel(1, REGS_ICOLL_BASE + HW_ICOLL_LEVELACK);
@@ -56,24 +56,24 @@ static void stmp37xx_ack_irq(unsigned int irq)
 	(void)__raw_readl(REGS_ICOLL_BASE + HW_ICOLL_STAT);
 }
 
-static void stmp37xx_mask_irq(unsigned int irq)
+static void stmp37xx_mask_irq(struct irq_data *d)
 {
 	/* IRQ disable */
-	stmp3xxx_clearl(0x04 << ((irq % 4) * 8),
-		REGS_ICOLL_BASE + HW_ICOLL_PRIORITYn + irq / 4 * 0x10);
+	stmp3xxx_clearl(0x04 << ((d->irq % 4) * 8),
+		REGS_ICOLL_BASE + HW_ICOLL_PRIORITYn + d->irq / 4 * 0x10);
 }
 
-static void stmp37xx_unmask_irq(unsigned int irq)
+static void stmp37xx_unmask_irq(struct irq_data *d)
 {
 	/* IRQ enable */
-	stmp3xxx_setl(0x04 << ((irq % 4) * 8),
-		REGS_ICOLL_BASE + HW_ICOLL_PRIORITYn + irq / 4 * 0x10);
+	stmp3xxx_setl(0x04 << ((d->irq % 4) * 8),
+		REGS_ICOLL_BASE + HW_ICOLL_PRIORITYn + d->irq / 4 * 0x10);
 }
 
 static struct irq_chip stmp37xx_chip = {
-	.ack	= stmp37xx_ack_irq,
-	.mask	= stmp37xx_mask_irq,
-	.unmask = stmp37xx_unmask_irq,
+	.irq_ack	= stmp37xx_ack_irq,
+	.irq_mask	= stmp37xx_mask_irq,
+	.irq_unmask	= stmp37xx_unmask_irq,
 };
 
 void __init stmp37xx_init_irq(void)

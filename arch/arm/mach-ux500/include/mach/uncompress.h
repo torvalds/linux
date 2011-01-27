@@ -19,38 +19,43 @@
 #define __ASM_ARCH_UNCOMPRESS_H
 
 #include <asm/setup.h>
+#include <asm/mach-types.h>
 #include <linux/io.h>
+#include <linux/amba/serial.h>
 #include <mach/hardware.h>
 
-#define U8500_UART_DR		0x80007000
-#define U8500_UART_LCRH		0x8000702c
-#define U8500_UART_CR		0x80007030
-#define U8500_UART_FR		0x80007018
+static u32 ux500_uart_base;
 
 static void putc(const char c)
 {
 	/* Do nothing if the UART is not enabled. */
-	if (!(__raw_readb(U8500_UART_CR) & 0x1))
+	if (!(__raw_readb(ux500_uart_base + UART011_CR) & 0x1))
 		return;
 
 	if (c == '\n')
 		putc('\r');
 
-	while (__raw_readb(U8500_UART_FR) & (1 << 5))
+	while (__raw_readb(ux500_uart_base + UART01x_FR) & (1 << 5))
 		barrier();
-	__raw_writeb(c, U8500_UART_DR);
+	__raw_writeb(c, ux500_uart_base + UART01x_DR);
 }
 
 static void flush(void)
 {
-	if (!(__raw_readb(U8500_UART_CR) & 0x1))
+	if (!(__raw_readb(ux500_uart_base + UART011_CR) & 0x1))
 		return;
-	while (__raw_readb(U8500_UART_FR) & (1 << 3))
+	while (__raw_readb(ux500_uart_base + UART01x_FR) & (1 << 3))
 		barrier();
 }
 
 static inline void arch_decomp_setup(void)
 {
+	if (machine_is_u8500())
+		ux500_uart_base = U8500_UART2_BASE;
+	else if (machine_is_u5500())
+		ux500_uart_base = U5500_UART0_BASE;
+	else /* not much can be done to help here */
+		ux500_uart_base = U8500_UART2_BASE;
 }
 
 #define arch_decomp_wdog() /* nothing to do here */

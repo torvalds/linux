@@ -1,4 +1,4 @@
-# Util.py - Python extension for perf trace, miscellaneous utility code
+# Util.py - Python extension for perf script, miscellaneous utility code
 #
 # Copyright (C) 2010 by Tom Zanussi <tzanussi@gmail.com>
 #

@@ -100,9 +100,8 @@ struct leon3_irqctrl_regs_map {
 	u32 mpbroadcast;
 	u32 notused02;
 	u32 notused03;
-	u32 notused10;
-	u32 notused11;
-	u32 notused12;
+	u32 ampctrl;
+	u32 icsel[2];
 	u32 notused13;
 	u32 notused20;
 	u32 notused21;
@@ -112,6 +111,7 @@ struct leon3_irqctrl_regs_map {
 	u32 force[16];
 	/* Extended IRQ registers */
 	u32 intid[16];	/* 0xc0 */
+	u32 unused[(0x1000-0x100)/4];
 };
 
 struct leon3_apbuart_regs_map {

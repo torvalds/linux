@@ -11,6 +11,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/inetdevice.h>
+#include <linux/if_tunnel.h>
 #include <net/dst.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
@@ -22,12 +23,8 @@ static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos,
 					  xfrm_address_t *daddr)
 {
 	struct flowi fl = {
-		.nl_u = {
-			.ip4_u = {
-				.tos = tos,
-				.daddr = daddr->a4,
-			},
-		},
+		.fl4_dst = daddr->a4,
+		.fl4_tos = tos,
 	};
 	struct dst_entry *dst;
 	struct rtable *rt;
@@ -79,10 +76,6 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 
 	xdst->u.dst.dev = dev;
 	dev_hold(dev);
-
-	xdst->u.rt.idev = in_dev_get(dev);
-	if (!xdst->u.rt.idev)
-		return -ENODEV;
 
 	xdst->u.rt.peer = rt->peer;
 	if (rt->peer)
@@ -158,6 +151,20 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 				fl->fl_ipsec_spi = htonl(ntohs(ipcomp_hdr[1]));
 			}
 			break;
+
+		case IPPROTO_GRE:
+			if (pskb_may_pull(skb, xprth + 12 - skb->data)) {
+				__be16 *greflags = (__be16 *)xprth;
+				__be32 *gre_hdr = (__be32 *)xprth;
+
+				if (greflags[0] & GRE_KEY) {
+					if (greflags[0] & GRE_CSUM)
+						gre_hdr++;
+					fl->fl_gre_key = gre_hdr[1];
+				}
+			}
+			break;
+
 		default:
 			fl->fl_ipsec_spi = 0;
 			break;
@@ -189,8 +196,6 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 {
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 
-	if (likely(xdst->u.rt.idev))
-		in_dev_put(xdst->u.rt.idev);
 	if (likely(xdst->u.rt.peer))
 		inet_putpeer(xdst->u.rt.peer);
 	xfrm_dst_destroy(xdst);
@@ -199,26 +204,8 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 static void xfrm4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 			     int unregister)
 {
-	struct xfrm_dst *xdst;
-
 	if (!unregister)
 		return;
-
-	xdst = (struct xfrm_dst *)dst;
-	if (xdst->u.rt.idev->dev == dev) {
-		struct in_device *loopback_idev =
-			in_dev_get(dev_net(dev)->loopback_dev);
-		BUG_ON(!loopback_idev);
-
-		do {
-			in_dev_put(xdst->u.rt.idev);
-			xdst->u.rt.idev = loopback_idev;
-			in_dev_hold(loopback_idev);
-			xdst = (struct xfrm_dst *)xdst->u.dst.child;
-		} while (xdst->u.dst.xfrm);
-
-		__in_dev_put(loopback_idev);
-	}
 
 	xfrm_dst_ifdown(dst, dev);
 }

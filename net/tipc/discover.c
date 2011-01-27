@@ -35,12 +35,8 @@
  */
 
 #include "core.h"
-#include "dbg.h"
 #include "link.h"
-#include "zone.h"
 #include "discover.h"
-#include "port.h"
-#include "name_table.h"
 
 #define TIPC_LINK_REQ_INIT	125	/* min delay during bearer start up */
 #define TIPC_LINK_REQ_FAST	2000	/* normal delay if bearer has no links */
@@ -134,8 +130,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 	u32 net_id = msg_bc_netid(msg);
 	u32 type = msg_type(msg);
 
-	msg_get_media_addr(msg,&media_addr);
-	msg_dbg(msg, "RECV:");
+	msg_get_media_addr(msg, &media_addr);
 	buf_discard(buf);
 
 	if (net_id != tipc_net_id)
@@ -151,10 +146,6 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 	}
 	if (!tipc_in_scope(dest, tipc_own_addr))
 		return;
-	if (is_slave(tipc_own_addr) && is_slave(orig))
-		return;
-	if (is_slave(orig) && !in_own_cluster(orig))
-		return;
 	if (in_own_cluster(orig)) {
 		/* Always accept link here */
 		struct sk_buff *rbuf;
@@ -162,7 +153,6 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 		struct tipc_node *n_ptr = tipc_node_find(orig);
 		int link_fully_up;
 
-		dbg(" in own cluster\n");
 		if (n_ptr == NULL) {
 			n_ptr = tipc_node_create(orig);
 			if (!n_ptr)
@@ -179,7 +169,6 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 
 		link = n_ptr->links[b_ptr->identity];
 		if (!link) {
-			dbg("creating link\n");
 			link = tipc_link_create(b_ptr, orig, &media_addr);
 			if (!link) {
 				spin_unlock_bh(&n_ptr->lock);
@@ -204,7 +193,6 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 			return;
 		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, 1, orig, b_ptr);
 		if (rbuf != NULL) {
-			msg_dbg(buf_msg(rbuf),"SEND:");
 			b_ptr->media->send_msg(rbuf, &b_ptr->publ, &media_addr);
 			buf_discard(rbuf);
 		}

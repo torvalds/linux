@@ -1,4 +1,3 @@
-#include "sysdef.h"
 #include "wb35reg_f.h"
 
 #include <linux/usb.h>
@@ -140,8 +139,8 @@ unsigned char Wb35Reg_WriteSync(struct hw_data *pHwData, u16 RegisterNo, u32 Reg
 
 	/* Sync IoCallDriver */
 	reg->EP0vm_state = VM_RUNNING;
-	ret = usb_control_msg(pHwData->WbUsb.udev,
-			       usb_sndctrlpipe(pHwData->WbUsb.udev, 0),
+	ret = usb_control_msg(pHwData->udev,
+			       usb_sndctrlpipe(pHwData->udev, 0),
 			       0x03, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 			       0x0, RegisterNo, &RegisterValue, 4, HZ * 100);
 	reg->EP0vm_state = VM_STOP;
@@ -150,9 +149,7 @@ unsigned char Wb35Reg_WriteSync(struct hw_data *pHwData, u16 RegisterNo, u32 Reg
 	Wb35Reg_EP0VM_start(pHwData);
 
 	if (ret < 0) {
-#ifdef _PE_REG_DUMP_
-		printk("EP0 Write register usb message sending error\n");
-#endif
+		pr_debug("EP0 Write register usb message sending error\n");
 		pHwData->SurpriseRemove = 1;
 		return false;
 	}
@@ -305,8 +302,8 @@ unsigned char Wb35Reg_ReadSync(struct hw_data *pHwData, u16 RegisterNo, u32 *pRe
 		msleep(10);
 
 	reg->EP0vm_state = VM_RUNNING;
-	ret = usb_control_msg(pHwData->WbUsb.udev,
-			       usb_rcvctrlpipe(pHwData->WbUsb.udev, 0),
+	ret = usb_control_msg(pHwData->udev,
+			       usb_rcvctrlpipe(pHwData->udev, 0),
 			       0x01, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			       0x0, RegisterNo, pltmp, 4, HZ * 100);
 
@@ -320,9 +317,7 @@ unsigned char Wb35Reg_ReadSync(struct hw_data *pHwData, u16 RegisterNo, u32 *pRe
 	Wb35Reg_EP0VM_start(pHwData);
 
 	if (ret < 0) {
-#ifdef _PE_REG_DUMP_
-		printk("EP0 Read register usb message sending error\n");
-#endif
+		pr_debug("EP0 Read register usb message sending error\n");
 		pHwData->SurpriseRemove = 1;
 		return false;
 	}
@@ -432,8 +427,8 @@ void Wb35Reg_EP0VM(struct hw_data *pHwData)
 	if (reg_queue->DIRECT == 1) /* output */
 		pBuffer = &reg_queue->VALUE;
 
-	usb_fill_control_urb(urb, pHwData->WbUsb.udev,
-			      REG_DIRECTION(pHwData->WbUsb.udev, reg_queue),
+	usb_fill_control_urb(urb, pHwData->udev,
+			      REG_DIRECTION(pHwData->udev, reg_queue),
 			      (u8 *)dr, pBuffer, cpu_to_le16(dr->wLength),
 			      Wb35Reg_EP0VM_complete, (void *)pHwData);
 
@@ -442,9 +437,7 @@ void Wb35Reg_EP0VM(struct hw_data *pHwData)
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 
 	if (ret < 0) {
-#ifdef _PE_REG_DUMP_
-		printk("EP0 Irp sending error\n");
-#endif
+		pr_debug("EP0 Irp sending error\n");
 		goto cleanup;
 	}
 	return;
@@ -479,9 +472,7 @@ void Wb35Reg_EP0VM_complete(struct urb *urb)
 		spin_unlock_irq(&reg->EP0VM_spin_lock);
 
 		if (reg->EP0VM_status) {
-#ifdef _PE_REG_DUMP_
-			printk("EP0 IoCompleteRoutine return error\n");
-#endif
+			pr_debug("EP0 IoCompleteRoutine return error\n");
 			reg->EP0vm_state = VM_STOP;
 			pHwData->SurpriseRemove = 1;
 		} else {
@@ -526,9 +517,7 @@ void Wb35Reg_destroy(struct hw_data *pHwData)
 			usb_free_urb(urb);
 			kfree(reg_queue);
 		} else {
-#ifdef _PE_REG_DUMP_
-			printk("EP0 queue release error\n");
-#endif
+			pr_debug("EP0 queue release error\n");
 		}
 		spin_lock_irq(&reg->EP0VM_spin_lock);
 

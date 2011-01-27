@@ -52,22 +52,6 @@ EXPORT_SYMBOL(acpi_root_dir);
 
 #define STRUCT_TO_INT(s)	(*((int*)&s))
 
-static int set_power_nocheck(const struct dmi_system_id *id)
-{
-	printk(KERN_NOTICE PREFIX "%s detected - "
-		"disable power check in power transition\n", id->ident);
-	acpi_power_nocheck = 1;
-	return 0;
-}
-static struct dmi_system_id __cpuinitdata power_nocheck_dmi_table[] = {
-	{
-	set_power_nocheck, "HP Pavilion 05", {
-	DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies LTD"),
-	DMI_MATCH(DMI_SYS_VENDOR, "HP Pavilion 05"),
-	DMI_MATCH(DMI_PRODUCT_VERSION, "2001211RE101GLEND") }, NULL},
-	{},
-};
-
 
 #ifdef CONFIG_X86
 static int set_copy_dsdt(const struct dmi_system_id *id)
@@ -196,33 +180,24 @@ EXPORT_SYMBOL(acpi_bus_get_private_data);
                                  Power Management
    -------------------------------------------------------------------------- */
 
-int acpi_bus_get_power(acpi_handle handle, int *state)
+static int __acpi_bus_get_power(struct acpi_device *device, int *state)
 {
 	int result = 0;
 	acpi_status status = 0;
-	struct acpi_device *device = NULL;
 	unsigned long long psc = 0;
 
-
-	result = acpi_bus_get_device(handle, &device);
-	if (result)
-		return result;
+	if (!device || !state)
+		return -EINVAL;
 
 	*state = ACPI_STATE_UNKNOWN;
 
-	if (!device->flags.power_manageable) {
-		/* TBD: Non-recursive algorithm for walking up hierarchy */
-		if (device->parent)
-			*state = device->parent->power.state;
-		else
-			*state = ACPI_STATE_D0;
-	} else {
+	if (device->flags.power_manageable) {
 		/*
 		 * Get the device's power state either directly (via _PSC) or
 		 * indirectly (via power resources).
 		 */
 		if (device->power.flags.power_resources) {
-			result = acpi_power_get_inferred_state(device);
+			result = acpi_power_get_inferred_state(device, state);
 			if (result)
 				return result;
 		} else if (device->power.flags.explicit_get) {
@@ -230,59 +205,33 @@ int acpi_bus_get_power(acpi_handle handle, int *state)
 						       NULL, &psc);
 			if (ACPI_FAILURE(status))
 				return -ENODEV;
-			device->power.state = (int)psc;
+			*state = (int)psc;
 		}
-
-		*state = device->power.state;
+	} else {
+		/* TBD: Non-recursive algorithm for walking up hierarchy. */
+		*state = device->parent ?
+			device->parent->power.state : ACPI_STATE_D0;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] power state is D%d\n",
-			  device->pnp.bus_id, device->power.state));
+			  device->pnp.bus_id, *state));
 
 	return 0;
 }
 
-EXPORT_SYMBOL(acpi_bus_get_power);
 
-int acpi_bus_set_power(acpi_handle handle, int state)
+static int __acpi_bus_set_power(struct acpi_device *device, int state)
 {
 	int result = 0;
 	acpi_status status = AE_OK;
-	struct acpi_device *device = NULL;
 	char object_name[5] = { '_', 'P', 'S', '0' + state, '\0' };
 
-
-	result = acpi_bus_get_device(handle, &device);
-	if (result)
-		return result;
-
-	if ((state < ACPI_STATE_D0) || (state > ACPI_STATE_D3))
+	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3))
 		return -EINVAL;
 
 	/* Make sure this is a valid target state */
 
-	if (!device->flags.power_manageable) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device `[%s]' is not power manageable\n",
-				kobject_name(&device->dev.kobj)));
-		return -ENODEV;
-	}
-	/*
-	 * Get device's current power state
-	 */
-	if (!acpi_power_nocheck) {
-		/*
-		 * Maybe the incorrect power state is returned on the bogus
-		 * bios, which is different with the real power state.
-		 * For example: the bios returns D0 state and the real power
-		 * state is D3. OS expects to set the device to D0 state. In
-		 * such case if OS uses the power state returned by the BIOS,
-		 * the device can't be transisted to the correct power state.
-		 * So if the acpi_power_nocheck is set, it is unnecessary to
-		 * get the power state by calling acpi_bus_get_power.
-		 */
-		acpi_bus_get_power(device->handle, &device->power.state);
-	}
-	if ((state == device->power.state) && !device->flags.force_power_state) {
+	if (state == device->power.state) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at D%d\n",
 				  state));
 		return 0;
@@ -351,7 +300,74 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 	return result;
 }
 
+
+int acpi_bus_set_power(acpi_handle handle, int state)
+{
+	struct acpi_device *device;
+	int result;
+
+	result = acpi_bus_get_device(handle, &device);
+	if (result)
+		return result;
+
+	if (!device->flags.power_manageable) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				"Device [%s] is not power manageable\n",
+				dev_name(&device->dev)));
+		return -ENODEV;
+	}
+
+	return __acpi_bus_set_power(device, state);
+}
 EXPORT_SYMBOL(acpi_bus_set_power);
+
+
+int acpi_bus_init_power(struct acpi_device *device)
+{
+	int state;
+	int result;
+
+	if (!device)
+		return -EINVAL;
+
+	device->power.state = ACPI_STATE_UNKNOWN;
+
+	result = __acpi_bus_get_power(device, &state);
+	if (result)
+		return result;
+
+	if (device->power.flags.power_resources)
+		result = acpi_power_on_resources(device, state);
+
+	if (!result)
+		device->power.state = state;
+
+	return result;
+}
+
+
+int acpi_bus_update_power(acpi_handle handle, int *state_p)
+{
+	struct acpi_device *device;
+	int state;
+	int result;
+
+	result = acpi_bus_get_device(handle, &device);
+	if (result)
+		return result;
+
+	result = __acpi_bus_get_power(device, &state);
+	if (result)
+		return result;
+
+	result = __acpi_bus_set_power(device, state);
+	if (!result && state_p)
+		*state_p = state;
+
+	return result;
+}
+EXPORT_SYMBOL_GPL(acpi_bus_update_power);
+
 
 bool acpi_bus_power_manageable(acpi_handle handle)
 {
@@ -1023,15 +1039,8 @@ static int __init acpi_init(void)
 	if (acpi_disabled)
 		return result;
 
-	/*
-	 * If the laptop falls into the DMI check table, the power state check
-	 * will be disabled in the course of device power transition.
-	 */
-	dmi_check_system(power_nocheck_dmi_table);
-
 	acpi_scan_init();
 	acpi_ec_init();
-	acpi_power_init();
 	acpi_debugfs_init();
 	acpi_sleep_proc_init();
 	acpi_wakeup_device_init();

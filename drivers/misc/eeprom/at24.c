@@ -20,6 +20,7 @@
 #include <linux/log2.h>
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
+#include <linux/of.h>
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 
@@ -457,6 +458,27 @@ static ssize_t at24_macc_write(struct memory_accessor *macc, const char *buf,
 
 /*-------------------------------------------------------------------------*/
 
+#ifdef CONFIG_OF
+static void at24_get_ofdata(struct i2c_client *client,
+		struct at24_platform_data *chip)
+{
+	const __be32 *val;
+	struct device_node *node = client->dev.of_node;
+
+	if (node) {
+		if (of_get_property(node, "read-only", NULL))
+			chip->flags |= AT24_FLAG_READONLY;
+		val = of_get_property(node, "pagesize", NULL);
+		if (val)
+			chip->page_size = be32_to_cpup(val);
+	}
+}
+#else
+static void at24_get_ofdata(struct i2c_client *client,
+		struct at24_platform_data *chip)
+{ }
+#endif /* CONFIG_OF */
+
 static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct at24_platform_data chip;
@@ -485,6 +507,9 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 */
 		chip.page_size = 1;
 
+		/* update chipdata if OF is present */
+		at24_get_ofdata(client, &chip);
+
 		chip.setup = NULL;
 		chip.context = NULL;
 	}
@@ -492,6 +517,11 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (!is_power_of_2(chip.byte_len))
 		dev_warn(&client->dev,
 			"byte_len looks suspicious (no power of 2)!\n");
+	if (!chip.page_size) {
+		dev_err(&client->dev, "page_size must not be 0!\n");
+		err = -EINVAL;
+		goto err_out;
+	}
 	if (!is_power_of_2(chip.page_size))
 		dev_warn(&client->dev,
 			"page_size looks suspicious (no power of 2)!\n");
@@ -597,19 +627,15 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	i2c_set_clientdata(client, at24);
 
-	dev_info(&client->dev, "%zu byte %s EEPROM %s\n",
+	dev_info(&client->dev, "%zu byte %s EEPROM, %s, %u bytes/write\n",
 		at24->bin.size, client->name,
-		writable ? "(writable)" : "(read-only)");
+		writable ? "writable" : "read-only", at24->write_max);
 	if (use_smbus == I2C_SMBUS_WORD_DATA ||
 	    use_smbus == I2C_SMBUS_BYTE_DATA) {
 		dev_notice(&client->dev, "Falling back to %s reads, "
 			   "performance will suffer\n", use_smbus ==
 			   I2C_SMBUS_WORD_DATA ? "word" : "byte");
 	}
-	dev_dbg(&client->dev,
-		"page_size %d, num_addresses %d, write_max %d, use_smbus %d\n",
-		chip.page_size, num_addresses,
-		at24->write_max, use_smbus);
 
 	/* export data to kernel code */
 	if (chip.setup)
@@ -660,6 +686,11 @@ static struct i2c_driver at24_driver = {
 
 static int __init at24_init(void)
 {
+	if (!io_limit) {
+		pr_err("at24: io_limit must not be 0!\n");
+		return -EINVAL;
+	}
+
 	io_limit = rounddown_pow_of_two(io_limit);
 	return i2c_add_driver(&at24_driver);
 }

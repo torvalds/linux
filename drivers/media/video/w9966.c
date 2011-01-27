@@ -815,7 +815,7 @@ out:
 
 static const struct v4l2_file_operations w9966_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl          = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 	.read           = w9966_v4l_read,
 };
 
@@ -937,6 +937,7 @@ static void w9966_term(struct w9966 *cam)
 		parport_unregister_device(cam->pdev);
 		w9966_set_state(cam, W9966_STATE_PDEV, 0);
 	}
+	memset(cam, 0, sizeof(*cam));
 }
 
 

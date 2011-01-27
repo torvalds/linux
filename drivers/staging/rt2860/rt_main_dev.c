@@ -31,7 +31,8 @@
     Create and register network interface.
 
     Revision History:
-    Who         When            What
+    Who         	When            What
+    Justin P. Mattock	11/07/2010	Fix typos in comments
     --------    ----------      ----------------------------------------------
 */
 
@@ -101,8 +102,8 @@ int MainVirtualIF_close(IN struct net_device *net_dev)
 		    (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST))) {
 			struct rt_mlme_disassoc_req DisReq;
 			struct rt_mlme_queue_elem *MsgElem =
-			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
-							MEM_ALLOC_FLAG);
+				kmalloc(sizeof(struct rt_mlme_queue_elem),
+					MEM_ALLOC_FLAG);
 
 			if (MsgElem) {
 				COPY_MAC_ADDR(DisReq.Addr,
@@ -234,7 +235,7 @@ int rt28xx_close(struct net_device *dev)
 		RTMPPCIeLinkCtrlValueRestore(pAd, RESTORE_CLOSE);
 #endif /* RTMP_MAC_PCI // */
 
-		/* If dirver doesn't wake up firmware here, */
+		/* If driver doesn't wake up firmware here, */
 		/* NICLoadFirmware will hang forever when interface is up again. */
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)) {
 			AsicForceWakeup(pAd, TRUE);
@@ -310,8 +311,8 @@ int rt28xx_close(struct net_device *dev)
 			RTMP_ASIC_INTERRUPT_DISABLE(pAd);
 		}
 		/* Receive packets to clear DMA index after disable interrupt. */
-		/*RTMPHandleRxDoneInterrupt(pAd); */
-		/* put to radio off to save power when driver unload.  After radiooff, can't write /read register.  So need to finish all */
+		/* RTMPHandleRxDoneInterrupt(pAd); */
+		/* put radio off to save power when driver unloads.  After radiooff, can't write/read register, so need to finish all. */
 		/* register access before Radio off. */
 
 		brc = RT28xxPciAsicRadioOff(pAd, RTMP_HALT, 0);
@@ -420,7 +421,7 @@ int rt28xx_open(struct net_device *dev)
 	{
 		u32 reg = 0;
 		RTMP_IO_READ32(pAd, 0x1300, &reg);	/* clear garbage interrupts */
-		printk("0x1300 = %08x\n", reg);
+		printk(KERN_DEBUG "0x1300 = %08x\n", reg);
 	}
 
 	{
@@ -724,7 +725,8 @@ Note:
 int AdapterBlockAllocateMemory(void *handle, void ** ppAd)
 {
 
-	*ppAd = (void *)vmalloc(sizeof(struct rt_rtmp_adapter));	/*pci_alloc_consistent(pci_dev, sizeof(struct rt_rtmp_adapter), phy_addr); */
+	*ppAd = vmalloc(sizeof(struct rt_rtmp_adapter));
+	/* pci_alloc_consistent(pci_dev, sizeof(struct rt_rtmp_adapter), phy_addr); */
 
 	if (*ppAd) {
 		NdisZeroMemory(*ppAd, sizeof(struct rt_rtmp_adapter));

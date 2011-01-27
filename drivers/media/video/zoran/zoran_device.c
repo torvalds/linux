@@ -1523,7 +1523,7 @@ zoran_irq (int             irq,
 		    zr->JPEG_missed > 25 ||
 		    zr->JPEG_error == 1	||
 		    ((zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS) &&
-		     (zr->frame_num & (zr->JPEG_missed > zr->jpg_settings.field_per_buff)))) {
+		     (zr->frame_num && (zr->JPEG_missed > zr->jpg_settings.field_per_buff)))) {
 			error_handler(zr, astat, stat);
 		}
 

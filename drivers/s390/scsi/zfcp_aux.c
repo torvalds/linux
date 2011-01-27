@@ -45,8 +45,8 @@ static char *init_device;
 module_param_named(device, init_device, charp, 0400);
 MODULE_PARM_DESC(device, "specify initial device");
 
-static struct kmem_cache *zfcp_cache_hw_align(const char *name,
-					      unsigned long size)
+static struct kmem_cache * __init zfcp_cache_hw_align(const char *name,
+						      unsigned long size)
 {
 	return kmem_cache_create(name, size, roundup_pow_of_two(size), 0, NULL);
 }
@@ -311,8 +311,7 @@ int zfcp_status_read_refill(struct zfcp_adapter *adapter)
 		if (zfcp_fsf_status_read(adapter->qdio)) {
 			if (atomic_read(&adapter->stat_miss) >=
 			    adapter->stat_read_buf_num) {
-				zfcp_erp_adapter_reopen(adapter, 0, "axsref1",
-							NULL);
+				zfcp_erp_adapter_reopen(adapter, 0, "axsref1");
 				return 1;
 			}
 			break;
@@ -459,7 +458,7 @@ void zfcp_adapter_unregister(struct zfcp_adapter *adapter)
 	sysfs_remove_group(&cdev->dev.kobj, &zfcp_sysfs_adapter_attrs);
 
 	zfcp_erp_thread_kill(adapter);
-	zfcp_dbf_adapter_unregister(adapter->dbf);
+	zfcp_dbf_adapter_unregister(adapter);
 	zfcp_qdio_destroy(adapter->qdio);
 
 	zfcp_ccw_adapter_put(adapter); /* final put to release */

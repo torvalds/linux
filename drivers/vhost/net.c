@@ -10,7 +10,6 @@
 #include <linux/eventfd.h>
 #include <linux/vhost.h>
 #include <linux/virtio_net.h>
-#include <linux/mmu_context.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -129,8 +128,9 @@ static void handle_tx(struct vhost_net *net)
 	size_t hdr_size;
 	struct socket *sock;
 
-	sock = rcu_dereference_check(vq->private_data,
-				     lockdep_is_held(&vq->mutex));
+	/* TODO: check that we are running from vhost_worker?
+	 * Not sure it's worth it, it's straight-forward enough. */
+	sock = rcu_dereference_check(vq->private_data, 1);
 	if (!sock)
 		return;
 
@@ -142,7 +142,6 @@ static void handle_tx(struct vhost_net *net)
 		return;
 	}
 
-	use_mm(net->dev.mm);
 	mutex_lock(&vq->mutex);
 	vhost_disable_notify(vq);
 
@@ -207,7 +206,6 @@ static void handle_tx(struct vhost_net *net)
 	}
 
 	mutex_unlock(&vq->mutex);
-	unuse_mm(net->dev.mm);
 }
 
 static int peek_head_len(struct sock *sk)
@@ -312,7 +310,6 @@ static void handle_rx_big(struct vhost_net *net)
 	if (!sock || skb_queue_empty(&sock->sk->sk_receive_queue))
 		return;
 
-	use_mm(net->dev.mm);
 	mutex_lock(&vq->mutex);
 	vhost_disable_notify(vq);
 	hdr_size = vq->vhost_hlen;
@@ -391,7 +388,6 @@ static void handle_rx_big(struct vhost_net *net)
 	}
 
 	mutex_unlock(&vq->mutex);
-	unuse_mm(net->dev.mm);
 }
 
 /* Expects to be always run from workqueue - which acts as
@@ -423,7 +419,6 @@ static void handle_rx_mergeable(struct vhost_net *net)
 	if (!sock || skb_queue_empty(&sock->sk->sk_receive_queue))
 		return;
 
-	use_mm(net->dev.mm);
 	mutex_lock(&vq->mutex);
 	vhost_disable_notify(vq);
 	vhost_hlen = vq->vhost_hlen;
@@ -458,7 +453,7 @@ static void handle_rx_mergeable(struct vhost_net *net)
 			move_iovec_hdr(vq->iov, vq->hdr, vhost_hlen, in);
 		else
 			/* Copy the header for use in VIRTIO_NET_F_MRG_RXBUF:
-			 * needed because sendmsg can modify msg_iov. */
+			 * needed because recvmsg can modify msg_iov. */
 			copy_iovec_hdr(vq->iov, vq->hdr, sock_hlen, in);
 		msg.msg_iovlen = in;
 		err = sock->ops->recvmsg(NULL, sock, &msg,
@@ -500,7 +495,6 @@ static void handle_rx_mergeable(struct vhost_net *net)
 	}
 
 	mutex_unlock(&vq->mutex);
-	unuse_mm(net->dev.mm);
 }
 
 static void handle_rx(struct vhost_net *net)

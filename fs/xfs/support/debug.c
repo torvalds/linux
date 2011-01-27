@@ -25,86 +25,78 @@
 #include "xfs_mount.h"
 #include "xfs_error.h"
 
-static char		message[1024];	/* keep it off the stack */
-static DEFINE_SPINLOCK(xfs_err_lock);
-
-/* Translate from CE_FOO to KERN_FOO, err_level(CE_FOO) == KERN_FOO */
-#define XFS_MAX_ERR_LEVEL	7
-#define XFS_ERR_MASK		((1 << 3) - 1)
-static const char * const	err_level[XFS_MAX_ERR_LEVEL+1] =
-					{KERN_EMERG, KERN_ALERT, KERN_CRIT,
-					 KERN_ERR, KERN_WARNING, KERN_NOTICE,
-					 KERN_INFO, KERN_DEBUG};
-
 void
-cmn_err(register int level, char *fmt, ...)
+cmn_err(
+	const char	*lvl,
+	const char	*fmt,
+	...)
 {
-	char	*fp = fmt;
-	int	len;
-	ulong	flags;
-	va_list	ap;
+	struct va_format vaf;
+	va_list		args;
 
-	level &= XFS_ERR_MASK;
-	if (level > XFS_MAX_ERR_LEVEL)
-		level = XFS_MAX_ERR_LEVEL;
-	spin_lock_irqsave(&xfs_err_lock,flags);
-	va_start(ap, fmt);
-	if (*fmt == '!') fp++;
-	len = vsnprintf(message, sizeof(message), fp, ap);
-	if (len >= sizeof(message))
-		len = sizeof(message) - 1;
-	if (message[len-1] == '\n')
-		message[len-1] = 0;
-	printk("%s%s\n", err_level[level], message);
-	va_end(ap);
-	spin_unlock_irqrestore(&xfs_err_lock,flags);
-	BUG_ON(level == CE_PANIC);
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk("%s%pV", lvl, &vaf);
+	va_end(args);
+
+	BUG_ON(strncmp(lvl, KERN_EMERG, strlen(KERN_EMERG)) == 0);
 }
 
 void
-xfs_fs_vcmn_err(
-	int			level,
+xfs_fs_cmn_err(
+	const char		*lvl,
 	struct xfs_mount	*mp,
-	char			*fmt,
-	va_list			ap)
+	const char		*fmt,
+	...)
 {
-	unsigned long		flags;
-	int			len = 0;
+	struct va_format	vaf;
+	va_list			args;
 
-	level &= XFS_ERR_MASK;
-	if (level > XFS_MAX_ERR_LEVEL)
-		level = XFS_MAX_ERR_LEVEL;
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
 
-	spin_lock_irqsave(&xfs_err_lock,flags);
+	printk("%sFilesystem %s: %pV", lvl, mp->m_fsname, &vaf);
+	va_end(args);
 
-	if (mp) {
-		len = sprintf(message, "Filesystem \"%s\": ", mp->m_fsname);
+	BUG_ON(strncmp(lvl, KERN_EMERG, strlen(KERN_EMERG)) == 0);
+}
 
-		/*
-		 * Skip the printk if we can't print anything useful
-		 * due to an over-long device name.
-		 */
-		if (len >= sizeof(message))
-			goto out;
+/* All callers to xfs_cmn_err use CE_ALERT, so don't bother testing lvl */
+void
+xfs_cmn_err(
+	int			panic_tag,
+	const char		*lvl,
+	struct xfs_mount	*mp,
+	const char		*fmt,
+	...)
+{
+	struct va_format	vaf;
+	va_list			args;
+	int			do_panic = 0;
+
+	if (xfs_panic_mask && (xfs_panic_mask & panic_tag)) {
+		printk(KERN_ALERT "XFS: Transforming an alert into a BUG.");
+		do_panic = 1;
 	}
 
-	len = vsnprintf(message + len, sizeof(message) - len, fmt, ap);
-	if (len >= sizeof(message))
-		len = sizeof(message) - 1;
-	if (message[len-1] == '\n')
-		message[len-1] = 0;
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
 
-	printk("%s%s\n", err_level[level], message);
- out:
-	spin_unlock_irqrestore(&xfs_err_lock,flags);
+	printk(KERN_ALERT "Filesystem %s: %pV", mp->m_fsname, &vaf);
+	va_end(args);
 
-	BUG_ON(level == CE_PANIC);
+	BUG_ON(do_panic);
 }
 
 void
 assfail(char *expr, char *file, int line)
 {
-	printk("Assertion failed: %s, file: %s, line: %d\n", expr, file, line);
+	printk(KERN_CRIT "Assertion failed: %s, file: %s, line: %d\n", expr,
+	       file, line);
 	BUG();
 }
 

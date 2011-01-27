@@ -28,10 +28,9 @@
 #include <linux/vmalloc.h>
 
 #include <linux/coda.h>
-#include <linux/coda_linux.h>
 #include <linux/coda_psdev.h>
-#include <linux/coda_fs_i.h>
-#include <linux/coda_cache.h>
+#include "coda_linux.h"
+#include "coda_cache.h"
 
 #include "coda_int.h"
 
@@ -45,7 +44,7 @@ static struct kmem_cache * coda_inode_cachep;
 static struct inode *coda_alloc_inode(struct super_block *sb)
 {
 	struct coda_inode_info *ei;
-	ei = (struct coda_inode_info *)kmem_cache_alloc(coda_inode_cachep, GFP_KERNEL);
+	ei = kmem_cache_alloc(coda_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	memset(&ei->c_fid, 0, sizeof(struct CodaFid));
@@ -56,9 +55,16 @@ static struct inode *coda_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void coda_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(coda_inode_cachep, ITOC(inode));
+}
+
 static void coda_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(coda_inode_cachep, ITOC(inode));
+	call_rcu(&inode->i_rcu, coda_i_callback);
 }
 
 static void init_once(void *foo)
@@ -186,6 +192,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = 12;
 	sb->s_magic = CODA_SUPER_MAGIC;
 	sb->s_op = &coda_super_operations;
+	sb->s_d_op = &coda_dentry_operations;
 	sb->s_bdi = &vc->bdi;
 
 	/* get root fid from Venus: this needs the root inode */

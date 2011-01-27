@@ -1994,6 +1994,9 @@ static int do_write_inode(struct inode *inode)
 
 	/* FIXME: transaction is part of logfs_block now.  Is that enough? */
 	err = logfs_write_buf(master_inode, page, 0);
+	if (err)
+		move_page_to_inode(inode, page);
+
 	logfs_put_write_page(page);
 	return err;
 }

@@ -263,7 +263,21 @@ static int stv06xx_init(struct gspca_dev *gspca_dev)
 static int stv06xx_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int err;
+	struct usb_host_interface *alt;
+	struct usb_interface *intf;
+	int err, packet_size;
+
+	intf = usb_ifnum_to_if(sd->gspca_dev.dev, sd->gspca_dev.iface);
+	alt = usb_altnum_to_altsetting(intf, sd->gspca_dev.alt);
+	if (!alt) {
+		PDEBUG(D_ERR, "Couldn't get altsetting");
+		return -EIO;
+	}
+
+	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
+	err = stv06xx_write_bridge(sd, STV_ISO_SIZE_L, packet_size);
+	if (err < 0)
+		return err;
 
 	/* Prepare the sensor for start */
 	err = sd->sensor->start(sd);
@@ -280,6 +294,43 @@ out:
 		PDEBUG(D_STREAM, "Started streaming");
 
 	return (err < 0) ? err : 0;
+}
+
+static int stv06xx_isoc_init(struct gspca_dev *gspca_dev)
+{
+	struct usb_host_interface *alt;
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	/* Start isoc bandwidth "negotiation" at max isoc bandwidth */
+	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
+	alt->endpoint[0].desc.wMaxPacketSize =
+		cpu_to_le16(sd->sensor->max_packet_size[gspca_dev->curr_mode]);
+
+	return 0;
+}
+
+static int stv06xx_isoc_nego(struct gspca_dev *gspca_dev)
+{
+	int ret, packet_size, min_packet_size;
+	struct usb_host_interface *alt;
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
+	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
+	min_packet_size = sd->sensor->min_packet_size[gspca_dev->curr_mode];
+	if (packet_size <= min_packet_size)
+		return -EIO;
+
+	packet_size -= 100;
+	if (packet_size < min_packet_size)
+		packet_size = min_packet_size;
+	alt->endpoint[0].desc.wMaxPacketSize = cpu_to_le16(packet_size);
+
+	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, 1);
+	if (ret < 0)
+		PDEBUG(D_ERR|D_STREAM, "set alt 1 err %d", ret);
+
+	return ret;
 }
 
 static void stv06xx_stopN(struct gspca_dev *gspca_dev)
@@ -349,7 +400,7 @@ static void stv06xx_pkt_scan(struct gspca_dev *gspca_dev,
 		}
 
 		/* First byte seem to be 02=data 2nd byte is unknown??? */
-		if (sd->bridge == BRIDGE_ST6422 && (id & 0xFF00) == 0x0200)
+		if (sd->bridge == BRIDGE_ST6422 && (id & 0xff00) == 0x0200)
 			goto frame_data;
 
 		switch (id) {
@@ -462,6 +513,8 @@ static const struct sd_desc sd_desc = {
 	.start = stv06xx_start,
 	.stopN = stv06xx_stopN,
 	.pkt_scan = stv06xx_pkt_scan,
+	.isoc_init = stv06xx_isoc_init,
+	.isoc_nego = stv06xx_isoc_nego,
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	.int_pkt_scan = sd_int_pkt_scan,
 #endif
@@ -511,7 +564,7 @@ static int stv06xx_config(struct gspca_dev *gspca_dev,
 
 
 /* -- module initialisation -- */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	/* QuickCam Express */
 	{USB_DEVICE(0x046d, 0x0840), .driver_info = BRIDGE_STV600 },
 	/* LEGO cam / QuickCam Web */

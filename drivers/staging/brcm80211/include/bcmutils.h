@@ -30,7 +30,6 @@
 	};
 
 /* ** driver-only section ** */
-#include <osl.h>
 
 #define GPIO_PIN_NOTDEFINED 	0x20	/* Pin not defined */
 
@@ -56,10 +55,10 @@
 #endif
 
 	typedef struct pktq_prec {
-		void *head;	/* first packet to dequeue */
-		void *tail;	/* last packet to dequeue */
-		u16 len;	/* number of queued packets */
-		u16 max;	/* maximum number of queued packets */
+		struct sk_buff *head;	/* first packet to dequeue */
+		struct sk_buff *tail;	/* last packet to dequeue */
+		u16 len;		/* number of queued packets */
+		u16 max;		/* maximum number of queued packets */
 	} pktq_prec_t;
 
 /* multi-priority pkt queue */
@@ -105,23 +104,26 @@
 #define pktq_ppeek(pq, prec)            ((pq)->q[prec].head)
 #define pktq_ppeek_tail(pq, prec)       ((pq)->q[prec].tail)
 
-	extern void *pktq_penq(struct pktq *pq, int prec, void *p);
-	extern void *pktq_penq_head(struct pktq *pq, int prec, void *p);
-	extern void *pktq_pdeq(struct pktq *pq, int prec);
-	extern void *pktq_pdeq_tail(struct pktq *pq, int prec);
+extern struct sk_buff *pktq_penq(struct pktq *pq, int prec,
+				 struct sk_buff *p);
+extern struct sk_buff *pktq_penq_head(struct pktq *pq, int prec,
+				      struct sk_buff *p);
+extern struct sk_buff *pktq_pdeq(struct pktq *pq, int prec);
+extern struct sk_buff *pktq_pdeq_tail(struct pktq *pq, int prec);
+
 /* Empty the queue at particular precedence level */
 #ifdef BRCM_FULLMAC
-	extern void pktq_pflush(osl_t *osh, struct pktq *pq, int prec,
+	extern void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec,
 		bool dir);
 #else
-	extern void pktq_pflush(osl_t *osh, struct pktq *pq, int prec,
+	extern void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec,
 		bool dir, ifpkt_cb_t fn, int arg);
 #endif /* BRCM_FULLMAC */
 
 /* operations on a set of precedences in packet queue */
 
-	extern int pktq_mlen(struct pktq *pq, uint prec_bmp);
-	extern void *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
+extern int pktq_mlen(struct pktq *pq, uint prec_bmp);
+extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 
 /* operations on packet queue as a whole */
 
@@ -140,20 +142,19 @@
 
 	extern void pktq_init(struct pktq *pq, int num_prec, int max_len);
 /* prec_out may be NULL if caller is not interested in return value */
-	extern void *pktq_peek_tail(struct pktq *pq, int *prec_out);
+	extern struct sk_buff *pktq_peek_tail(struct pktq *pq, int *prec_out);
 #ifdef BRCM_FULLMAC
-	extern void pktq_flush(osl_t *osh, struct pktq *pq, bool dir);
+	extern void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir);
 #else
-	extern void pktq_flush(osl_t *osh, struct pktq *pq, bool dir,
+	extern void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir,
 		ifpkt_cb_t fn, int arg);
 #endif
 
 /* externs */
 /* packet */
-	extern uint pktfrombuf(osl_t *osh, void *p, uint offset, int len,
-			       unsigned char *buf);
-	extern uint pktsegcnt(osl_t *osh, void *p);
-	extern uint pkttotlen(osl_t *osh, void *p);
+	extern uint pktfrombuf(struct osl_info *osh, struct sk_buff *p,
+			       uint offset, int len, unsigned char *buf);
+	extern uint pkttotlen(struct osl_info *osh, struct sk_buff *p);
 
 /* ethernet address */
 	extern int bcm_ether_atoe(char *p, struct ether_addr *ea);
@@ -166,7 +167,8 @@
 	extern char *getvar(char *vars, const char *name);
 	extern int getintvar(char *vars, const char *name);
 #ifdef BCMDBG
-	extern void prpkt(const char *msg, osl_t *osh, void *p0);
+	extern void prpkt(const char *msg, struct osl_info *osh,
+			  struct sk_buff *p0);
 #endif				/* BCMDBG */
 #define bcm_perf_enable()
 #define bcmstats(fmt)
@@ -359,7 +361,21 @@
 #define CEIL(x, y)		(((x) + ((y)-1)) / (y))
 #define	ISPOWEROF2(x)		((((x)-1)&(x)) == 0)
 
-/* bit map related macros */
+/* map physical to virtual I/O */
+#if !defined(CONFIG_MMC_MSM7X00A)
+#define REG_MAP(pa, size)       ioremap_nocache((unsigned long)(pa), \
+					(unsigned long)(size))
+#else
+#define REG_MAP(pa, size)       (void *)(0)
+#endif
+
+/* Register operations */
+#define AND_REG(osh, r, v)	W_REG(osh, (r), R_REG(osh, r) & (v))
+#define OR_REG(osh, r, v)	W_REG(osh, (r), R_REG(osh, r) | (v))
+
+#define SET_REG(osh, r, mask, val) \
+		W_REG((osh), (r), ((R_REG((osh), r) & ~(mask)) | (val)))
+
 #ifndef setbit
 #ifndef NBBY			/* the BSD family defines NBBY */
 #define	NBBY	8		/* 8 bits per byte */

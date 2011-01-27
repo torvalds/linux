@@ -84,7 +84,8 @@
 #define CX18_CARD_TOSHIBA_QOSMIO_DVBT 5 /* Toshiba Qosmio Interal DVB-T/Analog*/
 #define CX18_CARD_LEADTEK_PVR2100     6 /* Leadtek WinFast PVR2100 */
 #define CX18_CARD_LEADTEK_DVR3100H    7 /* Leadtek WinFast DVR3100 H */
-#define CX18_CARD_LAST 		      7
+#define CX18_CARD_GOTVIEW_PCI_DVD3    8 /* GoTView PCI DVD3 Hybrid */
+#define CX18_CARD_LAST		      8
 
 #define CX18_ENC_STREAM_TYPE_MPG  0
 #define CX18_ENC_STREAM_TYPE_TS   1
@@ -106,6 +107,7 @@
 #define CX18_PCI_ID_CONEXANT		0x14f1
 #define CX18_PCI_ID_TOSHIBA		0x1179
 #define CX18_PCI_ID_LEADTEK		0x107D
+#define CX18_PCI_ID_GOTVIEW		0x5854
 
 /* ======================================================================== */
 /* ========================== START USER SETTABLE DMA VARIABLES =========== */
@@ -323,7 +325,10 @@ struct cx18_queue {
 	spinlock_t lock;
 };
 
+struct cx18_stream; /* forward reference */
+
 struct cx18_dvb {
+	struct cx18_stream *stream;
 	struct dmx_frontend hw_frontend;
 	struct dmx_frontend mem_frontend;
 	struct dmxdev dmxdev;
@@ -363,9 +368,10 @@ struct cx18_in_work_order {
 #define CX18_INVALID_TASK_HANDLE 0xffffffff
 
 struct cx18_stream {
-	/* These first four fields are always set, even if the stream
+	/* These first five fields are always set, even if the stream
 	   is not actually created. */
 	struct video_device *video_dev;	/* NULL when stream not created */
+	struct cx18_dvb *dvb;		/* DVB / Digital Transport */
 	struct cx18 *cx; 		/* for ease of use */
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */
@@ -395,9 +401,6 @@ struct cx18_stream {
 	struct cx18_queue q_idle;	/* idle - not in rotation */
 
 	struct work_struct out_work_order;
-
-	/* DVB / Digital Transport */
-	struct cx18_dvb dvb;
 };
 
 struct cx18_open_id {
@@ -613,9 +616,6 @@ struct cx18 {
 	char in_workq_name[11]; /* "cx18-NN-in" */
 	struct cx18_in_work_order in_work_order[CX18_MAX_IN_WORK_ORDERS];
 	char epu_debug_str[256]; /* CX18_EPU_DEBUG is rare: use shared space */
-
-	struct workqueue_struct *out_work_queue;
-	char out_workq_name[12]; /* "cx18-NN-out" */
 
 	/* i2c */
 	struct i2c_adapter i2c_adap[2];

@@ -212,7 +212,7 @@ static int ds2760_battery_read_status(struct ds2760_device_info *di)
 	if (di->rem_capacity > 100)
 		di->rem_capacity = 100;
 
-	if (di->current_uA >= 100L)
+	if (di->current_uA < -100L)
 		di->life_sec = -((di->accum_current_uAh - di->empty_uAh) * 36L)
 					/ (di->current_uA / 100L);
 	else
@@ -580,10 +580,8 @@ static int ds2760_battery_remove(struct platform_device *pdev)
 {
 	struct ds2760_device_info *di = platform_get_drvdata(pdev);
 
-	cancel_rearming_delayed_workqueue(di->monitor_wqueue,
-					  &di->monitor_work);
-	cancel_rearming_delayed_workqueue(di->monitor_wqueue,
-					  &di->set_charged_work);
+	cancel_delayed_work_sync(&di->monitor_work);
+	cancel_delayed_work_sync(&di->set_charged_work);
 	destroy_workqueue(di->monitor_wqueue);
 	power_supply_unregister(&di->bat);
 	kfree(di);

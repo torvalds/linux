@@ -20,6 +20,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "cx25821-video.h"
 #include "cx25821-audio-upstream.h"
 
@@ -221,7 +223,7 @@ void cx25821_stop_upstream_audio(struct cx25821_dev *dev)
 
 	if (!dev->_audio_is_running) {
 		printk(KERN_DEBUG
-		    "cx25821: No audio file is currently running so return!\n");
+		       pr_fmt("No audio file is currently running so return!\n"));
 		return;
 	}
 	/* Disable RISC interrupts */
@@ -281,19 +283,19 @@ int cx25821_get_audio_data(struct cx25821_dev *dev,
 
 	if (IS_ERR(myfile)) {
 		const int open_errno = -PTR_ERR(myfile);
-		printk(KERN_ERR "%s(): ERROR opening file(%s) with errno = %d!\n",
+		pr_err("%s(): ERROR opening file(%s) with errno = %d!\n",
 		       __func__, dev->_audiofilename, open_errno);
 		return PTR_ERR(myfile);
 	} else {
 		if (!(myfile->f_op)) {
-			printk(KERN_ERR "%s: File has no file operations registered!\n",
+			pr_err("%s(): File has no file operations registered!\n",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
 		}
 
 		if (!myfile->f_op->read) {
-			printk(KERN_ERR "%s: File has no READ operations registered!\n",
+			pr_err("%s(): File has no READ operations registered!\n",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
@@ -320,9 +322,8 @@ int cx25821_get_audio_data(struct cx25821_dev *dev,
 			frame_offset += vfs_read_retval;
 
 			if (vfs_read_retval < line_size) {
-				printk(KERN_INFO
-				       "Done: exit %s() since no more bytes to read from Audio file.\n",
-				       __func__);
+				pr_info("Done: exit %s() since no more bytes to read from Audio file\n",
+					__func__);
 				break;
 			}
 		}
@@ -346,7 +347,7 @@ static void cx25821_audioups_handler(struct work_struct *work)
 	    container_of(work, struct cx25821_dev, _audio_work_entry);
 
 	if (!dev) {
-		printk(KERN_ERR "ERROR %s(): since container_of(work_struct) FAILED!\n",
+		pr_err("ERROR %s(): since container_of(work_struct) FAILED!\n",
 		       __func__);
 		return;
 	}
@@ -373,19 +374,19 @@ int cx25821_openfile_audio(struct cx25821_dev *dev,
 
 	if (IS_ERR(myfile)) {
 		const int open_errno = -PTR_ERR(myfile);
-		printk(KERN_ERR "%s(): ERROR opening file(%s) with errno = %d!\n",
+		pr_err("%s(): ERROR opening file(%s) with errno = %d!\n",
 		       __func__, dev->_audiofilename, open_errno);
 		return PTR_ERR(myfile);
 	} else {
 		if (!(myfile->f_op)) {
-			printk(KERN_ERR "%s: File has no file operations registered!\n",
+			pr_err("%s(): File has no file operations registered!\n",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
 		}
 
 		if (!myfile->f_op->read) {
-			printk(KERN_ERR "%s: File has no READ operations registered!\n",
+			pr_err("%s(): File has no READ operations registered!\n",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
@@ -414,9 +415,8 @@ int cx25821_openfile_audio(struct cx25821_dev *dev,
 				offset += vfs_read_retval;
 
 				if (vfs_read_retval < line_size) {
-					printk(KERN_INFO
-					       "Done: exit %s() since no more bytes to read from Audio file.\n",
-					       __func__);
+					pr_info("Done: exit %s() since no more bytes to read from Audio file\n",
+						__func__);
 					break;
 				}
 			}
@@ -459,7 +459,7 @@ static int cx25821_audio_upstream_buffer_prepare(struct cx25821_dev *dev,
 
 	if (!dev->_risc_virt_addr) {
 		printk(KERN_DEBUG
-			"cx25821 ERROR: pci_alloc_consistent() FAILED to allocate memory for RISC program! Returning.\n");
+		       pr_fmt("ERROR: pci_alloc_consistent() FAILED to allocate memory for RISC program! Returning\n"));
 		return -ENOMEM;
 	}
 	/* Clear out memory at address */
@@ -474,7 +474,7 @@ static int cx25821_audio_upstream_buffer_prepare(struct cx25821_dev *dev,
 
 	if (!dev->_audiodata_buf_virt_addr) {
 		printk(KERN_DEBUG
-			"cx25821 ERROR: pci_alloc_consistent() FAILED to allocate memory for data buffer! Returning.\n");
+		       pr_fmt("ERROR: pci_alloc_consistent() FAILED to allocate memory for data buffer! Returning\n"));
 		return -ENOMEM;
 	}
 	/* Clear out memory at address */
@@ -490,7 +490,7 @@ static int cx25821_audio_upstream_buffer_prepare(struct cx25821_dev *dev,
 					       dev->_audio_lines_count);
 	if (ret < 0) {
 		printk(KERN_DEBUG
-		      "cx25821 ERROR creating audio upstream RISC programs!\n");
+		       pr_fmt("ERROR creating audio upstream RISC programs!\n"));
 		goto error;
 	}
 
@@ -569,16 +569,16 @@ int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 		spin_unlock(&dev->slock);
 	} else {
 		if (status & FLD_AUD_SRC_OF)
-			printk(KERN_WARNING "%s: Audio Received Overflow Error Interrupt!\n",
-			       __func__);
+			pr_warn("%s(): Audio Received Overflow Error Interrupt!\n",
+				__func__);
 
 		if (status & FLD_AUD_SRC_SYNC)
-			printk(KERN_WARNING "%s: Audio Received Sync Error Interrupt!\n",
-			       __func__);
+			pr_warn("%s(): Audio Received Sync Error Interrupt!\n",
+				__func__);
 
 		if (status & FLD_AUD_SRC_OPC_ERR)
-			printk(KERN_WARNING "%s: Audio Received OpCode Error Interrupt!\n",
-			       __func__);
+			pr_warn("%s(): Audio Received OpCode Error Interrupt!\n",
+				__func__);
 
 		/* Read and write back the interrupt status register to clear
 		 * our bits */
@@ -586,8 +586,8 @@ int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 	}
 
 	if (dev->_audiofile_status == END_OF_FILE) {
-		printk(KERN_WARNING "cx25821: EOF Channel Audio Framecount = %d\n",
-		       dev->_audioframe_count);
+		pr_warn("EOF Channel Audio Framecount = %d\n",
+			dev->_audioframe_count);
 		return -1;
 	}
 	/* ElSE, set the interrupt mask register, re-enable irq. */
@@ -644,9 +644,8 @@ static void cx25821_wait_fifo_enable(struct cx25821_dev *dev,
 
 		/* 10 millisecond timeout */
 		if (count++ > 1000) {
-			printk(KERN_ERR
-			       "cx25821 ERROR: %s() fifo is NOT turned on. Timeout!\n",
-			     __func__);
+			pr_err("ERROR: %s() fifo is NOT turned on. Timeout!\n",
+			       __func__);
 			return;
 		}
 
@@ -696,8 +695,8 @@ int cx25821_start_audio_dma_upstream(struct cx25821_dev *dev,
 	    request_irq(dev->pci->irq, cx25821_upstream_irq_audio,
 			IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
 	if (err < 0) {
-		printk(KERN_ERR "%s: can't get upstream IRQ %d\n", dev->name,
-		       dev->pci->irq);
+		pr_err("%s: can't get upstream IRQ %d\n",
+		       dev->name, dev->pci->irq);
 		goto fail_irq;
 	}
 
@@ -726,7 +725,7 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 	int str_length = 0;
 
 	if (dev->_audio_is_running) {
-		printk(KERN_WARNING "Audio Channel is still running so return!\n");
+		pr_warn("Audio Channel is still running so return!\n");
 		return 0;
 	}
 
@@ -740,7 +739,7 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 
 	if (!dev->_irq_audio_queues) {
 		printk(KERN_DEBUG
-			"cx25821 ERROR: create_singlethread_workqueue() for Audio FAILED!\n");
+		       pr_fmt("ERROR: create_singlethread_workqueue() for Audio FAILED!\n"));
 		return -ENOMEM;
 	}
 
@@ -787,8 +786,7 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 	retval =
 	    cx25821_audio_upstream_buffer_prepare(dev, sram_ch, _line_size);
 	if (retval < 0) {
-		printk(KERN_ERR
-		       "%s: Failed to set up Audio upstream buffers!\n",
+		pr_err("%s: Failed to set up Audio upstream buffers!\n",
 		       dev->name);
 		goto error;
 	}

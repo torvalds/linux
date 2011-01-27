@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 
 	offs = (olen > ilen) ? olen - ilen : 0;
 	offs += olen >> 12;	/* Add 8 bytes for each 32K block */
-	offs += 32*1024 + 18;	/* Add 32K + 18 bytes slack */
+	offs += 64*1024 + 128;	/* Add 64K + 128 bytes slack */
 	offs = (offs+4095) & ~4095; /* Round to a 4K boundary */
 
 	printf(".section \".rodata..compressed\",\"a\",@progbits\n");

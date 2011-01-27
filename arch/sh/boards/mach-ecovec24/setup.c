@@ -473,6 +473,7 @@ static struct sh_mobile_sdhi_info sdhi0_info = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
 	.set_pwr	= sdhi0_set_pwr,
+	.tmio_caps      = MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -511,6 +512,7 @@ static void sdhi1_set_pwr(struct platform_device *pdev, int state)
 static struct sh_mobile_sdhi_info sdhi1_info = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI1_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
+	.tmio_caps      = MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD,
 	.set_pwr	= sdhi1_set_pwr,
 };
 
@@ -720,32 +722,6 @@ static struct platform_device camera_devices[] = {
 };
 
 /* FSI */
-/*
- * FSI-B use external clock which came from da7210.
- * So, we should change parent of fsi
- */
-#define FCLKBCR		0xa415000c
-static void fsimck_init(struct clk *clk)
-{
-	u32 status = __raw_readl(clk->enable_reg);
-
-	/* use external clock */
-	status &= ~0x000000ff;
-	status |= 0x00000080;
-
-	__raw_writel(status, clk->enable_reg);
-}
-
-static struct clk_ops fsimck_clk_ops = {
-	.init = fsimck_init,
-};
-
-static struct clk fsimckb_clk = {
-	.ops		= &fsimck_clk_ops,
-	.enable_reg	= (void __iomem *)FCLKBCR,
-	.rate		= 0, /* unknown */
-};
-
 static struct sh_fsi_platform_info fsi_info = {
 	.portb_flags = SH_FSI_BRS_INV |
 		       SH_FSI_OUT_SLAVE_MODE |
@@ -1264,10 +1240,10 @@ static int __init arch_setup(void)
 	/* change parent of FSI B */
 	clk = clk_get(NULL, "fsib_clk");
 	if (!IS_ERR(clk)) {
-		clk_register(&fsimckb_clk);
-		clk_set_parent(clk, &fsimckb_clk);
-		clk_set_rate(clk, 11000);
-		clk_set_rate(&fsimckb_clk, 11000);
+		/* 48kHz dummy clock was used to make sure 1/1 divide */
+		clk_set_rate(&sh7724_fsimckb_clk, 48000);
+		clk_set_parent(clk, &sh7724_fsimckb_clk);
+		clk_set_rate(clk, 48000);
 		clk_put(clk);
 	}
 

@@ -744,9 +744,15 @@ xfs_filestream_new_ag(
 	 * If the file's parent directory is known, take its iolock in exclusive
 	 * mode to prevent two sibling files from racing each other to migrate
 	 * themselves and their parent to different AGs.
+	 *
+	 * Note that we lock the parent directory iolock inside the child
+	 * iolock here.  That's fine as we never hold both parent and child
+	 * iolock in any other place.  This is different from the ilock,
+	 * which requires locking of the child after the parent for namespace
+	 * operations.
 	 */
 	if (pip)
-		xfs_ilock(pip, XFS_IOLOCK_EXCL);
+		xfs_ilock(pip, XFS_IOLOCK_EXCL | XFS_IOLOCK_PARENT);
 
 	/*
 	 * A new AG needs to be found for the file.  If the file's parent

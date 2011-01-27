@@ -1,16 +1,11 @@
 /*
- * Copyright 2008 Analog Devices Inc.
+ * Copyright 2008-2010 Analog Devices Inc.
  *
  * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _DEF_BF547_H
 #define _DEF_BF547_H
-
-/* Include all Core registers and bit definitions */
-#include <asm/def_LPBlackfin.h>
-
-/* SYSTEM & MMR ADDRESS DEFINITIONS FOR ADSP-BF547 */
 
 /* Include defBF54x_base.h for the set of #defines that are common to all ADSP-BF54x processors */
 #include "defBF54x_base.h"

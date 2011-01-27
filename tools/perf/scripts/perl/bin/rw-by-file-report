@@ -7,7 +7,4 @@ if [ $# -lt 1 ] ; then
 fi
 comm=$1
 shift
-perf trace $@ -s "$PERF_EXEC_PATH"/scripts/perl/rw-by-file.pl $comm
-
-
-
+perf script $@ -s "$PERF_EXEC_PATH"/scripts/perl/rw-by-file.pl $comm

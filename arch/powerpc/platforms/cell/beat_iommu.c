@@ -76,7 +76,7 @@ static void __init celleb_init_direct_mapping(void)
 
 static void celleb_dma_dev_setup(struct device *dev)
 {
-	dev->archdata.dma_ops = get_pci_dma_ops();
+	set_dma_ops(dev, &dma_direct_ops);
 	set_dma_offset(dev, celleb_dma_direct_offset);
 }
 
@@ -106,7 +106,6 @@ static struct notifier_block celleb_of_bus_notifier = {
 static int __init celleb_init_iommu(void)
 {
 	celleb_init_direct_mapping();
-	set_pci_dma_ops(&dma_direct_ops);
 	ppc_md.pci_dma_dev_setup = celleb_pci_dma_dev_setup;
 	bus_register_notifier(&platform_bus_type, &celleb_of_bus_notifier);
 

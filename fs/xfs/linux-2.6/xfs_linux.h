@@ -37,7 +37,6 @@
 
 #include <kmem.h>
 #include <mrlock.h>
-#include <sv.h>
 #include <time.h>
 
 #include <support/debug.h>
