@@ -283,13 +283,13 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		u32 remain, success;
 
 		/* Calculate how far we are into the transfer */
-		remain = readl(host->base + MMCIDATACNT) << 2;
+		remain = readl(host->base + MMCIDATACNT);
 		success = data->blksz * data->blocks - remain;
 
 		dev_dbg(mmc_dev(host->mmc), "MCI ERROR IRQ (status %08x)\n", status);
 		if (status & MCI_DATACRCFAIL) {
 			/* Last block was not successful */
-			host->data_xfered = ((success / data->blksz) - 1 * data->blksz);
+			host->data_xfered = ((success - 1) / data->blksz) * data->blksz;
 			data->error = -EILSEQ;
 		} else if (status & MCI_DATATIMEOUT) {
 			host->data_xfered = success;
