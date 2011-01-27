@@ -46,7 +46,7 @@ extern void ddr_resume(void);
 
 static void __sramfunc rk29_pm_enter_ddr(void)
 {
-	u32 clksel0, dpll, mode;
+	u32 clksel0, dpll, mode, clkgate0;
 
 	asm("dsb");
 	ddr_suspend();
@@ -59,6 +59,10 @@ static void __sramfunc rk29_pm_enter_ddr(void)
 	cru_writel(dpll | PLL_PD | PLL_BYPASS, CRU_DPLL_CON);
 	delay_500ns();
 
+	/* disable ddr clock */
+	clkgate0 = cru_readl(CRU_CLKGATE0_CON);
+	cru_writel(clkgate0 | (1 << CLK_GATE_DDR_PHY) | (1 << CLK_GATE_DDR_REG) | (1 << CLK_GATE_DDR_CPU), CRU_CLKGATE0_CON);
+
 	/* set arm clk 24MHz/32 = 750KHz */
 	clksel0 = cru_readl(CRU_CLKSEL0_CON);
 	cru_writel(clksel0 | 0x1F, CRU_CLKSEL0_CON);
@@ -67,6 +71,9 @@ static void __sramfunc rk29_pm_enter_ddr(void)
 
 	/* resume arm clk */
 	cru_writel(clksel0, CRU_CLKSEL0_CON);
+
+	/* enable ddr clock */
+	cru_writel(clkgate0, CRU_CLKGATE0_CON);
 
 	/* resume ddr pll */
 	cru_writel(dpll, CRU_DPLL_CON);
@@ -79,6 +86,36 @@ static void __sramfunc rk29_pm_enter_ddr(void)
 static int rk29_pm_enter(suspend_state_t state)
 {
 	u32 cpll, gpll, mode;
+	u32 clkgate[4];
+
+	/* disable clock */
+	clkgate[0] = cru_readl(CRU_CLKGATE0_CON);
+	clkgate[1] = cru_readl(CRU_CLKGATE1_CON);
+	clkgate[2] = cru_readl(CRU_CLKGATE2_CON);
+	clkgate[3] = cru_readl(CRU_CLKGATE3_CON);
+	cru_writel(~((1 << CLK_GATE_CORE)
+		   | (1 << CLK_GATE_ACLK_CPU)
+		   | (1 << CLK_GATE_ACLK_CPU2)
+		   | (1 << CLK_GATE_PCLK_CPU)
+		   | (1 << CLK_GATE_GIC)
+		   | (1 << CLK_GATE_INTMEM)
+		   | (1 << CLK_GATE_DDR_PHY)
+		   | (1 << CLK_GATE_DDR_REG)
+		   | (1 << CLK_GATE_DDR_CPU)
+		   | (1 << CLK_GATE_GPIO0)
+		   | (1 << CLK_GATE_RTC)
+		   | (1 << CLK_GATE_GRF)
+		   ) | clkgate[0], CRU_CLKGATE0_CON);
+	cru_writel(~0, CRU_CLKGATE1_CON);
+	cru_writel(~((1 << CLK_GATE_GPIO1 % 32)
+		   | (1 << CLK_GATE_GPIO2 % 32)
+		   | (1 << CLK_GATE_GPIO3 % 32)
+		   | (1 << CLK_GATE_GPIO4 % 32)
+		   | (1 << CLK_GATE_GPIO5 % 32)
+		   | (1 << CLK_GATE_GPIO6 % 32)
+		   | (1 << CLK_GATE_PWM % 32)
+		   ) | clkgate[2], CRU_CLKGATE2_CON);
+	cru_writel(~0, CRU_CLKGATE3_CON);
 
 	mode = cru_readl(CRU_MODE_CON);
 
@@ -109,6 +146,12 @@ static int rk29_pm_enter(suspend_state_t state)
 	cru_writel(cpll, CRU_CPLL_CON);
 	delay_300us();
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | (mode & CRU_CODEC_MODE_MASK), CRU_MODE_CON);
+
+	/* enable clock */
+	cru_writel(clkgate[0], CRU_CLKGATE0_CON);
+	cru_writel(clkgate[1], CRU_CLKGATE1_CON);
+	cru_writel(clkgate[2], CRU_CLKGATE2_CON);
+	cru_writel(clkgate[3], CRU_CLKGATE3_CON);
 
 	return 0;
 }
