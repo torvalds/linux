@@ -3260,10 +3260,6 @@ static void drbd_delete_device(unsigned int minor)
 	kfree(mdev->p_uuid);
 	/* mdev->p_uuid = NULL; */
 
-	kfree(mdev->tconn->int_dig_out);
-	kfree(mdev->tconn->int_dig_in);
-	kfree(mdev->tconn->int_dig_vv);
-
 	/* cleanup the rest that has been
 	 * allocated from drbd_new_device
 	 * and actually free the mdev itself */
@@ -3377,6 +3373,9 @@ void drbd_free_tconn(struct drbd_tconn *tconn)
 	write_unlock_irq(&global_state_lock);
 
 	kfree(tconn->name);
+	kfree(tconn->int_dig_out);
+	kfree(tconn->int_dig_in);
+	kfree(tconn->int_dig_vv);
 	kfree(tconn);
 }
 
