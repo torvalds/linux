@@ -958,3 +958,19 @@ void do_timer(unsigned long ticks)
 	update_wall_time();
 	calc_global_load(ticks);
 }
+
+/**
+ * get_xtime_and_monotonic_offset() - get xtime and wall_to_monotonic
+ * @xtim:	pointer to timespec to be set with xtime
+ * @wtom:	pointer to timespec to be set with wall_to_monotonic
+ */
+void get_xtime_and_monotonic_offset(struct timespec *xtim, struct timespec *wtom)
+{
+	unsigned long seq;
+
+	do {
+		seq = read_seqbegin(&xtime_lock);
+		*xtim = xtime;
+		*wtom = wall_to_monotonic;
+	} while (read_seqretry(&xtime_lock, seq));
+}
