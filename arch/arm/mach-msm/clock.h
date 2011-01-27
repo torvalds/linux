@@ -17,6 +17,7 @@
 #ifndef __ARCH_ARM_MACH_MSM_CLOCK_H
 #define __ARCH_ARM_MACH_MSM_CLOCK_H
 
+#include <linux/init.h>
 #include <linux/list.h>
 #include <mach/clk.h>
 
@@ -60,5 +61,13 @@ struct clk {
 #define CLK_MIN CLKFLAG_MIN
 #define CLK_MAX CLKFLAG_MAX
 #define CLK_MINMAX (CLK_MIN | CLK_MAX)
+
+#ifdef CONFIG_DEBUG_FS
+int __init clock_debug_init(void);
+int __init clock_debug_add(struct clk *clock);
+#else
+static inline int __init clock_debug_init(void) { return 0; }
+static inline int __init clock_debug_add(struct clk *clock) { return 0; }
+#endif
 
 #endif
