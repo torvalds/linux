@@ -819,6 +819,8 @@ void ath9k_deinit_device(struct ath_softc *sc)
 	wiphy_rfkill_stop_polling(sc->hw->wiphy);
 	ath_deinit_leds(sc);
 
+	ath9k_ps_restore(sc);
+
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
 		struct ath_wiphy *aphy = sc->sec_wiphy[i];
 		if (aphy == NULL)
