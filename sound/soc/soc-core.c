@@ -1412,25 +1412,30 @@ static int soc_probe_codec(struct snd_soc_card *card,
 	codec->dapm.card = card;
 	soc_set_name_prefix(card, codec);
 
+	if (!try_module_get(codec->dev->driver->owner))
+		return -ENODEV;
+
 	if (codec->driver->probe) {
 		ret = codec->driver->probe(codec);
 		if (ret < 0) {
 			dev_err(codec->dev,
 				"asoc: failed to probe CODEC %s: %d\n",
 				codec->name, ret);
-			return ret;
+			goto err_probe;
 		}
 	}
 
 	soc_init_codec_debugfs(codec);
 
 	/* mark codec as probed and add to card codec list */
-	if (!try_module_get(codec->dev->driver->owner))
-		return -ENODEV;
-
 	codec->probed = 1;
 	list_add(&codec->card_list, &card->codec_dev_list);
 	list_add(&codec->dapm.list, &card->dapm_list);
+
+	return 0;
+
+err_probe:
+	module_put(codec->dev->driver->owner);
 
 	return ret;
 }
@@ -1549,19 +1554,19 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 
 	/* probe the platform */
 	if (!platform->probed) {
+		if (!try_module_get(platform->dev->driver->owner))
+			return -ENODEV;
+
 		if (platform->driver->probe) {
 			ret = platform->driver->probe(platform);
 			if (ret < 0) {
 				printk(KERN_ERR "asoc: failed to probe platform %s\n",
 						platform->name);
+				module_put(platform->dev->driver->owner);
 				return ret;
 			}
 		}
 		/* mark platform as probed and add to card platform list */
-
-		if (!try_module_get(platform->dev->driver->owner))
-			return -ENODEV;
-
 		platform->probed = 1;
 		list_add(&platform->card_list, &card->platform_dev_list);
 	}
