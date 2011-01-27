@@ -1,32 +1,23 @@
-EXTRA_CFLAGS += -Idrivers/net/wireless/bcm4329 -Idrivers/net/wireless/bcm4329/include  \
-                -DLINUX -DSRCBASE=\"$(BROADCOM_SRC_DIR)\" -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD \
-                -DBCMWPA2 -DBCMWAPI_WPI -DUNRELEASEDCHIP -DOEM_ANDROID -DEMBEDDED_PLATFORM  \
-                -DARP_OFFLOAD_SUPPORT -DPKT_FILTER_SUPPORT -DBCMSDIO -DDHD_GPL -DBCMLXSDMMC \
-                -DBCMPLATFORM_BUS -DSDIO_ISR_THREAD -DBDC -DTOE -DDHD_BCMEVENTS -DSHOW_EVENTS  \
-                -DDHD_SCHED -DDHD_DEBUG -DSDTEST -Wall -Wstrict-prototypes -Werror
- 
+# bcm4329
+DHDCFLAGS = -DLINUX -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD -DBCMWPA2         \
+	-DUNRELEASEDCHIP -Dlinux -DDHD_SDALIGN=64 -DMAX_HDR_READ=64           \
+	-DDHD_FIRSTREAD=64 -DDHD_GPL -DDHD_SCHED -DBDC -DTOE -DDHD_BCMEVENTS  \
+	-DSHOW_EVENTS -DBCMSDIO -DDHD_GPL -DBCMLXSDMMC -DBCMPLATFORM_BUS      \
+	-Wall -Wstrict-prototypes -Werror -DCUSTOMER_HW2      \
+	-DDHD_DEBUG_TRAP -DSOFTAP       \
+	-DEMBEDDED_PLATFORM -DARP_OFFLOAD_SUPPORT -DPKT_FILTER_SUPPORT        \
+	-DGET_CUSTOM_MAC_ENABLE -DSET_RANDOM_MAC_SOFTAP    \
+	-Idrivers/net/wireless/bcm4329 -Idrivers/net/wireless/bcm4329/include
 
-bcmsdio-objs := bcmsdh.o bcmsdh_linux.o bcmsdh_sdmmc.o \
-                bcmsdh_sdmmc_linux.o
+#options defines dependent on platform board and applicantion requirements: 
+#-DOOB_INTR_ONLY -DDHD_USE_STATIC_BUF -DMMC_SDIO_ABORT -DHW_OOB -DCSCAN
 
-dhd-objs := dhd_common.o  dhd_linux.o dhd_linux_sched.o dhd_sdio.o \
-            dhd_custom_gpio.o dhd_cdc.o
-
-shared-objs := aiutils.o bcmutils.o bcmwifi.o hndpmu.o \
-               linux_osl.o  sbutils.o siutils.o
-
-wl-objs := wl_iw.o
-
-bcm4329-objs := $(bcmsdio-objs) $(dhd-objs) $(shared-objs) $(wl-objs) 
+DHDOFILES = dhd_linux.o linux_osl.o bcmutils.o dhd_common.o dhd_custom_gpio.o \
+	wl_iw.o siutils.o sbutils.o aiutils.o hndpmu.o bcmwifi.o dhd_sdio.o   \
+	dhd_linux_sched.o dhd_cdc.o bcmsdh_sdmmc.o bcmsdh.o bcmsdh_linux.o    \
+	bcmsdh_sdmmc_linux.o
 
 obj-$(CONFIG_BCM4329) += bcm4329.o
-
-
-
-
-
-
-
-
-
-                 
+bcm4329-objs += $(DHDOFILES)
+EXTRA_CFLAGS = $(DHDCFLAGS)
+EXTRA_LDFLAGS += --strip-debug

@@ -32,13 +32,9 @@
 #include <linux/version.h>
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0))
 #include <linux/config.h>
-#else
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33))
-#include <generated/autoconf.h>
-#else
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33))
 #include <linux/autoconf.h>
 #endif
-#endif 
 #include <linux/module.h>
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 3, 0))
@@ -70,6 +66,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
+#include <linux/semaphore.h>
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
 #undef IP_TOS
 #endif 
@@ -429,22 +426,11 @@ pci_restore_state(struct pci_dev *dev, u32 *buffer)
 #define CHECKSUM_HW	CHECKSUM_PARTIAL
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31))
-#define KILL_PROC(nr, sig) \
-{ \
-struct task_struct *tsk; \
-struct pid *pid;    \
-pid = find_get_pid((pid_t)nr);    \
-tsk = pid_task(pid, PIDTYPE_PID);    \
-if (tsk) send_sig(sig, tsk, 1); \
-}
-#else
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && (LINUX_VERSION_CODE <= \
-	KERNEL_VERSION(2, 6, 30))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 #define KILL_PROC(pid, sig) \
 { \
 	struct task_struct *tsk; \
-	tsk = find_task_by_vpid(pid); \
+	tsk = pid_task(find_vpid(pid), PIDTYPE_PID); \
 	if (tsk) send_sig(sig, tsk, 1); \
 }
 #else
@@ -452,7 +438,6 @@ if (tsk) send_sig(sig, tsk, 1); \
 { \
 	kill_proc(pid, sig, 1); \
 }
-#endif 
 #endif 
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0))

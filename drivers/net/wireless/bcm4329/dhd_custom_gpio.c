@@ -20,7 +20,7 @@
 * software in any way with any other Broadcom software provided under a license
 * other than the GPL, without Broadcom's express prior written consent.
 *
-* $Id: dhd_custom_gpio.c,v 1.1.4.7 2010/06/03 21:27:48 Exp $
+* $Id: dhd_custom_gpio.c,v 1.1.4.8.4.1 2010/09/02 23:13:16 Exp $
 */
 
 
@@ -46,11 +46,7 @@ extern  void bcm_wlan_power_on(int);
 int wifi_set_carddetect(int on);
 int wifi_set_power(int on, unsigned long msec);
 int wifi_get_irq_number(unsigned long *irq_flags_ptr);
-#endif
-
-#if defined(CONFIG_WIFI_CONTROL_FUNC)
-int wifi_set_power(int on, unsigned long msec);
-int wifi_set_reset(int on, unsigned long msec);
+int wifi_get_mac_addr(unsigned char *buf);
 #endif
 
 #if defined(OOB_INTR_ONLY)
@@ -82,7 +78,7 @@ int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 		dhd_oob_gpio_num = CUSTOM_OOB_GPIO_NUM;
 	}
 #endif
-	*irq_flags_ptr = IRQF_TRIGGER_FALLING;
+
 	if (dhd_oob_gpio_num < 0) {
 		WL_ERROR(("%s: ERROR customer specific Host GPIO is NOT defined \n",
 			__FUNCTION__));
@@ -119,10 +115,6 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #ifdef CUSTOMER_HW2
 			wifi_set_power(0, 0);
 #endif
-#if defined(CONFIG_WIFI_CONTROL_FUNC)
-			wifi_set_power(0, 0);
-                        wifi_set_reset(0, 0);
-#endif
 			WL_ERROR(("=========== WLAN placed in RESET ========\n"));
 		break;
 
@@ -134,10 +126,6 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #endif /* CUSTOMER_HW */
 #ifdef CUSTOMER_HW2
 			wifi_set_power(1, 0);
-#endif
-#if defined(CONFIG_WIFI_CONTROL_FUNC)
-			wifi_set_power(1, 0);
-                        wifi_set_reset(1, 0);
 #endif
 			WL_ERROR(("=========== WLAN going back to live  ========\n"));
 		break;
@@ -155,9 +143,9 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 				__FUNCTION__));
 #ifdef CUSTOMER_HW
 			bcm_wlan_power_on(1);
-#endif /* CUSTOMER_HW */
 			/* Lets customer power to get stable */
-			OSL_DELAY(500);
+			OSL_DELAY(50);
+#endif /* CUSTOMER_HW */
 		break;
 	}
 }
@@ -167,11 +155,16 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 int
 dhd_custom_get_mac_address(unsigned char *buf)
 {
+	int ret = 0;
+
 	WL_TRACE(("%s Enter\n", __FUNCTION__));
 	if (!buf)
 		return -EINVAL;
 
 	/* Customer access to MAC address stored outside of DHD driver */
+#ifdef CUSTOMER_HW2
+	ret = wifi_get_mac_addr(buf);
+#endif
 
 #ifdef EXAMPLE_GET_MAC
 	/* EXAMPLE code */
@@ -181,6 +174,6 @@ dhd_custom_get_mac_address(unsigned char *buf)
 	}
 #endif /* EXAMPLE_GET_MAC */
 
-	return 0;
+	return ret;
 }
 #endif /* GET_CUSTOM_MAC_ENABLE */

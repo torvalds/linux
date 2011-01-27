@@ -29,7 +29,6 @@
 
 #define STATIC	static
 
-
 #define	SI_BUS			0	
 #define	PCI_BUS			1	
 #define	PCMCIA_BUS		2	

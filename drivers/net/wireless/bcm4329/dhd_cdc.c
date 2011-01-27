@@ -40,12 +40,8 @@
 #include <dhd_proto.h>
 #include <dhd_bus.h>
 #include <dhd_dbg.h>
-#ifdef CUSTOMER_HW2
-int wifi_get_mac_addr(unsigned char *buf);
-#endif
 
 extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
-
 
 /* Packet alignment for most efficient SDIO (can change based on platform) */
 #ifndef DHD_SDALIGN
@@ -78,8 +74,11 @@ dhdcdc_msg(dhd_pub_t *dhd)
 {
 	dhd_prot_t *prot = dhd->prot;
 	int len = ltoh32(prot->msg.len) + sizeof(cdc_ioctl_t);
+	int ret;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
+
+	dhd_os_wake_lock(dhd);
 
 	/* NOTE : cdc->msg.len holds the desired length of the buffer to be
 	 *        returned. Only up to CDC_MAX_MSG_SIZE of this buffer area
@@ -89,7 +88,9 @@ dhdcdc_msg(dhd_pub_t *dhd)
 		len = CDC_MAX_MSG_SIZE;
 
 	/* Send request */
-	return dhd_bus_txctl(dhd->bus, (uchar*)&prot->msg, len);
+	ret = dhd_bus_txctl(dhd->bus, (uchar*)&prot->msg, len);
+	dhd_os_wake_unlock(dhd);
+	return ret;
 }
 
 static int
@@ -322,23 +323,12 @@ dhd_prot_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 	bcm_bprintf(strbuf, "Protocol CDC: reqid %d\n", dhdp->prot->reqid);
 }
 
-#ifdef APSTA_PINGTEST
-extern struct ether_addr guest_eas[MAX_GUEST];
-#endif
 
 void
 dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, void *pktbuf)
 {
 #ifdef BDC
 	struct bdc_header *h;
-#ifdef APSTA_PINGTEST
-	struct	ether_header *eh;
-	int i;
-#ifdef DHD_DEBUG
-	char eabuf1[ETHER_ADDR_STR_LEN];
-	char eabuf2[ETHER_ADDR_STR_LEN];
-#endif /* DHD_DEBUG */
-#endif /* APSTA_PINGTEST */
 #endif /* BDC */
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
@@ -346,9 +336,6 @@ dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, void *pktbuf)
 #ifdef BDC
 	/* Push BDC header used to convey priority for buses that don't */
 
-#ifdef APSTA_PINGTEST
-	eh = (struct ether_header *)PKTDATA(dhd->osh, pktbuf);
-#endif
 
 	PKTPUSH(dhd->osh, pktbuf, BDC_HEADER_LEN);
 
@@ -361,19 +348,6 @@ dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, void *pktbuf)
 
 	h->priority = (PKTPRIO(pktbuf) & BDC_PRIORITY_MASK);
 	h->flags2 = 0;
-#ifdef APSTA_PINGTEST
-	for (i = 0; i < MAX_GUEST; ++i) {
-		if (!ETHER_ISNULLADDR(eh->ether_dhost) &&
-		    bcmp(eh->ether_dhost, guest_eas[i].octet, ETHER_ADDR_LEN) == 0) {
-			DHD_TRACE(("send on if 1; sa %s, da %s\n",
-			       bcm_ether_ntoa((struct ether_addr *)(eh->ether_shost), eabuf1),
-			       bcm_ether_ntoa((struct ether_addr *)(eh->ether_dhost), eabuf2)));
-			/* assume all guest STAs are on interface 1 */
-			h->flags2 = 1;
-			break;
-		}
-	}
-#endif /* APSTA_PINGTEST */
 	h->rssi = 0;
 #endif /* BDC */
 	BDC_SET_IF_IDX(h, ifidx);
