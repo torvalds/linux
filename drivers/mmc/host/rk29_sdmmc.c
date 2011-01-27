@@ -1150,7 +1150,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 	u32			status,  pending;
 	unsigned int		pass_count = 0;
 	bool present;
-	//bool present_old;
+	bool present_old;
 
 	spin_lock(&host->lock);
 	do {
@@ -1161,16 +1161,17 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 		if(pending & SDMMC_INT_CD) {
 		    rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, SDMMC_INT_CD); // clear sd detect int
 			present = rk29_sdmmc_get_cd(host->mmc);
-			//present_old = test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
-			//if(present != present_old) {
-				if (present != 0) {
-					set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+			present_old = test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+			if (present != 0) {
+				set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+				if(present == present_old)	
+					mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(2000));
+				else
 					mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(200));
-				} else {					
-					clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
-					mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(10));					
-				}							
-			//}
+			} else {					
+				clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+				mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(10));					
+			}						
 		}	
 		if(pending & RK29_SDMMC_CMD_ERROR_FLAGS) {
 		    rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,RK29_SDMMC_CMD_ERROR_FLAGS);  //  clear interrupt
