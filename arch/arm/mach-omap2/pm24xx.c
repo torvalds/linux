@@ -363,9 +363,6 @@ static const struct platform_suspend_ops __initdata omap_pm_ops;
 /* XXX This function should be shareable between OMAP2xxx and OMAP3 */
 static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 {
-	clkdm_clear_all_wkdeps(clkdm);
-	clkdm_clear_all_sleepdeps(clkdm);
-
 	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
 		omap2_clkdm_allow_idle(clkdm);
 	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
@@ -411,10 +408,7 @@ static void __init prcm_setup_regs(void)
 	pwrdm_set_next_pwrst(pwrdm, PWRDM_POWER_OFF);
 	omap2_clkdm_sleep(gfx_clkdm);
 
-	/*
-	 * Clear clockdomain wakeup dependencies and enable
-	 * hardware-supervised idle for all clkdms
-	 */
+	/* Enable hardware-supervised idle for all clkdms */
 	clkdm_for_each(clkdms_setup, NULL);
 	clkdm_add_wkdep(mpu_clkdm, wkup_clkdm);
 
