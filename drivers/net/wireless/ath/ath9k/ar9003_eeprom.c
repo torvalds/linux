@@ -3673,7 +3673,7 @@ static void ar9003_hw_internal_regulator_apply(struct ath_hw *ah)
 				return;
 
 			reg_pmu_set = (5 << 1) | (7 << 4) | (1 << 8) |
-				      (7 << 14) | (6 << 17) | (1 << 20) |
+				      (2 << 14) | (6 << 17) | (1 << 20) |
 				      (3 << 24) | (1 << 28);
 
 			REG_WRITE(ah, AR_PHY_PMU1, reg_pmu_set);
