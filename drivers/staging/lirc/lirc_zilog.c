@@ -985,19 +985,26 @@ static unsigned int poll(struct file *filep, poll_table *wait)
 	unsigned int ret;
 
 	dprintk("poll called\n");
-	if (rx == NULL)
-		return -ENODEV;
 
-	mutex_lock(&rx->buf_lock);
+	if (rx == NULL) {
+		/*
+		 * Revisit this, if our poll function ever reports writeable
+		 * status for Tx
+		 */
+		dprintk("poll result = POLLERR\n");
+		return POLLERR;
+	}
 
+	/*
+	 * Add our lirc_buffer's wait_queue to the poll_table. A wake up on
+	 * that buffer's wait queue indicates we may have a new poll status.
+	 */
 	poll_wait(filep, &rx->buf.wait_poll, wait);
 
-	dprintk("poll result = %s\n",
-		lirc_buffer_empty(&rx->buf) ? "0" : "POLLIN|POLLRDNORM");
-
+	/* Indicate what ops could happen immediately without blocking */
 	ret = lirc_buffer_empty(&rx->buf) ? 0 : (POLLIN|POLLRDNORM);
 
-	mutex_unlock(&rx->buf_lock);
+	dprintk("poll result = %s\n", ret ? "POLLIN|POLLRDNORM" : "none");
 	return ret;
 }
 
