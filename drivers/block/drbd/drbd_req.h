@@ -194,6 +194,12 @@ enum drbd_req_state_bits {
 
 	/* Should call drbd_al_complete_io() for this request... */
 	__RQ_IN_ACT_LOG,
+
+	/*
+	 * Set when a processes puts itself to sleep to wait for this request
+	 * to complete.
+	 */
+	__RQ_COLLISION,
 };
 
 #define RQ_LOCAL_PENDING   (1UL << __RQ_LOCAL_PENDING)
@@ -214,6 +220,7 @@ enum drbd_req_state_bits {
 
 #define RQ_WRITE           (1UL << __RQ_WRITE)
 #define RQ_IN_ACT_LOG      (1UL << __RQ_IN_ACT_LOG)
+#define RQ_COLLISION	   (1UL << __RQ_COLLISION)
 
 /* For waking up the frozen transfer log mod_req() has to return if the request
    should be counted in the epoch object*/

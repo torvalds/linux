@@ -176,45 +176,9 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 	    req->epoch == mdev->tconn->newest_tle->br_number)
 		queue_barrier(mdev);
 
-	/* we need to do the conflict detection stuff,
-	 * if the epoch_entries tree is non-empty and
-	 * this request has completed on the network */
-	if ((s & RQ_NET_DONE) && !RB_EMPTY_ROOT(&mdev->epoch_entries)) {
-		const sector_t sector = req->i.sector;
-		const int size = req->i.size;
-		struct drbd_interval *i;
-
-		/* ASSERT:
-		 * there must be no conflicting requests, since
-		 * they must have been failed on the spot */
-
-		i = drbd_find_overlap(&mdev->write_requests, sector, size);
-		if (i) {
-			struct drbd_request *req2 =
-				container_of(i, struct drbd_request, i);
-
-			dev_alert(DEV, "LOGIC BUG: completed: %p %llus +%u; "
-			      "other: %p %llus +%u\n",
-			      req, (unsigned long long)sector, size,
-			      i, (unsigned long long)req2->i.sector, req2->i.size);
-		}
-
-		/* maybe "wake" those conflicting epoch entries
-		 * that wait for this request to finish.
-		 *
-		 * currently, there can be only _one_ such ee
-		 * (well, or some more, which would be pending
-		 * P_DISCARD_ACK not yet sent by the asender...),
-		 * since we block the receiver thread upon the
-		 * first conflict detection, which will wait on
-		 * misc_wait.  maybe we want to assert that?
-		 *
-		 * anyways, if we found one,
-		 * we just have to do a wake_up.  */
-		i = drbd_find_overlap(&mdev->epoch_entries, sector, size);
-		if (i)
-			wake_up(&mdev->misc_wait);
-	}
+	/* Wake up any processes waiting for this request to complete.  */
+	if ((s & RQ_NET_DONE) && (s & RQ_COLLISION))
+		wake_up(&mdev->misc_wait);
 }
 
 void complete_master_bio(struct drbd_conf *mdev,
