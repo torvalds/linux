@@ -668,6 +668,19 @@ static void ath9k_hw_init_qos(struct ath_hw *ah)
 	REGWRITE_BUFFER_FLUSH(ah);
 }
 
+unsigned long ar9003_get_pll_sqsum_dvc(struct ath_hw *ah)
+{
+		REG_WRITE(ah, PLL3, (REG_READ(ah, PLL3) & ~(PLL3_DO_MEAS_MASK)));
+		udelay(100);
+		REG_WRITE(ah, PLL3, (REG_READ(ah, PLL3) | PLL3_DO_MEAS_MASK));
+
+		while ((REG_READ(ah, PLL4) & PLL4_MEAS_DONE) == 0)
+			udelay(100);
+
+		return (REG_READ(ah, PLL3) & SQSUM_DVC_MASK) >> 3;
+}
+EXPORT_SYMBOL(ar9003_get_pll_sqsum_dvc);
+
 static void ath9k_hw_init_pll(struct ath_hw *ah,
 			      struct ath9k_channel *chan)
 {

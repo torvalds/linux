@@ -1129,6 +1129,12 @@ enum {
 #define AR_RTC_PLL_CLKSEL       0x00000300
 #define AR_RTC_PLL_CLKSEL_S     8
 
+#define PLL3 0x16188
+#define PLL3_DO_MEAS_MASK 0x40000000
+#define PLL4 0x1618c
+#define PLL4_MEAS_DONE    0x8
+#define SQSUM_DVC_MASK 0x007ffff8
+
 #define AR_RTC_RESET \
 	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0040) : 0x7040)
 #define AR_RTC_RESET_EN		(0x00000001)
