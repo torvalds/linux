@@ -52,22 +52,28 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 
 	/*
 	 * omap: valid DSS hwmod names
-	 * omap2,3: dss_core, dss_dispc, dss_rfbi, dss_venc
-	 * omap3: dss_dsi1
+	 * omap2,3,4: dss_core, dss_dispc, dss_rfbi, dss_venc
+	 * omap3,4: dss_dsi1
+	 * omap4: dss_dsi2, dss_hdmi
 	 */
 	char *oh_name[] = { "dss_core", "dss_dispc", "dss_rfbi", "dss_venc",
-		"dss_dsi1" };
+		"dss_dsi1", "dss_dsi2", "dss_hdmi" };
 	char *dev_name[] = { "omapdss_dss", "omapdss_dispc", "omapdss_rfbi",
-		"omapdss_venc", "omapdss_dsi1" };
+		"omapdss_venc", "omapdss_dsi1", "omapdss_dsi2",
+		"omapdss_hdmi" };
 	int oh_count;
 
 	memset(&pdata, 0, sizeof(pdata));
 
 	if (cpu_is_omap24xx())
-		oh_count = ARRAY_SIZE(oh_name) - 1;
-		/* last hwmod dev in oh_name is not available for omap2 */
-	else
+		oh_count = ARRAY_SIZE(oh_name) - 3;
+		/* last 3 hwmod dev in oh_name are not available for omap2 */
+	else if (cpu_is_omap44xx())
 		oh_count = ARRAY_SIZE(oh_name);
+	else
+		oh_count = ARRAY_SIZE(oh_name) - 2;
+		/* last 2 hwmod dev in oh_name are not available for omap3 */
+
 
 	pdata.board_data = board_data;
 	pdata.board_data->get_last_off_on_transaction_id = NULL;
