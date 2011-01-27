@@ -74,6 +74,7 @@ static struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 	drbd_clear_interval(&req->i);
 	req->i.sector     = bio_src->bi_sector;
 	req->i.size      = bio_src->bi_size;
+	req->i.local = true;
 	req->i.waiting = false;
 
 	INIT_LIST_HEAD(&req->tl_requests);
@@ -317,8 +318,6 @@ static void _req_may_be_done_not_susp(struct drbd_request *req, struct bio_and_e
  * to happen, but this is the rationale why we also have to check for
  * conflicting requests with local origin, and why we have to do so regardless
  * of whether we allowed multiple primaries.
- *
- * In case we only have one primary, the epoch_entries tree is empty.
  */
 static int _req_conflicts(struct drbd_request *req)
 {
@@ -334,33 +333,14 @@ static int _req_conflicts(struct drbd_request *req)
 
 	i = drbd_find_overlap(&mdev->write_requests, sector, size);
 	if (i) {
-		struct drbd_request *req2 =
-			container_of(i, struct drbd_request, i);
-
-		dev_alert(DEV, "%s[%u] Concurrent local write detected! "
+		dev_alert(DEV, "%s[%u] Concurrent %s write detected! "
 		      "[DISCARD L] new: %llus +%u; "
 		      "pending: %llus +%u\n",
 		      current->comm, current->pid,
+		      i->local ? "local" : "remote",
 		      (unsigned long long)sector, size,
-		      (unsigned long long)req2->i.sector, req2->i.size);
+		      (unsigned long long)i->sector, i->size);
 		goto out_conflict;
-	}
-
-	if (!RB_EMPTY_ROOT(&mdev->epoch_entries)) {
-		/* check for overlapping requests with remote origin */
-		i = drbd_find_overlap(&mdev->epoch_entries, sector, size);
-		if (i) {
-			struct drbd_epoch_entry *e =
-				container_of(i, struct drbd_epoch_entry, i);
-
-			dev_alert(DEV, "%s[%u] Concurrent remote write detected!"
-			      " [DISCARD L] new: %llus +%u; "
-			      "pending: %llus +%u\n",
-			      current->comm, current->pid,
-			      (unsigned long long)sector, size,
-			      (unsigned long long)e->i.sector, e->i.size);
-			goto out_conflict;
-		}
 	}
 
 	/* this is like it should be, and what we expected.

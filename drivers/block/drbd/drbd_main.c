@@ -3450,7 +3450,6 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 		goto out_no_tl;
 	mdev->read_requests = RB_ROOT;
 	mdev->write_requests = RB_ROOT;
-	mdev->epoch_entries = RB_ROOT;
 
 	mdev->current_epoch = kzalloc(sizeof(struct drbd_epoch), GFP_KERNEL);
 	if (!mdev->current_epoch)

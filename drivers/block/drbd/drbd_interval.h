@@ -9,6 +9,7 @@ struct drbd_interval {
 	sector_t sector;	/* start sector of the interval */
 	unsigned int size;	/* size in bytes */
 	sector_t end;		/* highest interval end in subtree */
+	int local:1		/* local or remote request? */;
 	int waiting:1;
 };
 

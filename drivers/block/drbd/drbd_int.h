@@ -1045,9 +1045,6 @@ struct drbd_conf {
 	struct list_head read_ee;   /* IO in progress (any read) */
 	struct list_head net_ee;    /* zero-copy network send in progress */
 
-	/* Interval tree of pending remote write requests (struct drbd_epoch_entry) */
-	struct rb_root epoch_entries;
-
 	/* this one is protected by ee_lock, single thread */
 	struct drbd_epoch_entry *last_write_w_barrier;
 

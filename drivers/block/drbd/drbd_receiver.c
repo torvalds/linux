@@ -336,6 +336,7 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 	drbd_clear_interval(&e->i);
 	e->i.size = data_size;
 	e->i.sector = sector;
+	e->i.local = false;
 	e->i.waiting = false;
 
 	e->epoch = NULL;
@@ -1508,7 +1509,7 @@ find_request(struct drbd_conf *mdev, struct rb_root *root, u64 id,
 
 	/* Request object according to our peer */
 	req = (struct drbd_request *)(unsigned long)id;
-	if (drbd_contains_interval(root, sector, &req->i))
+	if (drbd_contains_interval(root, sector, &req->i) && req->i.local)
 		return req;
 	if (!missing_ok) {
 		dev_err(DEV, "%s: failed to find request %lu, sector %llus\n", func,
@@ -1788,16 +1789,11 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 		/* conflict detection and handling:
 		 * 1. wait on the sequence number,
 		 *    in case this data packet overtook ACK packets.
-		 * 2. check our interval trees for conflicting requests:
-		 *    we only need to check the write_requests tree; the
-		 *    epoch_entries tree cannot contain any overlaps because
-		 *    they were already eliminated on the submitting node.
+		 * 2. check for conflicting write requests.
 		 *
 		 * Note: for two_primaries, we are protocol C,
 		 * so there cannot be any request that is DONE
 		 * but still on the transfer log.
-		 *
-		 * unconditionally add to the epoch_entries tree.
 		 *
 		 * if no conflicting request is found:
 		 *    submit.
@@ -1823,12 +1819,9 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 
 		spin_lock_irq(&mdev->tconn->req_lock);
 
-		drbd_insert_interval(&mdev->epoch_entries, &e->i);
-
 		first = 1;
 		for (;;) {
 			struct drbd_interval *i;
-			struct drbd_request *req2;
 			int have_unacked = 0;
 			int have_conflict = 0;
 			prepare_to_wait(&mdev->misc_wait, &wait,
@@ -1836,18 +1829,23 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 
 			i = drbd_find_overlap(&mdev->write_requests, sector, size);
 			if (i) {
-				req2 = container_of(i, struct drbd_request, i);
-
 				/* only ALERT on first iteration,
 				 * we may be woken up early... */
 				if (first)
-					dev_alert(DEV, "%s[%u] Concurrent local write detected!"
+					dev_alert(DEV, "%s[%u] Concurrent %s write detected!"
 					      "	new: %llus +%u; pending: %llus +%u\n",
 					      current->comm, current->pid,
+					      i->local ? "local" : "remote",
 					      (unsigned long long)sector, size,
-					      (unsigned long long)req2->i.sector, req2->i.size);
-				if (req2->rq_state & RQ_NET_PENDING)
-					++have_unacked;
+					      (unsigned long long)i->sector, i->size);
+
+				if (i->local) {
+					struct drbd_request *req2;
+
+					req2 = container_of(i, struct drbd_request, i);
+					if (req2->rq_state & RQ_NET_PENDING)
+						++have_unacked;
+				}
 				++have_conflict;
 			}
 			if (!have_conflict)
@@ -1873,7 +1871,6 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 			}
 
 			if (signal_pending(current)) {
-				drbd_remove_epoch_entry_interval(mdev, e);
 				spin_unlock_irq(&mdev->tconn->req_lock);
 				finish_wait(&mdev->misc_wait, &wait);
 				goto out_interrupted;
@@ -1896,6 +1893,8 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 			spin_lock_irq(&mdev->tconn->req_lock);
 		}
 		finish_wait(&mdev->misc_wait, &wait);
+
+		drbd_insert_interval(&mdev->write_requests, &e->i);
 	}
 
 	list_add(&e->w.list, &mdev->active_ee);

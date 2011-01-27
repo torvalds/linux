@@ -123,7 +123,7 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
 	list_add_tail(&e->w.list, &mdev->done_ee);
 
 	/*
-	 * Do not remove from the epoch_entries tree here: we did not send the
+	 * Do not remove from the write_requests tree here: we did not send the
 	 * Ack yet and did not wake possibly waiting conflicting requests.
 	 * Removed from the tree from "drbd_process_done_ee" within the
 	 * appropriate w.cb (e_end_block/e_end_resync_block) or from
