@@ -1755,7 +1755,6 @@ xfs_trans_commit_cil(
 	int			flags)
 {
 	struct xfs_log_vec	*log_vector;
-	int			error;
 
 	/*
 	 * Get each log item to allocate a vector structure for
@@ -1766,9 +1765,7 @@ xfs_trans_commit_cil(
 	if (!log_vector)
 		return ENOMEM;
 
-	error = xfs_log_commit_cil(mp, tp, log_vector, commit_lsn, flags);
-	if (error)
-		return error;
+	xfs_log_commit_cil(mp, tp, log_vector, commit_lsn, flags);
 
 	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 	xfs_trans_free(tp);

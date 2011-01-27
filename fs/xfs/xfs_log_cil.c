@@ -625,7 +625,7 @@ out_abort:
  * background commit, returns without it held once background commits are
  * allowed again.
  */
-int
+void
 xfs_log_commit_cil(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
@@ -639,11 +639,6 @@ xfs_log_commit_cil(
 
 	if (flags & XFS_TRANS_RELEASE_LOG_RES)
 		log_flags = XFS_LOG_REL_PERM_RESERV;
-
-	if (XLOG_FORCED_SHUTDOWN(log)) {
-		xlog_cil_free_logvec(log_vector);
-		return XFS_ERROR(EIO);
-	}
 
 	/*
 	 * do all the hard work of formatting items (including memory
@@ -704,7 +699,6 @@ xfs_log_commit_cil(
 	 */
 	if (push)
 		xlog_cil_push(log, 0);
-	return 0;
 }
 
 /*
