@@ -2430,7 +2430,7 @@ xfs_bmap_btalloc_nullfb(
 		startag = ag = 0;
 
 	pag = xfs_perag_get(mp, ag);
-	while (*blen < ap->alen) {
+	while (*blen < args->maxlen) {
 		if (!pag->pagf_init) {
 			error = xfs_alloc_pagf_init(mp, args->tp, ag,
 						    XFS_ALLOC_FLAG_TRYLOCK);
@@ -2452,7 +2452,7 @@ xfs_bmap_btalloc_nullfb(
 			notinit = 1;
 
 		if (xfs_inode_is_filestream(ap->ip)) {
-			if (*blen >= ap->alen)
+			if (*blen >= args->maxlen)
 				break;
 
 			if (ap->userdata) {
@@ -2498,14 +2498,14 @@ xfs_bmap_btalloc_nullfb(
 	 * If the best seen length is less than the request
 	 * length, use the best as the minimum.
 	 */
-	else if (*blen < ap->alen)
+	else if (*blen < args->maxlen)
 		args->minlen = *blen;
 	/*
-	 * Otherwise we've seen an extent as big as alen,
+	 * Otherwise we've seen an extent as big as maxlen,
 	 * use that as the minimum.
 	 */
 	else
-		args->minlen = ap->alen;
+		args->minlen = args->maxlen;
 
 	/*
 	 * set the failure fallback case to look in the selected
@@ -2573,7 +2573,9 @@ xfs_bmap_btalloc(
 	args.tp = ap->tp;
 	args.mp = mp;
 	args.fsbno = ap->rval;
-	args.maxlen = MIN(ap->alen, mp->m_sb.sb_agblocks);
+
+	/* Trim the allocation back to the maximum an AG can fit. */
+	args.maxlen = MIN(ap->alen, XFS_ALLOC_AG_MAX_USABLE(mp));
 	args.firstblock = ap->firstblock;
 	blen = 0;
 	if (nullfb) {
@@ -2621,7 +2623,7 @@ xfs_bmap_btalloc(
 			/*
 			 * Adjust for alignment
 			 */
-			if (blen > args.alignment && blen <= ap->alen)
+			if (blen > args.alignment && blen <= args.maxlen)
 				args.minlen = blen - args.alignment;
 			args.minalignslop = 0;
 		} else {
@@ -2640,7 +2642,7 @@ xfs_bmap_btalloc(
 			 * of minlen+alignment+slop doesn't go up
 			 * between the calls.
 			 */
-			if (blen > mp->m_dalign && blen <= ap->alen)
+			if (blen > mp->m_dalign && blen <= args.maxlen)
 				nextminlen = blen - mp->m_dalign;
 			else
 				nextminlen = args.minlen;
