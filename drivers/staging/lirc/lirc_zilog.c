@@ -89,6 +89,8 @@ struct IR_tx {
 };
 
 struct IR {
+	struct list_head list;
+
 	struct lirc_driver l;
 
 	struct mutex ir_lock;
@@ -99,9 +101,9 @@ struct IR {
 	struct IR_tx *tx;
 };
 
-/* Minor -> data mapping */
-static struct mutex ir_devices_lock;
-static struct IR *ir_devices[MAX_IRCTL_DEVICES];
+/* IR transceiver instance object list */
+static DEFINE_MUTEX(ir_devices_lock);
+static LIST_HEAD(ir_devices_list);
 
 /* Block size for IR transmitter */
 #define TX_BLOCK_SIZE	99
@@ -1063,10 +1065,16 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 /* ir_devices_lock must be held */
 static struct IR *find_ir_device_by_minor(unsigned int minor)
 {
-	if (minor >= MAX_IRCTL_DEVICES)
+	struct IR *ir;
+
+	if (list_empty(&ir_devices_list))
 		return NULL;
 
-	return ir_devices[minor];
+	list_for_each_entry(ir, &ir_devices_list, list)
+		if (ir->l.minor == minor)
+			return ir;
+
+	return NULL;
 }
 
 /*
@@ -1172,25 +1180,21 @@ static void destroy_rx_kthread(struct IR_rx *rx)
 /* ir_devices_lock must be held */
 static int add_ir_device(struct IR *ir)
 {
-	int i;
-
-	for (i = 0; i < MAX_IRCTL_DEVICES; i++)
-		if (ir_devices[i] == NULL) {
-			ir_devices[i] = ir;
-			break;
-		}
-
-	return i == MAX_IRCTL_DEVICES ? -ENOMEM : i;
+	list_add_tail(&ir->list, &ir_devices_list);
+	return 0;
 }
 
 /* ir_devices_lock must be held */
 static void del_ir_device(struct IR *ir)
 {
-	int i;
+	struct IR *p;
 
-	for (i = 0; i < MAX_IRCTL_DEVICES; i++)
-		if (ir_devices[i] == ir) {
-			ir_devices[i] = NULL;
+	if (list_empty(&ir_devices_list))
+		return;
+
+	list_for_each_entry(p, &ir_devices_list, list)
+		if (p == ir) {
+			list_del(&p->list);
 			break;
 		}
 }
@@ -1237,17 +1241,16 @@ static int ir_remove(struct i2c_client *client)
 /* ir_devices_lock must be held */
 static struct IR *find_ir_device_by_adapter(struct i2c_adapter *adapter)
 {
-	int i;
-	struct IR *ir = NULL;
+	struct IR *ir;
 
-	for (i = 0; i < MAX_IRCTL_DEVICES; i++)
-		if (ir_devices[i] != NULL &&
-		    ir_devices[i]->adapter == adapter) {
-			ir = ir_devices[i];
-			break;
-		}
+	if (list_empty(&ir_devices_list))
+		return NULL;
 
-	return ir;
+	list_for_each_entry(ir, &ir_devices_list, list)
+		if (ir->adapter == adapter)
+			return ir;
+
+	return NULL;
 }
 
 static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -1284,6 +1287,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			goto out_no_ir;
 		}
 		/* store for use in ir_probe() again, and open() later on */
+		INIT_LIST_HEAD(&ir->list);
 		ret = add_ir_device(ir);
 		if (ret)
 			goto out_free_ir;
@@ -1421,7 +1425,6 @@ static int __init zilog_init(void)
 	zilog_notify("Zilog/Hauppauge IR driver initializing\n");
 
 	mutex_init(&tx_data_lock);
-	mutex_init(&ir_devices_lock);
 
 	request_module("firmware_class");
 
