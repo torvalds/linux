@@ -320,14 +320,6 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-/*
- * Set up static virtual mappings.
- */
-static void __init mx31_3ds_map_io(void)
-{
-	mx31_map_io();
-}
-
 /*!
  * Board specific initialization.
  */
@@ -382,7 +374,7 @@ static struct sys_timer mx31_3ds_timer = {
 MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
-	.map_io         = mx31_3ds_map_io,
+	.map_io         = mx31_map_io,
 	.init_irq       = mx31_init_irq,
 	.init_machine   = mxc_board_init,
 	.timer          = &mx31_3ds_timer,
