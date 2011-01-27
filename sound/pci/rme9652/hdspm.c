@@ -575,12 +575,6 @@ static char *texts_freq[] = {
 	"192 kHz"
 };
 
-static char *texts_sync_status[] = {
-	"no lock",
-	"lock",
-	"sync"
-};
-
 static char *texts_ports_madi[] = {
 	"MADI.1", "MADI.2", "MADI.3", "MADI.4", "MADI.5", "MADI.6",
 	"MADI.7", "MADI.8", "MADI.9", "MADI.10", "MADI.11", "MADI.12",
@@ -690,28 +684,6 @@ static char channel_map_unity_ss[HDSPM_MAX_CHANNELS] = {
 	40, 41, 42, 43, 44, 45, 46, 47,
 	48, 49, 50, 51, 52, 53, 54, 55,
 	56, 57, 58, 59, 60, 61, 62, 63
-};
-
-static char channel_map_unity_ds[HDSPM_MAX_CHANNELS] = {
-	0, 2, 4, 6, 8, 10, 12, 14,
-	16, 18, 20, 22, 24, 26, 28, 30,
-	32, 34, 36, 38, 40, 42, 44, 46,
-	48, 50, 52, 54, 56, 58, 60, 62,
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
-};
-
-static char channel_map_unity_qs[HDSPM_MAX_CHANNELS] = {
-	0, 4, 8, 12, 16, 20, 24, 28,
-	32, 36, 40, 44, 48, 52, 56, 60,
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
 };
 
 static char channel_map_raydat_ss[HDSPM_MAX_CHANNELS] = {
@@ -952,6 +924,8 @@ struct hdspm {
 	int texts_autosync_items;
 
 	cycles_t last_interrupt;
+
+	struct hdspm_peak_rms peak_rms;
 };
 
 
@@ -5952,7 +5926,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	struct hdspm_config info;
 	struct hdspm_status status;
 	struct hdspm_version hdspm_version;
-	struct hdspm_peak_rms levels;
+	struct hdspm_peak_rms *levels;
 	struct hdspm_ltc ltc;
 	unsigned int statusregister;
 	long unsigned int s;
@@ -5961,28 +5935,29 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	switch (cmd) {
 
 	case SNDRV_HDSPM_IOCTL_GET_PEAK_RMS:
+		levels = &hdspm->peak_rms;
 		for (i = 0; i < HDSPM_MAX_CHANNELS; i++) {
-			levels.input_peaks[i] =
+			levels->input_peaks[i] =
 				readl(hdspm->iobase +
 						HDSPM_MADI_INPUT_PEAK + i*4);
-			levels.playback_peaks[i] =
+			levels->playback_peaks[i] =
 				readl(hdspm->iobase +
 						HDSPM_MADI_PLAYBACK_PEAK + i*4);
-			levels.output_peaks[i] =
+			levels->output_peaks[i] =
 				readl(hdspm->iobase +
 						HDSPM_MADI_OUTPUT_PEAK + i*4);
 
-			levels.input_rms[i] =
+			levels->input_rms[i] =
 				((uint64_t) readl(hdspm->iobase +
 					HDSPM_MADI_INPUT_RMS_H + i*4) << 32) |
 				(uint64_t) readl(hdspm->iobase +
 						HDSPM_MADI_INPUT_RMS_L + i*4);
-			levels.playback_rms[i] =
+			levels->playback_rms[i] =
 				((uint64_t)readl(hdspm->iobase +
 					HDSPM_MADI_PLAYBACK_RMS_H+i*4) << 32) |
 				(uint64_t)readl(hdspm->iobase +
 					HDSPM_MADI_PLAYBACK_RMS_L + i*4);
-			levels.output_rms[i] =
+			levels->output_rms[i] =
 				((uint64_t)readl(hdspm->iobase +
 					HDSPM_MADI_OUTPUT_RMS_H + i*4) << 32) |
 				(uint64_t)readl(hdspm->iobase +
@@ -5990,15 +5965,15 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 		}
 
 		if (hdspm->system_sample_rate > 96000) {
-			levels.speed = qs;
+			levels->speed = qs;
 		} else if (hdspm->system_sample_rate > 48000) {
-			levels.speed = ds;
+			levels->speed = ds;
 		} else {
-			levels.speed = ss;
+			levels->speed = ss;
 		}
-		levels.status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
+		levels->status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
 
-		s = copy_to_user(argp, &levels, sizeof(struct hdspm_peak_rms));
+		s = copy_to_user(argp, levels, sizeof(struct hdspm_peak_rms));
 		if (0 != s) {
 			/* snd_printk(KERN_ERR "copy_to_user(.., .., %lu): %lu
 			 [Levels]\n", sizeof(struct hdspm_peak_rms), s);
