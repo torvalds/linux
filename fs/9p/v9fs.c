@@ -263,18 +263,11 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	list_add(&v9ses->slist, &v9fs_sessionlist);
 	spin_unlock(&v9fs_sessionlist_lock);
 
-	v9ses->flags = V9FS_ACCESS_USER;
 	strcpy(v9ses->uname, V9FS_DEFUSER);
 	strcpy(v9ses->aname, V9FS_DEFANAME);
 	v9ses->uid = ~0;
 	v9ses->dfltuid = V9FS_DEFUID;
 	v9ses->dfltgid = V9FS_DEFGID;
-
-	rc = v9fs_parse_options(v9ses, data);
-	if (rc < 0) {
-		retval = rc;
-		goto error;
-	}
 
 	v9ses->clnt = p9_client_create(dev_name, data);
 	if (IS_ERR(v9ses->clnt)) {
@@ -284,10 +277,20 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		goto error;
 	}
 
-	if (p9_is_proto_dotl(v9ses->clnt))
+	v9ses->flags = V9FS_ACCESS_USER;
+
+	if (p9_is_proto_dotl(v9ses->clnt)) {
+		v9ses->flags = V9FS_ACCESS_CLIENT;
 		v9ses->flags |= V9FS_PROTO_2000L;
-	else if (p9_is_proto_dotu(v9ses->clnt))
+	} else if (p9_is_proto_dotu(v9ses->clnt)) {
 		v9ses->flags |= V9FS_PROTO_2000U;
+	}
+
+	rc = v9fs_parse_options(v9ses, data);
+	if (rc < 0) {
+		retval = rc;
+		goto error;
+	}
 
 	v9ses->maxdata = v9ses->clnt->msize - P9_IOHDRSZ;
 
