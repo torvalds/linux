@@ -230,6 +230,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	cancel_work_sync(&sc->paprd_work);
 	cancel_work_sync(&sc->hw_check_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
+	cancel_delayed_work_sync(&sc->hw_pll_work);
 
 	ath9k_ps_wakeup(sc);
 
@@ -290,6 +291,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		if (sc->sc_flags & SC_OP_BEACONS)
 			ath_beacon_config(sc, NULL);
 		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
+		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/2);
 		ath_start_ani(common);
 	}
 
@@ -1263,6 +1265,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 		cancel_delayed_work_sync(&sc->ath_led_blink_work);
 
 	cancel_delayed_work_sync(&sc->tx_complete_work);
+	cancel_delayed_work_sync(&sc->hw_pll_work);
 	cancel_work_sync(&sc->paprd_work);
 	cancel_work_sync(&sc->hw_check_work);
 

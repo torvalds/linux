@@ -641,6 +641,7 @@ struct ath_softc {
 #endif
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;
+	struct delayed_work hw_pll_work;
 	struct ath_btcoex btcoex;
 
 	struct ath_descdma txsdma;

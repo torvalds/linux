@@ -2091,6 +2091,28 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	}
 }
 
+static void ath_hw_pll_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc,
+					    hw_pll_work.work);
+	static int count;
+
+	if (AR_SREV_9485(sc->sc_ah)) {
+		if (ar9003_get_pll_sqsum_dvc(sc->sc_ah) >= 0x40000) {
+			count++;
+
+			if (count == 3) {
+				/* Rx is hung for more than 500ms. Reset it */
+				ath_reset(sc, true);
+				count = 0;
+			}
+		} else
+			count = 0;
+
+		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/5);
+	}
+}
+
 static void ath_tx_complete_poll_work(struct work_struct *work)
 {
 	struct ath_softc *sc = container_of(work, struct ath_softc,
@@ -2312,6 +2334,7 @@ int ath_tx_init(struct ath_softc *sc, int nbufs)
 	}
 
 	INIT_DELAYED_WORK(&sc->tx_complete_work, ath_tx_complete_poll_work);
+	INIT_DELAYED_WORK(&sc->hw_pll_work, ath_hw_pll_work);
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		error = ath_tx_edma_init(sc);
