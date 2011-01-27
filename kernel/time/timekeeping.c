@@ -969,3 +969,16 @@ void get_xtime_and_monotonic_offset(struct timespec *xtim, struct timespec *wtom
 		*wtom = wall_to_monotonic;
 	} while (read_seqretry(&xtime_lock, seq));
 }
+
+/**
+ * xtime_update() - advances the timekeeping infrastructure
+ * @ticks:	number of ticks, that have elapsed since the last call.
+ *
+ * Must be called with interrupts disabled.
+ */
+void xtime_update(unsigned long ticks)
+{
+	write_seqlock(&xtime_lock);
+	do_timer(ticks);
+	write_sequnlock(&xtime_lock);
+}
