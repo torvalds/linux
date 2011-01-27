@@ -563,8 +563,11 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 	rcu_read_unlock();
 
-	if (needreset)
+	if (needreset) {
+		spin_unlock_bh(&sc->sc_pcu_lock);
 		ath_reset(sc, false);
+		spin_lock_bh(&sc->sc_pcu_lock);
+	}
 }
 
 static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
