@@ -267,19 +267,24 @@ static void pl08x_resume_phy_chan(struct pl08x_phy_chan *ch)
 }
 
 
-/* Stops the channel */
-static void pl08x_stop_phy_chan(struct pl08x_phy_chan *ch)
+/*
+ * pl08x_terminate_phy_chan() stops the channel, clears the FIFO and
+ * clears any pending interrupt status.  This should not be used for
+ * an on-going transfer, but as a method of shutting down a channel
+ * (eg, when it's no longer used) or terminating a transfer.
+ */
+static void pl08x_terminate_phy_chan(struct pl08x_driver_data *pl08x,
+	struct pl08x_phy_chan *ch)
 {
-	u32 val;
+	u32 val = readl(ch->base + PL080_CH_CONFIG);
 
-	pl08x_pause_phy_chan(ch);
+	val &= ~(PL080_CONFIG_ENABLE | PL080_CONFIG_ERR_IRQ_MASK |
+	         PL080_CONFIG_TC_IRQ_MASK);
 
-	/* Disable channel */
-	val = readl(ch->base + PL080_CH_CONFIG);
-	val &= ~PL080_CONFIG_ENABLE;
-	val &= ~PL080_CONFIG_ERR_IRQ_MASK;
-	val &= ~PL080_CONFIG_TC_IRQ_MASK;
 	writel(val, ch->base + PL080_CH_CONFIG);
+
+	writel(1 << ch->id, pl08x->base + PL080_ERR_CLEAR);
+	writel(1 << ch->id, pl08x->base + PL080_TC_CLEAR);
 }
 
 static inline u32 get_bytes_in_cctl(u32 cctl)
@@ -404,13 +409,12 @@ static inline void pl08x_put_phy_channel(struct pl08x_driver_data *pl08x,
 {
 	unsigned long flags;
 
+	spin_lock_irqsave(&ch->lock, flags);
+
 	/* Stop the channel and clear its interrupts */
-	pl08x_stop_phy_chan(ch);
-	writel((1 << ch->id), pl08x->base + PL080_ERR_CLEAR);
-	writel((1 << ch->id), pl08x->base + PL080_TC_CLEAR);
+	pl08x_terminate_phy_chan(pl08x, ch);
 
 	/* Mark it as free */
-	spin_lock_irqsave(&ch->lock, flags);
 	ch->serving = NULL;
 	spin_unlock_irqrestore(&ch->lock, flags);
 }
@@ -1449,7 +1453,7 @@ static int pl08x_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		plchan->state = PL08X_CHAN_IDLE;
 
 		if (plchan->phychan) {
-			pl08x_stop_phy_chan(plchan->phychan);
+			pl08x_terminate_phy_chan(pl08x, plchan->phychan);
 
 			/*
 			 * Mark physical channel as free and free any slave
