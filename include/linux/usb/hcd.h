@@ -233,6 +233,19 @@ struct hc_driver {
 	int	(*urb_dequeue)(struct usb_hcd *hcd,
 				struct urb *urb, int status);
 
+	/*
+	 * (optional) these hooks allow an HCD to override the default DMA
+	 * mapping and unmapping routines.  In general, they shouldn't be
+	 * necessary unless the host controller has special DMA requirements,
+	 * such as alignment contraints.  If these are not specified, the
+	 * general usb_hcd_(un)?map_urb_for_dma functions will be used instead
+	 * (and it may be a good idea to call these functions in your HCD
+	 * implementation)
+	 */
+	int	(*map_urb_for_dma)(struct usb_hcd *hcd, struct urb *urb,
+				   gfp_t mem_flags);
+	void    (*unmap_urb_for_dma)(struct usb_hcd *hcd, struct urb *urb);
+
 	/* hw synch, freeing endpoint resources that urb_dequeue can't */
 	void	(*endpoint_disable)(struct usb_hcd *hcd,
 			struct usb_host_endpoint *ep);
@@ -329,6 +342,8 @@ extern int usb_hcd_submit_urb(struct urb *urb, gfp_t mem_flags);
 extern int usb_hcd_unlink_urb(struct urb *urb, int status);
 extern void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb,
 		int status);
+extern int usb_hcd_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
+		gfp_t mem_flags);
 extern void usb_hcd_unmap_urb_setup_for_dma(struct usb_hcd *, struct urb *);
 extern void usb_hcd_unmap_urb_for_dma(struct usb_hcd *, struct urb *);
 extern void usb_hcd_flush_endpoint(struct usb_device *udev,
