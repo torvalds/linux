@@ -224,10 +224,11 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 		irqmask = MCI_RXFIFOHALFFULLMASK;
 
 		/*
-		 * If we have less than a FIFOSIZE of bytes to transfer,
-		 * trigger a PIO interrupt as soon as any data is available.
+		 * If we have less than the fifo 'half-full' threshold to
+		 * transfer, trigger a PIO interrupt as soon as any data
+		 * is available.
 		 */
-		if (host->size < variant->fifosize)
+		if (host->size < variant->fifohalfsize)
 			irqmask |= MCI_RXDATAAVLBLMASK;
 	} else {
 		/*
@@ -502,10 +503,10 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 	local_irq_restore(flags);
 
 	/*
-	 * If we're nearing the end of the read, switch to
-	 * "any data available" mode.
+	 * If we have less than the fifo 'half-full' threshold to transfer,
+	 * trigger a PIO interrupt as soon as any data is available.
 	 */
-	if (status & MCI_RXACTIVE && host->size < variant->fifosize)
+	if (status & MCI_RXACTIVE && host->size < variant->fifohalfsize)
 		mmci_set_mask1(host, MCI_RXDATAAVLBLMASK);
 
 	/*
