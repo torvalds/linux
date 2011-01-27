@@ -674,23 +674,6 @@ unsigned long nsecs_to_jiffies(u64 n)
 #endif
 }
 
-#if (BITS_PER_LONG < 64)
-u64 get_jiffies_64(void)
-{
-	unsigned long seq;
-	u64 ret;
-
-	do {
-		seq = read_seqbegin(&xtime_lock);
-		ret = jiffies_64;
-	} while (read_seqretry(&xtime_lock, seq));
-	return ret;
-}
-EXPORT_SYMBOL(get_jiffies_64);
-#endif
-
-EXPORT_SYMBOL(jiffies);
-
 /*
  * Add two timespec values and do a safety check for overflow.
  * It's assumed that both values are valid (>= 0)
