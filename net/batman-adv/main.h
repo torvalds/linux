@@ -22,9 +22,6 @@
 #ifndef _NET_BATMAN_ADV_MAIN_H_
 #define _NET_BATMAN_ADV_MAIN_H_
 
-/* Kernel Programming */
-#define LINUX
-
 #define DRIVER_AUTHOR "Marek Lindner <lindner_marek@yahoo.de>, " \
 		      "Simon Wunderlich <siwu@hrz.tu-chemnitz.de>"
 #define DRIVER_DESC   "B.A.T.M.A.N. advanced"
@@ -54,7 +51,6 @@
 
 #define NUM_WORDS (TQ_LOCAL_WINDOW_SIZE / WORD_BIT_SIZE)
 
-#define PACKBUFF_SIZE 2000
 #define LOG_BUF_LEN 8192	  /* has to be a power of 2 */
 
 #define VIS_INTERVAL 5000	/* 5 seconds */
@@ -96,14 +92,10 @@
 #define DBG_ROUTES 2	/* route or hna added / changed / deleted */
 #define DBG_ALL 3
 
-#define LOG_BUF_LEN 8192          /* has to be a power of 2 */
-
 
 /*
  *  Vis
  */
-
-/* #define VIS_SUBCLUSTERS_DISABLED */
 
 /*
  * Kernel headers
@@ -158,13 +150,6 @@ static inline void bat_dbg(char type __always_unused,
 }
 #endif
 
-#define bat_warning(net_dev, fmt, arg...)				\
-	do {								\
-		struct net_device *_netdev = (net_dev);                 \
-		struct bat_priv *_batpriv = netdev_priv(_netdev);       \
-		bat_dbg(DBG_ALL, _batpriv, fmt, ## arg);		\
-		pr_warning("%s: " fmt, _netdev->name, ## arg);		\
-	} while (0)
 #define bat_info(net_dev, fmt, arg...)					\
 	do {								\
 		struct net_device *_netdev = (net_dev);                 \
