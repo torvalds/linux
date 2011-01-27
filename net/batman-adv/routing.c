@@ -807,13 +807,11 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 {
 	struct orig_node *orig_node;
 	struct icmp_packet_rr *icmp_packet;
-	struct ethhdr *ethhdr;
 	struct batman_if *batman_if;
 	int ret;
 	uint8_t dstaddr[ETH_ALEN];
 
 	icmp_packet = (struct icmp_packet_rr *)skb->data;
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* add data to device queue */
 	if (icmp_packet->msg_type != ECHO_REQUEST) {
@@ -845,7 +843,6 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 			return NET_RX_DROP;
 
 		icmp_packet = (struct icmp_packet_rr *)skb->data;
-		ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 		memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
 		memcpy(icmp_packet->orig,
@@ -867,13 +864,11 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 {
 	struct orig_node *orig_node;
 	struct icmp_packet *icmp_packet;
-	struct ethhdr *ethhdr;
 	struct batman_if *batman_if;
 	int ret;
 	uint8_t dstaddr[ETH_ALEN];
 
 	icmp_packet = (struct icmp_packet *)skb->data;
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* send TTL exceeded if packet is an echo request (traceroute) */
 	if (icmp_packet->msg_type != ECHO_REQUEST) {
@@ -906,7 +901,6 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 			return NET_RX_DROP;
 
 		icmp_packet = (struct icmp_packet *) skb->data;
-		ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 		memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
 		memcpy(icmp_packet->orig,
@@ -998,7 +992,6 @@ int recv_icmp_packet(struct sk_buff *skb, struct batman_if *recv_if)
 			return NET_RX_DROP;
 
 		icmp_packet = (struct icmp_packet_rr *)skb->data;
-		ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 		/* decrement ttl */
 		icmp_packet->ttl--;
