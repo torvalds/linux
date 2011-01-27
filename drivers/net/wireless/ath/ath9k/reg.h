@@ -1083,6 +1083,17 @@ enum {
 #define AR_ENT_OTP		  0x40d8
 #define AR_ENT_OTP_CHAIN2_DISABLE               0x00020000
 #define AR_ENT_OTP_MPSD		0x00800000
+#define AR_CH0_BB_DPLL2          0x16184
+#define AR_CH0_BB_DPLL3          0x16188
+#define AR_CH0_DDR_DPLL2         0x16244
+#define AR_CH0_DDR_DPLL3         0x16248
+#define AR_CH0_DPLL2_KD              0x03F80000
+#define AR_CH0_DPLL2_KD_S            19
+#define AR_CH0_DPLL2_KI              0x3C000000
+#define AR_CH0_DPLL2_KI_S            26
+#define AR_CH0_DPLL3_PHASE_SHIFT     0x3F800000
+#define AR_CH0_DPLL3_PHASE_SHIFT_S   23
+#define AR_PHY_CCA_NOM_VAL_2GHZ      -118
 
 #define AR_RTC_9300_PLL_DIV          0x000003ff
 #define AR_RTC_9300_PLL_DIV_S        0
