@@ -66,7 +66,7 @@ static irqreturn_t sun3_int5(int irq, void *dev_id)
 #ifdef CONFIG_SUN3
 	intersil_clear();
 #endif
-        do_timer(1);
+	xtime_update(1);
 	update_process_times(user_mode(get_irq_regs()));
         if (!(kstat_cpu(0).irqs[irq] % 20))
                 sun3_leds(led_pattern[(kstat_cpu(0).irqs[irq] % 160) / 20]);
