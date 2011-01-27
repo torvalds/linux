@@ -51,6 +51,13 @@ struct inet_peer {
 
 void			inet_initpeers(void) __init;
 
+#define INETPEER_METRICS_NEW	(~(u32) 0)
+
+static inline bool inet_metrics_new(const struct inet_peer *p)
+{
+	return p->metrics[RTAX_LOCK-1] == INETPEER_METRICS_NEW;
+}
+
 /* can be called with or without local BH being disabled */
 struct inet_peer	*inet_getpeer(struct inetpeer_addr *daddr, int create);
 
