@@ -67,9 +67,8 @@ struct IR_rx {
 	/* RX device */
 	struct i2c_client *c;
 
-	/* RX device buffer & lock */
+	/* RX device buffer */
 	struct lirc_buffer buf;
-	struct mutex buf_lock;
 
 	/* RX polling thread data */
 	struct task_struct *task;
@@ -718,18 +717,15 @@ static ssize_t read(struct file *filep, char *outbuf, size_t n, loff_t *ppos)
 	struct IR *ir = filep->private_data;
 	struct IR_rx *rx = ir->rx;
 	int ret = 0, written = 0;
+	unsigned int m;
 	DECLARE_WAITQUEUE(wait, current);
 
 	dprintk("read called\n");
 	if (rx == NULL)
 		return -ENODEV;
 
-	if (mutex_lock_interruptible(&rx->buf_lock))
-		return -ERESTARTSYS;
-
 	if (n % rx->buf.chunk_size) {
 		dprintk("read result = -EINVAL\n");
-		mutex_unlock(&rx->buf_lock);
 		return -EINVAL;
 	}
 
@@ -767,19 +763,19 @@ static ssize_t read(struct file *filep, char *outbuf, size_t n, loff_t *ppos)
 			set_current_state(TASK_INTERRUPTIBLE);
 		} else {
 			unsigned char buf[rx->buf.chunk_size];
-			lirc_buffer_read(&rx->buf, buf);
-			ret = copy_to_user((void *)outbuf+written, buf,
-					   rx->buf.chunk_size);
-			written += rx->buf.chunk_size;
+			m = lirc_buffer_read(&rx->buf, buf);
+			if (m == rx->buf.chunk_size) {
+				ret = copy_to_user((void *)outbuf+written, buf,
+						   rx->buf.chunk_size);
+				written += rx->buf.chunk_size;
+			}
 		}
 	}
 
 	remove_wait_queue(&rx->buf.wait_poll, &wait);
 	set_current_state(TASK_RUNNING);
-	mutex_unlock(&rx->buf_lock);
 
-	dprintk("read result = %s (%d)\n",
-		ret ? "-EFAULT" : "OK", ret);
+	dprintk("read result = %d (%s)\n", ret, ret ? "Error" : "OK");
 
 	return ret ? ret : written;
 }
@@ -1327,7 +1323,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		if (ret)
 			goto out_free_xx;
 
-		mutex_init(&ir->rx->buf_lock);
 		ir->rx->c = client;
 		ir->rx->hdpvr_data_fmt =
 			       (id->driver_data & ID_FLAG_HDPVR) ? true : false;
