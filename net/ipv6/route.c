@@ -97,6 +97,36 @@ static struct rt6_info *rt6_get_route_info(struct net *net,
 					   struct in6_addr *gwaddr, int ifindex);
 #endif
 
+static u32 *ipv6_cow_metrics(struct dst_entry *dst, unsigned long old)
+{
+	struct rt6_info *rt = (struct rt6_info *) dst;
+	struct inet_peer *peer;
+	u32 *p = NULL;
+
+	if (!rt->rt6i_peer)
+		rt6_bind_peer(rt, 1);
+
+	peer = rt->rt6i_peer;
+	if (peer) {
+		u32 *old_p = __DST_METRICS_PTR(old);
+		unsigned long prev, new;
+
+		p = peer->metrics;
+		if (inet_metrics_new(peer))
+			memcpy(p, old_p, sizeof(u32) * RTAX_MAX);
+
+		new = (unsigned long) p;
+		prev = cmpxchg(&dst->_metrics, old, new);
+
+		if (prev != old) {
+			p = __DST_METRICS_PTR(prev);
+			if (prev & DST_METRICS_READ_ONLY)
+				p = NULL;
+		}
+	}
+	return p;
+}
+
 static struct dst_ops ip6_dst_ops_template = {
 	.family			=	AF_INET6,
 	.protocol		=	cpu_to_be16(ETH_P_IPV6),
@@ -105,7 +135,7 @@ static struct dst_ops ip6_dst_ops_template = {
 	.check			=	ip6_dst_check,
 	.default_advmss		=	ip6_default_advmss,
 	.default_mtu		=	ip6_default_mtu,
-	.cow_metrics		=	dst_cow_metrics_generic,
+	.cow_metrics		=	ipv6_cow_metrics,
 	.destroy		=	ip6_dst_destroy,
 	.ifdown			=	ip6_dst_ifdown,
 	.negative_advice	=	ip6_negative_advice,
@@ -198,7 +228,6 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 		rt->rt6i_idev = NULL;
 		in6_dev_put(idev);
 	}
-	dst_destroy_metrics_generic(dst);
 	if (peer) {
 		rt->rt6i_peer = NULL;
 		inet_putpeer(peer);
