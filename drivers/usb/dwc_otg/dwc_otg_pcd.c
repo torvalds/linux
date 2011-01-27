@@ -83,12 +83,7 @@
 #include "dwc_otg_pcd.h"
 #include "dwc_otg_regs.h"
 
-#ifdef CONFIG_ANDROID_POWER
 #include <linux/usb/composite.h>
-#include <linux/android_power.h>
-android_suspend_lock_t usb_msc_lock;
-#endif
-
 
 /**
  * Static PCD pointer for use in usb_gadget_register_driver and
@@ -1094,7 +1089,7 @@ static int32_t dwc_otg_pcd_stop_cb( void *_p )
 static int32_t dwc_otg_pcd_suspend_cb( void *_p ,int suspend)
 {
 	dwc_otg_pcd_t *pcd = (dwc_otg_pcd_t *)_p;
-#ifdef CONFIG_ANDROID_POWER
+//#ifdef CONFIG_ANDROID_POWER
 	/* yk@rk 20100520
 	 * PC disconnect the USB, unlock the msc_lock and
 	 * system can enter level 2 sleep mode.
@@ -1106,7 +1101,7 @@ static int32_t dwc_otg_pcd_suspend_cb( void *_p ,int suspend)
 	 	if(cdev->config)
 			pcd->conn_status = 3;
 	}
-#endif		
+//#endif		
 	if (pcd->driver && pcd->driver->resume) 
 	{
 		SPIN_UNLOCK(&pcd->lock);
@@ -1593,18 +1588,24 @@ int dwc_otg_reset( void )
     //DWC_PRINT("%s::otg reset connect!!!\n" , __func__ );
     return 0;
 }
-void dwc_otg_msc_lock(void)
+void dwc_otg_msc_lock(dwc_otg_pcd_t *pcd)
 {
-#ifdef CONFIG_ANDROID_POWER
-	android_lock_suspend(&usb_msc_lock);
-#endif
+	unsigned long		flags;
+
+	spin_lock_irqsave(&pcd->lock, flags);
+
+    wake_lock(&pcd->wake_lock);
+
+	spin_unlock_irqrestore(&pcd->lock, flags);
+
 }
 
-void dwc_otg_msc_unlock(void)
+void dwc_otg_msc_unlock(dwc_otg_pcd_t *pcd)
 {
-#ifdef CONFIG_ANDROID_POWER
-	android_unlock_suspend(&usb_msc_lock);
-#endif
+	unsigned long		flags;
+	spin_lock_irqsave(&pcd->lock, flags);
+	wake_unlock(&pcd->wake_lock);
+    spin_unlock_irqrestore(&pcd->lock, flags);
 }
 static void dwc_phy_reconnect(struct work_struct *work)
 {
@@ -1617,7 +1618,7 @@ static void dwc_phy_reconnect(struct work_struct *work)
     core_if = GET_CORE_IF(pcd); 
     gctrl.d32 = dwc_read_reg32( &core_if->core_global_regs->gotgctl );
     if( gctrl.b.bsesvld  ) {
-        dwc_otg_msc_lock();
+        dwc_otg_msc_lock(pcd);
         pcd->conn_status++;
 	    dwc_pcd_reset(pcd);
     	/*
@@ -1662,7 +1663,7 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
 	    }
 
         } else if((_pcd->conn_status>0)&&(_pcd->conn_status <3)) {
-            dwc_otg_msc_unlock();
+            dwc_otg_msc_unlock(_pcd);
             DWC_PRINT("********soft reconnect******************************************\n");
             _pcd->vbus_status =0;
             
@@ -1682,8 +1683,10 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
         else if(_pcd->conn_status ==3)
         {
 			//*连接不上时释放锁，允许系统进入二级睡眠，yk@rk,20100331*//
-            dwc_otg_msc_unlock();
+            dwc_otg_msc_unlock(_pcd);
             _pcd->conn_status++;
+            if((dwc_read_reg32((uint32_t*)((uint8_t *)_pcd->otg_dev->base + DWC_OTG_HOST_PORT_REGS_OFFSET))&0xc00) == 0xc00)
+                _pcd->vbus_status = 2;
         }
     } else {
         //DWC_PRINT("new vbus=%d,old vbus=%d\n" , gctrl.b.bsesvld , _pcd->vbus_status );
@@ -1691,7 +1694,7 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
         if(_pcd->conn_status)
         {
              _pcd->conn_status = 0;
-             dwc_otg_msc_unlock();
+             dwc_otg_msc_unlock(_pcd);
         }
         /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
         if( _pcd->phy_suspend == 0 ) {
@@ -1718,7 +1721,7 @@ void dwc_otg_pcd_start_vbus_timer( dwc_otg_pcd_t * _pcd )
          * when receive reset int,the vbus state may not be update,so 
          * always start timer here.
          */                
-        mod_timer( vbus_timer , jiffies + (HZ+(HZ/2)));
+        mod_timer( vbus_timer , jiffies + (HZ<<2));
 }
 
 /*
@@ -1809,10 +1812,8 @@ int dwc_otg_pcd_init(struct device *dev)
 		return -EBUSY;
 	}
     
-#ifdef CONFIG_ANDROID_POWER
-    usb_msc_lock.name = "usb_msc";
-    android_init_suspend_lock(&usb_msc_lock);
-#endif
+	wake_lock_init(&pcd->wake_lock, WAKE_LOCK_SUSPEND,
+			   "usb_pcd");
 
 	/*
 	 * Initialize EP structures
@@ -1864,6 +1865,8 @@ void dwc_otg_pcd_remove( struct device *dev )
 	dwc_otg_pcd_t *pcd = otg_dev->pcd;
 	
 	DWC_DEBUGPL(DBG_PCDV, "%s(%p)\n", __func__, dev);
+
+	wake_lock_destroy(&pcd->wake_lock);
 
 	/*
 	 * Free the IRQ 

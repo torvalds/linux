@@ -42,6 +42,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/wakelock.h>
 
 struct dwc_otg_device;
 
@@ -201,6 +202,9 @@ typedef struct dwc_otg_pcd
 	 * every 500 ms. */
 	struct timer_list check_vbus_timer;
     struct delayed_work	reconnect;
+
+    /** pervent device suspend while usb connected */
+    struct wake_lock wake_lock;
 } dwc_otg_pcd_t;
 
 

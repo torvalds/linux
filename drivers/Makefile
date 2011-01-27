@@ -115,3 +115,5 @@ obj-$(CONFIG_STAGING)		+= staging/
 obj-y				+= platform/
 obj-y				+= ieee802154/
 obj-$(CONFIG_CMMB)		+= cmmb/	
+obj-y				+= dbg/
+
