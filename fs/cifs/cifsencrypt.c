@@ -36,11 +36,6 @@
 /* Note that the smb header signature field on input contains the
 	sequence number before this function is called */
 
-extern void mdfour(unsigned char *out, unsigned char *in, int n);
-extern void E_md4hash(const unsigned char *passwd, unsigned char *p16);
-extern void SMBencrypt(unsigned char *passwd, const unsigned char *c8,
-		       unsigned char *p24);
-
 static int cifs_calculate_signature(const struct smb_hdr *cifs_pdu,
 				struct TCP_Server_Info *server, char *signature)
 {
@@ -233,6 +228,7 @@ int cifs_verify_signature(struct smb_hdr *cifs_pdu,
 /* first calculate 24 bytes ntlm response and then 16 byte session key */
 int setup_ntlm_response(struct cifsSesInfo *ses)
 {
+	int rc = 0;
 	unsigned int temp_len = CIFS_SESS_KEY_SIZE + CIFS_AUTH_RESP_SIZE;
 	char temp_key[CIFS_SESS_KEY_SIZE];
 
@@ -246,13 +242,26 @@ int setup_ntlm_response(struct cifsSesInfo *ses)
 	}
 	ses->auth_key.len = temp_len;
 
-	SMBNTencrypt(ses->password, ses->server->cryptkey,
+	rc = SMBNTencrypt(ses->password, ses->server->cryptkey,
 			ses->auth_key.response + CIFS_SESS_KEY_SIZE);
+	if (rc) {
+		cFYI(1, "%s Can't generate NTLM response, error: %d",
+			__func__, rc);
+		return rc;
+	}
 
-	E_md4hash(ses->password, temp_key);
-	mdfour(ses->auth_key.response, temp_key, CIFS_SESS_KEY_SIZE);
+	rc = E_md4hash(ses->password, temp_key);
+	if (rc) {
+		cFYI(1, "%s Can't generate NT hash, error: %d", __func__, rc);
+		return rc;
+	}
 
-	return 0;
+	rc = mdfour(ses->auth_key.response, temp_key, CIFS_SESS_KEY_SIZE);
+	if (rc)
+		cFYI(1, "%s Can't generate NTLM session key, error: %d",
+			__func__, rc);
+
+	return rc;
 }
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
@@ -699,14 +708,13 @@ cifs_crypto_shash_allocate(struct TCP_Server_Info *server)
 	unsigned int size;
 
 	server->secmech.hmacmd5 = crypto_alloc_shash("hmac(md5)", 0, 0);
-	if (!server->secmech.hmacmd5 ||
-			IS_ERR(server->secmech.hmacmd5)) {
+	if (IS_ERR(server->secmech.hmacmd5)) {
 		cERROR(1, "could not allocate crypto hmacmd5\n");
 		return PTR_ERR(server->secmech.hmacmd5);
 	}
 
 	server->secmech.md5 = crypto_alloc_shash("md5", 0, 0);
-	if (!server->secmech.md5 || IS_ERR(server->secmech.md5)) {
+	if (IS_ERR(server->secmech.md5)) {
 		cERROR(1, "could not allocate crypto md5\n");
 		rc = PTR_ERR(server->secmech.md5);
 		goto crypto_allocate_md5_fail;

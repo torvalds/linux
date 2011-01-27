@@ -375,7 +375,7 @@ extern int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
 extern int cifs_verify_signature(struct smb_hdr *,
 				 struct TCP_Server_Info *server,
 				__u32 expected_sequence_number);
-extern void SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *);
+extern int SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *);
 extern int setup_ntlm_response(struct cifsSesInfo *);
 extern int setup_ntlmv2_rsp(struct cifsSesInfo *, const struct nls_table *);
 extern int cifs_crypto_shash_allocate(struct TCP_Server_Info *);
@@ -425,4 +425,11 @@ extern bool CIFSCouldBeMFSymlink(const struct cifs_fattr *fattr);
 extern int CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 		const unsigned char *path,
 		struct cifs_sb_info *cifs_sb, int xid);
+extern int mdfour(unsigned char *, unsigned char *, int);
+extern int E_md4hash(const unsigned char *passwd, unsigned char *p16);
+extern void SMBencrypt(unsigned char *passwd, const unsigned char *c8,
+			unsigned char *p24);
+extern void E_P16(unsigned char *p14, unsigned char *p16);
+extern void E_P24(unsigned char *p21, const unsigned char *c8,
+			unsigned char *p24);
 #endif			/* _CIFSPROTO_H */
