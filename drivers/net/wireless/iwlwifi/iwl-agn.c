@@ -2780,7 +2780,6 @@ static void __iwl_down(struct iwl_priv *priv)
 			 priv->cfg->bt_params->bt_init_traffic_load;
 	else
 		priv->bt_traffic_load = 0;
-	priv->bt_sco_active = false;
 	priv->bt_full_concurrent = false;
 	priv->bt_ci_compliance = 0;
 
@@ -3099,7 +3098,7 @@ static void iwl_bg_restart(struct work_struct *data)
 
 	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->status)) {
 		struct iwl_rxon_context *ctx;
-		bool bt_sco, bt_full_concurrent;
+		bool bt_full_concurrent;
 		u8 bt_ci_compliance;
 		u8 bt_load;
 		u8 bt_status;
@@ -3118,7 +3117,6 @@ static void iwl_bg_restart(struct work_struct *data)
 		 * re-configure the hw when we reconfigure the BT
 		 * command.
 		 */
-		bt_sco = priv->bt_sco_active;
 		bt_full_concurrent = priv->bt_full_concurrent;
 		bt_ci_compliance = priv->bt_ci_compliance;
 		bt_load = priv->bt_traffic_load;
@@ -3126,7 +3124,6 @@ static void iwl_bg_restart(struct work_struct *data)
 
 		__iwl_down(priv);
 
-		priv->bt_sco_active = bt_sco;
 		priv->bt_full_concurrent = bt_full_concurrent;
 		priv->bt_ci_compliance = bt_ci_compliance;
 		priv->bt_traffic_load = bt_load;

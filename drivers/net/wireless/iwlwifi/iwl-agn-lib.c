@@ -1863,21 +1863,6 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	if (iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG, sizeof(bt_cmd), &bt_cmd))
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
 
-	/*
-	 * When we are doing a restart, need to also reconfigure BT
-	 * SCO to the device. If not doing a restart, bt_sco_active
-	 * will always be false, so there's no need to have an extra
-	 * variable to check for it.
-	 */
-	if (priv->bt_sco_active) {
-		struct iwlagn_bt_sco_cmd sco_cmd = { .flags = 0 };
-
-		if (priv->bt_sco_active)
-			sco_cmd.flags |= IWLAGN_BT_SCO_ACTIVE;
-		if (iwl_send_cmd_pdu(priv, REPLY_BT_COEX_SCO,
-				     sizeof(sco_cmd), &sco_cmd))
-			IWL_ERR(priv, "failed to send BT SCO command\n");
-	}
 }
 
 static void iwlagn_bt_traffic_change_work(struct work_struct *work)
@@ -2068,15 +2053,6 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 			priv->bt_status = coex->bt_status;
 			queue_work(priv->workqueue,
 				   &priv->bt_traffic_change_work);
-		}
-		if (priv->bt_sco_active !=
-		    (uart_msg->frame3 & BT_UART_MSG_FRAME3SCOESCO_MSK)) {
-			priv->bt_sco_active = uart_msg->frame3 &
-				BT_UART_MSG_FRAME3SCOESCO_MSK;
-			if (priv->bt_sco_active)
-				sco_cmd.flags |= IWLAGN_BT_SCO_ACTIVE;
-			iwl_send_cmd_pdu_async(priv, REPLY_BT_COEX_SCO,
-				       sizeof(sco_cmd), &sco_cmd, NULL);
 		}
 	}
 
