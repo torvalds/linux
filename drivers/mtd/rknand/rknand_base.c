@@ -29,7 +29,7 @@ extern void rknand_buffer_shutdown(void);
 extern void rknand_buffer_sync(void);
 
 #define DRIVER_NAME	"rk29xxnand"
-const char rknand_base_version[] = "rknand_base.c version: 4.20 20101118";
+const char rknand_base_version[] = "rknand_base.c version: 4.20 20110127";
 #define NAND_DEBUG_LEVEL0 0
 #define NAND_DEBUG_LEVEL1 1
 #define NAND_DEBUG_LEVEL2 2
