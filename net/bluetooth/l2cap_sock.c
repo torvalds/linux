@@ -29,6 +29,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
+#include <net/bluetooth/smp.h>
 
 static const struct proto_ops l2cap_sock_ops;
 static void l2cap_sock_init(struct sock *sk, struct sock *parent);
@@ -562,6 +563,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	struct bt_security sec;
 	struct bt_power pwr;
+	struct l2cap_conn *conn;
 	int len, err = 0;
 	u32 opt;
 
@@ -598,6 +600,20 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 		}
 
 		chan->sec_level = sec.level;
+
+		conn = chan->conn;
+		if (conn && chan->scid == L2CAP_CID_LE_DATA) {
+			if (!conn->hcon->out) {
+				err = -EINVAL;
+				break;
+			}
+
+			if (smp_conn_security(conn, sec.level))
+				break;
+
+			err = 0;
+			sk->sk_state = BT_CONFIG;
+		}
 		break;
 
 	case BT_DEFER_SETUP:

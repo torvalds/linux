@@ -890,6 +890,23 @@ clean:
 	bh_unlock_sock(parent);
 }
 
+static void l2cap_chan_ready(struct sock *sk)
+{
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
+	struct sock *parent = bt_sk(sk)->parent;
+
+	BT_DBG("sk %p, parent %p", sk, parent);
+
+	chan->conf_state = 0;
+	__clear_chan_timer(chan);
+
+	sk->sk_state = BT_CONNECTED;
+	sk->sk_state_change(sk);
+
+	if (parent)
+		parent->sk_data_ready(parent, 0);
+}
+
 static void l2cap_conn_ready(struct l2cap_conn *conn)
 {
 	struct l2cap_chan *chan;
@@ -906,13 +923,9 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 
 		bh_lock_sock(sk);
 
-		if (conn->hcon->type == LE_LINK) {
-			__clear_chan_timer(chan);
-			l2cap_state_change(chan, BT_CONNECTED);
-			sk->sk_state_change(sk);
+		if (conn->hcon->type == LE_LINK)
 			if (smp_conn_security(conn, chan->sec_level))
-				BT_DBG("Insufficient security");
-		}
+				l2cap_chan_ready(sk);
 
 		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
 			__clear_chan_timer(chan);
@@ -1673,30 +1686,6 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 	}
 
 	return err;
-}
-
-static void l2cap_chan_ready(struct sock *sk)
-{
-	struct sock *parent = bt_sk(sk)->parent;
-	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
-
-	BT_DBG("sk %p, parent %p", sk, parent);
-
-	chan->conf_state = 0;
-	__clear_chan_timer(chan);
-
-	if (!parent) {
-		/* Outgoing channel.
-		 * Wake up socket sleeping on connect.
-		 */
-		l2cap_state_change(chan, BT_CONNECTED);
-		sk->sk_state_change(sk);
-	} else {
-		/* Incoming channel.
-		 * Wake up socket sleeping on accept.
-		 */
-		parent->sk_data_ready(parent, 0);
-	}
 }
 
 /* Copy frame to all raw sockets on that connection */
@@ -4187,6 +4176,18 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 		struct sock *sk = chan->sk;
 
 		bh_lock_sock(sk);
+
+		BT_DBG("chan->scid %d", chan->scid);
+
+		if (chan->scid == L2CAP_CID_LE_DATA) {
+			if (!status && encrypt) {
+				chan->sec_level = hcon->sec_level;
+				l2cap_chan_ready(sk);
+			}
+
+			bh_unlock_sock(sk);
+			continue;
+		}
 
 		if (chan->conf_state & L2CAP_CONF_CONNECT_PEND) {
 			bh_unlock_sock(sk);
