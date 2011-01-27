@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <limits.h>
+#include <elf.h>
 
 #undef _GNU_SOURCE
 #include "util.h"
@@ -111,7 +112,25 @@ static struct symbol *__find_kernel_function_by_name(const char *name,
 						     NULL);
 }
 
-const char *kernel_get_module_path(const char *module)
+static struct map *kernel_get_module_map(const char *module)
+{
+	struct rb_node *nd;
+	struct map_groups *grp = &machine.kmaps;
+
+	if (!module)
+		module = "kernel";
+
+	for (nd = rb_first(&grp->maps[MAP__FUNCTION]); nd; nd = rb_next(nd)) {
+		struct map *pos = rb_entry(nd, struct map, rb_node);
+		if (strncmp(pos->dso->short_name + 1, module,
+			    pos->dso->short_name_len - 2) == 0) {
+			return pos;
+		}
+	}
+	return NULL;
+}
+
+static struct dso *kernel_get_module_dso(const char *module)
 {
 	struct dso *dso;
 	struct map *map;
@@ -141,7 +160,13 @@ const char *kernel_get_module_path(const char *module)
 		}
 	}
 found:
-	return dso->long_name;
+	return dso;
+}
+
+const char *kernel_get_module_path(const char *module)
+{
+	struct dso *dso = kernel_get_module_dso(module);
+	return (dso) ? dso->long_name : NULL;
 }
 
 #ifdef DWARF_SUPPORT
@@ -1913,3 +1938,42 @@ int del_perf_probe_events(struct strlist *dellist)
 	return ret;
 }
 
+/*
+ * If a symbol corresponds to a function with global binding return 0.
+ * For all others return 1.
+ */
+static int filter_non_global_functions(struct map *map __unused,
+					struct symbol *sym)
+{
+	if (sym->binding != STB_GLOBAL)
+		return 1;
+
+	return 0;
+}
+
+int show_available_funcs(const char *module)
+{
+	struct map *map;
+	int ret;
+
+	setup_pager();
+
+	ret = init_vmlinux();
+	if (ret < 0)
+		return ret;
+
+	map = kernel_get_module_map(module);
+	if (!map) {
+		pr_err("Failed to find %s map.\n", (module) ? : "kernel");
+		return -EINVAL;
+	}
+	if (map__load(map, filter_non_global_functions)) {
+		pr_err("Failed to load map.\n");
+		return -EINVAL;
+	}
+	if (!dso__sorted_by_name(map->dso, map->type))
+		dso__sort_by_name(map->dso, map->type);
+
+	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
+	return 0;
+}

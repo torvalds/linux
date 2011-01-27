@@ -77,6 +77,8 @@ struct hists {
 	u64			event_stream;
 	u32			type;
 	u16			col_len[HISTC_NR_COLS];
+	/* Best would be to reuse the session callchain cursor */
+	struct callchain_cursor	callchain_cursor;
 };
 
 struct hist_entry *__hists__add_entry(struct hists *self,

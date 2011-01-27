@@ -18,17 +18,20 @@
 
 #include "util/header.h"
 #include "util/event.h"
+#include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/debug.h"
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/cpumap.h"
+#include "util/thread_map.h"
 
 #include <unistd.h>
 #include <sched.h>
 #include <sys/mman.h>
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
+#define SID(e, x, y) xyarray__entry(e->id, x, y)
 
 enum write_mode_t {
 	WRITE_FORCE,
@@ -46,7 +49,7 @@ static unsigned int		user_freq 			= UINT_MAX;
 static int			freq				=   1000;
 static int			output;
 static int			pipe_output			=      0;
-static const char		*output_name			= "perf.data";
+static const char		*output_name			= NULL;
 static int			group				=      0;
 static int			realtime_prio			=      0;
 static bool			nodelay				=  false;
@@ -66,50 +69,16 @@ static bool			sample_address			=  false;
 static bool			sample_time			=  false;
 static bool			no_buildid			=  false;
 static bool			no_buildid_cache		=  false;
+static struct perf_evlist	*evsel_list;
 
 static long			samples				=      0;
 static u64			bytes_written			=      0;
-
-static struct pollfd		*event_array;
-
-static int			nr_poll				=      0;
-static int			nr_cpu				=      0;
 
 static int			file_new			=      1;
 static off_t			post_processing_offset;
 
 static struct perf_session	*session;
 static const char		*cpu_list;
-
-struct mmap_data {
-	void			*base;
-	unsigned int		mask;
-	unsigned int		prev;
-};
-
-static struct mmap_data		mmap_array[MAX_NR_CPUS];
-
-static unsigned long mmap_read_head(struct mmap_data *md)
-{
-	struct perf_event_mmap_page *pc = md->base;
-	long head;
-
-	head = pc->data_head;
-	rmb();
-
-	return head;
-}
-
-static void mmap_write_tail(struct mmap_data *md, unsigned long tail)
-{
-	struct perf_event_mmap_page *pc = md->base;
-
-	/*
-	 * ensure all reads are done before we write the tail out.
-	 */
-	/* mb(); */
-	pc->data_tail = tail;
-}
 
 static void advance_output(size_t size)
 {
@@ -139,9 +108,9 @@ static int process_synthesized_event(event_t *event,
 	return 0;
 }
 
-static void mmap_read(struct mmap_data *md)
+static void mmap_read(struct perf_mmap *md)
 {
-	unsigned int head = mmap_read_head(md);
+	unsigned int head = perf_mmap__read_head(md);
 	unsigned int old = md->prev;
 	unsigned char *data = md->base + page_size;
 	unsigned long size;
@@ -185,7 +154,7 @@ static void mmap_read(struct mmap_data *md)
 	write_output(buf, size);
 
 	md->prev = old;
-	mmap_write_tail(md, old);
+	perf_mmap__write_tail(md, old);
 }
 
 static volatile int done = 0;
@@ -208,8 +177,6 @@ static void sig_atexit(void)
 	signal(signr, SIG_DFL);
 	kill(getpid(), signr);
 }
-
-static int group_fd;
 
 static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int nr)
 {
@@ -234,28 +201,47 @@ static void create_counter(struct perf_evsel *evsel, int cpu)
 	char *filter = evsel->filter;
 	struct perf_event_attr *attr = &evsel->attr;
 	struct perf_header_attr *h_attr;
-	int track = !evsel->idx; /* only the first counter needs these */
+	struct perf_sample_id *sid;
 	int thread_index;
 	int ret;
-	struct {
-		u64 count;
-		u64 time_enabled;
-		u64 time_running;
-		u64 id;
-	} read_data;
-	/*
- 	 * Check if parse_single_tracepoint_event has already asked for
- 	 * PERF_SAMPLE_TIME.
- 	 *
-	 * XXX this is kludgy but short term fix for problems introduced by
-	 * eac23d1c that broke 'perf script' by having different sample_types
-	 * when using multiple tracepoint events when we use a perf binary
-	 * that tries to use sample_id_all on an older kernel.
- 	 *
- 	 * We need to move counter creation to perf_session, support
- 	 * different sample_types, etc.
- 	 */
-	bool time_needed = attr->sample_type & PERF_SAMPLE_TIME;
+
+	for (thread_index = 0; thread_index < threads->nr; thread_index++) {
+		h_attr = get_header_attr(attr, evsel->idx);
+		if (h_attr == NULL)
+			die("nomem\n");
+
+		if (!file_new) {
+			if (memcmp(&h_attr->attr, attr, sizeof(*attr))) {
+				fprintf(stderr, "incompatible append\n");
+				exit(-1);
+			}
+		}
+
+		sid = SID(evsel, cpu, thread_index);
+		if (perf_header_attr__add_id(h_attr, sid->id) < 0) {
+			pr_warning("Not enough memory to add id\n");
+			exit(-1);
+		}
+
+		if (filter != NULL) {
+			ret = ioctl(FD(evsel, cpu, thread_index),
+				    PERF_EVENT_IOC_SET_FILTER, filter);
+			if (ret) {
+				error("failed to set filter with %d (%s)\n", errno,
+						strerror(errno));
+				exit(-1);
+			}
+		}
+	}
+
+	if (!sample_type)
+		sample_type = attr->sample_type;
+}
+
+static void config_attr(struct perf_evsel *evsel, struct perf_evlist *evlist)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+	int track = !evsel->idx; /* only the first counter needs these */
 
 	attr->read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
 				  PERF_FORMAT_TOTAL_TIME_RUNNING |
@@ -263,7 +249,7 @@ static void create_counter(struct perf_evsel *evsel, int cpu)
 
 	attr->sample_type	|= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 
-	if (nr_counters > 1)
+	if (evlist->nr_entries > 1)
 		attr->sample_type |= PERF_SAMPLE_ID;
 
 	/*
@@ -315,19 +301,39 @@ static void create_counter(struct perf_evsel *evsel, int cpu)
 
 	attr->mmap		= track;
 	attr->comm		= track;
-	attr->inherit		= !no_inherit;
+
 	if (target_pid == -1 && target_tid == -1 && !system_wide) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
+}
+
+static void open_counters(struct perf_evlist *evlist)
+{
+	struct perf_evsel *pos;
+	int cpu;
+
+	list_for_each_entry(pos, &evlist->entries, node) {
+		struct perf_event_attr *attr = &pos->attr;
+		/*
+		 * Check if parse_single_tracepoint_event has already asked for
+		 * PERF_SAMPLE_TIME.
+		 *
+		 * XXX this is kludgy but short term fix for problems introduced by
+		 * eac23d1c that broke 'perf script' by having different sample_types
+		 * when using multiple tracepoint events when we use a perf binary
+		 * that tries to use sample_id_all on an older kernel.
+		 *
+		 * We need to move counter creation to perf_session, support
+		 * different sample_types, etc.
+		 */
+		bool time_needed = attr->sample_type & PERF_SAMPLE_TIME;
+
+		config_attr(pos, evlist);
 retry_sample_id:
-	attr->sample_id_all = sample_id_all_avail ? 1 : 0;
-
-	for (thread_index = 0; thread_index < threads->nr; thread_index++) {
+		attr->sample_id_all = sample_id_all_avail ? 1 : 0;
 try_again:
-		FD(evsel, nr_cpu, thread_index) = sys_perf_event_open(attr, threads->map[thread_index], cpu, group_fd, 0);
-
-		if (FD(evsel, nr_cpu, thread_index) < 0) {
+		if (perf_evsel__open(pos, cpus, threads, group, !no_inherit) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES)
@@ -364,7 +370,7 @@ try_again:
 			}
 			printf("\n");
 			error("sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information.\n",
-			      FD(evsel, nr_cpu, thread_index), strerror(err));
+			      err, strerror(err));
 
 #if defined(__i386__) || defined(__x86_64__)
 			if (attr->type == PERF_TYPE_HARDWARE && err == EOPNOTSUPP)
@@ -375,90 +381,16 @@ try_again:
 #endif
 
 			die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
-			exit(-1);
-		}
-
-		h_attr = get_header_attr(attr, evsel->idx);
-		if (h_attr == NULL)
-			die("nomem\n");
-
-		if (!file_new) {
-			if (memcmp(&h_attr->attr, attr, sizeof(*attr))) {
-				fprintf(stderr, "incompatible append\n");
-				exit(-1);
-			}
-		}
-
-		if (read(FD(evsel, nr_cpu, thread_index), &read_data, sizeof(read_data)) == -1) {
-			perror("Unable to read perf file descriptor");
-			exit(-1);
-		}
-
-		if (perf_header_attr__add_id(h_attr, read_data.id) < 0) {
-			pr_warning("Not enough memory to add id\n");
-			exit(-1);
-		}
-
-		assert(FD(evsel, nr_cpu, thread_index) >= 0);
-		fcntl(FD(evsel, nr_cpu, thread_index), F_SETFL, O_NONBLOCK);
-
-		/*
-		 * First counter acts as the group leader:
-		 */
-		if (group && group_fd == -1)
-			group_fd = FD(evsel, nr_cpu, thread_index);
-
-		if (evsel->idx || thread_index) {
-			struct perf_evsel *first;
-			first = list_entry(evsel_list.next, struct perf_evsel, node);
-			ret = ioctl(FD(evsel, nr_cpu, thread_index),
-				    PERF_EVENT_IOC_SET_OUTPUT,
-				    FD(first, nr_cpu, 0));
-			if (ret) {
-				error("failed to set output: %d (%s)\n", errno,
-						strerror(errno));
-				exit(-1);
-			}
-		} else {
-			mmap_array[nr_cpu].prev = 0;
-			mmap_array[nr_cpu].mask = mmap_pages*page_size - 1;
-			mmap_array[nr_cpu].base = mmap(NULL, (mmap_pages+1)*page_size,
-				PROT_READ | PROT_WRITE, MAP_SHARED, FD(evsel, nr_cpu, thread_index), 0);
-			if (mmap_array[nr_cpu].base == MAP_FAILED) {
-				error("failed to mmap with %d (%s)\n", errno, strerror(errno));
-				exit(-1);
-			}
-
-			event_array[nr_poll].fd = FD(evsel, nr_cpu, thread_index);
-			event_array[nr_poll].events = POLLIN;
-			nr_poll++;
-		}
-
-		if (filter != NULL) {
-			ret = ioctl(FD(evsel, nr_cpu, thread_index),
-				    PERF_EVENT_IOC_SET_FILTER, filter);
-			if (ret) {
-				error("failed to set filter with %d (%s)\n", errno,
-						strerror(errno));
-				exit(-1);
-			}
 		}
 	}
 
-	if (!sample_type)
-		sample_type = attr->sample_type;
-}
+	if (perf_evlist__mmap(evlist, cpus, threads, mmap_pages, false) < 0)
+		die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 
-static void open_counters(int cpu)
-{
-	struct perf_evsel *pos;
-
-	group_fd = -1;
-
-	list_for_each_entry(pos, &evsel_list, node)
-		create_counter(pos, cpu);
-
-	nr_cpu++;
+	for (cpu = 0; cpu < cpus->nr; ++cpu) {
+		list_for_each_entry(pos, &evlist->entries, node)
+			create_counter(pos, cpu);
+	}
 }
 
 static int process_buildids(void)
@@ -481,9 +413,9 @@ static void atexit_header(void)
 
 		if (!no_buildid)
 			process_buildids();
-		perf_header__write(&session->header, output, true);
+		perf_header__write(&session->header, evsel_list, output, true);
 		perf_session__delete(session);
-		perf_evsel_list__delete();
+		perf_evlist__delete(evsel_list);
 		symbol__exit();
 	}
 }
@@ -533,9 +465,9 @@ static void mmap_read_all(void)
 {
 	int i;
 
-	for (i = 0; i < nr_cpu; i++) {
-		if (mmap_array[i].base)
-			mmap_read(&mmap_array[i]);
+	for (i = 0; i < cpus->nr; i++) {
+		if (evsel_list->mmap[i].base)
+			mmap_read(&evsel_list->mmap[i]);
 	}
 
 	if (perf_header__has_feat(&session->header, HEADER_TRACE_INFO))
@@ -566,18 +498,26 @@ static int __cmd_record(int argc, const char **argv)
 		exit(-1);
 	}
 
-	if (!strcmp(output_name, "-"))
-		pipe_output = 1;
-	else if (!stat(output_name, &st) && st.st_size) {
-		if (write_mode == WRITE_FORCE) {
-			char oldname[PATH_MAX];
-			snprintf(oldname, sizeof(oldname), "%s.old",
-				 output_name);
-			unlink(oldname);
-			rename(output_name, oldname);
+	if (!output_name) {
+		if (!fstat(STDOUT_FILENO, &st) && S_ISFIFO(st.st_mode))
+			pipe_output = 1;
+		else
+			output_name = "perf.data";
+	}
+	if (output_name) {
+		if (!strcmp(output_name, "-"))
+			pipe_output = 1;
+		else if (!stat(output_name, &st) && st.st_size) {
+			if (write_mode == WRITE_FORCE) {
+				char oldname[PATH_MAX];
+				snprintf(oldname, sizeof(oldname), "%s.old",
+					 output_name);
+				unlink(oldname);
+				rename(output_name, oldname);
+			}
+		} else if (write_mode == WRITE_APPEND) {
+			write_mode = WRITE_FORCE;
 		}
-	} else if (write_mode == WRITE_APPEND) {
-		write_mode = WRITE_FORCE;
 	}
 
 	flags = O_CREAT|O_RDWR;
@@ -611,7 +551,7 @@ static int __cmd_record(int argc, const char **argv)
 			goto out_delete_session;
 	}
 
-	if (have_tracepoints(&evsel_list))
+	if (have_tracepoints(&evsel_list->entries))
 		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
 
 	/*
@@ -673,12 +613,7 @@ static int __cmd_record(int argc, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
-	if (!system_wide && no_inherit && !cpu_list) {
-		open_counters(-1);
-	} else {
-		for (i = 0; i < cpus->nr; i++)
-			open_counters(cpus->map[i]);
-	}
+	open_counters(evsel_list);
 
 	perf_session__set_sample_type(session, sample_type);
 
@@ -687,7 +622,8 @@ static int __cmd_record(int argc, const char **argv)
 		if (err < 0)
 			return err;
 	} else if (file_new) {
-		err = perf_header__write(&session->header, output, false);
+		err = perf_header__write(&session->header, evsel_list,
+					 output, false);
 		if (err < 0)
 			return err;
 	}
@@ -712,7 +648,7 @@ static int __cmd_record(int argc, const char **argv)
 			return err;
 		}
 
-		if (have_tracepoints(&evsel_list)) {
+		if (have_tracepoints(&evsel_list->entries)) {
 			/*
 			 * FIXME err <= 0 here actually means that
 			 * there were no tracepoints so its not really
@@ -721,7 +657,7 @@ static int __cmd_record(int argc, const char **argv)
 			 * return this more properly and also
 			 * propagate errors that now are calling die()
 			 */
-			err = event__synthesize_tracing_data(output, &evsel_list,
+			err = event__synthesize_tracing_data(output, evsel_list,
 							     process_synthesized_event,
 							     session);
 			if (err <= 0) {
@@ -789,15 +725,15 @@ static int __cmd_record(int argc, const char **argv)
 		if (hits == samples) {
 			if (done)
 				break;
-			err = poll(event_array, nr_poll, -1);
+			err = poll(evsel_list->pollfd, evsel_list->nr_fds, -1);
 			waking++;
 		}
 
 		if (done) {
-			for (i = 0; i < nr_cpu; i++) {
+			for (i = 0; i < cpus->nr; i++) {
 				struct perf_evsel *pos;
 
-				list_for_each_entry(pos, &evsel_list, node) {
+				list_for_each_entry(pos, &evsel_list->entries, node) {
 					for (thread = 0;
 						thread < threads->nr;
 						thread++)
@@ -838,10 +774,10 @@ static const char * const record_usage[] = {
 static bool force, append_file;
 
 const struct option record_options[] = {
-	OPT_CALLBACK('e', "event", NULL, "event",
+	OPT_CALLBACK('e', "event", &evsel_list, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events),
-	OPT_CALLBACK(0, "filter", NULL, "filter",
+	OPT_CALLBACK(0, "filter", &evsel_list, "filter",
 		     "event filter", parse_filter),
 	OPT_INTEGER('p', "pid", &target_pid,
 		    "record events on existing process id"),
@@ -892,6 +828,10 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	int err = -ENOMEM;
 	struct perf_evsel *pos;
 
+	evsel_list = perf_evlist__new();
+	if (evsel_list == NULL)
+		return -ENOMEM;
+
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && target_pid == -1 && target_tid == -1 &&
@@ -913,7 +853,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	if (no_buildid_cache || no_buildid)
 		disable_buildid_cache();
 
-	if (list_empty(&evsel_list) && perf_evsel_list__create_default() < 0) {
+	if (evsel_list->nr_entries == 0 &&
+	    perf_evlist__add_default(evsel_list) < 0) {
 		pr_err("Not enough memory for event selector list\n");
 		goto out_symbol_exit;
 	}
@@ -927,21 +868,22 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(record_usage, record_options);
 	}
 
-	cpus = cpu_map__new(cpu_list);
-	if (cpus == NULL) {
-		perror("failed to parse CPUs map");
-		return -1;
-	}
+	if (target_tid != -1)
+		cpus = cpu_map__dummy_new();
+	else
+		cpus = cpu_map__new(cpu_list);
 
-	list_for_each_entry(pos, &evsel_list, node) {
+	if (cpus == NULL)
+		usage_with_options(record_usage, record_options);
+
+	list_for_each_entry(pos, &evsel_list->entries, node) {
 		if (perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
 			goto out_free_fd;
 		if (perf_header__push_event(pos->attr.config, event_name(pos)))
 			goto out_free_fd;
 	}
-	event_array = malloc((sizeof(struct pollfd) * MAX_NR_CPUS *
-			      MAX_COUNTERS * threads->nr));
-	if (!event_array)
+
+	if (perf_evlist__alloc_pollfd(evsel_list, cpus->nr, threads->nr) < 0)
 		goto out_free_fd;
 
 	if (user_interval != ULLONG_MAX)
@@ -959,13 +901,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	} else {
 		fprintf(stderr, "frequency and count are zero, aborting\n");
 		err = -EINVAL;
-		goto out_free_event_array;
+		goto out_free_fd;
 	}
 
 	err = __cmd_record(argc, argv);
 
-out_free_event_array:
-	free(event_array);
 out_free_fd:
 	thread_map__delete(threads);
 	threads = NULL;

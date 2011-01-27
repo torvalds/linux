@@ -43,11 +43,13 @@
 #include "util/parse-options.h"
 #include "util/parse-events.h"
 #include "util/event.h"
+#include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/debug.h"
 #include "util/header.h"
 #include "util/cpumap.h"
 #include "util/thread.h"
+#include "util/thread_map.h"
 
 #include <sys/prctl.h>
 #include <math.h>
@@ -70,6 +72,8 @@ static struct perf_event_attr default_attrs[] = {
   { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_CACHE_MISSES		},
 
 };
+
+struct perf_evlist		*evsel_list;
 
 static bool			system_wide			=  false;
 static struct cpu_map		*cpus;
@@ -166,7 +170,7 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 				    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
 	if (system_wide)
-		return perf_evsel__open_per_cpu(evsel, cpus);
+		return perf_evsel__open_per_cpu(evsel, cpus, false, false);
 
 	attr->inherit = !no_inherit;
 	if (target_pid == -1 && target_tid == -1) {
@@ -174,7 +178,7 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 		attr->enable_on_exec = 1;
 	}
 
-	return perf_evsel__open_per_thread(evsel, threads);
+	return perf_evsel__open_per_thread(evsel, threads, false, false);
 }
 
 /*
@@ -309,7 +313,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
-	list_for_each_entry(counter, &evsel_list, node) {
+	list_for_each_entry(counter, &evsel_list->entries, node) {
 		if (create_perf_stat_counter(counter) < 0) {
 			if (errno == -EPERM || errno == -EACCES) {
 				error("You may not have permission to collect %sstats.\n"
@@ -347,12 +351,12 @@ static int run_perf_stat(int argc __used, const char **argv)
 	update_stats(&walltime_nsecs_stats, t1 - t0);
 
 	if (no_aggr) {
-		list_for_each_entry(counter, &evsel_list, node) {
+		list_for_each_entry(counter, &evsel_list->entries, node) {
 			read_counter(counter);
 			perf_evsel__close_fd(counter, cpus->nr, 1);
 		}
 	} else {
-		list_for_each_entry(counter, &evsel_list, node) {
+		list_for_each_entry(counter, &evsel_list->entries, node) {
 			read_counter_aggr(counter);
 			perf_evsel__close_fd(counter, cpus->nr, threads->nr);
 		}
@@ -555,10 +559,10 @@ static void print_stat(int argc, const char **argv)
 	}
 
 	if (no_aggr) {
-		list_for_each_entry(counter, &evsel_list, node)
+		list_for_each_entry(counter, &evsel_list->entries, node)
 			print_counter(counter);
 	} else {
-		list_for_each_entry(counter, &evsel_list, node)
+		list_for_each_entry(counter, &evsel_list->entries, node)
 			print_counter_aggr(counter);
 	}
 
@@ -610,7 +614,7 @@ static int stat__set_big_num(const struct option *opt __used,
 }
 
 static const struct option options[] = {
-	OPT_CALLBACK('e', "event", NULL, "event",
+	OPT_CALLBACK('e', "event", &evsel_list, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events),
 	OPT_BOOLEAN('i', "no-inherit", &no_inherit,
@@ -648,6 +652,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 
 	setlocale(LC_ALL, "");
 
+	evsel_list = perf_evlist__new();
+	if (evsel_list == NULL)
+		return -ENOMEM;
+
 	argc = parse_options(argc, argv, options, stat_usage,
 		PARSE_OPT_STOP_AT_NON_OPTION);
 
@@ -679,17 +687,14 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(stat_usage, options);
 
 	/* Set attrs and nr_counters if no event is selected and !null_run */
-	if (!null_run && !nr_counters) {
+	if (!null_run && !evsel_list->nr_entries) {
 		size_t c;
 
-		nr_counters = ARRAY_SIZE(default_attrs);
-
 		for (c = 0; c < ARRAY_SIZE(default_attrs); ++c) {
-			pos = perf_evsel__new(&default_attrs[c],
-					      nr_counters);
+			pos = perf_evsel__new(&default_attrs[c], c);
 			if (pos == NULL)
 				goto out;
-			list_add(&pos->node, &evsel_list);
+			perf_evlist__add(evsel_list, pos);
 		}
 	}
 
@@ -713,7 +718,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		return -1;
 	}
 
-	list_for_each_entry(pos, &evsel_list, node) {
+	list_for_each_entry(pos, &evsel_list->entries, node) {
 		if (perf_evsel__alloc_stat_priv(pos) < 0 ||
 		    perf_evsel__alloc_counts(pos, cpus->nr) < 0 ||
 		    perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
@@ -741,9 +746,9 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	if (status != -1)
 		print_stat(argc, argv);
 out_free_fd:
-	list_for_each_entry(pos, &evsel_list, node)
+	list_for_each_entry(pos, &evsel_list->entries, node)
 		perf_evsel__free_stat_priv(pos);
-	perf_evsel_list__delete();
+	perf_evlist__delete(evsel_list);
 out:
 	thread_map__delete(threads);
 	threads = NULL;

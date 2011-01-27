@@ -1,20 +1,33 @@
 #include "evsel.h"
+#include "evlist.h"
 #include "../perf.h"
 #include "util.h"
 #include "cpumap.h"
-#include "thread.h"
+#include "thread_map.h"
+
+#include <unistd.h>
+#include <sys/mman.h>
+
+#include <linux/bitops.h>
+#include <linux/hash.h>
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
+#define SID(e, x, y) xyarray__entry(e->id, x, y)
+
+void perf_evsel__init(struct perf_evsel *evsel,
+		      struct perf_event_attr *attr, int idx)
+{
+	evsel->idx	   = idx;
+	evsel->attr	   = *attr;
+	INIT_LIST_HEAD(&evsel->node);
+}
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 {
 	struct perf_evsel *evsel = zalloc(sizeof(*evsel));
 
-	if (evsel != NULL) {
-		evsel->idx	   = idx;
-		evsel->attr	   = *attr;
-		INIT_LIST_HEAD(&evsel->node);
-	}
+	if (evsel != NULL)
+		perf_evsel__init(evsel, attr, idx);
 
 	return evsel;
 }
@@ -23,6 +36,12 @@ int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	evsel->fd = xyarray__new(ncpus, nthreads, sizeof(int));
 	return evsel->fd != NULL ? 0 : -ENOMEM;
+}
+
+int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
+{
+	evsel->id = xyarray__new(ncpus, nthreads, sizeof(struct perf_sample_id));
+	return evsel->id != NULL ? 0 : -ENOMEM;
 }
 
 int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus)
@@ -38,6 +57,12 @@ void perf_evsel__free_fd(struct perf_evsel *evsel)
 	evsel->fd = NULL;
 }
 
+void perf_evsel__free_id(struct perf_evsel *evsel)
+{
+	xyarray__delete(evsel->id);
+	evsel->id = NULL;
+}
+
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	int cpu, thread;
@@ -49,10 +74,34 @@ void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 		}
 }
 
-void perf_evsel__delete(struct perf_evsel *evsel)
+void perf_evlist__munmap(struct perf_evlist *evlist, int ncpus)
+{
+	int cpu;
+
+	for (cpu = 0; cpu < ncpus; cpu++) {
+		if (evlist->mmap[cpu].base != NULL) {
+			munmap(evlist->mmap[cpu].base, evlist->mmap_len);
+			evlist->mmap[cpu].base = NULL;
+		}
+	}
+}
+
+int perf_evlist__alloc_mmap(struct perf_evlist *evlist, int ncpus)
+{
+	evlist->mmap = zalloc(ncpus * sizeof(struct perf_mmap));
+	return evlist->mmap != NULL ? 0 : -ENOMEM;
+}
+
+void perf_evsel__exit(struct perf_evsel *evsel)
 {
 	assert(list_empty(&evsel->node));
 	xyarray__delete(evsel->fd);
+	xyarray__delete(evsel->id);
+}
+
+void perf_evsel__delete(struct perf_evsel *evsel)
+{
+	perf_evsel__exit(evsel);
 	free(evsel);
 }
 
@@ -128,7 +177,7 @@ int __perf_evsel__read(struct perf_evsel *evsel,
 }
 
 static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-			      struct thread_map *threads)
+			      struct thread_map *threads, bool group, bool inherit)
 {
 	int cpu, thread;
 
@@ -137,12 +186,20 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 		return -1;
 
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
+		int group_fd = -1;
+
+		evsel->attr.inherit = (cpus->map[cpu] < 0) && inherit;
+
 		for (thread = 0; thread < threads->nr; thread++) {
 			FD(evsel, cpu, thread) = sys_perf_event_open(&evsel->attr,
 								     threads->map[thread],
-								     cpus->map[cpu], -1, 0);
+								     cpus->map[cpu],
+								     group_fd, 0);
 			if (FD(evsel, cpu, thread) < 0)
 				goto out_close;
+
+			if (group && group_fd == -1)
+				group_fd = FD(evsel, cpu, thread);
 		}
 	}
 
@@ -175,10 +232,9 @@ static struct {
 	.threads = { -1, },
 };
 
-int perf_evsel__open(struct perf_evsel *evsel,
-		     struct cpu_map *cpus, struct thread_map *threads)
+int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
+		     struct thread_map *threads, bool group, bool inherit)
 {
-
 	if (cpus == NULL) {
 		/* Work around old compiler warnings about strict aliasing */
 		cpus = &empty_cpu_map.map;
@@ -187,15 +243,243 @@ int perf_evsel__open(struct perf_evsel *evsel,
 	if (threads == NULL)
 		threads = &empty_thread_map.map;
 
-	return __perf_evsel__open(evsel, cpus, threads);
+	return __perf_evsel__open(evsel, cpus, threads, group, inherit);
 }
 
-int perf_evsel__open_per_cpu(struct perf_evsel *evsel, struct cpu_map *cpus)
+int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
+			     struct cpu_map *cpus, bool group, bool inherit)
 {
-	return __perf_evsel__open(evsel, cpus, &empty_thread_map.map);
+	return __perf_evsel__open(evsel, cpus, &empty_thread_map.map, group, inherit);
 }
 
-int perf_evsel__open_per_thread(struct perf_evsel *evsel, struct thread_map *threads)
+int perf_evsel__open_per_thread(struct perf_evsel *evsel,
+				struct thread_map *threads, bool group, bool inherit)
 {
-	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads);
+	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads, group, inherit);
+}
+
+static int __perf_evlist__mmap(struct perf_evlist *evlist, int cpu, int prot,
+			       int mask, int fd)
+{
+	evlist->mmap[cpu].prev = 0;
+	evlist->mmap[cpu].mask = mask;
+	evlist->mmap[cpu].base = mmap(NULL, evlist->mmap_len, prot,
+				      MAP_SHARED, fd, 0);
+	if (evlist->mmap[cpu].base == MAP_FAILED)
+		return -1;
+
+	perf_evlist__add_pollfd(evlist, fd);
+	return 0;
+}
+
+static int perf_evlist__id_hash(struct perf_evlist *evlist, struct perf_evsel *evsel,
+			       int cpu, int thread, int fd)
+{
+	struct perf_sample_id *sid;
+	u64 read_data[4] = { 0, };
+	int hash, id_idx = 1; /* The first entry is the counter value */
+
+	if (!(evsel->attr.read_format & PERF_FORMAT_ID) ||
+	    read(fd, &read_data, sizeof(read_data)) == -1)
+		return -1;
+
+	if (evsel->attr.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		++id_idx;
+	if (evsel->attr.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		++id_idx;
+
+	sid = SID(evsel, cpu, thread);
+	sid->id = read_data[id_idx];
+	sid->evsel = evsel;
+	hash = hash_64(sid->id, PERF_EVLIST__HLIST_BITS);
+	hlist_add_head(&sid->node, &evlist->heads[hash]);
+	return 0;
+}
+
+/** perf_evlist__mmap - Create per cpu maps to receive events
+ *
+ * @evlist - list of events
+ * @cpus - cpu map being monitored
+ * @threads - threads map being monitored
+ * @pages - map length in pages
+ * @overwrite - overwrite older events?
+ *
+ * If overwrite is false the user needs to signal event consuption using:
+ *
+ *	struct perf_mmap *m = &evlist->mmap[cpu];
+ *	unsigned int head = perf_mmap__read_head(m);
+ *
+ *	perf_mmap__write_tail(m, head)
+ */
+int perf_evlist__mmap(struct perf_evlist *evlist, struct cpu_map *cpus,
+		      struct thread_map *threads, int pages, bool overwrite)
+{
+	unsigned int page_size = sysconf(_SC_PAGE_SIZE);
+	int mask = pages * page_size - 1, cpu;
+	struct perf_evsel *first_evsel, *evsel;
+	int thread, prot = PROT_READ | (overwrite ? 0 : PROT_WRITE);
+
+	if (evlist->mmap == NULL &&
+	    perf_evlist__alloc_mmap(evlist, cpus->nr) < 0)
+		return -ENOMEM;
+
+	if (evlist->pollfd == NULL &&
+	    perf_evlist__alloc_pollfd(evlist, cpus->nr, threads->nr) < 0)
+		return -ENOMEM;
+
+	evlist->mmap_len = (pages + 1) * page_size;
+	first_evsel = list_entry(evlist->entries.next, struct perf_evsel, node);
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
+		    evsel->id == NULL &&
+		    perf_evsel__alloc_id(evsel, cpus->nr, threads->nr) < 0)
+			return -ENOMEM;
+
+		for (cpu = 0; cpu < cpus->nr; cpu++) {
+			for (thread = 0; thread < threads->nr; thread++) {
+				int fd = FD(evsel, cpu, thread);
+
+				if (evsel->idx || thread) {
+					if (ioctl(fd, PERF_EVENT_IOC_SET_OUTPUT,
+						  FD(first_evsel, cpu, 0)) != 0)
+						goto out_unmap;
+				} else if (__perf_evlist__mmap(evlist, cpu, prot, mask, fd) < 0)
+					goto out_unmap;
+
+				if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
+				    perf_evlist__id_hash(evlist, evsel, cpu, thread, fd) < 0)
+					goto out_unmap;
+			}
+		}
+	}
+
+	return 0;
+
+out_unmap:
+	for (cpu = 0; cpu < cpus->nr; cpu++) {
+		if (evlist->mmap[cpu].base != NULL) {
+			munmap(evlist->mmap[cpu].base, evlist->mmap_len);
+			evlist->mmap[cpu].base = NULL;
+		}
+	}
+	return -1;
+}
+
+static int event__parse_id_sample(const event_t *event, u64 type,
+				  struct sample_data *sample)
+{
+	const u64 *array = event->sample.array;
+
+	array += ((event->header.size -
+		   sizeof(event->header)) / sizeof(u64)) - 1;
+
+	if (type & PERF_SAMPLE_CPU) {
+		u32 *p = (u32 *)array;
+		sample->cpu = *p;
+		array--;
+	}
+
+	if (type & PERF_SAMPLE_STREAM_ID) {
+		sample->stream_id = *array;
+		array--;
+	}
+
+	if (type & PERF_SAMPLE_ID) {
+		sample->id = *array;
+		array--;
+	}
+
+	if (type & PERF_SAMPLE_TIME) {
+		sample->time = *array;
+		array--;
+	}
+
+	if (type & PERF_SAMPLE_TID) {
+		u32 *p = (u32 *)array;
+		sample->pid = p[0];
+		sample->tid = p[1];
+	}
+
+	return 0;
+}
+
+int event__parse_sample(const event_t *event, u64 type, bool sample_id_all,
+			struct sample_data *data)
+{
+	const u64 *array;
+
+	data->cpu = data->pid = data->tid = -1;
+	data->stream_id = data->id = data->time = -1ULL;
+
+	if (event->header.type != PERF_RECORD_SAMPLE) {
+		if (!sample_id_all)
+			return 0;
+		return event__parse_id_sample(event, type, data);
+	}
+
+	array = event->sample.array;
+
+	if (type & PERF_SAMPLE_IP) {
+		data->ip = event->ip.ip;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_TID) {
+		u32 *p = (u32 *)array;
+		data->pid = p[0];
+		data->tid = p[1];
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_TIME) {
+		data->time = *array;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_ADDR) {
+		data->addr = *array;
+		array++;
+	}
+
+	data->id = -1ULL;
+	if (type & PERF_SAMPLE_ID) {
+		data->id = *array;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_STREAM_ID) {
+		data->stream_id = *array;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_CPU) {
+		u32 *p = (u32 *)array;
+		data->cpu = *p;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_PERIOD) {
+		data->period = *array;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_READ) {
+		fprintf(stderr, "PERF_SAMPLE_READ is unsuported for now\n");
+		return -1;
+	}
+
+	if (type & PERF_SAMPLE_CALLCHAIN) {
+		data->callchain = (struct ip_callchain *)array;
+		array += 1 + data->callchain->nr;
+	}
+
+	if (type & PERF_SAMPLE_RAW) {
+		u32 *p = (u32 *)array;
+		data->raw_size = *p;
+		p++;
+		data->raw_data = p;
+	}
+
+	return 0;
 }

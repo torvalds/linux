@@ -73,6 +73,10 @@ OPTIONS
 	(Only for --vars) Show external defined variables in addition to local
 	variables.
 
+-F::
+--funcs::
+	Show available functions in given module or kernel.
+
 -f::
 --force::
 	Forcibly add events with existing name.

@@ -81,18 +81,17 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 					struct addr_location *al,
 					struct sample_data *data)
 {
-	struct map_symbol *syms = NULL;
 	struct symbol *parent = NULL;
-	int err = -ENOMEM;
+	int err = 0;
 	struct hist_entry *he;
 	struct hists *hists;
 	struct perf_event_attr *attr;
 
 	if ((sort__has_parent || symbol_conf.use_callchain) && data->callchain) {
-		syms = perf_session__resolve_callchain(self, al->thread,
-						       data->callchain, &parent);
-		if (syms == NULL)
-			return -ENOMEM;
+		err = perf_session__resolve_callchain(self, al->thread,
+						      data->callchain, &parent);
+		if (err)
+			return err;
 	}
 
 	attr = perf_header__find_attr(data->id, &self->header);
@@ -101,16 +100,17 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	else
 		hists = perf_session__hists_findnew(self, data->id, 0, 0);
 	if (hists == NULL)
-		goto out_free_syms;
+		return -ENOMEM;
+
 	he = __hists__add_entry(hists, al, parent, data->period);
 	if (he == NULL)
-		goto out_free_syms;
-	err = 0;
+		return -ENOMEM;
+
 	if (symbol_conf.use_callchain) {
-		err = callchain_append(he->callchain, data->callchain, syms,
+		err = callchain_append(he->callchain, &self->callchain_cursor,
 				       data->period);
 		if (err)
-			goto out_free_syms;
+			return err;
 	}
 	/*
 	 * Only in the newt browser we are doing integrated annotation,
@@ -119,8 +119,7 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	 */
 	if (use_browser > 0)
 		err = hist_entry__inc_addr_samples(he, al->addr);
-out_free_syms:
-	free(syms);
+
 	return err;
 }
 
@@ -222,7 +221,7 @@ static int perf_session__setup_sample_type(struct perf_session *self)
 	} else if (!dont_use_callchains && callchain_param.mode != CHAIN_NONE &&
 		   !symbol_conf.use_callchain) {
 			symbol_conf.use_callchain = true;
-			if (register_callchain_param(&callchain_param) < 0) {
+			if (callchain_register_param(&callchain_param) < 0) {
 				fprintf(stderr, "Can't register callchain"
 						" params\n");
 				return -EINVAL;
@@ -424,7 +423,7 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 	if (tok2)
 		callchain_param.print_limit = strtod(tok2, &endptr);
 setup:
-	if (register_callchain_param(&callchain_param) < 0) {
+	if (callchain_register_param(&callchain_param) < 0) {
 		fprintf(stderr, "Can't register callchain params\n");
 		return -1;
 	}

@@ -52,6 +52,7 @@ static struct {
 	bool show_lines;
 	bool show_vars;
 	bool show_ext_vars;
+	bool show_funcs;
 	bool mod_events;
 	int nevents;
 	struct perf_probe_event events[MAX_PROBES];
@@ -221,6 +222,8 @@ static const struct option options[] = {
 	OPT__DRY_RUN(&probe_event_dry_run),
 	OPT_INTEGER('\0', "max-probes", &params.max_probe_points,
 		 "Set how many probe points can be found for a probe."),
+	OPT_BOOLEAN('F', "funcs", &params.show_funcs,
+		    "Show potential probe-able functions."),
 	OPT_END()
 };
 
@@ -246,7 +249,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		params.max_probe_points = MAX_PROBES;
 
 	if ((!params.nevents && !params.dellist && !params.list_events &&
-	     !params.show_lines))
+	     !params.show_lines && !params.show_funcs))
 		usage_with_options(probe_usage, options);
 
 	/*
@@ -267,10 +270,34 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			pr_err(" Error: Don't use --list with --vars.\n");
 			usage_with_options(probe_usage, options);
 		}
+		if (params.show_funcs) {
+			pr_err("  Error: Don't use --list with --funcs.\n");
+			usage_with_options(probe_usage, options);
+		}
 		ret = show_perf_probe_events();
 		if (ret < 0)
 			pr_err("  Error: Failed to show event list. (%d)\n",
 			       ret);
+		return ret;
+	}
+	if (params.show_funcs) {
+		if (params.nevents != 0 || params.dellist) {
+			pr_err("  Error: Don't use --funcs with"
+			       " --add/--del.\n");
+			usage_with_options(probe_usage, options);
+		}
+		if (params.show_lines) {
+			pr_err("  Error: Don't use --funcs with --line.\n");
+			usage_with_options(probe_usage, options);
+		}
+		if (params.show_vars) {
+			pr_err("  Error: Don't use --funcs with --vars.\n");
+			usage_with_options(probe_usage, options);
+		}
+		ret = show_available_funcs(params.target_module);
+		if (ret < 0)
+			pr_err("  Error: Failed to show functions."
+			       " (%d)\n", ret);
 		return ret;
 	}
 
