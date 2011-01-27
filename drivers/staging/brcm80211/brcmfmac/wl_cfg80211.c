@@ -673,7 +673,7 @@ wl_dev_iovar_setbuf(struct net_device *dev, s8 * iovar, void *param,
 	s32 iolen;
 
 	iolen = bcm_mkiovar(iovar, param, paramlen, bufptr, buflen);
-	BUG_ON(unlikely(!iolen));
+	BUG_ON(!iolen);
 
 	return wl_dev_ioctl(dev, WLC_SET_VAR, bufptr, iolen);
 }
@@ -685,7 +685,7 @@ wl_dev_iovar_getbuf(struct net_device *dev, s8 * iovar, void *param,
 	s32 iolen;
 
 	iolen = bcm_mkiovar(iovar, param, paramlen, bufptr, buflen);
-	BUG_ON(unlikely(!iolen));
+	BUG_ON(!iolen);
 
 	return wl_dev_ioctl(dev, WLC_GET_VAR, bufptr, buflen);
 }
@@ -703,7 +703,7 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, u16 action)
 	params = kzalloc(params_size, GFP_KERNEL);
 	if (unlikely(!params))
 		return -ENOMEM;
-	BUG_ON(unlikely(params_size >= WLC_IOCTL_SMLEN));
+	BUG_ON(params_size >= WLC_IOCTL_SMLEN);
 
 	wl_iscan_prep(&params->params, ssid);
 
@@ -874,7 +874,7 @@ static s32 wl_dev_intvar_set(struct net_device *dev, s8 *name, s32 val)
 
 	val = htod32(val);
 	len = bcm_mkiovar(name, (char *)(&val), sizeof(val), buf, sizeof(buf));
-	BUG_ON(unlikely(!len));
+	BUG_ON(!len);
 
 	err = wl_dev_ioctl(dev, WLC_SET_VAR, buf, len);
 	if (unlikely(err)) {
@@ -898,7 +898,7 @@ wl_dev_intvar_get(struct net_device *dev, s8 *name, s32 *retval)
 	len =
 	    bcm_mkiovar(name, (char *)(&data_null), 0, (char *)(&var),
 			sizeof(var.buf));
-	BUG_ON(unlikely(!len));
+	BUG_ON(!len);
 	err = wl_dev_ioctl(dev, WLC_GET_VAR, &var, len);
 	if (unlikely(err)) {
 		WL_ERR("error (%d)\n", err);
@@ -2435,7 +2435,7 @@ wl_dev_bufvar_set(struct net_device *dev, s8 *name, s8 *buf, s32 len)
 	u32 buflen;
 
 	buflen = bcm_mkiovar(name, buf, len, wl->ioctl_buf, WL_IOCTL_LEN_MAX);
-	BUG_ON(unlikely(!buflen));
+	BUG_ON(!buflen);
 
 	return wl_dev_ioctl(dev, WLC_SET_VAR, wl->ioctl_buf, buflen);
 }
@@ -2449,7 +2449,7 @@ wl_dev_bufvar_get(struct net_device *dev, s8 *name, s8 *buf,
 	s32 err = 0;
 
 	len = bcm_mkiovar(name, NULL, 0, wl->ioctl_buf, WL_IOCTL_LEN_MAX);
-	BUG_ON(unlikely(!len));
+	BUG_ON(!len);
 	err = wl_dev_ioctl(dev, WLC_GET_VAR, (void *)wl->ioctl_buf,
 			WL_IOCTL_LEN_MAX);
 	if (unlikely(err)) {
