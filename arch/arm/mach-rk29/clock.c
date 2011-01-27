@@ -2247,7 +2247,6 @@ static int __init clk_disable_unused(void)
 		clk_disable_nolock(ck);
 		UNLOCK();
 	}
-	mutex_unlock(&clocks_mutex);
 
 	pmu_set_power_domain(PD_VCODEC, false);
 //	pmu_set_power_domain(PD_DISPLAY, false);
