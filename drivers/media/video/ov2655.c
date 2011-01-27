@@ -1700,8 +1700,8 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         goto sensor_INIT_ERR;
     }
 	sensor_task_lock(client,0);
-    icd->user_width = SENSOR_INIT_WIDTH;
-    icd->user_height = SENSOR_INIT_HEIGHT;
+    //icd->user_width = SENSOR_INIT_WIDTH;
+    //icd->user_height = SENSOR_INIT_HEIGHT;
     sensor->info_priv.winseqe_cur_addr  = (int)SENSOR_INIT_WINSEQADR;
 	sensor->info_priv.pixfmt = SENSOR_INIT_PIXFMT;
 
@@ -1765,7 +1765,7 @@ static int sensor_deactivate(struct i2c_client *client)
 {
 	struct soc_camera_device *icd = client->dev.platform_data;
 
-	SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
+	SENSOR_DG("\n%s..%s.. Enter\n",SENSOR_NAME_STRING(),__FUNCTION__);
 
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
 	sensor_task_lock(client, 1);
@@ -1774,6 +1774,9 @@ static int sensor_deactivate(struct i2c_client *client)
 	sensor_task_lock(client, 0);
 	sensor_ioctrl(icd, Sensor_PowerDown, 1);
 
+	/* ddl@rock-chips.com : sensor config init width , because next open sensor quickly(soc_camera_open -> Try to configure with default parameters) */
+	icd->user_width = SENSOR_INIT_WIDTH;
+    icd->user_height = SENSOR_INIT_HEIGHT;
 	msleep(100);
 	return 0;
 }
