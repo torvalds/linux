@@ -569,11 +569,13 @@ out_unlock:
 static struct irqaction master_action = {
 	.handler =	piix4_master_intr,
 	.name =		"PIIX4-8259",
+	.flags =	IRQF_NO_THREAD,
 };
 
 static struct irqaction cascade_action = {
 	.handler = 	no_action,
 	.name =		"cascade",
+	.flags =	IRQF_NO_THREAD,
 };
 
 static inline void set_piix4_virtual_irq_type(void)
