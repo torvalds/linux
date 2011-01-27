@@ -1158,6 +1158,8 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	return retval;
 }
 
+#ifndef DWC_HOST_ONLY
+extern int rk28_usb_suspend( int exitsuspend );
 static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t state )
 {
 	struct device *dev = &_dev->dev;
@@ -1171,8 +1173,15 @@ static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t st
     /* Clear any pending interrupts */
     dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF);
     dwc_otg_disable_global_interrupts(core_if);
+    rk28_usb_suspend(0);
     return 0;
 }
+#else
+static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t state )
+{
+    return 0;
+}
+#endif
 
 static int dwc_otg_driver_resume(struct platform_device *_dev )
 {
@@ -1518,27 +1527,9 @@ fail1:
 	return retval;
 }
 
-static int host11_driver_suspend(struct platform_device *_dev , pm_message_t state )
-{
-	//struct device *dev = &_dev->dev;
-	//dwc_otg_device_t *otg_dev = dev->platform_data;
-    //dwc_otg_core_if_t *core_if = otg_dev->core_if;
-    return 0;
-}
-
-static int host11_driver_resume(struct platform_device *_dev )
-{
-	//struct device *dev = &_dev->dev;
-	//dwc_otg_device_t *otg_dev = dev->platform_data;
-    //dwc_otg_core_if_t *core_if = otg_dev->core_if;
-    return 0;
-}
-
 static struct platform_driver host11_driver = {
 	.probe = host11_driver_probe,
 	.remove = host11_driver_remove,
-	.suspend = host11_driver_suspend,
-	.resume = host11_driver_resume,
 	.driver = {
 		   .name = "usb11_host",
 		   .owner = THIS_MODULE},
@@ -1806,27 +1797,9 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	return retval;
 }
 
-static int host20_driver_suspend(struct platform_device *_dev , pm_message_t state )
-{
-	//struct device *dev = &_dev->dev;
-	//dwc_otg_device_t *otg_dev = dev->platform_data;
-    //dwc_otg_core_if_t *core_if = otg_dev->core_if;
-    return 0;
-}
-
-static int host20_driver_resume(struct platform_device *_dev )
-{
-	//struct device *dev = &_dev->dev;
-	//dwc_otg_device_t *otg_dev = dev->platform_data;
-    //dwc_otg_core_if_t *core_if = otg_dev->core_if;
-    return 0;
-}
-
 static struct platform_driver host20_driver = {
 	.probe = host20_driver_probe,
 	.remove = host20_driver_remove,
-	.suspend = host20_driver_suspend,
-	.resume = host20_driver_resume,
 	.driver = {
 		   .name = "usb20_host",
 		   .owner = THIS_MODULE},
