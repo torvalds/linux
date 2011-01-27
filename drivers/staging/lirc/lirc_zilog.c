@@ -712,12 +712,6 @@ static int tx_init(struct IR_tx *tx)
 	return 0;
 }
 
-/* do nothing stub to make LIRC happy */
-static loff_t lseek(struct file *filep, loff_t offset, int orig)
-{
-	return -ESPIPE;
-}
-
 /* copied from lirc_dev */
 static ssize_t read(struct file *filep, char *outbuf, size_t n, loff_t *ppos)
 {
@@ -1099,6 +1093,7 @@ static int open(struct inode *node, struct file *filep)
 	/* stash our IR struct */
 	filep->private_data = ir;
 
+	nonseekable_open(node, filep);
 	return 0;
 }
 
@@ -1150,7 +1145,7 @@ static struct i2c_driver driver = {
 
 static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= lseek,
+	.llseek		= no_llseek,
 	.read		= read,
 	.write		= write,
 	.poll		= poll,
