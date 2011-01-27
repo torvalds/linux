@@ -16,6 +16,8 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 
+#include "tick-internal.h"
+
 /*
  * NTP timekeeping variables:
  */
