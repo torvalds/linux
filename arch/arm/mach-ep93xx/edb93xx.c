@@ -32,6 +32,7 @@
 #include <linux/i2c-gpio.h>
 
 #include <mach/hardware.h>
+#include <mach/fb.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -111,6 +112,37 @@ static void __init edb93xx_register_pwm(void)
 }
 
 
+/*************************************************************************
+ * EDB93xx framebuffer
+ *************************************************************************/
+static struct ep93xxfb_mach_info __initdata edb93xxfb_info = {
+	.num_modes	= EP93XXFB_USE_MODEDB,
+	.bpp		= 16,
+	.flags		= 0,
+};
+
+static int __init edb93xx_has_fb(void)
+{
+	/* These platforms have an ep93xx with video capability */
+	return machine_is_edb9307() || machine_is_edb9307a() ||
+	       machine_is_edb9312() || machine_is_edb9315() ||
+	       machine_is_edb9315a();
+}
+
+static void __init edb93xx_register_fb(void)
+{
+	if (!edb93xx_has_fb())
+		return;
+
+	if (machine_is_edb9307a() || machine_is_edb9315a())
+		edb93xxfb_info.flags |= EP93XXFB_USE_SDCSN0;
+	else
+		edb93xxfb_info.flags |= EP93XXFB_USE_SDCSN3;
+
+	ep93xx_register_fb(&edb93xxfb_info);
+}
+
+
 static void __init edb93xx_init_machine(void)
 {
 	ep93xx_init_devices();
@@ -118,6 +150,7 @@ static void __init edb93xx_init_machine(void)
 	ep93xx_register_eth(&edb93xx_eth_data, 1);
 	edb93xx_register_i2c();
 	edb93xx_register_pwm();
+	edb93xx_register_fb();
 }
 
 
