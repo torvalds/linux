@@ -3282,10 +3282,10 @@ qla2x00_do_dpc(void *data)
 
 	set_user_nice(current, -20);
 
+	set_current_state(TASK_INTERRUPTIBLE);
 	while (!kthread_should_stop()) {
 		DEBUG3(printk("qla2x00: DPC handler sleeping\n"));
 
-		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
 		__set_current_state(TASK_RUNNING);
 
@@ -3454,7 +3454,9 @@ qla2x00_do_dpc(void *data)
 		qla2x00_do_dpc_all_vps(base_vha);
 
 		ha->dpc_active = 0;
+		set_current_state(TASK_INTERRUPTIBLE);
 	} /* End of while(1) */
+	__set_current_state(TASK_RUNNING);
 
 	DEBUG(printk("scsi(%ld): DPC handler exiting\n", base_vha->host_no));
 
