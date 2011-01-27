@@ -247,6 +247,8 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
 	struct radeon_device *rdev = dev->dev_private;
 	if (rdev->hyperz_filp == file_priv)
 		rdev->hyperz_filp = NULL;
+	if (rdev->cmask_filp == file_priv)
+		rdev->cmask_filp = NULL;
 }
 
 /*
