@@ -437,15 +437,6 @@ void __init leon_blackbox_current(unsigned *addr)
 
 }
 
-/*
- * CPU idle callback function
- * See .../arch/sparc/kernel/process.c
- */
-void pmc_leon_idle(void)
-{
-	__asm__ volatile ("mov %g0, %asr19");
-}
-
 void __init leon_init_smp(void)
 {
 	/* Patch ipi15 trap table */
@@ -456,13 +447,6 @@ void __init leon_init_smp(void)
 	BTFIXUPSET_CALL(smp_cross_call, leon_cross_call, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(__hard_smp_processor_id, __leon_processor_id,
 			BTFIXUPCALL_NORM);
-
-#ifndef PMC_NO_IDLE
-	/* Assign power management IDLE handler */
-	pm_idle = pmc_leon_idle;
-	printk(KERN_INFO "leon: power management initialized\n");
-#endif
-
 }
 
 #endif /* CONFIG_SPARC_LEON */
