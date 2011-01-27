@@ -342,15 +342,15 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 
 	host->cmd = NULL;
 
-	cmd->resp[0] = readl(base + MMCIRESPONSE0);
-	cmd->resp[1] = readl(base + MMCIRESPONSE1);
-	cmd->resp[2] = readl(base + MMCIRESPONSE2);
-	cmd->resp[3] = readl(base + MMCIRESPONSE3);
-
 	if (status & MCI_CMDTIMEOUT) {
 		cmd->error = -ETIMEDOUT;
 	} else if (status & MCI_CMDCRCFAIL && cmd->flags & MMC_RSP_CRC) {
 		cmd->error = -EILSEQ;
+	} else {
+		cmd->resp[0] = readl(base + MMCIRESPONSE0);
+		cmd->resp[1] = readl(base + MMCIRESPONSE1);
+		cmd->resp[2] = readl(base + MMCIRESPONSE2);
+		cmd->resp[3] = readl(base + MMCIRESPONSE3);
 	}
 
 	if (!cmd->data || cmd->error) {
