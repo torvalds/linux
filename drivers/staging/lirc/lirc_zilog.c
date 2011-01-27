@@ -305,34 +305,12 @@ static int lirc_thread(void *arg)
 
 static int set_use_inc(void *data)
 {
-	struct IR *ir = data;
-
-	if (ir->l.owner == NULL || try_module_get(ir->l.owner) == 0)
-		return -ENODEV;
-
-	/* lock bttv in memory while /dev/lirc is in use  */
-	/*
-	 * this is completely broken code. lirc_unregister_driver()
-	 * must be possible even when the device is open
-	 */
-	if (ir->rx != NULL)
-		i2c_use_client(ir->rx->c);
-	if (ir->tx != NULL)
-		i2c_use_client(ir->tx->c);
-
 	return 0;
 }
 
 static void set_use_dec(void *data)
 {
-	struct IR *ir = data;
-
-	if (ir->rx)
-		i2c_release_client(ir->rx->c);
-	if (ir->tx)
-		i2c_release_client(ir->tx->c);
-	if (ir->l.owner != NULL)
-		module_put(ir->l.owner);
+	return;
 }
 
 /* safe read of a uint32 (always network byte order) */
@@ -1098,7 +1076,6 @@ static struct IR *find_ir_device_by_minor(unsigned int minor)
 static int open(struct inode *node, struct file *filep)
 {
 	struct IR *ir;
-	int ret;
 	unsigned int minor = MINOR(node->i_rdev);
 
 	/* find our IR struct */
@@ -1112,12 +1089,6 @@ static int open(struct inode *node, struct file *filep)
 	/* increment in use count */
 	mutex_lock(&ir->ir_lock);
 	++ir->open;
-	ret = set_use_inc(ir);
-	if (ret != 0) {
-		--ir->open;
-		mutex_unlock(&ir->ir_lock);
-		return ret;
-	}
 	mutex_unlock(&ir->ir_lock);
 
 	/* stash our IR struct */
@@ -1139,7 +1110,6 @@ static int close(struct inode *node, struct file *filep)
 	/* decrement in use count */
 	mutex_lock(&ir->ir_lock);
 	--ir->open;
-	set_use_dec(ir);
 	mutex_unlock(&ir->ir_lock);
 
 	return 0;
