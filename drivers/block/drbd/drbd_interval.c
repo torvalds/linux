@@ -99,7 +99,7 @@ drbd_contains_interval(struct rb_root *root, sector_t sector,
 		else if (interval > here)
 			node = node->rb_right;
 		else
-			return interval->sector == sector;
+			return true;
 	}
 	return false;
 }
