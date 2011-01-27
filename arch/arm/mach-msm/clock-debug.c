@@ -87,47 +87,45 @@ static int clock_debug_local_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(clock_local_fops, clock_debug_local_get,
 			NULL, "%llu\n");
 
-static struct dentry *dent_rate, *dent_enable, *dent_local;
+static struct dentry *debugfs_base;
 
 int __init clock_debug_init(void)
 {
-	dent_rate = debugfs_create_dir("clk_rate", 0);
-	if (!dent_rate)
-		goto err;
-
-	dent_enable = debugfs_create_dir("clk_enable", 0);
-	if (!dent_enable)
-		goto err;
-
-	dent_local = debugfs_create_dir("clk_local", NULL);
-	if (!dent_local)
-		goto err;
-
+	debugfs_base = debugfs_create_dir("clk", NULL);
+	if (!debugfs_base)
+		return -ENOMEM;
 	return 0;
-err:
-	debugfs_remove(dent_local);
-	debugfs_remove(dent_enable);
-	debugfs_remove(dent_rate);
-	return -ENOMEM;
 }
 
 int __init clock_debug_add(struct clk *clock)
 {
 	char temp[50], *ptr;
+	struct dentry *clk_dir;
 
-	if (!dent_rate || !dent_enable || !dent_local)
+	if (!debugfs_base)
 		return -ENOMEM;
 
 	strncpy(temp, clock->dbg_name, ARRAY_SIZE(temp)-1);
 	for (ptr = temp; *ptr; ptr++)
 		*ptr = tolower(*ptr);
 
-	debugfs_create_file(temp, S_IRUGO | S_IWUSR, dent_rate,
-			    clock, &clock_rate_fops);
-	debugfs_create_file(temp, S_IRUGO | S_IWUSR, dent_enable,
-			    clock, &clock_enable_fops);
-	debugfs_create_file(temp, S_IRUGO, dent_local,
-			    clock, &clock_local_fops);
+	clk_dir = debugfs_create_dir(temp, debugfs_base);
+	if (!clk_dir)
+		return -ENOMEM;
 
+	if (!debugfs_create_file("rate", S_IRUGO | S_IWUSR, clk_dir,
+				clock, &clock_rate_fops))
+		goto error;
+
+	if (!debugfs_create_file("enable", S_IRUGO | S_IWUSR, clk_dir,
+				clock, &clock_enable_fops))
+		goto error;
+
+	if (!debugfs_create_file("is_local", S_IRUGO, clk_dir, clock,
+				&clock_local_fops))
+		goto error;
 	return 0;
+error:
+	debugfs_remove_recursive(clk_dir);
+	return -ENOMEM;
 }
