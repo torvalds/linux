@@ -106,8 +106,8 @@ void mop500_sdi_tc35892_init(void)
 	if (ret)
 		return;
 
-	gpio_direction_output(GPIO_SDMMC_1V8_3V_SEL, 1);
-	gpio_direction_output(GPIO_SDMMC_EN, 0);
+	gpio_direction_output(GPIO_SDMMC_1V8_3V_SEL, 0);
+	gpio_direction_output(GPIO_SDMMC_EN, 1);
 
 	db8500_add_sdi0(&mop500_sdi0_data);
 }
