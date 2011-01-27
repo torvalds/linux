@@ -114,6 +114,10 @@ obj-$(CONFIG_SENSORS_W83L786NG)	+= w83l786ng.o
 obj-$(CONFIG_SENSORS_WM831X)	+= wm831x-hwmon.o
 obj-$(CONFIG_SENSORS_WM8350)	+= wm8350-hwmon.o
 
+# PMBus drivers
+obj-$(CONFIG_PMBUS)		+= pmbus_core.o
+obj-$(CONFIG_SENSORS_PMBUS)	+= pmbus.o
+
 ifeq ($(CONFIG_HWMON_DEBUG_CHIP),y)
 EXTRA_CFLAGS += -DDEBUG
 endif
