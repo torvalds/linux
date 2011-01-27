@@ -112,6 +112,7 @@ static int dn_dst_gc(struct dst_ops *ops);
 static struct dst_entry *dn_dst_check(struct dst_entry *, __u32);
 static unsigned int dn_dst_default_advmss(const struct dst_entry *dst);
 static unsigned int dn_dst_default_mtu(const struct dst_entry *dst);
+static void dn_dst_destroy(struct dst_entry *);
 static struct dst_entry *dn_dst_negative_advice(struct dst_entry *);
 static void dn_dst_link_failure(struct sk_buff *);
 static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu);
@@ -133,10 +134,17 @@ static struct dst_ops dn_dst_ops = {
 	.check =		dn_dst_check,
 	.default_advmss =	dn_dst_default_advmss,
 	.default_mtu =		dn_dst_default_mtu,
+	.cow_metrics =		dst_cow_metrics_generic,
+	.destroy =		dn_dst_destroy,
 	.negative_advice =	dn_dst_negative_advice,
 	.link_failure =		dn_dst_link_failure,
 	.update_pmtu =		dn_dst_update_pmtu,
 };
+
+static void dn_dst_destroy(struct dst_entry *dst)
+{
+	dst_destroy_metrics_generic(dst);
+}
 
 static __inline__ unsigned dn_hash(__le16 src, __le16 dst)
 {
@@ -814,14 +822,14 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 {
 	struct dn_fib_info *fi = res->fi;
 	struct net_device *dev = rt->dst.dev;
+	unsigned int mss_metric;
 	struct neighbour *n;
-	unsigned int metric;
 
 	if (fi) {
 		if (DN_FIB_RES_GW(*res) &&
 		    DN_FIB_RES_NH(*res).nh_scope == RT_SCOPE_LINK)
 			rt->rt_gateway = DN_FIB_RES_GW(*res);
-		dst_import_metrics(&rt->dst, fi->fib_metrics);
+		dst_init_metrics(&rt->dst, fi->fib_metrics, true);
 	}
 	rt->rt_type = res->type;
 
@@ -834,10 +842,10 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 
 	if (dst_metric(&rt->dst, RTAX_MTU) > rt->dst.dev->mtu)
 		dst_metric_set(&rt->dst, RTAX_MTU, rt->dst.dev->mtu);
-	metric = dst_metric_raw(&rt->dst, RTAX_ADVMSS);
-	if (metric) {
+	mss_metric = dst_metric_raw(&rt->dst, RTAX_ADVMSS);
+	if (mss_metric) {
 		unsigned int mss = dn_mss_from_pmtu(dev, dst_mtu(&rt->dst));
-		if (metric > mss)
+		if (mss_metric > mss)
 			dst_metric_set(&rt->dst, RTAX_ADVMSS, mss);
 	}
 	return 0;

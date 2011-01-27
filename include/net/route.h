@@ -49,6 +49,7 @@
 
 struct fib_nh;
 struct inet_peer;
+struct fib_info;
 struct rtable {
 	struct dst_entry	dst;
 
@@ -69,6 +70,7 @@ struct rtable {
 	/* Miscellaneous cached information */
 	__be32			rt_spec_dst; /* RFC1122 specific destination */
 	struct inet_peer	*peer; /* long-living peer info */
+	struct fib_info		*fi; /* for client ref to shared metrics */
 };
 
 static inline bool rt_is_input_route(struct rtable *rt)

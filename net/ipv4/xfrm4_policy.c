@@ -196,8 +196,11 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 {
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 
+	dst_destroy_metrics_generic(dst);
+
 	if (likely(xdst->u.rt.peer))
 		inet_putpeer(xdst->u.rt.peer);
+
 	xfrm_dst_destroy(xdst);
 }
 
@@ -215,6 +218,7 @@ static struct dst_ops xfrm4_dst_ops = {
 	.protocol =		cpu_to_be16(ETH_P_IP),
 	.gc =			xfrm4_garbage_collect,
 	.update_pmtu =		xfrm4_update_pmtu,
+	.cow_metrics =		dst_cow_metrics_generic,
 	.destroy =		xfrm4_dst_destroy,
 	.ifdown =		xfrm4_dst_ifdown,
 	.local_out =		__ip_local_out,
