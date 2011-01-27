@@ -27,6 +27,7 @@
 #include <asm/mach/flash.h>
 
 #include <mach/mmc.h>
+#include "clock-pcom.h"
 
 static struct resource resources_uart3[] = {
 	{

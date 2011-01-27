@@ -26,6 +26,7 @@
 
 
 #include "clock.h"
+#include "clock-pcom.h"
 #include <mach/mmc.h>
 
 static struct resource resources_uart1[] = {

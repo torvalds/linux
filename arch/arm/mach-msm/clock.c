@@ -29,6 +29,7 @@
 #include "clock.h"
 #include "proc_comm.h"
 #include "clock-7x30.h"
+#include "clock-pcom.h"
 
 static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clocks_lock);

@@ -20,6 +20,7 @@
 
 #include "proc_comm.h"
 #include "clock.h"
+#include "clock-pcom.h"
 
 /*
  * glue for the proc_comm interface
