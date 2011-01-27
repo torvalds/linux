@@ -94,7 +94,7 @@ struct IR {
 	struct lirc_driver l;
 
 	struct mutex ir_lock;
-	int open;
+	atomic_t open_count;
 
 	struct i2c_adapter *adapter;
 	struct IR_rx *rx;
@@ -279,7 +279,7 @@ static int lirc_thread(void *arg)
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		/* if device not opened, we can sleep half a second */
-		if (!ir->open) {
+		if (atomic_read(&ir->open_count) == 0) {
 			schedule_timeout(HZ/2);
 			continue;
 		}
@@ -1094,10 +1094,7 @@ static int open(struct inode *node, struct file *filep)
 	if (ir == NULL)
 		return -ENODEV;
 
-	/* increment in use count */
-	mutex_lock(&ir->ir_lock);
-	++ir->open;
-	mutex_unlock(&ir->ir_lock);
+	atomic_inc(&ir->open_count);
 
 	/* stash our IR struct */
 	filep->private_data = ir;
@@ -1115,10 +1112,7 @@ static int close(struct inode *node, struct file *filep)
 		return -ENODEV;
 	}
 
-	/* decrement in use count */
-	mutex_lock(&ir->ir_lock);
-	--ir->open;
-	mutex_unlock(&ir->ir_lock);
+	atomic_dec(&ir->open_count);
 
 	return 0;
 }
@@ -1294,6 +1288,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		ir->adapter = adap;
 		mutex_init(&ir->ir_lock);
+		atomic_set(&ir->open_count, 0);
 
 		/* set lirc_dev stuff */
 		memcpy(&ir->l, &lirc_template, sizeof(struct lirc_driver));
