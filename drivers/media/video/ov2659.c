@@ -68,10 +68,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
 
-#define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED     250000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
 #define CONFIG_SENSOR_I2C_NOSCHED   1
-#define CONFIG_SENSOR_I2C_RDWRCHK   1
+#define CONFIG_SENSOR_I2C_RDWRCHK   0
 
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_FALLING|\
                           SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |\
@@ -261,8 +261,6 @@ static struct reginfo sensor_init_data[] =
 	{0x5062, 0x7d},
 	{0x5063, 0x69},
 	{0x3004, 0x20},
-		{0x0100,0x00},
-		{0x0100,0x01},
 	{0x0000, 0x00}
 };
 
@@ -494,6 +492,7 @@ static struct reginfo sensor_sxga[] =
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
 {
+		{0x0100, 0x00},    //software sleep : Sensor vsync singal may not output if haven't sleep the sensor when transfer the array,
 	{0x3800, 0x00},
 	{0x3801, 0x00},
 	{0x3802, 0x00},
@@ -539,6 +538,7 @@ static struct reginfo sensor_svga[] =
 	{0x5002, 0x10},
 	{0x3005, 0x18},
 	{0x3004, 0x20},
+		{0x0100, 0x01},		//software wake
 	{0x0000, 0x00}
 };
 
@@ -1506,8 +1506,8 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         goto sensor_INIT_ERR;
     }
 	sensor_task_lock(client,0);
-    icd->user_width = SENSOR_INIT_WIDTH;
-    icd->user_height = SENSOR_INIT_HEIGHT;
+    //icd->user_width = SENSOR_INIT_WIDTH;
+    //icd->user_height = SENSOR_INIT_HEIGHT;
     sensor->info_priv.winseqe_cur_addr  = (int)SENSOR_INIT_WINSEQADR;
 	sensor->info_priv.pixfmt = SENSOR_INIT_PIXFMT;
 
@@ -1572,6 +1572,8 @@ static int sensor_deactivate(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 	u8 reg_val;
 
+	SENSOR_DG("\n%s..%s.. Enter\n",SENSOR_NAME_STRING(),__FUNCTION__);
+
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
 	sensor_task_lock(client, 1);
 	sensor_read(client,0x3000,&reg_val);
@@ -1580,9 +1582,11 @@ static int sensor_deactivate(struct i2c_client *client)
 	sensor_read(client,0x3002,&reg_val);
 	sensor_write(client, 0x3002, reg_val&0x1f);
 	sensor_task_lock(client, 0);
-
 	sensor_ioctrl(icd, Sensor_PowerDown, 1);
 
+	/* ddl@rock-chips.com : sensor config init width , because next open sensor quickly(soc_camera_open -> Try to configure with default parameters) */
+	icd->user_width = SENSOR_INIT_WIDTH;
+    icd->user_height = SENSOR_INIT_HEIGHT;
 	msleep(100);
 	return 0;
 }
