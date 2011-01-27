@@ -200,7 +200,6 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 	}
 	dst_destroy_metrics_generic(dst);
 	if (peer) {
-		BUG_ON(!(rt->rt6i_flags & RTF_CACHE));
 		rt->rt6i_peer = NULL;
 		inet_putpeer(peer);
 	}
@@ -209,9 +208,6 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 void rt6_bind_peer(struct rt6_info *rt, int create)
 {
 	struct inet_peer *peer;
-
-	if (WARN_ON(!(rt->rt6i_flags & RTF_CACHE)))
-		return;
 
 	peer = inet_getpeer_v6(&rt->rt6i_dst.addr, create);
 	if (peer && cmpxchg(&rt->rt6i_peer, NULL, peer) != NULL)

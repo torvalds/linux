@@ -1122,8 +1122,7 @@ static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[])
 				return -EOPNOTSUPP;
 
 			if (af_ops->validate_link_af) {
-				err = af_ops->validate_link_af(dev,
-							tb[IFLA_AF_SPEC]);
+				err = af_ops->validate_link_af(dev, af);
 				if (err < 0)
 					return err;
 			}
