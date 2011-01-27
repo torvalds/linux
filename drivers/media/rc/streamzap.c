@@ -273,6 +273,7 @@ static void streamzap_callback(struct urb *urb)
 				if (sz->timeout_enabled)
 					sz_push(sz, rawir);
 				ir_raw_event_handle(sz->rdev);
+				ir_raw_event_reset(sz->rdev);
 			} else {
 				sz_push_full_space(sz, sz->buf_in[i]);
 			}
@@ -290,6 +291,7 @@ static void streamzap_callback(struct urb *urb)
 		}
 	}
 
+	ir_raw_event_handle(sz->rdev);
 	usb_submit_urb(urb, GFP_ATOMIC);
 
 	return;
