@@ -40,8 +40,11 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 
+/* These two are defined in "libata.h" */
+#undef	DRV_NAME
+#undef	DRV_VERSION
 #define DRV_NAME        "sata-dwc"
-#define DRV_VERSION     "1.0"
+#define DRV_VERSION     "1.1"
 
 /* SATA DMA driver Globals */
 #define DMA_NUM_CHANS		1
@@ -1354,7 +1357,7 @@ static void sata_dwc_exec_command_by_tag(struct ata_port *ap,
 	struct sata_dwc_device_port *hsdevp = HSDEVP_FROM_AP(ap);
 
 	dev_dbg(ap->dev, "%s cmd(0x%02x): %s tag=%d\n", __func__, tf->command,
-		ata_get_cmd_descript(tf), tag);
+		ata_get_cmd_descript(tf->command), tag);
 
 	spin_lock_irqsave(&ap->host->lock, flags);
 	hsdevp->cmd_issued[tag] = cmd_issued;
@@ -1462,7 +1465,6 @@ static void sata_dwc_qc_prep_by_tag(struct ata_queued_cmd *qc, u8 tag)
 	int dma_chan;
 	struct sata_dwc_device *hsdev = HSDEV_FROM_AP(ap);
 	struct sata_dwc_device_port *hsdevp = HSDEVP_FROM_AP(ap);
-	int err;
 
 	dev_dbg(ap->dev, "%s: port=%d dma dir=%s n_elem=%d\n",
 		__func__, ap->port_no, ata_get_cmd_descript(qc->dma_dir),
@@ -1474,7 +1476,7 @@ static void sata_dwc_qc_prep_by_tag(struct ata_queued_cmd *qc, u8 tag)
 				      dmadr), qc->dma_dir);
 	if (dma_chan < 0) {
 		dev_err(ap->dev, "%s: dma_dwc_xfer_setup returns err %d\n",
-			__func__, err);
+			__func__, dma_chan);
 		return;
 	}
 	hsdevp->dma_chan[tag] = dma_chan;
@@ -1491,7 +1493,7 @@ static unsigned int sata_dwc_qc_issue(struct ata_queued_cmd *qc)
 		dev_info(ap->dev, "%s ap id=%d cmd(0x%02x)=%s qc tag=%d "
 			 "prot=%s ap active_tag=0x%08x ap sactive=0x%08x\n",
 			 __func__, ap->print_id, qc->tf.command,
-			 ata_get_cmd_descript(&qc->tf),
+			 ata_get_cmd_descript(qc->tf.command),
 			 qc->tag, ata_get_cmd_descript(qc->tf.protocol),
 			 ap->link.active_tag, ap->link.sactive);
 #endif
@@ -1533,7 +1535,7 @@ static void sata_dwc_qc_prep(struct ata_queued_cmd *qc)
 #ifdef DEBUG_NCQ
 	if (qc->tag > 0)
 		dev_info(qc->ap->dev, "%s: qc->tag=%d ap->active_tag=0x%08x\n",
-			 __func__, tag, qc->ap->link.active_tag);
+			 __func__, qc->tag, qc->ap->link.active_tag);
 
 	return ;
 #endif
