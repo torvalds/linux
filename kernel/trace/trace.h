@@ -677,8 +677,7 @@ struct event_subsystem {
 struct filter_pred;
 struct regex;
 
-typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event,
-				 int val1, int val2);
+typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
 
 typedef int (*regex_match_func)(char *str, struct regex *r, int len);
 

@@ -124,8 +124,7 @@ struct filter_parse_state {
 };
 
 #define DEFINE_COMPARISON_PRED(type)					\
-static int filter_pred_##type(struct filter_pred *pred, void *event,	\
-			      int val1, int val2)			\
+static int filter_pred_##type(struct filter_pred *pred, void *event)	\
 {									\
 	type *addr = (type *)(event + pred->offset);			\
 	type val = (type)pred->val;					\
@@ -152,8 +151,7 @@ static int filter_pred_##type(struct filter_pred *pred, void *event,	\
 }
 
 #define DEFINE_EQUALITY_PRED(size)					\
-static int filter_pred_##size(struct filter_pred *pred, void *event,	\
-			      int val1, int val2)			\
+static int filter_pred_##size(struct filter_pred *pred, void *event)	\
 {									\
 	u##size *addr = (u##size *)(event + pred->offset);		\
 	u##size val = (u##size)pred->val;				\
@@ -178,23 +176,8 @@ DEFINE_EQUALITY_PRED(32);
 DEFINE_EQUALITY_PRED(16);
 DEFINE_EQUALITY_PRED(8);
 
-static int filter_pred_and(struct filter_pred *pred __attribute((unused)),
-			   void *event __attribute((unused)),
-			   int val1, int val2)
-{
-	return val1 && val2;
-}
-
-static int filter_pred_or(struct filter_pred *pred __attribute((unused)),
-			  void *event __attribute((unused)),
-			  int val1, int val2)
-{
-	return val1 || val2;
-}
-
 /* Filter predicate for fixed sized arrays of characters */
-static int filter_pred_string(struct filter_pred *pred, void *event,
-			      int val1, int val2)
+static int filter_pred_string(struct filter_pred *pred, void *event)
 {
 	char *addr = (char *)(event + pred->offset);
 	int cmp, match;
@@ -207,8 +190,7 @@ static int filter_pred_string(struct filter_pred *pred, void *event,
 }
 
 /* Filter predicate for char * pointers */
-static int filter_pred_pchar(struct filter_pred *pred, void *event,
-			     int val1, int val2)
+static int filter_pred_pchar(struct filter_pred *pred, void *event)
 {
 	char **addr = (char **)(event + pred->offset);
 	int cmp, match;
@@ -231,8 +213,7 @@ static int filter_pred_pchar(struct filter_pred *pred, void *event,
  * and add it to the address of the entry, and at last we have
  * the address of the string.
  */
-static int filter_pred_strloc(struct filter_pred *pred, void *event,
-			      int val1, int val2)
+static int filter_pred_strloc(struct filter_pred *pred, void *event)
 {
 	u32 str_item = *(u32 *)(event + pred->offset);
 	int str_loc = str_item & 0xffff;
@@ -247,8 +228,7 @@ static int filter_pred_strloc(struct filter_pred *pred, void *event,
 	return match;
 }
 
-static int filter_pred_none(struct filter_pred *pred, void *event,
-			    int val1, int val2)
+static int filter_pred_none(struct filter_pred *pred, void *event)
 {
 	return 0;
 }
@@ -380,7 +360,7 @@ static void filter_build_regex(struct filter_pred *pred)
 /* return 1 if event matches, 0 otherwise (discard) */
 int filter_match_preds(struct event_filter *filter, void *rec)
 {
-	int match, top = 0, val1 = 0, val2 = 0;
+	int match = -1, top = 0, val1 = 0, val2 = 0;
 	int stack[MAX_FILTER_PRED];
 	struct filter_pred *pred;
 	int n_preds = ACCESS_ONCE(filter->n_preds);
@@ -393,7 +373,7 @@ int filter_match_preds(struct event_filter *filter, void *rec)
 	for (i = 0; i < n_preds; i++) {
 		pred = filter->preds[i];
 		if (!pred->pop_n) {
-			match = pred->fn(pred, rec, val1, val2);
+			match = pred->fn(pred, rec);
 			stack[top++] = match;
 			continue;
 		}
@@ -403,7 +383,16 @@ int filter_match_preds(struct event_filter *filter, void *rec)
 		}
 		val1 = stack[--top];
 		val2 = stack[--top];
-		match = pred->fn(pred, rec, val1, val2);
+		switch (pred->op) {
+		case OP_AND:
+			match = val1 && val2;
+			break;
+		case OP_OR:
+			match = val1 || val2;
+			break;
+		default:
+			WARN_ONCE(1, "filter op is not AND or OR");
+		}
 		stack[top++] = match;
 	}
 
@@ -775,15 +764,13 @@ static int filter_add_pred(struct filter_parse_state *ps,
 	unsigned long long val;
 	int ret;
 
-	pred->fn = filter_pred_none;
+	fn = pred->fn = filter_pred_none;
 
 	if (pred->op == OP_AND) {
 		pred->pop_n = 2;
-		fn = filter_pred_and;
 		goto add_pred_fn;
 	} else if (pred->op == OP_OR) {
 		pred->pop_n = 2;
-		fn = filter_pred_or;
 		goto add_pred_fn;
 	}
 
