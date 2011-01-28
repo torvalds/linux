@@ -53,20 +53,20 @@ config ARCH_OMAP4
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
 
-config ARCH_OMAP2420
+config SOC_OMAP2420
 	bool "OMAP2420 support"
 	depends on ARCH_OMAP2
 	default y
 	select OMAP_DM_TIMER
 	select ARCH_OMAP_OTG
 
-config ARCH_OMAP2430
+config SOC_OMAP2430
 	bool "OMAP2430 support"
 	depends on ARCH_OMAP2
 	default y
 	select ARCH_OMAP_OTG
 
-config ARCH_OMAP3430
+config SOC_OMAP3430
 	bool "OMAP3430 support"
 	depends on ARCH_OMAP3
 	default y
@@ -106,25 +106,25 @@ config MACH_OMAP_GENERIC
 
 config MACH_OMAP2_TUSB6010
 	bool
-	depends on ARCH_OMAP2 && ARCH_OMAP2420
+	depends on ARCH_OMAP2 && SOC_OMAP2420
 	default y if MACH_NOKIA_N8X0
 
 config MACH_OMAP_H4
 	bool "OMAP 2420 H4 board"
-	depends on ARCH_OMAP2420
+	depends on SOC_OMAP2420
 	default y
 	select OMAP_PACKAGE_ZAF
 	select OMAP_DEBUG_DEVICES
 
 config MACH_OMAP_APOLLON
 	bool "OMAP 2420 Apollon board"
-	depends on ARCH_OMAP2420
+	depends on SOC_OMAP2420
 	default y
 	select OMAP_PACKAGE_ZAC
 
 config MACH_OMAP_2430SDP
 	bool "OMAP 2430 SDP board"
-	depends on ARCH_OMAP2430
+	depends on SOC_OMAP2430
 	default y
 	select OMAP_PACKAGE_ZAC
 
@@ -219,7 +219,7 @@ config MACH_NOKIA_N810_WIMAX
 
 config MACH_NOKIA_N8X0
 	bool "Nokia N800/N810"
-	depends on ARCH_OMAP2420
+	depends on SOC_OMAP2420
 	default y
 	select OMAP_PACKAGE_ZAC
 	select MACH_NOKIA_N800

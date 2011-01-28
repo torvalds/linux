@@ -418,7 +418,7 @@ struct prcm_config {
 
 extern const struct prcm_config omap2420_rate_table[];
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 extern const struct prcm_config omap2430_rate_table[];
 #else
 #define omap2430_rate_table	NULL

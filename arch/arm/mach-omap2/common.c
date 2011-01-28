@@ -40,7 +40,7 @@ static void __init __omap2_set_globals(struct omap_globals *omap2_globals)
 
 #endif
 
-#if defined(CONFIG_ARCH_OMAP2420)
+#if defined(CONFIG_SOC_OMAP2420)
 
 static struct omap_globals omap242x_globals = {
 	.class	= OMAP242X_CLASS,
@@ -61,7 +61,7 @@ void __init omap2_set_globals_242x(void)
 }
 #endif
 
-#if defined(CONFIG_ARCH_OMAP2430)
+#if defined(CONFIG_SOC_OMAP2430)
 
 static struct omap_globals omap243x_globals = {
 	.class	= OMAP243X_CLASS,

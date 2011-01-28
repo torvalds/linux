@@ -31,8 +31,8 @@ AFLAGS_omap-headsmp.o			:=-Wa,-march=armv7-a$(plus_sec)
 AFLAGS_omap44xx-smc.o			:=-Wa,-march=armv7-a$(plus_sec)
 
 # Functions loaded to SRAM
-obj-$(CONFIG_ARCH_OMAP2420)		+= sram242x.o
-obj-$(CONFIG_ARCH_OMAP2430)		+= sram243x.o
+obj-$(CONFIG_SOC_OMAP2420)		+= sram242x.o
+obj-$(CONFIG_SOC_OMAP2430)		+= sram243x.o
 obj-$(CONFIG_ARCH_OMAP3)		+= sram34xx.o
 
 AFLAGS_sram242x.o			:=-Wa,-march=armv6
@@ -40,8 +40,8 @@ AFLAGS_sram243x.o			:=-Wa,-march=armv6
 AFLAGS_sram34xx.o			:=-Wa,-march=armv7-a
 
 # Pin multiplexing
-obj-$(CONFIG_ARCH_OMAP2420)		+= mux2420.o
-obj-$(CONFIG_ARCH_OMAP2430)		+= mux2430.o
+obj-$(CONFIG_SOC_OMAP2420)		+= mux2420.o
+obj-$(CONFIG_SOC_OMAP2430)		+= mux2430.o
 obj-$(CONFIG_ARCH_OMAP3)		+= mux34xx.o
 obj-$(CONFIG_ARCH_OMAP4)		+= mux44xx.o
 
@@ -113,8 +113,8 @@ obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o \
 					   clkt2xxx_dpllcore.o \
 					   clkt2xxx_virt_prcm_set.o \
 					   clkt2xxx_apll.o clkt2xxx_osc.o
-obj-$(CONFIG_ARCH_OMAP2420)		+= clock2420_data.o
-obj-$(CONFIG_ARCH_OMAP2430)		+= clock2430.o clock2430_data.o
+obj-$(CONFIG_SOC_OMAP2420)		+= clock2420_data.o
+obj-$(CONFIG_SOC_OMAP2430)		+= clock2430.o clock2430_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= $(clock-common) clock3xxx.o \
 					   clock34xx.o clkt34xx_dpll3m2.o \
 					   clock3517.o clock36xx.o \
@@ -123,12 +123,12 @@ obj-$(CONFIG_ARCH_OMAP4)		+= $(clock-common) clock44xx_data.o \
 					   dpll3xxx.o
 
 # OMAP2 clock rate set data (old "OPP" data)
-obj-$(CONFIG_ARCH_OMAP2420)		+= opp2420_data.o
-obj-$(CONFIG_ARCH_OMAP2430)		+= opp2430_data.o
+obj-$(CONFIG_SOC_OMAP2420)		+= opp2420_data.o
+obj-$(CONFIG_SOC_OMAP2430)		+= opp2430_data.o
 
 # hwmod data
-obj-$(CONFIG_ARCH_OMAP2420)		+= omap_hwmod_2420_data.o
-obj-$(CONFIG_ARCH_OMAP2430)		+= omap_hwmod_2430_data.o
+obj-$(CONFIG_SOC_OMAP2420)		+= omap_hwmod_2420_data.o
+obj-$(CONFIG_SOC_OMAP2430)		+= omap_hwmod_2430_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= omap_hwmod_3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= omap_hwmod_44xx_data.o
 

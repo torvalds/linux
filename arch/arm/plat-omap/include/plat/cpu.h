@@ -170,11 +170,11 @@ IS_OMAP_SUBCLASS(443x, 0x443)
 #  undef  cpu_is_omap24xx
 #  define cpu_is_omap24xx()		is_omap24xx()
 # endif
-# if defined (CONFIG_ARCH_OMAP2420)
+# if defined (CONFIG_SOC_OMAP2420)
 #  undef  cpu_is_omap242x
 #  define cpu_is_omap242x()		is_omap242x()
 # endif
-# if defined (CONFIG_ARCH_OMAP2430)
+# if defined (CONFIG_SOC_OMAP2430)
 #  undef  cpu_is_omap243x
 #  define cpu_is_omap243x()		is_omap243x()
 # endif
@@ -189,11 +189,11 @@ IS_OMAP_SUBCLASS(443x, 0x443)
 #  undef  cpu_is_omap24xx
 #  define cpu_is_omap24xx()		1
 # endif
-# if defined(CONFIG_ARCH_OMAP2420)
+# if defined(CONFIG_SOC_OMAP2420)
 #  undef  cpu_is_omap242x
 #  define cpu_is_omap242x()		1
 # endif
-# if defined(CONFIG_ARCH_OMAP2430)
+# if defined(CONFIG_SOC_OMAP2430)
 #  undef  cpu_is_omap243x
 #  define cpu_is_omap243x()		1
 # endif
@@ -201,7 +201,7 @@ IS_OMAP_SUBCLASS(443x, 0x443)
 #  undef  cpu_is_omap34xx
 #  define cpu_is_omap34xx()		1
 # endif
-# if defined(CONFIG_ARCH_OMAP3430)
+# if defined(CONFIG_SOC_OMAP3430)
 #  undef  cpu_is_omap343x
 #  define cpu_is_omap343x()		1
 # endif

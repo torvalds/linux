@@ -333,7 +333,7 @@ static struct platform_device omap2_mcspi2 = {
 	},
 };
 
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
+#if defined(CONFIG_SOC_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
 	defined(CONFIG_ARCH_OMAP4)
 static struct omap2_mcspi_platform_config omap2_mcspi3_config = {
 	.num_cs		= 2,
@@ -400,7 +400,7 @@ static inline void omap4_mcspi_fixup(void)
 }
 #endif
 
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
+#if defined(CONFIG_SOC_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
 	defined(CONFIG_ARCH_OMAP4)
 static inline void omap2_mcspi3_init(void)
 {
@@ -895,7 +895,7 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_HDQ_MASTER_OMAP) || defined(CONFIG_HDQ_MASTER_OMAP_MODULE)
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3430)
+#if defined(CONFIG_SOC_OMAP2430) || defined(CONFIG_SOC_OMAP3430)
 #define OMAP_HDQ_BASE	0x480B2000
 #endif
 static struct resource omap_hdq_resources[] = {

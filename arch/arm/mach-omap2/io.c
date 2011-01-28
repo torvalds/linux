@@ -66,7 +66,7 @@ static struct map_desc omap24xx_io_desc[] __initdata = {
 	},
 };
 
-#ifdef CONFIG_ARCH_OMAP2420
+#ifdef CONFIG_SOC_OMAP2420
 static struct map_desc omap242x_io_desc[] __initdata = {
 	{
 		.virtual	= DSP_MEM_2420_VIRT,
@@ -90,7 +90,7 @@ static struct map_desc omap242x_io_desc[] __initdata = {
 
 #endif
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 static struct map_desc omap243x_io_desc[] __initdata = {
 	{
 		.virtual	= L4_WK_243X_VIRT,
@@ -241,7 +241,7 @@ static void __init _omap2_map_common_io(void)
 	omap_sram_init();
 }
 
-#ifdef CONFIG_ARCH_OMAP2420
+#ifdef CONFIG_SOC_OMAP2420
 void __init omap242x_map_common_io(void)
 {
 	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
@@ -250,7 +250,7 @@ void __init omap242x_map_common_io(void)
 }
 #endif
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 void __init omap243x_map_common_io(void)
 {
 	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
