@@ -383,9 +383,14 @@ int filter_match_preds(struct event_filter *filter, void *rec)
 	int match, top = 0, val1 = 0, val2 = 0;
 	int stack[MAX_FILTER_PRED];
 	struct filter_pred *pred;
+	int n_preds = ACCESS_ONCE(filter->n_preds);
 	int i;
 
-	for (i = 0; i < filter->n_preds; i++) {
+	/* no filter is considered a match */
+	if (!n_preds)
+		return 1;
+
+	for (i = 0; i < n_preds; i++) {
 		pred = filter->preds[i];
 		if (!pred->pop_n) {
 			match = pred->fn(pred, rec, val1, val2);
