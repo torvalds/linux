@@ -230,19 +230,6 @@ static struct spi_board_info palmte_spi_info[] __initdata = {
 	},
 };
 
-static void palmte_headphones_detect(void *data, int state)
-{
-	if (state) {
-		/* Headphones connected, disable speaker */
-		gpio_set_value(PALMTE_SPEAKER_GPIO, 0);
-		printk(KERN_INFO "PM: speaker off\n");
-	} else {
-		/* Headphones unplugged, re-enable speaker */
-		gpio_set_value(PALMTE_SPEAKER_GPIO, 1);
-		printk(KERN_INFO "PM: speaker on\n");
-	}
-}
-
 static void __init palmte_misc_gpio_setup(void)
 {
 	/* Set TSC2102 PINTDAV pin as input (used by TSC2102 driver) */
