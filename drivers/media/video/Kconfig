@@ -895,12 +895,6 @@ config SOC_CAMERA_OV5642
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a ov5642 camera driver	
-
-config SOC_CAMERA_S5K6AA
-	tristate "Samsung S5K6AA MIPI CSI-2 (importek mu736asa)"
-	depends on SOC_CAMERA && I2C
-	help
-	  This is a samsung S5K6AA mobile camera driver
 choice
 	prompt "OV5642 Module Focus select"
 	depends on SOC_CAMERA_OV5642
@@ -913,6 +907,30 @@ config OV5642_AUTOFOCUS
 config OV5642_FIXEDFOCUS
 	bool "OV5642 fixed focus"
 endchoice
+
+config SOC_CAMERA_OV5640
+	tristate "ov5640 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov5640 camera driver	
+choice
+	prompt "OV5640 Module Focus select"
+	depends on SOC_CAMERA_OV5640
+	default OV5640_AUTOFOCUS
+	---help---
+		
+config OV5640_AUTOFOCUS
+	bool "OV5640 auto focus"
+
+config OV5640_FIXEDFOCUS
+	bool "OV5640 fixed focus"
+endchoice
+
+config SOC_CAMERA_S5K6AA
+	tristate "Samsung S5K6AA MIPI CSI-2 (importek mu736asa)"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a samsung S5K6AA mobile camera driver
 
  	     
 config MX1_VIDEO

@@ -708,8 +708,8 @@ static int rk29_camera_add_device(struct soc_camera_device *icd)
         goto ebusy;
     }
 
-    dev_info(&icd->dev, "RK29 Camera driver attached to camera %d\n",
-             icd->devnum);
+    dev_info(&icd->dev, "RK29 Camera driver attached to camera%d(%s)\n",
+             icd->devnum,dev_name(icd->pdev));
 
 	pcdev->frame_inval = RK29_CAM_FRAME_INVAL_INIT;
     pcdev->active = NULL;
@@ -748,8 +748,8 @@ static void rk29_camera_remove_device(struct soc_camera_device *icd)
 
     BUG_ON(icd != pcdev->icd);
 
-    dev_info(&icd->dev, "RK29 Camera driver detached from camera %d\n",
-             icd->devnum);
+    dev_info(&icd->dev, "RK29 Camera driver detached from camera%d(%s)\n",
+             icd->devnum,dev_name(icd->pdev));
 
     v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_DEACTIVATE,NULL);
 	rk29_camera_deactivate(pcdev);
