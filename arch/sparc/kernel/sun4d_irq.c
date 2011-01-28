@@ -307,7 +307,8 @@ int sun4d_request_irq(unsigned int irq,
 
 	if (action) {
 		if ((action->flags & IRQF_SHARED) && (irqflags & IRQF_SHARED)) {
-			for (tmp = action; tmp->next; tmp = tmp->next);
+			for (tmp = action; tmp->next; tmp = tmp->next)
+				/* find last entry - tmp used below */;
 		} else {
 			ret = -EBUSY;
 			goto out_unlock;
