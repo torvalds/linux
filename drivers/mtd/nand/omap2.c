@@ -98,6 +98,20 @@
 static const char *part_probes[] = { "cmdlinepart", NULL };
 #endif
 
+/* oob info generated runtime depending on ecc algorithm and layout selected */
+static struct nand_ecclayout omap_oobinfo;
+/* Define some generic bad / good block scan pattern which are used
+ * while scanning a device for factory marked good / bad blocks
+ */
+static uint8_t scan_ff_pattern[] = { 0xff };
+static struct nand_bbt_descr bb_descrip_flashbased = {
+	.options = NAND_BBT_SCANEMPTY | NAND_BBT_SCANALLPAGES,
+	.offs = 0,
+	.len = 1,
+	.pattern = scan_ff_pattern,
+};
+
+
 struct omap_nand_info {
 	struct nand_hw_control		controller;
 	struct omap_nand_platform_data	*pdata;
@@ -914,6 +928,7 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 	struct omap_nand_info		*info;
 	struct omap_nand_platform_data	*pdata;
 	int				err;
+	int				i, offset;
 
 	pdata = pdev->dev.platform_data;
 	if (pdata == NULL) {
@@ -1037,7 +1052,8 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 	/* selsect the ecc type */
 	if (pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_DEFAULT)
 		info->nand.ecc.mode = NAND_ECC_SOFT;
-	else if (pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_HW) {
+	else if ((pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_HW) ||
+		(pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_HW_ROMCODE)) {
 		info->nand.ecc.bytes            = 3;
 		info->nand.ecc.size             = 512;
 		info->nand.ecc.calculate        = omap_calculate_ecc;
@@ -1057,6 +1073,25 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* rom code layout */
+	if (pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_HW_ROMCODE) {
+
+		if (info->nand.options & NAND_BUSWIDTH_16)
+			offset = 2;
+		else {
+			offset = 1;
+			info->nand.badblock_pattern = &bb_descrip_flashbased;
+		}
+		omap_oobinfo.eccbytes = 3 * (info->mtd.oobsize/16);
+		for (i = 0; i < omap_oobinfo.eccbytes; i++)
+			omap_oobinfo.eccpos[i] = i+offset;
+
+		omap_oobinfo.oobfree->offset = offset + omap_oobinfo.eccbytes;
+		omap_oobinfo.oobfree->length = info->mtd.oobsize -
+					(offset + omap_oobinfo.eccbytes);
+
+		info->nand.ecc.layout = &omap_oobinfo;
+	}
 
 #ifdef CONFIG_MTD_PARTITIONS
 	err = parse_mtd_partitions(&info->mtd, part_probes, &info->parts, 0);
