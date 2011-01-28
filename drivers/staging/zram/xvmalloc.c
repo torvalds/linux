@@ -200,6 +200,8 @@ static void insert_block(struct xv_pool *pool, struct page *page, u32 offset,
 		nextblock->link.prev_page = page;
 		nextblock->link.prev_offset = offset;
 		put_ptr_atomic(nextblock, KM_USER1);
+		/* If there was a next page then the free bits are set. */
+		return;
 	}
 
 	__set_bit(slindex % BITS_PER_LONG, &pool->slbitmap[flindex]);
