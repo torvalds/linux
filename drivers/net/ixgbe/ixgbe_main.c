@@ -7707,16 +7707,6 @@ static int ixgbe_notify_dca(struct notifier_block *nb, unsigned long event,
 
 #endif /* CONFIG_IXGBE_DCA */
 
-/**
- * ixgbe_get_hw_dev return device
- * used by hardware layer to print debugging information
- **/
-struct net_device *ixgbe_get_hw_dev(struct ixgbe_hw *hw)
-{
-	struct ixgbe_adapter *adapter = hw->back;
-	return adapter->netdev;
-}
-
 module_exit(ixgbe_exit_module);
 
 /* ixgbe_main.c */
