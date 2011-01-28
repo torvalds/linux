@@ -88,6 +88,7 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size)
 fail_pages_alloc:
 	while (--i >= 0)
 		__free_page(buf->pages[i]);
+	kfree(buf->pages);
 
 fail_pages_array_alloc:
 	vfree(buf->sg_desc.sglist);
@@ -176,6 +177,7 @@ userptr_fail_get_user_pages:
 	       num_pages_from_user, buf->sg_desc.num_pages);
 	while (--num_pages_from_user >= 0)
 		put_page(buf->pages[num_pages_from_user]);
+	kfree(buf->pages);
 
 userptr_fail_pages_array_alloc:
 	vfree(buf->sg_desc.sglist);
