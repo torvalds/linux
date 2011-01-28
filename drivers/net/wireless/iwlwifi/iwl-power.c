@@ -226,8 +226,7 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 	else
 		cmd->flags &= ~IWL_POWER_SHADOW_REG_ENA;
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	if (iwl_advanced_bt_coexist(priv)) {
 		if (!priv->cfg->bt_params->bt_sco_disable)
 			cmd->flags |= IWL_POWER_BT_SCO_ENA;
 		else
@@ -313,8 +312,7 @@ static void iwl_power_fill_sleep_cmd(struct iwl_priv *priv,
 	else
 		cmd->flags &= ~IWL_POWER_SHADOW_REG_ENA;
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	if (iwl_advanced_bt_coexist(priv)) {
 		if (!priv->cfg->bt_params->bt_sco_disable)
 			cmd->flags |= IWL_POWER_BT_SCO_ENA;
 		else

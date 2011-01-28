@@ -257,8 +257,7 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 	queue_work(priv->workqueue, &priv->scan_completed);
 
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC &&
-	    priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist &&
+	    iwl_advanced_bt_coexist(priv) &&
 	    priv->bt_status != scan_notif->bt_status) {
 		if (scan_notif->bt_status) {
 			/* BT on */

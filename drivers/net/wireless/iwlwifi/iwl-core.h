@@ -741,6 +741,12 @@ static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 	return priv->hw->wiphy->bands[band];
 }
 
+static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
+{
+	return priv->cfg->bt_params &&
+	       priv->cfg->bt_params->advanced_bt_coexist;
+}
+
 extern bool bt_coex_active;
 extern bool bt_siso_mode;
 
