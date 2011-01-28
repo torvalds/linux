@@ -3630,7 +3630,9 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
             wmi_control_rx(ar->arWmi, skb);
         } else {
                 WMI_DATA_HDR *dhdr = (WMI_DATA_HDR *)A_NETBUF_DATA(skb);
-                A_UINT8 is_amsdu, tid, is_acl_data_frame;
+                A_BOOL is_amsdu;
+                A_UINT8 tid;
+                A_BOOL is_acl_data_frame;
                 is_acl_data_frame = WMI_DATA_HDR_GET_DATA_TYPE(dhdr) == WMI_DATA_HDR_DATA_TYPE_ACL;
 #ifdef CONFIG_PM 
                 ar6000_check_wow_status(ar, NULL, FALSE);
@@ -3751,7 +3753,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
                         }
                     }
 
-                    is_amsdu = WMI_DATA_HDR_IS_AMSDU(dhdr);
+                    is_amsdu = WMI_DATA_HDR_IS_AMSDU(dhdr) ? TRUE : FALSE;
                     tid = WMI_DATA_HDR_GET_UP(dhdr);
                     seq_no = WMI_DATA_HDR_GET_SEQNO(dhdr);
                     meta_type = WMI_DATA_HDR_GET_META(dhdr);
