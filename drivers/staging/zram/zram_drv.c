@@ -237,7 +237,7 @@ static void zram_read(struct zram *zram, struct bio *bio)
 		if (unlikely(!zram->table[index].page)) {
 			pr_debug("Read before write: sector=%lu, size=%u",
 				(ulong)(bio->bi_sector), bio->bi_size);
-			/* Do nothing */
+			handle_zero_page(page);
 			continue;
 		}
 
