@@ -259,11 +259,12 @@ __nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 }
 
 static struct nouveau_semaphore *
-alloc_semaphore(struct drm_device *dev)
+semaphore_alloc(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_semaphore *sema;
-	int ret;
+	int size = (dev_priv->chipset < 0x84) ? 4 : 16;
+	int ret, i;
 
 	if (!USE_SEMA(dev))
 		return NULL;
@@ -277,9 +278,9 @@ alloc_semaphore(struct drm_device *dev)
 		goto fail;
 
 	spin_lock(&dev_priv->fence.lock);
-	sema->mem = drm_mm_search_free(&dev_priv->fence.heap, 4, 0, 0);
+	sema->mem = drm_mm_search_free(&dev_priv->fence.heap, size, 0, 0);
 	if (sema->mem)
-		sema->mem = drm_mm_get_block_atomic(sema->mem, 4, 0);
+		sema->mem = drm_mm_get_block_atomic(sema->mem, size, 0);
 	spin_unlock(&dev_priv->fence.lock);
 
 	if (!sema->mem)
@@ -287,7 +288,8 @@ alloc_semaphore(struct drm_device *dev)
 
 	kref_init(&sema->ref);
 	sema->dev = dev;
-	nouveau_bo_wr32(dev_priv->fence.bo, sema->mem->start / 4, 0);
+	for (i = sema->mem->start; i < sema->mem->start + size; i += 4)
+		nouveau_bo_wr32(dev_priv->fence.bo, i / 4, 0);
 
 	return sema;
 fail:
@@ -296,7 +298,7 @@ fail:
 }
 
 static void
-free_semaphore(struct kref *ref)
+semaphore_free(struct kref *ref)
 {
 	struct nouveau_semaphore *sema =
 		container_of(ref, struct nouveau_semaphore, ref);
@@ -318,30 +320,25 @@ semaphore_work(void *priv, bool signalled)
 	if (unlikely(!signalled))
 		nouveau_bo_wr32(dev_priv->fence.bo, sema->mem->start / 4, 1);
 
-	kref_put(&sema->ref, free_semaphore);
+	kref_put(&sema->ref, semaphore_free);
 }
 
 static int
-emit_semaphore(struct nouveau_channel *chan, int method,
-	       struct nouveau_semaphore *sema)
+semaphore_acquire(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 {
-	struct drm_nouveau_private *dev_priv = sema->dev->dev_private;
-	struct nouveau_fence *fence;
-	bool smart = (dev_priv->card_type >= NV_50);
+	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
+	struct nouveau_fence *fence = NULL;
 	int ret;
 
-	ret = RING_SPACE(chan, smart ? 8 : 4);
-	if (ret)
-		return ret;
+	if (dev_priv->chipset < 0x84) {
+		ret = RING_SPACE(chan, 3);
+		if (ret)
+			return ret;
 
-	if (smart) {
-		BEGIN_RING(chan, NvSubSw, NV_SW_DMA_SEMAPHORE, 1);
-		OUT_RING(chan, NvSema);
-	}
-	BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_OFFSET, 1);
-	OUT_RING(chan, sema->mem->start);
-
-	if (smart && method == NV_SW_SEMAPHORE_ACQUIRE) {
+		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_OFFSET, 2);
+		OUT_RING  (chan, sema->mem->start);
+		OUT_RING  (chan, 1);
+	} else {
 		/*
 		 * NV50 tries to be too smart and context-switch
 		 * between semaphores instead of doing a "first come,
@@ -358,21 +355,18 @@ emit_semaphore(struct nouveau_channel *chan, int method,
 		 * RELEASE is already scheduled to be executed in
 		 * another channel.
 		 */
-		BEGIN_RING(chan, NvSubSw, NV_SW_YIELD, 1);
-		OUT_RING(chan, 0);
-	}
 
-	BEGIN_RING(chan, NvSubSw, method, 1);
-	OUT_RING(chan, 1);
+		ret = RING_SPACE(chan, 7);
+		if (ret)
+			return ret;
 
-	if (smart && method == NV_SW_SEMAPHORE_RELEASE) {
-		/*
-		 * Force the card to context switch, there may be
-		 * another channel waiting for the semaphore we just
-		 * released.
-		 */
-		BEGIN_RING(chan, NvSubSw, NV_SW_YIELD, 1);
-		OUT_RING(chan, 0);
+		BEGIN_RING(chan, NvSubSw, 0x0080, 1);
+		OUT_RING  (chan, 0);
+		BEGIN_RING(chan, NvSubSw, 0x0010, 4);
+		OUT_RING  (chan, upper_32_bits(sema->mem->start));
+		OUT_RING  (chan, lower_32_bits(sema->mem->start));
+		OUT_RING  (chan, 1);
+		OUT_RING  (chan, 1); /* ACQUIRE_EQ */
 	}
 
 	/* Delay semaphore destruction until its work is done */
@@ -383,7 +377,53 @@ emit_semaphore(struct nouveau_channel *chan, int method,
 	kref_get(&sema->ref);
 	nouveau_fence_work(fence, semaphore_work, sema);
 	nouveau_fence_unref(&fence);
+	return 0;
+}
 
+static int
+semaphore_release(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
+{
+	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
+	struct nouveau_fence *fence = NULL;
+	int ret;
+
+	if (dev_priv->chipset < 0x84) {
+		ret = RING_SPACE(chan, 4);
+		if (ret)
+			return ret;
+
+		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_OFFSET, 1);
+		OUT_RING  (chan, sema->mem->start);
+		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_RELEASE, 1);
+		OUT_RING  (chan, 1);
+	} else {
+		/*
+		 * Emits release and forces the card to context switch right
+		 * afterwards, there may be another channel waiting for the
+		 * semaphore
+		 */
+
+		ret = RING_SPACE(chan, 7);
+		if (ret)
+			return ret;
+
+		BEGIN_RING(chan, NvSubSw, 0x0010, 4);
+		OUT_RING  (chan, upper_32_bits(sema->mem->start));
+		OUT_RING  (chan, lower_32_bits(sema->mem->start));
+		OUT_RING  (chan, 1);
+		OUT_RING  (chan, 2); /* RELEASE */
+		BEGIN_RING(chan, NvSubSw, 0x0080, 1);
+		OUT_RING  (chan, 0);
+	}
+
+	/* Delay semaphore destruction until its work is done */
+	ret = nouveau_fence_new(chan, &fence, true);
+	if (ret)
+		return ret;
+
+	kref_get(&sema->ref);
+	nouveau_fence_work(fence, semaphore_work, sema);
+	nouveau_fence_unref(&fence);
 	return 0;
 }
 
@@ -400,7 +440,7 @@ nouveau_fence_sync(struct nouveau_fence *fence,
 		   nouveau_fence_signalled(fence)))
 		goto out;
 
-	sema = alloc_semaphore(dev);
+	sema = semaphore_alloc(dev);
 	if (!sema) {
 		/* Early card or broken userspace, fall back to
 		 * software sync. */
@@ -418,17 +458,17 @@ nouveau_fence_sync(struct nouveau_fence *fence,
 	}
 
 	/* Make wchan wait until it gets signalled */
-	ret = emit_semaphore(wchan, NV_SW_SEMAPHORE_ACQUIRE, sema);
+	ret = semaphore_acquire(wchan, sema);
 	if (ret)
 		goto out_unlock;
 
 	/* Signal the semaphore from chan */
-	ret = emit_semaphore(chan, NV_SW_SEMAPHORE_RELEASE, sema);
+	ret = semaphore_release(chan, sema);
 
 out_unlock:
 	mutex_unlock(&chan->mutex);
 out_unref:
-	kref_put(&sema->ref, free_semaphore);
+	kref_put(&sema->ref, semaphore_free);
 out:
 	if (chan)
 		nouveau_channel_put_unlocked(&chan);
@@ -519,11 +559,12 @@ int
 nouveau_fence_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	int size = (dev_priv->chipset < 0x84) ? 4096 : 16384;
 	int ret;
 
 	/* Create a shared VRAM heap for cross-channel sync. */
 	if (USE_SEMA(dev)) {
-		ret = nouveau_bo_new(dev, NULL, 4096, 0, TTM_PL_FLAG_VRAM,
+		ret = nouveau_bo_new(dev, NULL, size, 0, TTM_PL_FLAG_VRAM,
 				     0, 0, false, true, &dev_priv->fence.bo);
 		if (ret)
 			return ret;
