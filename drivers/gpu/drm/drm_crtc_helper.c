@@ -343,12 +343,11 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	struct drm_encoder *encoder;
 	bool ret = true;
 
-	adjusted_mode = drm_mode_duplicate(dev, mode);
-
 	crtc->enabled = drm_helper_crtc_in_use(crtc);
-
 	if (!crtc->enabled)
 		return true;
+
+	adjusted_mode = drm_mode_duplicate(dev, mode);
 
 	saved_hwmode = crtc->hwmode;
 	saved_mode = crtc->mode;
@@ -437,10 +436,9 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	 */
 	drm_calc_timestamping_constants(crtc);
 
-	/* XXX free adjustedmode */
-	drm_mode_destroy(dev, adjusted_mode);
 	/* FIXME: add subpixel order */
 done:
+	drm_mode_destroy(dev, adjusted_mode);
 	if (!ret) {
 		crtc->hwmode = saved_hwmode;
 		crtc->mode = saved_mode;
