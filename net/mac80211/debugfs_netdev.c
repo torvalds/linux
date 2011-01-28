@@ -81,6 +81,8 @@ static ssize_t ieee80211_if_fmt_##name(					\
 		IEEE80211_IF_FMT(name, field, "%d\n")
 #define IEEE80211_IF_FMT_HEX(name, field)				\
 		IEEE80211_IF_FMT(name, field, "%#x\n")
+#define IEEE80211_IF_FMT_LHEX(name, field)				\
+		IEEE80211_IF_FMT(name, field, "%#lx\n")
 #define IEEE80211_IF_FMT_SIZE(name, field)				\
 		IEEE80211_IF_FMT(name, field, "%zd\n")
 
@@ -145,6 +147,8 @@ IEEE80211_IF_FILE(rc_rateidx_mask_2ghz, rc_rateidx_mask[IEEE80211_BAND_2GHZ],
 		  HEX);
 IEEE80211_IF_FILE(rc_rateidx_mask_5ghz, rc_rateidx_mask[IEEE80211_BAND_5GHZ],
 		  HEX);
+IEEE80211_IF_FILE(flags, flags, HEX);
+IEEE80211_IF_FILE(state, state, LHEX);
 
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
@@ -283,6 +287,8 @@ IEEE80211_IF_FILE(dot11MeshHWMPRootMode,
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(state);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
@@ -296,6 +302,8 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(state);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
@@ -307,6 +315,8 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(state);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
@@ -316,12 +326,16 @@ static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(state);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 }
 
 static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
 {
+	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(state);
 }
 
 #ifdef CONFIG_MAC80211_MESH
