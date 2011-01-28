@@ -14,6 +14,7 @@
 
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static int wq_condition = 0;
+//wait_queue_head_t	dma_memcpy_wait;
 
 static struct rk29_dma_client rk29_dma_memcpy_client = {
         .name = "rk29-dma-memcpy",
@@ -31,6 +32,7 @@ static void rk29_dma_memcpy_callback(struct rk29_dma_chan *dma_ch, void *buf_id,
 {
     wq_condition = 1;
  	wake_up_interruptible(&wq);
+	//wake_up_interruptible(&dma_memcpy_wait);
 }
 
 //int slecount = 0;
@@ -53,16 +55,14 @@ static ssize_t memcpy_dma_write (struct device *device,struct device_attribute *
     struct Dma_MemToMem  *DmaMemInfo = (struct Dma_MemToMem *)argv;
 
 
-    dma_flag = rk29_dma_request(DMACH_DMAC0_MEMTOMEM, &rk29_dma_memcpy_client, NULL);           
-    dma_flag = DMACH_DMAC0_MEMTOMEM;
-
-    rt = rk29_dma_devconfig(dma_flag, RK29_DMASRC_MEMTOMEM, DmaMemInfo->SrcAddr);
-    rt = rk29_dma_config(dma_flag, 8);
-    rt = rk29_dma_set_buffdone_fn(dma_flag, rk29_dma_memcpy_callback);
-    rt = rk29_dma_enqueue(dma_flag, NULL, DmaMemInfo->DstAddr, DmaMemInfo->MenSize);
-    rt = rk29_dma_ctrl(dma_flag, RK29_DMAOP_START);    
-    wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
+ 
+    rt = rk29_dma_devconfig(DMACH_DMAC0_MEMTOMEM, RK29_DMASRC_MEMTOMEM, DmaMemInfo->SrcAddr);
+    rt = rk29_dma_enqueue(DMACH_DMAC0_MEMTOMEM, NULL, DmaMemInfo->DstAddr, DmaMemInfo->MenSize);
+    rt = rk29_dma_ctrl(DMACH_DMAC0_MEMTOMEM, RK29_DMAOP_START);    
+    wait_event_interruptible_timeout(wq, wq_condition, 200);
     wq_condition = 0;  
+	//init_waitqueue_head(&dma_memcpy_wait);
+	//interruptible_sleep_on(&dma_memcpy_wait);
     return 0;
 }
 
@@ -74,6 +74,9 @@ static int __init dma_memcpy_probe(struct platform_device *pdev)
     int ret;
       
     ret = device_create_file(&pdev->dev, &driver_attr_dmamemcpy);
+    rk29_dma_request(DMACH_DMAC0_MEMTOMEM, &rk29_dma_memcpy_client, NULL); 
+    rk29_dma_config(DMACH_DMAC0_MEMTOMEM, 8);
+    rk29_dma_set_buffdone_fn(DMACH_DMAC0_MEMTOMEM, rk29_dma_memcpy_callback);
     if(ret)
     {
         printk(">> fb1 dsp win0 info device_create_file err\n");
