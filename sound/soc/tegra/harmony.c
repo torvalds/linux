@@ -50,6 +50,7 @@
 #define DRV_NAME "tegra-snd-harmony"
 
 struct tegra_harmony {
+	struct tegra_asoc_utils_data util_data;
 	struct harmony_audio_platform_data *pdata;
 	int gpio_spkr_en_requested;
 };
@@ -62,6 +63,7 @@ static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_card *card = codec->card;
+	struct tegra_harmony *harmony = snd_soc_card_get_drvdata(card);
 	int srate, mclk, mclk_change;
 	int err;
 
@@ -80,7 +82,8 @@ static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
 	while (mclk < 6000000)
 		mclk *= 2;
 
-	err = tegra_asoc_utils_set_rate(srate, mclk, &mclk_change);
+	err = tegra_asoc_utils_set_rate(&harmony->util_data, srate, mclk,
+					&mclk_change);
 	if (err < 0) {
 		dev_err(card->dev, "Can't configure clocks\n");
 		return err;
@@ -226,7 +229,7 @@ static __devinit int tegra_snd_harmony_probe(struct platform_device *pdev)
 
 	harmony->pdata = pdata;
 
-	ret = tegra_asoc_utils_init();
+	ret = tegra_asoc_utils_init(&harmony->util_data, &pdev->dev);
 	if (ret)
 		goto err_free_harmony;
 
@@ -247,7 +250,7 @@ err_clear_drvdata:
 	snd_soc_card_set_drvdata(card, NULL);
 	platform_set_drvdata(pdev, NULL);
 	card->dev = NULL;
-	tegra_asoc_utils_fini();
+	tegra_asoc_utils_fini(&harmony->util_data);
 err_free_harmony:
 	kfree(harmony);
 	return ret;
@@ -265,7 +268,7 @@ static int __devexit tegra_snd_harmony_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	card->dev = NULL;
 
-	tegra_asoc_utils_fini();
+	tegra_asoc_utils_fini(&harmony->util_data);
 
 	if (harmony->gpio_spkr_en_requested)
 		gpio_free(pdata->gpio_spkr_en);

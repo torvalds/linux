@@ -23,9 +23,23 @@
 #ifndef __TEGRA_ASOC_UTILS_H__
 #define __TEGRA_ASOC_UTILS_H_
 
-int tegra_asoc_utils_set_rate(int srate, int mclk_rate, int *mclk_change);
-int tegra_asoc_utils_init(void);
-void tegra_asoc_utils_fini(void);
+struct clk;
+struct device;
+
+struct tegra_asoc_utils_data {
+	struct device *dev;
+	struct clk *clk_pll_a;
+	struct clk *clk_pll_a_out0;
+	struct clk *clk_cdev1;
+	int set_baseclock;
+	int set_mclk;
+};
+
+int tegra_asoc_utils_set_rate(struct tegra_asoc_utils_data *data, int srate,
+			      int mclk, int *mclk_change);
+int tegra_asoc_utils_init(struct tegra_asoc_utils_data *data,
+			  struct device *dev);
+void tegra_asoc_utils_fini(struct tegra_asoc_utils_data *data);
 
 #endif
 
