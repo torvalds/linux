@@ -87,7 +87,7 @@ ifeq ($(CONFIG_PSS_HAVE_BOOT),y)
 	$(obj)/bin2hex pss_synth < $< > $@
 else
     $(obj)/pss_boot.h:
-	(							\
+	$(Q)(							\
 	    echo 'static unsigned char * pss_synth = NULL;';	\
 	    echo 'static int pss_synthLen = 0;';		\
 	) > $@
@@ -102,7 +102,7 @@ ifeq ($(CONFIG_TRIX_HAVE_BOOT),y)
 	$(obj)/hex2hex -i trix_boot < $< > $@
 else
     $(obj)/trix_boot.h:
-	(							\
+	$(Q)(							\
 	    echo 'static unsigned char * trix_boot = NULL;';	\
 	    echo 'static int trix_boot_len = 0;';		\
 	) > $@
