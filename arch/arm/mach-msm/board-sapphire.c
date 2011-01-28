@@ -105,8 +105,6 @@ static void __init sapphire_map_io(void)
 
 MACHINE_START(SAPPHIRE, "sapphire")
 /* Maintainer: Brian Swetland <swetland@google.com> */
-#ifdef CONFIG_MSM_DEBUG_UART
-#endif
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.fixup          = sapphire_fixup,
 	.map_io         = sapphire_map_io,

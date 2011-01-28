@@ -1,4 +1,7 @@
 obj-y += io.o idle.o timer.o
+ifdef CONFIG_MSM_PROC_COMM
+obj-$(CONFIG_DEBUG_FS) += clock-debug.o
+endif
 
 obj-$(CONFIG_MSM_VIC) += irq-vic.o
 

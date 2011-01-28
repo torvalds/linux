@@ -93,8 +93,6 @@ static void __init halibut_map_io(void)
 }
 
 MACHINE_START(HALIBUT, "Halibut Board (QCT SURF7200A)")
-#ifdef CONFIG_MSM_DEBUG_UART
-#endif
 	.boot_params	= 0x10000100,
 	.fixup		= halibut_fixup,
 	.map_io		= halibut_map_io,

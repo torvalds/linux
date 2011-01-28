@@ -132,8 +132,10 @@
 #define P_CSI1_P_CLK		97
 #define P_GSBI_CLK		98
 #define P_GSBI_P_CLK		99
+#define P_CE_CLK		100 /* Crypto engine */
+#define P_CODEC_SSBI_CLK	101
 
-#define P_NR_CLKS		100
+#define P_NR_CLKS		102
 
 struct clk_ops;
 extern struct clk_ops clk_ops_pcom;
