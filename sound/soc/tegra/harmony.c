@@ -2,7 +2,7 @@
  * harmony.c - Harmony machine ASoC driver
  *
  * Author: Stephen Warren <swarren@nvidia.com>
- * Copyright (C) 2010 - NVIDIA, Inc.
+ * Copyright (C) 2010-2011 - NVIDIA, Inc.
  *
  * Based on code copyright/by:
  *
@@ -29,7 +29,11 @@
  */
 
 #include <asm/mach-types.h>
+
 #include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
+
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -40,9 +44,11 @@
 #include "tegra_pcm.h"
 #include "tegra_asoc_utils.h"
 
-#define PREFIX "ASoC Harmony: "
+#define DRV_NAME "tegra-snd-harmony"
+#define PREFIX DRV_NAME ": "
 
-static struct platform_device *harmony_snd_device;
+struct tegra_harmony {
+};
 
 static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
@@ -154,56 +160,88 @@ static struct snd_soc_card snd_soc_harmony = {
 	.num_links = 1,
 };
 
-static int __init harmony_soc_modinit(void)
+static __devinit int tegra_snd_harmony_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &snd_soc_harmony;
+	struct tegra_harmony *harmony;
 	int ret;
 
 	if (!machine_is_harmony()) {
-		pr_err(PREFIX "Not running on Tegra Harmony!\n");
+		dev_err(&pdev->dev, "Not running on Tegra Harmony!\n");
 		return -ENODEV;
 	}
 
+	harmony = kzalloc(sizeof(struct tegra_harmony), GFP_KERNEL);
+	if (!harmony) {
+		dev_err(&pdev->dev, "Can't allocate tegra_harmony\n");
+		return -ENOMEM;
+	}
+
 	ret = tegra_asoc_utils_init();
+	if (ret)
+		goto err_free_harmony;
+
+	card->dev = &pdev->dev;
+	platform_set_drvdata(pdev, card);
+	snd_soc_card_set_drvdata(card, harmony);
+
+	ret = snd_soc_register_card(card);
 	if (ret) {
-		return ret;
-	}
-
-	/*
-	 * Create and register platform device
-	 */
-	harmony_snd_device = platform_device_alloc("soc-audio", -1);
-	if (harmony_snd_device == NULL) {
-		pr_err(PREFIX "platform_device_alloc failed\n");
-		ret = -ENOMEM;
-		goto err_clock_utils;
-	}
-
-	platform_set_drvdata(harmony_snd_device, &snd_soc_harmony);
-
-	ret = platform_device_add(harmony_snd_device);
-	if (ret) {
-		pr_err(PREFIX "platform_device_add failed (%d)\n",
+		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
 			ret);
-		goto err_device_put;
+		goto err_clear_drvdata;
 	}
 
 	return 0;
 
-err_device_put:
-	platform_device_put(harmony_snd_device);
-err_clock_utils:
+err_clear_drvdata:
+	snd_soc_card_set_drvdata(card, NULL);
+	platform_set_drvdata(pdev, NULL);
+	card->dev = NULL;
 	tegra_asoc_utils_fini();
+err_free_harmony:
+	kfree(harmony);
 	return ret;
 }
-module_init(harmony_soc_modinit);
 
-static void __exit harmony_soc_modexit(void)
+static int __devexit tegra_snd_harmony_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(harmony_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct tegra_harmony *harmony = snd_soc_card_get_drvdata(card);
+
+	snd_soc_unregister_card(card);
+
+	snd_soc_card_set_drvdata(card, NULL);
+	platform_set_drvdata(pdev, NULL);
+	card->dev = NULL;
 
 	tegra_asoc_utils_fini();
+
+	kfree(harmony);
+
+	return 0;
 }
-module_exit(harmony_soc_modexit);
+
+static struct platform_driver tegra_snd_harmony_driver = {
+	.driver = {
+		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+	},
+	.probe = tegra_snd_harmony_probe,
+	.remove = __devexit_p(tegra_snd_harmony_remove),
+};
+
+static int __init snd_tegra_harmony_init(void)
+{
+	return platform_driver_register(&tegra_snd_harmony_driver);
+}
+module_init(snd_tegra_harmony_init);
+
+static void __exit snd_tegra_harmony_exit(void)
+{
+	platform_driver_unregister(&tegra_snd_harmony_driver);
+}
+module_exit(snd_tegra_harmony_exit);
 
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Harmony machine ASoC driver");
