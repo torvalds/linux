@@ -32,8 +32,7 @@
 #include "nouveau_dma.h"
 
 #define USE_REFCNT(dev) (nouveau_private(dev)->chipset >= 0x10)
-#define USE_SEMA(dev) (nouveau_private(dev)->chipset >= 0x17 && \
-		       nouveau_private(dev)->card_type < NV_C0)
+#define USE_SEMA(dev) (nouveau_private(dev)->chipset >= 0x17)
 
 struct nouveau_fence {
 	struct nouveau_channel *channel;
@@ -338,7 +337,8 @@ semaphore_acquire(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_OFFSET, 2);
 		OUT_RING  (chan, sema->mem->start);
 		OUT_RING  (chan, 1);
-	} else {
+	} else
+	if (dev_priv->chipset < 0xc0) {
 		/*
 		 * NV50 tries to be too smart and context-switch
 		 * between semaphores instead of doing a "first come,
@@ -367,6 +367,19 @@ semaphore_acquire(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 		OUT_RING  (chan, lower_32_bits(sema->mem->start));
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, 1); /* ACQUIRE_EQ */
+	} else {
+		struct nouveau_vma *vma = &dev_priv->fence.bo->vma;
+		u64 offset = vma->offset + sema->mem->start;
+
+		ret = RING_SPACE(chan, 5);
+		if (ret)
+			return ret;
+
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0010, 4);
+		OUT_RING  (chan, upper_32_bits(offset));
+		OUT_RING  (chan, lower_32_bits(offset));
+		OUT_RING  (chan, 1);
+		OUT_RING  (chan, 0x1001); /* ACQUIRE_EQ */
 	}
 
 	/* Delay semaphore destruction until its work is done */
@@ -396,7 +409,8 @@ semaphore_release(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 		OUT_RING  (chan, sema->mem->start);
 		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_RELEASE, 1);
 		OUT_RING  (chan, 1);
-	} else {
+	} else
+	if (dev_priv->chipset < 0xc0) {
 		/*
 		 * Emits release and forces the card to context switch right
 		 * afterwards, there may be another channel waiting for the
@@ -414,6 +428,19 @@ semaphore_release(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 		OUT_RING  (chan, 2); /* RELEASE */
 		BEGIN_RING(chan, NvSubSw, 0x0080, 1);
 		OUT_RING  (chan, 0);
+	} else {
+		struct nouveau_vma *vma = &dev_priv->fence.bo->vma;
+		u64 offset = vma->offset + sema->mem->start;
+
+		ret = RING_SPACE(chan, 5);
+		if (ret)
+			return ret;
+
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0010, 4);
+		OUT_RING  (chan, upper_32_bits(offset));
+		OUT_RING  (chan, lower_32_bits(offset));
+		OUT_RING  (chan, 1);
+		OUT_RING  (chan, 0x1002); /* RELEASE */
 	}
 
 	/* Delay semaphore destruction until its work is done */
@@ -489,19 +516,20 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 	struct nouveau_gpuobj *obj = NULL;
 	int ret;
 
+	if (dev_priv->card_type >= NV_C0)
+		goto out_initialised;
+
 	/* Create an NV_SW object for various sync purposes */
 	ret = nouveau_gpuobj_gr_new(chan, NvSw, NV_SW);
 	if (ret)
 		return ret;
 
 	/* we leave subchannel empty for nvc0 */
-	if (dev_priv->card_type < NV_C0) {
-		ret = RING_SPACE(chan, 2);
-		if (ret)
-			return ret;
-		BEGIN_RING(chan, NvSubSw, 0, 1);
-		OUT_RING(chan, NvSw);
-	}
+	ret = RING_SPACE(chan, 2);
+	if (ret)
+		return ret;
+	BEGIN_RING(chan, NvSubSw, 0, 1);
+	OUT_RING(chan, NvSw);
 
 	/* Create a DMA object for the shared cross-channel sync area. */
 	if (USE_SEMA(dev)) {
@@ -528,10 +556,10 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 
 	FIRE_RING(chan);
 
+out_initialised:
 	INIT_LIST_HEAD(&chan->fence.pending);
 	spin_lock_init(&chan->fence.lock);
 	atomic_set(&chan->fence.last_sequence_irq, 0);
-
 	return 0;
 }
 
