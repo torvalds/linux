@@ -78,15 +78,27 @@ iprange_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 		m  = iprange_ipv6_sub(&iph->saddr, &info->src_min.in6) < 0;
 		m |= iprange_ipv6_sub(&iph->saddr, &info->src_max.in6) > 0;
 		m ^= !!(info->flags & IPRANGE_SRC_INV);
-		if (m)
+		if (m) {
+			pr_debug("src IP %pI6 NOT in range %s%pI6-%pI6\n",
+				 &iph->saddr,
+				 (info->flags & IPRANGE_SRC_INV) ? "(INV) " : "",
+				 &info->src_min.in6,
+				 &info->src_max.in6);
 			return false;
+		}
 	}
 	if (info->flags & IPRANGE_DST) {
 		m  = iprange_ipv6_sub(&iph->daddr, &info->dst_min.in6) < 0;
 		m |= iprange_ipv6_sub(&iph->daddr, &info->dst_max.in6) > 0;
 		m ^= !!(info->flags & IPRANGE_DST_INV);
-		if (m)
+		if (m) {
+			pr_debug("dst IP %pI6 NOT in range %s%pI6-%pI6\n",
+				 &iph->daddr,
+				 (info->flags & IPRANGE_DST_INV) ? "(INV) " : "",
+				 &info->dst_min.in6,
+				 &info->dst_max.in6);
 			return false;
+		}
 	}
 	return true;
 }
