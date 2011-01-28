@@ -130,9 +130,9 @@ EXPORT_SYMBOL(arch_local_irq_restore);
 
 static void irq_panic(void)
 {
-    extern char *cputypval;
-    prom_printf("machine: %s doesn't have irq handlers defined!\n",cputypval);
-    prom_halt();
+	prom_printf("machine: %s doesn't have irq handlers defined!\n",
+		    &cputypval[0]);
+	prom_halt();
 }
 
 void (*sparc_init_timers)(irq_handler_t ) =
