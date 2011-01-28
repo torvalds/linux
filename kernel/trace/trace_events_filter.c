@@ -570,17 +570,28 @@ static void __free_preds(struct event_filter *filter)
 	filter->n_preds = 0;
 }
 
+static void reset_preds(struct event_filter *filter)
+{
+	struct filter_pred *pred;
+	int n_preds = filter->n_preds;
+	int i;
+
+	filter->n_preds = 0;
+	if (!filter->preds)
+		return;
+
+	for (i = 0; i < n_preds; i++) {
+		pred = filter->preds[i];
+		pred->fn = filter_pred_none;
+	}
+}
+
 static void filter_disable_preds(struct ftrace_event_call *call)
 {
 	struct event_filter *filter = call->filter;
-	int i;
 
 	call->flags &= ~TRACE_EVENT_FL_FILTERED;
-	if (filter->preds) {
-		for (i = 0; i < filter->n_preds; i++)
-			filter->preds[i]->fn = filter_pred_none;
-	}
-	filter->n_preds = 0;
+	reset_preds(filter);
 }
 
 static void __free_filter(struct event_filter *filter)
@@ -620,15 +631,17 @@ static int __alloc_preds(struct event_filter *filter, int n_preds)
 
 	if (filter->preds) {
 		if (filter->a_preds < n_preds) {
-			/* We need to reallocate */
-			filter->n_preds = 0;
 			/*
-			 * It is possible that the filter is currently
-			 * being used. We need to zero out the number
-			 * of preds, wait on preemption and then free
-			 * the preds.
+			 * We need to reallocate.
+			 * We should have already have zeroed out
+			 * the pred count and called synchronized_sched()
+			 * to make sure no one is using the preds.
 			 */
-			synchronize_sched();
+			if (WARN_ON_ONCE(filter->n_preds)) {
+				/* We need to reset it now */
+				filter->n_preds = 0;
+				synchronize_sched();
+			}
 			__free_preds(filter);
 		}
 	}
@@ -1328,6 +1341,30 @@ static int replace_system_preds(struct event_subsystem *system,
 		/* try to see if the filter can be applied */
 		err = replace_preds(call, filter, ps, filter_string, true);
 		if (err)
+			goto fail;
+	}
+
+	/* set all filter pred counts to zero */
+	list_for_each_entry(call, &ftrace_events, list) {
+		struct event_filter *filter = call->filter;
+
+		if (strcmp(call->class->system, system->name) != 0)
+			continue;
+
+		reset_preds(filter);
+	}
+
+	/*
+	 * Since some of the preds may be used under preemption
+	 * we need to wait for them to finish before we may
+	 * reallocate them.
+	 */
+	synchronize_sched();
+
+	list_for_each_entry(call, &ftrace_events, list) {
+		struct event_filter *filter = call->filter;
+
+		if (strcmp(call->class->system, system->name) != 0)
 			continue;
 
 		/* really apply the filter */
@@ -1342,11 +1379,13 @@ static int replace_system_preds(struct event_subsystem *system,
 		fail = false;
 	}
 
-	if (fail) {
-		parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
-		return -EINVAL;
-	}
+	if (fail)
+		goto fail;
+
 	return 0;
+ fail:
+	parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
+	return -EINVAL;
 }
 
 int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
@@ -1380,6 +1419,13 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 		append_filter_err(ps, call->filter);
 		goto out;
 	}
+
+	/*
+	 * Make sure all the pred counts are zero so that
+	 * no task is using it when we reallocate the preds array.
+	 */
+	reset_preds(call->filter);
+	synchronize_sched();
 
 	err = replace_preds(call, call->filter, ps, filter_string, false);
 	if (err)
