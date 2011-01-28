@@ -123,7 +123,7 @@ int bmienable = BMIENABLE_DEFAULT;
 char ifname[IFNAMSIZ] = {0,};
 
 int wlaninitmode = WLAN_INIT_MODE_DEFAULT;
-unsigned int bypasswmi = 0;
+static bool bypasswmi;
 unsigned int debuglevel = 0;
 int tspecCompliance = ATHEROS_COMPLIANCE;
 unsigned int busspeedlow = 0;
@@ -165,7 +165,7 @@ unsigned int eppingtest=0;
 module_param_string(ifname, ifname, sizeof(ifname), 0644);
 module_param(wlaninitmode, int, 0644);
 module_param(bmienable, int, 0644);
-module_param(bypasswmi, uint, 0644);
+module_param(bypasswmi, bool, 0644);
 module_param(debuglevel, uint, 0644);
 module_param(tspecCompliance, int, 0644);
 module_param(onebitmode, uint, 0644);
@@ -1024,7 +1024,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, A
             }
             
             if (eppingtest) {
-                bypasswmi = TRUE;    
+                bypasswmi = true;
                 if (ar->arVersion.target_ver == AR6003_REV1_VERSION) {
                     filename = AR6003_REV1_EPPING_FIRMWARE_FILE;
                 } else if (ar->arVersion.target_ver == AR6003_REV2_VERSION) {
@@ -3512,7 +3512,7 @@ ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
         A_NETBUF_FREE(pktSkb);
     }
 
-    if ((ar->arConnected == TRUE) || (bypasswmi)) {
+    if ((ar->arConnected == TRUE) || bypasswmi) {
         if (!flushing) {
                 /* don't wake the queue if we are flushing, other wise it will just
                  * keep queueing packets, which will keep failing */

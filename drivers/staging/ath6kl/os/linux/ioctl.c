@@ -34,7 +34,6 @@ extern unsigned int wmitimeout;
 extern A_WAITQUEUE_HEAD arEvent;
 extern int tspecCompliance;
 extern int bmienable;
-extern int bypasswmi;
 extern int loghci;
 
 static int
