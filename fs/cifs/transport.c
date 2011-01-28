@@ -236,9 +236,9 @@ smb_sendv(struct TCP_Server_Info *server, struct kvec *iov, int n_vec)
 		server->tcpStatus = CifsNeedReconnect;
 	}
 
-	if (rc < 0) {
+	if (rc < 0 && rc != -EINTR)
 		cERROR(1, "Error %d sending data on socket to server", rc);
-	} else
+	else
 		rc = 0;
 
 	/* Don't want to modify the buffer as a
