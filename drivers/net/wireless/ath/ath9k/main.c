@@ -73,7 +73,7 @@ static struct ath9k_channel *ath_get_curchannel(struct ath_softc *sc,
 
 	chan_idx = curchan->hw_value;
 	channel = &sc->sc_ah->channels[chan_idx];
-	ath9k_update_ichannel(sc, hw, channel);
+	ath9k_cmn_update_ichannel(channel, curchan, hw->conf.channel_type);
 	return channel;
 }
 
@@ -808,48 +808,6 @@ chip_reset:
 #undef SCHED_INTR
 }
 
-static u32 ath_get_extchanmode(struct ath_softc *sc,
-			       struct ieee80211_channel *chan,
-			       enum nl80211_channel_type channel_type)
-{
-	u32 chanmode = 0;
-
-	switch (chan->band) {
-	case IEEE80211_BAND_2GHZ:
-		switch(channel_type) {
-		case NL80211_CHAN_NO_HT:
-		case NL80211_CHAN_HT20:
-			chanmode = CHANNEL_G_HT20;
-			break;
-		case NL80211_CHAN_HT40PLUS:
-			chanmode = CHANNEL_G_HT40PLUS;
-			break;
-		case NL80211_CHAN_HT40MINUS:
-			chanmode = CHANNEL_G_HT40MINUS;
-			break;
-		}
-		break;
-	case IEEE80211_BAND_5GHZ:
-		switch(channel_type) {
-		case NL80211_CHAN_NO_HT:
-		case NL80211_CHAN_HT20:
-			chanmode = CHANNEL_A_HT20;
-			break;
-		case NL80211_CHAN_HT40PLUS:
-			chanmode = CHANNEL_A_HT40PLUS;
-			break;
-		case NL80211_CHAN_HT40MINUS:
-			chanmode = CHANNEL_A_HT40MINUS;
-			break;
-		}
-		break;
-	default:
-		break;
-	}
-
-	return chanmode;
-}
-
 static void ath9k_bss_assoc_info(struct ath_softc *sc,
 				 struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
@@ -1043,30 +1001,6 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	ath_start_ani(common);
 
 	return r;
-}
-
-/* XXX: Remove me once we don't depend on ath9k_channel for all
- * this redundant data */
-void ath9k_update_ichannel(struct ath_softc *sc, struct ieee80211_hw *hw,
-			   struct ath9k_channel *ichan)
-{
-	struct ieee80211_channel *chan = hw->conf.channel;
-	struct ieee80211_conf *conf = &hw->conf;
-
-	ichan->channel = chan->center_freq;
-	ichan->chan = chan;
-
-	if (chan->band == IEEE80211_BAND_2GHZ) {
-		ichan->chanmode = CHANNEL_G;
-		ichan->channelFlags = CHANNEL_2GHZ | CHANNEL_OFDM | CHANNEL_G;
-	} else {
-		ichan->chanmode = CHANNEL_A;
-		ichan->channelFlags = CHANNEL_5GHZ | CHANNEL_OFDM;
-	}
-
-	if (conf_is_ht(conf))
-		ichan->chanmode = ath_get_extchanmode(sc, chan,
-					    conf->channel_type);
 }
 
 /**********************/
@@ -1727,8 +1661,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		ath_dbg(common, ATH_DBG_CONFIG, "Set channel: %d MHz\n",
 			curchan->center_freq);
 
-		/* XXX: remove me eventualy */
-		ath9k_update_ichannel(sc, hw, &sc->sc_ah->channels[pos]);
+		ath9k_cmn_update_ichannel(&sc->sc_ah->channels[pos],
+					  curchan, conf->channel_type);
 
 		/* update survey stats for the old channel before switching */
 		spin_lock_irqsave(&common->cc_lock, flags);
