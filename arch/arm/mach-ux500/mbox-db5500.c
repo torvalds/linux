@@ -498,7 +498,7 @@ struct mbox *mbox_setup(u8 mbox_id, mbox_recv_cb_t *mbox_cb, void *priv)
 #endif
 
 	dev_info(&(mbox->pdev->dev),
-		 "Mailbox driver with index %d initated!\n", mbox_id);
+		 "Mailbox driver with index %d initiated!\n", mbox_id);
 
 exit:
 	return mbox;
