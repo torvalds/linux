@@ -30,7 +30,6 @@
 
 #include <plat/sram.h>
 #include <plat/sdrc.h>
-#include <plat/gpmc.h>
 #include <plat/serial.h>
 
 #include "clock2xxx.h"
@@ -422,7 +421,6 @@ void __init omap2_init_common_devices(struct omap_sdrc_params *sdrc_cs0,
 		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
 		_omap2_init_reprogram_sdrc();
 	}
-	gpmc_init();
 
 	omap_irq_base_init();
 }
