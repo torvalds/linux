@@ -22,7 +22,8 @@
  * possible here, and this includes saving r0 back into the SVC
  * stack.
  */
-ret_fast_syscall:
+/* ret_fast_syscall: */
+ENTRY(ret_fast_syscall)
  UNWIND(.fnstart	)
  UNWIND(.cantunwind	)
 	disable_irq				@ disable interrupts

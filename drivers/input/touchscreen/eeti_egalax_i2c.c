@@ -606,7 +606,7 @@ if (pdata->init_platform_hw)
 	TS_DEBUG("egalax_i2c request irq(%d) gpio(%d) with result:%d\n", p_egalax_i2c_dev->irq, gpio, ret);
 
 #ifdef CONFIG_PM
-	device_init_wakeup(&client->dev, 1);
+	device_init_wakeup(&client->dev, 0);
 #endif
 
 	printk(KERN_DEBUG "[egalax_i2c]: probe done\n");

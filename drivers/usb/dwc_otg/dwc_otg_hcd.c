@@ -38,6 +38,7 @@
  * This file contains the implementation of the HCD. In Linux, the HCD
  * implements the hc_driver API.
  */
+#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -57,7 +58,6 @@
 
 static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
 {
-#if 1
     dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (hcd);
     dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
     hprt0_data_t hprt0;
@@ -69,43 +69,49 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
     	return 0;
     }
     hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
-    DWC_PRINT("%s, HPRT0:0x%x\n",__func__,hprt0.d32);
-    //partial power-down
-    if(!hprt0.b.prtsusp)
+    DWC_PRINT("%s suspend, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
+    if(hprt0.b.prtconnsts)  // usb device connected
     {
-        //hprt0.d32 = 0;
-        hprt0.b.prtsusp = 1;
-        hprt0.b.prtena = 0;
-        dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+        //partial power-down
+        if(!hprt0.b.prtsusp)
+        {
+            //hprt0.d32 = 0;
+            hprt0.b.prtsusp = 1;
+            hprt0.b.prtena = 0;
+            dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+        }
+        udelay(10);
+        hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
+        if(!hprt0.b.prtsusp)
+        {
+            //hprt0.d32 = 0;
+            hprt0.b.prtsusp = 1;
+            hprt0.b.prtena = 0;
+            dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+        }
+        mdelay(5);
+        pcgcctl.d32 = dwc_read_reg32(core_if->pcgcctl);
+        pcgcctl.b.pwrclmp = 1;//power clamp
+        dwc_write_reg32(core_if->pcgcctl, pcgcctl.d32);
+        udelay(1);
+        //pcgcctl.b.rstpdwnmodule = 1;//reset PDM
+        pcgcctl.b.stoppclk = 1;//stop phy clk
+        dwc_write_reg32(core_if->pcgcctl, pcgcctl.d32);
     }
-    udelay(10);
-    hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
-    DWC_PRINT("%s, HPRT0:0x%x\n",__func__,hprt0.d32);
-    if(!hprt0.b.prtsusp)
+    else    //no device connect
     {
-        //hprt0.d32 = 0;
-        hprt0.b.prtsusp = 1;
-        hprt0.b.prtena = 0;
-        dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+        if (core_if->hcd_cb && core_if->hcd_cb->suspend) {
+                core_if->hcd_cb->suspend( core_if->hcd_cb->p, 0);
+        }
     }
-    mdelay(5);
-#if 1
-    pcgcctl.d32 = dwc_read_reg32(core_if->pcgcctl);
-    pcgcctl.b.pwrclmp = 1;//power clamp
-    dwc_write_reg32(core_if->pcgcctl, pcgcctl.d32);
-    udelay(1);
-    //pcgcctl.b.rstpdwnmodule = 1;//reset PDM
-    pcgcctl.b.stoppclk = 1;//stop phy clk
-    dwc_write_reg32(core_if->pcgcctl, pcgcctl.d32);
-#endif
-#endif
+    clk_disable(core_if->otg_dev->phyclk);
+    clk_disable(core_if->otg_dev->ahbclk);
     //power off
     return 0;
 }
 
 static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
 {
-#if 1
     dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (hcd);
     dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
     hprt0_data_t hprt0;
@@ -117,7 +123,9 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     	DWC_PRINT("%s, usb device mode\n", __func__);
     	return 0;
     }
-#if 1
+    clk_enable(core_if->otg_dev->phyclk);
+    clk_enable(core_if->otg_dev->ahbclk);
+    
     //partial power-down
     //power on
     pcgcctl.d32 = dwc_read_reg32(core_if->pcgcctl);;
@@ -127,38 +135,49 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     pcgcctl.b.pwrclmp = 0;//power clamp
     dwc_write_reg32(core_if->pcgcctl, pcgcctl.d32);
     udelay(2);
-#endif
+
     gintmsk.d32 = dwc_read_reg32(&core_if->core_global_regs->gintmsk);
     gintmsk.b.portintr = 0;
     dwc_write_reg32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
-
+        
     hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
-    DWC_PRINT("%s, HPRT0:0x%x\n",__func__,hprt0.d32);
-    hprt0.b.prtpwr = 1;    
-    hprt0.b.prtres = 1;
-    hprt0.b.prtena = 0;
-    dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
-    mdelay(20);
-    hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);	
-    DWC_PRINT("%s, HPRT0:0x%x\n",__func__,hprt0.d32);
-    //hprt0.d32 = 0;
-    hprt0.b.prtpwr = 1;    
-    hprt0.b.prtres = 0;
-    hprt0.b.prtena = 0;
-    dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
-    hprt0.d32 = 0;
-    hprt0.b.prtpwr = 1;
-    hprt0.b.prtena = 0;
-    hprt0.b.prtconndet = 1;
-    dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+    DWC_PRINT("%s resume, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
+    if(hprt0.b.prtconnsts)
+    {
+        //hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
+        //DWC_PRINT("%s, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
+        hprt0.b.prtpwr = 1;    
+        hprt0.b.prtres = 1;
+        hprt0.b.prtena = 0;
+        dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+        mdelay(20);
+        hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);	
+        //DWC_PRINT("%s, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
+        //hprt0.d32 = 0;
+        hprt0.b.prtpwr = 1;    
+        hprt0.b.prtres = 0;
+        hprt0.b.prtena = 0;
+        dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
+        hprt0.d32 = 0;
+        hprt0.b.prtpwr = 1;
+        hprt0.b.prtena = 0;
+        hprt0.b.prtconndet = 1;
+        dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
 
-    hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);	
-    DWC_PRINT("%s, HPRT0:0x%x\n",__func__,hprt0.d32);
-	
-    gintmsk.b.portintr = 1;
-    dwc_write_reg32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
-    mdelay(10);
-#endif
+        hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);	
+        //DWC_PRINT("%s, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
+    	
+        gintmsk.b.portintr = 1;
+        dwc_write_reg32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
+        mdelay(10);
+    }
+    else
+    {
+        if (core_if->hcd_cb && core_if->hcd_cb->suspend) {
+                core_if->hcd_cb->suspend( core_if->hcd_cb->p, 1);
+        }
+    }
+
 	return 0;
 }
 

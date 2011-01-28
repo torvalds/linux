@@ -126,7 +126,6 @@
 #define m_MCU_CS_END            (31<<10)
 #define m_MCU_RW_ST             (31<<15)
 #define m_MCU_RW_END            (31<<20)
-#define m_MCU_HOLD_STATUS          (1<<26)
 #define m_MCU_HOLDMODE_SELECT     (1<<27)
 #define m_MCU_HOLDMODE_FRAME_ST   (1<<28)
 #define m_MCU_RS_SELECT            (1<<29)

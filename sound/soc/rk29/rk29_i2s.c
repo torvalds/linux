@@ -282,6 +282,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
         #endif
 
         writel((16<<24) |(16<<18)|(16<<12)|(16<<6)|16, &(pheadi2s->I2S_FIFOLR));
+        writel((16<<16) | 16, &(pheadi2s->I2S_DMACR));
 
 	I2S_DBG("Enter %s, %d I2S_TXCR=0x%08X\n", __func__, __LINE__, iismod);  
 	writel(iismod, &(pheadi2s->I2S_TXCR));

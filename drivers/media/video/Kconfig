@@ -895,6 +895,12 @@ config SOC_CAMERA_OV5642
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a ov5642 camera driver	
+
+config SOC_CAMERA_S5K6AA
+	tristate "Samsung S5K6AA MIPI CSI-2 (importek mu736asa)"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a samsung S5K6AA mobile camera driver
 choice
 	prompt "OV5642 Module Focus select"
 	depends on SOC_CAMERA_OV5642
@@ -1076,7 +1082,6 @@ config USB_SE401
 	  module will be called se401.
 
 source "drivers/media/video/sn9c102/Kconfig"
-
 config USB_STV680
 	tristate "USB STV680 (Pencam) Camera support"
 	depends on VIDEO_V4L1

@@ -23,6 +23,11 @@ config MACH_RK29_AIGO
         help
 	  Support for the ROCKCHIP Board For Rk29 Aigo.
 	  
+config MACH_RK29_MALATA
+	depends on ARCH_RK29
+	bool "ROCKCHIP Board Rk29 For Malata"
+        help
+	  Support for the ROCKCHIP Board For Rk29 Malata.
 endchoice
 
 config RK29_MEM_SIZE_M

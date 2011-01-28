@@ -400,8 +400,11 @@ static void rk29_serial_set_termios(struct uart_port *port, struct ktermios *ter
 		printk("UART_GET_MCR fcr=0x%x\n",fcr);
 	}
     mode = mode | LCR_DLA_EN;
-    while(rk29_uart_read(port,UART_USR)&UART_USR_BUSY)
-    	cpu_relax(); 
+    {
+        int timeout = 10000000;
+        while ((rk29_uart_read(port,UART_USR)&UART_USR_BUSY) && timeout--)
+           cpu_relax();
+    }
     rk29_uart_write(port,mode,UART_LCR);
     baud = rk29_set_baud_rate(port, baud);
     uart_update_timeout(port, termios->c_cflag, baud);

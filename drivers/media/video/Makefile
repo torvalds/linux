@@ -84,6 +84,7 @@ obj-$(CONFIG_SOC_CAMERA_OV2659)		+= ov2659.o
 obj-$(CONFIG_SOC_CAMERA_OV9650)		+= ov9650.o
 obj-$(CONFIG_SOC_CAMERA_OV3640)		+= ov3640.o
 obj-$(CONFIG_SOC_CAMERA_OV5642)		+= ov5642.o
+obj-$(CONFIG_SOC_CAMERA_S5K6AA)		+= s5k6aa.o
 
 # And now the v4l2 drivers:
 

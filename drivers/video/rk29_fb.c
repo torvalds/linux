@@ -33,7 +33,7 @@
 #include <linux/wait.h>
 #include <linux/earlysuspend.h>
 #include <linux/cpufreq.h>
-
+#include <linux/wakelock.h>
 
 #include <asm/io.h>
 #include <asm/div64.h>
@@ -166,7 +166,7 @@ struct rk29fb_inf {
     LCDC_REG regbak;
 
 	int in_suspend;
-
+    int fb0_color_deepth;
     /* variable used in mcu panel */
 	int mcu_needflush;
 	int mcu_isrcnt;
@@ -226,6 +226,7 @@ static int wq_condition2 = 0;
 #if ANDROID_USE_THREE_BUFS
 static int new_frame_seted = 1;
 #endif
+static struct wake_lock idlelock; /* only for fb */
 
 void set_lcd_pin(struct platform_device *pdev, int enable)
 {
@@ -271,7 +272,7 @@ int mcu_do_refresh(struct rk29fb_inf *inf)
     // not use frame mark
     if(LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_SELECT))
     {
-        if(!LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLD_STATUS))
+        if(!LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST))
         {
             inf->mcu_needflush = 1;
         }
@@ -1140,6 +1141,7 @@ static int fb0_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
         return -EINVAL;
     }
 
+    if(inf->fb0_color_deepth)var->bits_per_pixel=inf->fb0_color_deepth;
     switch(var->bits_per_pixel)
     {
     case 16:    // rgb565
@@ -1184,6 +1186,7 @@ static int fb0_set_par(struct fb_info *info)
 
 	CHK_SUSPEND(inf);
 
+    if(inf->fb0_color_deepth)var->bits_per_pixel=inf->fb0_color_deepth;
     if((inf->video_mode == 1)&&(screen->y_res < var->yres))ypos_virtual += (var->yres-screen->y_res);
 
     switch(var->bits_per_pixel)
@@ -1191,7 +1194,7 @@ static int fb0_set_par(struct fb_info *info)
     case 16:    // rgb565
         par->format = 1;
         fix->line_length = 2 * xres_virtual;
-        offset = (ypos_virtual*xres_virtual + xpos_virtual)*2;
+        offset = (ypos_virtual*xres_virtual + xpos_virtual)*(inf->fb0_color_deepth ? 4:2);
         break;
     case 32:    // rgb888
     default:
@@ -1251,13 +1254,14 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	//fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
 	CHK_SUSPEND(inf);
-
+    if(inf->fb0_color_deepth)var->bits_per_pixel=inf->fb0_color_deepth;
+    
     switch(var1->bits_per_pixel)
     {
     case 16:    // rgb565
         var->xoffset = (var->xoffset) & (~0x1);
-        offset = (var->yoffset*var1->xres_virtual + var->xoffset)*2;
-        break;
+        offset = (var->yoffset*var1->xres_virtual + var->xoffset)*(inf->fb0_color_deepth ? 4:2);
+        break; 
     case 32:    // rgb888
         offset = (var->yoffset*var1->xres_virtual + var->xoffset)*4;
         break;
@@ -1304,6 +1308,11 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             inf->mcu_usetimer = 0;
         }
         break;
+   case FBIOPUT_16OR32:
+        
+        inf->fb0_color_deepth = arg;
+        
+	    break;
    default:
         break;
     }
@@ -1750,7 +1759,9 @@ int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable )
    // LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE, v_W1_ENABLE(0));
     LcdMskReg(inf, DSP_CTRL1, m_BLACK_MODE,  v_BLACK_MODE(1));
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
+    wake_lock(&idlelock);
     msleep(20);
+    wake_unlock(&idlelock);
 
     if(inf->cur_screen->standby)    inf->cur_screen->standby(1);
     // operate the display_on pin to power down the lcd
@@ -1819,7 +1830,7 @@ static irqreturn_t rk29fb_irq(int irq, void *dev_id)
 
         if(IsMcuUseFmk())
         {
-            if(LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLD_STATUS) && (inf->mcu_fmksync == 0))
+            if(LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST) && (inf->mcu_fmksync == 0))
             {
                 inf->mcu_fmksync = 1;
                  if(inf->cur_screen->refresh)
@@ -1908,7 +1919,9 @@ static void rk29fb_suspend(struct early_suspend *h)
 	if(!inf->in_suspend)
 	{
 		fbprintk(">>>>>> diable the lcdc clk! \n");
+		wake_lock(&idlelock);
 		msleep(100);
+		wake_unlock(&idlelock);
         clk_disable(inf->aclk_ddr_lcdc);
         clk_disable(inf->aclk_disp_matrix);
         clk_disable(inf->hclk_cpu_display);
@@ -2069,6 +2082,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
     inf->fb0->var.xres = screen->x_res;
     inf->fb0->var.yres = screen->y_res;
     inf->fb0->var.bits_per_pixel = 16;
+    inf->fb0_color_deepth = 0;
     inf->fb0->var.xres_virtual = screen->x_res;
     inf->fb0->var.yres_virtual = screen->y_res;
     inf->fb0->var.width = screen->width;
@@ -2417,6 +2431,7 @@ static struct platform_driver rk29fb_driver = {
 
 static int __init rk29fb_init(void)
 {
+	wake_lock_init(&idlelock, WAKE_LOCK_IDLE, "fb");
     return platform_driver_register(&rk29fb_driver);
 }
 

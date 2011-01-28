@@ -18,7 +18,8 @@ enum rk29_dma_buffresult {
 
 enum rk29_dmasrc {
 	RK29_DMASRC_HW,		/* source is memory */
-	RK29_DMASRC_MEM		/* source is hardware */
+	RK29_DMASRC_MEM,		/* source is hardware */
+	RK29_DMASRC_MEMTOMEM
 };
 
 /* enum rk29_chan_op

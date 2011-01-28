@@ -1480,7 +1480,7 @@ static struct clk aclk_vepu = {
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_div,
-	.gate_idx	= CLK_GAET_ACLK_VEPU,
+	.gate_idx	= CLK_GATE_ACLK_VEPU,
 	.clksel_con	= CRU_CLKSEL17_CON,
 	.clksel_mask	= 0x1F,
 	.clksel_shift	= 2,
@@ -2247,7 +2247,6 @@ static int __init clk_disable_unused(void)
 		clk_disable_nolock(ck);
 		UNLOCK();
 	}
-	mutex_unlock(&clocks_mutex);
 
 	pmu_set_power_domain(PD_VCODEC, false);
 //	pmu_set_power_domain(PD_DISPLAY, false);
