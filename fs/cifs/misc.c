@@ -381,29 +381,31 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 }
 
 static int
-checkSMBhdr(struct smb_hdr *smb, __u16 mid)
+check_smb_hdr(struct smb_hdr *smb, __u16 mid)
 {
-	/* Make sure that this really is an SMB, that it is a response,
-	   and that the message ids match */
-	if ((*(__le32 *) smb->Protocol == cpu_to_le32(0x424d53ff)) &&
-		(mid == smb->Mid)) {
-		if (smb->Flags & SMBFLG_RESPONSE)
-			return 0;
-		else {
-		/* only one valid case where server sends us request */
-			if (smb->Command == SMB_COM_LOCKING_ANDX)
-				return 0;
-			else
-				cERROR(1, "Received Request not response");
-		}
-	} else { /* bad signature or mid */
-		if (*(__le32 *) smb->Protocol != cpu_to_le32(0x424d53ff))
-			cERROR(1, "Bad protocol string signature header %x",
-				*(unsigned int *) smb->Protocol);
-		if (mid != smb->Mid)
-			cERROR(1, "Mids do not match");
+	/* does it have the right SMB "signature" ? */
+	if (*(__le32 *) smb->Protocol != cpu_to_le32(0x424d53ff)) {
+		cERROR(1, "Bad protocol string signature header 0x%x",
+			*(unsigned int *)smb->Protocol);
+		return 1;
 	}
-	cERROR(1, "bad smb detected. The Mid=%d", smb->Mid);
+
+	/* Make sure that message ids match */
+	if (mid != smb->Mid) {
+		cERROR(1, "Mids do not match. received=%u expected=%u",
+			smb->Mid, mid);
+		return 1;
+	}
+
+	/* if it's a response then accept */
+	if (smb->Flags & SMBFLG_RESPONSE)
+		return 0;
+
+	/* only one valid case where server sends us request */
+	if (smb->Command == SMB_COM_LOCKING_ANDX)
+		return 0;
+
+	cERROR(1, "Server sent request, not response. mid=%u", smb->Mid);
 	return 1;
 }
 
@@ -448,7 +450,7 @@ checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length)
 		return 1;
 	}
 
-	if (checkSMBhdr(smb, mid))
+	if (check_smb_hdr(smb, mid))
 		return 1;
 	clc_len = smbCalcSize_LE(smb);
 
