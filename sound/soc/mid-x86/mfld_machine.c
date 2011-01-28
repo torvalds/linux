@@ -182,6 +182,9 @@ static int mfld_init(struct snd_soc_pcm_runtime *runtime)
 	snd_soc_dapm_disable_pin(dapm, "LINEOUTR");
 	lo_dac = 3;
 	hs_switch = 0;
+	/* we dont use linein in this so set to NC */
+	snd_soc_dapm_disable_pin(dapm, "LINEINL");
+	snd_soc_dapm_disable_pin(dapm, "LINEINR");
 	return snd_soc_dapm_sync(dapm);
 }
 
