@@ -2513,6 +2513,7 @@ qla2x00_schedule_rport_del(struct scsi_qla_host *vha, fc_port_t *fcport,
 {
 	struct fc_rport *rport;
 	scsi_qla_host_t *base_vha;
+	unsigned long flags;
 
 	if (!fcport->rport)
 		return;
@@ -2520,9 +2521,9 @@ qla2x00_schedule_rport_del(struct scsi_qla_host *vha, fc_port_t *fcport,
 	rport = fcport->rport;
 	if (defer) {
 		base_vha = pci_get_drvdata(vha->hw->pdev);
-		spin_lock_irq(vha->host->host_lock);
+		spin_lock_irqsave(vha->host->host_lock, flags);
 		fcport->drport = rport;
-		spin_unlock_irq(vha->host->host_lock);
+		spin_unlock_irqrestore(vha->host->host_lock, flags);
 		set_bit(FCPORT_UPDATE_NEEDED, &base_vha->dpc_flags);
 		qla2xxx_wake_dpc(base_vha);
 	} else
