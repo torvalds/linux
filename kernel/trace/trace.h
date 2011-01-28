@@ -680,6 +680,8 @@ struct event_subsystem {
 #define FILTER_PRED_IS_RIGHT	(1 << 15)
 #define FILTER_PRED_FOLD	(1 << 15)
 
+#define MAX_FILTER_PRED		32
+
 struct filter_pred;
 struct regex;
 
