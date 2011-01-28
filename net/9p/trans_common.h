@@ -12,6 +12,9 @@
  *
  */
 
+/* TRUE if it is user context */
+#define P9_IS_USER_CONTEXT (!segment_eq(get_fs(), KERNEL_DS))
+
 /**
  * struct trans_rpage_info - To store mapped page information in PDU.
  * @rp_alloc:Set if this structure is allocd, not a reuse unused space in pdu.
