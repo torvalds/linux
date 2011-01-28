@@ -726,7 +726,7 @@ ar6k_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);
     int ret = 0;
-    A_BOOL forceFgScan = FALSE;
+    A_UINT32 forceFgScan = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: \n", __func__));
 
@@ -765,7 +765,7 @@ ar6k_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
     }
 
     if(ar->arConnected) {
-        forceFgScan = TRUE;
+        forceFgScan = 1;
     }
 
     if(wmi_startscan_cmd(ar->arWmi, WMI_LONG_SCAN, forceFgScan, FALSE, \
