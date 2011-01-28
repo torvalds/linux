@@ -46,7 +46,7 @@
  * reset will reset the entire system, where a soft reset will reset only the
  * T20. Uncomment this line to use soft resets (should not be enabled on
  * production builds). */
- #define ENABLE_SOFT_RESET_DEBUGGING
+/* #define ENABLE_SOFT_RESET_DEBUGGING */
 
 static struct cpcap_device *cpcap_di;
 
