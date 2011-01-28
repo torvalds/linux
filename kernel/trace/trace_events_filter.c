@@ -362,7 +362,7 @@ int filter_match_preds(struct event_filter *filter, void *rec)
 {
 	int match = -1, top = 0, val1 = 0, val2 = 0;
 	int stack[MAX_FILTER_PRED];
-	struct filter_pred **preds;
+	struct filter_pred *preds;
 	struct filter_pred *pred;
 	int n_preds = ACCESS_ONCE(filter->n_preds);
 	int i;
@@ -377,7 +377,7 @@ int filter_match_preds(struct event_filter *filter, void *rec)
 	preds = rcu_dereference_sched(filter->preds);
 
 	for (i = 0; i < n_preds; i++) {
-		pred = preds[i];
+		pred = &preds[i];
 		if (!pred->pop_n) {
 			match = pred->fn(pred, rec);
 			stack[top++] = match;
@@ -559,10 +559,8 @@ static void __free_preds(struct event_filter *filter)
 	int i;
 
 	if (filter->preds) {
-		for (i = 0; i < filter->a_preds; i++) {
-			if (filter->preds[i])
-				filter_free_pred(filter->preds[i]);
-		}
+		for (i = 0; i < filter->a_preds; i++)
+			kfree(filter->preds[i].field_name);
 		kfree(filter->preds);
 		filter->preds = NULL;
 	}
@@ -572,7 +570,6 @@ static void __free_preds(struct event_filter *filter)
 
 static void reset_preds(struct event_filter *filter)
 {
-	struct filter_pred *pred;
 	int n_preds = filter->n_preds;
 	int i;
 
@@ -580,10 +577,8 @@ static void reset_preds(struct event_filter *filter)
 	if (!filter->preds)
 		return;
 
-	for (i = 0; i < n_preds; i++) {
-		pred = filter->preds[i];
-		pred->fn = filter_pred_none;
-	}
+	for (i = 0; i < n_preds; i++)
+		filter->preds[i].fn = filter_pred_none;
 }
 
 static void filter_disable_preds(struct ftrace_event_call *call)
@@ -658,19 +653,11 @@ static int __alloc_preds(struct event_filter *filter, int n_preds)
 		return -EINVAL;
 
 	for (i = 0; i < n_preds; i++) {
-		pred = filter->preds[i];
-		if (!pred)
-			pred = kzalloc(sizeof(*pred), GFP_KERNEL);
-		if (!pred)
-			goto oom;
+		pred = &filter->preds[i];
 		pred->fn = filter_pred_none;
-		filter->preds[i] = pred;
 	}
 
 	return 0;
- oom:
-	__free_preds(filter);
-	return -ENOMEM;
 }
 
 static int init_filter(struct ftrace_event_call *call)
@@ -730,8 +717,8 @@ static int filter_add_pred_fn(struct filter_parse_state *ps,
 	}
 
 	idx = filter->n_preds;
-	filter_clear_pred(filter->preds[idx]);
-	err = filter_set_pred(filter->preds[idx], pred, fn);
+	filter_clear_pred(&filter->preds[idx]);
+	err = filter_set_pred(&filter->preds[idx], pred, fn);
 	if (err)
 		return err;
 
