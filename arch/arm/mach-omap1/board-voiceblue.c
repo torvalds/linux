@@ -31,6 +31,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include <plat/board-voiceblue.h>
 #include <plat/common.h>
 #include <mach/gpio.h>
 #include <plat/flash.h>
