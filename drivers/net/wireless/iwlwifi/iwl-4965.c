@@ -1571,7 +1571,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *c
 
 	/* If we issue a new RXON command which required a tune then we must
 	 * send a new TXPOWER command or we won't be able to Tx any frames */
-	ret = iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
+	ret = iwl_set_tx_power(priv, priv->tx_power_next, true);
 	if (ret) {
 		IWL_ERR(priv, "Error sending TX power (%d)\n", ret);
 		return ret;
