@@ -245,7 +245,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
                       struct cfg80211_connect_params *sme)
 {
     AR_SOFTC_T *ar = ar6k_priv(dev);
-    A_STATUS status;
+    int status;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: \n", __func__));
 
@@ -780,7 +780,7 @@ ar6k_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 void
-ar6k_cfg80211_scanComplete_event(AR_SOFTC_T *ar, A_STATUS status)
+ar6k_cfg80211_scanComplete_event(AR_SOFTC_T *ar, int status)
 {
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: status %d\n", __func__, status));
@@ -815,7 +815,7 @@ ar6k_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
     struct ar_key *key = NULL;
     A_UINT8 key_usage;
     A_UINT8 key_type;
-    A_STATUS status = 0;
+    int status = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s:\n", __func__));
 
@@ -982,7 +982,7 @@ ar6k_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *ndev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);
     struct ar_key *key = NULL;
-    A_STATUS status = A_OK;
+    int status = A_OK;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: index %d\n", __func__, key_index));
 
@@ -1269,7 +1269,7 @@ ar6k_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
                         struct cfg80211_ibss_params *ibss_param)
 {
     AR_SOFTC_T *ar = ar6k_priv(dev);
-    A_STATUS status;
+    int status;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: \n", __func__));
 

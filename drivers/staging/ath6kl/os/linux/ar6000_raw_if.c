@@ -111,10 +111,10 @@ ar6000_htc_raw_write_cb(void *Context, HTC_PACKET *pPacket)
 }
 
 /* connect to a service */
-static A_STATUS ar6000_connect_raw_service(AR_SOFTC_T        *ar,
+static int ar6000_connect_raw_service(AR_SOFTC_T        *ar,
                                            HTC_RAW_STREAM_ID StreamID)
 {
-    A_STATUS                 status;
+    int                 status;
     HTC_SERVICE_CONNECT_RESP response;
     A_UINT8                  streamNo;
     HTC_SERVICE_CONNECT_REQ  connect;
@@ -168,7 +168,7 @@ static A_STATUS ar6000_connect_raw_service(AR_SOFTC_T        *ar,
 
 int ar6000_htc_raw_open(AR_SOFTC_T *ar)
 {
-    A_STATUS status;
+    int status;
     int streamID, endPt, count2;
     raw_htc_buffer *buffer;
     HTC_SERVICE_ID servicepriority;

@@ -58,7 +58,7 @@ typedef struct bus_request {
     A_UINT32 length;
     A_UINT32 request;
     void *context;
-    A_STATUS status;
+    int status;
     struct _HIF_SCATTER_REQ_PRIV *pScatterReq;      /* this request is a scatter request */
 } BUS_REQUEST;
 
@@ -110,18 +110,18 @@ typedef struct _HIF_SCATTER_REQ_PRIV {
 
 #define ATH_DEBUG_SCATTER  ATH_DEBUG_MAKE_MODULE_MASK(0)
 
-A_STATUS SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_INFO *pInfo);
+int SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_INFO *pInfo);
 void CleanupHIFScatterResources(HIF_DEVICE *device);
-A_STATUS DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest);
+int DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest);
 
 #else  // HIF_LINUX_MMC_SCATTER_SUPPORT
 
-static inline A_STATUS SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_INFO *pInfo) 
+static inline int SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_INFO *pInfo)
 {
     return A_ENOTSUP;
 }
 
-static inline A_STATUS DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest) 
+static inline int DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest)
 {
     return A_ENOTSUP;
 }

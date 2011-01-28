@@ -97,7 +97,7 @@ iswscoui(const A_UINT8 *frm)
     return frm[1] > 3 && LE_READ_4(frm+2) == ((0x04<<24)|WPA_OUI);
 }
 
-A_STATUS
+int
 wlan_parse_beacon(A_UINT8 *buf, int framelen, struct ieee80211_common_ie *cie)
 {
     A_UINT8 *frm, *efrm;

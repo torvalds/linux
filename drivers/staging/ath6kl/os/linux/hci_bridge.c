@@ -106,9 +106,9 @@ AR3K_CONFIG_INFO      ar3kconfig;
 AR6K_HCI_BRIDGE_INFO *g_pHcidevInfo;
 #endif
 
-static A_STATUS bt_setup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo);
+static int bt_setup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo);
 static void     bt_cleanup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo);
-static A_STATUS bt_register_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo);
+static int bt_register_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo);
 static A_BOOL   bt_indicate_recv(AR6K_HCI_BRIDGE_INFO      *pHcidevInfo, 
                                  HCI_TRANSPORT_PACKET_TYPE Type, 
                                  struct sk_buff            *skb);
@@ -116,14 +116,14 @@ static struct sk_buff *bt_alloc_buffer(AR6K_HCI_BRIDGE_INFO *pHcidevInfo, int Le
 static void     bt_free_buffer(AR6K_HCI_BRIDGE_INFO *pHcidevInfo, struct sk_buff *skb);   
                                
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
-A_STATUS ar6000_setup_hci(void *ar);
+int ar6000_setup_hci(void *ar);
 void     ar6000_cleanup_hci(void *ar);
-A_STATUS hci_test_send(void *ar, struct sk_buff *skb);
+int hci_test_send(void *ar, struct sk_buff *skb);
 #else
-A_STATUS ar6000_setup_hci(AR_SOFTC_T *ar);
+int ar6000_setup_hci(AR_SOFTC_T *ar);
 void     ar6000_cleanup_hci(AR_SOFTC_T *ar);
 /* HCI bridge testing */
-A_STATUS hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb);
+int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb);
 #endif /* EXPORT_HCI_BRIDGE_INTERFACE */
 
 #define LOCK_BRIDGE(dev)   spin_lock_bh(&(dev)->BridgeLock)
@@ -215,12 +215,12 @@ static void RefillRecvBuffers(AR6K_HCI_BRIDGE_INFO      *pHcidevInfo,
 #define HOST_INTEREST_ITEM_ADDRESS(ar, item) \
         (((ar)->arTargetType == TARGET_TYPE_AR6002) ? AR6002_HOST_INTEREST_ITEM_ADDRESS(item) : \
         (((ar)->arTargetType == TARGET_TYPE_AR6003) ? AR6003_HOST_INTEREST_ITEM_ADDRESS(item) : 0))
-static A_STATUS ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle, 
+static int ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
                                            HCI_TRANSPORT_PROPERTIES *pProps, 
                                            void                     *pContext)
 {
     AR6K_HCI_BRIDGE_INFO *pHcidevInfo = (AR6K_HCI_BRIDGE_INFO *)pContext;
-    A_STATUS              status;
+    int              status;
     A_UINT32 address, hci_uart_pwr_mgmt_params;
 //    AR3K_CONFIG_INFO      ar3kconfig;
     
@@ -323,7 +323,7 @@ static A_STATUS ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
     return status; 
 }
 
-static void ar6000_hci_transport_failure(void *pContext, A_STATUS Status)
+static void ar6000_hci_transport_failure(void *pContext, int Status)
 {
     AR6K_HCI_BRIDGE_INFO *pHcidevInfo = (AR6K_HCI_BRIDGE_INFO *)pContext;
     
@@ -464,13 +464,13 @@ static HCI_SEND_FULL_ACTION  ar6000_hci_pkt_send_full(void *pContext, HTC_PACKET
 }
 
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
-A_STATUS ar6000_setup_hci(void *ar)
+int ar6000_setup_hci(void *ar)
 #else
-A_STATUS ar6000_setup_hci(AR_SOFTC_T *ar)
+int ar6000_setup_hci(AR_SOFTC_T *ar)
 #endif
 {
     HCI_TRANSPORT_CONFIG_INFO config;
-    A_STATUS                  status = A_OK;
+    int                  status = A_OK;
     int                       i;
     HTC_PACKET                *pPacket;
     AR6K_HCI_BRIDGE_INFO      *pHcidevInfo;
@@ -596,9 +596,9 @@ void  ar6000_cleanup_hci(AR_SOFTC_T *ar)
 }
 
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
-A_STATUS hci_test_send(void *ar, struct sk_buff *skb)
+int hci_test_send(void *ar, struct sk_buff *skb)
 #else
-A_STATUS hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb)
+int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb)
 #endif
 {
     int              status = A_OK;
@@ -712,7 +712,7 @@ static int bt_send_frame(struct sk_buff *skb)
     HCI_TRANSPORT_PACKET_TYPE  type;
     AR6K_HCI_BRIDGE_INFO       *pHcidevInfo;
     HTC_PACKET                 *pPacket;
-    A_STATUS                   status = A_OK;
+    int                   status = A_OK;
     struct sk_buff             *txSkb = NULL;
     
     if (!hdev) {
@@ -853,9 +853,9 @@ static void bt_destruct(struct hci_dev *hdev)
     /* nothing to do here */
 }
 
-static A_STATUS bt_setup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
+static int bt_setup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
 {
-    A_STATUS                    status = A_OK;
+    int                    status = A_OK;
     struct hci_dev              *pHciDev = NULL;
     HIF_DEVICE_OS_DEVICE_INFO   osDevInfo;
     
@@ -935,10 +935,10 @@ static void bt_cleanup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
     }  
 }
 
-static A_STATUS bt_register_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
+static int bt_register_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
 {
     int       err;
-    A_STATUS  status = A_OK;
+    int  status = A_OK;
     
     do {          
         AR_DEBUG_PRINTF(ATH_DEBUG_HCI_BRIDGE, ("HCI Bridge: registering HCI... \n"));
@@ -1041,7 +1041,7 @@ static void bt_free_buffer(AR6K_HCI_BRIDGE_INFO *pHcidevInfo, struct sk_buff *sk
 #else // { CONFIG_BLUEZ_HCI_BRIDGE
 
     /* stubs when we only want to test the HCI bridging Interface without the HT stack */
-static A_STATUS bt_setup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
+static int bt_setup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
 {
     return A_OK;    
 }
@@ -1049,7 +1049,7 @@ static void bt_cleanup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
 {   
      
 }
-static A_STATUS bt_register_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
+static int bt_register_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
 {
     A_ASSERT(FALSE);
     return A_ERROR;    
@@ -1080,9 +1080,9 @@ static void bt_free_buffer(AR6K_HCI_BRIDGE_INFO *pHcidevInfo, struct sk_buff *sk
     /* stubs when GMBOX support is not needed */
     
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
-A_STATUS ar6000_setup_hci(void *ar)
+int ar6000_setup_hci(void *ar)
 #else
-A_STATUS ar6000_setup_hci(AR_SOFTC_T *ar)
+int ar6000_setup_hci(AR_SOFTC_T *ar)
 #endif
 {
     return A_OK;   
@@ -1120,7 +1120,7 @@ int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb)
 static int __init
 hcibridge_init_module(void)
 {
-    A_STATUS status;
+    int status;
     HCI_TRANSPORT_CALLBACKS hciTransCallbacks;
 
     hciTransCallbacks.setupTransport = ar6000_setup_hci;

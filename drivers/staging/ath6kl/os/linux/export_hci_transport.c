@@ -38,20 +38,20 @@
 
 HCI_TRANSPORT_HANDLE (*_HCI_TransportAttach)(void *HTCHandle, HCI_TRANSPORT_CONFIG_INFO *pInfo);
 void (*_HCI_TransportDetach)(HCI_TRANSPORT_HANDLE HciTrans);
-A_STATUS    (*_HCI_TransportAddReceivePkts)(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUEUE *pQueue);
-A_STATUS    (*_HCI_TransportSendPkt)(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET *pPacket, A_BOOL Synchronous);
+int    (*_HCI_TransportAddReceivePkts)(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUEUE *pQueue);
+int    (*_HCI_TransportSendPkt)(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET *pPacket, A_BOOL Synchronous);
 void        (*_HCI_TransportStop)(HCI_TRANSPORT_HANDLE HciTrans);
-A_STATUS    (*_HCI_TransportStart)(HCI_TRANSPORT_HANDLE HciTrans);
-A_STATUS    (*_HCI_TransportEnableDisableAsyncRecv)(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enable);
-A_STATUS    (*_HCI_TransportRecvHCIEventSync)(HCI_TRANSPORT_HANDLE HciTrans, 
+int    (*_HCI_TransportStart)(HCI_TRANSPORT_HANDLE HciTrans);
+int    (*_HCI_TransportEnableDisableAsyncRecv)(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enable);
+int    (*_HCI_TransportRecvHCIEventSync)(HCI_TRANSPORT_HANDLE HciTrans,
                                           HTC_PACKET           *pPacket,
                                           int                  MaxPollMS);
-A_STATUS    (*_HCI_TransportSetBaudRate)(HCI_TRANSPORT_HANDLE HciTrans, A_UINT32 Baud);
-A_STATUS    (*_HCI_TransportEnablePowerMgmt)(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enable);
+int    (*_HCI_TransportSetBaudRate)(HCI_TRANSPORT_HANDLE HciTrans, A_UINT32 Baud);
+int    (*_HCI_TransportEnablePowerMgmt)(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enable);
 
 extern HCI_TRANSPORT_CALLBACKS ar6kHciTransCallbacks;
 
-A_STATUS ar6000_register_hci_transport(HCI_TRANSPORT_CALLBACKS *hciTransCallbacks)
+int ar6000_register_hci_transport(HCI_TRANSPORT_CALLBACKS *hciTransCallbacks)
 {
     ar6kHciTransCallbacks = *hciTransCallbacks;
 
@@ -69,10 +69,10 @@ A_STATUS ar6000_register_hci_transport(HCI_TRANSPORT_CALLBACKS *hciTransCallback
     return A_OK;
 }
 
-A_STATUS
+int
 ar6000_get_hif_dev(HIF_DEVICE *device, void *config)
 {
-    A_STATUS status;
+    int status;
 
     status = HIFConfigureDevice(device,
                                 HIF_DEVICE_GET_OS_DEVICE,
@@ -81,13 +81,13 @@ ar6000_get_hif_dev(HIF_DEVICE *device, void *config)
     return status;
 }
 
-A_STATUS ar6000_set_uart_config(HIF_DEVICE *hifDevice, 
+int ar6000_set_uart_config(HIF_DEVICE *hifDevice,
                                 A_UINT32 scale, 
                                 A_UINT32 step)
 {
     A_UINT32 regAddress;
     A_UINT32 regVal;
-    A_STATUS status;
+    int status;
 
     regAddress = WLAN_UART_BASE_ADDRESS | UART_CLKDIV_ADDRESS;
     regVal = ((A_UINT32)scale << 16) | step;
@@ -97,10 +97,10 @@ A_STATUS ar6000_set_uart_config(HIF_DEVICE *hifDevice,
     return status;
 }
 
-A_STATUS ar6000_get_core_clock_config(HIF_DEVICE *hifDevice, A_UINT32 *data)
+int ar6000_get_core_clock_config(HIF_DEVICE *hifDevice, A_UINT32 *data)
 {
     A_UINT32 regAddress;
-    A_STATUS status;
+    int status;
 
     regAddress = WLAN_RTC_BASE_ADDRESS | WLAN_CPU_CLOCK_ADDRESS;
     /* read CPU clock settings*/

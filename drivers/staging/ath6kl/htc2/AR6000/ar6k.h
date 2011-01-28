@@ -98,9 +98,9 @@ typedef struct AR6K_ASYNC_REG_IO_BUFFER {
 
 typedef struct _AR6K_GMBOX_INFO { 
     void        *pProtocolContext;
-    A_STATUS    (*pMessagePendingCallBack)(void *pContext, A_UINT8 LookAheadBytes[], int ValidBytes);
-    A_STATUS    (*pCreditsPendingCallback)(void *pContext, int NumCredits,  A_BOOL CreditIRQEnabled);
-    void        (*pTargetFailureCallback)(void *pContext, A_STATUS Status);
+    int    (*pMessagePendingCallBack)(void *pContext, A_UINT8 LookAheadBytes[], int ValidBytes);
+    int    (*pCreditsPendingCallback)(void *pContext, int NumCredits,  A_BOOL CreditIRQEnabled);
+    void        (*pTargetFailureCallback)(void *pContext, int Status);
     void        (*pStateDumpCallback)(void *pContext);
     A_BOOL      CreditCountIRQEnabled;    
 } AR6K_GMBOX_INFO; 
@@ -121,7 +121,7 @@ typedef struct _AR6K_DEVICE {
     HTC_PACKET_QUEUE            RegisterIOList;
     AR6K_ASYNC_REG_IO_BUFFER    RegIOBuffers[AR6K_MAX_REG_IO_BUFFERS];
     void                        (*TargetFailureCallback)(void *Context);
-    A_STATUS                    (*MessagePendingCallback)(void *Context, 
+    int                    (*MessagePendingCallback)(void *Context,
                                                           A_UINT32 LookAheads[], 
                                                           int NumLookAheads, 
                                                           A_BOOL *pAsyncProc,
@@ -147,16 +147,16 @@ typedef struct _AR6K_DEVICE {
 #define UNLOCK_AR6K(p)    A_MUTEX_UNLOCK(&(p)->Lock);
 #define REF_IRQ_STATUS_RECHECK(p) (p)->RecheckIRQStatusCnt = 1  /* note: no need to lock this, it only gets set */
 
-A_STATUS DevSetup(AR6K_DEVICE *pDev);
+int DevSetup(AR6K_DEVICE *pDev);
 void     DevCleanup(AR6K_DEVICE *pDev);
-A_STATUS DevUnmaskInterrupts(AR6K_DEVICE *pDev);
-A_STATUS DevMaskInterrupts(AR6K_DEVICE *pDev);
-A_STATUS DevPollMboxMsgRecv(AR6K_DEVICE *pDev,
+int DevUnmaskInterrupts(AR6K_DEVICE *pDev);
+int DevMaskInterrupts(AR6K_DEVICE *pDev);
+int DevPollMboxMsgRecv(AR6K_DEVICE *pDev,
                             A_UINT32    *pLookAhead,
                             int          TimeoutMS);
-A_STATUS DevRWCompletionHandler(void *context, A_STATUS status);
-A_STATUS DevDsrHandler(void *context);
-A_STATUS DevCheckPendingRecvMsgsAsync(void *context);
+int DevRWCompletionHandler(void *context, int status);
+int DevDsrHandler(void *context);
+int DevCheckPendingRecvMsgsAsync(void *context);
 void     DevAsyncIrqProcessComplete(AR6K_DEVICE *pDev);
 void     DevDumpRegisters(AR6K_DEVICE               *pDev,
                           AR6K_IRQ_PROC_REGISTERS   *pIrqProcRegs,
@@ -166,20 +166,20 @@ void     DevDumpRegisters(AR6K_DEVICE               *pDev,
 #define DEV_STOP_RECV_SYNC  FALSE
 #define DEV_ENABLE_RECV_ASYNC TRUE
 #define DEV_ENABLE_RECV_SYNC  FALSE
-A_STATUS DevStopRecv(AR6K_DEVICE *pDev, A_BOOL ASyncMode);
-A_STATUS DevEnableRecv(AR6K_DEVICE *pDev, A_BOOL ASyncMode);
-A_STATUS DevEnableInterrupts(AR6K_DEVICE *pDev);
-A_STATUS DevDisableInterrupts(AR6K_DEVICE *pDev);
-A_STATUS DevWaitForPendingRecv(AR6K_DEVICE *pDev,A_UINT32 TimeoutInMs,A_BOOL *pbIsRecvPending);
+int DevStopRecv(AR6K_DEVICE *pDev, A_BOOL ASyncMode);
+int DevEnableRecv(AR6K_DEVICE *pDev, A_BOOL ASyncMode);
+int DevEnableInterrupts(AR6K_DEVICE *pDev);
+int DevDisableInterrupts(AR6K_DEVICE *pDev);
+int DevWaitForPendingRecv(AR6K_DEVICE *pDev,A_UINT32 TimeoutInMs,A_BOOL *pbIsRecvPending);
 
 #define DEV_CALC_RECV_PADDED_LEN(pDev, length) (((length) + (pDev)->BlockMask) & (~((pDev)->BlockMask)))
 #define DEV_CALC_SEND_PADDED_LEN(pDev, length) DEV_CALC_RECV_PADDED_LEN(pDev,length)
 #define DEV_IS_LEN_BLOCK_ALIGNED(pDev, length) (((length) % (pDev)->BlockSize) == 0)
 
-static INLINE A_STATUS DevSendPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 SendLength) {
+static INLINE int DevSendPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 SendLength) {
     A_UINT32 paddedLength;
     A_BOOL   sync = (pPacket->Completion == NULL) ? TRUE : FALSE;
-    A_STATUS status;
+    int status;
 
        /* adjust the length to be a multiple of block size if appropriate */
     paddedLength = DEV_CALC_SEND_PADDED_LEN(pDev, SendLength);
@@ -219,9 +219,9 @@ static INLINE A_STATUS DevSendPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_U
     return status;
 }
                     
-static INLINE A_STATUS DevRecvPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 RecvLength) {
+static INLINE int DevRecvPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 RecvLength) {
     A_UINT32 paddedLength;
-    A_STATUS status;
+    int status;
     A_BOOL   sync = (pPacket->Completion == NULL) ? TRUE : FALSE;
 
         /* adjust the length to be a multiple of block size if appropriate */
@@ -272,7 +272,7 @@ static INLINE A_STATUS DevRecvPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_U
  *  
  */
   
-A_STATUS DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, A_BOOL FromDMA);
+int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, A_BOOL FromDMA);
     
     /* copy any READ data back into scatter list */        
 #define DEV_FINISH_SCATTER_OPERATION(pR)                      \
@@ -283,7 +283,7 @@ A_STATUS DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, A_BOOL FromDMA
     }
     
     /* copy any WRITE data to bounce buffer */
-static INLINE A_STATUS DEV_PREPARE_SCATTER_OPERATION(HIF_SCATTER_REQ *pReq)  { 
+static INLINE int DEV_PREPARE_SCATTER_OPERATION(HIF_SCATTER_REQ *pReq)  {
     if ((pReq->Request & HIF_WRITE) && (pReq->ScatterMethod == HIF_SCATTER_DMA_BOUNCE)) {
         return DevCopyScatterListToFromDMABuffer(pReq,TO_DMA_BUFFER);    
     } else {
@@ -292,7 +292,7 @@ static INLINE A_STATUS DEV_PREPARE_SCATTER_OPERATION(HIF_SCATTER_REQ *pReq)  {
 }
         
     
-A_STATUS DevSetupMsgBundling(AR6K_DEVICE *pDev, int MaxMsgsPerTransfer);
+int DevSetupMsgBundling(AR6K_DEVICE *pDev, int MaxMsgsPerTransfer);
                                   
 #define DEV_GET_MAX_MSG_PER_BUNDLE(pDev)        (pDev)->HifScatterInfo.MaxScatterEntries
 #define DEV_GET_MAX_BUNDLE_LENGTH(pDev)         (pDev)->HifScatterInfo.MaxTransferSizePerScatterReq
@@ -309,10 +309,10 @@ A_STATUS DevSetupMsgBundling(AR6K_DEVICE *pDev, int MaxMsgsPerTransfer);
 #define DEV_SCATTER_WRITE FALSE
 #define DEV_SCATTER_ASYNC TRUE
 #define DEV_SCATTER_SYNC  FALSE
-A_STATUS DevSubmitScatterRequest(AR6K_DEVICE *pDev, HIF_SCATTER_REQ *pScatterReq, A_BOOL Read, A_BOOL Async);
+int DevSubmitScatterRequest(AR6K_DEVICE *pDev, HIF_SCATTER_REQ *pScatterReq, A_BOOL Read, A_BOOL Async);
 
 #ifdef MBOXHW_UNIT_TEST
-A_STATUS DoMboxHWTest(AR6K_DEVICE *pDev);
+int DoMboxHWTest(AR6K_DEVICE *pDev);
 #endif
 
     /* completely virtual */
@@ -334,8 +334,8 @@ void     DumpAR6KDevState(AR6K_DEVICE *pDev);
 #ifdef ATH_AR6K_ENABLE_GMBOX
 
 void     DevCleanupGMbox(AR6K_DEVICE *pDev);
-A_STATUS DevSetupGMbox(AR6K_DEVICE *pDev);
-A_STATUS DevCheckGMboxInterrupts(AR6K_DEVICE *pDev);
+int DevSetupGMbox(AR6K_DEVICE *pDev);
+int DevCheckGMboxInterrupts(AR6K_DEVICE *pDev);
 void     DevNotifyGMboxTargetFailure(AR6K_DEVICE *pDev);
 
 #else
@@ -345,7 +345,7 @@ void     DevNotifyGMboxTargetFailure(AR6K_DEVICE *pDev);
 #define DevCheckGMboxInterrupts(p) A_OK
 #define DevNotifyGMboxTargetFailure(p)
 
-static INLINE A_STATUS DevSetupGMbox(AR6K_DEVICE *pDev) {
+static INLINE int DevSetupGMbox(AR6K_DEVICE *pDev) {
     pDev->GMboxEnabled = FALSE;
     return A_OK;    
 }
@@ -356,7 +356,7 @@ static INLINE A_STATUS DevSetupGMbox(AR6K_DEVICE *pDev) {
 
     /* GMBOX protocol modules must expose each of these internal APIs */
 HCI_TRANSPORT_HANDLE GMboxAttachProtocol(AR6K_DEVICE *pDev, HCI_TRANSPORT_CONFIG_INFO *pInfo);
-A_STATUS             GMboxProtocolInstall(AR6K_DEVICE *pDev);
+int             GMboxProtocolInstall(AR6K_DEVICE *pDev);
 void                 GMboxProtocolUninstall(AR6K_DEVICE *pDev);
 
     /* API used by GMBOX protocol modules */
@@ -372,8 +372,8 @@ AR6K_DEVICE  *HTCGetAR6KDevice(void *HTCHandle);
 
 #define DEV_GMBOX_GET_PROTOCOL(pDev)  (pDev)->GMboxInfo.pProtocolContext
 
-A_STATUS DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 WriteLength);
-A_STATUS DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 ReadLength);
+int DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 WriteLength);
+int DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 ReadLength);
 
 #define PROC_IO_ASYNC TRUE
 #define PROC_IO_SYNC  FALSE
@@ -387,11 +387,11 @@ typedef enum GMBOX_IRQ_ACTION_TYPE {
     GMBOX_CREDIT_IRQ_DISABLE,
 } GMBOX_IRQ_ACTION_TYPE;
 
-A_STATUS DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE, A_BOOL AsyncMode);
-A_STATUS DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, A_BOOL AsyncMode, int *pCredits);
-A_STATUS DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize);
-A_STATUS DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer, int *pLookAheadBytes);
-A_STATUS DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int SignalNumber, int AckTimeoutMS);
+int DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE, A_BOOL AsyncMode);
+int DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, A_BOOL AsyncMode, int *pCredits);
+int DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize);
+int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer, int *pLookAheadBytes);
+int DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int SignalNumber, int AckTimeoutMS);
 
 #endif
 

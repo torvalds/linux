@@ -89,7 +89,7 @@ typedef struct _HTC_PACKET {
     A_UINT32        BufferLength;   /* length of buffer */
     A_UINT32        ActualLength;   /* actual length of payload */
     HTC_ENDPOINT_ID Endpoint;       /* endpoint that this packet was sent/recv'd from */
-    A_STATUS        Status;         /* completion status */
+    int        Status;         /* completion status */
     union {
         HTC_TX_PACKET_INFO  AsTx;   /* Tx Packet specific info */
         HTC_RX_PACKET_INFO  AsRx;   /* Rx Packet specific info */

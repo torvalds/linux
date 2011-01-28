@@ -463,7 +463,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
                      struct iw_point *data, char *ssid)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
-    A_STATUS status;
+    int status;
     A_UINT8     arNetworkType;
     A_UINT8 prevMode = ar->arNetworkType;
 
@@ -1548,7 +1548,7 @@ ar6000_ioctl_siwpmksa(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     A_INT32 ret;
-    A_STATUS status;
+    int status;
     struct iw_pmksa *pmksa;
 
     pmksa = (struct iw_pmksa *)extra;
@@ -1599,7 +1599,7 @@ static int ar6000_set_wapi_key(struct net_device *dev,
     A_INT32     index;
     A_UINT32    *PN;
     A_INT32     i;
-    A_STATUS    status;
+    int    status;
     A_UINT8     wapiKeyRsc[16];
     CRYPTO_TYPE keyType = WAPI_CRYPT;
     const A_UINT8 broadcastMac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -1660,7 +1660,7 @@ ar6000_ioctl_siwencodeext(struct net_device *dev,
     A_INT32 keyLen;
     A_UINT8 *keyData;
     A_UINT8 keyRsc[8];
-    A_STATUS status;
+    int status;
     CRYPTO_TYPE keyType;
 #ifdef USER_KEYS
     struct ieee80211req_key ik;

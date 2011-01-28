@@ -27,7 +27,7 @@
 struct wireless_dev *ar6k_cfg80211_init(struct device *dev);
 void ar6k_cfg80211_deinit(AR_SOFTC_T *ar);
 
-void ar6k_cfg80211_scanComplete_event(AR_SOFTC_T *ar, A_STATUS status);
+void ar6k_cfg80211_scanComplete_event(AR_SOFTC_T *ar, int status);
 
 void ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, A_UINT16 channel,
                                 A_UINT8 *bssid, A_UINT16 listenInterval,

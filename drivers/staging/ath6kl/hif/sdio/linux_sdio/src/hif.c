@@ -107,8 +107,8 @@ extern A_UINT32 busspeedlow;
 extern A_UINT32 debughif;
 
 static void ResetAllCards(void);
-static A_STATUS hifDisableFunc(HIF_DEVICE *device, struct sdio_func *func);
-static A_STATUS hifEnableFunc(HIF_DEVICE *device, struct sdio_func *func);
+static int hifDisableFunc(HIF_DEVICE *device, struct sdio_func *func);
+static int hifEnableFunc(HIF_DEVICE *device, struct sdio_func *func);
 
 #ifdef DEBUG
 
@@ -123,7 +123,7 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(hif,
 
 
 /* ------ Functions ------ */
-A_STATUS HIFInit(OSDRV_CALLBACKS *callbacks)
+int HIFInit(OSDRV_CALLBACKS *callbacks)
 {
     int status;
     AR_DEBUG_ASSERT(callbacks != NULL);
@@ -152,7 +152,7 @@ A_STATUS HIFInit(OSDRV_CALLBACKS *callbacks)
 
 }
 
-static A_STATUS
+static int
 __HIFReadWrite(HIF_DEVICE *device,
              A_UINT32 address,
              A_UCHAR *buffer,
@@ -161,7 +161,7 @@ __HIFReadWrite(HIF_DEVICE *device,
              void *context)
 {
     A_UINT8 opcode;
-    A_STATUS    status = A_OK;
+    int    status = A_OK;
     int     ret;
     A_UINT8 *tbuffer;
     A_BOOL   bounced = FALSE;
@@ -329,7 +329,7 @@ void AddToAsyncList(HIF_DEVICE *device, BUS_REQUEST *busrequest)
 
 
 /* queue a read/write request */
-A_STATUS
+int
 HIFReadWrite(HIF_DEVICE *device,
              A_UINT32 address,
              A_UCHAR *buffer,
@@ -337,7 +337,7 @@ HIFReadWrite(HIF_DEVICE *device,
              A_UINT32 request,
              void *context)
 {
-    A_STATUS    status = A_OK;
+    int    status = A_OK;
     BUS_REQUEST *busrequest;
 
 
@@ -375,7 +375,7 @@ HIFReadWrite(HIF_DEVICE *device,
                     /* interrupted, exit */
                     return A_ERROR;
                 } else {
-                    A_STATUS status = busrequest->status;
+                    int status = busrequest->status;
                     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: sync return freeing 0x%lX: 0x%X\n", 
 						      (unsigned long)busrequest, busrequest->status));
                     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: freeing req: 0x%X\n", (unsigned int)request));
@@ -402,7 +402,7 @@ static int async_task(void *param)
  {
     HIF_DEVICE *device;
     BUS_REQUEST *request;
-    A_STATUS status;
+    int status;
     unsigned long flags;
 
     device = (HIF_DEVICE *)param;
@@ -488,7 +488,7 @@ static A_INT32 IssueSDCommand(HIF_DEVICE *device, A_UINT32 opcode, A_UINT32 arg,
     return err;
 }
 
-A_STATUS ReinitSDIO(HIF_DEVICE *device)
+int ReinitSDIO(HIF_DEVICE *device)
 {
     A_INT32 err;
     struct mmc_host *host;
@@ -647,10 +647,10 @@ A_STATUS ReinitSDIO(HIF_DEVICE *device)
     return (err) ? A_ERROR : A_OK;
 }
 
-A_STATUS
+int
 PowerStateChangeNotify(HIF_DEVICE *device, HIF_DEVICE_POWER_CHANGE_TYPE config)
 {
-    A_STATUS status = A_OK;
+    int status = A_OK;
 #if defined(CONFIG_PM)
 	struct sdio_func *func = device->func;
     int old_reset_val;
@@ -690,12 +690,12 @@ PowerStateChangeNotify(HIF_DEVICE *device, HIF_DEVICE_POWER_CHANGE_TYPE config)
     return status;
 }
 
-A_STATUS
+int
 HIFConfigureDevice(HIF_DEVICE *device, HIF_DEVICE_CONFIG_OPCODE opcode,
                    void *config, A_UINT32 configLen)
 {
     A_UINT32 count;
-    A_STATUS status = A_OK;
+    int status = A_OK;
     
     switch(opcode) {
         case HIF_DEVICE_GET_MBOX_BLOCK_SIZE:
@@ -774,7 +774,7 @@ HIFShutDownDevice(HIF_DEVICE *device)
 static void
 hifIRQHandler(struct sdio_func *func)
 {
-    A_STATUS status;
+    int status;
     HIF_DEVICE *device;
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hifIRQHandler\n"));
 
@@ -949,10 +949,10 @@ hifFreeBusRequest(HIF_DEVICE *device, BUS_REQUEST *busrequest)
     spin_unlock_irqrestore(&device->lock, flag);
 }
 
-static A_STATUS hifDisableFunc(HIF_DEVICE *device, struct sdio_func *func)
+static int hifDisableFunc(HIF_DEVICE *device, struct sdio_func *func)
 {
     int ret;
-    A_STATUS status = A_OK;
+    int status = A_OK;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hifDisableFunc\n"));
     device = getHifDevice(func);
@@ -1080,7 +1080,7 @@ static int hifEnableFunc(HIF_DEVICE *device, struct sdio_func *func)
 static int hifDeviceSuspend(struct device *dev)
 {
     struct sdio_func *func=dev_to_sdio_func(dev);
-    A_STATUS status = A_OK;
+    int status = A_OK;
     HIF_DEVICE *device;   
 
     device = getHifDevice(func);
@@ -1107,7 +1107,7 @@ static int hifDeviceSuspend(struct device *dev)
 static int hifDeviceResume(struct device *dev)
 {
     struct sdio_func *func=dev_to_sdio_func(dev);
-    A_STATUS status = A_OK;
+    int status = A_OK;
     HIF_DEVICE *device;   
 
     device = getHifDevice(func);
@@ -1126,7 +1126,7 @@ static int hifDeviceResume(struct device *dev)
 
 static void hifDeviceRemoved(struct sdio_func *func)
 {
-    A_STATUS status = A_OK;
+    int status = A_OK;
     HIF_DEVICE *device;
     AR_DEBUG_ASSERT(func != NULL);
 
@@ -1151,11 +1151,11 @@ static void hifDeviceRemoved(struct sdio_func *func)
 /*
  * This should be moved to AR6K HTC layer.
  */
-A_STATUS hifWaitForPendingRecv(HIF_DEVICE *device)
+int hifWaitForPendingRecv(HIF_DEVICE *device)
 {
     A_INT32 cnt = 10;
     A_UINT8 host_int_status;
-    A_STATUS status = A_OK;
+    int status = A_OK;
 
     do {            		    
         while (atomic_read(&device->irqHandling)) {
@@ -1233,7 +1233,7 @@ void HIFReleaseDevice(HIF_DEVICE  *device)
     device->claimedContext = NULL;
 }
 
-A_STATUS HIFAttachHTC(HIF_DEVICE *device, HTC_CALLBACKS *callbacks)
+int HIFAttachHTC(HIF_DEVICE *device, HTC_CALLBACKS *callbacks)
 {
     if (device->htcCallbacks.context != NULL) {
             /* already in use! */

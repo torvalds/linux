@@ -164,14 +164,14 @@ typedef struct _HTC_TARGET {
 /* internal HTC functions */
 void        HTCControlTxComplete(void *Context, HTC_PACKET *pPacket);
 void        HTCControlRecv(void *Context, HTC_PACKET *pPacket);
-A_STATUS    HTCWaitforControlMessage(HTC_TARGET *target, HTC_PACKET **ppControlPacket);
+int    HTCWaitforControlMessage(HTC_TARGET *target, HTC_PACKET **ppControlPacket);
 HTC_PACKET *HTCAllocControlBuffer(HTC_TARGET *target, HTC_PACKET_QUEUE *pList);
 void        HTCFreeControlBuffer(HTC_TARGET *target, HTC_PACKET *pPacket, HTC_PACKET_QUEUE *pList);
-A_STATUS    HTCIssueSend(HTC_TARGET *target, HTC_PACKET *pPacket);
+int    HTCIssueSend(HTC_TARGET *target, HTC_PACKET *pPacket);
 void        HTCRecvCompleteHandler(void *Context, HTC_PACKET *pPacket);
-A_STATUS    HTCRecvMessagePendingHandler(void *Context, A_UINT32 MsgLookAheads[], int NumLookAheads, A_BOOL *pAsyncProc, int *pNumPktsFetched);
+int    HTCRecvMessagePendingHandler(void *Context, A_UINT32 MsgLookAheads[], int NumLookAheads, A_BOOL *pAsyncProc, int *pNumPktsFetched);
 void        HTCProcessCreditRpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt, int NumEntries, HTC_ENDPOINT_ID FromEndpoint);
-A_STATUS    HTCSendSetupComplete(HTC_TARGET *target);
+int    HTCSendSetupComplete(HTC_TARGET *target);
 void        HTCFlushRecvBuffers(HTC_TARGET *target);
 void        HTCFlushSendPkts(HTC_TARGET *target);
 

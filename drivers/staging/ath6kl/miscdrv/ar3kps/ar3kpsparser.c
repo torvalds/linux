@@ -127,10 +127,10 @@ tPsTagEntry PsTagEntry[RAMPS_MAX_PS_TAGS_PER_FILE];
 tRamPatch   RamPatch[MAX_NUM_PATCH_ENTRY];
 
 
-A_STATUS AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat);
+int AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat);
 char AthReadChar(A_UCHAR *buffer, A_UINT32 len,A_UINT32 *pos);
 char * AthGetLine(char * buffer, int maxlen, A_UCHAR *srcbuffer,A_UINT32 len,A_UINT32 *pos);
-static A_STATUS AthPSCreateHCICommand(A_UCHAR Opcode, A_UINT32 Param1,PSCmdPacket *PSPatchPacket,A_UINT32 *index);
+static int AthPSCreateHCICommand(A_UCHAR Opcode, A_UINT32 Param1,PSCmdPacket *PSPatchPacket,A_UINT32 *index);
 
 /* Function to reads the next character from the input buffer */
 char AthReadChar(A_UCHAR *buffer, A_UINT32 len,A_UINT32 *pos) 
@@ -315,7 +315,7 @@ unsigned int uReadDataInSection(char *pCharLine, ST_PS_DATA_FORMAT stPS_DataForm
         return (0x0FFF);
     }
 }
-A_STATUS AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat)
+int AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat)
 {
    char     *Buffer;
    char     *pCharLine;
@@ -558,7 +558,7 @@ A_STATUS AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat
 /********************/
 
 
-A_STATUS GetNextTwoChar(A_UCHAR *srcbuffer,A_UINT32 len, A_UINT32 *pos, char * buffer)
+int GetNextTwoChar(A_UCHAR *srcbuffer,A_UINT32 len, A_UINT32 *pos, char * buffer)
 {
     unsigned char ch;
 
@@ -579,7 +579,7 @@ A_STATUS GetNextTwoChar(A_UCHAR *srcbuffer,A_UINT32 len, A_UINT32 *pos, char * b
     return A_OK;
 }
 
-A_STATUS AthDoParsePatch(A_UCHAR *patchbuffer, A_UINT32 patchlen)
+int AthDoParsePatch(A_UCHAR *patchbuffer, A_UINT32 patchlen)
 {
 
     char  Byte[3];
@@ -659,9 +659,9 @@ A_STATUS AthDoParsePatch(A_UCHAR *patchbuffer, A_UINT32 patchlen)
 
 
 /********************/
-A_STATUS AthDoParsePS(A_UCHAR *srcbuffer, A_UINT32 srclen)
+int AthDoParsePS(A_UCHAR *srcbuffer, A_UINT32 srclen)
 {
-    A_STATUS status;
+    int status;
     int i;
     A_BOOL BDADDR_Present = A_ERROR;
 
@@ -833,7 +833,7 @@ int AthCreateCommandList(PSCmdPacket **HciPacketList, A_UINT32 *numPackets)
 ////////////////////////
 
 /////////////
-static A_STATUS AthPSCreateHCICommand(A_UCHAR Opcode, A_UINT32 Param1,PSCmdPacket *PSPatchPacket,A_UINT32 *index)
+static int AthPSCreateHCICommand(A_UCHAR Opcode, A_UINT32 Param1,PSCmdPacket *PSPatchPacket,A_UINT32 *index)
 {
     A_UCHAR *HCI_PS_Command;
     A_UINT32 Length;
@@ -955,7 +955,7 @@ static A_STATUS AthPSCreateHCICommand(A_UCHAR Opcode, A_UINT32 Param1,PSCmdPacke
     }
     return A_OK;
 }
-A_STATUS AthFreeCommandList(PSCmdPacket **HciPacketList, A_UINT32 numPackets)
+int AthFreeCommandList(PSCmdPacket **HciPacketList, A_UINT32 numPackets)
 {
     int i;
     if(*HciPacketList == NULL) {

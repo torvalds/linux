@@ -96,7 +96,7 @@ void wlan_node_table_init(void *wmip, struct ieee80211_node_table *nt);
 void wlan_node_table_reset(struct ieee80211_node_table *nt);
 void wlan_node_table_cleanup(struct ieee80211_node_table *nt);
 
-A_STATUS wlan_parse_beacon(A_UINT8 *buf, int framelen,
+int wlan_parse_beacon(A_UINT8 *buf, int framelen,
                            struct ieee80211_common_ie *cie);
 
 A_UINT16 wlan_ieee2freq(int chan);

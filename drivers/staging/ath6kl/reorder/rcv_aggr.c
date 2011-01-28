@@ -33,7 +33,7 @@
 #include "aggr_rx_internal.h"
 #include "wmi.h"
 
-extern A_STATUS
+extern int
 wmi_dot3_2_dix(void *osbuf);
 
 static void
@@ -57,7 +57,7 @@ aggr_init(ALLOC_NETBUFS netbuf_allocator)
     AGGR_INFO   *p_aggr = NULL;
     RXTID *rxtid;
     A_UINT8 i;
-    A_STATUS status = A_OK;
+    int status = A_OK;
 
     A_PRINTF("In aggr_init..\n");
 

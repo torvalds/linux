@@ -70,6 +70,6 @@ extern wait_queue_t Eventwait;
 extern A_UCHAR *HciEventpacket;
 #endif /* #ifndef HCI_TRANSPORT_SDIO */
 
-A_STATUS AthPSInitialize(AR3K_CONFIG_INFO *hdev);
-A_STATUS ReadPSEvent(A_UCHAR* Data);
+int AthPSInitialize(AR3K_CONFIG_INFO *hdev);
+int ReadPSEvent(A_UCHAR* Data);
 #endif /* __AR3KPSCONFIG_H */

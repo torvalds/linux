@@ -305,13 +305,13 @@ extern void android_module_exit(void);
 /*
  * HTC service connection handlers
  */
-static A_STATUS ar6000_avail_ev(void *context, void *hif_handle);
+static int ar6000_avail_ev(void *context, void *hif_handle);
 
-static A_STATUS ar6000_unavail_ev(void *context, void *hif_handle);
+static int ar6000_unavail_ev(void *context, void *hif_handle);
 
-A_STATUS ar6000_configure_target(AR_SOFTC_T *ar);
+int ar6000_configure_target(AR_SOFTC_T *ar);
 
-static void ar6000_target_failure(void *Instance, A_STATUS Status);
+static void ar6000_target_failure(void *Instance, int Status);
 
 static void ar6000_rx(void *Context, HTC_PACKET *pPacket);
 
@@ -343,17 +343,17 @@ ar6000_sysfs_bmi_write(struct file *fp, struct kobject *kobj,
                        struct bin_attribute *bin_attr,
                        char *buf, loff_t pos, size_t count);
 
-static A_STATUS
+static int
 ar6000_sysfs_bmi_init(AR_SOFTC_T *ar);
 
 /* HCI PAL callback function declarations */
-A_STATUS ar6k_setup_hci_pal(AR_SOFTC_T *ar);
+int ar6k_setup_hci_pal(AR_SOFTC_T *ar);
 void  ar6k_cleanup_hci_pal(AR_SOFTC_T *ar);
 
 static void
 ar6000_sysfs_bmi_deinit(AR_SOFTC_T *ar);
 
-A_STATUS
+int
 ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode);
 
 /*
@@ -370,7 +370,7 @@ static void ar6000_free_cookie(AR_SOFTC_T *ar, struct ar_cookie * cookie);
 static struct ar_cookie *ar6000_alloc_cookie(AR_SOFTC_T *ar);
 
 #ifdef USER_KEYS
-static A_STATUS ar6000_reinstall_keys(AR_SOFTC_T *ar,A_UINT8 key_op_ctrl);
+static int ar6000_reinstall_keys(AR_SOFTC_T *ar,A_UINT8 key_op_ctrl);
 #endif
 
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
@@ -402,7 +402,7 @@ static struct net_device_ops ar6000_netdev_ops = {
  */
 #define REPORT_DEBUG_LOGS_TO_APP
 
-A_STATUS
+int
 ar6000_set_host_app_area(AR_SOFTC_T *ar)
 {
     A_UINT32 address, data;
@@ -430,7 +430,7 @@ dbglog_get_debug_hdr_ptr(AR_SOFTC_T *ar)
 {
     A_UINT32 param;
     A_UINT32 address;
-    A_STATUS status;
+    int status;
 
     address = TARG_VTOP(ar->arTargetType, HOST_INTEREST_ITEM_ADDRESS(ar, hi_dbglog_hdr));
     if ((status = ar6000_ReadDataDiag(ar->arHifDevice, address,
@@ -633,7 +633,7 @@ static int __init
 ar6000_init_module(void)
 {
     static int probed = 0;
-    A_STATUS status;
+    int status;
     OSDRV_CALLBACKS osdrvCallbacks;
 
     a_module_debug_support_init();
@@ -741,7 +741,7 @@ aptcTimerHandler(unsigned long arg)
     A_UINT32 numbytes;
     A_UINT32 throughput;
     AR_SOFTC_T *ar;
-    A_STATUS status;
+    int status;
 
     ar = (AR_SOFTC_T *)arg;
     A_ASSERT(ar != NULL);
@@ -852,10 +852,10 @@ ar6000_sysfs_bmi_write(struct file *fp, struct kobject *kobj,
     return count;
 }
 
-static A_STATUS
+static int
 ar6000_sysfs_bmi_init(AR_SOFTC_T *ar)
 {
-    A_STATUS status;
+    int status;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Creating sysfs entry\n"));
     A_MEMZERO(&ar->osDevInfo, sizeof(HIF_DEVICE_OS_DEVICE_INFO));
@@ -993,10 +993,10 @@ ar6000_softmac_update(AR_SOFTC_T *ar, A_UCHAR *eeprom_data, size_t size)
 }
 #endif /* SOFTMAC_FILE_USED */
 
-static A_STATUS
+static int
 ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, A_BOOL compressed)
 {
-    A_STATUS status;
+    int status;
     const char *filename;
     const struct firmware *fw_entry;
     A_UINT32 fw_entry_size;
@@ -1157,7 +1157,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, A
 }
 #endif /* INIT_MODE_DRV_ENABLED */
 
-A_STATUS
+int
 ar6000_update_bdaddr(AR_SOFTC_T *ar)
 {
 
@@ -1184,7 +1184,7 @@ ar6000_update_bdaddr(AR_SOFTC_T *ar)
 return A_OK;
 }
 
-A_STATUS
+int
 ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode)
 {
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Requesting device specific configuration\n"));
@@ -1205,7 +1205,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode)
 #ifdef INIT_MODE_DRV_ENABLED
     } else {
         /* The config is contained within the driver itself */
-        A_STATUS status;
+        int status;
         A_UINT32 param, options, sleep, address;
 
         /* Temporarily disable system sleep */
@@ -1399,7 +1399,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode)
     return A_OK;
 }
 
-A_STATUS
+int
 ar6000_configure_target(AR_SOFTC_T *ar)
 {
     A_UINT32 param;
@@ -1595,7 +1595,7 @@ init_netdev(struct net_device *dev, char *name)
 /*
  * HTC Event handlers
  */
-static A_STATUS
+static int
 ar6000_avail_ev(void *context, void *hif_handle)
 {
     int i;
@@ -1607,7 +1607,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
 #ifdef ATH6K_CONFIG_CFG80211
     struct wireless_dev *wdev;
 #endif /* ATH6K_CONFIG_CFG80211 */
-    A_STATUS init_status = A_OK;
+    int init_status = A_OK;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("ar6000_available\n"));
 
@@ -1799,7 +1799,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
         if ((wlaninitmode == WLAN_INIT_MODE_UDEV) ||
             (wlaninitmode == WLAN_INIT_MODE_DRV))
         {
-            A_STATUS status = A_OK;
+            int status = A_OK;
             do {
                 if ((status = ar6000_sysfs_bmi_get_config(ar, wlaninitmode)) != A_OK)
                 {
@@ -1850,7 +1850,7 @@ avail_ev_failed :
     return init_status;
 }
 
-static void ar6000_target_failure(void *Instance, A_STATUS Status)
+static void ar6000_target_failure(void *Instance, int Status)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)Instance;
     WMI_TARGET_ERROR_REPORT_EVENT errEvent;
@@ -1885,7 +1885,7 @@ static void ar6000_target_failure(void *Instance, A_STATUS Status)
     }
 }
 
-static A_STATUS
+static int
 ar6000_unavail_ev(void *context, void *hif_handle)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
@@ -1899,7 +1899,7 @@ ar6000_unavail_ev(void *context, void *hif_handle)
 void
 ar6000_restart_endpoint(struct net_device *dev)
 {
-    A_STATUS status = A_OK;
+    int status = A_OK;
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
     BMIInit();
@@ -2015,7 +2015,7 @@ ar6000_stop_endpoint(struct net_device *dev, A_BOOL keepprofile, A_BOOL getdbglo
         // FIXME: workaround to reset BT's UART baud rate to default
         if (NULL != ar->exitCallback) {
             AR3K_CONFIG_INFO ar3kconfig;
-            A_STATUS status;
+            int status;
 
             A_MEMZERO(&ar3kconfig,sizeof(ar3kconfig));
             ar6000_set_default_ar3kconfig(ar, (void *)&ar3kconfig);
@@ -2344,11 +2344,11 @@ ar6000_close(struct net_device *dev)
 }
 
 /* connect to a service */
-static A_STATUS ar6000_connectservice(AR_SOFTC_T               *ar,
+static int ar6000_connectservice(AR_SOFTC_T               *ar,
                                       HTC_SERVICE_CONNECT_REQ  *pConnect,
                                       char                     *pDesc)
 {
-    A_STATUS                 status;
+    int                 status;
     HTC_SERVICE_CONNECT_RESP response;
 
     do {
@@ -2433,7 +2433,7 @@ ar6000_endpoint_id2_ac(void * devt, HTC_ENDPOINT_ID ep )
 int ar6000_init(struct net_device *dev)
 {
     AR_SOFTC_T *ar;
-    A_STATUS    status;
+    int    status;
     A_INT32     timeleft;
     A_INT16     i;
     int         ret = 0;
@@ -2618,7 +2618,7 @@ int ar6000_init(struct net_device *dev)
             hciHandles.netDevice = ar->arNetDev;
             hciHandles.hifDevice = ar->arHifDevice;
             hciHandles.htcHandle = ar->arHtcTarget;
-            status = (A_STATUS)(ar6kHciTransCallbacks.setupTransport(&hciHandles));
+            status = (int)(ar6kHciTransCallbacks.setupTransport(&hciHandles));
         }
 #else
         if (setuphci) {
@@ -3273,7 +3273,7 @@ applyAPTCHeuristics(AR_SOFTC_T *ar)
     A_UINT32 numbytes;
     A_UINT32 throughput;
     struct timeval ts;
-    A_STATUS status;
+    int status;
 
     AR6000_SPIN_LOCK(&ar->arLock, 0);
 
@@ -3395,7 +3395,7 @@ ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
 {
     AR_SOFTC_T     *ar = (AR_SOFTC_T *)Context;
     A_UINT32        mapNo = 0;
-    A_STATUS        status;
+    int        status;
     struct ar_cookie * ar_cookie;
     HTC_ENDPOINT_ID   eid;
     A_BOOL          wakeEvent = FALSE;
@@ -3578,7 +3578,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
     struct sk_buff *skb = (struct sk_buff *)pPacket->pPktContext;
     int minHdrLen;
     A_UINT8 containsDot11Hdr = 0;
-    A_STATUS        status = pPacket->Status;
+    int        status = pPacket->Status;
     HTC_ENDPOINT_ID   ept = pPacket->Endpoint;
 
     A_ASSERT((status != A_OK) ||
@@ -4762,7 +4762,7 @@ ar6000_hci_event_rcv_evt(struct ar6_softc *ar, WMI_HCI_EVENT *cmd)
     void *osbuf = NULL;
     A_INT8 i;
     A_UINT8 size, *buf;
-    A_STATUS ret = A_OK;
+    int ret = A_OK;
 
     size = cmd->evt_buf_sz + 4;
     osbuf = A_NETBUF_ALLOC(size);
@@ -4887,7 +4887,7 @@ ar6000_tkip_micerr_event(AR_SOFTC_T *ar, A_UINT8 keyid, A_BOOL ismcast)
 }
 
 void
-ar6000_scanComplete_event(AR_SOFTC_T *ar, A_STATUS status)
+ar6000_scanComplete_event(AR_SOFTC_T *ar, int status)
 {
 
 #ifdef ATH6K_CONFIG_CFG80211
@@ -5267,11 +5267,11 @@ ar6000_bssInfo_event_rx(AR_SOFTC_T *ar, A_UINT8 *datap, int len)
 
 A_UINT32 wmiSendCmdNum;
 
-A_STATUS
+int
 ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid)
 {
     AR_SOFTC_T       *ar = (AR_SOFTC_T *)devt;
-    A_STATUS         status = A_OK;
+    int         status = A_OK;
     struct ar_cookie *cookie = NULL;
     int i;
 #ifdef CONFIG_PM
@@ -5649,13 +5649,13 @@ a_copy_from_user(void *to, const void *from, A_UINT32 n)
 }
 
 
-A_STATUS
+int
 ar6000_get_driver_cfg(struct net_device *dev,
                         A_UINT16 cfgParam,
                         void *result)
 {
 
-    A_STATUS    ret = 0;
+    int    ret = 0;
 
     switch(cfgParam)
     {
@@ -5958,11 +5958,11 @@ void ap_wapi_rekey_event(AR_SOFTC_T *ar, A_UINT8 type, A_UINT8 *mac)
 #endif
 
 #ifdef USER_KEYS
-static A_STATUS
+static int
 
 ar6000_reinstall_keys(AR_SOFTC_T *ar, A_UINT8 key_op_ctrl)
 {
-    A_STATUS status = A_OK;
+    int status = A_OK;
     struct ieee80211req_key *uik = &ar->user_saved_keys.ucast_ik;
     struct ieee80211req_key *bik = &ar->user_saved_keys.bcast_ik;
     CRYPTO_TYPE  keyType = ar->user_saved_keys.keyType;
@@ -6102,7 +6102,7 @@ ar6000_ap_mode_profile_commit(struct ar6_softc *ar)
     return 0;
 }
 
-A_STATUS
+int
 ar6000_connect_to_ap(struct ar6_softc *ar)
 {
     /* The ssid length check prevents second "essid off" from the user,
@@ -6110,7 +6110,7 @@ ar6000_connect_to_ap(struct ar6_softc *ar)
     */
     if((ar->arWmiReady == TRUE) && (ar->arSsidLen > 0) && ar->arNetworkType!=AP_NETWORK)
     {
-        A_STATUS status;
+        int status;
         if((ADHOC_NETWORK != ar->arNetworkType) &&
            (NONE_AUTH==ar->arAuthMode)          &&
            (WEP_CRYPT==ar->arPairwiseCrypto)) {
@@ -6173,7 +6173,7 @@ ar6000_connect_to_ap(struct ar6_softc *ar)
     return A_ERROR;
 }
 
-A_STATUS
+int
 ar6000_ap_mode_get_wpa_ie(struct ar6_softc *ar, struct ieee80211req_wpaie *wpaie)
 {
     sta_t *conn = NULL;
@@ -6189,7 +6189,7 @@ ar6000_ap_mode_get_wpa_ie(struct ar6_softc *ar, struct ieee80211req_wpaie *wpaie
     return 0;
 }
 
-A_STATUS
+int
 is_iwioctl_allowed(A_UINT8 mode, A_UINT16 cmd)
 {
     if(cmd >= SIOCSIWCOMMIT && cmd <= SIOCGIWPOWER) {
@@ -6206,7 +6206,7 @@ is_iwioctl_allowed(A_UINT8 mode, A_UINT16 cmd)
     return A_ENOTSUP;
 }
 
-A_STATUS
+int
 is_xioctl_allowed(A_UINT8 mode, int cmd)
 {
     if(sizeof(xioctl_filter)-1 < cmd) {
@@ -6224,7 +6224,7 @@ ap_set_wapi_key(struct ar6_softc *ar, void *ikey)
 {
     struct ieee80211req_key *ik = (struct ieee80211req_key *)ikey;
     KEY_USAGE   keyUsage = 0;
-    A_STATUS    status;
+    int    status;
 
     if (A_MEMCMP(ik->ik_macaddr, bcast_mac, IEEE80211_ADDR_LEN) == 0) {
         keyUsage = GROUP_USAGE;
@@ -6345,7 +6345,7 @@ static void DoHTCSendPktsTest(AR_SOFTC_T *ar, int MapNo, HTC_ENDPOINT_ID eid, st
  * AP mode.
  */
 
-A_STATUS ar6000_start_ap_interface(AR_SOFTC_T *ar)
+int ar6000_start_ap_interface(AR_SOFTC_T *ar)
 {
     AR_VIRTUAL_INTERFACE_T *arApDev;
 
@@ -6356,7 +6356,7 @@ A_STATUS ar6000_start_ap_interface(AR_SOFTC_T *ar)
     return A_OK;
 }
 
-A_STATUS ar6000_stop_ap_interface(AR_SOFTC_T *ar)
+int ar6000_stop_ap_interface(AR_SOFTC_T *ar)
 {
     AR_VIRTUAL_INTERFACE_T *arApDev;
 
@@ -6370,7 +6370,7 @@ A_STATUS ar6000_stop_ap_interface(AR_SOFTC_T *ar)
 }
 
 
-A_STATUS ar6000_create_ap_interface(AR_SOFTC_T *ar, char *ap_ifname) 
+int ar6000_create_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
 {
     struct net_device *dev;
     AR_VIRTUAL_INTERFACE_T *arApDev;
@@ -6403,7 +6403,7 @@ A_STATUS ar6000_create_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
     return A_OK;
 }
 
-A_STATUS ar6000_add_ap_interface(AR_SOFTC_T *ar, char *ap_ifname) 
+int ar6000_add_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
 {
     /* Interface already added, need not proceed further */
     if (ar->arApDev != NULL) {
@@ -6420,7 +6420,7 @@ A_STATUS ar6000_add_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
     return ar6000_start_ap_interface(ar);
 }
 
-A_STATUS ar6000_remove_ap_interface(AR_SOFTC_T *ar)
+int ar6000_remove_ap_interface(AR_SOFTC_T *ar)
 {
     if (arApNetDev) {
         ar6000_stop_ap_interface(ar);

@@ -181,8 +181,8 @@ void a_register_module_debug_info(ATH_DEBUG_MODULE_DBG_INFO *pInfo);
 
 #endif
 
-A_STATUS a_get_module_mask(A_CHAR *module_name, A_UINT32 *pMask);
-A_STATUS a_set_module_mask(A_CHAR *module_name, A_UINT32 Mask);
+int a_get_module_mask(A_CHAR *module_name, A_UINT32 *pMask);
+int a_set_module_mask(A_CHAR *module_name, A_UINT32 Mask);
 void a_dump_module_debug_info_by_name(A_CHAR *module_name);
 void a_module_debug_support_init(void);
 void a_module_debug_support_cleanup(void);

@@ -57,7 +57,7 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(pm,
 
 #endif /* DEBUG */
 
-A_STATUS ar6000_exit_cut_power_state(AR_SOFTC_T *ar);
+int ar6000_exit_cut_power_state(AR_SOFTC_T *ar);
 
 #ifdef CONFIG_PM
 static void ar6k_send_asleep_event_to_app(AR_SOFTC_T *ar, A_BOOL asleep)
@@ -122,7 +122,7 @@ static void ar6000_wow_suspend(AR_SOFTC_T *ar)
         struct in_ifaddr *ifa = NULL;
         struct in_device *in_dev;
         A_UINT8 macMask[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-        A_STATUS status;
+        int status;
         WMI_ADD_WOW_PATTERN_CMD addWowCmd = { .filter = { 0 } };
         WMI_DEL_WOW_PATTERN_CMD delWowCmd;
         WMI_SET_HOST_SLEEP_MODE_CMD hostSleepMode = {FALSE, TRUE};
@@ -211,9 +211,9 @@ static void ar6000_wow_suspend(AR_SOFTC_T *ar)
     }
 }
 
-A_STATUS ar6000_suspend_ev(void *context)
+int ar6000_suspend_ev(void *context)
 {
-    A_STATUS status = A_OK;
+    int status = A_OK;
     AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
     A_INT16 pmmode = ar->arSuspendConfig;
 wow_not_connected:
@@ -248,7 +248,7 @@ wow_not_connected:
     return status;
 }
 
-A_STATUS ar6000_resume_ev(void *context)
+int ar6000_resume_ev(void *context)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
     A_UINT16 powerState = ar->arWlanPowerState;
@@ -290,10 +290,10 @@ void ar6000_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, A_BOOL isEvent
     }
 }
 
-A_STATUS ar6000_power_change_ev(void *context, A_UINT32 config)
+int ar6000_power_change_ev(void *context, A_UINT32 config)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
-    A_STATUS status = A_OK;
+    int status = A_OK;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("%s: power change event callback %d \n", __func__, config));
     switch (config) {
@@ -342,10 +342,10 @@ static struct platform_driver ar6000_pm_device = {
 };
 #endif /* CONFIG_PM */
 
-A_STATUS
+int
 ar6000_setup_cut_power_state(struct ar6_softc *ar,  AR6000_WLAN_STATE state)
 {
-    A_STATUS                      status = A_OK;
+    int                      status = A_OK;
     HIF_DEVICE_POWER_CHANGE_TYPE  config;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("%s: Cut power %d %d \n", __func__,state, ar->arWlanPowerState));
@@ -412,10 +412,10 @@ ar6000_setup_cut_power_state(struct ar6_softc *ar,  AR6000_WLAN_STATE state)
     return status;
 }
 
-A_STATUS
+int
 ar6000_setup_deep_sleep_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
 {
-    A_STATUS status = A_OK;
+    int status = A_OK;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("%s: Deep sleep %d %d \n", __func__,state, ar->arWlanPowerState));
 #ifdef CONFIG_PM
@@ -536,10 +536,10 @@ ar6000_setup_deep_sleep_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
     return status;
 }
 
-A_STATUS
+int
 ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, A_BOOL pmEvent)
 {
-    A_STATUS status = A_OK;
+    int status = A_OK;
     A_UINT16 powerState, oldPowerState;
     AR6000_WLAN_STATE oldstate = ar->arWlanState;
     A_BOOL wlanOff = ar->arWlanOff;
@@ -650,12 +650,12 @@ ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, A_BO
     return status;
 }
 
-A_STATUS
+int
 ar6000_set_bt_hw_state(struct ar6_softc *ar, A_UINT32 enable)
 {
 #ifdef CONFIG_PM
     A_BOOL off = (enable == 0);
-    A_STATUS status;
+    int status;
     if (ar->arBTOff == off) {
         return A_OK;
     }
@@ -667,10 +667,10 @@ ar6000_set_bt_hw_state(struct ar6_softc *ar, A_UINT32 enable)
 #endif
 }
 
-A_STATUS
+int
 ar6000_set_wlan_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
 {
-    A_STATUS status;
+    int status;
     A_BOOL off = (state == WLAN_DISABLED);
     if (ar->arWlanOff == off) {
         return A_OK;

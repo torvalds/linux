@@ -293,7 +293,7 @@ typedef struct _HIF_SCATTER_REQ {
     A_UINT32            TotalLength;        /* total length of entire transfer */
     A_UINT32            CallerFlags;        /* caller specific flags can be stored here */
     HIF_SCATTER_COMP_CB CompletionRoutine;  /* completion routine set by caller */
-    A_STATUS            CompletionStatus;   /* status of completion */
+    int            CompletionStatus;   /* status of completion */
     void                *Context;           /* caller context for this request */
     int                 ValidScatterEntries;  /* number of valid entries set by caller */
     HIF_SCATTER_METHOD  ScatterMethod;        /* scatter method handled by HIF */  
@@ -304,7 +304,7 @@ typedef struct _HIF_SCATTER_REQ {
 
 typedef HIF_SCATTER_REQ * ( *HIF_ALLOCATE_SCATTER_REQUEST)(HIF_DEVICE *device);
 typedef void ( *HIF_FREE_SCATTER_REQUEST)(HIF_DEVICE *device, HIF_SCATTER_REQ *request);
-typedef A_STATUS ( *HIF_READWRITE_SCATTER)(HIF_DEVICE *device, HIF_SCATTER_REQ *request);
+typedef int ( *HIF_READWRITE_SCATTER)(HIF_DEVICE *device, HIF_SCATTER_REQ *request);
 
 typedef struct _HIF_DEVICE_SCATTER_SUPPORT_INFO {
         /* information returned from HIF layer */
@@ -324,19 +324,19 @@ typedef struct {
 struct htc_callbacks {
     void      *context;     /* context to pass to the dsrhandler
                                note : rwCompletionHandler is provided the context passed to HIFReadWrite  */
-    A_STATUS (* rwCompletionHandler)(void *rwContext, A_STATUS status);
-    A_STATUS (* dsrHandler)(void *context);
+    int (* rwCompletionHandler)(void *rwContext, int status);
+    int (* dsrHandler)(void *context);
 };
 
 typedef struct osdrv_callbacks {
     void      *context;     /* context to pass for all callbacks except deviceRemovedHandler 
                                the deviceRemovedHandler is only called if the device is claimed */
-    A_STATUS (* deviceInsertedHandler)(void *context, void *hif_handle);
-    A_STATUS (* deviceRemovedHandler)(void *claimedContext, void *hif_handle);
-    A_STATUS (* deviceSuspendHandler)(void *context);
-    A_STATUS (* deviceResumeHandler)(void *context);
-    A_STATUS (* deviceWakeupHandler)(void *context);  
-    A_STATUS (* devicePowerChangeHandler)(void *context, HIF_DEVICE_POWER_CHANGE_TYPE config);  
+    int (* deviceInsertedHandler)(void *context, void *hif_handle);
+    int (* deviceRemovedHandler)(void *claimedContext, void *hif_handle);
+    int (* deviceSuspendHandler)(void *context);
+    int (* deviceResumeHandler)(void *context);
+    int (* deviceWakeupHandler)(void *context);
+    int (* devicePowerChangeHandler)(void *context, HIF_DEVICE_POWER_CHANGE_TYPE config);
 } OSDRV_CALLBACKS;
 
 #define HIF_OTHER_EVENTS     (1 << 0)   /* other interrupts (non-Recv) are pending, host
@@ -355,14 +355,14 @@ typedef struct _HIF_PENDING_EVENTS_INFO {
 
     /* function to get pending events , some HIF modules use special mechanisms
      * to detect packet available and other interrupts */
-typedef A_STATUS ( *HIF_PENDING_EVENTS_FUNC)(HIF_DEVICE              *device,
+typedef int ( *HIF_PENDING_EVENTS_FUNC)(HIF_DEVICE              *device,
                                              HIF_PENDING_EVENTS_INFO *pEvents,
                                              void                    *AsyncContext);
 
 #define HIF_MASK_RECV    TRUE
 #define HIF_UNMASK_RECV  FALSE
     /* function to mask recv events */
-typedef A_STATUS ( *HIF_MASK_UNMASK_RECV_EVENT)(HIF_DEVICE  *device,
+typedef int ( *HIF_MASK_UNMASK_RECV_EVENT)(HIF_DEVICE  *device,
                                                 A_BOOL      Mask,
                                                 void        *AsyncContext);
 
@@ -372,7 +372,7 @@ typedef A_STATUS ( *HIF_MASK_UNMASK_RECV_EVENT)(HIF_DEVICE  *device,
  * and to set OS driver callbacks (i.e. insertion/removal) to the HIF layer
  * 
  */
-A_STATUS HIFInit(OSDRV_CALLBACKS *callbacks);
+int HIFInit(OSDRV_CALLBACKS *callbacks);
 
 /* This API claims the HIF device and provides a context for handling removal.
  * The device removal callback is only called when the OSDRV layer claims
@@ -382,7 +382,7 @@ void HIFClaimDevice(HIF_DEVICE *device, void *claimedContext);
 void HIFReleaseDevice(HIF_DEVICE *device);
 
 /* This API allows the HTC layer to attach to the HIF device */
-A_STATUS HIFAttachHTC(HIF_DEVICE *device, HTC_CALLBACKS *callbacks);
+int HIFAttachHTC(HIF_DEVICE *device, HTC_CALLBACKS *callbacks);
 /* This API detaches the HTC layer from the HIF device */
 void     HIFDetachHTC(HIF_DEVICE *device);
 
@@ -398,7 +398,7 @@ void     HIFDetachHTC(HIF_DEVICE *device);
  * length - Amount of data to be transmitted or received.
  * request - Characterizes the attributes of the command.
  */
-A_STATUS
+int
 HIFReadWrite(HIF_DEVICE    *device,
              A_UINT32       address,
              A_UCHAR       *buffer,
@@ -441,7 +441,7 @@ int HIFIRQEventNotify(void);
 int HIFRWCompleteEventNotify(void);
 #endif
 
-A_STATUS
+int
 HIFConfigureDevice(HIF_DEVICE *device, HIF_DEVICE_CONFIG_OPCODE opcode,
                    void *config, A_UINT32 configLen);
 
@@ -449,7 +449,7 @@ HIFConfigureDevice(HIF_DEVICE *device, HIF_DEVICE_CONFIG_OPCODE opcode,
  * This API wait for the remaining MBOX messages to be drained
  * This should be moved to HTC AR6K layer
  */
-A_STATUS hifWaitForPendingRecv(HIF_DEVICE *device);
+int hifWaitForPendingRecv(HIF_DEVICE *device);
 
 #ifdef __cplusplus
 }

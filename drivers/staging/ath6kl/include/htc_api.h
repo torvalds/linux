@@ -45,7 +45,7 @@ typedef A_UINT16 HTC_SERVICE_ID;
 
 typedef struct _HTC_INIT_INFO {
     void   *pContext;           /* context for target failure notification */
-    void   (*TargetFailure)(void *Instance, A_STATUS Status);
+    void   (*TargetFailure)(void *Instance, int Status);
 } HTC_INIT_INFO;
 
 /* per service connection send completion */
@@ -319,7 +319,7 @@ void        HTCSetCreditDistribution(HTC_HANDLE               HTCHandle,
   @example:
   @see also: HTCConnectService
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HTCWaitTarget(HTC_HANDLE HTCHandle);
+int    HTCWaitTarget(HTC_HANDLE HTCHandle);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Start target service communications
   @function name: HTCStart
@@ -334,7 +334,7 @@ A_STATUS    HTCWaitTarget(HTC_HANDLE HTCHandle);
   @example:
   @see also: HTCConnectService
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HTCStart(HTC_HANDLE HTCHandle);
+int    HTCStart(HTC_HANDLE HTCHandle);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Add receive packet to HTC
   @function name: HTCAddReceivePkt
@@ -348,7 +348,7 @@ A_STATUS    HTCStart(HTC_HANDLE HTCHandle);
   @example:
   @see also:
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HTCAddReceivePkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket);
+int    HTCAddReceivePkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Connect to an HTC service
   @function name: HTCConnectService
@@ -361,7 +361,7 @@ A_STATUS    HTCAddReceivePkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket);
   @example:
   @see also: HTCStart
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HTCConnectService(HTC_HANDLE HTCHandle,
+int    HTCConnectService(HTC_HANDLE HTCHandle,
                               HTC_SERVICE_CONNECT_REQ  *pReq,
                               HTC_SERVICE_CONNECT_RESP *pResp);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -377,7 +377,7 @@ A_STATUS    HTCConnectService(HTC_HANDLE HTCHandle,
   @example:
   @see also: HTCFlushEndpoint
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HTCSendPkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket);
+int    HTCSendPkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Stop HTC service communications
   @function name: HTCStop
@@ -511,7 +511,7 @@ void HTCUnblockRecv(HTC_HANDLE HTCHandle);
   @example:
   @see also: HTCFlushEndpoint
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue);
+int    HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Add multiple receive packets to HTC
@@ -530,7 +530,7 @@ A_STATUS    HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueu
   @example:
   @see also:
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue);
+int    HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Check if an endpoint is marked active
@@ -564,7 +564,7 @@ int         HTCGetNumRecvBuffers(HTC_HANDLE      HTCHandle,
 /* internally used functions for testing... */
 void HTCEnableRecv(HTC_HANDLE HTCHandle);
 void HTCDisableRecv(HTC_HANDLE HTCHandle);
-A_STATUS HTCWaitForPendingRecv(HTC_HANDLE   HTCHandle,
+int HTCWaitForPendingRecv(HTC_HANDLE   HTCHandle,
                                A_UINT32     TimeoutInMs,
                                A_BOOL      *pbIsRecvPending);
 

@@ -74,9 +74,9 @@ static void DevGMboxIRQActionAsyncHandler(void *Context, HTC_PACKET *pPacket)
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("-DevGMboxIRQActionAsyncHandler \n"));
 }
 
-static A_STATUS DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, A_BOOL AsyncMode)
+static int DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, A_BOOL AsyncMode)
 {
-    A_STATUS                  status = A_OK;
+    int                  status = A_OK;
     AR6K_IRQ_ENABLE_REGISTERS regs;
     HTC_PACKET                *pIOPacket = NULL;  
     
@@ -155,9 +155,9 @@ static A_STATUS DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION
 }
 
 
-A_STATUS DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, A_BOOL AsyncMode)
+int DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, A_BOOL AsyncMode)
 {
-    A_STATUS      status = A_OK;
+    int      status = A_OK;
     HTC_PACKET    *pIOPacket = NULL;   
     A_UINT8       GMboxIntControl[4];
 
@@ -269,9 +269,9 @@ void DevCleanupGMbox(AR6K_DEVICE *pDev)
     }
 }
 
-A_STATUS DevSetupGMbox(AR6K_DEVICE *pDev)
+int DevSetupGMbox(AR6K_DEVICE *pDev)
 {
-    A_STATUS    status = A_OK;
+    int    status = A_OK;
     A_UINT8     muxControl[4];
     
     do {
@@ -322,9 +322,9 @@ A_STATUS DevSetupGMbox(AR6K_DEVICE *pDev)
     return status;
 }
 
-A_STATUS DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
+int DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
 {
-    A_STATUS status = A_OK;
+    int status = A_OK;
     A_UINT8  counter_int_status;
     int      credits;
     A_UINT8  host_int_status2;
@@ -396,11 +396,11 @@ A_STATUS DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
 }
 
 
-A_STATUS DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 WriteLength) 
+int DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 WriteLength)
 {
     A_UINT32 paddedLength;
     A_BOOL   sync = (pPacket->Completion == NULL) ? TRUE : FALSE;
-    A_STATUS status;
+    int status;
     A_UINT32 address;
     
        /* adjust the length to be a multiple of block size if appropriate */
@@ -433,11 +433,11 @@ A_STATUS DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 WriteLen
     return status;
 }
 
-A_STATUS DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 ReadLength) 
+int DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 ReadLength)
 {
     
     A_UINT32 paddedLength;
-    A_STATUS status;
+    int status;
     A_BOOL   sync = (pPacket->Completion == NULL) ? TRUE : FALSE;
 
         /* adjust the length to be a multiple of block size if appropriate */
@@ -539,9 +539,9 @@ static void DevGMboxReadCreditsAsyncHandler(void *Context, HTC_PACKET *pPacket)
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("-DevGMboxReadCreditsAsyncHandler \n"));
 }
 
-A_STATUS DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, A_BOOL AsyncMode, int *pCredits)
+int DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, A_BOOL AsyncMode, int *pCredits)
 {
-    A_STATUS    status = A_OK;
+    int    status = A_OK;
     HTC_PACKET  *pIOPacket = NULL;  
     
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("+DevGMboxReadCreditCounter (%s) \n", AsyncMode ? "ASYNC" : "SYNC"));
@@ -602,9 +602,9 @@ A_STATUS DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, A_BOOL AsyncMode, int *pCr
     return status;
 }
 
-A_STATUS DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize)
+int DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize)
 {
-    A_STATUS    status;
+    int    status;
     A_UINT8     buffer[4];
        
     status = HIFReadWrite(pDev->HIFDevice,
@@ -634,10 +634,10 @@ void DevNotifyGMboxTargetFailure(AR6K_DEVICE *pDev)
     }
 }
 
-A_STATUS DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer, int *pLookAheadBytes)
+int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer, int *pLookAheadBytes)
 {
 
-    A_STATUS                    status = A_OK;
+    int                    status = A_OK;
     AR6K_IRQ_PROC_REGISTERS     procRegs;
     int                         maxCopy;
   
@@ -676,9 +676,9 @@ A_STATUS DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer,
     return status; 
 }
 
-A_STATUS DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int Signal, int AckTimeoutMS)
+int DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int Signal, int AckTimeoutMS)
 {
-    A_STATUS status = A_OK;
+    int status = A_OK;
     int      i;
     A_UINT8  buffer[4];
     

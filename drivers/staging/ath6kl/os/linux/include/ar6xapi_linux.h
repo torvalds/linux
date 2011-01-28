@@ -31,7 +31,7 @@ struct ar6_softc;
 
 void ar6000_ready_event(void *devt, A_UINT8 *datap, A_UINT8 phyCap,
                         A_UINT32 sw_ver, A_UINT32 abi_ver);
-A_STATUS ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid);
+int ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid);
 void ar6000_connect_event(struct ar6_softc *ar, A_UINT16 channel,
                           A_UINT8 *bssid, A_UINT16 listenInterval,
                           A_UINT16 beaconInterval, NETWORK_TYPE networkType,
@@ -50,7 +50,7 @@ void ar6000_keepalive_rx(void *devt, A_UINT8 configured);
 void ar6000_neighborReport_event(struct ar6_softc *ar, int numAps,
                                  WMI_NEIGHBOR_INFO *info);
 void ar6000_set_numdataendpts(struct ar6_softc *ar, A_UINT32 num);
-void ar6000_scanComplete_event(struct ar6_softc *ar, A_STATUS status);
+void ar6000_scanComplete_event(struct ar6_softc *ar, int status);
 void ar6000_targetStats_event(struct ar6_softc *ar,  A_UINT8 *ptr, A_UINT32 len);
 void ar6000_rssiThreshold_event(struct ar6_softc *ar,
                                 WMI_RSSI_THRESHOLD_VAL newThreshold,
@@ -103,7 +103,7 @@ void ar6000_lqThresholdEvent_rx(void *devt, WMI_LQ_THRESHOLD_VAL range, A_UINT8 
 
 void ar6000_ratemask_rx(void *devt, A_UINT32 ratemask);
 
-A_STATUS ar6000_get_driver_cfg(struct net_device *dev,
+int ar6000_get_driver_cfg(struct net_device *dev,
                                 A_UINT16 cfgParam,
                                 void *result);
 void ar6000_bssInfo_event_rx(struct ar6_softc *ar, A_UINT8 *data, int len);
@@ -149,12 +149,12 @@ A_UINT32 ar6000_getclkfreq (void);
 int ar6000_ap_mode_profile_commit(struct ar6_softc *ar);
 
 struct ieee80211req_wpaie;
-A_STATUS
+int
 ar6000_ap_mode_get_wpa_ie(struct ar6_softc *ar, struct ieee80211req_wpaie *wpaie);
 
-A_STATUS is_iwioctl_allowed(A_UINT8 mode, A_UINT16 cmd);
+int is_iwioctl_allowed(A_UINT8 mode, A_UINT16 cmd);
 
-A_STATUS is_xioctl_allowed(A_UINT8 mode, int cmd);
+int is_xioctl_allowed(A_UINT8 mode, int cmd);
 
 void ar6000_pspoll_event(struct ar6_softc *ar,A_UINT8 aid);
 
@@ -170,15 +170,15 @@ int ap_set_wapi_key(struct ar6_softc *ar, void *ik);
 void ap_wapi_rekey_event(struct ar6_softc *ar, A_UINT8 type, A_UINT8 *mac);
 #endif
 
-A_STATUS ar6000_connect_to_ap(struct ar6_softc *ar);
-A_STATUS ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, A_BOOL suspending);
-A_STATUS ar6000_set_wlan_state(struct ar6_softc *ar, AR6000_WLAN_STATE state);
-A_STATUS ar6000_set_bt_hw_state(struct ar6_softc *ar, A_UINT32 state);
+int ar6000_connect_to_ap(struct ar6_softc *ar);
+int ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, A_BOOL suspending);
+int ar6000_set_wlan_state(struct ar6_softc *ar, AR6000_WLAN_STATE state);
+int ar6000_set_bt_hw_state(struct ar6_softc *ar, A_UINT32 state);
 
 #ifdef CONFIG_PM
-A_STATUS ar6000_suspend_ev(void *context);
-A_STATUS ar6000_resume_ev(void *context);
-A_STATUS ar6000_power_change_ev(void *context, A_UINT32 config);
+int ar6000_suspend_ev(void *context);
+int ar6000_resume_ev(void *context);
+int ar6000_power_change_ev(void *context, A_UINT32 config);
 void ar6000_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, A_BOOL isEvent);
 #endif
 
@@ -186,8 +186,8 @@ void ar6000_pm_init(void);
 void ar6000_pm_exit(void);
 
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
-A_STATUS ar6000_add_ap_interface(struct ar6_softc *ar, char *ifname);
-A_STATUS ar6000_remove_ap_interface(struct ar6_softc *ar);
+int ar6000_add_ap_interface(struct ar6_softc *ar, char *ifname);
+int ar6000_remove_ap_interface(struct ar6_softc *ar);
 #endif /* CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT */
 
 #ifdef __cplusplus

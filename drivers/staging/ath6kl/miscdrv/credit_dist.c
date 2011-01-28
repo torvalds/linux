@@ -393,7 +393,7 @@ static void SeekCredits(COMMON_CREDIT_STATE_INFO *pCredInfo,
 }
 
 /* initialize and setup credit distribution */
-A_STATUS ar6000_setup_credit_dist(HTC_HANDLE HTCHandle, COMMON_CREDIT_STATE_INFO *pCredInfo)
+int ar6000_setup_credit_dist(HTC_HANDLE HTCHandle, COMMON_CREDIT_STATE_INFO *pCredInfo)
 {
     HTC_SERVICE_ID servicepriority[5];
 

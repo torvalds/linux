@@ -54,9 +54,9 @@ typedef struct {
     A_UINT8                  bdaddr[6];       /* Bluetooth device address */
 } AR3K_CONFIG_INFO;
                                                                                         
-A_STATUS AR3KConfigure(AR3K_CONFIG_INFO *pConfigInfo);
+int AR3KConfigure(AR3K_CONFIG_INFO *pConfigInfo);
 
-A_STATUS AR3KConfigureExit(void *config);
+int AR3KConfigureExit(void *config);
 
 #ifdef __cplusplus
 }

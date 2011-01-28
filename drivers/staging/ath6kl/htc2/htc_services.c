@@ -57,10 +57,10 @@ void HTCControlRecv(void *Context, HTC_PACKET *pPacket)
     HTC_RECYCLE_RX_PKT((HTC_TARGET*)Context,pPacket,&((HTC_TARGET*)Context)->EndPoint[0]);
 }
 
-A_STATUS HTCSendSetupComplete(HTC_TARGET *target)
+int HTCSendSetupComplete(HTC_TARGET *target)
 {
     HTC_PACKET             *pSendPacket = NULL;
-    A_STATUS                status;
+    int                status;
 
     do {
            /* allocate a packet to send to the target */
@@ -121,12 +121,12 @@ A_STATUS HTCSendSetupComplete(HTC_TARGET *target)
 }
 
 
-A_STATUS HTCConnectService(HTC_HANDLE               HTCHandle,
+int HTCConnectService(HTC_HANDLE               HTCHandle,
                            HTC_SERVICE_CONNECT_REQ  *pConnectReq,
                            HTC_SERVICE_CONNECT_RESP *pConnectResp)
 {
     HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
-    A_STATUS                            status = A_OK;
+    int                            status = A_OK;
     HTC_PACKET                          *pRecvPacket = NULL;
     HTC_PACKET                          *pSendPacket = NULL;
     HTC_CONNECT_SERVICE_RESPONSE_MSG    *pResponseMsg;

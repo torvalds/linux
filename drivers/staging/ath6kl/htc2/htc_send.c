@@ -113,9 +113,9 @@ static void HTCSendPktCompletionHandler(void *Context, HTC_PACKET *pPacket)
     DO_EP_TX_COMPLETION(pEndpoint,&container);
 }
 
-A_STATUS HTCIssueSend(HTC_TARGET *target, HTC_PACKET *pPacket)
+int HTCIssueSend(HTC_TARGET *target, HTC_PACKET *pPacket)
 {
-    A_STATUS status;
+    int status;
     A_BOOL   sync = FALSE;
 
     if (pPacket->Completion == NULL) {
@@ -270,7 +270,7 @@ static void HTCAsyncSendScatterCompletion(HIF_SCATTER_REQ *pScatterReq)
     HTC_PACKET          *pPacket;
     HTC_ENDPOINT        *pEndpoint = (HTC_ENDPOINT *)pScatterReq->Context;
     HTC_TARGET          *target = (HTC_TARGET *)pEndpoint->target;
-    A_STATUS            status = A_OK;
+    int            status = A_OK;
     HTC_PACKET_QUEUE    sendCompletes;
     
     INIT_HTC_PACKET_QUEUE(&sendCompletes);
@@ -668,7 +668,7 @@ static HTC_SEND_QUEUE_RESULT HTCTrySend(HTC_TARGET       *target,
     return HTC_SEND_QUEUE_OK;
 }
 
-A_STATUS  HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
+int  HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
 {
     HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     HTC_ENDPOINT    *pEndpoint;
@@ -709,7 +709,7 @@ A_STATUS  HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
 }
 
 /* HTC API - HTCSendPkt */
-A_STATUS HTCSendPkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket)
+int HTCSendPkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket)
 {
     HTC_PACKET_QUEUE queue;
     

@@ -121,8 +121,8 @@ struct USER_SAVEDKEYS {
 #define DBG_DEFAULTS    (DBG_ERROR|DBG_WARNING)
 
 
-A_STATUS ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data);
-A_STATUS ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data);
+int ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data);
+int ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data);
 
 #ifdef __cplusplus
 extern "C" {
@@ -737,12 +737,12 @@ remove_sta(AR_SOFTC_T *ar, A_UINT8 *mac, A_UINT16 reason);
 /* HCI support */
 
 #ifndef EXPORT_HCI_BRIDGE_INTERFACE
-A_STATUS ar6000_setup_hci(AR_SOFTC_T *ar);
+int ar6000_setup_hci(AR_SOFTC_T *ar);
 void     ar6000_cleanup_hci(AR_SOFTC_T *ar);
 void     ar6000_set_default_ar3kconfig(AR_SOFTC_T *ar, void *ar3kconfig);
 
 /* HCI bridge testing */
-A_STATUS hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb);
+int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb);
 #endif
 
 ATH_DEBUG_DECLARE_EXTERN(htc);

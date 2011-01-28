@@ -51,7 +51,7 @@ static int screen_is_off;
 static struct early_suspend ar6k_early_suspend;
 #endif
 
-static A_STATUS (*ar6000_avail_ev_p)(void *, void *);
+static int (*ar6000_avail_ev_p)(void *, void *);
 
 #if defined(CONFIG_ANDROID_LOGGER) && (!defined(CONFIG_MMC_MSM))
 int logger_write(const enum logidx index,
@@ -269,9 +269,9 @@ void android_release_firmware(const struct firmware *firmware)
     }
 }
 
-static A_STATUS ar6000_android_avail_ev(void *context, void *hif_handle)
+static int ar6000_android_avail_ev(void *context, void *hif_handle)
 {
-    A_STATUS ret;    
+    int ret;
     ar6000_enable_mmchost_detect_change(0);
     ret = ar6000_avail_ev_p(context, hif_handle);
     return ret;

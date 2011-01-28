@@ -104,10 +104,10 @@ typedef struct PSCmdPacket
 } PSCmdPacket;
 
 /* Parses a Patch information buffer and store it in global structure */
-A_STATUS AthDoParsePatch(A_UCHAR *, A_UINT32);
+int AthDoParsePatch(A_UCHAR *, A_UINT32);
 
 /* parses a PS information buffer and stores it in a global structure */
-A_STATUS AthDoParsePS(A_UCHAR *, A_UINT32);
+int AthDoParsePS(A_UCHAR *, A_UINT32);
 
 /* 
  *  Uses the output of Both AthDoParsePS and AthDoParsePatch APIs to form HCI command array with
@@ -123,5 +123,5 @@ A_STATUS AthDoParsePS(A_UCHAR *, A_UINT32);
 int AthCreateCommandList(PSCmdPacket **, A_UINT32 *);
 
 /* Cleanup the dynamically allicated HCI command list */
-A_STATUS AthFreeCommandList(PSCmdPacket **HciPacketList, A_UINT32 numPackets);
+int AthFreeCommandList(PSCmdPacket **HciPacketList, A_UINT32 numPackets);
 #endif /* __AR3KPSPARSER_H */

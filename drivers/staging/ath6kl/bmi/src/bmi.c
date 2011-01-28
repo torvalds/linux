@@ -105,10 +105,10 @@ BMICleanup(void)
     }
 }
 
-A_STATUS
+int
 BMIDone(HIF_DEVICE *device)
 {
-    A_STATUS status;
+    int status;
     A_UINT32 cid;
 
     if (bmiDone) {
@@ -141,10 +141,10 @@ BMIDone(HIF_DEVICE *device)
     return A_OK;
 }
 
-A_STATUS
+int
 BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
 {
-    A_STATUS status;
+    int status;
     A_UINT32 cid;
 
     if (bmiDone) {
@@ -200,14 +200,14 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
     return A_OK;
 }
 
-A_STATUS
+int
 BMIReadMemory(HIF_DEVICE *device,
               A_UINT32 address,
               A_UCHAR *buffer,
               A_UINT32 length)
 {
     A_UINT32 cid;
-    A_STATUS status;
+    int status;
     A_UINT32 offset;
     A_UINT32 remaining, rxlen;
 
@@ -256,14 +256,14 @@ BMIReadMemory(HIF_DEVICE *device,
     return A_OK;
 }
 
-A_STATUS
+int
 BMIWriteMemory(HIF_DEVICE *device,
                A_UINT32 address,
                A_UCHAR *buffer,
                A_UINT32 length)
 {
     A_UINT32 cid;
-    A_STATUS status;
+    int status;
     A_UINT32 offset;
     A_UINT32 remaining, txlen;
     const A_UINT32 header = sizeof(cid) + sizeof(address) + sizeof(length);
@@ -321,13 +321,13 @@ BMIWriteMemory(HIF_DEVICE *device,
     return A_OK;
 }
 
-A_STATUS
+int
 BMIExecute(HIF_DEVICE *device,
            A_UINT32 address,
            A_UINT32 *param)
 {
     A_UINT32 cid;
-    A_STATUS status;
+    int status;
     A_UINT32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(address) + sizeof(param)));
@@ -369,12 +369,12 @@ BMIExecute(HIF_DEVICE *device,
     return A_OK;
 }
 
-A_STATUS
+int
 BMISetAppStart(HIF_DEVICE *device,
                A_UINT32 address)
 {
     A_UINT32 cid;
-    A_STATUS status;
+    int status;
     A_UINT32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(address)));
@@ -406,13 +406,13 @@ BMISetAppStart(HIF_DEVICE *device,
     return A_OK;
 }
 
-A_STATUS
+int
 BMIReadSOCRegister(HIF_DEVICE *device,
                    A_UINT32 address,
                    A_UINT32 *param)
 {
     A_UINT32 cid;
-    A_STATUS status;
+    int status;
     A_UINT32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(address)));
@@ -452,13 +452,13 @@ BMIReadSOCRegister(HIF_DEVICE *device,
     return A_OK;
 }
 
-A_STATUS
+int
 BMIWriteSOCRegister(HIF_DEVICE *device,
                     A_UINT32 address,
                     A_UINT32 param)
 {
     A_UINT32 cid;
-    A_STATUS status;
+    int status;
     A_UINT32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(address) + sizeof(param)));
@@ -492,7 +492,7 @@ BMIWriteSOCRegister(HIF_DEVICE *device,
     return A_OK;
 }
 
-A_STATUS
+int
 BMIrompatchInstall(HIF_DEVICE *device,
                    A_UINT32 ROM_addr,
                    A_UINT32 RAM_addr,
@@ -501,7 +501,7 @@ BMIrompatchInstall(HIF_DEVICE *device,
                    A_UINT32 *rompatch_id)
 {
     A_UINT32 cid;
-    A_STATUS status;
+    int status;
     A_UINT32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(ROM_addr) + sizeof(RAM_addr) +
@@ -548,12 +548,12 @@ BMIrompatchInstall(HIF_DEVICE *device,
     return A_OK;
 }
 
-A_STATUS
+int
 BMIrompatchUninstall(HIF_DEVICE *device,
                      A_UINT32 rompatch_id)
 {
     A_UINT32 cid;
-    A_STATUS status;
+    int status;
     A_UINT32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(rompatch_id)));
@@ -585,14 +585,14 @@ BMIrompatchUninstall(HIF_DEVICE *device,
     return A_OK;
 }
 
-static A_STATUS
+static int
 _BMIrompatchChangeActivation(HIF_DEVICE *device,
                              A_UINT32 rompatch_count,
                              A_UINT32 *rompatch_list,
                              A_UINT32 do_activate)
 {
     A_UINT32 cid;
-    A_STATUS status;
+    int status;
     A_UINT32 offset;
     A_UINT32 length;
 
@@ -629,7 +629,7 @@ _BMIrompatchChangeActivation(HIF_DEVICE *device,
     return A_OK;
 }
 
-A_STATUS
+int
 BMIrompatchActivate(HIF_DEVICE *device,
                     A_UINT32 rompatch_count,
                     A_UINT32 *rompatch_list)
@@ -637,7 +637,7 @@ BMIrompatchActivate(HIF_DEVICE *device,
     return _BMIrompatchChangeActivation(device, rompatch_count, rompatch_list, 1);
 }
 
-A_STATUS
+int
 BMIrompatchDeactivate(HIF_DEVICE *device,
                       A_UINT32 rompatch_count,
                       A_UINT32 *rompatch_list)
@@ -645,13 +645,13 @@ BMIrompatchDeactivate(HIF_DEVICE *device,
     return _BMIrompatchChangeActivation(device, rompatch_count, rompatch_list, 0);
 }
 
-A_STATUS
+int
 BMILZData(HIF_DEVICE *device,
           A_UCHAR *buffer,
           A_UINT32 length)
 {
     A_UINT32 cid;
-    A_STATUS status;
+    int status;
     A_UINT32 offset;
     A_UINT32 remaining, txlen;
     const A_UINT32 header = sizeof(cid) + sizeof(length);
@@ -695,12 +695,12 @@ BMILZData(HIF_DEVICE *device,
     return A_OK;
 }
 
-A_STATUS
+int
 BMILZStreamStart(HIF_DEVICE *device,
                  A_UINT32 address)
 {
     A_UINT32 cid;
-    A_STATUS status;
+    int status;
     A_UINT32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(address)));
@@ -733,12 +733,12 @@ BMILZStreamStart(HIF_DEVICE *device,
 }
 
 /* BMI Access routines */
-A_STATUS
+int
 bmiBufferSend(HIF_DEVICE *device,
               A_UCHAR *buffer,
               A_UINT32 length)
 {
-    A_STATUS status;
+    int status;
     A_UINT32 timeout;
     A_UINT32 address;
     A_UINT32 mboxAddress[HTC_MAILBOX_NUM_MAX];
@@ -781,13 +781,13 @@ bmiBufferSend(HIF_DEVICE *device,
     return status;
 }
 
-A_STATUS
+int
 bmiBufferReceive(HIF_DEVICE *device,
                  A_UCHAR *buffer,
                  A_UINT32 length,
                  A_BOOL want_timeout)
 {
-    A_STATUS status;
+    int status;
     A_UINT32 address;
     A_UINT32 mboxAddress[HTC_MAILBOX_NUM_MAX];
     HIF_PENDING_EVENTS_INFO     hifPendingEvents;
@@ -957,10 +957,10 @@ bmiBufferReceive(HIF_DEVICE *device,
     return A_OK;
 }
 
-A_STATUS
+int
 BMIFastDownload(HIF_DEVICE *device, A_UINT32 address, A_UCHAR *buffer, A_UINT32 length)
 {
-    A_STATUS status = A_ERROR;
+    int status = A_ERROR;
     A_UINT32  lastWord = 0;
     A_UINT32  lastWordOffset = length & ~0x3;
     A_UINT32  unalignedBytes = length & 0x3;
@@ -997,13 +997,13 @@ BMIFastDownload(HIF_DEVICE *device, A_UINT32 address, A_UCHAR *buffer, A_UINT32 
 	return status;
 }
 
-A_STATUS
+int
 BMIRawWrite(HIF_DEVICE *device, A_UCHAR *buffer, A_UINT32 length)
 {
     return bmiBufferSend(device, buffer, length);
 }
 
-A_STATUS
+int
 BMIRawRead(HIF_DEVICE *device, A_UCHAR *buffer, A_UINT32 length, A_BOOL want_timeout)
 {
     return bmiBufferReceive(device, buffer, length, want_timeout);

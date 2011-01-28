@@ -120,7 +120,7 @@ static int btpal_send_frame(struct sk_buff *skb)
 	struct hci_dev *hdev = (struct hci_dev *)skb->dev;
 	HCI_TRANSPORT_PACKET_TYPE type;
 	ar6k_hci_pal_info_t *pHciPalInfo;
-	A_STATUS status = A_OK;
+	int status = A_OK;
 	struct sk_buff *txSkb = NULL;
 	AR_SOFTC_T *ar;
 
@@ -269,9 +269,9 @@ static void bt_cleanup_hci_pal(ar6k_hci_pal_info_t *pHciPalInfo)
 /*********************************************************
  * Allocate HCI device and store in PAL private info structure.
  *********************************************************/
-static A_STATUS bt_setup_hci_pal(ar6k_hci_pal_info_t *pHciPalInfo)
+static int bt_setup_hci_pal(ar6k_hci_pal_info_t *pHciPalInfo)
 {
-	A_STATUS status = A_OK;
+	int status = A_OK;
 	struct hci_dev *pHciDev = NULL;
 
 	if (!setupbtdev) {
@@ -402,9 +402,9 @@ A_BOOL ar6k_pal_recv_pkt(void *pHciPal, void *osbuf)
  * Registers a HCI device.
  * Registers packet receive callback function with ar6k 
  **********************************************************/
-A_STATUS ar6k_setup_hci_pal(void *ar_p)
+int ar6k_setup_hci_pal(void *ar_p)
 {
-	A_STATUS status = A_OK;
+	int status = A_OK;
 	ar6k_hci_pal_info_t *pHciPalInfo;
 	ar6k_pal_config_t ar6k_pal_config;
 	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar_p;
@@ -443,7 +443,7 @@ A_STATUS ar6k_setup_hci_pal(void *ar_p)
 	return status;
 }
 #else  /* AR6K_ENABLE_HCI_PAL */
-A_STATUS ar6k_setup_hci_pal(void *ar_p)
+int ar6k_setup_hci_pal(void *ar_p)
 {
 	return A_OK;
 }
@@ -457,7 +457,7 @@ void ar6k_cleanup_hci_pal(void *ar_p)
  * Register init and callback function with ar6k
  * when PAL driver is a separate kernel module.
  ****************************************************/
-A_STATUS ar6k_register_hci_pal(HCI_TRANSPORT_CALLBACKS *hciTransCallbacks);
+int ar6k_register_hci_pal(HCI_TRANSPORT_CALLBACKS *hciTransCallbacks);
 static int __init pal_init_module(void)
 {
 	HCI_TRANSPORT_CALLBACKS hciTransCallbacks;

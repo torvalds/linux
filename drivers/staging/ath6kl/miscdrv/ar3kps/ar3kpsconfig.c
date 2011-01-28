@@ -46,7 +46,7 @@ typedef struct {
     AR3K_CONFIG_INFO *dev;
 }HciCommandListParam;
 
-A_STATUS SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
+int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
                                            A_UINT8          *pHCICommand,
                                            int              CmdLength,
                                            A_UINT8          **ppEventBuffer,
@@ -56,8 +56,8 @@ A_UINT32  Rom_Version;
 A_UINT32  Build_Version;
 extern A_BOOL BDADDR;
 
-A_STATUS getDeviceType(AR3K_CONFIG_INFO *pConfig, A_UINT32 * code);
-A_STATUS ReadVersionInfo(AR3K_CONFIG_INFO *pConfig);
+int getDeviceType(AR3K_CONFIG_INFO *pConfig, A_UINT32 * code);
+int ReadVersionInfo(AR3K_CONFIG_INFO *pConfig);
 #ifndef HCI_TRANSPORT_SDIO
 
 DECLARE_WAIT_QUEUE_HEAD(PsCompleteEvent);
@@ -70,7 +70,7 @@ int PSHciWritepacket(struct hci_dev*,A_UCHAR* Data, A_UINT32 len);
 extern char *bdaddr;
 #endif /* HCI_TRANSPORT_SDIO */
 
-A_STATUS write_bdaddr(AR3K_CONFIG_INFO *pConfig,A_UCHAR *bdaddr,int type);
+int write_bdaddr(AR3K_CONFIG_INFO *pConfig,A_UCHAR *bdaddr,int type);
 
 int PSSendOps(void *arg);
 
@@ -91,9 +91,9 @@ void Hci_log(A_UCHAR * log_string,A_UCHAR *data,A_UINT32 len)
 
 
 
-A_STATUS AthPSInitialize(AR3K_CONFIG_INFO *hdev)
+int AthPSInitialize(AR3K_CONFIG_INFO *hdev)
 {
-    A_STATUS status = A_OK;
+    int status = A_OK;
     if(hdev == NULL) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Invalid Device handle received\n"));
         return A_ERROR;
@@ -389,7 +389,7 @@ complete:
  *  with a HCI Command Complete event.
  *  For HCI SDIO transport, this will be internally defined. 
  */
-A_STATUS SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
+int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
                                            A_UINT8          *pHCICommand,
                                            int              CmdLength,
                                            A_UINT8          **ppEventBuffer,
@@ -419,7 +419,7 @@ A_STATUS SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
 }
 #endif /* HCI_TRANSPORT_SDIO */
 
-A_STATUS ReadPSEvent(A_UCHAR* Data){
+int ReadPSEvent(A_UCHAR* Data){
     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,(" PS Event %x %x %x\n",Data[4],Data[5],Data[3]));
                                 
     if(Data[4] == 0xFC && Data[5] == 0x00)
@@ -481,14 +481,14 @@ int str2ba(unsigned char *str_bdaddr,unsigned char *bdaddr)
 	return 0; 
 }
 
-A_STATUS write_bdaddr(AR3K_CONFIG_INFO *pConfig,A_UCHAR *bdaddr,int type)
+int write_bdaddr(AR3K_CONFIG_INFO *pConfig,A_UCHAR *bdaddr,int type)
 {
 	A_UCHAR bdaddr_cmd[] = { 0x0B, 0xFC, 0x0A, 0x01, 0x01, 
 							0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
     A_UINT8 *event;
     A_UINT8 *bufferToFree = NULL;
-    A_STATUS result = A_ERROR;
+    int result = A_ERROR;
 	int inc,outc;
 
 	if (type == BDADDR_TYPE_STRING)
@@ -516,12 +516,12 @@ A_STATUS write_bdaddr(AR3K_CONFIG_INFO *pConfig,A_UCHAR *bdaddr,int type)
     return result;
 
 }
-A_STATUS ReadVersionInfo(AR3K_CONFIG_INFO *pConfig)
+int ReadVersionInfo(AR3K_CONFIG_INFO *pConfig)
 {
     A_UINT8   hciCommand[] =  {0x1E,0xfc,0x00};
     A_UINT8 *event;
     A_UINT8 *bufferToFree = NULL;
-    A_STATUS result = A_ERROR;
+    int result = A_ERROR;
     if(A_OK == SendHCICommandWaitCommandComplete(pConfig,hciCommand,sizeof(hciCommand),&event,&bufferToFree)) {
 	result = ReadPSEvent(event);
 
@@ -531,13 +531,13 @@ A_STATUS ReadVersionInfo(AR3K_CONFIG_INFO *pConfig)
    }
     return result;
 }
-A_STATUS getDeviceType(AR3K_CONFIG_INFO *pConfig, A_UINT32 * code)
+int getDeviceType(AR3K_CONFIG_INFO *pConfig, A_UINT32 * code)
 {
     A_UINT8   hciCommand[] =  {0x05,0xfc,0x05,0x00,0x00,0x00,0x00,0x04};
     A_UINT8 *event;
     A_UINT8 *bufferToFree = NULL;
     A_UINT32 reg;
-    A_STATUS result = A_ERROR;
+    int result = A_ERROR;
     *code = 0;
     hciCommand[3] = (A_UINT8)(FPGA_REGISTER & 0xFF);
     hciCommand[4] = (A_UINT8)((FPGA_REGISTER >> 8) & 0xFF);

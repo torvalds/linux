@@ -90,8 +90,8 @@ typedef struct _HCI_TRANSPORT_CONFIG_INFO {
     int      EventRecvBufferWaterMark;   /* low watermark to trigger recv refill */  
     int      MaxSendQueueDepth;          /* max number of packets in the single send queue */
     void     *pContext;                  /* context for all callbacks */
-    void     (*TransportFailure)(void *pContext, A_STATUS Status); /* transport failure callback */
-    A_STATUS (*TransportReady)(HCI_TRANSPORT_HANDLE, HCI_TRANSPORT_PROPERTIES *,void *pContext); /* transport is ready */
+    void     (*TransportFailure)(void *pContext, int Status); /* transport failure callback */
+    int (*TransportReady)(HCI_TRANSPORT_HANDLE, HCI_TRANSPORT_PROPERTIES *,void *pContext); /* transport is ready */
     void     (*TransportRemoved)(void *pContext);                  /* transport was removed */
         /* packet processing callbacks */
     HCI_TRANSPORT_SEND_PKT_COMPLETE    pHCISendComplete;
@@ -141,7 +141,7 @@ void HCI_TransportDetach(HCI_TRANSPORT_HANDLE HciTrans);
   @example:
   @see also:
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUEUE *pQueue);
+int    HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUEUE *pQueue);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Send an HCI packet packet
@@ -166,7 +166,7 @@ A_STATUS    HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKE
   @example:
   @see also: 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HCI_TransportSendPkt(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET *pPacket, A_BOOL Synchronous);
+int    HCI_TransportSendPkt(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET *pPacket, A_BOOL Synchronous);
 
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -193,7 +193,7 @@ void        HCI_TransportStop(HCI_TRANSPORT_HANDLE HciTrans);
   @example:
   @see also:
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HCI_TransportStart(HCI_TRANSPORT_HANDLE HciTrans);
+int    HCI_TransportStart(HCI_TRANSPORT_HANDLE HciTrans);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Enable or Disable Asynchronous Recv
@@ -206,7 +206,7 @@ A_STATUS    HCI_TransportStart(HCI_TRANSPORT_HANDLE HciTrans);
   @example:
   @see also:
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HCI_TransportEnableDisableAsyncRecv(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enable);
+int    HCI_TransportEnableDisableAsyncRecv(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enable);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Receive an event packet from the HCI transport synchronously using polling
@@ -222,7 +222,7 @@ A_STATUS    HCI_TransportEnableDisableAsyncRecv(HCI_TRANSPORT_HANDLE HciTrans, A
   @example:
   @see also: HCI_TransportEnableDisableAsyncRecv
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans, 
+int    HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
                                           HTC_PACKET           *pPacket,
                                           int                  MaxPollMS);
 
@@ -237,7 +237,7 @@ A_STATUS    HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
   @example:
   @see also: 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS    HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, A_UINT32 Baud);
+int    HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, A_UINT32 Baud);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Enable/Disable HCI Transport Power Management
@@ -250,7 +250,7 @@ A_STATUS    HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, A_UINT32 Bau
   @example:
   @see also: 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_STATUS HCI_TransportEnablePowerMgmt(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enable);
+int HCI_TransportEnablePowerMgmt(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enable);
 
 #ifdef __cplusplus
 }
