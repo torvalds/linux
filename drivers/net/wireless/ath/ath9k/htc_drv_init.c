@@ -297,6 +297,34 @@ static unsigned int ath9k_regread(void *hw_priv, u32 reg_offset)
 	return be32_to_cpu(val);
 }
 
+static void ath9k_multi_regread(void *hw_priv, u32 *addr,
+				u32 *val, u16 count)
+{
+	struct ath_hw *ah = (struct ath_hw *) hw_priv;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	__be32 tmpaddr[8];
+	__be32 tmpval[8];
+	int i, ret;
+
+       for (i = 0; i < count; i++) {
+	       tmpaddr[i] = cpu_to_be32(addr[i]);
+       }
+
+       ret = ath9k_wmi_cmd(priv->wmi, WMI_REG_READ_CMDID,
+			   (u8 *)tmpaddr , sizeof(u32) * count,
+			   (u8 *)tmpval, sizeof(u32) * count,
+			   100);
+	if (unlikely(ret)) {
+		ath_dbg(common, ATH_DBG_WMI,
+			"Multiple REGISTER READ FAILED (count: %d)\n", count);
+	}
+
+       for (i = 0; i < count; i++) {
+	       val[i] = be32_to_cpu(tmpval[i]);
+       }
+}
+
 static void ath9k_regwrite_single(void *hw_priv, u32 val, u32 reg_offset)
 {
 	struct ath_hw *ah = (struct ath_hw *) hw_priv;
@@ -407,6 +435,7 @@ static void ath9k_regwrite_flush(void *hw_priv)
 
 static const struct ath_ops ath9k_common_ops = {
 	.read = ath9k_regread,
+	.multi_read = ath9k_multi_regread,
 	.write = ath9k_regwrite,
 	.enable_write_buffer = ath9k_enable_regwrite_buffer,
 	.write_flush = ath9k_regwrite_flush,

@@ -31,7 +31,8 @@ static void ath5k_ahb_read_cachesize(struct ath_common *common, int *csz)
 	*csz = L1_CACHE_BYTES >> 2;
 }
 
-bool ath5k_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
+static bool
+ath5k_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
 	struct ath5k_softc *sc = common->priv;
 	struct platform_device *pdev = to_platform_device(sc->dev);
@@ -46,10 +47,10 @@ bool ath5k_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 
 	eeprom += off;
 	if (eeprom > eeprom_end)
-		return -EINVAL;
+		return false;
 
 	*data = *eeprom;
-	return 0;
+	return true;
 }
 
 int ath5k_hw_read_srev(struct ath5k_hw *ah)

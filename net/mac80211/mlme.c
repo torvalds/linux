@@ -176,7 +176,7 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 
 	/* check that channel matches the right operating channel */
 	if (local->hw.conf.channel->center_freq !=
-	    ieee80211_channel_to_frequency(hti->control_chan))
+	    ieee80211_channel_to_frequency(hti->control_chan, sband->band))
 		enable_ht = false;
 
 	if (enable_ht) {
@@ -429,7 +429,8 @@ void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		container_of((void *)bss, struct cfg80211_bss, priv);
 	struct ieee80211_channel *new_ch;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	int new_freq = ieee80211_channel_to_frequency(sw_elem->new_ch_num);
+	int new_freq = ieee80211_channel_to_frequency(sw_elem->new_ch_num,
+						      cbss->channel->band);
 
 	ASSERT_MGD_MTX(ifmgd);
 
@@ -1519,7 +1520,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (elems->ds_params && elems->ds_params_len == 1)
-		freq = ieee80211_channel_to_frequency(elems->ds_params[0]);
+		freq = ieee80211_channel_to_frequency(elems->ds_params[0],
+						      rx_status->band);
 	else
 		freq = rx_status->freq;
 
@@ -1972,9 +1974,9 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 				wiphy_debug(local->hw.wiphy,
 					    "%s: No ack for nullfunc frame to"
-					    " AP %pM, try %d\n",
+					    " AP %pM, try %d/%i\n",
 					    sdata->name, bssid,
-					    ifmgd->probe_send_count);
+					    ifmgd->probe_send_count, max_tries);
 #endif
 				ieee80211_mgd_probe_ap_send(sdata);
 			} else {
@@ -2001,10 +2003,10 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 			wiphy_debug(local->hw.wiphy,
 				    "%s: No probe response from AP %pM"
-				    " after %dms, try %d\n",
+				    " after %dms, try %d/%i\n",
 				    sdata->name,
 				    bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ,
-				    ifmgd->probe_send_count);
+				    ifmgd->probe_send_count, max_tries);
 #endif
 			ieee80211_mgd_probe_ap_send(sdata);
 		} else {

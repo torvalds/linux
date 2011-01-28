@@ -290,7 +290,7 @@
 
 
 /* HW REV */
-#define CSR_HW_REV_TYPE_MSK            (0x00000F0)
+#define CSR_HW_REV_TYPE_MSK            (0x00001F0)
 #define CSR_HW_REV_TYPE_3945           (0x00000D0)
 #define CSR_HW_REV_TYPE_4965           (0x0000000)
 #define CSR_HW_REV_TYPE_5300           (0x0000020)
@@ -300,9 +300,15 @@
 #define CSR_HW_REV_TYPE_1000           (0x0000060)
 #define CSR_HW_REV_TYPE_6x00           (0x0000070)
 #define CSR_HW_REV_TYPE_6x50           (0x0000080)
-#define CSR_HW_REV_TYPE_6x50g2         (0x0000084)
-#define CSR_HW_REV_TYPE_6x00g2         (0x00000B0)
-#define CSR_HW_REV_TYPE_NONE           (0x00000F0)
+#define CSR_HW_REV_TYPE_6150           (0x0000084)
+#define CSR_HW_REV_TYPE_6x05	       (0x00000B0)
+#define CSR_HW_REV_TYPE_6x30	       CSR_HW_REV_TYPE_6x05
+#define CSR_HW_REV_TYPE_6x35	       CSR_HW_REV_TYPE_6x05
+#define CSR_HW_REV_TYPE_2x30	       (0x00000C0)
+#define CSR_HW_REV_TYPE_2x00	       (0x0000100)
+#define CSR_HW_REV_TYPE_200	       (0x0000110)
+#define CSR_HW_REV_TYPE_230	       (0x0000120)
+#define CSR_HW_REV_TYPE_NONE           (0x00001F0)
 
 /* EEPROM REG */
 #define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)

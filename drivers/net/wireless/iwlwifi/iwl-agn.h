@@ -96,6 +96,17 @@ extern struct iwl_cfg iwl100_bgn_cfg;
 extern struct iwl_cfg iwl100_bg_cfg;
 extern struct iwl_cfg iwl130_bgn_cfg;
 extern struct iwl_cfg iwl130_bg_cfg;
+extern struct iwl_cfg iwl2000_2bgn_cfg;
+extern struct iwl_cfg iwl2000_2bg_cfg;
+extern struct iwl_cfg iwl2030_2bgn_cfg;
+extern struct iwl_cfg iwl2030_2bg_cfg;
+extern struct iwl_cfg iwl6035_2agn_cfg;
+extern struct iwl_cfg iwl6035_2abg_cfg;
+extern struct iwl_cfg iwl6035_2bg_cfg;
+extern struct iwl_cfg iwl200_bg_cfg;
+extern struct iwl_cfg iwl200_bgn_cfg;
+extern struct iwl_cfg iwl230_bg_cfg;
+extern struct iwl_cfg iwl230_bgn_cfg;
 
 extern struct iwl_mod_params iwlagn_mod_params;
 extern struct iwl_hcmd_ops iwlagn_hcmd;
@@ -185,7 +196,6 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 		     struct iwl_rx_mem_buffer *rxb);
 void iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
 			 struct iwl_rx_mem_buffer *rxb);
-void iwl_rx_handle(struct iwl_priv *priv);
 
 /* tx */
 void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
@@ -330,6 +340,21 @@ void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac);
 int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv);
 void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv);
 
+/* notification wait support */
+void __acquires(wait_entry)
+iwlagn_init_notification_wait(struct iwl_priv *priv,
+			      struct iwl_notification_wait *wait_entry,
+			      void (*fn)(struct iwl_priv *priv,
+					 struct iwl_rx_packet *pkt),
+			      u8 cmd);
+signed long __releases(wait_entry)
+iwlagn_wait_notification(struct iwl_priv *priv,
+			 struct iwl_notification_wait *wait_entry,
+			 unsigned long timeout);
+void __releases(wait_entry)
+iwlagn_remove_notification(struct iwl_priv *priv,
+			   struct iwl_notification_wait *wait_entry);
+
 /* mac80211 handlers (for 4965) */
 int iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 int iwlagn_mac_start(struct ieee80211_hw *hw);
@@ -349,7 +374,8 @@ void iwlagn_mac_update_tkip_key(struct ieee80211_hw *hw,
 int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
-			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+			    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+			    u8 buf_size);
 int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);

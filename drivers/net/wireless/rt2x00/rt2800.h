@@ -1805,6 +1805,12 @@ struct mac_iveiv_entry {
 #define RFCSR30_RF_CALIBRATION		FIELD8(0x80)
 
 /*
+ * RFCSR 31:
+ */
+#define RFCSR31_RX_AGC_FC		FIELD8(0x1f)
+#define RFCSR31_RX_H20M			FIELD8(0x20)
+
+/*
  * RF registers
  */
 

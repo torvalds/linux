@@ -52,9 +52,13 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 			      struct iwl_rxon_context *ctx,
 			      struct iwl_rxon_cmd *send)
 {
+	struct iwl_notification_wait disable_wait;
 	__le32 old_filter = send->filter_flags;
 	u8 old_dev_type = send->dev_type;
 	int ret;
+
+	iwlagn_init_notification_wait(priv, &disable_wait, NULL,
+				      REPLY_WIPAN_DEACTIVATION_COMPLETE);
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	send->dev_type = RXON_DEV_TYPE_P2P;
@@ -63,11 +67,18 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	send->filter_flags = old_filter;
 	send->dev_type = old_dev_type;
 
-	if (ret)
+	if (ret) {
 		IWL_ERR(priv, "Error disabling PAN (%d)\n", ret);
+		iwlagn_remove_notification(priv, &disable_wait);
+	} else {
+		signed long wait_res;
 
-	/* FIXME: WAIT FOR PAN DISABLE */
-	msleep(300);
+		wait_res = iwlagn_wait_notification(priv, &disable_wait, HZ);
+		if (wait_res == 0) {
+			IWL_ERR(priv, "Timed out waiting for PAN disable\n");
+			ret = -EIO;
+		}
+	}
 
 	return ret;
 }
@@ -144,6 +155,23 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	/* always get timestamp with Rx frame */
 	ctx->staging.flags |= RXON_FLG_TSF2HOST_MSK;
+
+	if (ctx->ctxid == IWL_RXON_CTX_PAN && priv->_agn.hw_roc_channel) {
+		struct ieee80211_channel *chan = priv->_agn.hw_roc_channel;
+
+		iwl_set_rxon_channel(priv, chan, ctx);
+		iwl_set_flags_for_band(priv, ctx, chan->band, NULL);
+		ctx->staging.filter_flags |=
+			RXON_FILTER_ASSOC_MSK |
+			RXON_FILTER_PROMISC_MSK |
+			RXON_FILTER_CTL2HOST_MSK;
+		ctx->staging.dev_type = RXON_DEV_TYPE_P2P;
+		new_assoc = true;
+
+		if (memcmp(&ctx->staging, &ctx->active,
+			   sizeof(ctx->staging)) == 0)
+			return 0;
+	}
 
 	if ((ctx->vif && ctx->vif->bss_conf.use_short_slot) ||
 	    !(ctx->staging.flags & RXON_FLG_BAND_24G_MSK))
@@ -546,12 +574,10 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changes & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
-			iwl_led_associate(priv);
 			priv->timestamp = bss_conf->timestamp;
 			ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		} else {
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-			iwl_led_disassociate(priv);
 		}
 	}
 

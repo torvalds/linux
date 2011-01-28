@@ -2,6 +2,10 @@ config IWLWIFI
 	tristate "Intel Wireless Wifi"
 	depends on PCI && MAC80211
 	select FW_LOADER
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_TRIGGERS
+	select MAC80211_LEDS
 
 menu "Debugging Options"
 	depends on IWLWIFI
@@ -106,9 +110,27 @@ config IWL5000
 		Intel WiFi Link 1000BGN
 		Intel Wireless WiFi 5150AGN
 		Intel Wireless WiFi 5100AGN, 5300AGN, and 5350AGN
-		Intel 6000 Gen 2 Series Wi-Fi Adapters (6000G2A and 6000G2B)
-		Intel WIreless WiFi Link 6050BGN Gen 2 Adapter
+		Intel 6005 Series Wi-Fi Adapters
+		Intel 6030 Series Wi-Fi Adapters
+		Intel Wireless WiFi Link 6150BGN 2 Adapter
 		Intel 100 Series Wi-Fi Adapters (100BGN and 130BGN)
+		Intel 2000 Series Wi-Fi Adapters
+
+config IWL_P2P
+	bool "iwlwifi experimental P2P support"
+	depends on IWL5000
+	help
+	  This option enables experimental P2P support for some devices
+	  based on microcode support. Since P2P support is still under
+	  development, this option may even enable it for some devices
+	  now that turn out to not support it in the future due to
+	  microcode restrictions.
+
+	  To determine if your microcode supports the experimental P2P
+	  offered by this option, check if the driver advertises AP
+	  support when it is loaded.
+
+	  Say Y only if you want to experiment with P2P.
 
 config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection (iwl3945)"

@@ -198,7 +198,8 @@ int rt2800_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 u64 rt2800_get_tsf(struct ieee80211_hw *hw);
 int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum ieee80211_ampdu_mlme_action action,
-			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+			struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+			u8 buf_size);
 int rt2800_get_survey(struct ieee80211_hw *hw, int idx,
 		      struct survey_info *survey);
 

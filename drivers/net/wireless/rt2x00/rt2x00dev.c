@@ -649,7 +649,10 @@ static void rt2x00lib_channel(struct ieee80211_channel *entry,
 			      const int channel, const int tx_power,
 			      const int value)
 {
-	entry->center_freq = ieee80211_channel_to_frequency(channel);
+	/* XXX: this assumption about the band is wrong for 802.11j */
+	entry->band = channel <= 14 ? IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
+	entry->center_freq = ieee80211_channel_to_frequency(channel,
+							    entry->band);
 	entry->hw_value = value;
 	entry->max_power = tx_power;
 	entry->max_antenna_gain = 0xff;

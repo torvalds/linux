@@ -473,6 +473,11 @@ void iwlagn_rx_handler_setup(struct iwl_priv *priv)
 	priv->rx_handlers[CALIBRATION_COMPLETE_NOTIFICATION] =
 					iwlagn_rx_calib_complete;
 	priv->rx_handlers[REPLY_TX] = iwlagn_rx_reply_tx;
+
+	/* set up notification wait support */
+	spin_lock_init(&priv->_agn.notif_wait_lock);
+	INIT_LIST_HEAD(&priv->_agn.notif_waits);
+	init_waitqueue_head(&priv->_agn.notif_waitq);
 }
 
 void iwlagn_setup_deferred_work(struct iwl_priv *priv)
@@ -1157,10 +1162,11 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 
 	/* rx_status carries information about the packet to mac80211 */
 	rx_status.mactime = le64_to_cpu(phy_res->timestamp);
-	rx_status.freq =
-		ieee80211_channel_to_frequency(le16_to_cpu(phy_res->channel));
 	rx_status.band = (phy_res->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
 				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
+	rx_status.freq =
+		ieee80211_channel_to_frequency(le16_to_cpu(phy_res->channel),
+					       rx_status.band);
 	rx_status.rate_idx =
 		iwlagn_hwrate_to_mac80211_idx(rate_n_flags, rx_status.band);
 	rx_status.flag = 0;
@@ -2388,4 +2394,45 @@ int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display)
 			iwl_read_direct32(priv, fh_tbl[i]));
 	}
 	return 0;
+}
+
+/* notification wait support */
+void iwlagn_init_notification_wait(struct iwl_priv *priv,
+				   struct iwl_notification_wait *wait_entry,
+				   void (*fn)(struct iwl_priv *priv,
+					      struct iwl_rx_packet *pkt),
+				   u8 cmd)
+{
+	wait_entry->fn = fn;
+	wait_entry->cmd = cmd;
+	wait_entry->triggered = false;
+
+	spin_lock_bh(&priv->_agn.notif_wait_lock);
+	list_add(&wait_entry->list, &priv->_agn.notif_waits);
+	spin_unlock_bh(&priv->_agn.notif_wait_lock);
+}
+
+signed long iwlagn_wait_notification(struct iwl_priv *priv,
+				     struct iwl_notification_wait *wait_entry,
+				     unsigned long timeout)
+{
+	int ret;
+
+	ret = wait_event_timeout(priv->_agn.notif_waitq,
+				 &wait_entry->triggered,
+				 timeout);
+
+	spin_lock_bh(&priv->_agn.notif_wait_lock);
+	list_del(&wait_entry->list);
+	spin_unlock_bh(&priv->_agn.notif_wait_lock);
+
+	return ret;
+}
+
+void iwlagn_remove_notification(struct iwl_priv *priv,
+				struct iwl_notification_wait *wait_entry)
+{
+	spin_lock_bh(&priv->_agn.notif_wait_lock);
+	list_del(&wait_entry->list);
+	spin_unlock_bh(&priv->_agn.notif_wait_lock);
 }

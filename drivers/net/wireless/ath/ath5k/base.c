@@ -242,73 +242,68 @@ static int ath5k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *re
 \********************/
 
 /*
- * Convert IEEE channel number to MHz frequency.
- */
-static inline short
-ath5k_ieee2mhz(short chan)
-{
-	if (chan <= 14 || chan >= 27)
-		return ieee80211chan2mhz(chan);
-	else
-		return 2212 + chan * 20;
-}
-
-/*
  * Returns true for the channel numbers used without all_channels modparam.
  */
-static bool ath5k_is_standard_channel(short chan)
+static bool ath5k_is_standard_channel(short chan, enum ieee80211_band band)
 {
-	return ((chan <= 14) ||
-		/* UNII 1,2 */
-		((chan & 3) == 0 && chan >= 36 && chan <= 64) ||
+	if (band == IEEE80211_BAND_2GHZ && chan <= 14)
+		return true;
+
+	return	/* UNII 1,2 */
+		(((chan & 3) == 0 && chan >= 36 && chan <= 64) ||
 		/* midband */
 		((chan & 3) == 0 && chan >= 100 && chan <= 140) ||
 		/* UNII-3 */
-		((chan & 3) == 1 && chan >= 149 && chan <= 165));
+		((chan & 3) == 1 && chan >= 149 && chan <= 165) ||
+		/* 802.11j 5.030-5.080 GHz (20MHz) */
+		(chan == 8 || chan == 12 || chan == 16) ||
+		/* 802.11j 4.9GHz (20MHz) */
+		(chan == 184 || chan == 188 || chan == 192 || chan == 196));
 }
 
 static unsigned int
-ath5k_copy_channels(struct ath5k_hw *ah,
-		struct ieee80211_channel *channels,
-		unsigned int mode,
-		unsigned int max)
+ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
+		unsigned int mode, unsigned int max)
 {
-	unsigned int i, count, size, chfreq, freq, ch;
-
-	if (!test_bit(mode, ah->ah_modes))
-		return 0;
+	unsigned int count, size, chfreq, freq, ch;
+	enum ieee80211_band band;
 
 	switch (mode) {
 	case AR5K_MODE_11A:
 		/* 1..220, but 2GHz frequencies are filtered by check_channel */
-		size = 220 ;
+		size = 220;
 		chfreq = CHANNEL_5GHZ;
+		band = IEEE80211_BAND_5GHZ;
 		break;
 	case AR5K_MODE_11B:
 	case AR5K_MODE_11G:
 		size = 26;
 		chfreq = CHANNEL_2GHZ;
+		band = IEEE80211_BAND_2GHZ;
 		break;
 	default:
 		ATH5K_WARN(ah->ah_sc, "bad mode, not copying channels\n");
 		return 0;
 	}
 
-	for (i = 0, count = 0; i < size && max > 0; i++) {
-		ch = i + 1 ;
-		freq = ath5k_ieee2mhz(ch);
+	count = 0;
+	for (ch = 1; ch <= size && count < max; ch++) {
+		freq = ieee80211_channel_to_frequency(ch, band);
+
+		if (freq == 0) /* mapping failed - not a standard channel */
+			continue;
 
 		/* Check if channel is supported by the chipset */
 		if (!ath5k_channel_ok(ah, freq, chfreq))
 			continue;
 
-		if (!modparam_all_channels && !ath5k_is_standard_channel(ch))
+		if (!modparam_all_channels &&
+		    !ath5k_is_standard_channel(ch, band))
 			continue;
 
 		/* Write channel info and increment counter */
 		channels[count].center_freq = freq;
-		channels[count].band = (chfreq == CHANNEL_2GHZ) ?
-			IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
+		channels[count].band = band;
 		switch (mode) {
 		case AR5K_MODE_11A:
 		case AR5K_MODE_11G:
@@ -319,7 +314,6 @@ ath5k_copy_channels(struct ath5k_hw *ah,
 		}
 
 		count++;
-		max--;
 	}
 
 	return count;
@@ -364,7 +358,7 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
 		sband->n_bitrates = 12;
 
 		sband->channels = sc->channels;
-		sband->n_channels = ath5k_copy_channels(ah, sband->channels,
+		sband->n_channels = ath5k_setup_channels(ah, sband->channels,
 					AR5K_MODE_11G, max_c);
 
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = sband;
@@ -390,7 +384,7 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
 		}
 
 		sband->channels = sc->channels;
-		sband->n_channels = ath5k_copy_channels(ah, sband->channels,
+		sband->n_channels = ath5k_setup_channels(ah, sband->channels,
 					AR5K_MODE_11B, max_c);
 
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = sband;
@@ -410,7 +404,7 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
 		sband->n_bitrates = 8;
 
 		sband->channels = &sc->channels[count_c];
-		sband->n_channels = ath5k_copy_channels(ah, sband->channels,
+		sband->n_channels = ath5k_setup_channels(ah, sband->channels,
 					AR5K_MODE_11A, max_c);
 
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] = sband;
@@ -443,18 +437,6 @@ ath5k_chan_set(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 	 * the relevant bits of the h/w.
 	 */
 	return ath5k_reset(sc, chan, true);
-}
-
-static void
-ath5k_setcurmode(struct ath5k_softc *sc, unsigned int mode)
-{
-	sc->curmode = mode;
-
-	if (mode == AR5K_MODE_11A) {
-		sc->curband = &sc->sbands[IEEE80211_BAND_5GHZ];
-	} else {
-		sc->curband = &sc->sbands[IEEE80211_BAND_2GHZ];
-	}
 }
 
 struct ath_vif_iter_data {
@@ -569,7 +551,7 @@ ath5k_hw_to_driver_rix(struct ath5k_softc *sc, int hw_rix)
 			"hw_rix out of bounds: %x\n", hw_rix))
 		return 0;
 
-	rix = sc->rate_idx[sc->curband->band][hw_rix];
+	rix = sc->rate_idx[sc->curchan->band][hw_rix];
 	if (WARN(rix < 0, "invalid hw_rix: %x\n", hw_rix))
 		rix = 0;
 
@@ -1379,7 +1361,7 @@ ath5k_receive_frame(struct ath5k_softc *sc, struct sk_buff *skb,
 	rxs->flag |= RX_FLAG_TSFT;
 
 	rxs->freq = sc->curchan->center_freq;
-	rxs->band = sc->curband->band;
+	rxs->band = sc->curchan->band;
 
 	rxs->signal = sc->ah->ah_noise_floor + rs->rs_rssi;
 
@@ -1394,7 +1376,7 @@ ath5k_receive_frame(struct ath5k_softc *sc, struct sk_buff *skb,
 	rxs->flag |= ath5k_rx_decrypted(sc, skb, rs);
 
 	if (rxs->rate_idx >= 0 && rs->rs_rate ==
-	    sc->curband->bitrates[rxs->rate_idx].hw_value_short)
+	    sc->sbands[sc->curchan->band].bitrates[rxs->rate_idx].hw_value_short)
 		rxs->flag |= RX_FLAG_SHORTPRE;
 
 	ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
@@ -2554,7 +2536,6 @@ ath5k_init_hw(struct ath5k_softc *sc)
 	 * and then setup of the interrupt mask.
 	 */
 	sc->curchan = sc->hw->conf.channel;
-	sc->curband = &sc->sbands[sc->curchan->band];
 	sc->imask = AR5K_INT_RXOK | AR5K_INT_RXERR | AR5K_INT_RXEOL |
 		AR5K_INT_RXORN | AR5K_INT_TXDESC | AR5K_INT_TXEOL |
 		AR5K_INT_FATAL | AR5K_INT_GLOBAL | AR5K_INT_MIB;
@@ -2681,10 +2662,8 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 	 * so we should also free any remaining
 	 * tx buffers */
 	ath5k_drain_tx_buffs(sc);
-	if (chan) {
+	if (chan)
 		sc->curchan = chan;
-		sc->curband = &sc->sbands[chan->band];
-	}
 	ret = ath5k_hw_reset(ah, sc->opmode, sc->curchan, chan != NULL,
 								skip_pcu);
 	if (ret) {
@@ -2781,12 +2760,6 @@ ath5k_init(struct ieee80211_hw *hw)
 		ATH5K_ERR(sc, "can't get channels\n");
 		goto err;
 	}
-
-	/* NB: setup here so ath5k_rate_update is happy */
-	if (test_bit(AR5K_MODE_11A, ah->ah_modes))
-		ath5k_setcurmode(sc, AR5K_MODE_11A);
-	else
-		ath5k_setcurmode(sc, AR5K_MODE_11B);
 
 	/*
 	 * Allocate tx+rx descriptors and populate the lists.

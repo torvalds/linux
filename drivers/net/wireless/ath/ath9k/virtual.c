@@ -18,54 +18,6 @@
 
 #include "ath9k.h"
 
-struct ath9k_vif_iter_data {
-	const u8 *hw_macaddr;
-	u8 mask[ETH_ALEN];
-};
-
-static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
-{
-	struct ath9k_vif_iter_data *iter_data = data;
-	int i;
-
-	for (i = 0; i < ETH_ALEN; i++)
-		iter_data->mask[i] &= ~(iter_data->hw_macaddr[i] ^ mac[i]);
-}
-
-void ath9k_set_bssid_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath9k_vif_iter_data iter_data;
-	int i;
-
-	/*
-	 * Use the hardware MAC address as reference, the hardware uses it
-	 * together with the BSSID mask when matching addresses.
-	 */
-	iter_data.hw_macaddr = common->macaddr;
-	memset(&iter_data.mask, 0xff, ETH_ALEN);
-
-	if (vif)
-		ath9k_vif_iter(&iter_data, vif->addr, vif);
-
-	/* Get list of all active MAC addresses */
-	spin_lock_bh(&sc->wiphy_lock);
-	ieee80211_iterate_active_interfaces_atomic(sc->hw, ath9k_vif_iter,
-						   &iter_data);
-	for (i = 0; i < sc->num_sec_wiphy; i++) {
-		if (sc->sec_wiphy[i] == NULL)
-			continue;
-		ieee80211_iterate_active_interfaces_atomic(
-			sc->sec_wiphy[i]->hw, ath9k_vif_iter, &iter_data);
-	}
-	spin_unlock_bh(&sc->wiphy_lock);
-
-	memcpy(common->bssidmask, iter_data.mask, ETH_ALEN);
-	ath_hw_setbssidmask(common);
-}
-
 int ath9k_wiphy_add(struct ath_softc *sc)
 {
 	int i, error;

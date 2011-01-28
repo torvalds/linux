@@ -189,6 +189,7 @@ enum {
 	REPLY_WIPAN_WEPKEY = 0xb8,	/* use REPLY_WEPKEY structure */
 	REPLY_WIPAN_P2P_CHANNEL_SWITCH = 0xb9,
 	REPLY_WIPAN_NOA_NOTIFICATION = 0xbc,
+	REPLY_WIPAN_DEACTIVATION_COMPLETE = 0xbd,
 
 	REPLY_MAX = 0xff
 };
@@ -4368,6 +4369,11 @@ int iwl_agn_check_rxon_cmd(struct iwl_priv *priv);
 /*
  * REPLY_WIPAN_PARAMS = 0xb2 (Commands and Notification)
  */
+
+/*
+ * Minimum slot time in TU
+ */
+#define IWL_MIN_SLOT_TIME	20
 
 /**
  * struct iwl_wipan_slot

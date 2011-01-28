@@ -1750,7 +1750,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	__le16 fc;
 	struct ieee80211_hdr hdr;
 	struct ieee80211s_hdr mesh_hdr __maybe_unused;
-	struct mesh_path *mppath = NULL;
+	struct mesh_path __maybe_unused *mppath = NULL;
 	const u8 *encaps_data;
 	int encaps_len, skip_header_bytes;
 	int nh_pos, h_pos;
@@ -1815,19 +1815,19 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			mppath = mpp_path_lookup(skb->data, sdata);
 
 		/*
-		 * Do not use address extension, if it is a packet from
-		 * the same interface and the destination is not being
-		 * proxied by any other mest point.
+		 * Use address extension if it is a packet from
+		 * another interface or if we know the destination
+		 * is being proxied by a portal (i.e. portal address
+		 * differs from proxied address)
 		 */
 		if (compare_ether_addr(sdata->vif.addr,
 				       skb->data + ETH_ALEN) == 0 &&
-		    (!mppath || !compare_ether_addr(mppath->mpp, skb->data))) {
+		    !(mppath && compare_ether_addr(mppath->mpp, skb->data))) {
 			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
 					skb->data, skb->data + ETH_ALEN);
 			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr,
 					sdata, NULL, NULL);
 		} else {
-			/* packet from other interface */
 			int is_mesh_mcast = 1;
 			const u8 *mesh_da;
 
@@ -2301,6 +2301,11 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		struct ieee80211_mgmt *mgmt;
 		u8 *pos;
+
+#ifdef CONFIG_MAC80211_MESH
+		if (!sdata->u.mesh.mesh_id_len)
+			goto out;
+#endif
 
 		/* headroom, head length, tail length and maximum TIM length */
 		skb = dev_alloc_skb(local->tx_headroom + 400 +

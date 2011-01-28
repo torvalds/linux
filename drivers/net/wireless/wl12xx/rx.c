@@ -76,7 +76,7 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	 */
 	wl->noise = desc->rssi - (desc->snr >> 1);
 
-	status->freq = ieee80211_channel_to_frequency(desc->channel);
+	status->freq = ieee80211_channel_to_frequency(desc->channel, desc_band);
 
 	if (desc->flags & WL1271_RX_DESC_ENCRYPT_MASK) {
 		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;

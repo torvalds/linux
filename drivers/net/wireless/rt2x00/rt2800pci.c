@@ -475,39 +475,23 @@ static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 
 static void rt2800pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	u32 reg;
-
-	rt2800_disable_radio(rt2x00dev);
-
-	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00001280);
-
-	rt2800_register_read(rt2x00dev, WPDMA_RST_IDX, &reg);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX0, 1);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX1, 1);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX2, 1);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX3, 1);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX4, 1);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX5, 1);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DRX_IDX0, 1);
-	rt2800_register_write(rt2x00dev, WPDMA_RST_IDX, reg);
-
-	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e1f);
-	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e00);
+	if (rt2x00_is_soc(rt2x00dev)) {
+		rt2800_disable_radio(rt2x00dev);
+		rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0);
+		rt2800_register_write(rt2x00dev, TX_PIN_CFG, 0);
+	}
 }
 
 static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,
 			       enum dev_state state)
 {
-	/*
-	 * Always put the device to sleep (even when we intend to wakeup!)
-	 * if the device is booting and wasn't asleep it will return
-	 * failure when attempting to wakeup.
-	 */
-	rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0xff, 2);
-
 	if (state == STATE_AWAKE) {
-		rt2800_mcu_request(rt2x00dev, MCU_WAKEUP, TOKEN_WAKUP, 0, 0);
+		rt2800_mcu_request(rt2x00dev, MCU_WAKEUP, TOKEN_WAKUP, 0, 0x02);
 		rt2800pci_mcu_status(rt2x00dev, TOKEN_WAKUP);
+	} else if (state == STATE_SLEEP) {
+		rt2800_register_write(rt2x00dev, H2M_MAILBOX_STATUS, 0xffffffff);
+		rt2800_register_write(rt2x00dev, H2M_MAILBOX_CID, 0xffffffff);
+		rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0x01, 0xff, 0x01);
 	}
 
 	return 0;

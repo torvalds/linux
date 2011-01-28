@@ -150,6 +150,7 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 	const struct carl9170fw_otus_desc *otus_desc;
 	const struct carl9170fw_chk_desc *chk_desc;
 	const struct carl9170fw_last_desc *last_desc;
+	const struct carl9170fw_txsq_desc *txsq_desc;
 
 	last_desc = carl9170_fw_find_desc(ar, LAST_MAGIC,
 		sizeof(*last_desc), CARL9170FW_LAST_DESC_CUR_VER);
@@ -264,6 +265,9 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 			FIF_PROMISC_IN_BSS;
 	}
 
+	if (SUPP(CARL9170FW_WOL))
+		device_set_wakeup_enable(&ar->udev->dev, true);
+
 	ar->fw.vif_num = otus_desc->vif_num;
 	ar->fw.cmd_bufs = otus_desc->cmd_bufs;
 	ar->fw.address = le32_to_cpu(otus_desc->fw_address);
@@ -294,6 +298,17 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 				BIT(NL80211_IFTYPE_AP) |
 				BIT(NL80211_IFTYPE_P2P_GO);
 		}
+	}
+
+	txsq_desc = carl9170_fw_find_desc(ar, TXSQ_MAGIC,
+		sizeof(*txsq_desc), CARL9170FW_TXSQ_DESC_CUR_VER);
+
+	if (txsq_desc) {
+		ar->fw.tx_seq_table = le32_to_cpu(txsq_desc->seq_table_addr);
+		if (!valid_cpu_addr(ar->fw.tx_seq_table))
+			return -EINVAL;
+	} else {
+		ar->fw.tx_seq_table = 0;
 	}
 
 #undef SUPPORTED
