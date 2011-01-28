@@ -393,7 +393,8 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 				break;
 
 			need_loop = 1;
-			e = kzalloc(sizeof(struct btrfs_free_space), GFP_NOFS);
+			e = kmem_cache_zalloc(btrfs_free_space_cachep,
+					      GFP_NOFS);
 			if (!e) {
 				kunmap(page);
 				unlock_page(page);
@@ -405,7 +406,7 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 			e->bytes = le64_to_cpu(entry->bytes);
 			if (!e->bytes) {
 				kunmap(page);
-				kfree(e);
+				kmem_cache_free(btrfs_free_space_cachep, e);
 				unlock_page(page);
 				page_cache_release(page);
 				goto free_cache;
@@ -420,7 +421,8 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 				e->bitmap = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
 				if (!e->bitmap) {
 					kunmap(page);
-					kfree(e);
+					kmem_cache_free(
+						btrfs_free_space_cachep, e);
 					unlock_page(page);
 					page_cache_release(page);
 					goto free_cache;
@@ -1187,7 +1189,7 @@ static void free_bitmap(struct btrfs_block_group_cache *block_group,
 {
 	unlink_free_space(block_group, bitmap_info);
 	kfree(bitmap_info->bitmap);
-	kfree(bitmap_info);
+	kmem_cache_free(btrfs_free_space_cachep, bitmap_info);
 	block_group->total_bitmaps--;
 	recalculate_thresholds(block_group);
 }
@@ -1342,8 +1344,8 @@ new_bitmap:
 
 		/* no pre-allocated info, allocate a new one */
 		if (!info) {
-			info = kzalloc(sizeof(struct btrfs_free_space),
-				       GFP_NOFS);
+			info = kmem_cache_zalloc(btrfs_free_space_cachep,
+						 GFP_NOFS);
 			if (!info) {
 				spin_lock(&block_group->tree_lock);
 				ret = -ENOMEM;
@@ -1365,7 +1367,7 @@ out:
 	if (info) {
 		if (info->bitmap)
 			kfree(info->bitmap);
-		kfree(info);
+		kmem_cache_free(btrfs_free_space_cachep, info);
 	}
 
 	return ret;
@@ -1398,7 +1400,7 @@ bool try_merge_free_space(struct btrfs_block_group_cache *block_group,
 		else
 			__unlink_free_space(block_group, right_info);
 		info->bytes += right_info->bytes;
-		kfree(right_info);
+		kmem_cache_free(btrfs_free_space_cachep, right_info);
 		merged = true;
 	}
 
@@ -1410,7 +1412,7 @@ bool try_merge_free_space(struct btrfs_block_group_cache *block_group,
 			__unlink_free_space(block_group, left_info);
 		info->offset = left_info->offset;
 		info->bytes += left_info->bytes;
-		kfree(left_info);
+		kmem_cache_free(btrfs_free_space_cachep, left_info);
 		merged = true;
 	}
 
@@ -1423,7 +1425,7 @@ int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 	struct btrfs_free_space *info;
 	int ret = 0;
 
-	info = kzalloc(sizeof(struct btrfs_free_space), GFP_NOFS);
+	info = kmem_cache_zalloc(btrfs_free_space_cachep, GFP_NOFS);
 	if (!info)
 		return -ENOMEM;
 
@@ -1450,7 +1452,7 @@ int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 link:
 	ret = link_free_space(block_group, info);
 	if (ret)
-		kfree(info);
+		kmem_cache_free(btrfs_free_space_cachep, info);
 out:
 	spin_unlock(&block_group->tree_lock);
 
@@ -1520,7 +1522,7 @@ again:
 			kfree(info->bitmap);
 			block_group->total_bitmaps--;
 		}
-		kfree(info);
+		kmem_cache_free(btrfs_free_space_cachep, info);
 		goto out_lock;
 	}
 
@@ -1556,7 +1558,7 @@ again:
 			/* the hole we're creating ends at the end
 			 * of the info struct, just free the info
 			 */
-			kfree(info);
+			kmem_cache_free(btrfs_free_space_cachep, info);
 		}
 		spin_unlock(&block_group->tree_lock);
 
@@ -1689,7 +1691,7 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group_cache *block_group)
 		unlink_free_space(block_group, info);
 		if (info->bitmap)
 			kfree(info->bitmap);
-		kfree(info);
+		kmem_cache_free(btrfs_free_space_cachep, info);
 		if (need_resched()) {
 			spin_unlock(&block_group->tree_lock);
 			cond_resched();
@@ -1722,7 +1724,7 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
 		entry->offset += bytes;
 		entry->bytes -= bytes;
 		if (!entry->bytes)
-			kfree(entry);
+			kmem_cache_free(btrfs_free_space_cachep, entry);
 		else
 			link_free_space(block_group, entry);
 	}
@@ -1884,7 +1886,7 @@ out:
 	block_group->free_space -= bytes;
 	if (entry->bytes == 0) {
 		block_group->free_extents--;
-		kfree(entry);
+		kmem_cache_free(btrfs_free_space_cachep, entry);
 	}
 
 	spin_unlock(&block_group->tree_lock);

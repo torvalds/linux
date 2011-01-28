@@ -50,6 +50,7 @@
 #include "tree-log.h"
 #include "compression.h"
 #include "locking.h"
+#include "free-space-cache.h"
 
 struct btrfs_iget_args {
 	u64 ino;
@@ -70,6 +71,7 @@ static struct kmem_cache *btrfs_inode_cachep;
 struct kmem_cache *btrfs_trans_handle_cachep;
 struct kmem_cache *btrfs_transaction_cachep;
 struct kmem_cache *btrfs_path_cachep;
+struct kmem_cache *btrfs_free_space_cachep;
 
 #define S_SHIFT 12
 static unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
@@ -6761,6 +6763,8 @@ void btrfs_destroy_cachep(void)
 		kmem_cache_destroy(btrfs_transaction_cachep);
 	if (btrfs_path_cachep)
 		kmem_cache_destroy(btrfs_path_cachep);
+	if (btrfs_free_space_cachep)
+		kmem_cache_destroy(btrfs_free_space_cachep);
 }
 
 int btrfs_init_cachep(void)
@@ -6787,6 +6791,12 @@ int btrfs_init_cachep(void)
 			sizeof(struct btrfs_path), 0,
 			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_path_cachep)
+		goto fail;
+
+	btrfs_free_space_cachep = kmem_cache_create("btrfs_free_space_cache",
+			sizeof(struct btrfs_free_space), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
+	if (!btrfs_free_space_cachep)
 		goto fail;
 
 	return 0;
