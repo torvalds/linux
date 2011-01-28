@@ -14,7 +14,7 @@
 #include <linux/io.h>
 #include <linux/sh_timer.h>
 #include <linux/serial_sci.h>
-#include <asm/machtypes.h>
+#include <generated/machtypes.h>
 
 static struct resource rtc_resources[] = {
 	[0] = {
