@@ -146,7 +146,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define RK29_CAM_W_MAX        3856            /* ddl@rock-chips.com : 10M Pixel */
 #define RK29_CAM_H_MAX        2764
 #define RK29_CAM_FRAME_INVAL_INIT 3
-#define RK29_CAM_FRAME_INVAL_DC 1          /* ddl@rock-chips.com :  */
+#define RK29_CAM_FRAME_INVAL_DC 3          /* ddl@rock-chips.com :  */
 
 #define RK29_CAM_AXI   0
 #define RK29_CAM_AHB   1
@@ -1278,12 +1278,25 @@ static void rk29_camera_reinit_work(struct work_struct *work)
 {
 	struct device *control;
     struct v4l2_subdev *sd;
+	struct i2c_client *client;
+    struct soc_camera_device *icd;
+	struct v4l2_format cam_f;
+	const struct soc_camera_format_xlate *xlate;
 	int ret;
 
+	rk29_camera_s_stream(rk29_camdev_info_ptr->icd, 0);
 	control = to_soc_camera_control(rk29_camdev_info_ptr->icd);
 	sd = dev_get_drvdata(control);
 	ret = v4l2_subdev_call(sd,core, init, 1);
-	RK29CAMERA_DG("Camera host haven't recevie data from sensor,Reinit sensor now! ret:0x%x\n",ret);
+
+	cam_f.fmt.pix.width = rk29_camdev_info_ptr->icd->user_width;
+	cam_f.fmt.pix.height = rk29_camdev_info_ptr->icd->user_height;
+	xlate = soc_camera_xlate_by_fourcc(rk29_camdev_info_ptr->icd, rk29_camdev_info_ptr->icd->current_fmt->fourcc);
+	cam_f.fmt.pix.pixelformat = xlate->cam_fmt->fourcc;
+	ret |= v4l2_subdev_call(sd, video, s_fmt, &cam_f);
+	rk29_camera_s_stream(rk29_camdev_info_ptr->icd, 1);
+
+	RK29CAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor now! ret:0x%x\n",ret);
 }
 static enum hrtimer_restart rk29_camera_fps_func(struct hrtimer *timer)
 {
