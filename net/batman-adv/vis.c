@@ -444,7 +444,7 @@ static struct vis_info *add_packet(struct bat_priv *bat_priv,
 			      info);
 	if (hash_added < 0) {
 		/* did not work (for some reason) */
-		kref_put(&old_info->refcount, free_info);
+		kref_put(&info->refcount, free_info);
 		info = NULL;
 	}
 
