@@ -2535,13 +2535,14 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 	/* Configure Bluetooth device coexistence support */
 	priv->cfg->ops->hcmd->send_bt_config(priv);
 
+	set_bit(STATUS_READY, &priv->status);
+
 	/* Configure the adapter for unassociated operation */
 	iwl3945_commit_rxon(priv, ctx);
 
 	iwl3945_reg_txpower_periodic(priv);
 
 	IWL_DEBUG_INFO(priv, "ALIVE processing complete.\n");
-	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
 
 	return;
