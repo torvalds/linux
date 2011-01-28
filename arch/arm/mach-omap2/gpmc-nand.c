@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/mtd/nand.h>
 
 #include <asm/mach/flash.h>
 
@@ -69,8 +70,10 @@ static int omap2_nand_gpmc_retime(void)
 	t.wr_cycle  = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->wr_cycle);
 
 	/* Configure GPMC */
-	gpmc_cs_configure(gpmc_nand_data->cs,
-				GPMC_CONFIG_DEV_SIZE, gpmc_nand_data->devsize);
+	if (gpmc_nand_data->devsize == NAND_BUSWIDTH_16)
+		gpmc_cs_configure(gpmc_nand_data->cs, GPMC_CONFIG_DEV_SIZE, 1);
+	else
+		gpmc_cs_configure(gpmc_nand_data->cs, GPMC_CONFIG_DEV_SIZE, 0);
 	gpmc_cs_configure(gpmc_nand_data->cs,
 			GPMC_CONFIG_DEV_TYPE, GPMC_DEVICETYPE_NAND);
 	err = gpmc_cs_set_timings(gpmc_nand_data->cs, &t);

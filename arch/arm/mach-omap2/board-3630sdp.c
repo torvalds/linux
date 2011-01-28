@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
+#include <linux/mtd/nand.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -208,7 +209,7 @@ static void __init omap_sdp_init(void)
 	zoom_peripherals_init();
 	zoom_display_init();
 	board_smc91x_init();
-	board_flash_init(sdp_flash_partitions, chip_sel_sdp);
+	board_flash_init(sdp_flash_partitions, chip_sel_sdp, NAND_BUSWIDTH_16);
 	enable_board_wakeup_source();
 	usb_ehci_init(&ehci_pdata);
 }

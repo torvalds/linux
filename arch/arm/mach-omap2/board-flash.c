@@ -139,11 +139,13 @@ static struct omap_nand_platform_data board_nand_data = {
 };
 
 void
-__init board_nand_init(struct mtd_partition *nand_parts, u8 nr_parts, u8 cs)
+__init board_nand_init(struct mtd_partition *nand_parts,
+			u8 nr_parts, u8 cs, int nand_type)
 {
 	board_nand_data.cs		= cs;
 	board_nand_data.parts		= nand_parts;
-	board_nand_data.nr_parts		= nr_parts;
+	board_nand_data.nr_parts	= nr_parts;
+	board_nand_data.devsize		= nand_type;
 
 	gpmc_nand_init(&board_nand_data);
 }
@@ -194,7 +196,7 @@ unmap:
  * @return - void.
  */
 void board_flash_init(struct flash_partitions partition_info[],
-					char chip_sel_board[][GPMC_CS_NUM])
+			char chip_sel_board[][GPMC_CS_NUM], int nand_type)
 {
 	u8		cs = 0;
 	u8		norcs = GPMC_CS_NUM + 1;
@@ -250,5 +252,5 @@ void board_flash_init(struct flash_partitions partition_info[],
 				"in GPMC\n");
 	else
 		board_nand_init(partition_info[2].parts,
-				partition_info[2].nr_parts, nandcs);
+			partition_info[2].nr_parts, nandcs, nand_type);
 }

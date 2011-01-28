@@ -812,7 +812,7 @@ static void __init omap_3430sdp_init(void)
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
 	board_smc91x_init();
-	board_flash_init(sdp_flash_partitions, chip_sel_3430);
+	board_flash_init(sdp_flash_partitions, chip_sel_3430, 0);
 	sdp3430_display_init();
 	enable_board_wakeup_source();
 	usb_ehci_init(&ehci_pdata);

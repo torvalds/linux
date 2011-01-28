@@ -16,6 +16,7 @@
 #include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/i2c/twl.h>
+#include <linux/mtd/nand.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -124,8 +125,8 @@ static void __init omap_zoom_init(void)
 		usb_ehci_init(&ehci_pdata);
 	}
 
-	board_nand_init(zoom_nand_partitions,
-			ARRAY_SIZE(zoom_nand_partitions), ZOOM_NAND_CS);
+	board_nand_init(zoom_nand_partitions, ARRAY_SIZE(zoom_nand_partitions),
+						ZOOM_NAND_CS, NAND_BUSWIDTH_16);
 	zoom_debugboard_init();
 	zoom_peripherals_init();
 	zoom_display_init();
