@@ -115,27 +115,11 @@ static void mmap_read(struct perf_mmap *md)
 	unsigned char *data = md->base + page_size;
 	unsigned long size;
 	void *buf;
-	int diff;
 
-	/*
-	 * If we're further behind than half the buffer, there's a chance
-	 * the writer will bite our tail and mess up the samples under us.
-	 *
-	 * If we somehow ended up ahead of the head, we got messed up.
-	 *
-	 * In either case, truncate and restart at head.
-	 */
-	diff = head - old;
-	if (diff < 0) {
-		fprintf(stderr, "WARNING: failed to keep up with mmap data\n");
-		/*
-		 * head points to a known good entry, start there.
-		 */
-		old = head;
-	}
+	if (old == head)
+		return;
 
-	if (old != head)
-		samples++;
+	samples++;
 
 	size = head - old;
 
