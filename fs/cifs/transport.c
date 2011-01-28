@@ -579,8 +579,17 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		goto out;
 
 	rc = wait_for_response(ses->server, midQ);
-	if (rc != 0)
-		goto out;
+	if (rc != 0) {
+		spin_lock(&GlobalMid_Lock);
+		if (midQ->midState == MID_REQUEST_SUBMITTED) {
+			midQ->callback = DeleteMidQEntry;
+			spin_unlock(&GlobalMid_Lock);
+			atomic_dec(&ses->server->inFlight);
+			wake_up(&ses->server->request_q);
+			return rc;
+		}
+		spin_unlock(&GlobalMid_Lock);
+	}
 
 	rc = sync_mid_result(midQ, ses->server);
 	if (rc != 0) {
@@ -724,8 +733,18 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		goto out;
 
 	rc = wait_for_response(ses->server, midQ);
-	if (rc != 0)
-		goto out;
+	if (rc != 0) {
+		spin_lock(&GlobalMid_Lock);
+		if (midQ->midState == MID_REQUEST_SUBMITTED) {
+			/* no longer considered to be "in-flight" */
+			midQ->callback = DeleteMidQEntry;
+			spin_unlock(&GlobalMid_Lock);
+			atomic_dec(&ses->server->inFlight);
+			wake_up(&ses->server->request_q);
+			return rc;
+		}
+		spin_unlock(&GlobalMid_Lock);
+	}
 
 	rc = sync_mid_result(midQ, ses->server);
 	if (rc != 0) {
@@ -922,10 +941,20 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 			}
 		}
 
-		if (wait_for_response(ses->server, midQ) == 0) {
-			/* We got the response - restart system call. */
-			rstart = 1;
+		rc = wait_for_response(ses->server, midQ);
+		if (rc) {
+			spin_lock(&GlobalMid_Lock);
+			if (midQ->midState == MID_REQUEST_SUBMITTED) {
+				/* no longer considered to be "in-flight" */
+				midQ->callback = DeleteMidQEntry;
+				spin_unlock(&GlobalMid_Lock);
+				return rc;
+			}
+			spin_unlock(&GlobalMid_Lock);
 		}
+
+		/* We got the response - restart system call. */
+		rstart = 1;
 	}
 
 	rc = sync_mid_result(midQ, ses->server);
