@@ -978,7 +978,7 @@ ar6k_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 
 static int
 ar6k_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *ndev,
-                              A_UINT8 key_index)
+                              A_UINT8 key_index, bool unicast, bool multicast)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);
     struct ar_key *key = NULL;
@@ -1201,7 +1201,7 @@ ar6k_cfg80211_set_power_mgmt(struct wiphy *wiphy,
     return 0;
 }
 
-static int
+static struct net_device *
 ar6k_cfg80211_add_virtual_intf(struct wiphy *wiphy, char *name,
             				    enum nl80211_iftype type, u32 *flags,
             				    struct vif_params *params)
@@ -1212,7 +1212,7 @@ ar6k_cfg80211_add_virtual_intf(struct wiphy *wiphy, char *name,
     /* Multiple virtual interface is not supported.
      * The default interface supports STA and IBSS type
      */
-    return -EOPNOTSUPP;
+    return ERR_PTR(-EOPNOTSUPP);
 }
 
 static int
