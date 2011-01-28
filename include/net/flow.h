@@ -48,7 +48,8 @@ struct flowi {
 
 	__u8	proto;
 	__u8	flags;
-#define FLOWI_FLAG_ANYSRC 0x01
+#define FLOWI_FLAG_ANYSRC		0x01
+#define FLOWI_FLAG_PRECOW_METRICS	0x02
 	union {
 		struct {
 			__be16	sport;

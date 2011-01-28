@@ -1857,6 +1857,28 @@ static unsigned int ipv4_default_mtu(const struct dst_entry *dst)
 	return mtu;
 }
 
+static void rt_init_metrics(struct rtable *rt, struct fib_info *fi)
+{
+	if (!(rt->fl.flags & FLOWI_FLAG_PRECOW_METRICS)) {
+	no_cow:
+		rt->fi = fi;
+		atomic_inc(&fi->fib_clntref);
+		dst_init_metrics(&rt->dst, fi->fib_metrics, true);
+	} else {
+		struct inet_peer *peer;
+
+		if (!rt->peer)
+			rt_bind_peer(rt, 1);
+		peer = rt->peer;
+		if (!peer)
+			goto no_cow;
+		if (inet_metrics_new(peer))
+			memcpy(peer->metrics, fi->fib_metrics,
+			       sizeof(u32) * RTAX_MAX);
+		dst_init_metrics(&rt->dst, peer->metrics, false);
+	}
+}
+
 static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 {
 	struct dst_entry *dst = &rt->dst;
@@ -1866,9 +1888,7 @@ static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 		if (FIB_RES_GW(*res) &&
 		    FIB_RES_NH(*res).nh_scope == RT_SCOPE_LINK)
 			rt->rt_gateway = FIB_RES_GW(*res);
-		rt->fi = fi;
-		atomic_inc(&fi->fib_clntref);
-		dst_init_metrics(dst, fi->fib_metrics, true);
+		rt_init_metrics(rt, fi);
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		dst->tclassid = FIB_RES_NH(*res).nh_tclassid;
 #endif
