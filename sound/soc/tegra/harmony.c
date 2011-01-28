@@ -104,11 +104,12 @@ static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (mclk_change) {
-	    err = snd_soc_dai_set_sysclk(codec_dai, 0, mclk, SND_SOC_CLOCK_IN);
-	    if (err < 0) {
-		    pr_err(PREFIX "codec_dai clock not set\n");
-		    return err;
-	    }
+		err = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
+					     SND_SOC_CLOCK_IN);
+		if (err < 0) {
+			pr_err(PREFIX "codec_dai clock not set\n");
+			return err;
+		}
 	}
 
 	return 0;
