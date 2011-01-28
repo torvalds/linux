@@ -537,7 +537,7 @@ A_UINT8 wmi_implicit_create_pstream(struct wmi_t *wmip, void *osbuf, A_UINT32 la
     A_UINT8         trafficClass = WMM_AC_BE;
     A_UINT16        ipType = IP_ETHERTYPE;
     WMI_DATA_HDR    *dtHdr;
-    A_BOOL           streamExists = FALSE;
+    A_UINT8           streamExists = 0;
     A_UINT8        userPriority;
     A_UINT32            hdrsize, metasize;
     ATH_LLC_SNAP_HDR    *llcHdr;
