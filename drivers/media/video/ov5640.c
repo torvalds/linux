@@ -27,10 +27,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define dprintk(level, fmt, arg...) do {			\
 	if (debug >= level) 					\
-	printk(KERN_DEBUG fmt , ## arg); } while (0)
+	printk(KERN_WARNING fmt , ## arg); } while (0)
 
 #define SENSOR_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
-#define SENSOR_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
+#define SENSOR_DG(format, ...) dprintk(0, format, ## __VA_ARGS__)
 
 #define _CONS(a,b) a##b
 #define CONS(a,b) _CONS(a,b)
@@ -1369,10 +1369,12 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 
 		atomic_add(1, &sensor->tasklock_cnt);
 	} else {
-		atomic_sub(1, &sensor->tasklock_cnt);
+		if (atomic_read(&sensor->tasklock_cnt) > 0) {
+			atomic_sub(1, &sensor->tasklock_cnt);
 
-		if (atomic_read(&sensor->tasklock_cnt) == 0)
-			preempt_enable();
+			if (atomic_read(&sensor->tasklock_cnt) == 0)
+				preempt_enable();
+		}
 	}
 #endif
 	return 0;
@@ -2144,6 +2146,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 
     return 0;
 sensor_INIT_ERR:
+	sensor_task_lock(client,0);
 	sensor_deactivate(client);
     return ret;
 }
@@ -3283,7 +3286,7 @@ static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 					mutex_unlock(&sensor->wq_lock);
 					sensor->sensor_wk.client = client;
 					INIT_WORK(&(sensor->sensor_wk.dwork.work), sensor_af_workqueue);
-					queue_delayed_work(sensor->sensor_wq,&(sensor->sensor_wk.dwork.work), 0);
+					queue_delayed_work(sensor->sensor_wq,&(sensor->sensor_wk.dwork), 0);
 				}
 				sensor->info_priv.affm_reinit = 0;
 			}

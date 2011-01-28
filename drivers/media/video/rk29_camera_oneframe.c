@@ -44,10 +44,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define dprintk(level, fmt, arg...) do {			\
 	if (debug >= level) 					\
-	printk(KERN_DEBUG "rk29xx_camera: " fmt , ## arg); } while (0)
+	printk(KERN_WARNING"rk29xx_camera: " fmt , ## arg); } while (0)
 
 #define RK29CAMERA_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
-#define RK29CAMERA_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
+#define RK29CAMERA_DG(format, ...) dprintk(0, format, ## __VA_ARGS__)
 
 // VIP Reg Offset
 #define RK29_VIP_AHBR_CTRL                0x00
@@ -1278,8 +1278,6 @@ static void rk29_camera_reinit_work(struct work_struct *work)
 {
 	struct device *control;
     struct v4l2_subdev *sd;
-	struct i2c_client *client;
-    struct soc_camera_device *icd;
 	struct v4l2_format cam_f;
 	const struct soc_camera_format_xlate *xlate;
 	int ret;
