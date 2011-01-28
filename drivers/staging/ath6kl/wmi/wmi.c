@@ -4650,7 +4650,7 @@ wmi_get_power_mode_cmd(struct wmi_t *wmip)
 }
 
 int
-wmi_verify_tspec_params(WMI_CREATE_PSTREAM_CMD *pCmd, A_BOOL tspecCompliance)
+wmi_verify_tspec_params(WMI_CREATE_PSTREAM_CMD *pCmd, int tspecCompliance)
 {
     int ret = A_OK;
 

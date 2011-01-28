@@ -234,7 +234,7 @@ int wmi_set_voice_pkt_size_cmd(struct wmi_t *wmip, A_UINT16 voicePktSize);
 int wmi_set_max_sp_len_cmd(struct wmi_t *wmip, A_UINT8 maxSpLen);
 A_UINT8  convert_userPriority_to_trafficClass(A_UINT8 userPriority);
 A_UINT8 wmi_get_power_mode_cmd(struct wmi_t *wmip);
-int wmi_verify_tspec_params(WMI_CREATE_PSTREAM_CMD *pCmd, A_BOOL tspecCompliance);
+int wmi_verify_tspec_params(WMI_CREATE_PSTREAM_CMD *pCmd, int tspecCompliance);
 
 #ifdef CONFIG_HOST_TCMD_SUPPORT
 int wmi_test_cmd(struct wmi_t *wmip, A_UINT8 *buf, A_UINT32  len);
