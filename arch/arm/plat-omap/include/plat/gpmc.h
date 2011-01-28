@@ -86,6 +86,12 @@
 #define PREFETCH_FIFOTHRESHOLD_MAX	0x40
 #define PREFETCH_FIFOTHRESHOLD(val)	((val) << 8)
 
+enum omap_ecc {
+		/* 1-bit ecc: stored at end of spare area */
+	OMAP_ECC_HAMMING_CODE_DEFAULT = 0, /* Default, s/w method */
+	OMAP_ECC_HAMMING_CODE_HW, /* gpmc to detect the error */
+};
+
 /*
  * Note that all values in this struct are in nanoseconds except sync_clk
  * (which is in picoseconds), while the register values are in gpmc_fck cycles.

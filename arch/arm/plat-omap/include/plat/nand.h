@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <plat/gpmc.h>
 #include <linux/mtd/partitions.h>
 
 enum nand_io {
@@ -31,6 +32,7 @@ struct omap_nand_platform_data {
 	enum nand_io		xfer_type;
 	unsigned long		phys_base;
 	int			devsize;
+	enum omap_ecc           ecc_opt;
 };
 
 /* minimum size for IO mapping */
