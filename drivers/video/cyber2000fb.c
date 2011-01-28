@@ -681,9 +681,9 @@ cyber2000fb_decode_clock(struct par_info *hw, struct cfb_info *cfb,
 	 *    pll_ps_calc = best_div1 / (ref_ps * best_mult)
 	 */
 	best_diff = 0x7fffffff;
-	best_mult = 32;
-	best_div1 = 255;
-	for (t_div1 = 32; t_div1 > 1; t_div1 -= 1) {
+	best_mult = 2;
+	best_div1 = 32;
+	for (t_div1 = 2; t_div1 < 32; t_div1 += 1) {
 		u_int rr, t_mult, t_pll_ps;
 		int diff;
 
