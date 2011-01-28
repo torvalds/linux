@@ -213,53 +213,13 @@ static void insert_block(struct xv_pool *pool, struct page *page, u32 offset,
 }
 
 /*
- * Remove block from head of freelist. Index 'slindex' identifies the freelist.
- */
-static void remove_block_head(struct xv_pool *pool,
-			struct block_header *block, u32 slindex)
-{
-	struct block_header *tmpblock;
-	u32 flindex = slindex / BITS_PER_LONG;
-
-	pool->freelist[slindex].page = block->link.next_page;
-	pool->freelist[slindex].offset = block->link.next_offset;
-	block->link.prev_page = NULL;
-	block->link.prev_offset = 0;
-
-	if (!pool->freelist[slindex].page) {
-		__clear_bit(slindex % BITS_PER_LONG, &pool->slbitmap[flindex]);
-		if (!pool->slbitmap[flindex])
-			__clear_bit(flindex, &pool->flbitmap);
-	} else {
-		/*
-		 * DEBUG ONLY: We need not reinitialize freelist head previous
-		 * pointer to 0 - we never depend on its value. But just for
-		 * sanity, lets do it.
-		 */
-		tmpblock = get_ptr_atomic(pool->freelist[slindex].page,
-				pool->freelist[slindex].offset, KM_USER1);
-		tmpblock->link.prev_page = NULL;
-		tmpblock->link.prev_offset = 0;
-		put_ptr_atomic(tmpblock, KM_USER1);
-	}
-}
-
-/*
  * Remove block from freelist. Index 'slindex' identifies the freelist.
  */
 static void remove_block(struct xv_pool *pool, struct page *page, u32 offset,
 			struct block_header *block, u32 slindex)
 {
-	u32 flindex;
+	u32 flindex = slindex / BITS_PER_LONG;
 	struct block_header *tmpblock;
-
-	if (pool->freelist[slindex].page == page
-	   && pool->freelist[slindex].offset == offset) {
-		remove_block_head(pool, block, slindex);
-		return;
-	}
-
-	flindex = slindex / BITS_PER_LONG;
 
 	if (block->link.prev_page) {
 		tmpblock = get_ptr_atomic(block->link.prev_page,
@@ -276,6 +236,35 @@ static void remove_block(struct xv_pool *pool, struct page *page, u32 offset,
 		tmpblock->link.prev_offset = block->link.prev_offset;
 		put_ptr_atomic(tmpblock, KM_USER1);
 	}
+
+	/* Is this block is at the head of the freelist? */
+	if (pool->freelist[slindex].page == page
+	   && pool->freelist[slindex].offset == offset) {
+
+		pool->freelist[slindex].page = block->link.next_page;
+		pool->freelist[slindex].offset = block->link.next_offset;
+
+		if (pool->freelist[slindex].page) {
+			struct block_header *tmpblock;
+			tmpblock = get_ptr_atomic(pool->freelist[slindex].page,
+					pool->freelist[slindex].offset,
+					KM_USER1);
+			tmpblock->link.prev_page = NULL;
+			tmpblock->link.prev_offset = 0;
+			put_ptr_atomic(tmpblock, KM_USER1);
+		} else {
+			/* This freelist bucket is empty */
+			__clear_bit(slindex % BITS_PER_LONG,
+				    &pool->slbitmap[flindex]);
+			if (!pool->slbitmap[flindex])
+				__clear_bit(flindex, &pool->flbitmap);
+		}
+	}
+
+	block->link.prev_page = NULL;
+	block->link.prev_offset = 0;
+	block->link.next_page = NULL;
+	block->link.next_offset = 0;
 }
 
 /*
@@ -384,7 +373,7 @@ int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
 
 	block = get_ptr_atomic(*page, *offset, KM_USER0);
 
-	remove_block_head(pool, block, index);
+	remove_block(pool, *page, *offset, block, index);
 
 	/* Split the block if required */
 	tmpoffset = *offset + size + XV_ALIGN;
