@@ -152,6 +152,7 @@ static void free_fib_info_rcu(struct rcu_head *head)
 {
 	struct fib_info *fi = container_of(head, struct fib_info, rcu);
 
+	kfree(fi->fib_metrics);
 	kfree(fi);
 }
 
@@ -741,6 +742,9 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 
 	fi = kzalloc(sizeof(*fi)+nhs*sizeof(struct fib_nh), GFP_KERNEL);
 	if (fi == NULL)
+		goto failure;
+	fi->fib_metrics = kzalloc(sizeof(u32) * RTAX_MAX, GFP_KERNEL);
+	if (!fi->fib_metrics)
 		goto failure;
 	fib_info_cnt++;
 
