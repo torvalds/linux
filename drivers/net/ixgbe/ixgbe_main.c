@@ -648,7 +648,7 @@ void ixgbe_unmap_and_free_tx_resource(struct ixgbe_ring *tx_ring,
  *
  * Returns : a tc index for use in range 0-7, or 0-3
  */
-u8 ixgbe_dcb_txq_to_tc(struct ixgbe_adapter *adapter, u8 reg_idx)
+static u8 ixgbe_dcb_txq_to_tc(struct ixgbe_adapter *adapter, u8 reg_idx)
 {
 	int tc = -1;
 	int dcb_i = adapter->ring_feature[RING_F_DCB].indices;
