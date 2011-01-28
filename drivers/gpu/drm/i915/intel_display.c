@@ -1425,7 +1425,7 @@ static void intel_disable_transcoder(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_enable_pipe - enable a pipe, assertiing requirements
+ * intel_enable_pipe - enable a pipe, asserting requirements
  * @dev_priv: i915 private structure
  * @pipe: pipe to enable
  * @pch_port: on ILK+, is this pipe driving a PCH port or not
@@ -1469,7 +1469,7 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 }
 
 /**
- * intel_disable_pipe - disable a pipe, assertiing requirements
+ * intel_disable_pipe - disable a pipe, asserting requirements
  * @dev_priv: i915 private structure
  * @pipe: pipe to disable
  *
