@@ -304,7 +304,7 @@ static int bt_setup_hci_pal(ar6k_hci_pal_info_t *pHciPalInfo)
 
 	} while (FALSE);
 
-	if (A_FAILED(status)) {
+	if (status) {
 		bt_cleanup_hci_pal(pHciPalInfo);    
 	}
 	return status;
@@ -423,7 +423,7 @@ int ar6k_setup_hci_pal(void *ar_p)
 		pHciPalInfo->ar = ar;
 
 		status = bt_setup_hci_pal(pHciPalInfo);
-		if (A_FAILED(status)) {
+		if (status) {
 			break;    
 		}
 
@@ -437,7 +437,7 @@ int ar6k_setup_hci_pal(void *ar_p)
 		ar6k_pal_transport_ready(ar->hcipal_info);
 	} while (FALSE);
 
-	if (A_FAILED(status)) {
+	if (status) {
 		ar6k_cleanup_hci_pal(ar);    
 	}
 	return status;

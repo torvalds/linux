@@ -96,7 +96,7 @@ int DevSetup(AR6K_DEVICE *pDev)
 
         status = HIFAttachHTC(pDev->HIFDevice, &htcCallbacks);
 
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -197,7 +197,7 @@ int DevSetup(AR6K_DEVICE *pDev)
 
         status = DevDisableInterrupts(pDev);
 
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -205,7 +205,7 @@ int DevSetup(AR6K_DEVICE *pDev)
 
     } while (FALSE);
 
-    if (A_FAILED(status)) {
+    if (status) {
         if (pDev->HifAttached) {
             HIFDetachHTC(pDev->HIFDevice);
             pDev->HifAttached = FALSE;
@@ -343,7 +343,7 @@ static void DevDoEnableDisableRecvAsyncHandler(void *Context, HTC_PACKET *pPacke
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("+DevDoEnableDisableRecvAsyncHandler: (dev: 0x%lX)\n", (unsigned long)pDev));
 
-    if (A_FAILED(pPacket->Status)) {
+    if (pPacket->Status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 (" Failed to disable receiver, status:%d \n", pPacket->Status));
     }
@@ -393,7 +393,7 @@ static int DevDoEnableDisableRecvOverride(AR6K_DEVICE *pDev, A_BOOL EnableRecv, 
 
     } while (FALSE);
 
-    if (A_FAILED(status) && (pIOPacket != NULL)) {
+    if (status && (pIOPacket != NULL)) {
         AR6KFreeIOPacket(pDev,pIOPacket);
     }
 
@@ -462,7 +462,7 @@ static int DevDoEnableDisableRecvNormal(AR6K_DEVICE *pDev, A_BOOL EnableRecv, A_
 
     } while (FALSE);
 
-    if (A_FAILED(status) && (pIOPacket != NULL)) {
+    if (status && (pIOPacket != NULL)) {
         AR6KFreeIOPacket(pDev,pIOPacket);
     }
 
@@ -510,7 +510,7 @@ int DevWaitForPendingRecv(AR6K_DEVICE *pDev,A_UINT32 TimeoutInMs,A_BOOL *pbIsRec
                               sizeof(A_UCHAR),
                               HIF_RD_SYNC_BYTE_INC,
                               NULL);
-        if(A_FAILED(status))
+        if(status)
         {
             AR_DEBUG_PRINTF(ATH_LOG_ERR,("DevWaitForPendingRecv:Read HOST_INT_STATUS_ADDRESS Failed 0x%X\n",status));
             break;
@@ -721,7 +721,7 @@ static int DevReadWriteScatter(HIF_DEVICE *Context, HIF_SCATTER_REQ *pReq)
 
     } while (FALSE);
 
-    if ((status != A_PENDING) && A_FAILED(status) && (request & HIF_ASYNCHRONOUS)) {
+    if ((status != A_PENDING) && status && (request & HIF_ASYNCHRONOUS)) {
         if (pIOPacket != NULL) {
             AR6KFreeIOPacket(pDev,pIOPacket);
         }
@@ -790,7 +790,7 @@ static int DevSetupVirtualScatterSupport(AR6K_DEVICE *pDev)
         DevFreeScatterReq((HIF_DEVICE *)pDev,pReq);
     }
 
-    if (A_FAILED(status)) {
+    if (status) {
         DevCleanupVirtualScatterSupport(pDev);
     } else {
         pDev->HifScatterInfo.pAllocateReqFunc = DevAllocScatterReq;
@@ -825,7 +825,7 @@ int DevSetupMsgBundling(AR6K_DEVICE *pDev, int MaxMsgsPerTransfer)
                                 &pDev->HifScatterInfo,
                                 sizeof(pDev->HifScatterInfo));
 
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_WARN,
             ("AR6K: ** HIF layer does not support scatter requests (%d) \n",status));
 
@@ -919,7 +919,7 @@ int DevSubmitScatterRequest(AR6K_DEVICE *pDev, HIF_SCATTER_REQ *pScatterReq, A_B
 
     status = DEV_PREPARE_SCATTER_OPERATION(pScatterReq);
 
-    if (A_FAILED(status)) {
+    if (status) {
         if (Async) {
             pScatterReq->CompletionStatus = status;
             pScatterReq->CompletionRoutine(pScatterReq);

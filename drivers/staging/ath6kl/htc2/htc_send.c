@@ -81,7 +81,7 @@ static INLINE void CompleteSentPacket(HTC_TARGET *target, HTC_ENDPOINT *pEndpoin
 {
     pPacket->Completion = NULL;  
     
-    if (A_FAILED(pPacket->Status)) {
+    if (pPacket->Status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
             ("CompleteSentPacket: request failed (status:%d, ep:%d, length:%d creds:%d) \n",
                 pPacket->Status, pPacket->Endpoint, pPacket->ActualLength, pPacket->PktInfo.AsTx.CreditsUsed));                
@@ -280,7 +280,7 @@ static void HTCAsyncSendScatterCompletion(HIF_SCATTER_REQ *pScatterReq)
     
     DEV_FINISH_SCATTER_OPERATION(pScatterReq);
            
-    if (A_FAILED(pScatterReq->CompletionStatus)) {
+    if (pScatterReq->CompletionStatus) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("** Send Scatter Request Failed: %d \n",pScatterReq->CompletionStatus));            
         status = A_ERROR;
     }

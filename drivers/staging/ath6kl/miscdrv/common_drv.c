@@ -428,7 +428,7 @@ int ar6000_reset_device(HIF_DEVICE *hifDevice, A_UINT32 TargetType, A_BOOL waitF
 
         status = ar6000_WriteRegDiag(hifDevice, &address, &data);
 
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -458,7 +458,7 @@ int ar6000_reset_device(HIF_DEVICE *hifDevice, A_UINT32 TargetType, A_BOOL waitF
         data = 0;
         status = ar6000_ReadRegDiag(hifDevice, &address, &data);
 
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -472,7 +472,7 @@ int ar6000_reset_device(HIF_DEVICE *hifDevice, A_UINT32 TargetType, A_BOOL waitF
 
     } while (FALSE);
 
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Failed to reset target \n"));
     }
 
@@ -579,7 +579,7 @@ void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
             /* read RAM location through diagnostic window */
         status = ar6000_ReadRegDiag(hifDevice, &address, &regDumpArea);
 
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("AR6K: Failed to get ptr to register dump area \n"));
             break;
         }
@@ -599,7 +599,7 @@ void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
                                      (A_UCHAR *)&regDumpValues[0],
                                      regDumpCount * (sizeof(A_UINT32)));
 
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("AR6K: Failed to get register dump \n"));
             break;
         }
@@ -638,7 +638,7 @@ int ar6000_set_htc_params(HIF_DEVICE *hifDevice,
         status = HIFConfigureDevice(hifDevice, HIF_DEVICE_GET_MBOX_BLOCK_SIZE,
                                     blocksizes, sizeof(blocksizes));
 
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_LOG_ERR,("Failed to get block size info from HIF layer...\n"));
             break;
         }
@@ -658,7 +658,7 @@ int ar6000_set_htc_params(HIF_DEVICE *hifDevice,
                                 (A_UCHAR *)&blocksizes[1],
                                 4);
 
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_LOG_ERR,("BMIWriteMemory for IO block size failed \n"));
             break;
         }
@@ -673,7 +673,7 @@ int ar6000_set_htc_params(HIF_DEVICE *hifDevice,
                                     (A_UCHAR *)&MboxIsrYieldValue,
                                     4);
 
-            if (A_FAILED(status)) {
+            if (status) {
                 AR_DEBUG_PRINTF(ATH_LOG_ERR,("BMIWriteMemory for yield limit failed \n"));
                 break;
             }
@@ -771,7 +771,7 @@ ar6002_REV1_reset_force_host (HIF_DEVICE *hifDevice)
 
     address = 0x004ed4b0; /* REV1 target software ID is stored here */
     status = ar6000_ReadRegDiag(hifDevice, &address, &data);
-    if (A_FAILED(status) || (data != AR6002_VERSION_REV1)) {
+    if (status || (data != AR6002_VERSION_REV1)) {
         return A_ERROR; /* Not AR6002 REV1 */
     }
 

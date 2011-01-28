@@ -966,7 +966,7 @@ BMIFastDownload(HIF_DEVICE *device, A_UINT32 address, A_UCHAR *buffer, A_UINT32 
     A_UINT32  unalignedBytes = length & 0x3;
 
     status = BMILZStreamStart (device, address);
-    if (A_FAILED(status)) {
+    if (status) {
             return A_ERROR;
     }
 
@@ -977,7 +977,7 @@ BMIFastDownload(HIF_DEVICE *device, A_UINT32 address, A_UCHAR *buffer, A_UINT32 
 
     status = BMILZData(device, buffer, lastWordOffset);
 
-    if (A_FAILED(status)) {
+    if (status) {
         return A_ERROR;
     }
 
@@ -990,7 +990,7 @@ BMIFastDownload(HIF_DEVICE *device, A_UINT32 address, A_UCHAR *buffer, A_UINT32 
         // Close compressed stream and open a new (fake) one.  This serves mainly to flush Target caches.
         //
         status = BMILZStreamStart (device, 0x00);
-        if (A_FAILED(status)) {
+        if (status) {
            return A_ERROR;
         }
     }

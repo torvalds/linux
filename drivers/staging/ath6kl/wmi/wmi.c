@@ -3144,7 +3144,7 @@ wmi_sync_point(struct wmi_t *wmip)
         /* if Buffer allocation for any of the dataSync fails, then do not
          * send the Synchronize cmd on the control ep
          */
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -3155,7 +3155,7 @@ wmi_sync_point(struct wmi_t *wmip)
     status = wmi_cmd_send(wmip, cmd_osbuf, WMI_SYNCHRONIZE_CMDID,
                           NO_SYNC_WMIFLAG);
 
-        if (A_FAILED(status)) {
+        if (status) {
             break;
     }
             /* cmd buffer sent, we no longer own it */
@@ -3170,7 +3170,7 @@ wmi_sync_point(struct wmi_t *wmip)
                                                             trafficClass)
                                       );
 
-            if (A_FAILED(status)) {
+            if (status) {
                 break;
             }
             /* we don't own this buffer anymore, NULL it out of the array so it

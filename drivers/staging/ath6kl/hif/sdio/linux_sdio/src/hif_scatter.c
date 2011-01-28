@@ -176,7 +176,7 @@ int DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest)
         AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("HIF-SCATTER: data error: %d \n",data.error));   
     }
 
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("HIF-SCATTER: FAILED!!! (%s) Address: 0x%X, Block mode (BlockLen: %d, BlockCount: %d)\n",
               (pReq->Request & HIF_WRITE) ? "WRITE":"READ",pReq->Address, data.blksz, data.blocks));        
     }
@@ -265,7 +265,7 @@ static int HifReadWriteScatter(HIF_DEVICE *device, HIF_SCATTER_REQ *pReq)
        
     } while (FALSE);
 
-    if (A_FAILED(status) && (request & HIF_ASYNCHRONOUS)) {
+    if (status && (request & HIF_ASYNCHRONOUS)) {
         pReq->CompletionStatus = status;
         pReq->CompletionRoutine(pReq);
         status = A_OK;
@@ -348,7 +348,7 @@ int SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_INFO *
         
     } while (FALSE);
     
-    if (A_FAILED(status)) {
+    if (status) {
         CleanupHIFScatterResources(device);   
     }
     

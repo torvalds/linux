@@ -65,7 +65,7 @@ static void DevGMboxIRQActionAsyncHandler(void *Context, HTC_PACKET *pPacket)
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("+DevGMboxIRQActionAsyncHandler: (dev: 0x%lX)\n", (unsigned long)pDev));
 
-    if (A_FAILED(pPacket->Status)) {
+    if (pPacket->Status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 ("IRQAction Operation (%d) failed! status:%d \n", pPacket->PktInfo.AsRx.HTCRxFlags,pPacket->Status));
     }
@@ -137,7 +137,7 @@ static int DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE
                               NULL);    
     } while (FALSE);
     
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 (" IRQAction Operation (%d) failed! status:%d \n", IrqAction, status));    
     } else {
@@ -244,7 +244,7 @@ int DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, A_BOOL
 
     } while (FALSE);
 
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 (" IRQAction Operation (%d) failed! status:%d \n", IrqAction, status));    
     } else {
@@ -285,7 +285,7 @@ int DevSetupGMbox(AR6K_DEVICE *pDev)
                     
         status = DevGMboxIRQAction(pDev, GMBOX_DISABLE_ALL, PROC_IO_SYNC);
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
        
@@ -305,13 +305,13 @@ int DevSetupGMbox(AR6K_DEVICE *pDev)
                               HIF_WR_SYNC_BYTE_FIX,  /* hit this register 4 times */
                               NULL);
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         
         status = GMboxProtocolInstall(pDev);
         
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         
@@ -348,7 +348,7 @@ int DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
             status = A_ECOMM;    
         }
         
-        if (A_FAILED(status)) {
+        if (status) {
             if (pDev->GMboxInfo.pTargetFailureCallback != NULL) {
                 pDev->GMboxInfo.pTargetFailureCallback(pDev->GMboxInfo.pProtocolContext, status);        
             }
@@ -365,7 +365,7 @@ int DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
             }
         } 
         
-        if (A_FAILED(status)) {
+        if (status) {
            break;                
         }
         
@@ -378,7 +378,7 @@ int DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
                 /* do synchronous read */
             status = DevGMboxReadCreditCounter(pDev, PROC_IO_SYNC, &credits);
             
-            if (A_FAILED(status)) {
+            if (status) {
                 break;    
             }
             
@@ -522,7 +522,7 @@ static void DevGMboxReadCreditsAsyncHandler(void *Context, HTC_PACKET *pPacket)
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("+DevGMboxReadCreditsAsyncHandler: (dev: 0x%lX)\n", (unsigned long)pDev));
 
-    if (A_FAILED(pPacket->Status)) {
+    if (pPacket->Status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 ("Read Credit Operation failed! status:%d \n", pPacket->Status));
     } else {
@@ -583,7 +583,7 @@ int DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, A_BOOL AsyncMode, int *pCredits
                               NULL);    
     } while (FALSE);
     
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 (" DevGMboxReadCreditCounter failed! status:%d \n", status));          
     }
@@ -659,7 +659,7 @@ int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer, int 
                               HIF_RD_SYNC_BYTE_INC,
                               NULL);
 
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 ("DevGMboxRecvLookAheadPeek : Failed to read register table (%d) \n",status));
             break;
@@ -701,7 +701,7 @@ int DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int Signal, int AckTimeoutMS)
                               HIF_WR_SYNC_BYTE_FIX, /* hit the register 4 times to align the I/O */
                               NULL);    
                           
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         
@@ -718,7 +718,7 @@ int DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int Signal, int AckTimeoutMS)
                                   HIF_RD_SYNC_BYTE_FIX,
                                   NULL);    
                           
-            if (A_FAILED(status)) {
+            if (status) {
                 break;    
             }
                             

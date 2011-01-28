@@ -85,7 +85,7 @@ int DevPollMboxMsgRecv(AR6K_DEVICE *pDev,
             status = pDev->GetPendingEventsFunc(pDev->HIFDevice,
                                             &events,
                                             NULL);
-            if (A_FAILED(status))
+            if (status)
             {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Failed to get pending events \n"));
                 break;
@@ -109,7 +109,7 @@ int DevPollMboxMsgRecv(AR6K_DEVICE *pDev,
                                   HIF_RD_SYNC_BYTE_INC,
                                   NULL);
 
-            if (A_FAILED(status)){
+            if (status){
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Failed to read register table \n"));
                 break;
             }
@@ -310,7 +310,7 @@ static void DevGetEventAsyncHandler(void *Context, HTC_PACKET *pPacket)
 
     do {
 
-        if (A_FAILED(pPacket->Status)) {
+        if (pPacket->Status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                     (" GetEvents I/O request failed, status:%d \n", pPacket->Status));
             /* bail out, don't unmask HIF interrupt */
@@ -501,7 +501,7 @@ static int ProcessPendingIRQs(AR6K_DEVICE *pDev, A_BOOL *pDone, A_BOOL *pASyncPr
                                                 &events,
                                                 NULL);
 
-            if (A_FAILED(status)) {
+            if (status) {
                 break;
             }
 
@@ -550,7 +550,7 @@ static int ProcessPendingIRQs(AR6K_DEVICE *pDev, A_BOOL *pDone, A_BOOL *pASyncPr
                               HIF_RD_SYNC_BYTE_INC,
                               NULL);
 
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -597,7 +597,7 @@ static int ProcessPendingIRQs(AR6K_DEVICE *pDev, A_BOOL *pDone, A_BOOL *pASyncPr
     do {
 
             /* did the interrupt status fetches succeed? */
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -617,7 +617,7 @@ static int ProcessPendingIRQs(AR6K_DEVICE *pDev, A_BOOL *pDone, A_BOOL *pASyncPr
                  * completion routine of the callers read request. This can improve performance
                  * by reducing context switching when we rapidly pull packets */
             status = pDev->MessagePendingCallback(pDev->HTCContext, &lookAhead, 1, pASyncProcessing, &fetched);
-            if (A_FAILED(status)) {
+            if (status) {
                 break;
             }
 
@@ -637,7 +637,7 @@ static int ProcessPendingIRQs(AR6K_DEVICE *pDev, A_BOOL *pDone, A_BOOL *pASyncPr
         if (HOST_INT_STATUS_CPU_GET(host_int_status)) {
                 /* CPU Interrupt */
             status = DevServiceCPUInterrupt(pDev);
-            if (A_FAILED(status)){
+            if (status){
                 break;
             }
         }
@@ -645,7 +645,7 @@ static int ProcessPendingIRQs(AR6K_DEVICE *pDev, A_BOOL *pDone, A_BOOL *pASyncPr
         if (HOST_INT_STATUS_ERROR_GET(host_int_status)) {
                 /* Error Interrupt */
             status = DevServiceErrorInterrupt(pDev);
-            if (A_FAILED(status)){
+            if (status){
                 break;
             }
         }
@@ -653,7 +653,7 @@ static int ProcessPendingIRQs(AR6K_DEVICE *pDev, A_BOOL *pDone, A_BOOL *pASyncPr
         if (HOST_INT_STATUS_COUNTER_GET(host_int_status)) {
                 /* Counter Interrupt */
             status = DevServiceCounterInterrupt(pDev);
-            if (A_FAILED(status)){
+            if (status){
                 break;
             }
         }
@@ -697,7 +697,7 @@ int DevDsrHandler(void *context)
 
     while (!done) {
         status = ProcessPendingIRQs(pDev, &done, &asyncProc);
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -763,7 +763,7 @@ void DumpAR6KDevState(AR6K_DEVICE *pDev)
                           HIF_RD_SYNC_BYTE_INC,
                           NULL);
 
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
             ("DumpAR6KDevState : Failed to read register table (%d) \n",status));
         return;

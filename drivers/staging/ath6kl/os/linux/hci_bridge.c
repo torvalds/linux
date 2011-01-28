@@ -248,7 +248,7 @@ static int ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
             /* start transport */
         status = HCI_TransportStart(pHcidevInfo->pHCIDev);
          
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         
@@ -304,14 +304,14 @@ static int ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
         /* configure the AR3K device */         
 		memcpy(ar3kconfig.bdaddr,pHcidevInfo->ar->bdaddr,6);
         status = AR3KConfigure(&ar3kconfig);
-        if (A_FAILED(status)) {
+        if (status) {
             break; 
         }
 
         /* Make sure both AR6K and AR3K have power management enabled */
         if (ar3kconfig.PwrMgmtEnabled) {
             status = HCI_TransportEnablePowerMgmt(pHcidevInfo->pHCIDev, TRUE);
-            if (A_FAILED(status)) {
+            if (status) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("HCI Bridge: failed to enable TLPM for AR6K! \n"));
             }
         }
@@ -354,7 +354,7 @@ static void ar6000_hci_send_complete(void *pContext, HTC_PACKET *pPacket)
     A_ASSERT(osbuf != NULL);
     A_ASSERT(pHcidevInfo != NULL);
     
-    if (A_FAILED(pPacket->Status)) {
+    if (pPacket->Status) {
         if ((pPacket->Status != A_ECANCELED) && (pPacket->Status != A_NO_RESOURCE)) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("HCI Bridge: Send Packet Failed: %d \n",pPacket->Status)); 
         }   
@@ -376,7 +376,7 @@ static void ar6000_hci_pkt_recv(void *pContext, HTC_PACKET *pPacket)
           
     do {
         
-        if (A_FAILED(pPacket->Status)) {
+        if (pPacket->Status) {
             break;
         }
   
@@ -499,7 +499,7 @@ int ar6000_setup_hci(AR_SOFTC_T *ar)
         ar->exitCallback = AR3KConfigureExit;
     
         status = bt_setup_hci(pHcidevInfo);
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
         
@@ -546,7 +546,7 @@ int ar6000_setup_hci(AR_SOFTC_T *ar)
     
     } while (FALSE);
     
-    if (A_FAILED(status)) {
+    if (status) {
         if (pHcidevInfo != NULL) {
             if (NULL == pHcidevInfo->pHCIDev) {
                 /* GMBOX may not be present in older chips */
@@ -877,7 +877,7 @@ static int bt_setup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
                                     sizeof(osDevInfo));
 #endif
                                     
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Failed to OS device info from HIF\n"));
             break;
         }
@@ -906,7 +906,7 @@ static int bt_setup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
         
     } while (FALSE);
     
-    if (A_FAILED(status)) {
+    if (status) {
         bt_cleanup_hci(pHcidevInfo);    
     }
     

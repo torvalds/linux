@@ -184,14 +184,14 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
             HTC_PREPARE_SEND_PKT(pSendPacket,0,0,0);
             status = HTCIssueSend(target,pSendPacket);
 
-            if (A_FAILED(status)) {
+            if (status) {
                 break;
             }
 
                 /* wait for response */
             status = HTCWaitforControlMessage(target, &pRecvPacket);
 
-            if (A_FAILED(status)) {
+            if (status) {
                 break;
             }
                 /* we controlled the buffer creation so it has to be properly aligned */

@@ -2203,7 +2203,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                                             0,  /* use default yield */
                                             0   /* use default number of HTC ctrl buffers */
                                             );
-                if (A_FAILED(ret)) {
+                if (ret) {
                     break;
                 }
                 /* Terminate the BMI phase */
@@ -4276,7 +4276,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 break;
             }
 
-            if (A_FAILED(a_set_module_mask(moduleinfo.modulename, moduleinfo.mask))) {
+            if (a_set_module_mask(moduleinfo.modulename, moduleinfo.mask)) {
                 ret = -EFAULT;
             }
 
@@ -4291,7 +4291,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 break;
             }
 
-            if (A_FAILED(a_get_module_mask(moduleinfo.modulename, &moduleinfo.mask))) {
+            if (a_get_module_mask(moduleinfo.modulename, &moduleinfo.mask)) {
                 ret = -EFAULT;
                 break;
             }

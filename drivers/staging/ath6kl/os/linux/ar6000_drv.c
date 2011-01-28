@@ -866,7 +866,7 @@ ar6000_sysfs_bmi_init(AR_SOFTC_T *ar)
                                 &ar->osDevInfo,
                                 sizeof(HIF_DEVICE_OS_DEVICE_INFO));
 
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMI: Failed to get OS device info from HIF\n"));
         return A_ERROR;
     }
@@ -1536,18 +1536,16 @@ ar6000_configure_target(AR_SOFTC_T *ar)
         /* since BMIInit is called in the driver layer, we have to set the block
          * size here for the target */
 
-    if (A_FAILED(ar6000_set_htc_params(ar->arHifDevice,
-                                       ar->arTargetType,
-                                       mbox_yield_limit,
-                                       0 /* use default number of control buffers */
-                                       ))) {
+    if (ar6000_set_htc_params(ar->arHifDevice, ar->arTargetType,
+			      mbox_yield_limit, 0)) {
+				/* use default number of control buffers */
         return A_ERROR;
     }
 
     if (setupbtdev != 0) {
-        if (A_FAILED(ar6000_set_hci_bridge_flags(ar->arHifDevice,
-                                                 ar->arTargetType,
-                                                 setupbtdev))) {
+        if (ar6000_set_hci_bridge_flags(ar->arHifDevice,
+					ar->arTargetType,
+					setupbtdev)) {
             return A_ERROR;
         }
     }
@@ -1841,7 +1839,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
                     (unsigned long)ar));
 
 avail_ev_failed :
-    if (A_FAILED(init_status)) {
+    if (init_status) {
         if (bmienable) { 
             ar6000_sysfs_bmi_deinit(ar);  
         }
@@ -2359,7 +2357,7 @@ static int ar6000_connectservice(AR_SOFTC_T               *ar,
                                    pConnect,
                                    &response);
 
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,(" Failed to connect to %s service status:%d \n",
                               pDesc, status));
             break;
@@ -2502,7 +2500,7 @@ int ar6000_init(struct net_device *dev)
              */
         status = HTCWaitTarget(ar->arHtcTarget);
 
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -2533,7 +2531,7 @@ int ar6000_init(struct net_device *dev)
         status = ar6000_connectservice(ar,
                                        &connect,
                                        "WMI CONTROL");
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -2563,7 +2561,7 @@ int ar6000_init(struct net_device *dev)
         status = ar6000_connectservice(ar,
                                        &connect,
                                        "WMI DATA BE");
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -2573,7 +2571,7 @@ int ar6000_init(struct net_device *dev)
         status = ar6000_connectservice(ar,
                                        &connect,
                                        "WMI DATA BK");
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -2583,7 +2581,7 @@ int ar6000_init(struct net_device *dev)
         status = ar6000_connectservice(ar,
                                        &connect,
                                        "WMI DATA VI");
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -2596,7 +2594,7 @@ int ar6000_init(struct net_device *dev)
         status = ar6000_connectservice(ar,
                                        &connect,
                                        "WMI DATA VO");
-        if (A_FAILED(status)) {
+        if (status) {
             break;
         }
 
@@ -2636,7 +2634,7 @@ int ar6000_init(struct net_device *dev)
 
     } while (FALSE);
 
-    if (A_FAILED(status)) {
+    if (status) {
         ret = -EIO;
         goto ar6000_init_done;
     }
@@ -3455,7 +3453,7 @@ ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
             }
         }
 
-        if (A_FAILED(status)) {
+        if (status) {
             if (status == A_ECANCELED) {
                     /* a packet was flushed  */
                 flushing = TRUE;

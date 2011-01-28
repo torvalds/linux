@@ -107,7 +107,7 @@ static int RecvHCIEvent(AR3K_CONFIG_INFO *pConfig,
         status = HCI_TransportRecvHCIEventSync(pConfig->pHCIDev,
                                                pRecvPacket,
                                                HCI_EVENT_RESP_TIMEOUTMS);
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
 
@@ -158,7 +158,7 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
         status = SendHCICommand(pConfig,
                                 pBuffer + pConfig->pHCIProps->HeadRoom,
                                 CmdLength);
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("AR3K Config: Failed to send HCI Command (%d) \n", status));
             AR_DEBUG_PRINTBUF(pHCICommand,CmdLength,"HCI Bridge Failed HCI Command");
             break;    
@@ -167,7 +167,7 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
             /* reuse buffer to capture command complete event */
         A_MEMZERO(pBuffer,length);
         status = RecvHCIEvent(pConfig,pBuffer,&length);        
-        if (A_FAILED(status)) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("AR3K Config: HCI event recv failed \n"));
             AR_DEBUG_PRINTBUF(pHCICommand,CmdLength,"HCI Bridge Failed HCI Command");
             break;    
@@ -229,7 +229,7 @@ static int AR3KConfigureHCIBaud(AR3K_CONFIG_INFO *pConfig)
                                                        sizeof(hciBaudChangeCommand),
                                                        &pEvent,
                                                        &pBufferToFree);          
-            if (A_FAILED(status)) {
+            if (status) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("AR3K Config: Baud rate change failed! \n"));  
                 break;    
             }
@@ -255,7 +255,7 @@ static int AR3KConfigureHCIBaud(AR3K_CONFIG_INFO *pConfig)
             /* Tell target to change UART baud rate for AR6K */
             status = HCI_TransportSetBaudRate(pConfig->pHCIDev, pConfig->AR3KBaudRate);
 
-            if (A_FAILED(status)) {
+            if (status) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                     ("AR3K Config: failed to set scale and step values: %d \n", status));
                 break;    
@@ -323,7 +323,7 @@ static int AR3KConfigureSendHCIReset(AR3K_CONFIG_INFO *pConfig)
                                                 &pEvent,
                                                 &pBufferToFree );
 
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("AR3K Config: HCI reset failed! \n"));
     }
 
@@ -384,7 +384,7 @@ static int AR3KEnableTLPM(AR3K_CONFIG_INFO *pConfig)
     if (pBufferToFree != NULL) {
         A_FREE(pBufferToFree);    
     }
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("HostWakeup Config Failed! \n"));    
         return status;
     }
@@ -399,7 +399,7 @@ static int AR3KEnableTLPM(AR3K_CONFIG_INFO *pConfig)
     if (pBufferToFree != NULL) {
         A_FREE(pBufferToFree);    
     }
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Target Wakeup Config Failed! \n"));    
         return status;
     }
@@ -414,7 +414,7 @@ static int AR3KEnableTLPM(AR3K_CONFIG_INFO *pConfig)
     if (pBufferToFree != NULL) {
         A_FREE(pBufferToFree);    
     }
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("HostWakeup Enable Failed! \n"));    
         return status;
     }
@@ -429,7 +429,7 @@ static int AR3KEnableTLPM(AR3K_CONFIG_INFO *pConfig)
     if (pBufferToFree != NULL) {
         A_FREE(pBufferToFree);    
     }
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Target Wakeup Enable Failed! \n"));    
         return status;
     }
@@ -444,7 +444,7 @@ static int AR3KEnableTLPM(AR3K_CONFIG_INFO *pConfig)
     if (pBufferToFree != NULL) {
         A_FREE(pBufferToFree);    
     }
-    if (A_FAILED(status)) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Sleep Enable Failed! \n"));    
     }
     
@@ -468,13 +468,13 @@ int AR3KConfigure(AR3K_CONFIG_INFO *pConfig)
         
             /* disable asynchronous recv while we issue commands and receive events synchronously */
         status = HCI_TransportEnableDisableAsyncRecv(pConfig->pHCIDev,FALSE);
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
       
         if (pConfig->Flags & AR3K_CONFIG_FLAG_FORCE_MINBOOT_EXIT) {
             status =  AR3KExitMinBoot(pConfig);   
-            if (A_FAILED(status)) {
+            if (status) {
                 break;    
             }    
         }
@@ -491,7 +491,7 @@ int AR3KConfigure(AR3K_CONFIG_INFO *pConfig)
  	if (pConfig->Flags & 
                 (AR3K_CONFIG_FLAG_SET_AR3K_BAUD | AR3K_CONFIG_FLAG_SET_AR6K_SCALE_STEP)) {
             status = AR3KConfigureHCIBaud(pConfig);      
-            if (A_FAILED(status)) {
+            if (status) {
                 break;    
             }
         }     
@@ -508,7 +508,7 @@ int AR3KConfigure(AR3K_CONFIG_INFO *pConfig)
                
            /* re-enable asynchronous recv */
         status = HCI_TransportEnableDisableAsyncRecv(pConfig->pHCIDev,TRUE);
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }     
     
@@ -537,21 +537,21 @@ int AR3KConfigureExit(void *config)
         
             /* disable asynchronous recv while we issue commands and receive events synchronously */
         status = HCI_TransportEnableDisableAsyncRecv(pConfig->pHCIDev,FALSE);
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }
       
         if (pConfig->Flags & 
                 (AR3K_CONFIG_FLAG_SET_AR3K_BAUD | AR3K_CONFIG_FLAG_SET_AR6K_SCALE_STEP)) {
             status = AR3KConfigureHCIBaud(pConfig);      
-            if (A_FAILED(status)) {
+            if (status) {
                 break;    
             }
         }
 
            /* re-enable asynchronous recv */
         status = HCI_TransportEnableDisableAsyncRecv(pConfig->pHCIDev,TRUE);
-        if (A_FAILED(status)) {
+        if (status) {
             break;    
         }     
     
