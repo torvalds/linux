@@ -816,7 +816,7 @@ static void send_vis_packets(struct work_struct *work)
 		container_of(work, struct delayed_work, work);
 	struct bat_priv *bat_priv =
 		container_of(delayed_work, struct bat_priv, vis_work);
-	struct vis_info *info, *temp;
+	struct vis_info *info;
 
 	spin_lock_bh(&bat_priv->vis_hash_lock);
 	purge_vis_packets(bat_priv);
@@ -826,8 +826,9 @@ static void send_vis_packets(struct work_struct *work)
 		send_list_add(bat_priv, bat_priv->my_vis_info);
 	}
 
-	list_for_each_entry_safe(info, temp, &bat_priv->vis_send_list,
-				 send_list) {
+	while (!list_empty(&bat_priv->vis_send_list)) {
+		info = list_first_entry(&bat_priv->vis_send_list,
+					typeof(*info), send_list);
 
 		kref_get(&info->refcount);
 		spin_unlock_bh(&bat_priv->vis_hash_lock);
