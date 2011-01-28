@@ -1388,6 +1388,10 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 
 	if (!strcmp(strstrip(filter_string), "0")) {
 		filter_disable_preds(call);
+		reset_preds(call->filter);
+		/* Make sure the filter is not being used */
+		synchronize_sched();
+		__free_preds(call->filter);
 		remove_filter_string(call->filter);
 		goto out_unlock;
 	}
