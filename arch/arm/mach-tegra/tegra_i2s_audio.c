@@ -606,15 +606,15 @@ static int i2s_configure(struct platform_device *pdev)
 
 static int init_stream_buffer(struct audio_stream *, int);
 
-static int setup_dma(struct audio_driver_state *);
-static void tear_down_dma(struct audio_driver_state *);
+static int setup_dma(struct audio_driver_state *, int);
+static void tear_down_dma(struct audio_driver_state *, int);
 static void stop_dma_playback(struct audio_stream *);
 static int start_dma_recording(struct audio_stream *, int);
 static void stop_dma_recording(struct audio_stream *);
 
 struct sound_ops {
-	int (*setup)(struct audio_driver_state *);
-	void (*tear_down)(struct audio_driver_state *);
+	int (*setup)(struct audio_driver_state *, int);
+	void (*tear_down)(struct audio_driver_state *, int);
 	void (*stop_playback)(struct audio_stream *);
 	int (*start_recording)(struct audio_stream *, int);
 	void (*stop_recording)(struct audio_stream *);
@@ -711,12 +711,12 @@ static void setup_dma_tx_request(struct tegra_dma_req *req,
 static void setup_dma_rx_request(struct tegra_dma_req *req,
 		struct audio_stream *ais);
 
-static int setup_dma(struct audio_driver_state *ads)
+static int setup_dma(struct audio_driver_state *ads, int mask)
 {
 	int rc, i;
 	pr_info("%s\n", __func__);
 
-	if ((ads->pdata->mask & TEGRA_AUDIO_ENABLE_TX)) {
+	if (mask & TEGRA_AUDIO_ENABLE_TX) {
 		/* setup audio playback */
 		for (i = 0; i < ads->out.num_bufs; i++) {
 			ads->out.buf_phy[i] = dma_map_single(&ads->pdev->dev,
@@ -737,7 +737,7 @@ static int setup_dma(struct audio_driver_state *ads)
 		}
 	}
 
-	if ((ads->pdata->mask & TEGRA_AUDIO_ENABLE_RX)) {
+	if (mask & TEGRA_AUDIO_ENABLE_RX) {
 		/* setup audio recording */
 		for (i = 0; i < ads->in.num_bufs; i++) {
 			ads->in.buf_phy[i] = dma_map_single(&ads->pdev->dev,
@@ -761,7 +761,7 @@ static int setup_dma(struct audio_driver_state *ads)
 	return 0;
 
 fail_rx:
-	if (ads->pdata->mask & TEGRA_AUDIO_ENABLE_RX) {
+	if (mask & TEGRA_AUDIO_ENABLE_RX) {
 		for (i = 0; i < ads->in.num_bufs; i++) {
 			dma_unmap_single(&ads->pdev->dev, ads->in.buf_phy[i],
 					1 << PCM_BUFFER_MAX_SIZE_ORDER,
@@ -772,7 +772,7 @@ fail_rx:
 		ads->in.dma_chan = 0;
 	}
 fail_tx:
-	if (ads->pdata->mask & TEGRA_AUDIO_ENABLE_TX) {
+	if (mask & TEGRA_AUDIO_ENABLE_TX) {
 		for (i = 0; i < ads->out.num_bufs; i++) {
 			dma_unmap_single(&ads->pdev->dev, ads->out.buf_phy[i],
 					1 << PCM_BUFFER_MAX_SIZE_ORDER,
@@ -786,12 +786,12 @@ fail_tx:
 	return rc;
 }
 
-static void tear_down_dma(struct audio_driver_state *ads)
+static void tear_down_dma(struct audio_driver_state *ads, int mask)
 {
 	int i;
 	pr_info("%s\n", __func__);
 
-	if (ads->pdata->mask & TEGRA_AUDIO_ENABLE_TX) {
+	if (mask & TEGRA_AUDIO_ENABLE_TX) {
 		tegra_dma_free_channel(ads->out.dma_chan);
 		for (i = 0; i < ads->out.num_bufs; i++) {
 			dma_unmap_single(&ads->pdev->dev, ads->out.buf_phy[i],
@@ -802,7 +802,7 @@ static void tear_down_dma(struct audio_driver_state *ads)
 	}
 	ads->out.dma_chan = NULL;
 
-	if (ads->pdata->mask & TEGRA_AUDIO_ENABLE_RX) {
+	if (mask & TEGRA_AUDIO_ENABLE_RX) {
 		tegra_dma_free_channel(ads->in.dma_chan);
 		for (i = 0; i < ads->in.num_bufs; i++) {
 			dma_unmap_single(&ads->pdev->dev, ads->in.buf_phy[i],
@@ -1117,7 +1117,9 @@ static long tegra_audio_out_ioctl(struct file *file,
 		if (rc < 0)
 			break;
 		aos->num_bufs = num;
-		sound_ops->setup(ads);
+		sound_ops->tear_down(ads, TEGRA_AUDIO_ENABLE_TX);
+		sound_ops->setup(ads, TEGRA_AUDIO_ENABLE_TX);
+		pr_debug("%s: num buf set to %d\n", __func__, num);
 	}
 		break;
 	case TEGRA_AUDIO_OUT_GET_NUM_BUFS:
@@ -1182,9 +1184,9 @@ static long tegra_audio_ioctl(struct file *file,
 			rc = -EBUSY;
 			goto done;
 		}
-		sound_ops->tear_down(ads);
+		sound_ops->tear_down(ads, ads->pdata->mask);
 		i2s_configure(ads->pdev);
-		sound_ops->setup(ads);
+		sound_ops->setup(ads, ads->pdata->mask);
 	}
 
 done:
@@ -1272,7 +1274,8 @@ static long tegra_audio_in_ioctl(struct file *file,
 		if (rc < 0)
 			break;
 		ais->num_bufs = num;
-		sound_ops->setup(ads);
+		sound_ops->tear_down(ads, TEGRA_AUDIO_ENABLE_RX);
+		sound_ops->setup(ads, TEGRA_AUDIO_ENABLE_RX);
 	}
 		break;
 	case TEGRA_AUDIO_IN_GET_NUM_BUFS:
@@ -1880,7 +1883,7 @@ static int tegra_audio_probe(struct platform_device *pdev)
 	if (rc < 0)
 		return rc;
 
-	sound_ops->setup(state);
+	sound_ops->setup(state, state->pdata->mask);
 
 	rc = device_create_file(&pdev->dev, &dev_attr_dma_toggle);
 	if (rc < 0) {
