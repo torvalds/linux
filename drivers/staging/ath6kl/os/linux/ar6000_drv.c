@@ -1034,7 +1034,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, A
                         ar->arVersion.target_ver));
                     return A_ERROR;
                 }
-                compressed = 0;
+                compressed = FALSE;
             }
             
 #ifdef CONFIG_HOST_TCMD_SUPPORT
@@ -1047,7 +1047,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, A
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown firmware revision: %d\n", ar->arVersion.target_ver));
                     return A_ERROR;
                 }
-                compressed = 0;
+                compressed = FALSE;
             }
 #endif 
 #ifdef HTC_RAW_INTERFACE
@@ -1060,7 +1060,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, A
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown firmware revision: %d\n", ar->arVersion.target_ver));
                     return A_ERROR;
                 }
-                compressed = 0;                
+                compressed = FALSE;
             }
 #endif 
             break;
