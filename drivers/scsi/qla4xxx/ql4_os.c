@@ -812,7 +812,7 @@ static void qla4xxx_timer(struct scsi_qla_host *ha)
 					);
 				start_dpc++;
 				DEBUG(printk("scsi%ld:%d:%d: ddb [%d] "
-					     "initate relogin after"
+					     "initiate relogin after"
 					     " %d seconds\n",
 					     ha->host_no, ddb_entry->bus,
 					     ddb_entry->target,

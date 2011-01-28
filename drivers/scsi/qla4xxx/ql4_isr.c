@@ -1027,7 +1027,7 @@ void qla4xxx_process_aen(struct scsi_qla_host * ha, uint8_t process_aen)
 					((ddb_entry->default_time2wait +
 					  4) * HZ);
 
-				DEBUG2(printk("scsi%ld: ddb [%d] initate"
+				DEBUG2(printk("scsi%ld: ddb [%d] initiate"
 					      " RELOGIN after %d seconds\n",
 					      ha->host_no,
 					      ddb_entry->fw_ddb_index,
