@@ -2977,7 +2977,6 @@ static struct reginfo *sensor_FlipSeqe[] = {sensor_FlipOff, sensor_FlipOn,NULL,}
 static  struct reginfo sensor_SceneAuto[] =
 {
 	{0x3a00, 0x78},
-	{0x3a03, 0x7D},
 	{0x0000, 0x00}
 };
 
@@ -3807,7 +3806,7 @@ static void sensor_af_workqueue(struct work_struct *work)
 	}
 }
 #endif
-int sensor_parameter_record(struct i2c_client *client)
+static int sensor_parameter_record(struct i2c_client *client)
 {
 	u8 ret_l,ret_m,ret_h;
 	u8 tp_l,tp_m,tp_h;
@@ -3845,7 +3844,7 @@ int sensor_parameter_record(struct i2c_client *client)
 	SENSOR_DG(" %s Read 0x350c = 0x%02x  0x350d = 0x%02x 0x350b=0x%02x \n",SENSOR_NAME_STRING(), ret_h, ret_l, sensor->parameter.preview_gain);
 	return 0;
 }
-int sensor_ae_transfer(struct i2c_client *client)
+static int sensor_ae_transfer(struct i2c_client *client)
 {
 	u8  ExposureLow;
 	u8  ExposureMid;
@@ -5230,7 +5229,7 @@ static int sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
     }
 }
 
-int sensor_s_stream(struct v4l2_subdev *sd, int enable)
+static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct i2c_client *client = sd->priv;
     struct sensor *sensor = to_sensor(client);
