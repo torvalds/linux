@@ -762,8 +762,7 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 
 	/* We need to figure out how to get the sta->supp_rates while
 	 * in this running context */
-	rate_mask = IWL_RATES_MASK;
-
+	rate_mask = IWL_RATES_MASK_3945;
 
 	/* Set retry limit on DATA packets and Probe Responses*/
 	if (ieee80211_is_probe_resp(fc))
@@ -1650,7 +1649,7 @@ static int iwl3945_hw_reg_comp_txpower_temp(struct iwl_priv *priv)
 							      ref_temp);
 
 		/* set tx power value for all rates, OFDM and CCK */
-		for (rate_index = 0; rate_index < IWL_RATE_COUNT;
+		for (rate_index = 0; rate_index < IWL_RATE_COUNT_3945;
 		     rate_index++) {
 			int power_idx =
 			    ch_info->power_info[rate_index].base_power_index;
