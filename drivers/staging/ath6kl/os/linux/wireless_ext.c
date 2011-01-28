@@ -2510,14 +2510,14 @@ ar6000_ioctl_siwscan(struct net_device *dev,
                 return -EIO;
             if (wmi_probedSsid_cmd(ar->arWmi, 1, SPECIFIC_SSID_FLAG, req.essid_len, req.essid) != A_OK)
                 return -EIO;
-            ar->scanSpecificSsid = 1;
+            ar->scanSpecificSsid = TRUE;
         }
         else
         {
             if (ar->scanSpecificSsid) {
                 if (wmi_probedSsid_cmd(ar->arWmi, 1, DISABLE_SSID_FLAG, 0, NULL) != A_OK)
                     return -EIO;
-                 ar->scanSpecificSsid = 0;
+                 ar->scanSpecificSsid = FALSE;
             }
         }
     }
@@ -2526,7 +2526,7 @@ ar6000_ioctl_siwscan(struct net_device *dev,
         if (ar->scanSpecificSsid) {
             if (wmi_probedSsid_cmd(ar->arWmi, 1, DISABLE_SSID_FLAG, 0, NULL) != A_OK)
                 return -EIO;
-             ar->scanSpecificSsid = 0;
+             ar->scanSpecificSsid = FALSE;
         }
     }
 #endif
