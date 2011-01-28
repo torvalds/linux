@@ -661,7 +661,8 @@ struct ftrace_event_field {
 };
 
 struct event_filter {
-	int			n_preds;
+	int			n_preds;	/* Number assigned */
+	int			a_preds;	/* allocated */
 	struct filter_pred	**preds;
 	char			*filter_string;
 };
