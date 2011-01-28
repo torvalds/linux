@@ -96,27 +96,6 @@
 static const char *part_probes[] = { "cmdlinepart", NULL };
 #endif
 
-#ifdef CONFIG_MTD_NAND_OMAP_PREFETCH
-static int use_prefetch = 1;
-
-/* "modprobe ... use_prefetch=0" etc */
-module_param(use_prefetch, bool, 0);
-MODULE_PARM_DESC(use_prefetch, "enable/disable use of PREFETCH");
-
-#ifdef CONFIG_MTD_NAND_OMAP_PREFETCH_DMA
-static int use_dma = 1;
-
-/* "modprobe ... use_dma=0" etc */
-module_param(use_dma, bool, 0);
-MODULE_PARM_DESC(use_dma, "enable/disable use of DMA");
-#else
-static const int use_dma;
-#endif
-#else
-const int use_prefetch;
-static const int use_dma;
-#endif
-
 struct omap_nand_info {
 	struct nand_hw_control		controller;
 	struct omap_nand_platform_data	*pdata;
@@ -324,7 +303,6 @@ static void omap_write_buf_pref(struct mtd_info *mtd,
 	}
 }
 
-#ifdef CONFIG_MTD_NAND_OMAP_PREFETCH_DMA
 /*
  * omap_nand_dma_cb: callback on the completion of dma transfer
  * @lch: logical channel
@@ -426,14 +404,6 @@ out_copy:
 			: omap_write_buf8(mtd, (u_char *) addr, len);
 	return 0;
 }
-#else
-static void omap_nand_dma_cb(int lch, u16 ch_status, void *data) {}
-static inline int omap_nand_dma_transfer(struct mtd_info *mtd, void *addr,
-					unsigned int len, int is_write)
-{
-	return 0;
-}
-#endif
 
 /**
  * omap_read_buf_dma_pref - read data from NAND controller into buffer
@@ -842,28 +812,13 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 		info->nand.chip_delay = 50;
 	}
 
-	if (use_prefetch) {
-
+	switch (pdata->xfer_type) {
+	case NAND_OMAP_PREFETCH_POLLED:
 		info->nand.read_buf   = omap_read_buf_pref;
 		info->nand.write_buf  = omap_write_buf_pref;
-		if (use_dma) {
-			err = omap_request_dma(OMAP24XX_DMA_GPMC, "NAND",
-				omap_nand_dma_cb, &info->comp, &info->dma_ch);
-			if (err < 0) {
-				info->dma_ch = -1;
-				printk(KERN_WARNING "DMA request failed."
-					" Non-dma data transfer mode\n");
-			} else {
-				omap_set_dma_dest_burst_mode(info->dma_ch,
-						OMAP_DMA_DATA_BURST_16);
-				omap_set_dma_src_burst_mode(info->dma_ch,
-						OMAP_DMA_DATA_BURST_16);
+		break;
 
-				info->nand.read_buf   = omap_read_buf_dma_pref;
-				info->nand.write_buf  = omap_write_buf_dma_pref;
-			}
-		}
-	} else {
+	case NAND_OMAP_POLLED:
 		if (info->nand.options & NAND_BUSWIDTH_16) {
 			info->nand.read_buf   = omap_read_buf16;
 			info->nand.write_buf  = omap_write_buf16;
@@ -871,7 +826,33 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 			info->nand.read_buf   = omap_read_buf8;
 			info->nand.write_buf  = omap_write_buf8;
 		}
+		break;
+
+	case NAND_OMAP_PREFETCH_DMA:
+		err = omap_request_dma(OMAP24XX_DMA_GPMC, "NAND",
+				omap_nand_dma_cb, &info->comp, &info->dma_ch);
+		if (err < 0) {
+			info->dma_ch = -1;
+			dev_err(&pdev->dev, "DMA request failed!\n");
+			goto out_release_mem_region;
+		} else {
+			omap_set_dma_dest_burst_mode(info->dma_ch,
+					OMAP_DMA_DATA_BURST_16);
+			omap_set_dma_src_burst_mode(info->dma_ch,
+					OMAP_DMA_DATA_BURST_16);
+
+			info->nand.read_buf   = omap_read_buf_dma_pref;
+			info->nand.write_buf  = omap_write_buf_dma_pref;
+		}
+		break;
+
+	default:
+		dev_err(&pdev->dev,
+			"xfer_type(%d) not supported!\n", pdata->xfer_type);
+		err = -EINVAL;
+		goto out_release_mem_region;
 	}
+
 	info->nand.verify_buf = omap_verify_buf;
 
 #ifdef CONFIG_MTD_NAND_OMAP_HWECC
@@ -896,6 +877,7 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 			goto out_release_mem_region;
 		}
 	}
+
 
 #ifdef CONFIG_MTD_PARTITIONS
 	err = parse_mtd_partitions(&info->mtd, part_probes, &info->parts, 0);
@@ -926,7 +908,7 @@ static int omap_nand_remove(struct platform_device *pdev)
 							mtd);
 
 	platform_set_drvdata(pdev, NULL);
-	if (use_dma)
+	if (info->dma_ch != -1)
 		omap_free_dma(info->dma_ch);
 
 	/* Release NAND device, its internal structures and partitions */
@@ -947,16 +929,8 @@ static struct platform_driver omap_nand_driver = {
 
 static int __init omap_nand_init(void)
 {
-	printk(KERN_INFO "%s driver initializing\n", DRIVER_NAME);
+	pr_info("%s driver initializing\n", DRIVER_NAME);
 
-	/* This check is required if driver is being
-	 * loaded run time as a module
-	 */
-	if ((1 == use_dma) && (0 == use_prefetch)) {
-		printk(KERN_INFO"Wrong parameters: 'use_dma' can not be 1 "
-				"without use_prefetch'. Prefetch will not be"
-				" used in either mode (mpu or dma)\n");
-	}
 	return platform_driver_register(&omap_nand_driver);
 }
 
