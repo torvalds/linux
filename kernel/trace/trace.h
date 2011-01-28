@@ -664,6 +664,7 @@ struct event_filter {
 	int			n_preds;	/* Number assigned */
 	int			a_preds;	/* allocated */
 	struct filter_pred	*preds;
+	struct filter_pred	*root;
 	char			*filter_string;
 };
 
@@ -674,6 +675,9 @@ struct event_subsystem {
 	struct event_filter	*filter;
 	int			nr_events;
 };
+
+#define FILTER_PRED_INVALID	((unsigned short)-1)
+#define FILTER_PRED_IS_RIGHT	(1 << 15)
 
 struct filter_pred;
 struct regex;
@@ -704,7 +708,10 @@ struct filter_pred {
 	int 			offset;
 	int 			not;
 	int 			op;
-	int 			pop_n;
+	unsigned short		index;
+	unsigned short		parent;
+	unsigned short		left;
+	unsigned short		right;
 };
 
 extern struct list_head ftrace_common_fields;
