@@ -328,9 +328,6 @@ static int _req_conflicts(struct drbd_request *req)
 
 	D_ASSERT(drbd_interval_empty(&req->i));
 
-	if (!get_net_conf(mdev->tconn))
-		return 0;
-
 	i = drbd_find_overlap(&mdev->write_requests, sector, size);
 	if (i) {
 		dev_alert(DEV, "%s[%u] Concurrent %s write detected! "
@@ -340,17 +337,9 @@ static int _req_conflicts(struct drbd_request *req)
 		      i->local ? "local" : "remote",
 		      (unsigned long long)sector, size,
 		      (unsigned long long)i->sector, i->size);
-		goto out_conflict;
+		return 1;
 	}
-
-	/* this is like it should be, and what we expected.
-	 * our users do behave after all... */
-	put_net_conf(mdev->tconn);
 	return 0;
-
-out_conflict:
-	put_net_conf(mdev->tconn);
-	return 1;
 }
 
 /* obviously this could be coded as many single functions
