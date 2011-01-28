@@ -649,8 +649,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		mode_changed = true;
 
 	if (mode_changed) {
-		set->crtc->enabled = (set->mode != NULL);
-		if (set->mode != NULL) {
+		set->crtc->enabled = drm_helper_crtc_in_use(set->crtc);
+		if (set->crtc->enabled) {
 			DRM_DEBUG_KMS("attempting to set mode from"
 					" userspace\n");
 			drm_mode_debug_printmodeline(set->mode);
