@@ -1898,7 +1898,10 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 			memcpy(&new_key, &key, sizeof(new_key));
 			new_key.objectid = inode->i_ino;
-			new_key.offset = key.offset + destoff - off;
+			if (off <= key.offset)
+				new_key.offset = key.offset + destoff - off;
+			else
+				new_key.offset = destoff;
 
 			trans = btrfs_start_transaction(root, 1);
 			if (IS_ERR(trans)) {
