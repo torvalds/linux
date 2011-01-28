@@ -600,8 +600,6 @@ err_btcoex:
 err_queues:
 	ath9k_hw_deinit(ah);
 err_hw:
-	tasklet_kill(&sc->intr_tq);
-	tasklet_kill(&sc->bcon_tasklet);
 
 	kfree(ah);
 	sc->sc_ah = NULL;
@@ -805,9 +803,6 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 
 	ath9k_hw_deinit(sc->sc_ah);
 
-	tasklet_kill(&sc->intr_tq);
-	tasklet_kill(&sc->bcon_tasklet);
-
 	kfree(sc->sc_ah);
 	sc->sc_ah = NULL;
 }
@@ -820,6 +815,8 @@ void ath9k_deinit_device(struct ath_softc *sc)
 
 	wiphy_rfkill_stop_polling(sc->hw->wiphy);
 	ath_deinit_leds(sc);
+
+	ath9k_ps_restore(sc);
 
 	ieee80211_unregister_hw(hw);
 	pm_qos_remove_request(&sc->pm_qos_req);

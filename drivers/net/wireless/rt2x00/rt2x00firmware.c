@@ -58,6 +58,7 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 
 	if (!fw || !fw->size || !fw->data) {
 		ERROR(rt2x00dev, "Failed to read Firmware.\n");
+		release_firmware(fw);
 		return -ENOENT;
 	}
 
