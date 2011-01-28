@@ -1861,8 +1861,10 @@ static void rt_init_metrics(struct rtable *rt, struct fib_info *fi)
 {
 	if (!(rt->fl.flags & FLOWI_FLAG_PRECOW_METRICS)) {
 	no_cow:
-		rt->fi = fi;
-		atomic_inc(&fi->fib_clntref);
+		if (fi->fib_metrics != (u32 *) dst_default_metrics) {
+			rt->fi = fi;
+			atomic_inc(&fi->fib_clntref);
+		}
 		dst_init_metrics(&rt->dst, fi->fib_metrics, true);
 	} else {
 		struct inet_peer *peer;
