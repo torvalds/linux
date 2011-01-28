@@ -1116,13 +1116,6 @@ static int close(struct inode *node, struct file *filep)
 	return 0;
 }
 
-static struct lirc_driver lirc_template = {
-	.name		= "lirc_zilog",
-	.set_use_inc	= set_use_inc,
-	.set_use_dec	= set_use_dec,
-	.owner		= THIS_MODULE
-};
-
 static int ir_remove(struct i2c_client *client);
 static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id);
 
@@ -1159,6 +1152,19 @@ static const struct file_operations lirc_fops = {
 #endif
 	.open		= open,
 	.release	= close
+};
+
+static struct lirc_driver lirc_template = {
+	.name		= "lirc_zilog",
+	.minor		= -1,
+	.code_length	= 13,
+	.buffer_size	= BUFLEN / 2,
+	.sample_rate	= 0, /* tell lirc_dev to not start its own kthread */
+	.chunk_size	= 2,
+	.set_use_inc	= set_use_inc,
+	.set_use_dec	= set_use_dec,
+	.fops		= &lirc_fops,
+	.owner		= THIS_MODULE,
 };
 
 static void destroy_rx_kthread(struct IR_rx *rx)
@@ -1292,14 +1298,9 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		/* set lirc_dev stuff */
 		memcpy(&ir->l, &lirc_template, sizeof(struct lirc_driver));
 		ir->l.minor       = minor; /* module option */
-		ir->l.code_length = 13;
-		ir->l.chunk_size  = 2;
-		ir->l.buffer_size = BUFLEN / 2;
 		ir->l.rbuf	  = &ir->rbuf;
-		ir->l.fops	  = &lirc_fops;
 		ir->l.data	  = ir;
 		ir->l.dev         = &adap->dev;
-		ir->l.sample_rate = 0;
 		ret = lirc_buffer_init(ir->l.rbuf,
 				       ir->l.chunk_size, ir->l.buffer_size);
 		if (ret)
@@ -1314,6 +1315,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			goto out_free_xx;
 		}
 
+		ir->l.features |= LIRC_CAN_SEND_PULSE;
 		ir->tx->c = client;
 		ir->tx->need_boot = 1;
 		ir->tx->post_tx_ready_poll =
@@ -1326,6 +1328,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			goto out_free_xx;
 		}
 
+		ir->l.features |= LIRC_CAN_REC_LIRCCODE;
 		ir->rx->c = client;
 		ir->rx->hdpvr_data_fmt =
 			       (id->driver_data & ID_FLAG_HDPVR) ? true : false;
