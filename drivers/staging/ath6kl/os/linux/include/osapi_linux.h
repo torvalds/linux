@@ -247,7 +247,7 @@ typedef struct sk_buff_head A_NETBUF_QUEUE_T;
 #define A_NETBUF_QUEUE_SIZE(q)  \
     a_netbuf_queue_size(q)
 #define A_NETBUF_QUEUE_EMPTY(q) \
-    a_netbuf_queue_empty(q)
+    (a_netbuf_queue_empty(q) ? TRUE : FALSE)
 
 /*
  * Network buffer support
