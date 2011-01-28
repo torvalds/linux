@@ -10,6 +10,10 @@
  * Released under the terms of GNU General Public License Version 2.0
  */
 
+#ifdef CONFIG_ZRAM_DEBUG
+#define DEBUG
+#endif
+
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/highmem.h>
