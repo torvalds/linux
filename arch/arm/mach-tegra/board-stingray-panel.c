@@ -220,14 +220,23 @@ static DECLARE_DELAYED_WORK(stingray_panel_early_reg_disable_work,
 
 static void stingray_panel_early_reg_enable(struct work_struct *work)
 {
-	stingray_panel_enable();
+	/*
+	 * If the regulator was previously enabled, the work function to
+	 * disable the work will be pending, cancel_delayed_work_sync
+	 * will return true, and the regulator will not get enabled again.
+	 */
+	if (!cancel_delayed_work_sync(&stingray_panel_early_reg_disable_work))
+		stingray_panel_enable();
 
 	/*
-	 * Once the panel is powered up, set it to power down in 1 second.
+	 * After the cancel_delay_work_sync, there is no outstanding work
+	 * to disable the regulator, so queue the disable in 1 second.
 	 * If no other driver calls regulator_enable on stingray_panel_regulator
 	 * before 1 second has elapsed, the bridge chip will power down.
 	 */
-	schedule_delayed_work(&stingray_panel_early_reg_disable_work, HZ);
+	queue_delayed_work(system_nrt_wq,
+		&stingray_panel_early_reg_disable_work,
+		msecs_to_jiffies(1000));
 }
 
 static DECLARE_WORK(stingray_panel_early_reg_enable_work,
@@ -264,7 +273,7 @@ static int stingray_panel_early_reg_power(void)
 {
 	smp_rmb();
 	if (stingray_panel_early_reg_in_resume)
-		schedule_work(&stingray_panel_early_reg_enable_work);
+		queue_work(system_nrt_wq, &stingray_panel_early_reg_enable_work);
 
 	return 0;
 }
