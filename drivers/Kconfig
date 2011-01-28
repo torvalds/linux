@@ -148,4 +148,6 @@ source "drivers/iio/Kconfig"
 
 source "drivers/vme/Kconfig"
 
+source "drivers/pwm/Kconfig"
+
 endmenu

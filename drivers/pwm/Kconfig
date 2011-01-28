@@ -1,0 +1,12 @@
+menuconfig PWM
+	bool "PWM Support"
+	help
+	  This enables PWM support through the generic PWM framework.
+	  You only need to enable this, if you also want to enable
+	  one or more of the PWM drivers below.
+
+	  If unsure, say N.
+
+if PWM
+
+endif

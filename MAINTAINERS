@@ -5487,6 +5487,12 @@ S:	Maintained
 F:	Documentation/video4linux/README.pvrusb2
 F:	drivers/media/video/pvrusb2/
 
+PWM core
+M:	Sascha Hauer <s.hauer@pengutronix.de>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/pwm/
+
 PXA2xx/PXA3xx SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>
 M:	Russell King <linux@arm.linux.org.uk>
