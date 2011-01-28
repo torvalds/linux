@@ -91,11 +91,13 @@ struct cfb_info {
 	u_char			ramdac_powerdown;
 
 	u32			pseudo_palette[16];
+
+	spinlock_t		reg_b0_lock;
+
 #ifdef CONFIG_FB_CYBER2000_DDC
 	bool			ddc_registered;
 	struct i2c_adapter	ddc_adapter;
 	struct i2c_algo_bit_data	ddc_algo;
-	spinlock_t		reg_b0_lock;
 #endif
 };
 
@@ -503,9 +505,7 @@ static void cyber2000fb_set_timing(struct cfb_info *cfb, struct par_info *hw)
 	cyber2000_attrw(0x14, 0x00, cfb);
 
 	/* PLL registers */
-#ifdef CONFIG_FB_CYBER2000_DDC
 	spin_lock(&cfb->reg_b0_lock);
-#endif
 	cyber2000_grphw(EXT_DCLK_MULT, hw->clock_mult, cfb);
 	cyber2000_grphw(EXT_DCLK_DIV, hw->clock_div, cfb);
 	cyber2000_grphw(EXT_MCLK_MULT, cfb->mclk_mult, cfb);
@@ -513,9 +513,7 @@ static void cyber2000fb_set_timing(struct cfb_info *cfb, struct par_info *hw)
 	cyber2000_grphw(0x90, 0x01, cfb);
 	cyber2000_grphw(0xb9, 0x80, cfb);
 	cyber2000_grphw(0xb9, 0x00, cfb);
-#ifdef CONFIG_FB_CYBER2000_DDC
 	spin_unlock(&cfb->reg_b0_lock);
-#endif
 
 	cfb->ramdac_ctrl = hw->ramdac;
 	cyber2000fb_write_ramdac_ctrl(cfb);
@@ -1233,8 +1231,6 @@ static int cyber2000fb_ddc_getsda(void *data)
 
 static int __devinit cyber2000fb_setup_ddc_bus(struct cfb_info *cfb)
 {
-	spin_lock_init(&cfb->reg_b0_lock);
-
 	strlcpy(cfb->ddc_adapter.name, cfb->fb.fix.id,
 		sizeof(cfb->ddc_adapter.name));
 	cfb->ddc_adapter.owner		= THIS_MODULE;
@@ -1388,6 +1384,8 @@ static struct cfb_info __devinit *cyberpro_alloc_fb_info(unsigned int id,
 	cfb->fb.fbops		= &cyber2000fb_ops;
 	cfb->fb.flags		= FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
 	cfb->fb.pseudo_palette	= cfb->pseudo_palette;
+
+	spin_lock_init(&cfb->reg_b0_lock);
 
 	fb_alloc_cmap(&cfb->fb.cmap, NR_PALETTE, 0);
 
