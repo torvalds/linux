@@ -635,8 +635,8 @@ typedef enum {
 } WMI_SCAN_TYPE;
 
 typedef PREPACK struct {
-    A_BOOL   forceFgScan;
-    A_BOOL   isLegacy;        /* For Legacy Cisco AP compatibility */
+    u32   forceFgScan;
+    u32   isLegacy;        /* For Legacy Cisco AP compatibility */
     A_UINT32 homeDwellTime;   /* Maximum duration in the home channel(milliseconds) */
     A_UINT32 forceScanInterval;    /* Time interval between scans (milliseconds)*/
     A_UINT8  scanType;           /* WMI_SCAN_TYPE */
@@ -1241,7 +1241,7 @@ typedef PREPACK struct {
  * WMI_ENABLE_RM_CMDID
  */
 typedef PREPACK struct {
-        A_BOOL enable_radio_measurements;
+        u32 enable_radio_measurements;
 } POSTPACK WMI_ENABLE_RM_CMD;
 
 /*
@@ -2638,7 +2638,7 @@ typedef PREPACK struct {
 } POSTPACK WMI_SET_KEEPALIVE_CMD;
 
 typedef PREPACK struct {
-    A_BOOL configured;
+    u32 configured;
     A_UINT8 keepaliveInterval;
 } POSTPACK WMI_GET_KEEPALIVE_CMD;
 
@@ -2717,8 +2717,8 @@ typedef PREPACK struct {
 } POSTPACK WMI_SET_IP_CMD;
 
 typedef PREPACK struct {
-    A_BOOL awake;
-    A_BOOL asleep;
+    u32 awake;
+    u32 asleep;
 } POSTPACK WMI_SET_HOST_SLEEP_MODE_CMD;
 
 typedef enum {
@@ -2726,7 +2726,7 @@ typedef enum {
 } WMI_WOW_FILTER;
 
 typedef PREPACK struct {
-    A_BOOL enable_wow;
+    u32 enable_wow;
     WMI_WOW_FILTER filter;
     A_UINT16 hostReqDelay;
 } POSTPACK WMI_SET_WOW_MODE_CMD;
@@ -3010,7 +3010,7 @@ typedef PREPACK struct {
 } POSTPACK WMI_AP_PROT_SCAN_TIME_CMD;
 
 typedef PREPACK struct {
-    A_BOOL flag;
+    u32 flag;
     A_UINT16 aid;
 } POSTPACK WMI_AP_SET_PVB_CMD;
 
