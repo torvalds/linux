@@ -45,11 +45,6 @@ nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
 	}
 
 	if (phys & 1) {
-		if (dev_priv->vram_sys_base) {
-			phys += dev_priv->vram_sys_base;
-			phys |= 0x30;
-		}
-
 		if (coverage <= 32 * 1024 * 1024)
 			phys |= 0x60;
 		else if (coverage <= 64 * 1024 * 1024)
