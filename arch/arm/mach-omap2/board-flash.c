@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/io.h>
+#include <plat/irqs.h>
 
 #include <plat/gpmc.h>
 #include <plat/nand.h>
@@ -147,6 +148,7 @@ __init board_nand_init(struct mtd_partition *nand_parts,
 	board_nand_data.nr_parts	= nr_parts;
 	board_nand_data.devsize		= nand_type;
 
+	board_nand_data.gpmc_irq = OMAP_GPMC_IRQ_BASE + cs;
 	gpmc_nand_init(&board_nand_data);
 }
 #else
