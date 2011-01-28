@@ -202,7 +202,7 @@ static int h2_nand_dev_ready(struct mtd_info *mtd)
 
 static const char *h2_part_probes[] = { "cmdlinepart", NULL };
 
-struct platform_nand_data h2_nand_platdata = {
+static struct platform_nand_data h2_nand_platdata = {
 	.chip	= {
 		.nr_chips		= 1,
 		.chip_offset		= 0,
