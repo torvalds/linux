@@ -571,6 +571,8 @@ static int __init sh7786_pcie_init(void)
 		async_schedule(sh7786_pcie_hwops->port_init_hw, port);
 	}
 
+	async_synchronize_full();
+
 	return 0;
 }
 arch_initcall(sh7786_pcie_init);
