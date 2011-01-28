@@ -73,6 +73,12 @@ struct snd_soc_dai_driver sst_platform_dai[] = {
 		.rates = SNDRV_PCM_RATE_48000,
 		.formats = SNDRV_PCM_FMTBIT_S24_LE,
 	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 5,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S24_LE,
+	},
 },
 {
 	.name = "Speaker-cpu-dai",
