@@ -705,6 +705,8 @@ struct snd_soc_card {
 	struct dentry *debugfs_pop_time;
 #endif
 	u32 pop_time;
+
+	void *drvdata;
 };
 
 /* SoC machine DAI configuration, glues a codec and cpu DAI together */
@@ -755,6 +757,17 @@ unsigned int snd_soc_write(struct snd_soc_codec *codec,
 			   unsigned int reg, unsigned int val);
 
 /* device driver data */
+
+static inline void snd_soc_card_set_drvdata(struct snd_soc_card *card,
+		void *data)
+{
+	card->drvdata = data;
+}
+
+static inline void *snd_soc_card_get_drvdata(struct snd_soc_card *card)
+{
+	return card->drvdata;
+}
 
 static inline void snd_soc_codec_set_drvdata(struct snd_soc_codec *codec,
 		void *data)
