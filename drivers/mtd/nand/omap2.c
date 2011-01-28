@@ -244,7 +244,8 @@ static void omap_read_buf_pref(struct mtd_info *mtd, u_char *buf, int len)
 	}
 
 	/* configure and start prefetch transfer */
-	ret = gpmc_prefetch_enable(info->gpmc_cs, 0x0, len, 0x0);
+	ret = gpmc_prefetch_enable(info->gpmc_cs,
+			PREFETCH_FIFOTHRESHOLD_MAX, 0x0, len, 0x0);
 	if (ret) {
 		/* PFPW engine is busy, use cpu copy method */
 		if (info->nand.options & NAND_BUSWIDTH_16)
@@ -289,7 +290,8 @@ static void omap_write_buf_pref(struct mtd_info *mtd,
 	}
 
 	/*  configure and start prefetch transfer */
-	ret = gpmc_prefetch_enable(info->gpmc_cs, 0x0, len, 0x1);
+	ret = gpmc_prefetch_enable(info->gpmc_cs,
+			PREFETCH_FIFOTHRESHOLD_MAX, 0x0, len, 0x1);
 	if (ret) {
 		/* PFPW engine is busy, use cpu copy method */
 		if (info->nand.options & NAND_BUSWIDTH_16)
@@ -345,8 +347,9 @@ static inline int omap_nand_dma_transfer(struct mtd_info *mtd, void *addr,
 	int ret;
 	unsigned long tim, limit;
 
-	/* The fifo depth is 64 bytes. We have a sync at each frame and frame
-	 * length is 64 bytes.
+	/* The fifo depth is 64 bytes max.
+	 * But configure the FIFO-threahold to 32 to get a sync at each frame
+	 * and frame length is 32 bytes.
 	 */
 	int buf_len = len >> 6;
 
@@ -387,7 +390,8 @@ static inline int omap_nand_dma_transfer(struct mtd_info *mtd, void *addr,
 					OMAP24XX_DMA_GPMC, OMAP_DMA_SRC_SYNC);
 	}
 	/*  configure and start prefetch transfer */
-	ret = gpmc_prefetch_enable(info->gpmc_cs, 0x1, len, is_write);
+	ret = gpmc_prefetch_enable(info->gpmc_cs,
+			PREFETCH_FIFOTHRESHOLD_MAX, 0x1, len, is_write);
 	if (ret)
 		/* PFPW engine is busy, use cpu copy method */
 		goto out_copy;
@@ -522,7 +526,8 @@ static void omap_read_buf_irq_pref(struct mtd_info *mtd, u_char *buf, int len)
 	init_completion(&info->comp);
 
 	/*  configure and start prefetch transfer */
-	ret = gpmc_prefetch_enable(info->gpmc_cs, 0x0, len, 0x0);
+	ret = gpmc_prefetch_enable(info->gpmc_cs,
+			PREFETCH_FIFOTHRESHOLD_MAX/2, 0x0, len, 0x0);
 	if (ret)
 		/* PFPW engine is busy, use cpu copy method */
 		goto out_copy;
@@ -569,8 +574,9 @@ static void omap_write_buf_irq_pref(struct mtd_info *mtd,
 	info->buf = (u_char *) buf;
 	init_completion(&info->comp);
 
-	/*  configure and start prefetch transfer */
-	ret = gpmc_prefetch_enable(info->gpmc_cs, 0x0, len, 0x1);
+	/* configure and start prefetch transfer : size=24 */
+	ret = gpmc_prefetch_enable(info->gpmc_cs,
+			(PREFETCH_FIFOTHRESHOLD_MAX * 3) / 8, 0x0, len, 0x1);
 	if (ret)
 		/* PFPW engine is busy, use cpu copy method */
 		goto out_copy;

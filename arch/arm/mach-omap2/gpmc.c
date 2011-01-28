@@ -60,7 +60,6 @@
 #define GPMC_CHUNK_SHIFT	24		/* 16 MB */
 #define GPMC_SECTION_SHIFT	28		/* 128 MB */
 
-#define PREFETCH_FIFOTHRESHOLD	(0x40 << 8)
 #define CS_NUM_SHIFT		24
 #define ENABLE_PREFETCH		(0x1 << 7)
 #define DMA_MPU_MODE		2
@@ -606,15 +605,19 @@ EXPORT_SYMBOL(gpmc_nand_write);
 /**
  * gpmc_prefetch_enable - configures and starts prefetch transfer
  * @cs: cs (chip select) number
+ * @fifo_th: fifo threshold to be used for read/ write
  * @dma_mode: dma mode enable (1) or disable (0)
  * @u32_count: number of bytes to be transferred
  * @is_write: prefetch read(0) or write post(1) mode
  */
-int gpmc_prefetch_enable(int cs, int dma_mode,
+int gpmc_prefetch_enable(int cs, int fifo_th, int dma_mode,
 				unsigned int u32_count, int is_write)
 {
 
-	if (!(gpmc_read_reg(GPMC_PREFETCH_CONTROL))) {
+	if (fifo_th > PREFETCH_FIFOTHRESHOLD_MAX) {
+		pr_err("gpmc: fifo threshold is not supported\n");
+		return -1;
+	} else if (!(gpmc_read_reg(GPMC_PREFETCH_CONTROL))) {
 		/* Set the amount of bytes to be prefetched */
 		gpmc_write_reg(GPMC_PREFETCH_CONFIG2, u32_count);
 
@@ -622,7 +625,7 @@ int gpmc_prefetch_enable(int cs, int dma_mode,
 		 * enable the engine. Set which cs is has requested for.
 		 */
 		gpmc_write_reg(GPMC_PREFETCH_CONFIG1, ((cs << CS_NUM_SHIFT) |
-					PREFETCH_FIFOTHRESHOLD |
+					PREFETCH_FIFOTHRESHOLD(fifo_th) |
 					ENABLE_PREFETCH |
 					(dma_mode << DMA_MPU_MODE) |
 					(0x1 & is_write)));
