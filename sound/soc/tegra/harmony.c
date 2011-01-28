@@ -48,7 +48,6 @@
 #include "tegra_asoc_utils.h"
 
 #define DRV_NAME "tegra-snd-harmony"
-#define PREFIX DRV_NAME ": "
 
 struct tegra_harmony {
 	struct harmony_audio_platform_data *pdata;
@@ -61,6 +60,8 @@ static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_card *card = codec->card;
 	int srate, mclk, mclk_change;
 	int err;
 
@@ -81,7 +82,7 @@ static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
 
 	err = tegra_asoc_utils_set_rate(srate, mclk, &mclk_change);
 	if (err < 0) {
-		pr_err(PREFIX "Can't configure clocks\n");
+		dev_err(card->dev, "Can't configure clocks\n");
 		return err;
 	}
 
@@ -90,7 +91,7 @@ static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
 					SND_SOC_DAIFMT_NB_NF |
 					SND_SOC_DAIFMT_CBS_CFS);
 	if (err < 0) {
-		pr_err(PREFIX "codec_dai fmt not set\n");
+		dev_err(card->dev, "codec_dai fmt not set\n");
 		return err;
 	}
 
@@ -99,7 +100,7 @@ static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
 					SND_SOC_DAIFMT_NB_NF |
 					SND_SOC_DAIFMT_CBS_CFS);
 	if (err < 0) {
-		pr_err(PREFIX "cpu_dai fmt not set\n");
+		dev_err(card->dev, "cpu_dai fmt not set\n");
 		return err;
 	}
 
@@ -107,7 +108,7 @@ static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
 		err = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 					     SND_SOC_CLOCK_IN);
 		if (err < 0) {
-			pr_err(PREFIX "codec_dai clock not set\n");
+			dev_err(card->dev, "codec_dai clock not set\n");
 			return err;
 		}
 	}
