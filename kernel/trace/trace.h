@@ -678,6 +678,7 @@ struct event_subsystem {
 
 #define FILTER_PRED_INVALID	((unsigned short)-1)
 #define FILTER_PRED_IS_RIGHT	(1 << 15)
+#define FILTER_PRED_FOLD	(1 << 15)
 
 struct filter_pred;
 struct regex;
@@ -704,7 +705,16 @@ struct filter_pred {
 	filter_pred_fn_t 	fn;
 	u64 			val;
 	struct regex		regex;
-	char 			*field_name;
+	/*
+	 * Leaf nodes use field_name, ops is used by AND and OR
+	 * nodes. The field_name is always freed when freeing a pred.
+	 * We can overload field_name for ops and have it freed
+	 * as well.
+	 */
+	union {
+		char		*field_name;
+		unsigned short	*ops;
+	};
 	int 			offset;
 	int 			not;
 	int 			op;
