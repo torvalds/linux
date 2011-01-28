@@ -6132,9 +6132,6 @@ int nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	if (entry->fattr->valid & NFS_ATTR_FATTR_TYPE)
 		entry->d_type = nfs_umode_to_dtype(entry->fattr->mode);
 
-	if (verify_attr_len(xdr, p, len) < 0)
-		goto out_overflow;
-
 	return 0;
 
 out_overflow:
