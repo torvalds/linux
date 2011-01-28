@@ -3604,13 +3604,13 @@ int r100_ib_init(struct radeon_device *rdev)
 
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failled initializing IB pool (%d).\n", r);
+		dev_err(rdev->dev, "failed initializing IB pool (%d).\n", r);
 		r100_ib_fini(rdev);
 		return r;
 	}
 	r = r100_ib_test(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failled testing IB (%d).\n", r);
+		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
 		r100_ib_fini(rdev);
 		return r;
 	}
@@ -3768,12 +3768,12 @@ static int r100_startup(struct radeon_device *rdev)
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
-		dev_err(rdev->dev, "failled initializing CP (%d).\n", r);
+		dev_err(rdev->dev, "failed initializing CP (%d).\n", r);
 		return r;
 	}
 	r = r100_ib_init(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failled initializing IB (%d).\n", r);
+		dev_err(rdev->dev, "failed initializing IB (%d).\n", r);
 		return r;
 	}
 	return 0;
