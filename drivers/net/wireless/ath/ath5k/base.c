@@ -2399,7 +2399,8 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 	/* set up multi-rate retry capabilities */
 	if (sc->ah->ah_version == AR5K_AR5212) {
 		hw->max_rates = 4;
-		hw->max_rate_tries = 11;
+		hw->max_rate_tries = max(AR5K_INIT_RETRY_SHORT,
+					 AR5K_INIT_RETRY_LONG);
 	}
 
 	hw->vif_data_size = sizeof(struct ath5k_vif);

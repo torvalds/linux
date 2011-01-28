@@ -686,16 +686,15 @@
 
 /*
  * DCU retry limit registers
+ * all these fields don't allow zero values
  */
 #define AR5K_DCU_RETRY_LMT_BASE		0x1080			/* Register Address -Queue0 DCU_RETRY_LMT */
-#define AR5K_DCU_RETRY_LMT_SH_RETRY	0x0000000f	/* Short retry limit mask */
-#define AR5K_DCU_RETRY_LMT_SH_RETRY_S	0
-#define AR5K_DCU_RETRY_LMT_LG_RETRY	0x000000f0	/* Long retry limit mask */
-#define AR5K_DCU_RETRY_LMT_LG_RETRY_S	4
-#define AR5K_DCU_RETRY_LMT_SSH_RETRY	0x00003f00	/* Station short retry limit mask (?) */
-#define AR5K_DCU_RETRY_LMT_SSH_RETRY_S	8
-#define AR5K_DCU_RETRY_LMT_SLG_RETRY	0x000fc000	/* Station long retry limit mask (?) */
-#define AR5K_DCU_RETRY_LMT_SLG_RETRY_S	14
+#define AR5K_DCU_RETRY_LMT_RTS		0x0000000f	/* RTS failure limit. Transmission fails if no CTS is received for this number of times */
+#define AR5K_DCU_RETRY_LMT_RTS_S	0
+#define AR5K_DCU_RETRY_LMT_STA_RTS	0x00003f00	/* STA RTS failure limit. If exceeded CW reset */
+#define AR5K_DCU_RETRY_LMT_STA_RTS_S	8
+#define AR5K_DCU_RETRY_LMT_STA_DATA	0x000fc000	/* STA data failure limit. If exceeded CW reset. */
+#define AR5K_DCU_RETRY_LMT_STA_DATA_S	14
 #define	AR5K_QUEUE_DFS_RETRY_LIMIT(_q)	AR5K_QUEUE_REG(AR5K_DCU_RETRY_LMT_BASE, _q)
 
 /*
