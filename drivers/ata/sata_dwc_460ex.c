@@ -44,7 +44,7 @@
 #undef	DRV_NAME
 #undef	DRV_VERSION
 #define DRV_NAME        "sata-dwc"
-#define DRV_VERSION     "1.1"
+#define DRV_VERSION     "1.2"
 
 /* SATA DMA driver Globals */
 #define DMA_NUM_CHANS		1
@@ -718,7 +718,7 @@ static int dma_dwc_xfer_setup(struct scatterlist *sg, int num_elems,
 	/* Program the CTL register with src enable / dst enable */
 	out_le32(&(host_pvt.sata_dma_regs->chan_regs[dma_ch].ctl.low),
 		 DMA_CTL_LLP_SRCEN | DMA_CTL_LLP_DSTEN);
-	return 0;
+	return dma_ch;
 }
 
 /*
