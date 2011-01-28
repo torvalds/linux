@@ -570,26 +570,33 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 #endif
 
 	mutex_unlock(&ses->server->srv_mutex);
-	cifs_small_buf_release(in_buf);
 
-	if (rc < 0)
+	if (rc < 0) {
+		cifs_small_buf_release(in_buf);
 		goto out;
+	}
 
-	if (long_op == CIFS_ASYNC_OP)
+	if (long_op == CIFS_ASYNC_OP) {
+		cifs_small_buf_release(in_buf);
 		goto out;
+	}
 
 	rc = wait_for_response(ses->server, midQ);
 	if (rc != 0) {
+		send_nt_cancel(ses->server, in_buf, midQ);
 		spin_lock(&GlobalMid_Lock);
 		if (midQ->midState == MID_REQUEST_SUBMITTED) {
 			midQ->callback = DeleteMidQEntry;
 			spin_unlock(&GlobalMid_Lock);
+			cifs_small_buf_release(in_buf);
 			atomic_dec(&ses->server->inFlight);
 			wake_up(&ses->server->request_q);
 			return rc;
 		}
 		spin_unlock(&GlobalMid_Lock);
 	}
+
+	cifs_small_buf_release(in_buf);
 
 	rc = sync_mid_result(midQ, ses->server);
 	if (rc != 0) {
@@ -734,6 +741,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 
 	rc = wait_for_response(ses->server, midQ);
 	if (rc != 0) {
+		send_nt_cancel(ses->server, in_buf, midQ);
 		spin_lock(&GlobalMid_Lock);
 		if (midQ->midState == MID_REQUEST_SUBMITTED) {
 			/* no longer considered to be "in-flight" */
@@ -943,6 +951,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 
 		rc = wait_for_response(ses->server, midQ);
 		if (rc) {
+			send_nt_cancel(ses->server, in_buf, midQ);
 			spin_lock(&GlobalMid_Lock);
 			if (midQ->midState == MID_REQUEST_SUBMITTED) {
 				/* no longer considered to be "in-flight" */
