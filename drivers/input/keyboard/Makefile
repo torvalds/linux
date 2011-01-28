@@ -41,4 +41,5 @@ obj-$(CONFIG_KEYBOARD_W90P910)		+= w90p910_keypad.o
 obj-$(CONFIG_KEYBOARD_RK28ADC)		+= rk2818_adckey.o
 obj-$(CONFIG_KEYBOARD_RK28ADC_IT50)		+= rk2818_adckey_t50.o
 obj-$(CONFIG_HEADSET_KEY)		+= rk2818_hskey.o
+obj-$(CONFIG_SYNAPTICS_SO340010)        += synaptics_so340010.o
 

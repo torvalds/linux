@@ -90,6 +90,7 @@ struct wifi_platform_data {
         int (*set_reset)(int val);
         int (*set_carddetect)(int val);
         void *(*mem_prealloc)(int section, unsigned long size);
+        int (*get_mac_addr)(unsigned char *buf);
 };
 
 struct rk29_sdmmc_platform_data {
@@ -140,6 +141,29 @@ struct eeti_egalax_platform_data{
     int     (*eeti_egalax_platform_wakeup)(void);
     void    (*exit_platform_hw)(void);
 };
+
+/*sintex touch*/
+struct sintek_platform_data {
+	u16 	model;
+
+	int 	(*get_pendown_state)(void);
+	int 	(*init_platform_hw)(void);
+	int 	(*sintek_platform_sleep)(void);
+	int 	(*sintek_platform_wakeup)(void);
+	void	(*exit_platform_hw)(void);
+};
+
+/*synaptics  touch*/
+struct synaptics_platform_data {
+	u16 	model;
+	
+	int 	(*get_pendown_state)(void);
+	int 	(*init_platform_hw)(void);
+	int 	(*sintek_platform_sleep)(void);
+	int 	(*sintek_platform_wakeup)(void);
+	void	(*exit_platform_hw)(void);
+};
+
 struct mma8452_platform_data {
     u16     model;
 	u16     swap_xy;
@@ -168,5 +192,13 @@ struct akm8975_platform_data {
 
 void __init rk29_map_common_io(void);
 void __init rk29_clock_init(void);
+
+#define BOOT_MODE_NORMAL		0
+#define BOOT_MODE_FACTORY2		1
+#define BOOT_MODE_RECOVERY		2
+#define BOOT_MODE_CHARGE		3
+#define BOOT_MODE_POWER_TEST		4
+#define BOOT_MODE_OFFMODE_CHARGING	5
+int board_boot_mode(void);
 
 #endif

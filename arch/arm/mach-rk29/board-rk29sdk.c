@@ -42,6 +42,7 @@
 #include <mach/rk29_camera.h>                          /* ddl@rock-chips.com : camera support */
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 #include <mach/vpu_mem.h>
+#include <mach/sram.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
@@ -227,6 +228,13 @@ struct platform_device rk29_device_fb = {
 		.platform_data  = &rk29_fb_info,
 	}
 };
+
+struct platform_device rk29_device_dma_cpy = {
+	.name		  = "dma_memcpy",
+	.id		  = 4,
+
+};
+
 #endif
 
 static struct android_pmem_platform_data android_pmem_pdata = {
@@ -1230,7 +1238,7 @@ static int rk29sdk_wifi_reset(int on)
         return 0;
 }
 
-static int rk29sdk_wifi_set_carddetect(int val)
+int rk29sdk_wifi_set_carddetect(int val)
 {
         pr_info("%s:%d\n", __func__, val);
         rk29sdk_wifi_cd = val;
@@ -1241,6 +1249,7 @@ static int rk29sdk_wifi_set_carddetect(int val)
         }
         return 0;
 }
+EXPORT_SYMBOL(rk29sdk_wifi_set_carddetect);
 
 static struct wifi_platform_data rk29sdk_wifi_control = {
         .set_power = rk29sdk_wifi_power,
@@ -1434,6 +1443,7 @@ static struct platform_device *devices[] __initdata = {
 
 #ifdef CONFIG_FB_RK29
 	&rk29_device_fb,
+	&rk29_device_dma_cpy,
 #endif
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
@@ -1793,6 +1803,7 @@ static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tag
 static void __init machine_rk29_mapio(void)
 {
 	rk29_map_common_io();
+	rk29_sram_init();
 	rk29_clock_init();
 	rk29_iomux_init();
 }

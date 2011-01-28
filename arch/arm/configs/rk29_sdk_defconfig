@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.27
-# Wed Jan 19 15:46:35 2011
+# Wed Jan 26 18:10:12 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -708,14 +708,10 @@ CONFIG_RK29_VMAC=y
 # CONFIG_NETDEV_1000 is not set
 # CONFIG_NETDEV_10000 is not set
 CONFIG_WLAN=y
-# CONFIG_WLAN_PRE80211 is not set
 CONFIG_WLAN_80211=y
-# CONFIG_LIBERTAS is not set
-# CONFIG_USB_ZD1201 is not set
-# CONFIG_HOSTAP is not set
-CONFIG_BCM4329=m
-CONFIG_BCM4329_FW_PATH="/etc/firmware/fw_bcm4329.bin"
-CONFIG_BCM4329_NVRAM_PATH="/etc/firmware/nvram_bcm4329_B23.txt"
+# CONFIG_WIFI_NONE is not set
+CONFIG_BCM4329=y
+# CONFIG_MV8686 is not set
 
 #
 # Enable WiMAX (Networking options) to see the WiMAX drivers

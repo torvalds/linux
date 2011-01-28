@@ -603,6 +603,33 @@ config HANNSTAR_P1003
 		help
         	  RK29 hannstar touch debug
 
+config SINTEK_3FA16
+ 	 tristate "Sintek 3FA16  touchscreen"
+        depends on I2C2_RK29
+        help
+          RK29 Sintek touch
+
+        config HANNSTAR_MAX_X
+                int "Sintek touch x max"
+                depends on SINTEK_3FA16
+                default 1024
+                help
+                  RK29 hannstar touch max X size
+
+        config HANNSTAR_MAX_Y
+                int "Sintek touch Y max"
+                depends on SINTEK_3FA16
+                default 600
+                help
+                  RK29 hannstar touch max Y size
+
+
+        config HANNSTAR_DEBUG
+                bool "Sintek debug"
+                depends on SINTEK_3FA16
+                default n
+                help
+                  RK29 hannstar touch debug
 config EETI_EGALAX
         tristate "EETI_EGALAX touchscreen panel support"
         depends on I2C

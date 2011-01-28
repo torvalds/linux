@@ -527,7 +527,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 	     Judge queue  initialised by Judge icf->vb_vidq.bufs[0] whether is NULL , it is error.    */
 
 	i = 0;
-	while (icf->vb_vidq.bufs[i]) {
+	while (icf->vb_vidq.bufs[i] && (i<VIDEO_MAX_FRAME)) {
 		if (icf->vb_vidq.bufs[i]->state != VIDEOBUF_NEEDS_INIT) {
 			dev_err(&icd->dev, "S_FMT denied: queue initialised\n");
 			ret = -EBUSY;

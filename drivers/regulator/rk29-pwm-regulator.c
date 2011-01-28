@@ -79,9 +79,6 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 	 rk29_mux_api_set(pdata->pwm_iomux_name, pdata->pwm_iomux_gpio);
 	 // set gpio to low level	 
 	 gpio_set_value(pdata->pwm_gpio,GPIO_LOW);
-
-	 pdata->pwm_voltage = 1400;
-	 
 	}
     else if (rate <= 100)
     	{
@@ -98,16 +95,13 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
     	 pwm_write_reg(id, PWM_REG_HRC, divh?divh:1);
 	 pwm_write_reg(id,PWM_REG_CNTR,0);
     	 pwm_write_reg(id, PWM_REG_CTRL,pwm_read_reg(id,PWM_REG_CTRL)|PWM_DIV|PWM_ENABLE|PWM_TimeEN);
-
-	 pdata->pwm_voltage = 1400 - 476*rate/100;
-	 
 	}
      else
      	{
 	return -1;
 	}
 
-	msleep(5);
+	msleep(10);
 	
 	
     return (0);
@@ -208,6 +202,12 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 	struct pwm_platform_data *pdata = pdev->dev.platform_data;
 	struct regulator_dev *rdev;
 	int ret ;
+
+	if (!pdata)
+		return -ENODEV;
+
+	if (!pdata->pwm_voltage)
+		pdata->pwm_voltage = 1200;	// default 1.2v
 
 	rdev = regulator_register(&pwm_regulator, &pdev->dev,
 				pdata->init_data, pdata);

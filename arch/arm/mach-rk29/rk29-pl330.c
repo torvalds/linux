@@ -984,6 +984,12 @@ int rk29_dma_devconfig(enum dma_ch id, enum rk29_dmasrc source,
 		ch->rqcfg.src_inc = 1;
 		ch->rqcfg.dst_inc = 0;
 		break;
+        case RK29_DMASRC_MEMTOMEM:
+                ch->req[0].rqtype = MEMTOMEM;
+		ch->req[1].rqtype = MEMTOMEM;
+		ch->rqcfg.src_inc = 1;
+		ch->rqcfg.dst_inc = 1;
+                break;
 	default:
 		ret = -EINVAL;
 		goto devcfg_exit;

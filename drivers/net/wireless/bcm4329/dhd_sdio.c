@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c,v 1.157.2.27.2.33.2.126 2010/06/15 23:38:39 Exp $
+ * $Id: dhd_sdio.c,v 1.157.2.27.2.33.2.129.4.1 2010/09/02 23:13:16 Exp $
  */
 
 #include <typedefs.h>
@@ -36,17 +36,11 @@
 #include <bcmutils.h>
 #include <bcmendian.h>
 #include <bcmdevs.h>
-
 #include <siutils.h>
 #include <hndpmu.h>
 #include <hndsoc.h>
-#ifdef DHD_DEBUG
-#include <hndrte_armtrap.h>
-#include <hndrte_cons.h>
-#endif /* DHD_DEBUG */
 #include <sbchipc.h>
 #include <sbhnddma.h>
-
 #include <sdio.h>
 #include <sbsdio.h>
 #include <sbsdpcmdev.h>
@@ -64,9 +58,12 @@
 #include <dhdioctl.h>
 #include <sdiovar.h>
 
-#ifndef DHDSDIO_MEM_DUMP_FNAME
-#define DHDSDIO_MEM_DUMP_FNAME         "mem_dump"
-#endif
+#ifdef DHD_DEBUG
+#include <hndrte_cons.h>
+#endif /* DHD_DEBUG */
+#ifdef DHD_DEBUG_TRAP
+#include <hndrte_armtrap.h>
+#endif /* DHD_DEBUG_TRAP */
 
 #define QLEN		256	/* bulk rx and tx queue lengths */
 #define FCHI		(QLEN - 10)
@@ -127,11 +124,11 @@
 /* Bump up limit on waiting for HT to account for first startup;
  * if the image is doing a CRC calculation before programming the PMU
  * for HT availability, it could take a couple hundred ms more, so
- * max out at a half second (500000us).
+ * max out at a 1 second (1000000us).
  */
-#if (PMU_MAX_TRANSITION_DLY <= 500000)
+#if (PMU_MAX_TRANSITION_DLY < 1000000)
 #undef PMU_MAX_TRANSITION_DLY
-#define PMU_MAX_TRANSITION_DLY 500000
+#define PMU_MAX_TRANSITION_DLY 1000000
 #endif
 
 /* Value for ChipClockCSR during initial setup */
@@ -427,10 +424,10 @@ static void dhdsdio_testrcv(dhd_bus_t *bus, void *pkt, uint seq);
 static void dhdsdio_sdtest_set(dhd_bus_t *bus, bool start);
 #endif
 
-#ifdef DHD_DEBUG
+#ifdef DHD_DEBUG_TRAP
 static int dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size);
 static int dhdsdio_mem_dump(dhd_bus_t *bus);
-#endif /* DHD_DEBUG  */
+#endif /* DHD_DEBUG_TRAP */
 static int dhdsdio_download_state(dhd_bus_t *bus, bool enter);
 
 static void dhdsdio_release(dhd_bus_t *bus, osl_t *osh);
@@ -551,7 +548,6 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 			bcmsdh_cfg_write(sdh, SDIO_FUNC_1, SBSDIO_DEVICE_CTL, devctl, &err);
 			DHD_INFO(("CLKCTL: set PENDING\n"));
 			bus->clkstate = CLK_PENDING;
-
 			return BCME_OK;
 		} else if (bus->clkstate == CLK_PENDING) {
 			/* Cancel CA-only interrupt filter */
@@ -1298,7 +1294,6 @@ dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 			bus->ctrl_frame_stat = FALSE;
 			ret = dhd_bcmsdh_send_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2, F2SYNC,
 			                          frame, len, NULL, NULL, NULL);
-
 			ASSERT(ret != BCME_PENDING);
 
 			if (ret < 0) {
@@ -1372,21 +1367,21 @@ dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 		         __FUNCTION__, rxlen, msglen));
 	} else if (timeleft == 0) {
 		DHD_ERROR(("%s: resumed on timeout\n", __FUNCTION__));
-#ifdef DHD_DEBUG
+#ifdef DHD_DEBUG_TRAP
 		dhd_os_sdlock(bus->dhd);
 		dhdsdio_checkdied(bus, NULL, 0);
 		dhd_os_sdunlock(bus->dhd);
-#endif /* DHD_DEBUG */
+#endif /* DHD_DEBUG_TRAP */
 	} else if (pending == TRUE) {
 		DHD_CTL(("%s: cancelled\n", __FUNCTION__));
 		return -ERESTARTSYS;
 	} else {
 		DHD_CTL(("%s: resumed for unknown reason?\n", __FUNCTION__));
-#ifdef DHD_DEBUG
+#ifdef DHD_DEBUG_TRAP
 		dhd_os_sdlock(bus->dhd);
 		dhdsdio_checkdied(bus, NULL, 0);
 		dhd_os_sdunlock(bus->dhd);
-#endif /* DHD_DEBUG */
+#endif /* DHD_DEBUG_TRAP */
 	}
 
 	if (rxlen)
@@ -1406,7 +1401,7 @@ enum {
 	IOV_SDCIS,
 	IOV_MEMBYTES,
 	IOV_MEMSIZE,
-#ifdef DHD_DEBUG
+#ifdef DHD_DEBUG_TRAP
 	IOV_CHECKDIED,
 #endif
 	IOV_DOWNLOAD,
@@ -1459,10 +1454,10 @@ const bcm_iovar_t dhdsdio_iovars[] = {
 	{"rxbound",	IOV_RXBOUND,	0,	IOVT_UINT32,	0 },
 	{"txminmax", IOV_TXMINMAX,	0,	IOVT_UINT32,	0 },
 	{"cpu",		IOV_CPU,	0,	IOVT_BOOL,	0 },
-#ifdef DHD_DEBUG
-	{"checkdied",	IOV_CHECKDIED,	0,	IOVT_BUFFER,	0 },
-#endif /* DHD_DEBUG  */
 #endif /* DHD_DEBUG */
+#ifdef DHD_DEBUG_TRAP
+	{"checkdied",	IOV_CHECKDIED,	0,	IOVT_BUFFER,	0 },
+#endif /* DHD_DEBUG_TRAP  */
 #ifdef SDTEST
 	{"extloop",	IOV_EXTLOOP,	0,	IOVT_BOOL,	0 },
 	{"pktgen",	IOV_PKTGEN,	0,	IOVT_BUFFER,	sizeof(dhd_pktgen_t) },
@@ -1691,7 +1686,7 @@ xfer_done:
 	return bcmerror;
 }
 
-#ifdef DHD_DEBUG
+#ifdef DHD_DEBUG_TRAP
 static int
 dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 {
@@ -1844,12 +1839,10 @@ dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 		DHD_ERROR(("%s: %s\n", __FUNCTION__, strbuf.origbuf));
 	}
 
-#ifdef DHD_DEBUG
 	if (sdpcm_shared.flags & SDPCM_SHARED_TRAP) {
-		/* Mem dump to a file on device */
-		dhdsdio_mem_dump(bus);
+			/* Mem dump to a file on device */
+			dhdsdio_mem_dump(bus);
 	}
-#endif /* DHD_DEBUG */
 
 done:
 	if (mbuffer)
@@ -1900,17 +1893,22 @@ dhdsdio_mem_dump(dhd_bus_t *bus)
 	}
 	printf("Done\n");
 
+#ifdef DHD_DEBUG
 	/* free buf before return !!! */
 	if (write_to_file(bus->dhd, buf, bus->ramsize))
 	{
 		printf("%s: Error writing to files\n", __FUNCTION__);
 		return -1;
 	}
-
 	/* buf free handled in write_to_file, not here */
+#else
+	MFREE(bus->dhd->osh, buf, size);
+#endif
 	return 0;
 }
+#endif /* DHD_DEBUG_TRAP */
 
+#ifdef DHD_DEBUG
 #define CONSOLE_LINE_MAX	192
 
 static int
@@ -4228,6 +4226,9 @@ clkwait:
 		DHD_INTR(("%s: enable SDIO interrupts, rxdone %d framecnt %d\n",
 		          __FUNCTION__, rxdone, framecnt));
 		bus->intdis = FALSE;
+#if defined(OOB_INTR_ONLY)
+		bcmsdh_oob_intr_set(1);
+#endif /* (OOB_INTR_ONLY) */
 		bcmsdh_intr_enable(sdh);
 	}
 
@@ -4362,12 +4363,13 @@ dhdsdio_isr(void *arg)
 
 #if defined(SDIO_ISR_THREAD)
 	DHD_TRACE(("Calling dhdsdio_dpc() from %s\n", __FUNCTION__));
+	dhd_os_wake_lock(bus->dhd);
 	while (dhdsdio_dpc(bus));
+	dhd_os_wake_unlock(bus->dhd);
 #else
 	bus->dpc_sched = TRUE;
 	dhd_sched_dpc(bus->dhd);
 #endif 
-
 
 }
 
@@ -4695,8 +4697,6 @@ dhd_bus_watchdog(dhd_pub_t *dhdp)
 			bus->idlecount = 0;
 			if (bus->activity) {
 				bus->activity = FALSE;
-				dhd_os_wd_timer(bus->dhd,dhd_watchdog_ms);
-			} else {
 				dhdsdio_clkctl(bus, CLK_NONE, FALSE);
 			}
 		}
@@ -4955,12 +4955,15 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 
 	/* if firmware path present try to download and bring up bus */
 	if ((ret = dhd_bus_start(bus->dhd)) != 0) {
+#if 1
 		DHD_ERROR(("%s: failed\n", __FUNCTION__));
 		goto fail;
+#else
 		if (ret == BCME_NOTUP)  {
 			DHD_ERROR(("%s: dongle is not responding\n", __FUNCTION__));
 			goto fail;
 		}
+#endif
 	}
 	/* Ok, have the per-port tell the stack we're open for business */
 	if (dhd_net_attach(bus->dhd, 0) != 0) {
@@ -5261,7 +5264,6 @@ dhd_bus_download_firmware(struct dhd_bus *bus, osl_t *osh,
 
 	ret = dhdsdio_download_firmware(bus, osh, bus->sdh);
 
-
 	return ret;
 }
 
@@ -5271,12 +5273,13 @@ dhdsdio_download_firmware(struct dhd_bus *bus, osl_t *osh, void *sdh)
 	bool ret;
 
 	/* Download the firmware */
+	dhd_os_wake_lock(bus->dhd);
 	dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
 
 	ret = _dhdsdio_download_firmware(bus) == 0;
 
 	dhdsdio_clkctl(bus, CLK_SDONLY, FALSE);
-
+	dhd_os_wake_unlock(bus->dhd);
 	return ret;
 }
 
@@ -5805,6 +5808,8 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 			dhd_os_proto_unblock(dhdp);
 			/* Expect app to have torn down any connection before calling */
 			/* Stop the bus, disable F2 */
+			dhd_os_sdlock(dhdp);
+
 			dhd_bus_stop(bus, FALSE);
 
 			/* Clean tx/rx buffer pointers, detach from the dongle */
@@ -5812,6 +5817,8 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 
 			bus->dhd->dongle_reset = TRUE;
 			bus->dhd->up = FALSE;
+
+			dhd_os_sdunlock(dhdp);
 
 			DHD_TRACE(("%s:  WLAN OFF DONE\n", __FUNCTION__));
 			/* App can now remove power from device */
@@ -5824,6 +5831,8 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 
 		if (bus->dhd->dongle_reset) {
 			/* Turn on WLAN */
+			dhd_os_sdlock(dhdp);
+
 			/* Reset SD client */
 			bcmsdh_reset(bus->sdh);
 
@@ -5855,6 +5864,7 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 					bcmerror = BCME_SDIO_ERROR;
 			} else
 				bcmerror = BCME_SDIO_ERROR;
+			dhd_os_sdunlock(dhdp);
 		} else {
 			bcmerror = BCME_NOTDOWN;
 			DHD_ERROR(("%s: Set DEVRESET=FALSE invoked when device is on\n",

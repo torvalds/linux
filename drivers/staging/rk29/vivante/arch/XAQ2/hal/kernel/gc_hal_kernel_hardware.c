@@ -17,8 +17,6 @@
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 *
 *****************************************************************************/
-
-
 #include "gc_hal.h"
 #include "gc_hal_kernel.h"
 
@@ -26,10 +24,14 @@
 
 #if gcdENABLE_AUTO_FREQ
 #include <linux/time.h>
+#include <linux/clk.h>
 u32 usec_run = 0;
 u32 usec_idle = 0;
 gceCHIPPOWERSTATE lastState = gcvPOWER_IDLE;
 struct timeval tv_on, tv_idle;
+
+int nextfreq = 0;
+struct clk *clk_gpu = NULL;
 
 void get_run_idle(u32 *run, u32 *idle)
 {
@@ -51,8 +53,15 @@ void get_run_idle(u32 *run, u32 *idle)
     usec_run = 0;
 }
 
+void set_nextfreq(int freq)
+{
+    nextfreq = freq;
+}
+
 inline void cal_run_idle(gceCHIPPOWERSTATE State)
 {
+    int freq = 0;
+    
     if(gcvPOWER_IDLE==lastState && gcvPOWER_ON==State)  //gcvPOWER_IDLE->gcvPOWER_ON
     {
         do_gettimeofday(&tv_on);
@@ -62,6 +71,17 @@ inline void cal_run_idle(gceCHIPPOWERSTATE State)
     {
         do_gettimeofday(&tv_idle);
         usec_run += (1000000*(tv_idle.tv_sec-tv_on.tv_sec)+(tv_idle.tv_usec-tv_on.tv_usec));
+
+        freq = nextfreq;
+        nextfreq = 0;
+        if(freq) {
+            clk_gpu = clk_get(NULL, "gpu");
+            clk_set_parent(clk_gpu, clk_get(NULL, "general_pll"));
+            clk_set_rate(clk_get(NULL, "codec_pll"), freq*1000000);
+            clk_set_rate(clk_gpu, freq*1000000);
+            clk_set_parent(clk_gpu, clk_get(NULL, "codec_pll"));
+            //printk("                                           == > gpu change freq to %d \n", freq); 
+        }
     }
     
     lastState = State;
@@ -2838,8 +2858,10 @@ gckHARDWARE_SetPowerManagementState(
     gckCOMMAND command = gcvNULL;
     gckOS os;
     gctUINT flag, clock;
+#if 0      // dkm del  
     gctPOINTER buffer;
     gctSIZE_T bytes, requested;
+#endif
     gctBOOL acquired = gcvFALSE;
     gctBOOL reserved = gcvFALSE;
     gctBOOL mutexAcquired = gcvFALSE;
@@ -3075,6 +3097,7 @@ gckHARDWARE_SetPowerManagementState(
 
         else
         {
+#if 0      // dkm del    
             /* Get the size of the flush command. */
             gcmkONERROR(gckHARDWARE_Flush(Hardware,
                                           gcvFLUSH_ALL,
@@ -3099,6 +3122,7 @@ gckHARDWARE_SetPowerManagementState(
 
             /* Wait to finish all commands. */
             gcmkONERROR(gckCOMMAND_Stall(command));
+#endif  
         }
     }
 

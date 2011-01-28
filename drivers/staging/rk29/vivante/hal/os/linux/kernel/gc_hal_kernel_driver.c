@@ -60,7 +60,7 @@ module_param(contiguousSize, long, 0644);
 ulong contiguousBase = 0;
 module_param(contiguousBase, ulong, 0644);
 
-long bankSize = 32 << 20;
+long bankSize = 16 << 20;
 module_param(bankSize, long, 0644);
 
 int fastClear = -1;
@@ -101,6 +101,7 @@ struct file_operations driver_fops =
 #include <linux/timer.h>
 struct timer_list gpu_timer;
 extern void get_run_idle(u32 *run, u32 *idle);
+extern void set_nextfreq(int freq);
 int power_cnt = 0;
 int last_precent = 0;
 int last_freq = 0;
@@ -108,7 +109,6 @@ void gputimer_callback(unsigned long arg)
 {
     u32 run, idle;
     int precent, freq, diff;
-    struct clk * clk_gpu = clk_get(NULL, "gpu");
     
 	mod_timer(&gpu_timer, jiffies + HZ/10);
 
@@ -137,14 +137,11 @@ void gputimer_callback(unsigned long arg)
     else                    freq = 456;
 
     if(freq!=last_freq) {
-        clk_set_parent(clk_gpu, clk_get(NULL, "general_pll"));
-        clk_set_rate(clk_get(NULL, "codec_pll"), freq*1000000);
-        clk_set_rate(clk_gpu, freq*1000000);
-        clk_set_parent(clk_gpu, clk_get(NULL, "codec_pll"));
+        last_freq = freq;
+        set_nextfreq(freq);
     }
-
-    last_freq = freq;
-    printk("%8d /%8d = %3d %%, freq = %dM (%d)\n", (int)run, (int)(run+idle), precent, freq, power_cnt);
+    
+    //printk("%8d /%8d = %3d %%, needfreq = %dM (%d)\n", (int)run, (int)(run+idle), precent, freq, power_cnt);
 }
 #endif
 
@@ -779,6 +776,8 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 {
 	gceSTATUS status;
 	gckGALDEVICE device;
+    
+    printk("Enter %s \n", __func__);
 
 	device = platform_get_drvdata(dev);
 
@@ -786,6 +785,7 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 
 	if (gcmIS_ERROR(status))
 	{
+	    printk("%s fail!\n", __func__);
 		return -1;
 	}
 
@@ -796,6 +796,8 @@ static int __devinit gpu_resume(struct platform_device *dev)
 {
 	gceSTATUS status;
 	gckGALDEVICE device;
+    
+    printk("Enter %s \n", __func__);
 
 	device = platform_get_drvdata(dev);
 
@@ -803,6 +805,7 @@ static int __devinit gpu_resume(struct platform_device *dev)
 
 	if (gcmIS_ERROR(status))
 	{
+	    printk("%s fail!\n", __func__);
 		return -1;
 	}
 

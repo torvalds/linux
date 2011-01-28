@@ -1,6 +1,8 @@
 config BCM4329
 	tristate "Broadcom 4329 wireless cards support"
-	depends on WIRELESS_EXT && MMC
+	depends on MMC
+	select WIRELESS_EXT
+	select WEXT_PRIV
 	---help---
 	  This module adds support for wireless adapters based on
 	  Broadcom 4329 chipset.
@@ -13,13 +15,13 @@ config BCM4329
 config BCM4329_FW_PATH
 	depends on BCM4329
 	string "Firmware path"
-	default "/etc/firmware/fw_bcm4329.bin"
+	default "/system/etc/firmware/fw_bcm4329.bin"
 	---help---
 	  Path to the firmware file.
 
 config BCM4329_NVRAM_PATH
 	depends on BCM4329
 	string "NVRAM path"
-	default "/etc/firmware/nvram_bcm4329_B23.txt"
+	default "/system/etc/firmware/nvram_B23.txt"
 	---help---
 	  Path to the calibration file.
