@@ -1881,7 +1881,6 @@ static int soc_probe(struct platform_device *pdev)
 
 	/* Bodge while we unpick instantiation */
 	card->dev = &pdev->dev;
-	snd_soc_initialize_card_lists(card);
 
 	ret = snd_soc_register_card(card);
 	if (ret != 0) {
@@ -3121,6 +3120,8 @@ int snd_soc_register_card(struct snd_soc_card *card)
 
 	if (!card->name || !card->dev)
 		return -EINVAL;
+
+	snd_soc_initialize_card_lists(card);
 
 	soc_init_card_debugfs(card);
 
