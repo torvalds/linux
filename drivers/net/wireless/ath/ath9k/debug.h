@@ -192,7 +192,8 @@ static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
 
 static inline void ath_debug_stat_tx(struct ath_softc *sc,
 				     struct ath_buf *bf,
-				     struct ath_tx_status *ts)
+				     struct ath_tx_status *ts,
+				     struct ath_txq *txq)
 {
 }
 
