@@ -70,9 +70,12 @@ static struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 	req->mdev        = mdev;
 	req->master_bio  = bio_src;
 	req->epoch       = 0;
+
 	drbd_clear_interval(&req->i);
 	req->i.sector     = bio_src->bi_sector;
 	req->i.size      = bio_src->bi_size;
+	req->i.waiting = false;
+
 	INIT_LIST_HEAD(&req->tl_requests);
 	INIT_LIST_HEAD(&req->w.list);
 
@@ -175,10 +178,6 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 	    (s & RQ_NET_SENT) != 0 &&
 	    req->epoch == mdev->tconn->newest_tle->br_number)
 		queue_barrier(mdev);
-
-	/* Wake up any processes waiting for this request to complete.  */
-	if ((s & RQ_NET_DONE) && (s & RQ_COLLISION))
-		wake_up(&mdev->misc_wait);
 }
 
 void complete_master_bio(struct drbd_conf *mdev,
@@ -186,6 +185,20 @@ void complete_master_bio(struct drbd_conf *mdev,
 {
 	bio_endio(m->bio, m->error);
 	dec_ap_bio(mdev);
+}
+
+
+static void drbd_remove_request_interval(struct rb_root *root,
+					 struct drbd_request *req)
+{
+	struct drbd_conf *mdev = req->mdev;
+	struct drbd_interval *i = &req->i;
+
+	drbd_remove_interval(root, i);
+
+	/* Wake up any processes waiting for this request to complete.  */
+	if (i->waiting)
+		wake_up(&mdev->misc_wait);
 }
 
 /* Helper for __req_mod().
@@ -251,7 +264,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 				root = &mdev->write_requests;
 			else
 				root = &mdev->read_requests;
-			drbd_remove_interval(root, &req->i);
+			drbd_remove_request_interval(root, req);
 		} else
 			D_ASSERT((s & (RQ_NET_MASK & ~RQ_NET_DONE)) == 0);
 

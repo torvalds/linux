@@ -9,6 +9,7 @@ struct drbd_interval {
 	sector_t sector;	/* start sector of the interval */
 	unsigned int size;	/* size in bytes */
 	sector_t end;		/* highest interval end in subtree */
+	int waiting:1;
 };
 
 static inline void drbd_clear_interval(struct drbd_interval *i)

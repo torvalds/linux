@@ -334,13 +334,15 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 		goto fail;
 
 	drbd_clear_interval(&e->i);
+	e->i.size = data_size;
+	e->i.sector = sector;
+	e->i.waiting = false;
+
 	e->epoch = NULL;
 	e->mdev = mdev;
 	e->pages = page;
 	atomic_set(&e->pending_bios, 0);
-	e->i.size = data_size;
 	e->flags = 0;
-	e->i.sector = sector;
 	/*
 	 * The block_id is opaque to the receiver.  It is not endianness
 	 * converted, and sent back to the sender unchanged.
@@ -1172,6 +1174,19 @@ fail:
 	return err;
 }
 
+static void drbd_remove_epoch_entry_interval(struct drbd_conf *mdev,
+					     struct drbd_epoch_entry *e)
+{
+	struct drbd_interval *i = &e->i;
+
+	drbd_remove_interval(&mdev->write_requests, i);
+	drbd_clear_interval(i);
+
+	/* Wake up any processes waiting for this epoch entry to complete.  */
+	if (i->waiting)
+		wake_up(&mdev->misc_wait);
+}
+
 static int receive_Barrier(struct drbd_conf *mdev, enum drbd_packet cmd,
 			   unsigned int data_size)
 {
@@ -1591,8 +1606,7 @@ static int e_end_block(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	if (mdev->tconn->net_conf->two_primaries) {
 		spin_lock_irq(&mdev->tconn->req_lock);
 		D_ASSERT(!drbd_interval_empty(&e->i));
-		drbd_remove_interval(&mdev->epoch_entries, &e->i);
-		drbd_clear_interval(&e->i);
+		drbd_remove_epoch_entry_interval(mdev, e);
 		spin_unlock_irq(&mdev->tconn->req_lock);
 	} else
 		D_ASSERT(drbd_interval_empty(&e->i));
@@ -1612,8 +1626,7 @@ static int e_send_discard_ack(struct drbd_conf *mdev, struct drbd_work *w, int u
 
 	spin_lock_irq(&mdev->tconn->req_lock);
 	D_ASSERT(!drbd_interval_empty(&e->i));
-	drbd_remove_interval(&mdev->epoch_entries, &e->i);
-	drbd_clear_interval(&e->i);
+	drbd_remove_epoch_entry_interval(mdev, e);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	dec_unacked(mdev);
@@ -1860,17 +1873,14 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 			}
 
 			if (signal_pending(current)) {
-				drbd_remove_interval(&mdev->epoch_entries, &e->i);
-				drbd_clear_interval(&e->i);
-
+				drbd_remove_epoch_entry_interval(mdev, e);
 				spin_unlock_irq(&mdev->tconn->req_lock);
-
 				finish_wait(&mdev->misc_wait, &wait);
 				goto out_interrupted;
 			}
 
 			/* Indicate to wake up mdev->misc_wait upon completion.  */
-			req2->rq_state |= RQ_COLLISION;
+			i->waiting = true;
 
 			spin_unlock_irq(&mdev->tconn->req_lock);
 			if (first) {
@@ -1922,8 +1932,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 	dev_err(DEV, "submit failed, triggering re-connect\n");
 	spin_lock_irq(&mdev->tconn->req_lock);
 	list_del(&e->w.list);
-	drbd_remove_interval(&mdev->epoch_entries, &e->i);
-	drbd_clear_interval(&e->i);
+	drbd_remove_epoch_entry_interval(mdev, e);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 	if (e->flags & EE_CALL_AL_COMPLETE_IO)
 		drbd_al_complete_io(mdev, e->i.sector);
