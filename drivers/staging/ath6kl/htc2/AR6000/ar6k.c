@@ -516,7 +516,7 @@ int DevWaitForPendingRecv(AR6K_DEVICE *pDev,A_UINT32 TimeoutInMs,A_BOOL *pbIsRec
             break;
         }
 
-        host_int_status = A_SUCCESS(status) ? (host_int_status & (1 << 0)):0;
+        host_int_status = !status ? (host_int_status & (1 << 0)):0;
         if(!host_int_status)
         {
             status          = A_OK;
@@ -832,7 +832,7 @@ int DevSetupMsgBundling(AR6K_DEVICE *pDev, int MaxMsgsPerTransfer)
             /* we can try to use a virtual DMA scatter mechanism using legacy HIFReadWrite() */
         status = DevSetupVirtualScatterSupport(pDev);
 
-        if (A_SUCCESS(status)) {
+        if (!status) {
              AR_DEBUG_PRINTF(ATH_DEBUG_ANY,
                 ("AR6K: virtual scatter transfers enabled (max scatter items:%d: maxlen:%d) \n",
                     DEV_GET_MAX_MSG_PER_BUNDLE(pDev), DEV_GET_MAX_BUNDLE_LENGTH(pDev)));
@@ -844,7 +844,7 @@ int DevSetupMsgBundling(AR6K_DEVICE *pDev, int MaxMsgsPerTransfer)
                     DEV_GET_MAX_MSG_PER_BUNDLE(pDev), DEV_GET_MAX_BUNDLE_LENGTH(pDev)));
     }
 
-    if (A_SUCCESS(status)) {
+    if (!status) {
             /* for the recv path, the maximum number of bytes per recv bundle is just limited
              * by the maximum transfer size at the HIF layer */
         pDev->MaxRecvBundleSize = pDev->HifScatterInfo.MaxTransferSizePerScatterReq;

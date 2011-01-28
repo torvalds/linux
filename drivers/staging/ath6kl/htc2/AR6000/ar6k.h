@@ -275,12 +275,16 @@ static INLINE int DevRecvPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32
 int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, A_BOOL FromDMA);
     
     /* copy any READ data back into scatter list */        
-#define DEV_FINISH_SCATTER_OPERATION(pR)                      \
-    if (A_SUCCESS((pR)->CompletionStatus) &&                  \
-        !((pR)->Request & HIF_WRITE) &&                       \
-         ((pR)->ScatterMethod == HIF_SCATTER_DMA_BOUNCE)) {   \
-         (pR)->CompletionStatus = DevCopyScatterListToFromDMABuffer((pR),FROM_DMA_BUFFER); \
-    }
+#define DEV_FINISH_SCATTER_OPERATION(pR)				\
+do {									\
+	if (!((pR)->CompletionStatus) &&				\
+	    !((pR)->Request & HIF_WRITE) &&				\
+	    ((pR)->ScatterMethod == HIF_SCATTER_DMA_BOUNCE)) {		\
+		(pR)->CompletionStatus =				\
+			DevCopyScatterListToFromDMABuffer((pR),		\
+							  FROM_DMA_BUFFER); \
+	}								\
+} while (0)
     
     /* copy any WRITE data to bounce buffer */
 static INLINE int DEV_PREPARE_SCATTER_OPERATION(HIF_SCATTER_REQ *pReq)  {

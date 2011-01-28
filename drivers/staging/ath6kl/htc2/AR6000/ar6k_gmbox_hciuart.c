@@ -82,11 +82,16 @@ typedef struct {
 #define LOCK_HCI_TX(t)   A_MUTEX_LOCK(&(t)->HCITxLock);
 #define UNLOCK_HCI_TX(t) A_MUTEX_UNLOCK(&(t)->HCITxLock);
 
-#define DO_HCI_RECV_INDICATION(p,pt) \
-{   AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("HCI: Indicate Recv on packet:0x%lX status:%d len:%d type:%d \n",  \
-      (unsigned long)(pt),(pt)->Status, A_SUCCESS((pt)->Status) ? (pt)->ActualLength : 0, HCI_GET_PACKET_TYPE(pt))); \
-    (p)->HCIConfig.pHCIPktRecv((p)->HCIConfig.pContext, (pt));                                 \
-}
+#define DO_HCI_RECV_INDICATION(p, pt)				\
+do {								\
+	AR_DEBUG_PRINTF(ATH_DEBUG_RECV,					\
+			("HCI: Indicate Recv on packet:0x%lX status:%d len:%d type:%d \n", \
+			 (unsigned long)(pt),				\
+			 (pt)->Status,					\
+			 !(pt)->Status ? (pt)->ActualLength : 0,	\
+			 HCI_GET_PACKET_TYPE(pt)));			\
+	(p)->HCIConfig.pHCIPktRecv((p)->HCIConfig.pContext, (pt));	\
+} while (0)
 
 #define DO_HCI_SEND_INDICATION(p,pt) \
 {   AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("HCI: Indicate Send on packet:0x%lX status:%d type:%d \n",  \
@@ -175,7 +180,7 @@ static int InitTxCreditState(GMBOX_PROTO_HCI_UART *pProt)
                
     } while (FALSE);
     
-    if (A_SUCCESS(status)) {
+    if (!status) {
         pProt->CreditsAvailable = pProt->CreditsMax;
         AR_DEBUG_PRINTF(ATH_DEBUG_ANY,("HCI : InitTxCreditState - credits avail: %d, size: %d \n",
             pProt->CreditsAvailable, pProt->CreditSize));    
@@ -768,7 +773,7 @@ static int HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, A_BOOL S
     
     if (Synchronous) {
         A_ASSERT(pPacket != NULL);
-        if (A_SUCCESS(status) && (!synchSendComplete)) {
+        if (!status && (!synchSendComplete)) {
             status = A_EBUSY;
             A_ASSERT(FALSE);
             LOCK_HCI_TX(pProt);
@@ -865,7 +870,7 @@ int GMboxProtocolInstall(AR6K_DEVICE *pDev)
      
     } while (FALSE);
     
-    if (A_SUCCESS(status)) {
+    if (!status) {
         LOCK_AR6K(pDev);
         DEV_GMBOX_SET_PROTOCOL(pDev,
                                HCIUartMessagePending,

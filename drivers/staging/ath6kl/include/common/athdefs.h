@@ -73,8 +73,7 @@
 #define A_PHY_ERROR		27	/* RX PHY error */
 #define A_CONSUMED		28	/* Object was consumed */
 
-#define A_SUCCESS(x)        (x == A_OK)
-#define A_FAILED(x)         (!A_SUCCESS(x))
+#define A_FAILED(x)         (!!x)
 
 #ifndef TRUE
 #define TRUE 1

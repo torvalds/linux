@@ -1674,8 +1674,8 @@ ar6000_avail_ev(void *context, void *hif_handle)
     if (ar_netif) { 
         HIF_DEVICE_OS_DEVICE_INFO osDevInfo;
         A_MEMZERO(&osDevInfo, sizeof(osDevInfo));
-        if ( A_SUCCESS( HIFConfigureDevice(hif_handle, HIF_DEVICE_GET_OS_DEVICE,
-                        &osDevInfo, sizeof(osDevInfo))) ) {
+        if (!HIFConfigureDevice(hif_handle, HIF_DEVICE_GET_OS_DEVICE,
+				&osDevInfo, sizeof(osDevInfo))) {
             SET_NETDEV_DEV(dev, osDevInfo.pOSDevice);
         }
     }
@@ -3115,7 +3115,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
                 if (ac == HCI_TRANSPORT_STREAM_NUM) {
                         /* pass this to HCI */
 #ifndef EXPORT_HCI_BRIDGE_INTERFACE
-                    if (A_SUCCESS(hci_test_send(ar,skb))) {
+                    if (!hci_test_send(ar,skb)) {
                         return 0;
                     }
 #endif
@@ -3428,7 +3428,7 @@ ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
             /* add this to the list, use faster non-lock API */
         __skb_queue_tail(&skb_queue,pktSkb);
 
-        if (A_SUCCESS(status)) {
+        if (!status) {
             A_ASSERT(pPacket->ActualLength == A_NETBUF_LEN(pktSkb));
         }
 
@@ -3597,7 +3597,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
          * and adaptive power throughput state */
     AR6000_SPIN_LOCK(&ar->arLock, 0);
 
-    if (A_SUCCESS(status)) {
+    if (!status) {
         AR6000_STAT_INC(ar, rx_packets);
         ar->arNetStats.rx_bytes += pPacket->ActualLength;
 #ifdef ADAPTIVE_POWER_THROUGHPUT_CONTROL

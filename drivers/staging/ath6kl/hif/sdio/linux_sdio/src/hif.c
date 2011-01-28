@@ -1120,7 +1120,7 @@ static int hifDeviceResume(struct device *dev)
     }
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifDeviceResume\n"));
 
-    return A_SUCCESS(status) ? 0 : status;
+    return status;
 }
 #endif /* CONFIG_PM */
 
@@ -1167,7 +1167,7 @@ int hifWaitForPendingRecv(HIF_DEVICE *device)
 	    status = HIFReadWrite(device, HOST_INT_STATUS_ADDRESS,
 				    (A_UINT8 *)&host_int_status, sizeof(host_int_status),
 			  	     HIF_RD_SYNC_BYTE_INC, NULL);
-	    host_int_status = A_SUCCESS(status) ? (host_int_status & (1 << 0)) : 0;
+	    host_int_status = !status ? (host_int_status & (1 << 0)) : 0;
 		if (host_int_status) {
 	        schedule(); /* schedule for next dsrHandler */
 		}

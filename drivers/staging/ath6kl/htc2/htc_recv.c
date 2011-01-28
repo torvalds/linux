@@ -410,7 +410,7 @@ static INLINE void HTCAsyncRecvCheckMorePackets(HTC_TARGET  *target,
                             "BAD lookaheads from lookahead report");
 #endif
         }
-        if (A_SUCCESS(nextStatus) && !fetched) {
+        if (!nextStatus && !fetched) {
                 /* we could not fetch any more packets due to resources */
             DevAsyncIrqProcessComplete(&target->Device);        
         }
@@ -923,14 +923,14 @@ static void HTCAsyncRecvScatterCompletion(HIF_SCATTER_REQ *pScatterReq)
              * break out of this loop */
         numLookAheads = 0;
         
-        if (A_SUCCESS(pScatterReq->CompletionStatus)) {      
+        if (!pScatterReq->CompletionStatus) {
                 /* process header for each of the recv packets */            
             status = HTCProcessRecvHeader(target,pPacket,lookAheads,&numLookAheads);
         } else {
             status = A_ERROR;    
         }
         
-        if (A_SUCCESS(status)) {    
+        if (!status) {
 #ifdef HTC_EP_STAT_PROFILING
             LOCK_HTC_RX(target);              
             HTC_RX_STAT_PROFILE(target,pEndpoint,numLookAheads);
@@ -1085,7 +1085,7 @@ static int HTCIssueRecvPacketBundle(HTC_TARGET        *target,
         
         status = DevSubmitScatterRequest(&target->Device, pScatterReq, DEV_SCATTER_READ, asyncMode);
         
-        if (A_SUCCESS(status)) {
+        if (!status) {
             *pNumPacketsFetched = i;    
         }
         
@@ -1261,7 +1261,7 @@ int HTCRecvMessagePendingHandler(void *Context, A_UINT32 MsgLookAheads[], int Nu
             
         }
 
-        if (A_SUCCESS(status)) {  
+        if (!status) {
             CheckRecvWaterMark(pEndpoint);
         }
             

@@ -372,7 +372,7 @@ static void DevGetEventAsyncHandler(void *Context, HTC_PACKET *pPacket)
                  * go get the next message */
             status = pDev->MessagePendingCallback(pDev->HTCContext, &lookAhead, 1, NULL, &fetched);
 
-            if (A_SUCCESS(status) && !fetched) {
+            if (!status && !fetched) {
                     /* HTC layer could not pull out messages due to lack of resources, stop IRQ processing */
                 AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("MessagePendingCallback did not pull any messages, force-ack \n"));
                 DevAsyncIrqProcessComplete(pDev);
@@ -725,7 +725,7 @@ int DevDsrHandler(void *context)
 
     }
 
-    if (A_SUCCESS(status) && !asyncProc) {
+    if (!status && !asyncProc) {
             /* Ack the interrupt only if :
              *  1. we did not get any errors in processing interrupts
              *  2. there are no outstanding async processing requests */

@@ -589,7 +589,7 @@ int DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, A_BOOL AsyncMode, int *pCredits
     }
     
     if (pIOPacket != NULL) {
-        if (A_SUCCESS(status)) {
+        if (!status) {
                 /* sync mode processing */
             *pCredits = ProcessCreditCounterReadBuffer(pIOPacket->pBuffer, AR6K_REG_IO_BUFFER_SIZE);     
         }
@@ -614,7 +614,7 @@ int DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize)
                           HIF_RD_SYNC_BYTE_FIX, /* hit the register 4 times to align the I/O */
                           NULL);    
     
-    if (A_SUCCESS(status)) {
+    if (!status) {
         if (buffer[0] == 0) {
             *pCreditSize = 256;    
         } else {   
@@ -708,7 +708,7 @@ int DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int Signal, int AckTimeoutMS)
     } while (FALSE);
     
     
-    if (A_SUCCESS(status)) {        
+    if (!status) {
             /* now read back the register to see if the bit cleared */
         while (AckTimeoutMS) {        
             status = HIFReadWrite(pDev->HIFDevice,

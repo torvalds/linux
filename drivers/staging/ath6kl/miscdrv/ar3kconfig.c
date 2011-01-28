@@ -288,7 +288,7 @@ static int AR3KExitMinBoot(AR3K_CONFIG_INFO *pConfig)
                                                &pEvent,
                                                &pBufferToFree);
     
-    if (A_SUCCESS(status)) {
+    if (!status) {
         if (pEvent[EXIT_MIN_BOOT_COMMAND_STATUS_OFFSET] != 0) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 ("AR3K Config: MinBoot exit command event status failed: %d \n", 

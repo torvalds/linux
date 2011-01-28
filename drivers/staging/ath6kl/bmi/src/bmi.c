@@ -985,7 +985,7 @@ BMIFastDownload(HIF_DEVICE *device, A_UINT32 address, A_UCHAR *buffer, A_UINT32 
         status = BMILZData(device, (A_UINT8 *)&lastWord, 4);
     }
 
-    if (A_SUCCESS(status)) {
+    if (!status) {
         //
         // Close compressed stream and open a new (fake) one.  This serves mainly to flush Target caches.
         //
