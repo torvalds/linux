@@ -29,7 +29,7 @@
 #include <linux/earlysuspend.h>
 #endif
 
-A_BOOL enable_mmc_host_detect_change = 0;
+A_BOOL enable_mmc_host_detect_change = FALSE;
 static void ar6000_enable_mmchost_detect_change(int enable);
 
 
