@@ -40,10 +40,11 @@ enum {
 
 #define PCH_UART_DRIVER_DEVICE "ttyPCH"
 
-#define PCH_UART_NR_GE_256FIFO		1
-#define PCH_UART_NR_GE_64FIFO		3
-#define PCH_UART_NR_GE	(PCH_UART_NR_GE_256FIFO+PCH_UART_NR_GE_64FIFO)
-#define PCH_UART_NR	PCH_UART_NR_GE
+/* Set the max number of UART port
+ * Intel EG20T PCH: 4 port
+ * OKI SEMICONDUCTOR ML7213 IOH: 3 port
+*/
+#define PCH_UART_NR	4
 
 #define PCH_UART_HANDLED_RX_INT	(1<<((PCH_UART_HANDLED_RX_INT_SHIFT)<<1))
 #define PCH_UART_HANDLED_TX_INT	(1<<((PCH_UART_HANDLED_TX_INT_SHIFT)<<1))
@@ -191,6 +192,8 @@ enum {
 #define PCH_UART_HAL_OUT		(PCH_UART_MCR_OUT)
 #define PCH_UART_HAL_LOOP		(PCH_UART_MCR_LOOP)
 #define PCH_UART_HAL_AFE		(PCH_UART_MCR_AFE)
+
+#define PCI_VENDOR_ID_ROHM		0x10DB
 
 struct pch_uart_buffer {
 	unsigned char *buf;
@@ -1249,7 +1252,7 @@ static struct uart_driver pch_uart_driver = {
 };
 
 static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
-						int port_type)
+					     const struct pci_device_id *id)
 {
 	struct eg20t_port *priv;
 	int ret;
@@ -1258,6 +1261,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	unsigned char *rxbuf;
 	int fifosize, base_baud;
 	static int num;
+	int port_type = id->driver_data;
 
 	priv = kzalloc(sizeof(struct eg20t_port), GFP_KERNEL);
 	if (priv == NULL)
@@ -1269,11 +1273,11 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 
 	switch (port_type) {
 	case PORT_UNKNOWN:
-		fifosize = 256; /* UART0 */
+		fifosize = 256; /* EG20T/ML7213: UART0 */
 		base_baud = 1843200; /* 1.8432MHz */
 		break;
 	case PORT_8250:
-		fifosize = 64; /* UART1~3 */
+		fifosize = 64; /* EG20T:UART1~3  ML7213: UART1~2*/
 		base_baud = 1843200; /* 1.8432MHz */
 		break;
 	default:
@@ -1307,6 +1311,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, priv);
 	pch_uart_hal_request(pdev, fifosize, base_baud);
+
 	ret = uart_add_one_port(&pch_uart_driver, &priv->port);
 	if (ret < 0)
 		goto init_port_hal_free;
@@ -1384,6 +1389,12 @@ static DEFINE_PCI_DEVICE_TABLE(pch_uart_pci_id) = {
 	 .driver_data = PCH_UART_2LINE},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8814),
 	 .driver_data = PCH_UART_2LINE},
+	{PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8027),
+	 .driver_data = PCH_UART_8LINE},
+	{PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8028),
+	 .driver_data = PCH_UART_2LINE},
+	{PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8029),
+	 .driver_data = PCH_UART_2LINE},
 	{0,},
 };
 
@@ -1397,7 +1408,7 @@ static int __devinit pch_uart_pci_probe(struct pci_dev *pdev,
 	if (ret < 0)
 		goto probe_error;
 
-	priv = pch_uart_init_port(pdev, id->driver_data);
+	priv = pch_uart_init_port(pdev, id);
 	if (!priv) {
 		ret = -EBUSY;
 		goto probe_disable_device;
