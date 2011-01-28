@@ -1063,7 +1063,7 @@ atombios_set_edp_panel_power(struct drm_connector *connector, int action)
 	if (!ASIC_IS_DCE4(rdev))
 		return;
 
-	if ((action != ATOM_TRANSMITTER_ACTION_POWER_ON) ||
+	if ((action != ATOM_TRANSMITTER_ACTION_POWER_ON) &&
 	    (action != ATOM_TRANSMITTER_ACTION_POWER_OFF))
 		return;
 
