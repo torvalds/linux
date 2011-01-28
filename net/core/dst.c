@@ -164,7 +164,7 @@ int dst_discard(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(dst_discard);
 
-static const u32 dst_default_metrics[RTAX_MAX];
+const u32 dst_default_metrics[RTAX_MAX];
 
 void *dst_alloc(struct dst_ops *ops)
 {
