@@ -140,7 +140,12 @@ config HID_DRAGONRISE
 	tristate "DragonRise Inc. game controller"
 	depends on USB_HID
 	---help---
-	Say Y here if you have DragonRise Inc.game controllers.
+	Say Y here if you have DragonRise Inc. game controllers.
+	These might be branded as:
+	- Tesun USB-703
+	- Media-tech MT1504 "Rogue"
+	- DVTech JS19 "Gear"
+	- Defender Game Master
 
 config DRAGONRISE_FF
 	bool "DragonRise Inc. force feedback"
