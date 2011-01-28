@@ -689,6 +689,10 @@ struct p9_rwstat {
  * @tag: transaction id of the request
  * @offset: used by marshalling routines to track currentposition in buffer
  * @capacity: used by marshalling routines to track total capacity
+ * @pubuf: Payload user buffer given by the caller
+ * @pubuf: Payload kernel buffer given by the caller
+ * @pbuf_size: pubuf/pkbuf(only one will be !NULL) size to be read/write.
+ * @private: For transport layer's use.
  * @sdata: payload
  *
  * &p9_fcall represents the structure for all 9P RPC
@@ -705,6 +709,10 @@ struct p9_fcall {
 
 	size_t offset;
 	size_t capacity;
+	char __user *pubuf;
+	char *pkbuf;
+	size_t pbuf_size;
+	void *private;
 
 	uint8_t *sdata;
 };

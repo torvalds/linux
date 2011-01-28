@@ -606,6 +606,10 @@ void p9pdu_reset(struct p9_fcall *pdu)
 {
 	pdu->offset = 0;
 	pdu->size = 0;
+	pdu->private = NULL;
+	pdu->pubuf = NULL;
+	pdu->pkbuf = NULL;
+	pdu->pbuf_size = 0;
 }
 
 int p9dirent_read(char *buf, int len, struct p9_dirent *dirent,
