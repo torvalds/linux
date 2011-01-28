@@ -426,9 +426,15 @@ int filter_match_preds(struct event_filter *filter, void *rec)
 					       pred->parent, &move);
 			continue;
 		case MOVE_UP_FROM_LEFT:
-			/* Check for short circuits */
-			if ((match && pred->op == OP_OR) ||
-			    (!match && pred->op == OP_AND)) {
+			/*
+			 * Check for short circuits.
+			 *
+			 * Optimization: !!match == (pred->op == OP_OR)
+			 *   is the same as:
+			 * if ((match && pred->op == OP_OR) ||
+			 *     (!match && pred->op == OP_AND))
+			 */
+			if (!!match == (pred->op == OP_OR)) {
 				if (pred == root)
 					break;
 				pred = get_pred_parent(pred, preds,
