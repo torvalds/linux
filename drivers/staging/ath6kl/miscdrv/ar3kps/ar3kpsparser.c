@@ -663,7 +663,7 @@ int AthDoParsePS(A_UCHAR *srcbuffer, A_UINT32 srclen)
 {
     int status;
     int i;
-    A_BOOL BDADDR_Present = A_ERROR;
+    A_BOOL BDADDR_Present = FALSE;
 
     Tag_Count = 0;
 
@@ -689,7 +689,7 @@ int AthDoParsePS(A_UCHAR *srcbuffer, A_UINT32 srclen)
         else{
                 for(i=0; i<Tag_Count; i++){
                         if(PsTagEntry[i].TagId == 1){
-                                BDADDR_Present = A_OK;
+                                BDADDR_Present = TRUE;
                                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BD ADDR is present in Patch File \r\n"));
 
                         }
