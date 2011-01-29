@@ -1323,7 +1323,7 @@ static void fc_tm_done(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 		 *
 		 * scsi-eh will escalate for when either happens.
 		 */
-		goto out;
+		return;
 	}
 
 	if (fc_fcp_lock_pkt(fsp))
