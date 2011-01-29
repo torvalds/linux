@@ -646,6 +646,8 @@ int event__process(event_t *event, struct sample_data *sample,
 	case PERF_RECORD_EXIT:
 		event__process_task(event, sample, session);
 		break;
+	case PERF_RECORD_LOST:
+		event__process_lost(event, sample, session);
 	default:
 		break;
 	}
