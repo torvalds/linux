@@ -1282,6 +1282,8 @@ free:
  * @fp:    The request frame
  *
  * On success, the sequence pointer will be returned and also in fr_seq(@fp).
+ * A reference will be held on the exchange/sequence for the caller, which
+ * must call fc_seq_release().
  */
 static struct fc_seq *fc_seq_assign(struct fc_lport *lport, struct fc_frame *fp)
 {
@@ -1296,6 +1298,15 @@ static struct fc_seq *fc_seq_assign(struct fc_lport *lport, struct fc_frame *fp)
 		    fc_seq_lookup_recip(lport, ema->mp, fp) == FC_RJT_NONE)
 			break;
 	return fr_seq(fp);
+}
+
+/**
+ * fc_seq_release() - Release the hold
+ * @sp:    The sequence.
+ */
+static void fc_seq_release(struct fc_seq *sp)
+{
+	fc_exch_release(fc_seq_exch(sp));
 }
 
 /**
@@ -2368,6 +2379,9 @@ int fc_exch_init(struct fc_lport *lport)
 
 	if (!lport->tt.seq_assign)
 		lport->tt.seq_assign = fc_seq_assign;
+
+	if (!lport->tt.seq_release)
+		lport->tt.seq_release = fc_seq_release;
 
 	return 0;
 }
