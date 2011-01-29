@@ -1789,15 +1789,14 @@ static inline int fc_fcp_lport_queue_ready(struct fc_lport *lport)
 
 /**
  * fc_queuecommand() - The queuecommand function of the SCSI template
+ * @shost: The Scsi_Host that the command was issued to
  * @cmd:   The scsi_cmnd to be executed
- * @done:  The callback function to be called when the scsi_cmnd is complete
  *
- * This is the i/o strategy routine, called by the SCSI layer. This routine
- * is called with the host_lock held.
+ * This is the i/o strategy routine, called by the SCSI layer.
  */
-static int fc_queuecommand_lck(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
+int fc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc_cmd)
 {
-	struct fc_lport *lport;
+	struct fc_lport *lport = shost_priv(shost);
 	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
 	struct fc_fcp_pkt *fsp;
 	struct fc_rport_libfc_priv *rpriv;
@@ -1805,15 +1804,12 @@ static int fc_queuecommand_lck(struct scsi_cmnd *sc_cmd, void (*done)(struct scs
 	int rc = 0;
 	struct fcoe_dev_stats *stats;
 
-	lport = shost_priv(sc_cmd->device->host);
-
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
 		sc_cmd->result = rval;
-		done(sc_cmd);
+		sc_cmd->scsi_done(sc_cmd);
 		return 0;
 	}
-	spin_unlock_irq(lport->host->host_lock);
 
 	if (!*(struct fc_remote_port **)rport->dd_data) {
 		/*
@@ -1821,7 +1817,7 @@ static int fc_queuecommand_lck(struct scsi_cmnd *sc_cmd, void (*done)(struct scs
 		 * online
 		 */
 		sc_cmd->result = DID_IMM_RETRY << 16;
-		done(sc_cmd);
+		sc_cmd->scsi_done(sc_cmd);
 		goto out;
 	}
 
@@ -1845,7 +1841,6 @@ static int fc_queuecommand_lck(struct scsi_cmnd *sc_cmd, void (*done)(struct scs
 	 */
 	fsp->cmd = sc_cmd;	/* save the cmd */
 	fsp->rport = rport;	/* set the remote port ptr */
-	sc_cmd->scsi_done = done;
 
 	/*
 	 * set up the transfer length
@@ -1886,11 +1881,8 @@ static int fc_queuecommand_lck(struct scsi_cmnd *sc_cmd, void (*done)(struct scs
 		rc = SCSI_MLQUEUE_HOST_BUSY;
 	}
 out:
-	spin_lock_irq(lport->host->host_lock);
 	return rc;
 }
-
-DEF_SCSI_QCMD(fc_queuecommand)
 EXPORT_SYMBOL(fc_queuecommand);
 
 /**
