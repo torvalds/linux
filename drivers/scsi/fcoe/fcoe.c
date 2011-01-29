@@ -356,10 +356,18 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
 	struct fcoe_interface *fcoe;
 	int err;
 
+	if (!try_module_get(THIS_MODULE)) {
+		FCOE_NETDEV_DBG(netdev,
+				"Could not get a reference to the module\n");
+		fcoe = ERR_PTR(-EBUSY);
+		goto out;
+	}
+
 	fcoe = kzalloc(sizeof(*fcoe), GFP_KERNEL);
 	if (!fcoe) {
 		FCOE_NETDEV_DBG(netdev, "Could not allocate fcoe structure\n");
-		return NULL;
+		fcoe = ERR_PTR(-ENOMEM);
+		goto out_nomod;
 	}
 
 	dev_hold(netdev);
@@ -378,9 +386,15 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
 		fcoe_ctlr_destroy(&fcoe->ctlr);
 		kfree(fcoe);
 		dev_put(netdev);
-		return NULL;
+		fcoe = ERR_PTR(err);
+		goto out_nomod;
 	}
 
+	goto out;
+
+out_nomod:
+	module_put(THIS_MODULE);
+out:
 	return fcoe;
 }
 
@@ -442,6 +456,7 @@ static void fcoe_interface_release(struct kref *kref)
 	fcoe_ctlr_destroy(&fcoe->ctlr);
 	kfree(fcoe);
 	dev_put(netdev);
+	module_put(THIS_MODULE);
 }
 
 /**
@@ -886,7 +901,6 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 
 	/* Release the Scsi_Host */
 	scsi_host_put(lport->host);
-	module_put(THIS_MODULE);
 }
 
 /**
@@ -2135,14 +2149,9 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 	 */
 	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
 		rc = -ENODEV;
-		goto out_nomod;
+		goto out_nodev;
 	}
 #endif
-
-	if (!try_module_get(THIS_MODULE)) {
-		rc = -EINVAL;
-		goto out_nomod;
-	}
 
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev) {
@@ -2157,8 +2166,8 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 	}
 
 	fcoe = fcoe_interface_create(netdev, fip_mode);
-	if (!fcoe) {
-		rc = -ENOMEM;
+	if (IS_ERR(fcoe)) {
+		rc = PTR_ERR(fcoe);
 		goto out_putdev;
 	}
 
@@ -2198,8 +2207,6 @@ out_free:
 out_putdev:
 	dev_put(netdev);
 out_nodev:
-	module_put(THIS_MODULE);
-out_nomod:
 	rtnl_unlock();
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
