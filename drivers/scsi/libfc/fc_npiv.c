@@ -86,6 +86,7 @@ struct fc_lport *fc_vport_id_lookup(struct fc_lport *n_port, u32 port_id)
 
 	return lport;
 }
+EXPORT_SYMBOL(fc_vport_id_lookup);
 
 /*
  * When setting the link state of vports during an lport state change, it's

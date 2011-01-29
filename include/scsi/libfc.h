@@ -158,6 +158,7 @@ struct fc_rport_libfc_priv {
 	#define FC_RP_FLAGS_REC_SUPPORTED	(1 << 0)
 	#define FC_RP_FLAGS_RETRY		(1 << 1)
 	#define FC_RP_STARTED			(1 << 2)
+	#define FC_RP_FLAGS_CONF_REQ		(1 << 3)
 	unsigned int	           e_d_tov;
 	unsigned int	           r_a_tov;
 };
@@ -207,6 +208,11 @@ struct fc_rport_priv {
 	u32			    supported_classes;
 	u16                         prli_count;
 	struct rcu_head		    rcu;
+	u16			    sp_features;
+	u8			    spp_type;
+	void			    (*lld_event_callback)(struct fc_lport *,
+						      struct fc_rport_priv *,
+						      enum fc_rport_event);
 };
 
 /**
@@ -675,6 +681,15 @@ struct libfc_function_template {
 	 * The argument is a pointer to the kref inside the fc_rport_priv.
 	 */
 	void (*rport_destroy)(struct kref *);
+
+	/*
+	 * Callback routine after the remote port is logged in
+	 *
+	 * STATUS: OPTIONAL
+	 */
+	void (*rport_event_callback)(struct fc_lport *,
+				     struct fc_rport_priv *,
+				     enum fc_rport_event);
 
 	/*
 	 * Send a fcp cmd from fsp pkt.

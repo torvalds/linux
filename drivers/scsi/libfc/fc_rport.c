@@ -145,8 +145,10 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 	rdata->maxframe_size = FC_MIN_MAX_PAYLOAD;
 	INIT_DELAYED_WORK(&rdata->retry_work, fc_rport_timeout);
 	INIT_WORK(&rdata->event_work, fc_rport_work);
-	if (port_id != FC_FID_DIR_SERV)
+	if (port_id != FC_FID_DIR_SERV) {
+		rdata->lld_event_callback = lport->tt.rport_event_callback;
 		list_add_rcu(&rdata->peers, &lport->disc.rports);
+	}
 	return rdata;
 }
 
@@ -302,6 +304,10 @@ static void fc_rport_work(struct work_struct *work)
 			FC_RPORT_DBG(rdata, "callback ev %d\n", event);
 			rport_ops->event_callback(lport, rdata, event);
 		}
+		if (rdata->lld_event_callback) {
+			FC_RPORT_DBG(rdata, "lld callback ev %d\n", event);
+			rdata->lld_event_callback(lport, rdata, event);
+		}
 		kref_put(&rdata->kref, lport->tt.rport_destroy);
 		break;
 
@@ -323,6 +329,10 @@ static void fc_rport_work(struct work_struct *work)
 		if (rport_ops && rport_ops->event_callback) {
 			FC_RPORT_DBG(rdata, "callback ev %d\n", event);
 			rport_ops->event_callback(lport, rdata, event);
+		}
+		if (rdata->lld_event_callback) {
+			FC_RPORT_DBG(rdata, "lld callback ev %d\n", event);
+			rdata->lld_event_callback(lport, rdata, event);
 		}
 		cancel_delayed_work_sync(&rdata->retry_work);
 
@@ -890,6 +900,9 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 		rdata->ids.port_name = get_unaligned_be64(&plp->fl_wwpn);
 		rdata->ids.node_name = get_unaligned_be64(&plp->fl_wwnn);
 
+		/* save plogi response sp_features for further reference */
+		rdata->sp_features = ntohs(plp->fl_csp.sp_features);
+
 		if (lport->point_to_multipoint)
 			fc_rport_login_complete(rdata, fp);
 		csp_seq = ntohs(plp->fl_csp.sp_tot_seq);
@@ -997,6 +1010,7 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 		resp_code = (pp->spp.spp_flags & FC_SPP_RESP_MASK);
 		FC_RPORT_DBG(rdata, "PRLI spp_flags = 0x%x\n",
 			     pp->spp.spp_flags);
+		rdata->spp_type = pp->spp.spp_type;
 		if (resp_code != FC_SPP_RESP_ACK) {
 			if (resp_code == FC_SPP_RESP_CONF)
 				fc_rport_error(rdata, fp);
@@ -1010,6 +1024,8 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 		fcp_parm = ntohl(pp->spp.spp_params);
 		if (fcp_parm & FCP_SPPF_RETRY)
 			rdata->flags |= FC_RP_FLAGS_RETRY;
+		if (fcp_parm & FCP_SPPF_CONF_COMPL)
+			rdata->flags |= FC_RP_FLAGS_CONF_REQ;
 
 		prov = fc_passive_prov[FC_TYPE_FCP];
 		if (prov) {
@@ -1719,6 +1735,7 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 	spp = &pp->spp;
 	mutex_lock(&fc_prov_mutex);
 	while (len >= plen) {
+		rdata->spp_type = rspp->spp_type;
 		spp->spp_type = rspp->spp_type;
 		spp->spp_type_ext = rspp->spp_type_ext;
 		resp = 0;
