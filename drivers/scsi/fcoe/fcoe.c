@@ -145,8 +145,8 @@ static struct notifier_block fcoe_cpu_notifier = {
 	.notifier_call = fcoe_cpu_callback,
 };
 
-static struct scsi_transport_template *fcoe_transport_template;
-static struct scsi_transport_template *fcoe_vport_transport_template;
+static struct scsi_transport_template *fcoe_nport_scsi_transport;
+static struct scsi_transport_template *fcoe_vport_scsi_transport;
 
 static int fcoe_vport_destroy(struct fc_vport *);
 static int fcoe_vport_create(struct fc_vport *, bool disabled);
@@ -163,7 +163,7 @@ static struct libfc_function_template fcoe_libfc_fcn_templ = {
 	.lport_set_port_id = fcoe_set_port_id,
 };
 
-struct fc_function_template fcoe_transport_function = {
+struct fc_function_template fcoe_nport_fc_functions = {
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
@@ -203,7 +203,7 @@ struct fc_function_template fcoe_transport_function = {
 	.bsg_request = fc_lport_bsg_request,
 };
 
-struct fc_function_template fcoe_vport_transport_function = {
+struct fc_function_template fcoe_vport_fc_functions = {
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
@@ -723,9 +723,9 @@ static int fcoe_shost_config(struct fc_lport *lport, struct device *dev)
 	lport->host->max_cmd_len = FCOE_MAX_CMD_LEN;
 
 	if (lport->vport)
-		lport->host->transportt = fcoe_vport_transport_template;
+		lport->host->transportt = fcoe_vport_scsi_transport;
 	else
-		lport->host->transportt = fcoe_transport_template;
+		lport->host->transportt = fcoe_nport_scsi_transport;
 
 	/* add the new host to the SCSI-ml */
 	rc = scsi_add_host(lport->host, dev);
@@ -1064,11 +1064,12 @@ out:
 static int __init fcoe_if_init(void)
 {
 	/* attach to scsi transport */
-	fcoe_transport_template = fc_attach_transport(&fcoe_transport_function);
-	fcoe_vport_transport_template =
-		fc_attach_transport(&fcoe_vport_transport_function);
+	fcoe_nport_scsi_transport =
+		fc_attach_transport(&fcoe_nport_fc_functions);
+	fcoe_vport_scsi_transport =
+		fc_attach_transport(&fcoe_vport_fc_functions);
 
-	if (!fcoe_transport_template) {
+	if (!fcoe_nport_scsi_transport) {
 		printk(KERN_ERR "fcoe: Failed to attach to the FC transport\n");
 		return -ENODEV;
 	}
@@ -1085,10 +1086,10 @@ static int __init fcoe_if_init(void)
  */
 int __exit fcoe_if_exit(void)
 {
-	fc_release_transport(fcoe_transport_template);
-	fc_release_transport(fcoe_vport_transport_template);
-	fcoe_transport_template = NULL;
-	fcoe_vport_transport_template = NULL;
+	fc_release_transport(fcoe_nport_scsi_transport);
+	fc_release_transport(fcoe_vport_scsi_transport);
+	fcoe_nport_scsi_transport = NULL;
+	fcoe_vport_scsi_transport = NULL;
 	return 0;
 }
 
