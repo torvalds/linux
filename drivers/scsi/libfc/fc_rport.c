@@ -575,7 +575,7 @@ static void fc_rport_error_retry(struct fc_rport_priv *rdata,
 
 	/* make sure this isn't an FC_EX_CLOSED error, never retry those */
 	if (PTR_ERR(fp) == -FC_EX_CLOSED)
-		return fc_rport_error(rdata, fp);
+		goto out;
 
 	if (rdata->retries < rdata->local_port->max_rport_retry_count) {
 		FC_RPORT_DBG(rdata, "Error %ld in state %s, retrying\n",
@@ -588,7 +588,8 @@ static void fc_rport_error_retry(struct fc_rport_priv *rdata,
 		return;
 	}
 
-	return fc_rport_error(rdata, fp);
+out:
+	fc_rport_error(rdata, fp);
 }
 
 /**
