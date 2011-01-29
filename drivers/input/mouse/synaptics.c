@@ -766,12 +766,6 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 		return -1;
 	}
 
-	if (old_priv.identity != priv->identity ||
-	    old_priv.model_id != priv->model_id ||
-	    old_priv.capabilities != priv->capabilities ||
-	    old_priv.ext_cap != priv->ext_cap)
-		return -1;
-
 	if (synaptics_set_absolute_mode(psmouse)) {
 		printk(KERN_ERR "Unable to initialize Synaptics hardware.\n");
 		return -1;
@@ -779,6 +773,19 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 
 	if (synaptics_set_advanced_gesture_mode(psmouse)) {
 		printk(KERN_ERR "Advanced gesture mode reconnect failed.\n");
+		return -1;
+	}
+
+	if (old_priv.identity != priv->identity ||
+	    old_priv.model_id != priv->model_id ||
+	    old_priv.capabilities != priv->capabilities ||
+	    old_priv.ext_cap != priv->ext_cap) {
+		printk(KERN_ERR "Synaptics hardware appears to be different: "
+			"id(%ld-%ld), model(%ld-%ld), caps(%lx-%lx), ext(%lx-%lx).\n",
+			old_priv.identity, priv->identity,
+			old_priv.model_id, priv->model_id,
+			old_priv.capabilities, priv->capabilities,
+			old_priv.ext_cap, priv->ext_cap);
 		return -1;
 	}
 
