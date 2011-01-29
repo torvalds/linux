@@ -2023,7 +2023,6 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 	unsigned long flags;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif *coex = &pkt->u.bt_coex_profile_notif;
-	struct iwlagn_bt_sco_cmd sco_cmd = { .flags = 0 };
 	struct iwl_bt_uart_msg *uart_msg = &coex->last_bt_uart_msg;
 
 	IWL_DEBUG_NOTIF(priv, "BT Coex notification:\n");
