@@ -5437,19 +5437,20 @@ static int sensor_probe(struct i2c_client *client,
 	#endif
 
     ret = sensor_video_probe(icd, client);
-    if (ret) {
+    if (ret < 0) {
         icd->ops = NULL;
         i2c_set_clientdata(client, NULL);
         kfree(sensor);
+		sensor = NULL;
+    } else {
+		#if CONFIG_SENSOR_Focus
+		sensor->sensor_wq = create_workqueue(SENSOR_NAME_STRING( wq));
+		if (sensor->sensor_wq == NULL)
+			SENSOR_TR("%s workqueue create fail!", SENSOR_NAME_STRING( wq));
+		mutex_init(&sensor->wq_lock);
+		sensor->sensor_wk.state = sensor_work_ready;
+		#endif
     }
-
-	#if CONFIG_SENSOR_Focus
-	sensor->sensor_wq = create_workqueue(SENSOR_NAME_STRING( wq));
-	if (sensor->sensor_wq == NULL)
-		SENSOR_TR("%s workqueue create fail!", SENSOR_NAME_STRING( wq));
-	mutex_init(&sensor->wq_lock);
-	sensor->sensor_wk.state = sensor_work_ready;
-	#endif
 
     SENSOR_DG("\n%s..%s..%d  ret = %x \n",__FUNCTION__,__FILE__,__LINE__,ret);
     return ret;
@@ -5471,7 +5472,7 @@ static int sensor_remove(struct i2c_client *client)
     i2c_set_clientdata(client, NULL);
     client->driver = NULL;
     kfree(sensor);
-
+	sensor = NULL;
     return 0;
 }
 
