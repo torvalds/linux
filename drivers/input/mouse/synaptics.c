@@ -755,11 +755,20 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv = psmouse->private;
 	struct synaptics_data old_priv = *priv;
+	int retry = 0;
+	int error;
 
-	psmouse_reset(psmouse);
+	do {
+		psmouse_reset(psmouse);
+		error = synaptics_detect(psmouse, 0);
+	} while (error && ++retry < 3);
 
-	if (synaptics_detect(psmouse, 0))
+	if (error)
 		return -1;
+
+	if (retry > 1)
+		printk(KERN_DEBUG "Synaptics reconnected after %d tries\n",
+			retry);
 
 	if (synaptics_query_hardware(psmouse)) {
 		printk(KERN_ERR "Unable to query Synaptics hardware.\n");
