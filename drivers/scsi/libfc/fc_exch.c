@@ -558,6 +558,22 @@ static struct fc_seq *fc_seq_start_next(struct fc_seq *sp)
 	return sp;
 }
 
+/*
+ * Set the response handler for the exchange associated with a sequence.
+ */
+static void fc_seq_set_resp(struct fc_seq *sp,
+			    void (*resp)(struct fc_seq *, struct fc_frame *,
+					 void *),
+			    void *arg)
+{
+	struct fc_exch *ep = fc_seq_exch(sp);
+
+	spin_lock_bh(&ep->ex_lock);
+	ep->resp = resp;
+	ep->arg = arg;
+	spin_unlock_bh(&ep->ex_lock);
+}
+
 /**
  * fc_seq_exch_abort() - Abort an exchange and sequence
  * @req_sp:	The sequence to be aborted
@@ -2328,6 +2344,9 @@ int fc_exch_init(struct fc_lport *lport)
 {
 	if (!lport->tt.seq_start_next)
 		lport->tt.seq_start_next = fc_seq_start_next;
+
+	if (!lport->tt.seq_set_resp)
+		lport->tt.seq_set_resp = fc_seq_set_resp;
 
 	if (!lport->tt.exch_seq_send)
 		lport->tt.exch_seq_send = fc_exch_seq_send;

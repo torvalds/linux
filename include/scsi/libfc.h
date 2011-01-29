@@ -555,6 +555,16 @@ struct libfc_function_template {
 	struct fc_seq *(*seq_start_next)(struct fc_seq *);
 
 	/*
+	 * Set a response handler for the exchange of the sequence.
+	 *
+	 * STATUS: OPTIONAL
+	 */
+	void (*seq_set_resp)(struct fc_seq *sp,
+			     void (*resp)(struct fc_seq *, struct fc_frame *,
+					  void *),
+			     void *arg);
+
+	/*
 	 * Assign a sequence for an incoming request frame.
 	 *
 	 * STATUS: OPTIONAL
