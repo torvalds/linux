@@ -8,6 +8,9 @@ struct inode;
 struct super_block;
 struct vfsmount;
 
+/* limit the handle size to NFSv4 handle size now */
+#define MAX_HANDLE_SZ 128
+
 /*
  * The fileid_type identifies how the file within the filesystem is encoded.
  * In theory this is freely set and parsed by the filesystem, but we try to

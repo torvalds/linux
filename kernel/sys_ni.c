@@ -186,3 +186,6 @@ cond_syscall(sys_perf_event_open);
 /* fanotify! */
 cond_syscall(sys_fanotify_init);
 cond_syscall(sys_fanotify_mark);
+
+/* open by handle */
+cond_syscall(sys_name_to_handle_at);

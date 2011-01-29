@@ -48,6 +48,8 @@ obj-$(CONFIG_FS_POSIX_ACL)	+= posix_acl.o xattr_acl.o
 obj-$(CONFIG_NFS_COMMON)	+= nfs_common/
 obj-$(CONFIG_GENERIC_ACL)	+= generic_acl.o
 
+obj-$(CONFIG_FHANDLE)		+= fhandle.o
+
 obj-y				+= quota/
 
 obj-$(CONFIG_PROC_FS)		+= proc/
