@@ -1291,8 +1291,7 @@ u64 memory_hotplug_max(void)
 
 /* Virtual Processor Home Node (VPHN) support */
 #ifdef CONFIG_PPC_SPLPAR
-#define VPHN_NR_CHANGE_CTRS (8)
-static u8 vphn_cpu_change_counts[NR_CPUS][VPHN_NR_CHANGE_CTRS];
+static u8 vphn_cpu_change_counts[NR_CPUS][MAX_DISTANCE_REF_POINTS];
 static cpumask_t cpu_associativity_changes_mask;
 static int vphn_enabled;
 static void set_topology_timer(void);
@@ -1305,12 +1304,15 @@ static void setup_cpu_associativity_change_counters(void)
 {
 	int cpu;
 
+	/* The VPHN feature supports a maximum of 8 reference points */
+	BUILD_BUG_ON(MAX_DISTANCE_REF_POINTS > 8);
+
 	for_each_possible_cpu(cpu) {
 		int i;
 		u8 *counts = vphn_cpu_change_counts[cpu];
 		volatile u8 *hypervisor_counts = lppaca[cpu].vphn_assoc_counts;
 
-		for (i = 0; i < VPHN_NR_CHANGE_CTRS; i++)
+		for (i = 0; i < distance_ref_points_depth; i++)
 			counts[i] = hypervisor_counts[i];
 	}
 }
@@ -1338,7 +1340,7 @@ static int update_cpu_associativity_changes_mask(void)
 		u8 *counts = vphn_cpu_change_counts[cpu];
 		volatile u8 *hypervisor_counts = lppaca[cpu].vphn_assoc_counts;
 
-		for (i = 0; i < VPHN_NR_CHANGE_CTRS; i++) {
+		for (i = 0; i < distance_ref_points_depth; i++) {
 			if (hypervisor_counts[i] > counts[i]) {
 				counts[i] = hypervisor_counts[i];
 				changed = 1;
