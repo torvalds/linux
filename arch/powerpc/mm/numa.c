@@ -1341,7 +1341,7 @@ static int update_cpu_associativity_changes_mask(void)
 		volatile u8 *hypervisor_counts = lppaca[cpu].vphn_assoc_counts;
 
 		for (i = 0; i < distance_ref_points_depth; i++) {
-			if (hypervisor_counts[i] > counts[i]) {
+			if (hypervisor_counts[i] != counts[i]) {
 				counts[i] = hypervisor_counts[i];
 				changed = 1;
 			}
