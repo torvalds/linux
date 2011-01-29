@@ -77,6 +77,7 @@ void vb2_put_vma(struct vm_area_struct *vma)
 
 	kfree(vma);
 }
+EXPORT_SYMBOL_GPL(vb2_put_vma);
 
 /**
  * vb2_get_contig_userptr() - lock physically contiguous userspace mapped memory
@@ -141,6 +142,7 @@ done:
 	up_read(&mm->mmap_sem);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(vb2_get_contig_userptr);
 
 /**
  * vb2_mmap_pfn_range() - map physical pages to userspace
@@ -180,6 +182,7 @@ int vb2_mmap_pfn_range(struct vm_area_struct *vma, unsigned long paddr,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(vb2_mmap_pfn_range);
 
 /**
  * vb2_common_vm_open() - increase refcount of the vma
