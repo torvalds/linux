@@ -1202,6 +1202,7 @@ unlock:
 static int fc_fcp_pkt_abort(struct fc_fcp_pkt *fsp)
 {
 	int rc = FAILED;
+	unsigned long ticks_left;
 
 	if (fc_fcp_send_abort(fsp))
 		return FAILED;
@@ -1210,13 +1211,13 @@ static int fc_fcp_pkt_abort(struct fc_fcp_pkt *fsp)
 	fsp->wait_for_comp = 1;
 
 	spin_unlock_bh(&fsp->scsi_pkt_lock);
-	rc = wait_for_completion_timeout(&fsp->tm_done, FC_SCSI_TM_TOV);
+	ticks_left = wait_for_completion_timeout(&fsp->tm_done,
+							FC_SCSI_TM_TOV);
 	spin_lock_bh(&fsp->scsi_pkt_lock);
 	fsp->wait_for_comp = 0;
 
-	if (!rc) {
+	if (!ticks_left) {
 		FC_FCP_DBG(fsp, "target abort cmd  failed\n");
-		rc = FAILED;
 	} else if (fsp->state & FC_SRB_ABORTED) {
 		FC_FCP_DBG(fsp, "target abort cmd  passed\n");
 		rc = SUCCESS;
