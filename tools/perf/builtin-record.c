@@ -100,7 +100,7 @@ static void write_output(void *buf, size_t size)
 	}
 }
 
-static int process_synthesized_event(event_t *event,
+static int process_synthesized_event(union perf_event *event,
 				     struct perf_sample *sample __used,
 				     struct perf_session *self __used)
 {
@@ -404,7 +404,7 @@ static void atexit_header(void)
 	}
 }
 
-static void event__synthesize_guest_os(struct machine *machine, void *data)
+static void perf_event__synthesize_guest_os(struct machine *machine, void *data)
 {
 	int err;
 	struct perf_session *psession = data;
@@ -420,8 +420,8 @@ static void event__synthesize_guest_os(struct machine *machine, void *data)
 	 *method is used to avoid symbol missing when the first addr is
 	 *in module instead of in guest kernel.
 	 */
-	err = event__synthesize_modules(process_synthesized_event,
-					psession, machine);
+	err = perf_event__synthesize_modules(process_synthesized_event,
+					     psession, machine);
 	if (err < 0)
 		pr_err("Couldn't record guest kernel [%d]'s reference"
 		       " relocation symbol.\n", machine->pid);
@@ -430,11 +430,12 @@ static void event__synthesize_guest_os(struct machine *machine, void *data)
 	 * We use _stext for guest kernel because guest kernel's /proc/kallsyms
 	 * have no _text sometimes.
 	 */
-	err = event__synthesize_kernel_mmap(process_synthesized_event,
-					    psession, machine, "_text");
+	err = perf_event__synthesize_kernel_mmap(process_synthesized_event,
+						 psession, machine, "_text");
 	if (err < 0)
-		err = event__synthesize_kernel_mmap(process_synthesized_event,
-						    psession, machine, "_stext");
+		err = perf_event__synthesize_kernel_mmap(process_synthesized_event,
+							 psession, machine,
+							 "_stext");
 	if (err < 0)
 		pr_err("Couldn't record guest kernel [%d]'s reference"
 		       " relocation symbol.\n", machine->pid);
@@ -617,16 +618,16 @@ static int __cmd_record(int argc, const char **argv)
 	perf_session__set_sample_id_all(session, sample_id_all_avail);
 
 	if (pipe_output) {
-		err = event__synthesize_attrs(&session->header,
-					      process_synthesized_event,
-					      session);
+		err = perf_event__synthesize_attrs(&session->header,
+						   process_synthesized_event,
+						   session);
 		if (err < 0) {
 			pr_err("Couldn't synthesize attrs.\n");
 			return err;
 		}
 
-		err = event__synthesize_event_types(process_synthesized_event,
-						    session);
+		err = perf_event__synthesize_event_types(process_synthesized_event,
+							 session);
 		if (err < 0) {
 			pr_err("Couldn't synthesize event_types.\n");
 			return err;
@@ -641,9 +642,9 @@ static int __cmd_record(int argc, const char **argv)
 			 * return this more properly and also
 			 * propagate errors that now are calling die()
 			 */
-			err = event__synthesize_tracing_data(output, evsel_list,
-							     process_synthesized_event,
-							     session);
+			err = perf_event__synthesize_tracing_data(output, evsel_list,
+								  process_synthesized_event,
+								  session);
 			if (err <= 0) {
 				pr_err("Couldn't record tracing data.\n");
 				return err;
@@ -658,31 +659,34 @@ static int __cmd_record(int argc, const char **argv)
 		return -1;
 	}
 
-	err = event__synthesize_kernel_mmap(process_synthesized_event,
-					    session, machine, "_text");
+	err = perf_event__synthesize_kernel_mmap(process_synthesized_event,
+						 session, machine, "_text");
 	if (err < 0)
-		err = event__synthesize_kernel_mmap(process_synthesized_event,
-						    session, machine, "_stext");
+		err = perf_event__synthesize_kernel_mmap(process_synthesized_event,
+							 session, machine, "_stext");
 	if (err < 0)
 		pr_err("Couldn't record kernel reference relocation symbol\n"
 		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
 		       "Check /proc/kallsyms permission or run as root.\n");
 
-	err = event__synthesize_modules(process_synthesized_event,
-					session, machine);
+	err = perf_event__synthesize_modules(process_synthesized_event,
+					     session, machine);
 	if (err < 0)
 		pr_err("Couldn't record kernel module information.\n"
 		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
 		       "Check /proc/modules permission or run as root.\n");
 
 	if (perf_guest)
-		perf_session__process_machines(session, event__synthesize_guest_os);
+		perf_session__process_machines(session,
+					       perf_event__synthesize_guest_os);
 
 	if (!system_wide)
-		event__synthesize_thread(target_tid, process_synthesized_event,
-					 session);
+		perf_event__synthesize_thread(target_tid,
+					      process_synthesized_event,
+					      session);
 	else
-		event__synthesize_threads(process_synthesized_event, session);
+		perf_event__synthesize_threads(process_synthesized_event,
+					       session);
 
 	if (realtime_prio) {
 		struct sched_param param;

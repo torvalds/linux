@@ -1000,11 +1000,11 @@ perf_header__find_attr(u64 id, struct perf_header *header)
 	return NULL;
 }
 
-int event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
-			   event__handler_t process,
-			   struct perf_session *session)
+int perf_event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
+				perf_event__handler_t process,
+				struct perf_session *session)
 {
-	event_t *ev;
+	union perf_event *ev;
 	size_t size;
 	int err;
 
@@ -1031,8 +1031,9 @@ int event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
 	return err;
 }
 
-int event__synthesize_attrs(struct perf_header *self, event__handler_t process,
-			    struct perf_session *session)
+int perf_event__synthesize_attrs(struct perf_header *self,
+				 perf_event__handler_t process,
+				 struct perf_session *session)
 {
 	struct perf_header_attr	*attr;
 	int i, err = 0;
@@ -1040,8 +1041,8 @@ int event__synthesize_attrs(struct perf_header *self, event__handler_t process,
 	for (i = 0; i < self->attrs; i++) {
 		attr = self->attr[i];
 
-		err = event__synthesize_attr(&attr->attr, attr->ids, attr->id,
-					     process, session);
+		err = perf_event__synthesize_attr(&attr->attr, attr->ids,
+						  attr->id, process, session);
 		if (err) {
 			pr_debug("failed to create perf header attribute\n");
 			return err;
@@ -1051,21 +1052,22 @@ int event__synthesize_attrs(struct perf_header *self, event__handler_t process,
 	return err;
 }
 
-int event__process_attr(event_t *self, struct perf_session *session)
+int perf_event__process_attr(union perf_event *event,
+			     struct perf_session *session)
 {
 	struct perf_header_attr *attr;
 	unsigned int i, ids, n_ids;
 
-	attr = perf_header_attr__new(&self->attr.attr);
+	attr = perf_header_attr__new(&event->attr.attr);
 	if (attr == NULL)
 		return -ENOMEM;
 
-	ids = self->header.size;
-	ids -= (void *)&self->attr.id - (void *)self;
+	ids = event->header.size;
+	ids -= (void *)&event->attr.id - (void *)event;
 	n_ids = ids / sizeof(u64);
 
 	for (i = 0; i < n_ids; i++) {
-		if (perf_header_attr__add_id(attr, self->attr.id[i]) < 0) {
+		if (perf_header_attr__add_id(attr, event->attr.id[i]) < 0) {
 			perf_header_attr__delete(attr);
 			return -ENOMEM;
 		}
@@ -1081,11 +1083,11 @@ int event__process_attr(event_t *self, struct perf_session *session)
 	return 0;
 }
 
-int event__synthesize_event_type(u64 event_id, char *name,
-				 event__handler_t process,
-				 struct perf_session *session)
+int perf_event__synthesize_event_type(u64 event_id, char *name,
+				      perf_event__handler_t process,
+				      struct perf_session *session)
 {
-	event_t ev;
+	union perf_event ev;
 	size_t size = 0;
 	int err = 0;
 
@@ -1106,8 +1108,8 @@ int event__synthesize_event_type(u64 event_id, char *name,
 	return err;
 }
 
-int event__synthesize_event_types(event__handler_t process,
-				  struct perf_session *session)
+int perf_event__synthesize_event_types(perf_event__handler_t process,
+				       struct perf_session *session)
 {
 	struct perf_trace_event_type *type;
 	int i, err = 0;
@@ -1115,8 +1117,9 @@ int event__synthesize_event_types(event__handler_t process,
 	for (i = 0; i < event_count; i++) {
 		type = &events[i];
 
-		err = event__synthesize_event_type(type->event_id, type->name,
-						   process, session);
+		err = perf_event__synthesize_event_type(type->event_id,
+							type->name, process,
+							session);
 		if (err) {
 			pr_debug("failed to create perf header event type\n");
 			return err;
@@ -1126,21 +1129,21 @@ int event__synthesize_event_types(event__handler_t process,
 	return err;
 }
 
-int event__process_event_type(event_t *self,
-			      struct perf_session *session __unused)
+int perf_event__process_event_type(union perf_event *event,
+				   struct perf_session *session __unused)
 {
-	if (perf_header__push_event(self->event_type.event_type.event_id,
-				    self->event_type.event_type.name) < 0)
+	if (perf_header__push_event(event->event_type.event_type.event_id,
+				    event->event_type.event_type.name) < 0)
 		return -ENOMEM;
 
 	return 0;
 }
 
-int event__synthesize_tracing_data(int fd, struct perf_evlist *evlist,
-				   event__handler_t process,
+int perf_event__synthesize_tracing_data(int fd, struct perf_evlist *evlist,
+					 perf_event__handler_t process,
 				   struct perf_session *session __unused)
 {
-	event_t ev;
+	union perf_event ev;
 	ssize_t size = 0, aligned_size = 0, padding;
 	int err = 0;
 
@@ -1163,10 +1166,10 @@ int event__synthesize_tracing_data(int fd, struct perf_evlist *evlist,
 	return aligned_size;
 }
 
-int event__process_tracing_data(event_t *self,
-				struct perf_session *session)
+int perf_event__process_tracing_data(union perf_event *event,
+				     struct perf_session *session)
 {
-	ssize_t size_read, padding, size = self->tracing_data.size;
+	ssize_t size_read, padding, size = event->tracing_data.size;
 	off_t offset = lseek(session->fd, 0, SEEK_CUR);
 	char buf[BUFSIZ];
 
@@ -1192,12 +1195,12 @@ int event__process_tracing_data(event_t *self,
 	return size_read + padding;
 }
 
-int event__synthesize_build_id(struct dso *pos, u16 misc,
-			       event__handler_t process,
-			       struct machine *machine,
-			       struct perf_session *session)
+int perf_event__synthesize_build_id(struct dso *pos, u16 misc,
+				    perf_event__handler_t process,
+				    struct machine *machine,
+				    struct perf_session *session)
 {
-	event_t ev;
+	union perf_event ev;
 	size_t len;
 	int err = 0;
 
@@ -1220,11 +1223,11 @@ int event__synthesize_build_id(struct dso *pos, u16 misc,
 	return err;
 }
 
-int event__process_build_id(event_t *self,
-			    struct perf_session *session)
+int perf_event__process_build_id(union perf_event *event,
+				 struct perf_session *session)
 {
-	__event_process_build_id(&self->build_id,
-				 self->build_id.filename,
+	__event_process_build_id(&event->build_id,
+				 event->build_id.filename,
 				 session);
 	return 0;
 }

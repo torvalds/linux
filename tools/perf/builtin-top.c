@@ -401,7 +401,7 @@ static void show_details(struct sym_entry *syme)
 }
 
 /*
- * Symbols will be added here in event__process_sample and will get out
+ * Symbols will be added here in perf_event__process_sample and will get out
  * after decayed.
  */
 static LIST_HEAD(active_symbols);
@@ -996,15 +996,15 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 	return 0;
 }
 
-static void event__process_sample(const event_t *self,
-				  struct perf_sample *sample,
-				  struct perf_session *session)
+static void perf_event__process_sample(const union perf_event *event,
+				       struct perf_sample *sample,
+				       struct perf_session *session)
 {
-	u64 ip = self->ip.ip;
+	u64 ip = event->ip.ip;
 	struct sym_entry *syme;
 	struct addr_location al;
 	struct machine *machine;
-	u8 origin = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	u8 origin = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	++samples;
 
@@ -1023,7 +1023,7 @@ static void event__process_sample(const event_t *self,
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
 		++guest_kernel_samples;
-		machine = perf_session__find_machine(session, self->ip.pid);
+		machine = perf_session__find_machine(session, event->ip.pid);
 		break;
 	case PERF_RECORD_MISC_GUEST_USER:
 		++guest_us_samples;
@@ -1038,15 +1038,15 @@ static void event__process_sample(const event_t *self,
 
 	if (!machine && perf_guest) {
 		pr_err("Can't find guest [%d]'s kernel information\n",
-			self->ip.pid);
+			event->ip.pid);
 		return;
 	}
 
-	if (self->header.misc & PERF_RECORD_MISC_EXACT_IP)
+	if (event->header.misc & PERF_RECORD_MISC_EXACT_IP)
 		exact_samples++;
 
-	if (event__preprocess_sample(self, session, &al, sample,
-				     symbol_filter) < 0 ||
+	if (perf_event__preprocess_sample(event, session, &al, sample,
+					  symbol_filter) < 0 ||
 	    al.filtered)
 		return;
 
@@ -1108,15 +1108,15 @@ static void event__process_sample(const event_t *self,
 static void perf_session__mmap_read_cpu(struct perf_session *self, int cpu)
 {
 	struct perf_sample sample;
-	event_t *event;
+	union perf_event *event;
 
 	while ((event = perf_evlist__read_on_cpu(evsel_list, cpu)) != NULL) {
 		perf_session__parse_sample(self, event, &sample);
 
 		if (event->header.type == PERF_RECORD_SAMPLE)
-			event__process_sample(event, &sample, self);
+			perf_event__process_sample(event, &sample, self);
 		else
-			event__process(event, &sample, self);
+			perf_event__process(event, &sample, self);
 	}
 }
 
@@ -1199,9 +1199,10 @@ static int __cmd_top(void)
 		return -ENOMEM;
 
 	if (target_tid != -1)
-		event__synthesize_thread(target_tid, event__process, session);
+		perf_event__synthesize_thread(target_tid, perf_event__process,
+					      session);
 	else
-		event__synthesize_threads(event__process, session);
+		perf_event__synthesize_threads(perf_event__process, session);
 
 	start_counters(evsel_list);
 	first = list_entry(evsel_list->entries.next, struct perf_evsel, node);

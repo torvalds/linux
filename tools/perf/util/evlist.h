@@ -17,7 +17,7 @@ struct perf_evlist {
 	int		 nr_fds;
 	int		 mmap_len;
 	bool		 overwrite;
-	event_t		 event_copy;
+	union perf_event event_copy;
 	struct perf_mmap *mmap;
 	struct pollfd	 *pollfd;
 };
@@ -37,6 +37,6 @@ void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
 
 struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
 
-event_t *perf_evlist__read_on_cpu(struct perf_evlist *self, int cpu);
+union perf_event *perf_evlist__read_on_cpu(struct perf_evlist *self, int cpu);
 
 #endif /* __PERF_EVLIST_H */

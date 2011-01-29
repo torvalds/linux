@@ -58,12 +58,13 @@ static int hists__add_entry(struct hists *self, struct addr_location *al)
 	return hist_entry__inc_addr_samples(he, al->addr);
 }
 
-static int process_sample_event(event_t *event, struct perf_sample *sample,
+static int process_sample_event(union perf_event *event,
+				struct perf_sample *sample,
 				struct perf_session *session)
 {
 	struct addr_location al;
 
-	if (event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
+	if (perf_event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -372,9 +373,9 @@ find_next:
 
 static struct perf_event_ops event_ops = {
 	.sample	= process_sample_event,
-	.mmap	= event__process_mmap,
-	.comm	= event__process_comm,
-	.fork	= event__process_task,
+	.mmap	= perf_event__process_mmap,
+	.comm	= perf_event__process_comm,
+	.fork	= perf_event__process_task,
 	.ordered_samples = true,
 	.ordering_requires_timestamps = true,
 };

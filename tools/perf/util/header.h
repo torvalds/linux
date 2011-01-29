@@ -100,32 +100,32 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 			  const char *name, bool is_kallsyms);
 int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir);
 
-int event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
-			   event__handler_t process,
-			   struct perf_session *session);
-int event__synthesize_attrs(struct perf_header *self,
-			    event__handler_t process,
-			    struct perf_session *session);
-int event__process_attr(event_t *self, struct perf_session *session);
-
-int event__synthesize_event_type(u64 event_id, char *name,
-				 event__handler_t process,
-				 struct perf_session *session);
-int event__synthesize_event_types(event__handler_t process,
-				  struct perf_session *session);
-int event__process_event_type(event_t *self,
-			      struct perf_session *session);
-
-int event__synthesize_tracing_data(int fd, struct perf_evlist *evlist,
-				   event__handler_t process,
-				   struct perf_session *session);
-int event__process_tracing_data(event_t *self,
+int perf_event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
+				perf_event__handler_t process,
 				struct perf_session *session);
+int perf_event__synthesize_attrs(struct perf_header *self,
+				 perf_event__handler_t process,
+				 struct perf_session *session);
+int perf_event__process_attr(union perf_event *event, struct perf_session *session);
 
-int event__synthesize_build_id(struct dso *pos, u16 misc,
-			       event__handler_t process,
-			       struct machine *machine,
-			       struct perf_session *session);
-int event__process_build_id(event_t *self, struct perf_session *session);
+int perf_event__synthesize_event_type(u64 event_id, char *name,
+				      perf_event__handler_t process,
+				      struct perf_session *session);
+int perf_event__synthesize_event_types(perf_event__handler_t process,
+				       struct perf_session *session);
+int perf_event__process_event_type(union perf_event *event,
+				   struct perf_session *session);
 
+int perf_event__synthesize_tracing_data(int fd, struct perf_evlist *evlist,
+					perf_event__handler_t process,
+					struct perf_session *session);
+int perf_event__process_tracing_data(union perf_event *event,
+				     struct perf_session *session);
+
+int perf_event__synthesize_build_id(struct dso *pos, u16 misc,
+				    perf_event__handler_t process,
+				    struct machine *machine,
+				    struct perf_session *session);
+int perf_event__process_build_id(union perf_event *event,
+				 struct perf_session *session);
 #endif /* __PERF_HEADER_H */

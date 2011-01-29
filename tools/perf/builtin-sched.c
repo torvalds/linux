@@ -1580,9 +1580,9 @@ process_sched_migrate_task_event(void *data, struct perf_session *session,
 						 event, cpu, timestamp, thread);
 }
 
-static void
-process_raw_event(event_t *raw_event __used, struct perf_session *session,
-		  void *data, int cpu, u64 timestamp, struct thread *thread)
+static void process_raw_event(union perf_event *raw_event __used,
+			      struct perf_session *session, void *data, int cpu,
+			      u64 timestamp, struct thread *thread)
 {
 	struct event *event;
 	int type;
@@ -1607,7 +1607,8 @@ process_raw_event(event_t *raw_event __used, struct perf_session *session,
 		process_sched_migrate_task_event(data, session, event, cpu, timestamp, thread);
 }
 
-static int process_sample_event(event_t *event, struct perf_sample *sample,
+static int process_sample_event(union perf_event *event,
+				struct perf_sample *sample,
 				struct perf_session *session)
 {
 	struct thread *thread;
@@ -1635,9 +1636,9 @@ static int process_sample_event(event_t *event, struct perf_sample *sample,
 
 static struct perf_event_ops event_ops = {
 	.sample			= process_sample_event,
-	.comm			= event__process_comm,
-	.lost			= event__process_lost,
-	.fork			= event__process_task,
+	.comm			= perf_event__process_comm,
+	.lost			= perf_event__process_lost,
+	.fork			= perf_event__process_task,
 	.ordered_samples	= true,
 };
 

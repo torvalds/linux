@@ -107,7 +107,7 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
 	return NULL;
 }
 
-event_t *perf_evlist__read_on_cpu(struct perf_evlist *evlist, int cpu)
+union perf_event *perf_evlist__read_on_cpu(struct perf_evlist *evlist, int cpu)
 {
 	/* XXX Move this to perf.c, making it generally available */
 	unsigned int page_size = sysconf(_SC_PAGE_SIZE);
@@ -115,7 +115,7 @@ event_t *perf_evlist__read_on_cpu(struct perf_evlist *evlist, int cpu)
 	unsigned int head = perf_mmap__read_head(md);
 	unsigned int old = md->prev;
 	unsigned char *data = md->base + page_size;
-	event_t *event = NULL;
+	union perf_event *event = NULL;
 
 	if (evlist->overwrite) {
 		/*
@@ -140,7 +140,7 @@ event_t *perf_evlist__read_on_cpu(struct perf_evlist *evlist, int cpu)
 	if (old != head) {
 		size_t size;
 
-		event = (event_t *)&data[old & md->mask];
+		event = (union perf_event *)&data[old & md->mask];
 		size = event->header.size;
 
 		/*

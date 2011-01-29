@@ -149,13 +149,14 @@ static int add_event_total(struct perf_session *session,
 	return 0;
 }
 
-static int process_sample_event(event_t *event, struct perf_sample *sample,
+static int process_sample_event(union perf_event *event,
+				struct perf_sample *sample,
 				struct perf_session *session)
 {
 	struct addr_location al;
 	struct perf_event_attr *attr;
 
-	if (event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
+	if (perf_event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
@@ -179,7 +180,8 @@ static int process_sample_event(event_t *event, struct perf_sample *sample,
 	return 0;
 }
 
-static int process_read_event(event_t *event, struct perf_sample *sample __used,
+static int process_read_event(union perf_event *event,
+			      struct perf_sample *sample __used,
 			      struct perf_session *session __used)
 {
 	struct perf_event_attr *attr;
@@ -232,17 +234,17 @@ static int perf_session__setup_sample_type(struct perf_session *self)
 }
 
 static struct perf_event_ops event_ops = {
-	.sample	= process_sample_event,
-	.mmap	= event__process_mmap,
-	.comm	= event__process_comm,
-	.exit	= event__process_task,
-	.fork	= event__process_task,
-	.lost	= event__process_lost,
-	.read	= process_read_event,
-	.attr	= event__process_attr,
-	.event_type = event__process_event_type,
-	.tracing_data = event__process_tracing_data,
-	.build_id = event__process_build_id,
+	.sample		 = process_sample_event,
+	.mmap		 = perf_event__process_mmap,
+	.comm		 = perf_event__process_comm,
+	.exit		 = perf_event__process_task,
+	.fork		 = perf_event__process_task,
+	.lost		 = perf_event__process_lost,
+	.read		 = process_read_event,
+	.attr		 = perf_event__process_attr,
+	.event_type	 = perf_event__process_event_type,
+	.tracing_data	 = perf_event__process_tracing_data,
+	.build_id	 = perf_event__process_build_id,
 	.ordered_samples = true,
 	.ordering_requires_timestamps = true,
 };

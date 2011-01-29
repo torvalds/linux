@@ -95,8 +95,8 @@ int callchain_append(struct callchain_root *root,
 int callchain_merge(struct callchain_cursor *cursor,
 		    struct callchain_root *dst, struct callchain_root *src);
 
-bool ip_callchain__valid(struct ip_callchain *chain, const event_t *event);
-
+bool ip_callchain__valid(struct ip_callchain *chain,
+			 const union perf_event *event);
 /*
  * Initialize a cursor before adding entries inside, but keep
  * the previously allocated entries as a cache.

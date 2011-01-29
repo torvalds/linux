@@ -1182,7 +1182,7 @@ size_t hists__fprintf_nr_events(struct hists *self, FILE *fp)
 	size_t ret = 0;
 
 	for (i = 0; i < PERF_RECORD_HEADER_MAX; ++i) {
-		const char *name = event__get_event_name(i);
+		const char *name = perf_event__name(i);
 
 		if (!strcmp(name, "UNKNOWN"))
 			continue;

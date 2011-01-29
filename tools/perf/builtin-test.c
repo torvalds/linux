@@ -454,7 +454,7 @@ out_thread_map_delete:
 static int test__basic_mmap(void)
 {
 	int err = -1;
-	event_t *event;
+	union perf_event *event;
 	struct thread_map *threads;
 	struct cpu_map *cpus;
 	struct perf_evlist *evlist;
@@ -554,11 +554,11 @@ static int test__basic_mmap(void)
 
 		if (event->header.type != PERF_RECORD_SAMPLE) {
 			pr_debug("unexpected %s event\n",
-				 event__get_event_name(event->header.type));
+				 perf_event__name(event->header.type));
 			goto out_munmap;
 		}
 
-		event__parse_sample(event, attr.sample_type, false, &sample);
+		perf_event__parse_sample(event, attr.sample_type, false, &sample);
 		evsel = perf_evlist__id2evsel(evlist, sample.id);
 		if (evsel == NULL) {
 			pr_debug("event with id %" PRIu64

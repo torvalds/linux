@@ -367,8 +367,8 @@ out_unmap:
 	return -1;
 }
 
-static int event__parse_id_sample(const event_t *event, u64 type,
-				  struct perf_sample *sample)
+static int perf_event__parse_id_sample(const union perf_event *event, u64 type,
+				       struct perf_sample *sample)
 {
 	const u64 *array = event->sample.array;
 
@@ -405,8 +405,8 @@ static int event__parse_id_sample(const event_t *event, u64 type,
 	return 0;
 }
 
-int event__parse_sample(const event_t *event, u64 type, bool sample_id_all,
-			struct perf_sample *data)
+int perf_event__parse_sample(const union perf_event *event, u64 type,
+			     bool sample_id_all, struct perf_sample *data)
 {
 	const u64 *array;
 
@@ -416,7 +416,7 @@ int event__parse_sample(const event_t *event, u64 type, bool sample_id_all,
 	if (event->header.type != PERF_RECORD_SAMPLE) {
 		if (!sample_id_all)
 			return 0;
-		return event__parse_id_sample(event, type, data);
+		return perf_event__parse_id_sample(event, type, data);
 	}
 
 	array = event->sample.array;

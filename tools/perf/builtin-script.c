@@ -63,7 +63,8 @@ static int cleanup_scripting(void)
 
 static char const		*input_name = "perf.data";
 
-static int process_sample_event(event_t *event, struct perf_sample *sample,
+static int process_sample_event(union perf_event *event,
+				struct perf_sample *sample,
 				struct perf_session *session)
 {
 	struct thread *thread = perf_session__findnew(session, event->ip.pid);
@@ -100,14 +101,14 @@ static int process_sample_event(event_t *event, struct perf_sample *sample,
 }
 
 static struct perf_event_ops event_ops = {
-	.sample	= process_sample_event,
-	.comm	= event__process_comm,
-	.attr	= event__process_attr,
-	.event_type = event__process_event_type,
-	.tracing_data = event__process_tracing_data,
-	.build_id = event__process_build_id,
-	.ordering_requires_timestamps = true,
+	.sample		 = process_sample_event,
+	.comm		 = perf_event__process_comm,
+	.attr		 = perf_event__process_attr,
+	.event_type	 = perf_event__process_event_type,
+	.tracing_data	 = perf_event__process_tracing_data,
+	.build_id	 = perf_event__process_build_id,
 	.ordered_samples = true,
+	.ordering_requires_timestamps = true,
 };
 
 extern volatile int session_done;
