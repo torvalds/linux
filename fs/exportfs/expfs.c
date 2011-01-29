@@ -320,9 +320,14 @@ static int export_encode_fh(struct dentry *dentry, struct fid *fid,
 	struct inode * inode = dentry->d_inode;
 	int len = *max_len;
 	int type = FILEID_INO32_GEN;
-	
-	if (len < 2 || (connectable && len < 4))
+
+	if (connectable && (len < 4)) {
+		*max_len = 4;
 		return 255;
+	} else if (len < 2) {
+		*max_len = 2;
+		return 255;
+	}
 
 	len = 2;
 	fid->i32.ino = inode->i_ino;
