@@ -35,6 +35,8 @@
 
 #include <scsi/fc_frame.h>
 
+#define	FC_FC4_PROV_SIZE	(FC_TYPE_FCP + 1)	/* size of tables */
+
 /*
  * libfc error codes
  */
@@ -179,6 +181,7 @@ struct fc_rport_libfc_priv {
  * @rp_mutex:       The mutex that protects the remote port
  * @retry_work:     Handle for retries
  * @event_callback: Callback when READY, FAILED or LOGO states complete
+ * @prli_count:     Count of open PRLI sessions in providers
  * @rcu:	    Structure used for freeing in an RCU-safe manner
  */
 struct fc_rport_priv {
@@ -202,6 +205,7 @@ struct fc_rport_priv {
 	struct list_head            peers;
 	struct work_struct          event_work;
 	u32			    supported_classes;
+	u16                         prli_count;
 	struct rcu_head		    rcu;
 };
 
@@ -847,6 +851,28 @@ struct fc_lport {
 	struct list_head               list;
 	struct delayed_work	       retry_work;
 };
+
+/**
+ * struct fc4_prov - FC-4 provider registration
+ * @prli:               Handler for incoming PRLI
+ * @prlo:               Handler for session reset
+ * @recv:		Handler for incoming request
+ * @module:		Pointer to module.  May be NULL.
+ */
+struct fc4_prov {
+	int (*prli)(struct fc_rport_priv *, u32 spp_len,
+		    const struct fc_els_spp *spp_in,
+		    struct fc_els_spp *spp_out);
+	void (*prlo)(struct fc_rport_priv *);
+	void (*recv)(struct fc_lport *, struct fc_frame *);
+	struct module *module;
+};
+
+/*
+ * Register FC-4 provider with libfc.
+ */
+int fc_fc4_register_provider(enum fc_fh_type type, struct fc4_prov *);
+void fc_fc4_deregister_provider(enum fc_fh_type type, struct fc4_prov *);
 
 /*
  * FC_LPORT HELPER FUNCTIONS
