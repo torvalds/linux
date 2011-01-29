@@ -86,7 +86,7 @@ static const u32 tegra_kbc_default_keymap[] = {
 	KEY(0, 5, KEY_Z),
 	KEY(0, 7, KEY_FN),
 
-	KEY(1, 7, KEY_MENU),
+	KEY(1, 7, KEY_LEFTMETA),
 
 	KEY(2, 6, KEY_RIGHTALT),
 	KEY(2, 7, KEY_LEFTALT),
