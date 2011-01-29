@@ -116,24 +116,25 @@ event_t *perf_evlist__read_on_cpu(struct perf_evlist *evlist, int cpu)
 	unsigned int old = md->prev;
 	unsigned char *data = md->base + page_size;
 	event_t *event = NULL;
-	int diff;
 
-	/*
-	 * If we're further behind than half the buffer, there's a chance
-	 * the writer will bite our tail and mess up the samples under us.
-	 *
-	 * If we somehow ended up ahead of the head, we got messed up.
-	 *
-	 * In either case, truncate and restart at head.
-	 */
-	diff = head - old;
-	if (diff > md->mask / 2 || diff < 0) {
-		fprintf(stderr, "WARNING: failed to keep up with mmap data.\n");
-
+	if (evlist->overwrite) {
 		/*
-		 * head points to a known good entry, start there.
+		 * If we're further behind than half the buffer, there's a chance
+		 * the writer will bite our tail and mess up the samples under us.
+		 *
+		 * If we somehow ended up ahead of the head, we got messed up.
+		 *
+		 * In either case, truncate and restart at head.
 		 */
-		old = head;
+		int diff = head - old;
+		if (diff > md->mask / 2 || diff < 0) {
+			fprintf(stderr, "WARNING: failed to keep up with mmap data.\n");
+
+			/*
+			 * head points to a known good entry, start there.
+			 */
+			old = head;
+		}
 	}
 
 	if (old != head) {
@@ -166,5 +167,9 @@ event_t *perf_evlist__read_on_cpu(struct perf_evlist *evlist, int cpu)
 	}
 
 	md->prev = old;
+
+	if (!evlist->overwrite)
+		perf_mmap__write_tail(md, old);
+
 	return event;
 }

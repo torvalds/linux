@@ -327,6 +327,7 @@ int perf_evlist__mmap(struct perf_evlist *evlist, struct cpu_map *cpus,
 	    perf_evlist__alloc_pollfd(evlist, cpus->nr, threads->nr) < 0)
 		return -ENOMEM;
 
+	evlist->overwrite = overwrite;
 	evlist->mmap_len = (pages + 1) * page_size;
 	first_evsel = list_entry(evlist->entries.next, struct perf_evsel, node);
 

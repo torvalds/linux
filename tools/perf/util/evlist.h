@@ -16,6 +16,7 @@ struct perf_evlist {
 	int		 nr_entries;
 	int		 nr_fds;
 	int		 mmap_len;
+	bool		 overwrite;
 	event_t		 event_copy;
 	struct perf_mmap *mmap;
 	struct pollfd	 *pollfd;
