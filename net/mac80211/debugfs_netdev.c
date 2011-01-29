@@ -149,6 +149,7 @@ IEEE80211_IF_FILE(rc_rateidx_mask_5ghz, rc_rateidx_mask[IEEE80211_BAND_5GHZ],
 		  HEX);
 IEEE80211_IF_FILE(flags, flags, HEX);
 IEEE80211_IF_FILE(state, state, LHEX);
+IEEE80211_IF_FILE(channel_type, vif.bss_conf.channel_type, DEC);
 
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
@@ -289,6 +290,7 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(drop_unencrypted);
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(state);
+	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
@@ -304,6 +306,7 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(drop_unencrypted);
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(state);
+	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
@@ -317,6 +320,7 @@ static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(drop_unencrypted);
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(state);
+	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
@@ -328,6 +332,7 @@ static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(drop_unencrypted);
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(state);
+	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 }
@@ -336,6 +341,7 @@ static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(state);
+	DEBUGFS_ADD(channel_type);
 }
 
 #ifdef CONFIG_MAC80211_MESH
