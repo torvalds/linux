@@ -232,6 +232,25 @@ void fc_fill_reply_hdr(struct fc_frame *fp, const struct fc_frame *in_fp,
 }
 EXPORT_SYMBOL(fc_fill_reply_hdr);
 
+/**
+ * fc_fc4_conf_lport_params() - Modify "service_params" of specified lport
+ * if there is service provider (target provider) registered with libfc
+ * for specified "fc_ft_type"
+ * @lport: Local port which service_params needs to be modified
+ * @type: FC-4 type, such as FC_TYPE_FCP
+ */
+void fc_fc4_conf_lport_params(struct fc_lport *lport, enum fc_fh_type type)
+{
+	struct fc4_prov *prov_entry;
+	BUG_ON(type >= FC_FC4_PROV_SIZE);
+	BUG_ON(!lport);
+	prov_entry = fc_passive_prov[type];
+	if (type == FC_TYPE_FCP) {
+		if (prov_entry && prov_entry->recv)
+			lport->service_params |= FCP_SPPF_TARG_FCN;
+	}
+}
+
 void fc_lport_iterate(void (*notify)(struct fc_lport *, void *), void *arg)
 {
 	struct fc_lport *lport;

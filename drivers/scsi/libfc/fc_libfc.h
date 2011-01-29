@@ -125,6 +125,7 @@ void fc_destroy_fcp(void);
 const char *fc_els_resp_type(struct fc_frame *);
 extern void fc_fc4_add_lport(struct fc_lport *);
 extern void fc_fc4_del_lport(struct fc_lport *);
+extern void fc_fc4_conf_lport_params(struct fc_lport *, enum fc_fh_type);
 
 /*
  * Copies a buffer into an sg list

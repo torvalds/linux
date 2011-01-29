@@ -1597,6 +1597,7 @@ int fc_lport_config(struct fc_lport *lport)
 
 	fc_lport_add_fc4_type(lport, FC_TYPE_FCP);
 	fc_lport_add_fc4_type(lport, FC_TYPE_CT);
+	fc_fc4_conf_lport_params(lport, FC_TYPE_FCP);
 
 	return 0;
 }
