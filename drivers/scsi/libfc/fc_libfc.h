@@ -123,6 +123,8 @@ void fc_destroy_fcp(void);
  * Internal libfc functions
  */
 const char *fc_els_resp_type(struct fc_frame *);
+extern void fc_fc4_add_lport(struct fc_lport *);
+extern void fc_fc4_del_lport(struct fc_lport *);
 
 /*
  * Copies a buffer into an sg list

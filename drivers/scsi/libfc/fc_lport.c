@@ -633,6 +633,7 @@ int fc_lport_destroy(struct fc_lport *lport)
 	lport->tt.fcp_abort_io(lport);
 	lport->tt.disc_stop_final(lport);
 	lport->tt.exch_mgr_reset(lport, 0, 0);
+	fc_fc4_del_lport(lport);
 	return 0;
 }
 EXPORT_SYMBOL(fc_lport_destroy);
@@ -1633,6 +1634,7 @@ int fc_lport_init(struct fc_lport *lport)
 		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_1GBIT;
 	if (lport->link_supported_speeds & FC_PORTSPEED_10GBIT)
 		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_10GBIT;
+	fc_fc4_add_lport(lport);
 
 	return 0;
 }

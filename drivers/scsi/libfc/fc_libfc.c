@@ -36,6 +36,10 @@ module_param_named(debug_logging, fc_debug_logging, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
 
 DEFINE_MUTEX(fc_prov_mutex);
+static LIST_HEAD(fc_local_ports);
+struct blocking_notifier_head fc_lport_notifier_head =
+		BLOCKING_NOTIFIER_INIT(fc_lport_notifier_head);
+EXPORT_SYMBOL(fc_lport_notifier_head);
 
 /*
  * Providers which primarily send requests and PRLIs.
@@ -228,6 +232,17 @@ void fc_fill_reply_hdr(struct fc_frame *fp, const struct fc_frame *in_fp,
 }
 EXPORT_SYMBOL(fc_fill_reply_hdr);
 
+void fc_lport_iterate(void (*notify)(struct fc_lport *, void *), void *arg)
+{
+	struct fc_lport *lport;
+
+	mutex_lock(&fc_prov_mutex);
+	list_for_each_entry(lport, &fc_local_ports, lport_list)
+		notify(lport, arg);
+	mutex_unlock(&fc_prov_mutex);
+}
+EXPORT_SYMBOL(fc_lport_iterate);
+
 /**
  * fc_fc4_register_provider() - register FC-4 upper-level provider.
  * @type: FC-4 type, such as FC_TYPE_FCP
@@ -270,3 +285,29 @@ void fc_fc4_deregister_provider(enum fc_fh_type type, struct fc4_prov *prov)
 	synchronize_rcu();
 }
 EXPORT_SYMBOL(fc_fc4_deregister_provider);
+
+/**
+ * fc_fc4_add_lport() - add new local port to list and run notifiers.
+ * @lport:  The new local port.
+ */
+void fc_fc4_add_lport(struct fc_lport *lport)
+{
+	mutex_lock(&fc_prov_mutex);
+	list_add_tail(&lport->lport_list, &fc_local_ports);
+	blocking_notifier_call_chain(&fc_lport_notifier_head,
+				     FC_LPORT_EV_ADD, lport);
+	mutex_unlock(&fc_prov_mutex);
+}
+
+/**
+ * fc_fc4_del_lport() - remove local port from list and run notifiers.
+ * @lport:  The new local port.
+ */
+void fc_fc4_del_lport(struct fc_lport *lport)
+{
+	mutex_lock(&fc_prov_mutex);
+	list_del(&lport->lport_list);
+	blocking_notifier_call_chain(&fc_lport_notifier_head,
+				     FC_LPORT_EV_DEL, lport);
+	mutex_unlock(&fc_prov_mutex);
+}
