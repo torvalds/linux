@@ -1607,7 +1607,7 @@ process_raw_event(event_t *raw_event __used, struct perf_session *session,
 		process_sched_migrate_task_event(data, session, event, cpu, timestamp, thread);
 }
 
-static int process_sample_event(event_t *event, struct sample_data *sample,
+static int process_sample_event(event_t *event, struct perf_sample *sample,
 				struct perf_session *session)
 {
 	struct thread *thread;

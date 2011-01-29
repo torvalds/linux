@@ -67,7 +67,7 @@ out_close:
 
 static void perf_session__id_header_size(struct perf_session *session)
 {
-       struct sample_data *data;
+       struct perf_sample *data;
        u64 sample_type = session->sample_type;
        u16 size = 0;
 
@@ -299,7 +299,7 @@ static int process_event_synth_stub(event_t *event __used,
 }
 
 static int process_event_stub(event_t *event __used,
-			      struct sample_data *sample __used,
+			      struct perf_sample *sample __used,
 			      struct perf_session *session __used)
 {
 	dump_printf(": unhandled!\n");
@@ -475,7 +475,7 @@ static void perf_session_free_sample_buffers(struct perf_session *session)
 
 static int perf_session_deliver_event(struct perf_session *session,
 				      event_t *event,
-				      struct sample_data *sample,
+				      struct perf_sample *sample,
 				      struct perf_event_ops *ops,
 				      u64 file_offset);
 
@@ -485,7 +485,7 @@ static void flush_sample_queue(struct perf_session *s,
 	struct ordered_samples *os = &s->ordered_samples;
 	struct list_head *head = &os->samples;
 	struct sample_queue *tmp, *iter;
-	struct sample_data sample;
+	struct perf_sample sample;
 	u64 limit = os->next_flush;
 	u64 last_ts = os->last_sample ? os->last_sample->timestamp : 0ULL;
 
@@ -610,11 +610,11 @@ static void __queue_event(struct sample_queue *new, struct perf_session *s)
 #define MAX_SAMPLE_BUFFER	(64 * 1024 / sizeof(struct sample_queue))
 
 static int perf_session_queue_event(struct perf_session *s, event_t *event,
-				    struct sample_data *data, u64 file_offset)
+				    struct perf_sample *sample, u64 file_offset)
 {
 	struct ordered_samples *os = &s->ordered_samples;
 	struct list_head *sc = &os->sample_cache;
-	u64 timestamp = data->time;
+	u64 timestamp = sample->time;
 	struct sample_queue *new;
 
 	if (!timestamp || timestamp == ~0ULL)
@@ -650,7 +650,7 @@ static int perf_session_queue_event(struct perf_session *s, event_t *event,
 	return 0;
 }
 
-static void callchain__printf(struct sample_data *sample)
+static void callchain__printf(struct perf_sample *sample)
 {
 	unsigned int i;
 
@@ -663,7 +663,7 @@ static void callchain__printf(struct sample_data *sample)
 
 static void perf_session__print_tstamp(struct perf_session *session,
 				       event_t *event,
-				       struct sample_data *sample)
+				       struct perf_sample *sample)
 {
 	if (event->header.type != PERF_RECORD_SAMPLE &&
 	    !session->sample_id_all) {
@@ -679,7 +679,7 @@ static void perf_session__print_tstamp(struct perf_session *session,
 }
 
 static void dump_event(struct perf_session *session, event_t *event,
-		       u64 file_offset, struct sample_data *sample)
+		       u64 file_offset, struct perf_sample *sample)
 {
 	if (!dump_trace)
 		return;
@@ -697,7 +697,7 @@ static void dump_event(struct perf_session *session, event_t *event,
 }
 
 static void dump_sample(struct perf_session *session, event_t *event,
-			struct sample_data *sample)
+			struct perf_sample *sample)
 {
 	if (!dump_trace)
 		return;
@@ -712,7 +712,7 @@ static void dump_sample(struct perf_session *session, event_t *event,
 
 static int perf_session_deliver_event(struct perf_session *session,
 				      event_t *event,
-				      struct sample_data *sample,
+				      struct perf_sample *sample,
 				      struct perf_event_ops *ops,
 				      u64 file_offset)
 {
@@ -745,7 +745,7 @@ static int perf_session_deliver_event(struct perf_session *session,
 }
 
 static int perf_session__preprocess_sample(struct perf_session *session,
-					   event_t *event, struct sample_data *sample)
+					   event_t *event, struct perf_sample *sample)
 {
 	if (event->header.type != PERF_RECORD_SAMPLE ||
 	    !(session->sample_type & PERF_SAMPLE_CALLCHAIN))
@@ -789,7 +789,7 @@ static int perf_session__process_event(struct perf_session *session,
 				       struct perf_event_ops *ops,
 				       u64 file_offset)
 {
-	struct sample_data sample;
+	struct perf_sample sample;
 	int ret;
 
 	if (session->header.needs_swap && event__swap_ops[event->header.type])

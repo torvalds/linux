@@ -57,7 +57,7 @@ struct perf_session {
 
 struct perf_event_ops;
 
-typedef int (*event_op)(event_t *self, struct sample_data *sample,
+typedef int (*event_op)(event_t *self, struct perf_sample *sample,
 			struct perf_session *session);
 typedef int (*event_synth_op)(event_t *self, struct perf_session *session);
 typedef int (*event_op2)(event_t *self, struct perf_session *session,
@@ -158,7 +158,7 @@ size_t perf_session__fprintf_nr_events(struct perf_session *self, FILE *fp)
 
 static inline int perf_session__parse_sample(struct perf_session *session,
 					     const event_t *event,
-					     struct sample_data *sample)
+					     struct perf_sample *sample)
 {
 	return event__parse_sample(event, session->sample_type,
 				   session->sample_id_all, sample);

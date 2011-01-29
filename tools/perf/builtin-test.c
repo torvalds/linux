@@ -550,7 +550,7 @@ static int test__basic_mmap(void)
 		}
 
 	while ((event = perf_evlist__read_on_cpu(evlist, 0)) != NULL) {
-		struct sample_data sample;
+		struct perf_sample sample;
 
 		if (event->header.type != PERF_RECORD_SAMPLE) {
 			pr_debug("unexpected %s event\n",

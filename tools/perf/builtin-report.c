@@ -77,9 +77,9 @@ static struct hists *perf_session__hists_findnew(struct perf_session *self,
 	return new;
 }
 
-static int perf_session__add_hist_entry(struct perf_session *self,
+static int perf_session__add_hist_entry(struct perf_session *session,
 					struct addr_location *al,
-					struct sample_data *data)
+					struct perf_sample *sample)
 {
 	struct symbol *parent = NULL;
 	int err = 0;
@@ -87,28 +87,28 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	struct hists *hists;
 	struct perf_event_attr *attr;
 
-	if ((sort__has_parent || symbol_conf.use_callchain) && data->callchain) {
-		err = perf_session__resolve_callchain(self, al->thread,
-						      data->callchain, &parent);
+	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
+		err = perf_session__resolve_callchain(session, al->thread,
+						      sample->callchain, &parent);
 		if (err)
 			return err;
 	}
 
-	attr = perf_header__find_attr(data->id, &self->header);
+	attr = perf_header__find_attr(sample->id, &session->header);
 	if (attr)
-		hists = perf_session__hists_findnew(self, data->id, attr->type, attr->config);
+		hists = perf_session__hists_findnew(session, sample->id, attr->type, attr->config);
 	else
-		hists = perf_session__hists_findnew(self, data->id, 0, 0);
+		hists = perf_session__hists_findnew(session, sample->id, 0, 0);
 	if (hists == NULL)
 		return -ENOMEM;
 
-	he = __hists__add_entry(hists, al, parent, data->period);
+	he = __hists__add_entry(hists, al, parent, sample->period);
 	if (he == NULL)
 		return -ENOMEM;
 
 	if (symbol_conf.use_callchain) {
-		err = callchain_append(he->callchain, &self->callchain_cursor,
-				       data->period);
+		err = callchain_append(he->callchain, &session->callchain_cursor,
+				       sample->period);
 		if (err)
 			return err;
 	}
@@ -124,32 +124,32 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 }
 
 static int add_event_total(struct perf_session *session,
-			   struct sample_data *data,
+			   struct perf_sample *sample,
 			   struct perf_event_attr *attr)
 {
 	struct hists *hists;
 
 	if (attr)
-		hists = perf_session__hists_findnew(session, data->id,
+		hists = perf_session__hists_findnew(session, sample->id,
 						    attr->type, attr->config);
 	else
-		hists = perf_session__hists_findnew(session, data->id, 0, 0);
+		hists = perf_session__hists_findnew(session, sample->id, 0, 0);
 
 	if (!hists)
 		return -ENOMEM;
 
-	hists->stats.total_period += data->period;
+	hists->stats.total_period += sample->period;
 	/*
 	 * FIXME: add_event_total should be moved from here to
 	 * perf_session__process_event so that the proper hist is passed to
 	 * the event_op methods.
 	 */
 	hists__inc_nr_events(hists, PERF_RECORD_SAMPLE);
-	session->hists.stats.total_period += data->period;
+	session->hists.stats.total_period += sample->period;
 	return 0;
 }
 
-static int process_sample_event(event_t *event, struct sample_data *sample,
+static int process_sample_event(event_t *event, struct perf_sample *sample,
 				struct perf_session *session)
 {
 	struct addr_location al;
@@ -179,7 +179,7 @@ static int process_sample_event(event_t *event, struct sample_data *sample,
 	return 0;
 }
 
-static int process_read_event(event_t *event, struct sample_data *sample __used,
+static int process_read_event(event_t *event, struct perf_sample *sample __used,
 			      struct perf_session *session __used)
 {
 	struct perf_event_attr *attr;

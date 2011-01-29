@@ -15,7 +15,7 @@
 #include "debug.h"
 
 static int build_id__mark_dso_hit(event_t *event,
-				  struct sample_data *sample __used,
+				  struct perf_sample *sample __used,
 				  struct perf_session *session)
 {
 	struct addr_location al;
@@ -37,7 +37,7 @@ static int build_id__mark_dso_hit(event_t *event,
 	return 0;
 }
 
-static int event__exit_del_thread(event_t *self, struct sample_data *sample __used,
+static int event__exit_del_thread(event_t *self, struct perf_sample *sample __used,
 				  struct perf_session *session)
 {
 	struct thread *thread = perf_session__findnew(session, self->fork.tid);

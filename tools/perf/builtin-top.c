@@ -997,7 +997,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 }
 
 static void event__process_sample(const event_t *self,
-				  struct sample_data *sample,
+				  struct perf_sample *sample,
 				  struct perf_session *session)
 {
 	u64 ip = self->ip.ip;
@@ -1107,7 +1107,7 @@ static void event__process_sample(const event_t *self,
 
 static void perf_session__mmap_read_cpu(struct perf_session *self, int cpu)
 {
-	struct sample_data sample;
+	struct perf_sample sample;
 	event_t *event;
 
 	while ((event = perf_evlist__read_on_cpu(evsel_list, cpu)) != NULL) {

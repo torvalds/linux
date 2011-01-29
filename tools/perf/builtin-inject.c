@@ -36,13 +36,13 @@ static int event__repipe_synth(event_t *event,
 	return 0;
 }
 
-static int event__repipe(event_t *event, struct sample_data *sample __used,
+static int event__repipe(event_t *event, struct perf_sample *sample __used,
 			 struct perf_session *session)
 {
 	return event__repipe_synth(event, session);
 }
 
-static int event__repipe_mmap(event_t *self, struct sample_data *sample,
+static int event__repipe_mmap(event_t *self, struct perf_sample *sample,
 			      struct perf_session *session)
 {
 	int err;
@@ -53,7 +53,7 @@ static int event__repipe_mmap(event_t *self, struct sample_data *sample,
 	return err;
 }
 
-static int event__repipe_task(event_t *self, struct sample_data *sample,
+static int event__repipe_task(event_t *self, struct perf_sample *sample,
 			      struct perf_session *session)
 {
 	int err;
@@ -119,7 +119,7 @@ static int dso__inject_build_id(struct dso *self, struct perf_session *session)
 	return 0;
 }
 
-static int event__inject_buildid(event_t *event, struct sample_data *sample,
+static int event__inject_buildid(event_t *event, struct perf_sample *sample,
 				 struct perf_session *session)
 {
 	struct addr_location al;

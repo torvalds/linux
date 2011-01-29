@@ -368,7 +368,7 @@ out_unmap:
 }
 
 static int event__parse_id_sample(const event_t *event, u64 type,
-				  struct sample_data *sample)
+				  struct perf_sample *sample)
 {
 	const u64 *array = event->sample.array;
 
@@ -406,7 +406,7 @@ static int event__parse_id_sample(const event_t *event, u64 type,
 }
 
 int event__parse_sample(const event_t *event, u64 type, bool sample_id_all,
-			struct sample_data *data)
+			struct perf_sample *data)
 {
 	const u64 *array;
 

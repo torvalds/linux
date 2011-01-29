@@ -58,7 +58,7 @@ static int hists__add_entry(struct hists *self, struct addr_location *al)
 	return hist_entry__inc_addr_samples(he, al->addr);
 }
 
-static int process_sample_event(event_t *event, struct sample_data *sample,
+static int process_sample_event(event_t *event, struct perf_sample *sample,
 				struct perf_session *session)
 {
 	struct addr_location al;

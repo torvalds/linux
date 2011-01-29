@@ -31,7 +31,7 @@ static int hists__add_entry(struct hists *self,
 }
 
 static int diff__process_sample_event(event_t *event,
-				      struct sample_data *sample,
+				      struct perf_sample *sample,
 				      struct perf_session *session)
 {
 	struct addr_location al;

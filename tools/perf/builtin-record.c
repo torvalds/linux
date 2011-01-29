@@ -101,7 +101,7 @@ static void write_output(void *buf, size_t size)
 }
 
 static int process_synthesized_event(event_t *event,
-				     struct sample_data *sample __used,
+				     struct perf_sample *sample __used,
 				     struct perf_session *self __used)
 {
 	write_output(event, event->header.size);

@@ -34,7 +34,7 @@ const char *event__get_event_name(unsigned int id)
 	return event__name[id];
 }
 
-static struct sample_data synth_sample = {
+static struct perf_sample synth_sample = {
 	.pid	   = -1,
 	.tid	   = -1,
 	.time	   = -1,
@@ -440,7 +440,7 @@ static int thread__set_comm_adjust(struct thread *self, const char *comm,
 	return 0;
 }
 
-int event__process_comm(event_t *self, struct sample_data *sample __used,
+int event__process_comm(event_t *self, struct perf_sample *sample __used,
 			struct perf_session *session)
 {
 	struct thread *thread = perf_session__findnew(session, self->comm.tid);
@@ -456,7 +456,7 @@ int event__process_comm(event_t *self, struct sample_data *sample __used,
 	return 0;
 }
 
-int event__process_lost(event_t *self, struct sample_data *sample __used,
+int event__process_lost(event_t *self, struct perf_sample *sample __used,
 			struct perf_session *session)
 {
 	dump_printf(": id:%" PRIu64 ": lost:%" PRIu64 "\n",
@@ -567,7 +567,7 @@ out_problem:
 	return -1;
 }
 
-int event__process_mmap(event_t *self, struct sample_data *sample __used,
+int event__process_mmap(event_t *self, struct perf_sample *sample __used,
 			struct perf_session *session)
 {
 	struct machine *machine;
@@ -609,7 +609,7 @@ out_problem:
 	return 0;
 }
 
-int event__process_task(event_t *self, struct sample_data *sample __used,
+int event__process_task(event_t *self, struct perf_sample *sample __used,
 			struct perf_session *session)
 {
 	struct thread *thread = perf_session__findnew(session, self->fork.tid);
@@ -632,7 +632,7 @@ int event__process_task(event_t *self, struct sample_data *sample __used,
 	return 0;
 }
 
-int event__process(event_t *event, struct sample_data *sample,
+int event__process(event_t *event, struct perf_sample *sample,
 		   struct perf_session *session)
 {
 	switch (event->header.type) {
@@ -757,7 +757,7 @@ static void dso__calc_col_width(struct dso *self, struct hists *hists)
 }
 
 int event__preprocess_sample(const event_t *self, struct perf_session *session,
-			     struct addr_location *al, struct sample_data *data,
+			     struct addr_location *al, struct perf_sample *sample,
 			     symbol_filter_t filter)
 {
 	u8 cpumode = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
@@ -788,7 +788,7 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
 	al->sym = NULL;
-	al->cpu = data->cpu;
+	al->cpu = sample->cpu;
 
 	if (al->map) {
 		if (symbol_conf.dso_list &&

@@ -63,7 +63,7 @@ static int cleanup_scripting(void)
 
 static char const		*input_name = "perf.data";
 
-static int process_sample_event(event_t *event, struct sample_data *sample,
+static int process_sample_event(event_t *event, struct perf_sample *sample,
 				struct perf_session *session)
 {
 	struct thread *thread = perf_session__findnew(session, event->ip.pid);

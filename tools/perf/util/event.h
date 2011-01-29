@@ -61,7 +61,7 @@ struct sample_event {
 	u64 array[];
 };
 
-struct sample_data {
+struct perf_sample {
 	u64 ip;
 	u32 pid, tid;
 	u64 time;
@@ -138,7 +138,7 @@ struct perf_session;
 
 typedef int (*event__handler_synth_t)(event_t *event, 
 				      struct perf_session *session);
-typedef int (*event__handler_t)(event_t *event, struct sample_data *sample,
+typedef int (*event__handler_t)(event_t *event, struct perf_sample *sample,
 				struct perf_session *session);
 
 int event__synthesize_thread(pid_t pid, event__handler_t process,
@@ -154,25 +154,25 @@ int event__synthesize_modules(event__handler_t process,
 			      struct perf_session *session,
 			      struct machine *machine);
 
-int event__process_comm(event_t *self, struct sample_data *sample,
+int event__process_comm(event_t *event, struct perf_sample *sample,
 			struct perf_session *session);
-int event__process_lost(event_t *self, struct sample_data *sample,
+int event__process_lost(event_t *event, struct perf_sample *sample,
 			struct perf_session *session);
-int event__process_mmap(event_t *self, struct sample_data *sample,
+int event__process_mmap(event_t *event, struct perf_sample *sample,
 			struct perf_session *session);
-int event__process_task(event_t *self, struct sample_data *sample,
+int event__process_task(event_t *event, struct perf_sample *sample,
 			struct perf_session *session);
-int event__process(event_t *event, struct sample_data *sample,
+int event__process(event_t *event, struct perf_sample *sample,
 		   struct perf_session *session);
 
 struct addr_location;
 int event__preprocess_sample(const event_t *self, struct perf_session *session,
-			     struct addr_location *al, struct sample_data *data,
+			     struct addr_location *al, struct perf_sample *sample,
 			     symbol_filter_t filter);
 
 const char *event__get_event_name(unsigned int id);
 
 int event__parse_sample(const event_t *event, u64 type, bool sample_id_all,
-			struct sample_data *sample);
+			struct perf_sample *sample);
 
 #endif /* __PERF_RECORD_H */
