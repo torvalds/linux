@@ -2281,16 +2281,45 @@ void fc_exch_mgr_free(struct fc_lport *lport)
 EXPORT_SYMBOL(fc_exch_mgr_free);
 
 /**
+ * fc_find_ema() - Lookup and return appropriate Exchange Manager Anchor depending
+ * upon 'xid'.
+ * @f_ctl: f_ctl
+ * @lport: The local port the frame was received on
+ * @fh: The received frame header
+ */
+static struct fc_exch_mgr_anchor *fc_find_ema(u32 f_ctl,
+					      struct fc_lport *lport,
+					      struct fc_frame_header *fh)
+{
+	struct fc_exch_mgr_anchor *ema;
+	u16 xid;
+
+	if (f_ctl & FC_FC_EX_CTX)
+		xid = ntohs(fh->fh_ox_id);
+	else {
+		xid = ntohs(fh->fh_rx_id);
+		if (xid == FC_XID_UNKNOWN)
+			return list_entry(lport->ema_list.prev,
+					  typeof(*ema), ema_list);
+	}
+
+	list_for_each_entry(ema, &lport->ema_list, ema_list) {
+		if ((xid >= ema->mp->min_xid) &&
+		    (xid <= ema->mp->max_xid))
+			return ema;
+	}
+	return NULL;
+}
+/**
  * fc_exch_recv() - Handler for received frames
  * @lport: The local port the frame was received on
- * @fp:	   The received frame
+ * @fp:	The received frame
  */
 void fc_exch_recv(struct fc_lport *lport, struct fc_frame *fp)
 {
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
 	struct fc_exch_mgr_anchor *ema;
-	u32 f_ctl, found = 0;
-	u16 oxid;
+	u32 f_ctl;
 
 	/* lport lock ? */
 	if (!lport || lport->state == LPORT_ST_DISABLED) {
@@ -2301,24 +2330,17 @@ void fc_exch_recv(struct fc_lport *lport, struct fc_frame *fp)
 	}
 
 	f_ctl = ntoh24(fh->fh_f_ctl);
-	oxid = ntohs(fh->fh_ox_id);
-	if (f_ctl & FC_FC_EX_CTX) {
-		list_for_each_entry(ema, &lport->ema_list, ema_list) {
-			if ((oxid >= ema->mp->min_xid) &&
-			    (oxid <= ema->mp->max_xid)) {
-				found = 1;
-				break;
-			}
-		}
-
-		if (!found) {
-			FC_LPORT_DBG(lport, "Received response for out "
-				     "of range oxid:%hx\n", oxid);
-			fc_frame_free(fp);
-			return;
-		}
-	} else
-		ema = list_entry(lport->ema_list.prev, typeof(*ema), ema_list);
+	ema = fc_find_ema(f_ctl, lport, fh);
+	if (!ema) {
+		FC_LPORT_DBG(lport, "Unable to find Exchange Manager Anchor,"
+				    "fc_ctl <0x%x>, xid <0x%x>\n",
+				     f_ctl,
+				     (f_ctl & FC_FC_EX_CTX) ?
+				     ntohs(fh->fh_ox_id) :
+				     ntohs(fh->fh_rx_id));
+		fc_frame_free(fp);
+		return;
+	}
 
 	/*
 	 * If frame is marked invalid, just drop it.
