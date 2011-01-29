@@ -209,6 +209,8 @@ static void lp8550_brightness_write(struct lp8550_data *led_data)
 {
 	int error = 0;
 	int brightness = led_data->brightness;
+	unsigned i, reg_addr;
+	uint8_t value = 0;
 
 	if (lp8550_debug)
 		pr_info("%s: setting brightness to %i\n",
@@ -228,11 +230,21 @@ static void lp8550_brightness_write(struct lp8550_data *led_data)
 			if (!IS_ERR_OR_NULL(led_data->regulator))
 				regulator_enable(led_data->regulator);
 			if (lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
-				led_data->led_pdata->dev_ctrl_config | 0x01))
+				led_data->led_pdata->dev_ctrl_config | 0x01)) {
 				pr_err("%s:writing failed while setting brightness:%d\n",
 					__func__, error);
-			else
-				atomic_set(&led_data->enabled, 1);
+				atomic_set(&led_data->enabled, 0);
+			}
+
+			/* restore values a1 to a8 in case they have been reset */
+			/* a0 will be set below with the brightness */
+			for (i = 1; i < led_data->led_pdata->eeprom_tbl_sz; i++) {
+				reg_addr = LP8550_EEPROM_A0 + i;
+				value = led_data->led_pdata->eeprom_table[i].eeprom_data;
+				if (lp8550_write_reg(led_data, reg_addr, value))
+					pr_err("%s: Register initialization failed\n",
+						__func__);
+			}
 		}
 
 		if (led_data->led_pdata->dev_ctrl_config ==
