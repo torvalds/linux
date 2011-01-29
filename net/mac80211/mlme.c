@@ -161,6 +161,7 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_supported_band *sband;
 	struct sta_info *sta;
 	u32 changed = 0;
+	int hti_cfreq;
 	u16 ht_opmode;
 	bool enable_ht = true;
 	enum nl80211_channel_type prev_chantype;
@@ -174,10 +175,27 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	if (!sband->ht_cap.ht_supported)
 		enable_ht = false;
 
-	/* check that channel matches the right operating channel */
-	if (local->hw.conf.channel->center_freq !=
-	    ieee80211_channel_to_frequency(hti->control_chan, sband->band))
-		enable_ht = false;
+	if (enable_ht) {
+		hti_cfreq = ieee80211_channel_to_frequency(hti->control_chan,
+							   sband->band);
+		/* check that channel matches the right operating channel */
+		if (local->hw.conf.channel->center_freq != hti_cfreq) {
+			/* Some APs mess this up, evidently.
+			 * Netgear WNDR3700 sometimes reports 4 higher than
+			 * the actual channel, for instance.
+			 */
+			printk(KERN_DEBUG
+			       "%s: Wrong control channel in association"
+			       " response: configured center-freq: %d"
+			       " hti-cfreq: %d  hti->control_chan: %d"
+			       " band: %d.  Disabling HT.\n",
+			       sdata->name,
+			       local->hw.conf.channel->center_freq,
+			       hti_cfreq, hti->control_chan,
+			       sband->band);
+			enable_ht = false;
+		}
+	}
 
 	if (enable_ht) {
 		channel_type = NL80211_CHAN_HT20;
