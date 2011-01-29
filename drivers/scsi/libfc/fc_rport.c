@@ -961,6 +961,8 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 		struct fc_els_prli prli;
 		struct fc_els_spp spp;
 	} *pp;
+	struct fc_els_spp temp_spp;
+	struct fc4_prov *prov;
 	u32 roles = FC_RPORT_ROLE_UNKNOWN;
 	u32 fcp_parm = 0;
 	u8 op;
@@ -1009,6 +1011,13 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 		if (fcp_parm & FCP_SPPF_RETRY)
 			rdata->flags |= FC_RP_FLAGS_RETRY;
 
+		prov = fc_passive_prov[FC_TYPE_FCP];
+		if (prov) {
+			memset(&temp_spp, 0, sizeof(temp_spp));
+			prov->prli(rdata, pp->prli.prli_spp_len,
+				   &pp->spp, &temp_spp);
+		}
+
 		rdata->supported_classes = FC_COS_CLASS3;
 		if (fcp_parm & FCP_SPPF_INIT_FCN)
 			roles |= FC_RPORT_ROLE_FCP_INITIATOR;
@@ -1045,6 +1054,7 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 		struct fc_els_spp spp;
 	} *pp;
 	struct fc_frame *fp;
+	struct fc4_prov *prov;
 
 	/*
 	 * If the rport is one of the well known addresses
@@ -1066,9 +1076,20 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 		return;
 	}
 
-	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_PRLI,
-				  fc_rport_prli_resp, rdata,
-				  2 * lport->r_a_tov))
+	fc_prli_fill(lport, fp);
+
+	prov = fc_passive_prov[FC_TYPE_FCP];
+	if (prov) {
+		pp = fc_frame_payload_get(fp, sizeof(*pp));
+		prov->prli(rdata, sizeof(pp->spp), NULL, &pp->spp);
+	}
+
+	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REQ, rdata->ids.port_id,
+		       fc_host_port_id(lport->host), FC_TYPE_ELS,
+		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
+
+	if (!lport->tt.exch_seq_send(lport, fp, fc_rport_prli_resp,
+				    NULL, rdata, 2 * lport->r_a_tov))
 		fc_rport_error_retry(rdata, NULL);
 	else
 		kref_get(&rdata->kref);
