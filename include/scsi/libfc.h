@@ -805,6 +805,7 @@ struct fc_disc {
  * @lp_mutex:              Mutex to protect the local port
  * @list:                  Handle for list of local ports
  * @retry_work:            Handle to local port for delayed retry context
+ * @prov:		   Pointers available for use by passive FC-4 providers
  */
 struct fc_lport {
 	/* Associations */
@@ -860,6 +861,7 @@ struct fc_lport {
 	struct mutex                   lp_mutex;
 	struct list_head               list;
 	struct delayed_work	       retry_work;
+	void			       *prov[FC_FC4_PROV_SIZE];
 };
 
 /**
