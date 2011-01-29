@@ -24,7 +24,7 @@
 #include <linux/kthread.h>
 
 #define FCOE_MAX_QUEUE_DEPTH	256
-#define FCOE_LOW_QUEUE_DEPTH	32
+#define FCOE_MIN_QUEUE_DEPTH	32
 
 #define FCOE_WORD_TO_BYTE	4
 
@@ -71,21 +71,6 @@ do {                                                            	\
 				  netdev->name, ##args);)
 
 /**
- * struct fcoe_percpu_s - The per-CPU context for FCoE receive threads
- * @thread:	    The thread context
- * @fcoe_rx_list:   The queue of pending packets to process
- * @page:	    The memory page for calculating frame trailer CRCs
- * @crc_eof_offset: The offset into the CRC page pointing to available
- *		    memory for a new trailer
- */
-struct fcoe_percpu_s {
-	struct task_struct *thread;
-	struct sk_buff_head fcoe_rx_list;
-	struct page *crc_eof_page;
-	int crc_eof_offset;
-};
-
-/**
  * struct fcoe_interface - A FCoE interface
  * @list:	      Handle for a list of FCoE interfaces
  * @netdev:	      The associated net device
@@ -108,30 +93,6 @@ struct fcoe_interface {
 	struct kref	   kref;
 };
 
-/**
- * struct fcoe_port - The FCoE private structure
- * @fcoe:		       The associated fcoe interface
- * @lport:		       The associated local port
- * @fcoe_pending_queue:	       The pending Rx queue of skbs
- * @fcoe_pending_queue_active: Indicates if the pending queue is active
- * @timer:		       The queue timer
- * @destroy_work:	       Handle for work context
- *			       (to prevent RTNL deadlocks)
- * @data_srt_addr:	       Source address for data
- *
- * An instance of this structure is to be allocated along with the
- * Scsi_Host and libfc fc_lport structures.
- */
-struct fcoe_port {
-	struct fcoe_interface *fcoe;
-	struct fc_lport	      *lport;
-	struct sk_buff_head   fcoe_pending_queue;
-	u8		      fcoe_pending_queue_active;
-	struct timer_list     timer;
-	struct work_struct    destroy_work;
-	u8		      data_src_addr[ETH_ALEN];
-};
-
 #define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_interface, ctlr)
 
 /**
@@ -140,7 +101,8 @@ struct fcoe_port {
  */
 static inline struct net_device *fcoe_netdev(const struct fc_lport *lport)
 {
-	return ((struct fcoe_port *)lport_priv(lport))->fcoe->netdev;
+	return ((struct fcoe_interface *)
+			((struct fcoe_port *)lport_priv(lport))->priv)->netdev;
 }
 
 #endif /* _FCOE_H_ */

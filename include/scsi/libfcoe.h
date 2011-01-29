@@ -221,6 +221,8 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *, struct fc_lport *,
 u64 fcoe_wwn_from_mac(unsigned char mac[], unsigned int, unsigned int);
 int fcoe_libfc_config(struct fc_lport *, struct fcoe_ctlr *,
 		      const struct libfc_function_template *, int init_fcp);
+u32 fcoe_fc_crc(struct fc_frame *fp);
+int fcoe_start_io(struct sk_buff *skb);
 
 /**
  * is_fip_mode() - returns true if FIP mode selected.
@@ -265,6 +267,55 @@ struct fcoe_transport {
 	int (*enable) (struct net_device *device);
 	int (*disable) (struct net_device *device);
 };
+
+/**
+ * struct fcoe_percpu_s - The context for FCoE receive thread(s)
+ * @thread:	    The thread context
+ * @fcoe_rx_list:   The queue of pending packets to process
+ * @page:	    The memory page for calculating frame trailer CRCs
+ * @crc_eof_offset: The offset into the CRC page pointing to available
+ *		    memory for a new trailer
+ */
+struct fcoe_percpu_s {
+	struct task_struct *thread;
+	struct sk_buff_head fcoe_rx_list;
+	struct page *crc_eof_page;
+	int crc_eof_offset;
+};
+
+/**
+ * struct fcoe_port - The FCoE private structure
+ * @priv:		       The associated fcoe interface. The structure is
+ *			       defined by the low level driver
+ * @lport:		       The associated local port
+ * @fcoe_pending_queue:	       The pending Rx queue of skbs
+ * @fcoe_pending_queue_active: Indicates if the pending queue is active
+ * @max_queue_depth:	       Max queue depth of pending queue
+ * @min_queue_depth:	       Min queue depth of pending queue
+ * @timer:		       The queue timer
+ * @destroy_work:	       Handle for work context
+ *			       (to prevent RTNL deadlocks)
+ * @data_srt_addr:	       Source address for data
+ *
+ * An instance of this structure is to be allocated along with the
+ * Scsi_Host and libfc fc_lport structures.
+ */
+struct fcoe_port {
+	void		      *priv;
+	struct fc_lport	      *lport;
+	struct sk_buff_head   fcoe_pending_queue;
+	u8		      fcoe_pending_queue_active;
+	u32		      max_queue_depth;
+	u32		      min_queue_depth;
+	struct timer_list     timer;
+	struct work_struct    destroy_work;
+	u8		      data_src_addr[ETH_ALEN];
+};
+void fcoe_clean_pending_queue(struct fc_lport *);
+void fcoe_check_wait_queue(struct fc_lport *lport, struct sk_buff *skb);
+void fcoe_queue_timer(ulong lport);
+int fcoe_get_paged_crc_eof(struct sk_buff *skb, int tlen,
+			   struct fcoe_percpu_s *fps);
 
 /**
  * struct netdev_list

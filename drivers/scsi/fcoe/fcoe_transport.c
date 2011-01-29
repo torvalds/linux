@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/errno.h>
+#include <linux/crc32.h>
 #include <scsi/libfcoe.h>
 
 #include "libfcoe.h"
@@ -73,6 +74,205 @@ MODULE_PARM_DESC(enable, " Enables fcoe on a ethernet interface.");
 module_param_call(disable, fcoe_transport_disable, NULL, NULL, S_IWUSR);
 __MODULE_PARM_TYPE(disable, "string");
 MODULE_PARM_DESC(disable, " Disables fcoe on a ethernet interface.");
+
+/**
+ * fcoe_fc_crc() - Calculates the CRC for a given frame
+ * @fp: The frame to be checksumed
+ *
+ * This uses crc32() routine to calculate the CRC for a frame
+ *
+ * Return: The 32 bit CRC value
+ */
+u32 fcoe_fc_crc(struct fc_frame *fp)
+{
+	struct sk_buff *skb = fp_skb(fp);
+	struct skb_frag_struct *frag;
+	unsigned char *data;
+	unsigned long off, len, clen;
+	u32 crc;
+	unsigned i;
+
+	crc = crc32(~0, skb->data, skb_headlen(skb));
+
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		frag = &skb_shinfo(skb)->frags[i];
+		off = frag->page_offset;
+		len = frag->size;
+		while (len > 0) {
+			clen = min(len, PAGE_SIZE - (off & ~PAGE_MASK));
+			data = kmap_atomic(frag->page + (off >> PAGE_SHIFT),
+					   KM_SKB_DATA_SOFTIRQ);
+			crc = crc32(crc, data + (off & ~PAGE_MASK), clen);
+			kunmap_atomic(data, KM_SKB_DATA_SOFTIRQ);
+			off += clen;
+			len -= clen;
+		}
+	}
+	return crc;
+}
+EXPORT_SYMBOL_GPL(fcoe_fc_crc);
+
+/**
+ * fcoe_start_io() - Start FCoE I/O
+ * @skb: The packet to be transmitted
+ *
+ * This routine is called from the net device to start transmitting
+ * FCoE packets.
+ *
+ * Returns: 0 for success
+ */
+int fcoe_start_io(struct sk_buff *skb)
+{
+	struct sk_buff *nskb;
+	int rc;
+
+	nskb = skb_clone(skb, GFP_ATOMIC);
+	if (!nskb)
+		return -ENOMEM;
+	rc = dev_queue_xmit(nskb);
+	if (rc != 0)
+		return rc;
+	kfree_skb(skb);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fcoe_start_io);
+
+
+/**
+ * fcoe_clean_pending_queue() - Dequeue a skb and free it
+ * @lport: The local port to dequeue a skb on
+ */
+void fcoe_clean_pending_queue(struct fc_lport *lport)
+{
+	struct fcoe_port  *port = lport_priv(lport);
+	struct sk_buff *skb;
+
+	spin_lock_bh(&port->fcoe_pending_queue.lock);
+	while ((skb = __skb_dequeue(&port->fcoe_pending_queue)) != NULL) {
+		spin_unlock_bh(&port->fcoe_pending_queue.lock);
+		kfree_skb(skb);
+		spin_lock_bh(&port->fcoe_pending_queue.lock);
+	}
+	spin_unlock_bh(&port->fcoe_pending_queue.lock);
+}
+EXPORT_SYMBOL_GPL(fcoe_clean_pending_queue);
+
+/**
+ * fcoe_check_wait_queue() - Attempt to clear the transmit backlog
+ * @lport: The local port whose backlog is to be cleared
+ *
+ * This empties the wait_queue, dequeues the head of the wait_queue queue
+ * and calls fcoe_start_io() for each packet. If all skb have been
+ * transmitted it returns the qlen. If an error occurs it restores
+ * wait_queue (to try again later) and returns -1.
+ *
+ * The wait_queue is used when the skb transmit fails. The failed skb
+ * will go in the wait_queue which will be emptied by the timer function or
+ * by the next skb transmit.
+ */
+void fcoe_check_wait_queue(struct fc_lport *lport, struct sk_buff *skb)
+{
+	struct fcoe_port *port = lport_priv(lport);
+	int rc;
+
+	spin_lock_bh(&port->fcoe_pending_queue.lock);
+
+	if (skb)
+		__skb_queue_tail(&port->fcoe_pending_queue, skb);
+
+	if (port->fcoe_pending_queue_active)
+		goto out;
+	port->fcoe_pending_queue_active = 1;
+
+	while (port->fcoe_pending_queue.qlen) {
+		/* keep qlen > 0 until fcoe_start_io succeeds */
+		port->fcoe_pending_queue.qlen++;
+		skb = __skb_dequeue(&port->fcoe_pending_queue);
+
+		spin_unlock_bh(&port->fcoe_pending_queue.lock);
+		rc = fcoe_start_io(skb);
+		spin_lock_bh(&port->fcoe_pending_queue.lock);
+
+		if (rc) {
+			__skb_queue_head(&port->fcoe_pending_queue, skb);
+			/* undo temporary increment above */
+			port->fcoe_pending_queue.qlen--;
+			break;
+		}
+		/* undo temporary increment above */
+		port->fcoe_pending_queue.qlen--;
+	}
+
+	if (port->fcoe_pending_queue.qlen < port->min_queue_depth)
+		lport->qfull = 0;
+	if (port->fcoe_pending_queue.qlen && !timer_pending(&port->timer))
+		mod_timer(&port->timer, jiffies + 2);
+	port->fcoe_pending_queue_active = 0;
+out:
+	if (port->fcoe_pending_queue.qlen > port->max_queue_depth)
+		lport->qfull = 1;
+	spin_unlock_bh(&port->fcoe_pending_queue.lock);
+}
+EXPORT_SYMBOL_GPL(fcoe_check_wait_queue);
+
+/**
+ * fcoe_queue_timer() - The fcoe queue timer
+ * @lport: The local port
+ *
+ * Calls fcoe_check_wait_queue on timeout
+ */
+void fcoe_queue_timer(ulong lport)
+{
+	fcoe_check_wait_queue((struct fc_lport *)lport, NULL);
+}
+EXPORT_SYMBOL_GPL(fcoe_queue_timer);
+
+/**
+ * fcoe_get_paged_crc_eof() - Allocate a page to be used for the trailer CRC
+ * @skb:  The packet to be transmitted
+ * @tlen: The total length of the trailer
+ * @fps:  The fcoe context
+ *
+ * This routine allocates a page for frame trailers. The page is re-used if
+ * there is enough room left on it for the current trailer. If there isn't
+ * enough buffer left a new page is allocated for the trailer. Reference to
+ * the page from this function as well as the skbs using the page fragments
+ * ensure that the page is freed at the appropriate time.
+ *
+ * Returns: 0 for success
+ */
+int fcoe_get_paged_crc_eof(struct sk_buff *skb, int tlen,
+			   struct fcoe_percpu_s *fps)
+{
+	struct page *page;
+
+	page = fps->crc_eof_page;
+	if (!page) {
+		page = alloc_page(GFP_ATOMIC);
+		if (!page)
+			return -ENOMEM;
+
+		fps->crc_eof_page = page;
+		fps->crc_eof_offset = 0;
+	}
+
+	get_page(page);
+	skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags, page,
+			   fps->crc_eof_offset, tlen);
+	skb->len += tlen;
+	skb->data_len += tlen;
+	skb->truesize += tlen;
+	fps->crc_eof_offset += sizeof(struct fcoe_crc_eof);
+
+	if (fps->crc_eof_offset >= PAGE_SIZE) {
+		fps->crc_eof_page = NULL;
+		fps->crc_eof_offset = 0;
+		put_page(page);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fcoe_get_paged_crc_eof);
 
 /**
  * fcoe_transport_lookup - find an fcoe transport that matches a netdev
