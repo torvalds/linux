@@ -464,7 +464,7 @@ static void rb_insert_active_sym(struct rb_root *tree, struct sym_entry *se)
 	rb_insert_color(&se->rb_node, tree);
 }
 
-static void print_sym_table(void)
+static void print_sym_table(struct perf_session *session)
 {
 	int printed = 0, j;
 	struct perf_evsel *counter;
@@ -513,7 +513,6 @@ static void print_sym_table(void)
 
 	puts(CONSOLE_CLEAR);
 
-	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
 	if (!perf_guest) {
 		printf("   PerfTop:%8.0f irqs/sec  kernel:%4.1f%%"
 			"  exact: %4.1f%% [",
@@ -577,6 +576,12 @@ static void print_sym_table(void)
 	}
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
+
+	if (session->hists.stats.total_lost != 0) {
+		color_fprintf(stdout, PERF_COLOR_RED, "WARNING:");
+		printf(" LOST %" PRIu64 " events, Check IO/CPU overload\n",
+		       session->hists.stats.total_lost);
+	}
 
 	if (sym_filter_entry) {
 		show_details(sym_filter_entry);
@@ -919,7 +924,7 @@ repeat:
 	getc(stdin);
 
 	do {
-		print_sym_table();
+		print_sym_table(session);
 	} while (!poll(&stdin_poll, 1, delay_msecs) == 1);
 
 	c = getc(stdin);
@@ -1176,7 +1181,7 @@ try_again:
 		}
 	}
 
-	if (perf_evlist__mmap(evlist, cpus, threads, mmap_pages, true) < 0)
+	if (perf_evlist__mmap(evlist, cpus, threads, mmap_pages, false) < 0)
 		die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 }
 
