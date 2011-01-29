@@ -47,11 +47,10 @@ static DEFINE_MUTEX(dpm_list_mtx);
 static pm_message_t pm_transition;
 
 static void dpm_drv_timeout(unsigned long data);
-static DEFINE_TIMER(dpm_drv_wd, dpm_drv_timeout, 0, 0);
-static struct {
+struct dpm_drv_wd_data {
 	struct device *dev;
 	struct task_struct *tsk;
-} dpm_drv_wd_data;
+};
 
 /*
  * Set once the preparation of devices for a PM transition has started, reset
@@ -605,8 +604,9 @@ static bool is_async(struct device *dev)
  */
 static void dpm_drv_timeout(unsigned long data)
 {
-	struct device *dev = dpm_drv_wd_data.dev;
-	struct task_struct *tsk = dpm_drv_wd_data.tsk;
+	struct dpm_drv_wd_data *wd_data = (void *)data;
+	struct device *dev = wd_data->dev;
+	struct task_struct *tsk = wd_data->tsk;
 
 	printk(KERN_EMERG "**** DPM device timeout: %s (%s)\n", dev_name(dev),
 	       (dev->driver ? dev->driver->name : "no driver"));
@@ -615,29 +615,6 @@ static void dpm_drv_timeout(unsigned long data)
 	show_stack(tsk, NULL);
 
 	BUG();
-}
-
-/**
- *	dpm_drv_wdset - Sets up driver suspend/resume watchdog timer.
- *	@dev: struct device which we're guarding.
- *
- */
-static void dpm_drv_wdset(struct device *dev)
-{
-	dpm_drv_wd_data.dev = dev;
-	dpm_drv_wd_data.tsk = get_current();
-	dpm_drv_wd.data = (unsigned long) &dpm_drv_wd_data;
-	mod_timer(&dpm_drv_wd, jiffies + (HZ * 3));
-}
-
-/**
- *	dpm_drv_wdclr - clears driver suspend/resume watchdog timer.
- *	@dev: struct device which we're no longer guarding.
- *
- */
-static void dpm_drv_wdclr(struct device *dev)
-{
-	del_timer_sync(&dpm_drv_wd);
 }
 
 /**
@@ -896,8 +873,19 @@ static int async_error;
 static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 {
 	int error = 0;
+	struct timer_list timer;
+	struct dpm_drv_wd_data data;
 
 	dpm_wait_for_children(dev, async);
+
+	data.dev = dev;
+	data.tsk = get_current();
+	init_timer_on_stack(&timer);
+	timer.expires = jiffies + HZ * 3;
+	timer.function = dpm_drv_timeout;
+	timer.data = (unsigned long)&data;
+	add_timer(&timer);
+
 	device_lock(dev);
 
 	if (async_error)
@@ -939,6 +927,10 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 
  End:
 	device_unlock(dev);
+
+	del_timer_sync(&timer);
+	destroy_timer_on_stack(&timer);
+
 	complete_all(&dev->power.completion);
 
 	return error;
@@ -991,9 +983,7 @@ static int dpm_suspend(pm_message_t state)
 		get_device(dev);
 		mutex_unlock(&dpm_list_mtx);
 
-		dpm_drv_wdset(dev);
 		error = device_suspend(dev);
-		dpm_drv_wdclr(dev);
 
 		mutex_lock(&dpm_list_mtx);
 		if (error) {
