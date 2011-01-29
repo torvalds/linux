@@ -189,3 +189,5 @@ cond_syscall(sys_fanotify_mark);
 
 /* open by handle */
 cond_syscall(sys_name_to_handle_at);
+cond_syscall(sys_open_by_handle_at);
+cond_syscall(compat_sys_open_by_handle_at);

@@ -117,6 +117,9 @@ extern struct file *do_filp_open(int dfd, const char *pathname,
 extern struct file *do_file_open_root(struct dentry *, struct vfsmount *,
 		const char *, const struct open_flags *, int lookup_flags);
 
+extern long do_handle_open(int mountdirfd,
+			   struct file_handle __user *ufh, int open_flag);
+
 /*
  * inode.c
  */
