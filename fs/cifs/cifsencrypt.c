@@ -657,9 +657,10 @@ calc_seckey(struct cifsSesInfo *ses)
 	get_random_bytes(sec_key, CIFS_SESS_KEY_SIZE);
 
 	tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
-	if (!tfm_arc4 || IS_ERR(tfm_arc4)) {
+	if (IS_ERR(tfm_arc4)) {
+		rc = PTR_ERR(tfm_arc4);
 		cERROR(1, "could not allocate crypto API arc4\n");
-		return PTR_ERR(tfm_arc4);
+		return rc;
 	}
 
 	desc.tfm = tfm_arc4;
