@@ -231,5 +231,53 @@ static inline bool is_fip_mode(struct fcoe_ctlr *fip)
 	return fip->state == FIP_ST_ENABLED;
 }
 
+/* helper for FCoE SW HBA drivers, can include subven and subdev if needed. The
+ * modpost would use pci_device_id table to auto-generate formatted module alias
+ * into the corresponding .mod.c file, but there may or may not be a pci device
+ * id table for FCoE drivers so we use the following helper for build the fcoe
+ * driver module alias.
+ */
+#define MODULE_ALIAS_FCOE_PCI(ven, dev) \
+	MODULE_ALIAS("fcoe-pci:"	\
+		"v" __stringify(ven)	\
+		"d" __stringify(dev) "sv*sd*bc*sc*i*")
+
+/* the name of the default FCoE transport driver fcoe.ko */
+#define FCOE_TRANSPORT_DEFAULT	"fcoe"
+
+/* struct fcoe_transport - The FCoE transport interface
+ * @name:	a vendor specific name for their FCoE transport driver
+ * @attached:	whether this transport is already attached
+ * @list:	list linkage to all attached transports
+ * @match:	handler to allow the transport driver to match up a given netdev
+ * @create:	handler to sysfs entry of create for FCoE instances
+ * @destroy:	handler to sysfs entry of destroy for FCoE instances
+ * @enable:	handler to sysfs entry of enable for FCoE instances
+ * @disable:	handler to sysfs entry of disable for FCoE instances
+ */
+struct fcoe_transport {
+	char name[IFNAMSIZ];
+	bool attached;
+	struct list_head list;
+	bool (*match) (struct net_device *device);
+	int (*create) (struct net_device *device, enum fip_state fip_mode);
+	int (*destroy) (struct net_device *device);
+	int (*enable) (struct net_device *device);
+	int (*disable) (struct net_device *device);
+};
+
+/**
+ * struct netdev_list
+ * A mapping from netdevice to fcoe_transport
+ */
+struct fcoe_netdev_mapping {
+	struct list_head list;
+	struct net_device *netdev;
+	struct fcoe_transport *ft;
+};
+
+/* fcoe transports registration and deregistration */
+int fcoe_transport_attach(struct fcoe_transport *ft);
+int fcoe_transport_detach(struct fcoe_transport *ft);
 
 #endif /* _LIBFCOE_H */
