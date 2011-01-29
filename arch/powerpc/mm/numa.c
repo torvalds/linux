@@ -1516,7 +1516,8 @@ int start_topology_update(void)
 {
 	int rc = 0;
 
-	if (firmware_has_feature(FW_FEATURE_VPHN)) {
+	if (firmware_has_feature(FW_FEATURE_VPHN) &&
+	    get_lppaca()->shared_proc) {
 		vphn_enabled = 1;
 		setup_cpu_associativity_change_counters();
 		init_timer_deferrable(&topology_timer);
