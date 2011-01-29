@@ -64,8 +64,11 @@ static unsigned short normal_i2c[] = { 0x2c, 0x2e, 0x2f, I2C_CLIENT_END };
 #define MAX6639_GCONFIG_POR			0x40
 #define MAX6639_GCONFIG_DISABLE_TIMEOUT		0x20
 #define MAX6639_GCONFIG_CH2_LOCAL		0x10
+#define MAX6639_GCONFIG_PWM_FREQ_HI		0x08
 
 #define MAX6639_FAN_CONFIG1_PWM			0x80
+
+#define MAX6639_FAN_CONFIG3_THERM_FULL_SPEED	0x40
 
 static const int rpm_ranges[] = { 2000, 4000, 8000, 16000 };
 
@@ -430,7 +433,7 @@ static int max6639_init_client(struct i2c_client *client)
 	int rpm_range = 1; /* default: 4000 RPM */
 	int err = 0;
 
-	/* Reset chip to default values */
+	/* Reset chip to default values, see below for GCONFIG setup */
 	err = i2c_smbus_write_byte_data(client, MAX6639_REG_GCONFIG,
 				  MAX6639_GCONFIG_POR);
 	if (err)
@@ -472,6 +475,16 @@ static int max6639_init_client(struct i2c_client *client)
 		if (err)
 			goto exit;
 
+		/*
+		 * /THERM full speed enable,
+		 * PWM frequency 25kHz, see also GCONFIG below
+		 */
+		err = i2c_smbus_write_byte_data(client,
+			MAX6639_REG_FAN_CONFIG3(i),
+			MAX6639_FAN_CONFIG3_THERM_FULL_SPEED | 0x03);
+		if (err)
+			goto exit;
+
 		/* Max. temp. 80C/90C/100C */
 		data->temp_therm[i] = 80;
 		data->temp_alert[i] = 90;
@@ -500,7 +513,8 @@ static int max6639_init_client(struct i2c_client *client)
 	}
 	/* Start monitoring */
 	err = i2c_smbus_write_byte_data(client, MAX6639_REG_GCONFIG,
-		MAX6639_GCONFIG_DISABLE_TIMEOUT | MAX6639_GCONFIG_CH2_LOCAL);
+		MAX6639_GCONFIG_DISABLE_TIMEOUT | MAX6639_GCONFIG_CH2_LOCAL |
+		MAX6639_GCONFIG_PWM_FREQ_HI);
 exit:
 	return err;
 }
