@@ -1355,8 +1355,11 @@ static int update_cpu_associativity_changes_mask(void)
 	return nr_cpus;
 }
 
-/* 6 64-bit registers unpacked into 12 32-bit associativity values */
-#define VPHN_ASSOC_BUFSIZE (6*sizeof(u64)/sizeof(u32))
+/*
+ * 6 64-bit registers unpacked into 12 32-bit associativity values. To form
+ * the complete property we have to add the length in the first cell.
+ */
+#define VPHN_ASSOC_BUFSIZE (6*sizeof(u64)/sizeof(u32) + 1)
 
 /*
  * Convert the associativity domain numbers returned from the hypervisor
@@ -1371,7 +1374,7 @@ static int vphn_unpack_associativity(const long *packed, unsigned int *unpacked)
 #define VPHN_FIELD_MSB		(0x8000)
 #define VPHN_FIELD_MASK		(~VPHN_FIELD_MSB)
 
-	for (i = 0; i < VPHN_ASSOC_BUFSIZE; i++) {
+	for (i = 1; i < VPHN_ASSOC_BUFSIZE; i++) {
 		if (*field == VPHN_FIELD_UNUSED) {
 			/* All significant fields processed, and remaining
 			 * fields contain the reserved value of all 1's.
@@ -1393,6 +1396,9 @@ static int vphn_unpack_associativity(const long *packed, unsigned int *unpacked)
 			nr_assoc_doms++;
 		}
 	}
+
+	/* The first cell contains the length of the property */
+	unpacked[0] = nr_assoc_doms;
 
 	return nr_assoc_doms;
 }
