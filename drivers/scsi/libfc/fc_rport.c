@@ -58,7 +58,7 @@
 
 #include "fc_libfc.h"
 
-struct workqueue_struct *rport_event_queue;
+static struct workqueue_struct *rport_event_queue;
 
 static void fc_rport_enter_flogi(struct fc_rport_priv *);
 static void fc_rport_enter_plogi(struct fc_rport_priv *);
@@ -1890,7 +1890,7 @@ EXPORT_SYMBOL(fc_rport_init);
 /**
  * fc_setup_rport() - Initialize the rport_event_queue
  */
-int fc_setup_rport()
+int fc_setup_rport(void)
 {
 	rport_event_queue = create_singlethread_workqueue("fc_rport_eq");
 	if (!rport_event_queue)
@@ -1901,7 +1901,7 @@ int fc_setup_rport()
 /**
  * fc_destroy_rport() - Destroy the rport_event_queue
  */
-void fc_destroy_rport()
+void fc_destroy_rport(void)
 {
 	destroy_workqueue(rport_event_queue);
 }

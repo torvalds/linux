@@ -42,7 +42,7 @@
 
 #include "fc_libfc.h"
 
-struct kmem_cache *scsi_pkt_cachep;
+static struct kmem_cache *scsi_pkt_cachep;
 
 /* SRB state definitions */
 #define FC_SRB_FREE		0		/* cmd is free */
@@ -2244,7 +2244,7 @@ void fc_fcp_destroy(struct fc_lport *lport)
 }
 EXPORT_SYMBOL(fc_fcp_destroy);
 
-int fc_setup_fcp()
+int fc_setup_fcp(void)
 {
 	int rc = 0;
 
@@ -2260,7 +2260,7 @@ int fc_setup_fcp()
 	return rc;
 }
 
-void fc_destroy_fcp()
+void fc_destroy_fcp(void)
 {
 	if (scsi_pkt_cachep)
 		kmem_cache_destroy(scsi_pkt_cachep);
