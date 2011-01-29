@@ -1270,7 +1270,15 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 	if (count < rsize)
 		rsize = count;
 
-	req = p9_client_rpc(clnt, P9_TREAD, "dqd", fid->fid, offset, rsize);
+	/* Don't bother zerocopy form small IO (< 1024) */
+	if (((clnt->trans_mod->pref & P9_TRANS_PREF_PAYLOAD_MASK) ==
+			P9_TRANS_PREF_PAYLOAD_SEP) && (rsize > 1024)) {
+		req = p9_client_rpc(clnt, P9_TREAD, "dqE", fid->fid, offset,
+				rsize, data, udata);
+	} else {
+		req = p9_client_rpc(clnt, P9_TREAD, "dqd", fid->fid, offset,
+				rsize);
+	}
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto error;
@@ -1284,13 +1292,15 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RREAD count %d\n", count);
 
-	if (data) {
-		memmove(data, dataptr, count);
-	} else {
-		err = copy_to_user(udata, dataptr, count);
-		if (err) {
-			err = -EFAULT;
-			goto free_and_error;
+	if (!req->tc->pbuf_size) {
+		if (data) {
+			memmove(data, dataptr, count);
+		} else {
+			err = copy_to_user(udata, dataptr, count);
+			if (err) {
+				err = -EFAULT;
+				goto free_and_error;
+			}
 		}
 	}
 	p9_free_req(clnt, req);
