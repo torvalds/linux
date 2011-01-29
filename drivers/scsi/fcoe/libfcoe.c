@@ -44,6 +44,8 @@
 #include <scsi/libfc.h>
 #include <scsi/libfcoe.h>
 
+#include "libfcoe.h"
+
 MODULE_AUTHOR("Open-FCoE.org");
 MODULE_DESCRIPTION("FIP discovery protocol support for FCoE HBAs");
 MODULE_LICENSE("GPL v2");
@@ -69,26 +71,6 @@ static u8 fcoe_all_p2p[ETH_ALEN] = FIP_ALL_P2P_MACS;
 unsigned int libfcoe_debug_logging;
 module_param_named(debug_logging, libfcoe_debug_logging, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
-
-#define LIBFCOE_LOGGING	    0x01 /* General logging, not categorized */
-#define LIBFCOE_FIP_LOGGING 0x02 /* FIP logging */
-
-#define LIBFCOE_CHECK_LOGGING(LEVEL, CMD)		\
-do {							\
-	if (unlikely(libfcoe_debug_logging & LEVEL))	\
-		do {					\
-			CMD;				\
-		} while (0);				\
-} while (0)
-
-#define LIBFCOE_DBG(fmt, args...)					\
-	LIBFCOE_CHECK_LOGGING(LIBFCOE_LOGGING,				\
-			      printk(KERN_INFO "libfcoe: " fmt, ##args);)
-
-#define LIBFCOE_FIP_DBG(fip, fmt, args...)				\
-	LIBFCOE_CHECK_LOGGING(LIBFCOE_FIP_LOGGING,			\
-			      printk(KERN_INFO "host%d: fip: " fmt, 	\
-				     (fip)->lp->host->host_no, ##args);)
 
 static const char *fcoe_ctlr_states[] = {
 	[FIP_ST_DISABLED] =	"DISABLED",
