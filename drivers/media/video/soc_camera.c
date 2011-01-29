@@ -34,6 +34,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-dev.h>
 #include <media/videobuf-core.h>
+#include <media/videobuf2-core.h>
 #include <media/soc_mediabus.h>
 
 /* Default to VGA resolution */
@@ -212,11 +213,16 @@ static int soc_camera_reqbufs(struct file *file, void *priv,
 	if (icd->streamer && icd->streamer != file)
 		return -EBUSY;
 
-	ret = videobuf_reqbufs(&icd->vb_vidq, p);
-	if (ret < 0)
-		return ret;
+	if (ici->ops->init_videobuf) {
+		ret = videobuf_reqbufs(&icd->vb_vidq, p);
+		if (ret < 0)
+			return ret;
 
-	ret = ici->ops->reqbufs(icd, p);
+		ret = ici->ops->reqbufs(icd, p);
+	} else {
+		ret = vb2_reqbufs(&icd->vb2_vidq, p);
+	}
+
 	if (!ret && !icd->streamer)
 		icd->streamer = file;
 
@@ -227,36 +233,48 @@ static int soc_camera_querybuf(struct file *file, void *priv,
 			       struct v4l2_buffer *p)
 {
 	struct soc_camera_device *icd = file->private_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
 	WARN_ON(priv != file->private_data);
 
-	return videobuf_querybuf(&icd->vb_vidq, p);
+	if (ici->ops->init_videobuf)
+		return videobuf_querybuf(&icd->vb_vidq, p);
+	else
+		return vb2_querybuf(&icd->vb2_vidq, p);
 }
 
 static int soc_camera_qbuf(struct file *file, void *priv,
 			   struct v4l2_buffer *p)
 {
 	struct soc_camera_device *icd = file->private_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
 	WARN_ON(priv != file->private_data);
 
 	if (icd->streamer != file)
 		return -EBUSY;
 
-	return videobuf_qbuf(&icd->vb_vidq, p);
+	if (ici->ops->init_videobuf)
+		return videobuf_qbuf(&icd->vb_vidq, p);
+	else
+		return vb2_qbuf(&icd->vb2_vidq, p);
 }
 
 static int soc_camera_dqbuf(struct file *file, void *priv,
 			    struct v4l2_buffer *p)
 {
 	struct soc_camera_device *icd = file->private_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
 	WARN_ON(priv != file->private_data);
 
 	if (icd->streamer != file)
 		return -EBUSY;
 
-	return videobuf_dqbuf(&icd->vb_vidq, p, file->f_flags & O_NONBLOCK);
+	if (ici->ops->init_videobuf)
+		return videobuf_dqbuf(&icd->vb_vidq, p, file->f_flags & O_NONBLOCK);
+	else
+		return vb2_dqbuf(&icd->vb2_vidq, p, file->f_flags & O_NONBLOCK);
 }
 
 /* Always entered with .video_lock held */
@@ -372,8 +390,9 @@ static int soc_camera_set_fmt(struct soc_camera_device *icd,
 	icd->user_width		= pix->width;
 	icd->user_height	= pix->height;
 	icd->colorspace		= pix->colorspace;
-	icd->vb_vidq.field	=
-		icd->field	= pix->field;
+	icd->field		= pix->field;
+	if (ici->ops->init_videobuf)
+		icd->vb_vidq.field = pix->field;
 
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		dev_warn(&icd->dev, "Attention! Wrong buf-type %d\n",
@@ -453,7 +472,13 @@ static int soc_camera_open(struct file *file)
 		if (ret < 0)
 			goto esfmt;
 
-		ici->ops->init_videobuf(&icd->vb_vidq, icd);
+		if (ici->ops->init_videobuf) {
+			ici->ops->init_videobuf(&icd->vb_vidq, icd);
+		} else {
+			ret = ici->ops->init_videobuf2(&icd->vb2_vidq, icd);
+			if (ret < 0)
+				goto einitvb;
+		}
 	}
 
 	file->private_data = icd;
@@ -465,6 +490,7 @@ static int soc_camera_open(struct file *file)
 	 * First four errors are entered with the .video_lock held
 	 * and use_count == 1
 	 */
+einitvb:
 esfmt:
 	pm_runtime_disable(&icd->vdev->dev);
 eresume:
@@ -491,6 +517,8 @@ static int soc_camera_close(struct file *file)
 		pm_runtime_disable(&icd->vdev->dev);
 
 		ici->ops->remove(icd);
+		if (ici->ops->init_videobuf2)
+			vb2_queue_release(&icd->vb2_vidq);
 
 		soc_camera_power_set(icd, icl, 0);
 	}
@@ -519,6 +547,7 @@ static ssize_t soc_camera_read(struct file *file, char __user *buf,
 static int soc_camera_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct soc_camera_device *icd = file->private_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	int err;
 
 	dev_dbg(&icd->dev, "mmap called, vma=0x%08lx\n", (unsigned long)vma);
@@ -526,7 +555,10 @@ static int soc_camera_mmap(struct file *file, struct vm_area_struct *vma)
 	if (icd->streamer != file)
 		return -EBUSY;
 
-	err = videobuf_mmap_mapper(&icd->vb_vidq, vma);
+	if (ici->ops->init_videobuf)
+		err = videobuf_mmap_mapper(&icd->vb_vidq, vma);
+	else
+		err = vb2_mmap(&icd->vb2_vidq, vma);
 
 	dev_dbg(&icd->dev, "vma start=0x%08lx, size=%ld, ret=%d\n",
 		(unsigned long)vma->vm_start,
@@ -544,13 +576,27 @@ static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
 	if (icd->streamer != file)
 		return -EBUSY;
 
-	if (list_empty(&icd->vb_vidq.stream)) {
+	if (ici->ops->init_videobuf && list_empty(&icd->vb_vidq.stream)) {
 		dev_err(&icd->dev, "Trying to poll with no queued buffers!\n");
 		return POLLERR;
 	}
 
 	return ici->ops->poll(file, pt);
 }
+
+void soc_camera_lock(struct vb2_queue *vq)
+{
+	struct soc_camera_device *icd = vb2_get_drv_priv(vq);
+	mutex_lock(&icd->video_lock);
+}
+EXPORT_SYMBOL(soc_camera_lock);
+
+void soc_camera_unlock(struct vb2_queue *vq)
+{
+	struct soc_camera_device *icd = vb2_get_drv_priv(vq);
+	mutex_unlock(&icd->video_lock);
+}
+EXPORT_SYMBOL(soc_camera_unlock);
 
 static struct v4l2_file_operations soc_camera_fops = {
 	.owner		= THIS_MODULE,
@@ -615,7 +661,7 @@ static int soc_camera_g_fmt_vid_cap(struct file *file, void *priv,
 
 	pix->width		= icd->user_width;
 	pix->height		= icd->user_height;
-	pix->field		= icd->vb_vidq.field;
+	pix->field		= icd->field;
 	pix->pixelformat	= icd->current_fmt->host_fmt->fourcc;
 	pix->bytesperline	= soc_mbus_bytes_per_line(pix->width,
 						icd->current_fmt->host_fmt);
@@ -644,6 +690,7 @@ static int soc_camera_streamon(struct file *file, void *priv,
 			       enum v4l2_buf_type i)
 {
 	struct soc_camera_device *icd = file->private_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	int ret;
 
@@ -656,7 +703,11 @@ static int soc_camera_streamon(struct file *file, void *priv,
 		return -EBUSY;
 
 	/* This calls buf_queue from host driver's videobuf_queue_ops */
-	ret = videobuf_streamon(&icd->vb_vidq);
+	if (ici->ops->init_videobuf)
+		ret = videobuf_streamon(&icd->vb_vidq);
+	else
+		ret = vb2_streamon(&icd->vb2_vidq, i);
+
 	if (!ret)
 		v4l2_subdev_call(sd, video, s_stream, 1);
 
@@ -668,6 +719,7 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
 	WARN_ON(priv != file->private_data);
 
@@ -681,7 +733,10 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 	 * This calls buf_release from host driver's videobuf_queue_ops for all
 	 * remaining buffers. When the last buffer is freed, stop capture
 	 */
-	videobuf_streamoff(&icd->vb_vidq);
+	if (ici->ops->init_videobuf)
+		videobuf_streamoff(&icd->vb_vidq);
+	else
+		vb2_streamoff(&icd->vb2_vidq, i);
 
 	v4l2_subdev_call(sd, video, s_stream, 0);
 
@@ -1226,8 +1281,9 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	    !ici->ops->set_fmt ||
 	    !ici->ops->set_bus_param ||
 	    !ici->ops->querycap ||
-	    !ici->ops->init_videobuf ||
-	    !ici->ops->reqbufs ||
+	    ((!ici->ops->init_videobuf ||
+	      !ici->ops->reqbufs) &&
+	     !ici->ops->init_videobuf2) ||
 	    !ici->ops->add ||
 	    !ici->ops->remove ||
 	    !ici->ops->poll ||

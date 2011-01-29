@@ -17,6 +17,7 @@
 #include <linux/pm.h>
 #include <linux/videodev2.h>
 #include <media/videobuf-core.h>
+#include <media/videobuf2-core.h>
 #include <media/v4l2-device.h>
 
 extern struct bus_type soc_camera_bus_type;
@@ -44,7 +45,10 @@ struct soc_camera_device {
 	int use_count;
 	struct mutex video_lock;	/* Protects device data */
 	struct file *streamer;		/* stream owner */
-	struct videobuf_queue vb_vidq;
+	union {
+		struct videobuf_queue vb_vidq;
+		struct vb2_queue vb2_vidq;
+	};
 };
 
 struct soc_camera_host {
@@ -77,6 +81,8 @@ struct soc_camera_host_ops {
 	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	void (*init_videobuf)(struct videobuf_queue *,
+			      struct soc_camera_device *);
+	int (*init_videobuf2)(struct vb2_queue *,
 			      struct soc_camera_device *);
 	int (*reqbufs)(struct soc_camera_device *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
@@ -299,5 +305,8 @@ static inline struct video_device *soc_camera_i2c_to_vdev(struct i2c_client *cli
 	struct soc_camera_device *icd = client->dev.platform_data;
 	return icd->vdev;
 }
+
+void soc_camera_lock(struct vb2_queue *vq);
+void soc_camera_unlock(struct vb2_queue *vq);
 
 #endif

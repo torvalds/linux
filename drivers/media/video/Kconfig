@@ -750,6 +750,7 @@ config SOC_CAMERA
 	tristate "SoC camera support"
 	depends on VIDEO_V4L2 && HAS_DMA && I2C
 	select VIDEOBUF_GEN
+	select VIDEOBUF2_CORE
 	help
 	  SoC Camera is a common API to several cameras, not connecting
 	  over a bus like PCI or USB. For example some i2c camera connected
