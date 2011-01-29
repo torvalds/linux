@@ -315,6 +315,7 @@ COMPAT_CFLAGS =
 COMPAT_OBJS =
 LIB_H =
 LIB_OBJS =
+PYRF_OBJS =
 SCRIPT_PERL =
 SCRIPT_SH =
 TEST_PROGRAMS =
@@ -323,6 +324,9 @@ SCRIPT_SH += perf-archive.sh
 
 grep-libs = $(filter -l%,$(1))
 strip-libs = $(filter-out -l%,$(1))
+
+pyrf: $(PYRF_OBJS)
+	python util/setup.py build --build-base='$(OUTPUT)'
 
 #
 # No Perl scripts right now:
@@ -349,7 +353,7 @@ PROGRAMS += $(OUTPUT)perf
 #
 
 # what 'all' will build and 'install' will install, in perfexecdir
-ALL_PROGRAMS = $(PROGRAMS) $(SCRIPTS)
+ALL_PROGRAMS = $(PROGRAMS) $(SCRIPTS) pyrf
 
 # what 'all' will build but not install in perfexecdir
 OTHER_PROGRAMS = $(OUTPUT)perf$X
@@ -519,6 +523,20 @@ BUILTIN_OBJS += $(OUTPUT)builtin-test.o
 BUILTIN_OBJS += $(OUTPUT)builtin-inject.o
 
 PERFLIBS = $(LIB_FILE)
+
+# Files needed for the python binding, perf.so
+# pyrf is just an internal name needed for all those wrappers.
+# This has to be in sync with what is in the 'sources' variable in
+# tools/perf/util/setup.py
+
+PYRF_OBJS += $(OUTPUT)util/cpumap.o
+PYRF_OBJS += $(OUTPUT)util/ctype.o
+PYRF_OBJS += $(OUTPUT)util/evlist.o
+PYRF_OBJS += $(OUTPUT)util/evsel.o
+PYRF_OBJS += $(OUTPUT)util/python.o
+PYRF_OBJS += $(OUTPUT)util/thread_map.o
+PYRF_OBJS += $(OUTPUT)util/util.o
+PYRF_OBJS += $(OUTPUT)util/xyarray.o
 
 #
 # Platform specific tweaks
