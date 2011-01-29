@@ -236,10 +236,7 @@ __u16 GetNextMid(struct TCP_Server_Info *server)
 {
 	__u16 mid = 0;
 	__u16 last_mid;
-	int   collision;
-
-	if (server == NULL)
-		return mid;
+	bool collision;
 
 	spin_lock(&GlobalMid_Lock);
 	last_mid = server->CurrentMid; /* we do not want to loop forever */
@@ -252,24 +249,38 @@ __u16 GetNextMid(struct TCP_Server_Info *server)
 	(and it would also have to have been a request that
 	 did not time out) */
 	while (server->CurrentMid != last_mid) {
-		struct list_head *tmp;
 		struct mid_q_entry *mid_entry;
+		unsigned int num_mids;
 
-		collision = 0;
+		collision = false;
 		if (server->CurrentMid == 0)
 			server->CurrentMid++;
 
-		list_for_each(tmp, &server->pending_mid_q) {
-			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-
-			if ((mid_entry->mid == server->CurrentMid) &&
-			    (mid_entry->midState == MID_REQUEST_SUBMITTED)) {
+		num_mids = 0;
+		list_for_each_entry(mid_entry, &server->pending_mid_q, qhead) {
+			++num_mids;
+			if (mid_entry->mid == server->CurrentMid &&
+			    mid_entry->midState == MID_REQUEST_SUBMITTED) {
 				/* This mid is in use, try a different one */
-				collision = 1;
+				collision = true;
 				break;
 			}
 		}
-		if (collision == 0) {
+
+		/*
+		 * if we have more than 32k mids in the list, then something
+		 * is very wrong. Possibly a local user is trying to DoS the
+		 * box by issuing long-running calls and SIGKILL'ing them. If
+		 * we get to 2^16 mids then we're in big trouble as this
+		 * function could loop forever.
+		 *
+		 * Go ahead and assign out the mid in this situation, but force
+		 * an eventual reconnect to clean out the pending_mid_q.
+		 */
+		if (num_mids > 32768)
+			server->tcpStatus = CifsNeedReconnect;
+
+		if (!collision) {
 			mid = server->CurrentMid;
 			break;
 		}
