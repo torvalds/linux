@@ -27,6 +27,10 @@
 
 #include "libfcoe.h"
 
+MODULE_AUTHOR("Open-FCoE.org");
+MODULE_DESCRIPTION("FIP discovery protocol and FCoE transport for FCoE HBAs");
+MODULE_LICENSE("GPL v2");
+
 static int fcoe_transport_create(const char *, struct kernel_param *);
 static int fcoe_transport_destroy(const char *, struct kernel_param *);
 static int fcoe_transport_show(char *buffer, const struct kernel_param *kp);
@@ -38,6 +42,10 @@ static int fcoe_transport_disable(const char *, struct kernel_param *);
 static LIST_HEAD(fcoe_transports);
 static LIST_HEAD(fcoe_netdevs);
 static DEFINE_MUTEX(ft_mutex);
+
+unsigned int libfcoe_debug_logging;
+module_param_named(debug_logging, libfcoe_debug_logging, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
 
 module_param_call(show, NULL, fcoe_transport_show, NULL, S_IRUSR);
 __MODULE_PARM_TYPE(show, "string");
