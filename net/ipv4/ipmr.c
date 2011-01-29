@@ -60,6 +60,7 @@
 #include <linux/notifier.h>
 #include <linux/if_arp.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/compat.h>
 #include <net/ipip.h>
 #include <net/checksum.h>
 #include <net/netlink.h>
@@ -1433,6 +1434,51 @@ int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg)
 		return -ENOIOCTLCMD;
 	}
 }
+
+#ifdef CONFIG_COMPAT
+struct compat_sioc_sg_req {
+	struct in_addr src;
+	struct in_addr grp;
+	compat_ulong_t pktcnt;
+	compat_ulong_t bytecnt;
+	compat_ulong_t wrong_if;
+};
+
+int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
+{
+	struct sioc_sg_req sr;
+	struct mfc_cache *c;
+	struct net *net = sock_net(sk);
+	struct mr_table *mrt;
+
+	mrt = ipmr_get_table(net, raw_sk(sk)->ipmr_table ? : RT_TABLE_DEFAULT);
+	if (mrt == NULL)
+		return -ENOENT;
+
+	switch (cmd) {
+	case SIOCGETSGCNT:
+		if (copy_from_user(&sr, arg, sizeof(sr)))
+			return -EFAULT;
+
+		rcu_read_lock();
+		c = ipmr_cache_find(mrt, sr.src.s_addr, sr.grp.s_addr);
+		if (c) {
+			sr.pktcnt = c->mfc_un.res.pkt;
+			sr.bytecnt = c->mfc_un.res.bytes;
+			sr.wrong_if = c->mfc_un.res.wrong_if;
+			rcu_read_unlock();
+
+			if (copy_to_user(arg, &sr, sizeof(sr)))
+				return -EFAULT;
+			return 0;
+		}
+		rcu_read_unlock();
+		return -EADDRNOTAVAIL;
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+#endif
 
 
 static int ipmr_device_event(struct notifier_block *this, unsigned long event, void *ptr)
