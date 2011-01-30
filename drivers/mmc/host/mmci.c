@@ -14,6 +14,7 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/highmem.h>
@@ -289,13 +290,13 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		dev_dbg(mmc_dev(host->mmc), "MCI ERROR IRQ (status %08x)\n", status);
 		if (status & MCI_DATACRCFAIL) {
 			/* Last block was not successful */
-			host->data_xfered = ((success - 1) / data->blksz) * data->blksz;
+			host->data_xfered = round_down(success - 1, data->blksz);
 			data->error = -EILSEQ;
 		} else if (status & MCI_DATATIMEOUT) {
-			host->data_xfered = success;
+			host->data_xfered = round_down(success, data->blksz);
 			data->error = -ETIMEDOUT;
 		} else if (status & (MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
-			host->data_xfered = success;
+			host->data_xfered = round_down(success, data->blksz);
 			data->error = -EIO;
 		}
 
