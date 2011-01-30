@@ -417,10 +417,14 @@ config HID_ROCCAT
 	Say Y here if you have a Roccat mouse or keyboard and want OSD or
 	macro execution support.
 
+config HID_ROCCAT_COMMON
+	tristate
+
 config HID_ROCCAT_ARVO
 	tristate "Roccat Arvo keyboard support"
 	depends on USB_HID
 	select HID_ROCCAT
+	select HID_ROCCAT_COMMON
 	---help---
 	Support for Roccat Arvo keyboard.
 
@@ -428,6 +432,7 @@ config HID_ROCCAT_KONE
 	tristate "Roccat Kone Mouse support"
 	depends on USB_HID
 	select HID_ROCCAT
+	select HID_ROCCAT_COMMON
 	---help---
 	Support for Roccat Kone mouse.
 
@@ -435,6 +440,7 @@ config HID_ROCCAT_KONEPLUS
 	tristate "Roccat Kone[+] mouse support"
 	depends on USB_HID
 	select HID_ROCCAT
+	select HID_ROCCAT_COMMON
 	---help---
 	Support for Roccat Kone[+] mouse.
 
@@ -442,6 +448,7 @@ config HID_ROCCAT_PYRA
 	tristate "Roccat Pyra mouse support"
 	depends on USB_HID
 	select HID_ROCCAT
+	select HID_ROCCAT_COMMON
 	---help---
 	Support for Roccat Pyra mouse.
 

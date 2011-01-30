@@ -28,11 +28,11 @@
 #include <linux/device.h>
 #include <linux/input.h>
 #include <linux/hid.h>
-#include <linux/usb.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include "hid-ids.h"
 #include "hid-roccat.h"
+#include "hid-roccat-common.h"
 #include "hid-roccat-kone.h"
 
 static uint profile_numbers[5] = {0, 1, 2, 3, 4};
@@ -58,12 +58,8 @@ static void kone_set_settings_checksum(struct kone_settings *settings)
  */
 static int kone_check_write(struct usb_device *usb_dev)
 {
-	int len;
-	unsigned char *data;
-
-	data = kmalloc(1, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	int retval;
+	uint8_t data;
 
 	do {
 		/*
@@ -72,56 +68,36 @@ static int kone_check_write(struct usb_device *usb_dev)
 		 */
 		msleep(80);
 
-		len = usb_control_msg(usb_dev, usb_rcvctrlpipe(usb_dev, 0),
-				USB_REQ_CLEAR_FEATURE,
-				USB_TYPE_CLASS | USB_RECIP_INTERFACE |
-				USB_DIR_IN,
-				kone_command_confirm_write, 0, data, 1,
-				USB_CTRL_SET_TIMEOUT);
-
-		if (len != 1) {
-			kfree(data);
-			return -EIO;
-		}
+		retval = roccat_common_receive(usb_dev,
+				kone_command_confirm_write, &data, 1);
+		if (retval)
+			return retval;
 
 		/*
 		 * value of 3 seems to mean something like
 		 * "not finished yet, but it looks good"
 		 * So check again after a moment.
 		 */
-	} while (*data == 3);
+	} while (data == 3);
 
-	if (*data == 1) { /* everything alright */
-		kfree(data);
+	if (data == 1) /* everything alright */
 		return 0;
-	} else { /* unknown answer */
-		hid_err(usb_dev, "got retval %d when checking write\n", *data);
-		kfree(data);
-		return -EIO;
-	}
+
+	/* unknown answer */
+	hid_err(usb_dev, "got retval %d when checking write\n", data);
+	return -EIO;
 }
 
 /*
  * Reads settings from mouse and stores it in @buf
- * @buf has to be alloced with GFP_KERNEL
  * On success returns 0
  * On failure returns errno
  */
 static int kone_get_settings(struct usb_device *usb_dev,
 		struct kone_settings *buf)
 {
-	int len;
-
-	len = usb_control_msg(usb_dev, usb_rcvctrlpipe(usb_dev, 0),
-			USB_REQ_CLEAR_FEATURE,
-			USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			kone_command_settings, 0, buf,
-			sizeof(struct kone_settings), USB_CTRL_SET_TIMEOUT);
-
-	if (len != sizeof(struct kone_settings))
-		return -EIO;
-
-	return 0;
+	return roccat_common_receive(usb_dev, kone_command_settings, buf,
+			sizeof(struct kone_settings));
 }
 
 /*
@@ -132,22 +108,12 @@ static int kone_get_settings(struct usb_device *usb_dev,
 static int kone_set_settings(struct usb_device *usb_dev,
 		struct kone_settings const *settings)
 {
-	int len;
-
-	len = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
-			USB_REQ_SET_CONFIGURATION,
-			USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT,
-			kone_command_settings, 0, (char *)settings,
-			sizeof(struct kone_settings),
-			USB_CTRL_SET_TIMEOUT);
-
-	if (len != sizeof(struct kone_settings))
-		return -EIO;
-
-	if (kone_check_write(usb_dev))
-		return -EIO;
-
-	return 0;
+	int retval;
+	retval = roccat_common_send(usb_dev, kone_command_settings,
+			settings, sizeof(struct kone_settings));
+	if (retval)
+		return retval;
+	return kone_check_write(usb_dev);
 }
 
 /*
@@ -193,7 +159,7 @@ static int kone_set_profile(struct usb_device *usb_dev,
 	len = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
 			USB_REQ_SET_CONFIGURATION,
 			USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT,
-			kone_command_profile, number, (char *)profile,
+			kone_command_profile, number, (void *)profile,
 			sizeof(struct kone_profile),
 			USB_CTRL_SET_TIMEOUT);
 
@@ -213,24 +179,15 @@ static int kone_set_profile(struct usb_device *usb_dev,
  */
 static int kone_get_weight(struct usb_device *usb_dev, int *result)
 {
-	int len;
-	uint8_t *data;
+	int retval;
+	uint8_t data;
 
-	data = kmalloc(1, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	retval = roccat_common_receive(usb_dev, kone_command_weight, &data, 1);
 
-	len = usb_control_msg(usb_dev, usb_rcvctrlpipe(usb_dev, 0),
-			USB_REQ_CLEAR_FEATURE,
-			USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			kone_command_weight, 0, data, 1, USB_CTRL_SET_TIMEOUT);
+	if (retval)
+		return retval;
 
-	if (len != 1) {
-		kfree(data);
-		return -EIO;
-	}
-	*result = (int)*data;
-	kfree(data);
+	*result = (int)data;
 	return 0;
 }
 
@@ -241,25 +198,15 @@ static int kone_get_weight(struct usb_device *usb_dev, int *result)
  */
 static int kone_get_firmware_version(struct usb_device *usb_dev, int *result)
 {
-	int len;
-	unsigned char *data;
+	int retval;
+	uint16_t data;
 
-	data = kmalloc(2, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	retval = roccat_common_receive(usb_dev, kone_command_firmware_version,
+			&data, 2);
+	if (retval)
+		return retval;
 
-	len = usb_control_msg(usb_dev, usb_rcvctrlpipe(usb_dev, 0),
-			USB_REQ_CLEAR_FEATURE,
-			USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			kone_command_firmware_version, 0, data, 2,
-			USB_CTRL_SET_TIMEOUT);
-
-	if (len != 2) {
-		kfree(data);
-		return -EIO;
-	}
-	*result = le16_to_cpu(*data);
-	kfree(data);
+	*result = le16_to_cpu(data);
 	return 0;
 }
 
@@ -435,23 +382,9 @@ static ssize_t kone_sysfs_show_tcu(struct device *dev,
 
 static int kone_tcu_command(struct usb_device *usb_dev, int number)
 {
-	int len;
-	char *value;
-
-	value = kmalloc(1, GFP_KERNEL);
-	if (!value)
-		return -ENOMEM;
-
-	*value = number;
-
-	len = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
-			USB_REQ_SET_CONFIGURATION,
-			USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT,
-			kone_command_calibrate, 0, value, 1,
-			USB_CTRL_SET_TIMEOUT);
-
-	kfree(value);
-	return ((len != 1) ? -EIO : 0);
+	unsigned char value;
+	value = number;
+	return roccat_common_send(usb_dev, kone_command_calibrate, &value, 1);
 }
 
 /*

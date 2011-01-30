@@ -19,11 +19,11 @@
 #include <linux/device.h>
 #include <linux/input.h>
 #include <linux/hid.h>
-#include <linux/usb.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include "hid-ids.h"
 #include "hid-roccat.h"
+#include "hid-roccat-common.h"
 #include "hid-roccat-koneplus.h"
 
 static uint profile_numbers[5] = {0, 1, 2, 3, 4};
@@ -39,110 +39,63 @@ static void koneplus_profile_activated(struct koneplus_device *koneplus,
 static int koneplus_send_control(struct usb_device *usb_dev, uint value,
 		enum koneplus_control_requests request)
 {
-	int len;
-	struct koneplus_control *control;
+	struct koneplus_control control;
 
 	if ((request == KONEPLUS_CONTROL_REQUEST_PROFILE_SETTINGS ||
 			request == KONEPLUS_CONTROL_REQUEST_PROFILE_BUTTONS) &&
 			value > 4)
 		return -EINVAL;
 
-	control = kmalloc(sizeof(struct koneplus_control), GFP_KERNEL);
-	if (!control)
-		return -ENOMEM;
+	control.command = KONEPLUS_COMMAND_CONTROL;
+	control.value = value;
+	control.request = request;
 
-	control->command = KONEPLUS_COMMAND_CONTROL;
-	control->value = value;
-	control->request = request;
-
-	len = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
-			USB_REQ_SET_CONFIGURATION,
-			USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT,
-			KONEPLUS_USB_COMMAND_CONTROL, 0, control,
-			sizeof(struct koneplus_control),
-			USB_CTRL_SET_TIMEOUT);
-
-	kfree(control);
-
-	if (len != sizeof(struct koneplus_control))
-		return len;
-
-	return 0;
-}
-
-static int koneplus_receive(struct usb_device *usb_dev, uint usb_command,
-		void *buf, uint size) {
-	int len;
-
-	len = usb_control_msg(usb_dev, usb_rcvctrlpipe(usb_dev, 0),
-			USB_REQ_CLEAR_FEATURE,
-			USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			usb_command, 0, buf, size, USB_CTRL_SET_TIMEOUT);
-
-	return (len != size) ? -EIO : 0;
+	return roccat_common_send(usb_dev, KONEPLUS_USB_COMMAND_CONTROL,
+			&control, sizeof(struct koneplus_control));
 }
 
 static int koneplus_receive_control_status(struct usb_device *usb_dev)
 {
 	int retval;
-	struct koneplus_control *control;
-
-	control = kmalloc(sizeof(struct koneplus_control), GFP_KERNEL);
-	if (!control)
-		return -ENOMEM;
+	struct koneplus_control control;
 
 	do {
-		retval = koneplus_receive(usb_dev, KONEPLUS_USB_COMMAND_CONTROL,
-				control, sizeof(struct koneplus_control));
+		retval = roccat_common_receive(usb_dev, KONEPLUS_USB_COMMAND_CONTROL,
+				&control, sizeof(struct koneplus_control));
 
 		/* check if we get a completely wrong answer */
 		if (retval)
-			goto out;
+			return retval;
 
-		if (control->value == KONEPLUS_CONTROL_REQUEST_STATUS_OK) {
-			retval = 0;
-			goto out;
-		}
+		if (control.value == KONEPLUS_CONTROL_REQUEST_STATUS_OK)
+			return 0;
 
 		/* indicates that hardware needs some more time to complete action */
-		if (control->value == KONEPLUS_CONTROL_REQUEST_STATUS_WAIT) {
+		if (control.value == KONEPLUS_CONTROL_REQUEST_STATUS_WAIT) {
 			msleep(500); /* windows driver uses 1000 */
 			continue;
 		}
 
 		/* seems to be critical - replug necessary */
-		if (control->value == KONEPLUS_CONTROL_REQUEST_STATUS_OVERLOAD) {
-			retval = -EINVAL;
-			goto out;
-		}
+		if (control.value == KONEPLUS_CONTROL_REQUEST_STATUS_OVERLOAD)
+			return -EINVAL;
 
 		hid_err(usb_dev, "koneplus_receive_control_status: "
-				"unknown response value 0x%x\n", control->value);
-		retval = -EINVAL;
-		goto out;
-
+				"unknown response value 0x%x\n", control.value);
+		return -EINVAL;
 	} while (1);
-out:
-	kfree(control);
-	return retval;
 }
 
 static int koneplus_send(struct usb_device *usb_dev, uint command,
-		void *buf, uint size) {
-	int len;
+		void const *buf, uint size)
+{
+	int retval;
 
-	len = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
-			USB_REQ_SET_CONFIGURATION,
-			USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT,
-			command, 0, buf, size, USB_CTRL_SET_TIMEOUT);
+	retval = roccat_common_send(usb_dev, command, buf, size);
+	if (retval)
+		return retval;
 
-	if (len != size)
-		return -EIO;
-
-	if (koneplus_receive_control_status(usb_dev))
-		return -EIO;
-
-	return 0;
+	return koneplus_receive_control_status(usb_dev);
 }
 
 static int koneplus_select_profile(struct usb_device *usb_dev, uint number,
@@ -167,7 +120,7 @@ static int koneplus_select_profile(struct usb_device *usb_dev, uint number,
 static int koneplus_get_info(struct usb_device *usb_dev,
 		struct koneplus_info *buf)
 {
-	return koneplus_receive(usb_dev, KONEPLUS_USB_COMMAND_INFO,
+	return roccat_common_receive(usb_dev, KONEPLUS_USB_COMMAND_INFO,
 			buf, sizeof(struct koneplus_info));
 }
 
@@ -181,7 +134,7 @@ static int koneplus_get_profile_settings(struct usb_device *usb_dev,
 	if (retval)
 		return retval;
 
-	return koneplus_receive(usb_dev, KONEPLUS_USB_COMMAND_PROFILE_SETTINGS,
+	return roccat_common_receive(usb_dev, KONEPLUS_USB_COMMAND_PROFILE_SETTINGS,
 			buf, sizeof(struct koneplus_profile_settings));
 }
 
@@ -189,7 +142,7 @@ static int koneplus_set_profile_settings(struct usb_device *usb_dev,
 		struct koneplus_profile_settings const *settings)
 {
 	return koneplus_send(usb_dev, KONEPLUS_USB_COMMAND_PROFILE_SETTINGS,
-			(void *)settings, sizeof(struct koneplus_profile_settings));
+			settings, sizeof(struct koneplus_profile_settings));
 }
 
 static int koneplus_get_profile_buttons(struct usb_device *usb_dev,
@@ -202,7 +155,7 @@ static int koneplus_get_profile_buttons(struct usb_device *usb_dev,
 	if (retval)
 		return retval;
 
-	return koneplus_receive(usb_dev, KONEPLUS_USB_COMMAND_PROFILE_BUTTONS,
+	return roccat_common_receive(usb_dev, KONEPLUS_USB_COMMAND_PROFILE_BUTTONS,
 			buf, sizeof(struct koneplus_profile_buttons));
 }
 
@@ -210,29 +163,19 @@ static int koneplus_set_profile_buttons(struct usb_device *usb_dev,
 		struct koneplus_profile_buttons const *buttons)
 {
 	return koneplus_send(usb_dev, KONEPLUS_USB_COMMAND_PROFILE_BUTTONS,
-			(void *)buttons, sizeof(struct koneplus_profile_buttons));
+			buttons, sizeof(struct koneplus_profile_buttons));
 }
 
 /* retval is 0-4 on success, < 0 on error */
 static int koneplus_get_startup_profile(struct usb_device *usb_dev)
 {
-	struct koneplus_startup_profile *buf;
+	struct koneplus_startup_profile buf;
 	int retval;
 
-	buf = kmalloc(sizeof(struct koneplus_startup_profile), GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
+	retval = roccat_common_receive(usb_dev, KONEPLUS_USB_COMMAND_STARTUP_PROFILE,
+			&buf, sizeof(struct koneplus_startup_profile));
 
-	retval = koneplus_receive(usb_dev, KONEPLUS_USB_COMMAND_STARTUP_PROFILE,
-			buf, sizeof(struct koneplus_startup_profile));
-
-	if (retval)
-		goto out;
-
-	retval = buf->startup_profile;
-out:
-	kfree(buf);
-	return retval;
+	return retval ? retval : buf.startup_profile;
 }
 
 static int koneplus_set_startup_profile(struct usb_device *usb_dev,
@@ -245,7 +188,7 @@ static int koneplus_set_startup_profile(struct usb_device *usb_dev,
 	buf.startup_profile = startup_profile;
 
 	return koneplus_send(usb_dev, KONEPLUS_USB_COMMAND_STARTUP_PROFILE,
-			(char *)&buf, sizeof(struct koneplus_profile_buttons));
+			&buf, sizeof(struct koneplus_profile_buttons));
 }
 
 static ssize_t koneplus_sysfs_read(struct file *fp, struct kobject *kobj,
@@ -265,7 +208,7 @@ static ssize_t koneplus_sysfs_read(struct file *fp, struct kobject *kobj,
 		return -EINVAL;
 
 	mutex_lock(&koneplus->koneplus_lock);
-	retval = koneplus_receive(usb_dev, command, buf, real_size);
+	retval = roccat_common_receive(usb_dev, command, buf, real_size);
 	mutex_unlock(&koneplus->koneplus_lock);
 
 	if (retval)
@@ -288,7 +231,7 @@ static ssize_t koneplus_sysfs_write(struct file *fp, struct kobject *kobj,
 		return -EINVAL;
 
 	mutex_lock(&koneplus->koneplus_lock);
-	retval = koneplus_send(usb_dev, command, (void *)buf, real_size);
+	retval = koneplus_send(usb_dev, command, buf, real_size);
 	mutex_unlock(&koneplus->koneplus_lock);
 
 	if (retval)
@@ -352,7 +295,7 @@ static ssize_t koneplus_sysfs_read_profilex_settings(struct file *fp,
 		count = sizeof(struct koneplus_profile_settings) - off;
 
 	mutex_lock(&koneplus->koneplus_lock);
-	memcpy(buf, ((void const *)&koneplus->profile_settings[*(uint *)(attr->private)]) + off,
+	memcpy(buf, ((char const *)&koneplus->profile_settings[*(uint *)(attr->private)]) + off,
 			count);
 	mutex_unlock(&koneplus->koneplus_lock);
 
@@ -411,7 +354,7 @@ static ssize_t koneplus_sysfs_read_profilex_buttons(struct file *fp,
 		count = sizeof(struct koneplus_profile_buttons) - off;
 
 	mutex_lock(&koneplus->koneplus_lock);
-	memcpy(buf, ((void const *)&koneplus->profile_buttons[*(uint *)(attr->private)]) + off,
+	memcpy(buf, ((char const *)&koneplus->profile_buttons[*(uint *)(attr->private)]) + off,
 			count);
 	mutex_unlock(&koneplus->koneplus_lock);
 

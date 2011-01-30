@@ -19,40 +19,14 @@
 #include <linux/device.h>
 #include <linux/input.h>
 #include <linux/hid.h>
-#include <linux/usb.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include "hid-ids.h"
 #include "hid-roccat.h"
+#include "hid-roccat-common.h"
 #include "hid-roccat-arvo.h"
 
 static struct class *arvo_class;
-
-static int arvo_receive(struct usb_device *usb_dev, uint usb_command,
-		void *buf, uint size)
-{
-	int len;
-
-	len = usb_control_msg(usb_dev, usb_rcvctrlpipe(usb_dev, 0),
-			USB_REQ_CLEAR_FEATURE,
-			USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			usb_command, 0, buf, size, USB_CTRL_SET_TIMEOUT);
-
-	return (len != size) ? -EIO : 0;
-}
-
-static int arvo_send(struct usb_device *usb_dev, uint usb_command,
-		void const *buf, uint size)
-{
-	int len;
-
-	len = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
-			USB_REQ_SET_CONFIGURATION,
-			USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT,
-			usb_command, 0, (void *)buf, size, USB_CTRL_SET_TIMEOUT);
-
-	return (len != size) ? -EIO : 0;
-}
 
 static ssize_t arvo_sysfs_show_mode_key(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -61,24 +35,17 @@ static ssize_t arvo_sysfs_show_mode_key(struct device *dev,
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	struct usb_device *usb_dev =
 			interface_to_usbdev(to_usb_interface(dev->parent->parent));
-	struct arvo_mode_key *temp_buf;
+	struct arvo_mode_key temp_buf;
 	int retval;
 
-	temp_buf = kmalloc(sizeof(struct arvo_mode_key), GFP_KERNEL);
-	if (!temp_buf)
-		return -ENOMEM;
-
 	mutex_lock(&arvo->arvo_lock);
-	retval = arvo_receive(usb_dev, ARVO_USB_COMMAND_MODE_KEY,
-			temp_buf, sizeof(struct arvo_mode_key));
+	retval = roccat_common_receive(usb_dev, ARVO_USB_COMMAND_MODE_KEY,
+			&temp_buf, sizeof(struct arvo_mode_key));
 	mutex_unlock(&arvo->arvo_lock);
 	if (retval)
-		goto out;
+		return retval;
 
-	retval = snprintf(buf, PAGE_SIZE, "%d\n", temp_buf->state);
-out:
-	kfree(temp_buf);
-	return retval;
+	return snprintf(buf, PAGE_SIZE, "%d\n", temp_buf.state);
 }
 
 static ssize_t arvo_sysfs_set_mode_key(struct device *dev,
@@ -88,32 +55,25 @@ static ssize_t arvo_sysfs_set_mode_key(struct device *dev,
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	struct usb_device *usb_dev =
 			interface_to_usbdev(to_usb_interface(dev->parent->parent));
-	struct arvo_mode_key *temp_buf;
+	struct arvo_mode_key temp_buf;
 	unsigned long state;
 	int retval;
 
-	temp_buf = kmalloc(sizeof(struct arvo_mode_key), GFP_KERNEL);
-	if (!temp_buf)
-		return -ENOMEM;
-
 	retval = strict_strtoul(buf, 10, &state);
 	if (retval)
-		goto out;
+		return retval;
 
-	temp_buf->command = ARVO_COMMAND_MODE_KEY;
-	temp_buf->state = state;
+	temp_buf.command = ARVO_COMMAND_MODE_KEY;
+	temp_buf.state = state;
 
 	mutex_lock(&arvo->arvo_lock);
-	retval = arvo_send(usb_dev, ARVO_USB_COMMAND_MODE_KEY,
-			temp_buf, sizeof(struct arvo_mode_key));
+	retval = roccat_common_send(usb_dev, ARVO_USB_COMMAND_MODE_KEY,
+			&temp_buf, sizeof(struct arvo_mode_key));
 	mutex_unlock(&arvo->arvo_lock);
 	if (retval)
-		goto out;
+		return retval;
 
-	retval = size;
-out:
-	kfree(temp_buf);
-	return retval;
+	return size;
 }
 
 static ssize_t arvo_sysfs_show_key_mask(struct device *dev,
@@ -123,24 +83,17 @@ static ssize_t arvo_sysfs_show_key_mask(struct device *dev,
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	struct usb_device *usb_dev =
 			interface_to_usbdev(to_usb_interface(dev->parent->parent));
-	struct arvo_key_mask *temp_buf;
+	struct arvo_key_mask temp_buf;
 	int retval;
 
-	temp_buf = kmalloc(sizeof(struct arvo_key_mask), GFP_KERNEL);
-	if (!temp_buf)
-		return -ENOMEM;
-
 	mutex_lock(&arvo->arvo_lock);
-	retval = arvo_receive(usb_dev, ARVO_USB_COMMAND_KEY_MASK,
-			temp_buf, sizeof(struct arvo_key_mask));
+	retval = roccat_common_receive(usb_dev, ARVO_USB_COMMAND_KEY_MASK,
+			&temp_buf, sizeof(struct arvo_key_mask));
 	mutex_unlock(&arvo->arvo_lock);
 	if (retval)
-		goto out;
+		return retval;
 
-	retval = snprintf(buf, PAGE_SIZE, "%d\n", temp_buf->key_mask);
-out:
-	kfree(temp_buf);
-	return retval;
+	return snprintf(buf, PAGE_SIZE, "%d\n", temp_buf.key_mask);
 }
 
 static ssize_t arvo_sysfs_set_key_mask(struct device *dev,
@@ -150,52 +103,40 @@ static ssize_t arvo_sysfs_set_key_mask(struct device *dev,
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	struct usb_device *usb_dev =
 			interface_to_usbdev(to_usb_interface(dev->parent->parent));
-	struct arvo_key_mask *temp_buf;
+	struct arvo_key_mask temp_buf;
 	unsigned long key_mask;
 	int retval;
 
-	temp_buf = kmalloc(sizeof(struct arvo_key_mask), GFP_KERNEL);
-	if (!temp_buf)
-		return -ENOMEM;
-
 	retval = strict_strtoul(buf, 10, &key_mask);
 	if (retval)
-		goto out;
+		return retval;
 
-	temp_buf->command = ARVO_COMMAND_KEY_MASK;
-	temp_buf->key_mask = key_mask;
+	temp_buf.command = ARVO_COMMAND_KEY_MASK;
+	temp_buf.key_mask = key_mask;
 
 	mutex_lock(&arvo->arvo_lock);
-	retval = arvo_send(usb_dev, ARVO_USB_COMMAND_KEY_MASK,
-			temp_buf, sizeof(struct arvo_key_mask));
+	retval = roccat_common_send(usb_dev, ARVO_USB_COMMAND_KEY_MASK,
+			&temp_buf, sizeof(struct arvo_key_mask));
 	mutex_unlock(&arvo->arvo_lock);
 	if (retval)
-		goto out;
+		return retval;
 
-	retval = size;
-out:
-	kfree(temp_buf);
-	return retval;
+	return size;
 }
 
 /* retval is 1-5 on success, < 0 on error */
 static int arvo_get_actual_profile(struct usb_device *usb_dev)
 {
-	struct arvo_actual_profile *temp_buf;
+	struct arvo_actual_profile temp_buf;
 	int retval;
 
-	temp_buf = kmalloc(sizeof(struct arvo_actual_profile), GFP_KERNEL);
-	if (!temp_buf)
-		return -ENOMEM;
+	retval = roccat_common_receive(usb_dev, ARVO_USB_COMMAND_ACTUAL_PROFILE,
+			&temp_buf, sizeof(struct arvo_actual_profile));
 
-	retval = arvo_receive(usb_dev, ARVO_USB_COMMAND_ACTUAL_PROFILE,
-			temp_buf, sizeof(struct arvo_actual_profile));
+	if (retval)
+		return retval;
 
-	if (!retval)
-		retval = temp_buf->actual_profile;
-
-	kfree(temp_buf);
-	return retval;
+	return temp_buf.actual_profile;
 }
 
 static ssize_t arvo_sysfs_show_actual_profile(struct device *dev,
@@ -214,32 +155,25 @@ static ssize_t arvo_sysfs_set_actual_profile(struct device *dev,
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	struct usb_device *usb_dev =
 			interface_to_usbdev(to_usb_interface(dev->parent->parent));
-	struct arvo_actual_profile *temp_buf;
+	struct arvo_actual_profile temp_buf;
 	unsigned long profile;
 	int retval;
 
-	temp_buf = kmalloc(sizeof(struct arvo_actual_profile), GFP_KERNEL);
-	if (!temp_buf)
-		return -ENOMEM;
-
 	retval = strict_strtoul(buf, 10, &profile);
 	if (retval)
-		goto out;
+		return retval;
 
-	temp_buf->command = ARVO_COMMAND_ACTUAL_PROFILE;
-	temp_buf->actual_profile = profile;
+	temp_buf.command = ARVO_COMMAND_ACTUAL_PROFILE;
+	temp_buf.actual_profile = profile;
 
 	mutex_lock(&arvo->arvo_lock);
-	retval = arvo_send(usb_dev, ARVO_USB_COMMAND_ACTUAL_PROFILE,
-			temp_buf, sizeof(struct arvo_actual_profile));
+	retval = roccat_common_send(usb_dev, ARVO_USB_COMMAND_ACTUAL_PROFILE,
+			&temp_buf, sizeof(struct arvo_actual_profile));
 	if (!retval) {
 		arvo->actual_profile = profile;
 		retval = size;
 	}
 	mutex_unlock(&arvo->arvo_lock);
-
-out:
-	kfree(temp_buf);
 	return retval;
 }
 
@@ -257,7 +191,7 @@ static ssize_t arvo_sysfs_write(struct file *fp,
 		return -EINVAL;
 
 	mutex_lock(&arvo->arvo_lock);
-	retval = arvo_send(usb_dev, command, buf, real_size);
+	retval = roccat_common_send(usb_dev, command, buf, real_size);
 	mutex_unlock(&arvo->arvo_lock);
 
 	return (retval ? retval : real_size);
@@ -280,7 +214,7 @@ static ssize_t arvo_sysfs_read(struct file *fp,
 		return -EINVAL;
 
 	mutex_lock(&arvo->arvo_lock);
-	retval = arvo_receive(usb_dev, command, buf, real_size);
+	retval = roccat_common_receive(usb_dev, command, buf, real_size);
 	mutex_unlock(&arvo->arvo_lock);
 
 	return (retval ? retval : real_size);
