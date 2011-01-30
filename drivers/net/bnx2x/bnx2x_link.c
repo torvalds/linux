@@ -7688,10 +7688,13 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp,
 	struct bnx2x_phy phy[PORT_MAX];
 	struct bnx2x_phy *phy_blk[PORT_MAX];
 	u16 val;
-	s8 port;
+	s8 port = 0;
 	s8 port_of_path = 0;
-
-	bnx2x_ext_phy_hw_reset(bp, 0);
+	u32 swap_val, swap_override;
+	swap_val = REG_RD(bp,  NIG_REG_PORT_SWAP);
+	swap_override = REG_RD(bp,  NIG_REG_STRAP_OVERRIDE);
+	port ^= (swap_val && swap_override);
+	bnx2x_ext_phy_hw_reset(bp, port);
 	/* PART1 - Reset both phys */
 	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
 		u32 shmem_base, shmem2_base;
