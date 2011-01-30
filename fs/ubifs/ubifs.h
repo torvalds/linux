@@ -1024,6 +1024,9 @@ struct ubifs_debug_info;
  *
  * @min_io_size: minimal input/output unit size
  * @min_io_shift: number of bits in @min_io_size minus one
+ * @max_write_size: maximum amount of bytes the underlying flash can write at a
+ *                  time (MTD write buffer size)
+ * @max_write_shift: number of bits in @max_write_size minus one
  * @leb_size: logical eraseblock size in bytes
  * @half_leb_size: half LEB size
  * @idx_leb_size: how many bytes of an LEB are effectively available when it is
@@ -1270,6 +1273,8 @@ struct ubifs_info {
 
 	int min_io_size;
 	int min_io_shift;
+	int max_write_size;
+	int max_write_shift;
 	int leb_size;
 	int half_leb_size;
 	int idx_leb_size;
