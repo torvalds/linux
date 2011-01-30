@@ -381,6 +381,8 @@ struct ubi_wl_entry;
  * @bad_allowed: whether the MTD device admits of bad physical eraseblocks or
  *               not
  * @nor_flash: non-zero if working on top of NOR flash
+ * @max_write_size: maximum amount of bytes the underlying flash can write at a
+ *                  time (MTD write buffer size)
  * @mtd: MTD device descriptor
  *
  * @peb_buf1: a buffer of PEB size used for different purposes
@@ -464,6 +466,7 @@ struct ubi_device {
 	int vid_hdr_shift;
 	unsigned int bad_allowed:1;
 	unsigned int nor_flash:1;
+	int max_write_size;
 	struct mtd_info *mtd;
 
 	void *peb_buf1;
