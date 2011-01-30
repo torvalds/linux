@@ -1067,6 +1067,10 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	 * Kill the tx status tasklet.
 	 */
 	tasklet_kill(&rt2x00dev->txstatus_tasklet);
+	tasklet_kill(&rt2x00dev->pretbtt_tasklet);
+	tasklet_kill(&rt2x00dev->tbtt_tasklet);
+	tasklet_kill(&rt2x00dev->rxdone_tasklet);
+	tasklet_kill(&rt2x00dev->autowake_tasklet);
 
 	/*
 	 * Uninitialize device.
