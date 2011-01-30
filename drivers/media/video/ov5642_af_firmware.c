@@ -15,7 +15,7 @@
 #define VCM_DRIVER         VCM_DRIVER_A3907
 
 #if (VCM_DRIVER == VCM_DRIVER_A3907)
-struct reginfo sensor_af_firmware[] =
+static struct reginfo sensor_af_firmware[] =
 {
 	{0x3000,0x20},
 	{0x8000,0x02},
@@ -6065,7 +6065,7 @@ struct reginfo sensor_af_firmware[] =
 };
 #elif (VCM_DRIVER == VCM_DRIVER_AD5820)
 /* support const-focus */
-struct reginfo sensor_af_firmware[] =
+static struct reginfo sensor_af_firmware[] =
 {
 	{0x3000,0x20},
 	{0x8000,0x02},
@@ -11962,7 +11962,7 @@ struct reginfo sensor_af_firmware[] =
 	{0x0000,0x00}
 };
 #elif (VCM_DRIVER == VCM_DRIVER_DW9710)
-struct reginfo sensor_af_firmware[] =
+static struct reginfo sensor_af_firmware[] =
 {
 	{0x3000,0x20},
 	{0x8000,0x02},

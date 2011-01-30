@@ -20,7 +20,7 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
 #include <mach/rk29_camera.h>
-
+#include <mach/gpio.h>
 static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR);
 
@@ -70,7 +70,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define CONFIG_SENSOR_I2C_SPEED     250000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
-#define CONFIG_SENSOR_I2C_NOSCHED   1
+#define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
 
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_FALLING|\
@@ -1253,11 +1253,22 @@ static struct sensor* to_sensor(const struct i2c_client *client)
 static int sensor_task_lock(struct i2c_client *client, int lock)
 {
 #if CONFIG_SENSOR_I2C_NOSCHED
+	int cnt = 3;
     struct sensor *sensor = to_sensor(client);
 
 	if (lock) {
-		if (atomic_read(&sensor->tasklock_cnt) == 0)
+		if (atomic_read(&sensor->tasklock_cnt) == 0) {
+			while ((atomic_read(&client->adapter->bus_lock.count) < 1) && (cnt>0)) {
+				SENSOR_TR("\n %s will obtain i2c in atomic, but i2c bus is locked! Wait...\n",SENSOR_NAME_STRING());
+				msleep(35);
+				cnt--;
+			}
+			if ((atomic_read(&client->adapter->bus_lock.count) < 1) && (cnt<=0)) {
+				SENSOR_TR("\n %s obtain i2c fail in atomic!!\n",SENSOR_NAME_STRING());
+				goto sensor_task_lock_err;
+			}
 			preempt_disable();
+		}
 
 		atomic_add(1, &sensor->tasklock_cnt);
 	} else {
@@ -1270,6 +1281,8 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 	}
 #endif
 	return 0;
+sensor_task_lock_err:
+	return -1;
 }
 
 /* sensor register write */
@@ -1299,8 +1312,8 @@ static int sensor_write(struct i2c_client *client, u16 reg, u8 val)
         if (err >= 0) {
             return 0;
         } else {
-            SENSOR_TR("\n %s write reg(0x%x, val:0x%x) failed, try to write again!\n",SENSOR_NAME_STRING(),reg, val);
-            udelay(10);
+        	SENSOR_TR("\n %s write reg(0x%x, val:0x%x) failed, try to write again!\n",SENSOR_NAME_STRING(),reg, val);
+	        udelay(10);
         }
     }
 
@@ -1356,7 +1369,9 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
 	char valchk;
 
 	cnt = 0;
-	sensor_task_lock(client, 1);
+	if (sensor_task_lock(client, 1) < 0)
+		goto sensor_write_array_end;
+
     while (regarray[i].reg != 0)
     {
         err = sensor_write(client, regarray[i].reg, regarray[i].val);
@@ -1463,7 +1478,9 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	}
 
     /* soft reset */
-	sensor_task_lock(client,1);
+	if (sensor_task_lock(client,1)<0)
+		goto sensor_INIT_ERR;
+
     ret = sensor_write(client, 0x0103, 0x01);
     if (ret != 0)
     {
@@ -1676,6 +1693,9 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     struct reginfo *winseqe_set_addr=NULL;
     int ret=0, set_w,set_h;
 
+	gpio_direction_output(RK29_PIN6_PB7,1);
+	gpio_set_value(RK29_PIN6_PB7, 1);
+
 	if (sensor->info_priv.pixfmt != pix->pixelformat) {
 		switch (pix->pixelformat)
 		{
@@ -1784,6 +1804,8 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     pix->height = set_h;
 
 sensor_s_fmt_end:
+	gpio_direction_output(RK29_PIN6_PB7,0);
+	gpio_set_value(RK29_PIN6_PB7, 0);
     return ret;
 }
 

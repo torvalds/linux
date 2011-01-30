@@ -3344,11 +3344,22 @@ static struct sensor* to_sensor(const struct i2c_client *client)
 static int sensor_task_lock(struct i2c_client *client, int lock)
 {
 #if CONFIG_SENSOR_I2C_NOSCHED
+	int cnt = 3;
     struct sensor *sensor = to_sensor(client);
 
 	if (lock) {
-		if (atomic_read(&sensor->tasklock_cnt) == 0)
+		if (atomic_read(&sensor->tasklock_cnt) == 0) {
+			while ((atomic_read(&client->adapter->bus_lock.count) < 1) && (cnt>0)) {
+				SENSOR_TR("\n %s will obtain i2c in atomic, but i2c bus is locked! Wait...\n",SENSOR_NAME_STRING());
+				msleep(35);
+				cnt--;
+			}
+			if ((atomic_read(&client->adapter->bus_lock.count) < 1) && (cnt<=0)) {
+				SENSOR_TR("\n %s obtain i2c fail in atomic!!\n",SENSOR_NAME_STRING());
+				goto sensor_task_lock_err;
+			}
 			preempt_disable();
+		}
 
 		atomic_add(1, &sensor->tasklock_cnt);
 	} else {
@@ -3361,6 +3372,8 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 	}
 #endif
 	return 0;
+sensor_task_lock_err:
+	return -1;
 }
 
 /* sensor register write */
@@ -3452,7 +3465,8 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
 #endif
 
 	cnt = 0;
-	sensor_task_lock(client, 1);
+	if (sensor_task_lock(client, 1) < 0)
+		goto sensor_write_array_end;
     while (regarray[i].reg != 0)
     {
     	#if CONFIG_SENSOR_Focus
@@ -4032,7 +4046,8 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	}
 
     /* soft reset */
-	sensor_task_lock(client,1);
+	if (sensor_task_lock(client,1)<0)
+		goto sensor_INIT_ERR;
     ret = sensor_write(client, 0x3008, 0x80);
     if (ret != 0) {
         SENSOR_TR("%s soft reset sensor failed\n",SENSOR_NAME_STRING());
