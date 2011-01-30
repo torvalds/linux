@@ -617,9 +617,10 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				      bss_conf->bssid);
 
 	/*
-	 * Update the beacon.
+	 * Update the beacon. This is only required on USB devices. PCI
+	 * devices fetch beacons periodically.
 	 */
-	if (changes & BSS_CHANGED_BEACON)
+	if (changes & BSS_CHANGED_BEACON && rt2x00_is_usb(rt2x00dev))
 		rt2x00queue_update_beacon(rt2x00dev, vif);
 
 	/*
