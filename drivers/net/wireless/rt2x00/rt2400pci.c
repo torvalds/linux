@@ -46,7 +46,7 @@
  * These indirect registers work with busy bits,
  * and we will try maximal REGISTER_BUSY_COUNT times to access
  * the register while taking a REGISTER_BUSY_DELAY us delay
- * between each attampt. When the busy bit is still set at that time,
+ * between each attempt. When the busy bit is still set at that time,
  * the access attempt is considered to have failed,
  * and we will print an error.
  */
