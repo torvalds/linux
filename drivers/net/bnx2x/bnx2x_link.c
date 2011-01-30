@@ -6475,6 +6475,18 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LED1_MASK,
 					 0x80);
+
+			/* Tell LED3 to blink on source */
+			bnx2x_cl45_read(bp, phy,
+					MDIO_PMA_DEVAD,
+					MDIO_PMA_REG_8481_LINK_SIGNAL,
+					&val);
+			val &= ~(7<<6);
+			val |= (1<<6); /* A83B[8:6]= 1 */
+			bnx2x_cl45_write(bp, phy,
+					 MDIO_PMA_DEVAD,
+					 MDIO_PMA_REG_8481_LINK_SIGNAL,
+					 val);
 		}
 		break;
 	}
