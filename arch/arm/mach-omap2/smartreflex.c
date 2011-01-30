@@ -780,8 +780,7 @@ static int omap_sr_autocomp_show(void *data, u64 *val)
 	struct omap_sr *sr_info = (struct omap_sr *) data;
 
 	if (!sr_info) {
-		pr_warning("%s: omap_sr struct for sr_%s not found\n",
-			__func__, sr_info->voltdm->name);
+		pr_warning("%s: omap_sr struct not found\n", __func__);
 		return -EINVAL;
 	}
 
@@ -795,8 +794,7 @@ static int omap_sr_autocomp_store(void *data, u64 val)
 	struct omap_sr *sr_info = (struct omap_sr *) data;
 
 	if (!sr_info) {
-		pr_warning("%s: omap_sr struct for sr_%s not found\n",
-			__func__, sr_info->voltdm->name);
+		pr_warning("%s: omap_sr struct not found\n", __func__);
 		return -EINVAL;
 	}
 
