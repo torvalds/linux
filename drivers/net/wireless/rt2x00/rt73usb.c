@@ -502,26 +502,14 @@ static void rt73usb_config_intf(struct rt2x00_dev *rt2x00dev,
 				struct rt2x00intf_conf *conf,
 				const unsigned int flags)
 {
-	unsigned int beacon_base;
 	u32 reg;
 
 	if (flags & CONFIG_UPDATE_TYPE) {
 		/*
-		 * Clear current synchronisation setup.
-		 * For the Beacon base registers we only need to clear
-		 * the first byte since that byte contains the VALID and OWNER
-		 * bits which (when set to 0) will invalidate the entire beacon.
-		 */
-		beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
-		rt2x00usb_register_write(rt2x00dev, beacon_base, 0);
-
-		/*
 		 * Enable synchronisation.
 		 */
 		rt2x00usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
-		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, conf->sync);
-		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
 		rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
 	}
 
@@ -1590,8 +1578,6 @@ static void rt73usb_write_beacon(struct queue_entry *entry,
 	 */
 	rt2x00usb_register_write(rt2x00dev, TXRX_CSR10, 0x00001008);
 
-	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
 	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 1);
 	rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
 
@@ -1600,6 +1586,33 @@ static void rt73usb_write_beacon(struct queue_entry *entry,
 	 */
 	dev_kfree_skb(entry->skb);
 	entry->skb = NULL;
+}
+
+static void rt73usb_clear_beacon(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	unsigned int beacon_base;
+	u32 reg;
+
+	/*
+	 * Disable beaconing while we are reloading the beacon data,
+	 * otherwise we might be sending out invalid data.
+	 */
+	rt2x00usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
+	rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
+
+	/*
+	 * Clear beacon.
+	 */
+	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
+	rt2x00usb_register_write(rt2x00dev, beacon_base, 0);
+
+	/*
+	 * Enable beaconing again.
+	 */
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 1);
+	rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
 }
 
 static int rt73usb_get_tx_data_len(struct queue_entry *entry)
@@ -2313,6 +2326,7 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.flush_queue		= rt2x00usb_flush_queue,
 	.write_tx_desc		= rt73usb_write_tx_desc,
 	.write_beacon		= rt73usb_write_beacon,
+	.clear_beacon		= rt73usb_clear_beacon,
 	.get_tx_data_len	= rt73usb_get_tx_data_len,
 	.fill_rxdone		= rt73usb_fill_rxdone,
 	.config_shared_key	= rt73usb_config_shared_key,

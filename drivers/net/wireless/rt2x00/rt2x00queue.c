@@ -566,9 +566,35 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	return 0;
 }
 
+int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
+			     struct ieee80211_vif *vif)
+{
+	struct rt2x00_intf *intf = vif_to_intf(vif);
+
+	if (unlikely(!intf->beacon))
+		return -ENOBUFS;
+
+	mutex_lock(&intf->beacon_skb_mutex);
+
+	/*
+	 * Clean up the beacon skb.
+	 */
+	rt2x00queue_free_skb(intf->beacon);
+
+	/*
+	 * Clear beacon (single bssid devices don't need to clear the beacon
+	 * since the beacon queue will get stopped anyway).
+	 */
+	if (rt2x00dev->ops->lib->clear_beacon)
+		rt2x00dev->ops->lib->clear_beacon(intf->beacon);
+
+	mutex_unlock(&intf->beacon_skb_mutex);
+
+	return 0;
+}
+
 int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
-			      struct ieee80211_vif *vif,
-			      const bool enable_beacon)
+			      struct ieee80211_vif *vif)
 {
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 	struct skb_frame_desc *skbdesc;
@@ -583,12 +609,6 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	 * Clean up the beacon skb.
 	 */
 	rt2x00queue_free_skb(intf->beacon);
-
-	if (!enable_beacon) {
-		rt2x00queue_stop_queue(intf->beacon->queue);
-		mutex_unlock(&intf->beacon_skb_mutex);
-		return 0;
-	}
 
 	intf->beacon->skb = ieee80211_beacon_get(rt2x00dev->hw, vif);
 	if (!intf->beacon->skb) {
@@ -611,7 +631,7 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	skbdesc->entry = intf->beacon;
 
 	/*
-	 * Send beacon to hardware and enable beacon genaration..
+	 * Send beacon to hardware.
 	 */
 	rt2x00dev->ops->lib->write_beacon(intf->beacon, &txdesc);
 

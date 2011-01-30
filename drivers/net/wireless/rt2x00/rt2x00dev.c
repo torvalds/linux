@@ -121,7 +121,7 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 		return;
 
 	if (test_and_clear_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags))
-		rt2x00queue_update_beacon(rt2x00dev, vif, true);
+		rt2x00queue_update_beacon(rt2x00dev, vif);
 }
 
 static void rt2x00lib_intf_scheduled(struct work_struct *work)
@@ -174,7 +174,7 @@ static void rt2x00lib_beaconupdate_iter(void *data, u8 *mac,
 	    vif->type != NL80211_IFTYPE_WDS)
 		return;
 
-	rt2x00queue_update_beacon(rt2x00dev, vif, true);
+	rt2x00queue_update_beacon(rt2x00dev, vif);
 }
 
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)

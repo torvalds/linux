@@ -818,8 +818,6 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 	/*
 	 * Enable beaconing again.
 	 */
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
 	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
@@ -831,8 +829,8 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 }
 EXPORT_SYMBOL_GPL(rt2800_write_beacon);
 
-static inline void rt2800_clear_beacon(struct rt2x00_dev *rt2x00dev,
-				       unsigned int beacon_base)
+static inline void rt2800_clear_beacon_register(struct rt2x00_dev *rt2x00dev,
+						unsigned int beacon_base)
 {
 	int i;
 
@@ -844,6 +842,33 @@ static inline void rt2800_clear_beacon(struct rt2x00_dev *rt2x00dev,
 	for (i = 0; i < TXWI_DESC_SIZE; i += sizeof(__le32))
 		rt2800_register_write(rt2x00dev, beacon_base + i, 0);
 }
+
+void rt2800_clear_beacon(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	u32 reg;
+
+	/*
+	 * Disable beaconing while we are reloading the beacon data,
+	 * otherwise we might be sending out invalid data.
+	 */
+	rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
+	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+
+	/*
+	 * Clear beacon.
+	 */
+	rt2800_clear_beacon_register(rt2x00dev,
+				     HW_BEACON_OFFSET(entry->entry_idx));
+
+	/*
+	 * Enabled beaconing again.
+	 */
+	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
+	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+}
+EXPORT_SYMBOL_GPL(rt2800_clear_beacon);
 
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 const struct rt2x00debug rt2800_rt2x00debug = {
@@ -1155,29 +1180,11 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 
 	if (flags & CONFIG_UPDATE_TYPE) {
 		/*
-		 * Clear current synchronisation setup.
-		 */
-		rt2800_clear_beacon(rt2x00dev,
-				    HW_BEACON_OFFSET(intf->beacon->entry_idx));
-		/*
 		 * Enable synchronisation.
 		 */
 		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_SYNC, conf->sync);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE,
-				   (conf->sync == TSF_SYNC_ADHOC ||
-				    conf->sync == TSF_SYNC_AP_NONE));
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
-
-		/*
-		 * Enable pre tbtt interrupt for beaconing modes
-		 */
-		rt2800_register_read(rt2x00dev, INT_TIMER_EN, &reg);
-		rt2x00_set_field32(&reg, INT_TIMER_EN_PRE_TBTT_TIMER,
-				   (conf->sync == TSF_SYNC_AP_NONE));
-		rt2800_register_write(rt2x00dev, INT_TIMER_EN, reg);
-
 	}
 
 	if (flags & CONFIG_UPDATE_MAC) {
@@ -2187,14 +2194,14 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Clear all beacons
 	 */
-	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE0);
-	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE1);
-	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE2);
-	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE3);
-	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE4);
-	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE5);
-	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE6);
-	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE7);
+	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE0);
+	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE1);
+	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE2);
+	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE3);
+	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE4);
+	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE5);
+	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE6);
+	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE7);
 
 	if (rt2x00_is_usb(rt2x00dev)) {
 		rt2800_register_read(rt2x00dev, US_CYC_CNT, &reg);

@@ -205,6 +205,10 @@ static void rt2800pci_start_queue(struct data_queue *queue)
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+
+		rt2800_register_read(rt2x00dev, INT_TIMER_EN, &reg);
+		rt2x00_set_field32(&reg, INT_TIMER_EN_PRE_TBTT_TIMER, 1);
+		rt2800_register_write(rt2x00dev, INT_TIMER_EN, reg);
 		break;
 	default:
 		break;
@@ -250,6 +254,10 @@ static void rt2800pci_stop_queue(struct data_queue *queue)
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+
+		rt2800_register_read(rt2x00dev, INT_TIMER_EN, &reg);
+		rt2x00_set_field32(&reg, INT_TIMER_EN_PRE_TBTT_TIMER, 0);
+		rt2800_register_write(rt2x00dev, INT_TIMER_EN, reg);
 		break;
 	default:
 		break;
@@ -974,6 +982,7 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.write_tx_desc		= rt2800pci_write_tx_desc,
 	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
+	.clear_beacon		= rt2800_clear_beacon,
 	.fill_rxdone		= rt2800pci_fill_rxdone,
 	.config_shared_key	= rt2800_config_shared_key,
 	.config_pairwise_key	= rt2800_config_pairwise_key,
