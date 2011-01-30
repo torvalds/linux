@@ -1565,7 +1565,7 @@ static int saa711x_probe(struct i2c_client *client,
 	chip_id = name[5];
 
 	/* Check whether this chip is part of the saa711x series */
-	if (memcmp(name, "1f711", 5)) {
+	if (memcmp(name + 1, "f711", 4)) {
 		v4l_dbg(1, debug, client, "chip found @ 0x%x (ID %s) does not match a known saa711x chip.\n",
 			client->addr << 1, name);
 		return -ENODEV;
