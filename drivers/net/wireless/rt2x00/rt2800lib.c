@@ -2207,6 +2207,10 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 		rt2800_register_read(rt2x00dev, US_CYC_CNT, &reg);
 		rt2x00_set_field32(&reg, US_CYC_CNT_CLOCK_CYCLE, 30);
 		rt2800_register_write(rt2x00dev, US_CYC_CNT, reg);
+	} else if (rt2x00_is_pcie(rt2x00dev)) {
+		rt2800_register_read(rt2x00dev, US_CYC_CNT, &reg);
+		rt2x00_set_field32(&reg, US_CYC_CNT_CLOCK_CYCLE, 125);
+		rt2800_register_write(rt2x00dev, US_CYC_CNT, reg);
 	}
 
 	rt2800_register_read(rt2x00dev, HT_FBK_CFG0, &reg);
