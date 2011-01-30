@@ -35,7 +35,7 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *pb = chan->pushbuf_bo;
 	struct nouveau_gpuobj *pushbuf = NULL;
-	int ret;
+	int ret = 0;
 
 	if (dev_priv->card_type >= NV_50) {
 		if (dev_priv->card_type < NV_C0) {

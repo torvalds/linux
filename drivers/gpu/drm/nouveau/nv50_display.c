@@ -587,7 +587,7 @@ static void
 nv50_display_unk20_handler(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	u32 unk30 = nv_rd32(dev, 0x610030), tmp, pclk, script, mc;
+	u32 unk30 = nv_rd32(dev, 0x610030), tmp, pclk, script, mc = 0;
 	struct dcb_entry *dcb;
 	int i, crtc, or, type = OUTPUT_ANY;
 

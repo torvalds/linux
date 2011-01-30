@@ -31,7 +31,6 @@ void
 nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
 		struct nouveau_gpuobj *pgt[2])
 {
-	struct drm_nouveau_private *dev_priv = pgd->dev->dev_private;
 	u64 phys = 0xdeadcafe00000000ULL;
 	u32 coverage = 0;
 

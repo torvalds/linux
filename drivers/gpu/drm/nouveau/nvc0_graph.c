@@ -640,7 +640,6 @@ nvc0_graph_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nvc0_graph_priv *priv;
 	int ret;
 
 	dev_priv->engine.graph.accel_blocked = true;
@@ -665,7 +664,6 @@ nvc0_graph_init(struct drm_device *dev)
 		if (ret)
 			return ret;
 	}
-	priv = pgraph->priv;
 
 	nvc0_graph_init_obj418880(dev);
 	nvc0_graph_init_regs(dev);
