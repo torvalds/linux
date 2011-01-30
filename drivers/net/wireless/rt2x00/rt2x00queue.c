@@ -593,8 +593,8 @@ int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
 	return 0;
 }
 
-int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
-			      struct ieee80211_vif *vif)
+int rt2x00queue_update_beacon_locked(struct rt2x00_dev *rt2x00dev,
+				     struct ieee80211_vif *vif)
 {
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 	struct skb_frame_desc *skbdesc;
@@ -603,18 +603,14 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
 
-	mutex_lock(&intf->beacon_skb_mutex);
-
 	/*
 	 * Clean up the beacon skb.
 	 */
 	rt2x00queue_free_skb(intf->beacon);
 
 	intf->beacon->skb = ieee80211_beacon_get(rt2x00dev->hw, vif);
-	if (!intf->beacon->skb) {
-		mutex_unlock(&intf->beacon_skb_mutex);
+	if (!intf->beacon->skb)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Copy all TX descriptor information into txdesc,
@@ -635,9 +631,21 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00dev->ops->lib->write_beacon(intf->beacon, &txdesc);
 
+	return 0;
+
+}
+
+int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
+			      struct ieee80211_vif *vif)
+{
+	struct rt2x00_intf *intf = vif_to_intf(vif);
+	int ret;
+
+	mutex_lock(&intf->beacon_skb_mutex);
+	ret = rt2x00queue_update_beacon_locked(rt2x00dev, vif);
 	mutex_unlock(&intf->beacon_skb_mutex);
 
-	return 0;
+	return ret;
 }
 
 void rt2x00queue_for_each_entry(struct data_queue *queue,
