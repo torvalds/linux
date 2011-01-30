@@ -821,13 +821,6 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 				     GFP_KERNEL);
 		if (status)
 			return status;
-
-		/* tasklet for processing the tx status reports. */
-		if (rt2x00dev->ops->lib->txstatus_tasklet)
-			tasklet_init(&rt2x00dev->txstatus_tasklet,
-				     rt2x00dev->ops->lib->txstatus_tasklet,
-				     (unsigned long)rt2x00dev);
-
 	}
 
 	/*
@@ -843,6 +836,7 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 		tasklet_disable(&rt2x00dev->taskletname); \
 	}
 
+	RT2X00_TASKLET_INIT(txstatus_tasklet);
 	RT2X00_TASKLET_INIT(pretbtt_tasklet);
 	RT2X00_TASKLET_INIT(tbtt_tasklet);
 	RT2X00_TASKLET_INIT(rxdone_tasklet);

@@ -416,7 +416,10 @@ static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	if (state == STATE_RADIO_IRQ_ON) {
 		rt2800_register_read(rt2x00dev, INT_SOURCE_CSR, &reg);
 		rt2800_register_write(rt2x00dev, INT_SOURCE_CSR, reg);
-	}
+
+		tasklet_enable(&rt2x00dev->txstatus_tasklet);
+	} else if (state == STATE_RADIO_IRQ_OFF)
+		tasklet_disable(&rt2x00dev->txstatus_tasklet);
 
 	rt2800_register_read(rt2x00dev, INT_MASK_CSR, &reg);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_RXDELAYINT, 0);
