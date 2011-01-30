@@ -776,6 +776,31 @@ out:
 	return ret;
 }
 
+int wl1251_acx_low_rssi(struct wl1251 *wl, s8 threshold, u8 weight,
+			u8 depth, enum wl1251_acx_low_rssi_type type)
+{
+	struct acx_low_rssi *rssi;
+	int ret;
+
+	wl1251_debug(DEBUG_ACX, "acx low rssi");
+
+	rssi = kzalloc(sizeof(*rssi), GFP_KERNEL);
+	if (!rssi)
+		return -ENOMEM;
+
+	rssi->threshold = threshold;
+	rssi->weight = weight;
+	rssi->depth = depth;
+	rssi->type = type;
+
+	ret = wl1251_cmd_configure(wl, ACX_LOW_RSSI, rssi, sizeof(*rssi));
+	if (ret < 0)
+		wl1251_warning("failed to set low rssi threshold: %d", ret);
+
+	kfree(rssi);
+	return ret;
+}
+
 int wl1251_acx_set_preamble(struct wl1251 *wl, enum acx_preamble_type preamble)
 {
 	struct acx_preamble *acx;
