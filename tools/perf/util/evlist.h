@@ -6,6 +6,8 @@
 #include "event.h"
 
 struct pollfd;
+struct thread_map;
+struct cpu_map;
 
 #define PERF_EVLIST__HLIST_BITS 8
 #define PERF_EVLIST__HLIST_SIZE (1 << PERF_EVLIST__HLIST_BITS)
@@ -38,5 +40,10 @@ void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
 struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
 
 union perf_event *perf_evlist__read_on_cpu(struct perf_evlist *self, int cpu);
+
+int perf_evlist__alloc_mmap(struct perf_evlist *evlist, int ncpus);
+int perf_evlist__mmap(struct perf_evlist *evlist, struct cpu_map *cpus,
+		      struct thread_map *threads, int pages, bool overwrite);
+void perf_evlist__munmap(struct perf_evlist *evlist, int ncpus);
 
 #endif /* __PERF_EVLIST_H */
