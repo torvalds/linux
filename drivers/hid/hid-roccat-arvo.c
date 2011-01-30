@@ -358,21 +358,20 @@ static int arvo_init_specials(struct hid_device *hdev)
 
 	arvo = kzalloc(sizeof(*arvo), GFP_KERNEL);
 	if (!arvo) {
-		dev_err(&hdev->dev, "can't alloc device descriptor\n");
+		hid_err(hdev, "can't alloc device descriptor\n");
 		return -ENOMEM;
 	}
 	hid_set_drvdata(hdev, arvo);
 
 	retval = arvo_init_arvo_device_struct(usb_dev, arvo);
 	if (retval) {
-		dev_err(&hdev->dev,
-				"couldn't init struct arvo_device\n");
+		hid_err(hdev, "couldn't init struct arvo_device\n");
 		goto exit_free;
 	}
 
 	retval = roccat_connect(arvo_class, hdev);
 	if (retval < 0) {
-		dev_err(&hdev->dev, "couldn't init char dev\n");
+		hid_err(hdev, "couldn't init char dev\n");
 	} else {
 		arvo->chrdev_minor = retval;
 		arvo->roccat_claimed = 1;
@@ -406,19 +405,19 @@ static int arvo_probe(struct hid_device *hdev,
 
 	retval = hid_parse(hdev);
 	if (retval) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto exit;
 	}
 
 	retval = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (retval) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto exit;
 	}
 
 	retval = arvo_init_specials(hdev);
 	if (retval) {
-		dev_err(&hdev->dev, "couldn't install keyboard\n");
+		hid_err(hdev, "couldn't install keyboard\n");
 		goto exit_stop;
 	}
 

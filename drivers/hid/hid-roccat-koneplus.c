@@ -116,7 +116,7 @@ static int koneplus_receive_control_status(struct usb_device *usb_dev)
 			goto out;
 		}
 
-		dev_err(&usb_dev->dev, "koneplus_receive_control_status: "
+		hid_err(usb_dev, "koneplus_receive_control_status: "
 				"unknown response value 0x%x\n", control->value);
 		retval = -EINVAL;
 		goto out;
@@ -658,21 +658,20 @@ static int koneplus_init_specials(struct hid_device *hdev)
 
 		koneplus = kzalloc(sizeof(*koneplus), GFP_KERNEL);
 		if (!koneplus) {
-			dev_err(&hdev->dev, "can't alloc device descriptor\n");
+			hid_err(hdev, "can't alloc device descriptor\n");
 			return -ENOMEM;
 		}
 		hid_set_drvdata(hdev, koneplus);
 
 		retval = koneplus_init_koneplus_device_struct(usb_dev, koneplus);
 		if (retval) {
-			dev_err(&hdev->dev,
-					"couldn't init struct koneplus_device\n");
+			hid_err(hdev, "couldn't init struct koneplus_device\n");
 			goto exit_free;
 		}
 
 		retval = roccat_connect(koneplus_class, hdev);
 		if (retval < 0) {
-			dev_err(&hdev->dev, "couldn't init char dev\n");
+			hid_err(hdev, "couldn't init char dev\n");
 		} else {
 			koneplus->chrdev_minor = retval;
 			koneplus->roccat_claimed = 1;
@@ -708,19 +707,19 @@ static int koneplus_probe(struct hid_device *hdev,
 
 	retval = hid_parse(hdev);
 	if (retval) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto exit;
 	}
 
 	retval = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (retval) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto exit;
 	}
 
 	retval = koneplus_init_specials(hdev);
 	if (retval) {
-		dev_err(&hdev->dev, "couldn't install mouse\n");
+		hid_err(hdev, "couldn't install mouse\n");
 		goto exit_stop;
 	}
 
