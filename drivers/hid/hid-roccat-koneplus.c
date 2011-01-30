@@ -557,7 +557,7 @@ static int koneplus_init_koneplus_device_struct(struct usb_device *usb_dev,
 		struct koneplus_device *koneplus)
 {
 	int retval, i;
-	static uint wait = 70; /* device will freeze with just 60 */
+	static uint wait = 100; /* device will freeze with just 60 */
 
 	mutex_init(&koneplus->koneplus_lock);
 
