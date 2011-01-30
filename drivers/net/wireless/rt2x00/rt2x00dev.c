@@ -831,6 +831,26 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	}
 
 	/*
+	 * Initialize tasklets if used by the driver. Tasklets are
+	 * disabled until the interrupts are turned on. The driver
+	 * has to handle that.
+	 */
+#define RT2X00_TASKLET_INIT(taskletname) \
+	if (rt2x00dev->ops->lib->taskletname) { \
+		tasklet_init(&rt2x00dev->taskletname, \
+			     rt2x00dev->ops->lib->taskletname, \
+			     (unsigned long)rt2x00dev); \
+		tasklet_disable(&rt2x00dev->taskletname); \
+	}
+
+	RT2X00_TASKLET_INIT(pretbtt_tasklet);
+	RT2X00_TASKLET_INIT(tbtt_tasklet);
+	RT2X00_TASKLET_INIT(rxdone_tasklet);
+	RT2X00_TASKLET_INIT(autowake_tasklet);
+
+#undef RT2X00_TASKLET_INIT
+
+	/*
 	 * Register HW.
 	 */
 	status = ieee80211_register_hw(rt2x00dev->hw);
@@ -958,6 +978,7 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 {
 	int retval = -ENOMEM;
 
+	spin_lock_init(&rt2x00dev->irqmask_lock);
 	mutex_init(&rt2x00dev->csr_mutex);
 
 	set_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
