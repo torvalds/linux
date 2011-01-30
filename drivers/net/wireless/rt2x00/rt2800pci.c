@@ -200,6 +200,13 @@ static void rt2800pci_start_queue(struct data_queue *queue)
 		rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 		break;
 	case QID_BEACON:
+		/*
+		 * Allow beacon tasklets to be scheduled for periodic
+		 * beacon updates.
+		 */
+		tasklet_enable(&rt2x00dev->tbtt_tasklet);
+		tasklet_enable(&rt2x00dev->pretbtt_tasklet);
+
 		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
@@ -258,6 +265,12 @@ static void rt2800pci_stop_queue(struct data_queue *queue)
 		rt2800_register_read(rt2x00dev, INT_TIMER_EN, &reg);
 		rt2x00_set_field32(&reg, INT_TIMER_EN_PRE_TBTT_TIMER, 0);
 		rt2800_register_write(rt2x00dev, INT_TIMER_EN, reg);
+
+		/*
+		 * Wait for tbtt tasklets to finish.
+		 */
+		tasklet_disable(&rt2x00dev->tbtt_tasklet);
+		tasklet_disable(&rt2x00dev->pretbtt_tasklet);
 		break;
 	default:
 		break;
@@ -408,6 +421,7 @@ static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	int mask = (state == STATE_RADIO_IRQ_ON) ||
 		   (state == STATE_RADIO_IRQ_ON_ISR);
 	u32 reg;
+	unsigned long flags;
 
 	/*
 	 * When interrupts are being enabled, the interrupt registers
@@ -417,10 +431,16 @@ static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 		rt2800_register_read(rt2x00dev, INT_SOURCE_CSR, &reg);
 		rt2800_register_write(rt2x00dev, INT_SOURCE_CSR, reg);
 
+		/*
+		 * Enable tasklets. The beacon related tasklets are
+		 * enabled when the beacon queue is started.
+		 */
 		tasklet_enable(&rt2x00dev->txstatus_tasklet);
-	} else if (state == STATE_RADIO_IRQ_OFF)
-		tasklet_disable(&rt2x00dev->txstatus_tasklet);
+		tasklet_enable(&rt2x00dev->rxdone_tasklet);
+		tasklet_enable(&rt2x00dev->autowake_tasklet);
+	}
 
+	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
 	rt2800_register_read(rt2x00dev, INT_MASK_CSR, &reg);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_RXDELAYINT, 0);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_TXDELAYINT, 0);
@@ -441,6 +461,17 @@ static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, INT_MASK_CSR_RX_COHERENT, 0);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_TX_COHERENT, 0);
 	rt2800_register_write(rt2x00dev, INT_MASK_CSR, reg);
+	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+
+	if (state == STATE_RADIO_IRQ_OFF) {
+		/*
+		 * Ensure that all tasklets are finished before
+		 * disabling the interrupts.
+		 */
+		tasklet_disable(&rt2x00dev->txstatus_tasklet);
+		tasklet_disable(&rt2x00dev->rxdone_tasklet);
+		tasklet_disable(&rt2x00dev->autowake_tasklet);
+	}
 }
 
 static int rt2800pci_init_registers(struct rt2x00_dev *rt2x00dev)
@@ -721,45 +752,60 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
+static void rt2800pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
+				       struct rt2x00_field32 irq_field)
+{
+	unsigned long flags;
+	u32 reg;
+
+	/*
+	 * Enable a single interrupt. The interrupt mask register
+	 * access needs locking.
+	 */
+	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	rt2800_register_read(rt2x00dev, INT_MASK_CSR, &reg);
+	rt2x00_set_field32(&reg, irq_field, 1);
+	rt2800_register_write(rt2x00dev, INT_MASK_CSR, reg);
+	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+}
+
 static void rt2800pci_txstatus_tasklet(unsigned long data)
 {
 	rt2800pci_txdone((struct rt2x00_dev *)data);
+
+	/*
+	 * No need to enable the tx status interrupt here as we always
+	 * leave it enabled to minimize the possibility of a tx status
+	 * register overflow. See comment in interrupt handler.
+	 */
 }
 
-static irqreturn_t rt2800pci_interrupt_thread(int irq, void *dev_instance)
+static void rt2800pci_pretbtt_tasklet(unsigned long data)
 {
-	struct rt2x00_dev *rt2x00dev = dev_instance;
-	u32 reg = rt2x00dev->irqvalue[0];
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	rt2x00lib_pretbtt(rt2x00dev);
+	rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_PRE_TBTT);
+}
 
-	/*
-	 * 1 - Pre TBTT interrupt.
-	 */
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_PRE_TBTT))
-		rt2x00lib_pretbtt(rt2x00dev);
+static void rt2800pci_tbtt_tasklet(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	rt2x00lib_beacondone(rt2x00dev);
+	rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_TBTT);
+}
 
-	/*
-	 * 2 - Beacondone interrupt.
-	 */
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TBTT))
-		rt2x00lib_beacondone(rt2x00dev);
+static void rt2800pci_rxdone_tasklet(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	rt2x00pci_rxdone(rt2x00dev);
+	rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_RX_DONE);
+}
 
-	/*
-	 * 3 - Rx ring done interrupt.
-	 */
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_RX_DONE))
-		rt2x00pci_rxdone(rt2x00dev);
-
-	/*
-	 * 4 - Auto wakeup interrupt.
-	 */
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_AUTO_WAKEUP))
-		rt2800pci_wakeup(rt2x00dev);
-
-	/* Enable interrupts again. */
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev,
-					      STATE_RADIO_IRQ_ON_ISR);
-
-	return IRQ_HANDLED;
+static void rt2800pci_autowake_tasklet(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	rt2800pci_wakeup(rt2x00dev);
+	rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_AUTO_WAKEUP);
 }
 
 static void rt2800pci_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
@@ -805,8 +851,8 @@ static void rt2800pci_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
 static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 {
 	struct rt2x00_dev *rt2x00dev = dev_instance;
-	u32 reg;
-	irqreturn_t ret = IRQ_HANDLED;
+	u32 reg, mask;
+	unsigned long flags;
 
 	/* Read status and ACK all interrupts */
 	rt2800_register_read(rt2x00dev, INT_SOURCE_CSR, &reg);
@@ -818,38 +864,44 @@ static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return IRQ_HANDLED;
 
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS))
+	/*
+	 * Since INT_MASK_CSR and INT_SOURCE_CSR use the same bits
+	 * for interrupts and interrupt masks we can just use the value of
+	 * INT_SOURCE_CSR to create the interrupt mask.
+	 */
+	mask = ~reg;
+
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS)) {
 		rt2800pci_txstatus_interrupt(rt2x00dev);
-
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_PRE_TBTT) ||
-	    rt2x00_get_field32(reg, INT_SOURCE_CSR_TBTT) ||
-	    rt2x00_get_field32(reg, INT_SOURCE_CSR_RX_DONE) ||
-	    rt2x00_get_field32(reg, INT_SOURCE_CSR_AUTO_WAKEUP)) {
 		/*
-		 * All other interrupts are handled in the interrupt thread.
-		 * Store irqvalue for use in the interrupt thread.
+		 * Never disable the TX_FIFO_STATUS interrupt.
 		 */
-		rt2x00dev->irqvalue[0] = reg;
-
-		/*
-		 * Disable interrupts, will be enabled again in the
-		 * interrupt thread.
-		*/
-		rt2x00dev->ops->lib->set_device_state(rt2x00dev,
-						      STATE_RADIO_IRQ_OFF_ISR);
-
-		/*
-		 * Leave the TX_FIFO_STATUS interrupt enabled to not lose any
-		 * tx status reports.
-		 */
-		rt2800_register_read(rt2x00dev, INT_MASK_CSR, &reg);
-		rt2x00_set_field32(&reg, INT_MASK_CSR_TX_FIFO_STATUS, 1);
-		rt2800_register_write(rt2x00dev, INT_MASK_CSR, reg);
-
-		ret = IRQ_WAKE_THREAD;
+		rt2x00_set_field32(&mask, INT_MASK_CSR_TX_FIFO_STATUS, 1);
 	}
 
-	return ret;
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_PRE_TBTT))
+		tasklet_hi_schedule(&rt2x00dev->pretbtt_tasklet);
+
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TBTT))
+		tasklet_hi_schedule(&rt2x00dev->tbtt_tasklet);
+
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_RX_DONE))
+		tasklet_schedule(&rt2x00dev->rxdone_tasklet);
+
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_AUTO_WAKEUP))
+		tasklet_schedule(&rt2x00dev->autowake_tasklet);
+
+	/*
+	 * Disable all interrupts for which a tasklet was scheduled right now,
+	 * the tasklet will reenable the appropriate interrupts.
+	 */
+	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	rt2800_register_read(rt2x00dev, INT_MASK_CSR, &reg);
+	reg &= mask;
+	rt2800_register_write(rt2x00dev, INT_MASK_CSR, reg);
+	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+
+	return IRQ_HANDLED;
 }
 
 /*
@@ -964,8 +1016,11 @@ static const struct rt2800_ops rt2800pci_rt2800_ops = {
 
 static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.irq_handler		= rt2800pci_interrupt,
-	.irq_handler_thread	= rt2800pci_interrupt_thread,
-	.txstatus_tasklet       = rt2800pci_txstatus_tasklet,
+	.txstatus_tasklet	= rt2800pci_txstatus_tasklet,
+	.pretbtt_tasklet	= rt2800pci_pretbtt_tasklet,
+	.tbtt_tasklet		= rt2800pci_tbtt_tasklet,
+	.rxdone_tasklet		= rt2800pci_rxdone_tasklet,
+	.autowake_tasklet	= rt2800pci_autowake_tasklet,
 	.probe_hw		= rt2800pci_probe_hw,
 	.get_firmware_name	= rt2800pci_get_firmware_name,
 	.check_firmware		= rt2800_check_firmware,
