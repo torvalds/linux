@@ -23,9 +23,9 @@ def main():
 			   sample_id_all = 1,
 			   sample_type = perf.SAMPLE_PERIOD | perf.SAMPLE_TID | perf.SAMPLE_CPU | perf.SAMPLE_TID)
 	evsel.open(cpus = cpus, threads = threads);
-	evlist = perf.evlist()
+	evlist = perf.evlist(cpus, threads)
 	evlist.add(evsel)
-	evlist.mmap(cpus = cpus, threads = threads)
+	evlist.mmap()
 	while True:
 		evlist.poll(timeout = -1)
 		for cpu in cpus:

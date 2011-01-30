@@ -553,7 +553,16 @@ struct pyrf_evlist {
 static int pyrf_evlist__init(struct pyrf_evlist *pevlist,
 			     PyObject *args, PyObject *kwargs)
 {
-	perf_evlist__init(&pevlist->evlist);
+	PyObject *pcpus = NULL, *pthreads = NULL;
+	struct cpu_map *cpus;
+	struct thread_map *threads;
+
+	if (!PyArg_ParseTuple(args, "OO", &pcpus, &pthreads))
+		return -1;
+
+	threads = ((struct pyrf_thread_map *)pthreads)->threads;
+	cpus = ((struct pyrf_cpu_map *)pcpus)->cpus;
+	perf_evlist__init(&pevlist->evlist, cpus, threads);
 	return 0;
 }
 
@@ -567,21 +576,15 @@ static PyObject *pyrf_evlist__mmap(struct pyrf_evlist *pevlist,
 				   PyObject *args, PyObject *kwargs)
 {
 	struct perf_evlist *evlist = &pevlist->evlist;
-	PyObject *pcpus = NULL, *pthreads = NULL;
-	struct cpu_map *cpus = NULL;
-	struct thread_map *threads = NULL;
-	static char *kwlist[] = {"cpus", "threads", "pages", "overwrite",
+	static char *kwlist[] = {"pages", "overwrite",
 				  NULL, NULL};
 	int pages = 128, overwrite = false;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|ii", kwlist,
-					 &pcpus, &pthreads, &pages, &overwrite))
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|ii", kwlist,
+					 &pages, &overwrite))
 		return NULL;
 
-	threads = ((struct pyrf_thread_map *)pthreads)->threads;
-	cpus = ((struct pyrf_cpu_map *)pcpus)->cpus;
-
-	if (perf_evlist__mmap(evlist, cpus, threads, pages, overwrite) < 0) {
+	if (perf_evlist__mmap(evlist, pages, overwrite) < 0) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;
 	}

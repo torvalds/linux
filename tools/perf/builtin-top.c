@@ -73,9 +73,7 @@ static int			print_entries;
 
 static int			target_pid			=     -1;
 static int			target_tid			=     -1;
-static struct thread_map	*threads;
 static bool			inherit				=  false;
-static struct cpu_map		*cpus;
 static int			realtime_prio			=      0;
 static bool			group				=  false;
 static unsigned int		page_size;
@@ -567,12 +565,13 @@ static void print_sym_table(struct perf_session *session)
 		printf(" (all");
 
 	if (cpu_list)
-		printf(", CPU%s: %s)\n", cpus->nr > 1 ? "s" : "", cpu_list);
+		printf(", CPU%s: %s)\n", evsel_list->cpus->nr > 1 ? "s" : "", cpu_list);
 	else {
 		if (target_tid != -1)
 			printf(")\n");
 		else
-			printf(", %d CPU%s)\n", cpus->nr, cpus->nr > 1 ? "s" : "");
+			printf(", %d CPU%s)\n", evsel_list->cpus->nr,
+			       evsel_list->cpus->nr > 1 ? "s" : "");
 	}
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
@@ -1124,7 +1123,7 @@ static void perf_session__mmap_read(struct perf_session *self)
 {
 	int i;
 
-	for (i = 0; i < cpus->nr; i++)
+	for (i = 0; i < evsel_list->cpus->nr; i++)
 		perf_session__mmap_read_cpu(self, i);
 }
 
@@ -1150,7 +1149,8 @@ static void start_counters(struct perf_evlist *evlist)
 
 		attr->mmap = 1;
 try_again:
-		if (perf_evsel__open(counter, cpus, threads, group, inherit) < 0) {
+		if (perf_evsel__open(counter, evsel_list->cpus,
+				     evsel_list->threads, group, inherit) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES)
@@ -1181,7 +1181,7 @@ try_again:
 		}
 	}
 
-	if (perf_evlist__mmap(evlist, cpus, threads, mmap_pages, false) < 0)
+	if (perf_evlist__mmap(evlist, mmap_pages, false) < 0)
 		die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 }
 
@@ -1296,7 +1296,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	struct perf_evsel *pos;
 	int status = -ENOMEM;
 
-	evsel_list = perf_evlist__new();
+	evsel_list = perf_evlist__new(NULL, NULL);
 	if (evsel_list == NULL)
 		return -ENOMEM;
 
@@ -1306,21 +1306,19 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (argc)
 		usage_with_options(top_usage, options);
 
-	if (target_pid != -1)
-		target_tid = target_pid;
-
-	threads = thread_map__new(target_pid, target_tid);
-	if (threads == NULL) {
-		pr_err("Problems finding threads of monitor\n");
-		usage_with_options(top_usage, options);
-	}
-
 	/* CPU and PID are mutually exclusive */
 	if (target_tid > 0 && cpu_list) {
 		printf("WARNING: PID switch overriding CPU\n");
 		sleep(1);
 		cpu_list = NULL;
 	}
+
+	if (target_pid != -1)
+		target_tid = target_pid;
+
+	if (perf_evlist__create_maps(evsel_list, target_pid,
+				     target_tid, cpu_list) < 0)
+		usage_with_options(top_usage, options);
 
 	if (!evsel_list->nr_entries &&
 	    perf_evlist__add_default(evsel_list) < 0) {
@@ -1343,16 +1341,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		exit(EXIT_FAILURE);
 	}
 
-	if (target_tid != -1)
-		cpus = cpu_map__dummy_new();
-	else
-		cpus = cpu_map__new(cpu_list);
-
-	if (cpus == NULL)
-		usage_with_options(top_usage, options);
-
 	list_for_each_entry(pos, &evsel_list->entries, node) {
-		if (perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
+		if (perf_evsel__alloc_fd(pos, evsel_list->cpus->nr,
+					 evsel_list->threads->nr) < 0)
 			goto out_free_fd;
 		/*
 		 * Fill in the ones not specifically initialized via -c:
@@ -1363,8 +1354,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		pos->attr.sample_period = default_interval;
 	}
 
-	if (perf_evlist__alloc_pollfd(evsel_list, cpus->nr, threads->nr) < 0 ||
-	    perf_evlist__alloc_mmap(evsel_list, cpus->nr) < 0)
+	if (perf_evlist__alloc_pollfd(evsel_list) < 0 ||
+	    perf_evlist__alloc_mmap(evsel_list) < 0)
 		goto out_free_fd;
 
 	sym_evsel = list_entry(evsel_list->entries.next, struct perf_evsel, node);

@@ -76,7 +76,6 @@ static struct perf_event_attr default_attrs[] = {
 struct perf_evlist		*evsel_list;
 
 static bool			system_wide			=  false;
-static struct cpu_map		*cpus;
 static int			run_idx				=  0;
 
 static int			run_count			=  1;
@@ -85,7 +84,6 @@ static bool			scale				=  true;
 static bool			no_aggr				= false;
 static pid_t			target_pid			= -1;
 static pid_t			target_tid			= -1;
-static struct thread_map	*threads;
 static pid_t			child_pid			= -1;
 static bool			null_run			=  false;
 static bool			big_num				=  true;
@@ -170,7 +168,7 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 				    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
 	if (system_wide)
-		return perf_evsel__open_per_cpu(evsel, cpus, false, false);
+		return perf_evsel__open_per_cpu(evsel, evsel_list->cpus, false, false);
 
 	attr->inherit = !no_inherit;
 	if (target_pid == -1 && target_tid == -1) {
@@ -178,7 +176,7 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 		attr->enable_on_exec = 1;
 	}
 
-	return perf_evsel__open_per_thread(evsel, threads, false, false);
+	return perf_evsel__open_per_thread(evsel, evsel_list->threads, false, false);
 }
 
 /*
@@ -203,7 +201,8 @@ static int read_counter_aggr(struct perf_evsel *counter)
 	u64 *count = counter->counts->aggr.values;
 	int i;
 
-	if (__perf_evsel__read(counter, cpus->nr, threads->nr, scale) < 0)
+	if (__perf_evsel__read(counter, evsel_list->cpus->nr,
+			       evsel_list->threads->nr, scale) < 0)
 		return -1;
 
 	for (i = 0; i < 3; i++)
@@ -236,7 +235,7 @@ static int read_counter(struct perf_evsel *counter)
 	u64 *count;
 	int cpu;
 
-	for (cpu = 0; cpu < cpus->nr; cpu++) {
+	for (cpu = 0; cpu < evsel_list->cpus->nr; cpu++) {
 		if (__perf_evsel__read_on_cpu(counter, cpu, 0, scale) < 0)
 			return -1;
 
@@ -301,7 +300,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 		}
 
 		if (target_tid == -1 && target_pid == -1 && !system_wide)
-			threads->map[0] = child_pid;
+			evsel_list->threads->map[0] = child_pid;
 
 		/*
 		 * Wait for the child to be ready to exec.
@@ -353,12 +352,13 @@ static int run_perf_stat(int argc __used, const char **argv)
 	if (no_aggr) {
 		list_for_each_entry(counter, &evsel_list->entries, node) {
 			read_counter(counter);
-			perf_evsel__close_fd(counter, cpus->nr, 1);
+			perf_evsel__close_fd(counter, evsel_list->cpus->nr, 1);
 		}
 	} else {
 		list_for_each_entry(counter, &evsel_list->entries, node) {
 			read_counter_aggr(counter);
-			perf_evsel__close_fd(counter, cpus->nr, threads->nr);
+			perf_evsel__close_fd(counter, evsel_list->cpus->nr,
+					     evsel_list->threads->nr);
 		}
 	}
 
@@ -386,7 +386,7 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 	if (no_aggr)
 		sprintf(cpustr, "CPU%*d%s",
 			csv_output ? 0 : -4,
-			cpus->map[cpu], csv_sep);
+			evsel_list->cpus->map[cpu], csv_sep);
 
 	fprintf(stderr, fmt, cpustr, msecs, csv_sep, event_name(evsel));
 
@@ -414,7 +414,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 	if (no_aggr)
 		sprintf(cpustr, "CPU%*d%s",
 			csv_output ? 0 : -4,
-			cpus->map[cpu], csv_sep);
+			evsel_list->cpus->map[cpu], csv_sep);
 	else
 		cpu = 0;
 
@@ -500,14 +500,14 @@ static void print_counter(struct perf_evsel *counter)
 	u64 ena, run, val;
 	int cpu;
 
-	for (cpu = 0; cpu < cpus->nr; cpu++) {
+	for (cpu = 0; cpu < evsel_list->cpus->nr; cpu++) {
 		val = counter->counts->cpu[cpu].val;
 		ena = counter->counts->cpu[cpu].ena;
 		run = counter->counts->cpu[cpu].run;
 		if (run == 0 || ena == 0) {
 			fprintf(stderr, "CPU%*d%s%*s%s%-24s",
 				csv_output ? 0 : -4,
-				cpus->map[cpu], csv_sep,
+				evsel_list->cpus->map[cpu], csv_sep,
 				csv_output ? 0 : 18,
 				"<not counted>", csv_sep,
 				event_name(counter));
@@ -652,7 +652,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 
 	setlocale(LC_ALL, "");
 
-	evsel_list = perf_evlist__new();
+	evsel_list = perf_evlist__new(NULL, NULL);
 	if (evsel_list == NULL)
 		return -ENOMEM;
 
@@ -701,18 +701,18 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	if (target_pid != -1)
 		target_tid = target_pid;
 
-	threads = thread_map__new(target_pid, target_tid);
-	if (threads == NULL) {
+	evsel_list->threads = thread_map__new(target_pid, target_tid);
+	if (evsel_list->threads == NULL) {
 		pr_err("Problems finding threads of monitor\n");
 		usage_with_options(stat_usage, options);
 	}
 
 	if (system_wide)
-		cpus = cpu_map__new(cpu_list);
+		evsel_list->cpus = cpu_map__new(cpu_list);
 	else
-		cpus = cpu_map__dummy_new();
+		evsel_list->cpus = cpu_map__dummy_new();
 
-	if (cpus == NULL) {
+	if (evsel_list->cpus == NULL) {
 		perror("failed to parse CPUs map");
 		usage_with_options(stat_usage, options);
 		return -1;
@@ -720,8 +720,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {
 		if (perf_evsel__alloc_stat_priv(pos) < 0 ||
-		    perf_evsel__alloc_counts(pos, cpus->nr) < 0 ||
-		    perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
+		    perf_evsel__alloc_counts(pos, evsel_list->cpus->nr) < 0 ||
+		    perf_evsel__alloc_fd(pos, evsel_list->cpus->nr, evsel_list->threads->nr) < 0)
 			goto out_free_fd;
 	}
 
@@ -750,7 +750,6 @@ out_free_fd:
 		perf_evsel__free_stat_priv(pos);
 	perf_evlist__delete(evsel_list);
 out:
-	thread_map__delete(threads);
-	threads = NULL;
+	perf_evlist__delete_maps(evsel_list);
 	return status;
 }

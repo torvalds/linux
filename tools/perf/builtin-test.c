@@ -509,7 +509,7 @@ static int test__basic_mmap(void)
 		goto out_free_cpus;
 	}
 
-	evlist = perf_evlist__new();
+	evlist = perf_evlist__new(cpus, threads);
 	if (evlist == NULL) {
 		pr_debug("perf_evlist__new\n");
 		goto out_free_cpus;
@@ -537,7 +537,7 @@ static int test__basic_mmap(void)
 		}
 	}
 
-	if (perf_evlist__mmap(evlist, cpus, threads, 128, true) < 0) {
+	if (perf_evlist__mmap(evlist, 128, true) < 0) {
 		pr_debug("failed to mmap events: %d (%s)\n", errno,
 			 strerror(errno));
 		goto out_close_fd;
@@ -579,7 +579,7 @@ static int test__basic_mmap(void)
 
 	err = 0;
 out_munmap:
-	perf_evlist__munmap(evlist, 1);
+	perf_evlist__munmap(evlist);
 out_close_fd:
 	for (i = 0; i < nsyscalls; ++i)
 		perf_evsel__close_fd(evsels[i], 1, threads->nr);

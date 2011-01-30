@@ -22,28 +22,43 @@ struct perf_evlist {
 	union perf_event event_copy;
 	struct perf_mmap *mmap;
 	struct pollfd	 *pollfd;
+	struct thread_map *threads;
+	struct cpu_map	  *cpus;
 };
 
 struct perf_evsel;
 
-struct perf_evlist *perf_evlist__new(void);
-void perf_evlist__init(struct perf_evlist *evlist);
+struct perf_evlist *perf_evlist__new(struct cpu_map *cpus,
+				     struct thread_map *threads);
+void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
+		       struct thread_map *threads);
 void perf_evlist__exit(struct perf_evlist *evlist);
 void perf_evlist__delete(struct perf_evlist *evlist);
 
 void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry);
 int perf_evlist__add_default(struct perf_evlist *evlist);
 
-int perf_evlist__alloc_pollfd(struct perf_evlist *evlist, int ncpus, int nthreads);
+int perf_evlist__alloc_pollfd(struct perf_evlist *evlist);
 void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
 
 struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
 
 union perf_event *perf_evlist__read_on_cpu(struct perf_evlist *self, int cpu);
 
-int perf_evlist__alloc_mmap(struct perf_evlist *evlist, int ncpus);
-int perf_evlist__mmap(struct perf_evlist *evlist, struct cpu_map *cpus,
-		      struct thread_map *threads, int pages, bool overwrite);
-void perf_evlist__munmap(struct perf_evlist *evlist, int ncpus);
+int perf_evlist__alloc_mmap(struct perf_evlist *evlist);
+int perf_evlist__mmap(struct perf_evlist *evlist, int pages, bool overwrite);
+void perf_evlist__munmap(struct perf_evlist *evlist);
+
+static inline void perf_evlist__set_maps(struct perf_evlist *evlist,
+					 struct cpu_map *cpus,
+					 struct thread_map *threads)
+{
+	evlist->cpus	= cpus;
+	evlist->threads	= threads;
+}
+
+int perf_evlist__create_maps(struct perf_evlist *evlist, pid_t target_pid,
+			     pid_t target_tid, const char *cpu_list);
+void perf_evlist__delete_maps(struct perf_evlist *evlist);
 
 #endif /* __PERF_EVLIST_H */

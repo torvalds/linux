@@ -42,7 +42,6 @@ static u64			user_interval			= ULLONG_MAX;
 static u64			default_interval		=      0;
 static u64			sample_type;
 
-static struct cpu_map		*cpus;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			=    128;
 static unsigned int		user_freq 			= UINT_MAX;
@@ -58,7 +57,6 @@ static bool			sample_id_all_avail		=   true;
 static bool			system_wide			=  false;
 static pid_t			target_pid			=     -1;
 static pid_t			target_tid			=     -1;
-static struct thread_map	*threads;
 static pid_t			child_pid			=     -1;
 static bool			no_inherit			=  false;
 static enum write_mode_t	write_mode			= WRITE_FORCE;
@@ -189,7 +187,7 @@ static void create_counter(struct perf_evsel *evsel, int cpu)
 	int thread_index;
 	int ret;
 
-	for (thread_index = 0; thread_index < threads->nr; thread_index++) {
+	for (thread_index = 0; thread_index < evsel_list->threads->nr; thread_index++) {
 		h_attr = get_header_attr(attr, evsel->idx);
 		if (h_attr == NULL)
 			die("nomem\n");
@@ -317,7 +315,8 @@ static void open_counters(struct perf_evlist *evlist)
 retry_sample_id:
 		attr->sample_id_all = sample_id_all_avail ? 1 : 0;
 try_again:
-		if (perf_evsel__open(pos, cpus, threads, group, !no_inherit) < 0) {
+		if (perf_evsel__open(pos, evlist->cpus, evlist->threads, group,
+				     !no_inherit) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES)
@@ -368,10 +367,10 @@ try_again:
 		}
 	}
 
-	if (perf_evlist__mmap(evlist, cpus, threads, mmap_pages, false) < 0)
+	if (perf_evlist__mmap(evlist, mmap_pages, false) < 0)
 		die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 
-	for (cpu = 0; cpu < cpus->nr; ++cpu) {
+	for (cpu = 0; cpu < evsel_list->cpus->nr; ++cpu) {
 		list_for_each_entry(pos, &evlist->entries, node)
 			create_counter(pos, cpu);
 	}
@@ -450,7 +449,7 @@ static void mmap_read_all(void)
 {
 	int i;
 
-	for (i = 0; i < cpus->nr; i++) {
+	for (i = 0; i < evsel_list->cpus->nr; i++) {
 		if (evsel_list->mmap[i].base)
 			mmap_read(&evsel_list->mmap[i]);
 	}
@@ -584,7 +583,7 @@ static int __cmd_record(int argc, const char **argv)
 		}
 
 		if (!system_wide && target_tid == -1 && target_pid == -1)
-			threads->map[0] = child_pid;
+			evsel_list->threads->map[0] = child_pid;
 
 		close(child_ready_pipe[1]);
 		close(go_pipe[0]);
@@ -718,12 +717,12 @@ static int __cmd_record(int argc, const char **argv)
 		}
 
 		if (done) {
-			for (i = 0; i < cpus->nr; i++) {
+			for (i = 0; i < evsel_list->cpus->nr; i++) {
 				struct perf_evsel *pos;
 
 				list_for_each_entry(pos, &evsel_list->entries, node) {
 					for (thread = 0;
-						thread < threads->nr;
+						thread < evsel_list->threads->nr;
 						thread++)
 						ioctl(FD(pos, i, thread),
 							PERF_EVENT_IOC_DISABLE);
@@ -816,7 +815,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	int err = -ENOMEM;
 	struct perf_evsel *pos;
 
-	evsel_list = perf_evlist__new();
+	evsel_list = perf_evlist__new(NULL, NULL);
 	if (evsel_list == NULL)
 		return -ENOMEM;
 
@@ -850,28 +849,19 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	if (target_pid != -1)
 		target_tid = target_pid;
 
-	threads = thread_map__new(target_pid, target_tid);
-	if (threads == NULL) {
-		pr_err("Problems finding threads of monitor\n");
-		usage_with_options(record_usage, record_options);
-	}
-
-	if (target_tid != -1)
-		cpus = cpu_map__dummy_new();
-	else
-		cpus = cpu_map__new(cpu_list);
-
-	if (cpus == NULL)
+	if (perf_evlist__create_maps(evsel_list, target_pid,
+				     target_tid, cpu_list) < 0)
 		usage_with_options(record_usage, record_options);
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {
-		if (perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
+		if (perf_evsel__alloc_fd(pos, evsel_list->cpus->nr,
+					 evsel_list->threads->nr) < 0)
 			goto out_free_fd;
 		if (perf_header__push_event(pos->attr.config, event_name(pos)))
 			goto out_free_fd;
 	}
 
-	if (perf_evlist__alloc_pollfd(evsel_list, cpus->nr, threads->nr) < 0)
+	if (perf_evlist__alloc_pollfd(evsel_list) < 0)
 		goto out_free_fd;
 
 	if (user_interval != ULLONG_MAX)
@@ -893,10 +883,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	}
 
 	err = __cmd_record(argc, argv);
-
 out_free_fd:
-	thread_map__delete(threads);
-	threads = NULL;
+	perf_evlist__delete_maps(evsel_list);
 out_symbol_exit:
 	symbol__exit();
 	return err;

@@ -21,21 +21,24 @@
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define SID(e, x, y) xyarray__entry(e->id, x, y)
 
-void perf_evlist__init(struct perf_evlist *evlist)
+void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
+		       struct thread_map *threads)
 {
 	int i;
 
 	for (i = 0; i < PERF_EVLIST__HLIST_SIZE; ++i)
 		INIT_HLIST_HEAD(&evlist->heads[i]);
 	INIT_LIST_HEAD(&evlist->entries);
+	perf_evlist__set_maps(evlist, cpus, threads);
 }
 
-struct perf_evlist *perf_evlist__new(void)
+struct perf_evlist *perf_evlist__new(struct cpu_map *cpus,
+				     struct thread_map *threads)
 {
 	struct perf_evlist *evlist = zalloc(sizeof(*evlist));
 
 	if (evlist != NULL)
-		perf_evlist__init(evlist);
+		perf_evlist__init(evlist, cpus, threads);
 
 	return evlist;
 }
@@ -88,9 +91,9 @@ int perf_evlist__add_default(struct perf_evlist *evlist)
 	return 0;
 }
 
-int perf_evlist__alloc_pollfd(struct perf_evlist *evlist, int ncpus, int nthreads)
+int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 {
-	int nfds = ncpus * nthreads * evlist->nr_entries;
+	int nfds = evlist->cpus->nr * evlist->threads->nr * evlist->nr_entries;
 	evlist->pollfd = malloc(sizeof(struct pollfd) * nfds);
 	return evlist->pollfd != NULL ? 0 : -ENOMEM;
 }
@@ -213,11 +216,11 @@ union perf_event *perf_evlist__read_on_cpu(struct perf_evlist *evlist, int cpu)
 	return event;
 }
 
-void perf_evlist__munmap(struct perf_evlist *evlist, int ncpus)
+void perf_evlist__munmap(struct perf_evlist *evlist)
 {
 	int cpu;
 
-	for (cpu = 0; cpu < ncpus; cpu++) {
+	for (cpu = 0; cpu < evlist->cpus->nr; cpu++) {
 		if (evlist->mmap[cpu].base != NULL) {
 			munmap(evlist->mmap[cpu].base, evlist->mmap_len);
 			evlist->mmap[cpu].base = NULL;
@@ -225,9 +228,9 @@ void perf_evlist__munmap(struct perf_evlist *evlist, int ncpus)
 	}
 }
 
-int perf_evlist__alloc_mmap(struct perf_evlist *evlist, int ncpus)
+int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 {
-	evlist->mmap = zalloc(ncpus * sizeof(struct perf_mmap));
+	evlist->mmap = zalloc(evlist->cpus->nr * sizeof(struct perf_mmap));
 	return evlist->mmap != NULL ? 0 : -ENOMEM;
 }
 
@@ -248,8 +251,6 @@ static int __perf_evlist__mmap(struct perf_evlist *evlist, int cpu, int prot,
 /** perf_evlist__mmap - Create per cpu maps to receive events
  *
  * @evlist - list of events
- * @cpus - cpu map being monitored
- * @threads - threads map being monitored
  * @pages - map length in pages
  * @overwrite - overwrite older events?
  *
@@ -259,21 +260,22 @@ static int __perf_evlist__mmap(struct perf_evlist *evlist, int cpu, int prot,
  *	unsigned int head = perf_mmap__read_head(m);
  *
  *	perf_mmap__write_tail(m, head)
+ *
+ * Using perf_evlist__read_on_cpu does this automatically.
  */
-int perf_evlist__mmap(struct perf_evlist *evlist, struct cpu_map *cpus,
-		      struct thread_map *threads, int pages, bool overwrite)
+int perf_evlist__mmap(struct perf_evlist *evlist, int pages, bool overwrite)
 {
 	unsigned int page_size = sysconf(_SC_PAGE_SIZE);
 	int mask = pages * page_size - 1, cpu;
 	struct perf_evsel *first_evsel, *evsel;
+	const struct cpu_map *cpus = evlist->cpus;
+	const struct thread_map *threads = evlist->threads;
 	int thread, prot = PROT_READ | (overwrite ? 0 : PROT_WRITE);
 
-	if (evlist->mmap == NULL &&
-	    perf_evlist__alloc_mmap(evlist, cpus->nr) < 0)
+	if (evlist->mmap == NULL && perf_evlist__alloc_mmap(evlist) < 0)
 		return -ENOMEM;
 
-	if (evlist->pollfd == NULL &&
-	    perf_evlist__alloc_pollfd(evlist, cpus->nr, threads->nr) < 0)
+	if (evlist->pollfd == NULL && perf_evlist__alloc_pollfd(evlist) < 0)
 		return -ENOMEM;
 
 	evlist->overwrite = overwrite;
@@ -314,4 +316,35 @@ out_unmap:
 		}
 	}
 	return -1;
+}
+
+int perf_evlist__create_maps(struct perf_evlist *evlist, pid_t target_pid,
+			     pid_t target_tid, const char *cpu_list)
+{
+	evlist->threads = thread_map__new(target_pid, target_tid);
+
+	if (evlist->threads == NULL)
+		return -1;
+
+	if (target_tid != -1)
+		evlist->cpus = cpu_map__dummy_new();
+	else
+		evlist->cpus = cpu_map__new(cpu_list);
+
+	if (evlist->cpus == NULL)
+		goto out_delete_threads;
+
+	return 0;
+
+out_delete_threads:
+	thread_map__delete(evlist->threads);
+	return -1;
+}
+
+void perf_evlist__delete_maps(struct perf_evlist *evlist)
+{
+	cpu_map__delete(evlist->cpus);
+	thread_map__delete(evlist->threads);
+	evlist->cpus	= NULL;
+	evlist->threads = NULL;
 }
