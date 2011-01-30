@@ -157,21 +157,21 @@ enum at91_mb_mode {
 #define AT91_IRQ_ALL		(0x1fffffff)
 
 struct at91_priv {
-	struct can_priv		can;	   /* must be the first member! */
-	struct net_device	*dev;
-	struct napi_struct	napi;
+	struct can_priv can;		/* must be the first member! */
+	struct net_device *dev;
+	struct napi_struct napi;
 
-	void __iomem		*reg_base;
+	void __iomem *reg_base;
 
-	u32			reg_sr;
-	unsigned int		tx_next;
-	unsigned int		tx_echo;
-	unsigned int		rx_next;
+	u32 reg_sr;
+	unsigned int tx_next;
+	unsigned int tx_echo;
+	unsigned int rx_next;
 
-	struct clk		*clk;
-	struct at91_can_data	*pdata;
+	struct clk *clk;
+	struct at91_can_data *pdata;
 
-	canid_t			mb0_id;
+	canid_t mb0_id;
 };
 
 static struct can_bittiming_const at91_bittiming_const = {
@@ -271,7 +271,7 @@ static void at91_setup_mailboxes(struct net_device *dev)
 
 	/* reset acceptance mask and id register */
 	for (i = AT91_MB_RX_FIRST; i <= AT91_MB_RX_LAST; i++) {
-		at91_write(priv, AT91_MAM(i), 0x0 );
+		at91_write(priv, AT91_MAM(i), 0x0);
 		at91_write(priv, AT91_MID(i), AT91_MID_MIDE);
 	}
 
@@ -1231,11 +1231,11 @@ static int __devexit at91_can_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver at91_can_driver = {
-	.probe		= at91_can_probe,
-	.remove		= __devexit_p(at91_can_remove),
-	.driver		= {
-		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
+	.probe = at91_can_probe,
+	.remove = __devexit_p(at91_can_remove),
+	.driver = {
+		.name = KBUILD_MODNAME,
+		.owner = THIS_MODULE,
 	},
 };
 
