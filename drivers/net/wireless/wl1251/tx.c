@@ -213,16 +213,30 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 		wl1251_debug(DEBUG_TX, "skb offset %d", offset);
 
 		/* check whether the current skb can be used */
-		if (!skb_cloned(skb) && (skb_tailroom(skb) >= offset)) {
-			unsigned char *src = skb->data;
+		if (skb_cloned(skb) || (skb_tailroom(skb) < offset)) {
+			struct sk_buff *newskb = skb_copy_expand(skb, 0, 3,
+								 GFP_KERNEL);
 
-			/* align the buffer on a 4-byte boundary */
+			if (unlikely(newskb == NULL)) {
+				wl1251_error("Can't allocate skb!");
+				return -EINVAL;
+			}
+
+			tx_hdr = (struct tx_double_buffer_desc *) newskb->data;
+
+			dev_kfree_skb_any(skb);
+			wl->tx_frames[tx_hdr->id] = skb = newskb;
+
+			offset = (4 - (long)skb->data) & 0x03;
+			wl1251_debug(DEBUG_TX, "new skb offset %d", offset);
+		}
+
+		/* align the buffer on a 4-byte boundary */
+		if (offset) {
+			unsigned char *src = skb->data;
 			skb_reserve(skb, offset);
 			memmove(skb->data, src, skb->len);
 			tx_hdr = (struct tx_double_buffer_desc *) skb->data;
-		} else {
-			wl1251_info("No handler, fixme!");
-			return -EINVAL;
 		}
 	}
 
