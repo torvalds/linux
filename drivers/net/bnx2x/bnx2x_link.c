@@ -3948,48 +3948,6 @@ static u8 bnx2x_8073_8727_external_rom_boot(struct bnx2x *bp,
 	return rc;
 }
 
-static void bnx2x_8073_set_xaui_low_power_mode(struct bnx2x *bp,
-					       struct bnx2x_phy *phy)
-{
-	u16 val;
-	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_8073_CHIP_REV, &val);
-
-	if (val == 0) {
-		/* Mustn't set low power mode in 8073 A0 */
-		return;
-	}
-
-	/* Disable PLL sequencer (use read-modify-write to clear bit 13) */
-	bnx2x_cl45_read(bp, phy,
-			MDIO_XS_DEVAD, MDIO_XS_PLL_SEQUENCER, &val);
-	val &= ~(1<<13);
-	bnx2x_cl45_write(bp, phy,
-		       MDIO_XS_DEVAD, MDIO_XS_PLL_SEQUENCER, val);
-
-	/* PLL controls */
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x805E, 0x1077);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x805D, 0x0000);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x805C, 0x030B);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x805B, 0x1240);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x805A, 0x2490);
-
-	/* Tx Controls */
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x80A7, 0x0C74);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x80A6, 0x9041);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x80A5, 0x4640);
-
-	/* Rx Controls */
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x80FE, 0x01C4);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x80FD, 0x9249);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x80FC, 0x2015);
-
-	/* Enable PLL sequencer  (use read-modify-write to set bit 13) */
-	bnx2x_cl45_read(bp, phy, MDIO_XS_DEVAD, MDIO_XS_PLL_SEQUENCER, &val);
-	val |= (1<<13);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, MDIO_XS_PLL_SEQUENCER, val);
-}
-
 /******************************************************************/
 /*			BCM8073 PHY SECTION			  */
 /******************************************************************/
@@ -4147,8 +4105,6 @@ static u8 bnx2x_8073_config_init(struct bnx2x_phy *phy,
 			 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL,  0x0004);
 
 	bnx2x_8073_set_pause_cl37(params, phy, vars);
-
-	bnx2x_8073_set_xaui_low_power_mode(bp, phy);
 
 	bnx2x_cl45_read(bp, phy,
 			MDIO_PMA_DEVAD, MDIO_PMA_REG_M8051_MSGOUT_REG, &tmp1);
