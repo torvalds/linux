@@ -913,7 +913,7 @@ void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 	 * The queue flush has failed...
 	 */
 	if (unlikely(!rt2x00queue_empty(queue)))
-		WARNING(queue->rt2x00dev, "Queue %d failed to flush", queue->qid);
+		WARNING(queue->rt2x00dev, "Queue %d failed to flush\n", queue->qid);
 
 	/*
 	 * Restore the queue to the previous status
