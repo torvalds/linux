@@ -512,11 +512,6 @@ struct rt2x00lib_ops {
 	irq_handler_t irq_handler;
 
 	/*
-	 * Threaded Interrupt handlers.
-	 */
-	irq_handler_t irq_handler_thread;
-
-	/*
 	 * TX status tasklet handler.
 	 */
 	void (*txstatus_tasklet) (unsigned long data);
@@ -893,12 +888,6 @@ struct rt2x00_dev {
 	 * Firmware image.
 	 */
 	const struct firmware *fw;
-
-	/*
-	 * Interrupt values, stored between interrupt service routine
-	 * and interrupt thread routine.
-	 */
-	u32 irqvalue[2];
 
 	/*
 	 * FIFO for storing tx status reports between isr and tasklet.
