@@ -834,7 +834,8 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "%s: platform data missing\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_free_devinfo;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
