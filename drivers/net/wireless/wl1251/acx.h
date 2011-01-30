@@ -1164,6 +1164,31 @@ struct wl1251_acx_wr_tbtt_and_dtim {
 	u8  padding;
 } __packed;
 
+enum wl1251_acx_bet_mode {
+	WL1251_ACX_BET_DISABLE = 0,
+	WL1251_ACX_BET_ENABLE = 1,
+};
+
+struct wl1251_acx_bet_enable {
+	struct acx_header header;
+
+	/*
+	 * Specifies if beacon early termination procedure is enabled or
+	 * disabled, see enum wl1251_acx_bet_mode.
+	 */
+	u8 enable;
+
+	/*
+	 * Specifies the maximum number of consecutive beacons that may be
+	 * early terminated. After this number is reached at least one full
+	 * beacon must be correctly received in FW before beacon ET
+	 * resumes. Range 0 - 255.
+	 */
+	u8 max_consecutive;
+
+	u8 padding[2];
+} __packed;
+
 struct wl1251_acx_ac_cfg {
 	struct acx_header header;
 
@@ -1401,6 +1426,8 @@ int wl1251_acx_tsf_info(struct wl1251 *wl, u64 *mactime);
 int wl1251_acx_rate_policies(struct wl1251 *wl);
 int wl1251_acx_mem_cfg(struct wl1251 *wl);
 int wl1251_acx_wr_tbtt_and_dtim(struct wl1251 *wl, u16 tbtt, u8 dtim);
+int wl1251_acx_bet_enable(struct wl1251 *wl, enum wl1251_acx_bet_mode mode,
+			  u8 max_consecutive);
 int wl1251_acx_ac_cfg(struct wl1251 *wl, u8 ac, u8 cw_min, u16 cw_max,
 		      u8 aifs, u16 txop);
 int wl1251_acx_tid_cfg(struct wl1251 *wl, u8 queue,

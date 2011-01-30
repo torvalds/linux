@@ -153,6 +153,11 @@ int wl1251_ps_set_mode(struct wl1251 *wl, enum wl1251_cmd_ps_mode mode)
 		if (ret < 0)
 			return ret;
 
+		ret = wl1251_acx_bet_enable(wl, WL1251_ACX_BET_ENABLE,
+					    WL1251_DEFAULT_BET_CONSECUTIVE);
+		if (ret < 0)
+			return ret;
+
 		ret = wl1251_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE);
 		if (ret < 0)
 			return ret;
@@ -167,6 +172,12 @@ int wl1251_ps_set_mode(struct wl1251 *wl, enum wl1251_cmd_ps_mode mode)
 	default:
 		wl1251_debug(DEBUG_PSM, "leaving psm");
 		ret = wl1251_ps_set_elp(wl, false);
+		if (ret < 0)
+			return ret;
+
+		/* disable BET */
+		ret = wl1251_acx_bet_enable(wl, WL1251_ACX_BET_DISABLE,
+					    WL1251_DEFAULT_BET_CONSECUTIVE);
 		if (ret < 0)
 			return ret;
 

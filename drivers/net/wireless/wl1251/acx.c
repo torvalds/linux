@@ -978,6 +978,34 @@ out:
 	return ret;
 }
 
+int wl1251_acx_bet_enable(struct wl1251 *wl, enum wl1251_acx_bet_mode mode,
+			  u8 max_consecutive)
+{
+	struct wl1251_acx_bet_enable *acx;
+	int ret;
+
+	wl1251_debug(DEBUG_ACX, "acx bet enable");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->enable = mode;
+	acx->max_consecutive = max_consecutive;
+
+	ret = wl1251_cmd_configure(wl, ACX_BET_ENABLE, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1251_warning("wl1251 acx bet enable failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
 int wl1251_acx_ac_cfg(struct wl1251 *wl, u8 ac, u8 cw_min, u16 cw_max,
 		      u8 aifs, u16 txop)
 {
