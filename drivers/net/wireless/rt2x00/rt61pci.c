@@ -1717,8 +1717,7 @@ static int rt61pci_init_bbp(struct rt2x00_dev *rt2x00dev)
 static void rt61pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 			       enum dev_state state)
 {
-	int mask = (state == STATE_RADIO_IRQ_OFF) ||
-		   (state == STATE_RADIO_IRQ_OFF_ISR);
+	int mask = (state == STATE_RADIO_IRQ_OFF);
 	u32 reg;
 	unsigned long flags;
 
@@ -1852,9 +1851,7 @@ static int rt61pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt61pci_disable_radio(rt2x00dev);
 		break;
 	case STATE_RADIO_IRQ_ON:
-	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
-	case STATE_RADIO_IRQ_OFF_ISR:
 		rt61pci_toggle_irq(rt2x00dev, state);
 		break;
 	case STATE_DEEP_SLEEP:
