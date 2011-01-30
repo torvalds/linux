@@ -215,10 +215,6 @@ static int rcuhead_fixup_free(void *addr, enum debug_obj_state state)
 		 * If we detect that we are nested in a RCU read-side critical
 		 * section, we should simply fail, otherwise we would deadlock.
 		 */
-#ifndef CONFIG_PREEMPT
-		WARN_ON(1);
-		return 0;
-#else
 		if (rcu_preempt_depth() != 0 || preempt_count() != 0 ||
 		    irqs_disabled()) {
 			WARN_ON(1);
@@ -229,7 +225,6 @@ static int rcuhead_fixup_free(void *addr, enum debug_obj_state state)
 		rcu_barrier_bh();
 		debug_object_free(head, &rcuhead_debug_descr);
 		return 1;
-#endif
 	default:
 		return 0;
 	}
