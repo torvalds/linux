@@ -319,7 +319,7 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	if (status & MCI_DATABLOCKEND)
 		dev_err(mmc_dev(host->mmc), "stray MCI_DATABLOCKEND interrupt\n");
 
-	if (status & MCI_DATAEND) {
+	if (status & MCI_DATAEND || data->error) {
 		mmci_stop_data(host);
 
 		if (!data->error)
