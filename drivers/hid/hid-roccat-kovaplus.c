@@ -20,8 +20,8 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/roccat.h>
 #include "hid-ids.h"
-#include "hid-roccat.h"
 #include "hid-roccat-common.h"
 #include "hid-roccat-kovaplus.h"
 
@@ -524,7 +524,8 @@ static int kovaplus_init_specials(struct hid_device *hdev)
 			goto exit_free;
 		}
 
-		retval = roccat_connect(kovaplus_class, hdev);
+		retval = roccat_connect(kovaplus_class, hdev,
+				sizeof(struct kovaplus_roccat_report));
 		if (retval < 0) {
 			hid_err(hdev, "couldn't init char dev\n");
 		} else {
@@ -648,8 +649,7 @@ static void kovaplus_report_to_chrdev(struct kovaplus_device const *kovaplus,
 	roccat_report.data2 = button_report->data2;
 
 	roccat_report_event(kovaplus->chrdev_minor,
-			(uint8_t const *)&roccat_report,
-			sizeof(struct kovaplus_roccat_report));
+			(uint8_t const *)&roccat_report);
 }
 
 static int kovaplus_raw_event(struct hid_device *hdev,

@@ -21,8 +21,8 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/roccat.h>
 #include "hid-ids.h"
-#include "hid-roccat.h"
 #include "hid-roccat-common.h"
 #include "hid-roccat-arvo.h"
 
@@ -303,7 +303,8 @@ static int arvo_init_specials(struct hid_device *hdev)
 		goto exit_free;
 	}
 
-	retval = roccat_connect(arvo_class, hdev);
+	retval = roccat_connect(arvo_class, hdev,
+			sizeof(struct arvo_roccat_report));
 	if (retval < 0) {
 		hid_err(hdev, "couldn't init char dev\n");
 	} else {
@@ -386,8 +387,8 @@ static void arvo_report_to_chrdev(struct arvo_device const *arvo,
 	else
 		roccat_report.action = ARVO_ROCCAT_REPORT_ACTION_RELEASE;
 
-	roccat_report_event(arvo->chrdev_minor, (uint8_t const *)&roccat_report,
-			sizeof(struct arvo_roccat_report));
+	roccat_report_event(arvo->chrdev_minor,
+			(uint8_t const *)&roccat_report);
 }
 
 static int arvo_raw_event(struct hid_device *hdev,

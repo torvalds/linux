@@ -30,8 +30,8 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/roccat.h>
 #include "hid-ids.h"
-#include "hid-roccat.h"
 #include "hid-roccat-common.h"
 #include "hid-roccat-kone.h"
 
@@ -660,7 +660,8 @@ static int kone_init_specials(struct hid_device *hdev)
 			goto exit_free;
 		}
 
-		retval = roccat_connect(kone_class, hdev);
+		retval = roccat_connect(kone_class, hdev,
+				sizeof(struct kone_roccat_report));
 		if (retval < 0) {
 			hid_err(hdev, "couldn't init char dev\n");
 			/* be tolerant about not getting chrdev */
@@ -760,8 +761,7 @@ static void kone_report_to_chrdev(struct kone_device const *kone,
 		roccat_report.value = event->value;
 		roccat_report.key = 0;
 		roccat_report_event(kone->chrdev_minor,
-				(uint8_t *)&roccat_report,
-				sizeof(struct kone_roccat_report));
+				(uint8_t *)&roccat_report);
 		break;
 	case kone_mouse_event_call_overlong_macro:
 		if (event->value == kone_keystroke_action_press) {
@@ -769,8 +769,7 @@ static void kone_report_to_chrdev(struct kone_device const *kone,
 			roccat_report.value = kone->actual_profile;
 			roccat_report.key = event->macro_key;
 			roccat_report_event(kone->chrdev_minor,
-					(uint8_t *)&roccat_report,
-					sizeof(struct kone_roccat_report));
+					(uint8_t *)&roccat_report);
 		}
 		break;
 	}

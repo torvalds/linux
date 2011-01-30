@@ -22,8 +22,8 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/roccat.h>
 #include "hid-ids.h"
-#include "hid-roccat.h"
 #include "hid-roccat-common.h"
 #include "hid-roccat-pyra.h"
 
@@ -506,7 +506,8 @@ static int pyra_init_specials(struct hid_device *hdev)
 			goto exit_free;
 		}
 
-		retval = roccat_connect(pyra_class, hdev);
+		retval = roccat_connect(pyra_class, hdev,
+				sizeof(struct pyra_roccat_report));
 		if (retval < 0) {
 			hid_err(hdev, "couldn't init char dev\n");
 		} else {
@@ -610,8 +611,7 @@ static void pyra_report_to_chrdev(struct pyra_device const *pyra,
 		roccat_report.value = button_event->data1;
 		roccat_report.key = 0;
 		roccat_report_event(pyra->chrdev_minor,
-				(uint8_t const *)&roccat_report,
-				sizeof(struct pyra_roccat_report));
+				(uint8_t const *)&roccat_report);
 		break;
 	case PYRA_MOUSE_EVENT_BUTTON_TYPE_MACRO:
 	case PYRA_MOUSE_EVENT_BUTTON_TYPE_SHORTCUT:
@@ -625,8 +625,7 @@ static void pyra_report_to_chrdev(struct pyra_device const *pyra,
 			 */
 			roccat_report.value = pyra->actual_profile + 1;
 			roccat_report_event(pyra->chrdev_minor,
-					(uint8_t const *)&roccat_report,
-					sizeof(struct pyra_roccat_report));
+					(uint8_t const *)&roccat_report);
 		}
 		break;
 	}

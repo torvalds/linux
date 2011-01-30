@@ -21,8 +21,8 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/roccat.h>
 #include "hid-ids.h"
-#include "hid-roccat.h"
 #include "hid-roccat-common.h"
 #include "hid-roccat-koneplus.h"
 
@@ -612,7 +612,8 @@ static int koneplus_init_specials(struct hid_device *hdev)
 			goto exit_free;
 		}
 
-		retval = roccat_connect(koneplus_class, hdev);
+		retval = roccat_connect(koneplus_class, hdev,
+				sizeof(struct koneplus_roccat_report));
 		if (retval < 0) {
 			hid_err(hdev, "couldn't init char dev\n");
 		} else {
@@ -718,8 +719,7 @@ static void koneplus_report_to_chrdev(struct koneplus_device const *koneplus,
 	roccat_report.data2 = button_report->data2;
 	roccat_report.profile = koneplus->actual_profile + 1;
 	roccat_report_event(koneplus->chrdev_minor,
-			(uint8_t const *)&roccat_report,
-			sizeof(struct koneplus_roccat_report));
+			(uint8_t const *)&roccat_report);
 }
 
 static int koneplus_raw_event(struct hid_device *hdev,
