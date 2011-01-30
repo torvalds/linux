@@ -1030,7 +1030,7 @@ static void rt2800_config_wcid_attr(struct rt2x00_dev *rt2x00dev,
 
 	memset(&wcid_entry, 0, sizeof(wcid_entry));
 	if (crypto->cmd == SET_KEY)
-		memcpy(&wcid_entry, crypto->address, ETH_ALEN);
+		memcpy(wcid_entry.mac, crypto->address, ETH_ALEN);
 	rt2800_register_multiwrite(rt2x00dev, offset,
 				      &wcid_entry, sizeof(wcid_entry));
 }
