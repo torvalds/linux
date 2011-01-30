@@ -1664,9 +1664,9 @@ static int __exit omap1_cam_remove(struct platform_device *pdev)
 	res = pcdev->res;
 	release_mem_region(res->start, resource_size(res));
 
-	kfree(pcdev);
-
 	clk_put(pcdev->clk);
+
+	kfree(pcdev);
 
 	dev_info(&pdev->dev, "OMAP1 Camera Interface driver unloaded\n");
 
