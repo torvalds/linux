@@ -438,8 +438,8 @@ static int __init arvo_init(void)
 
 static void __exit arvo_exit(void)
 {
-	class_destroy(arvo_class);
 	hid_unregister_driver(&arvo_driver);
+	class_destroy(arvo_class);
 }
 
 module_init(arvo_init);

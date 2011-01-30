@@ -844,8 +844,8 @@ static int __init kone_init(void)
 
 static void __exit kone_exit(void)
 {
-	class_destroy(kone_class);
 	hid_unregister_driver(&kone_driver);
+	class_destroy(kone_class);
 }
 
 module_init(kone_init);

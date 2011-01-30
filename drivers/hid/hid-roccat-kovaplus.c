@@ -703,8 +703,8 @@ static int __init kovaplus_init(void)
 
 static void __exit kovaplus_exit(void)
 {
-	class_destroy(kovaplus_class);
 	hid_unregister_driver(&kovaplus_driver);
+	class_destroy(kovaplus_class);
 }
 
 module_init(kovaplus_init);

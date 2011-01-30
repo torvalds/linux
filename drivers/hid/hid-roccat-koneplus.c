@@ -774,8 +774,8 @@ static int __init koneplus_init(void)
 
 static void __exit koneplus_exit(void)
 {
-	class_destroy(koneplus_class);
 	hid_unregister_driver(&koneplus_driver);
+	class_destroy(koneplus_class);
 }
 
 module_init(koneplus_init);

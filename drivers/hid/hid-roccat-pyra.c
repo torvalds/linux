@@ -685,8 +685,8 @@ static int __init pyra_init(void)
 
 static void __exit pyra_exit(void)
 {
-	class_destroy(pyra_class);
 	hid_unregister_driver(&pyra_driver);
+	class_destroy(pyra_class);
 }
 
 module_init(pyra_init);
