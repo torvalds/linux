@@ -860,6 +860,13 @@ struct rt2x00_dev {
 	 */
 	struct ieee80211_low_level_stats low_level_stats;
 
+	/**
+	 * Work queue for all work which should not be placed
+	 * on the mac80211 workqueue (because of dependencies
+	 * between various work structures).
+	 */
+	struct workqueue_struct *workqueue;
+
 	/*
 	 * Scheduled work.
 	 * NOTE: intf_work will use ieee80211_iterate_active_interfaces()

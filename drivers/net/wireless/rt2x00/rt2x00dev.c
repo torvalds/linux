@@ -997,8 +997,15 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 		    BIT(NL80211_IFTYPE_WDS);
 
 	/*
-	 * Initialize configuration work.
+	 * Initialize work.
 	 */
+	rt2x00dev->workqueue =
+	    alloc_ordered_workqueue(wiphy_name(rt2x00dev->hw->wiphy), 0);
+	if (!rt2x00dev->workqueue) {
+		retval = -ENOMEM;
+		goto exit;
+	}
+
 	INIT_WORK(&rt2x00dev->intf_work, rt2x00lib_intf_scheduled);
 
 	/*
@@ -1057,6 +1064,7 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	cancel_work_sync(&rt2x00dev->intf_work);
 	cancel_work_sync(&rt2x00dev->rxdone_work);
 	cancel_work_sync(&rt2x00dev->txdone_work);
+	destroy_workqueue(rt2x00dev->workqueue);
 
 	/*
 	 * Free the tx status fifo.
