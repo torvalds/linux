@@ -440,7 +440,6 @@ cmpk_handle_tx_rate_history(
 u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *pstats)
 {
 //	u32			debug_level = DBG_LOUD;
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	int			total_length;
 	u8			cmd_length, exe_cnt = 0;
 	u8			element_id;
@@ -529,14 +528,6 @@ u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *ps
 			        RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():unknown CMD Element\n");
 				return 1;	/* This is a command packet. */
 		}
-		// 2007/01/22 MH Display received rx command packet info.
-		//cmpk_Display_Message(cmd_length, pcmd_buff);
-
-		// 2007/01/22 MH Add to display tx statistic.
-		//cmpk_DisplayTxStatistic(pAdapter);
-
-		/* 2007/03/09 MH Collect sidderent cmd element pkt num. */
-		priv->stats.rxcmdpkt[element_id]++;
 
 		total_length -= cmd_length;
 		pcmd_buff    += cmd_length;
