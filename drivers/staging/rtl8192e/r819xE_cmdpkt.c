@@ -165,7 +165,6 @@ cmpk_count_txstatistic(
 		/* We can not make sure broadcast/multicast or unicast mode. */
 		if (pstx_fb->pkt_type != PACKET_MULTICAST &&
 		    pstx_fb->pkt_type != PACKET_BROADCAST) {
-			priv->stats.txunicast++;
 			priv->stats.txbytesunicast += pstx_fb->pkt_length;
 		}
 	}
@@ -365,8 +364,6 @@ static	void	cmpk_count_tx_status(	struct net_device *dev,
 
 	priv->stats.txfeedbackok	+= pstx_status->txok;
 	priv->stats.txoktotal		+= pstx_status->txok;
-
-	priv->stats.txunicast		+= pstx_status->txucok;
 
 	priv->stats.txbytesunicast		+= pstx_status->txuclength;
 }

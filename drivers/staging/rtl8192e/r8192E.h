@@ -478,7 +478,7 @@ typedef struct Stats
 {
 	unsigned long rxrdu;
 	unsigned long rxok;
-	unsigned long received_rate_histogram[4][32];	//0: Total, 1:OK, 2:CRC, 3:ICV, 2007 07 03 cosa
+	unsigned long received_rate_histogram[4][32];	//0: Total, 1:OK, 2:CRC, 3:ICV
 	unsigned long rxoverflow;
 	unsigned long rxint;
 	unsigned long txoverflow;
@@ -493,10 +493,8 @@ typedef struct Stats
 	unsigned long txfeedback;
 	unsigned long txfeedbackok;
 	unsigned long txoktotal;
-	unsigned long txunicast;
 	unsigned long txbytesunicast;
 	unsigned long rxbytesunicast;
-	unsigned long txerrbytestotal;
 
 	unsigned long slide_signal_strength[100];
 	unsigned long slide_evm[100];
@@ -505,8 +503,8 @@ typedef struct Stats
 	long signal_strength; // Transformed, in dbm. Beautified signal strength for UI, not correct.
 	u8 rx_rssi_percentage[4];
 	u8 rx_evm_percentage[2];
-	u32 Slide_Beacon_pwdb[100];	//cosa add for beacon rssi
-	u32 Slide_Beacon_Total;		//cosa add for beacon rssi
+	u32 Slide_Beacon_pwdb[100];
+	u32 Slide_Beacon_Total;
 	RT_SMOOTH_DATA_4RF		cck_adc_pwdb;
 } Stats;
 
@@ -974,8 +972,6 @@ typedef struct r8192_priv
 	bool	bLastDTPFlag_High;
 	bool	bLastDTPFlag_Low;
 
-	bool	bstore_last_dtpflag;
-	bool	bstart_txctrl_bydtp;   //Define to discriminate on High power State or on sitesuvey to change Tx gain index
 	//Add by amy for Rate Adaptive
 	rate_adaptive rate_adaptive;
 	//Add by amy for TX power tracking
@@ -1008,7 +1004,6 @@ typedef struct r8192_priv
 
 	bool		bis_cur_rdlstate;
 	struct timer_list fsync_timer;
-	bool bfsync_processing;	// 500ms Fsync timer is active or not
 	u32 	rate_record;
 	u32 	rateCountDiffRecord;
 	u32	ContiuneDiffCount;
@@ -1017,13 +1012,6 @@ typedef struct r8192_priv
 	u8	framesync;
 	u32 	framesyncC34;
 	u8   	framesyncMonitor;
-        	//Added by amy 080516  for RX related
-	u16 	nrxAMPDU_size;
-	u8 	nrxAMPDU_aggr_num;
-
-	/*Last RxDesc TSF value*/
-	u32 last_rxdesc_tsf_high;
-	u32 last_rxdesc_tsf_low;
 
 	//by amy for gpio
 	bool bHwRadioOff;
@@ -1033,16 +1021,6 @@ typedef struct r8192_priv
 	RT_OP_MODE OpMode;
 	//by amy for reset_count
 	u32 reset_count;
-	bool bpbc_pressed;
-	//by amy for debug
-	u32 txpower_checkcnt;
-	u32 txpower_tracking_callback_cnt;
-	u8 thermal_read_val[40];
-	u8 thermal_readback_index;
-	u32 ccktxpower_adjustcnt_not_ch14;
-	u32 ccktxpower_adjustcnt_ch14;
-	u8 tx_fwinfo_force_subcarriermode;
-	u8 tx_fwinfo_force_subcarrierval;
 
 	//by amy for silent reset
 	RESET_TYPE	ResetProgress;

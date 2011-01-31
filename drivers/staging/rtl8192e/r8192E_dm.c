@@ -1411,7 +1411,6 @@ void dm_backup_dynamic_mechanism_state(struct net_device *dev)
 
 	// Fsync to avoid reset
 	priv->bswitch_fsync  = false;
-	priv->bfsync_processing = false;
 	//Backup BB InitialGain
 	dm_bb_initialgain_backup(dev);
 
@@ -2302,7 +2301,6 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 		// Here we only set bPbcPressed to TRUE
 		// After trigger PBC, the variable will be set to FALSE
 		RT_TRACE(COMP_IO, "CheckPbcGPIO - PBC is pressed\n");
-		priv->bpbc_pressed = true;
 	}
 #endif
 

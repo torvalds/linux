@@ -2092,10 +2092,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->chan = 1; //set to channel 1
 	priv->RegWirelessMode = WIRELESS_MODE_AUTO;
 	priv->RegChannelPlan = 0xf;
-	priv->nrxAMPDU_size = 0;
-	priv->nrxAMPDU_aggr_num = 0;
-	priv->last_rxdesc_tsf_high = 0;
-	priv->last_rxdesc_tsf_low = 0;
 	priv->ieee80211->mode = WIRELESS_MODE_AUTO; //SET AUTO
 	priv->ieee80211->iw_mode = IW_MODE_INFRA;
 	priv->ieee80211->ieee_up=0;
@@ -2106,7 +2102,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->ieee80211->short_slot = 1;
 	priv->promisc = (dev->flags & IFF_PROMISC) ? 1:0;
 	priv->bcck_in_ch14 = false;
-	priv->bfsync_processing  = false;
 	priv->CCKPresentAttentuation = 0;
 	priv->rfa_txpowertrackingindex = 0;
 	priv->rfc_txpowertrackingindex = 0;
@@ -2123,12 +2118,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->SetRFPowerStateInProgress = false;
 	priv->ieee80211->PowerSaveControl.bInactivePs = true;
 	priv->ieee80211->PowerSaveControl.bIPSModeBackup = false;
-	//just for debug
-	priv->txpower_checkcnt = 0;
-	priv->thermal_readback_index =0;
-	priv->txpower_tracking_callback_cnt = 0;
-	priv->ccktxpower_adjustcnt_ch14 = 0;
-	priv->ccktxpower_adjustcnt_not_ch14 = 0;
 
 	priv->ieee80211->current_network.beacon_interval = DEFAULT_BEACONINTERVAL;
 	priv->ieee80211->iw_mode = IW_MODE_INFRA;
