@@ -93,7 +93,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame =
-		(struct rt_sigframe __user *)(regs->r1 + STATE_SAVE_ARG_SPACE);
+		(struct rt_sigframe __user *)(regs->r1);
 
 	sigset_t set;
 	int rval;
@@ -247,7 +247,7 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		goto give_sigsegv;
 
 	/* Set up registers for signal handler */
-	regs->r1 = (unsigned long) frame - STATE_SAVE_ARG_SPACE;
+	regs->r1 = (unsigned long) frame;
 
 	/* Signal handler args: */
 	regs->r5 = signal; /* arg 0: signum */

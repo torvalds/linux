@@ -93,7 +93,7 @@
 		lwi	r6, r1, PT_R6;		\
 		lwi	r11, r1, PT_R11;	\
 		lwi	r31, r1, PT_R31;	\
-		lwi	r1, r0, TOPHYS(r0_ram + 0);
+		lwi	r1, r1, PT_R1;
 #endif /* CONFIG_MMU */
 
 #define LWREG_NOP			\
@@ -208,8 +208,8 @@
  *      |      .      |
  *      |      .      |
  *
- * NO_MMU kernel use the same r0_ram pointed space - look to vmlinux.lds.S
- * which is used for storing register values - old style was, that value were
+ * MMU kernel uses the same 'pt_pool_space' pointed space
+ * which is used for storing register values - noMMu style was, that values were
  * stored in stack but in case of failure you lost information about register.
  * Currently you can see register value in memory in specific place.
  * In compare to with previous solution the speed should be the same.
@@ -228,8 +228,12 @@
  */
 
 /* wrappers to restore state before coming to entry.S */
-
 #ifdef CONFIG_MMU
+.section .data
+.align 4
+pt_pool_space:
+	.space	PT_SIZE
+
 #ifdef DEBUG
 /* Create space for exception counting. */
 .section .data
@@ -299,10 +303,10 @@ _hw_exception_handler:
 #ifndef CONFIG_MMU
 	addik	r1, r1, -(EX_HANDLER_STACK_SIZ); /* Create stack frame */
 #else
-	swi	r1, r0, TOPHYS(r0_ram + 0); /* GET_SP */
+	swi	r1, r0, TOPHYS(pt_pool_space + PT_R1); /* GET_SP */
 	/* Save date to kernel memory. Here is the problem
 	 * when you came from user space */
-	ori	r1, r0, TOPHYS(r0_ram + 28);
+	ori	r1, r0, TOPHYS(pt_pool_space);
 #endif
 	swi	r3, r1, PT_R3
 	swi	r4, r1, PT_R4
