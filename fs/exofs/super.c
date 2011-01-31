@@ -48,6 +48,7 @@
  * struct to hold what we get from mount options
  */
 struct exofs_mountopt {
+	bool is_osdname;
 	const char *dev_name;
 	uint64_t pid;
 	int timeout;
@@ -56,7 +57,7 @@ struct exofs_mountopt {
 /*
  * exofs-specific mount-time options.
  */
-enum { Opt_pid, Opt_to, Opt_mkfs, Opt_format, Opt_err };
+enum { Opt_name, Opt_pid, Opt_to, Opt_err };
 
 /*
  * Our mount-time options.  These should ideally be 64-bit unsigned, but the
@@ -64,6 +65,7 @@ enum { Opt_pid, Opt_to, Opt_mkfs, Opt_format, Opt_err };
  * sufficient for most applications now.
  */
 static match_table_t tokens = {
+	{Opt_name, "osdname=%s"},
 	{Opt_pid, "pid=%u"},
 	{Opt_to, "to=%u"},
 	{Opt_err, NULL}
@@ -94,6 +96,14 @@ static int parse_options(char *options, struct exofs_mountopt *opts)
 
 		token = match_token(p, tokens, args);
 		switch (token) {
+		case Opt_name:
+			opts->dev_name = match_strdup(&args[0]);
+			if (unlikely(!opts->dev_name)) {
+				EXOFS_ERR("Error allocating dev_name");
+				return -ENOMEM;
+			}
+			opts->is_osdname = true;
+			break;
 		case Opt_pid:
 			if (0 == match_strlcpy(str, &args[0], sizeof(str)))
 				return -EINVAL;
@@ -575,9 +585,17 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_bdi;
 
 	/* use mount options to fill superblock */
-	od = osduld_path_lookup(opts->dev_name);
+	if (opts->is_osdname) {
+		struct osd_dev_info odi = {.systemid_len = 0};
+
+		odi.osdname_len = strlen(opts->dev_name);
+		odi.osdname = (u8 *)opts->dev_name;
+		od = osduld_info_lookup(&odi);
+	} else {
+		od = osduld_path_lookup(opts->dev_name);
+	}
 	if (IS_ERR(od)) {
-		ret = PTR_ERR(od);
+		ret = -EINVAL;
 		goto free_sbi;
 	}
 
@@ -670,6 +688,8 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 
 	_exofs_print_device("Mounting", opts->dev_name, sbi->layout.s_ods[0],
 			    sbi->layout.s_pid);
+	if (opts->is_osdname)
+		kfree(opts->dev_name);
 	return 0;
 
 free_sbi:
@@ -678,6 +698,8 @@ free_bdi:
 	EXOFS_ERR("Unable to mount exofs on %s pid=0x%llx err=%d\n",
 		  opts->dev_name, sbi->layout.s_pid, ret);
 	exofs_free_sbi(sbi);
+	if (opts->is_osdname)
+		kfree(opts->dev_name);
 	return ret;
 }
 
@@ -695,7 +717,8 @@ static struct dentry *exofs_mount(struct file_system_type *type,
 	if (ret)
 		return ERR_PTR(ret);
 
-	opts.dev_name = dev_name;
+	if (!opts.dev_name)
+		opts.dev_name = dev_name;
 	return mount_nodev(type, flags, &opts, exofs_fill_super);
 }
 
