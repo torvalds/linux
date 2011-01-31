@@ -3635,7 +3635,7 @@ static void wm8962_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	struct snd_soc_codec *codec = wm8962->codec;
 
 	snd_soc_update_bits(codec, WM8962_GPIO_BASE + offset,
-			    WM8962_GP2_LVL, value << WM8962_GP2_LVL_SHIFT);
+			    WM8962_GP2_LVL, !!value << WM8962_GP2_LVL_SHIFT);
 }
 
 static int wm8962_gpio_direction_out(struct gpio_chip *chip,
