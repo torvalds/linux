@@ -3899,8 +3899,7 @@ static void i9xx_update_wm(struct drm_device *dev)
 	int planea_wm, planeb_wm;
 	struct drm_crtc *crtc, *enabled = NULL;
 
-	/* Create copies of the base settings for each pipe */
-	if (IS_CRESTLINE(dev) || IS_I945GM(dev))
+	if (IS_I945GM(dev))
 		wm_info = &i945_wm_info;
 	else if (!IS_GEN2(dev))
 		wm_info = &i915_wm_info;
