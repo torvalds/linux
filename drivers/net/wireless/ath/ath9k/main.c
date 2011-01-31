@@ -1354,6 +1354,7 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 
 	ath9k_calculate_iter_data(hw, vif, &iter_data);
 
+	ath9k_ps_wakeup(sc);
 	/* Set BSSID mask. */
 	memcpy(common->bssidmask, iter_data.mask, ETH_ALEN);
 	ath_hw_setbssidmask(common);
@@ -1388,6 +1389,7 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	}
 
 	ath9k_hw_set_interrupts(ah, ah->imask);
+	ath9k_ps_restore(sc);
 
 	/* Set up ANI */
 	if ((iter_data.naps + iter_data.nadhocs) > 0) {
