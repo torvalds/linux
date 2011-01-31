@@ -703,7 +703,7 @@ static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon)
 				dev_err(zd_mac_dev(mac),
 						"Giving up beacon config.\n");
 				r = -ETIMEDOUT;
-				goto release_sema;
+				goto reset_device;
 			}
 		}
 		msleep(20);
@@ -769,6 +769,17 @@ release_sema:
 out:
 	mutex_unlock(&mac->chip.mutex);
 	kfree(ioreqs);
+	return r;
+
+reset_device:
+	mutex_unlock(&mac->chip.mutex);
+	kfree(ioreqs);
+
+	/* semaphore stuck, reset device to avoid fw freeze later */
+	dev_warn(zd_mac_dev(mac), "CR_BCN_FIFO_SEMAPHORE stuck, "
+				  "reseting device...");
+	usb_queue_reset_device(mac->chip.usb.intf);
+
 	return r;
 }
 
