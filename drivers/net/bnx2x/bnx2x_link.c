@@ -6257,7 +6257,7 @@ static u8 bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	u8 port, initialize = 1;
 	u16 val, adj;
 	u16 temp;
-	u32 actual_phy_selection;
+	u32 actual_phy_selection, cms_enable;
 	u8 rc = 0;
 
 	/* This is just for MDIO_CTL_REG_84823_MEDIA register. */
@@ -6329,6 +6329,21 @@ static u8 bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 		rc = bnx2x_848xx_cmn_config_init(phy, params, vars);
 	else
 		bnx2x_save_848xx_spirom_version(phy, params);
+	cms_enable = REG_RD(bp, params->shmem_base +
+			offsetof(struct shmem_region,
+			dev_info.port_hw_config[params->port].default_cfg)) &
+			PORT_HW_CFG_ENABLE_CMS_MASK;
+
+	bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
+		MDIO_CTL_REG_84823_USER_CTRL_REG, &val);
+	if (cms_enable)
+		val |= MDIO_CTL_REG_84823_USER_CTRL_CMS;
+	else
+		val &= ~MDIO_CTL_REG_84823_USER_CTRL_CMS;
+	bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+		MDIO_CTL_REG_84823_USER_CTRL_REG, val);
+
+
 	return rc;
 }
 

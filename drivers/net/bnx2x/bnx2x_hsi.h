@@ -330,6 +330,12 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 #define PORT_HW_CFG_ENABLE_BAM_ON_KR_DISABLED		      0x00000000
 #define PORT_HW_CFG_ENABLE_BAM_ON_KR_ENABLED		      0x00100000
 
+	/*  Enable Common Mode Sense */
+#define PORT_HW_CFG_ENABLE_CMS_MASK			      0x00200000
+#define PORT_HW_CFG_ENABLE_CMS_SHIFT			      21
+#define PORT_HW_CFG_ENABLE_CMS_DISABLED			      0x00000000
+#define PORT_HW_CFG_ENABLE_CMS_ENABLED			      0x00200000
+
 	u32 speed_capability_mask2;			    /* 0x28C */
 #define PORT_HW_CFG_SPEED_CAPABILITY2_D3_MASK		      0x0000FFFF
 #define PORT_HW_CFG_SPEED_CAPABILITY2_D3_SHIFT		      0
