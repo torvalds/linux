@@ -759,19 +759,19 @@ static int dss_get_clocks(void)
 	if (r)
 		goto err;
 
-	r = dss_get_clock(&dss.dss1_fck, "dss1_fck");
+	r = dss_get_clock(&dss.dss1_fck, "fck");
 	if (r)
 		goto err;
 
-	r = dss_get_clock(&dss.dss2_fck, "dss2_fck");
+	r = dss_get_clock(&dss.dss2_fck, "sys_clk");
 	if (r)
 		goto err;
 
-	r = dss_get_clock(&dss.dss_54m_fck, "tv_fck");
+	r = dss_get_clock(&dss.dss_54m_fck, "tv_clk");
 	if (r)
 		goto err;
 
-	r = dss_get_clock(&dss.dss_96m_fck, "video_fck");
+	r = dss_get_clock(&dss.dss_96m_fck, "video_clk");
 	if (r)
 		goto err;
 

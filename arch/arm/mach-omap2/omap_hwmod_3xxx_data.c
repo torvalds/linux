@@ -1571,7 +1571,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_dss_slaves[] = {
 
 static struct omap_hwmod_opt_clk dss_opt_clks[] = {
 	{ .role = "tv_clk", .clk = "dss_tv_fck" },
-	{ .role = "dssclk", .clk = "dss_96m_fck" },
+	{ .role = "video_clk", .clk = "dss_96m_fck" },
 	{ .role = "sys_clk", .clk = "dss2_alwon_fck" },
 };
 
