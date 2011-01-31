@@ -242,6 +242,10 @@ static const struct snd_soc_dapm_widget aic34_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", rx51_hp_event),
 };
 
+static const struct snd_soc_dapm_widget aic34_dapm_widgetsb[] = {
+	SND_SOC_DAPM_SPK("Earphone", NULL),
+};
+
 static const struct snd_soc_dapm_route audio_map[] = {
 	{"Ext Spk", NULL, "HPLOUT"},
 	{"Ext Spk", NULL, "HPROUT"},
@@ -250,6 +254,11 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 	{"DMic Rate 64", NULL, "Mic Bias 2V"},
 	{"Mic Bias 2V", NULL, "DMic"},
+};
+
+static const struct snd_soc_dapm_route audio_mapb[] = {
+	{"b LINE2R", NULL, "MONO_LOUT"},
+	{"Earphone", NULL, "b HPLOUT"},
 };
 
 static const char *spk_function[] = {"Off", "On"};
@@ -269,6 +278,10 @@ static const struct snd_kcontrol_new aic34_rx51_controls[] = {
 		     rx51_get_input, rx51_set_input),
 	SOC_ENUM_EXT("Jack Function", rx51_enum[2],
 		     rx51_get_jack, rx51_set_jack),
+};
+
+static const struct snd_kcontrol_new aic34_rx51_controlsb[] = {
+	SOC_DAPM_PIN_SWITCH("Earphone"),
 };
 
 static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
@@ -314,6 +327,24 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	return err;
 }
 
+static int rx51_aic34b_init(struct snd_soc_dapm_context *dapm)
+{
+	int err;
+
+	err = snd_soc_add_controls(dapm->codec, aic34_rx51_controlsb,
+				   ARRAY_SIZE(aic34_rx51_controlsb));
+	if (err < 0)
+		return err;
+
+	err = snd_soc_dapm_new_controls(dapm, aic34_dapm_widgetsb,
+					ARRAY_SIZE(aic34_dapm_widgetsb));
+	if (err < 0)
+		return 0;
+
+	return snd_soc_dapm_add_routes(dapm, audio_mapb,
+				       ARRAY_SIZE(audio_mapb));
+}
+
 /* Digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link rx51_dai[] = {
 	{
@@ -328,11 +359,30 @@ static struct snd_soc_dai_link rx51_dai[] = {
 	},
 };
 
+struct snd_soc_aux_dev rx51_aux_dev[] = {
+	{
+		.name = "TLV320AIC34b",
+		.codec_name = "tlv320aic3x-codec.2-0019",
+		.init = rx51_aic34b_init,
+	},
+};
+
+static struct snd_soc_codec_conf rx51_codec_conf[] = {
+	{
+		.dev_name = "tlv320aic3x-codec.2-0019",
+		.name_prefix = "b",
+	},
+};
+
 /* Audio card */
 static struct snd_soc_card rx51_sound_card = {
 	.name = "RX-51",
 	.dai_link = rx51_dai,
 	.num_links = ARRAY_SIZE(rx51_dai),
+	.aux_dev = rx51_aux_dev,
+	.num_aux_devs = ARRAY_SIZE(rx51_aux_dev),
+	.codec_conf = rx51_codec_conf,
+	.num_configs = ARRAY_SIZE(rx51_codec_conf),
 };
 
 static struct platform_device *rx51_snd_device;
