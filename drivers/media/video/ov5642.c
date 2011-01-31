@@ -2516,10 +2516,6 @@ static struct reginfo sensor_svga[] =
 {0x3815,0x03},
 {0x3000,0x00},
 {0x3819,0x80},
-    {0x3406,0x00},
-	{0x5183,0x80},
-	{0x5191,0xff},
-	{0x5192,0x00},
 {0x3503,0x00},
 	{0x0000 ,0x00}
 };
@@ -3245,6 +3241,9 @@ static int sensor_suspend(struct soc_camera_device *icd, pm_message_t pm_msg);
 static int sensor_resume(struct soc_camera_device *icd);
 static int sensor_set_bus_param(struct soc_camera_device *icd,unsigned long flags);
 static unsigned long sensor_query_bus_param(struct soc_camera_device *icd);
+static int sensor_set_effect(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
+static int sensor_set_whiteBalance(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
+static int sensor_deactivate(struct i2c_client *client);
 
 static struct soc_camera_ops sensor_ops =
 {
@@ -3297,6 +3296,8 @@ typedef struct sensor_info_priv_s
     int exposure;
     unsigned char mirror;                                        /* HFLIP */
     unsigned char flip;                                          /* VFLIP */
+	bool snap2preview;
+	bool video2preview;
     struct reginfo *winseqe_cur_addr;
 	unsigned int pixfmt;
 	unsigned int enable;
@@ -3314,7 +3315,6 @@ struct sensor_parameter
 
 	unsigned short int capture_framerate;
 	unsigned short int preview_framerate;
-	char awb[6];
 };
 
 struct sensor
@@ -3332,9 +3332,6 @@ struct sensor
 #endif
 	struct rk29camera_platform_data *sensor_io_request;
 };
-
-static int sensor_deactivate(struct i2c_client *client);
-
 
 static struct sensor* to_sensor(const struct i2c_client *client)
 {
@@ -3858,13 +3855,6 @@ static int sensor_parameter_record(struct i2c_client *client)
 	sensor->parameter.capture_framerate = 900;
 	sensor->parameter.preview_framerate = 1500;
 
-	sensor_read(client,0x3400,&sensor->parameter.awb[0]);		//record awb value
-	sensor_read(client,0x3401,&sensor->parameter.awb[1]);
-	sensor_read(client,0x3402,&sensor->parameter.awb[2]);
-	sensor_read(client,0x3403,&sensor->parameter.awb[3]);
-	sensor_read(client,0x3404,&sensor->parameter.awb[4]);
-	sensor_read(client,0x3405,&sensor->parameter.awb[5]);
-
 	SENSOR_DG(" %s Read 0x350c = 0x%02x  0x350d = 0x%02x 0x350b=0x%02x \n",SENSOR_NAME_STRING(), ret_h, ret_l, sensor->parameter.preview_gain);
 	return 0;
 }
@@ -3972,13 +3962,6 @@ static int sensor_ae_transfer(struct i2c_client *client)
 	//加长延时，避免暗处拍照时的明暗分界问题
 	//camera_timed_wait(200);
 	//linzhk camera_timed_wait(500);
-
-	sensor_write(client,0x3400,sensor->parameter.awb[0]);		// resume awb value
-	sensor_write(client,0x3401,sensor->parameter.awb[1]);
-	sensor_write(client,0x3402,sensor->parameter.awb[2]);
-	sensor_write(client,0x3403,sensor->parameter.awb[3]);
-	sensor_write(client,0x3404,sensor->parameter.awb[4]);
-	sensor_write(client,0x3405,sensor->parameter.awb[5]);
 
 	SENSOR_DG(" %s Write 0x350b = 0x%02x  0x3502 = 0x%02x 0x3501=0x%02x 0x3500 = 0x%02x\n",SENSOR_NAME_STRING(), Gain, ExposureLow, ExposureMid, ExposureHigh);
 	mdelay(100);
@@ -4260,11 +4243,28 @@ static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_format *f)
 		SENSOR_DG("%s %dx%d is capture format\n", __FUNCTION__, f->fmt.pix.width, f->fmt.pix.height);
 	return ret;
 }
+
+static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+    bool ret = false;
+
+	if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 720)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 1920) && (f->fmt.pix.height == 1080)) {
+		ret = true;
+	}
+
+	if (ret == true)
+		SENSOR_DG("%s %dx%d is video format\n", __FUNCTION__, f->fmt.pix.width, f->fmt.pix.height);
+	return ret;
+}
 static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
     struct i2c_client *client = sd->priv;
     struct sensor *sensor = to_sensor(client);
     struct v4l2_pix_format *pix = &f->fmt.pix;
+	const struct v4l2_queryctrl *qctrl;
+	struct soc_camera_device *icd = client->dev.platform_data;
     struct reginfo *winseqe_set_addr=NULL;
     int ret = 0, set_w,set_h;
 
@@ -4407,6 +4407,27 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 
 		if (sensor_fmt_capturechk(sd,f) == true) {				    /* ddl@rock-chips.com : Capture */
 			sensor_ae_transfer(client);
+			qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_EFFECT);
+			sensor_set_effect(icd, qctrl,sensor->info_priv.effect);
+			if (sensor->info_priv.whiteBalance != 0) {
+				qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
+				sensor_set_whiteBalance(icd, qctrl,sensor->info_priv.whiteBalance);
+			}
+			sensor->info_priv.snap2preview = true;
+		} else if (sensor_fmt_videochk(sd,f) == true) {			/* ddl@rock-chips.com : Video */
+			qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_EFFECT);
+			sensor_set_effect(icd, qctrl,sensor->info_priv.effect);
+
+			sensor->info_priv.video2preview = true;
+		} else if ((sensor->info_priv.snap2preview == true) || (sensor->info_priv.video2preview == true)) {
+			qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_EFFECT);
+			sensor_set_effect(icd, qctrl,sensor->info_priv.effect);
+			if (sensor->info_priv.snap2preview == true) {
+				qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
+				sensor_set_whiteBalance(icd, qctrl,sensor->info_priv.whiteBalance);
+			}
+			sensor->info_priv.video2preview = false;
+			sensor->info_priv.snap2preview = false;
 		}
         SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
     }
