@@ -450,7 +450,7 @@ static void sdma_handle_channel_loop(struct sdma_channel *sdmac)
 		if (bd->mode.status & BD_RROR)
 			sdmac->status = DMA_ERROR;
 		else
-			sdmac->status = DMA_SUCCESS;
+			sdmac->status = DMA_IN_PROGRESS;
 
 		bd->mode.status |= BD_DONE;
 		sdmac->buf_tail++;
@@ -942,14 +942,11 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 
 		param = BD_DONE | BD_EXTD | BD_CONT;
 
-		if (sdmac->flags & IMX_DMA_SG_LOOP) {
+		if (i + 1 == sg_len) {
 			param |= BD_INTR;
-			if (i + 1 == sg_len)
-				param |= BD_WRAP;
+			param |= BD_LAST;
+			param &= ~BD_CONT;
 		}
-
-		if (i + 1 == sg_len)
-			param |= BD_INTR;
 
 		dev_dbg(sdma->dev, "entry %d: count: %d dma: 0x%08x %s%s\n",
 				i, count, sg->dma_address,
@@ -964,6 +961,7 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 
 	return &sdmac->desc;
 err_out:
+	sdmac->status = DMA_ERROR;
 	return NULL;
 }
 
@@ -1077,14 +1075,12 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 {
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	dma_cookie_t last_used;
-	enum dma_status ret;
 
 	last_used = chan->cookie;
 
-	ret = dma_async_is_complete(cookie, sdmac->last_completed, last_used);
 	dma_set_tx_state(txstate, sdmac->last_completed, last_used, 0);
 
-	return ret;
+	return sdmac->status;
 }
 
 static void sdma_issue_pending(struct dma_chan *chan)
