@@ -345,6 +345,9 @@ static int __init imxdma_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&imxdma->dma_device.channels);
 
+	dma_cap_set(DMA_SLAVE, imxdma->dma_device.cap_mask);
+	dma_cap_set(DMA_CYCLIC, imxdma->dma_device.cap_mask);
+
 	/* Initialize channel parameters */
 	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
 		struct imxdma_channel *imxdmac = &imxdma->channel[i];
@@ -361,9 +364,6 @@ static int __init imxdma_probe(struct platform_device *pdev)
 
 		imxdmac->imxdma = imxdma;
 		spin_lock_init(&imxdmac->lock);
-
-		dma_cap_set(DMA_SLAVE, imxdma->dma_device.cap_mask);
-		dma_cap_set(DMA_CYCLIC, imxdma->dma_device.cap_mask);
 
 		imxdmac->chan.device = &imxdma->dma_device;
 		imxdmac->channel = i;
