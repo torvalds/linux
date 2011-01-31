@@ -2639,6 +2639,26 @@ static bool nfsd4_cb_channel_good(struct nfs4_client *clp)
 	return clp->cl_minorversion && clp->cl_cb_state == NFSD4_CB_UNKNOWN;
 }
 
+static struct file_lock *nfs4_alloc_init_lease(struct nfs4_delegation *dp, int flag)
+{
+	struct file_lock *fl;
+
+	fl = locks_alloc_lock();
+	if (!fl)
+		return NULL;
+	locks_init_lock(fl);
+	fl->fl_lmops = &nfsd_lease_mng_ops;
+	fl->fl_flags = FL_LEASE;
+	fl->fl_type = flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK;
+	fl->fl_end = OFFSET_MAX;
+	fl->fl_owner = (fl_owner_t)dp;
+	fl->fl_file = dp->dl_vfs_file;
+	BUG_ON(!fl->fl_file);
+	fl->fl_pid = current->tgid;
+	dp->dl_flock = fl;
+	return fl;
+}
+
 /*
  * Attempt to hand out a delegation.
  */
@@ -2684,20 +2704,9 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 		goto out;
 	}
 	status = -ENOMEM;
-	fl = locks_alloc_lock();
+	fl = nfs4_alloc_init_lease(dp, flag);
 	if (!fl)
 		goto out;
-	locks_init_lock(fl);
-	fl->fl_lmops = &nfsd_lease_mng_ops;
-	fl->fl_flags = FL_LEASE;
-	fl->fl_type = flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK;
-	fl->fl_end = OFFSET_MAX;
-	fl->fl_owner =  (fl_owner_t)dp;
-	fl->fl_file = find_readable_file(stp->st_file);
-	BUG_ON(!fl->fl_file);
-	fl->fl_pid = current->tgid;
-	dp->dl_flock = fl;
-
 	/* vfs_setlease checks to see if delegation should be handed out.
 	 * the lock_manager callback fl_change is used
 	 */
