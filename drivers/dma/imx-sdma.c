@@ -230,7 +230,7 @@ struct sdma_engine;
  * struct sdma_channel - housekeeping for a SDMA channel
  *
  * @sdma		pointer to the SDMA engine for this channel
- * @channel		the channel number, matches dmaengine chan_id
+ * @channel		the channel number, matches dmaengine chan_id + 1
  * @direction		transfer type. Needed for setting SDMA script
  * @peripheral_type	Peripheral type. Needed for setting SDMA script
  * @event_id0		aka dma request line
@@ -799,7 +799,7 @@ static dma_cookie_t sdma_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	cookie = sdma_assign_cookie(sdmac);
 
-	sdma_enable_channel(sdma, tx->chan->chan_id);
+	sdma_enable_channel(sdma, sdmac->channel);
 
 	spin_unlock_irq(&sdmac->lock);
 
@@ -811,10 +811,6 @@ static int sdma_alloc_chan_resources(struct dma_chan *chan)
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct imx_dma_data *data = chan->private;
 	int prio, ret;
-
-	/* No need to execute this for internal channel 0 */
-	if (chan->chan_id == 0)
-		return 0;
 
 	if (!data)
 		return -EINVAL;
@@ -880,7 +876,7 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct sdma_engine *sdma = sdmac->sdma;
 	int ret, i, count;
-	int channel = chan->chan_id;
+	int channel = sdmac->channel;
 	struct scatterlist *sg;
 
 	if (sdmac->status == DMA_IN_PROGRESS)
@@ -978,7 +974,7 @@ static struct dma_async_tx_descriptor *sdma_prep_dma_cyclic(
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct sdma_engine *sdma = sdmac->sdma;
 	int num_periods = buf_len / period_len;
-	int channel = chan->chan_id;
+	int channel = sdmac->channel;
 	int ret, i = 0, buf = 0;
 
 	dev_dbg(sdma->dev, "%s channel: %d\n", __func__, channel);
@@ -1252,7 +1248,6 @@ static int __init sdma_probe(struct platform_device *pdev)
 	struct resource *iores;
 	struct sdma_platform_data *pdata = pdev->dev.platform_data;
 	int i;
-	dma_cap_mask_t mask;
 	struct sdma_engine *sdma;
 
 	sdma = kzalloc(sizeof(*sdma), GFP_KERNEL);
@@ -1309,8 +1304,14 @@ static int __init sdma_probe(struct platform_device *pdev)
 		sdmac->chan.device = &sdma->dma_device;
 		sdmac->channel = i;
 
-		/* Add the channel to the DMAC list */
-		list_add_tail(&sdmac->chan.device_node, &sdma->dma_device.channels);
+		/*
+		 * Add the channel to the DMAC list. Do not add channel 0 though
+		 * because we need it internally in the SDMA driver. This also means
+		 * that channel 0 in dmaengine counting matches sdma channel 1.
+		 */
+		if (i)
+			list_add_tail(&sdmac->chan.device_node,
+					&sdma->dma_device.channels);
 	}
 
 	ret = sdma_init(sdma);
@@ -1339,13 +1340,6 @@ static int __init sdma_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to register\n");
 		goto err_init;
 	}
-
-	/* request channel 0. This is an internal control channel
-	 * to the SDMA engine and not available to clients.
-	 */
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	dma_request_channel(mask, NULL, NULL);
 
 	dev_info(sdma->dev, "initialized\n");
 
