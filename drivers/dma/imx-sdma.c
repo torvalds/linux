@@ -1295,6 +1295,9 @@ static int __init sdma_probe(struct platform_device *pdev)
 
 	sdma->version = pdata->sdma_version;
 
+	dma_cap_set(DMA_SLAVE, sdma->dma_device.cap_mask);
+	dma_cap_set(DMA_CYCLIC, sdma->dma_device.cap_mask);
+
 	INIT_LIST_HEAD(&sdma->dma_device.channels);
 	/* Initialize channel parameters */
 	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
@@ -1302,9 +1305,6 @@ static int __init sdma_probe(struct platform_device *pdev)
 
 		sdmac->sdma = sdma;
 		spin_lock_init(&sdmac->lock);
-
-		dma_cap_set(DMA_SLAVE, sdma->dma_device.cap_mask);
-		dma_cap_set(DMA_CYCLIC, sdma->dma_device.cap_mask);
 
 		sdmac->chan.device = &sdma->dma_device;
 		sdmac->channel = i;
