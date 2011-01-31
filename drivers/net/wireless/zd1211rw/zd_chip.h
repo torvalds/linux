@@ -546,6 +546,7 @@ enum {
 #define RX_FILTER_CTRL (RX_FILTER_RTS | RX_FILTER_CTS | \
 	RX_FILTER_CFEND | RX_FILTER_CFACK)
 
+#define BCN_MODE_AP			0x1000000
 #define BCN_MODE_IBSS			0x2000000
 
 /* Monitor mode sets filter to 0xfffff */
@@ -921,7 +922,8 @@ enum led_status {
 
 int zd_chip_control_leds(struct zd_chip *chip, enum led_status status);
 
-int zd_set_beacon_interval(struct zd_chip *chip, u32 interval);
+int zd_set_beacon_interval(struct zd_chip *chip, u16 interval, u8 dtim_period,
+			   int type);
 
 static inline int zd_get_beacon_interval(struct zd_chip *chip, u32 *interval)
 {

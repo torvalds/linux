@@ -926,7 +926,7 @@ static void zd_op_remove_interface(struct ieee80211_hw *hw,
 	struct zd_mac *mac = zd_hw_mac(hw);
 	mac->type = NL80211_IFTYPE_UNSPECIFIED;
 	mac->vif = NULL;
-	zd_set_beacon_interval(&mac->chip, 0);
+	zd_set_beacon_interval(&mac->chip, 0, 0, NL80211_IFTYPE_UNSPECIFIED);
 	zd_write_mac_addr(&mac->chip, NULL);
 }
 
@@ -1058,15 +1058,16 @@ static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
 		}
 
 		if (changes & BSS_CHANGED_BEACON_ENABLED) {
-			u32 interval;
+			u16 interval = 0;
+			u8 period = 0;
 
-			if (bss_conf->enable_beacon)
-				interval = BCN_MODE_IBSS |
-						bss_conf->beacon_int;
-			else
-				interval = 0;
+			if (bss_conf->enable_beacon) {
+				period = bss_conf->dtim_period;
+				interval = bss_conf->beacon_int;
+			}
 
-			zd_set_beacon_interval(&mac->chip, interval);
+			zd_set_beacon_interval(&mac->chip, interval, period,
+					       mac->type);
 		}
 	} else
 		associated = is_valid_ether_addr(bss_conf->bssid);

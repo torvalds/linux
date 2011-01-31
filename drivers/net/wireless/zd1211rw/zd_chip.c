@@ -888,14 +888,36 @@ static int set_aw_pt_bi(struct zd_chip *chip, struct aw_pt_bi *s)
 }
 
 
-static int set_beacon_interval(struct zd_chip *chip, u32 interval)
+static int set_beacon_interval(struct zd_chip *chip, u16 interval,
+			       u8 dtim_period, int type)
 {
 	int r;
 	struct aw_pt_bi s;
+	u32 b_interval, mode_flag;
 
 	ZD_ASSERT(mutex_is_locked(&chip->mutex));
 
-	r = zd_iowrite32_locked(chip, interval, CR_BCN_INTERVAL);
+	if (interval > 0) {
+		switch (type) {
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_MESH_POINT:
+			mode_flag = BCN_MODE_IBSS;
+			break;
+		case NL80211_IFTYPE_AP:
+			mode_flag = BCN_MODE_AP;
+			break;
+		default:
+			mode_flag = 0;
+			break;
+		}
+	} else {
+		dtim_period = 0;
+		mode_flag = 0;
+	}
+
+	b_interval = mode_flag | (dtim_period << 16) | interval;
+
+	r = zd_iowrite32_locked(chip, b_interval, CR_BCN_INTERVAL);
 	if (r)
 		return r;
 	r = get_aw_pt_bi(chip, &s);
@@ -904,12 +926,13 @@ static int set_beacon_interval(struct zd_chip *chip, u32 interval)
 	return set_aw_pt_bi(chip, &s);
 }
 
-int zd_set_beacon_interval(struct zd_chip *chip, u32 interval)
+int zd_set_beacon_interval(struct zd_chip *chip, u16 interval, u8 dtim_period,
+			   int type)
 {
 	int r;
 
 	mutex_lock(&chip->mutex);
-	r = set_beacon_interval(chip, interval);
+	r = set_beacon_interval(chip, interval, dtim_period, type);
 	mutex_unlock(&chip->mutex);
 	return r;
 }
@@ -928,7 +951,7 @@ static int hw_init(struct zd_chip *chip)
 	if (r)
 		return r;
 
-	return set_beacon_interval(chip, 100);
+	return set_beacon_interval(chip, 100, 0, NL80211_IFTYPE_UNSPECIFIED);
 }
 
 static zd_addr_t fw_reg_addr(struct zd_chip *chip, u16 offset)
