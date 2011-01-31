@@ -638,6 +638,8 @@ static void rx_urb_complete(struct urb *urb)
 	usb = urb->context;
 	rx = &usb->rx;
 
+	zd_usb_reset_rx_idle_timer(usb);
+
 	if (length%rx->usb_packet_size > rx->usb_packet_size-4) {
 		/* If there is an old first fragment, we don't care. */
 		dev_dbg_f(urb_dev(urb), "*** first fragment ***\n");
@@ -702,7 +704,7 @@ static void free_rx_urb(struct urb *urb)
 	usb_free_urb(urb);
 }
 
-int zd_usb_enable_rx(struct zd_usb *usb)
+static int __zd_usb_enable_rx(struct zd_usb *usb)
 {
 	int i, r;
 	struct zd_usb_rx *rx = &usb->rx;
@@ -754,7 +756,21 @@ error:
 	return r;
 }
 
-void zd_usb_disable_rx(struct zd_usb *usb)
+int zd_usb_enable_rx(struct zd_usb *usb)
+{
+	int r;
+	struct zd_usb_rx *rx = &usb->rx;
+
+	mutex_lock(&rx->setup_mutex);
+	r = __zd_usb_enable_rx(usb);
+	mutex_unlock(&rx->setup_mutex);
+
+	zd_usb_reset_rx_idle_timer(usb);
+
+	return r;
+}
+
+static void __zd_usb_disable_rx(struct zd_usb *usb)
 {
 	int i;
 	unsigned long flags;
@@ -779,6 +795,40 @@ void zd_usb_disable_rx(struct zd_usb *usb)
 	rx->urbs = NULL;
 	rx->urbs_count = 0;
 	spin_unlock_irqrestore(&rx->lock, flags);
+}
+
+void zd_usb_disable_rx(struct zd_usb *usb)
+{
+	struct zd_usb_rx *rx = &usb->rx;
+
+	mutex_lock(&rx->setup_mutex);
+	__zd_usb_disable_rx(usb);
+	mutex_unlock(&rx->setup_mutex);
+
+	cancel_delayed_work_sync(&rx->idle_work);
+}
+
+static void zd_usb_reset_rx(struct zd_usb *usb)
+{
+	bool do_reset;
+	struct zd_usb_rx *rx = &usb->rx;
+	unsigned long flags;
+
+	mutex_lock(&rx->setup_mutex);
+
+	spin_lock_irqsave(&rx->lock, flags);
+	do_reset = rx->urbs != NULL;
+	spin_unlock_irqrestore(&rx->lock, flags);
+
+	if (do_reset) {
+		__zd_usb_disable_rx(usb);
+		__zd_usb_enable_rx(usb);
+	}
+
+	mutex_unlock(&rx->setup_mutex);
+
+	if (do_reset)
+		zd_usb_reset_rx_idle_timer(usb);
 }
 
 /**
@@ -1033,6 +1083,29 @@ void zd_tx_watchdog_disable(struct zd_usb *usb)
 	}
 }
 
+static void zd_rx_idle_timer_handler(struct work_struct *work)
+{
+	struct zd_usb *usb =
+		container_of(work, struct zd_usb, rx.idle_work.work);
+	struct zd_mac *mac = zd_usb_to_mac(usb);
+
+	if (!test_bit(ZD_DEVICE_RUNNING, &mac->flags))
+		return;
+
+	dev_dbg_f(zd_usb_dev(usb), "\n");
+
+	/* 30 seconds since last rx, reset rx */
+	zd_usb_reset_rx(usb);
+}
+
+void zd_usb_reset_rx_idle_timer(struct zd_usb *usb)
+{
+	struct zd_usb_rx *rx = &usb->rx;
+
+	cancel_delayed_work(&rx->idle_work);
+	queue_delayed_work(zd_workqueue, &rx->idle_work, ZD_RX_IDLE_INTERVAL);
+}
+
 static inline void init_usb_interrupt(struct zd_usb *usb)
 {
 	struct zd_usb_interrupt *intr = &usb->intr;
@@ -1047,12 +1120,14 @@ static inline void init_usb_rx(struct zd_usb *usb)
 {
 	struct zd_usb_rx *rx = &usb->rx;
 	spin_lock_init(&rx->lock);
+	mutex_init(&rx->setup_mutex);
 	if (interface_to_usbdev(usb->intf)->speed == USB_SPEED_HIGH) {
 		rx->usb_packet_size = 512;
 	} else {
 		rx->usb_packet_size = 64;
 	}
 	ZD_ASSERT(rx->fragment_length == 0);
+	INIT_DELAYED_WORK(&rx->idle_work, zd_rx_idle_timer_handler);
 }
 
 static inline void init_usb_tx(struct zd_usb *usb)

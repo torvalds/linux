@@ -34,6 +34,7 @@
 
 #define ZD_TX_TIMEOUT		(HZ * 5)
 #define ZD_TX_WATCHDOG_INTERVAL	round_jiffies_relative(HZ)
+#define ZD_RX_IDLE_INTERVAL	round_jiffies_relative(30 * HZ)
 
 enum devicetype {
 	DEVICE_ZD1211  = 0,
@@ -180,7 +181,9 @@ static inline struct usb_int_regs *get_read_regs(struct zd_usb_interrupt *intr)
 
 struct zd_usb_rx {
 	spinlock_t lock;
-	u8 fragment[2*USB_MAX_RX_SIZE];
+	struct mutex setup_mutex;
+	struct delayed_work idle_work;
+	u8 fragment[2 * USB_MAX_RX_SIZE];
 	unsigned int fragment_length;
 	unsigned int usb_packet_size;
 	struct urb **urbs;
@@ -250,6 +253,8 @@ void zd_usb_disable_int(struct zd_usb *usb);
 
 int zd_usb_enable_rx(struct zd_usb *usb);
 void zd_usb_disable_rx(struct zd_usb *usb);
+
+void zd_usb_reset_rx_idle_timer(struct zd_usb *usb);
 
 void zd_usb_enable_tx(struct zd_usb *usb);
 void zd_usb_disable_tx(struct zd_usb *usb);
