@@ -5587,8 +5587,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 					if (sysfs_create_link(&mddev->kobj,
 							      &rdev->kobj, nm))
 						/* Failure here is OK */;
-				} else
-					break;
+				}
 			} else if (rdev->raid_disk >= conf->previous_raid_disks
 				   && !test_bit(Faulty, &rdev->flags)) {
 				/* This is a spare that was manually added */
