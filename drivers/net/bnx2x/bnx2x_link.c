@@ -171,13 +171,13 @@
 /*                     INTERFACE                          */
 /**********************************************************/
 
-#define CL45_WR_OVER_CL22(_bp, _phy, _bank, _addr, _val) \
+#define CL22_WR_OVER_CL45(_bp, _phy, _bank, _addr, _val) \
 	bnx2x_cl45_write(_bp, _phy, \
 		(_phy)->def_md_devad, \
 		(_bank + (_addr & 0xf)), \
 		_val)
 
-#define CL45_RD_OVER_CL22(_bp, _phy, _bank, _addr, _val) \
+#define CL22_RD_OVER_CL45(_bp, _phy, _bank, _addr, _val) \
 	bnx2x_cl45_read(_bp, _phy, \
 		(_phy)->def_md_devad, \
 		(_bank + (_addr & 0xf)), \
@@ -1553,13 +1553,13 @@ static void bnx2x_set_aer_mmd_xgxs(struct link_params *params,
 		aer_val = 0x3800 + offset - 1;
 	else
 		aer_val = 0x3800 + offset;
-	CL45_WR_OVER_CL22(bp, phy, MDIO_REG_BANK_AER_BLOCK,
+	CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
 			  MDIO_AER_BLOCK_AER_REG, aer_val);
 }
 static void bnx2x_set_aer_mmd_serdes(struct bnx2x *bp,
 				     struct bnx2x_phy *phy)
 {
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_AER_BLOCK,
 			  MDIO_AER_BLOCK_AER_REG, 0x3800);
 }
@@ -1758,12 +1758,12 @@ static void bnx2x_set_master_ln(struct link_params *params,
 		    PORT_HW_CFG_LANE_SWAP_CFG_MASTER_SHIFT);
 
 	/* set the master_ln for AN */
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_XGXS_BLOCK2,
 			  MDIO_XGXS_BLOCK2_TEST_MODE_LANE,
 			  &new_master_ln);
 
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_XGXS_BLOCK2 ,
 			  MDIO_XGXS_BLOCK2_TEST_MODE_LANE,
 			  (new_master_ln | ser_lane));
@@ -1776,13 +1776,12 @@ static u8 bnx2x_reset_unicore(struct link_params *params,
 	struct bnx2x *bp = params->bp;
 	u16 mii_control;
 	u16 i;
-
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_COMBO_IEEE0,
 			  MDIO_COMBO_IEEE0_MII_CONTROL, &mii_control);
 
 	/* reset the unicore */
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_COMBO_IEEE0,
 			  MDIO_COMBO_IEEE0_MII_CONTROL,
 			  (mii_control |
@@ -1795,7 +1794,7 @@ static u8 bnx2x_reset_unicore(struct link_params *params,
 		udelay(5);
 
 		/* the reset erased the previous bank value */
-		CL45_RD_OVER_CL22(bp, phy,
+		CL22_RD_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_COMBO_IEEE0,
 				  MDIO_COMBO_IEEE0_MII_CONTROL,
 				  &mii_control);
@@ -1830,26 +1829,26 @@ static void bnx2x_set_swap_lanes(struct link_params *params,
 			PORT_HW_CFG_LANE_SWAP_CFG_TX_SHIFT);
 
 	if (rx_lane_swap != 0x1b) {
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_XGXS_BLOCK2,
 				  MDIO_XGXS_BLOCK2_RX_LN_SWAP,
 				  (rx_lane_swap |
 				   MDIO_XGXS_BLOCK2_RX_LN_SWAP_ENABLE |
 				   MDIO_XGXS_BLOCK2_RX_LN_SWAP_FORCE_ENABLE));
 	} else {
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_XGXS_BLOCK2,
 				  MDIO_XGXS_BLOCK2_RX_LN_SWAP, 0);
 	}
 
 	if (tx_lane_swap != 0x1b) {
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_XGXS_BLOCK2,
 				  MDIO_XGXS_BLOCK2_TX_LN_SWAP,
 				  (tx_lane_swap |
 				   MDIO_XGXS_BLOCK2_TX_LN_SWAP_ENABLE));
 	} else {
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_XGXS_BLOCK2,
 				  MDIO_XGXS_BLOCK2_TX_LN_SWAP, 0);
 	}
@@ -1860,7 +1859,7 @@ static void bnx2x_set_parallel_detection(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u16 control2;
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_SERDES_DIGITAL,
 			  MDIO_SERDES_DIGITAL_A_1000X_CONTROL2,
 			  &control2);
@@ -1870,7 +1869,7 @@ static void bnx2x_set_parallel_detection(struct bnx2x_phy *phy,
 		control2 &= ~MDIO_SERDES_DIGITAL_A_1000X_CONTROL2_PRL_DT_EN;
 	DP(NETIF_MSG_LINK, "phy->speed_cap_mask = 0x%x, control2 = 0x%x\n",
 		phy->speed_cap_mask, control2);
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_SERDES_DIGITAL,
 			  MDIO_SERDES_DIGITAL_A_1000X_CONTROL2,
 			  control2);
@@ -1880,12 +1879,12 @@ static void bnx2x_set_parallel_detection(struct bnx2x_phy *phy,
 		    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)) {
 		DP(NETIF_MSG_LINK, "XGXS\n");
 
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				 MDIO_REG_BANK_10G_PARALLEL_DETECT,
 				 MDIO_10G_PARALLEL_DETECT_PAR_DET_10G_LINK,
 				 MDIO_10G_PARALLEL_DETECT_PAR_DET_10G_LINK_CNT);
 
-		CL45_RD_OVER_CL22(bp, phy,
+		CL22_RD_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_10G_PARALLEL_DETECT,
 				  MDIO_10G_PARALLEL_DETECT_PAR_DET_10G_CONTROL,
 				  &control2);
@@ -1894,13 +1893,13 @@ static void bnx2x_set_parallel_detection(struct bnx2x_phy *phy,
 		control2 |=
 		    MDIO_10G_PARALLEL_DETECT_PAR_DET_10G_CONTROL_PARDET10G_EN;
 
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_10G_PARALLEL_DETECT,
 				  MDIO_10G_PARALLEL_DETECT_PAR_DET_10G_CONTROL,
 				  control2);
 
 		/* Disable parallel detection of HiG */
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_XGXS_BLOCK2,
 				  MDIO_XGXS_BLOCK2_UNICORE_MODE_10G,
 				  MDIO_XGXS_BLOCK2_UNICORE_MODE_10G_CX4_XGXS |
@@ -1917,7 +1916,7 @@ static void bnx2x_set_autoneg(struct bnx2x_phy *phy,
 	u16 reg_val;
 
 	/* CL37 Autoneg */
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_COMBO_IEEE0,
 			  MDIO_COMBO_IEEE0_MII_CONTROL, &reg_val);
 
@@ -1928,13 +1927,13 @@ static void bnx2x_set_autoneg(struct bnx2x_phy *phy,
 		reg_val &= ~(MDIO_COMBO_IEEO_MII_CONTROL_AN_EN |
 			     MDIO_COMBO_IEEO_MII_CONTROL_RESTART_AN);
 
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_COMBO_IEEE0,
 			  MDIO_COMBO_IEEE0_MII_CONTROL, reg_val);
 
 	/* Enable/Disable Autodetection */
 
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_SERDES_DIGITAL,
 			  MDIO_SERDES_DIGITAL_A_1000X_CONTROL1, &reg_val);
 	reg_val &= ~(MDIO_SERDES_DIGITAL_A_1000X_CONTROL1_SIGNAL_DETECT_EN |
@@ -1945,12 +1944,12 @@ static void bnx2x_set_autoneg(struct bnx2x_phy *phy,
 	else
 		reg_val &= ~MDIO_SERDES_DIGITAL_A_1000X_CONTROL1_AUTODET;
 
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_SERDES_DIGITAL,
 			  MDIO_SERDES_DIGITAL_A_1000X_CONTROL1, reg_val);
 
 	/* Enable TetonII and BAM autoneg */
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_BAM_NEXT_PAGE,
 			  MDIO_BAM_NEXT_PAGE_MP5_NEXT_PAGE_CTRL,
 			  &reg_val);
@@ -1963,20 +1962,20 @@ static void bnx2x_set_autoneg(struct bnx2x_phy *phy,
 		reg_val &= ~(MDIO_BAM_NEXT_PAGE_MP5_NEXT_PAGE_CTRL_BAM_MODE |
 			     MDIO_BAM_NEXT_PAGE_MP5_NEXT_PAGE_CTRL_TETON_AN);
 	}
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_BAM_NEXT_PAGE,
 			  MDIO_BAM_NEXT_PAGE_MP5_NEXT_PAGE_CTRL,
 			  reg_val);
 
 	if (enable_cl73) {
 		/* Enable Cl73 FSM status bits */
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_CL73_USERB0,
 				  MDIO_CL73_USERB0_CL73_UCTRL,
 				  0xe);
 
 		/* Enable BAM Station Manager*/
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 			MDIO_REG_BANK_CL73_USERB0,
 			MDIO_CL73_USERB0_CL73_BAM_CTRL1,
 			MDIO_CL73_USERB0_CL73_BAM_CTRL1_BAM_EN |
@@ -1984,7 +1983,7 @@ static void bnx2x_set_autoneg(struct bnx2x_phy *phy,
 			MDIO_CL73_USERB0_CL73_BAM_CTRL1_BAM_NP_AFTER_BP_EN);
 
 		/* Advertise CL73 link speeds */
-		CL45_RD_OVER_CL22(bp, phy,
+		CL22_RD_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_CL73_IEEEB1,
 				  MDIO_CL73_IEEEB1_AN_ADV2,
 				  &reg_val);
@@ -1995,7 +1994,7 @@ static void bnx2x_set_autoneg(struct bnx2x_phy *phy,
 		    PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)
 			reg_val |= MDIO_CL73_IEEEB1_AN_ADV2_ADVR_1000M_KX;
 
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_CL73_IEEEB1,
 				  MDIO_CL73_IEEEB1_AN_ADV2,
 				  reg_val);
@@ -2006,7 +2005,7 @@ static void bnx2x_set_autoneg(struct bnx2x_phy *phy,
 	} else /* CL73 Autoneg Disabled */
 		reg_val = 0;
 
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_CL73_IEEEB0,
 			  MDIO_CL73_IEEEB0_CL73_AN_CONTROL, reg_val);
 }
@@ -2020,7 +2019,7 @@ static void bnx2x_program_serdes(struct bnx2x_phy *phy,
 	u16 reg_val;
 
 	/* program duplex, disable autoneg and sgmii*/
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_COMBO_IEEE0,
 			  MDIO_COMBO_IEEE0_MII_CONTROL, &reg_val);
 	reg_val &= ~(MDIO_COMBO_IEEO_MII_CONTROL_FULL_DUPLEX |
@@ -2028,13 +2027,13 @@ static void bnx2x_program_serdes(struct bnx2x_phy *phy,
 		     MDIO_COMBO_IEEO_MII_CONTROL_MAN_SGMII_SP_MASK);
 	if (phy->req_duplex == DUPLEX_FULL)
 		reg_val |= MDIO_COMBO_IEEO_MII_CONTROL_FULL_DUPLEX;
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_COMBO_IEEE0,
 			  MDIO_COMBO_IEEE0_MII_CONTROL, reg_val);
 
 	/* program speed
 	   - needed only if the speed is greater than 1G (2.5G or 10G) */
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_SERDES_DIGITAL,
 			  MDIO_SERDES_DIGITAL_MISC1, &reg_val);
 	/* clearing the speed value before setting the right speed */
@@ -2057,7 +2056,7 @@ static void bnx2x_program_serdes(struct bnx2x_phy *phy,
 				MDIO_SERDES_DIGITAL_MISC1_FORCE_SPEED_13G;
 	}
 
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_SERDES_DIGITAL,
 			  MDIO_SERDES_DIGITAL_MISC1, reg_val);
 
@@ -2076,11 +2075,11 @@ static void bnx2x_set_brcm_cl37_advertisment(struct bnx2x_phy *phy,
 		val |= MDIO_OVER_1G_UP1_2_5G;
 	if (phy->speed_cap_mask & PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)
 		val |= MDIO_OVER_1G_UP1_10G;
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_OVER_1G,
 			  MDIO_OVER_1G_UP1, val);
 
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_OVER_1G,
 			  MDIO_OVER_1G_UP3, 0x400);
 }
@@ -2126,15 +2125,15 @@ static void bnx2x_set_ieee_aneg_advertisment(struct bnx2x_phy *phy,
 	u16 val;
 	/* for AN, we are always publishing full duplex */
 
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_COMBO_IEEE0,
 			  MDIO_COMBO_IEEE0_AUTO_NEG_ADV, ieee_fc);
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_CL73_IEEEB1,
 			  MDIO_CL73_IEEEB1_AN_ADV1, &val);
 	val &= ~MDIO_CL73_IEEEB1_AN_ADV1_PAUSE_BOTH;
 	val |= ((ieee_fc<<3) & MDIO_CL73_IEEEB1_AN_ADV1_PAUSE_MASK);
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_CL73_IEEEB1,
 			  MDIO_CL73_IEEEB1_AN_ADV1, val);
 }
@@ -2150,12 +2149,12 @@ static void bnx2x_restart_autoneg(struct bnx2x_phy *phy,
 	/* Enable and restart BAM/CL37 aneg */
 
 	if (enable_cl73) {
-		CL45_RD_OVER_CL22(bp, phy,
+		CL22_RD_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_CL73_IEEEB0,
 				  MDIO_CL73_IEEEB0_CL73_AN_CONTROL,
 				  &mii_control);
 
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_CL73_IEEEB0,
 				  MDIO_CL73_IEEEB0_CL73_AN_CONTROL,
 				  (mii_control |
@@ -2163,14 +2162,14 @@ static void bnx2x_restart_autoneg(struct bnx2x_phy *phy,
 				  MDIO_CL73_IEEEB0_CL73_AN_CONTROL_RESTART_AN));
 	} else {
 
-		CL45_RD_OVER_CL22(bp, phy,
+		CL22_RD_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_COMBO_IEEE0,
 				  MDIO_COMBO_IEEE0_MII_CONTROL,
 				  &mii_control);
 		DP(NETIF_MSG_LINK,
 			 "bnx2x_restart_autoneg mii_control before = 0x%x\n",
 			 mii_control);
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_COMBO_IEEE0,
 				  MDIO_COMBO_IEEE0_MII_CONTROL,
 				  (mii_control |
@@ -2188,7 +2187,7 @@ static void bnx2x_initialize_sgmii_process(struct bnx2x_phy *phy,
 
 	/* in SGMII mode, the unicore is always slave */
 
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_SERDES_DIGITAL,
 			  MDIO_SERDES_DIGITAL_A_1000X_CONTROL1,
 			  &control1);
@@ -2197,7 +2196,7 @@ static void bnx2x_initialize_sgmii_process(struct bnx2x_phy *phy,
 	control1 &= ~(MDIO_SERDES_DIGITAL_A_1000X_CONTROL1_FIBER_MODE |
 		      MDIO_SERDES_DIGITAL_A_1000X_CONTROL1_AUTODET |
 		      MDIO_SERDES_DIGITAL_A_1000X_CONTROL1_MSTR_MODE);
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_SERDES_DIGITAL,
 			  MDIO_SERDES_DIGITAL_A_1000X_CONTROL1,
 			  control1);
@@ -2207,7 +2206,7 @@ static void bnx2x_initialize_sgmii_process(struct bnx2x_phy *phy,
 		/* set speed, disable autoneg */
 		u16 mii_control;
 
-		CL45_RD_OVER_CL22(bp, phy,
+		CL22_RD_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_COMBO_IEEE0,
 				  MDIO_COMBO_IEEE0_MII_CONTROL,
 				  &mii_control);
@@ -2238,7 +2237,7 @@ static void bnx2x_initialize_sgmii_process(struct bnx2x_phy *phy,
 		if (phy->req_duplex == DUPLEX_FULL)
 			mii_control |=
 				MDIO_COMBO_IEEO_MII_CONTROL_FULL_DUPLEX;
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_COMBO_IEEE0,
 				  MDIO_COMBO_IEEE0_MII_CONTROL,
 				  mii_control);
@@ -2288,11 +2287,11 @@ static u8 bnx2x_direct_parallel_detect_used(struct bnx2x_phy *phy,
 	u16 pd_10g, status2_1000x;
 	if (phy->req_line_speed != SPEED_AUTO_NEG)
 		return 0;
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_SERDES_DIGITAL,
 			  MDIO_SERDES_DIGITAL_A_1000X_STATUS2,
 			  &status2_1000x);
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_SERDES_DIGITAL,
 			  MDIO_SERDES_DIGITAL_A_1000X_STATUS2,
 			  &status2_1000x);
@@ -2302,7 +2301,7 @@ static u8 bnx2x_direct_parallel_detect_used(struct bnx2x_phy *phy,
 		return 1;
 	}
 
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_10G_PARALLEL_DETECT,
 			  MDIO_10G_PARALLEL_DETECT_PAR_DET_10G_STATUS,
 			  &pd_10g);
@@ -2344,11 +2343,11 @@ static void bnx2x_flow_ctrl_resolve(struct bnx2x_phy *phy,
 		    (MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_AUTONEG_COMPLETE |
 		     MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_MR_LP_NP_AN_ABLE)) {
 
-			CL45_RD_OVER_CL22(bp, phy,
+			CL22_RD_OVER_CL45(bp, phy,
 					  MDIO_REG_BANK_CL73_IEEEB1,
 					  MDIO_CL73_IEEEB1_AN_ADV1,
 					  &ld_pause);
-			CL45_RD_OVER_CL22(bp, phy,
+			CL22_RD_OVER_CL45(bp, phy,
 					  MDIO_REG_BANK_CL73_IEEEB1,
 					  MDIO_CL73_IEEEB1_AN_LP_ADV1,
 					  &lp_pause);
@@ -2361,11 +2360,11 @@ static void bnx2x_flow_ctrl_resolve(struct bnx2x_phy *phy,
 			DP(NETIF_MSG_LINK, "pause_result CL73 0x%x\n",
 				 pause_result);
 		} else {
-			CL45_RD_OVER_CL22(bp, phy,
+			CL22_RD_OVER_CL45(bp, phy,
 					  MDIO_REG_BANK_COMBO_IEEE0,
 					  MDIO_COMBO_IEEE0_AUTO_NEG_ADV,
 					  &ld_pause);
-			CL45_RD_OVER_CL22(bp, phy,
+			CL22_RD_OVER_CL45(bp, phy,
 				MDIO_REG_BANK_COMBO_IEEE0,
 				MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1,
 				&lp_pause);
@@ -2388,7 +2387,7 @@ static void bnx2x_check_fallback_to_cl37(struct bnx2x_phy *phy,
 	u16 rx_status, ustat_val, cl37_fsm_recieved;
 	DP(NETIF_MSG_LINK, "bnx2x_check_fallback_to_cl37\n");
 	/* Step 1: Make sure signal is detected */
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_RX0,
 			  MDIO_RX0_RX_STATUS,
 			  &rx_status);
@@ -2396,14 +2395,14 @@ static void bnx2x_check_fallback_to_cl37(struct bnx2x_phy *phy,
 	    (MDIO_RX0_RX_STATUS_SIGDET)) {
 		DP(NETIF_MSG_LINK, "Signal is not detected. Restoring CL73."
 			     "rx_status(0x80b0) = 0x%x\n", rx_status);
-		CL45_WR_OVER_CL22(bp, phy,
+		CL22_WR_OVER_CL45(bp, phy,
 				  MDIO_REG_BANK_CL73_IEEEB0,
 				  MDIO_CL73_IEEEB0_CL73_AN_CONTROL,
 				  MDIO_CL73_IEEEB0_CL73_AN_CONTROL_AN_EN);
 		return;
 	}
 	/* Step 2: Check CL73 state machine */
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_CL73_USERB0,
 			  MDIO_CL73_USERB0_CL73_USTAT1,
 			  &ustat_val);
@@ -2418,7 +2417,7 @@ static void bnx2x_check_fallback_to_cl37(struct bnx2x_phy *phy,
 	}
 	/* Step 3: Check CL37 Message Pages received to indicate LP
 	supports only CL37 */
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_REMOTE_PHY,
 			  MDIO_REMOTE_PHY_MISC_RX_STATUS,
 			  &cl37_fsm_recieved);
@@ -2436,7 +2435,7 @@ static void bnx2x_check_fallback_to_cl37(struct bnx2x_phy *phy,
 	connected to a device which does not support cl73, but does support
 	cl37 BAM. In this case we disable cl73 and restart cl37 auto-neg */
 	/* Disable CL73 */
-	CL45_WR_OVER_CL22(bp, phy,
+	CL22_WR_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_CL73_IEEEB0,
 			  MDIO_CL73_IEEEB0_CL73_AN_CONTROL,
 			  0);
@@ -2468,7 +2467,7 @@ static u8 bnx2x_link_settings_status(struct bnx2x_phy *phy,
 	u8 rc = 0;
 
 	/* Read gp_status */
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_GP_STATUS,
 			  MDIO_GP_STATUS_TOP_AN_STATUS1,
 			  &gp_status);
@@ -2608,7 +2607,7 @@ static void bnx2x_set_gmii_tx_driver(struct link_params *params)
 	u16 bank;
 
 	/* read precomp */
-	CL45_RD_OVER_CL22(bp, phy,
+	CL22_RD_OVER_CL45(bp, phy,
 			  MDIO_REG_BANK_OVER_1G,
 			  MDIO_OVER_1G_LP_UP2, &lp_up2);
 
@@ -2622,7 +2621,7 @@ static void bnx2x_set_gmii_tx_driver(struct link_params *params)
 
 	for (bank = MDIO_REG_BANK_TX0; bank <= MDIO_REG_BANK_TX3;
 	      bank += (MDIO_REG_BANK_TX1 - MDIO_REG_BANK_TX0)) {
-		CL45_RD_OVER_CL22(bp, phy,
+		CL22_RD_OVER_CL45(bp, phy,
 				  bank,
 				  MDIO_TX0_TX_DRIVER, &tx_driver);
 
@@ -2631,7 +2630,7 @@ static void bnx2x_set_gmii_tx_driver(struct link_params *params)
 		    (tx_driver & MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK)) {
 			tx_driver &= ~MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK;
 			tx_driver |= lp_up2;
-			CL45_WR_OVER_CL22(bp, phy,
+			CL22_WR_OVER_CL45(bp, phy,
 					  bank,
 					  MDIO_TX0_TX_DRIVER, tx_driver);
 		}
@@ -2694,7 +2693,7 @@ static void bnx2x_set_preemphasis(struct bnx2x_phy *phy,
 
 	for (bank = MDIO_REG_BANK_RX0, i = 0; bank <= MDIO_REG_BANK_RX3;
 	      bank += (MDIO_REG_BANK_RX1-MDIO_REG_BANK_RX0), i++) {
-			CL45_WR_OVER_CL22(bp, phy,
+			CL22_WR_OVER_CL45(bp, phy,
 					  bank,
 					  MDIO_RX0_RX_EQ_BOOST,
 					  phy->rx_preemphasis[i]);
@@ -2702,7 +2701,7 @@ static void bnx2x_set_preemphasis(struct bnx2x_phy *phy,
 
 	for (bank = MDIO_REG_BANK_TX0, i = 0; bank <= MDIO_REG_BANK_TX3;
 		      bank += (MDIO_REG_BANK_TX1 - MDIO_REG_BANK_TX0), i++) {
-			CL45_WR_OVER_CL22(bp, phy,
+			CL22_WR_OVER_CL45(bp, phy,
 					  bank,
 					  MDIO_TX0_TX_DRIVER,
 					  phy->tx_preemphasis[i]);
@@ -3208,7 +3207,7 @@ u8 bnx2x_test_link(struct link_params *params, struct link_vars *vars,
 	u8 ext_phy_link_up = 0, serdes_phy_type;
 	struct link_vars temp_vars;
 
-	CL45_RD_OVER_CL22(bp, &params->phy[INT_PHY],
+	CL22_RD_OVER_CL45(bp, &params->phy[INT_PHY],
 			  MDIO_REG_BANK_GP_STATUS,
 			  MDIO_GP_STATUS_TOP_AN_STATUS1,
 			  &gp_status);
