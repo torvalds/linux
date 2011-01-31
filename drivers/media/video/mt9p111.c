@@ -76,7 +76,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\
-                          SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |\
+                          SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |\
                           SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
 
 #define COLOR_TEMPERATURE_CLOUDY_DN  6500
@@ -1238,50 +1238,6 @@ static struct reginfo sensor_init_data[] =
 	{0x8404, 0x06},    // SEQ_CMD},
 
 	{SEQUENCE_WAIT_MS,300},
-
-	//[Step8-Features]},
-	//AF_VCM_enable},
-	{0xC400, 0x88},    // AFM_ALGO},
-	{0x8419, 0x05},    // SEQ_STATE_CFG_1_AF},
-	{0xC400, 0x08},    // AFM_ALGO},
-	//AF_settings},
-	{0xB002, 0x0305},    // AF_MODE},
-	{0xB004, 0x0002},    // AF_ALGO},
-//{0xB008, 0x0003FFFF},    // AF_ZONE_WEIGHTS_HI},
-//{0xB00C, 0xFFFFFFFF},    // AF_ZONE_WEIGHTS_LO},
-	//set_posMin/Max},
-	{0xC40A, 0x0028},    // AFM_POS_MIN},
-	{0xC40C, 0x00BE},    // AFM_POS_MAX},
-	//AF_postition_settings},
-	{0xB018, 0x00},    // AF_FS_POS_0},
-	{0xB019, 0x14},    // AF_FS_POS_1},
-	{0xB01A, 0x20},    // AF_FS_POS_2},
-	{0xB01B, 0x2C},    // AF_FS_POS_3},
-	{0xB01C, 0x38},    // AF_FS_POS_4},
-	{0xB01D, 0x44},    // AF_FS_POS_5},
-	{0xB01E, 0x50},    // AF_FS_POS_6},
-	{0xB01F, 0x5C},    // AF_FS_POS_7},
-	{0xB020, 0x68},    // AF_FS_POS_8},
-	{0xB021, 0x74},    // AF_FS_POS_9},
-	{0xB022, 0x80},    // AF_FS_POS_10},
-	{0xB023, 0x8C},    // AF_FS_POS_11},
-	{0xB024, 0x98},    // AF_FS_POS_12},
-	{0xB025, 0xA4},    // AF_FS_POS_13},
-	{0xB026, 0xB0},    // AF_FS_POS_14},
-	{0xB027, 0xBC},    // AF_FS_POS_15},
-	{0xB012, 0x0F},    // AF_FS_NUM_STEPS},
-	{0xB014, 0x0B},    // AF_FS_STEP_SIZE},
-	// 2nd_scan_option},
-	{0x098E, 0xB013},    // LOGICAL_ADDRESS_ACCESS [AF_FS_NUM_STEPS2]},
-	{0xB013, 0x77},    // AF_FS_NUM_STEPS2},
-	{0xB014, 0x05},    // AF_FS_STEP_SIZE},
-
-	{0x002A, 0x7F7A},    // PLL_P4_P5_P6_DIVIDERS},
-	{0x8404, 0x05},    // SEQ_CMD},
-	{SEQUENCE_WAIT_MS,300},
-	{0x0018, 0x2008},    // STANDBY_CONTROL_AND_STATUS},
-	{SEQUENCE_WAIT_MS,100},
-
 	{SEQUENCE_END, 0x00}
 };
 
@@ -1637,6 +1593,9 @@ static struct reginfo *sensor_BrightnessSeqe[] = {sensor_Brightness0, sensor_Bri
 #if CONFIG_SENSOR_Effect
 static  struct reginfo sensor_Effect_Normal[] =
 {
+	{0x098e,0xdc38},
+	{0xdc38,0x00},
+	{0x8404,0x06},
 	{SEQUENCE_END, 0x00}
 };
 
@@ -1647,11 +1606,19 @@ static  struct reginfo sensor_Effect_WandB[] =
 
 static  struct reginfo sensor_Effect_Sepia[] =
 {
+	{0x098e,0xdc38},
+	{0xdc38,0x02},
+	{0xdc3a,0x10},
+	{0xdc3b,0xe0},
+	{0x8404,0x06},
 	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Effect_Negative[] =
 {
+	{0x098e,0xdc38},
+	{0xdc38,0x03},
+	{0x8404,0x06},
 	{SEQUENCE_END, 0x00}
 };
 static  struct reginfo sensor_Effect_Bluish[] =
@@ -1663,8 +1630,17 @@ static  struct reginfo sensor_Effect_Green[] =
 {
 	{SEQUENCE_END, 0x00}
 };
-static struct reginfo *sensor_EffectSeqe[] = {sensor_Effect_Normal, sensor_Effect_WandB, sensor_Effect_Negative,sensor_Effect_Sepia,
-    sensor_Effect_Bluish, sensor_Effect_Green,NULL,
+
+static struct reginfo sensor_Effect_Solarize[] =
+{
+	{0x098e,0xdc38},
+	{0xdc38,0x05},
+	{0xdc39,0x20},
+	{0x8404,0x06},
+	{SEQUENCE_END, 0x00}
+};
+static struct reginfo *sensor_EffectSeqe[] = {sensor_Effect_Normal, sensor_Effect_Negative,sensor_Effect_Sepia,
+    sensor_Effect_Solarize,NULL,
 };
 #endif
 #if CONFIG_SENSOR_Exposure
@@ -1836,9 +1812,8 @@ static const struct v4l2_querymenu sensor_menus[] =
     #endif
 
 	#if CONFIG_SENSOR_Effect
-    { .id = V4L2_CID_EFFECT,  .index = 0,  .name = "none",  .reserved = 0, }, {  .id = V4L2_CID_EFFECT,  .index = 1, .name = "mono",  .reserved = 0,},
-    { .id = V4L2_CID_EFFECT,  .index = 2,  .name = "negative", .reserved = 0,}, {  .id = V4L2_CID_EFFECT, .index = 3,  .name = "sepia", .reserved = 0,},
-    { .id = V4L2_CID_EFFECT,  .index = 4, .name = "posterize", .reserved = 0,} ,{ .id = V4L2_CID_EFFECT,  .index = 5,  .name = "aqua", .reserved = 0,},
+    { .id = V4L2_CID_EFFECT,  .index = 0,  .name = "none",  .reserved = 0, }, {  .id = V4L2_CID_EFFECT,  .index = 1, .name = "negative",  .reserved = 0,},
+    { .id = V4L2_CID_EFFECT,  .index = 2,  .name = "sepia", .reserved = 0,}, {  .id = V4L2_CID_EFFECT, .index = 3,  .name = "solarize", .reserved = 0,},
     #endif
 
 	#if CONFIG_SENSOR_Scene
@@ -1883,7 +1858,7 @@ static const struct v4l2_queryctrl sensor_controls[] =
         .type		= V4L2_CTRL_TYPE_MENU,
         .name		= "Effect Control",
         .minimum	= 0,
-        .maximum	= 5,
+        .maximum	= 3,
         .step		= 1,
         .default_value = 0,
     },
@@ -2330,11 +2305,69 @@ static int sensor_readchk_array(struct i2c_client *client, struct reginfo *regar
 }
 #endif
 #if CONFIG_SENSOR_Focus
+static struct reginfo sensor_af_init0[] =
+{
+	//[Step8-Features]},
+	//AF_VCM_enable},
+	{0xC400, 0x88},    // AFM_ALGO},
+	{0x8419, 0x05},    // SEQ_STATE_CFG_1_AF},
+	{0xC400, 0x08},    // AFM_ALGO},
+	//AF_settings},
+	{0xB002, 0x0305},    // AF_MODE},
+	{0xB004, 0x0002},    // AF_ALGO},
+	{SEQUENCE_END, 0x00}
+};
+static struct reginfo sensor_af_init1[] =
+{
+	//set_posMin/Max},
+	{0xC40A, 0x0028},    // AFM_POS_MIN},
+	{0xC40C, 0x00BE},    // AFM_POS_MAX},
+	//AF_postition_settings},
+	{0xB018, 0x00},    // AF_FS_POS_0},
+	{0xB019, 0x14},    // AF_FS_POS_1},
+	{0xB01A, 0x20},    // AF_FS_POS_2},
+	{0xB01B, 0x2C},    // AF_FS_POS_3},
+	{0xB01C, 0x38},    // AF_FS_POS_4},
+	{0xB01D, 0x44},    // AF_FS_POS_5},
+	{0xB01E, 0x50},    // AF_FS_POS_6},
+	{0xB01F, 0x5C},    // AF_FS_POS_7},
+	{0xB020, 0x68},    // AF_FS_POS_8},
+	{0xB021, 0x74},    // AF_FS_POS_9},
+	{0xB022, 0x80},    // AF_FS_POS_10},
+	{0xB023, 0x8C},    // AF_FS_POS_11},
+	{0xB024, 0x98},    // AF_FS_POS_12},
+	{0xB025, 0xA4},    // AF_FS_POS_13},
+	{0xB026, 0xB0},    // AF_FS_POS_14},
+	{0xB027, 0xBC},    // AF_FS_POS_15},
+	{0xB012, 0x0F},    // AF_FS_NUM_STEPS},
+	{0xB014, 0x0B},    // AF_FS_STEP_SIZE},
+	// 2nd_scan_option},
+	{0x098E, 0xB013},    // LOGICAL_ADDRESS_ACCESS [AF_FS_NUM_STEPS2]},
+	{0xB013, 0x77},    // AF_FS_NUM_STEPS2},
+	{0xB014, 0x05},    // AF_FS_STEP_SIZE},
 
+	{0x002A, 0x7F7A},    // PLL_P4_P5_P6_DIVIDERS},
+	{0x8404, 0x05},    // SEQ_CMD},
+	{SEQUENCE_WAIT_MS,300},
+	{0x0018, 0x2008},    // STANDBY_CONTROL_AND_STATUS},
+	{SEQUENCE_WAIT_MS,100},
+	{SEQUENCE_END, 0x00}
+};
+
+
+static struct reginfo sensor_af_trigger[] =
+{
+	{0x098e,0xb006},
+	{0xb006,0x01},
+	{SEQUENCE_END, 0x00}
+};
 static int sensor_af_single(struct i2c_client *client)
 {
 	int ret = 0;
 
+	ret = sensor_write_array(client, sensor_af_trigger);
+	if (ret<0)
+		SENSOR_TR("%s sensor auto focus trigger fail!!",SENSOR_NAME_STRING());
 sensor_af_single_end:
 	return ret;
 }
@@ -2350,8 +2383,55 @@ sensor_af_const_end:
 static int sensor_af_zoneupdate(struct i2c_client *client)
 {
 	int ret = 0;
+	struct i2c_msg msg[2];
+    u8 buf[2][6] =
+	{
+		{0xb0,0x08,0x00,0x03,0xff,0xff},
+		{0xb0,0x0c,0xff,0xff,0xff,0xff},
+	};
+
+    msg[0].addr = client->addr;
+    msg[0].flags = client->flags;
+    msg[0].buf = buf[0];
+    msg[0].len = sizeof(buf);
+    msg[0].scl_rate = CONFIG_SENSOR_I2C_SPEED;         /* ddl@rock-chips.com : 100kHz */
+    msg[0].read_type = 0;               /* fpga i2c:0==I2C_NORMAL : direct use number not enum for don't want include spi_fpga.h */
+
+    msg[1].addr = client->addr;
+    msg[1].flags = client->flags;
+    msg[1].buf = buf[1];
+    msg[1].len = sizeof(buf);
+    msg[1].scl_rate = CONFIG_SENSOR_I2C_SPEED;         /* ddl@rock-chips.com : 100kHz */
+    msg[1].read_type = 0;               /* fpga i2c:0==I2C_NORMAL : direct use number not enum for don't want include spi_fpga.h */
+
+    ret = i2c_transfer(client->adapter, &msg[0], 1);
+	ret |= i2c_transfer(client->adapter, &msg[1], 1);
+    if (ret >= 0) {
+        return 0;
+    } else {
+    	SENSOR_TR("\n %s sensor auto focus zone set fail!!\n",SENSOR_NAME_STRING());
+    }
 
 sensor_af_zoneupdate_end:
+	return ret;
+}
+
+static int sensor_af_init(struct i2c_client *client)
+{
+	int ret = 0;
+
+	ret = sensor_write_array(client, sensor_af_init0);
+	if (ret<0) {
+		SENSOR_TR("%s sensor auto focus init_0 fail!!",SENSOR_NAME_STRING());
+	} else {
+		if (sensor_af_zoneupdate(client) == 0) {
+			ret = sensor_write_array(client, sensor_af_init1);
+			if (ret<0) {
+				SENSOR_TR("%s sensor auto focus init_1 fail!!",SENSOR_NAME_STRING());
+			}
+		}
+	}
+
 	return ret;
 }
 #endif
