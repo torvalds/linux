@@ -589,12 +589,10 @@ static int proc_get_stats_rx(char *page, char **start,
 	len += snprintf(page + len, count - len,
 		"RX packets: %lu\n"
 		"RX desc err: %lu\n"
-		"RX rx overflow error: %lu\n"
-		"RX invalid urb error: %lu\n",
+		"RX rx overflow error: %lu\n",
 		priv->stats.rxint,
 		priv->stats.rxrdu,
-		priv->stats.rxoverflow,
-		priv->stats.rxurberr);
+		priv->stats.rxoverflow);
 
 	*eof = 1;
 	return len;
