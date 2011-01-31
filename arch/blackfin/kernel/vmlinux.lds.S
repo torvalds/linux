@@ -136,7 +136,7 @@ SECTIONS
 
 	. = ALIGN(16);
 	INIT_DATA_SECTION(16)
-	PERCPU(32, 4)
+	PERCPU(32, PAGE_SIZE)
 
 	.exit.data :
 	{
