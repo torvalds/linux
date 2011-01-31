@@ -478,24 +478,25 @@ checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length)
 			if (((4 + len) & 0xFFFF) == (clc_len & 0xFFFF))
 				return 0; /* bcc wrapped */
 		}
-		cFYI(1, "Calculated size %d vs length %d mismatch for mid %d",
+		cFYI(1, "Calculated size %u vs length %u mismatch for mid=%u",
 				clc_len, 4 + len, smb->Mid);
-		/* Windows XP can return a few bytes too much, presumably
-		an illegal pad, at the end of byte range lock responses
-		so we allow for that three byte pad, as long as actual
-		received length is as long or longer than calculated length */
-		/* We have now had to extend this more, since there is a
-		case in which it needs to be bigger still to handle a
-		malformed response to transact2 findfirst from WinXP when
-		access denied is returned and thus bcc and wct are zero
-		but server says length is 0x21 bytes too long as if the server
-		forget to reset the smb rfc1001 length when it reset the
-		wct and bcc to minimum size and drop the t2 parms and data */
-		if ((4+len > clc_len) && (len <= clc_len + 512))
-			return 0;
-		else {
-			cERROR(1, "RFC1001 size %d bigger than SMB for Mid=%d",
+
+		if (4 + len < clc_len) {
+			cERROR(1, "RFC1001 size %u smaller than SMB for mid=%u",
 					len, smb->Mid);
+			return 1;
+		} else if (len > clc_len + 512) {
+			/*
+			 * Some servers (Windows XP in particular) send more
+			 * data than the lengths in the SMB packet would
+			 * indicate on certain calls (byte range locks and
+			 * trans2 find first calls in particular). While the
+			 * client can handle such a frame by ignoring the
+			 * trailing data, we choose limit the amount of extra
+			 * data to 512 bytes.
+			 */
+			cERROR(1, "RFC1001 size %u more than 512 bytes larger "
+				  "than SMB for mid=%u", len, smb->Mid);
 			return 1;
 		}
 	}
