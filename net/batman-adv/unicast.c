@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2010-2011 B.A.T.M.A.N. contributors:
  *
  * Andreas Langer
  *
@@ -224,7 +224,8 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	struct unicast_frag_packet *frag1, *frag2;
 	int uc_hdr_len = sizeof(struct unicast_packet);
 	int ucf_hdr_len = sizeof(struct unicast_frag_packet);
-	int data_len = skb->len;
+	int data_len = skb->len - uc_hdr_len;
+	int large_tail = 0;
 
 	if (!bat_priv->primary_if)
 		goto dropped;
@@ -232,10 +233,11 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	frag_skb = dev_alloc_skb(data_len - (data_len / 2) + ucf_hdr_len);
 	if (!frag_skb)
 		goto dropped;
+	skb_reserve(frag_skb, ucf_hdr_len);
 
 	unicast_packet = (struct unicast_packet *) skb->data;
 	memcpy(&tmp_uc, unicast_packet, uc_hdr_len);
-	skb_split(skb, frag_skb, data_len / 2);
+	skb_split(skb, frag_skb, data_len / 2 + uc_hdr_len);
 
 	if (my_skb_head_push(skb, ucf_hdr_len - uc_hdr_len) < 0 ||
 	    my_skb_head_push(frag_skb, ucf_hdr_len) < 0)
@@ -253,8 +255,11 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	memcpy(frag1->orig, bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(frag2, frag1, sizeof(struct unicast_frag_packet));
 
-	frag1->flags |= UNI_FRAG_HEAD;
-	frag2->flags &= ~UNI_FRAG_HEAD;
+	if (data_len & 1)
+		large_tail = UNI_FRAG_LARGETAIL;
+
+	frag1->flags = UNI_FRAG_HEAD | large_tail;
+	frag2->flags = large_tail;
 
 	frag1->seqno = htons((uint16_t)atomic_inc_return(
 			     &batman_if->frag_seqno));

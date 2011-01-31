@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -33,6 +33,12 @@
 
 /* protect update critical side of if_list - but not the content */
 static DEFINE_SPINLOCK(if_list_lock);
+
+
+static int batman_skb_recv(struct sk_buff *skb,
+			   struct net_device *dev,
+			   struct packet_type *ptype,
+			   struct net_device *orig_dev);
 
 static void hardif_free_rcu(struct rcu_head *rcu)
 {
@@ -549,8 +555,9 @@ out:
 
 /* receive a packet with the batman ethertype coming on a hard
  * interface */
-int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
-	struct packet_type *ptype, struct net_device *orig_dev)
+static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
+			   struct packet_type *ptype,
+			   struct net_device *orig_dev)
 {
 	struct bat_priv *bat_priv;
 	struct batman_packet *batman_packet;

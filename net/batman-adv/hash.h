@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2006-2011 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -48,11 +48,6 @@ struct hashtable_t {
 
 /* allocates and clears the hash */
 struct hashtable_t *hash_new(int size);
-
-/* remove element if you already found the element you want to delete and don't
- * need the overhead to find it again with hash_remove().  But usually, you
- * don't want to use this function, as it fiddles with hash-internals. */
-void *hash_remove_element(struct hashtable_t *hash, struct element_t *elem);
 
 /* free only the hashtable and the hash itself. */
 void hash_destroy(struct hashtable_t *hash);

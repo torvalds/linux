@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -35,10 +35,6 @@ struct batman_if *get_batman_if_by_netdev(struct net_device *net_dev);
 int hardif_enable_interface(struct batman_if *batman_if, char *iface_name);
 void hardif_disable_interface(struct batman_if *batman_if);
 void hardif_remove_interfaces(void);
-int batman_skb_recv(struct sk_buff *skb,
-				struct net_device *dev,
-				struct packet_type *ptype,
-				struct net_device *orig_dev);
 int hardif_min_mtu(struct net_device *soft_iface);
 void update_min_mtu(struct net_device *soft_iface);
 
