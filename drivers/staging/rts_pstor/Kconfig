@@ -1,5 +1,6 @@
 config RTS_PSTOR
 	tristate "RealTek PCI-E Card Reader support"
+	depends on PCI && SCSI
 	help
 	  Say Y here to include driver code to support the Realtek
 	  PCI-E card readers.
