@@ -85,7 +85,9 @@ extern ssize_t cifs_user_read(struct file *file, char __user *read_data,
 extern ssize_t cifs_strict_readv(struct kiocb *iocb, const struct iovec *iov,
 				 unsigned long nr_segs, loff_t pos);
 extern ssize_t cifs_user_write(struct file *file, const char __user *write_data,
-			 size_t write_size, loff_t *poffset);
+			       size_t write_size, loff_t *poffset);
+extern ssize_t cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
+				  unsigned long nr_segs, loff_t pos);
 extern int cifs_lock(struct file *, int, struct file_lock *);
 extern int cifs_fsync(struct file *, int);
 extern int cifs_strict_fsync(struct file *, int);
