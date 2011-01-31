@@ -336,7 +336,8 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 	page->flags ^= bits;
 	if (page->flags & FRAG_MASK) {
 		/* Page now has some free pgtable fragments. */
-		list_move(&page->lru, &mm->context.pgtable_list);
+		if (!list_empty(&page->lru))
+			list_move(&page->lru, &mm->context.pgtable_list);
 		page = NULL;
 	} else
 		/* All fragments of the 4K page have been freed. */
