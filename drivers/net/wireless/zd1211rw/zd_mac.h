@@ -163,6 +163,17 @@ struct housekeeping {
 	struct delayed_work link_led_work;
 };
 
+struct beacon {
+	struct delayed_work watchdog_work;
+	unsigned long last_update;
+	u16 interval;
+	u8 period;
+};
+
+enum zd_device_flags {
+	ZD_DEVICE_RUNNING,
+};
+
 #define ZD_MAC_STATS_BUFFER_SIZE 16
 
 #define ZD_MAC_MAX_ACK_WAITERS 50
@@ -174,6 +185,7 @@ struct zd_mac {
 	struct ieee80211_hw *hw;
 	struct ieee80211_vif *vif;
 	struct housekeeping housekeeping;
+	struct beacon beacon;
 	struct work_struct set_rts_cts_work;
 	struct work_struct process_intr;
 	struct zd_mc_hash multicast_hash;
@@ -182,6 +194,7 @@ struct zd_mac {
 	u8 default_regdomain;
 	int type;
 	int associated;
+	unsigned long flags;
 	struct sk_buff_head ack_wait_queue;
 	struct ieee80211_channel channels[14];
 	struct ieee80211_rate rates[12];
