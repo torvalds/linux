@@ -643,7 +643,36 @@ static struct reginfo sensor_sxga[] =
 
 	{SEQUENCE_END, 0x00}
 };
-
+/* 1024X768 XGA */
+static struct reginfo sensor_xga[] =
+{
+	{0x3800 ,0x1 },
+	{0x3801 ,0x8A},
+	{0x3802 ,0x0 },
+	{0x3803 ,0xA },
+	{0x3804 ,0xA },
+	{0x3805 ,0x20},
+	{0x3806 ,0x7 },
+	{0x3807 ,0x98},
+	{0x3808 ,0x4 },
+	{0x3809 ,0x0 },
+	{0x380a ,0x3 },
+	{0x380b ,0x0 },
+	{0x380c ,0xc },
+	{0x380d ,0x80},
+	{0x380e ,0x7 },
+	{0x380f ,0xd0},
+	{0x5001 ,0x7f},
+	{0x5680 ,0x0 },
+	{0x5681 ,0x0 },
+	{0x5682 ,0xA },
+	{0x5683 ,0x20},
+	{0x5684 ,0x0 },
+	{0x5685 ,0x0 },
+	{0x5686 ,0x7 },
+	{0x5687 ,0x98},
+	{SEQUENCE_END, 0x00}
+};
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
 {
@@ -2362,6 +2391,12 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         winseqe_set_addr = sensor_svga;
         set_w = 800;
         set_h = 600;
+    }
+	else if (((set_w <= 1024) && (set_h <= 768)) && sensor_xga[0].reg)
+    {
+        winseqe_set_addr = sensor_xga;
+        set_w = 1024;
+        set_h = 768;
     }
 	else if (((set_w <= 1280) && (set_h <= 720)) && sensor_720p[0].reg)
     {

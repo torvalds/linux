@@ -490,7 +490,11 @@ static struct reginfo sensor_sxga[] =
 {
 	{0x0, 0x0}
 };
-
+/* 1024X768 SXGA */
+static struct reginfo sensor_xga[] =
+{
+	{0x0, 0x0}
+};
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
 {
@@ -1800,6 +1804,12 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         winseqe_set_addr = sensor_720p;
         set_w = 1280;
         set_h = 720;
+    }
+	else if (((set_w <= 1024) && (set_h <= 768)) && sensor_xga[0].reg)
+    {
+        winseqe_set_addr = sensor_xga;
+        set_w = 1024;
+        set_h = 768;
     }
     else if (((set_w <= 1280) && (set_h <= 1024)) && sensor_sxga[0].reg)
     {
