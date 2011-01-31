@@ -3484,51 +3484,51 @@ static bool HalRxCheckStuck8190Pci(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16 				RegRxCounter = read_nic_word(dev, 0x130);
 	bool				bStuck = FALSE;
-	static u8			rx_chk_cnt = 0;
+
 	RT_TRACE(COMP_RESET,"%s(): RegRxCounter is %d,RxCounter is %d\n",__FUNCTION__,RegRxCounter,priv->RxCounter);
 	// If rssi is small, we should check rx for long time because of bad rx.
 	// or maybe it will continuous silent reset every 2 seconds.
-	rx_chk_cnt++;
+	priv->rx_chk_cnt++;
 	if(priv->undecorated_smoothed_pwdb >= (RateAdaptiveTH_High+5))
 	{
-		rx_chk_cnt = 0;	//high rssi, check rx stuck right now.
+		priv->rx_chk_cnt = 0;	/* high rssi, check rx stuck right now. */
 	}
 	else if(priv->undecorated_smoothed_pwdb < (RateAdaptiveTH_High+5) &&
 		((priv->CurrentChannelBW!=HT_CHANNEL_WIDTH_20&&priv->undecorated_smoothed_pwdb>=RateAdaptiveTH_Low_40M) ||
 		(priv->CurrentChannelBW==HT_CHANNEL_WIDTH_20&&priv->undecorated_smoothed_pwdb>=RateAdaptiveTH_Low_20M)) )
 
 	{
-		if(rx_chk_cnt < 2)
+		if(priv->rx_chk_cnt < 2)
 		{
 			return bStuck;
 		}
 		else
 		{
-			rx_chk_cnt = 0;
+			priv->rx_chk_cnt = 0;
 		}
 	}
 	else if(((priv->CurrentChannelBW!=HT_CHANNEL_WIDTH_20&&priv->undecorated_smoothed_pwdb<RateAdaptiveTH_Low_40M) ||
 		(priv->CurrentChannelBW==HT_CHANNEL_WIDTH_20&&priv->undecorated_smoothed_pwdb<RateAdaptiveTH_Low_20M)) &&
 		priv->undecorated_smoothed_pwdb >= VeryLowRSSI)
 	{
-		if(rx_chk_cnt < 4)
+		if(priv->rx_chk_cnt < 4)
 		{
 			return bStuck;
 		}
 		else
 		{
-			rx_chk_cnt = 0;
+			priv->rx_chk_cnt = 0;
 		}
 	}
 	else
 	{
-		if(rx_chk_cnt < 8)
+		if(priv->rx_chk_cnt < 8)
 		{
 			return bStuck;
 		}
 		else
 		{
-			rx_chk_cnt = 0;
+			priv->rx_chk_cnt = 0;
 		}
 	}
 	if(priv->RxCounter==RegRxCounter)

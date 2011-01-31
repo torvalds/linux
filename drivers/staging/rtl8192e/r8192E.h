@@ -884,6 +884,7 @@ typedef struct r8192_priv
 	u8 retry_rts;
 
 	struct work_struct reset_wq;
+	u8	rx_chk_cnt;
 
 //for rtl819xPci
 	// Data Rate Config. Added by Annie, 2006-04-13.
