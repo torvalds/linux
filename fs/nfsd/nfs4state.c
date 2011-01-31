@@ -2659,6 +2659,23 @@ static struct file_lock *nfs4_alloc_init_lease(struct nfs4_delegation *dp, int f
 	return fl;
 }
 
+static int nfs4_setlease(struct nfs4_delegation *dp, int flag)
+{
+	struct file_lock *fl;
+	int status;
+
+	fl = nfs4_alloc_init_lease(dp, flag);
+	if (!fl)
+		return -ENOMEM;
+	status = vfs_setlease(dp->dl_vfs_file, fl->fl_type, &fl);
+	if (status) {
+		dp->dl_flock = NULL;
+		locks_free_lock(fl);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
 /*
  * Attempt to hand out a delegation.
  */
@@ -2668,7 +2685,6 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	struct nfs4_delegation *dp;
 	struct nfs4_stateowner *sop = stp->st_stateowner;
 	int cb_up;
-	struct file_lock *fl;
 	int status, flag = 0;
 
 	cb_up = nfsd4_cb_channel_good(sop->so_client);
@@ -2701,19 +2717,9 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	dp = alloc_init_deleg(sop->so_client, stp, fh, flag);
 	if (dp == NULL)
 		goto out_no_deleg;
-	status = -ENOMEM;
-	fl = nfs4_alloc_init_lease(dp, flag);
-	if (!fl)
+	status = nfs4_setlease(dp, flag);
+	if (status)
 		goto out_free;
-	/* vfs_setlease checks to see if delegation should be handed out.
-	 * the lock_manager callback fl_change is used
-	 */
-	if ((status = vfs_setlease(fl->fl_file, fl->fl_type, &fl))) {
-		dprintk("NFSD: setlease failed [%d], no delegation\n", status);
-		dp->dl_flock = NULL;
-		locks_free_lock(fl);
-		goto out_free;
-	}
 
 	memcpy(&open->op_delegate_stateid, &dp->dl_stateid, sizeof(dp->dl_stateid));
 
