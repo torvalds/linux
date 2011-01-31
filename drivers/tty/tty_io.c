@@ -3257,7 +3257,7 @@ static ssize_t show_cons_active(struct device *dev,
 	ssize_t count = 0;
 
 	console_lock();
-	for (c = console_drivers; c; c = c->next) {
+	for_each_console(c) {
 		if (!c->device)
 			continue;
 		if (!c->write)
@@ -3306,7 +3306,7 @@ int __init tty_init(void)
 	if (IS_ERR(consdev))
 		consdev = NULL;
 	else
-		device_create_file(consdev, &dev_attr_active);
+		WARN_ON(device_create_file(consdev, &dev_attr_active) < 0);
 
 #ifdef CONFIG_VT
 	vty_init(&console_fops);
