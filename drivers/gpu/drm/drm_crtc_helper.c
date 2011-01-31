@@ -497,14 +497,17 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 
 	crtc_funcs = set->crtc->helper_private;
 
+	if (!set->mode)
+		set->fb = NULL;
+
 	if (set->fb) {
 		DRM_DEBUG_KMS("[CRTC:%d] [FB:%d] #connectors=%d (x y) (%i %i)\n",
 				set->crtc->base.id, set->fb->base.id,
 				(int)set->num_connectors, set->x, set->y);
 	} else {
-		DRM_DEBUG_KMS("[CRTC:%d] [NOFB] #connectors=%d (x y) (%i %i)\n",
-				set->crtc->base.id, (int)set->num_connectors,
-				set->x, set->y);
+		DRM_DEBUG_KMS("[CRTC:%d] [NOFB]\n", set->crtc->base.id);
+		set->mode = NULL;
+		set->num_connectors = 0;
 	}
 
 	dev = set->crtc->dev;
