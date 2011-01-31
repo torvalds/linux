@@ -77,6 +77,8 @@
 #include <asm/signal.h>
 #include <asm/asm-offsets.h>
 
+#undef DEBUG
+
 /* Helpful Macros */
 #define NUM_TO_REG(num)		r ## num
 
@@ -228,6 +230,16 @@
 /* wrappers to restore state before coming to entry.S */
 
 #ifdef CONFIG_MMU
+#ifdef DEBUG
+/* Create space for exception counting. */
+.section .data
+.global exception_debug_table
+.align 4
+exception_debug_table:
+	/* Look at exception vector table. There is 32 exceptions * word size */
+	.space	(32 * 4)
+#endif /* DEBUG */
+
 .section .rodata
 .align 4
 _MB_HW_ExceptionVectorTable:
@@ -329,12 +341,12 @@ not_in_delay_slot:
 
 #ifdef DEBUG
 /* counting which exception happen */
-	lwi	r5, r0, 0x200 + TOPHYS(r0_ram)
+	lwi	r5, r0, TOPHYS(exception_debug_table)
 	addi	r5, r5, 1
-	swi	r5, r0, 0x200 + TOPHYS(r0_ram)
-	lwi	r5, r6, 0x200 + TOPHYS(r0_ram)
+	swi	r5, r0, TOPHYS(exception_debug_table)
+	lwi	r5, r6, TOPHYS(exception_debug_table)
 	addi	r5, r5, 1
-	swi	r5, r6, 0x200 + TOPHYS(r0_ram)
+	swi	r5, r6, TOPHYS(exception_debug_table)
 #endif
 /* end */
 	/* Load the HW Exception vector */
