@@ -5258,7 +5258,6 @@ static void TranslateRxSignalStuff819xpci(struct net_device *dev,
     struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
     bool bpacket_match_bssid, bpacket_toself;
     bool bPacketBeacon=false, bToSelfBA=false;
-    static struct ieee80211_rx_stats  previous_stats;
     struct ieee80211_hdr_3addr *hdr;
     u16 fc,type;
 
@@ -5298,10 +5297,10 @@ static void TranslateRxSignalStuff819xpci(struct net_device *dev,
     //
     // Because phy information is contained in the last packet of AMPDU only, so driver
     // should process phy information of previous packet
-    rtl8192_process_phyinfo(priv, tmp_buf,&previous_stats, pstats);
-    rtl8192_query_rxphystatus(priv, pstats, pdesc, pdrvinfo, &previous_stats, bpacket_match_bssid,
+    rtl8192_process_phyinfo(priv, tmp_buf, &priv->previous_stats, pstats);
+    rtl8192_query_rxphystatus(priv, pstats, pdesc, pdrvinfo, &priv->previous_stats, bpacket_match_bssid,
             bpacket_toself ,bPacketBeacon, bToSelfBA);
-    rtl8192_record_rxdesc_forlateruse(pstats, &previous_stats);
+    rtl8192_record_rxdesc_forlateruse(pstats, &priv->previous_stats);
 
 }
 

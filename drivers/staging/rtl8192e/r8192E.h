@@ -864,6 +864,7 @@ typedef struct r8192_priv
 	struct Stats stats;
 	struct iw_statistics wstats;
 	struct proc_dir_entry *dir_dev;
+	struct ieee80211_rx_stats previous_stats;
 
 	/* RX stuff */
 	struct sk_buff_head skb_queue;
