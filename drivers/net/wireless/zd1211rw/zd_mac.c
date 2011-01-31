@@ -602,11 +602,18 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
-	int r, ret;
+	int r, ret, num_cmds, req_pos = 0;
 	u32 tmp, j = 0;
 	/* 4 more bytes for tail CRC */
 	u32 full_len = beacon->len + 4;
 	unsigned long end_jiffies, message_jiffies;
+	struct zd_ioreq32 *ioreqs;
+
+	/* Alloc memory for full beacon write at once. */
+	num_cmds = 1 + zd_chip_is_zd1211b(&mac->chip) + full_len;
+	ioreqs = kmalloc(num_cmds * sizeof(struct zd_ioreq32), GFP_KERNEL);
+	if (!ioreqs)
+		return -ENOMEM;
 
 	mutex_lock(&mac->chip.mutex);
 
@@ -637,28 +644,30 @@ static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon)
 		msleep(20);
 	}
 
-	r = zd_iowrite32_locked(&mac->chip, full_len - 1, CR_BCN_FIFO);
-	if (r < 0)
-		goto release_sema;
+	ioreqs[req_pos].addr = CR_BCN_FIFO;
+	ioreqs[req_pos].value = full_len - 1;
+	req_pos++;
 	if (zd_chip_is_zd1211b(&mac->chip)) {
-		r = zd_iowrite32_locked(&mac->chip, full_len - 1,
-					CR_BCN_LENGTH);
-		if (r < 0)
-			goto release_sema;
+		ioreqs[req_pos].addr = CR_BCN_LENGTH;
+		ioreqs[req_pos].value = full_len - 1;
+		req_pos++;
 	}
 
 	for (j = 0 ; j < beacon->len; j++) {
-		r = zd_iowrite32_locked(&mac->chip, *((u8 *)(beacon->data + j)),
-					CR_BCN_FIFO);
-		if (r < 0)
-			goto release_sema;
+		ioreqs[req_pos].addr = CR_BCN_FIFO;
+		ioreqs[req_pos].value = *((u8 *)(beacon->data + j));
+		req_pos++;
 	}
 
 	for (j = 0; j < 4; j++) {
-		r = zd_iowrite32_locked(&mac->chip, 0x0, CR_BCN_FIFO);
-		if (r < 0)
-			goto release_sema;
+		ioreqs[req_pos].addr = CR_BCN_FIFO;
+		ioreqs[req_pos].value = 0x0;
+		req_pos++;
 	}
+
+	BUG_ON(req_pos != num_cmds);
+
+	r = zd_iowrite32a_locked(&mac->chip, ioreqs, num_cmds);
 
 release_sema:
 	/*
@@ -694,6 +703,7 @@ release_sema:
 				CR_BCN_PLCP_CFG);
 out:
 	mutex_unlock(&mac->chip.mutex);
+	kfree(ioreqs);
 	return r;
 }
 
