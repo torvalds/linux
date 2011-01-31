@@ -1947,8 +1947,6 @@ static int lock_rdev(mdk_rdev_t *rdev, dev_t dev, int shared)
 			__bdevname(dev, b));
 		return PTR_ERR(bdev);
 	}
-	if (!shared)
-		set_bit(AllReserved, &rdev->flags);
 	rdev->bdev = bdev;
 	return err;
 }
@@ -2610,12 +2608,11 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 
 			mddev_lock(mddev);
 			list_for_each_entry(rdev2, &mddev->disks, same_set)
-				if (test_bit(AllReserved, &rdev2->flags) ||
-				    (rdev->bdev == rdev2->bdev &&
-				     rdev != rdev2 &&
-				     overlaps(rdev->data_offset, rdev->sectors,
-					      rdev2->data_offset,
-					      rdev2->sectors))) {
+				if (rdev->bdev == rdev2->bdev &&
+				    rdev != rdev2 &&
+				    overlaps(rdev->data_offset, rdev->sectors,
+					     rdev2->data_offset,
+					     rdev2->sectors)) {
 					overlap = 1;
 					break;
 				}
