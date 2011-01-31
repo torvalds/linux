@@ -370,16 +370,12 @@ error:
 	return r;
 }
 
-/* MAC address: if custom mac addresses are to be used CR_MAC_ADDR_P1 and
- *              CR_MAC_ADDR_P2 must be overwritten
- */
-int zd_write_mac_addr(struct zd_chip *chip, const u8 *mac_addr)
+static int zd_write_mac_addr_common(struct zd_chip *chip, const u8 *mac_addr,
+				    const struct zd_ioreq32 *in_reqs,
+				    const char *type)
 {
 	int r;
-	struct zd_ioreq32 reqs[2] = {
-		[0] = { .addr = CR_MAC_ADDR_P1 },
-		[1] = { .addr = CR_MAC_ADDR_P2 },
-	};
+	struct zd_ioreq32 reqs[2] = {in_reqs[0], in_reqs[1]};
 
 	if (mac_addr) {
 		reqs[0].value = (mac_addr[3] << 24)
@@ -388,15 +384,38 @@ int zd_write_mac_addr(struct zd_chip *chip, const u8 *mac_addr)
 			      |  mac_addr[0];
 		reqs[1].value = (mac_addr[5] <<  8)
 			      |  mac_addr[4];
-		dev_dbg_f(zd_chip_dev(chip), "mac addr %pM\n", mac_addr);
+		dev_dbg_f(zd_chip_dev(chip), "%s addr %pM\n", type, mac_addr);
 	} else {
-		dev_dbg_f(zd_chip_dev(chip), "set NULL mac\n");
+		dev_dbg_f(zd_chip_dev(chip), "set NULL %s\n", type);
 	}
 
 	mutex_lock(&chip->mutex);
 	r = zd_iowrite32a_locked(chip, reqs, ARRAY_SIZE(reqs));
 	mutex_unlock(&chip->mutex);
 	return r;
+}
+
+/* MAC address: if custom mac addresses are to be used CR_MAC_ADDR_P1 and
+ *              CR_MAC_ADDR_P2 must be overwritten
+ */
+int zd_write_mac_addr(struct zd_chip *chip, const u8 *mac_addr)
+{
+	static const struct zd_ioreq32 reqs[2] = {
+		[0] = { .addr = CR_MAC_ADDR_P1 },
+		[1] = { .addr = CR_MAC_ADDR_P2 },
+	};
+
+	return zd_write_mac_addr_common(chip, mac_addr, reqs, "mac");
+}
+
+int zd_write_bssid(struct zd_chip *chip, const u8 *bssid)
+{
+	static const struct zd_ioreq32 reqs[2] = {
+		[0] = { .addr = CR_BSSID_P1 },
+		[1] = { .addr = CR_BSSID_P2 },
+	};
+
+	return zd_write_mac_addr_common(chip, bssid, reqs, "bssid");
 }
 
 int zd_read_regdomain(struct zd_chip *chip, u8 *regdomain)

@@ -231,6 +231,26 @@ static int set_rx_filter(struct zd_mac *mac)
 	return zd_iowrite32(&mac->chip, CR_RX_FILTER, filter);
 }
 
+static int set_mac_and_bssid(struct zd_mac *mac)
+{
+	int r;
+
+	if (!mac->vif)
+		return -1;
+
+	r = zd_write_mac_addr(&mac->chip, mac->vif->addr);
+	if (r)
+		return r;
+
+	/* Vendor driver after setting MAC either sets BSSID for AP or
+	 * filter for other modes.
+	 */
+	if (mac->type != NL80211_IFTYPE_AP)
+		return set_rx_filter(mac);
+	else
+		return zd_write_bssid(&mac->chip, mac->vif->addr);
+}
+
 static int set_mc_hash(struct zd_mac *mac)
 {
 	struct zd_mc_hash hash;
@@ -888,7 +908,9 @@ static int zd_op_add_interface(struct ieee80211_hw *hw,
 		return -EOPNOTSUPP;
 	}
 
-	return zd_write_mac_addr(&mac->chip, vif->addr);
+	mac->vif = vif;
+
+	return set_mac_and_bssid(mac);
 }
 
 static void zd_op_remove_interface(struct ieee80211_hw *hw,
@@ -896,6 +918,7 @@ static void zd_op_remove_interface(struct ieee80211_hw *hw,
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	mac->type = NL80211_IFTYPE_UNSPECIFIED;
+	mac->vif = NULL;
 	zd_set_beacon_interval(&mac->chip, 0);
 	zd_write_mac_addr(&mac->chip, NULL);
 }

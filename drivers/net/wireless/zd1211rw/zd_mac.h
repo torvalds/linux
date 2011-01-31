@@ -172,6 +172,7 @@ struct zd_mac {
 	spinlock_t lock;
 	spinlock_t intr_lock;
 	struct ieee80211_hw *hw;
+	struct ieee80211_vif *vif;
 	struct housekeeping housekeeping;
 	struct work_struct set_rts_cts_work;
 	struct work_struct process_intr;
