@@ -184,18 +184,18 @@ struct zd_usb_rx {
 
 /**
  * struct zd_usb_tx - structure used for transmitting frames
+ * @enabled: atomic enabled flag, indicates whether tx is enabled
  * @lock: lock for transmission
- * @free_urb_list: list of free URBs, contains all the URBs, which can be used
+ * @submitted: anchor for URBs sent to device
  * @submitted_urbs: atomic integer that counts the URBs having sent to the
  *	device, which haven't been completed
- * @enabled: enabled flag, indicates whether tx is enabled
  * @stopped: indicates whether higher level tx queues are stopped
  */
 struct zd_usb_tx {
+	atomic_t enabled;
 	spinlock_t lock;
-	struct list_head free_urb_list;
+	struct usb_anchor submitted;
 	int submitted_urbs;
-	int enabled;
 	int stopped;
 };
 
