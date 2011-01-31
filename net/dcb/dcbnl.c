@@ -1613,6 +1613,10 @@ EXPORT_SYMBOL(dcb_getapp);
 u8 dcb_setapp(struct net_device *dev, struct dcb_app *new)
 {
 	struct dcb_app_type *itr;
+	struct dcb_app_type event;
+
+	memcpy(&event.name, dev->name, sizeof(event.name));
+	memcpy(&event.app, new, sizeof(event.app));
 
 	spin_lock(&dcb_lock);
 	/* Search for existing match and replace */
@@ -1644,7 +1648,7 @@ u8 dcb_setapp(struct net_device *dev, struct dcb_app *new)
 	}
 out:
 	spin_unlock(&dcb_lock);
-	call_dcbevent_notifiers(DCB_APP_EVENT, new);
+	call_dcbevent_notifiers(DCB_APP_EVENT, &event);
 	return 0;
 }
 EXPORT_SYMBOL(dcb_setapp);
