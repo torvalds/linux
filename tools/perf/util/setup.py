@@ -6,7 +6,8 @@ perf = Extension('perf',
 		  sources = ['util/python.c', 'util/ctype.c', 'util/evlist.c',
 			     'util/evsel.c', 'util/cpumap.c', 'util/thread_map.c',
 			     'util/util.c', 'util/xyarray.c'],
-		  include_dirs = ['util/include'])
+		  include_dirs = ['util/include'],
+		  extra_compile_args = ['-fno-strict-aliasing', '-Wno-write-strings'])
 
 setup(name='perf',
       version='0.1',
