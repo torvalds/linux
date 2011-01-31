@@ -189,9 +189,6 @@ struct zd_mac {
 	/* Short preamble (used for RTS/CTS) */
 	unsigned int short_preamble:1;
 
-	/* flags to indicate update in progress */
-	unsigned int updating_rts_rate:1;
-
 	/* whether to pass frames with CRC errors to stack */
 	unsigned int pass_failed_fcs:1;
 

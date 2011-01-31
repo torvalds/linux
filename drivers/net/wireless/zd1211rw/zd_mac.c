@@ -998,20 +998,9 @@ static void zd_op_configure_filter(struct ieee80211_hw *hw,
 	 * time. */
 }
 
-static void set_rts_cts_work(struct work_struct *work)
+static void set_rts_cts(struct zd_mac *mac, unsigned int short_preamble)
 {
-	struct zd_mac *mac =
-		container_of(work, struct zd_mac, set_rts_cts_work);
-	unsigned long flags;
-	unsigned int short_preamble;
-
 	mutex_lock(&mac->chip.mutex);
-
-	spin_lock_irqsave(&mac->lock, flags);
-	mac->updating_rts_rate = 0;
-	short_preamble = mac->short_preamble;
-	spin_unlock_irqrestore(&mac->lock, flags);
-
 	zd_chip_set_rts_cts_rate_locked(&mac->chip, short_preamble);
 	mutex_unlock(&mac->chip.mutex);
 }
@@ -1022,7 +1011,6 @@ static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
 				   u32 changes)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
-	unsigned long flags;
 	int associated;
 
 	dev_dbg_f(zd_mac_dev(mac), "changes: %x\n", changes);
@@ -1060,15 +1048,11 @@ static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
 	/* TODO: do hardware bssid filtering */
 
 	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
-		spin_lock_irqsave(&mac->lock, flags);
+		spin_lock_irq(&mac->lock);
 		mac->short_preamble = bss_conf->use_short_preamble;
-		if (!mac->updating_rts_rate) {
-			mac->updating_rts_rate = 1;
-			/* FIXME: should disable TX here, until work has
-			 * completed and RTS_CTS reg is updated */
-			queue_work(zd_workqueue, &mac->set_rts_cts_work);
-		}
-		spin_unlock_irqrestore(&mac->lock, flags);
+		spin_unlock_irq(&mac->lock);
+
+		set_rts_cts(mac, bss_conf->use_short_preamble);
 	}
 }
 
@@ -1142,7 +1126,6 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 
 	zd_chip_init(&mac->chip, hw, intf);
 	housekeeping_init(mac);
-	INIT_WORK(&mac->set_rts_cts_work, set_rts_cts_work);
 	INIT_WORK(&mac->process_intr, zd_process_intr);
 
 	SET_IEEE80211_DEV(hw, &intf->dev);
