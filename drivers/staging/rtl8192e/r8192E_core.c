@@ -2264,17 +2264,6 @@ static void rtl8192_get_eeprom_size(struct net_device* dev)
 }
 
 /*
- * used to swap endian. as ntohl & htonl are not
- * neccessary to swap endian, so use this instead.
- */
-static inline u16 endian_swap(u16* data)
-{
-	u16 tmp = *data;
-	*data = (tmp >> 8) | (tmp << 8);
-	return *data;
-}
-
-/*
  * Adapter->EEPROMAddressSize should be set before this function call.
  *  EEPROM address size can be got through GetEEPROMSize8185()
  */
