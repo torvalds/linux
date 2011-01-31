@@ -65,10 +65,10 @@ struct mt_class {
 };
 
 /* classes of device behavior */
-#define MT_CLS_DEFAULT	1
-#define MT_CLS_DUAL1	2
-#define MT_CLS_DUAL2	3
-#define MT_CLS_CYPRESS	4
+#define MT_CLS_DEFAULT				1
+#define MT_CLS_DUAL_INRANGE_CONTACTID		2
+#define MT_CLS_DUAL_INRANGE_CONTACTNUMBER	3
+#define MT_CLS_CYPRESS				4
 
 /*
  * these device-dependent functions determine what slot corresponds
@@ -106,11 +106,11 @@ struct mt_class mt_classes[] = {
 	{ .name = MT_CLS_DEFAULT,
 		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP,
 		.maxcontacts = 10 },
-	{ .name = MT_CLS_DUAL1,
+	{ .name = MT_CLS_DUAL_INRANGE_CONTACTID,
 		.quirks = MT_QUIRK_VALID_IS_INRANGE |
 			MT_QUIRK_SLOT_IS_CONTACTID,
 		.maxcontacts = 2 },
-	{ .name = MT_CLS_DUAL2,
+	{ .name = MT_CLS_DUAL_INRANGE_CONTACTNUMBER,
 		.quirks = MT_QUIRK_VALID_IS_INRANGE |
 			MT_QUIRK_SLOT_IS_CONTACTNUMBER,
 		.maxcontacts = 2 },
@@ -466,15 +466,15 @@ static const struct hid_device_id mt_devices[] = {
 			USB_DEVICE_ID_CYPRESS_TRUETOUCH) },
 
 	/* GeneralTouch panel */
-	{ .driver_data = MT_CLS_DUAL2,
+	{ .driver_data = MT_CLS_DUAL_INRANGE_CONTACTNUMBER,
 		HID_USB_DEVICE(USB_VENDOR_ID_GENERAL_TOUCH,
 			USB_DEVICE_ID_GENERAL_TOUCH_WIN7_TWOFINGERS) },
 
 	/* PixCir-based panels */
-	{ .driver_data = MT_CLS_DUAL1,
+	{ .driver_data = MT_CLS_DUAL_INRANGE_CONTACTID,
 		HID_USB_DEVICE(USB_VENDOR_ID_HANVON,
 			USB_DEVICE_ID_HANVON_MULTITOUCH) },
-	{ .driver_data = MT_CLS_DUAL1,
+	{ .driver_data = MT_CLS_DUAL_INRANGE_CONTACTID,
 		HID_USB_DEVICE(USB_VENDOR_ID_CANDO,
 			USB_DEVICE_ID_CANDO_PIXCIR_MULTI_TOUCH) },
 
