@@ -104,7 +104,7 @@ static int find_slot_from_contactid(struct mt_device *td)
 
 struct mt_class mt_classes[] = {
 	{ .name = MT_CLS_DEFAULT,
-		.quirks = MT_QUIRK_VALID_IS_INRANGE,
+		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP,
 		.maxcontacts = 10 },
 	{ .name = MT_CLS_DUAL1,
 		.quirks = MT_QUIRK_VALID_IS_INRANGE |
