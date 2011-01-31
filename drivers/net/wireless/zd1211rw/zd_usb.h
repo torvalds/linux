@@ -162,6 +162,8 @@ struct zd_usb_interrupt {
 	struct read_regs_int read_regs;
 	spinlock_t lock;
 	struct urb *urb;
+	void *buffer;
+	dma_addr_t buffer_dma;
 	int interval;
 	u8 read_regs_enabled:1;
 };
