@@ -314,6 +314,8 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length);
 void zd_mac_tx_failed(struct urb *urb);
 void zd_mac_tx_to_dev(struct sk_buff *skb, int error);
 
+int zd_op_start(struct ieee80211_hw *hw);
+void zd_op_stop(struct ieee80211_hw *hw);
 int zd_restore_settings(struct zd_mac *mac);
 
 #ifdef DEBUG

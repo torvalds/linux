@@ -798,6 +798,7 @@ void zd_usb_disable_tx(struct zd_usb *usb)
 	usb_kill_anchored_urbs(&tx->submitted);
 
 	spin_lock_irqsave(&tx->lock, flags);
+	WARN_ON(!skb_queue_empty(&tx->submitted_skbs));
 	WARN_ON(tx->submitted_urbs != 0);
 	tx->submitted_urbs = 0;
 	spin_unlock_irqrestore(&tx->lock, flags);
@@ -895,6 +896,7 @@ static void tx_urb_complete(struct urb *urb)
 		goto resubmit;
 	}
 free_urb:
+	skb_unlink(skb, &usb->tx.submitted_skbs);
 	zd_mac_tx_to_dev(skb, urb->status);
 	usb_free_urb(urb);
 	tx_dec_submitted_urbs(usb);
@@ -924,6 +926,7 @@ resubmit:
 int zd_usb_tx(struct zd_usb *usb, struct sk_buff *skb)
 {
 	int r;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct usb_device *udev = zd_usb_to_usbdev(usb);
 	struct urb *urb;
 	struct zd_usb_tx *tx = &usb->tx;
@@ -942,10 +945,14 @@ int zd_usb_tx(struct zd_usb *usb, struct sk_buff *skb)
 	usb_fill_bulk_urb(urb, udev, usb_sndbulkpipe(udev, EP_DATA_OUT),
 		          skb->data, skb->len, tx_urb_complete, skb);
 
+	info->rate_driver_data[1] = (void *)jiffies;
+	skb_queue_tail(&tx->submitted_skbs, skb);
 	usb_anchor_urb(urb, &tx->submitted);
+
 	r = usb_submit_urb(urb, GFP_ATOMIC);
 	if (r) {
 		usb_unanchor_urb(urb);
+		skb_unlink(skb, &tx->submitted_skbs);
 		goto error;
 	}
 	tx_inc_submitted_urbs(usb);
@@ -954,6 +961,76 @@ error:
 	usb_free_urb(urb);
 out:
 	return r;
+}
+
+static bool zd_tx_timeout(struct zd_usb *usb)
+{
+	struct zd_usb_tx *tx = &usb->tx;
+	struct sk_buff_head *q = &tx->submitted_skbs;
+	struct sk_buff *skb, *skbnext;
+	struct ieee80211_tx_info *info;
+	unsigned long flags, trans_start;
+	bool have_timedout = false;
+
+	spin_lock_irqsave(&q->lock, flags);
+	skb_queue_walk_safe(q, skb, skbnext) {
+		info = IEEE80211_SKB_CB(skb);
+		trans_start = (unsigned long)info->rate_driver_data[1];
+
+		if (time_is_before_jiffies(trans_start + ZD_TX_TIMEOUT)) {
+			have_timedout = true;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&q->lock, flags);
+
+	return have_timedout;
+}
+
+static void zd_tx_watchdog_handler(struct work_struct *work)
+{
+	struct zd_usb *usb =
+		container_of(work, struct zd_usb, tx.watchdog_work.work);
+	struct zd_usb_tx *tx = &usb->tx;
+
+	if (!atomic_read(&tx->enabled) || !tx->watchdog_enabled)
+		goto out;
+	if (!zd_tx_timeout(usb))
+		goto out;
+
+	/* TX halted, try reset */
+	dev_warn(zd_usb_dev(usb), "TX-stall detected, reseting device...");
+
+	usb_queue_reset_device(usb->intf);
+
+	/* reset will stop this worker, don't rearm */
+	return;
+out:
+	queue_delayed_work(zd_workqueue, &tx->watchdog_work,
+			   ZD_TX_WATCHDOG_INTERVAL);
+}
+
+void zd_tx_watchdog_enable(struct zd_usb *usb)
+{
+	struct zd_usb_tx *tx = &usb->tx;
+
+	if (!tx->watchdog_enabled) {
+		dev_dbg_f(zd_usb_dev(usb), "\n");
+		queue_delayed_work(zd_workqueue, &tx->watchdog_work,
+				   ZD_TX_WATCHDOG_INTERVAL);
+		tx->watchdog_enabled = 1;
+	}
+}
+
+void zd_tx_watchdog_disable(struct zd_usb *usb)
+{
+	struct zd_usb_tx *tx = &usb->tx;
+
+	if (tx->watchdog_enabled) {
+		dev_dbg_f(zd_usb_dev(usb), "\n");
+		tx->watchdog_enabled = 0;
+		cancel_delayed_work_sync(&tx->watchdog_work);
+	}
 }
 
 static inline void init_usb_interrupt(struct zd_usb *usb)
@@ -984,8 +1061,11 @@ static inline void init_usb_tx(struct zd_usb *usb)
 	spin_lock_init(&tx->lock);
 	atomic_set(&tx->enabled, 0);
 	tx->stopped = 0;
+	skb_queue_head_init(&tx->submitted_skbs);
 	init_usb_anchor(&tx->submitted);
 	tx->submitted_urbs = 0;
+	tx->watchdog_enabled = 0;
+	INIT_DELAYED_WORK(&tx->watchdog_work, zd_tx_watchdog_handler);
 }
 
 void zd_usb_init(struct zd_usb *usb, struct ieee80211_hw *hw,
@@ -1233,11 +1313,92 @@ static void disconnect(struct usb_interface *intf)
 	dev_dbg(&intf->dev, "disconnected\n");
 }
 
+static void zd_usb_resume(struct zd_usb *usb)
+{
+	struct zd_mac *mac = zd_usb_to_mac(usb);
+	int r;
+
+	dev_dbg_f(zd_usb_dev(usb), "\n");
+
+	r = zd_op_start(zd_usb_to_hw(usb));
+	if (r < 0) {
+		dev_warn(zd_usb_dev(usb), "Device resume failed "
+			 "with error code %d. Retrying...\n", r);
+		if (usb->was_running)
+			set_bit(ZD_DEVICE_RUNNING, &mac->flags);
+		usb_queue_reset_device(usb->intf);
+		return;
+	}
+
+	if (mac->type != NL80211_IFTYPE_UNSPECIFIED) {
+		r = zd_restore_settings(mac);
+		if (r < 0) {
+			dev_dbg(zd_usb_dev(usb),
+				"failed to restore settings, %d\n", r);
+			return;
+		}
+	}
+}
+
+static void zd_usb_stop(struct zd_usb *usb)
+{
+	dev_dbg_f(zd_usb_dev(usb), "\n");
+
+	zd_op_stop(zd_usb_to_hw(usb));
+
+	zd_usb_disable_tx(usb);
+	zd_usb_disable_rx(usb);
+	zd_usb_disable_int(usb);
+
+	usb->initialized = 0;
+}
+
+static int pre_reset(struct usb_interface *intf)
+{
+	struct ieee80211_hw *hw = usb_get_intfdata(intf);
+	struct zd_mac *mac;
+	struct zd_usb *usb;
+
+	if (!hw || intf->condition != USB_INTERFACE_BOUND)
+		return 0;
+
+	mac = zd_hw_mac(hw);
+	usb = &mac->chip.usb;
+
+	usb->was_running = test_bit(ZD_DEVICE_RUNNING, &mac->flags);
+
+	zd_usb_stop(usb);
+
+	mutex_lock(&mac->chip.mutex);
+	return 0;
+}
+
+static int post_reset(struct usb_interface *intf)
+{
+	struct ieee80211_hw *hw = usb_get_intfdata(intf);
+	struct zd_mac *mac;
+	struct zd_usb *usb;
+
+	if (!hw || intf->condition != USB_INTERFACE_BOUND)
+		return 0;
+
+	mac = zd_hw_mac(hw);
+	usb = &mac->chip.usb;
+
+	mutex_unlock(&mac->chip.mutex);
+
+	if (usb->was_running)
+		zd_usb_resume(usb);
+	return 0;
+}
+
 static struct usb_driver driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= usb_ids,
 	.probe		= probe,
 	.disconnect	= disconnect,
+	.pre_reset	= pre_reset,
+	.post_reset	= post_reset,
 };
 
 struct workqueue_struct *zd_workqueue;

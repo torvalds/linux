@@ -32,6 +32,9 @@
 #define ZD_USB_TX_HIGH  5
 #define ZD_USB_TX_LOW   2
 
+#define ZD_TX_TIMEOUT		(HZ * 5)
+#define ZD_TX_WATCHDOG_INTERVAL	round_jiffies_relative(HZ)
+
 enum devicetype {
 	DEVICE_ZD1211  = 0,
 	DEVICE_ZD1211B = 1,
@@ -196,9 +199,11 @@ struct zd_usb_rx {
 struct zd_usb_tx {
 	atomic_t enabled;
 	spinlock_t lock;
+	struct delayed_work watchdog_work;
+	struct sk_buff_head submitted_skbs;
 	struct usb_anchor submitted;
 	int submitted_urbs;
-	int stopped;
+	u8 stopped:1, watchdog_enabled:1;
 };
 
 /* Contains the usb parts. The structure doesn't require a lock because intf
@@ -210,7 +215,7 @@ struct zd_usb {
 	struct zd_usb_tx tx;
 	struct usb_interface *intf;
 	u8 req_buf[64]; /* zd_usb_iowrite16v needs 62 bytes */
-	u8 is_zd1211b:1, initialized:1;
+	u8 is_zd1211b:1, initialized:1, was_running:1;
 };
 
 #define zd_usb_dev(usb) (&usb->intf->dev)
@@ -236,6 +241,9 @@ int zd_usb_init_hw(struct zd_usb *usb);
 void zd_usb_clear(struct zd_usb *usb);
 
 int zd_usb_scnprint_id(struct zd_usb *usb, char *buffer, size_t size);
+
+void zd_tx_watchdog_enable(struct zd_usb *usb);
+void zd_tx_watchdog_disable(struct zd_usb *usb);
 
 int zd_usb_enable_int(struct zd_usb *usb);
 void zd_usb_disable_int(struct zd_usb *usb);
