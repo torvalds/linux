@@ -849,11 +849,12 @@ static int get_aw_pt_bi(struct zd_chip *chip, struct aw_pt_bi *s)
 static int set_aw_pt_bi(struct zd_chip *chip, struct aw_pt_bi *s)
 {
 	struct zd_ioreq32 reqs[3];
+	u16 b_interval = s->beacon_interval & 0xffff;
 
-	if (s->beacon_interval <= 5)
-		s->beacon_interval = 5;
-	if (s->pre_tbtt < 4 || s->pre_tbtt >= s->beacon_interval)
-		s->pre_tbtt = s->beacon_interval - 1;
+	if (b_interval <= 5)
+		b_interval = 5;
+	if (s->pre_tbtt < 4 || s->pre_tbtt >= b_interval)
+		s->pre_tbtt = b_interval - 1;
 	if (s->atim_wnd_period >= s->pre_tbtt)
 		s->atim_wnd_period = s->pre_tbtt - 1;
 
@@ -862,7 +863,7 @@ static int set_aw_pt_bi(struct zd_chip *chip, struct aw_pt_bi *s)
 	reqs[1].addr = CR_PRE_TBTT;
 	reqs[1].value = s->pre_tbtt;
 	reqs[2].addr = CR_BCN_INTERVAL;
-	reqs[2].value = s->beacon_interval;
+	reqs[2].value = (s->beacon_interval & ~0xffff) | b_interval;
 
 	return zd_iowrite32a_locked(chip, reqs, ARRAY_SIZE(reqs));
 }
@@ -874,10 +875,13 @@ static int set_beacon_interval(struct zd_chip *chip, u32 interval)
 	struct aw_pt_bi s;
 
 	ZD_ASSERT(mutex_is_locked(&chip->mutex));
+
+	r = zd_iowrite32_locked(chip, interval, CR_BCN_INTERVAL);
+	if (r)
+		return r;
 	r = get_aw_pt_bi(chip, &s);
 	if (r)
 		return r;
-	s.beacon_interval = interval;
 	return set_aw_pt_bi(chip, &s);
 }
 
