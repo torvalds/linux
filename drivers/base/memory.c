@@ -387,12 +387,19 @@ memory_probe_store(struct class *class, struct class_attribute *attr,
 {
 	u64 phys_addr;
 	int nid;
-	int ret;
+	int i, ret;
 
 	phys_addr = simple_strtoull(buf, NULL, 0);
 
-	nid = memory_add_physaddr_to_nid(phys_addr);
-	ret = add_memory(nid, phys_addr, PAGES_PER_SECTION << PAGE_SHIFT);
+	for (i = 0; i < sections_per_block; i++) {
+		nid = memory_add_physaddr_to_nid(phys_addr);
+		ret = add_memory(nid, phys_addr,
+				 PAGES_PER_SECTION << PAGE_SHIFT);
+		if (ret)
+			break;
+
+		phys_addr += MIN_MEMORY_BLOCK_SIZE;
+	}
 
 	if (ret)
 		count = ret;
