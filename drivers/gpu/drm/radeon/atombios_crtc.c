@@ -606,14 +606,9 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				args.v1.usPixelClock = cpu_to_le16(mode->clock / 10);
 				args.v1.ucTransmitterID = radeon_encoder->encoder_id;
 				args.v1.ucEncodeMode = encoder_mode;
-				if (encoder_mode == ATOM_ENCODER_MODE_DP) {
-					if (ss_enabled)
-						args.v1.ucConfig |=
-							ADJUST_DISPLAY_CONFIG_SS_ENABLE;
-				} else if (encoder_mode == ATOM_ENCODER_MODE_LVDS) {
+				if (ss_enabled)
 					args.v1.ucConfig |=
 						ADJUST_DISPLAY_CONFIG_SS_ENABLE;
-				}
 
 				atom_execute_table(rdev->mode_info.atom_context,
 						   index, (uint32_t *)&args);
@@ -624,12 +619,12 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				args.v3.sInput.ucTransmitterID = radeon_encoder->encoder_id;
 				args.v3.sInput.ucEncodeMode = encoder_mode;
 				args.v3.sInput.ucDispPllConfig = 0;
+				if (ss_enabled)
+					args.v3.sInput.ucDispPllConfig |=
+						DISPPLL_CONFIG_SS_ENABLE;
 				if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 					struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 					if (encoder_mode == ATOM_ENCODER_MODE_DP) {
-						if (ss_enabled)
-							args.v3.sInput.ucDispPllConfig |=
-								DISPPLL_CONFIG_SS_ENABLE;
 						args.v3.sInput.ucDispPllConfig |=
 							DISPPLL_CONFIG_COHERENT_MODE;
 						/* 16200 or 27000 */
@@ -649,18 +644,11 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					}
 				} else if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 					if (encoder_mode == ATOM_ENCODER_MODE_DP) {
-						if (ss_enabled)
-							args.v3.sInput.ucDispPllConfig |=
-								DISPPLL_CONFIG_SS_ENABLE;
 						args.v3.sInput.ucDispPllConfig |=
 							DISPPLL_CONFIG_COHERENT_MODE;
 						/* 16200 or 27000 */
 						args.v3.sInput.usPixelClock = cpu_to_le16(dp_clock / 10);
-					} else if (encoder_mode == ATOM_ENCODER_MODE_LVDS) {
-						if (ss_enabled)
-							args.v3.sInput.ucDispPllConfig |=
-								DISPPLL_CONFIG_SS_ENABLE;
-					} else {
+					} else if (encoder_mode != ATOM_ENCODER_MODE_LVDS) {
 						if (mode->clock > 165000)
 							args.v3.sInput.ucDispPllConfig |=
 								DISPPLL_CONFIG_DUAL_LINK;

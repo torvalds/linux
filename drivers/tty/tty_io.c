@@ -3256,7 +3256,7 @@ static ssize_t show_cons_active(struct device *dev,
 	struct console *c;
 	ssize_t count = 0;
 
-	acquire_console_sem();
+	console_lock();
 	for (c = console_drivers; c; c = c->next) {
 		if (!c->device)
 			continue;
@@ -3271,7 +3271,7 @@ static ssize_t show_cons_active(struct device *dev,
 	while (i--)
 		count += sprintf(buf + count, "%s%d%c",
 				 cs[i]->name, cs[i]->index, i ? ' ':'\n');
-	release_console_sem();
+	console_unlock();
 
 	return count;
 }
