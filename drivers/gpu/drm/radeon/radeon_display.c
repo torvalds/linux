@@ -935,6 +935,9 @@ void radeon_compute_pll_legacy(struct radeon_pll *pll,
 		pll_out_max = pll->pll_out_max;
 	}
 
+	if (pll_out_min > 64800)
+		pll_out_min = 64800;
+
 	if (pll->flags & RADEON_PLL_USE_REF_DIV)
 		min_ref_div = max_ref_div = pll->reference_div;
 	else {
