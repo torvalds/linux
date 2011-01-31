@@ -1196,18 +1196,18 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 				intel_finish_page_flip_plane(dev, 1);
 		}
 
-		if (pipea_stats & vblank_status) {
+		if (pipea_stats & vblank_status &&
+		    drm_handle_vblank(dev, 0)) {
 			vblank++;
-			drm_handle_vblank(dev, 0);
 			if (!dev_priv->flip_pending_is_done) {
 				i915_pageflip_stall_check(dev, 0);
 				intel_finish_page_flip(dev, 0);
 			}
 		}
 
-		if (pipeb_stats & vblank_status) {
+		if (pipeb_stats & vblank_status &&
+		    drm_handle_vblank(dev, 1)) {
 			vblank++;
-			drm_handle_vblank(dev, 1);
 			if (!dev_priv->flip_pending_is_done) {
 				i915_pageflip_stall_check(dev, 1);
 				intel_finish_page_flip(dev, 1);
