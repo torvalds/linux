@@ -304,6 +304,7 @@ config HID_MULTITOUCH
 	  Say Y here if you have one of the following devices:
 	  - Cypress TrueTouch panels
 	  - Hanvon dual touch panels
+	  - IrTouch Infrared USB panels
 	  - Pixcir dual touch panels
 	  - 'Sensing Win7-TwoFinger' panel by GeneralTouch
 
