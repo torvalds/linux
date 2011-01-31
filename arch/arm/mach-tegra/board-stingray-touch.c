@@ -50,7 +50,7 @@ static int stingray_touch_reset(void)
 static int stingray_touch_suspend(int enable)
 {
 	gpio_set_value(STINGRAY_TOUCH_WAKE_N_GPIO, enable);
-	msleep(20);
+	msleep(80);
 	return 0;
 }
 
