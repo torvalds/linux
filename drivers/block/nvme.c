@@ -48,7 +48,6 @@ module_param(nvme_major, int, 0);
  * Represents an NVM Express device.  Each nvme_dev is a PCI function.
  */
 struct nvme_dev {
-	struct list_head node;
 	struct nvme_queue **queues;
 	u32 __iomem *dbs;
 	struct pci_dev *pci_dev;
