@@ -158,6 +158,7 @@ float perf_top__decay_samples(struct perf_top *top, struct rb_root *root)
 	syme = list_entry(top->active_symbols.next, struct sym_entry, node);
 	pthread_mutex_unlock(&top->active_symbols_lock);
 
+	top->rb_entries = 0;
 	list_for_each_entry_safe_from(syme, n, &top->active_symbols, node) {
 		syme->snap_count = syme->count[snap];
 		if (syme->snap_count != 0) {
@@ -170,7 +171,11 @@ float perf_top__decay_samples(struct perf_top *top, struct rb_root *root)
 				continue;
 			}
 			syme->weight = sym_weight(syme, top);
-			rb_insert_active_sym(root, syme);
+
+			if ((int)syme->snap_count >= top->count_filter) {
+				rb_insert_active_sym(root, syme);
+				++top->rb_entries;
+			}
 			sum_ksamples += syme->snap_count;
 
 			for (j = 0; j < top->evlist->nr_entries; j++)

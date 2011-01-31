@@ -38,6 +38,11 @@ struct sym_entry {
 	unsigned long		count[0];
 };
 
+static inline struct symbol *sym_entry__symbol(struct sym_entry *self)
+{
+       return ((void *)self) + symbol_conf.priv_size;
+}
+
 struct perf_top {
 	struct perf_evlist *evlist;
 	/*
@@ -51,7 +56,7 @@ struct perf_top {
 	u64		   exact_samples;
 	u64		   guest_us_samples, guest_kernel_samples;
 	int		   print_entries, count_filter, delay_secs;
-	int		   display_weighted, freq;
+	int		   display_weighted, freq, rb_entries;
 	int		   sym_counter, target_pid, target_tid;
 	bool		   hide_kernel_symbols, hide_user_symbols, zero;
 	const char	   *cpu_list;
@@ -64,4 +69,12 @@ float perf_top__decay_samples(struct perf_top *top, struct rb_root *root);
 void perf_top__find_widths(struct perf_top *top, struct rb_root *root,
 			   int *dso_width, int *dso_short_width, int *sym_width);
 
+#ifdef NO_NEWT_SUPPORT
+static inline int perf_top__tui_browser(struct perf_top *top __used)
+{
+	return 0;
+}
+#else
+int perf_top__tui_browser(struct perf_top *top);
+#endif
 #endif /* __PERF_TOP_H */

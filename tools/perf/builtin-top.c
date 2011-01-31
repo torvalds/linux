@@ -20,6 +20,7 @@
 
 #include "perf.h"
 
+#include "util/cache.h"
 #include "util/color.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
@@ -75,6 +76,8 @@ static struct perf_top top = {
 
 static bool			system_wide			=  false;
 
+static bool			use_tui, use_stdio;
+
 static int			default_interval		=      0;
 
 static bool			inherit				=  false;
@@ -95,11 +98,6 @@ static int			sym_pcnt_filter			=      5;
 /*
  * Source functions
  */
-
-static inline struct symbol *sym_entry__symbol(struct sym_entry *self)
-{
-       return ((void *)self) + symbol_conf.priv_size;
-}
 
 void get_term_dimensions(struct winsize *ws)
 {
@@ -695,6 +693,14 @@ static void handle_keypress(struct perf_session *session, int c)
 	}
 }
 
+static void *display_thread_tui(void *arg __used)
+{
+	perf_top__tui_browser(&top);
+	exit_browser(0);
+	exit(0);
+	return NULL;
+}
+
 static void *display_thread(void *arg __used)
 {
 	struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
@@ -1005,7 +1011,8 @@ static int __cmd_top(void)
 
 	perf_session__mmap_read(session);
 
-	if (pthread_create(&thread, NULL, display_thread, session)) {
+	if (pthread_create(&thread, NULL, (use_browser > 0 ? display_thread_tui :
+							     display_thread), session)) {
 		printf("Could not create display thread.\n");
 		exit(-1);
 	}
@@ -1078,6 +1085,8 @@ static const struct option options[] = {
 		    "display this many functions"),
 	OPT_BOOLEAN('U', "hide_user_symbols", &top.hide_user_symbols,
 		    "hide user symbols"),
+	OPT_BOOLEAN(0, "tui", &use_tui, "Use the TUI interface"),
+	OPT_BOOLEAN(0, "stdio", &use_stdio, "Use the stdio interface"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_END()
@@ -1097,6 +1106,20 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	argc = parse_options(argc, argv, options, top_usage, 0);
 	if (argc)
 		usage_with_options(top_usage, options);
+
+	/*
+ 	 * XXX For now start disabled, only using TUI if explicitely asked for.
+ 	 * Change that when handle_keys equivalent gets written, live annotation
+ 	 * done, etc.
+ 	 */
+	use_browser = 0;
+
+	if (use_stdio)
+		use_browser = 0;
+	else if (use_tui)
+		use_browser = 1;
+
+	setup_browser(false);
 
 	/* CPU and PID are mutually exclusive */
 	if (top.target_tid > 0 && top.cpu_list) {
