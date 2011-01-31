@@ -586,16 +586,13 @@ bool pm_wakeup_pending(void)
  * Store the number of registered wakeup events at the address in @count.  Block
  * if the current number of wakeup events being processed is nonzero.
  *
- * Return false if the wait for the number of wakeup events being processed to
+ * Return 'false' if the wait for the number of wakeup events being processed to
  * drop down to zero has been interrupted by a signal (and the current number
- * of wakeup events being processed is still nonzero).  Otherwise return true.
+ * of wakeup events being processed is still nonzero).  Otherwise return 'true'.
  */
 bool pm_get_wakeup_count(unsigned int *count)
 {
 	unsigned int cnt, inpr;
-
-	if (capable(CAP_SYS_ADMIN))
-		events_check_enabled = false;
 
 	for (;;) {
 		split_counters(&cnt, &inpr);
