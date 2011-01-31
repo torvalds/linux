@@ -282,8 +282,6 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	cFYI(1, "in %s", __func__);
 	BUG_ON(IS_ROOT(mntpt));
 
-	xid = GetXid();
-
 	/*
 	 * The MSDFS spec states that paths in DFS referral requests and
 	 * responses must be prefixed by a single '\' character instead of
@@ -293,7 +291,7 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	mnt = ERR_PTR(-ENOMEM);
 	full_path = build_path_from_dentry(mntpt);
 	if (full_path == NULL)
-		goto free_xid;
+		goto cdda_exit;
 
 	cifs_sb = CIFS_SB(mntpt->d_inode->i_sb);
 	tlink = cifs_sb_tlink(cifs_sb);
@@ -303,9 +301,11 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	}
 	ses = tlink_tcon(tlink)->ses;
 
+	xid = GetXid();
 	rc = get_dfs_path(xid, ses, full_path + 1, cifs_sb->local_nls,
 		&num_referrals, &referrals,
 		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	FreeXid(xid);
 
 	cifs_put_tlink(tlink);
 
@@ -338,8 +338,7 @@ success:
 	free_dfs_info_array(referrals, num_referrals);
 free_full_path:
 	kfree(full_path);
-free_xid:
-	FreeXid(xid);
+cdda_exit:
 	cFYI(1, "leaving %s" , __func__);
 	return mnt;
 }
