@@ -26,7 +26,6 @@
 #include <linux/sfi.h>
 #include <asm/mrst.h>
 #include <asm/intel_scu_ipc.h>
-#include <asm/mrst.h>
 
 /* IPC defines the following message types */
 #define IPCMSG_WATCHDOG_TIMER 0xF8 /* Set Kernel Watchdog Threshold */
@@ -161,7 +160,7 @@ static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 {
 	int i, nc, bytes, d;
 	u32 offset = 0;
-	u32 err = 0;
+	int err;
 	u8 cbuf[IPC_WWBUF_SIZE] = { };
 	u32 *wbuf = (u32 *)&cbuf;
 
@@ -404,7 +403,7 @@ EXPORT_SYMBOL(intel_scu_ipc_update_register);
  */
 int intel_scu_ipc_simple_command(int cmd, int sub)
 {
-	u32 err = 0;
+	int err;
 
 	mutex_lock(&ipclock);
 	if (ipcdev.pdev == NULL) {
@@ -434,8 +433,7 @@ EXPORT_SYMBOL(intel_scu_ipc_simple_command);
 int intel_scu_ipc_command(int cmd, int sub, u32 *in, int inlen,
 							u32 *out, int outlen)
 {
-	u32 err = 0;
-	int i = 0;
+	int i, err;
 
 	mutex_lock(&ipclock);
 	if (ipcdev.pdev == NULL) {

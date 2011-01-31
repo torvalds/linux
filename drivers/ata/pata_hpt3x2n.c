@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt3x2n"
-#define DRV_VERSION	"0.3.13"
+#define DRV_VERSION	"0.3.14"
 
 enum {
 	HPT_PCI_FAST	=	(1 << 31),
@@ -418,7 +418,7 @@ static int hpt3x2n_pci_clock(struct pci_dev *pdev)
 		u16 sr;
 		u32 total = 0;
 
-		printk(KERN_WARNING "pata_hpt3x2n: BIOS clock data not set.\n");
+		pr_warning(DRV_NAME ": BIOS clock data not set.\n");
 
 		/* This is the process the HPT371 BIOS is reported to use */
 		for (i = 0; i < 128; i++) {
@@ -528,8 +528,7 @@ hpt372n:
 		ppi[0] = &info_hpt372n;
 		break;
 	default:
-		printk(KERN_ERR
-		       "pata_hpt3x2n: PCI table is bogus please report (%d).\n",
+		pr_err(DRV_NAME ": PCI table is bogus, please report (%d).\n",
 		       dev->device);
 		return -ENODEV;
 	}
@@ -579,12 +578,11 @@ hpt372n:
 		pci_write_config_dword(dev, 0x5C, (f_high << 16) | f_low);
 	}
 	if (adjust == 8) {
-		printk(KERN_ERR "pata_hpt3x2n: DPLL did not stabilize!\n");
+		pr_err(DRV_NAME ": DPLL did not stabilize!\n");
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "pata_hpt37x: bus clock %dMHz, using 66MHz DPLL.\n",
-	       pci_mhz);
+	pr_info(DRV_NAME ": bus clock %dMHz, using 66MHz DPLL.\n", pci_mhz);
 
 	/*
 	 * Set our private data up. We only need a few flags

@@ -230,10 +230,10 @@ static struct platform_device *sh7750_devices[] __initdata = {
 static int __init sh7750_devices_setup(void)
 {
 	if (mach_is_rts7751r2d()) {
-		platform_register_device(&scif_device);
+		platform_device_register(&scif_device);
 	} else {
-		platform_register_device(&sci_device);
-		platform_register_device(&scif_device);
+		platform_device_register(&sci_device);
+		platform_device_register(&scif_device);
 	}
 
 	return platform_add_devices(sh7750_devices,

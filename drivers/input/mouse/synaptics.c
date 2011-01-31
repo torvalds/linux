@@ -755,22 +755,25 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv = psmouse->private;
 	struct synaptics_data old_priv = *priv;
+	int retry = 0;
+	int error;
 
-	psmouse_reset(psmouse);
+	do {
+		psmouse_reset(psmouse);
+		error = synaptics_detect(psmouse, 0);
+	} while (error && ++retry < 3);
 
-	if (synaptics_detect(psmouse, 0))
+	if (error)
 		return -1;
+
+	if (retry > 1)
+		printk(KERN_DEBUG "Synaptics reconnected after %d tries\n",
+			retry);
 
 	if (synaptics_query_hardware(psmouse)) {
 		printk(KERN_ERR "Unable to query Synaptics hardware.\n");
 		return -1;
 	}
-
-	if (old_priv.identity != priv->identity ||
-	    old_priv.model_id != priv->model_id ||
-	    old_priv.capabilities != priv->capabilities ||
-	    old_priv.ext_cap != priv->ext_cap)
-		return -1;
 
 	if (synaptics_set_absolute_mode(psmouse)) {
 		printk(KERN_ERR "Unable to initialize Synaptics hardware.\n");
@@ -779,6 +782,19 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 
 	if (synaptics_set_advanced_gesture_mode(psmouse)) {
 		printk(KERN_ERR "Advanced gesture mode reconnect failed.\n");
+		return -1;
+	}
+
+	if (old_priv.identity != priv->identity ||
+	    old_priv.model_id != priv->model_id ||
+	    old_priv.capabilities != priv->capabilities ||
+	    old_priv.ext_cap != priv->ext_cap) {
+		printk(KERN_ERR "Synaptics hardware appears to be different: "
+			"id(%ld-%ld), model(%ld-%ld), caps(%lx-%lx), ext(%lx-%lx).\n",
+			old_priv.identity, priv->identity,
+			old_priv.model_id, priv->model_id,
+			old_priv.capabilities, priv->capabilities,
+			old_priv.ext_cap, priv->ext_cap);
 		return -1;
 	}
 

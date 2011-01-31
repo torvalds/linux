@@ -812,7 +812,7 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 
 	oh->dev_attr = uart;
 
-	acquire_console_sem(); /* in case the earlycon is on the UART */
+	console_lock(); /* in case the earlycon is on the UART */
 
 	/*
 	 * Because of early UART probing, UART did not get idled
@@ -838,7 +838,7 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 	omap_uart_block_sleep(uart);
 	uart->timeout = DEFAULT_TIMEOUT;
 
-	release_console_sem();
+	console_unlock();
 
 	if ((cpu_is_omap34xx() && uart->padconf) ||
 	    (uart->wk_en && uart->wk_mask)) {

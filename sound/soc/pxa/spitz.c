@@ -315,10 +315,10 @@ static int spitz_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link spitz_dai = {
 	.name = "wm8750",
 	.stream_name = "WM8750",
-	.cpu_dai_name = "pxa-is2",
+	.cpu_dai_name = "pxa2xx-i2s",
 	.codec_dai_name = "wm8750-hifi",
 	.platform_name = "pxa-pcm-audio",
-	.codec_name = "wm8750-codec.0-001a",
+	.codec_name = "wm8750-codec.0-001b",
 	.init = spitz_wm8750_init,
 	.ops = &spitz_ops,
 };
