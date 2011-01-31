@@ -39,6 +39,15 @@
 /* The offset of the struct pt_regs in a `state save frame' on the stack. */
 #define PTO	STATE_SAVE_ARG_SPACE /* 24 the space for args */
 
+#ifdef DEBUG
+/* Create space for syscalls counting. */
+.section .data
+.global syscall_debug_table
+.align 4
+syscall_debug_table:
+	.space	(__NR_syscalls * 4)
+#endif /* DEBUG */
+
 #define C_ENTRY(name)	.globl name; .align 4; name
 
 /*
@@ -371,10 +380,14 @@ C_ENTRY(_user_exception):
 	add	r12, r12, r12;
 
 #ifdef DEBUG
-	/* Trac syscalls and stored them to r0_ram */
-	lwi	r3, r12, 0x400 + r0_ram
+	/* Trac syscalls and stored them to syscall_debug_table */
+	/* The first syscall location stores total syscall number */
+	lwi	r3, r0, syscall_debug_table
 	addi	r3, r3, 1
-	swi	r3, r12, 0x400 + r0_ram
+	swi	r3, r0, syscall_debug_table
+	lwi	r3, r12, syscall_debug_table
+	addi	r3, r3, 1
+	swi	r3, r12, syscall_debug_table
 #endif
 
 	# Find and jump into the syscall handler.
