@@ -207,6 +207,7 @@ struct zd_usb {
 	struct zd_usb_rx rx;
 	struct zd_usb_tx tx;
 	struct usb_interface *intf;
+	u8 req_buf[64]; /* zd_usb_iowrite16v needs 62 bytes */
 	u8 is_zd1211b:1, initialized:1;
 };
 

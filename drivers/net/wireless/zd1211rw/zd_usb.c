@@ -1361,15 +1361,20 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 		return -EWOULDBLOCK;
 	}
 	if (!usb_int_enabled(usb)) {
-		 dev_dbg_f(zd_usb_dev(usb),
+		dev_dbg_f(zd_usb_dev(usb),
 			  "error: usb interrupt not enabled\n");
 		return -EWOULDBLOCK;
 	}
 
+	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
+	BUILD_BUG_ON(sizeof(struct usb_req_read_regs) + USB_MAX_IOREAD16_COUNT *
+		     sizeof(__le16) > sizeof(usb->req_buf));
+	BUG_ON(sizeof(struct usb_req_read_regs) + count * sizeof(__le16) >
+	       sizeof(usb->req_buf));
+
 	req_len = sizeof(struct usb_req_read_regs) + count * sizeof(__le16);
-	req = kmalloc(req_len, GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
+	req = (void *)usb->req_buf;
+
 	req->id = cpu_to_le16(USB_REQ_READ_REGS);
 	for (i = 0; i < count; i++)
 		req->addr[i] = cpu_to_le16((u16)addresses[i]);
@@ -1402,7 +1407,6 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 
 	r = get_results(usb, values, req, count);
 error:
-	kfree(req);
 	return r;
 }
 
@@ -1428,11 +1432,17 @@ int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 		return -EWOULDBLOCK;
 	}
 
+	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
+	BUILD_BUG_ON(sizeof(struct usb_req_write_regs) +
+		     USB_MAX_IOWRITE16_COUNT * sizeof(struct reg_data) >
+		     sizeof(usb->req_buf));
+	BUG_ON(sizeof(struct usb_req_write_regs) +
+	       count * sizeof(struct reg_data) >
+	       sizeof(usb->req_buf));
+
 	req_len = sizeof(struct usb_req_write_regs) +
 		  count * sizeof(struct reg_data);
-	req = kmalloc(req_len, GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
+	req = (void *)usb->req_buf;
 
 	req->id = cpu_to_le16(USB_REQ_WRITE_REGS);
 	for (i = 0; i < count; i++) {
@@ -1460,7 +1470,6 @@ int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 
 	/* FALL-THROUGH with r == 0 */
 error:
-	kfree(req);
 	return r;
 }
 
@@ -1505,14 +1514,19 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
 			"error %d: Couldn't read CR203\n", r);
-		goto out;
+		return r;
 	}
 	bit_value_template &= ~(RF_IF_LE|RF_CLK|RF_DATA);
 
+	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
+	BUILD_BUG_ON(sizeof(struct usb_req_rfwrite) +
+		     USB_MAX_RFWRITE_BIT_COUNT * sizeof(__le16) >
+		     sizeof(usb->req_buf));
+	BUG_ON(sizeof(struct usb_req_rfwrite) + bits * sizeof(__le16) >
+	       sizeof(usb->req_buf));
+
 	req_len = sizeof(struct usb_req_rfwrite) + bits * sizeof(__le16);
-	req = kmalloc(req_len, GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
+	req = (void *)usb->req_buf;
 
 	req->id = cpu_to_le16(USB_REQ_WRITE_RF);
 	/* 1: 3683a, but not used in ZYDAS driver */
@@ -1544,6 +1558,5 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 
 	/* FALL-THROUGH with r == 0 */
 out:
-	kfree(req);
 	return r;
 }

@@ -108,25 +108,17 @@ int zd_ioread32v_locked(struct zd_chip *chip, u32 *values, const zd_addr_t *addr
 {
 	int r;
 	int i;
-	zd_addr_t *a16;
-	u16 *v16;
+	zd_addr_t a16[USB_MAX_IOREAD32_COUNT * 2];
+	u16 v16[USB_MAX_IOREAD32_COUNT * 2];
 	unsigned int count16;
 
 	if (count > USB_MAX_IOREAD32_COUNT)
 		return -EINVAL;
 
-	/* Allocate a single memory block for values and addresses. */
-	count16 = 2*count;
-	/* zd_addr_t is __nocast, so the kmalloc needs an explicit cast */
-	a16 = (zd_addr_t *) kmalloc(count16 * (sizeof(zd_addr_t) + sizeof(u16)),
-		                   GFP_KERNEL);
-	if (!a16) {
-		dev_dbg_f(zd_chip_dev(chip),
-			  "error ENOMEM in allocation of a16\n");
-		r = -ENOMEM;
-		goto out;
-	}
-	v16 = (u16 *)(a16 + count16);
+	/* Use stack for values and addresses. */
+	count16 = 2 * count;
+	BUG_ON(count16 * sizeof(zd_addr_t) > sizeof(a16));
+	BUG_ON(count16 * sizeof(u16) > sizeof(v16));
 
 	for (i = 0; i < count; i++) {
 		int j = 2*i;
@@ -139,7 +131,7 @@ int zd_ioread32v_locked(struct zd_chip *chip, u32 *values, const zd_addr_t *addr
 	if (r) {
 		dev_dbg_f(zd_chip_dev(chip),
 			  "error: zd_ioread16v_locked. Error number %d\n", r);
-		goto out;
+		return r;
 	}
 
 	for (i = 0; i < count; i++) {
@@ -147,17 +139,17 @@ int zd_ioread32v_locked(struct zd_chip *chip, u32 *values, const zd_addr_t *addr
 		values[i] = (v16[j] << 16) | v16[j+1];
 	}
 
-out:
-	kfree((void *)a16);
-	return r;
+	return 0;
 }
 
 int _zd_iowrite32v_locked(struct zd_chip *chip, const struct zd_ioreq32 *ioreqs,
 	           unsigned int count)
 {
 	int i, j, r;
-	struct zd_ioreq16 *ioreqs16;
+	struct zd_ioreq16 ioreqs16[USB_MAX_IOWRITE32_COUNT * 2];
 	unsigned int count16;
+
+	/* Use stack for values and addresses. */
 
 	ZD_ASSERT(mutex_is_locked(&chip->mutex));
 
@@ -166,15 +158,8 @@ int _zd_iowrite32v_locked(struct zd_chip *chip, const struct zd_ioreq32 *ioreqs,
 	if (count > USB_MAX_IOWRITE32_COUNT)
 		return -EINVAL;
 
-	/* Allocate a single memory block for values and addresses. */
-	count16 = 2*count;
-	ioreqs16 = kmalloc(count16 * sizeof(struct zd_ioreq16), GFP_KERNEL);
-	if (!ioreqs16) {
-		r = -ENOMEM;
-		dev_dbg_f(zd_chip_dev(chip),
-			  "error %d in ioreqs16 allocation\n", r);
-		goto out;
-	}
+	count16 = 2 * count;
+	BUG_ON(count16 * sizeof(struct zd_ioreq16) > sizeof(ioreqs16));
 
 	for (i = 0; i < count; i++) {
 		j = 2*i;
@@ -192,8 +177,6 @@ int _zd_iowrite32v_locked(struct zd_chip *chip, const struct zd_ioreq32 *ioreqs,
 			  "error %d in zd_usb_write16v\n", r);
 	}
 #endif /* DEBUG */
-out:
-	kfree(ioreqs16);
 	return r;
 }
 
