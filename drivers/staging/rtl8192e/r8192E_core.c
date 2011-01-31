@@ -4115,10 +4115,8 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
        struct net_device *dev = priv->ieee80211->dev;
 	struct ieee80211_device* ieee = priv->ieee80211;
 	RESET_TYPE	ResetType = RESET_TYPE_NORESET;
-      	static u8	check_reset_cnt=0;
 	unsigned long flags;
 	bool bBusyTraffic = false;
-	static u8 last_time = 0;
 	bool bEnterPS = false;
 
 	if ((!priv->up) || priv->bHwRadioOff)
@@ -4216,10 +4214,11 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	}
 	//check if reset the driver
 	spin_lock_irqsave(&priv->tx_lock,flags);
-	if(check_reset_cnt++ >= 3 && !ieee->is_roaming && (last_time != 1))
+	if (priv->watchdog_check_reset_cnt++ >= 3 && !ieee->is_roaming && 
+	    priv->watchdog_last_time != 1)
 	{
     		ResetType = rtl819x_ifcheck_resetornot(dev);
-		check_reset_cnt = 3;
+		priv->watchdog_check_reset_cnt = 3;
 	}
 	spin_unlock_irqrestore(&priv->tx_lock,flags);
 	if(!priv->bDisableNormalResetCheck && ResetType == RESET_TYPE_NORMAL)
@@ -4232,11 +4231,11 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 #if 1
 	if( ((priv->force_reset) || (!priv->bDisableNormalResetCheck && ResetType==RESET_TYPE_SILENT))) // This is control by OID set in Pomelo
 	{
-		last_time = 1;
+		priv->watchdog_last_time = 1;
 		rtl819x_ifsilentreset(dev);
 	}
 	else
-		last_time = 0;
+		priv->watchdog_last_time = 0;
 #endif
 	priv->force_reset = false;
 	priv->bForcedSilentReset = false;

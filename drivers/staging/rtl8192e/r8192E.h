@@ -964,6 +964,8 @@ typedef struct r8192_priv
 	bool 				brfpath_rxenable[4];
 //+by amy 080507
 	struct timer_list watch_dog_timer;
+	u8 watchdog_last_time;
+	u8 watchdog_check_reset_cnt;
 
 //+by amy 080515 for dynamic mechenism
 	//Add by amy Tx Power Control for Near/Far Range 2008/05/15
