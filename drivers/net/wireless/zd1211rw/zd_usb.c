@@ -411,8 +411,10 @@ static void int_urb_complete(struct urb *urb)
 	case -ENOENT:
 	case -ECONNRESET:
 	case -EPIPE:
+		dev_dbg_f(urb_dev(urb), "urb %p error %d\n", urb, urb->status);
 		return;
 	default:
+		dev_dbg_f(urb_dev(urb), "urb %p error %d\n", urb, urb->status);
 		goto resubmit;
 	}
 
@@ -613,6 +615,7 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 
 static void rx_urb_complete(struct urb *urb)
 {
+	int r;
 	struct zd_usb *usb;
 	struct zd_usb_rx *rx;
 	const u8 *buffer;
@@ -627,6 +630,7 @@ static void rx_urb_complete(struct urb *urb)
 	case -ENOENT:
 	case -ECONNRESET:
 	case -EPIPE:
+		dev_dbg_f(urb_dev(urb), "urb %p error %d\n", urb, urb->status);
 		return;
 	default:
 		dev_dbg_f(urb_dev(urb), "urb %p error %d\n", urb, urb->status);
@@ -668,7 +672,9 @@ static void rx_urb_complete(struct urb *urb)
 	}
 
 resubmit:
-	usb_submit_urb(urb, GFP_ATOMIC);
+	r = usb_submit_urb(urb, GFP_ATOMIC);
+	if (r)
+		dev_dbg_f(urb_dev(urb), "urb %p resubmit error %d\n", urb, r);
 }
 
 static struct urb *alloc_rx_urb(struct zd_usb *usb)
@@ -1001,6 +1007,7 @@ int zd_usb_tx(struct zd_usb *usb, struct sk_buff *skb)
 
 	r = usb_submit_urb(urb, GFP_ATOMIC);
 	if (r) {
+		dev_dbg_f(zd_usb_dev(usb), "error submit urb %p %d\n", urb, r);
 		usb_unanchor_urb(urb);
 		skb_unlink(skb, &tx->submitted_skbs);
 		goto error;
