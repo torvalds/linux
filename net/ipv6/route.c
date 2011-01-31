@@ -113,6 +113,11 @@ static struct dst_ops ip6_dst_ops_template = {
 	.local_out		=	__ip6_local_out,
 };
 
+static unsigned int ip6_blackhole_default_mtu(const struct dst_entry *dst)
+{
+	return 0;
+}
+
 static void ip6_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
 }
@@ -122,6 +127,7 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.protocol		=	cpu_to_be16(ETH_P_IPV6),
 	.destroy		=	ip6_dst_destroy,
 	.check			=	ip6_dst_check,
+	.default_mtu		=	ip6_blackhole_default_mtu,
 	.update_pmtu		=	ip6_rt_blackhole_update_pmtu,
 };
 
