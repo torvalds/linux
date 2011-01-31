@@ -6456,12 +6456,13 @@ static int bnx2x_set_iscsi_eth_mac_addr(struct bnx2x *bp, int set)
 	u32 iscsi_l2_cl_id = BNX2X_ISCSI_ETH_CL_ID +
 		BP_E1HVN(bp) * NONE_ETH_CONTEXT_USE;
 	u32 cl_bit_vec = (1 << iscsi_l2_cl_id);
+	u8 *iscsi_mac = bp->cnic_eth_dev.iscsi_mac;
 
 	/* Send a SET_MAC ramrod */
-	bnx2x_set_mac_addr_gen(bp, set, bp->iscsi_mac, cl_bit_vec,
+	bnx2x_set_mac_addr_gen(bp, set, iscsi_mac, cl_bit_vec,
 			       cam_offset, 0);
 
-	bnx2x_set_mac_in_nig(bp, set, bp->iscsi_mac, LLH_CAM_ISCSI_ETH_LINE);
+	bnx2x_set_mac_in_nig(bp, set, iscsi_mac, LLH_CAM_ISCSI_ETH_LINE);
 
 	return 0;
 }
@@ -8385,11 +8386,47 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 							bp->common.shmem2_base);
 }
 
+#ifdef BCM_CNIC
+static void __devinit bnx2x_get_cnic_info(struct bnx2x *bp)
+{
+	u32 max_iscsi_conn = FW_ENCODE_32BIT_PATTERN ^ SHMEM_RD(bp,
+				drv_lic_key[BP_PORT(bp)].max_iscsi_conn);
+	u32 max_fcoe_conn = FW_ENCODE_32BIT_PATTERN ^ SHMEM_RD(bp,
+				drv_lic_key[BP_PORT(bp)].max_fcoe_conn);
+
+	/* Get the number of maximum allowed iSCSI and FCoE connections */
+	bp->cnic_eth_dev.max_iscsi_conn =
+		(max_iscsi_conn & BNX2X_MAX_ISCSI_INIT_CONN_MASK) >>
+		BNX2X_MAX_ISCSI_INIT_CONN_SHIFT;
+
+	bp->cnic_eth_dev.max_fcoe_conn =
+		(max_fcoe_conn & BNX2X_MAX_FCOE_INIT_CONN_MASK) >>
+		BNX2X_MAX_FCOE_INIT_CONN_SHIFT;
+
+	BNX2X_DEV_INFO("max_iscsi_conn 0x%x max_fcoe_conn 0x%x\n",
+		       bp->cnic_eth_dev.max_iscsi_conn,
+		       bp->cnic_eth_dev.max_fcoe_conn);
+
+	/* If mamimum allowed number of connections is zero -
+	 * disable the feature.
+	 */
+	if (!bp->cnic_eth_dev.max_iscsi_conn)
+		bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
+
+	if (!bp->cnic_eth_dev.max_fcoe_conn)
+		bp->flags |= NO_FCOE_FLAG;
+}
+#endif
+
 static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 {
 	u32 val, val2;
 	int func = BP_ABS_FUNC(bp);
 	int port = BP_PORT(bp);
+#ifdef BCM_CNIC
+	u8 *iscsi_mac = bp->cnic_eth_dev.iscsi_mac;
+	u8 *fip_mac = bp->fip_mac;
+#endif
 
 	if (BP_NOMCP(bp)) {
 		BNX2X_ERROR("warning: random MAC workaround active\n");
@@ -8402,7 +8439,9 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 			bnx2x_set_mac_buf(bp->dev->dev_addr, val, val2);
 
 #ifdef BCM_CNIC
-		/* iSCSI NPAR MAC */
+		/* iSCSI and FCoE NPAR MACs: if there is no either iSCSI or
+		 * FCoE MAC then the appropriate feature should be disabled.
+		 */
 		if (IS_MF_SI(bp)) {
 			u32 cfg = MF_CFG_RD(bp, func_ext_config[func].func_cfg);
 			if (cfg & MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD) {
@@ -8410,8 +8449,39 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 						     iscsi_mac_addr_upper);
 				val = MF_CFG_RD(bp, func_ext_config[func].
 						    iscsi_mac_addr_lower);
-				bnx2x_set_mac_buf(bp->iscsi_mac, val, val2);
-			}
+				BNX2X_DEV_INFO("Read iSCSI MAC: "
+					       "0x%x:0x%04x\n", val2, val);
+				bnx2x_set_mac_buf(iscsi_mac, val, val2);
+
+				/* Disable iSCSI OOO if MAC configuration is
+				 * invalid.
+				 */
+				if (!is_valid_ether_addr(iscsi_mac)) {
+					bp->flags |= NO_ISCSI_OOO_FLAG |
+						     NO_ISCSI_FLAG;
+					memset(iscsi_mac, 0, ETH_ALEN);
+				}
+			} else
+				bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
+
+			if (cfg & MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD) {
+				val2 = MF_CFG_RD(bp, func_ext_config[func].
+						     fcoe_mac_addr_upper);
+				val = MF_CFG_RD(bp, func_ext_config[func].
+						    fcoe_mac_addr_lower);
+				BNX2X_DEV_INFO("Read FCoE MAC to "
+					       "0x%x:0x%04x\n", val2, val);
+				bnx2x_set_mac_buf(fip_mac, val, val2);
+
+				/* Disable FCoE if MAC configuration is
+				 * invalid.
+				 */
+				if (!is_valid_ether_addr(fip_mac)) {
+					bp->flags |= NO_FCOE_FLAG;
+					memset(bp->fip_mac, 0, ETH_ALEN);
+				}
+			} else
+				bp->flags |= NO_FCOE_FLAG;
 		}
 #endif
 	} else {
@@ -8425,7 +8495,7 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 				    iscsi_mac_upper);
 		val = SHMEM_RD(bp, dev_info.port_hw_config[port].
 				   iscsi_mac_lower);
-		bnx2x_set_mac_buf(bp->iscsi_mac, val, val2);
+		bnx2x_set_mac_buf(iscsi_mac, val, val2);
 #endif
 	}
 
@@ -8433,14 +8503,12 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 	memcpy(bp->dev->perm_addr, bp->dev->dev_addr, ETH_ALEN);
 
 #ifdef BCM_CNIC
-	/* Inform the upper layers about FCoE MAC */
+	/* Set the FCoE MAC in modes other then MF_SI */
 	if (!CHIP_IS_E1x(bp)) {
 		if (IS_MF_SD(bp))
-			memcpy(bp->fip_mac, bp->dev->dev_addr,
-			       sizeof(bp->fip_mac));
-		else
-			memcpy(bp->fip_mac, bp->iscsi_mac,
-			       sizeof(bp->fip_mac));
+			memcpy(fip_mac, bp->dev->dev_addr, ETH_ALEN);
+		else if (!IS_MF(bp))
+			memcpy(fip_mac, iscsi_mac, ETH_ALEN);
 	}
 #endif
 }
@@ -8602,6 +8670,10 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 
 	/* Get MAC addresses */
 	bnx2x_get_mac_hwinfo(bp);
+
+#ifdef BCM_CNIC
+	bnx2x_get_cnic_info(bp);
+#endif
 
 	return rc;
 }
@@ -10077,6 +10149,13 @@ struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
 	struct bnx2x *bp = netdev_priv(dev);
 	struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
 
+	/* If both iSCSI and FCoE are disabled - return NULL in
+	 * order to indicate CNIC that it should not try to work
+	 * with this device.
+	 */
+	if (NO_ISCSI(bp) && NO_FCOE(bp))
+		return NULL;
+
 	cp->drv_owner = THIS_MODULE;
 	cp->chip_id = CHIP_ID(bp);
 	cp->pdev = bp->pdev;
@@ -10096,6 +10175,15 @@ struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
 	cp->iscsi_l2_client_id = BNX2X_ISCSI_ETH_CL_ID +
 		BP_E1HVN(bp) * NONE_ETH_CONTEXT_USE;
 	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID;
+
+	if (NO_ISCSI_OOO(bp))
+		cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;
+
+	if (NO_ISCSI(bp))
+		cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI;
+
+	if (NO_FCOE(bp))
+		cp->drv_state |= CNIC_DRV_STATE_NO_FCOE;
 
 	DP(BNX2X_MSG_SP, "page_size %d, tbl_offset %d, tbl_lines %d, "
 			 "starting cid %d\n",

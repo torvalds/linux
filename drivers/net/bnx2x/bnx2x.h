@@ -976,8 +976,12 @@ struct bnx2x {
 #define MF_FUNC_DIS			0x1000
 #define FCOE_MACS_SET			0x2000
 #define NO_FCOE_FLAG			0x4000
+#define NO_ISCSI_OOO_FLAG		0x8000
+#define NO_ISCSI_FLAG			0x10000
 
 #define NO_FCOE(bp)		((bp)->flags & NO_FCOE_FLAG)
+#define NO_ISCSI(bp)		((bp)->flags & NO_ISCSI_FLAG)
+#define NO_ISCSI_OOO(bp)	((bp)->flags & NO_ISCSI_OOO_FLAG)
 
 	int			pf_num;	/* absolute PF number */
 	int			pfid;	/* per-path PF number */
@@ -1125,7 +1129,6 @@ struct bnx2x {
 	u16			cnic_kwq_pending;
 	u16			cnic_spq_pending;
 	struct mutex		cnic_mutex;
-	u8			iscsi_mac[ETH_ALEN];
 	u8			fip_mac[ETH_ALEN];
 #endif
 

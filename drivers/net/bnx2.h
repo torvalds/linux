@@ -6207,6 +6207,8 @@ struct l2_fhdr {
 
 #define BNX2_CP_SCRATCH					0x001a0000
 
+#define BNX2_FW_MAX_ISCSI_CONN				 0x001a0080
+
 
 /*
  *  mcp_reg definition

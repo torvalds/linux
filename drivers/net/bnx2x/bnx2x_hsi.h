@@ -11,20 +11,27 @@
 
 #include "bnx2x_fw_defs.h"
 
+#define FW_ENCODE_32BIT_PATTERN		0x1e1e1e1e
+
 struct license_key {
 	u32 reserved[6];
 
-#if defined(__BIG_ENDIAN)
-	u16 max_iscsi_init_conn;
-	u16 max_iscsi_trgt_conn;
-#elif defined(__LITTLE_ENDIAN)
-	u16 max_iscsi_trgt_conn;
-	u16 max_iscsi_init_conn;
-#endif
+	u32 max_iscsi_conn;
+#define BNX2X_MAX_ISCSI_TRGT_CONN_MASK	0xFFFF
+#define BNX2X_MAX_ISCSI_TRGT_CONN_SHIFT	0
+#define BNX2X_MAX_ISCSI_INIT_CONN_MASK	0xFFFF0000
+#define BNX2X_MAX_ISCSI_INIT_CONN_SHIFT	16
 
-	u32 reserved_a[6];
+	u32 reserved_a;
+
+	u32 max_fcoe_conn;
+#define BNX2X_MAX_FCOE_TRGT_CONN_MASK	0xFFFF
+#define BNX2X_MAX_FCOE_TRGT_CONN_SHIFT	0
+#define BNX2X_MAX_FCOE_INIT_CONN_MASK	0xFFFF0000
+#define BNX2X_MAX_FCOE_INIT_CONN_SHIFT	16
+
+	u32 reserved_b[4];
 };
-
 
 #define PORT_0				0
 #define PORT_1				1

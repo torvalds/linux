@@ -4179,6 +4179,14 @@ static void cnic_enable_bnx2_int(struct cnic_dev *dev)
 		BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID | cp->last_status_idx);
 }
 
+static void cnic_get_bnx2_iscsi_info(struct cnic_dev *dev)
+{
+	u32 max_conn;
+
+	max_conn = cnic_reg_rd_ind(dev, BNX2_FW_MAX_ISCSI_CONN);
+	dev->max_iscsi_conn = max_conn;
+}
+
 static void cnic_disable_bnx2_int_sync(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
@@ -4503,6 +4511,8 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 		return err;
 	}
 
+	cnic_get_bnx2_iscsi_info(dev);
+
 	return 0;
 }
 
@@ -4714,129 +4724,6 @@ static void cnic_init_bnx2x_rx_ring(struct cnic_dev *dev,
 	cp->rx_cons = *cp->rx_cons_ptr;
 }
 
-static int cnic_read_bnx2x_iscsi_mac(struct cnic_dev *dev, u32 upper_addr,
-				     u32 lower_addr)
-{
-	u32 val;
-	u8 mac[6];
-
-	val = CNIC_RD(dev, upper_addr);
-
-	mac[0] = (u8) (val >> 8);
-	mac[1] = (u8) val;
-
-	val = CNIC_RD(dev, lower_addr);
-
-	mac[2] = (u8) (val >> 24);
-	mac[3] = (u8) (val >> 16);
-	mac[4] = (u8) (val >> 8);
-	mac[5] = (u8) val;
-
-	if (is_valid_ether_addr(mac)) {
-		memcpy(dev->mac_addr, mac, 6);
-		return 0;
-	} else {
-		return -EINVAL;
-	}
-}
-
-static void cnic_get_bnx2x_iscsi_info(struct cnic_dev *dev)
-{
-	struct cnic_local *cp = dev->cnic_priv;
-	u32 base, base2, addr, addr1, val;
-	int port = CNIC_PORT(cp);
-
-	dev->max_iscsi_conn = 0;
-	base = CNIC_RD(dev, MISC_REG_SHARED_MEM_ADDR);
-	if (base == 0)
-		return;
-
-	base2 = CNIC_RD(dev, (CNIC_PATH(cp) ? MISC_REG_GENERIC_CR_1 :
-					      MISC_REG_GENERIC_CR_0));
-	addr = BNX2X_SHMEM_ADDR(base,
-		dev_info.port_hw_config[port].iscsi_mac_upper);
-
-	addr1 = BNX2X_SHMEM_ADDR(base,
-		dev_info.port_hw_config[port].iscsi_mac_lower);
-
-	cnic_read_bnx2x_iscsi_mac(dev, addr, addr1);
-
-	addr = BNX2X_SHMEM_ADDR(base, validity_map[port]);
-	val = CNIC_RD(dev, addr);
-
-	if (!(val & SHR_MEM_VALIDITY_LIC_NO_KEY_IN_EFFECT)) {
-		u16 val16;
-
-		addr = BNX2X_SHMEM_ADDR(base,
-				drv_lic_key[port].max_iscsi_init_conn);
-		val16 = CNIC_RD16(dev, addr);
-
-		if (val16)
-			val16 ^= 0x1e1e;
-		dev->max_iscsi_conn = val16;
-	}
-
-	if (BNX2X_CHIP_IS_E2(cp->chip_id))
-		dev->max_fcoe_conn = BNX2X_FCOE_NUM_CONNECTIONS;
-
-	if (BNX2X_CHIP_IS_E1H(cp->chip_id) || BNX2X_CHIP_IS_E2(cp->chip_id)) {
-		int func = CNIC_FUNC(cp);
-		u32 mf_cfg_addr;
-
-		if (BNX2X_SHMEM2_HAS(base2, mf_cfg_addr))
-			mf_cfg_addr = CNIC_RD(dev, BNX2X_SHMEM2_ADDR(base2,
-					      mf_cfg_addr));
-		else
-			mf_cfg_addr = base + BNX2X_SHMEM_MF_BLK_OFFSET;
-
-		if (BNX2X_CHIP_IS_E2(cp->chip_id)) {
-			/* Must determine if the MF is SD vs SI mode */
-			addr = BNX2X_SHMEM_ADDR(base,
-					dev_info.shared_feature_config.config);
-			val = CNIC_RD(dev, addr);
-			if ((val & SHARED_FEAT_CFG_FORCE_SF_MODE_MASK) ==
-			    SHARED_FEAT_CFG_FORCE_SF_MODE_SWITCH_INDEPT) {
-				int rc;
-
-				/* MULTI_FUNCTION_SI mode */
-				addr = BNX2X_MF_CFG_ADDR(mf_cfg_addr,
-					func_ext_config[func].func_cfg);
-				val = CNIC_RD(dev, addr);
-				if (!(val & MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD))
-					dev->max_iscsi_conn = 0;
-
-				if (!(val & MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD))
-					dev->max_fcoe_conn = 0;
-
-				addr = BNX2X_MF_CFG_ADDR(mf_cfg_addr,
-					func_ext_config[func].
-					iscsi_mac_addr_upper);
-				addr1 = BNX2X_MF_CFG_ADDR(mf_cfg_addr,
-					func_ext_config[func].
-					iscsi_mac_addr_lower);
-				rc = cnic_read_bnx2x_iscsi_mac(dev, addr,
-								addr1);
-				if (rc && func > 1)
-					dev->max_iscsi_conn = 0;
-
-				return;
-			}
-		}
-
-		addr = BNX2X_MF_CFG_ADDR(mf_cfg_addr,
-			func_mf_config[func].e1hov_tag);
-
-		val = CNIC_RD(dev, addr);
-		val &= FUNC_MF_CFG_E1HOV_TAG_MASK;
-		if (val != FUNC_MF_CFG_E1HOV_TAG_DEFAULT) {
-			dev->max_fcoe_conn = 0;
-			dev->max_iscsi_conn = 0;
-		}
-	}
-	if (!is_valid_ether_addr(dev->mac_addr))
-		dev->max_iscsi_conn = 0;
-}
-
 static void cnic_init_bnx2x_kcq(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
@@ -4917,8 +4804,6 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 	cp->bnx2x_igu_sb_id = ethdev->irq_arr[0].status_blk_num2;
 
 	cnic_init_bnx2x_kcq(dev);
-
-	cnic_get_bnx2x_iscsi_info(dev);
 
 	/* Only 1 EQ */
 	CNIC_WR16(dev, cp->kcq1.io_addr, MAX_KCQ_IDX);
@@ -5351,6 +5236,14 @@ static struct cnic_dev *init_bnx2x_cnic(struct net_device *dev)
 	cp->ethdev = ethdev;
 	cdev->pcidev = pdev;
 	cp->chip_id = ethdev->chip_id;
+
+	if (!(ethdev->drv_state & CNIC_DRV_STATE_NO_ISCSI))
+		cdev->max_iscsi_conn = ethdev->max_iscsi_conn;
+	if (BNX2X_CHIP_IS_E2(cp->chip_id) &&
+	    !(ethdev->drv_state & CNIC_DRV_STATE_NO_FCOE))
+		cdev->max_fcoe_conn = ethdev->max_fcoe_conn;
+
+	memcpy(cdev->mac_addr, ethdev->iscsi_mac, 6);
 
 	cp->cnic_ops = &cnic_bnx2x_ops;
 	cp->start_hw = cnic_start_bnx2x_hw;
