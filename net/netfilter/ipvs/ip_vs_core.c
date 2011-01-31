@@ -1894,9 +1894,7 @@ static int __net_init __ip_vs_init(struct net *net)
 
 static void __net_exit __ip_vs_cleanup(struct net *net)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
-
-	IP_VS_DBG(10, "ipvs netns %d released\n", ipvs->gen);
+	IP_VS_DBG(10, "ipvs netns %d released\n", net_ipvs(net)->gen);
 }
 
 static struct pernet_operations ipvs_core_ops = {

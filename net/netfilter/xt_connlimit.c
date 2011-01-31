@@ -185,11 +185,15 @@ connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	int connections;
 
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct != NULL)
-		tuple_ptr = &ct->tuplehash[0].tuple;
-	else if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb),
-				    par->family, &tuple))
+	if (ct != NULL) {
+		if (info->flags & XT_CONNLIMIT_DADDR)
+			tuple_ptr = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
+		else
+			tuple_ptr = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
+	} else if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb),
+				    par->family, &tuple)) {
 		goto hotdrop;
+	}
 
 	if (par->family == NFPROTO_IPV6) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
