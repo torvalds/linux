@@ -6,7 +6,7 @@ extern int numa_off;
 extern int pxm_to_nid(int pxm);
 
 #ifdef CONFIG_NUMA
-extern int __cpuinit numa_cpu_node(int apicid);
+extern int __cpuinit numa_cpu_node(int cpu);
 #else	/* CONFIG_NUMA */
 static inline int numa_cpu_node(int cpu)		{ return NUMA_NO_NODE; }
 #endif	/* CONFIG_NUMA */
