@@ -18,17 +18,6 @@
 #include "ath9k.h"
 #include "btcoex.h"
 
-static void ath_update_txpow(struct ath_softc *sc)
-{
-	struct ath_hw *ah = sc->sc_ah;
-
-	if (sc->curtxpow != sc->config.txpowlimit) {
-		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
-		/* read back in case value is clamped */
-		sc->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
-	}
-}
-
 static u8 parse_mpdudensity(u8 mpdudensity)
 {
 	/*
@@ -271,7 +260,8 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		goto ps_restore;
 	}
 
-	ath_update_txpow(sc);
+	ath9k_cmn_update_txpow(ah, sc->curtxpow,
+			       sc->config.txpowlimit, &sc->curtxpow);
 	ath9k_hw_set_interrupts(ah, ah->imask);
 
 	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL))) {
@@ -863,7 +853,8 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 			channel->center_freq, r);
 	}
 
-	ath_update_txpow(sc);
+	ath9k_cmn_update_txpow(ah, sc->curtxpow,
+			       sc->config.txpowlimit, &sc->curtxpow);
 	if (ath_startrecv(sc) != 0) {
 		ath_err(common, "Unable to restart recv logic\n");
 		goto out;
@@ -966,7 +957,8 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	 * that changes the channel so update any state that
 	 * might change as a result.
 	 */
-	ath_update_txpow(sc);
+	ath9k_cmn_update_txpow(ah, sc->curtxpow,
+			       sc->config.txpowlimit, &sc->curtxpow);
 
 	if ((sc->sc_flags & SC_OP_BEACONS) || !(sc->sc_flags & (SC_OP_OFFCHANNEL)))
 		ath_beacon_config(sc, NULL);	/* restart beacons */
@@ -1042,7 +1034,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * This is needed only to setup initial state
 	 * but it's best done after a reset.
 	 */
-	ath_update_txpow(sc);
+	ath9k_cmn_update_txpow(ah, sc->curtxpow,
+			sc->config.txpowlimit, &sc->curtxpow);
 
 	/*
 	 * Setup the hardware after reset:
@@ -1707,7 +1700,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		sc->config.txpowlimit = 2 * conf->power_level;
 		ath9k_ps_wakeup(sc);
-		ath_update_txpow(sc);
+		ath9k_cmn_update_txpow(ah, sc->curtxpow,
+				       sc->config.txpowlimit, &sc->curtxpow);
 		ath9k_ps_restore(sc);
 	}
 

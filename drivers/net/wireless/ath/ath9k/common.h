@@ -68,3 +68,5 @@ struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
 int ath9k_cmn_count_streams(unsigned int chainmask, int max);
 void ath9k_cmn_btcoex_bt_stomp(struct ath_common *common,
 				  enum ath_stomp_type stomp_type);
+void ath9k_cmn_update_txpow(struct ath_hw *ah, u16 cur_txpow,
+			    u16 new_txpow, u16 *txpower);
