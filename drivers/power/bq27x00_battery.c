@@ -56,7 +56,7 @@
 #define BQ27000_FLAG_CHGS		BIT(7)
 #define BQ27000_FLAG_FC			BIT(5)
 
-#define BQ27500_REG_SOC			0x2c
+#define BQ27500_REG_SOC			0x2C
 #define BQ27500_REG_DCAP		0x3C /* Design capacity */
 #define BQ27500_FLAG_DSC		BIT(0)
 #define BQ27500_FLAG_FC			BIT(9)
@@ -321,7 +321,7 @@ static int bq27x00_battery_temperature(struct bq27x00_device_info *di,
 }
 
 /*
- * Return the battery average current
+ * Return the battery average current in µA
  * Note that current can be negative signed as well
  * Or 0 if something fails.
  */
