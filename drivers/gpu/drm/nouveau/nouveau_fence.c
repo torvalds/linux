@@ -330,9 +330,18 @@ semaphore_acquire(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 	int ret;
 
 	if (dev_priv->chipset < 0x84) {
-		ret = RING_SPACE(chan, 3);
-		if (ret)
-			return ret;
+		if (dev_priv->chipset < 0x50) {
+			ret = RING_SPACE(chan, 3);
+			if (ret)
+				return ret;
+		} else {
+			ret = RING_SPACE(chan, 5);
+			if (ret)
+				return ret;
+
+			BEGIN_RING(chan, NvSubSw, NV_SW_YIELD, 1);
+			OUT_RING  (chan, 0);
+		}
 
 		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_OFFSET, 2);
 		OUT_RING  (chan, sema->mem->start);
@@ -401,7 +410,7 @@ semaphore_release(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 	int ret;
 
 	if (dev_priv->chipset < 0x84) {
-		ret = RING_SPACE(chan, 4);
+		ret = RING_SPACE(chan, (dev_priv->chipset != 0x50) ? 4 : 6);
 		if (ret)
 			return ret;
 
@@ -409,6 +418,10 @@ semaphore_release(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 		OUT_RING  (chan, sema->mem->start);
 		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_RELEASE, 1);
 		OUT_RING  (chan, 1);
+		if (dev_priv->chipset == 0x50) {
+			BEGIN_RING(chan, NvSubSw, NV_SW_YIELD, 1);
+			OUT_RING  (chan, 0);
+		}
 	} else
 	if (dev_priv->chipset < 0xc0) {
 		/*
