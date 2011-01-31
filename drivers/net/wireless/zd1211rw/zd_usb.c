@@ -377,8 +377,10 @@ static inline void handle_regs_int(struct urb *urb)
 	int_num = le16_to_cpu(*(__le16 *)(urb->transfer_buffer+2));
 	if (int_num == CR_INTERRUPT) {
 		struct zd_mac *mac = zd_hw_mac(zd_usb_to_hw(urb->context));
+		spin_lock(&mac->lock);
 		memcpy(&mac->intr_buffer, urb->transfer_buffer,
 				USB_MAX_EP_INT_BUFFER);
+		spin_unlock(&mac->lock);
 		schedule_work(&mac->process_intr);
 	} else if (intr->read_regs_enabled) {
 		intr->read_regs.length = len = urb->actual_length;

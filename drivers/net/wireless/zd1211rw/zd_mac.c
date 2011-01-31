@@ -911,9 +911,13 @@ static int zd_op_config(struct ieee80211_hw *hw, u32 changed)
 static void zd_process_intr(struct work_struct *work)
 {
 	u16 int_status;
+	unsigned long flags;
 	struct zd_mac *mac = container_of(work, struct zd_mac, process_intr);
 
-	int_status = le16_to_cpu(*(__le16 *)(mac->intr_buffer+4));
+	spin_lock_irqsave(&mac->lock, flags);
+	int_status = le16_to_cpu(*(__le16 *)(mac->intr_buffer + 4));
+	spin_unlock_irqrestore(&mac->lock, flags);
+
 	if (int_status & INT_CFG_NEXT_BCN)
 		dev_dbg_f_limit(zd_mac_dev(mac), "INT_CFG_NEXT_BCN\n");
 	else
