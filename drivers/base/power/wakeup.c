@@ -616,25 +616,25 @@ bool pm_get_wakeup_count(unsigned int *count)
  *
  * If @count is equal to the current number of registered wakeup events and the
  * current number of wakeup events being processed is zero, store @count as the
- * old number of registered wakeup events to be used by pm_check_wakeup_events()
- * and return true.  Otherwise return false.
+ * old number of registered wakeup events for pm_check_wakeup_events(), enable
+ * wakeup events detection and return 'true'.  Otherwise disable wakeup events
+ * detection and return 'false'.
  */
 bool pm_save_wakeup_count(unsigned int count)
 {
 	unsigned int cnt, inpr;
-	bool ret = false;
 
+	events_check_enabled = false;
 	spin_lock_irq(&events_lock);
 	split_counters(&cnt, &inpr);
 	if (cnt == count && inpr == 0) {
 		saved_count = count;
 		events_check_enabled = true;
-		ret = true;
 	}
 	spin_unlock_irq(&events_lock);
-	if (!ret)
+	if (!events_check_enabled)
 		pm_wakeup_update_hit_counts();
-	return ret;
+	return events_check_enabled;
 }
 
 static struct dentry *wakeup_sources_stats_dentry;
