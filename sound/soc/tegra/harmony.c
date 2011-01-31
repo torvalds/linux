@@ -132,7 +132,7 @@ static int harmony_event_int_spk(struct snd_soc_dapm_widget *w,
 	struct harmony_audio_platform_data *pdata = harmony->pdata;
 
 	gpio_set_value_cansleep(pdata->gpio_spkr_en,
-				!!SND_SOC_DAPM_EVENT_ON(event));
+				SND_SOC_DAPM_EVENT_ON(event));
 
 	return 0;
 }
