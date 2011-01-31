@@ -233,6 +233,7 @@ static int gpio_set_wake_irq(struct irq_data *d, u32 enable)
 }
 
 static struct irq_chip gpio_irq_chip = {
+	.name = "GPIO",
 	.irq_ack = gpio_ack_irq,
 	.irq_mask = gpio_mask_irq,
 	.irq_unmask = gpio_unmask_irq,
