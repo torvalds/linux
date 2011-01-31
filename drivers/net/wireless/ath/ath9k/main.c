@@ -64,19 +64,6 @@ static u8 parse_mpdudensity(u8 mpdudensity)
 	}
 }
 
-static struct ath9k_channel *ath_get_curchannel(struct ath_softc *sc,
-						struct ieee80211_hw *hw)
-{
-	struct ieee80211_channel *curchan = hw->conf.channel;
-	struct ath9k_channel *channel;
-	u8 chan_idx;
-
-	chan_idx = curchan->hw_value;
-	channel = &sc->sc_ah->channels[chan_idx];
-	ath9k_cmn_update_ichannel(channel, curchan, hw->conf.channel_type);
-	return channel;
-}
-
 bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode)
 {
 	unsigned long flags;
@@ -867,7 +854,7 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	ath9k_hw_configpcipowersave(ah, 0, 0);
 
 	if (!ah->curchan)
-		ah->curchan = ath_get_curchannel(sc, sc->hw);
+		ah->curchan = ath9k_cmn_get_curchannel(sc->hw, ah);
 
 	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (r) {
@@ -928,7 +915,7 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	ath_flushrecv(sc);		/* flush recv queue */
 
 	if (!ah->curchan)
-		ah->curchan = ath_get_curchannel(sc, hw);
+		ah->curchan = ath9k_cmn_get_curchannel(hw, ah);
 
 	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (r) {
@@ -1029,7 +1016,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	/* setup initial channel */
 	sc->chan_idx = curchan->hw_value;
 
-	init_channel = ath_get_curchannel(sc, hw);
+	init_channel = ath9k_cmn_get_curchannel(hw, ah);
 
 	/* Reset SERDES registers */
 	ath9k_hw_configpcipowersave(ah, 0, 0);
