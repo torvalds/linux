@@ -44,8 +44,6 @@
 static iomux_v3_cfg_t mx53_evk_pads[] = {
 	MX53_PAD_CSI0_DAT10__UART1_TXD_MUX,
 	MX53_PAD_CSI0_DAT11__UART1_RXD_MUX,
-	MX53_PAD_PATA_DIOW__UART1_TXD_MUX,
-	MX53_PAD_PATA_DMACK__UART1_RXD_MUX,
 
 	MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX,
 	MX53_PAD_PATA_DMARQ__UART2_TXD_MUX,
@@ -72,7 +70,7 @@ static const struct imxuart_platform_data mx53_evk_uart_pdata __initconst = {
 
 static inline void mx53_evk_init_uart(void)
 {
-	imx53_add_imx_uart(0, &mx53_evk_uart_pdata);
+	imx53_add_imx_uart(0, NULL);
 	imx53_add_imx_uart(1, &mx53_evk_uart_pdata);
 	imx53_add_imx_uart(2, &mx53_evk_uart_pdata);
 }
