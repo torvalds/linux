@@ -366,7 +366,6 @@ static int __init imxdma_probe(struct platform_device *pdev)
 		dma_cap_set(DMA_CYCLIC, imxdma->dma_device.cap_mask);
 
 		imxdmac->chan.device = &imxdma->dma_device;
-		imxdmac->chan.chan_id = i;
 		imxdmac->channel = i;
 
 		/* Add the channel to the DMAC list */
