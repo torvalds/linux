@@ -24,6 +24,7 @@
 
 
 MODULE_AUTHOR("Stephane Chatty <chatty@enac.fr>");
+MODULE_AUTHOR("Benjamin Tissoires <benjamin.tissoires@gmail.com>");
 MODULE_DESCRIPTION("HID multitouch panels");
 MODULE_LICENSE("GPL");
 
