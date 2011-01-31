@@ -814,7 +814,6 @@ typedef struct r8192_priv
 #endif
 	bool being_init_adapter;
 	u8 Rf_Mode;
-	short card_8192; /* O: rtl8192, 1:rtl8185 V B/C, 2:rtl8185 V D */
 	u8 card_8192_version; /* if TCR reports card V B/C this discriminates */
 	spinlock_t irq_th_lock;
 	spinlock_t tx_lock;
@@ -1050,10 +1049,6 @@ typedef struct r8192_priv
 	struct delayed_work initialgain_operate_wq;
 	struct workqueue_struct *priv_wq;
 }r8192_priv;
-
-typedef enum{
-	NIC_8192E = 1,
-} nic_t;
 
 bool init_firmware(struct net_device *dev);
 short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);

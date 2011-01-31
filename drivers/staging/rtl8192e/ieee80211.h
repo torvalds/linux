@@ -868,7 +868,6 @@ struct ieee80211_rx_stats {
 	u16 len;
 	u64 tsf;
 	u32 beacon_time;
-	u8 nic_type;
 	u16       Length;
 	//      u8        DataRate;      // In 0.5 Mbps
 	u8        SignalQuality; // in 0-100 index.

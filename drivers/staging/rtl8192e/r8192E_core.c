@@ -2086,7 +2086,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->rxbuffersize = 9100;//2048;//1024;
 	priv->rxringcount = MAX_RX_COUNT;//64;
 	priv->irq_enabled=0;
-	priv->card_8192 = NIC_8192E;
 	priv->rx_skb_complete = 1;
 	priv->chan = 1; //set to channel 1
 	priv->RegWirelessMode = WIRELESS_MODE_AUTO;
@@ -5368,8 +5367,6 @@ static void rtl8192_rx(struct net_device *dev)
         .freq = IEEE80211_24GHZ_BAND,
     };
     unsigned int count = priv->rxringcount;
-
-    stats.nic_type = NIC_8192E;
 
     while (count--) {
         rx_desc_819x_pci *pdesc = &priv->rx_ring[priv->rx_idx];//rx descriptor
