@@ -173,7 +173,7 @@ static int opt_set_filter(const struct option *opt __used,
 			strfilter__delete(params.filter);
 		params.filter = strfilter__new(str, &err);
 		if (!params.filter) {
-			pr_err("Filter parse error at %ld.\n", err - str + 1);
+			pr_err("Filter parse error at %td.\n", err - str + 1);
 			pr_err("Source: \"%s\"\n", str);
 			pr_err("         %*c\n", (int)(err - str + 1), '^');
 			return -EINVAL;
