@@ -5526,8 +5526,8 @@ static int raid5_start_reshape(mddev_t *mddev)
 		return -ENOSPC;
 
 	list_for_each_entry(rdev, &mddev->disks, same_set)
-		if ((rdev->raid_disk < 0 || rdev->raid_disk >= conf->raid_disks)
-		     && !test_bit(Faulty, &rdev->flags))
+		if (!test_bit(In_sync, &rdev->flags)
+		    && !test_bit(Faulty, &rdev->flags))
 			spares++;
 
 	if (spares - mddev->degraded < mddev->delta_disks - conf->max_degraded)
