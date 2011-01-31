@@ -2699,14 +2699,12 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	}
 
 	dp = alloc_init_deleg(sop->so_client, stp, fh, flag);
-	if (dp == NULL) {
-		flag = NFS4_OPEN_DELEGATE_NONE;
-		goto out;
-	}
+	if (dp == NULL)
+		goto out_no_deleg;
 	status = -ENOMEM;
 	fl = nfs4_alloc_init_lease(dp, flag);
 	if (!fl)
-		goto out;
+		goto out_free;
 	/* vfs_setlease checks to see if delegation should be handed out.
 	 * the lock_manager callback fl_change is used
 	 */
@@ -2714,9 +2712,7 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 		dprintk("NFSD: setlease failed [%d], no delegation\n", status);
 		dp->dl_flock = NULL;
 		locks_free_lock(fl);
-		unhash_delegation(dp);
-		flag = NFS4_OPEN_DELEGATE_NONE;
-		goto out;
+		goto out_free;
 	}
 
 	memcpy(&open->op_delegate_stateid, &dp->dl_stateid, sizeof(dp->dl_stateid));
@@ -2729,6 +2725,12 @@ out:
 			&& open->op_delegate_type != NFS4_OPEN_DELEGATE_NONE)
 		dprintk("NFSD: WARNING: refusing delegation reclaim\n");
 	open->op_delegate_type = flag;
+	return;
+out_free:
+	unhash_delegation(dp);
+out_no_deleg:
+	flag = NFS4_OPEN_DELEGATE_NONE;
+	goto out;
 }
 
 /*
