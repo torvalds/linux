@@ -138,7 +138,8 @@ xfs_efi_item_unpin(
 
 	if (remove) {
 		ASSERT(!(lip->li_flags & XFS_LI_IN_AIL));
-		xfs_trans_del_item(lip);
+		if (lip->li_desc)
+			xfs_trans_del_item(lip);
 		xfs_efi_item_free(efip);
 		return;
 	}
