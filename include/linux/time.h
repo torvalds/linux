@@ -125,7 +125,6 @@ extern int timekeeping_suspended;
 unsigned long get_seconds(void);
 struct timespec current_kernel_time(void);
 struct timespec __current_kernel_time(void); /* does not take xtime_lock */
-struct timespec __get_wall_to_monotonic(void); /* does not take xtime_lock */
 struct timespec get_monotonic_coarse(void);
 void get_xtime_and_monotonic_offset(struct timespec *xtim, struct timespec *wtom);
 

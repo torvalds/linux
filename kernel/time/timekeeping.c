@@ -910,11 +910,6 @@ struct timespec __current_kernel_time(void)
 	return xtime;
 }
 
-struct timespec __get_wall_to_monotonic(void)
-{
-	return wall_to_monotonic;
-}
-
 struct timespec current_kernel_time(void)
 {
 	struct timespec now;
