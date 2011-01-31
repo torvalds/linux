@@ -107,7 +107,7 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 	bool is_tft;
 	int r = 0;
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	dispc_set_pol_freq(dssdev->manager->id, dssdev->panel.config,
 			dssdev->panel.acbi, dssdev->panel.acb);
@@ -137,7 +137,7 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 	dispc_set_lcd_timings(dssdev->manager->id, t);
 
 err0:
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 	return r;
 }
 
@@ -173,14 +173,14 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 			goto err1;
 	}
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	r = dpi_basic_init(dssdev);
 	if (r)
 		goto err2;
 
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
-	dss_clk_enable(DSS_CLK_FCK2);
+	dss_clk_enable(DSS_CLK_SYSCK);
 	r = dsi_pll_init(dssdev, 0, 1);
 	if (r)
 		goto err3;
@@ -199,10 +199,10 @@ err4:
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
 	dsi_pll_uninit();
 err3:
-	dss_clk_disable(DSS_CLK_FCK2);
+	dss_clk_disable(DSS_CLK_SYSCK);
 #endif
 err2:
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 	if (cpu_is_omap34xx())
 		regulator_disable(dpi.vdds_dsi_reg);
 err1:
@@ -219,10 +219,10 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
 	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
 	dsi_pll_uninit();
-	dss_clk_disable(DSS_CLK_FCK2);
+	dss_clk_disable(DSS_CLK_SYSCK);
 #endif
 
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	if (cpu_is_omap34xx())
 		regulator_disable(dpi.vdds_dsi_reg);

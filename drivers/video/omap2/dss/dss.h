@@ -112,11 +112,11 @@ enum omap_parallel_interface_mode {
 };
 
 enum dss_clock {
-	DSS_CLK_ICK	= 1 << 0,
-	DSS_CLK_FCK1	= 1 << 1,
-	DSS_CLK_FCK2	= 1 << 2,
-	DSS_CLK_54M	= 1 << 3,
-	DSS_CLK_96M	= 1 << 4,
+	DSS_CLK_ICK	= 1 << 0,	/* DSS_L3_ICLK and DSS_L4_ICLK */
+	DSS_CLK_FCK	= 1 << 1,	/* DSS1_ALWON_FCLK */
+	DSS_CLK_SYSCK	= 1 << 2,	/* DSS2_ALWON_FCLK */
+	DSS_CLK_TVFCK	= 1 << 3,	/* DSS_TV_FCLK */
+	DSS_CLK_VIDFCK	= 1 << 4,	/* DSS_96M_FCLK*/
 };
 
 enum dss_clk_source {

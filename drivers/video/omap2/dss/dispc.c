@@ -551,9 +551,9 @@ void dispc_restore_context(void)
 static inline void enable_clocks(bool enable)
 {
 	if (enable)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 	else
-		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 }
 
 bool dispc_go_busy(enum omap_channel channel)
@@ -2311,7 +2311,7 @@ unsigned long dispc_fclk_rate(void)
 	unsigned long r = 0;
 
 	if (dss_get_dispc_clk_source() == DSS_SRC_DSS1_ALWON_FCLK)
-		r = dss_clk_get_rate(DSS_CLK_FCK1);
+		r = dss_clk_get_rate(DSS_CLK_FCK);
 	else
 #ifdef CONFIG_OMAP2_DSS_DSI
 		r = dsi_get_dsi1_pll_rate();
@@ -2439,7 +2439,7 @@ void dispc_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dispc_read_reg(r))
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	DUMPREG(DISPC_REVISION);
 	DUMPREG(DISPC_SYSCONFIG);
@@ -2596,7 +2596,7 @@ void dispc_dump_regs(struct seq_file *s)
 	DUMPREG(DISPC_VID_PRELOAD(0));
 	DUMPREG(DISPC_VID_PRELOAD(1));
 
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 #undef DUMPREG
 }
 

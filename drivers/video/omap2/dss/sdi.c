@@ -70,7 +70,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 
 	/* In case of skip_init sdi_init has already enabled the clocks */
 	if (!sdi.skip_init)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	sdi_basic_init(dssdev);
 
@@ -130,7 +130,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 
 	return 0;
 err2:
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 	regulator_disable(sdi.vdds_sdi_reg);
 err1:
 	omap_dss_stop_device(dssdev);
@@ -145,7 +145,7 @@ void omapdss_sdi_display_disable(struct omap_dss_device *dssdev)
 
 	dss_sdi_disable();
 
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	regulator_disable(sdi.vdds_sdi_reg);
 
@@ -175,7 +175,7 @@ int sdi_init(bool skip_init)
 	 * of them until sdi_display_enable is called.
 	 */
 	if (skip_init)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 	return 0;
 }
 

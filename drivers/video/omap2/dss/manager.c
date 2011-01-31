@@ -1394,7 +1394,7 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	}
 
 	r = 0;
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 	if (!dss_cache.irq_enabled) {
 		u32 mask;
 
@@ -1407,7 +1407,7 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 		dss_cache.irq_enabled = true;
 	}
 	configure_dispc();
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	spin_unlock_irqrestore(&dss_cache.lock, flags);
 

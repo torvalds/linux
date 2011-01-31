@@ -141,9 +141,9 @@ static inline u32 rfbi_read_reg(const struct rfbi_reg idx)
 static void rfbi_enable_clocks(bool enable)
 {
 	if (enable)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 	else
-		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 }
 
 void omap_rfbi_write_command(const void *buf, u32 len)
@@ -496,7 +496,7 @@ unsigned long rfbi_get_max_tx_rate(void)
 	};
 
 	l4_rate = rfbi.l4_khz / 1000;
-	dss1_rate = dss_clk_get_rate(DSS_CLK_FCK1) / 1000000;
+	dss1_rate = dss_clk_get_rate(DSS_CLK_FCK) / 1000000;
 
 	for (i = 0; i < ARRAY_SIZE(ftab); i++) {
 		/* Use a window instead of an exact match, to account
@@ -921,7 +921,7 @@ void rfbi_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, rfbi_read_reg(r))
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	DUMPREG(RFBI_REVISION);
 	DUMPREG(RFBI_SYSCONFIG);
@@ -952,7 +952,7 @@ void rfbi_dump_regs(struct seq_file *s)
 	DUMPREG(RFBI_VSYNC_WIDTH);
 	DUMPREG(RFBI_HSYNC_WIDTH);
 
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 #undef DUMPREG
 }
 

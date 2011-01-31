@@ -654,18 +654,18 @@ static void dsi_vc_disable_bta_irq(int channel)
 static inline void enable_clocks(bool enable)
 {
 	if (enable)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 	else
-		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 }
 
 /* source clock for DSI PLL. this could also be PCLKFREE */
 static inline void dsi_enable_pll_clock(bool enable)
 {
 	if (enable)
-		dss_clk_enable(DSS_CLK_FCK2);
+		dss_clk_enable(DSS_CLK_SYSCK);
 	else
-		dss_clk_disable(DSS_CLK_FCK2);
+		dss_clk_disable(DSS_CLK_SYSCK);
 
 	if (enable && dsi.pll_locked) {
 		if (wait_for_bit_change(DSI_PLL_STATUS, 1, 1) != 1)
@@ -741,7 +741,7 @@ static unsigned long dsi_fclk_rate(void)
 
 	if (dss_get_dsi_clk_source() == DSS_SRC_DSS1_ALWON_FCLK) {
 		/* DSI FCLK source is DSS1_ALWON_FCK, which is dss1_fck */
-		r = dss_clk_get_rate(DSS_CLK_FCK1);
+		r = dss_clk_get_rate(DSS_CLK_FCK);
 	} else {
 		/* DSI FCLK source is DSI2_PLL_FCLK */
 		r = dsi_get_dsi2_pll_rate();
@@ -821,7 +821,7 @@ static int dsi_calc_clock_rates(struct omap_dss_device *dssdev,
 		return -EINVAL;
 
 	if (cinfo->use_dss2_fck) {
-		cinfo->clkin = dss_clk_get_rate(DSS_CLK_FCK2);
+		cinfo->clkin = dss_clk_get_rate(DSS_CLK_SYSCK);
 		/* XXX it is unclear if highfreq should be used
 		 * with DSS2_FCK source also */
 		cinfo->highfreq = 0;
@@ -867,7 +867,7 @@ int dsi_pll_calc_clock_div_pck(bool is_tft, unsigned long req_pck,
 	int match = 0;
 	unsigned long dss_clk_fck2;
 
-	dss_clk_fck2 = dss_clk_get_rate(DSS_CLK_FCK2);
+	dss_clk_fck2 = dss_clk_get_rate(DSS_CLK_SYSCK);
 
 	if (req_pck == dsi.cache_req_pck &&
 			dsi.cache_cinfo.clkin == dss_clk_fck2) {
@@ -1319,7 +1319,7 @@ void dsi_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dsi_read_reg(r))
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	DUMPREG(DSI_REVISION);
 	DUMPREG(DSI_SYSCONFIG);
@@ -1391,7 +1391,7 @@ void dsi_dump_regs(struct seq_file *s)
 	DUMPREG(DSI_PLL_CONFIGURATION1);
 	DUMPREG(DSI_PLL_CONFIGURATION2);
 
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 #undef DUMPREG
 }
 
