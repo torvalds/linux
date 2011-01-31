@@ -73,7 +73,9 @@ enum {
 
 	/* module saa7146: reserved range 300-309 */
 	V4L2_IDENT_SAA7146 = 300,
-	V4L2_IDENT_S5K66A = 350,							/* ddl@rock-chips.com : s5k66a support */
+
+	/* Samsung sensors: reserved range 310-319 */
+	V4L2_IDENT_S5K66A = 310,							/* ddl@rock-chips.com : s5k66a support */
 
 	/* Conexant MPEG encoder/decoders: reserved range 400-420 */
 	V4L2_IDENT_CX23418_843 = 403, /* Integrated A/V Decoder on the '418 */
@@ -256,6 +258,8 @@ enum {
 	V4L2_IDENT_MT9T031		= 45020,
 	V4L2_IDENT_MT9V111		= 45031,
 	V4L2_IDENT_MT9V112		= 45032,
+
+	V4L2_IDENT_MT9P111		= 45033,							/* ddl@rock-chips.com : MT9P111 support */
 
 	/* HV7131R CMOS sensor: just ident 46000 */
 	V4L2_IDENT_HV7131R		= 46000,
