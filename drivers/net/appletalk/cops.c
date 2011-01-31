@@ -65,6 +65,7 @@ static const char *version =
 #include <linux/if_arp.h>
 #include <linux/if_ltalk.h>
 #include <linux/delay.h>	/* For udelay() */
+#include <linux/atalk.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
@@ -73,7 +74,6 @@ static const char *version =
 #include <asm/io.h>
 #include <asm/dma.h>
 
-#include "atalk.h"
 #include "cops.h"		/* Our Stuff */
 #include "cops_ltdrv.h"		/* Firmware code for Tangent type cards. */
 #include "cops_ffdrv.h"		/* Firmware code for Dayna type cards. */

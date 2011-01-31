@@ -225,6 +225,7 @@ static int dma;
 #include <linux/if_ltalk.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
+#include <linux/atalk.h>
 #include <linux/bitops.h>
 #include <linux/gfp.h>
 
@@ -233,7 +234,6 @@ static int dma;
 #include <asm/io.h>
 
 /* our stuff */
-#include "atalk.h"
 #include "ltpc.h"
 
 static DEFINE_SPINLOCK(txqueue_lock);

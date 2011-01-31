@@ -56,6 +56,7 @@
 #include <linux/syscalls.h>
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
+#include <linux/atalk.h>
 #include <linux/gfp.h>
 
 #include <net/bluetooth/bluetooth.h>
