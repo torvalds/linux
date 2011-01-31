@@ -24,6 +24,11 @@
  *
  *   SPI 0 -> CS4245
  *
+ *   I²S 1 -> CS4245
+ *   I²S 2 -> CS4361 (center/LFE)
+ *   I²S 3 -> CS4361 (surround)
+ *   I²S 4 -> CS4361 (front)
+ *
  *   GPIO 3 <- ?
  *   GPIO 4 <- headphone detect
  *   GPIO 5 -> route input jack to line-in (0) or mic-in (1)
@@ -36,6 +41,7 @@
  *   input 1 <- aux
  *   input 2 <- front mic
  *   input 4 <- line/mic
+ *   DAC out -> headphones
  *   aux out -> front panel headphones
  */
 
@@ -205,6 +211,35 @@ static void set_cs4245_adc_params(struct oxygen *chip,
 	else
 		value |= CS4245_ADC_FM_QUAD;
 	cs4245_write_cached(chip, CS4245_ADC_CTRL, value);
+}
+
+static inline unsigned int shift_bits(unsigned int value,
+				      unsigned int shift_from,
+				      unsigned int shift_to,
+				      unsigned int mask)
+{
+	if (shift_from < shift_to)
+		return (value << (shift_to - shift_from)) & mask;
+	else
+		return (value >> (shift_from - shift_to)) & mask;
+}
+
+static unsigned int adjust_dg_dac_routing(struct oxygen *chip,
+					  unsigned int play_routing)
+{
+	return (play_routing & OXYGEN_PLAY_DAC0_SOURCE_MASK) |
+	       shift_bits(play_routing,
+			  OXYGEN_PLAY_DAC2_SOURCE_SHIFT,
+			  OXYGEN_PLAY_DAC1_SOURCE_SHIFT,
+			  OXYGEN_PLAY_DAC1_SOURCE_MASK) |
+	       shift_bits(play_routing,
+			  OXYGEN_PLAY_DAC1_SOURCE_SHIFT,
+			  OXYGEN_PLAY_DAC2_SOURCE_SHIFT,
+			  OXYGEN_PLAY_DAC2_SOURCE_MASK) |
+	       shift_bits(play_routing,
+			  OXYGEN_PLAY_DAC0_SOURCE_SHIFT,
+			  OXYGEN_PLAY_DAC3_SOURCE_SHIFT,
+			  OXYGEN_PLAY_DAC3_SOURCE_MASK);
 }
 
 static int output_switch_info(struct snd_kcontrol *ctl,
@@ -557,6 +592,7 @@ struct oxygen_model model_xonar_dg = {
 	.resume = dg_resume,
 	.set_dac_params = set_cs4245_dac_params,
 	.set_adc_params = set_cs4245_adc_params,
+	.adjust_dac_routing = adjust_dg_dac_routing,
 	.dump_registers = dump_cs4245_registers,
 	.model_data_size = sizeof(struct dg),
 	.device_config = PLAYBACK_0_TO_I2S |
