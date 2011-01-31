@@ -160,7 +160,7 @@ static int __init _omap_mux_get_by_name(struct omap_mux_partition *partition,
 	struct omap_mux *mux = NULL;
 	struct omap_mux_entry *e;
 	const char *mode_name;
-	int found = 0, found_mode, mode0_len = 0;
+	int found = 0, found_mode = 0, mode0_len = 0;
 	struct list_head *muxmodes = &partition->muxmodes;
 
 	mode_name = strchr(muxname, '.');
