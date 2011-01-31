@@ -64,6 +64,7 @@ static void free_info(struct kref *ref)
 
 	spin_unlock_bh(&bat_priv->vis_list_lock);
 	kfree_skb(info->skb_packet);
+	kfree(info);
 }
 
 /* Compare two vis packets, used by the hashing algorithm */
@@ -268,10 +269,10 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 				buff_pos += sprintf(buff + buff_pos, "%pM,",
 						entry->addr);
 
-				for (i = 0; i < packet->entries; i++)
+				for (j = 0; j < packet->entries; j++)
 					buff_pos += vis_data_read_entry(
 							buff + buff_pos,
-							&entries[i],
+							&entries[j],
 							entry->addr,
 							entry->primary);
 
@@ -444,7 +445,7 @@ static struct vis_info *add_packet(struct bat_priv *bat_priv,
 			      info);
 	if (hash_added < 0) {
 		/* did not work (for some reason) */
-		kref_put(&old_info->refcount, free_info);
+		kref_put(&info->refcount, free_info);
 		info = NULL;
 	}
 
@@ -815,7 +816,7 @@ static void send_vis_packets(struct work_struct *work)
 		container_of(work, struct delayed_work, work);
 	struct bat_priv *bat_priv =
 		container_of(delayed_work, struct bat_priv, vis_work);
-	struct vis_info *info, *temp;
+	struct vis_info *info;
 
 	spin_lock_bh(&bat_priv->vis_hash_lock);
 	purge_vis_packets(bat_priv);
@@ -825,8 +826,9 @@ static void send_vis_packets(struct work_struct *work)
 		send_list_add(bat_priv, bat_priv->my_vis_info);
 	}
 
-	list_for_each_entry_safe(info, temp, &bat_priv->vis_send_list,
-				 send_list) {
+	while (!list_empty(&bat_priv->vis_send_list)) {
+		info = list_first_entry(&bat_priv->vis_send_list,
+					typeof(*info), send_list);
 
 		kref_get(&info->refcount);
 		spin_unlock_bh(&bat_priv->vis_hash_lock);
