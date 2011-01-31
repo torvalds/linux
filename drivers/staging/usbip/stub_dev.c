@@ -258,10 +258,11 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 static void stub_device_reset(struct usbip_device *ud)
 {
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
-	struct usb_device *udev = interface_to_usbdev(sdev->interface);
+	struct usb_device *udev = sdev->udev;
 	int ret;
 
 	usbip_udbg("device reset");
+
 	ret = usb_lock_device_for_reset(udev, sdev->interface);
 	if (ret < 0) {
 		dev_err(&udev->dev, "lock for reset\n");
@@ -309,7 +310,8 @@ static void stub_device_unusable(struct usbip_device *ud)
  *
  * Allocates and initializes a new stub_device struct.
  */
-static struct stub_device *stub_device_alloc(struct usb_interface *interface)
+static struct stub_device *stub_device_alloc(struct usb_device *udev,
+					     struct usb_interface *interface)
 {
 	struct stub_device *sdev;
 	int busnum = interface_to_busnum(interface);
@@ -324,7 +326,8 @@ static struct stub_device *stub_device_alloc(struct usb_interface *interface)
 		return NULL;
 	}
 
-	sdev->interface = interface;
+	sdev->interface = usb_get_intf(interface);
+	sdev->udev = usb_get_dev(udev);
 
 	/*
 	 * devid is defined with devnum when this driver is first allocated.
@@ -450,11 +453,12 @@ static int stub_probe(struct usb_interface *interface,
 			return err;
 		}
 
+		usb_get_intf(interface);
 		return 0;
 	}
 
 	/* ok. this is my device. */
-	sdev = stub_device_alloc(interface);
+	sdev = stub_device_alloc(udev, interface);
 	if (!sdev)
 		return -ENOMEM;
 
@@ -476,6 +480,8 @@ static int stub_probe(struct usb_interface *interface,
 		dev_err(&interface->dev, "create sysfs files for %s\n",
 			udev_busid);
 		usb_set_intfdata(interface, NULL);
+		usb_put_intf(interface);
+
 		busid_priv->interf_count = 0;
 
 		busid_priv->sdev = NULL;
@@ -545,6 +551,7 @@ static void stub_disconnect(struct usb_interface *interface)
 	if (busid_priv->interf_count > 1) {
 		busid_priv->interf_count--;
 		shutdown_busid(busid_priv);
+		usb_put_intf(interface);
 		return;
 	}
 
@@ -553,6 +560,9 @@ static void stub_disconnect(struct usb_interface *interface)
 
 	/* 1. shutdown the current connection */
 	shutdown_busid(busid_priv);
+
+	usb_put_dev(sdev->udev);
+	usb_put_intf(interface);
 
 	/* 3. free sdev */
 	busid_priv->sdev = NULL;

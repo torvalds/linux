@@ -128,12 +128,13 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 	u8 *ptmpchar = NULL, *ppayload, *ptr;
 	struct tx_desc *ptx_desc;
 	u32 txdscp_sz = sizeof(struct tx_desc);
+	u8 ret = _FAIL;
 
 	ulfilelength = rtl871x_open_fw(padapter, &phfwfile_hdl, &pmappedfw);
 	if (pmappedfw && (ulfilelength > 0)) {
 		update_fwhdr(&fwhdr, pmappedfw);
 		if (chk_fwhdr(&fwhdr, ulfilelength) == _FAIL)
-			goto exit_fail;
+			goto firmware_rel;
 		fill_fwpriv(padapter, &fwhdr.fwpriv);
 		/* firmware check ok */
 		maxlen = (fwhdr.img_IMEM_size > fwhdr.img_SRAM_size) ?
@@ -141,7 +142,7 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		maxlen += txdscp_sz;
 		ptmpchar = _malloc(maxlen + FWBUFF_ALIGN_SZ);
 		if (ptmpchar == NULL)
-			return _FAIL;
+			goto firmware_rel;
 
 		ptx_desc = (struct tx_desc *)(ptmpchar + FWBUFF_ALIGN_SZ -
 			    ((addr_t)(ptmpchar) & (FWBUFF_ALIGN_SZ - 1)));
@@ -273,11 +274,13 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 			goto exit_fail;
 	} else
 		goto exit_fail;
-	return _SUCCESS;
+	ret = _SUCCESS;
 
 exit_fail:
 	kfree(ptmpchar);
-	return _FAIL;
+firmware_rel:
+	release_firmware((struct firmware *)phfwfile_hdl);
+	return ret;
 }
 
 uint rtl8712_hal_init(struct _adapter *padapter)
