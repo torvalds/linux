@@ -655,10 +655,10 @@ static int soc_camera_streamon(struct file *file, void *priv,
 	if (icd->streamer != file)
 		return -EBUSY;
 
-	v4l2_subdev_call(sd, video, s_stream, 1);
-
 	/* This calls buf_queue from host driver's videobuf_queue_ops */
 	ret = videobuf_streamon(&icd->vb_vidq);
+	if (!ret)
+		v4l2_subdev_call(sd, video, s_stream, 1);
 
 	return ret;
 }
