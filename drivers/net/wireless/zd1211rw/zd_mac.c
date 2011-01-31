@@ -141,6 +141,9 @@ static void housekeeping_disable(struct zd_mac *mac);
 static void beacon_init(struct zd_mac *mac);
 static void beacon_enable(struct zd_mac *mac);
 static void beacon_disable(struct zd_mac *mac);
+static void set_rts_cts(struct zd_mac *mac, unsigned int short_preamble);
+static int zd_mac_config_beacon(struct ieee80211_hw *hw,
+				struct sk_buff *beacon);
 
 static int zd_reg2alpha2(u8 regdomain, char *alpha2)
 {
@@ -337,6 +340,68 @@ static void zd_op_stop(struct ieee80211_hw *hw)
 
 	while ((skb = skb_dequeue(ack_wait_queue)))
 		dev_kfree_skb_any(skb);
+}
+
+int zd_restore_settings(struct zd_mac *mac)
+{
+	struct sk_buff *beacon;
+	struct zd_mc_hash multicast_hash;
+	unsigned int short_preamble;
+	int r, beacon_interval, beacon_period;
+	u8 channel;
+
+	dev_dbg_f(zd_mac_dev(mac), "\n");
+
+	spin_lock_irq(&mac->lock);
+	multicast_hash = mac->multicast_hash;
+	short_preamble = mac->short_preamble;
+	beacon_interval = mac->beacon.interval;
+	beacon_period = mac->beacon.period;
+	channel = mac->channel;
+	spin_unlock_irq(&mac->lock);
+
+	r = set_mac_and_bssid(mac);
+	if (r < 0) {
+		dev_dbg_f(zd_mac_dev(mac), "set_mac_and_bssid failed, %d\n", r);
+		return r;
+	}
+
+	r = zd_chip_set_channel(&mac->chip, channel);
+	if (r < 0) {
+		dev_dbg_f(zd_mac_dev(mac), "zd_chip_set_channel failed, %d\n",
+			  r);
+		return r;
+	}
+
+	set_rts_cts(mac, short_preamble);
+
+	r = zd_chip_set_multicast_hash(&mac->chip, &multicast_hash);
+	if (r < 0) {
+		dev_dbg_f(zd_mac_dev(mac),
+			  "zd_chip_set_multicast_hash failed, %d\n", r);
+		return r;
+	}
+
+	if (mac->type == NL80211_IFTYPE_MESH_POINT ||
+	    mac->type == NL80211_IFTYPE_ADHOC ||
+	    mac->type == NL80211_IFTYPE_AP) {
+		if (mac->vif != NULL) {
+			beacon = ieee80211_beacon_get(mac->hw, mac->vif);
+			if (beacon) {
+				zd_mac_config_beacon(mac->hw, beacon);
+				kfree_skb(beacon);
+			}
+		}
+
+		zd_set_beacon_interval(&mac->chip, beacon_interval,
+					beacon_period, mac->type);
+
+		spin_lock_irq(&mac->lock);
+		mac->beacon.last_update = jiffies;
+		spin_unlock_irq(&mac->lock);
+	}
+
+	return 0;
 }
 
 /**
@@ -987,6 +1052,10 @@ static int zd_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	struct ieee80211_conf *conf = &hw->conf;
+
+	spin_lock_irq(&mac->lock);
+	mac->channel = conf->channel->hw_value;
+	spin_unlock_irq(&mac->lock);
 
 	return zd_chip_set_channel(&mac->chip, conf->channel->hw_value);
 }

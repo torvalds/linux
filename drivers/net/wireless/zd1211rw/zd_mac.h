@@ -192,6 +192,7 @@ struct zd_mac {
 	u8 intr_buffer[USB_MAX_EP_INT_BUFFER];
 	u8 regdomain;
 	u8 default_regdomain;
+	u8 channel;
 	int type;
 	int associated;
 	unsigned long flags;
@@ -312,6 +313,8 @@ int zd_mac_init_hw(struct ieee80211_hw *hw);
 int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length);
 void zd_mac_tx_failed(struct urb *urb);
 void zd_mac_tx_to_dev(struct sk_buff *skb, int error);
+
+int zd_restore_settings(struct zd_mac *mac);
 
 #ifdef DEBUG
 void zd_dump_rx_status(const struct rx_status *status);
