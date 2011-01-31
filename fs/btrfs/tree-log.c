@@ -2051,6 +2051,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		wait_log_commit(trans, log_root_tree,
 				log_root_tree->log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
+		ret = 0;
 		goto out;
 	}
 	atomic_set(&log_root_tree->log_commit[index2], 1);
@@ -2115,7 +2116,7 @@ out:
 	smp_mb();
 	if (waitqueue_active(&root->log_commit_wait[index1]))
 		wake_up(&root->log_commit_wait[index1]);
-	return 0;
+	return ret;
 }
 
 static void free_log_tree(struct btrfs_trans_handle *trans,
