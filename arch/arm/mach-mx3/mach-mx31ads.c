@@ -73,8 +73,7 @@
  * This file contains the board-specific initialization routines.
  */
 
-#if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
-/*!
+/*
  * The serial port definition structure.
  */
 static struct plat_serial8250_port serial_platform_data[] = {
@@ -110,14 +109,7 @@ static int __init mxc_init_extuart(void)
 {
 	return platform_device_register(&serial_device);
 }
-#else
-static inline int mxc_init_extuart(void)
-{
-	return 0;
-}
-#endif
 
-#if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
@@ -134,11 +126,6 @@ static inline void mxc_init_imx_uart(void)
 	mxc_iomux_setup_multiple_pins(uart_pins, ARRAY_SIZE(uart_pins), "uart-0");
 	imx31_add_imx_uart0(&uart_pdata);
 }
-#else /* !SERIAL_IMX */
-static inline void mxc_init_imx_uart(void)
-{
-}
-#endif /* !SERIAL_IMX */
 
 static void mx31ads_expio_irq_handler(u32 irq, struct irq_desc *desc)
 {
@@ -476,7 +463,6 @@ static struct wm8350_platform_data __initdata mx31_wm8350_pdata = {
 };
 #endif
 
-#if defined(CONFIG_I2C_IMX) || defined(CONFIG_I2C_IMX_MODULE)
 static struct i2c_board_info __initdata mx31ads_i2c1_devices[] = {
 #ifdef CONFIG_MACH_MX31ADS_WM1133_EV1
 	{
@@ -497,11 +483,6 @@ static void mxc_init_i2c(void)
 
 	imx31_add_imx_i2c1(NULL);
 }
-#else
-static void mxc_init_i2c(void)
-{
-}
-#endif
 
 static unsigned int ssi_pins[] = {
 	MX31_PIN_SFS5__SFS5,

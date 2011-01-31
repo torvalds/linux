@@ -71,24 +71,10 @@ static iomux_v3_cfg_t mx51_3ds_pads[] = {
 };
 
 /* Serial ports */
-#if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static inline void mxc_init_imx_uart(void)
-{
-	imx51_add_imx_uart(0, &uart_pdata);
-	imx51_add_imx_uart(1, &uart_pdata);
-	imx51_add_imx_uart(2, &uart_pdata);
-}
-#else /* !SERIAL_IMX */
-static inline void mxc_init_imx_uart(void)
-{
-}
-#endif /* SERIAL_IMX */
-
-#if defined(CONFIG_KEYBOARD_IMX) || defined(CONFIG_KEYBOARD_IMX_MODULE)
 static int mx51_3ds_board_keymap[] = {
 	KEY(0, 0, KEY_1),
 	KEY(0, 1, KEY_2),
@@ -124,16 +110,6 @@ static const struct matrix_keymap_data mx51_3ds_map_data __initconst = {
 	.keymap_size	= ARRAY_SIZE(mx51_3ds_board_keymap),
 };
 
-static void mxc_init_keypad(void)
-{
-	imx51_add_imx_keypad(&mx51_3ds_map_data);
-}
-#else
-static inline void mxc_init_keypad(void)
-{
-}
-#endif
-
 static int mx51_3ds_spi2_cs[] = {
 	MXC_SPI_CS(0),
 	MX51_3DS_ECSPI2_CS,
@@ -161,7 +137,10 @@ static void __init mxc_board_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx51_3ds_pads,
 					ARRAY_SIZE(mx51_3ds_pads));
-	mxc_init_imx_uart();
+
+	imx51_add_imx_uart(0, &uart_pdata);
+	imx51_add_imx_uart(1, &uart_pdata);
+	imx51_add_imx_uart(2, &uart_pdata);
 
 	imx51_add_ecspi(1, &mx51_3ds_ecspi2_pdata);
 	spi_register_board_info(mx51_3ds_spi_nor_device,
@@ -172,7 +151,7 @@ static void __init mxc_board_init(void)
 				    "devices on the board are unusable.\n");
 
 	imx51_add_sdhci_esdhc_imx(0, NULL);
-	mxc_init_keypad();
+	imx51_add_imx_keypad(&mx51_3ds_map_data);
 	imx51_add_imx2_wdt(0, NULL);
 }
 

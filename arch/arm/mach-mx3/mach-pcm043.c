@@ -115,7 +115,6 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-#if defined CONFIG_I2C_IMX || defined CONFIG_I2C_IMX_MODULE
 static const struct imxi2c_platform_data pcm043_i2c0_data __initconst = {
 	.bitrate = 50000,
 };
@@ -134,7 +133,6 @@ static struct i2c_board_info pcm043_i2c_devices[] = {
 		I2C_BOARD_INFO("pcf8563", 0x51),
 	}
 };
-#endif
 
 static struct platform_device *devices[] __initdata = {
 	&pcm043_flash,
@@ -312,13 +310,13 @@ static struct mxc_usbh_platform_data otg_pdata __initdata = {
 	.portsc	= MXC_EHCI_MODE_UTMI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
+#endif
 
 static const struct mxc_usbh_platform_data usbh1_pdata __initconst = {
 	.portsc	= MXC_EHCI_MODE_SERIAL,
 	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
 		  MXC_EHCI_IPPUE_DOWN,
 };
-#endif
 
 static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
@@ -369,12 +367,10 @@ static void __init mxc_board_init(void)
 
 	imx35_add_imx_uart1(&uart_pdata);
 
-#if defined CONFIG_I2C_IMX || defined CONFIG_I2C_IMX_MODULE
 	i2c_register_board_info(0, pcm043_i2c_devices,
 			ARRAY_SIZE(pcm043_i2c_devices));
 
 	imx35_add_imx_i2c0(&pcm043_i2c0_data);
-#endif
 
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);
@@ -386,9 +382,9 @@ static void __init mxc_board_init(void)
 
 		imx35_add_mxc_ehci_otg(&otg_pdata);
 	}
-
-	imx35_add_mxc_ehci_hs(&usbh1_pdata);
 #endif
+	imx35_add_mxc_ehci_hs(&usbh1_pdata);
+
 	if (!otg_mode_host)
 		imx35_add_fsl_usb2_udc(&otg_device_pdata);
 
