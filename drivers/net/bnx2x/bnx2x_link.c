@@ -183,12 +183,6 @@
 		(_bank + (_addr & 0xf)), \
 		_val)
 
-static u8 bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
-			  u8 devad, u16 reg, u16 *ret_val);
-
-static u8 bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
-			   u8 devad, u16 reg, u16 val);
-
 static u32 bnx2x_bits_en(struct bnx2x *bp, u32 reg, u32 bits)
 {
 	u32 val = REG_RD(bp, reg);
@@ -269,7 +263,7 @@ void bnx2x_ets_disabled(struct link_params *params)
 	REG_WR(bp, PBF_REG_NUM_STRICT_ARB_SLOTS, 0);
 }
 
-void bnx2x_ets_bw_limit_common(const struct link_params *params)
+static void bnx2x_ets_bw_limit_common(const struct link_params *params)
 {
 	/* ETS disabled configuration */
 	struct bnx2x *bp = params->bp;
@@ -1391,8 +1385,8 @@ static u32 bnx2x_get_emac_base(struct bnx2x *bp,
 /******************************************************************/
 /*			CL45 access functions			  */
 /******************************************************************/
-u8 bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
-		    u8 devad, u16 reg, u16 val)
+static u8 bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
+			   u8 devad, u16 reg, u16 val)
 {
 	u32 tmp, saved_mode;
 	u8 i, rc = 0;
@@ -1458,8 +1452,8 @@ u8 bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
 	return rc;
 }
 
-u8 bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
-		   u8 devad, u16 reg, u16 *ret_val)
+static u8 bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
+			  u8 devad, u16 reg, u16 *ret_val)
 {
 	u32 val, saved_mode;
 	u16 i;
@@ -4614,7 +4608,7 @@ static u8 bnx2x_8727_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 		DP(NETIF_MSG_LINK,
 			 "Got bad status 0x%x when reading from SFP+ EEPROM\n",
 			 (val & MDIO_PMA_REG_SFP_TWO_WIRE_CTRL_STATUS_MASK));
-		return -EINVAL;
+		return -EFAULT;
 	}
 
 	/* Read the buffer */

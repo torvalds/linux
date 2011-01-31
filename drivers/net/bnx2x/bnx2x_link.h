@@ -337,6 +337,11 @@ void bnx2x_ext_phy_hw_reset(struct bnx2x *bp, u8 port);
 /* Reset the external of SFX7101 */
 void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, struct bnx2x_phy *phy);
 
+/* Read "byte_cnt" bytes from address "addr" from the SFP+ EEPROM */
+u8 bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
+				struct link_params *params, u16 addr,
+				u8 byte_cnt, u8 *o_buf);
+
 void bnx2x_hw_reset_phy(struct link_params *params);
 
 /* Checks if HW lock is required for this phy/board type */
