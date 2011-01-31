@@ -1307,7 +1307,6 @@ static int __init sdma_probe(struct platform_device *pdev)
 		dma_cap_set(DMA_CYCLIC, sdma->dma_device.cap_mask);
 
 		sdmac->chan.device = &sdma->dma_device;
-		sdmac->chan.chan_id = i;
 		sdmac->channel = i;
 
 		/* Add the channel to the DMAC list */
