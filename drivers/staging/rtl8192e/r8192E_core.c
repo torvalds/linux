@@ -1606,11 +1606,10 @@ static void rtl8192_link_change(struct net_device *dev)
 	{
 		rtl8192_net_update(dev);
 		rtl8192_update_ratr_table(dev);
-#if 1
+
 		//add this as in pure N mode, wep encryption will use software way, but there is no chance to set this as wep will not set group key in wext. WB.2008.07.08
 		if ((KEY_TYPE_WEP40 == ieee->pairwise_key_type) || (KEY_TYPE_WEP104 == ieee->pairwise_key_type))
 		EnableHWSecurityConfig8192(dev);
-#endif
 	}
 	else
 	{
@@ -3157,7 +3156,6 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 			RT_TRACE(COMP_INIT, "Before C-cut\n");
 		}
 
-#if 1
 	//Firmware download
 	RT_TRACE(COMP_INIT, "Load Firmware!\n");
 	bfirmwareok = init_firmware(dev);
@@ -3166,7 +3164,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 		return rtStatus;
 	}
 	RT_TRACE(COMP_INIT, "Load Firmware finished!\n");
-#endif
+
 	//RF config
 	if(priv->ResetProgress == RESET_TYPE_NORESET)
 	{
@@ -3465,7 +3463,6 @@ TxCheckStuck(struct net_device *dev)
 			break;
 	}
 
-#if 1
 	if(bCheckFwTxCnt)
 	{
 		if(HalTxCheckStuck8190Pci(dev))
@@ -3474,7 +3471,7 @@ TxCheckStuck(struct net_device *dev)
 			return RESET_TYPE_SILENT;
 		}
 	}
-#endif
+
 	return RESET_TYPE_NORESET;
 }
 
@@ -3562,7 +3559,7 @@ rtl819x_ifcheck_resetornot(struct net_device *dev)
 	rfState = priv->ieee80211->eRFPowerState;
 
 	TxResetType = TxCheckStuck(dev);
-#if 1
+
 	if( rfState != eRfOff &&
 		/*ADAPTER_TEST_STATUS_FLAG(Adapter, ADAPTER_STATUS_FW_DOWNLOAD_FAILURE)) &&*/
 		(priv->ieee80211->iw_mode != IW_MODE_ADHOC))
@@ -3577,7 +3574,6 @@ rtl819x_ifcheck_resetornot(struct net_device *dev)
 		// set, STA cannot hear any packet a all. Emily, 2008.04.12
 		RxResetType = RxCheckStuck(dev);
 	}
-#endif
 
 	RT_TRACE(COMP_RESET,"%s(): TxResetType is %d, RxResetType is %d\n",__FUNCTION__,TxResetType,RxResetType);
 	if(TxResetType==RESET_TYPE_NORMAL || RxResetType==RESET_TYPE_NORMAL)
@@ -3757,7 +3753,7 @@ RESET_START:
 		// Set the variable for reset.
 		priv->ResetProgress = RESET_TYPE_SILENT;
 //		rtl8192_close(dev);
-#if 1
+
 		down(&priv->wx_sem);
 		if(priv->up == 0)
 		{
@@ -3810,18 +3806,13 @@ RESET_START:
 				RT_TRACE(COMP_ERR," ERR!!! %s():  Reset Failed!!\n",__FUNCTION__);
 			}
 		}
-#endif
 		ieee->is_silent_reset = 1;
-#if 1
 		EnableHWSecurityConfig8192(dev);
-#if 1
 		if(ieee->state == IEEE80211_LINKED && ieee->iw_mode == IW_MODE_INFRA)
 		{
 			ieee->set_chan(ieee->dev, ieee->current_network.channel);
 
-#if 1
 			queue_work(ieee->wq, &ieee->associate_complete_wq);
-#endif
 
 		}
 		else if(ieee->state == IEEE80211_LINKED && ieee->iw_mode == IW_MODE_ADHOC)
@@ -3837,7 +3828,6 @@ RESET_START:
 				ieee->data_hard_resume(ieee->dev);
 			netif_carrier_on(ieee->dev);
 		}
-#endif
 
 		CamRestoreAllEntry(dev);
 
@@ -3853,7 +3843,6 @@ RESET_START:
 		// For test --> force write UFWP.
 		write_nic_byte(dev, UFWP, 1);
 		RT_TRACE(COMP_RESET, "Reset finished!! ====>[%d]\n", priv->reset_count);
-#endif
 	}
 }
 
@@ -4228,7 +4217,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 		return;
 	}
 	/* disable silent reset temply 2008.9.11*/
-#if 1
+
 	if( ((priv->force_reset) || (!priv->bDisableNormalResetCheck && ResetType==RESET_TYPE_SILENT))) // This is control by OID set in Pomelo
 	{
 		priv->watchdog_last_time = 1;
@@ -4236,7 +4225,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	}
 	else
 		priv->watchdog_last_time = 0;
-#endif
+
 	priv->force_reset = false;
 	priv->bForcedSilentReset = false;
 	priv->bResetInProgress = false;
@@ -4807,7 +4796,7 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 		{
 			priv->undecorated_smoothed_pwdb = pprevious_stats->RxPWDBAll;
 		}
-#if 1
+
 		if(pprevious_stats->RxPWDBAll > (u32)priv->undecorated_smoothed_pwdb)
 		{
 			priv->undecorated_smoothed_pwdb =
@@ -4821,20 +4810,6 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 					( ((priv->undecorated_smoothed_pwdb)*(Rx_Smooth_Factor-1)) +
 					(pprevious_stats->RxPWDBAll)) /(Rx_Smooth_Factor);
 		}
-#else
-		//Fixed by Jacken 2008-03-20
-		if(pPreviousRfd->Status.RxPWDBAll > (u32)pHalData->UndecoratedSmoothedPWDB)
-		{
-			pHalData->UndecoratedSmoothedPWDB =
-					( ((pHalData->UndecoratedSmoothedPWDB)* 5) + (pPreviousRfd->Status.RxPWDBAll)) / 6;
-			pHalData->UndecoratedSmoothedPWDB = pHalData->UndecoratedSmoothedPWDB + 1;
-		}
-		else
-		{
-			pHalData->UndecoratedSmoothedPWDB =
-					( ((pHalData->UndecoratedSmoothedPWDB)* 5) + (pPreviousRfd->Status.RxPWDBAll)) / 6;
-		}
-#endif
 	}
 
 	//
@@ -5279,7 +5254,7 @@ static void TranslateRxSignalStuff819xpci(struct net_device *dev,
             (!compare_ether_addr(priv->ieee80211->current_network.bssid,	(fc & IEEE80211_FCTL_TODS)? hdr->addr1 : (fc & IEEE80211_FCTL_FROMDS )? hdr->addr2 : hdr->addr3))
             && (!pstats->bHwError) && (!pstats->bCRC)&& (!pstats->bICV));
     bpacket_toself =  bpacket_match_bssid & (!compare_ether_addr(praddr, priv->ieee80211->dev->dev_addr));
-#if 1//cosa
+
     if(WLAN_FC_GET_FRAMETYPE(fc)== IEEE80211_STYPE_BEACON)
     {
         bPacketBeacon = true;
@@ -5289,8 +5264,6 @@ static void TranslateRxSignalStuff819xpci(struct net_device *dev,
         if((!compare_ether_addr(praddr,dev->dev_addr)))
             bToSelfBA = true;
     }
-
-#endif
 
     //
     // Process PHY information for previous packet (RSSI/PWDB/EVM)
@@ -5961,7 +5934,7 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 	struct ieee80211_device* ieee = priv->ieee80211;
 
 	SECR_value = SCR_TxEncEnable | SCR_RxDecEnable;
-#if 1
+
 	if (((KEY_TYPE_WEP40 == ieee->pairwise_key_type) || (KEY_TYPE_WEP104 == ieee->pairwise_key_type)) && (priv->ieee80211->auth_mode != 2))
 	{
 		SECR_value |= SCR_RxUseDK;
@@ -5972,8 +5945,6 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 		SECR_value |= SCR_RxUseDK;
 		SECR_value |= SCR_TxUseDK;
 	}
-
-#endif
 
         //add HWSec active enable here.
 //default using hwsec. when peer AP is in N mode only and pairwise_key_type is none_aes(which HT_IOT_ACT_PURE_N_MODE indicates it), use software security. when peer AP is in b,g,n mode mixed and pairwise_key_type is none_aes, use g mode hw security. WB on 2008.7.4
