@@ -2058,9 +2058,14 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		down_read(&fs_info->cleanup_work_sem);
-		btrfs_orphan_cleanup(fs_info->fs_root);
-		btrfs_orphan_cleanup(fs_info->tree_root);
+		err = btrfs_orphan_cleanup(fs_info->fs_root);
+		if (!err)
+			err = btrfs_orphan_cleanup(fs_info->tree_root);
 		up_read(&fs_info->cleanup_work_sem);
+		if (err) {
+			close_ctree(tree_root);
+			return ERR_PTR(err);
+		}
 	}
 
 	return tree_root;
@@ -2435,8 +2440,12 @@ int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
 
 		root_objectid = gang[ret - 1]->root_key.objectid + 1;
 		for (i = 0; i < ret; i++) {
+			int err;
+
 			root_objectid = gang[i]->root_key.objectid;
-			btrfs_orphan_cleanup(gang[i]);
+			err = btrfs_orphan_cleanup(gang[i]);
+			if (err)
+				return err;
 		}
 		root_objectid++;
 	}

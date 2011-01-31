@@ -2284,7 +2284,7 @@ int btrfs_orphan_del(struct btrfs_trans_handle *trans, struct inode *inode)
  * this cleans up any orphans that may be left on the list from the last use
  * of this root.
  */
-void btrfs_orphan_cleanup(struct btrfs_root *root)
+int btrfs_orphan_cleanup(struct btrfs_root *root)
 {
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
@@ -2294,10 +2294,13 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 	int ret = 0, nr_unlink = 0, nr_truncate = 0;
 
 	if (cmpxchg(&root->orphan_cleanup_state, 0, ORPHAN_CLEANUP_STARTED))
-		return;
+		return 0;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	path->reada = -1;
 
 	key.objectid = BTRFS_ORPHAN_OBJECTID;
@@ -2306,11 +2309,8 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 
 	while (1) {
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-		if (ret < 0) {
-			printk(KERN_ERR "Error searching slot for orphan: %d"
-			       "\n", ret);
-			break;
-		}
+		if (ret < 0)
+			goto out;
 
 		/*
 		 * if ret == 0 means we found what we were searching for, which
@@ -2318,6 +2318,7 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 		 * find the key and see if we have stuff that matches
 		 */
 		if (ret > 0) {
+			ret = 0;
 			if (path->slots[0] == 0)
 				break;
 			path->slots[0]--;
@@ -2345,7 +2346,10 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 		found_key.type = BTRFS_INODE_ITEM_KEY;
 		found_key.offset = 0;
 		inode = btrfs_iget(root->fs_info->sb, &found_key, root, NULL);
-		BUG_ON(IS_ERR(inode));
+		if (IS_ERR(inode)) {
+			ret = PTR_ERR(inode);
+			goto out;
+		}
 
 		/*
 		 * add this inode to the orphan list so btrfs_orphan_del does
@@ -2363,7 +2367,10 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 		 */
 		if (is_bad_inode(inode)) {
 			trans = btrfs_start_transaction(root, 0);
-			BUG_ON(IS_ERR(trans));
+			if (IS_ERR(trans)) {
+				ret = PTR_ERR(trans);
+				goto out;
+			}
 			btrfs_orphan_del(trans, inode);
 			btrfs_end_transaction(trans, root);
 			iput(inode);
@@ -2378,16 +2385,16 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 				continue;
 			}
 			nr_truncate++;
-			btrfs_truncate(inode);
+			ret = btrfs_truncate(inode);
 		} else {
 			nr_unlink++;
 		}
 
 		/* this will do delete_inode and everything for us */
 		iput(inode);
+		if (ret)
+			goto out;
 	}
-	btrfs_free_path(path);
-
 	root->orphan_cleanup_state = ORPHAN_CLEANUP_DONE;
 
 	if (root->orphan_block_rsv)
@@ -2396,14 +2403,20 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 
 	if (root->orphan_block_rsv || root->orphan_item_inserted) {
 		trans = btrfs_join_transaction(root, 1);
-		BUG_ON(IS_ERR(trans));
-		btrfs_end_transaction(trans, root);
+		if (!IS_ERR(trans))
+			btrfs_end_transaction(trans, root);
 	}
 
 	if (nr_unlink)
 		printk(KERN_INFO "btrfs: unlinked %d orphans\n", nr_unlink);
 	if (nr_truncate)
 		printk(KERN_INFO "btrfs: truncated %d orphans\n", nr_truncate);
+
+out:
+	if (ret)
+		printk(KERN_CRIT "btrfs: could not do orphan cleanup %d\n", ret);
+	btrfs_free_path(path);
+	return ret;
 }
 
 /*
@@ -4156,8 +4169,10 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 	if (!IS_ERR(inode) && root != sub_root) {
 		down_read(&root->fs_info->cleanup_work_sem);
 		if (!(inode->i_sb->s_flags & MS_RDONLY))
-			btrfs_orphan_cleanup(sub_root);
+			ret = btrfs_orphan_cleanup(sub_root);
 		up_read(&root->fs_info->cleanup_work_sem);
+		if (ret)
+			inode = ERR_PTR(ret);
 	}
 
 	return inode;

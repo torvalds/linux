@@ -4209,7 +4209,7 @@ out:
 		if (IS_ERR(fs_root))
 			err = PTR_ERR(fs_root);
 		else
-			btrfs_orphan_cleanup(fs_root);
+			err = btrfs_orphan_cleanup(fs_root);
 	}
 	return err;
 }

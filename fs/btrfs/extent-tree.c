@@ -7619,7 +7619,8 @@ int btrfs_cleanup_reloc_trees(struct btrfs_root *root)
 
 	reloc_root = btrfs_read_fs_root_no_name(root->fs_info, &location);
 	BUG_ON(!reloc_root);
-	btrfs_orphan_cleanup(reloc_root);
+	ret = btrfs_orphan_cleanup(reloc_root);
+	BUG_ON(ret);
 	return 0;
 }
 

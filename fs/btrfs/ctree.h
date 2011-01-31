@@ -2529,7 +2529,7 @@ int btrfs_update_inode(struct btrfs_trans_handle *trans,
 			      struct inode *inode);
 int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode);
 int btrfs_orphan_del(struct btrfs_trans_handle *trans, struct inode *inode);
-void btrfs_orphan_cleanup(struct btrfs_root *root);
+int btrfs_orphan_cleanup(struct btrfs_root *root);
 void btrfs_orphan_pre_snapshot(struct btrfs_trans_handle *trans,
 				struct btrfs_pending_snapshot *pending,
 				u64 *bytes_to_reserve);
