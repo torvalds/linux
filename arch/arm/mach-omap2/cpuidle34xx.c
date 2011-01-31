@@ -464,7 +464,7 @@ void omap_init_power_states(void)
 	if (IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583)) {
 		omap3_power_states[OMAP3_STATE_C7].valid = 0;
 		cpuidle_params_table[OMAP3_STATE_C7].valid = 0;
-		WARN_ONCE(1, "%s: core off state C7 disabled due to i583\n",
+		pr_warn("%s: core off state C7 disabled due to i583\n",
 				__func__);
 	}
 }
