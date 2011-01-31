@@ -34,13 +34,14 @@ extern int pager_use_color;
 extern int use_browser;
 
 #ifdef NO_NEWT_SUPPORT
-static inline void setup_browser(void)
+static inline void setup_browser(bool fallback_to_pager)
 {
-	setup_pager();
+	if (fallback_to_pager)
+		setup_pager();
 }
 static inline void exit_browser(bool wait_for_ok __used) {}
 #else
-void setup_browser(void);
+void setup_browser(bool fallback_to_pager);
 void exit_browser(bool wait_for_ok);
 #endif
 

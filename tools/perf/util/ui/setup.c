@@ -14,11 +14,12 @@ static void newt_suspend(void *d __used)
 	newtResume();
 }
 
-void setup_browser(void)
+void setup_browser(bool fallback_to_pager)
 {
 	if (!isatty(1) || !use_browser || dump_trace) {
 		use_browser = 0;
-		setup_pager();
+		if (fallback_to_pager)
+			setup_pager();
 		return;
 	}
 

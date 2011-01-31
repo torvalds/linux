@@ -452,7 +452,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 	else if (use_tui)
 		use_browser = 1;
 
-	setup_browser();
+	setup_browser(true);
 
 	symbol_conf.priv_size = sizeof(struct sym_priv);
 	symbol_conf.try_vmlinux_path = true;

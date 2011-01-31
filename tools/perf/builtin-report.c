@@ -499,7 +499,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 		use_browser = 1;
 
 	if (strcmp(input_name, "-") != 0)
-		setup_browser();
+		setup_browser(true);
 	else
 		use_browser = 0;
 	/*
