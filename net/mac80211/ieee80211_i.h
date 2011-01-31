@@ -225,6 +225,7 @@ struct ieee80211_if_ap {
 	struct sk_buff_head ps_bc_buf;
 	atomic_t num_sta_ps; /* number of stations in PS mode */
 	int dtim_count;
+	bool dtim_bc_mc;
 };
 
 struct ieee80211_if_wds {
