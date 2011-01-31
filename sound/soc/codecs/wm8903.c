@@ -1702,7 +1702,8 @@ static void wm8903_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	struct snd_soc_codec *codec = wm8903->codec;
 
 	snd_soc_update_bits(codec, WM8903_GPIO_CONTROL_1 + offset,
-			    WM8903_GP1_LVL_MASK, value << WM8903_GP1_LVL_SHIFT);
+			    WM8903_GP1_LVL_MASK,
+			    !!value << WM8903_GP1_LVL_SHIFT);
 }
 
 static struct gpio_chip wm8903_template_chip = {
