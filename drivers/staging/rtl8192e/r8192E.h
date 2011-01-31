@@ -975,6 +975,10 @@ typedef struct r8192_priv
 	bool	bLastDTPFlag_High;
 	bool	bLastDTPFlag_Low;
 
+	/* OFDM RSSI. For high power or not */
+	u8	phy_check_reg824;
+	u32	phy_reg824_bit9;
+
 	//Add by amy for Rate Adaptive
 	rate_adaptive rate_adaptive;
 	//Add by amy for TX power tracking

@@ -5001,10 +5001,6 @@ static void rtl8192_query_rxphystatus(
 	u8				is_cck_rate=0;
 	u8				rf_rx_num = 0;
 
-	/* 2007/07/04 MH For OFDM RSSI. For high power or not. */
-	static	u8		check_reg824 = 0;
-	static	u32		reg824_bit9 = 0;
-
 	is_cck_rate = rx_hal_is_cck_rate(pdrvinfo);
 
 	// Record it for next packet processing
@@ -5015,10 +5011,10 @@ static void rtl8192_query_rxphystatus(
 	pstats->bPacketBeacon = precord_stats->bPacketBeacon = bPacketBeacon;
 	pstats->bToSelfBA = precord_stats->bToSelfBA = bToSelfBA;
 	/*2007.08.30 requested by SD3 Jerry */
-	if(check_reg824 == 0)
+	if (priv->phy_check_reg824 == 0)
 	{
-		reg824_bit9 = rtl8192_QueryBBReg(priv->ieee80211->dev, rFPGA0_XA_HSSIParameter2, 0x200);
-		check_reg824 = 1;
+		priv->phy_reg824_bit9 = rtl8192_QueryBBReg(priv->ieee80211->dev, rFPGA0_XA_HSSIParameter2, 0x200);
+		priv->phy_check_reg824 = 1;
 	}
 
 
@@ -5064,7 +5060,7 @@ static void rtl8192_query_rxphystatus(
 		}
 #endif
 
-		if(!reg824_bit9)
+		if (!priv->phy_reg824_bit9)
 		{
 			report = pcck_buf->cck_agc_rpt & 0xc0;
 			report = report>>6;
