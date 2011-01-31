@@ -2537,7 +2537,7 @@ void btrfs_orphan_post_snapshot(struct btrfs_trans_handle *trans,
 				struct btrfs_pending_snapshot *pending);
 void btrfs_orphan_commit_root(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root);
-int btrfs_cont_expand(struct inode *inode, loff_t size);
+int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size);
 int btrfs_invalidate_inodes(struct btrfs_root *root);
 void btrfs_add_delayed_iput(struct inode *inode);
 void btrfs_run_delayed_iputs(struct btrfs_root *root);

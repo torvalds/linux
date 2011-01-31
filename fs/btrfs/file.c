@@ -817,7 +817,7 @@ static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 	last_pos = ((u64)index + num_pages) << PAGE_CACHE_SHIFT;
 
 	if (start_pos > inode->i_size) {
-		err = btrfs_cont_expand(inode, start_pos);
+		err = btrfs_cont_expand(inode, i_size_read(inode), start_pos);
 		if (err)
 			return err;
 	}
@@ -1330,7 +1330,8 @@ static long btrfs_fallocate(struct file *file, int mode,
 		goto out;
 
 	if (alloc_start > inode->i_size) {
-		ret = btrfs_cont_expand(inode, alloc_start);
+		ret = btrfs_cont_expand(inode, i_size_read(inode),
+					alloc_start);
 		if (ret)
 			goto out;
 	}
