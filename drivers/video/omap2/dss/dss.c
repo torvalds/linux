@@ -64,10 +64,10 @@ static struct {
 
 	struct clk	*dpll4_m4_ck;
 	struct clk	*dss_ick;
-	struct clk	*dss1_fck;
-	struct clk	*dss2_fck;
-	struct clk	*dss_54m_fck;
-	struct clk	*dss_96m_fck;
+	struct clk	*dss_fck;
+	struct clk	*dss_sys_clk;
+	struct clk	*dss_tv_fck;
+	struct clk	*dss_video_fck;
 	unsigned	num_clks_enabled;
 
 	unsigned long	cache_req_pck;
@@ -750,28 +750,28 @@ static int dss_get_clocks(void)
 	int r;
 
 	dss.dss_ick = NULL;
-	dss.dss1_fck = NULL;
-	dss.dss2_fck = NULL;
-	dss.dss_54m_fck = NULL;
-	dss.dss_96m_fck = NULL;
+	dss.dss_fck = NULL;
+	dss.dss_sys_clk = NULL;
+	dss.dss_tv_fck = NULL;
+	dss.dss_video_fck = NULL;
 
 	r = dss_get_clock(&dss.dss_ick, "ick");
 	if (r)
 		goto err;
 
-	r = dss_get_clock(&dss.dss1_fck, "fck");
+	r = dss_get_clock(&dss.dss_fck, "fck");
 	if (r)
 		goto err;
 
-	r = dss_get_clock(&dss.dss2_fck, "sys_clk");
+	r = dss_get_clock(&dss.dss_sys_clk, "sys_clk");
 	if (r)
 		goto err;
 
-	r = dss_get_clock(&dss.dss_54m_fck, "tv_clk");
+	r = dss_get_clock(&dss.dss_tv_fck, "tv_clk");
 	if (r)
 		goto err;
 
-	r = dss_get_clock(&dss.dss_96m_fck, "video_clk");
+	r = dss_get_clock(&dss.dss_video_fck, "video_clk");
 	if (r)
 		goto err;
 
@@ -780,25 +780,25 @@ static int dss_get_clocks(void)
 err:
 	if (dss.dss_ick)
 		clk_put(dss.dss_ick);
-	if (dss.dss1_fck)
-		clk_put(dss.dss1_fck);
-	if (dss.dss2_fck)
-		clk_put(dss.dss2_fck);
-	if (dss.dss_54m_fck)
-		clk_put(dss.dss_54m_fck);
-	if (dss.dss_96m_fck)
-		clk_put(dss.dss_96m_fck);
+	if (dss.dss_fck)
+		clk_put(dss.dss_fck);
+	if (dss.dss_sys_clk)
+		clk_put(dss.dss_sys_clk);
+	if (dss.dss_tv_fck)
+		clk_put(dss.dss_tv_fck);
+	if (dss.dss_video_fck)
+		clk_put(dss.dss_video_fck);
 
 	return r;
 }
 
 static void dss_put_clocks(void)
 {
-	if (dss.dss_96m_fck)
-		clk_put(dss.dss_96m_fck);
-	clk_put(dss.dss_54m_fck);
-	clk_put(dss.dss1_fck);
-	clk_put(dss.dss2_fck);
+	if (dss.dss_video_fck)
+		clk_put(dss.dss_video_fck);
+	clk_put(dss.dss_tv_fck);
+	clk_put(dss.dss_fck);
+	clk_put(dss.dss_sys_clk);
 	clk_put(dss.dss_ick);
 }
 
@@ -808,13 +808,13 @@ unsigned long dss_clk_get_rate(enum dss_clock clk)
 	case DSS_CLK_ICK:
 		return clk_get_rate(dss.dss_ick);
 	case DSS_CLK_FCK:
-		return clk_get_rate(dss.dss1_fck);
+		return clk_get_rate(dss.dss_fck);
 	case DSS_CLK_SYSCK:
-		return clk_get_rate(dss.dss2_fck);
+		return clk_get_rate(dss.dss_sys_clk);
 	case DSS_CLK_TVFCK:
-		return clk_get_rate(dss.dss_54m_fck);
+		return clk_get_rate(dss.dss_tv_fck);
 	case DSS_CLK_VIDFCK:
-		return clk_get_rate(dss.dss_96m_fck);
+		return clk_get_rate(dss.dss_video_fck);
 	}
 
 	BUG();
@@ -846,13 +846,13 @@ static void dss_clk_enable_no_ctx(enum dss_clock clks)
 	if (clks & DSS_CLK_ICK)
 		clk_enable(dss.dss_ick);
 	if (clks & DSS_CLK_FCK)
-		clk_enable(dss.dss1_fck);
+		clk_enable(dss.dss_fck);
 	if (clks & DSS_CLK_SYSCK)
-		clk_enable(dss.dss2_fck);
+		clk_enable(dss.dss_sys_clk);
 	if (clks & DSS_CLK_TVFCK)
-		clk_enable(dss.dss_54m_fck);
+		clk_enable(dss.dss_tv_fck);
 	if (clks & DSS_CLK_VIDFCK)
-		clk_enable(dss.dss_96m_fck);
+		clk_enable(dss.dss_video_fck);
 
 	dss.num_clks_enabled += num_clks;
 }
@@ -874,13 +874,13 @@ static void dss_clk_disable_no_ctx(enum dss_clock clks)
 	if (clks & DSS_CLK_ICK)
 		clk_disable(dss.dss_ick);
 	if (clks & DSS_CLK_FCK)
-		clk_disable(dss.dss1_fck);
+		clk_disable(dss.dss_fck);
 	if (clks & DSS_CLK_SYSCK)
-		clk_disable(dss.dss2_fck);
+		clk_disable(dss.dss_sys_clk);
 	if (clks & DSS_CLK_TVFCK)
-		clk_disable(dss.dss_54m_fck);
+		clk_disable(dss.dss_tv_fck);
 	if (clks & DSS_CLK_VIDFCK)
-		clk_disable(dss.dss_96m_fck);
+		clk_disable(dss.dss_video_fck);
 
 	dss.num_clks_enabled -= num_clks;
 }
@@ -926,10 +926,10 @@ static void core_dump_clocks(struct seq_file *s)
 	int i;
 	struct clk *clocks[5] = {
 		dss.dss_ick,
-		dss.dss1_fck,
-		dss.dss2_fck,
-		dss.dss_54m_fck,
-		dss.dss_96m_fck
+		dss.dss_fck,
+		dss.dss_sys_clk,
+		dss.dss_tv_fck,
+		dss.dss_video_fck
 	};
 
 	seq_printf(s, "- CORE -\n");
