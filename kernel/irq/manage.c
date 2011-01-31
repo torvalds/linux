@@ -179,7 +179,7 @@ static void irq_affinity_notify(struct work_struct *work)
 		cpumask_copy(cpumask, desc->pending_mask);
 	else
 #endif
-		cpumask_copy(cpumask, desc->affinity);
+		cpumask_copy(cpumask, desc->irq_data.affinity);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 	notify->notify(notify, cpumask);
