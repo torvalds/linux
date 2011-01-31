@@ -406,20 +406,16 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 					(pra->low_rssi_thresh_for_ra40M):(pra->low_rssi_thresh_for_ra20M);
 		}
 
-		//DbgPrint("[DM] Thresh H/L=%d/%d\n\r", RATR.HighRSSIThreshForRA, RATR.LowRSSIThreshForRA);
 		if(priv->undecorated_smoothed_pwdb >= (long)HighRSSIThreshForRA)
 		{
-			//DbgPrint("[DM] RSSI=%d STA=HIGH\n\r", pHalData->UndecoratedSmoothedPWDB);
 			pra->ratr_state = DM_RATR_STA_HIGH;
 			targetRATR = pra->upper_rssi_threshold_ratr;
 		}else if(priv->undecorated_smoothed_pwdb >= (long)LowRSSIThreshForRA)
 		{
-			//DbgPrint("[DM] RSSI=%d STA=Middle\n\r", pHalData->UndecoratedSmoothedPWDB);
 			pra->ratr_state = DM_RATR_STA_MIDDLE;
 			targetRATR = pra->middle_rssi_threshold_ratr;
 		}else
 		{
-			//DbgPrint("[DM] RSSI=%d STA=LOW\n\r", pHalData->UndecoratedSmoothedPWDB);
 			pra->ratr_state = DM_RATR_STA_LOW;
 			targetRATR = pra->low_rssi_threshold_ratr;
 		}
@@ -433,17 +429,13 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 				if( (priv->undecorated_smoothed_pwdb < (long)pra->ping_rssi_thresh_for_ra) ||
 					ping_rssi_state )
 				{
-					//DbgPrint("TestRSSI = %d, set RATR to 0x%x \n", pHalData->UndecoratedSmoothedPWDB, pRA->TestRSSIRATR);
 					pra->ratr_state = DM_RATR_STA_LOW;
 					targetRATR = pra->ping_rssi_ratr;
 					ping_rssi_state = 1;
 				}
-				//else
-				//	DbgPrint("TestRSSI is between the range. \n");
 			}
 			else
 			{
-				//DbgPrint("TestRSSI Recover to 0x%x \n", targetRATR);
 				ping_rssi_state = 0;
 			}
 		}
@@ -616,7 +608,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 	cmpk_message_handle_tx(dev, (u8*)&tx_cmd, DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
 #endif
 	mdelay(1);
-	//DbgPrint("hi, vivi, strange\n");
+
 	for(i = 0;i <= 30; i++)
 	{
 		Pwr_Flag = read_nic_byte(dev, Pw_Track_Flag);
@@ -910,9 +902,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 			tmpOFDMindex = tmpCCK20Mindex = 6 - tmpval;
 		tmpCCK40Mindex = 0;
 	}
-	//DbgPrint("%ddb, tmpOFDMindex = %d, tmpCCK20Mindex = %d, tmpCCK40Mindex = %d",
-		//((u1Byte)tmpRegA - pHalData->ThermalMeter[0]),
-		//tmpOFDMindex, tmpCCK20Mindex, tmpCCK40Mindex);
+
 	if(priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)	//40M
 		tmpCCKindex = tmpCCK40Mindex;
 	else
@@ -943,7 +933,6 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 
 	if(CCKSwingNeedUpdate)
 	{
-		//DbgPrint("Update CCK Swing, CCK_index = %d\n", pHalData->CCK_index);
 		dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 	}
 	if(priv->OFDM_index != tmpOFDMindex)
@@ -1143,7 +1132,6 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	static u8 	TM_Trigger=0;
 
-	//DbgPrint("dm_CheckTXPowerTracking() \n");
 	if(!priv->btxpower_tracking)
 		return;
 	else
@@ -1159,7 +1147,6 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 	{
 		//Attention!! You have to wirte all 12bits data to RF, or it may cause RF to crash
 		//actually write reg0x02 bit1=0, then bit1=1.
-		//DbgPrint("Trigger ThermalMeter, write RF reg0x2 = 0x4d to 0x4f\n");
 		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
 		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
 		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
@@ -1168,8 +1155,7 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 		return;
 	}
 	else {
-		//DbgPrint("Schedule TxPowerTrackingWorkItem\n");
-			queue_delayed_work(priv->priv_wq,&priv->txpower_tracking_wq,0);
+		queue_delayed_work(priv->priv_wq,&priv->txpower_tracking_wq,0);
 		TM_Trigger = 0;
 	}
 }
@@ -1373,10 +1359,7 @@ void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 			if(priv->rf_type == RF_1T2R)	// 1T2R, Spatial Stream 2 should be disabled
 			{
 				ratr_value &=~ (RATE_ALL_OFDM_2SS);
-				//DbgPrint("HW_VAR_TATR_0 from 0x%x ==> 0x%x\n", ((pu4Byte)(val))[0], ratr_value);
 			}
-			//DbgPrint("set HW_VAR_TATR_0 = 0x%x\n", ratr_value);
-			//cosa PlatformEFIOWrite4Byte(Adapter, RATR0, ((pu4Byte)(val))[0]);
 			write_nic_dword(dev, RATR0, ratr_value);
 			write_nic_byte(dev, UFWP, 1);
 	}
@@ -1591,7 +1574,6 @@ static void dm_ctrl_initgain_byrssi_by_driverrssi(
 	if (dm_digtable.dig_enable_flag == false)
 		return;
 
-	//DbgPrint("Dig by Sw Rssi \n");
 	if(dm_digtable.dig_algorithm_switch)	// if swithed algorithm, we have to disable FW Dig.
 		fw_dig = 0;
 	if(fw_dig <= 3)	// execute several times to make sure the FW Dig is disabled
@@ -1607,12 +1589,9 @@ static void dm_ctrl_initgain_byrssi_by_driverrssi(
 	else
 		dm_digtable.cur_connect_state = DIG_DISCONNECT;
 
-	//DbgPrint("DM_DigTable.PreConnectState = %d, DM_DigTable.CurConnectState = %d \n",
-		//DM_DigTable.PreConnectState, DM_DigTable.CurConnectState);
-
 	if(dm_digtable.dbg_mode == DM_DBG_OFF)
 		dm_digtable.rssi_val = priv->undecorated_smoothed_pwdb;
-	//DbgPrint("DM_DigTable.Rssi_val = %d \n", DM_DigTable.Rssi_val);
+
 	dm_initial_gain(dev);
 	dm_pd_th(dev);
 	dm_cs_ratio(dev);
@@ -1650,11 +1629,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	{
 		return;
 	}
-	//DbgPrint("Dig by Fw False Alarm\n");
-	//if (DM_DigTable.Dig_State == DM_STA_DIG_OFF)
-	/*DbgPrint("DIG Check\n\r RSSI=%d LOW=%d HIGH=%d STATE=%d",
-	pHalData->UndecoratedSmoothedPWDB, DM_DigTable.RssiLowThresh,
-	DM_DigTable.RssiHighThresh, DM_DigTable.Dig_State);*/
+
 	/* 1. When RSSI decrease, We have to judge if it is smaller than a threshold
 		  and then execute below step. */
 	if ((priv->undecorated_smoothed_pwdb <= dm_digtable.rssi_low_thresh))
@@ -1736,7 +1711,6 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		}
 
 		dm_digtable.dig_state = DM_STA_DIG_ON;
-		//DbgPrint("DIG ON\n\r");
 
 		// 2.1 Set initial gain.
 		// 2008/02/26 MH SD3-Jerry suggest to prevent dirty environment.
@@ -1906,7 +1880,6 @@ static void dm_initial_gain(
 		dm_digtable.cur_ig_value = priv->DefaultInitialGain[0];
 		dm_digtable.pre_ig_value = 0;
 	}
-	//DbgPrint("DM_DigTable.CurIGValue = 0x%x, DM_DigTable.PreIGValue = 0x%x\n", DM_DigTable.CurIGValue, DM_DigTable.PreIGValue);
 
 	// if silent reset happened, we should rewrite the values back
 	if(priv->reset_count != reset_cnt)
@@ -1923,7 +1896,6 @@ static void dm_initial_gain(
 			|| !initialized || force_write)
 		{
 			initial_gain = (u8)dm_digtable.cur_ig_value;
-			//DbgPrint("Write initial gain = 0x%x\n", initial_gain);
 			// Set initial gain.
 			write_nic_byte(dev, rOFDM0_XAAGCCore1, initial_gain);
 			write_nic_byte(dev, rOFDM0_XBAGCCore1, initial_gain);
@@ -1984,7 +1956,6 @@ static void dm_pd_th(
 		if((dm_digtable.prepd_thstate != dm_digtable.curpd_thstate) ||
 			(initialized<=3) || force_write)
 		{
-			//DbgPrint("Write PD_TH state = %d\n", DM_DigTable.CurPD_THState);
 			if(dm_digtable.curpd_thstate == DIG_PD_AT_LOW_POWER)
 			{
 				// Lower PD_TH for OFDM.
@@ -2093,7 +2064,6 @@ static	void dm_cs_ratio(
 	if((dm_digtable.precs_ratio_state != dm_digtable.curcs_ratio_state) ||
 		!initialized || force_write)
 	{
-		//DbgPrint("Write CS_ratio state = %d\n", DM_DigTable.CurCS_ratioState);
 		if(dm_digtable.curcs_ratio_state == DIG_CS_RATIO_LOWER)
 		{
 			// Lower CS ratio for CCK.
@@ -2145,7 +2115,6 @@ static void dm_check_edca_turbo(
 	if(priv->ieee80211->pHTInfo->IOTAction & HT_IOT_ACT_DISABLE_EDCA_TURBO)
 		goto dm_CheckEdcaTurbo_EXIT;
 
-//	printk("========>%s():bis_any_nonbepkts is %d\n",__FUNCTION__,priv->bis_any_nonbepkts);
 	// Check the status for current condition.
 	if(!priv->ieee80211->bis_any_nonbepkts)
 	{
@@ -2154,7 +2123,6 @@ static void dm_check_edca_turbo(
 		// For RT-AP, we needs to turn it on when Rx>Tx
 		if(curRxOkCnt > 4*curTxOkCnt)
 		{
-			//printk("%s():curRxOkCnt > 4*curTxOkCnt\n");
 			if(!priv->bis_cur_rdlstate || !priv->bcurrent_turbo_EDCA)
 			{
 				write_nic_dword(dev, EDCAPARA_BE, edca_setting_DL[pHTInfo->IOTPeer]);
@@ -2163,8 +2131,6 @@ static void dm_check_edca_turbo(
 		}
 		else
 		{
-
-			//printk("%s():curRxOkCnt < 4*curTxOkCnt\n");
 			if(priv->bis_cur_rdlstate || !priv->bcurrent_turbo_EDCA)
 			{
 				write_nic_dword(dev, EDCAPARA_BE, edca_setting_UL[pHTInfo->IOTPeer]);
@@ -2269,7 +2235,6 @@ static void dm_ctstoself(struct net_device *dev)
 		if(curRxOkCnt > 4*curTxOkCnt)	//downlink, disable CTS to self
 		{
 			pHTInfo->IOTAction &= ~HT_IOT_ACT_FORCED_CTS2SELF;
-			//DbgPrint("dm_CTSToSelf() ==> CTS to self disabled -- downlink\n");
 		}
 		else	//uplink
 		{
@@ -2279,12 +2244,10 @@ static void dm_ctstoself(struct net_device *dev)
 			if(priv->undecorated_smoothed_pwdb < priv->ieee80211->CTSToSelfTH)	// disable CTS to self
 			{
 				pHTInfo->IOTAction &= ~HT_IOT_ACT_FORCED_CTS2SELF;
-				//DbgPrint("dm_CTSToSelf() ==> CTS to self disabled\n");
 			}
 			else if(priv->undecorated_smoothed_pwdb >= (priv->ieee80211->CTSToSelfTH+5))	// enable CTS to self
 			{
 				pHTInfo->IOTAction |= HT_IOT_ACT_FORCED_CTS2SELF;
-				//DbgPrint("dm_CTSToSelf() ==> CTS to self enabled\n");
 			}
 		#endif
 		}
@@ -2467,7 +2430,6 @@ static void dm_rxpath_sel_byrssi(struct net_device * dev)
 	if(priv->ieee80211->mode == WIRELESS_MODE_B)
 	{
 		DM_RxPathSelTable.cck_method = CCK_Rx_Version_2;	//pure B mode, fixed cck version2
-		//DbgPrint("Pure B mode, use cck rx version2 \n");
 	}
 
 	//decide max/sec/min rssi index
@@ -2689,7 +2651,6 @@ static void dm_rxpath_sel_byrssi(struct net_device * dev)
 				if(tmp_max_rssi >= DM_RxPathSelTable.rf_enable_rssi_th[i])
 				{
 					//enable the BB Rx path
-					//DbgPrint("RF-%d is enabled. \n", 0x1<<i);
 					rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0x1<<i, 0x1);	// 0xc04[3:0]
 					rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0x1<<i, 0x1);	// 0xd04[3:0]
 					DM_RxPathSelTable.rf_enable_rssi_th[i] = 100;
@@ -3053,12 +3014,6 @@ void dm_check_fsync(struct net_device *dev)
 						#endif
 
 						reg_c38_State = RegC38_NonFsync_Other_AP;
-					#if 0//cosa
-						if (Adapter->HardwareType == HARDWARE_TYPE_RTL8190P)
-							DbgPrint("Fsync is idle, rssi<=35, write 0xc38 = 0x%x \n", 0x10);
-						else
-							DbgPrint("Fsync is idle, rssi<=35, write 0xc38 = 0x%x \n", 0x90);
-					#endif
 					}
 				}
 				else if(priv->undecorated_smoothed_pwdb >= (RegC38_TH+5))
@@ -3067,7 +3022,6 @@ void dm_check_fsync(struct net_device *dev)
 					{
 						write_nic_byte(dev, rOFDM0_RxDetector3, priv->framesync);
 						reg_c38_State = RegC38_Default;
-						//DbgPrint("Fsync is idle, rssi>=40, write 0xc38 = 0x%x \n", pHalData->framesync);
 					}
 				}
 			}
@@ -3077,7 +3031,6 @@ void dm_check_fsync(struct net_device *dev)
 				{
 					write_nic_byte(dev, rOFDM0_RxDetector3, priv->framesync);
 					reg_c38_State = RegC38_Default;
-					//DbgPrint("Fsync is idle, not connected, write 0xc38 = 0x%x \n", pHalData->framesync);
 				}
 			}
 		}
@@ -3089,7 +3042,6 @@ void dm_check_fsync(struct net_device *dev)
 			write_nic_byte(dev, rOFDM0_RxDetector3, priv->framesync);
 			reg_c38_State = RegC38_Default;
 			reset_cnt = priv->reset_count;
-			//DbgPrint("reg_c38_State = 0 for silent reset. \n");
 		}
 	}
 	else
@@ -3098,7 +3050,6 @@ void dm_check_fsync(struct net_device *dev)
 		{
 			write_nic_byte(dev, rOFDM0_RxDetector3, priv->framesync);
 			reg_c38_State = RegC38_Default;
-			//DbgPrint("framesync no monitor, write 0xc38 = 0x%x \n", pHalData->framesync);
 		}
 	}
 }
@@ -3130,7 +3081,6 @@ static void dm_dynamic_txpower(struct net_device *dev)
 		priv->bDynamicTxLowPower = false;
 		return;
 	}
-	//printk("priv->ieee80211->current_network.unknown_cap_exist is %d ,priv->ieee80211->current_network.broadcom_cap_exist is %d\n",priv->ieee80211->current_network.unknown_cap_exist,priv->ieee80211->current_network.broadcom_cap_exist);
         if((priv->ieee80211->current_network.atheros_cap_exist ) && (priv->ieee80211->mode == IEEE_G)){
 		txhipower_threshhold = TX_POWER_ATHEROAP_THRESH_HIGH;
 		txlowpower_threshold = TX_POWER_ATHEROAP_THRESH_LOW;
@@ -3140,8 +3090,6 @@ static void dm_dynamic_txpower(struct net_device *dev)
 		txhipower_threshhold = TX_POWER_NEAR_FIELD_THRESH_HIGH;
 		txlowpower_threshold = TX_POWER_NEAR_FIELD_THRESH_LOW;
 	}
-
-//	printk("=======>%s(): txhipower_threshhold is %d,txlowpower_threshold is %d\n",__FUNCTION__,txhipower_threshhold,txlowpower_threshold);
 
 	RT_TRACE(COMP_TXAGC,"priv->undecorated_smoothed_pwdb = %ld \n" , priv->undecorated_smoothed_pwdb);
 

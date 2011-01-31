@@ -432,7 +432,6 @@ SetRFPowerState8190(
 
 	if(priv->SetRFPowerStateInProgress == true)
 		return false;
-	//RT_TRACE(COMP_PS, "===========> SetRFPowerState8190()!\n");
 	priv->SetRFPowerStateInProgress = true;
 
 	switch(priv->rf_chip)
@@ -441,7 +440,6 @@ SetRFPowerState8190(
 		switch( eRFPowerState )
 		{
 			case eRfOn:
-				//RT_TRACE(COMP_PS, "SetRFPowerState8190() eRfOn !\n");
 						//RXTX enable control: On
 					//for(eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
 					//	PHY_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x4, 0xC00, 0x2);
@@ -620,7 +618,6 @@ SetRFPowerState8190(
 								break;
 
 			case eRfOff:
-				//RT_TRACE(COMP_PS, "SetRFPowerState8190() eRfOff/Sleep !\n");
 
 				// Update current RF state variable.
 				//priv->ieee80211->eRFPowerState = eRFPowerState;
@@ -718,9 +715,7 @@ SetRFPowerState8190(
 		priv->ieee80211->eRFPowerState = eRFPowerState;
 	}
 
-	//printk("%s()priv->ieee80211->eRFPowerState:%s\n" ,__func__,priv->ieee80211->eRFPowerState == eRfOn ? "On" : "Off");
 	priv->SetRFPowerStateInProgress = false;
-	//RT_TRACE(COMP_PS, "<=========== SetRFPowerState8190() bResult = %d!\n", bResult);
 	return bResult;
 }
 
@@ -773,8 +768,6 @@ MgntDisconnectIBSS(
 	//RT_OP_MODE	OpMode;
 	u8			i;
 	bool	bFilterOutNonAssociatedBSSID = false;
-
-	//IEEE80211_DEBUG(IEEE80211_DL_TRACE, "XXXXXXXXXX MgntDisconnect IBSS\n");
 
 	priv->ieee80211->state = IEEE80211_NOLINK;
 
@@ -1003,7 +996,6 @@ MgntDisconnect(
 	{
 		if( priv->ieee80211->iw_mode == IW_MODE_ADHOC )
 		{
-			//RT_TRACE(COMP_MLME, "MgntDisconnect() ===> MgntDisconnectIBSS\n");
 			MgntDisconnectIBSS(dev);
 		}
 		if( priv->ieee80211->iw_mode == IW_MODE_INFRA )
@@ -1013,7 +1005,6 @@ MgntDisconnect(
 			// e.g. OID_802_11_DISASSOCIATE in Windows while as MgntDisconnectAP() is
 			// used to handle disassociation related things to AP, e.g. send Disassoc
 			// frame to AP.  2005.01.27, by rcnjko.
-			//IEEE80211_DEBUG(IEEE80211_DL_TRACE,"MgntDisconnect() ===> MgntDisconnectAP\n");
 			MgntDisconnectAP(dev, asRsn);
 		}
 

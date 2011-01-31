@@ -1685,7 +1685,6 @@ static void rtl8192_qos_activate(struct work_struct * work)
 				(((u32)(qos_parameters->cw_max[i]))<< AC_PARAM_ECW_MAX_OFFSET)|
 				(((u32)(qos_parameters->cw_min[i]))<< AC_PARAM_ECW_MIN_OFFSET)|
 				((u32)u1bAIFS << AC_PARAM_AIFS_OFFSET));
-		//printk("===>u4bAcParam:%x, ", u4bAcParam);
 		write_nic_dword(dev, WDCAPARA_ADD[i], u4bAcParam);
 		//write_nic_dword(dev, WDCAPARA_ADD[i], 0x005e4332);
 	}
@@ -3529,26 +3528,22 @@ static bool HalRxCheckStuck8190Pci(struct net_device *dev)
 	{
 		if(rx_chk_cnt < 4)
 		{
-			//DbgPrint("RSSI < %d && RSSI >= %d, no check this time \n", RateAdaptiveTH_Low, VeryLowRSSI);
 			return bStuck;
 		}
 		else
 		{
 			rx_chk_cnt = 0;
-			//DbgPrint("RSSI < %d && RSSI >= %d, check this time \n", RateAdaptiveTH_Low, VeryLowRSSI);
 		}
 	}
 	else
 	{
 		if(rx_chk_cnt < 8)
 		{
-			//DbgPrint("RSSI <= %d, no check this time \n", VeryLowRSSI);
 			return bStuck;
 		}
 		else
 		{
 			rx_chk_cnt = 0;
-			//DbgPrint("RSSI <= %d, check this time \n", VeryLowRSSI);
 		}
 	}
 	if(priv->RxCounter==RegRxCounter)
@@ -4033,7 +4028,6 @@ IPSEnter(struct net_device *dev)
 			&& (priv->ieee80211->state != IEEE80211_LINKED) )
 		{
 			RT_TRACE(COMP_RF,"IPSEnter(): Turn off RF.\n");
-			//printk("IPSEnter(): Turn off RF.\n");
 			pPSC->eInactivePowerState = eRfOff;
 //			queue_work(priv->priv_wq,&(pPSC->InactivePsWorkItem));
 			InactivePsWorkItemCallback(dev);
@@ -4059,7 +4053,6 @@ IPSLeave(struct net_device *dev)
 		if (rtState != eRfOn  && !pPSC->bSwRfProcessing && priv->ieee80211->RfOffReason <= RF_CHANGE_BY_IPS)
 		{
 			RT_TRACE(COMP_POWER, "IPSLeave(): Turn on RF.\n");
-			//printk("IPSLeave(): Turn on RF.\n");
 			pPSC->eInactivePowerState = eRfOn;
 //			queue_work(priv->priv_wq,&(pPSC->InactivePsWorkItem));
 			InactivePsWorkItemCallback(dev);
@@ -4150,14 +4143,11 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 		return;
 	hal_dm_watchdog(dev);
 #ifdef ENABLE_IPS
-//	printk("watch_dog ENABLE_IPS\n");
 	if(ieee->actscanning == false){
-		//printk("%d,%d,%d,%d\n", ieee->eRFPowerState, ieee->is_set_key, ieee->proto_stoppping, ieee->wx_set_enc);
 		if((ieee->iw_mode == IW_MODE_INFRA) && (ieee->state == IEEE80211_NOLINK) &&
 		    (ieee->eRFPowerState == eRfOn)&&!ieee->is_set_key &&
 		    (!ieee->proto_stoppping) && !ieee->wx_set_enc){
 			if(ieee->PowerSaveControl.ReturnPoint == IPS_CALLBACK_NONE){
-				//printk("====================>haha:IPSEnter()\n");
 				IPSEnter(dev);
 				//ieee80211_stop_scan(priv->ieee80211);
 			}
@@ -4177,8 +4167,6 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 			if(	((ieee->LinkDetectInfo.NumRxUnicastOkInPeriod + ieee->LinkDetectInfo.NumTxOkInPeriod) > 8 ) ||
 				(ieee->LinkDetectInfo.NumRxUnicastOkInPeriod > 2) )
 			{
-				//printk("ieee->LinkDetectInfo.NumRxUnicastOkInPeriod is %d,ieee->LinkDetectInfo.NumTxOkInPeriod is %d\n",
-				//	ieee->LinkDetectInfo.NumRxUnicastOkInPeriod,ieee->LinkDetectInfo.NumTxOkInPeriod);
 				bEnterPS= false;
 			}
 			else
@@ -4186,7 +4174,6 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 				bEnterPS= true;
 			}
 
-			//printk("***bEnterPS = %d\n", bEnterPS);
 			// LeisurePS only work in infra mode.
 			if(bEnterPS)
 			{
@@ -4248,7 +4235,6 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	{
     		ResetType = rtl819x_ifcheck_resetornot(dev);
 		check_reset_cnt = 3;
-		//DbgPrint("Start to check silent reset\n");
 	}
 	spin_unlock_irqrestore(&priv->tx_lock,flags);
 	if(!priv->bDisableNormalResetCheck && ResetType == RESET_TYPE_NORMAL)
@@ -4784,7 +4770,6 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 			if(priv->stats.rx_rssi_percentage[rfpath] == 0)
 			{
 				priv->stats.rx_rssi_percentage[rfpath] = pprevious_stats->RxMIMOSignalStrength[rfpath];
-				//DbgPrint("MIMO RSSI initialize \n");
 			}
 			if(pprevious_stats->RxMIMOSignalStrength[rfpath]  > priv->stats.rx_rssi_percentage[rfpath])
 			{
@@ -4816,12 +4801,10 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 			slide_beacon_adc_pwdb_statistics = PHY_Beacon_RSSI_SLID_WIN_MAX;
 			last_beacon_adc_pwdb = priv->stats.Slide_Beacon_pwdb[slide_beacon_adc_pwdb_index];
 			priv->stats.Slide_Beacon_Total -= last_beacon_adc_pwdb;
-			//DbgPrint("slide_beacon_adc_pwdb_index = %d, last_beacon_adc_pwdb = %d, Adapter->RxStats.Slide_Beacon_Total = %d\n",
 			//	slide_beacon_adc_pwdb_index, last_beacon_adc_pwdb, Adapter->RxStats.Slide_Beacon_Total);
 		}
 		priv->stats.Slide_Beacon_Total += pprevious_stats->RxPWDBAll;
 		priv->stats.Slide_Beacon_pwdb[slide_beacon_adc_pwdb_index] = pprevious_stats->RxPWDBAll;
-		//DbgPrint("slide_beacon_adc_pwdb_index = %d, pPreviousRfd->Status.RxPWDBAll = %d\n", slide_beacon_adc_pwdb_index, pPreviousRfd->Status.RxPWDBAll);
 		slide_beacon_adc_pwdb_index++;
 		if(slide_beacon_adc_pwdb_index >= PHY_Beacon_RSSI_SLID_WIN_MAX)
 			slide_beacon_adc_pwdb_index = 0;
@@ -4839,7 +4822,6 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 		if(priv->undecorated_smoothed_pwdb < 0)	// initialize
 		{
 			priv->undecorated_smoothed_pwdb = pprevious_stats->RxPWDBAll;
-			//DbgPrint("First pwdb initialize \n");
 		}
 #if 1
 		if(pprevious_stats->RxPWDBAll > (u32)priv->undecorated_smoothed_pwdb)
@@ -5094,7 +5076,6 @@ static void rtl8192_query_rxphystatus(
 				cck_adc_pwdb[i] = (char)tmp_pwdb;
 				cck_adc_pwdb[i] /= 2;
 				pstats->cck_adc_pwdb[i] = precord_stats->cck_adc_pwdb[i] = cck_adc_pwdb[i];
-				//DbgPrint("RF-%d tmp_pwdb = 0x%x, cck_adc_pwdb = %d", i, tmp_pwdb, cck_adc_pwdb[i]);
 			}
 		}
 #endif
@@ -5323,13 +5304,11 @@ static void TranslateRxSignalStuff819xpci(struct net_device *dev,
     if(WLAN_FC_GET_FRAMETYPE(fc)== IEEE80211_STYPE_BEACON)
     {
         bPacketBeacon = true;
-        //DbgPrint("Beacon 2, MatchBSSID = %d, ToSelf = %d \n", bPacketMatchBSSID, bPacketToSelf);
     }
     if(WLAN_FC_GET_FRAMETYPE(fc) == IEEE80211_STYPE_BLOCKACK)
     {
         if((!compare_ether_addr(praddr,dev->dev_addr)))
             bToSelfBA = true;
-        //DbgPrint("BlockAck, MatchBSSID = %d, ToSelf = %d \n", bPacketMatchBSSID, bPacketToSelf);
     }
 
 #endif
@@ -6103,7 +6082,6 @@ void setKey(	struct net_device *dev,
 
 			write_nic_dword(dev, WCAMI, TargetContent);
 			write_nic_dword(dev, RWCAM, TargetCommand);
-	//		printk("setkey cam =%8x\n", read_cam(dev, i+6*EntryNo));
 		}
 		else if(i==1){//MAC
                         TargetContent = (u32)(*(MacAddr+2)) 	 |
@@ -6147,7 +6125,6 @@ bool NicIFEnableNIC(struct net_device* dev)
 		priv->bdisable_nic = false;  //YJ,add,091111
 		return -1;
 	}
-	//printk("start adapter finished\n");
 	RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
 	//priv->bfirst_init = false;
 
