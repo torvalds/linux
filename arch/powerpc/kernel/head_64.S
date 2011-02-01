@@ -236,17 +236,6 @@ generic_secondary_common_init:
 
 	/* From now on, r24 is expected to be logical cpuid */
 	mr	r24,r5
-3:	HMT_LOW
-	lbz	r23,PACAPROCSTART(r13)	/* Test if this processor should */
-					/* start.			 */
-
-#ifndef CONFIG_SMP
-	b	3b			/* Never go on non-SMP		 */
-#else
-	cmpwi	0,r23,0
-	beq	3b			/* Loop until told to go	 */
-
-	sync				/* order paca.run and cur_cpu_spec */
 
 	/* See if we need to call a cpu state restore handler */
 	LOAD_REG_ADDR(r23, cur_cpu_spec)
@@ -257,6 +246,17 @@ generic_secondary_common_init:
 	ld	r23,0(r23)
 	mtctr	r23
 	bctrl
+
+3:	HMT_LOW
+	lbz	r23,PACAPROCSTART(r13)	/* Test if this processor should */
+					/* start.			 */
+#ifndef CONFIG_SMP
+	b	3b			/* Never go on non-SMP		 */
+#else
+	cmpwi	0,r23,0
+	beq	3b			/* Loop until told to go	 */
+
+	sync				/* order paca.run and cur_cpu_spec */
 
 4:	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
