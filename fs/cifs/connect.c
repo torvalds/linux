@@ -578,12 +578,12 @@ incomplete_rcv:
 		else if (reconnect == 1)
 			continue;
 
-		length += 4; /* account for rfc1002 hdr */
+		total_read += 4; /* account for rfc1002 hdr */
 
-
-		dump_smb(smb_buffer, length);
-		if (checkSMB(smb_buffer, smb_buffer->Mid, total_read+4)) {
-			cifs_dump_mem("Bad SMB: ", smb_buffer, 48);
+		dump_smb(smb_buffer, total_read);
+		if (checkSMB(smb_buffer, smb_buffer->Mid, total_read)) {
+			cifs_dump_mem("Bad SMB: ", smb_buffer,
+					total_read < 48 ? total_read : 48);
 			continue;
 		}
 
