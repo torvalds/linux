@@ -1259,12 +1259,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@cap contains the capability <include/linux/capability.h>.
  *	@audit: Whether to write an audit message or not
  *	Return 0 if the capability is granted for @tsk.
- * @sysctl:
- *	Check permission before accessing the @table sysctl variable in the
- *	manner specified by @op.
- *	@table contains the ctl_table structure for the sysctl variable.
- *	@op contains the operation (001 = search, 002 = write, 004 = read).
- *	Return 0 if permission is granted.
  * @syslog:
  *	Check permission before accessing the kernel message ring or changing
  *	logging to the console.
@@ -1385,7 +1379,6 @@ struct security_operations {
 		       const kernel_cap_t *permitted);
 	int (*capable) (struct task_struct *tsk, const struct cred *cred,
 			int cap, int audit);
-	int (*sysctl) (struct ctl_table *table, int op);
 	int (*quotactl) (int cmds, int type, int id, struct super_block *sb);
 	int (*quota_on) (struct dentry *dentry);
 	int (*syslog) (int type);
@@ -1668,7 +1661,6 @@ int security_capset(struct cred *new, const struct cred *old,
 int security_capable(int cap);
 int security_real_capable(struct task_struct *tsk, int cap);
 int security_real_capable_noaudit(struct task_struct *tsk, int cap);
-int security_sysctl(struct ctl_table *table, int op);
 int security_quotactl(int cmds, int type, int id, struct super_block *sb);
 int security_quota_on(struct dentry *dentry);
 int security_syslog(int type);
@@ -1885,11 +1877,6 @@ int security_real_capable_noaudit(struct task_struct *tsk, int cap)
 			       SECURITY_CAP_NOAUDIT);
 	rcu_read_unlock();
 	return ret;
-}
-
-static inline int security_sysctl(struct ctl_table *table, int op)
-{
-	return 0;
 }
 
 static inline int security_quotactl(int cmds, int type, int id,

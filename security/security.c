@@ -182,11 +182,6 @@ int security_real_capable_noaudit(struct task_struct *tsk, int cap)
 	return ret;
 }
 
-int security_sysctl(struct ctl_table *table, int op)
-{
-	return security_ops->sysctl(table, op);
-}
-
 int security_quotactl(int cmds, int type, int id, struct super_block *sb)
 {
 	return security_ops->quotactl(cmds, type, id, sb);

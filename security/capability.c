@@ -12,11 +12,6 @@
 
 #include <linux/security.h>
 
-static int cap_sysctl(ctl_table *table, int op)
-{
-	return 0;
-}
-
 static int cap_syslog(int type)
 {
 	return 0;
@@ -881,7 +876,6 @@ void __init security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, capable);
 	set_to_cap_if_null(ops, quotactl);
 	set_to_cap_if_null(ops, quota_on);
-	set_to_cap_if_null(ops, sysctl);
 	set_to_cap_if_null(ops, syslog);
 	set_to_cap_if_null(ops, settime);
 	set_to_cap_if_null(ops, vm_enough_memory);
