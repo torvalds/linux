@@ -254,6 +254,7 @@ static __init int init_posix_timers(void)
 		.timer_create	= common_timer_create,
 		.timer_set	= common_timer_set,
 		.timer_get	= common_timer_get,
+		.timer_del	= common_timer_del,
 	};
 	struct k_clock clock_monotonic = {
 		.clock_getres	= hrtimer_get_res,
@@ -263,6 +264,7 @@ static __init int init_posix_timers(void)
 		.timer_create	= common_timer_create,
 		.timer_set	= common_timer_set,
 		.timer_get	= common_timer_get,
+		.timer_del	= common_timer_del,
 	};
 	struct k_clock clock_monotonic_raw = {
 		.clock_getres	= hrtimer_get_res,
@@ -859,7 +861,7 @@ retry:
 	return error;
 }
 
-static inline int common_timer_del(struct k_itimer *timer)
+static int common_timer_del(struct k_itimer *timer)
 {
 	timer->it.real.interval.tv64 = 0;
 
@@ -870,7 +872,11 @@ static inline int common_timer_del(struct k_itimer *timer)
 
 static inline int timer_delete_hook(struct k_itimer *timer)
 {
-	return CLOCK_DISPATCH(timer->it_clock, timer_del, (timer));
+	struct k_clock *kc = clockid_to_kclock(timer->it_clock);
+
+	if (WARN_ON_ONCE(!kc || !kc->timer_del))
+		return -EINVAL;
+	return kc->timer_del(timer);
 }
 
 /* Delete a POSIX.1b interval timer. */
