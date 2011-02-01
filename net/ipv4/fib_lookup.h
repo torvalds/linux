@@ -25,7 +25,7 @@ static inline void fib_alias_accessed(struct fib_alias *fa)
 }
 
 /* Exported by fib_semantics.c */
-extern int fib_semantic_match(struct list_head *head,
+extern int fib_semantic_match(struct fib_table *tb, struct list_head *head,
 			      const struct flowi *flp,
 			      struct fib_result *res, int prefixlen, int fib_flags);
 extern void fib_release_info(struct fib_info *);

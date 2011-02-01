@@ -889,8 +889,9 @@ failure:
 }
 
 /* Note! fib_semantic_match intentionally uses  RCU list functions. */
-int fib_semantic_match(struct list_head *head, const struct flowi *flp,
-		       struct fib_result *res, int prefixlen, int fib_flags)
+int fib_semantic_match(struct fib_table *tb, struct list_head *head,
+		       const struct flowi *flp, struct fib_result *res,
+		       int prefixlen, int fib_flags)
 {
 	struct fib_alias *fa;
 	int nh_sel = 0;
@@ -954,6 +955,8 @@ out_fill_res:
 	res->type = fa->fa_type;
 	res->scope = fa->fa_scope;
 	res->fi = fa->fa_info;
+	res->table = tb;
+	res->fa_head = head;
 	if (!(fib_flags & FIB_LOOKUP_NOREF))
 		atomic_inc(&res->fi->fib_clntref);
 	return 0;

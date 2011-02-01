@@ -288,7 +288,7 @@ int fib_table_lookup(struct fib_table *tb,
 				if (f->fn_key != k)
 					continue;
 
-				err = fib_semantic_match(&f->fn_alias,
+				err = fib_semantic_match(tb, &f->fn_alias,
 						 flp, res,
 						 fz->fz_order, fib_flags);
 				if (err <= 0)

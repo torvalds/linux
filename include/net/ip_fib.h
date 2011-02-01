@@ -96,12 +96,15 @@ struct fib_info {
 struct fib_rule;
 #endif
 
+struct fib_table;
 struct fib_result {
 	unsigned char	prefixlen;
 	unsigned char	nh_sel;
 	unsigned char	type;
 	unsigned char	scope;
 	struct fib_info *fi;
+	struct fib_table *table;
+	struct list_head *fa_head;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	struct fib_rule	*r;
 #endif
