@@ -1287,8 +1287,11 @@ static int ieee80211_scan(struct wiphy *wiphy,
 	case NL80211_IFTYPE_P2P_GO:
 		if (sdata->local->ops->hw_scan)
 			break;
-		/* FIXME: implement NoA while scanning in software */
-		return -EOPNOTSUPP;
+		/*
+		 * FIXME: implement NoA while scanning in software,
+		 * for now fall through to allow scanning only when
+		 * beaconing hasn't been configured yet
+		 */
 	case NL80211_IFTYPE_AP:
 		if (sdata->u.ap.beacon)
 			return -EOPNOTSUPP;
