@@ -33,14 +33,10 @@ static void
 nv50_evo_channel_del(struct nouveau_channel **pevo)
 {
 	struct nouveau_channel *evo = *pevo;
-	struct nv50_display *disp;
 
 	if (!evo)
 		return;
 	*pevo = NULL;
-
-	disp = nv50_display(evo->dev);
-	disp->evo_alloc &= ~(1 << evo->id);
 
 	nouveau_gpuobj_channel_takedown(evo);
 	nouveau_bo_unmap(evo->pushbuf_bo);
@@ -85,7 +81,8 @@ nv50_evo_dmaobj_new(struct nouveau_channel *evo, u32 class, u32 name,
 }
 
 static int
-nv50_evo_channel_new(struct drm_device *dev, struct nouveau_channel **pevo)
+nv50_evo_channel_new(struct drm_device *dev, int chid,
+		     struct nouveau_channel **pevo)
 {
 	struct nv50_display *disp = nv50_display(dev);
 	struct nouveau_channel *evo;
@@ -96,19 +93,7 @@ nv50_evo_channel_new(struct drm_device *dev, struct nouveau_channel **pevo)
 		return -ENOMEM;
 	*pevo = evo;
 
-	for (evo->id = 0; evo->id < 5; evo->id++) {
-		if (disp->evo_alloc & (1 << evo->id))
-			continue;
-
-		disp->evo_alloc |= (1 << evo->id);
-		break;
-	}
-
-	if (evo->id == 5) {
-		kfree(evo);
-		return -ENODEV;
-	}
-
+	evo->id = chid;
 	evo->dev = dev;
 	evo->user_get = 4;
 	evo->user_put = 0;
@@ -225,7 +210,7 @@ nv50_evo_create(struct drm_device *dev)
 	/* create primary evo channel, the one we use for modesetting
 	 * purporses
 	 */
-	ret = nv50_evo_channel_new(dev, &disp->master);
+	ret = nv50_evo_channel_new(dev, 0, &disp->master);
 	if (ret)
 		return ret;
 	evo = disp->master;

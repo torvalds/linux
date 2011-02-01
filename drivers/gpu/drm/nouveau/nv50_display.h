@@ -37,7 +37,6 @@
 
 struct nv50_display {
 	struct nouveau_channel *master;
-	u32 evo_alloc;
 
 	struct {
 		struct dcb_entry *dcb;
