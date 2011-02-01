@@ -331,6 +331,8 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 {
 	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_tx_control txctl;
 	int time_left;
 
@@ -348,8 +350,12 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 	init_completion(&sc->paprd_complete);
 	sc->paprd_pending = true;
 	txctl.paprd = BIT(chain);
-	if (ath_tx_start(hw, skb, &txctl) != 0)
+
+	if (ath_tx_start(hw, skb, &txctl) != 0) {
+		ath_dbg(common, ATH_DBG_XMIT, "PAPRD TX failed\n");
+		dev_kfree_skb_any(skb);
 		return false;
+	}
 
 	time_left = wait_for_completion_timeout(&sc->paprd_complete,
 			msecs_to_jiffies(ATH_PAPRD_TIMEOUT));
