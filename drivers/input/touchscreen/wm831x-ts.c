@@ -76,8 +76,13 @@ static irqreturn_t wm831x_ts_data_irq(int irq, void *irq_data)
 	struct wm831x *wm831x = wm831x_ts->wm831x;
 	static int data_types[] = { ABS_X, ABS_Y, ABS_PRESSURE };
 	u16 data[3];
-	int count = wm831x_ts->pressure ? 3 : 2;
+	int count;
 	int i, ret;
+
+	if (wm831x_ts->pressure)
+		count = 3;
+	else
+		count = 2;
 
 	wm831x_set_bits(wm831x, WM831X_INTERRUPT_STATUS_1,
 			WM831X_TCHDATA_EINT, WM831X_TCHDATA_EINT);
@@ -134,10 +139,11 @@ static irqreturn_t wm831x_ts_pen_down_irq(int irq, void *irq_data)
 {
 	struct wm831x_ts *wm831x_ts = irq_data;
 	struct wm831x *wm831x = wm831x_ts->wm831x;
-	int ena;
+	int ena = 0;
 
 	/* Start collecting data */
-	ena = wm831x_ts->pressure ? WM831X_TCH_Z_ENA : 0;
+	if (wm831x_ts->pressure)
+		ena |= WM831X_TCH_Z_ENA;
 
 	wm831x_set_bits(wm831x, WM831X_TOUCH_CONTROL_1,
 			WM831X_TCH_X_ENA | WM831X_TCH_Y_ENA | WM831X_TCH_Z_ENA,
@@ -188,10 +194,12 @@ static __devinit int wm831x_ts_probe(struct platform_device *pdev)
 	struct wm831x_ts *wm831x_ts;
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *core_pdata = dev_get_platdata(pdev->dev.parent);
-	struct wm831x_touch_pdata *pdata =
-			core_pdata ? core_pdata->touch : NULL;
+	struct wm831x_touch_pdata *pdata = NULL;
 	struct input_dev *input_dev;
 	int error;
+
+	if (core_pdata)
+		pdata = core_pdata->touch;
 
 	wm831x_ts = kzalloc(sizeof(struct wm831x_ts), GFP_KERNEL);
 	input_dev = input_allocate_device();
