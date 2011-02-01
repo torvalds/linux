@@ -352,6 +352,18 @@ config NETFILTER_XT_CONNMARK
 	ctmark), similarly to the packet mark (nfmark). Using this
 	target and match, you can set and match on this mark.
 
+config NETFILTER_XT_SET
+	tristate 'set target and match support'
+	depends on IP_SET
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds the "SET" target and "set" match.
+
+	  Using this target and match, you can add/delete and match
+	  elements in the sets created by ipset(8).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 # alphabetically ordered list of targets
 
 comment "Xtables targets"
