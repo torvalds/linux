@@ -228,9 +228,9 @@ extern int fib_sync_up(struct net_device *dev);
 extern __be32  __fib_res_prefsrc(struct fib_result *res);
 extern void fib_select_multipath(const struct flowi *flp, struct fib_result *res);
 
-/* Exported by fib_{hash|trie}.c */
-extern void fib_hash_init(void);
-extern struct fib_table *fib_hash_table(u32 id);
+/* Exported by fib_trie.c */
+extern void fib_trie_init(void);
+extern struct fib_table *fib_trie_table(u32 id);
 
 static inline void fib_combine_itag(u32 *itag, struct fib_result *res)
 {

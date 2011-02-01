@@ -1916,7 +1916,7 @@ int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
 	return skb->len;
 }
 
-void __init fib_hash_init(void)
+void __init fib_trie_init(void)
 {
 	fn_alias_kmem = kmem_cache_create("ip_fib_alias",
 					  sizeof(struct fib_alias),
@@ -1929,8 +1929,7 @@ void __init fib_hash_init(void)
 }
 
 
-/* Fix more generic FIB names for init later */
-struct fib_table *fib_hash_table(u32 id)
+struct fib_table *fib_trie_table(u32 id)
 {
 	struct fib_table *tb;
 	struct trie *t;
