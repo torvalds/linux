@@ -966,8 +966,8 @@ struct rc_dev *rc_allocate_device(void)
 		return NULL;
 	}
 
-	dev->input_dev->getkeycode_new = ir_getkeycode;
-	dev->input_dev->setkeycode_new = ir_setkeycode;
+	dev->input_dev->getkeycode = ir_getkeycode;
+	dev->input_dev->setkeycode = ir_setkeycode;
 	input_set_drvdata(dev->input_dev, dev);
 
 	spin_lock_init(&dev->rc_map.lock);

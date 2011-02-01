@@ -198,8 +198,8 @@ static int legacy_dvb_usb_remote_init(struct dvb_usb_device *d)
 	d->input_dev = input_dev;
 	d->rc_dev = NULL;
 
-	input_dev->getkeycode_new = legacy_dvb_usb_getkeycode;
-	input_dev->setkeycode_new = legacy_dvb_usb_setkeycode;
+	input_dev->getkeycode = legacy_dvb_usb_getkeycode;
+	input_dev->setkeycode = legacy_dvb_usb_setkeycode;
 
 	/* set the bits for the keys */
 	deb_rc("key map size: %d\n", d->props.rc.legacy.rc_map_size);

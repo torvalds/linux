@@ -1154,8 +1154,6 @@ struct ff_effect {
  *	sparse keymaps. If not supplied default mechanism will be used.
  *	The method is being called while holding event_lock and thus must
  *	not sleep
- * @getkeycode_new: transition method
- * @setkeycode_new: transition method
  * @ff: force feedback structure associated with the device if device
  *	supports force feedback effects
  * @repeat_key: stores key code of the last key pressed; used to implement
@@ -1234,14 +1232,10 @@ struct input_dev {
 	void *keycode;
 
 	int (*setkeycode)(struct input_dev *dev,
-			  unsigned int scancode, unsigned int keycode);
+			  const struct input_keymap_entry *ke,
+			  unsigned int *old_keycode);
 	int (*getkeycode)(struct input_dev *dev,
-			  unsigned int scancode, unsigned int *keycode);
-	int (*setkeycode_new)(struct input_dev *dev,
-			      const struct input_keymap_entry *ke,
-			      unsigned int *old_keycode);
-	int (*getkeycode_new)(struct input_dev *dev,
-			      struct input_keymap_entry *ke);
+			  struct input_keymap_entry *ke);
 
 	struct ff_device *ff;
 
