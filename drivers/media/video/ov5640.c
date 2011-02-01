@@ -2362,73 +2362,73 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     set_w = pix->width;
     set_h = pix->height;
 
-	if (((set_w <= 176) && (set_h <= 144)) && sensor_qcif[0].reg)
+	if (((set_w <= 176) && (set_h <= 144)) && (sensor_qcif[0].reg!=SEQUENCE_END))
 	{
 		winseqe_set_addr = sensor_qcif;
         set_w = 176;
         set_h = 144;
 	}
-	else if (((set_w <= 320) && (set_h <= 240)) && sensor_qvga[0].reg)
+	else if (((set_w <= 320) && (set_h <= 240)) && (sensor_qvga[0].reg!=SEQUENCE_END))
     {
         winseqe_set_addr = sensor_qvga;
         set_w = 320;
         set_h = 240;
     }
-    else if (((set_w <= 352) && (set_h<= 288)) && sensor_cif[0].reg)
+    else if (((set_w <= 352) && (set_h<= 288)) && (sensor_cif[0].reg!=SEQUENCE_END))
     {
         winseqe_set_addr = sensor_cif;
         set_w = 352;
         set_h = 288;
     }
-    else if (((set_w <= 640) && (set_h <= 480)) && sensor_vga[0].reg)
+    else if (((set_w <= 640) && (set_h <= 480)) && (sensor_vga[0].reg!=SEQUENCE_END))
     {
         winseqe_set_addr = sensor_vga;
         set_w = 640;
         set_h = 480;
     }
-    else if (((set_w <= 800) && (set_h <= 600)) && sensor_svga[0].reg)
+    else if (((set_w <= 800) && (set_h <= 600)) && (sensor_svga[0].reg!=SEQUENCE_END))
     {
         winseqe_set_addr = sensor_svga;
         set_w = 800;
         set_h = 600;
     }
-	else if (((set_w <= 1024) && (set_h <= 768)) && sensor_xga[0].reg)
+	else if (((set_w <= 1024) && (set_h <= 768)) && (sensor_xga[0].reg!=SEQUENCE_END))
     {
         winseqe_set_addr = sensor_xga;
         set_w = 1024;
         set_h = 768;
     }
-	else if (((set_w <= 1280) && (set_h <= 720)) && sensor_720p[0].reg)
+	else if (((set_w <= 1280) && (set_h <= 720)) && (sensor_720p[0].reg!=SEQUENCE_END))
     {
         winseqe_set_addr = sensor_720p;
         set_w = 1280;
         set_h = 720;
     }
-    else if (((set_w <= 1280) && (set_h <= 1024)) && sensor_sxga[0].reg)
+    else if (((set_w <= 1280) && (set_h <= 1024)) && (sensor_sxga[0].reg!=SEQUENCE_END))
     {
         winseqe_set_addr = sensor_sxga;
         set_w = 1280;
         set_h = 1024;
     }
-    else if (((set_w <= 1600) && (set_h <= 1200)) && sensor_uxga[0].reg)
+    else if (((set_w <= 1600) && (set_h <= 1200)) && (sensor_uxga[0].reg!=SEQUENCE_END))
     {
         winseqe_set_addr = sensor_uxga;
         set_w = 1600;
         set_h = 1200;
     }
-    else if (((set_w <= 1920) && (set_h <= 1080)) && sensor_1080p[0].reg)
+    else if (((set_w <= 1920) && (set_h <= 1080)) && (sensor_1080p[0].reg!=SEQUENCE_END))
     {
         winseqe_set_addr = sensor_1080p;
         set_w = 1920;
         set_h = 1080;
     }
-	else if (((set_w <= 2048) && (set_h <= 1536)) && sensor_qxga[0].reg)
+	else if (((set_w <= 2048) && (set_h <= 1536)) && (sensor_qxga[0].reg!=SEQUENCE_END))
     {
         winseqe_set_addr = sensor_qxga;
         set_w = 2048;
         set_h = 1536;
     }
-	else if (((set_w <= 2592) && (set_h <= 1944)) && sensor_qsxga[0].reg)
+	else if (((set_w <= 2592) && (set_h <= 1944)) && (sensor_qsxga[0].reg!=SEQUENCE_END))
     {
         winseqe_set_addr = sensor_qsxga;
         set_w = 2592;

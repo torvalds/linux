@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __MT9P111_H__
-#define __MT9P111_H__
+#ifndef __MT9D112_H__
+#define __MT9D112_H__
 struct reginfo
 {
     u16 reg;
@@ -26,3 +26,4 @@ struct reginfo
 #define SEQUENCE_WAIT_US     0xFFFE
 #define SEQUENCE_END	     0xFFFF
 #endif
+
