@@ -417,10 +417,6 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	case APIC_DM_INIT:
 		if (level) {
 			result = 1;
-			if (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE)
-				printk(KERN_DEBUG
-				       "INIT on a runnable vcpu %d\n",
-				       vcpu->vcpu_id);
 			vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
 			kvm_make_request(KVM_REQ_EVENT, vcpu);
 			kvm_vcpu_kick(vcpu);
