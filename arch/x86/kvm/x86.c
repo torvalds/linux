@@ -4412,8 +4412,6 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 		vcpu->arch.emulate_ctxt.perm_ok = false;
 
 		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, insn, insn_len);
-		if (r == X86EMUL_PROPAGATE_FAULT)
-			goto done;
 
 		trace_kvm_emulate_insn_start(vcpu);
 
@@ -4473,7 +4471,6 @@ restart:
 		return handle_emulation_failure(vcpu);
 	}
 
-done:
 	if (vcpu->arch.emulate_ctxt.have_exception) {
 		inject_emulated_exception(vcpu);
 		r = EMULATE_DONE;
