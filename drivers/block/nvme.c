@@ -889,6 +889,7 @@ static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int index,
 	disk->fops = &nvme_fops;
 	disk->private_data = ns;
 	disk->queue = ns->queue;
+	disk->driverfs_dev = &dev->pci_dev->dev;
 	sprintf(disk->disk_name, "nvme%dn%d", dev->instance, index);
 	set_capacity(disk, le64_to_cpup(&id->nsze) << (ns->lba_shift - 9));
 
