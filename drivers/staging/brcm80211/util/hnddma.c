@@ -56,11 +56,6 @@
 
 #define	DMA_NONE(args)
 
-#define d32txregs	dregs.d32_u.txregs_32
-#define d32rxregs	dregs.d32_u.rxregs_32
-#define txd32		dregs.d32_u.txd_32
-#define rxd32		dregs.d32_u.rxd_32
-
 #define d64txregs	dregs.d64_u.txregs_64
 #define d64rxregs	dregs.d64_u.rxregs_64
 #define txd64		dregs.d64_u.txd_64
@@ -89,12 +84,6 @@ typedef struct dma_info {
 	bool addrext;		/* this dma engine supports DmaExtendedAddrChanges */
 
 	union {
-		struct {
-			dma32regs_t *txregs_32;	/* 32-bit dma tx engine registers */
-			dma32regs_t *rxregs_32;	/* 32-bit dma rx engine registers */
-			dma32dd_t *txd_32;	/* pointer to dma32 tx descriptor ring */
-			dma32dd_t *rxd_32;	/* pointer to dma32 rx descriptor ring */
-		} d32_u;
 		struct {
 			dma64regs_t *txregs_64;	/* 64-bit dma tx engine registers */
 			dma64regs_t *rxregs_64;	/* 64-bit dma rx engine registers */

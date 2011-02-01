@@ -76,12 +76,6 @@ typedef volatile union {
 	pio4regp_t b4;		/* >= corerev 8 */
 } u_pioreg_t;
 
-/* dma/pio corerev < 11 */
-typedef volatile struct {
-	dma32regp_t dmaregs[8];	/* 0x200 - 0x2fc */
-	u_pioreg_t pioregs[8];	/* 0x300 */
-} fifo32_t;
-
 /* dma/pio corerev >= 11 */
 typedef volatile struct {
 	dma64regs_t dmaxmt;	/* dma tx */
@@ -168,7 +162,6 @@ typedef volatile struct _d11regs {
 
 	/* 0x200-0x37F dma/pio registers */
 	volatile union {
-		fifo32_t f32regs;	/* tx fifos 6-7 and rx fifos 1-3 (corerev < 5) */
 		fifo64_t f64regs[6];	/* on corerev >= 11 */
 	} fifo;
 

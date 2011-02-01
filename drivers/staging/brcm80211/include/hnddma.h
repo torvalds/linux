@@ -199,7 +199,4 @@ extern const di_fcn_t dma64proc;
  */
 extern uint dma_addrwidth(si_t *sih, void *dmaregs);
 
-/* pio helpers */
-extern void dma_txpioloopback(struct osl_info *osh, dma32regs_t *);
-
 #endif				/* _hnddma_h_ */
