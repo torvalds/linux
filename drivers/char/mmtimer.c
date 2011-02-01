@@ -53,6 +53,8 @@ MODULE_LICENSE("GPL");
 
 #define RTC_BITS 55 /* 55 bits for this implementation */
 
+static struct k_clock sgi_clock;
+
 extern unsigned long sn_rtc_cycles_per_second;
 
 #define RTC_COUNTER_ADDR        ((long *)LOCAL_MMR_ADDR(SH_RTC))
@@ -763,10 +765,18 @@ static int sgi_timer_set(struct k_itimer *timr, int flags,
 	return err;
 }
 
+static int sgi_clock_getres(const clockid_t which_clock, struct timespec *tp)
+{
+	tp->tv_sec = 0;
+	tp->tv_nsec = sgi_clock.res;
+	return 0;
+}
+
 static struct k_clock sgi_clock = {
 	.res = 0,
 	.clock_set	= sgi_clock_set,
 	.clock_get	= sgi_clock_get,
+	.clock_getres	= sgi_clock_getres,
 	.timer_create	= sgi_timer_create,
 	.timer_set	= sgi_timer_set,
 	.timer_del	= sgi_timer_del,
