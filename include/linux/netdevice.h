@@ -871,6 +871,10 @@ struct net_device_ops {
 						      unsigned int sgc);
 	int			(*ndo_fcoe_ddp_done)(struct net_device *dev,
 						     u16 xid);
+	int			(*ndo_fcoe_ddp_target)(struct net_device *dev,
+						       u16 xid,
+						       struct scatterlist *sgl,
+						       unsigned int sgc);
 #define NETDEV_FCOE_WWNN 0
 #define NETDEV_FCOE_WWPN 1
 	int			(*ndo_fcoe_get_wwn)(struct net_device *dev,
