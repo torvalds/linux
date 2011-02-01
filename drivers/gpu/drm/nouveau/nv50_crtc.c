@@ -65,7 +65,7 @@ nv50_crtc_blank(struct nouveau_crtc *nv_crtc, bool blanked)
 {
 	struct drm_device *dev = nv_crtc->base.dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *evo = nv50_display(dev)->evo;
+	struct nouveau_channel *evo = nv50_display(dev)->master;
 	int index = nv_crtc->index, ret;
 
 	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
@@ -135,7 +135,7 @@ static int
 nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool on, bool update)
 {
 	struct drm_device *dev = nv_crtc->base.dev;
-	struct nouveau_channel *evo = nv50_display(dev)->evo;
+	struct nouveau_channel *evo = nv50_display(dev)->master;
 	int ret;
 
 	NV_DEBUG_KMS(dev, "\n");
@@ -185,7 +185,7 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, int scaling_mode, bool update)
 	struct nouveau_connector *nv_connector =
 		nouveau_crtc_connector_get(nv_crtc);
 	struct drm_device *dev = nv_crtc->base.dev;
-	struct nouveau_channel *evo = nv50_display(dev)->evo;
+	struct nouveau_channel *evo = nv50_display(dev)->master;
 	struct drm_display_mode *native_mode = NULL;
 	struct drm_display_mode *mode = &nv_crtc->base.mode;
 	uint32_t outX, outY, horiz, vert;
@@ -459,7 +459,7 @@ static void
 nv50_crtc_commit(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct nouveau_channel *evo = nv50_display(dev)->evo;
+	struct nouveau_channel *evo = nv50_display(dev)->master;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	int ret;
 
@@ -493,7 +493,7 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_device *dev = nv_crtc->base.dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *evo = nv50_display(dev)->evo;
+	struct nouveau_channel *evo = nv50_display(dev)->master;
 	struct drm_framebuffer *drm_fb = nv_crtc->base.fb;
 	struct nouveau_framebuffer *fb = nouveau_framebuffer(drm_fb);
 	int ret, format;
@@ -616,7 +616,7 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		   struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	struct nouveau_channel *evo = nv50_display(dev)->evo;
+	struct nouveau_channel *evo = nv50_display(dev)->master;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_connector *nv_connector = NULL;
 	uint32_t hsync_dur,  vsync_dur, hsync_start_to_end, vsync_start_to_end;

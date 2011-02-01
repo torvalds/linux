@@ -172,7 +172,7 @@ nv50_display_init(struct drm_device *dev)
 	ret = nv50_evo_init(dev);
 	if (ret)
 		return ret;
-	evo = nv50_display(dev)->evo;
+	evo = nv50_display(dev)->master;
 
 	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (evo->ramin->vinst >> 8) | 9);
 
@@ -202,7 +202,7 @@ static int nv50_display_disable(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_display *disp = nv50_display(dev);
-	struct nouveau_channel *evo = disp->evo;
+	struct nouveau_channel *evo = disp->master;
 	struct drm_crtc *drm_crtc;
 	int ret, i;
 

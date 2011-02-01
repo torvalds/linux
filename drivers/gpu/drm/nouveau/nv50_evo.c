@@ -62,7 +62,7 @@ nv50_evo_dmaobj_new(struct nouveau_channel *evo, u32 class, u32 name,
 	struct nouveau_gpuobj *obj = NULL;
 	int ret;
 
-	ret = nouveau_gpuobj_new(evo->dev, disp->evo, 6*4, 32, 0, &obj);
+	ret = nouveau_gpuobj_new(evo->dev, disp->master, 6*4, 32, 0, &obj);
 	if (ret)
 		return ret;
 	obj->engine = NVOBJ_ENGINE_DISPLAY;
@@ -139,8 +139,8 @@ nv50_evo_channel_new(struct drm_device *dev, struct nouveau_channel **pevo)
 	}
 
 	/* bind primary evo channel's ramht to the channel */
-	if (disp->evo && evo != disp->evo)
-		nouveau_ramht_ref(disp->evo->ramht, &evo->ramht, NULL);
+	if (disp->master && evo != disp->master)
+		nouveau_ramht_ref(disp->master->ramht, &evo->ramht, NULL);
 
 	return 0;
 }
@@ -225,10 +225,10 @@ nv50_evo_create(struct drm_device *dev)
 	/* create primary evo channel, the one we use for modesetting
 	 * purporses
 	 */
-	ret = nv50_evo_channel_new(dev, &disp->evo);
+	ret = nv50_evo_channel_new(dev, &disp->master);
 	if (ret)
 		return ret;
-	evo = disp->evo;
+	evo = disp->master;
 
 	/* setup object management on it, any other evo channel will
 	 * use this also as there's no per-channel support on the
@@ -238,28 +238,28 @@ nv50_evo_create(struct drm_device *dev)
 				 NVOBJ_FLAG_ZERO_ALLOC, &evo->ramin);
 	if (ret) {
 		NV_ERROR(dev, "Error allocating EVO channel memory: %d\n", ret);
-		nv50_evo_channel_del(&disp->evo);
+		nv50_evo_channel_del(&disp->master);
 		return ret;
 	}
 
 	ret = drm_mm_init(&evo->ramin_heap, 0, 32768);
 	if (ret) {
 		NV_ERROR(dev, "Error initialising EVO PRAMIN heap: %d\n", ret);
-		nv50_evo_channel_del(&disp->evo);
+		nv50_evo_channel_del(&disp->master);
 		return ret;
 	}
 
 	ret = nouveau_gpuobj_new(dev, evo, 4096, 16, 0, &ramht);
 	if (ret) {
 		NV_ERROR(dev, "Unable to allocate EVO RAMHT: %d\n", ret);
-		nv50_evo_channel_del(&disp->evo);
+		nv50_evo_channel_del(&disp->master);
 		return ret;
 	}
 
 	ret = nouveau_ramht_new(dev, ramht, &evo->ramht);
 	nouveau_gpuobj_ref(NULL, &ramht);
 	if (ret) {
-		nv50_evo_channel_del(&disp->evo);
+		nv50_evo_channel_del(&disp->master);
 		return ret;
 	}
 
@@ -268,28 +268,28 @@ nv50_evo_create(struct drm_device *dev)
 		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoFB32, 0xfe, 0x19,
 					  0, 0xffffffff, 0x00000000);
 		if (ret) {
-			nv50_evo_channel_del(&disp->evo);
+			nv50_evo_channel_del(&disp->master);
 			return ret;
 		}
 
 		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoVRAM, 0, 0x19,
 					  0, dev_priv->vram_size, 0x00020000);
 		if (ret) {
-			nv50_evo_channel_del(&disp->evo);
+			nv50_evo_channel_del(&disp->master);
 			return ret;
 		}
 
 		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoVRAM_LP, 0, 0x19,
 					  0, dev_priv->vram_size, 0x00000000);
 		if (ret) {
-			nv50_evo_channel_del(&disp->evo);
+			nv50_evo_channel_del(&disp->master);
 			return ret;
 		}
 	} else {
 		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoFB16, 0x70, 0x19,
 					  0, 0xffffffff, 0x00010000);
 		if (ret) {
-			nv50_evo_channel_del(&disp->evo);
+			nv50_evo_channel_del(&disp->master);
 			return ret;
 		}
 
@@ -297,21 +297,21 @@ nv50_evo_create(struct drm_device *dev)
 		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoFB32, 0x7a, 0x19,
 					  0, 0xffffffff, 0x00010000);
 		if (ret) {
-			nv50_evo_channel_del(&disp->evo);
+			nv50_evo_channel_del(&disp->master);
 			return ret;
 		}
 
 		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoVRAM, 0, 0x19,
 					  0, dev_priv->vram_size, 0x00010000);
 		if (ret) {
-			nv50_evo_channel_del(&disp->evo);
+			nv50_evo_channel_del(&disp->master);
 			return ret;
 		}
 
 		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoVRAM_LP, 0, 0x19,
 					  0, dev_priv->vram_size, 0x00010000);
 		if (ret) {
-			nv50_evo_channel_del(&disp->evo);
+			nv50_evo_channel_del(&disp->master);
 			return ret;
 		}
 	}
@@ -325,13 +325,13 @@ nv50_evo_init(struct drm_device *dev)
 	struct nv50_display *disp = nv50_display(dev);
 	int ret;
 
-	if (!disp->evo) {
+	if (!disp->master) {
 		ret = nv50_evo_create(dev);
 		if (ret)
 			return ret;
 	}
 
-	return nv50_evo_channel_init(disp->evo);
+	return nv50_evo_channel_init(disp->master);
 }
 
 void
@@ -339,8 +339,8 @@ nv50_evo_fini(struct drm_device *dev)
 {
 	struct nv50_display *disp = nv50_display(dev);
 
-	if (disp->evo) {
-		nv50_evo_channel_fini(disp->evo);
-		nv50_evo_channel_del(&disp->evo);
+	if (disp->master) {
+		nv50_evo_channel_fini(disp->master);
+		nv50_evo_channel_del(&disp->master);
 	}
 }

@@ -36,7 +36,7 @@
 #include "nv50_evo.h"
 
 struct nv50_display {
-	struct nouveau_channel *evo;
+	struct nouveau_channel *master;
 	u32 evo_alloc;
 
 	struct {
