@@ -60,4 +60,13 @@ config IP_SET_HASH_IP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP_SET_HASH_IPPORT
+	tristate "hash:ip,port set support"
+	depends on IP_SET
+	help
+	  This option adds the hash:ip,port set type support, by which one
+	  can store IPv4/IPv6 address and protocol/port pairs.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 endif # IP_SET
