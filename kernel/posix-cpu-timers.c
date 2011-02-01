@@ -1485,7 +1485,7 @@ int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 		     struct timespec *rqtp, struct timespec __user *rmtp)
 {
 	struct restart_block *restart_block =
-	    &current_thread_info()->restart_block;
+		&current_thread_info()->restart_block;
 	struct itimerspec it;
 	int error;
 
@@ -1501,50 +1501,42 @@ int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 
 	if (error == -ERESTART_RESTARTBLOCK) {
 
-	       	if (flags & TIMER_ABSTIME)
+		if (flags & TIMER_ABSTIME)
 			return -ERESTARTNOHAND;
 		/*
-	 	 * Report back to the user the time still remaining.
-	 	 */
-		if (rmtp != NULL && copy_to_user(rmtp, &it.it_value, sizeof *rmtp))
+		 * Report back to the user the time still remaining.
+		 */
+		if (rmtp && copy_to_user(rmtp, &it.it_value, sizeof *rmtp))
 			return -EFAULT;
 
 		restart_block->fn = posix_cpu_nsleep_restart;
-		restart_block->arg0 = which_clock;
-		restart_block->arg1 = (unsigned long) rmtp;
-		restart_block->arg2 = rqtp->tv_sec;
-		restart_block->arg3 = rqtp->tv_nsec;
+		restart_block->nanosleep.index = which_clock;
+		restart_block->nanosleep.rmtp = rmtp;
+		restart_block->nanosleep.expires = timespec_to_ns(rqtp);
 	}
 	return error;
 }
 
 long posix_cpu_nsleep_restart(struct restart_block *restart_block)
 {
-	clockid_t which_clock = restart_block->arg0;
-	struct timespec __user *rmtp;
+	clockid_t which_clock = restart_block->nanosleep.index;
 	struct timespec t;
 	struct itimerspec it;
 	int error;
 
-	rmtp = (struct timespec __user *) restart_block->arg1;
-	t.tv_sec = restart_block->arg2;
-	t.tv_nsec = restart_block->arg3;
+	t = ns_to_timespec(restart_block->nanosleep.expires);
 
-	restart_block->fn = do_no_restart_syscall;
 	error = do_cpu_nanosleep(which_clock, TIMER_ABSTIME, &t, &it);
 
 	if (error == -ERESTART_RESTARTBLOCK) {
+		struct timespec __user *rmtp = restart_block->nanosleep.rmtp;
 		/*
-	 	 * Report back to the user the time still remaining.
-	 	 */
-		if (rmtp != NULL && copy_to_user(rmtp, &it.it_value, sizeof *rmtp))
+		 * Report back to the user the time still remaining.
+		 */
+		if (rmtp && copy_to_user(rmtp, &it.it_value, sizeof *rmtp))
 			return -EFAULT;
 
-		restart_block->fn = posix_cpu_nsleep_restart;
-		restart_block->arg0 = which_clock;
-		restart_block->arg1 = (unsigned long) rmtp;
-		restart_block->arg2 = t.tv_sec;
-		restart_block->arg3 = t.tv_nsec;
+		restart_block->nanosleep.expires = timespec_to_ns(&t);
 	}
 	return error;
 
