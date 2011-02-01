@@ -768,12 +768,11 @@ static int sgi_timer_set(struct k_itimer *timr, int flags,
 static int sgi_clock_getres(const clockid_t which_clock, struct timespec *tp)
 {
 	tp->tv_sec = 0;
-	tp->tv_nsec = sgi_clock.res;
+	tp->tv_nsec = sgi_clock_period;
 	return 0;
 }
 
 static struct k_clock sgi_clock = {
-	.res = 0,
 	.clock_set	= sgi_clock_set,
 	.clock_get	= sgi_clock_get,
 	.clock_getres	= sgi_clock_getres,
@@ -840,7 +839,7 @@ static int __init mmtimer_init(void)
 			(unsigned long) node);
 	}
 
-	sgi_clock_period = sgi_clock.res = NSEC_PER_SEC / sn_rtc_cycles_per_second;
+	sgi_clock_period = NSEC_PER_SEC / sn_rtc_cycles_per_second;
 	register_posix_clock(CLOCK_SGI_CYCLE, &sgi_clock);
 
 	printk(KERN_INFO "%s: v%s, %ld MHz\n", MMTIMER_DESC, MMTIMER_VERSION,

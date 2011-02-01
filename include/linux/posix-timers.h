@@ -67,7 +67,6 @@ struct k_itimer {
 };
 
 struct k_clock {
-	int res;		/* in nanoseconds */
 	int (*clock_getres) (const clockid_t which_clock, struct timespec *tp);
 	int (*clock_set) (const clockid_t which_clock,
 			  const struct timespec *tp);
