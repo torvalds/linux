@@ -312,11 +312,9 @@ void be_link_status_update(struct be_adapter *adapter, bool link_up)
 	if (adapter->link_up != link_up) {
 		adapter->link_speed = -1;
 		if (link_up) {
-			netif_start_queue(netdev);
 			netif_carrier_on(netdev);
 			printk(KERN_INFO "%s: Link up\n", netdev->name);
 		} else {
-			netif_stop_queue(netdev);
 			netif_carrier_off(netdev);
 			printk(KERN_INFO "%s: Link down\n", netdev->name);
 		}
