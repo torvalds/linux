@@ -183,9 +183,7 @@ struct iwmct_priv {
 	u32 barker;
 	struct iwmct_dbg dbg;
 
-	/* drivers work queue */
-	struct workqueue_struct *wq;
-	struct workqueue_struct *bus_rescan_wq;
+	/* drivers work items */
 	struct work_struct bus_rescan_worker;
 	struct work_struct isr_worker;
 
