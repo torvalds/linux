@@ -155,7 +155,6 @@ struct p9_conn {
 
 static DEFINE_SPINLOCK(p9_poll_lock);
 static LIST_HEAD(p9_poll_pending_list);
-static struct workqueue_struct *p9_mux_wq;
 static struct task_struct *p9_poll_task;
 
 static void p9_mux_poll_stop(struct p9_conn *m)
@@ -384,7 +383,7 @@ static void p9_read_work(struct work_struct *work)
 
 		if (n & POLLIN) {
 			P9_DPRINTK(P9_DEBUG_TRANS, "sched read work %p\n", m);
-			queue_work(p9_mux_wq, &m->rq);
+			schedule_work(&m->rq);
 		} else
 			clear_bit(Rworksched, &m->wsched);
 	} else
@@ -497,7 +496,7 @@ static void p9_write_work(struct work_struct *work)
 
 		if (n & POLLOUT) {
 			P9_DPRINTK(P9_DEBUG_TRANS, "sched write work %p\n", m);
-			queue_work(p9_mux_wq, &m->wq);
+			schedule_work(&m->wq);
 		} else
 			clear_bit(Wworksched, &m->wsched);
 	} else
@@ -629,7 +628,7 @@ static void p9_poll_mux(struct p9_conn *m)
 		P9_DPRINTK(P9_DEBUG_TRANS, "mux %p can read\n", m);
 		if (!test_and_set_bit(Rworksched, &m->wsched)) {
 			P9_DPRINTK(P9_DEBUG_TRANS, "sched read work %p\n", m);
-			queue_work(p9_mux_wq, &m->rq);
+			schedule_work(&m->rq);
 		}
 	}
 
@@ -639,7 +638,7 @@ static void p9_poll_mux(struct p9_conn *m)
 		if ((m->wsize || !list_empty(&m->unsent_req_list)) &&
 		    !test_and_set_bit(Wworksched, &m->wsched)) {
 			P9_DPRINTK(P9_DEBUG_TRANS, "sched write work %p\n", m);
-			queue_work(p9_mux_wq, &m->wq);
+			schedule_work(&m->wq);
 		}
 	}
 }
@@ -677,7 +676,7 @@ static int p9_fd_request(struct p9_client *client, struct p9_req_t *req)
 		n = p9_fd_poll(m->client, NULL);
 
 	if (n & POLLOUT && !test_and_set_bit(Wworksched, &m->wsched))
-		queue_work(p9_mux_wq, &m->wq);
+		schedule_work(&m->wq);
 
 	return 0;
 }
@@ -1083,15 +1082,8 @@ static int p9_poll_proc(void *a)
 
 int p9_trans_fd_init(void)
 {
-	p9_mux_wq = create_workqueue("v9fs");
-	if (!p9_mux_wq) {
-		printk(KERN_WARNING "v9fs: mux: creating workqueue failed\n");
-		return -ENOMEM;
-	}
-
 	p9_poll_task = kthread_run(p9_poll_proc, NULL, "v9fs-poll");
 	if (IS_ERR(p9_poll_task)) {
-		destroy_workqueue(p9_mux_wq);
 		printk(KERN_WARNING "v9fs: mux: creating poll task failed\n");
 		return PTR_ERR(p9_poll_task);
 	}
@@ -1109,6 +1101,4 @@ void p9_trans_fd_exit(void)
 	v9fs_unregister_trans(&p9_tcp_trans);
 	v9fs_unregister_trans(&p9_unix_trans);
 	v9fs_unregister_trans(&p9_fd_trans);
-
-	destroy_workqueue(p9_mux_wq);
 }
