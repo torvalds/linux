@@ -668,6 +668,7 @@ static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 	dev->ctrl_config |= (PAGE_SHIFT - 12) << NVME_CC_MPS_SHIFT;
 	dev->ctrl_config |= NVME_CC_ARB_RR | NVME_CC_SHN_NONE;
 
+	writel(0, &dev->bar->cc);
 	writel(aqa, &dev->bar->aqa);
 	writeq(nvmeq->sq_dma_addr, &dev->bar->asq);
 	writeq(nvmeq->cq_dma_addr, &dev->bar->acq);
