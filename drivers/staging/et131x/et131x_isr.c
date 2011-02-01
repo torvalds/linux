@@ -366,7 +366,7 @@ void et131x_isr_handler(struct work_struct *work)
 		if (status & ET_INTR_PHY) {
 			u32 pm_csr;
 			MI_BMSR_t BmsrInts, BmsrData;
-			MI_ISR_t myIsr;
+			u16 myisr;
 
 			/* If we are in coma mode when we get this interrupt,
 			 * we need to disable it.
@@ -384,12 +384,12 @@ void et131x_isr_handler(struct work_struct *work)
 			/* Read the PHY ISR to clear the reason for the
 			 * interrupt.
 			 */
-			MiRead(etdev, (uint8_t) offsetof(MI_REGS_t, isr),
-			       &myIsr.value);
+			MiRead(etdev, (uint8_t) offsetof(struct mi_regs, isr),
+			       &myisr);
 
 			if (!etdev->ReplicaPhyLoopbk) {
 				MiRead(etdev,
-				       (uint8_t) offsetof(MI_REGS_t, bmsr),
+				       (uint8_t) offsetof(struct mi_regs, bmsr),
 				       &BmsrData.value);
 
 				BmsrInts.value =

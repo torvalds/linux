@@ -242,23 +242,23 @@ int MiWrite(struct et131x_adapter *etdev, u8 xcvrReg, u16 value)
 int et131x_xcvr_find(struct et131x_adapter *etdev)
 {
 	u8 xcvr_addr;
-	MI_IDR1_t idr1;
-	MI_IDR2_t idr2;
+	u16 idr1;
+	u16 idr2;
 	u32 xcvr_id;
 
 	/* We need to get xcvr id and address we just get the first one */
 	for (xcvr_addr = 0; xcvr_addr < 32; xcvr_addr++) {
 		/* Read the ID from the PHY */
 		PhyMiRead(etdev, xcvr_addr,
-			  (u8) offsetof(MI_REGS_t, idr1),
-			  &idr1.value);
+			  (u8) offsetof(struct mi_regs, idr1),
+			  &idr1);
 		PhyMiRead(etdev, xcvr_addr,
-			  (u8) offsetof(MI_REGS_t, idr2),
-			  &idr2.value);
+			  (u8) offsetof(struct mi_regs, idr2),
+			  &idr2);
 
-		xcvr_id = (u32) ((idr1.value << 16) | idr2.value);
+		xcvr_id = (u32) ((idr1 << 16) | idr2);
 
-		if (idr1.value != 0 && idr1.value != 0xffff) {
+		if (idr1 != 0 && idr1 != 0xffff) {
 			etdev->Stats.xcvr_id = xcvr_id;
 			etdev->Stats.xcvr_addr = xcvr_addr;
 			return 0;
@@ -577,24 +577,22 @@ void et131x_setphy_normal(struct et131x_adapter *etdev)
  */
 static void et131x_xcvr_init(struct et131x_adapter *etdev)
 {
-	MI_IMR_t imr;
-	MI_ISR_t isr;
-	MI_LCR2_t lcr2;
+	u16 imr;
+	u16 isr;
+	u16 lcr2;
 
 	/* Zero out the adapter structure variable representing BMSR */
 	etdev->Bmsr.value = 0;
 
-	MiRead(etdev, (u8) offsetof(MI_REGS_t, isr), &isr.value);
-	MiRead(etdev, (u8) offsetof(MI_REGS_t, imr), &imr.value);
+	MiRead(etdev, (u8) offsetof(struct mi_regs, isr), &isr);
+	MiRead(etdev, (u8) offsetof(struct mi_regs, imr), &imr);
 
 	/* Set the link status interrupt only.  Bad behavior when link status
 	 * and auto neg are set, we run into a nested interrupt problem
 	 */
-	imr.bits.int_en = 0x1;
-	imr.bits.link_status = 0x1;
-	imr.bits.autoneg_status = 0x1;
+        imr |= 0x0105;
 
-	MiWrite(etdev, (u8) offsetof(MI_REGS_t, imr), imr.value);
+	MiWrite(etdev, (u8) offsetof(struct mi_regs, imr), imr);
 
 	/* Set the LED behavior such that LED 1 indicates speed (off =
 	 * 10Mbits, blink = 100Mbits, on = 1000Mbits) and LED 2 indicates
@@ -605,15 +603,19 @@ static void et131x_xcvr_init(struct et131x_adapter *etdev)
 	 * EEPROM. However, the above description is the default.
 	 */
 	if ((etdev->eeprom_data[1] & 0x4) == 0) {
-		MiRead(etdev, (u8) offsetof(MI_REGS_t, lcr2),
-		       &lcr2.value);
+		MiRead(etdev, (u8) offsetof(struct mi_regs, lcr2),
+		       &lcr2);
+
+		lcr2 &= 0x00FF;
+		lcr2 |= 0xA000;	/* led link */
+
 		if ((etdev->eeprom_data[1] & 0x8) == 0)
-			lcr2.bits.led_tx_rx = 0x3;
+			lcr2 |= 0x0300;
 		else
-			lcr2.bits.led_tx_rx = 0x4;
-		lcr2.bits.led_link = 0xa;
-		MiWrite(etdev, (u8) offsetof(MI_REGS_t, lcr2),
-			lcr2.value);
+			lcr2 |= 0x0400;
+
+		MiWrite(etdev, (u8) offsetof(struct mi_regs, lcr2),
+			lcr2);
 	}
 
 	/* Determine if we need to go into a force mode and set it */
