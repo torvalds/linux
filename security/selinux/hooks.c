@@ -1301,10 +1301,8 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 
 		/* Try to obtain a transition SID. */
 		isec->sclass = inode_mode_to_security_class(inode->i_mode);
-		rc = security_transition_sid(isec->task_sid,
-					     sbsec->sid,
-					     isec->sclass,
-					     &sid);
+		rc = security_transition_sid(isec->task_sid, sbsec->sid,
+					     isec->sclass, NULL, &sid);
 		if (rc)
 			goto out_unlock;
 		isec->sid = sid;
@@ -1579,7 +1577,7 @@ static int may_create(struct inode *dir,
 		return rc;
 
 	if (!newsid || !(sbsec->flags & SE_SBLABELSUPP)) {
-		rc = security_transition_sid(sid, dsec->sid, tclass, &newsid);
+		rc = security_transition_sid(sid, dsec->sid, tclass, NULL, &newsid);
 		if (rc)
 			return rc;
 	}
@@ -2061,7 +2059,8 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 	} else {
 		/* Check for a default transition on this program. */
 		rc = security_transition_sid(old_tsec->sid, isec->sid,
-					     SECCLASS_PROCESS, &new_tsec->sid);
+					     SECCLASS_PROCESS, NULL,
+					     &new_tsec->sid);
 		if (rc)
 			return rc;
 	}
@@ -2532,7 +2531,7 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	else if (!newsid || !(sbsec->flags & SE_SBLABELSUPP)) {
 		rc = security_transition_sid(sid, dsec->sid,
 					     inode_mode_to_security_class(inode->i_mode),
-					     &newsid);
+					     qstr, &newsid);
 		if (rc) {
 			printk(KERN_WARNING "%s:  "
 			       "security_transition_sid failed, rc=%d (dev=%s "
@@ -4845,7 +4844,7 @@ static int selinux_msg_queue_msgsnd(struct msg_queue *msq, struct msg_msg *msg, 
 		 * message queue this message will be stored in
 		 */
 		rc = security_transition_sid(sid, isec->sid, SECCLASS_MSG,
-					     &msec->sid);
+					     NULL, &msec->sid);
 		if (rc)
 			return rc;
 	}

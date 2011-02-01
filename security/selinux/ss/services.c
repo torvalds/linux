@@ -1343,10 +1343,27 @@ out:
 	return -EACCES;
 }
 
+static void filename_compute_type(struct policydb *p, struct context *newcontext,
+				  u32 scon, u32 tcon, u16 tclass,
+				  const struct qstr *qstr)
+{
+	struct filename_trans *ft;
+	for (ft = p->filename_trans; ft; ft = ft->next) {
+		if (ft->stype == scon &&
+		    ft->ttype == tcon &&
+		    ft->tclass == tclass &&
+		    !strcmp(ft->name, qstr->name)) {
+			newcontext->type = ft->otype;
+			return;
+		}
+	}
+}
+
 static int security_compute_sid(u32 ssid,
 				u32 tsid,
 				u16 orig_tclass,
 				u32 specified,
+				const struct qstr *qstr,
 				u32 *out_sid,
 				bool kern)
 {
@@ -1442,6 +1459,11 @@ static int security_compute_sid(u32 ssid,
 		newcontext.type = avdatum->data;
 	}
 
+	/* if we have a qstr this is a file trans check so check those rules */
+	if (qstr)
+		filename_compute_type(&policydb, &newcontext, scontext->type,
+				      tcontext->type, tclass, qstr);
+
 	/* Check for class-specific changes. */
 	if  (tclass == policydb.process_class) {
 		if (specified & AVTAB_TRANSITION) {
@@ -1495,22 +1517,17 @@ out:
  * if insufficient memory is available, or %0 if the new SID was
  * computed successfully.
  */
-int security_transition_sid(u32 ssid,
-			    u32 tsid,
-			    u16 tclass,
-			    u32 *out_sid)
+int security_transition_sid(u32 ssid, u32 tsid, u16 tclass,
+			    const struct qstr *qstr, u32 *out_sid)
 {
 	return security_compute_sid(ssid, tsid, tclass, AVTAB_TRANSITION,
-				    out_sid, true);
+				    qstr, out_sid, true);
 }
 
-int security_transition_sid_user(u32 ssid,
-				 u32 tsid,
-				 u16 tclass,
-				 u32 *out_sid)
+int security_transition_sid_user(u32 ssid, u32 tsid, u16 tclass, u32 *out_sid)
 {
 	return security_compute_sid(ssid, tsid, tclass, AVTAB_TRANSITION,
-				    out_sid, false);
+				    NULL, out_sid, false);
 }
 
 /**
@@ -1531,8 +1548,8 @@ int security_member_sid(u32 ssid,
 			u16 tclass,
 			u32 *out_sid)
 {
-	return security_compute_sid(ssid, tsid, tclass, AVTAB_MEMBER, out_sid,
-				    false);
+	return security_compute_sid(ssid, tsid, tclass, AVTAB_MEMBER, NULL,
+				    out_sid, false);
 }
 
 /**
@@ -1553,8 +1570,8 @@ int security_change_sid(u32 ssid,
 			u16 tclass,
 			u32 *out_sid)
 {
-	return security_compute_sid(ssid, tsid, tclass, AVTAB_CHANGE, out_sid,
-				    false);
+	return security_compute_sid(ssid, tsid, tclass, AVTAB_CHANGE, NULL,
+				    out_sid, false);
 }
 
 /* Clone the SID into the new SID table. */
