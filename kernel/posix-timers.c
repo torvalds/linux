@@ -192,7 +192,7 @@ static int common_clock_get(clockid_t which_clock, struct timespec *tp)
 }
 
 static inline int common_clock_set(const clockid_t which_clock,
-				   struct timespec *tp)
+				   const struct timespec *tp)
 {
 	return do_sys_settimeofday(tp, NULL);
 }
@@ -928,7 +928,7 @@ void exit_itimers(struct signal_struct *sig)
 }
 
 /* Not available / possible... functions */
-int do_posix_clock_nosettime(const clockid_t clockid, struct timespec *tp)
+int do_posix_clock_nosettime(const clockid_t clockid, const struct timespec *tp)
 {
 	return -EINVAL;
 }
