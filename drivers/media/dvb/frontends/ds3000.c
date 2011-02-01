@@ -1029,14 +1029,6 @@ static int ds3000_tune(struct dvb_frontend *fe,
 
 	dprintk("%s() ", __func__);
 
-	/* Load the firmware if required */
-	ret = ds3000_firmware_ondemand(fe);
-	if (ret != 0) {
-		printk(KERN_ERR "%s: Unable initialise the firmware\n",
-								__func__);
-		return ret;
-	}
-
 	state->dnxt.delivery = c->modulation;
 	state->dnxt.frequency = c->frequency;
 	state->dnxt.rolloff = 2; /* fixme */
@@ -1314,6 +1306,12 @@ static int ds3000_initfe(struct dvb_frontend *fe)
 	ds3000_tuner_writereg(state, 0x42, 0x73);
 	ds3000_tuner_writereg(state, 0x05, 0x01);
 	ds3000_tuner_writereg(state, 0x62, 0xf5);
+	/* Load the firmware if required */
+	ret = ds3000_firmware_ondemand(fe);
+	if (ret != 0) {
+		printk(KERN_ERR "%s: Unable initialize firmware\n", __func__);
+		return ret;
+	}
 
 	return 0;
 }
