@@ -1325,7 +1325,8 @@ static int __init xt_init(void)
 
 	for_each_possible_cpu(i) {
 		struct xt_info_lock *lock = &per_cpu(xt_info_locks, i);
-		spin_lock_init(&lock->lock);
+
+		seqlock_init(&lock->lock);
 		lock->readers = 0;
 	}
 

@@ -219,12 +219,12 @@ static int twlreg_set_mode(struct regulator_dev *rdev, unsigned mode)
 		return -EACCES;
 
 	status = twl_i2c_write_u8(TWL_MODULE_PM_MASTER,
-			message >> 8, 0x15 /* PB_WORD_MSB */ );
-	if (status >= 0)
+			message >> 8, TWL4030_PM_MASTER_PB_WORD_MSB);
+	if (status < 0)
 		return status;
 
 	return twl_i2c_write_u8(TWL_MODULE_PM_MASTER,
-			message, 0x16 /* PB_WORD_LSB */ );
+			message & 0xff, TWL4030_PM_MASTER_PB_WORD_LSB);
 }
 
 /*----------------------------------------------------------------------*/
@@ -329,7 +329,8 @@ static int twl4030ldo_list_voltage(struct regulator_dev *rdev, unsigned index)
 }
 
 static int
-twl4030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
+twl4030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
+		       unsigned *selector)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
 	int			vsel;
@@ -345,9 +346,11 @@ twl4030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
 		/* REVISIT for VAUX2, first match may not be best/lowest */
 
 		/* use the first in-range value */
-		if (min_uV <= uV && uV <= max_uV)
+		if (min_uV <= uV && uV <= max_uV) {
+			*selector = vsel;
 			return twlreg_write(info, TWL_MODULE_PM_RECEIVER,
 							VREG_VOLTAGE, vsel);
+		}
 	}
 
 	return -EDOM;
@@ -389,7 +392,8 @@ static int twl6030ldo_list_voltage(struct regulator_dev *rdev, unsigned index)
 }
 
 static int
-twl6030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
+twl6030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
+		       unsigned *selector)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
 	int			vsel;
@@ -402,6 +406,7 @@ twl6030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
 	 * mV = 1000mv + 100mv * (vsel - 1)
 	 */
 	vsel = (min_uV/1000 - 1000)/100 + 1;
+	*selector = vsel;
 	return twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_VOLTAGE, vsel);
 
 }

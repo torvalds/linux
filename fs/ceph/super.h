@@ -239,6 +239,7 @@ struct ceph_inode_info {
 	unsigned i_ceph_flags;
 	unsigned long i_release_count;
 
+	struct ceph_dir_layout i_dir_layout;
 	struct ceph_file_layout i_layout;
 	char *i_symlink;
 
@@ -293,9 +294,7 @@ struct ceph_inode_info {
 	int i_rd_ref, i_rdcache_ref, i_wr_ref;
 	int i_wrbuffer_ref, i_wrbuffer_ref_head;
 	u32 i_shared_gen;       /* increment each time we get FILE_SHARED */
-	u32 i_rdcache_gen;      /* we increment this each time we get
-				   FILE_CACHE.  If it's non-zero, we
-				   _may_ have cached pages. */
+	u32 i_rdcache_gen;      /* incremented each time we get FILE_CACHE. */
 	u32 i_rdcache_revoking; /* RDCACHE gen to async invalidate, if any */
 
 	struct list_head i_unsafe_writes; /* uncommitted sync writes */
@@ -667,7 +666,7 @@ extern void ceph_queue_invalidate(struct inode *inode);
 extern void ceph_queue_writeback(struct inode *inode);
 
 extern int ceph_do_getattr(struct inode *inode, int mask);
-extern int ceph_permission(struct inode *inode, int mask);
+extern int ceph_permission(struct inode *inode, int mask, unsigned int flags);
 extern int ceph_setattr(struct dentry *dentry, struct iattr *attr);
 extern int ceph_getattr(struct vfsmount *mnt, struct dentry *dentry,
 			struct kstat *stat);
@@ -770,6 +769,7 @@ extern void ceph_dentry_lru_add(struct dentry *dn);
 extern void ceph_dentry_lru_touch(struct dentry *dn);
 extern void ceph_dentry_lru_del(struct dentry *dn);
 extern void ceph_invalidate_dentry_lease(struct dentry *dentry);
+extern unsigned ceph_dentry_hash(struct dentry *dn);
 
 /*
  * our d_ops vary depending on whether the inode is live,

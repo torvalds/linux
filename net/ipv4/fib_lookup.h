@@ -47,11 +47,8 @@ extern int fib_detect_death(struct fib_info *fi, int order,
 static inline void fib_result_assign(struct fib_result *res,
 				     struct fib_info *fi)
 {
-	if (res->fi != NULL)
-		fib_info_put(res->fi);
+	/* we used to play games with refcounts, but we now use RCU */
 	res->fi = fi;
-	if (fi != NULL)
-		atomic_inc(&fi->fib_clntref);
 }
 
 #endif /* _FIB_LOOKUP_H */

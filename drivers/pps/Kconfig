@@ -30,6 +30,17 @@ config PPS_DEBUG
 	  messages to the system log.  Select this if you are having a
 	  problem with PPS support and want to see more of what is going on.
 
+config NTP_PPS
+	bool "PPS kernel consumer support"
+	depends on PPS && !NO_HZ
+	help
+	  This option adds support for direct in-kernel time
+	  syncronization using an external PPS signal.
+
+	  It doesn't work on tickless systems at the moment.
+
 source drivers/pps/clients/Kconfig
+
+source drivers/pps/generators/Kconfig
 
 endmenu

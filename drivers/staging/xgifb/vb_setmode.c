@@ -3954,8 +3954,8 @@ void XGI_GetCRT2ResInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 unsigned char XGI_IsLCDDualLink(struct vb_device_info *pVBInfo)
 {
 
-	if ((((pVBInfo->VBInfo & SetCRT2ToLCD) | SetCRT2ToLCDA))
-			&& (pVBInfo->LCDInfo & SetLCDDualLink)) /* shampoo0129 */
+	if ((pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) &&
+			(pVBInfo->LCDInfo & SetLCDDualLink)) /* shampoo0129 */
 		return 1;
 
 	return 0;
@@ -8773,7 +8773,7 @@ unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 
 	if (pVBInfo->IF_DEF_LVDS == 0) {
 		CRT2Index = CRT2Index >> 6; /*  for LCD */
-		if (((pVBInfo->VBInfo & SetCRT2ToLCD) | SetCRT2ToLCDA)) { /*301b*/
+		if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) { /*301b*/
 			if (pVBInfo->LCDResInfo != Panel1024x768)
 				VCLKIndex = LCDXlat2VCLK[CRT2Index];
 			else

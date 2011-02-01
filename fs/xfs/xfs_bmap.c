@@ -1038,17 +1038,34 @@ xfs_bmap_add_extent_delay_real(
 		 * Filling in the middle part of a previous delayed allocation.
 		 * Contiguity is impossible here.
 		 * This case is avoided almost all the time.
+		 *
+		 * We start with a delayed allocation:
+		 *
+		 * +ddddddddddddddddddddddddddddddddddddddddddddddddddddddd+
+		 *  PREV @ idx
+		 *
+	         * and we are allocating:
+		 *                     +rrrrrrrrrrrrrrrrr+
+		 *			      new
+		 *
+		 * and we set it up for insertion as:
+		 * +ddddddddddddddddddd+rrrrrrrrrrrrrrrrr+ddddddddddddddddd+
+		 *                            new
+		 *  PREV @ idx          LEFT              RIGHT
+		 *                      inserted at idx + 1
 		 */
 		temp = new->br_startoff - PREV.br_startoff;
-		trace_xfs_bmap_pre_update(ip, idx, 0, _THIS_IP_);
-		xfs_bmbt_set_blockcount(ep, temp);
-		r[0] = *new;
-		r[1].br_state = PREV.br_state;
-		r[1].br_startblock = 0;
-		r[1].br_startoff = new_endoff;
 		temp2 = PREV.br_startoff + PREV.br_blockcount - new_endoff;
-		r[1].br_blockcount = temp2;
-		xfs_iext_insert(ip, idx + 1, 2, &r[0], state);
+		trace_xfs_bmap_pre_update(ip, idx, 0, _THIS_IP_);
+		xfs_bmbt_set_blockcount(ep, temp);	/* truncate PREV */
+		LEFT = *new;
+		RIGHT.br_state = PREV.br_state;
+		RIGHT.br_startblock = nullstartblock(
+				(int)xfs_bmap_worst_indlen(ip, temp2));
+		RIGHT.br_startoff = new_endoff;
+		RIGHT.br_blockcount = temp2;
+		/* insert LEFT (r[0]) and RIGHT (r[1]) at the same time */
+		xfs_iext_insert(ip, idx + 1, 2, &LEFT, state);
 		ip->i_df.if_lastex = idx + 1;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -2430,7 +2447,7 @@ xfs_bmap_btalloc_nullfb(
 		startag = ag = 0;
 
 	pag = xfs_perag_get(mp, ag);
-	while (*blen < ap->alen) {
+	while (*blen < args->maxlen) {
 		if (!pag->pagf_init) {
 			error = xfs_alloc_pagf_init(mp, args->tp, ag,
 						    XFS_ALLOC_FLAG_TRYLOCK);
@@ -2452,7 +2469,7 @@ xfs_bmap_btalloc_nullfb(
 			notinit = 1;
 
 		if (xfs_inode_is_filestream(ap->ip)) {
-			if (*blen >= ap->alen)
+			if (*blen >= args->maxlen)
 				break;
 
 			if (ap->userdata) {
@@ -2498,14 +2515,14 @@ xfs_bmap_btalloc_nullfb(
 	 * If the best seen length is less than the request
 	 * length, use the best as the minimum.
 	 */
-	else if (*blen < ap->alen)
+	else if (*blen < args->maxlen)
 		args->minlen = *blen;
 	/*
-	 * Otherwise we've seen an extent as big as alen,
+	 * Otherwise we've seen an extent as big as maxlen,
 	 * use that as the minimum.
 	 */
 	else
-		args->minlen = ap->alen;
+		args->minlen = args->maxlen;
 
 	/*
 	 * set the failure fallback case to look in the selected
@@ -2573,7 +2590,9 @@ xfs_bmap_btalloc(
 	args.tp = ap->tp;
 	args.mp = mp;
 	args.fsbno = ap->rval;
-	args.maxlen = MIN(ap->alen, mp->m_sb.sb_agblocks);
+
+	/* Trim the allocation back to the maximum an AG can fit. */
+	args.maxlen = MIN(ap->alen, XFS_ALLOC_AG_MAX_USABLE(mp));
 	args.firstblock = ap->firstblock;
 	blen = 0;
 	if (nullfb) {
@@ -2621,7 +2640,7 @@ xfs_bmap_btalloc(
 			/*
 			 * Adjust for alignment
 			 */
-			if (blen > args.alignment && blen <= ap->alen)
+			if (blen > args.alignment && blen <= args.maxlen)
 				args.minlen = blen - args.alignment;
 			args.minalignslop = 0;
 		} else {
@@ -2640,7 +2659,7 @@ xfs_bmap_btalloc(
 			 * of minlen+alignment+slop doesn't go up
 			 * between the calls.
 			 */
-			if (blen > mp->m_dalign && blen <= ap->alen)
+			if (blen > mp->m_dalign && blen <= args.maxlen)
 				nextminlen = blen - mp->m_dalign;
 			else
 				nextminlen = args.minlen;
@@ -4485,6 +4504,16 @@ xfs_bmapi(
 				/* Figure out the extent size, adjust alen */
 				extsz = xfs_get_extsz_hint(ip);
 				if (extsz) {
+					/*
+					 * make sure we don't exceed a single
+					 * extent length when we align the
+					 * extent by reducing length we are
+					 * going to allocate by the maximum
+					 * amount extent size aligment may
+					 * require.
+					 */
+					alen = XFS_FILBLKS_MIN(len,
+						   MAXEXTLEN - (2 * extsz - 1));
 					error = xfs_bmap_extsize_align(mp,
 							&got, &prev, extsz,
 							rt, eof,
@@ -5471,8 +5500,13 @@ xfs_getbmap(
 			if (error)
 				goto out_unlock_iolock;
 		}
-
-		ASSERT(ip->i_delayed_blks == 0);
+		/*
+		 * even after flushing the inode, there can still be delalloc
+		 * blocks on the inode beyond EOF due to speculative
+		 * preallocation. These are not removed until the release
+		 * function is called or the inode is inactivated. Hence we
+		 * cannot assert here that ip->i_delayed_blks == 0.
+		 */
 	}
 
 	lock = xfs_ilock_map_shared(ip);
@@ -6069,4 +6103,80 @@ xfs_bmap_disk_count_leaves(
 		frp = XFS_BMBT_REC_ADDR(mp, block, b);
 		*count += xfs_bmbt_disk_get_blockcount(frp);
 	}
+}
+
+/*
+ * dead simple method of punching delalyed allocation blocks from a range in
+ * the inode. Walks a block at a time so will be slow, but is only executed in
+ * rare error cases so the overhead is not critical. This will alays punch out
+ * both the start and end blocks, even if the ranges only partially overlap
+ * them, so it is up to the caller to ensure that partial blocks are not
+ * passed in.
+ */
+int
+xfs_bmap_punch_delalloc_range(
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		start_fsb,
+	xfs_fileoff_t		length)
+{
+	xfs_fileoff_t		remaining = length;
+	int			error = 0;
+
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+
+	do {
+		int		done;
+		xfs_bmbt_irec_t	imap;
+		int		nimaps = 1;
+		xfs_fsblock_t	firstblock;
+		xfs_bmap_free_t flist;
+
+		/*
+		 * Map the range first and check that it is a delalloc extent
+		 * before trying to unmap the range. Otherwise we will be
+		 * trying to remove a real extent (which requires a
+		 * transaction) or a hole, which is probably a bad idea...
+		 */
+		error = xfs_bmapi(NULL, ip, start_fsb, 1,
+				XFS_BMAPI_ENTIRE,  NULL, 0, &imap,
+				&nimaps, NULL);
+
+		if (error) {
+			/* something screwed, just bail */
+			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+			"Failed delalloc mapping lookup ino %lld fsb %lld.",
+						ip->i_ino, start_fsb);
+			}
+			break;
+		}
+		if (!nimaps) {
+			/* nothing there */
+			goto next_block;
+		}
+		if (imap.br_startblock != DELAYSTARTBLOCK) {
+			/* been converted, ignore */
+			goto next_block;
+		}
+		WARN_ON(imap.br_blockcount == 0);
+
+		/*
+		 * Note: while we initialise the firstblock/flist pair, they
+		 * should never be used because blocks should never be
+		 * allocated or freed for a delalloc extent and hence we need
+		 * don't cancel or finish them after the xfs_bunmapi() call.
+		 */
+		xfs_bmap_init(&flist, &firstblock);
+		error = xfs_bunmapi(NULL, ip, start_fsb, 1, 0, 1, &firstblock,
+					&flist, &done);
+		if (error)
+			break;
+
+		ASSERT(!flist.xbf_count && !flist.xbf_first);
+next_block:
+		start_fsb++;
+		remaining--;
+	} while(remaining > 0);
+
+	return error;
 }

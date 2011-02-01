@@ -40,9 +40,9 @@ struct plat_stmmacenet_data {
 	int pmt;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(void __iomem *ioaddr);
-#ifdef CONFIG_STM_DRIVERS
-	struct stm_pad_config *pad_config;
-#endif
+	int (*init)(struct platform_device *pdev);
+	void (*exit)(struct platform_device *pdev);
+	void *custom_cfg;
 	void *bsp_priv;
 };
 

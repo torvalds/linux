@@ -28,11 +28,11 @@
 #include <media/videobuf-vmalloc.h>
 
 #include "xc5000.h"
-#include "dvb_dummy_fe.h"
 #include "s5h1432.h"
 #include "tda18271.h"
 #include "s5h1411.h"
 #include "lgdt3305.h"
+#include "mb86a20s.h"
 
 MODULE_DESCRIPTION("driver for cx231xx based DVB cards");
 MODULE_AUTHOR("Srinivasa Deevi <srinivasa.deevi@conexant.com>");
@@ -88,6 +88,11 @@ static struct tda18271_std_map cnxt_rde253s_tda18271_std_map = {
 		      .if_lvl = 1, .rfagc_top = 0x37, },
 };
 
+static struct tda18271_std_map mb86a20s_tda18271_config = {
+	.dvbt_6   = { .if_freq = 3300, .agc_mode = 3, .std = 4,
+		      .if_lvl = 7, .rfagc_top = 0x37, },
+};
+
 static struct tda18271_config cnxt_rde253s_tunerconfig = {
 	.std_map = &cnxt_rde253s_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
@@ -133,6 +138,17 @@ static struct tda18271_std_map hauppauge_tda18271_std_map = {
 static struct tda18271_config hcw_tda18271_config = {
 	.std_map = &hauppauge_tda18271_std_map,
 	.gate    = TDA18271_GATE_DIGITAL,
+};
+
+static const struct mb86a20s_config pv_mb86a20s_config = {
+	.demod_address = 0x10,
+	.is_serial = true,
+};
+
+static struct tda18271_config pv_tda18271_config = {
+	.std_map = &mb86a20s_tda18271_config,
+	.gate    = TDA18271_GATE_DIGITAL,
+	.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
 };
 
 static inline void print_err_status(struct cx231xx *dev, int packet, int status)
@@ -602,7 +618,7 @@ static int dvb_init(struct cx231xx *dev)
 
 		if (dev->dvb->frontend == NULL) {
 			printk(DRIVER_NAME
-			       ": Failed to attach dummy front end\n");
+			       ": Failed to attach s5h1411 front end\n");
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -648,7 +664,7 @@ static int dvb_init(struct cx231xx *dev)
 
 		if (dev->dvb->frontend == NULL) {
 			printk(DRIVER_NAME
-			       ": Failed to attach dummy front end\n");
+			       ": Failed to attach s5h1411 front end\n");
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -687,6 +703,29 @@ static int dvb_init(struct cx231xx *dev)
 			   &hcw_tda18271_config);
 		break;
 
+	case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
+
+		printk(KERN_INFO "%s: looking for demod on i2c bus: %d\n",
+		       __func__, i2c_adapter_id(&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap));
+
+		dev->dvb->frontend = dvb_attach(mb86a20s_attach,
+						&pv_mb86a20s_config,
+						&dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap);
+
+		if (dev->dvb->frontend == NULL) {
+			printk(DRIVER_NAME
+			       ": Failed to attach mb86a20s demod\n");
+			result = -EINVAL;
+			goto out_free;
+		}
+
+		/* define general-purpose callback pointer */
+		dvb->frontend->callback = cx231xx_tuner_callback;
+
+		dvb_attach(tda18271_attach, dev->dvb->frontend,
+			   0x60, &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+			   &pv_tda18271_config);
+		break;
 
 	default:
 		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card"

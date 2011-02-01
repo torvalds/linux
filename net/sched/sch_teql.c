@@ -59,6 +59,10 @@ struct teql_master
 	struct net_device *dev;
 	struct Qdisc *slaves;
 	struct list_head master_list;
+	unsigned long	tx_bytes;
+	unsigned long	tx_packets;
+	unsigned long	tx_errors;
+	unsigned long	tx_dropped;
 };
 
 struct teql_sched_data
@@ -83,8 +87,6 @@ teql_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 	if (q->q.qlen < dev->tx_queue_len) {
 		__skb_queue_tail(&q->q, skb);
-		sch->bstats.bytes += qdisc_pkt_len(skb);
-		sch->bstats.packets++;
 		return NET_XMIT_SUCCESS;
 	}
 
@@ -108,6 +110,8 @@ teql_dequeue(struct Qdisc* sch)
 			dat->m->slaves = sch;
 			netif_wake_queue(m);
 		}
+	} else {
+		qdisc_bstats_update(sch, skb);
 	}
 	sch->q.qlen = dat->q.qlen + dat_queue->qdisc->q.qlen;
 	return skb;
@@ -275,7 +279,6 @@ static inline int teql_resolve(struct sk_buff *skb,
 static netdev_tx_t teql_master_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct teql_master *master = netdev_priv(dev);
-	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
 	struct Qdisc *start, *q;
 	int busy;
 	int nores;
@@ -309,15 +312,14 @@ restart:
 			if (__netif_tx_trylock(slave_txq)) {
 				unsigned int length = qdisc_pkt_len(skb);
 
-				if (!netif_tx_queue_stopped(slave_txq) &&
-				    !netif_tx_queue_frozen(slave_txq) &&
+				if (!netif_tx_queue_frozen_or_stopped(slave_txq) &&
 				    slave_ops->ndo_start_xmit(skb, slave) == NETDEV_TX_OK) {
 					txq_trans_update(slave_txq);
 					__netif_tx_unlock(slave_txq);
 					master->slaves = NEXT_SLAVE(q);
 					netif_wake_queue(dev);
-					txq->tx_packets++;
-					txq->tx_bytes += length;
+					master->tx_packets++;
+					master->tx_bytes += length;
 					return NETDEV_TX_OK;
 				}
 				__netif_tx_unlock(slave_txq);
@@ -344,10 +346,10 @@ restart:
 		netif_stop_queue(dev);
 		return NETDEV_TX_BUSY;
 	}
-	dev->stats.tx_errors++;
+	master->tx_errors++;
 
 drop:
-	txq->tx_dropped++;
+	master->tx_dropped++;
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
@@ -400,6 +402,18 @@ static int teql_master_close(struct net_device *dev)
 	return 0;
 }
 
+static struct rtnl_link_stats64 *teql_master_stats64(struct net_device *dev,
+						     struct rtnl_link_stats64 *stats)
+{
+	struct teql_master *m = netdev_priv(dev);
+
+	stats->tx_packets	= m->tx_packets;
+	stats->tx_bytes		= m->tx_bytes;
+	stats->tx_errors	= m->tx_errors;
+	stats->tx_dropped	= m->tx_dropped;
+	return stats;
+}
+
 static int teql_master_mtu(struct net_device *dev, int new_mtu)
 {
 	struct teql_master *m = netdev_priv(dev);
@@ -424,6 +438,7 @@ static const struct net_device_ops teql_netdev_ops = {
 	.ndo_open	= teql_master_open,
 	.ndo_stop	= teql_master_close,
 	.ndo_start_xmit	= teql_master_xmit,
+	.ndo_get_stats64 = teql_master_stats64,
 	.ndo_change_mtu	= teql_master_mtu,
 };
 

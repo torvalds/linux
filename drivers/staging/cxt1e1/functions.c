@@ -54,7 +54,7 @@ static int  dummy = 0;
 
 #endif
 
-extern int  log_level;
+extern int  cxt1e1_log_level;
 extern int  drvr_state;
 
 
@@ -67,7 +67,7 @@ pci_read_32 (u_int32_t *p)
 
     FLUSH_PCI_READ ();
     v = le32_to_cpu (*p);
-    if (log_level >= LOG_DEBUG)
+    if (cxt1e1_log_level >= LOG_DEBUG)
         pr_info("pci_read : %x = %x\n", (u_int32_t) p, v);
     return v;
 #else
@@ -80,7 +80,7 @@ void
 pci_write_32 (u_int32_t *p, u_int32_t v)
 {
 #ifdef FLOW_DEBUG
-    if (log_level >= LOG_DEBUG)
+    if (cxt1e1_log_level >= LOG_DEBUG)
         pr_info("pci_write: %x = %x\n", (u_int32_t) p, v);
 #endif
     *p = cpu_to_le32 (v);
@@ -118,7 +118,7 @@ watchdog_func (unsigned long arg)
 
     if (drvr_state != SBE_DRVR_AVAILABLE)
     {
-        if (log_level >= LOG_MONITOR)
+        if (cxt1e1_log_level >= LOG_MONITOR)
             pr_warning("%s: drvr not available (%x)\n", __func__, drvr_state);
         return;
     }

@@ -27,8 +27,8 @@
 #include "rt_config.h"
 
 /* Following information will be show when you run 'modinfo' */
-/* *** If you have a solution for the bug in current version of driver, please mail to me. */
-/* Otherwise post to forum in ralinktech's web site(www.ralinktech.com) and let all users help you. *** */
+/* If you have a solution for the bug in current version of driver, please e-mail me. */
+/* Otherwise post to the forum at ralinktech's web site(www.ralinktech.com) and let all users help you. */
 MODULE_AUTHOR("Paul Lin <paul_lin@ralinktech.com>");
 MODULE_DESCRIPTION("RT2870/RT3070 Wireless Lan Linux Driver");
 MODULE_LICENSE("GPL");
@@ -65,6 +65,7 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x14B2, 0x3C07)},	/* AL */
 	{USB_DEVICE(0x050D, 0x8053)},	/* Belkin */
 	{USB_DEVICE(0x050D, 0x825B)},	/* Belkin */
+	{USB_DEVICE(0x050D, 0x935A)},	/* Belkin F6D4050 v1 */
 	{USB_DEVICE(0x050D, 0x935B)},	/* Belkin F6D4050 v2 */
 	{USB_DEVICE(0x14B2, 0x3C23)},	/* Airlink */
 	{USB_DEVICE(0x14B2, 0x3C27)},	/* Airlink */
@@ -105,6 +106,7 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x0411, 0x016f)},	/* MelCo.,Inc. WLI-UC-G301N */
 	{USB_DEVICE(0x1737, 0x0070)},	/* Linksys WUSB100 */
 	{USB_DEVICE(0x1737, 0x0071)},	/* Linksys WUSB600N */
+	{USB_DEVICE(0x1737, 0x0078)},	/* Linksys WUSB100v2 */
 	{USB_DEVICE(0x0411, 0x00e8)},	/* Buffalo WLI-UC-G300N */
 	{USB_DEVICE(0x050d, 0x815c)},	/* Belkin F5D8053 */
 	{USB_DEVICE(0x100D, 0x9031)},	/* Motorola 2770 */
@@ -181,6 +183,7 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x2001, 0x3C09)},	/* D-Link */
 	{USB_DEVICE(0x2001, 0x3C0A)},	/* D-Link 3072 */
 	{USB_DEVICE(0x2019, 0xED14)},	/* Planex Communications, Inc. */
+	{USB_DEVICE(0x0411, 0x015D)},	/* Buffalo Airstation WLI-UC-GN */
 	{}			/* Terminating entry */
 };
 
@@ -231,7 +234,7 @@ BOOLEAN RT28XXChipsetCheck(IN void *_dev_p)
 	for (i = 0; i < rtusb_usb_id_len; i++) {
 		if (dev_p->descriptor.idVendor == rtusb_usb_id[i].idVendor &&
 		    dev_p->descriptor.idProduct == rtusb_usb_id[i].idProduct) {
-			printk("rt2870: idVendor = 0x%x, idProduct = 0x%x\n",
+			printk(KERN_INFO "rt2870: idVendor = 0x%x, idProduct = 0x%x\n",
 			       dev_p->descriptor.idVendor,
 			       dev_p->descriptor.idProduct);
 			break;
@@ -239,7 +242,7 @@ BOOLEAN RT28XXChipsetCheck(IN void *_dev_p)
 	}
 
 	if (i == rtusb_usb_id_len) {
-		printk("rt2870: Error! Device Descriptor not matching!\n");
+		printk(KERN_ERR "rt2870: Error! Device Descriptor not matching!\n");
 		return FALSE;
 	}
 
@@ -321,7 +324,7 @@ static BOOLEAN USBDevConfigInit(IN struct usb_device *dev,
 
 	if (!(pAd->BulkInEpAddr && pAd->BulkOutEpAddr[0])) {
 		printk
-		    ("%s: Could not find both bulk-in and bulk-out endpoints\n",
+		    (KERN_ERR "%s: Could not find both bulk-in and bulk-out endpoints\n",
 		     __FUNCTION__);
 		return FALSE;
 	}
@@ -421,7 +424,7 @@ static int rt2870_resume(struct usb_interface *intf)
 /* Init driver module */
 int __init rtusb_init(void)
 {
-	printk("rtusb init --->\n");
+	printk(KERN_DEBUG "rtusb init --->\n");
 	return usb_register(&rtusb_driver);
 }
 
@@ -429,7 +432,7 @@ int __init rtusb_init(void)
 void __exit rtusb_exit(void)
 {
 	usb_deregister(&rtusb_driver);
-	printk("<--- rtusb exit\n");
+	printk(KERN_DEBUG "<--- rtusb exit\n");
 }
 
 module_init(rtusb_init);
@@ -812,7 +815,7 @@ static void rt2870_disconnect(struct usb_device *dev, struct rt_rtmp_adapter *pA
 		  dev->bus->bus_name, dev->devpath));
 	if (!pAd) {
 		usb_put_dev(dev);
-		printk("rtusb_disconnect: pAd == NULL!\n");
+		printk(KERN_ERR "rtusb_disconnect: pAd == NULL!\n");
 		return;
 	}
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST);
@@ -882,8 +885,8 @@ static int __devinit rt2870_probe(IN struct usb_interface *intf,
 	if (net_dev == NULL)
 		goto err_out_free_radev;
 
-	/* Here are the net_device structure with usb specific parameters. */
-	/* for supporting Network Manager.
+	/* Here are the net_device structure with usb specific parameters. 
+	 * for supporting Network Manager.
 	 * Set the sysfs physical device reference for the network logical device if set prior to registration will
 	 * cause a symlink during initialization.
 	 */

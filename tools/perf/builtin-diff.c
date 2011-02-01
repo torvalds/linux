@@ -30,12 +30,13 @@ static int hists__add_entry(struct hists *self,
 	return -ENOMEM;
 }
 
-static int diff__process_sample_event(event_t *event, struct perf_session *session)
+static int diff__process_sample_event(event_t *event,
+				      struct sample_data *sample,
+				      struct perf_session *session)
 {
 	struct addr_location al;
-	struct sample_data data = { .period = 1, };
 
-	if (event__preprocess_sample(event, session, &al, &data, NULL) < 0) {
+	if (event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -44,12 +45,12 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 	if (al.filtered || al.sym == NULL)
 		return 0;
 
-	if (hists__add_entry(&session->hists, &al, data.period)) {
+	if (hists__add_entry(&session->hists, &al, sample->period)) {
 		pr_warning("problem incrementing symbol period, skipping event\n");
 		return -1;
 	}
 
-	session->hists.stats.total_period += data.period;
+	session->hists.stats.total_period += sample->period;
 	return 0;
 }
 
@@ -60,6 +61,8 @@ static struct perf_event_ops event_ops = {
 	.exit	= event__process_task,
 	.fork	= event__process_task,
 	.lost	= event__process_lost,
+	.ordered_samples = true,
+	.ordering_requires_timestamps = true,
 };
 
 static void perf_session__insert_hist_entry_by_name(struct rb_root *root,
@@ -141,8 +144,8 @@ static int __cmd_diff(void)
 	int ret, i;
 	struct perf_session *session[2];
 
-	session[0] = perf_session__new(input_old, O_RDONLY, force, false);
-	session[1] = perf_session__new(input_new, O_RDONLY, force, false);
+	session[0] = perf_session__new(input_old, O_RDONLY, force, false, &event_ops);
+	session[1] = perf_session__new(input_new, O_RDONLY, force, false, &event_ops);
 	if (session[0] == NULL || session[1] == NULL)
 		return -ENOMEM;
 
@@ -173,7 +176,7 @@ static const char * const diff_usage[] = {
 static const struct option options[] = {
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
-	OPT_BOOLEAN('m', "displacement", &show_displacement,
+	OPT_BOOLEAN('M', "displacement", &show_displacement,
 		    "Show position displacement relative to baseline"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
@@ -191,6 +194,8 @@ static const struct option options[] = {
 	OPT_STRING('t', "field-separator", &symbol_conf.field_sep, "separator",
 		   "separator for columns, no spaces will be added between "
 		   "columns '.' is reserved."),
+	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
+		    "Look for files with symbols relative to this directory"),
 	OPT_END()
 };
 

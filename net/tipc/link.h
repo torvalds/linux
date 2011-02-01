@@ -37,9 +37,8 @@
 #ifndef _TIPC_LINK_H
 #define _TIPC_LINK_H
 
-#include "dbg.h"
+#include "log.h"
 #include "msg.h"
-#include "bearer.h"
 #include "node.h"
 
 #define PUSH_FAILED   1
@@ -108,7 +107,6 @@
  * @long_msg_seq_no: next identifier to use for outbound fragmented messages
  * @defragm_buf: list of partially reassembled inbound message fragments
  * @stats: collects statistics regarding link activity
- * @print_buf: print buffer used to log link activity
  */
 
 struct link {
@@ -211,8 +209,6 @@ struct link {
 		u32 msg_lengths_total;
 		u32 msg_length_profile[7];
 	} stats;
-
-	struct print_buf print_buf;
 };
 
 struct port;
@@ -233,8 +229,8 @@ struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area, int req_tlv_
 void tipc_link_reset(struct link *l_ptr);
 int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector);
 int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf);
-u32 tipc_link_get_max_pkt(u32 dest,u32 selector);
-int tipc_link_send_sections_fast(struct port* sender,
+u32 tipc_link_get_max_pkt(u32 dest, u32 selector);
+int tipc_link_send_sections_fast(struct port *sender,
 				 struct iovec const *msg_sect,
 				 const u32 num_sect,
 				 u32 destnode);

@@ -42,6 +42,7 @@ static struct usb_serial_driver siemens_usb_mpi_device = {
 		.name =		"siemens_mpi",
 	},
 	.id_table =		id_table,
+	.usb_driver =		&siemens_usb_mpi_driver,
 	.num_ports =		1,
 };
 

@@ -71,7 +71,7 @@ void *flex_array_get(struct flex_array *fa, unsigned int element_nr);
 int flex_array_shrink(struct flex_array *fa);
 
 #define flex_array_put_ptr(fa, nr, src, gfp) \
-	flex_array_put(fa, nr, &(void *)(src), gfp)
+	flex_array_put(fa, nr, (void *)&(src), gfp)
 
 void *flex_array_get_ptr(struct flex_array *fa, unsigned int element_nr);
 

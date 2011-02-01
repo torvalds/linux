@@ -20,6 +20,7 @@
 #include <linux/dm9000.h>
 #include <linux/mmc/host.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -41,12 +42,12 @@
 #include <mach/pxa27x-udc.h>
 #include <mach/udc.h>
 #include <mach/pxafb.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/mfp-pxa27x.h>
 #include <mach/pm.h>
 #include <mach/audio.h>
 #include <mach/arcom-pcmcia.h>
 #include <mach/zeus.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 
@@ -82,19 +83,19 @@ static inline int zeus_bit_to_irq(int bit)
 	return zeus_isa_irqs[bit] + PXA_ISA_IRQ(0);
 }
 
-static void zeus_ack_irq(unsigned int irq)
+static void zeus_ack_irq(struct irq_data *d)
 {
-	__raw_writew(zeus_irq_to_bitmask(irq), ZEUS_CPLD_ISA_IRQ);
+	__raw_writew(zeus_irq_to_bitmask(d->irq), ZEUS_CPLD_ISA_IRQ);
 }
 
-static void zeus_mask_irq(unsigned int irq)
+static void zeus_mask_irq(struct irq_data *d)
 {
-	zeus_irq_enabled_mask &= ~(zeus_irq_to_bitmask(irq));
+	zeus_irq_enabled_mask &= ~(zeus_irq_to_bitmask(d->irq));
 }
 
-static void zeus_unmask_irq(unsigned int irq)
+static void zeus_unmask_irq(struct irq_data *d)
 {
-	zeus_irq_enabled_mask |= zeus_irq_to_bitmask(irq);
+	zeus_irq_enabled_mask |= zeus_irq_to_bitmask(d->irq);
 }
 
 static inline unsigned long zeus_irq_pending(void)
@@ -110,7 +111,7 @@ static void zeus_irq_handler(unsigned int irq, struct irq_desc *desc)
 	do {
 		/* we're in a chained irq handler,
 		 * so ack the interrupt by hand */
-		desc->chip->ack(gpio_to_irq(ZEUS_ISA_GPIO));
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 		if (likely(pending)) {
 			irq = zeus_bit_to_irq(__ffs(pending));
@@ -121,10 +122,10 @@ static void zeus_irq_handler(unsigned int irq, struct irq_desc *desc)
 }
 
 static struct irq_chip zeus_irq_chip = {
-	.name	= "ISA",
-	.ack	= zeus_ack_irq,
-	.mask	= zeus_mask_irq,
-	.unmask	= zeus_unmask_irq,
+	.name		= "ISA",
+	.irq_ack	= zeus_ack_irq,
+	.irq_mask	= zeus_mask_irq,
+	.irq_unmask	= zeus_unmask_irq,
 };
 
 static void __init zeus_init_irq(void)
@@ -823,13 +824,16 @@ static mfp_cfg_t zeus_pin_config[] __initdata = {
 static void __init zeus_init(void)
 {
 	u16 dm9000_msc = DM9K_MSC_VALUE;
+	u32 msc0, msc1;
 
 	system_rev = __raw_readw(ZEUS_CPLD_VERSION);
 	pr_info("Zeus CPLD V%dI%d\n", (system_rev & 0xf0) >> 4, (system_rev & 0x0f));
 
 	/* Fix timings for dm9000s (CS1/CS2)*/
-	MSC0 = (MSC0 & 0xffff) | (dm9000_msc << 16);
-	MSC1 = (MSC1 & 0xffff0000) | dm9000_msc;
+	msc0 = (__raw_readl(MSC0) & 0x0000ffff) | (dm9000_msc << 16);
+	msc1 = (__raw_readl(MSC1) & 0xffff0000) | dm9000_msc;
+	__raw_writel(msc0, MSC0);
+	__raw_writel(msc1, MSC1);
 
 	pm_power_off = zeus_power_off;
 	zeus_setup_apm();
@@ -883,7 +887,7 @@ static struct map_desc zeus_io_desc[] __initdata = {
 
 static void __init zeus_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 
 	iotable_init(zeus_io_desc, ARRAY_SIZE(zeus_io_desc));
 

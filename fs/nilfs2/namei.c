@@ -577,6 +577,7 @@ const struct inode_operations nilfs_dir_inode_operations = {
 	.rename		= nilfs_rename,
 	.setattr	= nilfs_setattr,
 	.permission	= nilfs_permission,
+	.fiemap		= nilfs_fiemap,
 };
 
 const struct inode_operations nilfs_special_inode_operations = {

@@ -267,7 +267,16 @@ static __inline__ int fls64(__u64 x)
 #include <asm-generic/bitops/fls64.h>
 #endif /* __powerpc64__ */
 
+#ifdef CONFIG_PPC64
+unsigned int __arch_hweight8(unsigned int w);
+unsigned int __arch_hweight16(unsigned int w);
+unsigned int __arch_hweight32(unsigned int w);
+unsigned long __arch_hweight64(__u64 w);
+#include <asm-generic/bitops/const_hweight.h>
+#else
 #include <asm-generic/bitops/hweight.h>
+#endif
+
 #include <asm-generic/bitops/find.h>
 
 /* Little-endian versions */

@@ -378,22 +378,22 @@ struct queue_entry_priv_usb_bcn {
 };
 
 /**
- * rt2x00usb_kick_tx_queue - Kick data queue
+ * rt2x00usb_kick_queue - Kick data queue
  * @queue: Data queue to kick
  *
  * This will walk through all entries of the queue and push all pending
  * frames to the hardware as a single burst.
  */
-void rt2x00usb_kick_tx_queue(struct data_queue *queue);
+void rt2x00usb_kick_queue(struct data_queue *queue);
 
 /**
- * rt2x00usb_kill_tx_queue - Kill data queue
- * @queue: Data queue to kill
+ * rt2x00usb_flush_queue - Flush data queue
+ * @queue: Data queue to stop
  *
  * This will walk through all entries of the queue and kill all
- * previously kicked frames before they can be send.
+ * URB's which were send to the device.
  */
-void rt2x00usb_kill_tx_queue(struct data_queue *queue);
+void rt2x00usb_flush_queue(struct data_queue *queue);
 
 /**
  * rt2x00usb_watchdog - Watchdog for USB communication

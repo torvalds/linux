@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 
 #include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 #include <linux/i2c/twl.h>
 #include <linux/mmc/host.h>
 
@@ -43,7 +44,7 @@
 #define IGEP3_GPIO_WIFI_NRESET	139
 #define IGEP3_GPIO_BT_NRESET	137
 
-#define IGEP3_GPIO_USBH_NRESET  115
+#define IGEP3_GPIO_USBH_NRESET  183
 
 
 #if defined(CONFIG_MTD_ONENAND_OMAP2) || \
@@ -103,7 +104,7 @@ static struct platform_device igep3_onenand_device = {
 	},
 };
 
-void __init igep3_flash_init(void)
+static void __init igep3_flash_init(void)
 {
 	u8 cs = 0;
 	u8 onenandcs = GPMC_CS_NUM + 1;
@@ -137,12 +138,11 @@ void __init igep3_flash_init(void)
 }
 
 #else
-void __init igep3_flash_init(void) {}
+static void __init igep3_flash_init(void) {}
 #endif
 
-static struct regulator_consumer_supply igep3_vmmc1_supply = {
-	.supply		= "vmmc",
-};
+static struct regulator_consumer_supply igep3_vmmc1_supply =
+	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
 static struct regulator_init_data igep3_vmmc1 = {
@@ -157,6 +157,52 @@ static struct regulator_init_data igep3_vmmc1 = {
 	},
 	.num_consumer_supplies  = 1,
 	.consumer_supplies      = &igep3_vmmc1_supply,
+};
+
+static struct regulator_consumer_supply igep3_vio_supply =
+	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1");
+
+static struct regulator_init_data igep3_vio = {
+	.constraints = {
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.apply_uV		= 1,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE
+					| REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &igep3_vio_supply,
+};
+
+static struct regulator_consumer_supply igep3_vmmc2_supply =
+	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
+
+static struct regulator_init_data igep3_vmmc2 = {
+	.constraints	= {
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL,
+		.always_on		= 1,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &igep3_vmmc2_supply,
+};
+
+static struct fixed_voltage_config igep3_vwlan = {
+	.supply_name		= "vwlan",
+	.microvolts		= 3300000,
+	.gpio			= -EINVAL,
+	.enabled_at_boot	= 1,
+	.init_data		= &igep3_vmmc2,
+};
+
+static struct platform_device igep3_vwlan_device = {
+	.name	= "reg-fixed-voltage",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &igep3_vwlan,
+	},
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -254,12 +300,6 @@ static int igep3_twl4030_gpio_setup(struct device *dev,
 	mmc[0].gpio_cd = gpio + 0;
 	omap2_hsmmc_init(mmc);
 
-	/*
-	 * link regulators to MMC adapters ... we "know" the
-	 * regulators will be set up only *after* we return.
-	 */
-	igep3_vmmc1_supply.dev = mmc[0].dev;
-
 	/* TWL4030_GPIO_MAX + 1 == ledB (out, active low LED) */
 #if !defined(CONFIG_LEDS_GPIO) && !defined(CONFIG_LEDS_GPIO_MODULE)
 	if ((gpio_request(gpio+TWL4030_GPIO_MAX+1, "gpio-led:green:d1") == 0)
@@ -287,11 +327,16 @@ static struct twl4030_usb_data igep3_twl4030_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
+static struct platform_device *igep3_devices[] __initdata = {
+	&igep3_vwlan_device,
+};
+
 static void __init igep3_init_irq(void)
 {
-	omap2_init_common_hw(m65kxxxxam_sdrc_params, m65kxxxxam_sdrc_params);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(m65kxxxxam_sdrc_params,
+				  m65kxxxxam_sdrc_params);
 	omap_init_irq();
-	omap_gpio_init();
 }
 
 static struct twl4030_platform_data igep3_twl4030_pdata = {
@@ -302,6 +347,7 @@ static struct twl4030_platform_data igep3_twl4030_pdata = {
 	.usb		= &igep3_twl4030_usb_data,
 	.gpio		= &igep3_twl4030_gpio_pdata,
 	.vmmc1		= &igep3_vmmc1,
+	.vio		= &igep3_vio,
 };
 
 static struct i2c_board_info __initdata igep3_i2c_boardinfo[] = {
@@ -362,12 +408,22 @@ static void __init igep3_wifi_bt_init(void)
 void __init igep3_wifi_bt_init(void) {}
 #endif
 
+static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
+	.port_mode[0] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+	.port_mode[1] = EHCI_HCD_OMAP_MODE_PHY,
+	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+
+	.phy_reset = true,
+	.reset_gpio_port[0] = -EINVAL,
+	.reset_gpio_port[1] = IGEP3_GPIO_USBH_NRESET,
+	.reset_gpio_port[2] = -EINVAL,
+};
+
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
+	OMAP3_MUX(I2C2_SDA, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux	NULL
 #endif
 
 static void __init igep3_init(void)
@@ -376,9 +432,10 @@ static void __init igep3_init(void)
 
 	/* Register I2C busses and drivers */
 	igep3_i2c_init();
-
+	platform_add_devices(igep3_devices, ARRAY_SIZE(igep3_devices));
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
+	usb_ehci_init(&ehci_pdata);
 
 	igep3_flash_init();
 	igep3_leds_init();
@@ -393,6 +450,7 @@ static void __init igep3_init(void)
 
 MACHINE_START(IGEP0030, "IGEP OMAP3 module")
 	.boot_params	= 0x80000100,
+	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_irq	= igep3_init_irq,
 	.init_machine	= igep3_init,

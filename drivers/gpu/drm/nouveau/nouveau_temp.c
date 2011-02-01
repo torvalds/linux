@@ -191,7 +191,7 @@ nv40_temp_get(struct drm_device *dev)
 	int offset = sensor->offset_mult / sensor->offset_div;
 	int core_temp;
 
-	if (dev_priv->chipset >= 0x50) {
+	if (dev_priv->card_type >= NV_50) {
 		core_temp = nv_rd32(dev, 0x20008);
 	} else {
 		core_temp = nv_rd32(dev, 0x0015b4) & 0x1fff;
@@ -265,8 +265,8 @@ nouveau_temp_probe_i2c(struct drm_device *dev)
 	struct i2c_board_info info[] = {
 		{ I2C_BOARD_INFO("w83l785ts", 0x2d) },
 		{ I2C_BOARD_INFO("w83781d", 0x2d) },
-		{ I2C_BOARD_INFO("f75375", 0x2e) },
 		{ I2C_BOARD_INFO("adt7473", 0x2e) },
+		{ I2C_BOARD_INFO("f75375", 0x2e) },
 		{ I2C_BOARD_INFO("lm99", 0x4c) },
 		{ }
 	};

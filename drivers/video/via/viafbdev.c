@@ -1672,31 +1672,19 @@ static int parse_mode(const char *str, u32 *xres, u32 *yres)
 
 
 #ifdef CONFIG_PM
-int viafb_suspend(struct pci_dev *pdev, pm_message_t state)
+static int viafb_suspend(void *unused)
 {
-	if (state.event == PM_EVENT_SUSPEND) {
-		acquire_console_sem();
-		fb_set_suspend(viafbinfo, 1);
-
-		viafb_sync(viafbinfo);
-
-		pci_save_state(pdev);
-		pci_disable_device(pdev);
-		pci_set_power_state(pdev, pci_choose_state(pdev, state));
-		release_console_sem();
-	}
+	console_lock();
+	fb_set_suspend(viafbinfo, 1);
+	viafb_sync(viafbinfo);
+	console_unlock();
 
 	return 0;
 }
 
-int viafb_resume(struct pci_dev *pdev)
+static int viafb_resume(void *unused)
 {
-	acquire_console_sem();
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	if (pci_enable_device(pdev))
-		goto fail;
-	pci_set_master(pdev);
+	console_lock();
 	if (viaparinfo->shared->vdev->engine_mmio)
 		viafb_reset_engine(viaparinfo);
 	viafb_set_par(viafbinfo);
@@ -1704,10 +1692,14 @@ int viafb_resume(struct pci_dev *pdev)
 		viafb_set_par(viafbinfo1);
 	fb_set_suspend(viafbinfo, 0);
 
-fail:
-	release_console_sem();
+	console_unlock();
 	return 0;
 }
+
+static struct viafb_pm_hooks viafb_fb_pm_hooks = {
+	.suspend = viafb_suspend,
+	.resume = viafb_resume
+};
 
 #endif
 
@@ -1899,6 +1891,10 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 
 	viafb_init_proc(viaparinfo->shared);
 	viafb_init_dac(IGA2);
+
+#ifdef CONFIG_PM
+	viafb_pm_register(&viafb_fb_pm_hooks);
+#endif
 	return 0;
 
 out_fb_unreg:

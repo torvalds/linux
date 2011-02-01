@@ -3,7 +3,7 @@
 /*
  *	head.S -- common startup code for ColdFire CPUs.
  *
- *	(C) Copyright 1999-2006, Greg Ungerer <gerg@snapgear.com>.
+ *	(C) Copyright 1999-2010, Greg Ungerer <gerg@snapgear.com>.
  */
 
 /*****************************************************************************/
@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <asm/asm-offsets.h>
 #include <asm/coldfire.h>
-#include <asm/mcfcache.h>
 #include <asm/mcfsim.h>
 #include <asm/thread_info.h>
 
@@ -173,10 +172,27 @@ _start:
 
 	/*
 	 *	Now that we know what the memory is, lets enable cache
-	 *	and get things moving. This is Coldfire CPU specific.
+	 *	and get things moving. This is Coldfire CPU specific. Not
+	 *	all version cores have identical cache register setup. But
+	 *	it is very similar. Define the exact settings in the headers
+	 *	then the code here is the same for all.
 	 */
-	CACHE_ENABLE				/* enable CPU cache */
-
+	movel	#CACHE_INIT,%d0			/* invalidate whole cache */
+	movec	%d0,%CACR
+	nop
+	movel	#ACR0_MODE,%d0			/* set RAM region for caching */
+	movec	%d0,%ACR0
+	movel	#ACR1_MODE,%d0			/* anything else to cache? */
+	movec	%d0,%ACR1
+#ifdef ACR2_MODE
+	movel	#ACR2_MODE,%d0
+	movec	%d0,%ACR2
+	movel	#ACR3_MODE,%d0
+	movec	%d0,%ACR3
+#endif
+	movel	#CACHE_MODE,%d0			/* enable cache */
+	movec	%d0,%CACR
+	nop
 
 #ifdef CONFIG_ROMFS_FS
 	/*

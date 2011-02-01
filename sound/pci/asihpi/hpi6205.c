@@ -644,6 +644,8 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 				interface->control_cache.size_in_bytes,
 				(struct hpi_control_cache_info *)
 				p_control_cache_virtual);
+			if (!phw->p_cache)
+				err = HPI_ERROR_MEMORY_ALLOC;
 		}
 		if (!err) {
 			err = hpios_locked_mem_get_phys_addr(&phw->

@@ -7,9 +7,8 @@
 #include <linux/time.h>
 
 #include <linux/coda.h>
-#include <linux/coda_linux.h>
-#include <linux/coda_fs_i.h>
 #include <linux/coda_psdev.h>
+#include "coda_linux.h"
 
 static inline int coda_fideq(struct CodaFid *fid1, struct CodaFid *fid2)
 {

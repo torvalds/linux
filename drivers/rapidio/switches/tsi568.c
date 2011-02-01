@@ -113,22 +113,17 @@ tsi568_route_clr_table(struct rio_mport *mport, u16 destid, u8 hopcount,
 static int
 tsi568_em_init(struct rio_dev *rdev)
 {
-	struct rio_mport *mport = rdev->net->hport;
-	u16 destid = rdev->rswitch->destid;
-	u8 hopcount = rdev->rswitch->hopcount;
 	u32 regval;
 	int portnum;
 
-	pr_debug("TSI568 %s [%d:%d]\n", __func__, destid, hopcount);
+	pr_debug("TSI568 %s [%d:%d]\n", __func__, rdev->destid, rdev->hopcount);
 
 	/* Make sure that Port-Writes are disabled (for all ports) */
 	for (portnum = 0;
 	     portnum < RIO_GET_TOTAL_PORTS(rdev->swpinfo); portnum++) {
-		rio_mport_read_config_32(mport, destid, hopcount,
-				TSI568_SP_MODE(portnum), &regval);
-		rio_mport_write_config_32(mport, destid, hopcount,
-				TSI568_SP_MODE(portnum),
-				regval | TSI568_SP_MODE_PW_DIS);
+		rio_read_config_32(rdev, TSI568_SP_MODE(portnum), &regval);
+		rio_write_config_32(rdev, TSI568_SP_MODE(portnum),
+				    regval | TSI568_SP_MODE_PW_DIS);
 	}
 
 	return 0;

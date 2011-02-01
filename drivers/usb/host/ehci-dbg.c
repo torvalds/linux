@@ -879,7 +879,7 @@ static int fill_buffer(struct debug_buffer *buf)
 	int ret = 0;
 
 	if (!buf->output_buf)
-		buf->output_buf = (char *)vmalloc(buf->alloc_size);
+		buf->output_buf = vmalloc(buf->alloc_size);
 
 	if (!buf->output_buf) {
 		ret = -ENOMEM;
@@ -1067,7 +1067,7 @@ static inline void create_debug_files (struct ehci_hcd *ehci)
 						    &debug_registers_fops))
 		goto file_error;
 
-	if (!debugfs_create_file("lpm", S_IRUGO|S_IWUGO, ehci->debug_dir, bus,
+	if (!debugfs_create_file("lpm", S_IRUGO|S_IWUSR, ehci->debug_dir, bus,
 						    &debug_lpm_fops))
 		goto file_error;
 

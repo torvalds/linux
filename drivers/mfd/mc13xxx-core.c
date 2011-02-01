@@ -749,7 +749,7 @@ static int mc13xxx_probe(struct spi_device *spi)
 	if (ret) {
 err_mask:
 err_revision:
-		mutex_unlock(&mc13xxx->lock);
+		mc13xxx_unlock(mc13xxx);
 		dev_set_drvdata(&spi->dev, NULL);
 		kfree(mc13xxx);
 		return ret;

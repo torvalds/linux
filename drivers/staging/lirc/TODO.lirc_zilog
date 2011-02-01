@@ -1,0 +1,37 @@
+1. Both ir-kbd-i2c and lirc_zilog provide support for RX events.
+The 'tx_only' lirc_zilog module parameter will allow ir-kbd-i2c
+and lirc_zilog to coexist in the kernel, if the user requires such a set-up.
+However the IR unit will not work well without coordination between the
+two modules.  A shared mutex, for transceiver access locking, needs to be
+supplied by bridge drivers, in struct IR_i2_init_data, to both ir-kbd-i2c
+and lirc_zilog, before they will coexist usefully.  This should be fixed
+before moving out of staging.
+
+2. References and locking need careful examination.  For cx18 and ivtv PCI
+cards, which are not easily "hot unplugged", the imperfect state of reference
+counting and locking is acceptable if not correct.  For USB connected units
+like HD PVR, PVR USB2, HVR-1900, and HVR1950, the likelyhood of an Ooops on
+unplug is probably great.  Proper reference counting and locking needs to be
+implemented before this module is moved out of staging.
+
+3. The binding between hdpvr and lirc_zilog is currently disabled,
+due to an OOPS reported a few years ago when both the hdpvr and cx18
+drivers were loaded in his system. More details can be seen at:
+	http://www.mail-archive.com/linux-media@vger.kernel.org/msg09163.html
+More tests need to be done, in order to fix the reported issue.
+
+4. In addition to providing a shared mutex for transceiver access
+locking, bridge drivers, if able, should provide a chip reset() callback
+to lirc_zilog via struct IR_i2c_init_data.  cx18 and ivtv already have routines
+to perform Z8 chip resets via GPIO manipulations.  This will allow lirc_zilog
+to bring the chip back to normal when it hangs, in the same places the
+original lirc_pvr150 driver code does.  This is not strictly needed, so it
+is not required to move lirc_zilog out of staging.
+
+5. Both lirc_zilog and ir-kbd-i2c support the Zilog Z8 for IR, as programmed
+and installed on Hauppauge products.  When working on either module, developers
+must consider at least the following bridge drivers which mention an IR Rx unit
+at address 0x71 (indicative of a Z8):
+
+	ivtv cx18 hdpvr pvrusb2 bt8xx cx88 saa7134
+

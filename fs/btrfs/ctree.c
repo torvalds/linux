@@ -105,6 +105,8 @@ noinline void btrfs_clear_path_blocking(struct btrfs_path *p,
 /* this also releases the path */
 void btrfs_free_path(struct btrfs_path *p)
 {
+	if (!p)
+		return;
 	btrfs_release_path(NULL, p);
 	kmem_cache_free(btrfs_path_cachep, p);
 }
@@ -2514,6 +2516,9 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_assert_tree_locked(path->nodes[1]);
 
 	right = read_node_slot(root, upper, slot + 1);
+	if (right == NULL)
+		return 1;
+
 	btrfs_tree_lock(right);
 	btrfs_set_lock_blocking(right);
 
@@ -2764,6 +2769,9 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_assert_tree_locked(path->nodes[1]);
 
 	left = read_node_slot(root, path->nodes[1], slot - 1);
+	if (left == NULL)
+		return 1;
+
 	btrfs_tree_lock(left);
 	btrfs_set_lock_blocking(left);
 

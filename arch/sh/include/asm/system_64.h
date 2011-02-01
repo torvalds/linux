@@ -34,9 +34,6 @@ do {								\
 			      &next->thread);			\
 } while (0)
 
-#define jump_to_uncached()	do { } while (0)
-#define back_to_cached()	do { } while (0)
-
 #define __icbi(addr)	__asm__ __volatile__ ( "icbi %0, 0\n\t" : : "r" (addr))
 #define __ocbp(addr)	__asm__ __volatile__ ( "ocbp %0, 0\n\t" : : "r" (addr))
 #define __ocbi(addr)	__asm__ __volatile__ ( "ocbi %0, 0\n\t" : : "r" (addr))

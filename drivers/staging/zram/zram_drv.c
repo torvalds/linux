@@ -435,12 +435,6 @@ static int zram_make_request(struct request_queue *queue, struct bio *bio)
 	int ret = 0;
 	struct zram *zram = queue->queuedata;
 
-	if (unlikely(!zram->init_done)) {
-		set_bit(BIO_UPTODATE, &bio->bi_flags);
-		bio_endio(bio, 0);
-		return 0;
-	}
-
 	if (!valid_io_request(zram, bio)) {
 		zram_stat64_inc(zram, &zram->stats.invalid_io);
 		bio_io_error(bio);
@@ -533,7 +527,7 @@ int zram_init_device(struct zram *zram)
 	}
 
 	num_pages = zram->disksize >> PAGE_SHIFT;
-	zram->table = vmalloc(num_pages * sizeof(*zram->table));
+	zram->table = vzalloc(num_pages * sizeof(*zram->table));
 	if (!zram->table) {
 		pr_err("Error allocating zram address table\n");
 		/* To prevent accessing table entries during cleanup */
@@ -541,7 +535,6 @@ int zram_init_device(struct zram *zram)
 		ret = -ENOMEM;
 		goto fail;
 	}
-	memset(zram->table, 0, num_pages * sizeof(*zram->table));
 
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
 

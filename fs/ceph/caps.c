@@ -1430,8 +1430,8 @@ static int try_nonblocking_invalidate(struct inode *inode)
 	    invalidating_gen == ci->i_rdcache_gen) {
 		/* success. */
 		dout("try_nonblocking_invalidate %p success\n", inode);
-		ci->i_rdcache_gen = 0;
-		ci->i_rdcache_revoking = 0;
+		/* save any racing async invalidate some trouble */
+		ci->i_rdcache_revoking = ci->i_rdcache_gen - 1;
 		return 0;
 	}
 	dout("try_nonblocking_invalidate %p failed\n", inode);
@@ -1560,9 +1560,10 @@ retry_locked:
 		/* NOTE: no side-effects allowed, until we take s_mutex */
 
 		revoking = cap->implemented & ~cap->issued;
-		if (revoking)
-			dout(" mds%d revoking %s\n", cap->mds,
-			     ceph_cap_string(revoking));
+		dout(" mds%d cap %p issued %s implemented %s revoking %s\n",
+		     cap->mds, cap, ceph_cap_string(cap->issued),
+		     ceph_cap_string(cap->implemented),
+		     ceph_cap_string(revoking));
 
 		if (cap == ci->i_auth_cap &&
 		    (cap->issued & CEPH_CAP_FILE_WR)) {
@@ -1658,6 +1659,8 @@ ack:
 
 		if (cap == ci->i_auth_cap && ci->i_dirty_caps)
 			flushing = __mark_caps_flushing(inode, session);
+		else
+			flushing = 0;
 
 		mds = cap->mds;  /* remember mds, so we don't repeat */
 		sent++;
@@ -1937,6 +1940,35 @@ void ceph_kick_flushing_caps(struct ceph_mds_client *mdsc,
 			       cap, session->s_mds);
 			spin_unlock(&inode->i_lock);
 		}
+	}
+}
+
+static void kick_flushing_inode_caps(struct ceph_mds_client *mdsc,
+				     struct ceph_mds_session *session,
+				     struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_cap *cap;
+	int delayed = 0;
+
+	spin_lock(&inode->i_lock);
+	cap = ci->i_auth_cap;
+	dout("kick_flushing_inode_caps %p flushing %s flush_seq %lld\n", inode,
+	     ceph_cap_string(ci->i_flushing_caps), ci->i_cap_flush_seq);
+	__ceph_flush_snaps(ci, &session, 1);
+	if (ci->i_flushing_caps) {
+		delayed = __send_cap(mdsc, cap, CEPH_CAP_OP_FLUSH,
+				     __ceph_caps_used(ci),
+				     __ceph_caps_wanted(ci),
+				     cap->issued | cap->implemented,
+				     ci->i_flushing_caps, NULL);
+		if (delayed) {
+			spin_lock(&inode->i_lock);
+			__cap_delay_requeue(mdsc, ci);
+			spin_unlock(&inode->i_lock);
+		}
+	} else {
+		spin_unlock(&inode->i_lock);
 	}
 }
 
@@ -2273,8 +2305,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int mds = session->s_mds;
-	unsigned seq = le32_to_cpu(grant->seq);
-	unsigned issue_seq = le32_to_cpu(grant->issue_seq);
+	int seq = le32_to_cpu(grant->seq);
 	int newcaps = le32_to_cpu(grant->caps);
 	int issued, implemented, used, wanted, dirty;
 	u64 size = le64_to_cpu(grant->size);
@@ -2286,8 +2317,8 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	int revoked_rdcache = 0;
 	int queue_invalidate = 0;
 
-	dout("handle_cap_grant inode %p cap %p mds%d seq %u/%u %s\n",
-	     inode, cap, mds, seq, issue_seq, ceph_cap_string(newcaps));
+	dout("handle_cap_grant inode %p cap %p mds%d seq %d %s\n",
+	     inode, cap, mds, seq, ceph_cap_string(newcaps));
 	dout(" size %llu max_size %llu, i_size %llu\n", size, max_size,
 		inode->i_size);
 
@@ -2383,7 +2414,6 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	}
 
 	cap->seq = seq;
-	cap->issue_seq = issue_seq;
 
 	/* file layout may have changed */
 	ci->i_layout = grant->layout;
@@ -2689,8 +2719,13 @@ static void handle_cap_import(struct ceph_mds_client *mdsc,
 	ceph_add_cap(inode, session, cap_id, -1,
 		     issued, wanted, seq, mseq, realmino, CEPH_CAP_FLAG_AUTH,
 		     NULL /* no caps context */);
-	try_flush_caps(inode, session, NULL);
+	kick_flushing_inode_caps(mdsc, session, inode);
 	up_read(&mdsc->snap_rwsem);
+
+	/* make sure we re-request max_size, if necessary */
+	spin_lock(&inode->i_lock);
+	ci->i_requested_max_size = 0;
+	spin_unlock(&inode->i_lock);
 }
 
 /*
@@ -2782,8 +2817,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	case CEPH_CAP_OP_IMPORT:
 		handle_cap_import(mdsc, inode, h, session,
 				  snaptrace, snaptrace_len);
-		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_NODELAY,
-				session);
+		ceph_check_caps(ceph_inode(inode), 0, session);
 		goto done_unlocked;
 	}
 

@@ -16,7 +16,6 @@
 #include "phy.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
-#include "mdio_10g.h"
 #include "nic.h"
 #include "selftest.h"
 

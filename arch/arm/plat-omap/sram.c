@@ -33,23 +33,21 @@
 
 #include "sram.h"
 #include "fb.h"
+
+/* XXX These "sideways" includes are a sign that something is wrong */
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-# include "../mach-omap2/prm.h"
-# include "../mach-omap2/cm.h"
+# include "../mach-omap2/prm2xxx_3xxx.h"
 # include "../mach-omap2/sdrc.h"
 #endif
 
 #define OMAP1_SRAM_PA		0x20000000
 #define OMAP1_SRAM_VA		VMALLOC_END
-#define OMAP2_SRAM_PA		0x40200000
-#define OMAP2_SRAM_PUB_PA	0x4020f800
+#define OMAP2_SRAM_PUB_PA	(OMAP2_SRAM_PA + 0xf800)
 #define OMAP2_SRAM_VA		0xfe400000
 #define OMAP2_SRAM_PUB_VA	(OMAP2_SRAM_VA + 0x800)
-#define OMAP3_SRAM_PA           0x40200000
 #define OMAP3_SRAM_VA           0xfe400000
-#define OMAP3_SRAM_PUB_PA       0x40208000
+#define OMAP3_SRAM_PUB_PA       (OMAP3_SRAM_PA + 0x8000)
 #define OMAP3_SRAM_PUB_VA       (OMAP3_SRAM_VA + 0x8000)
-#define OMAP4_SRAM_PA		0x40300000
 #define OMAP4_SRAM_VA		0xfe400000
 #define OMAP4_SRAM_PUB_PA	(OMAP4_SRAM_PA + 0x4000)
 #define OMAP4_SRAM_PUB_VA	(OMAP4_SRAM_VA + 0x4000)
@@ -166,7 +164,7 @@ static void __init omap_detect_sram(void)
 		     cpu_is_omap1710())
 			omap_sram_size = 0x4000;	/* 16K */
 		else if (cpu_is_omap1611())
-			omap_sram_size = 0x3e800;	/* 250K */
+			omap_sram_size = SZ_256K;
 		else {
 			printk(KERN_ERR "Could not detect SRAM size\n");
 			omap_sram_size = 0x4000;
@@ -270,7 +268,7 @@ void omap_sram_reprogram_clock(u32 dpllctl, u32 ckctl)
 	_omap_sram_reprogram_clock(dpllctl, ckctl);
 }
 
-int __init omap1_sram_init(void)
+static int __init omap1_sram_init(void)
 {
 	_omap_sram_reprogram_clock =
 			omap_sram_push(omap1_sram_reprogram_clock,

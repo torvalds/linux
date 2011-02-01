@@ -278,36 +278,6 @@ void ib_ud_header_init(int     		    payload_bytes,
 EXPORT_SYMBOL(ib_ud_header_init);
 
 /**
- * ib_lrh_header_pack - Pack LRH header struct into wire format
- * @lrh:unpacked LRH header struct
- * @buf:Buffer to pack into
- *
- * ib_lrh_header_pack() packs the LRH header structure @lrh into
- * wire format in the buffer @buf.
- */
-int ib_lrh_header_pack(struct ib_unpacked_lrh *lrh, void *buf)
-{
-	ib_pack(lrh_table, ARRAY_SIZE(lrh_table), lrh, buf);
-	return 0;
-}
-EXPORT_SYMBOL(ib_lrh_header_pack);
-
-/**
- * ib_lrh_header_unpack - Unpack LRH structure from wire format
- * @lrh:unpacked LRH header struct
- * @buf:Buffer to pack into
- *
- * ib_lrh_header_unpack() unpacks the LRH header structure from
- * wire format (in buf) into @lrh.
- */
-int ib_lrh_header_unpack(void *buf, struct ib_unpacked_lrh *lrh)
-{
-	ib_unpack(lrh_table, ARRAY_SIZE(lrh_table), buf, lrh);
-	return 0;
-}
-EXPORT_SYMBOL(ib_lrh_header_unpack);
-
-/**
  * ib_ud_header_pack - Pack UD header struct into wire format
  * @header:UD header struct
  * @buf:Buffer to pack into

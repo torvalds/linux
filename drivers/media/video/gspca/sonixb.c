@@ -23,8 +23,15 @@
 /* Some documentation on known sonixb registers:
 
 Reg	Use
+sn9c101 / sn9c102:
 0x10	high nibble red gain low nibble blue gain
 0x11	low nibble green gain
+sn9c103:
+0x05	red gain 0-127
+0x06	blue gain 0-127
+0x07	green gain 0-127
+all:
+0x08-0x0f i2c / 3wire registers
 0x12	hstart
 0x13	vstart
 0x15	hsize (hsize = register-value * 16)
@@ -56,6 +63,8 @@ struct sd {
 	int prev_avg_lum;
 	int exp_too_low_cnt;
 	int exp_too_high_cnt;
+	int header_read;
+	u8 header[12]; /* Header without sof marker */
 
 	unsigned short exposure;
 	unsigned char gain;
@@ -71,26 +80,24 @@ struct sd {
 #define BRIDGE_103 1
 
 	__u8 sensor;			/* Type of image sensor chip */
-#define SENSOR_HV7131R 0
-#define SENSOR_OV6650 1
-#define SENSOR_OV7630 2
-#define SENSOR_PAS106 3
-#define SENSOR_PAS202 4
-#define SENSOR_TAS5110C 5
-#define SENSOR_TAS5110D 6
-#define SENSOR_TAS5130CXX 7
+#define SENSOR_HV7131D 0
+#define SENSOR_HV7131R 1
+#define SENSOR_OV6650 2
+#define SENSOR_OV7630 3
+#define SENSOR_PAS106 4
+#define SENSOR_PAS202 5
+#define SENSOR_TAS5110C 6
+#define SENSOR_TAS5110D 7
+#define SENSOR_TAS5130CXX 8
 	__u8 reg11;
 };
 
 typedef const __u8 sensor_init_t[8];
 
 struct sensor_data {
-	const __u8 *bridge_init[2];
-	int bridge_init_size[2];
+	const __u8 *bridge_init;
 	sensor_init_t *sensor_init;
 	int sensor_init_size;
-	sensor_init_t *sensor_bridge_init[2];
-	int sensor_bridge_init_size[2];
 	int flags;
 	unsigned ctrl_dis;
 	__u8 sensor_addr;
@@ -111,7 +118,6 @@ struct sensor_data {
 #define NO_FREQ (1 << FREQ_IDX)
 #define NO_BRIGHTNESS (1 << BRIGHTNESS_IDX)
 
-#define COMP2 0x8f
 #define COMP 0xc7		/* 0x87 //0x07 */
 #define COMP1 0xc9		/* 0x89 //0x09 */
 
@@ -120,15 +126,11 @@ struct sensor_data {
 
 #define SYS_CLK 0x04
 
-#define SENS(bridge_1, bridge_3, sensor, sensor_1, \
-	sensor_3, _flags, _ctrl_dis, _sensor_addr) \
+#define SENS(bridge, sensor, _flags, _ctrl_dis, _sensor_addr) \
 { \
-	.bridge_init = { bridge_1, bridge_3 }, \
-	.bridge_init_size = { sizeof(bridge_1), sizeof(bridge_3) }, \
+	.bridge_init = bridge, \
 	.sensor_init = sensor, \
 	.sensor_init_size = sizeof(sensor), \
-	.sensor_bridge_init = { sensor_1, sensor_3,}, \
-	.sensor_bridge_init_size = { sizeof(sensor_1), sizeof(sensor_3)}, \
 	.flags = _flags, .ctrl_dis = _ctrl_dis, .sensor_addr = _sensor_addr \
 }
 
@@ -303,14 +305,27 @@ static const struct v4l2_pix_format sif_mode[] = {
 		.priv = 0},
 };
 
-static const __u8 initHv7131[] = {
+static const __u8 initHv7131d[] = {
+	0x04, 0x03, 0x00, 0x04, 0x00, 0x00, 0x00, 0x80, 0x11, 0x00, 0x00, 0x00,
+	0x00, 0x00,
+	0x00, 0x00, 0x00, 0x02, 0x02, 0x00,
+	0x28, 0x1e, 0x60, 0x8e, 0x42,
+};
+static const __u8 hv7131d_sensor_init[][8] = {
+	{0xa0, 0x11, 0x01, 0x04, 0x00, 0x00, 0x00, 0x17},
+	{0xa0, 0x11, 0x02, 0x00, 0x00, 0x00, 0x00, 0x17},
+	{0xa0, 0x11, 0x28, 0x00, 0x00, 0x00, 0x00, 0x17},
+	{0xa0, 0x11, 0x30, 0x30, 0x00, 0x00, 0x00, 0x17}, /* reset level */
+	{0xa0, 0x11, 0x34, 0x02, 0x00, 0x00, 0x00, 0x17}, /* pixel bias volt */
+};
+
+static const __u8 initHv7131r[] = {
 	0x46, 0x77, 0x00, 0x04, 0x00, 0x00, 0x00, 0x80, 0x11, 0x00, 0x00, 0x00,
 	0x00, 0x00,
 	0x00, 0x00, 0x00, 0x02, 0x01, 0x00,
 	0x28, 0x1e, 0x60, 0x8a, 0x20,
-	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c
 };
-static const __u8 hv7131_sensor_init[][8] = {
+static const __u8 hv7131r_sensor_init[][8] = {
 	{0xc0, 0x11, 0x31, 0x38, 0x2a, 0x2e, 0x00, 0x10},
 	{0xa0, 0x11, 0x01, 0x08, 0x2a, 0x2e, 0x00, 0x10},
 	{0xb0, 0x11, 0x20, 0x00, 0xd0, 0x2e, 0x00, 0x10},
@@ -321,7 +336,7 @@ static const __u8 initOv6650[] = {
 	0x44, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
 	0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x01, 0x01, 0x0a, 0x16, 0x12, 0x68, 0x8b,
-	0x10, 0x1d, 0x10, 0x02, 0x02, 0x09, 0x07
+	0x10,
 };
 static const __u8 ov6650_sensor_init[][8] = {
 	/* Bright, contrast, etc are set through SCBB interface.
@@ -340,7 +355,7 @@ static const __u8 ov6650_sensor_init[][8] = {
 		 * but blue wont be there. Avoid this data ... */
 	{0xd0, 0x60, 0x26, 0x01, 0x14, 0xd8, 0xa4, 0x10}, /* format out? */
 	{0xd0, 0x60, 0x26, 0x01, 0x14, 0xd8, 0xa4, 0x10},
-	{0xa0, 0x60, 0x30, 0x3d, 0x0A, 0xd8, 0xa4, 0x10},
+	{0xa0, 0x60, 0x30, 0x3d, 0x0a, 0xd8, 0xa4, 0x10},
 	/* Enable rgb brightness control */
 	{0xa0, 0x60, 0x61, 0x08, 0x00, 0x00, 0x00, 0x10},
 	/* HDG: Note windows uses the line below, which sets both register 0x60
@@ -360,24 +375,13 @@ static const __u8 initOv7630[] = {
 	0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* r09 .. r10 */
 	0x00, 0x01, 0x01, 0x0a,				/* r11 .. r14 */
 	0x28, 0x1e,			/* H & V sizes     r15 .. r16 */
-	0x68, COMP2, MCK_INIT1,				/* r17 .. r19 */
-	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c		/* r1a .. r1f */
-};
-static const __u8 initOv7630_3[] = {
-	0x44, 0x44, 0x00, 0x1a, 0x20, 0x20, 0x20, 0x80,	/* r01 .. r08 */
-	0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* r09 .. r10 */
-	0x00, 0x02, 0x01, 0x0a,				/* r11 .. r14 */
-	0x28, 0x1e,			/* H & V sizes     r15 .. r16 */
 	0x68, 0x8f, MCK_INIT1,				/* r17 .. r19 */
-	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c, 0x00,	/* r1a .. r20 */
-	0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, /* r21 .. r28 */
-	0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0, 0xff  /* r29 .. r30 */
 };
 static const __u8 ov7630_sensor_init[][8] = {
 	{0xa0, 0x21, 0x12, 0x80, 0x00, 0x00, 0x00, 0x10},
 	{0xb0, 0x21, 0x01, 0x77, 0x3a, 0x00, 0x00, 0x10},
 /*	{0xd0, 0x21, 0x12, 0x7c, 0x01, 0x80, 0x34, 0x10},	   jfm */
-	{0xd0, 0x21, 0x12, 0x1c, 0x00, 0x80, 0x34, 0x10},	/* jfm */
+	{0xd0, 0x21, 0x12, 0x5c, 0x00, 0x80, 0x34, 0x10},	/* jfm */
 	{0xa0, 0x21, 0x1b, 0x04, 0x00, 0x80, 0x34, 0x10},
 	{0xa0, 0x21, 0x20, 0x44, 0x00, 0x80, 0x34, 0x10},
 	{0xa0, 0x21, 0x23, 0xee, 0x00, 0x80, 0x34, 0x10},
@@ -395,16 +399,11 @@ static const __u8 ov7630_sensor_init[][8] = {
 	{0xd0, 0x21, 0x17, 0x1c, 0xbd, 0x06, 0xf6, 0x10},
 };
 
-static const __u8 ov7630_sensor_init_3[][8] = {
-	{0xa0, 0x21, 0x13, 0x80, 0x00,	0x00, 0x00, 0x10},
-};
-
 static const __u8 initPas106[] = {
 	0x04, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x81, 0x40, 0x00, 0x00, 0x00,
 	0x00, 0x00,
 	0x00, 0x00, 0x00, 0x04, 0x01, 0x00,
 	0x16, 0x12, 0x24, COMP1, MCK_INIT1,
-	0x18, 0x10, 0x02, 0x02, 0x09, 0x07
 };
 /* compression 0x86 mckinit1 0x2b */
 
@@ -478,7 +477,6 @@ static const __u8 initPas202[] = {
 	0x00, 0x00,
 	0x00, 0x00, 0x00, 0x06, 0x03, 0x0a,
 	0x28, 0x1e, 0x20, 0x89, 0x20,
-	0x00, 0x00, 0x02, 0x03, 0x0f, 0x0c
 };
 
 /* "Known" PAS202BCB registers:
@@ -505,7 +503,7 @@ static const __u8 pas202_sensor_init[][8] = {
 	{0xa0, 0x40, 0x02, 0x04, 0x00, 0x00, 0x00, 0x10},
 	{0xd0, 0x40, 0x04, 0x07, 0x34, 0x00, 0x09, 0x10},
 	{0xd0, 0x40, 0x08, 0x01, 0x00, 0x00, 0x01, 0x10},
-	{0xd0, 0x40, 0x0C, 0x00, 0x0C, 0x01, 0x32, 0x10},
+	{0xd0, 0x40, 0x0c, 0x00, 0x0c, 0x01, 0x32, 0x10},
 	{0xd0, 0x40, 0x10, 0x00, 0x01, 0x00, 0x63, 0x10},
 	{0xa0, 0x40, 0x15, 0x70, 0x01, 0x00, 0x63, 0x10},
 	{0xa0, 0x40, 0x18, 0x00, 0x01, 0x00, 0x63, 0x10},
@@ -519,7 +517,6 @@ static const __u8 initTas5110c[] = {
 	0x00, 0x00,
 	0x00, 0x00, 0x00, 0x45, 0x09, 0x0a,
 	0x16, 0x12, 0x60, 0x86, 0x2b,
-	0x14, 0x0a, 0x02, 0x02, 0x09, 0x07
 };
 /* Same as above, except a different hstart */
 static const __u8 initTas5110d[] = {
@@ -527,12 +524,19 @@ static const __u8 initTas5110d[] = {
 	0x00, 0x00,
 	0x00, 0x00, 0x00, 0x41, 0x09, 0x0a,
 	0x16, 0x12, 0x60, 0x86, 0x2b,
-	0x14, 0x0a, 0x02, 0x02, 0x09, 0x07
 };
-static const __u8 tas5110_sensor_init[][8] = {
+/* tas5110c is 3 wire, tas5110d is 2 wire (regular i2c) */
+static const __u8 tas5110c_sensor_init[][8] = {
 	{0x30, 0x11, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x10},
 	{0x30, 0x11, 0x02, 0x20, 0xa9, 0x00, 0x00, 0x10},
-	{0xa0, 0x61, 0x9a, 0xca, 0x00, 0x00, 0x00, 0x17},
+};
+/* Known TAS5110D registers
+ * reg02: gain, bit order reversed!! 0 == max gain, 255 == min gain
+ * reg03: bit3: vflip, bit4: ~hflip, bit7: ~gainboost (~ == inverted)
+ *        Note: writing reg03 seems to only work when written together with 02
+ */
+static const __u8 tas5110d_sensor_init[][8] = {
+	{0xa0, 0x61, 0x9a, 0xca, 0x00, 0x00, 0x00, 0x17}, /* reset */
 };
 
 static const __u8 initTas5130[] = {
@@ -540,7 +544,6 @@ static const __u8 initTas5130[] = {
 	0x00, 0x00,
 	0x00, 0x00, 0x00, 0x68, 0x0c, 0x0a,
 	0x28, 0x1e, 0x60, COMP, MCK_INIT,
-	0x18, 0x10, 0x04, 0x03, 0x11, 0x0c
 };
 static const __u8 tas5130_sensor_init[][8] = {
 /*	{0x30, 0x11, 0x00, 0x40, 0x47, 0x00, 0x00, 0x10},
@@ -551,20 +554,18 @@ static const __u8 tas5130_sensor_init[][8] = {
 };
 
 static struct sensor_data sensor_data[] = {
-SENS(initHv7131, NULL, hv7131_sensor_init, NULL, NULL, 0, NO_EXPO|NO_FREQ, 0),
-SENS(initOv6650, NULL, ov6650_sensor_init, NULL, NULL, F_GAIN|F_SIF, 0, 0x60),
-SENS(initOv7630, initOv7630_3, ov7630_sensor_init, NULL, ov7630_sensor_init_3,
-	F_GAIN, 0, 0x21),
-SENS(initPas106, NULL, pas106_sensor_init, NULL, NULL, F_GAIN|F_SIF, NO_FREQ,
-	0),
-SENS(initPas202, initPas202, pas202_sensor_init, NULL, NULL, F_GAIN,
-	NO_FREQ, 0),
-SENS(initTas5110c, NULL, tas5110_sensor_init, NULL, NULL,
-	F_GAIN|F_SIF|F_COARSE_EXPO, NO_BRIGHTNESS|NO_FREQ, 0),
-SENS(initTas5110d, NULL, tas5110_sensor_init, NULL, NULL,
-	F_GAIN|F_SIF|F_COARSE_EXPO, NO_BRIGHTNESS|NO_FREQ, 0),
-SENS(initTas5130, NULL, tas5130_sensor_init, NULL, NULL, 0, NO_EXPO|NO_FREQ,
-	0),
+SENS(initHv7131d, hv7131d_sensor_init, F_GAIN, NO_BRIGHTNESS|NO_FREQ, 0),
+SENS(initHv7131r, hv7131r_sensor_init, 0, NO_BRIGHTNESS|NO_EXPO|NO_FREQ, 0),
+SENS(initOv6650, ov6650_sensor_init, F_GAIN|F_SIF, 0, 0x60),
+SENS(initOv7630, ov7630_sensor_init, F_GAIN, 0, 0x21),
+SENS(initPas106, pas106_sensor_init, F_GAIN|F_SIF, NO_FREQ, 0),
+SENS(initPas202, pas202_sensor_init, F_GAIN, NO_FREQ, 0),
+SENS(initTas5110c, tas5110c_sensor_init, F_GAIN|F_SIF|F_COARSE_EXPO,
+	NO_BRIGHTNESS|NO_FREQ, 0),
+SENS(initTas5110d, tas5110d_sensor_init, F_GAIN|F_SIF|F_COARSE_EXPO,
+	NO_BRIGHTNESS|NO_FREQ, 0),
+SENS(initTas5130, tas5130_sensor_init, F_GAIN,
+	NO_BRIGHTNESS|NO_EXPO|NO_FREQ, 0),
 };
 
 /* get one byte in gspca_dev->usb_buf */
@@ -636,7 +637,6 @@ static void i2c_w_vector(struct gspca_dev *gspca_dev,
 static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 value;
 
 	switch (sd->sensor) {
 	case  SENSOR_OV6650:
@@ -678,17 +678,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 			goto err;
 		break;
 	    }
-	case SENSOR_TAS5130CXX: {
-		__u8 i2c[] =
-			{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10};
-
-		value = 0xff - sd->brightness;
-		i2c[4] = value;
-		PDEBUG(D_CONF, "brightness %d : %d", value, i2c[4]);
-		if (i2c_w(gspca_dev, i2c) < 0)
-			goto err;
-		break;
-	    }
 	}
 	return;
 err:
@@ -701,13 +690,41 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 	unsigned char gain = sd->gain;
 
 	switch (sd->sensor) {
+	case SENSOR_HV7131D: {
+		__u8 i2c[] =
+			{0xc0, 0x11, 0x31, 0x00, 0x00, 0x00, 0x00, 0x17};
 
+		i2c[3] = 0x3f - (sd->gain / 4);
+		i2c[4] = 0x3f - (sd->gain / 4);
+		i2c[5] = 0x3f - (sd->gain / 4);
+
+		if (i2c_w(gspca_dev, i2c) < 0)
+			goto err;
+		break;
+	    }
 	case SENSOR_TAS5110C:
-	case SENSOR_TAS5110D: {
+	case SENSOR_TAS5130CXX: {
 		__u8 i2c[] =
 			{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10};
 
 		i2c[4] = 255 - gain;
+		if (i2c_w(gspca_dev, i2c) < 0)
+			goto err;
+		break;
+	    }
+	case SENSOR_TAS5110D: {
+		__u8 i2c[] = {
+			0xb0, 0x61, 0x02, 0x00, 0x10, 0x00, 0x00, 0x17 };
+		gain = 255 - gain;
+		/* The bits in the register are the wrong way around!! */
+		i2c[3] |= (gain & 0x80) >> 7;
+		i2c[3] |= (gain & 0x40) >> 5;
+		i2c[3] |= (gain & 0x20) >> 3;
+		i2c[3] |= (gain & 0x10) >> 1;
+		i2c[3] |= (gain & 0x08) << 1;
+		i2c[3] |= (gain & 0x04) << 3;
+		i2c[3] |= (gain & 0x02) << 5;
+		i2c[3] |= (gain & 0x01) << 7;
 		if (i2c_w(gspca_dev, i2c) < 0)
 			goto err;
 		break;
@@ -766,7 +783,7 @@ static void setgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 gain;
-	__u8 buf[2] = { 0, 0 };
+	__u8 buf[3] = { 0, 0, 0 };
 
 	if (sensor_data[sd->sensor].flags & F_GAIN) {
 		/* Use the sensor gain to do the actual gain */
@@ -774,13 +791,18 @@ static void setgain(struct gspca_dev *gspca_dev)
 		return;
 	}
 
-	gain = sd->gain >> 4;
-
-	/* red and blue gain */
-	buf[0] = gain << 4 | gain;
-	/* green gain */
-	buf[1] = gain;
-	reg_w(gspca_dev, 0x10, buf, 2);
+	if (sd->bridge == BRIDGE_103) {
+		gain = sd->gain >> 1;
+		buf[0] = gain; /* Red */
+		buf[1] = gain; /* Green */
+		buf[2] = gain; /* Blue */
+		reg_w(gspca_dev, 0x05, buf, 3);
+	} else {
+		gain = sd->gain >> 4;
+		buf[0] = gain << 4 | gain; /* Red and blue */
+		buf[1] = gain; /* Green */
+		reg_w(gspca_dev, 0x10, buf, 2);
+	}
 }
 
 static void setexposure(struct gspca_dev *gspca_dev)
@@ -788,6 +810,23 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->sensor) {
+	case SENSOR_HV7131D: {
+		/* Note the datasheet wrongly says line mode exposure uses reg
+		   0x26 and 0x27, testing has shown 0x25 + 0x26 */
+		__u8 i2c[] = {0xc0, 0x11, 0x25, 0x00, 0x00, 0x00, 0x00, 0x17};
+		/* The HV7131D's exposure goes from 0 - 65535, we scale our
+		   exposure of 0-1023 to 0-6138. There are 2 reasons for this:
+		   1) This puts our exposure knee of 200 at approx the point
+		      where the framerate starts dropping
+		   2) At 6138 the framerate has already dropped to 2 fps,
+		      going any lower makes little sense */
+		__u16 reg = sd->exposure * 6;
+		i2c[3] = reg >> 8;
+		i2c[4] = reg & 0xff;
+		if (i2c_w(gspca_dev, i2c) != 0)
+			goto err;
+		break;
+	    }
 	case SENSOR_TAS5110C:
 	case SENSOR_TAS5110D: {
 		/* register 19's high nibble contains the sn9c10x clock divider
@@ -1002,7 +1041,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 		desired_avg_lum = 5000;
 	} else {
 		deadzone = 1500;
-		desired_avg_lum = 18000;
+		desired_avg_lum = 13000;
 	}
 
 	if (sensor_data[sd->sensor].flags & F_COARSE_EXPO)
@@ -1080,53 +1119,91 @@ static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam = &gspca_dev->cam;
-	int mode, l;
-	const __u8 *sn9c10x;
-	__u8 reg12_19[8];
+	int i, mode;
+	__u8 regs[0x31];
 
 	mode = cam->cam_mode[gspca_dev->curr_mode].priv & 0x07;
-	sn9c10x = sensor_data[sd->sensor].bridge_init[sd->bridge];
-	l = sensor_data[sd->sensor].bridge_init_size[sd->bridge];
-	memcpy(reg12_19, &sn9c10x[0x12 - 1], 8);
-	reg12_19[6] = sn9c10x[0x18 - 1] | (mode << 4);
-	/* Special cases where reg 17 and or 19 value depends on mode */
+	/* Copy registers 0x01 - 0x19 from the template */
+	memcpy(&regs[0x01], sensor_data[sd->sensor].bridge_init, 0x19);
+	/* Set the mode */
+	regs[0x18] |= mode << 4;
+
+	/* Set bridge gain to 1.0 */
+	if (sd->bridge == BRIDGE_103) {
+		regs[0x05] = 0x20; /* Red */
+		regs[0x06] = 0x20; /* Green */
+		regs[0x07] = 0x20; /* Blue */
+	} else {
+		regs[0x10] = 0x00; /* Red and blue */
+		regs[0x11] = 0x00; /* Green */
+	}
+
+	/* Setup pixel numbers and auto exposure window */
+	if (sensor_data[sd->sensor].flags & F_SIF) {
+		regs[0x1a] = 0x14; /* HO_SIZE 640, makes no sense */
+		regs[0x1b] = 0x0a; /* VO_SIZE 320, makes no sense */
+		regs[0x1c] = 0x02; /* AE H-start 64 */
+		regs[0x1d] = 0x02; /* AE V-start 64 */
+		regs[0x1e] = 0x09; /* AE H-end 288 */
+		regs[0x1f] = 0x07; /* AE V-end 224 */
+	} else {
+		regs[0x1a] = 0x1d; /* HO_SIZE 960, makes no sense */
+		regs[0x1b] = 0x10; /* VO_SIZE 512, makes no sense */
+		regs[0x1c] = 0x05; /* AE H-start 160 */
+		regs[0x1d] = 0x03; /* AE V-start 96 */
+		regs[0x1e] = 0x0f; /* AE H-end 480 */
+		regs[0x1f] = 0x0c; /* AE V-end 384 */
+	}
+
+	/* Setup the gamma table (only used with the sn9c103 bridge) */
+	for (i = 0; i < 16; i++)
+		regs[0x20 + i] = i * 16;
+	regs[0x20 + i] = 255;
+
+	/* Special cases where some regs depend on mode or bridge */
 	switch (sd->sensor) {
 	case SENSOR_TAS5130CXX:
-		/* probably not mode specific at all most likely the upper
+		/* FIXME / TESTME
+		   probably not mode specific at all most likely the upper
 		   nibble of 0x19 is exposure (clock divider) just as with
 		   the tas5110, we need someone to test this. */
-		reg12_19[7] = mode ? 0x23 : 0x43;
+		regs[0x19] = mode ? 0x23 : 0x43;
 		break;
+	case SENSOR_OV7630:
+		/* FIXME / TESTME for some reason with the 101/102 bridge the
+		   clock is set to 12 Mhz (reg1 == 0x04), rather then 24.
+		   Also the hstart needs to go from 1 to 2 when using a 103,
+		   which is likely related. This does not seem right. */
+		if (sd->bridge == BRIDGE_103) {
+			regs[0x01] = 0x44; /* Select 24 Mhz clock */
+			regs[0x12] = 0x02; /* Set hstart to 2 */
+		}
 	}
 	/* Disable compression when the raw bayer format has been selected */
 	if (cam->cam_mode[gspca_dev->curr_mode].priv & MODE_RAW)
-		reg12_19[6] &= ~0x80;
+		regs[0x18] &= ~0x80;
 
 	/* Vga mode emulation on SIF sensor? */
 	if (cam->cam_mode[gspca_dev->curr_mode].priv & MODE_REDUCED_SIF) {
-		reg12_19[0] += 16; /* 0x12: hstart adjust */
-		reg12_19[1] += 24; /* 0x13: vstart adjust */
-		reg12_19[3] = 320 / 16; /* 0x15: hsize */
-		reg12_19[4] = 240 / 16; /* 0x16: vsize */
+		regs[0x12] += 16;	/* hstart adjust */
+		regs[0x13] += 24;	/* vstart adjust */
+		regs[0x15]  = 320 / 16; /* hsize */
+		regs[0x16]  = 240 / 16; /* vsize */
 	}
 
 	/* reg 0x01 bit 2 video transfert on */
-	reg_w(gspca_dev, 0x01, &sn9c10x[0x01 - 1], 1);
+	reg_w(gspca_dev, 0x01, &regs[0x01], 1);
 	/* reg 0x17 SensorClk enable inv Clk 0x60 */
-	reg_w(gspca_dev, 0x17, &sn9c10x[0x17 - 1], 1);
+	reg_w(gspca_dev, 0x17, &regs[0x17], 1);
 	/* Set the registers from the template */
-	reg_w(gspca_dev, 0x01, sn9c10x, l);
+	reg_w(gspca_dev, 0x01, &regs[0x01],
+	      (sd->bridge == BRIDGE_103) ? 0x30 : 0x1f);
 
 	/* Init the sensor */
 	i2c_w_vector(gspca_dev, sensor_data[sd->sensor].sensor_init,
 			sensor_data[sd->sensor].sensor_init_size);
-	if (sensor_data[sd->sensor].sensor_bridge_init[sd->bridge])
-		i2c_w_vector(gspca_dev,
-			sensor_data[sd->sensor].sensor_bridge_init[sd->bridge],
-			sensor_data[sd->sensor].sensor_bridge_init_size[
-				sd->bridge]);
 
-	/* Mode specific sensor setup */
+	/* Mode / bridge specific sensor setup */
 	switch (sd->sensor) {
 	case SENSOR_PAS202: {
 		const __u8 i2cpclockdiv[] =
@@ -1134,27 +1211,37 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		/* clockdiv from 4 to 3 (7.5 -> 10 fps) when in low res mode */
 		if (mode)
 			i2c_w(gspca_dev, i2cpclockdiv);
+		break;
 	    }
+	case SENSOR_OV7630:
+		/* FIXME / TESTME We should be able to handle this identical
+		   for the 101/102 and the 103 case */
+		if (sd->bridge == BRIDGE_103) {
+			const __u8 i2c[] = { 0xa0, 0x21, 0x13,
+					     0x80, 0x00, 0x00, 0x00, 0x10 };
+			i2c_w(gspca_dev, i2c);
+		}
+		break;
 	}
 	/* H_size V_size 0x28, 0x1e -> 640x480. 0x16, 0x12 -> 352x288 */
-	reg_w(gspca_dev, 0x15, &reg12_19[3], 2);
+	reg_w(gspca_dev, 0x15, &regs[0x15], 2);
 	/* compression register */
-	reg_w(gspca_dev, 0x18, &reg12_19[6], 1);
+	reg_w(gspca_dev, 0x18, &regs[0x18], 1);
 	/* H_start */
-	reg_w(gspca_dev, 0x12, &reg12_19[0], 1);
+	reg_w(gspca_dev, 0x12, &regs[0x12], 1);
 	/* V_START */
-	reg_w(gspca_dev, 0x13, &reg12_19[1], 1);
+	reg_w(gspca_dev, 0x13, &regs[0x13], 1);
 	/* reset 0x17 SensorClk enable inv Clk 0x60 */
 				/*fixme: ov7630 [17]=68 8f (+20 if 102)*/
-	reg_w(gspca_dev, 0x17, &reg12_19[5], 1);
+	reg_w(gspca_dev, 0x17, &regs[0x17], 1);
 	/*MCKSIZE ->3 */	/*fixme: not ov7630*/
-	reg_w(gspca_dev, 0x19, &reg12_19[7], 1);
+	reg_w(gspca_dev, 0x19, &regs[0x19], 1);
 	/* AE_STRX AE_STRY AE_ENDX AE_ENDY */
-	reg_w(gspca_dev, 0x1c, &sn9c10x[0x1c - 1], 4);
+	reg_w(gspca_dev, 0x1c, &regs[0x1c], 4);
 	/* Enable video transfert */
-	reg_w(gspca_dev, 0x01, &sn9c10x[0], 1);
+	reg_w(gspca_dev, 0x01, &regs[0x01], 1);
 	/* Compression */
-	reg_w(gspca_dev, 0x18, &reg12_19[6], 2);
+	reg_w(gspca_dev, 0x18, &regs[0x18], 2);
 	msleep(20);
 
 	sd->reg11 = -1;
@@ -1177,13 +1264,10 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	sd_init(gspca_dev);
 }
 
-static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			u8 *data,			/* isoc packet */
-			int len)			/* iso packet length */
+static u8* find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 {
-	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct cam *cam = &gspca_dev->cam;
+	int i, header_size = (sd->bridge == BRIDGE_103) ? 18 : 12;
 
 	/* frames start with:
 	 *	ff ff 00 c4 c4 96	synchro
@@ -1194,57 +1278,83 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	 *	ll mm		brightness sum outside auto exposure
 	 *	(xx xx xx xx xx)	audio values for snc103
 	 */
-	if (len > 6 && len < 24) {
-		for (i = 0; i < len - 6; i++) {
-			if (data[0 + i] == 0xff
-			    && data[1 + i] == 0xff
-			    && data[2 + i] == 0x00
-			    && data[3 + i] == 0xc4
-			    && data[4 + i] == 0xc4
-			    && data[5 + i] == 0x96) {	/* start of frame */
-				int lum = -1;
-				int pkt_type = LAST_PACKET;
-				int fr_h_sz = (sd->bridge == BRIDGE_103) ?
-					18 : 12;
-
-				if (len - i < fr_h_sz) {
-					PDEBUG(D_STREAM, "packet too short to"
-						" get avg brightness");
-				} else if (sd->bridge == BRIDGE_103) {
-					lum = data[i + 9] +
-						(data[i + 10] << 8);
-				} else {
-					lum = data[i + 8] + (data[i + 9] << 8);
-				}
-				/* When exposure changes midway a frame we
-				   get a lum of 0 in this case drop 2 frames
-				   as the frames directly after an exposure
-				   change have an unstable image. Sometimes lum
-				   *really* is 0 (cam used in low light with
-				   low exposure setting), so do not drop frames
-				   if the previous lum was 0 too. */
-				if (lum == 0 && sd->prev_avg_lum != 0) {
-					lum = -1;
-					sd->frames_to_drop = 2;
-					sd->prev_avg_lum = 0;
-				} else
-					sd->prev_avg_lum = lum;
-				atomic_set(&sd->avg_lum, lum);
-
-				if (sd->frames_to_drop) {
-					sd->frames_to_drop--;
-					pkt_type = DISCARD_PACKET;
-				}
-
-				gspca_frame_add(gspca_dev, pkt_type,
-						NULL, 0);
-				data += i + fr_h_sz;
-				len -= i + fr_h_sz;
-				gspca_frame_add(gspca_dev, FIRST_PACKET,
-						data, len);
-				return;
+	for (i = 0; i < len; i++) {
+		switch (sd->header_read) {
+		case 0:
+			if (data[i] == 0xff)
+				sd->header_read++;
+			break;
+		case 1:
+			if (data[i] == 0xff)
+				sd->header_read++;
+			else
+				sd->header_read = 0;
+			break;
+		case 2:
+			if (data[i] == 0x00)
+				sd->header_read++;
+			else if (data[i] != 0xff)
+				sd->header_read = 0;
+			break;
+		case 3:
+			if (data[i] == 0xc4)
+				sd->header_read++;
+			else if (data[i] == 0xff)
+				sd->header_read = 1;
+			else
+				sd->header_read = 0;
+			break;
+		case 4:
+			if (data[i] == 0xc4)
+				sd->header_read++;
+			else if (data[i] == 0xff)
+				sd->header_read = 1;
+			else
+				sd->header_read = 0;
+			break;
+		case 5:
+			if (data[i] == 0x96)
+				sd->header_read++;
+			else if (data[i] == 0xff)
+				sd->header_read = 1;
+			else
+				sd->header_read = 0;
+			break;
+		default:
+			sd->header[sd->header_read - 6] = data[i];
+			sd->header_read++;
+			if (sd->header_read == header_size) {
+				sd->header_read = 0;
+				return data + i + 1;
 			}
 		}
+	}
+	return NULL;
+}
+
+static void sd_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data,			/* isoc packet */
+			int len)			/* iso packet length */
+{
+	int fr_h_sz = 0, lum_offset = 0, len_after_sof = 0;
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct cam *cam = &gspca_dev->cam;
+	u8 *sof;
+
+	sof = find_sof(gspca_dev, data, len);
+	if (sof) {
+		if (sd->bridge == BRIDGE_103) {
+			fr_h_sz = 18;
+			lum_offset = 3;
+		} else {
+			fr_h_sz = 12;
+			lum_offset = 2;
+		}
+
+		len_after_sof = len - (sof - data);
+		len = (sof - data) - fr_h_sz;
+		if (len < 0)
+			len = 0;
 	}
 
 	if (cam->cam_mode[gspca_dev->curr_mode].priv & MODE_RAW) {
@@ -1259,6 +1369,33 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
+
+	if (sof) {
+		int  lum = sd->header[lum_offset] +
+			  (sd->header[lum_offset + 1] << 8);
+
+		/* When exposure changes midway a frame we
+		   get a lum of 0 in this case drop 2 frames
+		   as the frames directly after an exposure
+		   change have an unstable image. Sometimes lum
+		   *really* is 0 (cam used in low light with
+		   low exposure setting), so do not drop frames
+		   if the previous lum was 0 too. */
+		if (lum == 0 && sd->prev_avg_lum != 0) {
+			lum = -1;
+			sd->frames_to_drop = 2;
+			sd->prev_avg_lum = 0;
+		} else
+			sd->prev_avg_lum = lum;
+		atomic_set(&sd->avg_lum, lum);
+
+		if (sd->frames_to_drop)
+			sd->frames_to_drop--;
+		else
+			gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
+
+		gspca_frame_add(gspca_dev, FIRST_PACKET, sof, len_after_sof);
+	}
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
@@ -1428,36 +1565,41 @@ static const struct sd_desc sd_desc = {
 	.driver_info = (SENSOR_ ## sensor << 8) | BRIDGE_ ## bridge
 
 
-static const struct usb_device_id device_table[] __devinitconst = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6001), SB(TAS5110C, 102)}, /* TAS5110C1B */
 	{USB_DEVICE(0x0c45, 0x6005), SB(TAS5110C, 101)}, /* TAS5110C1B */
-#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x6007), SB(TAS5110D, 101)}, /* TAS5110D */
-#endif
 	{USB_DEVICE(0x0c45, 0x6009), SB(PAS106, 101)},
 	{USB_DEVICE(0x0c45, 0x600d), SB(PAS106, 101)},
 	{USB_DEVICE(0x0c45, 0x6011), SB(OV6650, 101)},
-#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x6019), SB(OV7630, 101)},
+#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x6024), SB(TAS5130CXX, 102)},
 	{USB_DEVICE(0x0c45, 0x6025), SB(TAS5130CXX, 102)},
 #endif
 	{USB_DEVICE(0x0c45, 0x6028), SB(PAS202, 102)},
 	{USB_DEVICE(0x0c45, 0x6029), SB(PAS106, 102)},
+	{USB_DEVICE(0x0c45, 0x602a), SB(HV7131D, 102)},
+	/* {USB_DEVICE(0x0c45, 0x602b), SB(MI0343, 102)}, */
 	{USB_DEVICE(0x0c45, 0x602c), SB(OV7630, 102)},
 	{USB_DEVICE(0x0c45, 0x602d), SB(HV7131R, 102)},
 	{USB_DEVICE(0x0c45, 0x602e), SB(OV7630, 102)},
+	/* {USB_DEVICE(0x0c45, 0x6030), SB(MI03XX, 102)}, */ /* MI0343 MI0360 MI0330 */
+	/* {USB_DEVICE(0x0c45, 0x6082), SB(MI03XX, 103)}, */ /* MI0343 MI0360 */
+	{USB_DEVICE(0x0c45, 0x6083), SB(HV7131D, 103)},
+	{USB_DEVICE(0x0c45, 0x608c), SB(HV7131R, 103)},
+	/* {USB_DEVICE(0x0c45, 0x608e), SB(CISVF10, 103)}, */
 	{USB_DEVICE(0x0c45, 0x608f), SB(OV7630, 103)},
-#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
+	{USB_DEVICE(0x0c45, 0x60a8), SB(PAS106, 103)},
+	{USB_DEVICE(0x0c45, 0x60aa), SB(TAS5130CXX, 103)},
 	{USB_DEVICE(0x0c45, 0x60af), SB(PAS202, 103)},
-#endif
 	{USB_DEVICE(0x0c45, 0x60b0), SB(OV7630, 103)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
 
 /* -- device connect -- */
-static int __devinit sd_probe(struct usb_interface *intf,
+static int sd_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
 	return gspca_dev_probe(intf, id, &sd_desc, sizeof(struct sd),

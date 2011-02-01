@@ -52,8 +52,8 @@
 #define CIFS_PORT 445
 #define RFC1001_PORT 139
 
-extern void SMBNTencrypt(unsigned char *passwd, unsigned char *c8,
-			 unsigned char *p24);
+/* SMB echo "timeout" -- FIXME: tunable? */
+#define SMB_ECHO_INTERVAL (60 * HZ)
 
 extern mempool_t *cifs_req_poolp;
 
@@ -64,8 +64,8 @@ struct smb_vol {
 	char *UNC;
 	char *UNCip;
 	char *iocharset;  /* local code page for mapping to and from Unicode */
-	char source_rfc1001_name[16]; /* netbios name of client */
-	char target_rfc1001_name[16]; /* netbios name of server for Win9x/ME */
+	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
+	char target_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* srvr nb name */
 	uid_t cred_uid;
 	uid_t linux_uid;
 	gid_t linux_gid;
@@ -84,6 +84,7 @@ struct smb_vol {
 	bool no_xattr:1;   /* set if xattr (EA) support should be disabled*/
 	bool server_ino:1; /* use inode numbers from server ie UniqueId */
 	bool direct_io:1;
+	bool strict_io:1; /* strict cache behavior */
 	bool remap:1;      /* set to remap seven reserved chars in filenames */
 	bool posix_paths:1; /* unset to not ask for posix pathnames. */
 	bool no_linux_ext:1;
@@ -105,6 +106,7 @@ struct smb_vol {
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;
 	unsigned short int port;
+	unsigned long actimeo; /* attribute cache timeout (jiffies) */
 	char *prepath;
 	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
 	struct nls_table *local_nls;
@@ -114,8 +116,9 @@ struct smb_vol {
 #define TLINK_ERROR_EXPIRE	(1 * HZ)
 #define TLINK_IDLE_EXPIRE	(600 * HZ)
 
-static int ipv4_connect(struct TCP_Server_Info *server);
-static int ipv6_connect(struct TCP_Server_Info *server);
+static int ip_connect(struct TCP_Server_Info *server);
+static int generic_ip_connect(struct TCP_Server_Info *server);
+static void tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink);
 static void cifs_prune_tlinks(struct work_struct *work);
 
 /*
@@ -150,6 +153,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 
 	/* before reconnecting the tcp session, mark the smb session (uid)
 		and the tid bad so they are not used until reconnected */
+	cFYI(1, "%s: marking sessions and tcons for reconnect", __func__);
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp, &server->smb_ses_list) {
 		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
@@ -161,7 +165,9 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
+
 	/* do not want to be sending data on a socket we are freeing */
+	cFYI(1, "%s: tearing down socket", __func__);
 	mutex_lock(&server->srv_mutex);
 	if (server->ssocket) {
 		cFYI(1, "State: 0x%x Flags: 0x%lx", server->ssocket->state,
@@ -178,30 +184,27 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	kfree(server->session_key.response);
 	server->session_key.response = NULL;
 	server->session_key.len = 0;
+	server->lstrp = jiffies;
+	mutex_unlock(&server->srv_mutex);
 
+	/* mark submitted MIDs for retry and issue callback */
+	cFYI(1, "%s: issuing mid callbacks", __func__);
 	spin_lock(&GlobalMid_Lock);
-	list_for_each(tmp, &server->pending_mid_q) {
-		mid_entry = list_entry(tmp, struct
-					mid_q_entry,
-					qhead);
-		if (mid_entry->midState == MID_REQUEST_SUBMITTED) {
-				/* Mark other intransit requests as needing
-				   retry so we do not immediately mark the
-				   session bad again (ie after we reconnect
-				   below) as they timeout too */
+	list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
+		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
+		if (mid_entry->midState == MID_REQUEST_SUBMITTED)
 			mid_entry->midState = MID_RETRY_NEEDED;
-		}
+		list_del_init(&mid_entry->qhead);
+		mid_entry->callback(mid_entry);
 	}
 	spin_unlock(&GlobalMid_Lock);
-	mutex_unlock(&server->srv_mutex);
 
 	while ((server->tcpStatus != CifsExiting) &&
 	       (server->tcpStatus != CifsGood)) {
 		try_to_freeze();
-		if (server->addr.sockAddr6.sin6_family == AF_INET6)
-			rc = ipv6_connect(server);
-		else
-			rc = ipv4_connect(server);
+
+		/* we should try only the port we connected to before */
+		rc = generic_ip_connect(server);
 		if (rc) {
 			cFYI(1, "reconnect error %d", rc);
 			msleep(3000);
@@ -211,10 +214,9 @@ cifs_reconnect(struct TCP_Server_Info *server)
 			if (server->tcpStatus != CifsExiting)
 				server->tcpStatus = CifsGood;
 			spin_unlock(&GlobalMid_Lock);
-	/*		atomic_set(&server->inFlight,0);*/
-			wake_up(&server->response_q);
 		}
 	}
+
 	return rc;
 }
 
@@ -228,9 +230,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 static int check2ndT2(struct smb_hdr *pSMB, unsigned int maxBufSize)
 {
 	struct smb_t2_rsp *pSMBt;
-	int total_data_size;
-	int data_in_this_rsp;
 	int remaining;
+	__u16 total_data_size, data_in_this_rsp;
 
 	if (pSMB->Command != SMB_COM_TRANSACTION2)
 		return 0;
@@ -244,8 +245,8 @@ static int check2ndT2(struct smb_hdr *pSMB, unsigned int maxBufSize)
 
 	pSMBt = (struct smb_t2_rsp *)pSMB;
 
-	total_data_size = le16_to_cpu(pSMBt->t2_rsp.TotalDataCount);
-	data_in_this_rsp = le16_to_cpu(pSMBt->t2_rsp.DataCount);
+	total_data_size = get_unaligned_le16(&pSMBt->t2_rsp.TotalDataCount);
+	data_in_this_rsp = get_unaligned_le16(&pSMBt->t2_rsp.DataCount);
 
 	remaining = total_data_size - data_in_this_rsp;
 
@@ -271,21 +272,18 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 {
 	struct smb_t2_rsp *pSMB2 = (struct smb_t2_rsp *)psecond;
 	struct smb_t2_rsp *pSMBt  = (struct smb_t2_rsp *)pTargetSMB;
-	int total_data_size;
-	int total_in_buf;
-	int remaining;
-	int total_in_buf2;
 	char *data_area_of_target;
 	char *data_area_of_buf2;
-	__u16 byte_count;
+	int remaining;
+	__u16 byte_count, total_data_size, total_in_buf, total_in_buf2;
 
-	total_data_size = le16_to_cpu(pSMBt->t2_rsp.TotalDataCount);
+	total_data_size = get_unaligned_le16(&pSMBt->t2_rsp.TotalDataCount);
 
-	if (total_data_size != le16_to_cpu(pSMB2->t2_rsp.TotalDataCount)) {
+	if (total_data_size !=
+	    get_unaligned_le16(&pSMB2->t2_rsp.TotalDataCount))
 		cFYI(1, "total data size of primary and secondary t2 differ");
-	}
 
-	total_in_buf = le16_to_cpu(pSMBt->t2_rsp.DataCount);
+	total_in_buf = get_unaligned_le16(&pSMBt->t2_rsp.DataCount);
 
 	remaining = total_data_size - total_in_buf;
 
@@ -295,28 +293,28 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 	if (remaining == 0) /* nothing to do, ignore */
 		return 0;
 
-	total_in_buf2 = le16_to_cpu(pSMB2->t2_rsp.DataCount);
+	total_in_buf2 = get_unaligned_le16(&pSMB2->t2_rsp.DataCount);
 	if (remaining < total_in_buf2) {
 		cFYI(1, "transact2 2nd response contains too much data");
 	}
 
 	/* find end of first SMB data area */
 	data_area_of_target = (char *)&pSMBt->hdr.Protocol +
-				le16_to_cpu(pSMBt->t2_rsp.DataOffset);
+				get_unaligned_le16(&pSMBt->t2_rsp.DataOffset);
 	/* validate target area */
 
-	data_area_of_buf2 = (char *) &pSMB2->hdr.Protocol +
-					le16_to_cpu(pSMB2->t2_rsp.DataOffset);
+	data_area_of_buf2 = (char *)&pSMB2->hdr.Protocol +
+				get_unaligned_le16(&pSMB2->t2_rsp.DataOffset);
 
 	data_area_of_target += total_in_buf;
 
 	/* copy second buffer into end of first buffer */
 	memcpy(data_area_of_target, data_area_of_buf2, total_in_buf2);
 	total_in_buf += total_in_buf2;
-	pSMBt->t2_rsp.DataCount = cpu_to_le16(total_in_buf);
-	byte_count = le16_to_cpu(BCC_LE(pTargetSMB));
+	put_unaligned_le16(total_in_buf, &pSMBt->t2_rsp.DataCount);
+	byte_count = get_bcc_le(pTargetSMB);
 	byte_count += total_in_buf2;
-	BCC_LE(pTargetSMB) = cpu_to_le16(byte_count);
+	put_bcc_le(byte_count, pTargetSMB);
 
 	byte_count = pTargetSMB->smb_buf_length;
 	byte_count += total_in_buf2;
@@ -330,7 +328,26 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 		return 0; /* we are done */
 	} else /* more responses to go */
 		return 1;
+}
 
+static void
+cifs_echo_request(struct work_struct *work)
+{
+	int rc;
+	struct TCP_Server_Info *server = container_of(work,
+					struct TCP_Server_Info, echo.work);
+
+	/* no need to ping if we got a response recently */
+	if (time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
+		goto requeue_echo;
+
+	rc = CIFSSMBEcho(server);
+	if (rc)
+		cFYI(1, "Unable to send echo request to server: %s",
+			server->hostname);
+
+requeue_echo:
+	queue_delayed_work(system_nrt_wq, &server->echo, SMB_ECHO_INTERVAL);
 }
 
 static int
@@ -344,8 +361,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	struct msghdr smb_msg;
 	struct kvec iov;
 	struct socket *csocket = server->ssocket;
-	struct list_head *tmp;
-	struct cifsSesInfo *ses;
+	struct list_head *tmp, *tmp2;
 	struct task_struct *task_to_wake = NULL;
 	struct mid_q_entry *mid_entry;
 	char temp;
@@ -398,7 +414,20 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		smb_msg.msg_control = NULL;
 		smb_msg.msg_controllen = 0;
 		pdu_length = 4; /* enough to get RFC1001 header */
+
 incomplete_rcv:
+		if (echo_retries > 0 &&
+		    time_after(jiffies, server->lstrp +
+					(echo_retries * SMB_ECHO_INTERVAL))) {
+			cERROR(1, "Server %s has not responded in %d seconds. "
+				  "Reconnecting...", server->hostname,
+				  (echo_retries * SMB_ECHO_INTERVAL / HZ));
+			cifs_reconnect(server);
+			csocket = server->ssocket;
+			wake_up(&server->response_q);
+			continue;
+		}
+
 		length =
 		    kernel_recvmsg(csocket, &smb_msg,
 				&iov, 1, pdu_length, 0 /* BB other flags? */);
@@ -475,7 +504,7 @@ incomplete_rcv:
 			 * initialize frame)
 			 */
 			cifs_set_port((struct sockaddr *)
-					&server->addr.sockAddr, CIFS_PORT);
+					&server->dstaddr, CIFS_PORT);
 			cifs_reconnect(server);
 			csocket = server->ssocket;
 			wake_up(&server->response_q);
@@ -558,10 +587,11 @@ incomplete_rcv:
 			continue;
 		}
 
+		mid_entry = NULL;
+		server->lstrp = jiffies;
 
-		task_to_wake = NULL;
 		spin_lock(&GlobalMid_Lock);
-		list_for_each(tmp, &server->pending_mid_q) {
+		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
 
 			if ((mid_entry->mid == smb_buffer->Mid) &&
@@ -602,20 +632,19 @@ incomplete_rcv:
 				mid_entry->resp_buf = smb_buffer;
 				mid_entry->largeBuf = isLargeBuf;
 multi_t2_fnd:
-				task_to_wake = mid_entry->tsk;
 				mid_entry->midState = MID_RESPONSE_RECEIVED;
+				list_del_init(&mid_entry->qhead);
+				mid_entry->callback(mid_entry);
 #ifdef CONFIG_CIFS_STATS2
 				mid_entry->when_received = jiffies;
 #endif
-				/* so we do not time out requests to  server
-				which is still responding (since server could
-				be busy but not dead) */
-				server->lstrp = jiffies;
 				break;
 			}
+			mid_entry = NULL;
 		}
 		spin_unlock(&GlobalMid_Lock);
-		if (task_to_wake) {
+
+		if (mid_entry != NULL) {
 			/* Was previous buf put in mpx struct for multi-rsp? */
 			if (!isMultiRsp) {
 				/* smb buffer will be freed by user thread */
@@ -624,11 +653,10 @@ multi_t2_fnd:
 				else
 					smallbuf = NULL;
 			}
-			wake_up_process(task_to_wake);
 		} else if (!is_valid_oplock_break(smb_buffer, server) &&
 			   !isMultiRsp) {
 			cERROR(1, "No task to wake, unknown frame received! "
-				   "NumMids %d", midCount.counter);
+				   "NumMids %d", atomic_read(&midCount));
 			cifs_dump_mem("Received Data is: ", (char *)smb_buffer,
 				      sizeof(struct smb_hdr));
 #ifdef CONFIG_CIFS_DEBUG2
@@ -676,44 +704,16 @@ multi_t2_fnd:
 	if (smallbuf) /* no sense logging a debug message if NULL */
 		cifs_small_buf_release(smallbuf);
 
-	/*
-	 * BB: we shouldn't have to do any of this. It shouldn't be
-	 * possible to exit from the thread with active SMB sessions
-	 */
-	spin_lock(&cifs_tcp_ses_lock);
-	if (list_empty(&server->pending_mid_q)) {
-		/* loop through server session structures attached to this and
-		    mark them dead */
-		list_for_each(tmp, &server->smb_ses_list) {
-			ses = list_entry(tmp, struct cifsSesInfo,
-					 smb_ses_list);
-			ses->status = CifsExiting;
-			ses->server = NULL;
-		}
-		spin_unlock(&cifs_tcp_ses_lock);
-	} else {
-		/* although we can not zero the server struct pointer yet,
-		since there are active requests which may depnd on them,
-		mark the corresponding SMB sessions as exiting too */
-		list_for_each(tmp, &server->smb_ses_list) {
-			ses = list_entry(tmp, struct cifsSesInfo,
-					 smb_ses_list);
-			ses->status = CifsExiting;
-		}
-
+	if (!list_empty(&server->pending_mid_q)) {
 		spin_lock(&GlobalMid_Lock);
-		list_for_each(tmp, &server->pending_mid_q) {
-		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-			if (mid_entry->midState == MID_REQUEST_SUBMITTED) {
-				cFYI(1, "Clearing Mid 0x%x - waking up ",
+		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
+			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
+			cFYI(1, "Clearing Mid 0x%x - issuing callback",
 					 mid_entry->mid);
-				task_to_wake = mid_entry->tsk;
-				if (task_to_wake)
-					wake_up_process(task_to_wake);
-			}
+			list_del_init(&mid_entry->qhead);
+			mid_entry->callback(mid_entry);
 		}
 		spin_unlock(&GlobalMid_Lock);
-		spin_unlock(&cifs_tcp_ses_lock);
 		/* 1/8th of sec is more than enough time for them to exit */
 		msleep(125);
 	}
@@ -730,18 +730,6 @@ multi_t2_fnd:
 		/* if threads still have not exited they are probably never
 		coming home not much else we can do but free the memory */
 	}
-
-	/* last chance to mark ses pointers invalid
-	if there are any pointing to this (e.g
-	if a crazy root user tried to kill cifsd
-	kernel thread explicitly this might happen) */
-	/* BB: This shouldn't be necessary, see above */
-	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &server->smb_ses_list) {
-		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
-		ses->server = NULL;
-	}
-	spin_unlock(&cifs_tcp_ses_lock);
 
 	kfree(server->hostname);
 	task_to_wake = xchg(&server->tsk, NULL);
@@ -805,24 +793,21 @@ cifs_parse_mount_options(char *options, const char *devname,
 	short int override_gid = -1;
 	bool uid_specified = false;
 	bool gid_specified = false;
+	char *nodename = utsname()->nodename;
 
 	separator[0] = ',';
 	separator[1] = 0;
 
-	if (Local_System_Name[0] != 0)
-		memcpy(vol->source_rfc1001_name, Local_System_Name, 15);
-	else {
-		char *nodename = utsname()->nodename;
-		int n = strnlen(nodename, 15);
-		memset(vol->source_rfc1001_name, 0x20, 15);
-		for (i = 0; i < n; i++) {
-			/* does not have to be perfect mapping since field is
-			informational, only used for servers that do not support
-			port 445 and it can be overridden at mount time */
-			vol->source_rfc1001_name[i] = toupper(nodename[i]);
-		}
-	}
-	vol->source_rfc1001_name[15] = 0;
+	/*
+	 * does not have to be perfect mapping since field is
+	 * informational, only used for servers that do not support
+	 * port 445 and it can be overridden at mount time
+	 */
+	memset(vol->source_rfc1001_name, 0x20, RFC1001_NAME_LEN);
+	for (i = 0; i < strnlen(nodename, RFC1001_NAME_LEN); i++)
+		vol->source_rfc1001_name[i] = toupper(nodename[i]);
+
+	vol->source_rfc1001_name[RFC1001_NAME_LEN] = 0;
 	/* null target name indicates to use *SMBSERVR default called name
 	   if we end up sending RFC1001 session initialize */
 	vol->target_rfc1001_name[0] = 0;
@@ -838,6 +823,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 	vol->posix_paths = 1;
 	/* default to using server inode numbers where available */
 	vol->server_ino = 1;
+
+	vol->actimeo = CIFS_DEF_ACTIMEO;
 
 	if (!options)
 		return 1;
@@ -984,13 +971,11 @@ cifs_parse_mount_options(char *options, const char *devname,
 				return 1;
 			} else if (strnicmp(value, "krb5", 4) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_KRB5;
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 			} else if (strnicmp(value, "ntlmsspi", 8) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_NTLMSSP |
 					CIFSSEC_MUST_SIGN;
 			} else if (strnicmp(value, "ntlmssp", 7) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_NTLMSSP;
-#endif
 			} else if (strnicmp(value, "ntlmv2i", 7) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_NTLMV2 |
 					CIFSSEC_MUST_SIGN;
@@ -1115,6 +1100,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 		} else if (!strnicmp(data, "uid", 3) && value && *value) {
 			vol->linux_uid = simple_strtoul(value, &value, 0);
 			uid_specified = true;
+		} else if (!strnicmp(data, "cruid", 5) && value && *value) {
+			vol->cred_uid = simple_strtoul(value, &value, 0);
 		} else if (!strnicmp(data, "forceuid", 8)) {
 			override_uid = 1;
 		} else if (!strnicmp(data, "noforceuid", 10)) {
@@ -1167,22 +1154,22 @@ cifs_parse_mount_options(char *options, const char *devname,
 			if (!value || !*value || (*value == ' ')) {
 				cFYI(1, "invalid (empty) netbiosname");
 			} else {
-				memset(vol->source_rfc1001_name, 0x20, 15);
-				for (i = 0; i < 15; i++) {
-				/* BB are there cases in which a comma can be
-				valid in this workstation netbios name (and need
-				special handling)? */
-
-				/* We do not uppercase netbiosname for user */
+				memset(vol->source_rfc1001_name, 0x20,
+					RFC1001_NAME_LEN);
+				/*
+				 * FIXME: are there cases in which a comma can
+				 * be valid in workstation netbios name (and
+				 * need special handling)?
+				 */
+				for (i = 0; i < RFC1001_NAME_LEN; i++) {
+					/* don't ucase netbiosname for user */
 					if (value[i] == 0)
 						break;
-					else
-						vol->source_rfc1001_name[i] =
-								value[i];
+					vol->source_rfc1001_name[i] = value[i];
 				}
 				/* The string has 16th byte zero still from
 				set at top of the function  */
-				if ((i == 15) && (value[i] != 0))
+				if (i == RFC1001_NAME_LEN && value[i] != 0)
 					printk(KERN_WARNING "CIFS: netbiosname"
 						" longer than 15 truncated.\n");
 			}
@@ -1192,7 +1179,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 				cFYI(1, "empty server netbiosname specified");
 			} else {
 				/* last byte, type, is 0x20 for servr type */
-				memset(vol->target_rfc1001_name, 0x20, 16);
+				memset(vol->target_rfc1001_name, 0x20,
+					RFC1001_NAME_LEN_WITH_NULL);
 
 				for (i = 0; i < 15; i++) {
 				/* BB are there cases in which a comma can be
@@ -1209,9 +1197,19 @@ cifs_parse_mount_options(char *options, const char *devname,
 				}
 				/* The string has 16th byte zero still from
 				   set at top of the function  */
-				if ((i == 15) && (value[i] != 0))
+				if (i == RFC1001_NAME_LEN && value[i] != 0)
 					printk(KERN_WARNING "CIFS: server net"
 					"biosname longer than 15 truncated.\n");
+			}
+		} else if (strnicmp(data, "actimeo", 7) == 0) {
+			if (value && *value) {
+				vol->actimeo = HZ * simple_strtoul(value,
+								   &value, 0);
+				if (vol->actimeo > CIFS_MAX_ACTIMEO) {
+					cERROR(1, "CIFS: attribute cache"
+							"timeout too large");
+					return 1;
+				}
 			}
 		} else if (strnicmp(data, "credentials", 4) == 0) {
 			/* ignore */
@@ -1330,10 +1328,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->no_psx_acl = 0;
 		} else if (strnicmp(data, "noacl", 5) == 0) {
 			vol->no_psx_acl = 1;
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 		} else if (strnicmp(data, "locallease", 6) == 0) {
 			vol->local_lease = 1;
-#endif
 		} else if (strnicmp(data, "sign", 4) == 0) {
 			vol->secFlg |= CIFSSEC_MUST_SIGN;
 		} else if (strnicmp(data, "seal", 4) == 0) {
@@ -1346,11 +1342,18 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->direct_io = 1;
 		} else if (strnicmp(data, "forcedirectio", 13) == 0) {
 			vol->direct_io = 1;
+		} else if (strnicmp(data, "strictcache", 11) == 0) {
+			vol->strict_io = 1;
 		} else if (strnicmp(data, "noac", 4) == 0) {
 			printk(KERN_WARNING "CIFS: Mount option noac not "
 				"supported. Instead set "
 				"/proc/fs/cifs/LookupCacheEnabled to 0\n");
 		} else if (strnicmp(data, "fsc", 3) == 0) {
+#ifndef CONFIG_CIFS_FSCACHE
+			cERROR(1, "FS-Cache support needs CONFIG_CIFS_FSCACHE"
+				  "kernel config option set");
+			return 1;
+#endif
 			vol->fsc = true;
 		} else if (strnicmp(data, "mfsymlinks", 10) == 0) {
 			vol->mfsymlinks = true;
@@ -1438,34 +1441,70 @@ srcip_matches(struct sockaddr *srcaddr, struct sockaddr *rhs)
 	}
 }
 
+/*
+ * If no port is specified in addr structure, we try to match with 445 port
+ * and if it fails - with 139 ports. It should be called only if address
+ * families of server and addr are equal.
+ */
+static bool
+match_port(struct TCP_Server_Info *server, struct sockaddr *addr)
+{
+	unsigned short int port, *sport;
+
+	switch (addr->sa_family) {
+	case AF_INET:
+		sport = &((struct sockaddr_in *) &server->dstaddr)->sin_port;
+		port = ((struct sockaddr_in *) addr)->sin_port;
+		break;
+	case AF_INET6:
+		sport = &((struct sockaddr_in6 *) &server->dstaddr)->sin6_port;
+		port = ((struct sockaddr_in6 *) addr)->sin6_port;
+		break;
+	default:
+		WARN_ON(1);
+		return false;
+	}
+
+	if (!port) {
+		port = htons(CIFS_PORT);
+		if (port == *sport)
+			return true;
+
+		port = htons(RFC1001_PORT);
+	}
+
+	return port == *sport;
+}
 
 static bool
 match_address(struct TCP_Server_Info *server, struct sockaddr *addr,
 	      struct sockaddr *srcaddr)
 {
-	struct sockaddr_in *addr4 = (struct sockaddr_in *)addr;
-	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)addr;
-
 	switch (addr->sa_family) {
-	case AF_INET:
-		if (addr4->sin_addr.s_addr !=
-		    server->addr.sockAddr.sin_addr.s_addr)
-			return false;
-		if (addr4->sin_port &&
-		    addr4->sin_port != server->addr.sockAddr.sin_port)
+	case AF_INET: {
+		struct sockaddr_in *addr4 = (struct sockaddr_in *)addr;
+		struct sockaddr_in *srv_addr4 =
+					(struct sockaddr_in *)&server->dstaddr;
+
+		if (addr4->sin_addr.s_addr != srv_addr4->sin_addr.s_addr)
 			return false;
 		break;
-	case AF_INET6:
+	}
+	case AF_INET6: {
+		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)addr;
+		struct sockaddr_in6 *srv_addr6 =
+					(struct sockaddr_in6 *)&server->dstaddr;
+
 		if (!ipv6_addr_equal(&addr6->sin6_addr,
-				     &server->addr.sockAddr6.sin6_addr))
+				     &srv_addr6->sin6_addr))
 			return false;
-		if (addr6->sin6_scope_id !=
-		    server->addr.sockAddr6.sin6_scope_id)
-			return false;
-		if (addr6->sin6_port &&
-		    addr6->sin6_port != server->addr.sockAddr6.sin6_port)
+		if (addr6->sin6_scope_id != srv_addr6->sin6_scope_id)
 			return false;
 		break;
+	}
+	default:
+		WARN_ON(1);
+		return false; /* don't expect to be here */
 	}
 
 	if (!srcip_matches(srcaddr, (struct sockaddr *)&server->srcaddr))
@@ -1529,8 +1568,14 @@ cifs_find_tcp_session(struct sockaddr *addr, struct smb_vol *vol)
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
+		if (!net_eq(cifs_net_ns(server), current->nsproxy->net_ns))
+			continue;
+
 		if (!match_address(server, addr,
 				   (struct sockaddr *)&vol->srcaddr))
+			continue;
+
+		if (!match_port(server, addr))
 			continue;
 
 		if (!match_security(server, vol))
@@ -1556,8 +1601,12 @@ cifs_put_tcp_session(struct TCP_Server_Info *server)
 		return;
 	}
 
+	put_net(cifs_net_ns(server));
+
 	list_del_init(&server->tcp_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
+
+	cancel_delayed_work_sync(&server->echo);
 
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;
@@ -1628,6 +1677,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		goto out_err;
 	}
 
+	cifs_set_net_ns(tcp_ses, get_net(current->nsproxy->net_ns));
 	tcp_ses->hostname = extract_hostname(volume_info->UNC);
 	if (IS_ERR(tcp_ses->hostname)) {
 		rc = PTR_ERR(tcp_ses->hostname);
@@ -1648,8 +1698,10 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		volume_info->target_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
 	tcp_ses->session_estab = false;
 	tcp_ses->sequence_number = 0;
+	tcp_ses->lstrp = jiffies;
 	INIT_LIST_HEAD(&tcp_ses->tcp_ses_list);
 	INIT_LIST_HEAD(&tcp_ses->smb_ses_list);
+	INIT_DELAYED_WORK(&tcp_ses->echo, cifs_echo_request);
 
 	/*
 	 * at this point we are the only ones with the pointer
@@ -1665,14 +1717,13 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		cFYI(1, "attempting ipv6 connect");
 		/* BB should we allow ipv6 on port 139? */
 		/* other OS never observed in Wild doing 139 with v6 */
-		memcpy(&tcp_ses->addr.sockAddr6, sin_server6,
-			sizeof(struct sockaddr_in6));
-		rc = ipv6_connect(tcp_ses);
-	} else {
-		memcpy(&tcp_ses->addr.sockAddr, sin_server,
-			sizeof(struct sockaddr_in));
-		rc = ipv4_connect(tcp_ses);
-	}
+		memcpy(&tcp_ses->dstaddr, sin_server6,
+		       sizeof(struct sockaddr_in6));
+	} else
+		memcpy(&tcp_ses->dstaddr, sin_server,
+		       sizeof(struct sockaddr_in));
+
+	rc = ip_connect(tcp_ses);
 	if (rc < 0) {
 		cERROR(1, "Error connecting to socket. Aborting operation");
 		goto out_err_crypto_release;
@@ -1699,10 +1750,15 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 
 	cifs_fscache_get_client_cookie(tcp_ses);
 
+	/* queue echo request delayed work */
+	queue_delayed_work(system_nrt_wq, &tcp_ses->echo, SMB_ECHO_INTERVAL);
+
 	return tcp_ses;
 
 out_err_crypto_release:
 	cifs_crypto_shash_release(tcp_ses);
+
+	put_net(cifs_net_ns(tcp_ses));
 
 out_err:
 	if (tcp_ses) {
@@ -1777,6 +1833,8 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 {
 	int rc = -ENOMEM, xid;
 	struct cifsSesInfo *ses;
+	struct sockaddr_in *addr = (struct sockaddr_in *)&server->dstaddr;
+	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&server->dstaddr;
 
 	xid = GetXid();
 
@@ -1820,12 +1878,10 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 
 	/* new SMB session uses our server ref */
 	ses->server = server;
-	if (server->addr.sockAddr6.sin6_family == AF_INET6)
-		sprintf(ses->serverName, "%pI6",
-			&server->addr.sockAddr6.sin6_addr);
+	if (server->dstaddr.ss_family == AF_INET6)
+		sprintf(ses->serverName, "%pI6", &addr6->sin6_addr);
 	else
-		sprintf(ses->serverName, "%pI4",
-			&server->addr.sockAddr.sin_addr.s_addr);
+		sprintf(ses->serverName, "%pI4", &addr->sin_addr);
 
 	if (volume_info->username)
 		strncpy(ses->userName, volume_info->username,
@@ -2120,19 +2176,106 @@ bind_socket(struct TCP_Server_Info *server)
 }
 
 static int
-ipv4_connect(struct TCP_Server_Info *server)
+ip_rfc1001_connect(struct TCP_Server_Info *server)
 {
 	int rc = 0;
-	int val;
-	bool connected = false;
-	__be16 orig_port = 0;
+	/*
+	 * some servers require RFC1001 sessinit before sending
+	 * negprot - BB check reconnection in case where second
+	 * sessinit is sent but no second negprot
+	 */
+	struct rfc1002_session_packet *ses_init_buf;
+	struct smb_hdr *smb_buf;
+	ses_init_buf = kzalloc(sizeof(struct rfc1002_session_packet),
+			       GFP_KERNEL);
+	if (ses_init_buf) {
+		ses_init_buf->trailer.session_req.called_len = 32;
+
+		if (server->server_RFC1001_name &&
+		    server->server_RFC1001_name[0] != 0)
+			rfc1002mangle(ses_init_buf->trailer.
+				      session_req.called_name,
+				      server->server_RFC1001_name,
+				      RFC1001_NAME_LEN_WITH_NULL);
+		else
+			rfc1002mangle(ses_init_buf->trailer.
+				      session_req.called_name,
+				      DEFAULT_CIFS_CALLED_NAME,
+				      RFC1001_NAME_LEN_WITH_NULL);
+
+		ses_init_buf->trailer.session_req.calling_len = 32;
+
+		/*
+		 * calling name ends in null (byte 16) from old smb
+		 * convention.
+		 */
+		if (server->workstation_RFC1001_name &&
+		    server->workstation_RFC1001_name[0] != 0)
+			rfc1002mangle(ses_init_buf->trailer.
+				      session_req.calling_name,
+				      server->workstation_RFC1001_name,
+				      RFC1001_NAME_LEN_WITH_NULL);
+		else
+			rfc1002mangle(ses_init_buf->trailer.
+				      session_req.calling_name,
+				      "LINUX_CIFS_CLNT",
+				      RFC1001_NAME_LEN_WITH_NULL);
+
+		ses_init_buf->trailer.session_req.scope1 = 0;
+		ses_init_buf->trailer.session_req.scope2 = 0;
+		smb_buf = (struct smb_hdr *)ses_init_buf;
+
+		/* sizeof RFC1002_SESSION_REQUEST with no scope */
+		smb_buf->smb_buf_length = 0x81000044;
+		rc = smb_send(server, smb_buf, 0x44);
+		kfree(ses_init_buf);
+		/*
+		 * RFC1001 layer in at least one server
+		 * requires very short break before negprot
+		 * presumably because not expecting negprot
+		 * to follow so fast.  This is a simple
+		 * solution that works without
+		 * complicating the code and causes no
+		 * significant slowing down on mount
+		 * for everyone else
+		 */
+		usleep_range(1000, 2000);
+	}
+	/*
+	 * else the negprot may still work without this
+	 * even though malloc failed
+	 */
+
+	return rc;
+}
+
+static int
+generic_ip_connect(struct TCP_Server_Info *server)
+{
+	int rc = 0;
+	unsigned short int sport;
+	int slen, sfamily;
 	struct socket *socket = server->ssocket;
+	struct sockaddr *saddr;
+
+	saddr = (struct sockaddr *) &server->dstaddr;
+
+	if (server->dstaddr.ss_family == AF_INET6) {
+		sport = ((struct sockaddr_in6 *) saddr)->sin6_port;
+		slen = sizeof(struct sockaddr_in6);
+		sfamily = AF_INET6;
+	} else {
+		sport = ((struct sockaddr_in *) saddr)->sin_port;
+		slen = sizeof(struct sockaddr_in);
+		sfamily = AF_INET;
+	}
 
 	if (socket == NULL) {
-		rc = sock_create_kern(PF_INET, SOCK_STREAM,
-				      IPPROTO_TCP, &socket);
+		rc = __sock_create(cifs_net_ns(server), sfamily, SOCK_STREAM,
+				   IPPROTO_TCP, &socket, 1);
 		if (rc < 0) {
 			cERROR(1, "Error %d creating socket", rc);
+			server->ssocket = NULL;
 			return rc;
 		}
 
@@ -2140,218 +2283,19 @@ ipv4_connect(struct TCP_Server_Info *server)
 		cFYI(1, "Socket created");
 		server->ssocket = socket;
 		socket->sk->sk_allocation = GFP_NOFS;
-		cifs_reclassify_socket4(socket);
+		if (sfamily == AF_INET6)
+			cifs_reclassify_socket6(socket);
+		else
+			cifs_reclassify_socket4(socket);
 	}
 
 	rc = bind_socket(server);
 	if (rc < 0)
 		return rc;
 
-	/* user overrode default port */
-	if (server->addr.sockAddr.sin_port) {
-		rc = socket->ops->connect(socket, (struct sockaddr *)
-					  &server->addr.sockAddr,
-					  sizeof(struct sockaddr_in), 0);
-		if (rc >= 0)
-			connected = true;
-	}
-
-	if (!connected) {
-		/* save original port so we can retry user specified port
-			later if fall back ports fail this time  */
-		orig_port = server->addr.sockAddr.sin_port;
-
-		/* do not retry on the same port we just failed on */
-		if (server->addr.sockAddr.sin_port != htons(CIFS_PORT)) {
-			server->addr.sockAddr.sin_port = htons(CIFS_PORT);
-			rc = socket->ops->connect(socket,
-						(struct sockaddr *)
-						&server->addr.sockAddr,
-						sizeof(struct sockaddr_in), 0);
-			if (rc >= 0)
-				connected = true;
-		}
-	}
-	if (!connected) {
-		server->addr.sockAddr.sin_port = htons(RFC1001_PORT);
-		rc = socket->ops->connect(socket, (struct sockaddr *)
-					      &server->addr.sockAddr,
-					      sizeof(struct sockaddr_in), 0);
-		if (rc >= 0)
-			connected = true;
-	}
-
-	/* give up here - unless we want to retry on different
-		protocol families some day */
-	if (!connected) {
-		if (orig_port)
-			server->addr.sockAddr.sin_port = orig_port;
-		cFYI(1, "Error %d connecting to server via ipv4", rc);
-		sock_release(socket);
-		server->ssocket = NULL;
-		return rc;
-	}
-
-
-	/*
-	 * Eventually check for other socket options to change from
-	 *  the default. sock_setsockopt not used because it expects
-	 *  user space buffer
-	 */
-	socket->sk->sk_rcvtimeo = 7 * HZ;
-	socket->sk->sk_sndtimeo = 5 * HZ;
-
-	/* make the bufsizes depend on wsize/rsize and max requests */
-	if (server->noautotune) {
-		if (socket->sk->sk_sndbuf < (200 * 1024))
-			socket->sk->sk_sndbuf = 200 * 1024;
-		if (socket->sk->sk_rcvbuf < (140 * 1024))
-			socket->sk->sk_rcvbuf = 140 * 1024;
-	}
-
-	if (server->tcp_nodelay) {
-		val = 1;
-		rc = kernel_setsockopt(socket, SOL_TCP, TCP_NODELAY,
-				(char *)&val, sizeof(val));
-		if (rc)
-			cFYI(1, "set TCP_NODELAY socket option error %d", rc);
-	}
-
-	 cFYI(1, "sndbuf %d rcvbuf %d rcvtimeo 0x%lx",
-		 socket->sk->sk_sndbuf,
-		 socket->sk->sk_rcvbuf, socket->sk->sk_rcvtimeo);
-
-	/* send RFC1001 sessinit */
-	if (server->addr.sockAddr.sin_port == htons(RFC1001_PORT)) {
-		/* some servers require RFC1001 sessinit before sending
-		negprot - BB check reconnection in case where second
-		sessinit is sent but no second negprot */
-		struct rfc1002_session_packet *ses_init_buf;
-		struct smb_hdr *smb_buf;
-		ses_init_buf = kzalloc(sizeof(struct rfc1002_session_packet),
-				       GFP_KERNEL);
-		if (ses_init_buf) {
-			ses_init_buf->trailer.session_req.called_len = 32;
-			if (server->server_RFC1001_name &&
-			    server->server_RFC1001_name[0] != 0)
-				rfc1002mangle(ses_init_buf->trailer.
-						session_req.called_name,
-					      server->server_RFC1001_name,
-					      RFC1001_NAME_LEN_WITH_NULL);
-			else
-				rfc1002mangle(ses_init_buf->trailer.
-						session_req.called_name,
-					      DEFAULT_CIFS_CALLED_NAME,
-					      RFC1001_NAME_LEN_WITH_NULL);
-
-			ses_init_buf->trailer.session_req.calling_len = 32;
-
-			/* calling name ends in null (byte 16) from old smb
-			convention. */
-			if (server->workstation_RFC1001_name &&
-			    server->workstation_RFC1001_name[0] != 0)
-				rfc1002mangle(ses_init_buf->trailer.
-						session_req.calling_name,
-					      server->workstation_RFC1001_name,
-					      RFC1001_NAME_LEN_WITH_NULL);
-			else
-				rfc1002mangle(ses_init_buf->trailer.
-						session_req.calling_name,
-					      "LINUX_CIFS_CLNT",
-					      RFC1001_NAME_LEN_WITH_NULL);
-
-			ses_init_buf->trailer.session_req.scope1 = 0;
-			ses_init_buf->trailer.session_req.scope2 = 0;
-			smb_buf = (struct smb_hdr *)ses_init_buf;
-			/* sizeof RFC1002_SESSION_REQUEST with no scope */
-			smb_buf->smb_buf_length = 0x81000044;
-			rc = smb_send(server, smb_buf, 0x44);
-			kfree(ses_init_buf);
-			msleep(1); /* RFC1001 layer in at least one server
-				      requires very short break before negprot
-				      presumably because not expecting negprot
-				      to follow so fast.  This is a simple
-				      solution that works without
-				      complicating the code and causes no
-				      significant slowing down on mount
-				      for everyone else */
-		}
-		/* else the negprot may still work without this
-		even though malloc failed */
-
-	}
-
-	return rc;
-}
-
-static int
-ipv6_connect(struct TCP_Server_Info *server)
-{
-	int rc = 0;
-	int val;
-	bool connected = false;
-	__be16 orig_port = 0;
-	struct socket *socket = server->ssocket;
-
-	if (socket == NULL) {
-		rc = sock_create_kern(PF_INET6, SOCK_STREAM,
-				      IPPROTO_TCP, &socket);
-		if (rc < 0) {
-			cERROR(1, "Error %d creating ipv6 socket", rc);
-			socket = NULL;
-			return rc;
-		}
-
-		/* BB other socket options to set KEEPALIVE, NODELAY? */
-		cFYI(1, "ipv6 Socket created");
-		server->ssocket = socket;
-		socket->sk->sk_allocation = GFP_NOFS;
-		cifs_reclassify_socket6(socket);
-	}
-
-	rc = bind_socket(server);
-	if (rc < 0)
-		return rc;
-
-	/* user overrode default port */
-	if (server->addr.sockAddr6.sin6_port) {
-		rc = socket->ops->connect(socket,
-				(struct sockaddr *) &server->addr.sockAddr6,
-				sizeof(struct sockaddr_in6), 0);
-		if (rc >= 0)
-			connected = true;
-	}
-
-	if (!connected) {
-		/* save original port so we can retry user specified port
-			later if fall back ports fail this time  */
-
-		orig_port = server->addr.sockAddr6.sin6_port;
-		/* do not retry on the same port we just failed on */
-		if (server->addr.sockAddr6.sin6_port != htons(CIFS_PORT)) {
-			server->addr.sockAddr6.sin6_port = htons(CIFS_PORT);
-			rc = socket->ops->connect(socket, (struct sockaddr *)
-					&server->addr.sockAddr6,
-					sizeof(struct sockaddr_in6), 0);
-			if (rc >= 0)
-				connected = true;
-		}
-	}
-	if (!connected) {
-		server->addr.sockAddr6.sin6_port = htons(RFC1001_PORT);
-		rc = socket->ops->connect(socket, (struct sockaddr *)
-				&server->addr.sockAddr6,
-				sizeof(struct sockaddr_in6), 0);
-		if (rc >= 0)
-			connected = true;
-	}
-
-	/* give up here - unless we want to retry on different
-		protocol families some day */
-	if (!connected) {
-		if (orig_port)
-			server->addr.sockAddr6.sin6_port = orig_port;
-		cFYI(1, "Error %d connecting to server via ipv6", rc);
+	rc = socket->ops->connect(socket, saddr, slen, 0);
+	if (rc < 0) {
+		cFYI(1, "Error %d connecting to server", rc);
 		sock_release(socket);
 		server->ssocket = NULL;
 		return rc;
@@ -2365,17 +2309,59 @@ ipv6_connect(struct TCP_Server_Info *server)
 	socket->sk->sk_rcvtimeo = 7 * HZ;
 	socket->sk->sk_sndtimeo = 5 * HZ;
 
+	/* make the bufsizes depend on wsize/rsize and max requests */
+	if (server->noautotune) {
+		if (socket->sk->sk_sndbuf < (200 * 1024))
+			socket->sk->sk_sndbuf = 200 * 1024;
+		if (socket->sk->sk_rcvbuf < (140 * 1024))
+			socket->sk->sk_rcvbuf = 140 * 1024;
+	}
+
 	if (server->tcp_nodelay) {
-		val = 1;
+		int val = 1;
 		rc = kernel_setsockopt(socket, SOL_TCP, TCP_NODELAY,
 				(char *)&val, sizeof(val));
 		if (rc)
 			cFYI(1, "set TCP_NODELAY socket option error %d", rc);
 	}
 
-	server->ssocket = socket;
+	 cFYI(1, "sndbuf %d rcvbuf %d rcvtimeo 0x%lx",
+		 socket->sk->sk_sndbuf,
+		 socket->sk->sk_rcvbuf, socket->sk->sk_rcvtimeo);
+
+	if (sport == htons(RFC1001_PORT))
+		rc = ip_rfc1001_connect(server);
 
 	return rc;
+}
+
+static int
+ip_connect(struct TCP_Server_Info *server)
+{
+	unsigned short int *sport;
+	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&server->dstaddr;
+	struct sockaddr_in *addr = (struct sockaddr_in *)&server->dstaddr;
+
+	if (server->dstaddr.ss_family == AF_INET6)
+		sport = &addr6->sin6_port;
+	else
+		sport = &addr->sin_port;
+
+	if (*sport == 0) {
+		int rc;
+
+		/* try with 445 port at first */
+		*sport = htons(CIFS_PORT);
+
+		rc = generic_ip_connect(server);
+		if (rc >= 0)
+			return rc;
+
+		/* if it failed, try with 139 port */
+		*sport = htons(RFC1001_PORT);
+	}
+
+	return generic_ip_connect(server);
 }
 
 void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
@@ -2565,6 +2551,8 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 	cFYI(1, "file mode: 0x%x  dir mode: 0x%x",
 		cifs_sb->mnt_file_mode, cifs_sb->mnt_dir_mode);
 
+	cifs_sb->actimeo = pvolume_info->actimeo;
+
 	if (pvolume_info->noperm)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
 	if (pvolume_info->setuids)
@@ -2596,6 +2584,8 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 	if (pvolume_info->multiuser)
 		cifs_sb->mnt_cifs_flags |= (CIFS_MOUNT_MULTIUSER |
 					    CIFS_MOUNT_NO_PERM);
+	if (pvolume_info->strict_io)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_STRICT_IO;
 	if (pvolume_info->direct_io) {
 		cFYI(1, "mounting share using direct i/o");
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
@@ -2815,13 +2805,13 @@ remote_path_check:
 	/* check if a whole path (including prepath) is not remote */
 	if (!rc && cifs_sb->prepathlen && tcon) {
 		/* build_path_to_root works only when we have a valid tcon */
-		full_path = cifs_build_path_to_root(cifs_sb);
+		full_path = cifs_build_path_to_root(cifs_sb, tcon);
 		if (full_path == NULL) {
 			rc = -ENOMEM;
 			goto mount_fail_check;
 		}
 		rc = is_path_accessible(xid, tcon, cifs_sb, full_path);
-		if (rc != -EREMOTE) {
+		if (rc != 0 && rc != -EREMOTE) {
 			kfree(full_path);
 			goto mount_fail_check;
 		}
@@ -2900,24 +2890,16 @@ remote_path_check:
 		goto mount_fail_check;
 	}
 
-	tlink->tl_index = pSesInfo->linux_uid;
+	tlink->tl_uid = pSesInfo->linux_uid;
 	tlink->tl_tcon = tcon;
 	tlink->tl_time = jiffies;
 	set_bit(TCON_LINK_MASTER, &tlink->tl_flags);
 	set_bit(TCON_LINK_IN_TREE, &tlink->tl_flags);
 
-	rc = radix_tree_preload(GFP_KERNEL);
-	if (rc == -ENOMEM) {
-		kfree(tlink);
-		goto mount_fail_check;
-	}
-
+	cifs_sb->master_tlink = tlink;
 	spin_lock(&cifs_sb->tlink_tree_lock);
-	radix_tree_insert(&cifs_sb->tlink_tree, pSesInfo->linux_uid, tlink);
-	radix_tree_tag_set(&cifs_sb->tlink_tree, pSesInfo->linux_uid,
-			   CIFS_TLINK_MASTER_TAG);
+	tlink_rb_insert(&cifs_sb->tlink_tree, tlink);
 	spin_unlock(&cifs_sb->tlink_tree_lock);
-	radix_tree_preload_end();
 
 	queue_delayed_work(system_nrt_wq, &cifs_sb->prune_tlinks,
 				TLINK_IDLE_EXPIRE);
@@ -2960,8 +2942,8 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	TCONX_RSP *pSMBr;
 	unsigned char *bcc_ptr;
 	int rc = 0;
-	int length, bytes_left;
-	__u16 count;
+	int length;
+	__u16 bytes_left, count;
 
 	if (ses == NULL)
 		return -EIO;
@@ -2989,7 +2971,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		bcc_ptr++;              /* skip password */
 		/* already aligned so no need to do it below */
 	} else {
-		pSMB->PasswordLength = cpu_to_le16(CIFS_SESS_KEY_SIZE);
+		pSMB->PasswordLength = cpu_to_le16(CIFS_AUTH_RESP_SIZE);
 		/* BB FIXME add code to fail this if NTLMv2 or Kerberos
 		   specified as required (when that support is added to
 		   the vfs in the future) as only NTLM or the much
@@ -3005,9 +2987,10 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 					 bcc_ptr);
 		else
 #endif /* CIFS_WEAK_PW_HASH */
-		SMBNTencrypt(tcon->password, ses->server->cryptkey, bcc_ptr);
+		rc = SMBNTencrypt(tcon->password, ses->server->cryptkey,
+					bcc_ptr);
 
-		bcc_ptr += CIFS_SESS_KEY_SIZE;
+		bcc_ptr += CIFS_AUTH_RESP_SIZE;
 		if (ses->capabilities & CAP_UNICODE) {
 			/* must align unicode strings */
 			*bcc_ptr = 0; /* null byte password */
@@ -3045,7 +3028,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	pSMB->ByteCount = cpu_to_le16(count);
 
 	rc = SendReceive(xid, ses, smb_buffer, smb_buffer_response, &length,
-			 CIFS_STD_OP);
+			 0);
 
 	/* above now done in SendReceive */
 	if ((rc == 0) && (tcon != NULL)) {
@@ -3055,7 +3038,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		tcon->need_reconnect = false;
 		tcon->tid = smb_buffer_response->Tid;
 		bcc_ptr = pByteArea(smb_buffer_response);
-		bytes_left = BCC(smb_buffer_response);
+		bytes_left = get_bcc(smb_buffer_response);
 		length = strnlen(bcc_ptr, bytes_left - 2);
 		if (smb_buffer->Flags2 & SMBFLG2_UNICODE)
 			is_unicode = true;
@@ -3107,32 +3090,25 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 int
 cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 {
-	int i, ret;
+	struct rb_root *root = &cifs_sb->tlink_tree;
+	struct rb_node *node;
+	struct tcon_link *tlink;
 	char *tmp;
-	struct tcon_link *tlink[8];
-	unsigned long index = 0;
 
 	cancel_delayed_work_sync(&cifs_sb->prune_tlinks);
 
-	do {
-		spin_lock(&cifs_sb->tlink_tree_lock);
-		ret = radix_tree_gang_lookup(&cifs_sb->tlink_tree,
-					     (void **)tlink, index,
-					     ARRAY_SIZE(tlink));
-		/* increment index for next pass */
-		if (ret > 0)
-			index = tlink[ret - 1]->tl_index + 1;
-		for (i = 0; i < ret; i++) {
-			cifs_get_tlink(tlink[i]);
-			clear_bit(TCON_LINK_IN_TREE, &tlink[i]->tl_flags);
-			radix_tree_delete(&cifs_sb->tlink_tree,
-							tlink[i]->tl_index);
-		}
-		spin_unlock(&cifs_sb->tlink_tree_lock);
+	spin_lock(&cifs_sb->tlink_tree_lock);
+	while ((node = rb_first(root))) {
+		tlink = rb_entry(node, struct tcon_link, tl_rbnode);
+		cifs_get_tlink(tlink);
+		clear_bit(TCON_LINK_IN_TREE, &tlink->tl_flags);
+		rb_erase(node, root);
 
-		for (i = 0; i < ret; i++)
-			cifs_put_tlink(tlink[i]);
-	} while (ret != 0);
+		spin_unlock(&cifs_sb->tlink_tree_lock);
+		cifs_put_tlink(tlink);
+		spin_lock(&cifs_sb->tlink_tree_lock);
+	}
+	spin_unlock(&cifs_sb->tlink_tree_lock);
 
 	tmp = cifs_sb->prepath;
 	cifs_sb->prepathlen = 0;
@@ -3271,22 +3247,10 @@ out:
 	return tcon;
 }
 
-static struct tcon_link *
+static inline struct tcon_link *
 cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb)
 {
-	struct tcon_link *tlink;
-	unsigned int ret;
-
-	spin_lock(&cifs_sb->tlink_tree_lock);
-	ret = radix_tree_gang_lookup_tag(&cifs_sb->tlink_tree, (void **)&tlink,
-					0, 1, CIFS_TLINK_MASTER_TAG);
-	spin_unlock(&cifs_sb->tlink_tree_lock);
-
-	/* the master tcon should always be present */
-	if (ret == 0)
-		BUG();
-
-	return tlink;
+	return cifs_sb->master_tlink;
 }
 
 struct cifsTconInfo *
@@ -3302,6 +3266,47 @@ cifs_sb_tcon_pending_wait(void *unused)
 	return signal_pending(current) ? -ERESTARTSYS : 0;
 }
 
+/* find and return a tlink with given uid */
+static struct tcon_link *
+tlink_rb_search(struct rb_root *root, uid_t uid)
+{
+	struct rb_node *node = root->rb_node;
+	struct tcon_link *tlink;
+
+	while (node) {
+		tlink = rb_entry(node, struct tcon_link, tl_rbnode);
+
+		if (tlink->tl_uid > uid)
+			node = node->rb_left;
+		else if (tlink->tl_uid < uid)
+			node = node->rb_right;
+		else
+			return tlink;
+	}
+	return NULL;
+}
+
+/* insert a tcon_link into the tree */
+static void
+tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink)
+{
+	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct tcon_link *tlink;
+
+	while (*new) {
+		tlink = rb_entry(*new, struct tcon_link, tl_rbnode);
+		parent = *new;
+
+		if (tlink->tl_uid > new_tlink->tl_uid)
+			new = &((*new)->rb_left);
+		else
+			new = &((*new)->rb_right);
+	}
+
+	rb_link_node(&new_tlink->tl_rbnode, parent, new);
+	rb_insert_color(&new_tlink->tl_rbnode, root);
+}
+
 /*
  * Find or construct an appropriate tcon given a cifs_sb and the fsuid of the
  * current task.
@@ -3309,7 +3314,7 @@ cifs_sb_tcon_pending_wait(void *unused)
  * If the superblock doesn't refer to a multiuser mount, then just return
  * the master tcon for the mount.
  *
- * First, search the radix tree for an existing tcon for this fsuid. If one
+ * First, search the rbtree for an existing tcon for this fsuid. If one
  * exists, then check to see if it's pending construction. If it is then wait
  * for construction to complete. Once it's no longer pending, check to see if
  * it failed and either return an error or retry construction, depending on
@@ -3322,14 +3327,14 @@ struct tcon_link *
 cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
 {
 	int ret;
-	unsigned long fsuid = (unsigned long) current_fsuid();
+	uid_t fsuid = current_fsuid();
 	struct tcon_link *tlink, *newtlink;
 
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER))
 		return cifs_get_tlink(cifs_sb_master_tlink(cifs_sb));
 
 	spin_lock(&cifs_sb->tlink_tree_lock);
-	tlink = radix_tree_lookup(&cifs_sb->tlink_tree, fsuid);
+	tlink = tlink_rb_search(&cifs_sb->tlink_tree, fsuid);
 	if (tlink)
 		cifs_get_tlink(tlink);
 	spin_unlock(&cifs_sb->tlink_tree_lock);
@@ -3338,36 +3343,24 @@ cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
 		newtlink = kzalloc(sizeof(*tlink), GFP_KERNEL);
 		if (newtlink == NULL)
 			return ERR_PTR(-ENOMEM);
-		newtlink->tl_index = fsuid;
+		newtlink->tl_uid = fsuid;
 		newtlink->tl_tcon = ERR_PTR(-EACCES);
 		set_bit(TCON_LINK_PENDING, &newtlink->tl_flags);
 		set_bit(TCON_LINK_IN_TREE, &newtlink->tl_flags);
 		cifs_get_tlink(newtlink);
 
-		ret = radix_tree_preload(GFP_KERNEL);
-		if (ret != 0) {
-			kfree(newtlink);
-			return ERR_PTR(ret);
-		}
-
 		spin_lock(&cifs_sb->tlink_tree_lock);
 		/* was one inserted after previous search? */
-		tlink = radix_tree_lookup(&cifs_sb->tlink_tree, fsuid);
+		tlink = tlink_rb_search(&cifs_sb->tlink_tree, fsuid);
 		if (tlink) {
 			cifs_get_tlink(tlink);
 			spin_unlock(&cifs_sb->tlink_tree_lock);
-			radix_tree_preload_end();
 			kfree(newtlink);
 			goto wait_for_construction;
 		}
-		ret = radix_tree_insert(&cifs_sb->tlink_tree, fsuid, newtlink);
-		spin_unlock(&cifs_sb->tlink_tree_lock);
-		radix_tree_preload_end();
-		if (ret) {
-			kfree(newtlink);
-			return ERR_PTR(ret);
-		}
 		tlink = newtlink;
+		tlink_rb_insert(&cifs_sb->tlink_tree, tlink);
+		spin_unlock(&cifs_sb->tlink_tree_lock);
 	} else {
 wait_for_construction:
 		ret = wait_on_bit(&tlink->tl_flags, TCON_LINK_PENDING,
@@ -3413,39 +3406,39 @@ cifs_prune_tlinks(struct work_struct *work)
 {
 	struct cifs_sb_info *cifs_sb = container_of(work, struct cifs_sb_info,
 						    prune_tlinks.work);
-	struct tcon_link *tlink[8];
-	unsigned long now = jiffies;
-	unsigned long index = 0;
-	int i, ret;
+	struct rb_root *root = &cifs_sb->tlink_tree;
+	struct rb_node *node = rb_first(root);
+	struct rb_node *tmp;
+	struct tcon_link *tlink;
 
-	do {
-		spin_lock(&cifs_sb->tlink_tree_lock);
-		ret = radix_tree_gang_lookup(&cifs_sb->tlink_tree,
-					     (void **)tlink, index,
-					     ARRAY_SIZE(tlink));
-		/* increment index for next pass */
-		if (ret > 0)
-			index = tlink[ret - 1]->tl_index + 1;
-		for (i = 0; i < ret; i++) {
-			if (test_bit(TCON_LINK_MASTER, &tlink[i]->tl_flags) ||
-			    atomic_read(&tlink[i]->tl_count) != 0 ||
-			    time_after(tlink[i]->tl_time + TLINK_IDLE_EXPIRE,
-				       now)) {
-				tlink[i] = NULL;
-				continue;
-			}
-			cifs_get_tlink(tlink[i]);
-			clear_bit(TCON_LINK_IN_TREE, &tlink[i]->tl_flags);
-			radix_tree_delete(&cifs_sb->tlink_tree,
-					  tlink[i]->tl_index);
-		}
+	/*
+	 * Because we drop the spinlock in the loop in order to put the tlink
+	 * it's not guarded against removal of links from the tree. The only
+	 * places that remove entries from the tree are this function and
+	 * umounts. Because this function is non-reentrant and is canceled
+	 * before umount can proceed, this is safe.
+	 */
+	spin_lock(&cifs_sb->tlink_tree_lock);
+	node = rb_first(root);
+	while (node != NULL) {
+		tmp = node;
+		node = rb_next(tmp);
+		tlink = rb_entry(tmp, struct tcon_link, tl_rbnode);
+
+		if (test_bit(TCON_LINK_MASTER, &tlink->tl_flags) ||
+		    atomic_read(&tlink->tl_count) != 0 ||
+		    time_after(tlink->tl_time + TLINK_IDLE_EXPIRE, jiffies))
+			continue;
+
+		cifs_get_tlink(tlink);
+		clear_bit(TCON_LINK_IN_TREE, &tlink->tl_flags);
+		rb_erase(tmp, root);
+
 		spin_unlock(&cifs_sb->tlink_tree_lock);
-
-		for (i = 0; i < ret; i++) {
-			if (tlink[i] != NULL)
-				cifs_put_tlink(tlink[i]);
-		}
-	} while (ret != 0);
+		cifs_put_tlink(tlink);
+		spin_lock(&cifs_sb->tlink_tree_lock);
+	}
+	spin_unlock(&cifs_sb->tlink_tree_lock);
 
 	queue_delayed_work(system_nrt_wq, &cifs_sb->prune_tlinks,
 				TLINK_IDLE_EXPIRE);

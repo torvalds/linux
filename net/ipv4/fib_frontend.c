@@ -158,18 +158,20 @@ static void fib_flush(struct net *net)
 struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref)
 {
 	struct flowi fl = {
-		.nl_u = {
-			.ip4_u = {
-				.daddr = addr
-			}
-		},
-		.flags = FLOWI_FLAG_MATCH_ANY_IIF
+		.fl4_dst = addr,
 	};
 	struct fib_result res = { 0 };
 	struct net_device *dev = NULL;
+	struct fib_table *local_table;
+
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+	res.r = NULL;
+#endif
 
 	rcu_read_lock();
-	if (fib_lookup(net, &fl, &res)) {
+	local_table = fib_get_table(net, RT_TABLE_LOCAL);
+	if (!local_table ||
+	    fib_table_lookup(local_table, &fl, &res, FIB_LOOKUP_NOREF)) {
 		rcu_read_unlock();
 		return NULL;
 	}
@@ -193,7 +195,7 @@ static inline unsigned __inet_dev_addr_type(struct net *net,
 					    const struct net_device *dev,
 					    __be32 addr)
 {
-	struct flowi		fl = { .nl_u = { .ip4_u = { .daddr = addr } } };
+	struct flowi		fl = { .fl4_dst = addr };
 	struct fib_result	res;
 	unsigned ret = RTN_BROADCAST;
 	struct fib_table *local_table;
@@ -247,13 +249,9 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 {
 	struct in_device *in_dev;
 	struct flowi fl = {
-		.nl_u = {
-			.ip4_u = {
-				.daddr = src,
-				.saddr = dst,
-				.tos = tos
-			}
-		},
+		.fl4_dst = src,
+		.fl4_src = dst,
+		.fl4_tos = tos,
 		.mark = mark,
 		.iif = oif
 	};
@@ -853,13 +851,9 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 	struct fib_result       res;
 	struct flowi            fl = {
 		.mark = frn->fl_mark,
-		.nl_u = {
-			.ip4_u = {
-				.daddr = frn->fl_addr,
-				.tos = frn->fl_tos,
-				.scope = frn->fl_scope
-			}
-		}
+		.fl4_dst = frn->fl_addr,
+		.fl4_tos = frn->fl_tos,
+		.fl4_scope = frn->fl_scope,
 	};
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
@@ -999,7 +993,11 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 		rt_cache_flush(dev_net(dev), 0);
 		break;
 	case NETDEV_UNREGISTER_BATCH:
-		rt_cache_flush_batch();
+		/* The batch unregister is only called on the first
+		 * device in the list of devices being unregistered.
+		 * Therefore we should not pass dev_net(dev) in here.
+		 */
+		rt_cache_flush_batch(NULL);
 		break;
 	}
 	return NOTIFY_DONE;

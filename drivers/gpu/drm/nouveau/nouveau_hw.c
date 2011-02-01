@@ -519,11 +519,11 @@ nouveau_hw_fix_bad_vpll(struct drm_device *dev, int head)
 
 	struct pll_lims pll_lim;
 	struct nouveau_pll_vals pv;
-	uint32_t pllreg = head ? NV_RAMDAC_VPLL2 : NV_PRAMDAC_VPLL_COEFF;
+	enum pll_types pll = head ? PLL_VPLL1 : PLL_VPLL0;
 
-	if (get_pll_limits(dev, pllreg, &pll_lim))
+	if (get_pll_limits(dev, pll, &pll_lim))
 		return;
-	nouveau_hw_get_pllvals(dev, pllreg, &pv);
+	nouveau_hw_get_pllvals(dev, pll, &pv);
 
 	if (pv.M1 >= pll_lim.vco1.min_m && pv.M1 <= pll_lim.vco1.max_m &&
 	    pv.N1 >= pll_lim.vco1.min_n && pv.N1 <= pll_lim.vco1.max_n &&
@@ -536,7 +536,7 @@ nouveau_hw_fix_bad_vpll(struct drm_device *dev, int head)
 	pv.M1 = pll_lim.vco1.max_m;
 	pv.N1 = pll_lim.vco1.min_n;
 	pv.log2P = pll_lim.max_usable_log2p;
-	nouveau_hw_setpll(dev, pllreg, &pv);
+	nouveau_hw_setpll(dev, pll_lim.reg, &pv);
 }
 
 /*
@@ -953,7 +953,7 @@ nv_load_state_ext(struct drm_device *dev, int head,
 			NVWriteCRTC(dev, head, NV_PCRTC_850, regp->crtc_850);
 
 			reg900 = NVReadRAMDAC(dev, head, NV_PRAMDAC_900);
-			if (regp->crtc_cfg == NV_PCRTC_CONFIG_START_ADDRESS_HSYNC)
+			if (regp->crtc_cfg == NV10_PCRTC_CONFIG_START_ADDRESS_HSYNC)
 				NVWriteRAMDAC(dev, head, NV_PRAMDAC_900, reg900 | 0x10000);
 			else
 				NVWriteRAMDAC(dev, head, NV_PRAMDAC_900, reg900 & ~0x10000);
@@ -999,8 +999,8 @@ nv_load_state_ext(struct drm_device *dev, int head,
 		if (dev_priv->card_type == NV_10) {
 			/* Not waiting for vertical retrace before modifying
 			   CRE_53/CRE_54 causes lockups. */
-			nouveau_wait_until(dev, 650000000, NV_PRMCIO_INP0__COLOR, 0x8, 0x8);
-			nouveau_wait_until(dev, 650000000, NV_PRMCIO_INP0__COLOR, 0x8, 0x0);
+			nouveau_wait_eq(dev, 650000000, NV_PRMCIO_INP0__COLOR, 0x8, 0x8);
+			nouveau_wait_eq(dev, 650000000, NV_PRMCIO_INP0__COLOR, 0x8, 0x0);
 		}
 
 		wr_cio_state(dev, head, regp, NV_CIO_CRE_53);
@@ -1017,8 +1017,9 @@ nv_load_state_ext(struct drm_device *dev, int head,
 
 	NVWriteCRTC(dev, head, NV_PCRTC_START, regp->fb_start);
 
-	/* Setting 1 on this value gives you interrupts for every vblank period. */
-	NVWriteCRTC(dev, head, NV_PCRTC_INTR_EN_0, 0);
+	/* Enable vblank interrupts. */
+	NVWriteCRTC(dev, head, NV_PCRTC_INTR_EN_0,
+		    (dev->vblank_enabled[head] ? 1 : 0));
 	NVWriteCRTC(dev, head, NV_PCRTC_INTR_0, NV_PCRTC_INTR_0_VBLANK);
 }
 

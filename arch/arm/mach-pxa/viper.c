@@ -249,9 +249,9 @@ static inline int viper_bit_to_irq(int bit)
 	return viper_isa_irqs[bit] + PXA_ISA_IRQ(0);
 }
 
-static void viper_ack_irq(unsigned int irq)
+static void viper_ack_irq(struct irq_data *d)
 {
-	int viper_irq = viper_irq_to_bitmask(irq);
+	int viper_irq = viper_irq_to_bitmask(d->irq);
 
 	if (viper_irq & 0xff)
 		VIPER_LO_IRQ_STATUS = viper_irq;
@@ -259,14 +259,14 @@ static void viper_ack_irq(unsigned int irq)
 		VIPER_HI_IRQ_STATUS = (viper_irq >> 8);
 }
 
-static void viper_mask_irq(unsigned int irq)
+static void viper_mask_irq(struct irq_data *d)
 {
-	viper_irq_enabled_mask &= ~(viper_irq_to_bitmask(irq));
+	viper_irq_enabled_mask &= ~(viper_irq_to_bitmask(d->irq));
 }
 
-static void viper_unmask_irq(unsigned int irq)
+static void viper_unmask_irq(struct irq_data *d)
 {
-	viper_irq_enabled_mask |= viper_irq_to_bitmask(irq);
+	viper_irq_enabled_mask |= viper_irq_to_bitmask(d->irq);
 }
 
 static inline unsigned long viper_irq_pending(void)
@@ -283,7 +283,7 @@ static void viper_irq_handler(unsigned int irq, struct irq_desc *desc)
 	do {
 		/* we're in a chained irq handler,
 		 * so ack the interrupt by hand */
-		desc->chip->ack(irq);
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 		if (likely(pending)) {
 			irq = viper_bit_to_irq(__ffs(pending));
@@ -294,10 +294,10 @@ static void viper_irq_handler(unsigned int irq, struct irq_desc *desc)
 }
 
 static struct irq_chip viper_irq_chip = {
-	.name	= "ISA",
-	.ack	= viper_ack_irq,
-	.mask	= viper_mask_irq,
-	.unmask	= viper_unmask_irq
+	.name		= "ISA",
+	.irq_ack	= viper_ack_irq,
+	.irq_mask	= viper_mask_irq,
+	.irq_unmask	= viper_unmask_irq
 };
 
 static void __init viper_init_irq(void)
@@ -983,7 +983,7 @@ static struct map_desc viper_io_desc[] __initdata = {
 
 static void __init viper_map_io(void)
 {
-	pxa_map_io();
+	pxa25x_map_io();
 
 	iotable_init(viper_io_desc, ARRAY_SIZE(viper_io_desc));
 

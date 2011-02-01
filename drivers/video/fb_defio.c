@@ -75,7 +75,7 @@ int fb_deferred_io_fsync(struct file *file, int datasync)
 		return 0;
 
 	/* Kill off the delayed work */
-	cancel_rearming_delayed_work(&info->deferred_work);
+	cancel_delayed_work_sync(&info->deferred_work);
 
 	/* Run it immediately */
 	return schedule_delayed_work(&info->deferred_work, 0);

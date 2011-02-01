@@ -38,15 +38,35 @@ The Linux DCCP implementation does not currently support all the features that a
 specified in RFCs 4340...42.
 
 The known bugs are at:
-	http://linux-net.osdl.org/index.php/TODO#DCCP
+	http://www.linuxfoundation.org/collaborate/workgroups/networking/todo#DCCP
 
 For more up-to-date versions of the DCCP implementation, please consider using
 the experimental DCCP test tree; instructions for checking this out are on:
-http://linux-net.osdl.org/index.php/DCCP_Testing#Experimental_DCCP_source_tree
+http://www.linuxfoundation.org/collaborate/workgroups/networking/dccp_testing#Experimental_DCCP_source_tree
 
 
 Socket options
 ==============
+DCCP_SOCKOPT_QPOLICY_ID sets the dequeuing policy for outgoing packets. It takes
+a policy ID as argument and can only be set before the connection (i.e. changes
+during an established connection are not supported). Currently, two policies are
+defined: the "simple" policy (DCCPQ_POLICY_SIMPLE), which does nothing special,
+and a priority-based variant (DCCPQ_POLICY_PRIO). The latter allows to pass an
+u32 priority value as ancillary data to sendmsg(), where higher numbers indicate
+a higher packet priority (similar to SO_PRIORITY). This ancillary data needs to
+be formatted using a cmsg(3) message header filled in as follows:
+	cmsg->cmsg_level = SOL_DCCP;
+	cmsg->cmsg_type	 = DCCP_SCM_PRIORITY;
+	cmsg->cmsg_len	 = CMSG_LEN(sizeof(uint32_t));	/* or CMSG_LEN(4) */
+
+DCCP_SOCKOPT_QPOLICY_TXQLEN sets the maximum length of the output queue. A zero
+value is always interpreted as unbounded queue length. If different from zero,
+the interpretation of this parameter depends on the current dequeuing policy
+(see above): the "simple" policy will enforce a fixed queue size by returning
+EAGAIN, whereas the "prio" policy enforces a fixed queue length by dropping the
+lowest-priority packet first. The default value for this parameter is
+initialised from /proc/sys/net/dccp/default/tx_qlen.
+
 DCCP_SOCKOPT_SERVICE sets the service. The specification mandates use of
 service codes (RFC 4340, sec. 8.1.2); if this socket option is not set,
 the socket will fall back to 0 (which means that no meaningful service code
@@ -147,6 +167,7 @@ rx_ccid = 2
 seq_window = 100
 	The initial sequence window (sec. 7.5.2) of the sender. This influences
 	the local ackno validity and the remote seqno validity windows (7.5.1).
+	Values in the range Wmin = 32 (RFC 4340, 7.5.2) up to 2^32-1 can be set.
 
 tx_qlen = 5
 	The size of the transmit buffer in packets. A value of 0 corresponds

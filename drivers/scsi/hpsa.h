@@ -45,7 +45,6 @@ struct hpsa_scsi_dev_t {
 	unsigned char device_id[16];    /* from inquiry pg. 0x83 */
 	unsigned char vendor[8];        /* bytes 8-15 of inquiry data */
 	unsigned char model[16];        /* bytes 16-31 of inquiry data */
-	unsigned char revision[4];      /* bytes 32-35 of inquiry data */
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
 };
 

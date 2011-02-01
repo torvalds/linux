@@ -14,11 +14,13 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/highmem.h>
 #include <linux/log2.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/card.h>
 #include <linux/amba/bus.h>
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
@@ -45,6 +47,8 @@ static unsigned int fmax = 515633;
  *	      is asserted (likewise for RX)
  * @fifohalfsize: number of bytes that can be written when MCI_TXFIFOHALFEMPTY
  *		  is asserted (likewise for RX)
+ * @sdio: variant supports SDIO
+ * @st_clkdiv: true if using a ST-specific clock divider algorithm
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -52,6 +56,8 @@ struct variant_data {
 	unsigned int		datalength_bits;
 	unsigned int		fifosize;
 	unsigned int		fifohalfsize;
+	bool			sdio;
+	bool			st_clkdiv;
 };
 
 static struct variant_data variant_arm = {
@@ -65,6 +71,7 @@ static struct variant_data variant_u300 = {
 	.fifohalfsize		= 8 * 4,
 	.clkreg_enable		= 1 << 13, /* HWFCEN */
 	.datalength_bits	= 16,
+	.sdio			= true,
 };
 
 static struct variant_data variant_ux500 = {
@@ -73,7 +80,10 @@ static struct variant_data variant_ux500 = {
 	.clkreg			= MCI_CLK_ENABLE,
 	.clkreg_enable		= 1 << 14, /* HWFCEN */
 	.datalength_bits	= 24,
+	.sdio			= true,
+	.st_clkdiv		= true,
 };
+
 /*
  * This must be called with host->lock held
  */
@@ -86,7 +96,22 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 		if (desired >= host->mclk) {
 			clk = MCI_CLK_BYPASS;
 			host->cclk = host->mclk;
+		} else if (variant->st_clkdiv) {
+			/*
+			 * DB8500 TRM says f = mclk / (clkdiv + 2)
+			 * => clkdiv = (mclk / f) - 2
+			 * Round the divider up so we don't exceed the max
+			 * frequency
+			 */
+			clk = DIV_ROUND_UP(host->mclk, desired) - 2;
+			if (clk >= 256)
+				clk = 255;
+			host->cclk = host->mclk / (clk + 2);
 		} else {
+			/*
+			 * PL180 TRM says f = mclk / (2 * (clkdiv + 1))
+			 * => clkdiv = mclk / (2 * f) - 1
+			 */
 			clk = host->mclk / (2 * desired) - 1;
 			if (clk >= 256)
 				clk = 255;
@@ -129,10 +154,26 @@ mmci_request_end(struct mmci_host *host, struct mmc_request *mrq)
 	spin_lock(&host->lock);
 }
 
+static void mmci_set_mask1(struct mmci_host *host, unsigned int mask)
+{
+	void __iomem *base = host->base;
+
+	if (host->singleirq) {
+		unsigned int mask0 = readl(base + MMCIMASK0);
+
+		mask0 &= ~MCI_IRQ1MASK;
+		mask0 |= mask;
+
+		writel(mask0, base + MMCIMASK0);
+	}
+
+	writel(mask, base + MMCIMASK1);
+}
+
 static void mmci_stop_data(struct mmci_host *host)
 {
 	writel(0, host->base + MMCIDATACTRL);
-	writel(0, host->base + MMCIMASK1);
+	mmci_set_mask1(host, 0);
 	host->data = NULL;
 }
 
@@ -196,9 +237,14 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 		irqmask = MCI_TXFIFOHALFEMPTYMASK;
 	}
 
+	/* The ST Micro variants has a special bit to enable SDIO */
+	if (variant->sdio && host->mmc->card)
+		if (mmc_card_sdio(host->mmc->card))
+			datactrl |= MCI_ST_DPSM_SDIOEN;
+
 	writel(datactrl, base + MMCIDATACTRL);
 	writel(readl(base + MMCIMASK0) & ~MCI_DATAENDMASK, base + MMCIMASK0);
-	writel(irqmask, base + MMCIMASK1);
+	mmci_set_mask1(host, irqmask);
 }
 
 static void
@@ -233,29 +279,26 @@ static void
 mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	      unsigned int status)
 {
-	if (status & MCI_DATABLOCKEND) {
-		host->data_xfered += data->blksz;
-#ifdef CONFIG_ARCH_U300
-		/*
-		 * On the U300 some signal or other is
-		 * badly routed so that a data write does
-		 * not properly terminate with a MCI_DATAEND
-		 * status flag. This quirk will make writes
-		 * work again.
-		 */
-		if (data->flags & MMC_DATA_WRITE)
-			status |= MCI_DATAEND;
-#endif
-	}
+	/* First check for errors */
 	if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
+		u32 remain, success;
+
+		/* Calculate how far we are into the transfer */
+		remain = readl(host->base + MMCIDATACNT);
+		success = data->blksz * data->blocks - remain;
+
 		dev_dbg(mmc_dev(host->mmc), "MCI ERROR IRQ (status %08x)\n", status);
-		if (status & MCI_DATACRCFAIL)
+		if (status & MCI_DATACRCFAIL) {
+			/* Last block was not successful */
+			host->data_xfered = round_down(success - 1, data->blksz);
 			data->error = -EILSEQ;
-		else if (status & MCI_DATATIMEOUT)
+		} else if (status & MCI_DATATIMEOUT) {
+			host->data_xfered = round_down(success, data->blksz);
 			data->error = -ETIMEDOUT;
-		else if (status & (MCI_TXUNDERRUN|MCI_RXOVERRUN))
+		} else if (status & (MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
+			host->data_xfered = round_down(success, data->blksz);
 			data->error = -EIO;
-		status |= MCI_DATAEND;
+		}
 
 		/*
 		 * We hit an error condition.  Ensure that any data
@@ -273,8 +316,16 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 			local_irq_restore(flags);
 		}
 	}
-	if (status & MCI_DATAEND) {
+
+	if (status & MCI_DATABLOCKEND)
+		dev_err(mmc_dev(host->mmc), "stray MCI_DATABLOCKEND interrupt\n");
+
+	if (status & MCI_DATAEND || data->error) {
 		mmci_stop_data(host);
+
+		if (!data->error)
+			/* The error clause is handled above, success! */
+			host->data_xfered += data->blksz * data->blocks;
 
 		if (!data->stop) {
 			mmci_request_end(host, data->mrq);
@@ -292,15 +343,15 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 
 	host->cmd = NULL;
 
-	cmd->resp[0] = readl(base + MMCIRESPONSE0);
-	cmd->resp[1] = readl(base + MMCIRESPONSE1);
-	cmd->resp[2] = readl(base + MMCIRESPONSE2);
-	cmd->resp[3] = readl(base + MMCIRESPONSE3);
-
 	if (status & MCI_CMDTIMEOUT) {
 		cmd->error = -ETIMEDOUT;
 	} else if (status & MCI_CMDCRCFAIL && cmd->flags & MMC_RSP_CRC) {
 		cmd->error = -EILSEQ;
+	} else {
+		cmd->resp[0] = readl(base + MMCIRESPONSE0);
+		cmd->resp[1] = readl(base + MMCIRESPONSE1);
+		cmd->resp[2] = readl(base + MMCIRESPONSE2);
+		cmd->resp[3] = readl(base + MMCIRESPONSE3);
 	}
 
 	if (!cmd->data || cmd->error) {
@@ -356,7 +407,32 @@ static int mmci_pio_write(struct mmci_host *host, char *buffer, unsigned int rem
 			 variant->fifosize : variant->fifohalfsize;
 		count = min(remain, maxcnt);
 
-		writesl(base + MMCIFIFO, ptr, count >> 2);
+		/*
+		 * The ST Micro variant for SDIO transfer sizes
+		 * less then 8 bytes should have clock H/W flow
+		 * control disabled.
+		 */
+		if (variant->sdio &&
+		    mmc_card_sdio(host->mmc->card)) {
+			if (count < 8)
+				writel(readl(host->base + MMCICLOCK) &
+					~variant->clkreg_enable,
+					host->base + MMCICLOCK);
+			else
+				writel(readl(host->base + MMCICLOCK) |
+					variant->clkreg_enable,
+					host->base + MMCICLOCK);
+		}
+
+		/*
+		 * SDIO especially may want to send something that is
+		 * not divisible by 4 (as opposed to card sectors
+		 * etc), and the FIFO only accept full 32-bit writes.
+		 * So compensate by adding +3 on the count, a single
+		 * byte become a 32bit write, 7 bytes will be two
+		 * 32bit writes etc.
+		 */
+		writesl(base + MMCIFIFO, ptr, (count + 3) >> 2);
 
 		ptr += count;
 		remain -= count;
@@ -437,7 +513,7 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 	 * "any data available" mode.
 	 */
 	if (status & MCI_RXACTIVE && host->size < variant->fifosize)
-		writel(MCI_RXDATAAVLBLMASK, base + MMCIMASK1);
+		mmci_set_mask1(host, MCI_RXDATAAVLBLMASK);
 
 	/*
 	 * If we run out of data, disable the data IRQs; this
@@ -446,7 +522,7 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 	 * stops us racing with our data end IRQ.
 	 */
 	if (host->size == 0) {
-		writel(0, base + MMCIMASK1);
+		mmci_set_mask1(host, 0);
 		writel(readl(base + MMCIMASK0) | MCI_DATAENDMASK, base + MMCIMASK0);
 	}
 
@@ -469,6 +545,14 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 		struct mmc_data *data;
 
 		status = readl(host->base + MMCISTATUS);
+
+		if (host->singleirq) {
+			if (status & readl(host->base + MMCIMASK1))
+				mmci_pio_irq(irq, dev_id);
+
+			status &= ~MCI_IRQ1MASK;
+		}
+
 		status &= readl(host->base + MMCIMASK0);
 		writel(status, host->base + MMCICLEAR);
 
@@ -806,19 +890,24 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	if (ret)
 		goto unmap;
 
-	ret = request_irq(dev->irq[1], mmci_pio_irq, IRQF_SHARED, DRIVER_NAME " (pio)", host);
-	if (ret)
-		goto irq0_free;
+	if (dev->irq[1] == NO_IRQ)
+		host->singleirq = true;
+	else {
+		ret = request_irq(dev->irq[1], mmci_pio_irq, IRQF_SHARED,
+				  DRIVER_NAME " (pio)", host);
+		if (ret)
+			goto irq0_free;
+	}
 
 	writel(MCI_IRQENABLE, host->base + MMCIMASK0);
 
 	amba_set_drvdata(dev, mmc);
 
-	mmc_add_host(mmc);
-
-	dev_info(&dev->dev, "%s: MMCI rev %x cfg %02x at 0x%016llx irq %d,%d\n",
-		mmc_hostname(mmc), amba_rev(dev), amba_config(dev),
+	dev_info(&dev->dev, "%s: PL%03x rev%u at 0x%08llx irq %d,%d\n",
+		mmc_hostname(mmc), amba_part(dev), amba_rev(dev),
 		(unsigned long long)dev->res.start, dev->irq[0], dev->irq[1]);
+
+	mmc_add_host(mmc);
 
 	return 0;
 
@@ -864,7 +953,8 @@ static int __devexit mmci_remove(struct amba_device *dev)
 		writel(0, host->base + MMCIDATACTRL);
 
 		free_irq(dev->irq[0], host);
-		free_irq(dev->irq[1], host);
+		if (!host->singleirq)
+			free_irq(dev->irq[1], host);
 
 		if (host->gpio_wp != -ENOSYS)
 			gpio_free(host->gpio_wp);

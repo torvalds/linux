@@ -806,7 +806,7 @@ size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom, size_t size);
 
 /* Power management related routines */
 int pci_save_state(struct pci_dev *dev);
-int pci_restore_state(struct pci_dev *dev);
+void pci_restore_state(struct pci_dev *dev);
 int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state);
 int pci_set_power_state(struct pci_dev *dev, pci_power_t state);
 pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state);
@@ -820,7 +820,6 @@ int pci_prepare_to_sleep(struct pci_dev *dev);
 int pci_back_from_sleep(struct pci_dev *dev);
 bool pci_dev_run_wake(struct pci_dev *dev);
 bool pci_check_pme_status(struct pci_dev *dev);
-void pci_wakeup_event(struct pci_dev *dev);
 void pci_pme_wakeup_bus(struct pci_bus *bus);
 
 static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state,
@@ -994,6 +993,14 @@ extern void pci_restore_msi_state(struct pci_dev *dev);
 extern int pci_msi_enabled(void);
 #endif
 
+#ifdef CONFIG_PCIEPORTBUS
+extern bool pcie_ports_disabled;
+extern bool pcie_ports_auto;
+#else
+#define pcie_ports_disabled	true
+#define pcie_ports_auto		false
+#endif
+
 #ifndef CONFIG_PCIEASPM
 static inline int pcie_aspm_enabled(void)
 {
@@ -1001,6 +1008,14 @@ static inline int pcie_aspm_enabled(void)
 }
 #else
 extern int pcie_aspm_enabled(void);
+#endif
+
+#ifdef CONFIG_PCIEAER
+void pci_no_aer(void);
+bool pci_aer_available(void);
+#else
+static inline void pci_no_aer(void) { }
+static inline bool pci_aer_available(void) { return false; }
 #endif
 
 #ifndef CONFIG_PCIE_ECRC
@@ -1168,10 +1183,8 @@ static inline int pci_save_state(struct pci_dev *dev)
 	return 0;
 }
 
-static inline int pci_restore_state(struct pci_dev *dev)
-{
-	return 0;
-}
+static inline void pci_restore_state(struct pci_dev *dev)
+{ }
 
 static inline int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {

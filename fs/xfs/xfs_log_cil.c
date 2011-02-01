@@ -61,7 +61,7 @@ xlog_cil_init(
 	INIT_LIST_HEAD(&cil->xc_committing);
 	spin_lock_init(&cil->xc_cil_lock);
 	init_rwsem(&cil->xc_ctx_lock);
-	sv_init(&cil->xc_commit_wait, SV_DEFAULT, "cilwait");
+	init_waitqueue_head(&cil->xc_commit_wait);
 
 	INIT_LIST_HEAD(&ctx->committing);
 	INIT_LIST_HEAD(&ctx->busy_extents);
@@ -361,15 +361,10 @@ xlog_cil_committed(
 	int	abort)
 {
 	struct xfs_cil_ctx	*ctx = args;
-	struct xfs_log_vec	*lv;
-	int			abortflag = abort ? XFS_LI_ABORTED : 0;
 	struct xfs_busy_extent	*busyp, *n;
 
-	/* unpin all the log items */
-	for (lv = ctx->lv_chain; lv; lv = lv->lv_next ) {
-		xfs_trans_item_committed(lv->lv_item, ctx->start_lsn,
-							abortflag);
-	}
+	xfs_trans_committed_bulk(ctx->cil->xc_log->l_ailp, ctx->lv_chain,
+					ctx->start_lsn, abort);
 
 	list_for_each_entry_safe(busyp, n, &ctx->busy_extents, list)
 		xfs_alloc_busy_clear(ctx->cil->xc_log->l_mp, busyp);
@@ -548,7 +543,7 @@ xlog_cil_push(
 
 	error = xlog_write(log, &lvhdr, tic, &ctx->start_lsn, NULL, 0);
 	if (error)
-		goto out_abort;
+		goto out_abort_free_ticket;
 
 	/*
 	 * now that we've written the checkpoint into the log, strictly
@@ -568,14 +563,15 @@ restart:
 			 * It is still being pushed! Wait for the push to
 			 * complete, then start again from the beginning.
 			 */
-			sv_wait(&cil->xc_commit_wait, 0, &cil->xc_cil_lock, 0);
+			xlog_wait(&cil->xc_commit_wait, &cil->xc_cil_lock);
 			goto restart;
 		}
 	}
 	spin_unlock(&cil->xc_cil_lock);
 
+	/* xfs_log_done always frees the ticket on error. */
 	commit_lsn = xfs_log_done(log->l_mp, tic, &commit_iclog, 0);
-	if (error || commit_lsn == -1)
+	if (commit_lsn == -1)
 		goto out_abort;
 
 	/* attach all the transactions w/ busy extents to iclog */
@@ -592,7 +588,7 @@ restart:
 	 */
 	spin_lock(&cil->xc_cil_lock);
 	ctx->commit_lsn = commit_lsn;
-	sv_broadcast(&cil->xc_commit_wait);
+	wake_up_all(&cil->xc_commit_wait);
 	spin_unlock(&cil->xc_cil_lock);
 
 	/* release the hounds! */
@@ -605,6 +601,8 @@ out_free_ticket:
 	kmem_free(new_ctx);
 	return 0;
 
+out_abort_free_ticket:
+	xfs_log_ticket_put(tic);
 out_abort:
 	xlog_cil_committed(ctx, XFS_LI_ABORTED);
 	return XFS_ERROR(EIO);
@@ -627,7 +625,7 @@ out_abort:
  * background commit, returns without it held once background commits are
  * allowed again.
  */
-int
+void
 xfs_log_commit_cil(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
@@ -641,11 +639,6 @@ xfs_log_commit_cil(
 
 	if (flags & XFS_TRANS_RELEASE_LOG_RES)
 		log_flags = XFS_LOG_REL_PERM_RESERV;
-
-	if (XLOG_FORCED_SHUTDOWN(log)) {
-		xlog_cil_free_logvec(log_vector);
-		return XFS_ERROR(EIO);
-	}
 
 	/*
 	 * do all the hard work of formatting items (including memory
@@ -706,7 +699,6 @@ xfs_log_commit_cil(
 	 */
 	if (push)
 		xlog_cil_push(log, 0);
-	return 0;
 }
 
 /*
@@ -757,7 +749,7 @@ restart:
 			 * It is still being pushed! Wait for the push to
 			 * complete, then start again from the beginning.
 			 */
-			sv_wait(&cil->xc_commit_wait, 0, &cil->xc_cil_lock, 0);
+			xlog_wait(&cil->xc_commit_wait, &cil->xc_cil_lock);
 			goto restart;
 		}
 		if (ctx->sequence != sequence)

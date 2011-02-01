@@ -30,14 +30,12 @@
 #include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <plat/mcbsp.h>
 
 #include <asm/mach-types.h>
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
-#include "../codecs/tlv320aic3x.h"
 
 #define RX51_TVOUT_SEL_GPIO		40
 #define RX51_JACK_DETECT_GPIO		177
@@ -58,19 +56,21 @@ static int rx51_jack_func;
 
 static void rx51_ext_control(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
 	if (rx51_spk_func)
-		snd_soc_dapm_enable_pin(codec, "Ext Spk");
+		snd_soc_dapm_enable_pin(dapm, "Ext Spk");
 	else
-		snd_soc_dapm_disable_pin(codec, "Ext Spk");
+		snd_soc_dapm_disable_pin(dapm, "Ext Spk");
 	if (rx51_dmic_func)
-		snd_soc_dapm_enable_pin(codec, "DMic");
+		snd_soc_dapm_enable_pin(dapm, "DMic");
 	else
-		snd_soc_dapm_disable_pin(codec, "DMic");
+		snd_soc_dapm_disable_pin(dapm, "DMic");
 
 	gpio_set_value(RX51_TVOUT_SEL_GPIO,
 		       rx51_jack_func == RX51_JACK_TVOUT);
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 }
 
 static int rx51_startup(struct snd_pcm_substream *substream)
@@ -244,12 +244,13 @@ static const struct snd_kcontrol_new aic34_rx51_controls[] = {
 static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
 
 	/* Set up NC codec pins */
-	snd_soc_dapm_nc_pin(codec, "MIC3L");
-	snd_soc_dapm_nc_pin(codec, "MIC3R");
-	snd_soc_dapm_nc_pin(codec, "LINE1R");
+	snd_soc_dapm_nc_pin(dapm, "MIC3L");
+	snd_soc_dapm_nc_pin(dapm, "MIC3R");
+	snd_soc_dapm_nc_pin(dapm, "LINE1R");
 
 	/* Add RX-51 specific controls */
 	err = snd_soc_add_controls(codec, aic34_rx51_controls,
@@ -258,13 +259,13 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 		return err;
 
 	/* Add RX-51 specific widgets */
-	snd_soc_dapm_new_controls(codec, aic34_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, aic34_dapm_widgets,
 				  ARRAY_SIZE(aic34_dapm_widgets));
 
 	/* Set up RX-51 specific audio path audio_map */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 
 	/* AV jack detection */
 	err = snd_soc_jack_new(codec, "AV Jack",

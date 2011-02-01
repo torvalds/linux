@@ -57,7 +57,7 @@ struct asic3_clk {
 		.rate = _rate,			\
 	}
 
-struct asic3_clk asic3_clk_init[] __initdata = {
+static struct asic3_clk asic3_clk_init[] __initdata = {
 	INIT_CDEX(SPI, 0),
 	INIT_CDEX(OWM, 5000000),
 	INIT_CDEX(PWM0, 0),
@@ -102,7 +102,7 @@ static inline u32 asic3_read_register(struct asic3 *asic,
 			(reg >> asic->bus_shift));
 }
 
-void asic3_set_register(struct asic3 *asic, u32 reg, u32 bits, bool set)
+static void asic3_set_register(struct asic3 *asic, u32 reg, u32 bits, bool set)
 {
 	unsigned long flags;
 	u32 val;
@@ -226,14 +226,14 @@ static inline int asic3_irq_to_index(struct asic3 *asic, int irq)
 	return (irq - asic->irq_base) & 0xf;
 }
 
-static void asic3_mask_gpio_irq(unsigned int irq)
+static void asic3_mask_gpio_irq(struct irq_data *data)
 {
-	struct asic3 *asic = get_irq_chip_data(irq);
+	struct asic3 *asic = irq_data_get_irq_chip_data(data);
 	u32 val, bank, index;
 	unsigned long flags;
 
-	bank = asic3_irq_to_bank(asic, irq);
-	index = asic3_irq_to_index(asic, irq);
+	bank = asic3_irq_to_bank(asic, data->irq);
+	index = asic3_irq_to_index(asic, data->irq);
 
 	spin_lock_irqsave(&asic->lock, flags);
 	val = asic3_read_register(asic, bank + ASIC3_GPIO_MASK);
@@ -242,9 +242,9 @@ static void asic3_mask_gpio_irq(unsigned int irq)
 	spin_unlock_irqrestore(&asic->lock, flags);
 }
 
-static void asic3_mask_irq(unsigned int irq)
+static void asic3_mask_irq(struct irq_data *data)
 {
-	struct asic3 *asic = get_irq_chip_data(irq);
+	struct asic3 *asic = irq_data_get_irq_chip_data(data);
 	int regval;
 	unsigned long flags;
 
@@ -254,7 +254,7 @@ static void asic3_mask_irq(unsigned int irq)
 				     ASIC3_INTR_INT_MASK);
 
 	regval &= ~(ASIC3_INTMASK_MASK0 <<
-		    (irq - (asic->irq_base + ASIC3_NUM_GPIOS)));
+		    (data->irq - (asic->irq_base + ASIC3_NUM_GPIOS)));
 
 	asic3_write_register(asic,
 			     ASIC3_INTR_BASE +
@@ -263,14 +263,14 @@ static void asic3_mask_irq(unsigned int irq)
 	spin_unlock_irqrestore(&asic->lock, flags);
 }
 
-static void asic3_unmask_gpio_irq(unsigned int irq)
+static void asic3_unmask_gpio_irq(struct irq_data *data)
 {
-	struct asic3 *asic = get_irq_chip_data(irq);
+	struct asic3 *asic = irq_data_get_irq_chip_data(data);
 	u32 val, bank, index;
 	unsigned long flags;
 
-	bank = asic3_irq_to_bank(asic, irq);
-	index = asic3_irq_to_index(asic, irq);
+	bank = asic3_irq_to_bank(asic, data->irq);
+	index = asic3_irq_to_index(asic, data->irq);
 
 	spin_lock_irqsave(&asic->lock, flags);
 	val = asic3_read_register(asic, bank + ASIC3_GPIO_MASK);
@@ -279,9 +279,9 @@ static void asic3_unmask_gpio_irq(unsigned int irq)
 	spin_unlock_irqrestore(&asic->lock, flags);
 }
 
-static void asic3_unmask_irq(unsigned int irq)
+static void asic3_unmask_irq(struct irq_data *data)
 {
-	struct asic3 *asic = get_irq_chip_data(irq);
+	struct asic3 *asic = irq_data_get_irq_chip_data(data);
 	int regval;
 	unsigned long flags;
 
@@ -291,7 +291,7 @@ static void asic3_unmask_irq(unsigned int irq)
 				     ASIC3_INTR_INT_MASK);
 
 	regval |= (ASIC3_INTMASK_MASK0 <<
-		   (irq - (asic->irq_base + ASIC3_NUM_GPIOS)));
+		   (data->irq - (asic->irq_base + ASIC3_NUM_GPIOS)));
 
 	asic3_write_register(asic,
 			     ASIC3_INTR_BASE +
@@ -300,15 +300,15 @@ static void asic3_unmask_irq(unsigned int irq)
 	spin_unlock_irqrestore(&asic->lock, flags);
 }
 
-static int asic3_gpio_irq_type(unsigned int irq, unsigned int type)
+static int asic3_gpio_irq_type(struct irq_data *data, unsigned int type)
 {
-	struct asic3 *asic = get_irq_chip_data(irq);
+	struct asic3 *asic = irq_data_get_irq_chip_data(data);
 	u32 bank, index;
 	u16 trigger, level, edge, bit;
 	unsigned long flags;
 
-	bank = asic3_irq_to_bank(asic, irq);
-	index = asic3_irq_to_index(asic, irq);
+	bank = asic3_irq_to_bank(asic, data->irq);
+	index = asic3_irq_to_index(asic, data->irq);
 	bit = 1<<index;
 
 	spin_lock_irqsave(&asic->lock, flags);
@@ -318,7 +318,7 @@ static int asic3_gpio_irq_type(unsigned int irq, unsigned int type)
 				   bank + ASIC3_GPIO_EDGE_TRIGGER);
 	trigger = asic3_read_register(asic,
 				      bank + ASIC3_GPIO_TRIGGER_TYPE);
-	asic->irq_bothedge[(irq - asic->irq_base) >> 4] &= ~bit;
+	asic->irq_bothedge[(data->irq - asic->irq_base) >> 4] &= ~bit;
 
 	if (type == IRQ_TYPE_EDGE_RISING) {
 		trigger |= bit;
@@ -328,11 +328,11 @@ static int asic3_gpio_irq_type(unsigned int irq, unsigned int type)
 		edge &= ~bit;
 	} else if (type == IRQ_TYPE_EDGE_BOTH) {
 		trigger |= bit;
-		if (asic3_gpio_get(&asic->gpio, irq - asic->irq_base))
+		if (asic3_gpio_get(&asic->gpio, data->irq - asic->irq_base))
 			edge &= ~bit;
 		else
 			edge |= bit;
-		asic->irq_bothedge[(irq - asic->irq_base) >> 4] |= bit;
+		asic->irq_bothedge[(data->irq - asic->irq_base) >> 4] |= bit;
 	} else if (type == IRQ_TYPE_LEVEL_LOW) {
 		trigger &= ~bit;
 		level &= ~bit;
@@ -359,17 +359,17 @@ static int asic3_gpio_irq_type(unsigned int irq, unsigned int type)
 
 static struct irq_chip asic3_gpio_irq_chip = {
 	.name		= "ASIC3-GPIO",
-	.ack		= asic3_mask_gpio_irq,
-	.mask		= asic3_mask_gpio_irq,
-	.unmask		= asic3_unmask_gpio_irq,
-	.set_type	= asic3_gpio_irq_type,
+	.irq_ack	= asic3_mask_gpio_irq,
+	.irq_mask	= asic3_mask_gpio_irq,
+	.irq_unmask	= asic3_unmask_gpio_irq,
+	.irq_set_type	= asic3_gpio_irq_type,
 };
 
 static struct irq_chip asic3_irq_chip = {
 	.name		= "ASIC3",
-	.ack		= asic3_mask_irq,
-	.mask		= asic3_mask_irq,
-	.unmask		= asic3_unmask_irq,
+	.irq_ack	= asic3_mask_irq,
+	.irq_mask	= asic3_mask_irq,
+	.irq_unmask	= asic3_unmask_irq,
 };
 
 static int __init asic3_irq_probe(struct platform_device *pdev)
@@ -635,7 +635,7 @@ static struct resource ds1wm_resources[] = {
 	},
 	{
 		.start = ASIC3_IRQ_OWM,
-		.start = ASIC3_IRQ_OWM,
+		.end   = ASIC3_IRQ_OWM,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };

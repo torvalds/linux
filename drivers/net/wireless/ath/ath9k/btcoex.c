@@ -35,29 +35,6 @@ struct ath_btcoex_config {
 	bool bt_hold_rx_clear;
 };
 
-static const u16 ath_subsysid_tbl[] = {
-	AR9280_COEX2WIRE_SUBSYSID,
-	AT9285_COEX3WIRE_SA_SUBSYSID,
-	AT9285_COEX3WIRE_DA_SUBSYSID
-};
-
-/*
- * Checks the subsystem id of the device to see if it
- * supports btcoex
- */
-bool ath9k_hw_btcoex_supported(struct ath_hw *ah)
-{
-	int i;
-
-	if (!ah->hw_version.subsysid)
-		return false;
-
-	for (i = 0; i < ARRAY_SIZE(ath_subsysid_tbl); i++)
-		if (ah->hw_version.subsysid == ath_subsysid_tbl[i])
-			return true;
-
-	return false;
-}
 
 void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum)
 {

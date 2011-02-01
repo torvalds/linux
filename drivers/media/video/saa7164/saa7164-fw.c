@@ -178,7 +178,7 @@ int saa7164_downloadimage(struct saa7164_dev *dev, u8 *src, u32 srcsize,
 			goto out;
 		}
 
-		msleep(10);
+		msleep(10); /* Checkpatch throws a < 20ms warning */
 		if (timeout++ > 60)
 			break;
 	}
@@ -235,7 +235,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 		while (err_flags != SAA_DEVICE_IMAGE_BOOTING) {
 			dprintk(DBGLVL_FW, "%s() err_flags = %x\n",
 				__func__, err_flags);
-			msleep(10);
+			msleep(10); /* Checkpatch throws a < 20ms warning */
 
 			if (err_flags & SAA_DEVICE_IMAGE_CORRUPT) {
 				printk(KERN_ERR "%s() firmware corrupt\n",
@@ -294,7 +294,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 			while (err_flags != SAA_DEVICE_IMAGE_BOOTING) {
 				dprintk(DBGLVL_FW, "%s() err_flags2 = %x\n",
 					__func__, err_flags);
-				msleep(10);
+				msleep(10); /* Checkpatch throws a < 20ms warning */
 
 				if (err_flags & SAA_DEVICE_IMAGE_CORRUPT) {
 					printk(KERN_ERR
@@ -365,7 +365,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 
 			first_timeout = SAA_DEVICE_TIMEOUT;
 			while (first_timeout) {
-				msleep(10);
+				msleep(10); /* Checkpatch throws a < 20ms warning */
 
 				version =
 					saa7164_getcurrentfirmwareversion(dev);
@@ -608,8 +608,6 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 	ret = 0;
 
 out:
-	if (fw)
-		release_firmware(fw);
-
+	release_firmware(fw);
 	return ret;
 }

@@ -171,7 +171,7 @@ static void __init openrd_init(void)
 
 	kirkwood_i2c_init();
 
-	if (machine_is_openrd_client()) {
+	if (machine_is_openrd_client() || machine_is_openrd_ultimate()) {
 		i2c_register_board_info(0, i2c_board_info,
 			ARRAY_SIZE(i2c_board_info));
 		kirkwood_audio_init();

@@ -1,0 +1,5 @@
+This is an obsolete driver for some old webcams that still use V4L1 API. 
+As V4L1 support is being removed from kernel, if nobody take care on it, 
+the driver will be removed for 2.6.39.
+
+Please send patches to linux-media@vger.kernel.org

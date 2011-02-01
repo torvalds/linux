@@ -31,8 +31,8 @@
 #include <linux/amba/pl022.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
@@ -46,10 +46,11 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/clkdev.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <plat/timer-sp.h>
+#include <asm/hardware/timer-sp.h>
+
+#include <plat/sched_clock.h>
 
 #include "core.h"
 
@@ -62,23 +63,25 @@
 #define VA_VIC_BASE		__io_address(VERSATILE_VIC_BASE)
 #define VA_SIC_BASE		__io_address(VERSATILE_SIC_BASE)
 
-static void sic_mask_irq(unsigned int irq)
+static void sic_mask_irq(struct irq_data *d)
 {
-	irq -= IRQ_SIC_START;
+	unsigned int irq = d->irq - IRQ_SIC_START;
+
 	writel(1 << irq, VA_SIC_BASE + SIC_IRQ_ENABLE_CLEAR);
 }
 
-static void sic_unmask_irq(unsigned int irq)
+static void sic_unmask_irq(struct irq_data *d)
 {
-	irq -= IRQ_SIC_START;
+	unsigned int irq = d->irq - IRQ_SIC_START;
+
 	writel(1 << irq, VA_SIC_BASE + SIC_IRQ_ENABLE_SET);
 }
 
 static struct irq_chip sic_chip = {
-	.name	= "SIC",
-	.ack	= sic_mask_irq,
-	.mask	= sic_mask_irq,
-	.unmask	= sic_unmask_irq,
+	.name		= "SIC",
+	.irq_ack	= sic_mask_irq,
+	.irq_mask	= sic_mask_irq,
+	.irq_unmask	= sic_unmask_irq,
 };
 
 static void
@@ -886,6 +889,12 @@ void __init versatile_init(void)
 }
 
 /*
+ * The sched_clock counter
+ */
+#define REFCOUNTER		(__io_address(VERSATILE_SYS_BASE) + \
+				 VERSATILE_SYS_24MHz_OFFSET)
+
+/*
  * Where is the timer (VA)?
  */
 #define TIMER0_VA_BASE		 __io_address(VERSATILE_TIMER0_1_BASE)
@@ -899,6 +908,8 @@ void __init versatile_init(void)
 static void __init versatile_timer_init(void)
 {
 	u32 val;
+
+	versatile_sched_clock_init(REFCOUNTER, 24000000);
 
 	/* 
 	 * set clock frequency: 

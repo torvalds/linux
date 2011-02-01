@@ -62,11 +62,14 @@ struct drm_mm {
 	struct list_head unused_nodes;
 	int num_unused;
 	spinlock_t unused_lock;
+	unsigned int scan_check_range : 1;
 	unsigned scan_alignment;
 	unsigned long scan_size;
 	unsigned long scan_hit_start;
 	unsigned scan_hit_size;
 	unsigned scanned_blocks;
+	unsigned long scan_start;
+	unsigned long scan_end;
 };
 
 /*
@@ -145,6 +148,10 @@ static inline struct drm_mm *drm_get_mm(struct drm_mm_node *block)
 
 void drm_mm_init_scan(struct drm_mm *mm, unsigned long size,
 		      unsigned alignment);
+void drm_mm_init_scan_with_range(struct drm_mm *mm, unsigned long size,
+				 unsigned alignment,
+				 unsigned long start,
+				 unsigned long end);
 int drm_mm_scan_add_block(struct drm_mm_node *node);
 int drm_mm_scan_remove_block(struct drm_mm_node *node);
 
