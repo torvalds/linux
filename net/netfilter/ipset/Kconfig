@@ -41,4 +41,13 @@ config IP_SET_BITMAP_IPMAC
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP_SET_BITMAP_PORT
+	tristate "bitmap:port set support"
+	depends on IP_SET
+	help
+	  This option adds the bitmap:port set type support, by which one
+	  can store TCP/UDP port numbers from a range.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 endif # IP_SET
