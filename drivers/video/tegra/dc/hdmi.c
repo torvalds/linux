@@ -87,7 +87,7 @@ const struct fb_videomode tegra_dc_hdmi_supported_modes[] = {
 		.right_margin =	16,	/* h_front_porch */
 		.lower_margin =	9,	/* v_front_porch */
 		.vmode =	FB_VMODE_NONINTERLACED,
-		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.sync = 0,
 	},
 
 	/* 640x480p 60hz: EIA/CEA-861-B Format 1 */
@@ -102,7 +102,7 @@ const struct fb_videomode tegra_dc_hdmi_supported_modes[] = {
 		.right_margin =	16,	/* h_front_porch */
 		.lower_margin =	10,	/* v_front_porch */
 		.vmode =	FB_VMODE_NONINTERLACED,
-		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.sync = 0,
 	},
 
 	/* 720x576p 50hz EIA/CEA-861-B Formats 17 & 18 */
@@ -117,7 +117,7 @@ const struct fb_videomode tegra_dc_hdmi_supported_modes[] = {
 		.right_margin =	12,	/* h_front_porch */
 		.lower_margin =	5,	/* v_front_porch */
 		.vmode =	FB_VMODE_NONINTERLACED,
-		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.sync = 0,
 	},
 
 	/* 1920x1080p 59.94/60hz EIA/CEA-861-B Format 16 */
