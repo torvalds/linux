@@ -108,4 +108,14 @@ config IP_SET_HASH_NETPORT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP_SET_LIST_SET
+	tristate "list:set set support"
+	depends on IP_SET
+	help
+	  This option adds the list:set set type support. In this
+	  kind of set one can store the name of other sets and it forms
+	  an ordered union of the member sets.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 endif # IP_SET
