@@ -531,6 +531,16 @@ static void release_posix_timer(struct k_itimer *tmr, int it_id_set)
 	kmem_cache_free(posix_timers_cache, tmr);
 }
 
+static struct k_clock *clockid_to_kclock(const clockid_t id)
+{
+	if (id < 0)
+		return &clock_posix_cpu;
+
+	if (id >= MAX_CLOCKS || !posix_clocks[id].clock_getres)
+		return NULL;
+	return &posix_clocks[id];
+}
+
 /* Create a POSIX.1b interval timer. */
 
 SYSCALL_DEFINE3(timer_create, const clockid_t, which_clock,
