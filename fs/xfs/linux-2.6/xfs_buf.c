@@ -2022,11 +2022,12 @@ xfs_buf_init(void)
 	if (!xfslogd_workqueue)
 		goto out_free_buf_zone;
 
-	xfsdatad_workqueue = create_workqueue("xfsdatad");
+	xfsdatad_workqueue = alloc_workqueue("xfsdatad", WQ_MEM_RECLAIM, 1);
 	if (!xfsdatad_workqueue)
 		goto out_destroy_xfslogd_workqueue;
 
-	xfsconvertd_workqueue = create_workqueue("xfsconvertd");
+	xfsconvertd_workqueue = alloc_workqueue("xfsconvertd",
+						WQ_MEM_RECLAIM, 1);
 	if (!xfsconvertd_workqueue)
 		goto out_destroy_xfsdatad_workqueue;
 
