@@ -2563,7 +2563,8 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 
 	map = rcu_dereference(rxqueue->rps_map);
 	if (map) {
-		if (map->len == 1) {
+		if (map->len == 1 &&
+		    !rcu_dereference_raw(rxqueue->rps_flow_table)) {
 			tcpu = map->cpus[0];
 			if (cpu_online(tcpu))
 				cpu = tcpu;
