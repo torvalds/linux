@@ -325,9 +325,9 @@ SCRIPT_SH += perf-archive.sh
 grep-libs = $(filter -l%,$(1))
 strip-libs = $(filter-out -l%,$(1))
 
-pyrf: $(PYRF_OBJS)
-	python util/setup.py build --build-base='$(OUTPUT)'
-
+$(OUTPUT)python/perf.so: $(PYRF_OBJS)
+	@python util/setup.py --quiet  build_ext --build-lib='$(OUTPUT)python' \
+						--build-temp='$(OUTPUT)python/temp'
 #
 # No Perl scripts right now:
 #
@@ -348,12 +348,14 @@ PROGRAMS += $(EXTRA_PROGRAMS)
 #
 PROGRAMS += $(OUTPUT)perf
 
+LANG_BINDINGS = $(OUTPUT)python/perf.so
+
 # List built-in command $C whose implementation cmd_$C() is not in
 # builtin-$C.o but is linked in as part of some other command.
 #
 
 # what 'all' will build and 'install' will install, in perfexecdir
-ALL_PROGRAMS = $(PROGRAMS) $(SCRIPTS) pyrf
+ALL_PROGRAMS = $(PROGRAMS) $(SCRIPTS) $(LANG_BINDINGS)
 
 # what 'all' will build but not install in perfexecdir
 OTHER_PROGRAMS = $(OUTPUT)perf$X
@@ -1298,6 +1300,8 @@ clean:
 	$(RM) $(htmldocs).tar.gz $(manpages).tar.gz
 	$(MAKE) -C Documentation/ clean
 	$(RM) $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)PERF-CFLAGS $(OUTPUT)PERF-BUILD-OPTIONS
+	@python util/setup.py clean --build-lib='$(OUTPUT)python' \
+				   --build-temp='$(OUTPUT)python/temp'
 
 .PHONY: all install clean strip
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
