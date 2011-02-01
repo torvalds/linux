@@ -618,15 +618,15 @@ static void et131x_xcvr_init(struct et131x_adapter *etdev)
 
 	/* Determine if we need to go into a force mode and set it */
 	if (etdev->AiForceSpeed == 0 && etdev->AiForceDpx == 0) {
-		if (etdev->RegistryFlowControl == TxOnly ||
-		    etdev->RegistryFlowControl == Both)
+		if (etdev->wanted_flow == FLOW_TXONLY ||
+		    etdev->wanted_flow == FLOW_BOTH)
 			ET1310_PhyAccessMiBit(etdev,
 					      TRUEPHY_BIT_SET, 4, 11, NULL);
 		else
 			ET1310_PhyAccessMiBit(etdev,
 					      TRUEPHY_BIT_CLEAR, 4, 11, NULL);
 
-		if (etdev->RegistryFlowControl == Both)
+		if (etdev->wanted_flow == FLOW_BOTH)
 			ET1310_PhyAccessMiBit(etdev,
 					      TRUEPHY_BIT_SET, 4, 10, NULL);
 		else
@@ -645,15 +645,15 @@ static void et131x_xcvr_init(struct et131x_adapter *etdev)
 
 	/* Set to the correct force mode. */
 	if (etdev->AiForceDpx != 1) {
-		if (etdev->RegistryFlowControl == TxOnly ||
-		    etdev->RegistryFlowControl == Both)
+		if (etdev->wanted_flow == FLOW_TXONLY ||
+		    etdev->wanted_flow == FLOW_BOTH)
 			ET1310_PhyAccessMiBit(etdev,
 				      TRUEPHY_BIT_SET, 4, 11, NULL);
 		else
 			ET1310_PhyAccessMiBit(etdev,
 					      TRUEPHY_BIT_CLEAR, 4, 11, NULL);
 
-		if (etdev->RegistryFlowControl == Both)
+		if (etdev->wanted_flow == FLOW_BOTH)
 			ET1310_PhyAccessMiBit(etdev,
 					      TRUEPHY_BIT_SET, 4, 10, NULL);
 		else

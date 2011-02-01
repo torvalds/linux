@@ -191,7 +191,7 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	cfg1 |= CFG1_RX_ENABLE|CFG1_TX_ENABLE|CFG1_TX_FLOW;
 	/* Initialize loop back to off */
 	cfg1 &= ~(CFG1_LOOPBACK|CFG1_RX_FLOW);
-	if (etdev->FlowControl == RxOnly || etdev->FlowControl == Both)
+	if (etdev->flowcontrol == FLOW_RXONLY || etdev->flowcontrol == FLOW_BOTH)
 		cfg1 |= CFG1_RX_FLOW;
 	writel(cfg1, &pMac->cfg1);
 
@@ -373,7 +373,7 @@ void ConfigTxMacRegs(struct et131x_adapter *etdev)
 	 * cfpt - control frame pause timer set to 64 (0x40)
 	 * cfep - control frame extended pause timer set to 0x0
 	 */
-	if (etdev->FlowControl == None)
+	if (etdev->flowcontrol == FLOW_NONE)
 		writel(0, &txmac->cf_param);
 	else
 		writel(0x40, &txmac->cf_param);
@@ -414,7 +414,7 @@ void ConfigMacStatRegs(struct et131x_adapter *etdev)
 void ConfigFlowControl(struct et131x_adapter *etdev)
 {
 	if (etdev->duplex_mode == 0) {
-		etdev->FlowControl = None;
+		etdev->flowcontrol = FLOW_NONE;
 	} else {
 		char remote_pause, remote_async_pause;
 
@@ -426,22 +426,22 @@ void ConfigFlowControl(struct et131x_adapter *etdev)
 
 		if ((remote_pause == TRUEPHY_BIT_SET) &&
 		    (remote_async_pause == TRUEPHY_BIT_SET)) {
-			etdev->FlowControl = etdev->RegistryFlowControl;
+			etdev->flowcontrol = etdev->wanted_flow;
 		} else if ((remote_pause == TRUEPHY_BIT_SET) &&
 			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
-			if (etdev->RegistryFlowControl == Both)
-				etdev->FlowControl = Both;
+			if (etdev->wanted_flow == FLOW_BOTH)
+				etdev->flowcontrol = FLOW_BOTH;
 			else
-				etdev->FlowControl = None;
+				etdev->flowcontrol = FLOW_NONE;
 		} else if ((remote_pause == TRUEPHY_BIT_CLEAR) &&
 			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
-			etdev->FlowControl = None;
+			etdev->flowcontrol = FLOW_NONE;
 		} else {/* if (remote_pause == TRUEPHY_CLEAR_BIT &&
 			       remote_async_pause == TRUEPHY_SET_BIT) */
-			if (etdev->RegistryFlowControl == Both)
-				etdev->FlowControl = RxOnly;
+			if (etdev->wanted_flow == FLOW_BOTH)
+				etdev->flowcontrol = FLOW_RXONLY;
 			else
-				etdev->FlowControl = None;
+				etdev->flowcontrol = FLOW_NONE;
 		}
 	}
 }

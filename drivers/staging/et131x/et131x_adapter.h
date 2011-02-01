@@ -91,13 +91,11 @@ typedef struct _MP_RFD {
 	u8 ringindex;
 } MP_RFD, *PMP_RFD;
 
-/* Enum for Flow Control */
-typedef enum _eflow_control_t {
-	Both = 0,
-	TxOnly = 1,
-	RxOnly = 2,
-	None = 3
-} eFLOW_CONTROL_t, *PeFLOW_CONTROL_t;
+/* Flow Control */
+#define FLOW_BOTH	0
+#define FLOW_TXONLY	1
+#define FLOW_RXONLY	2
+#define FLOW_NONE	3
 
 /* Struct to define some device statistics */
 typedef struct _ce_stats_t {
@@ -185,7 +183,7 @@ struct et131x_adapter {
 	spinlock_t TCBReadyQLock;
 	spinlock_t send_hw_lock;
 
-	spinlock_t RcvLock;
+	spinlock_t rcv_lock;
 	spinlock_t RcvPendLock;
 	spinlock_t FbrLock;
 
@@ -205,7 +203,7 @@ struct et131x_adapter {
 
 	/* Registry parameters */
 	u8 SpeedDuplex;		/* speed/duplex */
-	eFLOW_CONTROL_t RegistryFlowControl;	/* for 802.3x flow control */
+	u8 wanted_flow;		/* Flow we want for 802.3x flow control */
 	u8 RegistryPhyComa;	/* Phy Coma mode enable/disable */
 
 	u32 RegistryRxMemEnd;	/* Size of internal rx memory */
@@ -214,8 +212,8 @@ struct et131x_adapter {
 
 	/* Derived from the registry: */
 	u8 AiForceDpx;		/* duplex setting */
-	u16 AiForceSpeed;		/* 'Speed', user over-ride of line speed */
-	eFLOW_CONTROL_t FlowControl;	/* flow control validated by the far-end */
+	u16 AiForceSpeed;	/* 'Speed', user over-ride of line speed */
+	u8 flowcontrol;		/* flow control validated by the far-end */
 	enum {
 		NETIF_STATUS_INVALID = 0,
 		NETIF_STATUS_MEDIA_CONNECT,
