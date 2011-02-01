@@ -58,6 +58,9 @@ struct nvme_dev {
 	struct msix_entry *entry;
 	struct nvme_bar __iomem *bar;
 	struct list_head namespaces;
+	char serial[20];
+	char model[40];
+	char firmware_rev[8];
 };
 
 /*
@@ -979,6 +982,7 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 {
 	int res, nn, i;
 	struct nvme_ns *ns, *next;
+	struct nvme_id_ctrl *ctrl;
 	void *id;
 	dma_addr_t dma_addr;
 	struct nvme_command cid, crt;
@@ -1003,7 +1007,11 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 		goto out_free;
 	}
 
-	nn = le32_to_cpup(&((struct nvme_id_ctrl *)id)->nn);
+	ctrl = id;
+	nn = le32_to_cpup(&ctrl->nn);
+	memcpy(dev->serial, ctrl->sn, sizeof(ctrl->sn));
+	memcpy(dev->model, ctrl->mn, sizeof(ctrl->mn));
+	memcpy(dev->firmware_rev, ctrl->fr, sizeof(ctrl->fr));
 
 	cid.identify.cns = 0;
 	memset(&crt, 0, sizeof(crt));
