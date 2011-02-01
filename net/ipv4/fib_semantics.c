@@ -1136,6 +1136,62 @@ int fib_sync_down_dev(struct net_device *dev, int force)
 	return ret;
 }
 
+/* Must be invoked inside of an RCU protected region.  */
+void fib_select_default(struct fib_result *res)
+{
+	struct fib_info *fi = NULL, *last_resort = NULL;
+	struct list_head *fa_head = res->fa_head;
+	struct fib_table *tb = res->table;
+	int order = -1, last_idx = -1;
+	struct fib_alias *fa;
+
+	list_for_each_entry_rcu(fa, fa_head, fa_list) {
+		struct fib_info *next_fi = fa->fa_info;
+
+		if (fa->fa_scope != res->scope ||
+		    fa->fa_type != RTN_UNICAST)
+			continue;
+
+		if (next_fi->fib_priority > res->fi->fib_priority)
+			break;
+		if (!next_fi->fib_nh[0].nh_gw ||
+		    next_fi->fib_nh[0].nh_scope != RT_SCOPE_LINK)
+			continue;
+
+		fib_alias_accessed(fa);
+
+		if (fi == NULL) {
+			if (next_fi != res->fi)
+				break;
+		} else if (!fib_detect_death(fi, order, &last_resort,
+					     &last_idx, tb->tb_default)) {
+			fib_result_assign(res, fi);
+			tb->tb_default = order;
+			goto out;
+		}
+		fi = next_fi;
+		order++;
+	}
+
+	if (order <= 0 || fi == NULL) {
+		tb->tb_default = -1;
+		goto out;
+	}
+
+	if (!fib_detect_death(fi, order, &last_resort, &last_idx,
+				tb->tb_default)) {
+		fib_result_assign(res, fi);
+		tb->tb_default = order;
+		goto out;
+	}
+
+	if (last_idx >= 0)
+		fib_result_assign(res, last_resort);
+	tb->tb_default = last_idx;
+out:
+	rcu_read_unlock();
+}
+
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 
 /*

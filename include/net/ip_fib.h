@@ -158,9 +158,6 @@ extern int fib_table_delete(struct fib_table *, struct fib_config *);
 extern int fib_table_dump(struct fib_table *table, struct sk_buff *skb,
 			  struct netlink_callback *cb);
 extern int fib_table_flush(struct fib_table *table);
-extern void fib_table_select_default(struct fib_table *table,
-				     const struct flowi *flp,
-				     struct fib_result *res);
 extern void fib_free_table(struct fib_table *tb);
 
 
@@ -221,8 +218,7 @@ extern void		ip_fib_init(void);
 extern int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 			       struct net_device *dev, __be32 *spec_dst,
 			       u32 *itag, u32 mark);
-extern void fib_select_default(struct net *net, const struct flowi *flp,
-			       struct fib_result *res);
+extern void fib_select_default(struct fib_result *res);
 
 /* Exported by fib_semantics.c */
 extern int ip_fib_check_default(__be32 gw, struct net_device *dev);
