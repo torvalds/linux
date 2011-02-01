@@ -23,4 +23,13 @@ config IP_SET_MAX
 	  The value can be overriden by the 'max_sets' module
 	  parameter of the 'ip_set' module.
 
+config IP_SET_BITMAP_IP
+	tristate "bitmap:ip set support"
+	depends on IP_SET
+	help
+	  This option adds the bitmap:ip set type support, by which one
+	  can store IPv4 addresses (or network addresse) from a range.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 endif # IP_SET
