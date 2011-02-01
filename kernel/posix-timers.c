@@ -170,6 +170,12 @@ static int posix_clock_realtime_set(const clockid_t which_clock,
 	return do_sys_settimeofday(tp, NULL);
 }
 
+static int posix_clock_realtime_adj(const clockid_t which_clock,
+				    struct timex *t)
+{
+	return do_adjtimex(t);
+}
+
 /*
  * Get monotonic time for posix timers
  */
@@ -216,6 +222,7 @@ static __init int init_posix_timers(void)
 		.clock_getres	= hrtimer_get_res,
 		.clock_get	= posix_clock_realtime_get,
 		.clock_set	= posix_clock_realtime_set,
+		.clock_adj	= posix_clock_realtime_adj,
 		.nsleep		= common_nsleep,
 		.nsleep_restart	= hrtimer_nanosleep_restart,
 		.timer_create	= common_timer_create,
@@ -946,6 +953,29 @@ SYSCALL_DEFINE2(clock_gettime, const clockid_t, which_clock,
 		error = -EFAULT;
 
 	return error;
+}
+
+SYSCALL_DEFINE2(clock_adjtime, const clockid_t, which_clock,
+		struct timex __user *, utx)
+{
+	struct k_clock *kc = clockid_to_kclock(which_clock);
+	struct timex ktx;
+	int err;
+
+	if (!kc)
+		return -EINVAL;
+	if (!kc->clock_adj)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&ktx, utx, sizeof(ktx)))
+		return -EFAULT;
+
+	err = kc->clock_adj(which_clock, &ktx);
+
+	if (!err && copy_to_user(utx, &ktx, sizeof(ktx)))
+		return -EFAULT;
+
+	return err;
 }
 
 SYSCALL_DEFINE2(clock_getres, const clockid_t, which_clock,
