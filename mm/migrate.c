@@ -980,10 +980,6 @@ int migrate_huge_pages(struct list_head *from,
 	}
 	rc = 0;
 out:
-
-	list_for_each_entry_safe(page, page2, from, lru)
-		put_page(page);
-
 	if (rc)
 		return rc;
 
