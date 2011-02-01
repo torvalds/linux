@@ -105,5 +105,8 @@ obj-$(CONFIG_NETFILTER_XT_MATCH_TCPMSS) += xt_tcpmss.o
 obj-$(CONFIG_NETFILTER_XT_MATCH_TIME) += xt_time.o
 obj-$(CONFIG_NETFILTER_XT_MATCH_U32) += xt_u32.o
 
+# ipset
+obj-$(CONFIG_IP_SET) += ipset/
+
 # IPVS
 obj-$(CONFIG_IP_VS) += ipvs/

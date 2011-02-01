@@ -1,0 +1,26 @@
+menuconfig IP_SET
+	tristate "IP set support"
+	depends on INET && NETFILTER
+	help
+	  This option adds IP set support to the kernel.
+	  In order to define and use the sets, you need the userspace utility
+	  ipset(8). You can use the sets in netfilter via the "set" match
+	  and "SET" target.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+if IP_SET
+
+config IP_SET_MAX
+	int "Maximum number of IP sets"
+	default 256
+	range 2 65534
+	depends on IP_SET
+	help
+	  You can define here default value of the maximum number 
+	  of IP sets for the kernel.
+
+	  The value can be overriden by the 'max_sets' module
+	  parameter of the 'ip_set' module.
+
+endif # IP_SET
