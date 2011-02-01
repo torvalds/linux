@@ -440,6 +440,35 @@ struct cx231xx_board cx231xx_boards[] = {
 			.gpio = 0,
 		} },
 	},
+	[CX231XX_BOARD_PV_XCAPTURE_USB] = {
+		.name = "Pixelview Xcapture USB",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.norm = V4L2_STD_NTSC,
+		.no_alt_vanc = 1,
+		.external_av = 1,
+		.dont_use_port_3 = 1,
+
+		.input = {{
+				.type = CX231XX_VMUX_COMPOSITE1,
+				.vmux = CX231XX_VIN_2_1,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}, {
+				.type = CX231XX_VMUX_SVIDEO,
+				.vmux = CX231XX_VIN_1_1 |
+					(CX231XX_VIN_1_2 << 8) |
+					CX25840_SVIDEO_ON,
+				.amux = CX231XX_AMUX_LINE_IN,
+				.gpio = NULL,
+			}
+		},
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
@@ -469,6 +498,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_USBLIVE2},
 	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000, 0x4001),
 	 .driver_info = CX231XX_BOARD_PV_PLAYTV_USB_HYBRID},
+	{USB_DEVICE(USB_VID_PIXELVIEW, 0x5014),
+	 .driver_info = CX231XX_BOARD_PV_XCAPTURE_USB},
 	{},
 };
 

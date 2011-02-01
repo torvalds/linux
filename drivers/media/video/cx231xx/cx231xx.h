@@ -64,6 +64,7 @@
 #define CX231XX_BOARD_HAUPPAUGE_EXETER  8
 #define CX231XX_BOARD_HAUPPAUGE_USBLIVE2 9
 #define CX231XX_BOARD_PV_PLAYTV_USB_HYBRID 10
+#define CX231XX_BOARD_PV_XCAPTURE_USB 11
 
 /* Limits minimum and default number of buffers */
 #define CX231XX_MIN_BUF                 4
