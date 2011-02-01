@@ -1088,7 +1088,7 @@ static void nvme_release_instance(struct nvme_dev *dev)
 static int __devinit nvme_probe(struct pci_dev *pdev,
 						const struct pci_device_id *id)
 {
-	int result = -ENOMEM;
+	int bars, result = -ENOMEM;
 	struct nvme_dev *dev;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -1106,6 +1106,9 @@ static int __devinit nvme_probe(struct pci_dev *pdev,
 	if (pci_enable_device_mem(pdev))
 		goto free;
 	pci_set_master(pdev);
+	bars = pci_select_bars(pdev, IORESOURCE_MEM);
+	if (pci_request_selected_regions(pdev, bars, "nvme"))
+		goto disable;
 
 	INIT_LIST_HEAD(&dev->namespaces);
 	dev->pci_dev = pdev;
@@ -1118,7 +1121,7 @@ static int __devinit nvme_probe(struct pci_dev *pdev,
 	dev->bar = ioremap(pci_resource_start(pdev, 0), 8192);
 	if (!dev->bar) {
 		result = -ENOMEM;
-		goto disable;
+		goto disable_msix;
 	}
 
 	result = nvme_configure_admin_queue(dev);
@@ -1135,10 +1138,12 @@ static int __devinit nvme_probe(struct pci_dev *pdev,
 	nvme_free_queues(dev);
  unmap:
 	iounmap(dev->bar);
- disable:
+ disable_msix:
 	pci_disable_msix(pdev);
 	nvme_release_instance(dev);
+ disable:
 	pci_disable_device(pdev);
+	pci_release_regions(pdev);
  free:
 	kfree(dev->queues);
 	kfree(dev->entry);
@@ -1154,6 +1159,7 @@ static void __devexit nvme_remove(struct pci_dev *pdev)
 	iounmap(dev->bar);
 	nvme_release_instance(dev);
 	pci_disable_device(pdev);
+	pci_release_regions(pdev);
 	kfree(dev->queues);
 	kfree(dev->entry);
 	kfree(dev);
