@@ -81,6 +81,14 @@ static DEFINE_SPINLOCK(idr_lock);
 #error "SIGEV_THREAD_ID must not share bit with other SIGEV values!"
 #endif
 
+/*
+ * parisc wants ENOTSUP instead of EOPNOTSUPP
+ */
+#ifndef ENOTSUP
+# define ENANOSLEEP_NOTSUP EOPNOTSUPP
+#else
+# define ENANOSLEEP_NOTSUP ENOTSUP
+#endif
 
 /*
  * The timer ID is turned into a timer address by idr_find().
@@ -937,11 +945,7 @@ EXPORT_SYMBOL_GPL(do_posix_clock_nosettime);
 int do_posix_clock_nonanosleep(const clockid_t clock, int flags,
 			       struct timespec *t, struct timespec __user *r)
 {
-#ifndef ENOTSUP
-	return -EOPNOTSUPP;	/* aka ENOTSUP in userland for POSIX */
-#else  /*  parisc does define it separately.  */
-	return -ENOTSUP;
-#endif
+	return -ENANOSLEEP_NOTSUP;
 }
 EXPORT_SYMBOL_GPL(do_posix_clock_nonanosleep);
 
