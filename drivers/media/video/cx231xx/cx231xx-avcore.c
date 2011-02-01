@@ -759,11 +759,8 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 	case CX231XX_VMUX_TELEVISION:
 	case CX231XX_VMUX_CABLE:
 	default:
-		switch (dev->model) {
-		case CX231XX_BOARD_CNXT_CARRAERA:
-		case CX231XX_BOARD_CNXT_RDE_250:
-		case CX231XX_BOARD_CNXT_SHELBY:
-		case CX231XX_BOARD_CNXT_RDU_250:
+		/* TODO: Test if this is also needed for xc2028/xc3028 */
+		if (dev->board.tuner_type == TUNER_XC5000) {
 			/* Disable the use of  DIF   */
 
 			status = vid_blk_read_word(dev, AFE_CTRL, &value);
@@ -820,8 +817,7 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 				MODE_CTRL, FLD_INPUT_MODE,
 				cx231xx_set_field(FLD_INPUT_MODE,
 						INPUT_MODE_CVBS_0));
-			break;
-		default:
+		} else {
 			/* Enable the DIF for the tuner */
 
 			/* Reinitialize the DIF */
@@ -2550,7 +2546,7 @@ int cx231xx_initialize_stream_xfer(struct cx231xx *dev, u32 media_type)
 		case 4:	/* ts1 */
 			cx231xx_info("%s: set ts1 registers", __func__);
 
-		if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER) {
+		if (dev->board.has_417) {
 			cx231xx_info(" MPEG\n");
 			value &= 0xFFFFFFFC;
 			value |= 0x3;

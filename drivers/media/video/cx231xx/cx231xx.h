@@ -353,7 +353,10 @@ struct cx231xx_board {
 
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
+	unsigned int has_417:1;
 	unsigned int valid:1;
+	unsigned int no_alt_vanc:1;
+	unsigned int external_av:1;
 
 	unsigned char xclk, i2c_speed;
 
