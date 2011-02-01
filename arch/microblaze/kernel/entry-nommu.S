@@ -115,7 +115,7 @@ ENTRY(_interrupt)
 	/* restore r31 */
 	lwi	r31, r0, PER_CPU(CURRENT_SAVE)
 	/* prepare the link register, the argument and jump */
-	la	r15, r0, ret_from_intr - 8
+	addik	r15, r0, ret_from_intr - 8
 	addk	r6, r0, r15
 	braid	do_IRQ
 	add	r5, r0, r1
@@ -283,7 +283,7 @@ ENTRY(_user_exception)
 	add	r12, r12, r12			/* convert num -> ptr */
 	add	r12, r12, r12
 	lwi	r12, r12, sys_call_table	/* Get function pointer */
-	la	r15, r0, ret_to_user-8		/* set return address */
+	addik	r15, r0, ret_to_user-8		/* set return address */
 	bra	r12				/* Make the system call. */
 	bri	0				/* won't reach here */
 1:

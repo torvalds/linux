@@ -821,7 +821,7 @@ C_ENTRY(_debug_exception):
 	tovirt(r1,r1)
 #ifdef CONFIG_KGDB
 	addi	r5, r1, 0 /* pass pt_reg address as the first arg */
-	la	r15, r0, dbtrap_call; /* return address */
+	addik	r15, r0, dbtrap_call; /* return address */
 	rtbd	r0, microblaze_kgdb_break
 	nop;
 #endif

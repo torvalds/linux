@@ -490,7 +490,7 @@ ex_lw_tail:
 	/* Get the destination register number into r5 */
 	lbui	r5, r0, TOPHYS(ex_reg_op);
 	/* Form load_word jump table offset (lw_table + (8 * regnum)) */
-	la	r6, r0, TOPHYS(lw_table);
+	addik	r6, r0, TOPHYS(lw_table);
 	addk	r5, r5, r5;
 	addk	r5, r5, r5;
 	addk	r5, r5, r5;
@@ -501,7 +501,7 @@ ex_sw:
 	/* Get the destination register number into r5 */
 	lbui	r5, r0, TOPHYS(ex_reg_op);
 	/* Form store_word jump table offset (sw_table + (8 * regnum)) */
-	la	r6, r0, TOPHYS(sw_table);
+	addik	r6, r0, TOPHYS(sw_table);
 	add	r5, r5, r5;
 	add	r5, r5, r5;
 	add	r5, r5, r5;
@@ -912,7 +912,7 @@ ex_lw_vm:
 	beqid	r6, ex_lhw_vm;
 load1:	lbui	r5, r4, 0;	/* Exception address in r4 - delay slot */
 /* Load a word, byte-by-byte from destination address and save it in tmp space*/
-	la	r6, r0, ex_tmp_data_loc_0;
+	addik	r6, r0, ex_tmp_data_loc_0;
 	sbi	r5, r6, 0;
 load2:	lbui	r5, r4, 1;
 	sbi	r5, r6, 1;
@@ -926,7 +926,7 @@ load4:	lbui	r5, r4, 3;
 ex_lhw_vm:
 	/* Load a half-word, byte-by-byte from destination address and
 	 * save it in tmp space */
-	la	r6, r0, ex_tmp_data_loc_0;
+	addik	r6, r0, ex_tmp_data_loc_0;
 	sbi	r5, r6, 0;
 load5:	lbui	r5, r4, 1;
 	sbi	r5, r6, 1;
@@ -942,7 +942,7 @@ ex_sw_vm:
 	addik	r5, r8, sw_table_vm;
 	bra	r5;
 ex_sw_tail_vm:
-	la	r5, r0, ex_tmp_data_loc_0;
+	addik	r5, r0, ex_tmp_data_loc_0;
 	beqid	r6, ex_shw_vm;
 	swi	r3, r5, 0;	/* Get the word - delay slot */
 	/* Store the word, byte-by-byte into destination address */
@@ -985,7 +985,7 @@ ex_unaligned_fixup:
 	addik	r7, r0, SIGSEGV
 	/* call bad_page_fault for finding aligned fixup, fixup address is saved
 	 * in PT_PC which is used as return address from exception */
-	la	r15, r0, ret_from_exc-8 /* setup return address */
+	addik	r15, r0, ret_from_exc-8 /* setup return address */
 	brid	bad_page_fault
 	nop
 
