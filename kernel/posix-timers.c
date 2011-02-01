@@ -488,7 +488,7 @@ static void release_posix_timer(struct k_itimer *tmr, int it_id_set)
 static struct k_clock *clockid_to_kclock(const clockid_t id)
 {
 	if (id < 0)
-		return &clock_posix_cpu;
+		return (id & CLOCKFD_MASK) == CLOCKFD ? NULL : &clock_posix_cpu;
 
 	if (id >= MAX_CLOCKS || !posix_clocks[id].clock_getres)
 		return NULL;
