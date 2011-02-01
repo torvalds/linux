@@ -151,24 +151,8 @@ typedef struct dma_info {
 	bool aligndesc_4k;	/* descriptor base need to be aligned or not */
 } dma_info_t;
 
-/*
- * If BCMDMA32 is defined, hnddma will support both 32-bit and 64-bit DMA engines.
- * Otherwise it will support only 64-bit.
- *
- * DMA32_ENAB indicates whether hnddma is compiled with support for 32-bit DMA engines.
- * DMA64_ENAB indicates whether hnddma is compiled with support for 64-bit DMA engines.
- *
- * DMA64_MODE indicates whether the current DMA engine is running as 64-bit.
- */
-#ifdef BCMDMA32
-#define	DMA32_ENAB(di)		1
-#define	DMA64_ENAB(di)		1
-#define	DMA64_MODE(di)		((di)->dma64)
-#else				/* !BCMDMA32 */
-#define	DMA32_ENAB(di)		0
 #define	DMA64_ENAB(di)		1
 #define	DMA64_MODE(di)		1
-#endif				/* !BCMDMA32 */
 
 /* DMA Scatter-gather list is supported. Note this is limited to TX direction only */
 #ifdef BCMDMASGLISTOSL
@@ -418,12 +402,6 @@ struct hnddma_pub *dma_attach(struct osl_info *osh, char *name, si_t *sih,
 		di->d64txregs = (dma64regs_t *) dmaregstx;
 		di->d64rxregs = (dma64regs_t *) dmaregsrx;
 		di->hnddma.di_fn = (const di_fcn_t *)&dma64proc;
-	} else if (DMA32_ENAB(di)) {
-		ASSERT(ntxd <= D32MAXDD);
-		ASSERT(nrxd <= D32MAXDD);
-		di->d32txregs = (dma32regs_t *) dmaregstx;
-		di->d32rxregs = (dma32regs_t *) dmaregsrx;
-		di->hnddma.di_fn = (const di_fcn_t *)&dma32proc;
 	} else {
 		DMA_ERROR(("dma_attach: driver doesn't support 32-bit DMA\n"));
 		ASSERT(0);
@@ -683,8 +661,6 @@ static bool _dma_alloc(dma_info_t *di, uint direction)
 {
 	if (DMA64_ENAB(di) && DMA64_MODE(di)) {
 		return dma64_alloc(di, direction);
-	} else if (DMA32_ENAB(di)) {
-		return dma32_alloc(di, direction);
 	} else
 		ASSERT(0);
 }
@@ -709,17 +685,6 @@ static void _dma_detach(dma_info_t *di)
 		if (di->rxd64)
 			DMA_FREE_CONSISTENT(di->osh,
 					    ((s8 *)di->rxd64 -
-					     di->rxdalign), di->rxdalloc,
-					    (di->rxdpaorig), &di->rx_dmah);
-	} else if (DMA32_ENAB(di)) {
-		if (di->txd32)
-			DMA_FREE_CONSISTENT(di->osh,
-					    ((s8 *)di->txd32 -
-					     di->txdalign), di->txdalloc,
-					    (di->txdpaorig), &di->tx_dmah);
-		if (di->rxd32)
-			DMA_FREE_CONSISTENT(di->osh,
-					    ((s8 *)di->rxd32 -
 					     di->rxdalign), di->rxdalloc,
 					    (di->rxdpaorig), &di->rx_dmah);
 	} else
@@ -786,11 +751,6 @@ static bool _dma_isaddrext(dma_info_t *di)
 			return true;
 		}
 		return false;
-	} else if (DMA32_ENAB(di)) {
-		if (di->d32txregs)
-			return _dma32_addrext(di->osh, di->d32txregs);
-		else if (di->d32rxregs)
-			return _dma32_addrext(di->osh, di->d32rxregs);
 	} else
 		ASSERT(0);
 
@@ -848,39 +808,6 @@ static void _dma_ddtable_init(dma_info_t *di, uint direction, dmaaddr_t pa)
 					D64_RC_AE, (ae << D64_RC_AE_SHIFT));
 			}
 		}
-
-	} else if (DMA32_ENAB(di)) {
-		ASSERT(PHYSADDRHI(pa) == 0);
-		if ((di->ddoffsetlow == 0)
-		    || !(PHYSADDRLO(pa) & PCI32ADDR_HIGH)) {
-			if (direction == DMA_TX)
-				W_REG(di->osh, &di->d32txregs->addr,
-				      (PHYSADDRLO(pa) + di->ddoffsetlow));
-			else
-				W_REG(di->osh, &di->d32rxregs->addr,
-				      (PHYSADDRLO(pa) + di->ddoffsetlow));
-		} else {
-			/* dma32 address extension */
-			u32 ae;
-			ASSERT(di->addrext);
-
-			/* shift the high bit(s) from pa to ae */
-			ae = (PHYSADDRLO(pa) & PCI32ADDR_HIGH) >>
-			    PCI32ADDR_HIGH_SHIFT;
-			PHYSADDRLO(pa) &= ~PCI32ADDR_HIGH;
-
-			if (direction == DMA_TX) {
-				W_REG(di->osh, &di->d32txregs->addr,
-				      (PHYSADDRLO(pa) + di->ddoffsetlow));
-				SET_REG(di->osh, &di->d32txregs->control, XC_AE,
-					ae << XC_AE_SHIFT);
-			} else {
-				W_REG(di->osh, &di->d32rxregs->addr,
-				      (PHYSADDRLO(pa) + di->ddoffsetlow));
-				SET_REG(di->osh, &di->d32rxregs->control, RC_AE,
-					ae << RC_AE_SHIFT);
-			}
-		}
 	} else
 		ASSERT(0);
 }
@@ -891,8 +818,6 @@ static void _dma_fifoloopbackenable(dma_info_t *di)
 
 	if (DMA64_ENAB(di) && DMA64_MODE(di))
 		OR_REG(di->osh, &di->d64txregs->control, D64_XC_LE);
-	else if (DMA32_ENAB(di))
-		OR_REG(di->osh, &di->d32txregs->control, XC_LE);
 	else
 		ASSERT(0);
 }
@@ -921,11 +846,6 @@ static void _dma_rxinit(dma_info_t *di)
 
 		if (di->aligndesc_4k)
 			_dma_ddtable_init(di, DMA_RX, di->rxdpa);
-	} else if (DMA32_ENAB(di)) {
-		memset((void *)di->rxd32, '\0',
-			 (di->nrxd * sizeof(dma32dd_t)));
-		_dma_rxenable(di);
-		_dma_ddtable_init(di, DMA_RX, di->rxdpa);
 	} else
 		ASSERT(0);
 }
@@ -949,18 +869,6 @@ static void _dma_rxenable(dma_info_t *di)
 
 		W_REG(di->osh, &di->d64rxregs->control,
 		      ((di->rxoffset << D64_RC_RO_SHIFT) | control));
-	} else if (DMA32_ENAB(di)) {
-		u32 control =
-		    (R_REG(di->osh, &di->d32rxregs->control) & RC_AE) | RC_RE;
-
-		if ((dmactrlflags & DMA_CTRL_PEN) == 0)
-			control |= RC_PD;
-
-		if (dmactrlflags & DMA_CTRL_ROC)
-			control |= RC_OC;
-
-		W_REG(di->osh, &di->d32rxregs->control,
-		      ((di->rxoffset << RC_RO_SHIFT) | control));
 	} else
 		ASSERT(0);
 }
@@ -1103,11 +1011,6 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 						DMA_ERROR(("%s: rxfill64: ring is empty !\n", di->name));
 						ring_empty = true;
 					}
-				} else if (DMA32_ENAB(di)) {
-					if (dma32_rxidle(di)) {
-						DMA_ERROR(("%s: rxfill32: ring is empty !\n", di->name));
-						ring_empty = true;
-					}
 				} else
 					ASSERT(0);
 			}
@@ -1144,13 +1047,6 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 
 			dma64_dd_upd(di, di->rxd64, pa, rxout, &flags,
 				     di->rxbufsize);
-		} else if (DMA32_ENAB(di)) {
-			if (rxout == (di->nrxd - 1))
-				flags = CTRL_EOT;
-
-			ASSERT(PHYSADDRHI(pa) == 0);
-			dma32_dd_upd(di, di->rxd32, pa, rxout, &flags,
-				     di->rxbufsize);
 		} else
 			ASSERT(0);
 		rxout = NEXTRXD(rxout);
@@ -1162,8 +1058,6 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 	if (DMA64_ENAB(di) && DMA64_MODE(di)) {
 		W_REG(di->osh, &di->d64rxregs->ptr,
 		      di->rcvptrbase + I2B(rxout, dma64dd_t));
-	} else if (DMA32_ENAB(di)) {
-		W_REG(di->osh, &di->d32rxregs->ptr, I2B(rxout, dma32dd_t));
 	} else
 		ASSERT(0);
 
@@ -1183,10 +1077,6 @@ static void *_dma_peeknexttxp(dma_info_t *di)
 		    B2I(((R_REG(di->osh, &di->d64txregs->status0) &
 			  D64_XS0_CD_MASK) - di->xmtptrbase) & D64_XS0_CD_MASK,
 			dma64dd_t);
-	} else if (DMA32_ENAB(di)) {
-		end =
-		    B2I(R_REG(di->osh, &di->d32txregs->status) & XS_CD_MASK,
-			dma32dd_t);
 	} else
 		ASSERT(0);
 
@@ -1210,10 +1100,6 @@ static void *_dma_peeknextrxp(dma_info_t *di)
 		    B2I(((R_REG(di->osh, &di->d64rxregs->status0) &
 			  D64_RS0_CD_MASK) - di->rcvptrbase) & D64_RS0_CD_MASK,
 			dma64dd_t);
-	} else if (DMA32_ENAB(di)) {
-		end =
-		    B2I(R_REG(di->osh, &di->d32rxregs->status) & RS_CD_MASK,
-			dma32dd_t);
 	} else
 		ASSERT(0);
 
@@ -1241,8 +1127,6 @@ static void *BCMFASTPATH _dma_getnextrxp(dma_info_t *di, bool forceall)
 
 	if (DMA64_ENAB(di) && DMA64_MODE(di)) {
 		return dma64_getnextrxp(di, forceall);
-	} else if (DMA32_ENAB(di)) {
-		return dma32_getnextrxp(di, forceall);
 	} else
 		ASSERT(0);
 }
@@ -1271,10 +1155,6 @@ static uint _dma_txpending(dma_info_t *di)
 		    B2I(((R_REG(di->osh, &di->d64txregs->status0) &
 			  D64_XS0_CD_MASK) - di->xmtptrbase) & D64_XS0_CD_MASK,
 			dma64dd_t);
-	} else if (DMA32_ENAB(di)) {
-		curr =
-		    B2I(R_REG(di->osh, &di->d32txregs->status) & XS_CD_MASK,
-			dma32dd_t);
 	} else
 		ASSERT(0);
 
@@ -1291,8 +1171,6 @@ static uint _dma_txcommitted(dma_info_t *di)
 
 	if (DMA64_ENAB(di) && DMA64_MODE(di)) {
 		ptr = B2I(R_REG(di->osh, &di->d64txregs->ptr), dma64dd_t);
-	} else if (DMA32_ENAB(di)) {
-		ptr = B2I(R_REG(di->osh, &di->d32txregs->ptr), dma32dd_t);
 	} else
 		ASSERT(0);
 
@@ -1339,17 +1217,6 @@ static uint _dma_ctrlflags(dma_info_t *di, uint mask, uint flags)
 				 * restore control register
 				 */
 				W_REG(di->osh, &di->d64txregs->control,
-				      control);
-			} else {
-				/* Not supported, don't allow it to be enabled */
-				dmactrlflags &= ~DMA_CTRL_PEN;
-			}
-		} else if (DMA32_ENAB(di)) {
-			control = R_REG(di->osh, &di->d32txregs->control);
-			W_REG(di->osh, &di->d32txregs->control,
-			      control | XC_PD);
-			if (R_REG(di->osh, &di->d32txregs->control) & XC_PD) {
-				W_REG(di->osh, &di->d32txregs->control,
 				      control);
 			} else {
 				/* Not supported, don't allow it to be enabled */

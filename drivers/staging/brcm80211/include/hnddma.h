@@ -148,47 +148,7 @@ extern struct hnddma_pub *dma_attach(struct osl_info *osh, char *name,
 			    void *dmaregstx, void *dmaregsrx, uint ntxd,
 			    uint nrxd, uint rxbufsize, int rxextheadroom,
 			    uint nrxpost, uint rxoffset, uint *msg_level);
-#ifdef BCMDMA32
 
-#define dma_detach(di)			((di)->di_fn->detach(di))
-#define dma_txreset(di)			((di)->di_fn->txreset(di))
-#define dma_rxreset(di)			((di)->di_fn->rxreset(di))
-#define dma_rxidle(di)			((di)->di_fn->rxidle(di))
-#define dma_txinit(di)                  ((di)->di_fn->txinit(di))
-#define dma_txenabled(di)               ((di)->di_fn->txenabled(di))
-#define dma_rxinit(di)                  ((di)->di_fn->rxinit(di))
-#define dma_txsuspend(di)               ((di)->di_fn->txsuspend(di))
-#define dma_txresume(di)                ((di)->di_fn->txresume(di))
-#define dma_txsuspended(di)             ((di)->di_fn->txsuspended(di))
-#define dma_txsuspendedidle(di)         ((di)->di_fn->txsuspendedidle(di))
-#define dma_txfast(di, p, commit)	((di)->di_fn->txfast(di, p, commit))
-#define dma_fifoloopbackenable(di)      ((di)->di_fn->fifoloopbackenable(di))
-#define dma_txstopped(di)               ((di)->di_fn->txstopped(di))
-#define dma_rxstopped(di)               ((di)->di_fn->rxstopped(di))
-#define dma_rxenable(di)                ((di)->di_fn->rxenable(di))
-#define dma_rxenabled(di)               ((di)->di_fn->rxenabled(di))
-#define dma_rx(di)                      ((di)->di_fn->rx(di))
-#define dma_rxfill(di)                  ((di)->di_fn->rxfill(di))
-#define dma_txreclaim(di, range)	((di)->di_fn->txreclaim(di, range))
-#define dma_rxreclaim(di)               ((di)->di_fn->rxreclaim(di))
-#define dma_getvar(di, name)		((di)->di_fn->d_getvar(di, name))
-#define dma_getnexttxp(di, range)	((di)->di_fn->getnexttxp(di, range))
-#define dma_getnextrxp(di, forceall)    ((di)->di_fn->getnextrxp(di, forceall))
-#define dma_peeknexttxp(di)             ((di)->di_fn->peeknexttxp(di))
-#define dma_peeknextrxp(di)             ((di)->di_fn->peeknextrxp(di))
-#define dma_rxparam_get(di, off, bufs)	((di)->di_fn->rxparam_get(di, off, bufs))
-
-#define dma_txblock(di)                 ((di)->di_fn->txblock(di))
-#define dma_txunblock(di)               ((di)->di_fn->txunblock(di))
-#define dma_txactive(di)                ((di)->di_fn->txactive(di))
-#define dma_rxactive(di)                ((di)->di_fn->rxactive(di))
-#define dma_txrotate(di)                ((di)->di_fn->txrotate(di))
-#define dma_counterreset(di)            ((di)->di_fn->counterreset(di))
-#define dma_ctrlflags(di, mask, flags)  ((di)->di_fn->ctrlflags((di), (mask), (flags)))
-#define dma_txpending(di)		((di)->di_fn->txpending(di))
-#define dma_txcommitted(di)		((di)->di_fn->txcommitted(di))
-
-#else				/* BCMDMA32 */
 extern const di_fcn_t dma64proc;
 
 #define dma_detach(di)			(dma64proc.detach(di))
@@ -231,7 +191,6 @@ extern const di_fcn_t dma64proc;
 #define dma_txpending(di)		(dma64proc.txpending(di))
 #define dma_txcommitted(di)		(dma64proc.txcommitted(di))
 
-#endif				/* BCMDMA32 */
 
 /* return addresswidth allowed
  * This needs to be done after SB attach but before dma attach.
