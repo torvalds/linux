@@ -554,33 +554,33 @@ static int __net_init __ip_vs_lblc_init(struct net *net)
 						sizeof(vs_vars_table),
 						GFP_KERNEL);
 		if (ipvs->lblc_ctl_table == NULL)
-			goto err_dup;
+			return -ENOMEM;
 	} else
 		ipvs->lblc_ctl_table = vs_vars_table;
 	ipvs->sysctl_lblc_expiration = 24*60*60*HZ;
 	ipvs->lblc_ctl_table[0].data = &ipvs->sysctl_lblc_expiration;
 
+#ifdef CONFIG_SYSCTL
 	ipvs->lblc_ctl_header =
 		register_net_sysctl_table(net, net_vs_ctl_path,
 					  ipvs->lblc_ctl_table);
-	if (!ipvs->lblc_ctl_header)
-		goto err_reg;
+	if (!ipvs->lblc_ctl_header) {
+		if (!net_eq(net, &init_net))
+			kfree(ipvs->lblc_ctl_table);
+		return -ENOMEM;
+	}
+#endif
 
 	return 0;
-
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(ipvs->lblc_ctl_table);
-
-err_dup:
-	return -ENOMEM;
 }
 
 static void __net_exit __ip_vs_lblc_exit(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
+#ifdef CONFIG_SYSCTL
 	unregister_net_sysctl_table(ipvs->lblc_ctl_header);
+#endif
 
 	if (!net_eq(net, &init_net))
 		kfree(ipvs->lblc_ctl_table);
