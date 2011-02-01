@@ -724,8 +724,8 @@ static int twl6040_power_mode_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-void twl6040_hs_jack_report(struct snd_soc_codec *codec,
-				struct snd_soc_jack *jack, int report)
+static void twl6040_hs_jack_report(struct snd_soc_codec *codec,
+				   struct snd_soc_jack *jack, int report)
 {
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	int status;
