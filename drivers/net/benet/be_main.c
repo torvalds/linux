@@ -2626,8 +2626,6 @@ static void be_netdev_init(struct net_device *netdev)
 
 	netif_napi_add(netdev, &adapter->tx_eq.napi, be_poll_tx_mcc,
 		BE_NAPI_WEIGHT);
-
-	netif_stop_queue(netdev);
 }
 
 static void be_unmap_pci_bars(struct be_adapter *adapter)
