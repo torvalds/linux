@@ -32,7 +32,7 @@ struct cpu_timer_list {
 #define CPUCLOCK_PID(clock)		((pid_t) ~((clock) >> 3))
 #define CPUCLOCK_PERTHREAD(clock) \
 	(((clock) & (clockid_t) CPUCLOCK_PERTHREAD_MASK) != 0)
-#define CPUCLOCK_PID_MASK	7
+
 #define CPUCLOCK_PERTHREAD_MASK	4
 #define CPUCLOCK_WHICH(clock)	((clock) & (clockid_t) CPUCLOCK_CLOCK_MASK)
 #define CPUCLOCK_CLOCK_MASK	3
@@ -47,6 +47,9 @@ struct cpu_timer_list {
 	((~(clockid_t) (pid) << 3) | (clockid_t) (clock))
 #define MAKE_THREAD_CPUCLOCK(tid, clock) \
 	MAKE_PROCESS_CPUCLOCK((tid), (clock) | CPUCLOCK_PERTHREAD_MASK)
+
+#define FD_TO_CLOCKID(fd)	((~(clockid_t) (fd) << 3) | CLOCKFD)
+#define CLOCKID_TO_FD(clk)	((unsigned int) ~((clk) >> 3))
 
 /* POSIX.1b interval timer structure. */
 struct k_itimer {
@@ -100,6 +103,7 @@ struct k_clock {
 };
 
 extern struct k_clock clock_posix_cpu;
+extern struct k_clock clock_posix_dynamic;
 
 void posix_timers_register_clock(const clockid_t clock_id, struct k_clock *new_clock);
 
