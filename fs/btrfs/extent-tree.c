@@ -6496,6 +6496,8 @@ static noinline int relocate_inode_pages(struct inode *inode, u64 start,
 	int ret = 0;
 
 	ra = kzalloc(sizeof(*ra), GFP_NOFS);
+	if (!ra)
+		return -ENOMEM;
 
 	mutex_lock(&inode->i_mutex);
 	first_index = start >> PAGE_CACHE_SHIFT;
