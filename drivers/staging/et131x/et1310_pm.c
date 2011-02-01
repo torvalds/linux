@@ -116,8 +116,8 @@ void EnablePhyComa(struct et131x_adapter *etdev)
 	/* Save the GbE PHY speed and duplex modes. Need to restore this
 	 * when cable is plugged back in
 	 */
-	etdev->PoMgmt.PowerDownSpeed = etdev->AiForceSpeed;
-	etdev->PoMgmt.PowerDownDuplex = etdev->AiForceDpx;
+	etdev->pdown_speed = etdev->AiForceSpeed;
+	etdev->pdown_duplex = etdev->AiForceDpx;
 
 	/* Stop sending packets. */
 	spin_lock_irqsave(&etdev->send_hw_lock, flags);
@@ -153,8 +153,8 @@ void DisablePhyComa(struct et131x_adapter *etdev)
 	/* Restore the GbE PHY speed and duplex modes;
 	 * Reset JAGCore; re-configure and initialize JAGCore and gigE PHY
 	 */
-	etdev->AiForceSpeed = etdev->PoMgmt.PowerDownSpeed;
-	etdev->AiForceDpx = etdev->PoMgmt.PowerDownDuplex;
+	etdev->AiForceSpeed = etdev->pdown_speed;
+	etdev->AiForceDpx = etdev->pdown_duplex;
 
 	/* Re-initialize the send structures */
 	et131x_init_send(etdev);

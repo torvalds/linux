@@ -145,19 +145,6 @@ typedef struct _ce_stats_t {
 	u32 InterruptStatus;
 } CE_STATS_t, *PCE_STATS_t;
 
-typedef struct _MP_POWER_MGMT {
-	/* variable putting the phy into coma mode when boot up with no cable
-	 * plugged in after 5 seconds
-	 */
-	u8 TransPhyComaModeOnBoot;
-
-	/* Next two used to save power information at power down. This
-	 * information will be used during power up to set up parts of Power
-	 * Management in JAGCore
-	 */
-	u16 PowerDownSpeed;
-	u8 PowerDownDuplex;
-} MP_POWER_MGMT, *PMP_POWER_MGMT;
 
 /* The private adapter structure */
 struct et131x_adapter {
@@ -223,7 +210,19 @@ struct et131x_adapter {
 
 	/* Minimize init-time */
 	struct timer_list ErrorTimer;
-	MP_POWER_MGMT PoMgmt;
+
+	/* variable putting the phy into coma mode when boot up with no cable
+	 * plugged in after 5 seconds
+	 */
+	u8 boot_coma;
+
+	/* Next two used to save power information at power down. This
+	 * information will be used during power up to set up parts of Power
+	 * Management in JAGCore
+	 */
+	u16 pdown_speed;
+	u8 pdown_duplex;
+
 	u32 CachedMaskValue;
 
 	/* Xcvr status at last poll */

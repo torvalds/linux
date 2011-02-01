@@ -276,11 +276,11 @@ void et131x_error_timer_handler(unsigned long data)
 
 	if (!etdev->Bmsr.bits.link_status &&
 	    etdev->RegistryPhyComa &&
-	    etdev->PoMgmt.TransPhyComaModeOnBoot < 11) {
-		etdev->PoMgmt.TransPhyComaModeOnBoot++;
+	    etdev->boot_coma < 11) {
+		etdev->boot_coma++;
 	}
 
-	if (etdev->PoMgmt.TransPhyComaModeOnBoot == 10) {
+	if (etdev->boot_coma == 10) {
 		if (!etdev->Bmsr.bits.link_status
 		    && etdev->RegistryPhyComa) {
 			if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
@@ -728,7 +728,7 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 
 	/* Initialize variable for counting how long we do not have
 							link status */
-	adapter->PoMgmt.TransPhyComaModeOnBoot = 0;
+	adapter->boot_coma = 0;
 
 	/* We can enable interrupts now
 	 *

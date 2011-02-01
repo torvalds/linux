@@ -740,7 +740,7 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 
 	if (bmsr_ints.bits.link_status) {
 		if (bmsr.bits.link_status) {
-			etdev->PoMgmt.TransPhyComaModeOnBoot = 20;
+			etdev->boot_coma = 20;
 
 			/* Update our state variables and indicate the
 			 * connected state
@@ -831,7 +831,7 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 			etdev->linkspeed = speed;
 			etdev->duplex_mode = duplex;
 
-			etdev->PoMgmt.TransPhyComaModeOnBoot = 20;
+			etdev->boot_coma = 20;
 
 			if (etdev->linkspeed == TRUEPHY_SPEED_10MBPS) {
 				/*
