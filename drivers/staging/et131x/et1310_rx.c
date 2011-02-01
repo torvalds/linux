@@ -622,7 +622,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	writel((psr_num_des * LO_MARK_PERCENT_FOR_PSR) / 100,
 	       &rx_dma->psr_min_des);
 
-	spin_lock_irqsave(&etdev->RcvLock, flags);
+	spin_lock_irqsave(&etdev->rcv_lock, flags);
 
 	/* These local variables track the PSR in the adapter structure */
 	rx_local->local_psr_full = 0;
@@ -688,7 +688,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	 */
 	writel(PARM_RX_TIME_INT_DEF, &rx_dma->max_pkt_time);
 
-	spin_unlock_irqrestore(&etdev->RcvLock, flags);
+	spin_unlock_irqrestore(&etdev->rcv_lock, flags);
 }
 
 /**
@@ -854,21 +854,21 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	}
 
 	/* Get and fill the RFD. */
-	spin_lock_irqsave(&etdev->RcvLock, flags);
+	spin_lock_irqsave(&etdev->rcv_lock, flags);
 
 	rfd = NULL;
 	element = rx_local->RecvList.next;
 	rfd = (PMP_RFD) list_entry(element, MP_RFD, list_node);
 
 	if (rfd == NULL) {
-		spin_unlock_irqrestore(&etdev->RcvLock, flags);
+		spin_unlock_irqrestore(&etdev->rcv_lock, flags);
 		return NULL;
 	}
 
 	list_del(&rfd->list_node);
 	rx_local->nReadyRecv--;
 
-	spin_unlock_irqrestore(&etdev->RcvLock, flags);
+	spin_unlock_irqrestore(&etdev->rcv_lock, flags);
 
 	rfd->bufferindex = bindex;
 	rfd->ringindex = rindex;
@@ -887,8 +887,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 		if (etdev->ReplicaPhyLoopbk == 1) {
 			buf = rx_local->fbr[rindex]->virt[bindex];
 
-			if (memcmp(&buf[6], &etdev->CurrentAddress[0],
-				   ETH_ALEN) == 0) {
+			if (memcmp(&buf[6], etdev->addr, ETH_ALEN) == 0) {
 				if (memcmp(&buf[42], "Replica packet",
 					   ETH_HLEN)) {
 					etdev->ReplicaPhyLoopbkPF = 1;
@@ -1146,10 +1145,10 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD rfd)
 	/* The processing on this RFD is done, so put it back on the tail of
 	 * our list
 	 */
-	spin_lock_irqsave(&etdev->RcvLock, flags);
+	spin_lock_irqsave(&etdev->rcv_lock, flags);
 	list_add_tail(&rfd->list_node, &rx_local->RecvList);
 	rx_local->nReadyRecv++;
-	spin_unlock_irqrestore(&etdev->RcvLock, flags);
+	spin_unlock_irqrestore(&etdev->rcv_lock, flags);
 
 	WARN_ON(rx_local->nReadyRecv > rx_local->NumRfd);
 }

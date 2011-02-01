@@ -604,10 +604,10 @@ static void et131x_xcvr_init(struct et131x_adapter *etdev)
 	 * vendors; The LED behavior is now determined by vendor data in the
 	 * EEPROM. However, the above description is the default.
 	 */
-	if ((etdev->eepromData[1] & 0x4) == 0) {
+	if ((etdev->eeprom_data[1] & 0x4) == 0) {
 		MiRead(etdev, (u8) offsetof(MI_REGS_t, lcr2),
 		       &lcr2.value);
-		if ((etdev->eepromData[1] & 0x8) == 0)
+		if ((etdev->eeprom_data[1] & 0x8) == 0)
 			lcr2.bits.led_tx_rx = 0x3;
 		else
 			lcr2.bits.led_tx_rx = 0x4;

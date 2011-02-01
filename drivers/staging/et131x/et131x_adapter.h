@@ -173,17 +173,17 @@ struct et131x_adapter {
 	u32 HwErrCount;
 
 	/* Configuration  */
-	u8 PermanentAddress[ETH_ALEN];
-	u8 CurrentAddress[ETH_ALEN];
+	u8 rom_addr[ETH_ALEN];
+	u8 addr[ETH_ALEN];
 	bool has_eeprom;
-	u8 eepromData[2];
+	u8 eeprom_data[2];
 
 	/* Spinlocks */
 	spinlock_t Lock;
 
 	spinlock_t TCBSendQLock;
 	spinlock_t TCBReadyQLock;
-	spinlock_t SendHWLock;
+	spinlock_t send_hw_lock;
 
 	spinlock_t RcvLock;
 	spinlock_t RcvPendLock;

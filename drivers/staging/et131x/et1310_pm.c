@@ -109,9 +109,9 @@
 void EnablePhyComa(struct et131x_adapter *etdev)
 {
 	unsigned long flags;
-	u32 GlobalPmCSR;
+	u32 pmcsr;
 
-	GlobalPmCSR = readl(&etdev->regs->global.pm_csr);
+	pmcsr = readl(&etdev->regs->global.pm_csr);
 
 	/* Save the GbE PHY speed and duplex modes. Need to restore this
 	 * when cable is plugged back in
@@ -120,19 +120,19 @@ void EnablePhyComa(struct et131x_adapter *etdev)
 	etdev->PoMgmt.PowerDownDuplex = etdev->AiForceDpx;
 
 	/* Stop sending packets. */
-	spin_lock_irqsave(&etdev->SendHWLock, flags);
+	spin_lock_irqsave(&etdev->send_hw_lock, flags);
 	etdev->Flags |= fMP_ADAPTER_LOWER_POWER;
-	spin_unlock_irqrestore(&etdev->SendHWLock, flags);
+	spin_unlock_irqrestore(&etdev->send_hw_lock, flags);
 
 	/* Wait for outstanding Receive packets */
 
 	/* Gate off JAGCore 3 clock domains */
-	GlobalPmCSR &= ~ET_PMCSR_INIT;
-	writel(GlobalPmCSR, &etdev->regs->global.pm_csr);
+	pmcsr &= ~ET_PMCSR_INIT;
+	writel(pmcsr, &etdev->regs->global.pm_csr);
 
 	/* Program gigE PHY in to Coma mode */
-	GlobalPmCSR |= ET_PM_PHY_SW_COMA;
-	writel(GlobalPmCSR, &etdev->regs->global.pm_csr);
+	pmcsr |= ET_PM_PHY_SW_COMA;
+	writel(pmcsr, &etdev->regs->global.pm_csr);
 }
 
 /**
@@ -141,14 +141,14 @@ void EnablePhyComa(struct et131x_adapter *etdev)
  */
 void DisablePhyComa(struct et131x_adapter *etdev)
 {
-	u32 GlobalPmCSR;
+	u32 pmcsr;
 
-	GlobalPmCSR = readl(&etdev->regs->global.pm_csr);
+	pmcsr = readl(&etdev->regs->global.pm_csr);
 
 	/* Disable phy_sw_coma register and re-enable JAGCore clocks */
-	GlobalPmCSR |= ET_PMCSR_INIT;
-	GlobalPmCSR &= ~ET_PM_PHY_SW_COMA;
-	writel(GlobalPmCSR, &etdev->regs->global.pm_csr);
+	pmcsr |= ET_PMCSR_INIT;
+	pmcsr &= ~ET_PM_PHY_SW_COMA;
+	writel(pmcsr, &etdev->regs->global.pm_csr);
 
 	/* Restore the GbE PHY speed and duplex modes;
 	 * Reset JAGCore; re-configure and initialize JAGCore and gigE PHY
