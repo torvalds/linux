@@ -97,26 +97,29 @@ u32 evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 }
 
 /* get temperature in millidegrees */
-u32 evergreen_get_temp(struct radeon_device *rdev)
+int evergreen_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = (RREG32(CG_MULT_THERMAL_STATUS) & ASIC_T_MASK) >>
 		ASIC_T_SHIFT;
 	u32 actual_temp = 0;
 
-	if ((temp >> 10) & 1)
-		actual_temp = 0;
-	else if ((temp >> 9) & 1)
+	if (temp & 0x400)
+		actual_temp = -256;
+	else if (temp & 0x200)
 		actual_temp = 255;
-	else
-		actual_temp = (temp >> 1) & 0xff;
+	else if (temp & 0x100) {
+		actual_temp = temp & 0x1ff;
+		actual_temp |= ~0x1ff;
+	} else
+		actual_temp = temp & 0xff;
 
-	return actual_temp * 1000;
+	return (actual_temp * 1000) / 2;
 }
 
-u32 sumo_get_temp(struct radeon_device *rdev)
+int sumo_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = RREG32(CG_THERMAL_STATUS) & 0xff;
-	u32 actual_temp = (temp >> 1) & 0xff;
+	int actual_temp = temp - 49;
 
 	return actual_temp * 1000;
 }
