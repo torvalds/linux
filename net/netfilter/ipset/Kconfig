@@ -32,4 +32,13 @@ config IP_SET_BITMAP_IP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP_SET_BITMAP_IPMAC
+	tristate "bitmap:ip,mac set support"
+	depends on IP_SET
+	help
+	  This option adds the bitmap:ip,mac set type support, by which one
+	  can store IPv4 address and (source) MAC address pairs from a range.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 endif # IP_SET
