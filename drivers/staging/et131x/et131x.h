@@ -126,9 +126,9 @@ void SetPhy_10BaseTHalfDuplex(struct et131x_adapter *adapter);
 int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter);
 void et131x_rx_dma_memory_free(struct et131x_adapter *adapter);
 int et131x_rfd_resources_alloc(struct et131x_adapter *adapter,
-			       struct _MP_RFD *pMpRfd);
+			       struct rfd *rfd);
 void et131x_rfd_resources_free(struct et131x_adapter *adapter,
-			       struct _MP_RFD *pMpRfd);
+			       struct rfd *rfd);
 int et131x_init_recv(struct et131x_adapter *adapter);
 
 void ConfigRxDmaRegs(struct et131x_adapter *adapter);

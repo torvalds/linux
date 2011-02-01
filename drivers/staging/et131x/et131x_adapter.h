@@ -83,13 +83,13 @@
 #define LO_MARK_PERCENT_FOR_RX      15
 
 /* RFD (Receive Frame Descriptor) */
-typedef struct _MP_RFD {
+struct rfd {
 	struct list_head list_node;
-	struct sk_buff *Packet;
-	u32 PacketSize;	/* total size of receive frame */
+	struct sk_buff *skb;
+	u32 len;	/* total size of receive frame */
 	u16 bufferindex;
 	u8 ringindex;
-} MP_RFD, *PMP_RFD;
+};
 
 /* Flow Control */
 #define FLOW_BOTH	0

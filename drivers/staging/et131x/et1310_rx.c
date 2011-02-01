@@ -88,7 +88,7 @@
 #include "et1310_rx.h"
 #include "et131x.h"
 
-void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd);
+void nic_return_rfd(struct et131x_adapter *etdev, struct rfd *rfd);
 
 /**
  * et131x_rx_dma_memory_alloc
@@ -372,7 +372,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 * RFDs will be allocated from this pool.
 	 */
 	rx_ring->RecvLookaside = kmem_cache_create(adapter->netdev->name,
-						   sizeof(MP_RFD),
+						   sizeof(struct rfd),
 						   0,
 						   SLAB_CACHE_DMA |
 						   SLAB_HWCACHE_ALIGN,
@@ -396,7 +396,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	u32 index;
 	u32 bufsize;
 	u32 pktStatRingSize;
-	PMP_RFD rfd;
+	struct rfd *rfd;
 	struct rx_ring *rx_ring;
 
 	/* Setup some convenience pointers */
@@ -406,11 +406,11 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	WARN_ON(rx_ring->nReadyRecv != rx_ring->NumRfd);
 
 	while (!list_empty(&rx_ring->RecvList)) {
-		rfd = (MP_RFD *) list_entry(rx_ring->RecvList.next,
-					       MP_RFD, list_node);
+		rfd = (struct rfd *) list_entry(rx_ring->RecvList.next,
+				struct rfd, list_node);
 
 		list_del(&rfd->list_node);
-		rfd->Packet = NULL;
+		rfd->skb = NULL;
 		kmem_cache_free(adapter->rx_ring.RecvLookaside, rfd);
 	}
 
@@ -537,7 +537,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 int et131x_init_recv(struct et131x_adapter *adapter)
 {
 	int status = -ENOMEM;
-	PMP_RFD rfd = NULL;
+	struct rfd *rfd = NULL;
 	u32 rfdct;
 	u32 numrfd = 0;
 	struct rx_ring *rx_ring;
@@ -557,7 +557,7 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 			continue;
 		}
 
-		rfd->Packet = NULL;
+		rfd->skb = NULL;
 
 		/* Add this RFD to the RecvList */
 		list_add_tail(&rfd->list_node, &rx_ring->RecvList);
@@ -776,12 +776,12 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
  * the packet to it, puts the RFD in the RecvPendList, and also returns
  * the pointer to the RFD.
  */
-PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
+struct rfd * nic_rx_pkts(struct et131x_adapter *etdev)
 {
 	struct rx_ring *rx_local = &etdev->rx_ring;
 	struct rx_status_block *status;
 	struct pkt_stat_desc *psr;
-	PMP_RFD rfd;
+	struct rfd *rfd;
 	u32 i;
 	u8 *buf;
 	unsigned long flags;
@@ -858,7 +858,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 
 	rfd = NULL;
 	element = rx_local->RecvList.next;
-	rfd = (PMP_RFD) list_entry(element, MP_RFD, list_node);
+	rfd = (struct rfd *) list_entry(element, struct rfd, list_node);
 
 	if (rfd == NULL) {
 		spin_unlock_irqrestore(&etdev->rcv_lock, flags);
@@ -938,7 +938,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 				 * of Multicast address we have, then
 				 * this means we did not find this
 				 * packet's matching address in our
-				 * list.  Set the PacketSize to zero,
+				 * list.  Set the len to zero,
 				 * so we free our RFD when we return
 				 * from this function.
 				 */
@@ -962,21 +962,21 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	if (len > 0) {
 		struct sk_buff *skb = NULL;
 
-		/* rfd->PacketSize = len - 4; */
-		rfd->PacketSize = len;
+		/*rfd->len = len - 4; */
+		rfd->len = len;
 
-		skb = dev_alloc_skb(rfd->PacketSize + 2);
+		skb = dev_alloc_skb(rfd->len + 2);
 		if (!skb) {
 			dev_err(&etdev->pdev->dev,
 				  "Couldn't alloc an SKB for Rx\n");
 			return NULL;
 		}
 
-		etdev->net_stats.rx_bytes += rfd->PacketSize;
+		etdev->net_stats.rx_bytes += rfd->len;
 
-		memcpy(skb_put(skb, rfd->PacketSize),
+		memcpy(skb_put(skb, rfd->len),
 		       rx_local->fbr[rindex]->virt[bindex],
-		       rfd->PacketSize);
+		       rfd->len);
 
 		skb->dev = etdev->netdev;
 		skb->protocol = eth_type_trans(skb, etdev->netdev);
@@ -984,7 +984,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 
 		netif_rx(skb);
 	} else {
-		rfd->PacketSize = 0;
+		rfd->len = 0;
 	}
 
 	nic_return_rfd(etdev, rfd);
@@ -1011,7 +1011,7 @@ void et131x_reset_recv(struct et131x_adapter *etdev)
  */
 void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 {
-	PMP_RFD rfd = NULL;
+	struct rfd *rfd = NULL;
 	u32 count = 0;
 	bool done = true;
 
@@ -1035,7 +1035,7 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 		 */
 		if (!etdev->PacketFilter ||
 		    !(etdev->Flags & fMP_ADAPTER_LINK_DETECTION) ||
-		    rfd->PacketSize == 0) {
+		    rfd->len == 0) {
 			continue;
 		}
 
@@ -1082,7 +1082,7 @@ static inline u32 bump_fbr(u32 *fbr, u32 limit)
  * @etdev: pointer to our adapter
  * @rfd: pointer to the RFD
  */
-void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD rfd)
+void nic_return_rfd(struct et131x_adapter *etdev, struct rfd *rfd)
 {
 	struct rx_ring *rx_local = &etdev->rx_ring;
 	struct rxdma_regs __iomem *rx_dma = &etdev->regs->rxdma;
