@@ -137,6 +137,14 @@ void vcpu_load(struct kvm_vcpu *vcpu)
 	int cpu;
 
 	mutex_lock(&vcpu->mutex);
+	if (unlikely(vcpu->pid != current->pids[PIDTYPE_PID].pid)) {
+		/* The thread running this VCPU changed. */
+		struct pid *oldpid = vcpu->pid;
+		struct pid *newpid = get_task_pid(current, PIDTYPE_PID);
+		rcu_assign_pointer(vcpu->pid, newpid);
+		synchronize_rcu();
+		put_pid(oldpid);
+	}
 	cpu = get_cpu();
 	preempt_notifier_register(&vcpu->preempt_notifier);
 	kvm_arch_vcpu_load(vcpu, cpu);
@@ -212,6 +220,7 @@ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 	vcpu->cpu = -1;
 	vcpu->kvm = kvm;
 	vcpu->vcpu_id = id;
+	vcpu->pid = NULL;
 	init_waitqueue_head(&vcpu->wq);
 	kvm_async_pf_vcpu_init(vcpu);
 
@@ -236,6 +245,7 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_init);
 
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
+	put_pid(vcpu->pid);
 	kvm_arch_vcpu_uninit(vcpu);
 	free_page((unsigned long)vcpu->run);
 }
