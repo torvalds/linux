@@ -386,8 +386,6 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
 	struct task_struct *tsk;
 	struct anon_vma *av;
 
-	if (!PageHuge(page) && unlikely(split_huge_page(page)))
-		return;
 	read_lock(&tasklist_lock);
 	av = page_lock_anon_vma(page);
 	if (av == NULL)	/* Not actually mapped anymore */
@@ -893,6 +891,34 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 			printk(KERN_INFO
 	"MCE %#lx: corrupted page was clean: dropped without side effects\n",
 				pfn);
+		}
+	}
+
+	if (PageTransHuge(hpage)) {
+		/*
+		 * Verify that this isn't a hugetlbfs head page, the check for
+		 * PageAnon is just for avoid tripping a split_huge_page
+		 * internal debug check, as split_huge_page refuses to deal with
+		 * anything that isn't an anon page. PageAnon can't go away fro
+		 * under us because we hold a refcount on the hpage, without a
+		 * refcount on the hpage. split_huge_page can't be safely called
+		 * in the first place, having a refcount on the tail isn't
+		 * enough * to be safe.
+		 */
+		if (!PageHuge(hpage) && PageAnon(hpage)) {
+			if (unlikely(split_huge_page(hpage))) {
+				/*
+				 * FIXME: if splitting THP is failed, it is
+				 * better to stop the following operation rather
+				 * than causing panic by unmapping. System might
+				 * survive if the page is freed later.
+				 */
+				printk(KERN_INFO
+					"MCE %#lx: failed to split THP\n", pfn);
+
+				BUG_ON(!PageHWPoison(p));
+				return SWAP_FAIL;
+			}
 		}
 	}
 
