@@ -91,6 +91,7 @@ static int trace_start(struct tracectx *t)
 
 	etb_unlock(t);
 
+	etb_writel(t, 0, ETBR_WRITEADDR);
 	etb_writel(t, 0, ETBR_FORMATTERCTRL);
 	etb_writel(t, 1, ETBR_CTRL);
 
@@ -184,24 +185,15 @@ static int trace_stop(struct tracectx *t)
 static int etb_getdatalen(struct tracectx *t)
 {
 	u32 v;
-	int rp, wp;
+	int wp;
 
 	v = etb_readl(t, ETBR_STATUS);
 
 	if (v & 1)
 		return t->etb_bufsz;
 
-	rp = etb_readl(t, ETBR_READADDR);
 	wp = etb_readl(t, ETBR_WRITEADDR);
-
-	if (rp > wp) {
-		etb_writel(t, 0, ETBR_READADDR);
-		etb_writel(t, 0, ETBR_WRITEADDR);
-
-		return 0;
-	}
-
-	return wp - rp;
+	return wp;
 }
 
 /* sysrq+v will always stop the running trace and leave it at that */
@@ -233,14 +225,6 @@ static void etm_dump(void)
 	for (; length; length--)
 		printk("%08x", cpu_to_be32(etb_readl(t, ETBR_READMEM)));
 	printk(KERN_INFO "\n--- ETB buffer end ---\n");
-
-	/* deassert the overflow bit */
-	etb_writel(t, 1, ETBR_CTRL);
-	etb_writel(t, 0, ETBR_CTRL);
-
-	etb_writel(t, 0, ETBR_TRIGGERCOUNT);
-	etb_writel(t, 0, ETBR_READADDR);
-	etb_writel(t, 0, ETBR_WRITEADDR);
 
 	etb_lock(t);
 }
@@ -275,6 +259,10 @@ static ssize_t etb_read(struct file *file, char __user *data,
 	struct tracectx *t = file->private_data;
 	u32 first = 0;
 	u32 *buf;
+	int wpos;
+	int skip;
+	long wlength;
+	loff_t pos = *ppos;
 
 	mutex_lock(&t->mutex);
 
@@ -289,28 +277,34 @@ static ssize_t etb_read(struct file *file, char __user *data,
 	if (total == t->etb_bufsz)
 		first = etb_readl(t, ETBR_WRITEADDR);
 
+	if (pos > total * 4) {
+		skip = 0;
+		wpos = total;
+	} else {
+		skip = (int)pos % 4;
+		wpos = (int)pos / 4;
+	}
+	total -= wpos;
+	first = (first + wpos) % t->etb_bufsz;
+
 	etb_writel(t, first, ETBR_READADDR);
 
-	length = min(total * 4, (int)len);
-	buf = vmalloc(length);
+	wlength = min(total, DIV_ROUND_UP(skip + (int)len, 4));
+	length = min(total * 4 - skip, (int)len);
+	buf = vmalloc(wlength * 4);
 
-	dev_dbg(t->dev, "ETB buffer length: %d\n", total);
+	dev_dbg(t->dev, "ETB read %ld bytes to %lld from %ld words at %d\n",
+		length, pos, wlength, first);
+	dev_dbg(t->dev, "ETB buffer length: %d\n", total + wpos);
 	dev_dbg(t->dev, "ETB status reg: %x\n", etb_readl(t, ETBR_STATUS));
-	for (i = 0; i < length / 4; i++)
+	for (i = 0; i < wlength; i++)
 		buf[i] = etb_readl(t, ETBR_READMEM);
-
-	/* the only way to deassert overflow bit in ETB status is this */
-	etb_writel(t, 1, ETBR_CTRL);
-	etb_writel(t, 0, ETBR_CTRL);
-
-	etb_writel(t, 0, ETBR_WRITEADDR);
-	etb_writel(t, 0, ETBR_READADDR);
-	etb_writel(t, 0, ETBR_TRIGGERCOUNT);
 
 	etb_lock(t);
 
-	length -= copy_to_user(data, buf, length);
+	length -= copy_to_user(data, (u8 *)buf + skip, length);
 	vfree(buf);
+	*ppos = pos + length;
 
 out:
 	mutex_unlock(&t->mutex);
