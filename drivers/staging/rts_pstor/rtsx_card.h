@@ -1035,11 +1035,10 @@ static inline u32 get_card_size(struct rtsx_chip *chip, unsigned int lun)
 #ifdef SUPPORT_SD_LOCK
 	struct sd_info *sd_card = &(chip->sd_card);
 
-	if ((get_lun_card(chip, lun) == SD_CARD) && (sd_card->sd_lock_status & SD_LOCKED)) {
+	if ((get_lun_card(chip, lun) == SD_CARD) && (sd_card->sd_lock_status & SD_LOCKED))
 		return 0;
-	} else {
+	else
 		return chip->capacity[lun];
-	}
 #else
 	return chip->capacity[lun];
 #endif
@@ -1049,11 +1048,10 @@ static inline int switch_clock(struct rtsx_chip *chip, int clk)
 {
 	int retval = 0;
 
-	if (chip->asic_code) {
+	if (chip->asic_code)
 		retval = switch_ssc_clock(chip, clk);
-	} else {
+	else
 		retval = switch_normal_clock(chip, clk);
-	}
 
 	return retval;
 }

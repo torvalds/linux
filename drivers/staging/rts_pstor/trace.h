@@ -31,16 +31,15 @@ static inline char *filename(char *path)
 {
 	char *ptr;
 
-	if (path == NULL) {
+	if (path == NULL)
 		return NULL;
-	}
 
 	ptr = path;
 
 	while (*ptr != '\0') {
-		if ((*ptr == '\\') || (*ptr == '/')) {
+		if ((*ptr == '\\') || (*ptr == '/'))
 			path = ptr + 1;
-		}
+		
 		ptr++;
 	}
 
