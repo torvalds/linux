@@ -69,10 +69,32 @@ static int pmdown_time = 5000;
 module_param(pmdown_time, int, 0);
 MODULE_PARM_DESC(pmdown_time, "DAPM stream powerdown time (msecs)");
 
+/* returns the minimum number of bytes needed to represent
+ * a particular given value */
+static int min_bytes_needed(unsigned long val)
+{
+	int c = 0;
+	int i;
+
+	for (i = (sizeof val * 8) - 1; i >= 0; --i, ++c)
+		if (val & (1UL << i))
+			break;
+	c = (sizeof val * 8) - c;
+	if (!c || (c % 8))
+		c = (c + 8) / 8;
+	else
+		c /= 8;
+	return c;
+}
+
 /* codec register dump */
 static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 {
 	int ret, i, step = 1, count = 0;
+	int wordsize, regsize;
+
+	wordsize = codec->driver->reg_word_size * 2;
+	regsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
 
 	if (!codec->driver->reg_cache_size)
 		return 0;
@@ -80,12 +102,11 @@ static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 	if (codec->driver->reg_cache_step)
 		step = codec->driver->reg_cache_step;
 
-	count += sprintf(buf, "%s registers\n", codec->name);
 	for (i = 0; i < codec->driver->reg_cache_size; i += step) {
 		if (codec->readable_register && !codec->readable_register(codec, i))
 			continue;
 
-		count += sprintf(buf + count, "%2x: ", i);
+		count += sprintf(buf + count, "%.*x: ", regsize, i);
 		if (count >= PAGE_SIZE - 1)
 			break;
 
@@ -101,7 +122,7 @@ static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 			if (ret >= 0)
 				count += snprintf(buf + count,
 						  PAGE_SIZE - count,
-						  "%4x", ret);
+						  "%.*x", wordsize, ret);
 			else
 				count += snprintf(buf + count,
 						  PAGE_SIZE - count,
