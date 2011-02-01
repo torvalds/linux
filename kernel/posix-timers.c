@@ -277,12 +277,14 @@ static __init int init_posix_timers(void)
 	struct k_clock clock_realtime = {
 		.clock_getres	= hrtimer_get_res,
 		.nsleep		= common_nsleep,
+		.nsleep_restart	= hrtimer_nanosleep_restart,
 	};
 	struct k_clock clock_monotonic = {
 		.clock_getres	= hrtimer_get_res,
 		.clock_get	= posix_ktime_get_ts,
 		.clock_set	= do_posix_clock_nosettime,
 		.nsleep		= common_nsleep,
+		.nsleep_restart	= hrtimer_nanosleep_restart,
 	};
 	struct k_clock clock_monotonic_raw = {
 		.clock_getres	= hrtimer_get_res,
@@ -1027,22 +1029,16 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 }
 
 /*
- * nanosleep_restart for monotonic and realtime clocks
- */
-static int common_nsleep_restart(struct restart_block *restart_block)
-{
-	return hrtimer_nanosleep_restart(restart_block);
-}
-
-/*
  * This will restart clock_nanosleep. This is required only by
  * compat_clock_nanosleep_restart for now.
  */
-long
-clock_nanosleep_restart(struct restart_block *restart_block)
+long clock_nanosleep_restart(struct restart_block *restart_block)
 {
 	clockid_t which_clock = restart_block->arg0;
+	struct k_clock *kc = clockid_to_kclock(which_clock);
 
-	return CLOCK_DISPATCH(which_clock, nsleep_restart,
-			      (restart_block));
+	if (WARN_ON_ONCE(!kc || !kc->nsleep_restart))
+		return -EINVAL;
+
+	return kc->nsleep_restart(restart_block);
 }
