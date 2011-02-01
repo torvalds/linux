@@ -1586,15 +1586,6 @@ static int thread_cpu_timer_create(struct k_itimer *timer)
 	timer->it_clock = THREAD_CLOCK;
 	return posix_cpu_timer_create(timer);
 }
-static int thread_cpu_nsleep(const clockid_t which_clock, int flags,
-			      struct timespec *rqtp, struct timespec __user *rmtp)
-{
-	return -EINVAL;
-}
-static long thread_cpu_nsleep_restart(struct restart_block *restart_block)
-{
-	return -EINVAL;
-}
 
 struct k_clock clock_posix_cpu = {
 	.clock_getres	= posix_cpu_clock_getres,
@@ -1623,8 +1614,6 @@ static __init int init_posix_cpu_timers(void)
 		.clock_get	= thread_cpu_clock_get,
 		.clock_set	= do_posix_clock_nosettime,
 		.timer_create	= thread_cpu_timer_create,
-		.nsleep		= thread_cpu_nsleep,
-		.nsleep_restart	= thread_cpu_nsleep_restart,
 	};
 	struct timespec ts;
 
