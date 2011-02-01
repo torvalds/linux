@@ -4411,39 +4411,16 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 		vcpu->arch.emulate_ctxt.have_exception = false;
 		vcpu->arch.emulate_ctxt.perm_ok = false;
 
+		vcpu->arch.emulate_ctxt.only_vendor_specific_insn
+			= emulation_type & EMULTYPE_TRAP_UD;
+
 		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, insn, insn_len);
 
 		trace_kvm_emulate_insn_start(vcpu);
-
-		/* Only allow emulation of specific instructions on #UD
-		 * (namely VMMCALL, sysenter, sysexit, syscall)*/
-		if (emulation_type & EMULTYPE_TRAP_UD) {
-			if (!c->twobyte)
-				return EMULATE_FAIL;
-			switch (c->b) {
-			case 0x01: /* VMMCALL */
-				if (c->modrm_mod != 3 || c->modrm_rm != 1)
-					return EMULATE_FAIL;
-				break;
-			case 0x34: /* sysenter */
-			case 0x35: /* sysexit */
-				if (c->modrm_mod != 0 || c->modrm_rm != 0)
-					return EMULATE_FAIL;
-				break;
-			case 0x05: /* syscall */
-				if (c->modrm_mod != 0 || c->modrm_rm != 0)
-					return EMULATE_FAIL;
-				break;
-			default:
-				return EMULATE_FAIL;
-			}
-
-			if (!(c->modrm_reg == 0 || c->modrm_reg == 3))
-				return EMULATE_FAIL;
-		}
-
 		++vcpu->stat.insn_emulation;
 		if (r)  {
+			if (emulation_type & EMULTYPE_TRAP_UD)
+				return EMULATE_FAIL;
 			if (reexecute_instruction(vcpu, cr2))
 				return EMULATE_DONE;
 			if (emulation_type & EMULTYPE_SKIP)
