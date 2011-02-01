@@ -1105,6 +1105,7 @@ static int __devinit nvme_probe(struct pci_dev *pdev,
 
 	if (pci_enable_device_mem(pdev))
 		goto free;
+	pci_set_master(pdev);
 
 	INIT_LIST_HEAD(&dev->namespaces);
 	dev->pci_dev = pdev;
