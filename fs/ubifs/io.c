@@ -361,7 +361,10 @@ int ubifs_wbuf_sync_nolock(struct ubifs_wbuf *wbuf)
 	dbg_io("LEB %d:%d, %d bytes, jhead %s",
 	       wbuf->lnum, wbuf->offs, wbuf->used, dbg_jhead(wbuf->jhead));
 	ubifs_assert(!(wbuf->avail & 7));
-	ubifs_assert(wbuf->offs + c->min_io_size <= c->leb_size);
+	ubifs_assert(wbuf->offs + wbuf->size <= c->leb_size);
+	ubifs_assert(wbuf->size >= c->min_io_size);
+	ubifs_assert(wbuf->size <= c->max_write_size);
+	ubifs_assert(wbuf->size % c->min_io_size == 0);
 	ubifs_assert(!c->ro_media && !c->ro_mount);
 
 	if (c->ro_error)
@@ -369,10 +372,10 @@ int ubifs_wbuf_sync_nolock(struct ubifs_wbuf *wbuf)
 
 	ubifs_pad(c, wbuf->buf + wbuf->used, wbuf->avail);
 	err = ubi_leb_write(c->ubi, wbuf->lnum, wbuf->buf, wbuf->offs,
-			    c->min_io_size, wbuf->dtype);
+			    wbuf->size, wbuf->dtype);
 	if (err) {
 		ubifs_err("cannot write %d bytes to LEB %d:%d",
-			  c->min_io_size, wbuf->lnum, wbuf->offs);
+			  wbuf->size, wbuf->lnum, wbuf->offs);
 		dbg_dump_stack();
 		return err;
 	}
@@ -380,8 +383,9 @@ int ubifs_wbuf_sync_nolock(struct ubifs_wbuf *wbuf)
 	dirt = wbuf->avail;
 
 	spin_lock(&wbuf->lock);
-	wbuf->offs += c->min_io_size;
+	wbuf->offs += wbuf->size;
 	wbuf->avail = c->min_io_size;
+	wbuf->size = c->min_io_size;
 	wbuf->used = 0;
 	wbuf->next_ino = 0;
 	spin_unlock(&wbuf->lock);
@@ -425,6 +429,7 @@ int ubifs_wbuf_seek_nolock(struct ubifs_wbuf *wbuf, int lnum, int offs,
 	wbuf->lnum = lnum;
 	wbuf->offs = offs;
 	wbuf->avail = c->min_io_size;
+	wbuf->size = c->min_io_size;
 	wbuf->used = 0;
 	spin_unlock(&wbuf->lock);
 	wbuf->dtype = dtype;
@@ -522,7 +527,10 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 	ubifs_assert(len > 0 && wbuf->lnum >= 0 && wbuf->lnum < c->leb_cnt);
 	ubifs_assert(wbuf->offs >= 0 && wbuf->offs % c->min_io_size == 0);
 	ubifs_assert(!(wbuf->offs & 7) && wbuf->offs <= c->leb_size);
-	ubifs_assert(wbuf->avail > 0 && wbuf->avail <= c->min_io_size);
+	ubifs_assert(wbuf->avail > 0 && wbuf->avail <= wbuf->size);
+	ubifs_assert(wbuf->size >= c->min_io_size);
+	ubifs_assert(wbuf->size <= c->max_write_size);
+	ubifs_assert(wbuf->size % c->min_io_size == 0);
 	ubifs_assert(mutex_is_locked(&wbuf->io_mutex));
 	ubifs_assert(!c->ro_media && !c->ro_mount);
 
@@ -547,7 +555,7 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 			dbg_io("flush jhead %s wbuf to LEB %d:%d",
 			       dbg_jhead(wbuf->jhead), wbuf->lnum, wbuf->offs);
 			err = ubi_leb_write(c->ubi, wbuf->lnum, wbuf->buf,
-					    wbuf->offs, c->min_io_size,
+					    wbuf->offs, wbuf->size,
 					    wbuf->dtype);
 			if (err)
 				goto out;
@@ -555,6 +563,7 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 			spin_lock(&wbuf->lock);
 			wbuf->offs += c->min_io_size;
 			wbuf->avail = c->min_io_size;
+			wbuf->size = c->min_io_size;
 			wbuf->used = 0;
 			wbuf->next_ino = 0;
 			spin_unlock(&wbuf->lock);
@@ -577,11 +586,11 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 	       dbg_jhead(wbuf->jhead), wbuf->lnum, wbuf->offs);
 	memcpy(wbuf->buf + wbuf->used, buf, wbuf->avail);
 	err = ubi_leb_write(c->ubi, wbuf->lnum, wbuf->buf, wbuf->offs,
-			    c->min_io_size, wbuf->dtype);
+			    wbuf->size, wbuf->dtype);
 	if (err)
 		goto out;
 
-	offs = wbuf->offs + c->min_io_size;
+	offs = wbuf->offs + wbuf->size;
 	len -= wbuf->avail;
 	aligned_len -= wbuf->avail;
 	written = wbuf->avail;
@@ -618,6 +627,7 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 	wbuf->offs = offs;
 	wbuf->used = aligned_len;
 	wbuf->avail = c->min_io_size - aligned_len;
+	wbuf->size = c->min_io_size;
 	wbuf->next_ino = 0;
 	spin_unlock(&wbuf->lock);
 
@@ -855,7 +865,7 @@ int ubifs_wbuf_init(struct ubifs_info *c, struct ubifs_wbuf *wbuf)
 
 	wbuf->used = 0;
 	wbuf->lnum = wbuf->offs = -1;
-	wbuf->avail = c->min_io_size;
+	wbuf->avail = wbuf->size = c->min_io_size;
 	wbuf->dtype = UBI_UNKNOWN;
 	wbuf->sync_callback = NULL;
 	mutex_init(&wbuf->io_mutex);

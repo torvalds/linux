@@ -646,6 +646,7 @@ typedef int (*ubifs_lpt_scan_callback)(struct ubifs_info *c,
  * @offs: write-buffer offset in this logical eraseblock
  * @avail: number of bytes available in the write-buffer
  * @used:  number of used bytes in the write-buffer
+ * @size: write-buffer size (in [@c->min_io_size, @c->max_write_size] range)
  * @dtype: type of data stored in this LEB (%UBI_LONGTERM, %UBI_SHORTTERM,
  * %UBI_UNKNOWN)
  * @jhead: journal head the mutex belongs to (note, needed only to shut lockdep
@@ -680,6 +681,7 @@ struct ubifs_wbuf {
 	int offs;
 	int avail;
 	int used;
+	int size;
 	int dtype;
 	int jhead;
 	int (*sync_callback)(struct ubifs_info *c, int lnum, int free, int pad);
