@@ -619,6 +619,9 @@ static __devinit struct nvme_queue *nvme_create_queue(struct nvme_dev *dev,
 	int result;
 	struct nvme_queue *nvmeq = nvme_alloc_queue(dev, qid, cq_size, vector);
 
+	if (!nvmeq)
+		return NULL;
+
 	result = adapter_alloc_cq(dev, qid, nvmeq);
 	if (result < 0)
 		goto free_nvmeq;
@@ -655,6 +658,8 @@ static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 	dev->dbs = ((void __iomem *)dev->bar) + 4096;
 
 	nvmeq = nvme_alloc_queue(dev, 0, 64, 0);
+	if (!nvmeq)
+		return -ENOMEM;
 
 	aqa = nvmeq->q_depth - 1;
 	aqa |= aqa << 16;
