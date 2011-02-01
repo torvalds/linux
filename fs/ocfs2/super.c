@@ -1645,16 +1645,11 @@ static int __init ocfs2_init(void)
 		mlog(ML_ERROR, "Unable to create ocfs2 debugfs root.\n");
 	}
 
-	status = ocfs2_quota_setup();
-	if (status)
-		goto leave;
-
 	ocfs2_set_locking_protocol();
 
 	status = register_quota_format(&ocfs2_quota_format);
 leave:
 	if (status < 0) {
-		ocfs2_quota_shutdown();
 		ocfs2_free_mem_caches();
 		exit_ocfs2_uptodate_cache();
 	}
@@ -1670,8 +1665,6 @@ leave:
 static void __exit ocfs2_exit(void)
 {
 	mlog_entry_void();
-
-	ocfs2_quota_shutdown();
 
 	if (ocfs2_wq) {
 		flush_workqueue(ocfs2_wq);
