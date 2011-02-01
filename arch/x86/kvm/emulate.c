@@ -76,6 +76,7 @@
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
 /* Misc flags */
+#define VendorSpecific (1<<22) /* Vendor specific instruction */
 #define NoAccess    (1<<23) /* Don't access memory (lea/invlpg/verr etc) */
 #define Op3264      (1<<24) /* Operand is 64b in long mode, 32b otherwise */
 #define Undefined   (1<<25) /* No Such Instruction */
@@ -2365,7 +2366,8 @@ static struct group_dual group7 = { {
 	D(SrcMem16 | ModRM | Mov | Priv),
 	D(SrcMem | ModRM | ByteOp | Priv | NoAccess),
 }, {
-	D(SrcNone | ModRM | Priv), N, N, D(SrcNone | ModRM | Priv),
+	D(SrcNone | ModRM | Priv | VendorSpecific), N,
+	N, D(SrcNone | ModRM | Priv | VendorSpecific),
 	D(SrcNone | ModRM | DstMem | Mov), N,
 	D(SrcMem16 | ModRM | Mov | Priv), N,
 } };
@@ -2489,7 +2491,7 @@ static struct opcode opcode_table[256] = {
 static struct opcode twobyte_table[256] = {
 	/* 0x00 - 0x0F */
 	N, GD(0, &group7), N, N,
-	N, D(ImplicitOps), D(ImplicitOps | Priv), N,
+	N, D(ImplicitOps | VendorSpecific), D(ImplicitOps | Priv), N,
 	D(ImplicitOps | Priv), D(ImplicitOps | Priv), N, N,
 	N, D(ImplicitOps | ModRM), N, N,
 	/* 0x10 - 0x1F */
@@ -2502,7 +2504,8 @@ static struct opcode twobyte_table[256] = {
 	/* 0x30 - 0x3F */
 	D(ImplicitOps | Priv), I(ImplicitOps, em_rdtsc),
 	D(ImplicitOps | Priv), N,
-	D(ImplicitOps), D(ImplicitOps | Priv), N, N,
+	D(ImplicitOps | VendorSpecific), D(ImplicitOps | Priv | VendorSpecific),
+	N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x40 - 0x4F */
 	X16(D(DstReg | SrcMem | ModRM | Mov)),
@@ -2739,6 +2742,9 @@ done_prefixes:
 
 	/* Unrecognised? */
 	if (c->d == 0 || (c->d & Undefined))
+		return -1;
+
+	if (!(c->d & VendorSpecific) && ctxt->only_vendor_specific_insn)
 		return -1;
 
 	if (mode == X86EMUL_MODE_PROT64 && (c->d & Stack))

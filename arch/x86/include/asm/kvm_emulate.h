@@ -239,6 +239,7 @@ struct x86_emulate_ctxt {
 	int interruptibility;
 
 	bool perm_ok; /* do not check permissions if true */
+	bool only_vendor_specific_insn;
 
 	bool have_exception;
 	struct x86_exception exception;
