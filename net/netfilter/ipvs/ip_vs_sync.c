@@ -1686,7 +1686,7 @@ int __init ip_vs_sync_init(void)
 	return register_pernet_subsys(&ipvs_sync_ops);
 }
 
-void __exit ip_vs_sync_cleanup(void)
+void ip_vs_sync_cleanup(void)
 {
 	unregister_pernet_subsys(&ipvs_sync_ops);
 }
