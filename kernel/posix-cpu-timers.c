@@ -1604,6 +1604,18 @@ static long thread_cpu_nsleep_restart(struct restart_block *restart_block)
 	return -EINVAL;
 }
 
+struct k_clock clock_posix_cpu = {
+	.clock_getres	= posix_cpu_clock_getres,
+	.clock_set	= posix_cpu_clock_set,
+	.clock_get	= posix_cpu_clock_get,
+	.timer_create	= posix_cpu_timer_create,
+	.nsleep		= posix_cpu_nsleep,
+	.nsleep_restart	= posix_cpu_nsleep_restart,
+	.timer_set	= posix_cpu_timer_set,
+	.timer_del	= posix_cpu_timer_del,
+	.timer_get	= posix_cpu_timer_get,
+};
+
 static __init int init_posix_cpu_timers(void)
 {
 	struct k_clock process = {

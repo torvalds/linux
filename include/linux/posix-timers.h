@@ -85,6 +85,8 @@ struct k_clock {
 			   struct itimerspec * cur_setting);
 };
 
+extern struct k_clock clock_posix_cpu;
+
 void register_posix_clock(const clockid_t clock_id, struct k_clock *new_clock);
 
 /* error handlers for timer_create, nanosleep and settime */
