@@ -507,8 +507,6 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	/* Set up digital mute if not provided by the codec */
 	if (!codec_dai->driver->ops) {
 		codec_dai->driver->ops = &ams_delta_dai_ops;
-	} else if (!codec_dai->driver->ops->digital_mute) {
-		codec_dai->driver->ops->digital_mute = ams_delta_digital_mute;
 	} else {
 		ams_delta_ops.startup = ams_delta_startup;
 		ams_delta_ops.shutdown = ams_delta_shutdown;
