@@ -305,7 +305,7 @@ static int ds3000_writeFW(struct ds3000_state *state, int reg,
 	struct i2c_msg msg;
 	u8 *buf;
 
-	buf = kmalloc(3, GFP_KERNEL);
+	buf = kmalloc(33, GFP_KERNEL);
 	if (buf == NULL) {
 		printk(KERN_ERR "Unable to kmalloc\n");
 		ret = -ENOMEM;
@@ -317,10 +317,10 @@ static int ds3000_writeFW(struct ds3000_state *state, int reg,
 	msg.addr = state->config->demod_address;
 	msg.flags = 0;
 	msg.buf = buf;
-	msg.len = 3;
+	msg.len = 33;
 
-	for (i = 0; i < len; i += 2) {
-		memcpy(buf + 1, data + i, 2);
+	for (i = 0; i < len; i += 32) {
+		memcpy(buf + 1, data + i, 32);
 
 		dprintk("%s: write reg 0x%02x, len = %d\n", __func__, reg, len);
 
