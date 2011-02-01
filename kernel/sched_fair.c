@@ -995,19 +995,35 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 		list_add_leaf_cfs_rq(cfs_rq);
 }
 
-static void __clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static void __clear_buddies_last(struct sched_entity *se)
 {
-	if (!se || cfs_rq->last == se)
-		cfs_rq->last = NULL;
+	for_each_sched_entity(se) {
+		struct cfs_rq *cfs_rq = cfs_rq_of(se);
+		if (cfs_rq->last == se)
+			cfs_rq->last = NULL;
+		else
+			break;
+	}
+}
 
-	if (!se || cfs_rq->next == se)
-		cfs_rq->next = NULL;
+static void __clear_buddies_next(struct sched_entity *se)
+{
+	for_each_sched_entity(se) {
+		struct cfs_rq *cfs_rq = cfs_rq_of(se);
+		if (cfs_rq->next == se)
+			cfs_rq->next = NULL;
+		else
+			break;
+	}
 }
 
 static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	for_each_sched_entity(se)
-		__clear_buddies(cfs_rq_of(se), se);
+	if (cfs_rq->last == se)
+		__clear_buddies_last(se);
+
+	if (cfs_rq->next == se)
+		__clear_buddies_next(se);
 }
 
 static void
