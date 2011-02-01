@@ -2698,7 +2698,8 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 				return 0;
 		} else if (!ieee80211_bssid_match(bssid,
 					sdata->vif.addr)) {
-			if (!(status->rx_flags & IEEE80211_RX_IN_SCAN))
+			if (!(status->rx_flags & IEEE80211_RX_IN_SCAN) &&
+			    !ieee80211_is_beacon(hdr->frame_control))
 				return 0;
 			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
 		}
