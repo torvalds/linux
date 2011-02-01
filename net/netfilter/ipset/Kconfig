@@ -50,4 +50,14 @@ config IP_SET_BITMAP_PORT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP_SET_HASH_IP
+	tristate "hash:ip set support"
+	depends on IP_SET
+	help
+	  This option adds the hash:ip set type support, by which one
+	  can store arbitrary IPv4 or IPv6 addresses (or network addresses)
+	  in a set.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 endif # IP_SET
