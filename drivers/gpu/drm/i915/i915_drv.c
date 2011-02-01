@@ -357,6 +357,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 		error = i915_gem_init_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
 
+		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
 
 		/* Resume the modeset for every activated CRTC */
@@ -545,6 +546,7 @@ int i915_reset(struct drm_device *dev, u8 flags)
 
 		mutex_unlock(&dev->struct_mutex);
 		drm_irq_uninstall(dev);
+		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
 		mutex_lock(&dev->struct_mutex);
 	}

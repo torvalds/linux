@@ -343,12 +343,11 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	struct drm_encoder *encoder;
 	bool ret = true;
 
-	adjusted_mode = drm_mode_duplicate(dev, mode);
-
 	crtc->enabled = drm_helper_crtc_in_use(crtc);
-
 	if (!crtc->enabled)
 		return true;
+
+	adjusted_mode = drm_mode_duplicate(dev, mode);
 
 	saved_hwmode = crtc->hwmode;
 	saved_mode = crtc->mode;
@@ -437,10 +436,9 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	 */
 	drm_calc_timestamping_constants(crtc);
 
-	/* XXX free adjustedmode */
-	drm_mode_destroy(dev, adjusted_mode);
 	/* FIXME: add subpixel order */
 done:
+	drm_mode_destroy(dev, adjusted_mode);
 	if (!ret) {
 		crtc->hwmode = saved_hwmode;
 		crtc->mode = saved_mode;
@@ -497,14 +495,17 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 
 	crtc_funcs = set->crtc->helper_private;
 
+	if (!set->mode)
+		set->fb = NULL;
+
 	if (set->fb) {
 		DRM_DEBUG_KMS("[CRTC:%d] [FB:%d] #connectors=%d (x y) (%i %i)\n",
 				set->crtc->base.id, set->fb->base.id,
 				(int)set->num_connectors, set->x, set->y);
 	} else {
-		DRM_DEBUG_KMS("[CRTC:%d] [NOFB] #connectors=%d (x y) (%i %i)\n",
-				set->crtc->base.id, (int)set->num_connectors,
-				set->x, set->y);
+		DRM_DEBUG_KMS("[CRTC:%d] [NOFB]\n", set->crtc->base.id);
+		set->mode = NULL;
+		set->num_connectors = 0;
 	}
 
 	dev = set->crtc->dev;
@@ -649,8 +650,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		mode_changed = true;
 
 	if (mode_changed) {
-		set->crtc->enabled = (set->mode != NULL);
-		if (set->mode != NULL) {
+		set->crtc->enabled = drm_helper_crtc_in_use(set->crtc);
+		if (set->crtc->enabled) {
 			DRM_DEBUG_KMS("attempting to set mode from"
 					" userspace\n");
 			drm_mode_debug_printmodeline(set->mode);
