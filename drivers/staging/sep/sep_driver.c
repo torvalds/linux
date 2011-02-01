@@ -232,7 +232,6 @@ static void *sep_shared_bus_to_virt(struct sep_device *sep,
  */
 static int sep_singleton_open(struct inode *inode_ptr, struct file *file_ptr)
 {
-	int error = 0;
 	struct sep_device *sep;
 
 	/*
@@ -243,13 +242,9 @@ static int sep_singleton_open(struct inode *inode_ptr, struct file *file_ptr)
 
 	file_ptr->private_data = sep;
 
-	if (test_and_set_bit(0, &sep->singleton_access_flag)) {
-		error = -EBUSY;
-		goto end_function;
-	}
-
-end_function:
-	return error;
+	if (test_and_set_bit(0, &sep->singleton_access_flag))
+		return -EBUSY;
+	return 0;
 }
 
 /**
@@ -272,8 +267,6 @@ static int sep_open(struct inode *inode, struct file *filp)
 	 */
 	sep = sep_dev;
 	filp->private_data = sep;
-
-	dev_dbg(&sep->pdev->dev, "Open for pid %d\n", current->pid);
 
 	/* Anyone can open; locking takes place at transaction level */
 	return 0;
@@ -312,9 +305,6 @@ static int sep_request_daemon_open(struct inode *inode, struct file *filp)
 	int error = 0;
 
 	filp->private_data = sep;
-
-	dev_dbg(&sep->pdev->dev, "Request daemon open for pid %d\n",
-		current->pid);
 
 	/* There is supposed to be only one request daemon */
 	if (test_and_set_bit(0, &sep->request_daemon_open))
@@ -662,7 +652,7 @@ static unsigned int sep_poll(struct file *filp, poll_table *wait)
 	/* Am I the process that owns the transaction? */
 	mutex_lock(&sep->sep_mutex);
 	if (current->pid != sep->pid_doing_transaction) {
-		dev_warn(&sep->pdev->dev, "poll; wrong pid\n");
+		dev_dbg(&sep->pdev->dev, "poll; wrong pid\n");
 		mask = POLLERR;
 		mutex_unlock(&sep->sep_mutex);
 		goto end_function;
@@ -791,8 +781,8 @@ static int sep_set_caller_id_handler(struct sep_device *sep, unsigned long arg)
 	}
 
 	if (i == SEP_CALLER_ID_TABLE_NUM_ENTRIES) {
-		dev_warn(&sep->pdev->dev, "no more caller id entries left\n");
-		dev_warn(&sep->pdev->dev, "maximum number is %d\n",
+		dev_dbg(&sep->pdev->dev, "no more caller id entries left\n");
+		dev_dbg(&sep->pdev->dev, "maximum number is %d\n",
 					SEP_CALLER_ID_TABLE_NUM_ENTRIES);
 		error = -EUSERS;
 		goto end_function;
@@ -971,7 +961,6 @@ static int sep_allocate_data_pool_memory_handler(struct sep_device *sep,
 	sep->num_of_data_allocations += 1;
 
 end_function:
-	dev_dbg(&sep->pdev->dev, "sep_allocate_data_pool_memory_handler end\n");
 	return error;
 }
 
@@ -2502,7 +2491,7 @@ static int sep_init_handler(struct sep_device *sep, unsigned long arg)
 
 	if (reg_val != 0x2) {
 		error = SEP_ALREADY_INITIALIZED_ERR;
-		dev_warn(&sep->pdev->dev, "init; device already initialized\n");
+		dev_dbg(&sep->pdev->dev, "init; device already initialized\n");
 		goto end_function;
 	}
 
@@ -2703,13 +2692,7 @@ end_function:
  */
 static int sep_free_dcb_handler(struct sep_device *sep)
 {
-	int error ;
-
-	dev_dbg(&sep->pdev->dev, "free dcbs num of DCBs %x\n", sep->nr_dcb_creat);
-
-	error = sep_free_dma_tables_and_dcb(sep, false, false);
-
-	return error;
+	return sep_free_dma_tables_and_dcb(sep, false, false);
 }
 
 /**
@@ -2801,25 +2784,19 @@ static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int error = 0;
 	struct sep_device *sep = filp->private_data;
 
-	dev_dbg(&sep->pdev->dev, "ioctl cmd is %x\n", cmd);
-
 	/* Make sure we own this device */
 	mutex_lock(&sep->sep_mutex);
 	if ((current->pid != sep->pid_doing_transaction) &&
 				(sep->pid_doing_transaction != 0)) {
-		dev_warn(&sep->pdev->dev, "ioctl pid is not owner\n");
-		mutex_unlock(&sep->sep_mutex);
+		dev_dbg(&sep->pdev->dev, "ioctl pid is not owner\n");
 		error = -EACCES;
 		goto end_function;
 	}
 
 	mutex_unlock(&sep->sep_mutex);
 
-	/* Check that the command is for SEP device */
-	if (_IOC_TYPE(cmd) != SEP_IOC_MAGIC_NUMBER) {
-		error = -ENOTTY;
-		goto end_function;
-	}
+	if (_IOC_TYPE(cmd) != SEP_IOC_MAGIC_NUMBER)
+		return -ENOTTY;
 
 	/* Lock to prevent the daemon to interfere with operation */
 	mutex_lock(&sep->ioctl_mutex);
@@ -2878,14 +2855,12 @@ static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		error = sep_free_dcb_handler(sep);
 		break;
 	default:
-		dev_dbg(&sep->pdev->dev, "invalid ioctl %x\n", cmd);
 		error = -ENOTTY;
 		break;
 	}
-	mutex_unlock(&sep->ioctl_mutex);
 
 end_function:
-	dev_dbg(&sep->pdev->dev, "ioctl end\n");
+	mutex_unlock(&sep->ioctl_mutex);
 	return error;
 }
 
@@ -2902,22 +2877,17 @@ static long sep_singleton_ioctl(struct file  *filp, u32 cmd, unsigned long arg)
 	long error = 0;
 	struct sep_device *sep = filp->private_data;
 
-	dev_dbg(&sep->pdev->dev, "singleton ioctl cmd is %x\n", cmd);
-
 	/* Check that the command is for the SEP device */
-	if (_IOC_TYPE(cmd) != SEP_IOC_MAGIC_NUMBER) {
-		error =  -ENOTTY;
-		goto end_function;
-	}
+	if (_IOC_TYPE(cmd) != SEP_IOC_MAGIC_NUMBER)
+		return -ENOTTY;
 
 	/* Make sure we own this device */
 	mutex_lock(&sep->sep_mutex);
 	if ((current->pid != sep->pid_doing_transaction) &&
 				(sep->pid_doing_transaction != 0)) {
-		dev_warn(&sep->pdev->dev, "singleton ioctl pid is not owner\n");
+		dev_dbg(&sep->pdev->dev, "singleton ioctl pid is not owner\n");
 		mutex_unlock(&sep->sep_mutex);
-		error = -EACCES;
-		goto end_function;
+		return -EACCES;
 	}
 
 	mutex_unlock(&sep->sep_mutex);
@@ -2932,8 +2902,6 @@ static long sep_singleton_ioctl(struct file  *filp, u32 cmd, unsigned long arg)
 		error = sep_ioctl(filp, cmd, arg);
 		break;
 	}
-
-end_function:
 	return error;
 }
 
@@ -2952,13 +2920,9 @@ static long sep_request_daemon_ioctl(struct file *filp, u32 cmd,
 	long error;
 	struct sep_device *sep = filp->private_data;
 
-	dev_dbg(&sep->pdev->dev, "daemon ioctl: cmd is %x\n", cmd);
-
 	/* Check that the command is for SEP device */
-	if (_IOC_TYPE(cmd) != SEP_IOC_MAGIC_NUMBER) {
-		error = -ENOTTY;
-		goto end_function;
-	}
+	if (_IOC_TYPE(cmd) != SEP_IOC_MAGIC_NUMBER)
+		return -ENOTTY;
 
 	/* Only one process can access ioctl at any given time */
 	mutex_lock(&sep->ioctl_mutex);
@@ -2977,14 +2941,10 @@ static long sep_request_daemon_ioctl(struct file *filp, u32 cmd,
 		error = 0;
 		break;
 	default:
-		dev_warn(&sep->pdev->dev, "daemon ioctl: no such IOCTL\n");
 		error = -ENOTTY;
 	}
 	mutex_unlock(&sep->ioctl_mutex);
-
-end_function:
 	return error;
-
 }
 
 /**
@@ -3285,7 +3245,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	if (error)
 		goto end_function_dealloc_rar;
 
-	/* The new chip requires ashared area reconfigure */
+	/* The new chip requires a shared area reconfigure */
 	if (sep->pdev->revision == 4) { /* Only for new chip */
 		error = sep_reconfig_shared_area(sep);
 		if (error)
