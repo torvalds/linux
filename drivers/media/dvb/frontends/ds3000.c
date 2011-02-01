@@ -1065,10 +1065,6 @@ static int ds3000_tune(struct dvb_frontend *fe,
 		/* Reset status register */
 		status = 0;
 		/* Tune */
-		/* TS2020 init */
-		ds3000_tuner_writereg(state, 0x42, 0x73);
-		ds3000_tuner_writereg(state, 0x05, 0x01);
-		ds3000_tuner_writereg(state, 0x62, 0xf5);
 		/* unknown */
 		ds3000_tuner_writereg(state, 0x07, 0x02);
 		ds3000_tuner_writereg(state, 0x10, 0x00);
@@ -1306,7 +1302,19 @@ static enum dvbfe_algo ds3000_get_algo(struct dvb_frontend *fe)
  */
 static int ds3000_initfe(struct dvb_frontend *fe)
 {
+	struct ds3000_state *state = fe->demodulator_priv;
+	int ret;
+
 	dprintk("%s()\n", __func__);
+	/* hard reset */
+	ds3000_writereg(state, 0x08, 0x01 | ds3000_readreg(state, 0x08));
+	msleep(1);
+
+	/* TS2020 init */
+	ds3000_tuner_writereg(state, 0x42, 0x73);
+	ds3000_tuner_writereg(state, 0x05, 0x01);
+	ds3000_tuner_writereg(state, 0x62, 0xf5);
+
 	return 0;
 }
 
