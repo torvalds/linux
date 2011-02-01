@@ -340,8 +340,26 @@ struct nvme_completion {
 	__le16	status;		/* did the command fail, and if so, why? */
 };
 
+struct nvme_user_io {
+	__u8	opcode;
+	__u8	flags;
+	__u16	control;
+	__u32	nsid;
+	__u64	metadata;
+	__u64	addr;
+	__u64	slba;
+	__u16	nblocks;
+	__u16	block_shift;
+	__u32	dsmgmt;
+	__u32	reftag;
+	__u16	apptag;
+	__u16	appmask;
+	__u32	result;
+};
+
 #define NVME_IOCTL_IDENTIFY_NS	_IOW('N', 0x40, struct nvme_id_ns)
 #define NVME_IOCTL_IDENTIFY_CTRL _IOW('N', 0x41, struct nvme_id_ctrl)
 #define NVME_IOCTL_GET_RANGE_TYPE _IOW('N', 0x42, struct nvme_lba_range_type)
+#define NVME_IOCTL_SUBMIT_IO	_IOWR('N', 0x43, struct nvme_rw_command)
 
 #endif /* _LINUX_NVME_H */

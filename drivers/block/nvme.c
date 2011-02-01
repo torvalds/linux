@@ -780,6 +780,47 @@ static int nvme_get_range_type(struct nvme_ns *ns, unsigned long addr)
 	return nvme_submit_user_admin_command(ns->dev, addr, 4096, &c);
 }
 
+static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
+{
+	struct nvme_dev *dev = ns->dev;
+	struct nvme_queue *nvmeq;
+	struct nvme_user_io io;
+	struct nvme_command c;
+	unsigned length;
+	u32 result;
+	int nents, status;
+	struct scatterlist *sg;
+
+	if (copy_from_user(&io, uio, sizeof(io)))
+		return -EFAULT;
+	length = io.nblocks << io.block_shift;
+	nents = nvme_map_user_pages(dev, io.opcode & 1, io.addr, length, &sg);
+	if (nents < 0)
+		return nents;
+
+	memset(&c, 0, sizeof(c));
+	c.rw.opcode = io.opcode;
+	c.rw.flags = io.flags;
+	c.rw.nsid = cpu_to_le32(io.nsid);
+	c.rw.slba = cpu_to_le64(io.slba);
+	c.rw.length = cpu_to_le16(io.nblocks - 1);
+	c.rw.control = cpu_to_le16(io.control);
+	c.rw.dsmgmt = cpu_to_le16(io.dsmgmt);
+	c.rw.reftag = cpu_to_le32(io.reftag);	/* XXX: endian? */
+	c.rw.apptag = cpu_to_le16(io.apptag);
+	c.rw.appmask = cpu_to_le16(io.appmask);
+	/* XXX: metadata */
+	nvme_setup_prps(&c.common, sg, length);
+
+	nvmeq = get_nvmeq(ns);
+	status = nvme_submit_sync_cmd(nvmeq, &c, &result);
+	put_nvmeq(nvmeq);
+
+	nvme_unmap_user_pages(dev, io.opcode & 1, io.addr, length, sg, nents);
+	put_user(result, &uio->result);
+	return status;
+}
+
 static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 							unsigned long arg)
 {
@@ -792,6 +833,8 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 		return nvme_identify(ns, arg, 1);
 	case NVME_IOCTL_GET_RANGE_TYPE:
 		return nvme_get_range_type(ns, arg);
+	case NVME_IOCTL_SUBMIT_IO:
+		return nvme_submit_io(ns, (void __user *)arg);
 	default:
 		return -ENOTTY;
 	}
