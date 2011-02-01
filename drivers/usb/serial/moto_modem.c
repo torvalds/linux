@@ -44,6 +44,7 @@ static struct usb_serial_driver moto_device = {
 		.name =		"moto-modem",
 	},
 	.id_table =		id_table,
+	.usb_driver =		&moto_driver,
 	.num_ports =		1,
 };
 

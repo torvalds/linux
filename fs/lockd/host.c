@@ -520,7 +520,7 @@ static struct nlm_host *next_host_state(struct hlist_head *cache,
 					struct nsm_handle *nsm,
 					const struct nlm_reboot *info)
 {
-	struct nlm_host *host = NULL;
+	struct nlm_host *host;
 	struct hlist_head *chain;
 	struct hlist_node *pos;
 
@@ -532,12 +532,13 @@ static struct nlm_host *next_host_state(struct hlist_head *cache,
 			host->h_state++;
 
 			nlm_get_host(host);
-			goto out;
+			mutex_unlock(&nlm_host_mutex);
+			return host;
 		}
 	}
-out:
+
 	mutex_unlock(&nlm_host_mutex);
-	return host;
+	return NULL;
 }
 
 /**

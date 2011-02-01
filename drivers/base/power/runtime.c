@@ -407,12 +407,15 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 		goto out;
 	}
 
+	/* Maybe the parent is now able to suspend. */
 	if (parent && !parent->power.ignore_children && !dev->power.irq_safe) {
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock(&dev->power.lock);
 
-		pm_request_idle(parent);
+		spin_lock(&parent->power.lock);
+		rpm_idle(parent, RPM_ASYNC);
+		spin_unlock(&parent->power.lock);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock(&dev->power.lock);
 	}
 
  out:

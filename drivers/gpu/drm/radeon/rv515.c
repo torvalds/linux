@@ -69,13 +69,13 @@ void rv515_ring_start(struct radeon_device *rdev)
 			  ISYNC_CPSCRATCH_IDLEGUI);
 	radeon_ring_write(rdev, PACKET0(WAIT_UNTIL, 0));
 	radeon_ring_write(rdev, WAIT_2D_IDLECLEAN | WAIT_3D_IDLECLEAN);
-	radeon_ring_write(rdev, PACKET0(0x170C, 0));
-	radeon_ring_write(rdev, 1 << 31);
+	radeon_ring_write(rdev, PACKET0(R300_DST_PIPE_CONFIG, 0));
+	radeon_ring_write(rdev, R300_PIPE_AUTO_CONFIG);
 	radeon_ring_write(rdev, PACKET0(GB_SELECT, 0));
 	radeon_ring_write(rdev, 0);
 	radeon_ring_write(rdev, PACKET0(GB_ENABLE, 0));
 	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, PACKET0(0x42C8, 0));
+	radeon_ring_write(rdev, PACKET0(R500_SU_REG_DEST, 0));
 	radeon_ring_write(rdev, (1 << rdev->num_gb_pipes) - 1);
 	radeon_ring_write(rdev, PACKET0(VAP_INDEX_OFFSET, 0));
 	radeon_ring_write(rdev, 0);
@@ -153,8 +153,8 @@ void rv515_gpu_init(struct radeon_device *rdev)
 	}
 	rv515_vga_render_disable(rdev);
 	r420_pipes_init(rdev);
-	gb_pipe_select = RREG32(0x402C);
-	tmp = RREG32(0x170C);
+	gb_pipe_select = RREG32(R400_GB_PIPE_SELECT);
+	tmp = RREG32(R300_DST_PIPE_CONFIG);
 	pipe_select_current = (tmp >> 2) & 3;
 	tmp = (1 << pipe_select_current) |
 	      (((gb_pipe_select >> 8) & 0xF) << 4);

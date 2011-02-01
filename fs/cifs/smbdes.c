@@ -45,7 +45,6 @@
    up with a different answer to the one above)
 */
 #include <linux/slab.h>
-#include "cifsencrypt.h"
 #define uchar unsigned char
 
 static uchar perm1[56] = { 57, 49, 41, 33, 25, 17, 9,

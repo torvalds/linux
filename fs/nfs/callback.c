@@ -135,33 +135,6 @@ out_err:
 
 #if defined(CONFIG_NFS_V4_1)
 /*
- *  * CB_SEQUENCE operations will fail until the callback sessionid is set.
- *   */
-int nfs4_set_callback_sessionid(struct nfs_client *clp)
-{
-	struct svc_serv *serv = clp->cl_rpcclient->cl_xprt->bc_serv;
-	struct nfs4_sessionid *bc_sid;
-
-	if (!serv->sv_bc_xprt)
-		return -EINVAL;
-
-	/* on success freed in xprt_free */
-	bc_sid = kmalloc(sizeof(struct nfs4_sessionid), GFP_KERNEL);
-	if (!bc_sid)
-		return -ENOMEM;
-	memcpy(bc_sid->data, &clp->cl_session->sess_id.data,
-		NFS4_MAX_SESSIONID_LEN);
-	spin_lock_bh(&serv->sv_cb_lock);
-	serv->sv_bc_xprt->xpt_bc_sid = bc_sid;
-	spin_unlock_bh(&serv->sv_cb_lock);
-	dprintk("%s set xpt_bc_sid=%u:%u:%u:%u for sv_bc_xprt %p\n", __func__,
-		((u32 *)bc_sid->data)[0], ((u32 *)bc_sid->data)[1],
-		((u32 *)bc_sid->data)[2], ((u32 *)bc_sid->data)[3],
-		serv->sv_bc_xprt);
-	return 0;
-}
-
-/*
  * The callback service for NFSv4.1 callbacks
  */
 static int
@@ -266,10 +239,6 @@ static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
 		struct nfs_callback_data *cb_info)
 {
 }
-int nfs4_set_callback_sessionid(struct nfs_client *clp)
-{
-	return 0;
-}
 #endif /* CONFIG_NFS_V4_1 */
 
 /*
@@ -359,78 +328,58 @@ void nfs_callback_down(int minorversion)
 	mutex_unlock(&nfs_callback_mutex);
 }
 
-static int check_gss_callback_principal(struct nfs_client *clp,
-					struct svc_rqst *rqstp)
+/* Boolean check of RPC_AUTH_GSS principal */
+int
+check_gss_callback_principal(struct nfs_client *clp, struct svc_rqst *rqstp)
 {
 	struct rpc_clnt *r = clp->cl_rpcclient;
 	char *p = svc_gss_principal(rqstp);
 
+	if (rqstp->rq_authop->flavour != RPC_AUTH_GSS)
+		return 1;
+
 	/* No RPC_AUTH_GSS on NFSv4.1 back channel yet */
 	if (clp->cl_minorversion != 0)
-		return SVC_DROP;
+		return 0;
 	/*
 	 * It might just be a normal user principal, in which case
 	 * userspace won't bother to tell us the name at all.
 	 */
 	if (p == NULL)
-		return SVC_DENIED;
+		return 0;
 
 	/* Expect a GSS_C_NT_HOSTBASED_NAME like "nfs@serverhostname" */
 
 	if (memcmp(p, "nfs@", 4) != 0)
-		return SVC_DENIED;
+		return 0;
 	p += 4;
 	if (strcmp(p, r->cl_server) != 0)
-		return SVC_DENIED;
-	return SVC_OK;
+		return 0;
+	return 1;
 }
 
-/* pg_authenticate method helper */
-static struct nfs_client *nfs_cb_find_client(struct svc_rqst *rqstp)
-{
-	struct nfs4_sessionid *sessionid = bc_xprt_sid(rqstp);
-	int is_cb_compound = rqstp->rq_proc == CB_COMPOUND ? 1 : 0;
-
-	dprintk("--> %s rq_proc %d\n", __func__, rqstp->rq_proc);
-	if (svc_is_backchannel(rqstp))
-		/* Sessionid (usually) set after CB_NULL ping */
-		return nfs4_find_client_sessionid(svc_addr(rqstp), sessionid,
-						  is_cb_compound);
-	else
-		/* No callback identifier in pg_authenticate */
-		return nfs4_find_client_no_ident(svc_addr(rqstp));
-}
-
-/* pg_authenticate method for nfsv4 callback threads. */
+/*
+ * pg_authenticate method for nfsv4 callback threads.
+ *
+ * The authflavor has been negotiated, so an incorrect flavor is a server
+ * bug. Drop packets with incorrect authflavor.
+ *
+ * All other checking done after NFS decoding where the nfs_client can be
+ * found in nfs4_callback_compound
+ */
 static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 {
-	struct nfs_client *clp;
-	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
-	int ret = SVC_OK;
-
-	/* Don't talk to strangers */
-	clp = nfs_cb_find_client(rqstp);
-	if (clp == NULL)
-		return SVC_DROP;
-
-	dprintk("%s: %s NFSv4 callback!\n", __func__,
-			svc_print_addr(rqstp, buf, sizeof(buf)));
-
 	switch (rqstp->rq_authop->flavour) {
-		case RPC_AUTH_NULL:
-			if (rqstp->rq_proc != CB_NULL)
-				ret = SVC_DENIED;
-			break;
-		case RPC_AUTH_UNIX:
-			break;
-		case RPC_AUTH_GSS:
-			ret = check_gss_callback_principal(clp, rqstp);
-			break;
-		default:
-			ret = SVC_DENIED;
+	case RPC_AUTH_NULL:
+		if (rqstp->rq_proc != CB_NULL)
+			return SVC_DROP;
+		break;
+	case RPC_AUTH_GSS:
+		/* No RPC_AUTH_GSS support yet in NFSv4.1 */
+		 if (svc_is_backchannel(rqstp))
+			return SVC_DROP;
 	}
-	nfs_put_client(clp);
-	return ret;
+	return SVC_OK;
 }
 
 /*

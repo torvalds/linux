@@ -364,7 +364,7 @@ static struct stub_priv *stub_priv_alloc(struct stub_device *sdev,
 
 static int get_pipe(struct stub_device *sdev, int epnum, int dir)
 {
-	struct usb_device *udev = interface_to_usbdev(sdev->interface);
+	struct usb_device *udev = sdev->udev;
 	struct usb_host_endpoint *ep;
 	struct usb_endpoint_descriptor *epd = NULL;
 
@@ -484,7 +484,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	int ret;
 	struct stub_priv *priv;
 	struct usbip_device *ud = &sdev->ud;
-	struct usb_device *udev = interface_to_usbdev(sdev->interface);
+	struct usb_device *udev = sdev->udev;
 	int pipe = get_pipe(sdev, pdu->base.ep, pdu->base.direction);
 
 

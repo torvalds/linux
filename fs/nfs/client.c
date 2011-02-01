@@ -1206,16 +1206,11 @@ nfs4_find_client_ident(int cb_ident)
  * For CB_COMPOUND calls, find a client by IP address, protocol version,
  * minorversion, and sessionID
  *
- * CREATE_SESSION triggers a CB_NULL ping from servers. The callback service
- * sessionid can only be set after the CREATE_SESSION return, so a CB_NULL
- * can arrive before the callback sessionid is set. For CB_NULL calls,
- * find a client by IP address protocol version, and minorversion.
- *
  * Returns NULL if no such client
  */
 struct nfs_client *
 nfs4_find_client_sessionid(const struct sockaddr *addr,
-			   struct nfs4_sessionid *sid, int is_cb_compound)
+			   struct nfs4_sessionid *sid)
 {
 	struct nfs_client *clp;
 
@@ -1227,9 +1222,9 @@ nfs4_find_client_sessionid(const struct sockaddr *addr,
 		if (!nfs4_has_session(clp))
 			continue;
 
-		/* Match sessionid unless cb_null call*/
-		if (is_cb_compound && (memcmp(clp->cl_session->sess_id.data,
-		    sid->data, NFS4_MAX_SESSIONID_LEN) != 0))
+		/* Match sessionid*/
+		if (memcmp(clp->cl_session->sess_id.data,
+		    sid->data, NFS4_MAX_SESSIONID_LEN) != 0)
 			continue;
 
 		atomic_inc(&clp->cl_count);
@@ -1244,7 +1239,7 @@ nfs4_find_client_sessionid(const struct sockaddr *addr,
 
 struct nfs_client *
 nfs4_find_client_sessionid(const struct sockaddr *addr,
-			   struct nfs4_sessionid *sid, int is_cb_compound)
+			   struct nfs4_sessionid *sid)
 {
 	return NULL;
 }
