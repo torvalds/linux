@@ -593,7 +593,7 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	new_inode_init(inode, dir, mode);
 
 	jbegin_count += reiserfs_cache_default_acl(dir);
-	retval = reiserfs_security_init(dir, inode, &security);
+	retval = reiserfs_security_init(dir, inode, &dentry->d_name, &security);
 	if (retval < 0) {
 		drop_new_inode(inode);
 		return retval;
@@ -667,7 +667,7 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	new_inode_init(inode, dir, mode);
 
 	jbegin_count += reiserfs_cache_default_acl(dir);
-	retval = reiserfs_security_init(dir, inode, &security);
+	retval = reiserfs_security_init(dir, inode, &dentry->d_name, &security);
 	if (retval < 0) {
 		drop_new_inode(inode);
 		return retval;
@@ -747,7 +747,7 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	new_inode_init(inode, dir, mode);
 
 	jbegin_count += reiserfs_cache_default_acl(dir);
-	retval = reiserfs_security_init(dir, inode, &security);
+	retval = reiserfs_security_init(dir, inode, &dentry->d_name, &security);
 	if (retval < 0) {
 		drop_new_inode(inode);
 		return retval;
@@ -1032,7 +1032,8 @@ static int reiserfs_symlink(struct inode *parent_dir,
 	}
 	new_inode_init(inode, parent_dir, mode);
 
-	retval = reiserfs_security_init(parent_dir, inode, &security);
+	retval = reiserfs_security_init(parent_dir, inode, &dentry->d_name,
+					&security);
 	if (retval < 0) {
 		drop_new_inode(inode);
 		return retval;

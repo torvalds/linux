@@ -128,10 +128,10 @@ exit_ext3_xattr(void)
 
 #ifdef CONFIG_EXT3_FS_SECURITY
 extern int ext3_init_security(handle_t *handle, struct inode *inode,
-				struct inode *dir);
+			      struct inode *dir, const struct qstr *qstr);
 #else
 static inline int ext3_init_security(handle_t *handle, struct inode *inode,
-				struct inode *dir)
+				     struct inode *dir, const struct qstr *qstr)
 {
 	return 0;
 }

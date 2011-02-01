@@ -7185,7 +7185,8 @@ out:
  * must not hold any lock expect i_mutex.
  */
 int ocfs2_init_security_and_acl(struct inode *dir,
-				struct inode *inode)
+				struct inode *inode,
+				const struct qstr *qstr)
 {
 	int ret = 0;
 	struct buffer_head *dir_bh = NULL;
@@ -7193,7 +7194,7 @@ int ocfs2_init_security_and_acl(struct inode *dir,
 		.enable = 1,
 	};
 
-	ret = ocfs2_init_security_get(inode, dir, &si);
+	ret = ocfs2_init_security_get(inode, dir, qstr, &si);
 	if (!ret) {
 		ret = ocfs2_xattr_set(inode, OCFS2_XATTR_INDEX_SECURITY,
 				      si.name, si.value, si.value_len,
@@ -7261,13 +7262,14 @@ static int ocfs2_xattr_security_set(struct dentry *dentry, const char *name,
 
 int ocfs2_init_security_get(struct inode *inode,
 			    struct inode *dir,
+			    const struct qstr *qstr,
 			    struct ocfs2_security_xattr_info *si)
 {
 	/* check whether ocfs2 support feature xattr */
 	if (!ocfs2_supports_xattr(OCFS2_SB(dir->i_sb)))
 		return -EOPNOTSUPP;
-	return security_inode_init_security(inode, dir, &si->name, &si->value,
-					    &si->value_len);
+	return security_inode_init_security(inode, dir, qstr, &si->name,
+					    &si->value, &si->value_len);
 }
 
 int ocfs2_init_security_set(handle_t *handle,

@@ -424,7 +424,9 @@ int jffs2_write_inode_range(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 	return ret;
 }
 
-int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, struct jffs2_inode_info *f, struct jffs2_raw_inode *ri, const char *name, int namelen)
+int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
+		    struct jffs2_inode_info *f, struct jffs2_raw_inode *ri,
+		    const struct qstr *qstr)
 {
 	struct jffs2_raw_dirent *rd;
 	struct jffs2_full_dnode *fn;
@@ -466,15 +468,15 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 	mutex_unlock(&f->sem);
 	jffs2_complete_reservation(c);
 
-	ret = jffs2_init_security(&f->vfs_inode, &dir_f->vfs_inode);
+	ret = jffs2_init_security(&f->vfs_inode, &dir_f->vfs_inode, qstr);
 	if (ret)
 		return ret;
 	ret = jffs2_init_acl_post(&f->vfs_inode);
 	if (ret)
 		return ret;
 
-	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &alloclen,
-				ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
+	ret = jffs2_reserve_space(c, sizeof(*rd)+qstr->len, &alloclen,
+				ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(qstr->len));
 
 	if (ret) {
 		/* Eep. */
@@ -493,19 +495,19 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 
 	rd->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	rd->nodetype = cpu_to_je16(JFFS2_NODETYPE_DIRENT);
-	rd->totlen = cpu_to_je32(sizeof(*rd) + namelen);
+	rd->totlen = cpu_to_je32(sizeof(*rd) + qstr->len);
 	rd->hdr_crc = cpu_to_je32(crc32(0, rd, sizeof(struct jffs2_unknown_node)-4));
 
 	rd->pino = cpu_to_je32(dir_f->inocache->ino);
 	rd->version = cpu_to_je32(++dir_f->highest_version);
 	rd->ino = ri->ino;
 	rd->mctime = ri->ctime;
-	rd->nsize = namelen;
+	rd->nsize = qstr->len;
 	rd->type = DT_REG;
 	rd->node_crc = cpu_to_je32(crc32(0, rd, sizeof(*rd)-8));
-	rd->name_crc = cpu_to_je32(crc32(0, name, namelen));
+	rd->name_crc = cpu_to_je32(crc32(0, qstr->name, qstr->len));
 
-	fd = jffs2_write_dirent(c, dir_f, rd, name, namelen, ALLOC_NORMAL);
+	fd = jffs2_write_dirent(c, dir_f, rd, qstr->name, qstr->len, ALLOC_NORMAL);
 
 	jffs2_free_raw_dirent(rd);
 

@@ -1091,7 +1091,8 @@ int jfs_removexattr(struct dentry *dentry, const char *name)
 }
 
 #ifdef CONFIG_JFS_SECURITY
-int jfs_init_security(tid_t tid, struct inode *inode, struct inode *dir)
+int jfs_init_security(tid_t tid, struct inode *inode, struct inode *dir,
+		      const struct qstr *qstr)
 {
 	int rc;
 	size_t len;
@@ -1099,7 +1100,8 @@ int jfs_init_security(tid_t tid, struct inode *inode, struct inode *dir)
 	char *suffix;
 	char *name;
 
-	rc = security_inode_init_security(inode, dir, &suffix, &value, &len);
+	rc = security_inode_init_security(inode, dir, qstr, &suffix, &value,
+					  &len);
 	if (rc) {
 		if (rc == -EOPNOTSUPP)
 			return 0;

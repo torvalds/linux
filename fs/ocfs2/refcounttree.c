@@ -4325,7 +4325,8 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 
 	/* If the security isn't preserved, we need to re-initialize them. */
 	if (!preserve) {
-		error = ocfs2_init_security_and_acl(dir, new_orphan_inode);
+		error = ocfs2_init_security_and_acl(dir, new_orphan_inode,
+						    &new_dentry->d_name);
 		if (error)
 			mlog_errno(error);
 	}

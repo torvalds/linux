@@ -39,6 +39,7 @@
 #include <linux/swap.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
+#include <linux/dcache.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
 #include <linux/namei.h>
@@ -2509,8 +2510,8 @@ static void selinux_inode_free_security(struct inode *inode)
 }
 
 static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
-				       char **name, void **value,
-				       size_t *len)
+				       const struct qstr *qstr, char **name,
+				       void **value, size_t *len)
 {
 	const struct task_security_struct *tsec = current_security();
 	struct inode_security_struct *dsec;

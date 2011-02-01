@@ -104,7 +104,7 @@ static int ext2_create (struct inode * dir, struct dentry * dentry, int mode, st
 
 	dquot_initialize(dir);
 
-	inode = ext2_new_inode(dir, mode);
+	inode = ext2_new_inode(dir, mode, &dentry->d_name);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
@@ -133,7 +133,7 @@ static int ext2_mknod (struct inode * dir, struct dentry *dentry, int mode, dev_
 
 	dquot_initialize(dir);
 
-	inode = ext2_new_inode (dir, mode);
+	inode = ext2_new_inode (dir, mode, &dentry->d_name);
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
 		init_special_inode(inode, inode->i_mode, rdev);
@@ -159,7 +159,7 @@ static int ext2_symlink (struct inode * dir, struct dentry * dentry,
 
 	dquot_initialize(dir);
 
-	inode = ext2_new_inode (dir, S_IFLNK | S_IRWXUGO);
+	inode = ext2_new_inode (dir, S_IFLNK | S_IRWXUGO, &dentry->d_name);
 	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
 		goto out;
@@ -230,7 +230,7 @@ static int ext2_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 
 	inode_inc_link_count(dir);
 
-	inode = ext2_new_inode (dir, S_IFDIR | mode);
+	inode = ext2_new_inode(dir, S_IFDIR | mode, &dentry->d_name);
 	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
 		goto out_dir;
