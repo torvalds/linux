@@ -1887,7 +1887,7 @@ static int __net_init __ip_vs_init(struct net *net)
 	ipvs->gen = atomic_read(&ipvs_netns_cnt);
 	atomic_inc(&ipvs_netns_cnt);
 	net->ipvs = ipvs;
-	printk(KERN_INFO "IPVS: Creating netns size=%lu id=%d\n",
+	printk(KERN_INFO "IPVS: Creating netns size=%zu id=%d\n",
 			 sizeof(struct netns_ipvs), ipvs->gen);
 	return 0;
 }
