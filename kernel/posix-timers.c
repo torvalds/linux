@@ -199,12 +199,6 @@ static int common_clock_get(clockid_t which_clock, struct timespec *tp)
 	return 0;
 }
 
-static inline int common_clock_set(const clockid_t which_clock,
-				   const struct timespec *tp)
-{
-	return do_sys_settimeofday(tp, NULL);
-}
-
 static int common_timer_create(struct k_itimer *new_timer)
 {
 	hrtimer_init(&new_timer->it.real.timer, new_timer->it_clock, 0);
@@ -230,6 +224,13 @@ static inline int invalid_clockid(const clockid_t which_clock)
 	if (posix_clocks[which_clock].res != 0)
 		return 0;
 	return 1;
+}
+
+/* Set clock_realtime */
+static int posix_clock_realtime_set(const clockid_t which_clock,
+				    const struct timespec *tp)
+{
+	return do_sys_settimeofday(tp, NULL);
 }
 
 /*
@@ -276,32 +277,29 @@ static __init int init_posix_timers(void)
 {
 	struct k_clock clock_realtime = {
 		.clock_getres	= hrtimer_get_res,
+		.clock_set	= posix_clock_realtime_set,
 		.nsleep		= common_nsleep,
 		.nsleep_restart	= hrtimer_nanosleep_restart,
 	};
 	struct k_clock clock_monotonic = {
 		.clock_getres	= hrtimer_get_res,
 		.clock_get	= posix_ktime_get_ts,
-		.clock_set	= do_posix_clock_nosettime,
 		.nsleep		= common_nsleep,
 		.nsleep_restart	= hrtimer_nanosleep_restart,
 	};
 	struct k_clock clock_monotonic_raw = {
 		.clock_getres	= hrtimer_get_res,
 		.clock_get	= posix_get_monotonic_raw,
-		.clock_set	= do_posix_clock_nosettime,
 		.timer_create	= no_timer_create,
 	};
 	struct k_clock clock_realtime_coarse = {
 		.clock_getres	= posix_get_coarse_res,
 		.clock_get	= posix_get_realtime_coarse,
-		.clock_set	= do_posix_clock_nosettime,
 		.timer_create	= no_timer_create,
 	};
 	struct k_clock clock_monotonic_coarse = {
 		.clock_getres	= posix_get_coarse_res,
 		.clock_get	= posix_get_monotonic_coarse,
-		.clock_set	= do_posix_clock_nosettime,
 		.timer_create	= no_timer_create,
 	};
 
@@ -940,24 +938,19 @@ void exit_itimers(struct signal_struct *sig)
 	}
 }
 
-/* Not available / possible... functions */
-int do_posix_clock_nosettime(const clockid_t clockid, const struct timespec *tp)
-{
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(do_posix_clock_nosettime);
-
 SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
 		const struct timespec __user *, tp)
 {
+	struct k_clock *kc = clockid_to_kclock(which_clock);
 	struct timespec new_tp;
 
-	if (invalid_clockid(which_clock))
+	if (!kc || !kc->clock_set)
 		return -EINVAL;
+
 	if (copy_from_user(&new_tp, tp, sizeof (*tp)))
 		return -EFAULT;
 
-	return CLOCK_DISPATCH(which_clock, clock_set, (which_clock, &new_tp));
+	return kc->clock_set(which_clock, &new_tp);
 }
 
 SYSCALL_DEFINE2(clock_gettime, const clockid_t, which_clock,
