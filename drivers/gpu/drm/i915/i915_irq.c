@@ -784,7 +784,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("generating error event\n");
+	DRM_INFO("capturing error event; look for more information in /debug/dri/%d/i915_error_state\n",
+		 dev->primary->index);
 
 	error->seqno = dev_priv->ring[RCS].get_seqno(&dev_priv->ring[RCS]);
 	error->eir = I915_READ(EIR);
