@@ -58,8 +58,9 @@ mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
 
 	md4 = crypto_alloc_shash("md4", 0, 0);
 	if (IS_ERR(md4)) {
+		rc = PTR_ERR(md4);
 		cERROR(1, "%s: Crypto md4 allocation error %d\n", __func__, rc);
-		return PTR_ERR(md4);
+		return rc;
 	}
 	size = sizeof(struct shash_desc) + crypto_shash_descsize(md4);
 	sdescmd4 = kmalloc(size, GFP_KERNEL);
