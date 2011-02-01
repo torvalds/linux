@@ -15,9 +15,6 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/errno.h>
-#include <linux/uaccess.h>
-#include <linux/bitops.h>
-#include <linux/spinlock.h>
 #include <linux/if_ether.h>
 #include <linux/netlink.h>
 #include <linux/jiffies.h>

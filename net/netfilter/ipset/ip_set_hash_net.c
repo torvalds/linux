@@ -12,9 +12,6 @@
 #include <linux/ip.h>
 #include <linux/skbuff.h>
 #include <linux/errno.h>
-#include <linux/uaccess.h>
-#include <linux/bitops.h>
-#include <linux/spinlock.h>
 #include <linux/random.h>
 #include <net/ip.h>
 #include <net/ipv6.h>

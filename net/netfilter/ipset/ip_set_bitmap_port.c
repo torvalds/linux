@@ -9,13 +9,8 @@
 
 #include <linux/module.h>
 #include <linux/ip.h>
-#include <linux/tcp.h>
-#include <linux/udp.h>
 #include <linux/skbuff.h>
 #include <linux/errno.h>
-#include <linux/uaccess.h>
-#include <linux/bitops.h>
-#include <linux/spinlock.h>
 #include <linux/netlink.h>
 #include <linux/jiffies.h>
 #include <linux/timer.h>
