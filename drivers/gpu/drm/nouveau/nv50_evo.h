@@ -31,7 +31,7 @@ int  nv50_evo_init(struct drm_device *dev);
 void nv50_evo_fini(struct drm_device *dev);
 int  nv50_evo_dmaobj_new(struct nouveau_channel *, u32 class, u32 name,
 			 u32 tile_flags, u32 magic_flags,
-			 u32 offset, u32 limit);
+			 u32 offset, u32 limit, u32 flags5);
 
 #define NV50_EVO_UPDATE                                              0x00000080
 #define NV50_EVO_UNK84                                               0x00000084

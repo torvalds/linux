@@ -172,7 +172,7 @@ nv50_display_init(struct drm_device *dev)
 	ret = nv50_evo_init(dev);
 	if (ret)
 		return ret;
-	evo = dev_priv->evo;
+	evo = nv50_display(dev)->evo;
 
 	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (evo->ramin->vinst >> 8) | 9);
 
@@ -201,6 +201,8 @@ nv50_display_init(struct drm_device *dev)
 static int nv50_display_disable(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv50_display *disp = nv50_display(dev);
+	struct nouveau_channel *evo = disp->evo;
 	struct drm_crtc *drm_crtc;
 	int ret, i;
 
@@ -212,12 +214,12 @@ static int nv50_display_disable(struct drm_device *dev)
 		nv50_crtc_blank(crtc, true);
 	}
 
-	ret = RING_SPACE(dev_priv->evo, 2);
+	ret = RING_SPACE(evo, 2);
 	if (ret == 0) {
-		BEGIN_RING(dev_priv->evo, 0, NV50_EVO_UPDATE, 1);
-		OUT_RING(dev_priv->evo, 0);
+		BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
+		OUT_RING(evo, 0);
 	}
-	FIRE_RING(dev_priv->evo);
+	FIRE_RING(evo);
 
 	/* Almost like ack'ing a vblank interrupt, maybe in the spirit of
 	 * cleaning up?
@@ -267,9 +269,15 @@ int nv50_display_create(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct dcb_table *dcb = &dev_priv->vbios.dcb;
 	struct drm_connector *connector, *ct;
+	struct nv50_display *priv;
 	int ret, i;
 
 	NV_DEBUG_KMS(dev, "\n");
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+	dev_priv->engine.display.priv = priv;
 
 	/* init basic kernel modesetting */
 	drm_mode_config_init(dev);
@@ -346,6 +354,7 @@ void
 nv50_display_destroy(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv50_display *disp = nv50_display(dev);
 
 	NV_DEBUG_KMS(dev, "\n");
 
@@ -354,6 +363,7 @@ nv50_display_destroy(struct drm_device *dev)
 	nv50_display_disable(dev);
 	nouveau_irq_unregister(dev, 26);
 	flush_work_sync(&dev_priv->irq_work);
+	kfree(disp);
 }
 
 static u16
@@ -469,11 +479,12 @@ static void
 nv50_display_unk10_handler(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv50_display *disp = nv50_display(dev);
 	u32 unk30 = nv_rd32(dev, 0x610030), mc;
 	int i, crtc, or, type = OUTPUT_ANY;
 
 	NV_DEBUG_KMS(dev, "0x610030: 0x%08x\n", unk30);
-	dev_priv->evo_irq.dcb = NULL;
+	disp->irq.dcb = NULL;
 
 	nv_wr32(dev, 0x619494, nv_rd32(dev, 0x619494) & ~8);
 
@@ -544,7 +555,7 @@ nv50_display_unk10_handler(struct drm_device *dev)
 
 		if (dcb->type == type && (dcb->or & (1 << or))) {
 			nouveau_bios_run_display_table(dev, dcb, 0, -1);
-			dev_priv->evo_irq.dcb = dcb;
+			disp->irq.dcb = dcb;
 			goto ack;
 		}
 	}
@@ -590,15 +601,16 @@ static void
 nv50_display_unk20_handler(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv50_display *disp = nv50_display(dev);
 	u32 unk30 = nv_rd32(dev, 0x610030), tmp, pclk, script, mc = 0;
 	struct dcb_entry *dcb;
 	int i, crtc, or, type = OUTPUT_ANY;
 
 	NV_DEBUG_KMS(dev, "0x610030: 0x%08x\n", unk30);
-	dcb = dev_priv->evo_irq.dcb;
+	dcb = disp->irq.dcb;
 	if (dcb) {
 		nouveau_bios_run_display_table(dev, dcb, 0, -2);
-		dev_priv->evo_irq.dcb = NULL;
+		disp->irq.dcb = NULL;
 	}
 
 	/* CRTC clock change requested? */
@@ -695,9 +707,9 @@ nv50_display_unk20_handler(struct drm_device *dev)
 		nv_wr32(dev, NV50_PDISPLAY_DAC_CLK_CTRL2(or), 0);
 	}
 
-	dev_priv->evo_irq.dcb = dcb;
-	dev_priv->evo_irq.pclk = pclk;
-	dev_priv->evo_irq.script = script;
+	disp->irq.dcb = dcb;
+	disp->irq.pclk = pclk;
+	disp->irq.script = script;
 
 ack:
 	nv_wr32(dev, NV50_PDISPLAY_INTR_1, NV50_PDISPLAY_INTR_1_CLK_UNK20);
@@ -738,13 +750,13 @@ nv50_display_unk40_dp_set_tmds(struct drm_device *dev, struct dcb_entry *dcb)
 static void
 nv50_display_unk40_handler(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct dcb_entry *dcb = dev_priv->evo_irq.dcb;
-	u16 script = dev_priv->evo_irq.script;
-	u32 unk30 = nv_rd32(dev, 0x610030), pclk = dev_priv->evo_irq.pclk;
+	struct nv50_display *disp = nv50_display(dev);
+	struct dcb_entry *dcb = disp->irq.dcb;
+	u16 script = disp->irq.script;
+	u32 unk30 = nv_rd32(dev, 0x610030), pclk = disp->irq.pclk;
 
 	NV_DEBUG_KMS(dev, "0x610030: 0x%08x\n", unk30);
-	dev_priv->evo_irq.dcb = NULL;
+	disp->irq.dcb = NULL;
 	if (!dcb)
 		goto ack;
 

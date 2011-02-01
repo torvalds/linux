@@ -387,6 +387,7 @@ struct nouveau_pgraph_engine {
 };
 
 struct nouveau_display_engine {
+	void *priv;
 	int (*early_init)(struct drm_device *);
 	void (*late_takedown)(struct drm_device *);
 	int (*create)(struct drm_device *);
@@ -746,14 +747,6 @@ struct drm_nouveau_private {
 	} susres;
 
 	struct backlight_device *backlight;
-
-	struct nouveau_channel *evo;
-	u32 evo_alloc;
-	struct {
-		struct dcb_entry *dcb;
-		u16 script;
-		u32 pclk;
-	} evo_irq;
 
 	struct {
 		struct dentry *channel_root;

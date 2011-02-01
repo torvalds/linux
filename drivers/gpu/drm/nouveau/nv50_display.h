@@ -35,6 +35,24 @@
 #include "nouveau_crtc.h"
 #include "nv50_evo.h"
 
+struct nv50_display {
+	struct nouveau_channel *evo;
+	u32 evo_alloc;
+
+	struct {
+		struct dcb_entry *dcb;
+		u16 script;
+		u32 pclk;
+	} irq;
+};
+
+static inline struct nv50_display *
+nv50_display(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	return dev_priv->engine.display.priv;
+}
+
 void nv50_display_irq_handler_bh(struct work_struct *work);
 int nv50_display_early_init(struct drm_device *dev);
 void nv50_display_late_takedown(struct drm_device *dev);
