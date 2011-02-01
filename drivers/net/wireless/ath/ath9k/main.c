@@ -1419,9 +1419,7 @@ static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
 		 * there.
 		 */
 		error = ath_beacon_alloc(sc, vif);
-		if (error)
-			ath9k_reclaim_beacon(sc, vif);
-		else
+		if (!error)
 			ath_beacon_config(sc, vif);
 	}
 }
