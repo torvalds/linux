@@ -449,6 +449,18 @@ static irqreturn_t wm831x_irq_thread(int irq, void *data)
 		goto out;
 	}
 
+	/* The touch interrupts are visible in the primary register as
+	 * an optimisation; open code this to avoid complicating the
+	 * main handling loop and so we can also skip iterating the
+	 * descriptors.
+	 */
+	if (primary & WM831X_TCHPD_INT)
+		handle_nested_irq(wm831x->irq_base + WM831X_IRQ_TCHPD);
+	if (primary & WM831X_TCHDATA_INT)
+		handle_nested_irq(wm831x->irq_base + WM831X_IRQ_TCHDATA);
+	if (primary & (WM831X_TCHDATA_EINT | WM831X_TCHPD_EINT))
+		goto out;
+
 	for (i = 0; i < ARRAY_SIZE(wm831x_irqs); i++) {
 		int offset = wm831x_irqs[i].reg - 1;
 
