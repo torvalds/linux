@@ -219,7 +219,7 @@ set_camera_power(struct vicam_camera *cam, int state)
 {
 	int status;
 
-	status = send_control_msg(cam, 0x50, state, 0, NULL, 0));
+	status = send_control_msg(cam, 0x50, state, 0, NULL, 0);
 	if (status < 0)
 		return status;
 
