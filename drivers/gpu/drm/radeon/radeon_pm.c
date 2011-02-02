@@ -646,6 +646,9 @@ void radeon_pm_fini(struct radeon_device *rdev)
 #endif
 	}
 
+	if (rdev->pm.power_state)
+		kfree(rdev->pm.power_state);
+
 	radeon_hwmon_fini(rdev);
 }
 

@@ -812,8 +812,7 @@ struct radeon_pm {
 	fixed20_12		sclk;
 	fixed20_12		mclk;
 	fixed20_12		needed_bandwidth;
-	/* XXX: use a define for num power modes */
-	struct radeon_power_state power_state[8];
+	struct radeon_power_state *power_state;
 	/* number of valid power states */
 	int                     num_power_states;
 	int                     current_power_state_index;
