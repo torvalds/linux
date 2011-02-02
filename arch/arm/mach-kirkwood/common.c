@@ -21,6 +21,7 @@
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/timex.h>
+#include <asm/kexec.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <mach/kirkwood.h>
@@ -1003,6 +1004,10 @@ void __init kirkwood_init(void)
 	kirkwood_xor0_init();
 	kirkwood_xor1_init();
 	kirkwood_crypto_init();
+
+#ifdef CONFIG_KEXEC 
+	kexec_reinit = kirkwood_enable_pcie;
+#endif
 }
 
 static int __init kirkwood_clock_gate(void)
