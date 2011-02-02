@@ -1098,7 +1098,7 @@ static const struct nla_policy ip_set_adt_policy[IPSET_ATTR_CMD_MAX + 1] = {
 };
 
 static int
-call_ad(struct sk_buff *skb, struct ip_set *set,
+call_ad(struct sock *ctnl, struct sk_buff *skb, struct ip_set *set,
 	struct nlattr *tb[], enum ipset_adt adt,
 	u32 flags, bool use_lineno)
 {
@@ -1118,11 +1118,24 @@ call_ad(struct sk_buff *skb, struct ip_set *set,
 		return 0;
 	if (lineno && use_lineno) {
 		/* Error in restore/batch mode: send back lineno */
-		struct nlmsghdr *nlh = nlmsg_hdr(skb);
+		struct nlmsghdr *rep, *nlh = nlmsg_hdr(skb);
+		struct sk_buff *skb2;
+		struct nlmsgerr *errmsg;
+		size_t payload = sizeof(*errmsg) + nlmsg_len(nlh);
 		int min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
 		struct nlattr *cda[IPSET_ATTR_CMD_MAX+1];
-		struct nlattr *cmdattr = (void *)nlh + min_len;
+		struct nlattr *cmdattr;
 		u32 *errline;
+
+		skb2 = nlmsg_new(payload, GFP_KERNEL);
+		if (skb2 == NULL)
+			return -ENOMEM;
+		rep = __nlmsg_put(skb2, NETLINK_CB(skb).pid,
+				  nlh->nlmsg_seq, NLMSG_ERROR, payload, 0);
+		errmsg = nlmsg_data(rep);
+		errmsg->error = ret;
+		memcpy(&errmsg->msg, nlh, nlh->nlmsg_len);
+		cmdattr = (void *)&errmsg->msg + min_len;
 
 		nla_parse(cda, IPSET_ATTR_CMD_MAX,
 			  cmdattr, nlh->nlmsg_len - min_len,
@@ -1131,6 +1144,10 @@ call_ad(struct sk_buff *skb, struct ip_set *set,
 		errline = nla_data(cda[IPSET_ATTR_LINENO]);
 
 		*errline = lineno;
+
+		netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);
+		/* Signal netlink not to send its ACK/errmsg.  */
+		return -EINTR;
 	}
 
 	return ret;
@@ -1169,7 +1186,8 @@ ip_set_uadd(struct sock *ctnl, struct sk_buff *skb,
 				     attr[IPSET_ATTR_DATA],
 				     set->type->adt_policy))
 			return -IPSET_ERR_PROTOCOL;
-		ret = call_ad(skb, set, tb, IPSET_ADD, flags, use_lineno);
+		ret = call_ad(ctnl, skb, set, tb, IPSET_ADD, flags,
+			      use_lineno);
 	} else {
 		int nla_rem;
 
@@ -1180,7 +1198,7 @@ ip_set_uadd(struct sock *ctnl, struct sk_buff *skb,
 			    nla_parse_nested(tb, IPSET_ATTR_ADT_MAX, nla,
 					     set->type->adt_policy))
 				return -IPSET_ERR_PROTOCOL;
-			ret = call_ad(skb, set, tb, IPSET_ADD,
+			ret = call_ad(ctnl, skb, set, tb, IPSET_ADD,
 				      flags, use_lineno);
 			if (ret < 0)
 				return ret;
@@ -1222,7 +1240,8 @@ ip_set_udel(struct sock *ctnl, struct sk_buff *skb,
 				     attr[IPSET_ATTR_DATA],
 				     set->type->adt_policy))
 			return -IPSET_ERR_PROTOCOL;
-		ret = call_ad(skb, set, tb, IPSET_DEL, flags, use_lineno);
+		ret = call_ad(ctnl, skb, set, tb, IPSET_DEL, flags,
+			      use_lineno);
 	} else {
 		int nla_rem;
 
@@ -1233,7 +1252,7 @@ ip_set_udel(struct sock *ctnl, struct sk_buff *skb,
 			    nla_parse_nested(tb, IPSET_ATTR_ADT_MAX, nla,
 					     set->type->adt_policy))
 				return -IPSET_ERR_PROTOCOL;
-			ret = call_ad(skb, set, tb, IPSET_DEL,
+			ret = call_ad(ctnl, skb, set, tb, IPSET_DEL,
 				      flags, use_lineno);
 			if (ret < 0)
 				return ret;
