@@ -253,11 +253,11 @@ static __init int init_posix_timers(void)
 		.clock_get	= posix_get_monotonic_coarse,
 	};
 
-	register_posix_clock(CLOCK_REALTIME, &clock_realtime);
-	register_posix_clock(CLOCK_MONOTONIC, &clock_monotonic);
-	register_posix_clock(CLOCK_MONOTONIC_RAW, &clock_monotonic_raw);
-	register_posix_clock(CLOCK_REALTIME_COARSE, &clock_realtime_coarse);
-	register_posix_clock(CLOCK_MONOTONIC_COARSE, &clock_monotonic_coarse);
+	posix_timers_register_clock(CLOCK_REALTIME, &clock_realtime);
+	posix_timers_register_clock(CLOCK_MONOTONIC, &clock_monotonic);
+	posix_timers_register_clock(CLOCK_MONOTONIC_RAW, &clock_monotonic_raw);
+	posix_timers_register_clock(CLOCK_REALTIME_COARSE, &clock_realtime_coarse);
+	posix_timers_register_clock(CLOCK_MONOTONIC_COARSE, &clock_monotonic_coarse);
 
 	posix_timers_cache = kmem_cache_create("posix_timers_cache",
 					sizeof (struct k_itimer), 0, SLAB_PANIC,
@@ -433,7 +433,8 @@ static struct pid *good_sigevent(sigevent_t * event)
 	return task_pid(rtn);
 }
 
-void register_posix_clock(const clockid_t clock_id, struct k_clock *new_clock)
+void posix_timers_register_clock(const clockid_t clock_id,
+				 struct k_clock *new_clock)
 {
 	if ((unsigned) clock_id >= MAX_CLOCKS) {
 		printk(KERN_WARNING "POSIX clock register failed for clock_id %d\n",
@@ -454,7 +455,7 @@ void register_posix_clock(const clockid_t clock_id, struct k_clock *new_clock)
 
 	posix_clocks[clock_id] = *new_clock;
 }
-EXPORT_SYMBOL_GPL(register_posix_clock);
+EXPORT_SYMBOL_GPL(posix_timers_register_clock);
 
 static struct k_itimer * alloc_posix_timer(void)
 {

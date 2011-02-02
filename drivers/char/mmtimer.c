@@ -840,7 +840,7 @@ static int __init mmtimer_init(void)
 	}
 
 	sgi_clock_period = NSEC_PER_SEC / sn_rtc_cycles_per_second;
-	register_posix_clock(CLOCK_SGI_CYCLE, &sgi_clock);
+	posix_timers_register_clock(CLOCK_SGI_CYCLE, &sgi_clock);
 
 	printk(KERN_INFO "%s: v%s, %ld MHz\n", MMTIMER_DESC, MMTIMER_VERSION,
 	       sn_rtc_cycles_per_second/(unsigned long)1E6);

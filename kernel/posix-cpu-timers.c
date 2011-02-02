@@ -1618,8 +1618,8 @@ static __init int init_posix_cpu_timers(void)
 	};
 	struct timespec ts;
 
-	register_posix_clock(CLOCK_PROCESS_CPUTIME_ID, &process);
-	register_posix_clock(CLOCK_THREAD_CPUTIME_ID, &thread);
+	posix_timers_register_clock(CLOCK_PROCESS_CPUTIME_ID, &process);
+	posix_timers_register_clock(CLOCK_THREAD_CPUTIME_ID, &thread);
 
 	cputime_to_timespec(cputime_one_jiffy, &ts);
 	onecputick = ts.tv_nsec;

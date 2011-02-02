@@ -101,7 +101,7 @@ struct k_clock {
 
 extern struct k_clock clock_posix_cpu;
 
-void register_posix_clock(const clockid_t clock_id, struct k_clock *new_clock);
+void posix_timers_register_clock(const clockid_t clock_id, struct k_clock *new_clock);
 
 /* function to call to trigger timer event */
 int posix_timer_event(struct k_itimer *timr, int si_private);
