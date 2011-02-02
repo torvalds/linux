@@ -183,6 +183,9 @@ static inline void init_ir_raw_event(struct ir_raw_event *ev)
 }
 
 #define IR_MAX_DURATION         0xFFFFFFFF      /* a bit more than 4 seconds */
+#define US_TO_NS(usec)		((usec) * 1000)
+#define MS_TO_US(msec)		((msec) * 1000)
+#define MS_TO_NS(msec)		((msec) * 1000 * 1000)
 
 void ir_raw_event_handle(struct rc_dev *dev);
 int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev);

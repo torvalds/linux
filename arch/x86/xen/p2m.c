@@ -237,6 +237,18 @@ void __init xen_build_dynamic_phys_to_machine(void)
 			p2m_top[topidx] = mid;
 		}
 
+		/*
+		 * As long as the mfn_list has enough entries to completely
+		 * fill a p2m page, pointing into the array is ok. But if
+		 * not the entries beyond the last pfn will be undefined.
+		 */
+		if (unlikely(pfn + P2M_PER_PAGE > max_pfn)) {
+			unsigned long p2midx;
+
+			p2midx = max_pfn % P2M_PER_PAGE;
+			for ( ; p2midx < P2M_PER_PAGE; p2midx++)
+				mfn_list[pfn + p2midx] = INVALID_P2M_ENTRY;
+		}
 		p2m_top[topidx][mididx] = &mfn_list[pfn];
 	}
 

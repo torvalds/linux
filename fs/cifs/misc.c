@@ -571,7 +571,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				pCifsInode = CIFS_I(netfile->dentry->d_inode);
 
 				cifs_set_oplock_level(pCifsInode,
-						      pSMB->OplockLevel);
+					pSMB->OplockLevel ? OPLOCK_READ : 0);
 				/*
 				 * cifs_oplock_break_put() can't be called
 				 * from here.  Get reference after queueing
@@ -635,77 +635,6 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 	}
 	printk(" | %s\n", debug_line);
 	return;
-}
-
-/* Convert 16 bit Unicode pathname to wire format from string in current code
-   page.  Conversion may involve remapping up the seven characters that are
-   only legal in POSIX-like OS (if they are present in the string). Path
-   names are little endian 16 bit Unicode on the wire */
-int
-cifsConvertToUCS(__le16 *target, const char *source, int maxlen,
-		 const struct nls_table *cp, int mapChars)
-{
-	int i, j, charlen;
-	int len_remaining = maxlen;
-	char src_char;
-	__u16 temp;
-
-	if (!mapChars)
-		return cifs_strtoUCS(target, source, PATH_MAX, cp);
-
-	for (i = 0, j = 0; i < maxlen; j++) {
-		src_char = source[i];
-		switch (src_char) {
-			case 0:
-				target[j] = 0;
-				goto ctoUCS_out;
-			case ':':
-				target[j] = cpu_to_le16(UNI_COLON);
-				break;
-			case '*':
-				target[j] = cpu_to_le16(UNI_ASTERIK);
-				break;
-			case '?':
-				target[j] = cpu_to_le16(UNI_QUESTION);
-				break;
-			case '<':
-				target[j] = cpu_to_le16(UNI_LESSTHAN);
-				break;
-			case '>':
-				target[j] = cpu_to_le16(UNI_GRTRTHAN);
-				break;
-			case '|':
-				target[j] = cpu_to_le16(UNI_PIPE);
-				break;
-			/* BB We can not handle remapping slash until
-			   all the calls to build_path_from_dentry
-			   are modified, as they use slash as separator BB */
-			/* case '\\':
-				target[j] = cpu_to_le16(UNI_SLASH);
-				break;*/
-			default:
-				charlen = cp->char2uni(source+i,
-					len_remaining, &temp);
-				/* if no match, use question mark, which
-				at least in some cases servers as wild card */
-				if (charlen < 1) {
-					target[j] = cpu_to_le16(0x003f);
-					charlen = 1;
-				} else
-					target[j] = cpu_to_le16(temp);
-				len_remaining -= charlen;
-				/* character may take more than one byte in the
-				   the source string, but will take exactly two
-				   bytes in the target string */
-				i += charlen;
-				continue;
-		}
-		i++; /* move to next char in source string */
-		len_remaining--;
-	}
-
-ctoUCS_out:
-	return i;
 }
 
 void

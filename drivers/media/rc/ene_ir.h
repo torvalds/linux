@@ -201,8 +201,6 @@
 #define dbg_verbose(format, ...)	__dbg(2, format, ## __VA_ARGS__)
 #define dbg_regs(format, ...)		__dbg(3, format, ## __VA_ARGS__)
 
-#define MS_TO_NS(msec) ((msec) * 1000)
-
 struct ene_device {
 	struct pnp_dev *pnp_dev;
 	struct rc_dev *rdev;

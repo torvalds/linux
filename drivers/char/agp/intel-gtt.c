@@ -68,6 +68,7 @@ static struct _intel_private {
 	phys_addr_t gma_bus_addr;
 	u32 PGETBL_save;
 	u32 __iomem *gtt;		/* I915G */
+	bool clear_fake_agp; /* on first access via agp, fill with scratch */
 	int num_dcache_entries;
 	union {
 		void __iomem *i9xx_flush_page;
@@ -869,20 +870,11 @@ static int intel_fake_agp_free_gatt_table(struct agp_bridge_data *bridge)
 
 static int intel_fake_agp_configure(void)
 {
-	int i;
-
 	if (!intel_enable_gtt())
 	    return -EIO;
 
+	intel_private.clear_fake_agp = true;
 	agp_bridge->gart_bus_addr = intel_private.gma_bus_addr;
-
-	for (i = 0; i < intel_private.base.gtt_total_entries; i++) {
-		intel_private.driver->write_entry(intel_private.scratch_page_dma,
-						  i, 0);
-	}
-	readl(intel_private.gtt+i-1);	/* PCI Posting. */
-
-	global_cache_flush();
 
 	return 0;
 }
@@ -944,6 +936,13 @@ static int intel_fake_agp_insert_entries(struct agp_memory *mem,
 					 off_t pg_start, int type)
 {
 	int ret = -EINVAL;
+
+	if (intel_private.clear_fake_agp) {
+		int start = intel_private.base.stolen_size / PAGE_SIZE;
+		int end = intel_private.base.gtt_mappable_entries;
+		intel_gtt_clear_range(start, end - start);
+		intel_private.clear_fake_agp = false;
+	}
 
 	if (INTEL_GTT_GEN == 1 && type == AGP_DCACHE_MEMORY)
 		return i810_insert_dcache_entries(mem, pg_start, type);

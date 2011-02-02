@@ -7,37 +7,37 @@ config XZ_DEC
 	  CRC32 is supported. See Documentation/xz.txt for more information.
 
 config XZ_DEC_X86
-	bool "x86 BCJ filter decoder" if EMBEDDED
+	bool "x86 BCJ filter decoder" if EXPERT
 	default y
 	depends on XZ_DEC
 	select XZ_DEC_BCJ
 
 config XZ_DEC_POWERPC
-	bool "PowerPC BCJ filter decoder" if EMBEDDED
+	bool "PowerPC BCJ filter decoder" if EXPERT
 	default y
 	depends on XZ_DEC
 	select XZ_DEC_BCJ
 
 config XZ_DEC_IA64
-	bool "IA-64 BCJ filter decoder" if EMBEDDED
+	bool "IA-64 BCJ filter decoder" if EXPERT
 	default y
 	depends on XZ_DEC
 	select XZ_DEC_BCJ
 
 config XZ_DEC_ARM
-	bool "ARM BCJ filter decoder" if EMBEDDED
+	bool "ARM BCJ filter decoder" if EXPERT
 	default y
 	depends on XZ_DEC
 	select XZ_DEC_BCJ
 
 config XZ_DEC_ARMTHUMB
-	bool "ARM-Thumb BCJ filter decoder" if EMBEDDED
+	bool "ARM-Thumb BCJ filter decoder" if EXPERT
 	default y
 	depends on XZ_DEC
 	select XZ_DEC_BCJ
 
 config XZ_DEC_SPARC
-	bool "SPARC BCJ filter decoder" if EMBEDDED
+	bool "SPARC BCJ filter decoder" if EXPERT
 	default y
 	depends on XZ_DEC
 	select XZ_DEC_BCJ

@@ -81,18 +81,6 @@ static inline char *strncpy(char *dest, const char *src, size_t n)
 	strcpy(__d + strlen(__d), (s));		\
 })
 
-#define __HAVE_ARCH_STRCHR
-static inline char *strchr(const char *s, int c)
-{
-	char sc, ch = c;
-
-	for (; (sc = *s++) != ch; ) {
-		if (!sc)
-			return NULL;
-	}
-	return (char *)s - 1;
-}
-
 #ifndef CONFIG_COLDFIRE
 #define __HAVE_ARCH_STRCMP
 static inline int strcmp(const char *cs, const char *ct)

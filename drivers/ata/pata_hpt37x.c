@@ -24,7 +24,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.18"
+#define DRV_VERSION	"0.6.22"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -229,8 +229,8 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr,
 
 	while (list[i] != NULL) {
 		if (!strcmp(list[i], model_num)) {
-			printk(KERN_WARNING DRV_NAME ": %s is not supported for %s.\n",
-				modestr, list[i]);
+			pr_warning(DRV_NAME ": %s is not supported for %s.\n",
+				   modestr, list[i]);
 			return 1;
 		}
 		i++;
@@ -642,7 +642,6 @@ static struct ata_port_operations hpt372_port_ops = {
 static struct ata_port_operations hpt374_fn1_port_ops = {
 	.inherits	= &hpt372_port_ops,
 	.cable_detect	= hpt374_fn1_cable_detect,
-	.prereset	= hpt37x_pre_reset,
 };
 
 /**
@@ -803,7 +802,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.udma_mask = ATA_UDMA6,
 		.port_ops = &hpt302_port_ops
 	};
-	/* HPT374 - UDMA100, function 1 uses different prereset method */
+	/* HPT374 - UDMA100, function 1 uses different cable_detect method */
 	static const struct ata_port_info info_hpt374_fn0 = {
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = ATA_PIO4,
@@ -838,7 +837,8 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	if (dev->device == PCI_DEVICE_ID_TTI_HPT366) {
+	switch (dev->device) {
+	case PCI_DEVICE_ID_TTI_HPT366:
 		/* May be a later chip in disguise. Check */
 		/* Older chips are in the HPT366 driver. Ignore them */
 		if (rev < 3)
@@ -863,54 +863,50 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			chip_table = &hpt372;
 			break;
 		default:
-			printk(KERN_ERR "pata_hpt37x: Unknown HPT366 subtype, "
+			pr_err(DRV_NAME ": Unknown HPT366 subtype, "
 			       "please report (%d).\n", rev);
 			return -ENODEV;
 		}
-	} else {
-		switch (dev->device) {
-		case PCI_DEVICE_ID_TTI_HPT372:
-			/* 372N if rev >= 2 */
-			if (rev >= 2)
-				return -ENODEV;
-			ppi[0] = &info_hpt372;
-			chip_table = &hpt372a;
-			break;
-		case PCI_DEVICE_ID_TTI_HPT302:
-			/* 302N if rev > 1 */
-			if (rev > 1)
-				return -ENODEV;
-			ppi[0] = &info_hpt302;
-			/* Check this */
-			chip_table = &hpt302;
-			break;
-		case PCI_DEVICE_ID_TTI_HPT371:
-			if (rev > 1)
-				return -ENODEV;
-			ppi[0] = &info_hpt302;
-			chip_table = &hpt371;
-			/*
-			 * Single channel device, master is not present
-			 * but the BIOS (or us for non x86) must mark it
-			 * absent
-			 */
-			pci_read_config_byte(dev, 0x50, &mcr1);
-			mcr1 &= ~0x04;
-			pci_write_config_byte(dev, 0x50, mcr1);
-			break;
-		case PCI_DEVICE_ID_TTI_HPT374:
-			chip_table = &hpt374;
-			if (!(PCI_FUNC(dev->devfn) & 1))
-				*ppi = &info_hpt374_fn0;
-			else
-				*ppi = &info_hpt374_fn1;
-			break;
-		default:
-			printk(KERN_ERR
-			       "pata_hpt37x: PCI table is bogus, please report (%d).\n",
-			       dev->device);
-				return -ENODEV;
-		}
+		break;
+	case PCI_DEVICE_ID_TTI_HPT372:
+		/* 372N if rev >= 2 */
+		if (rev >= 2)
+			return -ENODEV;
+		ppi[0] = &info_hpt372;
+		chip_table = &hpt372a;
+		break;
+	case PCI_DEVICE_ID_TTI_HPT302:
+		/* 302N if rev > 1 */
+		if (rev > 1)
+			return -ENODEV;
+		ppi[0] = &info_hpt302;
+		/* Check this */
+		chip_table = &hpt302;
+		break;
+	case PCI_DEVICE_ID_TTI_HPT371:
+		if (rev > 1)
+			return -ENODEV;
+		ppi[0] = &info_hpt302;
+		chip_table = &hpt371;
+		/*
+		 * Single channel device, master is not present but the BIOS
+		 * (or us for non x86) must mark it absent
+		 */
+		pci_read_config_byte(dev, 0x50, &mcr1);
+		mcr1 &= ~0x04;
+		pci_write_config_byte(dev, 0x50, mcr1);
+		break;
+	case PCI_DEVICE_ID_TTI_HPT374:
+		chip_table = &hpt374;
+		if (!(PCI_FUNC(dev->devfn) & 1))
+			*ppi = &info_hpt374_fn0;
+		else
+			*ppi = &info_hpt374_fn1;
+		break;
+	default:
+		pr_err(DRV_NAME ": PCI table is bogus, please report (%d).\n",
+		       dev->device);
+		return -ENODEV;
 	}
 	/* Ok so this is a chip we support */
 
@@ -957,8 +953,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		u8 sr;
 		u32 total = 0;
 
-		printk(KERN_WARNING
-		       "pata_hpt37x: BIOS has not set timing clocks.\n");
+		pr_warning(DRV_NAME ": BIOS has not set timing clocks.\n");
 
 		/* This is the process the HPT371 BIOS is reported to use */
 		for (i = 0; i < 128; i++) {
@@ -1014,7 +1009,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 					       (f_high << 16) | f_low | 0x100);
 		}
 		if (adjust == 8) {
-			printk(KERN_ERR "pata_hpt37x: DPLL did not stabilize!\n");
+			pr_err(DRV_NAME ": DPLL did not stabilize!\n");
 			return -ENODEV;
 		}
 		if (dpll == 3)
@@ -1022,8 +1017,8 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		else
 			private_data = (void *)hpt37x_timings_50;
 
-		printk(KERN_INFO "pata_hpt37x: bus clock %dMHz, using %dMHz DPLL.\n",
-		       MHz[clock_slot], MHz[dpll]);
+		pr_info(DRV_NAME ": bus clock %dMHz, using %dMHz DPLL.\n",
+			MHz[clock_slot], MHz[dpll]);
 	} else {
 		private_data = (void *)chip_table->clocks[clock_slot];
 		/*
@@ -1036,8 +1031,9 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			ppi[0] = &info_hpt370_33;
 		if (clock_slot < 2 && ppi[0] == &info_hpt370a)
 			ppi[0] = &info_hpt370a_33;
-		printk(KERN_INFO "pata_hpt37x: %s using %dMHz bus clock.\n",
-		       chip_table->name, MHz[clock_slot]);
+
+		pr_info(DRV_NAME ": %s using %dMHz bus clock.\n",
+			chip_table->name, MHz[clock_slot]);
 	}
 
 	/* Now kick off ATA set up */

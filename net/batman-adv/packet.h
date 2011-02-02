@@ -63,7 +63,7 @@ struct batman_packet {
 	uint8_t  num_hna;
 	uint8_t  gw_flags;  /* flags related to gateway class */
 	uint8_t  align;
-} __attribute__((packed));
+} __packed;
 
 #define BAT_PACKET_LEN sizeof(struct batman_packet)
 
@@ -76,7 +76,7 @@ struct icmp_packet {
 	uint8_t  orig[6];
 	uint16_t seqno;
 	uint8_t  uid;
-} __attribute__((packed));
+} __packed;
 
 #define BAT_RR_LEN 16
 
@@ -93,14 +93,14 @@ struct icmp_packet_rr {
 	uint8_t  uid;
 	uint8_t  rr_cur;
 	uint8_t  rr[BAT_RR_LEN][ETH_ALEN];
-} __attribute__((packed));
+} __packed;
 
 struct unicast_packet {
 	uint8_t  packet_type;
 	uint8_t  version;  /* batman version field */
 	uint8_t  dest[6];
 	uint8_t  ttl;
-} __attribute__((packed));
+} __packed;
 
 struct unicast_frag_packet {
 	uint8_t  packet_type;
@@ -110,7 +110,7 @@ struct unicast_frag_packet {
 	uint8_t  flags;
 	uint8_t  orig[6];
 	uint16_t seqno;
-} __attribute__((packed));
+} __packed;
 
 struct bcast_packet {
 	uint8_t  packet_type;
@@ -118,7 +118,7 @@ struct bcast_packet {
 	uint8_t  orig[6];
 	uint8_t  ttl;
 	uint32_t seqno;
-} __attribute__((packed));
+} __packed;
 
 struct vis_packet {
 	uint8_t  packet_type;
@@ -131,6 +131,6 @@ struct vis_packet {
 				  * neighbors */
 	uint8_t  target_orig[6]; /* who should receive this packet */
 	uint8_t  sender_orig[6]; /* who sent or rebroadcasted this packet */
-} __attribute__((packed));
+} __packed;
 
 #endif /* _NET_BATMAN_ADV_PACKET_H_ */

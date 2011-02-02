@@ -137,7 +137,7 @@
 #define MCI_IRQENABLE	\
 	(MCI_CMDCRCFAILMASK|MCI_DATACRCFAILMASK|MCI_CMDTIMEOUTMASK|	\
 	MCI_DATATIMEOUTMASK|MCI_TXUNDERRUNMASK|MCI_RXOVERRUNMASK|	\
-	MCI_CMDRESPENDMASK|MCI_CMDSENTMASK|MCI_DATABLOCKENDMASK)
+	MCI_CMDRESPENDMASK|MCI_CMDSENTMASK)
 
 /* These interrupts are directed to IRQ1 when two IRQ lines are available */
 #define MCI_IRQ1MASK \
@@ -176,9 +176,6 @@ struct mmci_host {
 
 	struct timer_list	timer;
 	unsigned int		oldstat;
-
-	bool			blockend;
-	bool			dataend;
 
 	/* pio stuff */
 	struct sg_mapping_iter	sg_miter;

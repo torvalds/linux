@@ -606,14 +606,9 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				args.v1.usPixelClock = cpu_to_le16(mode->clock / 10);
 				args.v1.ucTransmitterID = radeon_encoder->encoder_id;
 				args.v1.ucEncodeMode = encoder_mode;
-				if (encoder_mode == ATOM_ENCODER_MODE_DP) {
-					if (ss_enabled)
-						args.v1.ucConfig |=
-							ADJUST_DISPLAY_CONFIG_SS_ENABLE;
-				} else if (encoder_mode == ATOM_ENCODER_MODE_LVDS) {
+				if (ss_enabled)
 					args.v1.ucConfig |=
 						ADJUST_DISPLAY_CONFIG_SS_ENABLE;
-				}
 
 				atom_execute_table(rdev->mode_info.atom_context,
 						   index, (uint32_t *)&args);
@@ -624,12 +619,12 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				args.v3.sInput.ucTransmitterID = radeon_encoder->encoder_id;
 				args.v3.sInput.ucEncodeMode = encoder_mode;
 				args.v3.sInput.ucDispPllConfig = 0;
+				if (ss_enabled)
+					args.v3.sInput.ucDispPllConfig |=
+						DISPPLL_CONFIG_SS_ENABLE;
 				if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 					struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 					if (encoder_mode == ATOM_ENCODER_MODE_DP) {
-						if (ss_enabled)
-							args.v3.sInput.ucDispPllConfig |=
-								DISPPLL_CONFIG_SS_ENABLE;
 						args.v3.sInput.ucDispPllConfig |=
 							DISPPLL_CONFIG_COHERENT_MODE;
 						/* 16200 or 27000 */
@@ -649,18 +644,11 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					}
 				} else if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 					if (encoder_mode == ATOM_ENCODER_MODE_DP) {
-						if (ss_enabled)
-							args.v3.sInput.ucDispPllConfig |=
-								DISPPLL_CONFIG_SS_ENABLE;
 						args.v3.sInput.ucDispPllConfig |=
 							DISPPLL_CONFIG_COHERENT_MODE;
 						/* 16200 or 27000 */
 						args.v3.sInput.usPixelClock = cpu_to_le16(dp_clock / 10);
-					} else if (encoder_mode == ATOM_ENCODER_MODE_LVDS) {
-						if (ss_enabled)
-							args.v3.sInput.ucDispPllConfig |=
-								DISPPLL_CONFIG_SS_ENABLE;
-					} else {
+					} else if (encoder_mode != ATOM_ENCODER_MODE_LVDS) {
 						if (mode->clock > 165000)
 							args.v3.sInput.ucDispPllConfig |=
 								DISPPLL_CONFIG_DUAL_LINK;
@@ -1006,6 +994,7 @@ static int evergreen_crtc_do_set_base(struct drm_crtc *crtc,
 	struct radeon_bo *rbo;
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
+	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
 	int r;
 
 	/* no fb bound */
@@ -1057,11 +1046,17 @@ static int evergreen_crtc_do_set_base(struct drm_crtc *crtc,
 	case 16:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_16BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB565));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN16);
+#endif
 		break;
 	case 24:
 	case 32:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_32BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB8888));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
+#endif
 		break;
 	default:
 		DRM_ERROR("Unsupported screen depth %d\n",
@@ -1106,6 +1101,7 @@ static int evergreen_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(EVERGREEN_GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
 	       (u32) fb_location & EVERGREEN_GRPH_SURFACE_ADDRESS_MASK);
 	WREG32(EVERGREEN_GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
+	WREG32(EVERGREEN_GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
 
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
@@ -1162,6 +1158,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	struct drm_framebuffer *target_fb;
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
+	u32 fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
 	int r;
 
 	/* no fb bound */
@@ -1215,12 +1212,18 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_16BPP |
 		    AVIVO_D1GRPH_CONTROL_16BPP_RGB565;
+#ifdef __BIG_ENDIAN
+		fb_swap = R600_D1GRPH_SWAP_ENDIAN_16BIT;
+#endif
 		break;
 	case 24:
 	case 32:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_32BPP |
 		    AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
+#ifdef __BIG_ENDIAN
+		fb_swap = R600_D1GRPH_SWAP_ENDIAN_32BIT;
+#endif
 		break;
 	default:
 		DRM_ERROR("Unsupported screen depth %d\n",
@@ -1260,6 +1263,8 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS +
 	       radeon_crtc->crtc_offset, (u32) fb_location);
 	WREG32(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
+	if (rdev->family >= CHIP_R600)
+		WREG32(R600_D1GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
 
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);

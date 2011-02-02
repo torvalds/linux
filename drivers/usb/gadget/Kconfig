@@ -509,7 +509,7 @@ config USB_LANGWELL
 	select USB_GADGET_SELECTED
 
 config USB_GADGET_EG20T
-	boolean "Intel EG20T(Topcliff) USB Device controller"
+	boolean "Intel EG20T PCH/OKI SEMICONDUCTOR ML7213 IOH UDC"
 	depends on PCI
 	select USB_GADGET_DUALSPEED
 	help
@@ -524,6 +524,11 @@ config USB_GADGET_EG20T
 	  This driver supports both control transfer and bulk transfer modes.
 	  This driver dose not support interrupt transfer or isochronous
 	  transfer modes.
+
+	  This driver also can be used for OKI SEMICONDUCTOR's ML7213 which is
+	  for IVI(In-Vehicle Infotainment) use.
+	  ML7213 is companion chip for Intel Atom E6xx series.
+	  ML7213 is completely compatible for Intel EG20T PCH.
 
 config USB_EG20T
 	tristate

@@ -631,7 +631,7 @@ void show_regs(struct pt_regs * regs)
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 		printk("DEAR: "REG", ESR: "REG"\n", regs->dar, regs->dsisr);
 #else
-		printk("DAR: "REG", DSISR: "REG"\n", regs->dar, regs->dsisr);
+		printk("DAR: "REG", DSISR: %08lx\n", regs->dar, regs->dsisr);
 #endif
 	printk("TASK = %p[%d] '%s' THREAD: %p",
 	       current, task_pid_nr(current), current->comm, task_thread_info(current));

@@ -1644,7 +1644,7 @@ ks8695_cleanup(void)
 module_init(ks8695_init);
 module_exit(ks8695_cleanup);
 
-MODULE_AUTHOR("Simtec Electronics")
+MODULE_AUTHOR("Simtec Electronics");
 MODULE_DESCRIPTION("Micrel KS8695 (Centaur) Ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" MODULENAME);
