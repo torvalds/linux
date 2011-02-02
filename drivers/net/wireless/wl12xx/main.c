@@ -256,6 +256,7 @@ static struct conf_drv_settings default_conf = {
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
 		.bet_max_consecutive         = 10,
 		.psm_entry_retries           = 5,
+		.psm_exit_retries            = 255,
 		.psm_entry_nullfunc_retries  = 3,
 		.psm_entry_hangover_period   = 1,
 		.keep_alive_interval         = 55000,

@@ -1136,6 +1136,15 @@ struct wl1271_acx_max_tx_retry {
 	u8 padding_1[2];
 } __packed;
 
+struct wl1271_acx_config_ps {
+	struct acx_header header;
+
+	u8 exit_retries;
+	u8 enter_retries;
+	u8 padding[2];
+	__le32 null_data_rate;
+} __packed;
+
 enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
 	ACX_MEM_CFG                 = 0x0003,
@@ -1200,6 +1209,7 @@ enum {
 	DOT11_RTS_THRESHOLD         = 0x1013,
 	DOT11_GROUP_ADDRESS_TBL     = 0x1014,
 	ACX_PM_CONFIG               = 0x1016,
+	ACX_CONFIG_PS               = 0x1017,
 
 	MAX_DOT11_IE = DOT11_GROUP_ADDRESS_TBL,
 
@@ -1269,5 +1279,6 @@ int wl1271_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index, u16 ssn,
 				       bool enable);
 int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
 int wl1271_acx_max_tx_retry(struct wl1271 *wl);
+int wl1271_acx_config_ps(struct wl1271 *wl);
 
 #endif /* __WL1271_ACX_H__ */

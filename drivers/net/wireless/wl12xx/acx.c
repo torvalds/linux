@@ -1476,3 +1476,33 @@ out:
 	kfree(acx);
 	return ret;
 }
+
+int wl1271_acx_config_ps(struct wl1271 *wl)
+{
+	struct wl1271_acx_config_ps *config_ps;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx config ps");
+
+	config_ps = kzalloc(sizeof(*config_ps), GFP_KERNEL);
+	if (!config_ps) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	config_ps->exit_retries = wl->conf.conn.psm_exit_retries;
+	config_ps->enter_retries = wl->conf.conn.psm_entry_retries;
+	config_ps->null_data_rate = cpu_to_le32(wl->basic_rate);
+
+	ret = wl1271_cmd_configure(wl, ACX_CONFIG_PS, config_ps,
+				   sizeof(*config_ps));
+
+	if (ret < 0) {
+		wl1271_warning("acx config ps failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(config_ps);
+	return ret;
+}

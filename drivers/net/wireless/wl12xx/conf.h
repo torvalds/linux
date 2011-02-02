@@ -960,6 +960,14 @@ struct conf_conn_settings {
 	u8 psm_entry_retries;
 
 	/*
+	 * Specifies the maximum number of times to try PSM exit if it fails
+	 * (if sending the appropriate null-func message fails.)
+	 *
+	 * Range 0 - 255
+	 */
+	u8 psm_exit_retries;
+
+	/*
 	 * Specifies the maximum number of times to try transmit the PSM entry
 	 * null-func frame for each PSM entry attempt
 	 *
