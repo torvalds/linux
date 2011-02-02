@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2005, 2006 Nokia Corporation
  * Author:	Samuel Ortiz <samuel.ortiz@nokia.com> and
- *		Juha Yrjölä <juha.yrjola@nokia.com>
+ *		Juha Yrjï¿½lï¿½ <juha.yrjola@nokia.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1087,91 +1087,14 @@ static int __init omap2_mcspi_reset(struct omap2_mcspi *mcspi)
 	return 0;
 }
 
-static u8 __initdata spi1_rxdma_id [] = {
-	OMAP24XX_DMA_SPI1_RX0,
-	OMAP24XX_DMA_SPI1_RX1,
-	OMAP24XX_DMA_SPI1_RX2,
-	OMAP24XX_DMA_SPI1_RX3,
-};
-
-static u8 __initdata spi1_txdma_id [] = {
-	OMAP24XX_DMA_SPI1_TX0,
-	OMAP24XX_DMA_SPI1_TX1,
-	OMAP24XX_DMA_SPI1_TX2,
-	OMAP24XX_DMA_SPI1_TX3,
-};
-
-static u8 __initdata spi2_rxdma_id[] = {
-	OMAP24XX_DMA_SPI2_RX0,
-	OMAP24XX_DMA_SPI2_RX1,
-};
-
-static u8 __initdata spi2_txdma_id[] = {
-	OMAP24XX_DMA_SPI2_TX0,
-	OMAP24XX_DMA_SPI2_TX1,
-};
-
-#if defined(CONFIG_SOC_OMAP2430) || defined(CONFIG_ARCH_OMAP3) \
-	|| defined(CONFIG_ARCH_OMAP4)
-static u8 __initdata spi3_rxdma_id[] = {
-	OMAP24XX_DMA_SPI3_RX0,
-	OMAP24XX_DMA_SPI3_RX1,
-};
-
-static u8 __initdata spi3_txdma_id[] = {
-	OMAP24XX_DMA_SPI3_TX0,
-	OMAP24XX_DMA_SPI3_TX1,
-};
-#endif
-
-#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
-static u8 __initdata spi4_rxdma_id[] = {
-	OMAP34XX_DMA_SPI4_RX0,
-};
-
-static u8 __initdata spi4_txdma_id[] = {
-	OMAP34XX_DMA_SPI4_TX0,
-};
-#endif
 
 static int __init omap2_mcspi_probe(struct platform_device *pdev)
 {
 	struct spi_master	*master;
+	struct omap2_mcspi_platform_config *pdata = pdev->dev.platform_data;
 	struct omap2_mcspi	*mcspi;
 	struct resource		*r;
 	int			status = 0, i;
-	const u8		*rxdma_id, *txdma_id;
-	unsigned		num_chipselect;
-
-	switch (pdev->id) {
-	case 1:
-		rxdma_id = spi1_rxdma_id;
-		txdma_id = spi1_txdma_id;
-		num_chipselect = 4;
-		break;
-	case 2:
-		rxdma_id = spi2_rxdma_id;
-		txdma_id = spi2_txdma_id;
-		num_chipselect = 2;
-		break;
-#if defined(CONFIG_SOC_OMAP2430) || defined(CONFIG_ARCH_OMAP3) \
-	|| defined(CONFIG_ARCH_OMAP4)
-	case 3:
-		rxdma_id = spi3_rxdma_id;
-		txdma_id = spi3_txdma_id;
-		num_chipselect = 2;
-		break;
-#endif
-#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
-	case 4:
-		rxdma_id = spi4_rxdma_id;
-		txdma_id = spi4_txdma_id;
-		num_chipselect = 1;
-		break;
-#endif
-	default:
-		return -EINVAL;
-	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof *mcspi);
 	if (master == NULL) {
@@ -1188,7 +1111,7 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 	master->setup = omap2_mcspi_setup;
 	master->transfer = omap2_mcspi_transfer;
 	master->cleanup = omap2_mcspi_cleanup;
-	master->num_chipselect = num_chipselect;
+	master->num_chipselect = pdata->num_cs;
 
 	dev_set_drvdata(&pdev->dev, master);
 
@@ -1206,6 +1129,8 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
+	r->start += pdata->regs_offset;
+	r->end += pdata->regs_offset;
 	mcspi->phys = r->start;
 	mcspi->base = ioremap(r->start, r->end - r->start + 1);
 	if (!mcspi->base) {
@@ -1240,11 +1165,32 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 	if (mcspi->dma_channels == NULL)
 		goto err3;
 
-	for (i = 0; i < num_chipselect; i++) {
+	for (i = 0; i < master->num_chipselect; i++) {
+		char dma_ch_name[14];
+		struct resource *dma_res;
+
+		sprintf(dma_ch_name, "rx%d", i);
+		dma_res = platform_get_resource_byname(pdev, IORESOURCE_DMA,
+							dma_ch_name);
+		if (!dma_res) {
+			dev_dbg(&pdev->dev, "cannot get DMA RX channel\n");
+			status = -ENODEV;
+			break;
+		}
+
 		mcspi->dma_channels[i].dma_rx_channel = -1;
-		mcspi->dma_channels[i].dma_rx_sync_dev = rxdma_id[i];
+		mcspi->dma_channels[i].dma_rx_sync_dev = dma_res->start;
+		sprintf(dma_ch_name, "tx%d", i);
+		dma_res = platform_get_resource_byname(pdev, IORESOURCE_DMA,
+							dma_ch_name);
+		if (!dma_res) {
+			dev_dbg(&pdev->dev, "cannot get DMA TX channel\n");
+			status = -ENODEV;
+			break;
+		}
+
 		mcspi->dma_channels[i].dma_tx_channel = -1;
-		mcspi->dma_channels[i].dma_tx_sync_dev = txdma_id[i];
+		mcspi->dma_channels[i].dma_tx_sync_dev = dma_res->start;
 	}
 
 	if (omap2_mcspi_reset(mcspi) < 0)
