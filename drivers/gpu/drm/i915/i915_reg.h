@@ -3245,6 +3245,7 @@
 #define  TRANS_DP_PORT_SEL_B	(0<<29)
 #define  TRANS_DP_PORT_SEL_C	(1<<29)
 #define  TRANS_DP_PORT_SEL_D	(2<<29)
+#define  TRANS_DP_PORT_SEL_NONE	(3<<29)
 #define  TRANS_DP_PORT_SEL_MASK	(3<<29)
 #define  TRANS_DP_AUDIO_ONLY	(1<<26)
 #define  TRANS_DP_ENH_FRAMING	(1<<18)

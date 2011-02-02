@@ -2818,6 +2818,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 		reg = TRANS_DP_CTL(pipe);
 		temp = I915_READ(reg);
 		temp &= ~(TRANS_DP_OUTPUT_ENABLE | TRANS_DP_PORT_SEL_MASK);
+		temp |= TRANS_DP_PORT_SEL_NONE;
 		I915_WRITE(reg, temp);
 
 		/* disable DPLL_SEL */
