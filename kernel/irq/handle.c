@@ -68,6 +68,9 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 		ret = action->handler(irq, action->dev_id);
 		trace_irq_handler_exit(irq, action, ret);
 
+		if (WARN_ON_ONCE(!irqs_disabled()))
+			local_irq_disable();
+
 		switch (ret) {
 		case IRQ_WAKE_THREAD:
 			/*
@@ -114,7 +117,6 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 
 	if (status & IRQF_SAMPLE_RANDOM)
 		add_interrupt_randomness(irq);
-	local_irq_disable();
 
 	return retval;
 }
