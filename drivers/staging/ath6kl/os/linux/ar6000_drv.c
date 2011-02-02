@@ -260,16 +260,16 @@ typedef struct user_rssi_compensation_t {
     u16 bg_enable;
     u16 enable;
     };
-    A_INT16          bg_param_a;
-    A_INT16          bg_param_b;
-    A_INT16          a_param_a;
-    A_INT16          a_param_b;
+    s16 bg_param_a;
+    s16 bg_param_b;
+    s16 a_param_a;
+    s16 a_param_b;
     u32 reserved;
 } USER_RSSI_CPENSATION;
 
 static USER_RSSI_CPENSATION rssi_compensation_param;
 
-static A_INT16 rssi_compensation_table[96];
+static s16 rssi_compensation_table[96];
 
 int reconnect_flag = 0;
 static ar6k_pal_config_t ar6k_pal_config_g;
@@ -2430,7 +2430,7 @@ int ar6000_init(struct net_device *dev)
     AR_SOFTC_T *ar;
     int    status;
     A_INT32     timeleft;
-    A_INT16     i;
+    s16 i;
     int         ret = 0;
 #if defined(INIT_MODE_DRV_ENABLED) && defined(ENABLE_COEXISTENCE)
     WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD sbcb_cmd;
@@ -5030,7 +5030,7 @@ ar6000_targetStats_event(AR_SOFTC_T *ar,  u8 *ptr, u32 len)
 }
 
 void
-ar6000_rssiThreshold_event(AR_SOFTC_T *ar,  WMI_RSSI_THRESHOLD_VAL newThreshold, A_INT16 rssi)
+ar6000_rssiThreshold_event(AR_SOFTC_T *ar,  WMI_RSSI_THRESHOLD_VAL newThreshold, s16 rssi)
 {
     USER_RSSI_THOLD userRssiThold;
 
@@ -5791,7 +5791,7 @@ read_rssi_compensation_param(AR_SOFTC_T *ar)
 //#define RSSICOMPENSATION_PRINT
 
 #ifdef RSSICOMPENSATION_PRINT
-    A_INT16 i;
+    s16 i;
     cust_data_ptr = ar6000_get_cust_data_buffer(ar->arTargetType);
     for (i=0; i<16; i++) {
         A_PRINTF("cust_data_%d = %x \n", i, *(u8 *)cust_data_ptr);
@@ -5856,8 +5856,7 @@ rssi_compensation_calc_tcmd(u32 freq, A_INT32 rssi, u32 totalPkt)
     return rssi;
 }
 
-A_INT16
-rssi_compensation_calc(AR_SOFTC_T *ar, A_INT16 rssi)
+s16 rssi_compensation_calc(AR_SOFTC_T *ar, s16 rssi)
 {
     if (ar->arBssChannel > 5000)
     {
@@ -5885,10 +5884,9 @@ rssi_compensation_calc(AR_SOFTC_T *ar, A_INT16 rssi)
     return rssi;
 }
 
-A_INT16
-rssi_compensation_reverse_calc(AR_SOFTC_T *ar, A_INT16 rssi, bool Above)
+s16 rssi_compensation_reverse_calc(AR_SOFTC_T *ar, s16 rssi, bool Above)
 {
-    A_INT16 i;
+    s16 i;
 
     if (ar->arBssChannel > 5000)
     {

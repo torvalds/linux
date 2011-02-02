@@ -1069,9 +1069,9 @@ typedef struct targetStats_t {
     u32 wow_num_pkts_dropped;
     u16 wow_num_events_discarded;
 
-    A_INT16     noise_floor_calibation;
-    A_INT16     cs_rssi;
-    A_INT16     cs_aveBeacon_rssi;
+    s16 noise_floor_calibation;
+    s16 cs_rssi;
+    s16 cs_aveBeacon_rssi;
     u8 cs_aveBeacon_snr;
     u8 cs_lastRoam_msec;
     u8 cs_snr;
@@ -1139,8 +1139,8 @@ typedef struct ar6000_dbglog_module_config_s {
 } DBGLOG_MODULE_CONFIG;
 
 typedef struct user_rssi_thold_t {
-    A_INT16     tag;
-    A_INT16     rssi;
+    s16 tag;
+    s16 rssi;
 } USER_RSSI_THOLD;
 
 typedef struct user_rssi_params_t {

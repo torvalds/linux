@@ -61,7 +61,7 @@ struct ieee80211_common_ie {
 typedef struct bss {
     u8 ni_macaddr[6];
     u8 ni_snr;
-    A_INT16                      ni_rssi;
+    s16 ni_rssi;
     struct bss                   *ni_list_next;
     struct bss                   *ni_list_prev;
     struct bss                   *ni_hash_next;

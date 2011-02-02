@@ -215,7 +215,7 @@ int ar6000_suspend_ev(void *context)
 {
     int status = A_OK;
     AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
-    A_INT16 pmmode = ar->arSuspendConfig;
+    s16 pmmode = ar->arSuspendConfig;
 wow_not_connected:
     switch (pmmode) {
     case WLAN_SUSPEND_WOW:

@@ -996,18 +996,18 @@ typedef PREPACK struct {
 
 typedef PREPACK struct WMI_RSSI_THRESHOLD_PARAMS{
     u32 pollTime;               /* Polling time as a factor of LI */
-    A_INT16     thresholdAbove1_Val;          /* lowest of upper */
-    A_INT16     thresholdAbove2_Val;
-    A_INT16     thresholdAbove3_Val;
-    A_INT16     thresholdAbove4_Val;
-    A_INT16     thresholdAbove5_Val;
-    A_INT16     thresholdAbove6_Val;          /* highest of upper */
-    A_INT16     thresholdBelow1_Val;         /* lowest of bellow */
-    A_INT16     thresholdBelow2_Val;
-    A_INT16     thresholdBelow3_Val;
-    A_INT16     thresholdBelow4_Val;
-    A_INT16     thresholdBelow5_Val;
-    A_INT16     thresholdBelow6_Val;         /* highest of bellow */
+    s16 thresholdAbove1_Val;          /* lowest of upper */
+    s16 thresholdAbove2_Val;
+    s16 thresholdAbove3_Val;
+    s16 thresholdAbove4_Val;
+    s16 thresholdAbove5_Val;
+    s16 thresholdAbove6_Val;          /* highest of upper */
+    s16 thresholdBelow1_Val;         /* lowest of bellow */
+    s16 thresholdBelow2_Val;
+    s16 thresholdBelow3_Val;
+    s16 thresholdBelow4_Val;
+    s16 thresholdBelow5_Val;
+    s16 thresholdBelow6_Val;         /* highest of bellow */
     u8 weight;                  /* "alpha" */
     u8 reserved[3];
 } POSTPACK  WMI_RSSI_THRESHOLD_PARAMS_CMD;
@@ -1209,8 +1209,8 @@ typedef PREPACK struct {
 
 typedef PREPACK struct WMI_LOWRSSI_SCAN_PARAMS {
         u16 lowrssi_scan_period;
-        A_INT16  lowrssi_scan_threshold;
-        A_INT16  lowrssi_roam_threshold;
+        s16 lowrssi_scan_threshold;
+        s16 lowrssi_roam_threshold;
         u8 roam_rssi_floor;
         u8 reserved[1];              /* For alignment */
 } POSTPACK WMI_LOWRSSI_SCAN_PARAMS;
@@ -2062,7 +2062,7 @@ typedef PREPACK struct {
     u16 channel;
     u8 frameType;          /* see WMI_BI_FTYPE */
     u8 snr;
-    A_INT16     rssi;
+    s16 rssi;
     u8 bssid[ATH_MAC_LEN];
     u32 ieMask;
 } POSTPACK WMI_BSS_INFO_HDR;
@@ -2277,9 +2277,9 @@ typedef PREPACK struct {
     u32 cs_lowRssi_cnt;
     u16 cs_connect_cnt;
     u16 cs_disconnect_cnt;
-    A_INT16     cs_aveBeacon_rssi;
+    s16 cs_aveBeacon_rssi;
     u16 cs_roam_count;
-    A_INT16     cs_rssi;
+    s16 cs_rssi;
     u8 cs_snr;
     u8 cs_aveBeacon_snr;
     u8 cs_lastRoam_msec;
@@ -2335,7 +2335,7 @@ typedef enum{
 }WMI_RSSI_THRESHOLD_VAL;
 
 typedef PREPACK struct {
-    A_INT16 rssi;
+    s16 rssi;
     u8 range;
 }POSTPACK WMI_RSSI_THRESHOLD_EVENT;
 

@@ -54,7 +54,7 @@ void ar6000_scanComplete_event(struct ar6_softc *ar, int status);
 void ar6000_targetStats_event(struct ar6_softc *ar,  u8 *ptr, u32 len);
 void ar6000_rssiThreshold_event(struct ar6_softc *ar,
                                 WMI_RSSI_THRESHOLD_VAL newThreshold,
-                                A_INT16 rssi);
+                                s16 rssi);
 void ar6000_reportError_event(struct ar6_softc *, WMI_TARGET_ERROR_VAL errorVal);
 void ar6000_cac_event(struct ar6_softc *ar, u8 ac, u8 cac_indication,
                                 u8 statusCode, u8 *tspecSuggestion);
@@ -78,8 +78,8 @@ void ar6000_gpio_data_rx(u32 reg_id, u32 value);
 void ar6000_gpio_ack_rx(void);
 
 A_INT32 rssi_compensation_calc_tcmd(u32 freq, A_INT32 rssi, u32 totalPkt);
-A_INT16 rssi_compensation_calc(struct ar6_softc *ar, A_INT16 rssi);
-A_INT16 rssi_compensation_reverse_calc(struct ar6_softc *ar, A_INT16 rssi, bool Above);
+s16 rssi_compensation_calc(struct ar6_softc *ar, s16 rssi);
+s16 rssi_compensation_reverse_calc(struct ar6_softc *ar, s16 rssi, bool Above);
 
 void ar6000_dbglog_init_done(struct ar6_softc *ar);
 

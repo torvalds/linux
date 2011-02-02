@@ -166,8 +166,8 @@ static int wmi_keepalive_reply_rx(struct wmi_t *wmip, u8 *datap, int len);
 int wmi_cmd_send_xtnd(struct wmi_t *wmip, void *osbuf, WMIX_COMMAND_ID cmdId,
                   WMI_SYNC_FLAG syncflag);
 
-u8 ar6000_get_upper_threshold(A_INT16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh, u32 size);
-u8 ar6000_get_lower_threshold(A_INT16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh, u32 size);
+u8 ar6000_get_upper_threshold(s16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh, u32 size);
+u8 ar6000_get_lower_threshold(s16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh, u32 size);
 
 void wmi_cache_configure_rssithreshold(struct wmi_t *wmip, WMI_RSSI_THRESHOLD_PARAMS_CMD *rssiCmd);
 void wmi_cache_configure_snrthreshold(struct wmi_t *wmip, WMI_SNR_THRESHOLD_PARAMS_CMD *snrCmd);
@@ -281,7 +281,7 @@ typedef PREPACK struct _iphdr {
     u8 ip_tos;                 /* type of service */
     u16 ip_len;                 /* total length */
     u16 ip_id;                  /* identification */
-    A_INT16     ip_off;                 /* fragment offset field */
+    s16 ip_off;                 /* fragment offset field */
 #define IP_DF 0x4000                    /* dont fragment flag */
 #define IP_MF 0x2000                    /* more fragments flag */
 #define IP_OFFMASK 0x1fff               /* mask for fragmenting bits */
@@ -294,8 +294,8 @@ typedef PREPACK struct _iphdr {
 
 #include "athendpack.h"
 
-static A_INT16 rssi_event_value = 0;
-static A_INT16 snr_event_value = 0;
+static s16 rssi_event_value = 0;
+static s16 snr_event_value = 0;
 
 bool is_probe_ssid = false;
 
@@ -1874,7 +1874,7 @@ wmi_rssiThresholdEvent_rx(struct wmi_t *wmip, u8 *datap, int len)
     SQ_THRESHOLD_PARAMS *sq_thresh =
            &wmip->wmi_SqThresholdParams[SIGNAL_QUALITY_METRICS_RSSI];
     u8 upper_rssi_threshold, lower_rssi_threshold;
-    A_INT16 rssi;
+    s16 rssi;
 
     if (len < sizeof(*reply)) {
         return A_EINVAL;
@@ -2143,7 +2143,7 @@ wmi_snrThresholdEvent_rx(struct wmi_t *wmip, u8 *datap, int len)
     WMI_SNR_THRESHOLD_VAL newThreshold;
     WMI_SNR_THRESHOLD_PARAMS_CMD cmd;
     u8 upper_snr_threshold, lower_snr_threshold;
-    A_INT16 snr;
+    s16 snr;
 
     if (len < sizeof(*reply)) {
         return A_EINVAL;
@@ -5882,7 +5882,7 @@ wmi_scan_indication (struct wmi_t *wmip)
 }
 #endif
 
-u8 ar6000_get_upper_threshold(A_INT16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh,
+u8 ar6000_get_upper_threshold(s16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh,
                            u32 size)
 {
     u32 index;
@@ -5899,7 +5899,7 @@ u8 ar6000_get_upper_threshold(A_INT16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh,
     return threshold;
 }
 
-u8 ar6000_get_lower_threshold(A_INT16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh,
+u8 ar6000_get_lower_threshold(s16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh,
                            u32 size)
 {
     u32 index;

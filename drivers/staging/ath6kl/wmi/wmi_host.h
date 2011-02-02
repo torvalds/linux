@@ -42,8 +42,8 @@ struct wmi_stats {
 #define SIGNAL_QUALITY_UPPER_THRESHOLD_LEVELS SIGNAL_QUALITY_THRESHOLD_LEVELS
 #define SIGNAL_QUALITY_LOWER_THRESHOLD_LEVELS SIGNAL_QUALITY_THRESHOLD_LEVELS
 typedef struct sq_threshold_params_s {
-    A_INT16 upper_threshold[SIGNAL_QUALITY_UPPER_THRESHOLD_LEVELS];
-    A_INT16 lower_threshold[SIGNAL_QUALITY_LOWER_THRESHOLD_LEVELS];
+    s16 upper_threshold[SIGNAL_QUALITY_UPPER_THRESHOLD_LEVELS];
+    s16 lower_threshold[SIGNAL_QUALITY_LOWER_THRESHOLD_LEVELS];
     u32 upper_threshold_valid_count;
     u32 lower_threshold_valid_count;
     u32 polling_interval;
