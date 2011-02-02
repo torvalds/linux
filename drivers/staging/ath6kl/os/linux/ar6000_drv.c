@@ -692,7 +692,7 @@ ar6000_init_module(void)
 #endif /* CONFIG_HOST_GPIO_SUPPORT */
 
     status = HIFInit(&osdrvCallbacks);
-    if(status != A_OK)
+    if (status)
         return -ENODEV;
 
     return 0;
@@ -1126,7 +1126,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, u32 address, bool c
 
             status = BMIWriteMemory(ar->arHifDevice, board_ext_address, (A_UCHAR *)(fw_entry->data + board_data_size), board_ext_data_size);
 
-            if (status != A_OK) {
+            if (status) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMI operation failed: %d\n", __LINE__));
                 A_RELEASE_FIRMWARE(fw_entry);
                 return A_ERROR;
@@ -1145,7 +1145,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, u32 address, bool c
         status = BMIWriteMemory(ar->arHifDevice, address, (A_UCHAR *)fw_entry->data, fw_entry_size);
     }
 
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMI operation failed: %d\n", __LINE__));
         A_RELEASE_FIRMWARE(fw_entry);
         return A_ERROR;
@@ -1808,12 +1808,12 @@ ar6000_avail_ev(void *context, void *hif_handle)
                 rtnl_lock();
                 status = (ar6000_init(dev)==0) ? A_OK : A_ERROR;
                 rtnl_unlock();
-                if (status != A_OK) {
+                if (status) {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_avail: ar6000_init\n"));
                 }
             } while (false);
 
-            if (status != A_OK) {
+            if (status) {
                 init_status = status;
                 goto avail_ev_failed;
             }
@@ -1911,7 +1911,7 @@ ar6000_restart_endpoint(struct net_device *dev)
         status = (ar6000_init(dev)==0) ? A_OK : A_ERROR;
         rtnl_unlock();
 
-        if (status!=A_OK) {
+        if (status) {
             break;
         }
         if (ar->arSsidLen && ar->arWlanState == WLAN_ENABLED) {
@@ -2666,7 +2666,7 @@ int ar6000_init(struct net_device *dev)
     /* start HTC */
     status = HTCStart(ar->arHtcTarget);
 
-    if (status != A_OK) {
+    if (status) {
         if (ar->arWmiEnabled == true) {
             wmi_shutdown(ar->arWmi);
             ar->arWmiEnabled = false;
@@ -3575,13 +3575,13 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
     int        status = pPacket->Status;
     HTC_ENDPOINT_ID   ept = pPacket->Endpoint;
 
-    A_ASSERT((status != A_OK) ||
+    A_ASSERT((status) ||
              (pPacket->pBuffer == (A_NETBUF_DATA(skb) + HTC_HEADER_LEN)));
 
     AR_DEBUG_PRINTF(ATH_DEBUG_WLAN_RX,("ar6000_rx ar=0x%lx eid=%d, skb=0x%lx, data=0x%lx, len=0x%x status:%d",
                     (unsigned long)ar, ept, (unsigned long)skb, (unsigned long)pPacket->pBuffer,
                     pPacket->ActualLength, status));
-    if (status != A_OK) {
+    if (status) {
         if (status != A_ECANCELED) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("RX ERR (%d) \n",status));
         }
@@ -3612,7 +3612,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
     AR6000_SPIN_UNLOCK(&ar->arLock, 0);
 
     skb->dev = ar->arNetDev;
-    if (status != A_OK) {
+    if (status) {
         AR6000_STAT_INC(ar, rx_errors);
         A_NETBUF_FREE(skb);
     } else if (ar->arWmiEnabled == true) {
@@ -3790,7 +3790,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
                         status = wmi_dot3_2_dix(skb);
                     }
 
-                    if (status != A_OK) {
+                    if (status) {
                         /* Drop frames that could not be processed (lack of memory, etc.) */
                         A_NETBUF_FREE(skb);
                         goto rx_done;
@@ -5335,7 +5335,7 @@ ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid)
         status = A_OK;
     }
 
-    if (status != A_OK) {
+    if (status) {
         A_NETBUF_FREE(osbuf);
     }
     return status;
@@ -6141,7 +6141,7 @@ ar6000_connect_to_ap(struct ar6_softc *ar)
                                  ar->arSsidLen, ar->arSsid,
                                  ar->arReqBssid, ar->arChannelHint,
                                  ar->arConnectCtrlFlags);
-        if (status != A_OK) {
+        if (status) {
             wmi_listeninterval_cmd(ar->arWmi, ar->arListenIntervalT, ar->arListenIntervalB);
             if (!ar->arUserBssFilter) {
                 wmi_bssfilter_cmd(ar->arWmi, NONE_BSS_FILTER, 0);

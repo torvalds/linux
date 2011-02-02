@@ -155,7 +155,7 @@ static void ar6000_wow_suspend(AR_SOFTC_T *ar)
             addWowCmd.filter_size = 6; /* MAC address */
             addWowCmd.filter_offset = 0;
             status = wmi_add_wow_pattern_cmd(ar->arWmi, &addWowCmd, ar->arNetDev->dev_addr, macMask, addWowCmd.filter_size);
-            if (status != A_OK) {
+            if (status) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Fail to add WoW pattern\n"));
             }
         }
@@ -172,7 +172,7 @@ static void ar6000_wow_suspend(AR_SOFTC_T *ar)
             memset(&ipCmd, 0, sizeof(ipCmd));
             ipCmd.ips[0] = ifa->ifa_local;
             status = wmi_set_ip_cmd(ar->arWmi, &ipCmd);
-            if (status != A_OK) {
+            if (status) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Fail to setup IP for ARP agent\n"));
             }
         }
@@ -182,13 +182,13 @@ static void ar6000_wow_suspend(AR_SOFTC_T *ar)
 #endif
 
         status = wmi_set_wow_mode_cmd(ar->arWmi, &wowMode);
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Fail to enable wow mode\n"));
         }
         ar6k_send_asleep_event_to_app(ar, true);
 
         status = wmi_set_host_sleep_mode_cmd(ar->arWmi, &hostSleepMode);
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Fail to set host asleep\n"));
         }
 
@@ -529,7 +529,7 @@ ar6000_setup_deep_sleep_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
         }
     } while (0);
 
-    if (status!=A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Fail to enter/exit deep sleep %d\n", state));
     }
 
@@ -628,7 +628,7 @@ ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, bool
 
     }
 
-    if (status!=A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Fail to setup WLAN state %d\n", ar->arWlanState));
         ar->arWlanState = oldstate;
     } else if (status == A_OK) {

@@ -106,7 +106,7 @@ int DevSetup(AR6K_DEVICE *pDev)
         status = HIFConfigureDevice(pDev->HIFDevice, HIF_DEVICE_GET_MBOX_ADDR,
                                     &pDev->MailBoxInfo, sizeof(pDev->MailBoxInfo));
 
-        if (status != A_OK) {
+        if (status) {
             A_ASSERT(false);
             break;
         }
@@ -127,7 +127,7 @@ int DevSetup(AR6K_DEVICE *pDev)
         status = HIFConfigureDevice(pDev->HIFDevice, HIF_DEVICE_GET_MBOX_BLOCK_SIZE,
                                     blocksizes, sizeof(blocksizes));
 
-        if (status != A_OK) {
+        if (status) {
             A_ASSERT(false);
             break;
         }
@@ -266,7 +266,7 @@ int DevEnableInterrupts(AR6K_DEVICE *pDev)
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
 
-    if (status != A_OK) {
+    if (status) {
         /* Can't write it for some reason */
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                         ("Failed to update interrupt control registers err: %d\n", status));
@@ -510,7 +510,7 @@ int DevWaitForPendingRecv(AR6K_DEVICE *pDev,u32 TimeoutInMs,bool *pbIsRecvPendin
                               sizeof(A_UCHAR),
                               HIF_RD_SYNC_BYTE_INC,
                               NULL);
-        if(status)
+        if (status)
         {
             AR_DEBUG_PRINTF(ATH_LOG_ERR,("DevWaitForPendingRecv:Read HOST_INT_STATUS_ADDRESS Failed 0x%X\n",status));
             break;
@@ -1156,7 +1156,7 @@ static int SendBuffers(AR6K_DEVICE *pDev, int mbox)
                               paddedLength,
                               request,
                               NULL);
-        if (status != A_OK) {
+        if (status) {
             break;
         }
         totalBytes += sendList[i].length;
@@ -1182,7 +1182,7 @@ static int GetCredits(AR6K_DEVICE *pDev, int mbox, int *pCredits)
         address = COUNT_DEC_ADDRESS + (AR6K_MAILBOXES + mbox) * 4;
         status = HIFReadWrite(pDev->HIFDevice, address, &credits, sizeof(credits),
                               HIF_RD_SYNC_BYTE_FIX, NULL);
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 ("Unable to decrement the command credit count register (mbox=%d)\n",mbox));
             status = A_ERROR;
@@ -1244,7 +1244,7 @@ static int RecvBuffers(AR6K_DEVICE *pDev, int mbox)
              * until we get at least 1 credit or it times out */
         status = GetCredits(pDev, mbox, &credits);
 
-        if (status != A_OK) {
+        if (status) {
             break;
         }
 
@@ -1264,7 +1264,7 @@ static int RecvBuffers(AR6K_DEVICE *pDev, int mbox)
                                   paddedLength,
                                   request,
                                   NULL);
-            if (status != A_OK) {
+            if (status) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Failed to read %d bytes on mailbox:%d : address:0x%X \n",
                         recvList[curBuffer].length, mbox, g_MailboxAddrs[mbox]));
                 break;
@@ -1275,7 +1275,7 @@ static int RecvBuffers(AR6K_DEVICE *pDev, int mbox)
             curBuffer++;
         }
 
-        if (status != A_OK) {
+        if (status) {
             break;
         }
             /* go back and get some more */
@@ -1302,7 +1302,7 @@ static int DoOneMboxHWTest(AR6K_DEVICE *pDev, int mbox)
             /* send out buffers */
         status = SendBuffers(pDev,mbox);
 
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Sending buffers Failed : %d mbox:%d\n",status,mbox));
             break;
         }
@@ -1310,7 +1310,7 @@ static int DoOneMboxHWTest(AR6K_DEVICE *pDev, int mbox)
             /* go get them, this will block */
         status =  RecvBuffers(pDev, mbox);
 
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Recv buffers Failed : %d mbox:%d\n",status,mbox));
             break;
         }
@@ -1348,7 +1348,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
         status = HIFConfigureDevice(pDev->HIFDevice, HIF_DEVICE_GET_MBOX_ADDR,
                                     g_MailboxAddrs, sizeof(g_MailboxAddrs));
 
-        if (status != A_OK) {
+        if (status) {
             A_ASSERT(false);
             break;
         }
@@ -1357,7 +1357,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
         status = HIFConfigureDevice(pDev->HIFDevice, HIF_DEVICE_GET_MBOX_BLOCK_SIZE,
                                     g_BlockSizes, sizeof(g_BlockSizes));
 
-        if (status != A_OK) {
+        if (status) {
             A_ASSERT(false);
             break;
         }
@@ -1380,7 +1380,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
              * mailbox 0 */
         status = GetCredits(pDev, 0, &credits);
 
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Failed to wait for target ready \n"));
             break;
         }
@@ -1395,7 +1395,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
                               HIF_RD_SYNC_BYTE_INC,
                               NULL);
 
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Failed to wait get parameters \n"));
             break;
         }
@@ -1423,7 +1423,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
                               HIF_WR_SYNC_BYTE_INC,
                               NULL);
 
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Failed to write end marker \n"));
             break;
         }
@@ -1440,7 +1440,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
                               HIF_WR_SYNC_BYTE_INC,
                               NULL);
 
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Failed to write block mask \n"));
             break;
         }
@@ -1450,7 +1450,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
             /* execute the test on each mailbox */
         for (i = 0; i < AR6K_MAILBOXES; i++) {
             status = DoOneMboxHWTest(pDev, i);
-            if (status != A_OK) {
+            if (status) {
                 break;
             }
         }

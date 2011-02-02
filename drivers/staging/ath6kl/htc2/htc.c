@@ -240,7 +240,7 @@ int HTCWaitTarget(HTC_HANDLE HTCHandle)
 
         status = DoMboxHWTest(&target->Device);
 
-        if (status != A_OK) {
+        if (status) {
             break;
         }
 

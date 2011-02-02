@@ -107,12 +107,12 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32
                               4,
                               HIF_WR_SYNC_BYTE_FIX,
                               NULL);
-        if (status != A_OK) {
+        if (status) {
             break;
         }
     }
 
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot write initial bytes of 0x%x to window reg: 0x%X \n",
             Address, RegisterAddr));
         return status;
@@ -128,7 +128,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
 
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot write 0x%x to window reg: 0x%X \n",
             Address, RegisterAddr));
         return status;
@@ -157,7 +157,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
 
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot write initial bytes of 0x%x to window reg: 0x%X \n",
              RegisterAddr, Address));
         return status;
@@ -171,7 +171,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
 
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot write 0x%x to window reg: 0x%X \n",
             RegisterAddr, Address));
         return status;
@@ -196,7 +196,7 @@ ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data)
                                              WINDOW_READ_ADDR_ADDRESS,
                                              *address);
 
-    if (status != A_OK) {
+    if (status) {
         return status;
     }
 
@@ -207,7 +207,7 @@ ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data)
                           sizeof(u32),
                           HIF_RD_SYNC_BYTE_INC,
                           NULL);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot read from WINDOW_DATA_ADDRESS\n"));
         return status;
     }
@@ -232,7 +232,7 @@ ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data)
                           sizeof(u32),
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot write 0x%x to WINDOW_DATA_ADDRESS\n", *data));
         return status;
     }
@@ -294,7 +294,7 @@ ar6k_ReadTargetRegister(HIF_DEVICE *hifDevice, int regsel, u32 *regval)
                           HIF_WR_SYNC_BYTE_FIX,
                           NULL);
 
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot write CPU_DBG_SEL (%d)\n", regsel));
         return status;
     }
@@ -305,7 +305,7 @@ ar6k_ReadTargetRegister(HIF_DEVICE *hifDevice, int regsel, u32 *regval)
                           sizeof(vals),
                           HIF_RD_SYNC_BYTE_INC,
                           NULL);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot read from CPU_DBG_ADDRESS\n"));
         return status;
     }
@@ -335,7 +335,7 @@ _do_write_diag(HIF_DEVICE *hifDevice, u32 addr, u32 value)
     int status;
 
     status = ar6000_WriteRegDiag(hifDevice, &addr, &value);
-    if (status != A_OK)
+    if (status)
     {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Cannot force Target to execute ROM!\n"));
     }

@@ -311,7 +311,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
                                    ar->arChannelHint);
 
         up(&ar->arSem);
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: wmi_reconnect_cmd failed\n", __func__));
             return -EIO;
         }
@@ -410,7 +410,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
         ar->arSsidLen = 0;
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Invalid request\n", __func__));
         return -ENOENT;
-    } else if (status != A_OK) {
+    } else if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: wmi_connect_cmd failed\n", __func__));
         return -EIO;
     }
@@ -892,7 +892,7 @@ ar6k_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
                     (u8 *)mac_addr, SYNC_BOTH_WMIFLAG);
 
 
-    if(status != A_OK) {
+    if (status) {
         return -EIO;
     }
 
@@ -1015,7 +1015,7 @@ ar6k_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *ndev,
                             ar->arPairwiseCrypto, GROUP_USAGE | TX_USAGE,
                             key->key_len, key->seq, key->key, KEY_OP_INIT_VAL,
                             NULL, SYNC_BOTH_WMIFLAG);
-    if (status != A_OK) {
+    if (status) {
         return -EIO;
     }
 

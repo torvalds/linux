@@ -622,7 +622,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
                 status = wmi_reconnect_cmd(ar->arWmi,ar->arReqBssid,
                                            ar->arChannelHint);
                 up(&ar->arSem);
-                if (status != A_OK) {
+                if (status) {
                     return -EIO;
                 }
                 return 0;
@@ -1575,7 +1575,7 @@ ar6000_ioctl_siwpmksa(struct net_device *dev,
             ret=-1;
             break;
     }
-    if (status != A_OK) {
+    if (status) {
         ret = -1;
     }
 
@@ -1793,7 +1793,7 @@ ar6000_ioctl_siwencodeext(struct net_device *dev,
                             keyData, KEY_OP_INIT_VAL,
                             (u8 *)ext->addr.sa_data,
                             SYNC_BOTH_WMIFLAG);
-         if (status != A_OK) {
+         if (status) {
             return -EIO;
          }
 

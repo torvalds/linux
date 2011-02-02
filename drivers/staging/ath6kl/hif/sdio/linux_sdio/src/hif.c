@@ -1088,7 +1088,7 @@ static int hifDeviceSuspend(struct device *dev)
     if (device && device->claimedContext && osdrvCallbacks.deviceSuspendHandler) {
         device->is_suspend = true; /* set true first for PowerStateChangeNotify(..) */
         status = osdrvCallbacks.deviceSuspendHandler(device->claimedContext);
-        if (status != A_OK) {
+        if (status) {
             device->is_suspend = false;
         }
     }

@@ -92,7 +92,7 @@ aggr_init(ALLOC_NETBUFS netbuf_allocator)
     A_PRINTF("going out of aggr_init..status %s\n",
                     (status == A_OK) ? "OK":"Error");
 
-    if(status != A_OK) {
+    if (status) {
         /* Cleanup */
         aggr_module_destroy(p_aggr);
     }

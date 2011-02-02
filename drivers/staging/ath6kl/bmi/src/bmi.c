@@ -121,7 +121,7 @@ BMIDone(HIF_DEVICE *device)
     cid = BMI_DONE;
 
     status = bmiBufferSend(device, (A_UCHAR *)&cid, sizeof(cid));
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
         return A_ERROR;
     }
@@ -156,14 +156,14 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
     cid = BMI_GET_TARGET_INFO;
 
     status = bmiBufferSend(device, (A_UCHAR *)&cid, sizeof(cid));
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
         return A_ERROR;
     }
 
     status = bmiBufferReceive(device, (A_UCHAR *)&targ_info->target_ver,
                                                 sizeof(targ_info->target_ver), true);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read Target Version from the device\n"));
         return A_ERROR;
     }
@@ -172,7 +172,7 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
         /* Determine how many bytes are in the Target's targ_info */
         status = bmiBufferReceive(device, (A_UCHAR *)&targ_info->target_info_byte_count,
                                             sizeof(targ_info->target_info_byte_count), true);
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read Target Info Byte Count from the device\n"));
             return A_ERROR;
         }
@@ -187,7 +187,7 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
         status = bmiBufferReceive(device,
                         ((A_UCHAR *)targ_info)+sizeof(targ_info->target_info_byte_count),
                         sizeof(*targ_info)-sizeof(targ_info->target_info_byte_count), true);
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read Target Info (%d bytes) from the device\n",
                         					targ_info->target_info_byte_count));
             return A_ERROR;
@@ -239,12 +239,12 @@ BMIReadMemory(HIF_DEVICE *device,
         offset += sizeof(length);
 
         status = bmiBufferSend(device, pBMICmdBuf, offset);
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
             return A_ERROR;
         }
         status = bmiBufferReceive(device, pBMICmdBuf, rxlen, true);
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read from the device\n"));
             return A_ERROR;
         }
@@ -309,7 +309,7 @@ BMIWriteMemory(HIF_DEVICE *device,
         A_MEMCPY(&(pBMICmdBuf[offset]), src, txlen);
         offset += txlen;
         status = bmiBufferSend(device, pBMICmdBuf, offset);
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
             return A_ERROR;
         }
@@ -352,13 +352,13 @@ BMIExecute(HIF_DEVICE *device,
     A_MEMCPY(&(pBMICmdBuf[offset]), param, sizeof(*param));
     offset += sizeof(*param);
     status = bmiBufferSend(device, pBMICmdBuf, offset);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
         return A_ERROR;
     }
 
     status = bmiBufferReceive(device, pBMICmdBuf, sizeof(*param), false);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read from the device\n"));
         return A_ERROR;
     }
@@ -397,7 +397,7 @@ BMISetAppStart(HIF_DEVICE *device,
     A_MEMCPY(&(pBMICmdBuf[offset]), &address, sizeof(address));
     offset += sizeof(address);
     status = bmiBufferSend(device, pBMICmdBuf, offset);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
         return A_ERROR;
     }
@@ -436,13 +436,13 @@ BMIReadSOCRegister(HIF_DEVICE *device,
     offset += sizeof(address);
 
     status = bmiBufferSend(device, pBMICmdBuf, offset);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
         return A_ERROR;
     }
 
     status = bmiBufferReceive(device, pBMICmdBuf, sizeof(*param), true);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read from the device\n"));
         return A_ERROR;
     }
@@ -483,7 +483,7 @@ BMIWriteSOCRegister(HIF_DEVICE *device,
     A_MEMCPY(&(pBMICmdBuf[offset]), &param, sizeof(param));
     offset += sizeof(param);
     status = bmiBufferSend(device, pBMICmdBuf, offset);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
         return A_ERROR;
     }
@@ -532,13 +532,13 @@ BMIrompatchInstall(HIF_DEVICE *device,
     A_MEMCPY(&(pBMICmdBuf[offset]), &do_activate, sizeof(do_activate));
     offset += sizeof(do_activate);
     status = bmiBufferSend(device, pBMICmdBuf, offset);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
         return A_ERROR;
     }
 
     status = bmiBufferReceive(device, pBMICmdBuf, sizeof(*rompatch_id), true);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read from the device\n"));
         return A_ERROR;
     }
@@ -576,7 +576,7 @@ BMIrompatchUninstall(HIF_DEVICE *device,
     A_MEMCPY(&(pBMICmdBuf[offset]), &rompatch_id, sizeof(rompatch_id));
     offset += sizeof(rompatch_id);
     status = bmiBufferSend(device, pBMICmdBuf, offset);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
         return A_ERROR;
     }
@@ -619,7 +619,7 @@ _BMIrompatchChangeActivation(HIF_DEVICE *device,
     A_MEMCPY(&(pBMICmdBuf[offset]), rompatch_list, length);
     offset += length;
     status = bmiBufferSend(device, pBMICmdBuf, offset);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
         return A_ERROR;
     }
@@ -683,7 +683,7 @@ BMILZData(HIF_DEVICE *device,
         A_MEMCPY(&(pBMICmdBuf[offset]), &buffer[length - remaining], txlen);
         offset += txlen;
         status = bmiBufferSend(device, pBMICmdBuf, offset);
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
             return A_ERROR;
         }
@@ -722,7 +722,7 @@ BMILZStreamStart(HIF_DEVICE *device,
     A_MEMCPY(&(pBMICmdBuf[offset]), &address, sizeof(address));
     offset += sizeof(address);
     status = bmiBufferSend(device, pBMICmdBuf, offset);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to Start LZ Stream to the device\n"));
         return A_ERROR;
     }
@@ -757,7 +757,7 @@ bmiBufferSend(HIF_DEVICE *device,
          * make all HIF accesses 4-byte aligned */
         status = HIFReadWrite(device, address, (u8 *)pBMICmdCredits, 4,
             HIF_RD_SYNC_BYTE_INC, NULL);
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to decrement the command credit count register\n"));
             return A_ERROR;
         }
@@ -769,7 +769,7 @@ bmiBufferSend(HIF_DEVICE *device,
         address = mboxAddress[ENDPOINT1];
         status = HIFReadWrite(device, address, buffer, length,
             HIF_WR_SYNC_BYTE_INC, NULL);
-        if (status != A_OK) {
+        if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to send the BMI data to the device\n"));
             return A_ERROR;
         }
@@ -868,7 +868,7 @@ bmiBufferReceive(HIF_DEVICE *device,
                 status = getPendingEventsFunc(device,
                                               &hifPendingEvents,
                                               NULL);
-                if (status != A_OK) {
+                if (status) {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMI: Failed to get pending events \n"));
                     break;
                 }
@@ -881,7 +881,7 @@ bmiBufferReceive(HIF_DEVICE *device,
             
             status = HIFReadWrite(device, RX_LOOKAHEAD_VALID_ADDRESS, (u8 *)&word_available,
                 sizeof(word_available), HIF_RD_SYNC_BYTE_INC, NULL);
-            if (status != A_OK) {
+            if (status) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read RX_LOOKAHEAD_VALID register\n"));
                 return A_ERROR;
             }
@@ -932,7 +932,7 @@ bmiBufferReceive(HIF_DEVICE *device,
              * The rationale here is to make all HIF accesses a multiple of 4 bytes */
             status = HIFReadWrite(device, address, (u8 *)pBMICmdCredits, sizeof(*pBMICmdCredits),
                 HIF_RD_SYNC_BYTE_FIX, NULL);
-            if (status != A_OK) {
+            if (status) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read the command credit count register\n"));
                 return A_ERROR;
             }
@@ -949,7 +949,7 @@ bmiBufferReceive(HIF_DEVICE *device,
 
     address = mboxAddress[ENDPOINT1];
     status = HIFReadWrite(device, address, buffer, length, HIF_RD_SYNC_BYTE_INC, NULL);
-    if (status != A_OK) {
+    if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read the BMI data from the device\n"));
         return A_ERROR;
     }

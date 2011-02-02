@@ -1127,7 +1127,7 @@ hcibridge_init_module(void)
     hciTransCallbacks.cleanupTransport = ar6000_cleanup_hci;
 
     status = ar6000_register_hci_transport(&hciTransCallbacks);
-    if(status != A_OK)
+    if (status)
         return -ENODEV;
 
     return 0;

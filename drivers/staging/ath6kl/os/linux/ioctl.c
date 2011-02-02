@@ -1826,7 +1826,7 @@ ar6000_ioctl_setkey(AR_SOFTC_T *ar, struct ieee80211req_key *ik)
                                 ik->ik_keydata, KEY_OP_INIT_VAL, ik->ik_macaddr,
                                 SYNC_BOTH_WMIFLAG);
 
-        if (status != A_OK) {
+        if (status) {
             return -EIO;
         }
     } else {
@@ -2003,7 +2003,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 status = wmi_setPmkid_cmd(ar->arWmi, req.pi_bssid, req.pi_pmkid,
                               req.pi_enable);
 
-                if (status != A_OK) {
+                if (status) {
                     ret = -EIO;
                     goto ioctl_done;
                 }
