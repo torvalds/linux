@@ -93,7 +93,7 @@ static void HTCCleanup(HTC_TARGET *target)
 HTC_HANDLE HTCCreate(void *hif_handle, HTC_INIT_INFO *pInfo)
 {
     HTC_TARGET              *target = NULL;
-    int                 status = A_OK;
+    int                 status = 0;
     int                      i;
     u32 ctrl_bufsz;
     u32 blocksizes[HTC_MAILBOX_NUM_MAX];

@@ -93,7 +93,7 @@ void Hci_log(A_UCHAR * log_string,A_UCHAR *data,u32 len)
 
 int AthPSInitialize(AR3K_CONFIG_INFO *hdev)
 {
-    int status = A_OK;
+    int status = 0;
     if(hdev == NULL) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Invalid Device handle received\n"));
         return A_ERROR;
@@ -280,8 +280,8 @@ int PSSendOps(void *arg)
     HciCmdList[0].Hcipacket,
     HciCmdList[0].packetLen,
     &event,
-    &bufferToFree) == A_OK) {
-        if(ReadPSEvent(event) == A_OK) { /* Exit if the status is success */
+    &bufferToFree) == 0) {
+        if(ReadPSEvent(event) == 0) { /* Exit if the status is success */
             if(bufferToFree != NULL) {
                 A_FREE(bufferToFree);
                 }
@@ -309,8 +309,8 @@ int PSSendOps(void *arg)
         HciCmdList[i].Hcipacket,
         HciCmdList[i].packetLen,
         &event,
-        &bufferToFree) == A_OK) {
-            if(ReadPSEvent(event) != A_OK) { /* Exit if the status is success */
+        &bufferToFree) == 0) {
+            if(ReadPSEvent(event) != 0) { /* Exit if the status is success */
                 if(bufferToFree != NULL) {
                     A_FREE(bufferToFree);
                     }
@@ -415,7 +415,7 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
         return A_ERROR;
     }
 
-    return A_OK;
+    return 0;
 }
 #endif /* HCI_TRANSPORT_SDIO */
 
@@ -426,14 +426,14 @@ int ReadPSEvent(A_UCHAR* Data){
     {
          switch(Data[3]){
              case 0x0B:
-                     return A_OK;
+                     return 0;
                  break;
                  case 0x0C:
                     /* Change Baudrate */
-                        return A_OK;    
+                        return 0;
                  break;  
                  case 0x04:
-                     return A_OK;
+                     return 0;
                  break;  
 		case 0x1E:
 			Rom_Version = Data[9];
@@ -445,7 +445,7 @@ int ReadPSEvent(A_UCHAR* Data){
 			Build_Version = ((Build_Version << 8) |Data[12]);
 			Build_Version = ((Build_Version << 8) |Data[11]);
 			Build_Version = ((Build_Version << 8) |Data[10]);
-			return A_OK;
+			return 0;
 		break;
 
         
@@ -499,13 +499,13 @@ int write_bdaddr(AR3K_CONFIG_INFO *pConfig,A_UCHAR *bdaddr,int type)
 			bdaddr_cmd[outc] = bdaddr[inc];
 	}
 
-    if(A_OK == SendHCICommandWaitCommandComplete(pConfig,bdaddr_cmd,
+    if(0 == SendHCICommandWaitCommandComplete(pConfig,bdaddr_cmd,
 												sizeof(bdaddr_cmd),
 												&event,&bufferToFree)) {
 
         if(event[4] == 0xFC && event[5] == 0x00){
                if(event[3] == 0x0B){
-                result = A_OK;
+                result = 0;
             }
         }
 
@@ -522,7 +522,7 @@ int ReadVersionInfo(AR3K_CONFIG_INFO *pConfig)
     u8 *event;
     u8 *bufferToFree = NULL;
     int result = A_ERROR;
-    if(A_OK == SendHCICommandWaitCommandComplete(pConfig,hciCommand,sizeof(hciCommand),&event,&bufferToFree)) {
+    if(0 == SendHCICommandWaitCommandComplete(pConfig,hciCommand,sizeof(hciCommand),&event,&bufferToFree)) {
 	result = ReadPSEvent(event);
 
     }
@@ -543,7 +543,7 @@ int getDeviceType(AR3K_CONFIG_INFO *pConfig, u32 *code)
     hciCommand[4] = (u8)((FPGA_REGISTER >> 8) & 0xFF);
     hciCommand[5] = (u8)((FPGA_REGISTER >> 16) & 0xFF);
     hciCommand[6] = (u8)((FPGA_REGISTER >> 24) & 0xFF);
-    if(A_OK == SendHCICommandWaitCommandComplete(pConfig,hciCommand,sizeof(hciCommand),&event,&bufferToFree)) {
+    if(0 == SendHCICommandWaitCommandComplete(pConfig,hciCommand,sizeof(hciCommand),&event,&bufferToFree)) {
 
         if(event[4] == 0xFC && event[5] == 0x00){
                switch(event[3]){
@@ -553,7 +553,7 @@ int getDeviceType(AR3K_CONFIG_INFO *pConfig, u32 *code)
                 reg = ((reg << 8) |event[7]);
                 reg = ((reg << 8) |event[6]);
                 *code = reg;
-                result = A_OK;
+                result = 0;
 
                 break;
                 case 0x06:

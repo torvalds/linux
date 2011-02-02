@@ -105,7 +105,7 @@ static INLINE int HTCProcessTrailer(HTC_TARGET *target,
 
     pOrigBuffer = pBuffer;
     origLength = Length;
-    status = A_OK;
+    status = 0;
     
     while (Length > 0) {
 
@@ -233,7 +233,7 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
 {
     u8 temp;
     u8 *pBuf;
-    int  status = A_OK;
+    int  status = 0;
     u16 payloadLen;
     u32 lookAhead;
 
@@ -692,7 +692,7 @@ static int AllocAndPrepareRxPackets(HTC_TARGET       *target,
                                          HTC_ENDPOINT     *pEndpoint, 
                                          HTC_PACKET_QUEUE *pQueue)
 {
-    int         status = A_OK;
+    int         status = 0;
     HTC_PACKET      *pPacket;
     HTC_FRAME_HDR   *pHdr;
     int              i,j;
@@ -816,7 +816,7 @@ static int AllocAndPrepareRxPackets(HTC_TARGET       *target,
                 /* clear flags */
             pPacket->PktInfo.AsRx.HTCRxFlags = 0;
             pPacket->PktInfo.AsRx.IndicationFlags = 0;
-            pPacket->Status = A_OK;
+            pPacket->Status = 0;
             
             if (noRecycle) {
                     /* flag that these packets cannot be recycled, they have to be returned to the 
@@ -859,7 +859,7 @@ static int AllocAndPrepareRxPackets(HTC_TARGET       *target,
         if (status) {
             if (A_NO_RESOURCE == status) {
                     /* this is actually okay */
-                status = A_OK;    
+                status = 0;
             }
             break;    
         }
@@ -990,7 +990,7 @@ static int HTCIssueRecvPacketBundle(HTC_TARGET        *target,
                                          int               *pNumPacketsFetched,
                                          bool             PartialBundle)
 {
-    int        status = A_OK;
+    int        status = 0;
     HIF_SCATTER_REQ *pScatterReq;
     int             i, totalLength;
     int             pktsToScatter;
@@ -1120,7 +1120,7 @@ static INLINE void CheckRecvWaterMark(HTC_ENDPOINT    *pEndpoint)
 int HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLookAheads, bool *pAsyncProc, int *pNumPktsFetched)
 {
     HTC_TARGET      *target = (HTC_TARGET *)Context;
-    int         status = A_OK;
+    int         status = 0;
     HTC_PACKET      *pPacket;
     HTC_ENDPOINT    *pEndpoint;
     bool          asyncProc = false;
@@ -1390,7 +1390,7 @@ int HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
     HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     HTC_ENDPOINT    *pEndpoint;
     bool          unblockRecv = false;
-    int        status = A_OK;
+    int        status = 0;
     HTC_PACKET      *pFirstPacket;
 
     pFirstPacket = HTC_GET_PKT_AT_HEAD(pPktQueue);
@@ -1567,7 +1567,7 @@ int HTCWaitForPendingRecv(HTC_HANDLE   HTCHandle,
                                u32 TimeoutInMs,
                                bool      *pbIsRecvPending)
 {
-    int    status  = A_OK;
+    int    status  = 0;
     HTC_TARGET *target  = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
 
     status = DevWaitForPendingRecv(&target->Device,

@@ -134,7 +134,7 @@ void HCI_TransportDetach(HCI_TRANSPORT_HANDLE HciTrans);
   @input:  HciTrans - HCI transport handle
            pQueue - a queue holding one or more packets
   @output:
-  @return: A_OK on success
+  @return: 0 on success
   @notes:  user must supply HTC packets for capturing incomming HCI packets.  The caller
            must initialize each HTC packet using the SET_HTC_PACKET_INFO_RX_REFILL()
            macro. Each packet in the queue must be of the same type and length 
@@ -150,7 +150,7 @@ int    HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUE
            pPacket - packet to send
            Synchronous - send the packet synchronously (blocking)
   @output:
-  @return: A_OK
+  @return: 0
   @notes:  Caller must initialize packet using SET_HTC_PACKET_INFO_TX() and
            HCI_SET_PACKET_TYPE() macros to prepare the packet. 
            If Synchronous is set to false the call is fully asynchronous.  On error or completion,
@@ -187,7 +187,7 @@ void        HCI_TransportStop(HCI_TRANSPORT_HANDLE HciTrans);
   @function name: HCI_TransportStart
   @input:  HciTrans - hci transport handle 
   @output:
-  @return: A_OK on success
+  @return: 0 on success
   @notes: HCI transport communication will begin, the caller can expect the arrival
           of HCI recv packets as soon as this call returns.
   @example:
@@ -201,7 +201,7 @@ int    HCI_TransportStart(HCI_TRANSPORT_HANDLE HciTrans);
   @input:  HciTrans - hci transport handle 
            Enable - enable or disable asynchronous recv
   @output:
-  @return: A_OK on success
+  @return: 0 on success
   @notes: This API must be called when HCI recv is handled synchronously
   @example:
   @see also:
@@ -215,7 +215,7 @@ int    HCI_TransportEnableDisableAsyncRecv(HCI_TRANSPORT_HANDLE HciTrans, bool E
            pPacket - HTC packet to hold the recv data
            MaxPollMS - maximum polling duration in Milliseconds;
   @output: 
-  @return: A_OK on success
+  @return: 0 on success
   @notes: This API should be used only during HCI device initialization, the caller must call
           HCI_TransportEnableDisableAsyncRecv with Enable=false prior to using this API.
           This API will only capture HCI Event packets.
@@ -232,7 +232,7 @@ int    HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
   @input:  HciTrans - hci transport handle 
            Baud - baud rate in bps
   @output: 
-  @return: A_OK on success
+  @return: 0 on success
   @notes: This API should be used only after HCI device initialization
   @example:
   @see also: 
@@ -245,7 +245,7 @@ int    HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, u32 Baud);
   @input:  HciTrans - hci transport handle 
            Enable - 1 = Enable, 0 = Disable
   @output: 
-  @return: A_OK on success
+  @return: 0 on success
   @notes: 
   @example:
   @see also: 

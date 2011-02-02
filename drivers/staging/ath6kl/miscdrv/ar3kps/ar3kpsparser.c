@@ -549,7 +549,7 @@ int AthParseFilesUnified(A_UCHAR *srcbuffer,u32 srclen, int FileFormat)
    if(Buffer != NULL) {
         A_FREE(Buffer);
    }
-   return A_OK;
+   return 0;
 
 }
 
@@ -576,7 +576,7 @@ int GetNextTwoChar(A_UCHAR *srcbuffer,u32 len, u32 *pos, char *buffer)
     {
         return A_ERROR;
     }
-    return A_OK;
+    return 0;
 }
 
 int AthDoParsePatch(A_UCHAR *patchbuffer, u32 patchlen)
@@ -654,7 +654,7 @@ int AthDoParsePatch(A_UCHAR *patchbuffer, u32 patchlen)
 
 
     }
-    return A_OK;
+    return 0;
 }
 
 
@@ -953,7 +953,7 @@ static int AthPSCreateHCICommand(A_UCHAR Opcode, u32 Param1,PSCmdPacket *PSPatch
     case CHANGE_BDADDR:
     break;
     }
-    return A_OK;
+    return 0;
 }
 int AthFreeCommandList(PSCmdPacket **HciPacketList, u32 numPackets)
 {
@@ -965,5 +965,5 @@ int AthFreeCommandList(PSCmdPacket **HciPacketList, u32 numPackets)
         A_FREE((*HciPacketList)[i].Hcipacket);
     }  
     A_FREE(*HciPacketList);
-    return A_OK;
+    return 0;
 }

@@ -419,7 +419,7 @@ ar6000_ioctl_giwscan(struct net_device *dev,
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     struct ar_giwscan_param param;
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -466,7 +466,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
     u8 arNetworkType;
     u8 prevMode = ar->arNetworkType;
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -642,7 +642,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
     ar->arSsidLen = data->length - 1;
     A_MEMCPY(ar->arSsid, ssid, ar->arSsidLen);
 
-    if (ar6000_connect_to_ap(ar)!= A_OK) {
+    if (ar6000_connect_to_ap(ar)!= 0) {
         up(&ar->arSem);
         return -EIO;
     }else{
@@ -659,7 +659,7 @@ ar6000_ioctl_giwessid(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -715,7 +715,7 @@ ar6000_ioctl_siwrate(struct net_device *dev,
     u32 kbps;
     s8 rate_idx;
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -725,7 +725,7 @@ ar6000_ioctl_siwrate(struct net_device *dev,
     } else {
         kbps = -1;                          /* -1 indicates auto rate */
     }
-    if(kbps != -1 && wmi_validate_bitrate(ar->arWmi, kbps, &rate_idx) != A_OK)
+    if(kbps != -1 && wmi_validate_bitrate(ar->arWmi, kbps, &rate_idx) != 0)
     {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BitRate is not Valid %d\n", kbps));
         return -EINVAL;
@@ -733,7 +733,7 @@ ar6000_ioctl_siwrate(struct net_device *dev,
     ar->arBitRate = kbps;
     if(ar->arWmiReady == true)
     {
-        if (wmi_set_bitrate_cmd(ar->arWmi, kbps, -1, -1) != A_OK) {
+        if (wmi_set_bitrate_cmd(ar->arWmi, kbps, -1, -1) != 0) {
             return -EINVAL;
         }
     }
@@ -751,7 +751,7 @@ ar6000_ioctl_giwrate(struct net_device *dev,
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     int ret = 0;
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -779,7 +779,7 @@ ar6000_ioctl_giwrate(struct net_device *dev,
     }
 
     ar->arBitRate = 0xFFFF;
-    if (wmi_get_bitrate_cmd(ar->arWmi) != A_OK) {
+    if (wmi_get_bitrate_cmd(ar->arWmi) != 0) {
         up(&ar->arSem);
         return -EIO;
     }
@@ -814,7 +814,7 @@ ar6000_ioctl_siwtxpow(struct net_device *dev,
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     u8 dbM;
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -856,7 +856,7 @@ ar6000_ioctl_giwtxpow(struct net_device *dev,
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     int ret = 0;
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -882,7 +882,7 @@ ar6000_ioctl_giwtxpow(struct net_device *dev,
     {
         ar->arTxPwr = 0;
 
-        if (wmi_get_txPwr_cmd(ar->arWmi) != A_OK) {
+        if (wmi_get_txPwr_cmd(ar->arWmi) != 0) {
             up(&ar->arSem);
             return -EIO;
         }
@@ -925,7 +925,7 @@ ar6000_ioctl_siwretry(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -948,7 +948,7 @@ ar6000_ioctl_siwretry(struct net_device *dev,
     if(ar->arWmiReady == true)
     {
         if (wmi_set_retry_limits_cmd(ar->arWmi, DATA_FRAMETYPE, WMM_AC_BE,
-                                     rrq->value, 0) != A_OK){
+                                     rrq->value, 0) != 0){
             return -EINVAL;
         }
     }
@@ -966,7 +966,7 @@ ar6000_ioctl_giwretry(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -1009,7 +1009,7 @@ ar6000_ioctl_siwencode(struct net_device *dev,
     int index;
     s32 auth = 0;
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -1125,7 +1125,7 @@ ar6000_ioctl_giwencode(struct net_device *dev,
     u8 keyIndex;
     struct ar_wep_key *wk;
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -1557,7 +1557,7 @@ ar6000_ioctl_siwpmksa(struct net_device *dev,
     }
 
     ret = 0;
-    status = A_OK;
+    status = 0;
 
     switch (pmksa->cmd) {
         case IW_PMKSA_ADD:
@@ -1636,7 +1636,7 @@ static int ar6000_set_wapi_key(struct net_device *dev,
                             KEY_OP_INIT_WAPIPN,
                             NULL,
                             SYNC_BEFORE_WMIFLAG);
-    if (A_OK != status) {
+    if (0 != status) {
         return -EIO;
     }
     return 0;
@@ -1908,7 +1908,7 @@ ar6000_ioctl_giwname(struct net_device *dev,
     u8 capability;
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -1962,7 +1962,7 @@ ar6000_ioctl_siwfreq(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -2007,7 +2007,7 @@ ar6000_ioctl_giwfreq(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -2047,7 +2047,7 @@ ar6000_ioctl_siwmode(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -2118,7 +2118,7 @@ ar6000_ioctl_giwmode(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -2180,7 +2180,7 @@ ar6000_ioctl_giwrange(struct net_device *dev,
     struct iw_range *range = (struct iw_range *) extra;
     int i, ret = 0;
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -2205,7 +2205,7 @@ ar6000_ioctl_giwrange(struct net_device *dev,
     ar->arNumChannels = -1;
     A_MEMZERO(ar->arChannelList, sizeof (ar->arChannelList));
 
-    if (wmi_get_channelList_cmd(ar->arWmi) != A_OK) {
+    if (wmi_get_channelList_cmd(ar->arWmi) != 0) {
         up(&ar->arSem);
         return -EIO;
     }
@@ -2301,7 +2301,7 @@ ar6000_ioctl_siwap(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -2333,7 +2333,7 @@ ar6000_ioctl_giwap(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -2369,7 +2369,7 @@ ar6000_ioctl_siwmlme(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -2462,7 +2462,7 @@ ar6000_ioctl_siwscan(struct net_device *dev,
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     int ret = 0;
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }
@@ -2487,13 +2487,13 @@ ar6000_ioctl_siwscan(struct net_device *dev,
     } 
 
     if (!ar->arUserBssFilter) {
-        if (wmi_bssfilter_cmd(ar->arWmi, ALL_BSS_FILTER, 0) != A_OK) {
+        if (wmi_bssfilter_cmd(ar->arWmi, ALL_BSS_FILTER, 0) != 0) {
             return -EIO;
         }
     }
 
     if (ar->arConnected) {
-        if  (wmi_get_stats_cmd(ar->arWmi) != A_OK) {
+        if  (wmi_get_stats_cmd(ar->arWmi) != 0) {
             return -EIO;
         }
     }
@@ -2507,14 +2507,14 @@ ar6000_ioctl_siwscan(struct net_device *dev,
             struct iw_scan_req req;
             if (copy_from_user(&req, data->pointer, sizeof(struct iw_scan_req)))
                 return -EIO;
-            if (wmi_probedSsid_cmd(ar->arWmi, 1, SPECIFIC_SSID_FLAG, req.essid_len, req.essid) != A_OK)
+            if (wmi_probedSsid_cmd(ar->arWmi, 1, SPECIFIC_SSID_FLAG, req.essid_len, req.essid) != 0)
                 return -EIO;
             ar->scanSpecificSsid = true;
         }
         else
         {
             if (ar->scanSpecificSsid) {
-                if (wmi_probedSsid_cmd(ar->arWmi, 1, DISABLE_SSID_FLAG, 0, NULL) != A_OK)
+                if (wmi_probedSsid_cmd(ar->arWmi, 1, DISABLE_SSID_FLAG, 0, NULL) != 0)
                     return -EIO;
                  ar->scanSpecificSsid = false;
             }
@@ -2523,7 +2523,7 @@ ar6000_ioctl_siwscan(struct net_device *dev,
     else
     {
         if (ar->scanSpecificSsid) {
-            if (wmi_probedSsid_cmd(ar->arWmi, 1, DISABLE_SSID_FLAG, 0, NULL) != A_OK)
+            if (wmi_probedSsid_cmd(ar->arWmi, 1, DISABLE_SSID_FLAG, 0, NULL) != 0)
                 return -EIO;
              ar->scanSpecificSsid = false;
         }
@@ -2532,7 +2532,7 @@ ar6000_ioctl_siwscan(struct net_device *dev,
 #endif /* ANDROID_ENV */
 
     if (wmi_startscan_cmd(ar->arWmi, WMI_LONG_SCAN, false, false, \
-                          0, 0, 0, NULL) != A_OK) {
+                          0, 0, 0, NULL) != 0) {
         ret = -EIO;
     }
 
@@ -2589,7 +2589,7 @@ ar6000_ioctl_siwcommit(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
+    if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
         return -EOPNOTSUPP;
     }

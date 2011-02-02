@@ -66,7 +66,7 @@ int ar6000_register_hci_transport(HCI_TRANSPORT_CALLBACKS *hciTransCallbacks)
     _HCI_TransportSetBaudRate = HCI_TransportSetBaudRate;
     _HCI_TransportEnablePowerMgmt = HCI_TransportEnablePowerMgmt;
 
-    return A_OK;
+    return 0;
 }
 
 int

@@ -413,6 +413,6 @@ int ar6000_setup_credit_dist(HTC_HANDLE HTCHandle, COMMON_CREDIT_STATE_INFO *pCr
                              servicepriority,
                              5);
 
-    return A_OK;
+    return 0;
 }
 

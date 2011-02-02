@@ -126,7 +126,7 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
                            HTC_SERVICE_CONNECT_RESP *pConnectResp)
 {
     HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
-    int                            status = A_OK;
+    int                            status = 0;
     HTC_PACKET                          *pRecvPacket = NULL;
     HTC_PACKET                          *pSendPacket = NULL;
     HTC_CONNECT_SERVICE_RESPONSE_MSG    *pResponseMsg;
@@ -290,7 +290,7 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
             /* save local connection flags */
         pEndpoint->LocalConnectionFlags = pConnectReq->LocalConnectionFlags;
         
-        status = A_OK;
+        status = 0;
 
     } while (false);
 

@@ -57,7 +57,7 @@ aggr_init(ALLOC_NETBUFS netbuf_allocator)
     AGGR_INFO   *p_aggr = NULL;
     RXTID *rxtid;
     u8 i;
-    int status = A_OK;
+    int status = 0;
 
     A_PRINTF("In aggr_init..\n");
 
@@ -90,13 +90,13 @@ aggr_init(ALLOC_NETBUFS netbuf_allocator)
     }while(false);
 
     A_PRINTF("going out of aggr_init..status %s\n",
-                    (status == A_OK) ? "OK":"Error");
+                    (status == 0) ? "OK":"Error");
 
     if (status) {
         /* Cleanup */
         aggr_module_destroy(p_aggr);
     }
-    return ((status == A_OK) ? p_aggr : NULL);
+    return ((status == 0) ? p_aggr : NULL);
 }
 
 /* utility function to clear rx hold_q for a tid */
@@ -399,7 +399,7 @@ aggr_slice_amsdu(AGGR_INFO *p_aggr, RXTID *rxtid, void **osbuf)
 
         A_MEMCPY(A_NETBUF_DATA(new_buf), framep, frame_8023_len);
         A_NETBUF_PUT(new_buf, frame_8023_len);
-        if (wmi_dot3_2_dix(new_buf) != A_OK) {
+        if (wmi_dot3_2_dix(new_buf) != 0) {
             A_PRINTF("dot3_2_dix err..\n");
             A_NETBUF_FREE(new_buf);
             break;

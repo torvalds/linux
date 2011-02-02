@@ -55,7 +55,7 @@ int DevRWCompletionHandler(void *context, int status)
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,
                 ("-DevRWCompletionHandler\n"));
 
-    return A_OK;
+    return 0;
 }
 
 /* mailbox recv message polling */
@@ -63,7 +63,7 @@ int DevPollMboxMsgRecv(AR6K_DEVICE *pDev,
                             u32 *pLookAhead,
                             int          TimeoutMS)
 {
-    int status = A_OK;
+    int status = 0;
     int      timeout = TimeoutMS/DELAY_PER_INTERVAL_MS;
 
     A_ASSERT(timeout > 0);
@@ -187,7 +187,7 @@ static int DevServiceCPUInterrupt(AR6K_DEVICE *pDev)
                           HIF_WR_SYNC_BYTE_FIX,
                           NULL);
 
-    A_ASSERT(status == A_OK);
+    A_ASSERT(status == 0);
     return status;
 }
 
@@ -241,7 +241,7 @@ static int DevServiceErrorInterrupt(AR6K_DEVICE *pDev)
                           HIF_WR_SYNC_BYTE_FIX,
                           NULL);
 
-    A_ASSERT(status == A_OK);
+    A_ASSERT(status == 0);
     return status;
 }
 
@@ -271,7 +271,7 @@ static int DevServiceDebugInterrupt(AR6K_DEVICE *pDev)
                           HIF_RD_SYNC_BYTE_INC,
                           NULL);
 
-    A_ASSERT(status == A_OK);
+    A_ASSERT(status == 0);
     return status;
 }
 
@@ -296,7 +296,7 @@ static int DevServiceCounterInterrupt(AR6K_DEVICE *pDev)
         return DevServiceDebugInterrupt(pDev);
     }
 
-    return A_OK;
+    return 0;
 }
 
 /* callback when our fetch to get interrupt status registers completes */
@@ -391,7 +391,7 @@ static void DevGetEventAsyncHandler(void *Context, HTC_PACKET *pPacket)
 int DevCheckPendingRecvMsgsAsync(void *context)
 {
     AR6K_DEVICE  *pDev = (AR6K_DEVICE *)context;
-    int      status = A_OK;
+    int      status = 0;
     HTC_PACKET   *pIOPacket;
 
     /* this is called in an ASYNC only context, we may NOT block, sleep or call any apis that can
@@ -469,7 +469,7 @@ void DevAsyncIrqProcessComplete(AR6K_DEVICE *pDev)
 /* process pending interrupts synchronously */
 static int ProcessPendingIRQs(AR6K_DEVICE *pDev, bool *pDone, bool *pASyncProcessing)
 {
-    int    status = A_OK;
+    int    status = 0;
     u8 host_int_status = 0;
     u32 lookAhead = 0;
 
@@ -684,7 +684,7 @@ static int ProcessPendingIRQs(AR6K_DEVICE *pDev, bool *pDone, bool *pASyncProces
 int DevDsrHandler(void *context)
 {
     AR6K_DEVICE *pDev = (AR6K_DEVICE *)context;
-    int    status = A_OK;
+    int    status = 0;
     bool      done = false;
     bool      asyncProc = false;
 

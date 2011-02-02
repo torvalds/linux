@@ -54,7 +54,7 @@ static int SendHCICommand(AR3K_CONFIG_INFO *pConfig,
                                int              Length)
 {
     HTC_PACKET  *pPacket = NULL;
-    int    status = A_OK;
+    int    status = 0;
        
     do {   
         
@@ -88,7 +88,7 @@ static int RecvHCIEvent(AR3K_CONFIG_INFO *pConfig,
                              u8 *pBuffer,
                              int              *pLength)
 {
-    int    status = A_OK;
+    int    status = 0;
     HTC_PACKET  *pRecvPacket = NULL;
     
     do {
@@ -128,7 +128,7 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
                                            u8 **ppEventBuffer,
                                            u8 **ppBufferToFree)
 {
-    int    status = A_OK;
+    int    status = 0;
     u8 *pBuffer = NULL;
     u8 *pTemp;
     int         length;
@@ -211,7 +211,7 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
 
 static int AR3KConfigureHCIBaud(AR3K_CONFIG_INFO *pConfig)
 {
-    int    status = A_OK;
+    int    status = 0;
     u8 hciBaudChangeCommand[] =  {0x0c,0xfc,0x2,0,0};
     u16 baudVal;
     u8 *pEvent = NULL;
@@ -312,7 +312,7 @@ static int AR3KExitMinBoot(AR3K_CONFIG_INFO *pConfig)
                                  
 static int AR3KConfigureSendHCIReset(AR3K_CONFIG_INFO *pConfig)
 {
-    int status = A_OK;
+    int status = 0;
     u8 hciResetCommand[] = {0x03,0x0c,0x0};
     u8 *pEvent = NULL;
     u8 *pBufferToFree = NULL;
@@ -455,7 +455,7 @@ static int AR3KEnableTLPM(AR3K_CONFIG_INFO *pConfig)
 
 int AR3KConfigure(AR3K_CONFIG_INFO *pConfig)
 {
-    int        status = A_OK;
+    int        status = 0;
         
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("AR3K Config: Configuring AR3K ...\n"));
                                 
@@ -481,7 +481,7 @@ int AR3KConfigure(AR3K_CONFIG_INFO *pConfig)
         
        
         /* Load patching and PST file if available*/
-        if (A_OK != AthPSInitialize(pConfig)) {
+        if (0 != AthPSInitialize(pConfig)) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Patch Download Failed!\n"));
         }
 
@@ -523,7 +523,7 @@ int AR3KConfigure(AR3K_CONFIG_INFO *pConfig)
 
 int AR3KConfigureExit(void *config)
 {
-    int        status = A_OK;
+    int        status = 0;
     AR3K_CONFIG_INFO *pConfig = (AR3K_CONFIG_INFO *)config;
         
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("AR3K Config: Cleaning up AR3K ...\n"));

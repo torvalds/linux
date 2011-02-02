@@ -195,7 +195,7 @@ static int CreditsAvailableCallback(void *pContext, int Credits, bool CreditIRQE
     bool               enableCreditIrq = false;
     bool               disableCreditIrq = false;
     bool               doPendingSends = false;
-    int             status = A_OK;
+    int             status = 0;
     
     /** this callback is called under 2 conditions:
      *   1. The credit IRQ interrupt was enabled and signaled.
@@ -307,7 +307,7 @@ static void StateDumpCallback(void *pContext)
 static int HCIUartMessagePending(void *pContext, u8 LookAheadBytes[], int ValidBytes)
 {
     GMBOX_PROTO_HCI_UART        *pProt = (GMBOX_PROTO_HCI_UART *)pContext;
-    int                    status = A_OK;
+    int                    status = 0;
     int                         totalRecvLength = 0;
     HCI_TRANSPORT_PACKET_TYPE   pktType = HCI_PACKET_INVALID;
     bool                      recvRefillCalled = false;
@@ -476,7 +476,7 @@ static int HCIUartMessagePending(void *pContext, u8 LookAheadBytes[], int ValidB
             /* adjust buffer to move past packet ID */
         pPacket->pBuffer++;
         pPacket->ActualLength = totalRecvLength - 1;
-        pPacket->Status = A_OK;
+        pPacket->Status = 0;
             /* indicate packet */
         DO_HCI_RECV_INDICATION(pProt,pPacket);
         pPacket = NULL;
@@ -549,7 +549,7 @@ static void HCISendPacketCompletion(void *Context, HTC_PACKET *pPacket)
 
 static int SeekCreditsSynch(GMBOX_PROTO_HCI_UART *pProt)
 {
-    int status = A_OK;
+    int status = 0;
     int      credits;
     int      retry = 100;
     
@@ -581,7 +581,7 @@ static int SeekCreditsSynch(GMBOX_PROTO_HCI_UART *pProt)
 
 static int HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, bool Synchronous)
 {   
-    int    status = A_OK;
+    int    status = 0;
     int         transferLength;
     int         creditsRequired, remainder;
     u8 hciUartType;
@@ -848,7 +848,7 @@ static void FlushRecvBuffers(GMBOX_PROTO_HCI_UART *pProt)
 
 int GMboxProtocolInstall(AR6K_DEVICE *pDev)
 {
-    int                status = A_OK;
+    int                status = 0;
     GMBOX_PROTO_HCI_UART    *pProtocol = NULL;
         
     do {
@@ -911,7 +911,7 @@ void GMboxProtocolUninstall(AR6K_DEVICE *pDev)
 static int NotifyTransportReady(GMBOX_PROTO_HCI_UART  *pProt)
 {
     HCI_TRANSPORT_PROPERTIES props;
-    int                 status = A_OK;
+    int                 status = 0;
     
     do {
         
@@ -1004,7 +1004,7 @@ void HCI_TransportDetach(HCI_TRANSPORT_HANDLE HciTrans)
 int HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUEUE *pQueue)
 {
     GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans; 
-    int              status = A_OK;
+    int              status = 0;
     bool                unblockRecv = false;
     HTC_PACKET            *pPacket;
     
@@ -1066,7 +1066,7 @@ int HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUEUE 
     
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("-HCI_TransportAddReceivePkt \n"));
     
-    return A_OK;    
+    return 0;
 }
 
 int HCI_TransportSendPkt(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET *pPacket, bool Synchronous)
@@ -1163,7 +1163,7 @@ int HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
                                        int                  MaxPollMS)
 {
     GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans;
-    int              status = A_OK;
+    int              status = 0;
     u8 lookAhead[8];
     int                   bytes;
     int                   totalRecvLength;
@@ -1216,7 +1216,7 @@ int HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
         
         pPacket->pBuffer++;
         pPacket->ActualLength = totalRecvLength - 1;
-        pPacket->Status = A_OK;        
+        pPacket->Status = 0;
         break; 
     }
     
@@ -1235,7 +1235,7 @@ int HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, u32 Baud)
     GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans;
     HIF_DEVICE *pHIFDevice = (HIF_DEVICE *)(pProt->pDev->HIFDevice);
     u32 scaledBaud, scratchAddr;
-    int status = A_OK;
+    int status = 0;
 
     /* Divide the desired baud rate by 100
      * Store the LSB in the local scratch register 4 and the MSB in the local
@@ -1247,14 +1247,14 @@ int HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, u32 Baud)
     scratchAddr = MBOX_BASE_ADDRESS | (LOCAL_SCRATCH_ADDRESS + 4 * MSB_SCRATCH_IDX);
     scaledBaud = ((Baud / 100) >> (LOCAL_SCRATCH_VALUE_MSB+1)) & LOCAL_SCRATCH_VALUE_MASK;
     status |= ar6000_WriteRegDiag(pHIFDevice, &scratchAddr, &scaledBaud);                     
-    if (A_OK != status) {
+    if (0 != status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Failed to set up baud rate in scratch register!"));            
         return status;
     }
 
     /* Now interrupt the target to tell it about the baud rate */
     status = DevGMboxSetTargetInterrupt(pProt->pDev, MBOX_SIG_HCI_BRIDGE_BAUD_SET, BAUD_TIMEOUT_MS);
-    if (A_OK != status) {
+    if (0 != status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Failed to tell target to change baud rate!"));            
     }
     

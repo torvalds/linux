@@ -134,7 +134,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32
         return status;
     }
 
-    return A_OK;
+    return 0;
 
 
 
@@ -177,7 +177,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32
         return status;
     }
 
-    return A_OK;
+    return 0;
 }
 
 #endif
@@ -248,11 +248,11 @@ ar6000_ReadDataDiag(HIF_DEVICE *hifDevice, u32 address,
                     A_UCHAR *data, u32 length)
 {
     u32 count;
-    int status = A_OK;
+    int status = 0;
 
     for (count = 0; count < length; count += 4, address += 4) {
         if ((status = ar6000_ReadRegDiag(hifDevice, &address,
-                                         (u32 *)&data[count])) != A_OK)
+                                         (u32 *)&data[count])) != 0)
         {
             break;
         }
@@ -266,11 +266,11 @@ ar6000_WriteDataDiag(HIF_DEVICE *hifDevice, u32 address,
                     A_UCHAR *data, u32 length)
 {
     u32 count;
-    int status = A_OK;
+    int status = 0;
 
     for (count = 0; count < length; count += 4, address += 4) {
         if ((status = ar6000_WriteRegDiag(hifDevice, &address,
-                                         (u32 *)&data[count])) != A_OK)
+                                         (u32 *)&data[count])) != 0)
         {
             break;
         }
@@ -382,13 +382,13 @@ _delay_until_target_alive(HIF_DEVICE *hifDevice, s32 wait_msecs, u32 TargetType)
         actual_wait += 100;
 
         data = 0;
-        if (ar6000_ReadRegDiag(hifDevice, &address, &data) != A_OK) {
+        if (ar6000_ReadRegDiag(hifDevice, &address, &data) != 0) {
             return A_ERROR;
         }
 
         if (data != 0) {
             /* No need to wait longer -- we have a BMI credit */
-            return A_OK;
+            return 0;
         }
     }
     return A_ERROR; /* timed out */
@@ -401,7 +401,7 @@ _delay_until_target_alive(HIF_DEVICE *hifDevice, s32 wait_msecs, u32 TargetType)
 /* reset device */
 int ar6000_reset_device(HIF_DEVICE *hifDevice, u32 TargetType, bool waitForCompletion, bool coldReset)
 {
-    int status = A_OK;
+    int status = 0;
     u32 address;
     u32 data;
 
@@ -476,7 +476,7 @@ int ar6000_reset_device(HIF_DEVICE *hifDevice, u32 TargetType, bool waitForCompl
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Failed to reset target \n"));
     }
 
-    return A_OK;
+    return 0;
 }
 
 /* This should be called in BMI phase after firmware is downloaded */
@@ -490,7 +490,7 @@ ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, u32 TargetType)
     if (BMIReadMemory(hifDevice,
             HOST_INTEREST_ITEM_ADDRESS(TargetType, hi_board_data),
             (A_UCHAR *)&eepHeaderAddr,
-            4)!= A_OK)
+            4)!= 0)
     {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMIReadMemory for reading board data address failed \n"));
         return;
@@ -500,7 +500,7 @@ ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, u32 TargetType)
         eepHeaderAddr += 36;  /* AR6003 customer data section offset is 37 */
 
         for (i=0; i<AR6003_CUST_DATA_SIZE+4; i+=4){
-            if (BMIReadSOCRegister(hifDevice, eepHeaderAddr, (u32 *)&AR6003CustDataShadow[i])!= A_OK) {
+            if (BMIReadSOCRegister(hifDevice, eepHeaderAddr, (u32 *)&AR6003CustDataShadow[i])!= 0) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMIReadSOCRegister () failed \n"));
                 return ;
             }  
@@ -514,7 +514,7 @@ ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, u32 TargetType)
         eepHeaderAddr += 64;  /* AR6002 customer data sectioin offset is 64 */
 
         for (i=0; i<AR6002_CUST_DATA_SIZE; i+=4){
-            if (BMIReadSOCRegister(hifDevice, eepHeaderAddr, (u32 *)&custDataAR6002[i])!= A_OK) {
+            if (BMIReadSOCRegister(hifDevice, eepHeaderAddr, (u32 *)&custDataAR6002[i])!= 0) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMIReadSOCRegister () failed \n"));
                 return ;
             }  
@@ -686,7 +686,7 @@ int ar6000_set_htc_params(HIF_DEVICE *hifDevice,
 
 static int prepare_ar6002(HIF_DEVICE *hifDevice, u32 TargetVersion)
 {
-    int status = A_OK;
+    int status = 0;
 
     /* placeholder */
 
@@ -695,7 +695,7 @@ static int prepare_ar6002(HIF_DEVICE *hifDevice, u32 TargetVersion)
 
 static int prepare_ar6003(HIF_DEVICE *hifDevice, u32 TargetVersion)
 {
-    int status = A_OK;
+    int status = 0;
 
     /* placeholder */
 
@@ -714,7 +714,7 @@ int ar6000_prepare_target(HIF_DEVICE *hifDevice,
         return prepare_ar6003(hifDevice,TargetVersion);
     }
 
-    return A_OK;
+    return 0;
 }
 
 #if defined(CONFIG_AR6002_REV1_FORCE_HOST)
@@ -734,7 +734,7 @@ ar6002_REV1_reset_force_host (HIF_DEVICE *hifDevice)
     };
     struct forceROM_s *ForceROM;
     s32 szForceROM;
-    int status = A_OK;
+    int status = 0;
     u32 address;
     u32 data;
 
@@ -782,7 +782,7 @@ ar6002_REV1_reset_force_host (HIF_DEVICE *hifDevice)
     {
         if (ar6000_WriteRegDiag(hifDevice,
                                 &ForceROM[i].addr,
-                                &ForceROM[i].data) != A_OK)
+                                &ForceROM[i].data) != 0)
         {
             ATH_DEBUG_PRINTF (DBG_MISC_DRV, ATH_DEBUG_TRC, ("Cannot force Target to recognize Host!\n"));
             return A_ERROR;
@@ -791,7 +791,7 @@ ar6002_REV1_reset_force_host (HIF_DEVICE *hifDevice)
 
     A_MDELAY(1000);
 
-    return A_OK;
+    return 0;
 }
 
 #endif /* CONFIG_AR6002_REV1_FORCE_HOST */
@@ -942,7 +942,7 @@ int a_get_module_mask(char *module_name, u32 *pMask)
     }
 
     *pMask = pInfo->CurrentMask;
-    return A_OK;
+    return 0;
 }
 
 int a_set_module_mask(char *module_name, u32 Mask)
@@ -955,7 +955,7 @@ int a_set_module_mask(char *module_name, u32 Mask)
 
     pInfo->CurrentMask = Mask;
     A_PRINTF("Module %s,  new mask: 0x%8.8X \n",module_name,pInfo->CurrentMask);
-    return A_OK;
+    return 0;
 }
 
 
@@ -1002,7 +1002,7 @@ int ar6000_set_hci_bridge_flags(HIF_DEVICE *hifDevice,
                                      u32 TargetType,
                                      u32 Flags)
 {
-    int status = A_OK;
+    int status = 0;
 
     do {
 

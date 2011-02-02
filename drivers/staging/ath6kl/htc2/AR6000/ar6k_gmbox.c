@@ -76,7 +76,7 @@ static void DevGMboxIRQActionAsyncHandler(void *Context, HTC_PACKET *pPacket)
 
 static int DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool AsyncMode)
 {
-    int                  status = A_OK;
+    int                  status = 0;
     AR6K_IRQ_ENABLE_REGISTERS regs;
     HTC_PACKET                *pIOPacket = NULL;  
     
@@ -157,7 +157,7 @@ static int DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE
 
 int DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool AsyncMode)
 {
-    int      status = A_OK;
+    int      status = 0;
     HTC_PACKET    *pIOPacket = NULL;   
     u8 GMboxIntControl[4];
 
@@ -271,7 +271,7 @@ void DevCleanupGMbox(AR6K_DEVICE *pDev)
 
 int DevSetupGMbox(AR6K_DEVICE *pDev)
 {
-    int    status = A_OK;
+    int    status = 0;
     u8 muxControl[4];
     
     do {
@@ -324,7 +324,7 @@ int DevSetupGMbox(AR6K_DEVICE *pDev)
 
 int DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
 {
-    int status = A_OK;
+    int status = 0;
     u8 counter_int_status;
     int      credits;
     u8 host_int_status2;
@@ -426,7 +426,7 @@ int DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 WriteLength)
         pPacket->Status = status;
     } else {
         if (status == A_PENDING) {
-            status = A_OK;    
+            status = 0;
         }    
     }
 
@@ -450,7 +450,7 @@ int DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 ReadLength)
                     paddedLength,ReadLength,pPacket->BufferLength));
         if (pPacket->Completion != NULL) {
             COMPLETE_HTC_PACKET(pPacket,A_EINVAL);
-            return A_OK;
+            return 0;
         }
         return A_EINVAL;
     }
@@ -541,7 +541,7 @@ static void DevGMboxReadCreditsAsyncHandler(void *Context, HTC_PACKET *pPacket)
 
 int DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, bool AsyncMode, int *pCredits)
 {
-    int    status = A_OK;
+    int    status = 0;
     HTC_PACKET  *pIOPacket = NULL;  
     
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("+DevGMboxReadCreditCounter (%s) \n", AsyncMode ? "ASYNC" : "SYNC"));
@@ -637,7 +637,7 @@ void DevNotifyGMboxTargetFailure(AR6K_DEVICE *pDev)
 int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, u8 *pLookAheadBuffer, int *pLookAheadBytes)
 {
 
-    int                    status = A_OK;
+    int                    status = 0;
     AR6K_IRQ_PROC_REGISTERS     procRegs;
     int                         maxCopy;
   
@@ -678,7 +678,7 @@ int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, u8 *pLookAheadBuffer, int *pLoo
 
 int DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int Signal, int AckTimeoutMS)
 {
-    int status = A_OK;
+    int status = 0;
     int      i;
     u8 buffer[4];
     

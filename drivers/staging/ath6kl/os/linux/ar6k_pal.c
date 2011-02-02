@@ -120,7 +120,7 @@ static int btpal_send_frame(struct sk_buff *skb)
 	struct hci_dev *hdev = (struct hci_dev *)skb->dev;
 	HCI_TRANSPORT_PACKET_TYPE type;
 	ar6k_hci_pal_info_t *pHciPalInfo;
-	int status = A_OK;
+	int status = 0;
 	struct sk_buff *txSkb = NULL;
 	AR_SOFTC_T *ar;
 
@@ -184,7 +184,7 @@ static int btpal_send_frame(struct sk_buff *skb)
 				break;
 			}
 
-			if (wmi_send_hci_cmd(ar->arWmi, skb->data, skb->len) != A_OK)
+			if (wmi_send_hci_cmd(ar->arWmi, skb->data, skb->len) != 0)
 			{
 				PRIN_LOG("send hci cmd error");
 				break;
@@ -220,7 +220,7 @@ static int btpal_send_frame(struct sk_buff *skb)
 			/* Add WMI packet type */
 			osbuf = (void *)txSkb;
 
-			if (wmi_data_hdr_add(ar->arWmi, osbuf, DATA_MSGTYPE, 0, WMI_DATA_HDR_DATA_TYPE_ACL,0,NULL) != A_OK) {
+			if (wmi_data_hdr_add(ar->arWmi, osbuf, DATA_MSGTYPE, 0, WMI_DATA_HDR_DATA_TYPE_ACL,0,NULL) != 0) {
 				PRIN_LOG("XIOCTL_ACL_DATA - wmi_data_hdr_add failed\n");
 			} else {
 				/* Send data buffer over HTC */
@@ -271,11 +271,11 @@ static void bt_cleanup_hci_pal(ar6k_hci_pal_info_t *pHciPalInfo)
  *********************************************************/
 static int bt_setup_hci_pal(ar6k_hci_pal_info_t *pHciPalInfo)
 {
-	int status = A_OK;
+	int status = 0;
 	struct hci_dev *pHciDev = NULL;
 
 	if (!setupbtdev) {
-		return A_OK;    
+		return 0;
 	} 
 
 	do {
@@ -404,7 +404,7 @@ bool ar6k_pal_recv_pkt(void *pHciPal, void *osbuf)
  **********************************************************/
 int ar6k_setup_hci_pal(void *ar_p)
 {
-	int status = A_OK;
+	int status = 0;
 	ar6k_hci_pal_info_t *pHciPalInfo;
 	ar6k_pal_config_t ar6k_pal_config;
 	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar_p;
@@ -445,7 +445,7 @@ int ar6k_setup_hci_pal(void *ar_p)
 #else  /* AR6K_ENABLE_HCI_PAL */
 int ar6k_setup_hci_pal(void *ar_p)
 {
-	return A_OK;
+	return 0;
 }
 void ar6k_cleanup_hci_pal(void *ar_p)
 {
@@ -465,7 +465,7 @@ static int __init pal_init_module(void)
 	hciTransCallbacks.setupTransport = ar6k_setup_hci_pal;
 	hciTransCallbacks.cleanupTransport = ar6k_cleanup_hci_pal;
 
-	if(ar6k_register_hci_pal(&hciTransCallbacks) != A_OK)
+	if(ar6k_register_hci_pal(&hciTransCallbacks) != 0)
 		return -ENODEV;
 
 	return 0;

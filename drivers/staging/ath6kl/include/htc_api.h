@@ -341,7 +341,7 @@ int    HTCStart(HTC_HANDLE HTCHandle);
   @input:  HTCHandle - HTC handle
            pPacket - HTC receive packet to add
   @output:
-  @return: A_OK on success
+  @return: 0 on success
   @notes:  user must supply HTC packets for capturing incomming HTC frames.  The caller
            must initialize each HTC packet using the SET_HTC_PACKET_INFO_RX_REFILL()
            macro.
@@ -370,7 +370,7 @@ int    HTCConnectService(HTC_HANDLE HTCHandle,
   @input:  HTCHandle - HTC handle
            pPacket - packet to send
   @output:
-  @return: A_OK
+  @return: 0
   @notes:  Caller must initialize packet using SET_HTC_PACKET_INFO_TX() macro.
            This interface is fully asynchronous.  On error, HTC SendPkt will
            call the registered Endpoint callback to cleanup the packet.
@@ -499,7 +499,7 @@ void HTCUnblockRecv(HTC_HANDLE HTCHandle);
   @input:  HTCHandle - HTC handle
            pPktQueue - local queue holding packets to send
   @output:
-  @return: A_OK
+  @return: 0
   @notes:  Caller must initialize each packet using SET_HTC_PACKET_INFO_TX() macro.
            The queue must only contain packets directed at the same endpoint.
            Caller supplies a pointer to an HTC_PACKET_QUEUE structure holding the TX packets in FIFO order.
@@ -519,7 +519,7 @@ int    HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue);
   @input:  HTCHandle - HTC handle
            pPktQueue - HTC receive packet queue holding packets to add
   @output:
-  @return: A_OK on success
+  @return: 0 on success
   @notes:  user must supply HTC packets for capturing incomming HTC frames.  The caller
            must initialize each HTC packet using the SET_HTC_PACKET_INFO_RX_REFILL()
            macro. The queue must only contain recv packets for the same endpoint.

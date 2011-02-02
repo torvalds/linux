@@ -294,7 +294,7 @@ static int ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
         address = TARG_VTOP(pHcidevInfo->ar->arTargetType, 
                             HOST_INTEREST_ITEM_ADDRESS(pHcidevInfo->ar, hi_hci_uart_pwr_mgmt_params));
         status = ar6000_ReadRegDiag(pHcidevInfo->ar->arHifDevice, &address, &hci_uart_pwr_mgmt_params);
-        if (A_OK == status) {
+        if (0 == status) {
             ar3kconfig.PwrMgmtEnabled = (hci_uart_pwr_mgmt_params & 0x1);
             ar3kconfig.IdleTimeout = (hci_uart_pwr_mgmt_params & 0xFFFF0000) >> 16;
             ar3kconfig.WakeupTimeout = (hci_uart_pwr_mgmt_params & 0xFF00) >> 8;
@@ -470,7 +470,7 @@ int ar6000_setup_hci(AR_SOFTC_T *ar)
 #endif
 {
     HCI_TRANSPORT_CONFIG_INFO config;
-    int                  status = A_OK;
+    int                  status = 0;
     int                       i;
     HTC_PACKET                *pPacket;
     AR6K_HCI_BRIDGE_INFO      *pHcidevInfo;
@@ -551,7 +551,7 @@ int ar6000_setup_hci(AR_SOFTC_T *ar)
             if (NULL == pHcidevInfo->pHCIDev) {
                 /* GMBOX may not be present in older chips */
                 /* just return success */ 
-                status = A_OK;
+                status = 0;
             }
         }
         ar6000_cleanup_hci(ar);    
@@ -601,7 +601,7 @@ int hci_test_send(void *ar, struct sk_buff *skb)
 int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb)
 #endif
 {
-    int              status = A_OK;
+    int              status = 0;
     int              length;
     EPPING_HEADER    *pHeader;
     HTC_PACKET       *pPacket;   
@@ -712,7 +712,7 @@ static int bt_send_frame(struct sk_buff *skb)
     HCI_TRANSPORT_PACKET_TYPE  type;
     AR6K_HCI_BRIDGE_INFO       *pHcidevInfo;
     HTC_PACKET                 *pPacket;
-    int                   status = A_OK;
+    int                   status = 0;
     struct sk_buff             *txSkb = NULL;
     
     if (!hdev) {
@@ -855,12 +855,12 @@ static void bt_destruct(struct hci_dev *hdev)
 
 static int bt_setup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
 {
-    int                    status = A_OK;
+    int                    status = 0;
     struct hci_dev              *pHciDev = NULL;
     HIF_DEVICE_OS_DEVICE_INFO   osDevInfo;
     
     if (!setupbtdev) {
-        return A_OK;    
+        return 0;
     } 
         
     do {
@@ -938,7 +938,7 @@ static void bt_cleanup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
 static int bt_register_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
 {
     int       err;
-    int  status = A_OK;
+    int  status = 0;
     
     do {          
         AR_DEBUG_PRINTF(ATH_DEBUG_HCI_BRIDGE, ("HCI Bridge: registering HCI... \n"));
@@ -1043,7 +1043,7 @@ static void bt_free_buffer(AR6K_HCI_BRIDGE_INFO *pHcidevInfo, struct sk_buff *sk
     /* stubs when we only want to test the HCI bridging Interface without the HT stack */
 static int bt_setup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
 {
-    return A_OK;    
+    return 0;
 }
 static void bt_cleanup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
 {   
@@ -1085,7 +1085,7 @@ int ar6000_setup_hci(void *ar)
 int ar6000_setup_hci(AR_SOFTC_T *ar)
 #endif
 {
-    return A_OK;   
+    return 0;
 }
 
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE

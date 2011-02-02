@@ -196,5 +196,5 @@ wlan_parse_beacon(u8 *buf, int framelen, struct ieee80211_common_ie *cie)
     IEEE80211_VERIFY_ELEMENT(cie->ie_rates, IEEE80211_RATE_MAXSIZE);
     IEEE80211_VERIFY_ELEMENT(cie->ie_ssid, IEEE80211_NWID_LEN);
 
-    return A_OK;
+    return 0;
 }

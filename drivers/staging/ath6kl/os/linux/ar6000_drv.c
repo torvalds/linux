@@ -410,19 +410,19 @@ ar6000_set_host_app_area(AR_SOFTC_T *ar)
 
     /* Fetch the address of the host_app_area_s instance in the host interest area */
     address = TARG_VTOP(ar->arTargetType, HOST_INTEREST_ITEM_ADDRESS(ar, hi_app_host_interest));
-    if (ar6000_ReadRegDiag(ar->arHifDevice, &address, &data) != A_OK) {
+    if (ar6000_ReadRegDiag(ar->arHifDevice, &address, &data) != 0) {
         return A_ERROR;
     }
     address = TARG_VTOP(ar->arTargetType, data);
     host_app_area.wmi_protocol_ver = WMI_PROTOCOL_VERSION;
     if (ar6000_WriteDataDiag(ar->arHifDevice, address,
                              (A_UCHAR *)&host_app_area,
-                             sizeof(struct host_app_area_s)) != A_OK)
+                             sizeof(struct host_app_area_s)) != 0)
     {
         return A_ERROR;
     }
 
-    return A_OK;
+    return 0;
 }
 
 u32 dbglog_get_debug_hdr_ptr(AR_SOFTC_T *ar)
@@ -433,7 +433,7 @@ u32 dbglog_get_debug_hdr_ptr(AR_SOFTC_T *ar)
 
     address = TARG_VTOP(ar->arTargetType, HOST_INTEREST_ITEM_ADDRESS(ar, hi_dbglog_hdr));
     if ((status = ar6000_ReadDataDiag(ar->arHifDevice, address,
-                                      (A_UCHAR *)&param, 4)) != A_OK)
+                                      (A_UCHAR *)&param, 4)) != 0)
     {
         param = 0;
     }
@@ -566,7 +566,7 @@ ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
                 if (ar->log_cnt > (DBGLOG_HOST_LOG_BUFFER_SIZE - length)) {
                     ar->log_cnt = 0;
                 }
-                if(A_OK != ar6000_ReadDataDiag(ar->arHifDevice, address,
+                if(0 != ar6000_ReadDataDiag(ar->arHifDevice, address,
                                     (A_UCHAR *)&ar->log_buffer[ar->log_cnt], length))
                 {
                     break;
@@ -581,7 +581,7 @@ ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
             address = TARG_VTOP(ar->arTargetType, data[0] /* next */);
             length = 4 /* sizeof(next) */ + 4 /* sizeof(buffer) */ + 4 /* sizeof(bufsize) */ + 4 /* sizeof(length) */ + 4 /* sizeof(count) */ + 4 /* sizeof(free) */;
             A_MEMZERO(data, sizeof(data));
-            if(A_OK != ar6000_ReadDataDiag(ar->arHifDevice, address,
+            if(0 != ar6000_ReadDataDiag(ar->arHifDevice, address,
                                 (A_UCHAR *)&data, length))
             {
                 break;
@@ -592,7 +592,7 @@ ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
 
     ar->dbgLogFetchInProgress = false;
 
-    return A_OK;
+    return 0;
 }
 
 void
@@ -759,7 +759,7 @@ aptcTimerHandler(unsigned long arg)
         AR6000_SPIN_UNLOCK(&ar->arLock, 0);
         status = wmi_powermode_cmd(ar->arWmi, REC_POWER);
         AR6000_SPIN_LOCK(&ar->arLock, 0);
-        A_ASSERT(status == A_OK);
+        A_ASSERT(status == 0);
         aptcTR.timerScheduled = false;
     } else {
         A_TIMEOUT_MS(&aptcTimer, APTC_TRAFFIC_SAMPLING_INTERVAL, 0);
@@ -816,7 +816,7 @@ ar6000_sysfs_bmi_read(struct file *fp, struct kobject *kobj,
 
     if (index == MAX_AR6000) return 0;
 
-    if ((BMIRawRead(ar->arHifDevice, (A_UCHAR*)buf, count, true)) != A_OK) {
+    if ((BMIRawRead(ar->arHifDevice, (A_UCHAR*)buf, count, true)) != 0) {
         return 0;
     }
 
@@ -843,7 +843,7 @@ ar6000_sysfs_bmi_write(struct file *fp, struct kobject *kobj,
 
     if (index == MAX_AR6000) return 0;
 
-    if ((BMIRawWrite(ar->arHifDevice, (A_UCHAR*)buf, count)) != A_OK) {
+    if ((BMIRawWrite(ar->arHifDevice, (A_UCHAR*)buf, count)) != 0) {
         return 0;
     }
 
@@ -876,7 +876,7 @@ ar6000_sysfs_bmi_init(AR_SOFTC_T *ar)
         return A_ERROR;
     }
 
-    return A_OK;
+    return 0;
 }
 
 static void
@@ -888,7 +888,7 @@ ar6000_sysfs_bmi_deinit(AR_SOFTC_T *ar)
 }
 
 #define bmifn(fn) do { \
-    if ((fn) < A_OK) { \
+    if ((fn) < 0) { \
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMI operation failed: %d\n", __LINE__)); \
         return A_ERROR; \
     } \
@@ -1151,7 +1151,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, u32 address, bool c
         return A_ERROR;
     }
     A_RELEASE_FIRMWARE(fw_entry);
-    return A_OK;
+    return 0;
 }
 #endif /* INIT_MODE_DRV_ENABLED */
 
@@ -1163,13 +1163,13 @@ ar6000_update_bdaddr(AR_SOFTC_T *ar)
             u32 address;
 
            if (BMIReadMemory(ar->arHifDevice,
-           	HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_data), (A_UCHAR *)&address, 4) != A_OK)
+		HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_data), (A_UCHAR *)&address, 4) != 0)
            {
     	      	AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIReadMemory for hi_board_data failed\n"));
            	return A_ERROR;
            }
 
-           if (BMIReadMemory(ar->arHifDevice, address + BDATA_BDADDR_OFFSET, (A_UCHAR *)ar->bdaddr, 6) != A_OK)
+           if (BMIReadMemory(ar->arHifDevice, address + BDATA_BDADDR_OFFSET, (A_UCHAR *)ar->bdaddr, 6) != 0)
            {
     	    	AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIReadMemory for BD address failed\n"));
            	return A_ERROR;
@@ -1179,7 +1179,7 @@ ar6000_update_bdaddr(AR_SOFTC_T *ar)
 								ar->bdaddr[4], ar->bdaddr[5]));
         }
 
-return A_OK;
+return 0;
 }
 
 int
@@ -1284,7 +1284,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
             AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("Board Data download address: 0x%x\n", address));
 
             /* Write EEPROM data to Target RAM */
-            if ((ar6000_transfer_bin_file(ar, AR6K_BOARD_DATA_FILE, address, false)) != A_OK) {
+            if ((ar6000_transfer_bin_file(ar, AR6K_BOARD_DATA_FILE, address, false)) != 0) {
                 return A_ERROR;
             }
 
@@ -1295,7 +1295,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
             /* Transfer One time Programmable data */
             AR6K_DATA_DOWNLOAD_ADDRESS(address, ar->arVersion.target_ver);
             status = ar6000_transfer_bin_file(ar, AR6K_OTP_FILE, address, true);
-            if (status == A_OK) {
+            if (status == 0) {
                 /* Execute the OTP code */
                 param = 0;
                 AR6K_APP_START_OVERRIDE_ADDRESS(address, ar->arVersion.target_ver);
@@ -1310,7 +1310,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
 
         /* Download Target firmware */
         AR6K_DATA_DOWNLOAD_ADDRESS(address, ar->arVersion.target_ver);
-        if ((ar6000_transfer_bin_file(ar, AR6K_FIRMWARE_FILE, address, true)) != A_OK) {
+        if ((ar6000_transfer_bin_file(ar, AR6K_FIRMWARE_FILE, address, true)) != 0) {
             return A_ERROR;
         }
 
@@ -1320,7 +1320,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
 
         /* Apply the patches */
         AR6K_PATCH_DOWNLOAD_ADDRESS(address, ar->arVersion.target_ver);
-        if ((ar6000_transfer_bin_file(ar, AR6K_PATCH_FILE, address, false)) != A_OK) {
+        if ((ar6000_transfer_bin_file(ar, AR6K_PATCH_FILE, address, false)) != 0) {
             return A_ERROR;
         }
 
@@ -1394,7 +1394,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
 #endif /* INIT_MODE_DRV_ENABLED */
     }
 
-    return A_OK;
+    return 0;
 }
 
 int
@@ -1406,7 +1406,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
         if (BMIWriteMemory(ar->arHifDevice,
                            HOST_INTEREST_ITEM_ADDRESS(ar, hi_serial_enable),
                            (A_UCHAR *)&param,
-                           4)!= A_OK)
+                           4)!= 0)
         {
              AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for enableuartprint failed \n"));
              return A_ERROR;
@@ -1419,7 +1419,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
     if (BMIWriteMemory(ar->arHifDevice,
                        HOST_INTEREST_ITEM_ADDRESS(ar, hi_app_host_interest),
                        (A_UCHAR *)&param,
-                       4)!= A_OK)
+                       4)!= 0)
     {
          AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for htc version failed \n"));
          return A_ERROR;
@@ -1438,7 +1438,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
         if (BMIReadMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
             (A_UCHAR *)&param,
-            4)!= A_OK)
+            4)!= 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIReadMemory for enabletimerwar failed \n"));
             return A_ERROR;
@@ -1449,7 +1449,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
         if (BMIWriteMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
             (A_UCHAR *)&param,
-            4) != A_OK)
+            4) != 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for enabletimerwar failed \n"));
             return A_ERROR;
@@ -1464,7 +1464,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
         if (BMIReadMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
             (A_UCHAR *)&param,
-            4)!= A_OK)
+            4)!= 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIReadMemory for setting fwmode failed \n"));
             return A_ERROR;
@@ -1475,7 +1475,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
         if (BMIWriteMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
             (A_UCHAR *)&param,
-            4) != A_OK)
+            4) != 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for setting fwmode failed \n"));
             return A_ERROR;
@@ -1490,7 +1490,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
         if (BMIReadMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
             (A_UCHAR *)&param,
-            4)!= A_OK)
+            4)!= 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIReadMemory for disabling debug logs failed\n"));
             return A_ERROR;
@@ -1501,7 +1501,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
         if (BMIWriteMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
             (A_UCHAR *)&param,
-            4) != A_OK)
+            4) != 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for HI_OPTION_DISABLE_DBGLOG\n"));
             return A_ERROR;
@@ -1523,7 +1523,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
         if (BMIWriteMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_ext_data),
             (A_UCHAR *)&param,
-            4) != A_OK)
+            4) != 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for hi_board_ext_data failed \n"));
             return A_ERROR;
@@ -1547,7 +1547,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
             return A_ERROR;
         }
     }
-    return A_OK;
+    return 0;
 }
 
 static void
@@ -1603,7 +1603,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
 #ifdef ATH6K_CONFIG_CFG80211
     struct wireless_dev *wdev;
 #endif /* ATH6K_CONFIG_CFG80211 */
-    int init_status = A_OK;
+    int init_status = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("ar6000_available\n"));
 
@@ -1722,7 +1722,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
     {
         struct bmi_target_info targ_info;
 
-        if (BMIGetTargetInfo(ar->arHifDevice, &targ_info) != A_OK) {
+        if (BMIGetTargetInfo(ar->arHifDevice, &targ_info) != 0) {
             init_status = A_ERROR;
             goto avail_ev_failed;
         }
@@ -1733,14 +1733,14 @@ ar6000_avail_ev(void *context, void *hif_handle)
             /* do any target-specific preparation that can be done through BMI */
         if (ar6000_prepare_target(ar->arHifDevice,
                                   targ_info.target_type,
-                                  targ_info.target_ver) != A_OK) {
+                                  targ_info.target_ver) != 0) {
             init_status = A_ERROR;
             goto avail_ev_failed;
         }
 
     }
 
-    if (ar6000_configure_target(ar) != A_OK) {
+    if (ar6000_configure_target(ar) != 0) {
             init_status = A_ERROR;
             goto avail_ev_failed;
     }
@@ -1795,9 +1795,9 @@ ar6000_avail_ev(void *context, void *hif_handle)
         if ((wlaninitmode == WLAN_INIT_MODE_UDEV) ||
             (wlaninitmode == WLAN_INIT_MODE_DRV))
         {
-            int status = A_OK;
+            int status = 0;
             do {
-                if ((status = ar6000_sysfs_bmi_get_config(ar, wlaninitmode)) != A_OK)
+                if ((status = ar6000_sysfs_bmi_get_config(ar, wlaninitmode)) != 0)
                 {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_avail: ar6000_sysfs_bmi_get_config failed\n"));
                     break;
@@ -1806,7 +1806,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
                 break; /* Don't call ar6000_init for ART */
 #endif 
                 rtnl_lock();
-                status = (ar6000_init(dev)==0) ? A_OK : A_ERROR;
+                status = (ar6000_init(dev)==0) ? 0 : A_ERROR;
                 rtnl_unlock();
                 if (status) {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_avail: ar6000_init\n"));
@@ -1852,7 +1852,7 @@ static void ar6000_target_failure(void *Instance, int Status)
     WMI_TARGET_ERROR_REPORT_EVENT errEvent;
     static bool sip = false;
 
-    if (Status != A_OK) {
+    if (Status != 0) {
 
         printk(KERN_ERR "ar6000_target_failure: target asserted \n");
 
@@ -1889,26 +1889,26 @@ ar6000_unavail_ev(void *context, void *hif_handle)
     ar6000_devices[ar->arDeviceIndex] = NULL;
     ar6000_destroy(ar->arNetDev, 1);
 
-    return A_OK;
+    return 0;
 }
 
 void
 ar6000_restart_endpoint(struct net_device *dev)
 {
-    int status = A_OK;
+    int status = 0;
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
     BMIInit();
     do {
-        if ( (status=ar6000_configure_target(ar))!=A_OK)
+        if ( (status=ar6000_configure_target(ar))!= 0)
             break;
-        if ( (status=ar6000_sysfs_bmi_get_config(ar, wlaninitmode)) != A_OK)
+        if ( (status=ar6000_sysfs_bmi_get_config(ar, wlaninitmode)) != 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_avail: ar6000_sysfs_bmi_get_config failed\n"));
             break;
         }
         rtnl_lock();
-        status = (ar6000_init(dev)==0) ? A_OK : A_ERROR;
+        status = (ar6000_init(dev)==0) ? 0 : A_ERROR;
         rtnl_unlock();
 
         if (status) {
@@ -1919,7 +1919,7 @@ ar6000_restart_endpoint(struct net_device *dev)
         }  
     } while (0);
 
-    if (status==A_OK) {
+    if (status== 0) {
         return;
     }
 
@@ -2016,7 +2016,7 @@ ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs)
             A_MEMZERO(&ar3kconfig,sizeof(ar3kconfig));
             ar6000_set_default_ar3kconfig(ar, (void *)&ar3kconfig);
             status = ar->exitCallback(&ar3kconfig);
-            if (A_OK != status) {
+            if (0 != status) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Failed to reset AR3K baud rate! \n"));
             }
         }
@@ -2196,7 +2196,7 @@ static void ar6000_detect_error(unsigned long ptr)
     AR6000_SPIN_UNLOCK(&ar->arLock, 0);
 
     /* Send the challenge on the control channel */
-    if (wmi_get_challenge_resp_cmd(ar->arWmi, ar->arHBChallengeResp.seqNum, DRV_HB_CHALLENGE) != A_OK) {
+    if (wmi_get_challenge_resp_cmd(ar->arWmi, ar->arHBChallengeResp.seqNum, DRV_HB_CHALLENGE) != 0) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to send heart beat challenge\n"));
     }
 
@@ -2329,7 +2329,7 @@ ar6000_close(struct net_device *dev)
 
     if(ar->arWmiReady == true) {
         if (wmi_scanparams_cmd(ar->arWmi, 0xFFFF, 0,
-                               0, 0, 0, 0, 0, 0, 0, 0) != A_OK) {
+                               0, 0, 0, 0, 0, 0, 0, 0) != 0) {
             return -EIO;
         }
         ar->arWlanState = WLAN_DISABLED;
@@ -2460,7 +2460,7 @@ int ar6000_init(struct net_device *dev)
 
     /* Do we need to finish the BMI phase */
     if ((wlaninitmode == WLAN_INIT_MODE_USR || wlaninitmode == WLAN_INIT_MODE_DRV) && 
-        (BMIDone(ar->arHifDevice) != A_OK))
+        (BMIDone(ar->arHifDevice) != 0))
     {
         ret = -EIO;
         goto ar6000_init_done;
@@ -2700,14 +2700,14 @@ int ar6000_init(struct net_device *dev)
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("%s() WMI is ready\n", __func__));
 
         /* Communicate the wmi protocol verision to the target */
-        if ((ar6000_set_host_app_area(ar)) != A_OK) {
+        if ((ar6000_set_host_app_area(ar)) != 0) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set the host app area\n"));
         }
 
         /* configure the device for rx dot11 header rules 0,0 are the default values
          * therefore this command can be skipped if the inputs are 0,false,false.Required
          if checksum offload is needed. Set RxMetaVersion to 2*/
-        if ((wmi_set_rx_frame_format_cmd(ar->arWmi,ar->rxMetaVersion, processDot11Hdr, processDot11Hdr)) != A_OK) {
+        if ((wmi_set_rx_frame_format_cmd(ar->arWmi,ar->rxMetaVersion, processDot11Hdr, processDot11Hdr)) != 0) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set the rx frame format.\n"));
         }
 
@@ -2724,7 +2724,7 @@ int ar6000_init(struct net_device *dev)
 #error Unsupported Bluetooth Type
 #endif /* Collocated Bluetooth Type */
 
-        if ((wmi_set_btcoex_colocated_bt_dev_cmd(ar->arWmi, &sbcb_cmd)) != A_OK)
+        if ((wmi_set_btcoex_colocated_bt_dev_cmd(ar->arWmi, &sbcb_cmd)) != 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set collocated BT type\n"));
         }
@@ -2739,7 +2739,7 @@ int ar6000_init(struct net_device *dev)
 #error Unsupported Front-End Antenna Configuration
 #endif /* AR600x Front-End Antenna Configuration */
 
-        if ((wmi_set_btcoex_fe_ant_cmd(ar->arWmi, &sbfa_cmd)) != A_OK) {
+        if ((wmi_set_btcoex_fe_ant_cmd(ar->arWmi, &sbfa_cmd)) != 0) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set fornt end antenna configuration\n"));
         }
 #endif /* INIT_MODE_DRV_ENABLED && ENABLE_COEXISTENCE */
@@ -3049,12 +3049,12 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
             }
 
             if (dot11Hdr) {
-                if (wmi_dot11_hdr_add(ar->arWmi,skb,ar->arNetworkType) != A_OK) {
+                if (wmi_dot11_hdr_add(ar->arWmi,skb,ar->arNetworkType) != 0) {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_data_tx-wmi_dot11_hdr_add failed\n"));
                     break;
                 }
             } else {
-                if (wmi_dix_2_dot3(ar->arWmi, skb) != A_OK) {
+                if (wmi_dix_2_dot3(ar->arWmi, skb) != 0) {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_data_tx - wmi_dix_2_dot3 failed\n"));
                     break;
                 }
@@ -3066,7 +3066,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
                 metaV2.csumDest = csumDest;
                 metaV2.csumFlags = 0x1;/*instruct target to calculate checksum*/
                 if (wmi_data_hdr_add(ar->arWmi, skb, DATA_MSGTYPE, bMoreData, dot11Hdr,
-                                        WMI_META_VERSION_2,&metaV2) != A_OK) {
+                                        WMI_META_VERSION_2,&metaV2) != 0) {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_data_tx - wmi_data_hdr_add failed\n"));
                     break;
                 }
@@ -3075,7 +3075,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
             else
 #endif
             {
-                if (wmi_data_hdr_add(ar->arWmi, skb, DATA_MSGTYPE, bMoreData, dot11Hdr,0,NULL) != A_OK) {
+                if (wmi_data_hdr_add(ar->arWmi, skb, DATA_MSGTYPE, bMoreData, dot11Hdr,0,NULL) != 0) {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_data_tx - wmi_data_hdr_add failed\n"));
                     break;
                 }
@@ -3781,7 +3781,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
                             break;
                     }
 
-                    A_ASSERT(status == A_OK);
+                    A_ASSERT(status == 0);
 
                     /* NWF: print the 802.11 hdr bytes */
                     if(containsDot11Hdr) {
@@ -4130,7 +4130,7 @@ ar6000_get_iwstats(struct net_device * dev)
     
         ar->statsUpdatePending = true;
     
-        if(wmi_get_stats_cmd(ar->arWmi) != A_OK) {
+        if(wmi_get_stats_cmd(ar->arWmi) != 0) {
             break;
         }
     
@@ -4757,7 +4757,7 @@ ar6000_hci_event_rcv_evt(struct ar6_softc *ar, WMI_HCI_EVENT *cmd)
     void *osbuf = NULL;
     s8 i;
     u8 size, *buf;
-    int ret = A_OK;
+    int ret = 0;
 
     size = cmd->evt_buf_sz + 4;
     osbuf = A_NETBUF_ALLOC(size);
@@ -4893,7 +4893,7 @@ ar6000_scanComplete_event(AR_SOFTC_T *ar, int status)
         wmi_bssfilter_cmd(ar->arWmi, NONE_BSS_FILTER, 0);
     }
     if (ar->scan_triggered) {
-        if (status==A_OK) {
+        if (status== 0) {
             union iwreq_data wrqu;
             A_MEMZERO(&wrqu, sizeof(wrqu));
             wireless_send_event(ar->arNetDev, SIOCGIWSCAN, &wrqu, NULL);
@@ -5266,7 +5266,7 @@ int
 ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid)
 {
     AR_SOFTC_T       *ar = (AR_SOFTC_T *)devt;
-    int         status = A_OK;
+    int         status = 0;
     struct ar_cookie *cookie = NULL;
     int i;
 #ifdef CONFIG_PM
@@ -5332,7 +5332,7 @@ ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid)
             /* this interface is asynchronous, if there is an error, cleanup will happen in the
              * TX completion callback */
         HTCSendPkt(ar->arHtcTarget, &cookie->HtcPkt);
-        status = A_OK;
+        status = 0;
     }
 
     if (status) {
@@ -5952,7 +5952,7 @@ static int
 
 ar6000_reinstall_keys(AR_SOFTC_T *ar, u8 key_op_ctrl)
 {
-    int status = A_OK;
+    int status = 0;
     struct ieee80211req_key *uik = &ar->user_saved_keys.ucast_ik;
     struct ieee80211req_key *bik = &ar->user_saved_keys.bcast_ik;
     CRYPTO_TYPE  keyType = ar->user_saved_keys.keyType;
@@ -6108,7 +6108,7 @@ ar6000_connect_to_ap(struct ar6_softc *ar)
         }
 
         if (!ar->arUserBssFilter) {
-            if (wmi_bssfilter_cmd(ar->arWmi, ALL_BSS_FILTER, 0) != A_OK) {
+            if (wmi_bssfilter_cmd(ar->arWmi, ALL_BSS_FILTER, 0) != 0) {
                 return -EIO;
             }
         }
@@ -6184,12 +6184,12 @@ is_iwioctl_allowed(u8 mode, u16 cmd)
 {
     if(cmd >= SIOCSIWCOMMIT && cmd <= SIOCGIWPOWER) {
         cmd -= SIOCSIWCOMMIT;
-        if(sioctl_filter[cmd] == 0xFF) return A_OK;
-        if(sioctl_filter[cmd] & mode) return A_OK;
+        if(sioctl_filter[cmd] == 0xFF) return 0;
+        if(sioctl_filter[cmd] & mode) return 0;
     } else if(cmd >= SIOCIWFIRSTPRIV && cmd <= (SIOCIWFIRSTPRIV+30)) {
         cmd -= SIOCIWFIRSTPRIV;
-        if(pioctl_filter[cmd] == 0xFF) return A_OK;
-        if(pioctl_filter[cmd] & mode) return A_OK;
+        if(pioctl_filter[cmd] == 0xFF) return 0;
+        if(pioctl_filter[cmd] & mode) return 0;
     } else {
         return A_ERROR;
     }
@@ -6203,8 +6203,8 @@ is_xioctl_allowed(u8 mode, int cmd)
         A_PRINTF("Filter for this cmd=%d not defined\n",cmd);
         return 0;
     }
-    if(xioctl_filter[cmd] == 0xFF) return A_OK;
-    if(xioctl_filter[cmd] & mode) return A_OK;
+    if(xioctl_filter[cmd] == 0xFF) return 0;
+    if(xioctl_filter[cmd] & mode) return 0;
     return A_ERROR;
 }
 
@@ -6230,7 +6230,7 @@ ap_set_wapi_key(struct ar6_softc *ar, void *ikey)
                             ik->ik_keydata, KEY_OP_INIT_VAL, ik->ik_macaddr,
                             SYNC_BOTH_WMIFLAG);
 
-    if (A_OK != status) {
+    if (0 != status) {
         return -EIO;
     }
     return 0;
@@ -6343,7 +6343,7 @@ int ar6000_start_ap_interface(AR_SOFTC_T *ar)
     arApDev = (AR_VIRTUAL_INTERFACE_T *)ar->arApDev;
     ar->arNetDev = arApDev->arNetDev;
 
-    return A_OK;
+    return 0;
 }
 
 int ar6000_stop_ap_interface(AR_SOFTC_T *ar)
@@ -6356,7 +6356,7 @@ int ar6000_stop_ap_interface(AR_SOFTC_T *ar)
         ar->arNetDev = arApDev->arStaNetDev;
     }
 
-    return A_OK;
+    return 0;
 }
 
 
@@ -6390,7 +6390,7 @@ int ar6000_create_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
     /* Copy the MAC address */
     A_MEMCPY(dev->dev_addr, ar->arNetDev->dev_addr, AR6000_ETH_ADDR_LEN);
 
-    return A_OK;
+    return 0;
 }
 
 int ar6000_add_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
@@ -6398,10 +6398,10 @@ int ar6000_add_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
     /* Interface already added, need not proceed further */
     if (ar->arApDev != NULL) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_add_ap_interface: interface already present \n"));
-        return A_OK;
+        return 0;
     }
 
-    if (ar6000_create_ap_interface(ar, ap_ifname) != A_OK) {
+    if (ar6000_create_ap_interface(ar, ap_ifname) != 0) {
         return A_ERROR;
     }
 
@@ -6424,7 +6424,7 @@ int ar6000_remove_ap_interface(AR_SOFTC_T *ar)
     arApNetDev = NULL;
 
     
-    return A_OK;
+    return 0;
 }
 #endif /* CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT */
 

@@ -153,7 +153,7 @@ ar6k_set_wpa_version(AR_SOFTC_T *ar, enum nl80211_wpa_versions wpa_version)
         return -ENOTSUPP;
     }
 
-    return A_OK;
+    return 0;
 }
 
 static int
@@ -179,7 +179,7 @@ ar6k_set_auth_type(AR_SOFTC_T *ar, enum nl80211_auth_type auth_type)
         return -ENOTSUPP;
     }
 
-    return A_OK;
+    return 0;
 }
 
 static int
@@ -221,7 +221,7 @@ ar6k_set_cipher(AR_SOFTC_T *ar, u32 cipher, bool ucast)
         return -ENOTSUPP;
     }
 
-    return A_OK;
+    return 0;
 }
 
 static void
@@ -378,7 +378,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
     }
 
     if (!ar->arUserBssFilter) {
-        if (wmi_bssfilter_cmd(ar->arWmi, ALL_BSS_FILTER, 0) != A_OK) {
+        if (wmi_bssfilter_cmd(ar->arWmi, ALL_BSS_FILTER, 0) != 0) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Couldn't set bss filtering\n", __func__));
             up(&ar->arSem);
             return -EIO;
@@ -743,7 +743,7 @@ ar6k_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
     if (!ar->arUserBssFilter) {
         if (wmi_bssfilter_cmd(ar->arWmi,
                              (ar->arConnected ? ALL_BUT_BSS_FILTER : ALL_BSS_FILTER),
-                             0) != A_OK) {
+                             0) != 0) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Couldn't set bss filtering\n", __func__));
             return -EIO;
         }
@@ -769,7 +769,7 @@ ar6k_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
     }
 
     if(wmi_startscan_cmd(ar->arWmi, WMI_LONG_SCAN, forceFgScan, false, \
-                         0, 0, 0, NULL) != A_OK) {
+                         0, 0, 0, NULL) != 0) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: wmi_startscan_cmd failed\n", __func__));
         ret = -EIO;
     }
@@ -982,7 +982,7 @@ ar6k_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *ndev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);
     struct ar_key *key = NULL;
-    int status = A_OK;
+    int status = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: index %d\n", __func__, key_index));
 
@@ -1073,7 +1073,7 @@ ar6k_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
     }
 
     if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
-        if (wmi_set_rts_cmd(ar->arWmi,wiphy->rts_threshold) != A_OK){
+        if (wmi_set_rts_cmd(ar->arWmi,wiphy->rts_threshold) != 0){
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: wmi_set_rts_cmd failed\n", __func__));
             return -EIO;
         }
@@ -1148,7 +1148,7 @@ ar6k_cfg80211_get_txpower(struct wiphy *wiphy, int *dbm)
     if((ar->arConnected == true)) {
         ar->arTxPwr = 0;
 
-        if(wmi_get_txPwr_cmd(ar->arWmi) != A_OK) {
+        if(wmi_get_txPwr_cmd(ar->arWmi) != 0) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: wmi_get_txPwr_cmd failed\n", __func__));
             return -EIO;
         }
@@ -1193,7 +1193,7 @@ ar6k_cfg80211_set_power_mgmt(struct wiphy *wiphy,
         pwrMode.powerMode = REC_POWER;
     }
 
-    if(wmi_powermode_cmd(ar->arWmi, pwrMode.powerMode) != A_OK) {
+    if(wmi_powermode_cmd(ar->arWmi, pwrMode.powerMode) != 0) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: wmi_powermode_cmd failed\n", __func__));
         return -EIO;
     }

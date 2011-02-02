@@ -45,7 +45,7 @@ ar6000_ioctl_get_roam_tbl(struct net_device *dev, struct ifreq *rq)
         return -EIO;
     }
 
-    if(wmi_get_roam_tbl_cmd(ar->arWmi) != A_OK) {
+    if(wmi_get_roam_tbl_cmd(ar->arWmi) != 0) {
         return -EIO;
     }
 
@@ -63,7 +63,7 @@ ar6000_ioctl_get_roam_data(struct net_device *dev, struct ifreq *rq)
 
 
     /* currently assume only roam times are required */
-    if(wmi_get_roam_data_cmd(ar->arWmi, ROAM_DATA_TIME) != A_OK) {
+    if(wmi_get_roam_data_cmd(ar->arWmi, ROAM_DATA_TIME) != 0) {
         return -EIO;
     }
 
@@ -97,7 +97,7 @@ ar6000_ioctl_set_roam_ctrl(struct net_device *dev, char *userdata)
         return -EFAULT;
     }
 
-    if(wmi_set_roam_ctrl_cmd(ar->arWmi, &cmd, size) != A_OK) {
+    if(wmi_set_roam_ctrl_cmd(ar->arWmi, &cmd, size) != 0) {
         return -EIO;
     }
 
@@ -123,7 +123,7 @@ ar6000_ioctl_set_powersave_timers(struct net_device *dev, char *userdata)
         return -EFAULT;
     }
 
-    if(wmi_set_powersave_timers_cmd(ar->arWmi, &cmd, size) != A_OK) {
+    if(wmi_set_powersave_timers_cmd(ar->arWmi, &cmd, size) != 0) {
         return -EIO;
     }
 
@@ -153,7 +153,7 @@ ar6000_ioctl_set_qos_supp(struct net_device *dev, struct ifreq *rq)
     ret = wmi_set_qos_supp_cmd(ar->arWmi, cmd.status);
 
     switch (ret) {
-        case A_OK:
+        case 0:
             return 0;
         case A_EBUSY :
             return -EBUSY;
@@ -194,7 +194,7 @@ ar6000_ioctl_set_wmm(struct net_device *dev, struct ifreq *rq)
     ret = wmi_set_wmm_cmd(ar->arWmi, cmd.status);
 
     switch (ret) {
-        case A_OK:
+        case 0:
             return 0;
         case A_EBUSY :
             return -EBUSY;
@@ -229,7 +229,7 @@ ar6000_ioctl_set_txop(struct net_device *dev, struct ifreq *rq)
     ret = wmi_set_wmm_txop(ar->arWmi, cmd.txopEnable);
 
     switch (ret) {
-        case A_OK:
+        case 0:
             return 0;
         case A_EBUSY :
             return -EBUSY;
@@ -284,7 +284,7 @@ ar6000_ioctl_set_country(struct net_device *dev, struct ifreq *rq)
     A_MEMCPY(ar->ap_country_code, cmd.countryCode, 3);
 
     switch (ret) {
-        case A_OK:
+        case 0:
             return 0;
         case A_EBUSY :
             return -EBUSY;
@@ -361,7 +361,7 @@ ar6000_ioctl_set_channelParams(struct net_device *dev, struct ifreq *rq)
     if (!ret &&
         (wmi_set_channelParams_cmd(ar->arWmi, cmdp->scanParam, cmdp->phyMode,
                                    cmdp->numChannels, cmdp->channelList)
-         != A_OK))
+         != 0))
     {
         ret = -EIO;
     }
@@ -394,7 +394,7 @@ ar6000_ioctl_set_snr_threshold(struct net_device *dev, struct ifreq *rq)
         return -EFAULT;
     }
 
-    if( wmi_set_snr_threshold_params(ar->arWmi, &cmd) != A_OK ) {
+    if( wmi_set_snr_threshold_params(ar->arWmi, &cmd) != 0 ) {
         ret = -EIO;
     }
 
@@ -480,7 +480,7 @@ ar6000_ioctl_set_rssi_threshold(struct net_device *dev, struct ifreq *rq)
     cmd.thresholdBelow5_Val = ar->rssi_map[10].rssi;
     cmd.thresholdBelow6_Val = ar->rssi_map[11].rssi;
 
-    if( wmi_set_rssi_threshold_params(ar->arWmi, &cmd) != A_OK ) {
+    if( wmi_set_rssi_threshold_params(ar->arWmi, &cmd) != 0 ) {
         ret = -EIO;
     }
 
@@ -503,7 +503,7 @@ ar6000_ioctl_set_lq_threshold(struct net_device *dev, struct ifreq *rq)
         return -EFAULT;
     }
 
-    if( wmi_set_lq_threshold_params(ar->arWmi, &cmd) != A_OK ) {
+    if( wmi_set_lq_threshold_params(ar->arWmi, &cmd) != 0 ) {
         ret = -EIO;
     }
 
@@ -527,7 +527,7 @@ ar6000_ioctl_set_probedSsid(struct net_device *dev, struct ifreq *rq)
     }
 
     if (wmi_probedSsid_cmd(ar->arWmi, cmd.entryIndex, cmd.flag, cmd.ssidLength,
-                                  cmd.ssid) != A_OK)
+                                  cmd.ssid) != 0)
     {
         ret = -EIO;
     }
@@ -559,11 +559,11 @@ ar6000_ioctl_set_badAp(struct net_device *dev, struct ifreq *rq)
         /*
          * This is a delete badAP.
          */
-        if (wmi_deleteBadAp_cmd(ar->arWmi, cmd.badApIndex) != A_OK) {
+        if (wmi_deleteBadAp_cmd(ar->arWmi, cmd.badApIndex) != 0) {
             ret = -EIO;
         }
     } else {
-        if (wmi_addBadAp_cmd(ar->arWmi, cmd.badApIndex, cmd.bssid) != A_OK) {
+        if (wmi_addBadAp_cmd(ar->arWmi, cmd.badApIndex, cmd.bssid) != 0) {
             ret = -EIO;
         }
     }
@@ -588,11 +588,11 @@ ar6000_ioctl_create_qos(struct net_device *dev, struct ifreq *rq)
     }
 
     ret = wmi_verify_tspec_params(&cmd, tspecCompliance);
-    if (ret == A_OK)
+    if (ret == 0)
         ret = wmi_create_pstream_cmd(ar->arWmi, &cmd);
 
     switch (ret) {
-        case A_OK:
+        case 0:
             return 0;
         case A_EBUSY :
             return -EBUSY;
@@ -622,7 +622,7 @@ ar6000_ioctl_delete_qos(struct net_device *dev, struct ifreq *rq)
     ret = wmi_delete_pstream_cmd(ar->arWmi, cmd.trafficClass, cmd.tsid);
 
     switch (ret) {
-        case A_OK:
+        case 0:
             return 0;
         case A_EBUSY :
             return -EBUSY;
@@ -687,7 +687,7 @@ ar6000_ioctl_tcmd_get_rx_report(struct net_device *dev,
     }
 
     ar->tcmdRxReport = 0;
-    if (wmi_test_cmd(ar->arWmi, data, len) != A_OK) {
+    if (wmi_test_cmd(ar->arWmi, data, len) != 0) {
         up(&ar->arSem);
         return -EIO;
     }
@@ -802,7 +802,7 @@ ar6000_ioctl_get_target_stats(struct net_device *dev, struct ifreq *rq)
 
     ar->statsUpdatePending = true;
 
-    if(wmi_get_stats_cmd(ar->arWmi) != A_OK) {
+    if(wmi_get_stats_cmd(ar->arWmi) != 0) {
         up(&ar->arSem);
         return -EIO;
     }
@@ -865,7 +865,7 @@ ar6000_ioctl_get_ap_stats(struct net_device *dev, struct ifreq *rq)
 
     ar->statsUpdatePending = true;
 
-    if(wmi_get_stats_cmd(ar->arWmi) != A_OK) {
+    if(wmi_get_stats_cmd(ar->arWmi) != 0) {
         up(&ar->arSem);
         return -EIO;
     }
@@ -901,7 +901,7 @@ ar6000_ioctl_set_access_params(struct net_device *dev, struct ifreq *rq)
     }
 
     if (wmi_set_access_params_cmd(ar->arWmi, cmd.ac, cmd.txop, cmd.eCWmin, cmd.eCWmax,
-                                  cmd.aifsn) == A_OK)
+                                  cmd.aifsn) == 0)
     {
         ret = 0;
     } else {
@@ -926,7 +926,7 @@ ar6000_ioctl_set_disconnect_timeout(struct net_device *dev, struct ifreq *rq)
         return -EFAULT;
     }
 
-    if (wmi_disctimeout_cmd(ar->arWmi, cmd.disconnectTimeout) == A_OK)
+    if (wmi_disctimeout_cmd(ar->arWmi, cmd.disconnectTimeout) == 0)
     {
         ret = 0;
     } else {
@@ -951,7 +951,7 @@ ar6000_xioctl_set_voice_pkt_size(struct net_device *dev, char *userdata)
         return -EFAULT;
     }
 
-    if (wmi_set_voice_pkt_size_cmd(ar->arWmi, cmd.voicePktSize) == A_OK)
+    if (wmi_set_voice_pkt_size_cmd(ar->arWmi, cmd.voicePktSize) == 0)
     {
         ret = 0;
     } else {
@@ -977,7 +977,7 @@ ar6000_xioctl_set_max_sp_len(struct net_device *dev, char *userdata)
         return -EFAULT;
     }
 
-    if (wmi_set_max_sp_len_cmd(ar->arWmi, cmd.maxSPLen) == A_OK)
+    if (wmi_set_max_sp_len_cmd(ar->arWmi, cmd.maxSPLen) == 0)
     {
         ret = 0;
     } else {
@@ -1003,7 +1003,7 @@ ar6000_xioctl_set_bt_status_cmd(struct net_device *dev, char *userdata)
         return -EFAULT;
     }
 
-    if (wmi_set_bt_status_cmd(ar->arWmi, cmd.streamType, cmd.status) == A_OK)
+    if (wmi_set_bt_status_cmd(ar->arWmi, cmd.streamType, cmd.status) == 0)
     {
         ret = 0;
     } else {
@@ -1028,7 +1028,7 @@ ar6000_xioctl_set_bt_params_cmd(struct net_device *dev, char *userdata)
         return -EFAULT;
     }
 
-    if (wmi_set_bt_params_cmd(ar->arWmi, &cmd) == A_OK)
+    if (wmi_set_bt_params_cmd(ar->arWmi, &cmd) == 0)
     {
         ret = 0;
     } else {
@@ -1052,7 +1052,7 @@ ar6000_xioctl_set_btcoex_fe_ant_cmd(struct net_device * dev, char *userdata)
 		return -EFAULT;
 	}
 
-    if (wmi_set_btcoex_fe_ant_cmd(ar->arWmi, &cmd) == A_OK)
+    if (wmi_set_btcoex_fe_ant_cmd(ar->arWmi, &cmd) == 0)
     {
         ret = 0;
     } else {
@@ -1077,7 +1077,7 @@ ar6000_xioctl_set_btcoex_colocated_bt_dev_cmd(struct net_device * dev, char *use
 		return -EFAULT;
 	}
 
-    if (wmi_set_btcoex_colocated_bt_dev_cmd(ar->arWmi, &cmd) == A_OK)
+    if (wmi_set_btcoex_colocated_bt_dev_cmd(ar->arWmi, &cmd) == 0)
     {
         ret = 0;
     } else {
@@ -1102,7 +1102,7 @@ ar6000_xioctl_set_btcoex_btinquiry_page_config_cmd(struct net_device * dev,  cha
 		return -EFAULT;
 	}
 
-    if (wmi_set_btcoex_btinquiry_page_config_cmd(ar->arWmi, &cmd) == A_OK)
+    if (wmi_set_btcoex_btinquiry_page_config_cmd(ar->arWmi, &cmd) == 0)
     {
         ret = 0;
     } else {
@@ -1127,7 +1127,7 @@ ar6000_xioctl_set_btcoex_sco_config_cmd(struct net_device * dev, char *userdata)
 		return -EFAULT;
 	}
 
-    if (wmi_set_btcoex_sco_config_cmd(ar->arWmi, &cmd) == A_OK)
+    if (wmi_set_btcoex_sco_config_cmd(ar->arWmi, &cmd) == 0)
     {
         ret = 0;
     } else {
@@ -1153,7 +1153,7 @@ ar6000_xioctl_set_btcoex_a2dp_config_cmd(struct net_device * dev,
 		return -EFAULT;
 	}
 
-    if (wmi_set_btcoex_a2dp_config_cmd(ar->arWmi, &cmd) == A_OK)
+    if (wmi_set_btcoex_a2dp_config_cmd(ar->arWmi, &cmd) == 0)
     {
         ret = 0;
     } else {
@@ -1178,7 +1178,7 @@ ar6000_xioctl_set_btcoex_aclcoex_config_cmd(struct net_device * dev, char *userd
 		return -EFAULT;
 	}
 
-    if (wmi_set_btcoex_aclcoex_config_cmd(ar->arWmi, &cmd) == A_OK)
+    if (wmi_set_btcoex_aclcoex_config_cmd(ar->arWmi, &cmd) == 0)
     {
         ret = 0;
     } else {
@@ -1203,7 +1203,7 @@ ar60000_xioctl_set_btcoex_debug_cmd(struct net_device * dev, char *userdata)
 		return -EFAULT;
 	}
 
-    if (wmi_set_btcoex_debug_cmd(ar->arWmi, &cmd) == A_OK)
+    if (wmi_set_btcoex_debug_cmd(ar->arWmi, &cmd) == 0)
     {
         ret = 0;
     } else {
@@ -1228,7 +1228,7 @@ ar6000_xioctl_set_btcoex_bt_operating_status_cmd(struct net_device * dev, char *
 	return -EFAULT;
     }
 
-    if (wmi_set_btcoex_bt_operating_status_cmd(ar->arWmi, &cmd) == A_OK)
+    if (wmi_set_btcoex_bt_operating_status_cmd(ar->arWmi, &cmd) == 0)
     {
         ret = 0;
     } else {
@@ -1261,7 +1261,7 @@ ar6000_xioctl_get_btcoex_config_cmd(struct net_device * dev, char *userdata,
         return -ERESTARTSYS;
     }
 
-    if (wmi_get_btcoex_config_cmd(ar->arWmi, (WMI_GET_BTCOEX_CONFIG_CMD *)&btcoexConfig.configCmd) != A_OK)
+    if (wmi_get_btcoex_config_cmd(ar->arWmi, (WMI_GET_BTCOEX_CONFIG_CMD *)&btcoexConfig.configCmd) != 0)
     {
     	up(&ar->arSem);
     	return -EIO;
@@ -1305,7 +1305,7 @@ ar6000_xioctl_get_btcoex_stats_cmd(struct net_device * dev, char *userdata, stru
 		return -EFAULT;
 	}
 
-    if (wmi_get_btcoex_stats_cmd(ar->arWmi) != A_OK)
+    if (wmi_get_btcoex_stats_cmd(ar->arWmi) != 0)
     {
     	up(&ar->arSem);
     	return -EIO;
@@ -1475,7 +1475,7 @@ ar6000_create_acl_data_osbuf(struct net_device *dev, u8 *userdata, void **p_osbu
     u8 tmp_space[8];
     HCI_ACL_DATA_PKT *acl;
     u8 hdr_size, *datap=NULL;
-    int ret = A_OK;
+    int ret = 0;
 
     /* ACL is in data path. There is a need to create pool
      * mechanism for allocating and freeing NETBUFs - ToDo later.
@@ -1508,7 +1508,7 @@ ar6000_create_acl_data_osbuf(struct net_device *dev, u8 *userdata, void **p_osbu
         }
     } while(false);
 
-    if (ret == A_OK) {
+    if (ret == 0) {
         *p_osbuf = osbuf;
     } else {
         A_NETBUF_FREE(osbuf);
@@ -1878,7 +1878,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	    goto ioctl_done;
 	}
         userdata = (char *)(((unsigned int *)rq->ifr_data)+1);
-        if(is_xioctl_allowed(ar->arNextMode, cmd) != A_OK) {
+        if(is_xioctl_allowed(ar->arNextMode, cmd) != 0) {
             A_PRINTF("xioctl: cmd=%d not allowed in this mode\n",cmd);
             ret = -EOPNOTSUPP;
             goto ioctl_done;
@@ -2193,7 +2193,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 #ifdef HTC_RAW_INTERFACE
         case AR6000_XIOCTL_HTC_RAW_OPEN:
-            ret = A_OK;
+            ret = 0;
             if (!arRawIfEnabled(ar)) {
                 /* make sure block size is set in case the target was reset since last
                   * BMI phase (i.e. flashup downloads) */
@@ -2207,7 +2207,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 }
                 /* Terminate the BMI phase */
                 ret = BMIDone(hifDevice);
-                if (ret == A_OK) {
+                if (ret == 0) {
                     ret = ar6000_htc_raw_open(ar);
                 }
             }
@@ -2309,7 +2309,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 	    }
 
-            if (wmi_prof_cfg_cmd(ar->arWmi, period, nbins) != A_OK) {
+            if (wmi_prof_cfg_cmd(ar->arWmi, period, nbins) != 0) {
                 ret = -EIO;
             }
 
@@ -2325,7 +2325,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 	    }
 
-            if (wmi_prof_addr_set_cmd(ar->arWmi, addr) != A_OK) {
+            if (wmi_prof_addr_set_cmd(ar->arWmi, addr) != 0) {
                 ret = -EIO;
             }
 
@@ -2363,7 +2363,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
             prof_count_available = false;
             ret = prof_count_get(dev);
-            if (ret != A_OK) {
+            if (ret != 0) {
                 up(&ar->arSem);
                 ret = -EIO;
                 goto ioctl_done;
@@ -2406,7 +2406,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
                 if (wmi_powermode_cmd(ar->arWmi, pwrModeCmd.powerMode)
-                       != A_OK)
+                       != 0)
                 {
                     ret = -EIO;
                 }
@@ -2425,7 +2425,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
                 if (wmi_ibsspmcaps_cmd(ar->arWmi, ibssPmCaps.power_saving, ibssPmCaps.ttl,
-                    ibssPmCaps.atim_windows, ibssPmCaps.timeout_value) != A_OK)
+                    ibssPmCaps.atim_windows, ibssPmCaps.timeout_value) != 0)
                 {
                     ret = -EIO;
                 }
@@ -2447,7 +2447,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
                 if (wmi_apps_cmd(ar->arWmi, apPsCmd.psType, apPsCmd.idle_time,
-                    apPsCmd.ps_period, apPsCmd.sleep_period) != A_OK)
+                    apPsCmd.ps_period, apPsCmd.sleep_period) != 0)
                 {
                     ret = -EIO;
                 }
@@ -2475,7 +2475,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #else
                                      SEND_POWER_SAVE_FAIL_EVENT_ALWAYS
 #endif
-                                     ) != A_OK)
+                                     ) != 0)
                 {
                     ret = -EIO;
                 }
@@ -2506,7 +2506,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                                        ar->scParams.shortScanRatio,
                                        ar->scParams.scanCtrlFlags,
                                        ar->scParams.max_dfsch_act_time,
-                                       ar->scParams.maxact_scan_per_ssid) != A_OK)
+                                       ar->scParams.maxact_scan_per_ssid) != 0)
                 {
                     ret = -EIO;
                 }
@@ -2524,7 +2524,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             {
                 ret = -EFAULT;
             } else {
-                    if (wmi_listeninterval_cmd(ar->arWmi, listenCmd.listenInterval, listenCmd.numBeacons) != A_OK) {
+                    if (wmi_listeninterval_cmd(ar->arWmi, listenCmd.listenInterval, listenCmd.numBeacons) != 0) {
                         ret = -EIO;
                     } else {
                         AR6000_SPIN_LOCK(&ar->arLock, 0);
@@ -2547,7 +2547,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             {
                 ret = -EFAULT;
             } else {
-                if (wmi_bmisstime_cmd(ar->arWmi, bmissCmd.bmissTime, bmissCmd.numBeacons) != A_OK) {
+                if (wmi_bmisstime_cmd(ar->arWmi, bmissCmd.bmissTime, bmissCmd.numBeacons) != 0) {
                     ret = -EIO;
                 }
             }
@@ -2565,7 +2565,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
                 if (wmi_bssfilter_cmd(ar->arWmi, filt.bssFilter, filt.ieMask)
-                        != A_OK) {
+                        != 0) {
                     ret = -EIO;
                 } else {
                     ar->arUserBssFilter = param;
@@ -2614,7 +2614,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #else
                            WMI_IGNORE_BARKER_IN_ERP
 #endif
-                ) != A_OK)
+                ) != 0)
                 {
                     ret = -EIO;
                 }
@@ -2634,7 +2634,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             } else {
                 ar->arRTS = rtsCmd.threshold;
                 if (wmi_set_rts_cmd(ar->arWmi, rtsCmd.threshold)
-                       != A_OK)
+                       != 0)
                 {
                     ret = -EIO;
                 }
@@ -2728,7 +2728,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 	    }
 	    if (wmi_associnfo_cmd(ar->arWmi, cmd.ieType,
-				  cmd.bufferSize, assocInfo) != A_OK) {
+				  cmd.bufferSize, assocInfo) != 0) {
 		ret = -EIO;
 		break;
 	    }
@@ -2811,7 +2811,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             }
 
             /* Send the challenge on the control channel */
-            if (wmi_get_challenge_resp_cmd(ar->arWmi, cookie, APP_HB_CHALLENGE) != A_OK) {
+            if (wmi_get_challenge_resp_cmd(ar->arWmi, cookie, APP_HB_CHALLENGE) != 0) {
                 ret = -EIO;
                 goto ioctl_done;
             }
@@ -2868,7 +2868,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                                              gpio_output_set_cmd.clear_mask,
                                              gpio_output_set_cmd.enable_mask,
                                              gpio_output_set_cmd.disable_mask);
-                if (ret != A_OK) {
+                if (ret != 0) {
                     ret = -EIO;
                 }
             }
@@ -2896,7 +2896,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             }
 
             ret = ar6000_gpio_input_get(dev);
-            if (ret != A_OK) {
+            if (ret != 0) {
                 up(&ar->arSem);
                 ret = -EIO;
                 goto ioctl_done;
@@ -2948,7 +2948,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = ar6000_gpio_register_set(dev,
                                                gpio_register_cmd.gpioreg_id,
                                                gpio_register_cmd.value);
-                if (ret != A_OK) {
+                if (ret != 0) {
                     ret = -EIO;
                 }
 
@@ -2989,7 +2989,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
                 ret = ar6000_gpio_register_get(dev, gpio_register_cmd.gpioreg_id);
-                if (ret != A_OK) {
+                if (ret != 0) {
                     up(&ar->arSem);
                     ret = -EIO;
                     goto ioctl_done;
@@ -3039,7 +3039,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
                 ret = ar6000_gpio_intr_ack(dev, gpio_intr_ack_cmd.ack_mask);
-                if (ret != A_OK) {
+                if (ret != 0) {
                     ret = -EIO;
                 }
             }
@@ -3076,7 +3076,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             /* Send the challenge on the control channel */
             if (wmi_config_debug_module_cmd(ar->arWmi, config.mmask,
                                             config.tsr, config.rep,
-                                            config.size, config.valid) != A_OK)
+                                            config.size, config.valid) != 0)
             {
                 ret = -EIO;
                 goto ioctl_done;
@@ -3087,7 +3087,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         case AR6000_XIOCTL_DBGLOG_GET_DEBUG_LOGS:
         {
             /* Send the challenge on the control channel */
-            if (ar6000_dbglog_get_debug_logs(ar) != A_OK)
+            if (ar6000_dbglog_get_debug_logs(ar) != 0)
             {
                 ret = -EIO;
                 goto ioctl_done;
@@ -3131,7 +3131,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
 
             } else if (wmi_set_opt_mode_cmd(ar->arWmi, optModeCmd.optMode)
-                       != A_OK)
+                       != 0)
             {
                 ret = -EIO;
             }
@@ -3179,7 +3179,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 if (wmi_set_retry_limits_cmd(ar->arWmi, setRetryParams.frameType,
                                           setRetryParams.trafficClass,
                                           setRetryParams.maxRetries,
-                                          setRetryParams.enableNotify) != A_OK)
+                                          setRetryParams.enableNotify) != 0)
                 {
                     ret = -EIO;
                 }
@@ -3201,7 +3201,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             {
                 ret = -EFAULT;
             } else if (wmi_set_adhoc_bconIntvl_cmd(ar->arWmi, bIntvlCmd.beaconInterval)
-                        != A_OK)
+                        != 0)
             {
                 ret = -EIO;
             }
@@ -3266,7 +3266,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             AR6000_WLAN_STATE state;
 	    if (get_user(state, (unsigned int *)userdata))
 		ret = -EFAULT;
-	    else if (ar6000_set_wlan_state(ar, state) != A_OK)
+	    else if (ar6000_set_wlan_state(ar, state) != 0)
                 ret = -EIO;
             break;
         }
@@ -3354,7 +3354,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                                           cmdp->homeDwellTime,
                                           cmdp->forceScanInterval,
                                           cmdp->numChannels,
-                                          cmdp->channelList) != A_OK)
+                                          cmdp->channelList) != 0)
                     {
                         ret = -EIO;
                     }
@@ -3376,7 +3376,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                     returnStatus = wmi_set_fixrates_cmd(ar->arWmi, setFixRatesCmd.fixRateMask);
                     if (returnStatus == A_EINVAL) {
                         ret = -EINVAL;
-                    } else if(returnStatus != A_OK) {
+                    } else if(returnStatus != 0) {
                         ret = -EIO;
                     } else {
                         ar->ap_profile_flag = 1; /* There is a change in profile */
@@ -3415,7 +3415,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             } else {
                 ar->arRateMask = 0xFFFFFFFF;
 
-                if (wmi_get_ratemask_cmd(ar->arWmi) != A_OK) {
+                if (wmi_get_ratemask_cmd(ar->arWmi) != 0) {
                     up(&ar->arSem);
                     ret = -EIO;
                     goto ioctl_done;
@@ -3450,7 +3450,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             {
                 ret = -EFAULT;
             } else {
-                if (wmi_set_authmode_cmd(ar->arWmi, setAuthMode.mode) != A_OK)
+                if (wmi_set_authmode_cmd(ar->arWmi, setAuthMode.mode) != 0)
                 {
                     ret = -EIO;
                 }
@@ -3468,7 +3468,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             {
                 ret = -EFAULT;
             } else {
-                if (wmi_set_reassocmode_cmd(ar->arWmi, setReassocMode.mode) != A_OK)
+                if (wmi_set_reassocmode_cmd(ar->arWmi, setReassocMode.mode) != 0)
                 {
                     ret = -EIO;
                 }
@@ -3483,7 +3483,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 	    }
             addr = TARG_VTOP(ar->arTargetType, addr);
-            if (ar6000_ReadRegDiag(ar->arHifDevice, &addr, &data) != A_OK) {
+            if (ar6000_ReadRegDiag(ar->arHifDevice, &addr, &data) != 0) {
                 ret = -EIO;
             }
 	    if (put_user(data, (unsigned int *)userdata + 1)) {
@@ -3501,7 +3501,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 	    }
             addr = TARG_VTOP(ar->arTargetType, addr);
-            if (ar6000_WriteRegDiag(ar->arHifDevice, &addr, &data) != A_OK) {
+            if (ar6000_WriteRegDiag(ar->arHifDevice, &addr, &data) != 0) {
                 ret = -EIO;
             }
             break;
@@ -3516,7 +3516,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                         sizeof(setKeepAlive))){
                  ret = -EFAULT;
              } else {
-                 if (wmi_set_keepalive_cmd(ar->arWmi, setKeepAlive.keepaliveInterval) != A_OK) {
+                 if (wmi_set_keepalive_cmd(ar->arWmi, setKeepAlive.keepaliveInterval) != 0) {
                      ret = -EIO;
                }
              }
@@ -3536,7 +3536,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             {
                 ret = -EFAULT;
             } else {
-                 if (wmi_set_params_cmd(ar->arWmi, cmd.opcode, cmd.length, cmd.buffer) != A_OK) {
+                 if (wmi_set_params_cmd(ar->arWmi, cmd.opcode, cmd.length, cmd.buffer) != 0) {
                      ret = -EIO;
                }
              }
@@ -3555,7 +3555,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                  if (wmi_set_mcast_filter_cmd(ar->arWmi, cmd.multicast_mac[0],
                                                                                      cmd.multicast_mac[1],
                                                                                      cmd.multicast_mac[2],
-                                                                                     cmd.multicast_mac[3]) != A_OK) {
+                                                                                     cmd.multicast_mac[3]) != 0) {
                      ret = -EIO;
                }
              }
@@ -3574,7 +3574,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                  if (wmi_del_mcast_filter_cmd(ar->arWmi, cmd.multicast_mac[0],
                                                                                      cmd.multicast_mac[1],
                                                                                      cmd.multicast_mac[2],
-                                                                                     cmd.multicast_mac[3]) != A_OK) {
+                                                                                     cmd.multicast_mac[3]) != 0) {
                      ret = -EIO;
                }
              }
@@ -3590,7 +3590,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                         sizeof(cmd))){
                  ret = -EFAULT;
              } else {
-                 if (wmi_mcast_filter_cmd(ar->arWmi, cmd.enable)  != A_OK) {
+                 if (wmi_mcast_filter_cmd(ar->arWmi, cmd.enable)  != 0) {
                      ret = -EIO;
                }
              }
@@ -3623,7 +3623,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             } else {
             getKeepAlive.keepaliveInterval = wmi_get_keepalive_cmd(ar->arWmi);
             ar->arKeepaliveConfigured = 0xFF;
-            if (wmi_get_keepalive_configured(ar->arWmi) != A_OK){
+            if (wmi_get_keepalive_configured(ar->arWmi) != 0){
                 up(&ar->arSem);
                 ret = -EIO;
                 goto ioctl_done;
@@ -3675,7 +3675,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                     ret = -EFAULT;
                 } else {
                     if (wmi_set_appie_cmd(ar->arWmi, appIEcmd.mgmtFrmType,
-                                          appIEcmd.ieLen,  appIeInfo) != A_OK)
+                                          appIEcmd.ieLen,  appIeInfo) != 0)
                     {
                         ret = -EIO;
                     }
@@ -3700,7 +3700,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             } else {
                 cmd.bssFilter = NONE_BSS_FILTER;
             }
-            if (wmi_bssfilter_cmd(ar->arWmi, cmd.bssFilter, 0) != A_OK) {
+            if (wmi_bssfilter_cmd(ar->arWmi, cmd.bssFilter, 0) != 0) {
                 ret = -EIO;
             } else {
                 ar->arUserBssFilter = cmd.bssFilter;
@@ -3723,7 +3723,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
                 goto ioctl_done;
             }
-            if (wmi_set_wsc_status_cmd(ar->arWmi, wsc_status) != A_OK) {
+            if (wmi_set_wsc_status_cmd(ar->arWmi, wsc_status) != 0) {
                 ret = -EIO;
             }
             break;
@@ -3747,7 +3747,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                              ROM_addr, RAM_addr, nbytes));
             ret = BMIrompatchInstall(hifDevice, ROM_addr, RAM_addr,
                                         nbytes, do_activate, &rompatch_id);
-            if (ret == A_OK) {
+            if (ret == 0) {
 		/* return value */
 		if (put_user(rompatch_id, (unsigned int *)rq->ifr_data)) {
 		    ret = -EFAULT;
@@ -3812,7 +3812,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
                 if (wmi_set_ip_cmd(ar->arWmi,
-                                &setIP) != A_OK)
+                                &setIP) != 0)
                 {
                     ret = -EIO;
                 }
@@ -3832,7 +3832,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
                 if (wmi_set_host_sleep_mode_cmd(ar->arWmi,
-                                &setHostSleepMode) != A_OK)
+                                &setHostSleepMode) != 0)
                 {
                     ret = -EIO;
                 }
@@ -3851,7 +3851,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
                 if (wmi_set_wow_mode_cmd(ar->arWmi,
-                                &setWowMode) != A_OK)
+                                &setWowMode) != 0)
                 {
                     ret = -EIO;
                 }
@@ -3870,7 +3870,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
                 if (wmi_get_wow_list_cmd(ar->arWmi,
-                                &getWowList) != A_OK)
+                                &getWowList) != 0)
                 {
                     ret = -EIO;
                 }
@@ -3912,7 +3912,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                     break;
                 }
                 if (wmi_add_wow_pattern_cmd(ar->arWmi,
-                            &cmd, pattern_data, mask_data, cmd.filter_size) != A_OK)
+                            &cmd, pattern_data, mask_data, cmd.filter_size) != 0)
                 {
                     ret = -EIO;
                 }
@@ -3933,7 +3933,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
                 if (wmi_del_wow_pattern_cmd(ar->arWmi,
-                                &delWowPattern) != A_OK)
+                                &delWowPattern) != 0)
                 {
                     ret = -EIO;
                 }
@@ -4020,7 +4020,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             {
                 ret = -EFAULT;
             } else {
-                if (wmi_set_akmp_params_cmd(ar->arWmi, &akmpParams) != A_OK) {
+                if (wmi_set_akmp_params_cmd(ar->arWmi, &akmpParams) != 0) {
                     ret = -EIO;
                 }
             }
@@ -4042,7 +4042,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                     ret = -EFAULT;
                     break;
                 }
-                if (wmi_set_pmkid_list_cmd(ar->arWmi, &pmkidInfo) != A_OK) {
+                if (wmi_set_pmkid_list_cmd(ar->arWmi, &pmkidInfo) != 0) {
                     ret = -EIO;
                 }
             }
@@ -4051,7 +4051,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             if (ar->arWmiReady == false) {
                 ret = -EIO;
             } else  {
-                if (wmi_get_pmkid_list_cmd(ar->arWmi) != A_OK) {
+                if (wmi_get_pmkid_list_cmd(ar->arWmi) != 0) {
                     ret = -EIO;
                 }
             }
@@ -4365,7 +4365,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
 
-                if (wmi_set_ht_cap_cmd(ar->arWmi, &htCap) != A_OK)
+                if (wmi_set_ht_cap_cmd(ar->arWmi, &htCap) != 0)
                 {
                     ret = -EIO;
                 }
@@ -4382,7 +4382,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                  ret = -EFAULT;
              } else {
 
-                if (wmi_set_ht_op_cmd(ar->arWmi, htOp.sta_chan_width) != A_OK)
+                if (wmi_set_ht_op_cmd(ar->arWmi, htOp.sta_chan_width) != 0)
                 {
                      ret = -EIO;
                }
@@ -4395,10 +4395,10 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             void *osbuf = NULL;
             if (ar->arWmiReady == false) {
                 ret = -EIO;
-            } else if (ar6000_create_acl_data_osbuf(dev, (u8 *)userdata, &osbuf) != A_OK) {
+            } else if (ar6000_create_acl_data_osbuf(dev, (u8 *)userdata, &osbuf) != 0) {
                      ret = -EIO;
             } else {
-                if (wmi_data_hdr_add(ar->arWmi, osbuf, DATA_MSGTYPE, 0, WMI_DATA_HDR_DATA_TYPE_ACL,0,NULL) != A_OK) {
+                if (wmi_data_hdr_add(ar->arWmi, osbuf, DATA_MSGTYPE, 0, WMI_DATA_HDR_DATA_TYPE_ACL,0,NULL) != 0) {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("XIOCTL_ACL_DATA - wmi_data_hdr_add failed\n"));
                 } else {
                     /* Send data buffer over HTC */
@@ -4422,7 +4422,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             } else if(copy_from_user(cmd->buf, userdata + size, cmd->cmd_buf_sz)) {
                     ret = -EFAULT;
             } else {
-                if (wmi_send_hci_cmd(ar->arWmi, cmd->buf, cmd->cmd_buf_sz) != A_OK) {
+                if (wmi_send_hci_cmd(ar->arWmi, cmd->buf, cmd->cmd_buf_sz) != 0) {
                      ret = -EIO;
                 }else if(loghci) {
                     A_PRINTF_LOG("HCI Command To PAL --> \n");
@@ -4448,7 +4448,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             } else {
                 if (cmd.precedence == BT_WLAN_CONN_PRECDENCE_WLAN ||
                             cmd.precedence == BT_WLAN_CONN_PRECDENCE_PAL) {
-                    if ( wmi_set_wlan_conn_precedence_cmd(ar->arWmi, cmd.precedence) != A_OK) {
+                    if ( wmi_set_wlan_conn_precedence_cmd(ar->arWmi, cmd.precedence) != 0) {
                         ret = -EIO;
                     }
                 } else {
@@ -4474,7 +4474,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                  ret = -EFAULT;
              } else {
 
-                if (wmi_set_tx_select_rates_cmd(ar->arWmi, masks.rateMasks) != A_OK)
+                if (wmi_set_tx_select_rates_cmd(ar->arWmi, masks.rateMasks) != 0)
                 {
                      ret = -EIO;
                }
@@ -4606,7 +4606,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		ret = -EFAULT;
 		break;
 	    }
-            if (ar6000_set_bt_hw_state(ar, state)!=A_OK) {
+            if (ar6000_set_bt_hw_state(ar, state)!= 0) {
                 ret = -EIO;
             }       
         }
@@ -4626,7 +4626,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                                        sizeof(SGICmd))){
                  ret = -EFAULT;
              } else{
-                     if (wmi_SGI_cmd(ar->arWmi, SGICmd.sgiMask, SGICmd.sgiPERThreshold) != A_OK) {
+                     if (wmi_SGI_cmd(ar->arWmi, SGICmd.sgiMask, SGICmd.sgiPERThreshold) != 0) {
                          ret = -EIO;
                      }
 
@@ -4641,7 +4641,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             if (copy_from_user(ap_ifname, userdata, IFNAMSIZ)) {
                 ret = -EFAULT;
             } else {
-                if (ar6000_add_ap_interface(ar, ap_ifname) != A_OK) {
+                if (ar6000_add_ap_interface(ar, ap_ifname) != 0) {
                     ret = -EIO;
                 } 
             }
@@ -4652,7 +4652,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             break;
         case AR6000_XIOCTL_REMOVE_AP_INTERFACE:
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
-            if (ar6000_remove_ap_interface(ar) != A_OK) {
+            if (ar6000_remove_ap_interface(ar) != 0) {
                 ret = -EIO;
             } 
 #else

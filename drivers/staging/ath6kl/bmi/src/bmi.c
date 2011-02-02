@@ -113,7 +113,7 @@ BMIDone(HIF_DEVICE *device)
 
     if (bmiDone) {
         AR_DEBUG_PRINTF (ATH_DEBUG_BMI, ("BMIDone skipped\n"));
-        return A_OK;
+        return 0;
     }
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Done: Enter (device: 0x%p)\n", device));
@@ -138,7 +138,7 @@ BMIDone(HIF_DEVICE *device)
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Done: Exit\n"));
 
-    return A_OK;
+    return 0;
 }
 
 int
@@ -197,7 +197,7 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Get Target Info: Exit (ver: 0x%x type: 0x%x)\n",
         							targ_info->target_ver, targ_info->target_type));
 
-    return A_OK;
+    return 0;
 }
 
 int
@@ -253,7 +253,7 @@ BMIReadMemory(HIF_DEVICE *device,
     }
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Read Memory: Exit\n"));
-    return A_OK;
+    return 0;
 }
 
 int
@@ -318,7 +318,7 @@ BMIWriteMemory(HIF_DEVICE *device,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Write Memory: Exit\n"));
 
-    return A_OK;
+    return 0;
 }
 
 int
@@ -366,7 +366,7 @@ BMIExecute(HIF_DEVICE *device,
     A_MEMCPY(param, pBMICmdBuf, sizeof(*param));
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Execute: Exit (param: %d)\n", *param));
-    return A_OK;
+    return 0;
 }
 
 int
@@ -403,7 +403,7 @@ BMISetAppStart(HIF_DEVICE *device,
     }
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Set App Start: Exit\n"));
-    return A_OK;
+    return 0;
 }
 
 int
@@ -449,7 +449,7 @@ BMIReadSOCRegister(HIF_DEVICE *device,
     A_MEMCPY(param, pBMICmdBuf, sizeof(*param));
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Read SOC Register: Exit (value: %d)\n", *param));
-    return A_OK;
+    return 0;
 }
 
 int
@@ -489,7 +489,7 @@ BMIWriteSOCRegister(HIF_DEVICE *device,
     }
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Read SOC Register: Exit\n"));
-    return A_OK;
+    return 0;
 }
 
 int
@@ -545,7 +545,7 @@ BMIrompatchInstall(HIF_DEVICE *device,
     A_MEMCPY(rompatch_id, pBMICmdBuf, sizeof(*rompatch_id));
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI rompatch Install: (rompatch_id=%d)\n", *rompatch_id));
-    return A_OK;
+    return 0;
 }
 
 int
@@ -582,7 +582,7 @@ BMIrompatchUninstall(HIF_DEVICE *device,
     }
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI rompatch UNinstall: (rompatch_id=0x%x)\n", rompatch_id));
-    return A_OK;
+    return 0;
 }
 
 static int
@@ -626,7 +626,7 @@ _BMIrompatchChangeActivation(HIF_DEVICE *device,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Change rompatch Activation: Exit\n"));
 
-    return A_OK;
+    return 0;
 }
 
 int
@@ -692,7 +692,7 @@ BMILZData(HIF_DEVICE *device,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI LZ Data: Exit\n"));
 
-    return A_OK;
+    return 0;
 }
 
 int
@@ -729,7 +729,7 @@ BMILZStreamStart(HIF_DEVICE *device,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI LZ Stream Start: Exit\n"));
 
-    return A_OK;
+    return 0;
 }
 
 /* BMI Access routines */
@@ -954,7 +954,7 @@ bmiBufferReceive(HIF_DEVICE *device,
         return A_ERROR;
     }
 
-    return A_OK;
+    return 0;
 }
 
 int

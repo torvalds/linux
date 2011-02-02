@@ -189,7 +189,7 @@ static INLINE int DevSendPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 Send
         A_ASSERT(false);
         if (pPacket->Completion != NULL) {
             COMPLETE_HTC_PACKET(pPacket,A_EINVAL);
-            return A_OK;
+            return 0;
         }
         return A_EINVAL;
     }
@@ -212,7 +212,7 @@ static INLINE int DevSendPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 Send
         pPacket->Status = status;
     } else {
         if (status == A_PENDING) {
-            status = A_OK;    
+            status = 0;
         }    
     }
 
@@ -234,7 +234,7 @@ static INLINE int DevRecvPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 Recv
                     paddedLength,RecvLength,pPacket->BufferLength));
         if (pPacket->Completion != NULL) {
             COMPLETE_HTC_PACKET(pPacket,A_EINVAL);
-            return A_OK;
+            return 0;
         }
         return A_EINVAL;
     }
@@ -291,7 +291,7 @@ static INLINE int DEV_PREPARE_SCATTER_OPERATION(HIF_SCATTER_REQ *pReq)  {
     if ((pReq->Request & HIF_WRITE) && (pReq->ScatterMethod == HIF_SCATTER_DMA_BOUNCE)) {
         return DevCopyScatterListToFromDMABuffer(pReq,TO_DMA_BUFFER);    
     } else {
-        return A_OK;    
+        return 0;
     }
 }
         
@@ -346,12 +346,12 @@ void     DevNotifyGMboxTargetFailure(AR6K_DEVICE *pDev);
 
     /* compiled out */
 #define DevCleanupGMbox(p)
-#define DevCheckGMboxInterrupts(p) A_OK
+#define DevCheckGMboxInterrupts(p) 0
 #define DevNotifyGMboxTargetFailure(p)
 
 static INLINE int DevSetupGMbox(AR6K_DEVICE *pDev) {
     pDev->GMboxEnabled = false;
-    return A_OK;    
+    return 0;
 }
 
 #endif

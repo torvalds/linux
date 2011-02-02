@@ -77,7 +77,7 @@ void DevCleanup(AR6K_DEVICE *pDev)
 int DevSetup(AR6K_DEVICE *pDev)
 {
     u32 blocksizes[AR6K_MAILBOXES];
-    int status = A_OK;
+    int status = 0;
     int      i;
     HTC_CALLBACKS htcCallbacks;
 
@@ -309,7 +309,7 @@ int DevUnmaskInterrupts(AR6K_DEVICE *pDev)
      * and when HTC is finally ready to handle interrupts, other software can perform target "soft" resets.
      * The AR6K interrupt enables reset back to an "enabled" state when this happens.
      *  */
-    int IntStatus = A_OK;
+    int IntStatus = 0;
     DevDisableInterrupts(pDev);
 
 #ifdef THREAD_X
@@ -357,7 +357,7 @@ static void DevDoEnableDisableRecvAsyncHandler(void *Context, HTC_PACKET *pPacke
  * disable recv events */
 static int DevDoEnableDisableRecvOverride(AR6K_DEVICE *pDev, bool EnableRecv, bool AsyncMode)
 {
-    int                  status = A_OK;
+    int                  status = 0;
     HTC_PACKET                *pIOPacket = NULL;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("DevDoEnableDisableRecvOverride: Enable:%d Mode:%d\n",
@@ -405,7 +405,7 @@ static int DevDoEnableDisableRecvOverride(AR6K_DEVICE *pDev, bool EnableRecv, bo
  * the host I/F */
 static int DevDoEnableDisableRecvNormal(AR6K_DEVICE *pDev, bool EnableRecv, bool AsyncMode)
 {
-    int                  status = A_OK;
+    int                  status = 0;
     HTC_PACKET                *pIOPacket = NULL;
     AR6K_IRQ_ENABLE_REGISTERS regs;
 
@@ -490,7 +490,7 @@ int DevEnableRecv(AR6K_DEVICE *pDev, bool AsyncMode)
 
 int DevWaitForPendingRecv(AR6K_DEVICE *pDev,u32 TimeoutInMs,bool *pbIsRecvPending)
 {
-    int    status          = A_OK;
+    int    status          = 0;
     A_UCHAR     host_int_status = 0x0;
     u32 counter         = 0x0;
 
@@ -519,7 +519,7 @@ int DevWaitForPendingRecv(AR6K_DEVICE *pDev,u32 TimeoutInMs,bool *pbIsRecvPendin
         host_int_status = !status ? (host_int_status & (1 << 0)):0;
         if(!host_int_status)
         {
-            status          = A_OK;
+            status          = 0;
            *pbIsRecvPending = false;
             break;
         }
@@ -645,7 +645,7 @@ int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, bool FromDMA)
         remaining -= length;
     }
 
-    return A_OK;
+    return 0;
 }
 
 static void DevReadWriteScatterAsyncHandler(void *Context, HTC_PACKET *pPacket)
@@ -667,7 +667,7 @@ static void DevReadWriteScatterAsyncHandler(void *Context, HTC_PACKET *pPacket)
 static int DevReadWriteScatter(HIF_DEVICE *Context, HIF_SCATTER_REQ *pReq)
 {
     AR6K_DEVICE     *pDev = (AR6K_DEVICE *)Context;
-    int        status = A_OK;
+    int        status = 0;
     HTC_PACKET      *pIOPacket = NULL;
     u32 request = pReq->Request;
 
@@ -727,7 +727,7 @@ static int DevReadWriteScatter(HIF_DEVICE *Context, HIF_SCATTER_REQ *pReq)
         }
         pReq->CompletionStatus = status;
         pReq->CompletionRoutine(pReq);
-        status = A_OK;
+        status = 0;
     }
 
     return status;
@@ -751,7 +751,7 @@ static void DevCleanupVirtualScatterSupport(AR6K_DEVICE *pDev)
     /* function to set up virtual scatter support if HIF layer has not implemented the interface */
 static int DevSetupVirtualScatterSupport(AR6K_DEVICE *pDev)
 {
-    int                     status = A_OK;
+    int                     status = 0;
     int                          bufferSize, sgreqSize;
     int                          i;
     DEV_SCATTER_DMA_VIRTUAL_INFO *pVirtualInfo;
@@ -923,7 +923,7 @@ int DevSubmitScatterRequest(AR6K_DEVICE *pDev, HIF_SCATTER_REQ *pScatterReq, boo
         if (Async) {
             pScatterReq->CompletionStatus = status;
             pScatterReq->CompletionRoutine(pScatterReq);
-            return A_OK;
+            return 0;
         }
         return status;
     }
@@ -936,7 +936,7 @@ int DevSubmitScatterRequest(AR6K_DEVICE *pDev, HIF_SCATTER_REQ *pScatterReq, boo
         DEV_FINISH_SCATTER_OPERATION(pScatterReq);
     } else {
         if (status == A_PENDING) {
-            status = A_OK;
+            status = 0;
         }
     }
 
@@ -1127,7 +1127,7 @@ static u16 GetEndMarker(void)
 /* send the ordered buffers to the target */
 static int SendBuffers(AR6K_DEVICE *pDev, int mbox)
 {
-    int         status = A_OK;
+    int         status = 0;
     u32 request = HIF_WR_SYNC_BLOCK_INC;
     BUFFER_PROC_LIST sendList[BUFFER_PROC_LIST_DEPTH];
     int              i;
@@ -1171,7 +1171,7 @@ static int SendBuffers(AR6K_DEVICE *pDev, int mbox)
 /* poll the mailbox credit counter until we get a credit or timeout */
 static int GetCredits(AR6K_DEVICE *pDev, int mbox, int *pCredits)
 {
-    int status = A_OK;
+    int status = 0;
     int      timeout = TEST_CREDITS_RECV_TIMEOUT;
     u8 credits = 0;
     u32 address;
@@ -1207,7 +1207,7 @@ static int GetCredits(AR6K_DEVICE *pDev, int mbox, int *pCredits)
 
     }
 
-    if (status == A_OK) {
+    if (status == 0) {
         *pCredits = credits;
     }
 
@@ -1218,7 +1218,7 @@ static int GetCredits(AR6K_DEVICE *pDev, int mbox, int *pCredits)
 /* wait for the buffers to come back */
 static int RecvBuffers(AR6K_DEVICE *pDev, int mbox)
 {
-    int         status = A_OK;
+    int         status = 0;
     u32 request = HIF_RD_SYNC_BLOCK_INC;
     BUFFER_PROC_LIST recvList[BUFFER_PROC_LIST_DEPTH];
     int              curBuffer;
@@ -1457,7 +1457,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
 
     } while (false);
 
-    if (status == A_OK) {
+    if (status == 0) {
         AR_DEBUG_PRINTF(ATH_PRINT_OUT_ZONE, (" DoMboxHWTest DONE - SUCCESS! -  \n"));
     } else {
         AR_DEBUG_PRINTF(ATH_PRINT_OUT_ZONE, (" DoMboxHWTest DONE - FAILED! -  \n"));

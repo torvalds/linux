@@ -78,7 +78,7 @@ static void ar6000_wow_resume(AR_SOFTC_T *ar)
         u16 bg_period = (ar->scParams.bg_period==0) ? 60 : ar->scParams.bg_period;
         WMI_SET_HOST_SLEEP_MODE_CMD hostSleepMode = {true, false};
         ar->arWowState = WLAN_WOW_STATE_NONE;
-        if (wmi_set_host_sleep_mode_cmd(ar->arWmi, &hostSleepMode)!=A_OK) {
+        if (wmi_set_host_sleep_mode_cmd(ar->arWmi, &hostSleepMode)!= 0) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Fail to setup restore host awake\n"));
         }
 #if WOW_SET_SCAN_PARAMS
@@ -99,7 +99,7 @@ static void ar6000_wow_resume(AR_SOFTC_T *ar)
 
 
 #if WOW_ENABLE_MAX_INTERVAL /* we don't do it if the power consumption is already good enough. */
-        if (wmi_listeninterval_cmd(ar->arWmi, ar->arListenIntervalT, ar->arListenIntervalB) == A_OK) {
+        if (wmi_listeninterval_cmd(ar->arWmi, ar->arListenIntervalT, ar->arListenIntervalB) == 0) {
         }
 #endif
         ar6k_send_asleep_event_to_app(ar, false);
@@ -137,7 +137,7 @@ static void ar6000_wow_suspend(AR_SOFTC_T *ar)
         ar6000_TxDataCleanup(ar); /* IMPORTANT, otherwise there will be 11mA after listen interval as 1000*/
 
 #if WOW_ENABLE_MAX_INTERVAL /* we don't do it if the power consumption is already good enough. */
-        if (wmi_listeninterval_cmd(ar->arWmi, A_MAX_WOW_LISTEN_INTERVAL, 0) == A_OK) {
+        if (wmi_listeninterval_cmd(ar->arWmi, A_MAX_WOW_LISTEN_INTERVAL, 0) == 0) {
         }
 #endif
 
@@ -213,7 +213,7 @@ static void ar6000_wow_suspend(AR_SOFTC_T *ar)
 
 int ar6000_suspend_ev(void *context)
 {
-    int status = A_OK;
+    int status = 0;
     AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
     s16 pmmode = ar->arSuspendConfig;
 wow_not_connected:
@@ -240,7 +240,7 @@ wow_not_connected:
             AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("Strange suspend state for not wow mode %d", ar->arWlanPowerState));
         }
         AR_DEBUG_PRINTF(ATH_DEBUG_PM,("%s:Suspend for %d mode pwr %d status %d\n", __func__, pmmode, ar->arWlanPowerState, status));
-        status = (ar->arWlanPowerState == WLAN_POWER_STATE_CUT_PWR) ? A_OK : A_EBUSY;
+        status = (ar->arWlanPowerState == WLAN_POWER_STATE_CUT_PWR) ? 0 : A_EBUSY;
         break;
     }
 
@@ -270,7 +270,7 @@ int ar6000_resume_ev(void *context)
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Strange SDIO bus power mode!!\n"));
         break;
     }
-    return A_OK;
+    return 0;
 }
 
 void ar6000_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, bool isEvent)
@@ -293,17 +293,17 @@ void ar6000_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, bool isEvent)
 int ar6000_power_change_ev(void *context, u32 config)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
-    int status = A_OK;
+    int status = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("%s: power change event callback %d \n", __func__, config));
     switch (config) {
        case HIF_DEVICE_POWER_UP:
             ar6000_restart_endpoint(ar->arNetDev);
-            status = A_OK;
+            status = 0;
             break;
        case HIF_DEVICE_POWER_DOWN:
        case HIF_DEVICE_POWER_CUT:
-            status = A_OK;
+            status = 0;
             break;
     }
     return status;
@@ -345,7 +345,7 @@ static struct platform_driver ar6000_pm_device = {
 int
 ar6000_setup_cut_power_state(struct ar6_softc *ar,  AR6000_WLAN_STATE state)
 {
-    int                      status = A_OK;
+    int                      status = 0;
     HIF_DEVICE_POWER_CHANGE_TYPE  config;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("%s: Cut power %d %d \n", __func__,state, ar->arWlanPowerState));
@@ -383,10 +383,10 @@ ar6000_setup_cut_power_state(struct ar6_softc *ar,  AR6000_WLAN_STATE state)
                     break;
                 }
 #endif
-                status = A_OK;
-            } else if (status == A_OK) {
+                status = 0;
+            } else if (status == 0) {
                 ar6000_restart_endpoint(ar->arNetDev);
-                status = A_OK;
+                status = 0;
             }
         } else if (state == WLAN_DISABLED) {
 
@@ -415,7 +415,7 @@ ar6000_setup_cut_power_state(struct ar6_softc *ar,  AR6000_WLAN_STATE state)
 int
 ar6000_setup_deep_sleep_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
 {
-    int status = A_OK;
+    int status = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("%s: Deep sleep %d %d \n", __func__,state, ar->arWlanPowerState));
 #ifdef CONFIG_PM
@@ -439,7 +439,7 @@ ar6000_setup_deep_sleep_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
             hostSleepMode.awake = true;
             hostSleepMode.asleep = false;
 
-            if ((status=wmi_set_host_sleep_mode_cmd(ar->arWmi, &hostSleepMode)) != A_OK) {
+            if ((status=wmi_set_host_sleep_mode_cmd(ar->arWmi, &hostSleepMode)) != 0) {
                 break;
             }
 
@@ -456,7 +456,7 @@ ar6000_setup_deep_sleep_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
                                         ar->scParams.shortScanRatio,
                                         ar->scParams.scanCtrlFlags,
                                         ar->scParams.max_dfsch_act_time,
-                                        ar->scParams.maxact_scan_per_ssid)) != A_OK)
+                                        ar->scParams.maxact_scan_per_ssid)) != 0)
                 {
                     break;
                 }
@@ -464,7 +464,7 @@ ar6000_setup_deep_sleep_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
             if (ar->arNetworkType != AP_NETWORK)
             {
                 if (ar->arSsidLen) {
-                    if (ar6000_connect_to_ap(ar) != A_OK) {
+                    if (ar6000_connect_to_ap(ar) != 0) {
                         /* no need to report error if connection failed */
                         break;
                     }
@@ -495,12 +495,12 @@ ar6000_setup_deep_sleep_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
 
             ar->scan_triggered = 0;
 
-            if ((status=wmi_scanparams_cmd(ar->arWmi, 0xFFFF, 0, 0, 0, 0, 0, 0, 0, 0, 0)) != A_OK) {
+            if ((status=wmi_scanparams_cmd(ar->arWmi, 0xFFFF, 0, 0, 0, 0, 0, 0, 0, 0, 0)) != 0) {
                 break;
             }
 
             /* make sure we disable wow for deep sleep */
-            if ((status=wmi_set_wow_mode_cmd(ar->arWmi, &wowMode))!=A_OK)
+            if ((status=wmi_set_wow_mode_cmd(ar->arWmi, &wowMode))!= 0)
             {
                 break;
             }
@@ -512,7 +512,7 @@ ar6000_setup_deep_sleep_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
 
             hostSleepMode.awake = false;
             hostSleepMode.asleep = true;
-            if ((status=wmi_set_host_sleep_mode_cmd(ar->arWmi, &hostSleepMode))!=A_OK) {
+            if ((status=wmi_set_host_sleep_mode_cmd(ar->arWmi, &hostSleepMode))!= 0) {
                 break;
             }
             if (ar->arTxPending[ar->arControlEp]) {
@@ -539,7 +539,7 @@ ar6000_setup_deep_sleep_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
 int
 ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, bool pmEvent)
 {
-    int status = A_OK;
+    int status = 0;
     u16 powerState, oldPowerState;
     AR6000_WLAN_STATE oldstate = ar->arWlanState;
     bool wlanOff = ar->arWlanOff;
@@ -631,7 +631,7 @@ ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, bool
     if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Fail to setup WLAN state %d\n", ar->arWlanState));
         ar->arWlanState = oldstate;
-    } else if (status == A_OK) {
+    } else if (status == 0) {
         WMI_REPORT_SLEEP_STATE_EVENT  wmiSleepEvent, *pSleepEvent = NULL;
         if ((ar->arWlanPowerState == WLAN_POWER_STATE_ON) && (oldPowerState != WLAN_POWER_STATE_ON)) {
             wmiSleepEvent.sleepState = WMI_REPORT_SLEEP_STATUS_IS_AWAKE;
@@ -657,13 +657,13 @@ ar6000_set_bt_hw_state(struct ar6_softc *ar, u32 enable)
     bool off = (enable == 0);
     int status;
     if (ar->arBTOff == off) {
-        return A_OK;
+        return 0;
     }
     ar->arBTOff = off;
     status = ar6000_update_wlan_pwr_state(ar, ar->arWlanOff ? WLAN_DISABLED : WLAN_ENABLED, false);
     return status;
 #else
-    return A_OK;
+    return 0;
 #endif
 }
 
@@ -673,7 +673,7 @@ ar6000_set_wlan_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
     int status;
     bool off = (state == WLAN_DISABLED);
     if (ar->arWlanOff == off) {
-        return A_OK;
+        return 0;
     }
     ar->arWlanOff = off;
     status = ar6000_update_wlan_pwr_state(ar, state, false);

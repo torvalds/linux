@@ -55,7 +55,7 @@ ar6000_htc_raw_read_cb(void *Context, HTC_PACKET *pPacket)
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to down the semaphore\n"));
     }
 
-    A_ASSERT((pPacket->Status != A_OK) || 
+    A_ASSERT((pPacket->Status != 0) ||
              (pPacket->pBuffer == (busy->data + HTC_HEADER_LEN)));
 
     busy->length = pPacket->ActualLength + HTC_HEADER_LEN;
@@ -150,7 +150,7 @@ static int ar6000_connect_raw_service(AR_SOFTC_T        *ar,
         if (status) {
             if (response.ConnectRespCode == HTC_SERVICE_NO_MORE_EP) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("HTC RAW , No more streams allowed \n"));
-                status = A_OK;    
+                status = 0;
             }
             break;    
         }
@@ -228,7 +228,7 @@ int ar6000_htc_raw_open(AR_SOFTC_T *ar)
                                           arRawStream2EndpointID(ar,streamID));
             
             /* Queue buffers to HTC for receive */
-            if ((status = HTCAddReceivePkt(ar->arHtcTarget, &buffer->HTCPacket)) != A_OK)
+            if ((status = HTCAddReceivePkt(ar->arHtcTarget, &buffer->HTCPacket)) != 0)
             {
                 BMIInit();
                 return -EIO;
@@ -262,7 +262,7 @@ int ar6000_htc_raw_open(AR_SOFTC_T *ar)
                              1);
 
     /* Start the HTC component */
-    if ((status = HTCStart(ar->arHtcTarget)) != A_OK) {
+    if ((status = HTCStart(ar->arHtcTarget)) != 0) {
         BMIInit();
         return -EIO;
     }

@@ -270,7 +270,7 @@ static void HTCAsyncSendScatterCompletion(HIF_SCATTER_REQ *pScatterReq)
     HTC_PACKET          *pPacket;
     HTC_ENDPOINT        *pEndpoint = (HTC_ENDPOINT *)pScatterReq->Context;
     HTC_TARGET          *target = (HTC_TARGET *)pEndpoint->target;
-    int            status = A_OK;
+    int            status = 0;
     HTC_PACKET_QUEUE    sendCompletes;
     
     INIT_HTC_PACKET_QUEUE(&sendCompletes);
@@ -705,7 +705,7 @@ int  HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
 
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND, ("-HTCSendPktsMultiple \n"));
 
-    return A_OK;   
+    return 0;
 }
 
 /* HTC API - HTCSendPkt */

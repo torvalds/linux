@@ -109,7 +109,7 @@ a_netbuf_push(void *bufPtr, s32 len)
 {
     skb_push((struct sk_buff *)bufPtr, len);
 
-    return A_OK;
+    return 0;
 }
 
 /*
@@ -122,7 +122,7 @@ a_netbuf_push_data(void *bufPtr, char *srcPtr, s32 len)
     skb_push((struct sk_buff *) bufPtr, len);
     A_MEMCPY(((struct sk_buff *)bufPtr)->data, srcPtr, len);
 
-    return A_OK;
+    return 0;
 }
 
 /*
@@ -134,7 +134,7 @@ a_netbuf_put(void *bufPtr, s32 len)
 {
     skb_put((struct sk_buff *)bufPtr, len);
 
-    return A_OK;
+    return 0;
 }
 
 /*
@@ -149,7 +149,7 @@ a_netbuf_put_data(void *bufPtr, char *srcPtr, s32 len)
     skb_put((struct sk_buff *)bufPtr, len);
     A_MEMCPY(start, srcPtr, len);
 
-    return A_OK;
+    return 0;
 }
 
 
@@ -161,7 +161,7 @@ a_netbuf_setlen(void *bufPtr, s32 len)
 {
     skb_trim((struct sk_buff *)bufPtr, len);
 
-    return A_OK;
+    return 0;
 }
 
 /*
@@ -172,7 +172,7 @@ a_netbuf_trim(void *bufPtr, s32 len)
 {
     skb_trim((struct sk_buff *)bufPtr, ((struct sk_buff *)bufPtr)->len - len);
 
-    return A_OK;
+    return 0;
 }
 
 /*
@@ -187,7 +187,7 @@ a_netbuf_trim_data(void *bufPtr, char *dstPtr, s32 len)
     A_MEMCPY(dstPtr, start, len);
     skb_trim((struct sk_buff *)bufPtr, ((struct sk_buff *)bufPtr)->len - len);
 
-    return A_OK;
+    return 0;
 }
 
 
@@ -207,7 +207,7 @@ a_netbuf_pull(void *bufPtr, s32 len)
 {
     skb_pull((struct sk_buff *)bufPtr, len);
 
-    return A_OK;
+    return 0;
 }
 
 /*
@@ -220,7 +220,7 @@ a_netbuf_pull_data(void *bufPtr, char *dstPtr, s32 len)
     A_MEMCPY(dstPtr, ((struct sk_buff *)bufPtr)->data, len);
     skb_pull((struct sk_buff *)bufPtr, len);
 
-    return A_OK;
+    return 0;
 }
 
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE

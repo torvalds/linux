@@ -32,11 +32,10 @@
 /*
  * Generic error codes that can be used by hw, sta, ap, sim, dk
  * and any other environments.
- * Feel free to add any more codes that you need.
+ * Feel free to add any more non-zero codes that you need.
  */
 
 #define A_ERROR			(-1)	/* Generic error return */
-#define A_OK			0	/* success */
 #define A_DEVICE_NOT_FOUND	1	/* not able to find PCI device */
 #define A_NO_MEMORY		2	/* not able to allocate memory,
 					 * not avail#defineable */
