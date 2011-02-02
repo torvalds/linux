@@ -348,6 +348,9 @@ semaphore_acquire(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 		OUT_RING  (chan, 1);
 	} else
 	if (dev_priv->chipset < 0xc0) {
+		struct nouveau_vma *vma = &dev_priv->fence.bo->vma;
+		u64 offset = vma->offset + sema->mem->start;
+
 		/*
 		 * NV50 tries to be too smart and context-switch
 		 * between semaphores instead of doing a "first come,
@@ -372,8 +375,8 @@ semaphore_acquire(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 		BEGIN_RING(chan, NvSubSw, 0x0080, 1);
 		OUT_RING  (chan, 0);
 		BEGIN_RING(chan, NvSubSw, 0x0010, 4);
-		OUT_RING  (chan, upper_32_bits(sema->mem->start));
-		OUT_RING  (chan, lower_32_bits(sema->mem->start));
+		OUT_RING  (chan, upper_32_bits(offset));
+		OUT_RING  (chan, lower_32_bits(offset));
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, 1); /* ACQUIRE_EQ */
 	} else {
@@ -424,6 +427,9 @@ semaphore_release(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 		}
 	} else
 	if (dev_priv->chipset < 0xc0) {
+		struct nouveau_vma *vma = &dev_priv->fence.bo->vma;
+		u64 offset = vma->offset + sema->mem->start;
+
 		/*
 		 * Emits release and forces the card to context switch right
 		 * afterwards, there may be another channel waiting for the
@@ -435,8 +441,8 @@ semaphore_release(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 			return ret;
 
 		BEGIN_RING(chan, NvSubSw, 0x0010, 4);
-		OUT_RING  (chan, upper_32_bits(sema->mem->start));
-		OUT_RING  (chan, lower_32_bits(sema->mem->start));
+		OUT_RING  (chan, upper_32_bits(offset));
+		OUT_RING  (chan, lower_32_bits(offset));
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, 2); /* RELEASE */
 		BEGIN_RING(chan, NvSubSw, 0x0080, 1);
@@ -545,7 +551,7 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 	OUT_RING(chan, NvSw);
 
 	/* Create a DMA object for the shared cross-channel sync area. */
-	if (USE_SEMA(dev)) {
+	if (USE_SEMA(dev) && dev_priv->chipset < 0x84) {
 		struct ttm_mem_reg *mem = &dev_priv->fence.bo->bo.mem;
 
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
@@ -565,6 +571,12 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 			return ret;
 		BEGIN_RING(chan, NvSubSw, NV_SW_DMA_SEMAPHORE, 1);
 		OUT_RING(chan, NvSema);
+	} else {
+		ret = RING_SPACE(chan, 2);
+		if (ret)
+			return ret;
+		BEGIN_RING(chan, NvSubSw, NV_SW_DMA_SEMAPHORE, 1);
+		OUT_RING  (chan, chan->vram_handle); /* whole VM */
 	}
 
 	FIRE_RING(chan);
