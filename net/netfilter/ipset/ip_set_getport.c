@@ -118,8 +118,10 @@ ip_set_get_ip_port(const struct sk_buff *skb, u8 pf, bool src, __be16 *port)
 	switch (pf) {
 	case AF_INET:
 		ret = ip_set_get_ip4_port(skb, src, port, &proto);
+		break;
 	case AF_INET6:
 		ret = ip_set_get_ip6_port(skb, src, port, &proto);
+		break;
 	default:
 		return false;
 	}
