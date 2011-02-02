@@ -1265,6 +1265,62 @@ static void assert_transcoder_disabled(struct drm_i915_private *dev_priv,
 	WARN(enabled, "transcoder assertion failed, should be off on pipe %c but is still active\n", pipe ? 'B' :'A');
 }
 
+static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
+				   enum pipe pipe, int reg)
+{
+	u32 val;
+	u32 sel_pipe;
+
+	val = I915_READ(reg);
+	sel_pipe = (val & DP_PIPEB_SELECT) >> 30;
+	WARN((val & DP_PORT_EN) && sel_pipe == pipe,
+	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
+	     reg, pipe ? 'B' : 'A');
+}
+
+static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
+				     enum pipe pipe, int reg)
+{
+	u32 val;
+	u32 sel_pipe;
+
+	val = I915_READ(reg);
+	sel_pipe = (val & TRANSCODER_B) >> 30;
+	WARN((val & PORT_ENABLE) && sel_pipe == pipe,
+	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
+	     reg, pipe ? 'B' : 'A');
+}
+
+static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
+				      enum pipe pipe)
+{
+	int reg;
+	u32 val;
+	u32 sel_pipe;
+
+	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_B);
+	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_C);
+	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_D);
+
+	reg = PCH_ADPA;
+	val = I915_READ(reg);
+	sel_pipe = (val & ADPA_TRANS_B_SELECT) >> 30;
+	WARN(sel_pipe == pipe && (val & ADPA_DAC_ENABLE),
+	     "PCH VGA enabled on transcoder %c, should be disabled\n",
+	     pipe ? 'B' : 'A');
+
+	reg = PCH_LVDS;
+	val = I915_READ(reg);
+	sel_pipe = (val & LVDS_PIPEB_SELECT) >> 30;
+	WARN(sel_pipe == pipe && (val & LVDS_PORT_EN),
+	     "PCH LVDS enabled on transcoder %c, should be disabled\n",
+	     pipe ? 'B' : 'A');
+
+	assert_pch_hdmi_disabled(dev_priv, pipe, HDMIB);
+	assert_pch_hdmi_disabled(dev_priv, pipe, HDMIC);
+	assert_pch_hdmi_disabled(dev_priv, pipe, HDMID);
+}
+
 /**
  * intel_enable_pll - enable a PLL
  * @dev_priv: i915 private structure
@@ -1418,6 +1474,9 @@ static void intel_disable_transcoder(struct drm_i915_private *dev_priv,
 	/* FDI relies on the transcoder */
 	assert_fdi_tx_disabled(dev_priv, pipe);
 	assert_fdi_rx_disabled(dev_priv, pipe);
+
+	/* Ports must be off as well */
+	assert_pch_ports_disabled(dev_priv, pipe);
 
 	reg = TRANSCONF(pipe);
 	val = I915_READ(reg);
