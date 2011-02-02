@@ -49,7 +49,7 @@
 
 /* unaligned little endian access */
 #define LE_READ_2(p)                            \
-    ((A_UINT16)                            \
+    ((u16)                            \
      ((((u8 *)(p))[0]      ) | (((u8 *)(p))[1] <<  8)))
 
 #define LE_READ_4(p)                            \
@@ -125,8 +125,8 @@ wlan_parse_beacon(u8 *buf, int framelen, struct ieee80211_common_ie *cie)
     A_MEMZERO(cie, sizeof(*cie));
 
     cie->ie_tstamp = frm; frm += 8;
-    cie->ie_beaconInt = A_LE2CPU16(*(A_UINT16 *)frm);  frm += 2;
-    cie->ie_capInfo = A_LE2CPU16(*(A_UINT16 *)frm);  frm += 2;
+    cie->ie_beaconInt = A_LE2CPU16(*(u16 *)frm);  frm += 2;
+    cie->ie_capInfo = A_LE2CPU16(*(u16 *)frm);  frm += 2;
     cie->ie_chan = 0;
 
     while (frm < efrm) {

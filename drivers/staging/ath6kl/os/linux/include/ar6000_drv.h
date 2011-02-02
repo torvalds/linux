@@ -436,7 +436,7 @@ struct ar_hb_chlng_resp {
 #define STA_IS_PS_POLLED(sta) (sta->flags & (STA_PS_POLLED_MASK << STA_PS_POLLED_SHIFT))
 
 typedef struct {
-    A_UINT16                flags;
+    u16 flags;
     u8 mac[ATH_MAC_LEN];
     u8 aid;
     u8 keymgmt;
@@ -487,10 +487,10 @@ typedef struct ar6_softc {
     struct ar_wep_key       arWepKeyList[WMI_MAX_KEY_INDEX + 1];
     u8 arBssid[6];
     u8 arReqBssid[6];
-    A_UINT16                arChannelHint;
-    A_UINT16                arBssChannel;
-    A_UINT16                arListenIntervalB;
-    A_UINT16                arListenIntervalT;
+    u16 arChannelHint;
+    u16 arBssChannel;
+    u16 arListenIntervalB;
+    u16 arListenIntervalT;
     struct ar6000_version   arVersion;
     A_UINT32                arTargetType;
     A_INT8                  arRssi;
@@ -500,7 +500,7 @@ typedef struct ar6_softc {
     struct net_device_stats arNetStats;
     struct iw_statistics    arIwStats;
     A_INT8                  arNumChannels;
-    A_UINT16                arChannelList[32];
+    u16 arChannelList[32];
     A_UINT32                arRegCode;
     bool                  statsUpdatePending;
     TARGET_STATS            arTargetStats;
@@ -514,8 +514,8 @@ typedef struct ar6_softc {
     A_UINT32                arTargetMode;
     A_UINT32                tcmdRxcrcErrPkt;
     A_UINT32                tcmdRxsecErrPkt;
-    A_UINT16                tcmdRateCnt[TCMD_MAX_RATES];
-    A_UINT16                tcmdRateCntShortGuard[TCMD_MAX_RATES];
+    u16 tcmdRateCnt[TCMD_MAX_RATES];
+    u16 tcmdRateCntShortGuard[TCMD_MAX_RATES];
 #endif
     AR6000_WLAN_STATE       arWlanState;
     struct ar_node_mapping  arNodeMap[MAX_NODE_NUM];
@@ -526,7 +526,7 @@ typedef struct ar6_softc {
     A_UINT32                arCookieCount;
     A_UINT32                arRateMask;
     u8 arSkipScan;
-    A_UINT16                arBeaconInterval;
+    u16 arBeaconInterval;
     bool                  arConnectPending;
     bool                  arWmmEnabled;
     struct ar_hb_chlng_resp arHBChallengeResp;
@@ -558,7 +558,7 @@ typedef struct ar6_softc {
 #endif
     USER_RSSI_THOLD rssi_map[12];
     u8 arUserBssFilter;
-    A_UINT16                ap_profile_flag;    /* AP mode */
+    u16 ap_profile_flag;    /* AP mode */
     WMI_AP_ACL              g_acl;              /* AP mode */
     sta_t                   sta_list[AP_MAX_NUM_STA]; /* AP mode */
     u8 sta_list_index;     /* AP mode */
@@ -577,9 +577,9 @@ typedef struct ar6_softc {
     u8 ap_country_code[3];
     u8 ap_wmode;
     u8 ap_dtim_period;
-    A_UINT16                ap_beacon_interval;
-    A_UINT16                arRTS;
-    A_UINT16                arACS; /* AP mode - Auto Channel Selection */
+    u16 ap_beacon_interval;
+    u16 arRTS;
+    u16 arACS; /* AP mode - Auto Channel Selection */
     HTC_PACKET_QUEUE        amsdu_rx_buffer_queue;
     bool                  bIsDestroyProgress; /* flag to indicate ar6k destroy is in progress */
     A_TIMER                 disconnect_timer;
@@ -596,15 +596,15 @@ typedef struct ar6_softc {
     struct cfg80211_scan_request    *scan_request;
     struct ar_key   keys[WMI_MAX_KEY_INDEX + 1];
 #endif /* ATH6K_CONFIG_CFG80211 */
-    A_UINT16                arWlanPowerState;
+    u16 arWlanPowerState;
     bool                  arWlanOff;
 #ifdef CONFIG_PM
-    A_UINT16                arWowState;
+    u16 arWowState;
     bool                  arBTOff;
     bool                  arBTSharing;
-    A_UINT16                arSuspendConfig;
-    A_UINT16                arWlanOffConfig;
-    A_UINT16                arWow2Config;
+    u16 arSuspendConfig;
+    u16 arWlanOffConfig;
+    u16 arWow2Config;
 #endif
     u8 scan_triggered;
     WMI_SCAN_PARAMS_CMD     scParams;
@@ -731,7 +731,7 @@ ieee80211_find_conn(AR_SOFTC_T *ar, u8 *node_addr);
 sta_t *
 ieee80211_find_conn_for_aid(AR_SOFTC_T *ar, u8 aid);
 
-u8 remove_sta(AR_SOFTC_T *ar, u8 *mac, A_UINT16 reason);
+u8 remove_sta(AR_SOFTC_T *ar, u8 *mac, u16 reason);
 
 /* HCI support */
 

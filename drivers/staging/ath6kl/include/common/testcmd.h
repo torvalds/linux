@@ -91,8 +91,8 @@ typedef PREPACK struct {
     A_UINT32                enANI;
     A_UINT32                scramblerOff;
     A_UINT32                aifsn;
-    A_UINT16                pktSz;
-    A_UINT16                txPattern;
+    u16 pktSz;
+    u16 txPattern;
     A_UINT32                shortGuard;
     A_UINT32                numPackets;
     A_UINT32                wlanMode;
@@ -138,8 +138,8 @@ typedef PREPACK struct {
             A_INT32     rssiInDBm;
             A_UINT32    crcErrPkt;
             A_UINT32    secErrPkt;
-            A_UINT16    rateCnt[TCMD_MAX_RATES];
-            A_UINT16    rateCntShortGuard[TCMD_MAX_RATES];
+            u16 rateCnt[TCMD_MAX_RATES];
+            u16 rateCntShortGuard[TCMD_MAX_RATES];
         } POSTPACK report;
         struct PREPACK TCMD_CONT_RX_MAC {
             A_UCHAR    addr[ATH_MAC_LEN];

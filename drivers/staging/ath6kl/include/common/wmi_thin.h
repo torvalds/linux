@@ -103,7 +103,7 @@ typedef enum{
 typedef PREPACK struct {
     u8 version; /* the versioned type of messages to use or 0 to disable */
     u8 countThreshold; /* msg count threshold triggering a tx complete message */
-    A_UINT16    timeThreshold; /* timeout interval in MSEC triggering a tx complete message */       
+    u16 timeThreshold; /* timeout interval in MSEC triggering a tx complete message */
 } POSTPACK WMI_THIN_CONFIG_TXCOMPLETE;
 
 /* WMI_THIN_CONFIG_DECRYPT_ERR -- Used to configure behavior for received frames 
@@ -139,7 +139,7 @@ typedef PREPACK struct {
 #define WMI_THIN_CFG_MAC_RULES      0x00000004
 #define WMI_THIN_CFG_FILTER_RULES   0x00000008
     A_UINT32    cfgField;   /* combination of WMI_THIN_CFG_... describes contents of config command */
-    A_UINT16    length;     /* length in bytes of appended sub-commands */        
+    u16 length;     /* length in bytes of appended sub-commands */
     u8 reserved[2];   /* align padding */
 } POSTPACK WMI_THIN_CONFIG_CMD;
 
@@ -192,13 +192,13 @@ typedef PREPACK struct {
 } POSTPACK WMI_THIN_MIB_SLOT_TIME;
 
 typedef PREPACK struct {
-    A_UINT16 length; //units == bytes
+    u16 length; //units == bytes
 } POSTPACK WMI_THIN_MIB_RTS_THRESHOLD;
 
 typedef PREPACK struct {
     u8 type; // type of frame
     u8 rate; // tx rate to be used (one of WMI_BIT_RATE)
-    A_UINT16 length; // num bytes following this structure as the template data
+    u16 length; // num bytes following this structure as the template data
 } POSTPACK WMI_THIN_MIB_TEMPLATE_FRAME;
 
 typedef PREPACK struct {
@@ -221,11 +221,11 @@ typedef PREPACK struct {
     u8 treatment;
     u8 oui[3];
     u8 type;
-    A_UINT16 version;
+    u16 version;
 } POSTPACK WMI_THIN_MIB_BEACON_FILTER_TABLE_OUI;
 
 typedef PREPACK struct {
-    A_UINT16 numElements;
+    u16 numElements;
     u8 entrySize; // sizeof(WMI_THIN_MIB_BEACON_FILTER_TABLE) on host cpu may be 2 may be 4
     u8 reserved;
 } POSTPACK WMI_THIN_MIB_BEACON_FILTER_TABLE_HEADER; 
@@ -290,7 +290,7 @@ typedef PREPACK struct {
 } POSTPACK WMI_THIN_MIB_PREAMBLE;
 
 typedef PREPACK struct {    
-    A_UINT16    length;     /* the length in bytes of the appended MIB data */
+    u16 length;     /* the length in bytes of the appended MIB data */
     u8 mibID;      /* the ID of the MIB element being set */
     u8 reserved; /* align padding */
 } POSTPACK WMI_THIN_SET_MIB_CMD;
@@ -303,8 +303,8 @@ typedef PREPACK struct {
 typedef PREPACK struct {
     A_UINT32    basicRateMask; /* bit mask of basic rates */
     A_UINT32    beaconIntval; /* TUs */
-    A_UINT16    atimWindow; /* TUs */
-    A_UINT16    channel; /* frequency in Mhz */
+    u16 atimWindow; /* TUs */
+    u16 channel; /* frequency in Mhz */
     u8 networkType; /* INFRA_NETWORK | ADHOC_NETWORK */
     u8 ssidLength; /* 0 - 32 */
     u8 probe;      /* != 0 : issue probe req at start */
@@ -314,8 +314,8 @@ typedef PREPACK struct {
 } POSTPACK WMI_THIN_JOIN_CMD;
 
 typedef PREPACK struct {
-    A_UINT16 dtim; /* dtim interval in num beacons */
-    A_UINT16 aid; /* 80211 AID from Assoc resp */   
+    u16 dtim; /* dtim interval in num beacons */
+    u16 aid; /* 80211 AID from Assoc resp */
 } POSTPACK WMI_THIN_POST_ASSOC_CMD;
 
 typedef enum {

@@ -106,20 +106,20 @@ static void
 update_mac(unsigned char *eeprom, int size, unsigned char *macaddr)
 {
 	int i;
-	A_UINT16* ptr = (A_UINT16*)(eeprom+4);
-	A_UINT16  checksum = 0;
+	u16 *ptr = (u16 *)(eeprom+4);
+	u16 checksum = 0;
 
 	memcpy(eeprom+10,macaddr,6);
 
 	*ptr = 0;
-	ptr = (A_UINT16*)eeprom;
+	ptr = (u16 *)eeprom;
 
 	for (i=0; i<size; i+=2) {
 		checksum ^= *ptr++;
 	}
 	checksum = ~checksum;
 
-	ptr = (A_UINT16*)(eeprom+4);
+	ptr = (u16 *)(eeprom+4);
 	*ptr = checksum;
 	return;
 }

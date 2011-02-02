@@ -56,13 +56,13 @@ typedef PREPACK struct {
     u8 TimeStamp[8];          /* timestamp of packet (host or target) */
     A_UINT32    HostContext_h;         /* 4 byte host context, target echos this back */
     A_UINT32    SeqNo;                 /* sequence number (set by host or target) */   
-    A_UINT16    Cmd_h;                 /* ping command (filled by host) */  
-    A_UINT16    CmdFlags_h;            /* optional flags */
+    u16 Cmd_h;                 /* ping command (filled by host) */
+    u16 CmdFlags_h;            /* optional flags */
     u8 CmdBuffer_h[8];        /* buffer for command (host -> target) */
     u8 CmdBuffer_t[8];        /* buffer for command (target -> host) */
-    A_UINT16    DataLength;            /* length of data */
-    A_UINT16    DataCRC;               /* 16 bit CRC of data */
-    A_UINT16    HeaderCRC;             /* header CRC (fields : StreamNo_h to end, minus HeaderCRC) */                       
+    u16 DataLength;            /* length of data */
+    u16 DataCRC;               /* 16 bit CRC of data */
+    u16 HeaderCRC;             /* header CRC (fields : StreamNo_h to end, minus HeaderCRC) */
 } POSTPACK EPPING_HEADER;
 
 #define EPPING_PING_MAGIC_0               0xAA
@@ -97,9 +97,9 @@ typedef PREPACK struct {
 
     /* test command parameters may be no more than 8 bytes */
 typedef PREPACK struct {    
-    A_UINT16  BurstCnt;       /* number of packets to burst together (for HTC 2.1 testing) */
-    A_UINT16  PacketLength;   /* length of packet to generate including header */      
-    A_UINT16  Flags;          /* flags */
+    u16 BurstCnt;       /* number of packets to burst together (for HTC 2.1 testing) */
+    u16 PacketLength;   /* length of packet to generate including header */
+    u16 Flags;          /* flags */
 
 #define EPPING_CONT_RX_DATA_CRC     (1 << 0)  /* Add CRC to all data */
 #define EPPING_CONT_RX_RANDOM_DATA  (1 << 1)  /* randomize the data pattern */
@@ -107,7 +107,7 @@ typedef PREPACK struct {
 } POSTPACK EPPING_CONT_RX_PARAMS;
 
 #define EPPING_HDR_CRC_OFFSET    A_OFFSETOF(EPPING_HEADER,StreamNo_h)
-#define EPPING_HDR_BYTES_CRC     (sizeof(EPPING_HEADER) - EPPING_HDR_CRC_OFFSET - (sizeof(A_UINT16)))
+#define EPPING_HDR_BYTES_CRC     (sizeof(EPPING_HEADER) - EPPING_HDR_CRC_OFFSET - (sizeof(u16)))
 
 #define HCI_TRANSPORT_STREAM_NUM  16  /* this number is higher than the define WMM AC classes so we
                                          can use this to distinguish packets */

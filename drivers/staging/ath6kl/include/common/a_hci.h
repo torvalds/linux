@@ -242,7 +242,7 @@ typedef enum {
 
 /* Command pkt */
 typedef struct  hci_cmd_pkt_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
     u8 params[255];
 } POSTPACK HCI_CMD_PKT;
@@ -250,8 +250,8 @@ typedef struct  hci_cmd_pkt_t {
 #define ACL_DATA_HDR_SIZE   4   /* hdl_and flags + data_len */
 /* Data pkt */
 typedef struct  hci_acl_data_pkt_t {
-    A_UINT16    hdl_and_flags;
-    A_UINT16    data_len;
+    u16 hdl_and_flags;
+    u16 data_len;
     u8 data[Max80211_PAL_PDU_Size];
 } POSTPACK HCI_ACL_DATA_PKT;
 
@@ -265,7 +265,7 @@ typedef struct  hci_event_pkt_t {
 
 /*============== HCI Command definitions ======================= */
 typedef struct hci_cmd_phy_link_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
     u8 phy_link_hdl;
     u8 link_key_len;
@@ -274,62 +274,62 @@ typedef struct hci_cmd_phy_link_t {
 } POSTPACK HCI_CMD_PHY_LINK;
 
 typedef struct  hci_cmd_write_rem_amp_assoc_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
     u8 phy_link_hdl;
-    A_UINT16    len_so_far;
-    A_UINT16    amp_assoc_remaining_len;
+    u16 len_so_far;
+    u16 amp_assoc_remaining_len;
     u8 amp_assoc_frag[AMP_ASSOC_MAX_FRAG_SZ];
 } POSTPACK HCI_CMD_WRITE_REM_AMP_ASSOC;
 
 
 typedef struct  hci_cmd_opcode_hdl_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
-    A_UINT16    hdl;
+    u16 hdl;
 } POSTPACK HCI_CMD_READ_LINK_QUAL,
            HCI_CMD_FLUSH,
            HCI_CMD_READ_LINK_SUPERVISION_TIMEOUT;
 
 typedef struct  hci_cmd_read_local_amp_assoc_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
     u8 phy_link_hdl;
-    A_UINT16    len_so_far;
-    A_UINT16    max_rem_amp_assoc_len;
+    u16 len_so_far;
+    u16 max_rem_amp_assoc_len;
 } POSTPACK HCI_CMD_READ_LOCAL_AMP_ASSOC;
 
 
 typedef struct hci_cmd_set_event_mask_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
     A_UINT64    mask;
 }POSTPACK HCI_CMD_SET_EVT_MASK, HCI_CMD_SET_EVT_MASK_PG_2;
 
 
 typedef struct  hci_cmd_enhanced_flush_t{
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
-    A_UINT16    hdl;
+    u16 hdl;
     u8 type;
 } POSTPACK HCI_CMD_ENHANCED_FLUSH;
 
 
 typedef struct  hci_cmd_write_timeout_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
-    A_UINT16    timeout;
+    u16 timeout;
 } POSTPACK  HCI_CMD_WRITE_TIMEOUT;
 
 typedef struct  hci_cmd_write_link_supervision_timeout_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
-    A_UINT16    hdl;
-    A_UINT16    timeout;
+    u16 hdl;
+    u16 timeout;
 } POSTPACK HCI_CMD_WRITE_LINK_SUPERVISION_TIMEOUT;
 
 typedef struct  hci_cmd_write_flow_control_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
     u8 mode;
 } POSTPACK  HCI_CMD_WRITE_FLOW_CONTROL;
@@ -341,7 +341,7 @@ typedef struct  location_data_cfg_t {
 } POSTPACK LOCATION_DATA_CFG;
 
 typedef struct  hci_cmd_write_location_data_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
     LOCATION_DATA_CFG   cfg;
 } POSTPACK  HCI_CMD_WRITE_LOCATION_DATA;
@@ -350,7 +350,7 @@ typedef struct  hci_cmd_write_location_data_t {
 typedef struct  flow_spec_t {
     u8 id;
     u8 service_type;
-    A_UINT16    max_sdu;
+    u16 max_sdu;
     A_UINT32    sdu_inter_arrival_time;
     A_UINT32    access_latency;
     A_UINT32    flush_timeout;
@@ -358,7 +358,7 @@ typedef struct  flow_spec_t {
 
 
 typedef struct  hci_cmd_create_logical_link_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
     u8 phy_link_hdl;
     FLOW_SPEC   tx_flow_spec;
@@ -366,34 +366,34 @@ typedef struct  hci_cmd_create_logical_link_t {
 } POSTPACK HCI_CMD_CREATE_LOGICAL_LINK;
 
 typedef struct  hci_cmd_flow_spec_modify_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
-    A_UINT16    hdl;
+    u16 hdl;
     FLOW_SPEC   tx_flow_spec;
     FLOW_SPEC   rx_flow_spec;
 } POSTPACK HCI_CMD_FLOW_SPEC_MODIFY;
 
 typedef struct hci_cmd_logical_link_cancel_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
     u8 phy_link_hdl;
     u8 tx_flow_spec_id;
 } POSTPACK HCI_CMD_LOGICAL_LINK_CANCEL;
 
 typedef struct  hci_cmd_disconnect_logical_link_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
-    A_UINT16    logical_link_hdl;
+    u16 logical_link_hdl;
 } POSTPACK HCI_CMD_DISCONNECT_LOGICAL_LINK;
 
 typedef struct  hci_cmd_disconnect_phy_link_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
     u8 phy_link_hdl;
 } POSTPACK HCI_CMD_DISCONNECT_PHY_LINK;
 
 typedef struct  hci_cmd_srm_t {
-    A_UINT16    opcode;
+    u16 opcode;
     u8 param_length;
     u8 phy_link_hdl;
     u8 mode;
@@ -409,7 +409,7 @@ typedef struct  hci_event_cmd_complete_t {
     u8 event_code;
     u8 param_len;
     u8 num_hci_cmd_pkts;
-    A_UINT16    opcode;
+    u16 opcode;
     u8 params[255];
 } POSTPACK HCI_EVENT_CMD_COMPLETE;
 
@@ -420,7 +420,7 @@ typedef struct  hci_event_cmd_status_t {
     u8 param_len;
     u8 status;
     u8 num_hci_cmd_pkts;
-    A_UINT16    opcode;
+    u16 opcode;
 } POSTPACK HCI_EVENT_CMD_STATUS;
 
 /* Hardware Error event */
@@ -435,7 +435,7 @@ typedef struct  hci_event_hw_err_t {
 typedef struct  hci_event_handle_t {
     u8 event_code;
     u8 param_len;
-    A_UINT16    handle;
+    u16 handle;
 } POSTPACK HCI_EVENT_FLUSH_OCCRD,
            HCI_EVENT_QOS_VIOLATION;
 
@@ -457,7 +457,7 @@ typedef struct  hci_data_buf_overflow_t {
 typedef struct hci_enhanced_flush_complt_t{
     u8 event_code;
     u8 param_len;
-    A_UINT16    hdl;
+    u16 hdl;
 } POSTPACK  HCI_EVENT_ENHANCED_FLUSH_COMPLT;
 
 /* Channel select event */
@@ -480,7 +480,7 @@ typedef struct hci_event_logical_link_complete_event_t {
     u8 event_code;
     u8 param_len;
     u8 status;
-    A_UINT16    logical_link_hdl;
+    u16 logical_link_hdl;
     u8 phy_hdl;
     u8 tx_flow_id;
 } POSTPACK HCI_EVENT_LOGICAL_LINK_COMPLETE_EVENT;
@@ -490,7 +490,7 @@ typedef struct hci_event_disconnect_logical_link_event_t {
     u8 event_code;
     u8 param_len;
     u8 status;
-    A_UINT16    logical_link_hdl;
+    u16 logical_link_hdl;
     u8 reason;
 } POSTPACK HCI_EVENT_DISCONNECT_LOGICAL_LINK_EVENT;
 
@@ -523,7 +523,7 @@ typedef struct hci_event_status_handle_t {
     u8 event_code;
     u8 param_len;
     u8 status;
-    A_UINT16    handle;
+    u16 handle;
 } POSTPACK HCI_EVENT_FLOW_SPEC_MODIFY,
            HCI_EVENT_FLUSH;
 
@@ -532,7 +532,7 @@ typedef struct hci_event_status_handle_t {
 typedef struct hci_event_num_of_compl_data_blks_t {
     u8 event_code;
     u8 param_len;
-    A_UINT16    num_data_blks;
+    u16 num_data_blks;
     u8 num_handles;
     u8 params[255];
 } POSTPACK HCI_EVENT_NUM_COMPL_DATA_BLKS;
@@ -564,8 +564,8 @@ typedef struct  local_amp_info_resp_t {
     A_UINT32    min_latency;
     A_UINT32    max_pdu_size;
     u8 amp_type;
-    A_UINT16    pal_capabilities;
-    A_UINT16    amp_assoc_len;
+    u16 pal_capabilities;
+    u16 amp_assoc_len;
     A_UINT32    max_flush_timeout;  /* in ms */
     A_UINT32    be_flush_timeout;   /* in ms */
 } POSTPACK  LOCAL_AMP_INFO;
@@ -573,7 +573,7 @@ typedef struct  local_amp_info_resp_t {
 typedef struct  amp_assoc_cmd_resp_t{
     u8 status;
     u8 phy_hdl;
-    A_UINT16    amp_assoc_len;
+    u16 amp_assoc_len;
     u8 amp_assoc_frag[AMP_ASSOC_MAX_FRAG_SZ];
 }POSTPACK AMP_ASSOC_CMD_RESP;
 
@@ -619,18 +619,18 @@ enum PAL_HCI_CMD_STATUS {
  */
 typedef struct  timeout_read_t {
     u8 status;
-    A_UINT16    timeout;
+    u16 timeout;
 }POSTPACK TIMEOUT_INFO;
 
 typedef struct  link_supervision_timeout_read_t {
     u8 status;
-    A_UINT16    hdl;
-    A_UINT16    timeout;
+    u16 hdl;
+    u16 timeout;
 }POSTPACK LINK_SUPERVISION_TIMEOUT_INFO;
 
 typedef struct  status_hdl_t {
     u8 status;
-    A_UINT16    hdl;
+    u16 hdl;
 }POSTPACK INFO_STATUS_HDL;
 
 typedef struct write_remote_amp_assoc_t{
@@ -650,15 +650,15 @@ typedef struct  read_flow_ctrl_mode_t {
 
 typedef struct  read_data_blk_size_t {
     u8 status;
-    A_UINT16    max_acl_data_pkt_len;
-    A_UINT16    data_block_len;
-    A_UINT16    total_num_data_blks;
+    u16 max_acl_data_pkt_len;
+    u16 data_block_len;
+    u16 total_num_data_blks;
 }POSTPACK READ_DATA_BLK_SIZE_INFO;
 
 /* Read Link quality info */
 typedef struct link_qual_t {
     u8 status;
-    A_UINT16    hdl;
+    u16 hdl;
     u8 link_qual;
 } POSTPACK READ_LINK_QUAL_INFO,
             READ_RSSI_INFO;
@@ -672,10 +672,10 @@ typedef struct ll_cancel_resp_t {
 typedef struct read_local_ver_info_t {
     u8 status;
     u8 hci_version;
-    A_UINT16    hci_revision;
+    u16 hci_revision;
     u8 pal_version;
-    A_UINT16    manf_name;
-    A_UINT16    pal_sub_ver;
+    u16 manf_name;
+    u16 pal_sub_ver;
 } POSTPACK READ_LOCAL_VER_INFO;
 
 

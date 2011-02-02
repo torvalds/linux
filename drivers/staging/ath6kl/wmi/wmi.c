@@ -279,15 +279,15 @@ const u8 up_to_ac[]= {
 typedef PREPACK struct _iphdr {
     u8 ip_ver_hdrlen;          /* version and hdr length */
     u8 ip_tos;                 /* type of service */
-    A_UINT16    ip_len;                 /* total length */
-    A_UINT16    ip_id;                  /* identification */
+    u16 ip_len;                 /* total length */
+    u16 ip_id;                  /* identification */
     A_INT16     ip_off;                 /* fragment offset field */
 #define IP_DF 0x4000                    /* dont fragment flag */
 #define IP_MF 0x2000                    /* more fragments flag */
 #define IP_OFFMASK 0x1fff               /* mask for fragmenting bits */
     u8 ip_ttl;                 /* time to live */
     u8 ip_p;                   /* protocol */
-    A_UINT16    ip_sum;                 /* checksum */
+    u16 ip_sum;                 /* checksum */
     u8 ip_src[4];              /* source and dest address */
     u8 ip_dst[4];
 } POSTPACK iphdr;
@@ -395,7 +395,7 @@ int
 wmi_dix_2_dot3(struct wmi_t *wmip, void *osbuf)
 {
     u8 *datap;
-    A_UINT16         typeorlen;
+    u16 typeorlen;
     ATH_MAC_HDR      macHdr;
     ATH_LLC_SNAP_HDR *llcHdr;
 
@@ -409,7 +409,7 @@ wmi_dix_2_dot3(struct wmi_t *wmip, void *osbuf)
 
     datap = A_NETBUF_DATA(osbuf);
 
-    typeorlen = *(A_UINT16 *)(datap + ATH_MAC_LEN + ATH_MAC_LEN);
+    typeorlen = *(u16 *)(datap + ATH_MAC_LEN + ATH_MAC_LEN);
 
     if (!IS_ETHERTYPE(A_BE2CPU16(typeorlen))) {
         /*
@@ -535,7 +535,7 @@ u8 wmi_implicit_create_pstream(struct wmi_t *wmip, void *osbuf, A_UINT32 layer2P
 {
     u8 *datap;
     u8 trafficClass = WMM_AC_BE;
-    A_UINT16        ipType = IP_ETHERTYPE;
+    u16 ipType = IP_ETHERTYPE;
     WMI_DATA_HDR    *dtHdr;
     u8 streamExists = 0;
     u8 userPriority;
@@ -625,7 +625,7 @@ int
 wmi_dot11_hdr_add (struct wmi_t *wmip, void *osbuf, NETWORK_TYPE mode)
 {
     u8 *datap;
-    A_UINT16         typeorlen;
+    u16 typeorlen;
     ATH_MAC_HDR      macHdr;
     ATH_LLC_SNAP_HDR *llcHdr;
     struct           ieee80211_frame *wh;
@@ -641,7 +641,7 @@ wmi_dot11_hdr_add (struct wmi_t *wmip, void *osbuf, NETWORK_TYPE mode)
 
     datap = A_NETBUF_DATA(osbuf);
 
-    typeorlen = *(A_UINT16 *)(datap + ATH_MAC_LEN + ATH_MAC_LEN);
+    typeorlen = *(u16 *)(datap + ATH_MAC_LEN + ATH_MAC_LEN);
 
     if (!IS_ETHERTYPE(A_BE2CPU16(typeorlen))) {
 /*
@@ -830,7 +830,7 @@ int
 wmi_control_rx_xtnd(struct wmi_t *wmip, void *osbuf)
 {
     WMIX_CMD_HDR *cmd;
-    A_UINT16 id;
+    u16 id;
     u8 *datap;
     A_UINT32 len;
     int status = A_OK;
@@ -907,7 +907,7 @@ int
 wmi_control_rx(struct wmi_t *wmip, void *osbuf)
 {
     WMI_CMD_HDR *cmd;
-    A_UINT16 id;
+    u16 id;
     u8 *datap;
     A_UINT32 len, i, loggingReq;
     int status = A_OK;
@@ -1279,9 +1279,9 @@ wmi_connect_event_rx(struct wmi_t *wmip, u8 *datap, int len)
 
     /* initialize pointer to start of assoc rsp IEs */
     pie = ev->assocInfo + ev->beaconIeLen + ev->assocReqLen +
-                            sizeof(A_UINT16)  +  /* capinfo*/
-                            sizeof(A_UINT16)  +  /* status Code */
-                            sizeof(A_UINT16)  ;  /* associd */
+                            sizeof(u16)  +  /* capinfo*/
+                            sizeof(u16)  +  /* status Code */
+                            sizeof(u16)  ;  /* associd */
 
     /* initialize pointer to end of assoc rsp IEs */
     peie = ev->assocInfo + ev->beaconIeLen + ev->assocReqLen + ev->assocRespLen;
@@ -1991,7 +1991,7 @@ wmi_cac_event_rx(struct wmi_t *wmip, u8 *datap, int len)
 {
     WMI_CAC_EVENT *reply;
     WMM_TSPEC_IE *tspec_ie;
-    A_UINT16 activeTsids;
+    u16 activeTsids;
 
     if (len < sizeof(*reply)) {
         return A_EINVAL;
@@ -2248,7 +2248,7 @@ wmi_lqThresholdEvent_rx(struct wmi_t *wmip, u8 *datap, int len)
 static int
 wmi_aplistEvent_rx(struct wmi_t *wmip, u8 *datap, int len)
 {
-    A_UINT16 ap_info_entry_size;
+    u16 ap_info_entry_size;
     WMI_APLIST_EVENT *ev = (WMI_APLIST_EVENT *)datap;
     WMI_AP_INFO_V1 *ap_info_v1;
     u8 i;
@@ -2372,7 +2372,7 @@ wmi_cmd_send(struct wmi_t *wmip, void *osbuf, WMI_COMMAND_ID cmdId,
     }
 
     cHdr = (WMI_CMD_HDR *)A_NETBUF_DATA(osbuf);
-    cHdr->commandId = (A_UINT16) cmdId;
+    cHdr->commandId = (u16) cmdId;
     cHdr->info1 = 0; // added for virtual interface
 
     /*
@@ -2421,7 +2421,7 @@ wmi_connect_cmd(struct wmi_t *wmip, NETWORK_TYPE netType,
                 CRYPTO_TYPE pairwiseCrypto, u8 pairwiseCryptoLen,
                 CRYPTO_TYPE groupCrypto, u8 groupCryptoLen,
                 int ssidLength, A_UCHAR *ssid,
-                u8 *bssid, A_UINT16 channel, A_UINT32 ctrl_flags)
+                u8 *bssid, u16 channel, A_UINT32 ctrl_flags)
 {
     void *osbuf;
     WMI_CONNECT_CMD *cc;
@@ -2471,7 +2471,7 @@ wmi_connect_cmd(struct wmi_t *wmip, NETWORK_TYPE netType,
 }
 
 int
-wmi_reconnect_cmd(struct wmi_t *wmip, u8 *bssid, A_UINT16 channel)
+wmi_reconnect_cmd(struct wmi_t *wmip, u8 *bssid, u16 channel)
 {
     void *osbuf;
     WMI_RECONNECT_CMD *cc;
@@ -2513,7 +2513,7 @@ int
 wmi_startscan_cmd(struct wmi_t *wmip, WMI_SCAN_TYPE scanType,
                   u32 forceFgScan, u32 isLegacy,
                   A_UINT32 homeDwellTime, A_UINT32 forceScanInterval,
-                  A_INT8 numChan, A_UINT16 *channelList)
+                  A_INT8 numChan, u16 *channelList)
 {
     void *osbuf;
     WMI_START_SCAN_CMD *sc;
@@ -2529,7 +2529,7 @@ wmi_startscan_cmd(struct wmi_t *wmip, WMI_SCAN_TYPE scanType,
         if (numChan > WMI_MAX_CHANNELS) {
             return A_EINVAL;
         }
-        size += sizeof(A_UINT16) * (numChan - 1);
+        size += sizeof(u16) * (numChan - 1);
     }
 
     osbuf = A_NETBUF_ALLOC(size);
@@ -2547,19 +2547,19 @@ wmi_startscan_cmd(struct wmi_t *wmip, WMI_SCAN_TYPE scanType,
     sc->forceScanInterval = forceScanInterval;
     sc->numChannels = numChan;
     if (numChan) {
-        A_MEMCPY(sc->channelList, channelList, numChan * sizeof(A_UINT16));
+        A_MEMCPY(sc->channelList, channelList, numChan * sizeof(u16));
     }
 
     return (wmi_cmd_send(wmip, osbuf, WMI_START_SCAN_CMDID, NO_SYNC_WMIFLAG));
 }
 
 int
-wmi_scanparams_cmd(struct wmi_t *wmip, A_UINT16 fg_start_sec,
-                   A_UINT16 fg_end_sec, A_UINT16 bg_sec,
-                   A_UINT16 minact_chdw_msec, A_UINT16 maxact_chdw_msec,
-                   A_UINT16 pas_chdw_msec,
+wmi_scanparams_cmd(struct wmi_t *wmip, u16 fg_start_sec,
+                   u16 fg_end_sec, u16 bg_sec,
+                   u16 minact_chdw_msec, u16 maxact_chdw_msec,
+                   u16 pas_chdw_msec,
                    u8 shScanRatio, u8 scanCtrlFlags,
-                   A_UINT32 max_dfsch_act_time, A_UINT16 maxact_scan_per_ssid)
+                   A_UINT32 max_dfsch_act_time, u16 maxact_scan_per_ssid)
 {
     void *osbuf;
     WMI_SCAN_PARAMS_CMD *sc;
@@ -2657,7 +2657,7 @@ wmi_probedSsid_cmd(struct wmi_t *wmip, u8 index, u8 flag,
 }
 
 int
-wmi_listeninterval_cmd(struct wmi_t *wmip, A_UINT16 listenInterval, A_UINT16 listenBeacons)
+wmi_listeninterval_cmd(struct wmi_t *wmip, u16 listenInterval, u16 listenBeacons)
 {
     void *osbuf;
     WMI_LISTEN_INT_CMD *cmd;
@@ -2679,7 +2679,7 @@ wmi_listeninterval_cmd(struct wmi_t *wmip, A_UINT16 listenInterval, A_UINT16 lis
 }
 
 int
-wmi_bmisstime_cmd(struct wmi_t *wmip, A_UINT16 bmissTime, A_UINT16 bmissBeacons)
+wmi_bmisstime_cmd(struct wmi_t *wmip, u16 bmissTime, u16 bmissBeacons)
 {
     void *osbuf;
     WMI_BMISS_TIME_CMD *cmd;
@@ -2706,7 +2706,7 @@ wmi_associnfo_cmd(struct wmi_t *wmip, u8 ieType,
 {
     void *osbuf;
     WMI_SET_ASSOC_INFO_CMD *cmd;
-    A_UINT16 cmdLen;
+    u16 cmdLen;
 
     cmdLen = sizeof(*cmd) + ieLen - 1;
     osbuf = A_NETBUF_ALLOC(cmdLen);
@@ -2750,7 +2750,7 @@ wmi_powermode_cmd(struct wmi_t *wmip, u8 powerMode)
 
 int
 wmi_ibsspmcaps_cmd(struct wmi_t *wmip, u8 pmEnable, u8 ttl,
-                   A_UINT16 atim_windows, A_UINT16 timeout_value)
+                   u16 atim_windows, u16 timeout_value)
 {
     void *osbuf;
     WMI_IBSS_PM_CAPS_CMD *cmd;
@@ -2799,10 +2799,10 @@ wmi_apps_cmd(struct wmi_t *wmip, u8 psType, A_UINT32 idle_time,
 }
 
 int
-wmi_pmparams_cmd(struct wmi_t *wmip, A_UINT16 idlePeriod,
-                 A_UINT16 psPollNum, A_UINT16 dtimPolicy,
-                 A_UINT16 tx_wakeup_policy, A_UINT16 num_tx_to_wakeup,
-                 A_UINT16 ps_fail_event_policy)
+wmi_pmparams_cmd(struct wmi_t *wmip, u16 idlePeriod,
+                 u16 psPollNum, u16 dtimPolicy,
+                 u16 tx_wakeup_policy, u16 num_tx_to_wakeup,
+                 u16 ps_fail_event_policy)
 {
     void *osbuf;
     WMI_POWER_PARAMS_CMD *pm;
@@ -3029,7 +3029,7 @@ wmi_set_pmkid_list_cmd(struct wmi_t *wmip,
 {
     void *osbuf;
     WMI_SET_PMKID_LIST_CMD *cmd;
-    A_UINT16 cmdLen;
+    u16 cmdLen;
     u8 i;
 
     cmdLen = sizeof(pmkInfo->numPMKID) +
@@ -3297,7 +3297,7 @@ wmi_delete_pstream_cmd(struct wmi_t *wmip, u8 trafficClass, u8 tsid)
     void *osbuf;
     WMI_DELETE_PSTREAM_CMD *cmd;
     int status;
-    A_UINT16 activeTsids=0;
+    u16 activeTsids=0;
 
     /* validate the parameters */
     if (trafficClass > 3) {
@@ -3356,7 +3356,7 @@ wmi_delete_pstream_cmd(struct wmi_t *wmip, u8 trafficClass, u8 tsid)
 }
 
 int
-wmi_set_framerate_cmd(struct wmi_t *wmip, u8 bEnable, u8 type, u8 subType, A_UINT16 rateMask)
+wmi_set_framerate_cmd(struct wmi_t *wmip, u8 bEnable, u8 type, u8 subType, u16 rateMask)
 {
     void *osbuf;
     WMI_FRAME_RATES_CMD *cmd;
@@ -3597,7 +3597,7 @@ wmi_get_channelList_cmd(struct wmi_t *wmip)
 int
 wmi_set_channelParams_cmd(struct wmi_t *wmip, u8 scanParam,
                           WMI_PHY_MODE mode, A_INT8 numChan,
-                          A_UINT16 *channelList)
+                          u16 *channelList)
 {
     void *osbuf;
     WMI_CHANNEL_PARAMS_CMD *cmd;
@@ -3609,7 +3609,7 @@ wmi_set_channelParams_cmd(struct wmi_t *wmip, u8 scanParam,
         if (numChan > WMI_MAX_CHANNELS) {
             return A_EINVAL;
         }
-        size += sizeof(A_UINT16) * (numChan - 1);
+        size += sizeof(u16) * (numChan - 1);
     }
 
     osbuf = A_NETBUF_ALLOC(size);
@@ -3626,7 +3626,7 @@ wmi_set_channelParams_cmd(struct wmi_t *wmip, u8 scanParam,
     cmd->scanParam   = scanParam;
     cmd->phyMode     = mode;
     cmd->numChannels = numChan;
-    A_MEMCPY(cmd->channelList, channelList, numChan * sizeof(A_UINT16));
+    A_MEMCPY(cmd->channelList, channelList, numChan * sizeof(u16));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_CHANNEL_PARAMS_CMDID,
                          NO_SYNC_WMIFLAG));
@@ -3738,7 +3738,7 @@ wmi_set_host_sleep_mode_cmd(struct wmi_t *wmip,
     void    *osbuf;
     A_INT8  size;
     WMI_SET_HOST_SLEEP_MODE_CMD *cmd;
-    A_UINT16 activeTsids=0;
+    u16 activeTsids=0;
     u8 streamExists=0;
     u8 i;
 
@@ -4080,8 +4080,8 @@ wmi_get_challenge_resp_cmd(struct wmi_t *wmip, A_UINT32 cookie, A_UINT32 source)
 }
 
 int
-wmi_config_debug_module_cmd(struct wmi_t *wmip, A_UINT16 mmask,
-                            A_UINT16 tsr, bool rep, A_UINT16 size,
+wmi_config_debug_module_cmd(struct wmi_t *wmip, u16 mmask,
+                            u16 tsr, bool rep, u16 size,
                             A_UINT32 valid)
 {
     void *osbuf;
@@ -4190,10 +4190,9 @@ wmi_get_txPwr_cmd(struct wmi_t *wmip)
     return wmi_simple_cmd(wmip, WMI_GET_TX_PWR_CMDID);
 }
 
-A_UINT16
-wmi_get_mapped_qos_queue(struct wmi_t *wmip, u8 trafficClass)
+u16 wmi_get_mapped_qos_queue(struct wmi_t *wmip, u8 trafficClass)
 {
-    A_UINT16 activeTsids=0;
+    u16 activeTsids=0;
 
     LOCK_WMI(wmip);
     activeTsids = wmip->wmi_streamExistsForAC[trafficClass];
@@ -4411,7 +4410,7 @@ wmi_gpio_intr_ack(struct wmi_t *wmip,
 #endif /* CONFIG_HOST_GPIO_SUPPORT */
 
 int
-wmi_set_access_params_cmd(struct wmi_t *wmip, u8 ac,  A_UINT16 txop, u8 eCWmin,
+wmi_set_access_params_cmd(struct wmi_t *wmip, u8 ac,  u16 txop, u8 eCWmin,
                           u8 eCWmax, u8 aifsn)
 {
     void *osbuf;
@@ -4514,7 +4513,7 @@ wmi_opt_tx_frame_cmd(struct wmi_t *wmip,
                       u8 frmType,
                       u8 *dstMacAddr,
                       u8 *bssid,
-                      A_UINT16 optIEDataLen,
+                      u16 optIEDataLen,
                       u8 *optIEData)
 {
     void *osbuf;
@@ -4541,7 +4540,7 @@ wmi_opt_tx_frame_cmd(struct wmi_t *wmip,
 }
 
 int
-wmi_set_adhoc_bconIntvl_cmd(struct wmi_t *wmip, A_UINT16 intvl)
+wmi_set_adhoc_bconIntvl_cmd(struct wmi_t *wmip, u16 intvl)
 {
     void *osbuf;
     WMI_BEACON_INT_CMD *cmd;
@@ -4563,7 +4562,7 @@ wmi_set_adhoc_bconIntvl_cmd(struct wmi_t *wmip, A_UINT16 intvl)
 
 
 int
-wmi_set_voice_pkt_size_cmd(struct wmi_t *wmip, A_UINT16 voicePktSize)
+wmi_set_voice_pkt_size_cmd(struct wmi_t *wmip, u16 voicePktSize)
 {
     void *osbuf;
     WMI_SET_VOICE_PKT_SIZE_CMD *cmd;
@@ -4757,7 +4756,7 @@ wmi_set_lpreamble_cmd(struct wmi_t *wmip, u8 status, u8 preamblePolicy)
 }
 
 int
-wmi_set_rts_cmd(struct wmi_t *wmip, A_UINT16 threshold)
+wmi_set_rts_cmd(struct wmi_t *wmip, u16 threshold)
 {
     void *osbuf;
     WMI_SET_RTS_CMD *cmd;
@@ -5311,7 +5310,7 @@ wmi_set_appie_cmd(struct wmi_t *wmip, u8 mgmtFrmType, u8 ieLen,
 {
     void *osbuf;
     WMI_SET_APPIE_CMD *cmd;
-    A_UINT16 cmdLen;
+    u16 cmdLen;
 
     cmdLen = sizeof(*cmd) + ieLen - 1;
     osbuf = A_NETBUF_ALLOC(cmdLen);
@@ -5332,7 +5331,7 @@ wmi_set_appie_cmd(struct wmi_t *wmip, u8 mgmtFrmType, u8 ieLen,
 }
 
 int
-wmi_set_halparam_cmd(struct wmi_t *wmip, u8 *cmd, A_UINT16 dataLen)
+wmi_set_halparam_cmd(struct wmi_t *wmip, u8 *cmd, u16 dataLen)
 {
     void *osbuf;
     u8 *data;
@@ -6187,7 +6186,7 @@ wmi_ap_acl_mac_list(struct wmi_t *wmip, WMI_AP_ACL_MAC_CMD *acl)
  * firware will allow all STAs till the count reaches AP_MAX_NUM_STA.
  */
 int
-wmi_ap_set_mlme(struct wmi_t *wmip, u8 cmd, u8 *mac, A_UINT16 reason)
+wmi_ap_set_mlme(struct wmi_t *wmip, u8 cmd, u8 *mac, u16 reason)
 {
     void *osbuf;
     WMI_AP_SET_MLME_CMD *mlme;
@@ -6246,7 +6245,7 @@ wmi_wapi_rekey_event_rx(struct wmi_t *wmip, u8 *datap,int len)
 #endif
 
 int
-wmi_set_pvb_cmd(struct wmi_t *wmip, A_UINT16 aid, bool flag)
+wmi_set_pvb_cmd(struct wmi_t *wmip, u16 aid, bool flag)
 {
     WMI_AP_SET_PVB_CMD *cmd;
     void *osbuf = NULL;
@@ -6445,7 +6444,7 @@ wmi_set_tx_select_rates_cmd(struct wmi_t *wmip, A_UINT32 *pMaskArray)
 
 
 int
-wmi_send_hci_cmd(struct wmi_t *wmip, u8 *buf, A_UINT16 sz)
+wmi_send_hci_cmd(struct wmi_t *wmip, u8 *buf, u16 sz)
 {
     void *osbuf;
     WMI_HCI_CMD *cmd;
@@ -6465,7 +6464,7 @@ wmi_send_hci_cmd(struct wmi_t *wmip, u8 *buf, A_UINT16 sz)
 
 #ifdef ATH_AR6K_11N_SUPPORT
 int
-wmi_allow_aggr_cmd(struct wmi_t *wmip, A_UINT16 tx_tidmask, A_UINT16 rx_tidmask)
+wmi_allow_aggr_cmd(struct wmi_t *wmip, u16 tx_tidmask, u16 rx_tidmask)
 {
     void *osbuf;
     WMI_ALLOW_AGGR_CMD *cmd;
@@ -6646,19 +6645,18 @@ wmi_find_matching_Ssidnode (struct wmi_t *wmip, A_UCHAR *pSsid,
     return node;
 }
 
-A_UINT16
-wmi_ieee2freq (int chan)
+u16 wmi_ieee2freq (int chan)
 {
-    A_UINT16 freq = 0;
+    u16 freq = 0;
     freq = wlan_ieee2freq (chan);
     return freq;
 
 }
 
 A_UINT32
-wmi_freq2ieee (A_UINT16 freq)
+wmi_freq2ieee (u16 freq)
 {
-    A_UINT16 chan = 0;
+    u16 chan = 0;
     chan = wlan_freq2ieee (freq);
     return chan;
 }

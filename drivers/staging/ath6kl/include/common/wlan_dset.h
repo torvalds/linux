@@ -27,7 +27,7 @@ typedef PREPACK struct wow_config_dset {
 
     u8 valid_dset;
     u8 gpio_enable;
-    A_UINT16 gpio_pin;
+    u16 gpio_pin;
 } POSTPACK WOW_CONFIG_DSET;
 
 #endif

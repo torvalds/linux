@@ -45,12 +45,12 @@ typedef struct {
     HIF_DEVICE               *pHIFDevice;     /* HIF layer device      */
     
     A_UINT32                 AR3KBaudRate;    /* AR3K operational baud rate */
-    A_UINT16                 AR6KScale;       /* AR6K UART scale value */    
-    A_UINT16                 AR6KStep;        /* AR6K UART step value  */
+    u16 AR6KScale;       /* AR6K UART scale value */
+    u16 AR6KStep;        /* AR6K UART step value  */
     struct hci_dev           *pBtStackHCIDev; /* BT Stack HCI dev */
     A_UINT32                 PwrMgmtEnabled;  /* TLPM enabled? */  
-    A_UINT16                 IdleTimeout;     /* TLPM idle timeout */
-    A_UINT16                 WakeupTimeout;   /* TLPM wakeup timeout */
+    u16 IdleTimeout;     /* TLPM idle timeout */
+    u16 WakeupTimeout;   /* TLPM wakeup timeout */
     u8 bdaddr[6];       /* Bluetooth device address */
 } AR3K_CONFIG_INFO;
                                                                                         

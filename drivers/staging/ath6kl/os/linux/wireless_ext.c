@@ -1196,7 +1196,7 @@ ar6000_ioctl_siwgenie(struct net_device *dev,
 #ifdef WAPI_ENABLE
     u8 *ie = erq->pointer;
     u8 ie_type = ie[0];
-    A_UINT16   ie_length = erq->length;
+    u16 ie_length = erq->length;
     u8 wapi_ie[128];
 #endif
 
@@ -1249,7 +1249,7 @@ ar6000_ioctl_siwauth(struct net_device *dev,
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
     bool profChanged;
-    A_UINT16 param;
+    u16 param;
     A_INT32 ret;
     A_INT32 value;
 
@@ -1418,7 +1418,7 @@ ar6000_ioctl_giwauth(struct net_device *dev,
               struct iw_param *data, char *extra)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
-    A_UINT16 param;
+    u16 param;
     A_INT32 ret;
 
     if (ar->arWmiReady == false) {

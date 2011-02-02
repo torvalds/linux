@@ -345,8 +345,8 @@ void android_ar6k_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, bool isE
             skb && ar->arConnected) {
         bool needWake = false;
         if (isEvent) {
-            if (A_NETBUF_LEN(skb) >= sizeof(A_UINT16)) {
-                A_UINT16 cmd = *(const A_UINT16 *)A_NETBUF_DATA(skb);
+            if (A_NETBUF_LEN(skb) >= sizeof(u16)) {
+                u16 cmd = *(const u16 *)A_NETBUF_DATA(skb);
                 switch (cmd) {
                 case WMI_CONNECT_EVENTID:
                 case WMI_DISCONNECT_EVENTID:

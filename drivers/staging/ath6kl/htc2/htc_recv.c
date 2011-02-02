@@ -234,7 +234,7 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
     u8 temp;
     u8 *pBuf;
     int  status = A_OK;
-    A_UINT16  payloadLen;
+    u16 payloadLen;
     A_UINT32  lookAhead;
 
     pBuf = pPacket->pBuffer;

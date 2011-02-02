@@ -43,7 +43,7 @@ static void
 aggr_timeout(A_ATH_TIMER arg);
 
 static void
-aggr_deque_frms(AGGR_INFO *p_aggr, u8 tid, A_UINT16 seq_no, u8 order);
+aggr_deque_frms(AGGR_INFO *p_aggr, u8 tid, u16 seq_no, u8 order);
 
 static void
 aggr_dispatch_frames(AGGR_INFO *p_aggr, A_NETBUF_QUEUE_T *q);
@@ -187,7 +187,7 @@ aggr_register_rx_dispatcher(void *cntxt, void * dev, RX_CALLBACK fn)
 
 
 void
-aggr_process_bar(void *cntxt, u8 tid, A_UINT16 seq_no)
+aggr_process_bar(void *cntxt, u8 tid, u16 seq_no)
 {
     AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
     RXTID_STATS *stats;
@@ -201,7 +201,7 @@ aggr_process_bar(void *cntxt, u8 tid, A_UINT16 seq_no)
 
 
 void
-aggr_recv_addba_req_evt(void *cntxt, u8 tid, A_UINT16 seq_no, u8 win_sz)
+aggr_recv_addba_req_evt(void *cntxt, u8 tid, u16 seq_no, u8 win_sz)
 {
     AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
     RXTID *rxtid;
@@ -269,11 +269,11 @@ aggr_recv_delba_req_evt(void *cntxt, u8 tid)
 }
 
 static void
-aggr_deque_frms(AGGR_INFO *p_aggr, u8 tid, A_UINT16 seq_no, u8 order)
+aggr_deque_frms(AGGR_INFO *p_aggr, u8 tid, u16 seq_no, u8 order)
 {
     RXTID *rxtid;
     OSBUF_HOLD_Q *node;
-    A_UINT16 idx, idx_end, seq_end;
+    u16 idx, idx_end, seq_end;
     RXTID_STATS *stats;
 
     A_ASSERT(p_aggr);
@@ -359,7 +359,7 @@ static void
 aggr_slice_amsdu(AGGR_INFO *p_aggr, RXTID *rxtid, void **osbuf)
 {
     void *new_buf;
-    A_UINT16 frame_8023_len, payload_8023_len, mac_hdr_len, amsdu_len;
+    u16 frame_8023_len, payload_8023_len, mac_hdr_len, amsdu_len;
     u8 *framep;
 
     /* Frame format at this point:
@@ -426,13 +426,13 @@ aggr_slice_amsdu(AGGR_INFO *p_aggr, RXTID *rxtid, void **osbuf)
 }
 
 void
-aggr_process_recv_frm(void *cntxt, u8 tid, A_UINT16 seq_no, bool is_amsdu, void **osbuf)
+aggr_process_recv_frm(void *cntxt, u8 tid, u16 seq_no, bool is_amsdu, void **osbuf)
 {
     AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
     RXTID *rxtid;
     RXTID_STATS *stats;
-    A_UINT16 idx, st, cur, end;
-    A_UINT16 *log_idx;
+    u16 idx, st, cur, end;
+    u16 *log_idx;
     OSBUF_HOLD_Q *node;
     PACKET_LOG *log;
 
@@ -472,7 +472,7 @@ aggr_process_recv_frm(void *cntxt, u8 tid, A_UINT16 seq_no, bool is_amsdu, void 
          * be assumed that the window has moved for some valid reason.
          * Therefore, we dequeue all frames and start fresh.
          */
-        A_UINT16 extended_end;
+        u16 extended_end;
 
         extended_end = (end + rxtid->hold_q_sz-1) & IEEE80211_MAX_SEQ_NO;
 

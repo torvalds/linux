@@ -46,7 +46,7 @@ struct _HTC_PACKET;
 
 typedef void (* HTC_PACKET_COMPLETION)(void *,struct _HTC_PACKET *);
 
-typedef A_UINT16 HTC_TX_TAG;
+typedef u16 HTC_TX_TAG;
 
 typedef struct _HTC_TX_PACKET_INFO {
     HTC_TX_TAG    Tag;            /* tag used to selective flush packets */

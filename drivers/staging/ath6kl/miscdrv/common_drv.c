@@ -796,12 +796,12 @@ ar6002_REV1_reset_force_host (HIF_DEVICE *hifDevice)
 
 #endif /* CONFIG_AR6002_REV1_FORCE_HOST */
 
-void DebugDumpBytes(A_UCHAR *buffer, A_UINT16 length, char *pDescription)
+void DebugDumpBytes(A_UCHAR *buffer, u16 length, char *pDescription)
 {
     char stream[60];
     char byteOffsetStr[10];
     A_UINT32 i;
-    A_UINT16 offset, count, byteOffset;
+    u16 offset, count, byteOffset;
 
     A_PRINTF("<---------Dumping %d Bytes : %s ------>\n", length, pDescription);
 

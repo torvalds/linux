@@ -57,7 +57,7 @@ extern "C" {
     /* macro to make a module-specific masks */
 #define ATH_DEBUG_MAKE_MODULE_MASK(index)  (1 << (ATH_DEBUG_MODULE_MASK_SHIFT + (index)))
 
-void DebugDumpBytes(A_UCHAR *buffer, A_UINT16 length, char *pDescription);
+void DebugDumpBytes(A_UCHAR *buffer, u16 length, char *pDescription);
 
 /* Debug support on a per-module basis
  *

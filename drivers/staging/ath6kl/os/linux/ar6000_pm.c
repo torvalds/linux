@@ -74,8 +74,8 @@ static void ar6k_send_asleep_event_to_app(AR_SOFTC_T *ar, bool asleep)
 static void ar6000_wow_resume(AR_SOFTC_T *ar)
 {
     if (ar->arWowState!= WLAN_WOW_STATE_NONE) {
-        A_UINT16 fg_start_period = (ar->scParams.fg_start_period==0) ? 1 : ar->scParams.fg_start_period;
-        A_UINT16 bg_period = (ar->scParams.bg_period==0) ? 60 : ar->scParams.bg_period;
+        u16 fg_start_period = (ar->scParams.fg_start_period==0) ? 1 : ar->scParams.fg_start_period;
+        u16 bg_period = (ar->scParams.bg_period==0) ? 60 : ar->scParams.bg_period;
         WMI_SET_HOST_SLEEP_MODE_CMD hostSleepMode = {true, false};
         ar->arWowState = WLAN_WOW_STATE_NONE;
         if (wmi_set_host_sleep_mode_cmd(ar->arWmi, &hostSleepMode)!=A_OK) {
@@ -251,7 +251,7 @@ wow_not_connected:
 int ar6000_resume_ev(void *context)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
-    A_UINT16 powerState = ar->arWlanPowerState;
+    u16 powerState = ar->arWlanPowerState;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("%s: enter previous state %d wowState %d\n", __func__, powerState, ar->arWowState));
     switch (powerState) {
@@ -425,7 +425,7 @@ ar6000_setup_deep_sleep_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
         WMI_SET_HOST_SLEEP_MODE_CMD hostSleepMode;
 
         if (state == WLAN_ENABLED) {
-            A_UINT16 fg_start_period;
+            u16 fg_start_period;
 
             /* Not in deep sleep state.. exit */
             if (ar->arWlanPowerState != WLAN_POWER_STATE_DEEP_SLEEP) {
@@ -540,7 +540,7 @@ int
 ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, bool pmEvent)
 {
     int status = A_OK;
-    A_UINT16 powerState, oldPowerState;
+    u16 powerState, oldPowerState;
     AR6000_WLAN_STATE oldstate = ar->arWlanState;
     bool wlanOff = ar->arWlanOff;
 #ifdef CONFIG_PM

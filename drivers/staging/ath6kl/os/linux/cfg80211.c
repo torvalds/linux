@@ -428,14 +428,14 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 }
 
 void
-ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, A_UINT16 channel,
-                u8 *bssid, A_UINT16 listenInterval,
-                A_UINT16 beaconInterval,NETWORK_TYPE networkType,
+ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, u16 channel,
+                u8 *bssid, u16 listenInterval,
+                u16 beaconInterval,NETWORK_TYPE networkType,
                 u8 beaconIeLen, u8 assocReqLen,
                 u8 assocRespLen, u8 *assocInfo)
 {
-    A_UINT16 size = 0;
-    A_UINT16 capability = 0;
+    u16 size = 0;
+    u16 capability = 0;
     struct cfg80211_bss *bss = NULL;
     struct ieee80211_mgmt *mgmt = NULL;
     struct ieee80211_channel *ibss_channel = NULL;
@@ -446,11 +446,11 @@ ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, A_UINT16 channel,
     unsigned char *ieeemgmtbuf = NULL;
     u8 source_mac[ATH_MAC_LEN];
 
-    u8 assocReqIeOffset = sizeof(A_UINT16)  +  /* capinfo*/
-                               sizeof(A_UINT16);    /* listen interval */
-    u8 assocRespIeOffset = sizeof(A_UINT16) +  /* capinfo*/
-                                sizeof(A_UINT16) +  /* status Code */
-                                sizeof(A_UINT16);   /* associd */
+    u8 assocReqIeOffset = sizeof(u16)  +  /* capinfo*/
+                               sizeof(u16);    /* listen interval */
+    u8 assocRespIeOffset = sizeof(u16) +  /* capinfo*/
+                                sizeof(u16) +  /* status Code */
+                                sizeof(u16);   /* associd */
     u8 *assocReqIe = assocInfo + beaconIeLen + assocReqIeOffset;
     u8 *assocRespIe = assocInfo + beaconIeLen + assocReqLen + assocRespIeOffset;
 
@@ -513,7 +513,7 @@ ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, A_UINT16 channel,
             A_MEMCPY(source_mac, ar->arNetDev->dev_addr, ATH_MAC_LEN);
             ptr_ie_buf = ie_buf;
         } else {
-            capability = *(A_UINT16 *)(&assocInfo[beaconIeLen]);
+            capability = *(u16 *)(&assocInfo[beaconIeLen]);
             A_MEMCPY(source_mac, bssid, ATH_MAC_LEN);
             ptr_ie_buf = assocReqIe;
             ie_buf_len = assocReqLen;
@@ -577,7 +577,7 @@ ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, A_UINT16 channel,
 
 static int
 ar6k_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
-                        A_UINT16 reason_code)
+                        u16 reason_code)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
@@ -620,7 +620,7 @@ ar6k_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 void
 ar6k_cfg80211_disconnect_event(AR_SOFTC_T *ar, u8 reason,
                                u8 *bssid, u8 assocRespLen,
-                               u8 *assocInfo, A_UINT16 protocolReasonStatus)
+                               u8 *assocInfo, u16 protocolReasonStatus)
 {
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: reason=%u\n", __func__, reason));
@@ -663,7 +663,7 @@ void
 ar6k_cfg80211_scan_node(void *arg, bss_t *ni)
 {
     struct wiphy *wiphy = (struct wiphy *)arg;
-    A_UINT16 size;
+    u16 size;
     unsigned char *ieeemgmtbuf = NULL;
     struct ieee80211_mgmt *mgmt;
     struct ieee80211_channel *channel;

@@ -97,7 +97,7 @@ typedef struct {
 #define TX_PACKET_RSV_OFFSET        32
 #define NUM_HTC_PACKET_STRUCTS     ((MAX_ACL_RECV_BUFS + MAX_EVT_RECV_BUFS + MAX_HCI_WRITE_QUEUE_DEPTH) * 2)
 
-#define HCI_GET_OP_CODE(p)          (((A_UINT16)((p)[1])) << 8) | ((A_UINT16)((p)[0]))
+#define HCI_GET_OP_CODE(p)          (((u16)((p)[1])) << 8) | ((u16)((p)[0]))
 
 extern unsigned int setupbtdev;
 AR3K_CONFIG_INFO      ar3kconfig;
@@ -285,8 +285,8 @@ static int ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
         
         if ((hciuartscale != 0) || (hciuartstep != 0)) {   
                 /* user wants to tune HCI bridge UART scale/step values */
-            ar3kconfig.AR6KScale = (A_UINT16)hciuartscale;
-            ar3kconfig.AR6KStep = (A_UINT16)hciuartstep;           
+            ar3kconfig.AR6KScale = (u16)hciuartscale;
+            ar3kconfig.AR6KStep = (u16)hciuartstep;
             ar3kconfig.Flags |= AR3K_CONFIG_FLAG_SET_AR6K_SCALE_STEP;
         }
         
@@ -757,7 +757,7 @@ static int bt_send_frame(struct sk_buff *skb)
                         (type == HCI_COMMAND_TYPE) ? "COMMAND" : "ACL",
                         skb->len));
         if (type == HCI_COMMAND_TYPE) {
-            A_UINT16 opcode = HCI_GET_OP_CODE(skb->data);
+            u16 opcode = HCI_GET_OP_CODE(skb->data);
             AR_DEBUG_PRINTF(ATH_DEBUG_ANY,("    HCI Command: OGF:0x%X OCF:0x%X \r\n", 
                   opcode >> 10, opcode & 0x3FF));
         }

@@ -178,7 +178,7 @@ void        HTCFlushSendPkts(HTC_TARGET *target);
 #ifdef ATH_DEBUG_MODULE
 void        DumpCreditDist(HTC_ENDPOINT_CREDIT_DIST *pEPDist);
 void        DumpCreditDistStates(HTC_TARGET *target);
-void 		DebugDumpBytes(A_UCHAR *buffer, A_UINT16 length, char *pDescription);
+void 		DebugDumpBytes(A_UCHAR *buffer, u16 length, char *pDescription);
 #endif
 
 static INLINE HTC_PACKET *HTC_ALLOC_CONTROL_TX(HTC_TARGET *target) {
@@ -203,7 +203,7 @@ static INLINE HTC_PACKET *HTC_ALLOC_CONTROL_TX(HTC_TARGET *target) {
     u8 *pHdrBuf;                               \
     (pP)->pBuffer -= HTC_HDR_LENGTH;                \
     pHdrBuf = (pP)->pBuffer;                        \
-    A_SET_UINT16_FIELD(pHdrBuf,HTC_FRAME_HDR,PayloadLen,(A_UINT16)(pP)->ActualLength);  \
+    A_SET_UINT16_FIELD(pHdrBuf,HTC_FRAME_HDR,PayloadLen,(u16)(pP)->ActualLength);  \
     A_SET_UINT8_FIELD(pHdrBuf,HTC_FRAME_HDR,Flags,(sendflags));                         \
     A_SET_UINT8_FIELD(pHdrBuf,HTC_FRAME_HDR,EndpointID, (u8)(pP)->Endpoint); \
     A_SET_UINT8_FIELD(pHdrBuf,HTC_FRAME_HDR,ControlBytes[0], (u8)(ctrl0));   \

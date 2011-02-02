@@ -31,7 +31,7 @@
 #define A_OFFSETOF(type,field) (unsigned long)(&(((type *)NULL)->field))
 
 #define ASSEMBLE_UNALIGNED_UINT16(p,highbyte,lowbyte) \
-        (((A_UINT16)(((u8 *)(p))[(highbyte)])) << 8 | (A_UINT16)(((u8 *)(p))[(lowbyte)]))
+        (((u16)(((u8 *)(p))[(highbyte)])) << 8 | (u16)(((u8 *)(p))[(lowbyte)]))
         
 /* alignment independent macros (little-endian) to fetch UINT16s or UINT8s from a 
  * structure using only the type and field name.
@@ -71,7 +71,7 @@ typedef PREPACK struct _HTC_FRAME_HDR{
          * to take advantage of 4-byte lookaheads in some hardware implementations */
     u8 EndpointID;
     u8 Flags;
-    A_UINT16  PayloadLen;       /* length of data (including trailer) that follows the header */
+    u16 PayloadLen;       /* length of data (including trailer) that follows the header */
     
     /***** end of 4-byte lookahead ****/
     
@@ -110,15 +110,15 @@ typedef PREPACK struct _HTC_FRAME_HDR{
          
 /* base message ID header */
 typedef PREPACK struct {
-    A_UINT16 MessageID;    
+    u16 MessageID;
 } POSTPACK HTC_UNKNOWN_MSG;
                                                      
 /* HTC ready message
  * direction : target-to-host  */
 typedef PREPACK struct {
-    A_UINT16  MessageID;    /* ID */
-    A_UINT16  CreditCount;  /* number of credits the target can offer */       
-    A_UINT16  CreditSize;   /* size of each credit */
+    u16 MessageID;    /* ID */
+    u16 CreditCount;  /* number of credits the target can offer */
+    u16 CreditSize;   /* size of each credit */
     u8 MaxEndpoints; /* maximum number of endpoints the target has resources for */
     u8 _Pad1;
 } POSTPACK HTC_READY_MSG;
@@ -139,9 +139,9 @@ typedef PREPACK struct {
 /* connect service
  * direction : host-to-target */
 typedef PREPACK struct {
-    A_UINT16  MessageID;
-    A_UINT16  ServiceID;           /* service ID of the service to connect to */       
-    A_UINT16  ConnectionFlags;     /* connection flags */
+    u16 MessageID;
+    u16 ServiceID;           /* service ID of the service to connect to */
+    u16 ConnectionFlags;     /* connection flags */
 
 #define HTC_CONNECT_FLAGS_REDUCE_CREDIT_DRIBBLE (1 << 2)  /* reduce credit dribbling when 
                                                              the host needs credits */  
@@ -161,11 +161,11 @@ typedef PREPACK struct {
 /* connect response
  * direction : target-to-host */
 typedef PREPACK struct {
-    A_UINT16  MessageID;
-    A_UINT16  ServiceID;            /* service ID that the connection request was made */
+    u16 MessageID;
+    u16 ServiceID;            /* service ID that the connection request was made */
     u8 Status;               /* service connection status */
     u8 EndpointID;           /* assigned endpoint ID */
-    A_UINT16  MaxMsgSize;           /* maximum expected message size on this endpoint */
+    u16 MaxMsgSize;           /* maximum expected message size on this endpoint */
     u8 ServiceMetaLength;    /* length of meta data that follows */
     u8 _Pad1;
     
@@ -174,13 +174,13 @@ typedef PREPACK struct {
 } POSTPACK HTC_CONNECT_SERVICE_RESPONSE_MSG;
 
 typedef PREPACK struct {
-    A_UINT16  MessageID;
+    u16 MessageID;
     /* currently, no other fields */
 } POSTPACK HTC_SETUP_COMPLETE_MSG;
 
     /* extended setup completion message */
 typedef PREPACK struct {
-    A_UINT16  MessageID;
+    u16 MessageID;
     A_UINT32  SetupFlags;
     u8 MaxMsgsPerBundledRecv;
     u8 Rsvd[3];

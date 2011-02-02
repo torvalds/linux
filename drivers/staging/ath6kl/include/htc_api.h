@@ -41,7 +41,7 @@ extern "C" {
 
 typedef void *HTC_HANDLE;
 
-typedef A_UINT16 HTC_SERVICE_ID;
+typedef u16 HTC_SERVICE_ID;
 
 typedef struct _HTC_INIT_INFO {
     void   *pContext;           /* context for target failure notification */
@@ -141,7 +141,7 @@ typedef struct _HTC_EP_CALLBACKS {
 /* service connection information */
 typedef struct _HTC_SERVICE_CONNECT_REQ {
     HTC_SERVICE_ID   ServiceID;                 /* service ID to connect to */
-    A_UINT16         ConnectionFlags;           /* connection flags, see htc protocol definition */
+    u16 ConnectionFlags;           /* connection flags, see htc protocol definition */
     u8 *pMetaData;                 /* ptr to optional service-specific meta-data */
     u8 MetaDataLength;            /* optional meta data length */
     HTC_EP_CALLBACKS EpCallbacks;               /* endpoint callbacks */

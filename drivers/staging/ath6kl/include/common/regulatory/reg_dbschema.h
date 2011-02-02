@@ -128,7 +128,7 @@ typedef PREPACK struct dbMasterTable_t {    /* Hold ptrs to Table data structure
     char entrySize;      /* Entry size per table row */
     char searchType;     /* Index based access or key based */
     char reserved[3];    /* for alignment */
-    A_UINT16    tableSize;      /* Size of this table */
+    u16 tableSize;      /* Size of this table */
     char *dataPtr;       /* Ptr to the actual Table */
 } POSTPACK dbMasterTable;    /* Master table - table of tables */
 
@@ -169,9 +169,9 @@ typedef PREPACK struct dbMasterTable_t {    /* Hold ptrs to Table data structure
  */
 
 typedef PREPACK struct reg_dmn_pair_mapping {
-    A_UINT16 regDmnEnum;    /* 16 bit reg domain pair */
-    A_UINT16 regDmn5GHz;    /* 5GHz reg domain */
-    A_UINT16 regDmn2GHz;    /* 2GHz reg domain */
+    u16 regDmnEnum;    /* 16 bit reg domain pair */
+    u16 regDmn5GHz;    /* 5GHz reg domain */
+    u16 regDmn2GHz;    /* 2GHz reg domain */
     u8 flags5GHz;     /* Requirements flags (AdHoc disallow etc) */
     u8 flags2GHz;     /* Requirements flags (AdHoc disallow etc) */
     A_UINT32 pscanMask;     /* Passive Scan flags which can override unitary domain passive scan
@@ -188,8 +188,8 @@ typedef PREPACK struct reg_dmn_pair_mapping {
 #define MCS_HT40_G_NO  (0 << 3)
 
 typedef PREPACK struct {
-    A_UINT16    countryCode;       
-    A_UINT16    regDmnEnum;
+    u16 countryCode;
+    u16 regDmnEnum;
     char isoName[3];
     char allowMode;  /* what mode is allowed - bit 0: OFDM; bit 1: MCS_HT20; bit 2: MCS_HT40_A; bit 3: MCS_HT40_G */
 } POSTPACK COUNTRY_CODE_TO_ENUM_RD;
@@ -209,8 +209,8 @@ typedef PREPACK struct {
 #define FREQ_QUARTER_RATE   0x20000
 
 typedef PREPACK struct RegDmnFreqBand {
-    A_UINT16    lowChannel;     /* Low channel center in MHz */
-    A_UINT16    highChannel;    /* High Channel center in MHz */
+    u16 lowChannel;     /* Low channel center in MHz */
+    u16 highChannel;    /* High Channel center in MHz */
     u8 power;          /* Max power (dBm) for channel range */
     u8 channelSep;     /* Channel separation within the band */
     u8 useDfs;         /* Use DFS in the RegDomain if corresponding bit is set */
@@ -223,12 +223,12 @@ typedef PREPACK struct RegDmnFreqBand {
 
 
 typedef PREPACK struct regDomain {
-    A_UINT16    regDmnEnum;     /* value from EnumRd table */
+    u16 regDmnEnum;     /* value from EnumRd table */
     u8 rdCTL;
     u8 maxAntGain;
     u8 dfsMask;        /* DFS bitmask for 5Ghz tables */
     u8 flags;          /* Requirement flags (AdHoc disallow etc) */
-    A_UINT16    reserved;       /* for alignment */
+    u16 reserved;       /* for alignment */
     A_UINT32    pscan;          /* Bitmask for passive scan */
     A_UINT32    chan11a[BMLEN]; /* 64 bit bitmask for channel/band selection */
     A_UINT32    chan11bg[BMLEN];/* 64 bit bitmask for channel/band selection */

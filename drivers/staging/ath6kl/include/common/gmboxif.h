@@ -41,17 +41,17 @@
 
     /* definitions for BT HCI packets */
 typedef PREPACK struct {
-    A_UINT16 Flags_ConnHandle;
-    A_UINT16 Length;
+    u16 Flags_ConnHandle;
+    u16 Length;
 } POSTPACK BT_HCI_ACL_HEADER;
 
 typedef PREPACK struct {
-    A_UINT16 Flags_ConnHandle;
+    u16 Flags_ConnHandle;
     u8 Length;
 } POSTPACK BT_HCI_SCO_HEADER;
 
 typedef PREPACK struct {
-    A_UINT16 OpCode;
+    u16 OpCode;
     u8 ParamLength;
 } POSTPACK BT_HCI_COMMAND_HEADER;
 

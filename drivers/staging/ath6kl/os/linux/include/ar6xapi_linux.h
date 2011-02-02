@@ -32,18 +32,18 @@ struct ar6_softc;
 void ar6000_ready_event(void *devt, u8 *datap, u8 phyCap,
                         A_UINT32 sw_ver, A_UINT32 abi_ver);
 int ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid);
-void ar6000_connect_event(struct ar6_softc *ar, A_UINT16 channel,
-                          u8 *bssid, A_UINT16 listenInterval,
-                          A_UINT16 beaconInterval, NETWORK_TYPE networkType,
+void ar6000_connect_event(struct ar6_softc *ar, u16 channel,
+                          u8 *bssid, u16 listenInterval,
+                          u16 beaconInterval, NETWORK_TYPE networkType,
                           u8 beaconIeLen, u8 assocReqLen,
                           u8 assocRespLen,u8 *assocInfo);
 void ar6000_disconnect_event(struct ar6_softc *ar, u8 reason,
                              u8 *bssid, u8 assocRespLen,
-                             u8 *assocInfo, A_UINT16 protocolReasonStatus);
+                             u8 *assocInfo, u16 protocolReasonStatus);
 void ar6000_tkip_micerr_event(struct ar6_softc *ar, u8 keyid,
                               bool ismcast);
 void ar6000_bitrate_rx(void *devt, A_INT32 rateKbps);
-void ar6000_channelList_rx(void *devt, A_INT8 numChan, A_UINT16 *chanList);
+void ar6000_channelList_rx(void *devt, A_INT8 numChan, u16 *chanList);
 void ar6000_regDomain_event(struct ar6_softc *ar, A_UINT32 regCode);
 void ar6000_txPwr_rx(void *devt, u8 txPwr);
 void ar6000_keepalive_rx(void *devt, u8 configured);
@@ -58,7 +58,7 @@ void ar6000_rssiThreshold_event(struct ar6_softc *ar,
 void ar6000_reportError_event(struct ar6_softc *, WMI_TARGET_ERROR_VAL errorVal);
 void ar6000_cac_event(struct ar6_softc *ar, u8 ac, u8 cac_indication,
                                 u8 statusCode, u8 *tspecSuggestion);
-void ar6000_channel_change_event(struct ar6_softc *ar, A_UINT16 oldChannel, A_UINT16 newChannel);
+void ar6000_channel_change_event(struct ar6_softc *ar, u16 oldChannel, u16 newChannel);
 void ar6000_hbChallengeResp_event(struct ar6_softc *, A_UINT32 cookie, A_UINT32 source);
 void
 ar6000_roam_tbl_event(struct ar6_softc *ar, WMI_TARGET_ROAM_TBL *pTbl);
@@ -84,8 +84,8 @@ A_INT16 rssi_compensation_reverse_calc(struct ar6_softc *ar, A_INT16 rssi, bool 
 void ar6000_dbglog_init_done(struct ar6_softc *ar);
 
 #ifdef SEND_EVENT_TO_APP
-void ar6000_send_event_to_app(struct ar6_softc *ar, A_UINT16 eventId, u8 *datap, int len);
-void ar6000_send_generic_event_to_app(struct ar6_softc *ar, A_UINT16 eventId, u8 *datap, int len);
+void ar6000_send_event_to_app(struct ar6_softc *ar, u16 eventId, u8 *datap, int len);
+void ar6000_send_generic_event_to_app(struct ar6_softc *ar, u16 eventId, u8 *datap, int len);
 #endif
 
 #ifdef CONFIG_HOST_TCMD_SUPPORT
@@ -104,7 +104,7 @@ void ar6000_lqThresholdEvent_rx(void *devt, WMI_LQ_THRESHOLD_VAL range, u8 lqVal
 void ar6000_ratemask_rx(void *devt, A_UINT32 ratemask);
 
 int ar6000_get_driver_cfg(struct net_device *dev,
-                                A_UINT16 cfgParam,
+                                u16 cfgParam,
                                 void *result);
 void ar6000_bssInfo_event_rx(struct ar6_softc *ar, u8 *data, int len);
 
@@ -152,7 +152,7 @@ struct ieee80211req_wpaie;
 int
 ar6000_ap_mode_get_wpa_ie(struct ar6_softc *ar, struct ieee80211req_wpaie *wpaie);
 
-int is_iwioctl_allowed(u8 mode, A_UINT16 cmd);
+int is_iwioctl_allowed(u8 mode, u16 cmd);
 
 int is_xioctl_allowed(u8 mode, int cmd);
 

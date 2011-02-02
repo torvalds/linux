@@ -94,7 +94,7 @@ typedef struct tPsTagEntry
 
 typedef struct tRamPatch
 {
-   A_UINT16   Len;
+   u16 Len;
    u8 *Data;
 } tRamPatch, *ptRamPatch;
 
@@ -320,7 +320,7 @@ int AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat)
    char *Buffer;
    char *pCharLine;
    u8 TagCount;
-   A_UINT16   ByteCount;
+   u16 ByteCount;
    u8 ParseSection=RAM_PS_SECTION;
    A_UINT32 pos;
 

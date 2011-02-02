@@ -213,14 +213,14 @@ static int AR3KConfigureHCIBaud(AR3K_CONFIG_INFO *pConfig)
 {
     int    status = A_OK;
     u8 hciBaudChangeCommand[] =  {0x0c,0xfc,0x2,0,0};
-    A_UINT16    baudVal; 
+    u16 baudVal;
     u8 *pEvent = NULL;
     u8 *pBufferToFree = NULL;
     
     do {
         
         if (pConfig->Flags & AR3K_CONFIG_FLAG_SET_AR3K_BAUD) {
-            baudVal = (A_UINT16)(pConfig->AR3KBaudRate / 100);
+            baudVal = (u16)(pConfig->AR3KBaudRate / 100);
             hciBaudChangeCommand[3] = (u8)baudVal;
             hciBaudChangeCommand[4] = (u8)(baudVal >> 8);
             

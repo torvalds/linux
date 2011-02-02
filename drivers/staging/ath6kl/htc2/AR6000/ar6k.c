@@ -1042,13 +1042,13 @@ static void AssembleBufferList(BUFFER_PROC_LIST *pList)
 #define FILL_COUNTING false
 static void InitBuffers(bool Zero)
 {
-    A_UINT16 *pBuffer16 = (A_UINT16 *)g_Buffer;
+    u16 *pBuffer16 = (u16 *)g_Buffer;
     int      i;
 
         /* fill buffer with 16 bit counting pattern or zeros */
     for (i = 0; i <  (TOTAL_BYTES / 2) ; i++) {
         if (!Zero) {
-            pBuffer16[i] = (A_UINT16)i;
+            pBuffer16[i] = (u16)i;
         } else {
             pBuffer16[i] = 0;
         }
@@ -1056,10 +1056,10 @@ static void InitBuffers(bool Zero)
 }
 
 
-static bool CheckOneBuffer(A_UINT16 *pBuffer16, int Length)
+static bool CheckOneBuffer(u16 *pBuffer16, int Length)
 {
     int      i;
-    A_UINT16 startCount;
+    u16 startCount;
     bool   success = true;
 
         /* get the starting count */
@@ -1069,10 +1069,10 @@ static bool CheckOneBuffer(A_UINT16 *pBuffer16, int Length)
         /* scan the buffer and verify */
     for (i = 0; i < (Length / 2) ; i++,startCount++) {
             /* target will invert all the data */
-        if ((A_UINT16)pBuffer16[i] != (A_UINT16)~startCount) {
+        if ((u16)pBuffer16[i] != (u16)~startCount) {
             success = false;
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Invalid Data Got:0x%X, Expecting:0x%X (offset:%d, total:%d) \n",
-                        pBuffer16[i], ((A_UINT16)~startCount), i, Length));
+                        pBuffer16[i], ((u16)~startCount), i, Length));
              AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("0x%X 0x%X 0x%X 0x%X \n",
                         pBuffer16[i], pBuffer16[i + 1], pBuffer16[i + 2],pBuffer16[i+3]));
             break;
@@ -1093,7 +1093,7 @@ static bool CheckBuffers(void)
 
         /* scan the buffers and verify */
     for (i = 0; i < BUFFER_PROC_LIST_DEPTH ; i++) {
-        success = CheckOneBuffer((A_UINT16 *)checkList[i].pBuffer, checkList[i].length);
+        success = CheckOneBuffer((u16 *)checkList[i].pBuffer, checkList[i].length);
         if (!success) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Buffer : 0x%X, Length:%d failed verify \n",
                         (A_UINT32)checkList[i].pBuffer, checkList[i].length));
@@ -1105,7 +1105,7 @@ static bool CheckBuffers(void)
 }
 
     /* find the end marker for the last buffer we will be sending */
-static A_UINT16 GetEndMarker(void)
+static u16 GetEndMarker(void)
 {
     u8 *pBuffer;
     BUFFER_PROC_LIST checkList[BUFFER_PROC_LIST_DEPTH];
@@ -1119,7 +1119,7 @@ static A_UINT16 GetEndMarker(void)
     pBuffer = &(checkList[BUFFER_PROC_LIST_DEPTH - 1].pBuffer[(checkList[BUFFER_PROC_LIST_DEPTH - 1].length) - 2]);
 
         /* the last count in the last buffer is the marker */
-    return (A_UINT16)pBuffer[0] | ((A_UINT16)pBuffer[1] << 8);
+    return (u16)pBuffer[0] | ((u16)pBuffer[1] << 8);
 }
 
 #define ATH_PRINT_OUT_ZONE ATH_DEBUG_ERR
@@ -1338,7 +1338,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
     u8 params[4];
     int      numBufs;
     int      bufferSize;
-    A_UINT16 temp;
+    u16 temp;
 
 
     AR_DEBUG_PRINTF(ATH_PRINT_OUT_ZONE, (" DoMboxHWTest START -  \n"));
@@ -1401,7 +1401,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
         }
 
         numBufs = params[0];
-        bufferSize = (int)(((A_UINT16)params[2] << 8) | (A_UINT16)params[1]);
+        bufferSize = (int)(((u16)params[2] << 8) | (u16)params[1]);
 
         AR_DEBUG_PRINTF(ATH_PRINT_OUT_ZONE,
             ("Target parameters: bufs per mailbox:%d, buffer size:%d bytes (total space: %d, minimum required space (w/padding): %d) \n",
@@ -1430,7 +1430,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
 
         AR_DEBUG_PRINTF(ATH_PRINT_OUT_ZONE, ("End Marker: 0x%X \n",temp));
 
-        temp = (A_UINT16)g_BlockSizes[1];
+        temp = (u16)g_BlockSizes[1];
             /* convert to a mask */
         temp = temp - 1;
         status = HIFReadWrite(pDev->HIFDevice,

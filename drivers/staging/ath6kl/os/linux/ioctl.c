@@ -343,7 +343,7 @@ ar6000_ioctl_set_channelParams(struct net_device *dev, struct ifreq *rq)
         cmdp = A_MALLOC(130);
         if (copy_from_user(cmdp, rq->ifr_data,
                            sizeof (*cmdp) +
-                           ((cmd.numChannels - 1) * sizeof(A_UINT16))))
+                           ((cmd.numChannels - 1) * sizeof(u16))))
         {
             kfree(cmdp);
             return -EFAULT;
@@ -703,7 +703,7 @@ ar6000_ioctl_tcmd_get_rx_report(struct net_device *dev,
     buf[2] = ar->tcmdRxcrcErrPkt;
     buf[3] = ar->tcmdRxsecErrPkt;
     A_MEMCPY(((A_UCHAR *)buf)+(4*sizeof(A_UINT32)), ar->tcmdRateCnt, sizeof(ar->tcmdRateCnt));
-    A_MEMCPY(((A_UCHAR *)buf)+(4*sizeof(A_UINT32))+(TCMD_MAX_RATES *sizeof(A_UINT16)), ar->tcmdRateCntShortGuard, sizeof(ar->tcmdRateCntShortGuard));
+    A_MEMCPY(((A_UCHAR *)buf)+(4*sizeof(A_UINT32))+(TCMD_MAX_RATES *sizeof(u16)), ar->tcmdRateCntShortGuard, sizeof(ar->tcmdRateCntShortGuard));
 
     if (!ret && copy_to_user(rq->ifr_data, buf, sizeof(buf))) {
         ret = -EFAULT;
@@ -3338,7 +3338,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                         if (copy_from_user(cmdp, userdata,
                                            sizeof (*cmdp) +
                                            ((setStartScanCmd.numChannels - 1) *
-                                           sizeof(A_UINT16))))
+                                           sizeof(u16))))
                         {
                             kfree(cmdp);
                             ret = -EFAULT;

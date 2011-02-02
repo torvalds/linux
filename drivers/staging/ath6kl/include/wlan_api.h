@@ -35,7 +35,7 @@ struct ieee80211_node_table;
 struct ieee80211_frame;
 
 struct ieee80211_common_ie {
-    A_UINT16    ie_chan;
+    u16 ie_chan;
     u8 *ie_tstamp;
     u8 *ie_ssid;
     u8 *ie_rates;
@@ -45,8 +45,8 @@ struct ieee80211_common_ie {
     u8 *ie_rsn;
     u8 *ie_wmm;
     u8 *ie_ath;
-    A_UINT16    ie_capInfo;
-    A_UINT16    ie_beaconInt;
+    u16 ie_capInfo;
+    u16 ie_beaconInt;
     u8 *ie_tim;
     u8 *ie_chswitch;
     u8 ie_erp;
@@ -68,7 +68,7 @@ typedef struct bss {
     struct bss                   *ni_hash_prev;
     struct ieee80211_common_ie   ni_cie;
     u8 *ni_buf;
-    A_UINT16                     ni_framelen;
+    u16 ni_framelen;
     struct ieee80211_node_table *ni_table;
     A_UINT32                     ni_refcnt;
     int                          ni_scangen;
@@ -99,8 +99,8 @@ void wlan_node_table_cleanup(struct ieee80211_node_table *nt);
 int wlan_parse_beacon(u8 *buf, int framelen,
                            struct ieee80211_common_ie *cie);
 
-A_UINT16 wlan_ieee2freq(int chan);
-A_UINT32 wlan_freq2ieee(A_UINT16 freq);
+u16 wlan_ieee2freq(int chan);
+A_UINT32 wlan_freq2ieee(u16 freq);
 
 void wlan_set_nodeage(struct ieee80211_node_table *nt, A_UINT32 nodeAge);
 

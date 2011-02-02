@@ -79,7 +79,7 @@ PREPACK struct host_app_area_s {
 typedef PREPACK struct {
     u8 dstMac[ATH_MAC_LEN];
     u8 srcMac[ATH_MAC_LEN];
-    A_UINT16    typeOrLen;
+    u16 typeOrLen;
 } POSTPACK ATH_MAC_HDR;
 
 typedef PREPACK struct {
@@ -87,7 +87,7 @@ typedef PREPACK struct {
     u8 ssap;
     u8 cntl;
     u8 orgCode[3];
-    A_UINT16    etherType;
+    u16 etherType;
 } POSTPACK ATH_LLC_SNAP_HDR;
 
 typedef enum {
@@ -170,12 +170,12 @@ typedef PREPACK struct {
                                      *                 ACL data(2)
                                      */
 
-    A_UINT16    info2;              /* usage of 'info2' field(16-bit):
+    u16 info2;              /* usage of 'info2' field(16-bit):
                                      * b11:b0       - seq_no
                                      * b12          - A-MSDU?
                                      * b15:b13      - META_DATA_VERSION 0 - 7
                                      */
-    A_UINT16    reserved;
+    u16 reserved;
 } POSTPACK WMI_DATA_HDR;
 
 /*
@@ -246,12 +246,12 @@ typedef PREPACK struct {
     u8 rix;    /* rate index mapped to rate at which this packet was received. */
     u8 rssi;   /* rssi of packet */
     u8 channel;/* rf channel during packet reception */
-    A_UINT16    flags;  /* a combination of WMI_RX_FLAGS_... */
+    u16 flags;  /* a combination of WMI_RX_FLAGS_... */
 } POSTPACK WMI_RX_META_V1;
 
 #define RX_CSUM_VALID_FLAG (0x1)
 typedef PREPACK struct {
-    A_UINT16    csum;
+    u16 csum;
     u8 csumFlags;/* bit 0 set -partial csum valid
                              bit 1 set -test mode */
 } POSTPACK WMI_RX_META_V2;
@@ -264,15 +264,15 @@ typedef PREPACK struct {
  * Control Path
  */
 typedef PREPACK struct {
-    A_UINT16    commandId;
+    u16 commandId;
 /*
  * info1 - 16 bits
  * b03:b00 - id
  * b15:b04 - unused
  */
-    A_UINT16    info1;
+    u16 info1;
 
-    A_UINT16    reserved;      /* For alignment */
+    u16 reserved;      /* For alignment */
 } POSTPACK WMI_CMD_HDR;        /* used for commands and events */
 
 /*
@@ -531,7 +531,7 @@ typedef PREPACK struct {
     u8 groupCryptoLen;
     u8 ssidLength;
     A_UCHAR     ssid[WMI_MAX_SSID_LEN];
-    A_UINT16    channel;
+    u16 channel;
     u8 bssid[ATH_MAC_LEN];
     A_UINT32    ctrl_flags;
 } POSTPACK WMI_CONNECT_CMD;
@@ -540,7 +540,7 @@ typedef PREPACK struct {
  * WMI_RECONNECT_CMDID
  */
 typedef PREPACK struct {
-    A_UINT16    channel;                    /* hint */
+    u16 channel;                    /* hint */
     u8 bssid[ATH_MAC_LEN];         /* mandatory if set */
 } POSTPACK WMI_RECONNECT_CMD;
 
@@ -641,7 +641,7 @@ typedef PREPACK struct {
     A_UINT32 forceScanInterval;    /* Time interval between scans (milliseconds)*/
     u8 scanType;           /* WMI_SCAN_TYPE */
     u8 numChannels;            /* how many channels follow */
-    A_UINT16 channelList[1];         /* channels in Mhz */
+    u16 channelList[1];         /* channels in Mhz */
 } POSTPACK WMI_START_SCAN_CMD;
 
 /*
@@ -676,15 +676,15 @@ typedef enum {
 
 
 typedef PREPACK struct {
-    A_UINT16    fg_start_period;        /* seconds */
-    A_UINT16    fg_end_period;          /* seconds */
-    A_UINT16    bg_period;              /* seconds */
-    A_UINT16    maxact_chdwell_time;    /* msec */
-    A_UINT16    pas_chdwell_time;       /* msec */
+    u16 fg_start_period;        /* seconds */
+    u16 fg_end_period;          /* seconds */
+    u16 bg_period;              /* seconds */
+    u16 maxact_chdwell_time;    /* msec */
+    u16 pas_chdwell_time;       /* msec */
     u8 shortScanRatio;         /* how many shorts scan for one long */
     u8 scanCtrlFlags;
-    A_UINT16    minact_chdwell_time;    /* msec */
-    A_UINT16    maxact_scan_per_ssid;   /* max active scans per ssid */
+    u16 minact_chdwell_time;    /* msec */
+    u16 maxact_scan_per_ssid;   /* max active scans per ssid */
     A_UINT32    max_dfsch_act_time;  /* msecs */
 } POSTPACK WMI_SCAN_PARAMS_CMD;
 
@@ -705,7 +705,7 @@ typedef enum {
 typedef PREPACK struct {
     u8 bssFilter;                      /* see WMI_BSS_FILTER */
     u8 reserved1;                      /* For alignment */
-    A_UINT16   reserved2;                      /* For alignment */
+    u16 reserved2;                      /* For alignment */
     A_UINT32   ieMask;
 } POSTPACK WMI_BSS_FILTER_CMD;
 
@@ -737,15 +737,15 @@ typedef PREPACK struct {
 #define MAX_LISTEN_BEACONS 50
 
 typedef PREPACK struct {
-    A_UINT16     listenInterval;
-    A_UINT16     numBeacons;
+    u16 listenInterval;
+    u16 numBeacons;
 } POSTPACK WMI_LISTEN_INT_CMD;
 
 /*
  * WMI_SET_BEACON_INT_CMDID
  */
 typedef PREPACK struct {
-    A_UINT16     beaconInterval;
+    u16 beaconInterval;
 } POSTPACK WMI_BEACON_INT_CMD;
 
 /*
@@ -759,8 +759,8 @@ typedef PREPACK struct {
 #define MAX_BMISS_BEACONS  50
 
 typedef PREPACK struct {
-    A_UINT16     bmissTime;
-    A_UINT16     numBeacons;
+    u16 bmissTime;
+    u16 numBeacons;
 } POSTPACK WMI_BMISS_TIME_CMD;
 
 /*
@@ -819,12 +819,12 @@ typedef enum {
 } POWER_SAVE_FAIL_EVENT_POLICY;
 
 typedef PREPACK struct {
-    A_UINT16    idle_period;             /* msec */
-    A_UINT16    pspoll_number;
-    A_UINT16    dtim_policy;
-    A_UINT16    tx_wakeup_policy;
-    A_UINT16    num_tx_to_wakeup;
-    A_UINT16    ps_fail_event_policy;
+    u16 idle_period;             /* msec */
+    u16 pspoll_number;
+    u16 dtim_policy;
+    u16 tx_wakeup_policy;
+    u16 num_tx_to_wakeup;
+    u16 ps_fail_event_policy;
 } POSTPACK WMI_POWER_PARAMS_CMD;
 
 /* Adhoc power save types */
@@ -838,8 +838,8 @@ typedef enum {
 typedef PREPACK struct {
     u8 power_saving;
     u8 ttl; /* number of beacon periods */
-    A_UINT16   atim_windows;          /* msec */
-    A_UINT16   timeout_value;         /* msec */
+    u16 atim_windows;          /* msec */
+    u16 timeout_value;         /* msec */
 } POSTPACK WMI_IBSS_PM_CAPS_CMD;
 
 /* AP power save types */
@@ -866,8 +866,8 @@ typedef enum {
 } APSD_TIM_POLICY;
 
 typedef PREPACK struct {
-    A_UINT16    psPollTimeout;          /* msec */
-    A_UINT16    triggerTimeout;         /* msec */
+    u16 psPollTimeout;          /* msec */
+    u16 triggerTimeout;         /* msec */
     A_UINT32    apsdTimPolicy;      /* TIM behavior with  ques APSD enabled. Default is IGNORE_TIM_ALL_QUEUES_APSD */
     A_UINT32    simulatedAPSDTimPolicy;      /* TIM behavior with  simulated APSD enabled. Default is PROCESS_TIM_SIMULATED_APSD */
 } POSTPACK WMI_POWERSAVE_TIMERS_POLICY_CMD;
@@ -876,7 +876,7 @@ typedef PREPACK struct {
  * WMI_SET_VOICE_PKT_SIZE_CMDID
  */
 typedef PREPACK struct {
-    A_UINT16    voicePktSize;
+    u16 voicePktSize;
 } POSTPACK WMI_SET_VOICE_PKT_SIZE_CMD;
 
 /*
@@ -941,8 +941,8 @@ typedef PREPACK struct {
     A_UINT32        minPhyRate;              /* in bps */
     A_UINT32        sba;
     A_UINT32        mediumTime;
-    A_UINT16        nominalMSDU;             /* in octects */
-    A_UINT16        maxMSDU;                 /* in octects */
+    u16 nominalMSDU;             /* in octects */
+    u16 maxMSDU;                 /* in octects */
     u8 trafficClass;
     u8 trafficDirection;        /* DIR_TYPE */
     u8 rxQueueNum;
@@ -982,7 +982,7 @@ typedef PREPACK struct {
     u8 scanParam;              /* set if enable scan */
     u8 phyMode;                /* see WMI_PHY_MODE */
     u8 numChannels;            /* how many channels follow */
-    A_UINT16    channelList[1];         /* channels in Mhz */
+    u16 channelList[1];         /* channels in Mhz */
 } POSTPACK WMI_CHANNEL_PARAMS_CMD;
 
 
@@ -1063,7 +1063,7 @@ typedef PREPACK struct {
 }POSTPACK WMI_SET_LPREAMBLE_CMD;
 
 typedef PREPACK struct {
-    A_UINT16    threshold;
+    u16 threshold;
 }POSTPACK WMI_SET_RTS_CMD;
 
 /*
@@ -1132,7 +1132,7 @@ typedef PREPACK struct {
 #define WMI_DEFAULT_AIFSN_ACPARAM   2
 #define WMI_MAX_AIFSN_ACPARAM       15
 typedef PREPACK struct {
-    A_UINT16 txop;                      /* in units of 32 usec */
+    u16 txop;                      /* in units of 32 usec */
     u8 eCWmin;
     u8 eCWmax;
     u8 aifsn;
@@ -1208,7 +1208,7 @@ typedef PREPACK struct {
 } POSTPACK WMI_BSS_BIAS_INFO;
 
 typedef PREPACK struct WMI_LOWRSSI_SCAN_PARAMS {
-        A_UINT16 lowrssi_scan_period;
+        u16 lowrssi_scan_period;
         A_INT16  lowrssi_scan_threshold;
         A_INT16  lowrssi_roam_threshold;
         u8 roam_rssi_floor;
@@ -1866,7 +1866,7 @@ typedef PREPACK struct {
 
 
 typedef PREPACK struct {
-    A_UINT16    cmd_buf_sz;     /* HCI cmd buffer size */
+    u16 cmd_buf_sz;     /* HCI cmd buffer size */
     u8 buf[1];         /* Absolute HCI cmd */
 } POSTPACK WMI_HCI_CMD;
 
@@ -1880,7 +1880,7 @@ typedef PREPACK struct {
 typedef PREPACK struct {
     u8 reserved1;
     u8 numChannels;            /* number of channels in reply */
-    A_UINT16    channelList[1];         /* channel in Mhz */
+    u16 channelList[1];         /* channel in Mhz */
 } POSTPACK WMI_CHANNEL_LIST_REPLY;
 
 typedef enum {
@@ -2002,10 +2002,10 @@ typedef PREPACK struct {
  * Connect Event
  */
 typedef PREPACK struct {
-    A_UINT16    channel;
+    u16 channel;
     u8 bssid[ATH_MAC_LEN];
-    A_UINT16    listenInterval;
-    A_UINT16    beaconInterval;
+    u16 listenInterval;
+    u16 beaconInterval;
     A_UINT32    networkType;
     u8 beaconIeLen;
     u8 assocReqLen;
@@ -2033,7 +2033,7 @@ typedef enum {
 } WMI_DISCONNECT_REASON;
 
 typedef PREPACK struct {
-    A_UINT16    protocolReasonStatus;  /* reason code, see 802.11 spec. */
+    u16 protocolReasonStatus;  /* reason code, see 802.11 spec. */
     u8 bssid[ATH_MAC_LEN];    /* set if known */
     u8 disconnectReason ;      /* see WMI_DISCONNECT_REASON */
     u8 assocRespLen;
@@ -2059,7 +2059,7 @@ enum {
 };
 
 typedef PREPACK struct {
-    A_UINT16    channel;
+    u16 channel;
     u8 frameType;          /* see WMI_BI_FTYPE */
     u8 snr;
     A_INT16     rssi;
@@ -2076,11 +2076,11 @@ typedef PREPACK struct {
  * - Remove rssi and compute it on the host. rssi = snr - 95
  */
 typedef PREPACK struct {
-    A_UINT16    channel;
+    u16 channel;
     u8 frameType;          /* see WMI_BI_FTYPE */
     u8 snr;
     u8 bssid[ATH_MAC_LEN];
-    A_UINT16    ieMask;
+    u16 ieMask;
 } POSTPACK WMI_BSS_INFO_HDR2;
 
 /*
@@ -2093,7 +2093,7 @@ typedef enum {
 } WMI_ERROR_CODE;
 
 typedef PREPACK struct {
-    A_UINT16    commandId;
+    u16 commandId;
     u8 errorCode;
 } POSTPACK WMI_CMD_ERROR_EVENT;
 
@@ -2190,7 +2190,7 @@ typedef enum {
 } WMI_OPT_FTYPE;
 
 typedef PREPACK struct {
-    A_UINT16    optIEDataLen;
+    u16 optIEDataLen;
     u8 frmType;
     u8 dstAddr[ATH_MAC_LEN];
     u8 bssid[ATH_MAC_LEN];
@@ -2205,7 +2205,7 @@ typedef PREPACK struct {
  * The 802.11 header is not included.
  */
 typedef PREPACK struct {
-    A_UINT16    channel;
+    u16 channel;
     u8 frameType;          /* see WMI_OPT_FTYPE */
     A_INT8      snr;
     u8 srcAddr[ATH_MAC_LEN];
@@ -2266,19 +2266,19 @@ typedef PREPACK struct {
 
 typedef PREPACK struct {
     A_UINT32   power_save_failure_cnt;
-    A_UINT16   stop_tx_failure_cnt;
-    A_UINT16   atim_tx_failure_cnt;
-    A_UINT16   atim_rx_failure_cnt;
-    A_UINT16   bcn_rx_failure_cnt;
+    u16 stop_tx_failure_cnt;
+    u16 atim_tx_failure_cnt;
+    u16 atim_rx_failure_cnt;
+    u16 bcn_rx_failure_cnt;
 }POSTPACK pm_stats_t;
 
 typedef PREPACK struct {
     A_UINT32    cs_bmiss_cnt;
     A_UINT32    cs_lowRssi_cnt;
-    A_UINT16    cs_connect_cnt;
-    A_UINT16    cs_disconnect_cnt;
+    u16 cs_connect_cnt;
+    u16 cs_disconnect_cnt;
     A_INT16     cs_aveBeacon_rssi;
-    A_UINT16    cs_roam_count;
+    u16 cs_roam_count;
     A_INT16     cs_rssi;
     u8 cs_snr;
     u8 cs_aveBeacon_snr;
@@ -2299,7 +2299,7 @@ typedef PREPACK struct {
 
 typedef PREPACK struct {
     A_UINT32    wow_num_pkts_dropped;
-    A_UINT16    wow_num_events_discarded;
+    u16 wow_num_events_discarded;
     u8 wow_num_host_pkt_wakeups;
     u8 wow_num_host_event_wakeups;
 } POSTPACK wlan_wow_stats_t;
@@ -2409,8 +2409,8 @@ typedef PREPACK struct {
 
 
 typedef PREPACK struct {
-    A_UINT16  roamMode;
-    A_UINT16  numEntries;
+    u16 roamMode;
+    u16 numEntries;
     WMI_BSS_ROAM_INFO bssRoamInfo[1];
 } POSTPACK WMI_TARGET_ROAM_TBL;
 
@@ -2418,7 +2418,7 @@ typedef PREPACK struct {
  * WMI_HCI_EVENT_EVENTID
  */
 typedef PREPACK struct {
-    A_UINT16    evt_buf_sz;     /* HCI event buffer size */
+    u16 evt_buf_sz;     /* HCI event buffer size */
     u8 buf[1];         /* HCI  event */
 } POSTPACK WMI_HCI_EVENT;
 
@@ -2451,7 +2451,7 @@ typedef enum {
 
 typedef PREPACK struct {
     u8 bssid[ATH_MAC_LEN];
-    A_UINT16    channel;
+    u16 channel;
 } POSTPACK  WMI_AP_INFO_V1;
 
 typedef PREPACK union {
@@ -2728,7 +2728,7 @@ typedef enum {
 typedef PREPACK struct {
     u32 enable_wow;
     WMI_WOW_FILTER filter;
-    A_UINT16 hostReqDelay;
+    u16 hostReqDelay;
 } POSTPACK WMI_SET_WOW_MODE_CMD;
 
 typedef PREPACK struct {
@@ -2754,8 +2754,8 @@ typedef PREPACK struct {
 } POSTPACK WMI_ADD_WOW_PATTERN_CMD;
 
 typedef PREPACK struct {
-    A_UINT16 filter_list_id;
-    A_UINT16 filter_id;
+    u16 filter_list_id;
+    u16 filter_id;
 } POSTPACK WMI_DEL_WOW_PATTERN_CMD;
 
 typedef PREPACK struct {
@@ -2797,7 +2797,7 @@ typedef PREPACK struct {
 } POSTPACK WMI_PMKID_LIST_REPLY;
 
 typedef PREPACK struct {
-    A_UINT16 oldChannel;
+    u16 oldChannel;
     A_UINT32 newChannel;
 } POSTPACK WMI_CHANNEL_CHANGE_EVENT;
 
@@ -2810,7 +2810,7 @@ typedef PREPACK struct {
 typedef PREPACK struct {
     u8 tid;
     u8 win_sz;
-    A_UINT16    st_seq_no;
+    u16 st_seq_no;
     u8 status;         /* f/w response for ADDBA Req; OK(0) or failure(!=0) */
 } POSTPACK WMI_ADDBA_REQ_EVENT;
 
@@ -2818,7 +2818,7 @@ typedef PREPACK struct {
 typedef PREPACK struct {
     u8 tid;
     u8 status;         /* OK(0), failure (!=0) */
-    A_UINT16    amsdu_sz;       /* Three values: Not supported(0), 3839, 8k */
+    u16 amsdu_sz;       /* Three values: Not supported(0), 3839, 8k */
 } POSTPACK WMI_ADDBA_RESP_EVENT;
 
 /* WMI_DELBA_EVENTID
@@ -2828,7 +2828,7 @@ typedef PREPACK struct {
 typedef PREPACK struct {
     u8 tid;
     u8 is_peer_initiator;
-    A_UINT16    reason_code;
+    u16 reason_code;
 } POSTPACK WMI_DELBA_EVENT;
 
 
@@ -2847,8 +2847,8 @@ typedef PREPACK struct {
  * on each tid, in each direction
  */
 typedef PREPACK struct {
-    A_UINT16    tx_allow_aggr;  /* 16-bit mask to allow uplink ADDBA negotiation - bit position indicates tid*/
-    A_UINT16    rx_allow_aggr;  /* 16-bit mask to allow donwlink ADDBA negotiation - bit position indicates tid*/
+    u16 tx_allow_aggr;  /* 16-bit mask to allow uplink ADDBA negotiation - bit position indicates tid*/
+    u16 rx_allow_aggr;  /* 16-bit mask to allow donwlink ADDBA negotiation - bit position indicates tid*/
 } POSTPACK WMI_ALLOW_AGGR_CMD;
 
 /* WMI_ADDBA_REQ_CMDID
@@ -2973,7 +2973,7 @@ typedef PREPACK struct {
 } POSTPACK WMI_AP_ACL_MAC_CMD;
 
 typedef PREPACK struct {
-    A_UINT16    index;
+    u16 index;
     u8 acl_mac[AP_ACL_SIZE][ATH_MAC_LEN];
     u8 wildcard[AP_ACL_SIZE];
     u8 policy;
@@ -2991,7 +2991,7 @@ typedef PREPACK struct {
  */
 typedef PREPACK struct {
     u8 mac[ATH_MAC_LEN];
-    A_UINT16   reason;              /* 802.11 reason code */
+    u16 reason;              /* 802.11 reason code */
     u8 cmd;                 /* operation to perform */
 #define WMI_AP_MLME_ASSOC       1   /* associate station */
 #define WMI_AP_DISASSOC         2   /* disassociate station */
@@ -3011,7 +3011,7 @@ typedef PREPACK struct {
 
 typedef PREPACK struct {
     u32 flag;
-    A_UINT16 aid;
+    u16 aid;
 } POSTPACK WMI_AP_SET_PVB_CMD;
 
 #define WMI_DISABLE_REGULATORY_CODE "FF"
@@ -3074,7 +3074,7 @@ typedef PREPACK struct {
 /* AP mode events */
 /* WMI_PS_POLL_EVENT */
 typedef PREPACK struct {
-    A_UINT16 aid;
+    u16 aid;
 } POSTPACK WMI_PSPOLL_EVENT;
 
 typedef PREPACK struct {

@@ -507,7 +507,7 @@ int ReinitSDIO(HIF_DEVICE *device)
     do {
         if (!device->is_suspend) {
             A_UINT32 resp;
-            A_UINT16 rca;
+            u16 rca;
             A_UINT32 i;
             int bit = fls(host->ocr_avail) - 1;
             /* emulate the mmc_power_up(...) */
@@ -711,7 +711,7 @@ HIFConfigureDevice(HIF_DEVICE *device, HIF_DEVICE_CONFIG_OPCODE opcode,
             }
             
             if (configLen >= sizeof(HIF_DEVICE_MBOX_INFO)) {    
-                SetExtendedMboxWindowInfo((A_UINT16)device->func->device,
+                SetExtendedMboxWindowInfo((u16)device->func->device,
                                           (HIF_DEVICE_MBOX_INFO *)config);
             }
                         

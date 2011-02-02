@@ -62,7 +62,7 @@ typedef struct sq_threshold_params_s {
 struct wmi_t {
     bool                          wmi_ready;
     bool                          wmi_numQoSStream;
-    A_UINT16                        wmi_streamExistsForAC[WMM_NUM_AC];
+    u16 wmi_streamExistsForAC[WMM_NUM_AC];
     u8 wmi_fatPipeExists;
     void                           *wmi_devt;
     struct wmi_stats                wmi_stats;

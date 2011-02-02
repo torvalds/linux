@@ -254,11 +254,11 @@ module_param(blocktx, int, 0644);
 #endif /* BLOCK_TX_PATH_FLAG */
 
 typedef struct user_rssi_compensation_t {
-    A_UINT16         customerID;
+    u16 customerID;
     union {
-    A_UINT16         a_enable;
-    A_UINT16         bg_enable;
-    A_UINT16         enable;
+    u16 a_enable;
+    u16 bg_enable;
+    u16 enable;
     };
     A_INT16          bg_param_a;
     A_INT16          bg_param_b;
@@ -322,7 +322,7 @@ static void ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPackets);
 static HTC_SEND_FULL_ACTION ar6000_tx_queue_full(void *Context, HTC_PACKET *pPacket);
 
 #ifdef ATH_AR6K_11N_SUPPORT
-static void ar6000_alloc_netbufs(A_NETBUF_QUEUE_T *q, A_UINT16 num);
+static void ar6000_alloc_netbufs(A_NETBUF_QUEUE_T *q, u16 num);
 #endif
 static void ar6000_deliver_frames_to_nw_stack(void * dev, void *osbuf);
 //static void ar6000_deliver_frames_to_bt_stack(void * dev, void *osbuf);
@@ -773,7 +773,7 @@ aptcTimerHandler(unsigned long arg)
 
 #ifdef ATH_AR6K_11N_SUPPORT
 static void
-ar6000_alloc_netbufs(A_NETBUF_QUEUE_T *q, A_UINT16 num)
+ar6000_alloc_netbufs(A_NETBUF_QUEUE_T *q, u16 num)
 {
     void * osbuf;
 
@@ -904,26 +904,26 @@ ar6000_sysfs_bmi_deinit(AR_SOFTC_T *ar)
 static
 void calculate_crc(A_UINT32 TargetType, A_UCHAR *eeprom_data)
 {
-    A_UINT16        *ptr_crc;
-    A_UINT16        *ptr16_eeprom;
-    A_UINT16        checksum;
+    u16 *ptr_crc;
+    u16 *ptr16_eeprom;
+    u16 checksum;
     A_UINT32        i;
     A_UINT32        eeprom_size;
 
     if (TargetType == TARGET_TYPE_AR6001)
     {
         eeprom_size = 512;
-        ptr_crc = (A_UINT16 *)eeprom_data;
+        ptr_crc = (u16 *)eeprom_data;
     }
     else if (TargetType == TARGET_TYPE_AR6003)
     {
         eeprom_size = 1024;
-        ptr_crc = (A_UINT16 *)((A_UCHAR *)eeprom_data + 0x04);
+        ptr_crc = (u16 *)((A_UCHAR *)eeprom_data + 0x04);
     }
     else
     {
         eeprom_size = 768;
-        ptr_crc = (A_UINT16 *)((A_UCHAR *)eeprom_data + 0x04);
+        ptr_crc = (u16 *)((A_UCHAR *)eeprom_data + 0x04);
     }
 
 
@@ -932,7 +932,7 @@ void calculate_crc(A_UINT32 TargetType, A_UCHAR *eeprom_data)
 
     // Recalculate new CRC
     checksum = 0;
-    ptr16_eeprom = (A_UINT16 *)eeprom_data;
+    ptr16_eeprom = (u16 *)eeprom_data;
     for (i = 0;i < eeprom_size; i += 2)
     {
         checksum = checksum ^ (*ptr16_eeprom);
@@ -2552,7 +2552,7 @@ int ar6000_init(struct net_device *dev)
              * of 0-3 */
             connect.ConnectionFlags &= ~HTC_CONNECT_FLAGS_THRESHOLD_LEVEL_MASK;
             connect.ConnectionFlags |=
-                        ((A_UINT16)reduce_credit_dribble - 1) & HTC_CONNECT_FLAGS_THRESHOLD_LEVEL_MASK;
+                        ((u16)reduce_credit_dribble - 1) & HTC_CONNECT_FLAGS_THRESHOLD_LEVEL_MASK;
         }
             /* connect to best-effort service */
         connect.ServiceID = WMI_DATA_BE_SVC;
@@ -2797,11 +2797,11 @@ ar6000_txPwr_rx(void *devt, u8 txPwr)
 
 
 void
-ar6000_channelList_rx(void *devt, A_INT8 numChan, A_UINT16 *chanList)
+ar6000_channelList_rx(void *devt, A_INT8 numChan, u16 *chanList)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
 
-    A_MEMCPY(ar->arChannelList, chanList, numChan * sizeof (A_UINT16));
+    A_MEMCPY(ar->arChannelList, chanList, numChan * sizeof (u16));
     ar->arNumChannels = numChan;
 
     wake_up(&arEvent);
@@ -3665,7 +3665,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
                     AR6000_STAT_INC(ar, rx_length_errors);
                     A_NETBUF_FREE(skb);
                 } else {
-                    A_UINT16 seq_no;
+                    u16 seq_no;
                     u8 meta_type;
 
 #if 0
@@ -3678,7 +3678,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
                         sta_t *conn = NULL;
                         u8 psState=0,prevPsState;
                         ATH_MAC_HDR *datap=NULL;
-                        A_UINT16 offset;
+                        u16 offset;
 
                         meta_type = WMI_DATA_HDR_GET_META(dhdr);
 
@@ -4206,7 +4206,7 @@ ar6000_ready_event(void *devt, u8 *datap, u8 phyCap, A_UINT32 sw_ver, A_UINT32 a
 }
 
 void
-add_new_sta(AR_SOFTC_T *ar, u8 *mac, A_UINT16 aid, u8 *wpaie,
+add_new_sta(AR_SOFTC_T *ar, u8 *mac, u16 aid, u8 *wpaie,
             u8 ielen, u8 keymgmt, u8 ucipher, u8 auth)
 {
     u8 free_slot=aid-1;
@@ -4222,8 +4222,8 @@ add_new_sta(AR_SOFTC_T *ar, u8 *mac, A_UINT16 aid, u8 *wpaie,
 }
 
 void
-ar6000_connect_event(AR_SOFTC_T *ar, A_UINT16 channel, u8 *bssid,
-                     A_UINT16 listenInterval, A_UINT16 beaconInterval,
+ar6000_connect_event(AR_SOFTC_T *ar, u16 channel, u8 *bssid,
+                     u16 listenInterval, u16 beaconInterval,
                      NETWORK_TYPE networkType, u8 beaconIeLen,
                      u8 assocReqLen, u8 assocRespLen,
                      u8 *assocInfo)
@@ -4398,9 +4398,9 @@ skip_key:
     if (assocRespLen && (sizeof(buf) > (12 + (assocRespLen * 2))))
     {
         assoc_resp_ie_pos = beaconIeLen + assocReqLen +
-                            sizeof(A_UINT16)  +  /* capinfo*/
-                            sizeof(A_UINT16)  +  /* status Code */
-                            sizeof(A_UINT16)  ;  /* associd */
+                            sizeof(u16)  +  /* capinfo*/
+                            sizeof(u16)  +  /* status Code */
+                            sizeof(u16)  ;  /* associd */
         A_MEMZERO(buf, sizeof(buf));
         sprintf(buf, "%s", tag2);
         pos = buf + 12;
@@ -4427,8 +4427,8 @@ skip_key:
          * assoc Request includes capability and listen interval. Skip these.
          */
         assoc_req_ie_pos =  beaconIeLen +
-                            sizeof(A_UINT16)  +  /* capinfo*/
-                            sizeof(A_UINT16);    /* listen interval */
+                            sizeof(u16)  +  /* capinfo*/
+                            sizeof(u16);    /* listen interval */
 
         A_MEMZERO(buf, sizeof(buf));
         sprintf(buf, "%s", tag1);
@@ -4538,7 +4538,7 @@ sta_cleanup(AR_SOFTC_T *ar, u8 i)
 
 }
 
-u8 remove_sta(AR_SOFTC_T *ar, u8 *mac, A_UINT16 reason)
+u8 remove_sta(AR_SOFTC_T *ar, u8 *mac, u16 reason)
 {
     u8 i, removed=0;
 
@@ -4572,7 +4572,7 @@ u8 remove_sta(AR_SOFTC_T *ar, u8 *mac, A_UINT16 reason)
 
 void
 ar6000_disconnect_event(AR_SOFTC_T *ar, u8 reason, u8 *bssid,
-                        u8 assocRespLen, u8 *assocInfo, A_UINT16 protocolReasonStatus)
+                        u8 assocRespLen, u8 *assocInfo, u16 protocolReasonStatus)
 {
     u8 i;
     unsigned long flags;
@@ -5127,8 +5127,8 @@ ar6000_cac_event(AR_SOFTC_T *ar, u8 ac, u8 cacIndication,
 }
 
 void
-ar6000_channel_change_event(AR_SOFTC_T *ar, A_UINT16 oldChannel,
-                            A_UINT16 newChannel)
+ar6000_channel_change_event(AR_SOFTC_T *ar, u16 oldChannel,
+                            u16 newChannel)
 {
     A_PRINTF("Channel Change notification\nOld Channel: %d, New Channel: %d\n",
              oldChannel, newChannel);
@@ -5519,7 +5519,7 @@ ar6000_alloc_cookie(AR_SOFTC_T  *ar)
  * the event ID and event content.
  */
 #define EVENT_ID_LEN   2
-void ar6000_send_event_to_app(AR_SOFTC_T *ar, A_UINT16 eventId,
+void ar6000_send_event_to_app(AR_SOFTC_T *ar, u16 eventId,
                               u8 *datap, int len)
 {
 
@@ -5528,7 +5528,7 @@ void ar6000_send_event_to_app(AR_SOFTC_T *ar, A_UINT16 eventId,
 /* note: IWEVCUSTOM only exists in wireless extensions after version 15 */
 
     char *buf;
-    A_UINT16 size;
+    u16 size;
     union iwreq_data wrqu;
 
     size = len + EVENT_ID_LEN;
@@ -5549,7 +5549,7 @@ void ar6000_send_event_to_app(AR_SOFTC_T *ar, A_UINT16 eventId,
     A_MEMCPY(buf, &eventId, EVENT_ID_LEN);
     A_MEMCPY(buf+EVENT_ID_LEN, datap, len);
 
-    //AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("event ID = %d,len = %d\n",*(A_UINT16*)buf, size));
+    //AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("event ID = %d,len = %d\n",*(u16 *)buf, size));
     A_MEMZERO(&wrqu, sizeof(wrqu));
     wrqu.data.length = size;
     wireless_send_event(ar->arNetDev, IWEVCUSTOM, &wrqu, buf);
@@ -5564,7 +5564,7 @@ void ar6000_send_event_to_app(AR_SOFTC_T *ar, A_UINT16 eventId,
  * to the application. The buf which is sent to application
  * includes the event ID and event content.
  */
-void ar6000_send_generic_event_to_app(AR_SOFTC_T *ar, A_UINT16 eventId,
+void ar6000_send_generic_event_to_app(AR_SOFTC_T *ar, u16 eventId,
                                       u8 *datap, int len)
 {
 
@@ -5573,7 +5573,7 @@ void ar6000_send_generic_event_to_app(AR_SOFTC_T *ar, A_UINT16 eventId,
 /* IWEVGENIE exists in wireless extensions version 18 onwards */
 
     char *buf;
-    A_UINT16 size;
+    u16 size;
     union iwreq_data wrqu;
 
     size = len + EVENT_ID_LEN;
@@ -5648,7 +5648,7 @@ a_copy_from_user(void *to, const void *from, A_UINT32 n)
 
 int
 ar6000_get_driver_cfg(struct net_device *dev,
-                        A_UINT16 cfgParam,
+                        u16 cfgParam,
                         void *result)
 {
 
@@ -5805,12 +5805,12 @@ read_rssi_compensation_param(AR_SOFTC_T *ar)
 
     cust_data_ptr = ar6000_get_cust_data_buffer(ar->arTargetType);
 
-    rssi_compensation_param.customerID = *(A_UINT16 *)cust_data_ptr & 0xffff;
-    rssi_compensation_param.enable = *(A_UINT16 *)(cust_data_ptr+2) & 0xffff;
-    rssi_compensation_param.bg_param_a = *(A_UINT16 *)(cust_data_ptr+4) & 0xffff;
-    rssi_compensation_param.bg_param_b = *(A_UINT16 *)(cust_data_ptr+6) & 0xffff;
-    rssi_compensation_param.a_param_a = *(A_UINT16 *)(cust_data_ptr+8) & 0xffff;
-    rssi_compensation_param.a_param_b = *(A_UINT16 *)(cust_data_ptr+10) &0xffff;
+    rssi_compensation_param.customerID = *(u16 *)cust_data_ptr & 0xffff;
+    rssi_compensation_param.enable = *(u16 *)(cust_data_ptr+2) & 0xffff;
+    rssi_compensation_param.bg_param_a = *(u16 *)(cust_data_ptr+4) & 0xffff;
+    rssi_compensation_param.bg_param_b = *(u16 *)(cust_data_ptr+6) & 0xffff;
+    rssi_compensation_param.a_param_a = *(u16 *)(cust_data_ptr+8) & 0xffff;
+    rssi_compensation_param.a_param_b = *(u16 *)(cust_data_ptr+10) &0xffff;
     rssi_compensation_param.reserved = *(A_UINT32 *)(cust_data_ptr+12);
 
 #ifdef RSSICOMPENSATION_PRINT
@@ -6139,7 +6139,7 @@ ar6000_connect_to_ap(struct ar6_softc *ar)
         /* Set the listen interval into 1000TUs or more. This value will be indicated to Ap in the conn.
            later set it back locally at the STA to 100/1000 TUs depending on the power mode */
         if ((ar->arNetworkType == INFRA_NETWORK)) {
-            wmi_listeninterval_cmd(ar->arWmi, max(ar->arListenIntervalT, (A_UINT16)A_MAX_WOW_LISTEN_INTERVAL), 0);
+            wmi_listeninterval_cmd(ar->arWmi, max(ar->arListenIntervalT, (u16)A_MAX_WOW_LISTEN_INTERVAL), 0);
         }
         status = wmi_connect_cmd(ar->arWmi, ar->arNetworkType,
                                  ar->arDot11AuthMode, ar->arAuthMode,
@@ -6187,7 +6187,7 @@ ar6000_ap_mode_get_wpa_ie(struct ar6_softc *ar, struct ieee80211req_wpaie *wpaie
 }
 
 int
-is_iwioctl_allowed(u8 mode, A_UINT16 cmd)
+is_iwioctl_allowed(u8 mode, u16 cmd)
 {
     if(cmd >= SIOCSIWCOMMIT && cmd <= SIOCGIWPOWER) {
         cmd -= SIOCSIWCOMMIT;

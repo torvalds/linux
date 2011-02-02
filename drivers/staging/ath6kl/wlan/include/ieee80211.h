@@ -326,10 +326,10 @@ typedef PREPACK struct wmm_tspec_ie_t {
     u8 ouiType;
     u8 ouiSubType;
     u8 version;
-    A_UINT16    tsInfo_info;
+    u16 tsInfo_info;
     u8 tsInfo_reserved;
-    A_UINT16    nominalMSDU;
-    A_UINT16    maxMSDU;
+    u16 nominalMSDU;
+    u16 maxMSDU;
     A_UINT32    minServiceInt;
     A_UINT32    maxServiceInt;
     A_UINT32    inactivityInt;
@@ -341,8 +341,8 @@ typedef PREPACK struct wmm_tspec_ie_t {
     A_UINT32    maxBurstSize;
     A_UINT32    delayBound;
     A_UINT32    minPhyRate;
-    A_UINT16    sba;
-    A_UINT16    mediumTime;
+    u16 sba;
+    u16 mediumTime;
 } POSTPACK WMM_TSPEC_IE;
 
 

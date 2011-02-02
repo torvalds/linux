@@ -1009,7 +1009,7 @@ struct ar6000_version {
 /* used by AR6000_IOCTL_WMI_GET_QOS_QUEUE */
 struct ar6000_queuereq {
     u8 trafficClass;
-    A_UINT16        activeTsids;
+    u16 activeTsids;
 };
 
 /* used by AR6000_IOCTL_WMI_GET_TARGET_STATS */
@@ -1067,7 +1067,7 @@ typedef struct targetStats_t {
     A_UINT32    lq_val;
 
     A_UINT32    wow_num_pkts_dropped;
-    A_UINT16    wow_num_events_discarded;
+    u16 wow_num_events_discarded;
 
     A_INT16     noise_floor_calibation;
     A_INT16     cs_rssi;
@@ -1132,10 +1132,10 @@ struct ar6000_gpio_intr_wait_cmd_s {
 /* used by the AR6000_XIOCTL_DBGLOG_CFG_MODULE */
 typedef struct ar6000_dbglog_module_config_s {
     A_UINT32 valid;
-    A_UINT16 mmask;
-    A_UINT16 tsr;
+    u16 mmask;
+    u16 tsr;
     u32   rep;
-    A_UINT16 size;
+    u16 size;
 } DBGLOG_MODULE_CONFIG;
 
 typedef struct user_rssi_thold_t {
