@@ -1109,8 +1109,6 @@ extern int ip_vs_icmp_xmit_v6
  *	we are loaded. Just set ip_vs_drop_rate to 'n' and
  *	we start to drop 1/rate of the packets
  */
-extern int ip_vs_drop_rate;
-extern int ip_vs_drop_counter;
 
 static inline int ip_vs_todrop(struct netns_ipvs *ipvs)
 {

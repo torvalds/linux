@@ -3515,9 +3515,6 @@ int __net_init __ip_vs_control_init(struct net *net)
 	}
 	spin_lock_init(&ipvs->tot_stats->lock);
 
-	for (idx = 0; idx < IP_VS_RTAB_SIZE; idx++)
-		INIT_LIST_HEAD(&ipvs->rs_table[idx]);
-
 	proc_net_fops_create(net, "ip_vs", 0, &ip_vs_info_fops);
 	proc_net_fops_create(net, "ip_vs_stats", 0, &ip_vs_stats_fops);
 	proc_net_fops_create(net, "ip_vs_stats_percpu", 0,
@@ -3555,10 +3552,15 @@ int __net_init __ip_vs_control_init(struct net *net)
 	tbl[idx++].data = &ipvs->sysctl_nat_icmp_send;
 
 
+#ifdef CONFIG_SYSCTL
 	ipvs->sysctl_hdr = register_net_sysctl_table(net, net_vs_ctl_path,
 						     tbl);
-	if (ipvs->sysctl_hdr == NULL)
-		goto err_reg;
+	if (ipvs->sysctl_hdr == NULL) {
+		if (!net_eq(net, &init_net))
+			kfree(tbl);
+		goto err_dup;
+	}
+#endif
 	ip_vs_new_estimator(net, ipvs->tot_stats);
 	ipvs->sysctl_tbl = tbl;
 	/* Schedule defense work */
@@ -3566,9 +3568,6 @@ int __net_init __ip_vs_control_init(struct net *net)
 	schedule_delayed_work(&ipvs->defense_work, DEFENSE_TIMER_PERIOD);
 	return 0;
 
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(tbl);
 err_dup:
 	free_percpu(ipvs->cpustats);
 err_alloc:
@@ -3584,7 +3583,9 @@ static void __net_exit __ip_vs_control_cleanup(struct net *net)
 	ip_vs_kill_estimator(net, ipvs->tot_stats);
 	cancel_delayed_work_sync(&ipvs->defense_work);
 	cancel_work_sync(&ipvs->defense_work.work);
+#ifdef CONFIG_SYSCTL
 	unregister_net_sysctl_table(ipvs->sysctl_hdr);
+#endif
 	proc_net_remove(net, "ip_vs_stats_percpu");
 	proc_net_remove(net, "ip_vs_stats");
 	proc_net_remove(net, "ip_vs");

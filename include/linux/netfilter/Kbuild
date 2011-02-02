@@ -1,3 +1,5 @@
+header-y += ipset/
+
 header-y += nf_conntrack_common.h
 header-y += nf_conntrack_ftp.h
 header-y += nf_conntrack_sctp.h
@@ -35,6 +37,7 @@ header-y += xt_connmark.h
 header-y += xt_conntrack.h
 header-y += xt_cpu.h
 header-y += xt_dccp.h
+header-y += xt_devgroup.h
 header-y += xt_dscp.h
 header-y += xt_esp.h
 header-y += xt_hashlimit.h
@@ -55,6 +58,7 @@ header-y += xt_quota.h
 header-y += xt_rateest.h
 header-y += xt_realm.h
 header-y += xt_recent.h
+header-y += xt_set.h
 header-y += xt_sctp.h
 header-y += xt_socket.h
 header-y += xt_state.h
