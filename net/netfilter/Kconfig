@@ -738,6 +738,15 @@ config NETFILTER_XT_MATCH_DCCP
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
+config NETFILTER_XT_MATCH_DEVGROUP
+	tristate '"devgroup" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This options adds a `devgroup' match, which allows to match on the
+	  device group a network device is assigned to.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_DSCP
 	tristate '"dscp" and "tos" match support'
 	depends on NETFILTER_ADVANCED

@@ -37,6 +37,7 @@ header-y += xt_connmark.h
 header-y += xt_conntrack.h
 header-y += xt_cpu.h
 header-y += xt_dccp.h
+header-y += xt_devgroup.h
 header-y += xt_dscp.h
 header-y += xt_esp.h
 header-y += xt_hashlimit.h
