@@ -81,6 +81,7 @@ static inline int phys_to_machine_mapping_valid(unsigned long pfn)
 static inline unsigned long mfn_to_pfn(unsigned long mfn)
 {
 	unsigned long pfn;
+	int ret = 0;
 
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return mfn;
@@ -95,15 +96,29 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 	 * In such cases it doesn't matter what we return (we return garbage),
 	 * but we must handle the fault without crashing!
 	 */
-	__get_user(pfn, &machine_to_phys_mapping[mfn]);
+	ret = __get_user(pfn, &machine_to_phys_mapping[mfn]);
 try_override:
-	/*
-	 * If this appears to be a foreign mfn (because the pfn
-	 * doesn't map back to the mfn), then check the local override
-	 * table to see if there's a better pfn to use.
+	/* ret might be < 0 if there are no entries in the m2p for mfn */
+	if (ret < 0)
+		pfn = ~0;
+	else if (get_phys_to_machine(pfn) != mfn)
+		/*
+		 * If this appears to be a foreign mfn (because the pfn
+		 * doesn't map back to the mfn), then check the local override
+		 * table to see if there's a better pfn to use.
+		 *
+		 * m2p_find_override_pfn returns ~0 if it doesn't find anything.
+		 */
+		pfn = m2p_find_override_pfn(mfn, ~0);
+
+	/* 
+	 * pfn is ~0 if there are no entries in the m2p for mfn or if the
+	 * entry doesn't map back to the mfn and m2p_override doesn't have a
+	 * valid entry for it.
 	 */
-	if (get_phys_to_machine(pfn) != mfn)
-		pfn = m2p_find_override_pfn(mfn, pfn);
+	if (pfn == ~0 &&
+			get_phys_to_machine(mfn) == IDENTITY_FRAME(mfn))
+		pfn = mfn;
 
 	return pfn;
 }
