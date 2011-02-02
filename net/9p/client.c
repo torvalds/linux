@@ -443,6 +443,7 @@ static int p9_check_errors(struct p9_client *c, struct p9_req_t *req)
 {
 	int8_t type;
 	int err;
+	int ecode;
 
 	err = p9_parse_header(req->rc, NULL, &type, NULL, 0);
 	if (err) {
@@ -450,36 +451,53 @@ static int p9_check_errors(struct p9_client *c, struct p9_req_t *req)
 		return err;
 	}
 
-	if (type == P9_RERROR || type == P9_RLERROR) {
-		int ecode;
+	if (type != P9_RERROR && type != P9_RLERROR)
+		return 0;
 
-		if (!p9_is_proto_dotl(c)) {
-			char *ename;
+	if (!p9_is_proto_dotl(c)) {
+		char *ename;
 
-			err = p9pdu_readf(req->rc, c->proto_version, "s?d",
-								&ename, &ecode);
-			if (err)
-				goto out_err;
-
-			if (p9_is_proto_dotu(c))
-				err = -ecode;
-
-			if (!err || !IS_ERR_VALUE(err)) {
-				err = p9_errstr2errno(ename, strlen(ename));
-
-				P9_DPRINTK(P9_DEBUG_9P, "<<< RERROR (%d) %s\n", -ecode, ename);
-
-				kfree(ename);
+		if (req->tc->pbuf_size) {
+			/* Handle user buffers */
+			size_t len = req->rc->size - req->rc->offset;
+			if (req->tc->pubuf) {
+				/* User Buffer */
+				err = copy_from_user(
+					&req->rc->sdata[req->rc->offset],
+					req->tc->pubuf, len);
+				if (err) {
+					err = -EFAULT;
+					goto out_err;
+				}
+			} else {
+				/* Kernel Buffer */
+				memmove(&req->rc->sdata[req->rc->offset],
+						req->tc->pkbuf, len);
 			}
-		} else {
-			err = p9pdu_readf(req->rc, c->proto_version, "d", &ecode);
+		}
+		err = p9pdu_readf(req->rc, c->proto_version, "s?d",
+				&ename, &ecode);
+		if (err)
+			goto out_err;
+
+		if (p9_is_proto_dotu(c))
 			err = -ecode;
 
-			P9_DPRINTK(P9_DEBUG_9P, "<<< RLERROR (%d)\n", -ecode);
-		}
+		if (!err || !IS_ERR_VALUE(err)) {
+			err = p9_errstr2errno(ename, strlen(ename));
 
-	} else
-		err = 0;
+			P9_DPRINTK(P9_DEBUG_9P, "<<< RERROR (%d) %s\n", -ecode,
+					ename);
+
+			kfree(ename);
+		}
+	} else {
+		err = p9pdu_readf(req->rc, c->proto_version, "d", &ecode);
+		err = -ecode;
+
+		P9_DPRINTK(P9_DEBUG_9P, "<<< RLERROR (%d)\n", -ecode);
+	}
+
 
 	return err;
 
