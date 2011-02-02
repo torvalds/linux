@@ -334,7 +334,7 @@ int rtsx_read_pci_cfg_byte(u8 bus, u8 dev, u8 func, u8 offset, u8 *val)
 	u8 devfn = (dev << 3) | func;
 
 	pdev = pci_get_bus_and_slot(bus, devfn);
-	if (!dev)
+	if (!pdev)
 		return -1;
 
 	pci_read_config_byte(pdev, offset, &data);
