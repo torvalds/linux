@@ -611,7 +611,7 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 	if (unlikely((desc->status & (IRQ_INPROGRESS | IRQ_DISABLED)) ||
 		    !desc->action)) {
 		if (!irq_check_poll(desc)) {
-			desc->status |= (IRQ_PENDING | IRQ_MASKED);
+			desc->status |= IRQ_PENDING;
 			mask_ack_irq(desc);
 			goto out_unlock;
 		}
