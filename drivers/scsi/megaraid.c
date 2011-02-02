@@ -1412,7 +1412,7 @@ megaraid_isr_memmapped(int irq, void *devp)
  * @nstatus - number of completed commands
  * @status - status of the last command completed
  *
- * Complete the comamnds and call the scsi mid-layer callback hooks.
+ * Complete the commands and call the scsi mid-layer callback hooks.
  */
 static void
 mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
@@ -4296,7 +4296,7 @@ mega_support_cluster(adapter_t *adapter)
  * @adapter - pointer to our soft state
  * @dma_handle - DMA address of the buffer
  *
- * Issue internal comamnds while interrupts are available.
+ * Issue internal commands while interrupts are available.
  * We only issue direct mailbox commands from within the driver. ioctl()
  * interface using these routines can issue passthru commands.
  */
