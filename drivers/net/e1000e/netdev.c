@@ -937,6 +937,9 @@ static void e1000_print_hw_hang(struct work_struct *work)
 	u16 phy_status, phy_1000t_status, phy_ext_status;
 	u16 pci_status;
 
+	if (test_bit(__E1000_DOWN, &adapter->state))
+		return;
+
 	e1e_rphy(hw, PHY_STATUS, &phy_status);
 	e1e_rphy(hw, PHY_1000T_STATUS, &phy_1000t_status);
 	e1e_rphy(hw, PHY_EXT_STATUS, &phy_ext_status);
@@ -1505,6 +1508,9 @@ static void e1000e_downshift_workaround(struct work_struct *work)
 {
 	struct e1000_adapter *adapter = container_of(work,
 					struct e1000_adapter, downshift_task);
+
+	if (test_bit(__E1000_DOWN, &adapter->state))
+		return;
 
 	e1000e_gig_downshift_workaround_ich8lan(&adapter->hw);
 }
@@ -3765,6 +3771,10 @@ static void e1000e_update_phy_task(struct work_struct *work)
 {
 	struct e1000_adapter *adapter = container_of(work,
 					struct e1000_adapter, update_phy_task);
+
+	if (test_bit(__E1000_DOWN, &adapter->state))
+		return;
+
 	e1000_get_phy_info(&adapter->hw);
 }
 
@@ -3775,6 +3785,10 @@ static void e1000e_update_phy_task(struct work_struct *work)
 static void e1000_update_phy_info(unsigned long data)
 {
 	struct e1000_adapter *adapter = (struct e1000_adapter *) data;
+
+	if (test_bit(__E1000_DOWN, &adapter->state))
+		return;
+
 	schedule_work(&adapter->update_phy_task);
 }
 
@@ -4148,6 +4162,9 @@ static void e1000_watchdog_task(struct work_struct *work)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 link, tctl;
 	int tx_pending = 0;
+
+	if (test_bit(__E1000_DOWN, &adapter->state))
+		return;
 
 	link = e1000e_has_link(adapter);
 	if ((netif_carrier_ok(netdev)) && link) {
@@ -4886,6 +4903,10 @@ static void e1000_reset_task(struct work_struct *work)
 {
 	struct e1000_adapter *adapter;
 	adapter = container_of(work, struct e1000_adapter, reset_task);
+
+	/* don't run the task if already down */
+	if (test_bit(__E1000_DOWN, &adapter->state))
+		return;
 
 	if (!((adapter->flags & FLAG_RX_NEEDS_RESTART) &&
 	      (adapter->flags & FLAG_RX_RESTART_NOW))) {
