@@ -71,8 +71,8 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(misc,
 #define CPU_DBG_SEL_ADDRESS                      0x00000483
 #define CPU_DBG_ADDRESS                          0x00000484
 
-static A_UINT8 custDataAR6002[AR6002_CUST_DATA_SIZE];
-static A_UINT8 custDataAR6003[AR6003_CUST_DATA_SIZE];
+static u8 custDataAR6002[AR6002_CUST_DATA_SIZE];
+static u8 custDataAR6003[AR6003_CUST_DATA_SIZE];
 
 /* Compile the 4BYTE version of the window register setup routine,
  * This mitigates host interconnect issues with non-4byte aligned bus requests, some
@@ -86,7 +86,7 @@ static A_UINT8 custDataAR6003[AR6003_CUST_DATA_SIZE];
 int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, A_UINT32 RegisterAddr, A_UINT32 Address)
 {
     int status;
-    A_UINT8 addrValue[4];
+    u8 addrValue[4];
     A_INT32 i;
 
         /* write bytes 1,2,3 of the register to set the upper address bytes, the LSB is written
@@ -94,7 +94,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, A_UINT32 RegisterAddr
 
     for (i = 1; i <= 3; i++) {
             /* fill the buffer with the address byte value we want to hit 4 times*/
-        addrValue[0] = ((A_UINT8 *)&Address)[i];
+        addrValue[0] = ((u8 *)&Address)[i];
         addrValue[1] = addrValue[0];
         addrValue[2] = addrValue[0];
         addrValue[3] = addrValue[0];
@@ -167,7 +167,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, A_UINT32 RegisterAddr
     status = HIFReadWrite(hifDevice,
                           RegisterAddr,
                           (A_UCHAR *)(&Address),
-                          sizeof(A_UINT8),
+                          sizeof(u8),
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
 
@@ -484,7 +484,7 @@ void
 ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
 {
     A_UINT32 eepHeaderAddr;
-    A_UINT8 AR6003CustDataShadow[AR6003_CUST_DATA_SIZE+4];
+    u8 AR6003CustDataShadow[AR6003_CUST_DATA_SIZE+4];
     A_INT32 i;
 
     if (BMIReadMemory(hifDevice,
@@ -526,8 +526,7 @@ ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
 }
 
 /* This is the function to call when need to use the cust data */
-A_UINT8 *
-ar6000_get_cust_data_buffer(A_UINT32 TargetType)
+u8 *ar6000_get_cust_data_buffer(A_UINT32 TargetType)
 {
     if (TargetType == TARGET_TYPE_AR6003)
         return custDataAR6003;
@@ -628,7 +627,7 @@ void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
 int ar6000_set_htc_params(HIF_DEVICE *hifDevice,
                                A_UINT32    TargetType,
                                A_UINT32    MboxIsrYieldValue,
-                               A_UINT8     HtcControlBuffers)
+                               u8 HtcControlBuffers)
 {
     int status;
     A_UINT32 blocksizes[HTC_MAILBOX_NUM_MAX];

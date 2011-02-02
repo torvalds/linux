@@ -142,8 +142,8 @@ typedef struct _HTC_EP_CALLBACKS {
 typedef struct _HTC_SERVICE_CONNECT_REQ {
     HTC_SERVICE_ID   ServiceID;                 /* service ID to connect to */
     A_UINT16         ConnectionFlags;           /* connection flags, see htc protocol definition */
-    A_UINT8         *pMetaData;                 /* ptr to optional service-specific meta-data */
-    A_UINT8          MetaDataLength;            /* optional meta data length */
+    u8 *pMetaData;                 /* ptr to optional service-specific meta-data */
+    u8 MetaDataLength;            /* optional meta data length */
     HTC_EP_CALLBACKS EpCallbacks;               /* endpoint callbacks */
     int              MaxSendQueueDepth;         /* maximum depth of any send queue */
     A_UINT32         LocalConnectionFlags;      /* HTC flags for the host-side (local) connection */
@@ -154,12 +154,12 @@ typedef struct _HTC_SERVICE_CONNECT_REQ {
 
 /* service connection response information */
 typedef struct _HTC_SERVICE_CONNECT_RESP {
-    A_UINT8         *pMetaData;         /* caller supplied buffer to optional meta-data */
-    A_UINT8         BufferLength;       /* length of caller supplied buffer */
-    A_UINT8         ActualLength;       /* actual length of meta data */
+    u8 *pMetaData;         /* caller supplied buffer to optional meta-data */
+    u8 BufferLength;       /* length of caller supplied buffer */
+    u8 ActualLength;       /* actual length of meta data */
     HTC_ENDPOINT_ID Endpoint;           /* endpoint to communicate over */
     unsigned int    MaxMsgLength;       /* max length of all messages over this endpoint */
-    A_UINT8         ConnectRespCode;    /* connect response code from target */
+    u8 ConnectRespCode;    /* connect response code from target */
 } HTC_SERVICE_CONNECT_RESP;
 
 /* endpoint distribution structure */

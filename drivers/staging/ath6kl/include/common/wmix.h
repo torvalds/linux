@@ -139,7 +139,7 @@ typedef PREPACK struct {
     A_UINT32              targ_reply_fn;
     A_UINT32              targ_reply_arg;
     A_UINT32              length;
-    A_UINT8               buf[1];
+    u8 buf[1];
 } POSTPACK WMIX_DSETDATA_REPLY_CMD;
 
 

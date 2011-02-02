@@ -77,7 +77,7 @@
          *    A_UINT32      address
          *    A_UINT32      length, at most BMI_DATASZ_MAX
          * Response format:
-         *    A_UINT8       data[length]
+         *    u8 data[length]
          */
 
 #define BMI_WRITE_MEMORY                    3
@@ -87,7 +87,7 @@
          *    A_UINT32       command (BMI_WRITE_MEMORY)
          *    A_UINT32      address
          *    A_UINT32      length, at most BMI_DATASZ_MAX
-         *    A_UINT8       data[length]
+         *    u8 data[length]
          * Response format: none
          */
 
@@ -229,7 +229,7 @@ PREPACK struct bmi_target_info {
          *    A_UINT32      command (BMI_LZ_DATA)
          *    A_UINT32      length (of compressed data),
          *                  at most BMI_DATASZ_MAX
-         *    A_UINT8       CompressedData[length]
+         *    u8 CompressedData[length]
          * Response format: none
          * Note: Not supported on all versions of ROM firmware.
          */

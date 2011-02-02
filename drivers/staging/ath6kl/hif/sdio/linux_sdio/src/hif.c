@@ -160,10 +160,10 @@ __HIFReadWrite(HIF_DEVICE *device,
              A_UINT32 request,
              void *context)
 {
-    A_UINT8 opcode;
+    u8 opcode;
     int    status = A_OK;
     int     ret;
-    A_UINT8 *tbuffer;
+    u8 *tbuffer;
     bool   bounced = false;
 
     AR_DEBUG_ASSERT(device != NULL);
@@ -494,7 +494,7 @@ int ReinitSDIO(HIF_DEVICE *device)
     struct mmc_host *host;
     struct mmc_card *card;
 	struct sdio_func *func;
-    A_UINT8  cmd52_resp;
+    u8 cmd52_resp;
     A_UINT32 clock;
 
     func = device->func;
@@ -1154,7 +1154,7 @@ static void hifDeviceRemoved(struct sdio_func *func)
 int hifWaitForPendingRecv(HIF_DEVICE *device)
 {
     A_INT32 cnt = 10;
-    A_UINT8 host_int_status;
+    u8 host_int_status;
     int status = A_OK;
 
     do {            		    
@@ -1165,7 +1165,7 @@ int hifWaitForPendingRecv(HIF_DEVICE *device)
 		/* check if there is any pending irq due to force done */
 		host_int_status = 0;
 	    status = HIFReadWrite(device, HOST_INT_STATUS_ADDRESS,
-				    (A_UINT8 *)&host_int_status, sizeof(host_int_status),
+				    (u8 *)&host_int_status, sizeof(host_int_status),
 			  	     HIF_RD_SYNC_BYTE_INC, NULL);
 	    host_int_status = !status ? (host_int_status & (1 << 0)) : 0;
 		if (host_int_status) {

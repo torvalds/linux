@@ -63,7 +63,7 @@ static HIF_DEVICE *p_bmi_device;
 
 /* soft mac */
 static int
-wmic_ether_aton(const char *orig, A_UINT8 *eth)
+wmic_ether_aton(const char *orig, u8 *eth)
 {
   const char *bufp;
   int i;
@@ -148,7 +148,7 @@ BMI_read_mem(A_UINT32 address, A_UINT32 *pvalue)
 
 /* Write a word to a Target memory. */
 inline void
-BMI_write_mem(A_UINT32 address, A_UINT8 *p_data, A_UINT32 sz)
+BMI_write_mem(A_UINT32 address, u8 *p_data, A_UINT32 sz)
 {
     BMIWriteMemory(p_bmi_device, address, (A_UCHAR*)(p_data), sz); 
 }
@@ -289,7 +289,7 @@ request_in_progress(void)
 static void eeprom_type_detect(void)
 {
     A_UINT32 regval;
-    A_UINT8 i = 0;
+    u8 i = 0;
 
     request_8byte_read(0x100);
    /* Wait for DONE_INT in SI_CS */
@@ -558,13 +558,13 @@ void eeprom_ar6000_transfer(HIF_DEVICE *device, char *fake_file, char *p_mac)
     /* soft mac */
 
     /* Write EEPROM data to Target RAM */
-    BMI_write_mem(board_data_addr, ((A_UINT8 *)eeprom_data), EEPROM_SZ);
+    BMI_write_mem(board_data_addr, ((u8 *)eeprom_data), EEPROM_SZ);
 
     /* Record the fact that Board Data IS initialized */
     {
        A_UINT32 one = 1;
        BMI_write_mem(HOST_INTEREST_ITEM_ADDRESS(hi_board_data_initialized),
-                     (A_UINT8 *)&one, sizeof(A_UINT32));
+                     (u8 *)&one, sizeof(A_UINT32));
     }
 
     disable_SI();

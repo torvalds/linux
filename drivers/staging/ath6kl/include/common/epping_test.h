@@ -41,25 +41,25 @@
 #define HCI_RSVD_EXPECTED_PKT_TYPE_RECV_OFFSET  7 
   
 typedef PREPACK struct {    
-    A_UINT8     _HCIRsvd[8];           /* reserved for HCI packet header (GMBOX) testing */
-    A_UINT8     StreamEcho_h;          /* stream no. to echo this packet on (filled by host) */
-    A_UINT8     StreamEchoSent_t;      /* stream no. packet was echoed to (filled by target)
+    u8 _HCIRsvd[8];           /* reserved for HCI packet header (GMBOX) testing */
+    u8 StreamEcho_h;          /* stream no. to echo this packet on (filled by host) */
+    u8 StreamEchoSent_t;      /* stream no. packet was echoed to (filled by target)
                                           When echoed: StreamEchoSent_t == StreamEcho_h */
-    A_UINT8     StreamRecv_t;          /* stream no. that target received this packet on (filled by target) */
-    A_UINT8     StreamNo_h;            /* stream number to send on (filled by host) */   
-    A_UINT8     Magic_h[4];            /* magic number to filter for this packet on the host*/
-    A_UINT8     _rsvd[6];              /* reserved fields that must be set to a "reserved" value
+    u8 StreamRecv_t;          /* stream no. that target received this packet on (filled by target) */
+    u8 StreamNo_h;            /* stream number to send on (filled by host) */
+    u8 Magic_h[4];            /* magic number to filter for this packet on the host*/
+    u8 _rsvd[6];              /* reserved fields that must be set to a "reserved" value
                                           since this packet maps to a 14-byte ethernet frame we want 
                                           to make sure ethertype field is set to something unknown */
                                           
-    A_UINT8     _pad[2];               /* padding for alignment */                      
-    A_UINT8     TimeStamp[8];          /* timestamp of packet (host or target) */
+    u8 _pad[2];               /* padding for alignment */
+    u8 TimeStamp[8];          /* timestamp of packet (host or target) */
     A_UINT32    HostContext_h;         /* 4 byte host context, target echos this back */
     A_UINT32    SeqNo;                 /* sequence number (set by host or target) */   
     A_UINT16    Cmd_h;                 /* ping command (filled by host) */  
     A_UINT16    CmdFlags_h;            /* optional flags */
-    A_UINT8     CmdBuffer_h[8];        /* buffer for command (host -> target) */
-    A_UINT8     CmdBuffer_t[8];        /* buffer for command (target -> host) */  
+    u8 CmdBuffer_h[8];        /* buffer for command (host -> target) */
+    u8 CmdBuffer_t[8];        /* buffer for command (target -> host) */
     A_UINT16    DataLength;            /* length of data */
     A_UINT16    DataCRC;               /* 16 bit CRC of data */
     A_UINT16    HeaderCRC;             /* header CRC (fields : StreamNo_h to end, minus HeaderCRC) */                       

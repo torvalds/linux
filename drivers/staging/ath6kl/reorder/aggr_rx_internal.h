@@ -101,8 +101,8 @@ typedef struct {
 }RXTID_STATS;
 
 typedef struct {
-    A_UINT8             aggr_sz;            /* config value of aggregation size */    
-    A_UINT8             timerScheduled;
+    u8 aggr_sz;            /* config value of aggregation size */
+    u8 timerScheduled;
     A_TIMER             timer;              /* timer for returning held up pkts in re-order que */    
     void                *dev;               /* dev handle */
     RX_CALLBACK         rx_fn;              /* callback function to return frames; to upper layer */

@@ -304,7 +304,7 @@ static void StateDumpCallback(void *pContext)
     AR_DEBUG_PRINTF(ATH_DEBUG_ANY,("==================================================\n"));
 }
 
-static int HCIUartMessagePending(void *pContext, A_UINT8 LookAheadBytes[], int ValidBytes)
+static int HCIUartMessagePending(void *pContext, u8 LookAheadBytes[], int ValidBytes)
 {
     GMBOX_PROTO_HCI_UART        *pProt = (GMBOX_PROTO_HCI_UART *)pContext;
     int                    status = A_OK;
@@ -584,7 +584,7 @@ static int HCITrySend(GMBOX_PROTO_HCI_UART *pProt, HTC_PACKET *pPacket, bool Syn
     int    status = A_OK;
     int         transferLength;
     int         creditsRequired, remainder;
-    A_UINT8     hciUartType;
+    u8 hciUartType;
     bool      synchSendComplete = false;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("+HCITrySend (pPacket:0x%lX) %s \n",(unsigned long)pPacket,
@@ -1164,7 +1164,7 @@ int HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
 {
     GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans;
     int              status = A_OK;
-    A_UINT8               lookAhead[8];
+    u8 lookAhead[8];
     int                   bytes;
     int                   totalRecvLength;
     

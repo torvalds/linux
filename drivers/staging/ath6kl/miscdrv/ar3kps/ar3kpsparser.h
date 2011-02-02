@@ -52,7 +52,7 @@
 #define A_UCHAR                 unsigned char
 #define A_UINT32                unsigned long
 #define A_UINT16                unsigned short
-#define A_UINT8                 unsigned char
+#define u8 unsigned char
 #define bool                  unsigned char
 #endif /* A_UINT32 */
 

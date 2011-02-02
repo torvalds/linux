@@ -89,13 +89,13 @@ typedef struct tPsTagEntry
 {
    A_UINT32   TagId;
    A_UINT32   TagLen;
-   A_UINT8    *TagData;
+   u8 *TagData;
 } tPsTagEntry, *tpPsTagEntry;
 
 typedef struct tRamPatch
 {
    A_UINT16   Len;
-   A_UINT8    * Data;
+   u8 *Data;
 } tRamPatch, *ptRamPatch;
 
 
@@ -319,9 +319,9 @@ int AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat)
 {
    char *Buffer;
    char *pCharLine;
-   A_UINT8    TagCount;
+   u8 TagCount;
    A_UINT16   ByteCount;
-   A_UINT8    ParseSection=RAM_PS_SECTION;
+   u8 ParseSection=RAM_PS_SECTION;
    A_UINT32 pos;
 
 
@@ -438,7 +438,7 @@ int AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat)
                        return A_ERROR;
                     }
                     PsTagEntry[TagCount].TagLen = ByteCount;
-                    PsTagEntry[TagCount].TagData = (A_UINT8*)A_MALLOC(ByteCount);
+                    PsTagEntry[TagCount].TagData = (u8 *)A_MALLOC(ByteCount);
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,(" TAG Length %d  Tag Index %d \n",PsTagEntry[TagCount].TagLen,TagCount));
                     stReadStatus.uSection = 3;
                     stReadStatus.uLineCount = 0;
@@ -472,12 +472,12 @@ int AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat)
                     if((stPS_DataFormat.eDataType == eHex) && stPS_DataFormat.bIsArray == true) {
                        while(uReadCount > 0) {
                            PsTagEntry[TagCount].TagData[stReadStatus.uByteCount] =
-                                                     (A_UINT8)(hex_to_bin(pCharLine[stReadStatus.uCharCount]) << 4)
-                                                     | (A_UINT8)(hex_to_bin(pCharLine[stReadStatus.uCharCount + 1]));
+                                                     (u8)(hex_to_bin(pCharLine[stReadStatus.uCharCount]) << 4)
+                                                     | (u8)(hex_to_bin(pCharLine[stReadStatus.uCharCount + 1]));
 
                            PsTagEntry[TagCount].TagData[stReadStatus.uByteCount+1] =
-                                                     (A_UINT8)(hex_to_bin(pCharLine[stReadStatus.uCharCount + 3]) << 4)
-                                                     | (A_UINT8)(hex_to_bin(pCharLine[stReadStatus.uCharCount + 4]));
+                                                     (u8)(hex_to_bin(pCharLine[stReadStatus.uCharCount + 3]) << 4)
+                                                     | (u8)(hex_to_bin(pCharLine[stReadStatus.uCharCount + 4]));
 
                            stReadStatus.uCharCount += 6; // read two bytes, plus a space;
                            stReadStatus.uByteCount += 2;
@@ -614,7 +614,7 @@ int AthDoParsePatch(A_UCHAR *patchbuffer, A_UINT32 patchlen)
             return A_ERROR;
         }
         RamPatch[Patch_Count].Len= MAX_BYTE_LENGTH;
-        RamPatch[Patch_Count].Data = (A_UINT8*)A_MALLOC(MAX_BYTE_LENGTH);
+        RamPatch[Patch_Count].Data = (u8 *)A_MALLOC(MAX_BYTE_LENGTH);
         Patch_Count ++;
 
 
@@ -623,7 +623,7 @@ int AthDoParsePatch(A_UCHAR *patchbuffer, A_UINT32 patchlen)
 
     RamPatch[Patch_Count].Len= (ByteCount & 0xFF);
     if(ByteCount != 0) {
-        RamPatch[Patch_Count].Data = (A_UINT8*)A_MALLOC(ByteCount);
+        RamPatch[Patch_Count].Data = (u8 *)A_MALLOC(ByteCount);
         Patch_Count ++;
     }
     count = 0;
@@ -767,7 +767,7 @@ static void LoadHeader(A_UCHAR *HCI_PS_Command,A_UCHAR opcode,int length,int ind
 int AthCreateCommandList(PSCmdPacket **HciPacketList, A_UINT32 *numPackets)
 {
 
-    A_UINT8 count;
+    u8 count;
     A_UINT32 NumcmdEntry = 0; 
 
     A_UINT32 Crc = 0;

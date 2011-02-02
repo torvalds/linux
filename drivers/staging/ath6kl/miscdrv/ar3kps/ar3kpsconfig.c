@@ -47,10 +47,10 @@ typedef struct {
 }HciCommandListParam;
 
 int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
-                                           A_UINT8          *pHCICommand,
+                                           u8 *pHCICommand,
                                            int              CmdLength,
-                                           A_UINT8          **ppEventBuffer,
-                                           A_UINT8          **ppBufferToFree);
+                                           u8 **ppEventBuffer,
+                                           u8 **ppBufferToFree);
 
 A_UINT32  Rom_Version;
 A_UINT32  Build_Version;
@@ -136,8 +136,8 @@ int PSSendOps(void *arg)
     PSCmdPacket *HciCmdList; /* List storing the commands */
     const struct firmware* firmware;
     A_UINT32 numCmds;
-    A_UINT8 *event;
-    A_UINT8 *bufferToFree;
+    u8 *event;
+    u8 *bufferToFree;
     struct hci_dev *device;
     A_UCHAR *buffer;
     A_UINT32 len;
@@ -390,10 +390,10 @@ complete:
  *  For HCI SDIO transport, this will be internally defined. 
  */
 int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
-                                           A_UINT8          *pHCICommand,
+                                           u8 *pHCICommand,
                                            int              CmdLength,
-                                           A_UINT8          **ppEventBuffer,
-                                           A_UINT8          **ppBufferToFree)
+                                           u8 **ppEventBuffer,
+                                           u8 **ppBufferToFree)
 {
     if(CmdLength == 0) {
         return A_ERROR;
@@ -486,8 +486,8 @@ int write_bdaddr(AR3K_CONFIG_INFO *pConfig,A_UCHAR *bdaddr,int type)
 	A_UCHAR bdaddr_cmd[] = { 0x0B, 0xFC, 0x0A, 0x01, 0x01, 
 							0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-    A_UINT8 *event;
-    A_UINT8 *bufferToFree = NULL;
+    u8 *event;
+    u8 *bufferToFree = NULL;
     int result = A_ERROR;
 	int inc,outc;
 
@@ -518,9 +518,9 @@ int write_bdaddr(AR3K_CONFIG_INFO *pConfig,A_UCHAR *bdaddr,int type)
 }
 int ReadVersionInfo(AR3K_CONFIG_INFO *pConfig)
 {
-    A_UINT8   hciCommand[] =  {0x1E,0xfc,0x00};
-    A_UINT8 *event;
-    A_UINT8 *bufferToFree = NULL;
+    u8 hciCommand[] =  {0x1E,0xfc,0x00};
+    u8 *event;
+    u8 *bufferToFree = NULL;
     int result = A_ERROR;
     if(A_OK == SendHCICommandWaitCommandComplete(pConfig,hciCommand,sizeof(hciCommand),&event,&bufferToFree)) {
 	result = ReadPSEvent(event);
@@ -533,16 +533,16 @@ int ReadVersionInfo(AR3K_CONFIG_INFO *pConfig)
 }
 int getDeviceType(AR3K_CONFIG_INFO *pConfig, A_UINT32 * code)
 {
-    A_UINT8   hciCommand[] =  {0x05,0xfc,0x05,0x00,0x00,0x00,0x00,0x04};
-    A_UINT8 *event;
-    A_UINT8 *bufferToFree = NULL;
+    u8 hciCommand[] =  {0x05,0xfc,0x05,0x00,0x00,0x00,0x00,0x04};
+    u8 *event;
+    u8 *bufferToFree = NULL;
     A_UINT32 reg;
     int result = A_ERROR;
     *code = 0;
-    hciCommand[3] = (A_UINT8)(FPGA_REGISTER & 0xFF);
-    hciCommand[4] = (A_UINT8)((FPGA_REGISTER >> 8) & 0xFF);
-    hciCommand[5] = (A_UINT8)((FPGA_REGISTER >> 16) & 0xFF);
-    hciCommand[6] = (A_UINT8)((FPGA_REGISTER >> 24) & 0xFF); 
+    hciCommand[3] = (u8)(FPGA_REGISTER & 0xFF);
+    hciCommand[4] = (u8)((FPGA_REGISTER >> 8) & 0xFF);
+    hciCommand[5] = (u8)((FPGA_REGISTER >> 16) & 0xFF);
+    hciCommand[6] = (u8)((FPGA_REGISTER >> 24) & 0xFF);
     if(A_OK == SendHCICommandWaitCommandComplete(pConfig,hciCommand,sizeof(hciCommand),&event,&bufferToFree)) {
 
         if(event[4] == 0xFC && event[5] == 0x00){

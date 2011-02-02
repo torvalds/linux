@@ -152,7 +152,7 @@ static INLINE void GetHTCSendPackets(HTC_TARGET        *target,
 {
     int          creditsRequired;
     int          remainder;
-    A_UINT8      sendFlags;
+    u8 sendFlags;
     HTC_PACKET   *pPacket;
     unsigned int transferLength;
 

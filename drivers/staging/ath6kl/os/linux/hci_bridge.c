@@ -80,7 +80,7 @@ typedef struct {
     bool                  HciNormalMode;     /* Actual HCI mode enabled (non-TEST)*/
     bool                  HciRegistered;     /* HCI device registered with stack */
     HTC_PACKET_QUEUE        HTCPacketStructHead;
-    A_UINT8                 *pHTCStructAlloc;
+    u8 *pHTCStructAlloc;
     spinlock_t              BridgeLock;
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
     HCI_TRANSPORT_MISC_HANDLES    HCITransHdl; 
@@ -509,7 +509,7 @@ int ar6000_setup_hci(AR_SOFTC_T *ar)
             AR_DEBUG_PRINTF(ATH_DEBUG_HCI_BRIDGE, ("HCI Bridge: running in test mode... \n"));     
         }
         
-        pHcidevInfo->pHTCStructAlloc = (A_UINT8 *)A_MALLOC((sizeof(HTC_PACKET)) * NUM_HTC_PACKET_STRUCTS);
+        pHcidevInfo->pHTCStructAlloc = (u8 *)A_MALLOC((sizeof(HTC_PACKET)) * NUM_HTC_PACKET_STRUCTS);
         
         if (NULL == pHcidevInfo->pHTCStructAlloc) {
             status = A_NO_MEMORY;
@@ -963,7 +963,7 @@ static bool bt_indicate_recv(AR6K_HCI_BRIDGE_INFO      *pHcidevInfo,
                                HCI_TRANSPORT_PACKET_TYPE Type, 
                                struct                    sk_buff *skb)
 {
-    A_UINT8               btType;
+    u8 btType;
     int                   len;
     bool                success = false;
     BT_HCI_EVENT_HEADER   *pEvent;

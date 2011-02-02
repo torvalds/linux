@@ -47,17 +47,17 @@ typedef PREPACK struct {
 
 typedef PREPACK struct {
     A_UINT16 Flags_ConnHandle;
-    A_UINT8  Length;
+    u8 Length;
 } POSTPACK BT_HCI_SCO_HEADER;
 
 typedef PREPACK struct {
     A_UINT16 OpCode;
-    A_UINT8  ParamLength;
+    u8 ParamLength;
 } POSTPACK BT_HCI_COMMAND_HEADER;
 
 typedef PREPACK struct {
-    A_UINT8  EventCode;
-    A_UINT8  ParamLength;
+    u8 EventCode;
+    u8 ParamLength;
 } POSTPACK BT_HCI_EVENT_HEADER;
 
 /* MBOX host interrupt signal assignments */

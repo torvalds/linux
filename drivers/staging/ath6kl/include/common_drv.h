@@ -79,7 +79,7 @@ void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, A_UINT32 TargetType);
 int ar6000_set_htc_params(HIF_DEVICE *hifDevice,
                                A_UINT32    TargetType,
                                A_UINT32    MboxIsrYieldValue,
-                               A_UINT8     HtcControlBuffers);
+                               u8 HtcControlBuffers);
 
 int ar6000_prepare_target(HIF_DEVICE *hifDevice,
                                A_UINT32    TargetType,
@@ -91,15 +91,15 @@ int ar6000_set_hci_bridge_flags(HIF_DEVICE *hifDevice,
 
 void ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, A_UINT32 TargetType);
 
-A_UINT8 *ar6000_get_cust_data_buffer(A_UINT32 TargetType);
+u8 *ar6000_get_cust_data_buffer(A_UINT32 TargetType);
 
-int ar6000_setBTState(void *context, A_UINT8 *pInBuf, A_UINT32 InBufSize);
+int ar6000_setBTState(void *context, u8 *pInBuf, A_UINT32 InBufSize);
 
-int ar6000_setDevicePowerState(void *context, A_UINT8 *pInBuf, A_UINT32 InBufSize);
+int ar6000_setDevicePowerState(void *context, u8 *pInBuf, A_UINT32 InBufSize);
 
-int ar6000_setWowMode(void *context, A_UINT8 *pInBuf, A_UINT32 InBufSize);
+int ar6000_setWowMode(void *context, u8 *pInBuf, A_UINT32 InBufSize);
 
-int ar6000_setHostMode(void *context, A_UINT8 *pInBuf, A_UINT32 InBufSize);
+int ar6000_setHostMode(void *context, u8 *pInBuf, A_UINT32 InBufSize);
 
 #ifdef __cplusplus
 }

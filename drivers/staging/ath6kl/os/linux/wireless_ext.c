@@ -64,10 +64,9 @@ encode_ie(void *buf, size_t bufsize,
 }
 #endif /* WIRELESS_EXT > 14 */
 
-static A_UINT8
-get_bss_phy_capability(bss_t *bss)
+static u8 get_bss_phy_capability(bss_t *bss)
 {
-    A_UINT8 capability = 0;
+    u8 capability = 0;
     struct ieee80211_common_ie *cie = &bss->ni_cie;
 #define CHAN_IS_11A(x)              (!((x >= 2412) && (x <= 2484)))
     if (CHAN_IS_11A(cie->ie_chan)) {
@@ -464,8 +463,8 @@ ar6000_ioctl_siwessid(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     int status;
-    A_UINT8     arNetworkType;
-    A_UINT8 prevMode = ar->arNetworkType;
+    u8 arNetworkType;
+    u8 prevMode = ar->arNetworkType;
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -512,7 +511,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
         }
         return 0;
     } else if(ar->arNetworkType == AP_NETWORK) {
-        A_UINT8 ctr;
+        u8 ctr;
         struct sk_buff *skb;
 
         /* We are switching from AP to STA | IBSS mode, cleanup the AP state */
@@ -683,8 +682,8 @@ ar6000_ioctl_giwessid(struct net_device *dev,
 
 void ar6000_install_static_wep_keys(AR_SOFTC_T *ar)
 {
-    A_UINT8 index;
-    A_UINT8 keyUsage;
+    u8 index;
+    u8 keyUsage;
 
     for (index = WMI_MIN_KEY_INDEX; index <= WMI_MAX_KEY_INDEX; index++) {
         if (ar->arWepKeyList[index].arKeyLen) {
@@ -813,7 +812,7 @@ ar6000_ioctl_siwtxpow(struct net_device *dev,
              struct iw_param *rrq, char *extra)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
-    A_UINT8 dbM;
+    u8 dbM;
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -1123,7 +1122,7 @@ ar6000_ioctl_giwencode(struct net_device *dev,
               struct iw_point *erq, char *key)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
-    A_UINT8 keyIndex;
+    u8 keyIndex;
     struct ar_wep_key *wk;
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
@@ -1195,10 +1194,10 @@ ar6000_ioctl_siwgenie(struct net_device *dev,
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
 #ifdef WAPI_ENABLE
-    A_UINT8    *ie = erq->pointer;
-    A_UINT8    ie_type = ie[0];
+    u8 *ie = erq->pointer;
+    u8 ie_type = ie[0];
     A_UINT16   ie_length = erq->length;
-    A_UINT8    wapi_ie[128];
+    u8 wapi_ie[128];
 #endif
 
     if (ar->arWmiReady == false) {
@@ -1562,10 +1561,10 @@ ar6000_ioctl_siwpmksa(struct net_device *dev,
 
     switch (pmksa->cmd) {
         case IW_PMKSA_ADD:
-            status = wmi_setPmkid_cmd(ar->arWmi, (A_UINT8*)pmksa->bssid.sa_data, pmksa->pmkid, true);
+            status = wmi_setPmkid_cmd(ar->arWmi, (u8 *)pmksa->bssid.sa_data, pmksa->pmkid, true);
             break;
         case IW_PMKSA_REMOVE:
-            status = wmi_setPmkid_cmd(ar->arWmi, (A_UINT8*)pmksa->bssid.sa_data, pmksa->pmkid, false);
+            status = wmi_setPmkid_cmd(ar->arWmi, (u8 *)pmksa->bssid.sa_data, pmksa->pmkid, false);
             break;
         case IW_PMKSA_FLUSH:
             if (ar->arConnected == true) {
@@ -1595,14 +1594,14 @@ static int ar6000_set_wapi_key(struct net_device *dev,
     struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
     KEY_USAGE   keyUsage = 0;
     A_INT32     keyLen;
-    A_UINT8     *keyData;
+    u8 *keyData;
     A_INT32     index;
     A_UINT32    *PN;
     A_INT32     i;
     int    status;
-    A_UINT8     wapiKeyRsc[16];
+    u8 wapiKeyRsc[16];
     CRYPTO_TYPE keyType = WAPI_CRYPT;
-    const A_UINT8 broadcastMac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    const u8 broadcastMac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
     index = erq->flags & IW_ENCODE_INDEX;
     if (index && (((index - 1) < WMI_MIN_KEY_INDEX) ||
@@ -1614,7 +1613,7 @@ static int ar6000_set_wapi_key(struct net_device *dev,
     if (index < 0 || index > 4) {
         return -EIO;
     }
-    keyData = (A_UINT8 *)(ext + 1);
+    keyData = (u8 *)(ext + 1);
     keyLen = erq->length - sizeof(struct iw_encode_ext);
     A_MEMCPY(wapiKeyRsc, ext->tx_seq, sizeof(wapiKeyRsc));
 
@@ -1658,8 +1657,8 @@ ar6000_ioctl_siwencodeext(struct net_device *dev,
     struct iw_encode_ext *ext;
     KEY_USAGE keyUsage;
     A_INT32 keyLen;
-    A_UINT8 *keyData;
-    A_UINT8 keyRsc[8];
+    u8 *keyData;
+    u8 keyRsc[8];
     int status;
     CRYPTO_TYPE keyType;
 #ifdef USER_KEYS
@@ -1721,7 +1720,7 @@ ar6000_ioctl_siwencodeext(struct net_device *dev,
         }
 
         /* key follows iw_encode_ext */
-        keyData = (A_UINT8 *)(ext + 1);
+        keyData = (u8 *)(ext + 1);
 
         switch (ext->alg) {
             case IW_ENCODE_ALG_WEP:
@@ -1792,7 +1791,7 @@ ar6000_ioctl_siwencodeext(struct net_device *dev,
          status = wmi_addKey_cmd(ar->arWmi, index, keyType, keyUsage,
                             keyLen, keyRsc,
                             keyData, KEY_OP_INIT_VAL,
-                            (A_UINT8*)ext->addr.sa_data,
+                            (u8 *)ext->addr.sa_data,
                             SYNC_BOTH_WMIFLAG);
          if (status != A_OK) {
             return -EIO;
@@ -1906,7 +1905,7 @@ ar6000_ioctl_giwname(struct net_device *dev,
            struct iw_request_info *info,
            char *name, char *extra)
 {
-    A_UINT8 capability;
+    u8 capability;
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
@@ -2393,7 +2392,7 @@ ar6000_ioctl_siwmlme(struct net_device *dev,
 
     if (data->pointer && data->length == sizeof(struct iw_mlme)) {
 
-        A_UINT8 arNetworkType;
+        u8 arNetworkType;
         struct iw_mlme mlme;
 
         if (copy_from_user(&mlme, data->pointer, sizeof(struct iw_mlme)))

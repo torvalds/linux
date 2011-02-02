@@ -610,7 +610,7 @@ static void DevFreeScatterReq(HIF_DEVICE *Context, HIF_SCATTER_REQ *pReq)
 
 int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, bool FromDMA)
 {
-    A_UINT8         *pDMABuffer = NULL;
+    u8 *pDMABuffer = NULL;
     int             i, remaining;
     A_UINT32        length;
 
@@ -775,7 +775,7 @@ static int DevSetupVirtualScatterSupport(AR6K_DEVICE *pDev)
         A_MEMZERO(pReq, sgreqSize);
 
             /* the virtual DMA starts after the scatter request struct */
-        pVirtualInfo = (DEV_SCATTER_DMA_VIRTUAL_INFO *)((A_UINT8 *)pReq + sgreqSize);
+        pVirtualInfo = (DEV_SCATTER_DMA_VIRTUAL_INFO *)((u8 *)pReq + sgreqSize);
         A_MEMZERO(pVirtualInfo, sizeof(DEV_SCATTER_DMA_VIRTUAL_INFO));
 
         pVirtualInfo->pVirtDmaBuffer = &pVirtualInfo->DataArea[0];
@@ -1002,14 +1002,14 @@ int DevSubmitScatterRequest(AR6K_DEVICE *pDev, HIF_SCATTER_REQ *pScatterReq, boo
 
 #define TEST_CREDITS_RECV_TIMEOUT 100
 
-static A_UINT8  g_Buffer[TOTAL_BYTES];
+static u8 g_Buffer[TOTAL_BYTES];
 static A_UINT32 g_MailboxAddrs[AR6K_MAILBOXES];
 static A_UINT32 g_BlockSizes[AR6K_MAILBOXES];
 
 #define BUFFER_PROC_LIST_DEPTH 4
 
 typedef struct _BUFFER_PROC_LIST{
-    A_UINT8  *pBuffer;
+    u8 *pBuffer;
     A_UINT32 length;
 }BUFFER_PROC_LIST;
 
@@ -1025,7 +1025,7 @@ typedef struct _BUFFER_PROC_LIST{
 /* a simple and crude way to send different "message" sizes */
 static void AssembleBufferList(BUFFER_PROC_LIST *pList)
 {
-    A_UINT8 *pBuffer = g_Buffer;
+    u8 *pBuffer = g_Buffer;
 
 #if BUFFER_PROC_LIST_DEPTH < 4
 #error "Buffer processing list depth is not deep enough!!"
@@ -1107,7 +1107,7 @@ static bool CheckBuffers(void)
     /* find the end marker for the last buffer we will be sending */
 static A_UINT16 GetEndMarker(void)
 {
-    A_UINT8  *pBuffer;
+    u8 *pBuffer;
     BUFFER_PROC_LIST checkList[BUFFER_PROC_LIST_DEPTH];
 
         /* fill up buffers with the normal counting pattern */
@@ -1173,7 +1173,7 @@ static int GetCredits(AR6K_DEVICE *pDev, int mbox, int *pCredits)
 {
     int status = A_OK;
     int      timeout = TEST_CREDITS_RECV_TIMEOUT;
-    A_UINT8  credits = 0;
+    u8 credits = 0;
     A_UINT32 address;
 
     while (true) {
@@ -1335,7 +1335,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
     int      i;
     int status;
     int      credits = 0;
-    A_UINT8  params[4];
+    u8 params[4];
     int      numBufs;
     int      bufferSize;
     A_UINT16 temp;
@@ -1418,7 +1418,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
 
         status = HIFReadWrite(pDev->HIFDevice,
                               SCRATCH_ADDRESS + 4,
-                              (A_UINT8 *)&temp,
+                              (u8 *)&temp,
                               2,
                               HIF_WR_SYNC_BYTE_INC,
                               NULL);
@@ -1435,7 +1435,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
         temp = temp - 1;
         status = HIFReadWrite(pDev->HIFDevice,
                               SCRATCH_ADDRESS + 6,
-                              (A_UINT8 *)&temp,
+                              (u8 *)&temp,
                               2,
                               HIF_WR_SYNC_BYTE_INC,
                               NULL);

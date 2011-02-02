@@ -99,24 +99,24 @@
  * generic definitions for IEEE 802.11 frames
  */
 PREPACK struct ieee80211_frame {
-    A_UINT8    i_fc[2];
-    A_UINT8    i_dur[2];
-    A_UINT8    i_addr1[IEEE80211_ADDR_LEN];
-    A_UINT8    i_addr2[IEEE80211_ADDR_LEN];
-    A_UINT8    i_addr3[IEEE80211_ADDR_LEN];
-    A_UINT8    i_seq[2];
+    u8 i_fc[2];
+    u8 i_dur[2];
+    u8 i_addr1[IEEE80211_ADDR_LEN];
+    u8 i_addr2[IEEE80211_ADDR_LEN];
+    u8 i_addr3[IEEE80211_ADDR_LEN];
+    u8 i_seq[2];
     /* possibly followed by addr4[IEEE80211_ADDR_LEN]; */
     /* see below */
 } POSTPACK;
 
 PREPACK struct ieee80211_qosframe {
-    A_UINT8 i_fc[2];
-    A_UINT8 i_dur[2];
-    A_UINT8 i_addr1[IEEE80211_ADDR_LEN];
-    A_UINT8 i_addr2[IEEE80211_ADDR_LEN];
-    A_UINT8 i_addr3[IEEE80211_ADDR_LEN];
-    A_UINT8 i_seq[2];
-    A_UINT8 i_qos[2];
+    u8 i_fc[2];
+    u8 i_dur[2];
+    u8 i_addr1[IEEE80211_ADDR_LEN];
+    u8 i_addr2[IEEE80211_ADDR_LEN];
+    u8 i_addr3[IEEE80211_ADDR_LEN];
+    u8 i_seq[2];
+    u8 i_qos[2];
 } POSTPACK;
 
 #define IEEE80211_FC0_VERSION_MASK          0x03
@@ -320,14 +320,14 @@ typedef enum {
  * WMM/802.11e Tspec Element
  */
 typedef PREPACK struct wmm_tspec_ie_t {
-    A_UINT8     elementId;
-    A_UINT8     len;
-    A_UINT8     oui[3];
-    A_UINT8     ouiType;
-    A_UINT8     ouiSubType;
-    A_UINT8     version;
+    u8 elementId;
+    u8 len;
+    u8 oui[3];
+    u8 ouiType;
+    u8 ouiSubType;
+    u8 version;
     A_UINT16    tsInfo_info;
-    A_UINT8     tsInfo_reserved;
+    u8 tsInfo_reserved;
     A_UINT16    nominalMSDU;
     A_UINT16    maxMSDU;
     A_UINT32    minServiceInt;

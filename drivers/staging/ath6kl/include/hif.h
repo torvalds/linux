@@ -271,7 +271,7 @@ typedef struct {
 
 
 typedef struct _HIF_SCATTER_ITEM {
-    A_UINT8     *pBuffer;             /* CPU accessible address of buffer */
+    u8 *pBuffer;             /* CPU accessible address of buffer */
     int          Length;              /* length of transfer to/from this buffer */
     void        *pCallerContexts[2];  /* space for caller to insert a context associated with this item */
 } HIF_SCATTER_ITEM;
@@ -298,7 +298,7 @@ typedef struct _HIF_SCATTER_REQ {
     int                 ValidScatterEntries;  /* number of valid entries set by caller */
     HIF_SCATTER_METHOD  ScatterMethod;        /* scatter method handled by HIF */  
     void                *HIFPrivate[4];     /* HIF private area */
-    A_UINT8             *pScatterBounceBuffer;  /* bounce buffer for upper layers to copy to/from */
+    u8 *pScatterBounceBuffer;  /* bounce buffer for upper layers to copy to/from */
     HIF_SCATTER_ITEM    ScatterList[1];     /* start of scatter list */
 } HIF_SCATTER_REQ;
 

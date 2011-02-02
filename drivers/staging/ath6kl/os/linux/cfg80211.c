@@ -185,9 +185,9 @@ ar6k_set_auth_type(AR_SOFTC_T *ar, enum nl80211_auth_type auth_type)
 static int
 ar6k_set_cipher(AR_SOFTC_T *ar, A_UINT32 cipher, bool ucast)
 {
-    A_UINT8  *ar_cipher = ucast ? &ar->arPairwiseCrypto :
+    u8 *ar_cipher = ucast ? &ar->arPairwiseCrypto :
                                 &ar->arGroupCrypto;
-    A_UINT8  *ar_cipher_len = ucast ? &ar->arPairwiseCryptoLen :
+    u8 *ar_cipher_len = ucast ? &ar->arPairwiseCryptoLen :
                                     &ar->arGroupCryptoLen;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
@@ -429,10 +429,10 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 void
 ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, A_UINT16 channel,
-                A_UINT8 *bssid, A_UINT16 listenInterval,
+                u8 *bssid, A_UINT16 listenInterval,
                 A_UINT16 beaconInterval,NETWORK_TYPE networkType,
-                A_UINT8 beaconIeLen, A_UINT8 assocReqLen,
-                A_UINT8 assocRespLen, A_UINT8 *assocInfo)
+                u8 beaconIeLen, u8 assocReqLen,
+                u8 assocRespLen, u8 *assocInfo)
 {
     A_UINT16 size = 0;
     A_UINT16 capability = 0;
@@ -440,19 +440,19 @@ ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, A_UINT16 channel,
     struct ieee80211_mgmt *mgmt = NULL;
     struct ieee80211_channel *ibss_channel = NULL;
     s32 signal = 50 * 100;
-    A_UINT8 ie_buf_len = 0;
+    u8 ie_buf_len = 0;
     unsigned char ie_buf[256];
     unsigned char *ptr_ie_buf = ie_buf;
     unsigned char *ieeemgmtbuf = NULL;
-    A_UINT8 source_mac[ATH_MAC_LEN];
+    u8 source_mac[ATH_MAC_LEN];
 
-    A_UINT8 assocReqIeOffset = sizeof(A_UINT16)  +  /* capinfo*/
+    u8 assocReqIeOffset = sizeof(A_UINT16)  +  /* capinfo*/
                                sizeof(A_UINT16);    /* listen interval */
-    A_UINT8 assocRespIeOffset = sizeof(A_UINT16) +  /* capinfo*/
+    u8 assocRespIeOffset = sizeof(A_UINT16) +  /* capinfo*/
                                 sizeof(A_UINT16) +  /* status Code */
                                 sizeof(A_UINT16);   /* associd */
-    A_UINT8 *assocReqIe = assocInfo + beaconIeLen + assocReqIeOffset;
-    A_UINT8 *assocRespIe = assocInfo + beaconIeLen + assocReqLen + assocRespIeOffset;
+    u8 *assocReqIe = assocInfo + beaconIeLen + assocReqIeOffset;
+    u8 *assocRespIe = assocInfo + beaconIeLen + assocReqLen + assocRespIeOffset;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: \n", __func__));
 
@@ -618,9 +618,9 @@ ar6k_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 }
 
 void
-ar6k_cfg80211_disconnect_event(AR_SOFTC_T *ar, A_UINT8 reason,
-                               A_UINT8 *bssid, A_UINT8 assocRespLen,
-                               A_UINT8 *assocInfo, A_UINT16 protocolReasonStatus)
+ar6k_cfg80211_disconnect_event(AR_SOFTC_T *ar, u8 reason,
+                               u8 *bssid, u8 assocRespLen,
+                               u8 *assocInfo, A_UINT16 protocolReasonStatus)
 {
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: reason=%u\n", __func__, reason));
@@ -751,7 +751,7 @@ ar6k_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 
     if(request->n_ssids &&
        request->ssids[0].ssid_len) {
-        A_UINT8 i;
+        u8 i;
 
         if(request->n_ssids > MAX_PROBED_SSID_INDEX) {
             request->n_ssids = MAX_PROBED_SSID_INDEX;
@@ -795,7 +795,7 @@ ar6k_cfg80211_scanComplete_event(AR_SOFTC_T *ar, int status)
 
         if(ar->scan_request->n_ssids &&
            ar->scan_request->ssids[0].ssid_len) {
-            A_UINT8 i;
+            u8 i;
 
             for (i = 0; i < ar->scan_request->n_ssids; i++) {
                 wmi_probedSsid_cmd(ar->arWmi, i, DISABLE_SSID_FLAG,
@@ -808,13 +808,13 @@ ar6k_cfg80211_scanComplete_event(AR_SOFTC_T *ar, int status)
 
 static int
 ar6k_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
-                      A_UINT8 key_index, bool pairwise, const A_UINT8 *mac_addr,
+                      u8 key_index, bool pairwise, const u8 *mac_addr,
                       struct key_params *params)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);
     struct ar_key *key = NULL;
-    A_UINT8 key_usage;
-    A_UINT8 key_type;
+    u8 key_usage;
+    u8 key_type;
     int status = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s:\n", __func__));
@@ -889,7 +889,7 @@ ar6k_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
     ar->arDefTxKeyIndex = key_index;
     status = wmi_addKey_cmd(ar->arWmi, ar->arDefTxKeyIndex, key_type, key_usage,
                     key->key_len, key->seq, key->key, KEY_OP_INIT_VAL,
-                    (A_UINT8*)mac_addr, SYNC_BOTH_WMIFLAG);
+                    (u8 *)mac_addr, SYNC_BOTH_WMIFLAG);
 
 
     if(status != A_OK) {
@@ -901,7 +901,7 @@ ar6k_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 
 static int
 ar6k_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
-                      A_UINT8 key_index, bool pairwise, const A_UINT8 *mac_addr)
+                      u8 key_index, bool pairwise, const u8 *mac_addr)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);
 
@@ -936,7 +936,7 @@ ar6k_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 
 static int
 ar6k_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
-                      A_UINT8 key_index, bool pairwise, const A_UINT8 *mac_addr,
+                      u8 key_index, bool pairwise, const u8 *mac_addr,
                       void *cookie,
                       void (*callback)(void *cookie, struct key_params*))
 {
@@ -978,7 +978,7 @@ ar6k_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 
 static int
 ar6k_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *ndev,
-                              A_UINT8 key_index, bool unicast, bool multicast)
+                              u8 key_index, bool unicast, bool multicast)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);
     struct ar_key *key = NULL;
@@ -1024,7 +1024,7 @@ ar6k_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *ndev,
 
 static int
 ar6k_cfg80211_set_default_mgmt_key(struct wiphy *wiphy, struct net_device *ndev,
-                                   A_UINT8 key_index)
+                                   u8 key_index)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);
 
@@ -1045,7 +1045,7 @@ ar6k_cfg80211_set_default_mgmt_key(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 void
-ar6k_cfg80211_tkip_micerr_event(AR_SOFTC_T *ar, A_UINT8 keyid, bool ismcast)
+ar6k_cfg80211_tkip_micerr_event(AR_SOFTC_T *ar, u8 keyid, bool ismcast)
 {
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
                     ("%s: keyid %d, ismcast %d\n", __func__, keyid, ismcast));
@@ -1084,7 +1084,7 @@ ar6k_cfg80211_set_wiphy_params(struct wiphy *wiphy, A_UINT32 changed)
 
 static int
 ar6k_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
-                               const A_UINT8 *peer,
+                               const u8 *peer,
                                const struct cfg80211_bitrate_mask *mask)
 {
     AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Setting rates: Not supported\n"));
@@ -1096,7 +1096,7 @@ static int
 ar6k_cfg80211_set_txpower(struct wiphy *wiphy, enum nl80211_tx_power_setting type, int dbm)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)wiphy_priv(wiphy);
-    A_UINT8 ar_dbm;
+    u8 ar_dbm;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: type 0x%x, dbm %d\n", __func__, type, dbm));
 

@@ -82,8 +82,8 @@ static HIF_SCATTER_REQ *AllocScatterReq(HIF_DEVICE *device)
 int DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest)
 {
     int                     i;
-    A_UINT8                 rw;
-    A_UINT8                 opcode;
+    u8 rw;
+    u8 opcode;
     struct mmc_request      mmcreq;
     struct mmc_command      cmd;
     struct mmc_data         data;

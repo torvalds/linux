@@ -172,8 +172,8 @@ typedef PREPACK struct reg_dmn_pair_mapping {
     A_UINT16 regDmnEnum;    /* 16 bit reg domain pair */
     A_UINT16 regDmn5GHz;    /* 5GHz reg domain */
     A_UINT16 regDmn2GHz;    /* 2GHz reg domain */
-    A_UINT8  flags5GHz;     /* Requirements flags (AdHoc disallow etc) */
-    A_UINT8  flags2GHz;     /* Requirements flags (AdHoc disallow etc) */
+    u8 flags5GHz;     /* Requirements flags (AdHoc disallow etc) */
+    u8 flags2GHz;     /* Requirements flags (AdHoc disallow etc) */
     A_UINT32 pscanMask;     /* Passive Scan flags which can override unitary domain passive scan
                                    flags.  This value is used as a mask on the unitary flags*/
 } POSTPACK REG_DMN_PAIR_MAPPING;
@@ -211,10 +211,10 @@ typedef PREPACK struct {
 typedef PREPACK struct RegDmnFreqBand {
     A_UINT16    lowChannel;     /* Low channel center in MHz */
     A_UINT16    highChannel;    /* High Channel center in MHz */
-    A_UINT8     power;          /* Max power (dBm) for channel range */
-    A_UINT8     channelSep;     /* Channel separation within the band */
-    A_UINT8     useDfs;         /* Use DFS in the RegDomain if corresponding bit is set */
-    A_UINT8     mode;           /* Mode of operation */
+    u8 power;          /* Max power (dBm) for channel range */
+    u8 channelSep;     /* Channel separation within the band */
+    u8 useDfs;         /* Use DFS in the RegDomain if corresponding bit is set */
+    u8 mode;           /* Mode of operation */
     A_UINT32    usePassScan;    /* Use Passive Scan in the RegDomain if corresponding bit is set */
     A_UINT32    ht40ChanMask;   /* lower 16 bits: indicate which frequencies in the block is HT40 capable 
                                    upper 16 bits: what rate (half/quarter) the channel is  */
@@ -224,10 +224,10 @@ typedef PREPACK struct RegDmnFreqBand {
 
 typedef PREPACK struct regDomain {
     A_UINT16    regDmnEnum;     /* value from EnumRd table */
-    A_UINT8     rdCTL;
-    A_UINT8     maxAntGain;
-    A_UINT8     dfsMask;        /* DFS bitmask for 5Ghz tables */
-    A_UINT8     flags;          /* Requirement flags (AdHoc disallow etc) */
+    u8 rdCTL;
+    u8 maxAntGain;
+    u8 dfsMask;        /* DFS bitmask for 5Ghz tables */
+    u8 flags;          /* Requirement flags (AdHoc disallow etc) */
     A_UINT16    reserved;       /* for alignment */
     A_UINT32    pscan;          /* Bitmask for passive scan */
     A_UINT32    chan11a[BMLEN]; /* 64 bit bitmask for channel/band selection */

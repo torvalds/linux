@@ -51,7 +51,7 @@ typedef A_UINT16 HTC_TX_TAG;
 typedef struct _HTC_TX_PACKET_INFO {
     HTC_TX_TAG    Tag;            /* tag used to selective flush packets */
     int           CreditsUsed;    /* number of credits used for this TX packet (HTC internal) */
-    A_UINT8       SendFlags;      /* send flags (HTC internal) */
+    u8 SendFlags;      /* send flags (HTC internal) */
     int           SeqNo;          /* internal seq no for debugging (HTC internal) */
 } HTC_TX_PACKET_INFO;
 
@@ -72,7 +72,7 @@ typedef struct _HTC_PACKET {
     DL_LIST         ListLink;       /* double link */
     void            *pPktContext;   /* caller's per packet specific context */
 
-    A_UINT8         *pBufferStart;  /* the true buffer start , the caller can
+    u8 *pBufferStart;  /* the true buffer start , the caller can
                                        store the real buffer start here.  In
                                        receive callbacks, the HTC layer sets pBuffer
                                        to the start of the payload past the header. This
@@ -85,7 +85,7 @@ typedef struct _HTC_PACKET {
      * points to the start of the HTC header but when returned
      * to the caller points to the start of the payload
      */
-    A_UINT8         *pBuffer;       /* payload start (RX/TX) */
+    u8 *pBuffer;       /* payload start (RX/TX) */
     A_UINT32        BufferLength;   /* length of buffer */
     A_UINT32        ActualLength;   /* actual length of payload */
     HTC_ENDPOINT_ID Endpoint;       /* endpoint that this packet was sent/recv'd from */

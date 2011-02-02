@@ -755,7 +755,7 @@ bmiBufferSend(HIF_DEVICE *device,
         /* hit the credit counter with a 4-byte access, the first byte read will hit the counter and cause
          * a decrement, while the remaining 3 bytes has no effect.  The rationale behind this is to
          * make all HIF accesses 4-byte aligned */
-        status = HIFReadWrite(device, address, (A_UINT8 *)pBMICmdCredits, 4,
+        status = HIFReadWrite(device, address, (u8 *)pBMICmdCredits, 4,
             HIF_RD_SYNC_BYTE_INC, NULL);
         if (status != A_OK) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to decrement the command credit count register\n"));
@@ -879,7 +879,7 @@ bmiBufferReceive(HIF_DEVICE *device,
                 continue;    
             }
             
-            status = HIFReadWrite(device, RX_LOOKAHEAD_VALID_ADDRESS, (A_UINT8 *)&word_available,
+            status = HIFReadWrite(device, RX_LOOKAHEAD_VALID_ADDRESS, (u8 *)&word_available,
                 sizeof(word_available), HIF_RD_SYNC_BYTE_INC, NULL);
             if (status != A_OK) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read RX_LOOKAHEAD_VALID register\n"));
@@ -930,7 +930,7 @@ bmiBufferReceive(HIF_DEVICE *device,
             /* read the counter using a 4-byte read.  Since the counter is NOT auto-decrementing,
              * we can read this counter multiple times using a non-incrementing address mode.
              * The rationale here is to make all HIF accesses a multiple of 4 bytes */
-            status = HIFReadWrite(device, address, (A_UINT8 *)pBMICmdCredits, sizeof(*pBMICmdCredits),
+            status = HIFReadWrite(device, address, (u8 *)pBMICmdCredits, sizeof(*pBMICmdCredits),
                 HIF_RD_SYNC_BYTE_FIX, NULL);
             if (status != A_OK) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read the command credit count register\n"));
@@ -982,7 +982,7 @@ BMIFastDownload(HIF_DEVICE *device, A_UINT32 address, A_UCHAR *buffer, A_UINT32 
     }
 
     if (unalignedBytes) {
-        status = BMILZData(device, (A_UINT8 *)&lastWord, 4);
+        status = BMILZData(device, (u8 *)&lastWord, 4);
     }
 
     if (!status) {

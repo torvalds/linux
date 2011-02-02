@@ -44,14 +44,14 @@
 
 #include "athstartpack.h"
 typedef PREPACK struct _AR6K_IRQ_PROC_REGISTERS {
-    A_UINT8                      host_int_status;
-    A_UINT8                      cpu_int_status;
-    A_UINT8                      error_int_status;
-    A_UINT8                      counter_int_status;
-    A_UINT8                      mbox_frame;
-    A_UINT8                      rx_lookahead_valid;
-    A_UINT8                      host_int_status2;
-    A_UINT8                      gmbox_rx_avail;
+    u8 host_int_status;
+    u8 cpu_int_status;
+    u8 error_int_status;
+    u8 counter_int_status;
+    u8 mbox_frame;
+    u8 rx_lookahead_valid;
+    u8 host_int_status2;
+    u8 gmbox_rx_avail;
     A_UINT32                     rx_lookahead[2];
     A_UINT32                     rx_gmbox_lookahead_alias[2];
 } POSTPACK AR6K_IRQ_PROC_REGISTERS;
@@ -59,14 +59,14 @@ typedef PREPACK struct _AR6K_IRQ_PROC_REGISTERS {
 #define AR6K_IRQ_PROC_REGS_SIZE sizeof(AR6K_IRQ_PROC_REGISTERS)
 
 typedef PREPACK struct _AR6K_IRQ_ENABLE_REGISTERS {
-    A_UINT8                      int_status_enable;
-    A_UINT8                      cpu_int_status_enable;
-    A_UINT8                      error_status_enable;
-    A_UINT8                      counter_int_status_enable;
+    u8 int_status_enable;
+    u8 cpu_int_status_enable;
+    u8 error_status_enable;
+    u8 counter_int_status_enable;
 } POSTPACK AR6K_IRQ_ENABLE_REGISTERS;
 
 typedef PREPACK struct _AR6K_GMBOX_CTRL_REGISTERS {
-    A_UINT8                      int_status_enable;
+    u8 int_status_enable;
 } POSTPACK AR6K_GMBOX_CTRL_REGISTERS;
 
 #include "athendpack.h"
@@ -91,14 +91,14 @@ typedef PREPACK struct _AR6K_GMBOX_CTRL_REGISTERS {
 /* buffers for ASYNC I/O */
 typedef struct AR6K_ASYNC_REG_IO_BUFFER {
     HTC_PACKET    HtcPacket;   /* we use an HTC packet as a wrapper for our async register-based I/O */
-    A_UINT8       _Pad1[A_CACHE_LINE_PAD];
-    A_UINT8       Buffer[AR6K_REG_IO_BUFFER_SIZE];  /* cache-line safe with pads around */
-    A_UINT8       _Pad2[A_CACHE_LINE_PAD];
+    u8 _Pad1[A_CACHE_LINE_PAD];
+    u8 Buffer[AR6K_REG_IO_BUFFER_SIZE];  /* cache-line safe with pads around */
+    u8 _Pad2[A_CACHE_LINE_PAD];
 } AR6K_ASYNC_REG_IO_BUFFER;
 
 typedef struct _AR6K_GMBOX_INFO { 
     void        *pProtocolContext;
-    int    (*pMessagePendingCallBack)(void *pContext, A_UINT8 LookAheadBytes[], int ValidBytes);
+    int    (*pMessagePendingCallBack)(void *pContext, u8 LookAheadBytes[], int ValidBytes);
     int    (*pCreditsPendingCallback)(void *pContext, int NumCredits,  bool CreditIRQEnabled);
     void        (*pTargetFailureCallback)(void *pContext, int Status);
     void        (*pStateDumpCallback)(void *pContext);
@@ -107,11 +107,11 @@ typedef struct _AR6K_GMBOX_INFO {
 
 typedef struct _AR6K_DEVICE {
     A_MUTEX_T                   Lock;
-    A_UINT8       _Pad1[A_CACHE_LINE_PAD];
+    u8 _Pad1[A_CACHE_LINE_PAD];
     AR6K_IRQ_PROC_REGISTERS     IrqProcRegisters;   /* cache-line safe with pads around */
-    A_UINT8       _Pad2[A_CACHE_LINE_PAD];
+    u8 _Pad2[A_CACHE_LINE_PAD];
     AR6K_IRQ_ENABLE_REGISTERS   IrqEnableRegisters; /* cache-line safe with pads around */
-    A_UINT8       _Pad3[A_CACHE_LINE_PAD];
+    u8 _Pad3[A_CACHE_LINE_PAD];
     void                        *HIFDevice;
     A_UINT32                    BlockSize;
     A_UINT32                    BlockMask;
@@ -321,8 +321,8 @@ int DoMboxHWTest(AR6K_DEVICE *pDev);
 
     /* completely virtual */
 typedef struct _DEV_SCATTER_DMA_VIRTUAL_INFO {
-    A_UINT8            *pVirtDmaBuffer;      /* dma-able buffer - CPU accessible address */
-    A_UINT8            DataArea[1];      /* start of data area */
+    u8 *pVirtDmaBuffer;      /* dma-able buffer - CPU accessible address */
+    u8 DataArea[1];      /* start of data area */
 } DEV_SCATTER_DMA_VIRTUAL_INFO;
 
 
@@ -394,7 +394,7 @@ typedef enum GMBOX_IRQ_ACTION_TYPE {
 int DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE, bool AsyncMode);
 int DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, bool AsyncMode, int *pCredits);
 int DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize);
-int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer, int *pLookAheadBytes);
+int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, u8 *pLookAheadBuffer, int *pLookAheadBytes);
 int DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int SignalNumber, int AckTimeoutMS);
 
 #endif

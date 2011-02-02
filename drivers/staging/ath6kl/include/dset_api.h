@@ -51,7 +51,7 @@ int wmi_dset_open_reply(struct wmi_t *wmip,
 /* Called to send a DataSet Data Reply back to the Target. */
 int wmi_dset_data_reply(struct wmi_t *wmip,
                              A_UINT32 status,
-                             A_UINT8 *host_buf,
+                             u8 *host_buf,
                              A_UINT32 length,
                              A_UINT32 targ_buf,
                              A_UINT32 targ_reply_fn,

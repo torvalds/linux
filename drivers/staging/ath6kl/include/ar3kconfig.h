@@ -51,7 +51,7 @@ typedef struct {
     A_UINT32                 PwrMgmtEnabled;  /* TLPM enabled? */  
     A_UINT16                 IdleTimeout;     /* TLPM idle timeout */
     A_UINT16                 WakeupTimeout;   /* TLPM wakeup timeout */
-    A_UINT8                  bdaddr[6];       /* Bluetooth device address */
+    u8 bdaddr[6];       /* Bluetooth device address */
 } AR3K_CONFIG_INFO;
                                                                                         
 int AR3KConfigure(AR3K_CONFIG_INFO *pConfigInfo);

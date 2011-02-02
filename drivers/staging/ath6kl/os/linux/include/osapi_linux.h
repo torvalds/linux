@@ -76,7 +76,7 @@
 #define A_CPU2BE16(x)      htons(x)
 #define A_CPU2BE32(x)      htonl(x)
 
-#define A_MEMCPY(dst, src, len)         memcpy((A_UINT8 *)(dst), (src), (len))
+#define A_MEMCPY(dst, src, len)         memcpy((u8 *)(dst), (src), (len))
 #define A_MEMZERO(addr, len)            memset(addr, 0, len)
 #define A_MEMCMP(addr1, addr2, len)     memcmp((addr1), (addr2), (len))
 #define A_MALLOC(size)                  kmalloc((size), GFP_KERNEL)

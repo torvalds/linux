@@ -76,7 +76,7 @@ ar6000_ioctl_set_roam_ctrl(struct net_device *dev, char *userdata)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     WMI_SET_ROAM_CTRL_CMD cmd;
-    A_UINT8 size = sizeof(cmd);
+    u8 size = sizeof(cmd);
 
     if (ar->arWmiReady == false) {
         return -EIO;
@@ -109,7 +109,7 @@ ar6000_ioctl_set_powersave_timers(struct net_device *dev, char *userdata)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     WMI_POWERSAVE_TIMERS_POLICY_CMD cmd;
-    A_UINT8 size = sizeof(cmd);
+    u8 size = sizeof(cmd);
 
     if (ar->arWmiReady == false) {
         return -EIO;
@@ -663,7 +663,7 @@ ar6000_ioctl_get_qos_queue(struct net_device *dev, struct ifreq *rq)
 #ifdef CONFIG_HOST_TCMD_SUPPORT
 static int
 ar6000_ioctl_tcmd_get_rx_report(struct net_device *dev,
-                                 struct ifreq *rq, A_UINT8 *data, A_UINT32 len)
+                                 struct ifreq *rq, u8 *data, A_UINT32 len)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     A_UINT32    buf[4+TCMD_MAX_RATES];
@@ -715,7 +715,7 @@ ar6000_ioctl_tcmd_get_rx_report(struct net_device *dev,
 }
 
 void
-ar6000_tcmd_rx_report_event(void *devt, A_UINT8 * results, int len)
+ar6000_tcmd_rx_report_event(void *devt, u8 *results, int len)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
     TCMD_CONT_RX * rx_rep = (TCMD_CONT_RX *)results;
@@ -843,7 +843,7 @@ ar6000_ioctl_get_ap_stats(struct net_device *dev, struct ifreq *rq)
         return -EFAULT;
     }
     if (action == AP_CLEAR_STATS) {
-        A_UINT8 i;
+        u8 i;
         AR6000_SPIN_LOCK(&ar->arLock, 0);
         for(i = 0; i < AP_MAX_NUM_STA; i++) {
             pStats->sta[i].tx_bytes = 0;
@@ -1469,12 +1469,12 @@ prof_count_rx(A_UINT32 addr, A_UINT32 count)
 
 
 static int
-ar6000_create_acl_data_osbuf(struct net_device *dev, A_UINT8 *userdata, void **p_osbuf)
+ar6000_create_acl_data_osbuf(struct net_device *dev, u8 *userdata, void **p_osbuf)
 {
     void *osbuf = NULL;
-    A_UINT8 tmp_space[8];
+    u8 tmp_space[8];
     HCI_ACL_DATA_PKT *acl;
-    A_UINT8 hdr_size, *datap=NULL;
+    u8 hdr_size, *datap=NULL;
     int ret = A_OK;
 
     /* ACL is in data path. There is a need to create pool
@@ -1497,7 +1497,7 @@ ar6000_create_acl_data_osbuf(struct net_device *dev, A_UINT8 *userdata, void **p
            break;
         }
         A_NETBUF_PUT(osbuf, hdr_size + acl->data_len);
-        datap = (A_UINT8 *)A_NETBUF_DATA(osbuf);
+        datap = (u8 *)A_NETBUF_DATA(osbuf);
 
         /* Real copy to osbuf */
         acl = (HCI_ACL_DATA_PKT *)(datap);
@@ -1822,7 +1822,7 @@ ar6000_ioctl_setkey(AR_SOFTC_T *ar, struct ieee80211req_key *ik)
         }
 
         status = wmi_addKey_cmd(ar->arWmi, ik->ik_keyix, keyType, keyUsage,
-                                ik->ik_keylen, (A_UINT8 *)&ik->ik_keyrsc,
+                                ik->ik_keylen, (u8 *)&ik->ik_keyrsc,
                                 ik->ik_keydata, KEY_OP_INIT_VAL, ik->ik_macaddr,
                                 SYNC_BOTH_WMIFLAG);
 
@@ -2027,7 +2027,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                     ret = -EFAULT;
                     goto ioctl_done;
                 } else {
-                    wmi_test_cmd(ar->arWmi,(A_UINT8 *)&txCmd, sizeof(TCMD_CONT_TX));
+                    wmi_test_cmd(ar->arWmi,(u8 *)&txCmd, sizeof(TCMD_CONT_TX));
                 }
             }
             break;
@@ -2053,13 +2053,13 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                     case TCMD_CONT_RX_FILTER:
                     case TCMD_CONT_RX_SETMAC:
                     case TCMD_CONT_RX_SET_ANT_SWITCH_TABLE:
-                         wmi_test_cmd(ar->arWmi,(A_UINT8 *)&rxCmd,
+                         wmi_test_cmd(ar->arWmi,(u8 *)&rxCmd,
                                                 sizeof(TCMD_CONT_RX));
                          tcmdRxFreq = rxCmd.u.para.freq;
                          break;
                     case TCMD_CONT_RX_REPORT:
                          ar6000_ioctl_tcmd_get_rx_report(dev, rq,
-                         (A_UINT8 *)&rxCmd, sizeof(TCMD_CONT_RX));
+                         (u8 *)&rxCmd, sizeof(TCMD_CONT_RX));
                          break;
                     default:
                          A_PRINTF("Unknown Cont Rx mode: %d\n",rxCmd.act);
@@ -2077,7 +2077,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                     goto ioctl_done;
                 }
                 ar->tcmdPm = pmCmd.mode;
-                wmi_test_cmd(ar->arWmi, (A_UINT8*)&pmCmd, sizeof(TCMD_PM));
+                wmi_test_cmd(ar->arWmi, (u8 *)&pmCmd, sizeof(TCMD_PM));
             }
             break;
 #endif /* CONFIG_HOST_TCMD_SUPPORT */
@@ -2705,7 +2705,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         case AR6000_IOCTL_WMI_SET_ASSOC_INFO:
         {
             WMI_SET_ASSOC_INFO_CMD cmd;
-            A_UINT8 assocInfo[WMI_MAX_ASSOC_INFO_LEN];
+            u8 assocInfo[WMI_MAX_ASSOC_INFO_LEN];
 
             if (ar->arWmiReady == false) {
                 ret = -EIO;
@@ -3141,7 +3141,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         case AR6000_XIOCTL_OPT_SEND_FRAME:
         {
         WMI_OPT_TX_FRAME_CMD optTxFrmCmd;
-            A_UINT8 data[MAX_OPT_DATA_LEN];
+            u8 data[MAX_OPT_DATA_LEN];
 
             if (ar->arWmiReady == false) {
                 ret = -EIO;
@@ -3646,7 +3646,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         case AR6000_XIOCTL_WMI_SET_APPIE:
         {
             WMI_SET_APPIE_CMD appIEcmd;
-            A_UINT8           appIeInfo[IEEE80211_APPIE_FRAME_MAX_LEN];
+            u8 appIeInfo[IEEE80211_APPIE_FRAME_MAX_LEN];
             A_UINT32            fType,ieLen;
 
             if (ar->arWmiReady == false) {
@@ -3883,8 +3883,8 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #define WOW_MASK_SIZE 64
 
             WMI_ADD_WOW_PATTERN_CMD cmd;
-            A_UINT8 mask_data[WOW_PATTERN_SIZE]={0};
-            A_UINT8 pattern_data[WOW_PATTERN_SIZE]={0};
+            u8 mask_data[WOW_PATTERN_SIZE]={0};
+            u8 pattern_data[WOW_PATTERN_SIZE]={0};
 
             do {
                 if (ar->arWmiReady == false) {
@@ -3997,7 +3997,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                     /* note, this is used for testing (mbox ping testing), indicate activity
                      * change using the stream ID as the traffic class */
                 ar6000_indicate_tx_activity(ar,
-                                            (A_UINT8)data.StreamID,
+                                            (u8)data.StreamID,
                                             data.Active ? true : false);
             }
             break;
@@ -4064,7 +4064,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             break;
         case AR6000_XIOCTL_AP_HIDDEN_SSID:
         {
-            A_UINT8    hidden_ssid;
+            u8 hidden_ssid;
             if (ar->arWmiReady == false) {
                 ret = -EIO;
             } else if (copy_from_user(&hidden_ssid, userdata, sizeof(hidden_ssid))) {
@@ -4081,7 +4081,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             if (ar->arWmiReady == false) {
                 ret = -EIO;
             } else {
-                A_UINT8 i;
+                u8 i;
                 ap_get_sta_t temp;
                 A_MEMZERO(&temp, sizeof(temp));
                 for(i=0;i<AP_MAX_NUM_STA;i++) {
@@ -4100,7 +4100,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         }
         case AR6000_XIOCTL_AP_SET_NUM_STA:
         {
-            A_UINT8    num_sta;
+            u8 num_sta;
             if (ar->arWmiReady == false) {
                 ret = -EIO;
             } else if (copy_from_user(&num_sta, userdata, sizeof(num_sta))) {
@@ -4115,7 +4115,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         }
         case AR6000_XIOCTL_AP_SET_ACL_POLICY:
         {
-            A_UINT8    policy;
+            u8 policy;
             if (ar->arWmiReady == false) {
                 ret = -EIO;
             } else if (copy_from_user(&policy, userdata, sizeof(policy))) {
@@ -4243,7 +4243,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         }
         case AR6000_XIOCTL_AP_INTRA_BSS_COMM:
         {
-            A_UINT8    intra=0;
+            u8 intra=0;
             if (ar->arWmiReady == false) {
                 ret = -EIO;
             } else if (copy_from_user(&intra, userdata, sizeof(intra))) {
@@ -4395,7 +4395,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             void *osbuf = NULL;
             if (ar->arWmiReady == false) {
                 ret = -EIO;
-            } else if (ar6000_create_acl_data_osbuf(dev, (A_UINT8*)userdata, &osbuf) != A_OK) {
+            } else if (ar6000_create_acl_data_osbuf(dev, (u8 *)userdata, &osbuf) != A_OK) {
                      ret = -EIO;
             } else {
                 if (wmi_data_hdr_add(ar->arWmi, osbuf, DATA_MSGTYPE, 0, WMI_DATA_HDR_DATA_TYPE_ACL,0,NULL) != A_OK) {
@@ -4412,7 +4412,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             char tmp_buf[512];
             A_INT8 i;
             WMI_HCI_CMD *cmd = (WMI_HCI_CMD *)tmp_buf;
-            A_UINT8 size;
+            u8 size;
 
             size = sizeof(cmd->cmd_buf_sz);
             if (ar->arWmiReady == false) {
@@ -4511,8 +4511,8 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         {
             if (ar->arWmiReady == false) {
                 ret = -EIO;
-            } else if(copy_to_user((A_UINT8 *)rq->ifr_data,
-                                    &ar->ap_wmode, sizeof(A_UINT8))) {
+            } else if(copy_to_user((u8 *)rq->ifr_data,
+                                    &ar->ap_wmode, sizeof(u8))) {
                     ret = -EFAULT;
             }
             break;
@@ -4594,7 +4594,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             }
             rq->ifr_ifru.ifru_ivalue = ar->arWlanState; /* return value */
 
-            ar6000_send_event_to_app(ar, WMI_REPORT_SLEEP_STATE_EVENTID, (A_UINT8*)&wmiSleepEvent,
+            ar6000_send_event_to_app(ar, WMI_REPORT_SLEEP_STATE_EVENTID, (u8 *)&wmiSleepEvent,
                                      sizeof(WMI_REPORT_SLEEP_STATE_EVENTID));
             break;
         }
@@ -4671,9 +4671,9 @@ ioctl_done:
     return ret;
 }
 
-A_UINT8 mac_cmp_wild(A_UINT8 *mac, A_UINT8 *new_mac, A_UINT8 wild, A_UINT8 new_wild)
+u8 mac_cmp_wild(u8 *mac, u8 *new_mac, u8 wild, u8 new_wild)
 {
-    A_UINT8 i;
+    u8 i;
 
     for(i=0;i<ATH_MAC_LEN;i++) {
         if((wild & 1<<i) && (new_wild & 1<<i)) continue;
@@ -4687,7 +4687,7 @@ A_UINT8 mac_cmp_wild(A_UINT8 *mac, A_UINT8 *new_mac, A_UINT8 wild, A_UINT8 new_w
     return 0;
 }
 
-A_UINT8    acl_add_del_mac(WMI_AP_ACL *a, WMI_AP_ACL_MAC_CMD *acl)
+u8 acl_add_del_mac(WMI_AP_ACL *a, WMI_AP_ACL_MAC_CMD *acl)
 {
     A_INT8    already_avail=-1, free_slot=-1, i;
 

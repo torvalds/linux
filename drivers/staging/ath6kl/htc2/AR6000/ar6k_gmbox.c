@@ -159,7 +159,7 @@ int DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool A
 {
     int      status = A_OK;
     HTC_PACKET    *pIOPacket = NULL;   
-    A_UINT8       GMboxIntControl[4];
+    u8 GMboxIntControl[4];
 
     if (GMBOX_CREDIT_IRQ_ENABLE == IrqAction) {
         return DevGMboxCounterEnableDisable(pDev, GMBOX_CREDIT_IRQ_ENABLE, AsyncMode);
@@ -272,7 +272,7 @@ void DevCleanupGMbox(AR6K_DEVICE *pDev)
 int DevSetupGMbox(AR6K_DEVICE *pDev)
 {
     int    status = A_OK;
-    A_UINT8     muxControl[4];
+    u8 muxControl[4];
     
     do {
         
@@ -325,9 +325,9 @@ int DevSetupGMbox(AR6K_DEVICE *pDev)
 int DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
 {
     int status = A_OK;
-    A_UINT8  counter_int_status;
+    u8 counter_int_status;
     int      credits;
-    A_UINT8  host_int_status2;
+    u8 host_int_status2;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ, ("+DevCheckGMboxInterrupts \n"));
      
@@ -360,7 +360,7 @@ int DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
                 A_ASSERT(pDev->GMboxInfo.pMessagePendingCallBack != NULL);
                 status = pDev->GMboxInfo.pMessagePendingCallBack(
                                 pDev->GMboxInfo.pProtocolContext,
-                                (A_UINT8 *)&pDev->IrqProcRegisters.rx_gmbox_lookahead_alias[0],
+                                (u8 *)&pDev->IrqProcRegisters.rx_gmbox_lookahead_alias[0],
                                 pDev->IrqProcRegisters.gmbox_rx_avail);
             }
         } 
@@ -477,7 +477,7 @@ int DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 ReadLength)
 }
 
 
-static int ProcessCreditCounterReadBuffer(A_UINT8 *pBuffer, int Length)
+static int ProcessCreditCounterReadBuffer(u8 *pBuffer, int Length)
 {
     int     credits = 0;
     
@@ -605,7 +605,7 @@ int DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, bool AsyncMode, int *pCredits)
 int DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize)
 {
     int    status;
-    A_UINT8     buffer[4];
+    u8 buffer[4];
        
     status = HIFReadWrite(pDev->HIFDevice,
                           AR6K_GMBOX_CREDIT_SIZE_ADDRESS,
@@ -634,7 +634,7 @@ void DevNotifyGMboxTargetFailure(AR6K_DEVICE *pDev)
     }
 }
 
-int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer, int *pLookAheadBytes)
+int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, u8 *pLookAheadBuffer, int *pLookAheadBytes)
 {
 
     int                    status = A_OK;
@@ -654,7 +654,7 @@ int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer, int 
             /* load the register table from the device */
         status = HIFReadWrite(pDev->HIFDevice,
                               HOST_INT_STATUS_ADDRESS,
-                              (A_UINT8 *)&procRegs,
+                              (u8 *)&procRegs,
                               AR6K_IRQ_PROC_REGS_SIZE,
                               HIF_RD_SYNC_BYTE_INC,
                               NULL);
@@ -680,7 +680,7 @@ int DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int Signal, int AckTimeoutMS)
 {
     int status = A_OK;
     int      i;
-    A_UINT8  buffer[4];
+    u8 buffer[4];
     
     A_MEMZERO(buffer, sizeof(buffer));
     

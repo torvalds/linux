@@ -89,7 +89,7 @@ extern "C" {
 
 PREPACK struct dbglog_buf_s {
     struct dbglog_buf_s *next;
-    A_UINT8             *buffer;
+    u8 *buffer;
     A_UINT32             bufsize;
     A_UINT32             length;
     A_UINT32             count;

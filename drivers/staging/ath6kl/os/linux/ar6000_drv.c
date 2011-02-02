@@ -47,8 +47,8 @@
 #define LINUX_HACK_FUDGE_FACTOR 16
 #define BDATA_BDADDR_OFFSET     28
 
-A_UINT8 bcast_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-A_UINT8 null_mac[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+u8 bcast_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+u8 null_mac[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
 #ifdef DEBUG
 
@@ -370,7 +370,7 @@ static void ar6000_free_cookie(AR_SOFTC_T *ar, struct ar_cookie * cookie);
 static struct ar_cookie *ar6000_alloc_cookie(AR_SOFTC_T *ar);
 
 #ifdef USER_KEYS
-static int ar6000_reinstall_keys(AR_SOFTC_T *ar,A_UINT8 key_op_ctrl);
+static int ar6000_reinstall_keys(AR_SOFTC_T *ar,u8 key_op_ctrl);
 #endif
 
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
@@ -614,7 +614,7 @@ ar6000_dbglog_event(AR_SOFTC_T *ar, A_UINT32 dropped,
     send = dbglog_get_debug_fragment(&buffer[sent], length - sent,
                                      MAX_WIRELESS_EVENT_SIZE);
     while (send) {
-        ar6000_send_event_to_app(ar, WMIX_DBGLOG_EVENTID, (A_UINT8*)&buffer[sent], send);
+        ar6000_send_event_to_app(ar, WMIX_DBGLOG_EVENTID, (u8 *)&buffer[sent], send);
         sent += send;
         send = dbglog_get_debug_fragment(&buffer[sent], length - sent,
                                          MAX_WIRELESS_EVENT_SIZE);
@@ -950,10 +950,10 @@ ar6000_softmac_update(AR_SOFTC_T *ar, A_UCHAR *eeprom_data, size_t size)
     A_UCHAR *ptr_mac;
     switch (ar->arTargetType) {
     case TARGET_TYPE_AR6002:
-        ptr_mac = (A_UINT8 *)((A_UCHAR *)eeprom_data + AR6002_MAC_ADDRESS_OFFSET);
+        ptr_mac = (u8 *)((A_UCHAR *)eeprom_data + AR6002_MAC_ADDRESS_OFFSET);
         break;
     case TARGET_TYPE_AR6003:
-        ptr_mac = (A_UINT8 *)((A_UCHAR *)eeprom_data + AR6003_MAC_ADDRESS_OFFSET);
+        ptr_mac = (u8 *)((A_UCHAR *)eeprom_data + AR6003_MAC_ADDRESS_OFFSET);
         break;
     default:
 	AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Invalid Target Type\n"));
@@ -1877,7 +1877,7 @@ static void ar6000_target_failure(void *Instance, int Status)
             errEvent.errorVal = WMI_TARGET_COM_ERR |
                                 WMI_TARGET_FATAL_ERR;
             ar6000_send_event_to_app(ar, WMI_ERROR_REPORT_EVENTID,
-                                     (A_UINT8 *)&errEvent,
+                                     (u8 *)&errEvent,
                                      sizeof(WMI_TARGET_ERROR_REPORT_EVENT));
         }
     }
@@ -2186,7 +2186,7 @@ static void ar6000_detect_error(unsigned long ptr)
         errEvent.errorVal = WMI_TARGET_COM_ERR | WMI_TARGET_FATAL_ERR;
         AR6000_SPIN_UNLOCK(&ar->arLock, 0);
         ar6000_send_event_to_app(ar, WMI_ERROR_REPORT_EVENTID,
-                                 (A_UINT8 *)&errEvent,
+                                 (u8 *)&errEvent,
                                  sizeof(WMI_TARGET_ERROR_REPORT_EVENT));
         return;
     }
@@ -2264,8 +2264,8 @@ ar6000_init_control_info(AR_SOFTC_T *ar)
 
     /* Initialize the AP mode state info */
     {
-        A_UINT8 ctr;
-        A_MEMZERO((A_UINT8 *)ar->sta_list, AP_MAX_NUM_STA * sizeof(sta_t));
+        u8 ctr;
+        A_MEMZERO((u8 *)ar->sta_list, AP_MAX_NUM_STA * sizeof(sta_t));
 
         /* init the Mutexes */
         A_MUTEX_INIT(&ar->mcastpsqLock);
@@ -2414,14 +2414,13 @@ void ar6000_TxDataCleanup(AR_SOFTC_T *ar)
 }
 
 HTC_ENDPOINT_ID
-ar6000_ac2_endpoint_id ( void * devt, A_UINT8 ac)
+ar6000_ac2_endpoint_id ( void * devt, u8 ac)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *) devt;
     return(arAc2EndpointID(ar, ac));
 }
 
-A_UINT8
-ar6000_endpoint_id2_ac(void * devt, HTC_ENDPOINT_ID ep )
+u8 ar6000_endpoint_id2_ac(void * devt, HTC_ENDPOINT_ID ep )
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *) devt;
     return(arEndpoint2Ac(ar, ep ));
@@ -2788,7 +2787,7 @@ ar6000_ratemask_rx(void *devt, A_UINT32 ratemask)
 }
 
 void
-ar6000_txPwr_rx(void *devt, A_UINT8 txPwr)
+ar6000_txPwr_rx(void *devt, u8 txPwr)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
 
@@ -2808,11 +2807,10 @@ ar6000_channelList_rx(void *devt, A_INT8 numChan, A_UINT16 *chanList)
     wake_up(&arEvent);
 }
 
-A_UINT8
-ar6000_ibss_map_epid(struct sk_buff *skb, struct net_device *dev, A_UINT32 * mapNo)
+u8 ar6000_ibss_map_epid(struct sk_buff *skb, struct net_device *dev, A_UINT32 * mapNo)
 {
     AR_SOFTC_T      *ar = (AR_SOFTC_T *)ar6k_priv(dev);
-    A_UINT8         *datap;
+    u8 *datap;
     ATH_MAC_HDR     *macHdr;
     A_UINT32         i, eptMap;
 
@@ -2888,14 +2886,14 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
 {
 #define AC_NOT_MAPPED   99
     AR_SOFTC_T        *ar = (AR_SOFTC_T *)ar6k_priv(dev);
-    A_UINT8            ac = AC_NOT_MAPPED;
+    u8 ac = AC_NOT_MAPPED;
     HTC_ENDPOINT_ID    eid = ENDPOINT_UNUSED;
     A_UINT32          mapNo = 0;
     int               len;
     struct ar_cookie *cookie;
     bool            checkAdHocPsMapping = false,bMoreData = false;
     HTC_TX_TAG        htc_tag = AR6K_DATA_PKT_TAG;
-    A_UINT8           dot11Hdr = processDot11Hdr;
+    u8 dot11Hdr = processDot11Hdr;
 #ifdef CONFIG_PM
     if (ar->arWowState != WLAN_WOW_STATE_NONE) {
         A_NETBUF_FREE(skb);
@@ -2942,7 +2940,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
              * mcastq
              */
             if (IEEE80211_IS_MULTICAST(datap->dstMac)) {
-                A_UINT8 ctr=0;
+                u8 ctr=0;
                 bool qMcast=false;
 
 
@@ -3024,9 +3022,9 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
 
         if (ar->arWmiEnabled) {
 #ifdef CONFIG_CHECKSUM_OFFLOAD
-        A_UINT8 csumStart=0;
-        A_UINT8 csumDest=0;
-        A_UINT8 csum=skb->ip_summed;
+        u8 csumStart=0;
+        u8 csumDest=0;
+        u8 csum=skb->ip_summed;
         if(csumOffload && (csum==CHECKSUM_PARTIAL)){
             csumStart = (skb->head + skb->csum_start - skb_network_header(skb) +
 			 sizeof(ATH_LLC_SNAP_HDR));
@@ -3527,10 +3525,10 @@ ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
 }
 
 sta_t *
-ieee80211_find_conn(AR_SOFTC_T *ar, A_UINT8 *node_addr)
+ieee80211_find_conn(AR_SOFTC_T *ar, u8 *node_addr)
 {
     sta_t *conn = NULL;
-    A_UINT8 i, max_conn;
+    u8 i, max_conn;
 
     switch(ar->arNetworkType) {
         case AP_NETWORK:
@@ -3551,10 +3549,10 @@ ieee80211_find_conn(AR_SOFTC_T *ar, A_UINT8 *node_addr)
     return conn;
 }
 
-sta_t *ieee80211_find_conn_for_aid(AR_SOFTC_T *ar, A_UINT8 aid)
+sta_t *ieee80211_find_conn_for_aid(AR_SOFTC_T *ar, u8 aid)
 {
     sta_t *conn = NULL;
-    A_UINT8 ctr;
+    u8 ctr;
 
     for (ctr = 0; ctr < AP_MAX_NUM_STA; ctr++) {
         if (ar->sta_list[ctr].aid == aid) {
@@ -3575,7 +3573,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
     AR_SOFTC_T *ar = (AR_SOFTC_T *)Context;
     struct sk_buff *skb = (struct sk_buff *)pPacket->pPktContext;
     int minHdrLen;
-    A_UINT8 containsDot11Hdr = 0;
+    u8 containsDot11Hdr = 0;
     int        status = pPacket->Status;
     HTC_ENDPOINT_ID   ept = pPacket->Endpoint;
 
@@ -3631,7 +3629,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
         } else {
                 WMI_DATA_HDR *dhdr = (WMI_DATA_HDR *)A_NETBUF_DATA(skb);
                 bool is_amsdu;
-                A_UINT8 tid;
+                u8 tid;
                 bool is_acl_data_frame;
                 is_acl_data_frame = WMI_DATA_HDR_GET_DATA_TYPE(dhdr) == WMI_DATA_HDR_DATA_TYPE_ACL;
 #ifdef CONFIG_PM 
@@ -3668,7 +3666,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
                     A_NETBUF_FREE(skb);
                 } else {
                     A_UINT16 seq_no;
-                    A_UINT8 meta_type;
+                    u8 meta_type;
 
 #if 0
                     /* Access RSSI values here */
@@ -3678,7 +3676,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
                     /* Get the Power save state of the STA */
                     if (ar->arNetworkType == AP_NETWORK) {
                         sta_t *conn = NULL;
-                        A_UINT8 psState=0,prevPsState;
+                        u8 psState=0,prevPsState;
                         ATH_MAC_HDR *datap=NULL;
                         A_UINT16 offset;
 
@@ -4162,7 +4160,7 @@ err_exit:
 }
 
 void
-ar6000_ready_event(void *devt, A_UINT8 *datap, A_UINT8 phyCap, A_UINT32 sw_ver, A_UINT32 abi_ver)
+ar6000_ready_event(void *devt, u8 *datap, u8 phyCap, A_UINT32 sw_ver, A_UINT32 abi_ver)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
     struct net_device *dev = ar->arNetDev;
@@ -4208,10 +4206,10 @@ ar6000_ready_event(void *devt, A_UINT8 *datap, A_UINT8 phyCap, A_UINT32 sw_ver, 
 }
 
 void
-add_new_sta(AR_SOFTC_T *ar, A_UINT8 *mac, A_UINT16 aid, A_UINT8 *wpaie,
-            A_UINT8 ielen, A_UINT8 keymgmt, A_UINT8 ucipher, A_UINT8 auth)
+add_new_sta(AR_SOFTC_T *ar, u8 *mac, A_UINT16 aid, u8 *wpaie,
+            u8 ielen, u8 keymgmt, u8 ucipher, u8 auth)
 {
-    A_UINT8    free_slot=aid-1;
+    u8 free_slot=aid-1;
 
         A_MEMCPY(ar->sta_list[free_slot].mac, mac, ATH_MAC_LEN);
         A_MEMCPY(ar->sta_list[free_slot].wpa_ie, wpaie, ielen);
@@ -4224,11 +4222,11 @@ add_new_sta(AR_SOFTC_T *ar, A_UINT8 *mac, A_UINT16 aid, A_UINT8 *wpaie,
 }
 
 void
-ar6000_connect_event(AR_SOFTC_T *ar, A_UINT16 channel, A_UINT8 *bssid,
+ar6000_connect_event(AR_SOFTC_T *ar, A_UINT16 channel, u8 *bssid,
                      A_UINT16 listenInterval, A_UINT16 beaconInterval,
-                     NETWORK_TYPE networkType, A_UINT8 beaconIeLen,
-                     A_UINT8 assocReqLen, A_UINT8 assocRespLen,
-                     A_UINT8 *assocInfo)
+                     NETWORK_TYPE networkType, u8 beaconIeLen,
+                     u8 assocReqLen, u8 assocRespLen,
+                     u8 *assocInfo)
 {
     union iwreq_data wrqu;
     int i, beacon_ie_pos, assoc_resp_ie_pos, assoc_req_ie_pos;
@@ -4237,7 +4235,7 @@ ar6000_connect_event(AR_SOFTC_T *ar, A_UINT16 channel, A_UINT8 *bssid,
     static const char *beaconIetag = "BEACONIE=";
     char buf[WMI_CONTROL_MSG_MAX_LEN * 2 + strlen(tag1) + 1];
     char *pos;
-    A_UINT8 key_op_ctrl;
+    u8 key_op_ctrl;
     unsigned long flags;
     struct ieee80211req_key *ik;
     CRYPTO_TYPE keyType = NONE_CRYPT;
@@ -4273,7 +4271,7 @@ ar6000_connect_event(AR_SOFTC_T *ar, A_UINT16 channel, A_UINT8 *bssid,
                        goto skip_key;
                 }
                 wmi_addKey_cmd(ar->arWmi, ik->ik_keyix, keyType, GROUP_USAGE,
-                                ik->ik_keylen, (A_UINT8 *)&ik->ik_keyrsc,
+                                ik->ik_keylen, (u8 *)&ik->ik_keyrsc,
                                 ik->ik_keydata, KEY_OP_INIT_VAL, ik->ik_macaddr,
                                 SYNC_BOTH_WMIFLAG);
 
@@ -4517,7 +4515,7 @@ void ar6000_set_numdataendpts(AR_SOFTC_T *ar, A_UINT32 num)
 }
 
 void
-sta_cleanup(AR_SOFTC_T *ar, A_UINT8 i)
+sta_cleanup(AR_SOFTC_T *ar, u8 i)
 {
     struct sk_buff *skb;
 
@@ -4540,10 +4538,9 @@ sta_cleanup(AR_SOFTC_T *ar, A_UINT8 i)
 
 }
 
-A_UINT8
-remove_sta(AR_SOFTC_T *ar, A_UINT8 *mac, A_UINT16 reason)
+u8 remove_sta(AR_SOFTC_T *ar, u8 *mac, A_UINT16 reason)
 {
-    A_UINT8 i, removed=0;
+    u8 i, removed=0;
 
     if(IS_MAC_NULL(mac)) {
         return removed;
@@ -4574,10 +4571,10 @@ remove_sta(AR_SOFTC_T *ar, A_UINT8 *mac, A_UINT16 reason)
 }
 
 void
-ar6000_disconnect_event(AR_SOFTC_T *ar, A_UINT8 reason, A_UINT8 *bssid,
-                        A_UINT8 assocRespLen, A_UINT8 *assocInfo, A_UINT16 protocolReasonStatus)
+ar6000_disconnect_event(AR_SOFTC_T *ar, u8 reason, u8 *bssid,
+                        u8 assocRespLen, u8 *assocInfo, A_UINT16 protocolReasonStatus)
 {
-    A_UINT8 i;
+    u8 i;
     unsigned long flags;
     union iwreq_data wrqu;
 
@@ -4761,7 +4758,7 @@ ar6000_hci_event_rcv_evt(struct ar6_softc *ar, WMI_HCI_EVENT *cmd)
 {
     void *osbuf = NULL;
     A_INT8 i;
-    A_UINT8 size, *buf;
+    u8 size, *buf;
     int ret = A_OK;
 
     size = cmd->evt_buf_sz + 4;
@@ -4773,7 +4770,7 @@ ar6000_hci_event_rcv_evt(struct ar6_softc *ar, WMI_HCI_EVENT *cmd)
     }
 
     A_NETBUF_PUT(osbuf, size);
-    buf = (A_UINT8 *)A_NETBUF_DATA(osbuf);
+    buf = (u8 *)A_NETBUF_DATA(osbuf);
     /* First 2-bytes carry HCI event/ACL data type
      * the next 2 are free
      */
@@ -4850,7 +4847,7 @@ ar6000_neighborReport_event(AR_SOFTC_T *ar, int numAps, WMI_NEIGHBOR_INFO *info)
 }
 
 void
-ar6000_tkip_micerr_event(AR_SOFTC_T *ar, A_UINT8 keyid, bool ismcast)
+ar6000_tkip_micerr_event(AR_SOFTC_T *ar, u8 keyid, bool ismcast)
 {
     static const char *tag = "MLME-MICHAELMICFAILURE.indication";
     char buf[128];
@@ -4910,9 +4907,9 @@ ar6000_scanComplete_event(AR_SOFTC_T *ar, int status)
 }
 
 void
-ar6000_targetStats_event(AR_SOFTC_T *ar,  A_UINT8 *ptr, A_UINT32 len)
+ar6000_targetStats_event(AR_SOFTC_T *ar,  u8 *ptr, A_UINT32 len)
 {
-    A_UINT8 ac;
+    u8 ac;
 
     if(ar->arNetworkType == AP_NETWORK) {
         WMI_AP_MODE_STAT *p = (WMI_AP_MODE_STAT *)ptr;
@@ -5051,7 +5048,7 @@ ar6000_rssiThreshold_event(AR_SOFTC_T *ar,  WMI_RSSI_THRESHOLD_VAL newThreshold,
     A_PRINTF("rssi Threshold range = %d tag = %d  rssi = %d\n", newThreshold,
              userRssiThold.tag, userRssiThold.rssi);
 
-    ar6000_send_event_to_app(ar, WMI_RSSI_THRESHOLD_EVENTID,(A_UINT8 *)&userRssiThold, sizeof(USER_RSSI_THOLD));
+    ar6000_send_event_to_app(ar, WMI_RSSI_THRESHOLD_EVENTID,(u8 *)&userRssiThold, sizeof(USER_RSSI_THOLD));
 }
 
 
@@ -5061,7 +5058,7 @@ ar6000_hbChallengeResp_event(AR_SOFTC_T *ar, A_UINT32 cookie, A_UINT32 source)
     if (source == APP_HB_CHALLENGE) {
         /* Report it to the app in case it wants a positive acknowledgement */
         ar6000_send_event_to_app(ar, WMIX_HB_CHALLENGE_RESP_EVENTID,
-                                 (A_UINT8 *)&cookie, sizeof(cookie));
+                                 (u8 *)&cookie, sizeof(cookie));
     } else {
         /* This would ignore the replys that come in after their due time */
         if (cookie == ar->arHBChallengeResp.seqNum) {
@@ -5107,8 +5104,8 @@ ar6000_reportError_event(AR_SOFTC_T *ar, WMI_TARGET_ERROR_VAL errorVal)
 
 
 void
-ar6000_cac_event(AR_SOFTC_T *ar, A_UINT8 ac, A_UINT8 cacIndication,
-                 A_UINT8 statusCode, A_UINT8 *tspecSuggestion)
+ar6000_cac_event(AR_SOFTC_T *ar, u8 ac, u8 cacIndication,
+                 u8 statusCode, u8 *tspecSuggestion)
 {
     WMM_TSPEC_IE    *tspecIe;
 
@@ -5146,7 +5143,7 @@ ar6000_channel_change_event(AR_SOFTC_T *ar, A_UINT16 oldChannel,
 void
 ar6000_roam_tbl_event(AR_SOFTC_T *ar, WMI_TARGET_ROAM_TBL *pTbl)
 {
-    A_UINT8 i;
+    u8 i;
 
     A_PRINTF("ROAM TABLE NO OF ENTRIES is %d ROAM MODE is %d\n",
               pTbl->numEntries, pTbl->roamMode);
@@ -5169,9 +5166,9 @@ ar6000_roam_tbl_event(AR_SOFTC_T *ar, WMI_TARGET_ROAM_TBL *pTbl)
 }
 
 void
-ar6000_wow_list_event(struct ar6_softc *ar, A_UINT8 num_filters, WMI_GET_WOW_LIST_REPLY *wow_reply)
+ar6000_wow_list_event(struct ar6_softc *ar, u8 num_filters, WMI_GET_WOW_LIST_REPLY *wow_reply)
 {
-    A_UINT8 i,j;
+    u8 i,j;
 
     /*Each event now contains exactly one filter, see bug 26613*/
     A_PRINTF("WOW pattern %d of %d patterns\n", wow_reply->this_filter_num,                 wow_reply->num_filters);
@@ -5235,7 +5232,7 @@ ar6000_roam_data_event(AR_SOFTC_T *ar, WMI_TARGET_ROAM_DATA *p)
 }
 
 void
-ar6000_bssInfo_event_rx(AR_SOFTC_T *ar, A_UINT8 *datap, int len)
+ar6000_bssInfo_event_rx(AR_SOFTC_T *ar, u8 *datap, int len)
 {
     struct sk_buff *skb;
     WMI_BSS_INFO_HDR *bih = (WMI_BSS_INFO_HDR *)datap;
@@ -5306,7 +5303,7 @@ ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid)
         if(logWmiRawMsgs) {
             A_PRINTF("WMI cmd send, msgNo %d :", wmiSendCmdNum);
             for(i = 0; i < a_netbuf_to_len(osbuf); i++)
-                A_PRINTF("%x ", ((A_UINT8 *)a_netbuf_to_data(osbuf))[i]);
+                A_PRINTF("%x ", ((u8 *)a_netbuf_to_data(osbuf))[i]);
             A_PRINTF("\n");
         }
 
@@ -5347,7 +5344,7 @@ ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid)
 }
 
 /* indicate tx activity or inactivity on a WMI stream */
-void ar6000_indicate_tx_activity(void *devt, A_UINT8 TrafficClass, bool Active)
+void ar6000_indicate_tx_activity(void *devt, u8 TrafficClass, bool Active)
 {
     AR_SOFTC_T  *ar = (AR_SOFTC_T *)devt;
     HTC_ENDPOINT_ID eid ;
@@ -5407,7 +5404,7 @@ void ar6000_indicate_tx_activity(void *devt, A_UINT8 TrafficClass, bool Active)
 }
 
 void
-ar6000_btcoex_config_event(struct ar6_softc *ar,  A_UINT8 *ptr, A_UINT32 len)
+ar6000_btcoex_config_event(struct ar6_softc *ar,  u8 *ptr, A_UINT32 len)
 {
 
     WMI_BTCOEX_CONFIG_EVENT *pBtcoexConfig = (WMI_BTCOEX_CONFIG_EVENT *)ptr;
@@ -5444,7 +5441,7 @@ ar6000_btcoex_config_event(struct ar6_softc *ar,  A_UINT8 *ptr, A_UINT32 len)
 }
 
 void
-ar6000_btcoex_stats_event(struct ar6_softc *ar,  A_UINT8 *ptr, A_UINT32 len)
+ar6000_btcoex_stats_event(struct ar6_softc *ar,  u8 *ptr, A_UINT32 len)
 {
     WMI_BTCOEX_STATS_EVENT *pBtcoexStats = (WMI_BTCOEX_STATS_EVENT *)ptr;
 
@@ -5523,7 +5520,7 @@ ar6000_alloc_cookie(AR_SOFTC_T  *ar)
  */
 #define EVENT_ID_LEN   2
 void ar6000_send_event_to_app(AR_SOFTC_T *ar, A_UINT16 eventId,
-                              A_UINT8 *datap, int len)
+                              u8 *datap, int len)
 {
 
 #if (WIRELESS_EXT >= 15)
@@ -5568,7 +5565,7 @@ void ar6000_send_event_to_app(AR_SOFTC_T *ar, A_UINT16 eventId,
  * includes the event ID and event content.
  */
 void ar6000_send_generic_event_to_app(AR_SOFTC_T *ar, A_UINT16 eventId,
-                                      A_UINT8 *datap, int len)
+                                      u8 *datap, int len)
 {
 
 #if (WIRELESS_EXT >= 18)
@@ -5616,7 +5613,7 @@ ar6000_tx_retry_err_event(void *devt)
 }
 
 void
-ar6000_snrThresholdEvent_rx(void *devt, WMI_SNR_THRESHOLD_VAL newThreshold, A_UINT8 snr)
+ar6000_snrThresholdEvent_rx(void *devt, WMI_SNR_THRESHOLD_VAL newThreshold, u8 snr)
 {
     WMI_SNR_THRESHOLD_EVENT event;
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
@@ -5624,12 +5621,12 @@ ar6000_snrThresholdEvent_rx(void *devt, WMI_SNR_THRESHOLD_VAL newThreshold, A_UI
     event.range = newThreshold;
     event.snr = snr;
 
-    ar6000_send_event_to_app(ar, WMI_SNR_THRESHOLD_EVENTID, (A_UINT8 *)&event,
+    ar6000_send_event_to_app(ar, WMI_SNR_THRESHOLD_EVENTID, (u8 *)&event,
                              sizeof(WMI_SNR_THRESHOLD_EVENT));
 }
 
 void
-ar6000_lqThresholdEvent_rx(void *devt, WMI_LQ_THRESHOLD_VAL newThreshold, A_UINT8 lq)
+ar6000_lqThresholdEvent_rx(void *devt, WMI_LQ_THRESHOLD_VAL newThreshold, u8 lq)
 {
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("lq threshold range %d, lq %d\n", newThreshold, lq));
 }
@@ -5674,7 +5671,7 @@ ar6000_get_driver_cfg(struct net_device *dev,
 }
 
 void
-ar6000_keepalive_rx(void *devt, A_UINT8 configured)
+ar6000_keepalive_rx(void *devt, u8 configured)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
 
@@ -5683,10 +5680,10 @@ ar6000_keepalive_rx(void *devt, A_UINT8 configured)
 }
 
 void
-ar6000_pmkid_list_event(void *devt, A_UINT8 numPMKID, WMI_PMKID *pmkidList,
-                        A_UINT8 *bssidList)
+ar6000_pmkid_list_event(void *devt, u8 numPMKID, WMI_PMKID *pmkidList,
+                        u8 *bssidList)
 {
-    A_UINT8 i, j;
+    u8 i, j;
 
     A_PRINTF("Number of Cached PMKIDs is %d\n", numPMKID);
 
@@ -5700,12 +5697,12 @@ ar6000_pmkid_list_event(void *devt, A_UINT8 numPMKID, WMI_PMKID *pmkidList,
             for (j = 0; j < WMI_PMKID_LEN; j++) {
                 A_PRINTF("%2.2x", pmkidList->pmkid[j]);
             }
-        pmkidList = (WMI_PMKID *)((A_UINT8 *)pmkidList + ATH_MAC_LEN +
+        pmkidList = (WMI_PMKID *)((u8 *)pmkidList + ATH_MAC_LEN +
                                   WMI_PMKID_LEN);
     }
 }
 
-void ar6000_pspoll_event(AR_SOFTC_T *ar,A_UINT8 aid)
+void ar6000_pspoll_event(AR_SOFTC_T *ar,u8 aid)
 {
     sta_t *conn=NULL;
     bool isPsqEmpty = false;
@@ -5793,7 +5790,7 @@ void ar6000_dtimexpiry_event(AR_SOFTC_T *ar)
 void
 read_rssi_compensation_param(AR_SOFTC_T *ar)
 {
-    A_UINT8 *cust_data_ptr;
+    u8 *cust_data_ptr;
 
 //#define RSSICOMPENSATION_PRINT
 
@@ -5801,7 +5798,7 @@ read_rssi_compensation_param(AR_SOFTC_T *ar)
     A_INT16 i;
     cust_data_ptr = ar6000_get_cust_data_buffer(ar->arTargetType);
     for (i=0; i<16; i++) {
-        A_PRINTF("cust_data_%d = %x \n", i, *(A_UINT8 *)cust_data_ptr);
+        A_PRINTF("cust_data_%d = %x \n", i, *(u8 *)cust_data_ptr);
         cust_data_ptr += 1;
     }
 #endif
@@ -5938,7 +5935,7 @@ rssi_compensation_reverse_calc(AR_SOFTC_T *ar, A_INT16 rssi, bool Above)
 }
 
 #ifdef WAPI_ENABLE
-void ap_wapi_rekey_event(AR_SOFTC_T *ar, A_UINT8 type, A_UINT8 *mac)
+void ap_wapi_rekey_event(AR_SOFTC_T *ar, u8 type, u8 *mac)
 {
     union iwreq_data wrqu;
     char buf[20];
@@ -5960,7 +5957,7 @@ void ap_wapi_rekey_event(AR_SOFTC_T *ar, A_UINT8 type, A_UINT8 *mac)
 #ifdef USER_KEYS
 static int
 
-ar6000_reinstall_keys(AR_SOFTC_T *ar, A_UINT8 key_op_ctrl)
+ar6000_reinstall_keys(AR_SOFTC_T *ar, u8 key_op_ctrl)
 {
     int status = A_OK;
     struct ieee80211req_key *uik = &ar->user_saved_keys.ucast_ik;
@@ -5975,7 +5972,7 @@ ar6000_reinstall_keys(AR_SOFTC_T *ar, A_UINT8 key_op_ctrl)
         if (uik->ik_keylen) {
             status = wmi_addKey_cmd(ar->arWmi, uik->ik_keyix,
                     ar->user_saved_keys.keyType, PAIRWISE_USAGE,
-                    uik->ik_keylen, (A_UINT8 *)&uik->ik_keyrsc,
+                    uik->ik_keylen, (u8 *)&uik->ik_keyrsc,
                     uik->ik_keydata, key_op_ctrl, uik->ik_macaddr, SYNC_BEFORE_WMIFLAG);
         }
 
@@ -5991,7 +5988,7 @@ ar6000_reinstall_keys(AR_SOFTC_T *ar, A_UINT8 key_op_ctrl)
         if (bik->ik_keylen) {
             status = wmi_addKey_cmd(ar->arWmi, bik->ik_keyix,
                     ar->user_saved_keys.keyType, GROUP_USAGE,
-                    bik->ik_keylen, (A_UINT8 *)&bik->ik_keyrsc,
+                    bik->ik_keylen, (u8 *)&bik->ik_keyrsc,
                     bik->ik_keydata, key_op_ctrl, bik->ik_macaddr, NO_SYNC_WMIFLAG);
         }
     } else {
@@ -6190,7 +6187,7 @@ ar6000_ap_mode_get_wpa_ie(struct ar6_softc *ar, struct ieee80211req_wpaie *wpaie
 }
 
 int
-is_iwioctl_allowed(A_UINT8 mode, A_UINT16 cmd)
+is_iwioctl_allowed(u8 mode, A_UINT16 cmd)
 {
     if(cmd >= SIOCSIWCOMMIT && cmd <= SIOCGIWPOWER) {
         cmd -= SIOCSIWCOMMIT;
@@ -6207,7 +6204,7 @@ is_iwioctl_allowed(A_UINT8 mode, A_UINT16 cmd)
 }
 
 int
-is_xioctl_allowed(A_UINT8 mode, int cmd)
+is_xioctl_allowed(u8 mode, int cmd)
 {
     if(sizeof(xioctl_filter)-1 < cmd) {
         A_PRINTF("Filter for this cmd=%d not defined\n",cmd);
@@ -6236,7 +6233,7 @@ ap_set_wapi_key(struct ar6_softc *ar, void *ikey)
         ik->ik_keylen);
 
     status = wmi_addKey_cmd(ar->arWmi, ik->ik_keyix, WAPI_CRYPT, keyUsage,
-                            ik->ik_keylen, (A_UINT8 *)&ik->ik_keyrsc,
+                            ik->ik_keylen, (u8 *)&ik->ik_keyrsc,
                             ik->ik_keydata, KEY_OP_INIT_VAL, ik->ik_macaddr,
                             SYNC_BOTH_WMIFLAG);
 
@@ -6249,10 +6246,10 @@ ap_set_wapi_key(struct ar6_softc *ar, void *ikey)
 
 void ar6000_peer_event(
     void *context,
-    A_UINT8 eventCode,
-    A_UINT8 *macAddr)
+    u8 eventCode,
+    u8 *macAddr)
 {
-    A_UINT8 pos;
+    u8 pos;
 
     for (pos=0;pos<6;pos++)
         printk("%02x: ",*(macAddr+pos));

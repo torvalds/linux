@@ -101,8 +101,8 @@ typedef enum{
  *  disabled by default but can be enabled using this structure and the 
  *  WMI_THIN_CONFIG_CMDID. */
 typedef PREPACK struct {
-    A_UINT8     version; /* the versioned type of messages to use or 0 to disable */
-    A_UINT8     countThreshold; /* msg count threshold triggering a tx complete message */
+    u8 version; /* the versioned type of messages to use or 0 to disable */
+    u8 countThreshold; /* msg count threshold triggering a tx complete message */
     A_UINT16    timeThreshold; /* timeout interval in MSEC triggering a tx complete message */       
 } POSTPACK WMI_THIN_CONFIG_TXCOMPLETE;
 
@@ -111,8 +111,8 @@ typedef PREPACK struct {
  *  without notification. Alternately, the MAC Header is forwarded to the host 
  *  with the failed status. */
 typedef PREPACK struct {
-    A_UINT8     enable; /* 1 == send decrypt errors to the host, 0 == don't */
-    A_UINT8     reserved[3]; /* align padding */
+    u8 enable; /* 1 == send decrypt errors to the host, 0 == don't */
+    u8 reserved[3]; /* align padding */
 } POSTPACK WMI_THIN_CONFIG_DECRYPT_ERR;
 
 /* WMI_THIN_CONFIG_TX_MAC_RULES -- Used to configure behavior for transmitted
@@ -140,7 +140,7 @@ typedef PREPACK struct {
 #define WMI_THIN_CFG_FILTER_RULES   0x00000008
     A_UINT32    cfgField;   /* combination of WMI_THIN_CFG_... describes contents of config command */
     A_UINT16    length;     /* length in bytes of appended sub-commands */        
-    A_UINT8     reserved[2];   /* align padding */
+    u8 reserved[2];   /* align padding */
 } POSTPACK WMI_THIN_CONFIG_CMD;
 
 /* MIB Access Identifiers tailored for Symbian. */
@@ -176,7 +176,7 @@ enum {
 };
 
 typedef PREPACK struct {
-    A_UINT8 addr[ATH_MAC_LEN];
+    u8 addr[ATH_MAC_LEN];
 } POSTPACK WMI_THIN_MIB_STA_MAC;
 
 typedef PREPACK struct {
@@ -184,7 +184,7 @@ typedef PREPACK struct {
 } POSTPACK WMI_THIN_MIB_RX_LIFE_TIME;
 
 typedef PREPACK struct {
-    A_UINT8 enable; //1 = on, 0 = off
+    u8 enable; //1 = on, 0 = off
 } POSTPACK WMI_THIN_MIB_CTS_TO_SELF;
 
 typedef PREPACK struct {
@@ -196,8 +196,8 @@ typedef PREPACK struct {
 } POSTPACK WMI_THIN_MIB_RTS_THRESHOLD;
 
 typedef PREPACK struct {
-    A_UINT8 type; // type of frame
-    A_UINT8 rate; // tx rate to be used (one of WMI_BIT_RATE)
+    u8 type; // type of frame
+    u8 rate; // tx rate to be used (one of WMI_BIT_RATE)
     A_UINT16 length; // num bytes following this structure as the template data
 } POSTPACK WMI_THIN_MIB_TEMPLATE_FRAME;
 
@@ -212,28 +212,28 @@ typedef PREPACK struct {
 #define IE_FILTER_TREATMENT_APPEAR 2
 
 typedef PREPACK struct {
-    A_UINT8 ie;
-    A_UINT8 treatment;
+    u8 ie;
+    u8 treatment;
 } POSTPACK WMI_THIN_MIB_BEACON_FILTER_TABLE;
 
 typedef PREPACK struct {
-    A_UINT8 ie;
-    A_UINT8 treatment;
-    A_UINT8 oui[3];
-    A_UINT8 type;
+    u8 ie;
+    u8 treatment;
+    u8 oui[3];
+    u8 type;
     A_UINT16 version;
 } POSTPACK WMI_THIN_MIB_BEACON_FILTER_TABLE_OUI;
 
 typedef PREPACK struct {
     A_UINT16 numElements;
-    A_UINT8 entrySize; // sizeof(WMI_THIN_MIB_BEACON_FILTER_TABLE) on host cpu may be 2 may be 4
-    A_UINT8 reserved;
+    u8 entrySize; // sizeof(WMI_THIN_MIB_BEACON_FILTER_TABLE) on host cpu may be 2 may be 4
+    u8 reserved;
 } POSTPACK WMI_THIN_MIB_BEACON_FILTER_TABLE_HEADER; 
 
 typedef PREPACK struct {
     A_UINT32 count; /* num beacons between deliveries */
-    A_UINT8 enable;
-    A_UINT8 reserved[3];
+    u8 enable;
+    u8 reserved[3];
 } POSTPACK WMI_THIN_MIB_BEACON_FILTER;
 
 typedef PREPACK struct {
@@ -241,10 +241,10 @@ typedef PREPACK struct {
 } POSTPACK WMI_THIN_MIB_BEACON_LOST_COUNT;
 
 typedef PREPACK struct {
-    A_UINT8 rssi; /* the low threshold which can trigger an event warning */
-    A_UINT8 tolerance; /* the range above and below the threshold to prevent event flooding to the host. */
-    A_UINT8 count; /* the sample count of consecutive frames necessary to trigger an event. */
-    A_UINT8 reserved[1]; /* padding */
+    u8 rssi; /* the low threshold which can trigger an event warning */
+    u8 tolerance; /* the range above and below the threshold to prevent event flooding to the host. */
+    u8 count; /* the sample count of consecutive frames necessary to trigger an event. */
+    u8 reserved[1]; /* padding */
 } POSTPACK WMI_THIN_MIB_RSSI_THRESHOLD;
 
 
@@ -252,52 +252,52 @@ typedef PREPACK struct {
     A_UINT32 cap;
     A_UINT32 rxRateField;
     A_UINT32 beamForming;
-    A_UINT8 addr[ATH_MAC_LEN];
-    A_UINT8 enable;        
-    A_UINT8 stbc;
-    A_UINT8 maxAMPDU;    
-    A_UINT8 msduSpacing;
-    A_UINT8 mcsFeedback;   
-    A_UINT8 antennaSelCap;    
+    u8 addr[ATH_MAC_LEN];
+    u8 enable;
+    u8 stbc;
+    u8 maxAMPDU;
+    u8 msduSpacing;
+    u8 mcsFeedback;
+    u8 antennaSelCap;
 } POSTPACK WMI_THIN_MIB_HT_CAP;
 
 typedef PREPACK struct {
     A_UINT32 infoField;
     A_UINT32 basicRateField;
-    A_UINT8 protection;
-    A_UINT8 secondChanneloffset;
-    A_UINT8 channelWidth;
-    A_UINT8 reserved;
+    u8 protection;
+    u8 secondChanneloffset;
+    u8 channelWidth;
+    u8 reserved;
 } POSTPACK WMI_THIN_MIB_HT_OP;
 
 typedef PREPACK struct {
 #define SECOND_BEACON_PRIMARY   1
 #define SECOND_BEACON_EITHER    2
 #define SECOND_BEACON_SECONDARY 3
-    A_UINT8 cfg;
-    A_UINT8 reserved[3]; /* padding */
+    u8 cfg;
+    u8 reserved[3]; /* padding */
 } POSTPACK WMI_THIN_MIB_HT_2ND_BEACON;
 
 typedef PREPACK struct {
-    A_UINT8 txTIDField;
-    A_UINT8 rxTIDField;
-    A_UINT8 reserved[2]; /* padding */
+    u8 txTIDField;
+    u8 rxTIDField;
+    u8 reserved[2]; /* padding */
 } POSTPACK WMI_THIN_MIB_HT_BLOCK_ACK;
 
 typedef PREPACK struct {
-    A_UINT8 enableLong; // 1 == long preamble, 0 == short preamble
-    A_UINT8 reserved[3];
+    u8 enableLong; // 1 == long preamble, 0 == short preamble
+    u8 reserved[3];
 } POSTPACK WMI_THIN_MIB_PREAMBLE;
 
 typedef PREPACK struct {    
     A_UINT16    length;     /* the length in bytes of the appended MIB data */
-    A_UINT8     mibID;      /* the ID of the MIB element being set */
-    A_UINT8     reserved; /* align padding */
+    u8 mibID;      /* the ID of the MIB element being set */
+    u8 reserved; /* align padding */
 } POSTPACK WMI_THIN_SET_MIB_CMD;
 
 typedef PREPACK struct {    
-    A_UINT8     mibID;      /* the ID of the MIB element being set */
-    A_UINT8     reserved[3]; /* align padding */
+    u8 mibID;      /* the ID of the MIB element being set */
+    u8 reserved[3]; /* align padding */
 } POSTPACK WMI_THIN_GET_MIB_CMD;
 
 typedef PREPACK struct {
@@ -305,12 +305,12 @@ typedef PREPACK struct {
     A_UINT32    beaconIntval; /* TUs */
     A_UINT16    atimWindow; /* TUs */
     A_UINT16    channel; /* frequency in Mhz */
-    A_UINT8     networkType; /* INFRA_NETWORK | ADHOC_NETWORK */
-    A_UINT8     ssidLength; /* 0 - 32 */
-    A_UINT8     probe;      /* != 0 : issue probe req at start */
-    A_UINT8     reserved;   /* alignment */    
+    u8 networkType; /* INFRA_NETWORK | ADHOC_NETWORK */
+    u8 ssidLength; /* 0 - 32 */
+    u8 probe;      /* != 0 : issue probe req at start */
+    u8 reserved;   /* alignment */
     A_UCHAR     ssid[WMI_MAX_SSID_LEN];    
-    A_UINT8     bssid[ATH_MAC_LEN];
+    u8 bssid[ATH_MAC_LEN];
 } POSTPACK WMI_THIN_JOIN_CMD;
 
 typedef PREPACK struct {
@@ -336,8 +336,8 @@ typedef enum {
 }WMI_THIN_JOIN_RESULT;
 
 typedef PREPACK struct {
-    A_UINT8 result; /* the result of the join cmd. one of WMI_THIN_JOIN_RESULT */
-    A_UINT8 reserved[3]; /* alignment */
+    u8 result; /* the result of the join cmd. one of WMI_THIN_JOIN_RESULT */
+    u8 reserved[3]; /* alignment */
 } POSTPACK WMI_THIN_JOIN_EVENT;
 
 #ifdef __cplusplus

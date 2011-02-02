@@ -76,7 +76,7 @@ struct hif_device {
     BUS_REQUEST busRequest[BUS_REQUEST_MAX_NUM]; /* available bus requests */
     void     *claimedContext;
     HTC_CALLBACKS htcCallbacks;
-    A_UINT8     *dma_buffer;
+    u8 *dma_buffer;
     DL_LIST      ScatterReqHead;                /* scatter request list head */
     bool       scatter_enabled;               /* scatter enabled flag */
     bool   is_suspend;

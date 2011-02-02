@@ -727,8 +727,8 @@ typedef enum {
 /*
  * arguments:
  *      struct {
- *          A_UINT8 streamType;
- *          A_UINT8 status;
+ *          u8 streamType;
+ *          u8 status;
  *      }
  * uses: WMI_SET_BT_STATUS_CMDID
  */
@@ -737,9 +737,9 @@ typedef enum {
 /*
  * arguments:
  *      struct {
- *           A_UINT8 paramType;
+ *           u8 paramType;
  *           union {
- *               A_UINT8 noSCOPkts;
+ *               u8 noSCOPkts;
  *               BT_PARAMS_A2DP a2dpParams;
  *               BT_COEX_REGS regs;
  *           };
@@ -1008,7 +1008,7 @@ struct ar6000_version {
 
 /* used by AR6000_IOCTL_WMI_GET_QOS_QUEUE */
 struct ar6000_queuereq {
-    A_UINT8         trafficClass;
+    u8 trafficClass;
     A_UINT16        activeTsids;
 };
 
@@ -1072,12 +1072,12 @@ typedef struct targetStats_t {
     A_INT16     noise_floor_calibation;
     A_INT16     cs_rssi;
     A_INT16     cs_aveBeacon_rssi;
-    A_UINT8     cs_aveBeacon_snr;
-    A_UINT8     cs_lastRoam_msec;
-    A_UINT8     cs_snr;
+    u8 cs_aveBeacon_snr;
+    u8 cs_lastRoam_msec;
+    u8 cs_snr;
 
-    A_UINT8     wow_num_host_pkt_wakeups;
-    A_UINT8     wow_num_host_event_wakeups;
+    u8 wow_num_host_pkt_wakeups;
+    u8 wow_num_host_event_wakeups;
 
     A_UINT32   arp_received;
     A_UINT32   arp_matched;
@@ -1144,7 +1144,7 @@ typedef struct user_rssi_thold_t {
 } USER_RSSI_THOLD;
 
 typedef struct user_rssi_params_t {
-    A_UINT8            weight;
+    u8 weight;
     A_UINT32           pollTime;
     USER_RSSI_THOLD    tholds[12];
 } USER_RSSI_PARAMS;

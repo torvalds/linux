@@ -380,26 +380,26 @@ enum {
 #endif /* CONFIG_HOST_TCMD_SUPPORT */
 
 struct ar_wep_key {
-    A_UINT8                 arKeyIndex;
-    A_UINT8                 arKeyLen;
-    A_UINT8                 arKey[64];
+    u8 arKeyIndex;
+    u8 arKeyLen;
+    u8 arKey[64];
 } ;
 
 #ifdef ATH6K_CONFIG_CFG80211
 struct ar_key {
-    A_UINT8     key[WLAN_MAX_KEY_LEN];
-    A_UINT8     key_len;
-    A_UINT8     seq[IW_ENCODE_SEQ_MAX_SIZE];
-    A_UINT8     seq_len;
+    u8 key[WLAN_MAX_KEY_LEN];
+    u8 key_len;
+    u8 seq[IW_ENCODE_SEQ_MAX_SIZE];
+    u8 seq_len;
     A_UINT32    cipher;
 };
 #endif /* ATH6K_CONFIG_CFG80211 */
 
 
 struct ar_node_mapping {
-    A_UINT8                 macAddress[6];
-    A_UINT8                 epId;
-    A_UINT8                 txPending;
+    u8 macAddress[6];
+    u8 epId;
+    u8 txPending;
 };
 
 struct ar_cookie {
@@ -413,8 +413,8 @@ struct ar_hb_chlng_resp {
     A_UINT32                frequency;
     A_UINT32                seqNum;
     bool                  outstanding;
-    A_UINT8                 missCnt;
-    A_UINT8                 missThres;
+    u8 missCnt;
+    u8 missThres;
 };
 
 /* Per STA data, used in AP mode */
@@ -437,12 +437,12 @@ struct ar_hb_chlng_resp {
 
 typedef struct {
     A_UINT16                flags;
-    A_UINT8                 mac[ATH_MAC_LEN];
-    A_UINT8                 aid;
-    A_UINT8                 keymgmt;
-    A_UINT8                 ucipher;
-    A_UINT8                 auth;
-    A_UINT8                 wpa_ie[IEEE80211_MAX_IE];
+    u8 mac[ATH_MAC_LEN];
+    u8 aid;
+    u8 keymgmt;
+    u8 ucipher;
+    u8 auth;
+    u8 wpa_ie[IEEE80211_MAX_IE];
     A_NETBUF_QUEUE_T        psq;    /* power save q */
     A_MUTEX_T               psqLock;
 } sta_t;
@@ -465,7 +465,7 @@ typedef struct ar6_softc {
     void                    *arWmi;
     int                     arTxPending[ENDPOINT_MAX];
     int                     arTotalTxDataPending;
-    A_UINT8                 arNumDataEndPts;
+    u8 arNumDataEndPts;
     bool                  arWmiEnabled;
     bool                  arWmiReady;
     bool                  arConnected;
@@ -475,18 +475,18 @@ typedef struct ar6_softc {
     struct semaphore        arSem;
     int                     arSsidLen;
     u_char                  arSsid[32];
-    A_UINT8                 arNextMode;
-    A_UINT8                 arNetworkType;
-    A_UINT8                 arDot11AuthMode;
-    A_UINT8                 arAuthMode;
-    A_UINT8                 arPairwiseCrypto;
-    A_UINT8                 arPairwiseCryptoLen;
-    A_UINT8                 arGroupCrypto;
-    A_UINT8                 arGroupCryptoLen;
-    A_UINT8                 arDefTxKeyIndex;
+    u8 arNextMode;
+    u8 arNetworkType;
+    u8 arDot11AuthMode;
+    u8 arAuthMode;
+    u8 arPairwiseCrypto;
+    u8 arPairwiseCryptoLen;
+    u8 arGroupCrypto;
+    u8 arGroupCryptoLen;
+    u8 arDefTxKeyIndex;
     struct ar_wep_key       arWepKeyList[WMI_MAX_KEY_INDEX + 1];
-    A_UINT8                 arBssid[6];
-    A_UINT8                 arReqBssid[6];
+    u8 arBssid[6];
+    u8 arReqBssid[6];
     A_UINT16                arChannelHint;
     A_UINT16                arBssChannel;
     A_UINT16                arListenIntervalB;
@@ -494,7 +494,7 @@ typedef struct ar6_softc {
     struct ar6000_version   arVersion;
     A_UINT32                arTargetType;
     A_INT8                  arRssi;
-    A_UINT8                 arTxPwr;
+    u8 arTxPwr;
     bool                  arTxPwrSet;
     A_INT32                 arBitRate;
     struct net_device_stats arNetStats;
@@ -505,9 +505,9 @@ typedef struct ar6_softc {
     bool                  statsUpdatePending;
     TARGET_STATS            arTargetStats;
     A_INT8                  arMaxRetries;
-    A_UINT8                 arPhyCapability;
+    u8 arPhyCapability;
 #ifdef CONFIG_HOST_TCMD_SUPPORT
-    A_UINT8                 tcmdRxReport;
+    u8 tcmdRxReport;
     A_UINT32                tcmdRxTotalPkt;
     A_INT32                 tcmdRxRssi;
     A_UINT32                tcmdPm;
@@ -519,24 +519,24 @@ typedef struct ar6_softc {
 #endif
     AR6000_WLAN_STATE       arWlanState;
     struct ar_node_mapping  arNodeMap[MAX_NODE_NUM];
-    A_UINT8                 arIbssPsEnable;
-    A_UINT8                 arNodeNum;
-    A_UINT8                 arNexEpId;
+    u8 arIbssPsEnable;
+    u8 arNodeNum;
+    u8 arNexEpId;
     struct ar_cookie        *arCookieList;
     A_UINT32                arCookieCount;
     A_UINT32                arRateMask;
-    A_UINT8                 arSkipScan;
+    u8 arSkipScan;
     A_UINT16                arBeaconInterval;
     bool                  arConnectPending;
     bool                  arWmmEnabled;
     struct ar_hb_chlng_resp arHBChallengeResp;
-    A_UINT8                 arKeepaliveConfigured;
+    u8 arKeepaliveConfigured;
     A_UINT32                arMgmtFilter;
     HTC_ENDPOINT_ID         arAc2EpMapping[WMM_NUM_AC];
     bool                  arAcStreamActive[WMM_NUM_AC];
-    A_UINT8                 arAcStreamPriMap[WMM_NUM_AC];
-    A_UINT8                 arHiAcStreamActivePri;
-    A_UINT8                 arEp2AcMapping[ENDPOINT_MAX];
+    u8 arAcStreamPriMap[WMM_NUM_AC];
+    u8 arHiAcStreamActivePri;
+    u8 arEp2AcMapping[ENDPOINT_MAX];
     HTC_ENDPOINT_ID         arControlEp;
 #ifdef HTC_RAW_INTERFACE
     AR_RAW_HTC_T            *arRawHtc;
@@ -557,35 +557,35 @@ typedef struct ar6_softc {
     struct USER_SAVEDKEYS   user_saved_keys;
 #endif
     USER_RSSI_THOLD rssi_map[12];
-    A_UINT8                arUserBssFilter;
+    u8 arUserBssFilter;
     A_UINT16                ap_profile_flag;    /* AP mode */
     WMI_AP_ACL              g_acl;              /* AP mode */
     sta_t                   sta_list[AP_MAX_NUM_STA]; /* AP mode */
-    A_UINT8                 sta_list_index;     /* AP mode */
+    u8 sta_list_index;     /* AP mode */
     struct ieee80211req_key ap_mode_bkey;           /* AP mode */
     A_NETBUF_QUEUE_T        mcastpsq;    /* power save q for Mcast frames */
     A_MUTEX_T               mcastpsqLock;
     bool                  DTIMExpired; /* flag to indicate DTIM expired */
-    A_UINT8                 intra_bss;   /* enable/disable intra bss data forward */
+    u8 intra_bss;   /* enable/disable intra bss data forward */
     void                    *aggr_cntxt;
 #ifndef EXPORT_HCI_BRIDGE_INTERFACE
     void                    *hcidev_info;
 #endif
     void                    *hcipal_info;
     WMI_AP_MODE_STAT        arAPStats;
-    A_UINT8                 ap_hidden_ssid;
-    A_UINT8                 ap_country_code[3];
-    A_UINT8                 ap_wmode;
-    A_UINT8                 ap_dtim_period;
+    u8 ap_hidden_ssid;
+    u8 ap_country_code[3];
+    u8 ap_wmode;
+    u8 ap_dtim_period;
     A_UINT16                ap_beacon_interval;
     A_UINT16                arRTS;
     A_UINT16                arACS; /* AP mode - Auto Channel Selection */
     HTC_PACKET_QUEUE        amsdu_rx_buffer_queue;
     bool                  bIsDestroyProgress; /* flag to indicate ar6k destroy is in progress */
     A_TIMER                 disconnect_timer;
-    A_UINT8		    rxMetaVersion;
+    u8 rxMetaVersion;
 #ifdef WAPI_ENABLE
-    A_UINT8                 arWapiEnable;
+    u8 arWapiEnable;
 #endif
 	WMI_BTCOEX_CONFIG_EVENT arBtcoexConfig;
 	WMI_BTCOEX_STATS_EVENT  arBtcoexStats;
@@ -606,11 +606,11 @@ typedef struct ar6_softc {
     A_UINT16                arWlanOffConfig;
     A_UINT16                arWow2Config;
 #endif
-    A_UINT8                 scan_triggered;
+    u8 scan_triggered;
     WMI_SCAN_PARAMS_CMD     scParams;
 #define AR_MCAST_FILTER_MAC_ADDR_SIZE  4
-    A_UINT8                 mcast_filters[MAC_MAX_FILTERS_PER_LIST][AR_MCAST_FILTER_MAC_ADDR_SIZE];
-    A_UINT8                 bdaddr[6];
+    u8 mcast_filters[MAC_MAX_FILTERS_PER_LIST][AR_MCAST_FILTER_MAC_ADDR_SIZE];
+    u8 bdaddr[6];
     bool                  scanSpecificSsid;
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
     void                    *arApDev;
@@ -726,13 +726,12 @@ ssize_t ar6000_htc_raw_write(AR_SOFTC_T *ar,
 /* AP mode */
 /*TODO: These routines should be moved to a file that is common across OS */
 sta_t *
-ieee80211_find_conn(AR_SOFTC_T *ar, A_UINT8 *node_addr);
+ieee80211_find_conn(AR_SOFTC_T *ar, u8 *node_addr);
 
 sta_t *
-ieee80211_find_conn_for_aid(AR_SOFTC_T *ar, A_UINT8 aid);
+ieee80211_find_conn_for_aid(AR_SOFTC_T *ar, u8 aid);
 
-A_UINT8
-remove_sta(AR_SOFTC_T *ar, A_UINT8 *mac, A_UINT16 reason);
+u8 remove_sta(AR_SOFTC_T *ar, u8 *mac, A_UINT16 reason);
 
 /* HCI support */
 
@@ -752,8 +751,8 @@ ATH_DEBUG_DECLARE_EXTERN(hif);
 ATH_DEBUG_DECLARE_EXTERN(wlan);
 ATH_DEBUG_DECLARE_EXTERN(misc);
 
-extern A_UINT8 bcast_mac[];
-extern A_UINT8 null_mac[];
+extern u8 bcast_mac[];
+extern u8 null_mac[];
 
 #ifdef __cplusplus
 }

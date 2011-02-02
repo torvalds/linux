@@ -30,16 +30,16 @@ void ar6k_cfg80211_deinit(AR_SOFTC_T *ar);
 void ar6k_cfg80211_scanComplete_event(AR_SOFTC_T *ar, int status);
 
 void ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, A_UINT16 channel,
-                                A_UINT8 *bssid, A_UINT16 listenInterval,
+                                u8 *bssid, A_UINT16 listenInterval,
                                 A_UINT16 beaconInterval,NETWORK_TYPE networkType,
-                                A_UINT8 beaconIeLen, A_UINT8 assocReqLen,
-                                A_UINT8 assocRespLen, A_UINT8 *assocInfo);
+                                u8 beaconIeLen, u8 assocReqLen,
+                                u8 assocRespLen, u8 *assocInfo);
 
-void ar6k_cfg80211_disconnect_event(AR_SOFTC_T *ar, A_UINT8 reason,
-                                    A_UINT8 *bssid, A_UINT8 assocRespLen,
-                                    A_UINT8 *assocInfo, A_UINT16 protocolReasonStatus);
+void ar6k_cfg80211_disconnect_event(AR_SOFTC_T *ar, u8 reason,
+                                    u8 *bssid, u8 assocRespLen,
+                                    u8 *assocInfo, A_UINT16 protocolReasonStatus);
 
-void ar6k_cfg80211_tkip_micerr_event(AR_SOFTC_T *ar, A_UINT8 keyid, bool ismcast);
+void ar6k_cfg80211_tkip_micerr_event(AR_SOFTC_T *ar, u8 keyid, bool ismcast);
 
 #endif /* _AR6K_CFG80211_H_ */
 

@@ -116,16 +116,16 @@ static int ar6000_connect_raw_service(AR_SOFTC_T        *ar,
 {
     int                 status;
     HTC_SERVICE_CONNECT_RESP response;
-    A_UINT8                  streamNo;
+    u8 streamNo;
     HTC_SERVICE_CONNECT_REQ  connect;
     
     do {      
         
         A_MEMZERO(&connect,sizeof(connect));
             /* pass the stream ID as meta data to the RAW streams service */
-        streamNo = (A_UINT8)StreamID;
+        streamNo = (u8)StreamID;
         connect.pMetaData = &streamNo;
-        connect.MetaDataLength = sizeof(A_UINT8);
+        connect.MetaDataLength = sizeof(u8);
             /* these fields are the same for all endpoints */
         connect.EpCallbacks.pContext = ar;
         connect.EpCallbacks.EpTxComplete = ar6000_htc_raw_write_cb;   

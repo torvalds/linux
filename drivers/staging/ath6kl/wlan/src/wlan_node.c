@@ -58,7 +58,7 @@ static void wlan_node_timeout(A_ATH_TIMER arg);
 #endif
 
 static bss_t * _ieee80211_find_node (struct ieee80211_node_table *nt,
-                                     const A_UINT8 *macaddr);
+                                     const u8 *macaddr);
 
 bss_t *
 wlan_node_alloc(struct ieee80211_node_table *nt, int wh_size)
@@ -111,7 +111,7 @@ wlan_node_free(bss_t *ni)
 
 void
 wlan_setup_node(struct ieee80211_node_table *nt, bss_t *ni,
-                const A_UINT8 *macaddr)
+                const u8 *macaddr)
 {
     int hash;
     A_UINT32 timeoutValue = 0;
@@ -160,7 +160,7 @@ wlan_setup_node(struct ieee80211_node_table *nt, bss_t *ni,
 
 static bss_t *
 _ieee80211_find_node(struct ieee80211_node_table *nt,
-    const A_UINT8 *macaddr)
+    const u8 *macaddr)
 {
     bss_t *ni;
     int hash;
@@ -178,7 +178,7 @@ _ieee80211_find_node(struct ieee80211_node_table *nt,
 }
 
 bss_t *
-wlan_find_node(struct ieee80211_node_table *nt, const A_UINT8 *macaddr)
+wlan_find_node(struct ieee80211_node_table *nt, const u8 *macaddr)
 {
     bss_t *ni;
 
@@ -326,7 +326,7 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt)
 {
 #ifdef THREAD_X
     bss_t *bss, *nextBss;
-    A_UINT8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = false;
+    u8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = false;
 
     wmi_get_current_bssid(nt->nt_wmip, myBssid);
 
@@ -346,7 +346,7 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt)
     }
 #else
     bss_t *bss, *nextBss;
-    A_UINT8 myBssid[IEEE80211_ADDR_LEN];
+    u8 myBssid[IEEE80211_ADDR_LEN];
     A_UINT32 timeoutValue = 0;
     A_UINT32 now = A_GET_MS(0);
     timeoutValue = nt->nt_nodeAge;
@@ -379,7 +379,7 @@ wlan_node_timeout (A_ATH_TIMER arg)
 {
     struct ieee80211_node_table *nt = (struct ieee80211_node_table *)arg;
     bss_t *bss, *nextBss;
-    A_UINT8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = false;
+    u8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = false;
     A_UINT32 timeoutValue = 0;
 
     timeoutValue = nt->nt_nodeAge;
@@ -526,7 +526,7 @@ wlan_node_remove_core (struct ieee80211_node_table *nt, bss_t *ni)
 }
 
 bss_t *
-wlan_node_remove(struct ieee80211_node_table *nt, A_UINT8 *bssid)
+wlan_node_remove(struct ieee80211_node_table *nt, u8 *bssid)
 {
     bss_t *bss, *nextBss;
 

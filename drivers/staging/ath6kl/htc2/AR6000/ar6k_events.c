@@ -104,7 +104,7 @@ int DevPollMboxMsgRecv(AR6K_DEVICE *pDev,
                 /* load the register table */
             status = HIFReadWrite(pDev->HIFDevice,
                                   HOST_INT_STATUS_ADDRESS,
-                                  (A_UINT8 *)&pDev->IrqProcRegisters,
+                                  (u8 *)&pDev->IrqProcRegisters,
                                   AR6K_IRQ_PROC_REGS_SIZE,
                                   HIF_RD_SYNC_BYTE_INC,
                                   NULL);
@@ -155,8 +155,8 @@ int DevPollMboxMsgRecv(AR6K_DEVICE *pDev,
 static int DevServiceCPUInterrupt(AR6K_DEVICE *pDev)
 {
     int status;
-    A_UINT8  cpu_int_status;
-    A_UINT8  regBuffer[4];
+    u8 cpu_int_status;
+    u8 regBuffer[4];
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ, ("CPU Interrupt\n"));
     cpu_int_status = pDev->IrqProcRegisters.cpu_int_status &
@@ -195,8 +195,8 @@ static int DevServiceCPUInterrupt(AR6K_DEVICE *pDev)
 static int DevServiceErrorInterrupt(AR6K_DEVICE *pDev)
 {
     int status;
-    A_UINT8  error_int_status;
-    A_UINT8  regBuffer[4];
+    u8 error_int_status;
+    u8 regBuffer[4];
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ, ("Error Interrupt\n"));
     error_int_status = pDev->IrqProcRegisters.error_int_status & 0x0F;
@@ -266,7 +266,7 @@ static int DevServiceDebugInterrupt(AR6K_DEVICE *pDev)
         /* read counter to clear interrupt */
     status = HIFReadWrite(pDev->HIFDevice,
                           COUNT_DEC_ADDRESS,
-                          (A_UINT8 *)&dummy,
+                          (u8 *)&dummy,
                           4,
                           HIF_RD_SYNC_BYTE_INC,
                           NULL);
@@ -277,7 +277,7 @@ static int DevServiceDebugInterrupt(AR6K_DEVICE *pDev)
 
 static int DevServiceCounterInterrupt(AR6K_DEVICE *pDev)
 {
-    A_UINT8 counter_int_status;
+    u8 counter_int_status;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ, ("Counter Interrupt\n"));
 
@@ -332,7 +332,7 @@ static void DevGetEventAsyncHandler(void *Context, HTC_PACKET *pPacket)
         } else {
                 /* standard interrupt table handling.... */
             AR6K_IRQ_PROC_REGISTERS *pReg = (AR6K_IRQ_PROC_REGISTERS *)pPacket->pBuffer;
-            A_UINT8                 host_int_status;
+            u8 host_int_status;
 
             host_int_status = pReg->host_int_status & pDev->IrqEnableRegisters.int_status_enable;
 
@@ -470,7 +470,7 @@ void DevAsyncIrqProcessComplete(AR6K_DEVICE *pDev)
 static int ProcessPendingIRQs(AR6K_DEVICE *pDev, bool *pDone, bool *pASyncProcessing)
 {
     int    status = A_OK;
-    A_UINT8     host_int_status = 0;
+    u8 host_int_status = 0;
     A_UINT32    lookAhead = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("+ProcessPendingIRQs: (dev: 0x%lX)\n", (unsigned long)pDev));
@@ -545,7 +545,7 @@ static int ProcessPendingIRQs(AR6K_DEVICE *pDev, bool *pDone, bool *pASyncProces
 #endif /* CONFIG_MMC_SDHCI_S3C */
         status = HIFReadWrite(pDev->HIFDevice,
                               HOST_INT_STATUS_ADDRESS,
-                              (A_UINT8 *)&pDev->IrqProcRegisters,
+                              (u8 *)&pDev->IrqProcRegisters,
                               AR6K_IRQ_PROC_REGS_SIZE,
                               HIF_RD_SYNC_BYTE_INC,
                               NULL);
@@ -758,7 +758,7 @@ void DumpAR6KDevState(AR6K_DEVICE *pDev)
         /* load the register table from the device */
     status = HIFReadWrite(pDev->HIFDevice,
                           HOST_INT_STATUS_ADDRESS,
-                          (A_UINT8 *)&procRegs,
+                          (u8 *)&procRegs,
                           AR6K_IRQ_PROC_REGS_SIZE,
                           HIF_RD_SYNC_BYTE_INC,
                           NULL);

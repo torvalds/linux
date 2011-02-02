@@ -43,7 +43,7 @@ static void
 aggr_timeout(A_ATH_TIMER arg);
 
 static void
-aggr_deque_frms(AGGR_INFO *p_aggr, A_UINT8 tid, A_UINT16 seq_no, A_UINT8 order);
+aggr_deque_frms(AGGR_INFO *p_aggr, u8 tid, A_UINT16 seq_no, u8 order);
 
 static void
 aggr_dispatch_frames(AGGR_INFO *p_aggr, A_NETBUF_QUEUE_T *q);
@@ -56,7 +56,7 @@ aggr_init(ALLOC_NETBUFS netbuf_allocator)
 {
     AGGR_INFO   *p_aggr = NULL;
     RXTID *rxtid;
-    A_UINT8 i;
+    u8 i;
     int status = A_OK;
 
     A_PRINTF("In aggr_init..\n");
@@ -101,7 +101,7 @@ aggr_init(ALLOC_NETBUFS netbuf_allocator)
 
 /* utility function to clear rx hold_q for a tid */
 static void
-aggr_delete_tid_state(AGGR_INFO *p_aggr, A_UINT8 tid)
+aggr_delete_tid_state(AGGR_INFO *p_aggr, u8 tid)
 {
     RXTID *rxtid;
     RXTID_STATS *stats;
@@ -135,7 +135,7 @@ aggr_module_destroy(void *cntxt)
 {
     AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
     RXTID *rxtid;
-    A_UINT8 i, k;
+    u8 i, k;
     A_PRINTF("%s(): aggr = %p\n",_A_FUNCNAME_, p_aggr);
     A_ASSERT(p_aggr);
 
@@ -187,7 +187,7 @@ aggr_register_rx_dispatcher(void *cntxt, void * dev, RX_CALLBACK fn)
 
 
 void
-aggr_process_bar(void *cntxt, A_UINT8 tid, A_UINT16 seq_no)
+aggr_process_bar(void *cntxt, u8 tid, A_UINT16 seq_no)
 {
     AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
     RXTID_STATS *stats;
@@ -201,7 +201,7 @@ aggr_process_bar(void *cntxt, A_UINT8 tid, A_UINT16 seq_no)
 
 
 void
-aggr_recv_addba_req_evt(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_UINT8 win_sz)
+aggr_recv_addba_req_evt(void *cntxt, u8 tid, A_UINT16 seq_no, u8 win_sz)
 {
     AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
     RXTID *rxtid;
@@ -253,7 +253,7 @@ aggr_recv_addba_req_evt(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_UINT8 win_s
 }
 
 void
-aggr_recv_delba_req_evt(void *cntxt, A_UINT8 tid)
+aggr_recv_delba_req_evt(void *cntxt, u8 tid)
 {
     AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
     RXTID *rxtid;
@@ -269,7 +269,7 @@ aggr_recv_delba_req_evt(void *cntxt, A_UINT8 tid)
 }
 
 static void
-aggr_deque_frms(AGGR_INFO *p_aggr, A_UINT8 tid, A_UINT16 seq_no, A_UINT8 order)
+aggr_deque_frms(AGGR_INFO *p_aggr, u8 tid, A_UINT16 seq_no, u8 order)
 {
     RXTID *rxtid;
     OSBUF_HOLD_Q *node;
@@ -360,7 +360,7 @@ aggr_slice_amsdu(AGGR_INFO *p_aggr, RXTID *rxtid, void **osbuf)
 {
     void *new_buf;
     A_UINT16 frame_8023_len, payload_8023_len, mac_hdr_len, amsdu_len;
-    A_UINT8 *framep;
+    u8 *framep;
 
     /* Frame format at this point:
      *  [DIX hdr | 802.3 | 802.3 | ... | 802.3]
@@ -426,7 +426,7 @@ aggr_slice_amsdu(AGGR_INFO *p_aggr, RXTID *rxtid, void **osbuf)
 }
 
 void
-aggr_process_recv_frm(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, bool is_amsdu, void **osbuf)
+aggr_process_recv_frm(void *cntxt, u8 tid, A_UINT16 seq_no, bool is_amsdu, void **osbuf)
 {
     AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
     RXTID *rxtid;
@@ -561,7 +561,7 @@ aggr_process_recv_frm(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, bool is_amsdu, 
 void
 aggr_reset_state(void *cntxt)
 {
-    A_UINT8 tid;
+    u8 tid;
     AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
 
     A_ASSERT(p_aggr);
@@ -575,7 +575,7 @@ aggr_reset_state(void *cntxt)
 static void
 aggr_timeout(A_ATH_TIMER arg)
 {
-    A_UINT8 i,j;
+    u8 i,j;
     AGGR_INFO *p_aggr = (AGGR_INFO *)arg;
     RXTID   *rxtid;
     RXTID_STATS *stats;
@@ -645,7 +645,7 @@ aggr_dump_stats(void *cntxt, PACKET_LOG **log_buf)
     AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
     RXTID   *rxtid;
     RXTID_STATS *stats;
-    A_UINT8 i;
+    u8 i;
 
     *log_buf = &p_aggr->pkt_log;
     A_PRINTF("\n\n================================================\n");

@@ -47,9 +47,9 @@ typedef struct sq_threshold_params_s {
     A_UINT32 upper_threshold_valid_count;
     A_UINT32 lower_threshold_valid_count;
     A_UINT32 polling_interval;
-    A_UINT8 weight;
-    A_UINT8  last_rssi; //normally you would expect this to be bss specific but we keep only one instance because its only valid when the device is in a connected state. Not sure if it belongs to host or target.
-    A_UINT8  last_rssi_poll_event; //Not sure if it belongs to host or target
+    u8 weight;
+    u8 last_rssi; //normally you would expect this to be bss specific but we keep only one instance because its only valid when the device is in a connected state. Not sure if it belongs to host or target.
+    u8 last_rssi_poll_event; //Not sure if it belongs to host or target
 } SQ_THRESHOLD_PARAMS;
 
 /*
@@ -63,14 +63,14 @@ struct wmi_t {
     bool                          wmi_ready;
     bool                          wmi_numQoSStream;
     A_UINT16                        wmi_streamExistsForAC[WMM_NUM_AC];
-    A_UINT8                         wmi_fatPipeExists;
+    u8 wmi_fatPipeExists;
     void                           *wmi_devt;
     struct wmi_stats                wmi_stats;
     struct ieee80211_node_table     wmi_scan_table;
-    A_UINT8                         wmi_bssid[ATH_MAC_LEN];
-    A_UINT8                         wmi_powerMode;
-    A_UINT8                         wmi_phyMode;
-    A_UINT8                         wmi_keepaliveInterval;
+    u8 wmi_bssid[ATH_MAC_LEN];
+    u8 wmi_powerMode;
+    u8 wmi_phyMode;
+    u8 wmi_keepaliveInterval;
 #ifdef THREAD_X
     A_CSECT_T                       wmi_lock;
 #else 
@@ -81,8 +81,8 @@ struct wmi_t {
     CRYPTO_TYPE                     wmi_pair_crypto_type;
     CRYPTO_TYPE                     wmi_grp_crypto_type;
     bool                          wmi_is_wmm_enabled;
-    A_UINT8                         wmi_ht_allowed[A_NUM_BANDS];
-    A_UINT8                         wmi_traffic_class;
+    u8 wmi_ht_allowed[A_NUM_BANDS];
+    u8 wmi_traffic_class;
 };
 
 #ifdef THREAD_X

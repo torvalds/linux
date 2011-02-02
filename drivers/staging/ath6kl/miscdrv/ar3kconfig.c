@@ -50,7 +50,7 @@
 int AthPSInitialize(AR3K_CONFIG_INFO *hdev);
 
 static int SendHCICommand(AR3K_CONFIG_INFO *pConfig,
-                               A_UINT8          *pBuffer,
+                               u8 *pBuffer,
                                int              Length)
 {
     HTC_PACKET  *pPacket = NULL;
@@ -85,7 +85,7 @@ static int SendHCICommand(AR3K_CONFIG_INFO *pConfig,
 }
 
 static int RecvHCIEvent(AR3K_CONFIG_INFO *pConfig,
-                             A_UINT8          *pBuffer,
+                             u8 *pBuffer,
                              int              *pLength)
 {
     int    status = A_OK;
@@ -123,17 +123,17 @@ static int RecvHCIEvent(AR3K_CONFIG_INFO *pConfig,
 } 
     
 int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
-                                           A_UINT8          *pHCICommand,
+                                           u8 *pHCICommand,
                                            int              CmdLength,
-                                           A_UINT8          **ppEventBuffer,
-                                           A_UINT8          **ppBufferToFree)
+                                           u8 **ppEventBuffer,
+                                           u8 **ppBufferToFree)
 {
     int    status = A_OK;
-    A_UINT8     *pBuffer = NULL;
-    A_UINT8     *pTemp;
+    u8 *pBuffer = NULL;
+    u8 *pTemp;
     int         length;
     bool      commandComplete = false;
-    A_UINT8     opCodeBytes[2];
+    u8 opCodeBytes[2];
                                
     do {
         
@@ -141,7 +141,7 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
         length += pConfig->pHCIProps->HeadRoom + pConfig->pHCIProps->TailRoom;
         length += pConfig->pHCIProps->IOBlockPad;
                                      
-        pBuffer = (A_UINT8 *)A_MALLOC(length);        
+        pBuffer = (u8 *)A_MALLOC(length);
         if (NULL == pBuffer) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("AR3K Config: Failed to allocate bt buffer \n"));
             status = A_NO_MEMORY;
@@ -212,17 +212,17 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
 static int AR3KConfigureHCIBaud(AR3K_CONFIG_INFO *pConfig)
 {
     int    status = A_OK;
-    A_UINT8     hciBaudChangeCommand[] =  {0x0c,0xfc,0x2,0,0};
+    u8 hciBaudChangeCommand[] =  {0x0c,0xfc,0x2,0,0};
     A_UINT16    baudVal; 
-    A_UINT8     *pEvent = NULL;
-    A_UINT8     *pBufferToFree = NULL;
+    u8 *pEvent = NULL;
+    u8 *pBufferToFree = NULL;
     
     do {
         
         if (pConfig->Flags & AR3K_CONFIG_FLAG_SET_AR3K_BAUD) {
             baudVal = (A_UINT16)(pConfig->AR3KBaudRate / 100);
-            hciBaudChangeCommand[3] = (A_UINT8)baudVal;
-            hciBaudChangeCommand[4] = (A_UINT8)(baudVal >> 8);
+            hciBaudChangeCommand[3] = (u8)baudVal;
+            hciBaudChangeCommand[4] = (u8)(baudVal >> 8);
             
             status = SendHCICommandWaitCommandComplete(pConfig,
                                                        hciBaudChangeCommand,
@@ -279,8 +279,8 @@ static int AR3KExitMinBoot(AR3K_CONFIG_INFO *pConfig)
     int  status;
     char exitMinBootCmd[] = {0x25,0xFC,0x0c,0x03,0x00,0x00,0x00,0x00,0x00,0x00,
                                   0x00,0x00,0x00,0x00,0x00};
-    A_UINT8   *pEvent = NULL;
-    A_UINT8   *pBufferToFree = NULL;
+    u8 *pEvent = NULL;
+    u8 *pBufferToFree = NULL;
     
     status = SendHCICommandWaitCommandComplete(pConfig,
                                                exitMinBootCmd,
@@ -313,9 +313,9 @@ static int AR3KExitMinBoot(AR3K_CONFIG_INFO *pConfig)
 static int AR3KConfigureSendHCIReset(AR3K_CONFIG_INFO *pConfig)
 {
     int status = A_OK;
-    A_UINT8 hciResetCommand[] = {0x03,0x0c,0x0};
-    A_UINT8 *pEvent = NULL;
-    A_UINT8 *pBufferToFree = NULL;
+    u8 hciResetCommand[] = {0x03,0x0c,0x0};
+    u8 *pEvent = NULL;
+    u8 *pBufferToFree = NULL;
 
     status = SendHCICommandWaitCommandComplete( pConfig,
                                                 hciResetCommand,
@@ -362,12 +362,12 @@ static int AR3KEnableTLPM(AR3K_CONFIG_INFO *pConfig)
     /* AR3K vendor specific command for Sleep Enable */
     char sleepEnable[] = {0x4,0xFC,0x1,
                                0x1};
-    A_UINT8   *pEvent = NULL;
-    A_UINT8   *pBufferToFree = NULL;
+    u8 *pEvent = NULL;
+    u8 *pBufferToFree = NULL;
     
     if (0 != pConfig->IdleTimeout) {
-        A_UINT8 idle_lsb = pConfig->IdleTimeout & 0xFF;
-        A_UINT8 idle_msb = (pConfig->IdleTimeout & 0xFF00) >> 8;
+        u8 idle_lsb = pConfig->IdleTimeout & 0xFF;
+        u8 idle_msb = (pConfig->IdleTimeout & 0xFF00) >> 8;
         hostWakeupConfig[11] = targetWakeupConfig[11] = idle_lsb;
         hostWakeupConfig[12] = targetWakeupConfig[12] = idle_msb;
     }

@@ -356,7 +356,7 @@ bool ar6k_pal_recv_pkt(void *pHciPal, void *osbuf)
 	struct sk_buff *skb = (struct sk_buff *)osbuf;
 	ar6k_hci_pal_info_t *pHciPalInfo;
 	bool success = false;
-	A_UINT8 btType = 0;
+	u8 btType = 0;
 	pHciPalInfo = (ar6k_hci_pal_info_t *)pHciPal;
 
 	do {

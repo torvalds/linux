@@ -84,16 +84,16 @@ static void DoRecvCompletion(HTC_ENDPOINT     *pEndpoint,
 }
 
 static INLINE int HTCProcessTrailer(HTC_TARGET *target,
-                                         A_UINT8    *pBuffer,
+                                         u8 *pBuffer,
                                          int         Length,
                                          A_UINT32   *pNextLookAheads,
                                          int        *pNumLookAheads,
                                          HTC_ENDPOINT_ID FromEndpoint)
 {
     HTC_RECORD_HDR          *pRecord;
-    A_UINT8                 *pRecordBuf;
+    u8 *pRecordBuf;
     HTC_LOOKAHEAD_REPORT    *pLookAhead;
-    A_UINT8                 *pOrigBuffer;
+    u8 *pOrigBuffer;
     int                     origLength;
     int                status;
 
@@ -149,14 +149,14 @@ static INLINE int HTCProcessTrailer(HTC_TARGET *target,
                                 pLookAhead->PostValid));
 
                         /* look ahead bytes are valid, copy them over */
-                    ((A_UINT8 *)(&pNextLookAheads[0]))[0] = pLookAhead->LookAhead[0];
-                    ((A_UINT8 *)(&pNextLookAheads[0]))[1] = pLookAhead->LookAhead[1];
-                    ((A_UINT8 *)(&pNextLookAheads[0]))[2] = pLookAhead->LookAhead[2];
-                    ((A_UINT8 *)(&pNextLookAheads[0]))[3] = pLookAhead->LookAhead[3];
+                    ((u8 *)(&pNextLookAheads[0]))[0] = pLookAhead->LookAhead[0];
+                    ((u8 *)(&pNextLookAheads[0]))[1] = pLookAhead->LookAhead[1];
+                    ((u8 *)(&pNextLookAheads[0]))[2] = pLookAhead->LookAhead[2];
+                    ((u8 *)(&pNextLookAheads[0]))[3] = pLookAhead->LookAhead[3];
 
 #ifdef ATH_DEBUG_MODULE
                     if (AR_DEBUG_LVL_CHECK(ATH_DEBUG_RECV)) {
-                        DebugDumpBytes((A_UINT8 *)pNextLookAheads,4,"Next Look Ahead");
+                        DebugDumpBytes((u8 *)pNextLookAheads,4,"Next Look Ahead");
                     }
 #endif
                         /* just one normal lookahead */
@@ -188,10 +188,10 @@ static INLINE int HTCProcessTrailer(HTC_TARGET *target,
                     }
                                          
                     for (i = 0; i < (int)(pRecord->Length / (sizeof(HTC_BUNDLED_LOOKAHEAD_REPORT))); i++) {
-                        ((A_UINT8 *)(&pNextLookAheads[i]))[0] = pBundledLookAheadRpt->LookAhead[0];
-                        ((A_UINT8 *)(&pNextLookAheads[i]))[1] = pBundledLookAheadRpt->LookAhead[1];
-                        ((A_UINT8 *)(&pNextLookAheads[i]))[2] = pBundledLookAheadRpt->LookAhead[2];
-                        ((A_UINT8 *)(&pNextLookAheads[i]))[3] = pBundledLookAheadRpt->LookAhead[3];
+                        ((u8 *)(&pNextLookAheads[i]))[0] = pBundledLookAheadRpt->LookAhead[0];
+                        ((u8 *)(&pNextLookAheads[i]))[1] = pBundledLookAheadRpt->LookAhead[1];
+                        ((u8 *)(&pNextLookAheads[i]))[2] = pBundledLookAheadRpt->LookAhead[2];
+                        ((u8 *)(&pNextLookAheads[i]))[3] = pBundledLookAheadRpt->LookAhead[3];
                         pBundledLookAheadRpt++;
                     }
                     
@@ -231,8 +231,8 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
                                      A_UINT32   *pNextLookAheads, 
                                      int        *pNumLookAheads)
 {
-    A_UINT8   temp;
-    A_UINT8   *pBuf;
+    u8 temp;
+    u8 *pBuf;
     int  status = A_OK;
     A_UINT16  payloadLen;
     A_UINT32  lookAhead;
@@ -254,10 +254,10 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
          * retrieve 16 bit fields */
         payloadLen = A_GET_UINT16_FIELD(pBuf, HTC_FRAME_HDR, PayloadLen);
         
-        ((A_UINT8 *)&lookAhead)[0] = pBuf[0];
-        ((A_UINT8 *)&lookAhead)[1] = pBuf[1];
-        ((A_UINT8 *)&lookAhead)[2] = pBuf[2];
-        ((A_UINT8 *)&lookAhead)[3] = pBuf[3];
+        ((u8 *)&lookAhead)[0] = pBuf[0];
+        ((u8 *)&lookAhead)[1] = pBuf[1];
+        ((u8 *)&lookAhead)[2] = pBuf[2];
+        ((u8 *)&lookAhead)[3] = pBuf[3];
 
         if (pPacket->PktInfo.AsRx.HTCRxFlags & HTC_RX_PKT_REFRESH_HDR) {
                 /* refresh expected hdr, since this was unknown at the time we grabbed the packets
@@ -293,10 +293,10 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
                     ("HTCProcessRecvHeader, lookahead mismatch! (pPkt:0x%lX flags:0x%X) \n", 
                         (unsigned long)pPacket, pPacket->PktInfo.AsRx.HTCRxFlags));
 #ifdef ATH_DEBUG_MODULE
-             DebugDumpBytes((A_UINT8 *)&pPacket->PktInfo.AsRx.ExpectedHdr,4,"Expected Message LookAhead");
+             DebugDumpBytes((u8 *)&pPacket->PktInfo.AsRx.ExpectedHdr,4,"Expected Message LookAhead");
              DebugDumpBytes(pBuf,sizeof(HTC_FRAME_HDR),"Current Frame Header");
 #ifdef HTC_CAPTURE_LAST_FRAME
-            DebugDumpBytes((A_UINT8 *)&target->LastFrameHdr,sizeof(HTC_FRAME_HDR),"Last Frame Header");
+            DebugDumpBytes((u8 *)&target->LastFrameHdr,sizeof(HTC_FRAME_HDR),"Last Frame Header");
             if (target->LastTrailerLength != 0) {
                 DebugDumpBytes(target->LastTrailer,
                                target->LastTrailerLength,
@@ -405,7 +405,7 @@ static INLINE void HTCAsyncRecvCheckMorePackets(HTC_TARGET  *target,
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                         ("Next look ahead from recv header was INVALID\n"));
 #ifdef ATH_DEBUG_MODULE
-            DebugDumpBytes((A_UINT8 *)NextLookAheads,
+            DebugDumpBytes((u8 *)NextLookAheads,
                             NumLookAheads * (sizeof(A_UINT32)),
                             "BAD lookaheads from lookahead report");
 #endif
