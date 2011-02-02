@@ -961,10 +961,10 @@ int wl1271_acx_ap_mem_cfg(struct wl1271 *wl)
 	}
 
 	/* memory config */
-	mem_conf->num_stations = DEFAULT_NUM_STATIONS;
-	mem_conf->rx_mem_block_num = ACX_RX_MEM_BLOCKS;
-	mem_conf->tx_min_mem_block_num = ACX_TX_MIN_MEM_BLOCKS;
-	mem_conf->num_ssid_profiles = ACX_NUM_SSID_PROFILES;
+	mem_conf->num_stations = wl->conf.mem.num_stations;
+	mem_conf->rx_mem_block_num = wl->conf.mem.rx_block_num;
+	mem_conf->tx_min_mem_block_num = wl->conf.mem.tx_min_block_num;
+	mem_conf->num_ssid_profiles = wl->conf.mem.ssid_profiles;
 	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
 
 	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
@@ -993,10 +993,10 @@ int wl1271_acx_sta_mem_cfg(struct wl1271 *wl)
 	}
 
 	/* memory config */
-	mem_conf->num_stations = DEFAULT_NUM_STATIONS;
-	mem_conf->rx_mem_block_num = ACX_RX_MEM_BLOCKS;
-	mem_conf->tx_min_mem_block_num = ACX_TX_MIN_MEM_BLOCKS;
-	mem_conf->num_ssid_profiles = ACX_NUM_SSID_PROFILES;
+	mem_conf->num_stations = wl->conf.mem.num_stations;
+	mem_conf->rx_mem_block_num = wl->conf.mem.rx_block_num;
+	mem_conf->tx_min_mem_block_num = wl->conf.mem.tx_min_block_num;
+	mem_conf->num_ssid_profiles = wl->conf.mem.ssid_profiles;
 	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
 	mem_conf->dyn_mem_enable = wl->conf.mem.dynamic_memory;
 	mem_conf->tx_free_req = wl->conf.mem.min_req_tx_blocks;

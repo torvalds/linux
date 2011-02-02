@@ -1152,6 +1152,18 @@ struct conf_ht_setting {
 };
 
 struct conf_memory_settings {
+	/* Number of stations supported in IBSS mode */
+	u8 num_stations;
+
+	/* Number of ssid profiles used in IBSS mode */
+	u8 ssid_profiles;
+
+	/* Number of memory buffers allocated to rx pool */
+	u8 rx_block_num;
+
+	/* Minimum number of blocks allocated to tx pool */
+	u8 tx_min_block_num;
+
 	/* Disable/Enable dynamic memory */
 	u8 dynamic_memory;
 

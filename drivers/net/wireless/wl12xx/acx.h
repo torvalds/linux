@@ -133,7 +133,6 @@ enum {
 
 #define DEFAULT_UCAST_PRIORITY          0
 #define DEFAULT_RX_Q_PRIORITY           0
-#define DEFAULT_NUM_STATIONS            1
 #define DEFAULT_RXQ_PRIORITY            0 /* low 0 .. 15 high  */
 #define DEFAULT_RXQ_TYPE                0x07    /* All frames, Data/Ctrl/Mgmt */
 #define TRACE_BUFFER_MAX_SIZE           256
@@ -797,10 +796,7 @@ struct acx_tx_config_options {
 	__le16 tx_compl_threshold;   /* number of packets */
 } __packed;
 
-#define ACX_RX_MEM_BLOCKS     70
-#define ACX_TX_MIN_MEM_BLOCKS 40
 #define ACX_TX_DESCRIPTORS    32
-#define ACX_NUM_SSID_PROFILES 1
 
 struct wl1271_acx_ap_config_memory {
 	struct acx_header header;

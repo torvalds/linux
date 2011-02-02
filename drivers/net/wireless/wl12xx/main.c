@@ -299,6 +299,10 @@ static struct conf_drv_settings default_conf = {
 		.inactivity_timeout = 10000,
 	},
 	.mem = {
+		.num_stations                 = 1,
+		.ssid_profiles                = 1,
+		.rx_block_num                 = 70,
+		.tx_min_block_num             = 40,
 		.dynamic_memory               = 0,
 		.min_req_tx_blocks            = 104,
 		.min_req_rx_blocks            = 22,
