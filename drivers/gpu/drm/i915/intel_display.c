@@ -1225,6 +1225,10 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 	u32 val;
 	int cur_pipe;
 
+	/* Planes are fixed to pipes on ILK+ */
+	if (HAS_PCH_SPLIT(dev_priv->dev))
+		return;
+
 	/* Need to check both planes against the pipe */
 	for (i = 0; i < 2; i++) {
 		reg = DSPCNTR(i);
