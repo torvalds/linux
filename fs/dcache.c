@@ -176,6 +176,7 @@ static void d_free(struct dentry *dentry)
 
 /**
  * dentry_rcuwalk_barrier - invalidate in-progress rcu-walk lookups
+ * @dentry: the target dentry
  * After this call, in-progress rcu-walk path lookup will fail. This
  * should be called after unhashing, and after changing d_inode (if
  * the dentry has not already been unhashed).
@@ -281,6 +282,7 @@ static void dentry_lru_move_tail(struct dentry *dentry)
 /**
  * d_kill - kill dentry and return parent
  * @dentry: dentry to kill
+ * @parent: parent dentry
  *
  * The dentry must already be unhashed and removed from the LRU.
  *
@@ -1973,7 +1975,7 @@ out:
 /**
  * d_validate - verify dentry provided from insecure source (deprecated)
  * @dentry: The dentry alleged to be valid child of @dparent
- * @parent: The parent dentry (known to be valid)
+ * @dparent: The parent dentry (known to be valid)
  *
  * An insecure source has sent us a dentry, here we verify it and dget() it.
  * This is used by ncpfs in its readdir implementation.

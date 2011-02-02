@@ -406,6 +406,10 @@ static int compact_finished(struct zone *zone,
 	if (!zone_watermark_ok(zone, cc->order, watermark, 0, 0))
 		return COMPACT_CONTINUE;
 
+	/*
+	 * order == -1 is expected when compacting via
+	 * /proc/sys/vm/compact_memory
+	 */
 	if (cc->order == -1)
 		return COMPACT_CONTINUE;
 
@@ -452,6 +456,13 @@ unsigned long compaction_suitable(struct zone *zone, int order)
 	watermark = low_wmark_pages(zone) + (2UL << order);
 	if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
 		return COMPACT_SKIPPED;
+
+	/*
+	 * order == -1 is expected when compacting via
+	 * /proc/sys/vm/compact_memory
+	 */
+	if (order == -1)
+		return COMPACT_CONTINUE;
 
 	/*
 	 * fragmentation index determines if allocation failures are due to

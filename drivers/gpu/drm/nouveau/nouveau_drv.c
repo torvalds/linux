@@ -234,9 +234,9 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 
-	acquire_console_sem();
+	console_lock();
 	nouveau_fbcon_set_suspend(dev, 1);
-	release_console_sem();
+	console_unlock();
 	nouveau_fbcon_restore_accel(dev);
 	return 0;
 
@@ -359,9 +359,9 @@ nouveau_pci_resume(struct pci_dev *pdev)
 		nv_crtc->lut.depth = 0;
 	}
 
-	acquire_console_sem();
+	console_lock();
 	nouveau_fbcon_set_suspend(dev, 0);
-	release_console_sem();
+	console_unlock();
 
 	nouveau_fbcon_zfill_all(dev);
 

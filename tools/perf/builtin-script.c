@@ -77,8 +77,8 @@ static int process_sample_event(event_t *event, struct sample_data *sample,
 	if (session->sample_type & PERF_SAMPLE_RAW) {
 		if (debug_mode) {
 			if (sample->time < last_timestamp) {
-				pr_err("Samples misordered, previous: %llu "
-					"this: %llu\n", last_timestamp,
+				pr_err("Samples misordered, previous: %" PRIu64
+					" this: %" PRIu64 "\n", last_timestamp,
 					sample->time);
 				nr_unordered++;
 			}
@@ -126,7 +126,7 @@ static int __cmd_script(struct perf_session *session)
 	ret = perf_session__process_events(session, &event_ops);
 
 	if (debug_mode)
-		pr_err("Misordered timestamps: %llu\n", nr_unordered);
+		pr_err("Misordered timestamps: %" PRIu64 "\n", nr_unordered);
 
 	return ret;
 }

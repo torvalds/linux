@@ -297,7 +297,6 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 
 	cifs_sb = CIFS_SB(mntpt->d_inode->i_sb);
 	tlink = cifs_sb_tlink(cifs_sb);
-	mnt = ERR_PTR(-EINVAL);
 	if (IS_ERR(tlink)) {
 		mnt = ERR_CAST(tlink);
 		goto free_full_path;

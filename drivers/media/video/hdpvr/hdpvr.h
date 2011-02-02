@@ -25,6 +25,7 @@
 	KERNEL_VERSION(HDPVR_MAJOR_VERSION, HDPVR_MINOR_VERSION, HDPVR_RELEASE)
 
 #define HDPVR_MAX 8
+#define HDPVR_I2C_MAX_SIZE 128
 
 /* Define these values to match your devices */
 #define HD_PVR_VENDOR_ID	0x2040
@@ -106,9 +107,11 @@ struct hdpvr_device {
 	struct work_struct	worker;
 
 	/* I2C adapter */
-	struct i2c_adapter	*i2c_adapter;
+	struct i2c_adapter	i2c_adapter;
 	/* I2C lock */
 	struct mutex		i2c_mutex;
+	/* I2C message buffer space */
+	char			i2c_buf[HDPVR_I2C_MAX_SIZE];
 
 	/* For passing data to ir-kbd-i2c */
 	struct IR_i2c_init_data	ir_i2c_init_data;

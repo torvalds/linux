@@ -1279,7 +1279,7 @@ static void netvsc_channel_cb(void *context)
 	/* ASSERT(device); */
 
 	packet = kzalloc(NETVSC_PACKET_SIZE * sizeof(unsigned char),
-			 GFP_KERNEL);
+			 GFP_ATOMIC);
 	if (!packet)
 		return;
 	buffer = packet;

@@ -652,10 +652,11 @@ static void callchain__printf(struct sample_data *sample)
 {
 	unsigned int i;
 
-	printf("... chain: nr:%Lu\n", sample->callchain->nr);
+	printf("... chain: nr:%" PRIu64 "\n", sample->callchain->nr);
 
 	for (i = 0; i < sample->callchain->nr; i++)
-		printf("..... %2d: %016Lx\n", i, sample->callchain->ips[i]);
+		printf("..... %2d: %016" PRIx64 "\n",
+		       i, sample->callchain->ips[i]);
 }
 
 static void perf_session__print_tstamp(struct perf_session *session,
@@ -672,7 +673,7 @@ static void perf_session__print_tstamp(struct perf_session *session,
 		printf("%u ", sample->cpu);
 
 	if (session->sample_type & PERF_SAMPLE_TIME)
-		printf("%Lu ", sample->time);
+		printf("%" PRIu64 " ", sample->time);
 }
 
 static void dump_event(struct perf_session *session, event_t *event,
@@ -681,16 +682,16 @@ static void dump_event(struct perf_session *session, event_t *event,
 	if (!dump_trace)
 		return;
 
-	printf("\n%#Lx [%#x]: event: %d\n", file_offset, event->header.size,
-	       event->header.type);
+	printf("\n%#" PRIx64 " [%#x]: event: %d\n",
+	       file_offset, event->header.size, event->header.type);
 
 	trace_event(event);
 
 	if (sample)
 		perf_session__print_tstamp(session, event, sample);
 
-	printf("%#Lx [%#x]: PERF_RECORD_%s", file_offset, event->header.size,
-	       event__get_event_name(event->header.type));
+	printf("%#" PRIx64 " [%#x]: PERF_RECORD_%s", file_offset,
+	       event->header.size, event__get_event_name(event->header.type));
 }
 
 static void dump_sample(struct perf_session *session, event_t *event,
@@ -699,8 +700,9 @@ static void dump_sample(struct perf_session *session, event_t *event,
 	if (!dump_trace)
 		return;
 
-	printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
-	       sample->pid, sample->tid, sample->ip, sample->period);
+	printf("(IP, %d): %d/%d: %#" PRIx64 " period: %" PRIu64 "\n",
+	       event->header.misc, sample->pid, sample->tid, sample->ip,
+	       sample->period);
 
 	if (session->sample_type & PERF_SAMPLE_CALLCHAIN)
 		callchain__printf(sample);
@@ -843,8 +845,8 @@ static void perf_session__warn_about_errors(const struct perf_session *session,
 {
 	if (ops->lost == event__process_lost &&
 	    session->hists.stats.total_lost != 0) {
-		ui__warning("Processed %Lu events and LOST %Lu!\n\n"
-			    "Check IO/CPU overload!\n\n",
+		ui__warning("Processed %" PRIu64 " events and LOST %" PRIu64
+			    "!\n\nCheck IO/CPU overload!\n\n",
 			    session->hists.stats.total_period,
 			    session->hists.stats.total_lost);
 	}
@@ -918,7 +920,7 @@ more:
 
 	if (size == 0 ||
 	    (skip = perf_session__process_event(self, &event, ops, head)) < 0) {
-		dump_printf("%#Lx [%#x]: skipping unknown header type: %d\n",
+		dump_printf("%#" PRIx64 " [%#x]: skipping unknown header type: %d\n",
 			    head, event.header.size, event.header.type);
 		/*
 		 * assume we lost track of the stream, check alignment, and
@@ -1023,7 +1025,7 @@ more:
 
 	if (size == 0 ||
 	    perf_session__process_event(session, event, ops, file_pos) < 0) {
-		dump_printf("%#Lx [%#x]: skipping unknown header type: %d\n",
+		dump_printf("%#" PRIx64 " [%#x]: skipping unknown header type: %d\n",
 			    file_offset + head, event->header.size,
 			    event->header.type);
 		/*

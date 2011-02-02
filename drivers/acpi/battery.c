@@ -998,7 +998,6 @@ static int acpi_battery_resume(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 	battery = acpi_driver_data(device);
-	acpi_battery_refresh(battery);
 	battery->update_time = 0;
 	acpi_battery_update(battery);
 	return 0;

@@ -793,9 +793,6 @@ config SCHED_OMIT_FRAME_POINTER
 	bool
 	default y
 
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
-
 #
 # Select some configuration options automatically based on user selections.
 #

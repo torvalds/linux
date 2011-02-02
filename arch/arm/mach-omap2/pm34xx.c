@@ -398,7 +398,7 @@ void omap_sram_idle(void)
 	if (!is_suspending())
 		if (per_next_state < PWRDM_POWER_ON ||
 		    core_next_state < PWRDM_POWER_ON)
-			if (try_acquire_console_sem())
+			if (!console_trylock())
 				goto console_still_active;
 
 	/* PER */
@@ -481,7 +481,7 @@ void omap_sram_idle(void)
 	}
 
 	if (!is_suspending())
-		release_console_sem();
+		console_unlock();
 
 console_still_active:
 	/* Disable IO-PAD and IO-CHAIN wakeup */

@@ -988,7 +988,6 @@ static int imon_ir_change_protocol(struct rc_dev *rc, u64 rc_type)
 	int retval;
 	struct imon_context *ictx = rc->priv;
 	struct device *dev = ictx->dev;
-	bool pad_mouse;
 	unsigned char ir_proto_packet[] = {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x86 };
 
@@ -1000,29 +999,20 @@ static int imon_ir_change_protocol(struct rc_dev *rc, u64 rc_type)
 	case RC_TYPE_RC6:
 		dev_dbg(dev, "Configuring IR receiver for MCE protocol\n");
 		ir_proto_packet[0] = 0x01;
-		pad_mouse = false;
 		break;
 	case RC_TYPE_UNKNOWN:
 	case RC_TYPE_OTHER:
 		dev_dbg(dev, "Configuring IR receiver for iMON protocol\n");
-		if (pad_stabilize && !nomouse)
-			pad_mouse = true;
-		else {
+		if (!pad_stabilize)
 			dev_dbg(dev, "PAD stabilize functionality disabled\n");
-			pad_mouse = false;
-		}
 		/* ir_proto_packet[0] = 0x00; // already the default */
 		rc_type = RC_TYPE_OTHER;
 		break;
 	default:
 		dev_warn(dev, "Unsupported IR protocol specified, overriding "
 			 "to iMON IR protocol\n");
-		if (pad_stabilize && !nomouse)
-			pad_mouse = true;
-		else {
+		if (!pad_stabilize)
 			dev_dbg(dev, "PAD stabilize functionality disabled\n");
-			pad_mouse = false;
-		}
 		/* ir_proto_packet[0] = 0x00; // already the default */
 		rc_type = RC_TYPE_OTHER;
 		break;
@@ -1035,7 +1025,7 @@ static int imon_ir_change_protocol(struct rc_dev *rc, u64 rc_type)
 		goto out;
 
 	ictx->rc_type = rc_type;
-	ictx->pad_mouse = pad_mouse;
+	ictx->pad_mouse = false;
 
 out:
 	return retval;
@@ -1517,7 +1507,7 @@ static void imon_incoming_packet(struct imon_context *ictx,
 			spin_unlock_irqrestore(&ictx->kc_lock, flags);
 			return;
 		} else {
-			ictx->pad_mouse = 0;
+			ictx->pad_mouse = false;
 			dev_dbg(dev, "mouse mode disabled, passing key value\n");
 		}
 	}
@@ -1756,7 +1746,6 @@ static void imon_get_ffdc_type(struct imon_context *ictx)
 	printk(KERN_CONT " (id 0x%02x)\n", ffdc_cfg_byte);
 
 	ictx->display_type = detected_display_type;
-	ictx->rdev->allowed_protos = allowed_protos;
 	ictx->rc_type = allowed_protos;
 }
 
@@ -1839,10 +1828,6 @@ static struct rc_dev *imon_init_rdev(struct imon_context *ictx)
 	rdev->allowed_protos = RC_TYPE_OTHER | RC_TYPE_RC6; /* iMON PAD or MCE */
 	rdev->change_protocol = imon_ir_change_protocol;
 	rdev->driver_name = MOD_NAME;
-	if (ictx->rc_type == RC_TYPE_RC6)
-		rdev->map_name = RC_MAP_IMON_MCE;
-	else
-		rdev->map_name = RC_MAP_IMON_PAD;
 
 	/* Enable front-panel buttons and/or knobs */
 	memcpy(ictx->usb_tx_buf, &fp_packet, sizeof(fp_packet));
@@ -1851,10 +1836,17 @@ static struct rc_dev *imon_init_rdev(struct imon_context *ictx)
 	if (ret)
 		dev_info(ictx->dev, "panel buttons/knobs setup failed\n");
 
-	if (ictx->product == 0xffdc)
+	if (ictx->product == 0xffdc) {
 		imon_get_ffdc_type(ictx);
+		rdev->allowed_protos = ictx->rc_type;
+	}
 
 	imon_set_display_type(ictx);
+
+	if (ictx->rc_type == RC_TYPE_RC6)
+		rdev->map_name = RC_MAP_IMON_MCE;
+	else
+		rdev->map_name = RC_MAP_IMON_PAD;
 
 	ret = rc_register_device(rdev);
 	if (ret < 0) {
@@ -2108,18 +2100,6 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 		goto find_endpoint_failed;
 	}
 
-	ictx->idev = imon_init_idev(ictx);
-	if (!ictx->idev) {
-		dev_err(dev, "%s: input device setup failed\n", __func__);
-		goto idev_setup_failed;
-	}
-
-	ictx->rdev = imon_init_rdev(ictx);
-	if (!ictx->rdev) {
-		dev_err(dev, "%s: rc device setup failed\n", __func__);
-		goto rdev_setup_failed;
-	}
-
 	usb_fill_int_urb(ictx->rx_urb_intf0, ictx->usbdev_intf0,
 		usb_rcvintpipe(ictx->usbdev_intf0,
 			ictx->rx_endpoint_intf0->bEndpointAddress),
@@ -2133,13 +2113,25 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 		goto urb_submit_failed;
 	}
 
+	ictx->idev = imon_init_idev(ictx);
+	if (!ictx->idev) {
+		dev_err(dev, "%s: input device setup failed\n", __func__);
+		goto idev_setup_failed;
+	}
+
+	ictx->rdev = imon_init_rdev(ictx);
+	if (!ictx->rdev) {
+		dev_err(dev, "%s: rc device setup failed\n", __func__);
+		goto rdev_setup_failed;
+	}
+
 	return ictx;
 
-urb_submit_failed:
-	rc_unregister_device(ictx->rdev);
 rdev_setup_failed:
 	input_unregister_device(ictx->idev);
 idev_setup_failed:
+	usb_kill_urb(ictx->rx_urb_intf0);
+urb_submit_failed:
 find_endpoint_failed:
 	mutex_unlock(&ictx->lock);
 	usb_free_urb(tx_urb);

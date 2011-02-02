@@ -14,6 +14,7 @@
  */
 
 #include <linux/mmc/host.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -827,8 +828,8 @@ static int __devinit jz4740_mmc_probe(struct platform_device* pdev)
 	}
 
 	host->clk = clk_get(&pdev->dev, "mmc");
-	if (!host->clk) {
-		ret = -ENOENT;
+	if (IS_ERR(host->clk)) {
+		ret = PTR_ERR(host->clk);
 		dev_err(&pdev->dev, "Failed to get mmc clock\n");
 		goto err_free_host;
 	}

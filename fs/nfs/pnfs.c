@@ -951,7 +951,7 @@ pnfs_put_deviceid_cache(struct nfs_client *clp)
 {
 	struct pnfs_deviceid_cache *local = clp->cl_devid_cache;
 
-	dprintk("--> %s cl_devid_cache %p\n", __func__, clp->cl_devid_cache);
+	dprintk("--> %s ({%d})\n", __func__, atomic_read(&local->dc_ref));
 	if (atomic_dec_and_lock(&local->dc_ref, &clp->cl_lock)) {
 		int i;
 		/* Verify cache is empty */

@@ -219,6 +219,7 @@ static struct ceph_inode_xattr *__get_xattr(struct ceph_inode_info *ci,
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	struct ceph_inode_xattr *xattr = NULL;
+	int name_len = strlen(name);
 	int c;
 
 	p = &ci->i_xattrs.index.rb_node;
@@ -226,6 +227,8 @@ static struct ceph_inode_xattr *__get_xattr(struct ceph_inode_info *ci,
 		parent = *p;
 		xattr = rb_entry(parent, struct ceph_inode_xattr, node);
 		c = strncmp(name, xattr->name, xattr->name_len);
+		if (c == 0 && name_len > xattr->name_len)
+			c = 1;
 		if (c < 0)
 			p = &(*p)->rb_left;
 		else if (c > 0)

@@ -1,4 +1,4 @@
-/* internal.h: authentication token and access key management internal defs
+/* Authentication token and access key management internal defs
  *
  * Copyright (C) 2003-5, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -35,10 +35,12 @@ extern struct key_type key_type_user;
 
 /*****************************************************************************/
 /*
- * keep track of keys for a user
- * - this needs to be separate to user_struct to avoid a refcount-loop
- *   (user_struct pins some keyrings which pin this struct)
- * - this also keeps track of keys under request from userspace for this UID
+ * Keep track of keys for a user.
+ *
+ * This needs to be separate to user_struct to avoid a refcount-loop
+ * (user_struct pins some keyrings which pin this struct).
+ *
+ * We also keep track of keys under request from userspace for this UID here.
  */
 struct key_user {
 	struct rb_node		node;
@@ -62,7 +64,7 @@ extern struct key_user *key_user_lookup(uid_t uid,
 extern void key_user_put(struct key_user *user);
 
 /*
- * key quota limits
+ * Key quota limits.
  * - root has its own separate limits to everyone else
  */
 extern unsigned key_quota_root_maxkeys;
@@ -85,13 +87,13 @@ extern void key_type_put(struct key_type *ktype);
 extern int __key_link_begin(struct key *keyring,
 			    const struct key_type *type,
 			    const char *description,
-			    struct keyring_list **_prealloc);
+			    unsigned long *_prealloc);
 extern int __key_link_check_live_key(struct key *keyring, struct key *key);
 extern void __key_link(struct key *keyring, struct key *key,
-		       struct keyring_list **_prealloc);
+		       unsigned long *_prealloc);
 extern void __key_link_end(struct key *keyring,
 			   struct key_type *type,
-			   struct keyring_list *prealloc);
+			   unsigned long prealloc);
 
 extern key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 				      const struct key_type *type,
@@ -146,13 +148,13 @@ extern unsigned key_gc_delay;
 extern void keyring_gc(struct key *keyring, time_t limit);
 extern void key_schedule_gc(time_t expiry_at);
 
-/*
- * check to see whether permission is granted to use a key in the desired way
- */
 extern int key_task_permission(const key_ref_t key_ref,
 			       const struct cred *cred,
 			       key_perm_t perm);
 
+/*
+ * Check to see whether permission is granted to use a key in the desired way.
+ */
 static inline int key_permission(const key_ref_t key_ref, key_perm_t perm)
 {
 	return key_task_permission(key_ref, current_cred(), perm);
@@ -168,7 +170,7 @@ static inline int key_permission(const key_ref_t key_ref, key_perm_t perm)
 #define	KEY_ALL		0x3f	/* all the above permissions */
 
 /*
- * request_key authorisation
+ * Authorisation record for request_key().
  */
 struct request_key_auth {
 	struct key		*target_key;
@@ -188,7 +190,7 @@ extern struct key *request_key_auth_new(struct key *target,
 extern struct key *key_get_instantiation_authkey(key_serial_t target_id);
 
 /*
- * keyctl functions
+ * keyctl() functions
  */
 extern long keyctl_get_keyring_ID(key_serial_t, int);
 extern long keyctl_join_session_keyring(const char __user *);
@@ -214,7 +216,7 @@ extern long keyctl_get_security(key_serial_t keyid, char __user *buffer,
 extern long keyctl_session_to_parent(void);
 
 /*
- * debugging key validation
+ * Debugging key validation
  */
 #ifdef KEY_DEBUGGING
 extern void __key_check(const struct key *);

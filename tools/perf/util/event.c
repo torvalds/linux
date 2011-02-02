@@ -459,7 +459,8 @@ int event__process_comm(event_t *self, struct sample_data *sample __used,
 int event__process_lost(event_t *self, struct sample_data *sample __used,
 			struct perf_session *session)
 {
-	dump_printf(": id:%Ld: lost:%Ld\n", self->lost.id, self->lost.lost);
+	dump_printf(": id:%" PRIu64 ": lost:%" PRIu64 "\n",
+		    self->lost.id, self->lost.lost);
 	session->hists.stats.total_lost += self->lost.lost;
 	return 0;
 }
@@ -575,7 +576,7 @@ int event__process_mmap(event_t *self, struct sample_data *sample __used,
 	u8 cpumode = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	int ret = 0;
 
-	dump_printf(" %d/%d: [%#Lx(%#Lx) @ %#Lx]: %s\n",
+	dump_printf(" %d/%d: [%#" PRIx64 "(%#" PRIx64 ") @ %#" PRIx64 "]: %s\n",
 			self->mmap.pid, self->mmap.tid, self->mmap.start,
 			self->mmap.len, self->mmap.pgoff, self->mmap.filename);
 

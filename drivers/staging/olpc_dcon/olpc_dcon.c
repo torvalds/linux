@@ -373,17 +373,17 @@ static void dcon_source_switch(struct work_struct *work)
 		 *
 		 * For now, we just hope..
 		 */
-		acquire_console_sem();
+		console_lock();
 		ignore_fb_events = 1;
 		if (fb_blank(fbinfo, FB_BLANK_UNBLANK)) {
 			ignore_fb_events = 0;
-			release_console_sem();
+			console_unlock();
 			printk(KERN_ERR "olpc-dcon:  Failed to enter CPU mode\n");
 			dcon_pending = DCON_SOURCE_DCON;
 			return;
 		}
 		ignore_fb_events = 0;
-		release_console_sem();
+		console_unlock();
 
 		/* And turn off the DCON */
 		pdata->set_dconload(1);
@@ -435,12 +435,12 @@ static void dcon_source_switch(struct work_struct *work)
 			}
 		}
 
-		acquire_console_sem();
+		console_lock();
 		ignore_fb_events = 1;
 		if (fb_blank(fbinfo, FB_BLANK_POWERDOWN))
 			printk(KERN_ERR "olpc-dcon:  couldn't blank fb!\n");
 		ignore_fb_events = 0;
-		release_console_sem();
+		console_unlock();
 
 		printk(KERN_INFO "olpc-dcon: The DCON has control\n");
 		break;

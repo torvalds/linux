@@ -1287,6 +1287,9 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 			S_008014_CB2_BUSY(1) | S_008014_CB3_BUSY(1);
 	u32 tmp;
 
+	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
+		return 0;
+
 	dev_info(rdev->dev, "GPU softreset \n");
 	dev_info(rdev->dev, "  R_008010_GRBM_STATUS=0x%08X\n",
 		RREG32(R_008010_GRBM_STATUS));

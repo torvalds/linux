@@ -146,6 +146,10 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
 						gfp_t gfp_mask);
 u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail);
+#endif
+
 #else /* CONFIG_CGROUP_MEM_RES_CTLR */
 struct mem_cgroup;
 
@@ -333,6 +337,11 @@ static inline
 u64 mem_cgroup_get_limit(struct mem_cgroup *mem)
 {
 	return 0;
+}
+
+static inline void mem_cgroup_split_huge_fixup(struct page *head,
+						struct page *tail)
+{
 }
 
 #endif /* CONFIG_CGROUP_MEM_CONT */
