@@ -1518,6 +1518,7 @@ static int soc_post_component_init(struct snd_soc_card *card,
 		rtd = &card->rtd_aux[num];
 		name = aux_dev->name;
 	}
+	rtd->card = card;
 
 	/* machine controls, routes and widgets are not prefixed */
 	temp = codec->name_prefix;
@@ -1539,7 +1540,6 @@ static int soc_post_component_init(struct snd_soc_card *card,
 
 	/* register the rtd device */
 	rtd->codec = codec;
-	rtd->card = card;
 	rtd->dev.parent = card->dev;
 	rtd->dev.release = rtd_release;
 	rtd->dev.init_name = name;
