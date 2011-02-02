@@ -39,6 +39,7 @@
 
 	.text
 
+	.align	3
 ENTRY(omap242x_sram_ddr_init)
 	stmfd	sp!, {r0 - r12, lr}	@ save registers on stack
 
@@ -143,6 +144,7 @@ ENTRY(omap242x_sram_ddr_init_sz)
  * r0 = [PRCM_FULL | PRCM_HALF] r1 = SDRC_DLLA_CTRL value r2 = [DDR | SDR]
  * PRCM_FULL = 2, PRCM_HALF = 1, DDR = 1, SDR = 0
  */
+	.align	3
 ENTRY(omap242x_sram_reprogram_sdrc)
 	stmfd	sp!, {r0 - r10, lr}	@ save registers on stack
 	mov	r3, #0x0		@ clear for mrc call
@@ -238,6 +240,7 @@ ENTRY(omap242x_sram_reprogram_sdrc_sz)
 /*
  * Set dividers and pll. Also recalculate DLL value for DDR and unlock mode.
  */
+	.align	3
 ENTRY(omap242x_sram_set_prcm)
 	stmfd	sp!, {r0-r12, lr}	@ regs to stack
 	adr	r4, pbegin		@ addr of preload start

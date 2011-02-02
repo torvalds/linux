@@ -111,6 +111,7 @@
  * since it will cause the ARM MMU to attempt to walk the page tables.
  * These crashes may be intermittent.
  */
+	.align	3
 ENTRY(omap3_sram_configure_core_dpll)
 	stmfd	sp!, {r1-r12, lr}	@ store regs to stack
 

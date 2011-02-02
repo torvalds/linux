@@ -118,6 +118,7 @@ ENTRY(enable_omap3630_toggle_l2_on_restore)
 
 	.text
 /* Function to call rom code to save secure ram context */
+	.align	3
 ENTRY(save_secure_ram_context)
 	stmfd	sp!, {r1-r12, lr}	@ save registers on stack
 	adr	r3, api_params		@ r3 points to parameters
@@ -169,6 +170,7 @@ ENTRY(save_secure_ram_context_sz)
  *   depending on the low power mode (non-OFF vs OFF modes),
  *   cf. 'Resume path for xxx mode' comments.
  */
+	.align	3
 ENTRY(omap34xx_cpu_suspend)
 	stmfd	sp!, {r0-r12, lr}	@ save registers on stack
 
