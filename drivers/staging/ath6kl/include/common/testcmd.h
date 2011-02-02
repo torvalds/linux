@@ -86,7 +86,7 @@ typedef PREPACK struct {
     u32 mode;
     u32 freq;
     u32 dataRate;
-    A_INT32                 txPwr;
+    s32 txPwr;
     u32 antenna;
     u32 enANI;
     u32 scramblerOff;
@@ -135,7 +135,7 @@ typedef PREPACK struct {
         } POSTPACK para;
         struct PREPACK TCMD_CONT_RX_REPORT {
             u32 totalPkt;
-            A_INT32     rssiInDBm;
+            s32 rssiInDBm;
             u32 crcErrPkt;
             u32 secErrPkt;
             u16 rateCnt[TCMD_MAX_RATES];

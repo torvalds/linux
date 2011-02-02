@@ -453,14 +453,14 @@ ar6000_dbglog_init_done(AR_SOFTC_T *ar)
 
 u32 dbglog_get_debug_fragment(s8 *datap, u32 len, u32 limit)
 {
-    A_INT32 *buffer;
+    s32 *buffer;
     u32 count;
     u32 numargs;
     u32 length;
     u32 fraglen;
 
     count = fraglen = 0;
-    buffer = (A_INT32 *)datap;
+    buffer = (s32 *)datap;
     length = (limit >> 2);
 
     if (len <= limit) {
@@ -479,7 +479,7 @@ u32 dbglog_get_debug_fragment(s8 *datap, u32 len, u32 limit)
 void
 dbglog_parse_debug_logs(s8 *datap, u32 len)
 {
-    A_INT32 *buffer;
+    s32 *buffer;
     u32 count;
     u32 timestamp;
     u32 debugid;
@@ -488,7 +488,7 @@ dbglog_parse_debug_logs(s8 *datap, u32 len)
     u32 length;
 
     count = 0;
-    buffer = (A_INT32 *)datap;
+    buffer = (s32 *)datap;
     length = (len >> 2);
     while (count < length) {
         debugid = DBGLOG_GET_DBGID(buffer[count]);
@@ -2429,7 +2429,7 @@ int ar6000_init(struct net_device *dev)
 {
     AR_SOFTC_T *ar;
     int    status;
-    A_INT32     timeleft;
+    s32 timeleft;
     s16 i;
     int         ret = 0;
 #if defined(INIT_MODE_DRV_ENABLED) && defined(ENABLE_COEXISTENCE)
@@ -2767,7 +2767,7 @@ ar6000_init_done:
 
 
 void
-ar6000_bitrate_rx(void *devt, A_INT32 rateKbps)
+ar6000_bitrate_rx(void *devt, s32 rateKbps)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
 
@@ -5826,8 +5826,7 @@ read_rssi_compensation_param(AR_SOFTC_T *ar)
    return;
 }
 
-A_INT32
-rssi_compensation_calc_tcmd(u32 freq, A_INT32 rssi, u32 totalPkt)
+s32 rssi_compensation_calc_tcmd(u32 freq, s32 rssi, u32 totalPkt)
 {
 
     if (freq > 5000)

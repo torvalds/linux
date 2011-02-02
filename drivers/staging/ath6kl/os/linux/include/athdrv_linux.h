@@ -1061,8 +1061,8 @@ typedef struct targetStats_t {
     u64 cs_connect_cnt;
     u64 cs_disconnect_cnt;
 
-    A_INT32     tx_unicast_rate;
-    A_INT32     rx_unicast_rate;
+    s32 tx_unicast_rate;
+    s32 rx_unicast_rate;
 
     u32 lq_val;
 

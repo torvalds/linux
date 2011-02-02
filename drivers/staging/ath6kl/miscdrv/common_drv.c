@@ -87,7 +87,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32
 {
     int status;
     u8 addrValue[4];
-    A_INT32 i;
+    s32 i;
 
         /* write bytes 1,2,3 of the register to set the upper address bytes, the LSB is written
          * last to initiate the access cycle */
@@ -358,10 +358,10 @@ _do_write_diag(HIF_DEVICE *hifDevice, u32 addr, u32 value)
  */
 #if 0
 static int
-_delay_until_target_alive(HIF_DEVICE *hifDevice, A_INT32 wait_msecs, u32 TargetType)
+_delay_until_target_alive(HIF_DEVICE *hifDevice, s32 wait_msecs, u32 TargetType)
 {
-    A_INT32 actual_wait;
-    A_INT32 i;
+    s32 actual_wait;
+    s32 i;
     u32 address;
 
     actual_wait = 0;
@@ -485,7 +485,7 @@ ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, u32 TargetType)
 {
     u32 eepHeaderAddr;
     u8 AR6003CustDataShadow[AR6003_CUST_DATA_SIZE+4];
-    A_INT32 i;
+    s32 i;
 
     if (BMIReadMemory(hifDevice,
             HOST_INTEREST_ITEM_ADDRESS(TargetType, hi_board_data),
@@ -727,13 +727,13 @@ int ar6000_prepare_target(HIF_DEVICE *hifDevice,
 int
 ar6002_REV1_reset_force_host (HIF_DEVICE *hifDevice)
 {
-    A_INT32 i;
+    s32 i;
     struct forceROM_s {
         u32 addr;
         u32 data;
     };
     struct forceROM_s *ForceROM;
-    A_INT32 szForceROM;
+    s32 szForceROM;
     int status = A_OK;
     u32 address;
     u32 data;

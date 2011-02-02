@@ -42,7 +42,7 @@ void ar6000_disconnect_event(struct ar6_softc *ar, u8 reason,
                              u8 *assocInfo, u16 protocolReasonStatus);
 void ar6000_tkip_micerr_event(struct ar6_softc *ar, u8 keyid,
                               bool ismcast);
-void ar6000_bitrate_rx(void *devt, A_INT32 rateKbps);
+void ar6000_bitrate_rx(void *devt, s32 rateKbps);
 void ar6000_channelList_rx(void *devt, s8 numChan, u16 *chanList);
 void ar6000_regDomain_event(struct ar6_softc *ar, u32 regCode);
 void ar6000_txPwr_rx(void *devt, u8 txPwr);
@@ -77,7 +77,7 @@ void ar6000_gpio_intr_rx(u32 intr_mask, u32 input_values);
 void ar6000_gpio_data_rx(u32 reg_id, u32 value);
 void ar6000_gpio_ack_rx(void);
 
-A_INT32 rssi_compensation_calc_tcmd(u32 freq, A_INT32 rssi, u32 totalPkt);
+s32 rssi_compensation_calc_tcmd(u32 freq, s32 rssi, u32 totalPkt);
 s16 rssi_compensation_calc(struct ar6_softc *ar, s16 rssi);
 s16 rssi_compensation_reverse_calc(struct ar6_softc *ar, s16 rssi, bool Above);
 

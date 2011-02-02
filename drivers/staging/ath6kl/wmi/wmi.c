@@ -153,7 +153,7 @@ static int
 wmi_lqThresholdEvent_rx(struct wmi_t *wmip, u8 *datap, int len);
 
 static bool
-wmi_is_bitrate_index_valid(struct wmi_t *wmip, A_INT32 rateIndex);
+wmi_is_bitrate_index_valid(struct wmi_t *wmip, s32 rateIndex);
 
 static int
 wmi_aplistEvent_rx(struct wmi_t *wmip, u8 *datap, int len);
@@ -212,7 +212,7 @@ extern unsigned int processDot11Hdr;
 #endif
 
 int wps_enable;
-static const A_INT32 wmi_rateTable[][2] = {
+static const s32 wmi_rateTable[][2] = {
   //{W/O SGI, with SGI}
     {1000, 1000},
     {2000, 2000},
@@ -244,20 +244,20 @@ static const A_INT32 wmi_rateTable[][2] = {
     {135000, 150000},
     {0, 0}};
 
-#define MODE_A_SUPPORT_RATE_START       ((A_INT32) 4)
-#define MODE_A_SUPPORT_RATE_STOP        ((A_INT32) 11)
+#define MODE_A_SUPPORT_RATE_START       ((s32) 4)
+#define MODE_A_SUPPORT_RATE_STOP        ((s32) 11)
 
 #define MODE_GONLY_SUPPORT_RATE_START   MODE_A_SUPPORT_RATE_START
 #define MODE_GONLY_SUPPORT_RATE_STOP    MODE_A_SUPPORT_RATE_STOP
 
-#define MODE_B_SUPPORT_RATE_START       ((A_INT32) 0)
-#define MODE_B_SUPPORT_RATE_STOP        ((A_INT32) 3)
+#define MODE_B_SUPPORT_RATE_START       ((s32) 0)
+#define MODE_B_SUPPORT_RATE_STOP        ((s32) 3)
 
-#define MODE_G_SUPPORT_RATE_START       ((A_INT32) 0)
-#define MODE_G_SUPPORT_RATE_STOP        ((A_INT32) 11)
+#define MODE_G_SUPPORT_RATE_START       ((s32) 0)
+#define MODE_G_SUPPORT_RATE_STOP        ((s32) 11)
 
-#define MODE_GHT20_SUPPORT_RATE_START   ((A_INT32) 0)
-#define MODE_GHT20_SUPPORT_RATE_STOP    ((A_INT32) 19)
+#define MODE_GHT20_SUPPORT_RATE_START   ((s32) 0)
+#define MODE_GHT20_SUPPORT_RATE_STOP    ((s32) 19)
 
 #define MAX_NUMBER_OF_SUPPORT_RATES     (MODE_GHT20_SUPPORT_RATE_STOP + 1)
 
@@ -1657,7 +1657,7 @@ static int
 wmi_bitrate_reply_rx(struct wmi_t *wmip, u8 *datap, int len)
 {
     WMI_BIT_RATE_REPLY *reply;
-    A_INT32 rate;
+    s32 rate;
     u32 sgi,index;
     /* 54149:
      * WMI_BIT_RATE_CMD structure is changed to WMI_BIT_RATE_REPLY.
@@ -3201,8 +3201,8 @@ wmi_create_pstream_cmd(struct wmi_t *wmip, WMI_CREATE_PSTREAM_CMD *params)
     void *osbuf;
     WMI_CREATE_PSTREAM_CMD *cmd;
     u8 fatPipeExistsForAC=0;
-    A_INT32 minimalPHY = 0;
-    A_INT32 nominalPHY = 0;
+    s32 minimalPHY = 0;
+    s32 nominalPHY = 0;
 
     /* Validate all the parameters. */
     if( !((params->userPriority < 8) &&
@@ -3395,7 +3395,7 @@ wmi_set_framerate_cmd(struct wmi_t *wmip, u8 bEnable, u8 type, u8 subType, u16 r
  * then auto selection is used.
  */
 int
-wmi_set_bitrate_cmd(struct wmi_t *wmip, A_INT32 dataRate, A_INT32 mgmtRate, A_INT32 ctlRate)
+wmi_set_bitrate_cmd(struct wmi_t *wmip, s32 dataRate, s32 mgmtRate, s32 ctlRate)
 {
     void *osbuf;
     WMI_BIT_RATE_CMD *cmd;
@@ -3454,7 +3454,7 @@ wmi_get_bitrate_cmd(struct wmi_t *wmip)
  * Returns true iff the given rate index is legal in the current PHY mode.
  */
 bool
-wmi_is_bitrate_index_valid(struct wmi_t *wmip, A_INT32 rateIndex)
+wmi_is_bitrate_index_valid(struct wmi_t *wmip, s32 rateIndex)
 {
     WMI_PHY_MODE phyMode = (WMI_PHY_MODE) wmip->wmi_phyMode;
     bool isValid = true;
@@ -3509,7 +3509,7 @@ wmi_is_bitrate_index_valid(struct wmi_t *wmip, A_INT32 rateIndex)
     return isValid;
 }
 
-s8 wmi_validate_bitrate(struct wmi_t *wmip, A_INT32 rate, s8 *rate_idx)
+s8 wmi_validate_bitrate(struct wmi_t *wmip, s32 rate, s8 *rate_idx)
 {
     s8 i;
 
@@ -3523,7 +3523,7 @@ s8 wmi_validate_bitrate(struct wmi_t *wmip, A_INT32 rate, s8 *rate_idx)
         }
     }
 
-    if(wmi_is_bitrate_index_valid(wmip, (A_INT32) i) != true) {
+    if(wmi_is_bitrate_index_valid(wmip, (s32) i) != true) {
         return A_EINVAL;
     }
 
@@ -3537,7 +3537,7 @@ wmi_set_fixrates_cmd(struct wmi_t *wmip, u32 fixRatesMask)
     void *osbuf;
     WMI_FIX_RATES_CMD *cmd;
 #if 0
-    A_INT32 rateIndex;
+    s32 rateIndex;
 /* This check does not work for AR6003 as the HT modes are enabled only when
  * the STA is connected to a HT_BSS and is not based only on channel. It is
  * safe to skip this check however because rate control will only use rates
@@ -5349,8 +5349,7 @@ wmi_set_halparam_cmd(struct wmi_t *wmip, u8 *cmd, u16 dataLen)
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_WHALPARAM_CMDID, NO_SYNC_WMIFLAG));
 }
 
-A_INT32
-wmi_get_rate(s8 rateindex)
+s32 wmi_get_rate(s8 rateindex)
 {
     if (rateindex == RATE_AUTO) {
         return 0;

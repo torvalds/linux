@@ -2155,7 +2155,7 @@ typedef PREPACK struct {
  * WMI_SCAN_COMPLETE_EVENTID - no parameters (old), staus parameter (new)
  */
 typedef PREPACK struct {
-    A_INT32 status;
+    s32 status;
 } POSTPACK WMI_SCAN_COMPLETE_EVENT;
 
 #define MAX_OPT_DATA_LEN 1400
@@ -2233,7 +2233,7 @@ typedef PREPACK struct {
     u32 tx_retry_cnt;
     u32 tx_mult_retry_cnt;
     u32 tx_rts_fail_cnt;
-    A_INT32    tx_unicast_rate;
+    s32 tx_unicast_rate;
 }POSTPACK tx_stats_t;
 
 typedef PREPACK struct {
@@ -2252,7 +2252,7 @@ typedef PREPACK struct {
     u32 rx_key_cache_miss;
     u32 rx_decrypt_err;
     u32 rx_duplicate_frames;
-    A_INT32    rx_unicast_rate;
+    s32 rx_unicast_rate;
 }POSTPACK rx_stats_t;
 
 typedef PREPACK struct {
@@ -2306,7 +2306,7 @@ typedef PREPACK struct {
 
 typedef PREPACK struct {
     u32 lqVal;
-    A_INT32             noise_floor_calibation;
+    s32 noise_floor_calibation;
     pm_stats_t          pmStats;
     wlan_net_stats_t    txrxStats;
     wlan_wow_stats_t    wowStats;
@@ -2388,7 +2388,7 @@ typedef enum{
 } WMI_LQ_THRESHOLD_VAL;
 
 typedef PREPACK struct {
-    A_INT32 lq;
+    s32 lq;
     u8 range;  /* WMI_LQ_THRESHOLD_VAL */
 }POSTPACK  WMI_LQ_THRESHOLD_EVENT;
 /*
@@ -2397,7 +2397,7 @@ typedef PREPACK struct {
 #define MAX_ROAM_TBL_CAND   5
 
 typedef PREPACK struct {
-    A_INT32 roam_util;
+    s32 roam_util;
     u8 bssid[ATH_MAC_LEN];
     s8 rssi;
     s8 rssidt;

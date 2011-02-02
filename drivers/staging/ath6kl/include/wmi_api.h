@@ -153,9 +153,9 @@ int wmi_sync_cmd(struct wmi_t *wmip, u8 syncNumber);
 int wmi_create_pstream_cmd(struct wmi_t *wmip, WMI_CREATE_PSTREAM_CMD *pstream);
 int wmi_delete_pstream_cmd(struct wmi_t *wmip, u8 trafficClass, u8 streamID);
 int wmi_set_framerate_cmd(struct wmi_t *wmip, u8 bEnable, u8 type, u8 subType, u16 rateMask);
-int wmi_set_bitrate_cmd(struct wmi_t *wmip, A_INT32 dataRate, A_INT32 mgmtRate, A_INT32 ctlRate);
+int wmi_set_bitrate_cmd(struct wmi_t *wmip, s32 dataRate, s32 mgmtRate, s32 ctlRate);
 int wmi_get_bitrate_cmd(struct wmi_t *wmip);
-s8 wmi_validate_bitrate(struct wmi_t *wmip, A_INT32 rate, s8 *rate_idx);
+s8 wmi_validate_bitrate(struct wmi_t *wmip, s32 rate, s8 *rate_idx);
 int wmi_get_regDomain_cmd(struct wmi_t *wmip);
 int wmi_get_channelList_cmd(struct wmi_t *wmip);
 int wmi_set_channelParams_cmd(struct wmi_t *wmip, u8 scanParam,
@@ -295,7 +295,7 @@ int wmi_set_appie_cmd(struct wmi_t *wmip, u8 mgmtFrmType,
 
 int wmi_set_halparam_cmd(struct wmi_t *wmip, u8 *cmd, u16 dataLen);
 
-A_INT32 wmi_get_rate(s8 rateindex);
+s32 wmi_get_rate(s8 rateindex);
 
 int wmi_set_ip_cmd(struct wmi_t *wmip, WMI_SET_IP_CMD *cmd);
 

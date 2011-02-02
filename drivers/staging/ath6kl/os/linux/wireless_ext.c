@@ -97,7 +97,7 @@ ar6000_scan_node(void *arg, bss_t *ni)
     char *end_buf;
     struct ieee80211_common_ie  *cie;
     char *current_val;
-    A_INT32 j;
+    s32 j;
     u32 rate_len, data_len = 0;
 
     param = (struct ar_giwscan_param *)arg;
@@ -1007,7 +1007,7 @@ ar6000_ioctl_siwencode(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     int index;
-    A_INT32 auth = 0;
+    s32 auth = 0;
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -1250,8 +1250,8 @@ ar6000_ioctl_siwauth(struct net_device *dev,
 
     bool profChanged;
     u16 param;
-    A_INT32 ret;
-    A_INT32 value;
+    s32 ret;
+    s32 value;
 
     if (ar->arWmiReady == false) {
         return -EIO;
@@ -1419,7 +1419,7 @@ ar6000_ioctl_giwauth(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     u16 param;
-    A_INT32 ret;
+    s32 ret;
 
     if (ar->arWmiReady == false) {
         return -EIO;
@@ -1546,7 +1546,7 @@ ar6000_ioctl_siwpmksa(struct net_device *dev,
               struct iw_point *data, char *extra)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
-    A_INT32 ret;
+    s32 ret;
     int status;
     struct iw_pmksa *pmksa;
 
@@ -1593,11 +1593,11 @@ static int ar6000_set_wapi_key(struct net_device *dev,
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
     KEY_USAGE   keyUsage = 0;
-    A_INT32     keyLen;
+    s32 keyLen;
     u8 *keyData;
-    A_INT32     index;
+    s32 index;
     u32 *PN;
-    A_INT32     i;
+    s32 i;
     int    status;
     u8 wapiKeyRsc[16];
     CRYPTO_TYPE keyType = WAPI_CRYPT;
@@ -1653,10 +1653,10 @@ ar6000_ioctl_siwencodeext(struct net_device *dev,
               struct iw_point *erq, char *extra)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
-    A_INT32 index;
+    s32 index;
     struct iw_encode_ext *ext;
     KEY_USAGE keyUsage;
-    A_INT32 keyLen;
+    s32 keyLen;
     u8 *keyData;
     u8 keyRsc[8];
     int status;

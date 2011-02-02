@@ -37,7 +37,7 @@ typedef struct _COMMON_CREDIT_STATE_INFO {
 } COMMON_CREDIT_STATE_INFO;
 
 typedef struct {
-    A_INT32 (*setupTransport)(void *ar);
+    s32 (*setupTransport)(void *ar);
     void (*cleanupTransport)(void *ar);
 } HCI_TRANSPORT_CALLBACKS;
 

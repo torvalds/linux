@@ -465,10 +465,10 @@ static int async_task(void *param)
     return 0;
 }
 
-static A_INT32 IssueSDCommand(HIF_DEVICE *device, u32 opcode, u32 arg, u32 flags, u32 *resp)
+static s32 IssueSDCommand(HIF_DEVICE *device, u32 opcode, u32 arg, u32 flags, u32 *resp)
 {
     struct mmc_command cmd;
-    A_INT32 err;
+    s32 err;
     struct mmc_host *host;
     struct sdio_func *func;
 
@@ -490,7 +490,7 @@ static A_INT32 IssueSDCommand(HIF_DEVICE *device, u32 opcode, u32 arg, u32 flags
 
 int ReinitSDIO(HIF_DEVICE *device)
 {
-    A_INT32 err;
+    s32 err;
     struct mmc_host *host;
     struct mmc_card *card;
 	struct sdio_func *func;
@@ -1153,7 +1153,7 @@ static void hifDeviceRemoved(struct sdio_func *func)
  */
 int hifWaitForPendingRecv(HIF_DEVICE *device)
 {
-    A_INT32 cnt = 10;
+    s32 cnt = 10;
     u8 host_int_status;
     int status = A_OK;
 
@@ -1280,7 +1280,7 @@ static int Func0_CMD52ReadByte(struct mmc_card *card, unsigned int address, unsi
 {
     struct mmc_command ioCmd;
     unsigned long      arg;
-    A_INT32 err;
+    s32 err;
     
     memset(&ioCmd,0,sizeof(ioCmd));
     SDIO_SET_CMD52_READ_ARG(arg,0,address);

@@ -417,7 +417,7 @@ ar6000_ioctl_set_rssi_threshold(struct net_device *dev, struct ifreq *rq)
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     WMI_RSSI_THRESHOLD_PARAMS_CMD cmd;
     USER_RSSI_PARAMS rssiParams;
-    A_INT32 i, j;
+    s32 i, j;
     int ret = 0;
 
     if (ar->arWmiReady == false) {

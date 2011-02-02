@@ -496,7 +496,7 @@ typedef struct ar6_softc {
     s8 arRssi;
     u8 arTxPwr;
     bool                  arTxPwrSet;
-    A_INT32                 arBitRate;
+    s32 arBitRate;
     struct net_device_stats arNetStats;
     struct iw_statistics    arIwStats;
     s8 arNumChannels;
@@ -509,7 +509,7 @@ typedef struct ar6_softc {
 #ifdef CONFIG_HOST_TCMD_SUPPORT
     u8 tcmdRxReport;
     u32 tcmdRxTotalPkt;
-    A_INT32                 tcmdRxRssi;
+    s32 tcmdRxRssi;
     u32 tcmdPm;
     u32 arTargetMode;
     u32 tcmdRxcrcErrPkt;
@@ -552,7 +552,7 @@ typedef struct ar6_softc {
     u32 dbglog_init_done;
     u32 arConnectCtrlFlags;
 #ifdef USER_KEYS
-    A_INT32                 user_savedkeys_stat;
+    s32 user_savedkeys_stat;
     u32 user_key_ctrl;
     struct USER_SAVEDKEYS   user_saved_keys;
 #endif
@@ -589,7 +589,7 @@ typedef struct ar6_softc {
 #endif
 	WMI_BTCOEX_CONFIG_EVENT arBtcoexConfig;
 	WMI_BTCOEX_STATS_EVENT  arBtcoexStats;
-    A_INT32                 (*exitCallback)(void *config);  /* generic callback at AR6K exit */
+    s32 (*exitCallback)(void *config);  /* generic callback at AR6K exit */
     HIF_DEVICE_OS_DEVICE_INFO   osDevInfo;
 #ifdef ATH6K_CONFIG_CFG80211
     struct wireless_dev *wdev;

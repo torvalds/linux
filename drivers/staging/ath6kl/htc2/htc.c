@@ -64,7 +64,7 @@ HTC_PACKET *HTCAllocControlBuffer(HTC_TARGET *target,  HTC_PACKET_QUEUE *pList)
 /* cleanup the HTC instance */
 static void HTCCleanup(HTC_TARGET *target)
 {
-    A_INT32 i;
+    s32 i;
 
     DevCleanup(&target->Device);
     
