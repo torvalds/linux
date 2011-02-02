@@ -2463,6 +2463,9 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		if (rdev->raid_disk != -1)
 			return -EBUSY;
 
+		if (test_bit(MD_RECOVERY_RUNNING, &rdev->mddev->recovery))
+			return -EBUSY;
+
 		if (rdev->mddev->pers->hot_add_disk == NULL)
 			return -EINVAL;
 
