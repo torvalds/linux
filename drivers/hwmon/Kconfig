@@ -708,6 +708,22 @@ config SENSORS_MAX1111
 	  This driver can also be built as a module.  If so, the module
 	  will be called max1111.
 
+config SENSORS_MAX16065
+	tristate "Maxim MAX16065 System Manager and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for hardware monitoring
+	  capabilities of the following Maxim System Manager chips.
+	    MAX16065
+	    MAX16066
+	    MAX16067
+	    MAX16068
+	    MAX16070
+	    MAX16071
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max16065.
+
 config SENSORS_MAX1619
 	tristate "Maxim MAX1619 sensor chip"
 	depends on I2C
