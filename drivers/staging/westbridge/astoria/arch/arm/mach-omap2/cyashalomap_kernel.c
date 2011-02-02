@@ -347,11 +347,8 @@ static int cy_as_hal_gpmc_init(void)
 	u32 tmp32;
 	int err;
 	struct gpmc_timings	timings;
-	/*
-	 * get GPMC i/o registers base(already been i/o mapped
-	 * in kernel, no need for separate i/o remap)
-	 */
-	gpmc_base = phys_to_virt(OMAP34XX_GPMC_BASE);
+
+	gpmc_base = (u32)ioremap_nocache(OMAP34XX_GPMC_BASE, BLKSZ_4K);
 	DBGPRN(KERN_INFO "kernel has gpmc_base=%x , val@ the base=%x",
 		gpmc_base, __raw_readl(gpmc_base)
 	);
