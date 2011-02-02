@@ -1185,6 +1185,18 @@ static void evergreen_mc_program(struct radeon_device *rdev)
 /*
  * CP.
  */
+void evergreen_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
+{
+	/* set to DX10/11 mode */
+	radeon_ring_write(rdev, PACKET3(PACKET3_MODE_CONTROL, 0));
+	radeon_ring_write(rdev, 1);
+	/* FIXME: implement */
+	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
+	radeon_ring_write(rdev, ib->gpu_addr & 0xFFFFFFFC);
+	radeon_ring_write(rdev, upper_32_bits(ib->gpu_addr) & 0xFF);
+	radeon_ring_write(rdev, ib->length_dw);
+}
+
 
 static int evergreen_cp_load_microcode(struct radeon_device *rdev)
 {
@@ -2075,6 +2087,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	WREG32(VGT_CACHE_INVALIDATION, vgt_cache_invalidation);
 
 	WREG32(VGT_GS_VERTEX_REUSE, 16);
+	WREG32(PA_SU_LINE_STIPPLE_VALUE, 0);
 	WREG32(PA_SC_LINE_STIPPLE_STATE, 0);
 
 	WREG32(VGT_VERTEX_REUSE_BLOCK_CNTL, 14);

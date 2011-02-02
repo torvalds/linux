@@ -232,7 +232,7 @@ draw_auto(struct radeon_device *rdev)
 
 }
 
-/* emits 34 */
+/* emits 36 */
 static void
 set_default_state(struct radeon_device *rdev)
 {
@@ -499,6 +499,10 @@ set_default_state(struct radeon_device *rdev)
 	radeon_ring_write(rdev, 0x00000000);
 	radeon_ring_write(rdev, 0x00000000);
 
+	/* set to DX10/11 mode */
+	radeon_ring_write(rdev, PACKET3(PACKET3_MODE_CONTROL, 0));
+	radeon_ring_write(rdev, 1);
+
 	/* emit an IB pointing at default state */
 	dwords = ALIGN(rdev->r600_blit.state_len, 0x10);
 	gpu_addr = rdev->r600_blit.shader_gpu_addr + rdev->r600_blit.state_offset;
@@ -679,7 +683,7 @@ int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	/* calculate number of loops correctly */
 	ring_size = num_loops * dwords_per_loop;
 	/* set default  + shaders */
-	ring_size += 50; /* shaders + def state */
+	ring_size += 52; /* shaders + def state */
 	ring_size += 10; /* fence emit for VB IB */
 	ring_size += 5; /* done copy */
 	ring_size += 10; /* fence emit for done copy */
@@ -687,7 +691,7 @@ int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	if (r)
 		return r;
 
-	set_default_state(rdev); /* 34 */
+	set_default_state(rdev); /* 36 */
 	set_shaders(rdev); /* 16 */
 	return 0;
 }
