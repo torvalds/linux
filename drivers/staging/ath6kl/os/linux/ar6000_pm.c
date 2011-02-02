@@ -194,7 +194,7 @@ static void ar6000_wow_suspend(AR_SOFTC_T *ar)
 
         ar->arWowState = WLAN_WOW_STATE_SUSPENDING;
         if (ar->arTxPending[ar->arControlEp]) {
-            A_UINT32 timeleft = wait_event_interruptible_timeout(arEvent,
+            u32 timeleft = wait_event_interruptible_timeout(arEvent,
             ar->arTxPending[ar->arControlEp] == 0, wmitimeout * HZ);
             if (!timeleft || signal_pending(current)) {
                /* what can I do? wow resume at once */
@@ -290,7 +290,7 @@ void ar6000_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, bool isEvent)
     }
 }
 
-int ar6000_power_change_ev(void *context, A_UINT32 config)
+int ar6000_power_change_ev(void *context, u32 config)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
     int status = A_OK;
@@ -375,7 +375,7 @@ ar6000_setup_cut_power_state(struct ar6_softc *ar,  AR6000_WLAN_STATE state)
             if (status == A_PENDING) {
 #ifdef ANDROID_ENV
                  /* Wait for WMI ready event */
-                A_UINT32 timeleft = wait_event_interruptible_timeout(arEvent,
+                u32 timeleft = wait_event_interruptible_timeout(arEvent,
                             (ar->arWmiReady == true), wmitimeout * HZ);
                 if (!timeleft || signal_pending(current)) {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000 : Failed to get wmi ready \n"));
@@ -516,7 +516,7 @@ ar6000_setup_deep_sleep_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
                 break;
             }
             if (ar->arTxPending[ar->arControlEp]) {
-                A_UINT32 timeleft = wait_event_interruptible_timeout(arEvent,
+                u32 timeleft = wait_event_interruptible_timeout(arEvent,
                                 ar->arTxPending[ar->arControlEp] == 0, wmitimeout * HZ);
                 if (!timeleft || signal_pending(current)) {
                     status = A_ERROR;
@@ -651,7 +651,7 @@ ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, bool
 }
 
 int
-ar6000_set_bt_hw_state(struct ar6_softc *ar, A_UINT32 enable)
+ar6000_set_bt_hw_state(struct ar6_softc *ar, u32 enable)
 {
 #ifdef CONFIG_PM
     bool off = (enable == 0);

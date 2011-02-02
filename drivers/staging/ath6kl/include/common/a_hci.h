@@ -351,9 +351,9 @@ typedef struct  flow_spec_t {
     u8 id;
     u8 service_type;
     u16 max_sdu;
-    A_UINT32    sdu_inter_arrival_time;
-    A_UINT32    access_latency;
-    A_UINT32    flush_timeout;
+    u32 sdu_inter_arrival_time;
+    u32 access_latency;
+    u32 flush_timeout;
 } POSTPACK FLOW_SPEC;
 
 
@@ -559,15 +559,15 @@ typedef struct hci_event_amp_status_change_t{
 typedef struct  local_amp_info_resp_t {
     u8 status;
     u8 amp_status;
-    A_UINT32    total_bw;           /* kbps */
-    A_UINT32    max_guranteed_bw;   /* kbps */
-    A_UINT32    min_latency;
-    A_UINT32    max_pdu_size;
+    u32 total_bw;           /* kbps */
+    u32 max_guranteed_bw;   /* kbps */
+    u32 min_latency;
+    u32 max_pdu_size;
     u8 amp_type;
     u16 pal_capabilities;
     u16 amp_assoc_len;
-    A_UINT32    max_flush_timeout;  /* in ms */
-    A_UINT32    be_flush_timeout;   /* in ms */
+    u32 max_flush_timeout;  /* in ms */
+    u32 be_flush_timeout;   /* in ms */
 } POSTPACK  LOCAL_AMP_INFO;
 
 typedef struct  amp_assoc_cmd_resp_t{

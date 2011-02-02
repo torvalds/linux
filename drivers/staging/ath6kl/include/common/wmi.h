@@ -70,7 +70,7 @@ extern "C" {
 #endif
 
 PREPACK struct host_app_area_s {
-    A_UINT32 wmi_protocol_ver;
+    u32 wmi_protocol_ver;
 } POSTPACK;
 
 /*
@@ -533,7 +533,7 @@ typedef PREPACK struct {
     A_UCHAR     ssid[WMI_MAX_SSID_LEN];
     u16 channel;
     u8 bssid[ATH_MAC_LEN];
-    A_UINT32    ctrl_flags;
+    u32 ctrl_flags;
 } POSTPACK WMI_CONNECT_CMD;
 
 /*
@@ -637,8 +637,8 @@ typedef enum {
 typedef PREPACK struct {
     u32   forceFgScan;
     u32   isLegacy;        /* For Legacy Cisco AP compatibility */
-    A_UINT32 homeDwellTime;   /* Maximum duration in the home channel(milliseconds) */
-    A_UINT32 forceScanInterval;    /* Time interval between scans (milliseconds)*/
+    u32 homeDwellTime;   /* Maximum duration in the home channel(milliseconds) */
+    u32 forceScanInterval;    /* Time interval between scans (milliseconds)*/
     u8 scanType;           /* WMI_SCAN_TYPE */
     u8 numChannels;            /* how many channels follow */
     u16 channelList[1];         /* channels in Mhz */
@@ -685,7 +685,7 @@ typedef PREPACK struct {
     u8 scanCtrlFlags;
     u16 minact_chdwell_time;    /* msec */
     u16 maxact_scan_per_ssid;   /* max active scans per ssid */
-    A_UINT32    max_dfsch_act_time;  /* msecs */
+    u32 max_dfsch_act_time;  /* msecs */
 } POSTPACK WMI_SCAN_PARAMS_CMD;
 
 /*
@@ -706,7 +706,7 @@ typedef PREPACK struct {
     u8 bssFilter;                      /* see WMI_BSS_FILTER */
     u8 reserved1;                      /* For alignment */
     u16 reserved2;                      /* For alignment */
-    A_UINT32   ieMask;
+    u32 ieMask;
 } POSTPACK WMI_BSS_FILTER_CMD;
 
 /*
@@ -780,8 +780,8 @@ typedef PREPACK struct {
 } POSTPACK WMI_SET_PARAMS_REPLY;
 
 typedef PREPACK struct {
-    A_UINT32 opcode;
-    A_UINT32 length;
+    u32 opcode;
+    u32 length;
     char buffer[1];      /* WMI_SET_PARAMS */
 } POSTPACK WMI_SET_PARAMS_CMD;
 
@@ -849,8 +849,8 @@ typedef enum {
 } WMI_AP_PS_TYPE;
 
 typedef PREPACK struct {
-    A_UINT32   idle_time;   /* in msec */
-    A_UINT32   ps_period;   /* in usec */
+    u32 idle_time;   /* in msec */
+    u32 ps_period;   /* in usec */
     u8 sleep_period; /* in ps periods */
     u8 psType;
 } POSTPACK WMI_AP_PS_CMD;
@@ -868,8 +868,8 @@ typedef enum {
 typedef PREPACK struct {
     u16 psPollTimeout;          /* msec */
     u16 triggerTimeout;         /* msec */
-    A_UINT32    apsdTimPolicy;      /* TIM behavior with  ques APSD enabled. Default is IGNORE_TIM_ALL_QUEUES_APSD */
-    A_UINT32    simulatedAPSDTimPolicy;      /* TIM behavior with  simulated APSD enabled. Default is PROCESS_TIM_SIMULATED_APSD */
+    u32 apsdTimPolicy;      /* TIM behavior with  ques APSD enabled. Default is IGNORE_TIM_ALL_QUEUES_APSD */
+    u32 simulatedAPSDTimPolicy;      /* TIM behavior with  simulated APSD enabled. Default is PROCESS_TIM_SIMULATED_APSD */
 } POSTPACK WMI_POWERSAVE_TIMERS_POLICY_CMD;
 
 /*
@@ -928,19 +928,19 @@ typedef PREPACK struct {
  * WMI_CREATE_PSTREAM_CMDID
  */
 typedef PREPACK struct {
-    A_UINT32        minServiceInt;           /* in milli-sec */
-    A_UINT32        maxServiceInt;           /* in milli-sec */
-    A_UINT32        inactivityInt;           /* in milli-sec */
-    A_UINT32        suspensionInt;           /* in milli-sec */
-    A_UINT32        serviceStartTime;
-    A_UINT32        minDataRate;             /* in bps */
-    A_UINT32        meanDataRate;            /* in bps */
-    A_UINT32        peakDataRate;            /* in bps */
-    A_UINT32        maxBurstSize;
-    A_UINT32        delayBound;
-    A_UINT32        minPhyRate;              /* in bps */
-    A_UINT32        sba;
-    A_UINT32        mediumTime;
+    u32 minServiceInt;           /* in milli-sec */
+    u32 maxServiceInt;           /* in milli-sec */
+    u32 inactivityInt;           /* in milli-sec */
+    u32 suspensionInt;           /* in milli-sec */
+    u32 serviceStartTime;
+    u32 minDataRate;             /* in bps */
+    u32 meanDataRate;            /* in bps */
+    u32 peakDataRate;            /* in bps */
+    u32 maxBurstSize;
+    u32 delayBound;
+    u32 minPhyRate;              /* in bps */
+    u32 sba;
+    u32 mediumTime;
     u16 nominalMSDU;             /* in octects */
     u16 maxMSDU;                 /* in octects */
     u8 trafficClass;
@@ -995,7 +995,7 @@ typedef PREPACK struct {
  */
 
 typedef PREPACK struct WMI_RSSI_THRESHOLD_PARAMS{
-    A_UINT32    pollTime;               /* Polling time as a factor of LI */
+    u32 pollTime;               /* Polling time as a factor of LI */
     A_INT16     thresholdAbove1_Val;          /* lowest of upper */
     A_INT16     thresholdAbove2_Val;
     A_INT16     thresholdAbove3_Val;
@@ -1018,7 +1018,7 @@ typedef PREPACK struct WMI_RSSI_THRESHOLD_PARAMS{
  */
 
 typedef PREPACK struct WMI_SNR_THRESHOLD_PARAMS{
-    A_UINT32    pollTime;               /* Polling time as a factor of LI */
+    u32 pollTime;               /* Polling time as a factor of LI */
     u8 weight;                  /* "alpha" */
     u8 thresholdAbove1_Val;      /* lowest of uppper*/
     u8 thresholdAbove2_Val;
@@ -1073,7 +1073,7 @@ typedef PREPACK struct {
  *  via event, unless the bitmask is set again.
  */
 typedef PREPACK struct {
-    A_UINT32    bitmask;
+    u32 bitmask;
 } POSTPACK  WMI_TARGET_ERROR_REPORT_BITMASK;
 
 /*
@@ -1252,7 +1252,7 @@ typedef PREPACK struct {
 } POSTPACK WMI_SET_MAX_OFFHOME_DURATION_CMD;
 
 typedef PREPACK struct {
-    A_UINT32 frequency;
+    u32 frequency;
     u8 threshold;
 } POSTPACK WMI_SET_HB_CHALLENGE_RESP_PARAMS_CMD;
 /*---------------------- BTCOEX RELATED -------------------------------------*/
@@ -1329,13 +1329,13 @@ typedef enum {
 #define BT_SCO_SET_MAX_LOW_RATE_CNT(flags,val) (flags) |= (((val) & 0xFF) << 16)
 
 typedef PREPACK struct {
-    A_UINT32 numScoCyclesForceTrigger;  /* Number SCO cycles after which
+    u32 numScoCyclesForceTrigger;  /* Number SCO cycles after which
                                            force a pspoll. default = 10 */
-    A_UINT32 dataResponseTimeout;       /* Timeout Waiting for Downlink pkt
+    u32 dataResponseTimeout;       /* Timeout Waiting for Downlink pkt
                                            in response for ps-poll,
                                            default = 10 msecs */
-    A_UINT32  stompScoRules;
-    A_UINT32 scoOptFlags;               /* SCO Options Flags :
+    u32 stompScoRules;
+    u32 scoOptFlags;               /* SCO Options Flags :
                                             bits:     meaning:
                                              0        Allow Close Range Optimization
                                              1        Force awake during close range
@@ -1377,13 +1377,13 @@ typedef PREPACK struct {
 #define BT_A2DP_SET_MAX_LOW_RATE_CNT(flags,val) (flags) |= (((val) & 0xFF) << 16)
 
 typedef PREPACK struct {
-    A_UINT32 a2dpWlanUsageLimit; /* MAX time firmware uses the medium for
+    u32 a2dpWlanUsageLimit; /* MAX time firmware uses the medium for
                                     wlan, after it identifies the idle time
                                     default (30 msecs) */
-    A_UINT32 a2dpBurstCntMin;   /* Minimum number of bluetooth data frames
+    u32 a2dpBurstCntMin;   /* Minimum number of bluetooth data frames
                                    to replenish Wlan Usage  limit (default 3) */
-    A_UINT32 a2dpDataRespTimeout;
-    A_UINT32 a2dpOptFlags;      /* A2DP Option flags:
+    u32 a2dpDataRespTimeout;
+    u32 a2dpOptFlags;      /* A2DP Option flags:
                                        bits:    meaning:
                                         0       Allow Close Range Optimization
                                         1       Force awake during close range
@@ -1402,14 +1402,14 @@ typedef PREPACK struct {
 /* During BT ftp/ BT OPP or any another data based acl profile on bluetooth
    (non a2dp).*/
 typedef PREPACK struct {
-    A_UINT32 aclWlanMediumUsageTime;  /* Wlan usage time during Acl (non-a2dp)
+    u32 aclWlanMediumUsageTime;  /* Wlan usage time during Acl (non-a2dp)
                                        coexistence (default 30 msecs) */
-    A_UINT32 aclBtMediumUsageTime;   /* Bt usage time during acl coexistence
+    u32 aclBtMediumUsageTime;   /* Bt usage time during acl coexistence
                                        (default 30 msecs)*/
-    A_UINT32 aclDataRespTimeout;
-    A_UINT32 aclDetectTimeout;      /* ACL coexistence enabled if we get
+    u32 aclDataRespTimeout;
+    u32 aclDetectTimeout;      /* ACL coexistence enabled if we get
                                        10 Pkts in X msec(default 100 msecs) */
-    A_UINT32 aclmaxPktCnt;          /* No of ACL pkts to receive before
+    u32 aclmaxPktCnt;          /* No of ACL pkts to receive before
                                          enabling ACL coex */
 
 }POSTPACK BT_PARAMS_ACLCOEX;
@@ -1478,20 +1478,20 @@ typedef PREPACK struct {
  * During this the station will be  power-save mode.
  */
 typedef PREPACK struct {
-	A_UINT32 btInquiryDataFetchFrequency;/* The frequency of querying the AP for data
+	u32 btInquiryDataFetchFrequency;/* The frequency of querying the AP for data
                                             (via pspoll) is configured by this parameter.
                                             "default = 10 ms" */
 
-	A_UINT32 protectBmissDurPostBtInquiry;/* The firmware will continue to be in inquiry state
+	u32 protectBmissDurPostBtInquiry;/* The firmware will continue to be in inquiry state
                                              for configured duration, after inquiry completion
                                              . This is to ensure other bluetooth transactions
                                              (RDP, SDP profiles, link key exchange ...etc)
                                              goes through smoothly without wifi stomping.
                                              default = 10 secs*/
 
-	A_UINT32 maxpageStomp;                 /*Applicable only for STE-BT interface. Currently not
+	u32 maxpageStomp;                 /*Applicable only for STE-BT interface. Currently not
                                              used */
-	A_UINT32 btInquiryPageFlag;           /* Not used */
+	u32 btInquiryPageFlag;           /* Not used */
 }POSTPACK WMI_SET_BTCOEX_BTINQUIRY_PAGE_CONFIG_CMD;
 
 /*---------------------WMI_SET_BTCOEX_SCO_CONFIG_CMDID ---------------*/
@@ -1509,14 +1509,14 @@ typedef PREPACK struct {
 #define WMI_SCO_CONFIG_FLAG_IS_BT_MASTER         (1 << 2)
 #define WMI_SCO_CONFIG_FLAG_FW_DETECT_OF_PER     (1 << 3)
 typedef PREPACK struct {
-	A_UINT32 scoSlots;					/* Number of SCO Tx/Rx slots.
+	u32 scoSlots;					/* Number of SCO Tx/Rx slots.
 										   HVx, EV3, 2EV3 = 2 */
-	A_UINT32 scoIdleSlots;				/* Number of Bluetooth idle slots between
+	u32 scoIdleSlots;				/* Number of Bluetooth idle slots between
 										   consecutive SCO Tx/Rx slots
 										   HVx, EV3 = 4
 										   2EV3 = 10
                                          */
- 	A_UINT32 scoFlags;				   /* SCO Options Flags :
+	u32 scoFlags;				   /* SCO Options Flags :
 										  bits:	   meaning:
  										  0   Allow Close Range Optimization
  										  1   Is EDR capable or Not
@@ -1524,21 +1524,21 @@ typedef PREPACK struct {
                                           3   Firmware determines the periodicity of SCO.
 							  			 */
 
-    A_UINT32 linkId;                      /* applicable to STE-BT - not used */
+    u32 linkId;                      /* applicable to STE-BT - not used */
 }POSTPACK BTCOEX_SCO_CONFIG;
 
 typedef PREPACK struct {
-	A_UINT32  scoCyclesForceTrigger;	/* Number SCO cycles after which
+	u32 scoCyclesForceTrigger;	/* Number SCO cycles after which
 											force a pspoll. default = 10 */
-    A_UINT32 scoDataResponseTimeout;	 /* Timeout Waiting for Downlink pkt
+    u32 scoDataResponseTimeout;	 /* Timeout Waiting for Downlink pkt
 											in response for ps-poll,
 											default = 20 msecs */
 
-	A_UINT32 scoStompDutyCyleVal;		 /* not implemented */
+	u32 scoStompDutyCyleVal;		 /* not implemented */
 
-	A_UINT32 scoStompDutyCyleMaxVal;     /*Not implemented */
+	u32 scoStompDutyCyleMaxVal;     /*Not implemented */
 
-	A_UINT32 scoPsPollLatencyFraction; 	 /* Fraction of idle
+	u32 scoPsPollLatencyFraction; 	 /* Fraction of idle
 											period, within which
 											additional ps-polls can be queued
                                             1 - 1/4 of idle duration
@@ -1549,29 +1549,29 @@ typedef PREPACK struct {
 }POSTPACK BTCOEX_PSPOLLMODE_SCO_CONFIG;
 
 typedef PREPACK struct {
-	A_UINT32 scoStompCntIn100ms;/*max number of SCO stomp in 100ms allowed in
+	u32 scoStompCntIn100ms;/*max number of SCO stomp in 100ms allowed in
                                    opt mode. If exceeds the configured value,
                                    switch to ps-poll mode
                                   default = 3 */
 
-	A_UINT32 scoContStompMax;   /* max number of continous stomp allowed in opt mode.
+	u32 scoContStompMax;   /* max number of continous stomp allowed in opt mode.
                                    if excedded switch to pspoll mode
                                     default = 3 */
 
-	A_UINT32 scoMinlowRateMbps; /* Low rate threshold */
+	u32 scoMinlowRateMbps; /* Low rate threshold */
 
-	A_UINT32 scoLowRateCnt;     /* number of low rate pkts (< scoMinlowRateMbps) allowed in 100 ms.
+	u32 scoLowRateCnt;     /* number of low rate pkts (< scoMinlowRateMbps) allowed in 100 ms.
                                    If exceeded switch/stay to ps-poll mode, lower stay in opt mode.
                                    default = 36
                                  */
 
-	A_UINT32 scoHighPktRatio;   /*(Total Rx pkts in 100 ms + 1)/
+	u32 scoHighPktRatio;   /*(Total Rx pkts in 100 ms + 1)/
                                   ((Total tx pkts in 100 ms - No of high rate pkts in 100 ms) + 1) in 100 ms,
                                   if exceeded switch/stay in opt mode and if lower switch/stay in  pspoll mode.
                                   default = 5 (80% of high rates)
                                  */
 
-	A_UINT32 scoMaxAggrSize;    /* Max number of Rx subframes allowed in this mode. (Firmware re-negogiates
+	u32 scoMaxAggrSize;    /* Max number of Rx subframes allowed in this mode. (Firmware re-negogiates
                                    max number of aggregates if it was negogiated to higher value
                                    default = 1
                                    Recommended value Basic rate headsets = 1, EDR (2-EV3)  =4.
@@ -1579,8 +1579,8 @@ typedef PREPACK struct {
 }POSTPACK BTCOEX_OPTMODE_SCO_CONFIG;
 
 typedef PREPACK struct {
-    A_UINT32 scanInterval;
-    A_UINT32 maxScanStompCnt;
+    u32 scanInterval;
+    u32 maxScanStompCnt;
 }POSTPACK BTCOEX_WLANSCAN_SCO_CONFIG;
 
 typedef PREPACK struct {
@@ -1608,7 +1608,7 @@ typedef PREPACK struct {
 #define WMI_A2DP_CONFIG_FLAG_FIND_BT_ROLE          (1 << 4)
 
 typedef PREPACK struct {
-    A_UINT32 a2dpFlags;      /* A2DP Option flags:
+    u32 a2dpFlags;      /* A2DP Option flags:
 		                        bits:    meaning:
                		            0       Allow Close Range Optimization
        	                     	1       IS EDR capable
@@ -1616,19 +1616,19 @@ typedef PREPACK struct {
                                 3       a2dp traffic is high priority
                                 4       Fw detect the role of bluetooth.
                              */
-	A_UINT32 linkId;         /* Applicable only to STE-BT - not used */
+	u32 linkId;         /* Applicable only to STE-BT - not used */
 
 }POSTPACK BTCOEX_A2DP_CONFIG;
 
 typedef PREPACK struct {
-    A_UINT32 a2dpWlanMaxDur; /* MAX time firmware uses the medium for
+    u32 a2dpWlanMaxDur; /* MAX time firmware uses the medium for
                       			wlan, after it identifies the idle time
                                 default (30 msecs) */
 
-    A_UINT32 a2dpMinBurstCnt;   /* Minimum number of bluetooth data frames
+    u32 a2dpMinBurstCnt;   /* Minimum number of bluetooth data frames
                   				to replenish Wlan Usage  limit (default 3) */
 
-    A_UINT32 a2dpDataRespTimeout; /* Max duration firmware waits for downlink
+    u32 a2dpDataRespTimeout; /* Max duration firmware waits for downlink
                                      by stomping on  bluetooth
                                      after ps-poll is acknowledged.
                                      default = 20 ms
@@ -1636,25 +1636,25 @@ typedef PREPACK struct {
 }POSTPACK BTCOEX_PSPOLLMODE_A2DP_CONFIG;
 
 typedef PREPACK struct {
-	A_UINT32 a2dpMinlowRateMbps;  /* Low rate threshold */
+	u32 a2dpMinlowRateMbps;  /* Low rate threshold */
 
-	A_UINT32 a2dpLowRateCnt;    /* number of low rate pkts (< a2dpMinlowRateMbps) allowed in 100 ms.
+	u32 a2dpLowRateCnt;    /* number of low rate pkts (< a2dpMinlowRateMbps) allowed in 100 ms.
                                    If exceeded switch/stay to ps-poll mode, lower stay in opt mode.
                                    default = 36
                                  */
 
-	A_UINT32 a2dpHighPktRatio;   /*(Total Rx pkts in 100 ms + 1)/
+	u32 a2dpHighPktRatio;   /*(Total Rx pkts in 100 ms + 1)/
                                   ((Total tx pkts in 100 ms - No of high rate pkts in 100 ms) + 1) in 100 ms,
                                   if exceeded switch/stay in opt mode and if lower switch/stay in  pspoll mode.
                                   default = 5 (80% of high rates)
                                  */
 
-	A_UINT32 a2dpMaxAggrSize;    /* Max number of Rx subframes allowed in this mode. (Firmware re-negogiates
+	u32 a2dpMaxAggrSize;    /* Max number of Rx subframes allowed in this mode. (Firmware re-negogiates
                                    max number of aggregates if it was negogiated to higher value
                                    default = 1
                                   Recommended value Basic rate headsets = 1, EDR (2-EV3)  =8.
                                  */
-	A_UINT32 a2dpPktStompCnt;    /*number of a2dp pkts that can be stomped per burst.
+	u32 a2dpPktStompCnt;    /*number of a2dp pkts that can be stomped per burst.
                                    default = 6*/
 
 }POSTPACK BTCOEX_OPTMODE_A2DP_CONFIG;
@@ -1683,15 +1683,15 @@ typedef PREPACK struct {
 #define WMI_ACLCOEX_FLAGS_DISABLE_FW_DETECTION (1 << 1)
 
 typedef PREPACK struct {
-    A_UINT32 aclWlanMediumDur; 	    /* Wlan usage time during Acl (non-a2dp)
+    u32 aclWlanMediumDur; 	    /* Wlan usage time during Acl (non-a2dp)
                      					coexistence (default 30 msecs)
                                     */
 
-    A_UINT32 aclBtMediumDur; 	   /* Bt usage time during acl coexistence
+    u32 aclBtMediumDur; 	   /* Bt usage time during acl coexistence
 					                     (default 30 msecs)
                                    */
 
-	A_UINT32 aclDetectTimeout;	   /* BT activity observation time limit.
+	u32 aclDetectTimeout;	   /* BT activity observation time limit.
 									  In this time duration, number of bt pkts are counted.
 									  If the Cnt reaches "aclPktCntLowerLimit" value
 									  for "aclIterToEnableCoex" iteration continuously,
@@ -1703,7 +1703,7 @@ typedef PREPACK struct {
     								  -default 100 msecs
                                     */
 
-	 A_UINT32 aclPktCntLowerLimit;   /* Acl Pkt Cnt to be received in duration of
+	 u32 aclPktCntLowerLimit;   /* Acl Pkt Cnt to be received in duration of
 										"aclDetectTimeout" for
 										"aclIterForEnDis" times to enabling ACL coex.
                                         Similar logic is used to disable acl coexistence.
@@ -1713,28 +1713,28 @@ typedef PREPACK struct {
                                         default = 10
                                    */
 
-	 A_UINT32 aclIterForEnDis;      /* number of Iteration of "aclPktCntLowerLimit" for Enabling and
+	 u32 aclIterForEnDis;      /* number of Iteration of "aclPktCntLowerLimit" for Enabling and
                                        Disabling Acl Coexistence.
                                        default = 3
                                      */
 
-	 A_UINT32 aclPktCntUpperLimit; /* This is upperBound limit, if there is more than
+	 u32 aclPktCntUpperLimit; /* This is upperBound limit, if there is more than
 									  "aclPktCntUpperLimit" seen in "aclDetectTimeout",
 									  ACL coexistence is enabled right away.
 									  - default 15*/
 
-	A_UINT32 aclCoexFlags;			/* A2DP Option flags:
+	u32 aclCoexFlags;			/* A2DP Option flags:
 		  	                          bits:    meaning:
        		                          0       Allow Close Range Optimization
                     		          1       disable Firmware detection
                                       (Currently supported configuration is aclCoexFlags =0)
                       			 	*/
-	A_UINT32 linkId;                /* Applicable only for STE-BT - not used */
+	u32 linkId;                /* Applicable only for STE-BT - not used */
 
 }POSTPACK BTCOEX_ACLCOEX_CONFIG;
 
 typedef PREPACK struct {
-    A_UINT32 aclDataRespTimeout;   /* Max duration firmware waits for downlink
+    u32 aclDataRespTimeout;   /* Max duration firmware waits for downlink
                                       by stomping on  bluetooth
                                       after ps-poll is acknowledged.
                                      default = 20 ms */
@@ -1744,11 +1744,11 @@ typedef PREPACK struct {
 
 /* Not implemented yet*/
 typedef PREPACK struct {
-	A_UINT32 aclCoexMinlowRateMbps;
-	A_UINT32 aclCoexLowRateCnt;
-	A_UINT32 aclCoexHighPktRatio;
-	A_UINT32 aclCoexMaxAggrSize;
-	A_UINT32 aclPktStompCnt;
+	u32 aclCoexMinlowRateMbps;
+	u32 aclCoexLowRateCnt;
+	u32 aclCoexHighPktRatio;
+	u32 aclCoexMaxAggrSize;
+	u32 aclPktStompCnt;
 }POSTPACK BTCOEX_OPTMODE_ACLCOEX_CONFIG;
 
 typedef PREPACK struct {
@@ -1766,39 +1766,39 @@ typedef enum {
 }WMI_BTCOEX_BT_PROFILE;
 
 typedef PREPACK struct {
-	A_UINT32 btProfileType;
-	A_UINT32 btOperatingStatus;
-	A_UINT32 btLinkId;
+	u32 btProfileType;
+	u32 btOperatingStatus;
+	u32 btLinkId;
 }WMI_SET_BTCOEX_BT_OPERATING_STATUS_CMD;
 
 /*--------------------- WMI_SET_BTCOEX_DEBUG_CMDID ---------------------*/
 /* Used for firmware development and debugging */
 typedef PREPACK struct {
-	A_UINT32 btcoexDbgParam1;
-	A_UINT32 btcoexDbgParam2;
-	A_UINT32 btcoexDbgParam3;
-	A_UINT32 btcoexDbgParam4;
-	A_UINT32 btcoexDbgParam5;
+	u32 btcoexDbgParam1;
+	u32 btcoexDbgParam2;
+	u32 btcoexDbgParam3;
+	u32 btcoexDbgParam4;
+	u32 btcoexDbgParam5;
 }WMI_SET_BTCOEX_DEBUG_CMD;
 
 /*---------------------WMI_GET_BTCOEX_CONFIG_CMDID --------------------- */
 /* Command to firmware to get configuration parameters of the bt profile
  * reported via WMI_BTCOEX_CONFIG_EVENTID */
 typedef PREPACK struct {
-	A_UINT32 btProfileType; /* 1 - SCO
+	u32 btProfileType; /* 1 - SCO
                                2 - A2DP
                                3 - INQUIRY_PAGE
                                4 - ACLCOEX
                             */
-	A_UINT32 linkId;    /* not used */
+	u32 linkId;    /* not used */
 }WMI_GET_BTCOEX_CONFIG_CMD;
 
 /*------------------WMI_REPORT_BTCOEX_CONFIG_EVENTID------------------- */
 /* Event from firmware to host, sent in response to WMI_GET_BTCOEX_CONFIG_CMDID
  * */
 typedef PREPACK struct {
-	A_UINT32 btProfileType;
-	A_UINT32 linkId; /* not used */
+	u32 btProfileType;
+	u32 linkId; /* not used */
 	PREPACK union {
 		WMI_SET_BTCOEX_SCO_CONFIG_CMD scoConfigCmd;
 		WMI_SET_BTCOEX_A2DP_CONFIG_CMD a2dpConfigCmd;
@@ -1810,32 +1810,32 @@ typedef PREPACK struct {
 /*------------- WMI_REPORT_BTCOEX_BTCOEX_STATS_EVENTID--------------------*/
 /* Used for firmware development and debugging*/
 typedef PREPACK struct {
-	A_UINT32 highRatePktCnt;
-	A_UINT32 firstBmissCnt;
-	A_UINT32 psPollFailureCnt;
-	A_UINT32 nullFrameFailureCnt;
-	A_UINT32 optModeTransitionCnt;
+	u32 highRatePktCnt;
+	u32 firstBmissCnt;
+	u32 psPollFailureCnt;
+	u32 nullFrameFailureCnt;
+	u32 optModeTransitionCnt;
 }BTCOEX_GENERAL_STATS;
 
 typedef PREPACK struct {
-	A_UINT32	scoStompCntAvg;
-	A_UINT32	scoStompIn100ms;
-	A_UINT32 	scoMaxContStomp;
-	A_UINT32	scoAvgNoRetries;
-	A_UINT32	scoMaxNoRetriesIn100ms;
+	u32 scoStompCntAvg;
+	u32 scoStompIn100ms;
+	u32 scoMaxContStomp;
+	u32 scoAvgNoRetries;
+	u32 scoMaxNoRetriesIn100ms;
 }BTCOEX_SCO_STATS;
 
 typedef PREPACK struct {
-	A_UINT32  	a2dpBurstCnt;
-	A_UINT32	a2dpMaxBurstCnt;
-	A_UINT32	a2dpAvgIdletimeIn100ms;
-	A_UINT32	a2dpAvgStompCnt;
+	u32 a2dpBurstCnt;
+	u32 a2dpMaxBurstCnt;
+	u32 a2dpAvgIdletimeIn100ms;
+	u32 a2dpAvgStompCnt;
 }BTCOEX_A2DP_STATS;
 
 typedef PREPACK struct {
-	A_UINT32	aclPktCntInBtTime;
-	A_UINT32	aclStompCntInWlanTime;
-	A_UINT32	aclPktCntIn100ms;
+	u32 aclPktCntInBtTime;
+	u32 aclStompCntInWlanTime;
+	u32 aclPktCntIn100ms;
 }BTCOEX_ACLCOEX_STATS;
 
 typedef PREPACK struct {
@@ -1848,7 +1848,7 @@ typedef PREPACK struct {
 
 /*--------------------------END OF BTCOEX -------------------------------------*/
 typedef PREPACK struct {
-    A_UINT32 sleepState;
+    u32 sleepState;
 }WMI_REPORT_SLEEP_STATE_EVENT;
 
 typedef enum {
@@ -1861,7 +1861,7 @@ typedef enum {
 } TARGET_EVENT_REPORT_CONFIG;
 
 typedef PREPACK struct {
-    A_UINT32 evtConfig;
+    u32 evtConfig;
 } POSTPACK WMI_SET_TARGET_EVENT_REPORT_CMD;
 
 
@@ -1981,8 +1981,8 @@ typedef PREPACK struct {
 } POSTPACK WMI_READY_EVENT_1;
 
 typedef PREPACK struct {
-    A_UINT32    sw_version;
-    A_UINT32    abi_version;
+    u32 sw_version;
+    u32 abi_version;
     u8 macaddr[ATH_MAC_LEN];
     u8 phyCapability;              /* WMI_PHY_CAPABILITY */
 } POSTPACK WMI_READY_EVENT_2;
@@ -2006,7 +2006,7 @@ typedef PREPACK struct {
     u8 bssid[ATH_MAC_LEN];
     u16 listenInterval;
     u16 beaconInterval;
-    A_UINT32    networkType;
+    u32 networkType;
     u8 beaconIeLen;
     u8 assocReqLen;
     u8 assocRespLen;
@@ -2064,7 +2064,7 @@ typedef PREPACK struct {
     u8 snr;
     A_INT16     rssi;
     u8 bssid[ATH_MAC_LEN];
-    A_UINT32    ieMask;
+    u32 ieMask;
 } POSTPACK WMI_BSS_INFO_HDR;
 
 /*
@@ -2101,7 +2101,7 @@ typedef PREPACK struct {
  * New Regulatory Domain Event
  */
 typedef PREPACK struct {
-    A_UINT32    regDomain;
+    u32 regDomain;
 } POSTPACK WMI_REG_DOMAIN_EVENT;
 
 typedef PREPACK struct {
@@ -2216,56 +2216,56 @@ typedef PREPACK struct {
  * Reporting statistics.
  */
 typedef PREPACK struct {
-    A_UINT32   tx_packets;
-    A_UINT32   tx_bytes;
-    A_UINT32   tx_unicast_pkts;
-    A_UINT32   tx_unicast_bytes;
-    A_UINT32   tx_multicast_pkts;
-    A_UINT32   tx_multicast_bytes;
-    A_UINT32   tx_broadcast_pkts;
-    A_UINT32   tx_broadcast_bytes;
-    A_UINT32   tx_rts_success_cnt;
-    A_UINT32   tx_packet_per_ac[4];
-    A_UINT32   tx_errors_per_ac[4];
+    u32 tx_packets;
+    u32 tx_bytes;
+    u32 tx_unicast_pkts;
+    u32 tx_unicast_bytes;
+    u32 tx_multicast_pkts;
+    u32 tx_multicast_bytes;
+    u32 tx_broadcast_pkts;
+    u32 tx_broadcast_bytes;
+    u32 tx_rts_success_cnt;
+    u32 tx_packet_per_ac[4];
+    u32 tx_errors_per_ac[4];
 
-    A_UINT32   tx_errors;
-    A_UINT32   tx_failed_cnt;
-    A_UINT32   tx_retry_cnt;
-    A_UINT32   tx_mult_retry_cnt;
-    A_UINT32   tx_rts_fail_cnt;
+    u32 tx_errors;
+    u32 tx_failed_cnt;
+    u32 tx_retry_cnt;
+    u32 tx_mult_retry_cnt;
+    u32 tx_rts_fail_cnt;
     A_INT32    tx_unicast_rate;
 }POSTPACK tx_stats_t;
 
 typedef PREPACK struct {
-    A_UINT32   rx_packets;
-    A_UINT32   rx_bytes;
-    A_UINT32   rx_unicast_pkts;
-    A_UINT32   rx_unicast_bytes;
-    A_UINT32   rx_multicast_pkts;
-    A_UINT32   rx_multicast_bytes;
-    A_UINT32   rx_broadcast_pkts;
-    A_UINT32   rx_broadcast_bytes;
-    A_UINT32   rx_fragment_pkt;
+    u32 rx_packets;
+    u32 rx_bytes;
+    u32 rx_unicast_pkts;
+    u32 rx_unicast_bytes;
+    u32 rx_multicast_pkts;
+    u32 rx_multicast_bytes;
+    u32 rx_broadcast_pkts;
+    u32 rx_broadcast_bytes;
+    u32 rx_fragment_pkt;
 
-    A_UINT32   rx_errors;
-    A_UINT32   rx_crcerr;
-    A_UINT32   rx_key_cache_miss;
-    A_UINT32   rx_decrypt_err;
-    A_UINT32   rx_duplicate_frames;
+    u32 rx_errors;
+    u32 rx_crcerr;
+    u32 rx_key_cache_miss;
+    u32 rx_decrypt_err;
+    u32 rx_duplicate_frames;
     A_INT32    rx_unicast_rate;
 }POSTPACK rx_stats_t;
 
 typedef PREPACK struct {
-    A_UINT32   tkip_local_mic_failure;
-    A_UINT32   tkip_counter_measures_invoked;
-    A_UINT32   tkip_replays;
-    A_UINT32   tkip_format_errors;
-    A_UINT32   ccmp_format_errors;
-    A_UINT32   ccmp_replays;
+    u32 tkip_local_mic_failure;
+    u32 tkip_counter_measures_invoked;
+    u32 tkip_replays;
+    u32 tkip_format_errors;
+    u32 ccmp_format_errors;
+    u32 ccmp_replays;
 }POSTPACK tkip_ccmp_stats_t;
 
 typedef PREPACK struct {
-    A_UINT32   power_save_failure_cnt;
+    u32 power_save_failure_cnt;
     u16 stop_tx_failure_cnt;
     u16 atim_tx_failure_cnt;
     u16 atim_rx_failure_cnt;
@@ -2273,8 +2273,8 @@ typedef PREPACK struct {
 }POSTPACK pm_stats_t;
 
 typedef PREPACK struct {
-    A_UINT32    cs_bmiss_cnt;
-    A_UINT32    cs_lowRssi_cnt;
+    u32 cs_bmiss_cnt;
+    u32 cs_lowRssi_cnt;
     u16 cs_connect_cnt;
     u16 cs_disconnect_cnt;
     A_INT16     cs_aveBeacon_rssi;
@@ -2292,20 +2292,20 @@ typedef PREPACK struct {
 }POSTPACK wlan_net_stats_t;
 
 typedef PREPACK struct {
-    A_UINT32    arp_received;
-    A_UINT32    arp_matched;
-    A_UINT32    arp_replied;
+    u32 arp_received;
+    u32 arp_matched;
+    u32 arp_replied;
 } POSTPACK arp_stats_t;
 
 typedef PREPACK struct {
-    A_UINT32    wow_num_pkts_dropped;
+    u32 wow_num_pkts_dropped;
     u16 wow_num_events_discarded;
     u8 wow_num_host_pkt_wakeups;
     u8 wow_num_host_event_wakeups;
 } POSTPACK wlan_wow_stats_t;
 
 typedef PREPACK struct {
-    A_UINT32            lqVal;
+    u32 lqVal;
     A_INT32             noise_floor_calibation;
     pm_stats_t          pmStats;
     wlan_net_stats_t    txrxStats;
@@ -2353,7 +2353,7 @@ typedef enum{
 } WMI_TARGET_ERROR_VAL;
 
 typedef PREPACK struct {
-    A_UINT32 errorVal;
+    u32 errorVal;
 }POSTPACK  WMI_TARGET_ERROR_REPORT_EVENT;
 
 typedef PREPACK struct {
@@ -2522,43 +2522,43 @@ typedef PREPACK struct {
  *
  * Get fix rates cmd uses same definition as set fix rates cmd
  */
-#define FIX_RATE_1Mb            ((A_UINT32)0x1)
-#define FIX_RATE_2Mb            ((A_UINT32)0x2)
-#define FIX_RATE_5_5Mb          ((A_UINT32)0x4)
-#define FIX_RATE_11Mb           ((A_UINT32)0x8)
-#define FIX_RATE_6Mb            ((A_UINT32)0x10)
-#define FIX_RATE_9Mb            ((A_UINT32)0x20)
-#define FIX_RATE_12Mb           ((A_UINT32)0x40)
-#define FIX_RATE_18Mb           ((A_UINT32)0x80)
-#define FIX_RATE_24Mb           ((A_UINT32)0x100)
-#define FIX_RATE_36Mb           ((A_UINT32)0x200)
-#define FIX_RATE_48Mb           ((A_UINT32)0x400)
-#define FIX_RATE_54Mb           ((A_UINT32)0x800)
-#define FIX_RATE_MCS_0_20       ((A_UINT32)0x1000)
-#define FIX_RATE_MCS_1_20       ((A_UINT32)0x2000)
-#define FIX_RATE_MCS_2_20       ((A_UINT32)0x4000)
-#define FIX_RATE_MCS_3_20       ((A_UINT32)0x8000)
-#define FIX_RATE_MCS_4_20       ((A_UINT32)0x10000)
-#define FIX_RATE_MCS_5_20       ((A_UINT32)0x20000)
-#define FIX_RATE_MCS_6_20       ((A_UINT32)0x40000)
-#define FIX_RATE_MCS_7_20       ((A_UINT32)0x80000)
-#define FIX_RATE_MCS_0_40       ((A_UINT32)0x100000)
-#define FIX_RATE_MCS_1_40       ((A_UINT32)0x200000)
-#define FIX_RATE_MCS_2_40       ((A_UINT32)0x400000)
-#define FIX_RATE_MCS_3_40       ((A_UINT32)0x800000)
-#define FIX_RATE_MCS_4_40       ((A_UINT32)0x1000000)
-#define FIX_RATE_MCS_5_40       ((A_UINT32)0x2000000)
-#define FIX_RATE_MCS_6_40       ((A_UINT32)0x4000000)
-#define FIX_RATE_MCS_7_40       ((A_UINT32)0x8000000)
+#define FIX_RATE_1Mb            ((u32)0x1)
+#define FIX_RATE_2Mb            ((u32)0x2)
+#define FIX_RATE_5_5Mb          ((u32)0x4)
+#define FIX_RATE_11Mb           ((u32)0x8)
+#define FIX_RATE_6Mb            ((u32)0x10)
+#define FIX_RATE_9Mb            ((u32)0x20)
+#define FIX_RATE_12Mb           ((u32)0x40)
+#define FIX_RATE_18Mb           ((u32)0x80)
+#define FIX_RATE_24Mb           ((u32)0x100)
+#define FIX_RATE_36Mb           ((u32)0x200)
+#define FIX_RATE_48Mb           ((u32)0x400)
+#define FIX_RATE_54Mb           ((u32)0x800)
+#define FIX_RATE_MCS_0_20       ((u32)0x1000)
+#define FIX_RATE_MCS_1_20       ((u32)0x2000)
+#define FIX_RATE_MCS_2_20       ((u32)0x4000)
+#define FIX_RATE_MCS_3_20       ((u32)0x8000)
+#define FIX_RATE_MCS_4_20       ((u32)0x10000)
+#define FIX_RATE_MCS_5_20       ((u32)0x20000)
+#define FIX_RATE_MCS_6_20       ((u32)0x40000)
+#define FIX_RATE_MCS_7_20       ((u32)0x80000)
+#define FIX_RATE_MCS_0_40       ((u32)0x100000)
+#define FIX_RATE_MCS_1_40       ((u32)0x200000)
+#define FIX_RATE_MCS_2_40       ((u32)0x400000)
+#define FIX_RATE_MCS_3_40       ((u32)0x800000)
+#define FIX_RATE_MCS_4_40       ((u32)0x1000000)
+#define FIX_RATE_MCS_5_40       ((u32)0x2000000)
+#define FIX_RATE_MCS_6_40       ((u32)0x4000000)
+#define FIX_RATE_MCS_7_40       ((u32)0x8000000)
 
 typedef PREPACK struct {
-    A_UINT32      fixRateMask;          /* see WMI_BIT_RATE */
+    u32 fixRateMask;          /* see WMI_BIT_RATE */
 } POSTPACK WMI_FIX_RATES_CMD, WMI_FIX_RATES_REPLY;
 
 typedef PREPACK struct {
     u8 bEnableMask;
     u8 frameType;               /*type and subtype*/
-    A_UINT32     frameRateMask;          /* see WMI_BIT_RATE */
+    u32 frameRateMask;          /* see WMI_BIT_RATE */
 } POSTPACK WMI_FRAME_RATES_CMD, WMI_FRAME_RATES_REPLY;
 
 /*
@@ -2594,10 +2594,10 @@ typedef enum {
 } ROAM_DATA_TYPE;
 
 typedef PREPACK struct {
-    A_UINT32        disassoc_time;
-    A_UINT32        no_txrx_time;
-    A_UINT32        assoc_time;
-    A_UINT32        allow_txrx_time;
+    u32 disassoc_time;
+    u32 no_txrx_time;
+    u32 assoc_time;
+    u32 allow_txrx_time;
     u8 disassoc_bssid[ATH_MAC_LEN];
     A_INT8          disassoc_bss_rssi;
     u8 assoc_bssid[ATH_MAC_LEN];
@@ -2713,7 +2713,7 @@ typedef PREPACK struct {
 
 #define MAX_IP_ADDRS  2
 typedef PREPACK struct {
-    A_UINT32 ips[MAX_IP_ADDRS];  /* IP in Network Byte Order */
+    u32 ips[MAX_IP_ADDRS];  /* IP in Network Byte Order */
 } POSTPACK WMI_SET_IP_CMD;
 
 typedef PREPACK struct {
@@ -2769,7 +2769,7 @@ typedef PREPACK struct {
 #define WMI_AKMP_MULTI_PMKID_EN   0x000001
 
 typedef PREPACK struct {
-    A_UINT32    akmpInfo;
+    u32 akmpInfo;
 } POSTPACK WMI_SET_AKMP_PARAMS_CMD;
 
 typedef PREPACK struct {
@@ -2782,7 +2782,7 @@ typedef PREPACK struct {
 #define WMI_MAX_PMKID_CACHE   8
 
 typedef PREPACK struct {
-    A_UINT32    numPMKID;
+    u32 numPMKID;
     WMI_PMKID   pmkidList[WMI_MAX_PMKID_CACHE];
 } POSTPACK WMI_SET_PMKID_LIST_CMD;
 
@@ -2791,18 +2791,18 @@ typedef PREPACK struct {
  * Following the Number of PMKIDs is the list of PMKIDs
  */
 typedef PREPACK struct {
-    A_UINT32    numPMKID;
+    u32 numPMKID;
     u8 bssidList[ATH_MAC_LEN][1];
     WMI_PMKID   pmkidList[1];
 } POSTPACK WMI_PMKID_LIST_REPLY;
 
 typedef PREPACK struct {
     u16 oldChannel;
-    A_UINT32 newChannel;
+    u32 newChannel;
 } POSTPACK WMI_CHANNEL_CHANGE_EVENT;
 
 typedef PREPACK struct {
-    A_UINT32 version;
+    u32 version;
 } POSTPACK WMI_WLAN_VERSION_EVENT;
 
 
@@ -2898,8 +2898,8 @@ typedef PREPACK struct {
     u8 rateIdx; /* rate index on successful transmission */
     u8 ackFailures; /* number of ACK failures in tx attempt */
 #if 0 /* optional params currently ommitted. */
-    A_UINT32 queueDelay; // usec delay measured Tx Start time - host delivery time
-    A_UINT32 mediaDelay; // usec delay measured ACK rx time - host delivery time
+    u32 queueDelay; // usec delay measured Tx Start time - host delivery time
+    u32 mediaDelay; // usec delay measured ACK rx time - host delivery time
 #endif
 } POSTPACK TX_COMPLETE_MSG_V1; /* version 1 of tx complete msg */
 
@@ -3001,12 +3001,12 @@ typedef PREPACK struct {
 } POSTPACK WMI_AP_SET_MLME_CMD;
 
 typedef PREPACK struct {
-    A_UINT32 period;
+    u32 period;
 } POSTPACK WMI_AP_CONN_INACT_CMD;
 
 typedef PREPACK struct {
-    A_UINT32 period_min;
-    A_UINT32 dwell_ms;
+    u32 period_min;
+    u32 dwell_ms;
 } POSTPACK WMI_AP_PROT_SCAN_TIME_CMD;
 
 typedef PREPACK struct {
@@ -3039,11 +3039,11 @@ typedef PREPACK struct {
 } POSTPACK WMI_SET_HT_OP_CMD;
 
 typedef PREPACK struct {
-    A_UINT32 rateMasks[8];
+    u32 rateMasks[8];
 } POSTPACK WMI_SET_TX_SELECT_RATES_CMD;
 
 typedef PREPACK struct {
-    A_UINT32    sgiMask;
+    u32 sgiMask;
     u8 sgiPERThreshold;
 } POSTPACK WMI_SET_TX_SGI_PARAM_CMD;
 
@@ -3051,7 +3051,7 @@ typedef PREPACK struct {
 #define DEFAULT_SGI_PER 10
 
 typedef PREPACK struct {
-    A_UINT32 rateField; /* 1 bit per rate corresponding to index */
+    u32 rateField; /* 1 bit per rate corresponding to index */
     u8 id;
     u8 shortTrys;
     u8 longTrys;
@@ -3078,25 +3078,25 @@ typedef PREPACK struct {
 } POSTPACK WMI_PSPOLL_EVENT;
 
 typedef PREPACK struct {
-    A_UINT32 tx_bytes;
-    A_UINT32 tx_pkts;
-    A_UINT32 tx_error;
-    A_UINT32 tx_discard;
-    A_UINT32 rx_bytes;
-    A_UINT32 rx_pkts;
-    A_UINT32 rx_error;
-    A_UINT32 rx_discard;
-    A_UINT32 aid;
+    u32 tx_bytes;
+    u32 tx_pkts;
+    u32 tx_error;
+    u32 tx_discard;
+    u32 rx_bytes;
+    u32 rx_pkts;
+    u32 rx_error;
+    u32 rx_discard;
+    u32 aid;
 } POSTPACK WMI_PER_STA_STAT;
 
 #define AP_GET_STATS    0
 #define AP_CLEAR_STATS  1
 
 typedef PREPACK struct {
-    A_UINT32            action;
+    u32 action;
     WMI_PER_STA_STAT    sta[AP_MAX_NUM_STA+1];
 } POSTPACK WMI_AP_MODE_STAT;
-#define WMI_AP_MODE_STAT_SIZE(numSta) (sizeof(A_UINT32) + ((numSta + 1) * sizeof(WMI_PER_STA_STAT)))
+#define WMI_AP_MODE_STAT_SIZE(numSta) (sizeof(u32) + ((numSta + 1) * sizeof(WMI_PER_STA_STAT)))
 
 #define AP_11BG_RATESET1        1
 #define AP_11BG_RATESET2        2

@@ -52,8 +52,8 @@ typedef PREPACK struct _AR6K_IRQ_PROC_REGISTERS {
     u8 rx_lookahead_valid;
     u8 host_int_status2;
     u8 gmbox_rx_avail;
-    A_UINT32                     rx_lookahead[2];
-    A_UINT32                     rx_gmbox_lookahead_alias[2];
+    u32 rx_lookahead[2];
+    u32 rx_gmbox_lookahead_alias[2];
 } POSTPACK AR6K_IRQ_PROC_REGISTERS;
 
 #define AR6K_IRQ_PROC_REGS_SIZE sizeof(AR6K_IRQ_PROC_REGISTERS)
@@ -113,8 +113,8 @@ typedef struct _AR6K_DEVICE {
     AR6K_IRQ_ENABLE_REGISTERS   IrqEnableRegisters; /* cache-line safe with pads around */
     u8 _Pad3[A_CACHE_LINE_PAD];
     void                        *HIFDevice;
-    A_UINT32                    BlockSize;
-    A_UINT32                    BlockMask;
+    u32 BlockSize;
+    u32 BlockMask;
     HIF_DEVICE_MBOX_INFO        MailBoxInfo;
     HIF_PENDING_EVENTS_FUNC     GetPendingEventsFunc;
     void                        *HTCContext;
@@ -122,7 +122,7 @@ typedef struct _AR6K_DEVICE {
     AR6K_ASYNC_REG_IO_BUFFER    RegIOBuffers[AR6K_MAX_REG_IO_BUFFERS];
     void                        (*TargetFailureCallback)(void *Context);
     int                    (*MessagePendingCallback)(void *Context,
-                                                          A_UINT32 LookAheads[], 
+                                                          u32 LookAheads[],
                                                           int NumLookAheads, 
                                                           bool *pAsyncProc,
                                                           int *pNumPktsFetched);
@@ -152,7 +152,7 @@ void     DevCleanup(AR6K_DEVICE *pDev);
 int DevUnmaskInterrupts(AR6K_DEVICE *pDev);
 int DevMaskInterrupts(AR6K_DEVICE *pDev);
 int DevPollMboxMsgRecv(AR6K_DEVICE *pDev,
-                            A_UINT32    *pLookAhead,
+                            u32 *pLookAhead,
                             int          TimeoutMS);
 int DevRWCompletionHandler(void *context, int status);
 int DevDsrHandler(void *context);
@@ -170,14 +170,14 @@ int DevStopRecv(AR6K_DEVICE *pDev, bool ASyncMode);
 int DevEnableRecv(AR6K_DEVICE *pDev, bool ASyncMode);
 int DevEnableInterrupts(AR6K_DEVICE *pDev);
 int DevDisableInterrupts(AR6K_DEVICE *pDev);
-int DevWaitForPendingRecv(AR6K_DEVICE *pDev,A_UINT32 TimeoutInMs,bool *pbIsRecvPending);
+int DevWaitForPendingRecv(AR6K_DEVICE *pDev,u32 TimeoutInMs,bool *pbIsRecvPending);
 
 #define DEV_CALC_RECV_PADDED_LEN(pDev, length) (((length) + (pDev)->BlockMask) & (~((pDev)->BlockMask)))
 #define DEV_CALC_SEND_PADDED_LEN(pDev, length) DEV_CALC_RECV_PADDED_LEN(pDev,length)
 #define DEV_IS_LEN_BLOCK_ALIGNED(pDev, length) (((length) % (pDev)->BlockSize) == 0)
 
-static INLINE int DevSendPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 SendLength) {
-    A_UINT32 paddedLength;
+static INLINE int DevSendPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 SendLength) {
+    u32 paddedLength;
     bool   sync = (pPacket->Completion == NULL) ? true : false;
     int status;
 
@@ -219,8 +219,8 @@ static INLINE int DevSendPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32
     return status;
 }
                     
-static INLINE int DevRecvPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 RecvLength) {
-    A_UINT32 paddedLength;
+static INLINE int DevRecvPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 RecvLength) {
+    u32 paddedLength;
     int status;
     bool   sync = (pPacket->Completion == NULL) ? true : false;
 
@@ -376,8 +376,8 @@ AR6K_DEVICE  *HTCGetAR6KDevice(void *HTCHandle);
 
 #define DEV_GMBOX_GET_PROTOCOL(pDev)  (pDev)->GMboxInfo.pProtocolContext
 
-int DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 WriteLength);
-int DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 ReadLength);
+int DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 WriteLength);
+int DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 ReadLength);
 
 #define PROC_IO_ASYNC true
 #define PROC_IO_SYNC  false

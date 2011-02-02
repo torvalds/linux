@@ -70,13 +70,13 @@ typedef struct bss {
     u8 *ni_buf;
     u16 ni_framelen;
     struct ieee80211_node_table *ni_table;
-    A_UINT32                     ni_refcnt;
+    u32 ni_refcnt;
     int                          ni_scangen;
 
-    A_UINT32                     ni_tstamp;
-    A_UINT32                     ni_actcnt;
+    u32 ni_tstamp;
+    u32 ni_actcnt;
 #ifdef OS_ROAM_MANAGEMENT
-    A_UINT32                     ni_si_gen;
+    u32 ni_si_gen;
 #endif
 } bss_t;
 
@@ -100,16 +100,16 @@ int wlan_parse_beacon(u8 *buf, int framelen,
                            struct ieee80211_common_ie *cie);
 
 u16 wlan_ieee2freq(int chan);
-A_UINT32 wlan_freq2ieee(u16 freq);
+u32 wlan_freq2ieee(u16 freq);
 
-void wlan_set_nodeage(struct ieee80211_node_table *nt, A_UINT32 nodeAge);
+void wlan_set_nodeage(struct ieee80211_node_table *nt, u32 nodeAge);
 
 void
 wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt);
 
 bss_t *
 wlan_find_Ssidnode (struct ieee80211_node_table *nt, A_UCHAR *pSsid,
-                    A_UINT32 ssidLength, bool bIsWPA2, bool bMatchSSID);
+                    u32 ssidLength, bool bIsWPA2, bool bMatchSSID);
 
 void
 wlan_node_return (struct ieee80211_node_table *nt, bss_t *ni);
@@ -118,8 +118,8 @@ bss_t *wlan_node_remove(struct ieee80211_node_table *nt, u8 *bssid);
 
 bss_t *
 wlan_find_matching_Ssidnode (struct ieee80211_node_table *nt, A_UCHAR *pSsid,
-                    A_UINT32 ssidLength, A_UINT32 dot11AuthMode, A_UINT32 authMode,
-                   A_UINT32 pairwiseCryptoType, A_UINT32 grpwiseCryptoTyp);
+                    u32 ssidLength, u32 dot11AuthMode, u32 authMode,
+                   u32 pairwiseCryptoType, u32 grpwiseCryptoTyp);
 
 #ifdef __cplusplus
 }

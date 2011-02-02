@@ -76,7 +76,7 @@ typedef enum {
 typedef PREPACK struct {
     u16 freqIndex; // 1 - A mode 2 - B or G mode 0 - common
     u16 offset;
-    A_UINT32 newValue;
+    u32 newValue;
 } POSTPACK INI_DSET_REG_OVERRIDE;
 
 #endif

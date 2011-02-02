@@ -98,7 +98,7 @@ ar6000_scan_node(void *arg, bss_t *ni)
     struct ieee80211_common_ie  *cie;
     char *current_val;
     A_INT32 j;
-    A_UINT32 rate_len, data_len = 0;
+    u32 rate_len, data_len = 0;
 
     param = (struct ar_giwscan_param *)arg;
 
@@ -712,7 +712,7 @@ ar6000_ioctl_siwrate(struct net_device *dev,
             struct iw_param *rrq, char *extra)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
-    A_UINT32  kbps;
+    u32 kbps;
     A_INT8  rate_idx;
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
@@ -1596,7 +1596,7 @@ static int ar6000_set_wapi_key(struct net_device *dev,
     A_INT32     keyLen;
     u8 *keyData;
     A_INT32     index;
-    A_UINT32    *PN;
+    u32 *PN;
     A_INT32     i;
     int    status;
     u8 wapiKeyRsc[16];
@@ -1619,7 +1619,7 @@ static int ar6000_set_wapi_key(struct net_device *dev,
 
     if (A_MEMCMP(ext->addr.sa_data, broadcastMac, sizeof(broadcastMac)) == 0) {
         keyUsage |= GROUP_USAGE;
-        PN = (A_UINT32 *)wapiKeyRsc;
+        PN = (u32 *)wapiKeyRsc;
         for (i = 0; i < 4; i++) {
             PN[i] = PN_INIT;
         }

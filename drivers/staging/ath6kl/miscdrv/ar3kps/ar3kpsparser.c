@@ -87,8 +87,8 @@ enum eType {
 
 typedef struct tPsTagEntry
 {
-   A_UINT32   TagId;
-   A_UINT32   TagLen;
+   u32 TagId;
+   u32 TagLen;
    u8 *TagData;
 } tPsTagEntry, *tpPsTagEntry;
 
@@ -115,25 +115,25 @@ typedef struct ST_READ_STATUS {
 
 
 /* Stores the number of PS Tags */
-static A_UINT32 Tag_Count = 0;
+static u32 Tag_Count = 0;
 
 /* Stores the number of patch commands */
-static A_UINT32 Patch_Count = 0;
-static A_UINT32 Total_tag_lenght = 0;
+static u32 Patch_Count = 0;
+static u32 Total_tag_lenght = 0;
 bool BDADDR = false;
-A_UINT32      StartTagId;
+u32 StartTagId;
 
 tPsTagEntry PsTagEntry[RAMPS_MAX_PS_TAGS_PER_FILE];
 tRamPatch   RamPatch[MAX_NUM_PATCH_ENTRY];
 
 
-int AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat);
-char AthReadChar(A_UCHAR *buffer, A_UINT32 len,A_UINT32 *pos);
-char *AthGetLine(char *buffer, int maxlen, A_UCHAR *srcbuffer,A_UINT32 len,A_UINT32 *pos);
-static int AthPSCreateHCICommand(A_UCHAR Opcode, A_UINT32 Param1,PSCmdPacket *PSPatchPacket,A_UINT32 *index);
+int AthParseFilesUnified(A_UCHAR *srcbuffer,u32 srclen, int FileFormat);
+char AthReadChar(A_UCHAR *buffer, u32 len,u32 *pos);
+char *AthGetLine(char *buffer, int maxlen, A_UCHAR *srcbuffer,u32 len,u32 *pos);
+static int AthPSCreateHCICommand(A_UCHAR Opcode, u32 Param1,PSCmdPacket *PSPatchPacket,u32 *index);
 
 /* Function to reads the next character from the input buffer */
-char AthReadChar(A_UCHAR *buffer, A_UINT32 len,A_UINT32 *pos) 
+char AthReadChar(A_UCHAR *buffer, u32 len,u32 *pos)
 {
     char Ch;
     if(buffer == NULL || *pos >=len )
@@ -315,14 +315,14 @@ unsigned int uReadDataInSection(char *pCharLine, ST_PS_DATA_FORMAT stPS_DataForm
         return (0x0FFF);
     }
 }
-int AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat)
+int AthParseFilesUnified(A_UCHAR *srcbuffer,u32 srclen, int FileFormat)
 {
    char *Buffer;
    char *pCharLine;
    u8 TagCount;
    u16 ByteCount;
    u8 ParseSection=RAM_PS_SECTION;
-   A_UINT32 pos;
+   u32 pos;
 
 
 
@@ -558,7 +558,7 @@ int AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat)
 /********************/
 
 
-int GetNextTwoChar(A_UCHAR *srcbuffer,A_UINT32 len, A_UINT32 *pos, char *buffer)
+int GetNextTwoChar(A_UCHAR *srcbuffer,u32 len, u32 *pos, char *buffer)
 {
     unsigned char ch;
 
@@ -579,7 +579,7 @@ int GetNextTwoChar(A_UCHAR *srcbuffer,A_UINT32 len, A_UINT32 *pos, char *buffer)
     return A_OK;
 }
 
-int AthDoParsePatch(A_UCHAR *patchbuffer, A_UINT32 patchlen)
+int AthDoParsePatch(A_UCHAR *patchbuffer, u32 patchlen)
 {
 
     char Byte[3];
@@ -588,7 +588,7 @@ int AthDoParsePatch(A_UCHAR *patchbuffer, A_UINT32 patchlen)
     int count;
     int i,j,k;
     int data;
-    A_UINT32 filepos;
+    u32 filepos;
     Byte[2] = '\0';
     j = 0;
     filepos = 0;
@@ -659,7 +659,7 @@ int AthDoParsePatch(A_UCHAR *patchbuffer, A_UINT32 patchlen)
 
 
 /********************/
-int AthDoParsePS(A_UCHAR *srcbuffer, A_UINT32 srclen)
+int AthDoParsePS(A_UCHAR *srcbuffer, u32 srclen)
 {
     int status;
     int i;
@@ -713,7 +713,7 @@ int AthDoParsePS(A_UCHAR *srcbuffer, A_UINT32 srclen)
 
     return status;
 }
-char *AthGetLine(char *buffer, int maxlen, A_UCHAR *srcbuffer,A_UINT32 len,A_UINT32 *pos)
+char *AthGetLine(char *buffer, int maxlen, A_UCHAR *srcbuffer,u32 len,u32 *pos)
 {
 
     int count;
@@ -764,13 +764,13 @@ static void LoadHeader(A_UCHAR *HCI_PS_Command,A_UCHAR opcode,int length,int ind
 
 /////////////////////////
 //
-int AthCreateCommandList(PSCmdPacket **HciPacketList, A_UINT32 *numPackets)
+int AthCreateCommandList(PSCmdPacket **HciPacketList, u32 *numPackets)
 {
 
     u8 count;
-    A_UINT32 NumcmdEntry = 0; 
+    u32 NumcmdEntry = 0;
 
-    A_UINT32 Crc = 0;
+    u32 Crc = 0;
     *numPackets = 0;
 
 
@@ -785,7 +785,7 @@ int AthCreateCommandList(PSCmdPacket **HciPacketList, A_UINT32 *numPackets)
         if(Patch_Count > 0) {
             NumcmdEntry++; /* Patch Enable Command */
         }
-           AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Num Cmd Entries %d Size  %d  \r\n",NumcmdEntry,(A_UINT32)sizeof(PSCmdPacket) * NumcmdEntry));
+           AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Num Cmd Entries %d Size  %d  \r\n",NumcmdEntry,(u32)sizeof(PSCmdPacket) * NumcmdEntry));
         (*HciPacketList) = A_MALLOC(sizeof(PSCmdPacket) * NumcmdEntry);
     if(NULL == *HciPacketList) {
                AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("memory allocation failed  \r\n"));
@@ -833,10 +833,10 @@ int AthCreateCommandList(PSCmdPacket **HciPacketList, A_UINT32 *numPackets)
 ////////////////////////
 
 /////////////
-static int AthPSCreateHCICommand(A_UCHAR Opcode, A_UINT32 Param1,PSCmdPacket *PSPatchPacket,A_UINT32 *index)
+static int AthPSCreateHCICommand(A_UCHAR Opcode, u32 Param1,PSCmdPacket *PSPatchPacket,u32 *index)
 {
     A_UCHAR *HCI_PS_Command;
-    A_UINT32 Length;
+    u32 Length;
     int i,j;
     
     switch(Opcode)
@@ -955,7 +955,7 @@ static int AthPSCreateHCICommand(A_UCHAR Opcode, A_UINT32 Param1,PSCmdPacket *PS
     }
     return A_OK;
 }
-int AthFreeCommandList(PSCmdPacket **HciPacketList, A_UINT32 numPackets)
+int AthFreeCommandList(PSCmdPacket **HciPacketList, u32 numPackets)
 {
     int i;
     if(*HciPacketList == NULL) {

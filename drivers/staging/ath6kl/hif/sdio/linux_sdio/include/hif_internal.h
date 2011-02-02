@@ -53,10 +53,10 @@ typedef struct bus_request {
     struct bus_request *next;       /* link list of available requests */
     struct bus_request *inusenext;  /* link list of in use requests */
     struct semaphore sem_req;
-    A_UINT32 address;               /* request data */
+    u32 address;               /* request data */
     A_UCHAR *buffer;
-    A_UINT32 length;
-    A_UINT32 request;
+    u32 length;
+    u32 request;
     void *context;
     int status;
     struct _HIF_SCATTER_REQ_PRIV *pScatterReq;      /* this request is a scatter request */

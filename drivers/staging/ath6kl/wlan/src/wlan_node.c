@@ -114,7 +114,7 @@ wlan_setup_node(struct ieee80211_node_table *nt, bss_t *ni,
                 const u8 *macaddr)
 {
     int hash;
-    A_UINT32 timeoutValue = 0;
+    u32 timeoutValue = 0;
 
     A_MEMCPY(ni->ni_macaddr, macaddr, IEEE80211_ADDR_LEN);
     hash = IEEE80211_NODE_HASH (macaddr);
@@ -262,7 +262,7 @@ wlan_iterate_nodes(struct ieee80211_node_table *nt, wlan_node_iter_func *f,
                    void *arg)
 {
     bss_t *ni;
-    A_UINT32 gen;
+    u32 gen;
 
     gen = ++nt->nt_scangen;
 
@@ -316,7 +316,7 @@ wlan_node_table_init(void *wmip, struct ieee80211_node_table *nt)
 }
 
 void
-wlan_set_nodeage(struct ieee80211_node_table *nt, A_UINT32 nodeAge)
+wlan_set_nodeage(struct ieee80211_node_table *nt, u32 nodeAge)
 {
     nt->nt_nodeAge = nodeAge;
     return;
@@ -347,8 +347,8 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt)
 #else
     bss_t *bss, *nextBss;
     u8 myBssid[IEEE80211_ADDR_LEN];
-    A_UINT32 timeoutValue = 0;
-    A_UINT32 now = A_GET_MS(0);
+    u32 timeoutValue = 0;
+    u32 now = A_GET_MS(0);
     timeoutValue = nt->nt_nodeAge;
 
     wmi_get_current_bssid(nt->nt_wmip, myBssid);
@@ -380,7 +380,7 @@ wlan_node_timeout (A_ATH_TIMER arg)
     struct ieee80211_node_table *nt = (struct ieee80211_node_table *)arg;
     bss_t *bss, *nextBss;
     u8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = false;
-    A_UINT32 timeoutValue = 0;
+    u32 timeoutValue = 0;
 
     timeoutValue = nt->nt_nodeAge;
 
@@ -432,7 +432,7 @@ wlan_node_table_cleanup(struct ieee80211_node_table *nt)
 
 bss_t *
 wlan_find_Ssidnode (struct ieee80211_node_table *nt, A_UCHAR *pSsid,
-                    A_UINT32 ssidLength, bool bIsWPA2, bool bMatchSSID)
+                    u32 ssidLength, bool bIsWPA2, bool bMatchSSID)
 {
     bss_t   *ni = NULL;
     A_UCHAR *pIESsid = NULL;
@@ -554,8 +554,8 @@ wlan_node_remove(struct ieee80211_node_table *nt, u8 *bssid)
 
 bss_t *
 wlan_find_matching_Ssidnode (struct ieee80211_node_table *nt, A_UCHAR *pSsid,
-                    A_UINT32 ssidLength, A_UINT32 dot11AuthMode, A_UINT32 authMode,
-                   A_UINT32 pairwiseCryptoType, A_UINT32 grpwiseCryptoTyp)
+                    u32 ssidLength, u32 dot11AuthMode, u32 authMode,
+                   u32 pairwiseCryptoType, u32 grpwiseCryptoTyp)
 {
     bss_t   *ni = NULL;
     bss_t   *best_ni = NULL;

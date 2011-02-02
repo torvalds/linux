@@ -67,7 +67,7 @@ static int Func0_CMD52ReadByte(struct mmc_card *card, unsigned int address, unsi
 int reset_sdio_on_unload = 0;
 module_param(reset_sdio_on_unload, int, 0644);
 
-extern A_UINT32 nohifscattersupport;
+extern u32 nohifscattersupport;
 
 
 /* ------ Static Variables ------ */
@@ -102,9 +102,9 @@ static struct dev_pm_ops ar6k_device_pm_ops = {
 static int registered = 0;
 
 OSDRV_CALLBACKS osdrvCallbacks;
-extern A_UINT32 onebitmode;
-extern A_UINT32 busspeedlow;
-extern A_UINT32 debughif;
+extern u32 onebitmode;
+extern u32 busspeedlow;
+extern u32 debughif;
 
 static void ResetAllCards(void);
 static int hifDisableFunc(HIF_DEVICE *device, struct sdio_func *func);
@@ -154,10 +154,10 @@ int HIFInit(OSDRV_CALLBACKS *callbacks)
 
 static int
 __HIFReadWrite(HIF_DEVICE *device,
-             A_UINT32 address,
+             u32 address,
              A_UCHAR *buffer,
-             A_UINT32 length,
-             A_UINT32 request,
+             u32 length,
+             u32 request,
              void *context)
 {
     u8 opcode;
@@ -331,10 +331,10 @@ void AddToAsyncList(HIF_DEVICE *device, BUS_REQUEST *busrequest)
 /* queue a read/write request */
 int
 HIFReadWrite(HIF_DEVICE *device,
-             A_UINT32 address,
+             u32 address,
              A_UCHAR *buffer,
-             A_UINT32 length,
-             A_UINT32 request,
+             u32 length,
+             u32 request,
              void *context)
 {
     int    status = A_OK;
@@ -465,7 +465,7 @@ static int async_task(void *param)
     return 0;
 }
 
-static A_INT32 IssueSDCommand(HIF_DEVICE *device, A_UINT32 opcode, A_UINT32 arg, A_UINT32 flags, A_UINT32 *resp)
+static A_INT32 IssueSDCommand(HIF_DEVICE *device, u32 opcode, u32 arg, u32 flags, u32 *resp)
 {
     struct mmc_command cmd;
     A_INT32 err;
@@ -495,7 +495,7 @@ int ReinitSDIO(HIF_DEVICE *device)
     struct mmc_card *card;
 	struct sdio_func *func;
     u8 cmd52_resp;
-    A_UINT32 clock;
+    u32 clock;
 
     func = device->func;
     card = func->card;
@@ -506,9 +506,9 @@ int ReinitSDIO(HIF_DEVICE *device)
 
     do {
         if (!device->is_suspend) {
-            A_UINT32 resp;
+            u32 resp;
             u16 rca;
-            A_UINT32 i;
+            u32 i;
             int bit = fls(host->ocr_avail) - 1;
             /* emulate the mmc_power_up(...) */
             host->ios.vdd = bit;
@@ -692,22 +692,22 @@ PowerStateChangeNotify(HIF_DEVICE *device, HIF_DEVICE_POWER_CHANGE_TYPE config)
 
 int
 HIFConfigureDevice(HIF_DEVICE *device, HIF_DEVICE_CONFIG_OPCODE opcode,
-                   void *config, A_UINT32 configLen)
+                   void *config, u32 configLen)
 {
-    A_UINT32 count;
+    u32 count;
     int status = A_OK;
     
     switch(opcode) {
         case HIF_DEVICE_GET_MBOX_BLOCK_SIZE:
-            ((A_UINT32 *)config)[0] = HIF_MBOX0_BLOCK_SIZE;
-            ((A_UINT32 *)config)[1] = HIF_MBOX1_BLOCK_SIZE;
-            ((A_UINT32 *)config)[2] = HIF_MBOX2_BLOCK_SIZE;
-            ((A_UINT32 *)config)[3] = HIF_MBOX3_BLOCK_SIZE;
+            ((u32 *)config)[0] = HIF_MBOX0_BLOCK_SIZE;
+            ((u32 *)config)[1] = HIF_MBOX1_BLOCK_SIZE;
+            ((u32 *)config)[2] = HIF_MBOX2_BLOCK_SIZE;
+            ((u32 *)config)[3] = HIF_MBOX3_BLOCK_SIZE;
             break;
 
         case HIF_DEVICE_GET_MBOX_ADDR:
             for (count = 0; count < 4; count ++) {
-                ((A_UINT32 *)config)[count] = HIF_MBOX_START_ADDR(count);
+                ((u32 *)config)[count] = HIF_MBOX_START_ADDR(count);
             }
             
             if (configLen >= sizeof(HIF_DEVICE_MBOX_INFO)) {    

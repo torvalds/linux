@@ -146,7 +146,7 @@ typedef struct _HTC_SERVICE_CONNECT_REQ {
     u8 MetaDataLength;            /* optional meta data length */
     HTC_EP_CALLBACKS EpCallbacks;               /* endpoint callbacks */
     int              MaxSendQueueDepth;         /* maximum depth of any send queue */
-    A_UINT32         LocalConnectionFlags;      /* HTC flags for the host-side (local) connection */
+    u32 LocalConnectionFlags;      /* HTC flags for the host-side (local) connection */
     unsigned int     MaxSendMsgSize;            /* override max message size in send direction */
 } HTC_SERVICE_CONNECT_REQ;
 
@@ -168,7 +168,7 @@ typedef struct _HTC_ENDPOINT_CREDIT_DIST {
     struct _HTC_ENDPOINT_CREDIT_DIST *pPrev;
     HTC_SERVICE_ID      ServiceID;          /* Service ID (set by HTC) */
     HTC_ENDPOINT_ID     Endpoint;           /* endpoint for this distribution struct (set by HTC) */
-    A_UINT32            DistFlags;          /* distribution flags, distribution function can
+    u32 DistFlags;          /* distribution flags, distribution function can
                                                set default activity using SET_EP_ACTIVE() macro */
     int                 TxCreditsNorm;      /* credits for normal operation, anything above this
                                                indicates the endpoint is over-subscribed, this field
@@ -197,7 +197,7 @@ typedef struct _HTC_ENDPOINT_CREDIT_DIST {
                                               */
 } HTC_ENDPOINT_CREDIT_DIST;
 
-#define HTC_EP_ACTIVE                            ((A_UINT32) (1u << 31))
+#define HTC_EP_ACTIVE                            ((u32) (1u << 31))
 
 /* macro to check if an endpoint has gone active, useful for credit
  * distributions */
@@ -232,29 +232,29 @@ typedef enum _HTC_ENDPOINT_STAT_ACTION {
 
     /* endpoint statistics */
 typedef struct _HTC_ENDPOINT_STATS {
-    A_UINT32  TxCreditLowIndications;  /* number of times the host set the credit-low flag in a send message on
+    u32 TxCreditLowIndications;  /* number of times the host set the credit-low flag in a send message on
                                         this endpoint */
-    A_UINT32  TxIssued;               /* running count of total TX packets issued */
-    A_UINT32  TxPacketsBundled;       /* running count of TX packets that were issued in bundles */
-    A_UINT32  TxBundles;              /* running count of TX bundles that were issued */
-    A_UINT32  TxDropped;              /* tx packets that were dropped */
-    A_UINT32  TxCreditRpts;           /* running count of total credit reports received for this endpoint */
-    A_UINT32  TxCreditRptsFromRx;     /* credit reports received from this endpoint's RX packets */
-    A_UINT32  TxCreditRptsFromOther;  /* credit reports received from RX packets of other endpoints */
-    A_UINT32  TxCreditRptsFromEp0;    /* credit reports received from endpoint 0 RX packets */
-    A_UINT32  TxCreditsFromRx;        /* count of credits received via Rx packets on this endpoint */
-    A_UINT32  TxCreditsFromOther;     /* count of credits received via another endpoint */
-    A_UINT32  TxCreditsFromEp0;       /* count of credits received via another endpoint */
-    A_UINT32  TxCreditsConsummed;     /* count of consummed credits */
-    A_UINT32  TxCreditsReturned;      /* count of credits returned */
-    A_UINT32  RxReceived;             /* count of RX packets received */
-    A_UINT32  RxLookAheads;           /* count of lookahead records
+    u32 TxIssued;               /* running count of total TX packets issued */
+    u32 TxPacketsBundled;       /* running count of TX packets that were issued in bundles */
+    u32 TxBundles;              /* running count of TX bundles that were issued */
+    u32 TxDropped;              /* tx packets that were dropped */
+    u32 TxCreditRpts;           /* running count of total credit reports received for this endpoint */
+    u32 TxCreditRptsFromRx;     /* credit reports received from this endpoint's RX packets */
+    u32 TxCreditRptsFromOther;  /* credit reports received from RX packets of other endpoints */
+    u32 TxCreditRptsFromEp0;    /* credit reports received from endpoint 0 RX packets */
+    u32 TxCreditsFromRx;        /* count of credits received via Rx packets on this endpoint */
+    u32 TxCreditsFromOther;     /* count of credits received via another endpoint */
+    u32 TxCreditsFromEp0;       /* count of credits received via another endpoint */
+    u32 TxCreditsConsummed;     /* count of consummed credits */
+    u32 TxCreditsReturned;      /* count of credits returned */
+    u32 RxReceived;             /* count of RX packets received */
+    u32 RxLookAheads;           /* count of lookahead records
                                          found in messages received on this endpoint */
-    A_UINT32  RxPacketsBundled;       /* count of recv packets received in a bundle */                                     
-    A_UINT32  RxBundleLookAheads;     /* count of number of bundled lookaheads */
-    A_UINT32  RxBundleIndFromHdr;     /* count of the number of bundle indications from the HTC header */
-    A_UINT32  RxAllocThreshHit;       /* count of the number of times the recv allocation threshhold was hit */
-    A_UINT32  RxAllocThreshBytes;     /* total number of bytes */
+    u32 RxPacketsBundled;       /* count of recv packets received in a bundle */
+    u32 RxBundleLookAheads;     /* count of number of bundled lookaheads */
+    u32 RxBundleIndFromHdr;     /* count of the number of bundle indications from the HTC header */
+    u32 RxAllocThreshHit;       /* count of the number of times the recv allocation threshhold was hit */
+    u32 RxAllocThreshBytes;     /* total number of bytes */
 } HTC_ENDPOINT_STATS;
 
 /* ------ Function Prototypes ------ */
@@ -565,7 +565,7 @@ int         HTCGetNumRecvBuffers(HTC_HANDLE      HTCHandle,
 void HTCEnableRecv(HTC_HANDLE HTCHandle);
 void HTCDisableRecv(HTC_HANDLE HTCHandle);
 int HTCWaitForPendingRecv(HTC_HANDLE   HTCHandle,
-                               A_UINT32     TimeoutInMs,
+                               u32 TimeoutInMs,
                                bool      *pbIsRecvPending);
 
 #ifdef __cplusplus

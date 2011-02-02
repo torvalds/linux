@@ -119,14 +119,14 @@ typedef PREPACK struct {
  *  frames that require partial MAC header construction. These rules 
  *  are used by the target to indicate which fields need to be written. */
 typedef PREPACK struct {
-    A_UINT32    rules; /* combination of WMI_WRT_... values */     
+    u32 rules; /* combination of WMI_WRT_... values */
 } POSTPACK WMI_THIN_CONFIG_TX_MAC_RULES;
 
 /* WMI_THIN_CONFIG_RX_FILTER_RULES -- Used to configure behavior for received
  *  frames as to which frames should get forwarded to the host and which
  *  should get processed internally. */
 typedef PREPACK struct {
-    A_UINT32    rules; /* combination of WMI_FILT_... values */     
+    u32 rules; /* combination of WMI_FILT_... values */
 } POSTPACK WMI_THIN_CONFIG_RX_FILTER_RULES;
 
 /* WMI_THIN_CONFIG_CMD -- Used to contain some combination of the above
@@ -138,7 +138,7 @@ typedef PREPACK struct {
 #define WMI_THIN_CFG_DECRYPT        0x00000002
 #define WMI_THIN_CFG_MAC_RULES      0x00000004
 #define WMI_THIN_CFG_FILTER_RULES   0x00000008
-    A_UINT32    cfgField;   /* combination of WMI_THIN_CFG_... describes contents of config command */
+    u32 cfgField;   /* combination of WMI_THIN_CFG_... describes contents of config command */
     u16 length;     /* length in bytes of appended sub-commands */
     u8 reserved[2];   /* align padding */
 } POSTPACK WMI_THIN_CONFIG_CMD;
@@ -180,7 +180,7 @@ typedef PREPACK struct {
 } POSTPACK WMI_THIN_MIB_STA_MAC;
 
 typedef PREPACK struct {
-    A_UINT32 time; // units == msec
+    u32 time; // units == msec
 } POSTPACK WMI_THIN_MIB_RX_LIFE_TIME;
 
 typedef PREPACK struct {
@@ -188,7 +188,7 @@ typedef PREPACK struct {
 } POSTPACK WMI_THIN_MIB_CTS_TO_SELF;
 
 typedef PREPACK struct {
-    A_UINT32 time; // units == usec
+    u32 time; // units == usec
 } POSTPACK WMI_THIN_MIB_SLOT_TIME;
 
 typedef PREPACK struct {
@@ -204,7 +204,7 @@ typedef PREPACK struct {
 typedef PREPACK struct {
 #define FRAME_FILTER_PROMISCUOUS 0x00000001
 #define FRAME_FILTER_BSSID       0x00000002
-    A_UINT32 filterMask; 
+    u32 filterMask;
 } POSTPACK WMI_THIN_MIB_RXFRAME_FILTER;
 
 
@@ -231,13 +231,13 @@ typedef PREPACK struct {
 } POSTPACK WMI_THIN_MIB_BEACON_FILTER_TABLE_HEADER; 
 
 typedef PREPACK struct {
-    A_UINT32 count; /* num beacons between deliveries */
+    u32 count; /* num beacons between deliveries */
     u8 enable;
     u8 reserved[3];
 } POSTPACK WMI_THIN_MIB_BEACON_FILTER;
 
 typedef PREPACK struct {
-    A_UINT32 count; /* num consec lost beacons after which send event */
+    u32 count; /* num consec lost beacons after which send event */
 } POSTPACK WMI_THIN_MIB_BEACON_LOST_COUNT;
 
 typedef PREPACK struct {
@@ -249,9 +249,9 @@ typedef PREPACK struct {
 
 
 typedef PREPACK struct {
-    A_UINT32 cap;
-    A_UINT32 rxRateField;
-    A_UINT32 beamForming;
+    u32 cap;
+    u32 rxRateField;
+    u32 beamForming;
     u8 addr[ATH_MAC_LEN];
     u8 enable;
     u8 stbc;
@@ -262,8 +262,8 @@ typedef PREPACK struct {
 } POSTPACK WMI_THIN_MIB_HT_CAP;
 
 typedef PREPACK struct {
-    A_UINT32 infoField;
-    A_UINT32 basicRateField;
+    u32 infoField;
+    u32 basicRateField;
     u8 protection;
     u8 secondChanneloffset;
     u8 channelWidth;
@@ -301,8 +301,8 @@ typedef PREPACK struct {
 } POSTPACK WMI_THIN_GET_MIB_CMD;
 
 typedef PREPACK struct {
-    A_UINT32    basicRateMask; /* bit mask of basic rates */
-    A_UINT32    beaconIntval; /* TUs */
+    u32 basicRateMask; /* bit mask of basic rates */
+    u32 beaconIntval; /* TUs */
     u16 atimWindow; /* TUs */
     u16 channel; /* frequency in Mhz */
     u8 networkType; /* INFRA_NETWORK | ADHOC_NETWORK */

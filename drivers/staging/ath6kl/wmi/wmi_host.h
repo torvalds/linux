@@ -31,8 +31,8 @@ extern "C" {
 #endif
 
 struct wmi_stats {
-    A_UINT32    cmd_len_err;
-    A_UINT32    cmd_id_err;
+    u32 cmd_len_err;
+    u32 cmd_id_err;
 };
 
 #define SSID_IE_LEN_INDEX 13
@@ -44,9 +44,9 @@ struct wmi_stats {
 typedef struct sq_threshold_params_s {
     A_INT16 upper_threshold[SIGNAL_QUALITY_UPPER_THRESHOLD_LEVELS];
     A_INT16 lower_threshold[SIGNAL_QUALITY_LOWER_THRESHOLD_LEVELS];
-    A_UINT32 upper_threshold_valid_count;
-    A_UINT32 lower_threshold_valid_count;
-    A_UINT32 polling_interval;
+    u32 upper_threshold_valid_count;
+    u32 lower_threshold_valid_count;
+    u32 polling_interval;
     u8 weight;
     u8 last_rssi; //normally you would expect this to be bss specific but we keep only one instance because its only valid when the device is in a connected state. Not sure if it belongs to host or target.
     u8 last_rssi_poll_event; //Not sure if it belongs to host or target

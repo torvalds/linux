@@ -35,7 +35,7 @@ extern int    (*_HCI_TransportEnableDisableAsyncRecv)(HCI_TRANSPORT_HANDLE HciTr
 extern int    (*_HCI_TransportRecvHCIEventSync)(HCI_TRANSPORT_HANDLE HciTrans,
                                           HTC_PACKET           *pPacket,
                                           int                  MaxPollMS);
-extern int    (*_HCI_TransportSetBaudRate)(HCI_TRANSPORT_HANDLE HciTrans, A_UINT32 Baud);
+extern int    (*_HCI_TransportSetBaudRate)(HCI_TRANSPORT_HANDLE HciTrans, u32 Baud);
 extern int    (*_HCI_TransportEnablePowerMgmt)(HCI_TRANSPORT_HANDLE HciTrans, bool Enable);
 
 
@@ -65,7 +65,7 @@ extern int ar6000_register_hci_transport(HCI_TRANSPORT_CALLBACKS *hciTransCallba
 
 extern int ar6000_get_hif_dev(HIF_DEVICE *device, void *config);
 
-extern int ar6000_set_uart_config(HIF_DEVICE *hifDevice, A_UINT32 scale, A_UINT32 step);
+extern int ar6000_set_uart_config(HIF_DEVICE *hifDevice, u32 scale, u32 step);
 
 /* get core clock register settings
  * data: 0 - 40/44MHz
@@ -73,4 +73,4 @@ extern int ar6000_set_uart_config(HIF_DEVICE *hifDevice, A_UINT32 scale, A_UINT3
  *       where (5G band/2.4G band)
  * assume 2.4G band for now
  */
-extern int ar6000_get_core_clock_config(HIF_DEVICE *hifDevice, A_UINT32 *data);
+extern int ar6000_get_core_clock_config(HIF_DEVICE *hifDevice, u32 *data);

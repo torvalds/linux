@@ -306,7 +306,7 @@ void *a_netbuf_alloc(int size);
 void *a_netbuf_alloc_raw(int size);
 void a_netbuf_free(void *bufPtr);
 void *a_netbuf_to_data(void *bufPtr);
-A_UINT32 a_netbuf_to_len(void *bufPtr);
+u32 a_netbuf_to_len(void *bufPtr);
 int a_netbuf_push(void *bufPtr, A_INT32 len);
 int a_netbuf_push_data(void *bufPtr, char *srcPtr, A_INT32 len);
 int a_netbuf_put(void *bufPtr, A_INT32 len);
@@ -328,8 +328,8 @@ void a_netbuf_queue_init(A_NETBUF_QUEUE_T *q);
 /*
  * Kernel v.s User space functions
  */
-A_UINT32 a_copy_to_user(void *to, const void *from, A_UINT32 n);
-A_UINT32 a_copy_from_user(void *to, const void *from, A_UINT32 n);
+u32 a_copy_to_user(void *to, const void *from, u32 n);
+u32 a_copy_from_user(void *to, const void *from, u32 n);
 
 /* In linux, WLAN Rx and Tx run in different contexts, so no need to check
  * for any commands/data queued for WLAN */

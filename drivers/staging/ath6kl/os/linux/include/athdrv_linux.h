@@ -660,7 +660,7 @@ typedef enum {
  *         UINT32 number of bytes
  *         UINT32 activate? (0 or 1)
  *       }
- *       A_UINT32 resulting rompatch ID
+ *       u32 resulting rompatch ID
  *     }
  * uses: BMI_ROMPATCH_INSTALL
  */
@@ -710,7 +710,7 @@ typedef enum {
 #define AR6000_XIOCTL_WMI_SET_MGMT_FRM_RX_FILTER    66
 /*
  * arguments:
- *      A_UINT32 filter_type;
+ *      u32 filter_type;
  */
 
 #define AR6000_XIOCTL_DBGLOG_CFG_MODULE             67
@@ -720,7 +720,7 @@ typedef enum {
 #define AR6000_XIOCTL_WMI_SET_WSC_STATUS            70
 /*
  * arguments:
- *      A_UINT32 wsc_status;
+ *      u32 wsc_status;
  *            (WSC_REG_INACTIVE or WSC_REG_ACTIVE)
  */
 
@@ -760,8 +760,8 @@ typedef enum {
 /*
  * arguments:
  *   UINT32 cmd (AR6000_XIOCTL_TARGET_INFO)
- *   A_UINT32 TargetVersion (returned)
- *   A_UINT32 TargetType    (returned)
+ *   u32 TargetVersion (returned)
+ *   u32 TargetType    (returned)
  * (See also bmi_msg.h target_ver and target_type)
  */
 
@@ -786,7 +786,7 @@ typedef enum {
  * This ioctl is used to set the connect control flags
  *
  * arguments:
- *      A_UINT32 connectCtrlFlags
+ *      u32 connectCtrlFlags
  */
 
 #define AR6000_XIOCTL_WMI_SET_AKMP_PARAMS              82
@@ -798,7 +798,7 @@ typedef enum {
  *
  * arguments:
  *      struct {
- *          A_UINT32    akmpInfo;
+ *          u32 akmpInfo;
  *      }
  * uses: WMI_SET_AKMP_PARAMS_CMD
  */
@@ -814,7 +814,7 @@ typedef enum {
  *
  * arguments:
  *      struct {
- *          A_UINT32    numPMKID;
+ *          u32 numPMKID;
  *          WMI_PMKID   pmkidList[WMI_MAX_PMKID_CACHE];
  *      }
  * uses: WMI_SET_PMKIDLIST_CMD
@@ -850,14 +850,14 @@ typedef enum {
 #define AR6000_XIOCTL_PROF_CFG                      93
 /*
  * arguments:
- *   A_UINT32 period
- *   A_UINT32 nbins
+ *   u32 period
+ *   u32 nbins
  */
 
 #define AR6000_XIOCTL_PROF_ADDR_SET                 94
 /*
  * arguments:
- *   A_UINT32 Target address
+ *   u32 Target address
  */
 
 #define AR6000_XIOCTL_PROF_START                    95
@@ -1000,10 +1000,10 @@ typedef enum {
 
 /* used by AR6000_IOCTL_WMI_GETREV */
 struct ar6000_version {
-    A_UINT32        host_ver;
-    A_UINT32        target_ver;
-    A_UINT32        wlan_ver;
-    A_UINT32        abi_ver;
+    u32 host_ver;
+    u32 target_ver;
+    u32 wlan_ver;
+    u32 abi_ver;
 };
 
 /* used by AR6000_IOCTL_WMI_GET_QOS_QUEUE */
@@ -1064,9 +1064,9 @@ typedef struct targetStats_t {
     A_INT32     tx_unicast_rate;
     A_INT32     rx_unicast_rate;
 
-    A_UINT32    lq_val;
+    u32 lq_val;
 
-    A_UINT32    wow_num_pkts_dropped;
+    u32 wow_num_pkts_dropped;
     u16 wow_num_events_discarded;
 
     A_INT16     noise_floor_calibation;
@@ -1079,9 +1079,9 @@ typedef struct targetStats_t {
     u8 wow_num_host_pkt_wakeups;
     u8 wow_num_host_event_wakeups;
 
-    A_UINT32   arp_received;
-    A_UINT32   arp_matched;
-    A_UINT32   arp_replied;
+    u32 arp_received;
+    u32 arp_matched;
+    u32 arp_replied;
 }TARGET_STATS;
 
 typedef struct targetStats_cmd_t {
@@ -1098,40 +1098,40 @@ typedef struct targetStats_cmd_t {
 #define AR6000_USER_SETKEYS_RSC_UNCHANGED     0x00000002
 
 typedef struct {
-    A_UINT32  keyOpCtrl;  /* Bit Map of Key Mgmt Ctrl Flags */
+    u32 keyOpCtrl;  /* Bit Map of Key Mgmt Ctrl Flags */
 } AR6000_USER_SETKEYS_INFO;
 
 
 /* used by AR6000_XIOCTL_GPIO_OUTPUT_SET */
 struct ar6000_gpio_output_set_cmd_s {
-    A_UINT32 set_mask;
-    A_UINT32 clear_mask;
-    A_UINT32 enable_mask;
-    A_UINT32 disable_mask;
+    u32 set_mask;
+    u32 clear_mask;
+    u32 enable_mask;
+    u32 disable_mask;
 };
 
 /*
  * used by AR6000_XIOCTL_GPIO_REGISTER_GET and AR6000_XIOCTL_GPIO_REGISTER_SET
  */
 struct ar6000_gpio_register_cmd_s {
-    A_UINT32 gpioreg_id;
-    A_UINT32 value;
+    u32 gpioreg_id;
+    u32 value;
 };
 
 /* used by AR6000_XIOCTL_GPIO_INTR_ACK */
 struct ar6000_gpio_intr_ack_cmd_s {
-    A_UINT32 ack_mask;
+    u32 ack_mask;
 };
 
 /* used by AR6000_XIOCTL_GPIO_INTR_WAIT */
 struct ar6000_gpio_intr_wait_cmd_s {
-    A_UINT32 intr_mask;
-    A_UINT32 input_values;
+    u32 intr_mask;
+    u32 input_values;
 };
 
 /* used by the AR6000_XIOCTL_DBGLOG_CFG_MODULE */
 typedef struct ar6000_dbglog_module_config_s {
-    A_UINT32 valid;
+    u32 valid;
     u16 mmask;
     u16 tsr;
     u32   rep;
@@ -1145,22 +1145,22 @@ typedef struct user_rssi_thold_t {
 
 typedef struct user_rssi_params_t {
     u8 weight;
-    A_UINT32           pollTime;
+    u32 pollTime;
     USER_RSSI_THOLD    tholds[12];
 } USER_RSSI_PARAMS;
 
 typedef struct ar6000_get_btcoex_config_cmd_t{
-	A_UINT32 btProfileType;
-	A_UINT32 linkId;
+	u32 btProfileType;
+	u32 linkId;
  }AR6000_GET_BTCOEX_CONFIG_CMD;
 
 typedef struct ar6000_btcoex_config_t {
     AR6000_GET_BTCOEX_CONFIG_CMD  configCmd;
-    A_UINT32 * configEvent;
+    u32 *configEvent;
 } AR6000_BTCOEX_CONFIG;
 
 typedef struct ar6000_btcoex_stats_t {
-    A_UINT32 * statsEvent;
+    u32 *statsEvent;
  }AR6000_BTCOEX_STATS;
 /*
  * Host driver may have some config parameters. Typically, these
@@ -1183,14 +1183,14 @@ struct ar6000_diag_window_cmd_s {
 
 
 struct ar6000_traffic_activity_change {
-    A_UINT32    StreamID;   /* stream ID to indicate activity change */
-    A_UINT32    Active;     /* active (1) or inactive (0) */
+    u32 StreamID;   /* stream ID to indicate activity change */
+    u32 Active;     /* active (1) or inactive (0) */
 };
 
 /* Used with AR6000_XIOCTL_PROF_COUNT_GET */
 struct prof_count_s {
-    A_UINT32    addr;       /* bin start address */
-    A_UINT32    count;      /* hit count */
+    u32 addr;       /* bin start address */
+    u32 count;      /* hit count */
 };
 
 
@@ -1199,7 +1199,7 @@ struct prof_count_s {
 /*         AR6000_XIOCTL_DUMP_MODULE_DEBUG_INFO */
 struct drv_debug_module_s {
     char modulename[128];   /* name of module */
-    A_UINT32    mask;              /* new mask to set .. or .. current mask */
+    u32 mask;              /* new mask to set .. or .. current mask */
 };
 
 

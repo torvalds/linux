@@ -48,13 +48,12 @@
 
 /* Helper data type declaration */
 
-#ifndef A_UINT32
-#define A_UCHAR                 unsigned char
-#define A_UINT32                unsigned long
+#ifndef u32 #define A_UCHAR                 unsigned char
+#define u32 unsigned long
 #define u16 unsigned short
 #define u8 unsigned char
 #define bool                  unsigned char
-#endif /* A_UINT32 */
+#endif /* u32 */
 
 #define ATH_DEBUG_ERR          (1 << 0)
 #define ATH_DEBUG_WARN         (1 << 1)
@@ -104,10 +103,10 @@ typedef struct PSCmdPacket
 } PSCmdPacket;
 
 /* Parses a Patch information buffer and store it in global structure */
-int AthDoParsePatch(A_UCHAR *, A_UINT32);
+int AthDoParsePatch(A_UCHAR *, u32 );
 
 /* parses a PS information buffer and stores it in a global structure */
-int AthDoParsePS(A_UCHAR *, A_UINT32);
+int AthDoParsePS(A_UCHAR *, u32 );
 
 /* 
  *  Uses the output of Both AthDoParsePS and AthDoParsePatch APIs to form HCI command array with
@@ -120,8 +119,8 @@ int AthDoParsePS(A_UCHAR *, A_UINT32);
  *  PS Tag Command(s)
  *
  */  
-int AthCreateCommandList(PSCmdPacket **, A_UINT32 *);
+int AthCreateCommandList(PSCmdPacket **, u32 *);
 
 /* Cleanup the dynamically allicated HCI command list */
-int AthFreeCommandList(PSCmdPacket **HciPacketList, A_UINT32 numPackets);
+int AthFreeCommandList(PSCmdPacket **HciPacketList, u32 numPackets);
 #endif /* __AR3KPSPARSER_H */

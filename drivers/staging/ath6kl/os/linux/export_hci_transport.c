@@ -46,7 +46,7 @@ int    (*_HCI_TransportEnableDisableAsyncRecv)(HCI_TRANSPORT_HANDLE HciTrans, bo
 int    (*_HCI_TransportRecvHCIEventSync)(HCI_TRANSPORT_HANDLE HciTrans,
                                           HTC_PACKET           *pPacket,
                                           int                  MaxPollMS);
-int    (*_HCI_TransportSetBaudRate)(HCI_TRANSPORT_HANDLE HciTrans, A_UINT32 Baud);
+int    (*_HCI_TransportSetBaudRate)(HCI_TRANSPORT_HANDLE HciTrans, u32 Baud);
 int    (*_HCI_TransportEnablePowerMgmt)(HCI_TRANSPORT_HANDLE HciTrans, bool Enable);
 
 extern HCI_TRANSPORT_CALLBACKS ar6kHciTransCallbacks;
@@ -82,24 +82,24 @@ ar6000_get_hif_dev(HIF_DEVICE *device, void *config)
 }
 
 int ar6000_set_uart_config(HIF_DEVICE *hifDevice,
-                                A_UINT32 scale, 
-                                A_UINT32 step)
+                                u32 scale,
+                                u32 step)
 {
-    A_UINT32 regAddress;
-    A_UINT32 regVal;
+    u32 regAddress;
+    u32 regVal;
     int status;
 
     regAddress = WLAN_UART_BASE_ADDRESS | UART_CLKDIV_ADDRESS;
-    regVal = ((A_UINT32)scale << 16) | step;
+    regVal = ((u32)scale << 16) | step;
     /* change the HCI UART scale/step values through the diagnostic window */
     status = ar6000_WriteRegDiag(hifDevice, &regAddress, &regVal);                     
 
     return status;
 }
 
-int ar6000_get_core_clock_config(HIF_DEVICE *hifDevice, A_UINT32 *data)
+int ar6000_get_core_clock_config(HIF_DEVICE *hifDevice, u32 *data)
 {
-    A_UINT32 regAddress;
+    u32 regAddress;
     int status;
 
     regAddress = WLAN_RTC_BASE_ADDRESS | WLAN_CPU_CLOCK_ADDRESS;

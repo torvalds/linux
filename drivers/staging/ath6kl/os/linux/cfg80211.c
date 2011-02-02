@@ -183,7 +183,7 @@ ar6k_set_auth_type(AR_SOFTC_T *ar, enum nl80211_auth_type auth_type)
 }
 
 static int
-ar6k_set_cipher(AR_SOFTC_T *ar, A_UINT32 cipher, bool ucast)
+ar6k_set_cipher(AR_SOFTC_T *ar, u32 cipher, bool ucast)
 {
     u8 *ar_cipher = ucast ? &ar->arPairwiseCrypto :
                                 &ar->arGroupCrypto;
@@ -225,7 +225,7 @@ ar6k_set_cipher(AR_SOFTC_T *ar, A_UINT32 cipher, bool ucast)
 }
 
 static void
-ar6k_set_key_mgmt(AR_SOFTC_T *ar, A_UINT32 key_mgmt)
+ar6k_set_key_mgmt(AR_SOFTC_T *ar, u32 key_mgmt)
 {
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: 0x%x\n", __func__, key_mgmt));
 
@@ -726,7 +726,7 @@ ar6k_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);
     int ret = 0;
-    A_UINT32 forceFgScan = 0;
+    u32 forceFgScan = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: \n", __func__));
 
@@ -1056,7 +1056,7 @@ ar6k_cfg80211_tkip_micerr_event(AR_SOFTC_T *ar, u8 keyid, bool ismcast)
 }
 
 static int
-ar6k_cfg80211_set_wiphy_params(struct wiphy *wiphy, A_UINT32 changed)
+ar6k_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)wiphy_priv(wiphy);
 
@@ -1365,7 +1365,7 @@ ar6k_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 
 
 static const
-A_UINT32 cipher_suites[] = {
+u32 cipher_suites[] = {
     WLAN_CIPHER_SUITE_WEP40,
     WLAN_CIPHER_SUITE_WEP104,
     WLAN_CIPHER_SUITE_TKIP,

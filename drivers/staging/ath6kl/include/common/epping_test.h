@@ -54,8 +54,8 @@ typedef PREPACK struct {
                                           
     u8 _pad[2];               /* padding for alignment */
     u8 TimeStamp[8];          /* timestamp of packet (host or target) */
-    A_UINT32    HostContext_h;         /* 4 byte host context, target echos this back */
-    A_UINT32    SeqNo;                 /* sequence number (set by host or target) */   
+    u32 HostContext_h;         /* 4 byte host context, target echos this back */
+    u32 SeqNo;                 /* sequence number (set by host or target) */
     u16 Cmd_h;                 /* ping command (filled by host) */
     u16 CmdFlags_h;            /* optional flags */
     u8 CmdBuffer_h[8];        /* buffer for command (host -> target) */

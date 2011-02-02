@@ -89,8 +89,7 @@ a_netbuf_free(void *bufPtr)
     dev_kfree_skb(skb);
 }
 
-A_UINT32
-a_netbuf_to_len(void *bufPtr)
+u32 a_netbuf_to_len(void *bufPtr)
 {
     return (((struct sk_buff *)bufPtr)->len);
 }

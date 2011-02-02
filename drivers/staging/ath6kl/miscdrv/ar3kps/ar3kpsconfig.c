@@ -42,7 +42,7 @@
 typedef struct {
 
     PSCmdPacket *HciCmdList;
-    A_UINT32  num_packets;
+    u32 num_packets;
     AR3K_CONFIG_INFO *dev;
 }HciCommandListParam;
 
@@ -52,11 +52,11 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
                                            u8 **ppEventBuffer,
                                            u8 **ppBufferToFree);
 
-A_UINT32  Rom_Version;
-A_UINT32  Build_Version;
+u32 Rom_Version;
+u32 Build_Version;
 extern bool BDADDR;
 
-int getDeviceType(AR3K_CONFIG_INFO *pConfig, A_UINT32 * code);
+int getDeviceType(AR3K_CONFIG_INFO *pConfig, u32 *code);
 int ReadVersionInfo(AR3K_CONFIG_INFO *pConfig);
 #ifndef HCI_TRANSPORT_SDIO
 
@@ -66,7 +66,7 @@ A_UCHAR *HciEventpacket;
 rwlock_t syncLock;
 wait_queue_t Eventwait;
 
-int PSHciWritepacket(struct hci_dev*,A_UCHAR* Data, A_UINT32 len);
+int PSHciWritepacket(struct hci_dev*,A_UCHAR* Data, u32 len);
 extern char *bdaddr;
 #endif /* HCI_TRANSPORT_SDIO */
 
@@ -75,7 +75,7 @@ int write_bdaddr(AR3K_CONFIG_INFO *pConfig,A_UCHAR *bdaddr,int type);
 int PSSendOps(void *arg);
 
 #ifdef BT_PS_DEBUG
-void Hci_log(A_UCHAR * log_string,A_UCHAR *data,A_UINT32 len)
+void Hci_log(A_UCHAR * log_string,A_UCHAR *data,u32 len)
 {
     int i;
     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("%s : ",log_string));
@@ -135,13 +135,13 @@ int PSSendOps(void *arg)
     int status = 0;
     PSCmdPacket *HciCmdList; /* List storing the commands */
     const struct firmware* firmware;
-    A_UINT32 numCmds;
+    u32 numCmds;
     u8 *event;
     u8 *bufferToFree;
     struct hci_dev *device;
     A_UCHAR *buffer;
-    A_UINT32 len;
-    A_UINT32 DevType;
+    u32 len;
+    u32 DevType;
     A_UCHAR *PsFileName;
     A_UCHAR *patchFileName;
     A_UCHAR *path = NULL;
@@ -531,12 +531,12 @@ int ReadVersionInfo(AR3K_CONFIG_INFO *pConfig)
    }
     return result;
 }
-int getDeviceType(AR3K_CONFIG_INFO *pConfig, A_UINT32 * code)
+int getDeviceType(AR3K_CONFIG_INFO *pConfig, u32 *code)
 {
     u8 hciCommand[] =  {0x05,0xfc,0x05,0x00,0x00,0x00,0x00,0x04};
     u8 *event;
     u8 *bufferToFree = NULL;
-    A_UINT32 reg;
+    u32 reg;
     int result = A_ERROR;
     *code = 0;
     hciCommand[3] = (u8)(FPGA_REGISTER & 0xFF);

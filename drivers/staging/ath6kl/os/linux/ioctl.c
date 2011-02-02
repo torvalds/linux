@@ -29,7 +29,7 @@
 #include "wlan_config.h"
 
 extern int enablerssicompensation;
-A_UINT32 tcmdRxFreq;
+u32 tcmdRxFreq;
 extern unsigned int wmitimeout;
 extern A_WAITQUEUE_HEAD arEvent;
 extern int tspecCompliance;
@@ -663,10 +663,10 @@ ar6000_ioctl_get_qos_queue(struct net_device *dev, struct ifreq *rq)
 #ifdef CONFIG_HOST_TCMD_SUPPORT
 static int
 ar6000_ioctl_tcmd_get_rx_report(struct net_device *dev,
-                                 struct ifreq *rq, u8 *data, A_UINT32 len)
+                                 struct ifreq *rq, u8 *data, u32 len)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
-    A_UINT32    buf[4+TCMD_MAX_RATES];
+    u32 buf[4+TCMD_MAX_RATES];
     int ret = 0;
 
     if (ar->bIsDestroyProgress) {
@@ -702,8 +702,8 @@ ar6000_ioctl_tcmd_get_rx_report(struct net_device *dev,
     buf[1] = ar->tcmdRxRssi;
     buf[2] = ar->tcmdRxcrcErrPkt;
     buf[3] = ar->tcmdRxsecErrPkt;
-    A_MEMCPY(((A_UCHAR *)buf)+(4*sizeof(A_UINT32)), ar->tcmdRateCnt, sizeof(ar->tcmdRateCnt));
-    A_MEMCPY(((A_UCHAR *)buf)+(4*sizeof(A_UINT32))+(TCMD_MAX_RATES *sizeof(u16)), ar->tcmdRateCntShortGuard, sizeof(ar->tcmdRateCntShortGuard));
+    A_MEMCPY(((A_UCHAR *)buf)+(4*sizeof(u32)), ar->tcmdRateCnt, sizeof(ar->tcmdRateCnt));
+    A_MEMCPY(((A_UCHAR *)buf)+(4*sizeof(u32))+(TCMD_MAX_RATES *sizeof(u16)), ar->tcmdRateCntShortGuard, sizeof(ar->tcmdRateCntShortGuard));
 
     if (!ret && copy_to_user(rq->ifr_data, buf, sizeof(buf))) {
         ret = -EFAULT;
@@ -830,7 +830,7 @@ static int
 ar6000_ioctl_get_ap_stats(struct net_device *dev, struct ifreq *rq)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
-    A_UINT32 action; /* Allocating only the desired space on the frame. Declaring is as a WMI_AP_MODE_STAT variable results in exceeding the compiler imposed limit on the maximum frame size */
+    u32 action; /* Allocating only the desired space on the frame. Declaring is as a WMI_AP_MODE_STAT variable results in exceeding the compiler imposed limit on the maximum frame size */
     WMI_AP_MODE_STAT *pStats = &ar->arAPStats;
     int ret = 0;
 
@@ -838,7 +838,7 @@ ar6000_ioctl_get_ap_stats(struct net_device *dev, struct ifreq *rq)
         return -EIO;
     }
     if (copy_from_user(&action, (char *)((unsigned int*)rq->ifr_data + 1),
-                                sizeof(A_UINT32)))
+                                sizeof(u32)))
     {
         return -EFAULT;
     }
@@ -1351,7 +1351,7 @@ void ar6000_gpio_init(void)
  * input_values shows a recent value of GPIO pins.
  */
 void
-ar6000_gpio_intr_rx(A_UINT32 intr_mask, A_UINT32 input_values)
+ar6000_gpio_intr_rx(u32 intr_mask, u32 input_values)
 {
     gpio_intr_results.intr_mask = intr_mask;
     gpio_intr_results.input_values = input_values;
@@ -1365,7 +1365,7 @@ ar6000_gpio_intr_rx(A_UINT32 intr_mask, A_UINT32 input_values)
  * call.
  */
 void
-ar6000_gpio_data_rx(A_UINT32 reg_id, A_UINT32 value)
+ar6000_gpio_data_rx(u32 reg_id, u32 value)
 {
     gpio_reg_results.gpioreg_id = reg_id;
     gpio_reg_results.value = value;
@@ -1387,10 +1387,10 @@ ar6000_gpio_ack_rx(void)
 
 int
 ar6000_gpio_output_set(struct net_device *dev,
-                       A_UINT32 set_mask,
-                       A_UINT32 clear_mask,
-                       A_UINT32 enable_mask,
-                       A_UINT32 disable_mask)
+                       u32 set_mask,
+                       u32 clear_mask,
+                       u32 enable_mask,
+                       u32 disable_mask)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
@@ -1410,8 +1410,8 @@ ar6000_gpio_input_get(struct net_device *dev)
 
 static int
 ar6000_gpio_register_set(struct net_device *dev,
-                         A_UINT32 gpioreg_id,
-                         A_UINT32 value)
+                         u32 gpioreg_id,
+                         u32 value)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
@@ -1421,7 +1421,7 @@ ar6000_gpio_register_set(struct net_device *dev,
 
 static int
 ar6000_gpio_register_get(struct net_device *dev,
-                         A_UINT32 gpioreg_id)
+                         u32 gpioreg_id)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
@@ -1431,7 +1431,7 @@ ar6000_gpio_register_get(struct net_device *dev,
 
 static int
 ar6000_gpio_intr_ack(struct net_device *dev,
-                     A_UINT32 ack_mask)
+                     u32 ack_mask)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
@@ -1458,7 +1458,7 @@ prof_count_get(struct net_device *dev)
  * for a previous prof_count_get call.
  */
 void
-prof_count_rx(A_UINT32 addr, A_UINT32 count)
+prof_count_rx(u32 addr, u32 count)
 {
     prof_count_results.addr = addr;
     prof_count_results.count = count;
@@ -1849,7 +1849,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
     unsigned int length = 0;
     unsigned char *buffer;
     char *userdata;
-    A_UINT32 connectCtrlFlags;
+    u32 connectCtrlFlags;
 
 
     WMI_SET_AKMP_PARAMS_CMD  akmpParams;
@@ -2152,7 +2152,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	    }
             AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("Execute (address: 0x%x, param: %d)\n",
                              address, param));
-            ret = BMIExecute(hifDevice, address, (A_UINT32*)&param);
+            ret = BMIExecute(hifDevice, address, (u32 *)&param);
 	    /* return value */
 	    if (put_user(param, (unsigned int *)rq->ifr_data)) {
 		ret = -EFAULT;
@@ -2174,7 +2174,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		ret = -EFAULT;
 		break;
 	    }
-            ret = BMIReadSOCRegister(hifDevice, address, (A_UINT32*)&param);
+            ret = BMIReadSOCRegister(hifDevice, address, (u32 *)&param);
 	    /* return value */
 	    if (put_user(param, (unsigned int *)rq->ifr_data)) {
 		ret = -EFAULT;
@@ -2301,8 +2301,8 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         /* Configure Target-side profiling */
         case AR6000_XIOCTL_PROF_CFG:
         {
-            A_UINT32 period;
-            A_UINT32 nbins;
+            u32 period;
+            u32 nbins;
 	    if (get_user(period, (unsigned int *)userdata) ||
 		get_user(nbins, (unsigned int *)userdata + 1)) {
 		ret = -EFAULT;
@@ -2319,7 +2319,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         /* Start a profiling bucket/bin at the specified address */
         case AR6000_XIOCTL_PROF_ADDR_SET:
         {
-            A_UINT32 addr;
+            u32 addr;
 	    if (get_user(addr, (unsigned int *)userdata)) {
 		ret = -EFAULT;
 		break;
@@ -2762,12 +2762,12 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             /* If we made it to here, then the Target exists and is ready. */
 
             if (cmd == AR6000_XIOCTL_TARGET_INFO) {
-                if (copy_to_user((A_UINT32 *)rq->ifr_data, &ar->arVersion.target_ver,
+                if (copy_to_user((u32 *)rq->ifr_data, &ar->arVersion.target_ver,
                                  sizeof(ar->arVersion.target_ver)))
                 {
                     ret = -EFAULT;
                 }
-                if (copy_to_user(((A_UINT32 *)rq->ifr_data)+1, &ar->arTargetType,
+                if (copy_to_user(((u32 *)rq->ifr_data)+1, &ar->arTargetType,
                                  sizeof(ar->arTargetType)))
                 {
                     ret = -EFAULT;
@@ -2803,7 +2803,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         }
         case AR6000_XIOCTL_WMI_GET_HB_CHALLENGE_RESP:
         {
-            A_UINT32 cookie;
+            u32 cookie;
 
             if (copy_from_user(&cookie, userdata, sizeof(cookie))) {
                 ret = -EFAULT;
@@ -3477,7 +3477,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         }
         case AR6000_XIOCTL_DIAG_READ:
         {
-            A_UINT32 addr, data;
+            u32 addr, data;
 	    if (get_user(addr, (unsigned int *)userdata)) {
 		ret = -EFAULT;
 		break;
@@ -3494,7 +3494,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         }
         case AR6000_XIOCTL_DIAG_WRITE:
         {
-            A_UINT32 addr, data;
+            u32 addr, data;
 	    if (get_user(addr, (unsigned int *)userdata) ||
 		get_user(data, (unsigned int *)userdata + 1)) {
 		ret = -EFAULT;
@@ -3647,13 +3647,13 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         {
             WMI_SET_APPIE_CMD appIEcmd;
             u8 appIeInfo[IEEE80211_APPIE_FRAME_MAX_LEN];
-            A_UINT32            fType,ieLen;
+            u32 fType,ieLen;
 
             if (ar->arWmiReady == false) {
                 ret = -EIO;
                 goto ioctl_done;
             }
-	    if (get_user(fType, (A_UINT32 *)userdata)) {
+	    if (get_user(fType, (u32 *)userdata)) {
 		ret = -EFAULT;
 		break;
 	    }
@@ -3661,7 +3661,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             if (appIEcmd.mgmtFrmType >= IEEE80211_APPIE_NUM_OF_FRAME) {
                 ret = -EIO;
             } else {
-		if (get_user(ieLen, (A_UINT32 *)(userdata + 4))) {
+		if (get_user(ieLen, (u32 *)(userdata + 4))) {
 		    ret = -EFAULT;
 		    break;
 		}
@@ -3686,9 +3686,9 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         case AR6000_XIOCTL_WMI_SET_MGMT_FRM_RX_FILTER:
         {
             WMI_BSS_FILTER_CMD cmd;
-            A_UINT32    filterType;
+            u32 filterType;
 
-            if (copy_from_user(&filterType, userdata, sizeof(A_UINT32)))
+            if (copy_from_user(&filterType, userdata, sizeof(u32)))
             {
                 ret = -EFAULT;
                 goto ioctl_done;
@@ -3713,12 +3713,12 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         }
         case AR6000_XIOCTL_WMI_SET_WSC_STATUS:
         {
-            A_UINT32    wsc_status;
+            u32 wsc_status;
 
             if (ar->arWmiReady == false) {
                 ret = -EIO;
                 goto ioctl_done;
-            } else if (copy_from_user(&wsc_status, userdata, sizeof(A_UINT32)))
+            } else if (copy_from_user(&wsc_status, userdata, sizeof(u32)))
             {
                 ret = -EFAULT;
                 goto ioctl_done;
@@ -3730,16 +3730,16 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         }
         case AR6000_XIOCTL_BMI_ROMPATCH_INSTALL:
         {
-            A_UINT32 ROM_addr;
-            A_UINT32 RAM_addr;
-            A_UINT32 nbytes;
-            A_UINT32 do_activate;
-            A_UINT32 rompatch_id;
+            u32 ROM_addr;
+            u32 RAM_addr;
+            u32 nbytes;
+            u32 do_activate;
+            u32 rompatch_id;
 
-	    if (get_user(ROM_addr, (A_UINT32 *)userdata) ||
-		get_user(RAM_addr, (A_UINT32 *)userdata + 1) ||
-		get_user(nbytes, (A_UINT32 *)userdata + 2) ||
-		get_user(do_activate, (A_UINT32 *)userdata + 3)) {
+	    if (get_user(ROM_addr, (u32 *)userdata) ||
+		get_user(RAM_addr, (u32 *)userdata + 1) ||
+		get_user(nbytes, (u32 *)userdata + 2) ||
+		get_user(do_activate, (u32 *)userdata + 3)) {
 		ret = -EFAULT;
 		break;
 	    }
@@ -3759,9 +3759,9 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
         case AR6000_XIOCTL_BMI_ROMPATCH_UNINSTALL:
         {
-            A_UINT32 rompatch_id;
+            u32 rompatch_id;
 
-	    if (get_user(rompatch_id, (A_UINT32 *)userdata)) {
+	    if (get_user(rompatch_id, (u32 *)userdata)) {
 		ret = -EFAULT;
 		break;
 	    }
@@ -3773,14 +3773,14 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         case AR6000_XIOCTL_BMI_ROMPATCH_ACTIVATE:
         case AR6000_XIOCTL_BMI_ROMPATCH_DEACTIVATE:
         {
-            A_UINT32 rompatch_count;
+            u32 rompatch_count;
 
-	    if (get_user(rompatch_count, (A_UINT32 *)userdata)) {
+	    if (get_user(rompatch_count, (u32 *)userdata)) {
 		ret = -EFAULT;
 		break;
 	    }
             AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("Change rompatch activation count=%d\n", rompatch_count));
-            length = sizeof(A_UINT32) * rompatch_count;
+            length = sizeof(u32) * rompatch_count;
             if ((buffer = (unsigned char *)A_MALLOC(length)) != NULL) {
                 A_MEMZERO(buffer, length);
                 if (copy_from_user(buffer, &userdata[sizeof(rompatch_count)], length))
@@ -3788,9 +3788,9 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                     ret = -EFAULT;
                 } else {
                     if (cmd == AR6000_XIOCTL_BMI_ROMPATCH_ACTIVATE) {
-                        ret = BMIrompatchActivate(hifDevice, rompatch_count, (A_UINT32 *)buffer);
+                        ret = BMIrompatchActivate(hifDevice, rompatch_count, (u32 *)buffer);
                     } else {
-                        ret = BMIrompatchDeactivate(hifDevice, rompatch_count, (A_UINT32 *)buffer);
+                        ret = BMIrompatchDeactivate(hifDevice, rompatch_count, (u32 *)buffer);
                     }
                 }
                 A_FREE(buffer);
@@ -4180,7 +4180,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         }
         case AR6000_XIOCTL_AP_CONN_INACT_TIME:
         {
-            A_UINT32    period;
+            u32 period;
             if (ar->arWmiReady == false) {
                 ret = -EIO;
             } else if (copy_from_user(&period, userdata, sizeof(period))) {
@@ -4558,11 +4558,11 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         }
         case AR6000_XIOCTL_FETCH_TARGET_REGS:
         {
-            A_UINT32 targregs[AR6003_FETCH_TARG_REGS_COUNT];
+            u32 targregs[AR6003_FETCH_TARG_REGS_COUNT];
 
             if (ar->arTargetType == TARGET_TYPE_AR6003) {
                 ar6k_FetchTargetRegs(hifDevice, targregs);
-                if (copy_to_user((A_UINT32 *)rq->ifr_data, &targregs, sizeof(targregs)))
+                if (copy_to_user((u32 *)rq->ifr_data, &targregs, sizeof(targregs)))
                 {
                     ret = -EFAULT;
                 }

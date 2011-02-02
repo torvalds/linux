@@ -207,7 +207,7 @@ unsigned int _mboxnum = HTC_MAILBOX_NUM_MAX;
 #define mboxnum &_mboxnum
 
 #ifdef DEBUG
-A_UINT32 g_dbg_flags = DBG_DEFAULTS;
+u32 g_dbg_flags = DBG_DEFAULTS;
 unsigned int debugflags = 0;
 int debugdriver = 0;
 unsigned int debughtc = 0;
@@ -264,7 +264,7 @@ typedef struct user_rssi_compensation_t {
     A_INT16          bg_param_b;
     A_INT16          a_param_a;
     A_INT16          a_param_b;
-    A_UINT32         reserved;
+    u32 reserved;
 } USER_RSSI_CPENSATION;
 
 static USER_RSSI_CPENSATION rssi_compensation_param;
@@ -354,7 +354,7 @@ static void
 ar6000_sysfs_bmi_deinit(AR_SOFTC_T *ar);
 
 int
-ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode);
+ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode);
 
 /*
  * Static variables
@@ -405,7 +405,7 @@ static struct net_device_ops ar6000_netdev_ops = {
 int
 ar6000_set_host_app_area(AR_SOFTC_T *ar)
 {
-    A_UINT32 address, data;
+    u32 address, data;
     struct host_app_area_s host_app_area;
 
     /* Fetch the address of the host_app_area_s instance in the host interest area */
@@ -425,11 +425,10 @@ ar6000_set_host_app_area(AR_SOFTC_T *ar)
     return A_OK;
 }
 
-A_UINT32
-dbglog_get_debug_hdr_ptr(AR_SOFTC_T *ar)
+u32 dbglog_get_debug_hdr_ptr(AR_SOFTC_T *ar)
 {
-    A_UINT32 param;
-    A_UINT32 address;
+    u32 param;
+    u32 address;
     int status;
 
     address = TARG_VTOP(ar->arTargetType, HOST_INTEREST_ITEM_ADDRESS(ar, hi_dbglog_hdr));
@@ -452,14 +451,13 @@ ar6000_dbglog_init_done(AR_SOFTC_T *ar)
     ar->dbglog_init_done = true;
 }
 
-A_UINT32
-dbglog_get_debug_fragment(A_INT8 *datap, A_UINT32 len, A_UINT32 limit)
+u32 dbglog_get_debug_fragment(A_INT8 *datap, u32 len, u32 limit)
 {
     A_INT32 *buffer;
-    A_UINT32 count;
-    A_UINT32 numargs;
-    A_UINT32 length;
-    A_UINT32 fraglen;
+    u32 count;
+    u32 numargs;
+    u32 length;
+    u32 fraglen;
 
     count = fraglen = 0;
     buffer = (A_INT32 *)datap;
@@ -479,15 +477,15 @@ dbglog_get_debug_fragment(A_INT8 *datap, A_UINT32 len, A_UINT32 limit)
 }
 
 void
-dbglog_parse_debug_logs(A_INT8 *datap, A_UINT32 len)
+dbglog_parse_debug_logs(A_INT8 *datap, u32 len)
 {
     A_INT32 *buffer;
-    A_UINT32 count;
-    A_UINT32 timestamp;
-    A_UINT32 debugid;
-    A_UINT32 moduleid;
-    A_UINT32 numargs;
-    A_UINT32 length;
+    u32 count;
+    u32 timestamp;
+    u32 debugid;
+    u32 moduleid;
+    u32 numargs;
+    u32 length;
 
     count = 0;
     buffer = (A_INT32 *)datap;
@@ -522,12 +520,12 @@ dbglog_parse_debug_logs(A_INT8 *datap, A_UINT32 len)
 int
 ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
 {
-    A_UINT32 data[8]; /* Should be able to accomodate struct dbglog_buf_s */
-    A_UINT32 address;
-    A_UINT32 length;
-    A_UINT32 dropped;
-    A_UINT32 firstbuf;
-    A_UINT32 debug_hdr_ptr;
+    u32 data[8]; /* Should be able to accomodate struct dbglog_buf_s */
+    u32 address;
+    u32 length;
+    u32 dropped;
+    u32 firstbuf;
+    u32 debug_hdr_ptr;
 
     if (!ar->dbglog_init_done) return A_ERROR;
 
@@ -598,8 +596,8 @@ ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
 }
 
 void
-ar6000_dbglog_event(AR_SOFTC_T *ar, A_UINT32 dropped,
-                    A_INT8 *buffer, A_UINT32 length)
+ar6000_dbglog_event(AR_SOFTC_T *ar, u32 dropped,
+                    A_INT8 *buffer, u32 length)
 {
 #ifdef REPORT_DEBUG_LOGS_TO_APP
     #define MAX_WIRELESS_EVENT_SIZE 252
@@ -608,7 +606,7 @@ ar6000_dbglog_event(AR_SOFTC_T *ar, A_UINT32 dropped,
      * There seems to be a limitation on the length of message that could be
      * transmitted to the user app via this mechanism.
      */
-    A_UINT32 send, sent;
+    u32 send, sent;
 
     sent = 0;
     send = dbglog_get_debug_fragment(&buffer[sent], length - sent,
@@ -738,8 +736,8 @@ ar6000_cleanup_module(void)
 void
 aptcTimerHandler(unsigned long arg)
 {
-    A_UINT32 numbytes;
-    A_UINT32 throughput;
+    u32 numbytes;
+    u32 throughput;
     AR_SOFTC_T *ar;
     int status;
 
@@ -807,7 +805,7 @@ ar6000_sysfs_bmi_read(struct file *fp, struct kobject *kobj,
     AR_SOFTC_T *ar;
     HIF_DEVICE_OS_DEVICE_INFO   *osDevInfo;
 
-    AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Read %d bytes\n", (A_UINT32)count));
+    AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Read %d bytes\n", (u32)count));
     for (index=0; index < MAX_AR6000; index++) {
         ar = (AR_SOFTC_T *)ar6k_priv(ar6000_devices[index]);
         osDevInfo = &ar->osDevInfo;
@@ -834,7 +832,7 @@ ar6000_sysfs_bmi_write(struct file *fp, struct kobject *kobj,
     AR_SOFTC_T *ar;
     HIF_DEVICE_OS_DEVICE_INFO   *osDevInfo;
 
-    AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Write %d bytes\n", (A_UINT32)count));
+    AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Write %d bytes\n", (u32)count));
     for (index=0; index < MAX_AR6000; index++) {
         ar = (AR_SOFTC_T *)ar6k_priv(ar6000_devices[index]);
         osDevInfo = &ar->osDevInfo;
@@ -902,13 +900,13 @@ ar6000_sysfs_bmi_deinit(AR_SOFTC_T *ar)
 #define AR6002_MAC_ADDRESS_OFFSET     0x0A
 #define AR6003_MAC_ADDRESS_OFFSET     0x16
 static
-void calculate_crc(A_UINT32 TargetType, A_UCHAR *eeprom_data)
+void calculate_crc(u32 TargetType, A_UCHAR *eeprom_data)
 {
     u16 *ptr_crc;
     u16 *ptr16_eeprom;
     u16 checksum;
-    A_UINT32        i;
-    A_UINT32        eeprom_size;
+    u32 i;
+    u32 eeprom_size;
 
     if (TargetType == TARGET_TYPE_AR6001)
     {
@@ -994,12 +992,12 @@ ar6000_softmac_update(AR_SOFTC_T *ar, A_UCHAR *eeprom_data, size_t size)
 #endif /* SOFTMAC_FILE_USED */
 
 static int
-ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, bool compressed)
+ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, u32 address, bool compressed)
 {
     int status;
     const char *filename;
     const struct firmware *fw_entry;
-    A_UINT32 fw_entry_size;
+    u32 fw_entry_size;
 
     switch (file) {
         case AR6K_OTP_FILE:
@@ -1108,9 +1106,9 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, b
 
     /* Load extended board data for AR6003 */
     if ((file==AR6K_BOARD_DATA_FILE) && (fw_entry->data)) {
-        A_UINT32 board_ext_address;
-        A_UINT32 board_ext_data_size;
-        A_UINT32 board_data_size;
+        u32 board_ext_address;
+        u32 board_ext_data_size;
+        u32 board_data_size;
 
         board_ext_data_size = (((ar)->arTargetType == TARGET_TYPE_AR6002) ? AR6002_BOARD_EXT_DATA_SZ : \
                                (((ar)->arTargetType == TARGET_TYPE_AR6003) ? AR6003_BOARD_EXT_DATA_SZ : 0));
@@ -1124,7 +1122,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, b
 
         /* check whether the target has allocated memory for extended board data and file contains extended board data */
         if ((board_ext_address) && (fw_entry->size == (board_data_size + board_ext_data_size))) {
-            A_UINT32 param;
+            u32 param;
 
             status = BMIWriteMemory(ar->arHifDevice, board_ext_address, (A_UCHAR *)(fw_entry->data + board_data_size), board_ext_data_size);
 
@@ -1162,7 +1160,7 @@ ar6000_update_bdaddr(AR_SOFTC_T *ar)
 {
 
         if (setupbtdev != 0) {
-            A_UINT32 address;
+            u32 address;
 
            if (BMIReadMemory(ar->arHifDevice,
            	HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_data), (A_UCHAR *)&address, 4) != A_OK)
@@ -1185,7 +1183,7 @@ return A_OK;
 }
 
 int
-ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode)
+ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
 {
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Requesting device specific configuration\n"));
 
@@ -1206,7 +1204,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode)
     } else {
         /* The config is contained within the driver itself */
         int status;
-        A_UINT32 param, options, sleep, address;
+        u32 param, options, sleep, address;
 
         /* Temporarily disable system sleep */
         address = MBOX_BASE_ADDRESS + LOCAL_SCRATCH_ADDRESS;
@@ -1402,7 +1400,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode)
 int
 ar6000_configure_target(AR_SOFTC_T *ar)
 {
-    A_UINT32 param;
+    u32 param;
     if (enableuartprint) {
         param = 1;
         if (BMIWriteMemory(ar->arHifDevice,
@@ -1435,7 +1433,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
     }
 #endif
     if (enabletimerwar) {
-        A_UINT32 param;
+        u32 param;
 
         if (BMIReadMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
@@ -1461,7 +1459,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
 
     /* set the firmware mode to STA/IBSS/AP */
     {
-        A_UINT32 param;
+        u32 param;
 
         if (BMIReadMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
@@ -1487,7 +1485,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
 
 #ifdef ATH6KL_DISABLE_TARGET_DBGLOGS
     {
-        A_UINT32 param;
+        u32 param;
 
         if (BMIReadMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
@@ -2778,7 +2776,7 @@ ar6000_bitrate_rx(void *devt, A_INT32 rateKbps)
 }
 
 void
-ar6000_ratemask_rx(void *devt, A_UINT32 ratemask)
+ar6000_ratemask_rx(void *devt, u32 ratemask)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
 
@@ -2807,12 +2805,12 @@ ar6000_channelList_rx(void *devt, A_INT8 numChan, u16 *chanList)
     wake_up(&arEvent);
 }
 
-u8 ar6000_ibss_map_epid(struct sk_buff *skb, struct net_device *dev, A_UINT32 * mapNo)
+u8 ar6000_ibss_map_epid(struct sk_buff *skb, struct net_device *dev, u32 *mapNo)
 {
     AR_SOFTC_T      *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     u8 *datap;
     ATH_MAC_HDR     *macHdr;
-    A_UINT32         i, eptMap;
+    u32 i, eptMap;
 
     (*mapNo) = 0;
     datap = A_NETBUF_DATA(skb);
@@ -2888,7 +2886,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
     AR_SOFTC_T        *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     u8 ac = AC_NOT_MAPPED;
     HTC_ENDPOINT_ID    eid = ENDPOINT_UNUSED;
-    A_UINT32          mapNo = 0;
+    u32 mapNo = 0;
     int               len;
     struct ar_cookie *cookie;
     bool            checkAdHocPsMapping = false,bMoreData = false;
@@ -3265,9 +3263,9 @@ tvsub(register struct timeval *out, register struct timeval *in)
 void
 applyAPTCHeuristics(AR_SOFTC_T *ar)
 {
-    A_UINT32 duration;
-    A_UINT32 numbytes;
-    A_UINT32 throughput;
+    u32 duration;
+    u32 numbytes;
+    u32 throughput;
     struct timeval ts;
     int status;
 
@@ -3390,7 +3388,7 @@ static void
 ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
 {
     AR_SOFTC_T     *ar = (AR_SOFTC_T *)Context;
-    A_UINT32        mapNo = 0;
+    u32 mapNo = 0;
     int        status;
     struct ar_cookie * ar_cookie;
     HTC_ENDPOINT_ID   eid;
@@ -3480,7 +3478,7 @@ ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
             ar->arNodeMap[mapNo].txPending --;
 
             if (!ar->arNodeMap[mapNo].txPending && (mapNo == (ar->arNodeNum - 1))) {
-                A_UINT32 i;
+                u32 i;
                 for (i = ar->arNodeNum; i > 0; i --) {
                     if (!ar->arNodeMap[i - 1].txPending) {
                         A_MEMZERO(&ar->arNodeMap[i - 1], sizeof(struct ar_node_mapping));
@@ -4160,7 +4158,7 @@ err_exit:
 }
 
 void
-ar6000_ready_event(void *devt, u8 *datap, u8 phyCap, A_UINT32 sw_ver, A_UINT32 abi_ver)
+ar6000_ready_event(void *devt, u8 *datap, u8 phyCap, u32 sw_ver, u32 abi_ver)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
     struct net_device *dev = ar->arNetDev;
@@ -4508,7 +4506,7 @@ skip_key:
 
 }
 
-void ar6000_set_numdataendpts(AR_SOFTC_T *ar, A_UINT32 num)
+void ar6000_set_numdataendpts(AR_SOFTC_T *ar, u32 num)
 {
     A_ASSERT(num <= (HTC_MAILBOX_NUM_MAX - 1));
     ar->arNumDataEndPts = num;
@@ -4718,7 +4716,7 @@ ar6000_disconnect_event(AR_SOFTC_T *ar, u8 reason, u8 *bssid,
 }
 
 void
-ar6000_regDomain_event(AR_SOFTC_T *ar, A_UINT32 regCode)
+ar6000_regDomain_event(AR_SOFTC_T *ar, u32 regCode)
 {
     A_PRINTF("AR6000 Reg Code = 0x%x\n", regCode);
     ar->arRegCode = regCode;
@@ -4907,7 +4905,7 @@ ar6000_scanComplete_event(AR_SOFTC_T *ar, int status)
 }
 
 void
-ar6000_targetStats_event(AR_SOFTC_T *ar,  u8 *ptr, A_UINT32 len)
+ar6000_targetStats_event(AR_SOFTC_T *ar,  u8 *ptr, u32 len)
 {
     u8 ac;
 
@@ -5053,7 +5051,7 @@ ar6000_rssiThreshold_event(AR_SOFTC_T *ar,  WMI_RSSI_THRESHOLD_VAL newThreshold,
 
 
 void
-ar6000_hbChallengeResp_event(AR_SOFTC_T *ar, A_UINT32 cookie, A_UINT32 source)
+ar6000_hbChallengeResp_event(AR_SOFTC_T *ar, u32 cookie, u32 source)
 {
     if (source == APP_HB_CHALLENGE) {
         /* Report it to the app in case it wants a positive acknowledgement */
@@ -5262,7 +5260,7 @@ ar6000_bssInfo_event_rx(AR_SOFTC_T *ar, u8 *datap, int len)
     }
 }
 
-A_UINT32 wmiSendCmdNum;
+u32 wmiSendCmdNum;
 
 int
 ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid)
@@ -5404,7 +5402,7 @@ void ar6000_indicate_tx_activity(void *devt, u8 TrafficClass, bool Active)
 }
 
 void
-ar6000_btcoex_config_event(struct ar6_softc *ar,  u8 *ptr, A_UINT32 len)
+ar6000_btcoex_config_event(struct ar6_softc *ar,  u8 *ptr, u32 len)
 {
 
     WMI_BTCOEX_CONFIG_EVENT *pBtcoexConfig = (WMI_BTCOEX_CONFIG_EVENT *)ptr;
@@ -5441,7 +5439,7 @@ ar6000_btcoex_config_event(struct ar6_softc *ar,  u8 *ptr, A_UINT32 len)
 }
 
 void
-ar6000_btcoex_stats_event(struct ar6_softc *ar,  u8 *ptr, A_UINT32 len)
+ar6000_btcoex_stats_event(struct ar6_softc *ar,  u8 *ptr, u32 len)
 {
     WMI_BTCOEX_STATS_EVENT *pBtcoexStats = (WMI_BTCOEX_STATS_EVENT *)ptr;
 
@@ -5462,7 +5460,7 @@ module_exit(ar6000_cleanup_module);
 static void
 ar6000_cookie_init(AR_SOFTC_T *ar)
 {
-    A_UINT32    i;
+    u32 i;
 
     ar->arCookieList = NULL;
     ar->arCookieCount = 0;
@@ -5633,14 +5631,12 @@ ar6000_lqThresholdEvent_rx(void *devt, WMI_LQ_THRESHOLD_VAL newThreshold, u8 lq)
 
 
 
-A_UINT32
-a_copy_to_user(void *to, const void *from, A_UINT32 n)
+u32 a_copy_to_user(void *to, const void *from, u32 n)
 {
     return(copy_to_user(to, from, n));
 }
 
-A_UINT32
-a_copy_from_user(void *to, const void *from, A_UINT32 n)
+u32 a_copy_from_user(void *to, const void *from, u32 n)
 {
     return(copy_from_user(to, from, n));
 }
@@ -5657,10 +5653,10 @@ ar6000_get_driver_cfg(struct net_device *dev,
     switch(cfgParam)
     {
         case AR6000_DRIVER_CFG_GET_WLANNODECACHING:
-           *((A_UINT32 *)result) = wlanNodeCaching;
+           *((u32 *)result) = wlanNodeCaching;
            break;
         case AR6000_DRIVER_CFG_LOG_RAW_WMI_MSGS:
-           *((A_UINT32 *)result) = logWmiRawMsgs;
+           *((u32 *)result) = logWmiRawMsgs;
             break;
         default:
            ret = EINVAL;
@@ -5811,7 +5807,7 @@ read_rssi_compensation_param(AR_SOFTC_T *ar)
     rssi_compensation_param.bg_param_b = *(u16 *)(cust_data_ptr+6) & 0xffff;
     rssi_compensation_param.a_param_a = *(u16 *)(cust_data_ptr+8) & 0xffff;
     rssi_compensation_param.a_param_b = *(u16 *)(cust_data_ptr+10) &0xffff;
-    rssi_compensation_param.reserved = *(A_UINT32 *)(cust_data_ptr+12);
+    rssi_compensation_param.reserved = *(u32 *)(cust_data_ptr+12);
 
 #ifdef RSSICOMPENSATION_PRINT
     A_PRINTF("customerID = 0x%x \n", rssi_compensation_param.customerID);
@@ -5831,7 +5827,7 @@ read_rssi_compensation_param(AR_SOFTC_T *ar)
 }
 
 A_INT32
-rssi_compensation_calc_tcmd(A_UINT32 freq, A_INT32 rssi, A_UINT32 totalPkt)
+rssi_compensation_calc_tcmd(u32 freq, A_INT32 rssi, u32 totalPkt)
 {
 
     if (freq > 5000)
@@ -6007,17 +6003,17 @@ _reinstall_keys_out:
 void
 ar6000_dset_open_req(
     void *context,
-    A_UINT32 id,
-    A_UINT32 targHandle,
-    A_UINT32 targReplyFn,
-    A_UINT32 targReplyArg)
+    u32 id,
+    u32 targHandle,
+    u32 targReplyFn,
+    u32 targReplyArg)
 {
 }
 
 void
 ar6000_dset_close(
     void *context,
-    A_UINT32 access_cookie)
+    u32 access_cookie)
 {
     return;
 }
@@ -6025,12 +6021,12 @@ ar6000_dset_close(
 void
 ar6000_dset_data_req(
    void *context,
-   A_UINT32 accessCookie,
-   A_UINT32 offset,
-   A_UINT32 length,
-   A_UINT32 targBuf,
-   A_UINT32 targReplyFn,
-   A_UINT32 targReplyArg)
+   u32 accessCookie,
+   u32 offset,
+   u32 length,
+   u32 targBuf,
+   u32 targReplyFn,
+   u32 targReplyArg)
 {
 }
 

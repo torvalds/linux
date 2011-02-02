@@ -237,7 +237,7 @@ int    HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
   @example:
   @see also: 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-int    HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, A_UINT32 Baud);
+int    HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, u32 Baud);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Enable/Disable HCI Transport Power Management

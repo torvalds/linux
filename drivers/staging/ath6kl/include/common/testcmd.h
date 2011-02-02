@@ -82,20 +82,20 @@ typedef enum {
 } TCMD_WLAN_MODE;
 
 typedef PREPACK struct {
-    A_UINT32                testCmdId;
-    A_UINT32                mode;
-    A_UINT32                freq;
-    A_UINT32                dataRate;
+    u32 testCmdId;
+    u32 mode;
+    u32 freq;
+    u32 dataRate;
     A_INT32                 txPwr;
-    A_UINT32                antenna;
-    A_UINT32                enANI;
-    A_UINT32                scramblerOff;
-    A_UINT32                aifsn;
+    u32 antenna;
+    u32 enANI;
+    u32 scramblerOff;
+    u32 aifsn;
     u16 pktSz;
     u16 txPattern;
-    A_UINT32                shortGuard;
-    A_UINT32                numPackets;
-    A_UINT32                wlanMode;
+    u32 shortGuard;
+    u32 numPackets;
+    u32 wlanMode;
 } POSTPACK TCMD_CONT_TX;
 
 #define TCMD_TXPATTERN_ZERONE                 0x1
@@ -124,20 +124,20 @@ typedef enum {
 } TCMD_CONT_RX_ACT;
 
 typedef PREPACK struct {
-    A_UINT32         testCmdId;
-    A_UINT32        act;
-    A_UINT32        enANI;
+    u32 testCmdId;
+    u32 act;
+    u32 enANI;
     PREPACK union {
         struct PREPACK TCMD_CONT_RX_PARA {
-            A_UINT32    freq;
-            A_UINT32    antenna;
-            A_UINT32    wlanMode;
+            u32 freq;
+            u32 antenna;
+            u32 wlanMode;
         } POSTPACK para;
         struct PREPACK TCMD_CONT_RX_REPORT {
-            A_UINT32    totalPkt;
+            u32 totalPkt;
             A_INT32     rssiInDBm;
-            A_UINT32    crcErrPkt;
-            A_UINT32    secErrPkt;
+            u32 crcErrPkt;
+            u32 secErrPkt;
             u16 rateCnt[TCMD_MAX_RATES];
             u16 rateCntShortGuard[TCMD_MAX_RATES];
         } POSTPACK report;
@@ -145,8 +145,8 @@ typedef PREPACK struct {
             A_UCHAR    addr[ATH_MAC_LEN];
         } POSTPACK mac;
         struct PREPACK TCMD_CONT_RX_ANT_SWITCH_TABLE {
-            A_UINT32                antswitch1;
-            A_UINT32                antswitch2;
+            u32 antswitch1;
+            u32 antswitch2;
         }POSTPACK antswitchtable;
     } POSTPACK u;
 } POSTPACK TCMD_CONT_RX;
@@ -162,8 +162,8 @@ typedef enum {
 } TCMD_PM_MODE;
 
 typedef PREPACK struct {
-    A_UINT32  testCmdId;
-    A_UINT32  mode;
+    u32 testCmdId;
+    u32 mode;
 } POSTPACK TCMD_PM;
 
 typedef enum {

@@ -48,7 +48,7 @@ typedef PREPACK struct dset_descriptor_s {
                                               DataSet or pointer to original
                                               dset_descriptor for patched
                                               DataSet */
-  A_UINT32                   data_type;    /* DSET_TYPE_*, above */
+  u32 data_type;    /* DSET_TYPE_*, above */
 
   void                      *AuxPtr;       /* Additional data that might
                                               needed for data_type. For

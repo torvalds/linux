@@ -54,12 +54,12 @@ very simple.
 */
 
 static bool pendingEventsFuncCheck = false;
-static A_UINT32 *pBMICmdCredits;
+static u32 *pBMICmdCredits;
 static A_UCHAR *pBMICmdBuf;
 #define MAX_BMI_CMDBUF_SZ (BMI_DATASZ_MAX + \
-                       sizeof(A_UINT32) /* cmd */ + \
-                       sizeof(A_UINT32) /* addr */ + \
-                       sizeof(A_UINT32))/* length */
+                       sizeof(u32) /* cmd */ + \
+                       sizeof(u32) /* addr */ + \
+                       sizeof(u32))/* length */
 #define BMI_COMMAND_FITS(sz) ((sz) <= MAX_BMI_CMDBUF_SZ)
     
 /* APIs visible to the driver */
@@ -79,7 +79,7 @@ BMIInit(void)
      * bus stack.
      */
     if (!pBMICmdCredits) {
-        pBMICmdCredits = (A_UINT32 *)A_MALLOC_NOWAIT(4);
+        pBMICmdCredits = (u32 *)A_MALLOC_NOWAIT(4);
         A_ASSERT(pBMICmdCredits);
     }
 
@@ -109,7 +109,7 @@ int
 BMIDone(HIF_DEVICE *device)
 {
     int status;
-    A_UINT32 cid;
+    u32 cid;
 
     if (bmiDone) {
         AR_DEBUG_PRINTF (ATH_DEBUG_BMI, ("BMIDone skipped\n"));
@@ -145,7 +145,7 @@ int
 BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
 {
     int status;
-    A_UINT32 cid;
+    u32 cid;
 
     if (bmiDone) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Command disallowed\n"));
@@ -202,14 +202,14 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
 
 int
 BMIReadMemory(HIF_DEVICE *device,
-              A_UINT32 address,
+              u32 address,
               A_UCHAR *buffer,
-              A_UINT32 length)
+              u32 length)
 {
-    A_UINT32 cid;
+    u32 cid;
     int status;
-    A_UINT32 offset;
-    A_UINT32 remaining, rxlen;
+    u32 offset;
+    u32 remaining, rxlen;
 
     A_ASSERT(BMI_COMMAND_FITS(BMI_DATASZ_MAX + sizeof(cid) + sizeof(address) + sizeof(length)));
     memset (pBMICmdBuf, 0, BMI_DATASZ_MAX + sizeof(cid) + sizeof(address) + sizeof(length));
@@ -258,15 +258,15 @@ BMIReadMemory(HIF_DEVICE *device,
 
 int
 BMIWriteMemory(HIF_DEVICE *device,
-               A_UINT32 address,
+               u32 address,
                A_UCHAR *buffer,
-               A_UINT32 length)
+               u32 length)
 {
-    A_UINT32 cid;
+    u32 cid;
     int status;
-    A_UINT32 offset;
-    A_UINT32 remaining, txlen;
-    const A_UINT32 header = sizeof(cid) + sizeof(address) + sizeof(length);
+    u32 offset;
+    u32 remaining, txlen;
+    const u32 header = sizeof(cid) + sizeof(address) + sizeof(length);
     A_UCHAR alignedBuffer[BMI_DATASZ_MAX];
     A_UCHAR *src;
 
@@ -323,12 +323,12 @@ BMIWriteMemory(HIF_DEVICE *device,
 
 int
 BMIExecute(HIF_DEVICE *device,
-           A_UINT32 address,
-           A_UINT32 *param)
+           u32 address,
+           u32 *param)
 {
-    A_UINT32 cid;
+    u32 cid;
     int status;
-    A_UINT32 offset;
+    u32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(address) + sizeof(param)));
     memset (pBMICmdBuf, 0, sizeof(cid) + sizeof(address) + sizeof(param));
@@ -371,11 +371,11 @@ BMIExecute(HIF_DEVICE *device,
 
 int
 BMISetAppStart(HIF_DEVICE *device,
-               A_UINT32 address)
+               u32 address)
 {
-    A_UINT32 cid;
+    u32 cid;
     int status;
-    A_UINT32 offset;
+    u32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(address)));
     memset (pBMICmdBuf, 0, sizeof(cid) + sizeof(address));
@@ -408,12 +408,12 @@ BMISetAppStart(HIF_DEVICE *device,
 
 int
 BMIReadSOCRegister(HIF_DEVICE *device,
-                   A_UINT32 address,
-                   A_UINT32 *param)
+                   u32 address,
+                   u32 *param)
 {
-    A_UINT32 cid;
+    u32 cid;
     int status;
-    A_UINT32 offset;
+    u32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(address)));
     memset (pBMICmdBuf, 0, sizeof(cid) + sizeof(address));
@@ -454,12 +454,12 @@ BMIReadSOCRegister(HIF_DEVICE *device,
 
 int
 BMIWriteSOCRegister(HIF_DEVICE *device,
-                    A_UINT32 address,
-                    A_UINT32 param)
+                    u32 address,
+                    u32 param)
 {
-    A_UINT32 cid;
+    u32 cid;
     int status;
-    A_UINT32 offset;
+    u32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(address) + sizeof(param)));
     memset (pBMICmdBuf, 0, sizeof(cid) + sizeof(address) + sizeof(param));
@@ -494,15 +494,15 @@ BMIWriteSOCRegister(HIF_DEVICE *device,
 
 int
 BMIrompatchInstall(HIF_DEVICE *device,
-                   A_UINT32 ROM_addr,
-                   A_UINT32 RAM_addr,
-                   A_UINT32 nbytes,
-                   A_UINT32 do_activate,
-                   A_UINT32 *rompatch_id)
+                   u32 ROM_addr,
+                   u32 RAM_addr,
+                   u32 nbytes,
+                   u32 do_activate,
+                   u32 *rompatch_id)
 {
-    A_UINT32 cid;
+    u32 cid;
     int status;
-    A_UINT32 offset;
+    u32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(ROM_addr) + sizeof(RAM_addr) +
 				sizeof(nbytes) + sizeof(do_activate)));
@@ -550,11 +550,11 @@ BMIrompatchInstall(HIF_DEVICE *device,
 
 int
 BMIrompatchUninstall(HIF_DEVICE *device,
-                     A_UINT32 rompatch_id)
+                     u32 rompatch_id)
 {
-    A_UINT32 cid;
+    u32 cid;
     int status;
-    A_UINT32 offset;
+    u32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(rompatch_id)));
     memset (pBMICmdBuf, 0, sizeof(cid) + sizeof(rompatch_id));
@@ -587,14 +587,14 @@ BMIrompatchUninstall(HIF_DEVICE *device,
 
 static int
 _BMIrompatchChangeActivation(HIF_DEVICE *device,
-                             A_UINT32 rompatch_count,
-                             A_UINT32 *rompatch_list,
-                             A_UINT32 do_activate)
+                             u32 rompatch_count,
+                             u32 *rompatch_list,
+                             u32 do_activate)
 {
-    A_UINT32 cid;
+    u32 cid;
     int status;
-    A_UINT32 offset;
-    A_UINT32 length;
+    u32 offset;
+    u32 length;
 
     A_ASSERT(BMI_COMMAND_FITS(BMI_DATASZ_MAX + sizeof(cid) + sizeof(rompatch_count)));
     memset(pBMICmdBuf, 0, BMI_DATASZ_MAX + sizeof(cid) + sizeof(rompatch_count));
@@ -631,16 +631,16 @@ _BMIrompatchChangeActivation(HIF_DEVICE *device,
 
 int
 BMIrompatchActivate(HIF_DEVICE *device,
-                    A_UINT32 rompatch_count,
-                    A_UINT32 *rompatch_list)
+                    u32 rompatch_count,
+                    u32 *rompatch_list)
 {
     return _BMIrompatchChangeActivation(device, rompatch_count, rompatch_list, 1);
 }
 
 int
 BMIrompatchDeactivate(HIF_DEVICE *device,
-                      A_UINT32 rompatch_count,
-                      A_UINT32 *rompatch_list)
+                      u32 rompatch_count,
+                      u32 *rompatch_list)
 {
     return _BMIrompatchChangeActivation(device, rompatch_count, rompatch_list, 0);
 }
@@ -648,13 +648,13 @@ BMIrompatchDeactivate(HIF_DEVICE *device,
 int
 BMILZData(HIF_DEVICE *device,
           A_UCHAR *buffer,
-          A_UINT32 length)
+          u32 length)
 {
-    A_UINT32 cid;
+    u32 cid;
     int status;
-    A_UINT32 offset;
-    A_UINT32 remaining, txlen;
-    const A_UINT32 header = sizeof(cid) + sizeof(length);
+    u32 offset;
+    u32 remaining, txlen;
+    const u32 header = sizeof(cid) + sizeof(length);
 
     A_ASSERT(BMI_COMMAND_FITS(BMI_DATASZ_MAX+header));
     memset (pBMICmdBuf, 0, BMI_DATASZ_MAX+header);
@@ -697,11 +697,11 @@ BMILZData(HIF_DEVICE *device,
 
 int
 BMILZStreamStart(HIF_DEVICE *device,
-                 A_UINT32 address)
+                 u32 address)
 {
-    A_UINT32 cid;
+    u32 cid;
     int status;
-    A_UINT32 offset;
+    u32 offset;
 
     A_ASSERT(BMI_COMMAND_FITS(sizeof(cid) + sizeof(address)));
     memset (pBMICmdBuf, 0, sizeof(cid) + sizeof(address));
@@ -736,12 +736,12 @@ BMILZStreamStart(HIF_DEVICE *device,
 int
 bmiBufferSend(HIF_DEVICE *device,
               A_UCHAR *buffer,
-              A_UINT32 length)
+              u32 length)
 {
     int status;
-    A_UINT32 timeout;
-    A_UINT32 address;
-    A_UINT32 mboxAddress[HTC_MAILBOX_NUM_MAX];
+    u32 timeout;
+    u32 address;
+    u32 mboxAddress[HTC_MAILBOX_NUM_MAX];
 
     HIFConfigureDevice(device, HIF_DEVICE_GET_MBOX_ADDR,
                        &mboxAddress[0], sizeof(mboxAddress));
@@ -784,12 +784,12 @@ bmiBufferSend(HIF_DEVICE *device,
 int
 bmiBufferReceive(HIF_DEVICE *device,
                  A_UCHAR *buffer,
-                 A_UINT32 length,
+                 u32 length,
                  bool want_timeout)
 {
     int status;
-    A_UINT32 address;
-    A_UINT32 mboxAddress[HTC_MAILBOX_NUM_MAX];
+    u32 address;
+    u32 mboxAddress[HTC_MAILBOX_NUM_MAX];
     HIF_PENDING_EVENTS_INFO     hifPendingEvents;
     static HIF_PENDING_EVENTS_FUNC getPendingEventsFunc = NULL;
     
@@ -857,8 +857,8 @@ bmiBufferReceive(HIF_DEVICE *device,
          * NB: word_available is declared static for esoteric reasons
          * having to do with protection on some OSes.
          */
-        static A_UINT32 word_available;
-        A_UINT32 timeout;
+        static u32 word_available;
+        u32 timeout;
 
         word_available = 0;
         timeout = BMI_COMMUNICATION_TIMEOUT;
@@ -873,7 +873,7 @@ bmiBufferReceive(HIF_DEVICE *device,
                     break;
                 }
   
-                if (hifPendingEvents.AvailableRecvBytes >= sizeof(A_UINT32)) {
+                if (hifPendingEvents.AvailableRecvBytes >= sizeof(u32)) {
                     word_available = 1;    
                 }
                 continue;    
@@ -920,7 +920,7 @@ bmiBufferReceive(HIF_DEVICE *device,
      *   reduce BMI_DATASZ_MAX to 32 or 64
      */
     if ((length > 4) && (length < 128)) { /* check against MBOX FIFO size */
-        A_UINT32 timeout;
+        u32 timeout;
 
         *pBMICmdCredits = 0;
         timeout = BMI_COMMUNICATION_TIMEOUT;
@@ -958,12 +958,12 @@ bmiBufferReceive(HIF_DEVICE *device,
 }
 
 int
-BMIFastDownload(HIF_DEVICE *device, A_UINT32 address, A_UCHAR *buffer, A_UINT32 length)
+BMIFastDownload(HIF_DEVICE *device, u32 address, A_UCHAR *buffer, u32 length)
 {
     int status = A_ERROR;
-    A_UINT32  lastWord = 0;
-    A_UINT32  lastWordOffset = length & ~0x3;
-    A_UINT32  unalignedBytes = length & 0x3;
+    u32 lastWord = 0;
+    u32 lastWordOffset = length & ~0x3;
+    u32 unalignedBytes = length & 0x3;
 
     status = BMILZStreamStart (device, address);
     if (status) {
@@ -998,13 +998,13 @@ BMIFastDownload(HIF_DEVICE *device, A_UINT32 address, A_UCHAR *buffer, A_UINT32 
 }
 
 int
-BMIRawWrite(HIF_DEVICE *device, A_UCHAR *buffer, A_UINT32 length)
+BMIRawWrite(HIF_DEVICE *device, A_UCHAR *buffer, u32 length)
 {
     return bmiBufferSend(device, buffer, length);
 }
 
 int
-BMIRawRead(HIF_DEVICE *device, A_UCHAR *buffer, A_UINT32 length, bool want_timeout)
+BMIRawRead(HIF_DEVICE *device, A_UCHAR *buffer, u32 length, bool want_timeout)
 {
     return bmiBufferReceive(device, buffer, length, want_timeout);
 }

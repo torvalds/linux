@@ -124,13 +124,13 @@ static int wmi_roam_data_event_rx(struct wmi_t *wmip, u8 *datap,
 static int wmi_get_wow_list_event_rx(struct wmi_t *wmip, u8 *datap,
                                       int len);
 static int
-wmi_get_pmkid_list_event_rx(struct wmi_t *wmip, u8 *datap, A_UINT32 len);
+wmi_get_pmkid_list_event_rx(struct wmi_t *wmip, u8 *datap, u32 len);
 
 static int
-wmi_set_params_event_rx(struct wmi_t *wmip, u8 *datap, A_UINT32 len);
+wmi_set_params_event_rx(struct wmi_t *wmip, u8 *datap, u32 len);
 
 static int
-wmi_acm_reject_event_rx(struct wmi_t *wmip, u8 *datap, A_UINT32 len);
+wmi_acm_reject_event_rx(struct wmi_t *wmip, u8 *datap, u32 len);
 
 #ifdef CONFIG_HOST_GPIO_SUPPORT
 static int wmi_gpio_intr_rx(struct wmi_t *wmip, u8 *datap, int len);
@@ -166,8 +166,8 @@ static int wmi_keepalive_reply_rx(struct wmi_t *wmip, u8 *datap, int len);
 int wmi_cmd_send_xtnd(struct wmi_t *wmip, void *osbuf, WMIX_COMMAND_ID cmdId,
                   WMI_SYNC_FLAG syncflag);
 
-u8 ar6000_get_upper_threshold(A_INT16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh, A_UINT32 size);
-u8 ar6000_get_lower_threshold(A_INT16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh, A_UINT32 size);
+u8 ar6000_get_upper_threshold(A_INT16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh, u32 size);
+u8 ar6000_get_lower_threshold(A_INT16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh, u32 size);
 
 void wmi_cache_configure_rssithreshold(struct wmi_t *wmip, WMI_RSSI_THRESHOLD_PARAMS_CMD *rssiCmd);
 void wmi_cache_configure_snrthreshold(struct wmi_t *wmip, WMI_SNR_THRESHOLD_PARAMS_CMD *snrCmd);
@@ -531,7 +531,7 @@ wmi_data_hdr_add(struct wmi_t *wmip, void *osbuf, u8 msgType, bool bMoreData,
 }
 
 
-u8 wmi_implicit_create_pstream(struct wmi_t *wmip, void *osbuf, A_UINT32 layer2Priority, bool wmmEnabled)
+u8 wmi_implicit_create_pstream(struct wmi_t *wmip, void *osbuf, u32 layer2Priority, bool wmmEnabled)
 {
     u8 *datap;
     u8 trafficClass = WMM_AC_BE;
@@ -539,7 +539,7 @@ u8 wmi_implicit_create_pstream(struct wmi_t *wmip, void *osbuf, A_UINT32 layer2P
     WMI_DATA_HDR    *dtHdr;
     u8 streamExists = 0;
     u8 userPriority;
-    A_UINT32            hdrsize, metasize;
+    u32 hdrsize, metasize;
     ATH_LLC_SNAP_HDR    *llcHdr;
 
     WMI_CREATE_PSTREAM_CMD  cmd;
@@ -564,7 +564,7 @@ u8 wmi_implicit_create_pstream(struct wmi_t *wmip, void *osbuf, A_UINT32 layer2P
     {
         if (processDot11Hdr)
         {
-             hdrsize = A_ROUND_UP(sizeof(struct ieee80211_qosframe),sizeof(A_UINT32));
+             hdrsize = A_ROUND_UP(sizeof(struct ieee80211_qosframe),sizeof(u32));
              llcHdr = (ATH_LLC_SNAP_HDR *)(datap + sizeof(WMI_DATA_HDR) + metasize +
                           hdrsize);
 
@@ -629,7 +629,7 @@ wmi_dot11_hdr_add (struct wmi_t *wmip, void *osbuf, NETWORK_TYPE mode)
     ATH_MAC_HDR      macHdr;
     ATH_LLC_SNAP_HDR *llcHdr;
     struct           ieee80211_frame *wh;
-    A_UINT32         hdrsize;
+    u32 hdrsize;
 
     A_ASSERT(osbuf != NULL);
 
@@ -682,7 +682,7 @@ AddDot11Hdr:
     /* Make room for 802.11 hdr */
     if (wmip->wmi_is_wmm_enabled)
     {
-        hdrsize = A_ROUND_UP(sizeof(struct ieee80211_qosframe),sizeof(A_UINT32));
+        hdrsize = A_ROUND_UP(sizeof(struct ieee80211_qosframe),sizeof(u32));
         if (A_NETBUF_PUSH(osbuf, hdrsize) != A_OK)
         {
             return A_NO_MEMORY;
@@ -692,7 +692,7 @@ AddDot11Hdr:
     }
     else
     {
-        hdrsize = A_ROUND_UP(sizeof(struct ieee80211_frame),sizeof(A_UINT32));
+        hdrsize = A_ROUND_UP(sizeof(struct ieee80211_frame),sizeof(u32));
         if (A_NETBUF_PUSH(osbuf, hdrsize) != A_OK)
         {
             return A_NO_MEMORY;
@@ -721,7 +721,7 @@ wmi_dot11_hdr_remove(struct wmi_t *wmip, void *osbuf)
     u8 type,subtype;
     ATH_LLC_SNAP_HDR *llcHdr;
     ATH_MAC_HDR      macHdr;
-    A_UINT32         hdrsize;
+    u32 hdrsize;
 
     A_ASSERT(osbuf != NULL);
     datap = A_NETBUF_DATA(osbuf);
@@ -734,7 +734,7 @@ wmi_dot11_hdr_remove(struct wmi_t *wmip, void *osbuf)
 
     /* strip off the 802.11 hdr*/
     if (subtype == IEEE80211_FC0_SUBTYPE_QOS) {
-        hdrsize = A_ROUND_UP(sizeof(struct ieee80211_qosframe),sizeof(A_UINT32));
+        hdrsize = A_ROUND_UP(sizeof(struct ieee80211_qosframe),sizeof(u32));
         A_NETBUF_PULL(osbuf, hdrsize);
     } else if (subtype == IEEE80211_FC0_SUBTYPE_DATA) {
         A_NETBUF_PULL(osbuf, sizeof(struct ieee80211_frame));
@@ -832,7 +832,7 @@ wmi_control_rx_xtnd(struct wmi_t *wmip, void *osbuf)
     WMIX_CMD_HDR *cmd;
     u16 id;
     u8 *datap;
-    A_UINT32 len;
+    u32 len;
     int status = A_OK;
 
     if (A_NETBUF_LEN(osbuf) < sizeof(WMIX_CMD_HDR)) {
@@ -901,7 +901,7 @@ wmi_control_rx_xtnd(struct wmi_t *wmip, void *osbuf)
 /*
  * Control Path
  */
-A_UINT32 cmdRecvNum;
+u32 cmdRecvNum;
 
 int
 wmi_control_rx(struct wmi_t *wmip, void *osbuf)
@@ -909,7 +909,7 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     WMI_CMD_HDR *cmd;
     u16 id;
     u8 *datap;
-    A_UINT32 len, i, loggingReq;
+    u32 len, i, loggingReq;
     int status = A_OK;
 
     A_ASSERT(osbuf != NULL);
@@ -1240,7 +1240,7 @@ wmi_ready_event_rx(struct wmi_t *wmip, u8 *datap, int len)
 }
 
 #define LE_READ_4(p)                            \
-    ((A_UINT32)                            \
+    ((u32)                            \
      ((((u8 *)(p))[0]      ) | (((u8 *)(p))[1] <<  8) | \
       (((u8 *)(p))[2] << 16) | (((u8 *)(p))[3] << 24)))
 
@@ -1420,7 +1420,7 @@ wmi_bssInfo_event_rx(struct wmi_t *wmip, u8 *datap, int len)
     bss_t *bss = NULL;
     WMI_BSS_INFO_HDR *bih;
     u8 *buf;
-    A_UINT32 nodeCachingAllowed = 1;
+    u32 nodeCachingAllowed = 1;
     A_UCHAR cached_ssid_len = 0;
     A_UCHAR cached_ssid_buf[IEEE80211_NWID_LEN] = {0};
     u8 beacon_ssid_len = 0;
@@ -1658,7 +1658,7 @@ wmi_bitrate_reply_rx(struct wmi_t *wmip, u8 *datap, int len)
 {
     WMI_BIT_RATE_REPLY *reply;
     A_INT32 rate;
-    A_UINT32 sgi,index;
+    u32 sgi,index;
     /* 54149:
      * WMI_BIT_RATE_CMD structure is changed to WMI_BIT_RATE_REPLY.
      * since there is difference in the length and to avoid returning
@@ -2289,9 +2289,9 @@ wmi_aplistEvent_rx(struct wmi_t *wmip, u8 *datap, int len)
 static int
 wmi_dbglog_event_rx(struct wmi_t *wmip, u8 *datap, int len)
 {
-    A_UINT32 dropped;
+    u32 dropped;
 
-    dropped = *((A_UINT32 *)datap);
+    dropped = *((u32 *)datap);
     datap += sizeof(dropped);
     len -= sizeof(dropped);
     A_WMI_DBGLOG_EVENT(wmip->wmi_devt, dropped, (A_INT8*)datap, len);
@@ -2410,7 +2410,7 @@ wmi_cmd_send_xtnd(struct wmi_t *wmip, void *osbuf, WMIX_COMMAND_ID cmdId,
     }
 
     cHdr = (WMIX_CMD_HDR *)A_NETBUF_DATA(osbuf);
-    cHdr->commandId = (A_UINT32) cmdId;
+    cHdr->commandId = (u32) cmdId;
 
     return wmi_cmd_send(wmip, osbuf, WMI_EXTENSION_CMDID, syncflag);
 }
@@ -2421,7 +2421,7 @@ wmi_connect_cmd(struct wmi_t *wmip, NETWORK_TYPE netType,
                 CRYPTO_TYPE pairwiseCrypto, u8 pairwiseCryptoLen,
                 CRYPTO_TYPE groupCrypto, u8 groupCryptoLen,
                 int ssidLength, A_UCHAR *ssid,
-                u8 *bssid, u16 channel, A_UINT32 ctrl_flags)
+                u8 *bssid, u16 channel, u32 ctrl_flags)
 {
     void *osbuf;
     WMI_CONNECT_CMD *cc;
@@ -2512,7 +2512,7 @@ wmi_disconnect_cmd(struct wmi_t *wmip)
 int
 wmi_startscan_cmd(struct wmi_t *wmip, WMI_SCAN_TYPE scanType,
                   u32 forceFgScan, u32 isLegacy,
-                  A_UINT32 homeDwellTime, A_UINT32 forceScanInterval,
+                  u32 homeDwellTime, u32 forceScanInterval,
                   A_INT8 numChan, u16 *channelList)
 {
     void *osbuf;
@@ -2559,7 +2559,7 @@ wmi_scanparams_cmd(struct wmi_t *wmip, u16 fg_start_sec,
                    u16 minact_chdw_msec, u16 maxact_chdw_msec,
                    u16 pas_chdw_msec,
                    u8 shScanRatio, u8 scanCtrlFlags,
-                   A_UINT32 max_dfsch_act_time, u16 maxact_scan_per_ssid)
+                   u32 max_dfsch_act_time, u16 maxact_scan_per_ssid)
 {
     void *osbuf;
     WMI_SCAN_PARAMS_CMD *sc;
@@ -2589,7 +2589,7 @@ wmi_scanparams_cmd(struct wmi_t *wmip, u16 fg_start_sec,
 }
 
 int
-wmi_bssfilter_cmd(struct wmi_t *wmip, u8 filter, A_UINT32 ieMask)
+wmi_bssfilter_cmd(struct wmi_t *wmip, u8 filter, u32 ieMask)
 {
     void *osbuf;
     WMI_BSS_FILTER_CMD *cmd;
@@ -2774,8 +2774,8 @@ wmi_ibsspmcaps_cmd(struct wmi_t *wmip, u8 pmEnable, u8 ttl,
 }
 
 int
-wmi_apps_cmd(struct wmi_t *wmip, u8 psType, A_UINT32 idle_time,
-                   A_UINT32 ps_period, u8 sleep_period)
+wmi_apps_cmd(struct wmi_t *wmip, u8 psType, u32 idle_time,
+                   u32 ps_period, u8 sleep_period)
 {
     void *osbuf;
     WMI_AP_PS_CMD *cmd;
@@ -3261,7 +3261,7 @@ wmi_create_pstream_cmd(struct wmi_t *wmip, WMI_CREATE_PSTREAM_CMD *params)
     A_MEMCPY(cmd, params, sizeof(*cmd));
 
         /* this is an implicitly created Fat pipe */
-    if ((A_UINT32)params->tsid == (A_UINT32)WMI_IMPLICIT_PSTREAM) {
+    if ((u32)params->tsid == (u32)WMI_IMPLICIT_PSTREAM) {
         LOCK_WMI(wmip);
         fatPipeExistsForAC = (wmip->wmi_fatPipeExists & (1 << params->trafficClass));
         wmip->wmi_fatPipeExists |= (1<<params->trafficClass);
@@ -3516,10 +3516,10 @@ wmi_validate_bitrate(struct wmi_t *wmip, A_INT32 rate, A_INT8 *rate_idx)
 
     for (i=0;;i++)
     {
-        if (wmi_rateTable[(A_UINT32) i][0] == 0) {
+        if (wmi_rateTable[(u32) i][0] == 0) {
             return A_EINVAL;
         }
-        if (wmi_rateTable[(A_UINT32) i][0] == rate) {
+        if (wmi_rateTable[(u32) i][0] == rate) {
             break;
         }
     }
@@ -3533,7 +3533,7 @@ wmi_validate_bitrate(struct wmi_t *wmip, A_INT32 rate, A_INT8 *rate_idx)
 }
 
 int
-wmi_set_fixrates_cmd(struct wmi_t *wmip, A_UINT32 fixRatesMask)
+wmi_set_fixrates_cmd(struct wmi_t *wmip, u32 fixRatesMask)
 {
     void *osbuf;
     WMI_FIX_RATES_CMD *cmd;
@@ -3547,7 +3547,7 @@ wmi_set_fixrates_cmd(struct wmi_t *wmip, A_UINT32 fixRatesMask)
  * to be used. */
     /* Make sure all rates in the mask are valid in the current PHY mode */
     for(rateIndex = 0; rateIndex < MAX_NUMBER_OF_SUPPORT_RATES; rateIndex++) {
-       if((1 << rateIndex) & (A_UINT32)fixRatesMask) {
+       if((1 << rateIndex) & (u32)fixRatesMask) {
             if(wmi_is_bitrate_index_valid(wmip, rateIndex) != true) {
                 A_DPRINTF(DBG_WMI, (DBGFMT "Set Fix Rates command failed: Given rate is illegal in current PHY mode\n", DBGARG));
                 return A_EINVAL;
@@ -4034,7 +4034,7 @@ wmi_set_lq_threshold_params(struct wmi_t *wmip,
 }
 
 int
-wmi_set_error_report_bitmask(struct wmi_t *wmip, A_UINT32 mask)
+wmi_set_error_report_bitmask(struct wmi_t *wmip, u32 mask)
 {
     void    *osbuf;
     A_INT8  size;
@@ -4059,7 +4059,7 @@ wmi_set_error_report_bitmask(struct wmi_t *wmip, A_UINT32 mask)
 }
 
 int
-wmi_get_challenge_resp_cmd(struct wmi_t *wmip, A_UINT32 cookie, A_UINT32 source)
+wmi_get_challenge_resp_cmd(struct wmi_t *wmip, u32 cookie, u32 source)
 {
     void *osbuf;
     WMIX_HB_CHALLENGE_RESP_CMD *cmd;
@@ -4082,7 +4082,7 @@ wmi_get_challenge_resp_cmd(struct wmi_t *wmip, A_UINT32 cookie, A_UINT32 source)
 int
 wmi_config_debug_module_cmd(struct wmi_t *wmip, u16 mmask,
                             u16 tsr, bool rep, u16 size,
-                            A_UINT32 valid)
+                            u32 valid)
 {
     void *osbuf;
     WMIX_DBGLOG_CFG_MODULE_CMD *cmd;
@@ -4211,7 +4211,7 @@ int
 wmi_get_roam_data_cmd(struct wmi_t *wmip, u8 roamDataType)
 {
     void *osbuf;
-    A_UINT32 size = sizeof(u8);
+    u32 size = sizeof(u8);
     WMI_TARGET_ROAM_DATA *cmd;
 
     osbuf = A_NETBUF_ALLOC(size);      /* no payload */
@@ -4287,10 +4287,10 @@ wmi_set_powersave_timers_cmd(struct wmi_t *wmip,
 /* Send a command to Target to change GPIO output pins. */
 int
 wmi_gpio_output_set(struct wmi_t *wmip,
-                    A_UINT32 set_mask,
-                    A_UINT32 clear_mask,
-                    A_UINT32 enable_mask,
-                    A_UINT32 disable_mask)
+                    u32 set_mask,
+                    u32 clear_mask,
+                    u32 enable_mask,
+                    u32 disable_mask)
 {
     void *osbuf;
     WMIX_GPIO_OUTPUT_SET_CMD *output_set;
@@ -4330,8 +4330,8 @@ wmi_gpio_input_get(struct wmi_t *wmip)
 /* Send a command to the Target that changes the value of a GPIO register. */
 int
 wmi_gpio_register_set(struct wmi_t *wmip,
-                      A_UINT32 gpioreg_id,
-                      A_UINT32 value)
+                      u32 gpioreg_id,
+                      u32 value)
 {
     void *osbuf;
     WMIX_GPIO_REGISTER_SET_CMD *register_set;
@@ -4359,7 +4359,7 @@ wmi_gpio_register_set(struct wmi_t *wmip,
 /* Send a command to the Target to fetch the value of a GPIO register. */
 int
 wmi_gpio_register_get(struct wmi_t *wmip,
-                      A_UINT32 gpioreg_id)
+                      u32 gpioreg_id)
 {
     void *osbuf;
     WMIX_GPIO_REGISTER_GET_CMD *register_get;
@@ -4385,7 +4385,7 @@ wmi_gpio_register_get(struct wmi_t *wmip,
 /* Send a command to the Target acknowledging some GPIO interrupts. */
 int
 wmi_gpio_intr_ack(struct wmi_t *wmip,
-                  A_UINT32 ack_mask)
+                  u32 ack_mask)
 {
     void *osbuf;
     WMIX_GPIO_INTR_ACK_CMD *intr_ack;
@@ -4612,7 +4612,7 @@ wmi_set_max_sp_len_cmd(struct wmi_t *wmip, u8 maxSPLen)
 
 u8 wmi_determine_userPriority(
     u8 *pkt,
-    A_UINT32 layer2Pri)
+    u32 layer2Pri)
 {
     u8 ipPri;
     iphdr *ipHdr = (iphdr *)pkt;
@@ -4871,7 +4871,7 @@ wmi_set_country(struct wmi_t *wmip, A_UCHAR *countryCode)
    have different test command requirements from differnt manufacturers
  */
 int
-wmi_test_cmd(struct wmi_t *wmip, u8 *buf, A_UINT32  len)
+wmi_test_cmd(struct wmi_t *wmip, u8 *buf, u32 len)
 {
     void *osbuf;
     char *data;
@@ -5210,7 +5210,7 @@ wmi_set_keepalive_cmd(struct wmi_t *wmip, u8 keepaliveInterval)
 }
 
 int
-wmi_set_params_cmd(struct wmi_t *wmip, A_UINT32 opcode, A_UINT32 length, char *buffer)
+wmi_set_params_cmd(struct wmi_t *wmip, u32 opcode, u32 length, char *buffer)
 {
     void *osbuf;
     WMI_SET_PARAMS_CMD *cmd;
@@ -5356,7 +5356,7 @@ wmi_get_rate(A_INT8 rateindex)
     if (rateindex == RATE_AUTO) {
         return 0;
     } else {
-        return(wmi_rateTable[(A_UINT32) rateindex][0]);
+        return(wmi_rateTable[(u32) rateindex][0]);
     }
 }
 
@@ -5370,14 +5370,14 @@ wmi_node_return (struct wmi_t *wmip, bss_t *bss)
 }
 
 void
-wmi_set_nodeage(struct wmi_t *wmip, A_UINT32 nodeAge)
+wmi_set_nodeage(struct wmi_t *wmip, u32 nodeAge)
 {
     wlan_set_nodeage(&wmip->wmi_scan_table,nodeAge);
 }
 
 bss_t *
 wmi_find_Ssidnode (struct wmi_t *wmip, A_UCHAR *pSsid,
-                   A_UINT32 ssidLength, bool bIsWPA2, bool bMatchSSID)
+                   u32 ssidLength, bool bIsWPA2, bool bMatchSSID)
 {
     bss_t *node = NULL;
     node = wlan_find_Ssidnode (&wmip->wmi_scan_table, pSsid,
@@ -5423,13 +5423,13 @@ wmi_free_node(struct wmi_t *wmip, const u8 *macaddr)
 
 int
 wmi_dset_open_reply(struct wmi_t *wmip,
-                    A_UINT32 status,
-                    A_UINT32 access_cookie,
-                    A_UINT32 dset_size,
-                    A_UINT32 dset_version,
-                    A_UINT32 targ_handle,
-                    A_UINT32 targ_reply_fn,
-                    A_UINT32 targ_reply_arg)
+                    u32 status,
+                    u32 access_cookie,
+                    u32 dset_size,
+                    u32 dset_version,
+                    u32 targ_handle,
+                    u32 targ_reply_fn,
+                    u32 targ_reply_arg)
 {
     void *osbuf;
     WMIX_DSETOPEN_REPLY_CMD *open_reply;
@@ -5457,10 +5457,10 @@ wmi_dset_open_reply(struct wmi_t *wmip,
 }
 
 static int
-wmi_get_pmkid_list_event_rx(struct wmi_t *wmip, u8 *datap, A_UINT32 len)
+wmi_get_pmkid_list_event_rx(struct wmi_t *wmip, u8 *datap, u32 len)
 {
     WMI_PMKID_LIST_REPLY *reply;
-    A_UINT32 expected_len;
+    u32 expected_len;
 
     if (len < sizeof(WMI_PMKID_LIST_REPLY)) {
         return A_EINVAL;
@@ -5480,7 +5480,7 @@ wmi_get_pmkid_list_event_rx(struct wmi_t *wmip, u8 *datap, A_UINT32 len)
 
 
 static int
-wmi_set_params_event_rx(struct wmi_t *wmip, u8 *datap, A_UINT32 len)
+wmi_set_params_event_rx(struct wmi_t *wmip, u8 *datap, u32 len)
 {
     WMI_SET_PARAMS_REPLY *reply;
 
@@ -5504,7 +5504,7 @@ wmi_set_params_event_rx(struct wmi_t *wmip, u8 *datap, A_UINT32 len)
 
 
 static int
-wmi_acm_reject_event_rx(struct wmi_t *wmip, u8 *datap, A_UINT32 len)
+wmi_acm_reject_event_rx(struct wmi_t *wmip, u8 *datap, u32 len)
 {
     WMI_ACM_REJECT_EVENT *ev;
 
@@ -5518,16 +5518,16 @@ wmi_acm_reject_event_rx(struct wmi_t *wmip, u8 *datap, A_UINT32 len)
 #ifdef CONFIG_HOST_DSET_SUPPORT
 int
 wmi_dset_data_reply(struct wmi_t *wmip,
-                    A_UINT32 status,
+                    u32 status,
                     u8 *user_buf,
-                    A_UINT32 length,
-                    A_UINT32 targ_buf,
-                    A_UINT32 targ_reply_fn,
-                    A_UINT32 targ_reply_arg)
+                    u32 length,
+                    u32 targ_buf,
+                    u32 targ_reply_fn,
+                    u32 targ_reply_arg)
 {
     void *osbuf;
     WMIX_DSETDATA_REPLY_CMD *data_reply;
-    A_UINT32 size;
+    u32 size;
 
     size = sizeof(*data_reply) + length;
 
@@ -5564,7 +5564,7 @@ wmi_dset_data_reply(struct wmi_t *wmip,
 #endif /* CONFIG_HOST_DSET_SUPPORT */
 
 int
-wmi_set_wsc_status_cmd(struct wmi_t *wmip, A_UINT32 status)
+wmi_set_wsc_status_cmd(struct wmi_t *wmip, u32 status)
 {
     void *osbuf;
     char *cmd;
@@ -5589,8 +5589,8 @@ wmi_set_wsc_status_cmd(struct wmi_t *wmip, A_UINT32 status)
 #if defined(CONFIG_TARGET_PROFILE_SUPPORT)
 int
 wmi_prof_cfg_cmd(struct wmi_t *wmip,
-                 A_UINT32 period,
-                 A_UINT32 nbins)
+                 u32 period,
+                 u32 nbins)
 {
     void *osbuf;
     WMIX_PROF_CFG_CMD *cmd;
@@ -5611,7 +5611,7 @@ wmi_prof_cfg_cmd(struct wmi_t *wmip,
 }
 
 int
-wmi_prof_addr_set_cmd(struct wmi_t *wmip, A_UINT32 addr)
+wmi_prof_addr_set_cmd(struct wmi_t *wmip, u32 addr)
 {
     void *osbuf;
     WMIX_PROF_ADDR_SET_CMD *cmd;
@@ -5672,16 +5672,16 @@ void
 wmi_scan_indication (struct wmi_t *wmip)
 {
     struct ieee80211_node_table *nt;
-    A_UINT32 gen;
-    A_UINT32 size;
-    A_UINT32 bsssize;
+    u32 gen;
+    u32 size;
+    u32 bsssize;
     bss_t *bss;
-    A_UINT32 numbss;
+    u32 numbss;
     PNDIS_802_11_BSSID_SCAN_INFO psi;
     PBYTE  pie;
     NDIS_802_11_FIXED_IEs *pFixed;
     NDIS_802_11_VARIABLE_IEs *pVar;
-    A_UINT32  RateSize;
+    u32 RateSize;
 
     struct ar6kScanIndication
     {
@@ -5884,9 +5884,9 @@ wmi_scan_indication (struct wmi_t *wmip)
 #endif
 
 u8 ar6000_get_upper_threshold(A_INT16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh,
-                           A_UINT32 size)
+                           u32 size)
 {
-    A_UINT32 index;
+    u32 index;
     u8 threshold = (u8)sq_thresh->upper_threshold[size - 1];
 
     /* The list is already in sorted order. Get the next lower value */
@@ -5901,9 +5901,9 @@ u8 ar6000_get_upper_threshold(A_INT16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh,
 }
 
 u8 ar6000_get_lower_threshold(A_INT16 rssi, SQ_THRESHOLD_PARAMS *sq_thresh,
-                           A_UINT32 size)
+                           u32 size)
 {
-    A_UINT32 index;
+    u32 index;
     u8 threshold = (u8)sq_thresh->lower_threshold[size - 1];
 
     /* The list is already in sorted order. Get the next lower value */
@@ -6266,7 +6266,7 @@ wmi_set_pvb_cmd(struct wmi_t *wmip, u16 aid, bool flag)
 }
 
 int
-wmi_ap_conn_inact_time(struct wmi_t *wmip, A_UINT32 period)
+wmi_ap_conn_inact_time(struct wmi_t *wmip, u32 period)
 {
     WMI_AP_CONN_INACT_CMD *cmd;
     void *osbuf = NULL;
@@ -6286,7 +6286,7 @@ wmi_ap_conn_inact_time(struct wmi_t *wmip, A_UINT32 period)
 }
 
 int
-wmi_ap_bgscan_time(struct wmi_t *wmip, A_UINT32 period, A_UINT32 dwell)
+wmi_ap_bgscan_time(struct wmi_t *wmip, u32 period, u32 dwell)
 {
     WMI_AP_PROT_SCAN_TIME_CMD *cmd;
     void *osbuf = NULL;
@@ -6423,7 +6423,7 @@ wmi_set_ht_op_cmd(struct wmi_t *wmip, u8 sta_chan_width)
 #endif
 
 int
-wmi_set_tx_select_rates_cmd(struct wmi_t *wmip, A_UINT32 *pMaskArray)
+wmi_set_tx_select_rates_cmd(struct wmi_t *wmip, u32 *pMaskArray)
 {
     void *osbuf;
     WMI_SET_TX_SELECT_RATES_CMD *pData;
@@ -6612,7 +6612,7 @@ wmi_set_pmk_cmd(struct wmi_t *wmip, u8 *pmk)
 }
 
 int
-wmi_SGI_cmd(struct wmi_t *wmip, A_UINT32 sgiMask, u8 sgiPERThreshold)
+wmi_SGI_cmd(struct wmi_t *wmip, u32 sgiMask, u8 sgiPERThreshold)
 {
     void *osbuf;
     WMI_SET_TX_SGI_PARAM_CMD *cmd;
@@ -6634,9 +6634,9 @@ wmi_SGI_cmd(struct wmi_t *wmip, A_UINT32 sgiMask, u8 sgiPERThreshold)
 
 bss_t *
 wmi_find_matching_Ssidnode (struct wmi_t *wmip, A_UCHAR *pSsid,
-                   A_UINT32 ssidLength,
-                   A_UINT32 dot11AuthMode, A_UINT32 authMode,
-                   A_UINT32 pairwiseCryptoType, A_UINT32 grpwiseCryptoTyp)
+                   u32 ssidLength,
+                   u32 dot11AuthMode, u32 authMode,
+                   u32 pairwiseCryptoType, u32 grpwiseCryptoTyp)
 {
     bss_t *node = NULL;
     node = wlan_find_matching_Ssidnode (&wmip->wmi_scan_table, pSsid,
@@ -6653,8 +6653,7 @@ u16 wmi_ieee2freq (int chan)
 
 }
 
-A_UINT32
-wmi_freq2ieee (u16 freq)
+u32 wmi_freq2ieee (u16 freq)
 {
     u16 chan = 0;
     chan = wlan_freq2ieee (freq);

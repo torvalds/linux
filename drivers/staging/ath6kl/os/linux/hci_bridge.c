@@ -221,7 +221,7 @@ static int ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
 {
     AR6K_HCI_BRIDGE_INFO *pHcidevInfo = (AR6K_HCI_BRIDGE_INFO *)pContext;
     int              status;
-    A_UINT32 address, hci_uart_pwr_mgmt_params;
+    u32 address, hci_uart_pwr_mgmt_params;
 //    AR3K_CONFIG_INFO      ar3kconfig;
     
     pHcidevInfo->pHCIDev = HCIHandle;

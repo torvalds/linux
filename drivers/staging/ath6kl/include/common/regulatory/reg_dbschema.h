@@ -145,22 +145,22 @@ typedef PREPACK struct dbMasterTable_t {    /* Hold ptrs to Table data structure
 #define BMZERO {0,0}    /* BMLEN zeros */
 
 #define BM(_fa, _fb, _fc, _fd, _fe, _ff, _fg, _fh) \
-      {((((_fa >= 0) && (_fa < 32)) ? (((A_UINT32) 1) << _fa) : 0) | \
-    (((_fb >= 0) && (_fb < 32)) ? (((A_UINT32) 1) << _fb) : 0) | \
-    (((_fc >= 0) && (_fc < 32)) ? (((A_UINT32) 1) << _fc) : 0) | \
-    (((_fd >= 0) && (_fd < 32)) ? (((A_UINT32) 1) << _fd) : 0) | \
-    (((_fe >= 0) && (_fe < 32)) ? (((A_UINT32) 1) << _fe) : 0) | \
-    (((_ff >= 0) && (_ff < 32)) ? (((A_UINT32) 1) << _ff) : 0) | \
-    (((_fg >= 0) && (_fg < 32)) ? (((A_UINT32) 1) << _fg) : 0) | \
-    (((_fh >= 0) && (_fh < 32)) ? (((A_UINT32) 1) << _fh) : 0)), \
-       ((((_fa > 31) && (_fa < 64)) ? (((A_UINT32) 1) << (_fa - 32)) : 0) | \
-        (((_fb > 31) && (_fb < 64)) ? (((A_UINT32) 1) << (_fb - 32)) : 0) | \
-        (((_fc > 31) && (_fc < 64)) ? (((A_UINT32) 1) << (_fc - 32)) : 0) | \
-        (((_fd > 31) && (_fd < 64)) ? (((A_UINT32) 1) << (_fd - 32)) : 0) | \
-        (((_fe > 31) && (_fe < 64)) ? (((A_UINT32) 1) << (_fe - 32)) : 0) | \
-        (((_ff > 31) && (_ff < 64)) ? (((A_UINT32) 1) << (_ff - 32)) : 0) | \
-        (((_fg > 31) && (_fg < 64)) ? (((A_UINT32) 1) << (_fg - 32)) : 0) | \
-        (((_fh > 31) && (_fh < 64)) ? (((A_UINT32) 1) << (_fh - 32)) : 0))}
+      {((((_fa >= 0) && (_fa < 32)) ? (((u32) 1) << _fa) : 0) | \
+    (((_fb >= 0) && (_fb < 32)) ? (((u32) 1) << _fb) : 0) | \
+    (((_fc >= 0) && (_fc < 32)) ? (((u32) 1) << _fc) : 0) | \
+    (((_fd >= 0) && (_fd < 32)) ? (((u32) 1) << _fd) : 0) | \
+    (((_fe >= 0) && (_fe < 32)) ? (((u32) 1) << _fe) : 0) | \
+    (((_ff >= 0) && (_ff < 32)) ? (((u32) 1) << _ff) : 0) | \
+    (((_fg >= 0) && (_fg < 32)) ? (((u32) 1) << _fg) : 0) | \
+    (((_fh >= 0) && (_fh < 32)) ? (((u32) 1) << _fh) : 0)), \
+       ((((_fa > 31) && (_fa < 64)) ? (((u32) 1) << (_fa - 32)) : 0) | \
+        (((_fb > 31) && (_fb < 64)) ? (((u32) 1) << (_fb - 32)) : 0) | \
+        (((_fc > 31) && (_fc < 64)) ? (((u32) 1) << (_fc - 32)) : 0) | \
+        (((_fd > 31) && (_fd < 64)) ? (((u32) 1) << (_fd - 32)) : 0) | \
+        (((_fe > 31) && (_fe < 64)) ? (((u32) 1) << (_fe - 32)) : 0) | \
+        (((_ff > 31) && (_ff < 64)) ? (((u32) 1) << (_ff - 32)) : 0) | \
+        (((_fg > 31) && (_fg < 64)) ? (((u32) 1) << (_fg - 32)) : 0) | \
+        (((_fh > 31) && (_fh < 64)) ? (((u32) 1) << (_fh - 32)) : 0))}
 
 
 /*
@@ -174,7 +174,7 @@ typedef PREPACK struct reg_dmn_pair_mapping {
     u16 regDmn2GHz;    /* 2GHz reg domain */
     u8 flags5GHz;     /* Requirements flags (AdHoc disallow etc) */
     u8 flags2GHz;     /* Requirements flags (AdHoc disallow etc) */
-    A_UINT32 pscanMask;     /* Passive Scan flags which can override unitary domain passive scan
+    u32 pscanMask;     /* Passive Scan flags which can override unitary domain passive scan
                                    flags.  This value is used as a mask on the unitary flags*/
 } POSTPACK REG_DMN_PAIR_MAPPING;
 
@@ -215,8 +215,8 @@ typedef PREPACK struct RegDmnFreqBand {
     u8 channelSep;     /* Channel separation within the band */
     u8 useDfs;         /* Use DFS in the RegDomain if corresponding bit is set */
     u8 mode;           /* Mode of operation */
-    A_UINT32    usePassScan;    /* Use Passive Scan in the RegDomain if corresponding bit is set */
-    A_UINT32    ht40ChanMask;   /* lower 16 bits: indicate which frequencies in the block is HT40 capable 
+    u32 usePassScan;    /* Use Passive Scan in the RegDomain if corresponding bit is set */
+    u32 ht40ChanMask;   /* lower 16 bits: indicate which frequencies in the block is HT40 capable
                                    upper 16 bits: what rate (half/quarter) the channel is  */
 } POSTPACK REG_DMN_FREQ_BAND;
 
@@ -229,9 +229,9 @@ typedef PREPACK struct regDomain {
     u8 dfsMask;        /* DFS bitmask for 5Ghz tables */
     u8 flags;          /* Requirement flags (AdHoc disallow etc) */
     u16 reserved;       /* for alignment */
-    A_UINT32    pscan;          /* Bitmask for passive scan */
-    A_UINT32    chan11a[BMLEN]; /* 64 bit bitmask for channel/band selection */
-    A_UINT32    chan11bg[BMLEN];/* 64 bit bitmask for channel/band selection */
+    u32 pscan;          /* Bitmask for passive scan */
+    u32 chan11a[BMLEN]; /* 64 bit bitmask for channel/band selection */
+    u32 chan11bg[BMLEN];/* 64 bit bitmask for channel/band selection */
 } POSTPACK REG_DOMAIN;
 
 #endif /* __REG_DBSCHEMA_H__ */

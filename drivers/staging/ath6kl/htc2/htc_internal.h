@@ -81,7 +81,7 @@ typedef struct _HTC_ENDPOINT {
     int                         RxProcessCount;         /* reference count to allow single processing context */
     struct  _HTC_TARGET         *target;                /* back pointer to target */
     u8 SeqNo;                  /* TX seq no (helpful) for debugging */
-    A_UINT32                    LocalConnectionFlags;   /* local connection flags */
+    u32 LocalConnectionFlags;   /* local connection flags */
 #ifdef HTC_EP_STAT_PROFILING
     HTC_ENDPOINT_STATS          EndPointStats;          /* endpoint statistics */
 #endif
@@ -123,8 +123,8 @@ typedef struct _HTC_TARGET {
     A_MUTEX_T                   HTCRxLock;
     A_MUTEX_T                   HTCTxLock;
     AR6K_DEVICE                 Device;         /* AR6K - specific state */
-    A_UINT32                    OpStateFlags;
-    A_UINT32                    RecvStateFlags;
+    u32 OpStateFlags;
+    u32 RecvStateFlags;
     HTC_ENDPOINT_ID             EpWaitingForBuffers;
     bool                      TargetFailure;
 #ifdef HTC_CAPTURE_LAST_FRAME
@@ -169,7 +169,7 @@ HTC_PACKET *HTCAllocControlBuffer(HTC_TARGET *target, HTC_PACKET_QUEUE *pList);
 void        HTCFreeControlBuffer(HTC_TARGET *target, HTC_PACKET *pPacket, HTC_PACKET_QUEUE *pList);
 int    HTCIssueSend(HTC_TARGET *target, HTC_PACKET *pPacket);
 void        HTCRecvCompleteHandler(void *Context, HTC_PACKET *pPacket);
-int    HTCRecvMessagePendingHandler(void *Context, A_UINT32 MsgLookAheads[], int NumLookAheads, bool *pAsyncProc, int *pNumPktsFetched);
+int    HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLookAheads, bool *pAsyncProc, int *pNumPktsFetched);
 void        HTCProcessCreditRpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt, int NumEntries, HTC_ENDPOINT_ID FromEndpoint);
 int    HTCSendSetupComplete(HTC_TARGET *target);
 void        HTCFlushRecvBuffers(HTC_TARGET *target);

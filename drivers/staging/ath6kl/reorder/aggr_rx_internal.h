@@ -79,7 +79,7 @@ typedef struct {
     bool              timerMon;   /* true if the timer started for the sake of this TID */
     u16 win_sz;     /* negotiated window size */
     u16 seq_next;   /* Next seq no, in current window */
-    A_UINT32            hold_q_sz;  /* Num of frames that can be held in hold q */
+    u32 hold_q_sz;  /* Num of frames that can be held in hold q */
     OSBUF_HOLD_Q        *hold_q;    /* Hold q for re-order */
 #if 0    
     WINDOW_SNAPSHOT     old_win;    /* Sliding window snapshot - for timeout */
@@ -89,15 +89,15 @@ typedef struct {
 }RXTID;
 
 typedef struct {
-    A_UINT32    num_into_aggr;      /* hitting at the input of this module */
-    A_UINT32    num_dups;           /* duplicate */
-    A_UINT32    num_oow;            /* out of window */
-    A_UINT32    num_mpdu;           /* single payload 802.3/802.11 frame */
-    A_UINT32    num_amsdu;          /* AMSDU */
-    A_UINT32    num_delivered;      /* frames delivered to IP stack */
-    A_UINT32    num_timeouts;       /* num of timeouts, during which frames delivered */
-    A_UINT32    num_hole;           /* frame not present, when window moved over */
-    A_UINT32    num_bar;            /* num of resets of seq_num, via BAR */
+    u32 num_into_aggr;      /* hitting at the input of this module */
+    u32 num_dups;           /* duplicate */
+    u32 num_oow;            /* out of window */
+    u32 num_mpdu;           /* single payload 802.3/802.11 frame */
+    u32 num_amsdu;          /* AMSDU */
+    u32 num_delivered;      /* frames delivered to IP stack */
+    u32 num_timeouts;       /* num of timeouts, during which frames delivered */
+    u32 num_hole;           /* frame not present, when window moved over */
+    u32 num_bar;            /* num of resets of seq_num, via BAR */
 }RXTID_STATS;
 
 typedef struct {

@@ -202,7 +202,7 @@ int DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest)
 static int HifReadWriteScatter(HIF_DEVICE *device, HIF_SCATTER_REQ *pReq)
 {
     int             status = A_EINVAL;
-    A_UINT32             request = pReq->Request;
+    u32 request = pReq->Request;
     HIF_SCATTER_REQ_PRIV *pReqPriv = (HIF_SCATTER_REQ_PRIV *)pReq->HIFPrivate[0];
     
     do {

@@ -95,8 +95,8 @@ HTC_HANDLE HTCCreate(void *hif_handle, HTC_INIT_INFO *pInfo)
     HTC_TARGET              *target = NULL;
     int                 status = A_OK;
     int                      i;
-    A_UINT32                 ctrl_bufsz;
-    A_UINT32                 blocksizes[HTC_MAILBOX_NUM_MAX];
+    u32 ctrl_bufsz;
+    u32 blocksizes[HTC_MAILBOX_NUM_MAX];
 
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC, ("HTCCreate - Enter\n"));
 

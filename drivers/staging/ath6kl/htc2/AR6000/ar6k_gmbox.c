@@ -396,12 +396,12 @@ int DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
 }
 
 
-int DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 WriteLength)
+int DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 WriteLength)
 {
-    A_UINT32 paddedLength;
+    u32 paddedLength;
     bool   sync = (pPacket->Completion == NULL) ? true : false;
     int status;
-    A_UINT32 address;
+    u32 address;
     
        /* adjust the length to be a multiple of block size if appropriate */
     paddedLength = DEV_CALC_SEND_PADDED_LEN(pDev, WriteLength);
@@ -433,10 +433,10 @@ int DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 WriteLength)
     return status;
 }
 
-int DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 ReadLength)
+int DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 ReadLength)
 {
     
-    A_UINT32 paddedLength;
+    u32 paddedLength;
     int status;
     bool   sync = (pPacket->Completion == NULL) ? true : false;
 

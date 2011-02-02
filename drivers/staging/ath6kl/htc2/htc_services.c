@@ -44,7 +44,7 @@ void HTCControlRecv(void *Context, HTC_PACKET *pPacket)
     if (pPacket->ActualLength > 0) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                         ("HTCControlRecv, got message with length:%d \n",
-                        pPacket->ActualLength + (A_UINT32)HTC_HDR_LENGTH));
+                        pPacket->ActualLength + (u32)HTC_HDR_LENGTH));
 
 #ifdef ATH_DEBUG_MODULE
             /* dump header and message */
@@ -73,7 +73,7 @@ int HTCSendSetupComplete(HTC_TARGET *target)
 
         if (target->HTCTargetVersion >= HTC_VERSION_2P1) {
             HTC_SETUP_COMPLETE_EX_MSG *pSetupCompleteEx;
-            A_UINT32                  setupFlags = 0;
+            u32 setupFlags = 0;
                    
             pSetupCompleteEx = (HTC_SETUP_COMPLETE_EX_MSG *)pSendPacket->pBuffer;
             A_MEMZERO(pSetupCompleteEx, sizeof(HTC_SETUP_COMPLETE_EX_MSG));

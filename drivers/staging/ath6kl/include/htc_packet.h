@@ -60,9 +60,9 @@ typedef struct _HTC_TX_PACKET_INFO {
 #define HTC_TX_PACKET_TAG_USER_DEFINED (HTC_TX_PACKET_TAG_INTERNAL + 9) /* user-defined tags start here */
 
 typedef struct _HTC_RX_PACKET_INFO {
-    A_UINT32    ExpectedHdr;        /* HTC internal use */
-    A_UINT32    HTCRxFlags;         /* HTC internal use */
-    A_UINT32    IndicationFlags;    /* indication flags set on each RX packet indication */
+    u32 ExpectedHdr;        /* HTC internal use */
+    u32 HTCRxFlags;         /* HTC internal use */
+    u32 IndicationFlags;    /* indication flags set on each RX packet indication */
 } HTC_RX_PACKET_INFO;
 
 #define HTC_RX_FLAGS_INDICATE_MORE_PKTS  (1 << 0)   /* more packets on this endpoint are being fetched */
@@ -86,8 +86,8 @@ typedef struct _HTC_PACKET {
      * to the caller points to the start of the payload
      */
     u8 *pBuffer;       /* payload start (RX/TX) */
-    A_UINT32        BufferLength;   /* length of buffer */
-    A_UINT32        ActualLength;   /* actual length of payload */
+    u32 BufferLength;   /* length of buffer */
+    u32 ActualLength;   /* actual length of payload */
     HTC_ENDPOINT_ID Endpoint;       /* endpoint that this packet was sent/recv'd from */
     int        Status;         /* completion status */
     union {

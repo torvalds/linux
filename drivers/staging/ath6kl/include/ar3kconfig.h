@@ -39,16 +39,16 @@ extern "C" {
 
 
 typedef struct {
-    A_UINT32                 Flags;           /* config flags */
+    u32 Flags;           /* config flags */
     void                     *pHCIDev;        /* HCI bridge device     */
     HCI_TRANSPORT_PROPERTIES *pHCIProps;      /* HCI bridge props      */
     HIF_DEVICE               *pHIFDevice;     /* HIF layer device      */
     
-    A_UINT32                 AR3KBaudRate;    /* AR3K operational baud rate */
+    u32 AR3KBaudRate;    /* AR3K operational baud rate */
     u16 AR6KScale;       /* AR6K UART scale value */
     u16 AR6KStep;        /* AR6K UART step value  */
     struct hci_dev           *pBtStackHCIDev; /* BT Stack HCI dev */
-    A_UINT32                 PwrMgmtEnabled;  /* TLPM enabled? */  
+    u32 PwrMgmtEnabled;  /* TLPM enabled? */
     u16 IdleTimeout;     /* TLPM idle timeout */
     u16 WakeupTimeout;   /* TLPM wakeup timeout */
     u8 bdaddr[6];       /* Bluetooth device address */

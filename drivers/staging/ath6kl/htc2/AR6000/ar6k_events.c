@@ -60,7 +60,7 @@ int DevRWCompletionHandler(void *context, int status)
 
 /* mailbox recv message polling */
 int DevPollMboxMsgRecv(AR6K_DEVICE *pDev,
-                            A_UINT32    *pLookAhead,
+                            u32 *pLookAhead,
                             int          TimeoutMS)
 {
     int status = A_OK;
@@ -247,7 +247,7 @@ static int DevServiceErrorInterrupt(AR6K_DEVICE *pDev)
 
 static int DevServiceDebugInterrupt(AR6K_DEVICE *pDev)
 {
-    A_UINT32 dummy;
+    u32 dummy;
     int status;
 
     /* Send a target failure event to the application */
@@ -303,7 +303,7 @@ static int DevServiceCounterInterrupt(AR6K_DEVICE *pDev)
 static void DevGetEventAsyncHandler(void *Context, HTC_PACKET *pPacket)
 {
     AR6K_DEVICE *pDev = (AR6K_DEVICE *)Context;
-    A_UINT32    lookAhead = 0;
+    u32 lookAhead = 0;
     bool      otherInts = false;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("+DevGetEventAsyncHandler: (dev: 0x%lX)\n", (unsigned long)pDev));
@@ -471,7 +471,7 @@ static int ProcessPendingIRQs(AR6K_DEVICE *pDev, bool *pDone, bool *pASyncProces
 {
     int    status = A_OK;
     u8 host_int_status = 0;
-    A_UINT32    lookAhead = 0;
+    u32 lookAhead = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("+ProcessPendingIRQs: (dev: 0x%lX)\n", (unsigned long)pDev));
 

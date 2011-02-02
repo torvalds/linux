@@ -54,7 +54,7 @@ char *p_mac = NULL;
 //
 
 static A_UCHAR eeprom_data[EEPROM_SZ];
-static A_UINT32 sys_sleep_reg;
+static u32 sys_sleep_reg;
 static HIF_DEVICE *p_bmi_device;
 
 //
@@ -127,28 +127,28 @@ update_mac(unsigned char *eeprom, int size, unsigned char *macaddr)
 
 /* Read a Target register and return its value. */
 inline void
-BMI_read_reg(A_UINT32 address, A_UINT32 *pvalue)
+BMI_read_reg(u32 address, u32 *pvalue)
 {
     BMIReadSOCRegister(p_bmi_device, address, pvalue);
 }
 
 /* Write a value to a Target register. */
 inline void
-BMI_write_reg(A_UINT32 address, A_UINT32 value)
+BMI_write_reg(u32 address, u32 value)
 {
     BMIWriteSOCRegister(p_bmi_device, address, value);
 }
 
 /* Read Target memory word and return its value. */
 inline void
-BMI_read_mem(A_UINT32 address, A_UINT32 *pvalue)
+BMI_read_mem(u32 address, u32 *pvalue)
 {
     BMIReadMemory(p_bmi_device, address, (A_UCHAR*)(pvalue), 4);
 }
 
 /* Write a word to a Target memory. */
 inline void
-BMI_write_mem(A_UINT32 address, u8 *p_data, A_UINT32 sz)
+BMI_write_mem(u32 address, u8 *p_data, u32 sz)
 {
     BMIWriteMemory(p_bmi_device, address, (A_UCHAR*)(p_data), sz); 
 }
@@ -160,7 +160,7 @@ BMI_write_mem(A_UINT32 address, u8 *p_data, A_UINT32 sz)
 static void
 enable_SI(HIF_DEVICE *p_device)
 {
-    A_UINT32 regval;
+    u32 regval;
 
     printk("%s\n", __FUNCTION__);
 
@@ -200,7 +200,7 @@ enable_SI(HIF_DEVICE *p_device)
 static void
 disable_SI(void)
 {
-    A_UINT32 regval;
+    u32 regval;
     
     printk("%s\n", __FUNCTION__);
 
@@ -218,7 +218,7 @@ disable_SI(void)
 static void
 request_8byte_read(int offset)
 {
-    A_UINT32 regval;
+    u32 regval;
 
 //    printk("%s: request_8byte_read from offset 0x%x\n", __FUNCTION__, offset);
 
@@ -241,9 +241,9 @@ request_8byte_read(int offset)
  * writing values from Target TX_DATA registers.
  */
 static void
-request_4byte_write(int offset, A_UINT32 data)
+request_4byte_write(int offset, u32 data)
 {
-    A_UINT32 regval;
+    u32 regval;
 
     printk("%s: request_4byte_write (0x%x) to offset 0x%x\n", __FUNCTION__, data, offset);
 
@@ -269,7 +269,7 @@ request_4byte_write(int offset, A_UINT32 data)
 static bool
 request_in_progress(void)
 {
-    A_UINT32 regval;
+    u32 regval;
 
     /* Wait for DONE_INT in SI_CS */
     BMI_read_reg(SI_BASE_ADDRESS+SI_CS_OFFSET, &regval);
@@ -288,7 +288,7 @@ request_in_progress(void)
 
 static void eeprom_type_detect(void)
 {
-    A_UINT32 regval;
+    u32 regval;
     u8 i = 0;
 
     request_8byte_read(0x100);
@@ -310,7 +310,7 @@ static void eeprom_type_detect(void)
  * and return them to the caller.
  */
 inline void
-read_8byte_results(A_UINT32 *data)
+read_8byte_results(u32 *data)
 {
     /* Read SI_RX_DATA0 and SI_RX_DATA1 */
     BMI_read_reg(SI_BASE_ADDRESS+SI_RX_DATA0_OFFSET, &data[0]);
@@ -339,7 +339,7 @@ wait_for_eeprom_completion(void)
  * waits for it to complete, and returns the result.
  */
 static void
-fetch_8bytes(int offset, A_UINT32 *data)
+fetch_8bytes(int offset, u32 *data)
 {
     request_8byte_read(offset);
     wait_for_eeprom_completion();
@@ -354,7 +354,7 @@ fetch_8bytes(int offset, A_UINT32 *data)
  * and waits for it to complete.
  */
 inline void
-commit_4bytes(int offset, A_UINT32 data)
+commit_4bytes(int offset, u32 data)
 {
     request_4byte_write(offset, data);
     wait_for_eeprom_completion();
@@ -363,8 +363,8 @@ commit_4bytes(int offset, A_UINT32 data)
 #ifdef ANDROID_ENV
 void eeprom_ar6000_transfer(HIF_DEVICE *device, char *fake_file, char *p_mac)
 {
-    A_UINT32 first_word;
-    A_UINT32 board_data_addr;
+    u32 first_word;
+    u32 board_data_addr;
     int i;
 
     printk("%s: Enter\n", __FUNCTION__);
@@ -437,17 +437,17 @@ void eeprom_ar6000_transfer(HIF_DEVICE *device, char *fake_file, char *p_mac)
          * Fetch EEPROM_SZ Bytes of Board Data, 8 bytes at a time.
          */
 
-        fetch_8bytes(0, (A_UINT32 *)(&eeprom_data[0]));
+        fetch_8bytes(0, (u32 *)(&eeprom_data[0]));
 
         /* Check the first word of EEPROM for validity */
-        first_word = *((A_UINT32 *)eeprom_data);
+        first_word = *((u32 *)eeprom_data);
 
         if ((first_word == 0) || (first_word == 0xffffffff)) {
             printk("Did not find EEPROM with valid Board Data.\n");
         }
 
         for (i=8; i<EEPROM_SZ; i+=8) {
-            fetch_8bytes(i, (A_UINT32 *)(&eeprom_data[i]));
+            fetch_8bytes(i, (u32 *)(&eeprom_data[i]));
         }
     }
 
@@ -562,9 +562,9 @@ void eeprom_ar6000_transfer(HIF_DEVICE *device, char *fake_file, char *p_mac)
 
     /* Record the fact that Board Data IS initialized */
     {
-       A_UINT32 one = 1;
+       u32 one = 1;
        BMI_write_mem(HOST_INTEREST_ITEM_ADDRESS(hi_board_data_initialized),
-                     (u8 *)&one, sizeof(A_UINT32));
+                     (u8 *)&one, sizeof(u32));
     }
 
     disable_SI();

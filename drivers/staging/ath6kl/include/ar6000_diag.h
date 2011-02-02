@@ -26,23 +26,23 @@
 
 
 int
-ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data);
+ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data);
 
 int
-ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data);
+ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data);
 
 int
-ar6000_ReadDataDiag(HIF_DEVICE *hifDevice, A_UINT32 address,
-                    A_UCHAR *data, A_UINT32 length);
+ar6000_ReadDataDiag(HIF_DEVICE *hifDevice, u32 address,
+                    A_UCHAR *data, u32 length);
 
 int
-ar6000_WriteDataDiag(HIF_DEVICE *hifDevice, A_UINT32 address,
-                     A_UCHAR *data, A_UINT32 length);
+ar6000_WriteDataDiag(HIF_DEVICE *hifDevice, u32 address,
+                     A_UCHAR *data, u32 length);
 
 int
-ar6k_ReadTargetRegister(HIF_DEVICE *hifDevice, int regsel, A_UINT32 *regval);
+ar6k_ReadTargetRegister(HIF_DEVICE *hifDevice, int regsel, u32 *regval);
 
 void
-ar6k_FetchTargetRegs(HIF_DEVICE *hifDevice, A_UINT32 *targregs);
+ar6k_FetchTargetRegs(HIF_DEVICE *hifDevice, u32 *targregs);
 
 #endif /*AR6000_DIAG_H_*/

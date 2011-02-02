@@ -83,13 +83,13 @@ PREPACK struct host_interest_s {
      * Pointer to application-defined area, if any.
      * Set by Target application during startup.
      */
-    A_UINT32               hi_app_host_interest;                      /* 0x00 */
+    u32 hi_app_host_interest;                      /* 0x00 */
 
     /* Pointer to register dump area, valid after Target crash. */
-    A_UINT32               hi_failure_state;                          /* 0x04 */
+    u32 hi_failure_state;                          /* 0x04 */
 
     /* Pointer to debug logging header */
-    A_UINT32               hi_dbglog_hdr;                             /* 0x08 */
+    u32 hi_dbglog_hdr;                             /* 0x08 */
 
     /* Indicates whether or not flash is present on Target.
      * NB: flash_is_present indicator is here not just
@@ -99,36 +99,36 @@ PREPACK struct host_interest_s {
      * so that it doesn't get reinitialized with the rest
      * of data.
      */
-    A_UINT32               hi_flash_is_present;                       /* 0x0c */
+    u32 hi_flash_is_present;                       /* 0x0c */
 
     /*
      * General-purpose flag bits, similar to AR6000_OPTION_* flags.
      * Can be used by application rather than by OS.
      */
-    A_UINT32               hi_option_flag;                            /* 0x10 */
+    u32 hi_option_flag;                            /* 0x10 */
 
     /*
      * Boolean that determines whether or not to
      * display messages on the serial port.
      */
-    A_UINT32               hi_serial_enable;                          /* 0x14 */
+    u32 hi_serial_enable;                          /* 0x14 */
 
     /* Start address of Flash DataSet index, if any */
-    A_UINT32               hi_dset_list_head;                         /* 0x18 */
+    u32 hi_dset_list_head;                         /* 0x18 */
 
     /* Override Target application start address */
-    A_UINT32               hi_app_start;                              /* 0x1c */
+    u32 hi_app_start;                              /* 0x1c */
 
     /* Clock and voltage tuning */
-    A_UINT32               hi_skip_clock_init;                        /* 0x20 */
-    A_UINT32               hi_core_clock_setting;                     /* 0x24 */
-    A_UINT32               hi_cpu_clock_setting;                      /* 0x28 */
-    A_UINT32               hi_system_sleep_setting;                   /* 0x2c */
-    A_UINT32               hi_xtal_control_setting;                   /* 0x30 */
-    A_UINT32               hi_pll_ctrl_setting_24ghz;                 /* 0x34 */
-    A_UINT32               hi_pll_ctrl_setting_5ghz;                  /* 0x38 */
-    A_UINT32               hi_ref_voltage_trim_setting;               /* 0x3c */
-    A_UINT32               hi_clock_info;                             /* 0x40 */
+    u32 hi_skip_clock_init;                        /* 0x20 */
+    u32 hi_core_clock_setting;                     /* 0x24 */
+    u32 hi_cpu_clock_setting;                      /* 0x28 */
+    u32 hi_system_sleep_setting;                   /* 0x2c */
+    u32 hi_xtal_control_setting;                   /* 0x30 */
+    u32 hi_pll_ctrl_setting_24ghz;                 /* 0x34 */
+    u32 hi_pll_ctrl_setting_5ghz;                  /* 0x38 */
+    u32 hi_ref_voltage_trim_setting;               /* 0x3c */
+    u32 hi_clock_info;                             /* 0x40 */
 
     /*
      * Flash configuration overrides, used only
@@ -136,49 +136,49 @@ PREPACK struct host_interest_s {
      * (When using flash, modify the global variables
      * with equivalent names.)
      */
-    A_UINT32               hi_bank0_addr_value;                       /* 0x44 */
-    A_UINT32               hi_bank0_read_value;                       /* 0x48 */
-    A_UINT32               hi_bank0_write_value;                      /* 0x4c */
-    A_UINT32               hi_bank0_config_value;                     /* 0x50 */
+    u32 hi_bank0_addr_value;                       /* 0x44 */
+    u32 hi_bank0_read_value;                       /* 0x48 */
+    u32 hi_bank0_write_value;                      /* 0x4c */
+    u32 hi_bank0_config_value;                     /* 0x50 */
 
     /* Pointer to Board Data  */
-    A_UINT32               hi_board_data;                             /* 0x54 */
-    A_UINT32               hi_board_data_initialized;                 /* 0x58 */
+    u32 hi_board_data;                             /* 0x54 */
+    u32 hi_board_data_initialized;                 /* 0x58 */
 
-    A_UINT32               hi_dset_RAM_index_table;                   /* 0x5c */
+    u32 hi_dset_RAM_index_table;                   /* 0x5c */
 
-    A_UINT32               hi_desired_baud_rate;                      /* 0x60 */
-    A_UINT32               hi_dbglog_config;                          /* 0x64 */
-    A_UINT32               hi_end_RAM_reserve_sz;                     /* 0x68 */
-    A_UINT32               hi_mbox_io_block_sz;                       /* 0x6c */
+    u32 hi_desired_baud_rate;                      /* 0x60 */
+    u32 hi_dbglog_config;                          /* 0x64 */
+    u32 hi_end_RAM_reserve_sz;                     /* 0x68 */
+    u32 hi_mbox_io_block_sz;                       /* 0x6c */
 
-    A_UINT32               hi_num_bpatch_streams;                     /* 0x70 -- unused */
-    A_UINT32               hi_mbox_isr_yield_limit;                   /* 0x74 */
+    u32 hi_num_bpatch_streams;                     /* 0x70 -- unused */
+    u32 hi_mbox_isr_yield_limit;                   /* 0x74 */
 
-    A_UINT32               hi_refclk_hz;                              /* 0x78 */
-    A_UINT32               hi_ext_clk_detected;                       /* 0x7c */
-    A_UINT32               hi_dbg_uart_txpin;                         /* 0x80 */
-    A_UINT32               hi_dbg_uart_rxpin;                         /* 0x84 */
-    A_UINT32               hi_hci_uart_baud;                          /* 0x88 */
-    A_UINT32               hi_hci_uart_pin_assignments;               /* 0x8C */
+    u32 hi_refclk_hz;                              /* 0x78 */
+    u32 hi_ext_clk_detected;                       /* 0x7c */
+    u32 hi_dbg_uart_txpin;                         /* 0x80 */
+    u32 hi_dbg_uart_rxpin;                         /* 0x84 */
+    u32 hi_hci_uart_baud;                          /* 0x88 */
+    u32 hi_hci_uart_pin_assignments;               /* 0x8C */
         /* NOTE: byte [0] = tx pin, [1] = rx pin, [2] = rts pin, [3] = cts pin */
-    A_UINT32               hi_hci_uart_baud_scale_val;                /* 0x90 */
-    A_UINT32               hi_hci_uart_baud_step_val;                 /* 0x94 */
+    u32 hi_hci_uart_baud_scale_val;                /* 0x90 */
+    u32 hi_hci_uart_baud_step_val;                 /* 0x94 */
 
-    A_UINT32               hi_allocram_start;                         /* 0x98 */
-    A_UINT32               hi_allocram_sz;                            /* 0x9c */
-    A_UINT32               hi_hci_bridge_flags;                       /* 0xa0 */
-    A_UINT32               hi_hci_uart_support_pins;                  /* 0xa4 */
+    u32 hi_allocram_start;                         /* 0x98 */
+    u32 hi_allocram_sz;                            /* 0x9c */
+    u32 hi_hci_bridge_flags;                       /* 0xa0 */
+    u32 hi_hci_uart_support_pins;                  /* 0xa4 */
         /* NOTE: byte [0] = RESET pin (bit 7 is polarity), bytes[1]..bytes[3] are for future use */
-    A_UINT32               hi_hci_uart_pwr_mgmt_params;               /* 0xa8 */
+    u32 hi_hci_uart_pwr_mgmt_params;               /* 0xa8 */
         /* 0xa8 - [0]: 1 = enable, 0 = disable
          *        [1]: 0 = UART FC active low, 1 = UART FC active high
          * 0xa9 - [7:0]: wakeup timeout in ms
          * 0xaa, 0xab - [15:0]: idle timeout in ms
          */       
     /* Pointer to extended board Data  */
-    A_UINT32               hi_board_ext_data;                         /* 0xac */
-    A_UINT32               hi_board_ext_data_initialized;             /* 0xb0 */
+    u32 hi_board_ext_data;                         /* 0xac */
+    u32 hi_board_ext_data_initialized;             /* 0xb0 */
 } POSTPACK;
 
 /* Bits defined in hi_option_flag */
@@ -207,10 +207,10 @@ PREPACK struct host_interest_s {
  * Example: target_addr = AR6002_HOST_INTEREST_ITEM_ADDRESS(hi_board_data);
  */
 #define AR6002_HOST_INTEREST_ITEM_ADDRESS(item) \
-    (A_UINT32)((unsigned long)&((((struct host_interest_s *)(AR6002_HOST_INTEREST_ADDRESS))->item)))
+    (u32)((unsigned long)&((((struct host_interest_s *)(AR6002_HOST_INTEREST_ADDRESS))->item)))
 
 #define AR6003_HOST_INTEREST_ITEM_ADDRESS(item) \
-    (A_UINT32)((unsigned long)&((((struct host_interest_s *)(AR6003_HOST_INTEREST_ADDRESS))->item)))
+    (u32)((unsigned long)&((((struct host_interest_s *)(AR6003_HOST_INTEREST_ADDRESS))->item)))
 
 #define HOST_INTEREST_DBGLOG_IS_ENABLED() \
         (!(HOST_INTEREST->hi_option_flag & HI_OPTION_DISABLE_DBGLOG))
@@ -233,7 +233,7 @@ PREPACK struct host_interest_s {
 #define AR6003_BOARD_EXT_DATA_ADDRESS     0x57E600
 
 
-/* # of A_UINT32 entries in targregs, used by DIAG_FETCH_TARG_REGS */
+/* # of u32 entries in targregs, used by DIAG_FETCH_TARG_REGS */
 #define AR6003_FETCH_TARG_REGS_COUNT 64
 
 #endif /* !__ASSEMBLER__ */

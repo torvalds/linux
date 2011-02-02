@@ -121,8 +121,8 @@ struct USER_SAVEDKEYS {
 #define DBG_DEFAULTS    (DBG_ERROR|DBG_WARNING)
 
 
-int ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data);
-int ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, A_UINT32 *address, A_UINT32 *data);
+int ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data);
+int ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data);
 
 #ifdef __cplusplus
 extern "C" {
@@ -391,7 +391,7 @@ struct ar_key {
     u8 key_len;
     u8 seq[IW_ENCODE_SEQ_MAX_SIZE];
     u8 seq_len;
-    A_UINT32    cipher;
+    u32 cipher;
 };
 #endif /* ATH6K_CONFIG_CFG80211 */
 
@@ -410,8 +410,8 @@ struct ar_cookie {
 
 struct ar_hb_chlng_resp {
     A_TIMER                 timer;
-    A_UINT32                frequency;
-    A_UINT32                seqNum;
+    u32 frequency;
+    u32 seqNum;
     bool                  outstanding;
     u8 missCnt;
     u8 missThres;
@@ -492,7 +492,7 @@ typedef struct ar6_softc {
     u16 arListenIntervalB;
     u16 arListenIntervalT;
     struct ar6000_version   arVersion;
-    A_UINT32                arTargetType;
+    u32 arTargetType;
     A_INT8                  arRssi;
     u8 arTxPwr;
     bool                  arTxPwrSet;
@@ -501,19 +501,19 @@ typedef struct ar6_softc {
     struct iw_statistics    arIwStats;
     A_INT8                  arNumChannels;
     u16 arChannelList[32];
-    A_UINT32                arRegCode;
+    u32 arRegCode;
     bool                  statsUpdatePending;
     TARGET_STATS            arTargetStats;
     A_INT8                  arMaxRetries;
     u8 arPhyCapability;
 #ifdef CONFIG_HOST_TCMD_SUPPORT
     u8 tcmdRxReport;
-    A_UINT32                tcmdRxTotalPkt;
+    u32 tcmdRxTotalPkt;
     A_INT32                 tcmdRxRssi;
-    A_UINT32                tcmdPm;
-    A_UINT32                arTargetMode;
-    A_UINT32                tcmdRxcrcErrPkt;
-    A_UINT32                tcmdRxsecErrPkt;
+    u32 tcmdPm;
+    u32 arTargetMode;
+    u32 tcmdRxcrcErrPkt;
+    u32 tcmdRxsecErrPkt;
     u16 tcmdRateCnt[TCMD_MAX_RATES];
     u16 tcmdRateCntShortGuard[TCMD_MAX_RATES];
 #endif
@@ -523,15 +523,15 @@ typedef struct ar6_softc {
     u8 arNodeNum;
     u8 arNexEpId;
     struct ar_cookie        *arCookieList;
-    A_UINT32                arCookieCount;
-    A_UINT32                arRateMask;
+    u32 arCookieCount;
+    u32 arRateMask;
     u8 arSkipScan;
     u16 arBeaconInterval;
     bool                  arConnectPending;
     bool                  arWmmEnabled;
     struct ar_hb_chlng_resp arHBChallengeResp;
     u8 arKeepaliveConfigured;
-    A_UINT32                arMgmtFilter;
+    u32 arMgmtFilter;
     HTC_ENDPOINT_ID         arAc2EpMapping[WMM_NUM_AC];
     bool                  arAcStreamActive[WMM_NUM_AC];
     u8 arAcStreamPriMap[WMM_NUM_AC];
@@ -548,12 +548,12 @@ typedef struct ar6_softc {
     bool                  arWMIControlEpFull;
     bool                  dbgLogFetchInProgress;
     A_UCHAR                 log_buffer[DBGLOG_HOST_LOG_BUFFER_SIZE];
-    A_UINT32                log_cnt;
-    A_UINT32                dbglog_init_done;
-    A_UINT32                arConnectCtrlFlags;
+    u32 log_cnt;
+    u32 dbglog_init_done;
+    u32 arConnectCtrlFlags;
 #ifdef USER_KEYS
     A_INT32                 user_savedkeys_stat;
-    A_UINT32                user_key_ctrl;
+    u32 user_key_ctrl;
     struct USER_SAVEDKEYS   user_saved_keys;
 #endif
     USER_RSSI_THOLD rssi_map[12];
@@ -674,7 +674,7 @@ static inline void *ar6k_priv(struct net_device *dev)
 struct ar_giwscan_param {
     char *current_ev;
     char *end_buf;
-    A_UINT32 bytes_needed;
+    u32 bytes_needed;
     struct iw_request_info *info;
 };
 

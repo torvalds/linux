@@ -60,8 +60,8 @@ typedef struct {
     HCI_TRANSPORT_CONFIG_INFO   HCIConfig;
     bool                      HCIAttached;
     bool                      HCIStopped;
-    A_UINT32                    RecvStateFlags;
-    A_UINT32                    SendStateFlags;
+    u32 RecvStateFlags;
+    u32 SendStateFlags;
     HCI_TRANSPORT_PACKET_TYPE   WaitBufferType;
     HTC_PACKET_QUEUE            SendQueue;         /* write queue holding HCI Command and ACL packets */
     HTC_PACKET_QUEUE            HCIACLRecvBuffers;  /* recv queue holding buffers for incomming ACL packets */
@@ -1230,11 +1230,11 @@ int HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
 
 #define LSB_SCRATCH_IDX     4
 #define MSB_SCRATCH_IDX     5
-int HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, A_UINT32 Baud)
+int HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, u32 Baud)
 {
     GMBOX_PROTO_HCI_UART  *pProt = (GMBOX_PROTO_HCI_UART *)HciTrans;
     HIF_DEVICE *pHIFDevice = (HIF_DEVICE *)(pProt->pDev->HIFDevice);
-    A_UINT32 scaledBaud, scratchAddr;
+    u32 scaledBaud, scratchAddr;
     int status = A_OK;
 
     /* Divide the desired baud rate by 100

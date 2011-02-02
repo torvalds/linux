@@ -47,8 +47,7 @@ u16 wlan_ieee2freq(int chan)
 /*
  * Converts MHz frequency to IEEE channel number.
  */
-A_UINT32
-wlan_freq2ieee(u16 freq)
+u32 wlan_freq2ieee(u16 freq)
 {
     if (freq == 2484)
         return 14;

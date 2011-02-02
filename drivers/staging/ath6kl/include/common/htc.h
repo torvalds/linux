@@ -181,7 +181,7 @@ typedef PREPACK struct {
     /* extended setup completion message */
 typedef PREPACK struct {
     u16 MessageID;
-    A_UINT32  SetupFlags;
+    u32 SetupFlags;
     u8 MaxMsgsPerBundledRecv;
     u8 Rsvd[3];
 } POSTPACK HTC_SETUP_COMPLETE_EX_MSG;

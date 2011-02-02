@@ -125,7 +125,7 @@ int HTCIssueSend(HTC_TARGET *target, HTC_PACKET *pPacket)
 
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,
                     ("+-HTCIssueSend: transmit length : %d (%s) \n",
-                    pPacket->ActualLength + (A_UINT32)HTC_HDR_LENGTH,
+                    pPacket->ActualLength + (u32)HTC_HDR_LENGTH,
                     sync ? "SYNC" : "ASYNC" ));
 
         /* send message to device */

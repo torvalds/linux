@@ -224,8 +224,8 @@ typedef enum {
  */
 
 typedef struct {
-    A_UINT32    ExtendedAddress;  /* extended address for larger writes */  
-    A_UINT32    ExtendedSize;
+    u32 ExtendedAddress;  /* extended address for larger writes */
+    u32 ExtendedSize;
 } HIF_MBOX_PROPERTIES;
 
 #define HIF_MBOX_FLAG_NO_BUNDLING   (1 << 0)   /* do not allow bundling over the mailbox */
@@ -236,16 +236,16 @@ typedef enum _MBOX_BUF_IF_TYPE {
 } MBOX_BUF_IF_TYPE;
 
 typedef struct {
-    A_UINT32 MboxAddresses[4];  /* must be first element for legacy HIFs that return the address in  
+    u32 MboxAddresses[4];  /* must be first element for legacy HIFs that return the address in
                                    and ARRAY of 32-bit words */
     
         /* the following describe extended mailbox properties */
     HIF_MBOX_PROPERTIES MboxProp[4];
         /* if the HIF supports the GMbox extended address region it can report it
          * here, some interfaces cannot support the GMBOX address range and not set this */
-    A_UINT32 GMboxAddress;  
-    A_UINT32 GMboxSize;
-    A_UINT32 Flags;             /* flags to describe mbox behavior or usage */
+    u32 GMboxAddress;
+    u32 GMboxSize;
+    u32 Flags;             /* flags to describe mbox behavior or usage */
     MBOX_BUF_IF_TYPE MboxBusIFType;   /* mailbox bus interface type */
 } HIF_DEVICE_MBOX_INFO;
 
@@ -288,10 +288,10 @@ typedef enum _HIF_SCATTER_METHOD {
 
 typedef struct _HIF_SCATTER_REQ {
     DL_LIST             ListLink;           /* link management */
-    A_UINT32            Address;            /* address for the read/write operation */
-    A_UINT32            Request;            /* request flags */
-    A_UINT32            TotalLength;        /* total length of entire transfer */
-    A_UINT32            CallerFlags;        /* caller specific flags can be stored here */
+    u32 Address;            /* address for the read/write operation */
+    u32 Request;            /* request flags */
+    u32 TotalLength;        /* total length of entire transfer */
+    u32 CallerFlags;        /* caller specific flags can be stored here */
     HIF_SCATTER_COMP_CB CompletionRoutine;  /* completion routine set by caller */
     int            CompletionStatus;   /* status of completion */
     void                *Context;           /* caller context for this request */
@@ -344,12 +344,12 @@ typedef struct osdrv_callbacks {
 #define HIF_RECV_MSG_AVAIL   (1 << 1)   /* pending recv packet */
 
 typedef struct _HIF_PENDING_EVENTS_INFO {
-    A_UINT32 Events;
-    A_UINT32 LookAhead;
-    A_UINT32 AvailableRecvBytes;
+    u32 Events;
+    u32 LookAhead;
+    u32 AvailableRecvBytes;
 #ifdef THREAD_X
-    A_UINT32 Polling;
-    A_UINT32 INT_CAUSE_REG;
+    u32 Polling;
+    u32 INT_CAUSE_REG;
 #endif
 } HIF_PENDING_EVENTS_INFO;
 
@@ -400,10 +400,10 @@ void     HIFDetachHTC(HIF_DEVICE *device);
  */
 int
 HIFReadWrite(HIF_DEVICE    *device,
-             A_UINT32       address,
+             u32 address,
              A_UCHAR       *buffer,
-             A_UINT32       length,
-             A_UINT32       request,
+             u32 length,
+             u32 request,
              void          *context);
 
 /*
@@ -443,7 +443,7 @@ int HIFRWCompleteEventNotify(void);
 
 int
 HIFConfigureDevice(HIF_DEVICE *device, HIF_DEVICE_CONFIG_OPCODE opcode,
-                   void *config, A_UINT32 configLen);
+                   void *config, u32 configLen);
 
 /* 
  * This API wait for the remaining MBOX messages to be drained

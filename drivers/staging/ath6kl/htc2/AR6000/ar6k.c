@@ -76,7 +76,7 @@ void DevCleanup(AR6K_DEVICE *pDev)
 
 int DevSetup(AR6K_DEVICE *pDev)
 {
-    A_UINT32 blocksizes[AR6K_MAILBOXES];
+    u32 blocksizes[AR6K_MAILBOXES];
     int status = A_OK;
     int      i;
     HTC_CALLBACKS htcCallbacks;
@@ -488,11 +488,11 @@ int DevEnableRecv(AR6K_DEVICE *pDev, bool AsyncMode)
     }
 }
 
-int DevWaitForPendingRecv(AR6K_DEVICE *pDev,A_UINT32 TimeoutInMs,bool *pbIsRecvPending)
+int DevWaitForPendingRecv(AR6K_DEVICE *pDev,u32 TimeoutInMs,bool *pbIsRecvPending)
 {
     int    status          = A_OK;
     A_UCHAR     host_int_status = 0x0;
-    A_UINT32    counter         = 0x0;
+    u32 counter         = 0x0;
 
     if(TimeoutInMs < 100)
     {
@@ -612,7 +612,7 @@ int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, bool FromDMA)
 {
     u8 *pDMABuffer = NULL;
     int             i, remaining;
-    A_UINT32        length;
+    u32 length;
 
     pDMABuffer = pReq->pScatterBounceBuffer;
 
@@ -669,7 +669,7 @@ static int DevReadWriteScatter(HIF_DEVICE *Context, HIF_SCATTER_REQ *pReq)
     AR6K_DEVICE     *pDev = (AR6K_DEVICE *)Context;
     int        status = A_OK;
     HTC_PACKET      *pIOPacket = NULL;
-    A_UINT32        request = pReq->Request;
+    u32 request = pReq->Request;
 
     do {
 
@@ -884,13 +884,13 @@ int DevSubmitScatterRequest(AR6K_DEVICE *pDev, HIF_SCATTER_REQ *pScatterReq, boo
             /* read operation */
         pScatterReq->Request = (Async) ? HIF_RD_ASYNC_BLOCK_FIX : HIF_RD_SYNC_BLOCK_FIX;
         pScatterReq->Address = pDev->MailBoxInfo.MboxAddresses[HTC_MAILBOX];
-        A_ASSERT(pScatterReq->TotalLength <= (A_UINT32)DEV_GET_MAX_BUNDLE_RECV_LENGTH(pDev));
+        A_ASSERT(pScatterReq->TotalLength <= (u32)DEV_GET_MAX_BUNDLE_RECV_LENGTH(pDev));
     } else {
-        A_UINT32 mailboxWidth;
+        u32 mailboxWidth;
 
             /* write operation */
         pScatterReq->Request = (Async) ? HIF_WR_ASYNC_BLOCK_INC : HIF_WR_SYNC_BLOCK_INC;
-        A_ASSERT(pScatterReq->TotalLength <= (A_UINT32)DEV_GET_MAX_BUNDLE_SEND_LENGTH(pDev));
+        A_ASSERT(pScatterReq->TotalLength <= (u32)DEV_GET_MAX_BUNDLE_SEND_LENGTH(pDev));
         if (pScatterReq->TotalLength > AR6K_LEGACY_MAX_WRITE_LENGTH) {
                 /* for large writes use the extended address */
             pScatterReq->Address = pDev->MailBoxInfo.MboxProp[HTC_MAILBOX].ExtendedAddress;
@@ -1003,14 +1003,14 @@ int DevSubmitScatterRequest(AR6K_DEVICE *pDev, HIF_SCATTER_REQ *pScatterReq, boo
 #define TEST_CREDITS_RECV_TIMEOUT 100
 
 static u8 g_Buffer[TOTAL_BYTES];
-static A_UINT32 g_MailboxAddrs[AR6K_MAILBOXES];
-static A_UINT32 g_BlockSizes[AR6K_MAILBOXES];
+static u32 g_MailboxAddrs[AR6K_MAILBOXES];
+static u32 g_BlockSizes[AR6K_MAILBOXES];
 
 #define BUFFER_PROC_LIST_DEPTH 4
 
 typedef struct _BUFFER_PROC_LIST{
     u8 *pBuffer;
-    A_UINT32 length;
+    u32 length;
 }BUFFER_PROC_LIST;
 
 
@@ -1096,7 +1096,7 @@ static bool CheckBuffers(void)
         success = CheckOneBuffer((u16 *)checkList[i].pBuffer, checkList[i].length);
         if (!success) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Buffer : 0x%X, Length:%d failed verify \n",
-                        (A_UINT32)checkList[i].pBuffer, checkList[i].length));
+                        (u32)checkList[i].pBuffer, checkList[i].length));
             break;
         }
     }
@@ -1128,7 +1128,7 @@ static u16 GetEndMarker(void)
 static int SendBuffers(AR6K_DEVICE *pDev, int mbox)
 {
     int         status = A_OK;
-    A_UINT32         request = HIF_WR_SYNC_BLOCK_INC;
+    u32 request = HIF_WR_SYNC_BLOCK_INC;
     BUFFER_PROC_LIST sendList[BUFFER_PROC_LIST_DEPTH];
     int              i;
     int              totalBytes = 0;
@@ -1174,7 +1174,7 @@ static int GetCredits(AR6K_DEVICE *pDev, int mbox, int *pCredits)
     int status = A_OK;
     int      timeout = TEST_CREDITS_RECV_TIMEOUT;
     u8 credits = 0;
-    A_UINT32 address;
+    u32 address;
 
     while (true) {
 
@@ -1219,7 +1219,7 @@ static int GetCredits(AR6K_DEVICE *pDev, int mbox, int *pCredits)
 static int RecvBuffers(AR6K_DEVICE *pDev, int mbox)
 {
     int         status = A_OK;
-    A_UINT32         request = HIF_RD_SYNC_BLOCK_INC;
+    u32 request = HIF_RD_SYNC_BLOCK_INC;
     BUFFER_PROC_LIST recvList[BUFFER_PROC_LIST_DEPTH];
     int              curBuffer;
     int              credits;
