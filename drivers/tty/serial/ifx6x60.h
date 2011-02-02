@@ -88,7 +88,9 @@ struct ifx_spi_device {
 	dma_addr_t rx_dma;
 	dma_addr_t tx_dma;
 
-	int is_6160;				/* Modem type */
+	int modem;		/* Modem type */
+	int use_dma;		/* provide dma-able addrs in SPI msg */
+	long max_hz;		/* max SPI frequency */
 
 	spinlock_t write_lock;
 	int write_pending;

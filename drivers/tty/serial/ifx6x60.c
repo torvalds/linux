@@ -8,7 +8,7 @@
  *		      Jan Dumon <j.dumon@option.com>
  *
  * Copyright (C) 2009, 2010 Intel Corp
- * Russ Gorby <richardx.r.gorby@intel.com>
+ * Russ Gorby <russ.gorby@intel.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -732,7 +732,7 @@ static void ifx_spi_io(unsigned long data)
 		/*
 		 * setup dma pointers
 		 */
-		if (ifx_dev->is_6160) {
+		if (ifx_dev->use_dma) {
 			ifx_dev->spi_msg.is_dma_mapped = 1;
 			ifx_dev->tx_dma = ifx_dev->tx_bus;
 			ifx_dev->rx_dma = ifx_dev->rx_bus;
@@ -960,11 +960,17 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 {
 	int ret;
 	int srdy;
-	struct ifx_modem_platform_data *pl_data = NULL;
+	struct ifx_modem_platform_data *pl_data;
 	struct ifx_spi_device *ifx_dev;
 
 	if (saved_ifx_dev) {
 		dev_dbg(&spi->dev, "ignoring subsequent detection");
+		return -ENODEV;
+	}
+
+	pl_data = (struct ifx_modem_platform_data *)spi->dev.platform_data;
+	if (!pl_data) {
+		dev_err(&spi->dev, "missing platform data!");
 		return -ENODEV;
 	}
 
@@ -983,7 +989,9 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	init_timer(&ifx_dev->spi_timer);
 	ifx_dev->spi_timer.function = ifx_spi_timeout;
 	ifx_dev->spi_timer.data = (unsigned long)ifx_dev;
-	ifx_dev->is_6160 = pl_data->is_6160;
+	ifx_dev->modem = pl_data->modem_type;
+	ifx_dev->use_dma = pl_data->use_dma;
+	ifx_dev->max_hz = pl_data->max_hz;
 
 	/* ensure SPI protocol flags are initialized to enable transfer */
 	ifx_dev->spi_more = 0;
@@ -1025,18 +1033,11 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 		goto error_ret;
 	}
 
-	pl_data = (struct ifx_modem_platform_data *)spi->dev.platform_data;
-	if (pl_data) {
-		ifx_dev->gpio.reset = pl_data->rst_pmu;
-		ifx_dev->gpio.po = pl_data->pwr_on;
-		ifx_dev->gpio.mrdy = pl_data->mrdy;
-		ifx_dev->gpio.srdy = pl_data->srdy;
-		ifx_dev->gpio.reset_out = pl_data->rst_out;
-	} else {
-		dev_err(&spi->dev, "missing platform data!");
-		ret = -ENODEV;
-		goto error_ret;
-	}
+	ifx_dev->gpio.reset = pl_data->rst_pmu;
+	ifx_dev->gpio.po = pl_data->pwr_on;
+	ifx_dev->gpio.mrdy = pl_data->mrdy;
+	ifx_dev->gpio.srdy = pl_data->srdy;
+	ifx_dev->gpio.reset_out = pl_data->rst_out;
 
 	dev_info(&spi->dev, "gpios %d, %d, %d, %d, %d",
 		 ifx_dev->gpio.reset, ifx_dev->gpio.po, ifx_dev->gpio.mrdy,
