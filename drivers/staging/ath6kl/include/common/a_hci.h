@@ -303,7 +303,7 @@ typedef struct  hci_cmd_read_local_amp_assoc_t {
 typedef struct hci_cmd_set_event_mask_t {
     u16 opcode;
     u8 param_length;
-    A_UINT64    mask;
+    u64 mask;
 }POSTPACK HCI_CMD_SET_EVT_MASK, HCI_CMD_SET_EVT_MASK_PG_2;
 
 

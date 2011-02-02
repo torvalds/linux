@@ -1014,52 +1014,52 @@ struct ar6000_queuereq {
 
 /* used by AR6000_IOCTL_WMI_GET_TARGET_STATS */
 typedef struct targetStats_t {
-    A_UINT64    tx_packets;
-    A_UINT64    tx_bytes;
-    A_UINT64    tx_unicast_pkts;
-    A_UINT64    tx_unicast_bytes;
-    A_UINT64    tx_multicast_pkts;
-    A_UINT64    tx_multicast_bytes;
-    A_UINT64    tx_broadcast_pkts;
-    A_UINT64    tx_broadcast_bytes;
-    A_UINT64    tx_rts_success_cnt;
-    A_UINT64    tx_packet_per_ac[4];
+    u64 tx_packets;
+    u64 tx_bytes;
+    u64 tx_unicast_pkts;
+    u64 tx_unicast_bytes;
+    u64 tx_multicast_pkts;
+    u64 tx_multicast_bytes;
+    u64 tx_broadcast_pkts;
+    u64 tx_broadcast_bytes;
+    u64 tx_rts_success_cnt;
+    u64 tx_packet_per_ac[4];
 
-    A_UINT64    tx_errors;
-    A_UINT64    tx_failed_cnt;
-    A_UINT64    tx_retry_cnt;
-    A_UINT64    tx_mult_retry_cnt;
-    A_UINT64    tx_rts_fail_cnt;
+    u64 tx_errors;
+    u64 tx_failed_cnt;
+    u64 tx_retry_cnt;
+    u64 tx_mult_retry_cnt;
+    u64 tx_rts_fail_cnt;
 
-    A_UINT64    rx_packets;
-    A_UINT64    rx_bytes;
-    A_UINT64    rx_unicast_pkts;
-    A_UINT64    rx_unicast_bytes;
-    A_UINT64    rx_multicast_pkts;
-    A_UINT64    rx_multicast_bytes;
-    A_UINT64    rx_broadcast_pkts;
-    A_UINT64    rx_broadcast_bytes;
-    A_UINT64    rx_fragment_pkt;
+    u64 rx_packets;
+    u64 rx_bytes;
+    u64 rx_unicast_pkts;
+    u64 rx_unicast_bytes;
+    u64 rx_multicast_pkts;
+    u64 rx_multicast_bytes;
+    u64 rx_broadcast_pkts;
+    u64 rx_broadcast_bytes;
+    u64 rx_fragment_pkt;
 
-    A_UINT64    rx_errors;
-    A_UINT64    rx_crcerr;
-    A_UINT64    rx_key_cache_miss;
-    A_UINT64    rx_decrypt_err;
-    A_UINT64    rx_duplicate_frames;
+    u64 rx_errors;
+    u64 rx_crcerr;
+    u64 rx_key_cache_miss;
+    u64 rx_decrypt_err;
+    u64 rx_duplicate_frames;
 
-    A_UINT64    tkip_local_mic_failure;
-    A_UINT64    tkip_counter_measures_invoked;
-    A_UINT64    tkip_replays;
-    A_UINT64    tkip_format_errors;
-    A_UINT64    ccmp_format_errors;
-    A_UINT64    ccmp_replays;
+    u64 tkip_local_mic_failure;
+    u64 tkip_counter_measures_invoked;
+    u64 tkip_replays;
+    u64 tkip_format_errors;
+    u64 ccmp_format_errors;
+    u64 ccmp_replays;
 
-    A_UINT64    power_save_failure_cnt;
+    u64 power_save_failure_cnt;
 
-    A_UINT64    cs_bmiss_cnt;
-    A_UINT64    cs_lowRssi_cnt;
-    A_UINT64    cs_connect_cnt;
-    A_UINT64    cs_disconnect_cnt;
+    u64 cs_bmiss_cnt;
+    u64 cs_lowRssi_cnt;
+    u64 cs_connect_cnt;
+    u64 cs_disconnect_cnt;
 
     A_INT32     tx_unicast_rate;
     A_INT32     rx_unicast_rate;
