@@ -321,6 +321,16 @@ again:
 	return new_raw_count;
 }
 
+static inline unsigned int x86_pmu_config_addr(int index)
+{
+	return x86_pmu.eventsel + index;
+}
+
+static inline unsigned int x86_pmu_event_addr(int index)
+{
+	return x86_pmu.perfctr + index;
+}
+
 static atomic_t active_events;
 static DEFINE_MUTEX(pmc_reserve_mutex);
 
@@ -331,12 +341,12 @@ static bool reserve_pmc_hardware(void)
 	int i;
 
 	for (i = 0; i < x86_pmu.num_counters; i++) {
-		if (!reserve_perfctr_nmi(x86_pmu.perfctr + i))
+		if (!reserve_perfctr_nmi(x86_pmu_event_addr(i)))
 			goto perfctr_fail;
 	}
 
 	for (i = 0; i < x86_pmu.num_counters; i++) {
-		if (!reserve_evntsel_nmi(x86_pmu.eventsel + i))
+		if (!reserve_evntsel_nmi(x86_pmu_config_addr(i)))
 			goto eventsel_fail;
 	}
 
@@ -344,13 +354,13 @@ static bool reserve_pmc_hardware(void)
 
 eventsel_fail:
 	for (i--; i >= 0; i--)
-		release_evntsel_nmi(x86_pmu.eventsel + i);
+		release_evntsel_nmi(x86_pmu_config_addr(i));
 
 	i = x86_pmu.num_counters;
 
 perfctr_fail:
 	for (i--; i >= 0; i--)
-		release_perfctr_nmi(x86_pmu.perfctr + i);
+		release_perfctr_nmi(x86_pmu_event_addr(i));
 
 	return false;
 }
@@ -360,8 +370,8 @@ static void release_pmc_hardware(void)
 	int i;
 
 	for (i = 0; i < x86_pmu.num_counters; i++) {
-		release_perfctr_nmi(x86_pmu.perfctr + i);
-		release_evntsel_nmi(x86_pmu.eventsel + i);
+		release_perfctr_nmi(x86_pmu_event_addr(i));
+		release_evntsel_nmi(x86_pmu_config_addr(i));
 	}
 }
 
@@ -382,7 +392,7 @@ static bool check_hw_exists(void)
 	 * complain and bail.
 	 */
 	for (i = 0; i < x86_pmu.num_counters; i++) {
-		reg = x86_pmu.eventsel + i;
+		reg = x86_pmu_config_addr(i);
 		ret = rdmsrl_safe(reg, &val);
 		if (ret)
 			goto msr_fail;
@@ -407,8 +417,8 @@ static bool check_hw_exists(void)
 	 * that don't trap on the MSR access and always return 0s.
 	 */
 	val = 0xabcdUL;
-	ret = checking_wrmsrl(x86_pmu.perfctr, val);
-	ret |= rdmsrl_safe(x86_pmu.perfctr, &val_new);
+	ret = checking_wrmsrl(x86_pmu_event_addr(0), val);
+	ret |= rdmsrl_safe(x86_pmu_event_addr(0), &val_new);
 	if (ret || val != val_new)
 		goto msr_fail;
 
@@ -617,11 +627,11 @@ static void x86_pmu_disable_all(void)
 
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
-		rdmsrl(x86_pmu.eventsel + idx, val);
+		rdmsrl(x86_pmu_config_addr(idx), val);
 		if (!(val & ARCH_PERFMON_EVENTSEL_ENABLE))
 			continue;
 		val &= ~ARCH_PERFMON_EVENTSEL_ENABLE;
-		wrmsrl(x86_pmu.eventsel + idx, val);
+		wrmsrl(x86_pmu_config_addr(idx), val);
 	}
 }
 
@@ -1110,8 +1120,8 @@ void perf_event_print_debug(void)
 	pr_info("CPU#%d: active:     %016llx\n", cpu, *(u64 *)cpuc->active_mask);
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
-		rdmsrl(x86_pmu.eventsel + idx, pmc_ctrl);
-		rdmsrl(x86_pmu.perfctr  + idx, pmc_count);
+		rdmsrl(x86_pmu_config_addr(idx), pmc_ctrl);
+		rdmsrl(x86_pmu_event_addr(idx), pmc_count);
 
 		prev_left = per_cpu(pmc_prev_left[idx], cpu);
 
