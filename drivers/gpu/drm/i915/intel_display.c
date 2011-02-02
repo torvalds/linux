@@ -3805,10 +3805,10 @@ static void g4x_update_wm(struct drm_device *dev)
 		I915_WRITE(FW_BLC_SELF,
 			   I915_READ(FW_BLC_SELF) & ~FW_BLC_SELF_EN);
 
-	DRM_DEBUG("Setting FIFO watermarks - A: plane=%d, cursor=%d, B: plane=%d, cursor=%d, SR: plane=%d, cursor=%d\n",
-		  planea_wm, cursora_wm,
-		  planeb_wm, cursorb_wm,
-		  plane_sr, cursor_sr);
+	DRM_DEBUG_KMS("Setting FIFO watermarks - A: plane=%d, cursor=%d, B: plane=%d, cursor=%d, SR: plane=%d, cursor=%d\n",
+		      planea_wm, cursora_wm,
+		      planeb_wm, cursorb_wm,
+		      plane_sr, cursor_sr);
 
 	I915_WRITE(DSPFW1,
 		   (plane_sr << DSPFW_SR_SHIFT) |
@@ -3849,11 +3849,12 @@ static void i965_update_wm(struct drm_device *dev)
 		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
 			pixel_size * hdisplay;
 		entries = DIV_ROUND_UP(entries, I915_FIFO_LINE_SIZE);
-		DRM_DEBUG("self-refresh entries: %d\n", entries);
 		srwm = I965_FIFO_SIZE - entries;
 		if (srwm < 0)
 			srwm = 1;
 		srwm &= 0x1ff;
+		DRM_DEBUG_KMS("self-refresh entries: %d, wm: %d\n",
+			      entries, srwm);
 
 		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
 			pixel_size * 64;
