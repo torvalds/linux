@@ -116,7 +116,7 @@ typedef spinlock_t                      A_MUTEX_T;
 #define A_MUTEX_INIT(mutex)             spin_lock_init(mutex)
 #define A_MUTEX_LOCK(mutex)             spin_lock_bh(mutex)
 #define A_MUTEX_UNLOCK(mutex)           spin_unlock_bh(mutex)
-#define A_IS_MUTEX_VALID(mutex)         TRUE  /* okay to return true, since A_MUTEX_DELETE does nothing */
+#define A_IS_MUTEX_VALID(mutex)         true  /* okay to return true, since A_MUTEX_DELETE does nothing */
 #define A_MUTEX_DELETE(mutex)           /* spin locks are not kernel resources so nothing to free.. */
 
 /* Get current time in ms adding a constant offset (in ms) */
@@ -247,7 +247,7 @@ typedef struct sk_buff_head A_NETBUF_QUEUE_T;
 #define A_NETBUF_QUEUE_SIZE(q)  \
     a_netbuf_queue_size(q)
 #define A_NETBUF_QUEUE_EMPTY(q) \
-    (a_netbuf_queue_empty(q) ? TRUE : FALSE)
+    (a_netbuf_queue_empty(q) ? true : false)
 
 /*
  * Network buffer support

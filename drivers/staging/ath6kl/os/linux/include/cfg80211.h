@@ -39,7 +39,7 @@ void ar6k_cfg80211_disconnect_event(AR_SOFTC_T *ar, A_UINT8 reason,
                                     A_UINT8 *bssid, A_UINT8 assocRespLen,
                                     A_UINT8 *assocInfo, A_UINT16 protocolReasonStatus);
 
-void ar6k_cfg80211_tkip_micerr_event(AR_SOFTC_T *ar, A_UINT8 keyid, A_BOOL ismcast);
+void ar6k_cfg80211_tkip_micerr_event(AR_SOFTC_T *ar, A_UINT8 keyid, bool ismcast);
 
 #endif /* _AR6K_CFG80211_H_ */
 

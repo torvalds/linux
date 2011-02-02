@@ -151,7 +151,7 @@ wlan_setup_node(struct ieee80211_node_table *nt, bss_t *ni,
 #ifdef THREAD_X
     if (!nt->isTimerArmed) {
         A_TIMEOUT_MS(&nt->nt_inact_timer, timeoutValue, 0);
-        nt->isTimerArmed = TRUE;
+        nt->isTimerArmed = true;
     }
 #endif
 
@@ -299,7 +299,7 @@ wlan_node_table_init(void *wmip, struct ieee80211_node_table *nt)
 
 #ifdef THREAD_X
     A_INIT_TIMER(&nt->nt_inact_timer, wlan_node_timeout, nt);
-    nt->isTimerArmed = FALSE;
+    nt->isTimerArmed = false;
 #endif
     nt->nt_wmip = wmip;
     nt->nt_nodeAge = WLAN_NODE_INACT_TIMEOUT_MSEC;
@@ -326,7 +326,7 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt)
 {
 #ifdef THREAD_X
     bss_t *bss, *nextBss;
-    A_UINT8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = FALSE;
+    A_UINT8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = false;
 
     wmi_get_current_bssid(nt->nt_wmip, myBssid);
 
@@ -379,7 +379,7 @@ wlan_node_timeout (A_ATH_TIMER arg)
 {
     struct ieee80211_node_table *nt = (struct ieee80211_node_table *)arg;
     bss_t *bss, *nextBss;
-    A_UINT8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = FALSE;
+    A_UINT8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = false;
     A_UINT32 timeoutValue = 0;
 
     timeoutValue = nt->nt_nodeAge;
@@ -406,7 +406,7 @@ wlan_node_timeout (A_ATH_TIMER arg)
                  * Re-arm timer, only when we have a bss other than
                  * current bss AND it is not aged-out.
                  */
-                reArmTimer = TRUE;
+                reArmTimer = true;
             }
         }
         bss = nextBss;
@@ -432,7 +432,7 @@ wlan_node_table_cleanup(struct ieee80211_node_table *nt)
 
 bss_t *
 wlan_find_Ssidnode (struct ieee80211_node_table *nt, A_UCHAR *pSsid,
-                    A_UINT32 ssidLength, A_BOOL bIsWPA2, A_BOOL bMatchSSID)
+                    A_UINT32 ssidLength, bool bIsWPA2, bool bMatchSSID)
 {
     bss_t   *ni = NULL;
     A_UCHAR *pIESsid = NULL;
@@ -447,22 +447,22 @@ wlan_find_Ssidnode (struct ieee80211_node_table *nt, A_UCHAR *pSsid,
             if (0x00 == memcmp (pSsid, &pIESsid[2], ssidLength)) {
 
                 //
-                // Step 2.1 : Check MatchSSID is TRUE, if so, return Matched SSID
+                // Step 2.1 : Check MatchSSID is true, if so, return Matched SSID
                 // Profile, otherwise check whether WPA2 or WPA
                 //
-                if (TRUE == bMatchSSID) {
+                if (true == bMatchSSID) {
                     ieee80211_node_incref (ni);  /* mark referenced */
                     IEEE80211_NODE_UNLOCK (nt);
                     return ni;
                 }
 
                 // Step 2 : if SSID matches, check WPA or WPA2
-                if (TRUE == bIsWPA2 && NULL != ni->ni_cie.ie_rsn) {
+                if (true == bIsWPA2 && NULL != ni->ni_cie.ie_rsn) {
                     ieee80211_node_incref (ni);  /* mark referenced */
                     IEEE80211_NODE_UNLOCK (nt);
                     return ni;
                 }
-                if (FALSE == bIsWPA2 && NULL != ni->ni_cie.ie_wpa) {
+                if (false == bIsWPA2 && NULL != ni->ni_cie.ie_wpa) {
                     ieee80211_node_incref(ni);  /* mark referenced */
                     IEEE80211_NODE_UNLOCK (nt);
                     return ni;

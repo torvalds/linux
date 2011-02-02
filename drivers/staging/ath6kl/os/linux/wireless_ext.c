@@ -429,7 +429,7 @@ ar6000_ioctl_giwscan(struct net_device *dev,
         return -EIO;
     }
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
 
@@ -480,7 +480,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
         return -EIO;
     }
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
 
@@ -532,7 +532,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
        and we cannot scan during connect.
      */
     if (data->flags) {
-        if (ar->arSkipScan == TRUE &&
+        if (ar->arSkipScan == true &&
             (ar->arChannelHint == 0 ||
              (!ar->arReqBssid[0] && !ar->arReqBssid[1] && !ar->arReqBssid[2] &&
               !ar->arReqBssid[3] && !ar->arReqBssid[4] && !ar->arReqBssid[5])))
@@ -592,13 +592,13 @@ ar6000_ioctl_siwessid(struct net_device *dev,
              * (2) essid off has been issued
              *
              */
-            if (ar->arWmiReady == TRUE) {
+            if (ar->arWmiReady == true) {
                 reconnect_flag = 0;
                 status = wmi_setPmkid_cmd(ar->arWmi, ar->arBssid, NULL, 0);
                 status = wmi_disconnect_cmd(ar->arWmi);
                 A_MEMZERO(ar->arSsid, sizeof(ar->arSsid));
                 ar->arSsidLen = 0;
-                if (ar->arSkipScan == FALSE) {
+                if (ar->arSkipScan == false) {
                     A_MEMZERO(ar->arReqBssid, sizeof(ar->arReqBssid));
                 }
                 if (!data->flags) {
@@ -617,9 +617,9 @@ ar6000_ioctl_siwessid(struct net_device *dev,
              * a reconnect cmd. Issue a reconnect only we are already
              * connected.
              */
-            if((ar->arConnected == TRUE) && (ar->arWmiReady == TRUE))
+            if((ar->arConnected == true) && (ar->arWmiReady == true))
             {
-                reconnect_flag = TRUE;
+                reconnect_flag = true;
                 status = wmi_reconnect_cmd(ar->arWmi,ar->arReqBssid,
                                            ar->arChannelHint);
                 up(&ar->arSem);
@@ -732,7 +732,7 @@ ar6000_ioctl_siwrate(struct net_device *dev,
         return -EINVAL;
     }
     ar->arBitRate = kbps;
-    if(ar->arWmiReady == TRUE)
+    if(ar->arWmiReady == true)
     {
         if (wmi_set_bitrate_cmd(ar->arWmi, kbps, -1, -1) != A_OK) {
             return -EINVAL;
@@ -765,7 +765,7 @@ ar6000_ioctl_giwrate(struct net_device *dev,
         return -EIO;
     }
 
-    if ((ar->arNextMode != AP_NETWORK && !ar->arConnected) || ar->arWmiReady == FALSE) {
+    if ((ar->arNextMode != AP_NETWORK && !ar->arConnected) || ar->arWmiReady == false) {
         rrq->value = 1000 * 1000;       
         return 0;
     }
@@ -792,7 +792,7 @@ ar6000_ioctl_giwrate(struct net_device *dev,
        connected - return the value stored in the device structure */
     if (!ret) {
         if (ar->arBitRate == -1) {
-            rrq->fixed = TRUE;
+            rrq->fixed = true;
             rrq->value = 0;
         } else {
             rrq->value = ar->arBitRate * 1000;
@@ -833,12 +833,12 @@ ar6000_ioctl_siwtxpow(struct net_device *dev,
             return -EOPNOTSUPP;
         }
         ar->arTxPwr= dbM = rrq->value;
-        ar->arTxPwrSet = TRUE;
+        ar->arTxPwrSet = true;
     } else {
         ar->arTxPwr = dbM = 0;
-        ar->arTxPwrSet = FALSE;
+        ar->arTxPwrSet = false;
     }
-    if(ar->arWmiReady == TRUE)
+    if(ar->arWmiReady == true)
     {
         AR_DEBUG_PRINTF(ATH_DEBUG_WLAN_TX,("Set tx pwr cmd %d dbM\n", dbM));
         wmi_set_txPwr_cmd(ar->arWmi, dbM);
@@ -879,7 +879,7 @@ ar6000_ioctl_giwtxpow(struct net_device *dev,
         return -EBUSY;
     }
 
-    if((ar->arWmiReady == TRUE) && (ar->arConnected == TRUE))
+    if((ar->arWmiReady == true) && (ar->arConnected == true))
     {
         ar->arTxPwr = 0;
 
@@ -898,8 +898,8 @@ ar6000_ioctl_giwtxpow(struct net_device *dev,
       then return value stored in the device structure */
 
     if (!ret) {
-         if (ar->arTxPwrSet == TRUE) {
-            rrq->fixed = TRUE;
+         if (ar->arTxPwrSet == true) {
+            rrq->fixed = true;
         }
         rrq->value = ar->arTxPwr;
         rrq->flags = IW_TXPOW_DBM;
@@ -946,7 +946,7 @@ ar6000_ioctl_siwretry(struct net_device *dev,
     if ( !(rrq->value >= WMI_MIN_RETRIES) || !(rrq->value <= WMI_MAX_RETRIES)) {
             return - EINVAL;
     }
-    if(ar->arWmiReady == TRUE)
+    if(ar->arWmiReady == true)
     {
         if (wmi_set_retry_limits_cmd(ar->arWmi, DATA_FRAMETYPE, WMM_AC_BE,
                                      rrq->value, 0) != A_OK){
@@ -1201,7 +1201,7 @@ ar6000_ioctl_siwgenie(struct net_device *dev,
     A_UINT8    wapi_ie[128];
 #endif
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
 #ifdef WAPI_ENABLE
@@ -1230,7 +1230,7 @@ ar6000_ioctl_giwgenie(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
     erq->length = 0;
@@ -1249,12 +1249,12 @@ ar6000_ioctl_siwauth(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
-    A_BOOL profChanged;
+    bool profChanged;
     A_UINT16 param;
     A_INT32 ret;
     A_INT32 value;
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
 
@@ -1264,7 +1264,7 @@ ar6000_ioctl_siwauth(struct net_device *dev,
 
     param = data->flags & IW_AUTH_INDEX;
     value = data->value;
-    profChanged = TRUE;
+    profChanged = true;
     ret = 0;
 
     switch (param) {
@@ -1277,7 +1277,7 @@ ar6000_ioctl_siwauth(struct net_device *dev,
                     ar->arAuthMode = WPA2_AUTH;
             } else {
                 ret = -1;
-                profChanged    = FALSE;
+                profChanged    = false;
             }
             break;
         case IW_AUTH_CIPHER_PAIRWISE:
@@ -1298,7 +1298,7 @@ ar6000_ioctl_siwauth(struct net_device *dev,
                 ar->arPairwiseCryptoLen = 13;
             } else {
                 ret = -1;
-                profChanged    = FALSE;
+                profChanged    = false;
             }
             break;
         case IW_AUTH_CIPHER_GROUP:
@@ -1319,7 +1319,7 @@ ar6000_ioctl_siwauth(struct net_device *dev,
                 ar->arGroupCryptoLen = 13;
             } else {
                 ret = -1;
-                profChanged    = FALSE;
+                profChanged    = false;
             }
             break;
         case IW_AUTH_KEY_MGMT:
@@ -1337,10 +1337,10 @@ ar6000_ioctl_siwauth(struct net_device *dev,
             break;
         case IW_AUTH_TKIP_COUNTERMEASURES:
             wmi_set_tkip_countermeasures_cmd(ar->arWmi, value);
-            profChanged    = FALSE;
+            profChanged    = false;
             break;
         case IW_AUTH_DROP_UNENCRYPTED:
-            profChanged    = FALSE;
+            profChanged    = false;
             break;
         case IW_AUTH_80211_AUTH_ALG:
             ar->arDot11AuthMode = 0;
@@ -1355,7 +1355,7 @@ ar6000_ioctl_siwauth(struct net_device *dev,
             }
             if(ar->arDot11AuthMode == 0) {
                 ret = -1;
-                profChanged    = FALSE;
+                profChanged    = false;
             }
             break;
         case IW_AUTH_WPA_ENABLED:
@@ -1374,10 +1374,10 @@ ar6000_ioctl_siwauth(struct net_device *dev,
             }
             break;
         case IW_AUTH_RX_UNENCRYPTED_EAPOL:
-            profChanged    = FALSE;
+            profChanged    = false;
             break;
         case IW_AUTH_ROAMING_CONTROL:
-            profChanged    = FALSE;
+            profChanged    = false;
             break;
         case IW_AUTH_PRIVACY_INVOKED:
             if (!value) {
@@ -1394,11 +1394,11 @@ ar6000_ioctl_siwauth(struct net_device *dev,
 #endif
         default:
            ret = -1;
-           profChanged    = FALSE;
+           profChanged    = false;
            break;
     }
 
-    if (profChanged == TRUE) {
+    if (profChanged == true) {
         /*
          * profile has changed.  Erase ssid to signal change
          */
@@ -1422,7 +1422,7 @@ ar6000_ioctl_giwauth(struct net_device *dev,
     A_UINT16 param;
     A_INT32 ret;
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
 
@@ -1553,7 +1553,7 @@ ar6000_ioctl_siwpmksa(struct net_device *dev,
 
     pmksa = (struct iw_pmksa *)extra;
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
 
@@ -1562,13 +1562,13 @@ ar6000_ioctl_siwpmksa(struct net_device *dev,
 
     switch (pmksa->cmd) {
         case IW_PMKSA_ADD:
-            status = wmi_setPmkid_cmd(ar->arWmi, (A_UINT8*)pmksa->bssid.sa_data, pmksa->pmkid, TRUE);
+            status = wmi_setPmkid_cmd(ar->arWmi, (A_UINT8*)pmksa->bssid.sa_data, pmksa->pmkid, true);
             break;
         case IW_PMKSA_REMOVE:
-            status = wmi_setPmkid_cmd(ar->arWmi, (A_UINT8*)pmksa->bssid.sa_data, pmksa->pmkid, FALSE);
+            status = wmi_setPmkid_cmd(ar->arWmi, (A_UINT8*)pmksa->bssid.sa_data, pmksa->pmkid, false);
             break;
         case IW_PMKSA_FLUSH:
-            if (ar->arConnected == TRUE) {
+            if (ar->arConnected == true) {
                 status = wmi_setPmkid_cmd(ar->arWmi, ar->arBssid, NULL, 0);
             }
             break;
@@ -1671,7 +1671,7 @@ ar6000_ioctl_siwencodeext(struct net_device *dev,
     }
 
 #ifdef USER_KEYS
-    ar->user_saved_keys.keyOk = FALSE;
+    ar->user_saved_keys.keyOk = false;
 #endif /* USER_KEYS */
 
     index = erq->flags & IW_ENCODE_INDEX;
@@ -1811,7 +1811,7 @@ ar6000_ioctl_siwencodeext(struct net_device *dev,
             memcpy(&ar->user_saved_keys.ucast_ik, &ik,
                       sizeof(struct ieee80211req_key));
         }
-        ar->user_saved_keys.keyOk = TRUE;
+        ar->user_saved_keys.keyOk = true;
 #endif /* USER_KEYS */
     }
 
@@ -1853,7 +1853,7 @@ static int ar6000_ioctl_siwpower(struct net_device *dev,
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     WMI_POWER_MODE power_mode;
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
 
@@ -1879,7 +1879,7 @@ static int ar6000_ioctl_giwpower(struct net_device *dev,
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     WMI_POWER_MODE power_mode;
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
 
@@ -2026,7 +2026,7 @@ ar6000_ioctl_giwfreq(struct net_device *dev,
             return -EINVAL;
         }
     } else {
-        if (ar->arConnected != TRUE) {
+        if (ar->arConnected != true) {
             return -EINVAL;
         } else {
             freq->m = ar->arBssChannel * 100000;
@@ -2060,7 +2060,7 @@ ar6000_ioctl_siwmode(struct net_device *dev,
     /*
      * clear SSID during mode switch in connected state
      */
-    if(!(ar->arNetworkType == (((*mode) == IW_MODE_INFRA) ? INFRA_NETWORK : ADHOC_NETWORK)) && (ar->arConnected == TRUE) ){
+    if(!(ar->arNetworkType == (((*mode) == IW_MODE_INFRA) ? INFRA_NETWORK : ADHOC_NETWORK)) && (ar->arConnected == true) ){
         A_MEMZERO(ar->arSsid, sizeof(ar->arSsid));
         ar->arSsidLen = 0;
     }
@@ -2190,7 +2190,7 @@ ar6000_ioctl_giwrange(struct net_device *dev,
         return -EBUSY;
     }
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
 
@@ -2349,7 +2349,7 @@ ar6000_ioctl_giwap(struct net_device *dev,
         return 0;
     }
 
-    if (ar->arConnected != TRUE) {
+    if (ar->arConnected != true) {
         return -EINVAL;
     }
 
@@ -2383,7 +2383,7 @@ ar6000_ioctl_siwmlme(struct net_device *dev,
         return -EIO;
     }
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
 
@@ -2404,7 +2404,7 @@ ar6000_ioctl_siwmlme(struct net_device *dev,
             case IW_MLME_DEAUTH:
                 /* fall through */
             case IW_MLME_DISASSOC:
-                if ((ar->arConnected != TRUE) ||
+                if ((ar->arConnected != true) ||
                     (memcmp(ar->arBssid, mlme.addr.sa_data, 6) != 0)) {
 
                     up(&ar->arSem);
@@ -2418,7 +2418,7 @@ ar6000_ioctl_siwmlme(struct net_device *dev,
                 wmi_disconnect_cmd(ar->arWmi);
                 A_MEMZERO(ar->arSsid, sizeof(ar->arSsid));
                 ar->arSsidLen = 0;
-                if (ar->arSkipScan == FALSE) {
+                if (ar->arSkipScan == false) {
                     A_MEMZERO(ar->arReqBssid, sizeof(ar->arReqBssid));
                 }
                 break;
@@ -2468,7 +2468,7 @@ ar6000_ioctl_siwscan(struct net_device *dev,
         return -EOPNOTSUPP;
     }
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
 
@@ -2510,14 +2510,14 @@ ar6000_ioctl_siwscan(struct net_device *dev,
                 return -EIO;
             if (wmi_probedSsid_cmd(ar->arWmi, 1, SPECIFIC_SSID_FLAG, req.essid_len, req.essid) != A_OK)
                 return -EIO;
-            ar->scanSpecificSsid = TRUE;
+            ar->scanSpecificSsid = true;
         }
         else
         {
             if (ar->scanSpecificSsid) {
                 if (wmi_probedSsid_cmd(ar->arWmi, 1, DISABLE_SSID_FLAG, 0, NULL) != A_OK)
                     return -EIO;
-                 ar->scanSpecificSsid = FALSE;
+                 ar->scanSpecificSsid = false;
             }
         }
     }
@@ -2526,13 +2526,13 @@ ar6000_ioctl_siwscan(struct net_device *dev,
         if (ar->scanSpecificSsid) {
             if (wmi_probedSsid_cmd(ar->arWmi, 1, DISABLE_SSID_FLAG, 0, NULL) != A_OK)
                 return -EIO;
-             ar->scanSpecificSsid = FALSE;
+             ar->scanSpecificSsid = false;
         }
     }
 #endif
 #endif /* ANDROID_ENV */
 
-    if (wmi_startscan_cmd(ar->arWmi, WMI_LONG_SCAN, FALSE, FALSE, \
+    if (wmi_startscan_cmd(ar->arWmi, WMI_LONG_SCAN, false, false, \
                           0, 0, 0, NULL) != A_OK) {
         ret = -EIO;
     }
@@ -2595,7 +2595,7 @@ ar6000_ioctl_siwcommit(struct net_device *dev,
         return -EOPNOTSUPP;
     }
 
-    if (ar->arWmiReady == FALSE) {
+    if (ar->arWmiReady == false) {
         return -EIO;
     }
 
@@ -2615,8 +2615,8 @@ ar6000_ioctl_siwcommit(struct net_device *dev,
      * update the host driver association state for the STA|IBSS mode.
      */
     if (ar->arNetworkType != AP_NETWORK && ar->arNextMode == AP_NETWORK) {
-        ar->arConnectPending = FALSE;
-        ar->arConnected = FALSE;
+        ar->arConnectPending = false;
+        ar->arConnected = false;
         /* Stop getting pkts from upper stack */
         netif_stop_queue(ar->arNetDev);
         A_MEMZERO(ar->arBssid, sizeof(ar->arBssid));

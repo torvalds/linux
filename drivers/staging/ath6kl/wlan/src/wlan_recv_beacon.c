@@ -101,7 +101,7 @@ int
 wlan_parse_beacon(A_UINT8 *buf, int framelen, struct ieee80211_common_ie *cie)
 {
     A_UINT8 *frm, *efrm;
-    A_UINT8 elemid_ssid = FALSE;
+    A_UINT8 elemid_ssid = false;
 
     frm = buf;
     efrm = (A_UINT8 *) (frm + framelen);
@@ -134,7 +134,7 @@ wlan_parse_beacon(A_UINT8 *buf, int framelen, struct ieee80211_common_ie *cie)
         case IEEE80211_ELEMID_SSID:
             if (!elemid_ssid) {
                 cie->ie_ssid = frm;
-                elemid_ssid = TRUE;
+                elemid_ssid = true;
             }
             break;
         case IEEE80211_ELEMID_RATES:

@@ -64,7 +64,7 @@ void DevCleanup(AR6K_DEVICE *pDev)
 
     if (pDev->HifAttached) {
         HIFDetachHTC(pDev->HIFDevice);
-        pDev->HifAttached = FALSE;
+        pDev->HifAttached = false;
     }
 
     DevCleanupVirtualScatterSupport(pDev);
@@ -100,14 +100,14 @@ int DevSetup(AR6K_DEVICE *pDev)
             break;
         }
 
-        pDev->HifAttached = TRUE;
+        pDev->HifAttached = true;
 
             /* get the addresses for all 4 mailboxes */
         status = HIFConfigureDevice(pDev->HIFDevice, HIF_DEVICE_GET_MBOX_ADDR,
                                     &pDev->MailBoxInfo, sizeof(pDev->MailBoxInfo));
 
         if (status != A_OK) {
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;
         }
 
@@ -128,7 +128,7 @@ int DevSetup(AR6K_DEVICE *pDev)
                                     blocksizes, sizeof(blocksizes));
 
         if (status != A_OK) {
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;
         }
 
@@ -174,14 +174,14 @@ int DevSetup(AR6K_DEVICE *pDev)
                     AR_DEBUG_PRINTF(ATH_DEBUG_WARN,
                         ("HIF requests that DSR yield per %d RECV packets \n",
                         pDev->HifIRQYieldParams.RecvPacketYieldCount));
-                    pDev->DSRCanYield = TRUE;
+                    pDev->DSRCanYield = true;
                 }
                 break;
             case HIF_DEVICE_IRQ_ASYNC_SYNC:
                 AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("HIF Interrupt processing is ASYNC and SYNC\n"));
                 break;
             default:
-                A_ASSERT(FALSE);
+                A_ASSERT(false);
         }
 
         pDev->HifMaskUmaskRecvEvent = NULL;
@@ -203,12 +203,12 @@ int DevSetup(AR6K_DEVICE *pDev)
 
         status = DevSetupGMbox(pDev);
 
-    } while (FALSE);
+    } while (false);
 
     if (status) {
         if (pDev->HifAttached) {
             HIFDetachHTC(pDev->HIFDevice);
-            pDev->HifAttached = FALSE;
+            pDev->HifAttached = false;
         }
     }
 
@@ -355,7 +355,7 @@ static void DevDoEnableDisableRecvAsyncHandler(void *Context, HTC_PACKET *pPacke
 /* disable packet reception (used in case the host runs out of buffers)
  * this is the "override" method when the HIF reports another methods to
  * disable recv events */
-static int DevDoEnableDisableRecvOverride(AR6K_DEVICE *pDev, A_BOOL EnableRecv, A_BOOL AsyncMode)
+static int DevDoEnableDisableRecvOverride(AR6K_DEVICE *pDev, bool EnableRecv, bool AsyncMode)
 {
     int                  status = A_OK;
     HTC_PACKET                *pIOPacket = NULL;
@@ -371,7 +371,7 @@ static int DevDoEnableDisableRecvOverride(AR6K_DEVICE *pDev, A_BOOL EnableRecv, 
 
             if (NULL == pIOPacket) {
                 status = A_NO_MEMORY;
-                A_ASSERT(FALSE);
+                A_ASSERT(false);
                 break;
             }
 
@@ -391,7 +391,7 @@ static int DevDoEnableDisableRecvOverride(AR6K_DEVICE *pDev, A_BOOL EnableRecv, 
                                              EnableRecv ? HIF_UNMASK_RECV : HIF_MASK_RECV,
                                              NULL);
 
-    } while (FALSE);
+    } while (false);
 
     if (status && (pIOPacket != NULL)) {
         AR6KFreeIOPacket(pDev,pIOPacket);
@@ -403,7 +403,7 @@ static int DevDoEnableDisableRecvOverride(AR6K_DEVICE *pDev, A_BOOL EnableRecv, 
 /* disable packet reception (used in case the host runs out of buffers)
  * this is the "normal" method using the interrupt enable registers through
  * the host I/F */
-static int DevDoEnableDisableRecvNormal(AR6K_DEVICE *pDev, A_BOOL EnableRecv, A_BOOL AsyncMode)
+static int DevDoEnableDisableRecvNormal(AR6K_DEVICE *pDev, bool EnableRecv, bool AsyncMode)
 {
     int                  status = A_OK;
     HTC_PACKET                *pIOPacket = NULL;
@@ -430,7 +430,7 @@ static int DevDoEnableDisableRecvNormal(AR6K_DEVICE *pDev, A_BOOL EnableRecv, A_
 
             if (NULL == pIOPacket) {
                 status = A_NO_MEMORY;
-                A_ASSERT(FALSE);
+                A_ASSERT(false);
                 break;
             }
 
@@ -460,7 +460,7 @@ static int DevDoEnableDisableRecvNormal(AR6K_DEVICE *pDev, A_BOOL EnableRecv, A_
                               HIF_WR_SYNC_BYTE_INC,
                               NULL);
 
-    } while (FALSE);
+    } while (false);
 
     if (status && (pIOPacket != NULL)) {
         AR6KFreeIOPacket(pDev,pIOPacket);
@@ -470,25 +470,25 @@ static int DevDoEnableDisableRecvNormal(AR6K_DEVICE *pDev, A_BOOL EnableRecv, A_
 }
 
 
-int DevStopRecv(AR6K_DEVICE *pDev, A_BOOL AsyncMode)
+int DevStopRecv(AR6K_DEVICE *pDev, bool AsyncMode)
 {
     if (NULL == pDev->HifMaskUmaskRecvEvent) {
-        return DevDoEnableDisableRecvNormal(pDev,FALSE,AsyncMode);
+        return DevDoEnableDisableRecvNormal(pDev,false,AsyncMode);
     } else {
-        return DevDoEnableDisableRecvOverride(pDev,FALSE,AsyncMode);
+        return DevDoEnableDisableRecvOverride(pDev,false,AsyncMode);
     }
 }
 
-int DevEnableRecv(AR6K_DEVICE *pDev, A_BOOL AsyncMode)
+int DevEnableRecv(AR6K_DEVICE *pDev, bool AsyncMode)
 {
     if (NULL == pDev->HifMaskUmaskRecvEvent) {
-        return DevDoEnableDisableRecvNormal(pDev,TRUE,AsyncMode);
+        return DevDoEnableDisableRecvNormal(pDev,true,AsyncMode);
     } else {
-        return DevDoEnableDisableRecvOverride(pDev,TRUE,AsyncMode);
+        return DevDoEnableDisableRecvOverride(pDev,true,AsyncMode);
     }
 }
 
-int DevWaitForPendingRecv(AR6K_DEVICE *pDev,A_UINT32 TimeoutInMs,A_BOOL *pbIsRecvPending)
+int DevWaitForPendingRecv(AR6K_DEVICE *pDev,A_UINT32 TimeoutInMs,bool *pbIsRecvPending)
 {
     int    status          = A_OK;
     A_UCHAR     host_int_status = 0x0;
@@ -520,12 +520,12 @@ int DevWaitForPendingRecv(AR6K_DEVICE *pDev,A_UINT32 TimeoutInMs,A_BOOL *pbIsRec
         if(!host_int_status)
         {
             status          = A_OK;
-           *pbIsRecvPending = FALSE;
+           *pbIsRecvPending = false;
             break;
         }
         else
         {
-            *pbIsRecvPending = TRUE;
+            *pbIsRecvPending = true;
         }
 
         A_MDELAY(100);
@@ -608,7 +608,7 @@ static void DevFreeScatterReq(HIF_DEVICE *Context, HIF_SCATTER_REQ *pReq)
     UNLOCK_AR6K(pDev);
 }
 
-int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, A_BOOL FromDMA)
+int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, bool FromDMA)
 {
     A_UINT8         *pDMABuffer = NULL;
     int             i, remaining;
@@ -617,7 +617,7 @@ int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, A_BOOL FromDMA)
     pDMABuffer = pReq->pScatterBounceBuffer;
 
     if (pDMABuffer == NULL) {
-        A_ASSERT(FALSE);
+        A_ASSERT(false);
         return A_EINVAL;
     }
 
@@ -628,7 +628,7 @@ int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, A_BOOL FromDMA)
         length = min((int)pReq->ScatterList[i].Length, remaining);
 
         if (length != (int)pReq->ScatterList[i].Length) {
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
                 /* there is a problem with the scatter list */
             return A_EINVAL;
         }
@@ -680,7 +680,7 @@ static int DevReadWriteScatter(HIF_DEVICE *Context, HIF_SCATTER_REQ *pReq)
         }
 
         if (pReq->TotalLength == 0) {
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;
         }
 
@@ -719,7 +719,7 @@ static int DevReadWriteScatter(HIF_DEVICE *Context, HIF_SCATTER_REQ *pReq)
                               request,
                               (request & HIF_ASYNCHRONOUS) ? pIOPacket : NULL);
 
-    } while (FALSE);
+    } while (false);
 
     if ((status != A_PENDING) && status && (request & HIF_ASYNCHRONOUS)) {
         if (pIOPacket != NULL) {
@@ -804,7 +804,7 @@ static int DevSetupVirtualScatterSupport(AR6K_DEVICE *pDev)
             pDev->HifScatterInfo.MaxScatterEntries = AR6K_SCATTER_ENTRIES_PER_REQ;
             pDev->HifScatterInfo.MaxTransferSizePerScatterReq = AR6K_MAX_TRANSFER_SIZE_PER_SCATTER;
         }
-        pDev->ScatterIsVirtual = TRUE;
+        pDev->ScatterIsVirtual = true;
     }
 
     return status;
@@ -876,7 +876,7 @@ int DevSetupMsgBundling(AR6K_DEVICE *pDev, int MaxMsgsPerTransfer)
     return status;
 }
 
-int DevSubmitScatterRequest(AR6K_DEVICE *pDev, HIF_SCATTER_REQ *pScatterReq, A_BOOL Read, A_BOOL Async)
+int DevSubmitScatterRequest(AR6K_DEVICE *pDev, HIF_SCATTER_REQ *pScatterReq, bool Read, bool Async)
 {
     int status;
 
@@ -1038,9 +1038,9 @@ static void AssembleBufferList(BUFFER_PROC_LIST *pList)
 
 }
 
-#define FILL_ZERO     TRUE
-#define FILL_COUNTING FALSE
-static void InitBuffers(A_BOOL Zero)
+#define FILL_ZERO     true
+#define FILL_COUNTING false
+static void InitBuffers(bool Zero)
 {
     A_UINT16 *pBuffer16 = (A_UINT16 *)g_Buffer;
     int      i;
@@ -1056,11 +1056,11 @@ static void InitBuffers(A_BOOL Zero)
 }
 
 
-static A_BOOL CheckOneBuffer(A_UINT16 *pBuffer16, int Length)
+static bool CheckOneBuffer(A_UINT16 *pBuffer16, int Length)
 {
     int      i;
     A_UINT16 startCount;
-    A_BOOL   success = TRUE;
+    bool   success = true;
 
         /* get the starting count */
     startCount = pBuffer16[0];
@@ -1070,7 +1070,7 @@ static A_BOOL CheckOneBuffer(A_UINT16 *pBuffer16, int Length)
     for (i = 0; i < (Length / 2) ; i++,startCount++) {
             /* target will invert all the data */
         if ((A_UINT16)pBuffer16[i] != (A_UINT16)~startCount) {
-            success = FALSE;
+            success = false;
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Invalid Data Got:0x%X, Expecting:0x%X (offset:%d, total:%d) \n",
                         pBuffer16[i], ((A_UINT16)~startCount), i, Length));
              AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("0x%X 0x%X 0x%X 0x%X \n",
@@ -1082,10 +1082,10 @@ static A_BOOL CheckOneBuffer(A_UINT16 *pBuffer16, int Length)
     return success;
 }
 
-static A_BOOL CheckBuffers(void)
+static bool CheckBuffers(void)
 {
     int      i;
-    A_BOOL   success = TRUE;
+    bool   success = true;
     BUFFER_PROC_LIST checkList[BUFFER_PROC_LIST_DEPTH];
 
         /* assemble the list */
@@ -1176,7 +1176,7 @@ static int GetCredits(AR6K_DEVICE *pDev, int mbox, int *pCredits)
     A_UINT8  credits = 0;
     A_UINT32 address;
 
-    while (TRUE) {
+    while (true) {
 
             /* Read the counter register to get credits, this auto-decrements  */
         address = COUNT_DEC_ADDRESS + (AR6K_MAILBOXES + mbox) * 4;
@@ -1283,7 +1283,7 @@ static int RecvBuffers(AR6K_DEVICE *pDev, int mbox)
     }
 
     if (totalBytes != TEST_BYTES) {
-        A_ASSERT(FALSE);
+        A_ASSERT(false);
     }  else {
         AR_DEBUG_PRINTF(ATH_PRINT_OUT_ZONE, ("Got all buffers on mbox:%d total recv :%d (w/Padding : %d) \n",
             mbox, totalBytes, totalwPadding));
@@ -1324,7 +1324,7 @@ static int DoOneMboxHWTest(AR6K_DEVICE *pDev, int mbox)
 
         AR_DEBUG_PRINTF(ATH_PRINT_OUT_ZONE, (" Send/Recv success! mailbox : %d \n",mbox));
 
-    }  while (FALSE);
+    }  while (false);
 
     return status;
 }
@@ -1349,7 +1349,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
                                     g_MailboxAddrs, sizeof(g_MailboxAddrs));
 
         if (status != A_OK) {
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;
         }
 
@@ -1358,7 +1358,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
                                     g_BlockSizes, sizeof(g_BlockSizes));
 
         if (status != A_OK) {
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;
         }
 
@@ -1455,7 +1455,7 @@ int DoMboxHWTest(AR6K_DEVICE *pDev)
             }
         }
 
-    } while (FALSE);
+    } while (false);
 
     if (status == A_OK) {
         AR_DEBUG_PRINTF(ATH_PRINT_OUT_ZONE, (" DoMboxHWTest DONE - SUCCESS! -  \n"));

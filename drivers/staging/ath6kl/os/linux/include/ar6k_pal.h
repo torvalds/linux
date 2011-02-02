@@ -26,7 +26,7 @@
 /* transmit packet reserve offset */
 #define TX_PACKET_RSV_OFFSET        32
 /* pal specific config structure */
-typedef A_BOOL (*ar6k_pal_recv_pkt_t)(void *pHciPalInfo, void *skb);
+typedef bool (*ar6k_pal_recv_pkt_t)(void *pHciPalInfo, void *skb);
 typedef struct ar6k_pal_config_s
 {
 	ar6k_pal_recv_pkt_t fpar6k_pal_recv_pkt;

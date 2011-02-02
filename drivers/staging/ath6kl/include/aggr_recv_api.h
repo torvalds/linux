@@ -108,7 +108,7 @@ aggr_recv_delba_req_evt(void * cntxt, A_UINT8 tid);
  * callback may be called to deliver frames in order.
  */
 void
-aggr_process_recv_frm(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_BOOL is_amsdu, void **osbuf);
+aggr_process_recv_frm(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, bool is_amsdu, void **osbuf);
 
 
 /*

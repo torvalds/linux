@@ -109,7 +109,7 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt);
 
 bss_t *
 wlan_find_Ssidnode (struct ieee80211_node_table *nt, A_UCHAR *pSsid,
-                    A_UINT32 ssidLength, A_BOOL bIsWPA2, A_BOOL bMatchSSID);
+                    A_UINT32 ssidLength, bool bIsWPA2, bool bMatchSSID);
 
 void
 wlan_node_return (struct ieee80211_node_table *nt, bss_t *ni);

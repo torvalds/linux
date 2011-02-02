@@ -431,7 +431,7 @@ void        HTCDumpCreditStates(HTC_HANDLE HTCHandle);
   @function name: HTCIndicateActivityChange
   @input:  HTCHandle - HTC handle
            Endpoint - endpoint in which activity has changed
-           Active - TRUE if active, FALSE if it has become inactive
+           Active - true if active, false if it has become inactive
   @output:
   @return:
   @notes:  This triggers the registered credit distribution function to
@@ -441,7 +441,7 @@ void        HTCDumpCreditStates(HTC_HANDLE HTCHandle);
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 void        HTCIndicateActivityChange(HTC_HANDLE      HTCHandle,
                                       HTC_ENDPOINT_ID Endpoint,
-                                      A_BOOL          Active);
+                                      bool          Active);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Get endpoint statistics
@@ -452,9 +452,9 @@ void        HTCIndicateActivityChange(HTC_HANDLE      HTCHandle,
   @output:
            pStats - statistics that were sampled (can be NULL if Action is HTC_EP_STAT_CLEAR)
 
-  @return: TRUE if statistics profiling is enabled, otherwise FALSE.
+  @return: true if statistics profiling is enabled, otherwise false.
 
-  @notes:  Statistics is a compile-time option and this function may return FALSE
+  @notes:  Statistics is a compile-time option and this function may return false
            if HTC is not compiled with profiling.
 
            The caller can specify the statistic "action" to take when sampling
@@ -469,7 +469,7 @@ void        HTCIndicateActivityChange(HTC_HANDLE      HTCHandle,
   @example:
   @see also:
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_BOOL       HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
+bool       HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
                                       HTC_ENDPOINT_ID          Endpoint,
                                       HTC_ENDPOINT_STAT_ACTION Action,
                                       HTC_ENDPOINT_STATS       *pStats);
@@ -538,12 +538,12 @@ int    HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueu
   @input:  HTCHandle - HTC handle
            Endpoint - endpoint to check for active state
   @output:
-  @return: returns TRUE if Endpoint is Active
+  @return: returns true if Endpoint is Active
   @notes:  
   @example:
   @see also:
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-A_BOOL      HTCIsEndpointActive(HTC_HANDLE      HTCHandle,
+bool      HTCIsEndpointActive(HTC_HANDLE      HTCHandle,
                                 HTC_ENDPOINT_ID Endpoint);
 
 
@@ -566,7 +566,7 @@ void HTCEnableRecv(HTC_HANDLE HTCHandle);
 void HTCDisableRecv(HTC_HANDLE HTCHandle);
 int HTCWaitForPendingRecv(HTC_HANDLE   HTCHandle,
                                A_UINT32     TimeoutInMs,
-                               A_BOOL      *pbIsRecvPending);
+                               bool      *pbIsRecvPending);
 
 #ifdef __cplusplus
 }

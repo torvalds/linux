@@ -531,7 +531,7 @@ typedef enum {
  *   UINT32 cmd (AR6000_XIOCTL_WMI_STARTSCAN)
  *   UINT8  scanType
  *   UINT8  scanConnected
- *   A_BOOL forceFgScan
+ *   u32 forceFgScan
  * uses: WMI_START_SCAN_CMDID
  */
 
@@ -643,7 +643,7 @@ typedef enum {
  * arguments:
  *   UINT8 cmd (AR6000_XIOCTL_WMI_GET_KEEPALIVE)
  *   UINT8 keepaliveInterval
- *   A_BOOL configured
+ *   u32 configured
  * uses: WMI_GET_KEEPALIVE_CMDID
  */
 
@@ -1134,7 +1134,7 @@ typedef struct ar6000_dbglog_module_config_s {
     A_UINT32 valid;
     A_UINT16 mmask;
     A_UINT16 tsr;
-    A_BOOL   rep;
+    u32   rep;
     A_UINT16 size;
 } DBGLOG_MODULE_CONFIG;
 

@@ -126,7 +126,7 @@ typedef struct _HTC_TARGET {
     A_UINT32                    OpStateFlags;
     A_UINT32                    RecvStateFlags;
     HTC_ENDPOINT_ID             EpWaitingForBuffers;
-    A_BOOL                      TargetFailure;
+    bool                      TargetFailure;
 #ifdef HTC_CAPTURE_LAST_FRAME
     HTC_FRAME_HDR               LastFrameHdr;  /* useful for debugging */
     A_UINT8                     LastTrailer[256];
@@ -135,7 +135,7 @@ typedef struct _HTC_TARGET {
     HTC_INIT_INFO               HTCInitInfo;
     A_UINT8                     HTCTargetVersion;
     int                         MaxMsgPerBundle;       /* max messages per bundle for HTC */
-    A_BOOL                      SendBundlingEnabled;   /* run time enable for send bundling (dynamic) */
+    bool                      SendBundlingEnabled;   /* run time enable for send bundling (dynamic) */
     int                         RecvBundlingEnabled;   /* run time enable for recv bundling (dynamic) */
 } HTC_TARGET;
 
@@ -169,7 +169,7 @@ HTC_PACKET *HTCAllocControlBuffer(HTC_TARGET *target, HTC_PACKET_QUEUE *pList);
 void        HTCFreeControlBuffer(HTC_TARGET *target, HTC_PACKET *pPacket, HTC_PACKET_QUEUE *pList);
 int    HTCIssueSend(HTC_TARGET *target, HTC_PACKET *pPacket);
 void        HTCRecvCompleteHandler(void *Context, HTC_PACKET *pPacket);
-int    HTCRecvMessagePendingHandler(void *Context, A_UINT32 MsgLookAheads[], int NumLookAheads, A_BOOL *pAsyncProc, int *pNumPktsFetched);
+int    HTCRecvMessagePendingHandler(void *Context, A_UINT32 MsgLookAheads[], int NumLookAheads, bool *pAsyncProc, int *pNumPktsFetched);
 void        HTCProcessCreditRpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt, int NumEntries, HTC_ENDPOINT_ID FromEndpoint);
 int    HTCSendSetupComplete(HTC_TARGET *target);
 void        HTCFlushRecvBuffers(HTC_TARGET *target);

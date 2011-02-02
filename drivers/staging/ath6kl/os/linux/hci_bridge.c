@@ -77,8 +77,8 @@ typedef struct {
     void                    *pHCIDev;          /* HCI bridge device */
     HCI_TRANSPORT_PROPERTIES HCIProps;         /* HCI bridge props */
     struct hci_dev          *pBtStackHCIDev;   /* BT Stack HCI dev */
-    A_BOOL                  HciNormalMode;     /* Actual HCI mode enabled (non-TEST)*/
-    A_BOOL                  HciRegistered;     /* HCI device registered with stack */
+    bool                  HciNormalMode;     /* Actual HCI mode enabled (non-TEST)*/
+    bool                  HciRegistered;     /* HCI device registered with stack */
     HTC_PACKET_QUEUE        HTCPacketStructHead;
     A_UINT8                 *pHTCStructAlloc;
     spinlock_t              BridgeLock;
@@ -109,7 +109,7 @@ AR6K_HCI_BRIDGE_INFO *g_pHcidevInfo;
 static int bt_setup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo);
 static void     bt_cleanup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo);
 static int bt_register_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo);
-static A_BOOL   bt_indicate_recv(AR6K_HCI_BRIDGE_INFO      *pHcidevInfo, 
+static bool   bt_indicate_recv(AR6K_HCI_BRIDGE_INFO      *pHcidevInfo,
                                  HCI_TRANSPORT_PACKET_TYPE Type, 
                                  struct sk_buff            *skb);
 static struct sk_buff *bt_alloc_buffer(AR6K_HCI_BRIDGE_INFO *pHcidevInfo, int Length);
@@ -310,7 +310,7 @@ static int ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
 
         /* Make sure both AR6K and AR3K have power management enabled */
         if (ar3kconfig.PwrMgmtEnabled) {
-            status = HCI_TransportEnablePowerMgmt(pHcidevInfo->pHCIDev, TRUE);
+            status = HCI_TransportEnablePowerMgmt(pHcidevInfo->pHCIDev, true);
             if (status) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("HCI Bridge: failed to enable TLPM for AR6K! \n"));
             }
@@ -318,7 +318,7 @@ static int ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
         
         status = bt_register_hci(pHcidevInfo);
         
-    } while (FALSE);
+    } while (false);
 
     return status; 
 }
@@ -419,7 +419,7 @@ static void ar6000_hci_pkt_recv(void *pContext, HTC_PACKET *pPacket)
             skb = NULL;
         } 
         
-    } while (FALSE);
+    } while (false);
     
     FreeHTCStruct(pHcidevInfo,pPacket);
     
@@ -544,7 +544,7 @@ int ar6000_setup_hci(AR_SOFTC_T *ar)
             status = A_ERROR;      
         }
     
-    } while (FALSE);
+    } while (false);
     
     if (status) {
         if (pHcidevInfo != NULL) {
@@ -656,10 +656,10 @@ int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb)
                                HCI_ACL_TYPE,  /* send every thing out as ACL */
                                htc_tag);
              
-        HCI_TransportSendPkt(pHcidevInfo->pHCIDev,pPacket,FALSE);                           
+        HCI_TransportSendPkt(pHcidevInfo->pHCIDev,pPacket,false);
         pPacket = NULL;
             
-    } while (FALSE);
+    } while (false);
             
     return status;
 }
@@ -747,7 +747,7 @@ static int bt_send_frame(struct sk_buff *skb)
             kfree_skb(skb);
             return 0;
         default:
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             kfree_skb(skb);
             return 0;
     } 
@@ -802,11 +802,11 @@ static int bt_send_frame(struct sk_buff *skb)
         AR_DEBUG_PRINTF(ATH_DEBUG_HCI_SEND, ("HCI Bridge: type:%d, Total Length:%d Bytes \n",
                                       type, txSkb->len));
                                       
-        status = HCI_TransportSendPkt(pHcidevInfo->pHCIDev,pPacket,FALSE);   
+        status = HCI_TransportSendPkt(pHcidevInfo->pHCIDev,pPacket,false);
         pPacket = NULL;
         txSkb = NULL;
         
-    } while (FALSE);
+    } while (false);
    
     if (txSkb != NULL) {
         kfree_skb(txSkb);    
@@ -902,9 +902,9 @@ static int bt_setup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
         pHciDev->destruct = bt_destruct;
         pHciDev->owner = THIS_MODULE; 
             /* driver is running in normal BT mode */
-        pHcidevInfo->HciNormalMode = TRUE;  
+        pHcidevInfo->HciNormalMode = true;
         
-    } while (FALSE);
+    } while (false);
     
     if (status) {
         bt_cleanup_hci(pHcidevInfo);    
@@ -918,7 +918,7 @@ static void bt_cleanup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
     int   err;      
         
     if (pHcidevInfo->HciRegistered) {
-        pHcidevInfo->HciRegistered = FALSE;
+        pHcidevInfo->HciRegistered = false;
         clear_bit(HCI_RUNNING, &pHcidevInfo->pBtStackHCIDev->flags);
         clear_bit(HCI_UP, &pHcidevInfo->pBtStackHCIDev->flags);
         clear_bit(HCI_INIT, &pHcidevInfo->pBtStackHCIDev->flags);   
@@ -944,28 +944,28 @@ static int bt_register_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
         AR_DEBUG_PRINTF(ATH_DEBUG_HCI_BRIDGE, ("HCI Bridge: registering HCI... \n"));
         A_ASSERT(pHcidevInfo->pBtStackHCIDev != NULL);
              /* mark that we are registered */
-        pHcidevInfo->HciRegistered = TRUE;
+        pHcidevInfo->HciRegistered = true;
         if ((err = hci_register_dev(pHcidevInfo->pBtStackHCIDev)) < 0) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("HCI Bridge: failed to register with bluetooth %d\n",err));
-            pHcidevInfo->HciRegistered = FALSE;
+            pHcidevInfo->HciRegistered = false;
             status = A_ERROR;
             break;
         }
     
         AR_DEBUG_PRINTF(ATH_DEBUG_HCI_BRIDGE, ("HCI Bridge: HCI registered \n"));
         
-    } while (FALSE);
+    } while (false);
     
     return status;
 }
 
-static A_BOOL bt_indicate_recv(AR6K_HCI_BRIDGE_INFO      *pHcidevInfo, 
+static bool bt_indicate_recv(AR6K_HCI_BRIDGE_INFO      *pHcidevInfo,
                                HCI_TRANSPORT_PACKET_TYPE Type, 
                                struct                    sk_buff *skb)
 {
     A_UINT8               btType;
     int                   len;
-    A_BOOL                success = FALSE;
+    bool                success = false;
     BT_HCI_EVENT_HEADER   *pEvent;
     
     do {
@@ -984,7 +984,7 @@ static A_BOOL bt_indicate_recv(AR6K_HCI_BRIDGE_INFO      *pHcidevInfo,
                 break;
             default:
                 btType = 0;
-                A_ASSERT(FALSE);
+                A_ASSERT(false);
                 break;
         } 
         
@@ -1015,9 +1015,9 @@ static A_BOOL bt_indicate_recv(AR6K_HCI_BRIDGE_INFO      *pHcidevInfo,
                     ("HCI Bridge: Indicated RCV of type:%d, Length:%d \n",btType,len));
         }
             
-        success = TRUE;
+        success = true;
     
-    } while (FALSE); 
+    } while (false);
     
     return success;
 }
@@ -1051,26 +1051,26 @@ static void bt_cleanup_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
 }
 static int bt_register_hci(AR6K_HCI_BRIDGE_INFO *pHcidevInfo)
 {
-    A_ASSERT(FALSE);
+    A_ASSERT(false);
     return A_ERROR;    
 }
 
-static A_BOOL bt_indicate_recv(AR6K_HCI_BRIDGE_INFO      *pHcidevInfo, 
+static bool bt_indicate_recv(AR6K_HCI_BRIDGE_INFO      *pHcidevInfo,
                                HCI_TRANSPORT_PACKET_TYPE Type, 
                                struct                    sk_buff *skb)
 {
-    A_ASSERT(FALSE);
-    return FALSE;    
+    A_ASSERT(false);
+    return false;
 }
 
 static struct sk_buff* bt_alloc_buffer(AR6K_HCI_BRIDGE_INFO *pHcidevInfo, int Length) 
 {
-    A_ASSERT(FALSE);
+    A_ASSERT(false);
     return NULL;
 }
 static void bt_free_buffer(AR6K_HCI_BRIDGE_INFO *pHcidevInfo, struct sk_buff *skb)
 {
-    A_ASSERT(FALSE);
+    A_ASSERT(false);
 }
 
 #endif // } CONFIG_BLUEZ_HCI_BRIDGE

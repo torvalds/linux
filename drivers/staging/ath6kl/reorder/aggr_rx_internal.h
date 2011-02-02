@@ -61,7 +61,7 @@ typedef enum {
 
 typedef struct {
     void        *osbuf;
-    A_BOOL      is_amsdu;
+    bool      is_amsdu;
     A_UINT16    seq_no;
 }OSBUF_HOLD_Q;
 
@@ -74,9 +74,9 @@ typedef struct {
 #endif
 
 typedef struct {
-    A_BOOL              aggr;       /* is it ON or OFF */
-    A_BOOL              progress;   /* TRUE when frames have arrived after a timer start */
-    A_BOOL              timerMon;   /* TRUE if the timer started for the sake of this TID */
+    bool              aggr;       /* is it ON or OFF */
+    bool              progress;   /* true when frames have arrived after a timer start */
+    bool              timerMon;   /* true if the timer started for the sake of this TID */
     A_UINT16            win_sz;     /* negotiated window size */
     A_UINT16            seq_next;   /* Next seq no, in current window */
     A_UINT32            hold_q_sz;  /* Num of frames that can be held in hold q */

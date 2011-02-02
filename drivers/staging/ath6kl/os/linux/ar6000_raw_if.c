@@ -60,7 +60,7 @@ ar6000_htc_raw_read_cb(void *Context, HTC_PACKET *pPacket)
 
     busy->length = pPacket->ActualLength + HTC_HEADER_LEN;
     busy->currPtr = HTC_HEADER_LEN;
-    arRaw->read_buffer_available[streamID] = TRUE;
+    arRaw->read_buffer_available[streamID] = true;
     //AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("raw read cb:  0x%X 0x%X \n", busy->currPtr,busy->length);
     up(&arRaw->raw_htc_read_sem[streamID]);
 
@@ -102,7 +102,7 @@ ar6000_htc_raw_write_cb(void *Context, HTC_PACKET *pPacket)
     A_ASSERT(pPacket->pBuffer == (free->data + HTC_HEADER_LEN));
 
     free->length = 0;
-    arRaw->write_buffer_available[streamID] = TRUE;
+    arRaw->write_buffer_available[streamID] = true;
     up(&arRaw->raw_htc_write_sem[streamID]);
 
     /* Signal the waiting process */
@@ -161,7 +161,7 @@ static int ar6000_connect_raw_service(AR_SOFTC_T        *ar,
         AR_DEBUG_PRINTF(ATH_DEBUG_HTC_RAW,("HTC RAW : stream ID: %d, endpoint: %d\n", 
                         StreamID, arRawStream2EndpointID(ar,StreamID)));
         
-    } while (FALSE);
+    } while (false);
     
     return status;
 }
@@ -241,8 +241,8 @@ int ar6000_htc_raw_open(AR_SOFTC_T *ar)
             memset(buffer, 0, sizeof(raw_htc_buffer));
         }
 
-        arRaw->read_buffer_available[streamID] = FALSE;
-        arRaw->write_buffer_available[streamID] = TRUE;
+        arRaw->read_buffer_available[streamID] = false;
+        arRaw->write_buffer_available[streamID] = true;
     }
     
     if (status) {
@@ -267,7 +267,7 @@ int ar6000_htc_raw_open(AR_SOFTC_T *ar)
         return -EIO;
     }
 
-    (ar)->arRawIfInit = TRUE;
+    (ar)->arRawIfInit = true;
     
     return 0;
 }
@@ -278,7 +278,7 @@ int ar6000_htc_raw_close(AR_SOFTC_T *ar)
     HTCStop(ar->arHtcTarget);
     
         /* reset the device */
-    ar6000_reset_device(ar->arHifDevice, ar->arTargetType, TRUE, FALSE);
+    ar6000_reset_device(ar->arHifDevice, ar->arTargetType, true, false);
     /* Initialize the BMI component */
     BMIInit();
 
@@ -300,9 +300,9 @@ get_filled_buffer(AR_SOFTC_T *ar, HTC_RAW_STREAM_ID StreamID)
         }
     }
     if (busy->length) {
-        arRaw->read_buffer_available[StreamID] = TRUE;
+        arRaw->read_buffer_available[StreamID] = true;
     } else {
-        arRaw->read_buffer_available[StreamID] = FALSE;
+        arRaw->read_buffer_available[StreamID] = false;
     }
 
     return busy;
@@ -361,7 +361,7 @@ ssize_t ar6000_htc_raw_read(AR_SOFTC_T *ar, HTC_RAW_STREAM_ID StreamID,
         //AR_DEBUG_PRINTF(ATH_DEBUG_HTC_RAW,("raw read ioctl:  ep for packet:%d \n", busy->HTCPacket.Endpoint));
         HTCAddReceivePkt(ar->arHtcTarget, &busy->HTCPacket);
     }
-    arRaw->read_buffer_available[StreamID] = FALSE;
+    arRaw->read_buffer_available[StreamID] = false;
     up(&arRaw->raw_htc_read_sem[StreamID]);
 
     return length;
@@ -382,9 +382,9 @@ get_free_buffer(AR_SOFTC_T *ar, HTC_ENDPOINT_ID StreamID)
         }
     }
     if (!free->length) {
-        arRaw->write_buffer_available[StreamID] = TRUE;
+        arRaw->write_buffer_available[StreamID] = true;
     } else {
-        arRaw->write_buffer_available[StreamID] = FALSE;
+        arRaw->write_buffer_available[StreamID] = false;
     }
 
     return free;
@@ -447,7 +447,7 @@ ssize_t ar6000_htc_raw_write(AR_SOFTC_T *ar, HTC_RAW_STREAM_ID StreamID,
     
     HTCSendPkt(ar->arHtcTarget,&free->HTCPacket);
     
-    arRaw->write_buffer_available[StreamID] = FALSE;
+    arRaw->write_buffer_available[StreamID] = false;
     up(&arRaw->raw_htc_write_sem[StreamID]);
 
     return length;

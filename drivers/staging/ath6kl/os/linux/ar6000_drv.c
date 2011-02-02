@@ -102,7 +102,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define APTC_LOWER_THROUGHPUT_THRESHOLD    2000 /* Kbps */
 
 typedef struct aptc_traffic_record {
-    A_BOOL timerScheduled;
+    bool timerScheduled;
     struct timeval samplingTS;
     unsigned long bytesReceived;
     unsigned long bytesTransmitted;
@@ -449,7 +449,7 @@ dbglog_get_debug_hdr_ptr(AR_SOFTC_T *ar)
 void
 ar6000_dbglog_init_done(AR_SOFTC_T *ar)
 {
-    ar->dbglog_init_done = TRUE;
+    ar->dbglog_init_done = true;
 }
 
 A_UINT32
@@ -540,7 +540,7 @@ ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
     }
 
         /* block out others */
-    ar->dbgLogFetchInProgress = TRUE;
+    ar->dbgLogFetchInProgress = true;
 
     AR6000_SPIN_UNLOCK(&ar->arLock, 0);
 
@@ -592,7 +592,7 @@ ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
         } while (address != firstbuf);
     }
 
-    ar->dbgLogFetchInProgress = FALSE;
+    ar->dbgLogFetchInProgress = false;
 
     return A_OK;
 }
@@ -757,12 +757,12 @@ aptcTimerHandler(unsigned long arg)
     throughput = ((numbytes * 8)/APTC_TRAFFIC_SAMPLING_INTERVAL); /* Kbps */
     if (throughput < APTC_LOWER_THROUGHPUT_THRESHOLD) {
         /* Enable Sleep and delete the timer */
-        A_ASSERT(ar->arWmiReady == TRUE);
+        A_ASSERT(ar->arWmiReady == true);
         AR6000_SPIN_UNLOCK(&ar->arLock, 0);
         status = wmi_powermode_cmd(ar->arWmi, REC_POWER);
         AR6000_SPIN_LOCK(&ar->arLock, 0);
         A_ASSERT(status == A_OK);
-        aptcTR.timerScheduled = FALSE;
+        aptcTR.timerScheduled = false;
     } else {
         A_TIMEOUT_MS(&aptcTimer, APTC_TRAFFIC_SAMPLING_INTERVAL, 0);
     }
@@ -818,7 +818,7 @@ ar6000_sysfs_bmi_read(struct file *fp, struct kobject *kobj,
 
     if (index == MAX_AR6000) return 0;
 
-    if ((BMIRawRead(ar->arHifDevice, (A_UCHAR*)buf, count, TRUE)) != A_OK) {
+    if ((BMIRawRead(ar->arHifDevice, (A_UCHAR*)buf, count, true)) != A_OK) {
         return 0;
     }
 
@@ -994,7 +994,7 @@ ar6000_softmac_update(AR_SOFTC_T *ar, A_UCHAR *eeprom_data, size_t size)
 #endif /* SOFTMAC_FILE_USED */
 
 static int
-ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, A_BOOL compressed)
+ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, bool compressed)
 {
     int status;
     const char *filename;
@@ -1034,7 +1034,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, A
                         ar->arVersion.target_ver));
                     return A_ERROR;
                 }
-                compressed = FALSE;
+                compressed = false;
             }
             
 #ifdef CONFIG_HOST_TCMD_SUPPORT
@@ -1047,7 +1047,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, A
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown firmware revision: %d\n", ar->arVersion.target_ver));
                     return A_ERROR;
                 }
-                compressed = FALSE;
+                compressed = false;
             }
 #endif 
 #ifdef HTC_RAW_INTERFACE
@@ -1060,7 +1060,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, A
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unknown firmware revision: %d\n", ar->arVersion.target_ver));
                     return A_ERROR;
                 }
-                compressed = FALSE;
+                compressed = false;
             }
 #endif 
             break;
@@ -1286,7 +1286,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode)
             AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("Board Data download address: 0x%x\n", address));
 
             /* Write EEPROM data to Target RAM */
-            if ((ar6000_transfer_bin_file(ar, AR6K_BOARD_DATA_FILE, address, FALSE)) != A_OK) {
+            if ((ar6000_transfer_bin_file(ar, AR6K_BOARD_DATA_FILE, address, false)) != A_OK) {
                 return A_ERROR;
             }
 
@@ -1296,7 +1296,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode)
 
             /* Transfer One time Programmable data */
             AR6K_DATA_DOWNLOAD_ADDRESS(address, ar->arVersion.target_ver);
-            status = ar6000_transfer_bin_file(ar, AR6K_OTP_FILE, address, TRUE);
+            status = ar6000_transfer_bin_file(ar, AR6K_OTP_FILE, address, true);
             if (status == A_OK) {
                 /* Execute the OTP code */
                 param = 0;
@@ -1312,7 +1312,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode)
 
         /* Download Target firmware */
         AR6K_DATA_DOWNLOAD_ADDRESS(address, ar->arVersion.target_ver);
-        if ((ar6000_transfer_bin_file(ar, AR6K_FIRMWARE_FILE, address, TRUE)) != A_OK) {
+        if ((ar6000_transfer_bin_file(ar, AR6K_FIRMWARE_FILE, address, true)) != A_OK) {
             return A_ERROR;
         }
 
@@ -1322,7 +1322,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode)
 
         /* Apply the patches */
         AR6K_PATCH_DOWNLOAD_ADDRESS(address, ar->arVersion.target_ver);
-        if ((ar6000_transfer_bin_file(ar, AR6K_PATCH_FILE, address, FALSE)) != A_OK) {
+        if ((ar6000_transfer_bin_file(ar, AR6K_PATCH_FILE, address, false)) != A_OK) {
             return A_ERROR;
         }
 
@@ -1685,10 +1685,10 @@ ar6000_avail_ev(void *context, void *hif_handle)
     ar->arDeviceIndex        = device_index;
 
     ar->arWlanPowerState     = WLAN_POWER_STATE_ON;
-    ar->arWlanOff            = FALSE;   /* We are in ON state */
+    ar->arWlanOff            = false;   /* We are in ON state */
 #ifdef CONFIG_PM
     ar->arWowState           = WLAN_WOW_STATE_NONE;
-    ar->arBTOff              = TRUE;   /* BT chip assumed to be OFF */
+    ar->arBTOff              = true;   /* BT chip assumed to be OFF */
     ar->arBTSharing          = WLAN_CONFIG_BT_SHARING; 
     ar->arWlanOffConfig      = WLAN_CONFIG_WLAN_OFF;
     ar->arSuspendConfig      = WLAN_CONFIG_PM_SUSPEND;
@@ -1697,7 +1697,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
 
     A_INIT_TIMER(&ar->arHBChallengeResp.timer, ar6000_detect_error, dev);
     ar->arHBChallengeResp.seqNum = 0;
-    ar->arHBChallengeResp.outstanding = FALSE;
+    ar->arHBChallengeResp.outstanding = false;
     ar->arHBChallengeResp.missCnt = 0;
     ar->arHBChallengeResp.frequency = AR6000_HB_CHALLENGE_RESP_FREQ_DEFAULT;
     ar->arHBChallengeResp.missThres = AR6000_HB_CHALLENGE_RESP_MISS_THRES_DEFAULT;
@@ -1705,7 +1705,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
     ar6000_init_control_info(ar);
     init_waitqueue_head(&arEvent);
     sema_init(&ar->arSem, 1);
-    ar->bIsDestroyProgress = FALSE;
+    ar->bIsDestroyProgress = false;
 
     INIT_HTC_PACKET_QUEUE(&ar->amsdu_rx_buffer_queue);
 
@@ -1813,7 +1813,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
                 if (status != A_OK) {
                     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_avail: ar6000_init\n"));
                 }
-            } while (FALSE);
+            } while (false);
 
             if (status != A_OK) {
                 init_status = status;
@@ -1852,7 +1852,7 @@ static void ar6000_target_failure(void *Instance, int Status)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)Instance;
     WMI_TARGET_ERROR_REPORT_EVENT errEvent;
-    static A_BOOL sip = FALSE;
+    static bool sip = false;
 
     if (Status != A_OK) {
 
@@ -1873,7 +1873,7 @@ static void ar6000_target_failure(void *Instance, int Status)
 
         /* Report the error only once */
         if (!sip) {
-            sip = TRUE;
+            sip = true;
             errEvent.errorVal = WMI_TARGET_COM_ERR |
                                 WMI_TARGET_FATAL_ERR;
             ar6000_send_event_to_app(ar, WMI_ERROR_REPORT_EVENTID,
@@ -1930,7 +1930,7 @@ ar6000_restart_endpoint(struct net_device *dev)
 }
 
 void
-ar6000_stop_endpoint(struct net_device *dev, A_BOOL keepprofile, A_BOOL getdbglogs)
+ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 
@@ -1938,11 +1938,11 @@ ar6000_stop_endpoint(struct net_device *dev, A_BOOL keepprofile, A_BOOL getdbglo
     netif_stop_queue(dev);
 
     /* Disable the target and the interrupts associated with it */
-    if (ar->arWmiReady == TRUE)
+    if (ar->arWmiReady == true)
     {
         if (!bypasswmi)
         {
-            if (ar->arConnected == TRUE || ar->arConnectPending == TRUE)
+            if (ar->arConnected == true || ar->arConnectPending == true)
             {
                 AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("%s(): Disconnect\n", __func__));
                 if (!keepprofile) {
@@ -1959,9 +1959,9 @@ ar6000_stop_endpoint(struct net_device *dev, A_BOOL keepprofile, A_BOOL getdbglo
                 ar6000_dbglog_get_debug_logs(ar);
             }
 
-            ar->arWmiReady  = FALSE;
+            ar->arWmiReady  = false;
             wmi_shutdown(ar->arWmi);
-            ar->arWmiEnabled = FALSE;
+            ar->arWmiEnabled = false;
             ar->arWmi = NULL;
             /* 
              * After wmi_shudown all WMI events will be dropped.
@@ -1972,14 +1972,14 @@ ar6000_stop_endpoint(struct net_device *dev, A_BOOL keepprofile, A_BOOL getdbglo
              * Sometimes disconnect_event will be received when the debug logs 
              * are collected.
              */
-            if (ar->arConnected == TRUE || ar->arConnectPending == TRUE) {
+            if (ar->arConnected == true || ar->arConnectPending == true) {
                 if(ar->arNetworkType & AP_NETWORK) {
                     ar6000_disconnect_event(ar, DISCONNECT_CMD, bcast_mac, 0, NULL, 0);
                 } else {
                     ar6000_disconnect_event(ar, DISCONNECT_CMD, ar->arBssid, 0, NULL, 0);
                 }
-                ar->arConnected = FALSE;
-                ar->arConnectPending = FALSE;
+                ar->arConnected = false;
+                ar->arConnectPending = false;
             }
 #ifdef USER_KEYS
             ar->user_savedkeys_stat = USER_SAVEDKEYS_STAT_INIT;
@@ -1995,11 +1995,11 @@ ar6000_stop_endpoint(struct net_device *dev, A_BOOL keepprofile, A_BOOL getdbglo
             __func__, (unsigned long) ar, (unsigned long) ar->arWmi));
 
         /* Shut down WMI if we have started it */
-        if(ar->arWmiEnabled == TRUE)
+        if(ar->arWmiEnabled == true)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("%s(): Shut down WMI\n", __func__));
             wmi_shutdown(ar->arWmi);
-            ar->arWmiEnabled = FALSE;
+            ar->arWmiEnabled = false;
             ar->arWmi = NULL;
         }
     }
@@ -2046,8 +2046,8 @@ ar6000_stop_endpoint(struct net_device *dev, A_BOOL keepprofile, A_BOOL getdbglo
          * a debug session */
         AR_DEBUG_PRINTF(ATH_DEBUG_INFO,(" Attempting to reset target on instance destroy.... \n"));
         if (ar->arHifDevice != NULL) {
-            A_BOOL coldReset = (ar->arTargetType == TARGET_TYPE_AR6003) ? TRUE: FALSE;
-            ar6000_reset_device(ar->arHifDevice, ar->arTargetType, TRUE, coldReset);
+            bool coldReset = (ar->arTargetType == TARGET_TYPE_AR6003) ? true: false;
+            ar6000_reset_device(ar->arHifDevice, ar->arTargetType, true, coldReset);
         }
     } else {
         AR_DEBUG_PRINTF(ATH_DEBUG_INFO,(" Host does not want target reset. \n"));
@@ -2082,7 +2082,7 @@ ar6000_destroy(struct net_device *dev, unsigned int unregister)
         return;
     }
 
-    ar->bIsDestroyProgress = TRUE;
+    ar->bIsDestroyProgress = true;
 
     if (down_interruptible(&ar->arSem)) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("%s(): down_interruptible failed \n", __func__));
@@ -2091,7 +2091,7 @@ ar6000_destroy(struct net_device *dev, unsigned int unregister)
 
     if (ar->arWlanPowerState != WLAN_POWER_STATE_CUT_PWR) {
         /* only stop endpoint if we are not stop it in suspend_ev */
-        ar6000_stop_endpoint(dev, FALSE, TRUE);
+        ar6000_stop_endpoint(dev, false, true);
     } else {
         /* clear up the platform power state before rmmod */
         plat_setup_power(1,0);
@@ -2193,7 +2193,7 @@ static void ar6000_detect_error(unsigned long ptr)
 
     /* Generate the sequence number for the next challenge */
     ar->arHBChallengeResp.seqNum++;
-    ar->arHBChallengeResp.outstanding = TRUE;
+    ar->arHBChallengeResp.outstanding = true;
 
     AR6000_SPIN_UNLOCK(&ar->arLock, 0);
 
@@ -2234,13 +2234,13 @@ void ar6000_init_profile_info(AR_SOFTC_T *ar)
     A_MEMZERO(ar->arReqBssid, sizeof(ar->arReqBssid));
     A_MEMZERO(ar->arBssid, sizeof(ar->arBssid));
     ar->arBssChannel = 0;
-    ar->arConnected = FALSE;
+    ar->arConnected = false;
 }
 
 static void
 ar6000_init_control_info(AR_SOFTC_T *ar)
 {
-    ar->arWmiEnabled         = FALSE;
+    ar->arWmiEnabled         = false;
     ar6000_init_profile_info(ar);
     ar->arDefTxKeyIndex      = 0;
     A_MEMZERO(ar->arWepKeyList, sizeof(ar->arWepKeyList));
@@ -2250,12 +2250,12 @@ ar6000_init_control_info(AR_SOFTC_T *ar)
     ar->arVersion.host_ver   = AR6K_SW_VERSION;
     ar->arRssi               = 0;
     ar->arTxPwr              = 0;
-    ar->arTxPwrSet           = FALSE;
+    ar->arTxPwrSet           = false;
     ar->arSkipScan           = 0;
     ar->arBeaconInterval     = 0;
     ar->arBitRate            = 0;
     ar->arMaxRetries         = 0;
-    ar->arWmmEnabled         = TRUE;
+    ar->arWmmEnabled         = true;
     ar->intra_bss            = 1;
     ar->scan_triggered       = 0;
     A_MEMZERO(&ar->scParams, sizeof(ar->scParams));
@@ -2322,14 +2322,14 @@ ar6000_close(struct net_device *dev)
 
 #ifdef ATH6K_CONFIG_CFG80211
     AR6000_SPIN_LOCK(&ar->arLock, 0);
-    if (ar->arConnected == TRUE || ar->arConnectPending == TRUE) {
+    if (ar->arConnected == true || ar->arConnectPending == true) {
         AR6000_SPIN_UNLOCK(&ar->arLock, 0);
         wmi_disconnect_cmd(ar->arWmi);
     } else {
         AR6000_SPIN_UNLOCK(&ar->arLock, 0);
     }
 
-    if(ar->arWmiReady == TRUE) {
+    if(ar->arWmiReady == true) {
         if (wmi_scanparams_cmd(ar->arWmi, 0xFFFF, 0,
                                0, 0, 0, 0, 0, 0, 0, 0) != A_OK) {
             return -EIO;
@@ -2389,7 +2389,7 @@ static int ar6000_connectservice(AR_SOFTC_T               *ar,
             break;
         }
 
-    } while (FALSE);
+    } while (false);
 
     return status;
 }
@@ -2480,7 +2480,7 @@ int ar6000_init(struct net_device *dev)
 #endif
 
         /* Indicate that WMI is enabled (although not ready yet) */
-        ar->arWmiEnabled = TRUE;
+        ar->arWmiEnabled = true;
         if ((ar->arWmi = wmi_init((void *) ar)) == NULL)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("%s() Failed to initialize WMI.\n", __func__));
@@ -2632,7 +2632,7 @@ int ar6000_init(struct net_device *dev)
           status = ar6k_setup_hci_pal(ar);
 #endif
 
-    } while (FALSE);
+    } while (false);
 
     if (status) {
         ret = -EIO;
@@ -2670,9 +2670,9 @@ int ar6000_init(struct net_device *dev)
     status = HTCStart(ar->arHtcTarget);
 
     if (status != A_OK) {
-        if (ar->arWmiEnabled == TRUE) {
+        if (ar->arWmiEnabled == true) {
             wmi_shutdown(ar->arWmi);
-            ar->arWmiEnabled = FALSE;
+            ar->arWmiEnabled = false;
             ar->arWmi = NULL;
         }
         ar6000_cookie_cleanup(ar);
@@ -2683,7 +2683,7 @@ int ar6000_init(struct net_device *dev)
     if (!bypasswmi) {
         /* Wait for Wmi event to be ready */
         timeleft = wait_event_interruptible_timeout(arEvent,
-            (ar->arWmiReady == TRUE), wmitimeout * HZ);
+            (ar->arWmiReady == true), wmitimeout * HZ);
 
         if (ar->arVersion.abi_ver != AR6K_ABI_VERSION) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ABI Version mismatch: Host(0x%x), Target(0x%x)\n", AR6K_ABI_VERSION, ar->arVersion.abi_ver));
@@ -2708,7 +2708,7 @@ int ar6000_init(struct net_device *dev)
         }
 
         /* configure the device for rx dot11 header rules 0,0 are the default values
-         * therefore this command can be skipped if the inputs are 0,FALSE,FALSE.Required
+         * therefore this command can be skipped if the inputs are 0,false,false.Required
          if checksum offload is needed. Set RxMetaVersion to 2*/
         if ((wmi_set_rx_frame_format_cmd(ar->arWmi,ar->rxMetaVersion, processDot11Hdr, processDot11Hdr)) != A_OK) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set the rx frame format.\n"));
@@ -2893,7 +2893,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
     A_UINT32          mapNo = 0;
     int               len;
     struct ar_cookie *cookie;
-    A_BOOL            checkAdHocPsMapping = FALSE,bMoreData = FALSE;
+    bool            checkAdHocPsMapping = false,bMoreData = false;
     HTC_TX_TAG        htc_tag = AR6K_DATA_PKT_TAG;
     A_UINT8           dot11Hdr = processDot11Hdr;
 #ifdef CONFIG_PM
@@ -2920,7 +2920,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
 
     do {
 
-        if (ar->arWmiReady == FALSE && bypasswmi == 0) {
+        if (ar->arWmiReady == false && bypasswmi == 0) {
             break;
         }
 
@@ -2943,19 +2943,19 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
              */
             if (IEEE80211_IS_MULTICAST(datap->dstMac)) {
                 A_UINT8 ctr=0;
-                A_BOOL qMcast=FALSE;
+                bool qMcast=false;
 
 
                 for (ctr=0; ctr<AP_MAX_NUM_STA; ctr++) {
                     if (STA_IS_PWR_SLEEP((&ar->sta_list[ctr]))) {
-                        qMcast = TRUE;
+                        qMcast = true;
                     }
                 }
                 if(qMcast) {
 
                     /* If this transmit is not because of a Dtim Expiry q it */
-                    if (ar->DTIMExpired == FALSE) {
-                        A_BOOL isMcastqEmpty = FALSE;
+                    if (ar->DTIMExpired == false) {
+                        bool isMcastqEmpty = false;
 
                         A_MUTEX_LOCK(&ar->mcastpsqLock);
                         isMcastqEmpty = A_NETBUF_QUEUE_EMPTY(&ar->mcastpsq);
@@ -2976,7 +2976,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
                       */
                          A_MUTEX_LOCK(&ar->mcastpsqLock);
                          if(!A_NETBUF_QUEUE_EMPTY(&ar->mcastpsq)) {
-                             bMoreData = TRUE;
+                             bMoreData = true;
                          }
                          A_MUTEX_UNLOCK(&ar->mcastpsqLock);
                     }
@@ -2987,7 +2987,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
                     if (STA_IS_PWR_SLEEP(conn)) {
                         /* If this transmit is not because of a PsPoll q it*/
                         if (!STA_IS_PS_POLLED(conn)) {
-                            A_BOOL isPsqEmpty = FALSE;
+                            bool isPsqEmpty = false;
                             /* Queue the frames if the STA is sleeping */
                             A_MUTEX_LOCK(&conn->psqLock);
                             isPsqEmpty = A_NETBUF_QUEUE_EMPTY(&conn->psq);
@@ -3008,7 +3008,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
                           */
                              A_MUTEX_LOCK(&conn->psqLock);
                              if (!A_NETBUF_QUEUE_EMPTY(&conn->psq)) {
-                                 bMoreData = TRUE;
+                                 bMoreData = true;
                              }
                              A_MUTEX_UNLOCK(&conn->psqLock);
                          }
@@ -3089,7 +3089,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
             if ((ar->arNetworkType == ADHOC_NETWORK) &&
                 ar->arIbssPsEnable && ar->arConnected) {
                     /* flag to check adhoc mapping once we take the lock below: */
-                checkAdHocPsMapping = TRUE;
+                checkAdHocPsMapping = true;
 
             } else {
                     /* get the stream mapping */
@@ -3134,7 +3134,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
             }
         }
 
-    } while (FALSE);
+    } while (false);
 
         /* did we succeed ? */
     if ((ac == AC_NOT_MAPPED) && !checkAdHocPsMapping) {
@@ -3171,7 +3171,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
             ar->arTotalTxDataPending++;
         }
 
-    } while (FALSE);
+    } while (false);
 
     AR6000_SPIN_UNLOCK(&ar->arLock, 0);
 
@@ -3290,12 +3290,12 @@ applyAPTCHeuristics(AR_SOFTC_T *ar)
             throughput = ((numbytes * 8) / duration);
             if (throughput > APTC_UPPER_THROUGHPUT_THRESHOLD) {
                 /* Disable Sleep and schedule a timer */
-                A_ASSERT(ar->arWmiReady == TRUE);
+                A_ASSERT(ar->arWmiReady == true);
                 AR6000_SPIN_UNLOCK(&ar->arLock, 0);
                 status = wmi_powermode_cmd(ar->arWmi, MAX_PERF_POWER);
                 AR6000_SPIN_LOCK(&ar->arLock, 0);
                 A_TIMEOUT_MS(&aptcTimer, APTC_TRAFFIC_SAMPLING_INTERVAL, 0);
-                aptcTR.timerScheduled = TRUE;
+                aptcTR.timerScheduled = true;
             }
         }
     }
@@ -3308,7 +3308,7 @@ static HTC_SEND_FULL_ACTION ar6000_tx_queue_full(void *Context, HTC_PACKET *pPac
 {
     AR_SOFTC_T     *ar = (AR_SOFTC_T *)Context;
     HTC_SEND_FULL_ACTION    action = HTC_SEND_FULL_KEEP;
-    A_BOOL                  stopNet = FALSE;
+    bool                  stopNet = false;
     HTC_ENDPOINT_ID         Endpoint = HTC_GET_ENDPOINT_FROM_PKT(pPacket);
 
     do {
@@ -3325,10 +3325,10 @@ static HTC_SEND_FULL_ACTION ar6000_tx_queue_full(void *Context, HTC_PACKET *pPac
                 /* for endpoint ping testing drop Best Effort and Background */
             if ((accessClass == WMM_AC_BE) || (accessClass == WMM_AC_BK)) {
                 action = HTC_SEND_FULL_DROP;
-                stopNet = FALSE;
+                stopNet = false;
             } else {
                     /* keep but stop the netqueues */
-                stopNet = TRUE;
+                stopNet = true;
             }
             break;
         }
@@ -3339,11 +3339,11 @@ static HTC_SEND_FULL_ACTION ar6000_tx_queue_full(void *Context, HTC_PACKET *pPac
                  * the only exception to this is during testing using endpointping */
             AR6000_SPIN_LOCK(&ar->arLock, 0);
                 /* set flag to handle subsequent messages */
-            ar->arWMIControlEpFull = TRUE;
+            ar->arWMIControlEpFull = true;
             AR6000_SPIN_UNLOCK(&ar->arLock, 0);
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("WMI Control Endpoint is FULL!!! \n"));
                 /* no need to stop the network */
-            stopNet = FALSE;
+            stopNet = false;
             break;
         }
 
@@ -3357,7 +3357,7 @@ static HTC_SEND_FULL_ACTION ar6000_tx_queue_full(void *Context, HTC_PACKET *pPac
         if (ar->arNetworkType == ADHOC_NETWORK) {
             /* in adhoc mode, we cannot differentiate traffic priorities so there is no need to
              * continue, however we should stop the network */
-            stopNet = TRUE;
+            stopNet = true;
             break;
         }
         /* the last MAX_HI_COOKIE_NUM "batch" of cookies are reserved for the highest
@@ -3369,15 +3369,15 @@ static HTC_SEND_FULL_ACTION ar6000_tx_queue_full(void *Context, HTC_PACKET *pPac
                  * HTC to drop the packet that overflowed */
             action = HTC_SEND_FULL_DROP;
                 /* since we are dropping packets, no need to stop the network */
-            stopNet = FALSE;
+            stopNet = false;
             break;
         }
 
-    } while (FALSE);
+    } while (false);
 
     if (stopNet) {
         AR6000_SPIN_LOCK(&ar->arLock, 0);
-        ar->arNetQueueStopped = TRUE;
+        ar->arNetQueueStopped = true;
         AR6000_SPIN_UNLOCK(&ar->arLock, 0);
         /* one of the data endpoints queues is getting full..need to stop network stack
          * the queue will resume in ar6000_tx_complete() */
@@ -3396,11 +3396,11 @@ ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
     int        status;
     struct ar_cookie * ar_cookie;
     HTC_ENDPOINT_ID   eid;
-    A_BOOL          wakeEvent = FALSE;
+    bool          wakeEvent = false;
     struct sk_buff_head  skb_queue;
     HTC_PACKET      *pPacket;
     struct sk_buff  *pktSkb;
-    A_BOOL          flushing = FALSE;
+    bool          flushing = false;
 
     skb_queue_head_init(&skb_queue);
 
@@ -3445,18 +3445,18 @@ ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
         {
             if (ar->arWMIControlEpFull) {
                     /* since this packet completed, the WMI EP is no longer full */
-                ar->arWMIControlEpFull = FALSE;
+                ar->arWMIControlEpFull = false;
             }
 
             if (ar->arTxPending[eid] == 0) {
-                wakeEvent = TRUE;
+                wakeEvent = true;
             }
         }
 
         if (status) {
             if (status == A_ECANCELED) {
                     /* a packet was flushed  */
-                flushing = TRUE;
+                flushing = true;
             }
             AR6000_STAT_INC(ar, tx_errors);
             if (status != A_NO_RESOURCE) {
@@ -3465,7 +3465,7 @@ ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
             }
         } else {
             AR_DEBUG_PRINTF(ATH_DEBUG_WLAN_TX,("OK\n"));
-            flushing = FALSE;
+            flushing = false;
             AR6000_STAT_INC(ar, tx_packets);
             ar->arNetStats.tx_bytes += A_NETBUF_LEN(pktSkb);
 #ifdef ADAPTIVE_POWER_THROUGHPUT_CONTROL
@@ -3497,7 +3497,7 @@ ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
         ar6000_free_cookie(ar, ar_cookie);
 
         if (ar->arNetQueueStopped) {
-            ar->arNetQueueStopped = FALSE;
+            ar->arNetQueueStopped = false;
         }
     }
 
@@ -3512,7 +3512,7 @@ ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
         A_NETBUF_FREE(pktSkb);
     }
 
-    if ((ar->arConnected == TRUE) || bypasswmi) {
+    if ((ar->arConnected == true) || bypasswmi) {
         if (!flushing) {
                 /* don't wake the queue if we are flushing, other wise it will just
                  * keep queueing packets, which will keep failing */
@@ -3619,23 +3619,23 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
     if (status != A_OK) {
         AR6000_STAT_INC(ar, rx_errors);
         A_NETBUF_FREE(skb);
-    } else if (ar->arWmiEnabled == TRUE) {
+    } else if (ar->arWmiEnabled == true) {
         if (ept == ar->arControlEp) {
            /*
             * this is a wmi control msg
             */
 #ifdef CONFIG_PM 
-            ar6000_check_wow_status(ar, skb, TRUE);
+            ar6000_check_wow_status(ar, skb, true);
 #endif /* CONFIG_PM */
             wmi_control_rx(ar->arWmi, skb);
         } else {
                 WMI_DATA_HDR *dhdr = (WMI_DATA_HDR *)A_NETBUF_DATA(skb);
-                A_BOOL is_amsdu;
+                bool is_amsdu;
                 A_UINT8 tid;
-                A_BOOL is_acl_data_frame;
+                bool is_acl_data_frame;
                 is_acl_data_frame = WMI_DATA_HDR_GET_DATA_TYPE(dhdr) == WMI_DATA_HDR_DATA_TYPE_ACL;
 #ifdef CONFIG_PM 
-                ar6000_check_wow_status(ar, NULL, FALSE);
+                ar6000_check_wow_status(ar, NULL, false);
 #endif /* CONFIG_PM */
                 /*
                  * this is a wmi data packet
@@ -3742,7 +3742,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
                             }
                         } else {
                             /* This frame is from a STA that is not associated*/
-                            A_ASSERT(FALSE);
+                            A_ASSERT(false);
                         }
 
                         /* Drop NULL data frames here */
@@ -3753,7 +3753,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
                         }
                     }
 
-                    is_amsdu = WMI_DATA_HDR_IS_AMSDU(dhdr) ? TRUE : FALSE;
+                    is_amsdu = WMI_DATA_HDR_IS_AMSDU(dhdr) ? true : false;
                     tid = WMI_DATA_HDR_GET_UP(dhdr);
                     seq_no = WMI_DATA_HDR_GET_SEQNO(dhdr);
                     meta_type = WMI_DATA_HDR_GET_META(dhdr);
@@ -3805,7 +3805,7 @@ ar6000_rx(void *Context, HTC_PACKET *pPacket)
                         *((short *)A_NETBUF_DATA(skb)) = WMI_ACL_DATA_EVENTID;
 	                /* send the data packet to PAL driver */
 			if(ar6k_pal_config_g.fpar6k_pal_recv_pkt) {
-				if((*ar6k_pal_config_g.fpar6k_pal_recv_pkt)(ar->hcipal_info, skb) == TRUE)
+				if((*ar6k_pal_config_g.fpar6k_pal_recv_pkt)(ar->hcipal_info, skb) == true)
 					goto rx_done;
 			}
                     }
@@ -3870,7 +3870,7 @@ ar6000_deliver_frames_to_nw_stack(void *dev, void *osbuf)
         skb->dev = dev;
         if ((skb->dev->flags & IFF_UP) == IFF_UP) {
 #ifdef CONFIG_PM 
-            ar6000_check_wow_status((AR_SOFTC_T *)ar6k_priv(dev), skb, FALSE);   
+            ar6000_check_wow_status((AR_SOFTC_T *)ar6k_priv(dev), skb, false);
 #endif /* CONFIG_PM */
             skb->protocol = eth_type_trans(skb, skb->dev);
         /*
@@ -3963,7 +3963,7 @@ static void ar6000_cleanup_amsdu_rxbufs(AR_SOFTC_T *ar)
     void        *osBuf;
 
         /* empty AMSDU buffer queue and free OS bufs */
-    while (TRUE) {
+    while (true) {
 
         AR6000_SPIN_LOCK(&ar->arLock, 0);
         pPacket = HTC_PACKET_DEQUEUE(&ar->amsdu_rx_buffer_queue);
@@ -3975,7 +3975,7 @@ static void ar6000_cleanup_amsdu_rxbufs(AR_SOFTC_T *ar)
 
         osBuf = pPacket->pPktContext;
         if (NULL == osBuf) {
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;
         }
 
@@ -4030,12 +4030,12 @@ static HTC_PACKET *ar6000_alloc_amsdu_rxbuf(void *Context, HTC_ENDPOINT_ID Endpo
 
         if (Length <= AR6000_BUFFER_SIZE) {
                 /* shouldn't be getting called on normal sized packets */
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;
         }
 
         if (Length > AR6000_AMSDU_BUFFER_SIZE) {
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;
         }
 
@@ -4052,7 +4052,7 @@ static HTC_PACKET *ar6000_alloc_amsdu_rxbuf(void *Context, HTC_ENDPOINT_ID Endpo
             /* set actual endpoint ID */
         pPacket->Endpoint = Endpoint;
 
-    } while (FALSE);
+    } while (false);
 
     if (refillCount >= AR6000_AMSDU_REFILL_THRESHOLD) {
         ar6000_refill_amsdu_rxbufs(ar,refillCount);
@@ -4082,7 +4082,7 @@ ar6000_get_iwstats(struct net_device * dev)
     struct iw_statistics * pIwStats = &ar->arIwStats;
     int rtnllocked;
 
-    if (ar->bIsDestroyProgress || ar->arWmiReady == FALSE || ar->arWlanState == WLAN_DISABLED)
+    if (ar->bIsDestroyProgress || ar->arWmiReady == false || ar->arWlanState == WLAN_DISABLED)
     {
         pIwStats->status = 0;
         pIwStats->qual.qual = 0;
@@ -4132,13 +4132,13 @@ ar6000_get_iwstats(struct net_device * dev)
             break;
         }
     
-        ar->statsUpdatePending = TRUE;
+        ar->statsUpdatePending = true;
     
         if(wmi_get_stats_cmd(ar->arWmi) != A_OK) {
             break;
         }
     
-        wait_event_interruptible_timeout(arEvent, ar->statsUpdatePending == FALSE, wmitimeout * HZ);
+        wait_event_interruptible_timeout(arEvent, ar->statsUpdatePending == false, wmitimeout * HZ);
         if (signal_pending(current)) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000 : WMI get stats timeout \n"));
             break;
@@ -4178,7 +4178,7 @@ ar6000_ready_event(void *devt, A_UINT8 *datap, A_UINT8 phyCap, A_UINT32 sw_ver, 
     ar->arVersion.abi_ver = abi_ver;
 
     /* Indicate to the waiting thread that the ready event was received */
-    ar->arWmiReady = TRUE;
+    ar->arWmiReady = true;
     wake_up(&arEvent);
 
 #if WLAN_CONFIG_IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN
@@ -4280,7 +4280,7 @@ ar6000_connect_event(AR_SOFTC_T *ar, A_UINT16 channel, A_UINT8 *bssid,
                 break;
             }
 skip_key:
-            ar->arConnected  = TRUE;
+            ar->arConnected  = true;
             return;
         }
 
@@ -4450,7 +4450,7 @@ skip_key:
 
 #ifdef USER_KEYS
     if (ar->user_savedkeys_stat == USER_SAVEDKEYS_STAT_RUN &&
-        ar->user_saved_keys.keyOk == TRUE)
+        ar->user_saved_keys.keyOk == true)
     {
         key_op_ctrl = KEY_OP_VALID_MASK & ~KEY_OP_INIT_TSC;
 
@@ -4487,8 +4487,8 @@ skip_key:
 
     /* Update connect & link status atomically */
     spin_lock_irqsave(&ar->arLock, flags);
-    ar->arConnected  = TRUE;
-    ar->arConnectPending = FALSE;
+    ar->arConnected  = true;
+    ar->arConnectPending = false;
     netif_carrier_on(ar->arNetDev);
     spin_unlock_irqrestore(&ar->arLock, flags);
     /* reset the rx aggr state */
@@ -4654,15 +4654,15 @@ ar6000_disconnect_event(AR_SOFTC_T *ar, A_UINT8 reason, A_UINT8 *bssid,
      */
     if( reason == DISCONNECT_CMD)
     {
-        ar->arConnectPending = FALSE;
+        ar->arConnectPending = false;
         if ((!ar->arUserBssFilter) && (ar->arWmiReady)) {
             wmi_bssfilter_cmd(ar->arWmi, NONE_BSS_FILTER, 0);
         }
     } else {
-        ar->arConnectPending = TRUE;
+        ar->arConnectPending = true;
         if (((reason == ASSOC_FAILED) && (protocolReasonStatus == 0x11)) ||
             ((reason == ASSOC_FAILED) && (protocolReasonStatus == 0x0) && (reconnect_flag == 1))) {
-            ar->arConnected = TRUE;
+            ar->arConnected = true;
             return;
         }
     }
@@ -4684,7 +4684,7 @@ ar6000_disconnect_event(AR_SOFTC_T *ar, A_UINT8 reason, A_UINT8 *bssid,
              * Find the nodes based on SSID and remove it
              * NOTE :: This case will not work out for Hidden-SSID
              */
-            pWmiSsidnode = wmi_find_Ssidnode (ar->arWmi, ar->arSsid, ar->arSsidLen, FALSE, TRUE);
+            pWmiSsidnode = wmi_find_Ssidnode (ar->arWmi, ar->arSsid, ar->arSsidLen, false, true);
 
             if (pWmiSsidnode)
             {
@@ -4696,7 +4696,7 @@ ar6000_disconnect_event(AR_SOFTC_T *ar, A_UINT8 reason, A_UINT8 *bssid,
 
     /* Update connect & link status atomically */
     spin_lock_irqsave(&ar->arLock, flags);
-    ar->arConnected = FALSE;
+    ar->arConnected = false;
     netif_carrier_off(ar->arNetDev);
     spin_unlock_irqrestore(&ar->arLock, flags);
 
@@ -4784,7 +4784,7 @@ ar6000_hci_event_rcv_evt(struct ar6_softc *ar, WMI_HCI_EVENT *cmd)
     if(ar6k_pal_config_g.fpar6k_pal_recv_pkt)
     {
       /* pass the cmd packet to PAL driver */
-      if((*ar6k_pal_config_g.fpar6k_pal_recv_pkt)(ar->hcipal_info, osbuf) == TRUE)
+      if((*ar6k_pal_config_g.fpar6k_pal_recv_pkt)(ar->hcipal_info, osbuf) == true)
         return;
     }
     ar6000_deliver_frames_to_nw_stack(ar->arNetDev, osbuf);
@@ -4850,7 +4850,7 @@ ar6000_neighborReport_event(AR_SOFTC_T *ar, int numAps, WMI_NEIGHBOR_INFO *info)
 }
 
 void
-ar6000_tkip_micerr_event(AR_SOFTC_T *ar, A_UINT8 keyid, A_BOOL ismcast)
+ar6000_tkip_micerr_event(AR_SOFTC_T *ar, A_UINT8 keyid, bool ismcast)
 {
     static const char *tag = "MLME-MICHAELMICFAILURE.indication";
     char buf[128];
@@ -5028,7 +5028,7 @@ ar6000_targetStats_event(AR_SOFTC_T *ar,  A_UINT8 *ptr, A_UINT32 len)
         pStats->arp_replied  += pTarget->arpStats.arp_replied;
 
         if (ar->statsUpdatePending) {
-            ar->statsUpdatePending = FALSE;
+            ar->statsUpdatePending = false;
             wake_up(&arEvent);
         }
     }
@@ -5065,7 +5065,7 @@ ar6000_hbChallengeResp_event(AR_SOFTC_T *ar, A_UINT32 cookie, A_UINT32 source)
     } else {
         /* This would ignore the replys that come in after their due time */
         if (cookie == ar->arHBChallengeResp.seqNum) {
-            ar->arHBChallengeResp.outstanding = FALSE;
+            ar->arHBChallengeResp.outstanding = false;
         }
     }
 }
@@ -5312,7 +5312,7 @@ ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid)
 
         wmiSendCmdNum++;
 
-    } while (FALSE);
+    } while (false);
 
     if (cookie != NULL) {
             /* got a structure to send it out on */
@@ -5347,7 +5347,7 @@ ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid)
 }
 
 /* indicate tx activity or inactivity on a WMI stream */
-void ar6000_indicate_tx_activity(void *devt, A_UINT8 TrafficClass, A_BOOL Active)
+void ar6000_indicate_tx_activity(void *devt, A_UINT8 TrafficClass, bool Active)
 {
     AR_SOFTC_T  *ar = (AR_SOFTC_T *)devt;
     HTC_ENDPOINT_ID eid ;
@@ -5438,7 +5438,7 @@ ar6000_btcoex_config_event(struct ar6_softc *ar,  A_UINT8 *ptr, A_UINT32 len)
             break;
     }
     if (ar->statsUpdatePending) {
-         ar->statsUpdatePending = FALSE;
+         ar->statsUpdatePending = false;
           wake_up(&arEvent);
     }
 }
@@ -5453,7 +5453,7 @@ ar6000_btcoex_stats_event(struct ar6_softc *ar,  A_UINT8 *ptr, A_UINT32 len)
     A_MEMCPY(&ar->arBtcoexStats, pBtcoexStats, sizeof(WMI_BTCOEX_STATS_EVENT));
 
     if (ar->statsUpdatePending) {
-         ar->statsUpdatePending = FALSE;
+         ar->statsUpdatePending = false;
         wake_up(&arEvent);
     }
 
@@ -5708,7 +5708,7 @@ ar6000_pmkid_list_event(void *devt, A_UINT8 numPMKID, WMI_PMKID *pmkidList,
 void ar6000_pspoll_event(AR_SOFTC_T *ar,A_UINT8 aid)
 {
     sta_t *conn=NULL;
-    A_BOOL isPsqEmpty = FALSE;
+    bool isPsqEmpty = false;
 
     conn = ieee80211_find_conn_for_aid(ar, aid);
 
@@ -5747,7 +5747,7 @@ void ar6000_pspoll_event(AR_SOFTC_T *ar,A_UINT8 aid)
 
 void ar6000_dtimexpiry_event(AR_SOFTC_T *ar)
 {
-    A_BOOL isMcastQueued = FALSE;
+    bool isMcastQueued = false;
     struct sk_buff *skb = NULL;
 
     /* If there are no associated STAs, ignore the DTIM expiry event.
@@ -5766,11 +5766,11 @@ void ar6000_dtimexpiry_event(AR_SOFTC_T *ar)
     isMcastQueued = A_NETBUF_QUEUE_EMPTY(&ar->mcastpsq);
     A_MUTEX_UNLOCK(&ar->mcastpsqLock);
 
-    A_ASSERT(isMcastQueued == FALSE);
+    A_ASSERT(isMcastQueued == false);
 
     /* Flush the mcast psq to the target */
     /* Set the STA flag to DTIMExpired, so that the frame will go out */
-    ar->DTIMExpired = TRUE;
+    ar->DTIMExpired = true;
 
     A_MUTEX_LOCK(&ar->mcastpsqLock);
     while (!A_NETBUF_QUEUE_EMPTY(&ar->mcastpsq)) {
@@ -5784,7 +5784,7 @@ void ar6000_dtimexpiry_event(AR_SOFTC_T *ar)
     A_MUTEX_UNLOCK(&ar->mcastpsqLock);
 
     /* Reset the DTIMExpired flag back to 0 */
-    ar->DTIMExpired = FALSE;
+    ar->DTIMExpired = false;
 
     /* Clear the LSB of the BitMapCtl field of the TIM IE */
     wmi_set_pvb_cmd(ar->arWmi, MCAST_AID, 0);
@@ -5893,7 +5893,7 @@ rssi_compensation_calc(AR_SOFTC_T *ar, A_INT16 rssi)
 }
 
 A_INT16
-rssi_compensation_reverse_calc(AR_SOFTC_T *ar, A_INT16 rssi, A_BOOL Above)
+rssi_compensation_reverse_calc(AR_SOFTC_T *ar, A_INT16 rssi, bool Above)
 {
     A_INT16 i;
 
@@ -6091,11 +6091,11 @@ ar6000_ap_mode_profile_commit(struct ar6_softc *ar)
     p.groupCryptoLen = ar->arGroupCryptoLen;
     p.ctrl_flags = ar->arConnectCtrlFlags;
 
-    ar->arConnected = FALSE;
+    ar->arConnected = false;
 
     wmi_ap_profile_commit(ar->arWmi, &p);
     spin_lock_irqsave(&ar->arLock, flags);
-    ar->arConnected  = TRUE;
+    ar->arConnected  = true;
     netif_carrier_on(ar->arNetDev);
     spin_unlock_irqrestore(&ar->arLock, flags);
     ar->ap_profile_flag = 0;
@@ -6108,7 +6108,7 @@ ar6000_connect_to_ap(struct ar6_softc *ar)
     /* The ssid length check prevents second "essid off" from the user,
        to be treated as a connect cmd. The second "essid off" is ignored.
     */
-    if((ar->arWmiReady == TRUE) && (ar->arSsidLen > 0) && ar->arNetworkType!=AP_NETWORK)
+    if((ar->arWmiReady == true) && (ar->arSsidLen > 0) && ar->arNetworkType!=AP_NETWORK)
     {
         int status;
         if((ADHOC_NETWORK != ar->arNetworkType) &&
@@ -6167,7 +6167,7 @@ ar6000_connect_to_ap(struct ar6_softc *ar)
 
         ar->arConnectCtrlFlags &= ~CONNECT_DO_WPA_OFFLOAD;
         
-        ar->arConnectPending = TRUE;
+        ar->arConnectPending = true;
         return status;    
     }
     return A_ERROR;

@@ -73,12 +73,4 @@
 #define A_PHY_ERROR		27	/* RX PHY error */
 #define A_CONSUMED		28	/* Object was consumed */
 
-#ifndef TRUE
-#define TRUE 1
-#endif
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-
 #endif /* __ATHDEFS_H__ */

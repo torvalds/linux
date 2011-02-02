@@ -73,9 +73,9 @@ static int SendHCICommand(AR3K_CONFIG_INFO *pConfig,
                                AR6K_CONTROL_PKT_TAG);
         
             /* issue synchronously */                                      
-        status = HCI_TransportSendPkt(pConfig->pHCIDev,pPacket,TRUE);   
+        status = HCI_TransportSendPkt(pConfig->pHCIDev,pPacket,true);
         
-    } while (FALSE);
+    } while (false);
    
     if (pPacket != NULL) {
         A_FREE(pPacket);
@@ -113,7 +113,7 @@ static int RecvHCIEvent(AR3K_CONFIG_INFO *pConfig,
 
         *pLength = pRecvPacket->ActualLength;
         
-    } while (FALSE);
+    } while (false);
        
     if (pRecvPacket != NULL) {
         A_FREE(pRecvPacket);    
@@ -132,7 +132,7 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
     A_UINT8     *pBuffer = NULL;
     A_UINT8     *pTemp;
     int         length;
-    A_BOOL      commandComplete = FALSE;
+    bool      commandComplete = false;
     A_UINT8     opCodeBytes[2];
                                
     do {
@@ -177,7 +177,7 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
         if (pTemp[0] == HCI_CMD_COMPLETE_EVENT_CODE) {
             if ((pTemp[HCI_EVENT_OPCODE_BYTE_LOW] == opCodeBytes[0]) &&
                 (pTemp[HCI_EVENT_OPCODE_BYTE_HI] == opCodeBytes[1])) {
-                commandComplete = TRUE;    
+                commandComplete = true;
             }
         }
         
@@ -200,7 +200,7 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
             pBuffer = NULL;            
         }
         
-    } while (FALSE);
+    } while (false);
 
     if (pBuffer != NULL) {
         A_FREE(pBuffer);    
@@ -265,7 +265,7 @@ static int AR3KConfigureHCIBaud(AR3K_CONFIG_INFO *pConfig)
                     ("AR3K Config: Baud changed to %d for AR6K\n", pConfig->AR3KBaudRate));            
         }
                 
-    } while (FALSE);
+    } while (false);
                         
     if (pBufferToFree != NULL) {
         A_FREE(pBufferToFree);    
@@ -467,7 +467,7 @@ int AR3KConfigure(AR3K_CONFIG_INFO *pConfig)
         }
         
             /* disable asynchronous recv while we issue commands and receive events synchronously */
-        status = HCI_TransportEnableDisableAsyncRecv(pConfig->pHCIDev,FALSE);
+        status = HCI_TransportEnableDisableAsyncRecv(pConfig->pHCIDev,false);
         if (status) {
             break;    
         }
@@ -507,13 +507,13 @@ int AR3KConfigure(AR3K_CONFIG_INFO *pConfig)
         }
                
            /* re-enable asynchronous recv */
-        status = HCI_TransportEnableDisableAsyncRecv(pConfig->pHCIDev,TRUE);
+        status = HCI_TransportEnableDisableAsyncRecv(pConfig->pHCIDev,true);
         if (status) {
             break;    
         }     
     
     
-    } while (FALSE);   
+    } while (false);
     
   
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("AR3K Config: Configuration Complete (status = %d) \n",status));
@@ -536,7 +536,7 @@ int AR3KConfigureExit(void *config)
         }
         
             /* disable asynchronous recv while we issue commands and receive events synchronously */
-        status = HCI_TransportEnableDisableAsyncRecv(pConfig->pHCIDev,FALSE);
+        status = HCI_TransportEnableDisableAsyncRecv(pConfig->pHCIDev,false);
         if (status) {
             break;    
         }
@@ -550,13 +550,13 @@ int AR3KConfigureExit(void *config)
         }
 
            /* re-enable asynchronous recv */
-        status = HCI_TransportEnableDisableAsyncRecv(pConfig->pHCIDev,TRUE);
+        status = HCI_TransportEnableDisableAsyncRecv(pConfig->pHCIDev,true);
         if (status) {
             break;    
         }     
     
     
-    } while (FALSE);   
+    } while (false);
     
   
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("AR3K Config: Cleanup Complete (status = %d) \n",status));

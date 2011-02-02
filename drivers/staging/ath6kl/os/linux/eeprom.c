@@ -266,7 +266,7 @@ request_4byte_write(int offset, A_UINT32 data)
  * Check whether or not an EEPROM request that was started
  * earlier has completed yet.
  */
-static A_BOOL
+static bool
 request_in_progress(void)
 {
     A_UINT32 regval;

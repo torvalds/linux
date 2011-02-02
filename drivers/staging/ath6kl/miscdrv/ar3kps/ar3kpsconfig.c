@@ -54,7 +54,7 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
 
 A_UINT32  Rom_Version;
 A_UINT32  Build_Version;
-extern A_BOOL BDADDR;
+extern bool BDADDR;
 
 int getDeviceType(AR3K_CONFIG_INFO *pConfig, A_UINT32 * code);
 int ReadVersionInfo(AR3K_CONFIG_INFO *pConfig);
@@ -118,7 +118,7 @@ int AthPSInitialize(AR3K_CONFIG_INFO *hdev)
         remove_wait_queue(&PsCompleteEvent,&wait);
         return A_ERROR;
     }
-    wait_event_interruptible(PsCompleteEvent,(PSTagMode == FALSE));
+    wait_event_interruptible(PsCompleteEvent,(PSTagMode == false));
     set_current_state(TASK_RUNNING);
     remove_wait_queue(&PsCompleteEvent,&wait);
 
@@ -157,7 +157,7 @@ int PSSendOps(void *arg)
 #else 
     device = hdev;
     firmwareDev = &device->dev;
-    AthEnableSyncCommandOp(TRUE);    
+    AthEnableSyncCommandOp(true);
 #endif /* HCI_TRANSPORT_SDIO */
     /* First verify if the controller is an FPGA or ASIC, so depending on the device type the PS file to be written will be different.
      */
@@ -326,7 +326,7 @@ int PSSendOps(void *arg)
         }
     }
 #ifdef HCI_TRANSPORT_SDIO
-	if(BDADDR == FALSE)
+	if(BDADDR == false)
 		if(hdev->bdaddr[0] !=0x00 ||
 		   hdev->bdaddr[1] !=0x00 ||
 		   hdev->bdaddr[2] !=0x00 ||
@@ -368,8 +368,8 @@ int PSSendOps(void *arg)
 	}
 complete:
 #ifndef HCI_TRANSPORT_SDIO
-    AthEnableSyncCommandOp(FALSE);    
-    PSTagMode = FALSE;
+    AthEnableSyncCommandOp(false);
+    PSTagMode = false;
     wake_up_interruptible(&PsCompleteEvent);
 #endif /* HCI_TRANSPORT_SDIO */
     if(NULL != HciCmdList) {
@@ -399,13 +399,13 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
         return A_ERROR;
     }
     Hci_log("COM Write -->",pHCICommand,CmdLength);
-    PSAcked = FALSE;
+    PSAcked = false;
     if(PSHciWritepacket(pConfig,pHCICommand,CmdLength) == 0) {
         /* If the controller is not available, return Error */
         return A_ERROR;
     }
     //add_timer(&psCmdTimer);
-    wait_event_interruptible(HciEvent,(PSAcked == TRUE));
+    wait_event_interruptible(HciEvent,(PSAcked == true));
     if(NULL != HciEventpacket) {
         *ppEventBuffer = HciEventpacket;
         *ppBufferToFree = HciEventpacket;

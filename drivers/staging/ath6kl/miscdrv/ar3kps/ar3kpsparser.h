@@ -53,7 +53,7 @@
 #define A_UINT32                unsigned long
 #define A_UINT16                unsigned short
 #define A_UINT8                 unsigned char
-#define A_BOOL                  unsigned char
+#define bool                  unsigned char
 #endif /* A_UINT32 */
 
 #define ATH_DEBUG_ERR          (1 << 0)
@@ -62,8 +62,8 @@
 
 
 
-#define FALSE   0
-#define TRUE    1
+#define false   0
+#define true    1
 
 #ifndef A_MALLOC
 #define A_MALLOC(size)  kmalloc((size),GFP_KERNEL)

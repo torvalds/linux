@@ -71,7 +71,7 @@ HTC_ENDPOINT_ID wmi_get_control_ep(struct wmi_t * wmip);
 void wmi_set_control_ep(struct wmi_t * wmip, HTC_ENDPOINT_ID eid);
 A_UINT16  wmi_get_mapped_qos_queue(struct wmi_t *, A_UINT8);
 int wmi_dix_2_dot3(struct wmi_t *wmip, void *osbuf);
-int wmi_data_hdr_add(struct wmi_t *wmip, void *osbuf, A_UINT8 msgType, A_BOOL bMoreData, WMI_DATA_HDR_DATA_TYPE data_type,A_UINT8 metaVersion, void *pTxMetaS);
+int wmi_data_hdr_add(struct wmi_t *wmip, void *osbuf, A_UINT8 msgType, bool bMoreData, WMI_DATA_HDR_DATA_TYPE data_type,A_UINT8 metaVersion, void *pTxMetaS);
 int wmi_dot3_2_dix(void *osbuf);
 
 int wmi_dot11_hdr_remove (struct wmi_t *wmip, void *osbuf);
@@ -80,7 +80,7 @@ int wmi_dot11_hdr_add(struct wmi_t *wmip, void *osbuf, NETWORK_TYPE mode);
 int wmi_data_hdr_remove(struct wmi_t *wmip, void *osbuf);
 int wmi_syncpoint(struct wmi_t *wmip);
 int wmi_syncpoint_reset(struct wmi_t *wmip);
-A_UINT8 wmi_implicit_create_pstream(struct wmi_t *wmip, void *osbuf, A_UINT32 layer2Priority, A_BOOL wmmEnabled);
+A_UINT8 wmi_implicit_create_pstream(struct wmi_t *wmip, void *osbuf, A_UINT32 layer2Priority, bool wmmEnabled);
 
 A_UINT8 wmi_determine_userPriority (A_UINT8 *pkt, A_UINT32 layer2Pri);
 
@@ -122,7 +122,7 @@ int wmi_reconnect_cmd(struct wmi_t *wmip,
 int wmi_disconnect_cmd(struct wmi_t *wmip);
 int wmi_getrev_cmd(struct wmi_t *wmip);
 int wmi_startscan_cmd(struct wmi_t *wmip, WMI_SCAN_TYPE scanType,
-                           A_BOOL forceFgScan, A_BOOL isLegacy,
+                           u32 forceFgScan, u32 isLegacy,
                            A_UINT32 homeDwellTime, A_UINT32 forceScanInterval,
                            A_INT8 numChan, A_UINT16 *channelList);
 int wmi_scanparams_cmd(struct wmi_t *wmip, A_UINT16 fg_start_sec,
@@ -178,7 +178,7 @@ int wmi_get_challenge_resp_cmd(struct wmi_t *wmip, A_UINT32 cookie,
                                     A_UINT32 source);
 
 int wmi_config_debug_module_cmd(struct wmi_t *wmip, A_UINT16 mmask,
-                                     A_UINT16 tsr, A_BOOL rep, A_UINT16 size,
+                                     A_UINT16 tsr, bool rep, A_UINT16 size,
                                      A_UINT32 valid);
 
 int wmi_get_stats_cmd(struct wmi_t *wmip);
@@ -201,9 +201,9 @@ int wmi_set_txPwr_cmd(struct wmi_t *wmip, A_UINT8 dbM);
 int wmi_get_txPwr_cmd(struct wmi_t *wmip);
 int wmi_addBadAp_cmd(struct wmi_t *wmip, A_UINT8 apIndex, A_UINT8 *bssid);
 int wmi_deleteBadAp_cmd(struct wmi_t *wmip, A_UINT8 apIndex);
-int wmi_set_tkip_countermeasures_cmd(struct wmi_t *wmip, A_BOOL en);
+int wmi_set_tkip_countermeasures_cmd(struct wmi_t *wmip, bool en);
 int wmi_setPmkid_cmd(struct wmi_t *wmip, A_UINT8 *bssid, A_UINT8 *pmkId,
-                          A_BOOL set);
+                          bool set);
 int wmi_set_access_params_cmd(struct wmi_t *wmip, A_UINT8 ac, A_UINT16 txop,
                                    A_UINT8 eCWmin, A_UINT8 eCWmax,
                                    A_UINT8 aifsn);
@@ -323,7 +323,7 @@ wmi_mcast_filter_cmd(struct wmi_t *wmip, A_UINT8 enable);
 
 bss_t *
 wmi_find_Ssidnode (struct wmi_t *wmip, A_UCHAR *pSsid,
-                   A_UINT32 ssidLength, A_BOOL bIsWPA2, A_BOOL bMatchSSID);
+                   A_UINT32 ssidLength, bool bIsWPA2, bool bMatchSSID);
 
 
 void
@@ -375,7 +375,7 @@ int
 wmi_ap_set_mlme(struct wmi_t *wmip, A_UINT8 cmd, A_UINT8 *mac, A_UINT16 reason);
 
 int
-wmi_set_pvb_cmd(struct wmi_t *wmip, A_UINT16 aid, A_BOOL flag);
+wmi_set_pvb_cmd(struct wmi_t *wmip, A_UINT16 aid, bool flag);
 
 int
 wmi_ap_conn_inact_time(struct wmi_t *wmip, A_UINT32 period);
@@ -405,16 +405,16 @@ int
 wmi_setup_aggr_cmd(struct wmi_t *wmip, A_UINT8 tid);
 
 int
-wmi_delete_aggr_cmd(struct wmi_t *wmip, A_UINT8 tid, A_BOOL uplink);
+wmi_delete_aggr_cmd(struct wmi_t *wmip, A_UINT8 tid, bool uplink);
 
 int
 wmi_allow_aggr_cmd(struct wmi_t *wmip, A_UINT16 tx_tidmask, A_UINT16 rx_tidmask);
 
 int
-wmi_set_rx_frame_format_cmd(struct wmi_t *wmip, A_UINT8 rxMetaVersion, A_BOOL rxDot11Hdr, A_BOOL defragOnHost);
+wmi_set_rx_frame_format_cmd(struct wmi_t *wmip, A_UINT8 rxMetaVersion, bool rxDot11Hdr, bool defragOnHost);
 
 int
-wmi_set_thin_mode_cmd(struct wmi_t *wmip, A_BOOL bThinMode);
+wmi_set_thin_mode_cmd(struct wmi_t *wmip, bool bThinMode);
 
 int
 wmi_set_wlan_conn_precedence_cmd(struct wmi_t *wmip, BT_WLAN_CONN_PRECEDENCE precedence);

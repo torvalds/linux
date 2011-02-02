@@ -72,7 +72,7 @@ static void DoSendCompletion(HTC_ENDPOINT       *pEndpoint,
             } while (!HTC_QUEUE_EMPTY(pQueueToIndicate));                                              
         }
         
-    } while (FALSE);
+    } while (false);
 
 }
 
@@ -116,11 +116,11 @@ static void HTCSendPktCompletionHandler(void *Context, HTC_PACKET *pPacket)
 int HTCIssueSend(HTC_TARGET *target, HTC_PACKET *pPacket)
 {
     int status;
-    A_BOOL   sync = FALSE;
+    bool   sync = false;
 
     if (pPacket->Completion == NULL) {
             /* mark that this request was synchronously issued */
-        sync = TRUE;
+        sync = true;
     }
 
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,
@@ -160,7 +160,7 @@ static INLINE void GetHTCSendPackets(HTC_TARGET        *target,
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("+GetHTCSendPackets \n"));
      
         /* loop until we can grab as many packets out of the queue as we can */       
-    while (TRUE) {    
+    while (true) {
         
         sendFlags = 0;   
             /* get packet at head, but don't remove it */
@@ -320,7 +320,7 @@ static void HTCIssueSendBundle(HTC_ENDPOINT      *pEndpoint,
     int                 i, packetsInScatterReq;
     unsigned int        transferLength;
     HTC_PACKET          *pPacket;
-    A_BOOL              done = FALSE;
+    bool              done = false;
     int                 bundlesSent = 0;
     int                 totalPktsInBundle = 0;
     HTC_TARGET          *target = pEndpoint->target;
@@ -361,7 +361,7 @@ static void HTCIssueSendBundle(HTC_ENDPOINT      *pEndpoint,
             
             pPacket = HTC_GET_PKT_AT_HEAD(pQueue);        
             if (pPacket == NULL) {
-                A_ASSERT(FALSE);
+                A_ASSERT(false);
                 break;    
             }
             
@@ -400,7 +400,7 @@ static void HTCIssueSendBundle(HTC_ENDPOINT      *pEndpoint,
                        
             if (NULL == pPacket) {
                     /* can't bundle */
-                done = TRUE;
+                done = true;
                 break;    
             }         
                
@@ -571,7 +571,7 @@ static HTC_SEND_QUEUE_RESULT HTCTrySend(HTC_TARGET       *target,
             } 
         }
         
-    } while (FALSE);
+    } while (false);
     
     if (result != HTC_SEND_QUEUE_OK) {
         AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("-HTCTrySend:  \n"));
@@ -602,7 +602,7 @@ static HTC_SEND_QUEUE_RESULT HTCTrySend(HTC_TARGET       *target,
             
         /* now drain the endpoint TX queue for transmission as long as we have enough
          * credits */
-    while (TRUE) {
+    while (true) {
           
         if (HTC_PACKET_QUEUE_DEPTH(&pEndpoint->TxQueue) == 0) {
             break;
@@ -623,7 +623,7 @@ static HTC_SEND_QUEUE_RESULT HTCTrySend(HTC_TARGET       *target,
         bundlesSent = 0;
         pktsInBundles = 0;
      
-        while (TRUE) {
+        while (true) {
             
                 /* try to send a bundle on each pass */            
             if ((target->SendBundlingEnabled) &&
@@ -758,7 +758,7 @@ void HTCProcessCreditRpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt, int NumEnt
     int             i;
     HTC_ENDPOINT    *pEndpoint;
     int             totalCredits = 0;
-    A_BOOL          doDist = FALSE;
+    bool          doDist = false;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND, ("+HTCProcessCreditRpt, Credit Report Entries:%d \n", NumEntries));
 
@@ -767,7 +767,7 @@ void HTCProcessCreditRpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt, int NumEnt
 
     for (i = 0; i < NumEntries; i++, pRpt++) {
         if (pRpt->EndpointID >= ENDPOINT_MAX) {
-            AR_DEBUG_ASSERT(FALSE);
+            AR_DEBUG_ASSERT(false);
             break;
         }
 
@@ -807,7 +807,7 @@ void HTCProcessCreditRpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt, int NumEnt
                  * will handle giving out credits back to the endpoints */
             pEndpoint->CreditDist.TxCreditsToDist += pRpt->Credits;
                 /* flag that we have to do the distribution */
-            doDist = TRUE;
+            doDist = true;
         }
         
             /* refresh tx depth for distribution function that will recover these credits
@@ -945,7 +945,7 @@ void HTCFlushEndpoint(HTC_HANDLE HTCHandle, HTC_ENDPOINT_ID Endpoint, HTC_TX_TAG
     HTC_ENDPOINT    *pEndpoint = &target->EndPoint[Endpoint];
 
     if (pEndpoint->ServiceID == 0) {
-        AR_DEBUG_ASSERT(FALSE);
+        AR_DEBUG_ASSERT(false);
         /* not in use.. */
         return;
     }
@@ -956,14 +956,14 @@ void HTCFlushEndpoint(HTC_HANDLE HTCHandle, HTC_ENDPOINT_ID Endpoint, HTC_TX_TAG
 /* HTC API to indicate activity to the credit distribution function */
 void HTCIndicateActivityChange(HTC_HANDLE      HTCHandle,
                                HTC_ENDPOINT_ID Endpoint,
-                               A_BOOL          Active)
+                               bool          Active)
 {
     HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     HTC_ENDPOINT    *pEndpoint = &target->EndPoint[Endpoint];
-    A_BOOL          doDist = FALSE;
+    bool          doDist = false;
 
     if (pEndpoint->ServiceID == 0) {
-        AR_DEBUG_ASSERT(FALSE);
+        AR_DEBUG_ASSERT(false);
         /* not in use.. */
         return;
     }
@@ -974,13 +974,13 @@ void HTCIndicateActivityChange(HTC_HANDLE      HTCHandle,
         if (!(pEndpoint->CreditDist.DistFlags & HTC_EP_ACTIVE)) {
                 /* mark active now */
             pEndpoint->CreditDist.DistFlags |= HTC_EP_ACTIVE;
-            doDist = TRUE;
+            doDist = true;
         }
     } else {
         if (pEndpoint->CreditDist.DistFlags & HTC_EP_ACTIVE) {
                 /* mark inactive now */
             pEndpoint->CreditDist.DistFlags &= ~HTC_EP_ACTIVE;
-            doDist = TRUE;
+            doDist = true;
         }
     }
 
@@ -1005,19 +1005,19 @@ void HTCIndicateActivityChange(HTC_HANDLE      HTCHandle,
     }
 }
 
-A_BOOL HTCIsEndpointActive(HTC_HANDLE      HTCHandle,
+bool HTCIsEndpointActive(HTC_HANDLE      HTCHandle,
                            HTC_ENDPOINT_ID Endpoint)
 {
     HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     HTC_ENDPOINT    *pEndpoint = &target->EndPoint[Endpoint];
 
     if (pEndpoint->ServiceID == 0) {
-        return FALSE;
+        return false;
     }
     
     if (pEndpoint->CreditDist.DistFlags & HTC_EP_ACTIVE) {
-        return TRUE;
+        return true;
     }
     
-    return FALSE;
+    return false;
 }

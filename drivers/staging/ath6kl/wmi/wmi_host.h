@@ -60,8 +60,8 @@ typedef struct sq_threshold_params_s {
 #define A_NUM_BANDS            2
 
 struct wmi_t {
-    A_BOOL                          wmi_ready;
-    A_BOOL                          wmi_numQoSStream;
+    bool                          wmi_ready;
+    bool                          wmi_numQoSStream;
     A_UINT16                        wmi_streamExistsForAC[WMM_NUM_AC];
     A_UINT8                         wmi_fatPipeExists;
     void                           *wmi_devt;
@@ -80,7 +80,7 @@ struct wmi_t {
     SQ_THRESHOLD_PARAMS             wmi_SqThresholdParams[SIGNAL_QUALITY_METRICS_NUM_MAX];
     CRYPTO_TYPE                     wmi_pair_crypto_type;
     CRYPTO_TYPE                     wmi_grp_crypto_type;
-    A_BOOL                          wmi_is_wmm_enabled;
+    bool                          wmi_is_wmm_enabled;
     A_UINT8                         wmi_ht_allowed[A_NUM_BANDS];
     A_UINT8                         wmi_traffic_class;
 };

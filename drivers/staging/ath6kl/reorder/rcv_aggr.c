@@ -73,7 +73,7 @@ aggr_init(ALLOC_NETBUFS netbuf_allocator)
         A_MEMZERO(p_aggr, sizeof(AGGR_INFO));
         p_aggr->aggr_sz = AGGR_SZ_DEFAULT;
         A_INIT_TIMER(&p_aggr->timer, aggr_timeout, p_aggr);
-        p_aggr->timerScheduled = FALSE;
+        p_aggr->timerScheduled = false;
         A_NETBUF_QUEUE_INIT(&p_aggr->freeQ);
 
         p_aggr->netbuf_allocator = netbuf_allocator;
@@ -81,13 +81,13 @@ aggr_init(ALLOC_NETBUFS netbuf_allocator)
 
         for(i = 0; i < NUM_OF_TIDS; i++) {
             rxtid = AGGR_GET_RXTID(p_aggr, i);
-            rxtid->aggr = FALSE;
-            rxtid->progress = FALSE;
-            rxtid->timerMon = FALSE;
+            rxtid->aggr = false;
+            rxtid->progress = false;
+            rxtid->timerMon = false;
             A_NETBUF_QUEUE_INIT(&rxtid->q);
             A_MUTEX_INIT(&rxtid->lock);
         }
-    }while(FALSE);
+    }while(false);
 
     A_PRINTF("going out of aggr_init..status %s\n",
                     (status == A_OK) ? "OK":"Error");
@@ -115,9 +115,9 @@ aggr_delete_tid_state(AGGR_INFO *p_aggr, A_UINT8 tid)
         aggr_deque_frms(p_aggr, tid, 0, ALL_SEQNO);
     }
 
-    rxtid->aggr = FALSE;
-    rxtid->progress = FALSE;
-    rxtid->timerMon = FALSE;
+    rxtid->aggr = false;
+    rxtid->progress = false;
+    rxtid->timerMon = false;
     rxtid->win_sz = 0;
     rxtid->seq_next = 0;
     rxtid->hold_q_sz = 0;
@@ -142,7 +142,7 @@ aggr_module_destroy(void *cntxt)
     if(p_aggr) {
         if(p_aggr->timerScheduled) {
             A_UNTIMEOUT(&p_aggr->timer);
-            p_aggr->timerScheduled = FALSE;
+            p_aggr->timerScheduled = false;
         }
 
         for(i = 0; i < NUM_OF_TIDS; i++) {
@@ -249,7 +249,7 @@ aggr_recv_addba_req_evt(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_UINT8 win_s
         A_ASSERT(0);
     }
 
-    rxtid->aggr = TRUE;
+    rxtid->aggr = true;
 }
 
 void
@@ -426,7 +426,7 @@ aggr_slice_amsdu(AGGR_INFO *p_aggr, RXTID *rxtid, void **osbuf)
 }
 
 void
-aggr_process_recv_frm(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_BOOL is_amsdu, void **osbuf)
+aggr_process_recv_frm(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, bool is_amsdu, void **osbuf)
 {
     AGGR_INFO *p_aggr = (AGGR_INFO *)cntxt;
     RXTID *rxtid;
@@ -536,17 +536,17 @@ aggr_process_recv_frm(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_BOOL is_amsdu
     aggr_deque_frms(p_aggr, tid, 0, CONTIGUOUS_SEQNO);
 
     if(p_aggr->timerScheduled) {
-        rxtid->progress = TRUE;
+        rxtid->progress = true;
     }else{
         for(idx=0 ; idx<rxtid->hold_q_sz ; idx++) {
             if(rxtid->hold_q[idx].osbuf) {
                 /* there is a frame in the queue and no timer so
                  * start a timer to ensure that the frame doesn't remain
                  * stuck forever. */
-                p_aggr->timerScheduled = TRUE;
+                p_aggr->timerScheduled = true;
                 A_TIMEOUT_MS(&p_aggr->timer, AGGR_RX_TIMEOUT, 0);
-                rxtid->progress = FALSE;
-                rxtid->timerMon = TRUE;
+                rxtid->progress = false;
+                rxtid->timerMon = true;
                 break;
             }
         }
@@ -588,9 +588,9 @@ aggr_timeout(A_ATH_TIMER arg)
         rxtid = AGGR_GET_RXTID(p_aggr, i);
         stats = AGGR_GET_RXTID_STATS(p_aggr, i);
 
-        if(rxtid->aggr == FALSE ||
-           rxtid->timerMon == FALSE ||
-           rxtid->progress == TRUE) {
+        if(rxtid->aggr == false ||
+           rxtid->timerMon == false ||
+           rxtid->progress == true) {
             continue;
         }
         // dequeue all frames in for this tid
@@ -599,25 +599,25 @@ aggr_timeout(A_ATH_TIMER arg)
         aggr_deque_frms(p_aggr, i, 0, ALL_SEQNO);
     }
 
-    p_aggr->timerScheduled = FALSE;
+    p_aggr->timerScheduled = false;
     // determine whether a new timer should be started.
     for(i = 0; i < NUM_OF_TIDS; i++) {
         rxtid = AGGR_GET_RXTID(p_aggr, i);
 
-        if(rxtid->aggr == TRUE && rxtid->hold_q) {
+        if(rxtid->aggr == true && rxtid->hold_q) {
             for(j = 0 ; j < rxtid->hold_q_sz ; j++)
             {
                 if(rxtid->hold_q[j].osbuf)
                 {
-                    p_aggr->timerScheduled = TRUE;
-                    rxtid->timerMon = TRUE;
-                    rxtid->progress = FALSE;
+                    p_aggr->timerScheduled = true;
+                    rxtid->timerMon = true;
+                    rxtid->progress = false;
                     break;
                 }
             }
 
             if(j >= rxtid->hold_q_sz) {
-                rxtid->timerMon = FALSE;
+                rxtid->timerMon = false;
             }
         }
     }

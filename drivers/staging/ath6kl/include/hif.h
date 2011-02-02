@@ -359,11 +359,11 @@ typedef int ( *HIF_PENDING_EVENTS_FUNC)(HIF_DEVICE              *device,
                                              HIF_PENDING_EVENTS_INFO *pEvents,
                                              void                    *AsyncContext);
 
-#define HIF_MASK_RECV    TRUE
-#define HIF_UNMASK_RECV  FALSE
+#define HIF_MASK_RECV    true
+#define HIF_UNMASK_RECV  false
     /* function to mask recv events */
 typedef int ( *HIF_MASK_UNMASK_RECV_EVENT)(HIF_DEVICE  *device,
-                                                A_BOOL      Mask,
+                                                bool      Mask,
                                                 void        *AsyncContext);
 
 

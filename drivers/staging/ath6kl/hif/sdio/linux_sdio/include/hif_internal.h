@@ -78,9 +78,9 @@ struct hif_device {
     HTC_CALLBACKS htcCallbacks;
     A_UINT8     *dma_buffer;
     DL_LIST      ScatterReqHead;                /* scatter request list head */
-    A_BOOL       scatter_enabled;               /* scatter enabled flag */
-    A_BOOL   is_suspend;
-    A_BOOL   is_disabled;
+    bool       scatter_enabled;               /* scatter enabled flag */
+    bool   is_suspend;
+    bool   is_disabled;
     atomic_t   irqHandling;
     HIF_DEVICE_POWER_CHANGE_TYPE powerConfig;
     const struct sdio_device_id *id;

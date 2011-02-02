@@ -102,7 +102,7 @@ typedef struct tRamPatch
 
 typedef struct ST_PS_DATA_FORMAT {
    enum eType   eDataType;
-   A_BOOL    bIsArray;
+   bool    bIsArray;
 }ST_PS_DATA_FORMAT;
 
 typedef struct ST_READ_STATUS {
@@ -120,7 +120,7 @@ static A_UINT32 Tag_Count = 0;
 /* Stores the number of patch commands */
 static A_UINT32 Patch_Count = 0;
 static A_UINT32 Total_tag_lenght = 0;
-A_BOOL BDADDR = FALSE;
+bool BDADDR = false;
 A_UINT32      StartTagId;
 
 tPsTagEntry PsTagEntry[RAMPS_MAX_PS_TAGS_PER_FILE];
@@ -663,12 +663,12 @@ int AthDoParsePS(A_UCHAR *srcbuffer, A_UINT32 srclen)
 {
     int status;
     int i;
-    A_BOOL BDADDR_Present = FALSE;
+    bool BDADDR_Present = false;
 
     Tag_Count = 0;
 
     Total_tag_lenght = 0;
-    BDADDR = FALSE;
+    BDADDR = false;
 
 
     status = A_ERROR;
@@ -689,7 +689,7 @@ int AthDoParsePS(A_UCHAR *srcbuffer, A_UINT32 srclen)
         else{
                 for(i=0; i<Tag_Count; i++){
                         if(PsTagEntry[i].TagId == 1){
-                                BDADDR_Present = TRUE;
+                                BDADDR_Present = true;
                                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BD ADDR is present in Patch File \r\n"));
 
                         }
@@ -907,7 +907,7 @@ static int AthPSCreateHCICommand(A_UCHAR Opcode, A_UINT32 Param1,PSCmdPacket *PS
     case PS_WRITE:
                        for(i=0;i< Param1;i++){
                                 if(PsTagEntry[i].TagId ==1)
-                                        BDADDR = TRUE;
+                                        BDADDR = true;
 
                                 HCI_PS_Command = (A_UCHAR *) A_MALLOC(PsTagEntry[i].TagLen+HCI_COMMAND_HEADER);
                                 if(HCI_PS_Command == NULL){

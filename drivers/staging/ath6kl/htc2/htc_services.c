@@ -26,7 +26,7 @@ void HTCControlTxComplete(void *Context, HTC_PACKET *pPacket)
 {
         /* not implemented
          * we do not send control TX frames during normal runtime, only during setup  */
-    AR_DEBUG_ASSERT(FALSE);
+    AR_DEBUG_ASSERT(false);
 }
 
     /* callback when a control message arrives on this endpoint */
@@ -111,7 +111,7 @@ int HTCSendSetupComplete(HTC_TARGET *target)
             /* send the message */
         status = HTCIssueSend(target,pSendPacket);
 
-    } while (FALSE);
+    } while (false);
 
     if (pSendPacket != NULL) {
         HTC_FREE_CONTROL_TX(target,pSendPacket);
@@ -151,7 +151,7 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
             pSendPacket = HTC_ALLOC_CONTROL_TX(target);
 
             if (NULL == pSendPacket) {
-                AR_DEBUG_ASSERT(FALSE);
+                AR_DEBUG_ASSERT(false);
                 status = A_NO_MEMORY;
                 break;
             }
@@ -200,7 +200,7 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
             if ((pResponseMsg->MessageID != HTC_MSG_CONNECT_SERVICE_RESPONSE_ID) ||
                 (pRecvPacket->ActualLength < sizeof(HTC_CONNECT_SERVICE_RESPONSE_MSG))) {
                     /* this message is not valid */
-                AR_DEBUG_ASSERT(FALSE);
+                AR_DEBUG_ASSERT(false);
                 status = A_EPROTO;
                 break;
             }
@@ -236,12 +236,12 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
         status = A_EPROTO;
 
         if (assignedEndpoint >= ENDPOINT_MAX) {
-            AR_DEBUG_ASSERT(FALSE);
+            AR_DEBUG_ASSERT(false);
             break;
         }
 
         if (0 == maxMsgSize) {
-            AR_DEBUG_ASSERT(FALSE);
+            AR_DEBUG_ASSERT(false);
             break;
         }
 
@@ -249,7 +249,7 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
         pEndpoint->Id = assignedEndpoint;
         if (pEndpoint->ServiceID != 0) {
             /* endpoint already in use! */
-            AR_DEBUG_ASSERT(FALSE);
+            AR_DEBUG_ASSERT(false);
             break;
         }
 
@@ -275,7 +275,7 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
                  * since the host will actually issue smaller messages in the Send path */
             if (pConnectReq->MaxSendMsgSize > maxMsgSize) {
                     /* can't be larger than the maximum the target can support */
-                AR_DEBUG_ASSERT(FALSE);
+                AR_DEBUG_ASSERT(false);
                 break;       
             }
             pEndpoint->CreditDist.TxCreditsPerMaxMsg = pConnectReq->MaxSendMsgSize / target->TargetCreditSize;
@@ -292,7 +292,7 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
         
         status = A_OK;
 
-    } while (FALSE);
+    } while (false);
 
     if (pSendPacket != NULL) {
         HTC_FREE_CONTROL_TX(target,pSendPacket);
@@ -360,7 +360,7 @@ static void HTCDefaultCreditInit(void                     *Context,
 
         if (creditsPerEndpoint < pCurEpDist->TxCreditsPerMaxMsg) {
                 /* too many endpoints and not enough credits */
-            AR_DEBUG_ASSERT(FALSE);
+            AR_DEBUG_ASSERT(false);
             break;
         }
             /* our minimum is set for at least 1 max message */

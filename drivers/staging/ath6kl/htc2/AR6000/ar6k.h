@@ -75,8 +75,8 @@ typedef PREPACK struct _AR6K_GMBOX_CTRL_REGISTERS {
 
 #define AR6K_REG_IO_BUFFER_SIZE     32
 #define AR6K_MAX_REG_IO_BUFFERS     8
-#define FROM_DMA_BUFFER TRUE
-#define TO_DMA_BUFFER   FALSE
+#define FROM_DMA_BUFFER true
+#define TO_DMA_BUFFER   false
 #define AR6K_SCATTER_ENTRIES_PER_REQ            16
 #define AR6K_MAX_TRANSFER_SIZE_PER_SCATTER      16*1024
 #define AR6K_SCATTER_REQS                       4
@@ -99,10 +99,10 @@ typedef struct AR6K_ASYNC_REG_IO_BUFFER {
 typedef struct _AR6K_GMBOX_INFO { 
     void        *pProtocolContext;
     int    (*pMessagePendingCallBack)(void *pContext, A_UINT8 LookAheadBytes[], int ValidBytes);
-    int    (*pCreditsPendingCallback)(void *pContext, int NumCredits,  A_BOOL CreditIRQEnabled);
+    int    (*pCreditsPendingCallback)(void *pContext, int NumCredits,  bool CreditIRQEnabled);
     void        (*pTargetFailureCallback)(void *pContext, int Status);
     void        (*pStateDumpCallback)(void *pContext);
-    A_BOOL      CreditCountIRQEnabled;    
+    bool      CreditCountIRQEnabled;
 } AR6K_GMBOX_INFO; 
 
 typedef struct _AR6K_DEVICE {
@@ -124,21 +124,21 @@ typedef struct _AR6K_DEVICE {
     int                    (*MessagePendingCallback)(void *Context,
                                                           A_UINT32 LookAheads[], 
                                                           int NumLookAheads, 
-                                                          A_BOOL *pAsyncProc,
+                                                          bool *pAsyncProc,
                                                           int *pNumPktsFetched);
     HIF_DEVICE_IRQ_PROCESSING_MODE  HifIRQProcessingMode;
     HIF_MASK_UNMASK_RECV_EVENT      HifMaskUmaskRecvEvent;
-    A_BOOL                          HifAttached;
+    bool                          HifAttached;
     HIF_DEVICE_IRQ_YIELD_PARAMS     HifIRQYieldParams;
-    A_BOOL                          DSRCanYield;
+    bool                          DSRCanYield;
     int                             CurrentDSRRecvCount;
     HIF_DEVICE_SCATTER_SUPPORT_INFO HifScatterInfo;
     DL_LIST                         ScatterReqHead; 
-    A_BOOL                          ScatterIsVirtual;    
+    bool                          ScatterIsVirtual;
     int                             MaxRecvBundleSize;
     int                             MaxSendBundleSize;
     AR6K_GMBOX_INFO                 GMboxInfo;
-    A_BOOL                          GMboxEnabled; 
+    bool                          GMboxEnabled;
     AR6K_GMBOX_CTRL_REGISTERS       GMboxControlRegisters;
     int                             RecheckIRQStatusCnt;
 } AR6K_DEVICE;
@@ -162,15 +162,15 @@ void     DevDumpRegisters(AR6K_DEVICE               *pDev,
                           AR6K_IRQ_PROC_REGISTERS   *pIrqProcRegs,
                           AR6K_IRQ_ENABLE_REGISTERS *pIrqEnableRegs);
 
-#define DEV_STOP_RECV_ASYNC TRUE
-#define DEV_STOP_RECV_SYNC  FALSE
-#define DEV_ENABLE_RECV_ASYNC TRUE
-#define DEV_ENABLE_RECV_SYNC  FALSE
-int DevStopRecv(AR6K_DEVICE *pDev, A_BOOL ASyncMode);
-int DevEnableRecv(AR6K_DEVICE *pDev, A_BOOL ASyncMode);
+#define DEV_STOP_RECV_ASYNC true
+#define DEV_STOP_RECV_SYNC  false
+#define DEV_ENABLE_RECV_ASYNC true
+#define DEV_ENABLE_RECV_SYNC  false
+int DevStopRecv(AR6K_DEVICE *pDev, bool ASyncMode);
+int DevEnableRecv(AR6K_DEVICE *pDev, bool ASyncMode);
 int DevEnableInterrupts(AR6K_DEVICE *pDev);
 int DevDisableInterrupts(AR6K_DEVICE *pDev);
-int DevWaitForPendingRecv(AR6K_DEVICE *pDev,A_UINT32 TimeoutInMs,A_BOOL *pbIsRecvPending);
+int DevWaitForPendingRecv(AR6K_DEVICE *pDev,A_UINT32 TimeoutInMs,bool *pbIsRecvPending);
 
 #define DEV_CALC_RECV_PADDED_LEN(pDev, length) (((length) + (pDev)->BlockMask) & (~((pDev)->BlockMask)))
 #define DEV_CALC_SEND_PADDED_LEN(pDev, length) DEV_CALC_RECV_PADDED_LEN(pDev,length)
@@ -178,7 +178,7 @@ int DevWaitForPendingRecv(AR6K_DEVICE *pDev,A_UINT32 TimeoutInMs,A_BOOL *pbIsRec
 
 static INLINE int DevSendPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 SendLength) {
     A_UINT32 paddedLength;
-    A_BOOL   sync = (pPacket->Completion == NULL) ? TRUE : FALSE;
+    bool   sync = (pPacket->Completion == NULL) ? true : false;
     int status;
 
        /* adjust the length to be a multiple of block size if appropriate */
@@ -186,7 +186,7 @@ static INLINE int DevSendPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32
 
 #if 0                    
     if (paddedLength > pPacket->BufferLength) {
-        A_ASSERT(FALSE);
+        A_ASSERT(false);
         if (pPacket->Completion != NULL) {
             COMPLETE_HTC_PACKET(pPacket,A_EINVAL);
             return A_OK;
@@ -222,13 +222,13 @@ static INLINE int DevSendPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32
 static INLINE int DevRecvPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 RecvLength) {
     A_UINT32 paddedLength;
     int status;
-    A_BOOL   sync = (pPacket->Completion == NULL) ? TRUE : FALSE;
+    bool   sync = (pPacket->Completion == NULL) ? true : false;
 
         /* adjust the length to be a multiple of block size if appropriate */
     paddedLength = DEV_CALC_RECV_PADDED_LEN(pDev, RecvLength);
                     
     if (paddedLength > pPacket->BufferLength) {
-        A_ASSERT(FALSE);
+        A_ASSERT(false);
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                 ("DevRecvPacket, Not enough space for padlen:%d recvlen:%d bufferlen:%d \n",
                     paddedLength,RecvLength,pPacket->BufferLength));
@@ -272,7 +272,7 @@ static INLINE int DevRecvPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32
  *  
  */
   
-int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, A_BOOL FromDMA);
+int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, bool FromDMA);
     
     /* copy any READ data back into scatter list */        
 #define DEV_FINISH_SCATTER_OPERATION(pR)				\
@@ -309,11 +309,11 @@ int DevSetupMsgBundling(AR6K_DEVICE *pDev, int MaxMsgsPerTransfer);
 #define DEV_GET_MAX_BUNDLE_RECV_LENGTH(pDev)   (pDev)->MaxRecvBundleSize
 #define DEV_GET_MAX_BUNDLE_SEND_LENGTH(pDev)   (pDev)->MaxSendBundleSize
 
-#define DEV_SCATTER_READ  TRUE
-#define DEV_SCATTER_WRITE FALSE
-#define DEV_SCATTER_ASYNC TRUE
-#define DEV_SCATTER_SYNC  FALSE
-int DevSubmitScatterRequest(AR6K_DEVICE *pDev, HIF_SCATTER_REQ *pScatterReq, A_BOOL Read, A_BOOL Async);
+#define DEV_SCATTER_READ  true
+#define DEV_SCATTER_WRITE false
+#define DEV_SCATTER_ASYNC true
+#define DEV_SCATTER_SYNC  false
+int DevSubmitScatterRequest(AR6K_DEVICE *pDev, HIF_SCATTER_REQ *pScatterReq, bool Read, bool Async);
 
 #ifdef MBOXHW_UNIT_TEST
 int DoMboxHWTest(AR6K_DEVICE *pDev);
@@ -350,7 +350,7 @@ void     DevNotifyGMboxTargetFailure(AR6K_DEVICE *pDev);
 #define DevNotifyGMboxTargetFailure(p)
 
 static INLINE int DevSetupGMbox(AR6K_DEVICE *pDev) {
-    pDev->GMboxEnabled = FALSE;
+    pDev->GMboxEnabled = false;
     return A_OK;    
 }
 
@@ -379,8 +379,8 @@ AR6K_DEVICE  *HTCGetAR6KDevice(void *HTCHandle);
 int DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 WriteLength);
 int DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, A_UINT32 ReadLength);
 
-#define PROC_IO_ASYNC TRUE
-#define PROC_IO_SYNC  FALSE
+#define PROC_IO_ASYNC true
+#define PROC_IO_SYNC  false
 typedef enum GMBOX_IRQ_ACTION_TYPE {
     GMBOX_ACTION_NONE = 0,
     GMBOX_DISABLE_ALL,
@@ -391,8 +391,8 @@ typedef enum GMBOX_IRQ_ACTION_TYPE {
     GMBOX_CREDIT_IRQ_DISABLE,
 } GMBOX_IRQ_ACTION_TYPE;
 
-int DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE, A_BOOL AsyncMode);
-int DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, A_BOOL AsyncMode, int *pCredits);
+int DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE, bool AsyncMode);
+int DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, bool AsyncMode, int *pCredits);
 int DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize);
 int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, A_UINT8 *pLookAheadBuffer, int *pLookAheadBytes);
 int DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int SignalNumber, int AckTimeoutMS);

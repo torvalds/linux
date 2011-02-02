@@ -183,7 +183,7 @@ ar6k_set_auth_type(AR_SOFTC_T *ar, enum nl80211_auth_type auth_type)
 }
 
 static int
-ar6k_set_cipher(AR_SOFTC_T *ar, A_UINT32 cipher, A_BOOL ucast)
+ar6k_set_cipher(AR_SOFTC_T *ar, A_UINT32 cipher, bool ucast)
 {
     A_UINT8  *ar_cipher = ucast ? &ar->arPairwiseCrypto :
                                 &ar->arGroupCrypto;
@@ -249,7 +249,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: \n", __func__));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready yet\n", __func__));
         return -EIO;
     }
@@ -269,7 +269,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
         return -EINVAL;
     }
 
-    if(ar->arSkipScan == TRUE &&
+    if(ar->arSkipScan == true &&
        ((sme->channel && sme->channel->center_freq == 0) ||
         (sme->bssid && !sme->bssid[0] && !sme->bssid[1] && !sme->bssid[2] &&
          !sme->bssid[3] && !sme->bssid[4] && !sme->bssid[5])))
@@ -302,10 +302,10 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
         }
     }
 
-    if(ar->arConnected == TRUE &&
+    if(ar->arConnected == true &&
        ar->arSsidLen == sme->ssid_len &&
        !A_MEMCMP(ar->arSsid, sme->ssid, ar->arSsidLen)) {
-        reconnect_flag = TRUE;
+        reconnect_flag = true;
         status = wmi_reconnect_cmd(ar->arWmi,
                                    ar->arReqBssid,
                                    ar->arChannelHint);
@@ -422,7 +422,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
     }
 
     ar->arConnectCtrlFlags &= ~CONNECT_DO_WPA_OFFLOAD;
-    ar->arConnectPending = TRUE;
+    ar->arConnectPending = true;
 
     return 0;
 }
@@ -560,7 +560,7 @@ ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, A_UINT16 channel,
         return;
     }
 
-    if (FALSE == ar->arConnected) {
+    if (false == ar->arConnected) {
         /* inform connect result to cfg80211 */
         cfg80211_connect_result(ar->arNetDev, bssid,
                                 assocReqIe, assocReqLen,
@@ -583,7 +583,7 @@ ar6k_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: reason=%u\n", __func__, reason_code));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -608,7 +608,7 @@ ar6k_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
     A_MEMZERO(ar->arSsid, sizeof(ar->arSsid));
     ar->arSsidLen = 0;
 
-    if (ar->arSkipScan == FALSE) {
+    if (ar->arSkipScan == false) {
         A_MEMZERO(ar->arReqBssid, sizeof(ar->arReqBssid));
     }
 
@@ -644,7 +644,7 @@ ar6k_cfg80211_disconnect_event(AR_SOFTC_T *ar, A_UINT8 reason,
         }
     }
 
-    if(FALSE == ar->arConnected) {
+    if(false == ar->arConnected) {
         if(NO_NETWORK_AVAIL == reason) {
             /* connect cmd failed */
             cfg80211_connect_result(ar->arNetDev, bssid,
@@ -730,7 +730,7 @@ ar6k_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: \n", __func__));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -768,7 +768,7 @@ ar6k_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
         forceFgScan = 1;
     }
 
-    if(wmi_startscan_cmd(ar->arWmi, WMI_LONG_SCAN, forceFgScan, FALSE, \
+    if(wmi_startscan_cmd(ar->arWmi, WMI_LONG_SCAN, forceFgScan, false, \
                          0, 0, 0, NULL) != A_OK) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: wmi_startscan_cmd failed\n", __func__));
         ret = -EIO;
@@ -819,7 +819,7 @@ ar6k_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s:\n", __func__));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -907,7 +907,7 @@ ar6k_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: index %d\n", __func__, key_index));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -946,7 +946,7 @@ ar6k_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: index %d\n", __func__, key_index));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -986,7 +986,7 @@ ar6k_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *ndev,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: index %d\n", __func__, key_index));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -1030,7 +1030,7 @@ ar6k_cfg80211_set_default_mgmt_key(struct wiphy *wiphy, struct net_device *ndev,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: index %d\n", __func__, key_index));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -1045,7 +1045,7 @@ ar6k_cfg80211_set_default_mgmt_key(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 void
-ar6k_cfg80211_tkip_micerr_event(AR_SOFTC_T *ar, A_UINT8 keyid, A_BOOL ismcast)
+ar6k_cfg80211_tkip_micerr_event(AR_SOFTC_T *ar, A_UINT8 keyid, bool ismcast)
 {
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
                     ("%s: keyid %d, ismcast %d\n", __func__, keyid, ismcast));
@@ -1062,7 +1062,7 @@ ar6k_cfg80211_set_wiphy_params(struct wiphy *wiphy, A_UINT32 changed)
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: changed 0x%x\n", __func__, changed));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -1100,7 +1100,7 @@ ar6k_cfg80211_set_txpower(struct wiphy *wiphy, enum nl80211_tx_power_setting typ
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: type 0x%x, dbm %d\n", __func__, type, dbm));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -1110,13 +1110,13 @@ ar6k_cfg80211_set_txpower(struct wiphy *wiphy, enum nl80211_tx_power_setting typ
         return -EIO;
     }
 
-    ar->arTxPwrSet = FALSE;
+    ar->arTxPwrSet = false;
     switch(type) {
     case NL80211_TX_POWER_AUTOMATIC:
         return 0;
     case NL80211_TX_POWER_LIMITED:
         ar->arTxPwr = ar_dbm = dbm;
-        ar->arTxPwrSet = TRUE;
+        ar->arTxPwrSet = true;
         break;
     default:
         AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: type 0x%x not supported\n", __func__, type));
@@ -1135,7 +1135,7 @@ ar6k_cfg80211_get_txpower(struct wiphy *wiphy, int *dbm)
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: \n", __func__));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -1145,7 +1145,7 @@ ar6k_cfg80211_get_txpower(struct wiphy *wiphy, int *dbm)
         return -EIO;
     }
 
-    if((ar->arConnected == TRUE)) {
+    if((ar->arConnected == true)) {
         ar->arTxPwr = 0;
 
         if(wmi_get_txPwr_cmd(ar->arWmi) != A_OK) {
@@ -1175,7 +1175,7 @@ ar6k_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: pmgmt %d, timeout %d\n", __func__, pmgmt, timeout));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -1237,7 +1237,7 @@ ar6k_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: type %u\n", __func__, type));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -1273,7 +1273,7 @@ ar6k_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: \n", __func__));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }
@@ -1346,7 +1346,7 @@ ar6k_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: \n", __func__));
 
-    if(ar->arWmiReady == FALSE) {
+    if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready\n", __func__));
         return -EIO;
     }

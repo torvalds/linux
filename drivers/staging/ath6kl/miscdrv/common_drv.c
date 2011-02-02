@@ -47,7 +47,7 @@
 
 static ATH_DEBUG_MODULE_DBG_INFO *g_pModuleInfoHead = NULL;
 static A_MUTEX_T                 g_ModuleListLock;
-static A_BOOL                    g_ModuleDebugInit = FALSE;
+static bool                    g_ModuleDebugInit = false;
 
 #ifdef ATH_DEBUG_MODULE
 
@@ -399,7 +399,7 @@ _delay_until_target_alive(HIF_DEVICE *hifDevice, A_INT32 wait_msecs, A_UINT32 Ta
 #define AR6002_RESET_CONTROL_ADDRESS 0x00004000
 #define AR6003_RESET_CONTROL_ADDRESS 0x00004000
 /* reset device */
-int ar6000_reset_device(HIF_DEVICE *hifDevice, A_UINT32 TargetType, A_BOOL waitForCompletion, A_BOOL coldReset)
+int ar6000_reset_device(HIF_DEVICE *hifDevice, A_UINT32 TargetType, bool waitForCompletion, bool coldReset)
 {
     int status = A_OK;
     A_UINT32 address;
@@ -470,7 +470,7 @@ int ar6000_reset_device(HIF_DEVICE *hifDevice, A_UINT32 TargetType, A_BOOL waitF
 #endif
 // Workaroud END
 
-    } while (FALSE);
+    } while (false);
 
     if (status) {
         AR_DEBUG_PRINTF(ATH_LOG_ERR, ("Failed to reset target \n"));
@@ -619,7 +619,7 @@ void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, A_UINT32 TargetType)
 #endif
         }
 
-    } while (FALSE);
+    } while (false);
 
 }
 
@@ -679,7 +679,7 @@ int ar6000_set_htc_params(HIF_DEVICE *hifDevice,
             }
         }
 
-    } while (FALSE);
+    } while (false);
 
     return status;
 }
@@ -967,7 +967,7 @@ void a_module_debug_support_init(void)
     }
     A_MUTEX_INIT(&g_ModuleListLock);
     g_pModuleInfoHead = NULL;
-    g_ModuleDebugInit = TRUE;
+    g_ModuleDebugInit = true;
     A_REGISTER_MODULE_DEBUG_INFO(misc);
 }
 
@@ -980,7 +980,7 @@ void a_module_debug_support_cleanup(void)
         return;
     }
 
-    g_ModuleDebugInit = FALSE;
+    g_ModuleDebugInit = false;
 
     A_MUTEX_LOCK(&g_ModuleListLock);
 
@@ -1020,7 +1020,7 @@ int ar6000_set_hci_bridge_flags(HIF_DEVICE *hifDevice,
                                 4);
 
 
-    } while (FALSE);
+    } while (false);
 
     return status;
 }

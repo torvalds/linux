@@ -152,7 +152,7 @@ wmi_snrThresholdEvent_rx(struct wmi_t *wmip, A_UINT8 *datap, int len);
 static int
 wmi_lqThresholdEvent_rx(struct wmi_t *wmip, A_UINT8 *datap, int len);
 
-static A_BOOL
+static bool
 wmi_is_bitrate_index_valid(struct wmi_t *wmip, A_INT32 rateIndex);
 
 static int
@@ -297,7 +297,7 @@ typedef PREPACK struct _iphdr {
 static A_INT16 rssi_event_value = 0;
 static A_INT16 snr_event_value = 0;
 
-A_BOOL is_probe_ssid = FALSE;
+bool is_probe_ssid = false;
 
 void *
 wmi_init(void *devt)
@@ -495,7 +495,7 @@ int wmi_meta_add(struct wmi_t *wmip, void *osbuf, A_UINT8 *pVersion,void *pTxMet
 
 /* Adds a WMI data header */
 int
-wmi_data_hdr_add(struct wmi_t *wmip, void *osbuf, A_UINT8 msgType, A_BOOL bMoreData,
+wmi_data_hdr_add(struct wmi_t *wmip, void *osbuf, A_UINT8 msgType, bool bMoreData,
                     WMI_DATA_HDR_DATA_TYPE data_type,A_UINT8 metaVersion, void *pTxMetaS)
 {
     WMI_DATA_HDR     *dtHdr;
@@ -531,7 +531,7 @@ wmi_data_hdr_add(struct wmi_t *wmip, void *osbuf, A_UINT8 msgType, A_BOOL bMoreD
 }
 
 
-A_UINT8 wmi_implicit_create_pstream(struct wmi_t *wmip, void *osbuf, A_UINT32 layer2Priority, A_BOOL wmmEnabled)
+A_UINT8 wmi_implicit_create_pstream(struct wmi_t *wmip, void *osbuf, A_UINT32 layer2Priority, bool wmmEnabled)
 {
     A_UINT8         *datap;
     A_UINT8         trafficClass = WMM_AC_BE;
@@ -1232,7 +1232,7 @@ wmi_ready_event_rx(struct wmi_t *wmip, A_UINT8 *datap, int len)
         return A_EINVAL;
     }
     A_DPRINTF(DBG_WMI, (DBGFMT "Enter\n", DBGARG));
-    wmip->wmi_ready = TRUE;
+    wmip->wmi_ready = true;
     A_WMI_READY_EVENT(wmip->wmi_devt, ev->macaddr, ev->phyCapability,
                       ev->sw_version, ev->abi_version);
 
@@ -1295,7 +1295,7 @@ wmi_connect_event_rx(struct wmi_t *wmip, A_UINT8 *datap, int len)
                 {
                     if(iswmmparam (pie))
                     {
-                        wmip->wmi_is_wmm_enabled = TRUE;
+                        wmip->wmi_is_wmm_enabled = true;
                     }
                 }
             break;
@@ -1368,7 +1368,7 @@ wmi_disconnect_event_rx(struct wmi_t *wmip, A_UINT8 *datap, int len)
 
     A_MEMZERO(wmip->wmi_bssid, sizeof(wmip->wmi_bssid));
 
-    wmip->wmi_is_wmm_enabled = FALSE;
+    wmip->wmi_is_wmm_enabled = false;
     wmip->wmi_pair_crypto_type = NONE_CRYPT;
     wmip->wmi_grp_crypto_type = NONE_CRYPT;
 
@@ -1475,7 +1475,7 @@ wmi_bssInfo_event_rx(struct wmi_t *wmip, A_UINT8 *datap, int len)
         /* In case of hidden AP, beacon will not have ssid,
          * but a directed probe response will have it,
          * so cache the probe-resp-ssid if already present. */
-        if ((TRUE == is_probe_ssid) && (BEACON_FTYPE == bih->frameType))
+        if ((true == is_probe_ssid) && (BEACON_FTYPE == bih->frameType))
         {
             A_UCHAR *ie_ssid;
 
@@ -1510,7 +1510,7 @@ wmi_bssInfo_event_rx(struct wmi_t *wmip, A_UINT8 *datap, int len)
     beacon_ssid_len = buf[SSID_IE_LEN_INDEX];
 
     /* If ssid is cached for this hidden AP, then change buffer len accordingly. */
-    if ((TRUE == is_probe_ssid) && (BEACON_FTYPE == bih->frameType) &&
+    if ((true == is_probe_ssid) && (BEACON_FTYPE == bih->frameType) &&
         (0 != cached_ssid_len) &&
         (0 == beacon_ssid_len || (cached_ssid_len > beacon_ssid_len && 0 == buf[SSID_IE_LEN_INDEX + 1])))
     {
@@ -1529,7 +1529,7 @@ wmi_bssInfo_event_rx(struct wmi_t *wmip, A_UINT8 *datap, int len)
     /* In case of hidden AP, beacon will not have ssid,
      * but a directed probe response will have it,
      * so place the cached-ssid(probe-resp) in the bssinfo. */
-    if ((TRUE == is_probe_ssid) && (BEACON_FTYPE == bih->frameType) &&
+    if ((true == is_probe_ssid) && (BEACON_FTYPE == bih->frameType) &&
          (0 != cached_ssid_len) &&
          (0 == beacon_ssid_len || (beacon_ssid_len && 0 == buf[SSID_IE_LEN_INDEX + 1])))
     {
@@ -1820,7 +1820,7 @@ wmi_scanComplete_rx(struct wmi_t *wmip, A_UINT8 *datap, int len)
         wlan_refresh_inactive_nodes(&wmip->wmi_scan_table);
     }
     A_WMI_SCANCOMPLETE_EVENT(wmip->wmi_devt, (int) ev->status);
-    is_probe_ssid = FALSE;
+    is_probe_ssid = false;
 
     return A_OK;
 }
@@ -2379,7 +2379,7 @@ wmi_cmd_send(struct wmi_t *wmip, void *osbuf, WMI_COMMAND_ID cmdId,
      * Only for OPT_TX_CMD, use BE endpoint.
      */
     if (IS_OPT_TX_CMD(cmdId)) {
-        if ((status=wmi_data_hdr_add(wmip, osbuf, OPT_MSGTYPE, FALSE, FALSE,0,NULL)) != A_OK) {
+        if ((status=wmi_data_hdr_add(wmip, osbuf, OPT_MSGTYPE, false, false,0,NULL)) != A_OK) {
             A_NETBUF_FREE(osbuf);
             return status;
         }
@@ -2511,7 +2511,7 @@ wmi_disconnect_cmd(struct wmi_t *wmip)
 
 int
 wmi_startscan_cmd(struct wmi_t *wmip, WMI_SCAN_TYPE scanType,
-                  A_BOOL forceFgScan, A_BOOL isLegacy,
+                  u32 forceFgScan, u32 isLegacy,
                   A_UINT32 homeDwellTime, A_UINT32 forceScanInterval,
                   A_INT8 numChan, A_UINT16 *channelList)
 {
@@ -2635,7 +2635,7 @@ wmi_probedSsid_cmd(struct wmi_t *wmip, A_UINT8 index, A_UINT8 flag,
     }
 
     if (flag & SPECIFIC_SSID_FLAG) {
-        is_probe_ssid = TRUE;
+        is_probe_ssid = true;
     }
 
     osbuf = A_NETBUF_ALLOC(sizeof(*cmd));
@@ -2950,7 +2950,7 @@ wmi_deleteKey_cmd(struct wmi_t *wmip, A_UINT8 keyIndex)
 
 int
 wmi_setPmkid_cmd(struct wmi_t *wmip, A_UINT8 *bssid, A_UINT8 *pmkId,
-                 A_BOOL set)
+                 bool set)
 {
     void *osbuf;
     WMI_SET_PMKID_CMD *cmd;
@@ -2959,7 +2959,7 @@ wmi_setPmkid_cmd(struct wmi_t *wmip, A_UINT8 *bssid, A_UINT8 *pmkId,
         return A_EINVAL;
     }
 
-    if ((set == TRUE) && (pmkId == NULL)) {
+    if ((set == true) && (pmkId == NULL)) {
         return A_EINVAL;
     }
 
@@ -2972,7 +2972,7 @@ wmi_setPmkid_cmd(struct wmi_t *wmip, A_UINT8 *bssid, A_UINT8 *pmkId,
 
     cmd = (WMI_SET_PMKID_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMCPY(cmd->bssid, bssid, sizeof(cmd->bssid));
-    if (set == TRUE) {
+    if (set == true) {
         A_MEMCPY(cmd->pmkid, pmkId, sizeof(cmd->pmkid));
         cmd->enable = PMKID_ENABLE;
     } else {
@@ -2984,7 +2984,7 @@ wmi_setPmkid_cmd(struct wmi_t *wmip, A_UINT8 *bssid, A_UINT8 *pmkId,
 }
 
 int
-wmi_set_tkip_countermeasures_cmd(struct wmi_t *wmip, A_BOOL en)
+wmi_set_tkip_countermeasures_cmd(struct wmi_t *wmip, bool en)
 {
     void *osbuf;
     WMI_SET_TKIP_COUNTERMEASURES_CMD *cmd;
@@ -2997,7 +2997,7 @@ wmi_set_tkip_countermeasures_cmd(struct wmi_t *wmip, A_BOOL en)
     A_NETBUF_PUT(osbuf, sizeof(*cmd));
 
     cmd = (WMI_SET_TKIP_COUNTERMEASURES_CMD *)(A_NETBUF_DATA(osbuf));
-    cmd->cm_en = (en == TRUE)? WMI_TKIP_CM_ENABLE : WMI_TKIP_CM_DISABLE;
+    cmd->cm_en = (en == true)? WMI_TKIP_CM_ENABLE : WMI_TKIP_CM_DISABLE;
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_TKIP_COUNTERMEASURES_CMDID,
             NO_SYNC_WMIFLAG));
@@ -3178,7 +3178,7 @@ wmi_sync_point(struct wmi_t *wmip)
             dataSyncBufs[i].osbuf = NULL;
         } //end for
 
-    } while(FALSE);
+    } while(false);
 
     /* free up any resources left over (possibly due to an error) */
 
@@ -3451,40 +3451,40 @@ wmi_get_bitrate_cmd(struct wmi_t *wmip)
 }
 
 /*
- * Returns TRUE iff the given rate index is legal in the current PHY mode.
+ * Returns true iff the given rate index is legal in the current PHY mode.
  */
-A_BOOL
+bool
 wmi_is_bitrate_index_valid(struct wmi_t *wmip, A_INT32 rateIndex)
 {
     WMI_PHY_MODE phyMode = (WMI_PHY_MODE) wmip->wmi_phyMode;
-    A_BOOL isValid = TRUE;
+    bool isValid = true;
     switch(phyMode) {
         case WMI_11A_MODE:
             if (wmip->wmi_ht_allowed[A_BAND_5GHZ]){
                 if ((rateIndex < MODE_A_SUPPORT_RATE_START) || (rateIndex > MODE_GHT20_SUPPORT_RATE_STOP)) {
-                    isValid = FALSE;
+                    isValid = false;
                 }
             } else {
                 if ((rateIndex < MODE_A_SUPPORT_RATE_START) || (rateIndex > MODE_A_SUPPORT_RATE_STOP)) {
-                    isValid = FALSE;
+                    isValid = false;
                 }
             }
             break;
 
         case WMI_11B_MODE:
             if ((rateIndex < MODE_B_SUPPORT_RATE_START) || (rateIndex > MODE_B_SUPPORT_RATE_STOP)) {
-                isValid = FALSE;
+                isValid = false;
             }
             break;
 
         case WMI_11GONLY_MODE:
             if (wmip->wmi_ht_allowed[A_BAND_24GHZ]){
                 if ((rateIndex < MODE_GONLY_SUPPORT_RATE_START) || (rateIndex > MODE_GHT20_SUPPORT_RATE_STOP)) {
-                    isValid = FALSE;
+                    isValid = false;
                 }
             } else {
                 if ((rateIndex < MODE_GONLY_SUPPORT_RATE_START) || (rateIndex > MODE_GONLY_SUPPORT_RATE_STOP)) {
-                    isValid = FALSE;
+                    isValid = false;
                 }
             }
             break;
@@ -3493,16 +3493,16 @@ wmi_is_bitrate_index_valid(struct wmi_t *wmip, A_INT32 rateIndex)
         case WMI_11AG_MODE:
             if (wmip->wmi_ht_allowed[A_BAND_24GHZ]){
                 if ((rateIndex < MODE_G_SUPPORT_RATE_START) || (rateIndex > MODE_GHT20_SUPPORT_RATE_STOP)) {
-                    isValid = FALSE;
+                    isValid = false;
                 }
             } else {
                 if ((rateIndex < MODE_G_SUPPORT_RATE_START) || (rateIndex > MODE_G_SUPPORT_RATE_STOP)) {
-                    isValid = FALSE;
+                    isValid = false;
                 }
             }
             break;
         default:
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;
     }
 
@@ -3524,7 +3524,7 @@ wmi_validate_bitrate(struct wmi_t *wmip, A_INT32 rate, A_INT8 *rate_idx)
         }
     }
 
-    if(wmi_is_bitrate_index_valid(wmip, (A_INT32) i) != TRUE) {
+    if(wmi_is_bitrate_index_valid(wmip, (A_INT32) i) != true) {
         return A_EINVAL;
     }
 
@@ -3548,7 +3548,7 @@ wmi_set_fixrates_cmd(struct wmi_t *wmip, A_UINT32 fixRatesMask)
     /* Make sure all rates in the mask are valid in the current PHY mode */
     for(rateIndex = 0; rateIndex < MAX_NUMBER_OF_SUPPORT_RATES; rateIndex++) {
        if((1 << rateIndex) & (A_UINT32)fixRatesMask) {
-            if(wmi_is_bitrate_index_valid(wmip, rateIndex) != TRUE) {
+            if(wmi_is_bitrate_index_valid(wmip, rateIndex) != true) {
                 A_DPRINTF(DBG_WMI, (DBGFMT "Set Fix Rates command failed: Given rate is illegal in current PHY mode\n", DBGARG));
                 return A_EINVAL;
             }
@@ -4081,7 +4081,7 @@ wmi_get_challenge_resp_cmd(struct wmi_t *wmip, A_UINT32 cookie, A_UINT32 source)
 
 int
 wmi_config_debug_module_cmd(struct wmi_t *wmip, A_UINT16 mmask,
-                            A_UINT16 tsr, A_BOOL rep, A_UINT16 size,
+                            A_UINT16 tsr, bool rep, A_UINT16 size,
                             A_UINT32 valid)
 {
     void *osbuf;
@@ -5382,7 +5382,7 @@ wmi_set_nodeage(struct wmi_t *wmip, A_UINT32 nodeAge)
 
 bss_t *
 wmi_find_Ssidnode (struct wmi_t *wmip, A_UCHAR *pSsid,
-                   A_UINT32 ssidLength, A_BOOL bIsWPA2, A_BOOL bMatchSSID)
+                   A_UINT32 ssidLength, bool bIsWPA2, bool bMatchSSID)
 {
     bss_t *node = NULL;
     node = wlan_find_Ssidnode (&wmip->wmi_scan_table, pSsid,
@@ -6252,7 +6252,7 @@ wmi_wapi_rekey_event_rx(struct wmi_t *wmip, A_UINT8 *datap,int len)
 #endif
 
 int
-wmi_set_pvb_cmd(struct wmi_t *wmip, A_UINT16 aid, A_BOOL flag)
+wmi_set_pvb_cmd(struct wmi_t *wmip, A_UINT16 aid, bool flag)
 {
     WMI_AP_SET_PVB_CMD *cmd;
     void *osbuf = NULL;
@@ -6510,7 +6510,7 @@ wmi_setup_aggr_cmd(struct wmi_t *wmip, A_UINT8 tid)
 }
 
 int
-wmi_delete_aggr_cmd(struct wmi_t *wmip, A_UINT8 tid, A_BOOL uplink)
+wmi_delete_aggr_cmd(struct wmi_t *wmip, A_UINT8 tid, bool uplink)
 {
     void *osbuf;
     WMI_DELBA_REQ_CMD *cmd;
@@ -6533,7 +6533,7 @@ wmi_delete_aggr_cmd(struct wmi_t *wmip, A_UINT8 tid, A_BOOL uplink)
 
 int
 wmi_set_rx_frame_format_cmd(struct wmi_t *wmip, A_UINT8 rxMetaVersion,
-                            A_BOOL rxDot11Hdr, A_BOOL defragOnHost)
+                            bool rxDot11Hdr, bool defragOnHost)
 {
     void *osbuf;
     WMI_RX_FRAME_FORMAT_CMD *cmd;
@@ -6546,8 +6546,8 @@ wmi_set_rx_frame_format_cmd(struct wmi_t *wmip, A_UINT8 rxMetaVersion,
     A_NETBUF_PUT(osbuf, sizeof(*cmd));
 
     cmd = (WMI_RX_FRAME_FORMAT_CMD *)(A_NETBUF_DATA(osbuf));
-    cmd->dot11Hdr = (rxDot11Hdr==TRUE)? 1:0;
-    cmd->defragOnHost = (defragOnHost==TRUE)? 1:0;
+    cmd->dot11Hdr = (rxDot11Hdr==true)? 1:0;
+    cmd->defragOnHost = (defragOnHost==true)? 1:0;
     cmd->metaVersion = rxMetaVersion;  /*  */
 
     /* Delete the local aggr state, on host */
@@ -6556,7 +6556,7 @@ wmi_set_rx_frame_format_cmd(struct wmi_t *wmip, A_UINT8 rxMetaVersion,
 
 
 int
-wmi_set_thin_mode_cmd(struct wmi_t *wmip, A_BOOL bThinMode)
+wmi_set_thin_mode_cmd(struct wmi_t *wmip, bool bThinMode)
 {
     void *osbuf;
     WMI_SET_THIN_MODE_CMD *cmd;
@@ -6569,7 +6569,7 @@ wmi_set_thin_mode_cmd(struct wmi_t *wmip, A_BOOL bThinMode)
     A_NETBUF_PUT(osbuf, sizeof(*cmd));
 
     cmd = (WMI_SET_THIN_MODE_CMD *)(A_NETBUF_DATA(osbuf));
-    cmd->enable = (bThinMode==TRUE)? 1:0;
+    cmd->enable = (bThinMode==true)? 1:0;
 
     /* Delete the local aggr state, on host */
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_THIN_MODE_CMDID, NO_SYNC_WMIFLAG));

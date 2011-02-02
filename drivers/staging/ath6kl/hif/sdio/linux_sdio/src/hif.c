@@ -46,7 +46,7 @@
  */
 #define BUFFER_NEEDS_BOUNCE(buffer)  (((unsigned long)(buffer) & 0x3) || !virt_addr_valid((buffer)))
 #else
-#define BUFFER_NEEDS_BOUNCE(buffer)   (FALSE)
+#define BUFFER_NEEDS_BOUNCE(buffer)   (false)
 #endif
 
 /* ATHENV */
@@ -164,7 +164,7 @@ __HIFReadWrite(HIF_DEVICE *device,
     int    status = A_OK;
     int     ret;
     A_UINT8 *tbuffer;
-    A_BOOL   bounced = FALSE;
+    bool   bounced = false;
 
     AR_DEBUG_ASSERT(device != NULL);
     AR_DEBUG_ASSERT(device->func != NULL);
@@ -243,7 +243,7 @@ __HIFReadWrite(HIF_DEVICE *device,
                     /* copy the write data to the dma buffer */
                 AR_DEBUG_ASSERT(length <= HIF_DMA_BUFFER_SIZE);
                 memcpy(tbuffer, buffer, length);
-                bounced = TRUE;
+                bounced = true;
             } else {
                 tbuffer = buffer;    
             }
@@ -265,7 +265,7 @@ __HIFReadWrite(HIF_DEVICE *device,
                 AR_DEBUG_ASSERT(device->dma_buffer != NULL);
                 AR_DEBUG_ASSERT(length <= HIF_DMA_BUFFER_SIZE);
                 tbuffer = device->dma_buffer;
-                bounced = TRUE;
+                bounced = true;
             } else {
                 tbuffer = buffer;    
             }
@@ -299,7 +299,7 @@ __HIFReadWrite(HIF_DEVICE *device,
                             ("AR6000: SDIO bus operation failed! MMC stack returned : %d \n", ret));
             status = A_ERROR;
         }
-    } while (FALSE);
+    } while (false);
 
     return status;
 }
@@ -725,7 +725,7 @@ HIFConfigureDevice(HIF_DEVICE *device, HIF_DEVICE_CONFIG_OPCODE opcode,
             }
             status = SetupHIFScatterSupport(device, (HIF_DEVICE_SCATTER_SUPPORT_INFO *)config);
             if (status) {
-                device->scatter_enabled = FALSE;           
+                device->scatter_enabled = false;
             }
             break; 
         case HIF_DEVICE_GET_OS_DEVICE:
@@ -837,7 +837,7 @@ static int hifDeviceInserted(struct sdio_func *func, const struct sdio_device_id
     device = getHifDevice(func);
 
     device->id = id;
-    device->is_disabled = TRUE;
+    device->is_disabled = true;
 
     spin_lock_init(&device->lock);
 
@@ -848,7 +848,7 @@ static int hifDeviceInserted(struct sdio_func *func, const struct sdio_device_id
     if (!nohifscattersupport) {
             /* try to allow scatter operation on all instances,
              * unless globally overridden */
-        device->scatter_enabled = TRUE;
+        device->scatter_enabled = true;
     }
 
     /* Initialize the bus requests to be used later */
@@ -989,7 +989,7 @@ static int hifDisableFunc(HIF_DEVICE *device, struct sdio_func *func)
     sdio_release_host(device->func);
 
     if (status == A_OK) {
-        device->is_disabled = TRUE;
+        device->is_disabled = true;
     }
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifDisableFunc\n"));
 
@@ -1036,7 +1036,7 @@ static int hifEnableFunc(HIF_DEVICE *device, struct sdio_func *func)
 					  __FUNCTION__, HIF_MBOX_BLOCK_SIZE, ret));
             return A_ERROR;
         }
-        device->is_disabled = FALSE;
+        device->is_disabled = false;
         /* create async I/O thread */
         if (!device->async_task) {
             device->async_shutdown = 0;
@@ -1086,10 +1086,10 @@ static int hifDeviceSuspend(struct device *dev)
     device = getHifDevice(func);
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hifDeviceSuspend\n"));
     if (device && device->claimedContext && osdrvCallbacks.deviceSuspendHandler) {
-        device->is_suspend = TRUE; /* set true first for PowerStateChangeNotify(..) */
+        device->is_suspend = true; /* set true first for PowerStateChangeNotify(..) */
         status = osdrvCallbacks.deviceSuspendHandler(device->claimedContext);
         if (status != A_OK) {
-            device->is_suspend = FALSE;
+            device->is_suspend = false;
         }
     }
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifDeviceSuspend\n"));
@@ -1115,7 +1115,7 @@ static int hifDeviceResume(struct device *dev)
     if (device && device->claimedContext && osdrvCallbacks.deviceSuspendHandler) {
         status = osdrvCallbacks.deviceResumeHandler(device->claimedContext);
         if (status == A_OK) {
-            device->is_suspend = FALSE;
+            device->is_suspend = false;
         }
     }
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifDeviceResume\n"));
@@ -1137,7 +1137,7 @@ static void hifDeviceRemoved(struct sdio_func *func)
     }
 
     if (device->is_disabled) {
-        device->is_disabled = FALSE;
+        device->is_disabled = false;
     } else {
         status = hifDisableFunc(device, func);
     }

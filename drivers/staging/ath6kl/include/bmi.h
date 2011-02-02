@@ -126,7 +126,7 @@ int
 BMIRawRead(HIF_DEVICE *device, 
            A_UCHAR *buffer, 
            A_UINT32 length, 
-           A_BOOL want_timeout);
+           bool want_timeout);
 
 #ifdef __cplusplus
 }

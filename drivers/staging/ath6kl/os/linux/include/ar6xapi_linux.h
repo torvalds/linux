@@ -41,7 +41,7 @@ void ar6000_disconnect_event(struct ar6_softc *ar, A_UINT8 reason,
                              A_UINT8 *bssid, A_UINT8 assocRespLen,
                              A_UINT8 *assocInfo, A_UINT16 protocolReasonStatus);
 void ar6000_tkip_micerr_event(struct ar6_softc *ar, A_UINT8 keyid,
-                              A_BOOL ismcast);
+                              bool ismcast);
 void ar6000_bitrate_rx(void *devt, A_INT32 rateKbps);
 void ar6000_channelList_rx(void *devt, A_INT8 numChan, A_UINT16 *chanList);
 void ar6000_regDomain_event(struct ar6_softc *ar, A_UINT32 regCode);
@@ -79,7 +79,7 @@ void ar6000_gpio_ack_rx(void);
 
 A_INT32 rssi_compensation_calc_tcmd(A_UINT32 freq, A_INT32 rssi, A_UINT32 totalPkt);
 A_INT16 rssi_compensation_calc(struct ar6_softc *ar, A_INT16 rssi);
-A_INT16 rssi_compensation_reverse_calc(struct ar6_softc *ar, A_INT16 rssi, A_BOOL Above);
+A_INT16 rssi_compensation_reverse_calc(struct ar6_softc *ar, A_INT16 rssi, bool Above);
 
 void ar6000_dbglog_init_done(struct ar6_softc *ar);
 
@@ -115,7 +115,7 @@ int ar6000_dbglog_get_debug_logs(struct ar6_softc *ar);
 
 void ar6000_peer_event(void *devt, A_UINT8 eventCode, A_UINT8 *bssid);
 
-void ar6000_indicate_tx_activity(void *devt, A_UINT8 trafficClass, A_BOOL Active);
+void ar6000_indicate_tx_activity(void *devt, A_UINT8 trafficClass, bool Active);
 HTC_ENDPOINT_ID  ar6000_ac2_endpoint_id ( void * devt, A_UINT8 ac);
 A_UINT8 ar6000_endpoint_id2_ac (void * devt, HTC_ENDPOINT_ID ep );
 
@@ -171,7 +171,7 @@ void ap_wapi_rekey_event(struct ar6_softc *ar, A_UINT8 type, A_UINT8 *mac);
 #endif
 
 int ar6000_connect_to_ap(struct ar6_softc *ar);
-int ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, A_BOOL suspending);
+int ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, bool suspending);
 int ar6000_set_wlan_state(struct ar6_softc *ar, AR6000_WLAN_STATE state);
 int ar6000_set_bt_hw_state(struct ar6_softc *ar, A_UINT32 state);
 
@@ -179,7 +179,7 @@ int ar6000_set_bt_hw_state(struct ar6_softc *ar, A_UINT32 state);
 int ar6000_suspend_ev(void *context);
 int ar6000_resume_ev(void *context);
 int ar6000_power_change_ev(void *context, A_UINT32 config);
-void ar6000_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, A_BOOL isEvent);
+void ar6000_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, bool isEvent);
 #endif
 
 void ar6000_pm_init(void);

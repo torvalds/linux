@@ -104,7 +104,7 @@ struct USER_SAVEDKEYS {
     struct ieee80211req_key   ucast_ik;
     struct ieee80211req_key   bcast_ik;
     CRYPTO_TYPE               keyType;
-    A_BOOL                    keyOk;
+    bool                    keyOk;
 };
 #endif
 
@@ -412,7 +412,7 @@ struct ar_hb_chlng_resp {
     A_TIMER                 timer;
     A_UINT32                frequency;
     A_UINT32                seqNum;
-    A_BOOL                  outstanding;
+    bool                  outstanding;
     A_UINT8                 missCnt;
     A_UINT8                 missThres;
 };
@@ -456,8 +456,8 @@ typedef struct ar6_raw_htc {
     wait_queue_head_t       raw_htc_write_queue[HTC_RAW_STREAM_NUM_MAX];
     raw_htc_buffer          raw_htc_read_buffer[HTC_RAW_STREAM_NUM_MAX][RAW_HTC_READ_BUFFERS_NUM];
     raw_htc_buffer          raw_htc_write_buffer[HTC_RAW_STREAM_NUM_MAX][RAW_HTC_WRITE_BUFFERS_NUM];
-    A_BOOL                  write_buffer_available[HTC_RAW_STREAM_NUM_MAX];
-    A_BOOL                  read_buffer_available[HTC_RAW_STREAM_NUM_MAX];
+    bool                  write_buffer_available[HTC_RAW_STREAM_NUM_MAX];
+    bool                  read_buffer_available[HTC_RAW_STREAM_NUM_MAX];
 } AR_RAW_HTC_T;
 
 typedef struct ar6_softc {
@@ -466,9 +466,9 @@ typedef struct ar6_softc {
     int                     arTxPending[ENDPOINT_MAX];
     int                     arTotalTxDataPending;
     A_UINT8                 arNumDataEndPts;
-    A_BOOL                  arWmiEnabled;
-    A_BOOL                  arWmiReady;
-    A_BOOL                  arConnected;
+    bool                  arWmiEnabled;
+    bool                  arWmiReady;
+    bool                  arConnected;
     HTC_HANDLE              arHtcTarget;
     void                    *arHifDevice;
     spinlock_t              arLock;
@@ -495,14 +495,14 @@ typedef struct ar6_softc {
     A_UINT32                arTargetType;
     A_INT8                  arRssi;
     A_UINT8                 arTxPwr;
-    A_BOOL                  arTxPwrSet;
+    bool                  arTxPwrSet;
     A_INT32                 arBitRate;
     struct net_device_stats arNetStats;
     struct iw_statistics    arIwStats;
     A_INT8                  arNumChannels;
     A_UINT16                arChannelList[32];
     A_UINT32                arRegCode;
-    A_BOOL                  statsUpdatePending;
+    bool                  statsUpdatePending;
     TARGET_STATS            arTargetStats;
     A_INT8                  arMaxRetries;
     A_UINT8                 arPhyCapability;
@@ -527,13 +527,13 @@ typedef struct ar6_softc {
     A_UINT32                arRateMask;
     A_UINT8                 arSkipScan;
     A_UINT16                arBeaconInterval;
-    A_BOOL                  arConnectPending;
-    A_BOOL                  arWmmEnabled;
+    bool                  arConnectPending;
+    bool                  arWmmEnabled;
     struct ar_hb_chlng_resp arHBChallengeResp;
     A_UINT8                 arKeepaliveConfigured;
     A_UINT32                arMgmtFilter;
     HTC_ENDPOINT_ID         arAc2EpMapping[WMM_NUM_AC];
-    A_BOOL                  arAcStreamActive[WMM_NUM_AC];
+    bool                  arAcStreamActive[WMM_NUM_AC];
     A_UINT8                 arAcStreamPriMap[WMM_NUM_AC];
     A_UINT8                 arHiAcStreamActivePri;
     A_UINT8                 arEp2AcMapping[ENDPOINT_MAX];
@@ -541,12 +541,12 @@ typedef struct ar6_softc {
 #ifdef HTC_RAW_INTERFACE
     AR_RAW_HTC_T            *arRawHtc;
 #endif
-    A_BOOL                  arNetQueueStopped;
-    A_BOOL                  arRawIfInit;
+    bool                  arNetQueueStopped;
+    bool                  arRawIfInit;
     int                     arDeviceIndex;
     COMMON_CREDIT_STATE_INFO arCreditStateInfo;
-    A_BOOL                  arWMIControlEpFull;
-    A_BOOL                  dbgLogFetchInProgress;
+    bool                  arWMIControlEpFull;
+    bool                  dbgLogFetchInProgress;
     A_UCHAR                 log_buffer[DBGLOG_HOST_LOG_BUFFER_SIZE];
     A_UINT32                log_cnt;
     A_UINT32                dbglog_init_done;
@@ -565,7 +565,7 @@ typedef struct ar6_softc {
     struct ieee80211req_key ap_mode_bkey;           /* AP mode */
     A_NETBUF_QUEUE_T        mcastpsq;    /* power save q for Mcast frames */
     A_MUTEX_T               mcastpsqLock;
-    A_BOOL                  DTIMExpired; /* flag to indicate DTIM expired */
+    bool                  DTIMExpired; /* flag to indicate DTIM expired */
     A_UINT8                 intra_bss;   /* enable/disable intra bss data forward */
     void                    *aggr_cntxt;
 #ifndef EXPORT_HCI_BRIDGE_INTERFACE
@@ -581,7 +581,7 @@ typedef struct ar6_softc {
     A_UINT16                arRTS;
     A_UINT16                arACS; /* AP mode - Auto Channel Selection */
     HTC_PACKET_QUEUE        amsdu_rx_buffer_queue;
-    A_BOOL                  bIsDestroyProgress; /* flag to indicate ar6k destroy is in progress */
+    bool                  bIsDestroyProgress; /* flag to indicate ar6k destroy is in progress */
     A_TIMER                 disconnect_timer;
     A_UINT8		    rxMetaVersion;
 #ifdef WAPI_ENABLE
@@ -597,11 +597,11 @@ typedef struct ar6_softc {
     struct ar_key   keys[WMI_MAX_KEY_INDEX + 1];
 #endif /* ATH6K_CONFIG_CFG80211 */
     A_UINT16                arWlanPowerState;
-    A_BOOL                  arWlanOff;
+    bool                  arWlanOff;
 #ifdef CONFIG_PM
     A_UINT16                arWowState;
-    A_BOOL                  arBTOff;
-    A_BOOL                  arBTSharing;
+    bool                  arBTOff;
+    bool                  arBTSharing;
     A_UINT16                arSuspendConfig;
     A_UINT16                arWlanOffConfig;
     A_UINT16                arWow2Config;
@@ -611,7 +611,7 @@ typedef struct ar6_softc {
 #define AR_MCAST_FILTER_MAC_ADDR_SIZE  4
     A_UINT8                 mcast_filters[MAC_MAX_FILTERS_PER_LIST][AR_MCAST_FILTER_MAC_ADDR_SIZE];
     A_UINT8                 bdaddr[6];
-    A_BOOL                  scanSpecificSsid;
+    bool                  scanSpecificSsid;
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
     void                    *arApDev;
 #endif
@@ -704,7 +704,7 @@ int ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar);
 void ar6000_TxDataCleanup(AR_SOFTC_T *ar);
 int ar6000_acl_data_tx(struct sk_buff *skb, struct net_device *dev);
 void ar6000_restart_endpoint(struct net_device *dev);
-void ar6000_stop_endpoint(struct net_device *dev, A_BOOL keepprofile, A_BOOL getdbglogs);
+void ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs);
 
 #ifdef HTC_RAW_INTERFACE
 

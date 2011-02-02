@@ -53,7 +53,7 @@ and does not use the HTC protocol nor even DMA -- it is intentionally kept
 very simple.
 */
 
-static A_BOOL pendingEventsFuncCheck = FALSE; 
+static bool pendingEventsFuncCheck = false;
 static A_UINT32 *pBMICmdCredits;
 static A_UCHAR *pBMICmdBuf;
 #define MAX_BMI_CMDBUF_SZ (BMI_DATASZ_MAX + \
@@ -66,8 +66,8 @@ static A_UCHAR *pBMICmdBuf;
 void
 BMIInit(void)
 {
-    bmiDone = FALSE;
-    pendingEventsFuncCheck = FALSE;
+    bmiDone = false;
+    pendingEventsFuncCheck = false;
 
     /*
      * On some platforms, it's not possible to DMA to a static variable
@@ -117,7 +117,7 @@ BMIDone(HIF_DEVICE *device)
     }
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Done: Enter (device: 0x%p)\n", device));
-    bmiDone = TRUE;
+    bmiDone = true;
     cid = BMI_DONE;
 
     status = bmiBufferSend(device, (A_UCHAR *)&cid, sizeof(cid));
@@ -162,7 +162,7 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
     }
 
     status = bmiBufferReceive(device, (A_UCHAR *)&targ_info->target_ver,
-                                                sizeof(targ_info->target_ver), TRUE);
+                                                sizeof(targ_info->target_ver), true);
     if (status != A_OK) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read Target Version from the device\n"));
         return A_ERROR;
@@ -171,7 +171,7 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
     if (targ_info->target_ver == TARGET_VERSION_SENTINAL) {
         /* Determine how many bytes are in the Target's targ_info */
         status = bmiBufferReceive(device, (A_UCHAR *)&targ_info->target_info_byte_count,
-                                            sizeof(targ_info->target_info_byte_count), TRUE);
+                                            sizeof(targ_info->target_info_byte_count), true);
         if (status != A_OK) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read Target Info Byte Count from the device\n"));
             return A_ERROR;
@@ -186,7 +186,7 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
         /* Read the remainder of the targ_info */
         status = bmiBufferReceive(device,
                         ((A_UCHAR *)targ_info)+sizeof(targ_info->target_info_byte_count),
-                        sizeof(*targ_info)-sizeof(targ_info->target_info_byte_count), TRUE);
+                        sizeof(*targ_info)-sizeof(targ_info->target_info_byte_count), true);
         if (status != A_OK) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read Target Info (%d bytes) from the device\n",
                         					targ_info->target_info_byte_count));
@@ -243,7 +243,7 @@ BMIReadMemory(HIF_DEVICE *device,
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
             return A_ERROR;
         }
-        status = bmiBufferReceive(device, pBMICmdBuf, rxlen, TRUE);
+        status = bmiBufferReceive(device, pBMICmdBuf, rxlen, true);
         if (status != A_OK) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read from the device\n"));
             return A_ERROR;
@@ -357,7 +357,7 @@ BMIExecute(HIF_DEVICE *device,
         return A_ERROR;
     }
 
-    status = bmiBufferReceive(device, pBMICmdBuf, sizeof(*param), FALSE);
+    status = bmiBufferReceive(device, pBMICmdBuf, sizeof(*param), false);
     if (status != A_OK) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read from the device\n"));
         return A_ERROR;
@@ -441,7 +441,7 @@ BMIReadSOCRegister(HIF_DEVICE *device,
         return A_ERROR;
     }
 
-    status = bmiBufferReceive(device, pBMICmdBuf, sizeof(*param), TRUE);
+    status = bmiBufferReceive(device, pBMICmdBuf, sizeof(*param), true);
     if (status != A_OK) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read from the device\n"));
         return A_ERROR;
@@ -537,7 +537,7 @@ BMIrompatchInstall(HIF_DEVICE *device,
         return A_ERROR;
     }
 
-    status = bmiBufferReceive(device, pBMICmdBuf, sizeof(*rompatch_id), TRUE);
+    status = bmiBufferReceive(device, pBMICmdBuf, sizeof(*rompatch_id), true);
     if (status != A_OK) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read from the device\n"));
         return A_ERROR;
@@ -785,7 +785,7 @@ int
 bmiBufferReceive(HIF_DEVICE *device,
                  A_UCHAR *buffer,
                  A_UINT32 length,
-                 A_BOOL want_timeout)
+                 bool want_timeout)
 {
     int status;
     A_UINT32 address;
@@ -800,7 +800,7 @@ bmiBufferReceive(HIF_DEVICE *device,
                            HIF_DEVICE_GET_PENDING_EVENTS_FUNC,
                            &getPendingEventsFunc,
                            sizeof(getPendingEventsFunc));
-        pendingEventsFuncCheck = TRUE;
+        pendingEventsFuncCheck = true;
     }
                        
     HIFConfigureDevice(device, HIF_DEVICE_GET_MBOX_ADDR,
@@ -1004,7 +1004,7 @@ BMIRawWrite(HIF_DEVICE *device, A_UCHAR *buffer, A_UINT32 length)
 }
 
 int
-BMIRawRead(HIF_DEVICE *device, A_UCHAR *buffer, A_UINT32 length, A_BOOL want_timeout)
+BMIRawRead(HIF_DEVICE *device, A_UCHAR *buffer, A_UINT32 length, bool want_timeout)
 {
     return bmiBufferReceive(device, buffer, length, want_timeout);
 }

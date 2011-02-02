@@ -157,7 +157,7 @@ static int btpal_send_frame(struct sk_buff *skb)
 			kfree_skb(skb);
 			return 0;
 		default:
-			A_ASSERT(FALSE);
+			A_ASSERT(false);
 			kfree_skb(skb);
 			return 0;
 	} 
@@ -178,7 +178,7 @@ static int btpal_send_frame(struct sk_buff *skb)
 		{
 			PRIN_LOG("HCI command");
 
-			if (ar->arWmiReady == FALSE)
+			if (ar->arWmiReady == false)
 			{
 				PRIN_LOG("WMI not ready ");
 				break;
@@ -195,7 +195,7 @@ static int btpal_send_frame(struct sk_buff *skb)
 			void *osbuf;
 
 			PRIN_LOG("ACL data");
-			if (ar->arWmiReady == FALSE)
+			if (ar->arWmiReady == false)
 			{
 				PRIN_LOG("WMI not ready");
 				break;
@@ -229,7 +229,7 @@ static int btpal_send_frame(struct sk_buff *skb)
 			}
 			txSkb = NULL;
 		}
-	} while (FALSE);
+	} while (false);
 
 	if (txSkb != NULL) {
 		PRIN_LOG("Free skb");
@@ -302,7 +302,7 @@ static int bt_setup_hci_pal(ar6k_hci_pal_info_t *pHciPalInfo)
 		PRIN_LOG("Normal mode enabled");
 		bt_set_bit(pHciPalInfo->ulFlags, HCI_NORMAL_MODE);
 
-	} while (FALSE);
+	} while (false);
 
 	if (status) {
 		bt_cleanup_hci_pal(pHciPalInfo);    
@@ -328,22 +328,22 @@ void ar6k_cleanup_hci_pal(void *ar_p)
 /****************************
  *  Register HCI device
  ****************************/
-static A_BOOL ar6k_pal_transport_ready(void *pHciPal)
+static bool ar6k_pal_transport_ready(void *pHciPal)
 {
 	ar6k_hci_pal_info_t *pHciPalInfo = (ar6k_hci_pal_info_t *)pHciPal;
 
 	PRIN_LOG("HCI device transport ready");
 	if(pHciPalInfo == NULL)
-		return FALSE;
+		return false;
 
 	if (hci_register_dev(pHciPalInfo->hdev) < 0) {
 		PRIN_LOG("Can't register HCI device");
 		hci_free_dev(pHciPalInfo->hdev);
-		return FALSE;
+		return false;
 	}
 	PRIN_LOG("HCI device registered");
 	pHciPalInfo->ulFlags |= HCI_REGISTERED;
-	return TRUE;
+	return true;
 }
 
 /**************************************************
@@ -351,11 +351,11 @@ static A_BOOL ar6k_pal_transport_ready(void *pHciPal)
  * packet is received. Pass the packet to bluetooth
  * stack via hci_recv_frame.
  **************************************************/
-A_BOOL ar6k_pal_recv_pkt(void *pHciPal, void *osbuf)
+bool ar6k_pal_recv_pkt(void *pHciPal, void *osbuf)
 {
 	struct sk_buff *skb = (struct sk_buff *)osbuf;
 	ar6k_hci_pal_info_t *pHciPalInfo;
-	A_BOOL success = FALSE;
+	bool success = false;
 	A_UINT8 btType = 0;
 	pHciPalInfo = (ar6k_hci_pal_info_t *)pHciPal;
 
@@ -391,8 +391,8 @@ A_BOOL ar6k_pal_recv_pkt(void *pHciPal, void *osbuf)
 			PRIN_LOG("HCI PAL: Indicated RCV of type:%d, Length:%d \n",HCI_EVENT_PKT, skb->len);
 		}
 		PRIN_LOG("hci recv success");
-		success = TRUE;
-	}while(FALSE);
+		success = true;
+	}while(false);
 	return success;
 }
 
@@ -435,7 +435,7 @@ int ar6k_setup_hci_pal(void *ar_p)
 		ar6k_pal_config.fpar6k_pal_recv_pkt = ar6k_pal_recv_pkt;
 		register_pal_cb(&ar6k_pal_config);
 		ar6k_pal_transport_ready(ar->hcipal_info);
-	} while (FALSE);
+	} while (false);
 
 	if (status) {
 		ar6k_cleanup_hci_pal(ar);    

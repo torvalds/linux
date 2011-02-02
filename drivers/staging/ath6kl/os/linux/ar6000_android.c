@@ -29,7 +29,7 @@
 #include <linux/earlysuspend.h>
 #endif
 
-A_BOOL enable_mmc_host_detect_change = FALSE;
+bool enable_mmc_host_detect_change = false;
 static void ar6000_enable_mmchost_detect_change(int enable);
 
 
@@ -336,21 +336,21 @@ void android_module_exit(void)
 }
 
 #ifdef CONFIG_PM
-void android_ar6k_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, A_BOOL isEvent)
+void android_ar6k_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, bool isEvent)
 {
     if (
 #ifdef CONFIG_HAS_EARLYSUSPEND
         screen_is_off && 
 #endif 
             skb && ar->arConnected) {
-        A_BOOL needWake = FALSE;
+        bool needWake = false;
         if (isEvent) {
             if (A_NETBUF_LEN(skb) >= sizeof(A_UINT16)) {
                 A_UINT16 cmd = *(const A_UINT16 *)A_NETBUF_DATA(skb);
                 switch (cmd) {
                 case WMI_CONNECT_EVENTID:
                 case WMI_DISCONNECT_EVENTID:
-                    needWake = TRUE;
+                    needWake = true;
                     break;
                 default:
                     /* dont wake lock the system for other event */
@@ -365,7 +365,7 @@ void android_ar6k_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, A_BOOL i
                 case 0x888e: /* EAPOL */
                 case 0x88c7: /* RSN_PREAUTH */
                 case 0x88b4: /* WAPI */
-                     needWake = TRUE;
+                     needWake = true;
                      break;
                 case 0x0806: /* ARP is not important to hold wake lock */
                 default:

@@ -237,7 +237,7 @@ static int HifReadWriteScatter(HIF_DEVICE *device, HIF_SCATTER_REQ *pReq)
         }
         
         if (pReq->TotalLength == 0) {
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;    
         }
         
@@ -263,7 +263,7 @@ static int HifReadWriteScatter(HIF_DEVICE *device, HIF_SCATTER_REQ *pReq)
             status = A_OK;
         }           
        
-    } while (FALSE);
+    } while (false);
 
     if (status && (request & HIF_ASYNCHRONOUS)) {
         pReq->CompletionStatus = status;
@@ -346,7 +346,7 @@ int SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_INFO *
      
         status = A_OK;
         
-    } while (FALSE);
+    } while (false);
     
     if (status) {
         CleanupHIFScatterResources(device);   

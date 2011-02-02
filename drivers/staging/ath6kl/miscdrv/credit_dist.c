@@ -136,7 +136,7 @@ static void ar6000_credit_init(void                     *Context,
 
     if (pCredInfo->CurrentFreeCredits <= 0) {
         AR_DEBUG_PRINTF(ATH_LOG_INF, ("Not enough credits (%d) to do credit distributions \n", TotalCredits));
-        A_ASSERT(FALSE);
+        A_ASSERT(false);
         return;
     }
 
@@ -382,7 +382,7 @@ static void SeekCredits(COMMON_CREDIT_STATE_INFO *pCredInfo,
             /* return what we can get */
         credits = min(pCredInfo->CurrentFreeCredits,pEPDist->TxCreditsSeek);
 
-    } while (FALSE);
+    } while (false);
 
         /* did we find some credits? */
     if (credits) {

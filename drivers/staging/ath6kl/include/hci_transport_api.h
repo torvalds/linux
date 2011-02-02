@@ -153,9 +153,9 @@ int    HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUE
   @return: A_OK
   @notes:  Caller must initialize packet using SET_HTC_PACKET_INFO_TX() and
            HCI_SET_PACKET_TYPE() macros to prepare the packet. 
-           If Synchronous is set to FALSE the call is fully asynchronous.  On error or completion, 
+           If Synchronous is set to false the call is fully asynchronous.  On error or completion,
            the registered send complete callback will be called.
-           If Synchronous is set to TRUE, the call will block until the packet is sent, if the
+           If Synchronous is set to true, the call will block until the packet is sent, if the
            interface cannot send the packet within a 2 second timeout, the function will return 
            the failure code : A_EBUSY.
            
@@ -166,7 +166,7 @@ int    HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUE
   @example:
   @see also: 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-int    HCI_TransportSendPkt(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET *pPacket, A_BOOL Synchronous);
+int    HCI_TransportSendPkt(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET *pPacket, bool Synchronous);
 
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -206,7 +206,7 @@ int    HCI_TransportStart(HCI_TRANSPORT_HANDLE HciTrans);
   @example:
   @see also:
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-int    HCI_TransportEnableDisableAsyncRecv(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enable);
+int    HCI_TransportEnableDisableAsyncRecv(HCI_TRANSPORT_HANDLE HciTrans, bool Enable);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Receive an event packet from the HCI transport synchronously using polling
@@ -217,7 +217,7 @@ int    HCI_TransportEnableDisableAsyncRecv(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL
   @output: 
   @return: A_OK on success
   @notes: This API should be used only during HCI device initialization, the caller must call
-          HCI_TransportEnableDisableAsyncRecv with Enable=FALSE prior to using this API. 
+          HCI_TransportEnableDisableAsyncRecv with Enable=false prior to using this API.
           This API will only capture HCI Event packets.
   @example:
   @see also: HCI_TransportEnableDisableAsyncRecv
@@ -250,7 +250,7 @@ int    HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, A_UINT32 Baud);
   @example:
   @see also: 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-int HCI_TransportEnablePowerMgmt(HCI_TRANSPORT_HANDLE HciTrans, A_BOOL Enable);
+int HCI_TransportEnablePowerMgmt(HCI_TRANSPORT_HANDLE HciTrans, bool Enable);
 
 #ifdef __cplusplus
 }
