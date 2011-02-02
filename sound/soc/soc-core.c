@@ -1801,7 +1801,7 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 	card->snd_card->dev = card->dev;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	/* deferred resume work */
 	INIT_WORK(&card->deferred_resume_work, soc_resume_deferred);
 #endif
