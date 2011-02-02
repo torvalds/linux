@@ -7,3 +7,7 @@ config MXS_HAVE_PLATFORM_AUART
 
 config MXS_HAVE_PLATFORM_FEC
 	bool
+
+config MXS_HAVE_PLATFORM_FLEXCAN
+	select HAVE_CAN_FLEXCAN if CAN
+	bool

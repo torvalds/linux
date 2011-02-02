@@ -51,3 +51,15 @@ struct mxs_fec_data {
 struct platform_device *__init mxs_add_fec(
 		const struct mxs_fec_data *data,
 		const struct fec_platform_data *pdata);
+
+/* flexcan */
+#include <linux/can/platform/flexcan.h>
+struct mxs_flexcan_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t iosize;
+	resource_size_t irq;
+};
+struct platform_device *__init mxs_add_flexcan(
+		const struct mxs_flexcan_data *data,
+		const struct flexcan_platform_data *pdata);

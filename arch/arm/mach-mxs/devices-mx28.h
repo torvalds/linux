@@ -26,3 +26,9 @@ extern const struct mxs_auart_data mx28_auart_data[] __initconst;
 extern const struct mxs_fec_data mx28_fec_data[] __initconst;
 #define mx28_add_fec(id, pdata) \
 	mxs_add_fec(&mx28_fec_data[id], pdata)
+
+extern const struct mxs_flexcan_data mx28_flexcan_data[] __initconst;
+#define mx28_add_flexcan(id, pdata)	\
+	mxs_add_flexcan(&mx28_flexcan_data[id], pdata)
+#define mx28_add_flexcan0(pdata)	mx28_add_flexcan(0, pdata)
+#define mx28_add_flexcan1(pdata)	mx28_add_flexcan(1, pdata)
