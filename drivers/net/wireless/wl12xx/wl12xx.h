@@ -301,6 +301,24 @@ struct wl1271_ap_key {
 	u16 tx_seq_16;
 };
 
+enum wl12xx_flags {
+	WL1271_FLAG_STA_ASSOCIATED,
+	WL1271_FLAG_JOINED,
+	WL1271_FLAG_GPIO_POWER,
+	WL1271_FLAG_TX_QUEUE_STOPPED,
+	WL1271_FLAG_IN_ELP,
+	WL1271_FLAG_PSM,
+	WL1271_FLAG_PSM_REQUESTED,
+	WL1271_FLAG_IRQ_PENDING,
+	WL1271_FLAG_IRQ_RUNNING,
+	WL1271_FLAG_IDLE,
+	WL1271_FLAG_IDLE_REQUESTED,
+	WL1271_FLAG_PSPOLL_FAILURE,
+	WL1271_FLAG_STA_STATE_SENT,
+	WL1271_FLAG_FW_TX_BUSY,
+	WL1271_FLAG_AP_STARTED
+};
+
 struct wl1271 {
 	struct platform_device *plat_dev;
 	struct ieee80211_hw *hw;
@@ -319,22 +337,6 @@ struct wl1271 {
 	enum wl1271_state state;
 	struct mutex mutex;
 
-#define WL1271_FLAG_STA_RATES_CHANGED  (0)
-#define WL1271_FLAG_STA_ASSOCIATED     (1)
-#define WL1271_FLAG_JOINED             (2)
-#define WL1271_FLAG_GPIO_POWER         (3)
-#define WL1271_FLAG_TX_QUEUE_STOPPED   (4)
-#define WL1271_FLAG_IN_ELP             (5)
-#define WL1271_FLAG_PSM                (6)
-#define WL1271_FLAG_PSM_REQUESTED      (7)
-#define WL1271_FLAG_IRQ_PENDING        (8)
-#define WL1271_FLAG_IRQ_RUNNING        (9)
-#define WL1271_FLAG_IDLE              (10)
-#define WL1271_FLAG_IDLE_REQUESTED    (11)
-#define WL1271_FLAG_PSPOLL_FAILURE    (12)
-#define WL1271_FLAG_STA_STATE_SENT    (13)
-#define WL1271_FLAG_FW_TX_BUSY        (14)
-#define WL1271_FLAG_AP_STARTED        (15)
 	unsigned long flags;
 
 	struct wl1271_partition_set part;
@@ -428,7 +430,6 @@ struct wl1271 {
 	 *	bits 16-23 - 802.11n   MCS index mask
 	 * support only 1 stream, thus only 8 bits for the MCS rates (0-7).
 	 */
-	u32 sta_rate_set;
 	u32 basic_rate_set;
 	u32 basic_rate;
 	u32 rate_set;

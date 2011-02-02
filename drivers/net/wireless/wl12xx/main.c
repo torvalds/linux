@@ -978,39 +978,10 @@ int wl1271_plt_stop(struct wl1271 *wl)
 static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct wl1271 *wl = hw->priv;
-	struct ieee80211_conf *conf = &hw->conf;
-	struct ieee80211_tx_info *txinfo = IEEE80211_SKB_CB(skb);
-	struct ieee80211_sta *sta = txinfo->control.sta;
 	unsigned long flags;
 	int q;
 
-	/*
-	 * peek into the rates configured in the STA entry.
-	 * The rates set after connection stage, The first block only BG sets:
-	 * the compare is for bit 0-16 of sta_rate_set. The second block add
-	 * HT rates in case of HT supported.
-	 */
 	spin_lock_irqsave(&wl->wl_lock, flags);
-	if (sta &&
-	    (sta->supp_rates[conf->channel->band] !=
-	    (wl->sta_rate_set & HW_BG_RATES_MASK)) &&
-		wl->bss_type != BSS_TYPE_AP_BSS) {
-		wl->sta_rate_set = sta->supp_rates[conf->channel->band];
-		set_bit(WL1271_FLAG_STA_RATES_CHANGED, &wl->flags);
-	}
-
-#ifdef CONFIG_WL12XX_HT
-	if (sta &&
-	    sta->ht_cap.ht_supported &&
-	    ((wl->sta_rate_set >> HW_HT_RATES_OFFSET) !=
-	      sta->ht_cap.mcs.rx_mask[0])) {
-		/* Clean MCS bits before setting them */
-		wl->sta_rate_set &= HW_BG_RATES_MASK;
-		wl->sta_rate_set |=
-			(sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET);
-		set_bit(WL1271_FLAG_STA_RATES_CHANGED, &wl->flags);
-	}
-#endif
 	wl->tx_queue_count++;
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
@@ -1245,7 +1216,6 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 	wl->time_offset = 0;
 	wl->session_counter = 0;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
-	wl->sta_rate_set = 0;
 	wl->flags = 0;
 	wl->vif = NULL;
 	wl->filters = 0;
@@ -1432,7 +1402,6 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, bool idle)
 				goto out;
 		}
 		wl->rate_set = wl1271_tx_min_rate_get(wl);
-		wl->sta_rate_set = 0;
 		ret = wl1271_acx_sta_rate_policies(wl);
 		if (ret < 0)
 			goto out;
@@ -2246,6 +2215,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 {
 	bool do_join = false, set_assoc = false;
 	bool is_ibss = (wl->bss_type == BSS_TYPE_IBSS);
+	u32 sta_rate_set = 0;
 	int ret;
 	struct ieee80211_sta *sta;
 
@@ -2311,6 +2281,49 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		}
 	}
 
+	rcu_read_lock();
+	sta = ieee80211_find_sta(vif, bss_conf->bssid);
+	if (sta)  {
+		/* save the supp_rates of the ap */
+		sta_rate_set = sta->supp_rates[wl->hw->conf.channel->band];
+		if (sta->ht_cap.ht_supported)
+			sta_rate_set |=
+			    (sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET);
+
+		/* handle new association with HT and HT information change */
+		if ((changed & BSS_CHANGED_HT) &&
+		    (bss_conf->channel_type != NL80211_CHAN_NO_HT)) {
+			ret = wl1271_acx_set_ht_capabilities(wl, &sta->ht_cap,
+							     true);
+			if (ret < 0) {
+				wl1271_warning("Set ht cap true failed %d",
+					       ret);
+				rcu_read_unlock();
+				goto out;
+			}
+			ret = wl1271_acx_set_ht_information(wl,
+						bss_conf->ht_operation_mode);
+			if (ret < 0) {
+				wl1271_warning("Set ht information failed %d",
+					       ret);
+				rcu_read_unlock();
+				goto out;
+			}
+		}
+		/* handle new association without HT and disassociation */
+		else if (changed & BSS_CHANGED_ASSOC) {
+			ret = wl1271_acx_set_ht_capabilities(wl, &sta->ht_cap,
+							     false);
+			if (ret < 0) {
+				wl1271_warning("Set ht cap false failed %d",
+					       ret);
+				rcu_read_unlock();
+				goto out;
+			}
+		}
+	}
+	rcu_read_unlock();
+
 	if ((changed & BSS_CHANGED_ASSOC)) {
 		if (bss_conf->assoc) {
 			u32 rates;
@@ -2328,6 +2341,9 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			wl->basic_rate_set = wl1271_tx_enabled_rates_get(wl,
 									 rates);
 			wl->basic_rate = wl1271_tx_min_rate_get(wl);
+			if (sta_rate_set)
+				wl->rate_set = wl1271_tx_enabled_rates_get(wl,
+								sta_rate_set);
 			ret = wl1271_acx_sta_rate_policies(wl);
 			if (ret < 0)
 				goto out;
@@ -2405,43 +2421,6 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 	ret = wl1271_bss_erp_info_changed(wl, bss_conf, changed);
 	if (ret < 0)
 		goto out;
-
-	rcu_read_lock();
-	sta = ieee80211_find_sta(vif, bss_conf->bssid);
-	if (sta)  {
-		/* handle new association with HT and HT information change */
-		if ((changed & BSS_CHANGED_HT) &&
-		    (bss_conf->channel_type != NL80211_CHAN_NO_HT)) {
-			ret = wl1271_acx_set_ht_capabilities(wl, &sta->ht_cap,
-							     true);
-			if (ret < 0) {
-				wl1271_warning("Set ht cap true failed %d",
-					       ret);
-				rcu_read_unlock();
-				goto out;
-			}
-			ret = wl1271_acx_set_ht_information(wl,
-						bss_conf->ht_operation_mode);
-			if (ret < 0) {
-				wl1271_warning("Set ht information failed %d",
-					       ret);
-				rcu_read_unlock();
-				goto out;
-			}
-		}
-		/* handle new association without HT and disassociation */
-		else if (changed & BSS_CHANGED_ASSOC) {
-			ret = wl1271_acx_set_ht_capabilities(wl, &sta->ht_cap,
-							     false);
-			if (ret < 0) {
-				wl1271_warning("Set ht cap false failed %d",
-					       ret);
-				rcu_read_unlock();
-				goto out;
-			}
-		}
-	}
-	rcu_read_unlock();
 
 	if (changed & BSS_CHANGED_ARP_FILTER) {
 		__be32 addr = bss_conf->arp_addr_list[0];
@@ -3330,7 +3309,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 	wl->basic_rate = CONF_TX_RATE_MASK_BASIC;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
-	wl->sta_rate_set = 0;
 	wl->band = IEEE80211_BAND_2GHZ;
 	wl->vif = NULL;
 	wl->flags = 0;

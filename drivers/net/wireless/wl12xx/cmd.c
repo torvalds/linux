@@ -286,13 +286,7 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	join->rx_filter_options = cpu_to_le32(wl->rx_filter);
 	join->bss_type = bss_type;
 	join->basic_rate_set = cpu_to_le32(wl->basic_rate_set);
-	/*
-	 * for supported_rate_set, we should use wl->rate_set. however,
-	 * it seems that acx_rate_policies doesn't affect full_rate, and
-	 * since we want to avoid additional join, we'll use a 0xffffffff value,
-	 * and let the fw find the actual supported rates
-	 */
-	join->supported_rate_set = cpu_to_le32(0xffffffff);
+	join->supported_rate_set = cpu_to_le32(wl->rate_set);
 
 	if (wl->band == IEEE80211_BAND_5GHZ)
 		join->bss_type |= WL1271_JOIN_CMD_BSS_TYPE_5GHZ;
@@ -309,6 +303,9 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	/* reset TX security counters */
 	wl->tx_security_last_seq = 0;
 	wl->tx_security_seq = 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd join: basic_rate_set=0x%x, rate_set=0x%x",
+		join->basic_rate_set, join->supported_rate_set);
 
 	ret = wl1271_cmd_send(wl, CMD_START_JOIN, join, sizeof(*join), 0);
 	if (ret < 0) {
