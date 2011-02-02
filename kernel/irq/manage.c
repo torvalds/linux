@@ -1057,10 +1057,7 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 	/* If this was the last handler, shut down the IRQ line: */
 	if (!desc->action) {
 		desc->status |= IRQ_DISABLED;
-		if (desc->irq_data.chip->irq_shutdown)
-			desc->irq_data.chip->irq_shutdown(&desc->irq_data);
-		else
-			desc->irq_data.chip->irq_disable(&desc->irq_data);
+		desc->irq_data.chip->irq_shutdown(&desc->irq_data);
 	}
 
 #ifdef CONFIG_SMP
