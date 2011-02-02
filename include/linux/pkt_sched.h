@@ -247,6 +247,35 @@ struct tc_gred_sopt {
 	__u16		pad1;
 };
 
+/* CHOKe section */
+
+enum {
+	TCA_CHOKE_UNSPEC,
+	TCA_CHOKE_PARMS,
+	TCA_CHOKE_STAB,
+	__TCA_CHOKE_MAX,
+};
+
+#define TCA_CHOKE_MAX (__TCA_CHOKE_MAX - 1)
+
+struct tc_choke_qopt {
+	__u32		limit;		/* Hard queue length (packets)	*/
+	__u32		qth_min;	/* Min average threshold (packets) */
+	__u32		qth_max;	/* Max average threshold (packets) */
+	unsigned char   Wlog;		/* log(W)		*/
+	unsigned char   Plog;		/* log(P_max/(qth_max-qth_min))	*/
+	unsigned char   Scell_log;	/* cell size for idle damping */
+	unsigned char	flags;		/* see RED flags */
+};
+
+struct tc_choke_xstats {
+	__u32		early;          /* Early drops */
+	__u32		pdrop;          /* Drops due to queue limits */
+	__u32		other;          /* Drops due to drop() calls */
+	__u32		marked;         /* Marked packets */
+	__u32		matched;	/* Drops due to flow match */
+};
+
 /* HTB section */
 #define TC_HTB_NUMPRIO		8
 #define TC_HTB_MAXDEPTH		8
