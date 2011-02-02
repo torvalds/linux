@@ -485,7 +485,18 @@ static struct pid *good_sigevent(sigevent_t * event)
 void register_posix_clock(const clockid_t clock_id, struct k_clock *new_clock)
 {
 	if ((unsigned) clock_id >= MAX_CLOCKS) {
-		printk("POSIX clock register failed for clock_id %d\n",
+		printk(KERN_WARNING "POSIX clock register failed for clock_id %d\n",
+		       clock_id);
+		return;
+	}
+
+	if (!new_clock->clock_get) {
+		printk(KERN_WARNING "POSIX clock id %d lacks clock_get()\n",
+		       clock_id);
+		return;
+	}
+	if (!new_clock->clock_getres) {
+		printk(KERN_WARNING "POSIX clock id %d lacks clock_getres()\n",
 		       clock_id);
 		return;
 	}
@@ -961,8 +972,6 @@ SYSCALL_DEFINE2(clock_gettime, const clockid_t, which_clock,
 
 	if (!kc)
 		return -EINVAL;
-	if (!kc->clock_get)
-		return -EOPNOTSUPP;
 
 	error = kc->clock_get(which_clock, &kernel_tp);
 
