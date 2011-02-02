@@ -491,17 +491,18 @@ static int sfq_change(struct Qdisc *sch, struct nlattr *opt)
 	if (opt->nla_len < nla_attr_size(sizeof(*ctl)))
 		return -EINVAL;
 
+	if (ctl->divisor &&
+	    (!is_power_of_2(ctl->divisor) || ctl->divisor > 65536))
+		return -EINVAL;
+
 	sch_tree_lock(sch);
 	q->quantum = ctl->quantum ? : psched_mtu(qdisc_dev(sch));
 	q->scaled_quantum = SFQ_ALLOT_SIZE(q->quantum);
 	q->perturb_period = ctl->perturb_period * HZ;
 	if (ctl->limit)
 		q->limit = min_t(u32, ctl->limit, SFQ_DEPTH - 1);
-	if (ctl->divisor) {
-		if (!is_power_of_2(ctl->divisor) || ctl->divisor > 65536)
-			return -EINVAL;
+	if (ctl->divisor)
 		q->divisor = ctl->divisor;
-	}
 	qlen = sch->q.qlen;
 	while (sch->q.qlen > q->limit)
 		sfq_drop(sch);
