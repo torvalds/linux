@@ -782,7 +782,7 @@ typedef PREPACK struct {
 typedef PREPACK struct {
     A_UINT32 opcode;
     A_UINT32 length;
-    A_CHAR buffer[1];      /* WMI_SET_PARAMS */
+    char buffer[1];      /* WMI_SET_PARAMS */
 } POSTPACK WMI_SET_PARAMS_CMD;
 
 typedef PREPACK struct {

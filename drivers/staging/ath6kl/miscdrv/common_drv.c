@@ -799,8 +799,8 @@ ar6002_REV1_reset_force_host (HIF_DEVICE *hifDevice)
 
 void DebugDumpBytes(A_UCHAR *buffer, A_UINT16 length, char *pDescription)
 {
-    A_CHAR stream[60];
-    A_CHAR byteOffsetStr[10];
+    char stream[60];
+    char byteOffsetStr[10];
     A_UINT32 i;
     A_UINT16 offset, count, byteOffset;
 
@@ -868,7 +868,7 @@ void a_dump_module_debug_info(ATH_DEBUG_MODULE_DBG_INFO *pInfo)
 }
 
 
-static ATH_DEBUG_MODULE_DBG_INFO *FindModule(A_CHAR *module_name)
+static ATH_DEBUG_MODULE_DBG_INFO *FindModule(char *module_name)
 {
     ATH_DEBUG_MODULE_DBG_INFO *pInfo = g_pModuleInfoHead;
 
@@ -909,7 +909,7 @@ void a_register_module_debug_info(ATH_DEBUG_MODULE_DBG_INFO *pInfo)
     A_MUTEX_UNLOCK(&g_ModuleListLock);
 }
 
-void a_dump_module_debug_info_by_name(A_CHAR *module_name)
+void a_dump_module_debug_info_by_name(char *module_name)
 {
     ATH_DEBUG_MODULE_DBG_INFO *pInfo = g_pModuleInfoHead;
 
@@ -934,7 +934,7 @@ void a_dump_module_debug_info_by_name(A_CHAR *module_name)
 
 }
 
-int a_get_module_mask(A_CHAR *module_name, A_UINT32 *pMask)
+int a_get_module_mask(char *module_name, A_UINT32 *pMask)
 {
     ATH_DEBUG_MODULE_DBG_INFO *pInfo = FindModule(module_name);
 
@@ -946,7 +946,7 @@ int a_get_module_mask(A_CHAR *module_name, A_UINT32 *pMask)
     return A_OK;
 }
 
-int a_set_module_mask(A_CHAR *module_name, A_UINT32 Mask)
+int a_set_module_mask(char *module_name, A_UINT32 Mask)
 {
     ATH_DEBUG_MODULE_DBG_INFO *pInfo = FindModule(module_name);
 

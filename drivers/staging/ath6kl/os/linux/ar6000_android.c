@@ -155,7 +155,7 @@ int android_logger_lv(void *module, int mask)
     }
 }
 
-static int android_readwrite_file(const A_CHAR *filename, A_CHAR *rbuf, const A_CHAR *wbuf, size_t length)
+static int android_readwrite_file(const char *filename, char *rbuf, const char *wbuf, size_t length)
 {
     int ret = 0;
     struct file *filp = (struct file *)-ENOENT;

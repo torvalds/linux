@@ -125,11 +125,11 @@ enum searchType {
  */
 typedef PREPACK struct dbMasterTable_t {    /* Hold ptrs to Table data structures */
     A_UCHAR     numOfEntries;
-    A_CHAR      entrySize;      /* Entry size per table row */
-    A_CHAR      searchType;     /* Index based access or key based */
-    A_CHAR      reserved[3];    /* for alignment */
+    char entrySize;      /* Entry size per table row */
+    char searchType;     /* Index based access or key based */
+    char reserved[3];    /* for alignment */
     A_UINT16    tableSize;      /* Size of this table */
-    A_CHAR      *dataPtr;       /* Ptr to the actual Table */
+    char *dataPtr;       /* Ptr to the actual Table */
 } POSTPACK dbMasterTable;    /* Master table - table of tables */
 
 
@@ -190,8 +190,8 @@ typedef PREPACK struct reg_dmn_pair_mapping {
 typedef PREPACK struct {
     A_UINT16    countryCode;       
     A_UINT16    regDmnEnum;
-    A_CHAR      isoName[3];
-    A_CHAR      allowMode;  /* what mode is allowed - bit 0: OFDM; bit 1: MCS_HT20; bit 2: MCS_HT40_A; bit 3: MCS_HT40_G */
+    char isoName[3];
+    char allowMode;  /* what mode is allowed - bit 0: OFDM; bit 1: MCS_HT20; bit 2: MCS_HT40_A; bit 3: MCS_HT40_G */
 } POSTPACK COUNTRY_CODE_TO_ENUM_RD;
 
 /* lower 16 bits of ht40ChanMask */

@@ -310,7 +310,7 @@ int wmi_del_wow_pattern_cmd(struct wmi_t *wmip,
 int wmi_set_wsc_status_cmd(struct wmi_t *wmip, A_UINT32 status);
 
 int
-wmi_set_params_cmd(struct wmi_t *wmip, A_UINT32 opcode, A_UINT32 length, A_CHAR* buffer);
+wmi_set_params_cmd(struct wmi_t *wmip, A_UINT32 opcode, A_UINT32 length, char *buffer);
 
 int
 wmi_set_mcast_filter_cmd(struct wmi_t *wmip, A_UINT8 dot1, A_UINT8 dot2, A_UINT8 dot3, A_UINT8 dot4);

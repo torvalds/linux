@@ -970,7 +970,7 @@ ar6000_softmac_update(AR_SOFTC_T *ar, A_UCHAR *eeprom_data, size_t size)
     ptr_mac[5] = random32() & 0xff; 
     if ((A_REQUEST_FIRMWARE(&softmac_entry, "softmac", ((struct device *)ar->osDevInfo.pOSDevice))) == 0)
     {
-        A_CHAR *macbuf = A_MALLOC_NOWAIT(softmac_entry->size+1);
+        char *macbuf = A_MALLOC_NOWAIT(softmac_entry->size+1);
         if (macbuf) {            
             unsigned int softmac[6];
             memcpy(macbuf, softmac_entry->data, softmac_entry->size);
@@ -1190,7 +1190,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, A_UINT32 mode)
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Requesting device specific configuration\n"));
 
     if (mode == WLAN_INIT_MODE_UDEV) {
-        A_CHAR version[16];
+        char version[16];
         const struct firmware *fw_entry;
 
         /* Get config using udev through a script in user space */
@@ -2344,7 +2344,7 @@ ar6000_close(struct net_device *dev)
 /* connect to a service */
 static int ar6000_connectservice(AR_SOFTC_T               *ar,
                                       HTC_SERVICE_CONNECT_REQ  *pConnect,
-                                      char                     *pDesc)
+                                      char *pDesc)
 {
     int                 status;
     HTC_SERVICE_CONNECT_RESP response;
@@ -5941,7 +5941,7 @@ rssi_compensation_reverse_calc(AR_SOFTC_T *ar, A_INT16 rssi, bool Above)
 void ap_wapi_rekey_event(AR_SOFTC_T *ar, A_UINT8 type, A_UINT8 *mac)
 {
     union iwreq_data wrqu;
-    A_CHAR buf[20];
+    char buf[20];
 
     A_MEMZERO(buf, sizeof(buf));
 

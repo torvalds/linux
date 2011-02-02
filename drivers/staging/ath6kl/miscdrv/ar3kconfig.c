@@ -277,7 +277,7 @@ static int AR3KConfigureHCIBaud(AR3K_CONFIG_INFO *pConfig)
 static int AR3KExitMinBoot(AR3K_CONFIG_INFO *pConfig)
 {
     int  status;
-    A_CHAR    exitMinBootCmd[] = {0x25,0xFC,0x0c,0x03,0x00,0x00,0x00,0x00,0x00,0x00,
+    char exitMinBootCmd[] = {0x25,0xFC,0x0c,0x03,0x00,0x00,0x00,0x00,0x00,0x00,
                                   0x00,0x00,0x00,0x00,0x00};
     A_UINT8   *pEvent = NULL;
     A_UINT8   *pBufferToFree = NULL;
@@ -338,7 +338,7 @@ static int AR3KEnableTLPM(AR3K_CONFIG_INFO *pConfig)
 {
     int  status;
     /* AR3K vendor specific command for Host Wakeup Config */
-    A_CHAR    hostWakeupConfig[] = {0x31,0xFC,0x18,
+    char hostWakeupConfig[] = {0x31,0xFC,0x18,
                                     0x02,0x00,0x00,0x00,
                                     0x01,0x00,0x00,0x00,
                                     TLPM_DEFAULT_IDLE_TIMEOUT_LSB,TLPM_DEFAULT_IDLE_TIMEOUT_MSB,0x00,0x00,    //idle timeout in ms
@@ -346,7 +346,7 @@ static int AR3KEnableTLPM(AR3K_CONFIG_INFO *pConfig)
                                     TLPM_DEFAULT_WAKEUP_TIMEOUT_MS,0x00,0x00,0x00,    //wakeup timeout in ms
                                     0x00,0x00,0x00,0x00};
     /* AR3K vendor specific command for Target Wakeup Config */
-    A_CHAR    targetWakeupConfig[] = {0x31,0xFC,0x18,
+    char targetWakeupConfig[] = {0x31,0xFC,0x18,
                                       0x04,0x00,0x00,0x00,
                                       0x01,0x00,0x00,0x00,
                                       TLPM_DEFAULT_IDLE_TIMEOUT_LSB,TLPM_DEFAULT_IDLE_TIMEOUT_MSB,0x00,0x00,  //idle timeout in ms
@@ -354,13 +354,13 @@ static int AR3KEnableTLPM(AR3K_CONFIG_INFO *pConfig)
                                       TLPM_DEFAULT_WAKEUP_TIMEOUT_MS,0x00,0x00,0x00,  //wakeup timeout in ms
                                       0x00,0x00,0x00,0x00};
     /* AR3K vendor specific command for Host Wakeup Enable */
-    A_CHAR    hostWakeupEnable[] = {0x31,0xFC,0x4,
+    char hostWakeupEnable[] = {0x31,0xFC,0x4,
                                     0x01,0x00,0x00,0x00};
     /* AR3K vendor specific command for Target Wakeup Enable */
-    A_CHAR    targetWakeupEnable[] = {0x31,0xFC,0x4,
+    char targetWakeupEnable[] = {0x31,0xFC,0x4,
                                       0x06,0x00,0x00,0x00};
     /* AR3K vendor specific command for Sleep Enable */
-    A_CHAR    sleepEnable[] = {0x4,0xFC,0x1,
+    char sleepEnable[] = {0x4,0xFC,0x1,
                                0x1};
     A_UINT8   *pEvent = NULL;
     A_UINT8   *pBufferToFree = NULL;

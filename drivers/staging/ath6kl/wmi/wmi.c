@@ -5215,7 +5215,7 @@ wmi_set_keepalive_cmd(struct wmi_t *wmip, A_UINT8 keepaliveInterval)
 }
 
 int
-wmi_set_params_cmd(struct wmi_t *wmip, A_UINT32 opcode, A_UINT32 length, A_CHAR* buffer)
+wmi_set_params_cmd(struct wmi_t *wmip, A_UINT32 opcode, A_UINT32 length, char *buffer)
 {
     void *osbuf;
     WMI_SET_PARAMS_CMD *cmd;

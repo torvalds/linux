@@ -129,7 +129,7 @@ tRamPatch   RamPatch[MAX_NUM_PATCH_ENTRY];
 
 int AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat);
 char AthReadChar(A_UCHAR *buffer, A_UINT32 len,A_UINT32 *pos);
-char * AthGetLine(char * buffer, int maxlen, A_UCHAR *srcbuffer,A_UINT32 len,A_UINT32 *pos);
+char *AthGetLine(char *buffer, int maxlen, A_UCHAR *srcbuffer,A_UINT32 len,A_UINT32 *pos);
 static int AthPSCreateHCICommand(A_UCHAR Opcode, A_UINT32 Param1,PSCmdPacket *PSPatchPacket,A_UINT32 *index);
 
 /* Function to reads the next character from the input buffer */
@@ -146,7 +146,7 @@ char AthReadChar(A_UCHAR *buffer, A_UINT32 len,A_UINT32 *pos)
     }
 }
 /* PS parser helper function */
-unsigned int uGetInputDataFormat(char* pCharLine, ST_PS_DATA_FORMAT *pstFormat) 
+unsigned int uGetInputDataFormat(char *pCharLine, ST_PS_DATA_FORMAT *pstFormat)
 {
     if(pCharLine[0] != '[') {
         pstFormat->eDataType = eHex;
@@ -317,8 +317,8 @@ unsigned int uReadDataInSection(char *pCharLine, ST_PS_DATA_FORMAT stPS_DataForm
 }
 int AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat)
 {
-   char     *Buffer;
-   char     *pCharLine;
+   char *Buffer;
+   char *pCharLine;
    A_UINT8    TagCount;
    A_UINT16   ByteCount;
    A_UINT8    ParseSection=RAM_PS_SECTION;
@@ -558,7 +558,7 @@ int AthParseFilesUnified(A_UCHAR *srcbuffer,A_UINT32 srclen, int FileFormat)
 /********************/
 
 
-int GetNextTwoChar(A_UCHAR *srcbuffer,A_UINT32 len, A_UINT32 *pos, char * buffer)
+int GetNextTwoChar(A_UCHAR *srcbuffer,A_UINT32 len, A_UINT32 *pos, char *buffer)
 {
     unsigned char ch;
 
@@ -582,8 +582,8 @@ int GetNextTwoChar(A_UCHAR *srcbuffer,A_UINT32 len, A_UINT32 *pos, char * buffer
 int AthDoParsePatch(A_UCHAR *patchbuffer, A_UINT32 patchlen)
 {
 
-    char  Byte[3];
-    char   Line[MAX_BYTE_LENGTH + 1];
+    char Byte[3];
+    char Line[MAX_BYTE_LENGTH + 1];
     int    ByteCount,ByteCount_Org;
     int count;
     int i,j,k;
@@ -713,7 +713,7 @@ int AthDoParsePS(A_UCHAR *srcbuffer, A_UINT32 srclen)
 
     return status;
 }
-char * AthGetLine(char * buffer, int maxlen, A_UCHAR *srcbuffer,A_UINT32 len,A_UINT32 *pos)
+char *AthGetLine(char *buffer, int maxlen, A_UCHAR *srcbuffer,A_UINT32 len,A_UINT32 *pos)
 {
 
     int count;

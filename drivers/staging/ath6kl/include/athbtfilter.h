@@ -65,7 +65,7 @@ typedef struct _ATHBT_FILTER_INSTANCE {
 #ifdef UNDER_CE
     WCHAR                       *pWlanAdapterName;  /* filled in by user */
 #else
-    char                        *pWlanAdapterName;  /* filled in by user */
+    char *pWlanAdapterName;  /* filled in by user */
 #endif /* UNDER_CE */
     int                         FilterEnabled;      /* filtering is enabled */
     int                         Attached;           /* filter library is attached */

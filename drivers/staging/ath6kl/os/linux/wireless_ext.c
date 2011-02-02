@@ -94,10 +94,10 @@ ar6000_scan_node(void *arg, bss_t *ni)
     char buf[256];
 #endif
     struct ar_giwscan_param *param;
-    A_CHAR *current_ev;
-    A_CHAR *end_buf;
+    char *current_ev;
+    char *end_buf;
     struct ieee80211_common_ie  *cie;
-    A_CHAR *current_val;
+    char *current_val;
     A_INT32 j;
     A_UINT32 rate_len, data_len = 0;
 

@@ -672,8 +672,8 @@ static inline void *ar6k_priv(struct net_device *dev)
 #define arEndpoint2RawStreamID(ar,ep)           (ar)->arRawHtc->arEp2RawMapping[(ep)]
 
 struct ar_giwscan_param {
-    char    *current_ev;
-    char    *end_buf;
+    char *current_ev;
+    char *end_buf;
     A_UINT32 bytes_needed;
     struct iw_request_info *info;
 };

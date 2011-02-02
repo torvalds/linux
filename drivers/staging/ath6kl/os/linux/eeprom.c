@@ -103,7 +103,7 @@ wmic_ether_aton(const char *orig, A_UINT8 *eth)
 }
 
 static void
-update_mac(unsigned char* eeprom, int size, unsigned char* macaddr)
+update_mac(unsigned char *eeprom, int size, unsigned char *macaddr)
 {
 	int i;
 	A_UINT16* ptr = (A_UINT16*)(eeprom+4);

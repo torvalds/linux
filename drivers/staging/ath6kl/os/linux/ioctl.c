@@ -937,7 +937,7 @@ ar6000_ioctl_set_disconnect_timeout(struct net_device *dev, struct ifreq *rq)
 }
 
 static int
-ar6000_xioctl_set_voice_pkt_size(struct net_device *dev, char * userdata)
+ar6000_xioctl_set_voice_pkt_size(struct net_device *dev, char *userdata)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     WMI_SET_VOICE_PKT_SIZE_CMD cmd;
@@ -963,7 +963,7 @@ ar6000_xioctl_set_voice_pkt_size(struct net_device *dev, char * userdata)
 }
 
 static int
-ar6000_xioctl_set_max_sp_len(struct net_device *dev, char * userdata)
+ar6000_xioctl_set_max_sp_len(struct net_device *dev, char *userdata)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     WMI_SET_MAX_SP_LEN_CMD cmd;
@@ -989,7 +989,7 @@ ar6000_xioctl_set_max_sp_len(struct net_device *dev, char * userdata)
 
 
 static int
-ar6000_xioctl_set_bt_status_cmd(struct net_device *dev, char * userdata)
+ar6000_xioctl_set_bt_status_cmd(struct net_device *dev, char *userdata)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     WMI_SET_BT_STATUS_CMD cmd;
@@ -1014,7 +1014,7 @@ ar6000_xioctl_set_bt_status_cmd(struct net_device *dev, char * userdata)
 }
 
 static int
-ar6000_xioctl_set_bt_params_cmd(struct net_device *dev, char * userdata)
+ar6000_xioctl_set_bt_params_cmd(struct net_device *dev, char *userdata)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     WMI_SET_BT_PARAMS_CMD cmd;
@@ -1039,7 +1039,7 @@ ar6000_xioctl_set_bt_params_cmd(struct net_device *dev, char * userdata)
 }
 
 static int
-ar6000_xioctl_set_btcoex_fe_ant_cmd(struct net_device * dev, char * userdata)
+ar6000_xioctl_set_btcoex_fe_ant_cmd(struct net_device * dev, char *userdata)
 {
 	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_FE_ANT_CMD cmd;
@@ -1063,7 +1063,7 @@ ar6000_xioctl_set_btcoex_fe_ant_cmd(struct net_device * dev, char * userdata)
 }
 
 static int
-ar6000_xioctl_set_btcoex_colocated_bt_dev_cmd(struct net_device * dev, char * userdata)
+ar6000_xioctl_set_btcoex_colocated_bt_dev_cmd(struct net_device * dev, char *userdata)
 {
 	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD cmd;
@@ -1088,7 +1088,7 @@ ar6000_xioctl_set_btcoex_colocated_bt_dev_cmd(struct net_device * dev, char * us
 }
 
 static int
-ar6000_xioctl_set_btcoex_btinquiry_page_config_cmd(struct net_device * dev,  char * userdata)
+ar6000_xioctl_set_btcoex_btinquiry_page_config_cmd(struct net_device * dev,  char *userdata)
 {
 	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_BTINQUIRY_PAGE_CONFIG_CMD cmd;
@@ -1113,7 +1113,7 @@ ar6000_xioctl_set_btcoex_btinquiry_page_config_cmd(struct net_device * dev,  cha
 }
 
 static int
-ar6000_xioctl_set_btcoex_sco_config_cmd(struct net_device * dev, char * userdata)
+ar6000_xioctl_set_btcoex_sco_config_cmd(struct net_device * dev, char *userdata)
 {
 	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_SCO_CONFIG_CMD cmd;
@@ -1139,7 +1139,7 @@ ar6000_xioctl_set_btcoex_sco_config_cmd(struct net_device * dev, char * userdata
 
 static int
 ar6000_xioctl_set_btcoex_a2dp_config_cmd(struct net_device * dev,
-														char * userdata)
+														char *userdata)
 {
 	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_A2DP_CONFIG_CMD cmd;
@@ -1164,7 +1164,7 @@ ar6000_xioctl_set_btcoex_a2dp_config_cmd(struct net_device * dev,
 }
 
 static int
-ar6000_xioctl_set_btcoex_aclcoex_config_cmd(struct net_device * dev, char * userdata)
+ar6000_xioctl_set_btcoex_aclcoex_config_cmd(struct net_device * dev, char *userdata)
 {
 	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_ACLCOEX_CONFIG_CMD cmd;
@@ -1189,7 +1189,7 @@ ar6000_xioctl_set_btcoex_aclcoex_config_cmd(struct net_device * dev, char * user
 }
 
 static int
-ar60000_xioctl_set_btcoex_debug_cmd(struct net_device * dev, char * userdata)
+ar60000_xioctl_set_btcoex_debug_cmd(struct net_device * dev, char *userdata)
 {
 	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_DEBUG_CMD cmd;
@@ -1214,7 +1214,7 @@ ar60000_xioctl_set_btcoex_debug_cmd(struct net_device * dev, char * userdata)
 }
 
 static int
-ar6000_xioctl_set_btcoex_bt_operating_status_cmd(struct net_device * dev, char * userdata)
+ar6000_xioctl_set_btcoex_bt_operating_status_cmd(struct net_device * dev, char *userdata)
 {
      AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
      WMI_SET_BTCOEX_BT_OPERATING_STATUS_CMD cmd;
@@ -1238,7 +1238,7 @@ ar6000_xioctl_set_btcoex_bt_operating_status_cmd(struct net_device * dev, char *
 }
 
 static int
-ar6000_xioctl_get_btcoex_config_cmd(struct net_device * dev, char * userdata,
+ar6000_xioctl_get_btcoex_config_cmd(struct net_device * dev, char *userdata,
 											struct ifreq *rq)
 {
 
@@ -1283,7 +1283,7 @@ ar6000_xioctl_get_btcoex_config_cmd(struct net_device * dev, char * userdata,
 }
 
 static int
-ar6000_xioctl_get_btcoex_stats_cmd(struct net_device * dev, char * userdata, struct ifreq *rq)
+ar6000_xioctl_get_btcoex_stats_cmd(struct net_device * dev, char *userdata, struct ifreq *rq)
 {
 	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     AR6000_BTCOEX_STATS btcoexStats;

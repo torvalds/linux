@@ -1198,7 +1198,7 @@ struct prof_count_s {
 /*         AR6000_XIOCTL_MODULE_DEBUG_GET_MASK */
 /*         AR6000_XIOCTL_DUMP_MODULE_DEBUG_INFO */
 struct drv_debug_module_s {
-    A_CHAR      modulename[128];   /* name of module */
+    char modulename[128];   /* name of module */
     A_UINT32    mask;              /* new mask to set .. or .. current mask */
 };
 
