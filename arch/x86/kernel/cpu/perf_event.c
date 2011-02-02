@@ -321,14 +321,22 @@ again:
 	return new_raw_count;
 }
 
+/* using X86_FEATURE_PERFCTR_CORE to later implement ALTERNATIVE() here */
+static inline int x86_pmu_addr_offset(int index)
+{
+	if (boot_cpu_has(X86_FEATURE_PERFCTR_CORE))
+		return index << 1;
+	return index;
+}
+
 static inline unsigned int x86_pmu_config_addr(int index)
 {
-	return x86_pmu.eventsel + index;
+	return x86_pmu.eventsel + x86_pmu_addr_offset(index);
 }
 
 static inline unsigned int x86_pmu_event_addr(int index)
 {
-	return x86_pmu.perfctr + index;
+	return x86_pmu.perfctr + x86_pmu_addr_offset(index);
 }
 
 static atomic_t active_events;
