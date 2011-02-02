@@ -376,8 +376,9 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		}
 
 		phy_cmd.size = sizeof(struct be_cmd_req_get_phy_info);
-		phy_cmd.va = pci_alloc_consistent(adapter->pdev, phy_cmd.size,
-					&phy_cmd.dma);
+		phy_cmd.va = dma_alloc_coherent(&adapter->pdev->dev,
+						phy_cmd.size, &phy_cmd.dma,
+						GFP_KERNEL);
 		if (!phy_cmd.va) {
 			dev_err(&adapter->pdev->dev, "Memory alloc failure\n");
 			return -ENOMEM;
@@ -416,8 +417,8 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		adapter->port_type = ecmd->port;
 		adapter->transceiver = ecmd->transceiver;
 		adapter->autoneg = ecmd->autoneg;
-		pci_free_consistent(adapter->pdev, phy_cmd.size,
-					phy_cmd.va, phy_cmd.dma);
+		dma_free_coherent(&adapter->pdev->dev, phy_cmd.size, phy_cmd.va,
+				  phy_cmd.dma);
 	} else {
 		ecmd->speed = adapter->link_speed;
 		ecmd->port = adapter->port_type;
@@ -554,8 +555,8 @@ be_test_ddr_dma(struct be_adapter *adapter)
 	};
 
 	ddrdma_cmd.size = sizeof(struct be_cmd_req_ddrdma_test);
-	ddrdma_cmd.va = pci_alloc_consistent(adapter->pdev, ddrdma_cmd.size,
-					&ddrdma_cmd.dma);
+	ddrdma_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, ddrdma_cmd.size,
+					   &ddrdma_cmd.dma, GFP_KERNEL);
 	if (!ddrdma_cmd.va) {
 		dev_err(&adapter->pdev->dev, "Memory allocation failure\n");
 		return -ENOMEM;
@@ -569,8 +570,8 @@ be_test_ddr_dma(struct be_adapter *adapter)
 	}
 
 err:
-	pci_free_consistent(adapter->pdev, ddrdma_cmd.size,
-			ddrdma_cmd.va, ddrdma_cmd.dma);
+	dma_free_coherent(&adapter->pdev->dev, ddrdma_cmd.size, ddrdma_cmd.va,
+			  ddrdma_cmd.dma);
 	return ret;
 }
 
@@ -662,8 +663,8 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 
 	memset(&eeprom_cmd, 0, sizeof(struct be_dma_mem));
 	eeprom_cmd.size = sizeof(struct be_cmd_req_seeprom_read);
-	eeprom_cmd.va = pci_alloc_consistent(adapter->pdev, eeprom_cmd.size,
-				&eeprom_cmd.dma);
+	eeprom_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, eeprom_cmd.size,
+					   &eeprom_cmd.dma, GFP_KERNEL);
 
 	if (!eeprom_cmd.va) {
 		dev_err(&adapter->pdev->dev,
@@ -677,8 +678,8 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 		resp = (struct be_cmd_resp_seeprom_read *) eeprom_cmd.va;
 		memcpy(data, resp->seeprom_data + eeprom->offset, eeprom->len);
 	}
-	pci_free_consistent(adapter->pdev, eeprom_cmd.size, eeprom_cmd.va,
-			eeprom_cmd.dma);
+	dma_free_coherent(&adapter->pdev->dev, eeprom_cmd.size, eeprom_cmd.va,
+			  eeprom_cmd.dma);
 
 	return status;
 }
