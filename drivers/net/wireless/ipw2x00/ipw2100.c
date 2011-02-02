@@ -1397,7 +1397,7 @@ static int ipw2100_power_cycle_adapter(struct ipw2100_priv *priv)
 }
 
 /*
- * Send the CARD_DISABLE_PHY_OFF comamnd to the card to disable it
+ * Send the CARD_DISABLE_PHY_OFF command to the card to disable it
  *
  * After disabling, if the card was associated, a STATUS_ASSN_LOST will be sent.
  *
