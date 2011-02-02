@@ -68,7 +68,7 @@ p6_pmu_disable_event(struct perf_event *event)
 	if (cpuc->enabled)
 		val |= ARCH_PERFMON_EVENTSEL_ENABLE;
 
-	(void)checking_wrmsrl(hwc->config_base + hwc->idx, val);
+	(void)checking_wrmsrl(hwc->config_base, val);
 }
 
 static void p6_pmu_enable_event(struct perf_event *event)
@@ -81,7 +81,7 @@ static void p6_pmu_enable_event(struct perf_event *event)
 	if (cpuc->enabled)
 		val |= ARCH_PERFMON_EVENTSEL_ENABLE;
 
-	(void)checking_wrmsrl(hwc->config_base + hwc->idx, val);
+	(void)checking_wrmsrl(hwc->config_base, val);
 }
 
 static __initconst const struct x86_pmu p6_pmu = {

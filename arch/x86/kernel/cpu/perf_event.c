@@ -298,7 +298,7 @@ x86_perf_event_update(struct perf_event *event)
 	 */
 again:
 	prev_raw_count = local64_read(&hwc->prev_count);
-	rdmsrl(hwc->event_base + idx, new_raw_count);
+	rdmsrl(hwc->event_base, new_raw_count);
 
 	if (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
 					new_raw_count) != prev_raw_count)
@@ -655,7 +655,7 @@ static void x86_pmu_disable(struct pmu *pmu)
 static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc,
 					  u64 enable_mask)
 {
-	wrmsrl(hwc->config_base + hwc->idx, hwc->config | enable_mask);
+	wrmsrl(hwc->config_base, hwc->config | enable_mask);
 }
 
 static void x86_pmu_enable_all(int added)
@@ -834,15 +834,10 @@ static inline void x86_assign_hw_event(struct perf_event *event,
 		hwc->event_base	= 0;
 	} else if (hwc->idx >= X86_PMC_IDX_FIXED) {
 		hwc->config_base = MSR_ARCH_PERFMON_FIXED_CTR_CTRL;
-		/*
-		 * We set it so that event_base + idx in wrmsr/rdmsr maps to
-		 * MSR_ARCH_PERFMON_FIXED_CTR0 ... CTR2:
-		 */
-		hwc->event_base =
-			MSR_ARCH_PERFMON_FIXED_CTR0 - X86_PMC_IDX_FIXED;
+		hwc->event_base = MSR_ARCH_PERFMON_FIXED_CTR0;
 	} else {
-		hwc->config_base = x86_pmu.eventsel;
-		hwc->event_base  = x86_pmu.perfctr;
+		hwc->config_base = x86_pmu_config_addr(hwc->idx);
+		hwc->event_base  = x86_pmu_event_addr(hwc->idx);
 	}
 }
 
@@ -932,7 +927,7 @@ static inline void x86_pmu_disable_event(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 
-	wrmsrl(hwc->config_base + hwc->idx, hwc->config);
+	wrmsrl(hwc->config_base, hwc->config);
 }
 
 static DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], pmc_prev_left);
@@ -985,7 +980,7 @@ x86_perf_event_set_period(struct perf_event *event)
 	 */
 	local64_set(&hwc->prev_count, (u64)-left);
 
-	wrmsrl(hwc->event_base + idx, (u64)(-left) & x86_pmu.cntval_mask);
+	wrmsrl(hwc->event_base, (u64)(-left) & x86_pmu.cntval_mask);
 
 	/*
 	 * Due to erratum on certan cpu we need
@@ -993,7 +988,7 @@ x86_perf_event_set_period(struct perf_event *event)
 	 * is updated properly
 	 */
 	if (x86_pmu.perfctr_second_write) {
-		wrmsrl(hwc->event_base + idx,
+		wrmsrl(hwc->event_base,
 			(u64)(-left) & x86_pmu.cntval_mask);
 	}
 
