@@ -192,6 +192,25 @@ void set_irq_nested_thread(unsigned int irq, int nest)
 }
 EXPORT_SYMBOL_GPL(set_irq_nested_thread);
 
+int irq_startup(struct irq_desc *desc)
+{
+	desc->status &= ~(IRQ_MASKED | IRQ_DISABLED);
+	desc->depth = 0;
+
+	if (desc->irq_data.chip->irq_startup)
+		return desc->irq_data.chip->irq_startup(&desc->irq_data);
+
+	desc->irq_data.chip->irq_enable(&desc->irq_data);
+	return 0;
+}
+
+void irq_shutdown(struct irq_desc *desc)
+{
+	desc->status |= IRQ_MASKED | IRQ_DISABLED;
+	desc->depth = 1;
+	desc->irq_data.chip->irq_shutdown(&desc->irq_data);
+}
+
 /*
  * default enable function
  */
@@ -211,17 +230,6 @@ static void default_disable(struct irq_data *data)
 }
 
 /*
- * default startup function
- */
-static unsigned int default_startup(struct irq_data *data)
-{
-	struct irq_desc *desc = irq_data_to_desc(data);
-
-	desc->irq_data.chip->irq_enable(data);
-	return 0;
-}
-
-/*
  * default shutdown function
  */
 static void default_shutdown(struct irq_data *data)
@@ -229,7 +237,6 @@ static void default_shutdown(struct irq_data *data)
 	struct irq_desc *desc = irq_data_to_desc(data);
 
 	desc->irq_data.chip->irq_mask(&desc->irq_data);
-	desc->status |= IRQ_MASKED;
 }
 
 #ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
@@ -337,8 +344,6 @@ void irq_chip_set_defaults(struct irq_chip *chip)
 		chip->irq_enable = default_enable;
 	if (!chip->irq_disable)
 		chip->irq_disable = default_disable;
-	if (!chip->irq_startup)
-		chip->irq_startup = default_startup;
 	/*
 	 * We use chip->irq_disable, when the user provided its own. When
 	 * we have default_disable set for chip->irq_disable, then we need
@@ -747,10 +752,8 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 	desc->name = name;
 
 	if (handle != handle_bad_irq && is_chained) {
-		desc->status &= ~IRQ_DISABLED;
 		desc->status |= IRQ_NOREQUEST | IRQ_NOPROBE;
-		desc->depth = 0;
-		desc->irq_data.chip->irq_startup(&desc->irq_data);
+		irq_startup(desc);
 	}
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	chip_bus_sync_unlock(desc);

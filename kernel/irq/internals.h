@@ -38,6 +38,9 @@ extern int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 extern void __disable_irq(struct irq_desc *desc, unsigned int irq, bool susp);
 extern void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume);
 
+extern int irq_startup(struct irq_desc *desc);
+extern void irq_shutdown(struct irq_desc *desc);
+
 extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
 
 /* Resending of interrupts :*/
