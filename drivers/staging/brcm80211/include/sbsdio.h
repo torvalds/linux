@@ -144,7 +144,7 @@
 						 */
 
 #define SBSDIO_BYTEMODE_DATALEN_MAX	64	/* sdio byte mode: maximum length of one
-						 * data comamnd
+						 * data command
 						 */
 
 #define SBSDIO_CORE_ADDR_MASK		0x1FFFF	/* sdio core function one address mask */
