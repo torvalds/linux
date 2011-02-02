@@ -1832,33 +1832,6 @@ static inline int qeth_get_initial_mtu_for_card(struct qeth_card *card)
 	}
 }
 
-static inline int qeth_get_max_mtu_for_card(int cardtype)
-{
-	switch (cardtype) {
-
-	case QETH_CARD_TYPE_UNKNOWN:
-	case QETH_CARD_TYPE_OSD:
-	case QETH_CARD_TYPE_OSN:
-	case QETH_CARD_TYPE_OSM:
-	case QETH_CARD_TYPE_OSX:
-		return 61440;
-	case QETH_CARD_TYPE_IQD:
-		return 57344;
-	default:
-		return 1500;
-	}
-}
-
-static inline int qeth_get_mtu_out_of_mpc(int cardtype)
-{
-	switch (cardtype) {
-	case QETH_CARD_TYPE_IQD:
-		return 1;
-	default:
-		return 0;
-	}
-}
-
 static inline int qeth_get_mtu_outof_framesize(int framesize)
 {
 	switch (framesize) {
@@ -1881,10 +1854,9 @@ static inline int qeth_mtu_is_valid(struct qeth_card *card, int mtu)
 	case QETH_CARD_TYPE_OSD:
 	case QETH_CARD_TYPE_OSM:
 	case QETH_CARD_TYPE_OSX:
-		return ((mtu >= 576) && (mtu <= 61440));
 	case QETH_CARD_TYPE_IQD:
 		return ((mtu >= 576) &&
-			(mtu <= card->info.max_mtu + 4096 - 32));
+			(mtu <= card->info.max_mtu));
 	case QETH_CARD_TYPE_OSN:
 	case QETH_CARD_TYPE_UNKNOWN:
 	default:
@@ -1907,7 +1879,7 @@ static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 	memcpy(&card->token.ulp_filter_r,
 	       QETH_ULP_ENABLE_RESP_FILTER_TOKEN(iob->data),
 	       QETH_MPC_TOKEN_LENGTH);
-	if (qeth_get_mtu_out_of_mpc(card->info.type)) {
+	if (card->info.type == QETH_CARD_TYPE_IQD) {
 		memcpy(&framesize, QETH_ULP_ENABLE_RESP_MAX_MTU(iob->data), 2);
 		mtu = qeth_get_mtu_outof_framesize(framesize);
 		if (!mtu) {
@@ -1920,7 +1892,8 @@ static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 		card->qdio.in_buf_size = mtu + 2 * PAGE_SIZE;
 	} else {
 		card->info.initial_mtu = qeth_get_initial_mtu_for_card(card);
-		card->info.max_mtu = qeth_get_max_mtu_for_card(card->info.type);
+		card->info.max_mtu = *(__u16 *)QETH_ULP_ENABLE_RESP_MAX_MTU(
+			iob->data);
 		card->qdio.in_buf_size = QETH_IN_BUF_SIZE_DEFAULT;
 	}
 
