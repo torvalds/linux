@@ -130,7 +130,7 @@ extern u32 wl12xx_debug_level;
 
 
 
-#define WL1271_FW_NAME "wl1271-fw.bin"
+#define WL1271_FW_NAME "wl1271-fw-2.bin"
 #define WL1271_AP_FW_NAME "wl1271-fw-ap.bin"
 
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
@@ -214,8 +214,8 @@ struct wl1271_stats {
 /* Broadcast and Global links + links to stations */
 #define AP_MAX_LINKS               (AP_MAX_STATIONS + 2)
 
-/* FW status registers */
-struct wl1271_fw_status {
+/* FW status registers common for AP/STA */
+struct wl1271_fw_common_status {
 	__le32 intr;
 	u8  fw_rx_counter;
 	u8  drv_rx_counter;
@@ -224,6 +224,11 @@ struct wl1271_fw_status {
 	__le32 rx_pkt_descs[NUM_RX_PKT_DESC];
 	__le32 tx_released_blks[NUM_TX_QUEUES];
 	__le32 fw_localtime;
+} __packed;
+
+/* FW status registers for AP */
+struct wl1271_fw_ap_status {
+	struct wl1271_fw_common_status common;
 
 	/* Next fields valid only in AP FW */
 
@@ -237,6 +242,24 @@ struct wl1271_fw_status {
 	u8 tx_lnk_free_blks[AP_MAX_LINKS];
 	u8 padding_1[1];
 } __packed;
+
+/* FW status registers for STA */
+struct wl1271_fw_sta_status {
+	struct wl1271_fw_common_status common;
+
+	u8  tx_total;
+	u8  reserved1;
+	__le16 reserved2;
+} __packed;
+
+struct wl1271_fw_full_status {
+	union {
+		struct wl1271_fw_common_status common;
+		struct wl1271_fw_sta_status sta;
+		struct wl1271_fw_ap_status ap;
+	};
+} __packed;
+
 
 struct wl1271_rx_mem_pool_addr {
 	u32 addr;
@@ -445,7 +468,7 @@ struct wl1271 {
 	u32 buffer_cmd;
 	u32 buffer_busyword[WL1271_BUSY_WORD_CNT];
 
-	struct wl1271_fw_status *fw_status;
+	struct wl1271_fw_full_status *fw_status;
 	struct wl1271_tx_hw_res_if *tx_res_if;
 
 	struct ieee80211_vif *vif;

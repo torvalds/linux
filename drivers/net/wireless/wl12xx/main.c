@@ -298,6 +298,12 @@ static struct conf_drv_settings default_conf = {
 		.tx_ba_win_size = 64,
 		.inactivity_timeout = 10000,
 	},
+	.mem = {
+		.dynamic_memory               = 0,
+		.min_req_tx_blocks            = 104,
+		.min_req_rx_blocks            = 22,
+		.tx_min                       = 27,
+	}
 };
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl);
@@ -524,13 +530,19 @@ static int wl1271_plt_init(struct wl1271 *wl)
 }
 
 static void wl1271_fw_status(struct wl1271 *wl,
-			     struct wl1271_fw_status *status)
+			     struct wl1271_fw_full_status *full_status)
 {
+	struct wl1271_fw_common_status *status = &full_status->common;
 	struct timespec ts;
 	u32 total = 0;
 	int i;
 
-	wl1271_raw_read(wl, FW_STATUS_ADDR, status, sizeof(*status), false);
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		wl1271_raw_read(wl, FW_STATUS_ADDR, status,
+				sizeof(struct wl1271_fw_ap_status), false);
+	else
+		wl1271_raw_read(wl, FW_STATUS_ADDR, status,
+				sizeof(struct wl1271_fw_sta_status), false);
 
 	wl1271_debug(DEBUG_IRQ, "intr: 0x%x (fw_rx_counter = %d, "
 		     "drv_rx_counter = %d, tx_results_counter = %d)",
@@ -589,7 +601,7 @@ static void wl1271_irq_work(struct work_struct *work)
 		loopcount--;
 
 		wl1271_fw_status(wl, wl->fw_status);
-		intr = le32_to_cpu(wl->fw_status->intr);
+		intr = le32_to_cpu(wl->fw_status->common.intr);
 		if (!intr) {
 			wl1271_debug(DEBUG_IRQ, "Zero interrupt received.");
 			spin_lock_irqsave(&wl->wl_lock, flags);
@@ -611,7 +623,7 @@ static void wl1271_irq_work(struct work_struct *work)
 			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_DATA");
 
 			/* check for tx results */
-			if (wl->fw_status->tx_results_counter !=
+			if (wl->fw_status->common.tx_results_counter !=
 			    (wl->tx_results_count & 0xff))
 				wl1271_tx_complete(wl);
 
@@ -625,7 +637,7 @@ static void wl1271_irq_work(struct work_struct *work)
 				wl1271_tx_work_locked(wl);
 			}
 
-			wl1271_rx(wl, wl->fw_status);
+			wl1271_rx(wl, &wl->fw_status->common);
 		}
 
 		if (intr & WL1271_ACX_INTR_EVENT_A) {

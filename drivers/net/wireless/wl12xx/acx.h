@@ -802,7 +802,7 @@ struct acx_tx_config_options {
 #define ACX_TX_DESCRIPTORS    32
 #define ACX_NUM_SSID_PROFILES 1
 
-struct wl1271_acx_config_memory {
+struct wl1271_acx_ap_config_memory {
 	struct acx_header header;
 
 	u8 rx_mem_block_num;
@@ -810,6 +810,20 @@ struct wl1271_acx_config_memory {
 	u8 num_stations;
 	u8 num_ssid_profiles;
 	__le32 total_tx_descriptors;
+} __packed;
+
+struct wl1271_acx_sta_config_memory {
+	struct acx_header header;
+
+	u8 rx_mem_block_num;
+	u8 tx_min_mem_block_num;
+	u8 num_stations;
+	u8 num_ssid_profiles;
+	__le32 total_tx_descriptors;
+	u8 dyn_mem_enable;
+	u8 tx_free_req;
+	u8 rx_free_req;
+	u8 tx_min;
 } __packed;
 
 struct wl1271_acx_mem_map {
@@ -1202,6 +1216,8 @@ enum {
 	ACX_HT_BSS_OPERATION        = 0x0058,
 	ACX_COEX_ACTIVITY           = 0x0059,
 	ACX_SET_DCO_ITRIM_PARAMS    = 0x0061,
+	ACX_GEN_FW_CMD              = 0x0070,
+	ACX_HOST_IF_CFG_BITMAP      = 0x0071,
 	ACX_MAX_TX_FAILURE          = 0x0072,
 	DOT11_RX_MSDU_LIFE_TIME     = 0x1004,
 	DOT11_CUR_TX_PWR            = 0x100D,
@@ -1210,10 +1226,7 @@ enum {
 	DOT11_GROUP_ADDRESS_TBL     = 0x1014,
 	ACX_PM_CONFIG               = 0x1016,
 	ACX_CONFIG_PS               = 0x1017,
-
-	MAX_DOT11_IE = DOT11_GROUP_ADDRESS_TBL,
-
-	MAX_IE = 0xFFFF
+	ACX_CONFIG_HANGOVER         = 0x1018,
 };
 
 
@@ -1255,7 +1268,8 @@ int wl1271_acx_tid_cfg(struct wl1271 *wl, u8 queue_id, u8 channel_type,
 		       u32 apsd_conf0, u32 apsd_conf1);
 int wl1271_acx_frag_threshold(struct wl1271 *wl, u16 frag_threshold);
 int wl1271_acx_tx_config_options(struct wl1271 *wl);
-int wl1271_acx_mem_cfg(struct wl1271 *wl);
+int wl1271_acx_ap_mem_cfg(struct wl1271 *wl);
+int wl1271_acx_sta_mem_cfg(struct wl1271 *wl);
 int wl1271_acx_init_mem_config(struct wl1271 *wl);
 int wl1271_acx_init_rx_interrupt(struct wl1271 *wl);
 int wl1271_acx_smart_reflex(struct wl1271 *wl);

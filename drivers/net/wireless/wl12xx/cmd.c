@@ -286,6 +286,13 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	join->rx_filter_options = cpu_to_le32(wl->rx_filter);
 	join->bss_type = bss_type;
 	join->basic_rate_set = cpu_to_le32(wl->basic_rate_set);
+	/*
+	 * for supported_rate_set, we should use wl->rate_set. however,
+	 * it seems that acx_rate_policies doesn't affect full_rate, and
+	 * since we want to avoid additional join, we'll use a 0xffffffff value,
+	 * and let the fw find the actual supported rates
+	 */
+	join->supported_rate_set = cpu_to_le32(0xffffffff);
 
 	if (wl->band == IEEE80211_BAND_5GHZ)
 		join->bss_type |= WL1271_JOIN_CMD_BSS_TYPE_5GHZ;
@@ -454,7 +461,7 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, u32 rates, bool send)
+int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode)
 {
 	struct wl1271_cmd_ps_params *ps_params = NULL;
 	int ret = 0;
@@ -468,10 +475,6 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, u32 rates, bool send)
 	}
 
 	ps_params->ps_mode = ps_mode;
-	ps_params->send_null_data = send;
-	ps_params->retries = wl->conf.conn.psm_entry_nullfunc_retries;
-	ps_params->hang_over_period = wl->conf.conn.psm_entry_hangover_period;
-	ps_params->null_data_rate = cpu_to_le32(rates);
 
 	ret = wl1271_cmd_send(wl, CMD_SET_PS_MODE, ps_params,
 			      sizeof(*ps_params), 0);

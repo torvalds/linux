@@ -1151,6 +1151,34 @@ struct conf_ht_setting {
 	u16 inactivity_timeout;
 };
 
+struct conf_memory_settings {
+	/* Disable/Enable dynamic memory */
+	u8 dynamic_memory;
+
+	/*
+	 * Minimum required free tx memory blocks in order to assure optimum
+	 * performence
+	 *
+	 * Range: 0-120
+	 */
+	u8 min_req_tx_blocks;
+
+	/*
+	 * Minimum required free rx memory blocks in order to assure optimum
+	 * performence
+	 *
+	 * Range: 0-120
+	 */
+	u8 min_req_rx_blocks;
+
+	/*
+	 * Minimum number of mem blocks (free+used) guaranteed for TX
+	 *
+	 * Range: 0-120
+	 */
+	u8 tx_min;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -1162,6 +1190,7 @@ struct conf_drv_settings {
 	struct conf_scan_settings scan;
 	struct conf_rf_settings rf;
 	struct conf_ht_setting ht;
+	struct conf_memory_settings mem;
 };
 
 #endif

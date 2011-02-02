@@ -947,9 +947,9 @@ out:
 	return ret;
 }
 
-int wl1271_acx_mem_cfg(struct wl1271 *wl)
+int wl1271_acx_ap_mem_cfg(struct wl1271 *wl)
 {
-	struct wl1271_acx_config_memory *mem_conf;
+	struct wl1271_acx_ap_config_memory *mem_conf;
 	int ret;
 
 	wl1271_debug(DEBUG_ACX, "wl1271 mem cfg");
@@ -979,13 +979,45 @@ out:
 	return ret;
 }
 
+int wl1271_acx_sta_mem_cfg(struct wl1271 *wl)
+{
+	struct wl1271_acx_sta_config_memory *mem_conf;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "wl1271 mem cfg");
+
+	mem_conf = kzalloc(sizeof(*mem_conf), GFP_KERNEL);
+	if (!mem_conf) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* memory config */
+	mem_conf->num_stations = DEFAULT_NUM_STATIONS;
+	mem_conf->rx_mem_block_num = ACX_RX_MEM_BLOCKS;
+	mem_conf->tx_min_mem_block_num = ACX_TX_MIN_MEM_BLOCKS;
+	mem_conf->num_ssid_profiles = ACX_NUM_SSID_PROFILES;
+	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
+	mem_conf->dyn_mem_enable = wl->conf.mem.dynamic_memory;
+	mem_conf->tx_free_req = wl->conf.mem.min_req_tx_blocks;
+	mem_conf->rx_free_req = wl->conf.mem.min_req_rx_blocks;
+	mem_conf->tx_min = wl->conf.mem.tx_min;
+
+	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
+				   sizeof(*mem_conf));
+	if (ret < 0) {
+		wl1271_warning("wl1271 mem config failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(mem_conf);
+	return ret;
+}
+
 int wl1271_acx_init_mem_config(struct wl1271 *wl)
 {
 	int ret;
-
-	ret = wl1271_acx_mem_cfg(wl);
-	if (ret < 0)
-		return ret;
 
 	wl->target_mem_map = kzalloc(sizeof(struct wl1271_acx_mem_map),
 				     GFP_KERNEL);
