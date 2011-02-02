@@ -206,11 +206,17 @@ __create_page_tables:
 #endif
 
 	/*
-	 * Then map first 1MB of ram in case it contains our boot params.
+	 * Then map boot params address in r2 or
+	 * the first 1MB of ram if boot params address is not specified.
 	 */
-	add	r0, r4, #PAGE_OFFSET >> 18
-	orr	r6, r7, r8
-	str	r6, [r0]
+	mov	r0, r2, lsr #20
+	movs	r0, r0, lsl #20
+	moveq	r0, r8
+	sub	r3, r0, r8
+	add	r3, r3, #PAGE_OFFSET
+	add	r3, r4, r3, lsr #18
+	orr	r6, r7, r0
+	str	r6, [r3]
 
 #ifdef CONFIG_DEBUG_LL
 #ifndef CONFIG_DEBUG_ICEDCC
