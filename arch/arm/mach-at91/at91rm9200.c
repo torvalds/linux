@@ -191,6 +191,26 @@ static struct clk *periph_clocks[] __initdata = {
 	// irq0 .. irq6
 };
 
+static struct clk_lookup periph_clocks_lookups[] = {
+	CLKDEV_CON_DEV_ID("t0_clk", "atmel_tcb.0", &tc0_clk),
+	CLKDEV_CON_DEV_ID("t1_clk", "atmel_tcb.0", &tc1_clk),
+	CLKDEV_CON_DEV_ID("t2_clk", "atmel_tcb.0", &tc2_clk),
+	CLKDEV_CON_DEV_ID("t0_clk", "atmel_tcb.1", &tc3_clk),
+	CLKDEV_CON_DEV_ID("t1_clk", "atmel_tcb.1", &tc4_clk),
+	CLKDEV_CON_DEV_ID("t2_clk", "atmel_tcb.1", &tc5_clk),
+	CLKDEV_CON_DEV_ID("ssc", "ssc.0", &ssc0_clk),
+	CLKDEV_CON_DEV_ID("ssc", "ssc.1", &ssc1_clk),
+	CLKDEV_CON_DEV_ID("ssc", "ssc.2", &ssc2_clk),
+};
+
+static struct clk_lookup usart_clocks_lookups[] = {
+	CLKDEV_CON_DEV_ID("usart", "atmel_usart.0", &mck),
+	CLKDEV_CON_DEV_ID("usart", "atmel_usart.1", &usart0_clk),
+	CLKDEV_CON_DEV_ID("usart", "atmel_usart.2", &usart1_clk),
+	CLKDEV_CON_DEV_ID("usart", "atmel_usart.3", &usart2_clk),
+	CLKDEV_CON_DEV_ID("usart", "atmel_usart.4", &usart3_clk),
+};
+
 /*
  * The four programmable clocks.
  * You must configure pin multiplexing to bring these signals out.
@@ -227,10 +247,27 @@ static void __init at91rm9200_register_clocks(void)
 	for (i = 0; i < ARRAY_SIZE(periph_clocks); i++)
 		clk_register(periph_clocks[i]);
 
+	clkdev_add_table(periph_clocks_lookups,
+			 ARRAY_SIZE(periph_clocks_lookups));
+	clkdev_add_table(usart_clocks_lookups,
+			 ARRAY_SIZE(usart_clocks_lookups));
+
 	clk_register(&pck0);
 	clk_register(&pck1);
 	clk_register(&pck2);
 	clk_register(&pck3);
+}
+
+static struct clk_lookup console_clock_lookup;
+
+void __init at91rm9200_set_console_clock(int id)
+{
+	if (id >= ARRAY_SIZE(usart_clocks_lookups))
+		return;
+
+	console_clock_lookup.con_id = "usart";
+	console_clock_lookup.clk = usart_clocks_lookups[id].clk;
+	clkdev_add(&console_clock_lookup);
 }
 
 /* --------------------------------------------------------------------

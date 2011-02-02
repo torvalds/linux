@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/clkdev.h>
+
  /* Map io */
 extern void __init at91rm9200_map_io(void);
 extern void __init at91sam9260_map_io(void);
@@ -50,8 +52,20 @@ extern struct sys_timer at91x40_timer;
 
  /* Clocks */
 extern int __init at91_clock_init(unsigned long main_clock);
+/*
+ * function to specify the clock of the default console. As we do not
+ * use the device/driver bus, the dev_name is not intialize. So we need
+ * to link the clock to a specific con_id only "usart"
+ */
+extern void __init at91rm9200_set_console_clock(int id);
+extern void __init at91sam9260_set_console_clock(int id);
+extern void __init at91sam9261_set_console_clock(int id);
+extern void __init at91sam9263_set_console_clock(int id);
+extern void __init at91sam9rl_set_console_clock(int id);
+extern void __init at91sam9g45_set_console_clock(int id);
+extern void __init at91cap9_set_console_clock(int id);
+extern void __init at572d940hf_set_console_clock(int id);
 struct device;
-extern void __init at91_clock_associate(const char *id, struct device *dev, const char *func);
 
  /* Power Management */
 extern void at91_irq_suspend(void);
