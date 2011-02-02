@@ -330,18 +330,9 @@ semaphore_acquire(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 	int ret;
 
 	if (dev_priv->chipset < 0x84) {
-		if (dev_priv->chipset < 0x50) {
-			ret = RING_SPACE(chan, 3);
-			if (ret)
-				return ret;
-		} else {
-			ret = RING_SPACE(chan, 5);
-			if (ret)
-				return ret;
-
-			BEGIN_RING(chan, NvSubSw, NV_SW_YIELD, 1);
-			OUT_RING  (chan, 0);
-		}
+		ret = RING_SPACE(chan, 3);
+		if (ret)
+			return ret;
 
 		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_OFFSET, 2);
 		OUT_RING  (chan, sema->mem->start);
@@ -351,29 +342,10 @@ semaphore_acquire(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 		struct nouveau_vma *vma = &dev_priv->fence.bo->vma;
 		u64 offset = vma->offset + sema->mem->start;
 
-		/*
-		 * NV50 tries to be too smart and context-switch
-		 * between semaphores instead of doing a "first come,
-		 * first served" strategy like previous cards
-		 * do.
-		 *
-		 * That's bad because the ACQUIRE latency can get as
-		 * large as the PFIFO context time slice in the
-		 * typical DRI2 case where you have several
-		 * outstanding semaphores at the same moment.
-		 *
-		 * If we're going to ACQUIRE, force the card to
-		 * context switch before, just in case the matching
-		 * RELEASE is already scheduled to be executed in
-		 * another channel.
-		 */
-
-		ret = RING_SPACE(chan, 7);
+		ret = RING_SPACE(chan, 5);
 		if (ret)
 			return ret;
 
-		BEGIN_RING(chan, NvSubSw, 0x0080, 1);
-		OUT_RING  (chan, 0);
 		BEGIN_RING(chan, NvSubSw, 0x0010, 4);
 		OUT_RING  (chan, upper_32_bits(offset));
 		OUT_RING  (chan, lower_32_bits(offset));
@@ -413,7 +385,7 @@ semaphore_release(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 	int ret;
 
 	if (dev_priv->chipset < 0x84) {
-		ret = RING_SPACE(chan, (dev_priv->chipset != 0x50) ? 4 : 6);
+		ret = RING_SPACE(chan, 4);
 		if (ret)
 			return ret;
 
@@ -421,22 +393,12 @@ semaphore_release(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 		OUT_RING  (chan, sema->mem->start);
 		BEGIN_RING(chan, NvSubSw, NV_SW_SEMAPHORE_RELEASE, 1);
 		OUT_RING  (chan, 1);
-		if (dev_priv->chipset == 0x50) {
-			BEGIN_RING(chan, NvSubSw, NV_SW_YIELD, 1);
-			OUT_RING  (chan, 0);
-		}
 	} else
 	if (dev_priv->chipset < 0xc0) {
 		struct nouveau_vma *vma = &dev_priv->fence.bo->vma;
 		u64 offset = vma->offset + sema->mem->start;
 
-		/*
-		 * Emits release and forces the card to context switch right
-		 * afterwards, there may be another channel waiting for the
-		 * semaphore
-		 */
-
-		ret = RING_SPACE(chan, 7);
+		ret = RING_SPACE(chan, 5);
 		if (ret)
 			return ret;
 
@@ -445,8 +407,6 @@ semaphore_release(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 		OUT_RING  (chan, lower_32_bits(offset));
 		OUT_RING  (chan, 1);
 		OUT_RING  (chan, 2); /* RELEASE */
-		BEGIN_RING(chan, NvSubSw, 0x0080, 1);
-		OUT_RING  (chan, 0);
 	} else {
 		struct nouveau_vma *vma = &dev_priv->fence.bo->vma;
 		u64 offset = vma->offset + sema->mem->start;
