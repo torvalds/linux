@@ -493,18 +493,18 @@ typedef struct ar6_softc {
     u16 arListenIntervalT;
     struct ar6000_version   arVersion;
     u32 arTargetType;
-    A_INT8                  arRssi;
+    s8 arRssi;
     u8 arTxPwr;
     bool                  arTxPwrSet;
     A_INT32                 arBitRate;
     struct net_device_stats arNetStats;
     struct iw_statistics    arIwStats;
-    A_INT8                  arNumChannels;
+    s8 arNumChannels;
     u16 arChannelList[32];
     u32 arRegCode;
     bool                  statsUpdatePending;
     TARGET_STATS            arTargetStats;
-    A_INT8                  arMaxRetries;
+    s8 arMaxRetries;
     u8 arPhyCapability;
 #ifdef CONFIG_HOST_TCMD_SUPPORT
     u8 tcmdRxReport;

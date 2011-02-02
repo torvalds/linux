@@ -4410,7 +4410,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         case AR6000_XIOCTL_HCI_CMD:
         {
             char tmp_buf[512];
-            A_INT8 i;
+            s8 i;
             WMI_HCI_CMD *cmd = (WMI_HCI_CMD *)tmp_buf;
             u8 size;
 
@@ -4689,7 +4689,7 @@ u8 mac_cmp_wild(u8 *mac, u8 *new_mac, u8 wild, u8 new_wild)
 
 u8 acl_add_del_mac(WMI_AP_ACL *a, WMI_AP_ACL_MAC_CMD *acl)
 {
-    A_INT8    already_avail=-1, free_slot=-1, i;
+    s8 already_avail=-1, free_slot=-1, i;
 
     /* To check whether this mac is already there in our list */
     for(i=AP_ACL_SIZE-1;i>=0;i--)

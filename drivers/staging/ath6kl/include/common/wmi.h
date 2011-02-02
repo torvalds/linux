@@ -160,7 +160,7 @@ typedef enum {
 #define WMI_DATA_HDR_SET_META(h, _v)    ((h)->info2 = ((h)->info2 & ~(WMI_DATA_HDR_META_MASK << WMI_DATA_HDR_META_SHIFT)) | ((_v) << WMI_DATA_HDR_META_SHIFT))
 
 typedef PREPACK struct {
-    A_INT8      rssi;
+    s8 rssi;
     u8 info;               /* usage of 'info' field(8-bit):
                                      *  b1:b0       - WMI_MSG_TYPE
                                      *  b4:b3:b2    - UP(tid)
@@ -776,7 +776,7 @@ typedef PREPACK struct {
 } POSTPACK WMI_POWER_MODE_CMD;
 
 typedef PREPACK struct {
-    A_INT8 status;      /* WMI_SET_PARAMS_REPLY */
+    s8 status;      /* WMI_SET_PARAMS_REPLY */
 } POSTPACK WMI_SET_PARAMS_REPLY;
 
 typedef PREPACK struct {
@@ -1199,7 +1199,7 @@ typedef enum {
 
 typedef PREPACK struct {
         u8 bssid[ATH_MAC_LEN];
-        A_INT8  bias;
+        s8 bias;
 } POSTPACK WMI_BSS_BIAS;
 
 typedef PREPACK struct {
@@ -2139,7 +2139,7 @@ typedef PREPACK struct {
 } POSTPACK WMI_NEIGHBOR_INFO;
 
 typedef PREPACK struct {
-    A_INT8      numberOfAps;
+    s8 numberOfAps;
     WMI_NEIGHBOR_INFO neighbor[1];
 } POSTPACK WMI_NEIGHBOR_REPORT_EVENT;
 
@@ -2207,7 +2207,7 @@ typedef PREPACK struct {
 typedef PREPACK struct {
     u16 channel;
     u8 frameType;          /* see WMI_OPT_FTYPE */
-    A_INT8      snr;
+    s8 snr;
     u8 srcAddr[ATH_MAC_LEN];
     u8 bssid[ATH_MAC_LEN];
 } POSTPACK WMI_OPT_RX_INFO_HDR;
@@ -2399,11 +2399,11 @@ typedef PREPACK struct {
 typedef PREPACK struct {
     A_INT32 roam_util;
     u8 bssid[ATH_MAC_LEN];
-    A_INT8  rssi;
-    A_INT8  rssidt;
-    A_INT8  last_rssi;
-    A_INT8  util;
-    A_INT8  bias;
+    s8 rssi;
+    s8 rssidt;
+    s8 last_rssi;
+    s8 util;
+    s8 bias;
     u8 reserved; /* For alignment */
 } POSTPACK WMI_BSS_ROAM_INFO;
 
@@ -2506,14 +2506,14 @@ typedef enum {
 } WMI_BIT_RATE;
 
 typedef PREPACK struct {
-    A_INT8      rateIndex;          /* see WMI_BIT_RATE */
-    A_INT8      mgmtRateIndex;
-    A_INT8      ctlRateIndex;
+    s8 rateIndex;          /* see WMI_BIT_RATE */
+    s8 mgmtRateIndex;
+    s8 ctlRateIndex;
 } POSTPACK WMI_BIT_RATE_CMD;
 
 
 typedef PREPACK struct {
-    A_INT8      rateIndex;          /* see WMI_BIT_RATE */
+    s8 rateIndex;          /* see WMI_BIT_RATE */
 } POSTPACK  WMI_BIT_RATE_REPLY;
 
 
@@ -2599,9 +2599,9 @@ typedef PREPACK struct {
     u32 assoc_time;
     u32 allow_txrx_time;
     u8 disassoc_bssid[ATH_MAC_LEN];
-    A_INT8          disassoc_bss_rssi;
+    s8 disassoc_bss_rssi;
     u8 assoc_bssid[ATH_MAC_LEN];
-    A_INT8          assoc_bss_rssi;
+    s8 assoc_bss_rssi;
 } POSTPACK WMI_TARGET_ROAM_TIME;
 
 typedef PREPACK struct {

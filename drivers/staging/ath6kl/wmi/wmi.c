@@ -1671,7 +1671,7 @@ wmi_bitrate_reply_rx(struct wmi_t *wmip, u8 *datap, int len)
     A_DPRINTF(DBG_WMI,
         (DBGFMT "Enter - rateindex %d\n", DBGARG, reply->rateIndex));
 
-    if (reply->rateIndex == (A_INT8) RATE_AUTO) {
+    if (reply->rateIndex == (s8) RATE_AUTO) {
         rate = RATE_AUTO;
     } else {
         // the SGI state is stored as the MSb of the rateIndex
@@ -2294,7 +2294,7 @@ wmi_dbglog_event_rx(struct wmi_t *wmip, u8 *datap, int len)
     dropped = *((u32 *)datap);
     datap += sizeof(dropped);
     len -= sizeof(dropped);
-    A_WMI_DBGLOG_EVENT(wmip->wmi_devt, dropped, (A_INT8*)datap, len);
+    A_WMI_DBGLOG_EVENT(wmip->wmi_devt, dropped, (s8 *)datap, len);
     return A_OK;
 }
 
@@ -2513,11 +2513,11 @@ int
 wmi_startscan_cmd(struct wmi_t *wmip, WMI_SCAN_TYPE scanType,
                   u32 forceFgScan, u32 isLegacy,
                   u32 homeDwellTime, u32 forceScanInterval,
-                  A_INT8 numChan, u16 *channelList)
+                  s8 numChan, u16 *channelList)
 {
     void *osbuf;
     WMI_START_SCAN_CMD *sc;
-    A_INT8 size;
+    s8 size;
 
     size = sizeof (*sc);
 
@@ -3399,7 +3399,7 @@ wmi_set_bitrate_cmd(struct wmi_t *wmip, A_INT32 dataRate, A_INT32 mgmtRate, A_IN
 {
     void *osbuf;
     WMI_BIT_RATE_CMD *cmd;
-    A_INT8 drix, mrix, crix, ret_val;
+    s8 drix, mrix, crix, ret_val;
 
     if (dataRate != -1) {
         ret_val = wmi_validate_bitrate(wmip, dataRate, &drix);
@@ -3509,10 +3509,9 @@ wmi_is_bitrate_index_valid(struct wmi_t *wmip, A_INT32 rateIndex)
     return isValid;
 }
 
-A_INT8
-wmi_validate_bitrate(struct wmi_t *wmip, A_INT32 rate, A_INT8 *rate_idx)
+s8 wmi_validate_bitrate(struct wmi_t *wmip, A_INT32 rate, s8 *rate_idx)
 {
-    A_INT8 i;
+    s8 i;
 
     for (i=0;;i++)
     {
@@ -3596,12 +3595,12 @@ wmi_get_channelList_cmd(struct wmi_t *wmip)
  */
 int
 wmi_set_channelParams_cmd(struct wmi_t *wmip, u8 scanParam,
-                          WMI_PHY_MODE mode, A_INT8 numChan,
+                          WMI_PHY_MODE mode, s8 numChan,
                           u16 *channelList)
 {
     void *osbuf;
     WMI_CHANNEL_PARAMS_CMD *cmd;
-    A_INT8 size;
+    s8 size;
 
     size = sizeof (*cmd);
 
@@ -3736,7 +3735,7 @@ wmi_set_host_sleep_mode_cmd(struct wmi_t *wmip,
                               WMI_SET_HOST_SLEEP_MODE_CMD *hostModeCmd)
 {
     void    *osbuf;
-    A_INT8  size;
+    s8 size;
     WMI_SET_HOST_SLEEP_MODE_CMD *cmd;
     u16 activeTsids=0;
     u8 streamExists=0;
@@ -3798,7 +3797,7 @@ wmi_set_wow_mode_cmd(struct wmi_t *wmip,
                               WMI_SET_WOW_MODE_CMD *wowModeCmd)
 {
     void    *osbuf;
-    A_INT8  size;
+    s8 size;
     WMI_SET_WOW_MODE_CMD *cmd;
 
     size = sizeof (*cmd);
@@ -3824,7 +3823,7 @@ wmi_get_wow_list_cmd(struct wmi_t *wmip,
                               WMI_GET_WOW_LIST_CMD *wowListCmd)
 {
     void    *osbuf;
-    A_INT8  size;
+    s8 size;
     WMI_GET_WOW_LIST_CMD *cmd;
 
     size = sizeof (*cmd);
@@ -3867,7 +3866,7 @@ int wmi_add_wow_pattern_cmd(struct wmi_t *wmip,
                                  u8 pattern_size)
 {
     void    *osbuf;
-    A_INT8  size;
+    s8 size;
     WMI_ADD_WOW_PATTERN_CMD *cmd;
     u8 *filter_mask = NULL;
 
@@ -3901,7 +3900,7 @@ wmi_del_wow_pattern_cmd(struct wmi_t *wmip,
                               WMI_DEL_WOW_PATTERN_CMD *delWowCmd)
 {
     void    *osbuf;
-    A_INT8  size;
+    s8 size;
     WMI_DEL_WOW_PATTERN_CMD *cmd;
 
     size = sizeof (*cmd);
@@ -4003,7 +4002,7 @@ wmi_set_lq_threshold_params(struct wmi_t *wmip,
                              WMI_LQ_THRESHOLD_PARAMS_CMD *lqCmd)
 {
     void    *osbuf;
-    A_INT8  size;
+    s8 size;
     WMI_LQ_THRESHOLD_PARAMS_CMD *cmd;
     /* These values are in ascending order */
     if( lqCmd->thresholdAbove4_Val <= lqCmd->thresholdAbove3_Val ||
@@ -4037,7 +4036,7 @@ int
 wmi_set_error_report_bitmask(struct wmi_t *wmip, u32 mask)
 {
     void    *osbuf;
-    A_INT8  size;
+    s8 size;
     WMI_TARGET_ERROR_REPORT_BITMASK *cmd;
 
     size = sizeof (*cmd);
@@ -5351,7 +5350,7 @@ wmi_set_halparam_cmd(struct wmi_t *wmip, u8 *cmd, u16 dataLen)
 }
 
 A_INT32
-wmi_get_rate(A_INT8 rateindex)
+wmi_get_rate(s8 rateindex)
 {
     if (rateindex == RATE_AUTO) {
         return 0;
@@ -5921,7 +5920,7 @@ wmi_send_rssi_threshold_params(struct wmi_t *wmip,
                               WMI_RSSI_THRESHOLD_PARAMS_CMD *rssiCmd)
 {
     void    *osbuf;
-    A_INT8  size;
+    s8 size;
     WMI_RSSI_THRESHOLD_PARAMS_CMD *cmd;
 
     size = sizeof (*cmd);
@@ -5945,7 +5944,7 @@ wmi_send_snr_threshold_params(struct wmi_t *wmip,
                              WMI_SNR_THRESHOLD_PARAMS_CMD *snrCmd)
 {
     void    *osbuf;
-    A_INT8  size;
+    s8 size;
     WMI_SNR_THRESHOLD_PARAMS_CMD *cmd;
 
     size = sizeof (*cmd);

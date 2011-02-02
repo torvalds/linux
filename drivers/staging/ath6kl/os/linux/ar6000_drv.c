@@ -451,7 +451,7 @@ ar6000_dbglog_init_done(AR_SOFTC_T *ar)
     ar->dbglog_init_done = true;
 }
 
-u32 dbglog_get_debug_fragment(A_INT8 *datap, u32 len, u32 limit)
+u32 dbglog_get_debug_fragment(s8 *datap, u32 len, u32 limit)
 {
     A_INT32 *buffer;
     u32 count;
@@ -477,7 +477,7 @@ u32 dbglog_get_debug_fragment(A_INT8 *datap, u32 len, u32 limit)
 }
 
 void
-dbglog_parse_debug_logs(A_INT8 *datap, u32 len)
+dbglog_parse_debug_logs(s8 *datap, u32 len)
 {
     A_INT32 *buffer;
     u32 count;
@@ -571,7 +571,7 @@ ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
                 {
                     break;
                 }
-                ar6000_dbglog_event(ar, dropped, (A_INT8*)&ar->log_buffer[ar->log_cnt], length);
+                ar6000_dbglog_event(ar, dropped, (s8 *)&ar->log_buffer[ar->log_cnt], length);
                 ar->log_cnt += length;
             } else {
                 AR_DEBUG_PRINTF(ATH_DEBUG_DBG_LOG,("Length: %d (Total size: %d)\n",
@@ -597,7 +597,7 @@ ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
 
 void
 ar6000_dbglog_event(AR_SOFTC_T *ar, u32 dropped,
-                    A_INT8 *buffer, u32 length)
+                    s8 *buffer, u32 length)
 {
 #ifdef REPORT_DEBUG_LOGS_TO_APP
     #define MAX_WIRELESS_EVENT_SIZE 252
@@ -622,7 +622,7 @@ ar6000_dbglog_event(AR_SOFTC_T *ar, u32 dropped,
                     dropped, length));
 
     /* Interpret the debug logs */
-    dbglog_parse_debug_logs((A_INT8*)buffer, length);
+    dbglog_parse_debug_logs((s8 *)buffer, length);
 #endif /* REPORT_DEBUG_LOGS_TO_APP */
 }
 
@@ -2795,7 +2795,7 @@ ar6000_txPwr_rx(void *devt, u8 txPwr)
 
 
 void
-ar6000_channelList_rx(void *devt, A_INT8 numChan, u16 *chanList)
+ar6000_channelList_rx(void *devt, s8 numChan, u16 *chanList)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
 
@@ -4755,7 +4755,7 @@ void
 ar6000_hci_event_rcv_evt(struct ar6_softc *ar, WMI_HCI_EVENT *cmd)
 {
     void *osbuf = NULL;
-    A_INT8 i;
+    s8 i;
     u8 size, *buf;
     int ret = A_OK;
 

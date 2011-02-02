@@ -43,7 +43,7 @@ void ar6000_disconnect_event(struct ar6_softc *ar, u8 reason,
 void ar6000_tkip_micerr_event(struct ar6_softc *ar, u8 keyid,
                               bool ismcast);
 void ar6000_bitrate_rx(void *devt, A_INT32 rateKbps);
-void ar6000_channelList_rx(void *devt, A_INT8 numChan, u16 *chanList);
+void ar6000_channelList_rx(void *devt, s8 numChan, u16 *chanList);
 void ar6000_regDomain_event(struct ar6_softc *ar, u32 regCode);
 void ar6000_txPwr_rx(void *devt, u8 txPwr);
 void ar6000_keepalive_rx(void *devt, u8 configured);
@@ -109,7 +109,7 @@ int ar6000_get_driver_cfg(struct net_device *dev,
 void ar6000_bssInfo_event_rx(struct ar6_softc *ar, u8 *data, int len);
 
 void ar6000_dbglog_event(struct ar6_softc *ar, u32 dropped,
-                         A_INT8 *buffer, u32 length);
+                         s8 *buffer, u32 length);
 
 int ar6000_dbglog_get_debug_logs(struct ar6_softc *ar);
 

@@ -32,7 +32,7 @@
 #define IWE_STREAM_ADD_VALUE(p1, p2, p3, p4, p5, p6) \
     iwe_stream_add_value((p1), (p2), (p3), (p4), (p5), (p6))
 
-static void ar6000_set_quality(struct iw_quality *iq, A_INT8 rssi);
+static void ar6000_set_quality(struct iw_quality *iq, s8 rssi);
 extern unsigned int wmitimeout;
 extern A_WAITQUEUE_HEAD arEvent;
 
@@ -713,7 +713,7 @@ ar6000_ioctl_siwrate(struct net_device *dev,
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
     u32 kbps;
-    A_INT8  rate_idx;
+    s8 rate_idx;
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != A_OK) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -2564,7 +2564,7 @@ ar6000_ioctl_siwscan(struct net_device *dev,
  *     drivers for compatibility
  */
 static void
-ar6000_set_quality(struct iw_quality *iq, A_INT8 rssi)
+ar6000_set_quality(struct iw_quality *iq, s8 rssi)
 {
     if (rssi < 0) {
         iq->qual = 0;
