@@ -921,7 +921,7 @@ int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 	return ret;
 }
 
-void __exit btrfs_exit_compress(void)
+void btrfs_exit_compress(void)
 {
 	free_workspaces();
 }
