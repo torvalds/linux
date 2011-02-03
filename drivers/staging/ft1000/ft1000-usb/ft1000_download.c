@@ -468,14 +468,14 @@ static void put_request_value(struct ft1000_device *ft1000dev, long lvalue)
 //---------------------------------------------------------------------------
 static u16 hdr_checksum(struct pseudo_hdr *pHdr)
 {
-   u16   *usPtr = (u16 *)pHdr;
-   u16   chksum;
+	u16   *usPtr = (u16 *)pHdr;
+	u16   chksum;
 
 
-  chksum = ((((((usPtr[0] ^ usPtr[1]) ^ usPtr[2]) ^ usPtr[3]) ^
-                    usPtr[4]) ^ usPtr[5]) ^ usPtr[6]);
+	chksum = ((((((usPtr[0] ^ usPtr[1]) ^ usPtr[2]) ^ usPtr[3]) ^
+	usPtr[4]) ^ usPtr[5]) ^ usPtr[6]);
 
-  return chksum;
+	return chksum;
 }
 
 
