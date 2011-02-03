@@ -1650,15 +1650,15 @@ static u32 seq_max(u32 a, u32 b)
 	return seq_greater(a, b) ? a : b;
 }
 
-static void update_peer_seq(struct drbd_conf *mdev, unsigned int new_seq)
+static void update_peer_seq(struct drbd_conf *mdev, unsigned int peer_seq)
 {
-	unsigned int m;
+	unsigned int old_peer_seq;
 
 	spin_lock(&mdev->peer_seq_lock);
-	m = seq_max(mdev->peer_seq, new_seq);
-	mdev->peer_seq = m;
+	old_peer_seq = mdev->peer_seq;
+	mdev->peer_seq = seq_max(mdev->peer_seq, peer_seq);
 	spin_unlock(&mdev->peer_seq_lock);
-	if (m == new_seq)
+	if (old_peer_seq != peer_seq)
 		wake_up(&mdev->seq_wait);
 }
 
