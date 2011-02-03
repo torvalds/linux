@@ -341,6 +341,9 @@ struct ieee80211_bss_conf {
  *	the off-channel channel when a remain-on-channel offload is done
  *	in hardware -- normal packets still flow and are expected to be
  *	handled properly by the device.
+ * @IEEE80211_TX_INTFL_TKIP_MIC_FAILURE: Marks this packet to be used for TKIP
+ *	testing. It will be sent out with incorrect Michael MIC key to allow
+ *	TKIP countermeasures to be tested.
  *
  * Note: If you have to add new flags to the enumeration, then don't
  *	 forget to update %IEEE80211_TX_TEMPORARY_FLAGS when necessary.
@@ -370,6 +373,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_LDPC			= BIT(22),
 	IEEE80211_TX_CTL_STBC			= BIT(23) | BIT(24),
 	IEEE80211_TX_CTL_TX_OFFCHAN		= BIT(25),
+	IEEE80211_TX_INTFL_TKIP_MIC_FAILURE	= BIT(26),
 };
 
 #define IEEE80211_TX_CTL_STBC_SHIFT		23

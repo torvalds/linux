@@ -46,6 +46,11 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 	data = skb->data + hdrlen;
 	data_len = skb->len - hdrlen;
 
+	if (unlikely(info->flags & IEEE80211_TX_INTFL_TKIP_MIC_FAILURE)) {
+		/* Need to use software crypto for the test */
+		info->control.hw_key = NULL;
+	}
+
 	if (info->control.hw_key &&
 	    !(tx->flags & IEEE80211_TX_FRAGMENTED) &&
 	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC)) {
@@ -64,6 +69,8 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 	key = &tx->key->conf.key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY];
 	mic = skb_put(skb, MICHAEL_MIC_LEN);
 	michael_mic(key, hdr, data, data_len, mic);
+	if (unlikely(info->flags & IEEE80211_TX_INTFL_TKIP_MIC_FAILURE))
+		mic[0]++;
 
 	return TX_CONTINUE;
 }
