@@ -52,6 +52,7 @@
 #define TM6010_BOARD_TWINHAN_TU501		13
 #define TM6010_BOARD_BEHOLD_WANDER_LITE		14
 #define TM6010_BOARD_BEHOLD_VOYAGER_LITE	15
+#define TM5600_BOARD_TERRATEC_GRABSTER		16
 
 #define TM6000_MAXBOARDS        16
 static unsigned int card[]     = {[0 ... (TM6000_MAXBOARDS - 1)] = UNSET };
@@ -283,6 +284,11 @@ struct tm6000_board tm6000_boards[] = {
 		},
 		.ir_codes = RC_MAP_NEC_TERRATEC_CINERGY_XS,
 	},
+	[TM5600_BOARD_TERRATEC_GRABSTER] = {
+		.name         = "Terratec Grabster AV 150/250 MX",
+		.type         = TM5600,
+		.tuner_type   = TUNER_ABSENT,
+	},
 	[TM6010_BOARD_TWINHAN_TU501] = {
 		.name         = "Twinhan TU501(704D1)",
 		.tuner_type   = TUNER_XC2028, /* has a XC3028 */
@@ -339,7 +345,7 @@ struct tm6000_board tm6000_boards[] = {
 			.tuner_reset	= TM6010_GPIO_0,
 			.power_led	= TM6010_GPIO_6,
 		},
-	}
+	},
 };
 
 /* table of devices that work with this driver */
@@ -357,6 +363,7 @@ struct usb_device_id tm6000_id_table[] = {
 	{ USB_DEVICE(0x6000, 0xdec1), .driver_info = TM6010_BOARD_BEHOLD_VOYAGER },
 	{ USB_DEVICE(0x0ccd, 0x0086), .driver_info = TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE },
 	{ USB_DEVICE(0x0ccd, 0x00A5), .driver_info = TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE },
+	{ USB_DEVICE(0x0ccd, 0x0079), .driver_info = TM5600_BOARD_TERRATEC_GRABSTER },
 	{ USB_DEVICE(0x13d3, 0x3240), .driver_info = TM6010_BOARD_TWINHAN_TU501 },
 	{ USB_DEVICE(0x13d3, 0x3241), .driver_info = TM6010_BOARD_TWINHAN_TU501 },
 	{ USB_DEVICE(0x13d3, 0x3243), .driver_info = TM6010_BOARD_TWINHAN_TU501 },
