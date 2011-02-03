@@ -443,6 +443,42 @@ nv50_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 }
 
+static int
+nv50_crtc_wait_complete(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
+	struct nv50_display *disp = nv50_display(dev);
+	struct nouveau_channel *evo = disp->master;
+	u64 start;
+	int ret;
+
+	ret = RING_SPACE(evo, 6);
+	if (ret)
+		return ret;
+	BEGIN_RING(evo, 0, 0x0084, 1);
+	OUT_RING  (evo, 0x80000000);
+	BEGIN_RING(evo, 0, 0x0080, 1);
+	OUT_RING  (evo, 0);
+	BEGIN_RING(evo, 0, 0x0084, 1);
+	OUT_RING  (evo, 0x00000000);
+
+	nv_wo32(disp->ntfy, 0x000, 0x00000000);
+	FIRE_RING (evo);
+
+	start = ptimer->read(dev);
+	do {
+		nv_wr32(dev, 0x61002c, 0x370);
+		nv_wr32(dev, 0x000140, 1);
+
+		if (nv_ro32(disp->ntfy, 0x000))
+			return 0;
+	} while (ptimer->read(dev) - start < 2000000000ULL);
+
+	return -EBUSY;
+}
+
 static void
 nv50_crtc_prepare(struct drm_crtc *crtc)
 {
@@ -459,23 +495,13 @@ static void
 nv50_crtc_commit(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct nouveau_channel *evo = nv50_display(dev)->master;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	int ret;
 
 	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
 
 	nv50_crtc_blank(nv_crtc, false);
 	drm_vblank_post_modeset(dev, nv_crtc->index);
-
-	ret = RING_SPACE(evo, 2);
-	if (ret) {
-		NV_ERROR(dev, "no space while committing crtc\n");
-		return;
-	}
-	BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
-	OUT_RING  (evo, 0);
-	FIRE_RING (evo);
+	nv50_crtc_wait_complete(crtc);
 }
 
 static bool
@@ -488,7 +514,7 @@ nv50_crtc_mode_fixup(struct drm_crtc *crtc, struct drm_display_mode *mode,
 static int
 nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 			   struct drm_framebuffer *passed_fb,
-			   int x, int y, bool update, bool atomic)
+			   int x, int y, bool atomic)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_device *dev = nv_crtc->base.dev;
@@ -598,15 +624,6 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 		nv50_crtc_lut_load(crtc);
 	}
 
-	if (update) {
-		ret = RING_SPACE(evo, 2);
-		if (ret)
-			return ret;
-		BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
-		OUT_RING(evo, 0);
-		FIRE_RING(evo);
-	}
-
 	return 0;
 }
 
@@ -696,14 +713,20 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	nv_crtc->set_dither(nv_crtc, nv_connector->use_dithering, false);
 	nv_crtc->set_scale(nv_crtc, nv_connector->scaling_mode, false);
 
-	return nv50_crtc_do_mode_set_base(crtc, old_fb, x, y, false, false);
+	return nv50_crtc_do_mode_set_base(crtc, old_fb, x, y, false);
 }
 
 static int
 nv50_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 			struct drm_framebuffer *old_fb)
 {
-	return nv50_crtc_do_mode_set_base(crtc, old_fb, x, y, true, false);
+	int ret;
+
+	ret = nv50_crtc_do_mode_set_base(crtc, old_fb, x, y, false);
+	if (ret)
+		return ret;
+
+	return nv50_crtc_wait_complete(crtc);
 }
 
 static int
@@ -711,7 +734,13 @@ nv50_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
 			       struct drm_framebuffer *fb,
 			       int x, int y, enum mode_set_atomic state)
 {
-	return nv50_crtc_do_mode_set_base(crtc, fb, x, y, true, true);
+	int ret;
+
+	ret = nv50_crtc_do_mode_set_base(crtc, fb, x, y, true);
+	if (ret)
+		return ret;
+
+	return nv50_crtc_wait_complete(crtc);
 }
 
 static const struct drm_crtc_helper_funcs nv50_crtc_helper_funcs = {

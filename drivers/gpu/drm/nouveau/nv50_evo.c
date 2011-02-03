@@ -203,6 +203,7 @@ nv50_evo_destroy(struct drm_device *dev)
 {
 	struct nv50_display *disp = nv50_display(dev);
 
+	nouveau_gpuobj_ref(NULL, &disp->ntfy);
 	nv50_evo_channel_del(&disp->master);
 }
 
@@ -248,6 +249,25 @@ nv50_evo_create(struct drm_device *dev)
 
 	ret = nouveau_ramht_new(dev, ramht, &evo->ramht);
 	nouveau_gpuobj_ref(NULL, &ramht);
+	if (ret)
+		goto err;
+
+	/* not sure exactly what this is..
+	 *
+	 * the first dword of the structure is used by nvidia to wait on
+	 * full completion of an EVO "update" command.
+	 *
+	 * method 0x8c on the master evo channel will fill a lot more of
+	 * this structure with some undefined info
+	 */
+	ret = nouveau_gpuobj_new(dev, disp->master, 0x1000, 0,
+				 NVOBJ_FLAG_ZERO_ALLOC, &disp->ntfy);
+	if (ret)
+		goto err;
+
+	ret = nv50_evo_dmaobj_new(disp->master, 0x3d, NvEvoSync, 0, 0x19,
+				  disp->ntfy->vinst, disp->ntfy->vinst +
+				  disp->ntfy->size, 0x00010000);
 	if (ret)
 		goto err;
 

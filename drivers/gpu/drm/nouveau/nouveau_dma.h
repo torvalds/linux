@@ -78,7 +78,8 @@ enum {
 	NvEvoVRAM	= 0x01000000,
 	NvEvoFB16	= 0x01000001,
 	NvEvoFB32	= 0x01000002,
-	NvEvoVRAM_LP	= 0x01000003
+	NvEvoVRAM_LP	= 0x01000003,
+	NvEvoSync	= 0xcafe0000
 };
 
 #define NV_MEMORY_TO_MEMORY_FORMAT                                    0x00000039

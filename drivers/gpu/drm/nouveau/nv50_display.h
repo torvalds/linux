@@ -37,6 +37,7 @@
 
 struct nv50_display {
 	struct nouveau_channel *master;
+	struct nouveau_gpuobj *ntfy;
 
 	struct tasklet_struct tasklet;
 	struct {
