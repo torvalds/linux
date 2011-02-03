@@ -319,6 +319,9 @@ static struct tegra_dc_out stingray_disp1_out = {
 	.order = TEGRA_DC_ORDER_RED_BLUE,
 	.depth = 24,
 
+	.height = 136, /* mm */
+	.width = 217, /* mm */
+
 	.modes = stingray_panel_modes,
 	.n_modes = ARRAY_SIZE(stingray_panel_modes),
 
