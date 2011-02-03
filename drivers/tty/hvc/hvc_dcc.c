@@ -40,19 +40,6 @@ static inline u32 __dcc_getstatus(void)
 }
 
 
-#if defined(CONFIG_CPU_V7)
-static inline char __dcc_getchar(void)
-{
-	char __c;
-
-	asm volatile("get_wait:	mrc p14, 0, pc, c0, c1, 0                  \n\
-			bne get_wait                                       \n\
-			mrc p14, 0, %0, c0, c5, 0	@ read comms data reg"
-		: "=r" (__c) : : "cc");
-
-	return __c;
-}
-#else
 static inline char __dcc_getchar(void)
 {
 	char __c;
@@ -62,24 +49,13 @@ static inline char __dcc_getchar(void)
 
 	return __c;
 }
-#endif
 
-#if defined(CONFIG_CPU_V7)
-static inline void __dcc_putchar(char c)
-{
-	asm volatile("put_wait:	mrc p14, 0, pc, c0, c1, 0         \n\
-			bcs put_wait                              \n\
-			mcr p14, 0, %0, c0, c5, 0                   "
-	: : "r" (c) : "cc");
-}
-#else
 static inline void __dcc_putchar(char c)
 {
 	asm volatile("mcr p14, 0, %0, c0, c5, 0	@ write a char"
 		: /* no output register */
 		: "r" (c));
 }
-#endif
 
 static int hvc_dcc_put_chars(uint32_t vt, const char *buf, int count)
 {
