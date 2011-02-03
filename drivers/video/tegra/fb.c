@@ -745,9 +745,8 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	info->var.yres_virtual		= fb_data->yres * 2;
 	info->var.bits_per_pixel	= fb_data->bits_per_pixel;
 	info->var.activate		= FB_ACTIVATE_VBL;
-	/* TODO: fill in the following by querying the DC */
-	info->var.height		= -1;
-	info->var.width			= -1;
+	info->var.height		= tegra_dc_get_out_height(dc);
+	info->var.width			= tegra_dc_get_out_width(dc);
 	info->var.pixclock		= 0;
 	info->var.left_margin		= 0;
 	info->var.right_margin		= 0;

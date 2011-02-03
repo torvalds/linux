@@ -822,6 +822,23 @@ static void tegra_dc_set_out(struct tegra_dc *dc, struct tegra_dc_out *out)
 
 }
 
+unsigned tegra_dc_get_out_height(struct tegra_dc *dc)
+{
+	if (dc->out)
+		return dc->out->height;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(tegra_dc_get_out_height);
+
+unsigned tegra_dc_get_out_width(struct tegra_dc *dc)
+{
+	if (dc->out)
+		return dc->out->width;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(tegra_dc_get_out_width);
 
 static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 {
