@@ -128,6 +128,7 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 		}
 	}
 
+	nvbo->bo.mem.num_pages = size >> PAGE_SHIFT;
 	nouveau_bo_placement_set(nvbo, flags, 0);
 
 	nvbo->channel = chan;
@@ -166,17 +167,17 @@ static void
 set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(nvbo->bo.bdev);
+	int vram_pages = dev_priv->vram_size >> PAGE_SHIFT;
 
 	if (dev_priv->card_type == NV_10 &&
-	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM)) {
+	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&
+	    nvbo->bo.mem.num_pages < vram_pages / 2) {
 		/*
 		 * Make sure that the color and depth buffers are handled
 		 * by independent memory controller units. Up to a 9x
 		 * speed up when alpha-blending and depth-test are enabled
 		 * at the same time.
 		 */
-		int vram_pages = dev_priv->vram_size >> PAGE_SHIFT;
-
 		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_ZETA) {
 			nvbo->placement.fpfn = vram_pages / 2;
 			nvbo->placement.lpfn = ~0;
