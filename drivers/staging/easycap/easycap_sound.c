@@ -73,7 +73,7 @@ struct snd_pcm_runtime *prt;
 int dma_bytes, fragment_bytes;
 int isfragment;
 __u8 *p1, *p2;
-__s16 s16;
+__s16 tmp;
 int i, j, more, much, rc;
 #ifdef UPSAMPLE
 int k;
@@ -203,22 +203,22 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 
 						delta = (newaudio - oldaudio)
 									/ 4;
-						s16 = oldaudio + delta;
+						tmp = oldaudio + delta;
 
 						for (k = 0;  k < 4;  k++) {
-							*p2 = (0x00FF & s16);
+							*p2 = (0x00FF & tmp);
 							*(p2 + 1) = (0xFF00 &
-								s16) >> 8;
+								tmp) >> 8;
 							p2 += 2;
-							*p2 = (0x00FF & s16);
+							*p2 = (0x00FF & tmp);
 							*(p2 + 1) = (0xFF00 &
-								s16) >> 8;
+								tmp) >> 8;
 							p2 += 2;
-							s16 += delta;
+							tmp += delta;
 						}
 						p1++;
 						more--;
-						oldaudio = s16;
+						oldaudio = tmp;
 					}
 #else /*!UPSAMPLE*/
 					if (much > (2 * more))
@@ -227,11 +227,10 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 						peasycap->dma_fill);
 
 					for (j = 0;  j < (much / 2);  j++) {
-						s16 =  ((int) *p1) - 128;
-						s16 = 128 *
-								s16;
-						*p2 = (0x00FF & s16);
-						*(p2 + 1) = (0xFF00 & s16) >>
+						tmp = ((int) *p1) - 128;
+						tmp = 128 * tmp;
+						*p2 = (0x00FF & tmp);
+						*(p2 + 1) = (0xFF00 & tmp) >>
 									8;
 						p1++;  p2 += 2;
 						more--;
