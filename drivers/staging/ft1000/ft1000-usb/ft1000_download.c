@@ -470,6 +470,17 @@ static u16 hdr_checksum(struct pseudo_hdr *pHdr)
 	return chksum;
 }
 
+static int check_buffers(u16 *buff_w, u16 *buff_r, int len, int offset)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		if (buff_w[i] != buff_r[i + offset])
+			return -1;
+	}
+
+	return 0;
+}
 
 //---------------------------------------------------------------------------
 // Function:    write_blk
@@ -560,43 +571,31 @@ static u32 write_blk (struct ft1000_device *ft1000dev, u16 **pUsFile, u8 **pUcFi
 	    	       Status = ft1000_read_dpram32 (ft1000dev, dpram, (u8 *)&resultbuffer[0], 64);
 		       if ( (tempbuffer[31] & 0xfe00) == 0xfe00)
 		       {
-		           for (i=0; i<28; i++)
-		           {
-			       if (resultbuffer[i] != tempbuffer[i])
-			       {
-			           //NdisMSleep (100);
-                                   DEBUG("FT1000:download:DPRAM write failed 1 during bootloading\n");
-				   msleep(10);
-     	  			   Status = STATUS_FAILURE;
-				   break;
+				if (check_buffers(tempbuffer, resultbuffer, 28, 0)) {
+					DEBUG("FT1000:download:DPRAM write failed 1 during bootloading\n");
+					msleep(10);
+					Status = STATUS_FAILURE;
+					break;
 				}
-			   }
    			   Status = ft1000_read_dpram32 (ft1000dev, dpram+12, (u8 *)&resultbuffer[0], 64);
-		           for (i=0; i<16; i++)
-		           {
-    			       if (resultbuffer[i] != tempbuffer[i+24])
-    			       {
-                                   //NdisMSleep (100);
-                                   DEBUG("FT1000:download:DPRAM write failed 2 during bootloading\n");
-				   msleep(10);
-				   Status = STATUS_FAILURE;
-				   break;
+
+				if (check_buffers(tempbuffer, resultbuffer, 16, 24)) {
+					DEBUG("FT1000:download:DPRAM write failed 2 during bootloading\n");
+					msleep(10);
+					Status = STATUS_FAILURE;
+					break;
 				}
-			   }
+			   
 			}
 			else
 			{
-			    for (i=0; i<32; i++)
-			    {
-    			        if (resultbuffer[i] != tempbuffer[i])
-    			        {
-                                    //NdisMSleep (100);
-                                    DEBUG("FT1000:download:DPRAM write failed 3 during bootloading\n");
-				    msleep(10);
-				    Status = STATUS_FAILURE;
-				    break;
+				if (check_buffers(tempbuffer, resultbuffer, 32, 0)) {
+					DEBUG("FT1000:download:DPRAM write failed 3 during bootloading\n");
+					msleep(10);
+					Status = STATUS_FAILURE;
+					break;
 				}
-			    }
+			    
 			}
 
 			if (Status == STATUS_SUCCESS)
