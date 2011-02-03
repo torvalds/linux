@@ -128,6 +128,19 @@ static int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 static int get_key_haup_xvr(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
+	int ret;
+	unsigned char buf[1] = { 0 };
+
+	/*
+	 * This is the same apparent "are you ready?" poll command observed
+	 * watching Windows driver traffic and implemented in lirc_zilog. With
+	 * this added, we get far saner remote behavior with z8 chips on usb
+	 * connected devices, even with the default polling interval of 100ms.
+	 */
+	ret = i2c_master_send(ir->c, buf, 1);
+	if (ret != 1)
+		return (ret < 0) ? ret : -EINVAL;
+
 	return get_key_haup_common (ir, ir_key, ir_raw, 6, 3);
 }
 
