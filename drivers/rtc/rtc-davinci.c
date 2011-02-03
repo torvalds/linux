@@ -473,39 +473,6 @@ static int davinci_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	return 0;
 }
 
-static int davinci_rtc_irq_set_state(struct device *dev, int enabled)
-{
-	struct davinci_rtc *davinci_rtc = dev_get_drvdata(dev);
-	unsigned long flags;
-	u8 rtc_ctrl;
-
-	spin_lock_irqsave(&davinci_rtc_lock, flags);
-
-	rtc_ctrl = rtcss_read(davinci_rtc, PRTCSS_RTC_CTRL);
-
-	if (enabled) {
-		while (rtcss_read(davinci_rtc, PRTCSS_RTC_CTRL)
-		       & PRTCSS_RTC_CTRL_WDTBUS)
-			cpu_relax();
-
-		rtc_ctrl |= PRTCSS_RTC_CTRL_TE;
-		rtcss_write(davinci_rtc, rtc_ctrl, PRTCSS_RTC_CTRL);
-
-		rtcss_write(davinci_rtc, 0x0, PRTCSS_RTC_CLKC_CNT);
-
-		rtc_ctrl |= PRTCSS_RTC_CTRL_TIEN |
-			    PRTCSS_RTC_CTRL_TMMD |
-			    PRTCSS_RTC_CTRL_TMRFLG;
-	} else
-		rtc_ctrl &= ~PRTCSS_RTC_CTRL_TIEN;
-
-	rtcss_write(davinci_rtc, rtc_ctrl, PRTCSS_RTC_CTRL);
-
-	spin_unlock_irqrestore(&davinci_rtc_lock, flags);
-
-	return 0;
-}
-
 static int davinci_rtc_irq_set_freq(struct device *dev, int freq)
 {
 	struct davinci_rtc *davinci_rtc = dev_get_drvdata(dev);
@@ -529,7 +496,6 @@ static struct rtc_class_ops davinci_rtc_ops = {
 	.alarm_irq_enable	= davinci_rtc_alarm_irq_enable,
 	.read_alarm		= davinci_rtc_read_alarm,
 	.set_alarm		= davinci_rtc_set_alarm,
-	.irq_set_state		= davinci_rtc_irq_set_state,
 	.irq_set_freq		= davinci_rtc_irq_set_freq,
 };
 

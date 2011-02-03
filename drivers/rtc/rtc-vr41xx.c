@@ -227,16 +227,6 @@ static int vr41xx_rtc_irq_set_freq(struct device *dev, int freq)
 	return 0;
 }
 
-static int vr41xx_rtc_irq_set_state(struct device *dev, int enabled)
-{
-	if (enabled)
-		enable_irq(pie_irq);
-	else
-		disable_irq(pie_irq);
-
-	return 0;
-}
-
 static int vr41xx_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
@@ -309,7 +299,6 @@ static const struct rtc_class_ops vr41xx_rtc_ops = {
 	.read_alarm	= vr41xx_rtc_read_alarm,
 	.set_alarm	= vr41xx_rtc_set_alarm,
 	.irq_set_freq	= vr41xx_rtc_irq_set_freq,
-	.irq_set_state	= vr41xx_rtc_irq_set_state,
 };
 
 static int __devinit rtc_probe(struct platform_device *pdev)

@@ -293,38 +293,6 @@ static int pl031_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	return ret;
 }
 
-/* Periodic interrupt is only available in ST variants. */
-static int pl031_irq_set_state(struct device *dev, int enabled)
-{
-	struct pl031_local *ldata = dev_get_drvdata(dev);
-
-	if (enabled == 1) {
-		/* Clear any pending timer interrupt. */
-		writel(RTC_BIT_PI, ldata->base + RTC_ICR);
-
-		writel(readl(ldata->base + RTC_IMSC) | RTC_BIT_PI,
-			ldata->base + RTC_IMSC);
-
-		/* Now start the timer */
-		writel(readl(ldata->base + RTC_TCR) | RTC_TCR_EN,
-			ldata->base + RTC_TCR);
-
-	} else {
-		writel(readl(ldata->base + RTC_IMSC) & (~RTC_BIT_PI),
-			ldata->base + RTC_IMSC);
-
-		/* Also stop the timer */
-		writel(readl(ldata->base + RTC_TCR) & (~RTC_TCR_EN),
-			ldata->base + RTC_TCR);
-	}
-	/* Wait at least 1 RTC32 clock cycle to ensure next access
-	 * to RTC_TCR will succeed.
-	 */
-	udelay(40);
-
-	return 0;
-}
-
 static int pl031_irq_set_freq(struct device *dev, int freq)
 {
 	struct pl031_local *ldata = dev_get_drvdata(dev);
@@ -440,7 +408,6 @@ static struct rtc_class_ops stv1_pl031_ops = {
 	.read_alarm = pl031_read_alarm,
 	.set_alarm = pl031_set_alarm,
 	.alarm_irq_enable = pl031_alarm_irq_enable,
-	.irq_set_state = pl031_irq_set_state,
 	.irq_set_freq = pl031_irq_set_freq,
 };
 
@@ -451,7 +418,6 @@ static struct rtc_class_ops stv2_pl031_ops = {
 	.read_alarm = pl031_stv2_read_alarm,
 	.set_alarm = pl031_stv2_set_alarm,
 	.alarm_irq_enable = pl031_alarm_irq_enable,
-	.irq_set_state = pl031_irq_set_state,
 	.irq_set_freq = pl031_irq_set_freq,
 };
 

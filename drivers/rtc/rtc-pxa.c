@@ -223,18 +223,6 @@ static int pxa_periodic_irq_set_freq(struct device *dev, int freq)
 	return 0;
 }
 
-static int pxa_periodic_irq_set_state(struct device *dev, int enabled)
-{
-	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
-
-	if (enabled)
-		rtsr_set_bits(pxa_rtc, RTSR_PIALE | RTSR_PICE);
-	else
-		rtsr_clear_bits(pxa_rtc, RTSR_PIALE | RTSR_PICE);
-
-	return 0;
-}
-
 static int pxa_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
@@ -348,7 +336,6 @@ static const struct rtc_class_ops pxa_rtc_ops = {
 	.alarm_irq_enable = pxa_alarm_irq_enable,
 	.update_irq_enable = pxa_update_irq_enable,
 	.proc = pxa_rtc_proc,
-	.irq_set_state = pxa_periodic_irq_set_state,
 	.irq_set_freq = pxa_periodic_irq_set_freq,
 };
 

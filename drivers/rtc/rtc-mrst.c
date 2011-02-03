@@ -236,25 +236,6 @@ static int mrst_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
-static int mrst_irq_set_state(struct device *dev, int enabled)
-{
-	struct mrst_rtc	*mrst = dev_get_drvdata(dev);
-	unsigned long	flags;
-
-	if (!mrst->irq)
-		return -ENXIO;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-
-	if (enabled)
-		mrst_irq_enable(mrst, RTC_PIE);
-	else
-		mrst_irq_disable(mrst, RTC_PIE);
-
-	spin_unlock_irqrestore(&rtc_lock, flags);
-	return 0;
-}
-
 /* Currently, the vRTC doesn't support UIE ON/OFF */
 static int mrst_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
@@ -301,7 +282,6 @@ static const struct rtc_class_ops mrst_rtc_ops = {
 	.read_alarm	= mrst_read_alarm,
 	.set_alarm	= mrst_set_alarm,
 	.proc		= mrst_procfs,
-	.irq_set_state	= mrst_irq_set_state,
 	.alarm_irq_enable = mrst_rtc_alarm_irq_enable,
 };
 

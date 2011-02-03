@@ -171,23 +171,6 @@ static int sa1100_irq_set_freq(struct device *dev, int freq)
 
 static int rtc_timer1_count;
 
-static int sa1100_irq_set_state(struct device *dev, int enabled)
-{
-	spin_lock_irq(&sa1100_rtc_lock);
-	if (enabled) {
-		struct rtc_device *rtc = (struct rtc_device *)dev;
-
-		OSMR1 = timer_freq / rtc->irq_freq + OSCR;
-		OIER |= OIER_E1;
-		rtc_timer1_count = 1;
-	} else {
-		OIER &= ~OIER_E1;
-	}
-	spin_unlock_irq(&sa1100_rtc_lock);
-
-	return 0;
-}
-
 static inline int sa1100_timer1_retrigger(struct rtc_device *rtc)
 {
 	unsigned long diff;
@@ -410,7 +393,6 @@ static const struct rtc_class_ops sa1100_rtc_ops = {
 	.set_alarm = sa1100_rtc_set_alarm,
 	.proc = sa1100_rtc_proc,
 	.irq_set_freq = sa1100_irq_set_freq,
-	.irq_set_state = sa1100_irq_set_state,
 	.alarm_irq_enable = sa1100_rtc_alarm_irq_enable,
 };
 

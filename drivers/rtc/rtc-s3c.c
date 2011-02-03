@@ -93,37 +93,6 @@ static int s3c_rtc_setaie(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static int s3c_rtc_setpie(struct device *dev, int enabled)
-{
-	unsigned int tmp;
-
-	pr_debug("%s: pie=%d\n", __func__, enabled);
-
-	spin_lock_irq(&s3c_rtc_pie_lock);
-
-	if (s3c_rtc_cpu_type == TYPE_S3C64XX) {
-		tmp = readw(s3c_rtc_base + S3C2410_RTCCON);
-		tmp &= ~S3C64XX_RTCCON_TICEN;
-
-		if (enabled)
-			tmp |= S3C64XX_RTCCON_TICEN;
-
-		writew(tmp, s3c_rtc_base + S3C2410_RTCCON);
-	} else {
-		tmp = readb(s3c_rtc_base + S3C2410_TICNT);
-		tmp &= ~S3C2410_TICNT_ENABLE;
-
-		if (enabled)
-			tmp |= S3C2410_TICNT_ENABLE;
-
-		writeb(tmp, s3c_rtc_base + S3C2410_TICNT);
-	}
-
-	spin_unlock_irq(&s3c_rtc_pie_lock);
-
-	return 0;
-}
-
 static int s3c_rtc_setfreq(struct device *dev, int freq)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -380,7 +349,6 @@ static const struct rtc_class_ops s3c_rtcops = {
 	.read_alarm	= s3c_rtc_getalarm,
 	.set_alarm	= s3c_rtc_setalarm,
 	.irq_set_freq	= s3c_rtc_setfreq,
-	.irq_set_state	= s3c_rtc_setpie,
 	.proc		= s3c_rtc_proc,
 	.alarm_irq_enable = s3c_rtc_setaie,
 };
