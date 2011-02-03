@@ -1216,6 +1216,7 @@ again:
 	 */
 	search_start = *offset;
 	search_bytes = *bytes;
+	search_bytes = min(search_bytes, end - search_start + 1);
 	ret = search_bitmap(block_group, bitmap_info, &search_start,
 			    &search_bytes);
 	BUG_ON(ret < 0 || search_start != *offset);
