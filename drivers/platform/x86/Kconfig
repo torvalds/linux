@@ -672,4 +672,13 @@ config XO1_RFKILL
 	  Support for enabling/disabling the WLAN interface on the OLPC XO-1
 	  laptop.
 
+config XO15_EBOOK
+	tristate "OLPC XO-1.5 ebook switch"
+	depends on ACPI && INPUT
+	---help---
+	  Support for the ebook switch on the OLPC XO-1.5 laptop.
+
+	  This switch is triggered as the screen is rotated and folded down to
+	  convert the device into ebook form.
+
 endif # X86_PLATFORM_DEVICES
