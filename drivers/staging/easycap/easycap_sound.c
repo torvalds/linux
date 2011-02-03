@@ -75,7 +75,7 @@ int isfragment;
 __u8 *p1, *p2;
 __s16 s16;
 int i, j, more, much, rc;
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 int k;
 __s16 oldaudio, newaudio, delta;
 #endif /*UPSAMPLE*/
@@ -131,7 +131,7 @@ if (purb->status) {
  */
 /*---------------------------------------------------------------------------*/
 
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 oldaudio = peasycap->oldaudio;
 #endif /*UPSAMPLE*/
 
@@ -185,7 +185,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 					p1 += much;
 					more -= much;
 				} else {
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 					if (much % 16)
 						JOM(8, "MISTAKE? much"
 						" is not divisible by 16\n");
@@ -271,7 +271,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 				purb->iso_frame_desc[i].status);
 	}
 
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 peasycap->oldaudio = oldaudio;
 #endif /*UPSAMPLE*/
 

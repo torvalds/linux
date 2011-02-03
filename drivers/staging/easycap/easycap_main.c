@@ -133,7 +133,7 @@ return -1;
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 static int easycap_open(struct inode *inode, struct file *file)
 {
-#if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
+#ifndef EASYCAP_IS_VIDEODEV_CLIENT
 struct usb_interface *pusb_interface;
 #else
 struct video_device *pvideo_device;
@@ -146,7 +146,7 @@ SAY("==========OPEN=========\n");
 
 peasycap = NULL;
 /*---------------------------------------------------------------------------*/
-#if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
+#ifndef EASYCAP_IS_VIDEODEV_CLIENT
 if (NULL == inode) {
 	SAY("ERROR: inode is NULL.\n");
 	return -EFAULT;
@@ -728,7 +728,7 @@ return 0;
 /*--------------------------------------------------------------------------*/
 static int easycap_release(struct inode *inode, struct file *file)
 {
-#if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
+#ifndef EASYCAP_IS_VIDEODEV_CLIENT
 struct easycap *peasycap;
 
 JOT(4, "\n");
@@ -756,7 +756,7 @@ JOM(4, "ending successfully\n");
 
 return 0;
 }
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
 static int easycap_open_noinode(struct file *file)
 {
 	return easycap_open(NULL, file);
@@ -1375,7 +1375,7 @@ if (peasycap->field_read == peasycap->field_fill) {
 							peasycap->field_read);
 	return 0;
 }
-#if defined(EASYCAP_TESTCARD)
+#ifdef EASYCAP_TESTCARD
 easycap_testcard(peasycap, peasycap->field_read);
 #else
 if (0 <= input && INPUT_MANY > input) {
@@ -3128,8 +3128,8 @@ static const struct usb_class_driver easycap_class = {
 	.minor_base = USB_SKEL_MINOR_BASE,
 };
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-#if defined(EASYCAP_NEEDS_V4L2_FOPS)
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
+#ifdef EASYCAP_NEEDS_V4L2_FOPS
 static const struct v4l2_file_operations v4l2_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easycap_open_noinode,
@@ -3180,8 +3180,8 @@ __u16 mask;
 __s32 value;
 struct easycap_format *peasycap_format;
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 struct v4l2_device *pv4l2_device;
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
@@ -3303,10 +3303,10 @@ if (0 == bInterfaceNumber) {
 	}
 	SAM("allocated 0x%08lX=peasycap\n", (unsigned long int) peasycap);
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
 	SAM("where     0x%08lX=&peasycap->video_device\n",
 				(unsigned long int) &peasycap->video_device);
-#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 	SAM("and       0x%08lX=&peasycap->v4l2_device\n",
 				(unsigned long int) &peasycap->v4l2_device);
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
@@ -3559,11 +3559,11 @@ if (0 == bInterfaceNumber) {
 							bInterfaceNumber);
 		return -ENODEV;
 	}
-#if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
+#ifndef EASYCAP_IS_VIDEODEV_CLIENT
 #
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #else
-#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 /*---------------------------------------------------------------------------*/
 /*
  *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
@@ -4128,7 +4128,7 @@ case 0: {
  *  BEWARE.
 */
 /*---------------------------------------------------------------------------*/
-#if defined(PREFER_NTSC)
+#ifdef PREFER_NTSC
 	peasycap->ntsc = true;
 	JOM(8, "defaulting initially to NTSC\n");
 #else
@@ -4145,7 +4145,7 @@ case 0: {
  *  THE VIDEO DEVICE CAN BE REGISTERED NOW, AS IT IS READY.
  */
 /*--------------------------------------------------------------------------*/
-#if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
+#ifndef EASYCAP_IS_VIDEODEV_CLIENT
 	if (0 != (usb_register_dev(pusb_interface, &easycap_class))) {
 		err("Not able to get a minor for this device");
 		usb_set_intfdata(pusb_interface, NULL);
@@ -4158,7 +4158,7 @@ case 0: {
 	}
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #else
-#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 	if (0 != (v4l2_device_register(&(pusb_interface->dev),
 						&(peasycap->v4l2_device)))) {
 		SAM("v4l2_device_register() failed\n");
@@ -4181,7 +4181,7 @@ case 0: {
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 
 	strcpy(&peasycap->video_device.name[0], "easycapdc60");
-#if defined(EASYCAP_NEEDS_V4L2_FOPS)
+#ifdef EASYCAP_NEEDS_V4L2_FOPS
 	peasycap->video_device.fops = &v4l2_fops;
 #else
 	peasycap->video_device.fops = &easycap_fops;
@@ -4214,7 +4214,7 @@ case 0: {
  */
 /*--------------------------------------------------------------------------*/
 case 1: {
-#if defined(EASYCAP_SILENT)
+#ifdef EASYCAP_SILENT
 	return -ENOENT;
 #endif /*EASYCAP_SILENT*/
 	if (!peasycap) {
@@ -4233,7 +4233,7 @@ case 1: {
 }
 /*--------------------------------------------------------------------------*/
 case 2: {
-#if defined(EASYCAP_SILENT)
+#ifdef EASYCAP_SILENT
 	return -ENOENT;
 #endif /*EASYCAP_SILENT*/
 	if (!peasycap) {
@@ -4566,8 +4566,8 @@ struct list_head *plist_head;
 struct data_urb *pdata_urb;
 int minor, m, kd;
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 struct v4l2_device *pv4l2_device;
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
@@ -4602,11 +4602,8 @@ if (NULL == peasycap) {
 	return;
 }
 /*---------------------------------------------------------------------------*/
-#if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
-#
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#else
-#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 /*---------------------------------------------------------------------------*/
 /*
  *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
@@ -4715,7 +4712,7 @@ case 0: {
 	} else
 		SAY("ERROR: %i=kd is bad: cannot lock dongle\n", kd);
 /*---------------------------------------------------------------------------*/
-#if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
+#ifndef EASYCAP_IS_VIDEODEV_CLIENT
 	if (NULL == peasycap) {
 		SAM("ERROR: peasycap has become NULL\n");
 	} else {
@@ -4726,7 +4723,7 @@ case 0: {
 	}
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #else
-#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 	if (!peasycap->v4l2_device.name[0]) {
 		SAM("ERROR: peasycap->v4l2_device.name is empty\n");
 		if (0 <= kd && DONGLE_MANY > kd)

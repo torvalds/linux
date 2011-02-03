@@ -151,7 +151,7 @@ for (line = 0;  line < (barheight / 2);  line++) {
 return;
 }
 /*****************************************************************************/
-#if defined(EASYCAP_TESTTONE)
+#ifdef EASYCAP_TESTTONE
 /*-----------------------------------------------------------------------------
 THE tones[] ARRAY BELOW IS THE OUTPUT OF THIS PROGRAM,
 COMPILED gcc -o prog -lm prog.c

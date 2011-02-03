@@ -1387,7 +1387,7 @@ case VIDIOC_G_CTRL: {
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-#if defined(VIDIOC_S_CTRL_OLD)
+#ifdef VIDIOC_S_CTRL_OLD
 case VIDIOC_S_CTRL_OLD: {
 	JOM(8, "VIDIOC_S_CTRL_OLD required at least for xawtv\n");
 }
@@ -2156,7 +2156,7 @@ case VIDIOC_QBUF: {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_DQBUF:
 	{
-#if defined(AUDIOTIME)
+#ifdef AUDIOTIME
 	struct signed_div_result sdr;
 	long long int above, below, dnbydt, fudge, sll;
 	unsigned long long int ull;
@@ -2269,7 +2269,7 @@ case VIDIOC_DQBUF:
 	do_gettimeofday(&timeval);
 	timeval2 = timeval;
 
-#if defined(AUDIOTIME)
+#ifdef AUDIOTIME
 	if (!peasycap->timeval0.tv_sec) {
 		timeval8 = timeval;
 		timeval1 = timeval;
@@ -2389,7 +2389,7 @@ case VIDIOC_STREAMOFF: {
 /*---------------------------------------------------------------------------*/
 	JOM(8, "calling wake_up on wq_video and wq_audio\n");
 	wake_up_interruptible(&(peasycap->wq_video));
-#if defined(EASYCAP_NEEDS_ALSA)
+#ifdef EASYCAP_NEEDS_ALSA
 	if (NULL != peasycap->psubstream)
 		snd_pcm_period_elapsed(peasycap->psubstream);
 #else

@@ -90,22 +90,22 @@
 #include <sound/control.h>
 #endif /* !CONFIG_EASYCAP_OSS */
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
 #include <media/v4l2-dev.h>
-#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 #include <media/v4l2-device.h>
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 #include <linux/videodev2.h>
 #include <linux/soundcard.h>
-#if defined(EASYCAP_NEEDS_USBVIDEO_H)
+#ifdef EASYCAP_NEEDS_USBVIDEO_H
 #include <config/video/usbvideo.h>
 #endif /*EASYCAP_NEEDS_USBVIDEO_H*/
 
-#if (!defined(PAGE_SIZE))
+#ifndef PAGE_SIZE
 #error "PAGE_SIZE not defined"
-#endif
+#endif /* PAGE_SIZE */
 
 /*---------------------------------------------------------------------------*/
 /*  VENDOR, PRODUCT:  Syntek Semiconductor Co., Ltd
@@ -309,9 +309,9 @@ struct easycap {
 	int minor;
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
 	struct video_device video_device;
-#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 	struct v4l2_device v4l2_device;
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
@@ -322,8 +322,8 @@ struct easycap {
 	unsigned int audio_buffer_page_many;
 
 #define UPSAMPLE
-#if defined(UPSAMPLE)
-__s16 oldaudio;
+#ifdef UPSAMPLE
+	__s16 oldaudio;
 #endif /*UPSAMPLE*/
 
 	int ilk;

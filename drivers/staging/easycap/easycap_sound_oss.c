@@ -56,7 +56,7 @@ struct data_buffer *paudio_buffer;
 __u8 *p1, *p2;
 __s16 s16;
 int i, j, more, much, leap, rc;
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 int k;
 __s16 oldaudio, newaudio, delta;
 #endif /*UPSAMPLE*/
@@ -108,7 +108,7 @@ if (purb->status) {
  *  PROCEED HERE WHEN NO ERROR
  */
 /*---------------------------------------------------------------------------*/
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 oldaudio = peasycap->oldaudio;
 #endif /*UPSAMPLE*/
 
@@ -119,7 +119,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 
 		more = purb->iso_frame_desc[i].actual_length;
 
-#if defined(TESTTONE)
+#ifdef TESTTONE
 		if (!more)
 			more = purb->iso_frame_desc[i].length;
 #endif
@@ -167,7 +167,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 				if (PAGE_SIZE == (paudio_buffer->pto -
 							paudio_buffer->pgo)) {
 
-#if defined(TESTTONE)
+#ifdef TESTTONE
 					easyoss_testtone(peasycap,
 							peasycap->audio_fill);
 #endif /*TESTTONE*/
@@ -218,7 +218,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 					p1 += much;
 					more -= much;
 				} else {
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 					if (much % 16)
 						JOM(8, "MISTAKE? much"
 						" is not divisible by 16\n");
@@ -279,7 +279,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 				purb->iso_frame_desc[i].status);
 	}
 
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 peasycap->oldaudio = oldaudio;
 #endif /*UPSAMPLE*/
 
@@ -317,8 +317,8 @@ struct usb_interface *pusb_interface;
 struct easycap *peasycap;
 int subminor;
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 struct v4l2_device *pv4l2_device;
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
@@ -341,11 +341,11 @@ if (NULL == peasycap) {
 	return -1;
 }
 /*---------------------------------------------------------------------------*/
-#if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
+#ifndef EASYCAP_IS_VIDEODEV_CLIENT
 #
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #else
-#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 /*---------------------------------------------------------------------------*/
 /*
  *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
@@ -787,7 +787,7 @@ case SNDCTL_DSP_GETCAPS: {
 	int caps;
 	JOM(8, "SNDCTL_DSP_GETCAPS\n");
 
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 	if (true == peasycap->microphone)
 		caps = 0x04400000;
 	else
@@ -809,7 +809,7 @@ case SNDCTL_DSP_GETFMTS: {
 	int incoming;
 	JOM(8, "SNDCTL_DSP_GETFMTS\n");
 
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 	if (true == peasycap->microphone)
 		incoming = AFMT_S16_LE;
 	else
@@ -836,7 +836,7 @@ case SNDCTL_DSP_SETFMT: {
 	}
 	JOM(8, "........... %i=incoming\n", incoming);
 
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 	if (true == peasycap->microphone)
 		outgoing = AFMT_S16_LE;
 	else
@@ -871,7 +871,7 @@ case SNDCTL_DSP_STEREO: {
 	}
 	JOM(8, "........... %i=incoming\n", incoming);
 
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 	if (true == peasycap->microphone)
 		incoming = 1;
 	else
@@ -898,7 +898,7 @@ case SNDCTL_DSP_SPEED: {
 	}
 	JOM(8, "........... %i=incoming\n", incoming);
 
-#if defined(UPSAMPLE)
+#ifdef UPSAMPLE
 	if (true == peasycap->microphone)
 		incoming = 32000;
 	else

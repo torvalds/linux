@@ -133,7 +133,7 @@ static const struct saa7113config{
 	int set;
 } saa7113configPAL[256] = {
 		{0x01, 0x08},
-#if defined(ANTIALIAS)
+#ifdef ANTIALIAS
 		{0x02, 0xC0},
 #else
 		{0x02, 0x80},
@@ -191,7 +191,7 @@ static const struct saa7113config{
 /*--------------------------------------------------------------------------*/
 static const struct saa7113config saa7113configNTSC[256] = {
 		{0x01, 0x08},
-#if defined(ANTIALIAS)
+#ifdef ANTIALIAS
 		{0x02, 0xC0},
 #else
 		{0x02, 0x80},
@@ -929,7 +929,7 @@ rc0 = usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0),
 		(__u16)0,
 		(int)500);
 
-#if defined(NOREADBACK)
+#ifdef NOREADBACK
 #
 #else
 rc1 = usb_control_msg(pusb_device, usb_rcvctrlpipe(pusb_device, 0),
