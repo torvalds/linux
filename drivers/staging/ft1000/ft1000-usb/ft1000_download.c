@@ -321,7 +321,7 @@ static u16 get_handshake_usb(struct ft1000_device *ft1000dev, u16 expected_value
 
 static void put_handshake_usb(struct ft1000_device *ft1000dev,u16 handshake_value)
 {
-   int i;
+	int i;
 
         for (i=0; i<1000; i++);
 }
