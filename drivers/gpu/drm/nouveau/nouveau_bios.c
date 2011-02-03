@@ -6228,7 +6228,7 @@ parse_dcb15_entry(struct drm_device *dev, struct dcb_table *dcb,
 		entry->tvconf.has_component_output = false;
 		break;
 	case OUTPUT_LVDS:
-		if ((conn & 0x00003f00) != 0x10)
+		if ((conn & 0x00003f00) >> 8 != 0x10)
 			entry->lvdsconf.use_straps_for_mode = true;
 		entry->lvdsconf.use_power_scripts = true;
 		break;
