@@ -114,28 +114,6 @@ static void sn_ack_irq(unsigned int irq)
 	move_native_irq(irq);
 }
 
-static void sn_end_irq(unsigned int irq)
-{
-	int ivec;
-	u64 event_occurred;
-
-	ivec = irq & 0xff;
-	if (ivec == SGI_UART_VECTOR) {
-		event_occurred = HUB_L((u64*)LOCAL_MMR_ADDR (SH_EVENT_OCCURRED));
-		/* If the UART bit is set here, we may have received an
-		 * interrupt from the UART that the driver missed.  To
-		 * make sure, we IPI ourselves to force us to look again.
-		 */
-		if (event_occurred & SH_EVENT_OCCURRED_UART_INT_MASK) {
-			platform_send_ipi(smp_processor_id(), SGI_UART_VECTOR,
-					  IA64_IPI_DM_INT, 0);
-		}
-	}
-	__clear_bit(ivec, (volatile void *)pda->sn_in_service_ivecs);
-	if (sn_force_interrupt_flag)
-		force_interrupt(irq);
-}
-
 static void sn_irq_info_free(struct rcu_head *head);
 
 struct sn_irq_info *sn_retarget_vector(struct sn_irq_info *sn_irq_info,
@@ -275,7 +253,6 @@ struct irq_chip irq_type_sn = {
 	.enable		= sn_enable_irq,
 	.disable	= sn_disable_irq,
 	.ack		= sn_ack_irq,
-	.end		= sn_end_irq,
 	.mask		= sn_mask_irq,
 	.unmask		= sn_unmask_irq,
 	.set_affinity	= sn_set_affinity_irq

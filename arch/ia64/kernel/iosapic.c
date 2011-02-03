@@ -460,7 +460,6 @@ iosapic_ack_edge_irq (unsigned int irq)
 
 #define iosapic_enable_edge_irq		unmask_irq
 #define iosapic_disable_edge_irq	nop
-#define iosapic_end_edge_irq		nop
 
 static struct irq_chip irq_type_iosapic_edge = {
 	.name =		"IO-SAPIC-edge",
@@ -469,7 +468,6 @@ static struct irq_chip irq_type_iosapic_edge = {
 	.enable =	iosapic_enable_edge_irq,
 	.disable =	iosapic_disable_edge_irq,
 	.ack =		iosapic_ack_edge_irq,
-	.end =		iosapic_end_edge_irq,
 	.mask =		mask_irq,
 	.unmask =	unmask_irq,
 	.set_affinity =	iosapic_set_affinity

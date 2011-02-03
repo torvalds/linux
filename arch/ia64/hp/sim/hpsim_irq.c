@@ -34,7 +34,6 @@ static struct irq_chip irq_type_hp_sim = {
 	.enable =	hpsim_irq_noop,
 	.disable =	hpsim_irq_noop,
 	.ack =		hpsim_irq_noop,
-	.end =		hpsim_irq_noop,
 	.set_affinity =	hpsim_set_affinity_noop,
 };
 
