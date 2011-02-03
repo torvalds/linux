@@ -168,18 +168,6 @@ static u32 check_usb_db (struct ft1000_device *ft1000dev)
          DEBUG("check_usb_db: door bell is cleared, return 0\n");
          return 0;
       }
-#if 0
-      // Check if Card is present
-      status = ft1000_read_register (ft1000dev, &temp, FT1000_REG_SUP_IMASK);
-      if (temp == 0x0000) {
-          break;
-      }
-
-      status = ft1000_read_register (ft1000dev, &temp, FT1000_REG_ASIC_ID);
-      if (temp == 0xffff) {
-         break;
-      }
-#endif
    }
 
    return HANDSHAKE_MAG_TIMEOUT_VALUE;
@@ -446,34 +434,6 @@ static long get_request_value(struct ft1000_device *ft1000dev)
 
 }
 
-#if 0
-static long get_request_value_usb(struct ft1000_device *ft1000dev)
-{
-   u32     value;
-   u16   tempword;
-   u32    status;
-   struct ft1000_info * pft1000info = netdev_priv(ft1000dev->net);
-
-       if (pft1000info->usbboot == 2) {
-          value = pft1000info->tempbuf[4];
-          tempword = pft1000info->tempbuf[5];
-       }
-       else {
-          value = 0;
-          status = ft1000_read_dpram16(ft1000dev, DWNLD_MAG1_SIZE_LOC, (u8 *)&tempword, 1);
-       }
-
-       value |= (tempword << 16);
-       value = ntohl(value);
-
-   if (pft1000info->usbboot == 1)
-       pft1000info->usbboot = 2;
-
-   //DEBUG("get_request_value_usb: value is %x\n", value);
-   return value;
-
-}
-#endif
 
 //---------------------------------------------------------------------------
 // Function:    put_request_value
@@ -723,22 +683,7 @@ static u32 write_blk_fifo (struct ft1000_device *ft1000dev, u16 **pUsFile, u8 **
    if (byte_length < 64)
        byte_length = 68;
 
-#if 0
-   pblk = kzalloc(byte_length, GFP_KERNEL);
-   memcpy (pblk, *pUcFile, byte_length);
 
-   pipe = usb_sndbulkpipe (ft1000dev->dev, ft1000dev->bulk_out_endpointAddr);
-
-   Status = usb_bulk_msg (ft1000dev->dev,
-                          pipe,
-                          pblk,
-                          byte_length,
-                          &cnt,
-                          10);
-   DEBUG("write_blk_fifo Status = 0x%8x Bytes Transfer = %d Data = 0x%x\n", Status, cnt, *pblk);
-
-   kfree(pblk);
-#else
     usb_init_urb(ft1000dev->tx_urb);
     memcpy (ft1000dev->tx_buf, *pUcFile, byte_length);
     usb_fill_bulk_urb(ft1000dev->tx_urb,
@@ -750,7 +695,6 @@ static u32 write_blk_fifo (struct ft1000_device *ft1000dev, u16 **pUsFile, u8 **
                       (void*)ft1000dev);
 
     usb_submit_urb(ft1000dev->tx_urb, GFP_ATOMIC);
-#endif
 
    *pUsFile = *pUsFile + (word_length << 1);
    *pUcFile = *pUcFile + (word_length << 2);
@@ -1000,15 +944,10 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, u32  FileLeng
                   status = STATUS_FAILURE;
                   break;
                }
-#if 0
-               word_length = get_request_value_usb(ft1000dev);
-               //DEBUG("FT1000:download:word_length = %d\n", (int)word_length);
-               if (word_length > MAX_LENGTH/2)
-#else
+
                word_length = get_request_value(ft1000dev);
                //DEBUG("FT1000:download:word_length = %d\n", (int)word_length);
                if (word_length > MAX_LENGTH)
-#endif
                {
                   DEBUG("FT1000:download:Download error: Max length exceeded\n");
                   status = STATUS_FAILURE;
