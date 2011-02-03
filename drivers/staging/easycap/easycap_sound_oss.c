@@ -356,7 +356,7 @@ if (NULL == peasycap) {
 /*---------------------------------------------------------------------------*/
 if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 	pv4l2_device = usb_get_intfdata(pusb_interface);
-	if ((struct v4l2_device *)NULL == pv4l2_device) {
+	if (NULL == pv4l2_device) {
 		SAY("ERROR: pv4l2_device is NULL\n");
 		return -EFAULT;
 	}
@@ -510,7 +510,7 @@ if ((0 > peasycap->audio_read) ||
 	return -EFAULT;
 }
 pdata_buffer = &peasycap->audio_buffer[peasycap->audio_read];
-if ((struct data_buffer *)NULL == pdata_buffer) {
+if (NULL == pdata_buffer) {
 	SAM("ERROR: pdata_buffer is NULL\n");
 	mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 	return -EFAULT;
@@ -598,7 +598,7 @@ while (fragment == (peasycap->audio_read /
 			return -EFAULT;
 		}
 		pdata_buffer = &peasycap->audio_buffer[peasycap->audio_read];
-		if ((struct data_buffer *)NULL == pdata_buffer) {
+		if (NULL == pdata_buffer) {
 			SAM("ERROR: pdata_buffer is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 			return -EFAULT;
@@ -1006,7 +1006,7 @@ return 0;
 static long easyoss_ioctl_noinode(struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
-	return (long)easyoss_ioctl((struct inode *)NULL, file, cmd, arg);
+	return (long)easyoss_ioctl(NULL, file, cmd, arg);
 }
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT||EASYCAP_NEEDS_UNLOCKED_IOCTL*/
 /*****************************************************************************/

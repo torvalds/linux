@@ -925,7 +925,7 @@ rc0 = usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0),
 		(__u8)(USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
 		(__u16)value,
 		(__u16)index,
-		(void *)NULL,
+		NULL,
 		(__u16)0,
 		(int)500);
 

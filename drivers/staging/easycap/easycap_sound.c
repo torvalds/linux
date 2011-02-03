@@ -370,7 +370,7 @@ if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 	return -EFAULT;
 }
 pss->private_data = NULL;
-peasycap->psubstream = (struct snd_pcm_substream *)NULL;
+peasycap->psubstream = NULL;
 JOT(4, "ending successfully\n");
 return 0;
 }
@@ -647,7 +647,7 @@ if (true == peasycap->microphone) {
 	strcpy(&psnd_pcm->name[0], &psnd_card->id[0]);
 	psnd_pcm->private_data = peasycap;
 	peasycap->psnd_pcm = psnd_pcm;
-	peasycap->psubstream = (struct snd_pcm_substream *)NULL;
+	peasycap->psubstream = NULL;
 
 	rc = snd_card_register(psnd_card);
 	if (0 != rc) {
@@ -684,7 +684,7 @@ if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL.\n");
 	return -EFAULT;
 }
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -ENODEV;
 }
@@ -693,12 +693,12 @@ JOM(16, "0x%08lX=peasycap->pusb_device\n", (long int)peasycap->pusb_device);
 rc = audio_setup(peasycap);
 JOM(8, "audio_setup() returned %i\n", rc);
 
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device has become NULL\n");
 	return -ENODEV;
 }
 /*---------------------------------------------------------------------------*/
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device has become NULL\n");
 	return -ENODEV;
 }
@@ -740,11 +740,11 @@ if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
-if ((struct list_head *)NULL == peasycap->purb_audio_head) {
+if (NULL == peasycap->purb_audio_head) {
 	SAM("ERROR: peasycap->urb_audio_head uninitialized\n");
 	return -EFAULT;
 }
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
 }
@@ -855,15 +855,15 @@ if (NULL == peasycap) {
 	return -EFAULT;
 }
 if (peasycap->audio_isoc_streaming) {
-	if ((struct list_head *)NULL != peasycap->purb_audio_head) {
+	if (NULL != peasycap->purb_audio_head) {
 		peasycap->audio_isoc_streaming = 0;
 		JOM(4, "killing audio urbs\n");
 		m = 0;
 		list_for_each(plist_head, (peasycap->purb_audio_head)) {
 			pdata_urb = list_entry(plist_head, struct data_urb,
 								list_head);
-			if ((struct data_urb *)NULL != pdata_urb) {
-				if ((struct urb *)NULL != pdata_urb->purb) {
+			if (NULL != pdata_urb) {
+				if (NULL != pdata_urb->purb) {
 					usb_kill_urb(pdata_urb->purb);
 					m++;
 				}

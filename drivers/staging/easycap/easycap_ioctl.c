@@ -52,7 +52,7 @@ if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
 }
@@ -359,7 +359,7 @@ if (0 > peasycap->standard_offset) {
 	return -EBUSY;
 }
 p = peasycap->pusb_device;
-if ((struct usb_device *)NULL == p) {
+if (NULL == p) {
 	SAM("ERROR: peaycap->pusb_device is NULL\n");
 	return -EFAULT;
 }
@@ -421,7 +421,7 @@ if (V4L2_FIELD_ANY == field) {
 	field = V4L2_FIELD_NONE;
 	SAM("prefer:    V4L2_FIELD_NONE=field, was V4L2_FIELD_ANY\n");
 }
-peasycap_best_format = (struct easycap_format *)NULL;
+peasycap_best_format = NULL;
 peasycap_format = &easycap_format[0];
 while (0 != peasycap_format->v4l2_format.fmt.pix.width) {
 	JOM(16, ".> %i %i 0x%08X %ix%i\n",
@@ -472,7 +472,7 @@ if (0 == peasycap_format->v4l2_format.fmt.pix.width) {
 		return peasycap->format_offset;
 	}
 }
-if ((struct easycap_format *)NULL == peasycap_best_format) {
+if (NULL == peasycap_best_format) {
 	SAM("MISTAKE: peasycap_best_format is NULL");
 	return -EINVAL;
 }
@@ -628,7 +628,7 @@ if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
 }
@@ -686,7 +686,7 @@ if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
 }
@@ -746,7 +746,7 @@ if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
 }
@@ -806,7 +806,7 @@ if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
 }
@@ -862,7 +862,7 @@ if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
 }
@@ -919,7 +919,7 @@ if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
 }
@@ -955,7 +955,7 @@ return -ENOENT;
 	(defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)))
 long
 easycap_ioctl_noinode(struct file *file, unsigned int cmd, unsigned long arg) {
-	return (long)easycap_ioctl((struct inode *)NULL, file, cmd, arg);
+	return (long)easycap_ioctl(NULL, file, cmd, arg);
 }
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT||EASYCAP_NEEDS_UNLOCKED_IOCTL*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
@@ -2368,7 +2368,7 @@ case VIDIOC_STREAMON: {
 	peasycap->isequence = 0;
 	for (i = 0; i < 180; i++)
 		peasycap->merit[i] = 0;
-	if ((struct usb_device *)NULL == peasycap->pusb_device) {
+	if (NULL == peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -2384,7 +2384,7 @@ case VIDIOC_STREAMON: {
 case VIDIOC_STREAMOFF: {
 	JOM(8, "VIDIOC_STREAMOFF\n");
 
-	if ((struct usb_device *)NULL == peasycap->pusb_device) {
+	if (NULL == peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
