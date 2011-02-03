@@ -90,7 +90,7 @@ const struct fb_videomode tegra_dc_hdmi_supported_modes[] = {
 		.right_margin =	16,	/* h_front_porch */
 		.lower_margin =	9,	/* v_front_porch */
 		.vmode =	FB_VMODE_NONINTERLACED,
-		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.sync = 0,
 	},
 
 	/* 640x480p 60hz: EIA/CEA-861-B Format 1 */
@@ -105,7 +105,7 @@ const struct fb_videomode tegra_dc_hdmi_supported_modes[] = {
 		.right_margin =	16,	/* h_front_porch */
 		.lower_margin =	10,	/* v_front_porch */
 		.vmode =	FB_VMODE_NONINTERLACED,
-		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.sync = 0,
 	},
 
 	/* 720x576p 50hz EIA/CEA-861-B Formats 17 & 18 */
@@ -120,7 +120,7 @@ const struct fb_videomode tegra_dc_hdmi_supported_modes[] = {
 		.right_margin =	12,	/* h_front_porch */
 		.lower_margin =	5,	/* v_front_porch */
 		.vmode =	FB_VMODE_NONINTERLACED,
-		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.sync = 0,
 	},
 
 	/* 1920x1080p 59.94/60hz EIA/CEA-861-B Format 16 */
@@ -1064,16 +1064,23 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 		val = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_SOR_PWR);
 	} while (val & SOR_PWR_SETTING_NEW_PENDING);
 
-	tegra_hdmi_writel(hdmi,
-			  SOR_STATE_ASY_CRCMODE_COMPLETE |
-			  SOR_STATE_ASY_OWNER_HEAD0 |
-			  SOR_STATE_ASY_SUBOWNER_BOTH |
-			  SOR_STATE_ASY_PROTOCOL_SINGLE_TMDS_A |
-			  /* TODO: to look at hsync polarity */
-			  SOR_STATE_ASY_HSYNCPOL_POS |
-			  SOR_STATE_ASY_VSYNCPOL_POS |
-			  SOR_STATE_ASY_DEPOL_POS,
-			  HDMI_NV_PDISP_SOR_STATE2);
+	val = SOR_STATE_ASY_CRCMODE_COMPLETE |
+		SOR_STATE_ASY_OWNER_HEAD0 |
+		SOR_STATE_ASY_SUBOWNER_BOTH |
+		SOR_STATE_ASY_PROTOCOL_SINGLE_TMDS_A |
+		SOR_STATE_ASY_DEPOL_POS;
+
+	if (dc->mode.flags & TEGRA_DC_MODE_FLAG_NEG_H_SYNC)
+		val |= SOR_STATE_ASY_HSYNCPOL_NEG;
+	else
+		val |= SOR_STATE_ASY_HSYNCPOL_POS;
+
+	if (dc->mode.flags & TEGRA_DC_MODE_FLAG_NEG_V_SYNC)
+		val |= SOR_STATE_ASY_VSYNCPOL_NEG;
+	else
+		val |= SOR_STATE_ASY_VSYNCPOL_POS;
+
+	tegra_hdmi_writel(hdmi, val, HDMI_NV_PDISP_SOR_STATE2);
 
 	val = SOR_STATE_ASY_HEAD_OPMODE_AWAKE | SOR_STATE_ASY_ORMODE_NORMAL;
 	tegra_hdmi_writel(hdmi, val, HDMI_NV_PDISP_SOR_STATE1);

@@ -194,6 +194,14 @@ static int tegra_fb_set_par(struct fb_info *info)
 		mode.h_front_porch = info->mode->right_margin;
 		mode.v_front_porch = info->mode->lower_margin;
 
+		mode.flags = 0;
+
+		if (!(info->mode->sync & FB_SYNC_HOR_HIGH_ACT))
+			mode.flags |= TEGRA_DC_MODE_FLAG_NEG_H_SYNC;
+
+		if (!(info->mode->sync & FB_SYNC_VERT_HIGH_ACT))
+			mode.flags |= TEGRA_DC_MODE_FLAG_NEG_V_SYNC;
+
 		tegra_dc_set_mode(tegra_fb->win->dc, &mode);
 
 		tegra_fb->win->w = info->mode->xres;
