@@ -596,19 +596,19 @@ struct signed_div_result {
  */
 /*---------------------------------------------------------------------------*/
 #define GET(X, Y, Z) do { \
-	int rc; \
+	int __rc; \
 	*(Z) = (u16)0; \
-	rc = regget(X, Y, Z); \
-	if (0 > rc) { \
-		JOT(8, ":-(%i\n", __LINE__);  return(rc); \
+	__rc = regget(X, Y, Z); \
+	if (0 > __rc) { \
+		JOT(8, ":-(%i\n", __LINE__);  return __rc; \
 	} \
 } while (0)
 
 #define SET(X, Y, Z) do { \
-	int rc; \
-	rc = regset(X, Y, Z); \
-	if (0 > rc) { \
-		JOT(8, ":-(%i\n", __LINE__);  return(rc); \
+	int __rc; \
+	__rc = regset(X, Y, Z); \
+	if (0 > __rc) { \
+		JOT(8, ":-(%i\n", __LINE__);  return __rc; \
 	} \
 } while (0)
 /*---------------------------------------------------------------------------*/
