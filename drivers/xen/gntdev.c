@@ -167,23 +167,6 @@ static struct grant_map *gntdev_find_map_index(struct gntdev_priv *priv,
 	return NULL;
 }
 
-static struct grant_map *gntdev_find_map_vaddr(struct gntdev_priv *priv,
-					       unsigned long vaddr)
-{
-	struct grant_map *map;
-
-	list_for_each_entry(map, &priv->maps, next) {
-		if (!map->vma)
-			continue;
-		if (vaddr < map->vma->vm_start)
-			continue;
-		if (vaddr >= map->vma->vm_end)
-			continue;
-		return map;
-	}
-	return NULL;
-}
-
 static int gntdev_del_map(struct grant_map *map)
 {
 	int i;
@@ -494,22 +477,23 @@ static long gntdev_ioctl_get_offset_for_vaddr(struct gntdev_priv *priv,
 					      struct ioctl_gntdev_get_offset_for_vaddr __user *u)
 {
 	struct ioctl_gntdev_get_offset_for_vaddr op;
+	struct vm_area_struct *vma;
 	struct grant_map *map;
 
 	if (copy_from_user(&op, u, sizeof(op)) != 0)
 		return -EFAULT;
 	pr_debug("priv %p, offset for vaddr %lx\n", priv, (unsigned long)op.vaddr);
 
-	spin_lock(&priv->lock);
-	map = gntdev_find_map_vaddr(priv, op.vaddr);
-	if (map == NULL ||
-	    map->vma->vm_start != op.vaddr) {
-		spin_unlock(&priv->lock);
+	vma = find_vma(current->mm, op.vaddr);
+	if (!vma || vma->vm_ops != &gntdev_vmops)
 		return -EINVAL;
-	}
+
+	map = vma->vm_private_data;
+	if (!map)
+		return -EINVAL;
+
 	op.offset = map->index << PAGE_SHIFT;
 	op.count = map->count;
-	spin_unlock(&priv->lock);
 
 	if (copy_to_user(u, &op, sizeof(op)) != 0)
 		return -EFAULT;
