@@ -364,34 +364,32 @@ static u16 get_request_type(struct ft1000_device *ft1000dev)
 
 static u16 get_request_type_usb(struct ft1000_device *ft1000dev)
 {
-   u16   request_type;
-   u32    status;
-   u16   tempword;
-   u32    tempx;
+	u16 request_type;
+	u32 status;
+	u16 tempword;
+	u32 tempx;
 	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
-   if ( pft1000info->bootmode == 1)
-   {
-       status = fix_ft1000_read_dpram32 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (u8 *)&tempx);
-       tempx = ntohl(tempx);
-   }
-   else
-   {
-       if (pft1000info->usbboot == 2) {
-          tempx = pft1000info->tempbuf[2];
-          tempword = pft1000info->tempbuf[3];
-       }
-       else {
-          tempx = 0;
-          status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (u8 *)&tempword, 1);
-       }
-       tempx |= (tempword << 16);
-       tempx = ntohl(tempx);
-   }
-   request_type = (u16)tempx;
 
-   //DEBUG("get_request_type: request_type is %x\n", request_type);
-   return request_type;
+	if (pft1000info->bootmode == 1) {
+		status = fix_ft1000_read_dpram32(ft1000dev,
+				DWNLD_MAG1_TYPE_LOC, (u8 *)&tempx);
+		tempx = ntohl(tempx);
+	} else {
+		if (pft1000info->usbboot == 2) {
+			tempx = pft1000info->tempbuf[2];
+			tempword = pft1000info->tempbuf[3];
+		} else {
+			tempx = 0;
+			status = ft1000_read_dpram16(ft1000dev,
+					DWNLD_MAG1_TYPE_LOC,
+					(u8 *)&tempword, 1);
+		}
+		tempx |= (tempword << 16);
+		tempx = ntohl(tempx);
+	}
+	request_type = (u16)tempx;
 
+	return request_type;
 }
 
 //---------------------------------------------------------------------------
