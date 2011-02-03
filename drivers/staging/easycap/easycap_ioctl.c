@@ -949,20 +949,9 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 SAM("WARNING: failed to adjust mute: control not found\n");
 return -ENOENT;
 }
-/*****************************************************************************/
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if ((defined(EASYCAP_IS_VIDEODEV_CLIENT)) || \
-	(defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)))
-long
-easycap_ioctl_noinode(struct file *file, unsigned int cmd, unsigned long arg) {
-	return (long)easycap_ioctl(NULL, file, cmd, arg);
-}
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT||EASYCAP_NEEDS_UNLOCKED_IOCTL*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 /*---------------------------------------------------------------------------*/
-int
-easycap_ioctl(struct inode *inode, struct file *file,
-					unsigned int cmd, unsigned long arg)
+long easycap_unlocked_ioctl(struct file *file,
+			    unsigned int cmd, unsigned long arg)
 {
 struct easycap *peasycap;
 struct usb_device *p;

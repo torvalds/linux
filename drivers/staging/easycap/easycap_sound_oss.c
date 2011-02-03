@@ -708,7 +708,7 @@ return szret;
 
 }
 /*---------------------------------------------------------------------------*/
-static int easyoss_ioctl(struct inode *inode, struct file *file,
+static long easyoss_unlocked_ioctl(struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 struct easycap *peasycap;
@@ -1000,26 +1000,13 @@ default: {
 mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 return 0;
 }
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if ((defined(EASYCAP_IS_VIDEODEV_CLIENT)) || \
-	(defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)))
-static long easyoss_ioctl_noinode(struct file *file,
-		unsigned int cmd, unsigned long arg)
-{
-	return (long)easyoss_ioctl(NULL, file, cmd, arg);
-}
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT||EASYCAP_NEEDS_UNLOCKED_IOCTL*/
 /*****************************************************************************/
 
 const struct file_operations easyoss_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easyoss_open,
 	.release	= easyoss_release,
-#if defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)
-	.unlocked_ioctl	= easyoss_ioctl_noinode,
-#else
-	.ioctl		= easyoss_ioctl,
-#endif /*EASYCAP_NEEDS_UNLOCKED_IOCTL*/
+	.unlocked_ioctl	= easyoss_unlocked_ioctl,
 	.read		= easyoss_read,
 	.llseek		= no_llseek,
 };

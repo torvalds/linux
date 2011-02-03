@@ -33,7 +33,6 @@
  *                EASYCAP_NEEDS_USBVIDEO_H
  *                EASYCAP_NEEDS_V4L2_DEVICE_H
  *                EASYCAP_NEEDS_V4L2_FOPS
- *                EASYCAP_NEEDS_UNLOCKED_IOCTL
  *                EASYCAP_SILENT
  *
  *  IF REQUIRED THEY MUST BE EXTERNALLY DEFINED, FOR EXAMPLE AS COMPILER
@@ -511,9 +510,7 @@ __s16 oldaudio;
  *  VIDEO FUNCTION PROTOTYPES
  */
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-long easycap_ioctl_noinode(struct file *, unsigned int, unsigned long);
-int easycap_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
-
+long easycap_unlocked_ioctl(struct file *, unsigned int, unsigned long);
 int              easycap_dqbuf(struct easycap *, int);
 int              submit_video_urbs(struct easycap *);
 int              kill_video_urbs(struct easycap *);

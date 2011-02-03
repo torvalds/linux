@@ -3117,11 +3117,7 @@ static const struct file_operations easycap_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easycap_open,
 	.release	= easycap_release,
-#if defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)
-	.unlocked_ioctl	= easycap_ioctl_noinode,
-#else
-	.ioctl		= easycap_ioctl,
-#endif /*EASYCAP_NEEDS_UNLOCKED_IOCTL*/
+	.unlocked_ioctl	= easycap_unlocked_ioctl,
 	.poll		= easycap_poll,
 	.mmap		= easycap_mmap,
 	.llseek		= no_llseek,
@@ -3138,11 +3134,7 @@ static const struct v4l2_file_operations v4l2_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easycap_open_noinode,
 	.release	= easycap_release_noinode,
-#if defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)
-	.unlocked_ioctl	= easycap_ioctl_noinode,
-#else
-	.ioctl		= easycap_ioctl,
-#endif /*EASYCAP_NEEDS_UNLOCKED_IOCTL*/
+	.unlocked_ioctl	= easycap_unlocked_ioctl,
 	.poll		= easycap_poll,
 	.mmap		= easycap_mmap,
 };
