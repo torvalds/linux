@@ -690,11 +690,7 @@ extern struct easycap_format easycap_format[];
 extern struct v4l2_queryctrl easycap_control[];
 extern struct usb_driver easycap_usb_driver;
 extern struct easycap_dongle easycapdc60_dongle[];
-#ifndef CONFIG_EASYCAP_OSS
-extern struct snd_pcm_ops easycap_alsa_ops;
-extern struct snd_pcm_hardware easycap_pcm_hardware;
-extern struct snd_card *psnd_card;
-#else /* CONFIG_EASYCAP_OSS */
+#ifdef CONFIG_EASYCAP_OSS
 extern struct usb_class_driver easyoss_class;
 extern const struct file_operations easyoss_fops;
 #endif /* !CONFIG_EASYCAP_OSS */
