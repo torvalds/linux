@@ -62,6 +62,7 @@ static const struct {
 	[SYM_ENUM]       = {'e', "enum"},
 	[SYM_STRUCT]     = {'s', "struct"},
 	[SYM_UNION]      = {'u', "union"},
+	[SYM_ENUM_CONST] = {'E', "enum constant"},
 };
 
 static int equal_list(struct string_list *a, struct string_list *b);
@@ -149,10 +150,16 @@ static unsigned long crc32(const char *s)
 
 static enum symbol_type map_to_ns(enum symbol_type t)
 {
-	if (t == SYM_TYPEDEF)
-		t = SYM_NORMAL;
-	else if (t == SYM_UNION)
-		t = SYM_STRUCT;
+	switch (t) {
+	case SYM_ENUM_CONST:
+	case SYM_NORMAL:
+	case SYM_TYPEDEF:
+		return SYM_NORMAL;
+	case SYM_ENUM:
+	case SYM_STRUCT:
+	case SYM_UNION:
+		return SYM_STRUCT;
+	}
 	return t;
 }
 
@@ -191,10 +198,47 @@ static struct symbol *__add_symbol(const char *name, enum symbol_type type,
 			    struct string_list *defn, int is_extern,
 			    int is_reference)
 {
-	unsigned long h = crc32(name) % HASH_BUCKETS;
+	unsigned long h;
 	struct symbol *sym;
 	enum symbol_status status = STATUS_UNCHANGED;
+	/* The parser adds symbols in the order their declaration completes,
+	 * so it is safe to store the value of the previous enum constant in
+	 * a static variable.
+	 */
+	static int enum_counter;
+	static struct string_list *last_enum_expr;
 
+	if (type == SYM_ENUM_CONST) {
+		if (defn) {
+			free_list(last_enum_expr, NULL);
+			last_enum_expr = copy_list_range(defn, NULL);
+			enum_counter = 1;
+		} else {
+			struct string_list *expr;
+			char buf[20];
+
+			snprintf(buf, sizeof(buf), "%d", enum_counter++);
+			if (last_enum_expr) {
+				expr = copy_list_range(last_enum_expr, NULL);
+				defn = concat_list(mk_node("("),
+						   expr,
+						   mk_node(")"),
+						   mk_node("+"),
+						   mk_node(buf), NULL);
+			} else {
+				defn = mk_node(buf);
+			}
+		}
+	} else if (type == SYM_ENUM) {
+		free_list(last_enum_expr, NULL);
+		last_enum_expr = NULL;
+		enum_counter = 0;
+		if (!name)
+			/* Anonymous enum definition, nothing more to do */
+			return NULL;
+	}
+
+	h = crc32(name) % HASH_BUCKETS;
 	for (sym = symtab[h]; sym; sym = sym->hash_next) {
 		if (map_to_ns(sym->type) == map_to_ns(type) &&
 		    strcmp(name, sym->name) == 0) {
@@ -341,6 +385,22 @@ struct string_list *copy_node(struct string_list *node)
 	newnode->tag = node->tag;
 
 	return newnode;
+}
+
+struct string_list *copy_list_range(struct string_list *start,
+				    struct string_list *end)
+{
+	struct string_list *res, *n;
+
+	if (start == end)
+		return NULL;
+	n = res = copy_node(start);
+	for (start = start->next; start != end; start = start->next) {
+		n->next = copy_node(start);
+		n = n->next;
+	}
+	n->next = NULL;
+	return res;
 }
 
 static int equal_list(struct string_list *a, struct string_list *b)
@@ -512,6 +572,7 @@ static unsigned long expand_and_crc_sym(struct symbol *sym, unsigned long crc)
 			crc = partial_crc32_one(' ', crc);
 			break;
 
+		case SYM_ENUM_CONST:
 		case SYM_TYPEDEF:
 			subsym = find_symbol(cur->string, cur->tag, 0);
 			/* FIXME: Bad reference files can segfault here. */
