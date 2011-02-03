@@ -37,7 +37,11 @@ struct tegra_dc_mode {
 	int	v_active;
 	int	h_front_porch;
 	int	v_front_porch;
+	u32	flags;
 };
+
+#define TEGRA_DC_MODE_FLAG_NEG_V_SYNC	(1 << 0)
+#define TEGRA_DC_MODE_FLAG_NEG_H_SYNC	(1 << 1)
 
 enum {
 	TEGRA_DC_OUT_RGB,
