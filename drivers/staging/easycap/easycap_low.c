@@ -1178,7 +1178,7 @@ int
 audio_gainset(struct usb_device *pusb_device, __s8 loud)
 {
 int igot;
-__u8 u8;
+__u8 tmp;
 __u16 mute;
 
 if (NULL == pusb_device)
@@ -1199,12 +1199,12 @@ if (0 > igot) {
 mute = 0;
 
 if (16 > loud)
-	u8 = 0x01 | (0x001F & (((__u8)(15 - loud)) << 1));
+	tmp = 0x01 | (0x001F & (((__u8)(15 - loud)) << 1));
 else
-	u8 = 0;
+	tmp = 0;
 
-JOT(8, "0x%04X=(mute|u8) for VT1612A register 0x0E\n", mute | u8);
-write_vt(pusb_device, 0x000E, (mute | u8));
+JOT(8, "0x%04X=(mute|tmp) for VT1612A register 0x0E\n", mute | tmp);
+write_vt(pusb_device, 0x000E, (mute | tmp));
 /*---------------------------------------------------------------------------*/
 igot = read_vt(pusb_device, 0x0010);
 if (0 > igot) {
@@ -1214,13 +1214,13 @@ if (0 > igot) {
 	mute = 0x8000 & ((unsigned int)igot);
 mute = 0;
 
-JOT(8, "0x%04X=(mute|u8|(u8<<8)) for VT1612A register 0x10,...0x18\n",
-							mute | u8 | (u8 << 8));
-write_vt(pusb_device, 0x0010, (mute | u8 | (u8 << 8)));
-write_vt(pusb_device, 0x0012, (mute | u8 | (u8 << 8)));
-write_vt(pusb_device, 0x0014, (mute | u8 | (u8 << 8)));
-write_vt(pusb_device, 0x0016, (mute | u8 | (u8 << 8)));
-write_vt(pusb_device, 0x0018, (mute | u8 | (u8 << 8)));
+JOT(8, "0x%04X=(mute|tmp|(tmp<<8)) for VT1612A register 0x10,...0x18\n",
+						mute | tmp | (tmp << 8));
+write_vt(pusb_device, 0x0010, (mute | tmp | (tmp << 8)));
+write_vt(pusb_device, 0x0012, (mute | tmp | (tmp << 8)));
+write_vt(pusb_device, 0x0014, (mute | tmp | (tmp << 8)));
+write_vt(pusb_device, 0x0016, (mute | tmp | (tmp << 8)));
+write_vt(pusb_device, 0x0018, (mute | tmp | (tmp << 8)));
 /*---------------------------------------------------------------------------*/
 igot = read_vt(pusb_device, 0x001C);
 if (0 > igot) {
@@ -1231,13 +1231,13 @@ if (0 > igot) {
 mute = 0;
 
 if (16 <= loud)
-	u8 = 0x000F & (__u8)(loud - 16);
+	tmp = 0x000F & (__u8)(loud - 16);
 else
-	u8 = 0;
+	tmp = 0;
 
-JOT(8, "0x%04X=(mute|u8|(u8<<8)) for VT1612A register 0x1C\n",
-							mute | u8 | (u8 << 8));
-write_vt(pusb_device, 0x001C, (mute | u8 | (u8 << 8)));
+JOT(8, "0x%04X=(mute|tmp|(tmp<<8)) for VT1612A register 0x1C\n",
+					mute | tmp | (tmp << 8));
+write_vt(pusb_device, 0x001C, (mute | tmp | (tmp << 8)));
 write_vt(pusb_device, 0x001A, 0x0404);
 write_vt(pusb_device, 0x0002, 0x0000);
 return 0;
