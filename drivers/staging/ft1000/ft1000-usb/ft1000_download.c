@@ -644,44 +644,42 @@ static void usb_dnld_complete (struct urb *urb)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static u32 write_blk_fifo (struct ft1000_device *ft1000dev, u16 **pUsFile, u8 **pUcFile, long word_length)
+static u32 write_blk_fifo(struct ft1000_device *ft1000dev, u16 **pUsFile,
+			  u8 **pUcFile, long word_length)
 {
-   u32 Status = STATUS_SUCCESS;
-   int byte_length;
-   long aligncnt;
+	u32 Status = STATUS_SUCCESS;
+	int byte_length;
+	long aligncnt;
 
-   byte_length = word_length * 4;
+	byte_length = word_length * 4;
 
-   if (byte_length % 4)
-      aligncnt = 4 - (byte_length % 4);
-   else
-      aligncnt = 0;
-   byte_length += aligncnt;
+	if (byte_length % 4)
+		aligncnt = 4 - (byte_length % 4);
+	else
+		aligncnt = 0;
+	byte_length += aligncnt;
 
-   if (byte_length && ((byte_length % 64) == 0)) {
-      byte_length += 4;
-   }
+	if (byte_length && ((byte_length % 64) == 0))
+		byte_length += 4;
 
-   if (byte_length < 64)
-       byte_length = 68;
+	if (byte_length < 64)
+		byte_length = 68;
 
+	usb_init_urb(ft1000dev->tx_urb);
+	memcpy(ft1000dev->tx_buf, *pUcFile, byte_length);
+	usb_fill_bulk_urb(ft1000dev->tx_urb,
+			  ft1000dev->dev,
+			  usb_sndbulkpipe(ft1000dev->dev,
+					  ft1000dev->bulk_out_endpointAddr),
+			  ft1000dev->tx_buf, byte_length, usb_dnld_complete,
+			  (void *)ft1000dev);
 
-    usb_init_urb(ft1000dev->tx_urb);
-    memcpy (ft1000dev->tx_buf, *pUcFile, byte_length);
-    usb_fill_bulk_urb(ft1000dev->tx_urb,
-                      ft1000dev->dev,
-                      usb_sndbulkpipe(ft1000dev->dev, ft1000dev->bulk_out_endpointAddr),
-                      ft1000dev->tx_buf,
-                      byte_length,
-                      usb_dnld_complete,
-                      (void*)ft1000dev);
+	usb_submit_urb(ft1000dev->tx_urb, GFP_ATOMIC);
 
-    usb_submit_urb(ft1000dev->tx_urb, GFP_ATOMIC);
+	*pUsFile = *pUsFile + (word_length << 1);
+	*pUcFile = *pUcFile + (word_length << 2);
 
-   *pUsFile = *pUsFile + (word_length << 1);
-   *pUcFile = *pUcFile + (word_length << 2);
-
-   return Status;
+	return Status;
 }
 
 //---------------------------------------------------------------------------
