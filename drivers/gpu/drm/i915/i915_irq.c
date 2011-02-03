@@ -365,7 +365,7 @@ static void notify_ring(struct drm_device *dev,
 		return;
 
 	seqno = ring->get_seqno(ring);
-	trace_i915_gem_request_complete(dev, seqno);
+	trace_i915_gem_request_complete(ring, seqno);
 
 	ring->irq_seqno = seqno;
 	wake_up_all(&ring->irq_queue);
@@ -1271,16 +1271,6 @@ static int i915_emit_irq(struct drm_device * dev)
 	}
 
 	return dev_priv->counter;
-}
-
-void i915_trace_irq_get(struct drm_device *dev, u32 seqno)
-{
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	struct intel_ring_buffer *ring = LP_RING(dev_priv);
-
-	if (dev_priv->trace_irq_seqno == 0 &&
-	    ring->irq_get(ring))
-		dev_priv->trace_irq_seqno = seqno;
 }
 
 static int i915_wait_irq(struct drm_device * dev, int irq_nr)

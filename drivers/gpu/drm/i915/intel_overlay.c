@@ -221,16 +221,15 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 	int ret;
 
 	BUG_ON(overlay->last_flip_req);
-	ret = i915_add_request(dev, NULL, request, LP_RING(dev_priv));
+	ret = i915_add_request(LP_RING(dev_priv), NULL, request);
 	if (ret) {
 	    kfree(request);
 	    return ret;
 	}
 	overlay->last_flip_req = request->seqno;
 	overlay->flip_tail = tail;
-	ret = i915_do_wait_request(dev,
-				   overlay->last_flip_req, true,
-				   LP_RING(dev_priv));
+	ret = i915_wait_request(LP_RING(dev_priv),
+				overlay->last_flip_req, true);
 	if (ret)
 		return ret;
 
@@ -364,7 +363,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	OUT_RING(flip_addr);
         ADVANCE_LP_RING();
 
-	ret = i915_add_request(dev, NULL, request, LP_RING(dev_priv));
+	ret = i915_add_request(LP_RING(dev_priv), NULL, request);
 	if (ret) {
 		kfree(request);
 		return ret;
@@ -453,8 +452,8 @@ static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 	if (overlay->last_flip_req == 0)
 		return 0;
 
-	ret = i915_do_wait_request(dev, overlay->last_flip_req,
-				   interruptible, LP_RING(dev_priv));
+	ret = i915_wait_request(LP_RING(dev_priv),
+				overlay->last_flip_req, interruptible);
 	if (ret)
 		return ret;
 

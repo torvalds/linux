@@ -58,6 +58,7 @@ struct  intel_ring_buffer {
 	u32		irq_refcount;
 	u32		irq_mask;
 	u32		irq_seqno;		/* last seq seem at irq time */
+	u32		trace_irq_seqno;
 	u32		waiting_seqno;
 	u32		sync_seqno[I915_NUM_RINGS-1];
 	bool __must_check (*irq_get)(struct intel_ring_buffer *ring);
@@ -185,6 +186,12 @@ int intel_init_blt_ring_buffer(struct drm_device *dev);
 
 u32 intel_ring_get_active_head(struct intel_ring_buffer *ring);
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring);
+
+static inline void i915_trace_irq_get(struct intel_ring_buffer *ring, u32 seqno)
+{
+	if (ring->trace_irq_seqno == 0 && ring->irq_get(ring))
+		ring->trace_irq_seqno = seqno;
+}
 
 /* DRI warts */
 int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size);

@@ -2004,7 +2004,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->error_lock);
-	dev_priv->trace_irq_seqno = 0;
 
 	ret = drm_vblank_init(dev, I915_NUM_PIPE);
 	if (ret)

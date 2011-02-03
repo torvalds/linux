@@ -76,10 +76,7 @@ enum plane {
 #define DRIVER_PATCHLEVEL	0
 
 #define WATCH_COHERENCY	0
-#define WATCH_EXEC	0
-#define WATCH_RELOC	0
 #define WATCH_LISTS	0
-#define WATCH_PWRITE	0
 
 #define I915_GEM_PHYS_CURSOR_0 1
 #define I915_GEM_PHYS_CURSOR_1 2
@@ -289,7 +286,6 @@ typedef struct drm_i915_private {
 	int page_flipping;
 
 	atomic_t irq_received;
-	u32 trace_irq_seqno;
 
 	/* protects the irq masks */
 	spinlock_t irq_lock;
@@ -1001,7 +997,6 @@ extern int i915_irq_emit(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 extern int i915_irq_wait(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
-void i915_trace_irq_get(struct drm_device *dev, u32 seqno);
 
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i915_driver_irq_preinstall(struct drm_device * dev);
@@ -1095,8 +1090,7 @@ int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
 int i915_gem_init_object(struct drm_gem_object *obj);
-int __must_check i915_gem_flush_ring(struct drm_device *dev,
-				     struct intel_ring_buffer *ring,
+int __must_check i915_gem_flush_ring(struct intel_ring_buffer *ring,
 				     uint32_t invalidate_domains,
 				     uint32_t flush_domains);
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
@@ -1127,10 +1121,9 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 }
 
 static inline u32
-i915_gem_next_request_seqno(struct drm_device *dev,
-			    struct intel_ring_buffer *ring)
+i915_gem_next_request_seqno(struct intel_ring_buffer *ring)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	return ring->outstanding_lazy_request = dev_priv->next_seqno;
 }
 
@@ -1155,14 +1148,12 @@ void i915_gem_do_init(struct drm_device *dev,
 		      unsigned long end);
 int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_idle(struct drm_device *dev);
-int __must_check i915_add_request(struct drm_device *dev,
-				  struct drm_file *file_priv,
-				  struct drm_i915_gem_request *request,
-				  struct intel_ring_buffer *ring);
-int __must_check i915_do_wait_request(struct drm_device *dev,
-				      uint32_t seqno,
-				      bool interruptible,
-				      struct intel_ring_buffer *ring);
+int __must_check i915_add_request(struct intel_ring_buffer *ring,
+				  struct drm_file *file,
+				  struct drm_i915_gem_request *request);
+int __must_check i915_wait_request(struct intel_ring_buffer *ring,
+				   uint32_t seqno,
+				   bool interruptible);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int __must_check
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,
@@ -1311,7 +1302,7 @@ extern void intel_display_print_error_state(struct seq_file *m,
 #define __i915_read(x, y) \
 static inline u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 	u##x val = read##y(dev_priv->regs + reg); \
-	trace_i915_reg_rw('R', reg, val, sizeof(val)); \
+	trace_i915_reg_rw(false, reg, val, sizeof(val)); \
 	return val; \
 }
 __i915_read(8, b)
@@ -1322,7 +1313,7 @@ __i915_read(64, q)
 
 #define __i915_write(x, y) \
 static inline void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
-	trace_i915_reg_rw('W', reg, val, sizeof(val)); \
+	trace_i915_reg_rw(true, reg, val, sizeof(val)); \
 	write##y(val, dev_priv->regs + reg); \
 }
 __i915_write(8, b)
@@ -1369,27 +1360,6 @@ static inline u32 i915_safe_read(struct drm_i915_private *dev_priv, u32 reg)
 		val = I915_READ(reg);
 
 	return val;
-}
-
-static inline void
-i915_write(struct drm_i915_private *dev_priv, u32 reg, u64 val, int len)
-{
-       /* Trace down the write operation before the real write */
-       trace_i915_reg_rw('W', reg, val, len);
-       switch (len) {
-       case 8:
-               writeq(val, dev_priv->regs + reg);
-               break;
-       case 4:
-               writel(val, dev_priv->regs + reg);
-               break;
-       case 2:
-               writew(val, dev_priv->regs + reg);
-               break;
-       case 1:
-               writeb(val, dev_priv->regs + reg);
-               break;
-       }
 }
 
 #endif
