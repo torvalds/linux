@@ -35,6 +35,7 @@
 #include "drm_crtc_helper.h"
 
 static void nv50_display_isr(struct drm_device *);
+static void nv50_display_bh(unsigned long);
 
 static inline int
 nv50_sor_nr(struct drm_device *dev)
@@ -339,7 +340,7 @@ int nv50_display_create(struct drm_device *dev)
 		}
 	}
 
-	INIT_WORK(&dev_priv->irq_work, nv50_display_irq_handler_bh);
+	tasklet_init(&priv->tasklet, nv50_display_bh, (unsigned long)dev);
 	nouveau_irq_register(dev, 26, nv50_display_isr);
 
 	ret = nv50_display_init(dev);
@@ -354,7 +355,6 @@ int nv50_display_create(struct drm_device *dev)
 void
 nv50_display_destroy(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_display *disp = nv50_display(dev);
 
 	NV_DEBUG_KMS(dev, "\n");
@@ -363,7 +363,6 @@ nv50_display_destroy(struct drm_device *dev)
 
 	nv50_display_disable(dev);
 	nouveau_irq_unregister(dev, 26);
-	flush_work_sync(&dev_priv->irq_work);
 	kfree(disp);
 }
 
@@ -770,12 +769,10 @@ ack:
 	nv_wr32(dev, 0x619494, nv_rd32(dev, 0x619494) | 8);
 }
 
-void
-nv50_display_irq_handler_bh(struct work_struct *work)
+static void
+nv50_display_bh(unsigned long data)
 {
-	struct drm_nouveau_private *dev_priv =
-		container_of(work, struct drm_nouveau_private, irq_work);
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = (struct drm_device *)data;
 
 	for (;;) {
 		uint32_t intr0 = nv_rd32(dev, NV50_PDISPLAY_INTR_0);
@@ -823,7 +820,7 @@ nv50_display_error_handler(struct drm_device *dev)
 static void
 nv50_display_isr(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv50_display *disp = nv50_display(dev);
 	uint32_t delayed = 0;
 
 	while (nv_rd32(dev, NV50_PMC_INTR_0) & NV50_PMC_INTR_0_DISPLAY) {
@@ -851,8 +848,7 @@ nv50_display_isr(struct drm_device *dev)
 				  NV50_PDISPLAY_INTR_1_CLK_UNK40));
 		if (clock) {
 			nv_wr32(dev, NV03_PMC_INTR_EN_0, 0);
-			if (!work_pending(&dev_priv->irq_work))
-				schedule_work(&dev_priv->irq_work);
+			tasklet_schedule(&disp->tasklet);
 			delayed |= clock;
 			intr1 &= ~clock;
 		}

@@ -653,7 +653,6 @@ struct drm_nouveau_private {
 	/* interrupt handling */
 	void (*irq_handler[32])(struct drm_device *);
 	bool msi_enabled;
-	struct work_struct irq_work;
 
 	struct list_head vbl_waiting;
 

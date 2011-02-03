@@ -38,6 +38,7 @@
 struct nv50_display {
 	struct nouveau_channel *master;
 
+	struct tasklet_struct tasklet;
 	struct {
 		struct dcb_entry *dcb;
 		u16 script;
@@ -52,7 +53,6 @@ nv50_display(struct drm_device *dev)
 	return dev_priv->engine.display.priv;
 }
 
-void nv50_display_irq_handler_bh(struct work_struct *work);
 int nv50_display_early_init(struct drm_device *dev);
 void nv50_display_late_takedown(struct drm_device *dev);
 int nv50_display_create(struct drm_device *dev);
