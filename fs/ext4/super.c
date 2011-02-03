@@ -4810,13 +4810,17 @@ static int __init ext4_init_fs(void)
 		return err;
 	err = ext4_init_system_zone();
 	if (err)
-		goto out5;
+		goto out7;
 	ext4_kset = kset_create_and_add("ext4", NULL, fs_kobj);
 	if (!ext4_kset)
-		goto out4;
+		goto out6;
 	ext4_proc_root = proc_mkdir("fs/ext4", NULL);
+	if (!ext4_proc_root)
+		goto out5;
 
 	err = ext4_init_feat_adverts();
+	if (err)
+		goto out4;
 
 	err = ext4_init_mballoc();
 	if (err)
@@ -4847,11 +4851,13 @@ out2:
 	ext4_exit_mballoc();
 out3:
 	ext4_exit_feat_adverts();
-	remove_proc_entry("fs/ext4", NULL);
-	kset_unregister(ext4_kset);
 out4:
-	ext4_exit_system_zone();
+	remove_proc_entry("fs/ext4", NULL);
 out5:
+	kset_unregister(ext4_kset);
+out6:
+	ext4_exit_system_zone();
+out7:
 	ext4_exit_pageio();
 	return err;
 }
