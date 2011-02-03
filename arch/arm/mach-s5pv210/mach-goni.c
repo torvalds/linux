@@ -15,7 +15,7 @@
 #include <linux/fb.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
-#include <linux/i2c/qt602240_ts.h>
+#include <linux/i2c/atmel_mxt_ts.h>
 #include <linux/mfd/max8998.h>
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/regulator/fixed.h>
