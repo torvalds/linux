@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/reciprocal_div.h>
+#include <linux/vmalloc.h>
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
 #include <net/red.h>
