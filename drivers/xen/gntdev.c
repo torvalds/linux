@@ -45,15 +45,15 @@ MODULE_AUTHOR("Derek G. Murray <Derek.Murray@cl.cam.ac.uk>, "
 	      "Gerd Hoffmann <kraxel@redhat.com>");
 MODULE_DESCRIPTION("User-space granted page access driver");
 
-static int limit = 1024;
+static int limit = 1024*1024;
 module_param(limit, int, 0644);
-MODULE_PARM_DESC(limit, "Maximum number of grants that may be mapped at "
-		"once by a gntdev instance");
+MODULE_PARM_DESC(limit, "Maximum number of grants that may be mapped by "
+		"the gntdev device");
+
+static atomic_t pages_mapped = ATOMIC_INIT(0);
 
 struct gntdev_priv {
 	struct list_head maps;
-	uint32_t used;
-	uint32_t limit;
 	/* lock protects maps from concurrent changes */
 	spinlock_t lock;
 	struct mm_struct *mm;
@@ -82,9 +82,7 @@ static void gntdev_print_maps(struct gntdev_priv *priv,
 #ifdef DEBUG
 	struct grant_map *map;
 
-	pr_debug("maps list (priv %p, usage %d/%d)\n",
-	       priv, priv->used, priv->limit);
-
+	pr_debug("%s: maps list (priv %p)\n", __func__, priv);
 	list_for_each_entry(map, &priv->maps, next)
 		pr_debug("  index %2d, count %2d %s\n",
 		       map->index, map->count,
@@ -121,9 +119,6 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 	add->count = count;
 	add->priv  = priv;
 
-	if (add->count + priv->used > priv->limit)
-		goto err;
-
 	return add;
 
 err:
@@ -154,7 +149,6 @@ static void gntdev_add_map(struct gntdev_priv *priv, struct grant_map *add)
 	list_add_tail(&add->next, &priv->maps);
 
 done:
-	priv->used += add->count;
 	gntdev_print_maps(priv, "[new]", add->index);
 }
 
@@ -200,7 +194,7 @@ static int gntdev_del_map(struct grant_map *map)
 		if (map->unmap_ops[i].handle)
 			return -EBUSY;
 
-	map->priv->used -= map->count;
+	atomic_sub(map->count, &pages_mapped);
 	list_del(&map->next);
 	return 0;
 }
@@ -386,7 +380,6 @@ static int gntdev_open(struct inode *inode, struct file *flip)
 
 	INIT_LIST_HEAD(&priv->maps);
 	spin_lock_init(&priv->lock);
-	priv->limit = limit;
 
 	priv->mm = get_task_mm(current);
 	if (!priv->mm) {
@@ -443,15 +436,20 @@ static long gntdev_ioctl_map_grant_ref(struct gntdev_priv *priv,
 	pr_debug("priv %p, add %d\n", priv, op.count);
 	if (unlikely(op.count <= 0))
 		return -EINVAL;
-	if (unlikely(op.count > priv->limit))
-		return -EINVAL;
 
 	err = -ENOMEM;
 	map = gntdev_alloc_map(priv, op.count);
 	if (!map)
 		return err;
+
 	if (copy_from_user(map->grants, &u->refs,
 			   sizeof(map->grants[0]) * op.count) != 0) {
+		gntdev_free_map(map);
+		return err;
+	}
+
+	if (unlikely(atomic_add_return(op.count, &pages_mapped) > limit)) {
+		pr_debug("can't map: over limit\n");
 		gntdev_free_map(map);
 		return err;
 	}
@@ -518,23 +516,6 @@ static long gntdev_ioctl_get_offset_for_vaddr(struct gntdev_priv *priv,
 	return 0;
 }
 
-static long gntdev_ioctl_set_max_grants(struct gntdev_priv *priv,
-					struct ioctl_gntdev_set_max_grants __user *u)
-{
-	struct ioctl_gntdev_set_max_grants op;
-
-	if (copy_from_user(&op, u, sizeof(op)) != 0)
-		return -EFAULT;
-	pr_debug("priv %p, limit %d\n", priv, op.count);
-	if (op.count > limit)
-		return -E2BIG;
-
-	spin_lock(&priv->lock);
-	priv->limit = op.count;
-	spin_unlock(&priv->lock);
-	return 0;
-}
-
 static long gntdev_ioctl(struct file *flip,
 			 unsigned int cmd, unsigned long arg)
 {
@@ -550,9 +531,6 @@ static long gntdev_ioctl(struct file *flip,
 
 	case IOCTL_GNTDEV_GET_OFFSET_FOR_VADDR:
 		return gntdev_ioctl_get_offset_for_vaddr(priv, ptr);
-
-	case IOCTL_GNTDEV_SET_MAX_GRANTS:
-		return gntdev_ioctl_set_max_grants(priv, ptr);
 
 	default:
 		pr_debug("priv %p, unknown cmd %x\n", priv, cmd);
