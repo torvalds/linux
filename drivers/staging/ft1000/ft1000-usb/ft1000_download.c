@@ -1072,16 +1072,8 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart,
 					     image < file_hdr->nDspImages;
 					     image++) {
 
-						temp =
-						    (u16) (dsp_img_info->
-							   version);
-						templong = temp;
-						temp =
-						    (u16) (dsp_img_info->
-							   version >> 16);
-						templong |= (temp << 16);
-						if (templong ==
-						    (u32) requested_version) {
+						if (dsp_img_info->version ==
+						    requested_version) {
 							correct_version = TRUE;
 							DEBUG
 							    ("FT1000:download: correct_version is TRUE\n");
