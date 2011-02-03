@@ -224,21 +224,6 @@ static int pxa_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static int pxa_update_irq_enable(struct device *dev, unsigned int enabled)
-{
-	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
-
-	spin_lock_irq(&pxa_rtc->lock);
-
-	if (enabled)
-		rtsr_set_bits(pxa_rtc, RTSR_HZE);
-	else
-		rtsr_clear_bits(pxa_rtc, RTSR_HZE);
-
-	spin_unlock_irq(&pxa_rtc->lock);
-	return 0;
-}
-
 static int pxa_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
@@ -320,7 +305,6 @@ static const struct rtc_class_ops pxa_rtc_ops = {
 	.read_alarm = pxa_rtc_read_alarm,
 	.set_alarm = pxa_rtc_set_alarm,
 	.alarm_irq_enable = pxa_alarm_irq_enable,
-	.update_irq_enable = pxa_update_irq_enable,
 	.proc = pxa_rtc_proc,
 };
 

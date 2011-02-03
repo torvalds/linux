@@ -394,25 +394,6 @@ static int cmos_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static int cmos_update_irq_enable(struct device *dev, unsigned int enabled)
-{
-	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
-	unsigned long	flags;
-
-	if (!is_valid_irq(cmos->irq))
-		return -EINVAL;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-
-	if (enabled)
-		cmos_irq_enable(cmos, RTC_UIE);
-	else
-		cmos_irq_disable(cmos, RTC_UIE);
-
-	spin_unlock_irqrestore(&rtc_lock, flags);
-	return 0;
-}
-
 #if defined(CONFIG_RTC_INTF_PROC) || defined(CONFIG_RTC_INTF_PROC_MODULE)
 
 static int cmos_procfs(struct device *dev, struct seq_file *seq)
@@ -458,7 +439,6 @@ static const struct rtc_class_ops cmos_rtc_ops = {
 	.set_alarm		= cmos_set_alarm,
 	.proc			= cmos_procfs,
 	.alarm_irq_enable	= cmos_alarm_irq_enable,
-	.update_irq_enable	= cmos_update_irq_enable,
 };
 
 /*----------------------------------------------------------------*/
