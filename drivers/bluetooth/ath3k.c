@@ -108,6 +108,7 @@ static int ath3k_probe(struct usb_interface *intf,
 {
 	const struct firmware *firmware;
 	struct usb_device *udev = interface_to_usbdev(intf);
+	int ret;
 
 	BT_DBG("intf %p id %p", intf, id);
 
@@ -118,13 +119,10 @@ static int ath3k_probe(struct usb_interface *intf,
 		return -EIO;
 	}
 
-	if (ath3k_load_firmware(udev, firmware)) {
-		release_firmware(firmware);
-		return -EIO;
-	}
+	ret = ath3k_load_firmware(udev, firmware);
 	release_firmware(firmware);
 
-	return 0;
+	return ret;
 }
 
 static void ath3k_disconnect(struct usb_interface *intf)
