@@ -434,6 +434,10 @@ static int xen_allocate_irq_gsi(unsigned gsi)
 
 static void xen_free_irq(unsigned irq)
 {
+	/* Legacy IRQ descriptors are managed by the arch. */
+	if (irq < NR_IRQS_LEGACY)
+		return;
+
 	irq_free_desc(irq);
 }
 
