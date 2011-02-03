@@ -273,42 +273,50 @@ static void put_handshake(struct ft1000_device *ft1000dev,u16 handshake_value)
 
 static u16 get_handshake_usb(struct ft1000_device *ft1000dev, u16 expected_value)
 {
-   u16            handshake;
-   int               loopcnt;
-   u16            temp;
-   u32             status=0;
+	u16 handshake;
+	int loopcnt;
+	u16 temp;
+	u32 status = 0;
 
 	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
-   loopcnt = 0;
-   handshake = 0;
-   while (loopcnt < 100)
-   {
-       if (pft1000info->usbboot == 2) {
-           status = ft1000_read_dpram32 (ft1000dev, 0, (u8 *)&(pft1000info->tempbuf[0]), 64);
-           for (temp=0; temp<16; temp++)
-               DEBUG("tempbuf %d = 0x%x\n", temp, pft1000info->tempbuf[temp]);
-           status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, (u8 *)&handshake, 1);
-           DEBUG("handshake from read_dpram16 = 0x%x\n", handshake);
-           if (pft1000info->dspalive == pft1000info->tempbuf[6])
-               handshake = 0;
-           else {
-               handshake = pft1000info->tempbuf[1];
-               pft1000info->dspalive = pft1000info->tempbuf[6];
-           }
-       }
-       else {
-           status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, (u8 *)&handshake, 1);
-       }
-       loopcnt++;
-       msleep(10);
-       handshake = ntohs(handshake);
-       if ((handshake == expected_value) || (handshake == HANDSHAKE_RESET_VALUE_USB))
-       {
-           return handshake;
-       }
-   }
+	loopcnt = 0;
+	handshake = 0;
 
-   return HANDSHAKE_TIMEOUT_VALUE;
+	while (loopcnt < 100) {
+		if (pft1000info->usbboot == 2) {
+			status = ft1000_read_dpram32(ft1000dev, 0,
+					(u8 *)&(pft1000info->tempbuf[0]), 64);
+			for (temp = 0; temp < 16; temp++) {
+				DEBUG("tempbuf %d = 0x%x\n", temp,
+					pft1000info->tempbuf[temp]);
+			}
+			status = ft1000_read_dpram16(ft1000dev,
+						DWNLD_MAG1_HANDSHAKE_LOC,
+						(u8 *)&handshake, 1);
+			DEBUG("handshake from read_dpram16 = 0x%x\n",
+				handshake);
+			if (pft1000info->dspalive == pft1000info->tempbuf[6]) {
+				handshake = 0;
+			} else {
+				handshake = pft1000info->tempbuf[1];
+				pft1000info->dspalive =
+						pft1000info->tempbuf[6];
+			}
+		} else {
+			status = ft1000_read_dpram16(ft1000dev,
+						DWNLD_MAG1_HANDSHAKE_LOC,
+						(u8 *)&handshake, 1);
+		}
+
+		loopcnt++;
+		msleep(10);
+		handshake = ntohs(handshake);
+		if ((handshake == expected_value) ||
+		    (handshake == HANDSHAKE_RESET_VALUE_USB))
+			return handshake;
+	}
+
+	return HANDSHAKE_TIMEOUT_VALUE;
 }
 
 static void put_handshake_usb(struct ft1000_device *ft1000dev,u16 handshake_value)
