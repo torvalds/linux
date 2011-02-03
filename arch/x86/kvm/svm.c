@@ -135,6 +135,8 @@ struct vcpu_svm {
 
 	u32 *msrpm;
 
+	ulong nmi_iret_rip;
+
 	struct nested_state nested;
 
 	bool nmi_singlestep;
@@ -2653,6 +2655,7 @@ static int iret_interception(struct vcpu_svm *svm)
 	++svm->vcpu.stat.nmi_window_exits;
 	clr_intercept(svm, INTERCEPT_IRET);
 	svm->vcpu.arch.hflags |= HF_IRET_MASK;
+	svm->nmi_iret_rip = kvm_rip_read(&svm->vcpu);
 	return 1;
 }
 
@@ -3474,7 +3477,12 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 
 	svm->int3_injected = 0;
 
-	if (svm->vcpu.arch.hflags & HF_IRET_MASK) {
+	/*
+	 * If we've made progress since setting HF_IRET_MASK, we've
+	 * executed an IRET and can allow NMI injection.
+	 */
+	if ((svm->vcpu.arch.hflags & HF_IRET_MASK)
+	    && kvm_rip_read(&svm->vcpu) != svm->nmi_iret_rip) {
 		svm->vcpu.arch.hflags &= ~(HF_NMI_MASK | HF_IRET_MASK);
 		kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
 	}
