@@ -55,20 +55,20 @@ static DECLARE_TASKLET(resend_tasklet, resend_irqs, 0);
  */
 void check_irq_resend(struct irq_desc *desc, unsigned int irq)
 {
-	unsigned int status = desc->status;
-
 	/*
 	 * Make sure the interrupt is enabled, before resending it:
 	 */
-	desc->irq_data.chip->irq_enable(&desc->irq_data);
+	irq_enable(desc);
 
 	/*
 	 * We do not resend level type interrupts. Level type
 	 * interrupts are resent by hardware when they are still
 	 * active.
 	 */
-	if ((status & (IRQ_LEVEL | IRQ_PENDING | IRQ_REPLAY)) == IRQ_PENDING) {
-		desc->status = (status & ~IRQ_PENDING) | IRQ_REPLAY;
+	if (desc->status & IRQ_LEVEL)
+		return;
+	if ((desc->status & (IRQ_PENDING | IRQ_REPLAY)) == IRQ_PENDING) {
+		desc->status = (desc->status & ~IRQ_PENDING) | IRQ_REPLAY;
 
 		if (!desc->irq_data.chip->irq_retrigger ||
 		    !desc->irq_data.chip->irq_retrigger(&desc->irq_data)) {

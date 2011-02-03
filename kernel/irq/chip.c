@@ -200,7 +200,7 @@ int irq_startup(struct irq_desc *desc)
 	if (desc->irq_data.chip->irq_startup)
 		return desc->irq_data.chip->irq_startup(&desc->irq_data);
 
-	desc->irq_data.chip->irq_enable(&desc->irq_data);
+	irq_enable(desc);
 	return 0;
 }
 
@@ -209,6 +209,16 @@ void irq_shutdown(struct irq_desc *desc)
 	desc->status |= IRQ_MASKED | IRQ_DISABLED;
 	desc->depth = 1;
 	desc->irq_data.chip->irq_shutdown(&desc->irq_data);
+}
+
+void irq_enable(struct irq_desc *desc)
+{
+	desc->irq_data.chip->irq_enable(&desc->irq_data);
+}
+
+void irq_disable(struct irq_desc *desc)
+{
+	desc->irq_data.chip->irq_disable(&desc->irq_data);
 }
 
 /*

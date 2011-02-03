@@ -331,7 +331,7 @@ void __disable_irq(struct irq_desc *desc, unsigned int irq, bool suspend)
 
 	if (!desc->depth++) {
 		desc->status |= IRQ_DISABLED;
-		desc->irq_data.chip->irq_disable(&desc->irq_data);
+		irq_disable(desc);
 	}
 }
 
