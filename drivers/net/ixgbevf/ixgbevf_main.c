@@ -107,7 +107,7 @@ static inline void ixgbevf_release_rx_desc(struct ixgbe_hw *hw,
 }
 
 /*
- * ixgbe_set_ivar - set the IVAR registers, mapping interrupt causes to vectors
+ * ixgbevf_set_ivar - set IVAR registers - maps interrupt causes to vectors
  * @adapter: pointer to adapter struct
  * @direction: 0 for Rx, 1 for Tx, -1 for other causes
  * @queue: queue to map the corresponding interrupt to
@@ -1017,7 +1017,7 @@ static irqreturn_t ixgbevf_msix_clean_tx(int irq, void *data)
 }
 
 /**
- * ixgbe_msix_clean_rx - single unshared vector rx clean (all queues)
+ * ixgbevf_msix_clean_rx - single unshared vector rx clean (all queues)
  * @irq: unused
  * @data: pointer to our q_vector struct for this interrupt vector
  **/
@@ -1972,7 +1972,7 @@ static void ixgbevf_acquire_msix_vectors(struct ixgbevf_adapter *adapter,
 }
 
 /*
- * ixgbe_set_num_queues: Allocate queues for device, feature dependant
+ * ixgbevf_set_num_queues: Allocate queues for device, feature dependant
  * @adapter: board private structure to initialize
  *
  * This is the top level queue allocation routine.  The order here is very
@@ -3534,9 +3534,9 @@ static struct pci_driver ixgbevf_driver = {
 };
 
 /**
- * ixgbe_init_module - Driver Registration Routine
+ * ixgbevf_init_module - Driver Registration Routine
  *
- * ixgbe_init_module is the first routine called when the driver is
+ * ixgbevf_init_module is the first routine called when the driver is
  * loaded. All it does is register with the PCI subsystem.
  **/
 static int __init ixgbevf_init_module(void)
@@ -3554,9 +3554,9 @@ static int __init ixgbevf_init_module(void)
 module_init(ixgbevf_init_module);
 
 /**
- * ixgbe_exit_module - Driver Exit Cleanup Routine
+ * ixgbevf_exit_module - Driver Exit Cleanup Routine
  *
- * ixgbe_exit_module is called just before the driver is removed
+ * ixgbevf_exit_module is called just before the driver is removed
  * from memory.
  **/
 static void __exit ixgbevf_exit_module(void)
@@ -3566,7 +3566,7 @@ static void __exit ixgbevf_exit_module(void)
 
 #ifdef DEBUG
 /**
- * ixgbe_get_hw_dev_name - return device name string
+ * ixgbevf_get_hw_dev_name - return device name string
  * used by hardware layer to print debugging information
  **/
 char *ixgbevf_get_hw_dev_name(struct ixgbe_hw *hw)
