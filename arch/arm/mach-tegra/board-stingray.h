@@ -31,6 +31,7 @@ unsigned int stingray_powerup_reason (void);
 void stingray_gps_init(void);
 int stingray_qbp_usb_hw_bypass_enabled(void);
 void stingray_init_emc(void);
+void change_power_brcm_4329(bool);
 
 /* as defined in the bootloader*/
 #define HWREV(x)    (((x)>>16) & 0xFFFF)

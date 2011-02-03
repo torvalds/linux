@@ -38,6 +38,7 @@
 #define BT_WAKE_GPIO TEGRA_GPIO_PU1
 #define BT_HOST_WAKE_GPIO TEGRA_GPIO_PU6
 
+extern void change_power_brcm_4329(bool);
 static struct rfkill *bt_rfkill;
 
 struct bcm_bt_lpm {
@@ -58,9 +59,11 @@ static int bcm4329_bt_rfkill_set_power(void *data, bool blocked)
 {
 	// rfkill_ops callback. Turn transmitter on when blocked is false
 	if (!blocked) {
+		change_power_brcm_4329(true);
 		gpio_direction_output(BT_RESET_GPIO, 1);
-		gpio_direction_output(BT_SHUTDOWN_GPIO, 1);
+		gpio_direction_output(BT_SHUTDOWN_GPIO, 0);
 	} else {
+		change_power_brcm_4329(false);
 		gpio_direction_output(BT_SHUTDOWN_GPIO, 0);
 		gpio_direction_output(BT_RESET_GPIO, 0);
 	}

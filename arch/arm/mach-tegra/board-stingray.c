@@ -658,6 +658,9 @@ static int __init parse_tag_bdaddr(const struct tag *tag)
 }
 __tagtable(ATAG_BDADDR, parse_tag_bdaddr);
 
+static DEFINE_SPINLOCK(brcm_4329_enable_lock);
+static int brcm_4329_enable_count;
+
 static void stingray_w1_init(void)
 {
 	tegra_w1_device.dev.platform_data = &tegra_w1_pdata;
@@ -888,6 +891,26 @@ static void init_dac2(bool bluetooth)
 	}
 }
 
+void change_power_brcm_4329(bool enable) {
+	unsigned long flags;
+
+	spin_lock_irqsave(&brcm_4329_enable_lock, flags);
+	if (enable) {
+		gpio_set_value(TEGRA_GPIO_PU4, enable);
+		brcm_4329_enable_count++;
+		// The following shouldn't happen but protect
+		// if the user doesn't cleanup.
+		if (brcm_4329_enable_count > 2)
+			brcm_4329_enable_count = 2;
+	} else {
+		if (brcm_4329_enable_count > 0)
+			brcm_4329_enable_count--;
+		if (!brcm_4329_enable_count)
+			gpio_set_value(TEGRA_GPIO_PU4, enable);
+	}
+	spin_unlock_irqrestore(&brcm_4329_enable_lock, flags);
+}
+
 static void __init tegra_stingray_init(void)
 {
 	struct clk *clk;
@@ -994,6 +1017,11 @@ static void __init tegra_stingray_init(void)
 		pr_info("Disabling core dvfs on P1 hardware\n");
 		tegra_dvfs_rail_disable_by_name("vdd_core");
 	}
+
+	/* Enable 4329 Power GPIO */
+	tegra_gpio_enable(TEGRA_GPIO_PU4);
+	gpio_request(TEGRA_GPIO_PU4, "4329_pwr");
+	gpio_direction_output(TEGRA_GPIO_PU4, 0);
 
 	stingray_pinmux_init();
 

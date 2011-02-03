@@ -21,7 +21,6 @@
 #include "gpio-names.h"
 
 #define STINGRAY_WLAN_IRQ	TEGRA_GPIO_PU5
-#define STINGRAY_WLAN_PWR	TEGRA_GPIO_PU4
 #define STINGRAY_WLAN_RST	TEGRA_GPIO_PU2
 
 #define ATAG_STINGRAY_MAC	0x57464d41
@@ -158,7 +157,7 @@ static int stingray_wifi_power(int on)
 	pr_debug("%s: %d\n", __func__, on);
 
 	mdelay(100);
-	gpio_set_value(STINGRAY_WLAN_PWR, on);
+	change_power_brcm_4329(on);
 	mdelay(100);
 	gpio_set_value(STINGRAY_WLAN_RST, on);
 	mdelay(200);
@@ -238,10 +237,6 @@ static struct platform_device stingray_wifi_device = {
 
 static void __init stingray_wlan_gpio(void)
 {
-	tegra_gpio_enable(STINGRAY_WLAN_PWR);
-	gpio_request(STINGRAY_WLAN_PWR, "wlan_pwr");
-	gpio_direction_output(STINGRAY_WLAN_PWR, 0);
-
 	tegra_gpio_enable(STINGRAY_WLAN_RST);
 	gpio_request(STINGRAY_WLAN_RST, "wlan_rst");
 	gpio_direction_output(STINGRAY_WLAN_RST, 0);
