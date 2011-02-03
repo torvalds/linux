@@ -492,9 +492,7 @@ static u32 write_blk (struct ft1000_device *ft1000dev, u16 **pUsFile, u8 **pUcFi
 {
    u32 Status = STATUS_SUCCESS;
    u16 dpram;
-   long temp_word_length;
    int loopcnt, i, j;
-   u16 *pTempFile;
    u16 tempword;
    u16 tempbuffer[64];
    u16 resultbuffer[64];
@@ -513,8 +511,6 @@ static u32 write_blk (struct ft1000_device *ft1000dev, u16 **pUsFile, u8 **pUcFi
    word_length--;
    tempword = (u16)word_length;
    word_length = (word_length / 16) + 1;
-   pTempFile = *pUsFile;
-   temp_word_length = word_length;
    for (; word_length > 0; word_length--) /* In words */
    {
 	   loopcnt = 0;
