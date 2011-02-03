@@ -262,7 +262,7 @@ struct nvme_create_cq {
 	__u8			opcode;
 	__u8			flags;
 	__u16			command_id;
-	__le32			rsvd1[5];
+	__u32			rsvd1[5];
 	__le64			prp1;
 	__u64			rsvd8;
 	__le16			cqid;
@@ -276,14 +276,14 @@ struct nvme_create_sq {
 	__u8			opcode;
 	__u8			flags;
 	__u16			command_id;
-	__le32			rsvd1[5];
+	__u32			rsvd1[5];
 	__le64			prp1;
 	__u64			rsvd8;
 	__le16			sqid;
 	__le16			qsize;
 	__le16			sq_flags;
 	__le16			cqid;
-	__le32			rsvd12[4];
+	__u32			rsvd12[4];
 };
 
 struct nvme_delete_queue {
@@ -292,8 +292,20 @@ struct nvme_delete_queue {
 	__u16			command_id;
 	__u32			rsvd1[9];
 	__le16			qid;
-	__le16			rsvd10;
-	__le32			rsvd11[5];
+	__u16			rsvd10;
+	__u32			rsvd11[5];
+};
+
+struct nvme_download_firmware {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__u32			rsvd1[5];
+	__le64			prp1;
+	__le64			prp2;
+	__le32			numd;
+	__le32			offset;
+	__u32			rsvd12[4];
 };
 
 struct nvme_command {
@@ -305,6 +317,7 @@ struct nvme_command {
 		struct nvme_create_cq create_cq;
 		struct nvme_create_sq create_sq;
 		struct nvme_delete_queue delete_queue;
+		struct nvme_download_firmware dlfw;
 	};
 };
 
@@ -348,7 +361,7 @@ enum {
 
 struct nvme_completion {
 	__le32	result;		/* Used by admin commands to return data */
-	__le32	rsvd;
+	__u32	rsvd;
 	__le16	sq_head;	/* how much of this queue may be reclaimed */
 	__le16	sq_id;		/* submission queue that generated this entry */
 	__u16	command_id;	/* of the command which completed */
@@ -372,9 +385,17 @@ struct nvme_user_io {
 	__u32	result;
 };
 
+struct nvme_dlfw {
+	__u64	addr;
+	__u32	length;	/* In dwords */
+	__u32	offset;	/* In dwords */
+};
+
 #define NVME_IOCTL_IDENTIFY_NS	_IOW('N', 0x40, struct nvme_id_ns)
 #define NVME_IOCTL_IDENTIFY_CTRL _IOW('N', 0x41, struct nvme_id_ctrl)
 #define NVME_IOCTL_GET_RANGE_TYPE _IOW('N', 0x42, struct nvme_lba_range_type)
 #define NVME_IOCTL_SUBMIT_IO	_IOWR('N', 0x43, struct nvme_rw_command)
+#define NVME_IOCTL_DOWNLOAD_FW	_IOR('N', 0x44, struct nvme_dlfw)
+#define NVME_IOCTL_ACTIVATE_FW	_IO('N', 0x45)
 
 #endif /* _LINUX_NVME_H */

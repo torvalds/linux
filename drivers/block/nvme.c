@@ -829,6 +829,47 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	return status;
 }
 
+static int nvme_download_firmware(struct nvme_ns *ns,
+						struct nvme_dlfw __user *udlfw)
+{
+	struct nvme_dev *dev = ns->dev;
+	struct nvme_dlfw dlfw;
+	struct nvme_command c;
+	int nents, status;
+	struct scatterlist *sg;
+
+	if (copy_from_user(&dlfw, udlfw, sizeof(dlfw)))
+		return -EFAULT;
+	if (dlfw.length >= (1 << 30))
+		return -EINVAL;
+
+	nents = nvme_map_user_pages(dev, 1, dlfw.addr, dlfw.length * 4, &sg);
+	if (nents < 0)
+		return nents;
+
+	memset(&c, 0, sizeof(c));
+	c.dlfw.opcode = nvme_admin_download_fw;
+	c.dlfw.numd = cpu_to_le32(dlfw.length);
+	c.dlfw.offset = cpu_to_le32(dlfw.offset);
+	nvme_setup_prps(&c.common, sg, dlfw.length * 4);
+
+	status = nvme_submit_admin_cmd(dev, &c, NULL);
+	nvme_unmap_user_pages(dev, 0, dlfw.addr, dlfw.length * 4, sg, nents);
+	return status;
+}
+
+static int nvme_activate_firmware(struct nvme_ns *ns, unsigned long arg)
+{
+	struct nvme_dev *dev = ns->dev;
+	struct nvme_command c;
+
+	memset(&c, 0, sizeof(c));
+	c.common.opcode = nvme_admin_activate_fw;
+	c.common.rsvd10[0] = cpu_to_le32(arg);
+
+	return nvme_submit_admin_cmd(dev, &c, NULL);
+}
+
 static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 							unsigned long arg)
 {
@@ -843,6 +884,10 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 		return nvme_get_range_type(ns, arg);
 	case NVME_IOCTL_SUBMIT_IO:
 		return nvme_submit_io(ns, (void __user *)arg);
+	case NVME_IOCTL_DOWNLOAD_FW:
+		return nvme_download_firmware(ns, (void __user *)arg);
+	case NVME_IOCTL_ACTIVATE_FW:
+		return nvme_activate_firmware(ns, arg);
 	default:
 		return -ENOTTY;
 	}
