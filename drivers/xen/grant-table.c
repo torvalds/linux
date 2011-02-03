@@ -458,6 +458,9 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 	if (ret)
 		return ret;
 
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return ret;
+
 	for (i = 0; i < count; i++) {
 		/* m2p override only supported for GNTMAP_contains_pte mappings */
 		if (!(map_ops[i].flags & GNTMAP_contains_pte))
@@ -481,6 +484,9 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap_ops, count);
 	if (ret)
+		return ret;
+
+	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return ret;
 
 	for (i = 0; i < count; i++) {

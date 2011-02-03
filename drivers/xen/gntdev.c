@@ -32,6 +32,7 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/highmem.h>
 
 #include <xen/xen.h>
 #include <xen/grant_table.h>
@@ -51,6 +52,8 @@ MODULE_PARM_DESC(limit, "Maximum number of grants that may be mapped by "
 		"the gntdev device");
 
 static atomic_t pages_mapped = ATOMIC_INIT(0);
+
+static int use_ptemod;
 
 struct gntdev_priv {
 	struct list_head maps;
@@ -73,6 +76,8 @@ struct grant_map {
 	struct gnttab_unmap_grant_ref *unmap_ops;
 	struct page **pages;
 };
+
+static int unmap_grant_pages(struct grant_map *map, int offset, int pages);
 
 /* ------------------------------------------------------------------ */
 
@@ -179,11 +184,34 @@ static void gntdev_put_map(struct grant_map *map)
 
 	atomic_sub(map->count, &pages_mapped);
 
-	if (map->pages)
+	if (map->pages) {
+		if (!use_ptemod)
+			unmap_grant_pages(map, 0, map->count);
+
 		for (i = 0; i < map->count; i++) {
-			if (map->pages[i])
+			uint32_t check, *tmp;
+			if (!map->pages[i])
+				continue;
+			/* XXX When unmapping in an HVM domain, Xen will
+			 * sometimes end up mapping the GFN to an invalid MFN.
+			 * In this case, writes will be discarded and reads will
+			 * return all 0xFF bytes.  Leak these unusable GFNs
+			 * until Xen supports fixing their p2m mapping.
+			 *
+			 * Confirmed present in Xen 4.1-RC3 with HVM source
+			 */
+			tmp = kmap(map->pages[i]);
+			*tmp = 0xdeaddead;
+			mb();
+			check = *tmp;
+			kunmap(map->pages[i]);
+			if (check == 0xdeaddead)
 				__free_page(map->pages[i]);
+			else
+				pr_debug("Discard page %d=%ld\n", i,
+					page_to_pfn(map->pages[i]));
 		}
+	}
 	kfree(map->pages);
 	kfree(map->grants);
 	kfree(map->map_ops);
@@ -198,17 +226,16 @@ static int find_grant_ptes(pte_t *pte, pgtable_t token,
 {
 	struct grant_map *map = data;
 	unsigned int pgnr = (addr - map->vma->vm_start) >> PAGE_SHIFT;
+	int flags = map->flags | GNTMAP_application_map | GNTMAP_contains_pte;
 	u64 pte_maddr;
 
 	BUG_ON(pgnr >= map->count);
 	pte_maddr = arbitrary_virt_to_machine(pte).maddr;
 
-	gnttab_set_map_op(&map->map_ops[pgnr], pte_maddr,
-			  GNTMAP_contains_pte | map->flags,
+	gnttab_set_map_op(&map->map_ops[pgnr], pte_maddr, flags,
 			  map->grants[pgnr].ref,
 			  map->grants[pgnr].domid);
-	gnttab_set_unmap_op(&map->unmap_ops[pgnr], pte_maddr,
-			    GNTMAP_contains_pte | map->flags,
+	gnttab_set_unmap_op(&map->unmap_ops[pgnr], pte_maddr, flags,
 			    0 /* handle */);
 	return 0;
 }
@@ -216,6 +243,19 @@ static int find_grant_ptes(pte_t *pte, pgtable_t token,
 static int map_grant_pages(struct grant_map *map)
 {
 	int i, err = 0;
+	phys_addr_t addr;
+
+	if (!use_ptemod) {
+		for (i = 0; i < map->count; i++) {
+			addr = (phys_addr_t)
+				pfn_to_kaddr(page_to_pfn(map->pages[i]));
+			gnttab_set_map_op(&map->map_ops[i], addr, map->flags,
+				map->grants[i].ref,
+				map->grants[i].domid);
+			gnttab_set_unmap_op(&map->unmap_ops[i], addr,
+				map->flags, 0 /* handle */);
+		}
+	}
 
 	pr_debug("map %d+%d\n", map->index, map->count);
 	err = gnttab_map_refs(map->map_ops, map->pages, map->count);
@@ -260,17 +300,8 @@ static void gntdev_vma_close(struct vm_area_struct *vma)
 	gntdev_put_map(map);
 }
 
-static int gntdev_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-	pr_debug("vaddr %p, pgoff %ld (shouldn't happen)\n",
-			vmf->virtual_address, vmf->pgoff);
-	vmf->flags = VM_FAULT_ERROR;
-	return 0;
-}
-
 static struct vm_operations_struct gntdev_vmops = {
 	.close = gntdev_vma_close,
-	.fault = gntdev_vma_fault,
 };
 
 /* ------------------------------------------------------------------ */
@@ -355,14 +386,16 @@ static int gntdev_open(struct inode *inode, struct file *flip)
 	INIT_LIST_HEAD(&priv->maps);
 	spin_lock_init(&priv->lock);
 
-	priv->mm = get_task_mm(current);
-	if (!priv->mm) {
-		kfree(priv);
-		return -ENOMEM;
+	if (use_ptemod) {
+		priv->mm = get_task_mm(current);
+		if (!priv->mm) {
+			kfree(priv);
+			return -ENOMEM;
+		}
+		priv->mn.ops = &gntdev_mmu_ops;
+		ret = mmu_notifier_register(&priv->mn, priv->mm);
+		mmput(priv->mm);
 	}
-	priv->mn.ops = &gntdev_mmu_ops;
-	ret = mmu_notifier_register(&priv->mn, priv->mm);
-	mmput(priv->mm);
 
 	if (ret) {
 		kfree(priv);
@@ -390,7 +423,8 @@ static int gntdev_release(struct inode *inode, struct file *flip)
 	}
 	spin_unlock(&priv->lock);
 
-	mmu_notifier_unregister(&priv->mn, priv->mm);
+	if (use_ptemod)
+		mmu_notifier_unregister(&priv->mn, priv->mm);
 	kfree(priv);
 	return 0;
 }
@@ -515,7 +549,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	int index = vma->vm_pgoff;
 	int count = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 	struct grant_map *map;
-	int err = -EINVAL;
+	int i, err = -EINVAL;
 
 	if ((vma->vm_flags & VM_WRITE) && !(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
@@ -527,9 +561,9 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	map = gntdev_find_map_index(priv, index, count);
 	if (!map)
 		goto unlock_out;
-	if (map->vma)
+	if (use_ptemod && map->vma)
 		goto unlock_out;
-	if (priv->mm != vma->vm_mm) {
+	if (use_ptemod && priv->mm != vma->vm_mm) {
 		printk(KERN_WARNING "Huh? Other mm?\n");
 		goto unlock_out;
 	}
@@ -541,20 +575,24 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_RESERVED|VM_DONTCOPY|VM_DONTEXPAND|VM_PFNMAP;
 
 	vma->vm_private_data = map;
-	map->vma = vma;
 
-	map->flags = GNTMAP_host_map | GNTMAP_application_map;
+	if (use_ptemod)
+		map->vma = vma;
+
+	map->flags = GNTMAP_host_map;
 	if (!(vma->vm_flags & VM_WRITE))
 		map->flags |= GNTMAP_readonly;
 
 	spin_unlock(&priv->lock);
 
-	err = apply_to_page_range(vma->vm_mm, vma->vm_start,
-				  vma->vm_end - vma->vm_start,
-				  find_grant_ptes, map);
-	if (err) {
-		printk(KERN_WARNING "find_grant_ptes() failure.\n");
-		return err;
+	if (use_ptemod) {
+		err = apply_to_page_range(vma->vm_mm, vma->vm_start,
+					  vma->vm_end - vma->vm_start,
+					  find_grant_ptes, map);
+		if (err) {
+			printk(KERN_WARNING "find_grant_ptes() failure.\n");
+			return err;
+		}
 	}
 
 	err = map_grant_pages(map);
@@ -564,6 +602,15 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	}
 
 	map->is_mapped = 1;
+
+	if (!use_ptemod) {
+		for (i = 0; i < count; i++) {
+			err = vm_insert_page(vma, vma->vm_start + i*PAGE_SIZE,
+				map->pages[i]);
+			if (err)
+				return err;
+		}
+	}
 
 	return 0;
 
@@ -594,6 +641,8 @@ static int __init gntdev_init(void)
 
 	if (!xen_domain())
 		return -ENODEV;
+
+	use_ptemod = xen_pv_domain();
 
 	err = misc_register(&gntdev_miscdev);
 	if (err != 0) {
