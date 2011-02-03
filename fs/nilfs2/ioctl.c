@@ -28,6 +28,7 @@
 #include <linux/vmalloc.h>
 #include <linux/compat.h>	/* compat_ptr() */
 #include <linux/mount.h>	/* mnt_want_write(), mnt_drop_write() */
+#include <linux/buffer_head.h>
 #include <linux/nilfs2_fs.h>
 #include "nilfs.h"
 #include "segment.h"
