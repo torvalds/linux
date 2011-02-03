@@ -48,6 +48,7 @@ struct irq_desc {
 		struct {
 			unsigned int		irq;
 			unsigned int		node;
+			unsigned int		pad_do_not_even_think_about_it;
 			struct irq_chip		*chip;
 			void			*handler_data;
 			void			*chip_data;

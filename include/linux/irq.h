@@ -102,6 +102,8 @@ struct msi_desc;
  * struct irq_data - per irq and irq chip data passed down to chip functions
  * @irq:		interrupt number
  * @node:		node index useful for balancing
+ * @state_use_accessor: status information for irq chip functions.
+ *			Use accessor functions to deal with it
  * @chip:		low level interrupt hardware access
  * @handler_data:	per-IRQ data for the irq_chip methods
  * @chip_data:		platform-specific per-chip private data for the chip
@@ -116,6 +118,7 @@ struct msi_desc;
 struct irq_data {
 	unsigned int		irq;
 	unsigned int		node;
+	unsigned int		state_use_accessors;
 	struct irq_chip		*chip;
 	void			*handler_data;
 	void			*chip_data;
