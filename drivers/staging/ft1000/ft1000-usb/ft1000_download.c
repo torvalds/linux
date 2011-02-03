@@ -254,20 +254,21 @@ static u16 get_handshake(struct ft1000_device *ft1000dev, u16 expected_value)
 //---------------------------------------------------------------------------
 static void put_handshake(struct ft1000_device *ft1000dev,u16 handshake_value)
 {
-    u32 tempx;
-    u16 tempword;
-    u32 status;
+	u32 tempx;
+	u16 tempword;
+	u32 status;
 
+	tempx = (u32)handshake_value;
+	tempx = ntohl(tempx);
 
-
-        tempx = (u32)handshake_value;
-        tempx = ntohl(tempx);
-
-        tempword = (u16)(tempx & 0xffff);
-        status = ft1000_write_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, tempword, 0);
-        tempword = (u16)(tempx >> 16);
-        status = ft1000_write_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, tempword, 1);
-        status = ft1000_write_register(ft1000dev, FT1000_DB_DNLD_TX, FT1000_REG_DOORBELL);
+	tempword = (u16)(tempx & 0xffff);
+	status = ft1000_write_dpram16(ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC,
+					tempword, 0);
+	tempword = (u16)(tempx >> 16);
+	status = ft1000_write_dpram16(ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC,
+					tempword, 1);
+	status = ft1000_write_register(ft1000dev, FT1000_DB_DNLD_TX,
+					FT1000_REG_DOORBELL);
 }
 
 static u16 get_handshake_usb(struct ft1000_device *ft1000dev, u16 expected_value)
