@@ -11,12 +11,6 @@
 #include <asm/cache.h>
 #include <asm/page.h>
 
-#ifdef CONFIG_CACHE_FLUSH_L1
-.section .l1.text
-#else
-.text
-#endif
-
 /* 05000443 - IFLUSH cannot be last instruction in hardware loop */
 #if ANOMALY_05000443
 # define BROK_FLUSH_INST "IFLUSH"
@@ -68,10 +62,22 @@
 	RTS;
 .endm
 
+#ifdef CONFIG_ICACHE_FLUSH_L1
+.section .l1.text
+#else
+.text
+#endif
+
 /* Invalidate all instruction cache lines assocoiated with this memory area */
 ENTRY(_blackfin_icache_flush_range)
 	do_flush IFLUSH
 ENDPROC(_blackfin_icache_flush_range)
+
+#ifdef CONFIG_DCACHE_FLUSH_L1
+.section .l1.text
+#else
+.text
+#endif
 
 /* Throw away all D-cached data in specified region without any obligation to
  * write them back.  Since the Blackfin ISA does not have an "invalidate"
