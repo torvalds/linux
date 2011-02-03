@@ -444,16 +444,12 @@ static long get_request_value(struct ft1000_device *ft1000dev)
 //---------------------------------------------------------------------------
 static void put_request_value(struct ft1000_device *ft1000dev, long lvalue)
 {
-   u32    tempx;
-   u32    status;
+	u32    tempx;
+	u32    status;
 
-       tempx = ntohl(lvalue);
-       status = fix_ft1000_write_dpram32(ft1000dev, DWNLD_MAG1_SIZE_LOC, (u8 *)&tempx);
-
-
-
-   //DEBUG("put_request_value: value is %x\n", lvalue);
-
+	tempx = ntohl(lvalue);
+	status = fix_ft1000_write_dpram32(ft1000dev, DWNLD_MAG1_SIZE_LOC,
+					  (u8 *)&tempx);
 }
 
 
