@@ -19,7 +19,6 @@
 
 struct cs4271_platform_data {
 	int gpio_nreset;	/* GPIO driving Reset pin, if any */
-	int gpio_disable;	/* GPIO that disable serial bus, if any */
 };
 
 #endif /* __CS4271_H */

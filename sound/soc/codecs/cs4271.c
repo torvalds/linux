@@ -441,22 +441,11 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 	struct cs4271_platform_data *cs4271plat = codec->dev->platform_data;
 	int ret;
 	int gpio_nreset = -EINVAL;
-	int gpio_disable = -EINVAL;
 
 	codec->control_data = cs4271->control_data;
 
-	if (cs4271plat) {
-		if (gpio_is_valid(cs4271plat->gpio_nreset))
-			gpio_nreset = cs4271plat->gpio_nreset;
-		if (gpio_is_valid(cs4271plat->gpio_disable))
-			gpio_disable = cs4271plat->gpio_disable;
-	}
-
-	if (gpio_disable >= 0)
-		if (gpio_request(gpio_disable, "CS4271 Disable"))
-			gpio_disable = -EINVAL;
-	if (gpio_disable >= 0)
-		gpio_direction_output(gpio_disable, 0);
+	if (cs4271plat && gpio_is_valid(cs4271plat->gpio_nreset))
+		gpio_nreset = cs4271plat->gpio_nreset;
 
 	if (gpio_nreset >= 0)
 		if (gpio_request(gpio_nreset, "CS4271 Reset"))
@@ -471,7 +460,6 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 	}
 
 	cs4271->gpio_nreset = gpio_nreset;
-	cs4271->gpio_disable = gpio_disable;
 
 	/*
 	 * In case of I2C, chip address specified in board data.
@@ -509,19 +497,15 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 static int cs4271_remove(struct snd_soc_codec *codec)
 {
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
-	int gpio_nreset, gpio_disable;
+	int gpio_nreset;
 
 	gpio_nreset = cs4271->gpio_nreset;
-	gpio_disable = cs4271->gpio_disable;
 
 	if (gpio_is_valid(gpio_nreset)) {
 		/* Set codec to the reset state */
 		gpio_set_value(gpio_nreset, 0);
 		gpio_free(gpio_nreset);
 	}
-
-	if (gpio_is_valid(gpio_disable))
-		gpio_free(gpio_disable);
 
 	return 0;
 };
