@@ -144,7 +144,6 @@ int rc;
 JOT(4, "\n");
 SAY("==========OPEN=========\n");
 
-peasycap = NULL;
 /*---------------------------------------------------------------------------*/
 #ifndef EASYCAP_IS_VIDEODEV_CLIENT
 if (NULL == inode) {
@@ -851,7 +850,7 @@ if (NULL != peasycap->purb_video_head) {
 	list_for_each_safe(plist_head, plist_next, peasycap->purb_video_head) {
 		pdata_urb = list_entry(plist_head, struct data_urb, list_head);
 		if (NULL != pdata_urb) {
-			kfree(pdata_urb);  pdata_urb = NULL;
+			kfree(pdata_urb); pdata_urb = NULL;
 			peasycap->allocation_video_struct -=
 						sizeof(struct data_urb);
 			m++;
@@ -2649,8 +2648,6 @@ struct page *page;
 struct easycap *peasycap;
 
 retcode = VM_FAULT_NOPAGE;
-pbuf = NULL;
-page = NULL;
 
 if (NULL == pvma) {
 	SAY("pvma is NULL\n");
@@ -2686,16 +2683,15 @@ if (NULL == peasycap) {
 pbuf = peasycap->frame_buffer[k][m].pgo;
 if (NULL == pbuf) {
 	SAM("ERROR:  pbuf is NULL\n");
-	goto finish;
+	return retcode;
 }
 page = virt_to_page(pbuf);
 if (NULL == page) {
 	SAM("ERROR:  page is NULL\n");
-	goto finish;
+	return retcode;
 }
 get_page(page);
 /*---------------------------------------------------------------------------*/
-finish:
 if (NULL == page) {
 	SAM("ERROR:  page is NULL after get_page(page)\n");
 } else {
@@ -3192,7 +3188,6 @@ if (NULL == pusb_interface) {
 	SAY("ERROR: pusb_interface is NULL\n");
 	return -EFAULT;
 }
-peasycap = NULL;
 /*---------------------------------------------------------------------------*/
 /*
  *  GET POINTER TO STRUCTURE usb_device
