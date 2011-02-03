@@ -222,7 +222,7 @@ static void __init goni_radio_init(void)
 }
 
 /* TSP */
-static struct qt602240_platform_data qt602240_platform_data = {
+static struct mxt_platform_data qt602240_platform_data = {
 	.x_line		= 17,
 	.y_line		= 11,
 	.x_size		= 800,
@@ -230,7 +230,7 @@ static struct qt602240_platform_data qt602240_platform_data = {
 	.blen		= 0x21,
 	.threshold	= 0x28,
 	.voltage	= 2800000,              /* 2.8V */
-	.orient		= QT602240_DIAGONAL,
+	.orient		= MXT_DIAGONAL,
 };
 
 static struct s3c2410_platform_i2c i2c2_data __initdata = {
