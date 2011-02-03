@@ -2646,7 +2646,7 @@ int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;
-		goto err;
+		goto out;
 	}
 
 	path->leave_spinning = 1;
