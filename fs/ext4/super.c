@@ -77,6 +77,7 @@ static struct dentry *ext4_mount(struct file_system_type *fs_type, int flags,
 		       const char *dev_name, void *data);
 static void ext4_destroy_lazyinit_thread(void);
 static void ext4_unregister_li_request(struct super_block *sb);
+static void ext4_clear_request_list(void);
 
 #if !defined(CONFIG_EXT3_FS) && !defined(CONFIG_EXT3_FS_MODULE) && defined(CONFIG_EXT4_USE_FOR_EXT23)
 static struct file_system_type ext3_fs_type = {
@@ -2716,6 +2717,8 @@ static void ext4_unregister_li_request(struct super_block *sb)
 	mutex_unlock(&ext4_li_info->li_list_mtx);
 }
 
+static struct task_struct *ext4_lazyinit_task;
+
 /*
  * This is the function where ext4lazyinit thread lives. It walks
  * through the request list searching for next scheduled filesystem.
@@ -2784,6 +2787,10 @@ cont_thread:
 		if (time_before(jiffies, next_wakeup))
 			schedule();
 		finish_wait(&eli->li_wait_daemon, &wait);
+		if (kthread_should_stop()) {
+			ext4_clear_request_list();
+			goto exit_thread;
+		}
 	}
 
 exit_thread:
@@ -2808,6 +2815,7 @@ exit_thread:
 	wake_up(&eli->li_wait_task);
 
 	kfree(ext4_li_info);
+	ext4_lazyinit_task = NULL;
 	ext4_li_info = NULL;
 	mutex_unlock(&ext4_li_mtx);
 
@@ -2830,11 +2838,10 @@ static void ext4_clear_request_list(void)
 
 static int ext4_run_lazyinit_thread(void)
 {
-	struct task_struct *t;
-
-	t = kthread_run(ext4_lazyinit_thread, ext4_li_info, "ext4lazyinit");
-	if (IS_ERR(t)) {
-		int err = PTR_ERR(t);
+	ext4_lazyinit_task = kthread_run(ext4_lazyinit_thread,
+					 ext4_li_info, "ext4lazyinit");
+	if (IS_ERR(ext4_lazyinit_task)) {
+		int err = PTR_ERR(ext4_lazyinit_task);
 		ext4_clear_request_list();
 		del_timer_sync(&ext4_li_info->li_timer);
 		kfree(ext4_li_info);
@@ -2985,16 +2992,10 @@ static void ext4_destroy_lazyinit_thread(void)
 	 * If thread exited earlier
 	 * there's nothing to be done.
 	 */
-	if (!ext4_li_info)
+	if (!ext4_li_info || !ext4_lazyinit_task)
 		return;
 
-	ext4_clear_request_list();
-
-	while (ext4_li_info->li_task) {
-		wake_up(&ext4_li_info->li_wait_daemon);
-		wait_event(ext4_li_info->li_wait_task,
-			   ext4_li_info->li_task == NULL);
-	}
+	kthread_stop(ext4_lazyinit_task);
 }
 
 static int ext4_fill_super(struct super_block *sb, void *data, int silent)
