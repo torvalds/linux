@@ -218,6 +218,12 @@ config HID_KENSINGTON
 	---help---
 	Support for Kensington Slimblade Trackball.
 
+config HID_LCPOWER
+	tristate "LC-Power"
+	depends on USB_HID
+	---help---
+	Support for LC-Power RC1000MCE RF remote control.
+
 config HID_LOGITECH
 	tristate "Logitech devices" if EMBEDDED
 	depends on USB_HID
