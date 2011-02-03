@@ -185,57 +185,49 @@ static u32 check_usb_db (struct ft1000_device *ft1000dev)
 //---------------------------------------------------------------------------
 static u16 get_handshake(struct ft1000_device *ft1000dev, u16 expected_value)
 {
-   u16            handshake;
-   int               loopcnt;
-   u32             status=0;
+	u16 handshake;
+	int loopcnt;
+	u32 status = 0;
 	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
 
-   loopcnt = 0;
-   while (loopcnt < 100)
-   {
+	loopcnt = 0;
 
-           // Need to clear downloader doorbell if Hartley ASIC
-           status = ft1000_write_register (ft1000dev,  FT1000_DB_DNLD_RX, FT1000_REG_DOORBELL);
-           //DEBUG("FT1000:get_handshake:doorbell = 0x%x\n", temp);
-               if (pft1000info->fcodeldr)
-               {
-                   DEBUG(" get_handshake: fcodeldr is %d\n", pft1000info->fcodeldr);
-                   pft1000info->fcodeldr = 0;
-                   status = check_usb_db(ft1000dev);
-                   if (status != STATUS_SUCCESS)
-                   {
-                       DEBUG("get_handshake: check_usb_db failed\n");
-                       status = STATUS_FAILURE;
-                       break;
-                   }
-                   status = ft1000_write_register (ft1000dev,  FT1000_DB_DNLD_RX, FT1000_REG_DOORBELL);
-               }
+	while (loopcnt < 100) {
+		/* Need to clear downloader doorbell if Hartley ASIC */
+		status = ft1000_write_register(ft1000dev,  FT1000_DB_DNLD_RX,
+						FT1000_REG_DOORBELL);
+		if (pft1000info->fcodeldr) {
+			DEBUG(" get_handshake: fcodeldr is %d\n",
+				pft1000info->fcodeldr);
+			pft1000info->fcodeldr = 0;
+			status = check_usb_db(ft1000dev);
+			if (status != STATUS_SUCCESS) {
+				DEBUG("get_handshake: check_usb_db failed\n");
+				status = STATUS_FAILURE;
+				break;
+			}
+			status = ft1000_write_register(ft1000dev,
+					FT1000_DB_DNLD_RX,
+					FT1000_REG_DOORBELL);
+		}
 
-                status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, (u8 *)&handshake, 1);
-                //DEBUG("get_handshake: handshake is %x\n", tempx);
-                handshake = ntohs(handshake);
-                //DEBUG("get_handshake: after swap, handshake is %x\n", handshake);
+		status = ft1000_read_dpram16(ft1000dev,
+				DWNLD_MAG1_HANDSHAKE_LOC, (u8 *)&handshake, 1);
+		handshake = ntohs(handshake);
 
-        if (status)
-           return HANDSHAKE_TIMEOUT_VALUE;
+		if (status)
+			return HANDSHAKE_TIMEOUT_VALUE;
 
-        //DEBUG("get_handshake: handshake= %x\n", handshake);
-        if ((handshake == expected_value) || (handshake == HANDSHAKE_RESET_VALUE_USB))
-        {
-            //DEBUG("get_handshake: return handshake %x\n", handshake);
-            return handshake;
-        }
-        else
-        {
-            loopcnt++;
-            msleep (10);
-        }
-        //DEBUG("HANDSHKE LOOP: %d\n", loopcnt);
+		if ((handshake == expected_value) ||
+		    (handshake == HANDSHAKE_RESET_VALUE_USB)) {
+			return handshake;
+		} else	{
+			loopcnt++;
+			msleep(10);
+		}
+	}
 
-   }
-
-   //DEBUG("get_handshake: return handshake time out\n");
-   return HANDSHAKE_TIMEOUT_VALUE;
+	return HANDSHAKE_TIMEOUT_VALUE;
 }
 
 //---------------------------------------------------------------------------
