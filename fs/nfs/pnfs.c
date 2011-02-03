@@ -254,7 +254,6 @@ put_lseg_locked(struct pnfs_layout_segment *lseg,
 			/* List does not take a reference, so no need for put here */
 			list_del_init(&lseg->pls_layout->plh_layouts);
 			spin_unlock(&clp->cl_lock);
-			clear_bit(NFS_LAYOUT_BULK_RECALL, &lseg->pls_layout->plh_flags);
 			set_bit(NFS_LAYOUT_DESTROYED, &lseg->pls_layout->plh_flags);
 			/* Matched by initial refcount set in alloc_init_layout_hdr */
 			put_layout_hdr_locked(lseg->pls_layout);
@@ -754,7 +753,6 @@ pnfs_update_layout(struct inode *ino,
 			spin_lock(&clp->cl_lock);
 			list_del_init(&lo->plh_layouts);
 			spin_unlock(&clp->cl_lock);
-			clear_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags);
 		}
 		spin_unlock(&ino->i_lock);
 	}
