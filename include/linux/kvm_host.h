@@ -43,6 +43,7 @@
 #define KVM_REQ_DEACTIVATE_FPU    10
 #define KVM_REQ_EVENT             11
 #define KVM_REQ_APF_HALT          12
+#define KVM_REQ_NMI               13
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID	0
 
