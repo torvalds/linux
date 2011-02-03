@@ -1002,7 +1002,7 @@ return 0;
 }
 /*****************************************************************************/
 
-const struct file_operations easyoss_fops = {
+static const struct file_operations easyoss_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easyoss_open,
 	.release	= easyoss_release,

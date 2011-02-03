@@ -692,7 +692,6 @@ extern struct usb_driver easycap_usb_driver;
 extern struct easycap_dongle easycapdc60_dongle[];
 #ifdef CONFIG_EASYCAP_OSS
 extern struct usb_class_driver easyoss_class;
-extern const struct file_operations easyoss_fops;
 #endif /* !CONFIG_EASYCAP_OSS */
 
 #endif /* !__EASYCAP_H__  */
