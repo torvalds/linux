@@ -247,13 +247,6 @@ put_lseg_locked(struct pnfs_layout_segment *lseg,
 		BUG_ON(test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
 		list_del(&lseg->pls_list);
 		if (list_empty(&lseg->pls_layout->plh_segs)) {
-			struct nfs_client *clp;
-
-			clp = NFS_SERVER(ino)->nfs_client;
-			spin_lock(&clp->cl_lock);
-			/* List does not take a reference, so no need for put here */
-			list_del_init(&lseg->pls_layout->plh_layouts);
-			spin_unlock(&clp->cl_lock);
 			set_bit(NFS_LAYOUT_DESTROYED, &lseg->pls_layout->plh_flags);
 			/* Matched by initial refcount set in alloc_init_layout_hdr */
 			put_layout_hdr_locked(lseg->pls_layout);
@@ -319,11 +312,27 @@ mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
 	return invalid - removed;
 }
 
+/* note free_me must contain lsegs from a single layout_hdr */
 void
 pnfs_free_lseg_list(struct list_head *free_me)
 {
 	struct pnfs_layout_segment *lseg, *tmp;
+	struct pnfs_layout_hdr *lo;
 
+	if (list_empty(free_me))
+		return;
+
+	lo = list_first_entry(free_me, struct pnfs_layout_segment,
+			      pls_list)->pls_layout;
+
+	if (test_bit(NFS_LAYOUT_DESTROYED, &lo->plh_flags)) {
+		struct nfs_client *clp;
+
+		clp = NFS_SERVER(lo->plh_inode)->nfs_client;
+		spin_lock(&clp->cl_lock);
+		list_del_init(&lo->plh_layouts);
+		spin_unlock(&clp->cl_lock);
+	}
 	list_for_each_entry_safe(lseg, tmp, free_me, pls_list) {
 		list_del(&lseg->pls_list);
 		free_lseg(lseg);
@@ -705,6 +714,7 @@ pnfs_update_layout(struct inode *ino,
 	struct nfs_client *clp = NFS_SERVER(ino)->nfs_client;
 	struct pnfs_layout_hdr *lo;
 	struct pnfs_layout_segment *lseg = NULL;
+	bool first = false;
 
 	if (!pnfs_enabled_sb(NFS_SERVER(ino)))
 		return NULL;
@@ -735,7 +745,10 @@ pnfs_update_layout(struct inode *ino,
 	atomic_inc(&lo->plh_outstanding);
 
 	get_layout_hdr(lo);
-	if (list_empty(&lo->plh_segs)) {
+	if (list_empty(&lo->plh_segs))
+		first = true;
+	spin_unlock(&ino->i_lock);
+	if (first) {
 		/* The lo must be on the clp list if there is any
 		 * chance of a CB_LAYOUTRECALL(FILE) coming in.
 		 */
@@ -744,17 +757,12 @@ pnfs_update_layout(struct inode *ino,
 		list_add_tail(&lo->plh_layouts, &clp->cl_layouts);
 		spin_unlock(&clp->cl_lock);
 	}
-	spin_unlock(&ino->i_lock);
 
 	lseg = send_layoutget(lo, ctx, iomode);
-	if (!lseg) {
-		spin_lock(&ino->i_lock);
-		if (list_empty(&lo->plh_segs)) {
-			spin_lock(&clp->cl_lock);
-			list_del_init(&lo->plh_layouts);
-			spin_unlock(&clp->cl_lock);
-		}
-		spin_unlock(&ino->i_lock);
+	if (!lseg && first) {
+		spin_lock(&clp->cl_lock);
+		list_del_init(&lo->plh_layouts);
+		spin_unlock(&clp->cl_lock);
 	}
 	atomic_dec(&lo->plh_outstanding);
 	put_layout_hdr(lo);

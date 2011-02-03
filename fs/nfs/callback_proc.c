@@ -188,10 +188,10 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 			rv = NFS4ERR_DELAY;
 		list_del_init(&lo->plh_bulk_recall);
 		spin_unlock(&ino->i_lock);
+		pnfs_free_lseg_list(&free_me_list);
 		put_layout_hdr(lo);
 		iput(ino);
 	}
-	pnfs_free_lseg_list(&free_me_list);
 	return rv;
 }
 
