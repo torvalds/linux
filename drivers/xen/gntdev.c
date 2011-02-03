@@ -650,15 +650,13 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 					  find_grant_ptes, map);
 		if (err) {
 			printk(KERN_WARNING "find_grant_ptes() failure.\n");
-			return err;
+			goto out_put_map;
 		}
 	}
 
 	err = map_grant_pages(map);
-	if (err) {
-		printk(KERN_WARNING "map_grant_pages() failure.\n");
-		return err;
-	}
+	if (err)
+		goto out_put_map;
 
 	map->is_mapped = 1;
 
@@ -667,7 +665,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 			err = vm_insert_page(vma, vma->vm_start + i*PAGE_SIZE,
 				map->pages[i]);
 			if (err)
-				return err;
+				goto out_put_map;
 		}
 	}
 
@@ -675,6 +673,10 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 
 unlock_out:
 	spin_unlock(&priv->lock);
+	return err;
+
+out_put_map:
+	gntdev_put_map(map);
 	return err;
 }
 
