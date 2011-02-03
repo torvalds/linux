@@ -62,12 +62,12 @@ struct gntdev_priv {
 
 struct grant_map {
 	struct list_head next;
-	struct gntdev_priv *priv;
 	struct vm_area_struct *vma;
 	int index;
 	int count;
 	int flags;
 	int is_mapped;
+	atomic_t users;
 	struct ioctl_gntdev_grant_ref *grants;
 	struct gnttab_map_grant_ref   *map_ops;
 	struct gnttab_unmap_grant_ref *unmap_ops;
@@ -117,7 +117,7 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 
 	add->index = 0;
 	add->count = count;
-	add->priv  = priv;
+	atomic_set(&add->users, 1);
 
 	return add;
 
@@ -167,27 +167,17 @@ static struct grant_map *gntdev_find_map_index(struct gntdev_priv *priv,
 	return NULL;
 }
 
-static int gntdev_del_map(struct grant_map *map)
-{
-	int i;
-
-	if (map->vma)
-		return -EBUSY;
-	for (i = 0; i < map->count; i++)
-		if (map->unmap_ops[i].handle)
-			return -EBUSY;
-
-	atomic_sub(map->count, &pages_mapped);
-	list_del(&map->next);
-	return 0;
-}
-
-static void gntdev_free_map(struct grant_map *map)
+static void gntdev_put_map(struct grant_map *map)
 {
 	int i;
 
 	if (!map)
 		return;
+
+	if (!atomic_dec_and_test(&map->users))
+		return;
+
+	atomic_sub(map->count, &pages_mapped);
 
 	if (map->pages)
 		for (i = 0; i < map->count; i++) {
@@ -267,6 +257,7 @@ static void gntdev_vma_close(struct vm_area_struct *vma)
 	map->is_mapped = 0;
 	map->vma = NULL;
 	vma->vm_private_data = NULL;
+	gntdev_put_map(map);
 }
 
 static int gntdev_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -388,17 +379,14 @@ static int gntdev_release(struct inode *inode, struct file *flip)
 {
 	struct gntdev_priv *priv = flip->private_data;
 	struct grant_map *map;
-	int err;
 
 	pr_debug("priv %p\n", priv);
 
 	spin_lock(&priv->lock);
 	while (!list_empty(&priv->maps)) {
 		map = list_entry(priv->maps.next, struct grant_map, next);
-		err = gntdev_del_map(map);
-		if (WARN_ON(err))
-			gntdev_free_map(map);
-
+		list_del(&map->next);
+		gntdev_put_map(map);
 	}
 	spin_unlock(&priv->lock);
 
@@ -425,15 +413,15 @@ static long gntdev_ioctl_map_grant_ref(struct gntdev_priv *priv,
 	if (!map)
 		return err;
 
-	if (copy_from_user(map->grants, &u->refs,
-			   sizeof(map->grants[0]) * op.count) != 0) {
-		gntdev_free_map(map);
+	if (unlikely(atomic_add_return(op.count, &pages_mapped) > limit)) {
+		pr_debug("can't map: over limit\n");
+		gntdev_put_map(map);
 		return err;
 	}
 
-	if (unlikely(atomic_add_return(op.count, &pages_mapped) > limit)) {
-		pr_debug("can't map: over limit\n");
-		gntdev_free_map(map);
+	if (copy_from_user(map->grants, &u->refs,
+			   sizeof(map->grants[0]) * op.count) != 0) {
+		gntdev_put_map(map);
 		return err;
 	}
 
@@ -442,13 +430,9 @@ static long gntdev_ioctl_map_grant_ref(struct gntdev_priv *priv,
 	op.index = map->index << PAGE_SHIFT;
 	spin_unlock(&priv->lock);
 
-	if (copy_to_user(u, &op, sizeof(op)) != 0) {
-		spin_lock(&priv->lock);
-		gntdev_del_map(map);
-		spin_unlock(&priv->lock);
-		gntdev_free_map(map);
-		return err;
-	}
+	if (copy_to_user(u, &op, sizeof(op)) != 0)
+		return -EFAULT;
+
 	return 0;
 }
 
@@ -465,11 +449,12 @@ static long gntdev_ioctl_unmap_grant_ref(struct gntdev_priv *priv,
 
 	spin_lock(&priv->lock);
 	map = gntdev_find_map_index(priv, op.index >> PAGE_SHIFT, op.count);
-	if (map)
-		err = gntdev_del_map(map);
+	if (map) {
+		list_del(&map->next);
+		gntdev_put_map(map);
+		err = 0;
+	}
 	spin_unlock(&priv->lock);
-	if (!err)
-		gntdev_free_map(map);
 	return err;
 }
 
@@ -548,6 +533,8 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 		printk(KERN_WARNING "Huh? Other mm?\n");
 		goto unlock_out;
 	}
+
+	atomic_inc(&map->users);
 
 	vma->vm_ops = &gntdev_vmops;
 
