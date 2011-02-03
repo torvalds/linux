@@ -173,6 +173,10 @@ static const struct snd_soc_dapm_route harmony_audio_map[] = {
 	{"IN1L", NULL, "Mic Bias"},
 };
 
+static const struct snd_kcontrol_new harmony_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Int Spk"),
+};
+
 static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
@@ -191,13 +195,17 @@ static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
 
 	gpio_direction_output(pdata->gpio_spkr_en, 0);
 
+	ret = snd_soc_add_controls(codec, harmony_controls,
+				   ARRAY_SIZE(harmony_controls));
+	if (ret < 0)
+		return ret;
+
 	snd_soc_dapm_new_controls(dapm, harmony_dapm_widgets,
 					ARRAY_SIZE(harmony_dapm_widgets));
 
 	snd_soc_dapm_add_routes(dapm, harmony_audio_map,
 				ARRAY_SIZE(harmony_audio_map));
 
-	snd_soc_dapm_enable_pin(dapm, "Int Spk");
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 	snd_soc_dapm_sync(dapm);
 
