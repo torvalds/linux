@@ -125,53 +125,48 @@ struct dsp_image_info {
 //---------------------------------------------------------------------------
 static u32 check_usb_db (struct ft1000_device *ft1000dev)
 {
-   int               loopcnt;
-   u16            temp;
-   u32             status;
+	int loopcnt;
+	u16 temp;
+	u32 status;
 
-   loopcnt = 0;
-   while (loopcnt < 10)
-   {
+	loopcnt = 0;
 
-      status = ft1000_read_register (ft1000dev, &temp, FT1000_REG_DOORBELL);
-      DEBUG("check_usb_db: read FT1000_REG_DOORBELL value is %x\n", temp);
-      if (temp & 0x0080)
-      {
-           DEBUG("FT1000:Got checkusb doorbell\n");
-           status = ft1000_write_register (ft1000dev, 0x0080, FT1000_REG_DOORBELL);
-           status = ft1000_write_register (ft1000dev, 0x0100, FT1000_REG_DOORBELL);
-           status = ft1000_write_register (ft1000dev,  0x8000, FT1000_REG_DOORBELL);
-           break;
-      }
-      else
-      {
-           loopcnt++;
-           msleep (10);
-      }
+	while (loopcnt < 10) {
+		status = ft1000_read_register(ft1000dev, &temp,
+					       FT1000_REG_DOORBELL);
+		DEBUG("check_usb_db: read FT1000_REG_DOORBELL value is %x\n",
+		       temp);
+		if (temp & 0x0080) {
+			DEBUG("FT1000:Got checkusb doorbell\n");
+			status = ft1000_write_register(ft1000dev, 0x0080,
+						FT1000_REG_DOORBELL);
+			status = ft1000_write_register(ft1000dev, 0x0100,
+						FT1000_REG_DOORBELL);
+			status = ft1000_write_register(ft1000dev,  0x8000,
+						FT1000_REG_DOORBELL);
+			break;
+		} else {
+			loopcnt++;
+			msleep(10);
+		}
 
-   } //end of while
+	}
 
+	loopcnt = 0;
+	while (loopcnt < 20) {
+		status = ft1000_read_register(ft1000dev, &temp,
+					       FT1000_REG_DOORBELL);
+		DEBUG("FT1000:check_usb_db:Doorbell = 0x%x\n", temp);
+		if (temp & 0x8000) {
+			loopcnt++;
+			msleep(10);
+		} else	{
+			DEBUG("check_usb_db: door bell is cleared, return 0\n");
+			return 0;
+		}
+	}
 
-   loopcnt = 0;
-   while (loopcnt < 20)
-   {
-
-      status = ft1000_read_register (ft1000dev, &temp, FT1000_REG_DOORBELL);
-      DEBUG("FT1000:check_usb_db:Doorbell = 0x%x\n", temp);
-      if (temp & 0x8000)
-      {
-         loopcnt++;
-         msleep (10);
-      }
-      else
-      {
-         DEBUG("check_usb_db: door bell is cleared, return 0\n");
-         return 0;
-      }
-   }
-
-   return HANDSHAKE_MAG_TIMEOUT_VALUE;
-
+	return HANDSHAKE_MAG_TIMEOUT_VALUE;
 }
 
 //---------------------------------------------------------------------------
