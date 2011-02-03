@@ -254,8 +254,7 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
 			      struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_regulatory *reg = ath9k_hw_regulatory(sc->sc_ah);
 
 	return ath_reg_notifier_apply(wiphy, request, reg);
@@ -517,10 +516,8 @@ static void ath9k_init_misc(struct ath_softc *sc)
 
 	sc->beacon.slottime = ATH9K_SLOT_TIME_9;
 
-	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++) {
+	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++)
 		sc->beacon.bslot[i] = NULL;
-		sc->beacon.bslot_aphy[i] = NULL;
-	}
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)
 		sc->ant_comb.count = ATH_ANT_DIV_COMB_INIT_COUNT;
@@ -556,7 +553,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	common->btcoex_enabled = ath9k_btcoex_enable == 1;
 	spin_lock_init(&common->cc_lock);
 
-	spin_lock_init(&sc->wiphy_lock);
 	spin_lock_init(&sc->sc_serial_rw);
 	spin_lock_init(&sc->sc_pm_lock);
 	mutex_init(&sc->mutex);
@@ -604,8 +600,6 @@ err_btcoex:
 err_queues:
 	ath9k_hw_deinit(ah);
 err_hw:
-	tasklet_kill(&sc->intr_tq);
-	tasklet_kill(&sc->bcon_tasklet);
 
 	kfree(ah);
 	sc->sc_ah = NULL;
@@ -707,7 +701,6 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 		    const struct ath_bus_ops *bus_ops)
 {
 	struct ieee80211_hw *hw = sc->hw;
-	struct ath_wiphy *aphy = hw->priv;
 	struct ath_common *common;
 	struct ath_hw *ah;
 	int error = 0;
@@ -762,10 +755,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 
 	INIT_WORK(&sc->hw_check_work, ath_hw_check);
 	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
-	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
-	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
-	sc->wiphy_scheduler_int = msecs_to_jiffies(500);
-	aphy->last_rssi = ATH_RSSI_DUMMY_MARKER;
+	sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
 
 	ath_init_leds(sc);
 	ath_start_rfkill_poll(sc);
@@ -813,9 +803,6 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 
 	ath9k_hw_deinit(sc->sc_ah);
 
-	tasklet_kill(&sc->intr_tq);
-	tasklet_kill(&sc->bcon_tasklet);
-
 	kfree(sc->sc_ah);
 	sc->sc_ah = NULL;
 }
@@ -823,28 +810,19 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 void ath9k_deinit_device(struct ath_softc *sc)
 {
 	struct ieee80211_hw *hw = sc->hw;
-	int i = 0;
 
 	ath9k_ps_wakeup(sc);
 
 	wiphy_rfkill_stop_polling(sc->hw->wiphy);
 	ath_deinit_leds(sc);
 
-	for (i = 0; i < sc->num_sec_wiphy; i++) {
-		struct ath_wiphy *aphy = sc->sec_wiphy[i];
-		if (aphy == NULL)
-			continue;
-		sc->sec_wiphy[i] = NULL;
-		ieee80211_unregister_hw(aphy->hw);
-		ieee80211_free_hw(aphy->hw);
-	}
+	ath9k_ps_restore(sc);
 
 	ieee80211_unregister_hw(hw);
 	pm_qos_remove_request(&sc->pm_qos_req);
 	ath_rx_cleanup(sc);
 	ath_tx_cleanup(sc);
 	ath9k_deinit_softc(sc);
-	kfree(sc->sec_wiphy);
 }
 
 void ath_descdma_cleanup(struct ath_softc *sc,

@@ -23,12 +23,30 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/etherdevice.h>
 
 #include "wl12xx.h"
 #include "io.h"
 #include "reg.h"
 #include "ps.h"
 #include "tx.h"
+
+static int wl1271_set_default_wep_key(struct wl1271 *wl, u8 id)
+{
+	int ret;
+	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+
+	if (is_ap)
+		ret = wl1271_cmd_set_ap_default_wep_key(wl, id);
+	else
+		ret = wl1271_cmd_set_sta_default_wep_key(wl, id);
+
+	if (ret < 0)
+		return ret;
+
+	wl1271_debug(DEBUG_CRYPT, "default wep key idx: %d", (int)id);
+	return 0;
+}
 
 static int wl1271_alloc_tx_id(struct wl1271 *wl, struct sk_buff *skb)
 {
@@ -99,7 +117,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 {
 	struct timespec ts;
 	struct wl1271_tx_hw_descr *desc;
-	int pad, ac;
+	int pad, ac, rate_idx;
 	s64 hosttime;
 	u16 tx_attr;
 
@@ -117,7 +135,11 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	getnstimeofday(&ts);
 	hosttime = (timespec_to_ns(&ts) >> 10);
 	desc->start_time = cpu_to_le32(hosttime - wl->time_offset);
-	desc->life_time = cpu_to_le16(TX_HW_MGMT_PKT_LIFETIME_TU);
+
+	if (wl->bss_type != BSS_TYPE_AP_BSS)
+		desc->life_time = cpu_to_le16(TX_HW_MGMT_PKT_LIFETIME_TU);
+	else
+		desc->life_time = cpu_to_le16(TX_HW_AP_MODE_PKT_LIFETIME_TU);
 
 	/* configure the tx attributes */
 	tx_attr = wl->session_counter << TX_HW_ATTR_OFST_SESSION_COUNTER;
@@ -125,7 +147,41 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	/* queue (we use same identifiers for tid's and ac's */
 	ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 	desc->tid = ac;
-	desc->aid = TX_HW_DEFAULT_AID;
+
+	if (wl->bss_type != BSS_TYPE_AP_BSS) {
+		desc->aid = TX_HW_DEFAULT_AID;
+
+		/* if the packets are destined for AP (have a STA entry)
+		   send them with AP rate policies, otherwise use default
+		   basic rates */
+		if (control->control.sta)
+			rate_idx = ACX_TX_AP_FULL_RATE;
+		else
+			rate_idx = ACX_TX_BASIC_RATE;
+	} else {
+		if (control->control.sta) {
+			struct wl1271_station *wl_sta;
+
+			wl_sta = (struct wl1271_station *)
+					control->control.sta->drv_priv;
+			desc->hlid = wl_sta->hlid;
+			rate_idx = ac;
+		} else {
+			struct ieee80211_hdr *hdr;
+
+			hdr = (struct ieee80211_hdr *)
+						(skb->data + sizeof(*desc));
+			if (ieee80211_is_mgmt(hdr->frame_control)) {
+				desc->hlid = WL1271_AP_GLOBAL_HLID;
+				rate_idx = ACX_TX_AP_MODE_MGMT_RATE;
+			} else {
+				desc->hlid = WL1271_AP_BROADCAST_HLID;
+				rate_idx = ACX_TX_AP_MODE_BCST_RATE;
+			}
+		}
+	}
+
+	tx_attr |= rate_idx << TX_HW_ATTR_OFST_RATE_POLICY;
 	desc->reserved = 0;
 
 	/* align the length (and store in terms of words) */
@@ -136,14 +192,12 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	pad = pad - skb->len;
 	tx_attr |= pad << TX_HW_ATTR_OFST_LAST_WORD_PAD;
 
-	/* if the packets are destined for AP (have a STA entry) send them
-	   with AP rate policies, otherwise use default basic rates */
-	if (control->control.sta)
-		tx_attr |= ACX_TX_AP_FULL_RATE << TX_HW_ATTR_OFST_RATE_POLICY;
-
 	desc->tx_attr = cpu_to_le16(tx_attr);
 
-	wl1271_debug(DEBUG_TX, "tx_fill_hdr: pad: %d", pad);
+	wl1271_debug(DEBUG_TX, "tx_fill_hdr: pad: %d hlid: %d "
+		"tx_attr: 0x%x len: %d life: %d mem: %d", pad, desc->hlid,
+		le16_to_cpu(desc->tx_attr), le16_to_cpu(desc->length),
+		le16_to_cpu(desc->life_time), desc->total_mem_blocks);
 }
 
 /* caller must hold wl->mutex */
@@ -153,7 +207,6 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 	struct ieee80211_tx_info *info;
 	u32 extra = 0;
 	int ret = 0;
-	u8 idx;
 	u32 total_len;
 
 	if (!skb)
@@ -166,11 +219,15 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 		extra = WL1271_TKIP_IV_SPACE;
 
 	if (info->control.hw_key) {
-		idx = info->control.hw_key->hw_key_idx;
+		bool is_wep;
+		u8 idx = info->control.hw_key->hw_key_idx;
+		u32 cipher = info->control.hw_key->cipher;
 
-		/* FIXME: do we have to do this if we're not using WEP? */
-		if (unlikely(wl->default_key != idx)) {
-			ret = wl1271_cmd_set_default_wep_key(wl, idx);
+		is_wep = (cipher == WLAN_CIPHER_SUITE_WEP40) ||
+			 (cipher == WLAN_CIPHER_SUITE_WEP104);
+
+		if (unlikely(is_wep && wl->default_key != idx)) {
+			ret = wl1271_set_default_wep_key(wl, idx);
 			if (ret < 0)
 				return ret;
 			wl->default_key = idx;
@@ -303,7 +360,7 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 		woken_up = true;
 
 		wl->rate_set = wl1271_tx_enabled_rates_get(wl, sta_rates);
-		wl1271_acx_rate_policies(wl);
+		wl1271_acx_sta_rate_policies(wl);
 	}
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
@@ -520,4 +577,22 @@ void wl1271_tx_flush(struct wl1271 *wl)
 	}
 
 	wl1271_warning("Unable to flush all TX buffers, timed out.");
+}
+
+u32 wl1271_tx_min_rate_get(struct wl1271 *wl)
+{
+	int i;
+	u32 rate = 0;
+
+	if (!wl->basic_rate_set) {
+		WARN_ON(1);
+		wl->basic_rate_set = wl->conf.tx.basic_rate;
+	}
+
+	for (i = 0; !rate; i++) {
+		if ((wl->basic_rate_set >> i) & 0x1)
+			rate = 1 << i;
+	}
+
+	return rate;
 }

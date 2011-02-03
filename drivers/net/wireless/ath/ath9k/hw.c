@@ -671,13 +671,50 @@ static void ath9k_hw_init_qos(struct ath_hw *ah)
 	REGWRITE_BUFFER_FLUSH(ah);
 }
 
+unsigned long ar9003_get_pll_sqsum_dvc(struct ath_hw *ah)
+{
+		REG_WRITE(ah, PLL3, (REG_READ(ah, PLL3) & ~(PLL3_DO_MEAS_MASK)));
+		udelay(100);
+		REG_WRITE(ah, PLL3, (REG_READ(ah, PLL3) | PLL3_DO_MEAS_MASK));
+
+		while ((REG_READ(ah, PLL4) & PLL4_MEAS_DONE) == 0)
+			udelay(100);
+
+		return (REG_READ(ah, PLL3) & SQSUM_DVC_MASK) >> 3;
+}
+EXPORT_SYMBOL(ar9003_get_pll_sqsum_dvc);
+
+#define DPLL2_KD_VAL            0x3D
+#define DPLL2_KI_VAL            0x06
+#define DPLL3_PHASE_SHIFT_VAL   0x1
+
 static void ath9k_hw_init_pll(struct ath_hw *ah,
 			      struct ath9k_channel *chan)
 {
 	u32 pll;
 
-	if (AR_SREV_9485(ah))
+	if (AR_SREV_9485(ah)) {
 		REG_WRITE(ah, AR_RTC_PLL_CONTROL2, 0x886666);
+		REG_WRITE(ah, AR_CH0_DDR_DPLL2, 0x19e82f01);
+
+		REG_RMW_FIELD(ah, AR_CH0_DDR_DPLL3,
+			      AR_CH0_DPLL3_PHASE_SHIFT, DPLL3_PHASE_SHIFT_VAL);
+
+		REG_WRITE(ah, AR_RTC_PLL_CONTROL, 0x1142c);
+		udelay(100);
+
+		REG_WRITE(ah, AR_RTC_PLL_CONTROL2, 0x886666);
+
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2,
+			      AR_CH0_DPLL2_KD, DPLL2_KD_VAL);
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2,
+			      AR_CH0_DPLL2_KI, DPLL2_KI_VAL);
+
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL3,
+			      AR_CH0_DPLL3_PHASE_SHIFT, DPLL3_PHASE_SHIFT_VAL);
+		REG_WRITE(ah, AR_RTC_PLL_CONTROL, 0x142c);
+		udelay(110);
+	}
 
 	pll = ath9k_hw_compute_pll_control(ah, chan);
 
@@ -1349,8 +1386,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ath9k_hw_spur_mitigate_freq(ah, chan);
 	ah->eep_ops->set_board_values(ah, chan);
 
-	ath9k_hw_set_operating_mode(ah, ah->opmode);
-
 	ENABLE_REGWRITE_BUFFER(ah);
 
 	REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(common->macaddr));
@@ -1367,6 +1402,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	REG_WRITE(ah, AR_RSSI_THR, INIT_RSSI_THR);
 
 	REGWRITE_BUFFER_FLUSH(ah);
+
+	ath9k_hw_set_operating_mode(ah, ah->opmode);
 
 	r = ath9k_hw_rf_set_freq(ah, chan);
 	if (r)

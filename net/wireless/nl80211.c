@@ -2718,7 +2718,7 @@ static int nl80211_get_mesh_config(struct sk_buff *skb,
 	hdr = nl80211hdr_put(msg, info->snd_pid, info->snd_seq, 0,
 			     NL80211_CMD_GET_MESH_CONFIG);
 	if (!hdr)
-		goto nla_put_failure;
+		goto out;
 	pinfoattr = nla_nest_start(msg, NL80211_ATTR_MESH_CONFIG);
 	if (!pinfoattr)
 		goto nla_put_failure;
@@ -2759,6 +2759,7 @@ static int nl80211_get_mesh_config(struct sk_buff *skb,
 
  nla_put_failure:
 	genlmsg_cancel(msg, hdr);
+ out:
 	nlmsg_free(msg);
 	return -ENOBUFS;
 }
@@ -2954,7 +2955,7 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 	hdr = nl80211hdr_put(msg, info->snd_pid, info->snd_seq, 0,
 			     NL80211_CMD_GET_REG);
 	if (!hdr)
-		goto nla_put_failure;
+		goto put_failure;
 
 	NLA_PUT_STRING(msg, NL80211_ATTR_REG_ALPHA2,
 		cfg80211_regdomain->alpha2);
@@ -3001,6 +3002,7 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 
 nla_put_failure:
 	genlmsg_cancel(msg, hdr);
+put_failure:
 	nlmsg_free(msg);
 	err = -EMSGSIZE;
 out:

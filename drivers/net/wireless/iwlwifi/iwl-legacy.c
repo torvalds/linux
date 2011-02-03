@@ -85,10 +85,9 @@ int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed)
 	IWL_DEBUG_MAC80211(priv, "enter to channel %d changed 0x%X\n",
 					channel->hw_value, changed);
 
-	if (unlikely(!priv->cfg->mod_params->disable_hw_scan &&
-			test_bit(STATUS_SCANNING, &priv->status))) {
+	if (unlikely(test_bit(STATUS_SCANNING, &priv->status))) {
 		scan_active = 1;
-		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
+		IWL_DEBUG_MAC80211(priv, "scan active\n");
 	}
 
 	if (changed & (IEEE80211_CONF_CHANGE_SMPS |

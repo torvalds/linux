@@ -121,7 +121,7 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 		return;
 
 	if (test_and_clear_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags))
-		rt2x00queue_update_beacon(rt2x00dev, vif, true);
+		rt2x00queue_update_beacon(rt2x00dev, vif);
 }
 
 static void rt2x00lib_intf_scheduled(struct work_struct *work)
@@ -174,7 +174,13 @@ static void rt2x00lib_beaconupdate_iter(void *data, u8 *mac,
 	    vif->type != NL80211_IFTYPE_WDS)
 		return;
 
-	rt2x00queue_update_beacon(rt2x00dev, vif, true);
+	/*
+	 * Update the beacon without locking. This is safe on PCI devices
+	 * as they only update the beacon periodically here. This should
+	 * never be called for USB devices.
+	 */
+	WARN_ON(rt2x00_is_usb(rt2x00dev));
+	rt2x00queue_update_beacon_locked(rt2x00dev, vif);
 }
 
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
@@ -183,9 +189,9 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/* send buffered bc/mc frames out for every bssid */
-	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
-					    rt2x00lib_bc_buffer_iter,
-					    rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
+						   rt2x00lib_bc_buffer_iter,
+						   rt2x00dev);
 	/*
 	 * Devices with pre tbtt interrupt don't need to update the beacon
 	 * here as they will fetch the next beacon directly prior to
@@ -195,9 +201,9 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/* fetch next beacon */
-	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
-					    rt2x00lib_beaconupdate_iter,
-					    rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
+						   rt2x00lib_beaconupdate_iter,
+						   rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_beacondone);
 
@@ -207,9 +213,9 @@ void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/* fetch next beacon */
-	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
-					    rt2x00lib_beaconupdate_iter,
-					    rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
+						   rt2x00lib_beaconupdate_iter,
+						   rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 
@@ -815,14 +821,28 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 				     GFP_KERNEL);
 		if (status)
 			return status;
-
-		/* tasklet for processing the tx status reports. */
-		if (rt2x00dev->ops->lib->txstatus_tasklet)
-			tasklet_init(&rt2x00dev->txstatus_tasklet,
-				     rt2x00dev->ops->lib->txstatus_tasklet,
-				     (unsigned long)rt2x00dev);
-
 	}
+
+	/*
+	 * Initialize tasklets if used by the driver. Tasklets are
+	 * disabled until the interrupts are turned on. The driver
+	 * has to handle that.
+	 */
+#define RT2X00_TASKLET_INIT(taskletname) \
+	if (rt2x00dev->ops->lib->taskletname) { \
+		tasklet_init(&rt2x00dev->taskletname, \
+			     rt2x00dev->ops->lib->taskletname, \
+			     (unsigned long)rt2x00dev); \
+		tasklet_disable(&rt2x00dev->taskletname); \
+	}
+
+	RT2X00_TASKLET_INIT(txstatus_tasklet);
+	RT2X00_TASKLET_INIT(pretbtt_tasklet);
+	RT2X00_TASKLET_INIT(tbtt_tasklet);
+	RT2X00_TASKLET_INIT(rxdone_tasklet);
+	RT2X00_TASKLET_INIT(autowake_tasklet);
+
+#undef RT2X00_TASKLET_INIT
 
 	/*
 	 * Register HW.
@@ -952,6 +972,7 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 {
 	int retval = -ENOMEM;
 
+	spin_lock_init(&rt2x00dev->irqmask_lock);
 	mutex_init(&rt2x00dev->csr_mutex);
 
 	set_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
@@ -976,8 +997,15 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 		    BIT(NL80211_IFTYPE_WDS);
 
 	/*
-	 * Initialize configuration work.
+	 * Initialize work.
 	 */
+	rt2x00dev->workqueue =
+	    alloc_ordered_workqueue(wiphy_name(rt2x00dev->hw->wiphy), 0);
+	if (!rt2x00dev->workqueue) {
+		retval = -ENOMEM;
+		goto exit;
+	}
+
 	INIT_WORK(&rt2x00dev->intf_work, rt2x00lib_intf_scheduled);
 
 	/*
@@ -1036,6 +1064,7 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	cancel_work_sync(&rt2x00dev->intf_work);
 	cancel_work_sync(&rt2x00dev->rxdone_work);
 	cancel_work_sync(&rt2x00dev->txdone_work);
+	destroy_workqueue(rt2x00dev->workqueue);
 
 	/*
 	 * Free the tx status fifo.
@@ -1046,6 +1075,10 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	 * Kill the tx status tasklet.
 	 */
 	tasklet_kill(&rt2x00dev->txstatus_tasklet);
+	tasklet_kill(&rt2x00dev->pretbtt_tasklet);
+	tasklet_kill(&rt2x00dev->tbtt_tasklet);
+	tasklet_kill(&rt2x00dev->rxdone_tasklet);
+	tasklet_kill(&rt2x00dev->autowake_tasklet);
 
 	/*
 	 * Uninitialize device.

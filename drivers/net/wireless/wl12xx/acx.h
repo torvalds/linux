@@ -747,11 +747,21 @@ struct acx_rate_class {
 #define ACX_TX_BASIC_RATE      0
 #define ACX_TX_AP_FULL_RATE    1
 #define ACX_TX_RATE_POLICY_CNT 2
-struct acx_rate_policy {
+struct acx_sta_rate_policy {
 	struct acx_header header;
 
 	__le32 rate_class_cnt;
 	struct acx_rate_class rate_class[CONF_TX_MAX_RATE_CLASSES];
+} __packed;
+
+
+#define ACX_TX_AP_MODE_MGMT_RATE 4
+#define ACX_TX_AP_MODE_BCST_RATE 5
+struct acx_ap_rate_policy {
+	struct acx_header header;
+
+	__le32 rate_policy_idx;
+	struct acx_rate_class rate_policy;
 } __packed;
 
 struct acx_ac_cfg {
@@ -1051,6 +1061,59 @@ struct wl1271_acx_ht_information {
 	u8 padding[3];
 } __packed;
 
+#define RX_BA_WIN_SIZE 8
+
+struct wl1271_acx_ba_session_policy {
+	struct acx_header header;
+	/*
+	 * Specifies role Id, Range 0-7, 0xFF means ANY role.
+	 * Future use. For now this field is irrelevant
+	 */
+	u8 role_id;
+	/*
+	 * Specifies Link Id, Range 0-31, 0xFF means ANY  Link Id.
+	 * Not applicable if Role Id is set to ANY.
+	 */
+	u8 link_id;
+
+	u8 tid;
+
+	u8 enable;
+
+	/* Windows size in number of packets */
+	u16 win_size;
+
+	/*
+	 * As initiator inactivity timeout in time units(TU) of 1024us.
+	 * As receiver reserved
+	 */
+	u16 inactivity_timeout;
+
+	/* Initiator = 1/Receiver = 0 */
+	u8 ba_direction;
+
+	u8 padding[3];
+} __packed;
+
+struct wl1271_acx_ba_receiver_setup {
+	struct acx_header header;
+
+	/* Specifies Link Id, Range 0-31, 0xFF means ANY  Link Id */
+	u8 link_id;
+
+	u8 tid;
+
+	u8 enable;
+
+	u8 padding[1];
+
+	/* Windows size in number of packets */
+	u16 win_size;
+
+	/* BA session starting sequence number.  RANGE 0-FFF */
+	u16 ssn;
+} __packed;
+
 struct wl1271_acx_fw_tsf_information {
 	struct acx_header header;
 
@@ -1060,6 +1123,17 @@ struct wl1271_acx_fw_tsf_information {
 	__le32 last_tbtt_low;
 	u8 last_dtim_count;
 	u8 padding[3];
+} __packed;
+
+struct wl1271_acx_max_tx_retry {
+	struct acx_header header;
+
+	/*
+	 * the number of frames transmission failures before
+	 * issuing the aging event.
+	 */
+	__le16 max_tx_retry;
+	u8 padding_1[2];
 } __packed;
 
 enum {
@@ -1113,12 +1187,13 @@ enum {
 	ACX_RSSI_SNR_WEIGHTS        = 0x0052,
 	ACX_KEEP_ALIVE_MODE         = 0x0053,
 	ACX_SET_KEEP_ALIVE_CONFIG   = 0x0054,
-	ACX_BA_SESSION_RESPONDER_POLICY = 0x0055,
-	ACX_BA_SESSION_INITIATOR_POLICY = 0x0056,
+	ACX_BA_SESSION_POLICY_CFG   = 0x0055,
+	ACX_BA_SESSION_RX_SETUP     = 0x0056,
 	ACX_PEER_HT_CAP             = 0x0057,
 	ACX_HT_BSS_OPERATION        = 0x0058,
 	ACX_COEX_ACTIVITY           = 0x0059,
 	ACX_SET_DCO_ITRIM_PARAMS    = 0x0061,
+	ACX_MAX_TX_FAILURE          = 0x0072,
 	DOT11_RX_MSDU_LIFE_TIME     = 0x1004,
 	DOT11_CUR_TX_PWR            = 0x100D,
 	DOT11_RX_DOT11_MODE         = 0x1012,
@@ -1160,7 +1235,9 @@ int wl1271_acx_set_preamble(struct wl1271 *wl, enum acx_preamble_type preamble);
 int wl1271_acx_cts_protect(struct wl1271 *wl,
 			   enum acx_ctsprotect_type ctsprotect);
 int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats);
-int wl1271_acx_rate_policies(struct wl1271 *wl);
+int wl1271_acx_sta_rate_policies(struct wl1271 *wl);
+int wl1271_acx_ap_rate_policy(struct wl1271 *wl, struct conf_tx_rate_class *c,
+		      u8 idx);
 int wl1271_acx_ac_cfg(struct wl1271 *wl, u8 ac, u8 cw_min, u16 cw_max,
 		      u8 aifsn, u16 txop);
 int wl1271_acx_tid_cfg(struct wl1271 *wl, u8 queue_id, u8 channel_type,
@@ -1185,6 +1262,12 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 				    bool allow_ht_operation);
 int wl1271_acx_set_ht_information(struct wl1271 *wl,
 				   u16 ht_operation_mode);
+int wl1271_acx_set_ba_session(struct wl1271 *wl,
+			      enum ieee80211_back_parties direction,
+			      u8 tid_index, u8 policy);
+int wl1271_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index, u16 ssn,
+				       bool enable);
 int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
+int wl1271_acx_max_tx_retry(struct wl1271 *wl);
 
 #endif /* __WL1271_ACX_H__ */

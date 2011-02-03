@@ -61,6 +61,9 @@
 #include "debug.h"
 #include "ani.h"
 
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
 int ath5k_modparam_nohwcrypt;
 module_param_named(nohwcrypt, ath5k_modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
@@ -1379,7 +1382,7 @@ ath5k_receive_frame(struct ath5k_softc *sc, struct sk_buff *skb,
 	    sc->sbands[sc->curchan->band].bitrates[rxs->rate_idx].hw_value_short)
 		rxs->flag |= RX_FLAG_SHORTPRE;
 
-	ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
+	trace_ath5k_rx(sc, skb);
 
 	ath5k_update_beacon_rssi(sc, skb, rs->rs_rssi);
 
@@ -1524,7 +1527,7 @@ ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 	unsigned long flags;
 	int padsize;
 
-	ath5k_debug_dump_skb(sc, skb, "TX  ", 1);
+	trace_ath5k_tx(sc, skb, txq);
 
 	/*
 	 * The hardware expects the header padded to 4 byte boundaries.
@@ -1573,7 +1576,7 @@ drop_packet:
 
 static void
 ath5k_tx_frame_completed(struct ath5k_softc *sc, struct sk_buff *skb,
-			 struct ath5k_tx_status *ts)
+			 struct ath5k_txq *txq, struct ath5k_tx_status *ts)
 {
 	struct ieee80211_tx_info *info;
 	int i;
@@ -1625,6 +1628,7 @@ ath5k_tx_frame_completed(struct ath5k_softc *sc, struct sk_buff *skb,
 	else
 		sc->stats.antenna_tx[0]++; /* invalid */
 
+	trace_ath5k_tx_complete(sc, skb, txq, ts);
 	ieee80211_tx_status(sc->hw, skb);
 }
 
@@ -1661,7 +1665,7 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 
 			dma_unmap_single(sc->dev, bf->skbaddr, skb->len,
 					DMA_TO_DEVICE);
-			ath5k_tx_frame_completed(sc, skb, &ts);
+			ath5k_tx_frame_completed(sc, skb, txq, &ts);
 		}
 
 		/*
@@ -1803,8 +1807,6 @@ ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		goto out;
 	}
 
-	ath5k_debug_dump_skb(sc, skb, "BC  ", 1);
-
 	ath5k_txbuf_free_skb(sc, avf->bbuf);
 	avf->bbuf->skb = skb;
 	ret = ath5k_beacon_setup(sc, avf->bbuf);
@@ -1898,6 +1900,8 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 	if (sc->opmode == NL80211_IFTYPE_AP ||
 			sc->opmode == NL80211_IFTYPE_MESH_POINT)
 		ath5k_beacon_update(sc->hw, vif);
+
+	trace_ath5k_tx(sc, bf->skb, &sc->txqs[sc->bhalq]);
 
 	ath5k_hw_set_txdp(ah, sc->bhalq, bf->daddr);
 	ath5k_hw_start_tx_dma(ah, sc->bhalq);
@@ -2399,7 +2403,8 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 	/* set up multi-rate retry capabilities */
 	if (sc->ah->ah_version == AR5K_AR5212) {
 		hw->max_rates = 4;
-		hw->max_rate_tries = 11;
+		hw->max_rate_tries = max(AR5K_INIT_RETRY_SHORT,
+					 AR5K_INIT_RETRY_LONG);
 	}
 
 	hw->vif_data_size = sizeof(struct ath5k_vif);

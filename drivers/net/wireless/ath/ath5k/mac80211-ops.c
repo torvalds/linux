@@ -226,6 +226,7 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath5k_hw *ah = sc->ah;
 	struct ieee80211_conf *conf = &hw->conf;
 	int ret = 0;
+	int i;
 
 	mutex_lock(&sc->lock);
 
@@ -241,6 +242,14 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 
 		/* Half dB steps */
 		ath5k_hw_set_txpower_limit(ah, (conf->power_level * 2));
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS) {
+		ah->ah_retry_long = conf->long_frame_max_tx_count;
+		ah->ah_retry_short = conf->short_frame_max_tx_count;
+
+		for (i = 0; i < ah->ah_capabilities.cap_queues.q_tx_num; i++)
+			ath5k_hw_set_tx_retry_limits(ah, i);
 	}
 
 	/* TODO:

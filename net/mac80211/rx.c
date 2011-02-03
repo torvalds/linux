@@ -85,6 +85,9 @@ ieee80211_rx_radiotap_len(struct ieee80211_local *local,
 	if (len & 1) /* padding for RX_FLAGS if necessary */
 		len++;
 
+	if (status->flag & RX_FLAG_HT) /* HT info */
+		len += 3;
+
 	return len;
 }
 
@@ -193,6 +196,20 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		rx_flags |= IEEE80211_RADIOTAP_F_RX_BADPLCP;
 	put_unaligned_le16(rx_flags, pos);
 	pos += 2;
+
+	if (status->flag & RX_FLAG_HT) {
+		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_MCS);
+		*pos++ = IEEE80211_RADIOTAP_MCS_HAVE_MCS |
+			 IEEE80211_RADIOTAP_MCS_HAVE_GI |
+			 IEEE80211_RADIOTAP_MCS_HAVE_BW;
+		*pos = 0;
+		if (status->flag & RX_FLAG_SHORT_GI)
+			*pos |= IEEE80211_RADIOTAP_MCS_SGI;
+		if (status->flag & RX_FLAG_40MHZ)
+			*pos |= IEEE80211_RADIOTAP_MCS_BW_40;
+		pos++;
+		*pos++ = status->rate_idx;
+	}
 }
 
 /*

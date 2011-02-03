@@ -23,8 +23,6 @@
 
 /* Common header for Atheros 802.11n base driver cores */
 
-#define IEEE80211_WEP_NKID 4
-
 #define WME_NUM_TID             16
 #define WME_BA_BMP_SIZE         64
 #define WME_MAX_BA              WME_BA_BMP_SIZE

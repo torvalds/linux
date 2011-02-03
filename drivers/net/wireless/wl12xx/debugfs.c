@@ -261,27 +261,25 @@ static ssize_t gpio_power_write(struct file *file,
 	unsigned long value;
 	int ret;
 
-	mutex_lock(&wl->mutex);
-
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len)) {
-		ret = -EFAULT;
-		goto out;
+		return -EFAULT;
 	}
 	buf[len] = '\0';
 
 	ret = strict_strtoul(buf, 0, &value);
 	if (ret < 0) {
 		wl1271_warning("illegal value in gpio_power");
-		goto out;
+		return -EINVAL;
 	}
+
+	mutex_lock(&wl->mutex);
 
 	if (value)
 		wl1271_power_on(wl);
 	else
 		wl1271_power_off(wl);
 
-out:
 	mutex_unlock(&wl->mutex);
 	return count;
 }
@@ -293,12 +291,13 @@ static const struct file_operations gpio_power_ops = {
 	.llseek = default_llseek,
 };
 
-static int wl1271_debugfs_add_files(struct wl1271 *wl)
+static int wl1271_debugfs_add_files(struct wl1271 *wl,
+				     struct dentry *rootdir)
 {
 	int ret = 0;
 	struct dentry *entry, *stats;
 
-	stats = debugfs_create_dir("fw-statistics", wl->rootdir);
+	stats = debugfs_create_dir("fw-statistics", rootdir);
 	if (!stats || IS_ERR(stats)) {
 		entry = stats;
 		goto err;
@@ -395,16 +394,11 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl)
 	DEBUGFS_FWSTATS_ADD(rxpipe, missed_beacon_host_int_trig_rx_data);
 	DEBUGFS_FWSTATS_ADD(rxpipe, tx_xfr_host_int_trig_rx_data);
 
-	DEBUGFS_ADD(tx_queue_len, wl->rootdir);
-	DEBUGFS_ADD(retry_count, wl->rootdir);
-	DEBUGFS_ADD(excessive_retries, wl->rootdir);
+	DEBUGFS_ADD(tx_queue_len, rootdir);
+	DEBUGFS_ADD(retry_count, rootdir);
+	DEBUGFS_ADD(excessive_retries, rootdir);
 
-	DEBUGFS_ADD(gpio_power, wl->rootdir);
-
-	entry = debugfs_create_x32("debug_level", 0600, wl->rootdir,
-				   &wl12xx_debug_level);
-	if (!entry || IS_ERR(entry))
-		goto err;
+	DEBUGFS_ADD(gpio_power, rootdir);
 
 	return 0;
 
@@ -419,7 +413,7 @@ err:
 
 void wl1271_debugfs_reset(struct wl1271 *wl)
 {
-	if (!wl->rootdir)
+	if (!wl->stats.fw_stats)
 		return;
 
 	memset(wl->stats.fw_stats, 0, sizeof(*wl->stats.fw_stats));
@@ -430,13 +424,13 @@ void wl1271_debugfs_reset(struct wl1271 *wl)
 int wl1271_debugfs_init(struct wl1271 *wl)
 {
 	int ret;
+	struct dentry *rootdir;
 
-	wl->rootdir = debugfs_create_dir(KBUILD_MODNAME,
-					 wl->hw->wiphy->debugfsdir);
+	rootdir = debugfs_create_dir(KBUILD_MODNAME,
+				     wl->hw->wiphy->debugfsdir);
 
-	if (IS_ERR(wl->rootdir)) {
-		ret = PTR_ERR(wl->rootdir);
-		wl->rootdir = NULL;
+	if (IS_ERR(rootdir)) {
+		ret = PTR_ERR(rootdir);
 		goto err;
 	}
 
@@ -450,7 +444,7 @@ int wl1271_debugfs_init(struct wl1271 *wl)
 
 	wl->stats.fw_stats_update = jiffies;
 
-	ret = wl1271_debugfs_add_files(wl);
+	ret = wl1271_debugfs_add_files(wl, rootdir);
 
 	if (ret < 0)
 		goto err_file;
@@ -462,8 +456,7 @@ err_file:
 	wl->stats.fw_stats = NULL;
 
 err_fw:
-	debugfs_remove_recursive(wl->rootdir);
-	wl->rootdir = NULL;
+	debugfs_remove_recursive(rootdir);
 
 err:
 	return ret;
@@ -473,8 +466,4 @@ void wl1271_debugfs_exit(struct wl1271 *wl)
 {
 	kfree(wl->stats.fw_stats);
 	wl->stats.fw_stats = NULL;
-
-	debugfs_remove_recursive(wl->rootdir);
-	wl->rootdir = NULL;
-
 }

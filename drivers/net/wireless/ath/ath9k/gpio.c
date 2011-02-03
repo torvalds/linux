@@ -201,8 +201,7 @@ static bool ath_is_rfkill_set(struct ath_softc *sc)
 
 void ath9k_rfkill_poll_state(struct ieee80211_hw *hw)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	bool blocked = !!ath_is_rfkill_set(sc);
 
 	wiphy_rfkill_set_hw_state(hw->wiphy, blocked);

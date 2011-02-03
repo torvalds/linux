@@ -118,8 +118,8 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	ah->ah_bwmode = AR5K_BWMODE_DEFAULT;
 	ah->ah_txpower.txp_tpc = AR5K_TUNE_TPC_TXPOWER;
 	ah->ah_imr = 0;
-	ah->ah_limit_tx_retries = AR5K_INIT_TX_RETRY;
-	ah->ah_software_retry = false;
+	ah->ah_retry_short = AR5K_INIT_RETRY_SHORT;
+	ah->ah_retry_long = AR5K_INIT_RETRY_LONG;
 	ah->ah_ant_mode = AR5K_ANTMODE_DEFAULT;
 	ah->ah_noise_floor = -95;	/* until first NF calibration is run */
 	sc->ani_state.ani_mode = ATH5K_ANI_MODE_AUTO;

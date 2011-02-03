@@ -3077,8 +3077,7 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	}
 
 	if (priv->start_calib) {
-		if (priv->cfg->bt_params &&
-		    priv->cfg->bt_params->bt_statistics) {
+		if (iwl_bt_statistics(priv)) {
 			iwl_chain_noise_calibration(priv,
 					(void *)&priv->_agn.statistics_bt);
 			iwl_sensitivity_calibration(priv,

@@ -372,8 +372,12 @@
 
 /*
  * US_CYC_CNT
+ * BT_MODE_EN: Bluetooth mode enable
+ * CLOCK CYCLE: Clock cycle count in 1us.
+ * PCI:0x21, PCIE:0x7d, USB:0x1e
  */
 #define US_CYC_CNT			0x02a4
+#define US_CYC_CNT_BT_MODE_EN		FIELD32(0x00000100)
 #define US_CYC_CNT_CLOCK_CYCLE		FIELD32(0x000000ff)
 
 /*

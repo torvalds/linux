@@ -368,6 +368,7 @@ struct rt2x00_intf {
 	 * dedicated beacon entry.
 	 */
 	struct queue_entry *beacon;
+	bool enable_beacon;
 
 	/*
 	 * Actions that needed rescheduling.
@@ -511,14 +512,13 @@ struct rt2x00lib_ops {
 	irq_handler_t irq_handler;
 
 	/*
-	 * Threaded Interrupt handlers.
-	 */
-	irq_handler_t irq_handler_thread;
-
-	/*
 	 * TX status tasklet handler.
 	 */
 	void (*txstatus_tasklet) (unsigned long data);
+	void (*pretbtt_tasklet) (unsigned long data);
+	void (*tbtt_tasklet) (unsigned long data);
+	void (*rxdone_tasklet) (unsigned long data);
+	void (*autowake_tasklet) (unsigned long data);
 
 	/*
 	 * Device init handlers.
@@ -573,6 +573,7 @@ struct rt2x00lib_ops {
 			       struct txentry_desc *txdesc);
 	void (*write_beacon) (struct queue_entry *entry,
 			      struct txentry_desc *txdesc);
+	void (*clear_beacon) (struct queue_entry *entry);
 	int (*get_tx_data_len) (struct queue_entry *entry);
 
 	/*
@@ -788,10 +789,12 @@ struct rt2x00_dev {
 	 *  - Open ap interface count.
 	 *  - Open sta interface count.
 	 *  - Association count.
+	 *  - Beaconing enabled count.
 	 */
 	unsigned int intf_ap_count;
 	unsigned int intf_sta_count;
 	unsigned int intf_associated;
+	unsigned int intf_beaconing;
 
 	/*
 	 * Link quality
@@ -857,6 +860,13 @@ struct rt2x00_dev {
 	 */
 	struct ieee80211_low_level_stats low_level_stats;
 
+	/**
+	 * Work queue for all work which should not be placed
+	 * on the mac80211 workqueue (because of dependencies
+	 * between various work structures).
+	 */
+	struct workqueue_struct *workqueue;
+
 	/*
 	 * Scheduled work.
 	 * NOTE: intf_work will use ieee80211_iterate_active_interfaces()
@@ -887,12 +897,6 @@ struct rt2x00_dev {
 	const struct firmware *fw;
 
 	/*
-	 * Interrupt values, stored between interrupt service routine
-	 * and interrupt thread routine.
-	 */
-	u32 irqvalue[2];
-
-	/*
 	 * FIFO for storing tx status reports between isr and tasklet.
 	 */
 	DECLARE_KFIFO_PTR(txstatus_fifo, u32);
@@ -901,6 +905,15 @@ struct rt2x00_dev {
 	 * Tasklet for processing tx status reports (rt2800pci).
 	 */
 	struct tasklet_struct txstatus_tasklet;
+	struct tasklet_struct pretbtt_tasklet;
+	struct tasklet_struct tbtt_tasklet;
+	struct tasklet_struct rxdone_tasklet;
+	struct tasklet_struct autowake_tasklet;
+
+	/*
+	 * Protect the interrupt mask register.
+	 */
+	spinlock_t irqmask_lock;
 };
 
 /*

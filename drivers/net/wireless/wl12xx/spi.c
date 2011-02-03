@@ -110,9 +110,9 @@ static void wl1271_spi_reset(struct wl1271 *wl)
 	spi_message_add_tail(&t, &m);
 
 	spi_sync(wl_to_spi(wl), &m);
-	kfree(cmd);
 
 	wl1271_dump(DEBUG_SPI, "spi reset -> ", cmd, WSPI_INIT_CMD_LEN);
+	kfree(cmd);
 }
 
 static void wl1271_spi_init(struct wl1271 *wl)
@@ -495,4 +495,5 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
 MODULE_FIRMWARE(WL1271_FW_NAME);
+MODULE_FIRMWARE(WL1271_AP_FW_NAME);
 MODULE_ALIAS("spi:wl1271");

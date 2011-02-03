@@ -73,8 +73,7 @@ static void iwl_rx_calc_noise(struct iwl_priv *priv)
 	int bcn_silence_a, bcn_silence_b, bcn_silence_c;
 	int last_rx_noise;
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->bt_statistics)
+	if (iwl_bt_statistics(priv))
 		rx_info = &(priv->_agn.statistics_bt.rx.general.common);
 	else
 		rx_info = &(priv->_agn.statistics.rx.general);
@@ -125,8 +124,7 @@ static void iwl_accumulative_statistics(struct iwl_priv *priv,
 	struct statistics_general_common *general, *accum_general;
 	struct statistics_tx *tx, *accum_tx;
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->bt_statistics) {
+	if (iwl_bt_statistics(priv)) {
 		prev_stats = (__le32 *)&priv->_agn.statistics_bt;
 		accum_stats = (u32 *)&priv->_agn.accum_statistics_bt;
 		size = sizeof(struct iwl_bt_notif_statistics);
@@ -207,8 +205,7 @@ bool iwl_good_plcp_health(struct iwl_priv *priv,
 		struct statistics_rx_phy *ofdm;
 		struct statistics_rx_ht_phy *ofdm_ht;
 
-		if (priv->cfg->bt_params &&
-		    priv->cfg->bt_params->bt_statistics) {
+		if (iwl_bt_statistics(priv)) {
 			ofdm = &pkt->u.stats_bt.rx.ofdm;
 			ofdm_ht = &pkt->u.stats_bt.rx.ofdm_ht;
 			combined_plcp_delta =
@@ -265,8 +262,7 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 	int change;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->bt_statistics) {
+	if (iwl_bt_statistics(priv)) {
 		IWL_DEBUG_RX(priv,
 			     "Statistics notification received (%d vs %d).\n",
 			     (int)sizeof(struct iwl_bt_notif_statistics),
@@ -304,8 +300,7 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 
 	iwl_recover_from_statistics(priv, pkt);
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->bt_statistics)
+	if (iwl_bt_statistics(priv))
 		memcpy(&priv->_agn.statistics_bt, &pkt->u.stats_bt,
 			sizeof(priv->_agn.statistics_bt));
 	else

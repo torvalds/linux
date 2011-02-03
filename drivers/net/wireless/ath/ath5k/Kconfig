@@ -40,6 +40,17 @@ config ATH5K_DEBUG
 
 	  modprobe ath5k debug=0x00000400
 
+config ATH5K_TRACER
+	bool "Atheros 5xxx tracer"
+	depends on ATH5K
+	depends on EVENT_TRACING
+	---help---
+	  Say Y here to enable tracepoints for the ath5k driver
+	  using the kernel tracing infrastructure.  Select this
+	  option if you are interested in debugging the driver.
+
+	  If unsure, say N.
+
 config ATH5K_AHB
 	bool "Atheros 5xxx AHB bus support"
 	depends on (ATHEROS_AR231X && !PCI)

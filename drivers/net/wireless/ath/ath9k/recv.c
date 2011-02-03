@@ -34,27 +34,6 @@ static inline bool ath9k_check_auto_sleep(struct ath_softc *sc)
 	       (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP);
 }
 
-static struct ieee80211_hw * ath_get_virt_hw(struct ath_softc *sc,
-					     struct ieee80211_hdr *hdr)
-{
-	struct ieee80211_hw *hw = sc->pri_wiphy->hw;
-	int i;
-
-	spin_lock_bh(&sc->wiphy_lock);
-	for (i = 0; i < sc->num_sec_wiphy; i++) {
-		struct ath_wiphy *aphy = sc->sec_wiphy[i];
-		if (aphy == NULL)
-			continue;
-		if (compare_ether_addr(hdr->addr1, aphy->hw->wiphy->perm_addr)
-		    == 0) {
-			hw = aphy->hw;
-			break;
-		}
-	}
-	spin_unlock_bh(&sc->wiphy_lock);
-	return hw;
-}
-
 /*
  * Setup and link descriptors.
  *
@@ -230,11 +209,6 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 	int error = 0, i;
 	u32 size;
 
-
-	common->rx_bufsize = roundup(IEEE80211_MAX_MPDU_LEN +
-				     ah->caps.rx_status_len,
-				     min(common->cachelsz, (u16)64));
-
 	ath9k_hw_set_rx_bufsize(ah, common->rx_bufsize -
 				    ah->caps.rx_status_len);
 
@@ -321,12 +295,12 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	sc->sc_flags &= ~SC_OP_RXFLUSH;
 	spin_lock_init(&sc->rx.rxbuflock);
 
+	common->rx_bufsize = IEEE80211_MAX_MPDU_LEN / 2 +
+			     sc->sc_ah->caps.rx_status_len;
+
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		return ath_rx_edma_init(sc, nbufs);
 	} else {
-		common->rx_bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
-				min(common->cachelsz, (u16)64));
-
 		ath_dbg(common, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
 			common->cachelsz, common->rx_bufsize);
 
@@ -463,8 +437,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (conf_is_ht(&sc->hw->conf))
 		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
 
-	if (sc->sec_wiphy || (sc->nvifs > 1) ||
-	    (sc->rx.rxfilter & FIF_OTHER_BSS)) {
+	if (sc->nvifs > 1 || (sc->rx.rxfilter & FIF_OTHER_BSS)) {
 		/* The following may also be needed for other older chips */
 		if (sc->sc_ah->hw_version.macVersion == AR_SREV_VERSION_9160)
 			rfilt |= ATH9K_RX_FILTER_PROM;
@@ -668,37 +641,6 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 	}
 }
 
-static void ath_rx_send_to_mac80211(struct ieee80211_hw *hw,
-				    struct ath_softc *sc, struct sk_buff *skb)
-{
-	struct ieee80211_hdr *hdr;
-
-	hdr = (struct ieee80211_hdr *)skb->data;
-
-	/* Send the frame to mac80211 */
-	if (is_multicast_ether_addr(hdr->addr1)) {
-		int i;
-		/*
-		 * Deliver broadcast/multicast frames to all suitable
-		 * virtual wiphys.
-		 */
-		/* TODO: filter based on channel configuration */
-		for (i = 0; i < sc->num_sec_wiphy; i++) {
-			struct ath_wiphy *aphy = sc->sec_wiphy[i];
-			struct sk_buff *nskb;
-			if (aphy == NULL)
-				continue;
-			nskb = skb_copy(skb, GFP_ATOMIC);
-			if (!nskb)
-				continue;
-			ieee80211_rx(aphy->hw, nskb);
-		}
-		ieee80211_rx(sc->hw, skb);
-	} else
-		/* Deliver unicast frames based on receiver address */
-		ieee80211_rx(hw, skb);
-}
-
 static bool ath_edma_get_buffers(struct ath_softc *sc,
 				 enum ath9k_rx_qtype qtype)
 {
@@ -868,15 +810,9 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	if (rx_stats->rs_datalen > (common->rx_bufsize - rx_status_len))
 		return false;
 
-	/*
-	 * rs_more indicates chained descriptors which can be used
-	 * to link buffers together for a sort of scatter-gather
-	 * operation.
-	 * reject the frame, we don't support scatter-gather yet and
-	 * the frame is probably corrupt anyway
-	 */
+	/* Only use error bits from the last fragment */
 	if (rx_stats->rs_more)
-		return false;
+		return true;
 
 	/*
 	 * The rx_stats->rs_status will not be set until the end of the
@@ -980,7 +916,7 @@ static void ath9k_process_rssi(struct ath_common *common,
 			       struct ieee80211_hdr *hdr,
 			       struct ath_rx_status *rx_stats)
 {
-	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = common->ah;
 	int last_rssi;
 	__le16 fc;
@@ -1000,9 +936,9 @@ static void ath9k_process_rssi(struct ath_common *common,
 	}
 
 	if (rx_stats->rs_rssi != ATH9K_RSSI_BAD && !rx_stats->rs_moreaggr)
-		ATH_RSSI_LPF(aphy->last_rssi, rx_stats->rs_rssi);
+		ATH_RSSI_LPF(sc->last_rssi, rx_stats->rs_rssi);
 
-	last_rssi = aphy->last_rssi;
+	last_rssi = sc->last_rssi;
 	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
 		rx_stats->rs_rssi = ATH_EP_RND(last_rssi,
 					      ATH_RSSI_EP_MULTIPLIER);
@@ -1033,6 +969,10 @@ static int ath9k_rx_skb_preprocess(struct ath_common *common,
 	 */
 	if (!ath9k_rx_accept(common, hdr, rx_status, rx_stats, decrypt_error))
 		return -EINVAL;
+
+	/* Only use status info from the last fragment */
+	if (rx_stats->rs_more)
+		return 0;
 
 	ath9k_process_rssi(common, hw, hdr, rx_stats);
 
@@ -1635,7 +1575,7 @@ div_comb_done:
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 {
 	struct ath_buf *bf;
-	struct sk_buff *skb = NULL, *requeue_skb;
+	struct sk_buff *skb = NULL, *requeue_skb, *hdr_skb;
 	struct ieee80211_rx_status *rxs;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1644,7 +1584,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	 * virtual wiphy so to account for that we iterate over the active
 	 * wiphys and find the appropriate wiphy and therefore hw.
 	 */
-	struct ieee80211_hw *hw = NULL;
+	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_hdr *hdr;
 	int retval;
 	bool decrypt_error = false;
@@ -1686,10 +1626,17 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (!skb)
 			continue;
 
-		hdr = (struct ieee80211_hdr *) (skb->data + rx_status_len);
-		rxs =  IEEE80211_SKB_RXCB(skb);
+		/*
+		 * Take frame header from the first fragment and RX status from
+		 * the last one.
+		 */
+		if (sc->rx.frag)
+			hdr_skb = sc->rx.frag;
+		else
+			hdr_skb = skb;
 
-		hw = ath_get_virt_hw(sc, hdr);
+		hdr = (struct ieee80211_hdr *) (hdr_skb->data + rx_status_len);
+		rxs = IEEE80211_SKB_RXCB(hdr_skb);
 
 		ath_debug_stat_rx(sc, &rs);
 
@@ -1698,12 +1645,12 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		 * chain it back at the queue without processing it.
 		 */
 		if (flush)
-			goto requeue;
+			goto requeue_drop_frag;
 
 		retval = ath9k_rx_skb_preprocess(common, hw, hdr, &rs,
 						 rxs, &decrypt_error);
 		if (retval)
-			goto requeue;
+			goto requeue_drop_frag;
 
 		rxs->mactime = (tsf & ~0xffffffffULL) | rs.rs_tstamp;
 		if (rs.rs_tstamp > tsf_lower &&
@@ -1723,7 +1670,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		 * skb and put it at the tail of the sc->rx.rxbuf list for
 		 * processing. */
 		if (!requeue_skb)
-			goto requeue;
+			goto requeue_drop_frag;
 
 		/* Unmap the frame */
 		dma_unmap_single(sc->dev, bf->bf_buf_addr,
@@ -1734,8 +1681,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (ah->caps.rx_status_len)
 			skb_pull(skb, ah->caps.rx_status_len);
 
-		ath9k_rx_skb_postprocess(common, skb, &rs,
-					 rxs, decrypt_error);
+		if (!rs.rs_more)
+			ath9k_rx_skb_postprocess(common, hdr_skb, &rs,
+						 rxs, decrypt_error);
 
 		/* We will now give hardware our shiny new allocated skb */
 		bf->bf_mpdu = requeue_skb;
@@ -1748,8 +1696,40 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			bf->bf_mpdu = NULL;
 			bf->bf_buf_addr = 0;
 			ath_err(common, "dma_mapping_error() on RX\n");
-			ath_rx_send_to_mac80211(hw, sc, skb);
+			ieee80211_rx(hw, skb);
 			break;
+		}
+
+		if (rs.rs_more) {
+			/*
+			 * rs_more indicates chained descriptors which can be
+			 * used to link buffers together for a sort of
+			 * scatter-gather operation.
+			 */
+			if (sc->rx.frag) {
+				/* too many fragments - cannot handle frame */
+				dev_kfree_skb_any(sc->rx.frag);
+				dev_kfree_skb_any(skb);
+				skb = NULL;
+			}
+			sc->rx.frag = skb;
+			goto requeue;
+		}
+
+		if (sc->rx.frag) {
+			int space = skb->len - skb_tailroom(hdr_skb);
+
+			sc->rx.frag = NULL;
+
+			if (pskb_expand_head(hdr_skb, 0, space, GFP_ATOMIC) < 0) {
+				dev_kfree_skb(skb);
+				goto requeue_drop_frag;
+			}
+
+			skb_copy_from_linear_data(skb, skb_put(hdr_skb, skb->len),
+						  skb->len);
+			dev_kfree_skb_any(skb);
+			skb = hdr_skb;
 		}
 
 		/*
@@ -1775,8 +1755,13 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)
 			ath_ant_comb_scan(sc, &rs);
 
-		ath_rx_send_to_mac80211(hw, sc, skb);
+		ieee80211_rx(hw, skb);
 
+requeue_drop_frag:
+		if (sc->rx.frag) {
+			dev_kfree_skb_any(sc->rx.frag);
+			sc->rx.frag = NULL;
+		}
 requeue:
 		if (edma) {
 			list_add_tail(&bf->list, &sc->rx.rxbuf);

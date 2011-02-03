@@ -566,13 +566,10 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	return 0;
 }
 
-int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
-			      struct ieee80211_vif *vif,
-			      const bool enable_beacon)
+int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
+			     struct ieee80211_vif *vif)
 {
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	struct skb_frame_desc *skbdesc;
-	struct txentry_desc txdesc;
 
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
@@ -584,17 +581,36 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00queue_free_skb(intf->beacon);
 
-	if (!enable_beacon) {
-		rt2x00queue_stop_queue(intf->beacon->queue);
-		mutex_unlock(&intf->beacon_skb_mutex);
-		return 0;
-	}
+	/*
+	 * Clear beacon (single bssid devices don't need to clear the beacon
+	 * since the beacon queue will get stopped anyway).
+	 */
+	if (rt2x00dev->ops->lib->clear_beacon)
+		rt2x00dev->ops->lib->clear_beacon(intf->beacon);
+
+	mutex_unlock(&intf->beacon_skb_mutex);
+
+	return 0;
+}
+
+int rt2x00queue_update_beacon_locked(struct rt2x00_dev *rt2x00dev,
+				     struct ieee80211_vif *vif)
+{
+	struct rt2x00_intf *intf = vif_to_intf(vif);
+	struct skb_frame_desc *skbdesc;
+	struct txentry_desc txdesc;
+
+	if (unlikely(!intf->beacon))
+		return -ENOBUFS;
+
+	/*
+	 * Clean up the beacon skb.
+	 */
+	rt2x00queue_free_skb(intf->beacon);
 
 	intf->beacon->skb = ieee80211_beacon_get(rt2x00dev->hw, vif);
-	if (!intf->beacon->skb) {
-		mutex_unlock(&intf->beacon_skb_mutex);
+	if (!intf->beacon->skb)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Copy all TX descriptor information into txdesc,
@@ -611,13 +627,25 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	skbdesc->entry = intf->beacon;
 
 	/*
-	 * Send beacon to hardware and enable beacon genaration..
+	 * Send beacon to hardware.
 	 */
 	rt2x00dev->ops->lib->write_beacon(intf->beacon, &txdesc);
 
+	return 0;
+
+}
+
+int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
+			      struct ieee80211_vif *vif)
+{
+	struct rt2x00_intf *intf = vif_to_intf(vif);
+	int ret;
+
+	mutex_lock(&intf->beacon_skb_mutex);
+	ret = rt2x00queue_update_beacon_locked(rt2x00dev, vif);
 	mutex_unlock(&intf->beacon_skb_mutex);
 
-	return 0;
+	return ret;
 }
 
 void rt2x00queue_for_each_entry(struct data_queue *queue,
@@ -885,7 +913,7 @@ void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 	 * The queue flush has failed...
 	 */
 	if (unlikely(!rt2x00queue_empty(queue)))
-		WARNING(queue->rt2x00dev, "Queue %d failed to flush", queue->qid);
+		WARNING(queue->rt2x00dev, "Queue %d failed to flush\n", queue->qid);
 
 	/*
 	 * Restore the queue to the previous status

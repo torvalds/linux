@@ -253,9 +253,7 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2800usb_set_state(rt2x00dev, STATE_SLEEP);
 		break;
 	case STATE_RADIO_IRQ_ON:
-	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
-	case STATE_RADIO_IRQ_OFF_ISR:
 		/* No support, but no error either */
 		break;
 	case STATE_DEEP_SLEEP:
@@ -486,6 +484,12 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 		 */
 		rxdesc->flags |= RX_FLAG_IV_STRIPPED;
 
+		/*
+		 * The hardware has already checked the Michael Mic and has
+		 * stripped it from the frame. Signal this to mac80211.
+		 */
+		rxdesc->flags |= RX_FLAG_MMIC_STRIPPED;
+
 		if (rxdesc->cipher_status == RX_CRYPTO_SUCCESS)
 			rxdesc->flags |= RX_FLAG_DECRYPTED;
 		else if (rxdesc->cipher_status == RX_CRYPTO_FAIL_MIC)
@@ -633,6 +637,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.write_tx_desc		= rt2800usb_write_tx_desc,
 	.write_tx_data		= rt2800usb_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
+	.clear_beacon		= rt2800_clear_beacon,
 	.get_tx_data_len	= rt2800usb_get_tx_data_len,
 	.fill_rxdone		= rt2800usb_fill_rxdone,
 	.config_shared_key	= rt2800_config_shared_key,

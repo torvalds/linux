@@ -28,6 +28,7 @@
 #include "boot.h"
 #include "io.h"
 #include "event.h"
+#include "rx.h"
 
 static struct wl1271_partition_set part_table[PART_TABLE_LEN] = {
 	[PART_DOWN] = {
@@ -100,6 +101,22 @@ static void wl1271_boot_set_ecpu_ctrl(struct wl1271 *wl, u32 flag)
 	wl1271_write32(wl, ACX_REG_ECPU_CONTROL, cpu_ctrl);
 }
 
+static void wl1271_parse_fw_ver(struct wl1271 *wl)
+{
+	int ret;
+
+	ret = sscanf(wl->chip.fw_ver_str + 4, "%u.%u.%u.%u.%u",
+		     &wl->chip.fw_ver[0], &wl->chip.fw_ver[1],
+		     &wl->chip.fw_ver[2], &wl->chip.fw_ver[3],
+		     &wl->chip.fw_ver[4]);
+
+	if (ret != 5) {
+		wl1271_warning("fw version incorrect value");
+		memset(wl->chip.fw_ver, 0, sizeof(wl->chip.fw_ver));
+		return;
+	}
+}
+
 static void wl1271_boot_fw_version(struct wl1271 *wl)
 {
 	struct wl1271_static_data static_data;
@@ -107,11 +124,13 @@ static void wl1271_boot_fw_version(struct wl1271 *wl)
 	wl1271_read(wl, wl->cmd_box_addr, &static_data, sizeof(static_data),
 		    false);
 
-	strncpy(wl->chip.fw_ver, static_data.fw_version,
-		sizeof(wl->chip.fw_ver));
+	strncpy(wl->chip.fw_ver_str, static_data.fw_version,
+		sizeof(wl->chip.fw_ver_str));
 
 	/* make sure the string is NULL-terminated */
-	wl->chip.fw_ver[sizeof(wl->chip.fw_ver) - 1] = '\0';
+	wl->chip.fw_ver_str[sizeof(wl->chip.fw_ver_str) - 1] = '\0';
+
+	wl1271_parse_fw_ver(wl);
 }
 
 static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
@@ -231,7 +250,9 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	 */
 	if (wl->nvs_len == sizeof(struct wl1271_nvs_file) ||
 	    wl->nvs_len == WL1271_INI_LEGACY_NVS_FILE_SIZE) {
-		if (wl->nvs->general_params.dual_mode_select)
+		/* for now 11a is unsupported in AP mode */
+		if (wl->bss_type != BSS_TYPE_AP_BSS &&
+		    wl->nvs->general_params.dual_mode_select)
 			wl->enable_11a = true;
 	}
 
@@ -431,6 +452,9 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 		PSPOLL_DELIVERY_FAILURE_EVENT_ID |
 		SOFT_GEMINI_SENSE_EVENT_ID;
 
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		wl->event_mask |= STA_REMOVE_COMPLETE_EVENT_ID;
+
 	ret = wl1271_event_unmask(wl);
 	if (ret < 0) {
 		wl1271_error("EVENT mask setting failed");
@@ -595,8 +619,7 @@ int wl1271_boot(struct wl1271 *wl)
 	wl1271_boot_enable_interrupts(wl);
 
 	/* set the wl1271 default filters */
-	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;
-	wl->rx_filter = WL1271_DEFAULT_RX_FILTER;
+	wl1271_set_default_filters(wl);
 
 	wl1271_event_mbox_config(wl);
 

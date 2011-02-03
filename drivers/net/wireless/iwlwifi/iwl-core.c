@@ -219,16 +219,12 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 		if (!is_channel_valid(ch))
 			continue;
 
-		if (is_channel_a_band(ch))
-			sband =  &priv->bands[IEEE80211_BAND_5GHZ];
-		else
-			sband =  &priv->bands[IEEE80211_BAND_2GHZ];
+		sband =  &priv->bands[ch->band];
 
 		geo_ch = &sband->channels[sband->n_channels++];
 
 		geo_ch->center_freq =
-				ieee80211_channel_to_frequency(ch->channel,
-							       sband->band);
+			ieee80211_channel_to_frequency(ch->channel, ch->band);
 		geo_ch->max_power = ch->max_power_avg;
 		geo_ch->max_antenna_gain = 0xff;
 		geo_ch->hw_value = ch->channel;
@@ -1162,6 +1158,8 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 {
 	int ret;
 	s8 prev_tx_power;
+	bool defer;
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -1189,10 +1187,15 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	if (!iwl_is_ready_rf(priv))
 		return -EIO;
 
-	/* scan complete use tx_power_next, need to be updated */
+	/* scan complete and commit_rxon use tx_power_next value,
+	 * it always need to be updated for newest request */
 	priv->tx_power_next = tx_power;
-	if (test_bit(STATUS_SCANNING, &priv->status) && !force) {
-		IWL_DEBUG_INFO(priv, "Deferring tx power set while scanning\n");
+
+	/* do not set tx power when scanning or channel changing */
+	defer = test_bit(STATUS_SCANNING, &priv->status) ||
+		memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging));
+	if (defer && !force) {
+		IWL_DEBUG_INFO(priv, "Deferring tx power set\n");
 		return 0;
 	}
 

@@ -59,6 +59,7 @@ enum {
 	BSS_LOSE_EVENT_ID			 = BIT(18),
 	REGAINED_BSS_EVENT_ID			 = BIT(19),
 	ROAMING_TRIGGER_MAX_TX_RETRY_EVENT_ID	 = BIT(20),
+	STA_REMOVE_COMPLETE_EVENT_ID		 = BIT(21), /* AP */
 	SOFT_GEMINI_SENSE_EVENT_ID		 = BIT(22),
 	SOFT_GEMINI_PREDICTION_EVENT_ID		 = BIT(23),
 	SOFT_GEMINI_AVALANCHE_EVENT_ID		 = BIT(24),
@@ -115,7 +116,12 @@ struct event_mailbox {
 	u8 scheduled_scan_status;
 	u8 ps_status;
 
-	u8 reserved_5[29];
+	/* AP FW only */
+	u8 hlid_removed;
+	__le16 sta_aging_status;
+	__le16 sta_tx_retry_exceeded;
+
+	u8 reserved_5[24];
 } __packed;
 
 int wl1271_event_unmask(struct wl1271 *wl);

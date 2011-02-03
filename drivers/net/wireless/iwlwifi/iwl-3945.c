@@ -762,8 +762,7 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 
 	/* We need to figure out how to get the sta->supp_rates while
 	 * in this running context */
-	rate_mask = IWL_RATES_MASK;
-
+	rate_mask = IWL_RATES_MASK_3945;
 
 	/* Set retry limit on DATA packets and Probe Responses*/
 	if (ieee80211_is_probe_resp(fc))
@@ -1650,7 +1649,7 @@ static int iwl3945_hw_reg_comp_txpower_temp(struct iwl_priv *priv)
 							      ref_temp);
 
 		/* set tx power value for all rates, OFDM and CCK */
-		for (rate_index = 0; rate_index < IWL_RATE_COUNT;
+		for (rate_index = 0; rate_index < IWL_RATE_COUNT_3945;
 		     rate_index++) {
 			int power_idx =
 			    ch_info->power_info[rate_index].base_power_index;
@@ -1890,7 +1889,7 @@ int iwl3945_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	/* If we issue a new RXON command which required a tune then we must
 	 * send a new TXPOWER command or we won't be able to Tx any frames */
-	rc = priv->cfg->ops->lib->send_tx_power(priv);
+	rc = iwl_set_tx_power(priv, priv->tx_power_next, true);
 	if (rc) {
 		IWL_ERR(priv, "Error setting Tx power (%d).\n", rc);
 		return rc;

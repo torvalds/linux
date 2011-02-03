@@ -157,14 +157,30 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 			       bool local);
 
 /**
- * rt2x00queue_update_beacon - Send new beacon from mac80211 to hardware
+ * rt2x00queue_update_beacon - Send new beacon from mac80211
+ *	to hardware. Handles locking by itself (mutex).
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @vif: Interface for which the beacon should be updated.
- * @enable_beacon: Enable beaconing
  */
 int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
-			      struct ieee80211_vif *vif,
-			      const bool enable_beacon);
+			      struct ieee80211_vif *vif);
+
+/**
+ * rt2x00queue_update_beacon_locked - Send new beacon from mac80211
+ *	to hardware. Caller needs to ensure locking.
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @vif: Interface for which the beacon should be updated.
+ */
+int rt2x00queue_update_beacon_locked(struct rt2x00_dev *rt2x00dev,
+				     struct ieee80211_vif *vif);
+
+/**
+ * rt2x00queue_clear_beacon - Clear beacon in hardware
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @vif: Interface for which the beacon should be updated.
+ */
+int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
+			     struct ieee80211_vif *vif);
 
 /**
  * rt2x00queue_index_inc - Index incrementation function
