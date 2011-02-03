@@ -1797,13 +1797,13 @@ int
 redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					__u8 mask, __u8 margin, bool isuy)
 {
-static __s32 ay[256], bu[256], rv[256], gu[256], gv[256];
+static s32 ay[256], bu[256], rv[256], gu[256], gv[256];
 __u8 *pcache;
 __u8 r, g, b, y, u, v, c, *p2, *p3, *pz, *pr;
 int  bytesperpixel;
 bool byteswaporder, decimatepixel, last;
 int j, rump;
-__s32 s32;
+s32 tmp;
 
 if (much % 2) {
 	SAM("MISTAKE: much is odd\n");
@@ -1816,14 +1816,14 @@ decimatepixel = peasycap->decimatepixel;
 /*---------------------------------------------------------------------------*/
 if (!bu[255]) {
 	for (j = 0; j < 112; j++) {
-		s32 = (0xFF00 & (453 * j)) >> 8;
-		bu[j + 128] =  s32; bu[127 - j] = -s32;
-		s32 = (0xFF00 & (359 * j)) >> 8;
-		rv[j + 128] =  s32; rv[127 - j] = -s32;
-		s32 = (0xFF00 & (88 * j)) >> 8;
-		gu[j + 128] =  s32; gu[127 - j] = -s32;
-		s32 = (0xFF00 & (183 * j)) >> 8;
-		gv[j + 128] =  s32; gv[127 - j] = -s32;
+		tmp = (0xFF00 & (453 * j)) >> 8;
+		bu[j + 128] =  tmp; bu[127 - j] = -tmp;
+		tmp = (0xFF00 & (359 * j)) >> 8;
+		rv[j + 128] =  tmp; rv[127 - j] = -tmp;
+		tmp = (0xFF00 & (88 * j)) >> 8;
+		gu[j + 128] =  tmp; gu[127 - j] = -tmp;
+		tmp = (0xFF00 & (183 * j)) >> 8;
+		gv[j + 128] =  tmp; gv[127 - j] = -tmp;
 	}
 	for (j = 0; j < 16; j++) {
 		bu[j] = bu[16]; rv[j] = rv[16];
@@ -1973,15 +1973,15 @@ case 3:
 						u = *(p2 + 1);
 				}
 
-				s32 = ay[(int)y] + rv[(int)v];
-				r = (255 < s32) ? 255 : ((0 > s32) ?
-							0 : (__u8)s32);
-				s32 = ay[(int)y] - gu[(int)u] - gv[(int)v];
-				g = (255 < s32) ? 255 : ((0 > s32) ?
-							0 : (__u8)s32);
-				s32 = ay[(int)y] + bu[(int)u];
-				b = (255 < s32) ? 255 : ((0 > s32) ?
-							0 : (__u8)s32);
+				tmp = ay[(int)y] + rv[(int)v];
+				r = (255 < tmp) ? 255 : ((0 > tmp) ?
+							0 : (__u8)tmp);
+				tmp = ay[(int)y] - gu[(int)u] - gv[(int)v];
+				g = (255 < tmp) ? 255 : ((0 > tmp) ?
+							0 : (__u8)tmp);
+				tmp = ay[(int)y] + bu[(int)u];
+				b = (255 < tmp) ? 255 : ((0 > tmp) ?
+							0 : (__u8)tmp);
 
 				if ((true == last) && rump) {
 					pcache = &peasycap->cache[0];
@@ -2046,15 +2046,15 @@ case 3:
 						u = *(p2 + 1);
 				}
 
-				s32 = ay[(int)y] + rv[(int)v];
-				r = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-				s32 = ay[(int)y] - gu[(int)u] - gv[(int)v];
-				g = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-				s32 = ay[(int)y] + bu[(int)u];
-				b = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
+				tmp = ay[(int)y] + rv[(int)v];
+				r = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+				tmp = ay[(int)y] - gu[(int)u] - gv[(int)v];
+				g = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+				tmp = ay[(int)y] + bu[(int)u];
+				b = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
 
 				if ((true == last) && rump) {
 					pcache = &peasycap->cache[0];
@@ -2121,16 +2121,16 @@ case 3:
 				}
 
 				if (true == isuy) {
-					s32 = ay[(int)y] + rv[(int)v];
-					r = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-					s32 = ay[(int)y] - gu[(int)u] -
+					tmp = ay[(int)y] + rv[(int)v];
+					r = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+					tmp = ay[(int)y] - gu[(int)u] -
 								gv[(int)v];
-					g = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-					s32 = ay[(int)y] + bu[(int)u];
-					b = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
+					g = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+					tmp = ay[(int)y] + bu[(int)u];
+					b = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
 
 					if ((true == last) && rump) {
 						pcache = &peasycap->cache[0];
@@ -2197,16 +2197,16 @@ case 3:
 
 				if (true == isuy) {
 
-					s32 = ay[(int)y] + rv[(int)v];
-					r = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-					s32 = ay[(int)y] - gu[(int)u] -
+					tmp = ay[(int)y] + rv[(int)v];
+					r = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+					tmp = ay[(int)y] - gu[(int)u] -
 								gv[(int)v];
-					g = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-					s32 = ay[(int)y] + bu[(int)u];
-					b = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
+					g = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+					tmp = ay[(int)y] + bu[(int)u];
+					b = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
 
 					if ((true == last) && rump) {
 						pcache = &peasycap->cache[0];
@@ -2278,15 +2278,15 @@ case 4:
 						u = *(p2 + 1);
 				}
 
-				s32 = ay[(int)y] + rv[(int)v];
-				r = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-				s32 = ay[(int)y] - gu[(int)u] - gv[(int)v];
-				g = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-				s32 = ay[(int)y] + bu[(int)u];
-				b = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
+				tmp = ay[(int)y] + rv[(int)v];
+				r = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+				tmp = ay[(int)y] - gu[(int)u] - gv[(int)v];
+				g = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+				tmp = ay[(int)y] + bu[(int)u];
+				b = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
 
 				if ((true == last) && rump) {
 					pcache = &peasycap->cache[0];
@@ -2360,15 +2360,15 @@ case 4:
 						u = *(p2 + 1);
 				}
 
-				s32 = ay[(int)y] + rv[(int)v];
-				r = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-				s32 = ay[(int)y] - gu[(int)u] - gv[(int)v];
-				g = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-				s32 = ay[(int)y] + bu[(int)u];
-				b = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
+				tmp = ay[(int)y] + rv[(int)v];
+				r = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+				tmp = ay[(int)y] - gu[(int)u] - gv[(int)v];
+				g = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+				tmp = ay[(int)y] + bu[(int)u];
+				b = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
 
 				if ((true == last) && rump) {
 					pcache = &peasycap->cache[0];
@@ -2446,16 +2446,16 @@ case 4:
 
 				if (true == isuy) {
 
-					s32 = ay[(int)y] + rv[(int)v];
-					r = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-					s32 = ay[(int)y] - gu[(int)u] -
+					tmp = ay[(int)y] + rv[(int)v];
+					r = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+					tmp = ay[(int)y] - gu[(int)u] -
 								gv[(int)v];
-					g = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-					s32 = ay[(int)y] + bu[(int)u];
-					b = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
+					g = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+					tmp = ay[(int)y] + bu[(int)u];
+					b = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
 
 					if ((true == last) && rump) {
 						pcache = &peasycap->cache[0];
@@ -2531,16 +2531,16 @@ case 4:
 				}
 
 				if (true == isuy) {
-					s32 = ay[(int)y] + rv[(int)v];
-					r = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-					s32 = ay[(int)y] - gu[(int)u] -
+					tmp = ay[(int)y] + rv[(int)v];
+					r = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+					tmp = ay[(int)y] - gu[(int)u] -
 								gv[(int)v];
-					g = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
-					s32 = ay[(int)y] + bu[(int)u];
-					b = (255 < s32) ? 255 : ((0 > s32) ?
-								0 : (__u8)s32);
+					g = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
+					tmp = ay[(int)y] + bu[(int)u];
+					b = (255 < tmp) ? 255 : ((0 > tmp) ?
+								0 : (__u8)tmp);
 
 					if ((true == last) && rump) {
 						pcache = &peasycap->cache[0];
@@ -3172,7 +3172,7 @@ int okepn[8];
 int okmps[8];
 int maxpacketsize;
 __u16 mask;
-__s32 value;
+s32 value;
 struct easycap_format *peasycap_format;
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef EASYCAP_IS_VIDEODEV_CLIENT
