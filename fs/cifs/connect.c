@@ -633,11 +633,11 @@ incomplete_rcv:
 				mid_entry->largeBuf = isLargeBuf;
 multi_t2_fnd:
 				mid_entry->midState = MID_RESPONSE_RECEIVED;
-				list_del_init(&mid_entry->qhead);
-				mid_entry->callback(mid_entry);
 #ifdef CONFIG_CIFS_STATS2
 				mid_entry->when_received = jiffies;
 #endif
+				list_del_init(&mid_entry->qhead);
+				mid_entry->callback(mid_entry);
 				break;
 			}
 			mid_entry = NULL;
