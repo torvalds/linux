@@ -3145,139 +3145,139 @@ static const struct v4l2_file_operations v4l2_fops = {
 static int easycap_usb_probe(struct usb_interface *pusb_interface,
 			    const struct usb_device_id *pusb_device_id)
 {
-struct usb_device *pusb_device, *pusb_device1;
-struct usb_host_interface *pusb_host_interface;
-struct usb_endpoint_descriptor *pepd;
-struct usb_interface_descriptor *pusb_interface_descriptor;
-struct usb_interface_assoc_descriptor *pusb_interface_assoc_descriptor;
-struct urb *purb;
-struct easycap *peasycap;
-int ndong;
-struct data_urb *pdata_urb;
-size_t wMaxPacketSize;
-int ISOCwMaxPacketSize;
-int BULKwMaxPacketSize;
-int INTwMaxPacketSize;
-int CTRLwMaxPacketSize;
-u8 bEndpointAddress;
-u8 ISOCbEndpointAddress;
-u8 INTbEndpointAddress;
-int isin, i, j, k, m, rc;
-u8 bInterfaceNumber;
-u8 bInterfaceClass;
-u8 bInterfaceSubClass;
-void *pbuf;
-int okalt[8], isokalt;
-int okepn[8];
-int okmps[8];
-int maxpacketsize;
-u16 mask;
-s32 value;
-struct easycap_format *peasycap_format;
+	struct usb_device *pusb_device, *pusb_device1;
+	struct usb_host_interface *pusb_host_interface;
+	struct usb_endpoint_descriptor *pepd;
+	struct usb_interface_descriptor *pusb_interface_descriptor;
+	struct usb_interface_assoc_descriptor *pusb_interface_assoc_descriptor;
+	struct urb *purb;
+	struct easycap *peasycap;
+	int ndong;
+	struct data_urb *pdata_urb;
+	size_t wMaxPacketSize;
+	int ISOCwMaxPacketSize;
+	int BULKwMaxPacketSize;
+	int INTwMaxPacketSize;
+	int CTRLwMaxPacketSize;
+	u8 bEndpointAddress;
+	u8 ISOCbEndpointAddress;
+	u8 INTbEndpointAddress;
+	int isin, i, j, k, m, rc;
+	u8 bInterfaceNumber;
+	u8 bInterfaceClass;
+	u8 bInterfaceSubClass;
+	void *pbuf;
+	int okalt[8], isokalt;
+	int okepn[8];
+	int okmps[8];
+	int maxpacketsize;
+	u16 mask;
+	s32 value;
+	struct easycap_format *peasycap_format;
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef EASYCAP_IS_VIDEODEV_CLIENT
 #ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
-struct v4l2_device *pv4l2_device;
+	struct v4l2_device *pv4l2_device;
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /* setup modules params */
 
-if (NULL == pusb_interface) {
-	SAY("ERROR: pusb_interface is NULL\n");
-	return -EFAULT;
-}
+	if (NULL == pusb_interface) {
+		SAY("ERROR: pusb_interface is NULL\n");
+		return -EFAULT;
+	}
 /*---------------------------------------------------------------------------*/
 /*
  *  GET POINTER TO STRUCTURE usb_device
  */
 /*---------------------------------------------------------------------------*/
-pusb_device1 = container_of(pusb_interface->dev.parent,
-						struct usb_device, dev);
-if (NULL == pusb_device1) {
-	SAY("ERROR: pusb_device1 is NULL\n");
-	return -EFAULT;
-}
-pusb_device = usb_get_dev(pusb_device1);
-if (NULL == pusb_device) {
-	SAY("ERROR: pusb_device is NULL\n");
-	return -EFAULT;
-}
-if ((unsigned long int)pusb_device1 != (unsigned long int)pusb_device) {
-	JOT(4, "ERROR: pusb_device1 != pusb_device\n");
-	return -EFAULT;
-}
-JOT(4, "bNumConfigurations=%i\n", pusb_device->descriptor.bNumConfigurations);
+	pusb_device1 = container_of(pusb_interface->dev.parent,
+							struct usb_device, dev);
+	if (NULL == pusb_device1) {
+		SAY("ERROR: pusb_device1 is NULL\n");
+		return -EFAULT;
+	}
+	pusb_device = usb_get_dev(pusb_device1);
+	if (NULL == pusb_device) {
+		SAY("ERROR: pusb_device is NULL\n");
+		return -EFAULT;
+	}
+	if ((unsigned long int)pusb_device1 != (unsigned long int)pusb_device) {
+		JOT(4, "ERROR: pusb_device1 != pusb_device\n");
+		return -EFAULT;
+	}
+	JOT(4, "bNumConfigurations=%i\n", pusb_device->descriptor.bNumConfigurations);
 /*---------------------------------------------------------------------------*/
-pusb_host_interface = pusb_interface->cur_altsetting;
-if (NULL == pusb_host_interface) {
-	SAY("ERROR: pusb_host_interface is NULL\n");
-	return -EFAULT;
-}
-pusb_interface_descriptor = &(pusb_host_interface->desc);
-if (NULL == pusb_interface_descriptor) {
-	SAY("ERROR: pusb_interface_descriptor is NULL\n");
-	return -EFAULT;
-}
+	pusb_host_interface = pusb_interface->cur_altsetting;
+	if (NULL == pusb_host_interface) {
+		SAY("ERROR: pusb_host_interface is NULL\n");
+		return -EFAULT;
+	}
+	pusb_interface_descriptor = &(pusb_host_interface->desc);
+	if (NULL == pusb_interface_descriptor) {
+		SAY("ERROR: pusb_interface_descriptor is NULL\n");
+		return -EFAULT;
+	}
 /*---------------------------------------------------------------------------*/
 /*
  *  GET PROPERTIES OF PROBED INTERFACE
  */
 /*---------------------------------------------------------------------------*/
-bInterfaceNumber = pusb_interface_descriptor->bInterfaceNumber;
-bInterfaceClass = pusb_interface_descriptor->bInterfaceClass;
-bInterfaceSubClass = pusb_interface_descriptor->bInterfaceSubClass;
+	bInterfaceNumber = pusb_interface_descriptor->bInterfaceNumber;
+	bInterfaceClass = pusb_interface_descriptor->bInterfaceClass;
+	bInterfaceSubClass = pusb_interface_descriptor->bInterfaceSubClass;
 
-JOT(4, "intf[%i]: pusb_interface->num_altsetting=%i\n",
-			bInterfaceNumber, pusb_interface->num_altsetting);
-JOT(4, "intf[%i]: pusb_interface->cur_altsetting - "
-			"pusb_interface->altsetting=%li\n", bInterfaceNumber,
-			(long int)(pusb_interface->cur_altsetting -
-						pusb_interface->altsetting));
-switch (bInterfaceClass) {
-case USB_CLASS_AUDIO: {
-	JOT(4, "intf[%i]: bInterfaceClass=0x%02X=USB_CLASS_AUDIO\n",
-				bInterfaceNumber, bInterfaceClass); break;
+	JOT(4, "intf[%i]: pusb_interface->num_altsetting=%i\n",
+				bInterfaceNumber, pusb_interface->num_altsetting);
+	JOT(4, "intf[%i]: pusb_interface->cur_altsetting - "
+				"pusb_interface->altsetting=%li\n", bInterfaceNumber,
+				(long int)(pusb_interface->cur_altsetting -
+							pusb_interface->altsetting));
+	switch (bInterfaceClass) {
+	case USB_CLASS_AUDIO: {
+		JOT(4, "intf[%i]: bInterfaceClass=0x%02X=USB_CLASS_AUDIO\n",
+					bInterfaceNumber, bInterfaceClass); break;
+		}
+	case USB_CLASS_VIDEO: {
+		JOT(4, "intf[%i]: bInterfaceClass=0x%02X=USB_CLASS_VIDEO\n",
+					bInterfaceNumber, bInterfaceClass); break;
+		}
+	case USB_CLASS_VENDOR_SPEC: {
+		JOT(4, "intf[%i]: bInterfaceClass=0x%02X=USB_CLASS_VENDOR_SPEC\n",
+					bInterfaceNumber, bInterfaceClass); break;
+		}
+	default:
+		break;
 	}
-case USB_CLASS_VIDEO: {
-	JOT(4, "intf[%i]: bInterfaceClass=0x%02X=USB_CLASS_VIDEO\n",
-				bInterfaceNumber, bInterfaceClass); break;
+	switch (bInterfaceSubClass) {
+	case 0x01: {
+		JOT(4, "intf[%i]: bInterfaceSubClass=0x%02X=AUDIOCONTROL\n",
+				bInterfaceNumber, bInterfaceSubClass); break;
 	}
-case USB_CLASS_VENDOR_SPEC: {
-	JOT(4, "intf[%i]: bInterfaceClass=0x%02X=USB_CLASS_VENDOR_SPEC\n",
-				bInterfaceNumber, bInterfaceClass); break;
+	case 0x02: {
+		JOT(4, "intf[%i]: bInterfaceSubClass=0x%02X=AUDIOSTREAMING\n",
+				bInterfaceNumber, bInterfaceSubClass); break;
 	}
-default:
-	break;
-}
-switch (bInterfaceSubClass) {
-case 0x01: {
-	JOT(4, "intf[%i]: bInterfaceSubClass=0x%02X=AUDIOCONTROL\n",
-			bInterfaceNumber, bInterfaceSubClass); break;
-}
-case 0x02: {
-	JOT(4, "intf[%i]: bInterfaceSubClass=0x%02X=AUDIOSTREAMING\n",
-			bInterfaceNumber, bInterfaceSubClass); break;
-}
-case 0x03: {
-	JOT(4, "intf[%i]: bInterfaceSubClass=0x%02X=MIDISTREAMING\n",
-			bInterfaceNumber, bInterfaceSubClass); break;
-}
-default:
-	break;
-}
+	case 0x03: {
+		JOT(4, "intf[%i]: bInterfaceSubClass=0x%02X=MIDISTREAMING\n",
+				bInterfaceNumber, bInterfaceSubClass); break;
+	}
+	default:
+		break;
+	}
 /*---------------------------------------------------------------------------*/
-pusb_interface_assoc_descriptor = pusb_interface->intf_assoc;
-if (NULL != pusb_interface_assoc_descriptor) {
-	JOT(4, "intf[%i]: bFirstInterface=0x%02X  bInterfaceCount=0x%02X\n",
-			bInterfaceNumber,
-			pusb_interface_assoc_descriptor->bFirstInterface,
-			pusb_interface_assoc_descriptor->bInterfaceCount);
-} else {
-JOT(4, "intf[%i]: pusb_interface_assoc_descriptor is NULL\n",
-							bInterfaceNumber);
-}
+	pusb_interface_assoc_descriptor = pusb_interface->intf_assoc;
+	if (NULL != pusb_interface_assoc_descriptor) {
+		JOT(4, "intf[%i]: bFirstInterface=0x%02X  bInterfaceCount=0x%02X\n",
+				bInterfaceNumber,
+				pusb_interface_assoc_descriptor->bFirstInterface,
+				pusb_interface_assoc_descriptor->bInterfaceCount);
+	} else {
+	JOT(4, "intf[%i]: pusb_interface_assoc_descriptor is NULL\n",
+								bInterfaceNumber);
+	}
 /*---------------------------------------------------------------------------*/
 /*
  *  A NEW struct easycap IS ALWAYS ALLOCATED WHEN INTERFACE 0 IS PROBED.
@@ -3289,19 +3289,19 @@ JOT(4, "intf[%i]: pusb_interface_assoc_descriptor is NULL\n",
  *  INTERFACES 1 AND 2 ARE PROBED.
 */
 /*---------------------------------------------------------------------------*/
-if (0 == bInterfaceNumber) {
-	peasycap = kzalloc(sizeof(struct easycap), GFP_KERNEL);
-	if (NULL == peasycap) {
-		SAY("ERROR: Could not allocate peasycap\n");
-		return -ENOMEM;
-	}
-	SAM("allocated 0x%08lX=peasycap\n", (unsigned long int) peasycap);
+	if (0 == bInterfaceNumber) {
+		peasycap = kzalloc(sizeof(struct easycap), GFP_KERNEL);
+		if (NULL == peasycap) {
+			SAY("ERROR: Could not allocate peasycap\n");
+			return -ENOMEM;
+		}
+		SAM("allocated 0x%08lX=peasycap\n", (unsigned long int) peasycap);
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef EASYCAP_IS_VIDEODEV_CLIENT
-	SAM("where     0x%08lX=&peasycap->video_device\n",
+		SAM("where     0x%08lX=&peasycap->video_device\n",
 				(unsigned long int) &peasycap->video_device);
 #ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
-	SAM("and       0x%08lX=&peasycap->v4l2_device\n",
+		SAM("and       0x%08lX=&peasycap->v4l2_device\n",
 				(unsigned long int) &peasycap->v4l2_device);
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
@@ -3311,24 +3311,24 @@ if (0 == bInterfaceNumber) {
  *  PERFORM URGENT INTIALIZATIONS ...
 */
 /*---------------------------------------------------------------------------*/
-	peasycap->minor = -1;
-	strcpy(&peasycap->telltale[0], TELLTALE);
-	kref_init(&peasycap->kref);
-	JOM(8, "intf[%i]: after kref_init(..._video) "
-			"%i=peasycap->kref.refcount.counter\n",
-			bInterfaceNumber, peasycap->kref.refcount.counter);
+		peasycap->minor = -1;
+		strcpy(&peasycap->telltale[0], TELLTALE);
+		kref_init(&peasycap->kref);
+		JOM(8, "intf[%i]: after kref_init(..._video) "
+				"%i=peasycap->kref.refcount.counter\n",
+				bInterfaceNumber, peasycap->kref.refcount.counter);
 
-	/* module params */
-	peasycap->gain = (s8)clamp(easycap_gain, 0, 31);
+		/* module params */
+		peasycap->gain = (s8)clamp(easycap_gain, 0, 31);
 
-	init_waitqueue_head(&peasycap->wq_video);
-	init_waitqueue_head(&peasycap->wq_audio);
-	init_waitqueue_head(&peasycap->wq_trigger);
+		init_waitqueue_head(&peasycap->wq_video);
+		init_waitqueue_head(&peasycap->wq_audio);
+		init_waitqueue_head(&peasycap->wq_trigger);
 
-	if (mutex_lock_interruptible(&mutex_dongle)) {
-			SAY("ERROR: cannot down mutex_dongle\n");
-		return -ERESTARTSYS;
-	} else {
+		if (mutex_lock_interruptible(&mutex_dongle)) {
+				SAY("ERROR: cannot down mutex_dongle\n");
+			return -ERESTARTSYS;
+		} else {
 /*---------------------------------------------------------------------------*/
 		/*
 		 *  FOR INTERFACES 1 AND 2 THE POINTER peasycap WILL NEED TO
@@ -3339,193 +3339,193 @@ if (0 == bInterfaceNumber) {
 		 *  EASYCAPs ARE PLUGGED IN SIMULTANEOUSLY.
 		*/
 /*---------------------------------------------------------------------------*/
-		for (ndong = 0; ndong < DONGLE_MANY; ndong++) {
-			if ((NULL == easycapdc60_dongle[ndong].peasycap) &&
-					(!mutex_is_locked(&easycapdc60_dongle
-						[ndong].mutex_video)) &&
-					(!mutex_is_locked(&easycapdc60_dongle
-						[ndong].mutex_audio))) {
-				easycapdc60_dongle[ndong].peasycap = peasycap;
-				peasycap->isdongle = ndong;
-				JOM(8, "intf[%i]: peasycap-->easycap"
-						"_dongle[%i].peasycap\n",
-						bInterfaceNumber, ndong);
-				break;
+			for (ndong = 0; ndong < DONGLE_MANY; ndong++) {
+				if ((NULL == easycapdc60_dongle[ndong].peasycap) &&
+						(!mutex_is_locked(&easycapdc60_dongle
+							[ndong].mutex_video)) &&
+						(!mutex_is_locked(&easycapdc60_dongle
+							[ndong].mutex_audio))) {
+					easycapdc60_dongle[ndong].peasycap = peasycap;
+					peasycap->isdongle = ndong;
+					JOM(8, "intf[%i]: peasycap-->easycap"
+							"_dongle[%i].peasycap\n",
+							bInterfaceNumber, ndong);
+					break;
+				}
 			}
-		}
-		if (DONGLE_MANY <= ndong) {
-			SAM("ERROR: too many dongles\n");
+			if (DONGLE_MANY <= ndong) {
+				SAM("ERROR: too many dongles\n");
+				mutex_unlock(&mutex_dongle);
+				return -ENOMEM;
+			}
 			mutex_unlock(&mutex_dongle);
-			return -ENOMEM;
 		}
-		mutex_unlock(&mutex_dongle);
-	}
-	peasycap->allocation_video_struct = sizeof(struct easycap);
-	peasycap->allocation_video_page = 0;
-	peasycap->allocation_video_urb = 0;
-	peasycap->allocation_audio_struct = 0;
-	peasycap->allocation_audio_page = 0;
-	peasycap->allocation_audio_urb = 0;
+		peasycap->allocation_video_struct = sizeof(struct easycap);
+		peasycap->allocation_video_page = 0;
+		peasycap->allocation_video_urb = 0;
+		peasycap->allocation_audio_struct = 0;
+		peasycap->allocation_audio_page = 0;
+		peasycap->allocation_audio_urb = 0;
 
 /*---------------------------------------------------------------------------*/
 /*
  *  ... AND FURTHER INITIALIZE THE STRUCTURE
 */
 /*---------------------------------------------------------------------------*/
-	peasycap->pusb_device = pusb_device;
-	peasycap->pusb_interface = pusb_interface;
+		peasycap->pusb_device = pusb_device;
+		peasycap->pusb_interface = pusb_interface;
 
-	peasycap->ilk = 0;
-	peasycap->microphone = false;
+		peasycap->ilk = 0;
+		peasycap->microphone = false;
 
-	peasycap->video_interface = -1;
-	peasycap->video_altsetting_on = -1;
-	peasycap->video_altsetting_off = -1;
-	peasycap->video_endpointnumber = -1;
-	peasycap->video_isoc_maxframesize = -1;
-	peasycap->video_isoc_buffer_size = -1;
+		peasycap->video_interface = -1;
+		peasycap->video_altsetting_on = -1;
+		peasycap->video_altsetting_off = -1;
+		peasycap->video_endpointnumber = -1;
+		peasycap->video_isoc_maxframesize = -1;
+		peasycap->video_isoc_buffer_size = -1;
 
-	peasycap->audio_interface = -1;
-	peasycap->audio_altsetting_on = -1;
-	peasycap->audio_altsetting_off = -1;
-	peasycap->audio_endpointnumber = -1;
-	peasycap->audio_isoc_maxframesize = -1;
-	peasycap->audio_isoc_buffer_size = -1;
+		peasycap->audio_interface = -1;
+		peasycap->audio_altsetting_on = -1;
+		peasycap->audio_altsetting_off = -1;
+		peasycap->audio_endpointnumber = -1;
+		peasycap->audio_isoc_maxframesize = -1;
+		peasycap->audio_isoc_buffer_size = -1;
 
-	peasycap->frame_buffer_many = FRAME_BUFFER_MANY;
+		peasycap->frame_buffer_many = FRAME_BUFFER_MANY;
 
-	for (k = 0; k < INPUT_MANY; k++)
-		peasycap->lost[k] = 0;
-	peasycap->skip = 0;
-	peasycap->skipped = 0;
-	peasycap->offerfields = 0;
+		for (k = 0; k < INPUT_MANY; k++)
+			peasycap->lost[k] = 0;
+		peasycap->skip = 0;
+		peasycap->skipped = 0;
+		peasycap->offerfields = 0;
 /*---------------------------------------------------------------------------*/
 /*
  *  DYNAMICALLY FILL IN THE AVAILABLE FORMATS ...
  */
 /*---------------------------------------------------------------------------*/
-	rc = fillin_formats();
-	if (0 > rc) {
-		SAM("ERROR: fillin_formats() returned %i\n", rc);
-		return -EFAULT;
-	}
-	JOM(4, "%i formats available\n", rc);
+		rc = fillin_formats();
+		if (0 > rc) {
+			SAM("ERROR: fillin_formats() returned %i\n", rc);
+			return -EFAULT;
+		}
+		JOM(4, "%i formats available\n", rc);
 /*---------------------------------------------------------------------------*/
 /*
  *  ... AND POPULATE easycap.inputset[]
 */
 /*---------------------------------------------------------------------------*/
-	for (k = 0; k < INPUT_MANY; k++) {
-		peasycap->inputset[k].input_ok = 0;
-		peasycap->inputset[k].standard_offset_ok = 0;
-		peasycap->inputset[k].format_offset_ok = 0;
-		peasycap->inputset[k].brightness_ok = 0;
-		peasycap->inputset[k].contrast_ok = 0;
-		peasycap->inputset[k].saturation_ok = 0;
-		peasycap->inputset[k].hue_ok = 0;
-	}
-	if (true == peasycap->ntsc) {
+		for (k = 0; k < INPUT_MANY; k++) {
+			peasycap->inputset[k].input_ok = 0;
+			peasycap->inputset[k].standard_offset_ok = 0;
+			peasycap->inputset[k].format_offset_ok = 0;
+			peasycap->inputset[k].brightness_ok = 0;
+			peasycap->inputset[k].contrast_ok = 0;
+			peasycap->inputset[k].saturation_ok = 0;
+			peasycap->inputset[k].hue_ok = 0;
+		}
+		if (true == peasycap->ntsc) {
+			i = 0;
+			m = 0;
+			mask = 0;
+			while (0xFFFF != easycap_standard[i].mask) {
+				if (NTSC_M == easycap_standard[i].
+								v4l2_standard.index) {
+					m++;
+					for (k = 0; k < INPUT_MANY; k++) {
+						peasycap->inputset[k].
+								standard_offset = i;
+					}
+				mask = easycap_standard[i].mask;
+				}
+				i++;
+			}
+		} else {
+			i = 0;
+			m = 0;
+			mask = 0;
+			while (0xFFFF != easycap_standard[i].mask) {
+				if (PAL_BGHIN == easycap_standard[i].
+								v4l2_standard.index) {
+					m++;
+					for (k = 0; k < INPUT_MANY; k++) {
+						peasycap->inputset[k].
+								standard_offset = i;
+					}
+				mask = easycap_standard[i].mask;
+				}
+				i++;
+			}
+		}
+
+		if (1 != m) {
+			SAM("MISTAKE: easycap.inputset[].standard_offset "
+							"unpopulated, %i=m\n", m);
+			return -ENOENT;
+		}
+
+		peasycap_format = &easycap_format[0];
 		i = 0;
 		m = 0;
-		mask = 0;
-		while (0xFFFF != easycap_standard[i].mask) {
-			if (NTSC_M == easycap_standard[i].
-							v4l2_standard.index) {
+		while (0 != peasycap_format->v4l2_format.fmt.pix.width) {
+			if (((peasycap_format->mask & 0x0F) == (mask & 0x0F)) &&
+					(peasycap_format->
+						v4l2_format.fmt.pix.field ==
+								V4L2_FIELD_NONE) &&
+					(peasycap_format->
+						v4l2_format.fmt.pix.pixelformat ==
+								V4L2_PIX_FMT_UYVY) &&
+					(peasycap_format->
+						v4l2_format.fmt.pix.width  ==
+								640) &&
+					(peasycap_format->
+						v4l2_format.fmt.pix.height == 480)) {
 				m++;
-				for (k = 0; k < INPUT_MANY; k++) {
-					peasycap->inputset[k].
-							standard_offset = i;
-				}
-			mask = easycap_standard[i].mask;
+				for (k = 0; k < INPUT_MANY; k++)
+					peasycap->inputset[k].format_offset = i;
+				break;
 			}
-			i++;
-		}
-	} else {
-		i = 0;
-		m = 0;
-		mask = 0;
-		while (0xFFFF != easycap_standard[i].mask) {
-			if (PAL_BGHIN == easycap_standard[i].
-							v4l2_standard.index) {
-				m++;
-				for (k = 0; k < INPUT_MANY; k++) {
-					peasycap->inputset[k].
-							standard_offset = i;
-				}
-			mask = easycap_standard[i].mask;
-			}
-			i++;
-		}
-	}
-
-	if (1 != m) {
-		SAM("MISTAKE: easycap.inputset[].standard_offset "
-						"unpopulated, %i=m\n", m);
-		return -ENOENT;
-	}
-
-	peasycap_format = &easycap_format[0];
-	i = 0;
-	m = 0;
-	while (0 != peasycap_format->v4l2_format.fmt.pix.width) {
-		if (((peasycap_format->mask & 0x0F) == (mask & 0x0F)) &&
-				(peasycap_format->
-					v4l2_format.fmt.pix.field ==
-							V4L2_FIELD_NONE) &&
-				(peasycap_format->
-					v4l2_format.fmt.pix.pixelformat ==
-							V4L2_PIX_FMT_UYVY) &&
-				(peasycap_format->
-					v4l2_format.fmt.pix.width  ==
-							640) &&
-				(peasycap_format->
-					v4l2_format.fmt.pix.height == 480)) {
-			m++;
-			for (k = 0; k < INPUT_MANY; k++)
-				peasycap->inputset[k].format_offset = i;
-			break;
-		}
-	peasycap_format++;
-	i++;
-	}
-	if (1 != m) {
-		SAM("MISTAKE: easycap.inputset[].format_offset unpopulated\n");
-	return -ENOENT;
-	}
-
-	i = 0;
-	m = 0;
-	while (0xFFFFFFFF != easycap_control[i].id) {
-		value = easycap_control[i].default_value;
-		if (V4L2_CID_BRIGHTNESS == easycap_control[i].id) {
-			m++;
-			for (k = 0; k < INPUT_MANY; k++)
-				peasycap->inputset[k].brightness = value;
-		} else if (V4L2_CID_CONTRAST == easycap_control[i].id) {
-			m++;
-			for (k = 0; k < INPUT_MANY; k++)
-				peasycap->inputset[k].contrast = value;
-		} else if (V4L2_CID_SATURATION == easycap_control[i].id) {
-			m++;
-			for (k = 0; k < INPUT_MANY; k++)
-				peasycap->inputset[k].saturation = value;
-		} else if (V4L2_CID_HUE == easycap_control[i].id) {
-			m++;
-			for (k = 0; k < INPUT_MANY; k++)
-				peasycap->inputset[k].hue = value;
-		}
+		peasycap_format++;
 		i++;
-	}
-	if (4 != m) {
-		SAM("MISTAKE: easycap.inputset[].brightness,... "
-						"underpopulated\n");
+		}
+		if (1 != m) {
+			SAM("MISTAKE: easycap.inputset[].format_offset unpopulated\n");
 		return -ENOENT;
-	}
-	for (k = 0; k < INPUT_MANY; k++)
-		peasycap->inputset[k].input = k;
-	JOM(4, "populated easycap.inputset[]\n");
-	JOM(4, "finished initialization\n");
-} else {
+		}
+
+		i = 0;
+		m = 0;
+		while (0xFFFFFFFF != easycap_control[i].id) {
+			value = easycap_control[i].default_value;
+			if (V4L2_CID_BRIGHTNESS == easycap_control[i].id) {
+				m++;
+				for (k = 0; k < INPUT_MANY; k++)
+					peasycap->inputset[k].brightness = value;
+			} else if (V4L2_CID_CONTRAST == easycap_control[i].id) {
+				m++;
+				for (k = 0; k < INPUT_MANY; k++)
+					peasycap->inputset[k].contrast = value;
+			} else if (V4L2_CID_SATURATION == easycap_control[i].id) {
+				m++;
+				for (k = 0; k < INPUT_MANY; k++)
+					peasycap->inputset[k].saturation = value;
+			} else if (V4L2_CID_HUE == easycap_control[i].id) {
+				m++;
+				for (k = 0; k < INPUT_MANY; k++)
+					peasycap->inputset[k].hue = value;
+			}
+			i++;
+		}
+		if (4 != m) {
+			SAM("MISTAKE: easycap.inputset[].brightness,... "
+							"underpopulated\n");
+			return -ENOENT;
+		}
+		for (k = 0; k < INPUT_MANY; k++)
+			peasycap->inputset[k].input = k;
+		JOM(4, "populated easycap.inputset[]\n");
+		JOM(4, "finished initialization\n");
+	} else {
 /*---------------------------------------------------------------------------*/
 /*
  *                                 FIXME
@@ -3534,29 +3534,1068 @@ if (0 == bInterfaceNumber) {
  *  THE ADDRESS OF peasycap->pusb_device IS RELUCTANTLY USED FOR THIS PURPOSE.
  */
 /*---------------------------------------------------------------------------*/
-	for (ndong = 0; ndong < DONGLE_MANY; ndong++) {
-		if (pusb_device == easycapdc60_dongle[ndong].peasycap->
-								pusb_device) {
-			peasycap = easycapdc60_dongle[ndong].peasycap;
-			JOT(8, "intf[%i]: easycapdc60_dongle[%i].peasycap-->"
-					"peasycap\n", bInterfaceNumber, ndong);
-			break;
+		for (ndong = 0; ndong < DONGLE_MANY; ndong++) {
+			if (pusb_device == easycapdc60_dongle[ndong].peasycap->
+									pusb_device) {
+				peasycap = easycapdc60_dongle[ndong].peasycap;
+				JOT(8, "intf[%i]: easycapdc60_dongle[%i].peasycap-->"
+						"peasycap\n", bInterfaceNumber, ndong);
+				break;
+			}
 		}
-	}
-	if (DONGLE_MANY <= ndong) {
-		SAY("ERROR: peasycap is unknown when probing interface %i\n",
-							bInterfaceNumber);
-		return -ENODEV;
-	}
-	if (NULL == peasycap) {
-		SAY("ERROR: peasycap is NULL when probing interface %i\n",
-							bInterfaceNumber);
-		return -ENODEV;
-	}
+		if (DONGLE_MANY <= ndong) {
+			SAY("ERROR: peasycap is unknown when probing interface %i\n",
+								bInterfaceNumber);
+			return -ENODEV;
+		}
+		if (NULL == peasycap) {
+			SAY("ERROR: peasycap is NULL when probing interface %i\n",
+								bInterfaceNumber);
+			return -ENODEV;
+		}
 #ifndef EASYCAP_IS_VIDEODEV_CLIENT
 #
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #else
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
+/*---------------------------------------------------------------------------*/
+/*
+ *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
+ *  BEEN WRITTEN BY THE CALL TO usb_set_intfdata() IN easycap_usb_probe(),
+ *  REPLACING IT WITH A POINTER TO THE EMBEDDED v4l2_device STRUCTURE.
+ *  TO DETECT THIS, THE STRING IN THE easycap.telltale[] BUFFER IS CHECKED.
+*/
+/*---------------------------------------------------------------------------*/
+		if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+			pv4l2_device = usb_get_intfdata(pusb_interface);
+			if (NULL == pv4l2_device) {
+				SAY("ERROR: pv4l2_device is NULL\n");
+				return -ENODEV;
+			}
+			peasycap = (struct easycap *)
+				container_of(pv4l2_device, struct easycap, v4l2_device);
+		}
+#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+}
+/*---------------------------------------------------------------------------*/
+	if ((USB_CLASS_VIDEO == bInterfaceClass) ||
+			(USB_CLASS_VENDOR_SPEC == bInterfaceClass)) {
+		if (-1 == peasycap->video_interface) {
+			peasycap->video_interface = bInterfaceNumber;
+			JOM(4, "setting peasycap->video_interface=%i\n",
+							peasycap->video_interface);
+		} else {
+			if (peasycap->video_interface != bInterfaceNumber) {
+				SAM("ERROR: attempting to reset "
+						"peasycap->video_interface\n");
+				SAM("...... continuing with "
+						"%i=peasycap->video_interface\n",
+						peasycap->video_interface);
+			}
+		}
+	} else if ((USB_CLASS_AUDIO == bInterfaceClass) &&
+							(0x02 == bInterfaceSubClass)) {
+		if (-1 == peasycap->audio_interface) {
+			peasycap->audio_interface = bInterfaceNumber;
+			JOM(4, "setting peasycap->audio_interface=%i\n",
+							 peasycap->audio_interface);
+		} else {
+			if (peasycap->audio_interface != bInterfaceNumber) {
+				SAM("ERROR: attempting to reset "
+						"peasycap->audio_interface\n");
+				SAM("...... continuing with "
+						"%i=peasycap->audio_interface\n",
+						peasycap->audio_interface);
+			}
+		}
+	}
+/*---------------------------------------------------------------------------*/
+/*
+ *  INVESTIGATE ALL ALTSETTINGS.
+ *  DONE IN DETAIL BECAUSE USB DEVICE 05e1:0408 HAS DISPARATE INCARNATIONS.
+ */
+/*---------------------------------------------------------------------------*/
+	isokalt = 0;
+
+	for (i = 0; i < pusb_interface->num_altsetting; i++) {
+		pusb_host_interface = &(pusb_interface->altsetting[i]);
+		if (NULL == pusb_host_interface) {
+			SAM("ERROR: pusb_host_interface is NULL\n");
+			return -EFAULT;
+		}
+		pusb_interface_descriptor = &(pusb_host_interface->desc);
+		if (NULL == pusb_interface_descriptor) {
+			SAM("ERROR: pusb_interface_descriptor is NULL\n");
+			return -EFAULT;
+		}
+
+		JOM(4, "intf[%i]alt[%i]: desc.bDescriptorType=0x%02X\n",
+		bInterfaceNumber, i, pusb_interface_descriptor->bDescriptorType);
+		JOM(4, "intf[%i]alt[%i]: desc.bInterfaceNumber=0x%02X\n",
+		bInterfaceNumber, i, pusb_interface_descriptor->bInterfaceNumber);
+		JOM(4, "intf[%i]alt[%i]: desc.bAlternateSetting=0x%02X\n",
+		bInterfaceNumber, i, pusb_interface_descriptor->bAlternateSetting);
+		JOM(4, "intf[%i]alt[%i]: desc.bNumEndpoints=0x%02X\n",
+		bInterfaceNumber, i, pusb_interface_descriptor->bNumEndpoints);
+		JOM(4, "intf[%i]alt[%i]: desc.bInterfaceClass=0x%02X\n",
+		bInterfaceNumber, i, pusb_interface_descriptor->bInterfaceClass);
+		JOM(4, "intf[%i]alt[%i]: desc.bInterfaceSubClass=0x%02X\n",
+		bInterfaceNumber, i, pusb_interface_descriptor->bInterfaceSubClass);
+		JOM(4, "intf[%i]alt[%i]: desc.bInterfaceProtocol=0x%02X\n",
+		bInterfaceNumber, i, pusb_interface_descriptor->bInterfaceProtocol);
+		JOM(4, "intf[%i]alt[%i]: desc.iInterface=0x%02X\n",
+		bInterfaceNumber, i, pusb_interface_descriptor->iInterface);
+
+		ISOCwMaxPacketSize = -1;
+		BULKwMaxPacketSize = -1;
+		INTwMaxPacketSize = -1;
+		CTRLwMaxPacketSize = -1;
+		ISOCbEndpointAddress = 0;
+		INTbEndpointAddress = 0;
+
+		if (0 == pusb_interface_descriptor->bNumEndpoints)
+					JOM(4, "intf[%i]alt[%i] has no endpoints\n",
+								bInterfaceNumber, i);
+/*---------------------------------------------------------------------------*/
+		for (j = 0; j < pusb_interface_descriptor->bNumEndpoints; j++) {
+			pepd = &(pusb_host_interface->endpoint[j].desc);
+			if (NULL == pepd) {
+				SAM("ERROR:  pepd is NULL.\n");
+				SAM("...... skipping\n");
+				continue;
+			}
+			wMaxPacketSize = le16_to_cpu(pepd->wMaxPacketSize);
+			bEndpointAddress = pepd->bEndpointAddress;
+
+			JOM(4, "intf[%i]alt[%i]end[%i]: bEndpointAddress=0x%X\n",
+					bInterfaceNumber, i, j,
+					pepd->bEndpointAddress);
+			JOM(4, "intf[%i]alt[%i]end[%i]: bmAttributes=0x%X\n",
+					bInterfaceNumber, i, j,
+					pepd->bmAttributes);
+			JOM(4, "intf[%i]alt[%i]end[%i]: wMaxPacketSize=%i\n",
+					bInterfaceNumber, i, j,
+					pepd->wMaxPacketSize);
+			JOM(4, "intf[%i]alt[%i]end[%i]: bInterval=%i\n",
+					bInterfaceNumber, i, j,
+					pepd->bInterval);
+
+			if (pepd->bEndpointAddress & USB_DIR_IN) {
+				JOM(4, "intf[%i]alt[%i]end[%i] is an  IN  endpoint\n",
+							bInterfaceNumber, i, j);
+				isin = 1;
+			} else {
+				JOM(4, "intf[%i]alt[%i]end[%i] is an  OUT endpoint\n",
+							bInterfaceNumber, i, j);
+				SAM("ERROR: OUT endpoint unexpected\n");
+				SAM("...... continuing\n");
+				isin = 0;
+			}
+			if ((pepd->bmAttributes &
+					USB_ENDPOINT_XFERTYPE_MASK) ==
+					USB_ENDPOINT_XFER_ISOC) {
+				JOM(4, "intf[%i]alt[%i]end[%i] is an ISOC endpoint\n",
+							bInterfaceNumber, i, j);
+				if (isin) {
+					switch (bInterfaceClass) {
+					case USB_CLASS_VIDEO:
+					case USB_CLASS_VENDOR_SPEC: {
+						if (!peasycap) {
+							SAM("MISTAKE: "
+								"peasycap is NULL\n");
+							return -EFAULT;
+						}
+						if (pepd->wMaxPacketSize) {
+							if (8 > isokalt) {
+								okalt[isokalt] = i;
+								JOM(4,
+								"%i=okalt[%i]\n",
+								okalt[isokalt],
+								isokalt);
+								okepn[isokalt] =
+								pepd->
+								bEndpointAddress &
+								0x0F;
+								JOM(4,
+								"%i=okepn[%i]\n",
+								okepn[isokalt],
+								isokalt);
+								okmps[isokalt] =
+								le16_to_cpu(pepd->
+								wMaxPacketSize);
+								JOM(4,
+								"%i=okmps[%i]\n",
+								okmps[isokalt],
+								isokalt);
+								isokalt++;
+							}
+						} else {
+							if (-1 == peasycap->
+								video_altsetting_off) {
+								peasycap->
+								video_altsetting_off =
+										 i;
+								JOM(4, "%i=video_"
+								"altsetting_off "
+									"<====\n",
+								peasycap->
+								video_altsetting_off);
+							} else {
+								SAM("ERROR: peasycap"
+								"->video_altsetting_"
+								"off already set\n");
+								SAM("...... "
+								"continuing with "
+								"%i=peasycap->video_"
+								"altsetting_off\n",
+								peasycap->
+								video_altsetting_off);
+							}
+						}
+						break;
+					}
+					case USB_CLASS_AUDIO: {
+						if (0x02 != bInterfaceSubClass)
+							break;
+						if (!peasycap) {
+							SAM("MISTAKE: "
+							"peasycap is NULL\n");
+							return -EFAULT;
+						}
+						if (pepd->wMaxPacketSize) {
+							if (8 > isokalt) {
+								okalt[isokalt] = i ;
+								JOM(4,
+								"%i=okalt[%i]\n",
+								okalt[isokalt],
+								isokalt);
+								okepn[isokalt] =
+								pepd->
+								bEndpointAddress &
+								0x0F;
+								JOM(4,
+								"%i=okepn[%i]\n",
+								okepn[isokalt],
+								isokalt);
+								okmps[isokalt] =
+								le16_to_cpu(pepd->
+								wMaxPacketSize);
+								JOM(4,
+								"%i=okmps[%i]\n",
+								okmps[isokalt],
+								isokalt);
+								isokalt++;
+							}
+						} else {
+							if (-1 == peasycap->
+								audio_altsetting_off) {
+								peasycap->
+								audio_altsetting_off =
+										 i;
+								JOM(4, "%i=audio_"
+								"altsetting_off "
+								"<====\n",
+								peasycap->
+								audio_altsetting_off);
+							} else {
+								SAM("ERROR: peasycap"
+								"->audio_altsetting_"
+								"off already set\n");
+								SAM("...... "
+								"continuing with "
+								"%i=peasycap->"
+								"audio_altsetting_"
+								"off\n",
+								peasycap->
+								audio_altsetting_off);
+							}
+						}
+					break;
+					}
+					default:
+						break;
+					}
+				}
+			} else if ((pepd->bmAttributes &
+							USB_ENDPOINT_XFERTYPE_MASK) ==
+							USB_ENDPOINT_XFER_BULK) {
+				JOM(4, "intf[%i]alt[%i]end[%i] is a  BULK endpoint\n",
+							bInterfaceNumber, i, j);
+			} else if ((pepd->bmAttributes &
+							USB_ENDPOINT_XFERTYPE_MASK) ==
+							USB_ENDPOINT_XFER_INT) {
+				JOM(4, "intf[%i]alt[%i]end[%i] is an  INT endpoint\n",
+							bInterfaceNumber, i, j);
+			} else {
+				JOM(4, "intf[%i]alt[%i]end[%i] is a  CTRL endpoint\n",
+							bInterfaceNumber, i, j);
+			}
+			if (0 == pepd->wMaxPacketSize) {
+				JOM(4, "intf[%i]alt[%i]end[%i] "
+							"has zero packet size\n",
+							bInterfaceNumber, i, j);
+			}
+		}
+	}
+/*---------------------------------------------------------------------------*/
+/*
+ *  PERFORM INITIALIZATION OF THE PROBED INTERFACE
+ */
+/*---------------------------------------------------------------------------*/
+	JOM(4, "initialization begins for interface %i\n",
+					pusb_interface_descriptor->bInterfaceNumber);
+	switch (bInterfaceNumber) {
+/*---------------------------------------------------------------------------*/
+/*
+ *  INTERFACE 0 IS THE VIDEO INTERFACE
+ */
+/*---------------------------------------------------------------------------*/
+	case 0: {
+		if (!peasycap) {
+			SAM("MISTAKE: peasycap is NULL\n");
+			return -EFAULT;
+		}
+		if (!isokalt) {
+			SAM("ERROR:  no viable video_altsetting_on\n");
+			return -ENOENT;
+		} else {
+			peasycap->video_altsetting_on = okalt[isokalt - 1];
+			JOM(4, "%i=video_altsetting_on <====\n",
+						peasycap->video_altsetting_on);
+		}
+/*---------------------------------------------------------------------------*/
+/*
+ *  DECIDE THE VIDEO STREAMING PARAMETERS
+ */
+/*---------------------------------------------------------------------------*/
+		peasycap->video_endpointnumber = okepn[isokalt - 1];
+		JOM(4, "%i=video_endpointnumber\n", peasycap->video_endpointnumber);
+		maxpacketsize = okmps[isokalt - 1];
+		if (USB_2_0_MAXPACKETSIZE > maxpacketsize) {
+			peasycap->video_isoc_maxframesize = maxpacketsize;
+		} else {
+			peasycap->video_isoc_maxframesize =
+							USB_2_0_MAXPACKETSIZE;
+		}
+		JOM(4, "%i=video_isoc_maxframesize\n",
+					peasycap->video_isoc_maxframesize);
+		if (0 >= peasycap->video_isoc_maxframesize) {
+			SAM("ERROR:  bad video_isoc_maxframesize\n");
+			SAM("        possibly because port is USB 1.1\n");
+			return -ENOENT;
+		}
+		peasycap->video_isoc_framesperdesc = VIDEO_ISOC_FRAMESPERDESC;
+		JOM(4, "%i=video_isoc_framesperdesc\n",
+					peasycap->video_isoc_framesperdesc);
+		if (0 >= peasycap->video_isoc_framesperdesc) {
+			SAM("ERROR:  bad video_isoc_framesperdesc\n");
+			return -ENOENT;
+		}
+		peasycap->video_isoc_buffer_size =
+					peasycap->video_isoc_maxframesize *
+					peasycap->video_isoc_framesperdesc;
+		JOM(4, "%i=video_isoc_buffer_size\n",
+					peasycap->video_isoc_buffer_size);
+		if ((PAGE_SIZE << VIDEO_ISOC_ORDER) <
+					peasycap->video_isoc_buffer_size) {
+			SAM("MISTAKE: peasycap->video_isoc_buffer_size too big\n");
+			return -EFAULT;
+		}
+/*---------------------------------------------------------------------------*/
+		if (-1 == peasycap->video_interface) {
+			SAM("MISTAKE:  video_interface is unset\n");
+			return -EFAULT;
+		}
+		if (-1 == peasycap->video_altsetting_on) {
+			SAM("MISTAKE:  video_altsetting_on is unset\n");
+			return -EFAULT;
+		}
+		if (-1 == peasycap->video_altsetting_off) {
+			SAM("MISTAKE:  video_interface_off is unset\n");
+			return -EFAULT;
+		}
+		if (-1 == peasycap->video_endpointnumber) {
+			SAM("MISTAKE:  video_endpointnumber is unset\n");
+			return -EFAULT;
+		}
+		if (-1 == peasycap->video_isoc_maxframesize) {
+			SAM("MISTAKE:  video_isoc_maxframesize is unset\n");
+			return -EFAULT;
+		}
+		if (-1 == peasycap->video_isoc_buffer_size) {
+			SAM("MISTAKE:  video_isoc_buffer_size is unset\n");
+			return -EFAULT;
+		}
+/*---------------------------------------------------------------------------*/
+/*
+ *  ALLOCATE MEMORY FOR VIDEO BUFFERS.  LISTS MUST BE INITIALIZED FIRST.
+ */
+/*---------------------------------------------------------------------------*/
+		INIT_LIST_HEAD(&(peasycap->urb_video_head));
+		peasycap->purb_video_head = &(peasycap->urb_video_head);
+/*---------------------------------------------------------------------------*/
+		JOM(4, "allocating %i frame buffers of size %li\n",
+				FRAME_BUFFER_MANY, (long int)FRAME_BUFFER_SIZE);
+		JOM(4, ".... each scattered over %li pages\n",
+							FRAME_BUFFER_SIZE/PAGE_SIZE);
+
+		for (k = 0;  k < FRAME_BUFFER_MANY;  k++) {
+			for (m = 0;  m < FRAME_BUFFER_SIZE/PAGE_SIZE;  m++) {
+				if (NULL != peasycap->frame_buffer[k][m].pgo)
+					SAM("attempting to reallocate frame "
+									" buffers\n");
+				else {
+					pbuf = (void *)__get_free_page(GFP_KERNEL);
+					if (NULL == pbuf) {
+						SAM("ERROR: Could not allocate frame "
+							"buffer %i page %i\n", k, m);
+						return -ENOMEM;
+					} else
+						peasycap->allocation_video_page += 1;
+					peasycap->frame_buffer[k][m].pgo = pbuf;
+				}
+				peasycap->frame_buffer[k][m].pto =
+						peasycap->frame_buffer[k][m].pgo;
+			}
+		}
+
+		peasycap->frame_fill = 0;
+		peasycap->frame_read = 0;
+		JOM(4, "allocation of frame buffers done:  %i pages\n", k *
+									m);
+/*---------------------------------------------------------------------------*/
+		JOM(4, "allocating %i field buffers of size %li\n",
+				FIELD_BUFFER_MANY, (long int)FIELD_BUFFER_SIZE);
+		JOM(4, ".... each scattered over %li pages\n",
+						FIELD_BUFFER_SIZE/PAGE_SIZE);
+
+		for (k = 0;  k < FIELD_BUFFER_MANY;  k++) {
+			for (m = 0;  m < FIELD_BUFFER_SIZE/PAGE_SIZE;  m++) {
+				if (NULL != peasycap->field_buffer[k][m].pgo) {
+					SAM("ERROR: attempting to reallocate "
+								"field buffers\n");
+				} else {
+					pbuf = (void *) __get_free_page(GFP_KERNEL);
+					if (NULL == pbuf) {
+						SAM("ERROR: Could not allocate field"
+							" buffer %i page %i\n", k, m);
+						return -ENOMEM;
+						}
+					else
+						peasycap->allocation_video_page += 1;
+					peasycap->field_buffer[k][m].pgo = pbuf;
+					}
+				peasycap->field_buffer[k][m].pto =
+						peasycap->field_buffer[k][m].pgo;
+			}
+			peasycap->field_buffer[k][0].kount = 0x0200;
+		}
+		peasycap->field_fill = 0;
+		peasycap->field_page = 0;
+		peasycap->field_read = 0;
+		JOM(4, "allocation of field buffers done:  %i pages\n", k *
+									m);
+/*---------------------------------------------------------------------------*/
+		JOM(4, "allocating %i isoc video buffers of size %i\n",
+						VIDEO_ISOC_BUFFER_MANY,
+						peasycap->video_isoc_buffer_size);
+		JOM(4, ".... each occupying contiguous memory pages\n");
+
+		for (k = 0;  k < VIDEO_ISOC_BUFFER_MANY; k++) {
+			pbuf = (void *)__get_free_pages(GFP_KERNEL, VIDEO_ISOC_ORDER);
+			if (NULL == pbuf) {
+				SAM("ERROR: Could not allocate isoc video buffer "
+									"%i\n", k);
+				return -ENOMEM;
+			} else
+				peasycap->allocation_video_page +=
+					((unsigned int)(0x01 << VIDEO_ISOC_ORDER));
+
+			peasycap->video_isoc_buffer[k].pgo = pbuf;
+			peasycap->video_isoc_buffer[k].pto = pbuf +
+						peasycap->video_isoc_buffer_size;
+			peasycap->video_isoc_buffer[k].kount = k;
+		}
+		JOM(4, "allocation of isoc video buffers done: %i pages\n",
+						k * (0x01 << VIDEO_ISOC_ORDER));
+/*---------------------------------------------------------------------------*/
+/*
+ *  ALLOCATE AND INITIALIZE MULTIPLE struct urb ...
+ */
+/*---------------------------------------------------------------------------*/
+		JOM(4, "allocating %i struct urb.\n", VIDEO_ISOC_BUFFER_MANY);
+		JOM(4, "using %i=peasycap->video_isoc_framesperdesc\n",
+						peasycap->video_isoc_framesperdesc);
+		JOM(4, "using %i=peasycap->video_isoc_maxframesize\n",
+						peasycap->video_isoc_maxframesize);
+		JOM(4, "using %i=peasycap->video_isoc_buffer_sizen",
+						peasycap->video_isoc_buffer_size);
+
+		for (k = 0;  k < VIDEO_ISOC_BUFFER_MANY; k++) {
+			purb = usb_alloc_urb(peasycap->video_isoc_framesperdesc,
+									GFP_KERNEL);
+			if (NULL == purb) {
+				SAM("ERROR: usb_alloc_urb returned NULL for buffer "
+									"%i\n", k);
+				return -ENOMEM;
+			} else
+				peasycap->allocation_video_urb += 1;
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+			pdata_urb = kzalloc(sizeof(struct data_urb), GFP_KERNEL);
+			if (NULL == pdata_urb) {
+				SAM("ERROR: Could not allocate struct data_urb.\n");
+				return -ENOMEM;
+			} else
+				peasycap->allocation_video_struct +=
+							sizeof(struct data_urb);
+
+			pdata_urb->purb = purb;
+			pdata_urb->isbuf = k;
+			pdata_urb->length = 0;
+			list_add_tail(&(pdata_urb->list_head),
+							peasycap->purb_video_head);
+/*---------------------------------------------------------------------------*/
+/*
+ *  ... AND INITIALIZE THEM
+ */
+/*---------------------------------------------------------------------------*/
+			if (!k) {
+				JOM(4, "initializing video urbs thus:\n");
+				JOM(4, "  purb->interval = 1;\n");
+				JOM(4, "  purb->dev = peasycap->pusb_device;\n");
+				JOM(4, "  purb->pipe = usb_rcvisocpipe"
+						"(peasycap->pusb_device,%i);\n",
+						peasycap->video_endpointnumber);
+				JOM(4, "  purb->transfer_flags = URB_ISO_ASAP;\n");
+				JOM(4, "  purb->transfer_buffer = peasycap->"
+						"video_isoc_buffer[.].pgo;\n");
+				JOM(4, "  purb->transfer_buffer_length = %i;\n",
+						peasycap->video_isoc_buffer_size);
+				JOM(4, "  purb->complete = easycap_complete;\n");
+				JOM(4, "  purb->context = peasycap;\n");
+				JOM(4, "  purb->start_frame = 0;\n");
+				JOM(4, "  purb->number_of_packets = %i;\n",
+						peasycap->video_isoc_framesperdesc);
+				JOM(4, "  for (j = 0; j < %i; j++)\n",
+						peasycap->video_isoc_framesperdesc);
+				JOM(4, "    {\n");
+				JOM(4, "    purb->iso_frame_desc[j].offset = j*%i;\n",
+						peasycap->video_isoc_maxframesize);
+				JOM(4, "    purb->iso_frame_desc[j].length = %i;\n",
+						peasycap->video_isoc_maxframesize);
+				JOM(4, "    }\n");
+			}
+
+			purb->interval = 1;
+			purb->dev = peasycap->pusb_device;
+			purb->pipe = usb_rcvisocpipe(peasycap->pusb_device,
+						peasycap->video_endpointnumber);
+			purb->transfer_flags = URB_ISO_ASAP;
+			purb->transfer_buffer = peasycap->video_isoc_buffer[k].pgo;
+			purb->transfer_buffer_length =
+						peasycap->video_isoc_buffer_size;
+			purb->complete = easycap_complete;
+			purb->context = peasycap;
+			purb->start_frame = 0;
+			purb->number_of_packets = peasycap->video_isoc_framesperdesc;
+			for (j = 0;  j < peasycap->video_isoc_framesperdesc; j++) {
+				purb->iso_frame_desc[j].offset = j *
+						peasycap->video_isoc_maxframesize;
+				purb->iso_frame_desc[j].length =
+						peasycap->video_isoc_maxframesize;
+			}
+		}
+		JOM(4, "allocation of %i struct urb done.\n", k);
+/*--------------------------------------------------------------------------*/
+/*
+ *  SAVE POINTER peasycap IN THIS INTERFACE.
+ */
+/*--------------------------------------------------------------------------*/
+		usb_set_intfdata(pusb_interface, peasycap);
+/*---------------------------------------------------------------------------*/
+/*
+ *  IT IS ESSENTIAL TO INITIALIZE THE HARDWARE BEFORE, RATHER THAN AFTER,
+ *  THE DEVICE IS REGISTERED, BECAUSE SOME VERSIONS OF THE videodev MODULE
+ *  CALL easycap_open() IMMEDIATELY AFTER REGISTRATION, CAUSING A CLASH.
+ *  BEWARE.
+*/
+/*---------------------------------------------------------------------------*/
+#ifdef PREFER_NTSC
+		peasycap->ntsc = true;
+		JOM(8, "defaulting initially to NTSC\n");
+#else
+		peasycap->ntsc = false;
+		JOM(8, "defaulting initially to PAL\n");
+#endif /*PREFER_NTSC*/
+		rc = reset(peasycap);
+		if (rc) {
+			SAM("ERROR: reset() returned %i\n", rc);
+			return -EFAULT;
+		}
+/*--------------------------------------------------------------------------*/
+/*
+ *  THE VIDEO DEVICE CAN BE REGISTERED NOW, AS IT IS READY.
+ */
+/*--------------------------------------------------------------------------*/
+#ifndef EASYCAP_IS_VIDEODEV_CLIENT
+		if (0 != (usb_register_dev(pusb_interface, &easycap_class))) {
+			err("Not able to get a minor for this device");
+			usb_set_intfdata(pusb_interface, NULL);
+			return -ENODEV;
+		} else {
+			(peasycap->registered_video)++;
+			SAM("easycap attached to minor #%d\n", pusb_interface->minor);
+			peasycap->minor = pusb_interface->minor;
+			break;
+		}
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#else
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
+		if (0 != (v4l2_device_register(&(pusb_interface->dev),
+							&(peasycap->v4l2_device)))) {
+			SAM("v4l2_device_register() failed\n");
+			return -ENODEV;
+		} else {
+			JOM(4, "registered device instance: %s\n",
+						&(peasycap->v4l2_device.name[0]));
+		}
+/*---------------------------------------------------------------------------*/
+/*
+ *                                 FIXME
+ *
+ *
+ *  THIS IS BELIEVED TO BE HARMLESS, BUT MAY WELL BE UNNECESSARY OR WRONG:
+*/
+/*---------------------------------------------------------------------------*/
+		peasycap->video_device.v4l2_dev = NULL;
+/*---------------------------------------------------------------------------*/
+
+#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
+
+		strcpy(&peasycap->video_device.name[0], "easycapdc60");
+#ifdef EASYCAP_NEEDS_V4L2_FOPS
+		peasycap->video_device.fops = &v4l2_fops;
+#else
+		peasycap->video_device.fops = &easycap_fops;
+#endif /*EASYCAP_NEEDS_V4L2_FOPS*/
+		peasycap->video_device.minor = -1;
+		peasycap->video_device.release = (void *)(&videodev_release);
+
+		video_set_drvdata(&(peasycap->video_device), (void *)peasycap);
+
+		if (0 != (video_register_device(&(peasycap->video_device),
+							VFL_TYPE_GRABBER, -1))) {
+			err("Not able to register with videodev");
+			videodev_release(&(peasycap->video_device));
+			return -ENODEV;
+		} else {
+			(peasycap->registered_video)++;
+			SAM("registered with videodev: %i=minor\n",
+							peasycap->video_device.minor);
+			peasycap->minor = peasycap->video_device.minor;
+		}
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
+		break;
+}
+/*--------------------------------------------------------------------------*/
+/*
+ *  INTERFACE 1 IS THE AUDIO CONTROL INTERFACE
+ *  INTERFACE 2 IS THE AUDIO STREAMING INTERFACE
+ */
+/*--------------------------------------------------------------------------*/
+	case 1: {
+#ifdef EASYCAP_SILENT
+		return -ENOENT;
+#endif /*EASYCAP_SILENT*/
+		if (!peasycap) {
+			SAM("MISTAKE: peasycap is NULL\n");
+			return -EFAULT;
+		}
+/*--------------------------------------------------------------------------*/
+/*
+ *  SAVE POINTER peasycap IN INTERFACE 1
+ */
+/*--------------------------------------------------------------------------*/
+		usb_set_intfdata(pusb_interface, peasycap);
+		JOM(4, "no initialization required for interface %i\n",
+					pusb_interface_descriptor->bInterfaceNumber);
+		break;
+	}
+	/*--------------------------------------------------------------------------*/
+	case 2: {
+#ifdef EASYCAP_SILENT
+		return -ENOENT;
+#endif /*EASYCAP_SILENT*/
+		if (!peasycap) {
+			SAM("MISTAKE: peasycap is NULL\n");
+			return -EFAULT;
+		}
+		if (!isokalt) {
+			SAM("ERROR:  no viable audio_altsetting_on\n");
+			return -ENOENT;
+		} else {
+			peasycap->audio_altsetting_on = okalt[isokalt - 1];
+			JOM(4, "%i=audio_altsetting_on <====\n",
+							peasycap->audio_altsetting_on);
+		}
+
+		peasycap->audio_endpointnumber = okepn[isokalt - 1];
+		JOM(4, "%i=audio_endpointnumber\n", peasycap->audio_endpointnumber);
+
+		peasycap->audio_isoc_maxframesize = okmps[isokalt - 1];
+		JOM(4, "%i=audio_isoc_maxframesize\n",
+						peasycap->audio_isoc_maxframesize);
+		if (0 >= peasycap->audio_isoc_maxframesize) {
+			SAM("ERROR:  bad audio_isoc_maxframesize\n");
+			return -ENOENT;
+		}
+		if (9 == peasycap->audio_isoc_maxframesize) {
+			peasycap->ilk |= 0x02;
+			SAM("audio hardware is microphone\n");
+			peasycap->microphone = true;
+			peasycap->audio_pages_per_fragment = PAGES_PER_AUDIO_FRAGMENT;
+		} else if (256 == peasycap->audio_isoc_maxframesize) {
+			peasycap->ilk &= ~0x02;
+			SAM("audio hardware is AC'97\n");
+			peasycap->microphone = false;
+			peasycap->audio_pages_per_fragment = PAGES_PER_AUDIO_FRAGMENT;
+		} else {
+			SAM("hardware is unidentified:\n");
+			SAM("%i=audio_isoc_maxframesize\n",
+						peasycap->audio_isoc_maxframesize);
+			return -ENOENT;
+		}
+
+		peasycap->audio_bytes_per_fragment =
+						peasycap->audio_pages_per_fragment *
+									PAGE_SIZE ;
+		peasycap->audio_buffer_page_many = (AUDIO_FRAGMENT_MANY *
+						peasycap->audio_pages_per_fragment);
+
+		JOM(4, "%6i=AUDIO_FRAGMENT_MANY\n", AUDIO_FRAGMENT_MANY);
+		JOM(4, "%6i=audio_pages_per_fragment\n",
+						peasycap->audio_pages_per_fragment);
+		JOM(4, "%6i=audio_bytes_per_fragment\n",
+						peasycap->audio_bytes_per_fragment);
+		JOM(4, "%6i=audio_buffer_page_many\n",
+						peasycap->audio_buffer_page_many);
+
+		peasycap->audio_isoc_framesperdesc = AUDIO_ISOC_FRAMESPERDESC;
+
+		JOM(4, "%i=audio_isoc_framesperdesc\n",
+						peasycap->audio_isoc_framesperdesc);
+		if (0 >= peasycap->audio_isoc_framesperdesc) {
+			SAM("ERROR:  bad audio_isoc_framesperdesc\n");
+			return -ENOENT;
+		}
+
+		peasycap->audio_isoc_buffer_size =
+					peasycap->audio_isoc_maxframesize *
+					peasycap->audio_isoc_framesperdesc;
+		JOM(4, "%i=audio_isoc_buffer_size\n",
+						peasycap->audio_isoc_buffer_size);
+		if (AUDIO_ISOC_BUFFER_SIZE < peasycap->audio_isoc_buffer_size) {
+				SAM("MISTAKE:  audio_isoc_buffer_size bigger "
+				"than %li=AUDIO_ISOC_BUFFER_SIZE\n",
+							AUDIO_ISOC_BUFFER_SIZE);
+			return -EFAULT;
+		}
+		if (-1 == peasycap->audio_interface) {
+			SAM("MISTAKE:  audio_interface is unset\n");
+			return -EFAULT;
+		}
+		if (-1 == peasycap->audio_altsetting_on) {
+			SAM("MISTAKE:  audio_altsetting_on is unset\n");
+			return -EFAULT;
+		}
+		if (-1 == peasycap->audio_altsetting_off) {
+			SAM("MISTAKE:  audio_interface_off is unset\n");
+			return -EFAULT;
+		}
+		if (-1 == peasycap->audio_endpointnumber) {
+			SAM("MISTAKE:  audio_endpointnumber is unset\n");
+			return -EFAULT;
+		}
+		if (-1 == peasycap->audio_isoc_maxframesize) {
+			SAM("MISTAKE:  audio_isoc_maxframesize is unset\n");
+			return -EFAULT;
+		}
+		if (-1 == peasycap->audio_isoc_buffer_size) {
+			SAM("MISTAKE:  audio_isoc_buffer_size is unset\n");
+			return -EFAULT;
+		}
+/*---------------------------------------------------------------------------*/
+/*
+ *  ALLOCATE MEMORY FOR AUDIO BUFFERS.  LISTS MUST BE INITIALIZED FIRST.
+ */
+/*---------------------------------------------------------------------------*/
+		INIT_LIST_HEAD(&(peasycap->urb_audio_head));
+		peasycap->purb_audio_head = &(peasycap->urb_audio_head);
+
+#ifdef CONFIG_EASYCAP_OSS
+		JOM(4, "allocating an audio buffer\n");
+		JOM(4, ".... scattered over %i pages\n",
+						peasycap->audio_buffer_page_many);
+
+		for (k = 0;  k < peasycap->audio_buffer_page_many;  k++) {
+			if (NULL != peasycap->audio_buffer[k].pgo) {
+				SAM("ERROR: attempting to reallocate audio buffers\n");
+			} else {
+				pbuf = (void *) __get_free_page(GFP_KERNEL);
+				if (NULL == pbuf) {
+					SAM("ERROR: Could not allocate audio "
+								"buffer page %i\n", k);
+					return -ENOMEM;
+				} else
+					peasycap->allocation_audio_page += 1;
+
+				peasycap->audio_buffer[k].pgo = pbuf;
+			}
+			peasycap->audio_buffer[k].pto = peasycap->audio_buffer[k].pgo;
+		}
+
+		peasycap->audio_fill = 0;
+		peasycap->audio_read = 0;
+		JOM(4, "allocation of audio buffer done:  %i pages\n", k);
+#endif /* CONFIG_EASYCAP_OSS */
+/*---------------------------------------------------------------------------*/
+		JOM(4, "allocating %i isoc audio buffers of size %i\n",
+			AUDIO_ISOC_BUFFER_MANY, peasycap->audio_isoc_buffer_size);
+		JOM(4, ".... each occupying contiguous memory pages\n");
+
+		for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY;  k++) {
+			pbuf = (void *)__get_free_pages(GFP_KERNEL, AUDIO_ISOC_ORDER);
+			if (NULL == pbuf) {
+				SAM("ERROR: Could not allocate isoc audio buffer "
+								"%i\n", k);
+				return -ENOMEM;
+			} else
+				peasycap->allocation_audio_page +=
+					((unsigned int)(0x01 << AUDIO_ISOC_ORDER));
+
+			peasycap->audio_isoc_buffer[k].pgo = pbuf;
+			peasycap->audio_isoc_buffer[k].pto = pbuf +
+			peasycap->audio_isoc_buffer_size;
+			peasycap->audio_isoc_buffer[k].kount = k;
+		}
+		JOM(4, "allocation of isoc audio buffers done.\n");
+/*---------------------------------------------------------------------------*/
+/*
+ *  ALLOCATE AND INITIALIZE MULTIPLE struct urb ...
+ */
+/*---------------------------------------------------------------------------*/
+		JOM(4, "allocating %i struct urb.\n", AUDIO_ISOC_BUFFER_MANY);
+		JOM(4, "using %i=peasycap->audio_isoc_framesperdesc\n",
+						peasycap->audio_isoc_framesperdesc);
+		JOM(4, "using %i=peasycap->audio_isoc_maxframesize\n",
+						peasycap->audio_isoc_maxframesize);
+		JOM(4, "using %i=peasycap->audio_isoc_buffer_size\n",
+						peasycap->audio_isoc_buffer_size);
+
+		for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY; k++) {
+			purb = usb_alloc_urb(peasycap->audio_isoc_framesperdesc,
+									GFP_KERNEL);
+			if (NULL == purb) {
+				SAM("ERROR: usb_alloc_urb returned NULL for buffer "
+								"%i\n", k);
+				return -ENOMEM;
+			} else
+				peasycap->allocation_audio_urb += 1 ;
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+			pdata_urb = kzalloc(sizeof(struct data_urb), GFP_KERNEL);
+			if (NULL == pdata_urb) {
+				SAM("ERROR: Could not allocate struct data_urb.\n");
+				return -ENOMEM;
+			} else
+				peasycap->allocation_audio_struct +=
+							sizeof(struct data_urb);
+
+			pdata_urb->purb = purb;
+			pdata_urb->isbuf = k;
+			pdata_urb->length = 0;
+			list_add_tail(&(pdata_urb->list_head),
+							peasycap->purb_audio_head);
+/*---------------------------------------------------------------------------*/
+/*
+ *  ... AND INITIALIZE THEM
+ */
+/*---------------------------------------------------------------------------*/
+			if (!k) {
+				JOM(4, "initializing audio urbs thus:\n");
+				JOM(4, "  purb->interval = 1;\n");
+				JOM(4, "  purb->dev = peasycap->pusb_device;\n");
+				JOM(4, "  purb->pipe = usb_rcvisocpipe(peasycap->"
+						"pusb_device,%i);\n",
+						peasycap->audio_endpointnumber);
+				JOM(4, "  purb->transfer_flags = URB_ISO_ASAP;\n");
+				JOM(4, "  purb->transfer_buffer = "
+					"peasycap->audio_isoc_buffer[.].pgo;\n");
+				JOM(4, "  purb->transfer_buffer_length = %i;\n",
+						peasycap->audio_isoc_buffer_size);
+#ifdef CONFIG_EASYCAP_OSS
+				JOM(4, "  purb->complete = easyoss_complete;\n");
+#else /* CONFIG_EASYCAP_OSS */
+				JOM(4, "  purb->complete = easycap_alsa_complete;\n");
+#endif /* CONFIG_EASYCAP_OSS */
+				JOM(4, "  purb->context = peasycap;\n");
+				JOM(4, "  purb->start_frame = 0;\n");
+				JOM(4, "  purb->number_of_packets = %i;\n",
+						peasycap->audio_isoc_framesperdesc);
+				JOM(4, "  for (j = 0; j < %i; j++)\n",
+						peasycap->audio_isoc_framesperdesc);
+				JOM(4, "    {\n");
+				JOM(4, "    purb->iso_frame_desc[j].offset = j*%i;\n",
+						peasycap->audio_isoc_maxframesize);
+				JOM(4, "    purb->iso_frame_desc[j].length = %i;\n",
+						peasycap->audio_isoc_maxframesize);
+				JOM(4, "    }\n");
+				}
+
+			purb->interval = 1;
+			purb->dev = peasycap->pusb_device;
+			purb->pipe = usb_rcvisocpipe(peasycap->pusb_device,
+						peasycap->audio_endpointnumber);
+			purb->transfer_flags = URB_ISO_ASAP;
+			purb->transfer_buffer = peasycap->audio_isoc_buffer[k].pgo;
+			purb->transfer_buffer_length =
+						peasycap->audio_isoc_buffer_size;
+#ifdef CONFIG_EASYCAP_OSS
+			purb->complete = easyoss_complete;
+#else /* CONFIG_EASYCAP_OSS */
+			purb->complete = easycap_alsa_complete;
+#endif /* CONFIG_EASYCAP_OSS */
+			purb->context = peasycap;
+			purb->start_frame = 0;
+			purb->number_of_packets = peasycap->audio_isoc_framesperdesc;
+			for (j = 0;  j < peasycap->audio_isoc_framesperdesc; j++) {
+				purb->iso_frame_desc[j].offset = j *
+						peasycap->audio_isoc_maxframesize;
+				purb->iso_frame_desc[j].length =
+						peasycap->audio_isoc_maxframesize;
+			}
+		}
+		JOM(4, "allocation of %i struct urb done.\n", k);
+/*---------------------------------------------------------------------------*/
+/*
+ *  SAVE POINTER peasycap IN THIS INTERFACE.
+ */
+/*---------------------------------------------------------------------------*/
+		usb_set_intfdata(pusb_interface, peasycap);
+/*---------------------------------------------------------------------------*/
+/*
+ *  THE AUDIO DEVICE CAN BE REGISTERED NOW, AS IT IS READY.
+ */
+/*---------------------------------------------------------------------------*/
+#ifndef CONFIG_EASYCAP_OSS
+		JOM(4, "initializing ALSA card\n");
+
+		rc = easycap_alsa_probe(peasycap);
+		if (rc) {
+			err("easycap_alsa_probe() returned %i\n", rc);
+			return -ENODEV;
+		} else {
+			JOM(8, "kref_get() with %i=peasycap->kref.refcount.counter\n",
+						(int)peasycap->kref.refcount.counter);
+			kref_get(&peasycap->kref);
+			(peasycap->registered_audio)++;
+		}
+
+#else /* CONFIG_EASYCAP_OSS */
+		rc = usb_register_dev(pusb_interface, &easyoss_class);
+		if (rc) {
+			SAY("ERROR: usb_register_dev() failed\n");
+			usb_set_intfdata(pusb_interface, NULL);
+			return -ENODEV;
+		} else {
+			JOM(8, "kref_get() with %i=peasycap->kref.refcount.counter\n",
+						(int)peasycap->kref.refcount.counter);
+			kref_get(&peasycap->kref);
+			(peasycap->registered_audio)++;
+		}
+/*---------------------------------------------------------------------------*/
+/*
+ *  LET THE USER KNOW WHAT NODE THE AUDIO DEVICE IS ATTACHED TO.
+ */
+/*---------------------------------------------------------------------------*/
+		SAM("easyoss attached to minor #%d\n", pusb_interface->minor);
+#endif /* CONFIG_EASYCAP_OSS */
+
+		break;
+}
+/*---------------------------------------------------------------------------*/
+/*
+ *  INTERFACES OTHER THAN 0, 1 AND 2 ARE UNEXPECTED
+ */
+/*---------------------------------------------------------------------------*/
+		default: {
+			JOM(4, "ERROR: unexpected interface %i\n", bInterfaceNumber);
+			return -EINVAL;
+		}
+	}
+	SAM("ends successfully for interface %i\n",
+					pusb_interface_descriptor->bInterfaceNumber);
+	return 0;
+}
+/*****************************************************************************/
+/*---------------------------------------------------------------------------*/
+/*
+ *  WHEN THIS FUNCTION IS CALLED THE EasyCAP HAS ALREADY BEEN PHYSICALLY
+ *  UNPLUGGED.  HENCE peasycap->pusb_device IS NO LONGER VALID.
+ *
+ *  THIS FUNCTION AFFECTS BOTH OSS AND ALSA.  BEWARE.
+ */
+/*---------------------------------------------------------------------------*/
+static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
+{
+	struct usb_host_interface *pusb_host_interface;
+	struct usb_interface_descriptor *pusb_interface_descriptor;
+	u8 bInterfaceNumber;
+	struct easycap *peasycap;
+
+	struct list_head *plist_head;
+	struct data_urb *pdata_urb;
+	int minor, m, kd;
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
+#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
+	struct v4l2_device *pv4l2_device;
+#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
+	JOT(4, "\n");
+
+	if (NULL == pusb_interface) {
+		JOT(4, "ERROR: pusb_interface is NULL\n");
+		return;
+	}
+	pusb_host_interface = pusb_interface->cur_altsetting;
+	if (NULL == pusb_host_interface) {
+		JOT(4, "ERROR: pusb_host_interface is NULL\n");
+		return;
+	}
+	pusb_interface_descriptor = &(pusb_host_interface->desc);
+	if (NULL == pusb_interface_descriptor) {
+		JOT(4, "ERROR: pusb_interface_descriptor is NULL\n");
+		return;
+	}
+	bInterfaceNumber = pusb_interface_descriptor->bInterfaceNumber;
+	minor = pusb_interface->minor;
+	JOT(4, "intf[%i]: minor=%i\n", bInterfaceNumber, minor);
+
+	if (1 == bInterfaceNumber)
+		return;
+
+	peasycap = usb_get_intfdata(pusb_interface);
+	if (NULL == peasycap) {
+		SAY("ERROR: peasycap is NULL\n");
+		return;
+	}
+/*---------------------------------------------------------------------------*/
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
 #ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 /*---------------------------------------------------------------------------*/
 /*
@@ -3570,1112 +4609,73 @@ if (0 == bInterfaceNumber) {
 		pv4l2_device = usb_get_intfdata(pusb_interface);
 		if (NULL == pv4l2_device) {
 			SAY("ERROR: pv4l2_device is NULL\n");
-			return -ENODEV;
+			return;
 		}
 		peasycap = (struct easycap *)
 			container_of(pv4l2_device, struct easycap, v4l2_device);
 	}
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-}
-/*---------------------------------------------------------------------------*/
-if ((USB_CLASS_VIDEO == bInterfaceClass) ||
-		(USB_CLASS_VENDOR_SPEC == bInterfaceClass)) {
-	if (-1 == peasycap->video_interface) {
-		peasycap->video_interface = bInterfaceNumber;
-		JOM(4, "setting peasycap->video_interface=%i\n",
-						peasycap->video_interface);
-	} else {
-		if (peasycap->video_interface != bInterfaceNumber) {
-			SAM("ERROR: attempting to reset "
-					"peasycap->video_interface\n");
-			SAM("...... continuing with "
-					"%i=peasycap->video_interface\n",
-					peasycap->video_interface);
-		}
-	}
-} else if ((USB_CLASS_AUDIO == bInterfaceClass) &&
-						(0x02 == bInterfaceSubClass)) {
-	if (-1 == peasycap->audio_interface) {
-		peasycap->audio_interface = bInterfaceNumber;
-		JOM(4, "setting peasycap->audio_interface=%i\n",
-						 peasycap->audio_interface);
-	} else {
-		if (peasycap->audio_interface != bInterfaceNumber) {
-			SAM("ERROR: attempting to reset "
-					"peasycap->audio_interface\n");
-			SAM("...... continuing with "
-					"%i=peasycap->audio_interface\n",
-					peasycap->audio_interface);
-		}
-	}
-}
-/*---------------------------------------------------------------------------*/
-/*
- *  INVESTIGATE ALL ALTSETTINGS.
- *  DONE IN DETAIL BECAUSE USB DEVICE 05e1:0408 HAS DISPARATE INCARNATIONS.
- */
-/*---------------------------------------------------------------------------*/
-isokalt = 0;
-
-for (i = 0; i < pusb_interface->num_altsetting; i++) {
-	pusb_host_interface = &(pusb_interface->altsetting[i]);
-	if (NULL == pusb_host_interface) {
-		SAM("ERROR: pusb_host_interface is NULL\n");
-		return -EFAULT;
-	}
-	pusb_interface_descriptor = &(pusb_host_interface->desc);
-	if (NULL == pusb_interface_descriptor) {
-		SAM("ERROR: pusb_interface_descriptor is NULL\n");
-		return -EFAULT;
-	}
-
-	JOM(4, "intf[%i]alt[%i]: desc.bDescriptorType=0x%02X\n",
-	bInterfaceNumber, i, pusb_interface_descriptor->bDescriptorType);
-	JOM(4, "intf[%i]alt[%i]: desc.bInterfaceNumber=0x%02X\n",
-	bInterfaceNumber, i, pusb_interface_descriptor->bInterfaceNumber);
-	JOM(4, "intf[%i]alt[%i]: desc.bAlternateSetting=0x%02X\n",
-	bInterfaceNumber, i, pusb_interface_descriptor->bAlternateSetting);
-	JOM(4, "intf[%i]alt[%i]: desc.bNumEndpoints=0x%02X\n",
-	bInterfaceNumber, i, pusb_interface_descriptor->bNumEndpoints);
-	JOM(4, "intf[%i]alt[%i]: desc.bInterfaceClass=0x%02X\n",
-	bInterfaceNumber, i, pusb_interface_descriptor->bInterfaceClass);
-	JOM(4, "intf[%i]alt[%i]: desc.bInterfaceSubClass=0x%02X\n",
-	bInterfaceNumber, i, pusb_interface_descriptor->bInterfaceSubClass);
-	JOM(4, "intf[%i]alt[%i]: desc.bInterfaceProtocol=0x%02X\n",
-	bInterfaceNumber, i, pusb_interface_descriptor->bInterfaceProtocol);
-	JOM(4, "intf[%i]alt[%i]: desc.iInterface=0x%02X\n",
-	bInterfaceNumber, i, pusb_interface_descriptor->iInterface);
-
-	ISOCwMaxPacketSize = -1;
-	BULKwMaxPacketSize = -1;
-	INTwMaxPacketSize = -1;
-	CTRLwMaxPacketSize = -1;
-	ISOCbEndpointAddress = 0;
-	INTbEndpointAddress = 0;
-
-	if (0 == pusb_interface_descriptor->bNumEndpoints)
-				JOM(4, "intf[%i]alt[%i] has no endpoints\n",
-							bInterfaceNumber, i);
-/*---------------------------------------------------------------------------*/
-	for (j = 0; j < pusb_interface_descriptor->bNumEndpoints; j++) {
-		pepd = &(pusb_host_interface->endpoint[j].desc);
-		if (NULL == pepd) {
-			SAM("ERROR:  pepd is NULL.\n");
-			SAM("...... skipping\n");
-			continue;
-		}
-		wMaxPacketSize = le16_to_cpu(pepd->wMaxPacketSize);
-		bEndpointAddress = pepd->bEndpointAddress;
-
-		JOM(4, "intf[%i]alt[%i]end[%i]: bEndpointAddress=0x%X\n",
-				bInterfaceNumber, i, j,
-				pepd->bEndpointAddress);
-		JOM(4, "intf[%i]alt[%i]end[%i]: bmAttributes=0x%X\n",
-				bInterfaceNumber, i, j,
-				pepd->bmAttributes);
-		JOM(4, "intf[%i]alt[%i]end[%i]: wMaxPacketSize=%i\n",
-				bInterfaceNumber, i, j,
-				pepd->wMaxPacketSize);
-		JOM(4, "intf[%i]alt[%i]end[%i]: bInterval=%i\n",
-				bInterfaceNumber, i, j,
-				pepd->bInterval);
-
-		if (pepd->bEndpointAddress & USB_DIR_IN) {
-			JOM(4, "intf[%i]alt[%i]end[%i] is an  IN  endpoint\n",
-						bInterfaceNumber, i, j);
-			isin = 1;
-		} else {
-			JOM(4, "intf[%i]alt[%i]end[%i] is an  OUT endpoint\n",
-						bInterfaceNumber, i, j);
-			SAM("ERROR: OUT endpoint unexpected\n");
-			SAM("...... continuing\n");
-			isin = 0;
-		}
-		if ((pepd->bmAttributes &
-				USB_ENDPOINT_XFERTYPE_MASK) ==
-				USB_ENDPOINT_XFER_ISOC) {
-			JOM(4, "intf[%i]alt[%i]end[%i] is an ISOC endpoint\n",
-						bInterfaceNumber, i, j);
-			if (isin) {
-				switch (bInterfaceClass) {
-				case USB_CLASS_VIDEO:
-				case USB_CLASS_VENDOR_SPEC: {
-					if (!peasycap) {
-						SAM("MISTAKE: "
-							"peasycap is NULL\n");
-						return -EFAULT;
-					}
-					if (pepd->wMaxPacketSize) {
-						if (8 > isokalt) {
-							okalt[isokalt] = i;
-							JOM(4,
-							"%i=okalt[%i]\n",
-							okalt[isokalt],
-							isokalt);
-							okepn[isokalt] =
-							pepd->
-							bEndpointAddress &
-							0x0F;
-							JOM(4,
-							"%i=okepn[%i]\n",
-							okepn[isokalt],
-							isokalt);
-							okmps[isokalt] =
-							le16_to_cpu(pepd->
-							wMaxPacketSize);
-							JOM(4,
-							"%i=okmps[%i]\n",
-							okmps[isokalt],
-							isokalt);
-							isokalt++;
-						}
-					} else {
-						if (-1 == peasycap->
-							video_altsetting_off) {
-							peasycap->
-							video_altsetting_off =
-									 i;
-							JOM(4, "%i=video_"
-							"altsetting_off "
-								"<====\n",
-							peasycap->
-							video_altsetting_off);
-						} else {
-							SAM("ERROR: peasycap"
-							"->video_altsetting_"
-							"off already set\n");
-							SAM("...... "
-							"continuing with "
-							"%i=peasycap->video_"
-							"altsetting_off\n",
-							peasycap->
-							video_altsetting_off);
-						}
-					}
-					break;
-				}
-				case USB_CLASS_AUDIO: {
-					if (0x02 != bInterfaceSubClass)
-						break;
-					if (!peasycap) {
-						SAM("MISTAKE: "
-						"peasycap is NULL\n");
-						return -EFAULT;
-					}
-					if (pepd->wMaxPacketSize) {
-						if (8 > isokalt) {
-							okalt[isokalt] = i ;
-							JOM(4,
-							"%i=okalt[%i]\n",
-							okalt[isokalt],
-							isokalt);
-							okepn[isokalt] =
-							pepd->
-							bEndpointAddress &
-							0x0F;
-							JOM(4,
-							"%i=okepn[%i]\n",
-							okepn[isokalt],
-							isokalt);
-							okmps[isokalt] =
-							le16_to_cpu(pepd->
-							wMaxPacketSize);
-							JOM(4,
-							"%i=okmps[%i]\n",
-							okmps[isokalt],
-							isokalt);
-							isokalt++;
-						}
-					} else {
-						if (-1 == peasycap->
-							audio_altsetting_off) {
-							peasycap->
-							audio_altsetting_off =
-									 i;
-							JOM(4, "%i=audio_"
-							"altsetting_off "
-							"<====\n",
-							peasycap->
-							audio_altsetting_off);
-						} else {
-							SAM("ERROR: peasycap"
-							"->audio_altsetting_"
-							"off already set\n");
-							SAM("...... "
-							"continuing with "
-							"%i=peasycap->"
-							"audio_altsetting_"
-							"off\n",
-							peasycap->
-							audio_altsetting_off);
-						}
-					}
-				break;
-				}
-				default:
-					break;
-				}
-			}
-		} else if ((pepd->bmAttributes &
-						USB_ENDPOINT_XFERTYPE_MASK) ==
-						USB_ENDPOINT_XFER_BULK) {
-			JOM(4, "intf[%i]alt[%i]end[%i] is a  BULK endpoint\n",
-						bInterfaceNumber, i, j);
-		} else if ((pepd->bmAttributes &
-						USB_ENDPOINT_XFERTYPE_MASK) ==
-						USB_ENDPOINT_XFER_INT) {
-			JOM(4, "intf[%i]alt[%i]end[%i] is an  INT endpoint\n",
-						bInterfaceNumber, i, j);
-		} else {
-			JOM(4, "intf[%i]alt[%i]end[%i] is a  CTRL endpoint\n",
-						bInterfaceNumber, i, j);
-		}
-		if (0 == pepd->wMaxPacketSize) {
-			JOM(4, "intf[%i]alt[%i]end[%i] "
-						"has zero packet size\n",
-						bInterfaceNumber, i, j);
-		}
-	}
-}
-/*---------------------------------------------------------------------------*/
-/*
- *  PERFORM INITIALIZATION OF THE PROBED INTERFACE
- */
-/*---------------------------------------------------------------------------*/
-JOM(4, "initialization begins for interface %i\n",
-				pusb_interface_descriptor->bInterfaceNumber);
-switch (bInterfaceNumber) {
-/*---------------------------------------------------------------------------*/
-/*
- *  INTERFACE 0 IS THE VIDEO INTERFACE
- */
-/*---------------------------------------------------------------------------*/
-case 0: {
-	if (!peasycap) {
-		SAM("MISTAKE: peasycap is NULL\n");
-		return -EFAULT;
-	}
-	if (!isokalt) {
-		SAM("ERROR:  no viable video_altsetting_on\n");
-		return -ENOENT;
-	} else {
-		peasycap->video_altsetting_on = okalt[isokalt - 1];
-		JOM(4, "%i=video_altsetting_on <====\n",
-					peasycap->video_altsetting_on);
-	}
-/*---------------------------------------------------------------------------*/
-/*
- *  DECIDE THE VIDEO STREAMING PARAMETERS
- */
-/*---------------------------------------------------------------------------*/
-	peasycap->video_endpointnumber = okepn[isokalt - 1];
-	JOM(4, "%i=video_endpointnumber\n", peasycap->video_endpointnumber);
-	maxpacketsize = okmps[isokalt - 1];
-	if (USB_2_0_MAXPACKETSIZE > maxpacketsize) {
-		peasycap->video_isoc_maxframesize = maxpacketsize;
-	} else {
-		peasycap->video_isoc_maxframesize =
-						USB_2_0_MAXPACKETSIZE;
-	}
-	JOM(4, "%i=video_isoc_maxframesize\n",
-				peasycap->video_isoc_maxframesize);
-	if (0 >= peasycap->video_isoc_maxframesize) {
-		SAM("ERROR:  bad video_isoc_maxframesize\n");
-		SAM("        possibly because port is USB 1.1\n");
-		return -ENOENT;
-	}
-	peasycap->video_isoc_framesperdesc = VIDEO_ISOC_FRAMESPERDESC;
-	JOM(4, "%i=video_isoc_framesperdesc\n",
-				peasycap->video_isoc_framesperdesc);
-	if (0 >= peasycap->video_isoc_framesperdesc) {
-		SAM("ERROR:  bad video_isoc_framesperdesc\n");
-		return -ENOENT;
-	}
-	peasycap->video_isoc_buffer_size =
-				peasycap->video_isoc_maxframesize *
-				peasycap->video_isoc_framesperdesc;
-	JOM(4, "%i=video_isoc_buffer_size\n",
-				peasycap->video_isoc_buffer_size);
-	if ((PAGE_SIZE << VIDEO_ISOC_ORDER) <
-				peasycap->video_isoc_buffer_size) {
-		SAM("MISTAKE: peasycap->video_isoc_buffer_size too big\n");
-		return -EFAULT;
-	}
-/*---------------------------------------------------------------------------*/
-	if (-1 == peasycap->video_interface) {
-		SAM("MISTAKE:  video_interface is unset\n");
-		return -EFAULT;
-	}
-	if (-1 == peasycap->video_altsetting_on) {
-		SAM("MISTAKE:  video_altsetting_on is unset\n");
-		return -EFAULT;
-	}
-	if (-1 == peasycap->video_altsetting_off) {
-		SAM("MISTAKE:  video_interface_off is unset\n");
-		return -EFAULT;
-	}
-	if (-1 == peasycap->video_endpointnumber) {
-		SAM("MISTAKE:  video_endpointnumber is unset\n");
-		return -EFAULT;
-	}
-	if (-1 == peasycap->video_isoc_maxframesize) {
-		SAM("MISTAKE:  video_isoc_maxframesize is unset\n");
-		return -EFAULT;
-	}
-	if (-1 == peasycap->video_isoc_buffer_size) {
-		SAM("MISTAKE:  video_isoc_buffer_size is unset\n");
-		return -EFAULT;
-	}
-/*---------------------------------------------------------------------------*/
-/*
- *  ALLOCATE MEMORY FOR VIDEO BUFFERS.  LISTS MUST BE INITIALIZED FIRST.
- */
-/*---------------------------------------------------------------------------*/
-	INIT_LIST_HEAD(&(peasycap->urb_video_head));
-	peasycap->purb_video_head = &(peasycap->urb_video_head);
-/*---------------------------------------------------------------------------*/
-	JOM(4, "allocating %i frame buffers of size %li\n",
-			FRAME_BUFFER_MANY, (long int)FRAME_BUFFER_SIZE);
-	JOM(4, ".... each scattered over %li pages\n",
-						FRAME_BUFFER_SIZE/PAGE_SIZE);
-
-	for (k = 0;  k < FRAME_BUFFER_MANY;  k++) {
-		for (m = 0;  m < FRAME_BUFFER_SIZE/PAGE_SIZE;  m++) {
-			if (NULL != peasycap->frame_buffer[k][m].pgo)
-				SAM("attempting to reallocate frame "
-								" buffers\n");
-			else {
-				pbuf = (void *)__get_free_page(GFP_KERNEL);
-				if (NULL == pbuf) {
-					SAM("ERROR: Could not allocate frame "
-						"buffer %i page %i\n", k, m);
-					return -ENOMEM;
-				} else
-					peasycap->allocation_video_page += 1;
-				peasycap->frame_buffer[k][m].pgo = pbuf;
-			}
-			peasycap->frame_buffer[k][m].pto =
-					peasycap->frame_buffer[k][m].pgo;
-		}
-	}
-
-	peasycap->frame_fill = 0;
-	peasycap->frame_read = 0;
-	JOM(4, "allocation of frame buffers done:  %i pages\n", k *
-								m);
-/*---------------------------------------------------------------------------*/
-	JOM(4, "allocating %i field buffers of size %li\n",
-			FIELD_BUFFER_MANY, (long int)FIELD_BUFFER_SIZE);
-	JOM(4, ".... each scattered over %li pages\n",
-					FIELD_BUFFER_SIZE/PAGE_SIZE);
-
-	for (k = 0;  k < FIELD_BUFFER_MANY;  k++) {
-		for (m = 0;  m < FIELD_BUFFER_SIZE/PAGE_SIZE;  m++) {
-			if (NULL != peasycap->field_buffer[k][m].pgo) {
-				SAM("ERROR: attempting to reallocate "
-							"field buffers\n");
-			} else {
-				pbuf = (void *) __get_free_page(GFP_KERNEL);
-				if (NULL == pbuf) {
-					SAM("ERROR: Could not allocate field"
-						" buffer %i page %i\n", k, m);
-					return -ENOMEM;
-					}
-				else
-					peasycap->allocation_video_page += 1;
-				peasycap->field_buffer[k][m].pgo = pbuf;
-				}
-			peasycap->field_buffer[k][m].pto =
-					peasycap->field_buffer[k][m].pgo;
-		}
-		peasycap->field_buffer[k][0].kount = 0x0200;
-	}
-	peasycap->field_fill = 0;
-	peasycap->field_page = 0;
-	peasycap->field_read = 0;
-	JOM(4, "allocation of field buffers done:  %i pages\n", k *
-								m);
-/*---------------------------------------------------------------------------*/
-	JOM(4, "allocating %i isoc video buffers of size %i\n",
-					VIDEO_ISOC_BUFFER_MANY,
-					peasycap->video_isoc_buffer_size);
-	JOM(4, ".... each occupying contiguous memory pages\n");
-
-	for (k = 0;  k < VIDEO_ISOC_BUFFER_MANY; k++) {
-		pbuf = (void *)__get_free_pages(GFP_KERNEL, VIDEO_ISOC_ORDER);
-		if (NULL == pbuf) {
-			SAM("ERROR: Could not allocate isoc video buffer "
-								"%i\n", k);
-			return -ENOMEM;
-		} else
-			peasycap->allocation_video_page +=
-				((unsigned int)(0x01 << VIDEO_ISOC_ORDER));
-
-		peasycap->video_isoc_buffer[k].pgo = pbuf;
-		peasycap->video_isoc_buffer[k].pto = pbuf +
-					peasycap->video_isoc_buffer_size;
-		peasycap->video_isoc_buffer[k].kount = k;
-	}
-	JOM(4, "allocation of isoc video buffers done: %i pages\n",
-					k * (0x01 << VIDEO_ISOC_ORDER));
-/*---------------------------------------------------------------------------*/
-/*
- *  ALLOCATE AND INITIALIZE MULTIPLE struct urb ...
- */
-/*---------------------------------------------------------------------------*/
-	JOM(4, "allocating %i struct urb.\n", VIDEO_ISOC_BUFFER_MANY);
-	JOM(4, "using %i=peasycap->video_isoc_framesperdesc\n",
-					peasycap->video_isoc_framesperdesc);
-	JOM(4, "using %i=peasycap->video_isoc_maxframesize\n",
-					peasycap->video_isoc_maxframesize);
-	JOM(4, "using %i=peasycap->video_isoc_buffer_sizen",
-					peasycap->video_isoc_buffer_size);
-
-	for (k = 0;  k < VIDEO_ISOC_BUFFER_MANY; k++) {
-		purb = usb_alloc_urb(peasycap->video_isoc_framesperdesc,
-								GFP_KERNEL);
-		if (NULL == purb) {
-			SAM("ERROR: usb_alloc_urb returned NULL for buffer "
-								"%i\n", k);
-			return -ENOMEM;
-		} else
-			peasycap->allocation_video_urb += 1;
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-		pdata_urb = kzalloc(sizeof(struct data_urb), GFP_KERNEL);
-		if (NULL == pdata_urb) {
-			SAM("ERROR: Could not allocate struct data_urb.\n");
-			return -ENOMEM;
-		} else
-			peasycap->allocation_video_struct +=
-						sizeof(struct data_urb);
-
-		pdata_urb->purb = purb;
-		pdata_urb->isbuf = k;
-		pdata_urb->length = 0;
-		list_add_tail(&(pdata_urb->list_head),
-						peasycap->purb_video_head);
-/*---------------------------------------------------------------------------*/
-/*
- *  ... AND INITIALIZE THEM
- */
-/*---------------------------------------------------------------------------*/
-		if (!k) {
-			JOM(4, "initializing video urbs thus:\n");
-			JOM(4, "  purb->interval = 1;\n");
-			JOM(4, "  purb->dev = peasycap->pusb_device;\n");
-			JOM(4, "  purb->pipe = usb_rcvisocpipe"
-					"(peasycap->pusb_device,%i);\n",
-					peasycap->video_endpointnumber);
-			JOM(4, "  purb->transfer_flags = URB_ISO_ASAP;\n");
-			JOM(4, "  purb->transfer_buffer = peasycap->"
-					"video_isoc_buffer[.].pgo;\n");
-			JOM(4, "  purb->transfer_buffer_length = %i;\n",
-					peasycap->video_isoc_buffer_size);
-			JOM(4, "  purb->complete = easycap_complete;\n");
-			JOM(4, "  purb->context = peasycap;\n");
-			JOM(4, "  purb->start_frame = 0;\n");
-			JOM(4, "  purb->number_of_packets = %i;\n",
-					peasycap->video_isoc_framesperdesc);
-			JOM(4, "  for (j = 0; j < %i; j++)\n",
-					peasycap->video_isoc_framesperdesc);
-			JOM(4, "    {\n");
-			JOM(4, "    purb->iso_frame_desc[j].offset = j*%i;\n",
-					peasycap->video_isoc_maxframesize);
-			JOM(4, "    purb->iso_frame_desc[j].length = %i;\n",
-					peasycap->video_isoc_maxframesize);
-			JOM(4, "    }\n");
-		}
-
-		purb->interval = 1;
-		purb->dev = peasycap->pusb_device;
-		purb->pipe = usb_rcvisocpipe(peasycap->pusb_device,
-					peasycap->video_endpointnumber);
-		purb->transfer_flags = URB_ISO_ASAP;
-		purb->transfer_buffer = peasycap->video_isoc_buffer[k].pgo;
-		purb->transfer_buffer_length =
-					peasycap->video_isoc_buffer_size;
-		purb->complete = easycap_complete;
-		purb->context = peasycap;
-		purb->start_frame = 0;
-		purb->number_of_packets = peasycap->video_isoc_framesperdesc;
-		for (j = 0;  j < peasycap->video_isoc_framesperdesc; j++) {
-			purb->iso_frame_desc[j].offset = j *
-					peasycap->video_isoc_maxframesize;
-			purb->iso_frame_desc[j].length =
-					peasycap->video_isoc_maxframesize;
-		}
-	}
-	JOM(4, "allocation of %i struct urb done.\n", k);
-/*--------------------------------------------------------------------------*/
-/*
- *  SAVE POINTER peasycap IN THIS INTERFACE.
- */
-/*--------------------------------------------------------------------------*/
-	usb_set_intfdata(pusb_interface, peasycap);
-/*---------------------------------------------------------------------------*/
-/*
- *  IT IS ESSENTIAL TO INITIALIZE THE HARDWARE BEFORE, RATHER THAN AFTER,
- *  THE DEVICE IS REGISTERED, BECAUSE SOME VERSIONS OF THE videodev MODULE
- *  CALL easycap_open() IMMEDIATELY AFTER REGISTRATION, CAUSING A CLASH.
- *  BEWARE.
-*/
-/*---------------------------------------------------------------------------*/
-#ifdef PREFER_NTSC
-	peasycap->ntsc = true;
-	JOM(8, "defaulting initially to NTSC\n");
-#else
-	peasycap->ntsc = false;
-	JOM(8, "defaulting initially to PAL\n");
-#endif /*PREFER_NTSC*/
-	rc = reset(peasycap);
-	if (rc) {
-		SAM("ERROR: reset() returned %i\n", rc);
-		return -EFAULT;
-	}
-/*--------------------------------------------------------------------------*/
-/*
- *  THE VIDEO DEVICE CAN BE REGISTERED NOW, AS IT IS READY.
- */
-/*--------------------------------------------------------------------------*/
-#ifndef EASYCAP_IS_VIDEODEV_CLIENT
-	if (0 != (usb_register_dev(pusb_interface, &easycap_class))) {
-		err("Not able to get a minor for this device");
-		usb_set_intfdata(pusb_interface, NULL);
-		return -ENODEV;
-	} else {
-		(peasycap->registered_video)++;
-		SAM("easycap attached to minor #%d\n", pusb_interface->minor);
-		peasycap->minor = pusb_interface->minor;
-		break;
-	}
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#else
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
-	if (0 != (v4l2_device_register(&(pusb_interface->dev),
-						&(peasycap->v4l2_device)))) {
-		SAM("v4l2_device_register() failed\n");
-		return -ENODEV;
-	} else {
-		JOM(4, "registered device instance: %s\n",
-					&(peasycap->v4l2_device.name[0]));
-	}
-/*---------------------------------------------------------------------------*/
-/*
- *                                 FIXME
- *
- *
- *  THIS IS BELIEVED TO BE HARMLESS, BUT MAY WELL BE UNNECESSARY OR WRONG:
-*/
-/*---------------------------------------------------------------------------*/
-	peasycap->video_device.v4l2_dev = NULL;
-/*---------------------------------------------------------------------------*/
-
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
-
-	strcpy(&peasycap->video_device.name[0], "easycapdc60");
-#ifdef EASYCAP_NEEDS_V4L2_FOPS
-	peasycap->video_device.fops = &v4l2_fops;
-#else
-	peasycap->video_device.fops = &easycap_fops;
-#endif /*EASYCAP_NEEDS_V4L2_FOPS*/
-	peasycap->video_device.minor = -1;
-	peasycap->video_device.release = (void *)(&videodev_release);
-
-	video_set_drvdata(&(peasycap->video_device), (void *)peasycap);
-
-	if (0 != (video_register_device(&(peasycap->video_device),
-						VFL_TYPE_GRABBER, -1))) {
-		err("Not able to register with videodev");
-		videodev_release(&(peasycap->video_device));
-		return -ENODEV;
-	} else {
-		(peasycap->registered_video)++;
-		SAM("registered with videodev: %i=minor\n",
-						peasycap->video_device.minor);
-		peasycap->minor = peasycap->video_device.minor;
-	}
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-
-	break;
-}
-/*--------------------------------------------------------------------------*/
-/*
- *  INTERFACE 1 IS THE AUDIO CONTROL INTERFACE
- *  INTERFACE 2 IS THE AUDIO STREAMING INTERFACE
- */
-/*--------------------------------------------------------------------------*/
-case 1: {
-#ifdef EASYCAP_SILENT
-	return -ENOENT;
-#endif /*EASYCAP_SILENT*/
-	if (!peasycap) {
-		SAM("MISTAKE: peasycap is NULL\n");
-		return -EFAULT;
-	}
-/*--------------------------------------------------------------------------*/
-/*
- *  SAVE POINTER peasycap IN INTERFACE 1
- */
-/*--------------------------------------------------------------------------*/
-	usb_set_intfdata(pusb_interface, peasycap);
-	JOM(4, "no initialization required for interface %i\n",
-				pusb_interface_descriptor->bInterfaceNumber);
-	break;
-}
-/*--------------------------------------------------------------------------*/
-case 2: {
-#ifdef EASYCAP_SILENT
-	return -ENOENT;
-#endif /*EASYCAP_SILENT*/
-	if (!peasycap) {
-		SAM("MISTAKE: peasycap is NULL\n");
-		return -EFAULT;
-	}
-	if (!isokalt) {
-		SAM("ERROR:  no viable audio_altsetting_on\n");
-		return -ENOENT;
-	} else {
-		peasycap->audio_altsetting_on = okalt[isokalt - 1];
-		JOM(4, "%i=audio_altsetting_on <====\n",
-						peasycap->audio_altsetting_on);
-	}
-
-	peasycap->audio_endpointnumber = okepn[isokalt - 1];
-	JOM(4, "%i=audio_endpointnumber\n", peasycap->audio_endpointnumber);
-
-	peasycap->audio_isoc_maxframesize = okmps[isokalt - 1];
-	JOM(4, "%i=audio_isoc_maxframesize\n",
-					peasycap->audio_isoc_maxframesize);
-	if (0 >= peasycap->audio_isoc_maxframesize) {
-		SAM("ERROR:  bad audio_isoc_maxframesize\n");
-		return -ENOENT;
-	}
-	if (9 == peasycap->audio_isoc_maxframesize) {
-		peasycap->ilk |= 0x02;
-		SAM("audio hardware is microphone\n");
-		peasycap->microphone = true;
-		peasycap->audio_pages_per_fragment = PAGES_PER_AUDIO_FRAGMENT;
-	} else if (256 == peasycap->audio_isoc_maxframesize) {
-		peasycap->ilk &= ~0x02;
-		SAM("audio hardware is AC'97\n");
-		peasycap->microphone = false;
-		peasycap->audio_pages_per_fragment = PAGES_PER_AUDIO_FRAGMENT;
-	} else {
-		SAM("hardware is unidentified:\n");
-		SAM("%i=audio_isoc_maxframesize\n",
-					peasycap->audio_isoc_maxframesize);
-		return -ENOENT;
-	}
-
-	peasycap->audio_bytes_per_fragment =
-					peasycap->audio_pages_per_fragment *
-								PAGE_SIZE ;
-	peasycap->audio_buffer_page_many = (AUDIO_FRAGMENT_MANY *
-					peasycap->audio_pages_per_fragment);
-
-	JOM(4, "%6i=AUDIO_FRAGMENT_MANY\n", AUDIO_FRAGMENT_MANY);
-	JOM(4, "%6i=audio_pages_per_fragment\n",
-					peasycap->audio_pages_per_fragment);
-	JOM(4, "%6i=audio_bytes_per_fragment\n",
-					peasycap->audio_bytes_per_fragment);
-	JOM(4, "%6i=audio_buffer_page_many\n",
-					peasycap->audio_buffer_page_many);
-
-	peasycap->audio_isoc_framesperdesc = AUDIO_ISOC_FRAMESPERDESC;
-
-	JOM(4, "%i=audio_isoc_framesperdesc\n",
-					peasycap->audio_isoc_framesperdesc);
-	if (0 >= peasycap->audio_isoc_framesperdesc) {
-		SAM("ERROR:  bad audio_isoc_framesperdesc\n");
-		return -ENOENT;
-	}
-
-	peasycap->audio_isoc_buffer_size =
-				peasycap->audio_isoc_maxframesize *
-				peasycap->audio_isoc_framesperdesc;
-	JOM(4, "%i=audio_isoc_buffer_size\n",
-					peasycap->audio_isoc_buffer_size);
-	if (AUDIO_ISOC_BUFFER_SIZE < peasycap->audio_isoc_buffer_size) {
-			SAM("MISTAKE:  audio_isoc_buffer_size bigger "
-			"than %li=AUDIO_ISOC_BUFFER_SIZE\n",
-						AUDIO_ISOC_BUFFER_SIZE);
-		return -EFAULT;
-	}
-	if (-1 == peasycap->audio_interface) {
-		SAM("MISTAKE:  audio_interface is unset\n");
-		return -EFAULT;
-	}
-	if (-1 == peasycap->audio_altsetting_on) {
-		SAM("MISTAKE:  audio_altsetting_on is unset\n");
-		return -EFAULT;
-	}
-	if (-1 == peasycap->audio_altsetting_off) {
-		SAM("MISTAKE:  audio_interface_off is unset\n");
-		return -EFAULT;
-	}
-	if (-1 == peasycap->audio_endpointnumber) {
-		SAM("MISTAKE:  audio_endpointnumber is unset\n");
-		return -EFAULT;
-	}
-	if (-1 == peasycap->audio_isoc_maxframesize) {
-		SAM("MISTAKE:  audio_isoc_maxframesize is unset\n");
-		return -EFAULT;
-	}
-	if (-1 == peasycap->audio_isoc_buffer_size) {
-		SAM("MISTAKE:  audio_isoc_buffer_size is unset\n");
-		return -EFAULT;
-	}
-/*---------------------------------------------------------------------------*/
-/*
- *  ALLOCATE MEMORY FOR AUDIO BUFFERS.  LISTS MUST BE INITIALIZED FIRST.
- */
-/*---------------------------------------------------------------------------*/
-	INIT_LIST_HEAD(&(peasycap->urb_audio_head));
-	peasycap->purb_audio_head = &(peasycap->urb_audio_head);
-
-#ifdef CONFIG_EASYCAP_OSS
-	JOM(4, "allocating an audio buffer\n");
-	JOM(4, ".... scattered over %i pages\n",
-					peasycap->audio_buffer_page_many);
-
-	for (k = 0;  k < peasycap->audio_buffer_page_many;  k++) {
-		if (NULL != peasycap->audio_buffer[k].pgo) {
-			SAM("ERROR: attempting to reallocate audio buffers\n");
-		} else {
-			pbuf = (void *) __get_free_page(GFP_KERNEL);
-			if (NULL == pbuf) {
-				SAM("ERROR: Could not allocate audio "
-							"buffer page %i\n", k);
-				return -ENOMEM;
-			} else
-				peasycap->allocation_audio_page += 1;
-
-			peasycap->audio_buffer[k].pgo = pbuf;
-		}
-		peasycap->audio_buffer[k].pto = peasycap->audio_buffer[k].pgo;
-	}
-
-	peasycap->audio_fill = 0;
-	peasycap->audio_read = 0;
-	JOM(4, "allocation of audio buffer done:  %i pages\n", k);
-#endif /* CONFIG_EASYCAP_OSS */
-/*---------------------------------------------------------------------------*/
-	JOM(4, "allocating %i isoc audio buffers of size %i\n",
-		AUDIO_ISOC_BUFFER_MANY, peasycap->audio_isoc_buffer_size);
-	JOM(4, ".... each occupying contiguous memory pages\n");
-
-	for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY;  k++) {
-		pbuf = (void *)__get_free_pages(GFP_KERNEL, AUDIO_ISOC_ORDER);
-		if (NULL == pbuf) {
-			SAM("ERROR: Could not allocate isoc audio buffer "
-							"%i\n", k);
-			return -ENOMEM;
-		} else
-			peasycap->allocation_audio_page +=
-				((unsigned int)(0x01 << AUDIO_ISOC_ORDER));
-
-		peasycap->audio_isoc_buffer[k].pgo = pbuf;
-		peasycap->audio_isoc_buffer[k].pto = pbuf +
-		peasycap->audio_isoc_buffer_size;
-		peasycap->audio_isoc_buffer[k].kount = k;
-	}
-	JOM(4, "allocation of isoc audio buffers done.\n");
-/*---------------------------------------------------------------------------*/
-/*
- *  ALLOCATE AND INITIALIZE MULTIPLE struct urb ...
- */
-/*---------------------------------------------------------------------------*/
-	JOM(4, "allocating %i struct urb.\n", AUDIO_ISOC_BUFFER_MANY);
-	JOM(4, "using %i=peasycap->audio_isoc_framesperdesc\n",
-					peasycap->audio_isoc_framesperdesc);
-	JOM(4, "using %i=peasycap->audio_isoc_maxframesize\n",
-					peasycap->audio_isoc_maxframesize);
-	JOM(4, "using %i=peasycap->audio_isoc_buffer_size\n",
-					peasycap->audio_isoc_buffer_size);
-
-	for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY; k++) {
-		purb = usb_alloc_urb(peasycap->audio_isoc_framesperdesc,
-								GFP_KERNEL);
-		if (NULL == purb) {
-			SAM("ERROR: usb_alloc_urb returned NULL for buffer "
-							"%i\n", k);
-			return -ENOMEM;
-		} else
-			peasycap->allocation_audio_urb += 1 ;
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-		pdata_urb = kzalloc(sizeof(struct data_urb), GFP_KERNEL);
-		if (NULL == pdata_urb) {
-			SAM("ERROR: Could not allocate struct data_urb.\n");
-			return -ENOMEM;
-		} else
-			peasycap->allocation_audio_struct +=
-						sizeof(struct data_urb);
-
-		pdata_urb->purb = purb;
-		pdata_urb->isbuf = k;
-		pdata_urb->length = 0;
-		list_add_tail(&(pdata_urb->list_head),
-						peasycap->purb_audio_head);
-/*---------------------------------------------------------------------------*/
-/*
- *  ... AND INITIALIZE THEM
- */
-/*---------------------------------------------------------------------------*/
-		if (!k) {
-			JOM(4, "initializing audio urbs thus:\n");
-			JOM(4, "  purb->interval = 1;\n");
-			JOM(4, "  purb->dev = peasycap->pusb_device;\n");
-			JOM(4, "  purb->pipe = usb_rcvisocpipe(peasycap->"
-					"pusb_device,%i);\n",
-					peasycap->audio_endpointnumber);
-			JOM(4, "  purb->transfer_flags = URB_ISO_ASAP;\n");
-			JOM(4, "  purb->transfer_buffer = "
-				"peasycap->audio_isoc_buffer[.].pgo;\n");
-			JOM(4, "  purb->transfer_buffer_length = %i;\n",
-					peasycap->audio_isoc_buffer_size);
-#ifdef CONFIG_EASYCAP_OSS
-			JOM(4, "  purb->complete = easyoss_complete;\n");
-#else /* CONFIG_EASYCAP_OSS */
-			JOM(4, "  purb->complete = easycap_alsa_complete;\n");
-#endif /* CONFIG_EASYCAP_OSS */
-			JOM(4, "  purb->context = peasycap;\n");
-			JOM(4, "  purb->start_frame = 0;\n");
-			JOM(4, "  purb->number_of_packets = %i;\n",
-					peasycap->audio_isoc_framesperdesc);
-			JOM(4, "  for (j = 0; j < %i; j++)\n",
-					peasycap->audio_isoc_framesperdesc);
-			JOM(4, "    {\n");
-			JOM(4, "    purb->iso_frame_desc[j].offset = j*%i;\n",
-					peasycap->audio_isoc_maxframesize);
-			JOM(4, "    purb->iso_frame_desc[j].length = %i;\n",
-					peasycap->audio_isoc_maxframesize);
-			JOM(4, "    }\n");
-			}
-
-		purb->interval = 1;
-		purb->dev = peasycap->pusb_device;
-		purb->pipe = usb_rcvisocpipe(peasycap->pusb_device,
-					peasycap->audio_endpointnumber);
-		purb->transfer_flags = URB_ISO_ASAP;
-		purb->transfer_buffer = peasycap->audio_isoc_buffer[k].pgo;
-		purb->transfer_buffer_length =
-					peasycap->audio_isoc_buffer_size;
-#ifdef CONFIG_EASYCAP_OSS
-		purb->complete = easyoss_complete;
-#else /* CONFIG_EASYCAP_OSS */
-		purb->complete = easycap_alsa_complete;
-#endif /* CONFIG_EASYCAP_OSS */
-		purb->context = peasycap;
-		purb->start_frame = 0;
-		purb->number_of_packets = peasycap->audio_isoc_framesperdesc;
-		for (j = 0;  j < peasycap->audio_isoc_framesperdesc; j++) {
-			purb->iso_frame_desc[j].offset = j *
-					peasycap->audio_isoc_maxframesize;
-			purb->iso_frame_desc[j].length =
-					peasycap->audio_isoc_maxframesize;
-		}
-	}
-	JOM(4, "allocation of %i struct urb done.\n", k);
-/*---------------------------------------------------------------------------*/
-/*
- *  SAVE POINTER peasycap IN THIS INTERFACE.
- */
-/*---------------------------------------------------------------------------*/
-	usb_set_intfdata(pusb_interface, peasycap);
-/*---------------------------------------------------------------------------*/
-/*
- *  THE AUDIO DEVICE CAN BE REGISTERED NOW, AS IT IS READY.
- */
-/*---------------------------------------------------------------------------*/
-#ifndef CONFIG_EASYCAP_OSS
-	JOM(4, "initializing ALSA card\n");
-
-	rc = easycap_alsa_probe(peasycap);
-	if (rc) {
-		err("easycap_alsa_probe() returned %i\n", rc);
-		return -ENODEV;
-	} else {
-		JOM(8, "kref_get() with %i=peasycap->kref.refcount.counter\n",
-					(int)peasycap->kref.refcount.counter);
-		kref_get(&peasycap->kref);
-		(peasycap->registered_audio)++;
-	}
-
-#else /* CONFIG_EASYCAP_OSS */
-	rc = usb_register_dev(pusb_interface, &easyoss_class);
-	if (rc) {
-		SAY("ERROR: usb_register_dev() failed\n");
-		usb_set_intfdata(pusb_interface, NULL);
-		return -ENODEV;
-	} else {
-		JOM(8, "kref_get() with %i=peasycap->kref.refcount.counter\n",
-					(int)peasycap->kref.refcount.counter);
-		kref_get(&peasycap->kref);
-		(peasycap->registered_audio)++;
-	}
-/*---------------------------------------------------------------------------*/
-/*
- *  LET THE USER KNOW WHAT NODE THE AUDIO DEVICE IS ATTACHED TO.
- */
-/*---------------------------------------------------------------------------*/
-	SAM("easyoss attached to minor #%d\n", pusb_interface->minor);
-#endif /* CONFIG_EASYCAP_OSS */
-
-	break;
-}
-/*---------------------------------------------------------------------------*/
-/*
- *  INTERFACES OTHER THAN 0, 1 AND 2 ARE UNEXPECTED
- */
-/*---------------------------------------------------------------------------*/
-default: {
-	JOM(4, "ERROR: unexpected interface %i\n", bInterfaceNumber);
-	return -EINVAL;
-}
-}
-SAM("ends successfully for interface %i\n",
-				pusb_interface_descriptor->bInterfaceNumber);
-return 0;
-}
-/*****************************************************************************/
-/*---------------------------------------------------------------------------*/
-/*
- *  WHEN THIS FUNCTION IS CALLED THE EasyCAP HAS ALREADY BEEN PHYSICALLY
- *  UNPLUGGED.  HENCE peasycap->pusb_device IS NO LONGER VALID.
- *
- *  THIS FUNCTION AFFECTS BOTH OSS AND ALSA.  BEWARE.
- */
-/*---------------------------------------------------------------------------*/
-static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
-{
-struct usb_host_interface *pusb_host_interface;
-struct usb_interface_descriptor *pusb_interface_descriptor;
-u8 bInterfaceNumber;
-struct easycap *peasycap;
-
-struct list_head *plist_head;
-struct data_urb *pdata_urb;
-int minor, m, kd;
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#ifdef EASYCAP_IS_VIDEODEV_CLIENT
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
-struct v4l2_device *pv4l2_device;
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-
-JOT(4, "\n");
-
-if (NULL == pusb_interface) {
-	JOT(4, "ERROR: pusb_interface is NULL\n");
-	return;
-}
-pusb_host_interface = pusb_interface->cur_altsetting;
-if (NULL == pusb_host_interface) {
-	JOT(4, "ERROR: pusb_host_interface is NULL\n");
-	return;
-}
-pusb_interface_descriptor = &(pusb_host_interface->desc);
-if (NULL == pusb_interface_descriptor) {
-	JOT(4, "ERROR: pusb_interface_descriptor is NULL\n");
-	return;
-}
-bInterfaceNumber = pusb_interface_descriptor->bInterfaceNumber;
-minor = pusb_interface->minor;
-JOT(4, "intf[%i]: minor=%i\n", bInterfaceNumber, minor);
-
-if (1 == bInterfaceNumber)
-	return;
-
-peasycap = usb_get_intfdata(pusb_interface);
-if (NULL == peasycap) {
-	SAY("ERROR: peasycap is NULL\n");
-	return;
-}
-/*---------------------------------------------------------------------------*/
-#ifdef EASYCAP_IS_VIDEODEV_CLIENT
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
-/*---------------------------------------------------------------------------*/
-/*
- *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
- *  BEEN WRITTEN BY THE CALL TO usb_set_intfdata() IN easycap_usb_probe(),
- *  REPLACING IT WITH A POINTER TO THE EMBEDDED v4l2_device STRUCTURE.
- *  TO DETECT THIS, THE STRING IN THE easycap.telltale[] BUFFER IS CHECKED.
-*/
-/*---------------------------------------------------------------------------*/
-if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	pv4l2_device = usb_get_intfdata(pusb_interface);
-	if (NULL == pv4l2_device) {
-		SAY("ERROR: pv4l2_device is NULL\n");
-		return;
-	}
-	peasycap = (struct easycap *)
-		container_of(pv4l2_device, struct easycap, v4l2_device);
-}
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 /*---------------------------------------------------------------------------*/
-if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
-	return;
-}
+	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+		SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+		return;
+	}
 /*---------------------------------------------------------------------------*/
 /*
  *  IF THE WAIT QUEUES ARE NOT CLEARED A DEADLOCK IS POSSIBLE.  BEWARE.
 */
 /*---------------------------------------------------------------------------*/
-peasycap->video_eof = 1;
-peasycap->audio_eof = 1;
-wake_up_interruptible(&(peasycap->wq_video));
-wake_up_interruptible(&(peasycap->wq_audio));
+	peasycap->video_eof = 1;
+	peasycap->audio_eof = 1;
+	wake_up_interruptible(&(peasycap->wq_video));
+	wake_up_interruptible(&(peasycap->wq_audio));
 /*---------------------------------------------------------------------------*/
-switch (bInterfaceNumber) {
-case 0: {
-	if (NULL != peasycap->purb_video_head) {
-		JOM(4, "killing video urbs\n");
-		m = 0;
-		list_for_each(plist_head, (peasycap->purb_video_head))
-			{
-			pdata_urb = list_entry(plist_head,
-					struct data_urb, list_head);
-			if (NULL != pdata_urb) {
-				if (NULL != pdata_urb->purb) {
-					usb_kill_urb(pdata_urb->purb);
-					m++;
+	switch (bInterfaceNumber) {
+	case 0: {
+		if (NULL != peasycap->purb_video_head) {
+			JOM(4, "killing video urbs\n");
+			m = 0;
+			list_for_each(plist_head, (peasycap->purb_video_head))
+				{
+				pdata_urb = list_entry(plist_head,
+						struct data_urb, list_head);
+				if (NULL != pdata_urb) {
+					if (NULL != pdata_urb->purb) {
+						usb_kill_urb(pdata_urb->purb);
+						m++;
+					}
 				}
 			}
+			JOM(4, "%i video urbs killed\n", m);
 		}
-		JOM(4, "%i video urbs killed\n", m);
+		break;
 	}
-	break;
-}
 /*---------------------------------------------------------------------------*/
-case 2: {
-	if (NULL != peasycap->purb_audio_head) {
-		JOM(4, "killing audio urbs\n");
-		m = 0;
-		list_for_each(plist_head,
-					(peasycap->purb_audio_head)) {
-			pdata_urb = list_entry(plist_head,
-					struct data_urb, list_head);
-			if (NULL != pdata_urb) {
-				if (NULL != pdata_urb->purb) {
-					usb_kill_urb(pdata_urb->purb);
-					m++;
+	case 2: {
+		if (NULL != peasycap->purb_audio_head) {
+			JOM(4, "killing audio urbs\n");
+			m = 0;
+			list_for_each(plist_head,
+						(peasycap->purb_audio_head)) {
+				pdata_urb = list_entry(plist_head,
+						struct data_urb, list_head);
+				if (NULL != pdata_urb) {
+					if (NULL != pdata_urb->purb) {
+						usb_kill_urb(pdata_urb->purb);
+						m++;
+					}
 				}
 			}
+			JOM(4, "%i audio urbs killed\n", m);
 		}
-		JOM(4, "%i audio urbs killed\n", m);
+		break;
 	}
-	break;
-}
 /*---------------------------------------------------------------------------*/
-default:
-	break;
+	default:
+		break;
 }
 /*--------------------------------------------------------------------------*/
 /*
