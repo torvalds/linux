@@ -38,6 +38,7 @@
 #include <mach/harmony_audio.h>
 
 #include <sound/core.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -123,6 +124,24 @@ static struct snd_soc_ops harmony_asoc_ops = {
 	.hw_params = harmony_asoc_hw_params,
 };
 
+static struct snd_soc_jack harmony_hp_jack;
+
+static struct snd_soc_jack_pin harmony_hp_jack_pins[] = {
+	{
+		.pin = "Headphone Jack",
+		.mask = SND_JACK_HEADPHONE,
+	},
+};
+
+static struct snd_soc_jack_gpio harmony_hp_jack_gpios[] = {
+	{
+		.name = "headphone detect",
+		.report = SND_JACK_HEADPHONE,
+		.debounce_time = 150,
+		.invert = 1,
+	}
+};
+
 static int harmony_event_int_spk(struct snd_soc_dapm_widget *w,
 					struct snd_kcontrol *k, int event)
 {
@@ -178,10 +197,19 @@ static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_add_routes(dapm, harmony_audio_map,
 				ARRAY_SIZE(harmony_audio_map));
 
-	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
 	snd_soc_dapm_enable_pin(dapm, "Int Spk");
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 	snd_soc_dapm_sync(dapm);
+
+	harmony_hp_jack_gpios[0].gpio = pdata->gpio_hp_det;
+	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
+			 &harmony_hp_jack);
+	snd_soc_jack_add_pins(&harmony_hp_jack,
+			      ARRAY_SIZE(harmony_hp_jack_pins),
+			      harmony_hp_jack_pins);
+	snd_soc_jack_add_gpios(&harmony_hp_jack,
+			       ARRAY_SIZE(harmony_hp_jack_gpios),
+			       harmony_hp_jack_gpios);
 
 	return 0;
 }
