@@ -406,30 +406,26 @@ static u16 get_request_type_usb(struct ft1000_device *ft1000dev)
 //---------------------------------------------------------------------------
 static long get_request_value(struct ft1000_device *ft1000dev)
 {
-   u32     value;
-   u16   tempword;
-   u32    status;
+	u32 value;
+	u16 tempword;
+	u32 status;
 	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
 
+	if (pft1000info->bootmode == 1) {
+		status = fix_ft1000_read_dpram32(ft1000dev,
+				DWNLD_MAG1_SIZE_LOC, (u8 *)&value);
+		value = ntohl(value);
+	} else	{
+		status = ft1000_read_dpram16(ft1000dev,
+				DWNLD_MAG1_SIZE_LOC, (u8 *)&tempword, 0);
+		value = tempword;
+		status = ft1000_read_dpram16(ft1000dev,
+				DWNLD_MAG1_SIZE_LOC, (u8 *)&tempword, 1);
+		value |= (tempword << 16);
+		value = ntohl(value);
+	}
 
-       if ( pft1000info->bootmode == 1)
-       {
-	   status = fix_ft1000_read_dpram32(ft1000dev, DWNLD_MAG1_SIZE_LOC, (u8 *)&value);
-	   value = ntohl(value);
-       }
-       else
-       {
-	   status = ft1000_read_dpram16(ft1000dev, DWNLD_MAG1_SIZE_LOC, (u8 *)&tempword, 0);
-	   value = tempword;
-           status = ft1000_read_dpram16(ft1000dev, DWNLD_MAG1_SIZE_LOC, (u8 *)&tempword, 1);
-	   value |= (tempword << 16);
-	   value = ntohl(value);
-       }
-
-
-   //DEBUG("get_request_value: value is %x\n", value);
-   return value;
-
+	return value;
 }
 
 
