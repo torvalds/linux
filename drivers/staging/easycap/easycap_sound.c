@@ -412,7 +412,7 @@ if (NULL == pss) {
 	return -EFAULT;
 }
 rc = easycap_alsa_vmalloc(pss, params_buffer_bytes(phw));
-if (0 != rc)
+if (rc)
 	return rc;
 return 0;
 }
@@ -635,7 +635,7 @@ if (true == peasycap->microphone) {
 	peasycap->psnd_card = psnd_card;
 
 	rc = snd_pcm_new(psnd_card, "easycap_pcm", 0, 0, 1, &psnd_pcm);
-	if (0 != rc) {
+	if (rc) {
 		SAM("ERROR: Cannot do ALSA snd_pcm_new()\n");
 		snd_card_free(psnd_card);
 		return -EFAULT;
@@ -650,7 +650,7 @@ if (true == peasycap->microphone) {
 	peasycap->psubstream = NULL;
 
 	rc = snd_card_register(psnd_card);
-	if (0 != rc) {
+	if (rc) {
 		SAM("ERROR: Cannot do ALSA snd_card_register()\n");
 		snd_card_free(psnd_card);
 		return -EFAULT;

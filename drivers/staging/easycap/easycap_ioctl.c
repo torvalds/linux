@@ -143,7 +143,7 @@ case NTSC_M_JP: {
 	else
 		itwas = (unsigned int)ir;
 	rc = write_saa(peasycap->pusb_device, reg, set);
-	if (0 != rc)
+	if (rc)
 		SAM("ERROR: failed to set SAA register "
 			"0x%02X to 0x%02X for JP standard\n", reg, set);
 	else {
@@ -163,7 +163,7 @@ case NTSC_M_JP: {
 	else
 		itwas = (unsigned int)ir;
 	rc = write_saa(peasycap->pusb_device, reg, set);
-	if (0 != rc)
+	if (rc)
 		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X "
 						"for JP standard\n", reg, set);
 	else {
@@ -241,7 +241,7 @@ else {
 	else
 		set = itwas & ~0x40 ;
 	rc  = write_saa(peasycap->pusb_device, reg, set);
-	if (0 != rc)
+	if (rc)
 		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n",
 								reg, set);
 	else {
@@ -271,7 +271,7 @@ else {
 	else
 		set = itwas & ~0x80 ;
 	rc = write_saa(peasycap->pusb_device, reg, set);
-	if (0 != rc)
+	if (rc)
 		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n",
 								reg, set);
 	else {
@@ -1050,7 +1050,7 @@ case VIDIOC_QUERYCAP: {
 			*p2++ = 0;
 		if (3 > i) {
 			rc = (int) strict_strtol(p1, 10, &lng);
-			if (0 != rc) {
+			if (rc) {
 				SAM("ERROR: %i=strict_strtol(%s,.,,)\n",
 								rc, p1);
 				mutex_unlock(&easycapdc60_dongle[kd].

@@ -292,7 +292,7 @@ peasycap->oldaudio = oldaudio;
 resubmit:
 if (peasycap->audio_isoc_streaming) {
 	rc = usb_submit_urb(purb, GFP_ATOMIC);
-	if (0 != rc) {
+	if (rc) {
 		if (-ENODEV != rc && -ENOENT != rc) {
 			SAM("ERROR: while %i=audio_idle, "
 				"usb_submit_urb() failed "
@@ -532,7 +532,7 @@ while ((fragment == (peasycap->audio_fill /
 		((fragment != (peasycap->audio_fill /
 				peasycap->audio_pages_per_fragment)) &&
 		(0 < (PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo))))));
-	if (0 != rc) {
+	if (rc) {
 		SAM("aborted by signal\n");
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 		return -ERESTARTSYS;
@@ -637,7 +637,7 @@ while (fragment == (peasycap->audio_read /
 	}
 /*---------------------------------------------------------------------------*/
 	rc = copy_to_user(puserspacebuffer, pdata_buffer->pto, more);
-	if (0 != rc) {
+	if (rc) {
 		SAM("ERROR: copy_to_user() returned %li\n", rc);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 		return -EFAULT;

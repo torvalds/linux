@@ -196,7 +196,7 @@ else {
 }
 peasycap->input = 0;
 rc = reset(peasycap);
-if (0 != rc) {
+if (rc) {
 	SAM("ERROR: reset() returned %i\n", rc);
 	return -EFAULT;
 }
@@ -452,12 +452,12 @@ if (NULL == peasycap->pusb_device) {
 rc = usb_set_interface(peasycap->pusb_device,
 			peasycap->video_interface,
 			peasycap->video_altsetting_off);
-if (0 != rc) {
+if (rc) {
 	SAM("ERROR: usb_set_interface() returned %i\n", rc);
 	return -EFAULT;
 }
 rc = stop_100(peasycap->pusb_device);
-if (0 != rc) {
+if (rc) {
 	SAM("ERROR: stop_100() returned %i\n", rc);
 	return -EFAULT;
 }
@@ -488,7 +488,7 @@ if (input == peasycap->inputset[input].input) {
 	if (off != peasycap->standard_offset) {
 		rc = adjust_standard(peasycap,
 				easycap_standard[off].v4l2_standard.id);
-		if (0 != rc) {
+		if (rc) {
 			SAM("ERROR: adjust_standard() returned %i\n", rc);
 			return -EFAULT;
 		}
@@ -517,7 +517,7 @@ if (input == peasycap->inputset[input].input) {
 	mood = peasycap->inputset[input].brightness;
 	if (mood != peasycap->brightness) {
 		rc = adjust_brightness(peasycap, mood);
-		if (0 != rc) {
+		if (rc) {
 			SAM("ERROR: adjust_brightness returned %i\n", rc);
 			return -EFAULT;
 		}
@@ -526,7 +526,7 @@ if (input == peasycap->inputset[input].input) {
 	mood = peasycap->inputset[input].contrast;
 	if (mood != peasycap->contrast) {
 		rc = adjust_contrast(peasycap, mood);
-		if (0 != rc) {
+		if (rc) {
 			SAM("ERROR: adjust_contrast returned %i\n", rc);
 			return -EFAULT;
 		}
@@ -535,7 +535,7 @@ if (input == peasycap->inputset[input].input) {
 	mood = peasycap->inputset[input].saturation;
 	if (mood != peasycap->saturation) {
 		rc = adjust_saturation(peasycap, mood);
-		if (0 != rc) {
+		if (rc) {
 			SAM("ERROR: adjust_saturation returned %i\n", rc);
 			return -EFAULT;
 		}
@@ -544,7 +544,7 @@ if (input == peasycap->inputset[input].input) {
 	mood = peasycap->inputset[input].hue;
 	if (mood != peasycap->hue) {
 		rc = adjust_hue(peasycap, mood);
-		if (0 != rc) {
+		if (rc) {
 			SAM("ERROR: adjust_hue returned %i\n", rc);
 			return -EFAULT;
 		}
@@ -562,12 +562,12 @@ if (NULL == peasycap->pusb_device) {
 rc = usb_set_interface(peasycap->pusb_device,
 			peasycap->video_interface,
 			peasycap->video_altsetting_on);
-if (0 != rc) {
+if (rc) {
 	SAM("ERROR: usb_set_interface() returned %i\n", rc);
 	return -EFAULT;
 }
 rc = start_100(peasycap->pusb_device);
-if (0 != rc) {
+if (rc) {
 	SAM("ERROR: start_100() returned %i\n", rc);
 	return -EFAULT;
 }
@@ -1215,7 +1215,7 @@ miss++;
 JOM(8, "first awakening on wq_video after %i waits\n", miss);
 
 rc = field2frame(peasycap);
-if (0 != rc)
+if (rc)
 	SAM("ERROR: field2frame() returned %i\n", rc);
 /*---------------------------------------------------------------------------*/
 /*
@@ -1284,7 +1284,7 @@ miss++;
 JOM(8, "second awakening on wq_video after %i waits\n", miss);
 
 rc = field2frame(peasycap);
-if (0 != rc)
+if (rc)
 	SAM("ERROR: field2frame() returned %i\n", rc);
 /*---------------------------------------------------------------------------*/
 /*
@@ -4134,7 +4134,7 @@ case 0: {
 	JOM(8, "defaulting initially to PAL\n");
 #endif /*PREFER_NTSC*/
 	rc = reset(peasycap);
-	if (0 != rc) {
+	if (rc) {
 		SAM("ERROR: reset() returned %i\n", rc);
 		return -EFAULT;
 	}
@@ -4498,7 +4498,7 @@ case 2: {
 	JOM(4, "initializing ALSA card\n");
 
 	rc = easycap_alsa_probe(peasycap);
-	if (0 != rc) {
+	if (rc) {
 		err("easycap_alsa_probe() returned %i\n", rc);
 		return -ENODEV;
 	} else {
@@ -4510,7 +4510,7 @@ case 2: {
 
 #else /* CONFIG_EASYCAP_OSS */
 	rc = usb_register_dev(pusb_interface, &easyoss_class);
-	if (0 != rc) {
+	if (rc) {
 		SAY("ERROR: usb_register_dev() failed\n");
 		usb_set_intfdata(pusb_interface, NULL);
 		return -ENODEV;
@@ -4870,7 +4870,7 @@ static int __init easycap_module_init(void)
 	}
 	JOT(4, "registering driver easycap\n");
 	rc = usb_register(&easycap_usb_driver);
-	if (0 != rc)
+	if (rc)
 		SAY("ERROR:  usb_register returned %i\n", rc);
 
 	JOT(4, "ends\n");
