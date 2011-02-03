@@ -440,8 +440,8 @@ void enable_irq(unsigned int irq)
 	if (!desc)
 		return;
 
-	if (WARN(!desc->irq_data.chip || !desc->irq_data.chip->irq_enable,
-	    KERN_ERR "enable_irq before setup/request_irq: irq %u\n", irq))
+	if (WARN(!desc->irq_data.chip,
+		 KERN_ERR "enable_irq before setup/request_irq: irq %u\n", irq))
 		return;
 
 	chip_bus_lock(desc);
