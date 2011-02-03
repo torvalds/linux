@@ -213,6 +213,101 @@ static void destroy_inodecache(void)
 static const struct super_operations exofs_sops;
 static const struct export_operations exofs_export_ops;
 
+static const struct osd_attr g_attr_sb_stats = ATTR_DEF(
+	EXOFS_APAGE_SB_DATA,
+	EXOFS_ATTR_SB_STATS,
+	sizeof(struct exofs_sb_stats));
+
+static int __sbi_read_stats(struct exofs_sb_info *sbi)
+{
+	struct osd_attr attrs[] = {
+		[0] = g_attr_sb_stats,
+	};
+	struct exofs_io_state *ios;
+	int ret;
+
+	ret = exofs_get_io_state(&sbi->layout, &ios);
+	if (unlikely(ret)) {
+		EXOFS_ERR("%s: exofs_get_io_state failed.\n", __func__);
+		return ret;
+	}
+
+	ios->cred = sbi->s_cred;
+
+	ios->in_attr = attrs;
+	ios->in_attr_len = ARRAY_SIZE(attrs);
+
+	ret = exofs_sbi_read(ios);
+	if (unlikely(ret)) {
+		EXOFS_ERR("Error reading super_block stats => %d\n", ret);
+		goto out;
+	}
+
+	ret = extract_attr_from_ios(ios, &attrs[0]);
+	if (ret) {
+		EXOFS_ERR("%s: extract_attr of sb_stats failed\n", __func__);
+		goto out;
+	}
+	if (attrs[0].len) {
+		struct exofs_sb_stats *ess;
+
+		if (unlikely(attrs[0].len != sizeof(*ess))) {
+			EXOFS_ERR("%s: Wrong version of exofs_sb_stats "
+				  "size(%d) != expected(%zd)\n",
+				  __func__, attrs[0].len, sizeof(*ess));
+			goto out;
+		}
+
+		ess = attrs[0].val_ptr;
+		sbi->s_nextid = le64_to_cpu(ess->s_nextid);
+		sbi->s_numfiles = le32_to_cpu(ess->s_numfiles);
+	}
+
+out:
+	exofs_put_io_state(ios);
+	return ret;
+}
+
+static void stats_done(struct exofs_io_state *ios, void *p)
+{
+	exofs_put_io_state(ios);
+	/* Good thanks nothing to do anymore */
+}
+
+/* Asynchronously write the stats attribute */
+int exofs_sbi_write_stats(struct exofs_sb_info *sbi)
+{
+	struct osd_attr attrs[] = {
+		[0] = g_attr_sb_stats,
+	};
+	struct exofs_io_state *ios;
+	int ret;
+
+	ret = exofs_get_io_state(&sbi->layout, &ios);
+	if (unlikely(ret)) {
+		EXOFS_ERR("%s: exofs_get_io_state failed.\n", __func__);
+		return ret;
+	}
+
+	sbi->s_ess.s_nextid   = cpu_to_le64(sbi->s_nextid);
+	sbi->s_ess.s_numfiles = cpu_to_le64(sbi->s_numfiles);
+	attrs[0].val_ptr = &sbi->s_ess;
+
+	ios->cred = sbi->s_cred;
+	ios->done = stats_done;
+	ios->private = sbi;
+	ios->out_attr = attrs;
+	ios->out_attr_len = ARRAY_SIZE(attrs);
+
+	ret = exofs_sbi_write(ios);
+	if (unlikely(ret)) {
+		EXOFS_ERR("%s: exofs_sbi_write failed.\n", __func__);
+		exofs_put_io_state(ios);
+	}
+
+	return ret;
+}
+
 /*
  * Write the superblock to the OSD
  */
@@ -223,18 +318,25 @@ int exofs_sync_fs(struct super_block *sb, int wait)
 	struct exofs_io_state *ios;
 	int ret = -ENOMEM;
 
-	lock_super(sb);
-	sbi = sb->s_fs_info;
-	fscb = &sbi->s_fscb;
+	fscb = kmalloc(sizeof(*fscb), GFP_KERNEL);
+	if (unlikely(!fscb))
+		return -ENOMEM;
 
+	sbi = sb->s_fs_info;
+
+	/* NOTE: We no longer dirty the super_block anywhere in exofs. The
+	 * reason we write the fscb here on unmount is so we can stay backwards
+	 * compatible with fscb->s_version == 1. (What we are not compatible
+	 * with is if a new version FS crashed and then we try to mount an old
+	 * version). Otherwise the exofs_fscb is read-only from mkfs time. All
+	 * the writeable info is set in exofs_sbi_write_stats() above.
+	 */
 	ret = exofs_get_io_state(&sbi->layout, &ios);
-	if (ret)
+	if (unlikely(ret))
 		goto out;
 
-	/* Note: We only write the changing part of the fscb. .i.e upto the
-	 *       the fscb->s_dev_table_oid member. There is no read-modify-write
-	 *       here.
-	 */
+	lock_super(sb);
+
 	ios->length = offsetof(struct exofs_fscb, s_dev_table_oid);
 	memset(fscb, 0, ios->length);
 	fscb->s_nextid = cpu_to_le64(sbi->s_nextid);
@@ -249,16 +351,17 @@ int exofs_sync_fs(struct super_block *sb, int wait)
 	ios->cred = sbi->s_cred;
 
 	ret = exofs_sbi_write(ios);
-	if (unlikely(ret)) {
+	if (unlikely(ret))
 		EXOFS_ERR("%s: exofs_sbi_write failed.\n", __func__);
-		goto out;
-	}
-	sb->s_dirt = 0;
+	else
+		sb->s_dirt = 0;
 
+
+	unlock_super(sb);
 out:
 	EXOFS_DBGMSG("s_nextid=0x%llx ret=%d\n", _LLU(sbi->s_nextid), ret);
 	exofs_put_io_state(ios);
-	unlock_super(sb);
+	kfree(fscb);
 	return ret;
 }
 
@@ -301,9 +404,6 @@ static void exofs_put_super(struct super_block *sb)
 {
 	int num_pend;
 	struct exofs_sb_info *sbi = sb->s_fs_info;
-
-	if (sb->s_dirt)
-		exofs_write_super(sb);
 
 	/* make sure there are no pending commands */
 	for (num_pend = atomic_read(&sbi->s_curr_pending); num_pend > 0;
@@ -629,6 +729,7 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_sbi;
 
 	sb->s_magic = le16_to_cpu(fscb.s_magic);
+	/* NOTE: we read below to be backward compatible with old versions */
 	sbi->s_nextid = le64_to_cpu(fscb.s_nextid);
 	sbi->s_numfiles = le32_to_cpu(fscb.s_numfiles);
 
@@ -639,7 +740,7 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		ret = -EINVAL;
 		goto free_sbi;
 	}
-	if (le32_to_cpu(fscb.s_version) != EXOFS_FSCB_VER) {
+	if (le32_to_cpu(fscb.s_version) > EXOFS_FSCB_VER) {
 		EXOFS_ERR("ERROR: Bad FSCB version expected-%d got-%d\n",
 			  EXOFS_FSCB_VER, le32_to_cpu(fscb.s_version));
 		ret = -EINVAL;
@@ -656,6 +757,8 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		if (unlikely(ret))
 			goto free_sbi;
 	}
+
+	__sbi_read_stats(sbi);
 
 	/* set up operation vectors */
 	sbi->bdi.ra_pages = __ra_pages(&sbi->layout);

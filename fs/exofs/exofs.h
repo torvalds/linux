@@ -77,7 +77,7 @@ struct exofs_layout {
  * our extension to the in-memory superblock
  */
 struct exofs_sb_info {
-	struct exofs_fscb s_fscb;		/* Written often, pre-allocate*/
+	struct exofs_sb_stats s_ess;		/* Written often, pre-allocate*/
 	int		s_timeout;		/* timeout for OSD operations */
 	uint64_t	s_nextid;		/* highest object ID used     */
 	uint32_t	s_numfiles;		/* number of files on fs      */
@@ -281,7 +281,7 @@ int exofs_set_link(struct inode *, struct exofs_dir_entry *, struct page *,
 		    struct inode *);
 
 /* super.c               */
-int exofs_sync_fs(struct super_block *sb, int wait);
+int exofs_sbi_write_stats(struct exofs_sb_info *sbi);
 
 /*********************
  * operation vectors *

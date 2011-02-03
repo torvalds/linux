@@ -1102,6 +1102,7 @@ int __exofs_wait_obj_created(struct exofs_i_info *oi)
 	}
 	return unlikely(is_bad_inode(&oi->vfs_inode)) ? -EIO : 0;
 }
+
 /*
  * Callback function from exofs_new_inode().  The important thing is that we
  * set the obj_created flag so that other methods know that the object exists on
@@ -1160,7 +1161,6 @@ struct inode *exofs_new_inode(struct inode *dir, int mode)
 	sbi = sb->s_fs_info;
 
 	inode->i_mapping->backing_dev_info = sb->s_bdi;
-	sb->s_dirt = 1;
 	inode_init_owner(inode, dir, mode);
 	inode->i_ino = sbi->s_nextid++;
 	inode->i_blkbits = EXOFS_BLKSHIFT;
@@ -1170,6 +1170,8 @@ struct inode *exofs_new_inode(struct inode *dir, int mode)
 	inode->i_generation = sbi->s_next_generation++;
 	spin_unlock(&sbi->s_next_gen_lock);
 	insert_inode_hash(inode);
+
+	exofs_sbi_write_stats(sbi); /* Make sure new sbi->s_nextid is on disk */
 
 	mark_inode_dirty(inode);
 
