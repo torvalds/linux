@@ -674,7 +674,7 @@ static int dcon_detect(struct i2c_client *client, struct i2c_board_info *info)
 
 static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	int rc, i;
+	int rc, i, j;
 
 	if (num_registered_fb >= 1)
 		fbinfo = registered_fb[0];
@@ -700,8 +700,14 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto edev;
 	}
 
-	for(i = 0; i < ARRAY_SIZE(dcon_device_files); i++)
-		device_create_file(&dcon_device->dev, &dcon_device_files[i]);
+	for(i = 0; i < ARRAY_SIZE(dcon_device_files); i++) {
+		rc = device_create_file(&dcon_device->dev,
+					&dcon_device_files[i]);
+		if (rc) {
+			dev_err(&dcon_device->dev, "Cannot create sysfs file\n");
+			goto ecreate;
+		}
+	}
 
 	/* Add the backlight device for the DCON */
 
@@ -728,6 +734,9 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	return 0;
 
+ ecreate:
+	for (j = 0; j < i; j++)
+		device_remove_file(&dcon_device->dev, &dcon_device_files[j]);
  edev:
 	platform_device_unregister(dcon_device);
 	dcon_device = NULL;
