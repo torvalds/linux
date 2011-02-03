@@ -246,6 +246,7 @@ extern int nilfs_sync_file(struct file *, int);
 
 /* ioctl.c */
 long nilfs_ioctl(struct file *, unsigned int, unsigned long);
+long nilfs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *, struct nilfs_argv *,
 				       void **);
 

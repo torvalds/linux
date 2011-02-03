@@ -681,7 +681,7 @@ const struct file_operations nilfs_dir_operations = {
 	.readdir	= nilfs_readdir,
 	.unlocked_ioctl	= nilfs_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= nilfs_ioctl,
+	.compat_ioctl	= nilfs_compat_ioctl,
 #endif	/* CONFIG_COMPAT */
 	.fsync		= nilfs_sync_file,
 

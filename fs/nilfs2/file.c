@@ -142,7 +142,7 @@ const struct file_operations nilfs_file_operations = {
 	.aio_write	= generic_file_aio_write,
 	.unlocked_ioctl	= nilfs_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= nilfs_ioctl,
+	.compat_ioctl	= nilfs_compat_ioctl,
 #endif	/* CONFIG_COMPAT */
 	.mmap		= nilfs_file_mmap,
 	.open		= generic_file_open,

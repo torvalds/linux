@@ -26,6 +26,7 @@
 #include <linux/capability.h>	/* capable() */
 #include <linux/uaccess.h>	/* copy_from_user(), copy_to_user() */
 #include <linux/vmalloc.h>
+#include <linux/compat.h>	/* compat_ptr() */
 #include <linux/mount.h>	/* mnt_want_write(), mnt_drop_write() */
 #include <linux/nilfs2_fs.h>
 #include "nilfs.h"
@@ -766,3 +767,23 @@ long nilfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return -ENOTTY;
 	}
 }
+
+#ifdef CONFIG_COMPAT
+long nilfs_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case FS_IOC32_GETFLAGS:
+		cmd = FS_IOC_GETFLAGS;
+		break;
+	case FS_IOC32_SETFLAGS:
+		cmd = FS_IOC_SETFLAGS;
+		break;
+	case FS_IOC32_GETVERSION:
+		cmd = FS_IOC_GETVERSION;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+	return nilfs_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
