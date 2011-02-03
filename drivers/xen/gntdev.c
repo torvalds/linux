@@ -37,6 +37,7 @@
 #include <xen/xen.h>
 #include <xen/grant_table.h>
 #include <xen/gntdev.h>
+#include <xen/events.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/page.h>
@@ -63,6 +64,13 @@ struct gntdev_priv {
 	struct mmu_notifier mn;
 };
 
+struct unmap_notify {
+	int flags;
+	/* Address relative to the start of the grant_map */
+	int addr;
+	int event;
+};
+
 struct grant_map {
 	struct list_head next;
 	struct vm_area_struct *vma;
@@ -71,6 +79,7 @@ struct grant_map {
 	int flags;
 	int is_mapped;
 	atomic_t users;
+	struct unmap_notify notify;
 	struct ioctl_gntdev_grant_ref *grants;
 	struct gnttab_map_grant_ref   *map_ops;
 	struct gnttab_unmap_grant_ref *unmap_ops;
@@ -165,7 +174,7 @@ static struct grant_map *gntdev_find_map_index(struct gntdev_priv *priv,
 	list_for_each_entry(map, &priv->maps, next) {
 		if (map->index != index)
 			continue;
-		if (map->count != count)
+		if (count && map->count != count)
 			continue;
 		return map;
 	}
@@ -183,6 +192,10 @@ static void gntdev_put_map(struct grant_map *map)
 		return;
 
 	atomic_sub(map->count, &pages_mapped);
+
+	if (map->notify.flags & UNMAP_NOTIFY_SEND_EVENT) {
+		notify_remote_via_evtchn(map->notify.event);
+	}
 
 	if (map->pages) {
 		if (!use_ptemod)
@@ -273,6 +286,16 @@ static int map_grant_pages(struct grant_map *map)
 static int unmap_grant_pages(struct grant_map *map, int offset, int pages)
 {
 	int i, err = 0;
+
+	if (map->notify.flags & UNMAP_NOTIFY_CLEAR_BYTE) {
+		int pgno = (map->notify.addr >> PAGE_SHIFT);
+		if (pgno >= offset && pgno < offset + pages) {
+			uint8_t *tmp = kmap(map->pages[pgno]);
+			tmp[map->notify.addr & (PAGE_SIZE-1)] = 0;
+			kunmap(map->pages[pgno]);
+			map->notify.flags &= ~UNMAP_NOTIFY_CLEAR_BYTE;
+		}
+	}
 
 	pr_debug("map %d+%d [%d+%d]\n", map->index, map->count, offset, pages);
 	err = gnttab_unmap_refs(map->unmap_ops + offset, map->pages, pages);
@@ -519,6 +542,39 @@ static long gntdev_ioctl_get_offset_for_vaddr(struct gntdev_priv *priv,
 	return 0;
 }
 
+static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
+{
+	struct ioctl_gntdev_unmap_notify op;
+	struct grant_map *map;
+	int rc;
+
+	if (copy_from_user(&op, u, sizeof(op)))
+		return -EFAULT;
+
+	if (op.action & ~(UNMAP_NOTIFY_CLEAR_BYTE|UNMAP_NOTIFY_SEND_EVENT))
+		return -EINVAL;
+
+	spin_lock(&priv->lock);
+
+	list_for_each_entry(map, &priv->maps, next) {
+		uint64_t begin = map->index << PAGE_SHIFT;
+		uint64_t end = (map->index + map->count) << PAGE_SHIFT;
+		if (op.index >= begin && op.index < end)
+			goto found;
+	}
+	rc = -ENOENT;
+	goto unlock_out;
+
+ found:
+	map->notify.flags = op.action;
+	map->notify.addr = op.index - (map->index << PAGE_SHIFT);
+	map->notify.event = op.event_channel_port;
+	rc = 0;
+ unlock_out:
+	spin_unlock(&priv->lock);
+	return rc;
+}
+
 static long gntdev_ioctl(struct file *flip,
 			 unsigned int cmd, unsigned long arg)
 {
@@ -534,6 +590,9 @@ static long gntdev_ioctl(struct file *flip,
 
 	case IOCTL_GNTDEV_GET_OFFSET_FOR_VADDR:
 		return gntdev_ioctl_get_offset_for_vaddr(priv, ptr);
+
+	case IOCTL_GNTDEV_SET_UNMAP_NOTIFY:
+		return gntdev_ioctl_notify(priv, ptr);
 
 	default:
 		pr_debug("priv %p, unknown cmd %x\n", priv, cmd);

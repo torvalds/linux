@@ -60,11 +60,13 @@
 #include <linux/uaccess.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/highmem.h>
 
 #include <xen/xen.h>
 #include <xen/page.h>
 #include <xen/grant_table.h>
 #include <xen/gntalloc.h>
+#include <xen/events.h>
 
 static int limit = 1024;
 module_param(limit, int, 0644);
@@ -75,6 +77,12 @@ static LIST_HEAD(gref_list);
 static DEFINE_SPINLOCK(gref_lock);
 static int gref_size;
 
+struct notify_info {
+	uint16_t pgoff:12;    /* Bits 0-11: Offset of the byte to clear */
+	uint16_t flags:2;     /* Bits 12-13: Unmap notification flags */
+	int event;            /* Port (event channel) to notify */
+};
+
 /* Metadata on a grant reference. */
 struct gntalloc_gref {
 	struct list_head next_gref;  /* list entry gref_list */
@@ -83,6 +91,7 @@ struct gntalloc_gref {
 	uint64_t file_index;         /* File offset for mmap() */
 	unsigned int users;          /* Use count - when zero, waiting on Xen */
 	grant_ref_t gref_id;         /* The grant reference number */
+	struct notify_info notify;   /* Unmap notification */
 };
 
 struct gntalloc_file_private_data {
@@ -164,6 +173,16 @@ undo:
 
 static void __del_gref(struct gntalloc_gref *gref)
 {
+	if (gref->notify.flags & UNMAP_NOTIFY_CLEAR_BYTE) {
+		uint8_t *tmp = kmap(gref->page);
+		tmp[gref->notify.pgoff] = 0;
+		kunmap(gref->page);
+	}
+	if (gref->notify.flags & UNMAP_NOTIFY_SEND_EVENT)
+		notify_remote_via_evtchn(gref->notify.event);
+
+	gref->notify.flags = 0;
+
 	if (gref->gref_id > 0) {
 		if (gnttab_query_foreign_access(gref->gref_id))
 			return;
@@ -349,6 +368,43 @@ dealloc_grant_out:
 	return rc;
 }
 
+static long gntalloc_ioctl_unmap_notify(struct gntalloc_file_private_data *priv,
+		void __user *arg)
+{
+	struct ioctl_gntalloc_unmap_notify op;
+	struct gntalloc_gref *gref;
+	uint64_t index;
+	int pgoff;
+	int rc;
+
+	if (copy_from_user(&op, arg, sizeof(op)))
+		return -EFAULT;
+
+	index = op.index & ~(PAGE_SIZE - 1);
+	pgoff = op.index & (PAGE_SIZE - 1);
+
+	spin_lock(&gref_lock);
+
+	gref = find_grefs(priv, index, 1);
+	if (!gref) {
+		rc = -ENOENT;
+		goto unlock_out;
+	}
+
+	if (op.action & ~(UNMAP_NOTIFY_CLEAR_BYTE|UNMAP_NOTIFY_SEND_EVENT)) {
+		rc = -EINVAL;
+		goto unlock_out;
+	}
+
+	gref->notify.flags = op.action;
+	gref->notify.pgoff = pgoff;
+	gref->notify.event = op.event_channel_port;
+	rc = 0;
+ unlock_out:
+	spin_unlock(&gref_lock);
+	return rc;
+}
+
 static long gntalloc_ioctl(struct file *filp, unsigned int cmd,
 		unsigned long arg)
 {
@@ -360,6 +416,9 @@ static long gntalloc_ioctl(struct file *filp, unsigned int cmd,
 
 	case IOCTL_GNTALLOC_DEALLOC_GREF:
 		return gntalloc_ioctl_dealloc(priv, (void __user *)arg);
+
+	case IOCTL_GNTALLOC_SET_UNMAP_NOTIFY:
+		return gntalloc_ioctl_unmap_notify(priv, (void __user *)arg);
 
 	default:
 		return -ENOIOCTLCMD;
