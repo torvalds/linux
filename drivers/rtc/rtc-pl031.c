@@ -293,25 +293,6 @@ static int pl031_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	return ret;
 }
 
-static int pl031_irq_set_freq(struct device *dev, int freq)
-{
-	struct pl031_local *ldata = dev_get_drvdata(dev);
-
-	/* Cant set timer if it is already enabled */
-	if (readl(ldata->base + RTC_TCR) & RTC_TCR_EN) {
-		dev_err(dev, "can't change frequency while timer enabled\n");
-		return -EINVAL;
-	}
-
-	/* If self start bit in RTC_TCR is set timer will start here,
-	 * but we never set that bit. Instead we start the timer when
-	 * set_state is called with enabled == 1.
-	 */
-	writel(RTC_TIMER_FREQ / freq, ldata->base + RTC_TLR);
-
-	return 0;
-}
-
 static int pl031_remove(struct amba_device *adev)
 {
 	struct pl031_local *ldata = dev_get_drvdata(&adev->dev);
@@ -408,7 +389,6 @@ static struct rtc_class_ops stv1_pl031_ops = {
 	.read_alarm = pl031_read_alarm,
 	.set_alarm = pl031_set_alarm,
 	.alarm_irq_enable = pl031_alarm_irq_enable,
-	.irq_set_freq = pl031_irq_set_freq,
 };
 
 /* And the second ST derivative */
@@ -418,7 +398,6 @@ static struct rtc_class_ops stv2_pl031_ops = {
 	.read_alarm = pl031_stv2_read_alarm,
 	.set_alarm = pl031_stv2_set_alarm,
 	.alarm_irq_enable = pl031_alarm_irq_enable,
-	.irq_set_freq = pl031_irq_set_freq,
 };
 
 static struct amba_id pl031_ids[] = {

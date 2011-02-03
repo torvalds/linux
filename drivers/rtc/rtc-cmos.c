@@ -375,31 +375,6 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
-static int cmos_irq_set_freq(struct device *dev, int freq)
-{
-	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
-	int		f;
-	unsigned long	flags;
-
-	if (!is_valid_irq(cmos->irq))
-		return -ENXIO;
-
-	if (!is_power_of_2(freq))
-		return -EINVAL;
-	/* 0 = no irqs; 1 = 2^15 Hz ... 15 = 2^0 Hz */
-	f = ffs(freq);
-	if (f-- > 16)
-		return -EINVAL;
-	f = 16 - f;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	hpet_set_periodic_freq(freq);
-	CMOS_WRITE(RTC_REF_CLCK_32KHZ | f, RTC_FREQ_SELECT);
-	spin_unlock_irqrestore(&rtc_lock, flags);
-
-	return 0;
-}
-
 static int cmos_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
@@ -482,7 +457,6 @@ static const struct rtc_class_ops cmos_rtc_ops = {
 	.read_alarm		= cmos_read_alarm,
 	.set_alarm		= cmos_set_alarm,
 	.proc			= cmos_procfs,
-	.irq_set_freq		= cmos_irq_set_freq,
 	.alarm_irq_enable	= cmos_alarm_irq_enable,
 	.update_irq_enable	= cmos_update_irq_enable,
 };

@@ -392,7 +392,6 @@ static const struct rtc_class_ops sa1100_rtc_ops = {
 	.read_alarm = sa1100_rtc_read_alarm,
 	.set_alarm = sa1100_rtc_set_alarm,
 	.proc = sa1100_rtc_proc,
-	.irq_set_freq = sa1100_irq_set_freq,
 	.alarm_irq_enable = sa1100_rtc_alarm_irq_enable,
 };
 

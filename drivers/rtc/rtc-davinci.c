@@ -473,22 +473,6 @@ static int davinci_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	return 0;
 }
 
-static int davinci_rtc_irq_set_freq(struct device *dev, int freq)
-{
-	struct davinci_rtc *davinci_rtc = dev_get_drvdata(dev);
-	unsigned long flags;
-	u16 tmr_counter = (0x8000 >> (ffs(freq) - 1));
-
-	spin_lock_irqsave(&davinci_rtc_lock, flags);
-
-	rtcss_write(davinci_rtc, tmr_counter & 0xFF, PRTCSS_RTC_TMR0);
-	rtcss_write(davinci_rtc, (tmr_counter & 0xFF00) >> 8, PRTCSS_RTC_TMR1);
-
-	spin_unlock_irqrestore(&davinci_rtc_lock, flags);
-
-	return 0;
-}
-
 static struct rtc_class_ops davinci_rtc_ops = {
 	.ioctl			= davinci_rtc_ioctl,
 	.read_time		= davinci_rtc_read_time,
@@ -496,7 +480,6 @@ static struct rtc_class_ops davinci_rtc_ops = {
 	.alarm_irq_enable	= davinci_rtc_alarm_irq_enable,
 	.read_alarm		= davinci_rtc_read_alarm,
 	.set_alarm		= davinci_rtc_set_alarm,
-	.irq_set_freq		= davinci_rtc_irq_set_freq,
 };
 
 static int __init davinci_rtc_probe(struct platform_device *pdev)
