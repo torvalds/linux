@@ -426,6 +426,11 @@ static struct twl4030_madc_platform_data sdp3430_madc_data = {
 	.irq_line	= 1,
 };
 
+/* ads7846 on SPI */
+static struct regulator_consumer_supply sdp3430_vaux3_supplies[] = {
+	REGULATOR_SUPPLY("vcc", "spi1.0"),
+};
+
 /*
  * Apply all the fixed voltages since most versions of U-Boot
  * don't bother with that initialization.
@@ -468,6 +473,8 @@ static struct regulator_init_data sdp3430_vaux3 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies		= ARRAY_SIZE(sdp3430_vaux3_supplies),
+	.consumer_supplies		= sdp3430_vaux3_supplies,
 };
 
 /* VAUX4 for OMAP VDD_CSI2 (camera) */
