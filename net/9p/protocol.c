@@ -579,6 +579,7 @@ EXPORT_SYMBOL(p9stat_read);
 
 int p9pdu_prepare(struct p9_fcall *pdu, int16_t tag, int8_t type)
 {
+	pdu->id = type;
 	return p9pdu_writef(pdu, 0, "dbw", 0, type, tag);
 }
 
