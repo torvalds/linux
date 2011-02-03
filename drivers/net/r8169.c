@@ -4650,6 +4650,15 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 				netif_stop_queue(dev);
 				rtl8169_tx_timeout(dev);
 				goto done;
+			/* Testers needed. */
+			case RTL_GIGA_MAC_VER_17:
+			case RTL_GIGA_MAC_VER_19:
+			case RTL_GIGA_MAC_VER_20:
+			case RTL_GIGA_MAC_VER_21:
+			case RTL_GIGA_MAC_VER_23:
+			case RTL_GIGA_MAC_VER_24:
+			case RTL_GIGA_MAC_VER_27:
+			case RTL_GIGA_MAC_VER_28:
 			/* Experimental science. Pktgen proof. */
 			case RTL_GIGA_MAC_VER_12:
 			case RTL_GIGA_MAC_VER_25:
