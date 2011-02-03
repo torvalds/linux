@@ -53,12 +53,12 @@ easyoss_complete(struct urb *purb)
 {
 struct easycap *peasycap;
 struct data_buffer *paudio_buffer;
-__u8 *p1, *p2;
-__s16 tmp;
+u8 *p1, *p2;
+s16 tmp;
 int i, j, more, much, leap, rc;
 #ifdef UPSAMPLE
 int k;
-__s16 oldaudio, newaudio, delta;
+s16 oldaudio, newaudio, delta;
 #endif /*UPSAMPLE*/
 
 JOT(16, "\n");
@@ -133,7 +133,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 				peasycap->audio_mt = 0;
 			}
 
-			p1 = (__u8 *)(purb->transfer_buffer +
+			p1 = (u8 *)(purb->transfer_buffer +
 					purb->iso_frame_desc[i].offset);
 
 			leap = 0;
@@ -226,7 +226,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 							more))
 						much = 16 *
 							more;
-					p2 = (__u8 *)paudio_buffer->pto;
+					p2 = (u8 *)paudio_buffer->pto;
 
 					for (j = 0;  j < (much/16);  j++) {
 						newaudio =  ((int) *p1) - 128;
@@ -256,7 +256,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 #else /*!UPSAMPLE*/
 					if (much > (2 * more))
 						much = 2 * more;
-					p2 = (__u8 *)paudio_buffer->pto;
+					p2 = (u8 *)paudio_buffer->pto;
 
 					for (j = 0;  j < (much / 2);  j++) {
 						tmp =  ((int) *p1) - 128;

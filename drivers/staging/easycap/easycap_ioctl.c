@@ -43,7 +43,7 @@
 int adjust_standard(struct easycap *peasycap, v4l2_std_id std_id)
 {
 struct easycap_standard const *peasycap_standard;
-__u16 reg, set;
+u16 reg, set;
 int ir, rc, need, k;
 unsigned int itwas, isnow;
 bool resubmit;
@@ -340,14 +340,14 @@ return 0;
  */
 /*--------------------------------------------------------------------------*/
 int adjust_format(struct easycap *peasycap,
-	__u32 width, __u32 height, __u32 pixelformat, int field, bool try)
+	u32 width, u32 height, u32 pixelformat, int field, bool try)
 {
 struct easycap_format *peasycap_format, *peasycap_best_format;
-__u16 mask;
+u16 mask;
 struct usb_device *p;
 int miss, multiplier, best, k;
 char bf[5], fo[32], *pc;
-__u32 uc;
+u32 uc;
 bool resubmit;
 
 if (NULL == peasycap) {
@@ -855,7 +855,7 @@ return -ENOENT;
 /*****************************************************************************/
 int adjust_volume(struct easycap *peasycap, int value)
 {
-__s8 mood;
+s8 mood;
 int i1;
 
 if (NULL == peasycap) {
@@ -883,7 +883,7 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 		peasycap->volume = value;
 		mood = (16 > peasycap->volume) ? 16 :
 			((31 < peasycap->volume) ? 31 :
-			(__s8) peasycap->volume);
+			(s8) peasycap->volume);
 		if (!audio_gainset(peasycap->pusb_device, mood)) {
 			SAM("adjusting volume to 0x%02X\n", mood);
 			return 0;
@@ -1093,7 +1093,7 @@ case VIDIOC_QUERYCAP: {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_ENUMINPUT: {
 	struct v4l2_input v4l2_input;
-	__u32 index;
+	u32 index;
 
 	JOM(8, "VIDIOC_ENUMINPUT\n");
 
@@ -1195,12 +1195,12 @@ case VIDIOC_ENUMINPUT: {
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_G_INPUT: {
-	__u32 index;
+	u32 index;
 
 	JOM(8, "VIDIOC_G_INPUT\n");
-	index = (__u32)peasycap->input;
+	index = (u32)peasycap->input;
 	JOM(8, "user is told: %i\n", index);
-	if (0 != copy_to_user((void __user *)arg, &index, sizeof(__u32))) {
+	if (0 != copy_to_user((void __user *)arg, &index, sizeof(u32))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
 	}
@@ -1209,12 +1209,12 @@ case VIDIOC_G_INPUT: {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_S_INPUT:
 	{
-	__u32 index;
+	u32 index;
 	int rc;
 
 	JOM(8, "VIDIOC_S_INPUT\n");
 
-	if (0 != copy_from_user(&index, (void __user *)arg, sizeof(__u32))) {
+	if (0 != copy_from_user(&index, (void __user *)arg, sizeof(u32))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
 	}
@@ -1465,7 +1465,7 @@ case VIDIOC_S_EXT_CTRLS: {
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_ENUM_FMT: {
-	__u32 index;
+	u32 index;
 	struct v4l2_fmtdesc v4l2_fmtdesc;
 
 	JOM(8, "VIDIOC_ENUM_FMT\n");
@@ -1545,7 +1545,7 @@ case VIDIOC_ENUM_FMT: {
 */
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_ENUM_FRAMESIZES: {
-	__u32 index;
+	u32 index;
 	struct v4l2_frmsizeenum v4l2_frmsizeenum;
 
 	JOM(8, "VIDIOC_ENUM_FRAMESIZES\n");
@@ -1558,7 +1558,7 @@ case VIDIOC_ENUM_FRAMESIZES: {
 
 	index = v4l2_frmsizeenum.index;
 
-	v4l2_frmsizeenum.type = (__u32) V4L2_FRMSIZE_TYPE_DISCRETE;
+	v4l2_frmsizeenum.type = (u32) V4L2_FRMSIZE_TYPE_DISCRETE;
 
 	if (true == peasycap->ntsc) {
 		switch (index) {
@@ -1681,7 +1681,7 @@ case VIDIOC_ENUM_FRAMESIZES: {
 */
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_ENUM_FRAMEINTERVALS: {
-	__u32 index;
+	u32 index;
 	int denominator;
 	struct v4l2_frmivalenum v4l2_frmivalenum;
 
@@ -1704,7 +1704,7 @@ case VIDIOC_ENUM_FRAMEINTERVALS: {
 
 	index = v4l2_frmivalenum.index;
 
-	v4l2_frmivalenum.type = (__u32) V4L2_FRMIVAL_TYPE_DISCRETE;
+	v4l2_frmivalenum.type = (u32) V4L2_FRMIVAL_TYPE_DISCRETE;
 
 	switch (index) {
 	case 0: {
@@ -1904,7 +1904,7 @@ case VIDIOC_QUERYSTD: {
 case VIDIOC_ENUMSTD: {
 	int last0 = -1, last1 = -1, last2 = -1, last3 = -1;
 	struct v4l2_standard v4l2_standard;
-	__u32 index;
+	u32 index;
 	struct easycap_standard const *peasycap_standard;
 
 	JOM(8, "VIDIOC_ENUMSTD\n");
@@ -2054,7 +2054,7 @@ case VIDIOC_REQBUFS: {
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_QUERYBUF: {
-	__u32 index;
+	u32 index;
 	struct v4l2_buffer v4l2_buffer;
 
 	JOM(8, "VIDIOC_QUERYBUF\n");
@@ -2167,7 +2167,7 @@ case VIDIOC_DQBUF:
 	int i, j;
 	struct v4l2_buffer v4l2_buffer;
 	int rcdq;
-	__u16 input;
+	u16 input;
 
 	JOM(8, "VIDIOC_DQBUF\n");
 

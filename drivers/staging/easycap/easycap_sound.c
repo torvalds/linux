@@ -72,12 +72,12 @@ struct snd_pcm_substream *pss;
 struct snd_pcm_runtime *prt;
 int dma_bytes, fragment_bytes;
 int isfragment;
-__u8 *p1, *p2;
-__s16 tmp;
+u8 *p1, *p2;
+s16 tmp;
 int i, j, more, much, rc;
 #ifdef UPSAMPLE
 int k;
-__s16 oldaudio, newaudio, delta;
+s16 oldaudio, newaudio, delta;
 #endif /*UPSAMPLE*/
 
 JOT(16, "\n");
@@ -152,7 +152,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 				peasycap->audio_mt = 0;
 			}
 
-			p1 = (__u8 *)(purb->transfer_buffer +
+			p1 = (u8 *)(purb->transfer_buffer +
 					purb->iso_frame_desc[i].offset);
 
 /*---------------------------------------------------------------------------*/
@@ -193,7 +193,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 							more))
 						much = 16 *
 							more;
-					p2 = (__u8 *)(prt->dma_area +
+					p2 = (u8 *)(prt->dma_area +
 						peasycap->dma_fill);
 
 					for (j = 0;  j < (much/16);  j++) {
@@ -223,7 +223,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 #else /*!UPSAMPLE*/
 					if (much > (2 * more))
 						much = 2 * more;
-					p2 = (__u8 *)(prt->dma_area +
+					p2 = (u8 *)(prt->dma_area +
 						peasycap->dma_fill);
 
 					for (j = 0;  j < (much / 2);  j++) {

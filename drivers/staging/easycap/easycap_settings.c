@@ -314,10 +314,10 @@ int
 fillin_formats(void)
 {
 int i, j, k, m, n;
-__u32 width, height, pixelformat, bytesperline, sizeimage;
+u32 width, height, pixelformat, bytesperline, sizeimage;
 enum v4l2_field field;
 enum v4l2_colorspace colorspace;
-__u16 mask1, mask2, mask3, mask4;
+u16 mask1, mask2, mask3, mask4;
 char name1[32], name2[32], name3[32], name4[32];
 for (i = 0, n = 0; i < STANDARD_MANY; i++) {
 	mask1 = 0x0000;

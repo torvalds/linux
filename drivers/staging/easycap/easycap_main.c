@@ -1336,14 +1336,14 @@ field2frame(struct easycap *peasycap)
 {
 struct timeval timeval;
 long long int above, below;
-__u32 remainder;
+u32 remainder;
 struct signed_div_result sdr;
 
 void *pex, *pad;
 int kex, kad, mex, mad, rex, rad, rad2;
 int c2, c3, w2, w3, cz, wz;
 int rc, bytesperpixel, multiplier, much, more, over, rump, caches, input;
-__u8 mask, margin;
+u8 mask, margin;
 bool odd, isuy, decimatepixel, offerfields, badinput;
 
 if (NULL == peasycap) {
@@ -1464,13 +1464,13 @@ while (cz < wz) {
 							much) / 2) - rad;
 					more = rad;
 					}
-				mask = (__u8)rump;
+				mask = (u8)rump;
 				margin = 0;
 				if (much == rex) {
 					mask |= 0x04;
 					if ((mex + 1) < FIELD_BUFFER_SIZE/
 								PAGE_SIZE) {
-						margin = *((__u8 *)(peasycap->
+						margin = *((u8 *)(peasycap->
 							field_buffer
 							[kex][mex + 1].pgo));
 					} else
@@ -1588,13 +1588,13 @@ while (cz < wz) {
 							much) / 4) - rad;
 					more = rad;
 					}
-				mask = (__u8)rump;
+				mask = (u8)rump;
 				margin = 0;
 				if (much == rex) {
 					mask |= 0x04;
 					if ((mex + 1) < FIELD_BUFFER_SIZE/
 								PAGE_SIZE) {
-						margin = *((__u8 *)(peasycap->
+						margin = *((u8 *)(peasycap->
 							field_buffer
 							[kex][mex + 1].pgo));
 						}
@@ -1737,7 +1737,7 @@ if (peasycap->timeval6.tv_sec) {
 
 	sdr = signed_div(above, below);
 	above = sdr.quotient;
-	remainder = (__u32)sdr.remainder;
+	remainder = (u32)sdr.remainder;
 
 	JOM(8, "video streaming at %3lli.%03i fields per second\n", above,
 							(remainder/1000));
@@ -1795,11 +1795,11 @@ return sdr;
 /*---------------------------------------------------------------------------*/
 int
 redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
-					__u8 mask, __u8 margin, bool isuy)
+					u8 mask, u8 margin, bool isuy)
 {
 static s32 ay[256], bu[256], rv[256], gu[256], gv[256];
-__u8 *pcache;
-__u8 r, g, b, y, u, v, c, *p2, *p3, *pz, *pr;
+u8 *pcache;
+u8 r, g, b, y, u, v, c, *p2, *p3, *pz, *pr;
 int  bytesperpixel;
 bool byteswaporder, decimatepixel, last;
 int j, rump;
@@ -1857,7 +1857,7 @@ if (!pcache) {
 if (pcache != &peasycap->cache[0])
 	JOM(16, "cache has %i bytes\n", (int)(pcache - &peasycap->cache[0]));
 p2 = &peasycap->cache[0];
-p3 = (__u8 *)pad - (int)(pcache - &peasycap->cache[0]);
+p3 = (u8 *)pad - (int)(pcache - &peasycap->cache[0]);
 while (p2 < pcache) {
 	*p3++ = *p2;  p2++;
 }
@@ -1869,7 +1869,7 @@ if (p3 != pad) {
 /*---------------------------------------------------------------------------*/
 rump = (int)(0x03 & mask);
 u = 0; v = 0;
-p2 = (__u8 *)pex;  pz = p2 + much;  pr = p3 + more;  last = false;
+p2 = (u8 *)pex;  pz = p2 + much;  pr = p3 + more;  last = false;
 p2++;
 
 if (true == isuy)
@@ -1898,7 +1898,7 @@ case 2: {
 			**  YUYV
 			*/
 			/*---------------------------------------------------*/
-			p3 = (__u8 *)pad;  pz = p3 + much;
+			p3 = (u8 *)pad;  pz = p3 + much;
 			while  (pz > p3) {
 				c = *p3;
 				*p3 = *(p3 + 1);
@@ -1914,7 +1914,7 @@ case 2: {
 			**  UYVY DECIMATED
 			*/
 			/*---------------------------------------------------*/
-			p2 = (__u8 *)pex;  p3 = (__u8 *)pad;  pz = p2 + much;
+			p2 = (u8 *)pex;  p3 = (u8 *)pad;  pz = p2 + much;
 			while (pz > p2) {
 				*p3 = *p2;
 				*(p3 + 1) = *(p2 + 1);
@@ -1929,7 +1929,7 @@ case 2: {
 			**  YUYV DECIMATED
 			**/
 			/*---------------------------------------------------*/
-			p2 = (__u8 *)pex;  p3 = (__u8 *)pad;  pz = p2 + much;
+			p2 = (u8 *)pex;  p3 = (u8 *)pad;  pz = p2 + much;
 			while (pz > p2) {
 				*p3 = *(p2 + 1);
 				*(p3 + 1) = *p2;
@@ -1975,13 +1975,13 @@ case 3:
 
 				tmp = ay[(int)y] + rv[(int)v];
 				r = (255 < tmp) ? 255 : ((0 > tmp) ?
-							0 : (__u8)tmp);
+							0 : (u8)tmp);
 				tmp = ay[(int)y] - gu[(int)u] - gv[(int)v];
 				g = (255 < tmp) ? 255 : ((0 > tmp) ?
-							0 : (__u8)tmp);
+							0 : (u8)tmp);
 				tmp = ay[(int)y] + bu[(int)u];
 				b = (255 < tmp) ? 255 : ((0 > tmp) ?
-							0 : (__u8)tmp);
+							0 : (u8)tmp);
 
 				if ((true == last) && rump) {
 					pcache = &peasycap->cache[0];
@@ -2048,13 +2048,13 @@ case 3:
 
 				tmp = ay[(int)y] + rv[(int)v];
 				r = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 				tmp = ay[(int)y] - gu[(int)u] - gv[(int)v];
 				g = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 				tmp = ay[(int)y] + bu[(int)u];
 				b = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 
 				if ((true == last) && rump) {
 					pcache = &peasycap->cache[0];
@@ -2123,14 +2123,14 @@ case 3:
 				if (true == isuy) {
 					tmp = ay[(int)y] + rv[(int)v];
 					r = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 					tmp = ay[(int)y] - gu[(int)u] -
 								gv[(int)v];
 					g = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 					tmp = ay[(int)y] + bu[(int)u];
 					b = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 
 					if ((true == last) && rump) {
 						pcache = &peasycap->cache[0];
@@ -2199,14 +2199,14 @@ case 3:
 
 					tmp = ay[(int)y] + rv[(int)v];
 					r = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 					tmp = ay[(int)y] - gu[(int)u] -
 								gv[(int)v];
 					g = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 					tmp = ay[(int)y] + bu[(int)u];
 					b = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 
 					if ((true == last) && rump) {
 						pcache = &peasycap->cache[0];
@@ -2280,13 +2280,13 @@ case 4:
 
 				tmp = ay[(int)y] + rv[(int)v];
 				r = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 				tmp = ay[(int)y] - gu[(int)u] - gv[(int)v];
 				g = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 				tmp = ay[(int)y] + bu[(int)u];
 				b = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 
 				if ((true == last) && rump) {
 					pcache = &peasycap->cache[0];
@@ -2362,13 +2362,13 @@ case 4:
 
 				tmp = ay[(int)y] + rv[(int)v];
 				r = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 				tmp = ay[(int)y] - gu[(int)u] - gv[(int)v];
 				g = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 				tmp = ay[(int)y] + bu[(int)u];
 				b = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 
 				if ((true == last) && rump) {
 					pcache = &peasycap->cache[0];
@@ -2448,14 +2448,14 @@ case 4:
 
 					tmp = ay[(int)y] + rv[(int)v];
 					r = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 					tmp = ay[(int)y] - gu[(int)u] -
 								gv[(int)v];
 					g = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 					tmp = ay[(int)y] + bu[(int)u];
 					b = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 
 					if ((true == last) && rump) {
 						pcache = &peasycap->cache[0];
@@ -2533,14 +2533,14 @@ case 4:
 				if (true == isuy) {
 					tmp = ay[(int)y] + rv[(int)v];
 					r = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 					tmp = ay[(int)y] - gu[(int)u] -
 								gv[(int)v];
 					g = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 					tmp = ay[(int)y] + bu[(int)u];
 					b = (255 < tmp) ? 255 : ((0 > tmp) ?
-								0 : (__u8)tmp);
+								0 : (u8)tmp);
 
 					if ((true == last) && rump) {
 						pcache = &peasycap->cache[0];
@@ -2754,7 +2754,7 @@ int i, more, much, leap, rc, last;
 int videofieldamount;
 unsigned int override, bad;
 int framestatus, framelength, frameactual, frameoffset;
-__u8 *pu;
+u8 *pu;
 
 if (NULL == purb) {
 	SAY("ERROR: easycap_complete(): purb is NULL\n");
@@ -2862,7 +2862,7 @@ if (purb->status) {
 			}
 			pfield_buffer = &peasycap->field_buffer
 				[peasycap->field_fill][peasycap->field_page];
-			pu = (__u8 *)(purb->transfer_buffer +
+			pu = (u8 *)(purb->transfer_buffer +
 					purb->iso_frame_desc[i].offset);
 			if (0x80 & *pu)
 				leap = 8;
@@ -3159,19 +3159,19 @@ int ISOCwMaxPacketSize;
 int BULKwMaxPacketSize;
 int INTwMaxPacketSize;
 int CTRLwMaxPacketSize;
-__u8 bEndpointAddress;
-__u8 ISOCbEndpointAddress;
-__u8 INTbEndpointAddress;
+u8 bEndpointAddress;
+u8 ISOCbEndpointAddress;
+u8 INTbEndpointAddress;
 int isin, i, j, k, m, rc;
-__u8 bInterfaceNumber;
-__u8 bInterfaceClass;
-__u8 bInterfaceSubClass;
+u8 bInterfaceNumber;
+u8 bInterfaceClass;
+u8 bInterfaceSubClass;
 void *pbuf;
 int okalt[8], isokalt;
 int okepn[8];
 int okmps[8];
 int maxpacketsize;
-__u16 mask;
+u16 mask;
 s32 value;
 struct easycap_format *peasycap_format;
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
@@ -4552,7 +4552,7 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 {
 struct usb_host_interface *pusb_host_interface;
 struct usb_interface_descriptor *pusb_interface_descriptor;
-__u8 bInterfaceNumber;
+u8 bInterfaceNumber;
 struct easycap *peasycap;
 
 struct list_head *plist_head;

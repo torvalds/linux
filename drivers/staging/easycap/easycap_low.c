@@ -252,7 +252,7 @@ static const struct saa7113config saa7113configNTSC[256] = {
 int
 confirm_resolution(struct usb_device *p)
 {
-__u8 get0, get1, get2, get3, get4, get5, get6, get7;
+u8 get0, get1, get2, get3, get4, get5, get6, get7;
 
 if (NULL == p)
 	return -ENODEV;
@@ -293,8 +293,8 @@ return 0;
 int
 confirm_stream(struct usb_device *p)
 {
-__u16 get2;
-__u8 igot;
+u16 get2;
+u8 igot;
 
 if (NULL == p)
 	return -ENODEV;
@@ -356,9 +356,9 @@ return 0;
 }
 /****************************************************************************/
 int
-write_000(struct usb_device *p, __u16 set2, __u16 set0)
+write_000(struct usb_device *p, u16 set2, u16 set0)
 {
-__u8 igot0, igot2;
+u8 igot0, igot2;
 
 if (NULL == p)
 	return -ENODEV;
@@ -370,7 +370,7 @@ return 0;
 }
 /****************************************************************************/
 int
-write_saa(struct usb_device *p, __u16 reg0, __u16 set0)
+write_saa(struct usb_device *p, u16 reg0, u16 set0)
 {
 if (NULL == p)
 	return -ENODEV;
@@ -391,11 +391,11 @@ return wait_i2c(p);
  */
 /*--------------------------------------------------------------------------*/
 int
-write_vt(struct usb_device *p, __u16 reg0, __u16 set0)
+write_vt(struct usb_device *p, u16 reg0, u16 set0)
 {
-__u8 igot;
-__u16 got502, got503;
-__u16 set502, set503;
+u8 igot;
+u16 got502, got503;
+u16 set502, set503;
 
 if (NULL == p)
 	return -ENODEV;
@@ -429,10 +429,10 @@ return 0;
  */
 /*--------------------------------------------------------------------------*/
 int
-read_vt(struct usb_device *p, __u16 reg0)
+read_vt(struct usb_device *p, u16 reg0)
 {
-__u8 igot;
-__u16 got502, got503;
+u8 igot;
+u16 got502, got503;
 
 if (NULL == p)
 	return -ENODEV;
@@ -665,9 +665,9 @@ return 0;
 }
 /****************************************************************************/
 int
-read_saa(struct usb_device *p, __u16 reg0)
+read_saa(struct usb_device *p, u16 reg0)
 {
-__u8 igot;
+u8 igot;
 
 if (NULL == p)
 	return -ENODEV;
@@ -681,9 +681,9 @@ return igot;
 }
 /****************************************************************************/
 int
-read_stk(struct usb_device *p, __u32 reg0)
+read_stk(struct usb_device *p, u32 reg0)
 {
-__u8 igot;
+u8 igot;
 
 if (NULL == p)
 	return -ENODEV;
@@ -815,9 +815,9 @@ return 0;
 /****************************************************************************/
 int
 set_resolution(struct usb_device *p,
-				__u16 set0, __u16 set1, __u16 set2, __u16 set3)
+				u16 set0, u16 set1, u16 set2, u16 set3)
 {
-__u16 u0x0111, u0x0113, u0x0115, u0x0117;
+u16 u0x0111, u0x0113, u0x0115, u0x0117;
 
 if (NULL == p)
 	return -ENODEV;
@@ -841,8 +841,8 @@ return 0;
 int
 start_100(struct usb_device *p)
 {
-__u16 get116, get117, get0;
-__u8 igot116, igot117, igot;
+u16 get116, get117, get0;
+u8 igot116, igot117, igot;
 
 if (NULL == p)
 	return -ENODEV;
@@ -866,8 +866,8 @@ return 0;
 int
 stop_100(struct usb_device *p)
 {
-__u16 get0;
-__u8 igot;
+u16 get0;
+u8 igot;
 
 if (NULL == p)
 	return -ENODEV;
@@ -885,8 +885,8 @@ return 0;
 int
 wait_i2c(struct usb_device *p)
 {
-__u16 get0;
-__u8 igot;
+u16 get0;
+u8 igot;
 const int max = 2;
 int k;
 
@@ -912,33 +912,33 @@ return -1;
 }
 /****************************************************************************/
 int
-regset(struct usb_device *pusb_device, __u16 index, __u16 value)
+regset(struct usb_device *pusb_device, u16 index, u16 value)
 {
-__u16 igot;
+u16 igot;
 int rc0, rc1;
 
 if (!pusb_device)
 	return -ENODEV;
 rc1 = 0;  igot = 0;
 rc0 = usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0),
-		(__u8)0x01,
-		(__u8)(USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
-		(__u16)value,
-		(__u16)index,
+		(u8)0x01,
+		(u8)(USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
+		(u16)value,
+		(u16)index,
 		NULL,
-		(__u16)0,
+		(u16)0,
 		(int)500);
 
 #ifdef NOREADBACK
 #
 #else
 rc1 = usb_control_msg(pusb_device, usb_rcvctrlpipe(pusb_device, 0),
-		(__u8)0x00,
-		(__u8)(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
-		(__u16)0x00,
-		(__u16)index,
+		(u8)0x00,
+		(u8)(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
+		(u16)0x00,
+		(u16)index,
 		(void *)&igot,
-		(__u16)sizeof(__u16),
+		(u16)sizeof(u16),
 		(int)50000);
 igot = 0xFF & igot;
 switch (index) {
@@ -976,19 +976,19 @@ return (0 > rc0) ? rc0 : rc1;
 }
 /*****************************************************************************/
 int
-regget(struct usb_device *pusb_device, __u16 index, void *pvoid)
+regget(struct usb_device *pusb_device, u16 index, void *pvoid)
 {
 int ir;
 
 if (!pusb_device)
 	return -ENODEV;
 ir = usb_control_msg(pusb_device, usb_rcvctrlpipe(pusb_device, 0),
-		(__u8)0x00,
-		(__u8)(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
-		(__u16)0x00,
-		(__u16)index,
+		(u8)0x00,
+		(u8)(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
+		(u16)0x00,
+		(u16)index,
 		(void *)pvoid,
-		sizeof(__u8),
+		sizeof(u8),
 		(int)50000);
 return 0xFF & ir;
 }
@@ -999,12 +999,12 @@ wakeup_device(struct usb_device *pusb_device)
 if (!pusb_device)
 	return -ENODEV;
 return usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0),
-		(__u8)USB_REQ_SET_FEATURE,
-		(__u8)(USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE),
+		(u8)USB_REQ_SET_FEATURE,
+		(u8)(USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE),
 		USB_DEVICE_REMOTE_WAKEUP,
-		(__u16)0,
+		(u16)0,
 		(void *) NULL,
-		(__u16)0,
+		(u16)0,
 		(int)50000);
 }
 /*****************************************************************************/
@@ -1022,12 +1022,12 @@ int rc, id1, id2;
  *  TO ENABLE AUDIO  THE VALUE 0x0200 MUST BE SENT.
  */
 /*---------------------------------------------------------------------------*/
-const __u8 request = 0x01;
-const __u8 requesttype =
-		(__u8)(USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE);
-const __u16 value_unmute = 0x0200;
-const __u16 index = 0x0301;
-const __u16 length = 1;
+const u8 request = 0x01;
+const u8 requesttype =
+		(u8)(USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE);
+const u16 value_unmute = 0x0200;
+const u16 index = 0x0301;
+const u16 length = 1;
 
 if (NULL == peasycap)
 	return -EFAULT;
@@ -1048,15 +1048,15 @@ JOM(8, "%02X %02X %02X %02X %02X %02X %02X %02X\n",
 buffer[0] = 0x01;
 
 rc = usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0),
-			(__u8)request,
-			(__u8)requesttype,
-			(__u16)value_unmute,
-			(__u16)index,
+			(u8)request,
+			(u8)requesttype,
+			(u16)value_unmute,
+			(u16)index,
 			(void *)&buffer[0],
-			(__u16)length,
+			(u16)length,
 			(int)50000);
 
-JOT(8, "0x%02X=buffer\n", *((__u8 *) &buffer[0]));
+JOT(8, "0x%02X=buffer\n", *((u8 *) &buffer[0]));
 if (rc != (int)length) {
 	switch (rc) {
 	case -EPIPE: {
@@ -1175,11 +1175,11 @@ return 0;
 */
 /*---------------------------------------------------------------------------*/
 int
-audio_gainset(struct usb_device *pusb_device, __s8 loud)
+audio_gainset(struct usb_device *pusb_device, s8 loud)
 {
 int igot;
-__u8 tmp;
-__u16 mute;
+u8 tmp;
+u16 mute;
 
 if (NULL == pusb_device)
 	return -ENODEV;
@@ -1199,7 +1199,7 @@ if (0 > igot) {
 mute = 0;
 
 if (16 > loud)
-	tmp = 0x01 | (0x001F & (((__u8)(15 - loud)) << 1));
+	tmp = 0x01 | (0x001F & (((u8)(15 - loud)) << 1));
 else
 	tmp = 0;
 
@@ -1231,7 +1231,7 @@ if (0 > igot) {
 mute = 0;
 
 if (16 <= loud)
-	tmp = 0x000F & (__u8)(loud - 16);
+	tmp = 0x000F & (u8)(loud - 16);
 else
 	tmp = 0;
 

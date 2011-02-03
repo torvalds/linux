@@ -259,8 +259,8 @@ struct data_buffer {
 	struct list_head list_head;
 	void *pgo;
 	void *pto;
-	__u16 kount;
-	__u16 input;
+	u16 kount;
+	u16 input;
 };
 /*---------------------------------------------------------------------------*/
 struct data_urb {
@@ -271,11 +271,11 @@ struct data_urb {
 };
 /*---------------------------------------------------------------------------*/
 struct easycap_standard {
-	__u16 mask;
+	u16 mask;
 struct v4l2_standard v4l2_standard;
 };
 struct easycap_format {
-	__u16 mask;
+	u16 mask;
 	char name[128];
 struct v4l2_format v4l2_format;
 };
@@ -323,7 +323,7 @@ struct easycap {
 
 #define UPSAMPLE
 #ifdef UPSAMPLE
-	__s16 oldaudio;
+	s16 oldaudio;
 #endif /*UPSAMPLE*/
 
 	int ilk;
@@ -388,12 +388,12 @@ struct easycap {
 	struct list_head urb_video_head;
 	struct list_head *purb_video_head;
 
-	__u8 cache[8];
-	__u8 *pcache;
+	u8 cache[8];
+	u8 *pcache;
 	int video_mt;
 	int audio_mt;
 	long long audio_bytes;
-	__u32 isequence;
+	u32 isequence;
 
 	int vma_many;
 /*---------------------------------------------------------------------------*/
@@ -418,7 +418,7 @@ struct easycap {
  *  IMAGE PROPERTIES
  */
 /*---------------------------------------------------------------------------*/
-	__u32                   pixelformat;
+	u32                   pixelformat;
 	int                     width;
 	int                     height;
 	int                     bytesperpixel;
@@ -516,12 +516,12 @@ int              submit_video_urbs(struct easycap *);
 int              kill_video_urbs(struct easycap *);
 int              field2frame(struct easycap *);
 int              redaub(struct easycap *, void *, void *,
-						int, int, __u8, __u8, bool);
+						int, int, u8, u8, bool);
 void             easycap_testcard(struct easycap *, int);
 int              fillin_formats(void);
 int              newinput(struct easycap *, int);
 int              adjust_standard(struct easycap *, v4l2_std_id);
-int              adjust_format(struct easycap *, __u32, __u32, __u32,
+int              adjust_format(struct easycap *, u32, u32, u32,
 								int, bool);
 int              adjust_brightness(struct easycap *, int);
 int              adjust_contrast(struct easycap *, int);
@@ -551,9 +551,9 @@ int              audio_setup(struct easycap *);
  */
 /*---------------------------------------------------------------------------*/
 int              audio_gainget(struct usb_device *);
-int              audio_gainset(struct usb_device *, __s8);
+int              audio_gainset(struct usb_device *, s8);
 
-int              set_interface(struct usb_device *, __u16);
+int              set_interface(struct usb_device *, u16);
 int              wakeup_device(struct usb_device *);
 int              confirm_resolution(struct usb_device *);
 int              confirm_stream(struct usb_device *);
@@ -568,20 +568,20 @@ int              merit_saa(struct usb_device *);
 int              check_vt(struct usb_device *);
 int              select_input(struct usb_device *, int, int);
 int              set_resolution(struct usb_device *,
-						__u16, __u16, __u16, __u16);
+						u16, u16, u16, u16);
 
-int              read_saa(struct usb_device *, __u16);
-int              read_stk(struct usb_device *, __u32);
-int              write_saa(struct usb_device *, __u16, __u16);
+int              read_saa(struct usb_device *, u16);
+int              read_stk(struct usb_device *, u32);
+int              write_saa(struct usb_device *, u16, u16);
 int              wait_i2c(struct usb_device *);
-int              write_000(struct usb_device *, __u16, __u16);
+int              write_000(struct usb_device *, u16, u16);
 int              start_100(struct usb_device *);
 int              stop_100(struct usb_device *);
 int              write_300(struct usb_device *);
-int              read_vt(struct usb_device *, __u16);
-int              write_vt(struct usb_device *, __u16, __u16);
-int              regset(struct usb_device *, __u16, __u16);
-int              regget(struct usb_device *, __u16, void *);
+int              read_vt(struct usb_device *, u16);
+int              write_vt(struct usb_device *, u16, u16);
+int              regset(struct usb_device *, u16, u16);
+int              regget(struct usb_device *, u16, void *);
 int		isdongle(struct easycap *);
 /*---------------------------------------------------------------------------*/
 struct signed_div_result {
@@ -597,7 +597,7 @@ struct signed_div_result {
 /*---------------------------------------------------------------------------*/
 #define GET(X, Y, Z) do { \
 	int rc; \
-	*(Z) = (__u16)0; \
+	*(Z) = (u16)0; \
 	rc = regget(X, Y, Z); \
 	if (0 > rc) { \
 		JOT(8, ":-(%i\n", __LINE__);  return(rc); \
