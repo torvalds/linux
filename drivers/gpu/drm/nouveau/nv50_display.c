@@ -24,6 +24,7 @@
  *
  */
 
+#define NOUVEAU_DMA_DEBUG (nouveau_reg_debug & NOUVEAU_REG_DEBUG_EVO)
 #include "nv50_display.h"
 #include "nouveau_crtc.h"
 #include "nouveau_encoder.h"
