@@ -282,6 +282,34 @@ int ath5k_hw_phy_disable(struct ath5k_hw *ah)
 	return 0;
 }
 
+/*
+ * Wait for synth to settle
+ */
+static void ath5k_hw_wait_for_synth(struct ath5k_hw *ah,
+			struct ieee80211_channel *channel)
+{
+	/*
+	 * On 5211+ read activation -> rx delay
+	 * and use it (100ns steps).
+	 */
+	if (ah->ah_version != AR5K_AR5210) {
+		u32 delay;
+		delay = ath5k_hw_reg_read(ah, AR5K_PHY_RX_DELAY) &
+			AR5K_PHY_RX_DELAY_M;
+		delay = (channel->hw_value & CHANNEL_CCK) ?
+			((delay << 2) / 22) : (delay / 10);
+		if (ah->ah_bwmode == AR5K_BWMODE_10MHZ)
+			delay = delay << 1;
+		if (ah->ah_bwmode == AR5K_BWMODE_5MHZ)
+			delay = delay << 2;
+		/* XXX: /2 on turbo ? Let's be safe
+		 * for now */
+		udelay(100 + delay);
+	} else {
+		mdelay(1);
+	}
+}
+
 
 /**********************\
 * RF Gain optimization *
@@ -3238,6 +3266,13 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		/* Failed */
 		if (i >= 100)
 			return -EIO;
+
+		/* Set channel and wait for synth */
+		ret = ath5k_hw_channel(ah, channel);
+		if (ret)
+			return ret;
+
+		ath5k_hw_wait_for_synth(ah, channel);
 	}
 
 	/*
@@ -3252,13 +3287,53 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	if (ret)
 		return ret;
 
+	/* Write OFDM timings on 5212*/
+	if (ah->ah_version == AR5K_AR5212 &&
+		channel->hw_value & CHANNEL_OFDM) {
+
+		ret = ath5k_hw_write_ofdm_timings(ah, channel);
+		if (ret)
+			return ret;
+
+		/* Spur info is available only from EEPROM versions
+		 * greater than 5.3, but the EEPROM routines will use
+		 * static values for older versions */
+		if (ah->ah_mac_srev >= AR5K_SREV_AR5424)
+			ath5k_hw_set_spur_mitigation_filter(ah,
+							    channel);
+	}
+
+	/* If we used fast channel switching
+	 * we are done, release RF bus and
+	 * fire up NF calibration.
+	 *
+	 * Note: Only NF calibration due to
+	 * channel change, not AGC calibration
+	 * since AGC is still running !
+	 */
+	if (fast) {
+		/*
+		 * Release RF Bus grant
+		 */
+		AR5K_REG_DISABLE_BITS(ah, AR5K_PHY_RFBUS_REQ,
+				    AR5K_PHY_RFBUS_REQ_REQUEST);
+
+		/*
+		 * Start NF calibration
+		 */
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
+					AR5K_PHY_AGCCTL_NF);
+
+		return ret;
+	}
+
 	/*
 	 * For 5210 we do all initialization using
 	 * initvals, so we don't have to modify
 	 * any settings (5210 also only supports
 	 * a/aturbo modes)
 	 */
-	if ((ah->ah_version != AR5K_AR5210) && !fast) {
+	if (ah->ah_version != AR5K_AR5210) {
 
 		/*
 		 * Write initial RF gain settings
@@ -3276,22 +3351,6 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		ret = ath5k_hw_rfregs_init(ah, channel, mode);
 		if (ret)
 			return ret;
-
-		/* Write OFDM timings on 5212*/
-		if (ah->ah_version == AR5K_AR5212 &&
-			channel->hw_value & CHANNEL_OFDM) {
-
-			ret = ath5k_hw_write_ofdm_timings(ah, channel);
-			if (ret)
-				return ret;
-
-			/* Spur info is available only from EEPROM versions
-			 * greater than 5.3, but the EEPROM routines will use
-			 * static values for older versions */
-			if (ah->ah_mac_srev >= AR5K_SREV_AR5424)
-				ath5k_hw_set_spur_mitigation_filter(ah,
-								    channel);
-		}
 
 		/*Enable/disable 802.11b mode on 5111
 		(enable 2111 frequency converter + CCK)*/
@@ -3323,47 +3382,20 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	 */
 	ath5k_hw_reg_write(ah, AR5K_PHY_ACT_ENABLE, AR5K_PHY_ACT);
 
-	/*
-	 * On 5211+ read activation -> rx delay
-	 * and use it.
-	 */
-	if (ah->ah_version != AR5K_AR5210) {
-		u32 delay;
-		delay = ath5k_hw_reg_read(ah, AR5K_PHY_RX_DELAY) &
-			AR5K_PHY_RX_DELAY_M;
-		delay = (channel->hw_value & CHANNEL_CCK) ?
-			((delay << 2) / 22) : (delay / 10);
-		if (ah->ah_bwmode == AR5K_BWMODE_10MHZ)
-			delay = delay << 1;
-		if (ah->ah_bwmode == AR5K_BWMODE_5MHZ)
-			delay = delay << 2;
-		/* XXX: /2 on turbo ? Let's be safe
-		 * for now */
-		udelay(100 + delay);
-	} else {
-		mdelay(1);
-	}
+	ath5k_hw_wait_for_synth(ah, channel);
 
-	if (fast)
-		/*
-		 * Release RF Bus grant
-		 */
-		AR5K_REG_DISABLE_BITS(ah, AR5K_PHY_RFBUS_REQ,
-				    AR5K_PHY_RFBUS_REQ_REQUEST);
-	else {
-		/*
-		 * Perform ADC test to see if baseband is ready
-		 * Set tx hold and check adc test register
-		 */
-		phy_tst1 = ath5k_hw_reg_read(ah, AR5K_PHY_TST1);
-		ath5k_hw_reg_write(ah, AR5K_PHY_TST1_TXHOLD, AR5K_PHY_TST1);
-		for (i = 0; i <= 20; i++) {
-			if (!(ath5k_hw_reg_read(ah, AR5K_PHY_ADC_TEST) & 0x10))
-				break;
-			udelay(200);
-		}
-		ath5k_hw_reg_write(ah, phy_tst1, AR5K_PHY_TST1);
+	/*
+	 * Perform ADC test to see if baseband is ready
+	 * Set tx hold and check adc test register
+	 */
+	phy_tst1 = ath5k_hw_reg_read(ah, AR5K_PHY_TST1);
+	ath5k_hw_reg_write(ah, AR5K_PHY_TST1_TXHOLD, AR5K_PHY_TST1);
+	for (i = 0; i <= 20; i++) {
+		if (!(ath5k_hw_reg_read(ah, AR5K_PHY_ADC_TEST) & 0x10))
+			break;
+		udelay(200);
 	}
+	ath5k_hw_reg_write(ah, phy_tst1, AR5K_PHY_TST1);
 
 	/*
 	 * Start automatic gain control calibration
