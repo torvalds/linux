@@ -316,8 +316,7 @@ if (true == other) {
 	peasycap_standard = &easycap_standard[0];
 	while (0xFFFF != peasycap_standard->mask) {
 		if (true == ntsc) {
-			if (NTSC_M ==
-				peasycap_standard->v4l2_standard.index) {
+			if (NTSC_M == peasycap_standard->v4l2_standard.index) {
 				peasycap->inputset[input].standard_offset =
 						peasycap_standard -
 							&easycap_standard[0];
@@ -3631,8 +3630,7 @@ for (i = 0; i < pusb_interface->num_altsetting; i++) {
 		return -EFAULT;
 	}
 	pusb_interface_descriptor = &(pusb_host_interface->desc);
-	if (NULL ==
-						pusb_interface_descriptor) {
+	if (NULL == pusb_interface_descriptor) {
 		SAM("ERROR: pusb_interface_descriptor is NULL\n");
 		return -EFAULT;
 	}
@@ -4650,8 +4648,7 @@ case 0: {
 			pdata_urb = list_entry(plist_head,
 					struct data_urb, list_head);
 			if (NULL != pdata_urb) {
-				if (NULL !=
-						pdata_urb->purb) {
+				if (NULL != pdata_urb->purb) {
 					usb_kill_urb(pdata_urb->purb);
 					m++;
 				}
@@ -4671,8 +4668,7 @@ case 2: {
 			pdata_urb = list_entry(plist_head,
 					struct data_urb, list_head);
 			if (NULL != pdata_urb) {
-				if (NULL !=
-						pdata_urb->purb) {
+				if (NULL != pdata_urb->purb) {
 					usb_kill_urb(pdata_urb->purb);
 					m++;
 				}
