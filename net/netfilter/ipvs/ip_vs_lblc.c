@@ -63,6 +63,8 @@
 #define CHECK_EXPIRE_INTERVAL   (60*HZ)
 #define ENTRY_TIMEOUT           (6*60*HZ)
 
+#define DEFAULT_EXPIRATION	(24*60*60*HZ)
+
 /*
  *    It is for full expiration check.
  *    When there is no partial expiration check (garbage collection)
@@ -238,6 +240,15 @@ static void ip_vs_lblc_flush(struct ip_vs_lblc_table *tbl)
 	}
 }
 
+static int sysctl_lblc_expiration(struct ip_vs_service *svc)
+{
+#ifdef CONFIG_SYSCTL
+	struct netns_ipvs *ipvs = net_ipvs(svc->net);
+	return ipvs->sysctl_lblc_expiration;
+#else
+	return DEFAULT_EXPIRATION;
+#endif
+}
 
 static inline void ip_vs_lblc_full_check(struct ip_vs_service *svc)
 {
@@ -245,7 +256,6 @@ static inline void ip_vs_lblc_full_check(struct ip_vs_service *svc)
 	struct ip_vs_lblc_entry *en, *nxt;
 	unsigned long now = jiffies;
 	int i, j;
-	struct netns_ipvs *ipvs = net_ipvs(svc->net);
 
 	for (i=0, j=tbl->rover; i<IP_VS_LBLC_TAB_SIZE; i++) {
 		j = (j + 1) & IP_VS_LBLC_TAB_MASK;
@@ -254,7 +264,7 @@ static inline void ip_vs_lblc_full_check(struct ip_vs_service *svc)
 		list_for_each_entry_safe(en, nxt, &tbl->bucket[j], list) {
 			if (time_before(now,
 					en->lastuse +
-					ipvs->sysctl_lblc_expiration))
+					sysctl_lblc_expiration(svc)))
 				continue;
 
 			ip_vs_lblc_free(en);
@@ -550,7 +560,7 @@ static int __net_init __ip_vs_lblc_init(struct net *net)
 			return -ENOMEM;
 	} else
 		ipvs->lblc_ctl_table = vs_vars_table;
-	ipvs->sysctl_lblc_expiration = 24*60*60*HZ;
+	ipvs->sysctl_lblc_expiration = DEFAULT_EXPIRATION;
 	ipvs->lblc_ctl_table[0].data = &ipvs->sysctl_lblc_expiration;
 
 #ifdef CONFIG_SYSCTL

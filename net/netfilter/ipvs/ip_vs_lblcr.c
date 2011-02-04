@@ -63,6 +63,8 @@
 #define CHECK_EXPIRE_INTERVAL   (60*HZ)
 #define ENTRY_TIMEOUT           (6*60*HZ)
 
+#define DEFAULT_EXPIRATION	(24*60*60*HZ)
+
 /*
  *    It is for full expiration check.
  *    When there is no partial expiration check (garbage collection)
@@ -410,6 +412,15 @@ static void ip_vs_lblcr_flush(struct ip_vs_lblcr_table *tbl)
 	}
 }
 
+static int sysctl_lblcr_expiration(struct ip_vs_service *svc)
+{
+#ifdef CONFIG_SYSCTL
+	struct netns_ipvs *ipvs = net_ipvs(svc->net);
+	return ipvs->sysctl_lblcr_expiration;
+#else
+	return DEFAULT_EXPIRATION;
+#endif
+}
 
 static inline void ip_vs_lblcr_full_check(struct ip_vs_service *svc)
 {
@@ -417,15 +428,14 @@ static inline void ip_vs_lblcr_full_check(struct ip_vs_service *svc)
 	unsigned long now = jiffies;
 	int i, j;
 	struct ip_vs_lblcr_entry *en, *nxt;
-	struct netns_ipvs *ipvs = net_ipvs(svc->net);
 
 	for (i=0, j=tbl->rover; i<IP_VS_LBLCR_TAB_SIZE; i++) {
 		j = (j + 1) & IP_VS_LBLCR_TAB_MASK;
 
 		write_lock(&svc->sched_lock);
 		list_for_each_entry_safe(en, nxt, &tbl->bucket[j], list) {
-			if (time_after(en->lastuse
-					+ ipvs->sysctl_lblcr_expiration, now))
+			if (time_after(en->lastuse +
+				       sysctl_lblcr_expiration(svc), now))
 				continue;
 
 			ip_vs_lblcr_free(en);
@@ -650,7 +660,6 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	read_lock(&svc->sched_lock);
 	en = ip_vs_lblcr_get(svc->af, tbl, &iph.daddr);
 	if (en) {
-		struct netns_ipvs *ipvs = net_ipvs(svc->net);
 		/* We only hold a read lock, but this is atomic */
 		en->lastuse = jiffies;
 
@@ -662,7 +671,7 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		/* More than one destination + enough time passed by, cleanup */
 		if (atomic_read(&en->set.size) > 1 &&
 				time_after(jiffies, en->set.lastmod +
-				ipvs->sysctl_lblcr_expiration)) {
+				sysctl_lblcr_expiration(svc))) {
 			struct ip_vs_dest *m;
 
 			write_lock(&en->set.lock);
@@ -746,7 +755,7 @@ static int __net_init __ip_vs_lblcr_init(struct net *net)
 			return -ENOMEM;
 	} else
 		ipvs->lblcr_ctl_table = vs_vars_table;
-	ipvs->sysctl_lblcr_expiration = 24*60*60*HZ;
+	ipvs->sysctl_lblcr_expiration = DEFAULT_EXPIRATION;
 	ipvs->lblcr_ctl_table[0].data = &ipvs->sysctl_lblcr_expiration;
 
 #ifdef CONFIG_SYSCTL
