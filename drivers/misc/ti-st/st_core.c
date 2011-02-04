@@ -236,6 +236,7 @@ void st_int_recv(void *disc_data,
 	int len = 0, type = 0;
 	unsigned char *plen;
 	struct st_data_s *st_gdata = (struct st_data_s *)disc_data;
+	unsigned long flags;
 
 	ptr = (char *)data;
 	/* tty_receive sent null ? */
@@ -248,6 +249,7 @@ void st_int_recv(void *disc_data,
 		   "rx_count %ld", count, st_gdata->rx_state,
 		   st_gdata->rx_count);
 
+	spin_lock_irqsave(&st_gdata->lock, flags);
 	/* Decode received bytes here */
 	while (count) {
 		if (st_gdata->rx_count) {
@@ -308,13 +310,25 @@ void st_int_recv(void *disc_data,
 			 * sleep state received --
 			 */
 			st_ll_sleep_state(st_gdata, *ptr);
+			/* if WAKEUP_IND collides copy from waitq to txq
+			 * and assume chip awake
+			 */
+			spin_unlock_irqrestore(&st_gdata->lock, flags);
+			if (st_ll_getstate(st_gdata) == ST_LL_AWAKE)
+				st_wakeup_ack(st_gdata, LL_WAKE_UP_ACK);
+			spin_lock_irqsave(&st_gdata->lock, flags);
+
 			ptr++;
 			count--;
 			continue;
 		case LL_WAKE_UP_ACK:
 			pr_debug("PM packet");
+
+			spin_unlock_irqrestore(&st_gdata->lock, flags);
 			/* wake up ack received */
 			st_wakeup_ack(st_gdata, *ptr);
+			spin_lock_irqsave(&st_gdata->lock, flags);
+
 			ptr++;
 			count--;
 			continue;
@@ -337,6 +351,7 @@ void st_int_recv(void *disc_data,
 		ptr++;
 		count--;
 	}
+	spin_unlock_irqrestore(&st_gdata->lock, flags);
 	pr_debug("done %s", __func__);
 	return;
 }
