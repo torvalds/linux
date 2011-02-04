@@ -838,6 +838,22 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	return bt_sock_recvmsg(iocb, sock, msg, len, flags);
 }
 
+/* Kill socket (only if zapped and orphan)
+ * Must be called on unlocked socket.
+ */
+void l2cap_sock_kill(struct sock *sk)
+{
+	if (!sock_flag(sk, SOCK_ZAPPED) || sk->sk_socket)
+		return;
+
+	BT_DBG("sk %p state %d", sk, sk->sk_state);
+
+	/* Kill poor orphan */
+	bt_sock_unlink(&l2cap_sk_list, sk);
+	sock_set_flag(sk, SOCK_DEAD);
+	sock_put(sk);
+}
+
 static int l2cap_sock_shutdown(struct socket *sock, int how)
 {
 	struct sock *sk = sock->sk;
