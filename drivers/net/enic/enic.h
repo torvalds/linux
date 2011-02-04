@@ -32,7 +32,7 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"2.1.1.5"
+#define DRV_VERSION		"2.1.1.6"
 #define DRV_COPYRIGHT		"Copyright 2008-2011 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
@@ -101,7 +101,6 @@ struct enic {
 	/* receive queue cache line section */
 	____cacheline_aligned struct vnic_rq rq[ENIC_RQ_MAX];
 	unsigned int rq_count;
-	int (*rq_alloc_buf)(struct vnic_rq *rq);
 	u64 rq_truncated_pkts;
 	u64 rq_bad_fcs;
 	struct napi_struct napi[ENIC_RQ_MAX];

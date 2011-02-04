@@ -110,17 +110,6 @@ int enic_dev_del_addr(struct enic *enic, u8 *addr)
 	return err;
 }
 
-int enic_dev_hw_version(struct enic *enic, enum vnic_dev_hw_version *hw_ver)
-{
-	int err;
-
-	spin_lock(&enic->devcmd_lock);
-	err = vnic_dev_hw_version(enic->vdev, hw_ver);
-	spin_unlock(&enic->devcmd_lock);
-
-	return err;
-}
-
 int enic_dev_notify_unset(struct enic *enic)
 {
 	int err;

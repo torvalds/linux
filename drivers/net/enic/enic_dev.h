@@ -29,7 +29,6 @@ int enic_dev_add_addr(struct enic *enic, u8 *addr);
 int enic_dev_del_addr(struct enic *enic, u8 *addr);
 void enic_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
 void enic_vlan_rx_kill_vid(struct net_device *netdev, u16 vid);
-int enic_dev_hw_version(struct enic *enic, enum vnic_dev_hw_version *hw_ver);
 int enic_dev_notify_unset(struct enic *enic);
 int enic_dev_hang_notify(struct enic *enic);
 int enic_dev_set_ig_vlan_rewrite_mode(struct enic *enic);

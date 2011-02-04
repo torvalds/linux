@@ -1348,50 +1348,6 @@ static int enic_rq_alloc_buf(struct vnic_rq *rq)
 	return 0;
 }
 
-static int enic_rq_alloc_buf_a1(struct vnic_rq *rq)
-{
-	struct rq_enet_desc *desc = vnic_rq_next_desc(rq);
-
-	if (vnic_rq_posting_soon(rq)) {
-
-		/* SW workaround for A0 HW erratum: if we're just about
-		 * to write posted_index, insert a dummy desc
-		 * of type resvd
-		 */
-
-		rq_enet_desc_enc(desc, 0, RQ_ENET_TYPE_RESV2, 0);
-		vnic_rq_post(rq, 0, 0, 0, 0);
-	} else {
-		return enic_rq_alloc_buf(rq);
-	}
-
-	return 0;
-}
-
-static int enic_set_rq_alloc_buf(struct enic *enic)
-{
-	enum vnic_dev_hw_version hw_ver;
-	int err;
-
-	err = enic_dev_hw_version(enic, &hw_ver);
-	if (err)
-		return err;
-
-	switch (hw_ver) {
-	case VNIC_DEV_HW_VER_A1:
-		enic->rq_alloc_buf = enic_rq_alloc_buf_a1;
-		break;
-	case VNIC_DEV_HW_VER_A2:
-	case VNIC_DEV_HW_VER_UNKNOWN:
-		enic->rq_alloc_buf = enic_rq_alloc_buf;
-		break;
-	default:
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static void enic_rq_indicate_buf(struct vnic_rq *rq,
 	struct cq_desc *cq_desc, struct vnic_rq_buf *buf,
 	int skipped, void *opaque)
@@ -1528,7 +1484,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 			0 /* don't unmask intr */,
 			0 /* don't reset intr timer */);
 
-	err = vnic_rq_fill(&enic->rq[0], enic->rq_alloc_buf);
+	err = vnic_rq_fill(&enic->rq[0], enic_rq_alloc_buf);
 
 	/* Buffer allocation failed. Stay in polling
 	 * mode so we can try to fill the ring again.
@@ -1578,7 +1534,7 @@ static int enic_poll_msix(struct napi_struct *napi, int budget)
 			0 /* don't unmask intr */,
 			0 /* don't reset intr timer */);
 
-	err = vnic_rq_fill(&enic->rq[rq], enic->rq_alloc_buf);
+	err = vnic_rq_fill(&enic->rq[rq], enic_rq_alloc_buf);
 
 	/* Buffer allocation failed. Stay in polling mode
 	 * so we can try to fill the ring again.
@@ -1781,7 +1737,7 @@ static int enic_open(struct net_device *netdev)
 	}
 
 	for (i = 0; i < enic->rq_count; i++) {
-		vnic_rq_fill(&enic->rq[i], enic->rq_alloc_buf);
+		vnic_rq_fill(&enic->rq[i], enic_rq_alloc_buf);
 		/* Need at least one buffer on ring to get going */
 		if (vnic_rq_desc_used(&enic->rq[i]) == 0) {
 			netdev_err(netdev, "Unable to alloc receive buffers\n");
@@ -2346,12 +2302,6 @@ static int enic_dev_init(struct enic *enic)
 	}
 
 	enic_init_vnic_resources(enic);
-
-	err = enic_set_rq_alloc_buf(enic);
-	if (err) {
-		dev_err(dev, "Failed to set RQ buffer allocator, aborting\n");
-		goto err_out_free_vnic_resources;
-	}
 
 	err = enic_set_rss_nic_cfg(enic);
 	if (err) {
