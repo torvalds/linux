@@ -439,7 +439,6 @@ struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 							int proto, gfp_t prio);
 
 int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int alen, int flags);
-int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr, int *len, int peer);
 int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len);
 int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags);
 int l2cap_sock_shutdown(struct socket *sock, int how);

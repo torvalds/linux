@@ -993,29 +993,6 @@ done:
 	return err;
 }
 
-int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr, int *len, int peer)
-{
-	struct sockaddr_l2 *la = (struct sockaddr_l2 *) addr;
-	struct sock *sk = sock->sk;
-
-	BT_DBG("sock %p, sk %p", sock, sk);
-
-	addr->sa_family = AF_BLUETOOTH;
-	*len = sizeof(struct sockaddr_l2);
-
-	if (peer) {
-		la->l2_psm = l2cap_pi(sk)->psm;
-		bacpy(&la->l2_bdaddr, &bt_sk(sk)->dst);
-		la->l2_cid = cpu_to_le16(l2cap_pi(sk)->dcid);
-	} else {
-		la->l2_psm = l2cap_pi(sk)->sport;
-		bacpy(&la->l2_bdaddr, &bt_sk(sk)->src);
-		la->l2_cid = cpu_to_le16(l2cap_pi(sk)->scid);
-	}
-
-	return 0;
-}
-
 static int __l2cap_wait_ack(struct sock *sk)
 {
 	DECLARE_WAITQUEUE(wait, current);
