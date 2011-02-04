@@ -442,7 +442,6 @@ int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int alen, int
 int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len);
 int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags);
 int l2cap_sock_shutdown(struct socket *sock, int how);
-int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen);
 
 
 void l2cap_load(void);
