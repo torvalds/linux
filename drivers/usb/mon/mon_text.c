@@ -236,6 +236,9 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 			fp++;
 			dp++;
 		}
+		/* Wasteful, but simple to understand: ISO 'C' is sparse. */
+		if (ev_type == 'C')
+			ep->length = urb->transfer_buffer_length;
 	}
 
 	ep->setup_flag = mon_text_get_setup(ep, urb, ev_type, rp->r.m_bus);
