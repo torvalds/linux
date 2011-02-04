@@ -155,7 +155,9 @@ static int alloc_cmdid_killable(struct nvme_queue *nvmeq, void *ctx,
 }
 
 /* If you need more than four handlers, you'll need to change how
- * alloc_cmdid and nvme_process_cq work
+ * alloc_cmdid and nvme_process_cq work.  Also, aborted commands take
+ * the sync_completion path (if they complete), so don't put anything
+ * else in slot zero.
  */
 enum {
 	sync_completion_id = 0,
@@ -170,6 +172,11 @@ static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 	clear_bit(cmdid, nvmeq->cmdid_data);
 	wake_up(&nvmeq->sq_full);
 	return data;
+}
+
+static void clear_cmdid_data(struct nvme_queue *nvmeq, int cmdid)
+{
+	nvmeq->cmdid_data[cmdid + BITS_TO_LONGS(nvmeq->q_depth)] = 0;
 }
 
 static struct nvme_queue *get_nvmeq(struct nvme_ns *ns)
@@ -386,6 +393,8 @@ static void sync_completion(struct nvme_queue *nvmeq, void *ctx,
 						struct nvme_completion *cqe)
 {
 	struct sync_cmd_info *cmdinfo = ctx;
+	if (!cmdinfo)
+		return;	/* Command aborted */
 	cmdinfo->result = le32_to_cpup(&cqe->result);
 	cmdinfo->status = le16_to_cpup(&cqe->status) >> 1;
 	wake_up_process(cmdinfo->task);
@@ -446,12 +455,19 @@ static irqreturn_t nvme_irq(int irq, void *data)
 	return nvme_process_cq(data);
 }
 
+static void nvme_abort_command(struct nvme_queue *nvmeq, int cmdid)
+{
+	spin_lock_irq(&nvmeq->q_lock);
+	clear_cmdid_data(nvmeq, cmdid);
+	spin_unlock_irq(&nvmeq->q_lock);
+}
+
 /*
  * Returns 0 on success.  If the result is negative, it's a Linux error code;
  * if the result is positive, it's an NVM Express status code
  */
-static int nvme_submit_sync_cmd(struct nvme_queue *q, struct nvme_command *cmd,
-								u32 *result)
+static int nvme_submit_sync_cmd(struct nvme_queue *nvmeq,
+					struct nvme_command *cmd, u32 *result)
 {
 	int cmdid;
 	struct sync_cmd_info cmdinfo;
@@ -459,14 +475,19 @@ static int nvme_submit_sync_cmd(struct nvme_queue *q, struct nvme_command *cmd,
 	cmdinfo.task = current;
 	cmdinfo.status = -EINTR;
 
-	cmdid = alloc_cmdid_killable(q, &cmdinfo, sync_completion_id);
+	cmdid = alloc_cmdid_killable(nvmeq, &cmdinfo, sync_completion_id);
 	if (cmdid < 0)
 		return cmdid;
 	cmd->common.command_id = cmdid;
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	nvme_submit_cmd(q, cmd);
+	set_current_state(TASK_KILLABLE);
+	nvme_submit_cmd(nvmeq, cmd);
 	schedule();
+
+	if (cmdinfo.status == -EINTR) {
+		nvme_abort_command(nvmeq, cmdid);
+		return -EINTR;
+	}
 
 	if (result)
 		*result = cmdinfo.result;
