@@ -1444,9 +1444,19 @@ struct compat_sioc_sg_req {
 	compat_ulong_t wrong_if;
 };
 
+struct compat_sioc_vif_req {
+	vifi_t	vifi;		/* Which iface */
+	compat_ulong_t icount;
+	compat_ulong_t ocount;
+	compat_ulong_t ibytes;
+	compat_ulong_t obytes;
+};
+
 int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 {
 	struct compat_sioc_sg_req sr;
+	struct compat_sioc_vif_req vr;
+	struct vif_device *vif;
 	struct mfc_cache *c;
 	struct net *net = sock_net(sk);
 	struct mr_table *mrt;
@@ -1456,6 +1466,26 @@ int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 		return -ENOENT;
 
 	switch (cmd) {
+	case SIOCGETVIFCNT:
+		if (copy_from_user(&vr, arg, sizeof(vr)))
+			return -EFAULT;
+		if (vr.vifi >= mrt->maxvif)
+			return -EINVAL;
+		read_lock(&mrt_lock);
+		vif = &mrt->vif_table[vr.vifi];
+		if (VIF_EXISTS(mrt, vr.vifi)) {
+			vr.icount = vif->pkt_in;
+			vr.ocount = vif->pkt_out;
+			vr.ibytes = vif->bytes_in;
+			vr.obytes = vif->bytes_out;
+			read_unlock(&mrt_lock);
+
+			if (copy_to_user(arg, &vr, sizeof(vr)))
+				return -EFAULT;
+			return 0;
+		}
+		read_unlock(&mrt_lock);
+		return -EADDRNOTAVAIL;
 	case SIOCGETSGCNT:
 		if (copy_from_user(&sr, arg, sizeof(sr)))
 			return -EFAULT;
