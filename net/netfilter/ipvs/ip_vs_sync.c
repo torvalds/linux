@@ -394,7 +394,7 @@ void ip_vs_sync_switch_mode(struct net *net, int mode)
 
 	if (!(ipvs->sync_state & IP_VS_STATE_MASTER))
 		return;
-	if (mode == ipvs->sysctl_sync_ver || !ipvs->sync_buff)
+	if (mode == sysctl_sync_ver(ipvs) || !ipvs->sync_buff)
 		return;
 
 	spin_lock_bh(&ipvs->sync_buff_lock);
@@ -521,7 +521,7 @@ void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp)
 	unsigned int len, pe_name_len, pad;
 
 	/* Handle old version of the protocol */
-	if (ipvs->sysctl_sync_ver == 0) {
+	if (sysctl_sync_ver(ipvs) == 0) {
 		ip_vs_sync_conn_v0(net, cp);
 		return;
 	}

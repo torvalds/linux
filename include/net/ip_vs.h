@@ -911,6 +911,7 @@ struct netns_ipvs {
 
 #define DEFAULT_SYNC_THRESHOLD	3
 #define DEFAULT_SYNC_PERIOD	50
+#define DEFAULT_SYNC_VER	1
 
 #ifdef CONFIG_SYSCTL
 
@@ -924,6 +925,11 @@ static inline int sysctl_sync_period(struct netns_ipvs *ipvs)
 	return ipvs->sysctl_sync_threshold[1];
 }
 
+static inline int sysctl_sync_ver(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_sync_ver;
+}
+
 #else
 
 static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
@@ -934,6 +940,11 @@ static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
 static inline int sysctl_sync_period(struct netns_ipvs *ipvs)
 {
 	return DEFAULT_SYNC_PERIOD;
+}
+
+static inline int sysctl_sync_ver(struct netns_ipvs *ipvs)
+{
+	return DEFAULT_SYNC_VER;
 }
 
 #endif
