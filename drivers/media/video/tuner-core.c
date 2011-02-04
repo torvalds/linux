@@ -682,9 +682,6 @@ static void tuner_status(struct dvb_frontend *fe)
 	if (analog_ops->has_signal)
 		tuner_info("Signal strength: %d\n",
 			   analog_ops->has_signal(fe));
-	if (analog_ops->is_stereo)
-		tuner_info("Stereo:          %s\n",
-			   analog_ops->is_stereo(fe) ? "yes" : "no");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -861,13 +858,6 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 			(tuner_status & TUNER_STATUS_STEREO) ?
 			V4L2_TUNER_SUB_STEREO :
 			V4L2_TUNER_SUB_MONO;
-	} else {
-		if (analog_ops->is_stereo) {
-			vt->rxsubchans =
-				analog_ops->is_stereo(&t->fe) ?
-				V4L2_TUNER_SUB_STEREO :
-				V4L2_TUNER_SUB_MONO;
-		}
 	}
 	if (analog_ops->has_signal)
 		vt->signal = analog_ops->has_signal(&t->fe);
