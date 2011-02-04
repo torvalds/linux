@@ -62,15 +62,14 @@ real_start:
 	andi	r1, r1, ~2
 	mts	rmsr, r1
 /*
- * Here is checking mechanism which check if Microblaze has msr instructions
- * We load msr and compare it with previous r1 value - if is the same,
- * msr instructions works if not - cpu don't have them.
+ * According to Xilinx, msrclr instruction behaves like 'mfs rX,rpc'
+ * if the msrclr instruction is not enabled. We use this to detect
+ * if the opcode is available, by issuing msrclr and then testing the result.
+ * r8 == 0 - msr instructions are implemented
+ * r8 != 0 - msr instructions are not implemented
  */
-	/* r8=0 - I have msr instr, 1 - I don't have them */
-	rsubi	r0, r0, 1	/* set the carry bit */
-	msrclr	r0, 0x4		/* try to clear it */
-	/* read the carry bit, r8 will be '0' if msrclr exists */
-	addik	r8, r0, 0
+	msrclr	r8, 0 /* clear nothing - just read msr for test */
+	cmpu	r8, r8, r1 /* r1 must contain msr reg content */
 
 /* r7 may point to an FDT, or there may be one linked in.
    if it's in r7, we've got to save it away ASAP.
