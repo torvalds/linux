@@ -723,6 +723,37 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	return bt_sock_recvmsg(iocb, sock, msg, len, flags);
 }
 
+static int l2cap_sock_shutdown(struct socket *sock, int how)
+{
+	struct sock *sk = sock->sk;
+	int err = 0;
+
+	BT_DBG("sock %p, sk %p", sock, sk);
+
+	if (!sk)
+		return 0;
+
+	lock_sock(sk);
+	if (!sk->sk_shutdown) {
+		if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM)
+			err = __l2cap_wait_ack(sk);
+
+		sk->sk_shutdown = SHUTDOWN_MASK;
+		l2cap_sock_clear_timer(sk);
+		__l2cap_sock_close(sk, 0);
+
+		if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime)
+			err = bt_sock_wait_state(sk, BT_CLOSED,
+							sk->sk_lingertime);
+	}
+
+	if (!err && sk->sk_err)
+		err = -sk->sk_err;
+
+	release_sock(sk);
+	return err;
+}
+
 static int l2cap_sock_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;

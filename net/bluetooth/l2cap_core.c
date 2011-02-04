@@ -84,7 +84,7 @@ void l2cap_sock_set_timer(struct sock *sk, long timeout)
 	sk_reset_timer(sk, &sk->sk_timer, jiffies + timeout);
 }
 
-static void l2cap_sock_clear_timer(struct sock *sk)
+void l2cap_sock_clear_timer(struct sock *sk)
 {
 	BT_DBG("sock %p state %d", sk, sk->sk_state);
 	sk_stop_timer(sk, &sk->sk_timer);
@@ -907,7 +907,7 @@ done:
 	return err;
 }
 
-static int __l2cap_wait_ack(struct sock *sk)
+int __l2cap_wait_ack(struct sock *sk)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	int err = 0;
@@ -1464,37 +1464,6 @@ int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *m
 	}
 
 done:
-	release_sock(sk);
-	return err;
-}
-
-int l2cap_sock_shutdown(struct socket *sock, int how)
-{
-	struct sock *sk = sock->sk;
-	int err = 0;
-
-	BT_DBG("sock %p, sk %p", sock, sk);
-
-	if (!sk)
-		return 0;
-
-	lock_sock(sk);
-	if (!sk->sk_shutdown) {
-		if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM)
-			err = __l2cap_wait_ack(sk);
-
-		sk->sk_shutdown = SHUTDOWN_MASK;
-		l2cap_sock_clear_timer(sk);
-		__l2cap_sock_close(sk, 0);
-
-		if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime)
-			err = bt_sock_wait_state(sk, BT_CLOSED,
-							sk->sk_lingertime);
-	}
-
-	if (!err && sk->sk_err)
-		err = -sk->sk_err;
-
 	release_sock(sk);
 	return err;
 }
