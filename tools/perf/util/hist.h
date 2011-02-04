@@ -9,33 +9,6 @@ extern struct callchain_param callchain_param;
 struct hist_entry;
 struct addr_location;
 struct symbol;
-struct rb_root;
-
-struct objdump_line {
-	struct list_head node;
-	s64		 offset;
-	char		 *line;
-};
-
-void objdump_line__free(struct objdump_line *self);
-struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
-					       struct objdump_line *pos);
-
-struct sym_hist {
-	u64		sum;
-	u64		ip[0];
-};
-
-struct sym_ext {
-	struct rb_node	node;
-	double		percent;
-	char		*path;
-};
-
-struct sym_priv {
-	struct sym_hist	*hist;
-	struct sym_ext	*ext;
-};
 
 /*
  * The kernel collects the number of events it couldn't send in a stretch and

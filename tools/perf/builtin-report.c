@@ -9,6 +9,7 @@
 
 #include "util/util.h"
 
+#include "util/annotate.h"
 #include "util/color.h"
 #include <linux/list.h>
 #include "util/cache.h"
@@ -508,7 +509,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	 * implementation.
 	 */
 	if (use_browser > 0) {
-		symbol_conf.priv_size = sizeof(struct sym_priv);
+		symbol_conf.priv_size = sizeof(struct annotation);
 		/*
  		 * For searching by name on the "Browse map details".
  		 * providing it only in verbose mode not to bloat too
