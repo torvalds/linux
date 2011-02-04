@@ -5543,12 +5543,11 @@ S:	Supported
 F:	drivers/scsi/be2iscsi/
 
 SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
-M:	Sathya Perla <sathyap@serverengines.com>
-M:	Subbu Seetharaman <subbus@serverengines.com>
-M:	Sarveshwar Bandi <sarveshwarb@serverengines.com>
-M:	Ajit Khaparde <ajitk@serverengines.com>
+M:	Sathya Perla <sathya.perla@emulex.com>
+M:	Subbu Seetharaman <subbu.seetharaman@emulex.com>
+M:	Ajit Khaparde <ajit.khaparde@emulex.com>
 L:	netdev@vger.kernel.org
-W:	http://www.serverengines.com
+W:	http://www.emulex.com
 S:	Supported
 F:	drivers/net/benet/
 
