@@ -438,9 +438,7 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent);
 struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 							int proto, gfp_t prio);
 
-int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen);
 int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int alen, int flags);
-int l2cap_sock_listen(struct socket *sock, int backlog);
 int l2cap_sock_accept(struct socket *sock, struct socket *newsock, int flags);
 int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr, int *len, int peer);
 int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len);
