@@ -138,20 +138,9 @@ struct v4l2_subdev_ops;
 
 /* Load an i2c module and return an initialized v4l2_subdev struct.
    The client_type argument is the name of the chip that's on the adapter. */
-struct v4l2_subdev *v4l2_i2c_new_subdev_cfg(struct v4l2_device *v4l2_dev,
+struct v4l2_subdev *v4l2_i2c_new_subdev(struct v4l2_device *v4l2_dev,
 		struct i2c_adapter *adapter, const char *client_type,
-		int irq, void *platform_data,
 		u8 addr, const unsigned short *probe_addrs);
-
-/* Load an i2c module and return an initialized v4l2_subdev struct.
-   The client_type argument is the name of the chip that's on the adapter. */
-static inline struct v4l2_subdev *v4l2_i2c_new_subdev(struct v4l2_device *v4l2_dev,
-		struct i2c_adapter *adapter, const char *client_type,
-		u8 addr, const unsigned short *probe_addrs)
-{
-	return v4l2_i2c_new_subdev_cfg(v4l2_dev, adapter, client_type, 0, NULL,
-				       addr, probe_addrs);
-}
 
 struct i2c_board_info;
 

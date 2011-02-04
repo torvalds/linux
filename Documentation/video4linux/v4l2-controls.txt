@@ -285,6 +285,9 @@ implement g_volatile_ctrl like this:
 The 'new value' union is not used in g_volatile_ctrl. In general controls
 that need to implement g_volatile_ctrl are read-only controls.
 
+Note that if one or more controls in a control cluster are marked as volatile,
+then all the controls in the cluster are seen as volatile.
+
 To mark a control as volatile you have to set the is_volatile flag:
 
 	ctrl = v4l2_ctrl_new_std(&sd->ctrl_handler, ...);
@@ -461,6 +464,15 @@ pointer to the v4l2_ctrl_ops struct that is used for that cluster.
 
 Obviously, all controls in the cluster array must be initialized to either
 a valid control or to NULL.
+
+In rare cases you might want to know which controls of a cluster actually
+were set explicitly by the user. For this you can check the 'is_new' flag of
+each control. For example, in the case of a volume/mute cluster the 'is_new'
+flag of the mute control would be set if the user called VIDIOC_S_CTRL for
+mute only. If the user would call VIDIOC_S_EXT_CTRLS for both mute and volume
+controls, then the 'is_new' flag would be 1 for both controls.
+
+The 'is_new' flag is always 1 when called from v4l2_ctrl_handler_setup().
 
 
 VIDIOC_LOG_STATUS Support

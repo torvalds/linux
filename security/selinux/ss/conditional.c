@@ -178,7 +178,7 @@ int cond_init_bool_indexes(struct policydb *p)
 	p->bool_val_to_struct = (struct cond_bool_datum **)
 		kmalloc(p->p_bools.nprim * sizeof(struct cond_bool_datum *), GFP_KERNEL);
 	if (!p->bool_val_to_struct)
-		return -1;
+		return -ENOMEM;
 	return 0;
 }
 

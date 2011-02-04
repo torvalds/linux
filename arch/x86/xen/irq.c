@@ -126,7 +126,7 @@ static const struct pv_irq_ops xen_irq_ops __initdata = {
 #endif
 };
 
-void __init xen_init_irq_ops()
+void __init xen_init_irq_ops(void)
 {
 	pv_irq_ops = xen_irq_ops;
 	x86_init.irqs.intr_init = xen_init_IRQ;

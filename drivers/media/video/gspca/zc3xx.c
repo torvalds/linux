@@ -6909,7 +6909,7 @@ static const struct sd_desc sd_desc = {
 #endif
 };
 
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x041e)},
 	{USB_DEVICE(0x041e, 0x4017)},
 	{USB_DEVICE(0x041e, 0x401c), .driver_info = SENSOR_PAS106},

@@ -117,6 +117,8 @@ source "drivers/net/can/sja1000/Kconfig"
 
 source "drivers/net/can/usb/Kconfig"
 
+source "drivers/net/can/softing/Kconfig"
+
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
 	depends on CAN

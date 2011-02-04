@@ -187,7 +187,7 @@ MODULE_DEVICE_TABLE(pci, lnw_gpio_ids);
 
 static void lnw_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct lnw_gpio *lnw = (struct lnw_gpio *)get_irq_data(irq);
+	struct lnw_gpio *lnw = get_irq_data(irq);
 	u32 base, gpio;
 	void __iomem *gedr;
 	u32 gedr_v;
@@ -206,7 +206,12 @@ static void lnw_irq_handler(unsigned irq, struct irq_desc *desc)
 		/* clear the edge detect status bit */
 		writel(gedr_v, gedr);
 	}
-	desc->chip->eoi(irq);
+
+	if (desc->chip->irq_eoi)
+		desc->chip->irq_eoi(irq_get_irq_data(irq));
+	else
+		dev_warn(lnw->chip.dev, "missing EOI handler for irq %d\n", irq);
+
 }
 
 static int __devinit lnw_gpio_probe(struct pci_dev *pdev,

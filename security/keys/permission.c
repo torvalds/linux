@@ -1,4 +1,4 @@
-/* permission.c: key permission determination
+/* Key permission checking
  *
  * Copyright (C) 2005 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -13,18 +13,19 @@
 #include <linux/security.h>
 #include "internal.h"
 
-/*****************************************************************************/
 /**
  * key_task_permission - Check a key can be used
- * @key_ref: The key to check
- * @cred: The credentials to use
- * @perm: The permissions to check for
+ * @key_ref: The key to check.
+ * @cred: The credentials to use.
+ * @perm: The permissions to check for.
  *
  * Check to see whether permission is granted to use a key in the desired way,
  * but permit the security modules to override.
  *
- * The caller must hold either a ref on cred or must hold the RCU readlock or a
- * spinlock.
+ * The caller must hold either a ref on cred or must hold the RCU readlock.
+ *
+ * Returns 0 if successful, -EACCES if access is denied based on the
+ * permissions bits or the LSM check.
  */
 int key_task_permission(const key_ref_t key_ref, const struct cred *cred,
 			key_perm_t perm)
@@ -79,14 +80,16 @@ use_these_perms:
 
 	/* let LSM be the final arbiter */
 	return security_key_permission(key_ref, cred, perm);
-
-} /* end key_task_permission() */
-
+}
 EXPORT_SYMBOL(key_task_permission);
 
-/*****************************************************************************/
-/*
- * validate a key
+/**
+ * key_validate - Validate a key.
+ * @key: The key to be validated.
+ *
+ * Check that a key is valid, returning 0 if the key is okay, -EKEYREVOKED if
+ * the key's type has been removed or if the key has been revoked or
+ * -EKEYEXPIRED if the key has expired.
  */
 int key_validate(struct key *key)
 {
@@ -111,7 +114,5 @@ int key_validate(struct key *key)
 
 error:
 	return ret;
-
-} /* end key_validate() */
-
+}
 EXPORT_SYMBOL(key_validate);

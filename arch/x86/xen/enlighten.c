@@ -1194,7 +1194,7 @@ asmlinkage void __init xen_start_kernel(void)
 	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
 
 	local_irq_disable();
-	early_boot_irqs_off();
+	early_boot_irqs_disabled = true;
 
 	memblock_init();
 

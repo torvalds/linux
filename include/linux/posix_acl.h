@@ -71,6 +71,7 @@ posix_acl_release(struct posix_acl *acl)
 
 /* posix_acl.c */
 
+extern void posix_acl_init(struct posix_acl *, int);
 extern struct posix_acl *posix_acl_alloc(int, gfp_t);
 extern struct posix_acl *posix_acl_clone(const struct posix_acl *, gfp_t);
 extern int posix_acl_valid(const struct posix_acl *);

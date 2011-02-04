@@ -749,7 +749,8 @@ EXPORT_SYMBOL(dev_get_by_index);
  *	@ha: hardware address
  *
  *	Search for an interface by MAC address. Returns NULL if the device
- *	is not found or a pointer to the device. The caller must hold RCU
+ *	is not found or a pointer to the device.
+ *	The caller must hold RCU or RTNL.
  *	The returned device has not had its ref count increased
  *	and the caller must therefore be careful about locking
  *
@@ -2001,7 +2002,7 @@ static bool can_checksum_protocol(unsigned long features, __be16 protocol)
 
 static int harmonize_features(struct sk_buff *skb, __be16 protocol, int features)
 {
-	if (!can_checksum_protocol(protocol, features)) {
+	if (!can_checksum_protocol(features, protocol)) {
 		features &= ~NETIF_F_ALL_CSUM;
 		features &= ~NETIF_F_SG;
 	} else if (illegal_highdma(skb->dev, skb)) {
@@ -2023,13 +2024,13 @@ int netif_skb_features(struct sk_buff *skb)
 		return harmonize_features(skb, protocol, features);
 	}
 
-	features &= skb->dev->vlan_features;
+	features &= (skb->dev->vlan_features | NETIF_F_HW_VLAN_TX);
 
 	if (protocol != htons(ETH_P_8021Q)) {
 		return harmonize_features(skb, protocol, features);
 	} else {
 		features &= NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST |
-				NETIF_F_GEN_CSUM;
+				NETIF_F_GEN_CSUM | NETIF_F_HW_VLAN_TX;
 		return harmonize_features(skb, protocol, features);
 	}
 }

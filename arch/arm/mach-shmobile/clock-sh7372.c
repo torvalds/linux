@@ -234,7 +234,9 @@ static int pllc2_set_rate(struct clk *clk, unsigned long rate)
 
 	value = __raw_readl(PLLC2CR) & ~(0x3f << 24);
 
-	__raw_writel((value & ~0x80000000) | ((idx + 19) << 24), PLLC2CR);
+	__raw_writel(value | ((idx + 19) << 24), PLLC2CR);
+
+	clk->rate = clk->freq_table[idx].frequency;
 
 	return 0;
 }

@@ -445,7 +445,6 @@ static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
 {
 	__skb_queue_tail(list, skb);
 	sch->qstats.backlog += qdisc_pkt_len(skb);
-	qdisc_bstats_update(sch, skb);
 
 	return NET_XMIT_SUCCESS;
 }
@@ -460,8 +459,10 @@ static inline struct sk_buff *__qdisc_dequeue_head(struct Qdisc *sch,
 {
 	struct sk_buff *skb = __skb_dequeue(list);
 
-	if (likely(skb != NULL))
+	if (likely(skb != NULL)) {
 		sch->qstats.backlog -= qdisc_pkt_len(skb);
+		qdisc_bstats_update(sch, skb);
+	}
 
 	return skb;
 }
@@ -474,10 +475,11 @@ static inline struct sk_buff *qdisc_dequeue_head(struct Qdisc *sch)
 static inline unsigned int __qdisc_queue_drop_head(struct Qdisc *sch,
 					      struct sk_buff_head *list)
 {
-	struct sk_buff *skb = __qdisc_dequeue_head(sch, list);
+	struct sk_buff *skb = __skb_dequeue(list);
 
 	if (likely(skb != NULL)) {
 		unsigned int len = qdisc_pkt_len(skb);
+		sch->qstats.backlog -= len;
 		kfree_skb(skb);
 		return len;
 	}

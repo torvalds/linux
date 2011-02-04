@@ -23,7 +23,7 @@ struct tracepoint_path {
 };
 
 extern struct tracepoint_path *tracepoint_id_to_path(u64 config);
-extern bool have_tracepoints(struct list_head *evsel_list);
+extern bool have_tracepoints(struct list_head *evlist);
 
 extern int			nr_counters;
 

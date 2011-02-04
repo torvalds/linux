@@ -9,3 +9,5 @@ obj-$(CONFIG_N_GSM)		+= n_gsm.o
 obj-$(CONFIG_R3964)		+= n_r3964.o
 
 obj-y				+= vt/
+obj-$(CONFIG_HVC_DRIVER)	+= hvc/
+obj-y				+= serial/

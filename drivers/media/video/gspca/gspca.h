@@ -205,14 +205,12 @@ struct gspca_dev {
 
 	wait_queue_head_t wq;		/* wait queue */
 	struct mutex usb_lock;		/* usb exchange protection */
-	struct mutex read_lock;		/* read protection */
 	struct mutex queue_lock;	/* ISOC queue protection */
 	int usb_err;			/* USB error - protected by usb_lock */
 	u16 pkt_size;			/* ISOC packet size */
 #ifdef CONFIG_PM
 	char frozen;			/* suspend - resume */
 #endif
-	char users;			/* number of opens */
 	char present;			/* device connected */
 	char nbufread;			/* number of buffers for read() */
 	char memory;			/* memory type (V4L2_MEMORY_xxx) */

@@ -46,8 +46,6 @@ static void pps_ktimer_event(unsigned long ptr)
 	/* First of all we get the time stamp... */
 	pps_get_ts(&ts);
 
-	dev_info(pps->dev, "PPS event at %lu\n", jiffies);
-
 	pps_event(pps, &ts, PPS_CAPTUREASSERT, NULL);
 
 	mod_timer(&ktimer, jiffies + HZ);

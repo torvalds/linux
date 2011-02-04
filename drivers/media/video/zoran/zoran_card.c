@@ -1041,7 +1041,7 @@ zr36057_init (struct zoran *zr)
 	/* allocate memory *before* doing anything to the hardware
 	 * in case allocation fails */
 	zr->stat_com = kzalloc(BUZ_NUM_STAT_COM * 4, GFP_KERNEL);
-	zr->video_dev = kmalloc(sizeof(struct video_device), GFP_KERNEL);
+	zr->video_dev = video_device_alloc();
 	if (!zr->stat_com || !zr->video_dev) {
 		dprintk(1,
 			KERN_ERR

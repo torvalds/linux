@@ -149,13 +149,13 @@ void dump_trace(struct task_struct *task,
 	unsigned used = 0;
 	struct thread_info *tinfo;
 	int graph = 0;
+	unsigned long dummy;
 	unsigned long bp;
 
 	if (!task)
 		task = current;
 
 	if (!stack) {
-		unsigned long dummy;
 		stack = &dummy;
 		if (task && task != current)
 			stack = (unsigned long *)task->thread.sp;

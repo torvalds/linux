@@ -1072,6 +1072,7 @@ static int applesmc_create_nodes(struct applesmc_node_group *groups, int num)
 			node->sda.dev_attr.show = grp->show;
 			node->sda.dev_attr.store = grp->store;
 			attr = &node->sda.dev_attr.attr;
+			sysfs_attr_init(attr);
 			attr->name = node->name;
 			attr->mode = S_IRUGO | (grp->store ? S_IWUSR : 0);
 			ret = sysfs_create_file(&pdev->dev.kobj, attr);

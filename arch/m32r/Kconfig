@@ -7,6 +7,9 @@ config M32R
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_HARDIRQS_NO_DEPRECATED
+	select GENERIC_IRQ_PROBE
 
 config SBUS
 	bool
@@ -16,14 +19,6 @@ config GENERIC_ISA_DMA
 	default y
 
 config ZONE_DMA
-	bool
-	default y
-
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_IRQ_PROBE
 	bool
 	default y
 
