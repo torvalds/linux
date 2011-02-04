@@ -479,10 +479,13 @@ int ip6_forward(struct sk_buff *skb)
 		else
 			target = &hdr->daddr;
 
+		if (!rt->rt6i_peer)
+			rt6_bind_peer(rt, 1);
+
 		/* Limit redirects both by destination (here)
 		   and by source (inside ndisc_send_redirect)
 		 */
-		if (xrlim_allow(dst, 1*HZ))
+		if (inet_peer_xrlim_allow(rt->rt6i_peer, 1*HZ))
 			ndisc_send_redirect(skb, n, target);
 	} else {
 		int addrtype = ipv6_addr_type(&hdr->saddr);

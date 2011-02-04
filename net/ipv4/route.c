@@ -1563,6 +1563,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 {
 	struct rtable *rt = skb_rtable(skb);
 	struct in_device *in_dev;
+	struct inet_peer *peer;
 	int log_martians;
 
 	rcu_read_lock();
@@ -1574,33 +1575,41 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 	log_martians = IN_DEV_LOG_MARTIANS(in_dev);
 	rcu_read_unlock();
 
+	if (!rt->peer)
+		rt_bind_peer(rt, 1);
+	peer = rt->peer;
+	if (!peer) {
+		icmp_send(skb, ICMP_REDIRECT, ICMP_REDIR_HOST, rt->rt_gateway);
+		return;
+	}
+
 	/* No redirected packets during ip_rt_redirect_silence;
 	 * reset the algorithm.
 	 */
-	if (time_after(jiffies, rt->dst.rate_last + ip_rt_redirect_silence))
-		rt->dst.rate_tokens = 0;
+	if (time_after(jiffies, peer->rate_last + ip_rt_redirect_silence))
+		peer->rate_tokens = 0;
 
 	/* Too many ignored redirects; do not send anything
 	 * set dst.rate_last to the last seen redirected packet.
 	 */
-	if (rt->dst.rate_tokens >= ip_rt_redirect_number) {
-		rt->dst.rate_last = jiffies;
+	if (peer->rate_tokens >= ip_rt_redirect_number) {
+		peer->rate_last = jiffies;
 		return;
 	}
 
 	/* Check for load limit; set rate_last to the latest sent
 	 * redirect.
 	 */
-	if (rt->dst.rate_tokens == 0 ||
+	if (peer->rate_tokens == 0 ||
 	    time_after(jiffies,
-		       (rt->dst.rate_last +
-			(ip_rt_redirect_load << rt->dst.rate_tokens)))) {
+		       (peer->rate_last +
+			(ip_rt_redirect_load << peer->rate_tokens)))) {
 		icmp_send(skb, ICMP_REDIRECT, ICMP_REDIR_HOST, rt->rt_gateway);
-		rt->dst.rate_last = jiffies;
-		++rt->dst.rate_tokens;
+		peer->rate_last = jiffies;
+		++peer->rate_tokens;
 #ifdef CONFIG_IP_ROUTE_VERBOSE
 		if (log_martians &&
-		    rt->dst.rate_tokens == ip_rt_redirect_number &&
+		    peer->rate_tokens == ip_rt_redirect_number &&
 		    net_ratelimit())
 			printk(KERN_WARNING "host %pI4/if%d ignores redirects for %pI4 to %pI4.\n",
 				&rt->rt_src, rt->rt_iif,
@@ -1612,7 +1621,9 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 static int ip_error(struct sk_buff *skb)
 {
 	struct rtable *rt = skb_rtable(skb);
+	struct inet_peer *peer;
 	unsigned long now;
+	bool send;
 	int code;
 
 	switch (rt->dst.error) {
@@ -1632,15 +1643,24 @@ static int ip_error(struct sk_buff *skb)
 			break;
 	}
 
-	now = jiffies;
-	rt->dst.rate_tokens += now - rt->dst.rate_last;
-	if (rt->dst.rate_tokens > ip_rt_error_burst)
-		rt->dst.rate_tokens = ip_rt_error_burst;
-	rt->dst.rate_last = now;
-	if (rt->dst.rate_tokens >= ip_rt_error_cost) {
-		rt->dst.rate_tokens -= ip_rt_error_cost;
-		icmp_send(skb, ICMP_DEST_UNREACH, code, 0);
+	if (!rt->peer)
+		rt_bind_peer(rt, 1);
+	peer = rt->peer;
+
+	send = true;
+	if (peer) {
+		now = jiffies;
+		peer->rate_tokens += now - peer->rate_last;
+		if (peer->rate_tokens > ip_rt_error_burst)
+			peer->rate_tokens = ip_rt_error_burst;
+		peer->rate_last = now;
+		if (peer->rate_tokens >= ip_rt_error_cost)
+			peer->rate_tokens -= ip_rt_error_cost;
+		else
+			send = false;
 	}
+	if (send)
+		icmp_send(skb, ICMP_DEST_UNREACH, code, 0);
 
 out:	kfree_skb(skb);
 	return 0;

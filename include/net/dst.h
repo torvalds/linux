@@ -78,8 +78,6 @@ struct dst_entry {
 	atomic_t		__refcnt;	/* client references	*/
 	int			__use;
 	unsigned long		lastuse;
-	unsigned long		rate_last;	/* rate limiting for ICMP */
-	unsigned int		rate_tokens;
 	int			flags;
 #define DST_HOST		0x0001
 #define DST_NOXFRM		0x0002

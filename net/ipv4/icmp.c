@@ -233,48 +233,11 @@ static inline void icmp_xmit_unlock(struct sock *sk)
  *	Send an ICMP frame.
  */
 
-/*
- *	Check transmit rate limitation for given message.
- *	The rate information is held in the destination cache now.
- *	This function is generic and could be used for other purposes
- *	too. It uses a Token bucket filter as suggested by Alexey Kuznetsov.
- *
- *	Note that the same dst_entry fields are modified by functions in
- *	route.c too, but these work for packet destinations while xrlim_allow
- *	works for icmp destinations. This means the rate limiting information
- *	for one "ip object" is shared - and these ICMPs are twice limited:
- *	by source and by destination.
- *
- *	RFC 1812: 4.3.2.8 SHOULD be able to limit error message rate
- *			  SHOULD allow setting of rate limits
- *
- * 	Shared between ICMPv4 and ICMPv6.
- */
-#define XRLIM_BURST_FACTOR 6
-int xrlim_allow(struct dst_entry *dst, int timeout)
-{
-	unsigned long now, token = dst->rate_tokens;
-	int rc = 0;
-
-	now = jiffies;
-	token += now - dst->rate_last;
-	dst->rate_last = now;
-	if (token > XRLIM_BURST_FACTOR * timeout)
-		token = XRLIM_BURST_FACTOR * timeout;
-	if (token >= timeout) {
-		token -= timeout;
-		rc = 1;
-	}
-	dst->rate_tokens = token;
-	return rc;
-}
-EXPORT_SYMBOL(xrlim_allow);
-
-static inline int icmpv4_xrlim_allow(struct net *net, struct rtable *rt,
+static inline bool icmpv4_xrlim_allow(struct net *net, struct rtable *rt,
 		int type, int code)
 {
 	struct dst_entry *dst = &rt->dst;
-	int rc = 1;
+	bool rc = true;
 
 	if (type > NR_ICMP_TYPES)
 		goto out;
@@ -288,8 +251,12 @@ static inline int icmpv4_xrlim_allow(struct net *net, struct rtable *rt,
 		goto out;
 
 	/* Limit if icmp type is enabled in ratemask. */
-	if ((1 << type) & net->ipv4.sysctl_icmp_ratemask)
-		rc = xrlim_allow(dst, net->ipv4.sysctl_icmp_ratelimit);
+	if ((1 << type) & net->ipv4.sysctl_icmp_ratemask) {
+		if (!rt->peer)
+			rt_bind_peer(rt, 1);
+		rc = inet_peer_xrlim_allow(rt->peer,
+					   net->ipv4.sysctl_icmp_ratelimit);
+	}
 out:
 	return rc;
 }

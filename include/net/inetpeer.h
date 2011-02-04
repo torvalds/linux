@@ -44,6 +44,8 @@ struct inet_peer {
 			__u32		tcp_ts;
 			__u32		tcp_ts_stamp;
 			u32		metrics[RTAX_MAX];
+			u32		rate_tokens;	/* rate limiting for ICMP */
+			unsigned long	rate_last;
 		};
 		struct rcu_head         rcu;
 	};
@@ -81,6 +83,7 @@ static inline struct inet_peer *inet_getpeer_v6(struct in6_addr *v6daddr, int cr
 
 /* can be called from BH context or outside */
 extern void inet_putpeer(struct inet_peer *p);
+extern bool inet_peer_xrlim_allow(struct inet_peer *peer, int timeout);
 
 /*
  * temporary check to make sure we dont access rid, ip_id_count, tcp_ts,

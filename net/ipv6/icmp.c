@@ -157,20 +157,20 @@ static int is_ineligible(struct sk_buff *skb)
 /*
  * Check the ICMP output rate limit
  */
-static inline int icmpv6_xrlim_allow(struct sock *sk, u8 type,
-				     struct flowi *fl)
+static inline bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
+				      struct flowi *fl)
 {
 	struct dst_entry *dst;
 	struct net *net = sock_net(sk);
-	int res = 0;
+	bool res = false;
 
 	/* Informational messages are not limited. */
 	if (type & ICMPV6_INFOMSG_MASK)
-		return 1;
+		return true;
 
 	/* Do not limit pmtu discovery, it would break it. */
 	if (type == ICMPV6_PKT_TOOBIG)
-		return 1;
+		return true;
 
 	/*
 	 * Look up the output route.
@@ -182,7 +182,7 @@ static inline int icmpv6_xrlim_allow(struct sock *sk, u8 type,
 		IP6_INC_STATS(net, ip6_dst_idev(dst),
 			      IPSTATS_MIB_OUTNOROUTES);
 	} else if (dst->dev && (dst->dev->flags&IFF_LOOPBACK)) {
-		res = 1;
+		res = true;
 	} else {
 		struct rt6_info *rt = (struct rt6_info *)dst;
 		int tmo = net->ipv6.sysctl.icmpv6_time;
@@ -191,7 +191,9 @@ static inline int icmpv6_xrlim_allow(struct sock *sk, u8 type,
 		if (rt->rt6i_dst.plen < 128)
 			tmo >>= ((128 - rt->rt6i_dst.plen)>>5);
 
-		res = xrlim_allow(dst, tmo);
+		if (!rt->rt6i_peer)
+			rt6_bind_peer(rt, 1);
+		res = inet_peer_xrlim_allow(rt->rt6i_peer, tmo);
 	}
 	dst_release(dst);
 	return res;
