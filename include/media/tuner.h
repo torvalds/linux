@@ -160,7 +160,6 @@
 #ifdef __KERNEL__
 
 enum tuner_mode {
-	T_UNINITIALIZED = 0,
 	T_RADIO		= 1 << V4L2_TUNER_RADIO,
 	T_ANALOG_TV     = 1 << V4L2_TUNER_ANALOG_TV,
 	T_DIGITAL_TV    = 1 << V4L2_TUNER_DIGITAL_TV,
