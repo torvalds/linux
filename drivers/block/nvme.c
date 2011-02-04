@@ -842,8 +842,13 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	nvme_setup_prps(&c.common, sg, length);
 
 	nvmeq = get_nvmeq(ns);
-	status = nvme_submit_sync_cmd(nvmeq, &c, &result);
+	/* Since nvme_submit_sync_cmd sleeps, we can't keep preemption
+	 * disabled.  We may be preempted at any point, and be rescheduled
+	 * to a different CPU.  That will cause cacheline bouncing, but no
+	 * additional races since q_lock already protects against other CPUs.
+	 */
 	put_nvmeq(nvmeq);
+	status = nvme_submit_sync_cmd(nvmeq, &c, &result);
 
 	nvme_unmap_user_pages(dev, io.opcode & 1, io.addr, length, sg, nents);
 	put_user(result, &uio->result);
