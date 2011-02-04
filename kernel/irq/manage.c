@@ -329,10 +329,8 @@ void __disable_irq(struct irq_desc *desc, unsigned int irq, bool suspend)
 		desc->status |= IRQ_SUSPENDED;
 	}
 
-	if (!desc->depth++) {
-		desc->status |= IRQ_DISABLED;
+	if (!desc->depth++)
 		irq_disable(desc);
-	}
 }
 
 /**
@@ -407,12 +405,11 @@ void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume)
 		WARN(1, KERN_WARNING "Unbalanced enable for IRQ %d\n", irq);
 		break;
 	case 1: {
-		unsigned int status = desc->status & ~IRQ_DISABLED;
-
 		if (desc->status & IRQ_SUSPENDED)
 			goto err_out;
 		/* Prevent probing on this irq: */
-		desc->status = status | IRQ_NOPROBE;
+		desc->status |= IRQ_NOPROBE;
+		irq_enable(desc);
 		check_irq_resend(desc, irq);
 		/* fall-through */
 	}

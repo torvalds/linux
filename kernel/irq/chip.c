@@ -194,11 +194,14 @@ EXPORT_SYMBOL_GPL(set_irq_nested_thread);
 
 int irq_startup(struct irq_desc *desc)
 {
-	desc->status &= ~(IRQ_MASKED | IRQ_DISABLED);
+	desc->status &= ~IRQ_DISABLED;
 	desc->depth = 0;
 
-	if (desc->irq_data.chip->irq_startup)
-		return desc->irq_data.chip->irq_startup(&desc->irq_data);
+	if (desc->irq_data.chip->irq_startup) {
+		int ret = desc->irq_data.chip->irq_startup(&desc->irq_data);
+		desc->status &= ~IRQ_MASKED;
+		return ret;
+	}
 
 	irq_enable(desc);
 	return 0;
@@ -206,7 +209,7 @@ int irq_startup(struct irq_desc *desc)
 
 void irq_shutdown(struct irq_desc *desc)
 {
-	desc->status |= IRQ_MASKED | IRQ_DISABLED;
+	desc->status |= IRQ_DISABLED;
 	desc->depth = 1;
 	if (desc->irq_data.chip->irq_shutdown)
 		desc->irq_data.chip->irq_shutdown(&desc->irq_data);
@@ -214,10 +217,12 @@ void irq_shutdown(struct irq_desc *desc)
 		desc->irq_data.chip->irq_disable(&desc->irq_data);
 	else
 		desc->irq_data.chip->irq_mask(&desc->irq_data);
+	desc->status |= IRQ_MASKED;
 }
 
 void irq_enable(struct irq_desc *desc)
 {
+	desc->status &= ~IRQ_DISABLED;
 	if (desc->irq_data.chip->irq_enable)
 		desc->irq_data.chip->irq_enable(&desc->irq_data);
 	else
@@ -227,6 +232,7 @@ void irq_enable(struct irq_desc *desc)
 
 void irq_disable(struct irq_desc *desc)
 {
+	desc->status |= IRQ_DISABLED;
 	if (desc->irq_data.chip->irq_disable) {
 		desc->irq_data.chip->irq_disable(&desc->irq_data);
 		desc->status |= IRQ_MASKED;
