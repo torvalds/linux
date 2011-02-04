@@ -665,6 +665,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 				ret = -EINVAL;
 				goto fail;
 			}
+			DRM_DEBUG_KMS("Setting connector DPMS state to on\n");
+			for (i = 0; i < set->num_connectors; i++) {
+				DRM_DEBUG_KMS("\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
+					      drm_get_connector_name(set->connectors[i]));
+				set->connectors[i]->dpms = DRM_MODE_DPMS_ON;
+			}
 		}
 		drm_helper_disable_unused_functions(dev);
 	} else if (fb_changed) {
@@ -680,12 +686,6 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			set->crtc->fb = old_fb;
 			goto fail;
 		}
-	}
-	DRM_DEBUG_KMS("Setting connector DPMS state to on\n");
-	for (i = 0; i < set->num_connectors; i++) {
-		DRM_DEBUG_KMS("\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
-			      drm_get_connector_name(set->connectors[i]));
-		set->connectors[i]->dpms = DRM_MODE_DPMS_ON;
 	}
 
 	kfree(save_connectors);
