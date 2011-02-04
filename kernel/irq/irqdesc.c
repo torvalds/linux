@@ -251,7 +251,6 @@ int __init early_irq_init(void)
 	for (i = 0; i < count; i++) {
 		desc[i].irq_data.irq = i;
 		desc[i].irq_data.chip = &no_irq_chip;
-		/* TODO : do this allocation on-demand ... */
 		desc[i].kstat_irqs = alloc_percpu(unsigned int);
 		alloc_masks(desc + i, GFP_KERNEL, node);
 		desc_smp_init(desc + i, node);
@@ -277,22 +276,6 @@ static void free_desc(unsigned int irq)
 
 static inline int alloc_descs(unsigned int start, unsigned int cnt, int node)
 {
-#if defined(CONFIG_KSTAT_IRQS_ONDEMAND)
-	struct irq_desc *desc;
-	unsigned int i;
-
-	for (i = 0; i < cnt; i++) {
-		desc = irq_to_desc(start + i);
-		if (desc && !desc->kstat_irqs) {
-			unsigned int __percpu *stats = alloc_percpu(unsigned int);
-
-			if (!stats)
-				return -1;
-			if (cmpxchg(&desc->kstat_irqs, NULL, stats) != NULL)
-				free_percpu(stats);
-		}
-	}
-#endif
 	return start;
 }
 #endif /* !CONFIG_SPARSE_IRQ */
