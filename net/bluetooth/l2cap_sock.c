@@ -62,7 +62,6 @@ static void l2cap_sock_timeout(unsigned long arg)
 	sock_put(sk);
 }
 
-
 static void l2cap_sock_destruct(struct sock *sk)
 {
 	BT_DBG("sk %p", sk);
@@ -175,6 +174,26 @@ static int l2cap_sock_create(struct net *net, struct socket *sock, int protocol,
 	l2cap_sock_init(sk, NULL);
 	return 0;
 }
+
+const struct proto_ops l2cap_sock_ops = {
+	.family		= PF_BLUETOOTH,
+	.owner		= THIS_MODULE,
+	.release	= l2cap_sock_release,
+	.bind		= l2cap_sock_bind,
+	.connect	= l2cap_sock_connect,
+	.listen		= l2cap_sock_listen,
+	.accept		= l2cap_sock_accept,
+	.getname	= l2cap_sock_getname,
+	.sendmsg	= l2cap_sock_sendmsg,
+	.recvmsg	= l2cap_sock_recvmsg,
+	.poll		= bt_sock_poll,
+	.ioctl		= bt_sock_ioctl,
+	.mmap		= sock_no_mmap,
+	.socketpair	= sock_no_socketpair,
+	.shutdown	= l2cap_sock_shutdown,
+	.setsockopt	= l2cap_sock_setsockopt,
+	.getsockopt	= l2cap_sock_getsockopt
+};
 
 static const struct net_proto_family l2cap_sock_family_ops = {
 	.family	= PF_BLUETOOTH,
