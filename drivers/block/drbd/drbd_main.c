@@ -462,7 +462,7 @@ restart:
 	 */
 
 	if (thi->t_state == RESTARTING) {
-		dev_info(DEV, "Restarting %s\n", current->comm);
+		dev_info(DEV, "Restarting %s thread\n", thi->name);
 		thi->t_state = RUNNING;
 		spin_unlock_irqrestore(&thi->t_lock, flags);
 		goto restart;
@@ -482,13 +482,14 @@ restart:
 }
 
 static void drbd_thread_init(struct drbd_conf *mdev, struct drbd_thread *thi,
-		      int (*func) (struct drbd_thread *))
+			     int (*func) (struct drbd_thread *), char *name)
 {
 	spin_lock_init(&thi->t_lock);
 	thi->task    = NULL;
 	thi->t_state = NONE;
 	thi->function = func;
 	thi->mdev = mdev;
+	strncpy(thi->name, name, ARRAY_SIZE(thi->name));
 }
 
 int drbd_thread_start(struct drbd_thread *thi)
@@ -497,11 +498,6 @@ int drbd_thread_start(struct drbd_thread *thi)
 	struct task_struct *nt;
 	unsigned long flags;
 
-	const char *me =
-		thi == &mdev->tconn->receiver ? "receiver" :
-		thi == &mdev->tconn->asender  ? "asender"  :
-		thi == &mdev->tconn->worker   ? "worker"   : "NONSENSE";
-
 	/* is used from state engine doing drbd_thread_stop_nowait,
 	 * while holding the req lock irqsave */
 	spin_lock_irqsave(&thi->t_lock, flags);
@@ -509,7 +505,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 	switch (thi->t_state) {
 	case NONE:
 		dev_info(DEV, "Starting %s thread (from %s [%d])\n",
-				me, current->comm, current->pid);
+			 thi->name, current->comm, current->pid);
 
 		/* Get ref on module for thread - this is released when thread exits */
 		if (!try_module_get(THIS_MODULE)) {
@@ -526,7 +522,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 		flush_signals(current); /* otherw. may get -ERESTARTNOINTR */
 
 		nt = kthread_create(drbd_thread_setup, (void *) thi,
-				    "drbd%d_%s", mdev_to_minor(mdev), me);
+				    "drbd%d_%s", mdev_to_minor(mdev), thi->name);
 
 		if (IS_ERR(nt)) {
 			dev_err(DEV, "Couldn't start thread\n");
@@ -543,7 +539,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 	case EXITING:
 		thi->t_state = RESTARTING;
 		dev_info(DEV, "Restarting %s thread (from %s [%d])\n",
-				me, current->comm, current->pid);
+				thi->name, current->comm, current->pid);
 		/* fall through */
 	case RUNNING:
 	case RESTARTING:
@@ -592,6 +588,23 @@ void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait)
 		wait_for_completion(&thi->stop);
 }
 
+static struct drbd_thread *drbd_task_to_thread(struct drbd_conf *mdev, struct task_struct *task)
+{
+	struct drbd_tconn *tconn = mdev->tconn;
+	struct drbd_thread *thi =
+		task == tconn->receiver.task ? &tconn->receiver :
+		task == tconn->asender.task  ? &tconn->asender :
+		task == tconn->worker.task   ? &tconn->worker : NULL;
+
+	return thi;
+}
+
+char *drbd_task_to_thread_name(struct drbd_conf *mdev, struct task_struct *task)
+{
+	struct drbd_thread *thi = drbd_task_to_thread(mdev, task);
+	return thi ? thi->name : task->comm;
+}
+
 #ifdef CONFIG_SMP
 /**
  * drbd_calc_cpu_mask() - Generate CPU masks, spread over all CPUs
@@ -629,11 +642,8 @@ void drbd_calc_cpu_mask(struct drbd_conf *mdev)
 void drbd_thread_current_set_cpu(struct drbd_conf *mdev)
 {
 	struct task_struct *p = current;
-	struct drbd_thread *thi =
-		p == mdev->tconn->asender.task  ? &mdev->tconn->asender  :
-		p == mdev->tconn->receiver.task ? &mdev->tconn->receiver :
-		p == mdev->tconn->worker.task   ? &mdev->tconn->worker   :
-		NULL;
+	struct drbd_thread *thi = drbd_task_to_thread(mdev, p);
+
 	if (!expect(thi != NULL))
 		return;
 	if (!thi->reset_cpu_mask)
@@ -1848,9 +1858,9 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	init_waitqueue_head(&mdev->al_wait);
 	init_waitqueue_head(&mdev->seq_wait);
 
-	drbd_thread_init(mdev, &mdev->tconn->receiver, drbdd_init);
-	drbd_thread_init(mdev, &mdev->tconn->worker, drbd_worker);
-	drbd_thread_init(mdev, &mdev->tconn->asender, drbd_asender);
+	drbd_thread_init(mdev, &mdev->tconn->receiver, drbdd_init, "receiver");
+	drbd_thread_init(mdev, &mdev->tconn->worker, drbd_worker, "worker");
+	drbd_thread_init(mdev, &mdev->tconn->asender, drbd_asender, "asender");
 
 	/* mdev->tconn->agreed_pro_version gets initialized in drbd_connect() */
 	mdev->write_ordering = WO_bdev_flush;
