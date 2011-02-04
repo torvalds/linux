@@ -64,7 +64,7 @@ static int __init pcibios_init(void)
 
 	/* Scan all of the recorded PCI controllers.  */
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		pcibios_scan_phb(hose, hose->dn);
+		pcibios_scan_phb(hose);
 		pci_bus_add_devices(hose->bus);
 	}
 
@@ -242,10 +242,10 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 			break;
 		bus = NULL;
 	}
-	if (bus == NULL || bus->sysdata == NULL)
+	if (bus == NULL || bus->dev.of_node == NULL)
 		return -ENODEV;
 
-	hose_node = (struct device_node *)bus->sysdata;
+	hose_node = bus->dev.of_node;
 	hose = PCI_DN(hose_node)->phb;
 
 	switch (which) {
