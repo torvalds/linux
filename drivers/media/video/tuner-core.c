@@ -1121,9 +1121,13 @@ static int tuner_log_status(struct v4l2_subdev *sd)
 static int tuner_suspend(struct i2c_client *c, pm_message_t state)
 {
 	struct tuner *t = to_tuner(i2c_get_clientdata(c));
+	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 
 	tuner_dbg("suspend\n");
-	/* FIXME: power down ??? */
+
+	if (!t->standby && analog_ops->standby)
+		analog_ops->standby(&t->fe);
+
 	return 0;
 }
 
@@ -1132,10 +1136,10 @@ static int tuner_resume(struct i2c_client *c)
 	struct tuner *t = to_tuner(i2c_get_clientdata(c));
 
 	tuner_dbg("resume\n");
-	if (V4L2_TUNER_RADIO == t->mode)
-		set_freq(c, t->radio_freq);
-	else
-		set_freq(c, t->tv_freq);
+
+	if (!t->standby)
+		set_mode_freq(c, t, t->type, 0);
+
 	return 0;
 }
 
