@@ -815,7 +815,7 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 				rx->local->dot11FrameDuplicateCount++;
 				rx->sta->num_duplicates++;
 			}
-			return RX_DROP_MONITOR;
+			return RX_DROP_UNUSABLE;
 		} else
 			rx->sta->last_seq_ctrl[rx->queue] = hdr->seq_ctrl;
 	}
