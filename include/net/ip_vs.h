@@ -839,15 +839,7 @@ struct netns_ipvs {
 	struct ip_vs_stats		tot_stats;  /* Statistics & est. */
 
 	int			num_services;    /* no of virtual services */
-	/* 1/rate drop and drop-entry variables */
-	struct delayed_work	defense_work;   /* Work handler */
-	int			drop_rate;
-	int			drop_counter;
-	atomic_t		dropentry;
-	/* locks in ctl.c */
-	spinlock_t		dropentry_lock;  /* drop entry handling */
-	spinlock_t		droppacket_lock; /* drop packet handling */
-	spinlock_t		securetcp_lock;  /* state and timeout tables */
+
 	rwlock_t		rs_lock;         /* real services table */
 	/* semaphore for IPVS sockopts. And, [gs]etsockopt may sleep. */
 	struct lock_class_key	ctl_key;	/* ctl_mutex debuging */
@@ -857,9 +849,22 @@ struct netns_ipvs {
 	atomic_t		ftpsvc_counter;
 	atomic_t		nullsvc_counter;
 
+#ifdef CONFIG_SYSCTL
+	/* 1/rate drop and drop-entry variables */
+	struct delayed_work	defense_work;   /* Work handler */
+	int			drop_rate;
+	int			drop_counter;
+	atomic_t		dropentry;
+	/* locks in ctl.c */
+	spinlock_t		dropentry_lock;  /* drop entry handling */
+	spinlock_t		droppacket_lock; /* drop packet handling */
+	spinlock_t		securetcp_lock;  /* state and timeout tables */
+
 	/* sys-ctl struct */
 	struct ctl_table_header	*sysctl_hdr;
 	struct ctl_table	*sysctl_tbl;
+#endif
+
 	/* sysctl variables */
 	int			sysctl_amemthresh;
 	int			sysctl_am_droprate;
