@@ -1053,17 +1053,17 @@ static inline void ab3550_setup_debugfs(struct ab3550 *ab)
 		goto exit_destroy_dir;
 
 	ab3550_bank_file = debugfs_create_file("register-bank",
-		(S_IRUGO | S_IWUGO), ab3550_dir, ab, &ab3550_bank_fops);
+		(S_IRUGO | S_IWUSR), ab3550_dir, ab, &ab3550_bank_fops);
 	if (!ab3550_bank_file)
 		goto exit_destroy_reg;
 
 	ab3550_address_file = debugfs_create_file("register-address",
-		(S_IRUGO | S_IWUGO), ab3550_dir, ab, &ab3550_address_fops);
+		(S_IRUGO | S_IWUSR), ab3550_dir, ab, &ab3550_address_fops);
 	if (!ab3550_address_file)
 		goto exit_destroy_bank;
 
 	ab3550_val_file = debugfs_create_file("register-value",
-		(S_IRUGO | S_IWUGO), ab3550_dir, ab, &ab3550_val_fops);
+		(S_IRUGO | S_IWUSR), ab3550_dir, ab, &ab3550_val_fops);
 	if (!ab3550_val_file)
 		goto exit_destroy_address;
 
