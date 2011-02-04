@@ -727,7 +727,7 @@ enum {
 	 * we need to resubmit without the barrier flag. */
 	__EE_RESUBMITTED,
 
-	/* we may have several bios per epoch entry.
+	/* we may have several bios per peer request.
 	 * if any of those fail, we set this flag atomically
 	 * from the endio callback */
 	__EE_WAS_ERROR,
@@ -1422,7 +1422,7 @@ extern void drbd_bm_unlock(struct drbd_conf *mdev);
 /* drbd_main.c */
 
 extern struct kmem_cache *drbd_request_cache;
-extern struct kmem_cache *drbd_ee_cache;	/* epoch entries */
+extern struct kmem_cache *drbd_ee_cache;	/* peer requests */
 extern struct kmem_cache *drbd_bm_ext_cache;	/* bitmap extents */
 extern struct kmem_cache *drbd_al_ext_cache;	/* activity log extents */
 extern mempool_t *drbd_request_mempool;

@@ -1085,7 +1085,7 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo) 
 /**
  * drbd_submit_ee()
  * @mdev:	DRBD device.
- * @e:		epoch entry
+ * @e:		peer request
  * @rw:		flag field, see bio->bi_rw
  *
  * May spread the pages to multiple bios,
@@ -1182,7 +1182,7 @@ static void drbd_remove_epoch_entry_interval(struct drbd_conf *mdev,
 	drbd_remove_interval(&mdev->write_requests, i);
 	drbd_clear_interval(i);
 
-	/* Wake up any processes waiting for this epoch entry to complete.  */
+	/* Wake up any processes waiting for this peer request to complete.  */
 	if (i->waiting)
 		wake_up(&mdev->misc_wait);
 }
