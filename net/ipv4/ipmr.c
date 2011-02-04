@@ -1446,7 +1446,7 @@ struct compat_sioc_sg_req {
 
 int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 {
-	struct sioc_sg_req sr;
+	struct compat_sioc_sg_req sr;
 	struct mfc_cache *c;
 	struct net *net = sock_net(sk);
 	struct mr_table *mrt;
