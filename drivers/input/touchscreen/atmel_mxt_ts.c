@@ -823,16 +823,16 @@ static int mxt_check_matrix_size(struct mxt_data *data)
 static int mxt_make_highchg(struct mxt_data *data)
 {
 	struct device *dev = &data->client->dev;
+	struct mxt_message message;
 	int count = 10;
 	int error;
-	u8 val;
 
 	/* Read dummy message to make high CHG pin */
 	do {
-		error = mxt_read_object(data, MXT_GEN_MESSAGE, 0, &val);
+		error = mxt_read_message(data, &message);
 		if (error)
 			return error;
-	} while ((val != 0xff) && --count);
+	} while (message.reportid != 0xff && --count);
 
 	if (!count) {
 		dev_err(dev, "CHG pin isn't cleared\n");
