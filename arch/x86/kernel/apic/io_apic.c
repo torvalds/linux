@@ -2374,7 +2374,7 @@ static inline void irq_complete_move(struct irq_cfg *cfg) { }
 static void ack_apic_edge(struct irq_data *data)
 {
 	irq_complete_move(data->chip_data);
-	move_native_irq(data->irq);
+	irq_move_irq(data);
 	ack_APIC_irq();
 }
 
@@ -2520,7 +2520,7 @@ static void ack_apic_level(struct irq_data *data)
 		 * and you can go talk to the chipset vendor about it.
 		 */
 		if (!io_apic_level_ack_pending(cfg))
-			move_masked_irq(irq);
+			irq_move_masked_irq(data);
 		unmask_ioapic(cfg);
 	}
 }
