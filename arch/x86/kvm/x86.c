@@ -1017,7 +1017,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 	unsigned long flags;
 	s64 sdiff;
 
-	spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
+	raw_spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
 	offset = data - native_read_tsc();
 	ns = get_kernel_ns();
 	elapsed = ns - kvm->arch.last_tsc_nsec;
@@ -1050,7 +1050,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 	kvm->arch.last_tsc_write = data;
 	kvm->arch.last_tsc_offset = offset;
 	kvm_x86_ops->write_tsc_offset(vcpu, offset);
-	spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
+	raw_spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
 
 	/* Reset of TSC must disable overshoot protection below */
 	vcpu->arch.hv_clock.tsc_timestamp = 0;
@@ -6004,7 +6004,7 @@ int kvm_arch_init_vm(struct kvm *kvm)
 	/* Reserve bit 0 of irq_sources_bitmap for userspace irq source */
 	set_bit(KVM_USERSPACE_IRQ_SOURCE_ID, &kvm->arch.irq_sources_bitmap);
 
-	spin_lock_init(&kvm->arch.tsc_write_lock);
+	raw_spin_lock_init(&kvm->arch.tsc_write_lock);
 
 	return 0;
 }
