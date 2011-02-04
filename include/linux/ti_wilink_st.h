@@ -166,6 +166,11 @@ struct st_data_s {
 	void *kim_data;
 };
 
+/*
+ * wrapper around tty->ops->write_room to check
+ * availability during firmware download
+ */
+int st_get_uart_wr_room(struct st_data_s *st_gdata);
 /**
  * st_int_write -
  * point this to tty->driver->write or tty->ops->write
@@ -208,6 +213,7 @@ void gps_chrdrv_stub_init(void);
  */
 #define LDISC_TIME	1000
 #define CMD_RESP_TIME	800
+#define CMD_WR_TIME	5000
 #define MAKEWORD(a, b)  ((unsigned short)(((unsigned char)(a)) \
 	| ((unsigned short)((unsigned char)(b))) << 8))
 
