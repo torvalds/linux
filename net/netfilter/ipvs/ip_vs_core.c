@@ -1613,15 +1613,15 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	 */
 
 	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
-		pkts = ipvs->sysctl_sync_threshold[0];
+		pkts = sysctl_sync_threshold(ipvs);
 	else
 		pkts = atomic_add_return(1, &cp->in_pkts);
 
 	if ((ipvs->sync_state & IP_VS_STATE_MASTER) &&
 	    cp->protocol == IPPROTO_SCTP) {
 		if ((cp->state == IP_VS_SCTP_S_ESTABLISHED &&
-			(pkts % ipvs->sysctl_sync_threshold[1]
-			 == ipvs->sysctl_sync_threshold[0])) ||
+			(pkts % sysctl_sync_period(ipvs)
+			 == sysctl_sync_threshold(ipvs))) ||
 				(cp->old_state != cp->state &&
 				 ((cp->state == IP_VS_SCTP_S_CLOSED) ||
 				  (cp->state == IP_VS_SCTP_S_SHUT_ACK_CLI) ||
@@ -1635,8 +1635,8 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	else if ((ipvs->sync_state & IP_VS_STATE_MASTER) &&
 	    (((cp->protocol != IPPROTO_TCP ||
 	       cp->state == IP_VS_TCP_S_ESTABLISHED) &&
-	      (pkts % ipvs->sysctl_sync_threshold[1]
-	       == ipvs->sysctl_sync_threshold[0])) ||
+	      (pkts % sysctl_sync_period(ipvs)
+	       == sysctl_sync_threshold(ipvs))) ||
 	     ((cp->protocol == IPPROTO_TCP) && (cp->old_state != cp->state) &&
 	      ((cp->state == IP_VS_TCP_S_FIN_WAIT) ||
 	       (cp->state == IP_VS_TCP_S_CLOSE) ||

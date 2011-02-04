@@ -3569,8 +3569,8 @@ int __net_init __ip_vs_control_init(struct net *net)
 	tbl[idx++].data = &ipvs->sysctl_cache_bypass;
 	tbl[idx++].data = &ipvs->sysctl_expire_nodest_conn;
 	tbl[idx++].data = &ipvs->sysctl_expire_quiescent_template;
-	ipvs->sysctl_sync_threshold[0] = 3;
-	ipvs->sysctl_sync_threshold[1] = 50;
+	ipvs->sysctl_sync_threshold[0] = DEFAULT_SYNC_THRESHOLD;
+	ipvs->sysctl_sync_threshold[1] = DEFAULT_SYNC_PERIOD;
 	tbl[idx].data = &ipvs->sysctl_sync_threshold;
 	tbl[idx++].maxlen = sizeof(ipvs->sysctl_sync_threshold);
 	tbl[idx++].data = &ipvs->sysctl_nat_icmp_send;

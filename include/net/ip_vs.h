@@ -909,6 +909,35 @@ struct netns_ipvs {
 	struct net		*net;            /* Needed by timer routines */
 };
 
+#define DEFAULT_SYNC_THRESHOLD	3
+#define DEFAULT_SYNC_PERIOD	50
+
+#ifdef CONFIG_SYSCTL
+
+static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_sync_threshold[0];
+}
+
+static inline int sysctl_sync_period(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_sync_threshold[1];
+}
+
+#else
+
+static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
+{
+	return DEFAULT_SYNC_THRESHOLD;
+}
+
+static inline int sysctl_sync_period(struct netns_ipvs *ipvs)
+{
+	return DEFAULT_SYNC_PERIOD;
+}
+
+#endif
+
 /*
  *      IPVS core functions
  *      (from ip_vs_core.c)
