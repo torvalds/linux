@@ -2301,15 +2301,10 @@ static void bnx2x_rxq_set_mac_filters(struct bnx2x *bp, u16 cl_id, u32 filters)
 		/* accept matched ucast */
 		drop_all_ucast = 0;
 	}
-	if (filters & BNX2X_ACCEPT_MULTICAST) {
+	if (filters & BNX2X_ACCEPT_MULTICAST)
 		/* accept matched mcast */
 		drop_all_mcast = 0;
-		if (IS_MF_SI(bp))
-			/* since mcast addresses won't arrive with ovlan,
-			 * fw needs to accept all of them in
-			 * switch-independent mode */
-			accp_all_mcast = 1;
-	}
+
 	if (filters & BNX2X_ACCEPT_ALL_UNICAST) {
 		/* accept all mcast */
 		drop_all_ucast = 0;
