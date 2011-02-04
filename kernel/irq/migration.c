@@ -4,10 +4,10 @@
 
 #include "internals.h"
 
-void move_masked_irq(int irq)
+void irq_move_masked_irq(struct irq_data *idata)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_chip *chip = desc->irq_data.chip;
+	struct irq_desc *desc = irq_data_to_desc(idata);
+	struct irq_chip *chip = idata->chip;
 
 	if (likely(!irqd_is_setaffinity_pending(&desc->irq_data)))
 		return;
@@ -53,12 +53,17 @@ void move_masked_irq(int irq)
 	cpumask_clear(desc->pending_mask);
 }
 
-void move_native_irq(int irq)
+void move_masked_irq(int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	irq_move_masked_irq(irq_get_irq_data(irq));
+}
+
+void irq_move_irq(struct irq_data *idata)
+{
+	struct irq_desc *desc = irq_data_to_desc(idata);
 	bool masked;
 
-	if (likely(!irqd_is_setaffinity_pending(&desc->irq_data)))
+	if (likely(!irqd_is_setaffinity_pending(idata)))
 		return;
 
 	if (unlikely(desc->istate & IRQS_DISABLED))
@@ -71,8 +76,13 @@ void move_native_irq(int irq)
 	 */
 	masked = desc->istate & IRQS_MASKED;
 	if (!masked)
-		desc->irq_data.chip->irq_mask(&desc->irq_data);
-	move_masked_irq(irq);
+		idata->chip->irq_mask(idata);
+	irq_move_masked_irq(idata);
 	if (!masked)
-		desc->irq_data.chip->irq_unmask(&desc->irq_data);
+		idata->chip->irq_unmask(idata);
+}
+
+void move_native_irq(int irq)
+{
+	irq_move_irq(irq_get_irq_data(irq));
 }
