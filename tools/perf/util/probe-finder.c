@@ -33,6 +33,7 @@
 #include <ctype.h>
 #include <dwarf-regs.h>
 
+#include <linux/bitops.h>
 #include "event.h"
 #include "debug.h"
 #include "util.h"
@@ -333,13 +334,23 @@ static Dwarf_Die *die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem)
 	return vr_die;
 }
 
-static bool die_is_signed_type(Dwarf_Die *tp_die)
+static int die_get_attr_udata(Dwarf_Die *tp_die, unsigned int attr_name,
+			      Dwarf_Word *result)
 {
 	Dwarf_Attribute attr;
+
+	if (dwarf_attr(tp_die, attr_name, &attr) == NULL ||
+	    dwarf_formudata(&attr, result) != 0)
+		return -ENOENT;
+
+	return 0;
+}
+
+static bool die_is_signed_type(Dwarf_Die *tp_die)
+{
 	Dwarf_Word ret;
 
-	if (dwarf_attr(tp_die, DW_AT_encoding, &attr) == NULL ||
-	    dwarf_formudata(&attr, &ret) != 0)
+	if (die_get_attr_udata(tp_die, DW_AT_encoding, &ret))
 		return false;
 
 	return (ret == DW_ATE_signed_char || ret == DW_ATE_signed ||
@@ -348,11 +359,29 @@ static bool die_is_signed_type(Dwarf_Die *tp_die)
 
 static int die_get_byte_size(Dwarf_Die *tp_die)
 {
-	Dwarf_Attribute attr;
 	Dwarf_Word ret;
 
-	if (dwarf_attr(tp_die, DW_AT_byte_size, &attr) == NULL ||
-	    dwarf_formudata(&attr, &ret) != 0)
+	if (die_get_attr_udata(tp_die, DW_AT_byte_size, &ret))
+		return 0;
+
+	return (int)ret;
+}
+
+static int die_get_bit_size(Dwarf_Die *tp_die)
+{
+	Dwarf_Word ret;
+
+	if (die_get_attr_udata(tp_die, DW_AT_bit_size, &ret))
+		return 0;
+
+	return (int)ret;
+}
+
+static int die_get_bit_offset(Dwarf_Die *tp_die)
+{
+	Dwarf_Word ret;
+
+	if (die_get_attr_udata(tp_die, DW_AT_bit_offset, &ret))
 		return 0;
 
 	return (int)ret;
@@ -827,6 +856,8 @@ static_var:
 	return 0;
 }
 
+#define BYTES_TO_BITS(nb)	((nb) * BITS_PER_LONG / sizeof(long))
+
 static int convert_variable_type(Dwarf_Die *vr_die,
 				 struct probe_trace_arg *tvar,
 				 const char *cast)
@@ -841,6 +872,14 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 		/* Non string type is OK */
 		tvar->type = strdup(cast);
 		return (tvar->type == NULL) ? -ENOMEM : 0;
+	}
+
+	if (die_get_bit_size(vr_die) != 0) {
+		/* This is a bitfield */
+		ret = snprintf(buf, 16, "b%d@%d/%zd", die_get_bit_size(vr_die),
+				die_get_bit_offset(vr_die),
+				BYTES_TO_BITS(die_get_byte_size(vr_die)));
+		goto formatted;
 	}
 
 	if (die_get_real_type(vr_die, &type) == NULL) {
@@ -887,29 +926,31 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 		return (tvar->type == NULL) ? -ENOMEM : 0;
 	}
 
-	ret = die_get_byte_size(&type) * 8;
-	if (ret) {
-		/* Check the bitwidth */
-		if (ret > MAX_BASIC_TYPE_BITS) {
-			pr_info("%s exceeds max-bitwidth."
-				" Cut down to %d bits.\n",
-				dwarf_diename(&type), MAX_BASIC_TYPE_BITS);
-			ret = MAX_BASIC_TYPE_BITS;
-		}
+	ret = BYTES_TO_BITS(die_get_byte_size(&type));
+	if (!ret)
+		/* No size ... try to use default type */
+		return 0;
 
-		ret = snprintf(buf, 16, "%c%d",
-			       die_is_signed_type(&type) ? 's' : 'u', ret);
-		if (ret < 0 || ret >= 16) {
-			if (ret >= 16)
-				ret = -E2BIG;
-			pr_warning("Failed to convert variable type: %s\n",
-				   strerror(-ret));
-			return ret;
-		}
-		tvar->type = strdup(buf);
-		if (tvar->type == NULL)
-			return -ENOMEM;
+	/* Check the bitwidth */
+	if (ret > MAX_BASIC_TYPE_BITS) {
+		pr_info("%s exceeds max-bitwidth. Cut down to %d bits.\n",
+			dwarf_diename(&type), MAX_BASIC_TYPE_BITS);
+		ret = MAX_BASIC_TYPE_BITS;
 	}
+	ret = snprintf(buf, 16, "%c%d",
+		       die_is_signed_type(&type) ? 's' : 'u', ret);
+
+formatted:
+	if (ret < 0 || ret >= 16) {
+		if (ret >= 16)
+			ret = -E2BIG;
+		pr_warning("Failed to convert variable type: %s\n",
+			   strerror(-ret));
+		return ret;
+	}
+	tvar->type = strdup(buf);
+	if (tvar->type == NULL)
+		return -ENOMEM;
 	return 0;
 }
 
