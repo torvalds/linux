@@ -80,7 +80,6 @@ struct tuner {
 	struct i2c_client   *i2c;
 	struct v4l2_subdev  sd;
 	struct list_head    list;
-	unsigned int        using_v4l2:1;
 
 	/* keep track of the current settings */
 	v4l2_std_id         std;
@@ -717,19 +716,6 @@ static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode,
 	return 0;
 }
 
-#define switch_v4l2()	if (!t->using_v4l2) \
-			    tuner_dbg("switching to v4l2\n"); \
-			t->using_v4l2 = 1;
-
-static inline int check_v4l2(struct tuner *t)
-{
-	/* bttv still uses both v4l1 and v4l2 calls to the tuner (v4l2 for
-	   TV, v4l1 for radio), until that is fixed this code is disabled.
-	   Otherwise the radio (v4l1) wouldn't tune after using the TV (v4l2)
-	   first. */
-	return 0;
-}
-
 static int tuner_s_type_addr(struct v4l2_subdev *sd, struct tuner_setup *type)
 {
 	struct tuner *t = to_tuner(sd);
@@ -803,8 +789,6 @@ static int tuner_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	if (set_mode(client, t, V4L2_TUNER_ANALOG_TV, "s_std") == -EINVAL)
 		return 0;
 
-	switch_v4l2();
-
 	t->std = std;
 	tuner_fixup_std(t);
 	if (t->tv_freq)
@@ -819,7 +803,6 @@ static int tuner_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 
 	if (set_mode(client, t, f->type, "s_frequency") == -EINVAL)
 		return 0;
-	switch_v4l2();
 	set_freq(client, f->frequency);
 
 	return 0;
@@ -832,7 +815,6 @@ static int tuner_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 
 	if (check_mode(t, "g_frequency") == -EINVAL)
 		return 0;
-	switch_v4l2();
 	f->type = t->mode;
 	if (fe_tuner_ops->get_frequency) {
 		u32 abs_freq;
@@ -856,7 +838,6 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 
 	if (check_mode(t, "g_tuner") == -EINVAL)
 		return 0;
-	switch_v4l2();
 
 	vt->type = t->mode;
 	if (analog_ops->get_afc)
@@ -905,8 +886,6 @@ static int tuner_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 
 	if (check_mode(t, "s_tuner") == -EINVAL)
 		return 0;
-
-	switch_v4l2();
 
 	/* do nothing unless we're a radio tuner */
 	if (t->mode != V4L2_TUNER_RADIO)
