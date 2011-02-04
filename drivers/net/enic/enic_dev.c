@@ -49,26 +49,28 @@ int enic_dev_stats_dump(struct enic *enic, struct vnic_stats **vstats)
 
 int enic_dev_add_station_addr(struct enic *enic)
 {
-	int err = 0;
+	int err;
 
-	if (is_valid_ether_addr(enic->netdev->dev_addr)) {
-		spin_lock(&enic->devcmd_lock);
-		err = vnic_dev_add_addr(enic->vdev, enic->netdev->dev_addr);
-		spin_unlock(&enic->devcmd_lock);
-	}
+	if (!is_valid_ether_addr(enic->netdev->dev_addr))
+		return -EADDRNOTAVAIL;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_add_addr(enic->vdev, enic->netdev->dev_addr);
+	spin_unlock(&enic->devcmd_lock);
 
 	return err;
 }
 
 int enic_dev_del_station_addr(struct enic *enic)
 {
-	int err = 0;
+	int err;
 
-	if (is_valid_ether_addr(enic->netdev->dev_addr)) {
-		spin_lock(&enic->devcmd_lock);
-		err = vnic_dev_del_addr(enic->vdev, enic->netdev->dev_addr);
-		spin_unlock(&enic->devcmd_lock);
-	}
+	if (!is_valid_ether_addr(enic->netdev->dev_addr))
+		return -EADDRNOTAVAIL;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_del_addr(enic->vdev, enic->netdev->dev_addr);
+	spin_unlock(&enic->devcmd_lock);
 
 	return err;
 }
