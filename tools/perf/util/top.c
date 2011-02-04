@@ -200,6 +200,7 @@ void perf_top__find_widths(struct perf_top *top, struct rb_root *root,
 
 	for (nd = rb_first(root); nd; nd = rb_next(nd)) {
 		struct sym_entry *syme = rb_entry(nd, struct sym_entry, rb_node);
+		struct symbol *sym = sym_entry__symbol(syme);
 
 		if (++printed > top->print_entries ||
 		    (int)syme->snap_count < top->count_filter)
@@ -211,7 +212,7 @@ void perf_top__find_widths(struct perf_top *top, struct rb_root *root,
 		if (syme->map->dso->short_name_len > *dso_short_width)
 			*dso_short_width = syme->map->dso->short_name_len;
 
-		if (syme->name_len > *sym_width)
-			*sym_width = syme->name_len;
+		if (sym->namelen > *sym_width)
+			*sym_width = sym->namelen;
 	}
 }

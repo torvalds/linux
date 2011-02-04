@@ -787,9 +787,6 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 		}
 	}
 
-	if (!syme->skip)
-		syme->name_len = strlen(sym->name);
-
 	return 0;
 }
 

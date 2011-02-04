@@ -31,7 +31,6 @@ struct sym_entry {
 	unsigned long		snap_count;
 	double			weight;
 	int			skip;
-	u16			name_len;
 	u8			origin;
 	struct map		*map;
 	struct sym_entry_source	*src;
