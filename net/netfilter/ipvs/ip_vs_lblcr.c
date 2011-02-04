@@ -285,6 +285,7 @@ struct ip_vs_lblcr_table {
 };
 
 
+#ifdef CONFIG_SYSCTL
 /*
  *      IPVS LBLCR sysctl table
  */
@@ -299,6 +300,7 @@ static ctl_table vs_vars_table[] = {
 	},
 	{ }
 };
+#endif
 
 static inline void ip_vs_lblcr_free(struct ip_vs_lblcr_entry *en)
 {
@@ -743,6 +745,7 @@ static struct ip_vs_scheduler ip_vs_lblcr_scheduler =
 /*
  *  per netns init.
  */
+#ifdef CONFIG_SYSCTL
 static int __net_init __ip_vs_lblcr_init(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
@@ -758,7 +761,6 @@ static int __net_init __ip_vs_lblcr_init(struct net *net)
 	ipvs->sysctl_lblcr_expiration = DEFAULT_EXPIRATION;
 	ipvs->lblcr_ctl_table[0].data = &ipvs->sysctl_lblcr_expiration;
 
-#ifdef CONFIG_SYSCTL
 	ipvs->lblcr_ctl_header =
 		register_net_sysctl_table(net, net_vs_ctl_path,
 					  ipvs->lblcr_ctl_table);
@@ -767,7 +769,6 @@ static int __net_init __ip_vs_lblcr_init(struct net *net)
 			kfree(ipvs->lblcr_ctl_table);
 		return -ENOMEM;
 	}
-#endif
 
 	return 0;
 }
@@ -776,13 +777,18 @@ static void __net_exit __ip_vs_lblcr_exit(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-#ifdef CONFIG_SYSCTL
 	unregister_net_sysctl_table(ipvs->lblcr_ctl_header);
-#endif
 
 	if (!net_eq(net, &init_net))
 		kfree(ipvs->lblcr_ctl_table);
 }
+
+#else
+
+static int __net_init __ip_vs_lblcr_init(struct net *net) { return 0; }
+static void __net_exit __ip_vs_lblcr_exit(struct net *net) { }
+
+#endif
 
 static struct pernet_operations ip_vs_lblcr_ops = {
 	.init = __ip_vs_lblcr_init,
