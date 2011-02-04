@@ -283,22 +283,34 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
 		u32 remain, success;
 
-		/* Calculate how far we are into the transfer */
+		/*
+		 * Calculate how far we are into the transfer.  Note that
+		 * the data counter gives the number of bytes transferred
+		 * on the MMC bus, not on the host side.  On reads, this
+		 * can be as much as a FIFO-worth of data ahead.  This
+		 * matters for FIFO overruns only.
+		 */
 		remain = readl(host->base + MMCIDATACNT);
 		success = data->blksz * data->blocks - remain;
 
-		dev_dbg(mmc_dev(host->mmc), "MCI ERROR IRQ (status %08x)\n", status);
+		dev_dbg(mmc_dev(host->mmc), "MCI ERROR IRQ, status 0x%08x at 0x%08x\n",
+			status, success);
 		if (status & MCI_DATACRCFAIL) {
 			/* Last block was not successful */
-			host->data_xfered = round_down(success - 1, data->blksz);
+			success -= 1;
 			data->error = -EILSEQ;
 		} else if (status & MCI_DATATIMEOUT) {
-			host->data_xfered = round_down(success, data->blksz);
 			data->error = -ETIMEDOUT;
-		} else if (status & (MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
-			host->data_xfered = round_down(success, data->blksz);
+		} else if (status & MCI_TXUNDERRUN) {
+			data->error = -EIO;
+		} else if (status & MCI_RXOVERRUN) {
+			if (success > host->variant->fifosize)
+				success -= host->variant->fifosize;
+			else
+				success = 0;
 			data->error = -EIO;
 		}
+		host->data_xfered = round_down(success, data->blksz);
 
 		/*
 		 * We hit an error condition.  Ensure that any data
