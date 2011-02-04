@@ -77,7 +77,7 @@ size_t hists__fprintf_nr_events(struct hists *self, FILE *fp);
 size_t hists__fprintf(struct hists *self, struct hists *pair,
 		      bool show_displacement, FILE *fp);
 
-int hist_entry__inc_addr_samples(struct hist_entry *self, u64 ip);
+int hist_entry__inc_addr_samples(struct hist_entry *self, int evidx, u64 addr);
 int hist_entry__annotate(struct hist_entry *self, struct list_head *head,
 			 size_t privsize);
 
@@ -91,18 +91,20 @@ bool hists__new_col_len(struct hists *self, enum hist_column col, u16 len);
 #ifdef NO_NEWT_SUPPORT
 static inline int hists__browse(struct hists *self __used,
 				const char *helpline __used,
-				const char *ev_name __used)
+				const char *ev_name __used, int evidx __used)
 {
 	return 0;
 }
 
 static inline int hists__tui_browse_tree(struct rb_root *self __used,
-					 const char *help __used)
+					 const char *help __used,
+					 int evidx __used)
 {
 	return 0;
 }
 
-static inline int hist_entry__tui_annotate(struct hist_entry *self __used)
+static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
+					   int evidx __used)
 {
 	return 0;
 }
@@ -111,13 +113,13 @@ static inline int hist_entry__tui_annotate(struct hist_entry *self __used)
 #else
 #include <newt.h>
 int hists__browse(struct hists *self, const char *helpline,
-		  const char *ev_name);
-int hist_entry__tui_annotate(struct hist_entry *self);
+		  const char *ev_name, int evidx);
+int hist_entry__tui_annotate(struct hist_entry *self, int evidx);
 
 #define KEY_LEFT NEWT_KEY_LEFT
 #define KEY_RIGHT NEWT_KEY_RIGHT
 
-int hists__tui_browse_tree(struct rb_root *self, const char *help);
+int hists__tui_browse_tree(struct rb_root *self, const char *help, int evidx);
 #endif
 
 unsigned int hists__sort_list_width(struct hists *self);

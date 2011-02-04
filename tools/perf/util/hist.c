@@ -950,9 +950,9 @@ void hists__filter_by_thread(struct hists *self, const struct thread *thread)
 	}
 }
 
-int hist_entry__inc_addr_samples(struct hist_entry *he, u64 ip)
+int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 ip)
 {
-	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, ip);
+	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evidx, ip);
 }
 
 int hist_entry__annotate(struct hist_entry *he, struct list_head *head,

@@ -28,9 +28,21 @@ struct source_line {
 	char		*path;
 };
 
+/** struct annotation - symbols with hits have this attached as in sannotation
+ *
+ * @histogram: Array of addr hit histograms per event being monitored
+ * @src_line: If 'print_lines' is specified, per source code line percentages
+ *
+ * src_line is allocated, percentages calculated and all sorted by percentage
+ * when the annotation is about to be presented, so the percentages are for
+ * one of the entries in the histogram array, i.e. for the event/counter being
+ * presented. It is deallocated right after symbol__{tui,tty,etc}_annotate
+ * returns.
+ */
 struct annotation {
-	struct sym_hist	   *histogram;
 	struct source_line *src_line;
+	struct sym_hist	   *histograms;
+	int    		   sizeof_sym_hist;
 };
 
 struct sannotation {
@@ -38,28 +50,35 @@ struct sannotation {
 	struct symbol	  symbol;
 };
 
+static inline struct sym_hist *annotation__histogram(struct annotation *notes, int idx)
+{
+	return ((void *)notes->histograms) + (notes->sizeof_sym_hist * idx);
+}
+
 static inline struct annotation *symbol__annotation(struct symbol *sym)
 {
 	struct sannotation *a = container_of(sym, struct sannotation, symbol);
 	return &a->annotation;
 }
 
-int symbol__inc_addr_samples(struct symbol *sym, struct map *map, u64 addr);
+int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
+			     int evidx, u64 addr);
+int symbol__alloc_hist(struct symbol *sym, int nevents);
 
 int symbol__annotate(struct symbol *sym, struct map *map,
 		     struct list_head *head, size_t privsize);
 
-int symbol__tty_annotate(struct symbol *sym, struct map *map,
+int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 			 bool print_lines, bool full_paths);
 
 #ifdef NO_NEWT_SUPPORT
 static inline int symbol__tui_annotate(symbol *sym __used,
-				       struct map *map __used)
+				       struct map *map __used, int evidx __used)
 {
 	return 0;
 }
 #else
-int symbol__tui_annotate(struct symbol *sym, struct map *map);
+int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx);
 #endif
 
 #endif	/* __PERF_ANNOTATE_H */

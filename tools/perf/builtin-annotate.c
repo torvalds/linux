@@ -57,7 +57,18 @@ static int hists__add_entry(struct hists *self, struct addr_location *al)
 	if (he == NULL)
 		return -ENOMEM;
 
-	return hist_entry__inc_addr_samples(he, al->addr);
+	if (he->ms.sym != NULL) {
+		/*
+		 * All aggregated on the first sym_hist.
+		 */
+		struct annotation *notes = symbol__annotation(he->ms.sym);
+		if (notes->histograms == NULL && symbol__alloc_hist(he->ms.sym, 1) < 0)
+			return -ENOMEM;
+
+		return hist_entry__inc_addr_samples(he, 0, al->addr);
+	}
+
+	return 0;
 }
 
 static int process_sample_event(union perf_event *event,
@@ -81,9 +92,9 @@ static int process_sample_event(union perf_event *event,
 	return 0;
 }
 
-static int hist_entry__tty_annotate(struct hist_entry *he)
+static int hist_entry__tty_annotate(struct hist_entry *he, int evidx)
 {
-	return symbol__tty_annotate(he->ms.sym, he->ms.map,
+	return symbol__tty_annotate(he->ms.sym, he->ms.map, evidx,
 				    print_line, full_paths);
 }
 
@@ -100,7 +111,7 @@ static void hists__find_annotations(struct hists *self)
 			goto find_next;
 
 		notes = symbol__annotation(he->ms.sym);
-		if (notes->histogram == NULL) {
+		if (notes->histograms == NULL) {
 find_next:
 			if (key == KEY_LEFT)
 				nd = rb_prev(nd);
@@ -110,7 +121,8 @@ find_next:
 		}
 
 		if (use_browser > 0) {
-			key = hist_entry__tui_annotate(he);
+			/* For now all is aggregated on the first */
+			key = hist_entry__tui_annotate(he, 0);
 			switch (key) {
 			case KEY_RIGHT:
 				next = rb_next(nd);
@@ -125,15 +137,16 @@ find_next:
 			if (next != NULL)
 				nd = next;
 		} else {
-			hist_entry__tty_annotate(he);
+			/* For now all is aggregated on the first */
+			hist_entry__tty_annotate(he, 0);
 			nd = rb_next(nd);
 			/*
 			 * Since we have a hist_entry per IP for the same
 			 * symbol, free he->ms.sym->histogram to signal we already
 			 * processed this symbol.
 			 */
-			free(notes->histogram);
-			notes->histogram = NULL;
+			free(notes->histograms);
+			notes->histograms = NULL;
 		}
 	}
 }

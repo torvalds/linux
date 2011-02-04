@@ -15,44 +15,40 @@
 #include "debug.h"
 #include "annotate.h"
 
-static int symbol__alloc_hist(struct symbol *sym)
+int symbol__alloc_hist(struct symbol *sym, int nevents)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	const int size = (sizeof(*notes->histogram) +
-			  (sym->end - sym->start) * sizeof(u64));
 
-	notes->histogram = zalloc(size);
-	return notes->histogram == NULL ? -1 : 0;
+	notes->sizeof_sym_hist = (sizeof(*notes->histograms) +
+				  (sym->end - sym->start) * sizeof(u64));
+	notes->histograms = calloc(nevents, notes->sizeof_sym_hist);
+	return notes->histograms == NULL ? -1 : 0;
 }
 
-int symbol__inc_addr_samples(struct symbol *sym, struct map *map, u64 addr)
+int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
+			     int evidx, u64 addr)
 {
-	unsigned int sym_size, offset;
+	unsigned offset;
 	struct annotation *notes;
 	struct sym_hist *h;
 
-	if (!sym || !map)
-		return 0;
-
 	notes = symbol__annotation(sym);
-	if (notes->histogram == NULL && symbol__alloc_hist(sym) < 0)
+	if (notes->histograms == NULL)
 		return -ENOMEM;
-
-	sym_size = sym->end - sym->start;
-	offset = addr - sym->start;
 
 	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
 
-	if (offset >= sym_size)
+	if (addr >= sym->end)
 		return 0;
 
-	h = notes->histogram;
+	offset = addr - sym->start;
+	h = annotation__histogram(notes, evidx);
 	h->sum++;
 	h->addr[offset]++;
 
 	pr_debug3("%#" PRIx64 " %s: period++ [addr: %#" PRIx64 ", %#" PRIx64
-		  "] => %" PRIu64 "\n", sym->start, sym->name,
-		  addr, addr - sym->start, h->addr[offset]);
+		  ", evidx=%d] => %" PRIu64 "\n", sym->start, sym->name,
+		  addr, addr - sym->start, evidx, h->addr[offset]);
 	return 0;
 }
 
@@ -90,8 +86,8 @@ struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
 }
 
 static void objdump_line__print(struct objdump_line *oline,
-				struct list_head *head,
-				struct symbol *sym, u64 len)
+				struct list_head *head, struct symbol *sym,
+				int evidx, u64 len)
 {
 	static const char *prev_line;
 	static const char *prev_color;
@@ -103,7 +99,7 @@ static void objdump_line__print(struct objdump_line *oline,
 		const char *color;
 		struct annotation *notes = symbol__annotation(sym);
 		struct source_line *src_line = notes->src_line;
-		struct sym_hist *h = notes->histogram;
+		struct sym_hist *h = annotation__histogram(notes, evidx);
 		s64 offset = oline->offset;
 		struct objdump_line *next = objdump__get_next_ip_line(head, oline);
 
@@ -328,7 +324,7 @@ static void symbol__free_source_line(struct symbol *sym, int len)
 
 /* Get the filename:line for the colored entries */
 static int symbol__get_source_line(struct symbol *sym, struct map *map,
-				   struct rb_root *root, int len,
+				   int evidx, struct rb_root *root, int len,
 				   const char *filename)
 {
 	u64 start;
@@ -336,7 +332,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 	char cmd[PATH_MAX * 2];
 	struct source_line *src_line;
 	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = notes->histogram;
+	struct sym_hist *h = annotation__histogram(notes, evidx);
 
 	if (!h->sum)
 		return 0;
@@ -409,10 +405,10 @@ static void print_summary(struct rb_root *root, const char *filename)
 	}
 }
 
-static void symbol__annotate_hits(struct symbol *sym)
+static void symbol__annotate_hits(struct symbol *sym, int evidx)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = notes->histogram;
+	struct sym_hist *h = annotation__histogram(notes, evidx);
 	u64 len = sym->end - sym->start, offset;
 
 	for (offset = 0; offset < len; ++offset)
@@ -422,8 +418,8 @@ static void symbol__annotate_hits(struct symbol *sym)
 	printf("%*s: %" PRIu64 "\n", BITS_PER_LONG / 2, "h->sum", h->sum);
 }
 
-int symbol__tty_annotate(struct symbol *sym, struct map *map, bool print_lines,
-			 bool full_paths)
+int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
+			 bool print_lines, bool full_paths)
 {
 	struct dso *dso = map->dso;
 	const char *filename = dso->long_name, *d_filename;
@@ -443,7 +439,8 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, bool print_lines,
 	len = sym->end - sym->start;
 
 	if (print_lines) {
-		symbol__get_source_line(sym, map, &source_line, len, filename);
+		symbol__get_source_line(sym, map, evidx, &source_line,
+					len, filename);
 		print_summary(&source_line, filename);
 	}
 
@@ -452,10 +449,10 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, bool print_lines,
 	printf("------------------------------------------------\n");
 
 	if (verbose)
-		symbol__annotate_hits(sym);
+		symbol__annotate_hits(sym, evidx);
 
 	list_for_each_entry_safe(pos, n, &head, node) {
-		objdump_line__print(pos, &head, sym, len);
+		objdump_line__print(pos, &head, sym, evidx, len);
 		list_del(&pos->node);
 		objdump_line__free(pos);
 	}
