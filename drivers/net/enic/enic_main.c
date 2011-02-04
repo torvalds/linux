@@ -2359,13 +2359,6 @@ static int enic_dev_init(struct enic *enic)
 		goto err_out_free_vnic_resources;
 	}
 
-	err = enic_dev_set_ig_vlan_rewrite_mode(enic);
-	if (err) {
-		dev_err(dev,
-			"Failed to set ingress vlan rewrite mode, aborting.\n");
-		goto err_out_free_vnic_resources;
-	}
-
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	default:
 		netif_napi_add(netdev, &enic->napi[0], enic_poll, 64);
@@ -2504,6 +2497,22 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 		goto err_out_vnic_unregister;
 	}
 
+	/* Setup devcmd lock
+	 */
+
+	spin_lock_init(&enic->devcmd_lock);
+
+	/*
+	 * Set ingress vlan rewrite mode before vnic initialization
+	 */
+
+	err = enic_dev_set_ig_vlan_rewrite_mode(enic);
+	if (err) {
+		dev_err(dev,
+			"Failed to set ingress vlan rewrite mode, aborting.\n");
+		goto err_out_dev_close;
+	}
+
 	/* Issue device init to initialize the vnic-to-switch link.
 	 * We'll start with carrier off and wait for link UP
 	 * notification later to turn on carrier.  We don't need
@@ -2526,11 +2535,6 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 			goto err_out_dev_close;
 		}
 	}
-
-	/* Setup devcmd lock
-	 */
-
-	spin_lock_init(&enic->devcmd_lock);
 
 	err = enic_dev_init(enic);
 	if (err) {
