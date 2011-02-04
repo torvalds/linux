@@ -27,6 +27,7 @@
 /* Bluetooth L2CAP sockets. */
 
 #include <net/bluetooth/bluetooth.h>
+#include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 
 static void l2cap_sock_timeout(unsigned long arg)
@@ -274,6 +275,180 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr, int *l
 	}
 
 	return 0;
+}
+
+static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __user *optval, unsigned int optlen)
+{
+	struct sock *sk = sock->sk;
+	struct l2cap_options opts;
+	int len, err = 0;
+	u32 opt;
+
+	BT_DBG("sk %p", sk);
+
+	lock_sock(sk);
+
+	switch (optname) {
+	case L2CAP_OPTIONS:
+		if (sk->sk_state == BT_CONNECTED) {
+			err = -EINVAL;
+			break;
+		}
+
+		opts.imtu     = l2cap_pi(sk)->imtu;
+		opts.omtu     = l2cap_pi(sk)->omtu;
+		opts.flush_to = l2cap_pi(sk)->flush_to;
+		opts.mode     = l2cap_pi(sk)->mode;
+		opts.fcs      = l2cap_pi(sk)->fcs;
+		opts.max_tx   = l2cap_pi(sk)->max_tx;
+		opts.txwin_size = (__u16)l2cap_pi(sk)->tx_win;
+
+		len = min_t(unsigned int, sizeof(opts), optlen);
+		if (copy_from_user((char *) &opts, optval, len)) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (opts.txwin_size > L2CAP_DEFAULT_TX_WINDOW) {
+			err = -EINVAL;
+			break;
+		}
+
+		l2cap_pi(sk)->mode = opts.mode;
+		switch (l2cap_pi(sk)->mode) {
+		case L2CAP_MODE_BASIC:
+			l2cap_pi(sk)->conf_state &= ~L2CAP_CONF_STATE2_DEVICE;
+			break;
+		case L2CAP_MODE_ERTM:
+		case L2CAP_MODE_STREAMING:
+			if (!disable_ertm)
+				break;
+			/* fall through */
+		default:
+			err = -EINVAL;
+			break;
+		}
+
+		l2cap_pi(sk)->imtu = opts.imtu;
+		l2cap_pi(sk)->omtu = opts.omtu;
+		l2cap_pi(sk)->fcs  = opts.fcs;
+		l2cap_pi(sk)->max_tx = opts.max_tx;
+		l2cap_pi(sk)->tx_win = (__u8)opts.txwin_size;
+		break;
+
+	case L2CAP_LM:
+		if (get_user(opt, (u32 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (opt & L2CAP_LM_AUTH)
+			l2cap_pi(sk)->sec_level = BT_SECURITY_LOW;
+		if (opt & L2CAP_LM_ENCRYPT)
+			l2cap_pi(sk)->sec_level = BT_SECURITY_MEDIUM;
+		if (opt & L2CAP_LM_SECURE)
+			l2cap_pi(sk)->sec_level = BT_SECURITY_HIGH;
+
+		l2cap_pi(sk)->role_switch    = (opt & L2CAP_LM_MASTER);
+		l2cap_pi(sk)->force_reliable = (opt & L2CAP_LM_RELIABLE);
+		break;
+
+	default:
+		err = -ENOPROTOOPT;
+		break;
+	}
+
+	release_sock(sk);
+	return err;
+}
+
+static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
+{
+	struct sock *sk = sock->sk;
+	struct bt_security sec;
+	int len, err = 0;
+	u32 opt;
+
+	BT_DBG("sk %p", sk);
+
+	if (level == SOL_L2CAP)
+		return l2cap_sock_setsockopt_old(sock, optname, optval, optlen);
+
+	if (level != SOL_BLUETOOTH)
+		return -ENOPROTOOPT;
+
+	lock_sock(sk);
+
+	switch (optname) {
+	case BT_SECURITY:
+		if (sk->sk_type != SOCK_SEQPACKET && sk->sk_type != SOCK_STREAM
+				&& sk->sk_type != SOCK_RAW) {
+			err = -EINVAL;
+			break;
+		}
+
+		sec.level = BT_SECURITY_LOW;
+
+		len = min_t(unsigned int, sizeof(sec), optlen);
+		if (copy_from_user((char *) &sec, optval, len)) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (sec.level < BT_SECURITY_LOW ||
+					sec.level > BT_SECURITY_HIGH) {
+			err = -EINVAL;
+			break;
+		}
+
+		l2cap_pi(sk)->sec_level = sec.level;
+		break;
+
+	case BT_DEFER_SETUP:
+		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (get_user(opt, (u32 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		bt_sk(sk)->defer_setup = opt;
+		break;
+
+	case BT_FLUSHABLE:
+		if (get_user(opt, (u32 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (opt > BT_FLUSHABLE_ON) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (opt == BT_FLUSHABLE_OFF) {
+			struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+			/* proceed futher only when we have l2cap_conn and
+			   No Flush support in the LM */
+			if (!conn || !lmp_no_flush_capable(conn->hcon->hdev)) {
+				err = -EINVAL;
+				break;
+			}
+		}
+
+		l2cap_pi(sk)->flushable = opt;
+		break;
+
+	default:
+		err = -ENOPROTOOPT;
+		break;
+	}
+
+	release_sock(sk);
+	return err;
 }
 
 static int l2cap_sock_release(struct socket *sock)
