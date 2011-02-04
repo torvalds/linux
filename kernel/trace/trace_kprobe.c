@@ -1129,7 +1129,7 @@ static int command_trace_probe(const char *buf)
 	return ret;
 }
 
-#define WRITE_BUFSIZE 128
+#define WRITE_BUFSIZE 4096
 
 static ssize_t probes_write(struct file *file, const char __user *buffer,
 			    size_t count, loff_t *ppos)
