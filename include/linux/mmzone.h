@@ -477,7 +477,7 @@ unsigned long zone_nr_free_pages(struct zone *zone);
 #ifdef CONFIG_NUMA
 
 /*
- * The NUMA zonelists are doubled becausse we need zonelists that restrict the
+ * The NUMA zonelists are doubled because we need zonelists that restrict the
  * allocations to a single node for GFP_THISNODE.
  *
  * [0]	: Zonelist with fallback
