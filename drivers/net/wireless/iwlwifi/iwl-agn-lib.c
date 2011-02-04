@@ -1395,15 +1395,12 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		u32 extra;
 		u32 suspend_time = 100;
 		u32 scan_suspend_time = 100;
-		unsigned long flags;
 
 		IWL_DEBUG_INFO(priv, "Scanning while associated...\n");
-		spin_lock_irqsave(&priv->lock, flags);
 		if (priv->is_internal_short_scan)
 			interval = 0;
 		else
 			interval = vif->bss_conf.beacon_int;
-		spin_unlock_irqrestore(&priv->lock, flags);
 
 		scan->suspend_time = 0;
 		scan->max_out_time = cpu_to_le32(200 * 1024);
