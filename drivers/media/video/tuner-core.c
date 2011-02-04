@@ -66,7 +66,6 @@ module_param_string(ntsc, ntsc, sizeof(ntsc), 0644);
  * Static vars
  */
 
-static struct xc5000_config xc5000_cfg;
 static LIST_HEAD(tuner_list);
 
 /*
@@ -338,9 +337,12 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	case TUNER_XC5000:
 	{
-		xc5000_cfg.i2c_address	  = t->i2c->addr;
-		/* if_khz will be set when the digital dvb_attach() occurs */
-		xc5000_cfg.if_khz	  = 0;
+		struct xc5000_config xc5000_cfg = {
+			.i2c_address = t->i2c->addr,
+			/* if_khz will be set at dvb_attach() */
+			.if_khz	  = 0,
+		};
+
 		if (!dvb_attach(xc5000_attach,
 				&t->fe, t->i2c->adapter, &xc5000_cfg))
 			goto attach_failed;
