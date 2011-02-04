@@ -795,33 +795,17 @@ static int __alloc_preds(struct event_filter *filter, int n_preds)
 	struct filter_pred *pred;
 	int i;
 
-	if (filter->preds) {
-		if (filter->a_preds < n_preds) {
-			/*
-			 * We need to reallocate.
-			 * We should have already have zeroed out
-			 * the pred count and called synchronized_sched()
-			 * to make sure no one is using the preds.
-			 */
-			if (WARN_ON_ONCE(filter->n_preds)) {
-				/* We need to reset it now */
-				filter->n_preds = 0;
-				synchronize_sched();
-			}
-			__free_preds(filter);
-		}
-	}
+	if (filter->preds)
+		__free_preds(filter);
 
-	if (!filter->preds) {
-		filter->preds =
-			kzalloc(sizeof(*filter->preds) * n_preds, GFP_KERNEL);
-		filter->a_preds = n_preds;
-	}
+	filter->preds =
+		kzalloc(sizeof(*filter->preds) * n_preds, GFP_KERNEL);
+
 	if (!filter->preds)
 		return -ENOMEM;
 
-	if (WARN_ON(filter->a_preds < n_preds))
-		return -EINVAL;
+	filter->a_preds = n_preds;
+	filter->n_preds = 0;
 
 	for (i = 0; i < n_preds; i++) {
 		pred = &filter->preds[i];
