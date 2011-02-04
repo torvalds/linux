@@ -82,7 +82,7 @@ int st_int_write(struct st_data_s *st_gdata,
  */
 void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
 {
-	pr_info(" %s(prot:%d) ", __func__, chnl_id);
+	pr_debug(" %s(prot:%d) ", __func__, chnl_id);
 
 	if (unlikely
 	    (st_gdata == NULL || st_gdata->rx_skb == NULL
@@ -226,7 +226,7 @@ void st_int_recv(void *disc_data,
 		return;
 	}
 
-	pr_info("count %ld rx_state %ld"
+	pr_debug("count %ld rx_state %ld"
 		   "rx_count %ld", count, st_gdata->rx_state,
 		   st_gdata->rx_count);
 
@@ -260,7 +260,7 @@ void st_int_recv(void *disc_data,
 				plen =
 				&st_gdata->rx_skb->data
 				[proto->offset_len_in_hdr];
-				pr_info("plen pointing to %x\n", *plen);
+				pr_debug("plen pointing to %x\n", *plen);
 				if (proto->len_size == 1)/* 1 byte len field */
 					payload_len = *(unsigned char *)plen;
 				else if (proto->len_size == 2)
@@ -272,7 +272,7 @@ void st_int_recv(void *disc_data,
 					__func__, proto->chnl_id);
 				st_check_data_len(st_gdata, proto->chnl_id,
 						payload_len);
-				pr_info("off %d, pay len %d\n",
+				pr_debug("off %d, pay len %d\n",
 					proto->offset_len_in_hdr, payload_len);
 				continue;
 			}	/* end of switch rx_state */
@@ -285,7 +285,7 @@ void st_int_recv(void *disc_data,
 		case LL_SLEEP_IND:
 		case LL_SLEEP_ACK:
 		case LL_WAKE_UP_IND:
-			pr_info("PM packet");
+			pr_debug("PM packet");
 			/* this takes appropriate action based on
 			 * sleep state received --
 			 */
@@ -294,7 +294,7 @@ void st_int_recv(void *disc_data,
 			count--;
 			continue;
 		case LL_WAKE_UP_ACK:
-			pr_info("PM packet");
+			pr_debug("PM packet");
 			/* wake up ack received */
 			st_wakeup_ack(st_gdata, *ptr);
 			ptr++;
@@ -314,7 +314,7 @@ void st_int_recv(void *disc_data,
 			st_gdata->rx_chnl = *ptr;
 			st_gdata->rx_state = ST_W4_HEADER;
 			st_gdata->rx_count = st_gdata->list[type]->hdr_len;
-			pr_info("rx_count %ld\n", st_gdata->rx_count);
+			pr_debug("rx_count %ld\n", st_gdata->rx_count);
 		};
 		ptr++;
 		count--;
@@ -360,7 +360,7 @@ void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 
 	switch (st_ll_getstate(st_gdata)) {
 	case ST_LL_AWAKE:
-		pr_info("ST LL is AWAKE, sending normally");
+		pr_debug("ST LL is AWAKE, sending normally");
 		skb_queue_tail(&st_gdata->txq, skb);
 		break;
 	case ST_LL_ASLEEP_TO_AWAKE:
@@ -400,7 +400,7 @@ void st_tx_wakeup(struct st_data_s *st_data)
 	pr_debug("%s", __func__);
 	/* check for sending & set flag sending here */
 	if (test_and_set_bit(ST_TX_SENDING, &st_data->tx_state)) {
-		pr_info("ST already sending");
+		pr_debug("ST already sending");
 		/* keep sending */
 		set_bit(ST_TX_WAKEUP, &st_data->tx_state);
 		return;
@@ -735,7 +735,6 @@ static void st_tty_close(struct tty_struct *tty)
 static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
 			   char *tty_flags, int count)
 {
-#define VERBOSE
 #ifdef VERBOSE
 	print_hex_dump(KERN_DEBUG, ">in>", DUMP_PREFIX_NONE,
 		16, 1, data, count, 0);
