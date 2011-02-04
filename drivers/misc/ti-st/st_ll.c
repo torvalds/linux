@@ -130,7 +130,7 @@ unsigned long st_ll_sleep_state(struct st_data_s *st_data,
 		break;
 	default:
 		pr_err(" unknown input/state ");
-		return -1;
+		return -EINVAL;
 	}
 	return 0;
 }

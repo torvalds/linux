@@ -65,7 +65,7 @@ int st_int_write(struct st_data_s *st_gdata,
 	struct tty_struct *tty;
 	if (unlikely(st_gdata == NULL || st_gdata->tty == NULL)) {
 		pr_err("tty unavailable to perform write");
-		return -1;
+		return -EINVAL;
 	}
 	tty = st_gdata->tty;
 #ifdef VERBOSE
@@ -124,9 +124,15 @@ void st_reg_complete(struct st_data_s *st_gdata, char err)
 	pr_info(" %s ", __func__);
 	for (i = 0; i < ST_MAX_CHANNELS; i++) {
 		if (likely(st_gdata != NULL && st_gdata->list[i] != NULL &&
-			   st_gdata->list[i]->reg_complete_cb != NULL))
+			   st_gdata->list[i]->reg_complete_cb != NULL)) {
 			st_gdata->list[i]->reg_complete_cb
 				(st_gdata->list[i]->priv_data, err);
+			pr_info("protocol %d's cb sent %d\n", i, err);
+			if (err) { /* cleanup registered protocol */
+				st_gdata->protos_registered--;
+				st_gdata->list[i] = NULL;
+			}
+		}
 	}
 }
 
@@ -457,15 +463,7 @@ long st_register(struct st_proto_s *new_proto)
 	if (st_gdata == NULL || new_proto == NULL || new_proto->recv == NULL
 	    || new_proto->reg_complete_cb == NULL) {
 		pr_err("gdata/new_proto/recv or reg_complete_cb not ready");
-		if (st_gdata == NULL)
-			pr_err("error 1\n");
-		if (new_proto == NULL)
-			pr_err("error 2\n");
-		if (new_proto->recv == NULL)
-			pr_err("error 3\n");
-		if (new_proto->reg_complete_cb == NULL)
-			pr_err("erro 4\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	if (new_proto->chnl_id >= ST_MAX_CHANNELS) {
@@ -512,10 +510,9 @@ long st_register(struct st_proto_s *new_proto)
 			if ((st_gdata->protos_registered != ST_EMPTY) &&
 			    (test_bit(ST_REG_PENDING, &st_gdata->st_state))) {
 				pr_err(" KIM failure complete callback ");
-				st_reg_complete(st_gdata, -1);
+				st_reg_complete(st_gdata, err);
 			}
-
-			return -1;
+			return -EINVAL;
 		}
 
 		/* the chnl_id might require other gpios to be toggled
@@ -634,14 +631,14 @@ long st_write(struct sk_buff *skb)
 	if (unlikely(skb == NULL || st_gdata == NULL
 		|| st_gdata->tty == NULL)) {
 		pr_err("data/tty unavailable to perform write");
-		return -1;
+		return -EINVAL;
 	}
 #ifdef DEBUG			/* open-up skb to read the 1st byte */
 	chnl_id = skb->data[0];
 	if (unlikely(st_gdata->list[chnl_id] == NULL)) {
 		pr_err(" chnl_id %d not registered, and writing? ",
 			   chnl_id);
-		return -1;
+		return -EINVAL;
 	}
 #endif
 	pr_debug("%d to be written", skb->len);
@@ -829,7 +826,7 @@ int st_core_init(struct st_data_s **core_data)
 		err = tty_unregister_ldisc(N_TI_WL);
 		if (err)
 			pr_err("unable to un-register ldisc");
-		return -1;
+		return err;
 	}
 	*core_data = st_gdata;
 	return 0;

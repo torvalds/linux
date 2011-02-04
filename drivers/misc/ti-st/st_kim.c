@@ -201,13 +201,13 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 	INIT_COMPLETION(kim_gdata->kim_rcvd);
 	if (4 != st_int_write(kim_gdata->core_data, read_ver_cmd, 4)) {
 		pr_err("kim: couldn't write 4 bytes");
-		return -1;
+		return -EIO;
 	}
 
 	if (!wait_for_completion_timeout
 	    (&kim_gdata->kim_rcvd, msecs_to_jiffies(CMD_RESP_TIME))) {
 		pr_err(" waiting for ver info- timed out ");
-		return -1;
+		return -ETIMEDOUT;
 	}
 
 	version =
@@ -257,7 +257,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 		     (kim_gdata->fw_entry->size == 0))) {
 		pr_err(" request_firmware failed(errno %ld) for %s", err,
 			   bts_scr_name);
-		return -1;
+		return -EINVAL;
 	}
 	ptr = (void *)kim_gdata->fw_entry->data;
 	len = kim_gdata->fw_entry->size;
@@ -292,7 +292,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 					   ((struct bts_action *)ptr)->size);
 			if (unlikely(err < 0)) {
 				release_firmware(kim_gdata->fw_entry);
-				return -1;
+				return err;
 			}
 			if (!wait_for_completion_timeout
 			    (&kim_gdata->kim_rcvd,
@@ -301,7 +301,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 				    (" response timeout during fw download ");
 				/* timed out */
 				release_firmware(kim_gdata->fw_entry);
-				return -1;
+				return -ETIMEDOUT;
 			}
 			break;
 		case ACTION_DELAY:	/* sleep */
@@ -436,7 +436,7 @@ long st_kim_start(void *kim_data)
 			pr_info("ldisc_install = 0");
 			sysfs_notify(&kim_gdata->kim_pdev->dev.kobj,
 					NULL, "install");
-			err = -1;
+			err = -ETIMEDOUT;
 			continue;
 		} else {
 			/* ldisc installed now */
@@ -482,7 +482,7 @@ long st_kim_stop(void *kim_data)
 			msecs_to_jiffies(LDISC_TIME));
 	if (!err) {		/* timeout */
 		pr_err(" timed out waiting for ldisc to be un-installed");
-		return -1;
+		return -ETIMEDOUT;
 	}
 
 	/* By default configure BT nShutdown to LOW state */
@@ -642,7 +642,7 @@ static int kim_probe(struct platform_device *pdev)
 	status = st_core_init(&kim_gdata->core_data);
 	if (status != 0) {
 		pr_err(" ST core init failed");
-		return -1;
+		return -EIO;
 	}
 	/* refer to itself */
 	kim_gdata->core_data->kim_data = kim_gdata;
@@ -704,7 +704,7 @@ static int kim_probe(struct platform_device *pdev)
 	if (IS_ERR(kim_debugfs_dir)) {
 		pr_err(" debugfs entries creation failed ");
 		kim_debugfs_dir = NULL;
-		return -1;
+		return -EIO;
 	}
 
 	debugfs_create_file("version", S_IRUGO, kim_debugfs_dir,
