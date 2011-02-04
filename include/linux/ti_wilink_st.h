@@ -42,7 +42,7 @@ enum proto_type {
 	ST_BT,
 	ST_FM,
 	ST_GPS,
-	ST_MAX,
+	ST_MAX_CHANNELS = 16,
 };
 
 /**
@@ -62,6 +62,17 @@ enum proto_type {
  * @priv_data: privdate data holder for the protocol drivers, sent
  *	from the protocol drivers during registration, and sent back on
  *	reg_complete_cb and recv.
+ * @chnl_id: channel id the protocol driver is interested in, the channel
+ *	id is nothing but the 1st byte of the packet in UART frame.
+ * @max_frame_size: size of the largest frame the protocol can receive.
+ * @hdr_len: length of the header structure of the protocol.
+ * @offset_len_in_hdr: this provides the offset of the length field in the
+ *	header structure of the protocol header, to assist ST to know
+ *	how much to receive, if the data is split across UART frames.
+ * @len_size: whether the length field inside the header is 2 bytes
+ *	or 1 byte.
+ * @reserve: the number of bytes ST needs to reserve in the skb being
+ *	prepared for the protocol driver.
  */
 struct st_proto_s {
 	enum proto_type type;
@@ -70,10 +81,17 @@ struct st_proto_s {
 	void (*reg_complete_cb) (void *, char data);
 	long (*write) (struct sk_buff *skb);
 	void *priv_data;
+
+	unsigned char chnl_id;
+	unsigned short max_frame_size;
+	unsigned char hdr_len;
+	unsigned char offset_len_in_hdr;
+	unsigned char len_size;
+	unsigned char reserve;
 };
 
 extern long st_register(struct st_proto_s *);
-extern long st_unregister(enum proto_type);
+extern long st_unregister(struct st_proto_s *);
 
 
 /*
@@ -114,6 +132,7 @@ extern long st_unregister(enum proto_type);
  * @rx_skb: the skb where all data for a protocol gets accumulated,
  *	since tty might not call receive when a complete event packet
  *	is received, the states, count and the skb needs to be maintained.
+ * @rx_chnl: the channel ID for which the data is getting accumalated for.
  * @txq: the list of skbs which needs to be sent onto the TTY.
  * @tx_waitq: if the chip is not in AWAKE state, the skbs needs to be queued
  *	up in here, PM(WAKEUP_IND) data needs to be sent and then the skbs
@@ -135,10 +154,11 @@ struct st_data_s {
 #define ST_TX_SENDING	1
 #define ST_TX_WAKEUP	2
 	unsigned long tx_state;
-	struct st_proto_s *list[ST_MAX];
+	struct st_proto_s *list[ST_MAX_CHANNELS];
 	unsigned long rx_state;
 	unsigned long rx_count;
 	struct sk_buff *rx_skb;
+	unsigned char rx_chnl;
 	struct sk_buff_head txq, tx_waitq;
 	spinlock_t lock;
 	unsigned char	protos_registered;
@@ -243,12 +263,12 @@ struct kim_data_s {
 	struct completion kim_rcvd, ldisc_installed;
 	char resp_buffer[30];
 	const struct firmware *fw_entry;
-	long gpios[ST_MAX];
+	long gpios[ST_MAX_CHANNELS];
 	unsigned long rx_state;
 	unsigned long rx_count;
 	struct sk_buff *rx_skb;
-	struct rfkill *rfkill[ST_MAX];
-	enum proto_type rf_protos[ST_MAX];
+	struct rfkill *rfkill[ST_MAX_CHANNELS];
+	enum proto_type rf_protos[ST_MAX_CHANNELS];
 	struct st_data_s *core_data;
 	struct chip_version version;
 };
@@ -338,12 +358,8 @@ struct hci_command {
 
 /* ST LL receiver states */
 #define ST_W4_PACKET_TYPE       0
-#define ST_BT_W4_EVENT_HDR      1
-#define ST_BT_W4_ACL_HDR        2
-#define ST_BT_W4_SCO_HDR        3
-#define ST_BT_W4_DATA           4
-#define ST_FM_W4_EVENT_HDR      5
-#define ST_GPS_W4_EVENT_HDR	6
+#define ST_W4_HEADER		1
+#define ST_W4_DATA		2
 
 /* ST LL state machines */
 #define ST_LL_ASLEEP               0

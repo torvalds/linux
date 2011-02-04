@@ -32,11 +32,7 @@
 #include <linux/sched.h>
 #include <linux/rfkill.h>
 
-/* understand BT events for fw response */
-#include <net/bluetooth/bluetooth.h>
-#include <net/bluetooth/hci_core.h>
-#include <net/bluetooth/hci.h>
-
+#include <linux/skbuff.h>
 #include <linux/ti_wilink_st.h>
 
 
@@ -134,7 +130,7 @@ static inline int kim_check_data_len(struct kim_data_s *kim_gdata, int len)
 		/* Packet header has non-zero payload length and
 		 * we have enough space in created skb. Lets read
 		 * payload data */
-		kim_gdata->rx_state = ST_BT_W4_DATA;
+		kim_gdata->rx_state = ST_W4_DATA;
 		kim_gdata->rx_count = len;
 		return len;
 	}
@@ -158,8 +154,8 @@ void kim_int_recv(struct kim_data_s *kim_gdata,
 	const unsigned char *data, long count)
 {
 	const unsigned char *ptr;
-	struct hci_event_hdr *eh;
 	int len = 0, type = 0;
+	unsigned char *plen;
 
 	pr_debug("%s", __func__);
 	/* Decode received bytes here */
@@ -183,29 +179,27 @@ void kim_int_recv(struct kim_data_s *kim_gdata,
 			/* Check ST RX state machine , where are we? */
 			switch (kim_gdata->rx_state) {
 				/* Waiting for complete packet ? */
-			case ST_BT_W4_DATA:
+			case ST_W4_DATA:
 				pr_debug("Complete pkt received");
 				validate_firmware_response(kim_gdata);
 				kim_gdata->rx_state = ST_W4_PACKET_TYPE;
 				kim_gdata->rx_skb = NULL;
 				continue;
 				/* Waiting for Bluetooth event header ? */
-			case ST_BT_W4_EVENT_HDR:
-				eh = (struct hci_event_hdr *)kim_gdata->
-				    rx_skb->data;
-				pr_debug("Event header: evt 0x%2.2x"
-					   "plen %d", eh->evt, eh->plen);
-				kim_check_data_len(kim_gdata, eh->plen);
+			case ST_W4_HEADER:
+				plen =
+				(unsigned char *)&kim_gdata->rx_skb->data[1];
+				pr_debug("event hdr: plen 0x%02x\n", *plen);
+				kim_check_data_len(kim_gdata, *plen);
 				continue;
 			}	/* end of switch */
 		}		/* end of if rx_state */
 		switch (*ptr) {
 			/* Bluetooth event packet? */
-		case HCI_EVENT_PKT:
-			pr_info("Event packet");
-			kim_gdata->rx_state = ST_BT_W4_EVENT_HDR;
-			kim_gdata->rx_count = HCI_EVENT_HDR_SIZE;
-			type = HCI_EVENT_PKT;
+		case 0x04:
+			kim_gdata->rx_state = ST_W4_HEADER;
+			kim_gdata->rx_count = 2;
+			type = *ptr;
 			break;
 		default:
 			pr_info("unknown packet");
@@ -216,16 +210,18 @@ void kim_int_recv(struct kim_data_s *kim_gdata,
 		ptr++;
 		count--;
 		kim_gdata->rx_skb =
-		    bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC);
+			alloc_skb(1024+8, GFP_ATOMIC);
 		if (!kim_gdata->rx_skb) {
 			pr_err("can't allocate mem for new packet");
 			kim_gdata->rx_state = ST_W4_PACKET_TYPE;
 			kim_gdata->rx_count = 0;
 			return;
 		}
-		bt_cb(kim_gdata->rx_skb)->pkt_type = type;
+		skb_reserve(kim_gdata->rx_skb, 8);
+		kim_gdata->rx_skb->cb[0] = 4;
+		kim_gdata->rx_skb->cb[1] = 0;
+
 	}
-	pr_info("done %s", __func__);
 	return;
 }
 
@@ -398,7 +394,7 @@ void st_kim_chip_toggle(enum proto_type type, enum kim_gpio_state state)
 			gpio_set_value(kim_gdata->gpios[ST_GPS], GPIO_LOW);
 		break;
 
-	case ST_MAX:
+	case ST_MAX_CHANNELS:
 	default:
 		break;
 	}
@@ -416,7 +412,6 @@ void st_kim_recv(void *disc_data, const unsigned char *data, long count)
 	struct st_data_s	*st_gdata = (struct st_data_s *)disc_data;
 	struct kim_data_s	*kim_gdata = st_gdata->kim_data;
 
-	pr_info(" %s ", __func__);
 	/* copy to local buffer */
 	if (unlikely(data[4] == 0x01 && data[5] == 0x10 && data[0] == 0x04)) {
 		/* must be the read_ver_cmd */
@@ -578,7 +573,7 @@ static int kim_toggle_radio(void *data, bool blocked)
 		else
 			st_kim_chip_toggle(type, KIM_GPIO_ACTIVE);
 	break;
-	case ST_MAX:
+	case ST_MAX_CHANNELS:
 		pr_err(" wrong proto type ");
 	break;
 	}
@@ -664,12 +659,13 @@ static int kim_probe(struct platform_device *pdev)
 	/* refer to itself */
 	kim_gdata->core_data->kim_data = kim_gdata;
 
-	for (proto = 0; proto < ST_MAX; proto++) {
+	for (proto = 0; proto < ST_MAX_CHANNELS; proto++) {
 		kim_gdata->gpios[proto] = gpios[proto];
 		pr_info(" %ld gpio to be requested", gpios[proto]);
 	}
 
-	for (proto = 0; (proto < ST_MAX) && (gpios[proto] != -1); proto++) {
+	for (proto = 0; (proto < ST_MAX_CHANNELS)
+			&& (gpios[proto] != -1); proto++) {
 		/* Claim the Bluetooth/FM/GPIO
 		 * nShutdown gpio from the system
 		 */
@@ -704,7 +700,8 @@ static int kim_probe(struct platform_device *pdev)
 	init_completion(&kim_gdata->kim_rcvd);
 	init_completion(&kim_gdata->ldisc_installed);
 
-	for (proto = 0; (proto < ST_MAX) && (gpios[proto] != -1); proto++) {
+	for (proto = 0; (proto < ST_MAX_CHANNELS)
+			&& (gpios[proto] != -1); proto++) {
 		/* TODO: should all types be rfkill_type_bt ? */
 		kim_gdata->rf_protos[proto] = proto;
 		kim_gdata->rfkill[proto] = rfkill_alloc(protocol_names[proto],
@@ -752,7 +749,8 @@ static int kim_remove(struct platform_device *pdev)
 
 	kim_gdata = dev_get_drvdata(&pdev->dev);
 
-	for (proto = 0; (proto < ST_MAX) && (gpios[proto] != -1); proto++) {
+	for (proto = 0; (proto < ST_MAX_CHANNELS)
+		&& (gpios[proto] != -1); proto++) {
 		/* Claim the Bluetooth/FM/GPIO
 		 * nShutdown gpio from the system
 		 */

@@ -25,10 +25,9 @@
 #include <linux/init.h>
 #include <linux/tty.h>
 
-/* understand BT, FM and GPS for now */
-#include <net/bluetooth/bluetooth.h>
-#include <net/bluetooth/hci_core.h>
-#include <net/bluetooth/hci.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
+
 #include <linux/ti_wilink_st.h>
 
 /* function pointer pointing to either,
@@ -38,21 +37,20 @@
 void (*st_recv) (void*, const unsigned char*, long);
 
 /********************************************************************/
-#if 0
-/* internal misc functions */
-bool is_protocol_list_empty(void)
+static void add_channel_to_table(struct st_data_s *st_gdata,
+		struct st_proto_s *new_proto)
 {
-	unsigned char i = 0;
-	pr_debug(" %s ", __func__);
-	for (i = 0; i < ST_MAX; i++) {
-		if (st_gdata->list[i] != NULL)
-			return ST_NOTEMPTY;
-		/* not empty */
-	}
-	/* list empty */
-	return ST_EMPTY;
+	pr_info("%s: id %d\n", __func__, new_proto->chnl_id);
+	/* list now has the channel id as index itself */
+	st_gdata->list[new_proto->chnl_id] = new_proto;
 }
-#endif
+
+static void remove_channel_from_table(struct st_data_s *st_gdata,
+		struct st_proto_s *proto)
+{
+	pr_info("%s: id %d\n", __func__, proto->chnl_id);
+	st_gdata->list[proto->chnl_id] = NULL;
+}
 
 /* can be called in from
  * -- KIM (during fw download)
@@ -82,15 +80,15 @@ int st_int_write(struct st_data_s *st_gdata,
  * push the skb received to relevant
  * protocol stacks
  */
-void st_send_frame(enum proto_type protoid, struct st_data_s *st_gdata)
+void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
 {
-	pr_info(" %s(prot:%d) ", __func__, protoid);
+	pr_info(" %s(prot:%d) ", __func__, chnl_id);
 
 	if (unlikely
 	    (st_gdata == NULL || st_gdata->rx_skb == NULL
-	     || st_gdata->list[protoid] == NULL)) {
-		pr_err("protocol %d not registered, no data to send?",
-			   protoid);
+	     || st_gdata->list[chnl_id] == NULL)) {
+		pr_err("chnl_id %d not registered, no data to send?",
+			   chnl_id);
 		kfree_skb(st_gdata->rx_skb);
 		return;
 	}
@@ -99,17 +97,17 @@ void st_send_frame(enum proto_type protoid, struct st_data_s *st_gdata)
 	 * - should be just skb_queue_tail for the
 	 *   protocol stack driver
 	 */
-	if (likely(st_gdata->list[protoid]->recv != NULL)) {
+	if (likely(st_gdata->list[chnl_id]->recv != NULL)) {
 		if (unlikely
-			(st_gdata->list[protoid]->recv
-			(st_gdata->list[protoid]->priv_data, st_gdata->rx_skb)
+			(st_gdata->list[chnl_id]->recv
+			(st_gdata->list[chnl_id]->priv_data, st_gdata->rx_skb)
 			     != 0)) {
-			pr_err(" proto stack %d's ->recv failed", protoid);
+			pr_err(" proto stack %d's ->recv failed", chnl_id);
 			kfree_skb(st_gdata->rx_skb);
 			return;
 		}
 	} else {
-		pr_err(" proto stack %d's ->recv null", protoid);
+		pr_err(" proto stack %d's ->recv null", chnl_id);
 		kfree_skb(st_gdata->rx_skb);
 	}
 	return;
@@ -124,7 +122,7 @@ void st_reg_complete(struct st_data_s *st_gdata, char err)
 {
 	unsigned char i = 0;
 	pr_info(" %s ", __func__);
-	for (i = 0; i < ST_MAX; i++) {
+	for (i = 0; i < ST_MAX_CHANNELS; i++) {
 		if (likely(st_gdata != NULL && st_gdata->list[i] != NULL &&
 			   st_gdata->list[i]->reg_complete_cb != NULL))
 			st_gdata->list[i]->reg_complete_cb
@@ -133,7 +131,7 @@ void st_reg_complete(struct st_data_s *st_gdata, char err)
 }
 
 static inline int st_check_data_len(struct st_data_s *st_gdata,
-	int protoid, int len)
+	unsigned char chnl_id, int len)
 {
 	int room = skb_tailroom(st_gdata->rx_skb);
 
@@ -144,7 +142,7 @@ static inline int st_check_data_len(struct st_data_s *st_gdata,
 		 * has zero length payload. So, ask ST CORE to
 		 * forward the packet to protocol driver (BT/FM/GPS)
 		 */
-		st_send_frame(protoid, st_gdata);
+		st_send_frame(chnl_id, st_gdata);
 
 	} else if (len > room) {
 		/* Received packet's payload length is larger.
@@ -157,7 +155,7 @@ static inline int st_check_data_len(struct st_data_s *st_gdata,
 		/* Packet header has non-zero payload length and
 		 * we have enough space in created skb. Lets read
 		 * payload data */
-		st_gdata->rx_state = ST_BT_W4_DATA;
+		st_gdata->rx_state = ST_W4_DATA;
 		st_gdata->rx_count = len;
 		return len;
 	}
@@ -167,6 +165,7 @@ static inline int st_check_data_len(struct st_data_s *st_gdata,
 	st_gdata->rx_state = ST_W4_PACKET_TYPE;
 	st_gdata->rx_skb = NULL;
 	st_gdata->rx_count = 0;
+	st_gdata->rx_chnl = 0;
 
 	return 0;
 }
@@ -208,13 +207,10 @@ void st_int_recv(void *disc_data,
 	const unsigned char *data, long count)
 {
 	char *ptr;
-	struct hci_event_hdr *eh;
-	struct hci_acl_hdr *ah;
-	struct hci_sco_hdr *sh;
-	struct fm_event_hdr *fm;
-	struct gps_event_hdr *gps;
-	int len = 0, type = 0, dlen = 0;
-	static enum proto_type protoid = ST_MAX;
+	struct st_proto_s *proto;
+	unsigned short payload_len = 0;
+	int len = 0, type = 0;
+	unsigned char *plen;
 	struct st_data_s *st_gdata = (struct st_data_s *)disc_data;
 
 	ptr = (char *)data;
@@ -242,64 +238,36 @@ void st_int_recv(void *disc_data,
 
 			/* Check ST RX state machine , where are we? */
 			switch (st_gdata->rx_state) {
-
-				/* Waiting for complete packet ? */
-			case ST_BT_W4_DATA:
+			/* Waiting for complete packet ? */
+			case ST_W4_DATA:
 				pr_debug("Complete pkt received");
-
 				/* Ask ST CORE to forward
 				 * the packet to protocol driver */
-				st_send_frame(protoid, st_gdata);
+				st_send_frame(st_gdata->rx_chnl, st_gdata);
 
 				st_gdata->rx_state = ST_W4_PACKET_TYPE;
 				st_gdata->rx_skb = NULL;
-				protoid = ST_MAX;	/* is this required ? */
 				continue;
-
-				/* Waiting for Bluetooth event header ? */
-			case ST_BT_W4_EVENT_HDR:
-				eh = (struct hci_event_hdr *)st_gdata->rx_skb->
-				    data;
-
-				pr_debug("Event header: evt 0x%2.2x"
-					   "plen %d", eh->evt, eh->plen);
-
-				st_check_data_len(st_gdata, protoid, eh->plen);
-				continue;
-
-				/* Waiting for Bluetooth acl header ? */
-			case ST_BT_W4_ACL_HDR:
-				ah = (struct hci_acl_hdr *)st_gdata->rx_skb->
-				    data;
-				dlen = __le16_to_cpu(ah->dlen);
-
-				pr_info("ACL header: dlen %d", dlen);
-
-				st_check_data_len(st_gdata, protoid, dlen);
-				continue;
-
-				/* Waiting for Bluetooth sco header ? */
-			case ST_BT_W4_SCO_HDR:
-				sh = (struct hci_sco_hdr *)st_gdata->rx_skb->
-				    data;
-
-				pr_info("SCO header: dlen %d", sh->dlen);
-
-				st_check_data_len(st_gdata, protoid, sh->dlen);
-				continue;
-			case ST_FM_W4_EVENT_HDR:
-				fm = (struct fm_event_hdr *)st_gdata->rx_skb->
-				    data;
-				pr_info("FM Header: ");
-				st_check_data_len(st_gdata, ST_FM, fm->plen);
-				continue;
-				/* TODO : Add GPS packet machine logic here */
-			case ST_GPS_W4_EVENT_HDR:
-				/* [0x09 pkt hdr][R/W byte][2 byte len] */
-				gps = (struct gps_event_hdr *)st_gdata->rx_skb->
-				     data;
-				pr_info("GPS Header: ");
-				st_check_data_len(st_gdata, ST_GPS, gps->plen);
+			/* parse the header to know details */
+			case ST_W4_HEADER:
+				proto = st_gdata->list[st_gdata->rx_chnl];
+				plen =
+				&st_gdata->rx_skb->data
+				[proto->offset_len_in_hdr];
+				pr_info("plen pointing to %x\n", *plen);
+				if (proto->len_size == 1)/* 1 byte len field */
+					payload_len = *(unsigned char *)plen;
+				else if (proto->len_size == 2)
+					payload_len =
+					__le16_to_cpu(*(unsigned short *)plen);
+				else
+					pr_info("%s: invalid length "
+					"for id %d\n",
+					__func__, proto->chnl_id);
+				st_check_data_len(st_gdata, proto->chnl_id,
+						payload_len);
+				pr_info("off %d, pay len %d\n",
+					proto->offset_len_in_hdr, payload_len);
 				continue;
 			}	/* end of switch rx_state */
 		}
@@ -308,51 +276,6 @@ void st_int_recv(void *disc_data,
 		/* Check first byte of packet and identify module
 		 * owner (BT/FM/GPS) */
 		switch (*ptr) {
-
-			/* Bluetooth event packet? */
-		case HCI_EVENT_PKT:
-			pr_info("Event packet");
-			st_gdata->rx_state = ST_BT_W4_EVENT_HDR;
-			st_gdata->rx_count = HCI_EVENT_HDR_SIZE;
-			type = HCI_EVENT_PKT;
-			protoid = ST_BT;
-			break;
-
-			/* Bluetooth acl packet? */
-		case HCI_ACLDATA_PKT:
-			pr_info("ACL packet");
-			st_gdata->rx_state = ST_BT_W4_ACL_HDR;
-			st_gdata->rx_count = HCI_ACL_HDR_SIZE;
-			type = HCI_ACLDATA_PKT;
-			protoid = ST_BT;
-			break;
-
-			/* Bluetooth sco packet? */
-		case HCI_SCODATA_PKT:
-			pr_info("SCO packet");
-			st_gdata->rx_state = ST_BT_W4_SCO_HDR;
-			st_gdata->rx_count = HCI_SCO_HDR_SIZE;
-			type = HCI_SCODATA_PKT;
-			protoid = ST_BT;
-			break;
-
-			/* Channel 8(FM) packet? */
-		case ST_FM_CH8_PKT:
-			pr_info("FM CH8 packet");
-			type = ST_FM_CH8_PKT;
-			st_gdata->rx_state = ST_FM_W4_EVENT_HDR;
-			st_gdata->rx_count = FM_EVENT_HDR_SIZE;
-			protoid = ST_FM;
-			break;
-
-			/* Channel 9(GPS) packet? */
-		case 0x9:	/*ST_LL_GPS_CH9_PKT */
-			pr_info("GPS CH9 packet");
-			type = 0x9;	/* ST_LL_GPS_CH9_PKT; */
-			protoid = ST_GPS;
-			st_gdata->rx_state = ST_GPS_W4_EVENT_HDR;
-			st_gdata->rx_count = 3;	/* GPS_EVENT_HDR_SIZE -1*/
-			break;
 		case LL_SLEEP_IND:
 		case LL_SLEEP_ACK:
 		case LL_WAKE_UP_IND:
@@ -373,57 +296,22 @@ void st_int_recv(void *disc_data,
 			continue;
 			/* Unknow packet? */
 		default:
-			pr_err("Unknown packet type %2.2x", (__u8) *ptr);
-			ptr++;
-			count--;
-			continue;
+			type = *ptr;
+			st_gdata->rx_skb = alloc_skb(
+					st_gdata->list[type]->max_frame_size,
+					GFP_ATOMIC);
+			skb_reserve(st_gdata->rx_skb,
+					st_gdata->list[type]->reserve);
+			/* next 2 required for BT only */
+			st_gdata->rx_skb->cb[0] = type; /*pkt_type*/
+			st_gdata->rx_skb->cb[1] = 0; /*incoming*/
+			st_gdata->rx_chnl = *ptr;
+			st_gdata->rx_state = ST_W4_HEADER;
+			st_gdata->rx_count = st_gdata->list[type]->hdr_len;
+			pr_info("rx_count %ld\n", st_gdata->rx_count);
 		};
 		ptr++;
 		count--;
-
-		switch (protoid) {
-		case ST_BT:
-			/* Allocate new packet to hold received data */
-			st_gdata->rx_skb =
-			    bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC);
-			if (!st_gdata->rx_skb) {
-				pr_err("Can't allocate mem for new packet");
-				st_gdata->rx_state = ST_W4_PACKET_TYPE;
-				st_gdata->rx_count = 0;
-				return;
-			}
-			bt_cb(st_gdata->rx_skb)->pkt_type = type;
-			break;
-		case ST_FM:	/* for FM */
-			st_gdata->rx_skb =
-			    alloc_skb(FM_MAX_FRAME_SIZE, GFP_ATOMIC);
-			if (!st_gdata->rx_skb) {
-				pr_err("Can't allocate mem for new packet");
-				st_gdata->rx_state = ST_W4_PACKET_TYPE;
-				st_gdata->rx_count = 0;
-				return;
-			}
-			/* place holder 0x08 */
-			skb_reserve(st_gdata->rx_skb, 1);
-			st_gdata->rx_skb->cb[0] = ST_FM_CH8_PKT;
-			break;
-		case ST_GPS:
-			/* for GPS */
-			st_gdata->rx_skb =
-			    alloc_skb(100 /*GPS_MAX_FRAME_SIZE */ , GFP_ATOMIC);
-			if (!st_gdata->rx_skb) {
-				pr_err("Can't allocate mem for new packet");
-				st_gdata->rx_state = ST_W4_PACKET_TYPE;
-				st_gdata->rx_count = 0;
-				return;
-			}
-			/* place holder 0x09 */
-			skb_reserve(st_gdata->rx_skb, 1);
-			st_gdata->rx_skb->cb[0] = 0x09;	/*ST_GPS_CH9_PKT; */
-			break;
-		case ST_MAX:
-			break;
-		}
 	}
 	pr_debug("done %s", __func__);
 	return;
@@ -565,20 +453,28 @@ long st_register(struct st_proto_s *new_proto)
 	unsigned long flags = 0;
 
 	st_kim_ref(&st_gdata, 0);
-	pr_info("%s(%d) ", __func__, new_proto->type);
+	pr_info("%s(%d) ", __func__, new_proto->chnl_id);
 	if (st_gdata == NULL || new_proto == NULL || new_proto->recv == NULL
 	    || new_proto->reg_complete_cb == NULL) {
 		pr_err("gdata/new_proto/recv or reg_complete_cb not ready");
+		if (st_gdata == NULL)
+			pr_err("error 1\n");
+		if (new_proto == NULL)
+			pr_err("error 2\n");
+		if (new_proto->recv == NULL)
+			pr_err("error 3\n");
+		if (new_proto->reg_complete_cb == NULL)
+			pr_err("erro 4\n");
 		return -1;
 	}
 
-	if (new_proto->type < ST_BT || new_proto->type >= ST_MAX) {
-		pr_err("protocol %d not supported", new_proto->type);
+	if (new_proto->chnl_id >= ST_MAX_CHANNELS) {
+		pr_err("chnl_id %d not supported", new_proto->chnl_id);
 		return -EPROTONOSUPPORT;
 	}
 
-	if (st_gdata->list[new_proto->type] != NULL) {
-		pr_err("protocol %d already registered", new_proto->type);
+	if (st_gdata->list[new_proto->chnl_id] != NULL) {
+		pr_err("chnl_id %d already registered", new_proto->chnl_id);
 		return -EALREADY;
 	}
 
@@ -586,11 +482,11 @@ long st_register(struct st_proto_s *new_proto)
 	spin_lock_irqsave(&st_gdata->lock, flags);
 
 	if (test_bit(ST_REG_IN_PROGRESS, &st_gdata->st_state)) {
-		pr_info(" ST_REG_IN_PROGRESS:%d ", new_proto->type);
+		pr_info(" ST_REG_IN_PROGRESS:%d ", new_proto->chnl_id);
 		/* fw download in progress */
-		st_kim_chip_toggle(new_proto->type, KIM_GPIO_ACTIVE);
+		st_kim_chip_toggle(new_proto->chnl_id, KIM_GPIO_ACTIVE);
 
-		st_gdata->list[new_proto->type] = new_proto;
+		add_channel_to_table(st_gdata, new_proto);
 		st_gdata->protos_registered++;
 		new_proto->write = st_write;
 
@@ -598,7 +494,7 @@ long st_register(struct st_proto_s *new_proto)
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
 		return -EINPROGRESS;
 	} else if (st_gdata->protos_registered == ST_EMPTY) {
-		pr_info(" protocol list empty :%d ", new_proto->type);
+		pr_info(" chnl_id list empty :%d ", new_proto->chnl_id);
 		set_bit(ST_REG_IN_PROGRESS, &st_gdata->st_state);
 		st_recv = st_kim_recv;
 
@@ -622,9 +518,9 @@ long st_register(struct st_proto_s *new_proto)
 			return -1;
 		}
 
-		/* the protocol might require other gpios to be toggled
+		/* the chnl_id might require other gpios to be toggled
 		 */
-		st_kim_chip_toggle(new_proto->type, KIM_GPIO_ACTIVE);
+		st_kim_chip_toggle(new_proto->chnl_id, KIM_GPIO_ACTIVE);
 
 		clear_bit(ST_REG_IN_PROGRESS, &st_gdata->st_state);
 		st_recv = st_int_recv;
@@ -642,14 +538,14 @@ long st_register(struct st_proto_s *new_proto)
 		/* check for already registered once more,
 		 * since the above check is old
 		 */
-		if (st_gdata->list[new_proto->type] != NULL) {
+		if (st_gdata->list[new_proto->chnl_id] != NULL) {
 			pr_err(" proto %d already registered ",
-				   new_proto->type);
+				   new_proto->chnl_id);
 			return -EALREADY;
 		}
 
 		spin_lock_irqsave(&st_gdata->lock, flags);
-		st_gdata->list[new_proto->type] = new_proto;
+		add_channel_to_table(st_gdata, new_proto);
 		st_gdata->protos_registered++;
 		new_proto->write = st_write;
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
@@ -657,22 +553,7 @@ long st_register(struct st_proto_s *new_proto)
 	}
 	/* if fw is already downloaded & new stack registers protocol */
 	else {
-		switch (new_proto->type) {
-		case ST_BT:
-			/* do nothing */
-			break;
-		case ST_FM:
-		case ST_GPS:
-			st_kim_chip_toggle(new_proto->type, KIM_GPIO_ACTIVE);
-			break;
-		case ST_MAX:
-		default:
-			pr_err("%d protocol not supported",
-				   new_proto->type);
-			spin_unlock_irqrestore(&st_gdata->lock, flags);
-			return -EPROTONOSUPPORT;
-		}
-		st_gdata->list[new_proto->type] = new_proto;
+		add_channel_to_table(st_gdata, new_proto);
 		st_gdata->protos_registered++;
 		new_proto->write = st_write;
 
@@ -680,48 +561,48 @@ long st_register(struct st_proto_s *new_proto)
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
 		return err;
 	}
-	pr_debug("done %s(%d) ", __func__, new_proto->type);
+	pr_debug("done %s(%d) ", __func__, new_proto->chnl_id);
 }
 EXPORT_SYMBOL_GPL(st_register);
 
 /* to unregister a protocol -
  * to be called from protocol stack driver
  */
-long st_unregister(enum proto_type type)
+long st_unregister(struct st_proto_s *proto)
 {
 	long err = 0;
 	unsigned long flags = 0;
 	struct st_data_s	*st_gdata;
 
-	pr_debug("%s: %d ", __func__, type);
+	pr_debug("%s: %d ", __func__, proto->chnl_id);
 
 	st_kim_ref(&st_gdata, 0);
-	if (type < ST_BT || type >= ST_MAX) {
-		pr_err(" protocol %d not supported", type);
+	if (proto->chnl_id >= ST_MAX_CHANNELS) {
+		pr_err(" chnl_id %d not supported", proto->chnl_id);
 		return -EPROTONOSUPPORT;
 	}
 
 	spin_lock_irqsave(&st_gdata->lock, flags);
 
-	if (st_gdata->list[type] == NULL) {
-		pr_err(" protocol %d not registered", type);
+	if (st_gdata->list[proto->chnl_id] == NULL) {
+		pr_err(" chnl_id %d not registered", proto->chnl_id);
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
 		return -EPROTONOSUPPORT;
 	}
 
 	st_gdata->protos_registered--;
-	st_gdata->list[type] = NULL;
+	remove_channel_from_table(st_gdata, proto);
 
 	/* kim ignores BT in the below function
 	 * and handles the rest, BT is toggled
 	 * only in kim_start and kim_stop
 	 */
-	st_kim_chip_toggle(type, KIM_GPIO_INACTIVE);
+	st_kim_chip_toggle(proto->chnl_id, KIM_GPIO_INACTIVE);
 	spin_unlock_irqrestore(&st_gdata->lock, flags);
 
 	if ((st_gdata->protos_registered == ST_EMPTY) &&
 	    (!test_bit(ST_REG_PENDING, &st_gdata->st_state))) {
-		pr_info(" all protocols unregistered ");
+		pr_info(" all chnl_ids unregistered ");
 
 		/* stop traffic on tty */
 		if (st_gdata->tty) {
@@ -729,7 +610,7 @@ long st_unregister(enum proto_type type)
 			stop_tty(st_gdata->tty);
 		}
 
-		/* all protocols now unregistered */
+		/* all chnl_ids now unregistered */
 		st_kim_stop(st_gdata->kim_data);
 		/* disable ST LL */
 		st_ll_disable(st_gdata);
@@ -745,7 +626,7 @@ long st_write(struct sk_buff *skb)
 {
 	struct st_data_s *st_gdata;
 #ifdef DEBUG
-	enum proto_type protoid = ST_MAX;
+	unsigned char chnl_id = ST_MAX_CHANNELS;
 #endif
 	long len;
 
@@ -756,22 +637,10 @@ long st_write(struct sk_buff *skb)
 		return -1;
 	}
 #ifdef DEBUG			/* open-up skb to read the 1st byte */
-	switch (skb->data[0]) {
-	case HCI_COMMAND_PKT:
-	case HCI_ACLDATA_PKT:
-	case HCI_SCODATA_PKT:
-		protoid = ST_BT;
-		break;
-	case ST_FM_CH8_PKT:
-		protoid = ST_FM;
-		break;
-	case 0x09:
-		protoid = ST_GPS;
-		break;
-	}
-	if (unlikely(st_gdata->list[protoid] == NULL)) {
-		pr_err(" protocol %d not registered, and writing? ",
-			   protoid);
+	chnl_id = skb->data[0];
+	if (unlikely(st_gdata->list[chnl_id] == NULL)) {
+		pr_err(" chnl_id %d not registered, and writing? ",
+			   chnl_id);
 		return -1;
 	}
 #endif
@@ -824,7 +693,7 @@ static int st_tty_open(struct tty_struct *tty)
 
 static void st_tty_close(struct tty_struct *tty)
 {
-	unsigned char i = ST_MAX;
+	unsigned char i = ST_MAX_CHANNELS;
 	unsigned long flags = 0;
 	struct	st_data_s *st_gdata = tty->disc_data;
 
@@ -835,7 +704,7 @@ static void st_tty_close(struct tty_struct *tty)
 	 * un-installed for some reason - what should be done ?
 	 */
 	spin_lock_irqsave(&st_gdata->lock, flags);
-	for (i = ST_BT; i < ST_MAX; i++) {
+	for (i = ST_BT; i < ST_MAX_CHANNELS; i++) {
 		if (st_gdata->list[i] != NULL)
 			pr_err("%d not un-registered", i);
 		st_gdata->list[i] = NULL;
@@ -869,7 +738,7 @@ static void st_tty_close(struct tty_struct *tty)
 static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
 			   char *tty_flags, int count)
 {
-
+#define VERBOSE
 #ifdef VERBOSE
 	print_hex_dump(KERN_DEBUG, ">in>", DUMP_PREFIX_NONE,
 		16, 1, data, count, 0);
