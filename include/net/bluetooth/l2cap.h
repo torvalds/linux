@@ -436,6 +436,14 @@ void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *d
 int l2cap_build_conf_req(struct sock *sk, void *data);
 int __l2cap_wait_ack(struct sock *sk);
 
+struct sk_buff *l2cap_create_connless_pdu(struct sock *sk, struct msghdr *msg, size_t len);
+struct sk_buff *l2cap_create_basic_pdu(struct sock *sk, struct msghdr *msg, size_t len);
+struct sk_buff *l2cap_create_iframe_pdu(struct sock *sk, struct msghdr *msg, size_t len, u16 control, u16 sdulen);
+int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, size_t len);
+void l2cap_do_send(struct sock *sk, struct sk_buff *skb);
+void l2cap_streaming_send(struct sock *sk);
+int l2cap_ertm_send(struct sock *sk);
+
 void l2cap_sock_set_timer(struct sock *sk, long timeout);
 void l2cap_sock_clear_timer(struct sock *sk);
 void __l2cap_sock_close(struct sock *sk, int reason);
@@ -444,9 +452,6 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent);
 struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 							int proto, gfp_t prio);
 int l2cap_do_connect(struct sock *sk);
-
-int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len);
-
 
 void l2cap_load(void);
 

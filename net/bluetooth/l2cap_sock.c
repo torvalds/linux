@@ -681,6 +681,108 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 	return err;
 }
 
+static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len)
+{
+	struct sock *sk = sock->sk;
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	struct sk_buff *skb;
+	u16 control;
+	int err;
+
+	BT_DBG("sock %p, sk %p", sock, sk);
+
+	err = sock_error(sk);
+	if (err)
+		return err;
+
+	if (msg->msg_flags & MSG_OOB)
+		return -EOPNOTSUPP;
+
+	lock_sock(sk);
+
+	if (sk->sk_state != BT_CONNECTED) {
+		err = -ENOTCONN;
+		goto done;
+	}
+
+	/* Connectionless channel */
+	if (sk->sk_type == SOCK_DGRAM) {
+		skb = l2cap_create_connless_pdu(sk, msg, len);
+		if (IS_ERR(skb)) {
+			err = PTR_ERR(skb);
+		} else {
+			l2cap_do_send(sk, skb);
+			err = len;
+		}
+		goto done;
+	}
+
+	switch (pi->mode) {
+	case L2CAP_MODE_BASIC:
+		/* Check outgoing MTU */
+		if (len > pi->omtu) {
+			err = -EMSGSIZE;
+			goto done;
+		}
+
+		/* Create a basic PDU */
+		skb = l2cap_create_basic_pdu(sk, msg, len);
+		if (IS_ERR(skb)) {
+			err = PTR_ERR(skb);
+			goto done;
+		}
+
+		l2cap_do_send(sk, skb);
+		err = len;
+		break;
+
+	case L2CAP_MODE_ERTM:
+	case L2CAP_MODE_STREAMING:
+		/* Entire SDU fits into one PDU */
+		if (len <= pi->remote_mps) {
+			control = L2CAP_SDU_UNSEGMENTED;
+			skb = l2cap_create_iframe_pdu(sk, msg, len, control, 0);
+			if (IS_ERR(skb)) {
+				err = PTR_ERR(skb);
+				goto done;
+			}
+			__skb_queue_tail(TX_QUEUE(sk), skb);
+
+			if (sk->sk_send_head == NULL)
+				sk->sk_send_head = skb;
+
+		} else {
+		/* Segment SDU into multiples PDUs */
+			err = l2cap_sar_segment_sdu(sk, msg, len);
+			if (err < 0)
+				goto done;
+		}
+
+		if (pi->mode == L2CAP_MODE_STREAMING) {
+			l2cap_streaming_send(sk);
+		} else {
+			if ((pi->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
+					(pi->conn_state & L2CAP_CONN_WAIT_F)) {
+				err = len;
+				break;
+			}
+			err = l2cap_ertm_send(sk);
+		}
+
+		if (err >= 0)
+			err = len;
+		break;
+
+	default:
+		BT_DBG("bad state %1.1x", pi->mode);
+		err = -EBADFD;
+	}
+
+done:
+	release_sock(sk);
+	return err;
+}
+
 static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags)
 {
 	struct sock *sk = sock->sk;
