@@ -1381,9 +1381,6 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 
 		if (is_zero_ether_addr(netdev->dev_addr))
 			random_ether_addr(netdev->dev_addr);
-	} else if (new_pp.request == PORT_REQUEST_DISASSOCIATE) {
-		if (!is_zero_ether_addr(enic->pp.mac_addr))
-			enic_dev_del_addr(enic, enic->pp.mac_addr);
 	}
 
 	memcpy(&enic->pp, &new_pp, sizeof(struct enic_port_profile));
@@ -1391,9 +1388,6 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 	err = enic_set_port_profile(enic, netdev->dev_addr);
 	if (err)
 		goto set_port_profile_cleanup;
-
-	if (!is_zero_ether_addr(enic->pp.mac_addr))
-		enic_dev_add_addr(enic, enic->pp.mac_addr);
 
 set_port_profile_cleanup:
 	memset(enic->pp.vf_mac, 0, ETH_ALEN);
