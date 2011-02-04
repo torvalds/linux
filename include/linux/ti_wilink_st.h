@@ -26,15 +26,6 @@
 #define TI_WILINK_ST_H
 
 /**
- * enum kim_gpio_state - Few protocols such as FM have ACTIVE LOW
- *	gpio states for their chip/core enable gpios
- */
-enum kim_gpio_state {
-	KIM_GPIO_INACTIVE,
-	KIM_GPIO_ACTIVE,
-};
-
-/**
  * enum proto-type - The protocol on WiLink chips which share a
  *	common physical interface like UART.
  */
@@ -252,14 +243,11 @@ struct chip_version {
  *	the ldisc was properly installed.
  * @resp_buffer: data buffer for the .bts fw file name.
  * @fw_entry: firmware class struct to request/release the fw.
- * @gpios: the list of core/chip enable gpios for BT, FM and GPS cores.
  * @rx_state: the rx state for kim's receive func during fw download.
  * @rx_count: the rx count for the kim's receive func during fw download.
  * @rx_skb: all of fw data might not come at once, and hence data storage for
  *	whole of the fw response, only HCI_EVENTs and hence diff from ST's
  *	response.
- * @rfkill: rfkill data for each of the cores to be registered with rfkill.
- * @rf_protos: proto types of the data registered with rfkill sub-system.
  * @core_data: ST core's data, which mainly is the tty's disc_data
  * @version: chip version available via a sysfs entry.
  *
@@ -270,12 +258,10 @@ struct kim_data_s {
 	struct completion kim_rcvd, ldisc_installed;
 	char resp_buffer[30];
 	const struct firmware *fw_entry;
-	long gpios[ST_MAX_CHANNELS];
+	long nshutdown;
 	unsigned long rx_state;
 	unsigned long rx_count;
 	struct sk_buff *rx_skb;
-	struct rfkill *rfkill[ST_MAX_CHANNELS];
-	enum proto_type rf_protos[ST_MAX_CHANNELS];
 	struct st_data_s *core_data;
 	struct chip_version version;
 	unsigned char ldisc_install;
@@ -293,7 +279,6 @@ long st_kim_start(void *);
 long st_kim_stop(void *);
 
 void st_kim_recv(void *, const unsigned char *, long count);
-void st_kim_chip_toggle(enum proto_type, enum kim_gpio_state);
 void st_kim_complete(void *);
 void kim_st_list_protocols(struct st_data_s *, void *);
 
@@ -426,7 +411,7 @@ struct gps_event_hdr {
 
 /* platform data */
 struct ti_st_plat_data {
-	long gpios[ST_MAX_CHANNELS]; /* BT, FM and GPS */
+	long nshutdown_gpio;
 	unsigned char dev_name[UART_DEV_NAME_LEN]; /* uart name */
 	unsigned char flow_cntrl; /* flow control flag */
 	unsigned long baud_rate;

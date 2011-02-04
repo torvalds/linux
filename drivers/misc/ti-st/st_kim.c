@@ -390,49 +390,6 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 
 /**********************************************************************/
 /* functions called from ST core */
-/* function to toggle the GPIO
- * needs to know whether the GPIO is active high or active low
- */
-void st_kim_chip_toggle(enum proto_type type, enum kim_gpio_state state)
-{
-	struct platform_device	*kim_pdev;
-	struct kim_data_s	*kim_gdata;
-	pr_info(" %s ", __func__);
-
-	kim_pdev = st_get_plat_device(0);
-	kim_gdata = dev_get_drvdata(&kim_pdev->dev);
-
-	if (kim_gdata->gpios[type] == -1) {
-		pr_info("gpio not requested for protocol %d", type);
-		return;
-	}
-	switch (type) {
-	case ST_BT:
-		/*Do Nothing */
-		break;
-
-	case ST_FM:
-		if (state == KIM_GPIO_ACTIVE)
-			gpio_set_value(kim_gdata->gpios[ST_FM], GPIO_LOW);
-		else
-			gpio_set_value(kim_gdata->gpios[ST_FM], GPIO_HIGH);
-		break;
-
-	case ST_GPS:
-		if (state == KIM_GPIO_ACTIVE)
-			gpio_set_value(kim_gdata->gpios[ST_GPS], GPIO_HIGH);
-		else
-			gpio_set_value(kim_gdata->gpios[ST_GPS], GPIO_LOW);
-		break;
-
-	case ST_MAX_CHANNELS:
-	default:
-		break;
-	}
-
-	return;
-}
-
 /* called from ST Core, when REG_IN_PROGRESS (registration in progress)
  * can be because of
  * 1. response to read local version
@@ -482,9 +439,9 @@ long st_kim_start(void *kim_data)
 
 	do {
 		/* Configure BT nShutdown to HIGH state */
-		gpio_set_value(kim_gdata->gpios[ST_BT], GPIO_LOW);
+		gpio_set_value(kim_gdata->nshutdown, GPIO_LOW);
 		mdelay(5);	/* FIXME: a proper toggle */
-		gpio_set_value(kim_gdata->gpios[ST_BT], GPIO_HIGH);
+		gpio_set_value(kim_gdata->nshutdown, GPIO_HIGH);
 		mdelay(100);
 		/* re-initialize the completion */
 		INIT_COMPLETION(kim_gdata->ldisc_installed);
@@ -552,11 +509,11 @@ long st_kim_stop(void *kim_data)
 	}
 
 	/* By default configure BT nShutdown to LOW state */
-	gpio_set_value(kim_gdata->gpios[ST_BT], GPIO_LOW);
+	gpio_set_value(kim_gdata->nshutdown, GPIO_LOW);
 	mdelay(1);
-	gpio_set_value(kim_gdata->gpios[ST_BT], GPIO_HIGH);
+	gpio_set_value(kim_gdata->nshutdown, GPIO_HIGH);
 	mdelay(1);
-	gpio_set_value(kim_gdata->gpios[ST_BT], GPIO_LOW);
+	gpio_set_value(kim_gdata->nshutdown, GPIO_LOW);
 	return err;
 }
 
@@ -685,10 +642,8 @@ struct dentry *kim_debugfs_dir;
 static int kim_probe(struct platform_device *pdev)
 {
 	long status;
-	long proto;
 	struct kim_data_s	*kim_gdata;
 	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
-	long *gpios = pdata->gpios;
 
 	if ((pdev->id != -1) && (pdev->id < MAX_ST_DEVICES)) {
 		/* multiple devices could exist */
@@ -713,40 +668,19 @@ static int kim_probe(struct platform_device *pdev)
 	/* refer to itself */
 	kim_gdata->core_data->kim_data = kim_gdata;
 
-	for (proto = 0; proto < ST_MAX_CHANNELS; proto++) {
-		kim_gdata->gpios[proto] = gpios[proto];
-		pr_info(" %ld gpio to be requested", gpios[proto]);
+	/* Claim the chip enable nShutdown gpio from the system */
+	kim_gdata->nshutdown = pdata->nshutdown_gpio;
+	status = gpio_request(kim_gdata->nshutdown, "kim");
+	if (unlikely(status)) {
+		pr_err(" gpio %ld request failed ", kim_gdata->nshutdown);
+		return status;
 	}
 
-	for (proto = 0; (proto < ST_MAX_CHANNELS)
-			&& (gpios[proto] != -1); proto++) {
-		/* Claim the Bluetooth/FM/GPIO
-		 * nShutdown gpio from the system
-		 */
-		status = gpio_request(gpios[proto], "kim");
-		if (unlikely(status)) {
-			pr_err(" gpio %ld request failed ", gpios[proto]);
-			proto -= 1;
-			while (proto >= 0) {
-				if (gpios[proto] != -1)
-					gpio_free(gpios[proto]);
-			}
-			return status;
-		}
-
-		/* Configure nShutdown GPIO as output=0 */
-		status =
-		    gpio_direction_output(gpios[proto], 0);
-		if (unlikely(status)) {
-			pr_err(" unable to configure gpio %ld",
-				   gpios[proto]);
-			proto -= 1;
-			while (proto >= 0) {
-				if (gpios[proto] != -1)
-					gpio_free(gpios[proto]);
-			}
-			return status;
-		}
+	/* Configure nShutdown GPIO as output=0 */
+	status = gpio_direction_output(kim_gdata->nshutdown, 0);
+	if (unlikely(status)) {
+		pr_err(" unable to configure gpio %ld", kim_gdata->nshutdown);
+		return status;
 	}
 	/* get reference of pdev for request_firmware
 	 */
@@ -785,23 +719,20 @@ static int kim_remove(struct platform_device *pdev)
 {
 	/* free the GPIOs requested */
 	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
-	long *gpios = pdata->gpios;
-	long proto;
 	struct kim_data_s	*kim_gdata;
 
 	kim_gdata = dev_get_drvdata(&pdev->dev);
 
-	for (proto = 0; (proto < ST_MAX_CHANNELS)
-		&& (gpios[proto] != -1); proto++) {
-		/* Claim the Bluetooth/FM/GPIO
-		 * nShutdown gpio from the system
-		 */
-		gpio_free(gpios[proto]);
-	}
-	pr_info("kim: GPIO Freed");
-	debugfs_remove_recursive(kim_debugfs_dir);
+	/* Free the Bluetooth/FM/GPIO
+	 * nShutdown gpio from the system
+	 */
+	gpio_free(pdata->nshutdown_gpio);
+	pr_info("nshutdown GPIO Freed");
 
+	debugfs_remove_recursive(kim_debugfs_dir);
 	sysfs_remove_group(&pdev->dev.kobj, &uim_attr_grp);
+	pr_info("sysfs entries removed");
+
 	kim_gdata->kim_pdev = NULL;
 	st_core_exit(kim_gdata->core_data);
 

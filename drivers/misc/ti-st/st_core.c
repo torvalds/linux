@@ -515,7 +515,6 @@ long st_register(struct st_proto_s *new_proto)
 	if (test_bit(ST_REG_IN_PROGRESS, &st_gdata->st_state)) {
 		pr_info(" ST_REG_IN_PROGRESS:%d ", new_proto->chnl_id);
 		/* fw download in progress */
-		st_kim_chip_toggle(new_proto->chnl_id, KIM_GPIO_ACTIVE);
 
 		add_channel_to_table(st_gdata, new_proto);
 		st_gdata->protos_registered++;
@@ -547,10 +546,6 @@ long st_register(struct st_proto_s *new_proto)
 			}
 			return -EINVAL;
 		}
-
-		/* the chnl_id might require other gpios to be toggled
-		 */
-		st_kim_chip_toggle(new_proto->chnl_id, KIM_GPIO_ACTIVE);
 
 		clear_bit(ST_REG_IN_PROGRESS, &st_gdata->st_state);
 		st_recv = st_int_recv;
@@ -622,12 +617,6 @@ long st_unregister(struct st_proto_s *proto)
 
 	st_gdata->protos_registered--;
 	remove_channel_from_table(st_gdata, proto);
-
-	/* kim ignores BT in the below function
-	 * and handles the rest, BT is toggled
-	 * only in kim_start and kim_stop
-	 */
-	st_kim_chip_toggle(proto->chnl_id, KIM_GPIO_INACTIVE);
 	spin_unlock_irqrestore(&st_gdata->lock, flags);
 
 	if ((st_gdata->protos_registered == ST_EMPTY) &&
