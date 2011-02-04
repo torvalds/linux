@@ -77,9 +77,6 @@ nf_conntrack_event_cache(enum ip_conntrack_events event, struct nf_conn *ct)
 	if (e == NULL)
 		return;
 
-	if (!(e->ctmask & (1 << event)))
-		return;
-
 	set_bit(event, &e->cache);
 }
 
