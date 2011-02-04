@@ -767,16 +767,15 @@ static int __parse_probe_arg(char *arg, const struct fetch_type *t,
 		}
 		break;
 	case '+':	/* deref memory */
+		arg++;	/* Skip '+', because strict_strtol() rejects it. */
 	case '-':
 		tmp = strchr(arg, '(');
 		if (!tmp)
 			break;
 		*tmp = '\0';
-		ret = strict_strtol(arg + 1, 0, &offset);
+		ret = strict_strtol(arg, 0, &offset);
 		if (ret)
 			break;
-		if (arg[0] == '-')
-			offset = -offset;
 		arg = tmp + 1;
 		tmp = strrchr(arg, ')');
 		if (tmp) {
