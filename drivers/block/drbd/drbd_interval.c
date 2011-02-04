@@ -122,9 +122,11 @@ drbd_remove_interval(struct rb_root *root, struct drbd_interval *this)
  * @sector:	start sector
  * @size:	size, aligned to 512 bytes
  *
- * Returns the interval overlapping with [sector, sector + size), or NULL.
- * When there is more than one overlapping interval in the tree, the interval
- * with the lowest start sector is returned.
+ * Returns an interval overlapping with [sector, sector + size), or NULL if
+ * there is none.  When there is more than one overlapping interval in the
+ * tree, the interval with the lowest start sector is returned, and all other
+ * overlapping intervals will be on the right side of the tree, reachable with
+ * rb_next().
  */
 struct drbd_interval *
 drbd_find_overlap(struct rb_root *root, sector_t sector, unsigned int size)
