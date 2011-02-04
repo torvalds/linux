@@ -668,15 +668,6 @@ struct drbd_tl_epoch {
 	int n_writes;	/* number of requests attached before this barrier */
 };
 
-struct drbd_request;
-
-/* These Tl_epoch_entries may be in one of 6 lists:
-   active_ee .. data packet being written
-   sync_ee   .. syncer block being written
-   done_ee   .. block written, need to send P_WRITE_ACK
-   read_ee   .. [RS]P_DATA_REQUEST being read
-*/
-
 struct drbd_epoch {
 	struct list_head list;
 	unsigned int barrier_nr;
@@ -1041,8 +1032,8 @@ struct drbd_conf {
 	enum write_ordering_e write_ordering;
 	struct list_head active_ee; /* IO in progress (P_DATA gets written to disk) */
 	struct list_head sync_ee;   /* IO in progress (P_RS_DATA_REPLY gets written to disk) */
-	struct list_head done_ee;   /* send ack */
-	struct list_head read_ee;   /* IO in progress (any read) */
+	struct list_head done_ee;   /* need to send P_WRITE_ACK */
+	struct list_head read_ee;   /* [RS]P_DATA_REQUEST being read */
 	struct list_head net_ee;    /* zero-copy network send in progress */
 
 	int next_barrier_nr;
