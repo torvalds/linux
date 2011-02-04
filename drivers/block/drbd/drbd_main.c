@@ -2429,17 +2429,17 @@ int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
 
 /**
  * drbd_send_ack() - Sends an ack packet
- * @mdev:	DRBD device.
- * @cmd:	Packet command code.
- * @e:		Epoch entry.
+ * @mdev:	DRBD device
+ * @cmd:	packet command code
+ * @peer_req:	peer request
  */
 int drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
-		  struct drbd_peer_request *e)
+		  struct drbd_peer_request *peer_req)
 {
 	return _drbd_send_ack(mdev, cmd,
-			      cpu_to_be64(e->i.sector),
-			      cpu_to_be32(e->i.size),
-			      e->block_id);
+			      cpu_to_be64(peer_req->i.sector),
+			      cpu_to_be32(peer_req->i.size),
+			      peer_req->block_id);
 }
 
 /* This function misuses the block_id field to signal if the blocks
@@ -2641,10 +2641,12 @@ static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
 	return 1;
 }
 
-static int _drbd_send_zc_ee(struct drbd_conf *mdev, struct drbd_peer_request *e)
+static int _drbd_send_zc_ee(struct drbd_conf *mdev,
+			    struct drbd_peer_request *peer_req)
 {
-	struct page *page = e->pages;
-	unsigned len = e->i.size;
+	struct page *page = peer_req->pages;
+	unsigned len = peer_req->i.size;
+
 	/* hint all but last page with MSG_MORE */
 	page_chain_for_each(page) {
 		unsigned l = min_t(unsigned, len, PAGE_SIZE);
@@ -2747,7 +2749,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
  *  C_SYNC_SOURCE -> C_SYNC_TARGET         (P_RS_DATA_REPLY)
  */
 int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
-		    struct drbd_peer_request *e)
+		    struct drbd_peer_request *peer_req)
 {
 	int ok;
 	struct p_data p;
@@ -2757,9 +2759,11 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_w_tfm) ?
 		crypto_hash_digestsize(mdev->tconn->integrity_w_tfm) : 0;
 
-	prepare_header(mdev, &p.head, cmd, sizeof(p) - sizeof(struct p_header80) + dgs + e->i.size);
-	p.sector   = cpu_to_be64(e->i.sector);
-	p.block_id = e->block_id;
+	prepare_header(mdev, &p.head, cmd, sizeof(p) -
+					   sizeof(struct p_header80) +
+					   dgs + peer_req->i.size);
+	p.sector   = cpu_to_be64(peer_req->i.sector);
+	p.block_id = peer_req->block_id;
 	p.seq_num = 0;  /* unused */
 
 	/* Only called by our kernel thread.
@@ -2772,11 +2776,11 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 	ok = sizeof(p) == drbd_send(mdev, mdev->tconn->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0);
 	if (ok && dgs) {
 		dgb = mdev->tconn->int_dig_out;
-		drbd_csum_ee(mdev, mdev->tconn->integrity_w_tfm, e, dgb);
+		drbd_csum_ee(mdev, mdev->tconn->integrity_w_tfm, peer_req, dgb);
 		ok = dgs == drbd_send(mdev, mdev->tconn->data.socket, dgb, dgs, 0);
 	}
 	if (ok)
-		ok = _drbd_send_zc_ee(mdev, e);
+		ok = _drbd_send_zc_ee(mdev, peer_req);
 
 	drbd_put_data_sock(mdev);
 

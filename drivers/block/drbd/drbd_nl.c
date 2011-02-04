@@ -2445,7 +2445,7 @@ void drbd_bcast_ev_helper(struct drbd_conf *mdev, char *helper_name)
 
 void drbd_bcast_ee(struct drbd_conf *mdev, const char *reason, const int dgs,
 		   const char *seen_hash, const char *calc_hash,
-			   const struct drbd_peer_request *e)
+			   const struct drbd_peer_request *peer_req)
 {
 	struct cn_msg *cn_reply;
 	struct drbd_nl_cfg_reply *reply;
@@ -2453,7 +2453,7 @@ void drbd_bcast_ee(struct drbd_conf *mdev, const char *reason, const int dgs,
 	struct page *page;
 	unsigned len;
 
-	if (!e)
+	if (!peer_req)
 		return;
 	if (!reason || !reason[0])
 		return;
@@ -2472,8 +2472,10 @@ void drbd_bcast_ee(struct drbd_conf *mdev, const char *reason, const int dgs,
 		GFP_NOIO);
 
 	if (!cn_reply) {
-		dev_err(DEV, "could not kmalloc buffer for drbd_bcast_ee, sector %llu, size %u\n",
-				(unsigned long long)e->i.sector, e->i.size);
+		dev_err(DEV, "could not kmalloc buffer for drbd_bcast_ee, "
+			     "sector %llu, size %u\n",
+			(unsigned long long)peer_req->i.sector,
+			peer_req->i.size);
 		return;
 	}
 
@@ -2483,15 +2485,15 @@ void drbd_bcast_ee(struct drbd_conf *mdev, const char *reason, const int dgs,
 	tl = tl_add_str(tl, T_dump_ee_reason, reason);
 	tl = tl_add_blob(tl, T_seen_digest, seen_hash, dgs);
 	tl = tl_add_blob(tl, T_calc_digest, calc_hash, dgs);
-	tl = tl_add_int(tl, T_ee_sector, &e->i.sector);
-	tl = tl_add_int(tl, T_ee_block_id, &e->block_id);
+	tl = tl_add_int(tl, T_ee_sector, &peer_req->i.sector);
+	tl = tl_add_int(tl, T_ee_block_id, &peer_req->block_id);
 
 	/* dump the first 32k */
-	len = min_t(unsigned, e->i.size, 32 << 10);
+	len = min_t(unsigned, peer_req->i.size, 32 << 10);
 	put_unaligned(T_ee_data, tl++);
 	put_unaligned(len, tl++);
 
-	page = e->pages;
+	page = peer_req->pages;
 	page_chain_for_each(page) {
 		void *d = kmap_atomic(page, KM_USER0);
 		unsigned l = min_t(unsigned, len, PAGE_SIZE);
