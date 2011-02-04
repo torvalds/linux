@@ -153,7 +153,12 @@ static void ath_update_survey_nf(struct ath_softc *sc, int channel)
 	}
 }
 
-static void ath_update_survey_stats(struct ath_softc *sc)
+/*
+ * Updates the survey statistics and returns the busy time since last
+ * update in %, if the measurement duration was long enough for the
+ * result to be useful, -1 otherwise.
+ */
+static int ath_update_survey_stats(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -161,9 +166,10 @@ static void ath_update_survey_stats(struct ath_softc *sc)
 	struct survey_info *survey = &sc->survey[pos];
 	struct ath_cycle_counters *cc = &common->cc_survey;
 	unsigned int div = common->clockrate * 1000;
+	int ret = 0;
 
 	if (!ah->curchan)
-		return;
+		return -1;
 
 	if (ah->power_mode == ATH9K_PM_AWAKE)
 		ath_hw_cycle_counters_update(common);
@@ -178,9 +184,18 @@ static void ath_update_survey_stats(struct ath_softc *sc)
 		survey->channel_time_rx += cc->rx_frame / div;
 		survey->channel_time_tx += cc->tx_frame / div;
 	}
+
+	if (cc->cycles < div)
+		return -1;
+
+	if (cc->cycles > 0)
+		ret = cc->rx_busy * 100 / cc->cycles;
+
 	memset(cc, 0, sizeof(*cc));
 
 	ath_update_survey_nf(sc, pos);
+
+	return ret;
 }
 
 /*
@@ -201,6 +216,8 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 
 	if (sc->sc_flags & SC_OP_INVALID)
 		return -EIO;
+
+	sc->hw_busy_count = 0;
 
 	del_timer_sync(&common->ani.timer);
 	cancel_work_sync(&sc->paprd_work);
@@ -569,17 +586,25 @@ static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 void ath_hw_check(struct work_struct *work)
 {
 	struct ath_softc *sc = container_of(work, struct ath_softc, hw_check_work);
-	int i;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	unsigned long flags;
+	int busy;
 
 	ath9k_ps_wakeup(sc);
+	if (ath9k_hw_check_alive(sc->sc_ah))
+		goto out;
 
-	for (i = 0; i < 3; i++) {
-		if (ath9k_hw_check_alive(sc->sc_ah))
-			goto out;
+	spin_lock_irqsave(&common->cc_lock, flags);
+	busy = ath_update_survey_stats(sc);
+	spin_unlock_irqrestore(&common->cc_lock, flags);
 
-		msleep(1);
-	}
-	ath_reset(sc, true);
+	ath_dbg(common, ATH_DBG_RESET, "Possible baseband hang, "
+		"busy=%d (try %d)\n", busy, sc->hw_busy_count + 1);
+	if (busy >= 99) {
+		if (++sc->hw_busy_count >= 3)
+			ath_reset(sc, true);
+	} else if (busy >= 0)
+		sc->hw_busy_count = 0;
 
 out:
 	ath9k_ps_restore(sc);
@@ -929,6 +954,8 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_hw *hw = sc->hw;
 	int r;
+
+	sc->hw_busy_count = 0;
 
 	/* Stop ANI */
 	del_timer_sync(&common->ani.timer);

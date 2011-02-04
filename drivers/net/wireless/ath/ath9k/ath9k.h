@@ -602,6 +602,8 @@ struct ath_softc {
 	struct completion paprd_complete;
 	bool paprd_pending;
 
+	unsigned int hw_busy_count;
+
 	u32 intrstatus;
 	u32 sc_flags; /* SC_OP_* */
 	u16 ps_flags; /* PS_* */
