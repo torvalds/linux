@@ -841,38 +841,39 @@ static void set_radio_freq(struct i2c_client *c, unsigned int freq)
 	analog_ops->set_params(&t->fe, &params);
 }
 
-/*
- * Functions that should be broken into separate radio/TV functions
+/**
+ * check_mode - Verify if tuner supports the requested mode
+ * @t - a pointer to the module's internal struct_tuner
+ *
+ * This function checks if the tuner is capable of tuning analog TV,
+ * digital TV or radio, depending on what the caller wants. If the
+ * tuner can't support that mode, it returns -EINVAL. Otherwise, it
+ * returns 0.
+ * This function is needed for boards that have a separate tuner for
+ * radio (like devices with tea5767).
  */
-
-static inline int check_mode(struct tuner *t, char *cmd)
+static inline int check_mode(struct tuner *t)
 {
 	if ((1 << t->mode & t->mode_mask) == 0) {
 		return -EINVAL;
 	}
-
-	switch (t->mode) {
-	case V4L2_TUNER_RADIO:
-		tuner_dbg("Cmd %s accepted for radio\n", cmd);
-		break;
-	case V4L2_TUNER_ANALOG_TV:
-		tuner_dbg("Cmd %s accepted for analog TV\n", cmd);
-		break;
-	case V4L2_TUNER_DIGITAL_TV:
-		tuner_dbg("Cmd %s accepted for digital TV\n", cmd);
-		break;
-	}
 	return 0;
 }
 
-/*
- * Switch tuner to other mode. If tuner support both tv and radio,
- * set another frequency to some value (This is needed for some pal
- * tuners to avoid locking). Otherwise, just put second tuner in
- * standby mode.
+/**
+ * set_mode - Switch tuner to other mode.
+ * @client - struct i2c_client pointer
+ * @t - a pointer to the module's internal struct_tuner
+ * @mode - enum v4l2_type + T_STANDBY mode
+ * @cmd - string for the command to be executed (for debug messages)
+ *
+ * If tuner doesn't support the needed mode (radio or TV), prints a
+ * debug message and returns -EINVAL, changing internal state to T_STANDBY.
+ * Otherwise, changes the state and sets frequency to the last value, if
+ * the tuner can sleep or if it supports both Radio and TV.
  */
-
-static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode, char *cmd)
+static inline int set_mode(struct i2c_client *client, struct tuner *t,
+			   int mode, char *cmd)
 {
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 
@@ -881,7 +882,7 @@ static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode,
 
 	t->mode = mode;
 
-	if (check_mode(t, cmd) == -EINVAL) {
+	if (check_mode(t) == -EINVAL) {
 		tuner_dbg("Tuner doesn't support this mode. "
 			  "Putting tuner to sleep\n");
 		t->mode = T_STANDBY;
@@ -889,8 +890,21 @@ static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode,
 			analog_ops->standby(&t->fe);
 		return -EINVAL;
 	}
+
+	if (t->mode == V4L2_TUNER_RADIO) {
+		if (t->radio_freq)
+			set_radio_freq(client, t->radio_freq);
+	} else {
+		if (t->tv_freq)
+			set_tv_freq(client, t->tv_freq);
+	}
+
 	return 0;
 }
+
+/*
+ * Functions that should be broken into separate radio/TV functions
+ */
 
 static void set_freq(struct i2c_client *c, unsigned long freq)
 {
@@ -959,7 +973,7 @@ static int tuner_s_power(struct v4l2_subdev *sd, int on)
 
 	tuner_dbg("Putting tuner to sleep\n");
 
-	if (check_mode(t, "s_power") == -EINVAL)
+	if (check_mode(t) == -EINVAL)
 		return 0;
 	t->mode = T_STANDBY;
 	if (analog_ops->standby)
@@ -977,8 +991,6 @@ static int tuner_s_radio(struct v4l2_subdev *sd)
 
 	if (set_mode(client, t, V4L2_TUNER_RADIO, "s_radio") == -EINVAL)
 		return 0;
-	if (t->radio_freq)
-		set_freq(client, t->radio_freq);
 	return 0;
 }
 
@@ -1017,7 +1029,7 @@ static int tuner_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 	struct tuner *t = to_tuner(sd);
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
 
-	if (check_mode(t, "g_frequency") == -EINVAL)
+	if (check_mode(t) == -EINVAL)
 		return 0;
 	f->type = t->mode;
 	if (fe_tuner_ops->get_frequency) {
@@ -1040,7 +1052,7 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
 
-	if (check_mode(t, "g_tuner") == -EINVAL)
+	if (check_mode(t) == -EINVAL)
 		return 0;
 
 	vt->type = t->mode;
@@ -1081,7 +1093,7 @@ static int tuner_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	struct tuner *t = to_tuner(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (check_mode(t, "s_tuner") == -EINVAL)
+	if (check_mode(t) == -EINVAL)
 		return 0;
 
 	/* do nothing unless we're a radio tuner */
