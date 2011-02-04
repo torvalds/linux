@@ -301,7 +301,7 @@ static struct ov5650_reg mode_2080x1164[] = {
 
 	{0x300f, 0x8f}, // PLL control00 R_SELD5 [7:6] div by 4 R_DIVL [2] two lane div 1 SELD2P5 [1:0] div 2.5 pg 99
 	{0x3010, 0x10}, // PLL control01 DIVM [3:0] DIVS [7:4] div 1 pg 99
-	{0x3011, 0x14}, // PLL control02 R_DIVP [5:0] div 20 pg 99
+	{0x3011, 0x18}, // PLL control02 R_DIVP [5:0] div 24 pg 99 (20Mhz Mclk)
 	{0x3012, 0x02}, // PLL CTR 03, default
 	{0x3503, 0x33}, // AEC auto AGC auto gain has delay of 2 frames. pg 38
 
