@@ -3771,7 +3771,7 @@ static void iwlagn_disable_roc(struct iwl_priv *priv)
 
 	priv->_agn.hw_roc_channel = NULL;
 
-	iwlagn_commit_rxon(priv, ctx);
+	iwlcore_commit_rxon(priv, ctx);
 
 	ctx->is_active = false;
 }
@@ -3787,6 +3787,7 @@ static void iwlagn_bg_roc_done(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
+#ifdef CONFIG_IWL5000
 static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 				     struct ieee80211_channel *channel,
 				     enum nl80211_channel_type channel_type,
@@ -3814,7 +3815,7 @@ static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 	priv->_agn.hw_roc_channel = channel;
 	priv->_agn.hw_roc_chantype = channel_type;
 	priv->_agn.hw_roc_duration = DIV_ROUND_UP(duration * 1000, 1024);
-	iwlagn_commit_rxon(priv, &priv->contexts[IWL_RXON_CTX_PAN]);
+	iwlcore_commit_rxon(priv, &priv->contexts[IWL_RXON_CTX_PAN]);
 	queue_delayed_work(priv->workqueue, &priv->_agn.hw_roc_work,
 			   msecs_to_jiffies(duration + 20));
 
@@ -3842,6 +3843,7 @@ static int iwl_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 
 	return 0;
 }
+#endif
 
 /*****************************************************************************
  *
