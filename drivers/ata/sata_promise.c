@@ -135,7 +135,6 @@ enum {
 	PDC_RESET		= (1 << 11), /* HDMA reset */
 
 	PDC_COMMON_FLAGS	= ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO |
 				  ATA_FLAG_PIO_POLLING,
 
 	/* ap->flags bits */

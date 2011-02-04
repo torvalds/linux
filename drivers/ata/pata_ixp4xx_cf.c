@@ -177,7 +177,7 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 
 	ap->ops	= &ixp4xx_port_ops;
 	ap->pio_mask = ATA_PIO4;
-	ap->flags |= ATA_FLAG_MMIO | ATA_FLAG_NO_LEGACY | ATA_FLAG_NO_ATAPI;
+	ap->flags |= ATA_FLAG_NO_LEGACY | ATA_FLAG_NO_ATAPI;
 
 	ixp4xx_setup_port(ap, data, cs0->start, cs1->start);
 
