@@ -246,6 +246,9 @@ static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 			freq = tv_range[1] * 16;
 	}
 	params.frequency = freq;
+	tuner_dbg("tv freq set to %lu.%02lu\n",
+			freq / 16, freq % 16 * 100 / 16);
+	t->tv_freq = freq;
 
 	analog_ops->set_params(&t->fe, &params);
 }
@@ -281,6 +284,9 @@ static void set_radio_freq(struct i2c_client *c, unsigned int freq)
 			freq = radio_range[1] * 16000;
 	}
 	params.frequency = freq;
+	tuner_dbg("radio freq set to %lu.%02lu\n",
+			freq / 16000, freq % 16000 * 100 / 16000);
+	t->radio_freq = freq;
 
 	analog_ops->set_params(&t->fe, &params);
 }
@@ -291,17 +297,11 @@ static void set_freq(struct i2c_client *c, unsigned long freq)
 
 	switch (t->mode) {
 	case V4L2_TUNER_RADIO:
-		tuner_dbg("radio freq set to %lu.%02lu\n",
-			  freq / 16000, freq % 16000 * 100 / 16000);
 		set_radio_freq(c, freq);
-		t->radio_freq = freq;
 		break;
 	case V4L2_TUNER_ANALOG_TV:
 	case V4L2_TUNER_DIGITAL_TV:
-		tuner_dbg("tv freq set to %lu.%02lu\n",
-			  freq / 16, freq % 16 * 100 / 16);
 		set_tv_freq(c, freq);
-		t->tv_freq = freq;
 		break;
 	default:
 		tuner_dbg("freq set: unknown mode: 0x%04x!\n",t->mode);
