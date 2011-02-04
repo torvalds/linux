@@ -1045,9 +1045,6 @@ struct drbd_conf {
 	struct list_head read_ee;   /* IO in progress (any read) */
 	struct list_head net_ee;    /* zero-copy network send in progress */
 
-	/* this one is protected by ee_lock, single thread */
-	struct drbd_epoch_entry *last_write_w_barrier;
-
 	int next_barrier_nr;
 	struct list_head resync_reads;
 	atomic_t pp_in_use;		/* allocated from page pool */
