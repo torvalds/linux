@@ -2434,7 +2434,7 @@ int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
  * @e:		Epoch entry.
  */
 int drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
-		  struct drbd_epoch_entry *e)
+		  struct drbd_peer_request *e)
 {
 	return _drbd_send_ack(mdev, cmd,
 			      cpu_to_be64(e->i.sector),
@@ -2641,7 +2641,7 @@ static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
 	return 1;
 }
 
-static int _drbd_send_zc_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e)
+static int _drbd_send_zc_ee(struct drbd_conf *mdev, struct drbd_peer_request *e)
 {
 	struct page *page = e->pages;
 	unsigned len = e->i.size;
@@ -2747,7 +2747,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
  *  C_SYNC_SOURCE -> C_SYNC_TARGET         (P_RS_DATA_REPLY)
  */
 int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
-		    struct drbd_epoch_entry *e)
+		    struct drbd_peer_request *e)
 {
 	int ok;
 	struct p_data p;
@@ -3147,7 +3147,7 @@ static int drbd_create_mempools(void)
 		goto Enomem;
 
 	drbd_ee_cache = kmem_cache_create(
-		"drbd_ee", sizeof(struct drbd_epoch_entry), 0, 0, NULL);
+		"drbd_ee", sizeof(struct drbd_peer_request), 0, 0, NULL);
 	if (drbd_ee_cache == NULL)
 		goto Enomem;
 

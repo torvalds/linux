@@ -2443,10 +2443,9 @@ void drbd_bcast_ev_helper(struct drbd_conf *mdev, char *helper_name)
 	cn_netlink_send(cn_reply, CN_IDX_DRBD, GFP_NOIO);
 }
 
-void drbd_bcast_ee(struct drbd_conf *mdev,
-		const char *reason, const int dgs,
-		const char* seen_hash, const char* calc_hash,
-		const struct drbd_epoch_entry* e)
+void drbd_bcast_ee(struct drbd_conf *mdev, const char *reason, const int dgs,
+		   const char *seen_hash, const char *calc_hash,
+			   const struct drbd_peer_request *e)
 {
 	struct cn_msg *cn_reply;
 	struct drbd_nl_cfg_reply *reply;

@@ -80,7 +80,7 @@ void drbd_md_io_complete(struct bio *bio, int error)
 /* reads on behalf of the partner,
  * "submitted" by the receiver
  */
-void drbd_endio_read_sec_final(struct drbd_epoch_entry *e) __releases(local)
+void drbd_endio_read_sec_final(struct drbd_peer_request *e) __releases(local)
 {
 	unsigned long flags = 0;
 	struct drbd_conf *mdev = e->mdev;
@@ -100,7 +100,7 @@ void drbd_endio_read_sec_final(struct drbd_epoch_entry *e) __releases(local)
 
 /* writes on behalf of the partner, or resync writes,
  * "submitted" by the receiver, final stage.  */
-static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(local)
+static void drbd_endio_write_sec_final(struct drbd_peer_request *e) __releases(local)
 {
 	unsigned long flags = 0;
 	struct drbd_conf *mdev = e->mdev;
@@ -154,7 +154,7 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
  */
 void drbd_endio_sec(struct bio *bio, int error)
 {
-	struct drbd_epoch_entry *e = bio->bi_private;
+	struct drbd_peer_request *e = bio->bi_private;
 	struct drbd_conf *mdev = e->mdev;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 	int is_write = bio_data_dir(bio) == WRITE;
@@ -247,7 +247,8 @@ int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	return w_send_read_req(mdev, w, 0);
 }
 
-void drbd_csum_ee(struct drbd_conf *mdev, struct crypto_hash *tfm, struct drbd_epoch_entry *e, void *digest)
+void drbd_csum_ee(struct drbd_conf *mdev, struct crypto_hash *tfm,
+		  struct drbd_peer_request *e, void *digest)
 {
 	struct hash_desc desc;
 	struct scatterlist sg;
@@ -297,7 +298,7 @@ void drbd_csum_bio(struct drbd_conf *mdev, struct crypto_hash *tfm, struct bio *
 /* TODO merge common code with w_e_end_ov_req */
 int w_e_send_csum(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
-	struct drbd_epoch_entry *e = container_of(w, struct drbd_epoch_entry, w);
+	struct drbd_peer_request *e = container_of(w, struct drbd_peer_request, w);
 	int digest_size;
 	void *digest;
 	int ok = 1;
@@ -344,7 +345,7 @@ out:
 
 static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
 {
-	struct drbd_epoch_entry *e;
+	struct drbd_peer_request *e;
 
 	if (!get_ldev(mdev))
 		return -EIO;
@@ -900,7 +901,7 @@ out:
 }
 
 /* helper */
-static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_epoch_entry *e)
+static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_peer_request *e)
 {
 	if (drbd_ee_has_active_page(e)) {
 		/* This might happen if sendpage() has not finished */
@@ -923,7 +924,7 @@ static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_epoch_ent
  */
 int w_e_end_data_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
-	struct drbd_epoch_entry *e = container_of(w, struct drbd_epoch_entry, w);
+	struct drbd_peer_request *e = container_of(w, struct drbd_peer_request, w);
 	int ok;
 
 	if (unlikely(cancel)) {
@@ -959,7 +960,7 @@ int w_e_end_data_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
  */
 int w_e_end_rsdata_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
-	struct drbd_epoch_entry *e = container_of(w, struct drbd_epoch_entry, w);
+	struct drbd_peer_request *e = container_of(w, struct drbd_peer_request, w);
 	int ok;
 
 	if (unlikely(cancel)) {
@@ -1007,7 +1008,7 @@ int w_e_end_rsdata_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 
 int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
-	struct drbd_epoch_entry *e = container_of(w, struct drbd_epoch_entry, w);
+	struct drbd_peer_request *e = container_of(w, struct drbd_peer_request, w);
 	struct digest_info *di;
 	int digest_size;
 	void *digest = NULL;
@@ -1070,7 +1071,7 @@ int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 /* TODO merge common code with w_e_send_csum */
 int w_e_end_ov_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
-	struct drbd_epoch_entry *e = container_of(w, struct drbd_epoch_entry, w);
+	struct drbd_peer_request *e = container_of(w, struct drbd_peer_request, w);
 	sector_t sector = e->i.sector;
 	unsigned int size = e->i.size;
 	int digest_size;
@@ -1127,7 +1128,7 @@ void drbd_ov_oos_found(struct drbd_conf *mdev, sector_t sector, int size)
 
 int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
-	struct drbd_epoch_entry *e = container_of(w, struct drbd_epoch_entry, w);
+	struct drbd_peer_request *e = container_of(w, struct drbd_peer_request, w);
 	struct digest_info *di;
 	void *digest;
 	sector_t sector = e->i.sector;

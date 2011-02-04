@@ -707,7 +707,7 @@ struct digest_info {
 	void *digest;
 };
 
-struct drbd_epoch_entry {
+struct drbd_peer_request {
 	struct drbd_work w;
 	struct drbd_epoch *epoch; /* for writes */
 	struct drbd_conf *mdev;
@@ -1194,8 +1194,8 @@ extern int drbd_send_cmd2(struct drbd_conf *mdev, enum drbd_packet cmd,
 extern int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc);
 extern int drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
 			u32 set_size);
-extern int drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
-			 struct drbd_epoch_entry *e);
+extern int drbd_send_ack(struct drbd_conf *, enum drbd_packet,
+			 struct drbd_peer_request *);
 extern int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
 			    struct p_block_req *rp);
 extern int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
@@ -1203,8 +1203,8 @@ extern int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
 extern int drbd_send_ack_ex(struct drbd_conf *mdev, enum drbd_packet cmd,
 			    sector_t sector, int blksize, u64 block_id);
 extern int drbd_send_oos(struct drbd_conf *mdev, struct drbd_request *req);
-extern int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
-			   struct drbd_epoch_entry *e);
+extern int drbd_send_block(struct drbd_conf *, enum drbd_packet,
+			   struct drbd_peer_request *);
 extern int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req);
 extern int drbd_send_drequest(struct drbd_conf *mdev, int cmd,
 			      sector_t sector, int size, u64 block_id);
@@ -1500,7 +1500,8 @@ static inline void ov_oos_print(struct drbd_conf *mdev)
 
 
 extern void drbd_csum_bio(struct drbd_conf *, struct crypto_hash *, struct bio *, void *);
-extern void drbd_csum_ee(struct drbd_conf *, struct crypto_hash *, struct drbd_epoch_entry *, void *);
+extern void drbd_csum_ee(struct drbd_conf *, struct crypto_hash *,
+			 struct drbd_peer_request *, void *);
 /* worker callbacks */
 extern int w_req_cancel_conflict(struct drbd_conf *, struct drbd_work *, int);
 extern int w_read_retry_remote(struct drbd_conf *, struct drbd_work *, int);
@@ -1527,16 +1528,14 @@ extern void start_resync_timer_fn(unsigned long data);
 
 /* drbd_receiver.c */
 extern int drbd_rs_should_slow_down(struct drbd_conf *mdev, sector_t sector);
-extern int drbd_submit_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e,
-		const unsigned rw, const int fault_type);
+extern int drbd_submit_ee(struct drbd_conf *, struct drbd_peer_request *,
+			  const unsigned, const int);
 extern int drbd_release_ee(struct drbd_conf *mdev, struct list_head *list);
-extern struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
-					    u64 id,
-					    sector_t sector,
-					    unsigned int data_size,
-					    gfp_t gfp_mask) __must_hold(local);
-extern void drbd_free_some_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e,
-		int is_net);
+extern struct drbd_peer_request *drbd_alloc_ee(struct drbd_conf *,
+					       u64, sector_t, unsigned int,
+					       gfp_t) __must_hold(local);
+extern void drbd_free_some_ee(struct drbd_conf *, struct drbd_peer_request *,
+			      int);
 #define drbd_free_ee(m,e)	drbd_free_some_ee(m, e, 0)
 #define drbd_free_net_ee(m,e)	drbd_free_some_ee(m, e, 1)
 extern void drbd_wait_ee_list_empty(struct drbd_conf *mdev,
@@ -1627,10 +1626,8 @@ void drbd_nl_cleanup(void);
 int __init drbd_nl_init(void);
 void drbd_bcast_state(struct drbd_conf *mdev, union drbd_state);
 void drbd_bcast_sync_progress(struct drbd_conf *mdev);
-void drbd_bcast_ee(struct drbd_conf *mdev,
-		const char *reason, const int dgs,
-		const char* seen_hash, const char* calc_hash,
-		const struct drbd_epoch_entry* e);
+void drbd_bcast_ee(struct drbd_conf *, const char *, const int, const char *,
+		   const char *, const struct drbd_peer_request *);
 
 
 /**
@@ -1713,7 +1710,7 @@ static inline int drbd_bio_has_active_page(struct bio *bio)
 	return 0;
 }
 
-static inline int drbd_ee_has_active_page(struct drbd_epoch_entry *e)
+static inline int drbd_ee_has_active_page(struct drbd_peer_request *e)
 {
 	struct page *page = e->pages;
 	page_chain_for_each(page) {
