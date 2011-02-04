@@ -431,6 +431,10 @@ extern struct bt_sock_list l2cap_sk_list;
 int l2cap_init_sockets(void);
 void l2cap_cleanup_sockets(void);
 
+u8 l2cap_get_ident(struct l2cap_conn *conn);
+void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *data);
+int l2cap_build_conf_req(struct sock *sk, void *data);
+
 void l2cap_sock_set_timer(struct sock *sk, long timeout);
 void __l2cap_sock_close(struct sock *sk, int reason);
 void l2cap_sock_kill(struct sock *sk);
@@ -440,7 +444,6 @@ struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 int l2cap_do_connect(struct sock *sk);
 
 int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len);
-int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags);
 int l2cap_sock_shutdown(struct socket *sock, int how);
 
 
