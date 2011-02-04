@@ -206,8 +206,8 @@ void gps_chrdrv_stub_init(void);
 /* time in msec to wait for
  * line discipline to be installed
  */
-#define LDISC_TIME	500
-#define CMD_RESP_TIME	500
+#define LDISC_TIME	1000
+#define CMD_RESP_TIME	800
 #define MAKEWORD(a, b)  ((unsigned short)(((unsigned char)(a)) \
 	| ((unsigned short)((unsigned char)(b))) << 8))
 
@@ -230,6 +230,7 @@ struct chip_version {
 	unsigned short maj_ver;
 };
 
+#define UART_DEV_NAME_LEN 32
 /**
  * struct kim_data_s - the KIM internal data, embedded as the
  *	platform's drv data. One for each ST device in the system.
@@ -271,6 +272,10 @@ struct kim_data_s {
 	enum proto_type rf_protos[ST_MAX_CHANNELS];
 	struct st_data_s *core_data;
 	struct chip_version version;
+	unsigned char ldisc_install;
+	unsigned char dev_name[UART_DEV_NAME_LEN];
+	unsigned char flow_cntrl;
+	unsigned long baud_rate;
 };
 
 /**
@@ -412,5 +417,15 @@ struct gps_event_hdr {
 	u8 opcode;
 	u16 plen;
 } __attribute__ ((packed));
+
+/* platform data */
+struct ti_st_plat_data {
+	long gpios[ST_MAX_CHANNELS]; /* BT, FM and GPS */
+	unsigned char dev_name[UART_DEV_NAME_LEN]; /* uart name */
+	unsigned char flow_cntrl; /* flow control flag */
+	unsigned long baud_rate;
+	int (*suspend)(struct platform_device *, pm_message_t);
+	int (*resume)(struct platform_device *);
+};
 
 #endif /* TI_WILINK_ST_H */
