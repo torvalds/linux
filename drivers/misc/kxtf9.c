@@ -141,6 +141,7 @@ struct kxtf9_data {
 	struct kxtf9_platform_data *pdata;
 	struct mutex lock;
 	struct delayed_work input_work;
+	struct workqueue_struct *input_work_queue;
 	struct input_dev *input_dev;
 	struct work_struct irq_work;
 	struct workqueue_struct *irq_work_queue;
@@ -693,8 +694,8 @@ static int kxtf9_enable(struct kxtf9_data *tf9)
 		if (err < 0)
 			dev_err(&tf9->client->dev,
 				"odr write error: %d\n", err);
-		schedule_delayed_work(&tf9->input_work,
-				msecs_to_jiffies(tf9->pdata->poll_interval));
+		queue_delayed_work(tf9->input_work_queue, &tf9->input_work,
+				 msecs_to_jiffies(tf9->pdata->poll_interval));
 	}
 
 	return 0;
@@ -944,12 +945,11 @@ static void kxtf9_input_work_func(struct work_struct *work)
 	struct kxtf9_data *tf9 = container_of((struct delayed_work *)work,
 	struct kxtf9_data, input_work);
 	int xyz[3] = { 0 };
-
 	mutex_lock(&tf9->lock);
 	if (kxtf9_get_acceleration_data(tf9, xyz) == 0)
 		kxtf9_report_values(tf9, xyz);
-	schedule_delayed_work(&tf9->input_work,
-			      msecs_to_jiffies(tf9->pdata->poll_interval));
+	queue_delayed_work(tf9->input_work_queue, &tf9->input_work,
+				 msecs_to_jiffies(tf9->pdata->poll_interval));
 	mutex_unlock(&tf9->lock);
 }
 
@@ -1002,13 +1002,19 @@ static int kxtf9_input_init(struct kxtf9_data *tf9)
 	int int_status = 0;
 	u8 buf;
 
+	tf9->input_work_queue = create_singlethread_workqueue("kxtf9_input_wq");
+	if (!tf9->input_work_queue) {
+		err = -ENOMEM;
+		pr_err("%s: could not create workqueue\n", __func__);
+		goto err0;
+	}
 	INIT_DELAYED_WORK(&tf9->input_work, kxtf9_input_work_func);
 	tf9->input_dev = input_allocate_device();
 	if (!tf9->input_dev) {
 		err = -ENOMEM;
 		dev_err(&tf9->client->dev,
 			"input device allocate failed: %d\n", err);
-		goto err0;
+		goto err1;
 	}
 #ifdef kxtf9_OPEN_ENABLE
 	tf9->input_dev->open = kxtf9_input_open;
@@ -1035,7 +1041,7 @@ static int kxtf9_input_init(struct kxtf9_data *tf9)
 		dev_err(&tf9->client->dev,
 			"unable to register input polled device %s: %d\n",
 			tf9->input_dev->name, err);
-		goto err1;
+		goto err2;
 	}
 	if ((tf9->resume_state[RES_CTRL_REG1] & TPE) > 0) {
 		buf = TILT_POS_CUR;
@@ -1052,8 +1058,10 @@ static int kxtf9_input_init(struct kxtf9_data *tf9)
 	}
 
 	return 0;
-err1:
+err2:
 	input_free_device(tf9->input_dev);
+err1:
+	destroy_workqueue(tf9->input_work_queue);
 err0:
 
 	return err;
@@ -1215,6 +1223,7 @@ err2:
 	destroy_workqueue(tf9->irq_work_queue);
 err1:
 	mutex_unlock(&tf9->lock);
+	mutex_destroy(&tf9->lock);
 	kfree(tf9);
 err0:
 	return err;
@@ -1230,8 +1239,11 @@ static int __devexit kxtf9_remove(struct i2c_client *client)
 	kxtf9_device_power_off(tf9);
 	if (tf9->regulator)
 		regulator_put(tf9->regulator);
+	cancel_work_sync(&tf9->input_work);
+	destroy_workqueue(tf9->input_work_queue);
 	kfree(tf9->pdata);
 	destroy_workqueue(tf9->irq_work_queue);
+	mutex_destroy(&tf9->lock);
 	kfree(tf9);
 
 	return 0;
