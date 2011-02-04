@@ -599,6 +599,20 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	return NF_DROP;
 }
 
+#ifdef CONFIG_SYSCTL
+
+static int sysctl_snat_reroute(struct sk_buff *skb)
+{
+	struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
+	return ipvs->sysctl_snat_reroute;
+}
+
+#else
+
+static int sysctl_snat_reroute(struct sk_buff *skb) { return 0; }
+
+#endif
+
 __sum16 ip_vs_checksum_complete(struct sk_buff *skb, int offset)
 {
 	return csum_fold(skb_checksum(skb, offset, skb->len - offset, 0));
@@ -633,15 +647,13 @@ static inline int ip_vs_gather_frags_v6(struct sk_buff *skb, u_int32_t user)
 
 static int ip_vs_route_me_harder(int af, struct sk_buff *skb)
 {
-	struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
-
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6) {
-		if (ipvs->sysctl_snat_reroute && ip6_route_me_harder(skb) != 0)
+		if (sysctl_snat_reroute(skb) && ip6_route_me_harder(skb) != 0)
 			return 1;
 	} else
 #endif
-		if ((ipvs->sysctl_snat_reroute ||
+		if ((sysctl_snat_reroute(skb) ||
 		     skb_rtable(skb)->rt_flags & RTCF_LOCAL) &&
 		    ip_route_me_harder(skb, RTN_LOCAL) != 0)
 			return 1;
