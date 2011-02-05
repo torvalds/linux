@@ -977,7 +977,7 @@ int bind_ipi_to_irqhandler(enum ipi_vector ipi,
 	if (irq < 0)
 		return irq;
 
-	irqflags |= IRQF_NO_SUSPEND;
+	irqflags |= IRQF_NO_SUSPEND | IRQF_FORCE_RESUME;
 	retval = request_irq(irq, handler, irqflags, devname, dev_id);
 	if (retval != 0) {
 		unbind_from_irq(irq);
@@ -1433,7 +1433,6 @@ void xen_poll_irq(int irq)
 void xen_irq_resume(void)
 {
 	unsigned int cpu, irq, evtchn;
-	struct irq_desc *desc;
 
 	init_evtchn_cpu_bindings();
 
@@ -1451,23 +1450,6 @@ void xen_irq_resume(void)
 	for_each_possible_cpu(cpu) {
 		restore_cpu_virqs(cpu);
 		restore_cpu_ipis(cpu);
-	}
-
-	/*
-	 * Unmask any IRQF_NO_SUSPEND IRQs which are enabled. These
-	 * are not handled by the IRQ core.
-	 */
-	for_each_irq_desc(irq, desc) {
-		if (!desc->action || !(desc->action->flags & IRQF_NO_SUSPEND))
-			continue;
-		if (desc->status & IRQ_DISABLED)
-			continue;
-
-		evtchn = evtchn_from_irq(irq);
-		if (evtchn == -1)
-			continue;
-
-		unmask_evtchn(evtchn);
 	}
 
 	restore_cpu_pirqs();
