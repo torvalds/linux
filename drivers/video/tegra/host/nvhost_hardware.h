@@ -141,6 +141,12 @@ enum {
 	NV_CLASS_HOST_INDDATA = 0x2e
 };
 
+static inline u32 nvhost_class_host_wait_syncpt(
+	unsigned indx, unsigned threshold)
+{
+	return (indx << 24) | (threshold & 0xffffff);
+}
+
 static inline u32 nvhost_class_host_wait_syncpt_base(
 	unsigned indx, unsigned base_indx, unsigned offset)
 {
