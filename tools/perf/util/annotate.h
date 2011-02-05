@@ -67,6 +67,10 @@ int symbol__alloc_hist(struct symbol *sym, int nevents);
 
 int symbol__annotate(struct symbol *sym, struct map *map,
 		     struct list_head *head, size_t privsize);
+void symbol__annotate_printf(struct symbol *sym, struct map *map,
+			     struct list_head *head, int evidx, bool full_paths,
+			     int min_pcnt, int max_lines);
+void objdump_line_list__purge(struct list_head *head);
 
 int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 			 bool print_lines, bool full_paths, int min_pcnt,

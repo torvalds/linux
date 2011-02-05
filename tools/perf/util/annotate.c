@@ -421,25 +421,59 @@ static void symbol__annotate_hits(struct symbol *sym, int evidx)
 	printf("%*s: %" PRIu64 "\n", BITS_PER_LONG / 2, "h->sum", h->sum);
 }
 
-int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
-			 bool print_lines, bool full_paths, int min_pcnt,
-			 int max_lines)
+void symbol__annotate_printf(struct symbol *sym, struct map *map,
+			     struct list_head *head, int evidx, bool full_paths,
+			     int min_pcnt, int max_lines)
 {
 	struct dso *dso = map->dso;
 	const char *filename = dso->long_name, *d_filename;
-	struct rb_root source_line = RB_ROOT;
-	struct objdump_line *pos, *n;
-	LIST_HEAD(head);
+	struct objdump_line *pos;
 	int printed = 2;
 	u64 len;
-
-	if (symbol__annotate(sym, map, &head, 0) < 0)
-		return -1;
 
 	if (full_paths)
 		d_filename = filename;
 	else
 		d_filename = basename(filename);
+
+	len = sym->end - sym->start;
+
+	printf(" Percent |	Source code & Disassembly of %s\n", d_filename);
+	printf("------------------------------------------------\n");
+
+	if (verbose)
+		symbol__annotate_hits(sym, evidx);
+
+	list_for_each_entry(pos, head, node) {
+		objdump_line__print(pos, head, sym, evidx, len, min_pcnt);
+		if (max_lines && ++printed >= max_lines)
+			break;
+
+	}
+}
+
+void objdump_line_list__purge(struct list_head *head)
+{
+	struct objdump_line *pos, *n;
+
+	list_for_each_entry_safe(pos, n, head, node) {
+		list_del(&pos->node);
+		objdump_line__free(pos);
+	}
+}
+
+int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
+			 bool print_lines, bool full_paths, int min_pcnt,
+			 int max_lines)
+{
+	struct dso *dso = map->dso;
+	const char *filename = dso->long_name;
+	struct rb_root source_line = RB_ROOT;
+	LIST_HEAD(head);
+	u64 len;
+
+	if (symbol__annotate(sym, map, &head, 0) < 0)
+		return -1;
 
 	len = sym->end - sym->start;
 
@@ -449,22 +483,12 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 		print_summary(&source_line, filename);
 	}
 
-	printf(" Percent |	Source code & Disassembly of %s\n", d_filename);
-	printf("------------------------------------------------\n");
-
-	if (verbose)
-		symbol__annotate_hits(sym, evidx);
-
-	list_for_each_entry_safe(pos, n, &head, node) {
-		objdump_line__print(pos, &head, sym, evidx, len, min_pcnt);
-		list_del(&pos->node);
-		objdump_line__free(pos);
-		if (max_lines && ++printed >= max_lines)
-			break;
-	}
-
+	symbol__annotate_printf(sym, map, &head, evidx, full_paths,
+				min_pcnt, max_lines);
 	if (print_lines)
 		symbol__free_source_line(sym, len);
+
+	objdump_line_list__purge(&head);
 
 	return 0;
 }
