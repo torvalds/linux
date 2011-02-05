@@ -69,7 +69,8 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 		     struct list_head *head, size_t privsize);
 
 int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
-			 bool print_lines, bool full_paths);
+			 bool print_lines, bool full_paths, int min_pcnt,
+			 int max_lines);
 
 #ifdef NO_NEWT_SUPPORT
 static inline int symbol__tui_annotate(symbol *sym __used,

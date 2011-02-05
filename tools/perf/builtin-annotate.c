@@ -95,7 +95,7 @@ static int process_sample_event(union perf_event *event,
 static int hist_entry__tty_annotate(struct hist_entry *he, int evidx)
 {
 	return symbol__tty_annotate(he->ms.sym, he->ms.map, evidx,
-				    print_line, full_paths);
+				    print_line, full_paths, 0, 0);
 }
 
 static void hists__find_annotations(struct hists *self)

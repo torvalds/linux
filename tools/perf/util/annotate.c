@@ -87,7 +87,7 @@ struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
 
 static void objdump_line__print(struct objdump_line *oline,
 				struct list_head *head, struct symbol *sym,
-				int evidx, u64 len)
+				int evidx, u64 len, int min_pcnt)
 {
 	static const char *prev_line;
 	static const char *prev_color;
@@ -117,6 +117,9 @@ static void objdump_line__print(struct objdump_line *oline,
 
 		if (src_line == NULL && h->sum)
 			percent = 100.0 * hits / h->sum;
+
+		if (percent < min_pcnt)
+			return;
 
 		color = get_percent_color(percent);
 
@@ -419,13 +422,15 @@ static void symbol__annotate_hits(struct symbol *sym, int evidx)
 }
 
 int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
-			 bool print_lines, bool full_paths)
+			 bool print_lines, bool full_paths, int min_pcnt,
+			 int max_lines)
 {
 	struct dso *dso = map->dso;
 	const char *filename = dso->long_name, *d_filename;
 	struct rb_root source_line = RB_ROOT;
 	struct objdump_line *pos, *n;
 	LIST_HEAD(head);
+	int printed = 2;
 	u64 len;
 
 	if (symbol__annotate(sym, map, &head, 0) < 0)
@@ -444,7 +449,6 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 		print_summary(&source_line, filename);
 	}
 
-	printf("\n\n------------------------------------------------\n");
 	printf(" Percent |	Source code & Disassembly of %s\n", d_filename);
 	printf("------------------------------------------------\n");
 
@@ -452,9 +456,11 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 		symbol__annotate_hits(sym, evidx);
 
 	list_for_each_entry_safe(pos, n, &head, node) {
-		objdump_line__print(pos, &head, sym, evidx, len);
+		objdump_line__print(pos, &head, sym, evidx, len, min_pcnt);
 		list_del(&pos->node);
 		objdump_line__free(pos);
+		if (max_lines && ++printed >= max_lines)
+			break;
 	}
 
 	if (print_lines)
