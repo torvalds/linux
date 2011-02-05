@@ -45,6 +45,7 @@ struct tracectx {
 	unsigned long	range_end;
 	unsigned long	data_range_start;
 	unsigned long	data_range_end;
+	bool		dump_initial_etb;
 	struct device	*dev;
 	struct clk	*emu_clk;
 	struct mutex	mutex;
@@ -106,6 +107,7 @@ static int trace_start(struct tracectx *t)
 
 	etb_unlock(t);
 
+	t->dump_initial_etb = false;
 	etb_writel(t, 0, ETBR_WRITEADDR);
 	etb_writel(t, 0, ETBR_FORMATTERCTRL);
 	etb_writel(t, 1, ETBR_CTRL);
@@ -312,6 +314,8 @@ static ssize_t etb_read(struct file *file, char __user *data,
 	etb_unlock(t);
 
 	total = etb_getdatalen(t);
+	if (total == 0 && t->dump_initial_etb)
+		total = t->etb_bufsz;
 	if (total == t->etb_bufsz)
 		first = etb_readl(t, ETBR_WRITEADDR);
 
@@ -386,6 +390,7 @@ static int etb_probe(struct amba_device *dev, const struct amba_id *id)
 		goto out_release;
 	}
 
+	t->dump_initial_etb = true;
 	amba_set_drvdata(dev, t);
 
 	etb_unlock(t);
