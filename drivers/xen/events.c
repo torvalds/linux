@@ -555,23 +555,6 @@ static void ack_pirq(unsigned int irq)
 	}
 }
 
-static void end_pirq(unsigned int irq)
-{
-	int evtchn = evtchn_from_irq(irq);
-	struct irq_desc *desc = irq_to_desc(irq);
-
-	if (WARN_ON(!desc))
-		return;
-
-	if ((desc->status & (IRQ_DISABLED|IRQ_PENDING)) ==
-	    (IRQ_DISABLED|IRQ_PENDING)) {
-		shutdown_pirq(irq);
-	} else if (VALID_EVTCHN(evtchn)) {
-		unmask_evtchn(evtchn);
-		pirq_unmask_notify(irq);
-	}
-}
-
 static int find_irq_by_gsi(unsigned gsi)
 {
 	int irq;
@@ -1508,7 +1491,6 @@ static struct irq_chip xen_pirq_chip __read_mostly = {
 	.mask		= disable_pirq,
 
 	.ack		= ack_pirq,
-	.end		= end_pirq,
 
 	.set_affinity	= set_affinity_irq,
 
