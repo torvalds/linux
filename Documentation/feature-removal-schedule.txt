@@ -97,21 +97,6 @@ Who:	Pavel Machek <pavel@ucw.cz>
 
 ---------------------------
 
-What:	Video4Linux obsolete drivers using V4L1 API
-When:	kernel 2.6.39
-Files:	drivers/staging/se401/* drivers/staging/usbvideo/*
-Check:	drivers/staging/se401/se401.c drivers/staging/usbvideo/usbvideo.c
-Why:	There are some drivers still using V4L1 API, despite all efforts we've done
-	to migrate. Those drivers are for obsolete hardware that the old maintainer
-	didn't care (or not have the hardware anymore), and that no other developer
-	could find any hardware to buy. They probably have no practical usage today,
-	and people with such old hardware could probably keep using an older version
-	of the kernel. Those drivers will be moved to staging on 2.6.38 and, if nobody
-	cares enough to port and test them with V4L2 API, they'll be removed on 2.6.39.
-Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
-
----------------------------
-
 What:	Video4Linux: Remove obsolete ioctl's
 When:	kernel 2.6.39
 Files:	include/media/videodev2.h
