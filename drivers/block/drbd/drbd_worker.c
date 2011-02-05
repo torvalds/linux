@@ -1487,35 +1487,49 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 		   Ahead/Behind and SyncSource/SyncTarget */
 	}
 
-	if (side == C_SYNC_TARGET) {
-		/* Since application IO was locked out during C_WF_BITMAP_T and
-		   C_WF_SYNC_UUID we are still unmodified. Before going to C_SYNC_TARGET
-		   we check that we might make the data inconsistent. */
-		r = drbd_khelper(mdev, "before-resync-target");
-		r = (r >> 8) & 0xff;
-		if (r > 0) {
-			dev_info(DEV, "before-resync-target handler returned %d, "
-			     "dropping connection.\n", r);
-			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
-			return;
-		}
-	} else /* C_SYNC_SOURCE */ {
-		r = drbd_khelper(mdev, "before-resync-source");
-		r = (r >> 8) & 0xff;
-		if (r > 0) {
-			if (r == 3) {
-				dev_info(DEV, "before-resync-source handler returned %d, "
-					 "ignoring. Old userland tools?", r);
-			} else {
-				dev_info(DEV, "before-resync-source handler returned %d, "
+	if (!test_bit(B_RS_H_DONE, &mdev->flags)) {
+		if (side == C_SYNC_TARGET) {
+			/* Since application IO was locked out during C_WF_BITMAP_T and
+			   C_WF_SYNC_UUID we are still unmodified. Before going to C_SYNC_TARGET
+			   we check that we might make the data inconsistent. */
+			r = drbd_khelper(mdev, "before-resync-target");
+			r = (r >> 8) & 0xff;
+			if (r > 0) {
+				dev_info(DEV, "before-resync-target handler returned %d, "
 					 "dropping connection.\n", r);
 				drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
 				return;
 			}
+		} else /* C_SYNC_SOURCE */ {
+			r = drbd_khelper(mdev, "before-resync-source");
+			r = (r >> 8) & 0xff;
+			if (r > 0) {
+				if (r == 3) {
+					dev_info(DEV, "before-resync-source handler returned %d, "
+						 "ignoring. Old userland tools?", r);
+				} else {
+					dev_info(DEV, "before-resync-source handler returned %d, "
+						 "dropping connection.\n", r);
+					drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+					return;
+				}
+			}
 		}
 	}
 
-	drbd_state_lock(mdev);
+	if (current == mdev->tconn->worker.task) {
+		/* The worker should not sleep waiting for drbd_state_lock(),
+		   that can take long */
+		if (test_and_set_bit(CLUSTER_ST_CHANGE, &mdev->flags)) {
+			set_bit(B_RS_H_DONE, &mdev->flags);
+			mdev->start_resync_timer.expires = jiffies + HZ/5;
+			add_timer(&mdev->start_resync_timer);
+			return;
+		}
+	} else {
+		drbd_state_lock(mdev);
+	}
+	clear_bit(B_RS_H_DONE, &mdev->flags);
 
 	if (!get_ldev_if_state(mdev, D_NEGOTIATING)) {
 		drbd_state_unlock(mdev);
