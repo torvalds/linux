@@ -14,7 +14,6 @@
  */
 
 #include <linux/compat.h>
-#define __OLD_VIDIOC_ /* To allow fixing old calls*/
 #include <linux/videodev2.h>
 #include <linux/module.h>
 #include <media/v4l2-ioctl.h>
@@ -678,9 +677,6 @@ static int put_v4l2_ext_controls32(struct v4l2_ext_controls *kp, struct v4l2_ext
 #define VIDIOC_TRY_EXT_CTRLS32  _IOWR('V', 73, struct v4l2_ext_controls32)
 
 #define VIDIOC_OVERLAY32	_IOW ('V', 14, s32)
-#ifdef __OLD_VIDIOC_
-#define VIDIOC_OVERLAY32_OLD	_IOWR('V', 14, s32)
-#endif
 #define VIDIOC_STREAMON32	_IOW ('V', 18, s32)
 #define VIDIOC_STREAMOFF32	_IOW ('V', 19, s32)
 #define VIDIOC_G_INPUT32	_IOR ('V', 38, s32)
@@ -720,9 +716,6 @@ static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	case VIDIOC_S_EXT_CTRLS32: cmd = VIDIOC_S_EXT_CTRLS; break;
 	case VIDIOC_TRY_EXT_CTRLS32: cmd = VIDIOC_TRY_EXT_CTRLS; break;
 	case VIDIOC_OVERLAY32: cmd = VIDIOC_OVERLAY; break;
-#ifdef __OLD_VIDIOC_
-	case VIDIOC_OVERLAY32_OLD: cmd = VIDIOC_OVERLAY; break;
-#endif
 	case VIDIOC_STREAMON32: cmd = VIDIOC_STREAMON; break;
 	case VIDIOC_STREAMOFF32: cmd = VIDIOC_STREAMOFF; break;
 	case VIDIOC_G_INPUT32: cmd = VIDIOC_G_INPUT; break;
@@ -856,14 +849,6 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 		return ret;
 
 	switch (cmd) {
-#ifdef __OLD_VIDIOC_
-	case VIDIOC_OVERLAY32_OLD:
-	case VIDIOC_S_PARM_OLD:
-	case VIDIOC_S_CTRL_OLD:
-	case VIDIOC_G_AUDIO_OLD:
-	case VIDIOC_G_AUDOUT_OLD:
-	case VIDIOC_CROPCAP_OLD:
-#endif
 	case VIDIOC_QUERYCAP:
 	case VIDIOC_RESERVED:
 	case VIDIOC_ENUM_FMT:

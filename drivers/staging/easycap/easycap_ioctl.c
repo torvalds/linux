@@ -1399,11 +1399,6 @@ case VIDIOC_G_CTRL: {
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-#if defined(VIDIOC_S_CTRL_OLD)
-case VIDIOC_S_CTRL_OLD: {
-	JOM(8, "VIDIOC_S_CTRL_OLD required at least for xawtv\n");
-}
-#endif /*VIDIOC_S_CTRL_OLD*/
 case VIDIOC_S_CTRL:
 	{
 	struct v4l2_control v4l2_control;

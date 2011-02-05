@@ -59,7 +59,6 @@
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/div64.h>
-#define __OLD_VIDIOC_ /* To allow fixing old calls*/
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>

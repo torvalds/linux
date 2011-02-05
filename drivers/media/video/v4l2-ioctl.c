@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 
-#define __OLD_VIDIOC_ /* To allow fixing old calls */
 #include <linux/videodev2.h>
 
 #include <media/v4l2-common.h>
@@ -297,37 +296,6 @@ EXPORT_SYMBOL(v4l_printk_ioctl);
 
 /*
  * helper function -- handles userspace copying for ioctl arguments
- */
-
-#ifdef __OLD_VIDIOC_
-static unsigned int
-video_fix_command(unsigned int cmd)
-{
-	switch (cmd) {
-	case VIDIOC_OVERLAY_OLD:
-		cmd = VIDIOC_OVERLAY;
-		break;
-	case VIDIOC_S_PARM_OLD:
-		cmd = VIDIOC_S_PARM;
-		break;
-	case VIDIOC_S_CTRL_OLD:
-		cmd = VIDIOC_S_CTRL;
-		break;
-	case VIDIOC_G_AUDIO_OLD:
-		cmd = VIDIOC_G_AUDIO;
-		break;
-	case VIDIOC_G_AUDOUT_OLD:
-		cmd = VIDIOC_G_AUDOUT;
-		break;
-	case VIDIOC_CROPCAP_OLD:
-		cmd = VIDIOC_CROPCAP;
-		break;
-	}
-	return cmd;
-}
-#endif
-
-/*
  * Obsolete usercopy function - Should be removed soon
  */
 long
@@ -342,9 +310,6 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 	size_t  ctrls_size = 0;
 	void __user *user_ptr = NULL;
 
-#ifdef __OLD_VIDIOC_
-	cmd = video_fix_command(cmd);
-#endif
 	is_ext_ctrl = (cmd == VIDIOC_S_EXT_CTRLS || cmd == VIDIOC_G_EXT_CTRLS ||
 		       cmd == VIDIOC_TRY_EXT_CTRLS);
 
@@ -2379,9 +2344,6 @@ long video_ioctl2(struct file *file,
 	void __user *user_ptr = NULL;
 	void	**kernel_ptr = NULL;
 
-#ifdef __OLD_VIDIOC_
-	cmd = video_fix_command(cmd);
-#endif
 	/*  Copy arguments into temp kernel buffer  */
 	if (_IOC_DIR(cmd) != _IOC_NONE) {
 		if (_IOC_SIZE(cmd) <= sizeof(sbuf)) {
