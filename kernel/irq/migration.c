@@ -9,7 +9,7 @@ void move_masked_irq(int irq)
 	struct irq_desc *desc = irq_to_desc(irq);
 	struct irq_chip *chip = desc->irq_data.chip;
 
-	if (likely(!(desc->status & IRQ_MOVE_PENDING)))
+	if (likely(!irqd_is_setaffinity_pending(&desc->irq_data)))
 		return;
 
 	/*
@@ -20,7 +20,7 @@ void move_masked_irq(int irq)
 		return;
 	}
 
-	desc->status &= ~IRQ_MOVE_PENDING;
+	irqd_clr_move_pending(&desc->irq_data);
 
 	if (unlikely(cpumask_empty(desc->pending_mask)))
 		return;
@@ -58,7 +58,7 @@ void move_native_irq(int irq)
 	struct irq_desc *desc = irq_to_desc(irq);
 	bool masked;
 
-	if (likely(!(desc->status & IRQ_MOVE_PENDING)))
+	if (likely(!irqd_is_setaffinity_pending(&desc->irq_data)))
 		return;
 
 	if (unlikely(desc->istate & IRQS_DISABLED))

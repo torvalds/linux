@@ -25,7 +25,7 @@ static int irq_affinity_proc_show(struct seq_file *m, void *v)
 	const struct cpumask *mask = desc->irq_data.affinity;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-	if (desc->status & IRQ_MOVE_PENDING)
+	if (irqd_is_setaffinity_pending(&desc->irq_data))
 		mask = desc->pending_mask;
 #endif
 	seq_cpumask(m, mask);

@@ -107,7 +107,7 @@ static inline bool irq_can_move_pcntxt(struct irq_desc *desc)
 }
 static inline bool irq_move_pending(struct irq_desc *desc)
 {
-	return desc->status & IRQ_MOVE_PENDING;
+	return irqd_is_setaffinity_pending(&desc->irq_data);
 }
 static inline void
 irq_copy_pending(struct irq_desc *desc, const struct cpumask *mask)
@@ -156,7 +156,7 @@ int irq_set_affinity(unsigned int irq, const struct cpumask *mask)
 			ret = 0;
 		}
 	} else {
-		desc->status |= IRQ_MOVE_PENDING;
+		irqd_set_move_pending(&desc->irq_data);
 		irq_copy_pending(desc, mask);
 	}
 

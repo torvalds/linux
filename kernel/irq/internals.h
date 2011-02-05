@@ -125,6 +125,21 @@ static inline void chip_bus_sync_unlock(struct irq_desc *desc)
 }
 
 /*
+ * Manipulation functions for irq_data.state
+ */
+static inline void irqd_set_move_pending(struct irq_data *d)
+{
+	d->state_use_accessors |= IRQD_SETAFFINITY_PENDING;
+	irq_compat_set_move_pending(irq_data_to_desc(d));
+}
+
+static inline void irqd_clr_move_pending(struct irq_data *d)
+{
+	d->state_use_accessors &= ~IRQD_SETAFFINITY_PENDING;
+	irq_compat_clr_move_pending(irq_data_to_desc(d));
+}
+
+/*
  * Debugging printout:
  */
 

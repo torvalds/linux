@@ -37,6 +37,15 @@ static inline void irq_compat_clr_masked(struct irq_desc *desc)
 {
 	desc->status &= ~IRQ_MASKED;
 }
+static inline void irq_compat_set_move_pending(struct irq_desc *desc)
+{
+	desc->status |= IRQ_MOVE_PENDING;
+}
+
+static inline void irq_compat_clr_move_pending(struct irq_desc *desc)
+{
+	desc->status &= ~IRQ_MOVE_PENDING;
+}
 #else
 static inline void irq_compat_set_progress(struct irq_desc *desc) { }
 static inline void irq_compat_clr_progress(struct irq_desc *desc) { }
@@ -46,5 +55,7 @@ static inline void irq_compat_set_pending(struct irq_desc *desc) { }
 static inline void irq_compat_clr_pending(struct irq_desc *desc) { }
 static inline void irq_compat_set_masked(struct irq_desc *desc) { }
 static inline void irq_compat_clr_masked(struct irq_desc *desc) { }
+static inline void irq_compat_set_move_pending(struct irq_desc *desc) { }
+static inline void irq_compat_clr_move_pending(struct irq_desc *desc) { }
 #endif
 
