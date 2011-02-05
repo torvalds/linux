@@ -190,10 +190,10 @@ static void pmic_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 			1 << (offset - 16));
 }
 
-static int pmic_irq_type(unsigned irq, unsigned type)
+static int pmic_irq_type(struct irq_data *data, unsigned type)
 {
-	struct pmic_gpio *pg = get_irq_chip_data(irq);
-	u32 gpio = irq - pg->irq_base;
+	struct pmic_gpio *pg = irq_data_get_irq_chip_data(data);
+	u32 gpio = data->irq - pg->irq_base;
 	unsigned long flags;
 
 	if (gpio >= pg->chip.ngpio)
@@ -207,8 +207,6 @@ static int pmic_irq_type(unsigned irq, unsigned type)
 	return 0;
 }
 
-
-
 static int pmic_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct pmic_gpio *pg = container_of(chip, struct pmic_gpio, chip);
@@ -217,19 +215,15 @@ static int pmic_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 }
 
 /* the gpiointr register is read-clear, so just do nothing. */
-static void pmic_irq_unmask(unsigned irq)
-{
-};
+static void pmic_irq_unmask(struct irq_data *data) { }
 
-static void pmic_irq_mask(unsigned irq)
-{
-};
+static void pmic_irq_mask(struct irq_data *data) { }
 
 static struct irq_chip pmic_irqchip = {
 	.name		= "PMIC-GPIO",
-	.mask		= pmic_irq_mask,
-	.unmask		= pmic_irq_unmask,
-	.set_type	= pmic_irq_type,
+	.irq_mask	= pmic_irq_mask,
+	.irq_unmask	= pmic_irq_unmask,
+	.irq_set_type	= pmic_irq_type,
 };
 
 static void pmic_irq_handler(unsigned irq, struct irq_desc *desc)
