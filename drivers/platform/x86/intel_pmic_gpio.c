@@ -244,11 +244,7 @@ static void pmic_irq_handler(unsigned irq, struct irq_desc *desc)
 			generic_handle_irq(pg->irq_base + gpio);
 		}
 	}
-
-	if (desc->chip->irq_eoi)
-		desc->chip->irq_eoi(irq_get_irq_data(irq));
-	else
-		dev_warn(pg->chip.dev, "missing EOI handler for irq %d\n", irq);
+	desc->chip->irq_eoi(get_irq_desc_chip_data(desc));
 }
 
 static int __devinit platform_pmic_gpio_probe(struct platform_device *pdev)
