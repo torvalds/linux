@@ -351,16 +351,11 @@ static int __init fdtv_init(void)
 	if (ret < 0)
 		return ret;
 
-	ret = fdtv_1394_init();
-	if (ret < 0)
-		fdtv_fw_exit();
-
 	return ret;
 }
 
 static void __exit fdtv_exit(void)
 {
-	fdtv_1394_exit();
 	fdtv_fw_exit();
 }
 

@@ -118,15 +118,6 @@ struct firedtv {
 	u8			avc_data[512];
 };
 
-/* firedtv-1394.c */
-#ifdef CONFIG_DVB_FIREDTV_IEEE1394
-int fdtv_1394_init(void);
-void fdtv_1394_exit(void);
-#else
-static inline int fdtv_1394_init(void) { return 0; }
-static inline void fdtv_1394_exit(void) {}
-#endif
-
 /* firedtv-avc.c */
 int avc_recv(struct firedtv *fdtv, void *data, size_t length);
 int avc_tuner_status(struct firedtv *fdtv, struct firedtv_tuner_status *stat);
@@ -170,13 +161,8 @@ extern const struct ieee1394_device_id fdtv_id_table[];
 void fdtv_frontend_init(struct firedtv *fdtv);
 
 /* firedtv-fw.c */
-#ifdef CONFIG_DVB_FIREDTV_FIREWIRE
 int fdtv_fw_init(void);
 void fdtv_fw_exit(void);
-#else
-static inline int fdtv_fw_init(void) { return 0; }
-static inline void fdtv_fw_exit(void) {}
-#endif
 
 /* firedtv-rc.c */
 #ifdef CONFIG_DVB_FIREDTV_INPUT
