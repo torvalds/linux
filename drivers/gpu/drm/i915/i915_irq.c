@@ -1353,7 +1353,12 @@ int i915_enable_vblank(struct drm_device *dev, int pipe)
 	else
 		i915_enable_pipestat(dev_priv, pipe,
 				     PIPE_VBLANK_INTERRUPT_ENABLE);
+
+	/* maintain vblank delivery even in deep C-states */
+	if (dev_priv->info->gen == 3)
+		I915_WRITE(INSTPM, INSTPM_AGPBUSY_DIS << 16);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
 	return 0;
 }
 
@@ -1366,6 +1371,10 @@ void i915_disable_vblank(struct drm_device *dev, int pipe)
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	if (dev_priv->info->gen == 3)
+		I915_WRITE(INSTPM,
+			   INSTPM_AGPBUSY_DIS << 16 | INSTPM_AGPBUSY_DIS);
+
 	if (HAS_PCH_SPLIT(dev))
 		ironlake_disable_display_irq(dev_priv, (pipe == 0) ?
 					     DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
