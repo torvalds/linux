@@ -344,27 +344,6 @@ static inline void sh_rtc_setcie(struct device *dev, unsigned int enable)
 	spin_unlock_irq(&rtc->lock);
 }
 
-static int sh_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
-{
-	struct sh_rtc *rtc = dev_get_drvdata(dev);
-	unsigned int ret = 0;
-
-	switch (cmd) {
-	case RTC_UIE_OFF:
-		rtc->periodic_freq &= ~PF_OXS;
-		sh_rtc_setcie(dev, 0);
-		break;
-	case RTC_UIE_ON:
-		rtc->periodic_freq |= PF_OXS;
-		sh_rtc_setcie(dev, 1);
-		break;
-	default:
-		ret = -ENOIOCTLCMD;
-	}
-
-	return ret;
-}
-
 static int sh_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	sh_rtc_setaie(dev, enabled);
@@ -598,7 +577,6 @@ static int sh_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 }
 
 static struct rtc_class_ops sh_rtc_ops = {
-	.ioctl		= sh_rtc_ioctl,
 	.read_time	= sh_rtc_read_time,
 	.set_time	= sh_rtc_set_time,
 	.read_alarm	= sh_rtc_read_alarm,

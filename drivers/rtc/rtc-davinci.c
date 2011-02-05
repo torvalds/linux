@@ -231,10 +231,6 @@ davinci_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	case RTC_WIE_OFF:
 		rtc_ctrl &= ~PRTCSS_RTC_CTRL_WEN;
 		break;
-	case RTC_UIE_OFF:
-	case RTC_UIE_ON:
-		ret = -ENOTTY;
-		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
