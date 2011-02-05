@@ -25,9 +25,9 @@
 
 #define TRACER_TIMEOUT 10000
 
-#define etm_writel(t, v, x) \
-	(writel_relaxed((v), (t)->etm_regs + (x)))
-#define etm_readl(t, x) (readl_relaxed((t)->etm_regs + (x)))
+#define etm_writel(t, id, v, x) \
+	(writel_relaxed((v), (t)->etm_regs[(id)] + (x)))
+#define etm_readl(t, id, x) (readl_relaxed((t)->etm_regs[(id)] + (x)))
 
 /* CoreSight Management Registers */
 #define CSMR_LOCKACCESS 0xfb0
@@ -126,6 +126,8 @@
 				ETMCTRL_BRANCH_OUTPUT | \
 				ETMCTRL_DO_CONTEXTID)
 
+#define ETMR_TRACEIDR		0x200
+
 /* ETM management registers, "ETM Architecture", 3.5.24 */
 #define ETMMR_OSLAR	0x300
 #define ETMMR_OSLSR	0x304
@@ -148,14 +150,16 @@
 #define ETBFF_TRIGIN		BIT(8)
 #define ETBFF_TRIGEVT		BIT(9)
 #define ETBFF_TRIGFL		BIT(10)
+#define ETBFF_STOPFL		BIT(12)
 
 #define etb_writel(t, v, x) \
 	(writel_relaxed((v), (t)->etb_regs + (x)))
 #define etb_readl(t, x) (readl_relaxed((t)->etb_regs + (x)))
 
-#define etm_lock(t) do { etm_writel((t), 0, CSMR_LOCKACCESS); } while (0)
-#define etm_unlock(t) \
-	do { etm_writel((t), CS_LAR_KEY, CSMR_LOCKACCESS); } while (0)
+#define etm_lock(t, id) \
+	do { etm_writel((t), (id), 0, CSMR_LOCKACCESS); } while (0)
+#define etm_unlock(t, id) \
+	do { etm_writel((t), (id), CS_LAR_KEY, CSMR_LOCKACCESS); } while (0)
 
 #define etb_lock(t) do { etb_writel((t), 0, CSMR_LOCKACCESS); } while (0)
 #define etb_unlock(t) \
