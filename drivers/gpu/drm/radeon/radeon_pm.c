@@ -430,7 +430,7 @@ static ssize_t radeon_hwmon_show_temp(struct device *dev,
 {
 	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
 	struct radeon_device *rdev = ddev->dev_private;
-	u32 temp;
+	int temp;
 
 	switch (rdev->pm.int_thermal_type) {
 	case THERMAL_TYPE_RV6XX:
@@ -645,6 +645,9 @@ void radeon_pm_fini(struct radeon_device *rdev)
 		unregister_acpi_notifier(&rdev->acpi_nb);
 #endif
 	}
+
+	if (rdev->pm.power_state)
+		kfree(rdev->pm.power_state);
 
 	radeon_hwmon_fini(rdev);
 }

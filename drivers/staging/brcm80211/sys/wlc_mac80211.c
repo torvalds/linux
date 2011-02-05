@@ -5126,7 +5126,6 @@ wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 	fifo = prio2fifo[prio];
 
 	ASSERT((uint) skb_headroom(sdu) >= TXOFF);
-	ASSERT(!(sdu->cloned));
 	ASSERT(!(sdu->next));
 	ASSERT(!(sdu->prev));
 	ASSERT(fifo < NFIFO);

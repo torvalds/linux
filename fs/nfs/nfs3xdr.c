@@ -1328,10 +1328,13 @@ static void nfs3_xdr_enc_setacl3args(struct rpc_rqst *req,
 
 	encode_nfs_fh3(xdr, NFS_FH(args->inode));
 	encode_uint32(xdr, args->mask);
-	if (args->npages != 0)
-		xdr_write_pages(xdr, args->pages, 0, args->len);
 
 	base = req->rq_slen;
+	if (args->npages != 0)
+		xdr_write_pages(xdr, args->pages, 0, args->len);
+	else
+		xdr_reserve_space(xdr, NFS_ACL_INLINE_BUFSIZE);
+
 	error = nfsacl_encode(xdr->buf, base, args->inode,
 			    (args->mask & NFS_ACL) ?
 			    args->acl_access : NULL, 1, 0);

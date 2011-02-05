@@ -14,6 +14,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
@@ -289,9 +290,9 @@ static int __devinit tsc_probe(struct platform_device *pdev)
 	}
 
 	ts->clk = clk_get(dev, NULL);
-	if (!ts->clk) {
+	if (IS_ERR(ts->clk)) {
 		dev_err(dev, "cannot claim device clock\n");
-		error = -EINVAL;
+		error = PTR_ERR(ts->clk);
 		goto error_clk;
 	}
 

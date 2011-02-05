@@ -307,10 +307,10 @@ static int corgi_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link corgi_dai = {
 	.name = "WM8731",
 	.stream_name = "WM8731",
-	.cpu_dai_name = "pxa-is2-dai",
+	.cpu_dai_name = "pxa2xx-i2s",
 	.codec_dai_name = "wm8731-hifi",
 	.platform_name = "pxa-pcm-audio",
-	.codec_name = "wm8731-codec-0.001a",
+	.codec_name = "wm8731-codec-0.001b",
 	.init = corgi_wm8731_init,
 	.ops = &corgi_ops,
 };

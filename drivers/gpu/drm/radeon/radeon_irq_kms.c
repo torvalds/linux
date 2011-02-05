@@ -110,11 +110,14 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 
 int radeon_irq_kms_init(struct radeon_device *rdev)
 {
+	int i;
 	int r = 0;
 
 	INIT_WORK(&rdev->hotplug_work, radeon_hotplug_work_func);
 
 	spin_lock_init(&rdev->irq.sw_lock);
+	for (i = 0; i < rdev->num_crtc; i++)
+		spin_lock_init(&rdev->irq.pflip_lock[i]);
 	r = drm_vblank_init(rdev->ddev, rdev->num_crtc);
 	if (r) {
 		return r;

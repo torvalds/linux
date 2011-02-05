@@ -97,12 +97,16 @@ void r600_irq_disable(struct radeon_device *rdev);
 static void r600_pcie_gen2_enable(struct radeon_device *rdev);
 
 /* get temperature in millidegrees */
-u32 rv6xx_get_temp(struct radeon_device *rdev)
+int rv6xx_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = (RREG32(CG_THERMAL_STATUS) & ASIC_T_MASK) >>
 		ASIC_T_SHIFT;
+	int actual_temp = temp & 0xff;
 
-	return temp * 1000;
+	if (temp & 0x100)
+		actual_temp -= 256;
+
+	return actual_temp * 1000;
 }
 
 void r600_pm_get_dynpm_state(struct radeon_device *rdev)
@@ -1286,6 +1290,9 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 			S_008014_CB0_BUSY(1) | S_008014_CB1_BUSY(1) |
 			S_008014_CB2_BUSY(1) | S_008014_CB3_BUSY(1);
 	u32 tmp;
+
+	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
+		return 0;
 
 	dev_info(rdev->dev, "GPU softreset \n");
 	dev_info(rdev->dev, "  R_008010_GRBM_STATUS=0x%08X\n",

@@ -60,6 +60,8 @@ endchoice
 
 config MACH_AG5EVM
 	bool "AG5EVM board"
+	select ARCH_REQUIRE_GPIOLIB
+	select SH_LCD_MIPI_DSI
 	depends on ARCH_SH73A0
 
 config MACH_MACKEREL
