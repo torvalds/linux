@@ -2646,7 +2646,8 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 			return 0;
 		if (!multicast &&
 		    compare_ether_addr(sdata->vif.addr, hdr->addr1) != 0) {
-			if (!(sdata->dev->flags & IFF_PROMISC))
+			if (!(sdata->dev->flags & IFF_PROMISC) ||
+			    sdata->u.mgd.use_4addr)
 				return 0;
 			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
 		}
