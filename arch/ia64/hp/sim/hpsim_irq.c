@@ -40,12 +40,12 @@ static struct irq_chip irq_type_hp_sim = {
 void __init
 hpsim_irq_init (void)
 {
-	struct irq_desc *idesc;
 	int i;
 
-	for (i = 0; i < NR_IRQS; ++i) {
-		idesc = irq_desc + i;
-		if (idesc->chip == &no_irq_chip)
-			idesc->chip = &irq_type_hp_sim;
+	for_each_active_irq(i) {
+		struct irq_chip *chip = get_irq_chip(i);
+
+		if (chip == &no_irq_chip)
+			set_irq_chip(i, &irq_type_hp_sim);
 	}
 }
