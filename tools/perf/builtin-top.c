@@ -20,6 +20,7 @@
 
 #include "perf.h"
 
+#include "util/annotate.h"
 #include "util/cache.h"
 #include "util/color.h"
 #include "util/evlist.h"
@@ -140,10 +141,7 @@ static int parse_source(struct sym_entry *syme)
 	struct symbol *sym;
 	struct sym_entry_source *source;
 	struct map *map;
-	FILE *file;
-	char command[PATH_MAX*2];
-	const char *path;
-	u64 len;
+	int err = -1;
 
 	if (!syme)
 		return -1;
@@ -162,197 +160,80 @@ static int parse_source(struct sym_entry *syme)
 		if (syme->src == NULL)
 			return -1;
 		pthread_mutex_init(&syme->src->lock, NULL);
+		INIT_LIST_HEAD(&syme->src->head);
 	}
 
 	source = syme->src;
 
-	if (source->lines) {
+	if (symbol__annotation(sym)->histograms != NULL) {
 		pthread_mutex_lock(&source->lock);
 		goto out_assign;
 	}
-	path = map->dso->long_name;
-
-	len = sym->end - sym->start;
-
-	sprintf(command,
-		"objdump --start-address=%#0*" PRIx64 " --stop-address=%#0*" PRIx64 " -dS %s",
-		BITS_PER_LONG / 4, map__rip_2objdump(map, sym->start),
-		BITS_PER_LONG / 4, map__rip_2objdump(map, sym->end), path);
-
-	file = popen(command, "r");
-	if (!file)
-		return -1;
 
 	pthread_mutex_lock(&source->lock);
-	source->lines_tail = &source->lines;
-	while (!feof(file)) {
-		struct source_line *src;
-		size_t dummy = 0;
-		char *c, *sep;
 
-		src = malloc(sizeof(struct source_line));
-		assert(src != NULL);
-		memset(src, 0, sizeof(struct source_line));
-
-		if (getline(&src->line, &dummy, file) < 0)
-			break;
-		if (!src->line)
-			break;
-
-		c = strchr(src->line, '\n');
-		if (c)
-			*c = 0;
-
-		src->next = NULL;
-		*source->lines_tail = src;
-		source->lines_tail = &src->next;
-
-		src->eip = strtoull(src->line, &sep, 16);
-		if (*sep == ':')
-			src->eip = map__objdump_2ip(map, src->eip);
-		else /* this line has no ip info (e.g. source line) */
-			src->eip = 0;
+	if (symbol__alloc_hist(sym, top.evlist->nr_entries) < 0) {
+		pr_err("Not enough memory for annotating '%s' symbol!\n",
+		       sym->name);
+		goto out_unlock;
 	}
-	pclose(file);
+
+	err = symbol__annotate(sym, syme->map, &source->head, 0);
+	if (err == 0) {
 out_assign:
 	sym_filter_entry = syme;
+	}
+out_unlock:
 	pthread_mutex_unlock(&source->lock);
-	return 0;
+	return err;
 }
 
 static void __zero_source_counters(struct sym_entry *syme)
 {
-	int i;
-	struct source_line *line;
-
-	line = syme->src->lines;
-	while (line) {
-		for (i = 0; i < top.evlist->nr_entries; i++)
-			line->count[i] = 0;
-		line = line->next;
-	}
+	struct symbol *sym = sym_entry__symbol(syme);
+	symbol__annotate_zero_histograms(sym);
 }
 
 static void record_precise_ip(struct sym_entry *syme, int counter, u64 ip)
 {
-	struct source_line *line;
-
 	if (syme != sym_filter_entry)
 		return;
 
 	if (pthread_mutex_trylock(&syme->src->lock))
 		return;
 
-	if (syme->src == NULL || syme->src->source == NULL)
-		goto out_unlock;
+	ip = syme->map->map_ip(syme->map, ip);
+	symbol__inc_addr_samples(sym_entry__symbol(syme), syme->map, counter, ip);
 
-	for (line = syme->src->lines; line; line = line->next) {
-		/* skip lines without IP info */
-		if (line->eip == 0)
-			continue;
-		if (line->eip == ip) {
-			line->count[counter]++;
-			break;
-		}
-		if (line->eip > ip)
-			break;
-	}
-out_unlock:
 	pthread_mutex_unlock(&syme->src->lock);
 }
-
-#define PATTERN_LEN		(BITS_PER_LONG / 4 + 2)
-
-static void lookup_sym_source(struct sym_entry *syme)
-{
-	struct symbol *symbol = sym_entry__symbol(syme);
-	struct source_line *line;
-	char pattern[PATTERN_LEN + 1];
-
-	sprintf(pattern, "%0*" PRIx64 " <", BITS_PER_LONG / 4,
-		map__rip_2objdump(syme->map, symbol->start));
-
-	pthread_mutex_lock(&syme->src->lock);
-	for (line = syme->src->lines; line; line = line->next) {
-		if (memcmp(line->line, pattern, PATTERN_LEN) == 0) {
-			syme->src->source = line;
-			break;
-		}
-	}
-	pthread_mutex_unlock(&syme->src->lock);
-}
-
-static void show_lines(struct source_line *queue, int count, int total)
-{
-	int i;
-	struct source_line *line;
-
-	line = queue;
-	for (i = 0; i < count; i++) {
-		float pcnt = 100.0*(float)line->count[top.sym_counter]/(float)total;
-
-		printf("%8li %4.1f%%\t%s\n", line->count[top.sym_counter], pcnt, line->line);
-		line = line->next;
-	}
-}
-
-#define TRACE_COUNT     3
 
 static void show_details(struct sym_entry *syme)
 {
 	struct symbol *symbol;
-	struct source_line *line;
-	struct source_line *line_queue = NULL;
-	int displayed = 0;
-	int line_queue_count = 0, total = 0, more = 0;
+	int more;
 
 	if (!syme)
 		return;
 
-	if (!syme->src->source)
-		lookup_sym_source(syme);
-
-	if (!syme->src->source)
+	symbol = sym_entry__symbol(syme);
+	if (!syme->src || symbol__annotation(symbol)->histograms == NULL)
 		return;
 
-	symbol = sym_entry__symbol(syme);
 	printf("Showing %s for %s\n", event_name(top.sym_evsel), symbol->name);
 	printf("  Events  Pcnt (>=%d%%)\n", sym_pcnt_filter);
 
 	pthread_mutex_lock(&syme->src->lock);
-	line = syme->src->source;
-	while (line) {
-		total += line->count[top.sym_counter];
-		line = line->next;
-	}
-
-	line = syme->src->source;
-	while (line) {
-		float pcnt = 0.0;
-
-		if (!line_queue_count)
-			line_queue = line;
-		line_queue_count++;
-
-		if (line->count[top.sym_counter])
-			pcnt = 100.0 * line->count[top.sym_counter] / (float)total;
-		if (pcnt >= (float)sym_pcnt_filter) {
-			if (displayed <= top.print_entries)
-				show_lines(line_queue, line_queue_count, total);
-			else more++;
-			displayed += line_queue_count;
-			line_queue_count = 0;
-			line_queue = NULL;
-		} else if (line_queue_count > TRACE_COUNT) {
-			line_queue = line_queue->next;
-			line_queue_count--;
-		}
-
-		line->count[top.sym_counter] = top.zero ? 0 : line->count[top.sym_counter] * 7 / 8;
-		line = line->next;
-	}
+	more = symbol__annotate_printf(symbol, syme->map, &syme->src->head,
+				       top.sym_evsel->idx, 0, sym_pcnt_filter,
+				       top.print_entries);
+	if (top.zero)
+		symbol__annotate_zero_histogram(symbol, top.sym_evsel->idx);
+	else
+		symbol__annotate_decay_histogram(symbol, &syme->src->head,
+						 top.sym_evsel->idx);
 	pthread_mutex_unlock(&syme->src->lock);
-	if (more)
+	if (more != 0)
 		printf("%d lines not displayed, maybe increase display entries [e]\n", more);
 }
 
@@ -1172,7 +1053,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	top.sym_evsel = list_entry(top.evlist->entries.next, struct perf_evsel, node);
 
-	symbol_conf.priv_size = (sizeof(struct sym_entry) +
+	symbol_conf.priv_size = (sizeof(struct sym_entry) + sizeof(struct annotation) +
 				 (top.evlist->nr_entries + 1) * sizeof(unsigned long));
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);

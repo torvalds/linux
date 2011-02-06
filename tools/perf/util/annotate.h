@@ -42,6 +42,7 @@ struct source_line {
 struct annotation {
 	struct source_line *src_line;
 	struct sym_hist	   *histograms;
+	int    		   nr_histograms;
 	int    		   sizeof_sym_hist;
 };
 
@@ -64,12 +65,16 @@ static inline struct annotation *symbol__annotation(struct symbol *sym)
 int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 			     int evidx, u64 addr);
 int symbol__alloc_hist(struct symbol *sym, int nevents);
+void symbol__annotate_zero_histograms(struct symbol *sym);
 
 int symbol__annotate(struct symbol *sym, struct map *map,
 		     struct list_head *head, size_t privsize);
-void symbol__annotate_printf(struct symbol *sym, struct map *map,
-			     struct list_head *head, int evidx, bool full_paths,
-			     int min_pcnt, int max_lines);
+int symbol__annotate_printf(struct symbol *sym, struct map *map,
+			    struct list_head *head, int evidx, bool full_paths,
+			    int min_pcnt, int max_lines);
+void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
+void symbol__annotate_decay_histogram(struct symbol *sym,
+				      struct list_head *head, int evidx);
 void objdump_line_list__purge(struct list_head *head);
 
 int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,

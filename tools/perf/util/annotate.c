@@ -22,7 +22,17 @@ int symbol__alloc_hist(struct symbol *sym, int nevents)
 	notes->sizeof_sym_hist = (sizeof(*notes->histograms) +
 				  (sym->end - sym->start) * sizeof(u64));
 	notes->histograms = calloc(nevents, notes->sizeof_sym_hist);
+	notes->nr_histograms = nevents;
 	return notes->histograms == NULL ? -1 : 0;
+}
+
+void symbol__annotate_zero_histograms(struct symbol *sym)
+{
+	struct annotation *notes = symbol__annotation(sym);
+
+	if (notes->histograms != NULL)
+		memset(notes->histograms, 0,
+		       notes->nr_histograms * notes->sizeof_sym_hist);
 }
 
 int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
@@ -85,9 +95,10 @@ struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
 	return NULL;
 }
 
-static void objdump_line__print(struct objdump_line *oline,
-				struct list_head *head, struct symbol *sym,
-				int evidx, u64 len, int min_pcnt)
+static int objdump_line__print(struct objdump_line *oline,
+			       struct list_head *head, struct symbol *sym,
+			       int evidx, u64 len, int min_pcnt,
+			       int printed, int max_lines)
 {
 	static const char *prev_line;
 	static const char *prev_color;
@@ -119,7 +130,10 @@ static void objdump_line__print(struct objdump_line *oline,
 			percent = 100.0 * hits / h->sum;
 
 		if (percent < min_pcnt)
-			return;
+			return -1;
+
+		if (printed >= max_lines)
+			return 1;
 
 		color = get_percent_color(percent);
 
@@ -140,12 +154,16 @@ static void objdump_line__print(struct objdump_line *oline,
 		color_fprintf(stdout, color, " %7.2f", percent);
 		printf(" :	");
 		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", oline->line);
-	} else {
+	} else if (printed >= max_lines)
+		return 1;
+	else {
 		if (!*oline->line)
 			printf("         :\n");
 		else
 			printf("         :	%s\n", oline->line);
 	}
+
+	return 0;
 }
 
 static int symbol__parse_objdump_line(struct symbol *sym, struct map *map, FILE *file,
@@ -421,14 +439,15 @@ static void symbol__annotate_hits(struct symbol *sym, int evidx)
 	printf("%*s: %" PRIu64 "\n", BITS_PER_LONG / 2, "h->sum", h->sum);
 }
 
-void symbol__annotate_printf(struct symbol *sym, struct map *map,
-			     struct list_head *head, int evidx, bool full_paths,
-			     int min_pcnt, int max_lines)
+int symbol__annotate_printf(struct symbol *sym, struct map *map,
+			    struct list_head *head, int evidx, bool full_paths,
+			    int min_pcnt, int max_lines)
 {
 	struct dso *dso = map->dso;
 	const char *filename = dso->long_name, *d_filename;
 	struct objdump_line *pos;
 	int printed = 2;
+	int more = 0;
 	u64 len;
 
 	if (full_paths)
@@ -445,10 +464,47 @@ void symbol__annotate_printf(struct symbol *sym, struct map *map,
 		symbol__annotate_hits(sym, evidx);
 
 	list_for_each_entry(pos, head, node) {
-		objdump_line__print(pos, head, sym, evidx, len, min_pcnt);
-		if (max_lines && ++printed >= max_lines)
+		switch (objdump_line__print(pos, head, sym, evidx, len, min_pcnt,
+					    printed, max_lines)) {
+		case 0:
+			++printed;
 			break;
+		case 1:
+			/* filtered by max_lines */
+			++more;
+			break;
+		case -1:
+		default:
+			/* filtered by min_pcnt */
+			break;
+		}
+	}
 
+	return more;
+}
+
+void symbol__annotate_zero_histogram(struct symbol *sym, int evidx)
+{
+	struct annotation *notes = symbol__annotation(sym);
+	struct sym_hist *h = annotation__histogram(notes, evidx);
+
+	memset(h, 0, notes->sizeof_sym_hist);
+}
+
+void symbol__annotate_decay_histogram(struct symbol *sym,
+				      struct list_head *head, int evidx)
+{
+	struct annotation *notes = symbol__annotation(sym);
+	struct sym_hist *h = annotation__histogram(notes, evidx);
+	struct objdump_line *pos;
+
+	h->sum = 0;
+
+	list_for_each_entry(pos, head, node) {
+		if (pos->offset != -1) {
+			h->addr[pos->offset] = h->addr[pos->offset] * 7 / 8;
+			h->sum += h->addr[pos->offset];
+		}
 	}
 }
 
