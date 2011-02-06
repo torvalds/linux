@@ -1183,10 +1183,59 @@ static int eeepc_wmi_remove(struct platform_device *device)
 	return 0;
 }
 
+/*
+ * Platform driver - hibernate/resume callbacks
+ */
+static int eeepc_hotk_thaw(struct device *device)
+{
+	struct eeepc_wmi *eeepc = dev_get_drvdata(device);
+
+	if (eeepc->wlan_rfkill) {
+		bool wlan;
+
+		/*
+		 * Work around bios bug - acpi _PTS turns off the wireless led
+		 * during suspend.  Normally it restores it on resume, but
+		 * we should kick it ourselves in case hibernation is aborted.
+		 */
+		wlan = eeepc_wmi_get_devstate_simple(EEEPC_WMI_DEVID_WLAN);
+		eeepc_wmi_set_devstate(EEEPC_WMI_DEVID_WLAN, wlan, NULL);
+	}
+
+	return 0;
+}
+
+static int eeepc_hotk_restore(struct device *device)
+{
+	struct eeepc_wmi *eeepc = dev_get_drvdata(device);
+	int bl;
+
+	/* Refresh both wlan rfkill state and pci hotplug */
+	if (eeepc->wlan_rfkill)
+		eeepc_rfkill_hotplug(eeepc);
+
+	if (eeepc->bluetooth_rfkill) {
+		bl = !eeepc_wmi_get_devstate_simple(EEEPC_WMI_DEVID_BLUETOOTH);
+		rfkill_set_sw_state(eeepc->bluetooth_rfkill, bl);
+}
+	if (eeepc->wwan3g_rfkill) {
+		bl = !eeepc_wmi_get_devstate_simple(EEEPC_WMI_DEVID_WWAN3G);
+		rfkill_set_sw_state(eeepc->wwan3g_rfkill, bl);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops eeepc_pm_ops = {
+	.thaw = eeepc_hotk_thaw,
+	.restore = eeepc_hotk_restore,
+};
+
 static struct platform_driver platform_driver = {
 	.driver = {
 		.name = EEEPC_WMI_FILE,
 		.owner = THIS_MODULE,
+		.pm = &eeepc_pm_ops,
 	},
 };
 
