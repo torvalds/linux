@@ -169,12 +169,15 @@ enum {
 
 #define CMD_CTX_BASE		(POISON_POINTER_DELTA + sync_completion_id)
 #define CMD_CTX_CANCELLED	(0x2008 + CMD_CTX_BASE)
+#define CMD_CTX_COMPLETED	(0x2010 + CMD_CTX_BASE)
 
 static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 {
 	unsigned long data;
+	unsigned offset = cmdid + BITS_TO_LONGS(nvmeq->q_depth);
 
-	data = nvmeq->cmdid_data[cmdid + BITS_TO_LONGS(nvmeq->q_depth)];
+	data = nvmeq->cmdid_data[offset];
+	nvmeq->cmdid_data[offset] = CMD_CTX_COMPLETED;
 	clear_bit(cmdid, nvmeq->cmdid_data);
 	wake_up(&nvmeq->sq_full);
 	return data;
@@ -182,8 +185,8 @@ static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 
 static void cancel_cmdid_data(struct nvme_queue *nvmeq, int cmdid)
 {
-	nvmeq->cmdid_data[cmdid + BITS_TO_LONGS(nvmeq->q_depth)] =
-							CMD_CTX_CANCELLED;
+	unsigned offset = cmdid + BITS_TO_LONGS(nvmeq->q_depth);
+	nvmeq->cmdid_data[offset] = CMD_CTX_CANCELLED;
 }
 
 static struct nvme_queue *get_nvmeq(struct nvme_ns *ns)
@@ -402,6 +405,12 @@ static void sync_completion(struct nvme_queue *nvmeq, void *ctx,
 	struct sync_cmd_info *cmdinfo = ctx;
 	if ((unsigned long)cmdinfo == CMD_CTX_CANCELLED)
 		return;
+	if (unlikely((unsigned long)cmdinfo == CMD_CTX_COMPLETED)) {
+		dev_warn(nvmeq->q_dmadev,
+				"completed id %d twice on queue %d\n",
+				cqe->command_id, le16_to_cpup(&cqe->sq_id));
+		return;
+	}
 	cmdinfo->result = le32_to_cpup(&cqe->result);
 	cmdinfo->status = le16_to_cpup(&cqe->status) >> 1;
 	wake_up_process(cmdinfo->task);
