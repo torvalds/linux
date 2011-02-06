@@ -988,14 +988,6 @@ static void rtl8192_tx_isr(struct net_device *dev, int prio)
 
 		kfree_skb(skb);
 	}
-	if (prio == MGNT_QUEUE) {
-		if (priv->ieee80211->ack_tx_to_ieee) {
-			if (rtl8192_is_tx_queue_empty(dev)) {
-				priv->ieee80211->ack_tx_to_ieee = 0;
-				ieee80211_ps_tx_ack(priv->ieee80211, 1);
-			}
-		}
-	}
 
 	if (prio != BEACON_QUEUE) {
 		/* try to deal with the pending packets  */
@@ -4957,7 +4949,23 @@ static void rtl8192_tx_resume(struct net_device *dev)
 
 static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv)
 {
-       rtl8192_tx_resume(priv->ieee80211->dev);
+	struct rtl8192_tx_ring *mgnt_ring = &priv->tx_ring[MGNT_QUEUE];
+	struct net_device *dev = priv->ieee80211->dev;
+	unsigned long flags;
+
+	/* check if we need to report that the management queue is drained */
+	spin_lock_irqsave(&priv->irq_th_lock, flags);
+
+	if (!skb_queue_len(&mgnt_ring->queue) &&
+	    priv->ieee80211->ack_tx_to_ieee &&
+	    rtl8192_is_tx_queue_empty(dev)) {
+		priv->ieee80211->ack_tx_to_ieee = 0;
+		ieee80211_ps_tx_ack(priv->ieee80211, 1);
+	}
+
+	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
+
+	rtl8192_tx_resume(dev);
 }
 
 /* Record the received data rate */
