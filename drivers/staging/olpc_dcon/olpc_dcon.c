@@ -525,7 +525,7 @@ static int _strtoul(const char *buf, int len, unsigned int *val)
 {
 
 	char *endp;
-	unsigned int output = strict_strtoul(buf, &endp, 0);
+	unsigned int output = simple_strtoul(buf, &endp, 0);
 	int size = endp - buf;
 
 	if (*endp && isspace(*endp))
