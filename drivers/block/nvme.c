@@ -477,11 +477,6 @@ static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
 
 static irqreturn_t nvme_irq(int irq, void *data)
 {
-	return nvme_process_cq(data);
-}
-
-static irqreturn_t nvme_irq_thread(int irq, void *data)
-{
 	irqreturn_t result;
 	struct nvme_queue *nvmeq = data;
 	spin_lock(&nvmeq->q_lock);
@@ -676,7 +671,7 @@ static int queue_request_irq(struct nvme_dev *dev, struct nvme_queue *nvmeq,
 {
 	if (use_threaded_interrupts)
 		return request_threaded_irq(dev->entry[nvmeq->cq_vector].vector,
-					nvme_irq_check, nvme_irq_thread,
+					nvme_irq_check, nvme_irq,
 					IRQF_DISABLED | IRQF_SHARED,
 					name, nvmeq);
 	return request_irq(dev->entry[nvmeq->cq_vector].vector, nvme_irq,
