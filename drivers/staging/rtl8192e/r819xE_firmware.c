@@ -115,6 +115,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
  */
 static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 {
+	struct r8192_priv *priv = ieee80211_priv(dev);
 	unsigned long timeout;
 	bool rt_status = true;
 	u32 CPU_status = 0;
@@ -122,7 +123,7 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 	/* Check whether put code OK */
 	timeout = jiffies + msecs_to_jiffies(20);
 	while (time_before(jiffies, timeout)) {
-		CPU_status = read_nic_dword(dev, CPU_GEN);
+		CPU_status = read_nic_dword(priv, CPU_GEN);
 
 		if (CPU_status & CPU_GEN_PUT_CODE_OK)
 			break;
@@ -137,15 +138,15 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 	}
 
 	/* Turn On CPU */
-	CPU_status = read_nic_dword(dev, CPU_GEN);
-	write_nic_byte(dev, CPU_GEN,
+	CPU_status = read_nic_dword(priv, CPU_GEN);
+	write_nic_byte(priv, CPU_GEN,
 		       (u8)((CPU_status | CPU_GEN_PWR_STB_CPU) & 0xff));
 	mdelay(1);
 
 	/* Check whether CPU boot OK */
 	timeout = jiffies + msecs_to_jiffies(20);
 	while (time_before(jiffies, timeout)) {
-		CPU_status = read_nic_dword(dev, CPU_GEN);
+		CPU_status = read_nic_dword(priv, CPU_GEN);
 
 		if (CPU_status & CPU_GEN_BOOT_RDY)
 			break;
@@ -167,6 +168,7 @@ CPUCheckMainCodeOKAndTurnOnCPU_Fail:
 
 static bool CPUcheck_firmware_ready(struct net_device *dev)
 {
+	struct r8192_priv *priv = ieee80211_priv(dev);
 	unsigned long timeout;
 	bool rt_status = true;
 	u32 CPU_status = 0;
@@ -174,7 +176,7 @@ static bool CPUcheck_firmware_ready(struct net_device *dev)
 	/* Check Firmware Ready */
 	timeout = jiffies + msecs_to_jiffies(20);
 	while (time_before(jiffies, timeout)) {
-		CPU_status = read_nic_dword(dev, CPU_GEN);
+		CPU_status = read_nic_dword(priv, CPU_GEN);
 
 		if (CPU_status & CPU_GEN_FIRM_RDY)
 			break;

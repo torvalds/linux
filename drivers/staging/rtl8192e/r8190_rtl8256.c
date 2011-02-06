@@ -273,7 +273,7 @@ void PHY_SetRF8256CCKTxPower(struct net_device*	dev, u8	powerlevel)
 			}
 		}
 	TxAGC = (byte1<<8) |byte0;
-	write_nic_dword(dev, CCK_TXAGC, TxAGC);
+	write_nic_dword(priv, CCK_TXAGC, TxAGC);
 #else
 	#ifdef RTL8192E
 
@@ -364,8 +364,8 @@ void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 	//DbgPrint("TxAGC2_tmp = 0x%x\n", TxAGC2_tmp);
 
 	//DbgPrint("TxAGC1/TxAGC2 = 0x%x/0x%x\n", TxAGC1, TxAGC2);
-	write_nic_dword(dev, MCS_TXAGC, TxAGC1);
-	write_nic_dword(dev, MCS_TXAGC+4, TxAGC2);
+	write_nic_dword(priv, MCS_TXAGC, TxAGC1);
+	write_nic_dword(priv, MCS_TXAGC+4, TxAGC2);
 #else
 #ifdef RTL8192E
 	u32 writeVal, powerBase0, powerBase1, writeVal_tmp;
@@ -513,8 +513,8 @@ SetRFPowerState8190(
 
 					RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
 				} else {
-					write_nic_byte(dev, ANAPAR, 0x37);//160MHz
-					//write_nic_byte(dev, MacBlkCtrl, 0x17); // 0x403
+					write_nic_byte(priv, ANAPAR, 0x37);//160MHz
+					//write_nic_byte(priv, MacBlkCtrl, 0x17); // 0x403
 					mdelay(1);
 					//enable clock 80/88 MHz
 					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x4, 0x1); // 0x880[2]
@@ -536,7 +536,7 @@ SetRFPowerState8190(
 					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x3); 	// 0x880[6:5]
 
 					// Baseband reset 2008.09.30 add
-					//write_nic_byte(dev, BB_RESET, (read_nic_byte(dev, BB_RESET)|BIT0));
+					//write_nic_byte(priv, BB_RESET, (read_nic_byte(dev, BB_RESET)|BIT0));
 
 				//2 	AFE
 					// 2008.09.30 add
@@ -774,12 +774,12 @@ MgntDisconnectIBSS(
 //	PlatformZeroMemory( pMgntInfo->Bssid, 6 );
 	for(i=0;i<6;i++)  priv->ieee80211->current_network.bssid[i]= 0x55;
 	priv->OpMode = RT_OP_MODE_NO_LINK;
-	write_nic_word(dev, BSSIDR, ((u16*)priv->ieee80211->current_network.bssid)[0]);
-	write_nic_dword(dev, BSSIDR+2, ((u32*)(priv->ieee80211->current_network.bssid+2))[0]);
+	write_nic_word(priv, BSSIDR, ((u16*)priv->ieee80211->current_network.bssid)[0]);
+	write_nic_dword(priv, BSSIDR+2, ((u32*)(priv->ieee80211->current_network.bssid+2))[0]);
 	{
 			RT_OP_MODE	OpMode = priv->OpMode;
 			//LED_CTL_MODE	LedAction = LED_CTL_NO_LINK;
-			u8	btMsr = read_nic_byte(dev, MSR);
+			u8	btMsr = read_nic_byte(priv, MSR);
 
 			btMsr &= 0xfc;
 
@@ -805,7 +805,7 @@ MgntDisconnectIBSS(
 				break;
 			}
 
-			write_nic_byte(dev, MSR, btMsr);
+			write_nic_byte(priv, MSR, btMsr);
 
 			// LED control
 			//Adapter->HalFunc.LedControlHandler(Adapter, LedAction);
@@ -817,7 +817,7 @@ MgntDisconnectIBSS(
 	{
 			u32 RegRCR, Type;
 			Type = bFilterOutNonAssociatedBSSID;
-			RegRCR = read_nic_dword(dev,RCR);
+			RegRCR = read_nic_dword(priv, RCR);
 			priv->ReceiveConfig = RegRCR;
 			if (Type == true)
 				RegRCR |= (RCR_CBSSID);
@@ -825,7 +825,7 @@ MgntDisconnectIBSS(
 				RegRCR &= (~RCR_CBSSID);
 
 			{
-				write_nic_dword(dev, RCR,RegRCR);
+				write_nic_dword(priv, RCR, RegRCR);
 				priv->ReceiveConfig = RegRCR;
 			}
 
@@ -862,7 +862,7 @@ MlmeDisassociateRequest(
 		{
 			RT_OP_MODE	OpMode = priv->OpMode;
 			//LED_CTL_MODE	LedAction = LED_CTL_NO_LINK;
-			u8 btMsr = read_nic_byte(dev, MSR);
+			u8 btMsr = read_nic_byte(priv, MSR);
 
 			btMsr &= 0xfc;
 
@@ -888,15 +888,15 @@ MlmeDisassociateRequest(
 				break;
 			}
 
-			write_nic_byte(dev, MSR, btMsr);
+			write_nic_byte(priv, MSR, btMsr);
 
 			// LED control
 			//Adapter->HalFunc.LedControlHandler(Adapter, LedAction);
 		}
 		ieee80211_disassociate(priv->ieee80211);
 
-		write_nic_word(dev, BSSIDR, ((u16*)priv->ieee80211->current_network.bssid)[0]);
-		write_nic_dword(dev, BSSIDR+2, ((u32*)(priv->ieee80211->current_network.bssid+2))[0]);
+		write_nic_word(priv, BSSIDR, ((u16*)priv->ieee80211->current_network.bssid)[0]);
+		write_nic_dword(priv, BSSIDR+2, ((u32*)(priv->ieee80211->current_network.bssid+2))[0]);
 
 	}
 
@@ -935,7 +935,7 @@ MgntDisconnectAP(
 
 			Type = bFilterOutNonAssociatedBSSID;
 			//Adapter->HalFunc.GetHwRegHandler(Adapter, HW_VAR_RCR, (pu1Byte)(&RegRCR));
-			RegRCR = read_nic_dword(dev,RCR);
+			RegRCR = read_nic_dword(priv, RCR);
 			priv->ReceiveConfig = RegRCR;
 
 			if (Type == true)
@@ -943,7 +943,7 @@ MgntDisconnectAP(
 			else if (Type == false)
 				RegRCR &= (~RCR_CBSSID);
 
-			write_nic_dword(dev, RCR,RegRCR);
+			write_nic_dword(priv, RCR, RegRCR);
 			priv->ReceiveConfig = RegRCR;
 
 

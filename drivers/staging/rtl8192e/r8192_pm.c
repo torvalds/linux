@@ -43,7 +43,7 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 
 	ieee80211_softmac_stop_protocol(priv->ieee80211);
 
-	write_nic_byte(dev,MSR,(read_nic_byte(dev,MSR)&0xfc)|MSR_LINK_NONE);
+	write_nic_byte(priv, MSR,(read_nic_byte(dev,MSR)&0xfc)|MSR_LINK_NONE);
 	if(!priv->ieee80211->bSupportRemoteWakeUp) {
 		/* disable tx/rx. In 8185 we write 0x10 (Reset bit),
 		 * but here we make reference to WMAC and wirte 0x0.
@@ -76,24 +76,24 @@ pHalData->bHwRfOffAction = 2;
 	if(!priv->ieee80211->bSupportRemoteWakeUp) {
 		MgntActSet_RF_State(dev, eRfOff, RF_CHANGE_BY_INIT);
 		// 2006.11.30. System reset bit
-		ulRegRead = read_nic_dword(dev, CPU_GEN);
+		ulRegRead = read_nic_dword(priv, CPU_GEN);
 		ulRegRead|=CPU_GEN_SYSTEM_RESET;
-		write_nic_dword(dev, CPU_GEN, ulRegRead);
+		write_nic_dword(priv, CPU_GEN, ulRegRead);
 	} else {
 		//2008.06.03 for WOL
-		write_nic_dword(dev, WFCRC0, 0xffffffff);
-		write_nic_dword(dev, WFCRC1, 0xffffffff);
-		write_nic_dword(dev, WFCRC2, 0xffffffff);
+		write_nic_dword(priv, WFCRC0, 0xffffffff);
+		write_nic_dword(priv, WFCRC1, 0xffffffff);
+		write_nic_dword(priv, WFCRC2, 0xffffffff);
 #ifdef RTL8190P
 		//GPIO 0 = TRUE
-		ucRegRead = read_nic_byte(dev, GPO);
+		ucRegRead = read_nic_byte(priv, GPO);
 		ucRegRead |= BIT0;
-		write_nic_byte(dev, GPO, ucRegRead);
+		write_nic_byte(priv, GPO, ucRegRead);
 #endif
 		//Write PMR register
-		write_nic_byte(dev, PMR, 0x5);
+		write_nic_byte(priv, PMR, 0x5);
 		//Disable tx, enanble rx
-		write_nic_byte(dev, MacBlkCtrl, 0xa);
+		write_nic_byte(priv, MacBlkCtrl, 0xa);
 	}
 
 out_pci_suspend:

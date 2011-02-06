@@ -247,84 +247,97 @@ static inline bool rx_hal_is_cck_rate(prx_fwinfo_819x_pci pdrvinfo)
 
 void CamResetAllEntry(struct net_device *dev)
 {
-	write_nic_dword(dev, RWCAM, BIT31|BIT30);
+	struct r8192_priv* priv = ieee80211_priv(dev);
+	write_nic_dword(priv, RWCAM, BIT31|BIT30);
 }
 
-
-void write_cam(struct net_device *dev, u8 addr, u32 data)
+void write_cam(struct r8192_priv *priv, u8 addr, u32 data)
 {
-        write_nic_dword(dev, WCAMI, data);
-        write_nic_dword(dev, RWCAM, BIT31|BIT16|(addr&0xff) );
+        write_nic_dword(priv, WCAMI, data);
+        write_nic_dword(priv, RWCAM, BIT31|BIT16|(addr&0xff) );
 }
-u32 read_cam(struct net_device *dev, u8 addr)
+
+u32 read_cam(struct r8192_priv *priv, u8 addr)
 {
-        write_nic_dword(dev, RWCAM, 0x80000000|(addr&0xff) );
-        return read_nic_dword(dev, 0xa8);
+        write_nic_dword(priv, RWCAM, 0x80000000|(addr&0xff) );
+        return read_nic_dword(priv, 0xa8);
 }
 
 #ifdef CONFIG_RTL8180_IO_MAP
 
-u8 read_nic_byte(struct net_device *dev, int x)
+u8 read_nic_byte(struct r8192_priv *priv, int x)
 {
+	struct net_device *dev = priv->ieee80211->dev;
         return 0xff&inb(dev->base_addr +x);
 }
 
-u32 read_nic_dword(struct net_device *dev, int x)
+u32 read_nic_dword(struct r8192_priv *priv, int x)
 {
+	struct net_device *dev = priv->ieee80211->dev;
         return inl(dev->base_addr +x);
 }
 
-u16 read_nic_word(struct net_device *dev, int x)
+u16 read_nic_word(struct r8192_priv *priv, int x)
 {
+	struct net_device *dev = priv->ieee80211->dev;
         return inw(dev->base_addr +x);
 }
 
-void write_nic_byte(struct net_device *dev, int x,u8 y)
+void write_nic_byte(struct r8192_priv *priv, int x,u8 y)
 {
+	struct net_device *dev = priv->ieee80211->dev;
         outb(y&0xff,dev->base_addr +x);
 }
 
-void write_nic_word(struct net_device *dev, int x,u16 y)
+void write_nic_word(struct r8192_priv *priv, int x,u16 y)
 {
+	struct net_device *dev = priv->ieee80211->dev;
         outw(y,dev->base_addr +x);
 }
 
-void write_nic_dword(struct net_device *dev, int x,u32 y)
+void write_nic_dword(struct r8192_priv *priv, int x,u32 y)
 {
+	struct net_device *dev = priv->ieee80211->dev;
         outl(y,dev->base_addr +x);
 }
 
 #else /* RTL_IO_MAP */
 
-u8 read_nic_byte(struct net_device *dev, int x)
+u8 read_nic_byte(struct r8192_priv *priv, int x)
 {
+	struct net_device *dev = priv->ieee80211->dev;
         return 0xff&readb((u8*)dev->mem_start +x);
 }
 
-u32 read_nic_dword(struct net_device *dev, int x)
+u32 read_nic_dword(struct r8192_priv *priv, int x)
 {
+	struct net_device *dev = priv->ieee80211->dev;
         return readl((u8*)dev->mem_start +x);
 }
 
-u16 read_nic_word(struct net_device *dev, int x)
+u16 read_nic_word(struct r8192_priv *priv, int x)
 {
+	struct net_device *dev = priv->ieee80211->dev;
         return readw((u8*)dev->mem_start +x);
 }
 
-void write_nic_byte(struct net_device *dev, int x,u8 y)
+void write_nic_byte(struct r8192_priv *priv, int x,u8 y)
 {
+	struct net_device *dev = priv->ieee80211->dev;
         writeb(y,(u8*)dev->mem_start +x);
 	udelay(20);
 }
 
-void write_nic_dword(struct net_device *dev, int x,u32 y)
+void write_nic_dword(struct r8192_priv *priv, int x,u32 y)
 {
+	struct net_device *dev = priv->ieee80211->dev;
         writel(y,(u8*)dev->mem_start +x);
 	udelay(20);
 }
 
-void write_nic_word(struct net_device *dev, int x,u16 y)
+void write_nic_word(struct r8192_priv *priv, int x,u16 y)
 {
+	struct net_device *dev = priv->ieee80211->dev;
         writew(y,(u8*)dev->mem_start +x);
 	udelay(20);
 }
@@ -370,14 +383,14 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 	{
 
 		case HW_VAR_BSSID:
-			write_nic_dword(dev, BSSIDR, ((u32*)(val))[0]);
-			write_nic_word(dev, BSSIDR+2, ((u16*)(val+2))[0]);
+			write_nic_dword(priv, BSSIDR, ((u32*)(val))[0]);
+			write_nic_word(priv, BSSIDR+2, ((u16*)(val+2))[0]);
 		break;
 
 		case HW_VAR_MEDIA_STATUS:
 		{
 			RT_OP_MODE	OpMode = *((RT_OP_MODE *)(val));
-			u8		btMsr = read_nic_byte(dev, MSR);
+			u8		btMsr = read_nic_byte(priv, MSR);
 
 			btMsr &= 0xfc;
 
@@ -400,7 +413,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 				break;
 			}
 
-			write_nic_byte(dev, MSR, btMsr);
+			write_nic_byte(priv, MSR, btMsr);
 		}
 		break;
 
@@ -409,7 +422,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 			u32	RegRCR, Type;
 
 			Type = ((u8*)(val))[0];
-			RegRCR = read_nic_dword(dev,RCR);
+			RegRCR = read_nic_dword(priv, RCR);
 			priv->ReceiveConfig = RegRCR;
 
 			if (Type == true)
@@ -417,7 +430,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 			else if (Type == false)
 				RegRCR &= (~RCR_CBSSID);
 
-			write_nic_dword(dev, RCR,RegRCR);
+			write_nic_dword(priv, RCR,RegRCR);
 			priv->ReceiveConfig = RegRCR;
 
 		}
@@ -426,7 +439,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 		case HW_VAR_SLOT_TIME:
 		{
 			priv->slot_time = val[0];
-			write_nic_byte(dev, SLOT_TIME, val[0]);
+			write_nic_byte(priv, SLOT_TIME, val[0]);
 
 		}
 		break;
@@ -438,12 +451,12 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 			regTmp = priv->basic_rate;
 			if (priv->short_preamble)
 				regTmp |= BRSR_AckShortPmb;
-			write_nic_dword(dev, RRSR, regTmp);
+			write_nic_dword(priv, RRSR, regTmp);
 		}
 		break;
 
 		case HW_VAR_CPU_RST:
-			write_nic_dword(dev, CPU_GEN, ((u32*)(val))[0]);
+			write_nic_dword(priv, CPU_GEN, ((u32*)(val))[0]);
 		break;
 
 		default:
@@ -489,6 +502,7 @@ static int proc_get_registers(char *page, char **start,
 			  int *eof, void *data)
 {
 	struct net_device *dev = data;
+	struct r8192_priv *priv = ieee80211_priv(dev);
 	int len = 0;
 	int i,n;
 	int max=0xff;
@@ -504,7 +518,7 @@ static int proc_get_registers(char *page, char **start,
 
 		for(i=0;i<16 && n<=max;i++,n++)
 		len += snprintf(page + len, count - len,
-			"%2x ",read_nic_byte(dev,n));
+			"%2x ",read_nic_byte(priv,n));
 	}
 	len += snprintf(page + len, count - len,"\n");
 	len += snprintf(page + len, count - len,
@@ -516,7 +530,7 @@ static int proc_get_registers(char *page, char **start,
 
                 for(i=0;i<16 && n<=max;i++,n++)
                 len += snprintf(page + len, count - len,
-                        "%2x ",read_nic_byte(dev,0x100|n));
+                        "%2x ",read_nic_byte(priv,0x100|n));
         }
 
 	len += snprintf(page + len, count - len,
@@ -528,7 +542,7 @@ static int proc_get_registers(char *page, char **start,
 
                 for(i=0;i<16 && n<=max;i++,n++)
                 len += snprintf(page + len, count - len,
-                        "%2x ",read_nic_byte(dev,0x300|n));
+                        "%2x ",read_nic_byte(priv,0x300|n));
         }
 
 	*eof = 1;
@@ -705,14 +719,14 @@ static void rtl8192_irq_enable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	priv->irq_enabled = 1;
-	write_nic_dword(dev,INTA_MASK, priv->irq_mask);
+	write_nic_dword(priv, INTA_MASK, priv->irq_mask);
 }
 
 void rtl8192_irq_disable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
-	write_nic_dword(dev,INTA_MASK,0);
+	write_nic_dword(priv, INTA_MASK, 0);
 	priv->irq_enabled = 0;
 }
 
@@ -721,7 +735,7 @@ void rtl8192_update_msr(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 msr;
 
-	msr  = read_nic_byte(dev, MSR);
+	msr  = read_nic_byte(priv, MSR);
 	msr &= ~ MSR_LINK_MASK;
 
 	/* do not change in link_state != WLAN_LINK_ASSOCIATED.
@@ -741,7 +755,7 @@ void rtl8192_update_msr(struct net_device *dev)
 	}else
 		msr |= (MSR_LINK_NONE<<MSR_LINK_SHIFT);
 
-	write_nic_byte(dev, MSR, msr);
+	write_nic_byte(priv, MSR, msr);
 }
 
 void rtl8192_set_chan(struct net_device *dev,short ch)
@@ -760,7 +774,7 @@ void rtl8192_rx_enable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
-	write_nic_dword(dev, RDQDA,priv->rx_ring_dma);
+	write_nic_dword(priv, RDQDA,priv->rx_ring_dma);
 }
 
 /* the TX_DESC_BASE setting is according to the following queue index
@@ -781,7 +795,7 @@ void rtl8192_tx_enable(struct net_device *dev)
 	u32 i;
 
 	for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
-		write_nic_dword(dev, TX_DESC_BASE[i], priv->tx_ring[i].dma);
+		write_nic_dword(priv, TX_DESC_BASE[i], priv->tx_ring[i].dma);
 
 	ieee80211_reset_queue(priv->ieee80211);
 }
@@ -830,6 +844,8 @@ static void rtl8192_free_tx_ring(struct net_device *dev, unsigned int prio)
 
 void PHY_SetRtl8192eRfOff(struct net_device* dev)
 {
+	struct r8192_priv *priv = ieee80211_priv(dev);
+
 	//disable RF-Chip A/B
 	rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);
 	//analog to digital off, for power save
@@ -844,7 +860,7 @@ void PHY_SetRtl8192eRfOff(struct net_device* dev)
 	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x0);
 	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x4, 0x0);
 	// Analog parameter!!Change bias and Lbus control.
-	write_nic_byte(dev, ANAPAR_FOR_8192PciE, 0x07);
+	write_nic_byte(priv, ANAPAR_FOR_8192PciE, 0x07);
 
 }
 
@@ -863,7 +879,7 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 		 * disable tx/rx. In 8185 we write 0x10 (Reset bit),
 		 * but here we make reference to WMAC and wirte 0x0
 		 */
-		write_nic_byte(dev, CMDR, 0);
+		write_nic_byte(priv, CMDR, 0);
 	}
 
 	mdelay(20);
@@ -881,19 +897,19 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 		 */
 		if (!priv->ieee80211->bSupportRemoteWakeUp) {
 			PHY_SetRtl8192eRfOff(dev);
-			ulRegRead = read_nic_dword(dev,CPU_GEN);
+			ulRegRead = read_nic_dword(priv, CPU_GEN);
 			ulRegRead |= CPU_GEN_SYSTEM_RESET;
-			write_nic_dword(dev,CPU_GEN, ulRegRead);
+			write_nic_dword(priv,CPU_GEN, ulRegRead);
 		} else {
 			/* for WOL */
-			write_nic_dword(dev, WFCRC0, 0xffffffff);
-			write_nic_dword(dev, WFCRC1, 0xffffffff);
-			write_nic_dword(dev, WFCRC2, 0xffffffff);
+			write_nic_dword(priv, WFCRC0, 0xffffffff);
+			write_nic_dword(priv, WFCRC1, 0xffffffff);
+			write_nic_dword(priv, WFCRC2, 0xffffffff);
 
 			/* Write PMR register */
-			write_nic_byte(dev, PMR, 0x5);
+			write_nic_byte(priv, PMR, 0x5);
 			/* Disable tx, enanble rx */
-			write_nic_byte(dev, MacBlkCtrl, 0xa);
+			write_nic_byte(priv, MacBlkCtrl, 0xa);
 		}
 	}
 
@@ -1102,7 +1118,7 @@ static void rtl8192_update_cap(struct net_device* dev, u16 cap)
 	tmp = priv->basic_rate;
 	if (priv->short_preamble)
 		tmp |= BRSR_AckShortPmb;
-	write_nic_dword(dev, RRSR, tmp);
+	write_nic_dword(priv, RRSR, tmp);
 
 	if (net->mode & (IEEE_G|IEEE_N_24G))
 	{
@@ -1114,7 +1130,7 @@ static void rtl8192_update_cap(struct net_device* dev, u16 cap)
 		else //long slot time
 			slot_time = NON_SHORT_SLOT_TIME;
 		priv->slot_time = slot_time;
-		write_nic_byte(dev, SLOT_TIME, slot_time);
+		write_nic_byte(priv, SLOT_TIME, slot_time);
 	}
 
 }
@@ -1139,25 +1155,25 @@ static void rtl8192_net_update(struct net_device *dev)
 	priv->basic_rate = rate_config &= 0x15f;
 
 	/* BSSID */
-	write_nic_dword(dev, BSSIDR, ((u32 *)net->bssid)[0]);
-	write_nic_word(dev, BSSIDR+4, ((u16 *)net->bssid)[2]);
+	write_nic_dword(priv, BSSIDR, ((u32 *)net->bssid)[0]);
+	write_nic_word(priv, BSSIDR+4, ((u16 *)net->bssid)[2]);
 
 	if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
 	{
-		write_nic_word(dev, ATIMWND, 2);
-		write_nic_word(dev, BCN_DMATIME, 256);
-		write_nic_word(dev, BCN_INTERVAL, net->beacon_interval);
+		write_nic_word(priv, ATIMWND, 2);
+		write_nic_word(priv, BCN_DMATIME, 256);
+		write_nic_word(priv, BCN_INTERVAL, net->beacon_interval);
 		/*
 		 * BIT15 of BCN_DRV_EARLY_INT will indicate
 		 * whether software beacon or hw beacon is applied.
 		 */
-		write_nic_word(dev, BCN_DRV_EARLY_INT, 10);
-		write_nic_byte(dev, BCN_ERR_THRESH, 100);
+		write_nic_word(priv, BCN_DRV_EARLY_INT, 10);
+		write_nic_byte(priv, BCN_ERR_THRESH, 100);
 
 		BcnTimeCfg |= (BcnCW<<BCN_TCFG_CW_SHIFT);
 		/* TODO: BcnIFS may required to be changed on ASIC */
 		BcnTimeCfg |= BcnIFS<<BCN_TCFG_IFS;
-		write_nic_word(dev, BCN_TCFG, BcnTimeCfg);
+		write_nic_word(priv, BCN_TCFG, BcnTimeCfg);
 	}
 }
 
@@ -1200,7 +1216,7 @@ void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb)
     __skb_queue_tail(&ring->queue, skb);
     spin_unlock_irqrestore(&priv->irq_th_lock,flags);
 
-    write_nic_byte(dev, TPPoll, TPPoll_CQ);
+    write_nic_byte(priv, TPPoll, TPPoll_CQ);
 
     return;
 }
@@ -1465,7 +1481,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 	pdesc->OWN = 1;
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 	dev->trans_start = jiffies;
-	write_nic_word(dev, TPPoll, 0x01<<tcb_desc->queue_index);
+	write_nic_word(priv, TPPoll, 0x01<<tcb_desc->queue_index);
 	return 0;
 }
 
@@ -1601,7 +1617,7 @@ static void rtl8192_link_change(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;
-	//write_nic_word(dev, BCN_INTR_ITV, net->beacon_interval);
+	//write_nic_word(priv, BCN_INTR_ITV, net->beacon_interval);
 	if (ieee->state == IEEE80211_LINKED)
 	{
 		rtl8192_net_update(dev);
@@ -1613,7 +1629,7 @@ static void rtl8192_link_change(struct net_device *dev)
 	}
 	else
 	{
-		write_nic_byte(dev, 0x173, 0);
+		write_nic_byte(priv, 0x173, 0);
 	}
 	/*update timing params*/
 	//rtl8192_set_chan(dev, priv->chan);
@@ -1625,12 +1641,12 @@ static void rtl8192_link_change(struct net_device *dev)
 	if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC)
 	{
 		u32 reg = 0;
-		reg = read_nic_dword(dev, RCR);
+		reg = read_nic_dword(priv, RCR);
 		if (priv->ieee80211->state == IEEE80211_LINKED)
 			priv->ReceiveConfig = reg |= RCR_CBSSID;
 		else
 			priv->ReceiveConfig = reg &= ~RCR_CBSSID;
-		write_nic_dword(dev, RCR, reg);
+		write_nic_dword(priv, RCR, reg);
 	}
 }
 
@@ -1663,7 +1679,6 @@ static const int WDCAPARA_ADD[] = {EDCAPARA_BE,EDCAPARA_BK,EDCAPARA_VI,EDCAPARA_
 static void rtl8192_qos_activate(struct work_struct * work)
 {
         struct r8192_priv *priv = container_of(work, struct r8192_priv, qos_activate);
-        struct net_device *dev = priv->ieee80211->dev;
         struct ieee80211_qos_parameters *qos_parameters = &priv->ieee80211->current_network.qos_data.parameters;
         u8 mode = priv->ieee80211->current_network.mode;
 	u8  u1bAIFS;
@@ -1684,8 +1699,8 @@ static void rtl8192_qos_activate(struct work_struct * work)
 				(((u32)(qos_parameters->cw_max[i]))<< AC_PARAM_ECW_MAX_OFFSET)|
 				(((u32)(qos_parameters->cw_min[i]))<< AC_PARAM_ECW_MIN_OFFSET)|
 				((u32)u1bAIFS << AC_PARAM_AIFS_OFFSET));
-		write_nic_dword(dev, WDCAPARA_ADD[i], u4bAcParam);
-		//write_nic_dword(dev, WDCAPARA_ADD[i], 0x005e4332);
+		write_nic_dword(priv, WDCAPARA_ADD[i], u4bAcParam);
+		//write_nic_dword(priv, WDCAPARA_ADD[i], 0x005e4332);
 	}
 
 success:
@@ -1855,8 +1870,8 @@ static void rtl8192_update_ratr_table(struct net_device* dev)
 	}else if(!ieee->pHTInfo->bCurTxBW40MHz && ieee->pHTInfo->bCurShortGI20MHz){
 		ratr_value |= 0x80000000;
 	}
-	write_nic_dword(dev, RATR0+rate_index*4, ratr_value);
-	write_nic_byte(dev, UFWP, 1);
+	write_nic_dword(priv, RATR0+rate_index*4, ratr_value);
+	write_nic_byte(priv, UFWP, 1);
 }
 
 static bool GetNmodeSupportBySecCfg8190Pci(struct net_device*dev)
@@ -2255,7 +2270,7 @@ static void rtl8192_get_eeprom_size(struct net_device* dev)
 	u16 curCR = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	RT_TRACE(COMP_INIT, "===========>%s()\n", __FUNCTION__);
-	curCR = read_nic_dword(dev, EPROM_CMD);
+	curCR = read_nic_dword(priv, EPROM_CMD);
 	RT_TRACE(COMP_INIT, "read from Reg Cmd9346CR(%x):%x\n", EPROM_CMD, curCR);
 	//whether need I consider BIT5?
 	priv->epromtype = (curCR & EPROM_CMD_9356SEL) ? EPROM_93c56 : EPROM_93c46;
@@ -2266,10 +2281,9 @@ static void rtl8192_get_eeprom_size(struct net_device* dev)
  * Adapter->EEPROMAddressSize should be set before this function call.
  *  EEPROM address size can be got through GetEEPROMSize8185()
  */
-static void rtl8192_read_eeprom_info(struct net_device* dev)
+static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
+	struct net_device *dev = priv->ieee80211->dev;
 	u8			tempval;
 #ifdef RTL8192E
 	u8			ICVer8192, ICVer8256;
@@ -2794,7 +2808,7 @@ static short rtl8192_init(struct net_device *dev)
 	rtl8192_init_priv_lock(priv);
 	rtl8192_init_priv_task(dev);
 	rtl8192_get_eeprom_size(dev);
-	rtl8192_read_eeprom_info(dev);
+	rtl8192_read_eeprom_info(priv);
 	rtl8192_get_channel_map(dev);
 	init_hal_dm(dev);
 	init_timer(&priv->watch_dog_timer);
@@ -2862,7 +2876,7 @@ static void rtl8192_hwconfig(struct net_device* dev)
 		break;
 	}
 
-	write_nic_byte(dev, BW_OPMODE, regBwOpMode);
+	write_nic_byte(priv, BW_OPMODE, regBwOpMode);
 	{
 		u32 ratr_value = 0;
 		ratr_value = regRATR;
@@ -2870,17 +2884,17 @@ static void rtl8192_hwconfig(struct net_device* dev)
 		{
 			ratr_value &= ~(RATE_ALL_OFDM_2SS);
 		}
-		write_nic_dword(dev, RATR0, ratr_value);
-		write_nic_byte(dev, UFWP, 1);
+		write_nic_dword(priv, RATR0, ratr_value);
+		write_nic_byte(priv, UFWP, 1);
 	}
-	regTmp = read_nic_byte(dev, 0x313);
+	regTmp = read_nic_byte(priv, 0x313);
 	regRRSR = ((regTmp) << 24) | (regRRSR & 0x00ffffff);
-	write_nic_dword(dev, RRSR, regRRSR);
+	write_nic_dword(priv, RRSR, regRRSR);
 
 	//
 	// Set Retry Limit here
 	//
-	write_nic_word(dev, RETRY_LIMIT,
+	write_nic_word(priv, RETRY_LIMIT,
 			priv->ShortRetryLimit << RETRY_LIMIT_SHORT_SHIFT |
 			priv->LongRetryLimit << RETRY_LIMIT_LONG_SHIFT);
 	// Set Contention Window here
@@ -2922,7 +2936,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
         //dPLL on
         if(priv->ResetProgress == RESET_TYPE_NORESET)
         {
-            write_nic_byte(dev, ANAPAR, 0x37);
+            write_nic_byte(priv, ANAPAR, 0x37);
             // Accordign to designer's explain, LBUS active will never > 10ms. We delay 10ms
             // Joseph increae the time to prevent firmware download fail
             mdelay(500);
@@ -2936,7 +2950,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	//3 //Config CPUReset Register
 	//3//
 	//3 Firmware Reset Or Not
-	ulRegRead = read_nic_dword(dev, CPU_GEN);
+	ulRegRead = read_nic_dword(priv, CPU_GEN);
 	if(priv->pFirmware->firmware_status == FW_STATUS_0_INIT)
 	{	//called from MPInitialized. do nothing
 		ulRegRead |= CPU_GEN_SYSTEM_RESET;
@@ -2950,7 +2964,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	ulRegRead &= (~(CPU_GEN_GPIO_UART));
 #endif
 
-	write_nic_dword(dev, CPU_GEN, ulRegRead);
+	write_nic_dword(priv, CPU_GEN, ulRegRead);
 	//mdelay(100);
 
 #ifdef RTL8192E
@@ -2959,18 +2973,18 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	//3 //Fix the issue of E-cut high temperature issue
 	//3//
 	// TODO: E cut only
-	ICVersion = read_nic_byte(dev, IC_VERRSION);
+	ICVersion = read_nic_byte(priv, IC_VERRSION);
 	if(ICVersion >= 0x4) //E-cut only
 	{
 		// HW SD suggest that we should not wirte this register too often, so driver
 		// should readback this register. This register will be modified only when
 		// power on reset
-		SwitchingRegulatorOutput = read_nic_byte(dev, SWREGULATOR);
+		SwitchingRegulatorOutput = read_nic_byte(priv, SWREGULATOR);
 		if(SwitchingRegulatorOutput  != 0xb8)
 		{
-			write_nic_byte(dev, SWREGULATOR, 0xa8);
+			write_nic_byte(priv, SWREGULATOR, 0xa8);
 			mdelay(1);
-			write_nic_byte(dev, SWREGULATOR, 0xb8);
+			write_nic_byte(priv, SWREGULATOR, 0xb8);
 		}
 	}
 #endif
@@ -2997,7 +3011,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	//priv->LoopbackMode = RTL819X_MAC_LOOPBACK;
 	if(priv->ResetProgress == RESET_TYPE_NORESET)
 	{
-	ulRegRead = read_nic_dword(dev, CPU_GEN);
+	ulRegRead = read_nic_dword(priv, CPU_GEN);
 	if(priv->LoopbackMode == RTL819X_NO_LOOPBACK)
 	{
 		ulRegRead = ((ulRegRead & CPU_GEN_NO_LOOPBACK_MSK) | CPU_GEN_NO_LOOPBACK_SET);
@@ -3013,7 +3027,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 
 	//2008.06.03, for WOL
 	//ulRegRead &= (~(CPU_GEN_GPIO_UART));
-	write_nic_dword(dev, CPU_GEN, ulRegRead);
+	write_nic_dword(priv, CPU_GEN, ulRegRead);
 
 	// 2006.11.29. After reset cpu, we sholud wait for a second, otherwise, it may fail to write registers. Emily
 	udelay(500);
@@ -3025,24 +3039,24 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	//2=======================================================
 	// If there is changes, please make sure it applies to all of the FPGA version
 	//3 Turn on Tx/Rx
-	write_nic_byte(dev, CMDR, CR_RE|CR_TE);
+	write_nic_byte(priv, CMDR, CR_RE|CR_TE);
 
 	//2Set Tx dma burst
 #ifdef RTL8190P
-	write_nic_byte(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
+	write_nic_byte(priv, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
 			(MXDMA2_NoLimit<<MXDMA2_TX_SHIFT) |
 			(1<<MULRW_SHIFT)));
 #else
 	#ifdef RTL8192E
-	write_nic_byte(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
+	write_nic_byte(priv, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
 				   (MXDMA2_NoLimit<<MXDMA2_TX_SHIFT) ));
 	#endif
 #endif
 	//set IDR0 here
-	write_nic_dword(dev, MAC0, ((u32*)dev->dev_addr)[0]);
-	write_nic_word(dev, MAC4, ((u16*)(dev->dev_addr + 4))[0]);
+	write_nic_dword(priv, MAC0, ((u32*)dev->dev_addr)[0]);
+	write_nic_word(priv, MAC4, ((u16*)(dev->dev_addr + 4))[0]);
 	//set RCR
-	write_nic_dword(dev, RCR, priv->ReceiveConfig);
+	write_nic_dword(priv, RCR, priv->ReceiveConfig);
 
 	//3 Initialize Number of Reserved Pages in Firmware Queue
 	#ifdef TO_DO_LIST
@@ -3060,12 +3074,12 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	else
 	#endif
 	{
-		write_nic_dword(dev, RQPN1,  NUM_OF_PAGE_IN_FW_QUEUE_BK << RSVD_FW_QUEUE_PAGE_BK_SHIFT |
+		write_nic_dword(priv, RQPN1,  NUM_OF_PAGE_IN_FW_QUEUE_BK << RSVD_FW_QUEUE_PAGE_BK_SHIFT |
 					NUM_OF_PAGE_IN_FW_QUEUE_BE << RSVD_FW_QUEUE_PAGE_BE_SHIFT |
 					NUM_OF_PAGE_IN_FW_QUEUE_VI << RSVD_FW_QUEUE_PAGE_VI_SHIFT |
 					NUM_OF_PAGE_IN_FW_QUEUE_VO <<RSVD_FW_QUEUE_PAGE_VO_SHIFT);
-		write_nic_dword(dev, RQPN2, NUM_OF_PAGE_IN_FW_QUEUE_MGNT << RSVD_FW_QUEUE_PAGE_MGNT_SHIFT);
-		write_nic_dword(dev, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW|
+		write_nic_dword(priv, RQPN2, NUM_OF_PAGE_IN_FW_QUEUE_MGNT << RSVD_FW_QUEUE_PAGE_MGNT_SHIFT);
+		write_nic_dword(priv, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW|
 					NUM_OF_PAGE_IN_FW_QUEUE_BCN<<RSVD_FW_QUEUE_PAGE_BCN_SHIFT|
 					NUM_OF_PAGE_IN_FW_QUEUE_PUB<<RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
 	}
@@ -3075,13 +3089,13 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	//3Set Response Rate Setting Register
 	// CCK rate is supported by default.
 	// CCK rate will be filtered out only when associated AP does not support it.
-	ulRegRead = (0xFFF00000 & read_nic_dword(dev, RRSR))  | RATE_ALL_OFDM_AG | RATE_ALL_CCK;
-	write_nic_dword(dev, RRSR, ulRegRead);
-	write_nic_dword(dev, RATR0+4*7, (RATE_ALL_OFDM_AG | RATE_ALL_CCK));
+	ulRegRead = (0xFFF00000 & read_nic_dword(priv, RRSR))  | RATE_ALL_OFDM_AG | RATE_ALL_CCK;
+	write_nic_dword(priv, RRSR, ulRegRead);
+	write_nic_dword(priv, RATR0+4*7, (RATE_ALL_OFDM_AG | RATE_ALL_CCK));
 
 	//2Set AckTimeout
 	// TODO: (it value is only for FPGA version). need to be changed!!2006.12.18, by Emily
-	write_nic_byte(dev, ACK_TIMEOUT, 0x30);
+	write_nic_byte(priv, ACK_TIMEOUT, 0x30);
 
 	//rtl8192_actset_wirelessmode(dev,priv->RegWirelessMode);
 	if(priv->ResetProgress == RESET_TYPE_NORESET)
@@ -3097,19 +3111,19 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 		SECR_value |= SCR_TxEncEnable;
 		SECR_value |= SCR_RxDecEnable;
 		SECR_value |= SCR_NoSKMC;
-		write_nic_byte(dev, SECR, SECR_value);
+		write_nic_byte(priv, SECR, SECR_value);
 	}
 	//3Beacon related
-	write_nic_word(dev, ATIMWND, 2);
-	write_nic_word(dev, BCN_INTERVAL, 100);
+	write_nic_word(priv, ATIMWND, 2);
+	write_nic_word(priv, BCN_INTERVAL, 100);
 	for (i=0; i<QOS_QUEUE_NUM; i++)
-		write_nic_dword(dev, WDCAPARA_ADD[i], 0x005e4332);
+		write_nic_dword(priv, WDCAPARA_ADD[i], 0x005e4332);
 	//
 	// Switching regulator controller: This is set temporarily.
 	// It's not sure if this can be removed in the future.
 	// PJ advised to leave it by default.
 	//
-	write_nic_byte(dev, 0xbe, 0xc0);
+	write_nic_byte(priv, 0xbe, 0xc0);
 
 	//2=======================================================
 	// Set PHY related configuration defined in MAC register bank
@@ -3122,7 +3136,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	}
 
 	//if D or C cut
-		tmpvalue = read_nic_byte(dev, IC_VERRSION);
+		tmpvalue = read_nic_byte(priv, IC_VERRSION);
 		priv->IC_Cut = tmpvalue;
 		RT_TRACE(COMP_INIT, "priv->IC_Cut = 0x%x\n", priv->IC_Cut);
 		if(priv->IC_Cut >= IC_VersionCut_D)
@@ -3173,17 +3187,17 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 
 #ifdef RTL8192E
 	//Enable Led
-	write_nic_byte(dev, 0x87, 0x0);
+	write_nic_byte(priv, 0x87, 0x0);
 #endif
 #ifdef RTL8190P
 	//2008.06.03, for WOL
-	ucRegRead = read_nic_byte(dev, GPE);
+	ucRegRead = read_nic_byte(priv, GPE);
 	ucRegRead |= BIT0;
-	write_nic_byte(dev, GPE, ucRegRead);
+	write_nic_byte(priv, GPE, ucRegRead);
 
-	ucRegRead = read_nic_byte(dev, GPO);
+	ucRegRead = read_nic_byte(priv, GPO);
 	ucRegRead &= ~BIT0;
-	write_nic_byte(dev, GPO, ucRegRead);
+	write_nic_byte(priv, GPO, ucRegRead);
 #endif
 
 	//2=======================================================
@@ -3376,34 +3390,34 @@ static void rtl8192_start_beacon(struct net_device *dev)
 	//rtl8192_beacon_tx_enable(dev);
 
 	/* ATIM window */
-	write_nic_word(dev, ATIMWND, 2);
+	write_nic_word(priv, ATIMWND, 2);
 
 	/* Beacon interval (in unit of TU) */
-	write_nic_word(dev, BCN_INTERVAL, net->beacon_interval);
+	write_nic_word(priv, BCN_INTERVAL, net->beacon_interval);
 
 	/*
 	 * DrvErlyInt (in unit of TU).
 	 * (Time to send interrupt to notify driver to c
 	 * hange beacon content)
 	 * */
-	write_nic_word(dev, BCN_DRV_EARLY_INT, 10);
+	write_nic_word(priv, BCN_DRV_EARLY_INT, 10);
 
 	/*
 	 * BcnDMATIM(in unit of us).
 	 * Indicates the time before TBTT to perform beacon queue DMA
 	 * */
-	write_nic_word(dev, BCN_DMATIME, 256);
+	write_nic_word(priv, BCN_DMATIME, 256);
 
 	/*
 	 * Force beacon frame transmission even after receiving
 	 * beacon frame from other ad hoc STA
 	 * */
-	write_nic_byte(dev, BCN_ERR_THRESH, 100);
+	write_nic_byte(priv, BCN_ERR_THRESH, 100);
 
 	/* Set CW and IFS */
 	BcnTimeCfg |= BcnCW<<BCN_TCFG_CW_SHIFT;
 	BcnTimeCfg |= BcnIFS<<BCN_TCFG_IFS;
-	write_nic_word(dev, BCN_TCFG, BcnTimeCfg);
+	write_nic_word(priv, BCN_TCFG, BcnTimeCfg);
 
 
 	/* enable the interrupt for ad-hoc process */
@@ -3412,8 +3426,8 @@ static void rtl8192_start_beacon(struct net_device *dev)
 
 static bool HalTxCheckStuck8190Pci(struct net_device *dev)
 {
-	u16 				RegTxCounter = read_nic_word(dev, 0x128);
 	struct r8192_priv *priv = ieee80211_priv(dev);
+	u16 RegTxCounter = read_nic_word(priv, 0x128);
 	bool				bStuck = FALSE;
 	RT_TRACE(COMP_RESET,"%s():RegTxCounter is %d,TxCounter is %d\n",__FUNCTION__,RegTxCounter,priv->TxCounter);
 	if(priv->TxCounter==RegTxCounter)
@@ -3467,7 +3481,7 @@ TxCheckStuck(struct net_device *dev)
 static bool HalRxCheckStuck8190Pci(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u16 				RegRxCounter = read_nic_word(dev, 0x130);
+	u16 RegRxCounter = read_nic_word(priv, 0x130);
 	bool				bStuck = FALSE;
 
 	RT_TRACE(COMP_RESET,"%s(): RegRxCounter is %d,RxCounter is %d\n",__FUNCTION__,RegRxCounter,priv->RxCounter);
@@ -3829,7 +3843,7 @@ RESET_START:
 		priv->bResetInProgress = false;
 
 		// For test --> force write UFWP.
-		write_nic_byte(dev, UFWP, 1);
+		write_nic_byte(priv, UFWP, 1);
 		RT_TRACE(COMP_RESET, "Reset finished!! ====>[%d]\n", priv->reset_count);
 	}
 }
@@ -4463,7 +4477,7 @@ static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 						setKey(dev, ipw->u.crypt.idx, ipw->u.crypt.idx, ieee->pairwise_key_type, (u8*)ieee->ap_mac_addr, 0, key);
 					}
 					if ((ieee->pairwise_key_type == KEY_TYPE_CCMP) && ieee->pHTInfo->bCurrentHTSupport){
-							write_nic_byte(dev, 0x173, 1); //fix aes bug
+							write_nic_byte(priv, 0x173, 1); //fix aes bug
 						}
 
 				}
@@ -5419,7 +5433,7 @@ static void rtl8192_rx(struct net_device *dev)
                 stats.bFirstMPDU = (pDrvInfo->PartAggr==1) && (pDrvInfo->FirstAGGR==1);
 
                 stats.TimeStampLow = pDrvInfo->TSFL;
-                stats.TimeStampHigh = read_nic_dword(dev, TSFR+4);
+                stats.TimeStampHigh = read_nic_dword(priv, TSFR+4);
 
                 UpdateRxPktTimeStamp8190(dev, &stats);
 
@@ -5490,7 +5504,7 @@ static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 {
        rtl8192_rx(priv->ieee80211->dev);
 	/* unmask RDU */
-       write_nic_dword(priv->ieee80211->dev, INTA_MASK,read_nic_dword(priv->ieee80211->dev, INTA_MASK) | IMR_RDU);
+       write_nic_dword(priv, INTA_MASK, read_nic_dword(priv, INTA_MASK) | IMR_RDU);
 }
 
 static const struct net_device_ops rtl8192_netdev_ops = {
@@ -5810,8 +5824,8 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 
 	/* ISR: 4bytes */
 
-	inta = read_nic_dword(dev, ISR); /* & priv->IntrMask; */
-	write_nic_dword(dev, ISR, inta); /* reset int situation */
+	inta = read_nic_dword(priv, ISR); /* & priv->IntrMask; */
+	write_nic_dword(priv, ISR, inta); /* reset int situation */
 
 	if (!inta) {
 		/*
@@ -5867,7 +5881,7 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 		RT_TRACE(COMP_INTR, "rx descriptor unavailable!\n");
 		priv->stats.rxrdu++;
 		/* reset int situation */
-		write_nic_dword(dev, INTA_MASK, read_nic_dword(dev, INTA_MASK) & ~IMR_RDU);
+		write_nic_dword(priv, INTA_MASK, read_nic_dword(priv, INTA_MASK) & ~IMR_RDU);
 		tasklet_schedule(&priv->irq_rx_tasklet);
 	}
 
@@ -5945,7 +5959,7 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 	RT_TRACE(COMP_SEC,"%s:, hwsec:%d, pairwise_key:%d, SECR_value:%x\n", __FUNCTION__,
 			ieee->hwsec_active, ieee->pairwise_key_type, SECR_value);
 	{
-                write_nic_byte(dev, SECR,  SECR_value);//SECR_value |  SCR_UseDK );
+                write_nic_byte(priv, SECR,  SECR_value);//SECR_value |  SCR_UseDK );
         }
 
 }
@@ -6005,22 +6019,22 @@ void setKey(	struct net_device *dev,
 					(u32)(*(MacAddr+1)) << 24|
 					(u32)usConfig;
 
-			write_nic_dword(dev, WCAMI, TargetContent);
-			write_nic_dword(dev, RWCAM, TargetCommand);
+			write_nic_dword(priv, WCAMI, TargetContent);
+			write_nic_dword(priv, RWCAM, TargetCommand);
 		}
 		else if(i==1){//MAC
                         TargetContent = (u32)(*(MacAddr+2)) 	 |
                                         (u32)(*(MacAddr+3)) <<  8|
                                         (u32)(*(MacAddr+4)) << 16|
                                         (u32)(*(MacAddr+5)) << 24;
-			write_nic_dword(dev, WCAMI, TargetContent);
-			write_nic_dword(dev, RWCAM, TargetCommand);
+			write_nic_dword(priv, WCAMI, TargetContent);
+			write_nic_dword(priv, RWCAM, TargetCommand);
 		}
 		else {	//Key Material
 			if(KeyContent != NULL)
 			{
-			write_nic_dword(dev, WCAMI, (u32)(*(KeyContent+i-2)) );
-			write_nic_dword(dev, RWCAM, TargetCommand);
+			write_nic_dword(priv, WCAMI, (u32)(*(KeyContent+i-2)) );
+			write_nic_dword(priv, RWCAM, TargetCommand);
 		}
 	}
 	}

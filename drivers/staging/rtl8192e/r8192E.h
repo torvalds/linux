@@ -1052,16 +1052,16 @@ typedef struct r8192_priv
 
 bool init_firmware(struct net_device *dev);
 short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
-u32 read_cam(struct net_device *dev, u8 addr);
-void write_cam(struct net_device *dev, u8 addr, u32 data);
-u8 read_nic_byte(struct net_device *dev, int x);
+u32 read_cam(struct r8192_priv *priv, u8 addr);
+void write_cam(struct r8192_priv *priv, u8 addr, u32 data);
+u8 read_nic_byte(struct r8192_priv *priv, int x);
 u8 read_nic_byte_E(struct net_device *dev, int x);
-u32 read_nic_dword(struct net_device *dev, int x);
-u16 read_nic_word(struct net_device *dev, int x) ;
-void write_nic_byte(struct net_device *dev, int x,u8 y);
-void write_nic_byte_E(struct net_device *dev, int x,u8 y);
-void write_nic_word(struct net_device *dev, int x,u16 y);
-void write_nic_dword(struct net_device *dev, int x,u32 y);
+u32 read_nic_dword(struct r8192_priv *priv, int x);
+u16 read_nic_word(struct r8192_priv *priv, int x) ;
+void write_nic_byte(struct r8192_priv *priv, int x,u8 y);
+void write_nic_byte_E(struct net_device *priv, int x,u8 y);
+void write_nic_word(struct r8192_priv *priv, int x,u16 y);
+void write_nic_dword(struct r8192_priv *priv, int x,u32 y);
 
 void rtl8192_halt_adapter(struct net_device *dev, bool reset);
 void rtl8192_rx_enable(struct net_device *);
