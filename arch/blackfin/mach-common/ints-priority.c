@@ -334,25 +334,25 @@ static void bfin_handle_irq(unsigned irq)
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 static int error_int_mask;
 
-static void bfin_generic_error_mask_irq(unsigned int irq)
+static void bfin_generic_error_mask_irq(struct irq_data *d)
 {
-	error_int_mask &= ~(1L << (irq - IRQ_PPI_ERROR));
+	error_int_mask &= ~(1L << (d->irq - IRQ_PPI_ERROR));
 	if (!error_int_mask)
 		bfin_internal_mask_irq(IRQ_GENERIC_ERROR);
 }
 
-static void bfin_generic_error_unmask_irq(unsigned int irq)
+static void bfin_generic_error_unmask_irq(struct irq_data *d)
 {
 	bfin_internal_unmask_irq(IRQ_GENERIC_ERROR);
-	error_int_mask |= 1L << (irq - IRQ_PPI_ERROR);
+	error_int_mask |= 1L << (d->irq - IRQ_PPI_ERROR);
 }
 
 static struct irq_chip bfin_generic_error_irqchip = {
 	.name = "ERROR",
 	.irq_ack = bfin_ack_noop,
-	.mask_ack = bfin_generic_error_mask_irq,
-	.mask = bfin_generic_error_mask_irq,
-	.unmask = bfin_generic_error_unmask_irq,
+	.irq_mask_ack = bfin_generic_error_mask_irq,
+	.irq_mask = bfin_generic_error_mask_irq,
+	.irq_unmask = bfin_generic_error_unmask_irq,
 };
 
 static void bfin_demux_error_irq(unsigned int int_err_irq,
