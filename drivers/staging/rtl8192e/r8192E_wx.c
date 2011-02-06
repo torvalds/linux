@@ -693,20 +693,6 @@ static int r8192_wx_set_enc(struct net_device *dev,
 				zero_addr[key_idx],
 				0,                      //DefaultKey
 				hwkey);                 //KeyContent
-
-#if 0
-			if(key_idx == 0){
-
-				//write_nic_byte(dev, SECR, 7);
-				setKey( dev,
-					4,                      //EntryNo
-					key_idx,                      //KeyIndex
-					KEY_TYPE_WEP40,        //KeyType
-					broadcast_addr,         //addr
-					0,                      //DefaultKey
-					hwkey);                 //KeyContent
-			}
-#endif
 		}
 
 		else if(wrqu->encoding.length==0xd){
@@ -719,43 +705,9 @@ static int r8192_wx_set_enc(struct net_device *dev,
 				zero_addr[key_idx],
 				0,                      //DefaultKey
 				hwkey);                 //KeyContent
-#if 0
-			if(key_idx == 0){
-
-				//write_nic_byte(dev, SECR, 7);
-				setKey( dev,
-					4,                      //EntryNo
-					key_idx,                      //KeyIndex
-					KEY_TYPE_WEP104,        //KeyType
-					broadcast_addr,         //addr
-					0,                      //DefaultKey
-					hwkey);                 //KeyContent
-			}
-#endif
 		}
 		else printk("wrong type in WEP, not WEP40 and WEP104\n");
-
-
 	}
-
-#if 0
-	//consider the setting different key index situation
-	//wrqu->encoding.flags = 801 means that we set key with index "1"
-	if(wrqu->encoding.length==0 && (wrqu->encoding.flags >>8) == 0x8 ){
-		printk("===>1\n");
-		//write_nic_byte(dev, SECR, 7);
-		EnableHWSecurityConfig8192(dev);
-		//copy wpa config from default key(key0~key3) to broadcast key(key5)
-		//
-		key_idx = (wrqu->encoding.flags & 0xf)-1 ;
-		write_cam(dev, (4*6),   0xffff0000|read_cam(dev, key_idx*6) );
-		write_cam(dev, (4*6)+1, 0xffffffff);
-		write_cam(dev, (4*6)+2, read_cam(dev, (key_idx*6)+2) );
-		write_cam(dev, (4*6)+3, read_cam(dev, (key_idx*6)+3) );
-		write_cam(dev, (4*6)+4, read_cam(dev, (key_idx*6)+4) );
-		write_cam(dev, (4*6)+5, read_cam(dev, (key_idx*6)+5) );
-	}
-#endif
 
 	priv->ieee80211->wx_set_enc = 0;
 
@@ -929,14 +881,8 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		u32 key[4] = {0};
 		struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 		struct iw_point *encoding = &wrqu->encoding;
-#if 0
-		static u8 CAM_CONST_ADDR[4][6] = {
-			{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-			{0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
-			{0x00, 0x00, 0x00, 0x00, 0x00, 0x02},
-			{0x00, 0x00, 0x00, 0x00, 0x00, 0x03}};
-#endif
 		u8 idx = 0, alg = 0, group = 0;
+
 		if ((encoding->flags & IW_ENCODE_DISABLED) ||
 		ext->alg == IW_ENCODE_ALG_NONE) //none is not allowed to use hwsec WB 2008.07.01
 		{

@@ -440,12 +440,9 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 			}
 		}
 
-		// 2008.04.01
-#if 1
 		// For RTL819X, if pairwisekey = wep/tkip, we support only MCS0~7.
 		if(priv->ieee80211->GetHalfNmodeSupportByAPsHandler(dev))
 			targetRATR &=  0xf00fffff;
-#endif
 
 		//
 		// Check whether updating of RATR0 is required
@@ -2088,7 +2085,6 @@ void dm_init_edca_turbo(struct net_device *dev)
 	priv->bis_cur_rdlstate = false;
 }
 
-#if 1
 static void dm_check_edca_turbo(
 	struct net_device * dev)
 {
@@ -2106,10 +2102,8 @@ static void dm_check_edca_turbo(
 	// Do not be Turbo if it's under WiFi config and Qos Enabled, because the EDCA parameters
 	// should follow the settings from QAP. By Bruce, 2007-12-07.
 	//
-	#if 1
 	if(priv->ieee80211->state != IEEE80211_LINKED)
 		goto dm_CheckEdcaTurbo_EXIT;
-	#endif
 	// We do not turn on EDCA turbo mode for some AP that has IOT issue
 	if(priv->ieee80211->pHTInfo->IOTAction & HT_IOT_ACT_DISABLE_EDCA_TURBO)
 		goto dm_CheckEdcaTurbo_EXIT;
@@ -2197,7 +2191,6 @@ dm_CheckEdcaTurbo_EXIT:
 	lastTxOkCnt = priv->stats.txbytesunicast;
 	lastRxOkCnt = priv->stats.rxbytesunicast;
 }
-#endif
 
 static void dm_init_ctstoself(struct net_device * dev)
 {
@@ -2237,18 +2230,7 @@ static void dm_ctstoself(struct net_device *dev)
 		}
 		else	//uplink
 		{
-		#if 1
 			pHTInfo->IOTAction |= HT_IOT_ACT_FORCED_CTS2SELF;
-		#else
-			if(priv->undecorated_smoothed_pwdb < priv->ieee80211->CTSToSelfTH)	// disable CTS to self
-			{
-				pHTInfo->IOTAction &= ~HT_IOT_ACT_FORCED_CTS2SELF;
-			}
-			else if(priv->undecorated_smoothed_pwdb >= (priv->ieee80211->CTSToSelfTH+5))	// enable CTS to self
-			{
-				pHTInfo->IOTAction |= HT_IOT_ACT_FORCED_CTS2SELF;
-			}
-		#endif
 		}
 
 		lastTxOkCnt = priv->stats.txbytesunicast;
@@ -2259,7 +2241,6 @@ static void dm_ctstoself(struct net_device *dev)
 
 
 /* Copy 8187B template for 9xseries */
-#if 1
 static void dm_check_rfctrl_gpio(struct net_device * dev)
 {
 #ifdef RTL8192E
@@ -2283,7 +2264,6 @@ static void dm_check_rfctrl_gpio(struct net_device * dev)
 
 }
 
-#endif
 /* Check if PBC button is pressed. */
 static	void	dm_check_pbc_gpio(struct net_device *dev)
 {
@@ -3152,7 +3132,6 @@ static void dm_check_txrateandretrycount(struct net_device * dev)
 
 static void dm_send_rssi_tofw(struct net_device *dev)
 {
-	DCMD_TXCMD_T			tx_cmd;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	// If we test chariot, we should stop the TX command ?
@@ -3160,13 +3139,5 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 	// 0x1e0(byte) to botify driver.
 	write_nic_byte(priv, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
 	return;
-#if 1
-	tx_cmd.Op		= TXCMD_SET_RX_RSSI;
-	tx_cmd.Length	= 4;
-	tx_cmd.Value		= priv->undecorated_smoothed_pwdb;
-
-	cmpk_message_handle_tx(dev, (u8*)&tx_cmd,
-								DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
-#endif
 }
 
