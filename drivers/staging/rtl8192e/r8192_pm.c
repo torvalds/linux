@@ -25,9 +25,6 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv = ieee80211_priv(dev);
-#ifdef RTL8190P
-	u8	ucRegRead;
-#endif
 	u32	ulRegRead;
 
         RT_TRACE(COMP_POWER, "============> r8192E suspend call.\n");
@@ -49,12 +46,6 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 		write_nic_dword(priv, WFCRC0, 0xffffffff);
 		write_nic_dword(priv, WFCRC1, 0xffffffff);
 		write_nic_dword(priv, WFCRC2, 0xffffffff);
-#ifdef RTL8190P
-		//GPIO 0 = TRUE
-		ucRegRead = read_nic_byte(priv, GPO);
-		ucRegRead |= BIT0;
-		write_nic_byte(priv, GPO, ucRegRead);
-#endif
 		//Write PMR register
 		write_nic_byte(priv, PMR, 0x5);
 		//Disable tx, enanble rx

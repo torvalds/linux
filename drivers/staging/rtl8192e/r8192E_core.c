@@ -1,6 +1,6 @@
 /******************************************************************************
  * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
- * Linux device driver for RTL8190P / RTL8192E
+ * Linux device driver for RTL8192E
  *
  * Based on the r8180 driver, which is:
  * Copyright 2004-2005 Andrea Merello <andreamrl@tiscali.it>, et al.
@@ -90,21 +90,12 @@ u32 rt_global_debug_component =
 				COMP_ERR ; //always open err flags on
 
 static DEFINE_PCI_DEVICE_TABLE(rtl8192_pci_id_tbl) = {
-#ifdef RTL8190P
-	/* Realtek */
-	/* Dlink */
-	{ PCI_DEVICE(0x10ec, 0x8190) },
-	/* Corega */
-	{ PCI_DEVICE(0x07aa, 0x0045) },
-	{ PCI_DEVICE(0x07aa, 0x0046) },
-#else
 	/* Realtek */
 	{ PCI_DEVICE(0x10ec, 0x8192) },
 
 	/* Corega */
 	{ PCI_DEVICE(0x07aa, 0x0044) },
 	{ PCI_DEVICE(0x07aa, 0x0047) },
-#endif
 	{}
 };
 
@@ -887,9 +878,7 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 	if (!reset) {
 		mdelay(150);
 
-#ifdef RTL8192E
 		priv->bHwRfOffAction = 2;
-#endif
 
 		/*
 		 * Call MgntActSet_RF_State instead to
@@ -1396,12 +1385,8 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 	if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20_40) {
 		if (tcb_desc->bPacketBW) {
 			pTxFwInfo->TxBandwidth = 1;
-#ifdef RTL8190P
-			pTxFwInfo->TxSubCarrier = 3;
-#else
 			/* use duplicated mode */
 			pTxFwInfo->TxSubCarrier = 0;
-#endif
 		} else {
 			pTxFwInfo->TxBandwidth = 0;
 			pTxFwInfo->TxSubCarrier = priv->nCur40MhzPrimeSC;
@@ -2285,15 +2270,9 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 {
 	struct net_device *dev = priv->ieee80211->dev;
 	u8			tempval;
-#ifdef RTL8192E
 	u8			ICVer8192, ICVer8256;
-#endif
 	u16			i,usValue, IC_Version;
 	u16			EEPROMId;
-#ifdef RTL8190P
-   	u8			offset;
-    	u8      		EepromTxPower[100];
-#endif
 	u8 bMac_Tmp_Addr[6] = {0x00, 0xe0, 0x4c, 0x00, 0x00, 0x01};
 	RT_TRACE(COMP_INIT, "====> rtl8192_read_eeprom_info\n");
 
@@ -2328,10 +2307,6 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 		priv->eeprom_ChannelPlan = usValue&0xff;
 		IC_Version = ((usValue&0xff00)>>8);
 
-#ifdef RTL8190P
-		priv->card_8192_version = (VERSION_8190)(IC_Version);
-#else
-	#ifdef RTL8192E
 		ICVer8192 = (IC_Version&0xf);		//bit0~3; 1:A cut, 2:B cut, 3:C cut...
 		ICVer8256 = ((IC_Version&0xf0)>>4);//bit4~6, bit7 reserved for other RF chip; 1:A cut, 2:B cut, 3:C cut...
 		RT_TRACE(COMP_INIT, "\nICVer8192 = 0x%x\n", ICVer8192);
@@ -2341,8 +2316,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 			if(ICVer8256 == 0x5) //E-cut
 				priv->card_8192_version= VERSION_8190_BE;
 		}
-	#endif
-#endif
+
 		switch(priv->card_8192_version)
 		{
 			case VERSION_8190_BD:
@@ -2476,82 +2450,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 			RT_TRACE(COMP_INIT, "OFDM 2.4G Tx Power Level, Index %d = 0x%02x\n", i+1, priv->EEPROMTxPowerLevelOFDM24G[i+1]);
 		}
 		}
-		else if(priv->epromtype== EPROM_93c56)
-		{
-		#ifdef RTL8190P
-			// Read CrystalCap from EEPROM
-			if(!priv->AutoloadFailFlag)
-			{
-				priv->EEPROMAntPwDiff = EEPROM_Default_AntTxPowerDiff;
-				priv->EEPROMCrystalCap = (u8)(((eprom_read(dev, (EEPROM_C56_CrystalCap>>1))) & 0xf000)>>12);
-			}
-			else
-			{
-				priv->EEPROMAntPwDiff = EEPROM_Default_AntTxPowerDiff;
-				priv->EEPROMCrystalCap = EEPROM_Default_TxPwDiff_CrystalCap;
-			}
-			RT_TRACE(COMP_INIT,"EEPROMAntPwDiff = %d\n", priv->EEPROMAntPwDiff);
-			RT_TRACE(COMP_INIT, "EEPROMCrystalCap = %d\n", priv->EEPROMCrystalCap);
 
-			// Get Tx Power Level by Channel
-			if(!priv->AutoloadFailFlag)
-			{
-				    // Read Tx power of Channel 1 ~ 14 from EEPROM.
-			       for(i = 0; i < 12; i+=2)
-				{
-					if (i <6)
-						offset = EEPROM_C56_RfA_CCK_Chnl1_TxPwIndex + i;
-					else
-						offset = EEPROM_C56_RfC_CCK_Chnl1_TxPwIndex + i - 6;
-					usValue = eprom_read(dev, (offset>>1));
-				       *((u16*)(&EepromTxPower[i])) = usValue;
-				}
-
-			       for(i = 0; i < 12; i++)
-			       	{
-			       		if (i <= 2)
-						priv->EEPROMRfACCKChnl1TxPwLevel[i] = EepromTxPower[i];
-					else if ((i >=3 )&&(i <= 5))
-						priv->EEPROMRfAOfdmChnlTxPwLevel[i-3] = EepromTxPower[i];
-					else if ((i >=6 )&&(i <= 8))
-						priv->EEPROMRfCCCKChnl1TxPwLevel[i-6] = EepromTxPower[i];
-					else
-						priv->EEPROMRfCOfdmChnlTxPwLevel[i-9] = EepromTxPower[i];
-				}
-			}
-			else
-			{
-				priv->EEPROMRfACCKChnl1TxPwLevel[0] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfACCKChnl1TxPwLevel[1] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfACCKChnl1TxPwLevel[2] = EEPROM_Default_TxPowerLevel;
-
-				priv->EEPROMRfAOfdmChnlTxPwLevel[0] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfAOfdmChnlTxPwLevel[1] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfAOfdmChnlTxPwLevel[2] = EEPROM_Default_TxPowerLevel;
-
-				priv->EEPROMRfCCCKChnl1TxPwLevel[0] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfCCCKChnl1TxPwLevel[1] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfCCCKChnl1TxPwLevel[2] = EEPROM_Default_TxPowerLevel;
-
-				priv->EEPROMRfCOfdmChnlTxPwLevel[0] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfCOfdmChnlTxPwLevel[1] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfCOfdmChnlTxPwLevel[2] = EEPROM_Default_TxPowerLevel;
-			}
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfACCKChnl1TxPwLevel[0] = 0x%x\n", priv->EEPROMRfACCKChnl1TxPwLevel[0]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfACCKChnl1TxPwLevel[1] = 0x%x\n", priv->EEPROMRfACCKChnl1TxPwLevel[1]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfACCKChnl1TxPwLevel[2] = 0x%x\n", priv->EEPROMRfACCKChnl1TxPwLevel[2]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfAOfdmChnlTxPwLevel[0] = 0x%x\n", priv->EEPROMRfAOfdmChnlTxPwLevel[0]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfAOfdmChnlTxPwLevel[1] = 0x%x\n", priv->EEPROMRfAOfdmChnlTxPwLevel[1]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfAOfdmChnlTxPwLevel[2] = 0x%x\n", priv->EEPROMRfAOfdmChnlTxPwLevel[2]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfCCCKChnl1TxPwLevel[0] = 0x%x\n", priv->EEPROMRfCCCKChnl1TxPwLevel[0]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfCCCKChnl1TxPwLevel[1] = 0x%x\n", priv->EEPROMRfCCCKChnl1TxPwLevel[1]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfCCCKChnl1TxPwLevel[2] = 0x%x\n", priv->EEPROMRfCCCKChnl1TxPwLevel[2]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfCOfdmChnlTxPwLevel[0] = 0x%x\n", priv->EEPROMRfCOfdmChnlTxPwLevel[0]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfCOfdmChnlTxPwLevel[1] = 0x%x\n", priv->EEPROMRfCOfdmChnlTxPwLevel[1]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfCOfdmChnlTxPwLevel[2] = 0x%x\n", priv->EEPROMRfCOfdmChnlTxPwLevel[2]);
-#endif
-
-		}
 		//
 		// Update HAL variables.
 		//
@@ -2711,13 +2610,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 	switch(priv->CustomerID)
 	{
 		case RT_CID_DEFAULT:
-		#ifdef RTL8190P
-			priv->LedStrategy = HW_LED;
-		#else
-			#ifdef RTL8192E
 			priv->LedStrategy = SW_LED_MODE1;
-			#endif
-		#endif
 			break;
 
 		case RT_CID_819x_CAMEO:
@@ -2745,13 +2638,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 			//break;
 
 		default:
-		#ifdef RTL8190P
-			priv->LedStrategy = HW_LED;
-		#else
-			#ifdef RTL8192E
 			priv->LedStrategy = SW_LED_MODE1;
-			#endif
-		#endif
 			break;
 	}
 
@@ -2917,13 +2804,8 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	RT_STATUS rtStatus = RT_STATUS_SUCCESS;
 	//u8 eRFPath;
 	u8 tmpvalue;
-#ifdef RTL8192E
 	u8 ICVersion,SwitchingRegulatorOutput;
-#endif
 	bool bfirmwareok = true;
-#ifdef RTL8190P
-	u8 ucRegRead;
-#endif
 	u32	tmpRegA, tmpRegC, TempCCk;
 	int	i =0;
 
@@ -2932,7 +2814,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
         rtl8192_pci_resetdescring(dev);
 	// 2007/11/02 MH Before initalizing RF. We can not use FW to do RF-R/W.
 	priv->Rf_Mode = RF_OP_By_SW_3wire;
-#ifdef RTL8192E
+
         //dPLL on
         if(priv->ResetProgress == RESET_TYPE_NORESET)
         {
@@ -2941,7 +2823,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
             // Joseph increae the time to prevent firmware download fail
             mdelay(500);
         }
-#endif
+
 	//PlatformSleepUs(10000);
 	// For any kind of InitializeAdapter process, we shall use system now!!
 	priv->pFirmware->firmware_status = FW_STATUS_0_INIT;
@@ -2959,15 +2841,8 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	else
 		RT_TRACE(COMP_ERR, "ERROR in %s(): undefined firmware state(%d)\n", __FUNCTION__,   priv->pFirmware->firmware_status);
 
-#ifdef RTL8190P
-	//2008.06.03, for WOL 90 hw bug
-	ulRegRead &= (~(CPU_GEN_GPIO_UART));
-#endif
-
 	write_nic_dword(priv, CPU_GEN, ulRegRead);
 	//mdelay(100);
-
-#ifdef RTL8192E
 
 	//3//
 	//3 //Fix the issue of E-cut high temperature issue
@@ -2987,8 +2862,6 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 			write_nic_byte(priv, SWREGULATOR, 0xb8);
 		}
 	}
-#endif
-
 
 	//3//
 	//3// Initialize BB before MAC
@@ -3042,16 +2915,9 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	write_nic_byte(priv, CMDR, CR_RE|CR_TE);
 
 	//2Set Tx dma burst
-#ifdef RTL8190P
-	write_nic_byte(priv, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
-			(MXDMA2_NoLimit<<MXDMA2_TX_SHIFT) |
-			(1<<MULRW_SHIFT)));
-#else
-	#ifdef RTL8192E
 	write_nic_byte(priv, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
 				   (MXDMA2_NoLimit<<MXDMA2_TX_SHIFT) ));
-	#endif
-#endif
+
 	//set IDR0 here
 	write_nic_dword(priv, MAC0, ((u32*)dev->dev_addr)[0]);
 	write_nic_word(priv, MAC4, ((u16*)(dev->dev_addr + 4))[0]);
@@ -3185,20 +3051,8 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	rtl8192_setBBreg(dev, rFPGA0_RFMOD, bCCKEn, 0x1);
 	rtl8192_setBBreg(dev, rFPGA0_RFMOD, bOFDMEn, 0x1);
 
-#ifdef RTL8192E
 	//Enable Led
 	write_nic_byte(priv, 0x87, 0x0);
-#endif
-#ifdef RTL8190P
-	//2008.06.03, for WOL
-	ucRegRead = read_nic_byte(priv, GPE);
-	ucRegRead |= BIT0;
-	write_nic_byte(priv, GPE, ucRegRead);
-
-	ucRegRead = read_nic_byte(priv, GPO);
-	ucRegRead &= ~BIT0;
-	write_nic_byte(priv, GPO, ucRegRead);
-#endif
 
 	//2=======================================================
 	// RF Power Save
@@ -3236,69 +3090,12 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	}
 }
 #endif
-	if(1){
-#ifdef RTL8192E
-			// We can force firmware to do RF-R/W
-			if(priv->ieee80211->FwRWRF)
-				priv->Rf_Mode = RF_OP_By_FW;
-			else
-				priv->Rf_Mode = RF_OP_By_SW_3wire;
-#else
-			priv->Rf_Mode = RF_OP_By_SW_3wire;
-#endif
-	}
-#ifdef RTL8190P
-	if(priv->ResetProgress == RESET_TYPE_NORESET)
-	{
-		dm_initialize_txpower_tracking(dev);
+	// We can force firmware to do RF-R/W
+	if(priv->ieee80211->FwRWRF)
+		priv->Rf_Mode = RF_OP_By_FW;
+	else
+		priv->Rf_Mode = RF_OP_By_SW_3wire;
 
-		tmpRegA= rtl8192_QueryBBReg(dev,rOFDM0_XATxIQImbalance,bMaskDWord);
-		tmpRegC= rtl8192_QueryBBReg(dev,rOFDM0_XCTxIQImbalance,bMaskDWord);
-
-		if(priv->rf_type == RF_2T4R){
-		for(i = 0; i<TxBBGainTableLength; i++)
-		{
-			if(tmpRegA == priv->txbbgain_table[i].txbbgain_value)
-			{
-				priv->rfa_txpowertrackingindex= (u8)i;
-				priv->rfa_txpowertrackingindex_real= (u8)i;
-				priv->rfa_txpowertracking_default = priv->rfa_txpowertrackingindex;
-				break;
-			}
-		}
-		}
-		for(i = 0; i<TxBBGainTableLength; i++)
-		{
-			if(tmpRegC == priv->txbbgain_table[i].txbbgain_value)
-			{
-				priv->rfc_txpowertrackingindex= (u8)i;
-				priv->rfc_txpowertrackingindex_real= (u8)i;
-				priv->rfc_txpowertracking_default = priv->rfc_txpowertrackingindex;
-				break;
-			}
-		}
-		TempCCk = rtl8192_QueryBBReg(dev, rCCK0_TxFilter1, bMaskByte2);
-
-		for(i=0 ; i<CCKTxBBGainTableLength ; i++)
-		{
-			if(TempCCk == priv->cck_txbbgain_table[i].ccktxbb_valuearray[0])
-			{
-				priv->CCKPresentAttentuation_20Mdefault =(u8) i;
-				break;
-			}
-		}
-		priv->CCKPresentAttentuation_40Mdefault = 0;
-		priv->CCKPresentAttentuation_difference = 0;
-		priv->CCKPresentAttentuation = priv->CCKPresentAttentuation_20Mdefault;
-		RT_TRACE(COMP_POWER_TRACKING, "priv->rfa_txpowertrackingindex_initial = %d\n", priv->rfa_txpowertrackingindex);
-		RT_TRACE(COMP_POWER_TRACKING, "priv->rfa_txpowertrackingindex_real__initial = %d\n", priv->rfa_txpowertrackingindex_real);
-		RT_TRACE(COMP_POWER_TRACKING, "priv->rfc_txpowertrackingindex_initial = %d\n", priv->rfc_txpowertrackingindex);
-		RT_TRACE(COMP_POWER_TRACKING, "priv->rfc_txpowertrackingindex_real_initial = %d\n", priv->rfc_txpowertrackingindex_real);
-		RT_TRACE(COMP_POWER_TRACKING, "priv->CCKPresentAttentuation_difference_initial = %d\n", priv->CCKPresentAttentuation_difference);
-		RT_TRACE(COMP_POWER_TRACKING, "priv->CCKPresentAttentuation_initial = %d\n", priv->CCKPresentAttentuation);
-	}
-#else
-	#ifdef RTL8192E
 	if(priv->ResetProgress == RESET_TYPE_NORESET)
 	{
 		dm_initialize_txpower_tracking(dev);
@@ -3338,8 +3135,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 			priv->btxpower_tracking = FALSE;//TEMPLY DISABLE
 		}
 	}
-	#endif
-#endif
+
 	rtl8192_irq_enable(dev);
 	priv->being_init_adapter = false;
 	return rtStatus;
@@ -4260,10 +4056,10 @@ static int _rtl8192_up(struct net_device *dev)
 		return -1;
 	}
 	RT_TRACE(COMP_INIT, "start adapter finished\n");
-#ifdef RTL8192E
+
 	if(priv->ieee80211->eRFPowerState!=eRfOn)
 		MgntActSet_RF_State(dev, eRfOn, priv->ieee80211->RfOffReason);
-#endif
+
 	if(priv->ieee80211->state != IEEE80211_LINKED)
 	ieee80211_softmac_start_protocol(priv->ieee80211);
 	ieee80211_reset_queue(priv->ieee80211);
@@ -4603,67 +4399,6 @@ static long rtl819x_translate_todbm(u8 signal_strength_index)// 0-100 index.
 	return signal_power;
 }
 
-static void
-rtl8190_process_cck_rxpathsel(
-	struct r8192_priv * priv,
-	struct ieee80211_rx_stats * pprevious_stats
-	)
-{
-#ifdef RTL8190P	//Only 90P 2T4R need to check
-	char				last_cck_adc_pwdb[4]={0,0,0,0};
-	u8				i;
-//cosa add for Rx path selection
-		if(priv->rf_type == RF_2T4R && DM_RxPathSelTable.Enable)
-		{
-			if(pprevious_stats->bIsCCK &&
-				(pprevious_stats->bPacketToSelf ||pprevious_stats->bPacketBeacon))
-			{
-				/* record the cck adc_pwdb to the sliding window. */
-				if(priv->stats.cck_adc_pwdb.TotalNum++ >= PHY_RSSI_SLID_WIN_MAX)
-				{
-					priv->stats.cck_adc_pwdb.TotalNum = PHY_RSSI_SLID_WIN_MAX;
-					for(i=RF90_PATH_A; i<RF90_PATH_MAX; i++)
-					{
-						last_cck_adc_pwdb[i] = priv->stats.cck_adc_pwdb.elements[i][priv->stats.cck_adc_pwdb.index];
-						priv->stats.cck_adc_pwdb.TotalVal[i] -= last_cck_adc_pwdb[i];
-					}
-				}
-				for(i=RF90_PATH_A; i<RF90_PATH_MAX; i++)
-				{
-					priv->stats.cck_adc_pwdb.TotalVal[i] += pprevious_stats->cck_adc_pwdb[i];
-					priv->stats.cck_adc_pwdb.elements[i][priv->stats.cck_adc_pwdb.index] = pprevious_stats->cck_adc_pwdb[i];
-				}
-				priv->stats.cck_adc_pwdb.index++;
-				if(priv->stats.cck_adc_pwdb.index >= PHY_RSSI_SLID_WIN_MAX)
-					priv->stats.cck_adc_pwdb.index = 0;
-
-				for(i=RF90_PATH_A; i<RF90_PATH_MAX; i++)
-				{
-					DM_RxPathSelTable.cck_pwdb_sta[i] = priv->stats.cck_adc_pwdb.TotalVal[i]/priv->stats.cck_adc_pwdb.TotalNum;
-				}
-
-				for(i=RF90_PATH_A; i<RF90_PATH_MAX; i++)
-				{
-					if(pprevious_stats->cck_adc_pwdb[i]  > (char)priv->undecorated_smoothed_cck_adc_pwdb[i])
-					{
-						priv->undecorated_smoothed_cck_adc_pwdb[i] =
-							( (priv->undecorated_smoothed_cck_adc_pwdb[i]*(Rx_Smooth_Factor-1)) +
-							(pprevious_stats->cck_adc_pwdb[i])) /(Rx_Smooth_Factor);
-						priv->undecorated_smoothed_cck_adc_pwdb[i] = priv->undecorated_smoothed_cck_adc_pwdb[i] + 1;
-					}
-					else
-					{
-						priv->undecorated_smoothed_cck_adc_pwdb[i] =
-							( (priv->undecorated_smoothed_cck_adc_pwdb[i]*(Rx_Smooth_Factor-1)) +
-							(pprevious_stats->cck_adc_pwdb[i])) /(Rx_Smooth_Factor);
-					}
-				}
-			}
-		}
-#endif
-}
-
-
 /* 2008/01/22 MH We can not delcare RSSI/EVM total value of sliding window to
 	be a local static. Otherwise, it may increase when we return from S3/S4. The
 	value will be kept in memory or disk. We must delcare the value in adapter
@@ -4729,8 +4464,6 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 
 	if(!bcheck)
 		return;
-
-	rtl8190_process_cck_rxpathsel(priv,pprevious_stats);
 
 	// <2> Showed on UI for engineering
 	// hardware does not provide rssi information for each rf path in CCK
@@ -5019,23 +4752,6 @@ static void rtl8192_query_rxphystatus(
 		// (2)PWDB, Average PWDB cacluated by hardware (for rate adaptive)
 		//
 		u8 report;//, cck_agc_rpt;
-#ifdef RTL8190P
-		u8 tmp_pwdb;
-		char cck_adc_pwdb[4];
-#endif
-
-#ifdef RTL8190P	//Only 90P 2T4R need to check
-		if(priv->rf_type == RF_2T4R && DM_RxPathSelTable.Enable && bpacket_match_bssid)
-		{
-			for(i=RF90_PATH_A; i<RF90_PATH_MAX; i++)
-			{
-				tmp_pwdb = pcck_buf->adc_pwdb_X[i];
-				cck_adc_pwdb[i] = (char)tmp_pwdb;
-				cck_adc_pwdb[i] /= 2;
-				pstats->cck_adc_pwdb[i] = precord_stats->cck_adc_pwdb[i] = cck_adc_pwdb[i];
-			}
-		}
-#endif
 
 		if (!priv->phy_reg824_bit9)
 		{
@@ -5126,11 +4842,7 @@ static void rtl8192_query_rxphystatus(
 
 			//Fixed by Jacken from Bryant 2008-03-20
 			//Original value is 106
-#ifdef RTL8190P	   //Modify by Jacken 2008/03/31
-			rx_pwr[i] = ((pofdm_buf->trsw_gain_X[i]&0x3F)*2) - 106;
-#else
 			rx_pwr[i] = ((pofdm_buf->trsw_gain_X[i]&0x3F)*2) - 110;
-#endif
 
 			//Get Rx snr value in DB
 			tmp_rxsnr = pofdm_buf->rxsnr_X[i];
@@ -5699,9 +5411,7 @@ static void rtl8192_cancel_deferred_work(struct r8192_priv* priv)
 	cancel_delayed_work(&priv->update_beacon_wq);
 	cancel_delayed_work(&priv->ieee80211->hw_wakeup_wq);
 	cancel_delayed_work(&priv->ieee80211->hw_sleep_wq);
-#ifdef RTL8192E
 	cancel_delayed_work(&priv->gpio_change_rf_wq);
-#endif
 	cancel_work_sync(&priv->reset_wq);
 	cancel_work_sync(&priv->qos_activate);
 	//cancel_work_sync(&priv->SetBWModeWorkItem);

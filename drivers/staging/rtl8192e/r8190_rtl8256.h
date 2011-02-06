@@ -10,11 +10,7 @@
 #ifndef RTL8225_H
 #define RTL8225_H
 
-#ifdef RTL8190P
-#define RTL819X_TOTAL_RF_PATH 4
-#else
 #define RTL819X_TOTAL_RF_PATH 2 /* for 8192E */
-#endif
 
 void PHY_SetRF8256Bandwidth(struct net_device *dev,
 				   HT_CHANNEL_WIDTH Bandwidth);

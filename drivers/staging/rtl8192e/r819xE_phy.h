@@ -6,25 +6,6 @@
 #define MAX_RFDEPENDCMD_CNT 16
 #define MAX_POSTCMD_CNT 16
 
-#ifdef RTL8190P
-#define MACPHY_Array_PGLength 21
-#define Rtl819XMACPHY_Array_PG Rtl8190PciMACPHY_Array_PG
-#define Rtl819XMACPHY_Array Rtl8190PciMACPHY_Array
-#define RadioC_ArrayLength 246
-#define RadioD_ArrayLength 78
-#define Rtl819XRadioA_Array Rtl8190PciRadioA_Array
-#define Rtl819XRadioB_Array Rtl8190PciRadioB_Array
-#define Rtl819XRadioC_Array Rtl8190PciRadioC_Array
-#define Rtl819XRadioD_Array Rtl8190PciRadioD_Array
-#define Rtl819XAGCTAB_Array Rtl8190PciAGCTAB_Array
-#define PHY_REGArrayLength 280
-#define Rtl819XPHY_REGArray Rtl8190PciPHY_REGArray
-#define PHY_REG_1T2RArrayLength 280
-#define Rtl819XPHY_REG_1T2RArray Rtl8190PciPHY_REG_1T2RArray
-#endif
-
-
-#ifdef RTL8192E
 #define MACPHY_Array_PGLength 30
 #define Rtl819XMACPHY_Array_PG Rtl8192PciEMACPHY_Array_PG
 #define Rtl819XMACPHY_Array Rtl8192PciEMACPHY_Array
@@ -39,7 +20,6 @@
 #define Rtl819XPHY_REGArray Rtl8192PciEPHY_REGArray
 #define PHY_REG_1T2RArrayLength 296
 #define Rtl819XPHY_REG_1T2RArray Rtl8192PciEPHY_REG_1T2RArray
-#endif
 
 #define AGCTAB_ArrayLength 384
 #define MACPHY_ArrayLength 18

@@ -59,13 +59,6 @@ void PHY_SetRF8256Bandwidth(struct net_device* dev , HT_CHANNEL_WIDTH Bandwidth)
 					rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x2c, bMask12Bits, 0x3ff);
 					rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x0e, bMask12Bits, 0x0e1);
 
-					//cosa add for sd3's request 01/23/2008
-					#if 0
-					if(priv->chan == 3 || priv->chan == 9) //I need to set priv->chan whenever current channel changes
-						rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x14, bMask12Bits, 0x59b);
-					else
-						rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x14, bMask12Bits, 0x5ab);
-					#endif
 				}
 				else
 				{
@@ -241,41 +234,6 @@ void PHY_SetRF8256CCKTxPower(struct net_device*	dev, u8	powerlevel)
 {
 	u32	TxAGC=0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
-#ifdef RTL8190P
-	u8				byte0, byte1;
-
-	TxAGC |= ((powerlevel<<8)|powerlevel);
-	TxAGC += priv->CCKTxPowerLevelOriginalOffset;
-
-	if(priv->bDynamicTxLowPower == true  //cosa 04282008 for cck long range
-		/*pMgntInfo->bScanInProgress == TRUE*/ ) //cosa 05/22/2008 for scan
-	{
-		if(priv->CustomerID == RT_CID_819x_Netcore)
-			TxAGC = 0x2222;
-		else
-		TxAGC += ((priv->CckPwEnl<<8)|priv->CckPwEnl);
-	}
-
-	byte0 = (u8)(TxAGC & 0xff);
-	byte1 = (u8)((TxAGC & 0xff00)>>8);
-	if(byte0 > 0x24)
-		byte0 = 0x24;
-	if(byte1 > 0x24)
-		byte1 = 0x24;
-	if(priv->rf_type == RF_2T4R)	//Only 2T4R you have to care the Antenna Tx Power offset
-	{	// check antenna C over the max index 0x24
-			if(priv->RF_C_TxPwDiff > 0)
-			{
-				if( (byte0 + (u8)priv->RF_C_TxPwDiff) > 0x24)
-					byte0 = 0x24 - priv->RF_C_TxPwDiff;
-				if( (byte1 + (u8)priv->RF_C_TxPwDiff) > 0x24)
-					byte1 = 0x24 - priv->RF_C_TxPwDiff;
-			}
-		}
-	TxAGC = (byte1<<8) |byte0;
-	write_nic_dword(priv, CCK_TXAGC, TxAGC);
-#else
-	#ifdef RTL8192E
 
 	TxAGC = powerlevel;
 	if(priv->bDynamicTxLowPower == true)//cosa 04282008 for cck long range
@@ -288,86 +246,13 @@ void PHY_SetRF8256CCKTxPower(struct net_device*	dev, u8	powerlevel)
 	if(TxAGC > 0x24)
 		TxAGC = 0x24;
 	rtl8192_setBBreg(dev, rTxAGC_CCK_Mcs32, bTxAGCRateCCK, TxAGC);
-	#endif
-#endif
 }
 
 
 void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	//Joseph TxPower for 8192 testing
-#ifdef RTL8190P
-	u32				TxAGC1=0, TxAGC2=0, TxAGC2_tmp = 0;
-	u8				i, byteVal1[4], byteVal2[4], byteVal3[4];
 
-	if(priv->bDynamicTxHighPower == true)     //Add by Jacken 2008/03/06
-	{
-		TxAGC1 |= ((powerlevel<<24)|(powerlevel<<16)|(powerlevel<<8)|powerlevel);
-		//for tx power track
-		TxAGC2_tmp = TxAGC1;
-
-		TxAGC1 += priv->MCSTxPowerLevelOriginalOffset[0];
-		TxAGC2 =0x03030303;
-
-		//for tx power track
-		TxAGC2_tmp += priv->MCSTxPowerLevelOriginalOffset[1];
-	}
-	else
-	{
-		TxAGC1 |= ((powerlevel<<24)|(powerlevel<<16)|(powerlevel<<8)|powerlevel);
-		TxAGC2 = TxAGC1;
-
-		TxAGC1 += priv->MCSTxPowerLevelOriginalOffset[0];
-		TxAGC2 += priv->MCSTxPowerLevelOriginalOffset[1];
-
-		TxAGC2_tmp = TxAGC2;
-
-	}
-	for(i=0; i<4; i++)
-	{
-		byteVal1[i] = (u8)(  (TxAGC1 & (0xff<<(i*8))) >>(i*8) );
-		if(byteVal1[i] > 0x24)
-			byteVal1[i] = 0x24;
-		byteVal2[i] = (u8)(  (TxAGC2 & (0xff<<(i*8))) >>(i*8) );
-		if(byteVal2[i] > 0x24)
-			byteVal2[i] = 0x24;
-
-		//for tx power track
-		byteVal3[i] = (u8)(  (TxAGC2_tmp & (0xff<<(i*8))) >>(i*8) );
-		if(byteVal3[i] > 0x24)
-			byteVal3[i] = 0x24;
-	}
-
-	if(priv->rf_type == RF_2T4R)	//Only 2T4R you have to care the Antenna Tx Power offset
-	{	// check antenna C over the max index 0x24
-		if(priv->RF_C_TxPwDiff > 0)
-		{
-			for(i=0; i<4; i++)
-			{
-				if( (byteVal1[i] + (u8)priv->RF_C_TxPwDiff) > 0x24)
-					byteVal1[i] = 0x24 - priv->RF_C_TxPwDiff;
-				if( (byteVal2[i] + (u8)priv->RF_C_TxPwDiff) > 0x24)
-					byteVal2[i] = 0x24 - priv->RF_C_TxPwDiff;
-				if( (byteVal3[i] + (u8)priv->RF_C_TxPwDiff) > 0x24)
-					byteVal3[i] = 0x24 - priv->RF_C_TxPwDiff;
-			}
-		}
-	}
-
-	TxAGC1 = (byteVal1[3]<<24) | (byteVal1[2]<<16) |(byteVal1[1]<<8) |byteVal1[0];
-	TxAGC2 = (byteVal2[3]<<24) | (byteVal2[2]<<16) |(byteVal2[1]<<8) |byteVal2[0];
-
-	//for tx power track
-	TxAGC2_tmp = (byteVal3[3]<<24) | (byteVal3[2]<<16) |(byteVal3[1]<<8) |byteVal3[0];
-	priv->Pwr_Track = TxAGC2_tmp;
-	//DbgPrint("TxAGC2_tmp = 0x%x\n", TxAGC2_tmp);
-
-	//DbgPrint("TxAGC1/TxAGC2 = 0x%x/0x%x\n", TxAGC1, TxAGC2);
-	write_nic_dword(priv, MCS_TXAGC, TxAGC1);
-	write_nic_dword(priv, MCS_TXAGC+4, TxAGC2);
-#else
-#ifdef RTL8192E
 	u32 writeVal, powerBase0, powerBase1, writeVal_tmp;
 	u8 index = 0;
 	u16 RegOffset[6] = {0xe00, 0xe04, 0xe10, 0xe14, 0xe18, 0xe1c};
@@ -410,9 +295,6 @@ void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 		}
 		rtl8192_setBBreg(dev, RegOffset[index], 0x7f7f7f7f, writeVal);
 	}
-
-#endif
-#endif
 }
 
 #define MAX_DOZE_WAITING_TIMES_9x 64
@@ -443,56 +325,7 @@ SetRFPowerState8190(
 						//RXTX enable control: On
 					//for(eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
 					//	PHY_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x4, 0xC00, 0x2);
-#ifdef RTL8190P
-				if(priv->rf_type == RF_2T4R)
-				{
-					//enable RF-Chip A/B
-					rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x1); // 0x860[4]
-					//enable RF-Chip C/D
-					rtl8192_setBBreg(dev, rFPGA0_XC_RFInterfaceOE, BIT4, 0x1); // 0x868[4]
-					//analog to digital on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0xf00, 0xf);// 0x88c[11:8]
-					//digital to analog on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x1e0, 0xf); // 0x880[8:5]
-					//rx antenna on
-					rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0xf, 0xf);// 0xc04[3:0]
-					//rx antenna on
-					rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0xf, 0xf);// 0xd04[3:0]
-					//analog to digital part2 on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x1e00, 0xf); // 0x880[12:9]
-				}
-				else if(priv->rf_type == RF_1T2R)	//RF-C, RF-D
-				{
-					//enable RF-Chip C/D
-					rtl8192_setBBreg(dev, rFPGA0_XC_RFInterfaceOE, BIT4, 0x1); // 0x868[4]
-					//analog to digital on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0xc00, 0x3);// 0x88c[11:10]
-					//digital to analog on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x180, 0x3); // 0x880[8:7]
-					//rx antenna on
-					rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0xc, 0x3);// 0xc04[3:2]
-					//rx antenna on
-					rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0xc, 0x3);// 0xd04[3:2]
-					//analog to digital part2 on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x1800, 0x3); // 0x880[12:11]
-				}
-				else if(priv->rf_type == RF_1T1R)	//RF-C
-				{
-					//enable RF-Chip C/D
-					rtl8192_setBBreg(dev, rFPGA0_XC_RFInterfaceOE, BIT4, 0x1); // 0x868[4]
-					//analog to digital on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x400, 0x1);// 0x88c[10]
-					//digital to analog on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x80, 0x1); // 0x880[7]
-					//rx antenna on
-					rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0x4, 0x1);// 0xc04[2]
-					//rx antenna on
-					rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0x4, 0x1);// 0xd04[2]
-					//analog to digital part2 on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x800, 0x1); // 0x880[11]
-				}
 
-#elif defined RTL8192E
 				// turn on RF
 				if((priv->ieee80211->eRFPowerState == eRfOff) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
 				{ // The current RF state is OFF and the RF OFF level is halting the NIC, re-initialize the NIC.
@@ -561,7 +394,6 @@ SetRFPowerState8190(
 
 				}
 
-				#endif
 						break;
 
 				//
@@ -603,17 +435,7 @@ SetRFPowerState8190(
 						}
 				}
 
-				//if(Adapter->HardwareType == HARDWARE_TYPE_RTL8190P)
-#ifdef RTL8190P
-				{
-					PHY_SetRtl8190pRfOff(dev);
-				}
-				//else if(Adapter->HardwareType == HARDWARE_TYPE_RTL8192E)
-#elif defined RTL8192E
-				{
-					PHY_SetRtl8192eRfOff(dev);
-				}
-#endif
+				PHY_SetRtl8192eRfOff(dev);
 			}
 								break;
 
@@ -649,13 +471,6 @@ SetRFPowerState8190(
 						}
 					}
 
-				//if(Adapter->HardwareType == HARDWARE_TYPE_RTL8190P)
-#if defined RTL8190P
-				{
-					PHY_SetRtl8190pRfOff(dev);
-				}
-				//else if(Adapter->HardwareType == HARDWARE_TYPE_RTL8192E)
-#elif defined RTL8192E
 				{
 					//if(pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC && !RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC) && priv->ieee80211->RfOffReason > RF_CHANGE_BY_PS)
 					if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC && !RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
@@ -687,14 +502,7 @@ SetRFPowerState8190(
 						PHY_SetRtl8192eRfOff(dev);
 					}
 				}
-#else
-				else
-				{
-					RT_TRACE(COMP_DBG,DBG_TRACE,("It is not 8190Pci and 8192PciE \n"));
-				}
-				#endif
-
-					break;
+				break;
 
 			default:
 					bResult = false;
@@ -742,11 +550,7 @@ SetRFPowerState(
 	bool bResult = false;
 
 	RT_TRACE(COMP_RF,"---------> SetRFPowerState(): eRFPowerState(%d)\n", eRFPowerState);
-#ifdef RTL8192E
 	if(eRFPowerState == priv->ieee80211->eRFPowerState && priv->bHwRfOffAction == 0)
-#else
-	if(eRFPowerState == priv->ieee80211->eRFPowerState)
-#endif
 	{
 		RT_TRACE(COMP_POWER, "<--------- SetRFPowerState(): discard the request for eRFPowerState(%d) is the same.\n", eRFPowerState);
 		return bResult;

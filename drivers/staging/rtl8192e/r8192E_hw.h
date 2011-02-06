@@ -95,27 +95,13 @@ typedef enum _RT_RF_TYPE_819xU{
 #define EEPROM_Default_TxPower			0x1010
 #define EEPROM_ICVersion_ChannelPlan	0x7C	//0x7C:ChannelPlan, 0x7D:IC_Version
 #define EEPROM_Customer_ID			0x7B	//0x7B:CustomerID
-#ifdef RTL8190P
-#define EEPROM_RFInd_PowerDiff			0x14
-#define EEPROM_ThermalMeter			0x15
-#define EEPROM_TxPwDiff_CrystalCap		0x16
-#define EEPROM_TxPwIndex_CCK			0x18	//0x18~0x25
-#define EEPROM_TxPwIndex_OFDM_24G	0x26	//0x26~0x33
-#define EEPROM_TxPwIndex_OFDM_5G		0x34	//0x34~0x7B
-#define EEPROM_C56_CrystalCap			0x17	//0x17
-#define EEPROM_C56_RfA_CCK_Chnl1_TxPwIndex	0x80	//0x80
-#define EEPROM_C56_RfA_HT_OFDM_TxPwIndex	0x81	//0x81~0x83
-#define EEPROM_C56_RfC_CCK_Chnl1_TxPwIndex	0xbc	//0xb8
-#define EEPROM_C56_RfC_HT_OFDM_TxPwIndex	0xb9	//0xb9~0xbb
-#else
-#ifdef RTL8192E
+
 #define EEPROM_RFInd_PowerDiff			0x28
 #define EEPROM_ThermalMeter			0x29
 #define EEPROM_TxPwDiff_CrystalCap		0x2A	//0x2A~0x2B
 #define EEPROM_TxPwIndex_CCK			0x2C	//0x23
 #define EEPROM_TxPwIndex_OFDM_24G	0x3A	//0x24~0x26
-#endif
-#endif
+
 #define EEPROM_Default_TxPowerLevel		0x10
 //#define EEPROM_ChannelPlan			0x7c	//0x7C
 #define EEPROM_IC_VER				0x7d	//0x7D

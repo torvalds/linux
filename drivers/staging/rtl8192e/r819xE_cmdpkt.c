@@ -40,9 +40,6 @@ RT_STATUS cmpk_message_handle_tx(
 {
 
 	RT_STATUS 	    rt_status = RT_STATUS_SUCCESS;
-#ifdef RTL8192U
-	return rt_status;
-#else
 	struct r8192_priv   *priv = ieee80211_priv(dev);
 	u16		    frag_threshold;
 	u16		    frag_length = 0, frag_offset = 0;
@@ -74,11 +71,7 @@ RT_STATUS cmpk_message_handle_tx(
             /* Allocate skb buffer to contain firmware info and tx descriptor info
              * add 4 to avoid packet appending overflow.
              * */
-#ifdef RTL8192U
-            skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + frag_length + 4);
-#else
             skb  = dev_alloc_skb(frag_length + priv->ieee80211->tx_headroom + 4);
-#endif
             if(skb == NULL) {
                 rt_status = RT_STATUS_FAILURE;
                 goto Failed;
@@ -90,10 +83,6 @@ RT_STATUS cmpk_message_handle_tx(
             tcb_desc->bCmdOrInit = packettype;
             tcb_desc->bLastIniPkt = bLastIniPkt;
             tcb_desc->pkt_size = frag_length;
-
-#ifdef RTL8192U
-            skb_reserve(skb, USB_HWDESC_HEADER_LEN);
-#endif
 
             //seg_ptr = skb_put(skb, frag_length + priv->ieee80211->tx_headroom);
             seg_ptr = skb_put(skb, priv->ieee80211->tx_headroom);
@@ -126,9 +115,6 @@ RT_STATUS cmpk_message_handle_tx(
 Failed:
 	//spin_unlock_irqrestore(&priv->tx_lock,flags);
 	return rt_status;
-
-
-#endif
 }
 
 static void
