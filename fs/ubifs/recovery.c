@@ -28,6 +28,23 @@
  * UBIFS always cleans away all remnants of an unclean un-mount, so that
  * errors do not accumulate. However UBIFS defers recovery if it is mounted
  * read-only, and the flash is not modified in that case.
+ *
+ * The general UBIFS approach to the recovery is that it recovers from
+ * corruptions which could be caused by power cuts, but it refuses to recover
+ * from corruption caused by other reasons. And UBIFS tries to distinguish
+ * between these 2 reasons of corruptions and silently recover in the former
+ * case and loudly complain in the latter case.
+ *
+ * UBIFS writes only to erased LEBs, so it writes only to the flash space
+ * containing only 0xFFs. UBIFS also always writes strictly from the beginning
+ * of the LEB to the end. And UBIFS assumes that the underlying flash media
+ * writes in @c->min_io_unit bytes at a time.
+ *
+ * Hence, if UBIFS finds a corrupted node at offset X, it expects only the min.
+ * I/O unit corresponding to offset X to contain corrupted data, all the
+ * following min. I/O units have to contain empty space (all 0xFFs). If this is
+ * not true, the corruption cannot be the result of a power cut, and UBIFS
+ * refuses to mount.
  */
 
 #include <linux/crc32.h>
@@ -671,6 +688,10 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 		} else {
 			int corruption = first_non_ff(buf, len);
 
+			/*
+			 * See header comment for this file for more
+			 * explanations about the reasons we have this check.
+			 */
 			ubifs_err("corrupt empty space LEB %d:%d, corruption "
 				  "starts at %d", lnum, offs, corruption);
 			/* Make sure we dump interesting non-0xFF data */
