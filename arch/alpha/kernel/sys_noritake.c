@@ -48,22 +48,22 @@ noritake_update_irq_hw(int irq, int mask)
 }
 
 static void
-noritake_enable_irq(unsigned int irq)
+noritake_enable_irq(struct irq_data *d)
 {
-	noritake_update_irq_hw(irq, cached_irq_mask |= 1 << (irq - 16));
+	noritake_update_irq_hw(d->irq, cached_irq_mask |= 1 << (d->irq - 16));
 }
 
 static void
-noritake_disable_irq(unsigned int irq)
+noritake_disable_irq(struct irq_data *d)
 {
-	noritake_update_irq_hw(irq, cached_irq_mask &= ~(1 << (irq - 16)));
+	noritake_update_irq_hw(d->irq, cached_irq_mask &= ~(1 << (d->irq - 16)));
 }
 
 static struct irq_chip noritake_irq_type = {
 	.name		= "NORITAKE",
-	.unmask		= noritake_enable_irq,
-	.mask		= noritake_disable_irq,
-	.mask_ack	= noritake_disable_irq,
+	.irq_unmask	= noritake_enable_irq,
+	.irq_mask	= noritake_disable_irq,
+	.irq_mask_ack	= noritake_disable_irq,
 };
 
 static void 
@@ -127,8 +127,8 @@ noritake_init_irq(void)
 	outw(0, 0x54c);
 
 	for (i = 16; i < 48; ++i) {
-		irq_to_desc(i)->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler(i, &noritake_irq_type, handle_level_irq);
+		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 
 	init_i8259a_irqs();
