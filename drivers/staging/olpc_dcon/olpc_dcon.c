@@ -58,6 +58,9 @@ struct dcon_priv {
 
 	struct work_struct switch_source;
 	struct notifier_block reboot_nb;
+
+	/* Current output type; true == mono, false == color */
+	bool mono:1;
 };
 
 /* I2C structures */
@@ -80,9 +83,6 @@ static int dcon_source;
 
 /* Desired source */
 static int dcon_pending;
-
-/* Current output type */
-static int dcon_output = DCON_OUTPUT_COLOR;
 
 /* Current sleep status (not yet implemented) */
 static int dcon_sleep_val = DCON_ACTIVE;
@@ -265,15 +265,14 @@ static void dcon_set_backlight(struct dcon_priv *dcon, int level)
 }
 
 /* Set the output type to either color or mono */
-
-static int dcon_set_output(struct dcon_priv *dcon, int arg)
+static int dcon_set_mono_mode(struct dcon_priv *dcon, bool enable_mono)
 {
-	if (dcon_output == arg)
+	if (dcon->mono == enable_mono)
 		return 0;
 
-	dcon_output = arg;
+	dcon->mono = enable_mono;
 
-	if (arg == DCON_OUTPUT_MONO) {
+	if (enable_mono) {
 		dcon_disp_mode &= ~(MODE_CSWIZZLE | MODE_COL_AA);
 		dcon_disp_mode |= MODE_MONO_LUMA;
 	} else {
@@ -525,10 +524,11 @@ static ssize_t dcon_freeze_show(struct device *dev,
 	return sprintf(buf, "%d\n", dcon_source == DCON_SOURCE_DCON ? 1 : 0);
 }
 
-static ssize_t dcon_output_show(struct device *dev,
+static ssize_t dcon_mono_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dcon_output);
+	struct dcon_priv *dcon = dev_get_drvdata(dev);
+	return sprintf(buf, "%d\n", dcon->mono ? 1 : 0);
 }
 
 static ssize_t dcon_resumeline_show(struct device *dev,
@@ -554,19 +554,17 @@ static int _strtoul(const char *buf, int len, unsigned int *val)
 	return 0;
 }
 
-static ssize_t dcon_output_store(struct device *dev,
+static ssize_t dcon_mono_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	int output;
+	int enable_mono;
 	int rc = -EINVAL;
 
-	if (_strtoul(buf, count, &output))
+	if (_strtoul(buf, count, &enable_mono))
 		return -EINVAL;
 
-	if (output == DCON_OUTPUT_COLOR || output == DCON_OUTPUT_MONO) {
-		dcon_set_output(dev_get_drvdata(dev), output);
-		rc = count;
-	}
+	dcon_set_mono_mode(dev_get_drvdata(dev), enable_mono ? 1 : 0);
+	rc = count;
 
 	return rc;
 }
@@ -631,7 +629,7 @@ static struct device_attribute dcon_device_files[] = {
 	__ATTR(mode, 0444, dcon_mode_show, NULL),
 	__ATTR(sleep, 0644, dcon_sleep_show, dcon_sleep_store),
 	__ATTR(freeze, 0644, dcon_freeze_show, dcon_freeze_store),
-	__ATTR(output, 0644, dcon_output_show, dcon_output_store),
+	__ATTR(monochrome, 0644, dcon_mono_show, dcon_mono_store),
 	__ATTR(resumeline, 0644, dcon_resumeline_show, dcon_resumeline_store),
 };
 
