@@ -3,6 +3,7 @@ config M68K
 	default y
 	select HAVE_IDE
 	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_HARDIRQS_NO_DEPRECATED
 
 config MMU
 	bool
