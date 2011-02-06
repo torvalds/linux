@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
+#include <linux/poison.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -158,14 +159,16 @@ static int alloc_cmdid_killable(struct nvme_queue *nvmeq, void *ctx,
 }
 
 /* If you need more than four handlers, you'll need to change how
- * alloc_cmdid and nvme_process_cq work.  Also, aborted commands take
- * the sync_completion path (if they complete), so don't put anything
- * else in slot zero.
+ * alloc_cmdid and nvme_process_cq work.  Consider using a special
+ * CMD_CTX value instead, if that works for your situation.
  */
 enum {
 	sync_completion_id = 0,
 	bio_completion_id,
 };
+
+#define CMD_CTX_BASE		(POISON_POINTER_DELTA + sync_completion_id)
+#define CMD_CTX_CANCELLED	(0x2008 + CMD_CTX_BASE)
 
 static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 {
@@ -177,9 +180,10 @@ static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 	return data;
 }
 
-static void clear_cmdid_data(struct nvme_queue *nvmeq, int cmdid)
+static void cancel_cmdid_data(struct nvme_queue *nvmeq, int cmdid)
 {
-	nvmeq->cmdid_data[cmdid + BITS_TO_LONGS(nvmeq->q_depth)] = 0;
+	nvmeq->cmdid_data[cmdid + BITS_TO_LONGS(nvmeq->q_depth)] =
+							CMD_CTX_CANCELLED;
 }
 
 static struct nvme_queue *get_nvmeq(struct nvme_ns *ns)
@@ -396,8 +400,8 @@ static void sync_completion(struct nvme_queue *nvmeq, void *ctx,
 						struct nvme_completion *cqe)
 {
 	struct sync_cmd_info *cmdinfo = ctx;
-	if (!cmdinfo)
-		return;	/* Command aborted */
+	if ((unsigned long)cmdinfo == CMD_CTX_CANCELLED)
+		return;
 	cmdinfo->result = le32_to_cpup(&cqe->result);
 	cmdinfo->status = le16_to_cpup(&cqe->status) >> 1;
 	wake_up_process(cmdinfo->task);
@@ -480,7 +484,7 @@ static irqreturn_t nvme_irq_check(int irq, void *data)
 static void nvme_abort_command(struct nvme_queue *nvmeq, int cmdid)
 {
 	spin_lock_irq(&nvmeq->q_lock);
-	clear_cmdid_data(nvmeq, cmdid);
+	cancel_cmdid_data(nvmeq, cmdid);
 	spin_unlock_irq(&nvmeq->q_lock);
 }
 
