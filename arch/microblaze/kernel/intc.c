@@ -74,25 +74,12 @@ static void intc_mask_ack(unsigned int irq)
 	out_be32(INTC_BASE + IAR, mask);
 }
 
-static void intc_end(unsigned int irq)
-{
-	unsigned long mask = 1 << irq;
-	pr_debug("end: %d\n", irq);
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
-		out_be32(INTC_BASE + SIE, mask);
-		/* ack level sensitive intr */
-		if (irq_desc[irq].status & IRQ_LEVEL)
-			out_be32(INTC_BASE + IAR, mask);
-	}
-}
-
 static struct irq_chip intc_dev = {
 	.name = "Xilinx INTC",
 	.unmask = intc_enable_or_unmask,
 	.mask = intc_disable_or_mask,
 	.ack = intc_ack,
 	.mask_ack = intc_mask_ack,
-	.end = intc_end,
 };
 
 unsigned int get_irq(struct pt_regs *regs)
