@@ -1258,16 +1258,16 @@ static struct usb_gadget_driver composite_driver = {
  * while it was binding.  That would usually be done in order to wait for
  * some userspace participation.
  */
-extern int usb_composite_probe(struct usb_composite_driver *driver,
+int usb_composite_probe(struct usb_composite_driver *driver,
 			       int (*bind)(struct usb_composite_dev *cdev))
 {
 	if (!driver || !driver->dev || !bind || composite)
 		return -EINVAL;
 
-	if (!driver->iProduct)
-		driver->iProduct = driver->name;
 	if (!driver->name)
 		driver->name = "composite";
+	if (!driver->iProduct)
+		driver->iProduct = driver->name;
 	composite_driver.function =  (char *) driver->name;
 	composite_driver.driver.name = driver->name;
 	composite = driver;
