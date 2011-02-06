@@ -872,7 +872,7 @@ static irqreturn_t dcon_interrupt(int irq, void *id)
 	return IRQ_HANDLED;
 }
 
-static struct i2c_device_id dcon_idtable[] = {
+static const struct i2c_device_id dcon_idtable[] = {
 	{ "olpc_dcon",  0 },
 	{ }
 };
@@ -901,8 +901,7 @@ static int __init olpc_dcon_init(void)
 {
 	pdata = &dcon_pdata_xo_1;
 
-	i2c_add_driver(&dcon_driver);
-	return 0;
+	return i2c_add_driver(&dcon_driver);
 }
 
 static void __exit olpc_dcon_exit(void)
