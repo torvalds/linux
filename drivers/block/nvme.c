@@ -41,6 +41,8 @@
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
 #define NVME_MINORS 64
+#define IO_TIMEOUT	(5 * HZ)
+#define ADMIN_TIMEOUT	(60 * HZ)
 
 static int nvme_major;
 module_param(nvme_major, int, 0);
@@ -119,6 +121,16 @@ static inline void _nvme_check_size(void)
 	BUILD_BUG_ON(sizeof(struct nvme_lba_range_type) != 64);
 }
 
+struct nvme_cmd_info {
+	unsigned long ctx;
+	unsigned long timeout;
+};
+
+static struct nvme_cmd_info *nvme_cmd_info(struct nvme_queue *nvmeq)
+{
+	return (void *)&nvmeq->cmdid_data[BITS_TO_LONGS(nvmeq->q_depth)];
+}
+
 /**
  * alloc_cmdid - Allocate a Command ID
  * @param nvmeq The queue that will be used for this command
@@ -131,10 +143,11 @@ static inline void _nvme_check_size(void)
  * Passing in a pointer that's not 4-byte aligned will cause a BUG.
  * We can change this if it becomes a problem.
  */
-static int alloc_cmdid(struct nvme_queue *nvmeq, void *ctx, int handler)
+static int alloc_cmdid(struct nvme_queue *nvmeq, void *ctx, int handler,
+							unsigned timeout)
 {
 	int depth = nvmeq->q_depth;
-	unsigned long data = (unsigned long)ctx | handler;
+	struct nvme_cmd_info *info = nvme_cmd_info(nvmeq);
 	int cmdid;
 
 	BUG_ON((unsigned long)ctx & 3);
@@ -145,16 +158,17 @@ static int alloc_cmdid(struct nvme_queue *nvmeq, void *ctx, int handler)
 			return -EBUSY;
 	} while (test_and_set_bit(cmdid, nvmeq->cmdid_data));
 
-	nvmeq->cmdid_data[cmdid + BITS_TO_LONGS(depth)] = data;
+	info[cmdid].ctx = (unsigned long)ctx | handler;
+	info[cmdid].timeout = jiffies + timeout;
 	return cmdid;
 }
 
 static int alloc_cmdid_killable(struct nvme_queue *nvmeq, void *ctx,
-								int handler)
+						int handler, unsigned timeout)
 {
 	int cmdid;
 	wait_event_killable(nvmeq->sq_full,
-			(cmdid = alloc_cmdid(nvmeq, ctx, handler)) >= 0);
+		(cmdid = alloc_cmdid(nvmeq, ctx, handler, timeout)) >= 0);
 	return (cmdid < 0) ? -EINTR : cmdid;
 }
 
@@ -175,12 +189,12 @@ enum {
 static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 {
 	unsigned long data;
-	unsigned offset = cmdid + BITS_TO_LONGS(nvmeq->q_depth);
+	struct nvme_cmd_info *info = nvme_cmd_info(nvmeq);
 
-	if (cmdid > nvmeq->q_depth)
+	if (cmdid >= nvmeq->q_depth)
 		return CMD_CTX_INVALID;
-	data = nvmeq->cmdid_data[offset];
-	nvmeq->cmdid_data[offset] = CMD_CTX_COMPLETED;
+	data = info[cmdid].ctx;
+	info[cmdid].ctx = CMD_CTX_COMPLETED;
 	clear_bit(cmdid, nvmeq->cmdid_data);
 	wake_up(&nvmeq->sq_full);
 	return data;
@@ -188,8 +202,8 @@ static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 
 static void cancel_cmdid_data(struct nvme_queue *nvmeq, int cmdid)
 {
-	unsigned offset = cmdid + BITS_TO_LONGS(nvmeq->q_depth);
-	nvmeq->cmdid_data[offset] = CMD_CTX_CANCELLED;
+	struct nvme_cmd_info *info = nvme_cmd_info(nvmeq);
+	info[cmdid].ctx = CMD_CTX_CANCELLED;
 }
 
 static struct nvme_queue *get_nvmeq(struct nvme_ns *ns)
@@ -327,7 +341,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 		goto congestion;
 	info->bio = bio;
 
-	cmdid = alloc_cmdid(nvmeq, info, bio_completion_id);
+	cmdid = alloc_cmdid(nvmeq, info, bio_completion_id, IO_TIMEOUT);
 	if (unlikely(cmdid < 0))
 		goto free_info;
 
@@ -506,7 +520,7 @@ static void nvme_abort_command(struct nvme_queue *nvmeq, int cmdid)
  * if the result is positive, it's an NVM Express status code
  */
 static int nvme_submit_sync_cmd(struct nvme_queue *nvmeq,
-					struct nvme_command *cmd, u32 *result)
+			struct nvme_command *cmd, u32 *result, unsigned timeout)
 {
 	int cmdid;
 	struct sync_cmd_info cmdinfo;
@@ -514,7 +528,8 @@ static int nvme_submit_sync_cmd(struct nvme_queue *nvmeq,
 	cmdinfo.task = current;
 	cmdinfo.status = -EINTR;
 
-	cmdid = alloc_cmdid_killable(nvmeq, &cmdinfo, sync_completion_id);
+	cmdid = alloc_cmdid_killable(nvmeq, &cmdinfo, sync_completion_id,
+								timeout);
 	if (cmdid < 0)
 		return cmdid;
 	cmd->common.command_id = cmdid;
@@ -537,7 +552,7 @@ static int nvme_submit_sync_cmd(struct nvme_queue *nvmeq,
 static int nvme_submit_admin_cmd(struct nvme_dev *dev, struct nvme_command *cmd,
 								u32 *result)
 {
-	return nvme_submit_sync_cmd(dev->queues[0], cmd, result);
+	return nvme_submit_sync_cmd(dev->queues[0], cmd, result, ADMIN_TIMEOUT);
 }
 
 static int adapter_delete_queue(struct nvme_dev *dev, u8 opcode, u16 id)
@@ -630,7 +645,7 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 							int depth, int vector)
 {
 	struct device *dmadev = &dev->pci_dev->dev;
-	unsigned extra = (depth + BITS_TO_LONGS(depth)) * sizeof(long);
+	unsigned extra = (depth / 8) + (depth * sizeof(struct nvme_cmd_info));
 	struct nvme_queue *nvmeq = kzalloc(sizeof(*nvmeq) + extra, GFP_KERNEL);
 	if (!nvmeq)
 		return NULL;
@@ -892,7 +907,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	 * additional races since q_lock already protects against other CPUs.
 	 */
 	put_nvmeq(nvmeq);
-	status = nvme_submit_sync_cmd(nvmeq, &c, &result);
+	status = nvme_submit_sync_cmd(nvmeq, &c, &result, IO_TIMEOUT);
 
 	nvme_unmap_user_pages(dev, io.opcode & 1, io.addr, length, sg, nents);
 	put_user(result, &uio->result);
