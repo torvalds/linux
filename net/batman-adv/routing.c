@@ -28,7 +28,6 @@
 #include "icmp_socket.h"
 #include "translation-table.h"
 #include "originator.h"
-#include "types.h"
 #include "ring_buffer.h"
 #include "vis.h"
 #include "aggregation.h"

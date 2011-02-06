@@ -22,8 +22,6 @@
 #ifndef _NET_BATMAN_ADV_TRANSLATION_TABLE_H_
 #define _NET_BATMAN_ADV_TRANSLATION_TABLE_H_
 
-#include "types.h"
-
 int hna_local_init(struct bat_priv *bat_priv);
 void hna_local_add(struct net_device *soft_iface, uint8_t *addr);
 void hna_local_remove(struct bat_priv *bat_priv,

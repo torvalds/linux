@@ -22,7 +22,6 @@
 #include "main.h"
 #include "translation-table.h"
 #include "soft-interface.h"
-#include "types.h"
 #include "hash.h"
 #include "originator.h"
 

@@ -30,7 +30,6 @@
 #include "translation-table.h"
 #include "hard-interface.h"
 #include "gateway_client.h"
-#include "types.h"
 #include "vis.h"
 #include "hash.h"
 

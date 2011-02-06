@@ -26,7 +26,6 @@
 #include "send.h"
 #include "bat_debugfs.h"
 #include "translation-table.h"
-#include "types.h"
 #include "hash.h"
 #include "gateway_common.h"
 #include "gateway_client.h"

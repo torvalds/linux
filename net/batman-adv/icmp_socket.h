@@ -22,8 +22,6 @@
 #ifndef _NET_BATMAN_ADV_ICMP_SOCKET_H_
 #define _NET_BATMAN_ADV_ICMP_SOCKET_H_
 
-#include "types.h"
-
 #define ICMP_SOCKET "socket"
 
 void bat_socket_init(void);
