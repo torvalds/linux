@@ -312,8 +312,7 @@ static void bfin_handle_irq(unsigned irq)
 	__ipipe_handle_irq(irq, &regs);
 	ipipe_trace_irq_exit(irq);
 #else /* !CONFIG_IPIPE */
-	struct irq_desc *desc = irq_desc + irq;
-	desc->handle_irq(irq, desc);
+	generic_handle_irq(irq);
 #endif  /* !CONFIG_IPIPE */
 }
 
@@ -540,10 +539,7 @@ static inline void bfin_set_irq_handler(unsigned irq, irq_flow_handler_t handle)
 #ifdef CONFIG_IPIPE
 	_set_irq_handler(irq, handle_level_irq);
 #else
-	struct irq_desc *desc = irq_desc + irq;
-	/* May not call generic set_irq_handler() due to spinlock
-	   recursion. */
-	desc->handle_irq = handle;
+	__set_irq_handler_unlocked(irq, handle);
 #endif
 }
 
@@ -562,7 +558,7 @@ static void bfin_gpio_ack_irq(unsigned int irq)
 
 static void bfin_gpio_mask_ack_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_to_desc(irq);
 	u32 gpionr = irq_to_gpio(irq);
 
 	if (desc->handle_irq == handle_edge_irq)
@@ -820,7 +816,7 @@ void init_pint_lut(void)
 
 static void bfin_gpio_ack_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_to_desc(irq);
 	u32 pint_val = irq2pint_lut[irq - SYS_IRQS];
 	u32 pintbit = PINT_BIT(pint_val);
 	u32 bank = PINT_2_BANK(pint_val);
@@ -837,7 +833,7 @@ static void bfin_gpio_ack_irq(unsigned int irq)
 
 static void bfin_gpio_mask_ack_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_to_desc(irq);
 	u32 pint_val = irq2pint_lut[irq - SYS_IRQS];
 	u32 pintbit = PINT_BIT(pint_val);
 	u32 bank = PINT_2_BANK(pint_val);
