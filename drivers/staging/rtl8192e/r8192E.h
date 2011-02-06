@@ -1055,11 +1055,9 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
 u32 read_cam(struct r8192_priv *priv, u8 addr);
 void write_cam(struct r8192_priv *priv, u8 addr, u32 data);
 u8 read_nic_byte(struct r8192_priv *priv, int x);
-u8 read_nic_byte_E(struct net_device *dev, int x);
 u32 read_nic_dword(struct r8192_priv *priv, int x);
 u16 read_nic_word(struct r8192_priv *priv, int x) ;
 void write_nic_byte(struct r8192_priv *priv, int x,u8 y);
-void write_nic_byte_E(struct net_device *priv, int x,u8 y);
 void write_nic_word(struct r8192_priv *priv, int x,u16 y);
 void write_nic_dword(struct r8192_priv *priv, int x,u32 y);
 
@@ -1067,11 +1065,6 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset);
 void rtl8192_rx_enable(struct net_device *);
 void rtl8192_tx_enable(struct net_device *);
 
-void rtl8192_disassociate(struct net_device *dev);
-void rtl8185_set_rf_pins_enable(struct net_device *dev,u32 a);
-
-void rtl8192_set_anaparam(struct net_device *dev,u32 a);
-void rtl8185_set_anaparam2(struct net_device *dev,u32 a);
 void rtl8192_update_msr(struct net_device *dev);
 int rtl8192_down(struct net_device *dev);
 int rtl8192_up(struct net_device *dev);
@@ -1080,8 +1073,6 @@ void rtl8192_set_chan(struct net_device *dev,short ch);
 void write_phy(struct net_device *dev, u8 adr, u8 data);
 void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
 void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
-void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
-void rtl8187_set_rxconf(struct net_device *dev);
 void CamResetAllEntry(struct net_device* dev);
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
