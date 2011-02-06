@@ -307,9 +307,7 @@ SetRFPowerState8190(
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
 	bool bResult = true;
-	//u8 eRFPath;
 	u8	i = 0, QueueID = 0;
-	//ptx_ring	head=NULL,tail=NULL;
 	struct rtl8192_tx_ring  *ring = NULL;
 
 	if(priv->SetRFPowerStateInProgress == true)
@@ -322,9 +320,6 @@ SetRFPowerState8190(
 		switch( eRFPowerState )
 		{
 			case eRfOn:
-						//RXTX enable control: On
-					//for(eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
-					//	PHY_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x4, 0xC00, 0x2);
 
 				// turn on RF
 				if((priv->ieee80211->eRFPowerState == eRfOff) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
@@ -347,12 +342,10 @@ SetRFPowerState8190(
 					RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
 				} else {
 					write_nic_byte(priv, ANAPAR, 0x37);//160MHz
-					//write_nic_byte(priv, MacBlkCtrl, 0x17); // 0x403
 					mdelay(1);
 					//enable clock 80/88 MHz
 					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x4, 0x1); // 0x880[2]
 					priv->bHwRfOffAction = 0;
-					//}
 
 					//RF-A, RF-B
 					//enable RF-Chip A/B
@@ -368,49 +361,20 @@ SetRFPowerState8190(
 					//analog to digital part2 on
 					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x3); 	// 0x880[6:5]
 
-					// Baseband reset 2008.09.30 add
-					//write_nic_byte(priv, BB_RESET, (read_nic_byte(dev, BB_RESET)|BIT0));
-
-				//2 	AFE
-					// 2008.09.30 add
-					//rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0x20000000, 0x1); // 0x884
-					//analog to digital part2 on
-					//rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x3);		// 0x880[6:5]
-
-
-					//digital to analog on
-					//rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x98, 0x13); // 0x880[4:3]
-					//analog to digital on
-					//rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0xf03, 0xf03);// 0x88c[9:8]
-					//rx antenna on
-					//PHY_SetBBReg(dev, rOFDM0_TRxPathEnable, 0x3, 0x3);// 0xc04[1:0]
-					//rx antenna on 2008.09.30 mark
-					//PHY_SetBBReg(dev, rOFDM1_TRxPathEnable, 0x3, 0x3);// 0xd04[1:0]
-
-				//2 	RF
-					//enable RF-Chip A/B
-					//rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x1);		// 0x860[4]
-					//rtl8192_setBBreg(dev, rFPGA0_XB_RFInterfaceOE, BIT4, 0x1);		// 0x864[4]
-
 				}
 
-						break;
+				break;
 
 				//
 				// In current solution, RFSleep=RFOff in order to save power under 802.11 power save.
 				// By Bruce, 2008-01-16.
 				//
 			case eRfSleep:
-			{
+
 				// HW setting had been configured with deeper mode.
 				if(priv->ieee80211->eRFPowerState == eRfOff)
 					break;
 
-				// Update current RF state variable.
-				//priv->ieee80211->eRFPowerState = eRFPowerState;
-
-				//if (pPSC->bLeisurePs)
-				{
 					for(QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; )
 					{
 							ring = &priv->tx_ring[QueueID];
@@ -433,16 +397,12 @@ SetRFPowerState8190(
 								break;
 							}
 						}
-				}
 
 				PHY_SetRtl8192eRfOff(dev);
-			}
-								break;
+
+				break;
 
 			case eRfOff:
-
-				// Update current RF state variable.
-				//priv->ieee80211->eRFPowerState = eRFPowerState;
 
 				//
 				// Disconnect with Any AP or STA.
@@ -469,30 +429,11 @@ SetRFPowerState8190(
 							RT_TRACE(COMP_POWER, "\n\n\n SetZebraRFPowerState8185B(): eRfOff: %d times TcbBusyQueue[%d] != 0 !!!\n\n\n", MAX_DOZE_WAITING_TIMES_9x, QueueID);
 							break;
 						}
-					}
+				}
 
-				{
-					//if(pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC && !RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC) && priv->ieee80211->RfOffReason > RF_CHANGE_BY_PS)
+
 					if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC && !RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
 					{ // Disable all components.
-						//
-						// Note:
-						//	NicIFSetLinkStatus is a big problem when we indicate the status to OS,
-						//	the OS(XP) will reset. But now, we cnnot find why the NIC is hard to receive
-						//	packets after RF ON. Just keep this function here and still work to find out the root couse.
-						//	By Bruce, 2009-05-01.
-						//
-						//NicIFSetLinkStatus( Adapter, RT_MEDIA_DISCONNECT );
-						//if HW radio of , need to indicate scan complete first for not be reset.
-						//if(MgntScanInProgress(pMgntInfo))
-						//	MgntResetScanProcess( Adapter );
-
-						// <1> Disable Interrupt
-						//rtl8192_irq_disable(dev);
-						// <2> Stop all timer
-						//MgntCancelAllTimer(Adapter);
-						// <3> Disable Adapter
-						//NicIFHaltAdapter(Adapter, false);
 						NicIFDisableNIC(dev);
 						RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
 					}
@@ -501,7 +442,6 @@ SetRFPowerState8190(
 				  		// IPS should go to this.
 						PHY_SetRtl8192eRfOff(dev);
 					}
-				}
 				break;
 
 			default:
