@@ -44,6 +44,9 @@
 static int nvme_major;
 module_param(nvme_major, int, 0);
 
+static int use_threaded_interrupts;
+module_param(use_threaded_interrupts, int, 0);
+
 /*
  * Represents an NVM Express device.  Each nvme_dev is a PCI function.
  */
@@ -455,6 +458,25 @@ static irqreturn_t nvme_irq(int irq, void *data)
 	return nvme_process_cq(data);
 }
 
+static irqreturn_t nvme_irq_thread(int irq, void *data)
+{
+	irqreturn_t result;
+	struct nvme_queue *nvmeq = data;
+	spin_lock(&nvmeq->q_lock);
+	result = nvme_process_cq(nvmeq);
+	spin_unlock(&nvmeq->q_lock);
+	return result;
+}
+
+static irqreturn_t nvme_irq_check(int irq, void *data)
+{
+	struct nvme_queue *nvmeq = data;
+	struct nvme_completion cqe = nvmeq->cqes[nvmeq->cq_head];
+	if ((le16_to_cpu(cqe.status) & 1) != nvmeq->cq_phase)
+		return IRQ_NONE;
+	return IRQ_WAKE_THREAD;
+}
+
 static void nvme_abort_command(struct nvme_queue *nvmeq, int cmdid)
 {
 	spin_lock_irq(&nvmeq->q_lock);
@@ -630,6 +652,11 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 static int queue_request_irq(struct nvme_dev *dev, struct nvme_queue *nvmeq,
 							const char *name)
 {
+	if (use_threaded_interrupts)
+		return request_threaded_irq(dev->entry[nvmeq->cq_vector].vector,
+					nvme_irq_check, nvme_irq_thread,
+					IRQF_DISABLED | IRQF_SHARED,
+					name, nvmeq);
 	return request_irq(dev->entry[nvmeq->cq_vector].vector, nvme_irq,
 				IRQF_DISABLED | IRQF_SHARED, name, nvmeq);
 }
