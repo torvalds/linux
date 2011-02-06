@@ -35,7 +35,6 @@ atomic_t irq_err_count;
 asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	struct irq_desc *desc = irq_desc + irq;
 
 	if (irq >= NR_IRQS) {
 		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
@@ -57,7 +56,7 @@ asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 			       sp - sizeof(struct thread_info));
 	}
 #endif
-	desc->handle_irq(irq, desc);
+	generic_handle_irq(irq);
 
 	irq_exit();
 	set_irq_regs(old_regs);
@@ -111,50 +110,50 @@ skip:
 	return 0;
 }
 
-static void xtensa_irq_mask(unsigned int irq)
+static void xtensa_irq_mask(struct irq_chip *d)
 {
-	cached_irq_mask &= ~(1 << irq);
+	cached_irq_mask &= ~(1 << d->irq);
 	set_sr (cached_irq_mask, INTENABLE);
 }
 
-static void xtensa_irq_unmask(unsigned int irq)
+static void xtensa_irq_unmask(struct irq_chip *d)
 {
-	cached_irq_mask |= 1 << irq;
+	cached_irq_mask |= 1 << d->irq;
 	set_sr (cached_irq_mask, INTENABLE);
 }
 
-static void xtensa_irq_enable(unsigned int irq)
+static void xtensa_irq_enable(struct irq_chip *d)
 {
-	variant_irq_enable(irq);
-	xtensa_irq_unmask(irq);
+	variant_irq_enable(d->irq);
+	xtensa_irq_unmask(d->irq);
 }
 
-static void xtensa_irq_disable(unsigned int irq)
+static void xtensa_irq_disable(struct irq_chip *d)
 {
-	xtensa_irq_mask(irq);
-	variant_irq_disable(irq);
+	xtensa_irq_mask(d->irq);
+	variant_irq_disable(d->irq);
 }
 
-static void xtensa_irq_ack(unsigned int irq)
+static void xtensa_irq_ack(struct irq_chip *d)
 {
-	set_sr(1 << irq, INTCLEAR);
+	set_sr(1 << d->irq, INTCLEAR);
 }
 
-static int xtensa_irq_retrigger(unsigned int irq)
+static int xtensa_irq_retrigger(struct irq_chip *d)
 {
-	set_sr (1 << irq, INTSET);
+	set_sr (1 << d->irq, INTSET);
 	return 1;
 }
 
 
 static struct irq_chip xtensa_irq_chip = {
 	.name		= "xtensa",
-	.enable		= xtensa_irq_enable,
-	.disable	= xtensa_irq_disable,
-	.mask		= xtensa_irq_mask,
-	.unmask		= xtensa_irq_unmask,
-	.ack		= xtensa_irq_ack,
-	.retrigger	= xtensa_irq_retrigger,
+	.irq_enable	= xtensa_irq_enable,
+	.irq_disable	= xtensa_irq_disable,
+	.irq_mask	= xtensa_irq_mask,
+	.irq_unmask	= xtensa_irq_unmask,
+	.irq_ack	= xtensa_irq_ack,
+	.irq_retrigger	= xtensa_irq_retrigger,
 };
 
 void __init init_IRQ(void)
