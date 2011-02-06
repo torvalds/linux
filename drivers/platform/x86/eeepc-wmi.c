@@ -77,6 +77,7 @@ MODULE_ALIAS("wmi:"EEEPC_WMI_MGMT_GUID);
 #define EEEPC_WMI_DEVID_BRIGHTNESS	0x00050012
 #define EEEPC_WMI_DEVID_CAMERA		0x00060013
 #define EEEPC_WMI_DEVID_CARDREADER	0x00080013
+#define EEEPC_WMI_DEVID_TOUCHPAD	0x00100011
 #define EEEPC_WMI_DEVID_TOUCHPAD_LED	0x00100012
 
 #define EEEPC_WMI_DSTS_STATUS_BIT	0x00000001
@@ -1006,6 +1007,7 @@ static ssize_t show_sys_wmi(int devid, char *buf)
 		.store  = store_##_name,				\
 	}
 
+EEEPC_WMI_CREATE_DEVICE_ATTR(touchpad, 0644, EEEPC_WMI_DEVID_TOUCHPAD);
 EEEPC_WMI_CREATE_DEVICE_ATTR(camera, 0644, EEEPC_WMI_DEVID_CAMERA);
 EEEPC_WMI_CREATE_DEVICE_ATTR(cardr, 0644, EEEPC_WMI_DEVID_CARDREADER);
 
@@ -1036,6 +1038,7 @@ static struct attribute *platform_attributes[] = {
 	&dev_attr_cpufv.attr,
 	&dev_attr_camera.attr,
 	&dev_attr_cardr.attr,
+	&dev_attr_touchpad.attr,
 	NULL
 };
 
@@ -1050,6 +1053,8 @@ static mode_t eeepc_sysfs_is_visible(struct kobject *kobj,
 		devid = EEEPC_WMI_DEVID_CAMERA;
 	else if (attr == &dev_attr_cardr.attr)
 		devid = EEEPC_WMI_DEVID_CARDREADER;
+	else if (attr == &dev_attr_touchpad.attr)
+		devid = EEEPC_WMI_DEVID_TOUCHPAD;
 
 	if (devid != -1)
 		supported = eeepc_wmi_get_devstate_simple(devid) != -ENODEV;

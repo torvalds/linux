@@ -22,3 +22,10 @@ KernelVersion:	2.6.39
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
 Description:
 		Control the card reader. 1 means on, 0 means off.
+
+What:		/sys/devices/platform/eeepc-wmi/touchpad
+Date:		Jan 2010
+KernelVersion:	2.6.39
+Contact:	"Corentin Chary" <corentincj@iksaif.net>
+Description:
+		Control the card touchpad. 1 means on, 0 means off.
