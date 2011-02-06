@@ -457,6 +457,9 @@ arm1022_processor_functions:
 	.word	cpu_arm1022_dcache_clean_area
 	.word	cpu_arm1022_switch_mm
 	.word	cpu_arm1022_set_pte_ext
+	.word	0
+	.word	0
+	.word	0
 	.size	arm1022_processor_functions, . - arm1022_processor_functions
 
 	.section ".rodata"

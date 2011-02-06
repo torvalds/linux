@@ -419,6 +419,9 @@ ENTRY(arm946_processor_functions)
 	.word	cpu_arm946_dcache_clean_area
 	.word	cpu_arm946_switch_mm
 	.word	0		@ cpu_*_set_pte
+	.word	0
+	.word	0
+	.word	0
 	.size	arm946_processor_functions, . - arm946_processor_functions
 
 	.section ".rodata"

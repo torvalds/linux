@@ -554,6 +554,9 @@ feroceon_processor_functions:
 	.word	cpu_feroceon_dcache_clean_area
 	.word	cpu_feroceon_switch_mm
 	.word	cpu_feroceon_set_pte_ext
+	.word	0
+	.word	0
+	.word	0
 	.size	feroceon_processor_functions, . - feroceon_processor_functions
 
 	.section ".rodata"

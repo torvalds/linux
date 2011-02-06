@@ -493,6 +493,9 @@ arm1020_processor_functions:
 	.word	cpu_arm1020_dcache_clean_area
 	.word	cpu_arm1020_switch_mm
 	.word	cpu_arm1020_set_pte_ext
+	.word	0
+	.word	0
+	.word	0
 	.size	arm1020_processor_functions, . - arm1020_processor_functions
 
 	.section ".rodata"

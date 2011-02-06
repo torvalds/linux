@@ -66,6 +66,11 @@ extern struct processor {
 	 * ignore 'ext'.
 	 */
 	void (*set_pte_ext)(pte_t *ptep, pte_t pte, unsigned int ext);
+
+	/* Suspend/resume */
+	unsigned int suspend_size;
+	void (*do_suspend)(void *);
+	void (*do_resume)(void *);
 } processor;
 
 #ifndef MULTI_CPU
@@ -85,6 +90,8 @@ extern void cpu_reset(unsigned long addr) __attribute__((noreturn));
 #define cpu_set_pte_ext(ptep,pte,ext)	processor.set_pte_ext(ptep,pte,ext)
 #define cpu_do_switch_mm(pgd,mm)	processor.switch_mm(pgd,mm)
 #endif
+
+extern void cpu_resume(void);
 
 #include <asm/memory.h>
 

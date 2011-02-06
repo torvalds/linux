@@ -452,6 +452,9 @@ arm1026_processor_functions:
 	.word	cpu_arm1026_dcache_clean_area
 	.word	cpu_arm1026_switch_mm
 	.word	cpu_arm1026_set_pte_ext
+	.word	0
+	.word	0
+	.word	0
 	.size	arm1026_processor_functions, . - arm1026_processor_functions
 
 	.section .rodata
