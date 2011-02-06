@@ -249,23 +249,23 @@ static void gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 /* GPIO IRQ support */
 
-static void gpio_irq_mask(unsigned irq)
+static void gpio_irq_mask(struct irq_data *d)
 {
-	unsigned		gpio = irq_to_gpio(irq);
+	unsigned		gpio = irq_to_gpio(d->irq);
 	struct pio_device	*pio = &pio_dev[gpio >> 5];
 
 	pio_writel(pio, IDR, 1 << (gpio & 0x1f));
 }
 
-static void gpio_irq_unmask(unsigned irq)
+static void gpio_irq_unmask(struct irq_data *d))
 {
-	unsigned		gpio = irq_to_gpio(irq);
+	unsigned		gpio = irq_to_gpio(d->irq);
 	struct pio_device	*pio = &pio_dev[gpio >> 5];
 
 	pio_writel(pio, IER, 1 << (gpio & 0x1f));
 }
 
-static int gpio_irq_type(unsigned irq, unsigned type)
+static int gpio_irq_type(struct irq_data *d, unsigned type)
 {
 	if (type != IRQ_TYPE_EDGE_BOTH && type != IRQ_TYPE_NONE)
 		return -EINVAL;
@@ -275,20 +275,19 @@ static int gpio_irq_type(unsigned irq, unsigned type)
 
 static struct irq_chip gpio_irqchip = {
 	.name		= "gpio",
-	.mask		= gpio_irq_mask,
-	.unmask		= gpio_irq_unmask,
-	.set_type	= gpio_irq_type,
+	.irq_mask	= gpio_irq_mask,
+	.irq_unmask	= gpio_irq_unmask,
+	.irq_set_type	= gpio_irq_type,
 };
 
 static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct pio_device	*pio = get_irq_chip_data(irq);
+	struct pio_device	*pio = get_irq_desc_chip_data(desc);
 	unsigned		gpio_irq;
 
 	gpio_irq = (unsigned) get_irq_data(irq);
 	for (;;) {
 		u32		isr;
-		struct irq_desc	*d;
 
 		/* ack pending GPIO interrupts */
 		isr = pio_readl(pio, ISR) & pio_readl(pio, IMR);
@@ -301,9 +300,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 			isr &= ~(1 << i);
 
 			i += gpio_irq;
-			d = &irq_desc[i];
-
-			d->handle_irq(i, d);
+			generic_handle_irq(i);
 		} while (isr);
 	}
 }
