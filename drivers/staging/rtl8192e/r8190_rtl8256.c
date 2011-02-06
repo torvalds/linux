@@ -635,57 +635,30 @@ MlmeDisassociateRequest(
 }
 
 
-static void
-MgntDisconnectAP(
-	struct net_device* dev,
-	u8 asRsn
-)
+static void MgntDisconnectAP(struct net_device *dev, u8 asRsn)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool bFilterOutNonAssociatedBSSID = false;
+	u32 RegRCR, Type;
 
-//
-// Commented out by rcnjko, 2005.01.27:
-// I move SecClearAllKeys() to MgntActSet_802_11_DISASSOCIATE().
-//
-//	//2004/09/15, kcwu, the key should be cleared, or the new handshaking will not success
-//	SecClearAllKeys(Adapter);
-
-	// In WPA WPA2 need to Clear all key ... because new key will set after new handshaking.
-#ifdef TO_DO
-	if(   pMgntInfo->SecurityInfo.AuthMode > RT_802_11AuthModeAutoSwitch ||
-		(pMgntInfo->bAPSuportCCKM && pMgntInfo->bCCX8021xenable) )	// In CCKM mode will Clear key
-	{
-		SecClearAllKeys(Adapter);
-		RT_TRACE(COMP_SEC, DBG_LOUD,("======>CCKM clear key..."))
-	}
-#endif
-	// If disconnect, clear RCR CBSSID bit
+	/* If disconnect, clear RCR CBSSID bit */
 	bFilterOutNonAssociatedBSSID = false;
-	{
-			u32 RegRCR, Type;
 
-			Type = bFilterOutNonAssociatedBSSID;
-			//Adapter->HalFunc.GetHwRegHandler(Adapter, HW_VAR_RCR, (pu1Byte)(&RegRCR));
-			RegRCR = read_nic_dword(priv, RCR);
-			priv->ReceiveConfig = RegRCR;
+	Type = bFilterOutNonAssociatedBSSID;
+	RegRCR = read_nic_dword(priv, RCR);
+	priv->ReceiveConfig = RegRCR;
 
-			if (Type == true)
-				RegRCR |= (RCR_CBSSID);
-			else if (Type == false)
-				RegRCR &= (~RCR_CBSSID);
+	if (Type == true)
+		RegRCR |= (RCR_CBSSID);
+	else if (Type == false)
+		RegRCR &= (~RCR_CBSSID);
 
-			write_nic_dword(priv, RCR, RegRCR);
-			priv->ReceiveConfig = RegRCR;
+	write_nic_dword(priv, RCR, RegRCR);
+	priv->ReceiveConfig = RegRCR;
 
-
-	}
-	// 2004.10.11, by rcnjko.
-	//MlmeDisassociateRequest( Adapter, pMgntInfo->Bssid, disas_lv_ss );
-	MlmeDisassociateRequest( dev, priv->ieee80211->current_network.bssid, asRsn );
+	MlmeDisassociateRequest(dev, priv->ieee80211->current_network.bssid, asRsn);
 
 	priv->ieee80211->state = IEEE80211_NOLINK;
-	//pMgntInfo->AsocTimestamp = 0;
 }
 
 
