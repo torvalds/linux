@@ -1570,11 +1570,21 @@ atombios_apply_encoder_quirks(struct drm_encoder *encoder,
 	}
 
 	/* set scaler clears this on some chips */
-	/* XXX check DCE4 */
-	if (!(radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT))) {
-		if (ASIC_IS_AVIVO(rdev) && (mode->flags & DRM_MODE_FLAG_INTERLACE))
-			WREG32(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
-			       AVIVO_D1MODE_INTERLEAVE_EN);
+	if (ASIC_IS_AVIVO(rdev) &&
+	    (!(radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT)))) {
+		if (ASIC_IS_DCE4(rdev)) {
+			if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+				WREG32(EVERGREEN_DATA_FORMAT + radeon_crtc->crtc_offset,
+				       EVERGREEN_INTERLEAVE_EN);
+			else
+				WREG32(EVERGREEN_DATA_FORMAT + radeon_crtc->crtc_offset, 0);
+		} else {
+			if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+				WREG32(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
+				       AVIVO_D1MODE_INTERLEAVE_EN);
+			else
+				WREG32(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset, 0);
+		}
 	}
 }
 

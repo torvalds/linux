@@ -995,9 +995,9 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 	}
 }
 
-static int evergreen_crtc_do_set_base(struct drm_crtc *crtc,
-				      struct drm_framebuffer *fb,
-				      int x, int y, int atomic)
+static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 int x, int y, int atomic)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -1136,12 +1136,6 @@ static int evergreen_crtc_do_set_base(struct drm_crtc *crtc,
 	       (x << 16) | y);
 	WREG32(EVERGREEN_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
 	       (crtc->mode.hdisplay << 16) | crtc->mode.vdisplay);
-
-	if (crtc->mode.flags & DRM_MODE_FLAG_INTERLACE)
-		WREG32(EVERGREEN_DATA_FORMAT + radeon_crtc->crtc_offset,
-		       EVERGREEN_INTERLEAVE_EN);
-	else
-		WREG32(EVERGREEN_DATA_FORMAT + radeon_crtc->crtc_offset, 0);
 
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
@@ -1300,12 +1294,6 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
 	       (crtc->mode.hdisplay << 16) | crtc->mode.vdisplay);
 
-	if (crtc->mode.flags & DRM_MODE_FLAG_INTERLACE)
-		WREG32(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
-		       AVIVO_D1MODE_INTERLEAVE_EN);
-	else
-		WREG32(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset, 0);
-
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = radeon_fb->obj->driver_private;
@@ -1329,7 +1317,7 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	struct radeon_device *rdev = dev->dev_private;
 
 	if (ASIC_IS_DCE4(rdev))
-		return evergreen_crtc_do_set_base(crtc, old_fb, x, y, 0);
+		return dce4_crtc_do_set_base(crtc, old_fb, x, y, 0);
 	else if (ASIC_IS_AVIVO(rdev))
 		return avivo_crtc_do_set_base(crtc, old_fb, x, y, 0);
 	else
@@ -1344,7 +1332,7 @@ int atombios_crtc_set_base_atomic(struct drm_crtc *crtc,
        struct radeon_device *rdev = dev->dev_private;
 
 	if (ASIC_IS_DCE4(rdev))
-		return evergreen_crtc_do_set_base(crtc, fb, x, y, 1);
+		return dce4_crtc_do_set_base(crtc, fb, x, y, 1);
 	else if (ASIC_IS_AVIVO(rdev))
 		return avivo_crtc_do_set_base(crtc, fb, x, y, 1);
 	else
