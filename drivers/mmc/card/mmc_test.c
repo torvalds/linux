@@ -226,9 +226,10 @@ static int mmc_test_wait_busy(struct mmc_test_card *test)
 
 		if (!busy && mmc_test_busy(&cmd)) {
 			busy = 1;
-			printk(KERN_INFO "%s: Warning: Host did not "
-				"wait for busy state to end.\n",
-				mmc_hostname(test->card->host));
+			if (test->card->host->caps & MMC_CAP_WAIT_WHILE_BUSY)
+				printk(KERN_INFO "%s: Warning: Host did not "
+					"wait for busy state to end.\n",
+					mmc_hostname(test->card->host));
 		}
 	} while (mmc_test_busy(&cmd));
 
