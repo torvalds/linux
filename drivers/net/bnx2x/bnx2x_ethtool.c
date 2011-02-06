@@ -1618,7 +1618,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	/* prepare the loopback packet */
 	pkt_size = (((bp->dev->mtu < ETH_MAX_PACKET_SIZE) ?
 		     bp->dev->mtu : ETH_MAX_PACKET_SIZE) + ETH_HLEN);
-	skb = netdev_alloc_skb(bp->dev, bp->rx_buf_size);
+	skb = netdev_alloc_skb(bp->dev, fp_rx->rx_buf_size);
 	if (!skb) {
 		rc = -ENOMEM;
 		goto test_loopback_exit;

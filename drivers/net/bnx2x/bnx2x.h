@@ -341,6 +341,8 @@ struct bnx2x_fastpath {
 	/* chip independed shortcut into rx_prods_offset memory */
 	u32			ustorm_rx_prods_offset;
 
+	u32			rx_buf_size;
+
 	dma_addr_t		status_blk_mapping;
 
 	struct sw_tx_bd		*tx_buf_ring;
@@ -428,6 +430,10 @@ struct bnx2x_fastpath {
 };
 
 #define bnx2x_fp(bp, nr, var)		(bp->fp[nr].var)
+
+/* Use 2500 as a mini-jumbo MTU for FCoE */
+#define BNX2X_FCOE_MINI_JUMBO_MTU	2500
+
 #ifdef BCM_CNIC
 /* FCoE L2 `fastpath' is right after the eth entries */
 #define FCOE_IDX			BNX2X_NUM_ETH_QUEUES(bp)
@@ -911,7 +917,6 @@ struct bnx2x {
 	int			tx_ring_size;
 
 	u32			rx_csum;
-	u32			rx_buf_size;
 /* L2 header size + 2*VLANs (8 bytes) + LLC SNAP (8 bytes) */
 #define ETH_OVREHEAD		(ETH_HLEN + 8 + 8)
 #define ETH_MIN_PACKET_SIZE		60

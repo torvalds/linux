@@ -2473,8 +2473,14 @@ static void bnx2x_pf_rx_cl_prep(struct bnx2x *bp,
 	rxq_init->sge_map = fp->rx_sge_mapping;
 	rxq_init->rcq_map = fp->rx_comp_mapping;
 	rxq_init->rcq_np_map = fp->rx_comp_mapping + BCM_PAGE_SIZE;
-	rxq_init->mtu = bp->dev->mtu;
-	rxq_init->buf_sz = bp->rx_buf_size;
+
+	/* Always use mini-jumbo MTU for FCoE L2 ring */
+	if (IS_FCOE_FP(fp))
+		rxq_init->mtu = BNX2X_FCOE_MINI_JUMBO_MTU;
+	else
+		rxq_init->mtu = bp->dev->mtu;
+
+	rxq_init->buf_sz = fp->rx_buf_size;
 	rxq_init->cl_qzone_id = fp->cl_qzone_id;
 	rxq_init->cl_id = fp->cl_id;
 	rxq_init->spcl_id = fp->cl_id;
