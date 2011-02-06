@@ -1452,8 +1452,20 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	bnx2x_set_eth_mac(bp, 1);
 
+	/* Clear MC configuration */
+	if (CHIP_IS_E1(bp))
+		bnx2x_invalidate_e1_mc_list(bp);
+	else
+		bnx2x_invalidate_e1h_mc_list(bp);
+
+	/* Clear UC lists configuration */
+	bnx2x_invalidate_uc_list(bp);
+
 	if (bp->port.pmf)
 		bnx2x_initial_phy_init(bp, load_mode);
+
+	/* Initialize Rx filtering */
+	bnx2x_set_rx_mode(bp->dev);
 
 	/* Start fast path */
 	switch (load_mode) {
@@ -1461,19 +1473,14 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		/* Tx queue should be only reenabled */
 		netif_tx_wake_all_queues(bp->dev);
 		/* Initialize the receive filter. */
-		bnx2x_set_rx_mode(bp->dev);
 		break;
 
 	case LOAD_OPEN:
 		netif_tx_start_all_queues(bp->dev);
 		smp_mb__after_clear_bit();
-		/* Initialize the receive filter. */
-		bnx2x_set_rx_mode(bp->dev);
 		break;
 
 	case LOAD_DIAG:
-		/* Initialize the receive filter. */
-		bnx2x_set_rx_mode(bp->dev);
 		bp->state = BNX2X_STATE_DIAG;
 		break;
 

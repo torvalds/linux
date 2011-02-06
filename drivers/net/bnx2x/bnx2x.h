@@ -129,6 +129,7 @@ void bnx2x_panic_dump(struct bnx2x *bp);
 #endif
 
 #define bnx2x_mc_addr(ha)      ((ha)->addr)
+#define bnx2x_uc_addr(ha)      ((ha)->addr)
 
 #define U64_LO(x)			(u32)(((u64)(x)) & 0xffffffff)
 #define U64_HI(x)			(u32)(((u64)(x)) >> 32)
@@ -816,6 +817,7 @@ struct bnx2x_slowpath {
 	struct eth_stats_query		fw_stats;
 	struct mac_configuration_cmd	mac_config;
 	struct mac_configuration_cmd	mcast_config;
+	struct mac_configuration_cmd	uc_mac_config;
 	struct client_init_ramrod_data	client_init_data;
 
 	/* used by dmae command executer */
@@ -944,7 +946,7 @@ struct bnx2x {
 	struct eth_spe		*spq_prod_bd;
 	struct eth_spe		*spq_last_bd;
 	__le16			*dsb_sp_prod;
-	atomic_t		spq_left; /* serialize spq */
+	atomic_t		cq_spq_left; /* ETH_XXX ramrods credit */
 	/* used to synchronize spq accesses */
 	spinlock_t		spq_lock;
 
@@ -954,6 +956,7 @@ struct bnx2x {
 	u16			eq_prod;
 	u16			eq_cons;
 	__le16			*eq_cons_sb;
+	atomic_t		eq_spq_left; /* COMMON_XXX ramrods credit */
 
 	/* Flags for marking that there is a STAT_QUERY or
 	   SET_MAC ramrod pending */
@@ -1139,7 +1142,7 @@ struct bnx2x {
 
 	int			dmae_ready;
 	/* used to synchronize dmae accesses */
-	struct mutex		dmae_mutex;
+	spinlock_t		dmae_lock;
 
 	/* used to protect the FW mail box */
 	struct mutex		fw_mb_mutex;
@@ -1455,6 +1458,12 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command, u32 param);
 void bnx2x_calc_fc_adv(struct bnx2x *bp);
 int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 		  u32 data_hi, u32 data_lo, int common);
+
+/* Clears multicast and unicast list configuration in the chip. */
+void bnx2x_invalidate_e1_mc_list(struct bnx2x *bp);
+void bnx2x_invalidate_e1h_mc_list(struct bnx2x *bp);
+void bnx2x_invalidate_uc_list(struct bnx2x *bp);
+
 void bnx2x_update_coalesce(struct bnx2x *bp);
 int bnx2x_get_link_cfg_idx(struct bnx2x *bp);
 
