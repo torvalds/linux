@@ -50,6 +50,7 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/rfkill.h>
 #include <linux/slab.h>
+#include <linux/dmi.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
 
@@ -1557,6 +1558,20 @@ static int __devinit asus_acpi_init(struct asus_laptop *asus)
 	return result;
 }
 
+static void __devinit asus_dmi_check(void)
+{
+	const char *model;
+
+	model = dmi_get_system_info(DMI_PRODUCT_NAME);
+	if (!model)
+		return;
+
+	/* On L1400B WLED control the sound card, don't mess with it ... */
+	if (strncmp(model, "L1400B", 6) == 0) {
+		wlan_status = -1;
+	}
+}
+
 static bool asus_device_present;
 
 static int __devinit asus_acpi_add(struct acpi_device *device)
@@ -1574,6 +1589,8 @@ static int __devinit asus_acpi_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ASUS_LAPTOP_CLASS);
 	device->driver_data = asus;
 	asus->device = device;
+
+	asus_dmi_check();
 
 	result = asus_acpi_init(asus);
 	if (result)
