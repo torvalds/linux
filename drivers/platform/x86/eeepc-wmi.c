@@ -77,7 +77,7 @@ MODULE_ALIAS("wmi:"EEEPC_WMI_MGMT_GUID);
 #define EEEPC_WMI_DEVID_BRIGHTNESS	0x00050012
 #define EEEPC_WMI_DEVID_CAMERA		0x00060013
 #define EEEPC_WMI_DEVID_CARDREADER	0x00080013
-#define EEEPC_WMI_DEVID_TPDLED		0x00100011
+#define EEEPC_WMI_DEVID_TOUCHPAD_LED	0x00100012
 
 #define EEEPC_WMI_DSTS_STATUS_BIT	0x00000001
 #define EEEPC_WMI_DSTS_PRESENCE_BIT	0x00010000
@@ -303,7 +303,7 @@ static void tpd_led_update(struct work_struct *work)
 	eeepc = container_of(work, struct eeepc_wmi, tpd_led_work);
 
 	ctrl_param = eeepc->tpd_led_wk;
-	eeepc_wmi_set_devstate(EEEPC_WMI_DEVID_TPDLED, ctrl_param, NULL);
+	eeepc_wmi_set_devstate(EEEPC_WMI_DEVID_TOUCHPAD_LED, ctrl_param, NULL);
 }
 
 static void tpd_led_set(struct led_classdev *led_cdev,
@@ -317,9 +317,9 @@ static void tpd_led_set(struct led_classdev *led_cdev,
 	queue_work(eeepc->led_workqueue, &eeepc->tpd_led_work);
 }
 
-static int read_tpd_state(struct eeepc_wmi *eeepc)
+static int read_tpd_led_state(struct eeepc_wmi *eeepc)
 {
-	return eeepc_wmi_get_devstate_simple(EEEPC_WMI_DEVID_TPDLED);
+	return eeepc_wmi_get_devstate_simple(EEEPC_WMI_DEVID_TOUCHPAD_LED);
 }
 
 static enum led_brightness tpd_led_get(struct led_classdev *led_cdev)
@@ -328,14 +328,14 @@ static enum led_brightness tpd_led_get(struct led_classdev *led_cdev)
 
 	eeepc = container_of(led_cdev, struct eeepc_wmi, tpd_led);
 
-	return read_tpd_state(eeepc);
+	return read_tpd_led_state(eeepc);
 }
 
 static int eeepc_wmi_led_init(struct eeepc_wmi *eeepc)
 {
 	int rv;
 
-	if (read_tpd_state(eeepc) < 0)
+	if (read_tpd_led_state(eeepc) < 0)
 		return 0;
 
 	eeepc->led_workqueue = create_singlethread_workqueue("led_workqueue");
