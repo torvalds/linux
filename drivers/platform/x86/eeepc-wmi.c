@@ -75,6 +75,9 @@ MODULE_ALIAS("wmi:"EEEPC_WMI_MGMT_GUID);
 #define EEEPC_WMI_DEVID_BACKLIGHT	0x00050012
 #define EEEPC_WMI_DEVID_TPDLED		0x00100011
 
+#define EEEPC_WMI_DSTS_STATUS_BIT	0x00000001
+#define EEEPC_WMI_DSTS_PRESENCE_BIT	0x00010000
+
 static bool hotplug_wireless;
 
 module_param(hotplug_wireless, bool, 0444);
@@ -265,16 +268,10 @@ static int eeepc_wmi_get_devstate_simple(u32 dev_id)
 	if (ACPI_FAILURE(status))
 		return -EINVAL;
 
-	/* If the device is present, DSTS will always set some bits
-	 * 0x00070000 - 1110000000000000000 - device supported
-	 * 0x00060000 - 1100000000000000000 - not supported
-	 * 0x00020000 - 0100000000000000000 - device supported
-	 * 0x00010000 - 0010000000000000000 - not supported / special mode ?
-	 */
-	if (!retval || retval == 0x00060000)
+	if (!(retval & EEEPC_WMI_DSTS_PRESENCE_BIT))
 		return -ENODEV;
 
-	return retval & 0x1;
+	return retval & EEEPC_WMI_DSTS_STATUS_BIT;
 }
 
 /*
