@@ -2157,10 +2157,10 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 
 	currcons = vc->vc_num;
 	if (!vc_cons_allocated(currcons)) {
-	    /* could this happen? */
-		printk_once("con_write: tty %d not allocated\n", currcons+1);
-	    console_unlock();
-	    return 0;
+		/* could this happen? */
+		pr_warn_once("con_write: tty %d not allocated\n", currcons+1);
+		console_unlock();
+		return 0;
 	}
 
 	himask = vc->vc_hi_font_mask;
@@ -2940,7 +2940,7 @@ static int __init con_init(void)
 	gotoxy(vc, vc->vc_x, vc->vc_y);
 	csi_J(vc, 0);
 	update_screen(vc);
-	printk("Console: %s %s %dx%d",
+	pr_info("Console: %s %s %dx%d",
 		vc->vc_can_do_color ? "colour" : "mono",
 		display_desc, vc->vc_cols, vc->vc_rows);
 	printable = 1;
@@ -3103,7 +3103,7 @@ static int bind_con_driver(const struct consw *csw, int first, int last,
 			clear_buffer_attributes(vc);
 	}
 
-	printk("Console: switching ");
+	pr_info("Console: switching ");
 	if (!deflt)
 		printk("consoles %d-%d ", first+1, last+1);
 	if (j >= 0) {
@@ -3809,7 +3809,8 @@ void do_unblank_screen(int leaving_gfx)
 		return;
 	if (!vc_cons_allocated(fg_console)) {
 		/* impossible */
-		printk("unblank_screen: tty %d not allocated ??\n", fg_console+1);
+		pr_warning("unblank_screen: tty %d not allocated ??\n",
+			   fg_console+1);
 		return;
 	}
 	vc = vc_cons[fg_console].d;
