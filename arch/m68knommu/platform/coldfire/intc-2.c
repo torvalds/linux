@@ -43,8 +43,10 @@ static u8 intc_intpri = MCFSIM_ICR_LEVEL(6) | MCFSIM_ICR_PRI(6);
 #define NR_VECS	64
 #endif
 
-static void intc_irq_mask(unsigned int irq)
+static void intc_irq_mask(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	if ((irq >= MCFINT_VECBASE) && (irq <= MCFINT_VECBASE + NR_VECS)) {
 		unsigned long imraddr;
 		u32 val, imrbit;
@@ -64,8 +66,10 @@ static void intc_irq_mask(unsigned int irq)
 	}
 }
 
-static void intc_irq_unmask(unsigned int irq)
+static void intc_irq_unmask(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	if ((irq >= MCFINT_VECBASE) && (irq <= MCFINT_VECBASE + NR_VECS)) {
 		unsigned long intaddr, imraddr, icraddr;
 		u32 val, imrbit;
@@ -93,16 +97,16 @@ static void intc_irq_unmask(unsigned int irq)
 	}
 }
 
-static int intc_irq_set_type(unsigned int irq, unsigned int type)
+static int intc_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	return 0;
 }
 
 static struct irq_chip intc_irq_chip = {
 	.name		= "CF-INTC",
-	.mask		= intc_irq_mask,
-	.unmask		= intc_irq_unmask,
-	.set_type	= intc_irq_set_type,
+	.irq_mask	= intc_irq_mask,
+	.irq_unmask	= intc_irq_unmask,
+	.irq_set_type	= intc_irq_set_type,
 };
 
 void __init init_IRQ(void)
