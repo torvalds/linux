@@ -298,14 +298,37 @@ void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 }
 
 #define MAX_DOZE_WAITING_TIMES_9x 64
+static void r8192e_drain_tx_queues(struct r8192_priv *priv)
+{
+	u8 i, QueueID;
+
+	for (QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; )
+	{
+		struct rtl8192_tx_ring *ring = &priv->tx_ring[QueueID];
+
+		if(skb_queue_len(&ring->queue) == 0)
+		{
+			QueueID++;
+			continue;
+		}
+
+		udelay(10);
+		i++;
+
+		if (i >= MAX_DOZE_WAITING_TIMES_9x)
+		{
+			RT_TRACE(COMP_POWER, "r8192e_drain_tx_queues() timeout queue %d\n", QueueID);
+			break;
+		}
+	}
+}
+
 static bool
 SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
 	bool bResult = true;
-	u8	i = 0, QueueID = 0;
-	struct rtl8192_tx_ring  *ring = NULL;
 
 	if(priv->SetRFPowerStateInProgress == true)
 		return false;
@@ -369,28 +392,7 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 		if(priv->ieee80211->eRFPowerState == eRfOff)
 			break;
 
-		for(QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; )
-		{
-			ring = &priv->tx_ring[QueueID];
-
-			if(skb_queue_len(&ring->queue) == 0)
-			{
-				QueueID++;
-				continue;
-			}
-			else
-			{
-				RT_TRACE((COMP_POWER|COMP_RF), "eRf Off/Sleep: %d times TcbBusyQueue[%d] !=0 before doze!\n", (i+1), QueueID);
-				udelay(10);
-				i++;
-			}
-
-			if(i >= MAX_DOZE_WAITING_TIMES_9x)
-			{
-				RT_TRACE(COMP_POWER, "\n\n\n TimeOut!! SetRFPowerState8190(): eRfOff: %d times TcbBusyQueue[%d] != 0 !!!\n\n\n", MAX_DOZE_WAITING_TIMES_9x, QueueID);
-				break;
-			}
-		}
+		r8192e_drain_tx_queues(priv);
 
 		PHY_SetRtl8192eRfOff(dev);
 
@@ -401,29 +403,7 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 		//
 		// Disconnect with Any AP or STA.
 		//
-		for(QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; )
-		{
-			ring = &priv->tx_ring[QueueID];
-
-			if(skb_queue_len(&ring->queue) == 0)
-			{
-				QueueID++;
-				continue;
-			}
-			else
-			{
-				RT_TRACE(COMP_POWER,
-				"eRf Off/Sleep: %d times TcbBusyQueue[%d] !=0 before doze!\n", (i+1), QueueID);
-				udelay(10);
-				i++;
-			}
-
-			if(i >= MAX_DOZE_WAITING_TIMES_9x)
-			{
-				RT_TRACE(COMP_POWER, "\n\n\n SetZebraRFPowerState8185B(): eRfOff: %d times TcbBusyQueue[%d] != 0 !!!\n\n\n", MAX_DOZE_WAITING_TIMES_9x, QueueID);
-				break;
-			}
-		}
+		r8192e_drain_tx_queues(priv);
 
 
 		if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC && !RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
