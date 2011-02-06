@@ -5038,15 +5038,17 @@ static void rtl8192_rx(struct net_device *dev)
         .freq = IEEE80211_24GHZ_BAND,
     };
     unsigned int count = priv->rxringcount;
+    prx_fwinfo_819x_pci pDrvInfo = NULL;
+    struct sk_buff *new_skb;
 
     while (count--) {
         rx_desc_819x_pci *pdesc = &priv->rx_ring[priv->rx_idx];//rx descriptor
         struct sk_buff *skb = priv->rx_buf[priv->rx_idx];//rx pkt
 
-        if (pdesc->OWN){
+        if (pdesc->OWN)
             /* wait data to be filled by hardware */
             return;
-        } else {
+
             stats.bICV = pdesc->ICV;
             stats.bCRC = pdesc->CRC32;
             stats.bHwError = pdesc->CRC32 | pdesc->ICV;
@@ -5058,13 +5060,12 @@ static void rtl8192_rx(struct net_device *dev)
             if(stats.bHwError) {
                 stats.bShift = false;
                 goto done;
-            } else {
-                prx_fwinfo_819x_pci pDrvInfo = NULL;
-                struct sk_buff *new_skb = dev_alloc_skb(priv->rxbuffersize);
+            }
+                pDrvInfo = NULL;
+                new_skb = dev_alloc_skb(priv->rxbuffersize);
 
-                if (unlikely(!new_skb)) {
+                if (unlikely(!new_skb))
                     goto done;
-                }
 
                 stats.RxDrvInfoSize = pdesc->RxDrvInfoSize;
                 stats.RxBufShift = ((pdesc->Shift)&0x03);
@@ -5143,9 +5144,7 @@ static void rtl8192_rx(struct net_device *dev)
                 skb = new_skb;
                 priv->rx_buf[priv->rx_idx] = skb;
                 *((dma_addr_t *) skb->cb) = pci_map_single(priv->pdev, skb_tail_pointer(skb), priv->rxbuffersize, PCI_DMA_FROMDEVICE);
-            }
 
-        }
 done:
         pdesc->BufferAddress = cpu_to_le32(*((dma_addr_t *)skb->cb));
         pdesc->OWN = 1;
