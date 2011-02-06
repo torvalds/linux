@@ -40,7 +40,20 @@ static void __maybe_unused remove_quirk(struct mmc_card *card, int data)
 	card->quirks &= ~data;
 }
 
+/*
+ * This hook just adds a quirk for all sdio devices
+ */
+static void add_quirk_for_sdio_devices(struct mmc_card *card, int data)
+{
+	if (mmc_card_sdio(card))
+		card->quirks |= data;
+}
+
 static const struct mmc_fixup mmc_fixup_methods[] = {
+	/* by default sdio devices are considered CLK_GATING broken */
+	/* good cards will be whitelisted as they are tested */
+	{ SDIO_ANY_ID, SDIO_ANY_ID,
+		add_quirk_for_sdio_devices, MMC_QUIRK_BROKEN_CLK_GATING }
 	{ 0 }
 };
 
