@@ -5375,12 +5375,13 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv ;
+	u32 i;
 
- 	if(dev){
+	if (dev) {
 
 		unregister_netdev(dev);
 
-		priv=ieee80211_priv(dev);
+		priv = ieee80211_priv(dev);
 
 		rtl8192_proc_remove_one(dev);
 
@@ -5390,27 +5391,17 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 			vfree(priv->pFirmware);
 			priv->pFirmware = NULL;
 		}
-	//	priv->rf_close(dev);
-	//	rtl8192_usb_deleteendpoints(dev);
 		destroy_workqueue(priv->priv_wq);
-                /* redundant with rtl8192_down */
-               // rtl8192_irq_disable(dev);
-               // rtl8192_reset(dev);
-               // mdelay(10);
-                {
-                    u32 i;
-                    /* free tx/rx rings */
-                    rtl8192_free_rx_ring(dev);
-                    for (i = 0; i < MAX_TX_QUEUE_COUNT; i++) {
-                        rtl8192_free_tx_ring(dev, i);
-                    }
-                }
-		if(priv->irq){
 
+		/* free tx/rx rings */
+		rtl8192_free_rx_ring(dev);
+		for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
+			rtl8192_free_tx_ring(dev, i);
+
+		if (priv->irq) {
 			printk("Freeing irq %d\n",dev->irq);
 			free_irq(dev->irq, dev);
 			priv->irq=0;
-
 		}
 
 #ifdef CONFIG_RTL8180_IO_MAP
