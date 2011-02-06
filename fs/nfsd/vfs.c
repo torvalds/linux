@@ -1744,6 +1744,13 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	host_err = nfsd_break_lease(odentry->d_inode);
 	if (host_err)
 		goto out_drop_write;
+	if (ndentry->d_inode) {
+		host_err = nfsd_break_lease(ndentry->d_inode);
+		if (host_err)
+			goto out_drop_write;
+	}
+	if (host_err)
+		goto out_drop_write;
 	host_err = vfs_rename(fdir, odentry, tdir, ndentry);
 	if (!host_err) {
 		host_err = commit_metadata(tfhp);
