@@ -67,11 +67,6 @@ int pxa_pm_enter(suspend_state_t state)
 
 EXPORT_SYMBOL_GPL(pxa_pm_enter);
 
-unsigned long sleep_phys_sp(void *sp)
-{
-	return virt_to_phys(sp);
-}
-
 static int pxa_pm_valid(suspend_state_t state)
 {
 	if (pxa_cpu_pm_fns)
