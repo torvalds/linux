@@ -137,11 +137,8 @@ static int intc_irq_set_type(unsigned int irq, unsigned int type)
  */
 static void intc_external_irq(unsigned int irq, struct irq_desc *desc)
 {
-	kstat_incr_irqs_this_cpu(irq, desc);
-	desc->status |= IRQ_INPROGRESS;
 	desc->chip->ack(irq);
-	handle_IRQ_event(irq, desc->action);
-	desc->status &= ~IRQ_INPROGRESS;
+	handle_simple_irq(irq, desc);
 }
 
 static struct irq_chip intc_irq_chip = {
