@@ -812,11 +812,6 @@ MgntActSet_RF_State(
 	switch(StateToSet)
 	{
 	case eRfOn:
-		//
-		// Turn On RF no matter the IPS setting because we need to update the RF state to Ndis under Vista, or
-		// the Windows does not allow the driver to perform site survey any more. By Bruce, 2007-10-02.
-		//
-
 		priv->ieee80211->RfOffReason &= (~ChangeSource);
 
 		if(! priv->ieee80211->RfOffReason)
@@ -837,21 +832,11 @@ MgntActSet_RF_State(
 
 	case eRfOff:
 
-			if (priv->ieee80211->RfOffReason > RF_CHANGE_BY_IPS)
-			{
-				//
-				// 060808, Annie:
-				// Disconnect to current BSS when radio off. Asked by QuanTa.
-				//
-				// Set all link status falg, by Bruce, 2007-06-26.
-				//MgntActSet_802_11_DISASSOCIATE( Adapter, disas_lv_ss );
-				MgntDisconnect(dev, disas_lv_ss);
-
-				// Clear content of bssDesc[] and bssDesc4Query[] to avoid reporting old bss to UI.
-				// 2007.05.28, by shien chang.
-
-			}
-
+		if (priv->ieee80211->RfOffReason > RF_CHANGE_BY_IPS)
+		{
+			// Disconnect to current BSS when radio off. Asked by QuanTa.
+			MgntDisconnect(dev, disas_lv_ss);
+		}
 
 		priv->ieee80211->RfOffReason |= ChangeSource;
 		bActionAllowed = true;
@@ -861,30 +846,13 @@ MgntActSet_RF_State(
 		priv->ieee80211->RfOffReason |= ChangeSource;
 		bActionAllowed = true;
 		break;
-
-	default:
-		break;
 	}
 
-	if(bActionAllowed)
+	if (bActionAllowed)
 	{
 		RT_TRACE(COMP_POWER, "MgntActSet_RF_State(): Action is allowed.... StateToSet(%d), RfOffReason(%#X)\n", StateToSet, priv->ieee80211->RfOffReason);
-				// Config HW to the specified mode.
+		// Config HW to the specified mode.
 		SetRFPowerState(dev, StateToSet);
-		// Turn on RF.
-		if(StateToSet == eRfOn)
-		{
-			//Adapter->HalFunc.HalEnableRxHandler(Adapter);
-			if(bConnectBySSID)
-			{
-				//MgntActSet_802_11_SSID(Adapter, Adapter->MgntInfo.Ssid.Octet, Adapter->MgntInfo.Ssid.Length, TRUE );
-			}
-		}
-		// Turn off RF.
-		else if(StateToSet == eRfOff)
-		{
-			//Adapter->HalFunc.HalDisableRxHandler(Adapter);
-		}
 	}
 	else
 	{
