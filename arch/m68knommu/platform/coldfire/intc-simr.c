@@ -20,8 +20,10 @@
 #include <asm/mcfsim.h>
 #include <asm/traps.h>
 
-static void intc_irq_mask(unsigned int irq)
+static void intc_irq_mask(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	if (irq >= MCFINT_VECBASE) {
 		if (irq < MCFINT_VECBASE + 64)
 			__raw_writeb(irq - MCFINT_VECBASE, MCFINTC0_SIMR);
@@ -30,8 +32,10 @@ static void intc_irq_mask(unsigned int irq)
 	}
 }
 
-static void intc_irq_unmask(unsigned int irq)
+static void intc_irq_unmask(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	if (irq >= MCFINT_VECBASE) {
 		if (irq < MCFINT_VECBASE + 64)
 			__raw_writeb(irq - MCFINT_VECBASE, MCFINTC0_CIMR);
@@ -40,8 +44,10 @@ static void intc_irq_unmask(unsigned int irq)
 	}
 }
 
-static int intc_irq_set_type(unsigned int irq, unsigned int type)
+static int intc_irq_set_type(struct irq_data *d, unsigned int type)
 {
+	unsigned int irq = d->irq;
+
 	if (irq >= MCFINT_VECBASE) {
 		if (irq < MCFINT_VECBASE + 64)
 			__raw_writeb(5, MCFINTC0_ICR0 + irq - MCFINT_VECBASE);
@@ -53,9 +59,9 @@ static int intc_irq_set_type(unsigned int irq, unsigned int type)
 
 static struct irq_chip intc_irq_chip = {
 	.name		= "CF-INTC",
-	.mask		= intc_irq_mask,
-	.unmask		= intc_irq_unmask,
-	.set_type	= intc_irq_set_type,
+	.irq_mask	= intc_irq_mask,
+	.irq_unmask	= intc_irq_unmask,
+	.irq_set_type	= intc_irq_set_type,
 };
 
 void __init init_IRQ(void)
