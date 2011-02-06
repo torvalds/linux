@@ -35,44 +35,44 @@
 /*
  * off-CPU FPGA PIC operations
  */
-static void frv_fpga_mask(unsigned int irq)
+static void frv_fpga_mask(struct irq_data *d)
 {
 	uint16_t imr = __get_IMR();
 
-	imr |= 1 << (irq - IRQ_BASE_FPGA);
+	imr |= 1 << (d->irq - IRQ_BASE_FPGA);
 	__set_IMR(imr);
 }
 
-static void frv_fpga_ack(unsigned int irq)
+static void frv_fpga_ack(struct irq_data *d)
 {
-	__clr_IFR(1 << (irq - IRQ_BASE_FPGA));
+	__clr_IFR(1 << (d->irq - IRQ_BASE_FPGA));
 }
 
-static void frv_fpga_mask_ack(unsigned int irq)
+static void frv_fpga_mask_ack(struct irq_data *d)
 {
 	uint16_t imr = __get_IMR();
 
-	imr |= 1 << (irq - IRQ_BASE_FPGA);
+	imr |= 1 << (d->irq - IRQ_BASE_FPGA);
 	__set_IMR(imr);
 
-	__clr_IFR(1 << (irq - IRQ_BASE_FPGA));
+	__clr_IFR(1 << (d->irq - IRQ_BASE_FPGA));
 }
 
-static void frv_fpga_unmask(unsigned int irq)
+static void frv_fpga_unmask(struct irq_data *d)
 {
 	uint16_t imr = __get_IMR();
 
-	imr &= ~(1 << (irq - IRQ_BASE_FPGA));
+	imr &= ~(1 << (d->irq - IRQ_BASE_FPGA));
 
 	__set_IMR(imr);
 }
 
 static struct irq_chip frv_fpga_pic = {
 	.name		= "mb93093",
-	.ack		= frv_fpga_ack,
-	.mask		= frv_fpga_mask,
-	.mask_ack	= frv_fpga_mask_ack,
-	.unmask		= frv_fpga_unmask,
+	.irq_ack	= frv_fpga_ack,
+	.irq_mask	= frv_fpga_mask,
+	.irq_mask_ack	= frv_fpga_mask_ack,
+	.irq_unmask	= frv_fpga_unmask,
 };
 
 /*
