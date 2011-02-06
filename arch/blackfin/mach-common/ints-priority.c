@@ -124,21 +124,21 @@ static void __init search_IAR(void)
  * This is for core internal IRQs
  */
 
-static void bfin_ack_noop(unsigned int irq)
+static void bfin_ack_noop(struct irq_data *d)
 {
 	/* Dummy function.  */
 }
 
-static void bfin_core_mask_irq(unsigned int irq)
+static void bfin_core_mask_irq(struct irq_data *d)
 {
-	bfin_irq_flags &= ~(1 << irq);
+	bfin_irq_flags &= ~(1 << d->irq);
 	if (!hard_irqs_disabled())
 		hard_local_irq_enable();
 }
 
-static void bfin_core_unmask_irq(unsigned int irq)
+static void bfin_core_unmask_irq(struct irq_data *d)
 {
-	bfin_irq_flags |= 1 << irq;
+	bfin_irq_flags |= 1 << d->irq;
 	/*
 	 * If interrupts are enabled, IMASK must contain the same value
 	 * as bfin_irq_flags.  Make sure that invariant holds.  If interrupts
@@ -283,14 +283,14 @@ int bfin_internal_set_wake(unsigned int irq, unsigned int state)
 
 static struct irq_chip bfin_core_irqchip = {
 	.name = "CORE",
-	.ack = bfin_ack_noop,
-	.mask = bfin_core_mask_irq,
-	.unmask = bfin_core_unmask_irq,
+	.irq_ack = bfin_ack_noop,
+	.irq_mask = bfin_core_mask_irq,
+	.irq_unmask = bfin_core_unmask_irq,
 };
 
 static struct irq_chip bfin_internal_irqchip = {
 	.name = "INTN",
-	.ack = bfin_ack_noop,
+	.irq_ack = bfin_ack_noop,
 	.mask = bfin_internal_mask_irq,
 	.unmask = bfin_internal_unmask_irq,
 	.mask_ack = bfin_internal_mask_irq,
@@ -334,7 +334,7 @@ static void bfin_generic_error_unmask_irq(unsigned int irq)
 
 static struct irq_chip bfin_generic_error_irqchip = {
 	.name = "ERROR",
-	.ack = bfin_ack_noop,
+	.irq_ack = bfin_ack_noop,
 	.mask_ack = bfin_generic_error_mask_irq,
 	.mask = bfin_generic_error_mask_irq,
 	.unmask = bfin_generic_error_unmask_irq,
@@ -495,7 +495,7 @@ int bfin_mac_status_set_wake(unsigned int irq, unsigned int state)
 
 static struct irq_chip bfin_mac_status_irqchip = {
 	.name = "MACST",
-	.ack = bfin_ack_noop,
+	.irq_ack = bfin_ack_noop,
 	.mask_ack = bfin_mac_status_mask_irq,
 	.mask = bfin_mac_status_mask_irq,
 	.unmask = bfin_mac_status_unmask_irq,
