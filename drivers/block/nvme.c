@@ -170,12 +170,15 @@ enum {
 #define CMD_CTX_BASE		(POISON_POINTER_DELTA + sync_completion_id)
 #define CMD_CTX_CANCELLED	(0x2008 + CMD_CTX_BASE)
 #define CMD_CTX_COMPLETED	(0x2010 + CMD_CTX_BASE)
+#define CMD_CTX_INVALID		(0x2014 + CMD_CTX_BASE)
 
 static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 {
 	unsigned long data;
 	unsigned offset = cmdid + BITS_TO_LONGS(nvmeq->q_depth);
 
+	if (cmdid > nvmeq->q_depth)
+		return CMD_CTX_INVALID;
 	data = nvmeq->cmdid_data[offset];
 	nvmeq->cmdid_data[offset] = CMD_CTX_COMPLETED;
 	clear_bit(cmdid, nvmeq->cmdid_data);
@@ -408,6 +411,12 @@ static void sync_completion(struct nvme_queue *nvmeq, void *ctx,
 	if (unlikely((unsigned long)cmdinfo == CMD_CTX_COMPLETED)) {
 		dev_warn(nvmeq->q_dmadev,
 				"completed id %d twice on queue %d\n",
+				cqe->command_id, le16_to_cpup(&cqe->sq_id));
+		return;
+	}
+	if (unlikely((unsigned long)cmdinfo == CMD_CTX_INVALID)) {
+		dev_warn(nvmeq->q_dmadev,
+				"invalid id %d completed on queue %d\n",
 				cqe->command_id, le16_to_cpup(&cqe->sq_id));
 		return;
 	}
