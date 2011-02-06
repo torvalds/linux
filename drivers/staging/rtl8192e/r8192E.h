@@ -1086,7 +1086,7 @@ short rtl8192_is_tx_queue_empty(struct net_device *dev);
 void IPSEnter(struct net_device *dev);
 void IPSLeave(struct net_device *dev);
 void InactivePsWorkItemCallback(struct net_device *dev);
-void IPSLeave_wq(void *data);
+void IPSLeave_wq(struct work_struct *work);
 void ieee80211_ips_leave_wq(struct net_device *dev);
 void ieee80211_ips_leave(struct net_device *dev);
 #endif

@@ -99,9 +99,9 @@ static struct pci_driver rtl8192_pci_driver = {
 static void rtl8192_start_beacon(struct net_device *dev);
 static void rtl8192_stop_beacon(struct net_device *dev);
 static void rtl819x_watchdog_wqcallback(struct work_struct *work);
-static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
-static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv);
-static void rtl8192_prepare_beacon(struct r8192_priv *priv);
+static void rtl8192_irq_rx_tasklet(unsigned long arg);
+static void rtl8192_irq_tx_tasklet(unsigned long arg);
+static void rtl8192_prepare_beacon(unsigned long arg);
 static irqreturn_t rtl8192_interrupt(int irq, void *netdev);
 static void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 static void rtl8192_update_ratr_table(struct net_device* dev);
@@ -2175,7 +2175,7 @@ static void rtl8192_init_priv_task(struct net_device* dev)
 	priv->priv_wq = create_workqueue(DRV_NAME);
 
 #ifdef ENABLE_IPS
-	INIT_WORK(&priv->ieee80211->ips_leave_wq, (void*)IPSLeave_wq);
+	INIT_WORK(&priv->ieee80211->ips_leave_wq, IPSLeave_wq);
 #endif
 
 //	INIT_WORK(&priv->reset_wq, (void(*)(void*)) rtl8192_restart);
@@ -2188,18 +2188,15 @@ static void rtl8192_init_priv_task(struct net_device* dev)
 	//INIT_WORK(&priv->SwChnlWorkItem,  rtl8192_SwChnl_WorkItem);
 	//INIT_WORK(&priv->SetBWModeWorkItem,  rtl8192_SetBWModeWorkItem);
 	INIT_WORK(&priv->qos_activate, rtl8192_qos_activate);
-	INIT_DELAYED_WORK(&priv->ieee80211->hw_wakeup_wq,(void*) rtl8192_hw_wakeup_wq);
-	INIT_DELAYED_WORK(&priv->ieee80211->hw_sleep_wq,(void*) rtl8192_hw_sleep_wq);
+	INIT_DELAYED_WORK(&priv->ieee80211->hw_wakeup_wq, rtl8192_hw_wakeup_wq);
+	INIT_DELAYED_WORK(&priv->ieee80211->hw_sleep_wq, rtl8192_hw_sleep_wq);
 
-	tasklet_init(&priv->irq_rx_tasklet,
-	     (void(*)(unsigned long))rtl8192_irq_rx_tasklet,
-	     (unsigned long)priv);
-	tasklet_init(&priv->irq_tx_tasklet,
-	     (void(*)(unsigned long))rtl8192_irq_tx_tasklet,
-	     (unsigned long)priv);
-        tasklet_init(&priv->irq_prepare_beacon_tasklet,
-                (void(*)(unsigned long))rtl8192_prepare_beacon,
-                (unsigned long)priv);
+	tasklet_init(&priv->irq_rx_tasklet, rtl8192_irq_rx_tasklet,
+		     (unsigned long) priv);
+	tasklet_init(&priv->irq_tx_tasklet, rtl8192_irq_tx_tasklet,
+		     (unsigned long) priv);
+        tasklet_init(&priv->irq_prepare_beacon_tasklet, rtl8192_prepare_beacon,
+		     (unsigned long) priv);
 }
 
 static void rtl8192_get_eeprom_size(struct net_device* dev)
@@ -3094,8 +3091,9 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 
 }
 
-static void rtl8192_prepare_beacon(struct r8192_priv *priv)
+static void rtl8192_prepare_beacon(unsigned long arg)
 {
+	struct r8192_priv *priv = (struct r8192_priv*) arg;
 	struct sk_buff *skb;
 	//unsigned long flags;
 	cb_desc *tcb_desc;
@@ -3133,7 +3131,6 @@ static void rtl8192_start_beacon(struct net_device *dev)
         u16 BcnIFS = 0xf;
 
 	DMESG("Enabling beacon TX");
-	//rtl8192_prepare_beacon(dev);
 	rtl8192_irq_disable(dev);
 	//rtl8192_beacon_tx_enable(dev);
 
@@ -3784,9 +3781,9 @@ IPSLeave(struct net_device *dev)
 	}
 }
 
-void IPSLeave_wq(void *data)
+void IPSLeave_wq(struct work_struct *work)
 {
-	struct ieee80211_device *ieee = container_of(data,struct ieee80211_device,ips_leave_wq);
+	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, ips_leave_wq);
 	struct net_device *dev = ieee->dev;
 
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -4947,8 +4944,9 @@ static void rtl8192_tx_resume(struct net_device *dev)
 	}
 }
 
-static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv)
+static void rtl8192_irq_tx_tasklet(unsigned long arg)
 {
+	struct r8192_priv *priv = (struct r8192_priv*) arg;
 	struct rtl8192_tx_ring *mgnt_ring = &priv->tx_ring[MGNT_QUEUE];
 	struct net_device *dev = priv->ieee80211->dev;
 	unsigned long flags;
@@ -5164,8 +5162,9 @@ done:
 
 }
 
-static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
+static void rtl8192_irq_rx_tasklet(unsigned long arg)
 {
+	struct r8192_priv *priv = (struct r8192_priv*) arg;
        rtl8192_rx(priv->ieee80211->dev);
 	/* unmask RDU */
        write_nic_dword(priv, INTA_MASK, read_nic_dword(priv, INTA_MASK) | IMR_RDU);
