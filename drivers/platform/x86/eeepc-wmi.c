@@ -588,8 +588,14 @@ static int eeepc_rfkill_set(void *data, bool blocked)
 {
 	int dev_id = (unsigned long)data;
 	u32 ctrl_param = !blocked;
+	acpi_status status;
 
-	return eeepc_wmi_set_devstate(dev_id, ctrl_param, NULL);
+	status = eeepc_wmi_set_devstate(dev_id, ctrl_param, NULL);
+
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	return 0;
 }
 
 static void eeepc_rfkill_query(struct rfkill *rfkill, void *data)
