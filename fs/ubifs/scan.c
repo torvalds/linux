@@ -328,7 +328,7 @@ struct ubifs_scan_leb *ubifs_scan(const struct ubifs_info *c, int lnum,
 		if (!quiet)
 			ubifs_err("empty space starts at non-aligned offset %d",
 				  offs);
-		goto corrupted;;
+		goto corrupted;
 	}
 
 	ubifs_end_scan(c, sleb, lnum, offs);
