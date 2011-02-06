@@ -118,18 +118,12 @@ static void frv_cpupic_unmask(unsigned int irqlevel)
 	__clr_MASK(irqlevel);
 }
 
-static void frv_cpupic_end(unsigned int irqlevel)
-{
-	__clr_MASK(irqlevel);
-}
-
 static struct irq_chip frv_cpu_pic = {
 	.name		= "cpu",
 	.ack		= frv_cpupic_ack,
 	.mask		= frv_cpupic_mask,
 	.mask_ack	= frv_cpupic_mask_ack,
 	.unmask		= frv_cpupic_unmask,
-	.end		= frv_cpupic_end,
 };
 
 /*
