@@ -4135,23 +4135,8 @@ static void rtl8192_restart(struct work_struct *work)
 static void r8192_set_multicast(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	short promisc;
 
-	//down(&priv->wx_sem);
-
-	/* FIXME FIXME */
-
-	promisc = (dev->flags & IFF_PROMISC) ? 1:0;
-
-	if (promisc != priv->promisc) {
-		;
-	//	rtl8192_commit(dev);
-	}
-
-	priv->promisc = promisc;
-
-	//schedule_work(&priv->reset_wq);
-	//up(&priv->wx_sem);
+	priv->promisc = (dev->flags & IFF_PROMISC) ? 1 : 0;
 }
 
 
