@@ -1977,11 +1977,10 @@ void rtl8192_hw_wakeup_wq (struct work_struct *work)
 static void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-
+	u32 tmp;
 	u32 rb = jiffies;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->ps_lock,flags);
+	spin_lock(&priv->ps_lock);
 
 	// Writing HW register with 0 equals to disable
 	// the timer, that is not really what we want
@@ -1994,28 +1993,25 @@ static void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl)
 	//
 	if(((tl>=rb)&& (tl-rb) <= MSECS(MIN_SLEEP_TIME))
 			||((rb>tl)&& (rb-tl) < MSECS(MIN_SLEEP_TIME))) {
-		spin_unlock_irqrestore(&priv->ps_lock,flags);
 		printk("too short to sleep::%x, %x, %lx\n",tl, rb,  MSECS(MIN_SLEEP_TIME));
-		return;
+		goto out_unlock;
 	}
 
 	if(((tl > rb) && ((tl-rb) > MSECS(MAX_SLEEP_TIME)))||
 			((tl < rb) && (tl>MSECS(69)) && ((rb-tl) > MSECS(MAX_SLEEP_TIME)))||
 			((tl<rb)&&(tl<MSECS(69))&&((tl+0xffffffff-rb)>MSECS(MAX_SLEEP_TIME)))) {
 		printk("========>too long to sleep:%x, %x, %lx\n", tl, rb,  MSECS(MAX_SLEEP_TIME));
-		spin_unlock_irqrestore(&priv->ps_lock,flags);
-		return;
+		goto out_unlock;
 	}
-	{
-		u32 tmp = (tl>rb)?(tl-rb):(rb-tl);
-		queue_delayed_work(priv->ieee80211->wq,
-				&priv->ieee80211->hw_wakeup_wq,tmp);
-		//PowerSave not supported when kernel version less 2.6.20
-	}
+
+	tmp = (tl>rb)?(tl-rb):(rb-tl);
+	queue_delayed_work(priv->ieee80211->wq,
+			   &priv->ieee80211->hw_wakeup_wq,tmp);
+
 	queue_delayed_work(priv->ieee80211->wq,
 			(void *)&priv->ieee80211->hw_sleep_wq,0);
-	spin_unlock_irqrestore(&priv->ps_lock,flags);
-
+out_unlock:
+	spin_unlock(&priv->ps_lock);
 }
 
 static void rtl8192_init_priv_variable(struct net_device* dev)
