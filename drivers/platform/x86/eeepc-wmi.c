@@ -71,6 +71,7 @@ MODULE_ALIAS("wmi:"EEEPC_WMI_MGMT_GUID);
 
 #define EEEPC_WMI_DEVID_WLAN		0x00010011
 #define EEEPC_WMI_DEVID_BLUETOOTH	0x00010013
+#define EEEPC_WMI_DEVID_WIMAX		0x00010017
 #define EEEPC_WMI_DEVID_WWAN3G		0x00010019
 #define EEEPC_WMI_DEVID_BACKLIGHT	0x00050012
 #define EEEPC_WMI_DEVID_CAMERA		0x00060013
@@ -138,6 +139,7 @@ struct eeepc_wmi {
 
 	struct rfkill *wlan_rfkill;
 	struct rfkill *bluetooth_rfkill;
+	struct rfkill *wimax_rfkill;
 	struct rfkill *wwan3g_rfkill;
 
 	struct hotplug_slot *hotplug_slot;
@@ -691,6 +693,11 @@ static void eeepc_wmi_rfkill_exit(struct eeepc_wmi *eeepc)
 		rfkill_destroy(eeepc->bluetooth_rfkill);
 		eeepc->bluetooth_rfkill = NULL;
 	}
+	if (eeepc->wimax_rfkill) {
+		rfkill_unregister(eeepc->wimax_rfkill);
+		rfkill_destroy(eeepc->wimax_rfkill);
+		eeepc->wimax_rfkill = NULL;
+	}
 	if (eeepc->wwan3g_rfkill) {
 		rfkill_unregister(eeepc->wwan3g_rfkill);
 		rfkill_destroy(eeepc->wwan3g_rfkill);
@@ -715,6 +722,13 @@ static int eeepc_wmi_rfkill_init(struct eeepc_wmi *eeepc)
 	result = eeepc_new_rfkill(eeepc, &eeepc->bluetooth_rfkill,
 				  "eeepc-bluetooth", RFKILL_TYPE_BLUETOOTH,
 				  EEEPC_WMI_DEVID_BLUETOOTH);
+
+	if (result && result != -ENODEV)
+		goto exit;
+
+	result = eeepc_new_rfkill(eeepc, &eeepc->wimax_rfkill,
+				  "eeepc-wimax", RFKILL_TYPE_WIMAX,
+				  EEEPC_WMI_DEVID_WIMAX);
 
 	if (result && result != -ENODEV)
 		goto exit;
@@ -1276,7 +1290,11 @@ static int eeepc_hotk_restore(struct device *device)
 	if (eeepc->bluetooth_rfkill) {
 		bl = !eeepc_wmi_get_devstate_simple(EEEPC_WMI_DEVID_BLUETOOTH);
 		rfkill_set_sw_state(eeepc->bluetooth_rfkill, bl);
-}
+	}
+	if (eeepc->wimax_rfkill) {
+		bl = !eeepc_wmi_get_devstate_simple(EEEPC_WMI_DEVID_WIMAX);
+		rfkill_set_sw_state(eeepc->wimax_rfkill, bl);
+	}
 	if (eeepc->wwan3g_rfkill) {
 		bl = !eeepc_wmi_get_devstate_simple(EEEPC_WMI_DEVID_WWAN3G);
 		rfkill_set_sw_state(eeepc->wwan3g_rfkill, bl);
