@@ -176,6 +176,11 @@ static void bfin_internal_mask_irq(unsigned int irq)
 	hard_local_irq_restore(flags);
 }
 
+static void bfin_internal_mask_irq_chip(struct irq_data *d)
+{
+	bfin_internal_mask_irq(d->irq);
+}
+
 #ifdef CONFIG_SMP
 static void bfin_internal_unmask_irq_affinity(unsigned int irq,
 		const struct cpumask *affinity)
@@ -211,18 +216,23 @@ static void bfin_internal_unmask_irq(unsigned int irq)
 }
 
 #ifdef CONFIG_SMP
-static void bfin_internal_unmask_irq(unsigned int irq)
+static void bfin_internal_unmask_irq_chip(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	bfin_internal_unmask_irq_affinity(irq, desc->affinity);
+	bfin_internal_unmask_irq_affinity(d->irq, d->affinity);
 }
 
-static int bfin_internal_set_affinity(unsigned int irq, const struct cpumask *mask)
+static int bfin_internal_set_affinity(struct irq_data *d,
+				      const struct cpumask *mask, bool force)
 {
-	bfin_internal_mask_irq(irq);
-	bfin_internal_unmask_irq_affinity(irq, mask);
+	bfin_internal_mask_irq(d->irq);
+	bfin_internal_unmask_irq_affinity(d->irq, mask);
 
 	return 0;
+}
+#else
+static void bfin_internal_unmask_irq_chip(struct irq_data *d)
+{
+	bfin_internal_unmask_irq(d->irq);
 }
 #endif
 
@@ -279,6 +289,11 @@ int bfin_internal_set_wake(unsigned int irq, unsigned int state)
 
 	return 0;
 }
+
+static int bfin_internal_set_wake_chip(struct irq_data *d, unsigned int state)
+{
+	return bfin_internal_set_wake(d->irq, state);
+}
 #endif
 
 static struct irq_chip bfin_core_irqchip = {
@@ -291,16 +306,16 @@ static struct irq_chip bfin_core_irqchip = {
 static struct irq_chip bfin_internal_irqchip = {
 	.name = "INTN",
 	.irq_ack = bfin_ack_noop,
-	.mask = bfin_internal_mask_irq,
-	.unmask = bfin_internal_unmask_irq,
-	.mask_ack = bfin_internal_mask_irq,
-	.disable = bfin_internal_mask_irq,
-	.enable = bfin_internal_unmask_irq,
+	.irq_mask = bfin_internal_mask_irq_chip,
+	.irq_unmask = bfin_internal_unmask_irq_chip,
+	.irq_mask_ack = bfin_internal_mask_irq_chip,
+	.irq_disable = bfin_internal_mask_irq_chip,
+	.irq_enable = bfin_internal_unmask_irq_chip,
 #ifdef CONFIG_SMP
-	.set_affinity = bfin_internal_set_affinity,
+	.irq_set_affinity = bfin_internal_set_affinity,
 #endif
 #ifdef CONFIG_PM
-	.set_wake = bfin_internal_set_wake,
+	.irq_set_wake = bfin_internal_set_wake_chip,
 #endif
 };
 
