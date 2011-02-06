@@ -41,10 +41,6 @@
 #define DCON_SOURCE_DCON        0
 #define DCON_SOURCE_CPU         1
 
-/* Sleep values */
-#define DCON_ACTIVE             0
-#define DCON_SLEEP              1
-
 /* Interrupt */
 #define DCON_IRQ                6
 
