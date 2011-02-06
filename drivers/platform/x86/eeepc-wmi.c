@@ -114,11 +114,18 @@ static const struct key_entry eeepc_wmi_keymap[] = {
 	{ KE_KEY, 0x5c, { KEY_F15 } }, /* Power Gear key */
 	{ KE_KEY, 0x5d, { KEY_WLAN } },
 	{ KE_KEY, 0x6b, { KEY_F13 } }, /* Disable Touchpad */
+	{ KE_KEY, 0x82, { KEY_CAMERA } },
+	{ KE_KEY, 0x83, { KEY_CAMERA_ZOOMIN } },
 	{ KE_KEY, 0x88, { KEY_WLAN } },
 	{ KE_KEY, 0xcc, { KEY_SWITCHVIDEOMODE } },
 	{ KE_KEY, 0xe0, { KEY_PROG1 } }, /* Task Manager */
 	{ KE_KEY, 0xe1, { KEY_F14 } }, /* Change Resolution */
 	{ KE_KEY, 0xe9, { KEY_BRIGHTNESS_ZERO } },
+	{ KE_KEY, 0xeb, { KEY_CAMERA_ZOOMOUT } },
+	{ KE_KEY, 0xec, { KEY_CAMERA_UP } },
+	{ KE_KEY, 0xed, { KEY_CAMERA_DOWN } },
+	{ KE_KEY, 0xee, { KEY_CAMERA_LEFT } },
+	{ KE_KEY, 0xef, { KEY_CAMERA_RIGHT } },
 	{ KE_END, 0},
 };
 
