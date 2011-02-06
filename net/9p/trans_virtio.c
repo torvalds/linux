@@ -566,6 +566,7 @@ static struct p9_trans_module p9_virtio_trans = {
 	.request = p9_virtio_request,
 	.cancel = p9_virtio_cancel,
 	.maxsize = PAGE_SIZE*16,
+	.pref = P9_TRANS_PREF_PAYLOAD_SEP,
 	.def = 0,
 	.owner = THIS_MODULE,
 };
