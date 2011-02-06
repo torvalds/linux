@@ -46,22 +46,22 @@ cabriolet_update_irq_hw(unsigned int irq, unsigned long mask)
 }
 
 static inline void
-cabriolet_enable_irq(unsigned int irq)
+cabriolet_enable_irq(struct irq_data *d)
 {
-	cabriolet_update_irq_hw(irq, cached_irq_mask &= ~(1UL << irq));
+	cabriolet_update_irq_hw(d->irq, cached_irq_mask &= ~(1UL << d->irq));
 }
 
 static void
-cabriolet_disable_irq(unsigned int irq)
+cabriolet_disable_irq(struct irq_data *d)
 {
-	cabriolet_update_irq_hw(irq, cached_irq_mask |= 1UL << irq);
+	cabriolet_update_irq_hw(d->irq, cached_irq_mask |= 1UL << d->irq);
 }
 
 static struct irq_chip cabriolet_irq_type = {
 	.name		= "CABRIOLET",
-	.unmask		= cabriolet_enable_irq,
-	.mask		= cabriolet_disable_irq,
-	.mask_ack	= cabriolet_disable_irq,
+	.irq_unmask	= cabriolet_enable_irq,
+	.irq_mask	= cabriolet_disable_irq,
+	.irq_mask_ack	= cabriolet_disable_irq,
 };
 
 static void 
@@ -107,7 +107,7 @@ common_init_irq(void (*srm_dev_int)(unsigned long v))
 		for (i = 16; i < 35; ++i) {
 			set_irq_chip_and_handler(i, &cabriolet_irq_type,
 				handle_level_irq);
-			irq_to_desc(i)->status |= IRQ_LEVEL;
+			irq_set_status_flags(i, IRQ_LEVEL);
 		}
 	}
 
