@@ -462,8 +462,10 @@ static void bfin_mac_status_ack_irq(unsigned int irq)
 	}
 }
 
-static void bfin_mac_status_mask_irq(unsigned int irq)
+static void bfin_mac_status_mask_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	mac_stat_int_mask &= ~(1L << (irq - IRQ_MAC_PHYINT));
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 	switch (irq) {
@@ -480,8 +482,10 @@ static void bfin_mac_status_mask_irq(unsigned int irq)
 	bfin_mac_status_ack_irq(irq);
 }
 
-static void bfin_mac_status_unmask_irq(unsigned int irq)
+static void bfin_mac_status_unmask_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 	switch (irq) {
 	case IRQ_MAC_PHYINT:
@@ -498,7 +502,7 @@ static void bfin_mac_status_unmask_irq(unsigned int irq)
 }
 
 #ifdef CONFIG_PM
-int bfin_mac_status_set_wake(unsigned int irq, unsigned int state)
+int bfin_mac_status_set_wake(struct irq_data *d, unsigned int state)
 {
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 	return bfin_internal_set_wake(IRQ_GENERIC_ERROR, state);
@@ -511,11 +515,11 @@ int bfin_mac_status_set_wake(unsigned int irq, unsigned int state)
 static struct irq_chip bfin_mac_status_irqchip = {
 	.name = "MACST",
 	.irq_ack = bfin_ack_noop,
-	.mask_ack = bfin_mac_status_mask_irq,
-	.mask = bfin_mac_status_mask_irq,
-	.unmask = bfin_mac_status_unmask_irq,
+	.irq_mask_ack = bfin_mac_status_mask_irq,
+	.irq_mask = bfin_mac_status_mask_irq,
+	.irq_unmask = bfin_mac_status_unmask_irq,
 #ifdef CONFIG_PM
-	.set_wake = bfin_mac_status_set_wake,
+	.irq_set_wake = bfin_mac_status_set_wake,
 #endif
 };
 
