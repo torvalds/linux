@@ -24,26 +24,6 @@
  * Jerry chuang <wlanfae@realtek.com>
  */
 
-
-#undef RX_DONT_PASS_UL
-#undef DEBUG_EPROM
-#undef DEBUG_RX_VERBOSE
-#undef DUMMY_RX
-#undef DEBUG_ZERO_RX
-#undef DEBUG_RX_SKB
-#undef DEBUG_TX_FRAG
-#undef DEBUG_RX_FRAG
-#undef DEBUG_TX_FILLDESC
-#undef DEBUG_TX
-#undef DEBUG_IRQ
-#undef DEBUG_RX
-#undef DEBUG_RXALLOC
-#undef DEBUG_REGISTERS
-#undef DEBUG_RING
-#undef DEBUG_IRQ_TASKLET
-#undef DEBUG_TX_ALLOC
-#undef DEBUG_TX_DESC
-
 //#define CONFIG_RTL8192_IO_MAP
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
@@ -67,27 +47,7 @@
 #endif
 
 //set here to open your trace code. //WB
-u32 rt_global_debug_component =
-		//		COMP_INIT    	|
-			//	COMP_EPROM   	|
-		//		COMP_PHY	|
-		//		COMP_RF		|
-//				COMP_FIRMWARE	|
-			//	COMP_TRACE	|
-		//		COMP_DOWN	|
-		//		COMP_SWBW	|
-		//		COMP_SEC	|
-//				COMP_QOS	|
-//				COMP_RATE	|
-		//		COMP_RECV	|
-		//		COMP_SEND	|
-		//		COMP_POWER	|
-			//	COMP_EVENTS	|
-			//	COMP_RESET	|
-			//	COMP_CMDPKT	|
-			//	COMP_POWER_TRACKING	|
-                        // 	COMP_INTR       |
-				COMP_ERR ; //always open err flags on
+u32 rt_global_debug_component = COMP_ERR ; //always open err flags on
 
 static DEFINE_PCI_DEVICE_TABLE(rtl8192_pci_id_tbl) = {
 	/* Realtek */
