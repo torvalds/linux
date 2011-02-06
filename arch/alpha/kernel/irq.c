@@ -44,11 +44,16 @@ static char irq_user_affinity[NR_IRQS];
 
 int irq_select_affinity(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_data *data = irq_get_irq_data(irq);
+	struct irq_chip *chip;
 	static int last_cpu;
 	int cpu = last_cpu + 1;
 
-	if (!desc || !get_irq_desc_chip(desc)->set_affinity || irq_user_affinity[irq])
+	if (!data)
+		return 1;
+	chip = irq_data_get_irq_chip(data);
+
+	if (!chip->irq_set_affinity || irq_user_affinity[irq])
 		return 1;
 
 	while (!cpu_possible(cpu) ||
@@ -56,8 +61,8 @@ int irq_select_affinity(unsigned int irq)
 		cpu = (cpu < (NR_CPUS-1) ? cpu + 1 : 0);
 	last_cpu = cpu;
 
-	cpumask_copy(desc->affinity, cpumask_of(cpu));
-	get_irq_desc_chip(desc)->set_affinity(irq, cpumask_of(cpu));
+	cpumask_copy(data->affinity, cpumask_of(cpu));
+	chip->irq_set_affinity(data, cpumask_of(cpu), false);
 	return 0;
 }
 #endif /* CONFIG_SMP */
