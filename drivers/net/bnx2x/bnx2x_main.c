@@ -4276,9 +4276,12 @@ void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 		def_q_filters |= BNX2X_ACCEPT_UNICAST | BNX2X_ACCEPT_BROADCAST |
 				BNX2X_ACCEPT_MULTICAST;
 #ifdef BCM_CNIC
-		cl_id = bnx2x_fcoe(bp, cl_id);
-		bnx2x_rxq_set_mac_filters(bp, cl_id, BNX2X_ACCEPT_UNICAST |
-					  BNX2X_ACCEPT_MULTICAST);
+		if (!NO_FCOE(bp)) {
+			cl_id = bnx2x_fcoe(bp, cl_id);
+			bnx2x_rxq_set_mac_filters(bp, cl_id,
+						  BNX2X_ACCEPT_UNICAST |
+						  BNX2X_ACCEPT_MULTICAST);
+		}
 #endif
 		break;
 
@@ -4286,18 +4289,29 @@ void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 		def_q_filters |= BNX2X_ACCEPT_UNICAST | BNX2X_ACCEPT_BROADCAST |
 				BNX2X_ACCEPT_ALL_MULTICAST;
 #ifdef BCM_CNIC
-		cl_id = bnx2x_fcoe(bp, cl_id);
-		bnx2x_rxq_set_mac_filters(bp, cl_id, BNX2X_ACCEPT_UNICAST |
-					  BNX2X_ACCEPT_MULTICAST);
+		/*
+		 *  Prevent duplication of multicast packets by configuring FCoE
+		 *  L2 Client to receive only matched unicast frames.
+		 */
+		if (!NO_FCOE(bp)) {
+			cl_id = bnx2x_fcoe(bp, cl_id);
+			bnx2x_rxq_set_mac_filters(bp, cl_id,
+						  BNX2X_ACCEPT_UNICAST);
+		}
 #endif
 		break;
 
 	case BNX2X_RX_MODE_PROMISC:
 		def_q_filters |= BNX2X_PROMISCUOUS_MODE;
 #ifdef BCM_CNIC
-		cl_id = bnx2x_fcoe(bp, cl_id);
-		bnx2x_rxq_set_mac_filters(bp, cl_id, BNX2X_ACCEPT_UNICAST |
-					  BNX2X_ACCEPT_MULTICAST);
+		/*
+		 *  Prevent packets duplication by configuring DROP_ALL for FCoE
+		 *  L2 Client.
+		 */
+		if (!NO_FCOE(bp)) {
+			cl_id = bnx2x_fcoe(bp, cl_id);
+			bnx2x_rxq_set_mac_filters(bp, cl_id, BNX2X_ACCEPT_NONE);
+		}
 #endif
 		/* pass management unicast packets as well */
 		llh_mask |= NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_UNCST;
