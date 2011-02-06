@@ -73,6 +73,8 @@ MODULE_ALIAS("wmi:"EEEPC_WMI_MGMT_GUID);
 #define EEEPC_WMI_DEVID_BLUETOOTH	0x00010013
 #define EEEPC_WMI_DEVID_WWAN3G		0x00010019
 #define EEEPC_WMI_DEVID_BACKLIGHT	0x00050012
+#define EEEPC_WMI_DEVID_CAMERA		0x00060013
+#define EEEPC_WMI_DEVID_CARDREADER	0x00080013
 #define EEEPC_WMI_DEVID_TPDLED		0x00100011
 
 #define EEEPC_WMI_DSTS_STATUS_BIT	0x00000001
@@ -879,6 +881,70 @@ static void eeepc_wmi_notify(u32 value, void *context)
 	kfree(obj);
 }
 
+/*
+ * Sys helpers
+ */
+static int parse_arg(const char *buf, unsigned long count, int *val)
+{
+	if (!count)
+		return 0;
+	if (sscanf(buf, "%i", val) != 1)
+		return -EINVAL;
+	return count;
+}
+
+static ssize_t store_sys_wmi(int devid, const char *buf, size_t count)
+{
+	acpi_status status;
+	u32 retval;
+	int rv, value;
+
+	value = eeepc_wmi_get_devstate_simple(devid);
+	if (value == -ENODEV) /* Check device presence */
+		return value;
+
+	rv = parse_arg(buf, count, &value);
+	status = eeepc_wmi_set_devstate(devid, value, &retval);
+
+	if (ACPI_FAILURE(status))
+		return -EIO;
+	return rv;
+}
+
+static ssize_t show_sys_wmi(int devid, char *buf)
+{
+	int value = eeepc_wmi_get_devstate_simple(devid);
+
+	if (value < 0)
+		return value;
+
+	return sprintf(buf, "%d\n", value);
+}
+
+#define EEEPC_WMI_CREATE_DEVICE_ATTR(_name, _mode, _cm)			\
+	static ssize_t show_##_name(struct device *dev,			\
+				    struct device_attribute *attr,	\
+				    char *buf)				\
+	{								\
+		return show_sys_wmi(_cm, buf);				\
+	}								\
+	static ssize_t store_##_name(struct device *dev,		\
+				     struct device_attribute *attr,	\
+				     const char *buf, size_t count)	\
+	{								\
+		return store_sys_wmi(_cm, buf, count);			\
+	}								\
+	static struct device_attribute dev_attr_##_name = {		\
+		.attr = {						\
+			.name = __stringify(_name),			\
+			.mode = _mode },				\
+		.show   = show_##_name,					\
+		.store  = store_##_name,				\
+	}
+
+EEEPC_WMI_CREATE_DEVICE_ATTR(camera, 0644, EEEPC_WMI_DEVID_CAMERA);
+EEEPC_WMI_CREATE_DEVICE_ATTR(cardr, 0644, EEEPC_WMI_DEVID_CARDREADER);
+
 static ssize_t store_cpufv(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
@@ -904,11 +970,32 @@ static DEVICE_ATTR(cpufv, S_IRUGO | S_IWUSR, NULL, store_cpufv);
 
 static struct attribute *platform_attributes[] = {
 	&dev_attr_cpufv.attr,
+	&dev_attr_camera.attr,
+	&dev_attr_cardr.attr,
 	NULL
 };
 
+static mode_t eeepc_sysfs_is_visible(struct kobject *kobj,
+				     struct attribute *attr,
+				     int idx)
+{
+	bool supported = true;
+	int devid = -1;
+
+	if (attr == &dev_attr_camera.attr)
+		devid = EEEPC_WMI_DEVID_CAMERA;
+	else if (attr == &dev_attr_cardr.attr)
+		devid = EEEPC_WMI_DEVID_CARDREADER;
+
+	if (devid != -1)
+		supported = eeepc_wmi_get_devstate_simple(devid) != -ENODEV;
+
+	return supported ? attr->mode : 0;
+}
+
 static struct attribute_group platform_attribute_group = {
-	.attrs = platform_attributes
+	.is_visible	= eeepc_sysfs_is_visible,
+	.attrs		= platform_attributes
 };
 
 static void eeepc_wmi_sysfs_exit(struct platform_device *device)
