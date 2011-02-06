@@ -299,10 +299,7 @@ void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 
 #define MAX_DOZE_WAITING_TIMES_9x 64
 static bool
-SetRFPowerState8190(
-	struct net_device* dev,
-	RT_RF_POWER_STATE	eRFPowerState
-	)
+SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
@@ -314,147 +311,138 @@ SetRFPowerState8190(
 		return false;
 	priv->SetRFPowerStateInProgress = true;
 
-	switch(priv->rf_chip)
+	switch( eRFPowerState )
 	{
-		case RF_8256:
-		switch( eRFPowerState )
-		{
-			case eRfOn:
+	case eRfOn:
 
-				// turn on RF
-				if((priv->ieee80211->eRFPowerState == eRfOff) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
-				{ // The current RF state is OFF and the RF OFF level is halting the NIC, re-initialize the NIC.
-					bool rtstatus = true;
-					u32 InitializeCount = 3;
-					do
-					{
-						InitializeCount--;
-						rtstatus = NicIFEnableNIC(dev);
-					}while( (rtstatus != true) &&(InitializeCount >0) );
+		// turn on RF
+		if((priv->ieee80211->eRFPowerState == eRfOff) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
+		{ // The current RF state is OFF and the RF OFF level is halting the NIC, re-initialize the NIC.
+			bool rtstatus = true;
+			u32 InitializeCount = 3;
+			do
+			{
+				InitializeCount--;
+				rtstatus = NicIFEnableNIC(dev);
+			}while( (rtstatus != true) &&(InitializeCount >0) );
 
-					if(rtstatus != true)
-					{
-						RT_TRACE(COMP_ERR,"%s():Initialize Adapter fail,return\n",__FUNCTION__);
-						priv->SetRFPowerStateInProgress = false;
-						return false;
-					}
+			if(rtstatus != true)
+			{
+				RT_TRACE(COMP_ERR,"%s():Initialize Adapter fail,return\n",__FUNCTION__);
+				priv->SetRFPowerStateInProgress = false;
+				return false;
+			}
 
-					RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
-				} else {
-					write_nic_byte(priv, ANAPAR, 0x37);//160MHz
-					mdelay(1);
-					//enable clock 80/88 MHz
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x4, 0x1); // 0x880[2]
-					priv->bHwRfOffAction = 0;
+			RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
+		} else {
+			write_nic_byte(priv, ANAPAR, 0x37);//160MHz
+			mdelay(1);
+			//enable clock 80/88 MHz
+			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x4, 0x1); // 0x880[2]
+			priv->bHwRfOffAction = 0;
 
-					//RF-A, RF-B
-					//enable RF-Chip A/B
-					rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x1);		// 0x860[4]
-					//analog to digital on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);// 0x88c[9:8]
-					//digital to analog on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x18, 0x3); // 0x880[4:3]
-					//rx antenna on
-					rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0x3, 0x3);// 0xc04[1:0]
-					//rx antenna on
-					rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0x3, 0x3);// 0xd04[1:0]
-					//analog to digital part2 on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x3); 	// 0x880[6:5]
+			//RF-A, RF-B
+			//enable RF-Chip A/B
+			rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x1);		// 0x860[4]
+			//analog to digital on
+			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);// 0x88c[9:8]
+			//digital to analog on
+			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x18, 0x3); // 0x880[4:3]
+			//rx antenna on
+			rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0x3, 0x3);// 0xc04[1:0]
+			//rx antenna on
+			rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0x3, 0x3);// 0xd04[1:0]
+			//analog to digital part2 on
+			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x3); 	// 0x880[6:5]
 
-				}
-
-				break;
-
-				//
-				// In current solution, RFSleep=RFOff in order to save power under 802.11 power save.
-				// By Bruce, 2008-01-16.
-				//
-			case eRfSleep:
-
-				// HW setting had been configured with deeper mode.
-				if(priv->ieee80211->eRFPowerState == eRfOff)
-					break;
-
-					for(QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; )
-					{
-							ring = &priv->tx_ring[QueueID];
-
-							if(skb_queue_len(&ring->queue) == 0)
-							{
-								QueueID++;
-								continue;
-							}
-							else
-							{
-								RT_TRACE((COMP_POWER|COMP_RF), "eRf Off/Sleep: %d times TcbBusyQueue[%d] !=0 before doze!\n", (i+1), QueueID);
-								udelay(10);
-								i++;
-							}
-
-							if(i >= MAX_DOZE_WAITING_TIMES_9x)
-							{
-								RT_TRACE(COMP_POWER, "\n\n\n TimeOut!! SetRFPowerState8190(): eRfOff: %d times TcbBusyQueue[%d] != 0 !!!\n\n\n", MAX_DOZE_WAITING_TIMES_9x, QueueID);
-								break;
-							}
-						}
-
-				PHY_SetRtl8192eRfOff(dev);
-
-				break;
-
-			case eRfOff:
-
-				//
-				// Disconnect with Any AP or STA.
-				//
-				for(QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; )
-				{
-					ring = &priv->tx_ring[QueueID];
-
-					if(skb_queue_len(&ring->queue) == 0)
-						{
-							QueueID++;
-							continue;
-						}
-						else
-						{
-							RT_TRACE(COMP_POWER,
-							"eRf Off/Sleep: %d times TcbBusyQueue[%d] !=0 before doze!\n", (i+1), QueueID);
-							udelay(10);
-							i++;
-						}
-
-						if(i >= MAX_DOZE_WAITING_TIMES_9x)
-						{
-							RT_TRACE(COMP_POWER, "\n\n\n SetZebraRFPowerState8185B(): eRfOff: %d times TcbBusyQueue[%d] != 0 !!!\n\n\n", MAX_DOZE_WAITING_TIMES_9x, QueueID);
-							break;
-						}
-				}
-
-
-					if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC && !RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
-					{ // Disable all components.
-						NicIFDisableNIC(dev);
-						RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
-					}
-					else if (!(pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC))
-					{ // Normal case.
-				  		// IPS should go to this.
-						PHY_SetRtl8192eRfOff(dev);
-					}
-				break;
-
-			default:
-					bResult = false;
-					RT_TRACE(COMP_ERR, "SetRFPowerState8190(): unknow state to set: 0x%X!!!\n", eRFPowerState);
-					break;
 		}
 
 		break;
 
-		default:
-			RT_TRACE(COMP_ERR, "SetRFPowerState8190(): Unknown RF type\n");
+	//
+	// In current solution, RFSleep=RFOff in order to save power under 802.11 power save.
+	// By Bruce, 2008-01-16.
+	//
+	case eRfSleep:
+
+		// HW setting had been configured with deeper mode.
+		if(priv->ieee80211->eRFPowerState == eRfOff)
 			break;
+
+		for(QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; )
+		{
+			ring = &priv->tx_ring[QueueID];
+
+			if(skb_queue_len(&ring->queue) == 0)
+			{
+				QueueID++;
+				continue;
+			}
+			else
+			{
+				RT_TRACE((COMP_POWER|COMP_RF), "eRf Off/Sleep: %d times TcbBusyQueue[%d] !=0 before doze!\n", (i+1), QueueID);
+				udelay(10);
+				i++;
+			}
+
+			if(i >= MAX_DOZE_WAITING_TIMES_9x)
+			{
+				RT_TRACE(COMP_POWER, "\n\n\n TimeOut!! SetRFPowerState8190(): eRfOff: %d times TcbBusyQueue[%d] != 0 !!!\n\n\n", MAX_DOZE_WAITING_TIMES_9x, QueueID);
+				break;
+			}
+		}
+
+		PHY_SetRtl8192eRfOff(dev);
+
+		break;
+
+	case eRfOff:
+
+		//
+		// Disconnect with Any AP or STA.
+		//
+		for(QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; )
+		{
+			ring = &priv->tx_ring[QueueID];
+
+			if(skb_queue_len(&ring->queue) == 0)
+			{
+				QueueID++;
+				continue;
+			}
+			else
+			{
+				RT_TRACE(COMP_POWER,
+				"eRf Off/Sleep: %d times TcbBusyQueue[%d] !=0 before doze!\n", (i+1), QueueID);
+				udelay(10);
+				i++;
+			}
+
+			if(i >= MAX_DOZE_WAITING_TIMES_9x)
+			{
+				RT_TRACE(COMP_POWER, "\n\n\n SetZebraRFPowerState8185B(): eRfOff: %d times TcbBusyQueue[%d] != 0 !!!\n\n\n", MAX_DOZE_WAITING_TIMES_9x, QueueID);
+				break;
+			}
+		}
+
+
+		if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC && !RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
+		{
+			/* Disable all components. */
+			NicIFDisableNIC(dev);
+			RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
+		}
+		else if (!(pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC))
+		{
+			/* Normal case - IPS should go to this. */
+			PHY_SetRtl8192eRfOff(dev);
+		}
+		break;
+
+	default:
+		bResult = false;
+		RT_TRACE(COMP_ERR, "SetRFPowerState8190(): unknow state to set: 0x%X!!!\n", eRFPowerState);
+		break;
 	}
 
 	if(bResult)

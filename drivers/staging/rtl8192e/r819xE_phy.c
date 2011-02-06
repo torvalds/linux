@@ -669,35 +669,28 @@ static u32 rtl8192_phy_RFSerialRead(struct net_device* dev, RF90_RADIO_PATH_E eR
 	Offset &= 0x3f;
 
 	//switch page for 8256 RF IC
-	if (priv->rf_chip == RF_8256)
+	//analog to digital off, for protection
+	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);// 0x88c[11:8]
+	if (Offset >= 31)
 	{
-		//analog to digital off, for protection
-		rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);// 0x88c[11:8]
-		if (Offset >= 31)
-		{
-			priv->RfReg0Value[eRFPath] |= 0x140;
-			//Switch to Reg_Mode2 for Reg 31-45
-			rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16) );
-			//modify offset
-			NewOffset = Offset -30;
-		}
-		else if (Offset >= 16)
-		{
-			priv->RfReg0Value[eRFPath] |= 0x100;
-			priv->RfReg0Value[eRFPath] &= (~0x40);
-			//Switch to Reg_Mode 1 for Reg16-30
-			rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16) );
+		priv->RfReg0Value[eRFPath] |= 0x140;
+		//Switch to Reg_Mode2 for Reg 31-45
+		rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16) );
+		//modify offset
+		NewOffset = Offset -30;
+	}
+	else if (Offset >= 16)
+	{
+		priv->RfReg0Value[eRFPath] |= 0x100;
+		priv->RfReg0Value[eRFPath] &= (~0x40);
+		//Switch to Reg_Mode 1 for Reg16-30
+		rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16) );
 
-			NewOffset = Offset - 15;
-		}
-		else
-			NewOffset = Offset;
+		NewOffset = Offset - 15;
 	}
 	else
-	{
-		RT_TRACE((COMP_PHY|COMP_ERR), "check RF type here, need to be 8256\n");
 		NewOffset = Offset;
-	}
+
 	//put desired read addr to LSSI control Register
 	rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2, bLSSIReadAddress, NewOffset);
 	//Issue a posedge trigger
@@ -713,23 +706,18 @@ static u32 rtl8192_phy_RFSerialRead(struct net_device* dev, RF90_RADIO_PATH_E eR
 
 
 	// Switch back to Reg_Mode0;
-	if(priv->rf_chip == RF_8256)
-	{
-		priv->RfReg0Value[eRFPath] &= 0xebf;
+	priv->RfReg0Value[eRFPath] &= 0xebf;
 
-		rtl8192_setBBreg(
-			dev,
-			pPhyReg->rf3wireOffset,
-			bMaskDWord,
-			(priv->RfReg0Value[eRFPath] << 16));
+	rtl8192_setBBreg(
+		dev,
+		pPhyReg->rf3wireOffset,
+		bMaskDWord,
+		(priv->RfReg0Value[eRFPath] << 16));
 
-		//analog to digital on
-		rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);// 0x88c[9:8]
-	}
-
+	//analog to digital on
+	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);// 0x88c[9:8]
 
 	return ret;
-
 }
 
 /******************************************************************************
@@ -759,33 +747,25 @@ static void rtl8192_phy_RFSerialWrite(struct net_device* dev, RF90_RADIO_PATH_E 
 	BB_REGISTER_DEFINITION_T	*pPhyReg = &priv->PHYRegDef[eRFPath];
 
 	Offset &= 0x3f;
-	if (priv->rf_chip == RF_8256)
+
+	//analog to digital off, for protection
+	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);// 0x88c[11:8]
+
+	if (Offset >= 31)
 	{
-
-		//analog to digital off, for protection
-		rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);// 0x88c[11:8]
-
-		if (Offset >= 31)
-		{
-			priv->RfReg0Value[eRFPath] |= 0x140;
-			rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath] << 16));
-			NewOffset = Offset - 30;
-		}
-		else if (Offset >= 16)
-		{
-			priv->RfReg0Value[eRFPath] |= 0x100;
-			priv->RfReg0Value[eRFPath] &= (~0x40);
-			rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16));
-			NewOffset = Offset - 15;
-		}
-		else
-			NewOffset = Offset;
+		priv->RfReg0Value[eRFPath] |= 0x140;
+		rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath] << 16));
+		NewOffset = Offset - 30;
+	}
+	else if (Offset >= 16)
+	{
+		priv->RfReg0Value[eRFPath] |= 0x100;
+		priv->RfReg0Value[eRFPath] &= (~0x40);
+		rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, (priv->RfReg0Value[eRFPath]<<16));
+		NewOffset = Offset - 15;
 	}
 	else
-	{
-		RT_TRACE((COMP_PHY|COMP_ERR), "check RF type here, need to be 8256\n");
 		NewOffset = Offset;
-	}
 
 	// Put write addr in [5:0]  and write data in [31:16]
 	DataAndAddr = (Data<<16) | (NewOffset&0x3f);
@@ -798,20 +778,17 @@ static void rtl8192_phy_RFSerialWrite(struct net_device* dev, RF90_RADIO_PATH_E 
 		priv->RfReg0Value[eRFPath] = Data;
 
 	// Switch back to Reg_Mode0;
- 	if(priv->rf_chip == RF_8256)
+	if(Offset != 0)
 	{
-		if(Offset != 0)
-		{
-			priv->RfReg0Value[eRFPath] &= 0xebf;
-			rtl8192_setBBreg(
-				dev,
-				pPhyReg->rf3wireOffset,
-				bMaskDWord,
-				(priv->RfReg0Value[eRFPath] << 16));
-		}
-		//analog to digital on
-		rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);// 0x88c[9:8]
+		priv->RfReg0Value[eRFPath] &= 0xebf;
+		rtl8192_setBBreg(
+			dev,
+			pPhyReg->rf3wireOffset,
+			bMaskDWord,
+			(priv->RfReg0Value[eRFPath] << 16));
 	}
+	//analog to digital on
+	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);// 0x88c[9:8]
 }
 
 /******************************************************************************
@@ -1555,22 +1532,8 @@ void rtl8192_phy_setTxPower(struct net_device* dev, u8 channel)
 	pHalData->CurrentCckTxPwrIdx = powerlevel;
 	pHalData->CurrentOfdm24GTxPwrIdx = powerlevelOFDM24G;
 #endif
-	switch(priv->rf_chip)
-	{
-	case RF_8225:
-	//	PHY_SetRF8225CckTxPower(Adapter, powerlevel);
-	//	PHY_SetRF8225OfdmTxPower(Adapter, powerlevelOFDM24G);
-		break;
-	case RF_8256:
-		PHY_SetRF8256CCKTxPower(dev, powerlevel); //need further implement
-		PHY_SetRF8256OFDMTxPower(dev, powerlevelOFDM24G);
-		break;
-	case RF_8258:
-		break;
-	default:
-		RT_TRACE(COMP_ERR, "unknown rf chip in funtion %s()\n", __FUNCTION__);
-		break;
-	}
+	PHY_SetRF8256CCKTxPower(dev, powerlevel); //need further implement
+	PHY_SetRF8256OFDMTxPower(dev, powerlevelOFDM24G);
 }
 
 /******************************************************************************
@@ -1581,28 +1544,7 @@ void rtl8192_phy_setTxPower(struct net_device* dev, u8 channel)
  * ***************************************************************************/
 RT_STATUS rtl8192_phy_RFConfig(struct net_device* dev)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	RT_STATUS rtStatus = RT_STATUS_SUCCESS;
-	switch(priv->rf_chip)
-	{
-		case RF_8225:
-//			rtStatus = PHY_RF8225_Config(Adapter);
-			break;
-		case RF_8256:
-			rtStatus = PHY_RF8256_Config(dev);
-			break;
-
-		case RF_8258:
-			break;
-		case RF_PSEUDO_11N:
-		//rtStatus = PHY_RF8225_Config(Adapter);
-		break;
-
-		default:
-			RT_TRACE(COMP_ERR, "error chip id\n");
-			break;
-	}
-	return rtStatus;
+	return PHY_RF8256_Config(dev);
 }
 
 /******************************************************************************
@@ -1699,27 +1641,10 @@ static void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 	u8	powerlevel = priv->TxPowerLevelCCK[channel-1];
 	u8	powerlevelOFDM24G = priv->TxPowerLevelOFDM24G[channel-1];
 
-	switch(priv->rf_chip)
-	{
-	case RF_8225:
-#ifdef TO_DO_LIST
-		PHY_SetRF8225CckTxPower(Adapter, powerlevel);
-		PHY_SetRF8225OfdmTxPower(Adapter, powerlevelOFDM24G);
-#endif
-		break;
-
-	case RF_8256:
-		PHY_SetRF8256CCKTxPower(dev, powerlevel);
-		PHY_SetRF8256OFDMTxPower(dev, powerlevelOFDM24G);
-		break;
-
-	case RF_8258:
-		break;
-	default:
-		RT_TRACE(COMP_ERR, "unknown rf chip ID in rtl8192_SetTxPowerLevel()\n");
-		break;
-	}
+	PHY_SetRF8256CCKTxPower(dev, powerlevel);
+	PHY_SetRF8256OFDMTxPower(dev, powerlevelOFDM24G);
 }
+
 /****************************************************************************************
  *function:  This function set command table variable(struct SwChnlCmd).
  *   input:  SwChnlCmd*		CmdTable 	//table to be set.
@@ -1823,42 +1748,17 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8* s
 
 		// <3> Fill up RF dependent command.
 		RfDependCmdCnt = 0;
-		switch( priv->rf_chip )
+
+		// TEST!! This is not the table for 8256!!
+		if (!(channel >= 1 && channel <= 14))
 		{
-		case RF_8225:
-			if (!(channel >= 1 && channel <= 14))
-			{
-				RT_TRACE(COMP_ERR, "illegal channel for Zebra 8225: %d\n", channel);
-				return false;
-			}
-			rtl8192_phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
-				CmdID_RF_WriteReg, rZebra1_Channel, RF_CHANNEL_TABLE_ZEBRA[channel], 10);
-			rtl8192_phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
-				CmdID_End, 0, 0, 0);
-			break;
-
-		case RF_8256:
-			// TEST!! This is not the table for 8256!!
-			if (!(channel >= 1 && channel <= 14))
-			{
-				RT_TRACE(COMP_ERR, "illegal channel for Zebra 8256: %d\n", channel);
-				return false;
-			}
-			rtl8192_phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
-				CmdID_RF_WriteReg, rZebra1_Channel, channel, 10);
-			rtl8192_phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
-			CmdID_End, 0, 0, 0);
-			break;
-
-		case RF_8258:
-			break;
-
-		default:
-			RT_TRACE(COMP_ERR, "Unknown RFChipID: %d\n", priv->rf_chip);
+			RT_TRACE(COMP_ERR, "illegal channel for Zebra 8256: %d\n", channel);
 			return false;
-			break;
 		}
-
+		rtl8192_phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
+			CmdID_RF_WriteReg, rZebra1_Channel, channel, 10);
+		rtl8192_phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
+		CmdID_End, 0, 0, 0);
 
 		do{
 			switch(*stage)
@@ -2149,11 +2049,6 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 					priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20?"20MHz":"40MHz")
 
 
-	if(priv->rf_chip== RF_PSEUDO_11N)
-	{
-		priv->SetBWModeInProgress= false;
-		return;
-	}
 	if(!priv->up)
 	{
 		priv->SetBWModeInProgress= false;
@@ -2241,30 +2136,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	//Skip over setting of J-mode in BB register here. Default value is "None J mode". Emily 20070315
 
 	//<3>Set RF related register
-	switch( priv->rf_chip )
-	{
-		case RF_8225:
-#ifdef TO_DO_LIST
-			PHY_SetRF8225Bandwidth(Adapter, pHalData->CurrentChannelBW);
-#endif
-			break;
-
-		case RF_8256:
-			PHY_SetRF8256Bandwidth(dev, priv->CurrentChannelBW);
-			break;
-
-		case RF_8258:
-			// PHY_SetRF8258Bandwidth();
-			break;
-
-		case RF_PSEUDO_11N:
-			// Do Nothing
-			break;
-
-		default:
-			RT_TRACE(COMP_ERR, "Unknown RFChipID: %d\n", priv->rf_chip);
-			break;
-	}
+	PHY_SetRF8256Bandwidth(dev, priv->CurrentChannelBW);
 
 	atomic_dec(&(priv->ieee80211->atm_swbw));
 	priv->SetBWModeInProgress= false;

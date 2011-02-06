@@ -543,15 +543,6 @@ typedef struct _BB_REGISTER_DEFINITION{
 	u32 rfLSSIReadBack; 	//LSSI RF readback data //		0x8a0~0x8af [16 bytes]
 }BB_REGISTER_DEFINITION_T, *PBB_REGISTER_DEFINITION_T;
 
-typedef enum _RT_RF_TYPE_819xU{
-        RF_TYPE_MIN = 0,
-        RF_8225,
-        RF_8256,
-        RF_8258,
-        RF_PSEUDO_11N = 4,
-}RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
-
-
 typedef struct _rate_adaptive
 {
 	u8				rate_adaptive_disabled;
@@ -852,7 +843,6 @@ typedef struct r8192_priv
 	struct semaphore wx_sem;
 	struct semaphore rf_sem; //used to lock rf write operation added by wb, modified by david
 	u8 rf_type; /* 0 means 1T2R, 1 means 2T4R */
-	RT_RF_TYPE_819xU rf_chip;
 
 	short (*rf_set_sens)(struct net_device *dev,short sens);
 	u8 (*rf_set_chan)(struct net_device *dev,u8 ch);

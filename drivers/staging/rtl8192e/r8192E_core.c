@@ -152,15 +152,9 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv* priv)
 			Dot11d_Init(ieee);
 			ieee->bGlobalDomain = false;
                         //acturally 8225 & 8256 rf chip only support B,G,24N mode
-                        if ((priv->rf_chip == RF_8225) || (priv->rf_chip == RF_8256))
-			{
-				min_chan = 1;
-				max_chan = 14;
-			}
-			else
-			{
-				RT_TRACE(COMP_ERR, "unknown rf chip, can't set channel map in function:%s()\n", __FUNCTION__);
-			}
+			min_chan = 1;
+			max_chan = 14;
+
 			if (ChannelPlan[channel_plan].Len != 0){
 				// Clear old channel map
 				memset(GET_DOT11D_INFO(ieee)->channel_map, 0, sizeof(GET_DOT11D_INFO(ieee)->channel_map));
@@ -1832,25 +1826,9 @@ static void rtl8192_refresh_supportrate(struct r8192_priv* priv)
 		memset(ieee->Regdot11HTOperationalRateSet, 0, 16);
 }
 
-static u8 rtl8192_getSupportedWireleeMode(struct net_device*dev)
+static u8 rtl8192_getSupportedWireleeMode(struct net_device *dev)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u8 ret = 0;
-	switch(priv->rf_chip)
-	{
-		case RF_8225:
-		case RF_8256:
-		case RF_PSEUDO_11N:
-			ret = (WIRELESS_MODE_N_24G|WIRELESS_MODE_G|WIRELESS_MODE_B);
-			break;
-		case RF_8258:
-			ret = (WIRELESS_MODE_A|WIRELESS_MODE_N_5G);
-			break;
-		default:
-			ret = WIRELESS_MODE_B;
-			break;
-	}
-	return ret;
+	return (WIRELESS_MODE_N_24G|WIRELESS_MODE_G|WIRELESS_MODE_B);
 }
 
 static void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
@@ -2479,8 +2457,6 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 	init_rate_adaptive(dev);
 
 	//1 Make a copy for following variables and we can change them if we want
-
-	priv->rf_chip= RF_8256;
 
 	if(priv->RegChannelPlan == 0xf)
 	{
