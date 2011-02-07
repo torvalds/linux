@@ -28,6 +28,7 @@ extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
 
 /* Resending of interrupts :*/
 void check_irq_resend(struct irq_desc *desc, unsigned int irq);
+bool irq_wait_for_poll(struct irq_desc *desc);
 
 #ifdef CONFIG_PROC_FS
 extern void register_irq_proc(unsigned int irq, struct irq_desc *desc);
@@ -46,16 +47,6 @@ static inline void unregister_handler_proc(unsigned int irq,
 extern int irq_select_affinity_usr(unsigned int irq, struct cpumask *mask);
 
 extern void irq_set_thread_affinity(struct irq_desc *desc);
-
-#ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
-static inline void irq_end(unsigned int irq, struct irq_desc *desc)
-{
-	if (desc->irq_data.chip && desc->irq_data.chip->end)
-		desc->irq_data.chip->end(irq);
-}
-#else
-static inline void irq_end(unsigned int irq, struct irq_desc *desc) { }
-#endif
 
 /* Inline functions for support of irq chips on slow busses */
 static inline void chip_bus_lock(struct irq_desc *desc)

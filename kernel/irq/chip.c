@@ -448,6 +448,13 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(handle_nested_irq);
 
+static bool irq_check_poll(struct irq_desc *desc)
+{
+	if (!(desc->status & IRQ_POLL_INPROGRESS))
+		return false;
+	return irq_wait_for_poll(desc);
+}
+
 /**
  *	handle_simple_irq - Simple and software-decoded IRQs.
  *	@irq:	the interrupt number
@@ -469,7 +476,9 @@ handle_simple_irq(unsigned int irq, struct irq_desc *desc)
 	raw_spin_lock(&desc->lock);
 
 	if (unlikely(desc->status & IRQ_INPROGRESS))
-		goto out_unlock;
+		if (!irq_check_poll(desc))
+			goto out_unlock;
+
 	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
 	kstat_incr_irqs_this_cpu(irq, desc);
 
@@ -510,7 +519,9 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 	mask_ack_irq(desc);
 
 	if (unlikely(desc->status & IRQ_INPROGRESS))
-		goto out_unlock;
+		if (!irq_check_poll(desc))
+			goto out_unlock;
+
 	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
 	kstat_incr_irqs_this_cpu(irq, desc);
 
@@ -558,7 +569,8 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 	raw_spin_lock(&desc->lock);
 
 	if (unlikely(desc->status & IRQ_INPROGRESS))
-		goto out;
+		if (!irq_check_poll(desc))
+			goto out;
 
 	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
 	kstat_incr_irqs_this_cpu(irq, desc);
@@ -620,9 +632,11 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 	 */
 	if (unlikely((desc->status & (IRQ_INPROGRESS | IRQ_DISABLED)) ||
 		    !desc->action)) {
-		desc->status |= (IRQ_PENDING | IRQ_MASKED);
-		mask_ack_irq(desc);
-		goto out_unlock;
+		if (!irq_check_poll(desc)) {
+			desc->status |= (IRQ_PENDING | IRQ_MASKED);
+			mask_ack_irq(desc);
+			goto out_unlock;
+		}
 	}
 	kstat_incr_irqs_this_cpu(irq, desc);
 

@@ -25,12 +25,44 @@ static int irq_poll_cpu;
 static atomic_t irq_poll_active;
 
 /*
+ * We wait here for a poller to finish.
+ *
+ * If the poll runs on this CPU, then we yell loudly and return
+ * false. That will leave the interrupt line disabled in the worst
+ * case, but it should never happen.
+ *
+ * We wait until the poller is done and then recheck disabled and
+ * action (about to be disabled). Only if it's still active, we return
+ * true and let the handler run.
+ */
+bool irq_wait_for_poll(struct irq_desc *desc)
+{
+	if (WARN_ONCE(irq_poll_cpu == smp_processor_id(),
+		      "irq poll in progress on cpu %d for irq %d\n",
+		      smp_processor_id(), desc->irq_data.irq))
+		return false;
+
+#ifdef CONFIG_SMP
+	do {
+		raw_spin_unlock(&desc->lock);
+		while (desc->status & IRQ_INPROGRESS)
+			cpu_relax();
+		raw_spin_lock(&desc->lock);
+	} while (desc->status & IRQ_INPROGRESS);
+	/* Might have been disabled in meantime */
+	return !(desc->status & IRQ_DISABLED) && desc->action;
+#else
+	return false;
+#endif
+}
+
+/*
  * Recovery handler for misrouted interrupts.
  */
 static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 {
 	struct irqaction *action;
-	int ok = 0, work = 0;
+	int ok = 0;
 
 	raw_spin_lock(&desc->lock);
 
@@ -64,10 +96,9 @@ static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 		goto out;
 	}
 
-	/* Honour the normal IRQ locking */
-	desc->status |= IRQ_INPROGRESS;
+	/* Honour the normal IRQ locking and mark it poll in progress */
+	desc->status |= IRQ_INPROGRESS | IRQ_POLL_INPROGRESS;
 	do {
-		work++;
 		desc->status &= ~IRQ_PENDING;
 		raw_spin_unlock(&desc->lock);
 		if (handle_IRQ_event(irq, action) != IRQ_NONE)
@@ -76,14 +107,7 @@ static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 		action = desc->action;
 	}  while ((desc->status & IRQ_PENDING) && action);
 
-	desc->status &= ~IRQ_INPROGRESS;
-	/*
-	 * If we did actual work for the real IRQ line we must let the
-	 * IRQ controller clean up too
-	 */
-	if (work > 1)
-		irq_end(irq, desc);
-
+	desc->status &= ~(IRQ_INPROGRESS | IRQ_POLL_INPROGRESS);
 out:
 	raw_spin_unlock(&desc->lock);
 	return ok;
@@ -238,6 +262,9 @@ try_misrouted_irq(unsigned int irq, struct irq_desc *desc,
 void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		    irqreturn_t action_ret)
 {
+	if (desc->status & IRQ_POLL_INPROGRESS)
+		return;
+
 	if (unlikely(action_ret != IRQ_HANDLED)) {
 		/*
 		 * If we are seeing only the odd spurious IRQ caused by
