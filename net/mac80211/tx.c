@@ -2245,7 +2245,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		ap = &sdata->u.ap;
 		beacon = rcu_dereference(ap->beacon);
-		if (ap && beacon) {
+		if (beacon) {
 			/*
 			 * headroom, head length,
 			 * tail length and maximum TIM length
