@@ -2068,18 +2068,6 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 	}
 }
 
-/* This is a temporary buffer used to prepare a tty console write
- * so that we can easily avoid touching user space while holding the
- * console spinlock.  It is allocated in con_init and is shared by
- * this code and the vc_screen read/write tty calls.
- *
- * We have to allocate this statically in the kernel data section
- * since console_init (and thus con_init) are called before any
- * kernel memory allocation is available.
- */
-char con_buf[CON_BUF_SIZE];
-DEFINE_MUTEX(con_buf_mtx);
-
 /* is_double_width() is based on the wcwidth() implementation by
  * Markus Kuhn -- 2007-05-26 (Unicode 5.0)
  * Latest version: http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c

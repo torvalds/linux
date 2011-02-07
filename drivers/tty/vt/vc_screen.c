@@ -28,7 +28,6 @@
 #include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/mutex.h>
 #include <linux/vt_kern.h>
 #include <linux/selection.h>
 #include <linux/kbd_kern.h>
@@ -50,6 +49,8 @@
 #undef org
 #undef addr
 #define HEADER_SIZE	4
+
+#define CON_BUF_SIZE (CONFIG_BASE_SMALL ? 256 : PAGE_SIZE)
 
 struct vcs_poll_data {
 	struct notifier_block notifier;
@@ -131,21 +132,45 @@ vcs_poll_data_get(struct file *file)
 	return poll;
 }
 
+/*
+ * Returns VC for inode.
+ * Must be called with console_lock.
+ */
+static struct vc_data*
+vcs_vc(struct inode *inode, int *viewed)
+{
+	unsigned int currcons = iminor(inode) & 127;
+
+	WARN_CONSOLE_UNLOCKED();
+
+	if (currcons == 0) {
+		currcons = fg_console;
+		if (viewed)
+			*viewed = 1;
+	} else {
+		currcons--;
+		if (viewed)
+			*viewed = 0;
+	}
+	return vc_cons[currcons].d;
+}
+
+/*
+ * Returns size for VC carried by inode.
+ * Must be called with console_lock.
+ */
 static int
 vcs_size(struct inode *inode)
 {
 	int size;
 	int minor = iminor(inode);
-	int currcons = minor & 127;
 	struct vc_data *vc;
 
-	if (currcons == 0)
-		currcons = fg_console;
-	else
-		currcons--;
-	if (!vc_cons_allocated(currcons))
+	WARN_CONSOLE_UNLOCKED();
+
+	vc = vcs_vc(inode, NULL);
+	if (!vc)
 		return -ENXIO;
-	vc = vc_cons[currcons].d;
 
 	size = vc->vc_rows * vc->vc_cols;
 
@@ -158,17 +183,13 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 {
 	int size;
 
-	mutex_lock(&con_buf_mtx);
 	console_lock();
 	size = vcs_size(file->f_path.dentry->d_inode);
 	console_unlock();
-	if (size < 0) {
-		mutex_unlock(&con_buf_mtx);
+	if (size < 0)
 		return size;
-	}
 	switch (orig) {
 		default:
-			mutex_unlock(&con_buf_mtx);
 			return -EINVAL;
 		case 2:
 			offset += size;
@@ -179,11 +200,9 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 			break;
 	}
 	if (offset < 0 || offset > size) {
-		mutex_unlock(&con_buf_mtx);
 		return -EINVAL;
 	}
 	file->f_pos = offset;
-	mutex_unlock(&con_buf_mtx);
 	return file->f_pos;
 }
 
@@ -196,12 +215,15 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	struct vc_data *vc;
 	struct vcs_poll_data *poll;
 	long pos;
-	long viewed, attr, read;
-	int col, maxcol;
+	long attr, read;
+	int col, maxcol, viewed;
 	unsigned short *org = NULL;
 	ssize_t ret;
+	char *con_buf;
 
-	mutex_lock(&con_buf_mtx);
+	con_buf = (char *) __get_free_page(GFP_KERNEL);
+	if (!con_buf)
+		return -ENOMEM;
 
 	pos = *ppos;
 
@@ -211,18 +233,10 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	console_lock();
 
 	attr = (currcons & 128);
-	currcons = (currcons & 127);
-	if (currcons == 0) {
-		currcons = fg_console;
-		viewed = 1;
-	} else {
-		currcons--;
-		viewed = 0;
-	}
 	ret = -ENXIO;
-	if (!vc_cons_allocated(currcons))
+	vc = vcs_vc(inode, &viewed);
+	if (!vc)
 		goto unlock_out;
-	vc = vc_cons[currcons].d;
 
 	ret = -EINVAL;
 	if (pos < 0)
@@ -367,7 +381,7 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		ret = read;
 unlock_out:
 	console_unlock();
-	mutex_unlock(&con_buf_mtx);
+	free_page((unsigned long) con_buf);
 	return ret;
 }
 
@@ -378,13 +392,16 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	unsigned int currcons = iminor(inode);
 	struct vc_data *vc;
 	long pos;
-	long viewed, attr, size, written;
+	long attr, size, written;
 	char *con_buf0;
-	int col, maxcol;
+	int col, maxcol, viewed;
 	u16 *org0 = NULL, *org = NULL;
 	size_t ret;
+	char *con_buf;
 
-	mutex_lock(&con_buf_mtx);
+	con_buf = (char *) __get_free_page(GFP_KERNEL);
+	if (!con_buf)
+		return -ENOMEM;
 
 	pos = *ppos;
 
@@ -394,19 +411,10 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	console_lock();
 
 	attr = (currcons & 128);
-	currcons = (currcons & 127);
-
-	if (currcons == 0) {
-		currcons = fg_console;
-		viewed = 1;
-	} else {
-		currcons--;
-		viewed = 0;
-	}
 	ret = -ENXIO;
-	if (!vc_cons_allocated(currcons))
+	vc = vcs_vc(inode, &viewed);
+	if (!vc)
 		goto unlock_out;
-	vc = vc_cons[currcons].d;
 
 	size = vcs_size(inode);
 	ret = -EINVAL;
@@ -561,9 +569,7 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 
 unlock_out:
 	console_unlock();
-
-	mutex_unlock(&con_buf_mtx);
-
+	free_page((unsigned long) con_buf);
 	return ret;
 }
 
