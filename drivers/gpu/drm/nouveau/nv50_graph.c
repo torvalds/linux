@@ -409,12 +409,7 @@ static int
 nv50_graph_nvsw_mthd_page_flip(struct nouveau_channel *chan,
 			       u32 class, u32 mthd, u32 data)
 {
-	struct nouveau_page_flip_state s;
-
-	if (!nouveau_finish_page_flip(chan, &s)) {
-		/* XXX - Do something here */
-	}
-
+	nouveau_finish_page_flip(chan, NULL);
 	return 0;
 }
 

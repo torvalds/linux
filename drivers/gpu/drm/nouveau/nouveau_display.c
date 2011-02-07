@@ -297,6 +297,14 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	mutex_lock(&chan->mutex);
 
 	/* Emit a page flip */
+	if (dev_priv->card_type >= NV_50) {
+		ret = nv50_display_flip_next(crtc, fb, chan);
+		if (ret) {
+			nouveau_channel_put(&chan);
+			goto fail_unreserve;
+		}
+	}
+
 	ret = nouveau_page_flip_emit(chan, old_bo, new_bo, s, &fence);
 	nouveau_channel_put(&chan);
 	if (ret)
@@ -347,7 +355,8 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 	}
 
 	list_del(&s->head);
-	*ps = *s;
+	if (ps)
+		*ps = *s;
 	kfree(s);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
