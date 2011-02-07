@@ -327,9 +327,10 @@ static int stop_streaming(struct vb2_queue *q)
 static void fimc_capture_handler(struct fimc_dev *fimc)
 {
 	struct fimc_vid_cap *cap = &fimc->vid_cap;
-	struct fimc_vid_buffer *v_buf = NULL;
+	struct fimc_vid_buffer *v_buf;
 
-	if (!list_empty(&cap->active_buf_q)) {
+	if (!list_empty(&cap->active_buf_q) &&
+	    test_bit(ST_CAPT_RUN, &fimc->state)) {
 		v_buf = active_queue_pop(cap);
 		vb2_buffer_done(&v_buf->vb, VB2_BUF_STATE_DONE);
 	}
@@ -345,9 +346,6 @@ static void fimc_capture_handler(struct fimc_dev *fimc)
 		fimc_hw_set_output_addr(fimc, &v_buf->paddr, cap->buf_index);
 		v_buf->index = cap->buf_index;
 
-		dbg("hw ptr: %d, sw ptr: %d",
-		    fimc_hw_get_frame_index(fimc), cap->buf_index);
-
 		/* Move the buffer to the capture active queue */
 		active_queue_add(cap, v_buf);
 
@@ -356,19 +354,25 @@ static void fimc_capture_handler(struct fimc_dev *fimc)
 
 		if (++cap->buf_index >= FIMC_MAX_OUT_BUFS)
 			cap->buf_index = 0;
-
-	} else if (test_and_clear_bit(ST_CAPT_STREAM, &fimc->state) &&
-		   cap->active_buf_cnt <= 1) {
-		fimc_deactivate_capture(fimc);
 	}
 
-	dbg("frame: %d, active_buf_cnt= %d",
+	if (cap->active_buf_cnt == 0) {
+		clear_bit(ST_CAPT_RUN, &fimc->state);
+
+		if (++cap->buf_index >= FIMC_MAX_OUT_BUFS)
+			cap->buf_index = 0;
+	} else {
+		set_bit(ST_CAPT_RUN, &fimc->state);
+	}
+
+	dbg("frame: %d, active_buf_cnt: %d",
 	    fimc_hw_get_frame_index(fimc), cap->active_buf_cnt);
 }
 
 static irqreturn_t fimc_isr(int irq, void *priv)
 {
 	struct fimc_dev *fimc = priv;
+	struct fimc_vid_cap *cap = &fimc->vid_cap;
 
 	BUG_ON(!fimc);
 	fimc_hw_clear_irq(fimc);
@@ -396,12 +400,13 @@ static irqreturn_t fimc_isr(int irq, void *priv)
 
 	}
 
-	if (test_bit(ST_CAPT_RUN, &fimc->state))
-		fimc_capture_handler(fimc);
+	if (test_bit(ST_CAPT_PEND, &fimc->state)) {
+		fimc_capture_irq_handler(fimc);
 
-	if (test_and_clear_bit(ST_CAPT_PEND, &fimc->state)) {
-		set_bit(ST_CAPT_RUN, &fimc->state);
-		wake_up(&fimc->irq_queue);
+		if (cap->active_buf_cnt == 1) {
+			fimc_deactivate_capture(fimc);
+			clear_bit(ST_CAPT_STREAM, &fimc->state);
+		}
 	}
 
 isr_unlock:

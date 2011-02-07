@@ -153,40 +153,6 @@ static int fimc_isp_subdev_init(struct fimc_dev *fimc, unsigned int index)
 	return ret;
 }
 
-/*
- * At least one buffer on the pending_buf_q queue is required.
- * Locking: The caller holds fimc->slock spinlock.
- */
-int fimc_vid_cap_buf_queue(struct fimc_dev *fimc,
-			   struct fimc_vid_buffer *fimc_vb)
-{
-	struct fimc_vid_cap *cap = &fimc->vid_cap;
-	struct fimc_ctx *ctx = cap->ctx;
-	int ret = 0;
-
-	BUG_ON(!fimc || !fimc_vb);
-
-	ret = fimc_prepare_addr(ctx, &fimc_vb->vb, &ctx->d_frame,
-				&fimc_vb->paddr);
-	if (ret)
-		return ret;
-
-	if (test_bit(ST_CAPT_STREAM, &fimc->state)) {
-		fimc_pending_queue_add(cap, fimc_vb);
-	} else {
-		/* Setup the buffer directly for processing. */
-		int buf_id = (cap->reqbufs_count == 1) ? -1 : cap->buf_index;
-		fimc_hw_set_output_addr(fimc, &fimc_vb->paddr, buf_id);
-
-		fimc_vb->index = cap->buf_index;
-		active_queue_add(cap, fimc_vb);
-
-		if (++cap->buf_index >= FIMC_MAX_OUT_BUFS)
-			cap->buf_index = 0;
-	}
-	return ret;
-}
-
 static int fimc_stop_capture(struct fimc_dev *fimc)
 {
 	unsigned long flags;
@@ -211,7 +177,7 @@ static int fimc_stop_capture(struct fimc_dev *fimc)
 
 	spin_lock_irqsave(&fimc->slock, flags);
 	fimc->state &= ~(1 << ST_CAPT_RUN | 1 << ST_CAPT_PEND |
-			1 << ST_CAPT_STREAM);
+			 1 << ST_CAPT_SHUT | 1 << ST_CAPT_STREAM);
 
 	fimc->vid_cap.active_buf_cnt = 0;
 
@@ -238,6 +204,8 @@ static int start_streaming(struct vb2_queue *q)
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	struct s5p_fimc_isp_info *isp_info;
 	int ret;
+
+	fimc_hw_reset(fimc);
 
 	ret = v4l2_subdev_call(fimc->vid_cap.sd, video, s_stream, 1);
 	if (ret && ret != -ENOIOCTLCMD)
@@ -273,7 +241,7 @@ static int start_streaming(struct vb2_queue *q)
 	INIT_LIST_HEAD(&fimc->vid_cap.active_buf_q);
 	fimc->vid_cap.active_buf_cnt = 0;
 	fimc->vid_cap.frame_count = 0;
-	fimc->vid_cap.buf_index = fimc_hw_get_frame_index(fimc);
+	fimc->vid_cap.buf_index = 0;
 
 	set_bit(ST_CAPT_PEND, &fimc->state);
 
@@ -372,19 +340,33 @@ static void buffer_queue(struct vb2_buffer *vb)
 		= container_of(vb, struct fimc_vid_buffer, vb);
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
 	unsigned long flags;
+	int min_bufs;
 
 	spin_lock_irqsave(&fimc->slock, flags);
-	fimc_vid_cap_buf_queue(fimc, buf);
+	fimc_prepare_addr(ctx, &buf->vb, &ctx->d_frame, &buf->paddr);
 
-	dbg("active_buf_cnt: %d", fimc->vid_cap.active_buf_cnt);
+	if (!test_bit(ST_CAPT_STREAM, &fimc->state)
+	     && vid_cap->active_buf_cnt < FIMC_MAX_OUT_BUFS) {
+		/* Setup the buffer directly for processing. */
+		int buf_id = (vid_cap->reqbufs_count == 1) ? -1 :
+				vid_cap->buf_index;
 
-	if (vid_cap->active_buf_cnt >= vid_cap->reqbufs_count ||
-	   vid_cap->active_buf_cnt >= FIMC_MAX_OUT_BUFS) {
-		if (!test_and_set_bit(ST_CAPT_STREAM, &fimc->state)) {
-			fimc_activate_capture(ctx);
-			dbg("");
-		}
+		fimc_hw_set_output_addr(fimc, &buf->paddr, buf_id);
+		buf->index = vid_cap->buf_index;
+		active_queue_add(vid_cap, buf);
+
+		if (++vid_cap->buf_index >= FIMC_MAX_OUT_BUFS)
+			vid_cap->buf_index = 0;
+	} else {
+		fimc_pending_queue_add(vid_cap, buf);
 	}
+
+	min_bufs = vid_cap->reqbufs_count > 1 ? 2 : 1;
+
+	if (vid_cap->active_buf_cnt >= min_bufs &&
+	    !test_and_set_bit(ST_CAPT_STREAM, &fimc->state))
+		fimc_activate_capture(ctx);
+
 	spin_unlock_irqrestore(&fimc->slock, flags);
 }
 
