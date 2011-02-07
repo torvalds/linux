@@ -20,7 +20,7 @@ struct omap_onenand_platform_data {
 	int			gpio_irq;
 	struct mtd_partition	*parts;
 	int			nr_parts;
-	int                     (*onenand_setup)(void __iomem *, int freq);
+	int			(*onenand_setup)(void __iomem *, int *freq_ptr);
 	int			dma_channel;
 	u8			flags;
 	u8			regulator_can_sleep;

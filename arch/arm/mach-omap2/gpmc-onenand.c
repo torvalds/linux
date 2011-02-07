@@ -123,7 +123,7 @@ static void set_onenand_cfg(void __iomem *onenand_base, int latency,
 
 static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 					void __iomem *onenand_base,
-					int freq)
+					int *freq_ptr)
 {
 	struct gpmc_timings t;
 	const int t_cer  = 15;
@@ -136,7 +136,7 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 	int tick_ns, div, fclk_offset_ns, fclk_offset, gpmc_clk_ns, latency;
 	int first_time = 0, hf = 0, vhf = 0, sync_read = 0, sync_write = 0;
 	int err, ticks_cez;
-	int cs = cfg->cs;
+	int cs = cfg->cs, freq = *freq_ptr;
 	u32 reg;
 
 	if (cfg->flags & ONENAND_SYNC_READ) {
@@ -330,16 +330,18 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 
 	set_onenand_cfg(onenand_base, latency, sync_read, sync_write, hf, vhf);
 
+	*freq_ptr = freq;
+
 	return 0;
 }
 
-static int gpmc_onenand_setup(void __iomem *onenand_base, int freq)
+static int gpmc_onenand_setup(void __iomem *onenand_base, int *freq_ptr)
 {
 	struct device *dev = &gpmc_onenand_device.dev;
 
 	/* Set sync timings in GPMC */
 	if (omap2_onenand_set_sync_mode(gpmc_onenand_data, onenand_base,
-			freq) < 0) {
+			freq_ptr) < 0) {
 		dev_err(dev, "Unable to set synchronous mode\n");
 		return -EINVAL;
 	}
