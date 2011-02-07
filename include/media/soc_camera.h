@@ -306,6 +306,16 @@ static inline struct video_device *soc_camera_i2c_to_vdev(struct i2c_client *cli
 	return icd->vdev;
 }
 
+static inline struct soc_camera_device *soc_camera_from_vb2q(struct vb2_queue *vq)
+{
+	return container_of(vq, struct soc_camera_device, vb2_vidq);
+}
+
+static inline struct soc_camera_device *soc_camera_from_vbq(struct videobuf_queue *vq)
+{
+	return container_of(vq, struct soc_camera_device, vb_vidq);
+}
+
 void soc_camera_lock(struct vb2_queue *vq);
 void soc_camera_unlock(struct vb2_queue *vq);
 
