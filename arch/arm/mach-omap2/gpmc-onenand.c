@@ -94,7 +94,7 @@ static int omap2_onenand_set_async_mode(int cs, void __iomem *onenand_base)
 }
 
 static void set_onenand_cfg(void __iomem *onenand_base, int latency,
-				int sync_read, int sync_write, int hf)
+				int sync_read, int sync_write, int hf, int vhf)
 {
 	u32 reg;
 
@@ -114,6 +114,10 @@ static void set_onenand_cfg(void __iomem *onenand_base, int latency,
 		reg |= ONENAND_SYS_CFG1_HF;
 	else
 		reg &= ~ONENAND_SYS_CFG1_HF;
+	if (vhf)
+		reg |= ONENAND_SYS_CFG1_VHF;
+	else
+		reg &= ~ONENAND_SYS_CFG1_VHF;
 	writew(reg, onenand_base + ONENAND_REG_SYS_CFG1);
 }
 
@@ -130,7 +134,7 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 	const int t_wph  = 30;
 	int min_gpmc_clk_period, t_ces, t_avds, t_avdh, t_ach, t_aavdh, t_rdyo;
 	int tick_ns, div, fclk_offset_ns, fclk_offset, gpmc_clk_ns, latency;
-	int first_time = 0, hf = 0, sync_read = 0, sync_write = 0;
+	int first_time = 0, hf = 0, vhf = 0, sync_read = 0, sync_write = 0;
 	int err, ticks_cez;
 	int cs = cfg->cs;
 	u32 reg;
@@ -180,7 +184,7 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 		t_avdh  = 2;
 		t_ach   = 3;
 		t_aavdh = 6;
-		t_rdyo  = 9;
+		t_rdyo  = 6;
 		break;
 	case 83:
 		min_gpmc_clk_period = 12000; /* 83 MHz */
@@ -217,7 +221,11 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 	gpmc_clk_ns = gpmc_ticks_to_ns(div);
 	if (gpmc_clk_ns < 15) /* >66Mhz */
 		hf = 1;
-	if (hf)
+	if (gpmc_clk_ns < 12) /* >83Mhz */
+		vhf = 1;
+	if (vhf)
+		latency = 8;
+	else if (hf)
 		latency = 6;
 	else if (gpmc_clk_ns >= 25) /* 40 MHz*/
 		latency = 3;
@@ -226,7 +234,7 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 
 	if (first_time)
 		set_onenand_cfg(onenand_base, latency,
-					sync_read, sync_write, hf);
+					sync_read, sync_write, hf, vhf);
 
 	if (div == 1) {
 		reg = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG2);
@@ -264,6 +272,9 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 	/* Read */
 	t.adv_rd_off = gpmc_ticks_to_ns(fclk_offset + gpmc_ns_to_ticks(t_avdh));
 	t.oe_on = gpmc_ticks_to_ns(fclk_offset + gpmc_ns_to_ticks(t_ach));
+	/* Force at least 1 clk between AVD High to OE Low */
+	if (t.oe_on <= t.adv_rd_off)
+		t.oe_on = t.adv_rd_off + gpmc_round_ns_to_ticks(1);
 	t.access = gpmc_ticks_to_ns(fclk_offset + (latency + 1) * div);
 	t.oe_off = t.access + gpmc_round_ns_to_ticks(1);
 	t.cs_rd_off = t.oe_off;
@@ -317,7 +328,7 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 	if (err)
 		return err;
 
-	set_onenand_cfg(onenand_base, latency, sync_read, sync_write, hf);
+	set_onenand_cfg(onenand_base, latency, sync_read, sync_write, hf, vhf);
 
 	return 0;
 }
