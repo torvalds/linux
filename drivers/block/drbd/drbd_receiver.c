@@ -4564,7 +4564,7 @@ int drbd_asender(struct drbd_thread *thi)
 
 	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(mdev, thi);
-		if (test_and_clear_bit(SEND_PING, &mdev->flags)) {
+		if (test_and_clear_bit(SEND_PING, &mdev->tconn->flags)) {
 			if (!drbd_send_ping(mdev)) {
 				dev_err(DEV, "drbd_send_ping has failed\n");
 				goto reconnect;
@@ -4635,7 +4635,7 @@ int drbd_asender(struct drbd_thread *thi)
 				dev_err(DEV, "PingAck did not arrive in time.\n");
 				goto reconnect;
 			}
-			set_bit(SEND_PING, &mdev->flags);
+			set_bit(SEND_PING, &mdev->tconn->flags);
 			continue;
 		} else if (rv == -EINTR) {
 			continue;
