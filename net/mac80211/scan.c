@@ -517,8 +517,7 @@ static void ieee80211_scan_state_decision(struct ieee80211_local *local,
 
 	if (ieee80211_cfg_on_oper_channel(local)) {
 		/* We're currently on operating channel. */
-		if ((next_chan == local->oper_channel) &&
-		    (local->_oper_channel_type == NL80211_CHAN_NO_HT))
+		if (next_chan == local->oper_channel)
 			/* We don't need to move off of operating channel. */
 			local->next_scan_state = SCAN_SET_CHANNEL;
 		else
@@ -620,8 +619,7 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	local->scan_channel = chan;
 
 	/* Only call hw-config if we really need to change channels. */
-	if ((chan != local->hw.conf.channel) ||
-	    (local->hw.conf.channel_type != NL80211_CHAN_NO_HT))
+	if (chan != local->hw.conf.channel)
 		if (ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL))
 			skip = 1;
 

@@ -112,7 +112,13 @@ bool ieee80211_cfg_on_oper_channel(struct ieee80211_local *local)
 	/* This logic needs to match logic in ieee80211_hw_config */
 	if (local->scan_channel) {
 		chan = local->scan_channel;
-		channel_type = NL80211_CHAN_NO_HT;
+		/* If scanning on oper channel, use whatever channel-type
+		 * is currently in use.
+		 */
+		if (chan == local->oper_channel)
+			channel_type = local->_oper_channel_type;
+		else
+			channel_type = NL80211_CHAN_NO_HT;
 	} else if (local->tmp_channel) {
 		chan = scan_chan = local->tmp_channel;
 		channel_type = local->tmp_channel_type;
@@ -151,7 +157,13 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	offchannel_flag = local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 	if (scan_chan) {
 		chan = scan_chan;
-		channel_type = NL80211_CHAN_NO_HT;
+		/* If scanning on oper channel, use whatever channel-type
+		 * is currently in use.
+		 */
+		if (chan == local->oper_channel)
+			channel_type = local->_oper_channel_type;
+		else
+			channel_type = NL80211_CHAN_NO_HT;
 	} else if (local->tmp_channel) {
 		chan = scan_chan = local->tmp_channel;
 		channel_type = local->tmp_channel_type;
