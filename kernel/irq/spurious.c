@@ -25,30 +25,42 @@ static DEFINE_TIMER(poll_spurious_irq_timer, poll_spurious_irqs, 0, 0);
 /*
  * Recovery handler for misrouted interrupts.
  */
-static int try_one_irq(int irq, struct irq_desc *desc)
+static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 {
 	struct irqaction *action;
 	int ok = 0, work = 0;
 
 	raw_spin_lock(&desc->lock);
+
+	/* PER_CPU and nested thread interrupts are never polled */
+	if (desc->status & (IRQ_PER_CPU | IRQ_NESTED_THREAD))
+		goto out;
+
+	/*
+	 * Do not poll disabled interrupts unless the spurious
+	 * disabled poller asks explicitely.
+	 */
+	if ((desc->status & IRQ_DISABLED) && !force)
+		goto out;
+
+	/*
+	 * All handlers must agree on IRQF_SHARED, so we test just the
+	 * first. Check for action->next as well.
+	 */
+	action = desc->action;
+	if (!action || !(action->flags & IRQF_SHARED) ||
+	    (action->flags & __IRQF_TIMER) || !action->next)
+		goto out;
+
 	/* Already running on another processor */
 	if (desc->status & IRQ_INPROGRESS) {
 		/*
 		 * Already running: If it is shared get the other
 		 * CPU to go looking for our mystery interrupt too
 		 */
-		if (desc->action && (desc->action->flags & IRQF_SHARED))
-			desc->status |= IRQ_PENDING;
-		raw_spin_unlock(&desc->lock);
-		return ok;
-	}
-	/*
-	 * All handlers must agree on IRQF_SHARED, so we test just the
-	 * first. Check for action->next as well.
-	 */
-	action = desc->action;
-	if (!action || !(action->flags & IRQF_SHARED) || !action->next)
+		desc->status |= IRQ_PENDING;
 		goto out;
+	}
 
 	/* Honour the normal IRQ locking */
 	desc->status |= IRQ_INPROGRESS;
@@ -87,7 +99,7 @@ static int misrouted_irq(int irq)
 		if (i == irq)	/* Already tried */
 			continue;
 
-		if (try_one_irq(i, desc))
+		if (try_one_irq(i, desc, false))
 			ok = 1;
 	}
 	/* So the caller can adjust the irq error counts */
@@ -112,7 +124,7 @@ static void poll_spurious_irqs(unsigned long dummy)
 			continue;
 
 		local_irq_disable();
-		try_one_irq(i, desc);
+		try_one_irq(i, desc, true);
 		local_irq_enable();
 	}
 
