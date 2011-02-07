@@ -1238,6 +1238,7 @@ static int __devinit pch_can_probe(struct pci_dev *pdev,
 		priv->use_msi = 0;
 	} else {
 		netdev_err(ndev, "PCH CAN opened with MSI\n");
+		pci_set_master(pdev);
 		priv->use_msi = 1;
 	}
 
