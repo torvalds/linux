@@ -51,10 +51,11 @@ static void warn_no_thread(unsigned int irq, struct irqaction *action)
 	       "but no thread function available.", irq, action->name);
 }
 
-static irqreturn_t __handle_irq_event(unsigned int irq, struct irqaction *action)
+irqreturn_t
+handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *action)
 {
 	irqreturn_t ret, retval = IRQ_NONE;
-	unsigned int status = 0;
+	unsigned int status = 0, irq = desc->irq_data.irq;
 
 	do {
 		trace_irq_handler_entry(irq, action);
@@ -111,17 +112,9 @@ static irqreturn_t __handle_irq_event(unsigned int irq, struct irqaction *action
 	if (status & IRQF_SAMPLE_RANDOM)
 		add_interrupt_randomness(irq);
 
-	return retval;
-}
-
-irqreturn_t
-handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *action)
-{
-	irqreturn_t ret = __handle_irq_event(desc->irq_data.irq, action);
-
 	if (!noirqdebug)
-		note_interrupt(desc->irq_data.irq, desc, ret);
-	return ret;
+		note_interrupt(irq, desc, ret);
+	return retval;
 }
 
 irqreturn_t handle_irq_event(struct irq_desc *desc)
@@ -149,5 +142,5 @@ irqreturn_t handle_irq_event(struct irq_desc *desc)
  */
 irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 {
-	return __handle_irq_event(irq, action);
+	return handle_irq_event_percpu(irq_to_desc(irq), action);
 }
