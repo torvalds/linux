@@ -472,7 +472,7 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 
 	handle_irq_event(desc);
 
-	if (!(desc->status & (IRQ_DISABLED | IRQ_ONESHOT)))
+	if (!(desc->status & IRQ_DISABLED) && !(desc->istate & IRQS_ONESHOT))
 		unmask_irq(desc);
 out_unlock:
 	raw_spin_unlock(&desc->lock);

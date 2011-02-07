@@ -42,12 +42,14 @@ enum {
  *				  detection
  * IRQS_POLL_INPROGRESS		- polling in progress
  * IRQS_INPROGRESS		- Interrupt in progress
+ * IRQS_ONESHOT			- irq is not unmasked in primary handler
  */
 enum {
 	IRQS_AUTODETECT		= 0x00000001,
 	IRQS_SPURIOUS_DISABLED	= 0x00000002,
 	IRQS_POLL_INPROGRESS	= 0x00000008,
 	IRQS_INPROGRESS		= 0x00000010,
+	IRQS_ONESHOT		= 0x00000020,
 };
 
 #define irq_data_to_desc(data)	container_of(data, struct irq_desc, irq_data)
