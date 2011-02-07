@@ -304,7 +304,6 @@ static struct regulator_init_data omap4_panda_vana = {
 	.constraints = {
 		.min_uV			= 2100000,
 		.max_uV			= 2100000,
-		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
 		.valid_ops_mask	 = REGULATOR_CHANGE_MODE
@@ -316,7 +315,6 @@ static struct regulator_init_data omap4_panda_vcxio = {
 	.constraints = {
 		.min_uV			= 1800000,
 		.max_uV			= 1800000,
-		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
 		.valid_ops_mask	 = REGULATOR_CHANGE_MODE
@@ -328,7 +326,6 @@ static struct regulator_init_data omap4_panda_vdac = {
 	.constraints = {
 		.min_uV			= 1800000,
 		.max_uV			= 1800000,
-		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
 		.valid_ops_mask	 = REGULATOR_CHANGE_MODE
