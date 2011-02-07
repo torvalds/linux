@@ -926,19 +926,10 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < sr_info->nvalue_count; i++) {
-		char *name;
-		char volt_name[32];
+		char name[NVALUE_NAME_LEN + 1];
 
-		name = kzalloc(NVALUE_NAME_LEN + 1, GFP_KERNEL);
-		if (!name) {
-			dev_err(&pdev->dev, "%s: Unable to allocate memory"
-				" for n-value directory name\n",  __func__);
-			return -ENOMEM;
-		}
-
-		strcpy(name, "volt_");
-		sprintf(volt_name, "%d", volt_data[i].volt_nominal);
-		strcat(name, volt_name);
+		snprintf(name, sizeof(name), "volt_%d",
+			 volt_data[i].volt_nominal);
 		(void) debugfs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
 				&(sr_info->nvalue_table[i].nvalue));
 	}
