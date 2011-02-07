@@ -29,8 +29,6 @@
 #define DRVNAME				"ifx6x60"
 #define TTYNAME				"ttyIFX"
 
-/* #define IFX_THROTTLE_CODE */
-
 #define IFX_SPI_MAX_MINORS		1
 #define IFX_SPI_TRANSFER_SIZE		2048
 #define IFX_SPI_FIFO_SIZE		4096

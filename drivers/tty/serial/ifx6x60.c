@@ -1333,9 +1333,9 @@ static const struct spi_device_id ifx_id_table[] = {
 MODULE_DEVICE_TABLE(spi, ifx_id_table);
 
 /* spi operations */
-static const struct spi_driver ifx_spi_driver_6160 = {
+static const struct spi_driver ifx_spi_driver = {
 	.driver = {
-		.name = "ifx6160",
+		.name = DRVNAME,
 		.bus = &spi_bus_type,
 		.pm = &ifx_spi_pm,
 		.owner = THIS_MODULE},
@@ -1357,7 +1357,7 @@ static void __exit ifx_spi_exit(void)
 {
 	/* unregister */
 	tty_unregister_driver(tty_drv);
-	spi_unregister_driver((void *)&ifx_spi_driver_6160);
+	spi_unregister_driver((void *)&ifx_spi_driver);
 }
 
 /**
@@ -1399,7 +1399,7 @@ static int __init ifx_spi_init(void)
 		return result;
 	}
 
-	result = spi_register_driver((void *)&ifx_spi_driver_6160);
+	result = spi_register_driver((void *)&ifx_spi_driver);
 	if (result) {
 		pr_err("%s: spi_register_driver failed(%d)",
 			DRVNAME, result);
