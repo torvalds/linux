@@ -989,7 +989,7 @@ intel_find_pll_g4x_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 void intel_wait_for_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipestat_reg = (pipe == 0 ? PIPEASTAT : PIPEBSTAT);
+	int pipestat_reg = PIPESTAT(pipe);
 
 	/* Clear existing vblank status. Note this will clear any other
 	 * sticky status fields as well.
@@ -1185,7 +1185,7 @@ static void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 
 	WARN(panel_pipe == pipe && locked,
 	     "panel assertion failure, pipe %c regs locked\n",
-	     pipe ? 'B' : 'A');
+	     pipe_name(pipe));
 }
 
 static void assert_pipe(struct drm_i915_private *dev_priv,
@@ -1200,7 +1200,7 @@ static void assert_pipe(struct drm_i915_private *dev_priv,
 	cur_state = !!(val & PIPECONF_ENABLE);
 	WARN(cur_state != state,
 	     "pipe %c assertion failure (expected %s, current %s)\n",
-	     pipe ? 'B' : 'A', state_string(state), state_string(cur_state));
+	     pipe_name(pipe), state_string(state), state_string(cur_state));
 }
 #define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
@@ -1215,7 +1215,7 @@ static void assert_plane_enabled(struct drm_i915_private *dev_priv,
 	val = I915_READ(reg);
 	WARN(!(val & DISPLAY_PLANE_ENABLE),
 	     "plane %c assertion failure, should be active but is disabled\n",
-	     plane ? 'B' : 'A');
+	     plane_name(plane));
 }
 
 static void assert_planes_disabled(struct drm_i915_private *dev_priv,
@@ -1236,8 +1236,8 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 		cur_pipe = (val & DISPPLANE_SEL_PIPE_MASK) >>
 			DISPPLANE_SEL_PIPE_SHIFT;
 		WARN((val & DISPLAY_PLANE_ENABLE) && pipe == cur_pipe,
-		     "plane %d assertion failure, should be off on pipe %c but is still active\n",
-		     i, pipe ? 'B' : 'A');
+		     "plane %c assertion failure, should be off on pipe %c but is still active\n",
+		     plane_name(i), pipe_name(pipe));
 	}
 }
 
@@ -1262,7 +1262,9 @@ static void assert_transcoder_disabled(struct drm_i915_private *dev_priv,
 	reg = TRANSCONF(pipe);
 	val = I915_READ(reg);
 	enabled = !!(val & TRANS_ENABLE);
-	WARN(enabled, "transcoder assertion failed, should be off on pipe %c but is still active\n", pipe ? 'B' :'A');
+	WARN(enabled,
+	     "transcoder assertion failed, should be off on pipe %c but is still active\n",
+	     pipe_name(pipe));
 }
 
 static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
@@ -1275,7 +1277,7 @@ static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 	sel_pipe = (val & DP_PIPEB_SELECT) >> 30;
 	WARN((val & DP_PORT_EN) && sel_pipe == pipe,
 	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
-	     reg, pipe ? 'B' : 'A');
+	     reg, pipe_name(pipe));
 }
 
 static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
@@ -1288,7 +1290,7 @@ static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 	sel_pipe = (val & TRANSCODER_B) >> 30;
 	WARN((val & PORT_ENABLE) && sel_pipe == pipe,
 	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
-	     reg, pipe ? 'B' : 'A');
+	     reg, pipe_name(pipe));
 }
 
 static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
@@ -1307,14 +1309,14 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 	sel_pipe = (val & ADPA_TRANS_B_SELECT) >> 30;
 	WARN(sel_pipe == pipe && (val & ADPA_DAC_ENABLE),
 	     "PCH VGA enabled on transcoder %c, should be disabled\n",
-	     pipe ? 'B' : 'A');
+	     pipe_name(pipe));
 
 	reg = PCH_LVDS;
 	val = I915_READ(reg);
 	sel_pipe = (val & LVDS_PIPEB_SELECT) >> 30;
 	WARN(sel_pipe == pipe && (val & LVDS_PORT_EN),
 	     "PCH LVDS enabled on transcoder %c, should be disabled\n",
-	     pipe ? 'B' : 'A');
+	     pipe_name(pipe));
 
 	assert_pch_hdmi_disabled(dev_priv, pipe, HDMIB);
 	assert_pch_hdmi_disabled(dev_priv, pipe, HDMIC);
@@ -2816,12 +2818,9 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
 		 */
-		I915_WRITE(pipe ? PFB_CTL_1 : PFA_CTL_1,
-			   PF_ENABLE | PF_FILTER_MED_3x3);
-		I915_WRITE(pipe ? PFB_WIN_POS : PFA_WIN_POS,
-			   dev_priv->pch_pf_pos);
-		I915_WRITE(pipe ? PFB_WIN_SZ : PFA_WIN_SZ,
-			   dev_priv->pch_pf_size);
+		I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3);
+		I915_WRITE(PF_WIN_POS(pipe), dev_priv->pch_pf_pos);
+		I915_WRITE(PF_WIN_SZ(pipe), dev_priv->pch_pf_size);
 	}
 
 	intel_enable_pipe(dev_priv, pipe, is_pch_port);
@@ -2860,8 +2859,8 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	intel_disable_pipe(dev_priv, pipe);
 
 	/* Disable PF */
-	I915_WRITE(pipe ? PFB_CTL_1 : PFA_CTL_1, 0);
-	I915_WRITE(pipe ? PFB_WIN_SZ : PFA_WIN_SZ, 0);
+	I915_WRITE(PF_CTL(pipe), 0);
+	I915_WRITE(PF_WIN_SZ(pipe), 0);
 
 	ironlake_fdi_disable(crtc);
 
@@ -2886,10 +2885,20 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 		/* disable DPLL_SEL */
 		temp = I915_READ(PCH_DPLL_SEL);
-		if (pipe == 0)
-			temp &= ~(TRANSA_DPLL_ENABLE | TRANSA_DPLLB_SEL);
-		else
+		switch (pipe) {
+		case 0:
+			temp &= ~(TRANSA_DPLL_ENABLE | TRANSA_DPLLA_SEL);
+			break;
+		case 1:
 			temp &= ~(TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
+			break;
+		case 2:
+			/* FIXME: manage transcoder PLLs? */
+			temp &= ~(TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL);
+			break;
+		default:
+			BUG(); /* wtf */
+		}
 		I915_WRITE(PCH_DPLL_SEL, temp);
 	}
 
@@ -3074,7 +3083,7 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		master_priv->sarea_priv->pipeB_h = enabled ? crtc->mode.vdisplay : 0;
 		break;
 	default:
-		DRM_ERROR("Can't update pipe %d in SAREA\n", pipe);
+		DRM_ERROR("Can't update pipe %c in SAREA\n", pipe_name(pipe));
 		break;
 	}
 }
@@ -4923,10 +4932,20 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	/* enable transcoder DPLL */
 	if (HAS_PCH_CPT(dev)) {
 		temp = I915_READ(PCH_DPLL_SEL);
-		if (pipe == 0)
+		switch (pipe) {
+		case 0:
 			temp |= TRANSA_DPLL_ENABLE | TRANSA_DPLLA_SEL;
-		else
+			break;
+		case 1:
 			temp |=	TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL;
+			break;
+		case 2:
+			/* FIXME: manage transcoder PLLs? */
+			temp |= TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL;
+			break;
+		default:
+			BUG();
+		}
 		I915_WRITE(PCH_DPLL_SEL, temp);
 
 		POSTING_READ(PCH_DPLL_SEL);
@@ -5009,17 +5028,10 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
 	} else if (HAS_PCH_SPLIT(dev)) {
 		/* For non-DP output, clear any trans DP clock recovery setting.*/
-		if (pipe == 0) {
-			I915_WRITE(TRANSA_DATA_M1, 0);
-			I915_WRITE(TRANSA_DATA_N1, 0);
-			I915_WRITE(TRANSA_DP_LINK_M1, 0);
-			I915_WRITE(TRANSA_DP_LINK_N1, 0);
-		} else {
-			I915_WRITE(TRANSB_DATA_M1, 0);
-			I915_WRITE(TRANSB_DATA_N1, 0);
-			I915_WRITE(TRANSB_DP_LINK_M1, 0);
-			I915_WRITE(TRANSB_DP_LINK_N1, 0);
-		}
+		I915_WRITE(TRANSDATA_M1(pipe), 0);
+		I915_WRITE(TRANSDATA_N1(pipe), 0);
+		I915_WRITE(TRANSDPLINK_M1(pipe), 0);
+		I915_WRITE(TRANSDPLINK_N1(pipe), 0);
 	}
 
 	if (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
@@ -5153,7 +5165,7 @@ void intel_crtc_load_lut(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int palreg = (intel_crtc->pipe == 0) ? PALETTE_A : PALETTE_B;
+	int palreg = PALETTE(intel_crtc->pipe);
 	int i;
 
 	/* The clocks have to be on to load the palette. */
@@ -5162,8 +5174,7 @@ void intel_crtc_load_lut(struct drm_crtc *crtc)
 
 	/* use legacy palette for Ironlake */
 	if (HAS_PCH_SPLIT(dev))
-		palreg = (intel_crtc->pipe == 0) ? LGC_PALETTE_A :
-						   LGC_PALETTE_B;
+		palreg = LGC_PALETTE(intel_crtc->pipe);
 
 	for (i = 0; i < 256; i++) {
 		I915_WRITE(palreg + 4 * i,
@@ -5184,12 +5195,12 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
 	if (intel_crtc->cursor_visible == visible)
 		return;
 
-	cntl = I915_READ(CURACNTR);
+	cntl = I915_READ(_CURACNTR);
 	if (visible) {
 		/* On these chipsets we can only modify the base whilst
 		 * the cursor is disabled.
 		 */
-		I915_WRITE(CURABASE, base);
+		I915_WRITE(_CURABASE, base);
 
 		cntl &= ~(CURSOR_FORMAT_MASK);
 		/* XXX width must be 64, stride 256 => 0x00 << 28 */
@@ -5198,7 +5209,7 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
 			CURSOR_FORMAT_ARGB;
 	} else
 		cntl &= ~(CURSOR_ENABLE | CURSOR_GAMMA_ENABLE);
-	I915_WRITE(CURACNTR, cntl);
+	I915_WRITE(_CURACNTR, cntl);
 
 	intel_crtc->cursor_visible = visible;
 }
@@ -5212,7 +5223,7 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 	bool visible = base != 0;
 
 	if (intel_crtc->cursor_visible != visible) {
-		uint32_t cntl = I915_READ(pipe == 0 ? CURACNTR : CURBCNTR);
+		uint32_t cntl = CURCNTR(pipe);
 		if (base) {
 			cntl &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
 			cntl |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
@@ -5221,12 +5232,12 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
 			cntl |= CURSOR_MODE_DISABLE;
 		}
-		I915_WRITE(pipe == 0 ? CURACNTR : CURBCNTR, cntl);
+		I915_WRITE(CURCNTR(pipe), cntl);
 
 		intel_crtc->cursor_visible = visible;
 	}
 	/* and commit changes on next vblank */
-	I915_WRITE(pipe == 0 ? CURABASE : CURBBASE, base);
+	I915_WRITE(CURBASE(pipe), base);
 }
 
 /* If no-part of the cursor is visible on the framebuffer, then the GPU may hang... */
@@ -5276,7 +5287,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	if (!visible && !intel_crtc->cursor_visible)
 		return;
 
-	I915_WRITE(pipe == 0 ? CURAPOS : CURBPOS, pos);
+	I915_WRITE(CURPOS(pipe), pos);
 	if (IS_845G(dev) || IS_I865G(dev))
 		i845_update_cursor(crtc, base);
 	else
@@ -5582,14 +5593,14 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 dpll = I915_READ((pipe == 0) ? DPLL_A : DPLL_B);
+	u32 dpll = DPLL(pipe);
 	u32 fp;
 	intel_clock_t clock;
 
 	if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
-		fp = I915_READ((pipe == 0) ? FPA0 : FPB0);
+		fp = FP0(pipe);
 	else
-		fp = I915_READ((pipe == 0) ? FPA1 : FPB1);
+		fp = FP1(pipe);
 
 	clock.m1 = (fp & FP_M1_DIV_MASK) >> FP_M1_DIV_SHIFT;
 	if (IS_PINEVIEW(dev)) {
@@ -5667,14 +5678,13 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 					     struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	struct drm_display_mode *mode;
-	int htot = I915_READ((pipe == 0) ? HTOTAL_A : HTOTAL_B);
-	int hsync = I915_READ((pipe == 0) ? HSYNC_A : HSYNC_B);
-	int vtot = I915_READ((pipe == 0) ? VTOTAL_A : VTOTAL_B);
-	int vsync = I915_READ((pipe == 0) ? VSYNC_A : VSYNC_B);
+	int htot = HTOTAL(pipe);
+	int hsync = HSYNC(pipe);
+	int vtot = VTOTAL(pipe);
+	int vsync = VSYNC(pipe);
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
 	if (!mode)
@@ -5783,7 +5793,7 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
+	int dpll_reg = DPLL(pipe);
 	int dpll = I915_READ(dpll_reg);
 
 	if (HAS_PCH_SPLIT(dev))
@@ -6164,7 +6174,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		 * pf = I915_READ(pipe == 0 ? PFA_CTL_1 : PFB_CTL_1) & PF_ENABLE;
 		 */
 		pf = 0;
-		pipesrc = I915_READ(pipe == 0 ? PIPEASRC : PIPEBSRC) & 0x0fff0fff;
+		pipesrc = I915_READ(PIPESRC(pipe)) & 0x0fff0fff;
 		OUT_RING(pf | pipesrc);
 		break;
 
@@ -6174,8 +6184,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		OUT_RING(fb->pitch | obj->tiling_mode);
 		OUT_RING(obj->gtt_offset);
 
-		pf = I915_READ(pipe == 0 ? PFA_CTL_1 : PFB_CTL_1) & PF_ENABLE;
-		pipesrc = I915_READ(pipe == 0 ? PIPEASRC : PIPEBSRC) & 0x0fff0fff;
+		pf = I915_READ(PF_CTL(pipe)) & PF_ENABLE;
+		pipesrc = I915_READ(PIPESRC(pipe)) & 0x0fff0fff;
 		OUT_RING(pf | pipesrc);
 		break;
 	}
@@ -6945,6 +6955,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 void intel_enable_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe;
 
 	/*
 	 * Disable clock gating reported to work incorrectly according to the
@@ -7054,12 +7065,10 @@ void intel_enable_clock_gating(struct drm_device *dev)
 				   ILK_DPARB_CLK_GATE  |
 				   ILK_DPFD_CLK_GATE);
 
-			I915_WRITE(DSPACNTR,
-				   I915_READ(DSPACNTR) |
-				   DISPPLANE_TRICKLE_FEED_DISABLE);
-			I915_WRITE(DSPBCNTR,
-				   I915_READ(DSPBCNTR) |
-				   DISPPLANE_TRICKLE_FEED_DISABLE);
+			for_each_pipe(pipe)
+				I915_WRITE(DSPCNTR(pipe),
+					   I915_READ(DSPCNTR(pipe)) |
+					   DISPPLANE_TRICKLE_FEED_DISABLE);
 		}
 	} else if (IS_G4X(dev)) {
 		uint32_t dspclk_gate;
@@ -7394,10 +7403,6 @@ void intel_modeset_init(struct drm_device *dev)
 	}
 	dev->mode_config.fb_base = dev->agp->base;
 
-	if (IS_MOBILE(dev) || !IS_GEN2(dev))
-		dev_priv->num_pipe = 2;
-	else
-		dev_priv->num_pipe = 1;
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
 		      dev_priv->num_pipe, dev_priv->num_pipe > 1 ? "s" : "");
 

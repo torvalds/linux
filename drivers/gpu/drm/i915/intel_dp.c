@@ -685,6 +685,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int lane_count = 4, bpp = 24;
 	struct intel_dp_m_n m_n;
+	int pipe = intel_crtc->pipe;
 
 	/*
 	 * Find the lane count in the intel_encoder private
@@ -715,39 +716,19 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			     mode->clock, adjusted_mode->clock, &m_n);
 
 	if (HAS_PCH_SPLIT(dev)) {
-		if (intel_crtc->pipe == 0) {
-			I915_WRITE(TRANSA_DATA_M1,
-				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
-				   m_n.gmch_m);
-			I915_WRITE(TRANSA_DATA_N1, m_n.gmch_n);
-			I915_WRITE(TRANSA_DP_LINK_M1, m_n.link_m);
-			I915_WRITE(TRANSA_DP_LINK_N1, m_n.link_n);
-		} else {
-			I915_WRITE(TRANSB_DATA_M1,
-				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
-				   m_n.gmch_m);
-			I915_WRITE(TRANSB_DATA_N1, m_n.gmch_n);
-			I915_WRITE(TRANSB_DP_LINK_M1, m_n.link_m);
-			I915_WRITE(TRANSB_DP_LINK_N1, m_n.link_n);
-		}
+		I915_WRITE(TRANSDATA_M1(pipe),
+			   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
+			   m_n.gmch_m);
+		I915_WRITE(TRANSDATA_N1(pipe), m_n.gmch_n);
+		I915_WRITE(TRANSDPLINK_M1(pipe), m_n.link_m);
+		I915_WRITE(TRANSDPLINK_N1(pipe), m_n.link_n);
 	} else {
-		if (intel_crtc->pipe == 0) {
-			I915_WRITE(PIPEA_GMCH_DATA_M,
-				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
-				   m_n.gmch_m);
-			I915_WRITE(PIPEA_GMCH_DATA_N,
-				   m_n.gmch_n);
-			I915_WRITE(PIPEA_DP_LINK_M, m_n.link_m);
-			I915_WRITE(PIPEA_DP_LINK_N, m_n.link_n);
-		} else {
-			I915_WRITE(PIPEB_GMCH_DATA_M,
-				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
-				   m_n.gmch_m);
-			I915_WRITE(PIPEB_GMCH_DATA_N,
-					m_n.gmch_n);
-			I915_WRITE(PIPEB_DP_LINK_M, m_n.link_m);
-			I915_WRITE(PIPEB_DP_LINK_N, m_n.link_n);
-		}
+		I915_WRITE(PIPE_GMCH_DATA_M(pipe),
+			   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
+			   m_n.gmch_m);
+		I915_WRITE(PIPE_GMCH_DATA_N(pipe), m_n.gmch_n);
+		I915_WRITE(PIPE_DP_LINK_M(pipe), m_n.link_m);
+		I915_WRITE(PIPE_DP_LINK_N(pipe), m_n.link_n);
 	}
 }
 

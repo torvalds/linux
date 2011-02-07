@@ -178,7 +178,7 @@ static void intel_dvo_mode_set(struct drm_encoder *encoder,
 	int pipe = intel_crtc->pipe;
 	u32 dvo_val;
 	u32 dvo_reg = intel_dvo->dev.dvo_reg, dvo_srcdim_reg;
-	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
+	int dpll_reg = DPLL(pipe);
 
 	switch (dvo_reg) {
 	case DVOA:

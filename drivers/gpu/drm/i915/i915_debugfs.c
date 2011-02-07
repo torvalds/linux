@@ -326,21 +326,21 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 	struct intel_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
-		const char *pipe = crtc->pipe ? "B" : "A";
-		const char *plane = crtc->plane ? "B" : "A";
+		const char pipe = pipe_name(crtc->pipe);
+		const char plane = plane_name(crtc->plane);
 		struct intel_unpin_work *work;
 
 		spin_lock_irqsave(&dev->event_lock, flags);
 		work = crtc->unpin_work;
 		if (work == NULL) {
-			seq_printf(m, "No flip due on pipe %s (plane %s)\n",
+			seq_printf(m, "No flip due on pipe %c (plane %c)\n",
 				   pipe, plane);
 		} else {
 			if (!work->pending) {
-				seq_printf(m, "Flip queued on pipe %s (plane %s)\n",
+				seq_printf(m, "Flip queued on pipe %c (plane %c)\n",
 					   pipe, plane);
 			} else {
-				seq_printf(m, "Flip pending (waiting for vsync) on pipe %s (plane %s)\n",
+				seq_printf(m, "Flip pending (waiting for vsync) on pipe %c (plane %c)\n",
 					   pipe, plane);
 			}
 			if (work->enable_stall_check)
@@ -458,7 +458,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret, i;
+	int ret, i, pipe;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
@@ -471,10 +471,10 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			   I915_READ(IIR));
 		seq_printf(m, "Interrupt mask:      %08x\n",
 			   I915_READ(IMR));
-		seq_printf(m, "Pipe A stat:         %08x\n",
-			   I915_READ(PIPEASTAT));
-		seq_printf(m, "Pipe B stat:         %08x\n",
-			   I915_READ(PIPEBSTAT));
+		for_each_pipe(pipe)
+			seq_printf(m, "Pipe %c stat:         %08x\n",
+				   pipe_name(pipe),
+				   I915_READ(PIPESTAT(pipe)));
 	} else {
 		seq_printf(m, "North Display Interrupt enable:		%08x\n",
 			   I915_READ(DEIER));

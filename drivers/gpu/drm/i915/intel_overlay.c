@@ -255,7 +255,7 @@ i830_activate_pipe_a(struct drm_device *dev)
 		return 0;
 
 	/* most i8xx have pipe a forced on, so don't trust dpms mode */
-	if (I915_READ(PIPEACONF) & PIPECONF_ENABLE)
+	if (I915_READ(_PIPEACONF) & PIPECONF_ENABLE)
 		return 0;
 
 	crtc_funcs = crtc->base.helper_private;

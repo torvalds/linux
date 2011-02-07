@@ -50,16 +50,21 @@
 enum pipe {
 	PIPE_A = 0,
 	PIPE_B,
+	PIPE_C,
+	I915_MAX_PIPES
 };
+#define pipe_name(p) ((p) + 'A')
 
 enum plane {
 	PLANE_A = 0,
 	PLANE_B,
+	PLANE_C,
 };
-
-#define I915_NUM_PIPE	2
+#define plane_name(p) ((p) + 'A')
 
 #define I915_GEM_GPU_DOMAINS	(~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
+
+#define for_each_pipe(p) for ((p) = 0; (p) < dev_priv->num_pipe; (p)++)
 
 /* Interface history:
  *
@@ -143,8 +148,7 @@ struct intel_display_error_state;
 struct drm_i915_error_state {
 	u32 eir;
 	u32 pgtbl_er;
-	u32 pipeastat;
-	u32 pipebstat;
+	u32 pipestat[I915_MAX_PIPES];
 	u32 ipeir;
 	u32 ipehr;
 	u32 instdone;

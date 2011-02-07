@@ -2005,7 +2005,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->error_lock);
 
-	ret = drm_vblank_init(dev, I915_NUM_PIPE);
+	if (IS_MOBILE(dev) || !IS_GEN2(dev))
+		dev_priv->num_pipe = 2;
+	else
+		dev_priv->num_pipe = 1;
+
+	ret = drm_vblank_init(dev, dev_priv->num_pipe);
 	if (ret)
 		goto out_gem_unload;
 
