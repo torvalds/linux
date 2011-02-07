@@ -651,51 +651,50 @@ void drbd_thread_current_set_cpu(struct drbd_conf *mdev, struct drbd_thread *thi
 }
 #endif
 
-static void prepare_header80(struct drbd_conf *mdev, struct p_header80 *h,
-			     enum drbd_packet cmd, int size)
+static void prepare_header80(struct p_header80 *h, enum drbd_packet cmd, int size)
 {
 	h->magic   = cpu_to_be32(DRBD_MAGIC);
 	h->command = cpu_to_be16(cmd);
 	h->length  = cpu_to_be16(size);
 }
 
-static void prepare_header95(struct drbd_conf *mdev, struct p_header95 *h,
-			     enum drbd_packet cmd, int size)
+static void prepare_header95(struct p_header95 *h, enum drbd_packet cmd, int size)
 {
 	h->magic   = cpu_to_be16(DRBD_MAGIC_BIG);
 	h->command = cpu_to_be16(cmd);
 	h->length  = cpu_to_be32(size);
 }
 
+static void _prepare_header(struct drbd_tconn *tconn, int vnr, struct p_header *h,
+			    enum drbd_packet cmd, int size)
+{
+	if (tconn->agreed_pro_version >= 100 || size > DRBD_MAX_SIZE_H80_PACKET)
+		prepare_header95(&h->h95, cmd, size);
+	else
+		prepare_header80(&h->h80, cmd, size);
+}
+
 static void prepare_header(struct drbd_conf *mdev, struct p_header *h,
 			   enum drbd_packet cmd, int size)
 {
-	if (mdev->tconn->agreed_pro_version >= 100 || size > DRBD_MAX_SIZE_H80_PACKET)
-		prepare_header95(mdev, &h->h95, cmd, size);
-	else
-		prepare_header80(mdev, &h->h80, cmd, size);
+	_prepare_header(mdev->tconn, mdev->vnr, h, cmd, size);
 }
 
 /* the appropriate socket mutex must be held already */
-int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
+int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct socket *sock,
 		   enum drbd_packet cmd, struct p_header *h, size_t size,
 		   unsigned msg_flags)
 {
 	int sent, ok;
 
-	if (!expect(h))
-		return false;
-	if (!expect(size))
-		return false;
+	_prepare_header(tconn, vnr, h, cmd, size - sizeof(struct p_header));
 
-	prepare_header(mdev, h, cmd, size - sizeof(struct p_header));
-
-	sent = drbd_send(mdev->tconn, sock, h, size, msg_flags);
+	sent = drbd_send(tconn, sock, h, size, msg_flags);
 
 	ok = (sent == size);
 	if (!ok && !signal_pending(current))
-		dev_warn(DEV, "short sent %s size=%d sent=%d\n",
-		    cmdname(cmd), (int)size, sent);
+		conn_warn(tconn, "short sent %s size=%d sent=%d\n",
+			  cmdname(cmd), (int)size, sent);
 	return ok;
 }
 

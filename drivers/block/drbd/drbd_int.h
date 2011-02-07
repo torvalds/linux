@@ -1168,9 +1168,9 @@ extern int drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev);
 extern int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags flags);
 extern int _drbd_send_state(struct drbd_conf *mdev);
 extern int drbd_send_state(struct drbd_conf *mdev);
-extern int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
-			  enum drbd_packet cmd, struct p_header *h,
-			  size_t size, unsigned msg_flags);
+extern int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct socket *sock,
+			  enum drbd_packet cmd, struct p_header *h, size_t size,
+			  unsigned msg_flags);
 #define USE_DATA_SOCKET 1
 #define USE_META_SOCKET 0
 extern int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
@@ -1868,6 +1868,13 @@ static inline void request_ping(struct drbd_tconn *tconn)
 {
 	set_bit(SEND_PING, &tconn->flags);
 	wake_asender(tconn);
+}
+
+static inline int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
+				  enum drbd_packet cmd, struct p_header *h, size_t size,
+				  unsigned msg_flags)
+{
+	return _conn_send_cmd(mdev->tconn, mdev->vnr, sock, cmd, h, size, msg_flags);
 }
 
 static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
