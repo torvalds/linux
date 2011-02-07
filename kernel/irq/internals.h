@@ -33,6 +33,15 @@ enum {
 	IRQTF_AFFINITY,
 };
 
+/*
+ * Bit masks for desc->state
+ *
+ * IRQS_AUTODETECT		- autodetection in progress
+ */
+enum {
+	IRQS_AUTODETECT		= 0x00000001,
+};
+
 #define irq_data_to_desc(data)	container_of(data, struct irq_desc, irq_data)
 
 /* Set default functions for irq_chip structures: */
@@ -98,6 +107,7 @@ static inline void chip_bus_sync_unlock(struct irq_desc *desc)
 #include <linux/kallsyms.h>
 
 #define P(f) if (desc->status & f) printk("%14s set\n", #f)
+#define PS(f) if (desc->istate & f) printk("%14s set\n", #f)
 
 static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 {
@@ -117,7 +127,6 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 	P(IRQ_DISABLED);
 	P(IRQ_PENDING);
 	P(IRQ_REPLAY);
-	P(IRQ_AUTODETECT);
 	P(IRQ_WAITING);
 	P(IRQ_LEVEL);
 	P(IRQ_MASKED);
@@ -127,7 +136,9 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 	P(IRQ_NOPROBE);
 	P(IRQ_NOREQUEST);
 	P(IRQ_NOAUTOEN);
+
+	PS(IRQS_AUTODETECT);
 }
 
 #undef P
-
+#undef PS

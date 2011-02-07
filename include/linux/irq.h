@@ -54,7 +54,6 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_DISABLED		0x00000200	/* IRQ disabled - do not enter! */
 #define IRQ_PENDING		0x00000400	/* IRQ pending - replay on enable */
 #define IRQ_REPLAY		0x00000800	/* IRQ has been replayed but not acked yet */
-#define IRQ_AUTODETECT		0x00001000	/* IRQ is being autodetected */
 #define IRQ_WAITING		0x00002000	/* IRQ not yet seen - for autodetection */
 #define IRQ_LEVEL		0x00004000	/* IRQ level triggered */
 #define IRQ_MASKED		0x00008000	/* IRQ masked - shouldn't be seen again */

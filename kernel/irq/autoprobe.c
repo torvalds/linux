@@ -32,7 +32,6 @@ unsigned long probe_irq_on(void)
 {
 	struct irq_desc *desc;
 	unsigned long mask = 0;
-	unsigned int status;
 	int i;
 
 	/*
@@ -76,7 +75,8 @@ unsigned long probe_irq_on(void)
 	for_each_irq_desc_reverse(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
 		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
-			desc->status |= IRQ_AUTODETECT | IRQ_WAITING;
+			desc->istate |= IRQS_AUTODETECT;
+			desc->status |= IRQ_WAITING;
 			if (irq_startup(desc))
 				desc->status |= IRQ_PENDING;
 		}
@@ -93,12 +93,11 @@ unsigned long probe_irq_on(void)
 	 */
 	for_each_irq_desc(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
-		status = desc->status;
 
-		if (status & IRQ_AUTODETECT) {
+		if (desc->istate & IRQS_AUTODETECT) {
 			/* It triggered already - consider it spurious. */
-			if (!(status & IRQ_WAITING)) {
-				desc->status = status & ~IRQ_AUTODETECT;
+			if (!(desc->status & IRQ_WAITING)) {
+				desc->istate &= ~IRQS_AUTODETECT;
 				irq_shutdown(desc);
 			} else
 				if (i < 32)
@@ -125,19 +124,17 @@ EXPORT_SYMBOL(probe_irq_on);
  */
 unsigned int probe_irq_mask(unsigned long val)
 {
-	unsigned int status, mask = 0;
+	unsigned int mask = 0;
 	struct irq_desc *desc;
 	int i;
 
 	for_each_irq_desc(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
-		status = desc->status;
-
-		if (status & IRQ_AUTODETECT) {
-			if (i < 16 && !(status & IRQ_WAITING))
+		if (desc->istate & IRQS_AUTODETECT) {
+			if (i < 16 && !(desc->status & IRQ_WAITING))
 				mask |= 1 << i;
 
-			desc->status = status & ~IRQ_AUTODETECT;
+			desc->istate &= ~IRQS_AUTODETECT;
 			irq_shutdown(desc);
 		}
 		raw_spin_unlock_irq(&desc->lock);
@@ -169,19 +166,17 @@ int probe_irq_off(unsigned long val)
 {
 	int i, irq_found = 0, nr_of_irqs = 0;
 	struct irq_desc *desc;
-	unsigned int status;
 
 	for_each_irq_desc(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
-		status = desc->status;
 
-		if (status & IRQ_AUTODETECT) {
-			if (!(status & IRQ_WAITING)) {
+		if (desc->istate & IRQS_AUTODETECT) {
+			if (!(desc->status & IRQ_WAITING)) {
 				if (!nr_of_irqs)
 					irq_found = i;
 				nr_of_irqs++;
 			}
-			desc->status = status & ~IRQ_AUTODETECT;
+			desc->istate &= ~IRQS_AUTODETECT;
 			irq_shutdown(desc);
 		}
 		raw_spin_unlock_irq(&desc->lock);
