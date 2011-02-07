@@ -616,6 +616,14 @@ config GPIO_INTEL_PMIC
 	  Say Y here to support GPIO via the SCU IPC interface
 	  on Intel MID platforms.
 
+config INTEL_MID_POWER_BUTTON
+	tristate "power button driver for Intel MID platforms"
+	depends on INTEL_SCU_IPC
+	help
+	  This driver handles the power button on the Intel MID platforms.
+
+	  If unsure, say N.
+
 config RAR_REGISTER
 	bool "Restricted Access Region Register Driver"
 	depends on PCI && X86_MRST
