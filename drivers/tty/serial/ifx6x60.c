@@ -76,7 +76,7 @@
 static void ifx_spi_handle_srdy(struct ifx_spi_device *ifx_dev);
 
 /* local variables */
-static int spi_b16 = 1;			/* 8 or 16 bit word length */
+static int spi_bpw = 16;		/* 8, 16 or 32 bit word length */
 static struct tty_driver *tty_drv;
 static struct ifx_spi_device *saved_ifx_dev;
 static struct lock_class_key ifx_spi_key;
@@ -724,7 +724,7 @@ static void ifx_spi_io(unsigned long data)
 		ifx_dev->spi_xfer.cs_change = 0;
 		ifx_dev->spi_xfer.speed_hz = 12500000;
 		/* ifx_dev->spi_xfer.speed_hz = 390625; */
-		ifx_dev->spi_xfer.bits_per_word = spi_b16 ? 16 : 8;
+		ifx_dev->spi_xfer.bits_per_word = spi_bpw;
 
 		ifx_dev->spi_xfer.tx_buf = ifx_dev->tx_buffer;
 		ifx_dev->spi_xfer.rx_buf = ifx_dev->rx_buffer;
