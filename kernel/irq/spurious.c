@@ -146,15 +146,15 @@ static void poll_spurious_irqs(unsigned long dummy)
 	irq_poll_cpu = smp_processor_id();
 
 	for_each_irq_desc(i, desc) {
-		unsigned int status;
+		unsigned int state;
 
 		if (!i)
 			 continue;
 
 		/* Racy but it doesn't matter */
-		status = desc->status;
+		state = desc->istate;
 		barrier();
-		if (!(status & IRQ_SPURIOUS_DISABLED))
+		if (!(state & IRQS_SPURIOUS_DISABLED))
 			continue;
 
 		local_irq_disable();
@@ -298,7 +298,7 @@ void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		 * Now kill the IRQ
 		 */
 		printk(KERN_EMERG "Disabling IRQ #%d\n", irq);
-		desc->status |= IRQ_SPURIOUS_DISABLED;
+		desc->istate |= IRQS_SPURIOUS_DISABLED;
 		desc->depth++;
 		irq_disable(desc);
 

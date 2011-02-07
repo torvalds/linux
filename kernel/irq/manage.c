@@ -897,9 +897,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 			desc->status |= IRQ_PER_CPU;
 #endif
 
-		desc->status &= ~(IRQ_WAITING | IRQ_ONESHOT |
-				  IRQ_INPROGRESS | IRQ_SPURIOUS_DISABLED);
-		desc->istate &= ~IRQS_AUTODETECT;
+		desc->status &= ~(IRQ_WAITING | IRQ_ONESHOT | IRQ_INPROGRESS);
+		desc->istate &= ~(IRQS_AUTODETECT | IRQS_SPURIOUS_DISABLED);
 
 		if (new->flags & IRQF_ONESHOT)
 			desc->status |= IRQ_ONESHOT;
@@ -937,8 +936,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	 * Check whether we disabled the irq via the spurious handler
 	 * before. Reenable it and give it another chance.
 	 */
-	if (shared && (desc->status & IRQ_SPURIOUS_DISABLED)) {
-		desc->status &= ~IRQ_SPURIOUS_DISABLED;
+	if (shared && (desc->istate & IRQS_SPURIOUS_DISABLED)) {
+		desc->istate &= ~IRQS_SPURIOUS_DISABLED;
 		__enable_irq(desc, irq, false);
 	}
 

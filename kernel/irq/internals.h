@@ -37,9 +37,12 @@ enum {
  * Bit masks for desc->state
  *
  * IRQS_AUTODETECT		- autodetection in progress
+ * IRQS_SPURIOUS_DISABLED	- was disabled due to spurious interrupt
+ *				  detection
  */
 enum {
 	IRQS_AUTODETECT		= 0x00000001,
+	IRQS_SPURIOUS_DISABLED	= 0x00000002,
 };
 
 #define irq_data_to_desc(data)	container_of(data, struct irq_desc, irq_data)
