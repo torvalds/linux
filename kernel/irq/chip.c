@@ -448,9 +448,6 @@ static bool irq_check_poll(struct irq_desc *desc)
 void
 handle_simple_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct irqaction *action;
-	irqreturn_t action_ret;
-
 	raw_spin_lock(&desc->lock);
 
 	if (unlikely(desc->status & IRQ_INPROGRESS))
@@ -460,19 +457,11 @@ handle_simple_irq(unsigned int irq, struct irq_desc *desc)
 	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
 	kstat_incr_irqs_this_cpu(irq, desc);
 
-	action = desc->action;
-	if (unlikely(!action || (desc->status & IRQ_DISABLED)))
+	if (unlikely(!desc->action || (desc->status & IRQ_DISABLED)))
 		goto out_unlock;
 
-	desc->status |= IRQ_INPROGRESS;
-	raw_spin_unlock(&desc->lock);
+	handle_irq_event(desc);
 
-	action_ret = handle_IRQ_event(irq, action);
-	if (!noirqdebug)
-		note_interrupt(irq, desc, action_ret);
-
-	raw_spin_lock(&desc->lock);
-	desc->status &= ~IRQ_INPROGRESS;
 out_unlock:
 	raw_spin_unlock(&desc->lock);
 }
