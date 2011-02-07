@@ -27,9 +27,9 @@ menuconfig BT
 	  compile it as module (bluetooth).
 
 	  To use Linux Bluetooth subsystem, you will need several user-space
-	  utilities like hciconfig and hcid.  These utilities and updates to
-	  Bluetooth kernel modules are provided in the BlueZ packages.
-	  For more information, see <http://www.bluez.org/>.
+	  utilities like hciconfig and bluetoothd.  These utilities and updates
+	  to Bluetooth kernel modules are provided in the BlueZ packages.  For
+	  more information, see <http://www.bluez.org/>.
 
 config BT_L2CAP
 	tristate "L2CAP protocol support"
