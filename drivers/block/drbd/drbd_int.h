@@ -757,8 +757,6 @@ enum {
 /* flag bits per mdev */
 enum {
 	CREATE_BARRIER,		/* next P_DATA is preceded by a P_BARRIER */
-	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
-
 	UNPLUG_QUEUED,		/* only relevant with kernel 2.4 */
 	UNPLUG_REMOTE,		/* sending a "UnplugRemote" could help */
 	MD_DIRTY,		/* current uuids and flags not yet on disk */
@@ -911,6 +909,7 @@ enum {
 	NET_CONGESTED,		/* The data socket is congested */
 	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
 	SEND_PING,		/* whether asender should send a ping asap */
+	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
 };
 
 struct drbd_tconn {			/* is a resource from the config file */
@@ -1861,7 +1860,7 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
 
 static inline void wake_asender(struct drbd_conf *mdev)
 {
-	if (test_bit(SIGNAL_ASENDER, &mdev->flags))
+	if (test_bit(SIGNAL_ASENDER, &mdev->tconn->flags))
 		force_sig(DRBD_SIG, mdev->tconn->asender.task);
 }
 

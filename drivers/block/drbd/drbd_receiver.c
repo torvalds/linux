@@ -4580,12 +4580,12 @@ int drbd_asender(struct drbd_thread *thi)
 			3 < atomic_read(&mdev->unacked_cnt))
 			drbd_tcp_cork(mdev->tconn->meta.socket);
 		while (1) {
-			clear_bit(SIGNAL_ASENDER, &mdev->flags);
+			clear_bit(SIGNAL_ASENDER, &mdev->tconn->flags);
 			flush_signals(current);
 			if (!drbd_process_done_ee(mdev))
 				goto reconnect;
 			/* to avoid race with newly queued ACKs */
-			set_bit(SIGNAL_ASENDER, &mdev->flags);
+			set_bit(SIGNAL_ASENDER, &mdev->tconn->flags);
 			spin_lock_irq(&mdev->tconn->req_lock);
 			empty = list_empty(&mdev->done_ee);
 			spin_unlock_irq(&mdev->tconn->req_lock);
@@ -4605,7 +4605,7 @@ int drbd_asender(struct drbd_thread *thi)
 
 		rv = drbd_recv_short(mdev, mdev->tconn->meta.socket,
 				     buf, expect-received, 0);
-		clear_bit(SIGNAL_ASENDER, &mdev->flags);
+		clear_bit(SIGNAL_ASENDER, &mdev->tconn->flags);
 
 		flush_signals(current);
 
@@ -4688,7 +4688,7 @@ disconnect:
 		drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
 		drbd_md_sync(mdev);
 	}
-	clear_bit(SIGNAL_ASENDER, &mdev->flags);
+	clear_bit(SIGNAL_ASENDER, &mdev->tconn->flags);
 
 	D_ASSERT(mdev->state.conn < C_CONNECTED);
 	dev_info(DEV, "asender terminated\n");
