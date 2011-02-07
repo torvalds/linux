@@ -1270,12 +1270,8 @@ static void assert_transcoder_disabled(struct drm_i915_private *dev_priv,
 static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 				   enum pipe pipe, int reg)
 {
-	u32 val;
-	u32 sel_pipe;
-
-	val = I915_READ(reg);
-	sel_pipe = (val & DP_PIPEB_SELECT) >> 30;
-	WARN((val & DP_PORT_EN) && sel_pipe == pipe,
+	u32 val = I915_READ(reg);
+	WARN(DP_PIPE_ENABLED(val, pipe),
 	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
 	     reg, pipe_name(pipe));
 }
@@ -1283,12 +1279,8 @@ static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 				     enum pipe pipe, int reg)
 {
-	u32 val;
-	u32 sel_pipe;
-
-	val = I915_READ(reg);
-	sel_pipe = (val & TRANSCODER_B) >> 30;
-	WARN((val & PORT_ENABLE) && sel_pipe == pipe,
+	u32 val = I915_READ(reg);
+	WARN(HDMI_PIPE_ENABLED(val, pipe),
 	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
 	     reg, pipe_name(pipe));
 }
@@ -1298,7 +1290,6 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 {
 	int reg;
 	u32 val;
-	u32 sel_pipe;
 
 	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_B);
 	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_C);
@@ -1306,15 +1297,13 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 
 	reg = PCH_ADPA;
 	val = I915_READ(reg);
-	sel_pipe = (val & ADPA_TRANS_B_SELECT) >> 30;
-	WARN(sel_pipe == pipe && (val & ADPA_DAC_ENABLE),
+	WARN(ADPA_PIPE_ENABLED(val, pipe),
 	     "PCH VGA enabled on transcoder %c, should be disabled\n",
 	     pipe_name(pipe));
 
 	reg = PCH_LVDS;
 	val = I915_READ(reg);
-	sel_pipe = (val & LVDS_PIPEB_SELECT) >> 30;
-	WARN(sel_pipe == pipe && (val & LVDS_PORT_EN),
+	WARN(LVDS_PIPE_ENABLED(val, pipe),
 	     "PCH LVDS enabled on transcoder %c, should be disabled\n",
 	     pipe_name(pipe));
 
@@ -1626,6 +1615,53 @@ static void intel_disable_plane(struct drm_i915_private *dev_priv,
 	POSTING_READ(reg);
 	intel_flush_display_plane(dev_priv, plane);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
+}
+
+static void disable_pch_dp(struct drm_i915_private *dev_priv,
+			   enum pipe pipe, int reg)
+{
+	u32 val = I915_READ(reg);
+	if (DP_PIPE_ENABLED(val, pipe))
+		I915_WRITE(reg, val & ~DP_PORT_EN);
+}
+
+static void disable_pch_hdmi(struct drm_i915_private *dev_priv,
+			     enum pipe pipe, int reg)
+{
+	u32 val = I915_READ(reg);
+	if (HDMI_PIPE_ENABLED(val, pipe))
+		I915_WRITE(reg, val & ~PORT_ENABLE);
+}
+
+/* Disable any ports connected to this transcoder */
+static void intel_disable_pch_ports(struct drm_i915_private *dev_priv,
+				    enum pipe pipe)
+{
+	u32 reg, val;
+
+	val = I915_READ(PCH_PP_CONTROL);
+	I915_WRITE(PCH_PP_CONTROL, val | PANEL_UNLOCK_REGS);
+
+	disable_pch_dp(dev_priv, pipe, PCH_DP_B);
+	disable_pch_dp(dev_priv, pipe, PCH_DP_C);
+	disable_pch_dp(dev_priv, pipe, PCH_DP_D);
+
+	reg = PCH_ADPA;
+	val = I915_READ(reg);
+	if (ADPA_PIPE_ENABLED(val, pipe))
+		I915_WRITE(reg, val & ~ADPA_DAC_ENABLE);
+
+	reg = PCH_LVDS;
+	val = I915_READ(reg);
+	if (LVDS_PIPE_ENABLED(val, pipe)) {
+		I915_WRITE(reg, val & ~LVDS_PORT_EN);
+		POSTING_READ(reg);
+		udelay(100);
+	}
+
+	disable_pch_hdmi(dev_priv, pipe, HDMIB);
+	disable_pch_hdmi(dev_priv, pipe, HDMIC);
+	disable_pch_hdmi(dev_priv, pipe, HDMID);
 }
 
 static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
@@ -2864,14 +2900,12 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	ironlake_fdi_disable(crtc);
 
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		temp = I915_READ(PCH_LVDS);
-		if (temp & LVDS_PORT_EN) {
-			I915_WRITE(PCH_LVDS, temp & ~LVDS_PORT_EN);
-			POSTING_READ(PCH_LVDS);
-			udelay(100);
-		}
-	}
+	/* This is a horrible layering violation; we should be doing this in
+	 * the connector/encoder ->prepare instead, but we don't always have
+	 * enough information there about the config to know whether it will
+	 * actually be necessary or just cause undesired flicker.
+	 */
+	intel_disable_pch_ports(dev_priv, pipe);
 
 	intel_disable_transcoder(dev_priv, pipe);
 
