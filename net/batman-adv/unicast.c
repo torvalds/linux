@@ -281,7 +281,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct unicast_packet *unicast_packet;
-	struct orig_node *orig_node;
+	struct orig_node *orig_node = NULL;
 	struct batman_if *batman_if;
 	struct neigh_node *router;
 	int data_len = skb->len;
@@ -292,11 +292,6 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	/* get routing information */
 	if (is_multicast_ether_addr(ethhdr->h_dest))
 		orig_node = (struct orig_node *)gw_get_selected(bat_priv);
-	else
-		orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
-							   compare_orig,
-							   choose_orig,
-							   ethhdr->h_dest));
 
 	/* check for hna host */
 	if (!orig_node)
