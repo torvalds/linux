@@ -320,8 +320,9 @@ struct sys_timer vpr200_timer = {
 
 MACHINE_START(VPR200, "VPR200")
 	/* Maintainer: Creative Product Design */
-	.map_io         = mx35_map_io,
-	.init_irq       = mx35_init_irq,
-	.init_machine   = vpr200_board_init,
-	.timer          = &vpr200_timer,
+	.map_io = mx35_map_io,
+	.init_early = imx35_init_early,
+	.init_irq = mx35_init_irq,
+	.timer = &vpr200_timer,
+	.init_machine = vpr200_board_init,
 MACHINE_END

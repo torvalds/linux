@@ -550,9 +550,10 @@ static struct sys_timer mx31ads_timer = {
  */
 MACHINE_START(MX31ADS, "Freescale MX31ADS")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
-	.map_io         = mx31ads_map_io,
-	.init_irq       = mx31ads_init_irq,
-	.init_machine   = mxc_board_init,
-	.timer          = &mx31ads_timer,
+	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.map_io = mx31ads_map_io,
+	.init_early = imx31_init_early,
+	.init_irq = mx31ads_init_irq,
+	.timer = &mx31ads_timer,
+	.init_machine = mxc_board_init,
 MACHINE_END
