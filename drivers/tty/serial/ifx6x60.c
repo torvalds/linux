@@ -67,6 +67,7 @@
 #define IFX_SPI_MORE_MASK		0x10
 #define IFX_SPI_MORE_BIT		12	/* bit position in u16 */
 #define IFX_SPI_CTS_BIT			13	/* bit position in u16 */
+#define IFX_SPI_MODE			SPI_MODE_1
 #define IFX_SPI_TTY_ID			0
 #define IFX_SPI_TIMEOUT_SEC		2
 #define IFX_SPI_HEADER_0		(-1)
@@ -992,7 +993,15 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	ifx_dev->modem = pl_data->modem_type;
 	ifx_dev->use_dma = pl_data->use_dma;
 	ifx_dev->max_hz = pl_data->max_hz;
+	/* initialize spi mode, etc */
 	spi->max_speed_hz = ifx_dev->max_hz;
+	spi->mode = IFX_SPI_MODE | (SPI_LOOP & spi->mode);
+	spi->bits_per_word = spi_bpw;
+	ret = spi_setup(spi);
+	if (ret) {
+		dev_err(&spi->dev, "SPI setup wasn't successful %d", ret);
+		return -ENODEV;
+	}
 
 	/* ensure SPI protocol flags are initialized to enable transfer */
 	ifx_dev->spi_more = 0;
