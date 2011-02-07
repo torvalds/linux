@@ -2931,6 +2931,9 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	if (obj->gtt_space == NULL)
 		return -EINVAL;
 
+	if (obj->base.write_domain == I915_GEM_DOMAIN_GTT)
+		return 0;
+
 	ret = i915_gem_object_flush_gpu_write_domain(obj);
 	if (ret)
 		return ret;
@@ -3032,6 +3035,9 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 {
 	uint32_t old_write_domain, old_read_domains;
 	int ret;
+
+	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU)
+		return 0;
 
 	ret = i915_gem_object_flush_gpu_write_domain(obj);
 	if (ret)
