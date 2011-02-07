@@ -635,17 +635,15 @@ void drbd_calc_cpu_mask(struct drbd_conf *mdev)
 /**
  * drbd_thread_current_set_cpu() - modifies the cpu mask of the _current_ thread
  * @mdev:	DRBD device.
+ * @thi:	drbd_thread object
  *
  * call in the "main loop" of _all_ threads, no need for any mutex, current won't die
  * prematurely.
  */
-void drbd_thread_current_set_cpu(struct drbd_conf *mdev)
+void drbd_thread_current_set_cpu(struct drbd_conf *mdev, struct drbd_thread *thi)
 {
 	struct task_struct *p = current;
-	struct drbd_thread *thi = drbd_task_to_thread(mdev, p);
 
-	if (!expect(thi != NULL))
-		return;
 	if (!thi->reset_cpu_mask)
 		return;
 	thi->reset_cpu_mask = 0;

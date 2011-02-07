@@ -1133,10 +1133,10 @@ extern int  drbd_thread_start(struct drbd_thread *thi);
 extern void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait);
 extern char *drbd_task_to_thread_name(struct drbd_conf *mdev, struct task_struct *task);
 #ifdef CONFIG_SMP
-extern void drbd_thread_current_set_cpu(struct drbd_conf *mdev);
+extern void drbd_thread_current_set_cpu(struct drbd_conf *mdev, struct drbd_thread *thi);
 extern void drbd_calc_cpu_mask(struct drbd_conf *mdev);
 #else
-#define drbd_thread_current_set_cpu(A) ({})
+#define drbd_thread_current_set_cpu(A, B) ({})
 #define drbd_calc_cpu_mask(A) ({})
 #endif
 extern void drbd_free_resources(struct drbd_conf *mdev);

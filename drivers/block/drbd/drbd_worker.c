@@ -1621,7 +1621,7 @@ int drbd_worker(struct drbd_thread *thi)
 	sprintf(current->comm, "drbd%d_worker", mdev_to_minor(mdev));
 
 	while (get_t_state(thi) == RUNNING) {
-		drbd_thread_current_set_cpu(mdev);
+		drbd_thread_current_set_cpu(mdev, thi);
 
 		if (down_trylock(&mdev->tconn->data.work.s)) {
 			mutex_lock(&mdev->tconn->data.mutex);
