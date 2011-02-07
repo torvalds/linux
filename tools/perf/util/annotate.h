@@ -82,7 +82,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 			 int max_lines);
 
 #ifdef NO_NEWT_SUPPORT
-static inline int symbol__tui_annotate(symbol *sym __used,
+static inline int symbol__tui_annotate(struct symbol *sym __used,
 				       struct map *map __used, int evidx __used)
 {
 	return 0;
