@@ -105,6 +105,8 @@ struct nvme_queue {
 	unsigned long cmdid_data[];
 };
 
+static void nvme_resubmit_bio(struct nvme_queue *nvmeq, struct bio *bio);
+
 /*
  * Check we didin't inadvertently grow the command struct
  */
@@ -274,6 +276,9 @@ static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
 			bio_data_dir(bio) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	free_info(info);
 	bio_endio(bio, status ? -EIO : 0);
+	bio = bio_list_pop(&nvmeq->sq_cong);
+	if (bio)
+		nvme_resubmit_bio(nvmeq, bio);
 }
 
 /* length is in bytes */
@@ -392,6 +397,16 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	return -EBUSY;
 }
 
+static void nvme_resubmit_bio(struct nvme_queue *nvmeq, struct bio *bio)
+{
+	struct nvme_ns *ns = bio->bi_bdev->bd_disk->private_data;
+	if (nvme_submit_bio_queue(nvmeq, ns, bio))
+		bio_list_add_head(&nvmeq->sq_cong, bio);
+	else if (bio_list_empty(&nvmeq->sq_cong))
+		blk_clear_queue_congested(ns->queue, rw_is_sync(bio->bi_rw));
+	/* XXX: Need to duplicate the logic from __freed_request here */
+}
+
 /*
  * NB: return value of non-zero would mean that we were a stacking driver.
  * make_request must always succeed.
@@ -403,7 +418,9 @@ static int nvme_make_request(struct request_queue *q, struct bio *bio)
 
 	if (nvme_submit_bio_queue(nvmeq, ns, bio)) {
 		blk_set_queue_congested(q, rw_is_sync(bio->bi_rw));
+		spin_lock_irq(&nvmeq->q_lock);
 		bio_list_add(&nvmeq->sq_cong, bio);
+		spin_unlock_irq(&nvmeq->q_lock);
 	}
 	put_nvmeq(nvmeq);
 
