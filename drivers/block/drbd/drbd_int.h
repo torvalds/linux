@@ -1159,8 +1159,8 @@ extern void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
 extern void tl_clear(struct drbd_conf *mdev);
 extern void _tl_add_barrier(struct drbd_conf *, struct drbd_tl_epoch *);
 extern void drbd_free_sock(struct drbd_conf *mdev);
-extern int drbd_send(struct drbd_conf *mdev, struct socket *sock,
-			void *buf, size_t size, unsigned msg_flags);
+extern int drbd_send(struct drbd_tconn *tconn, struct socket *sock,
+		     void *buf, size_t size, unsigned msg_flags);
 extern int drbd_send_protocol(struct drbd_conf *mdev);
 extern int drbd_send_uuids(struct drbd_conf *mdev);
 extern int drbd_send_uuids_skip_initial_sync(struct drbd_conf *mdev);
