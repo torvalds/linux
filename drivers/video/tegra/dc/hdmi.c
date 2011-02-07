@@ -57,6 +57,8 @@ struct tegra_dc_hdmi_data {
 	spinlock_t			suspend_lock;
 	bool				suspended;
 	bool				hpd_pending;
+
+	bool				dvi;
 };
 
 const struct fb_videomode tegra_dc_hdmi_supported_modes[] = {
@@ -452,6 +454,9 @@ static bool tegra_dc_hdmi_detect(struct tegra_dc *dc)
 	 */
 	dc->out->h_size = specs.max_x * 1000;
 	dc->out->v_size = specs.max_y * 1000;
+
+
+	hdmi->dvi = !(specs.misc & FB_MISC_HDMI);
 
 	tegra_fb_update_monspecs(dc->fb, &specs, tegra_dc_hdmi_mode_filter);
 	dev_info(&dc->ndev->dev, "display detected\n");
@@ -869,7 +874,6 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 	int rekey;
 	int err;
 	unsigned long val;
-	bool dvi = false;
 
 	/* enbale power, clocks, resets, etc. */
 
@@ -930,9 +934,13 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 			  SOR_REFCLK_DIV_FRAC(dispclk_div_8_2),
 			  HDMI_NV_PDISP_SOR_REFCLK);
 
-	err = tegra_dc_hdmi_setup_audio(dc);
-	if (err < 0)
-		dvi = true;
+
+	if (!hdmi->dvi) {
+		err = tegra_dc_hdmi_setup_audio(dc);
+
+		if (err < 0)
+			hdmi->dvi = true;
+	}
 
 	rekey = HDMI_REKEY_DEFAULT;
 	val = HDMI_CTRL_REKEY(rekey);
@@ -940,11 +948,11 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 					dc->mode.h_back_porch +
 					dc->mode.h_front_porch -
 					rekey - 18) / 32);
-	if (!dvi)
+	if (!hdmi->dvi)
 		val |= HDMI_CTRL_ENABLE;
 	tegra_hdmi_writel(hdmi, val, HDMI_NV_PDISP_HDMI_CTRL);
 
-	if (dvi)
+	if (hdmi->dvi)
 		tegra_hdmi_writel(hdmi, 0x0,
 				  HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
 	else
@@ -952,8 +960,8 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 				  HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
 
 
-	tegra_dc_hdmi_setup_avi_infoframe(dc, dvi);
-	tegra_dc_hdmi_setup_audio_infoframe(dc, dvi);
+	tegra_dc_hdmi_setup_avi_infoframe(dc, hdmi->dvi);
+	tegra_dc_hdmi_setup_audio_infoframe(dc, hdmi->dvi);
 
 	/* TMDS CONFIG */
 	pll0 = 0x200033f;
