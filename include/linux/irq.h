@@ -85,6 +85,17 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 # define IRQ_NO_BALANCING_MASK	IRQ_NO_BALANCING
 #endif
 
+/*
+ * Return value for chip->irq_set_affinity()
+ *
+ * IRQ_SET_MASK_OK	- OK, core updates irq_data.affinity
+ * IRQ_SET_MASK_NOCPY	- OK, chip did update irq_data.affinity
+ */
+enum {
+	IRQ_SET_MASK_OK = 0,
+	IRQ_SET_MASK_OK_NOCOPY,
+};
+
 struct msi_desc;
 
 /**

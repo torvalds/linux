@@ -148,9 +148,12 @@ int irq_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 	if (irq_can_move_pcntxt(desc)) {
 		ret = chip->irq_set_affinity(&desc->irq_data, mask, false);
-		if (!ret) {
+		switch (ret) {
+		case IRQ_SET_MASK_OK:
 			cpumask_copy(desc->irq_data.affinity, mask);
+		case IRQ_SET_MASK_OK_NOCOPY:
 			irq_set_thread_affinity(desc);
+			ret = 0;
 		}
 	} else {
 		desc->status |= IRQ_MOVE_PENDING;
@@ -254,9 +257,12 @@ EXPORT_SYMBOL_GPL(irq_set_affinity_notifier);
 /*
  * Generic version of the affinity autoselector.
  */
-static int setup_affinity(unsigned int irq, struct irq_desc *desc)
+static int
+setup_affinity(unsigned int irq, struct irq_desc *desc, struct cpumask *mask)
 {
+	struct irq_chip *chip = get_irq_desc_chip(desc);
 	struct cpumask *set = irq_default_affinity;
+	int ret;
 
 	/* Excludes PER_CPU and NO_BALANCE interrupts */
 	if (!irq_can_set_affinity(irq))
@@ -273,13 +279,20 @@ static int setup_affinity(unsigned int irq, struct irq_desc *desc)
 		else
 			desc->status &= ~IRQ_AFFINITY_SET;
 	}
-	cpumask_and(desc->irq_data.affinity, cpu_online_mask, set);
-	desc->irq_data.chip->irq_set_affinity(&desc->irq_data, desc->irq_data.affinity, false);
 
+	cpumask_and(mask, cpu_online_mask, set);
+	ret = chip->irq_set_affinity(&desc->irq_data, mask, false);
+	switch (ret) {
+	case IRQ_SET_MASK_OK:
+		cpumask_copy(desc->irq_data.affinity, mask);
+	case IRQ_SET_MASK_OK_NOCOPY:
+		irq_set_thread_affinity(desc);
+	}
 	return 0;
 }
 #else
-static inline int setup_affinity(unsigned int irq, struct irq_desc *d)
+static inline int
+setup_affinity(unsigned int irq, struct irq_desc *d, struct cpumask *mask)
 {
 	return irq_select_affinity(irq);
 }
@@ -288,23 +301,23 @@ static inline int setup_affinity(unsigned int irq, struct irq_desc *d)
 /*
  * Called when affinity is set via /proc/irq
  */
-int irq_select_affinity_usr(unsigned int irq)
+int irq_select_affinity_usr(unsigned int irq, struct cpumask *mask)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
 	int ret;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	ret = setup_affinity(irq, desc);
+	ret = setup_affinity(irq, desc, mask);
 	if (!ret)
 		irq_set_thread_affinity(desc);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
-
 	return ret;
 }
 
 #else
-static inline int setup_affinity(unsigned int irq, struct irq_desc *desc)
+static inline int
+setup_affinity(unsigned int irq, struct irq_desc *desc, struct cpumask *mask)
 {
 	return 0;
 }
@@ -765,8 +778,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	struct irqaction *old, **old_ptr;
 	const char *old_name = NULL;
 	unsigned long flags;
-	int nested, shared = 0;
-	int ret;
+	int ret, nested, shared = 0;
+	cpumask_var_t mask;
 
 	if (!desc)
 		return -EINVAL;
@@ -831,6 +844,11 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		new->thread = t;
 	}
 
+	if (!alloc_cpumask_var(&mask, GFP_KERNEL)) {
+		ret = -ENOMEM;
+		goto out_thread;
+	}
+
 	/*
 	 * The following block of code has to be executed atomically
 	 */
@@ -876,7 +894,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 					new->flags & IRQF_TRIGGER_MASK);
 
 			if (ret)
-				goto out_thread;
+				goto out_mask;
 		} else
 			compat_irq_chip_set_default_handler(desc);
 #if defined(CONFIG_IRQ_PER_CPU)
@@ -903,7 +921,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 			desc->status |= IRQ_NO_BALANCING;
 
 		/* Set default affinity mask once everything is setup */
-		setup_affinity(irq, desc);
+		setup_affinity(irq, desc, mask);
 
 	} else if ((new->flags & IRQF_TRIGGER_MASK)
 			&& (new->flags & IRQF_TRIGGER_MASK)
@@ -955,6 +973,9 @@ mismatch:
 	}
 #endif
 	ret = -EBUSY;
+
+out_mask:
+	free_cpumask_var(mask);
 
 out_thread:
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
