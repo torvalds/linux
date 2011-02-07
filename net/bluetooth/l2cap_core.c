@@ -3855,13 +3855,5 @@ void l2cap_exit(void)
 	l2cap_cleanup_sockets();
 }
 
-void l2cap_load(void)
-{
-	/* Dummy function to trigger automatic L2CAP module loading by
-	 * other modules that use L2CAP sockets but don't use any other
-	 * symbols from it. */
-}
-EXPORT_SYMBOL(l2cap_load);
-
 module_param(disable_ertm, bool, 0644);
 MODULE_PARM_DESC(disable_ertm, "Disable enhanced retransmission mode");
