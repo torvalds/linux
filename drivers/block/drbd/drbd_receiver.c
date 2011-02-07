@@ -476,8 +476,7 @@ out:
 	return err;
 }
 
-static int drbd_recv_short(struct drbd_conf *mdev, struct socket *sock,
-		    void *buf, size_t size, int flags)
+static int drbd_recv_short(struct socket *sock, void *buf, size_t size, int flags)
 {
 	mm_segment_t oldfs;
 	struct kvec iov = {
@@ -710,7 +709,7 @@ static enum drbd_packet drbd_recv_fp(struct drbd_conf *mdev, struct socket *sock
 	struct p_header80 *h = &mdev->tconn->data.rbuf.header.h80;
 	int rr;
 
-	rr = drbd_recv_short(mdev, sock, h, sizeof(*h), 0);
+	rr = drbd_recv_short(sock, h, sizeof(*h), 0);
 
 	if (rr == sizeof(*h) && h->magic == cpu_to_be32(DRBD_MAGIC))
 		return be16_to_cpu(h->command);
@@ -720,10 +719,9 @@ static enum drbd_packet drbd_recv_fp(struct drbd_conf *mdev, struct socket *sock
 
 /**
  * drbd_socket_okay() - Free the socket if its connection is not okay
- * @mdev:	DRBD device.
  * @sock:	pointer to the pointer to the socket.
  */
-static int drbd_socket_okay(struct drbd_conf *mdev, struct socket **sock)
+static int drbd_socket_okay(struct socket **sock)
 {
 	int rr;
 	char tb[4];
@@ -731,7 +729,7 @@ static int drbd_socket_okay(struct drbd_conf *mdev, struct socket **sock)
 	if (!*sock)
 		return false;
 
-	rr = drbd_recv_short(mdev, *sock, tb, 4, MSG_DONTWAIT | MSG_PEEK);
+	rr = drbd_recv_short(*sock, tb, 4, MSG_DONTWAIT | MSG_PEEK);
 
 	if (rr > 0 || rr == -EAGAIN) {
 		return true;
@@ -795,8 +793,8 @@ static int drbd_connect(struct drbd_conf *mdev)
 
 		if (sock && msock) {
 			schedule_timeout_interruptible(mdev->tconn->net_conf->ping_timeo*HZ/10);
-			ok = drbd_socket_okay(mdev, &sock);
-			ok = drbd_socket_okay(mdev, &msock) && ok;
+			ok = drbd_socket_okay(&sock);
+			ok = drbd_socket_okay(&msock) && ok;
 			if (ok)
 				break;
 		}
@@ -805,8 +803,8 @@ retry:
 		s = drbd_wait_for_connect(mdev->tconn);
 		if (s) {
 			try = drbd_recv_fp(mdev, s);
-			drbd_socket_okay(mdev, &sock);
-			drbd_socket_okay(mdev, &msock);
+			drbd_socket_okay(&sock);
+			drbd_socket_okay(&msock);
 			switch (try) {
 			case P_HAND_SHAKE_S:
 				if (sock) {
@@ -841,8 +839,8 @@ retry:
 		}
 
 		if (sock && msock) {
-			ok = drbd_socket_okay(mdev, &sock);
-			ok = drbd_socket_okay(mdev, &msock) && ok;
+			ok = drbd_socket_okay(&sock);
+			ok = drbd_socket_okay(&msock) && ok;
 			if (ok)
 				break;
 		}
@@ -4601,8 +4599,7 @@ int drbd_asender(struct drbd_thread *thi)
 		if (signal_pending(current))
 			continue;
 
-		rv = drbd_recv_short(mdev, mdev->tconn->meta.socket,
-				     buf, expect-received, 0);
+		rv = drbd_recv_short(mdev->tconn->meta.socket, buf, expect-received, 0);
 		clear_bit(SIGNAL_ASENDER, &mdev->tconn->flags);
 
 		flush_signals(current);
