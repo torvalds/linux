@@ -998,7 +998,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	ifx_dev->spi_slave_cts = 0;
 
 	/*initialize transfer and dma buffers */
-	ifx_dev->tx_buffer = dma_alloc_coherent(&ifx_dev->spi_dev->dev,
+	ifx_dev->tx_buffer = dma_alloc_coherent(ifx_dev->spi_dev->dev.parent,
 				IFX_SPI_TRANSFER_SIZE,
 				&ifx_dev->tx_bus,
 				GFP_KERNEL);
@@ -1007,7 +1007,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	ifx_dev->rx_buffer = dma_alloc_coherent(&ifx_dev->spi_dev->dev,
+	ifx_dev->rx_buffer = dma_alloc_coherent(ifx_dev->spi_dev->dev.parent,
 				IFX_SPI_TRANSFER_SIZE,
 				&ifx_dev->rx_bus,
 				GFP_KERNEL);
