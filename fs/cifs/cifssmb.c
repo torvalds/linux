@@ -136,9 +136,6 @@ cifs_reconnect_tcon(struct cifsTconInfo *tcon, int smb_command)
 		}
 	}
 
-	if (ses->status == CifsExiting)
-		return -EIO;
-
 	/*
 	 * Give demultiplex thread up to 10 seconds to reconnect, should be
 	 * greater than cifs socket timeout which is 7 seconds
@@ -156,7 +153,7 @@ cifs_reconnect_tcon(struct cifsTconInfo *tcon, int smb_command)
 		 * retrying until process is killed or server comes
 		 * back on-line
 		 */
-		if (!tcon->retry || ses->status == CifsExiting) {
+		if (!tcon->retry) {
 			cFYI(1, "gave up waiting on reconnect in smb_init");
 			return -EHOSTDOWN;
 		}
