@@ -56,13 +56,14 @@ bool irq_wait_for_poll(struct irq_desc *desc)
 #endif
 }
 
+
 /*
  * Recovery handler for misrouted interrupts.
  */
 static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 {
+	irqreturn_t ret = IRQ_NONE;
 	struct irqaction *action;
-	int ok = 0;
 
 	raw_spin_lock(&desc->lock);
 
@@ -96,21 +97,17 @@ static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 		goto out;
 	}
 
-	/* Honour the normal IRQ locking and mark it poll in progress */
-	desc->status |= IRQ_INPROGRESS | IRQ_POLL_INPROGRESS;
+	/* Mark it poll in progress */
+	desc->status |= IRQ_POLL_INPROGRESS;
 	do {
-		desc->status &= ~IRQ_PENDING;
-		raw_spin_unlock(&desc->lock);
-		if (handle_IRQ_event(irq, action) != IRQ_NONE)
-			ok = 1;
-		raw_spin_lock(&desc->lock);
+		if (handle_irq_event(desc) == IRQ_HANDLED)
+			ret = IRQ_HANDLED;
 		action = desc->action;
-	}  while ((desc->status & IRQ_PENDING) && action);
-
-	desc->status &= ~(IRQ_INPROGRESS | IRQ_POLL_INPROGRESS);
+	} while ((desc->status & IRQ_PENDING) && action);
+	desc->status &= ~IRQ_POLL_INPROGRESS;
 out:
 	raw_spin_unlock(&desc->lock);
-	return ok;
+	return ret == IRQ_HANDLED;
 }
 
 static int misrouted_irq(int irq)
