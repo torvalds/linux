@@ -21,6 +21,8 @@ static int irqfixup __read_mostly;
 #define POLL_SPURIOUS_IRQ_INTERVAL (HZ/10)
 static void poll_spurious_irqs(unsigned long dummy);
 static DEFINE_TIMER(poll_spurious_irq_timer, poll_spurious_irqs, 0, 0);
+static int irq_poll_cpu;
+static atomic_t irq_poll_active;
 
 /*
  * Recovery handler for misrouted interrupts.
@@ -92,6 +94,11 @@ static int misrouted_irq(int irq)
 	struct irq_desc *desc;
 	int i, ok = 0;
 
+	if (atomic_inc_return(&irq_poll_active) == 1)
+		goto out;
+
+	irq_poll_cpu = smp_processor_id();
+
 	for_each_irq_desc(i, desc) {
 		if (!i)
 			 continue;
@@ -102,6 +109,8 @@ static int misrouted_irq(int irq)
 		if (try_one_irq(i, desc, false))
 			ok = 1;
 	}
+out:
+	atomic_dec(&irq_poll_active);
 	/* So the caller can adjust the irq error counts */
 	return ok;
 }
@@ -110,6 +119,10 @@ static void poll_spurious_irqs(unsigned long dummy)
 {
 	struct irq_desc *desc;
 	int i;
+
+	if (atomic_inc_return(&irq_poll_active) != 1)
+		goto out;
+	irq_poll_cpu = smp_processor_id();
 
 	for_each_irq_desc(i, desc) {
 		unsigned int status;
@@ -127,7 +140,8 @@ static void poll_spurious_irqs(unsigned long dummy)
 		try_one_irq(i, desc, true);
 		local_irq_enable();
 	}
-
+out:
+	atomic_dec(&irq_poll_active);
 	mod_timer(&poll_spurious_irq_timer,
 		  jiffies + POLL_SPURIOUS_IRQ_INTERVAL);
 }
