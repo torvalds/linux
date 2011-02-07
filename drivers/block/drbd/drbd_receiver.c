@@ -930,7 +930,7 @@ out_release_sockets:
 	return -1;
 }
 
-static bool decode_header(struct drbd_conf *mdev, struct p_header *h, struct packet_info *pi)
+static bool decode_header(struct drbd_tconn *tconn, struct p_header *h, struct packet_info *pi)
 {
 	if (h->h80.magic == cpu_to_be32(DRBD_MAGIC)) {
 		pi->cmd = be16_to_cpu(h->h80.command);
@@ -940,7 +940,7 @@ static bool decode_header(struct drbd_conf *mdev, struct p_header *h, struct pac
 		pi->size = be32_to_cpu(h->h95.length) & 0x00ffffff;
 		pi->vnr = 0;
 	} else {
-		dev_err(DEV, "magic?? on data m: 0x%08x c: %d l: %d\n",
+		conn_err(tconn, "magic?? on data m: 0x%08x c: %d l: %d\n",
 		    be32_to_cpu(h->h80.magic),
 		    be16_to_cpu(h->h80.command),
 		    be16_to_cpu(h->h80.length));
@@ -961,7 +961,7 @@ static int drbd_recv_header(struct drbd_conf *mdev, struct packet_info *pi)
 		return false;
 	}
 
-	r = decode_header(mdev, h, pi);
+	r = decode_header(mdev->tconn, h, pi);
 	mdev->tconn->last_received = jiffies;
 
 	return r;
@@ -4645,7 +4645,7 @@ int drbd_asender(struct drbd_thread *thi)
 		}
 
 		if (received == expect && cmd == NULL) {
-			if (!decode_header(mdev, h, &pi))
+			if (!decode_header(mdev->tconn, h, &pi))
 				goto reconnect;
 			cmd = get_asender_cmd(pi.cmd);
 			if (unlikely(cmd == NULL)) {
