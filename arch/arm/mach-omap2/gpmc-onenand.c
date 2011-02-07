@@ -121,6 +121,47 @@ static void set_onenand_cfg(void __iomem *onenand_base, int latency,
 	writew(reg, onenand_base + ONENAND_REG_SYS_CFG1);
 }
 
+static int omap2_onenand_get_freq(struct omap_onenand_platform_data *cfg,
+				  void __iomem *onenand_base, bool *clk_dep)
+{
+	u16 ver = readw(onenand_base + ONENAND_REG_VERSION_ID);
+	int freq = 0;
+
+	if (cfg->get_freq) {
+		struct onenand_freq_info fi;
+
+		fi.maf_id = readw(onenand_base + ONENAND_REG_MANUFACTURER_ID);
+		fi.dev_id = readw(onenand_base + ONENAND_REG_DEVICE_ID);
+		fi.ver_id = ver;
+		freq = cfg->get_freq(&fi, clk_dep);
+		if (freq)
+			return freq;
+	}
+
+	switch ((ver >> 4) & 0xf) {
+	case 0:
+		freq = 40;
+		break;
+	case 1:
+		freq = 54;
+		break;
+	case 2:
+		freq = 66;
+		break;
+	case 3:
+		freq = 83;
+		break;
+	case 4:
+		freq = 104;
+		break;
+	default:
+		freq = 54;
+		break;
+	}
+
+	return freq;
+}
+
 static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 					void __iomem *onenand_base,
 					int *freq_ptr)
@@ -138,6 +179,7 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 	int err, ticks_cez;
 	int cs = cfg->cs, freq = *freq_ptr;
 	u32 reg;
+	bool clk_dep = false;
 
 	if (cfg->flags & ONENAND_SYNC_READ) {
 		sync_read = 1;
@@ -152,27 +194,7 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 		err = omap2_onenand_set_async_mode(cs, onenand_base);
 		if (err)
 			return err;
-		reg = readw(onenand_base + ONENAND_REG_VERSION_ID);
-		switch ((reg >> 4) & 0xf) {
-		case 0:
-			freq = 40;
-			break;
-		case 1:
-			freq = 54;
-			break;
-		case 2:
-			freq = 66;
-			break;
-		case 3:
-			freq = 83;
-			break;
-		case 4:
-			freq = 104;
-			break;
-		default:
-			freq = 54;
-			break;
-		}
+		freq = omap2_onenand_get_freq(cfg, onenand_base, &clk_dep);
 		first_time = 1;
 	}
 
@@ -231,6 +253,22 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 		latency = 3;
 	else
 		latency = 4;
+
+	if (clk_dep) {
+		if (gpmc_clk_ns < 12) { /* >83Mhz */
+			t_ces   = 3;
+			t_avds  = 4;
+		} else if (gpmc_clk_ns < 15) { /* >66Mhz */
+			t_ces   = 5;
+			t_avds  = 4;
+		} else if (gpmc_clk_ns < 25) { /* >40Mhz */
+			t_ces   = 6;
+			t_avds  = 5;
+		} else {
+			t_ces   = 7;
+			t_avds  = 7;
+		}
+	}
 
 	if (first_time)
 		set_onenand_cfg(onenand_base, latency,
