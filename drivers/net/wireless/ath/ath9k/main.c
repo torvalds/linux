@@ -1678,8 +1678,9 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		else
 			sc->sc_flags &= ~SC_OP_OFFCHANNEL;
 
-		ath_dbg(common, ATH_DBG_CONFIG, "Set channel: %d MHz\n",
-			curchan->center_freq);
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Set channel: %d MHz type: %d\n",
+			curchan->center_freq, conf->channel_type);
 
 		ath9k_cmn_update_ichannel(&sc->sc_ah->channels[pos],
 					  curchan, conf->channel_type);
