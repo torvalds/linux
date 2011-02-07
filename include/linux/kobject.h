@@ -226,9 +226,8 @@ static inline int kobject_uevent_env(struct kobject *kobj,
 				      char *envp[])
 { return 0; }
 
-static inline int add_uevent_var(struct kobj_uevent_env *env,
-				 const char *format, ...)
-	__attribute__((format(printf, 2, 3)))
+static inline __attribute__((format(printf, 2, 3)))
+int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
 { return 0; }
 
 static inline int kobject_action_type(const char *buf, size_t count,
