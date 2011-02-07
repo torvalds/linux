@@ -17,6 +17,8 @@
 
 #include <linux/irq.h>
 
+struct sys_device;
+
 #ifdef CONFIG_PM
 
 extern __init int s3c_pm_init(void);
