@@ -583,14 +583,8 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 	/* Start handling the irq */
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
-	/* Mark the IRQ currently in progress.*/
-	desc->status |= IRQ_INPROGRESS;
-
 	do {
-		struct irqaction *action = desc->action;
-		irqreturn_t action_ret;
-
-		if (unlikely(!action)) {
+		if (unlikely(!desc->action)) {
 			mask_irq(desc);
 			goto out_unlock;
 		}
@@ -606,16 +600,10 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 			unmask_irq(desc);
 		}
 
-		desc->status &= ~IRQ_PENDING;
-		raw_spin_unlock(&desc->lock);
-		action_ret = handle_IRQ_event(irq, action);
-		if (!noirqdebug)
-			note_interrupt(irq, desc, action_ret);
-		raw_spin_lock(&desc->lock);
+		handle_irq_event(desc);
 
 	} while ((desc->status & (IRQ_PENDING | IRQ_DISABLED)) == IRQ_PENDING);
 
-	desc->status &= ~IRQ_INPROGRESS;
 out_unlock:
 	raw_spin_unlock(&desc->lock);
 }
