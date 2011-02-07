@@ -45,6 +45,7 @@ enum {
  * IRQS_ONESHOT			- irq is not unmasked in primary handler
  * IRQS_REPLAY			- irq is replayed
  * IRQS_WAITING			- irq is waiting
+ * IRQS_DISABLED		- irq is disabled
  */
 enum {
 	IRQS_AUTODETECT		= 0x00000001,
@@ -54,6 +55,7 @@ enum {
 	IRQS_ONESHOT		= 0x00000020,
 	IRQS_REPLAY		= 0x00000040,
 	IRQS_WAITING		= 0x00000080,
+	IRQS_DISABLED		= 0x00000100,
 };
 
 #define irq_data_to_desc(data)	container_of(data, struct irq_desc, irq_data)
@@ -137,7 +139,6 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 		print_symbol("%s\n", (unsigned long)desc->action->handler);
 	}
 
-	P(IRQ_DISABLED);
 	P(IRQ_PENDING);
 	P(IRQ_LEVEL);
 	P(IRQ_MASKED);
@@ -152,6 +153,7 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 	PS(IRQS_INPROGRESS);
 	PS(IRQS_REPLAY);
 	PS(IRQS_WAITING);
+	PS(IRQS_DISABLED);
 }
 
 #undef P

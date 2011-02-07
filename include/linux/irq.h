@@ -55,9 +55,9 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_INPROGRESS		0x00000100	/* DEPRECATED */
 #define IRQ_REPLAY		0x00000200	/* DEPRECATED */
 #define IRQ_WAITING		0x00000400	/* DEPRECATED */
+#define IRQ_DISABLED		0x00000800	/* DEPRECATED */
 #endif
 
-#define IRQ_DISABLED		0x00000800	/* IRQ disabled - do not enter! */
 #define IRQ_PENDING		0x00001000	/* IRQ pending - replay on enable */
 
 #define IRQ_LEVEL		0x00004000	/* IRQ level triggered */
@@ -231,7 +231,7 @@ struct irq_chip {
 # define ARCH_IRQ_INIT_FLAGS	0
 #endif
 
-#define IRQ_DEFAULT_INIT_FLAGS	(IRQ_DISABLED | ARCH_IRQ_INIT_FLAGS)
+#define IRQ_DEFAULT_INIT_FLAGS	ARCH_IRQ_INIT_FLAGS
 
 struct irqaction;
 extern int setup_irq(unsigned int irq, struct irqaction *new);

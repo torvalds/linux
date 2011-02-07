@@ -61,7 +61,7 @@ void move_native_irq(int irq)
 	if (likely(!(desc->status & IRQ_MOVE_PENDING)))
 		return;
 
-	if (unlikely(desc->status & IRQ_DISABLED))
+	if (unlikely(desc->istate & IRQS_DISABLED))
 		return;
 
 	/*

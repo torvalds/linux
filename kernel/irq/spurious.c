@@ -50,7 +50,7 @@ bool irq_wait_for_poll(struct irq_desc *desc)
 		raw_spin_lock(&desc->lock);
 	} while (desc->istate & IRQS_INPROGRESS);
 	/* Might have been disabled in meantime */
-	return !(desc->status & IRQ_DISABLED) && desc->action;
+	return !(desc->istate & IRQS_DISABLED) && desc->action;
 #else
 	return false;
 #endif
@@ -75,7 +75,7 @@ static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 	 * Do not poll disabled interrupts unless the spurious
 	 * disabled poller asks explicitely.
 	 */
-	if ((desc->status & IRQ_DISABLED) && !force)
+	if ((desc->istate & IRQS_DISABLED) && !force)
 		goto out;
 
 	/*

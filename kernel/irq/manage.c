@@ -646,7 +646,7 @@ again:
 		goto again;
 	}
 
-	if (!(desc->status & IRQ_DISABLED) && (desc->status & IRQ_MASKED)) {
+	if (!(desc->istate & IRQS_DISABLED) && (desc->status & IRQ_MASKED)) {
 		desc->status &= ~IRQ_MASKED;
 		desc->irq_data.chip->irq_unmask(&desc->irq_data);
 	}
@@ -709,7 +709,7 @@ static int irq_thread(void *data)
 		atomic_inc(&desc->threads_active);
 
 		raw_spin_lock_irq(&desc->lock);
-		if (unlikely(desc->status & IRQ_DISABLED)) {
+		if (unlikely(desc->istate & IRQS_DISABLED)) {
 			/*
 			 * CHECKME: We might need a dedicated
 			 * IRQ_THREAD_PENDING flag here, which

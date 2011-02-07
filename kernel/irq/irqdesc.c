@@ -80,6 +80,7 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node)
 	desc->irq_data.handler_data = NULL;
 	desc->irq_data.msi_desc = NULL;
 	desc->status = _IRQ_DEFAULT_INIT_FLAGS;
+	desc->istate = IRQS_DISABLED;
 	desc->handle_irq = handle_bad_irq;
 	desc->depth = 1;
 	desc->irq_count = 0;
@@ -247,6 +248,7 @@ int __init early_irq_init(void)
 struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS-1] = {
 		.status		= _IRQ_DEFAULT_INIT_FLAGS,
+		.istate		= IRQS_DISABLED,
 		.handle_irq	= handle_bad_irq,
 		.depth		= 1,
 		.lock		= __RAW_SPIN_LOCK_UNLOCKED(irq_desc->lock),
