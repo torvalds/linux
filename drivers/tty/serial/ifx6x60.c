@@ -722,7 +722,7 @@ static void ifx_spi_io(unsigned long data)
 		/* note len is BYTES, not transfers */
 		ifx_dev->spi_xfer.len = IFX_SPI_TRANSFER_SIZE;
 		ifx_dev->spi_xfer.cs_change = 0;
-		ifx_dev->spi_xfer.speed_hz = 12500000;
+		ifx_dev->spi_xfer.speed_hz = ifx_dev->spi_dev->max_speed_hz;
 		/* ifx_dev->spi_xfer.speed_hz = 390625; */
 		ifx_dev->spi_xfer.bits_per_word = spi_bpw;
 
@@ -992,6 +992,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	ifx_dev->modem = pl_data->modem_type;
 	ifx_dev->use_dma = pl_data->use_dma;
 	ifx_dev->max_hz = pl_data->max_hz;
+	spi->max_speed_hz = ifx_dev->max_hz;
 
 	/* ensure SPI protocol flags are initialized to enable transfer */
 	ifx_dev->spi_more = 0;
