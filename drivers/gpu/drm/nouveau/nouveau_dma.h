@@ -73,6 +73,8 @@ enum {
 	NvImageBlit	= 0x8000000d,
 	NvSw		= 0x8000000e,
 	NvSema		= 0x8000000f,
+	NvEvoSema0	= 0x80000010,
+	NvEvoSema1	= 0x80000011,
 
 	/* G80+ display objects */
 	NvEvoVRAM	= 0x01000000,

@@ -220,7 +220,15 @@ static void
 nv50_evo_destroy(struct drm_device *dev)
 {
 	struct nv50_display *disp = nv50_display(dev);
+	int i;
 
+	for (i = 0; i < 2; i++) {
+		if (disp->crtc[i].sem.bo) {
+			nouveau_bo_unmap(disp->crtc[i].sem.bo);
+			nouveau_bo_ref(NULL, &disp->crtc[i].sem.bo);
+		}
+		nv50_evo_channel_del(&disp->crtc[i].sync);
+	}
 	nouveau_gpuobj_ref(NULL, &disp->ntfy);
 	nv50_evo_channel_del(&disp->master);
 }
@@ -232,7 +240,7 @@ nv50_evo_create(struct drm_device *dev)
 	struct nv50_display *disp = nv50_display(dev);
 	struct nouveau_gpuobj *ramht = NULL;
 	struct nouveau_channel *evo;
-	int ret;
+	int ret, i, j;
 
 	/* create primary evo channel, the one we use for modesetting
 	 * purporses
@@ -311,6 +319,61 @@ nv50_evo_create(struct drm_device *dev)
 	if (ret)
 		goto err;
 
+	/* create "display sync" channels and other structures we need
+	 * to implement page flipping
+	 */
+	for (i = 0; i < 2; i++) {
+		struct nv50_display_crtc *dispc = &disp->crtc[i];
+		u64 offset;
+
+		ret = nv50_evo_channel_new(dev, 1 + i, &dispc->sync);
+		if (ret)
+			goto err;
+
+		ret = nouveau_bo_new(dev, NULL, 4096, 0x1000, TTM_PL_FLAG_VRAM,
+				     0, 0x0000, false, true, &dispc->sem.bo);
+		if (!ret) {
+			offset = dispc->sem.bo->bo.mem.start << PAGE_SHIFT;
+
+			ret = nouveau_bo_pin(dispc->sem.bo, TTM_PL_FLAG_VRAM);
+			if (!ret)
+				ret = nouveau_bo_map(dispc->sem.bo);
+			if (ret)
+				nouveau_bo_ref(NULL, &dispc->sem.bo);
+		}
+
+		if (ret)
+			goto err;
+
+		ret = nv50_evo_dmaobj_new(dispc->sync, NvEvoSync, 0x0000,
+					  offset, 4096, NULL);
+		if (ret)
+			goto err;
+
+		ret = nv50_evo_dmaobj_new(dispc->sync, NvEvoVRAM_LP, 0x80000000,
+					  0, dev_priv->vram_size, NULL);
+		if (ret)
+			goto err;
+
+		ret = nv50_evo_dmaobj_new(dispc->sync, NvEvoFB32, 0x80000000 |
+					  (dev_priv->chipset < 0xc0 ?
+					  0x7a00 : 0xfe00),
+					  0, dev_priv->vram_size, NULL);
+		if (ret)
+			goto err;
+
+		ret = nv50_evo_dmaobj_new(dispc->sync, NvEvoFB16, 0x80000000 |
+					  (dev_priv->chipset < 0xc0 ?
+					  0x7000 : 0xfe00),
+					  0, dev_priv->vram_size, NULL);
+		if (ret)
+			goto err;
+
+		for (j = 0; j < 4096; j += 4)
+			nouveau_bo_wr32(dispc->sem.bo, j / 4, 0x74b1e000);
+		dispc->sem.offset = 0;
+	}
+
 	return 0;
 
 err:
@@ -322,7 +385,7 @@ int
 nv50_evo_init(struct drm_device *dev)
 {
 	struct nv50_display *disp = nv50_display(dev);
-	int ret;
+	int ret, i;
 
 	if (!disp->master) {
 		ret = nv50_evo_create(dev);
@@ -330,15 +393,32 @@ nv50_evo_init(struct drm_device *dev)
 			return ret;
 	}
 
-	return nv50_evo_channel_init(disp->master);
+	ret = nv50_evo_channel_init(disp->master);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < 2; i++) {
+		ret = nv50_evo_channel_init(disp->crtc[i].sync);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 void
 nv50_evo_fini(struct drm_device *dev)
 {
 	struct nv50_display *disp = nv50_display(dev);
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		if (disp->crtc[i].sync)
+			nv50_evo_channel_fini(disp->crtc[i].sync);
+	}
 
 	if (disp->master)
 		nv50_evo_channel_fini(disp->master);
+
 	nv50_evo_destroy(dev);
 }

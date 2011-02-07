@@ -178,7 +178,7 @@ nv50_display_init(struct drm_device *dev)
 
 	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (evo->ramin->vinst >> 8) | 9);
 
-	ret = RING_SPACE(evo, 11);
+	ret = RING_SPACE(evo, 15);
 	if (ret)
 		return ret;
 	BEGIN_RING(evo, 0, NV50_EVO_UNK84, 2);
@@ -192,6 +192,11 @@ nv50_display_init(struct drm_device *dev)
 	OUT_RING(evo, 0);
 	BEGIN_RING(evo, 0, NV50_EVO_CRTC(0, UNK082C), 1);
 	OUT_RING(evo, 0);
+	/* required to make display sync channels not hate life */
+	BEGIN_RING(evo, 0, NV50_EVO_CRTC(0, UNK900), 1);
+	OUT_RING  (evo, 0x00000311);
+	BEGIN_RING(evo, 0, NV50_EVO_CRTC(1, UNK900), 1);
+	OUT_RING  (evo, 0x00000311);
 	FIRE_RING(evo);
 	if (!nv_wait(dev, 0x640004, 0xffffffff, evo->dma.put << 2))
 		NV_ERROR(dev, "evo pushbuf stalled\n");
@@ -364,6 +369,122 @@ nv50_display_destroy(struct drm_device *dev)
 	nv50_display_disable(dev);
 	nouveau_irq_unregister(dev, 26);
 	kfree(disp);
+}
+
+void
+nv50_display_flip_stop(struct drm_crtc *crtc)
+{
+	struct nv50_display *disp = nv50_display(crtc->dev);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct nv50_display_crtc *dispc = &disp->crtc[nv_crtc->index];
+	struct nouveau_channel *evo = dispc->sync;
+	int ret;
+
+	ret = RING_SPACE(evo, 8);
+	if (ret) {
+		WARN_ON(1);
+		return;
+	}
+
+	BEGIN_RING(evo, 0, 0x0084, 1);
+	OUT_RING  (evo, 0x00000000);
+	BEGIN_RING(evo, 0, 0x0094, 1);
+	OUT_RING  (evo, 0x00000000);
+	BEGIN_RING(evo, 0, 0x00c0, 1);
+	OUT_RING  (evo, 0x00000000);
+	BEGIN_RING(evo, 0, 0x0080, 1);
+	OUT_RING  (evo, 0x00000000);
+	FIRE_RING (evo);
+}
+
+int
+nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
+		       struct nouveau_channel *chan)
+{
+	struct drm_nouveau_private *dev_priv = crtc->dev->dev_private;
+	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
+	struct nv50_display *disp = nv50_display(crtc->dev);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct nv50_display_crtc *dispc = &disp->crtc[nv_crtc->index];
+	struct nouveau_channel *evo = dispc->sync;
+	int ret;
+
+	ret = RING_SPACE(evo, 24);
+	if (unlikely(ret))
+		return ret;
+
+	/* synchronise with the rendering channel, if necessary */
+	if (likely(chan)) {
+		u64 offset = dispc->sem.bo->vma.offset + dispc->sem.offset;
+
+		ret = RING_SPACE(chan, 10);
+		if (ret) {
+			WIND_RING(evo);
+			return ret;
+		}
+
+		if (dev_priv->chipset < 0xc0) {
+			BEGIN_RING(chan, NvSubSw, 0x0060, 2);
+			OUT_RING  (chan, NvEvoSema0 + nv_crtc->index);
+			OUT_RING  (chan, dispc->sem.offset);
+			BEGIN_RING(chan, NvSubSw, 0x006c, 1);
+			OUT_RING  (chan, 0xf00d0000 | dispc->sem.value);
+			BEGIN_RING(chan, NvSubSw, 0x0064, 2);
+			OUT_RING  (chan, dispc->sem.offset ^ 0x10);
+			OUT_RING  (chan, 0x74b1e000);
+			BEGIN_RING(chan, NvSubSw, 0x0060, 1);
+			if (dev_priv->chipset < 0x84)
+				OUT_RING  (chan, NvSema);
+			else
+				OUT_RING  (chan, chan->vram_handle);
+		} else {
+			BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0010, 4);
+			OUT_RING  (chan, upper_32_bits(offset));
+			OUT_RING  (chan, lower_32_bits(offset));
+			OUT_RING  (chan, 0xf00d0000 | dispc->sem.value);
+			OUT_RING  (chan, 0x1002);
+			BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0010, 4);
+			OUT_RING  (chan, upper_32_bits(offset));
+			OUT_RING  (chan, lower_32_bits(offset ^ 0x10));
+			OUT_RING  (chan, 0x74b1e000);
+			OUT_RING  (chan, 0x1001);
+		}
+		FIRE_RING (chan);
+	} else {
+		nouveau_bo_wr32(dispc->sem.bo, dispc->sem.offset / 4,
+				0xf00d0000 | dispc->sem.value);
+	}
+
+	/* queue the flip on the crtc's "display sync" channel */
+	BEGIN_RING(evo, 0, 0x0100, 1);
+	OUT_RING  (evo, 0xfffe0000);
+	BEGIN_RING(evo, 0, 0x0084, 5);
+	OUT_RING  (evo, chan ? 0x00000100 : 0x00000010);
+	OUT_RING  (evo, dispc->sem.offset);
+	OUT_RING  (evo, 0xf00d0000 | dispc->sem.value);
+	OUT_RING  (evo, 0x74b1e000);
+	OUT_RING  (evo, NvEvoSync);
+	BEGIN_RING(evo, 0, 0x00a0, 2);
+	OUT_RING  (evo, 0x00000000);
+	OUT_RING  (evo, 0x00000000);
+	BEGIN_RING(evo, 0, 0x00c0, 1);
+	OUT_RING  (evo, nv_fb->r_dma);
+	BEGIN_RING(evo, 0, 0x0110, 2);
+	OUT_RING  (evo, 0x00000000);
+	OUT_RING  (evo, 0x00000000);
+	BEGIN_RING(evo, 0, 0x0800, 5);
+	OUT_RING  (evo, (nv_fb->nvbo->bo.mem.start << PAGE_SHIFT) >> 8);
+	OUT_RING  (evo, 0);
+	OUT_RING  (evo, (fb->height << 16) | fb->width);
+	OUT_RING  (evo, nv_fb->r_pitch);
+	OUT_RING  (evo, nv_fb->r_format);
+	BEGIN_RING(evo, 0, 0x0080, 1);
+	OUT_RING  (evo, 0x00000000);
+	FIRE_RING (evo);
+
+	dispc->sem.offset ^= 0x10;
+	dispc->sem.value++;
+	return 0;
 }
 
 static u16

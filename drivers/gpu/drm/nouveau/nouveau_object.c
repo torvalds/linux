@@ -36,6 +36,7 @@
 #include "nouveau_drm.h"
 #include "nouveau_ramht.h"
 #include "nouveau_vm.h"
+#include "nv50_display.h"
 
 struct nouveau_gpuobj_method {
 	struct list_head head;
@@ -782,7 +783,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *vram = NULL, *tt = NULL;
-	int ret;
+	int ret, i;
 
 	NV_DEBUG(dev, "ch%d vram=0x%08x tt=0x%08x\n", chan->id, vram_h, tt_h);
 
@@ -847,6 +848,25 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 		nouveau_gpuobj_ref(NULL, &ramht);
 		if (ret)
 			return ret;
+
+		/* dma objects for display sync channel semaphore blocks */
+		for (i = 0; i < 2; i++) {
+			struct nouveau_gpuobj *sem = NULL;
+			struct nv50_display_crtc *dispc =
+				&nv50_display(dev)->crtc[i];
+			u64 offset = dispc->sem.bo->bo.mem.start << PAGE_SHIFT;
+
+			ret = nouveau_gpuobj_dma_new(chan, 0x3d, offset, 0xfff,
+						     NV_MEM_ACCESS_RW,
+						     NV_MEM_TARGET_VRAM, &sem);
+			if (ret)
+				return ret;
+
+			ret = nouveau_ramht_insert(chan, NvEvoSema0 + i, sem);
+			nouveau_gpuobj_ref(NULL, &sem);
+			if (ret)
+				return ret;
+		}
 	}
 
 	/* VRAM ctxdma */
