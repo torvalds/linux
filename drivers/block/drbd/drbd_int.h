@@ -378,7 +378,7 @@ struct p_block_req {
  */
 
 struct p_handshake {
-	struct p_header head;	/* Note: You must always use a h80 here */
+	struct p_header head;   /* Note: vnr will be ignored */
 	u32 protocol_min;
 	u32 feature_flags;
 	u32 protocol_max;

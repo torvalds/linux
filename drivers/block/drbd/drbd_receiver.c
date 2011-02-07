@@ -3952,28 +3952,28 @@ static void drbd_disconnect(struct drbd_conf *mdev)
  *
  * for now, they are expected to be zero, but ignored.
  */
-static int drbd_send_handshake(struct drbd_conf *mdev)
+static int drbd_send_handshake(struct drbd_tconn *tconn)
 {
 	/* ASSERT current == mdev->tconn->receiver ... */
-	struct p_handshake *p = &mdev->tconn->data.sbuf.handshake;
+	struct p_handshake *p = &tconn->data.sbuf.handshake;
 	int ok;
 
-	if (mutex_lock_interruptible(&mdev->tconn->data.mutex)) {
-		dev_err(DEV, "interrupted during initial handshake\n");
+	if (mutex_lock_interruptible(&tconn->data.mutex)) {
+		conn_err(tconn, "interrupted during initial handshake\n");
 		return 0; /* interrupted. not ok. */
 	}
 
-	if (mdev->tconn->data.socket == NULL) {
-		mutex_unlock(&mdev->tconn->data.mutex);
+	if (tconn->data.socket == NULL) {
+		mutex_unlock(&tconn->data.mutex);
 		return 0;
 	}
 
 	memset(p, 0, sizeof(*p));
 	p->protocol_min = cpu_to_be32(PRO_VERSION_MIN);
 	p->protocol_max = cpu_to_be32(PRO_VERSION_MAX);
-	ok = _drbd_send_cmd(mdev, mdev->tconn->data.socket, P_HAND_SHAKE,
-			    &p->head, sizeof(*p), 0 );
-	mutex_unlock(&mdev->tconn->data.mutex);
+	ok = _conn_send_cmd(tconn, 0, tconn->data.socket, P_HAND_SHAKE,
+			    &p->head, sizeof(*p), 0);
+	mutex_unlock(&tconn->data.mutex);
 	return ok;
 }
 
@@ -3993,7 +3993,7 @@ static int drbd_do_handshake(struct drbd_conf *mdev)
 	enum drbd_packet cmd;
 	int rv;
 
-	rv = drbd_send_handshake(mdev);
+	rv = drbd_send_handshake(mdev->tconn);
 	if (!rv)
 		return 0;
 
