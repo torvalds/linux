@@ -631,7 +631,7 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 	/* Find lowest IRQ moderation across all used TX queues */
 	coalesce->tx_coalesce_usecs_irq = ~((u32) 0);
 	efx_for_each_channel(channel, efx) {
-		if (!efx_channel_get_tx_queue(channel, 0))
+		if (!efx_channel_has_tx_queues(channel))
 			continue;
 		if (channel->irq_moderation < coalesce->tx_coalesce_usecs_irq) {
 			if (channel->channel < efx->n_rx_channels)
@@ -676,8 +676,8 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 
 	/* If the channel is shared only allow RX parameters to be set */
 	efx_for_each_channel(channel, efx) {
-		if (efx_channel_get_rx_queue(channel) &&
-		    efx_channel_get_tx_queue(channel, 0) &&
+		if (efx_channel_has_rx_queue(channel) &&
+		    efx_channel_has_tx_queues(channel) &&
 		    tx_usecs) {
 			netif_err(efx, drv, efx->net_dev, "Channel is shared. "
 				  "Only RX coalescing may be set\n");
