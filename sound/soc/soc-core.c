@@ -1664,9 +1664,6 @@ static int soc_probe_aux_dev(struct snd_soc_card *card, int num)
 	goto out;
 
 found:
-	if (!try_module_get(codec->dev->driver->owner))
-		return -ENODEV;
-
 	ret = soc_probe_codec(card, codec);
 	if (ret < 0)
 		return ret;

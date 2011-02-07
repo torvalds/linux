@@ -3690,7 +3690,7 @@ __vxge_hw_vpath_rts_table_get(struct __vxge_hw_vpath_handle *vp,
 	if (status != VXGE_HW_OK)
 		goto exit;
 
-	if ((rts_table != VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_DA) ||
+	if ((rts_table != VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_DA) &&
 	    (rts_table !=
 	     VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_MULTI_IT))
 		*data1 = 0;

@@ -377,7 +377,7 @@ struct module
 	   keeping pointers to this stuff */
 	char *args;
 #ifdef CONFIG_TRACEPOINTS
-	struct tracepoint *tracepoints;
+	struct tracepoint * const *tracepoints_ptrs;
 	unsigned int num_tracepoints;
 #endif
 #ifdef HAVE_JUMP_LABEL
@@ -389,7 +389,7 @@ struct module
 	unsigned int num_trace_bprintk_fmt;
 #endif
 #ifdef CONFIG_EVENT_TRACING
-	struct ftrace_event_call *trace_events;
+	struct ftrace_event_call **trace_events;
 	unsigned int num_trace_events;
 #endif
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD

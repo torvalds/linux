@@ -1966,11 +1966,12 @@ static void __perf_event_read(void *info)
 		return;
 
 	raw_spin_lock(&ctx->lock);
-	update_context_time(ctx);
+	if (ctx->is_active)
+		update_context_time(ctx);
 	update_event_times(event);
+	if (event->state == PERF_EVENT_STATE_ACTIVE)
+		event->pmu->read(event);
 	raw_spin_unlock(&ctx->lock);
-
-	event->pmu->read(event);
 }
 
 static inline u64 perf_event_count(struct perf_event *event)
@@ -2064,8 +2065,7 @@ static int alloc_callchain_buffers(void)
 	 * accessed from NMI. Use a temporary manual per cpu allocation
 	 * until that gets sorted out.
 	 */
-	size = sizeof(*entries) + sizeof(struct perf_callchain_entry *) *
-		num_possible_cpus();
+	size = offsetof(struct callchain_cpus_entries, cpu_entries[nr_cpu_ids]);
 
 	entries = kzalloc(size, GFP_KERNEL);
 	if (!entries)
