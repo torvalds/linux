@@ -19,6 +19,7 @@ struct timer_rand_state;
  * @handle_irq:		highlevel irq-events handler [if NULL, __do_IRQ()]
  * @action:		the irq action chain
  * @status:		status information
+ * @core_internal_state__do_not_mess_with_it: core internal status information
  * @depth:		disable-depth, for nested irq_disable() calls
  * @wake_depth:		enable depth, for multiple set_irq_wake() callers
  * @irq_count:		stats field to detect stalled irqs
@@ -63,7 +64,7 @@ struct irq_desc {
 	irq_flow_handler_t	handle_irq;
 	struct irqaction	*action;	/* IRQ action list */
 	unsigned int		status;		/* IRQ status */
-
+	unsigned int		core_internal_state__do_not_mess_with_it;
 	unsigned int		depth;		/* nested irq disables */
 	unsigned int		wake_depth;	/* nested wake enables */
 	unsigned int		irq_count;	/* For detecting broken IRQs */

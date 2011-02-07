@@ -1,5 +1,9 @@
 /*
  * IRQ subsystem internal functions and variables:
+ *
+ * Do not ever include this file from anything else than
+ * kernel/irq/. Do not even think about using any information outside
+ * of this file for your non core code.
  */
 #include <linux/irqdesc.h>
 
@@ -8,6 +12,8 @@
 #else
 # define IRQ_BITMAP_BITS	NR_IRQS
 #endif
+
+#define istate core_internal_state__do_not_mess_with_it
 
 extern int noirqdebug;
 
