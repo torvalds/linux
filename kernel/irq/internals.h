@@ -13,6 +13,7 @@
 # define IRQ_BITMAP_BITS	NR_IRQS
 #endif
 
+#include "compat.h"
 #include "settings.h"
 
 #define istate core_internal_state__do_not_mess_with_it
@@ -40,11 +41,13 @@ enum {
  * IRQS_SPURIOUS_DISABLED	- was disabled due to spurious interrupt
  *				  detection
  * IRQS_POLL_INPROGRESS		- polling in progress
+ * IRQS_INPROGRESS		- Interrupt in progress
  */
 enum {
 	IRQS_AUTODETECT		= 0x00000001,
 	IRQS_SPURIOUS_DISABLED	= 0x00000002,
 	IRQS_POLL_INPROGRESS	= 0x00000008,
+	IRQS_INPROGRESS		= 0x00000010,
 };
 
 #define irq_data_to_desc(data)	container_of(data, struct irq_desc, irq_data)
@@ -128,7 +131,6 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 		print_symbol("%s\n", (unsigned long)desc->action->handler);
 	}
 
-	P(IRQ_INPROGRESS);
 	P(IRQ_DISABLED);
 	P(IRQ_PENDING);
 	P(IRQ_REPLAY);
@@ -143,6 +145,7 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 	P(IRQ_NOAUTOEN);
 
 	PS(IRQS_AUTODETECT);
+	PS(IRQS_INPROGRESS);
 }
 
 #undef P

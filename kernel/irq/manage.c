@@ -30,7 +30,7 @@
 void synchronize_irq(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned int status;
+	unsigned int state;
 
 	if (!desc)
 		return;
@@ -42,16 +42,16 @@ void synchronize_irq(unsigned int irq)
 		 * Wait until we're out of the critical section.  This might
 		 * give the wrong answer due to the lack of memory barriers.
 		 */
-		while (desc->status & IRQ_INPROGRESS)
+		while (desc->istate & IRQS_INPROGRESS)
 			cpu_relax();
 
 		/* Ok, that indicated we're done: double-check carefully. */
 		raw_spin_lock_irqsave(&desc->lock, flags);
-		status = desc->status;
+		state = desc->istate;
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 		/* Oops, that failed? */
-	} while (status & IRQ_INPROGRESS);
+	} while (state & IRQS_INPROGRESS);
 
 	/*
 	 * We made sure that no hardirq handler is running. Now verify
@@ -637,9 +637,9 @@ again:
 	 * The thread is faster done than the hard interrupt handler
 	 * on the other CPU. If we unmask the irq line then the
 	 * interrupt can come in again and masks the line, leaves due
-	 * to IRQ_INPROGRESS and the irq line is masked forever.
+	 * to IRQS_INPROGRESS and the irq line is masked forever.
 	 */
-	if (unlikely(desc->status & IRQ_INPROGRESS)) {
+	if (unlikely(desc->istate & IRQS_INPROGRESS)) {
 		raw_spin_unlock_irq(&desc->lock);
 		chip_bus_sync_unlock(desc);
 		cpu_relax();
@@ -897,8 +897,9 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 			desc->status |= IRQ_PER_CPU;
 #endif
 
-		desc->status &= ~(IRQ_WAITING | IRQ_ONESHOT | IRQ_INPROGRESS);
-		desc->istate &= ~(IRQS_AUTODETECT | IRQS_SPURIOUS_DISABLED);
+		desc->status &= ~(IRQ_WAITING | IRQ_ONESHOT);
+		desc->istate &= ~(IRQS_AUTODETECT | IRQS_SPURIOUS_DISABLED | \
+				  IRQS_INPROGRESS);
 
 		if (new->flags & IRQF_ONESHOT)
 			desc->status |= IRQ_ONESHOT;

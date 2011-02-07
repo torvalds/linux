@@ -383,7 +383,8 @@ void handle_nested_irq(unsigned int irq)
 	if (unlikely(!action || (desc->status & IRQ_DISABLED)))
 		goto out_unlock;
 
-	desc->status |= IRQ_INPROGRESS;
+	irq_compat_set_progress(desc);
+	desc->istate |= IRQS_INPROGRESS;
 	raw_spin_unlock_irq(&desc->lock);
 
 	action_ret = action->thread_fn(action->irq, action->dev_id);
@@ -391,7 +392,8 @@ void handle_nested_irq(unsigned int irq)
 		note_interrupt(irq, desc, action_ret);
 
 	raw_spin_lock_irq(&desc->lock);
-	desc->status &= ~IRQ_INPROGRESS;
+	desc->istate &= ~IRQS_INPROGRESS;
+	irq_compat_clr_progress(desc);
 
 out_unlock:
 	raw_spin_unlock_irq(&desc->lock);
@@ -422,7 +424,7 @@ handle_simple_irq(unsigned int irq, struct irq_desc *desc)
 {
 	raw_spin_lock(&desc->lock);
 
-	if (unlikely(desc->status & IRQ_INPROGRESS))
+	if (unlikely(desc->istate & IRQS_INPROGRESS))
 		if (!irq_check_poll(desc))
 			goto out_unlock;
 
@@ -454,7 +456,7 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 	raw_spin_lock(&desc->lock);
 	mask_ack_irq(desc);
 
-	if (unlikely(desc->status & IRQ_INPROGRESS))
+	if (unlikely(desc->istate & IRQS_INPROGRESS))
 		if (!irq_check_poll(desc))
 			goto out_unlock;
 
@@ -492,7 +494,7 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 {
 	raw_spin_lock(&desc->lock);
 
-	if (unlikely(desc->status & IRQ_INPROGRESS))
+	if (unlikely(desc->istate & IRQS_INPROGRESS))
 		if (!irq_check_poll(desc))
 			goto out;
 
@@ -542,8 +544,8 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 	 * we shouldn't process the IRQ. Mark it pending, handle
 	 * the necessary masking and go out
 	 */
-	if (unlikely((desc->status & (IRQ_INPROGRESS | IRQ_DISABLED)) ||
-		    !desc->action)) {
+	if (unlikely((desc->istate & (IRQS_INPROGRESS) ||
+		      (desc->status & IRQ_DISABLED) || !desc->action))) {
 		if (!irq_check_poll(desc)) {
 			desc->status |= IRQ_PENDING;
 			mask_ack_irq(desc);

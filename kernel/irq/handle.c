@@ -123,13 +123,15 @@ irqreturn_t handle_irq_event(struct irq_desc *desc)
 	irqreturn_t ret;
 
 	desc->status &= ~IRQ_PENDING;
-	desc->status |= IRQ_INPROGRESS;
+	irq_compat_set_progress(desc);
+	desc->istate |= IRQS_INPROGRESS;
 	raw_spin_unlock(&desc->lock);
 
 	ret = handle_irq_event_percpu(desc, action);
 
 	raw_spin_lock(&desc->lock);
-	desc->status &= ~IRQ_INPROGRESS;
+	desc->istate &= ~IRQS_INPROGRESS;
+	irq_compat_clr_progress(desc);
 	return ret;
 }
 
