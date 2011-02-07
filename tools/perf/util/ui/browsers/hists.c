@@ -797,7 +797,8 @@ static int hists__browser_title(struct hists *self, char *bf, size_t size,
 	return printed;
 }
 
-int hists__browse(struct hists *self, const char *helpline, const char *ev_name)
+int hists__browse(struct hists *self, const char *helpline,
+		  const char *ev_name, int evidx)
 {
 	struct hist_browser *browser = hist_browser__new(self);
 	struct pstack *fstack;
@@ -935,7 +936,7 @@ do_annotate:
 			if (he == NULL)
 				continue;
 
-			hist_entry__tui_annotate(he);
+			hist_entry__tui_annotate(he, evidx);
 		} else if (choice == browse_map)
 			map__browse(browser->selection->map);
 		else if (choice == zoom_dso) {
@@ -984,7 +985,7 @@ out:
 	return key;
 }
 
-int hists__tui_browse_tree(struct rb_root *self, const char *help)
+int hists__tui_browse_tree(struct rb_root *self, const char *help, int evidx)
 {
 	struct rb_node *first = rb_first(self), *nd = first, *next;
 	int key = 0;
@@ -993,7 +994,7 @@ int hists__tui_browse_tree(struct rb_root *self, const char *help)
 		struct hists *hists = rb_entry(nd, struct hists, rb_node);
 		const char *ev_name = __event_name(hists->type, hists->config);
 
-		key = hists__browse(hists, help, ev_name);
+		key = hists__browse(hists, help, ev_name, evidx);
 		switch (key) {
 		case NEWT_KEY_TAB:
 			next = rb_next(nd);

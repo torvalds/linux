@@ -11,17 +11,8 @@
 struct perf_evlist;
 struct perf_evsel;
 
-struct source_line {
-	u64			eip;
-	unsigned long		count[MAX_COUNTERS]; /* FIXME */
-	char			*line;
-	struct source_line	*next;
-};
-
 struct sym_entry_source {
-	struct source_line	*source;
-	struct source_line	*lines;
-	struct source_line	**lines_tail;
+	struct list_head	head;
 	pthread_mutex_t		lock;
 };
 
@@ -31,7 +22,6 @@ struct sym_entry {
 	unsigned long		snap_count;
 	double			weight;
 	int			skip;
-	u16			name_len;
 	u8			origin;
 	struct map		*map;
 	struct sym_entry_source	*src;

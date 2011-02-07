@@ -9,6 +9,7 @@
 
 #include "util/util.h"
 
+#include "util/annotate.h"
 #include "util/color.h"
 #include <linux/list.h>
 #include "util/cache.h"
@@ -117,8 +118,17 @@ static int perf_session__add_hist_entry(struct perf_session *session,
 	 * so we don't allocated the extra space needed because the stdio
 	 * code will not use it.
 	 */
-	if (use_browser > 0)
-		err = hist_entry__inc_addr_samples(he, al->addr);
+	if (al->sym != NULL && use_browser > 0) {
+		/*
+		 * All aggregated on the first sym_hist.
+		 */
+		struct annotation *notes = symbol__annotation(he->ms.sym);
+		if (notes->histograms == NULL &&
+		    symbol__alloc_hist(he->ms.sym, 1) < 0)
+			err = -ENOMEM;
+		else
+			err = hist_entry__inc_addr_samples(he, 0, al->addr);
+	}
 
 	return err;
 }
@@ -348,7 +358,7 @@ static int __cmd_report(void)
 	}
 
 	if (use_browser > 0)
-		hists__tui_browse_tree(&session->hists_tree, help);
+		hists__tui_browse_tree(&session->hists_tree, help, 0);
 	else
 		hists__tty_browse_tree(&session->hists_tree, help);
 
@@ -508,7 +518,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	 * implementation.
 	 */
 	if (use_browser > 0) {
-		symbol_conf.priv_size = sizeof(struct sym_priv);
+		symbol_conf.priv_size = sizeof(struct annotation);
 		/*
  		 * For searching by name on the "Browse map details".
  		 * providing it only in verbose mode not to bloat too
