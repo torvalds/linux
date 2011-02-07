@@ -277,9 +277,9 @@ nfs4_close_delegation(struct nfs4_delegation *dp)
 static void
 unhash_delegation(struct nfs4_delegation *dp)
 {
-	list_del_init(&dp->dl_perfile);
 	list_del_init(&dp->dl_perclnt);
 	spin_lock(&recall_lock);
+	list_del_init(&dp->dl_perfile);
 	list_del_init(&dp->dl_recall_lru);
 	spin_unlock(&recall_lock);
 	nfs4_close_delegation(dp);
@@ -2336,9 +2336,7 @@ static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 	 * it's safe to take a reference: */
 	atomic_inc(&dp->dl_count);
 
-	spin_lock(&recall_lock);
 	list_add_tail(&dp->dl_recall_lru, &del_recall_lru);
-	spin_unlock(&recall_lock);
 
 	/* only place dl_time is set. protected by lock_flocks*/
 	dp->dl_time = get_seconds();
@@ -2363,8 +2361,10 @@ static void nfsd_break_deleg_cb(struct file_lock *fl)
 	 */
 	fl->fl_break_time = 0;
 
-	nfsd_break_one_deleg(dp);
+	spin_lock(&recall_lock);
 	dp->dl_file->fi_had_conflict = true;
+	nfsd_break_one_deleg(dp);
+	spin_unlock(&recall_lock);
 }
 
 static
