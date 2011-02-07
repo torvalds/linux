@@ -256,6 +256,7 @@ EXPORT_SYMBOL_GPL(irq_set_affinity_notifier);
  */
 static int setup_affinity(unsigned int irq, struct irq_desc *desc)
 {
+	/* Excludes PER_CPU and NO_BALANCE interrupts */
 	if (!irq_can_set_affinity(irq))
 		return 0;
 
@@ -263,7 +264,7 @@ static int setup_affinity(unsigned int irq, struct irq_desc *desc)
 	 * Preserve an userspace affinity setup, but make sure that
 	 * one of the targets is online.
 	 */
-	if (desc->status & (IRQ_AFFINITY_SET | IRQ_NO_BALANCING)) {
+	if (desc->status & (IRQ_AFFINITY_SET)) {
 		if (cpumask_any_and(desc->irq_data.affinity, cpu_online_mask)
 		    < nr_cpu_ids)
 			goto set_affinity;
