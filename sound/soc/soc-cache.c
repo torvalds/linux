@@ -1609,24 +1609,23 @@ int snd_soc_cache_sync(struct snd_soc_codec *codec)
 		return 0;
 	}
 
+	if (!codec->cache_ops || !codec->cache_ops->sync)
+		return -EINVAL;
+
 	if (codec->cache_ops->name)
 		name = codec->cache_ops->name;
 	else
 		name = "unknown";
 
-	if (codec->cache_ops && codec->cache_ops->sync) {
-		if (codec->cache_ops->name)
-			dev_dbg(codec->dev, "Syncing %s cache for %s codec\n",
-				codec->cache_ops->name, codec->name);
-		trace_snd_soc_cache_sync(codec, name, "start");
-		ret = codec->cache_ops->sync(codec);
-		if (!ret)
-			codec->cache_sync = 0;
-		trace_snd_soc_cache_sync(codec, name, "end");
-		return ret;
-	}
-
-	return -EINVAL;
+	if (codec->cache_ops->name)
+		dev_dbg(codec->dev, "Syncing %s cache for %s codec\n",
+			codec->cache_ops->name, codec->name);
+	trace_snd_soc_cache_sync(codec, name, "start");
+	ret = codec->cache_ops->sync(codec);
+	if (!ret)
+		codec->cache_sync = 0;
+	trace_snd_soc_cache_sync(codec, name, "end");
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_cache_sync);
 
