@@ -193,22 +193,20 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/**
- * Creates a new mm object and returns a handle to it.
- */
-int
-i915_gem_create_ioctl(struct drm_device *dev, void *data,
-		      struct drm_file *file)
+static int
+i915_gem_create(struct drm_file *file,
+		struct drm_device *dev,
+		uint64_t size,
+		uint32_t *handle_p)
 {
-	struct drm_i915_gem_create *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
 	u32 handle;
 
-	args->size = roundup(args->size, PAGE_SIZE);
+	size = roundup(size, PAGE_SIZE);
 
 	/* Allocate the new object */
-	obj = i915_gem_alloc_object(dev, args->size);
+	obj = i915_gem_alloc_object(dev, size);
 	if (obj == NULL)
 		return -ENOMEM;
 
@@ -224,8 +222,39 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 	drm_gem_object_unreference(&obj->base);
 	trace_i915_gem_object_create(obj);
 
-	args->handle = handle;
+	*handle_p = handle;
 	return 0;
+}
+
+int
+i915_gem_dumb_create(struct drm_file *file,
+		     struct drm_device *dev,
+		     struct drm_mode_create_dumb *args)
+{
+	/* have to work out size/pitch and return them */
+	args->pitch = ALIGN(args->width & ((args->bpp + 1) / 8), 64);
+	args->size = args->pitch * args->height;
+	return i915_gem_create(file, dev,
+			       args->size, &args->handle);
+}
+
+int i915_gem_dumb_destroy(struct drm_file *file,
+			  struct drm_device *dev,
+			  uint32_t handle)
+{
+	return drm_gem_handle_delete(file, handle);
+}
+
+/**
+ * Creates a new mm object and returns a handle to it.
+ */
+int
+i915_gem_create_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *file)
+{
+	struct drm_i915_gem_create *args = data;
+	return i915_gem_create(file, dev,
+			       args->size, &args->handle);
 }
 
 static int i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)
@@ -1425,27 +1454,13 @@ i915_gem_get_unfenced_gtt_alignment(struct drm_i915_gem_object *obj)
 	return tile_height * obj->stride * 2;
 }
 
-/**
- * i915_gem_mmap_gtt_ioctl - prepare an object for GTT mmap'ing
- * @dev: DRM device
- * @data: GTT mapping ioctl data
- * @file: GEM object info
- *
- * Simply returns the fake offset to userspace so it can mmap it.
- * The mmap call will end up in drm_gem_mmap(), which will set things
- * up so we can get faults in the handler above.
- *
- * The fault handler will take care of binding the object into the GTT
- * (since it may have been evicted to make room for something), allocating
- * a fence register, and mapping the appropriate aperture address into
- * userspace.
- */
 int
-i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
-			struct drm_file *file)
+i915_gem_mmap_gtt(struct drm_file *file,
+		  struct drm_device *dev,
+		  uint32_t handle,
+		  uint64_t *offset)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_mmap_gtt *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
 
@@ -1456,7 +1471,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
+	obj = to_intel_bo(drm_gem_object_lookup(dev, file, handle));
 	if (obj == NULL) {
 		ret = -ENOENT;
 		goto unlock;
@@ -1479,7 +1494,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 			goto out;
 	}
 
-	args->offset = (u64)obj->base.map_list.hash.key << PAGE_SHIFT;
+	*offset = (u64)obj->base.map_list.hash.key << PAGE_SHIFT;
 
 out:
 	drm_gem_object_unreference(&obj->base);
@@ -1487,6 +1502,34 @@ unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
+
+/**
+ * i915_gem_mmap_gtt_ioctl - prepare an object for GTT mmap'ing
+ * @dev: DRM device
+ * @data: GTT mapping ioctl data
+ * @file: GEM object info
+ *
+ * Simply returns the fake offset to userspace so it can mmap it.
+ * The mmap call will end up in drm_gem_mmap(), which will set things
+ * up so we can get faults in the handler above.
+ *
+ * The fault handler will take care of binding the object into the GTT
+ * (since it may have been evicted to make room for something), allocating
+ * a fence register, and mapping the appropriate aperture address into
+ * userspace.
+ */
+int
+i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file)
+{
+	struct drm_i915_gem_mmap_gtt *args = data;
+
+	if (!(dev->driver->driver_features & DRIVER_GEM))
+		return -ENODEV;
+
+	return i915_gem_mmap_gtt(file, dev, args->handle, &args->offset);
+}
+
 
 static int
 i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,

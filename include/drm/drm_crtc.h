@@ -798,4 +798,11 @@ extern int drm_add_modes_noedid(struct drm_connector *connector,
 extern bool drm_edid_is_valid(struct edid *edid);
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh);
+
+extern int drm_mode_create_dumb_ioctl(struct drm_device *dev,
+				      void *data, struct drm_file *file_priv);
+extern int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
+				    void *data, struct drm_file *file_priv);
+extern int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
+				      void *data, struct drm_file *file_priv);
 #endif /* __DRM_CRTC_H__ */

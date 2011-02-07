@@ -64,7 +64,7 @@ static struct fb_ops radeonfb_ops = {
 };
 
 
-static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled)
+int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled)
 {
 	int aligned = width;
 	int align_large = (ASIC_IS_AVIVO(rdev)) || tiled;

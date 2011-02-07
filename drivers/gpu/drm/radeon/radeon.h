@@ -288,6 +288,15 @@ int radeon_gem_object_pin(struct drm_gem_object *obj, uint32_t pin_domain,
 			  uint64_t *gpu_addr);
 void radeon_gem_object_unpin(struct drm_gem_object *obj);
 
+int radeon_mode_dumb_create(struct drm_file *file_priv,
+			    struct drm_device *dev,
+			    struct drm_mode_create_dumb *args);
+int radeon_mode_dumb_mmap(struct drm_file *filp,
+			  struct drm_device *dev,
+			  uint32_t handle, uint64_t *offset_p);
+int radeon_mode_dumb_destroy(struct drm_file *file_priv,
+			     struct drm_device *dev,
+			     uint32_t handle);
 
 /*
  * GART structures, functions & helpers

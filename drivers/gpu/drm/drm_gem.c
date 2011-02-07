@@ -181,7 +181,7 @@ EXPORT_SYMBOL(drm_gem_object_alloc);
 /**
  * Removes the mapping from handle to filp for this object.
  */
-static int
+int
 drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 {
 	struct drm_device *dev;
@@ -214,6 +214,7 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 
 	return 0;
 }
+EXPORT_SYMBOL(drm_gem_handle_delete);
 
 /**
  * Create a handle for this object. This adds a handle reference

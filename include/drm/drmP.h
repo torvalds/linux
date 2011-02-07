@@ -880,6 +880,17 @@ struct drm_driver {
 	/* vga arb irq handler */
 	void (*vgaarb_irq)(struct drm_device *dev, bool state);
 
+	/* dumb alloc support */
+	int (*dumb_create)(struct drm_file *file_priv,
+			   struct drm_device *dev,
+			   struct drm_mode_create_dumb *args);
+	int (*dumb_map_offset)(struct drm_file *file_priv,
+			       struct drm_device *dev, uint32_t handle,
+			       uint64_t *offset);
+	int (*dumb_destroy)(struct drm_file *file_priv,
+			    struct drm_device *dev,
+			    uint32_t handle);
+
 	/* Driver private ops for this object */
 	struct vm_operations_struct *gem_vm_ops;
 
@@ -1544,6 +1555,7 @@ drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
 int drm_gem_handle_create(struct drm_file *file_priv,
 			  struct drm_gem_object *obj,
 			  u32 *handlep);
+int drm_gem_handle_delete(struct drm_file *filp, u32 handle);
 
 static inline void
 drm_gem_object_handle_reference(struct drm_gem_object *obj)

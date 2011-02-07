@@ -236,21 +236,29 @@ int radeon_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	return r;
 }
 
-int radeon_gem_mmap_ioctl(struct drm_device *dev, void *data,
-			  struct drm_file *filp)
+int radeon_mode_dumb_mmap(struct drm_file *filp,
+			  struct drm_device *dev,
+			  uint32_t handle, uint64_t *offset_p)
 {
-	struct drm_radeon_gem_mmap *args = data;
 	struct drm_gem_object *gobj;
 	struct radeon_bo *robj;
 
-	gobj = drm_gem_object_lookup(dev, filp, args->handle);
+	gobj = drm_gem_object_lookup(dev, filp, handle);
 	if (gobj == NULL) {
 		return -ENOENT;
 	}
 	robj = gobj->driver_private;
-	args->addr_ptr = radeon_bo_mmap_offset(robj);
+	*offset_p = radeon_bo_mmap_offset(robj);
 	drm_gem_object_unreference_unlocked(gobj);
 	return 0;
+}
+
+int radeon_gem_mmap_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *filp)
+{
+	struct drm_radeon_gem_mmap *args = data;
+
+	return radeon_mode_dumb_mmap(filp, dev, args->handle, &args->addr_ptr);
 }
 
 int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
@@ -344,4 +352,39 @@ int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 out:
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;
+}
+
+int radeon_mode_dumb_create(struct drm_file *file_priv,
+			    struct drm_device *dev,
+			    struct drm_mode_create_dumb *args)
+{
+	struct radeon_device *rdev = dev->dev_private;
+	struct drm_gem_object *gobj;
+	int r;
+
+	args->pitch = radeon_align_pitch(rdev, args->width, args->bpp, 0) * ((args->bpp + 1) / 8);
+	args->size = args->pitch * args->height;
+	args->size = ALIGN(args->size, PAGE_SIZE);
+
+	r = radeon_gem_object_create(rdev, args->size, 0,
+				     RADEON_GEM_DOMAIN_VRAM,
+				     false, ttm_bo_type_device,
+				     &gobj);
+	if (r)
+		return -ENOMEM;
+
+	r = drm_gem_handle_create(file_priv, gobj, &args->handle);
+	if (r) {
+		drm_gem_object_unreference_unlocked(gobj);
+		return r;
+	}
+	drm_gem_object_handle_unreference_unlocked(gobj);
+	return 0;
+}
+
+int radeon_mode_dumb_destroy(struct drm_file *file_priv,
+			     struct drm_device *dev,
+			     uint32_t handle)
+{
+	return drm_gem_handle_delete(file_priv, handle);
 }

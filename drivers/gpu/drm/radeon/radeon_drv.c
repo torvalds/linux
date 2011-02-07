@@ -84,6 +84,16 @@ extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
 extern struct drm_ioctl_desc radeon_ioctls_kms[];
 extern int radeon_max_kms_ioctl;
 int radeon_mmap(struct file *filp, struct vm_area_struct *vma);
+int radeon_mode_dumb_mmap(struct drm_file *filp,
+			  struct drm_device *dev,
+			  uint32_t handle, uint64_t *offset_p);
+int radeon_mode_dumb_create(struct drm_file *file_priv,
+			    struct drm_device *dev,
+			    struct drm_mode_create_dumb *args);
+int radeon_mode_dumb_destroy(struct drm_file *file_priv,
+			     struct drm_device *dev,
+			     uint32_t handle);
+
 #if defined(CONFIG_DEBUG_FS)
 int radeon_debugfs_init(struct drm_minor *minor);
 void radeon_debugfs_cleanup(struct drm_minor *minor);
@@ -322,6 +332,9 @@ static struct drm_driver kms_driver = {
 	.gem_init_object = radeon_gem_object_init,
 	.gem_free_object = radeon_gem_object_free,
 	.dma_ioctl = radeon_dma_ioctl_kms,
+	.dumb_create = radeon_mode_dumb_create,
+	.dumb_map_offset = radeon_mode_dumb_mmap,
+	.dumb_destroy = radeon_mode_dumb_destroy,
 	.fops = {
 		 .owner = THIS_MODULE,
 		 .open = drm_open,
