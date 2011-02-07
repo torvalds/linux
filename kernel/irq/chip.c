@@ -400,7 +400,7 @@ EXPORT_SYMBOL_GPL(handle_nested_irq);
 
 static bool irq_check_poll(struct irq_desc *desc)
 {
-	if (!(desc->status & IRQ_POLL_INPROGRESS))
+	if (!(desc->istate & IRQS_POLL_INPROGRESS))
 		return false;
 	return irq_wait_for_poll(desc);
 }

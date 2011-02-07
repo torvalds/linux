@@ -98,13 +98,13 @@ static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 	}
 
 	/* Mark it poll in progress */
-	desc->status |= IRQ_POLL_INPROGRESS;
+	desc->istate |= IRQS_POLL_INPROGRESS;
 	do {
 		if (handle_irq_event(desc) == IRQ_HANDLED)
 			ret = IRQ_HANDLED;
 		action = desc->action;
 	} while ((desc->status & IRQ_PENDING) && action);
-	desc->status &= ~IRQ_POLL_INPROGRESS;
+	desc->istate &= ~IRQS_POLL_INPROGRESS;
 out:
 	raw_spin_unlock(&desc->lock);
 	return ret == IRQ_HANDLED;
@@ -259,7 +259,7 @@ try_misrouted_irq(unsigned int irq, struct irq_desc *desc,
 void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		    irqreturn_t action_ret)
 {
-	if (desc->status & IRQ_POLL_INPROGRESS)
+	if (desc->istate & IRQS_POLL_INPROGRESS)
 		return;
 
 	if (unlikely(action_ret != IRQ_HANDLED)) {
