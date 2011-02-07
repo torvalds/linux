@@ -27,6 +27,12 @@ config MACH_HARMONY
        help
          Support for nVidia Harmony development platform
 
+config MACH_TRIMSLICE
+       bool "TrimSlice board"
+       select TEGRA_PCI
+       help
+         Support for CompuLab TrimSlice platform
+
 choice
         prompt "Low-level debug console UART"
         default TEGRA_DEBUG_UART_NONE
