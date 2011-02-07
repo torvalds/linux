@@ -518,9 +518,6 @@ EXPORT_SYMBOL_GPL(handle_level_irq);
 void
 handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct irqaction *action;
-	irqreturn_t action_ret;
-
 	raw_spin_lock(&desc->lock);
 
 	if (unlikely(desc->status & IRQ_INPROGRESS))
@@ -534,26 +531,14 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 	 * If its disabled or no action available
 	 * then mask it and get out of here:
 	 */
-	action = desc->action;
-	if (unlikely(!action || (desc->status & IRQ_DISABLED))) {
+	if (unlikely(!desc->action || (desc->status & IRQ_DISABLED))) {
 		desc->status |= IRQ_PENDING;
 		mask_irq(desc);
 		goto out;
 	}
-
-	desc->status |= IRQ_INPROGRESS;
-	desc->status &= ~IRQ_PENDING;
-	raw_spin_unlock(&desc->lock);
-
-	action_ret = handle_IRQ_event(irq, action);
-	if (!noirqdebug)
-		note_interrupt(irq, desc, action_ret);
-
-	raw_spin_lock(&desc->lock);
-	desc->status &= ~IRQ_INPROGRESS;
+	handle_irq_event(desc);
 out:
 	desc->irq_data.chip->irq_eoi(&desc->irq_data);
-
 	raw_spin_unlock(&desc->lock);
 }
 
