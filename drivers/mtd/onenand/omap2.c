@@ -148,11 +148,9 @@ static int omap2_onenand_wait(struct mtd_info *mtd, int state)
 			wait_err("controller error", state, ctrl, intr);
 			return -EIO;
 		}
-		if ((intr & intr_flags) != intr_flags) {
-			wait_err("timeout", state, ctrl, intr);
-			return -EIO;
-		}
-		return 0;
+		if ((intr & intr_flags) == intr_flags)
+			return 0;
+		/* Continue in wait for interrupt branch */
 	}
 
 	if (state != FL_READING) {
