@@ -159,7 +159,13 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 	int size;
 
 	mutex_lock(&con_buf_mtx);
+	console_lock();
 	size = vcs_size(file->f_path.dentry->d_inode);
+	console_unlock();
+	if (size < 0) {
+		mutex_unlock(&con_buf_mtx);
+		return size;
+	}
 	switch (orig) {
 		default:
 			mutex_unlock(&con_buf_mtx);
@@ -237,6 +243,12 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		 * could sleep.
 		 */
 		size = vcs_size(inode);
+		if (size < 0) {
+			if (read)
+				break;
+			ret = size;
+			goto unlock_out;
+		}
 		if (pos >= size)
 			break;
 		if (count > size - pos)
@@ -436,6 +448,12 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		 * Return data written up to now on failure.
 		 */
 		size = vcs_size(inode);
+		if (size < 0) {
+			if (written)
+				break;
+			ret = size;
+			goto unlock_out;
+		}
 		if (pos >= size)
 			break;
 		if (this_round > size - pos)
