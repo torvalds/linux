@@ -39,16 +39,21 @@ This driver implements support for the Winbond W83627EHF, W83627EHG,
 W83627DHG, W83627DHG-P, W83667HG and W83667HG-B super I/O chips.
 We will refer to them collectively as Winbond chips.
 
-The chips implement three temperature sensors, five fan rotation
-speed sensors, ten analog voltage sensors (only nine for the 627DHG), one
-VID (6 pins for the 627EHF/EHG, 8 pins for the 627DHG and 667HG), alarms
-with beep warnings (control unimplemented), and some automatic fan
+The chips implement three temperature sensors (up to four for 667HG-B),
+five fan rotation speed sensors, ten analog voltage sensors (only nine for the
+627DHG), one VID (6 pins for the 627EHF/EHG, 8 pins for the 627DHG and 667HG),
+alarms with beep warnings (control unimplemented), and some automatic fan
 regulation strategies (plus manual fan control mode).
 
+The temperature sensor sources on W82677HG-B are configurable. temp4 is only
+reported if its temperature source differs from the temperature sources of the
+other three temperature sensors. The configured source for each of the
+temperature sensors is reported in tempX_label.
+
 Temperatures are measured in degrees Celsius and measurement resolution is 1
-degC for temp1 and 0.5 degC for temp2 and temp3. An alarm is triggered when
-the temperature gets higher than high limit; it stays on until the temperature
-falls below the hysteresis value.
+degC for temp1 and temp4, and 0.5 degC for temp2 and temp3. An alarm is
+triggered when the temperature gets higher than high limit; it stays on until
+the temperature falls below the hysteresis value.
 
 Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
 triggered if the rotation speed has dropped below a programmable limit. Fan
