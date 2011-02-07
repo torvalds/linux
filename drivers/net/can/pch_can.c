@@ -959,13 +959,13 @@ static void __devexit pch_can_remove(struct pci_dev *pdev)
 	struct pch_can_priv *priv = netdev_priv(ndev);
 
 	unregister_candev(priv->ndev);
-	pci_iounmap(pdev, priv->regs);
 	if (priv->use_msi)
 		pci_disable_msi(priv->dev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	pch_can_reset(priv);
+	pci_iounmap(pdev, priv->regs);
 	free_candev(priv->ndev);
 }
 
