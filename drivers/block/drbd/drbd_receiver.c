@@ -704,9 +704,9 @@ static int drbd_send_fp(struct drbd_tconn *tconn, struct socket *sock, enum drbd
 	return _conn_send_cmd(tconn, 0, sock, cmd, h, sizeof(*h), 0);
 }
 
-static enum drbd_packet drbd_recv_fp(struct drbd_conf *mdev, struct socket *sock)
+static enum drbd_packet drbd_recv_fp(struct drbd_tconn *tconn, struct socket *sock)
 {
-	struct p_header80 *h = &mdev->tconn->data.rbuf.header.h80;
+	struct p_header80 *h = &tconn->data.rbuf.header.h80;
 	int rr;
 
 	rr = drbd_recv_short(sock, h, sizeof(*h), 0);
@@ -802,7 +802,7 @@ static int drbd_connect(struct drbd_conf *mdev)
 retry:
 		s = drbd_wait_for_connect(mdev->tconn);
 		if (s) {
-			try = drbd_recv_fp(mdev, s);
+			try = drbd_recv_fp(mdev->tconn, s);
 			drbd_socket_okay(&sock);
 			drbd_socket_okay(&msock);
 			switch (try) {
