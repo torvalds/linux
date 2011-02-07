@@ -493,13 +493,12 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 	sub->period_off = 0;
 
 	if (rt->stream_state == STREAM_DISABLED) {
-		rt->rate = -1;
 		for (i = 0; i < ARRAY_SIZE(rates); i++)
 			if (alsa_rt->rate == rates[i]) {
 				rt->rate = i;
 				break;
 			}
-		if (rt->rate == -1) {
+		if (i == ARRAY_SIZE(rates)) {
 			mutex_unlock(&rt->stream_mutex);
 			snd_printk("invalid rate %d in prepare.\n",
 					alsa_rt->rate);
