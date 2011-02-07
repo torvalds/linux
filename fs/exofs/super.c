@@ -409,6 +409,10 @@ static void exofs_put_super(struct super_block *sb)
 	for (num_pend = atomic_read(&sbi->s_curr_pending); num_pend > 0;
 	     num_pend = atomic_read(&sbi->s_curr_pending)) {
 		wait_queue_head_t wq;
+
+		printk(KERN_NOTICE "%s: !!Pending operations in flight. "
+		       "This is a BUG. please report to osd-dev@open-osd.org\n",
+		       __func__);
 		init_waitqueue_head(&wq);
 		wait_event_timeout(wq,
 				  (atomic_read(&sbi->s_curr_pending) == 0),
