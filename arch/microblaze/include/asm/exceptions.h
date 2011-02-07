@@ -66,6 +66,8 @@
 asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 							int fsr, int addr);
 
+asmlinkage void sw_exception(struct pt_regs *regs);
+
 void die(const char *str, struct pt_regs *fp, long err);
 void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr);
 
