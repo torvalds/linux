@@ -199,7 +199,8 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		changed |= IEEE80211_CONF_CHANGE_SMPS;
 	}
 
-	if (scan_chan)
+	if ((local->scanning & SCAN_SW_SCANNING) ||
+	    (local->scanning & SCAN_HW_SCANNING))
 		power = chan->max_power;
 	else
 		power = local->power_constr_level ?
