@@ -487,6 +487,7 @@ nv50_crtc_prepare(struct drm_crtc *crtc)
 
 	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
 
+	nv50_display_flip_stop(crtc);
 	drm_vblank_pre_modeset(dev, nv_crtc->index);
 	nv50_crtc_blank(nv_crtc, true);
 }
@@ -502,6 +503,7 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 	nv50_crtc_blank(nv_crtc, false);
 	drm_vblank_post_modeset(dev, nv_crtc->index);
 	nv50_crtc_wait_complete(crtc);
+	nv50_display_flip_next(crtc, crtc->fb, NULL);
 }
 
 static bool
@@ -683,11 +685,16 @@ nv50_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	int ret;
 
+	nv50_display_flip_stop(crtc);
 	ret = nv50_crtc_do_mode_set_base(crtc, old_fb, x, y, false);
 	if (ret)
 		return ret;
 
-	return nv50_crtc_wait_complete(crtc);
+	ret = nv50_crtc_wait_complete(crtc);
+	if (ret)
+		return ret;
+
+	return nv50_display_flip_next(crtc, crtc->fb, NULL);
 }
 
 static int
@@ -697,6 +704,7 @@ nv50_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
 {
 	int ret;
 
+	nv50_display_flip_stop(crtc);
 	ret = nv50_crtc_do_mode_set_base(crtc, fb, x, y, true);
 	if (ret)
 		return ret;
