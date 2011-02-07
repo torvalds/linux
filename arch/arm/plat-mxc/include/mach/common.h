@@ -31,6 +31,8 @@ extern void imx27_init_early(void);
 extern void imx31_init_early(void);
 extern void imx35_init_early(void);
 extern void imx50_init_early(void);
+extern void imx51_init_early(void);
+extern void imx53_init_early(void);
 extern void mxc_init_irq(void __iomem *);
 extern void tzic_init_irq(void __iomem *);
 extern void mx1_init_irq(void);

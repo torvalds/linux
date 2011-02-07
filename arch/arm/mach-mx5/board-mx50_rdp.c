@@ -216,7 +216,8 @@ static struct sys_timer mx50_rdp_timer = {
 
 MACHINE_START(MX50_RDP, "Freescale MX50 Reference Design Platform")
 	.map_io = mx50_map_io,
+	.init_early = imx50_init_early,
 	.init_irq = mx50_init_irq,
-	.init_machine = mx50_rdp_board_init,
 	.timer = &mx50_rdp_timer,
+	.init_machine = mx50_rdp_board_init,
 MACHINE_END

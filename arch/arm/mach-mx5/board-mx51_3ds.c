@@ -168,7 +168,8 @@ MACHINE_START(MX51_3DS, "Freescale MX51 3-Stack Board")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.boot_params = MX51_PHYS_OFFSET + 0x100,
 	.map_io = mx51_map_io,
+	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
-	.init_machine = mxc_board_init,
 	.timer = &mxc_timer,
+	.init_machine = mxc_board_init,
 MACHINE_END

@@ -103,7 +103,8 @@ static struct sys_timer mx53_smd_timer = {
 
 MACHINE_START(MX53_SMD, "Freescale MX53 SMD Board")
 	.map_io = mx53_map_io,
+	.init_early = imx53_init_early,
 	.init_irq = mx53_init_irq,
-	.init_machine = mx53_smd_board_init,
 	.timer = &mx53_smd_timer,
+	.init_machine = mx53_smd_board_init,
 MACHINE_END

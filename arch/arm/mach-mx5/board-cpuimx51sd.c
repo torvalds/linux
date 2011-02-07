@@ -329,7 +329,8 @@ MACHINE_START(EUKREA_CPUIMX51SD, "Eukrea CPUIMX51SD")
 	/* Maintainer: Eric Bénard <eric@eukrea.com> */
 	.boot_params = MX51_PHYS_OFFSET + 0x100,
 	.map_io = mx51_map_io,
+	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
-	.init_machine = eukrea_cpuimx51sd_init,
 	.timer = &mxc_timer,
+	.init_machine = eukrea_cpuimx51sd_init,
 MACHINE_END
