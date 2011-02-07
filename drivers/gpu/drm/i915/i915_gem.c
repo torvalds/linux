@@ -1171,9 +1171,11 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	page_offset = ((unsigned long)vmf->virtual_address - vma->vm_start) >>
 		PAGE_SHIFT;
 
-	/* Now bind it into the GTT if needed */
-	mutex_lock(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto out;
 
+	/* Now bind it into the GTT if needed */
 	if (!obj->map_and_fenceable) {
 		ret = i915_gem_object_unbind(obj);
 		if (ret)
@@ -1208,9 +1210,17 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
-
+out:
 	switch (ret) {
+	case -EIO:
 	case -EAGAIN:
+		/* Give the error handler a chance to run and move the
+		 * objects off the GPU active list. Next time we service the
+		 * fault, we should be able to transition the page into the
+		 * GTT without touching the GPU (and so avoid further
+		 * EIO/EGAIN). If the GPU is wedged, then there is no issue
+		 * with coherency, just lost writes.
+		 */
 		set_need_resched();
 	case 0:
 	case -ERESTARTSYS:
@@ -1981,8 +1991,18 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 
 	BUG_ON(seqno == 0);
 
-	if (atomic_read(&dev_priv->mm.wedged))
-		return -EAGAIN;
+	if (atomic_read(&dev_priv->mm.wedged)) {
+		struct completion *x = &dev_priv->error_completion;
+		bool recovery_complete;
+		unsigned long flags;
+
+		/* Give the error handler a chance to run. */
+		spin_lock_irqsave(&x->wait.lock, flags);
+		recovery_complete = x->done > 0;
+		spin_unlock_irqrestore(&x->wait.lock, flags);
+
+		return recovery_complete ? -EIO : -EAGAIN;
+	}
 
 	if (seqno == ring->outstanding_lazy_request) {
 		struct drm_i915_gem_request *request;
