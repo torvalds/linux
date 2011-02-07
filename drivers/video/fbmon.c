@@ -1018,6 +1018,13 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 					num++;
 				}
 			}
+		} else if (tag == 0x3) {
+			if (len >= 3) {
+				u32 ieee_reg = block[0] | (block[1] << 8) |
+					(block[2] << 16);
+				if (ieee_reg == 0x000c03)
+					specs->misc |= FB_MISC_HDMI;
+			}
 		}
 
 		block += len;
