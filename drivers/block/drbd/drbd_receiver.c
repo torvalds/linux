@@ -762,7 +762,7 @@ static int drbd_connect(struct drbd_conf *mdev)
 	if (drbd_request_state(mdev, NS(conn, C_WF_CONNECTION)) < SS_SUCCESS)
 		return -2;
 
-	clear_bit(DISCARD_CONCURRENT, &mdev->flags);
+	clear_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
 	mdev->tconn->agreed_pro_version = 99;
 	/* agreed_pro_version must be smaller than 100 so we send the old
 	   header (h80) in the first packet and in the handshake packet. */
@@ -823,7 +823,7 @@ retry:
 					sock_release(msock);
 				}
 				msock = s;
-				set_bit(DISCARD_CONCURRENT, &mdev->flags);
+				set_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
 				break;
 			default:
 				dev_warn(DEV, "Error receiving initial packet\n");
@@ -1779,7 +1779,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 		/* don't get the req_lock yet,
 		 * we may sleep in drbd_wait_peer_seq */
 		const int size = peer_req->i.size;
-		const int discard = test_bit(DISCARD_CONCURRENT, &mdev->flags);
+		const int discard = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
 		DEFINE_WAIT(wait);
 		int first;
 
@@ -2239,7 +2239,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 		     "Using discard-least-changes instead\n");
 	case ASB_DISCARD_ZERO_CHG:
 		if (ch_peer == 0 && ch_self == 0) {
-			rv = test_bit(DISCARD_CONCURRENT, &mdev->flags)
+			rv = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags)
 				? -1 : 1;
 			break;
 		} else {
@@ -2255,7 +2255,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 			rv =  1;
 		else /* ( ch_self == ch_peer ) */
 		     /* Well, then use something else. */
-			rv = test_bit(DISCARD_CONCURRENT, &mdev->flags)
+			rv = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags)
 				? -1 : 1;
 		break;
 	case ASB_DISCARD_LOCAL:
@@ -2468,7 +2468,7 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 		case 1: /*  self_pri && !peer_pri */ return 1;
 		case 2: /* !self_pri &&  peer_pri */ return -1;
 		case 3: /*  self_pri &&  peer_pri */
-			dc = test_bit(DISCARD_CONCURRENT, &mdev->flags);
+			dc = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
 			return dc ? -1 : 1;
 		}
 	}
@@ -3209,7 +3209,7 @@ static int receive_req_state(struct drbd_conf *mdev, enum drbd_packet cmd,
 	mask.i = be32_to_cpu(p->mask);
 	val.i = be32_to_cpu(p->val);
 
-	if (test_bit(DISCARD_CONCURRENT, &mdev->flags) &&
+	if (test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags) &&
 	    test_bit(CLUSTER_ST_CHANGE, &mdev->flags)) {
 		drbd_send_sr_reply(mdev, SS_CONCURRENT_ST_CHG);
 		return true;

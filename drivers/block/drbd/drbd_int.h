@@ -763,7 +763,6 @@ enum {
 	UNPLUG_QUEUED,		/* only relevant with kernel 2.4 */
 	UNPLUG_REMOTE,		/* sending a "UnplugRemote" could help */
 	MD_DIRTY,		/* current uuids and flags not yet on disk */
-	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
 	USE_DEGR_WFC_T,		/* degr-wfc-timeout instead of wfc-timeout. */
 	CLUSTER_ST_CHANGE,	/* Cluster wide state change going on... */
 	CL_ST_CHG_SUCCESS,
@@ -911,6 +910,7 @@ struct fifo_buffer {
 /* flag bits per tconn */
 enum {
 	NET_CONGESTED,		/* The data socket is congested */
+	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
 };
 
 struct drbd_tconn {			/* is a resource from the config file */

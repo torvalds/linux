@@ -1637,7 +1637,7 @@ void resync_after_online_grow(struct drbd_conf *mdev)
 	if (mdev->state.role != mdev->state.peer)
 		iass = (mdev->state.role == R_PRIMARY);
 	else
-		iass = test_bit(DISCARD_CONCURRENT, &mdev->flags);
+		iass = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
 
 	if (iass)
 		drbd_start_resync(mdev, C_SYNC_SOURCE);
