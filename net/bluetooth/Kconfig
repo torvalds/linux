@@ -32,7 +32,7 @@ menuconfig BT
 	  more information, see <http://www.bluez.org/>.
 
 config BT_L2CAP
-	tristate "L2CAP protocol support"
+	bool "L2CAP protocol support"
 	depends on BT
 	select CRC16
 	help
@@ -40,18 +40,12 @@ config BT_L2CAP
 	  connection oriented and connection-less data transport.  L2CAP
 	  support is required for most Bluetooth applications.
 
-	  Say Y here to compile L2CAP support into the kernel or say M to
-	  compile it as module (l2cap).
-
 config BT_SCO
-	tristate "SCO links support"
+	bool "SCO links support"
 	depends on BT
 	help
 	  SCO link provides voice transport over Bluetooth.  SCO support is
 	  required for voice applications like Headset and Audio.
-
-	  Say Y here to compile SCO support into the kernel or say M to
-	  compile it as module (sco).
 
 source "net/bluetooth/rfcomm/Kconfig"
 
