@@ -81,6 +81,8 @@ DEFINE_PER_CPU(struct rcu_data, rcu_sched_data);
 struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh_state);
 DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
+static struct rcu_state *rcu_state;
+
 int rcu_scheduler_active __read_mostly;
 EXPORT_SYMBOL_GPL(rcu_scheduler_active);
 
@@ -94,7 +96,7 @@ static DEFINE_PER_CPU(char, rcu_cpu_has_work);
 static char rcu_kthreads_spawnable;
 
 static void rcu_node_kthread_setaffinity(struct rcu_node *rnp);
-static void invoke_rcu_kthread(void);
+static void invoke_rcu_cpu_kthread(void);
 
 #define RCU_KTHREAD_PRIO 1	/* RT priority for per-CPU kthreads. */
 
@@ -791,6 +793,7 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 		rnp->completed = rsp->completed;
 		rsp->signaled = RCU_SIGNAL_INIT; /* force_quiescent_state OK. */
 		rcu_start_gp_per_cpu(rsp, rnp, rdp);
+		rcu_preempt_boost_start_gp(rnp);
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		return;
 	}
@@ -826,6 +829,7 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 		rnp->completed = rsp->completed;
 		if (rnp == rdp->mynode)
 			rcu_start_gp_per_cpu(rsp, rnp, rdp);
+		rcu_preempt_boost_start_gp(rnp);
 		raw_spin_unlock(&rnp->lock);	/* irqs remain disabled. */
 	}
 
@@ -882,7 +886,7 @@ rcu_report_qs_rnp(unsigned long mask, struct rcu_state *rsp,
 			return;
 		}
 		rnp->qsmask &= ~mask;
-		if (rnp->qsmask != 0 || rcu_preempted_readers(rnp)) {
+		if (rnp->qsmask != 0 || rcu_preempt_blocked_readers_cgp(rnp)) {
 
 			/* Other bits still set at this level, so done. */
 			raw_spin_unlock_irqrestore(&rnp->lock, flags);
@@ -1089,8 +1093,11 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 	t = rnp->node_kthread_task;
 	if (t != NULL &&
 	    rnp->qsmaskinit == 0) {
-		kthread_stop(t);
+		raw_spin_lock_irqsave(&rnp->lock, flags);
 		rnp->node_kthread_task = NULL;
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		kthread_stop(t);
+		rcu_stop_boost_kthread(rnp);
 	} else
 		rcu_node_kthread_setaffinity(rnp);
 }
@@ -1190,7 +1197,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	/* Re-raise the RCU softirq if there are callbacks remaining. */
 	if (cpu_has_callbacks_ready_to_invoke(rdp))
-		invoke_rcu_kthread();
+		invoke_rcu_cpu_kthread();
 }
 
 /*
@@ -1236,7 +1243,7 @@ void rcu_check_callbacks(int cpu, int user)
 	}
 	rcu_preempt_check_callbacks(cpu);
 	if (rcu_pending(cpu))
-		invoke_rcu_kthread();
+		invoke_rcu_cpu_kthread();
 }
 
 #ifdef CONFIG_SMP
@@ -1244,6 +1251,8 @@ void rcu_check_callbacks(int cpu, int user)
 /*
  * Scan the leaf rcu_node structures, processing dyntick state for any that
  * have not yet encountered a quiescent state, using the function specified.
+ * Also initiate boosting for any threads blocked on the root rcu_node.
+ *
  * The caller must have suppressed start of new grace periods.
  */
 static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *))
@@ -1262,6 +1271,7 @@ static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *))
 			return;
 		}
 		if (rnp->qsmask == 0) {
+			rcu_initiate_boost(rnp);
 			raw_spin_unlock_irqrestore(&rnp->lock, flags);
 			continue;
 		}
@@ -1280,6 +1290,11 @@ static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *))
 		}
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	}
+	rnp = rcu_get_root(rsp);
+	raw_spin_lock_irqsave(&rnp->lock, flags);
+	if (rnp->qsmask == 0)
+		rcu_initiate_boost(rnp);
+	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
 
 /*
@@ -1417,7 +1432,7 @@ static void rcu_process_callbacks(void)
  * the current CPU with interrupts disabled, the rcu_cpu_kthread_task
  * cannot disappear out from under us.
  */
-static void invoke_rcu_kthread(void)
+static void invoke_rcu_cpu_kthread(void)
 {
 	unsigned long flags;
 	wait_queue_head_t *q;
@@ -1436,24 +1451,33 @@ static void invoke_rcu_kthread(void)
 }
 
 /*
+ * Wake up the specified per-rcu_node-structure kthread.
+ * The caller must hold ->lock.
+ */
+static void invoke_rcu_node_kthread(struct rcu_node *rnp)
+{
+	struct task_struct *t;
+
+	t = rnp->node_kthread_task;
+	if (t != NULL)
+		wake_up_process(t);
+}
+
+/*
  * Timer handler to initiate the waking up of per-CPU kthreads that
  * have yielded the CPU due to excess numbers of RCU callbacks.
+ * We wake up the per-rcu_node kthread, which in turn will wake up
+ * the booster kthread.
  */
 static void rcu_cpu_kthread_timer(unsigned long arg)
 {
 	unsigned long flags;
-	struct rcu_data *rdp = (struct rcu_data *)arg;
+	struct rcu_data *rdp = per_cpu_ptr(rcu_state->rda, arg);
 	struct rcu_node *rnp = rdp->mynode;
-	struct task_struct *t;
 
 	raw_spin_lock_irqsave(&rnp->lock, flags);
 	rnp->wakemask |= rdp->grpmask;
-	t = rnp->node_kthread_task;
-	if (t == NULL) {
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
-		return;
-	}
-	wake_up_process(t);
+	invoke_rcu_node_kthread(rnp);
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
 
@@ -1463,13 +1487,12 @@ static void rcu_cpu_kthread_timer(unsigned long arg)
  * remain preempted.  Either way, we restore our real-time priority
  * before returning.
  */
-static void rcu_yield(int cpu)
+static void rcu_yield(void (*f)(unsigned long), unsigned long arg)
 {
-	struct rcu_data *rdp = per_cpu_ptr(rcu_sched_state.rda, cpu);
 	struct sched_param sp;
 	struct timer_list yield_timer;
 
-	setup_timer_on_stack(&yield_timer, rcu_cpu_kthread_timer, (unsigned long)rdp);
+	setup_timer_on_stack(&yield_timer, f, arg);
 	mod_timer(&yield_timer, jiffies + 2);
 	sp.sched_priority = 0;
 	sched_setscheduler_nocheck(current, SCHED_NORMAL, &sp);
@@ -1540,7 +1563,7 @@ static int rcu_cpu_kthread(void *arg)
 		else
 			spincnt = 0;
 		if (spincnt > 10) {
-			rcu_yield(cpu);
+			rcu_yield(rcu_cpu_kthread_timer, (unsigned long)cpu);
 			spincnt = 0;
 		}
 	}
@@ -1597,6 +1620,7 @@ static int rcu_node_kthread(void *arg)
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		mask = rnp->wakemask;
 		rnp->wakemask = 0;
+		rcu_initiate_boost(rnp);
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask >>= 1) {
 			if ((mask & 0x1) == 0)
@@ -1618,7 +1642,8 @@ static int rcu_node_kthread(void *arg)
 
 /*
  * Set the per-rcu_node kthread's affinity to cover all CPUs that are
- * served by the rcu_node in question.
+ * served by the rcu_node in question.  The CPU hotplug lock is still
+ * held, so the value of rnp->qsmaskinit will be stable.
  */
 static void rcu_node_kthread_setaffinity(struct rcu_node *rnp)
 {
@@ -1626,8 +1651,7 @@ static void rcu_node_kthread_setaffinity(struct rcu_node *rnp)
 	int cpu;
 	unsigned long mask = rnp->qsmaskinit;
 
-	if (rnp->node_kthread_task == NULL ||
-	    rnp->qsmaskinit == 0)
+	if (rnp->node_kthread_task == NULL || mask == 0)
 		return;
 	if (!alloc_cpumask_var(&cm, GFP_KERNEL))
 		return;
@@ -1636,31 +1660,40 @@ static void rcu_node_kthread_setaffinity(struct rcu_node *rnp)
 		if (mask & 0x1)
 			cpumask_set_cpu(cpu, cm);
 	set_cpus_allowed_ptr(rnp->node_kthread_task, cm);
+	rcu_boost_kthread_setaffinity(rnp, cm);
 	free_cpumask_var(cm);
 }
 
 /*
  * Spawn a per-rcu_node kthread, setting priority and affinity.
+ * Called during boot before online/offline can happen, or, if
+ * during runtime, with the main CPU-hotplug locks held.  So only
+ * one of these can be executing at a time.
  */
 static int __cpuinit rcu_spawn_one_node_kthread(struct rcu_state *rsp,
 						struct rcu_node *rnp)
 {
+	unsigned long flags;
 	int rnp_index = rnp - &rsp->node[0];
 	struct sched_param sp;
 	struct task_struct *t;
 
 	if (!rcu_kthreads_spawnable ||
-	    rnp->qsmaskinit == 0 ||
-	    rnp->node_kthread_task != NULL)
+	    rnp->qsmaskinit == 0)
 		return 0;
-	t = kthread_create(rcu_node_kthread, (void *)rnp, "rcun%d", rnp_index);
-	if (IS_ERR(t))
-		return PTR_ERR(t);
-	rnp->node_kthread_task = t;
-	wake_up_process(t);
-	sp.sched_priority = 99;
-	sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-	return 0;
+	if (rnp->node_kthread_task == NULL) {
+		t = kthread_create(rcu_node_kthread, (void *)rnp,
+				   "rcun%d", rnp_index);
+		if (IS_ERR(t))
+			return PTR_ERR(t);
+		raw_spin_lock_irqsave(&rnp->lock, flags);
+		rnp->node_kthread_task = t;
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		wake_up_process(t);
+		sp.sched_priority = 99;
+		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
+	}
+	return rcu_spawn_one_boost_kthread(rsp, rnp, rnp_index);
 }
 
 /*
@@ -1678,10 +1711,16 @@ static int __init rcu_spawn_kthreads(void)
 		if (cpu_online(cpu))
 			(void)rcu_spawn_one_cpu_kthread(cpu);
 	}
-	rcu_for_each_leaf_node(&rcu_sched_state, rnp) {
-		init_waitqueue_head(&rnp->node_wq);
-		(void)rcu_spawn_one_node_kthread(&rcu_sched_state, rnp);
-	}
+	rnp = rcu_get_root(rcu_state);
+	init_waitqueue_head(&rnp->node_wq);
+	rcu_init_boost_waitqueue(rnp);
+	(void)rcu_spawn_one_node_kthread(rcu_state, rnp);
+	if (NUM_RCU_NODES > 1)
+		rcu_for_each_leaf_node(rcu_state, rnp) {
+			init_waitqueue_head(&rnp->node_wq);
+			rcu_init_boost_waitqueue(rnp);
+			(void)rcu_spawn_one_node_kthread(rcu_state, rnp);
+		}
 	return 0;
 }
 early_initcall(rcu_spawn_kthreads);
@@ -2087,14 +2126,14 @@ static void __cpuinit rcu_online_cpu(int cpu)
 
 static void __cpuinit rcu_online_kthreads(int cpu)
 {
-	struct rcu_data *rdp = per_cpu_ptr(rcu_sched_state.rda, cpu);
+	struct rcu_data *rdp = per_cpu_ptr(rcu_state->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;
 
 	/* Fire up the incoming CPU's kthread and leaf rcu_node kthread. */
 	if (rcu_kthreads_spawnable) {
 		(void)rcu_spawn_one_cpu_kthread(cpu);
 		if (rnp->node_kthread_task == NULL)
-			(void)rcu_spawn_one_node_kthread(&rcu_sched_state, rnp);
+			(void)rcu_spawn_one_node_kthread(rcu_state, rnp);
 	}
 }
 
@@ -2105,7 +2144,7 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 				    unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
-	struct rcu_data *rdp = per_cpu_ptr(rcu_sched_state.rda, cpu);
+	struct rcu_data *rdp = per_cpu_ptr(rcu_state->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;
 
 	switch (action) {
