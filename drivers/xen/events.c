@@ -553,7 +553,7 @@ static void ack_pirq(struct irq_data *data)
 {
 	int evtchn = evtchn_from_irq(data->irq);
 
-	irq_move_irq(data);
+	move_native_irq(data->irq);
 
 	if (VALID_EVTCHN(evtchn)) {
 		mask_evtchn(evtchn);
