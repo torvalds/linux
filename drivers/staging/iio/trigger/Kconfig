@@ -18,4 +18,14 @@ config IIO_GPIO_TRIGGER
 	help
 	  Provides support for using GPIO pins as IIO triggers.
 
+config IIO_SYSFS_TRIGGER
+	tristate "SYSFS trigger"
+	depends on SYSFS
+	help
+	  Provides support for using SYSFS entry as IIO triggers.
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iio-trig-sysfs.
+
 endif # IIO_TRIGGER
