@@ -38,7 +38,8 @@ MODULE_ALIAS("platform:fusb300_udc");
 
 static const char udc_name[] = "fusb300_udc";
 static const char * const fusb300_ep_name[] = {
-	"ep0", "ep1", "ep2", "ep3", "ep4", "ep5", "ep6", "ep7"
+	"ep0", "ep1", "ep2", "ep3", "ep4", "ep5", "ep6", "ep7", "ep8", "ep9",
+	"ep10", "ep11", "ep12", "ep13", "ep14", "ep15"
 };
 
 static void done(struct fusb300_ep *ep, struct fusb300_request *req,
