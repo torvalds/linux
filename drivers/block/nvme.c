@@ -184,9 +184,9 @@ enum {
 };
 
 #define CMD_CTX_BASE		(POISON_POINTER_DELTA + sync_completion_id)
-#define CMD_CTX_CANCELLED	(0x2008 + CMD_CTX_BASE)
-#define CMD_CTX_COMPLETED	(0x2010 + CMD_CTX_BASE)
-#define CMD_CTX_INVALID		(0x2014 + CMD_CTX_BASE)
+#define CMD_CTX_CANCELLED	(0x30C + CMD_CTX_BASE)
+#define CMD_CTX_COMPLETED	(0x310 + CMD_CTX_BASE)
+#define CMD_CTX_INVALID		(0x314 + CMD_CTX_BASE)
 
 static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 {
