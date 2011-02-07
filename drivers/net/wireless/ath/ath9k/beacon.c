@@ -721,8 +721,9 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
 		cur_conf->beacon_interval = 100;
 
 	/*
-	 * Some times we dont parse dtim period from mac80211, in that case
-	 * use a default value
+	 * We don't parse dtim period from mac80211 during the driver
+	 * initialization as it breaks association with hidden-ssid
+	 * AP and it causes latency in roaming
 	 */
 	if (cur_conf->dtim_period == 0)
 		cur_conf->dtim_period = 1;
