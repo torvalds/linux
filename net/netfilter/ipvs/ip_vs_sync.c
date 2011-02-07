@@ -392,7 +392,7 @@ void ip_vs_sync_switch_mode(struct net *net, int mode)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	if (!ipvs->sync_state & IP_VS_STATE_MASTER)
+	if (!(ipvs->sync_state & IP_VS_STATE_MASTER))
 		return;
 	if (mode == ipvs->sysctl_sync_ver || !ipvs->sync_buff)
 		return;
