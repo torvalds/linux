@@ -902,7 +902,7 @@ static irqreturn_t s3c2410_udc_irq(int dummy, void *_dev)
 	int pwr_reg;
 	int ep0csr;
 	int i;
-	u32 idx;
+	u32 idx, idx2;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -1014,6 +1014,20 @@ static irqreturn_t s3c2410_udc_irq(int dummy, void *_dev)
 			/* Clear the interrupt bit by setting it to 1 */
 			udc_write(tmp, S3C2410_UDC_EP_INT_REG);
 			s3c2410_udc_handle_ep(&dev->ep[i]);
+		}
+	}
+
+	/* what else causes this interrupt? a receive! who is it? */
+	if (!usb_status && !usbd_status && !pwr_reg && !ep0csr) {
+		for (i = 1; i < S3C2410_ENDPOINTS; i++) {
+			idx2 = udc_read(S3C2410_UDC_INDEX_REG);
+			udc_write(i, S3C2410_UDC_INDEX_REG);
+
+			if (udc_read(S3C2410_UDC_OUT_CSR1_REG) & 0x1)
+				s3c2410_udc_handle_ep(&dev->ep[i]);
+
+			/* restore index */
+			udc_write(idx2, S3C2410_UDC_INDEX_REG);
 		}
 	}
 
