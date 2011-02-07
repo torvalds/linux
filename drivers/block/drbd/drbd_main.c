@@ -1358,7 +1358,7 @@ static void drbd_update_congested(struct drbd_conf *mdev)
 {
 	struct sock *sk = mdev->tconn->data.socket->sk;
 	if (sk->sk_wmem_queued > sk->sk_sndbuf * 4 / 5)
-		set_bit(NET_CONGESTED, &mdev->flags);
+		set_bit(NET_CONGESTED, &mdev->tconn->flags);
 }
 
 /* The idea of sendpage seems to be to put some kind of reference
@@ -1431,7 +1431,7 @@ static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
 		offset += sent;
 	} while (len > 0 /* THINK && mdev->cstate >= C_CONNECTED*/);
 	set_fs(oldfs);
-	clear_bit(NET_CONGESTED, &mdev->flags);
+	clear_bit(NET_CONGESTED, &mdev->tconn->flags);
 
 	ok = (len == 0);
 	if (likely(ok))
@@ -1694,7 +1694,7 @@ int drbd_send(struct drbd_conf *mdev, struct socket *sock,
 	} while (sent < size);
 
 	if (sock == mdev->tconn->data.socket)
-		clear_bit(NET_CONGESTED, &mdev->flags);
+		clear_bit(NET_CONGESTED, &mdev->tconn->flags);
 
 	if (rv <= 0) {
 		if (rv != -EAGAIN) {
@@ -2161,7 +2161,7 @@ static int drbd_congested(void *congested_data, int bdi_bits)
 			reason = 'b';
 	}
 
-	if (bdi_bits & (1 << BDI_async_congested) && test_bit(NET_CONGESTED, &mdev->flags)) {
+	if (bdi_bits & (1 << BDI_async_congested) && test_bit(NET_CONGESTED, &mdev->tconn->flags)) {
 		r |= (1 << BDI_async_congested);
 		reason = reason == 'b' ? 'a' : 'n';
 	}

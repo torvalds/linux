@@ -754,7 +754,7 @@ enum {
 #define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
 #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
 
-/* global flag bits */
+/* flag bits per mdev */
 enum {
 	CREATE_BARRIER,		/* next P_DATA is preceded by a P_BARRIER */
 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
@@ -782,8 +782,6 @@ enum {
 	GO_DISKLESS,		/* Disk is being detached, on io-error or admin request. */
 	WAS_IO_ERROR,		/* Local disk failed returned IO error */
 	RESYNC_AFTER_NEG,       /* Resync after online grow after the attach&negotiate finished. */
-	NET_CONGESTED,		/* The data socket is congested */
-
 	CONFIG_PENDING,		/* serialization of (re)configuration requests.
 				 * if set, also prevents the device from dying */
 	DEVICE_DYING,		/* device became unconfigured,
@@ -910,10 +908,16 @@ struct fifo_buffer {
 	unsigned int size;
 };
 
+/* flag bits per tconn */
+enum {
+	NET_CONGESTED,		/* The data socket is congested */
+};
+
 struct drbd_tconn {			/* is a resource from the config file */
 	char *name;			/* Resource name */
 	struct list_head all_tconn;	/* List of all drbd_tconn, prot by global_state_lock */
 	struct drbd_conf *volume0;	/* TODO: Remove me again */
+	unsigned long flags;
 
 	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
 	atomic_t net_cnt;		/* Users of net_conf */
