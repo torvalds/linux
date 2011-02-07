@@ -958,8 +958,6 @@ expire_client(struct nfs4_client *clp)
 	spin_lock(&recall_lock);
 	while (!list_empty(&clp->cl_delegations)) {
 		dp = list_entry(clp->cl_delegations.next, struct nfs4_delegation, dl_perclnt);
-		dprintk("NFSD: expire client. dp %p, fp %p\n", dp,
-				dp->dl_flock);
 		list_del_init(&dp->dl_perclnt);
 		list_move(&dp->dl_recall_lru, &reaplist);
 	}
@@ -2931,8 +2929,6 @@ nfs4_laundromat(void)
 				test_val = u;
 			break;
 		}
-		dprintk("NFSD: purging unused delegation dp %p, fp %p\n",
-			            dp, dp->dl_flock);
 		list_move(&dp->dl_recall_lru, &reaplist);
 	}
 	spin_unlock(&recall_lock);
