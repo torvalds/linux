@@ -1348,7 +1348,7 @@ static int we_should_drop_the_connection(struct drbd_conf *mdev, struct socket *
 	if (!drop_it) {
 		dev_err(DEV, "[%s/%d] sock_sendmsg time expired, ko = %u\n",
 		       current->comm, current->pid, mdev->tconn->ko_count);
-		request_ping(mdev);
+		request_ping(mdev->tconn);
 	}
 
 	return drop_it; /* && (mdev->state == R_PRIMARY) */;

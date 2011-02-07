@@ -318,7 +318,7 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 	enum drbd_disk_state nps;
 
 	if (new_role == R_PRIMARY)
-		request_ping(mdev); /* Detect a dead peer ASAP */
+		request_ping(mdev->tconn); /* Detect a dead peer ASAP */
 
 	mutex_lock(&mdev->state_mutex);
 

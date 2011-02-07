@@ -1858,16 +1858,16 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
 	spin_unlock_irqrestore(&q->q_lock, flags);
 }
 
-static inline void wake_asender(struct drbd_conf *mdev)
+static inline void wake_asender(struct drbd_tconn *tconn)
 {
-	if (test_bit(SIGNAL_ASENDER, &mdev->tconn->flags))
-		force_sig(DRBD_SIG, mdev->tconn->asender.task);
+	if (test_bit(SIGNAL_ASENDER, &tconn->flags))
+		force_sig(DRBD_SIG, tconn->asender.task);
 }
 
-static inline void request_ping(struct drbd_conf *mdev)
+static inline void request_ping(struct drbd_tconn *tconn)
 {
-	set_bit(SEND_PING, &mdev->tconn->flags);
-	wake_asender(mdev);
+	set_bit(SEND_PING, &tconn->flags);
+	wake_asender(tconn);
 }
 
 static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
