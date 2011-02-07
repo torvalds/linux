@@ -45,11 +45,14 @@ static struct map_desc mx25_io_desc[] __initdata = {
  */
 void __init mx25_map_io(void)
 {
+	iotable_init(mx25_io_desc, ARRAY_SIZE(mx25_io_desc));
+}
+
+void __init imx25_init_early(void)
+{
 	mxc_set_cpu_type(MXC_CPU_MX25);
 	mxc_iomux_v3_init(MX25_IO_ADDRESS(MX25_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX25_IO_ADDRESS(MX25_WDOG_BASE_ADDR));
-
-	iotable_init(mx25_io_desc, ARRAY_SIZE(mx25_io_desc));
 }
 
 int imx25_register_gpios(void);

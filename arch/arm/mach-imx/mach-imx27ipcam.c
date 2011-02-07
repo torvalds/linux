@@ -69,9 +69,10 @@ static struct sys_timer mx27ipcam_timer = {
 
 MACHINE_START(IMX27IPCAM, "Freescale IMX27IPCAM")
 	/* maintainer: Freescale Semiconductor, Inc. */
-	.boot_params    = MX27_PHYS_OFFSET + 0x100,
-	.map_io         = mx27_map_io,
-	.init_irq       = mx27_init_irq,
-	.init_machine   = mx27ipcam_init,
-	.timer          = &mx27ipcam_timer,
+	.boot_params = MX27_PHYS_OFFSET + 0x100,
+	.map_io = mx27_map_io,
+	.init_early = imx27_init_early,
+	.init_irq = mx27_init_irq,
+	.timer = &mx27ipcam_timer,
+	.init_machine = mx27ipcam_init,
 MACHINE_END

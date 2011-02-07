@@ -30,10 +30,13 @@ static struct map_desc imx_io_desc[] __initdata = {
 
 void __init mx1_map_io(void)
 {
+	iotable_init(imx_io_desc, ARRAY_SIZE(imx_io_desc));
+}
+
+void __init imx1_init_early(void)
+{
 	mxc_set_cpu_type(MXC_CPU_MX1);
 	mxc_arch_reset_init(MX1_IO_ADDRESS(MX1_WDT_BASE_ADDR));
-
-	iotable_init(imx_io_desc, ARRAY_SIZE(imx_io_desc));
 }
 
 int imx1_register_gpios(void);
