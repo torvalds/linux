@@ -42,48 +42,36 @@ static int try_one_irq(int irq, struct irq_desc *desc)
 		raw_spin_unlock(&desc->lock);
 		return ok;
 	}
+	/*
+	 * All handlers must agree on IRQF_SHARED, so we test just the
+	 * first. Check for action->next as well.
+	 */
+	action = desc->action;
+	if (!action || !(action->flags & IRQF_SHARED) || !action->next)
+		goto out;
+
 	/* Honour the normal IRQ locking */
 	desc->status |= IRQ_INPROGRESS;
-	action = desc->action;
-	raw_spin_unlock(&desc->lock);
-
-	while (action) {
-		/* Only shared IRQ handlers are safe to call */
-		if (action->flags & IRQF_SHARED) {
-			if (action->handler(irq, action->dev_id) ==
-				IRQ_HANDLED)
-				ok = 1;
-		}
-		action = action->next;
-	}
-	local_irq_disable();
-	/* Now clean up the flags */
-	raw_spin_lock(&desc->lock);
-	action = desc->action;
-
-	/*
-	 * While we were looking for a fixup someone queued a real
-	 * IRQ clashing with our walk:
-	 */
-	while ((desc->status & IRQ_PENDING) && action) {
-		/*
-		 * Perform real IRQ processing for the IRQ we deferred
-		 */
-		work = 1;
-		raw_spin_unlock(&desc->lock);
-		handle_IRQ_event(irq, action);
-		raw_spin_lock(&desc->lock);
+	do {
+		work++;
 		desc->status &= ~IRQ_PENDING;
-	}
+		raw_spin_unlock(&desc->lock);
+		if (handle_IRQ_event(irq, action) != IRQ_NONE)
+			ok = 1;
+		raw_spin_lock(&desc->lock);
+		action = desc->action;
+	}  while ((desc->status & IRQ_PENDING) && action);
+
 	desc->status &= ~IRQ_INPROGRESS;
 	/*
 	 * If we did actual work for the real IRQ line we must let the
 	 * IRQ controller clean up too
 	 */
-	if (work)
+	if (work > 1)
 		irq_end(irq, desc);
-	raw_spin_unlock(&desc->lock);
 
+out:
+	raw_spin_unlock(&desc->lock);
 	return ok;
 }
 
