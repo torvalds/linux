@@ -51,14 +51,7 @@ static void warn_no_thread(unsigned int irq, struct irqaction *action)
 	       "but no thread function available.", irq, action->name);
 }
 
-/**
- * handle_IRQ_event - irq action chain handler
- * @irq:	the interrupt number
- * @action:	the interrupt action chain for this irq
- *
- * Handles the action chain of an irq event
- */
-irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
+static irqreturn_t __handle_irq_event(unsigned int irq, struct irqaction *action)
 {
 	irqreturn_t ret, retval = IRQ_NONE;
 	unsigned int status = 0;
@@ -119,4 +112,42 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 		add_interrupt_randomness(irq);
 
 	return retval;
+}
+
+irqreturn_t
+handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *action)
+{
+	irqreturn_t ret = __handle_irq_event(desc->irq_data.irq, action);
+
+	if (!noirqdebug)
+		note_interrupt(desc->irq_data.irq, desc, ret);
+	return ret;
+}
+
+irqreturn_t handle_irq_event(struct irq_desc *desc)
+{
+	struct irqaction *action = desc->action;
+	irqreturn_t ret;
+
+	desc->status &= ~IRQ_PENDING;
+	desc->status |= IRQ_INPROGRESS;
+	raw_spin_unlock(&desc->lock);
+
+	ret = handle_irq_event_percpu(desc, action);
+
+	raw_spin_lock(&desc->lock);
+	desc->status &= ~IRQ_INPROGRESS;
+	return ret;
+}
+
+/**
+ * handle_IRQ_event - irq action chain handler
+ * @irq:	the interrupt number
+ * @action:	the interrupt action chain for this irq
+ *
+ * Handles the action chain of an irq event
+ */
+irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
+{
+	return __handle_irq_event(irq, action);
 }
