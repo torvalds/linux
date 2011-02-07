@@ -139,15 +139,13 @@ static void poll_spurious_irqs(unsigned long dummy)
  *
  * (The other 100-of-100,000 interrupts may have been a correctly
  *  functioning device sharing an IRQ with the failing one)
- *
- * Called under desc->lock
  */
-
 static void
 __report_bad_irq(unsigned int irq, struct irq_desc *desc,
 		 irqreturn_t action_ret)
 {
 	struct irqaction *action;
+	unsigned long flags;
 
 	if (action_ret != IRQ_HANDLED && action_ret != IRQ_NONE) {
 		printk(KERN_ERR "irq event %d: bogus return value %x\n",
@@ -159,6 +157,13 @@ __report_bad_irq(unsigned int irq, struct irq_desc *desc,
 	dump_stack();
 	printk(KERN_ERR "handlers:\n");
 
+	/*
+	 * We need to take desc->lock here. note_interrupt() is called
+	 * w/o desc->lock held, but IRQ_PROGRESS set. We might race
+	 * with something else removing an action. It's ok to take
+	 * desc->lock here. See synchronize_irq().
+	 */
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	action = desc->action;
 	while (action) {
 		printk(KERN_ERR "[<%p>]", action->handler);
@@ -167,6 +172,7 @@ __report_bad_irq(unsigned int irq, struct irq_desc *desc,
 		printk("\n");
 		action = action->next;
 	}
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 static void
