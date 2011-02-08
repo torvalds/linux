@@ -1648,11 +1648,10 @@ static int onenand_verify(struct mtd_info *mtd, const u_char *buf, loff_t addr, 
 	int ret = 0;
 	int thislen, column;
 
+	column = addr & (this->writesize - 1);
+
 	while (len != 0) {
-		thislen = min_t(int, this->writesize, len);
-		column = addr & (this->writesize - 1);
-		if (column + thislen > this->writesize)
-			thislen = this->writesize - column;
+		thislen = min_t(int, this->writesize - column, len);
 
 		this->command(mtd, ONENAND_CMD_READ, addr, this->writesize);
 
@@ -1666,12 +1665,13 @@ static int onenand_verify(struct mtd_info *mtd, const u_char *buf, loff_t addr, 
 
 		this->read_bufferram(mtd, ONENAND_DATARAM, this->verify_buf, 0, mtd->writesize);
 
-		if (memcmp(buf, this->verify_buf, thislen))
+		if (memcmp(buf, this->verify_buf + column, thislen))
 			return -EBADMSG;
 
 		len -= thislen;
 		buf += thislen;
 		addr += thislen;
+		column = 0;
 	}
 
 	return 0;
