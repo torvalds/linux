@@ -78,8 +78,12 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 	 IRQ_NOAUTOEN | IRQ_MOVE_PCNTXT | IRQ_LEVEL | IRQ_NO_BALANCING | \
 	 IRQ_PER_CPU | IRQ_NESTED_THREAD)
 
-# define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
-# define IRQ_NO_BALANCING_MASK	(IRQ_PER_CPU | IRQ_NO_BALANCING)
+#define IRQ_NO_BALANCING_MASK	(IRQ_PER_CPU | IRQ_NO_BALANCING)
+
+static inline __deprecated bool CHECK_IRQ_PER_CPU(unsigned int status)
+{
+	return status & IRQ_PER_CPU;
+}
 
 /*
  * Return value for chip->irq_set_affinity()
