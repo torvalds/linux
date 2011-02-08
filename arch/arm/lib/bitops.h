@@ -12,7 +12,7 @@
 	strex	r0, r2, [r1]
 	cmp	r0, #0
 	bne	1b
-	mov	pc, lr
+	bx	lr
 	.endm
 
 	.macro	testop, instr, store
@@ -33,7 +33,7 @@
 	smp_dmb
 	cmp	r0, #0
 	movne	r0, #1
-2:	mov	pc, lr
+2:	bx	lr
 	.endm
 #else
 	.macro	bitop, instr
