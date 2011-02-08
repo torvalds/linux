@@ -695,7 +695,7 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 			ubifs_err("corrupt empty space LEB %d:%d, corruption "
 				  "starts at %d", lnum, offs, corruption);
 			/* Make sure we dump interesting non-0xFF data */
-			offs = corruption;
+			offs += corruption;
 			buf += corruption;
 			goto corrupted;
 		}
