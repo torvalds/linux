@@ -36,6 +36,38 @@
 #include "mux.h"
 #include "control.h"
 
+#define L3_MODULES_MAX_LEN 12
+
+static int __init omap3_l3_init(void)
+{
+	int l;
+	struct omap_hwmod *oh;
+	struct omap_device *od;
+	char oh_name[L3_MODULES_MAX_LEN];
+
+	/*
+	 * To avoid code running on other OMAPs in
+	 * multi-omap builds
+	 */
+	if (!(cpu_is_omap34xx()))
+		return -ENODEV;
+
+	l = snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main");
+
+	oh = omap_hwmod_lookup(oh_name);
+
+	if (!oh)
+		pr_err("could not look up %s\n", oh_name);
+
+	od = omap_device_build("omap_l3_smx", 0, oh, NULL, 0,
+							   NULL, 0, 0);
+
+	WARN(IS_ERR(od), "could not build omap_device for %s\n", oh_name);
+
+	return PTR_ERR(od);
+}
+postcore_initcall(omap3_l3_init);
+
 #if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
 
 static struct resource cam_resources[] = {
