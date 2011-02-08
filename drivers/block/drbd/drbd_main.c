@@ -796,15 +796,15 @@ int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc)
 	return rv;
 }
 
-int drbd_send_protocol(struct drbd_conf *mdev)
+int drbd_send_protocol(struct drbd_tconn *tconn)
 {
 	struct p_protocol *p;
 	int size, cf, rv;
 
 	size = sizeof(struct p_protocol);
 
-	if (mdev->tconn->agreed_pro_version >= 87)
-		size += strlen(mdev->tconn->net_conf->integrity_alg) + 1;
+	if (tconn->agreed_pro_version >= 87)
+		size += strlen(tconn->net_conf->integrity_alg) + 1;
 
 	/* we must not recurse into our own queue,
 	 * as that is blocked during handshake */
@@ -812,30 +812,30 @@ int drbd_send_protocol(struct drbd_conf *mdev)
 	if (p == NULL)
 		return 0;
 
-	p->protocol      = cpu_to_be32(mdev->tconn->net_conf->wire_protocol);
-	p->after_sb_0p   = cpu_to_be32(mdev->tconn->net_conf->after_sb_0p);
-	p->after_sb_1p   = cpu_to_be32(mdev->tconn->net_conf->after_sb_1p);
-	p->after_sb_2p   = cpu_to_be32(mdev->tconn->net_conf->after_sb_2p);
-	p->two_primaries = cpu_to_be32(mdev->tconn->net_conf->two_primaries);
+	p->protocol      = cpu_to_be32(tconn->net_conf->wire_protocol);
+	p->after_sb_0p   = cpu_to_be32(tconn->net_conf->after_sb_0p);
+	p->after_sb_1p   = cpu_to_be32(tconn->net_conf->after_sb_1p);
+	p->after_sb_2p   = cpu_to_be32(tconn->net_conf->after_sb_2p);
+	p->two_primaries = cpu_to_be32(tconn->net_conf->two_primaries);
 
 	cf = 0;
-	if (mdev->tconn->net_conf->want_lose)
+	if (tconn->net_conf->want_lose)
 		cf |= CF_WANT_LOSE;
-	if (mdev->tconn->net_conf->dry_run) {
-		if (mdev->tconn->agreed_pro_version >= 92)
+	if (tconn->net_conf->dry_run) {
+		if (tconn->agreed_pro_version >= 92)
 			cf |= CF_DRY_RUN;
 		else {
-			dev_err(DEV, "--dry-run is not supported by peer");
+			conn_err(tconn, "--dry-run is not supported by peer");
 			kfree(p);
 			return -1;
 		}
 	}
 	p->conn_flags    = cpu_to_be32(cf);
 
-	if (mdev->tconn->agreed_pro_version >= 87)
-		strcpy(p->integrity_alg, mdev->tconn->net_conf->integrity_alg);
+	if (tconn->agreed_pro_version >= 87)
+		strcpy(p->integrity_alg, tconn->net_conf->integrity_alg);
 
-	rv = drbd_send_cmd(mdev, USE_DATA_SOCKET, P_PROTOCOL, &p->head, size);
+	rv = conn_send_cmd2(tconn, P_PROTOCOL, p->head.payload, size - sizeof(struct p_header));
 	kfree(p);
 	return rv;
 }

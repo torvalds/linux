@@ -910,7 +910,7 @@ retry:
 
 	drbd_thread_start(&mdev->tconn->asender);
 
-	if (drbd_send_protocol(mdev) == -1)
+	if (drbd_send_protocol(mdev->tconn) == -1)
 		return -1;
 	drbd_send_sync_param(mdev, &mdev->sync_conf);
 	drbd_send_sizes(mdev, 0, 0);
