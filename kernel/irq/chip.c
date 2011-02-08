@@ -428,7 +428,7 @@ handle_simple_irq(unsigned int irq, struct irq_desc *desc)
 		if (!irq_check_poll(desc))
 			goto out_unlock;
 
-	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
+	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
 	kstat_incr_irqs_this_cpu(irq, desc);
 
 	if (unlikely(!desc->action || (desc->status & IRQ_DISABLED)))
@@ -460,7 +460,7 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 		if (!irq_check_poll(desc))
 			goto out_unlock;
 
-	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
+	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
 	kstat_incr_irqs_this_cpu(irq, desc);
 
 	/*
@@ -498,7 +498,7 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 		if (!irq_check_poll(desc))
 			goto out;
 
-	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
+	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
 	kstat_incr_irqs_this_cpu(irq, desc);
 
 	/*
@@ -537,8 +537,7 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 {
 	raw_spin_lock(&desc->lock);
 
-	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
-
+	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
 	/*
 	 * If we're currently running this IRQ, or its disabled,
 	 * we shouldn't process the IRQ. Mark it pending, handle

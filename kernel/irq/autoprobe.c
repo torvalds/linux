@@ -17,7 +17,7 @@
 /*
  * Autodetection depends on the fact that any interrupt that
  * comes in on to an unassigned handler will get stuck with
- * "IRQ_WAITING" cleared and the interrupt disabled.
+ * "IRQS_WAITING" cleared and the interrupt disabled.
  */
 static DEFINE_MUTEX(probing_active);
 
@@ -75,8 +75,7 @@ unsigned long probe_irq_on(void)
 	for_each_irq_desc_reverse(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
 		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
-			desc->istate |= IRQS_AUTODETECT;
-			desc->status |= IRQ_WAITING;
+			desc->istate |= IRQS_AUTODETECT | IRQS_WAITING;
 			if (irq_startup(desc))
 				desc->status |= IRQ_PENDING;
 		}
@@ -96,7 +95,7 @@ unsigned long probe_irq_on(void)
 
 		if (desc->istate & IRQS_AUTODETECT) {
 			/* It triggered already - consider it spurious. */
-			if (!(desc->status & IRQ_WAITING)) {
+			if (!(desc->istate & IRQS_WAITING)) {
 				desc->istate &= ~IRQS_AUTODETECT;
 				irq_shutdown(desc);
 			} else
@@ -131,7 +130,7 @@ unsigned int probe_irq_mask(unsigned long val)
 	for_each_irq_desc(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
 		if (desc->istate & IRQS_AUTODETECT) {
-			if (i < 16 && !(desc->status & IRQ_WAITING))
+			if (i < 16 && !(desc->istate & IRQS_WAITING))
 				mask |= 1 << i;
 
 			desc->istate &= ~IRQS_AUTODETECT;
@@ -171,7 +170,7 @@ int probe_irq_off(unsigned long val)
 		raw_spin_lock_irq(&desc->lock);
 
 		if (desc->istate & IRQS_AUTODETECT) {
-			if (!(desc->status & IRQ_WAITING)) {
+			if (!(desc->istate & IRQS_WAITING)) {
 				if (!nr_of_irqs)
 					irq_found = i;
 				nr_of_irqs++;
