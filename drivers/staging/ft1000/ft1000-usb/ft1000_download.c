@@ -644,15 +644,8 @@ static u32 write_blk_fifo(struct ft1000_device *ft1000dev, u16 **pUsFile,
 {
 	u32 Status = STATUS_SUCCESS;
 	int byte_length;
-	long aligncnt;
 
 	byte_length = word_length * 4;
-
-	if (byte_length % 4)
-		aligncnt = 4 - (byte_length % 4);
-	else
-		aligncnt = 0;
-	byte_length += aligncnt;
 
 	if (byte_length && ((byte_length % 64) == 0))
 		byte_length += 4;
