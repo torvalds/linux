@@ -60,7 +60,6 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_MASKED		0x00002000	/* DEPRECATED */
 #endif
 
-
 #define IRQ_LEVEL		0x00004000	/* IRQ level triggered */
 #define IRQ_PER_CPU		0x00010000	/* IRQ is per CPU */
 #define IRQ_NOPROBE		0x00020000	/* IRQ is not valid for probing */
@@ -71,7 +70,6 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_NO_BALANCING	0x00400000	/* IRQ is excluded from balancing */
 #define IRQ_MOVE_PCNTXT		0x01000000	/* IRQ migration from process context */
 #define IRQ_AFFINITY_SET	0x02000000	/* IRQ affinity was set from userspace*/
-#define IRQ_SUSPENDED		0x04000000	/* IRQ has gone through suspend sequence */
 #define IRQ_NESTED_THREAD	0x10000000	/* IRQ is nested into another, no own handler thread */
 
 #define IRQF_MODIFY_MASK	\

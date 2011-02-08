@@ -326,7 +326,7 @@ void __disable_irq(struct irq_desc *desc, unsigned int irq, bool suspend)
 	if (suspend) {
 		if (!desc->action || (desc->action->flags & IRQF_NO_SUSPEND))
 			return;
-		desc->status |= IRQ_SUSPENDED;
+		desc->istate |= IRQS_SUSPENDED;
 	}
 
 	if (!desc->depth++)
@@ -388,7 +388,7 @@ EXPORT_SYMBOL(disable_irq);
 void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume)
 {
 	if (resume) {
-		if (!(desc->status & IRQ_SUSPENDED)) {
+		if (!(desc->istate & IRQS_SUSPENDED)) {
 			if (!desc->action)
 				return;
 			if (!(desc->action->flags & IRQF_FORCE_RESUME))
@@ -396,7 +396,7 @@ void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume)
 			/* Pretend that it got disabled ! */
 			desc->depth++;
 		}
-		desc->status &= ~IRQ_SUSPENDED;
+		desc->istate &= ~IRQS_SUSPENDED;
 	}
 
 	switch (desc->depth) {
@@ -405,7 +405,7 @@ void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume)
 		WARN(1, KERN_WARNING "Unbalanced enable for IRQ %d\n", irq);
 		break;
 	case 1: {
-		if (desc->status & IRQ_SUSPENDED)
+		if (desc->istate & IRQS_SUSPENDED)
 			goto err_out;
 		/* Prevent probing on this irq: */
 		desc->status |= IRQ_NOPROBE;

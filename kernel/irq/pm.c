@@ -18,7 +18,7 @@
  * During system-wide suspend or hibernation device drivers need to be prevented
  * from receiving interrupts and this function is provided for this purpose.
  * It marks all interrupt lines in use, except for the timer ones, as disabled
- * and sets the IRQ_SUSPENDED flag for each of them.
+ * and sets the IRQS_SUSPENDED flag for each of them.
  */
 void suspend_device_irqs(void)
 {
@@ -34,7 +34,7 @@ void suspend_device_irqs(void)
 	}
 
 	for_each_irq_desc(irq, desc)
-		if (desc->status & IRQ_SUSPENDED)
+		if (desc->istate & IRQS_SUSPENDED)
 			synchronize_irq(irq);
 }
 EXPORT_SYMBOL_GPL(suspend_device_irqs);
@@ -43,7 +43,7 @@ EXPORT_SYMBOL_GPL(suspend_device_irqs);
  * resume_device_irqs - enable interrupt lines disabled by suspend_device_irqs()
  *
  * Enable all interrupt lines previously disabled by suspend_device_irqs() that
- * have the IRQ_SUSPENDED flag set.
+ * have the IRQS_SUSPENDED flag set.
  */
 void resume_device_irqs(void)
 {
