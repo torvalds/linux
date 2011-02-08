@@ -234,33 +234,20 @@ EXPORT_SYMBOL(iwl_rx_spectrum_measure_notif);
 void iwl_recover_from_statistics(struct iwl_priv *priv,
 				struct iwl_rx_packet *pkt)
 {
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
+	    !iwl_is_any_associated(priv))
 		return;
-	if (iwl_is_any_associated(priv)) {
-		if (priv->cfg->ops->lib->check_ack_health) {
-			if (!priv->cfg->ops->lib->check_ack_health(
-			    priv, pkt)) {
-				/*
-				 * low ack count detected
-				 * restart Firmware
-				 */
-				IWL_ERR(priv, "low ack count detected, "
-					"restart firmware\n");
-				if (!iwl_force_reset(priv, IWL_FW_RESET, false))
-					return;
-			}
-		}
-		if (priv->cfg->ops->lib->check_plcp_health) {
-			if (!priv->cfg->ops->lib->check_plcp_health(
-			    priv, pkt)) {
-				/*
-				 * high plcp error detected
-				 * reset Radio
-				 */
-				iwl_force_reset(priv, IWL_RF_RESET, false);
-			}
-		}
+
+	if (priv->cfg->ops->lib->check_ack_health &&
+	    !priv->cfg->ops->lib->check_ack_health(priv, pkt)) {
+		IWL_ERR(priv, "low ack count detected, restart firmware\n");
+		if (!iwl_force_reset(priv, IWL_FW_RESET, false))
+			return;
 	}
+
+	if (priv->cfg->ops->lib->check_plcp_health &&
+	    !priv->cfg->ops->lib->check_plcp_health(priv, pkt))
+		iwl_force_reset(priv, IWL_RF_RESET, false);
 }
 EXPORT_SYMBOL(iwl_recover_from_statistics);
 
