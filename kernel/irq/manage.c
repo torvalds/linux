@@ -865,12 +865,10 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 			goto mismatch;
 		}
 
-#if defined(CONFIG_IRQ_PER_CPU)
 		/* All handlers must agree on per-cpuness */
 		if ((old->flags & IRQF_PERCPU) !=
 		    (new->flags & IRQF_PERCPU))
 			goto mismatch;
-#endif
 
 		/* add new interrupt at end of irq queue */
 		do {
@@ -894,14 +892,13 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 				goto out_mask;
 		} else
 			compat_irq_chip_set_default_handler(desc);
-#if defined(CONFIG_IRQ_PER_CPU)
-		if (new->flags & IRQF_PERCPU)
-			desc->status |= IRQ_PER_CPU;
-#endif
 
 		desc->istate &= ~(IRQS_AUTODETECT | IRQS_SPURIOUS_DISABLED | \
 				  IRQS_INPROGRESS | IRQS_ONESHOT | \
 				  IRQS_WAITING);
+
+		if (new->flags & IRQF_PERCPU)
+			desc->status |= IRQ_PER_CPU;
 
 		if (new->flags & IRQF_ONESHOT)
 			desc->istate |= IRQS_ONESHOT;

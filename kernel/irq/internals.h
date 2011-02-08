@@ -163,9 +163,7 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 	}
 
 	P(IRQ_LEVEL);
-#ifdef CONFIG_IRQ_PER_CPU
 	P(IRQ_PER_CPU);
-#endif
 	P(IRQ_NOPROBE);
 	P(IRQ_NOREQUEST);
 	P(IRQ_NOAUTOEN);

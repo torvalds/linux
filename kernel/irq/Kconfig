@@ -32,9 +32,6 @@ config GENERIC_PENDING_IRQ
 config AUTO_IRQ_AFFINITY
        def_bool n
 
-config IRQ_PER_CPU
-       def_bool n
-
 config HARDIRQS_SW_RESEND
        def_bool n
 
