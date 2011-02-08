@@ -1308,6 +1308,13 @@ skip_hashing:
 	return 0;
 }
 
+static atomic_t __rt_peer_genid = ATOMIC_INIT(0);
+
+static u32 rt_peer_genid(void)
+{
+	return atomic_read(&__rt_peer_genid);
+}
+
 void rt_bind_peer(struct rtable *rt, int create)
 {
 	struct inet_peer *peer;
@@ -1316,6 +1323,8 @@ void rt_bind_peer(struct rtable *rt, int create)
 
 	if (peer && cmpxchg(&rt->peer, NULL, peer) != NULL)
 		inet_putpeer(peer);
+	else
+		rt->rt_peer_genid = rt_peer_genid();
 }
 
 /*
@@ -1767,8 +1776,16 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 
 static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
 {
-	if (rt_is_expired((struct rtable *)dst))
+	struct rtable *rt = (struct rtable *) dst;
+
+	if (rt_is_expired(rt))
 		return NULL;
+	if (rt->rt_peer_genid != rt_peer_genid()) {
+		if (!rt->peer)
+			rt_bind_peer(rt, 0);
+
+		rt->rt_peer_genid = rt_peer_genid();
+	}
 	return dst;
 }
 

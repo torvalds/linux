@@ -240,6 +240,13 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 	}
 }
 
+static atomic_t __rt6_peer_genid = ATOMIC_INIT(0);
+
+static u32 rt6_peer_genid(void)
+{
+	return atomic_read(&__rt6_peer_genid);
+}
+
 void rt6_bind_peer(struct rt6_info *rt, int create)
 {
 	struct inet_peer *peer;
@@ -247,6 +254,8 @@ void rt6_bind_peer(struct rt6_info *rt, int create)
 	peer = inet_getpeer_v6(&rt->rt6i_dst.addr, create);
 	if (peer && cmpxchg(&rt->rt6i_peer, NULL, peer) != NULL)
 		inet_putpeer(peer);
+	else
+		rt->rt6i_peer_genid = rt6_peer_genid();
 }
 
 static void ip6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
@@ -912,9 +921,14 @@ static struct dst_entry *ip6_dst_check(struct dst_entry *dst, u32 cookie)
 
 	rt = (struct rt6_info *) dst;
 
-	if (rt->rt6i_node && (rt->rt6i_node->fn_sernum == cookie))
+	if (rt->rt6i_node && (rt->rt6i_node->fn_sernum == cookie)) {
+		if (rt->rt6i_peer_genid != rt6_peer_genid()) {
+			if (!rt->rt6i_peer)
+				rt6_bind_peer(rt, 0);
+			rt->rt6i_peer_genid = rt6_peer_genid();
+		}
 		return dst;
-
+	}
 	return NULL;
 }
 

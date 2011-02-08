@@ -69,6 +69,7 @@ struct rtable {
 
 	/* Miscellaneous cached information */
 	__be32			rt_spec_dst; /* RFC1122 specific destination */
+	u32			rt_peer_genid;
 	struct inet_peer	*peer; /* long-living peer info */
 	struct fib_info		*fi; /* for client ref to shared metrics */
 };
