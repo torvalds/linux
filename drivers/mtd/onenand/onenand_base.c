@@ -1132,6 +1132,8 @@ static int onenand_mlc_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 			onenand_update_bufferram(mtd, from, !ret);
 			if (ret == -EBADMSG)
 				ret = 0;
+			if (ret)
+				break;
 		}
 
 		this->read_bufferram(mtd, ONENAND_DATARAM, buf, column, thislen);
