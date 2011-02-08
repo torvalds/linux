@@ -43,7 +43,7 @@
 #define GET(X, Y, Z) do { \
 	int __rc; \
 	*(Z) = (u16)0; \
-	__rc = regget(X, Y, Z); \
+	__rc = regget(X, Y, Z, sizeof(u8)); \
 	if (0 > __rc) { \
 		JOT(8, ":-(%i\n", __LINE__);  return __rc; \
 	} \
@@ -256,7 +256,8 @@ static const struct saa7113config saa7113configNTSC[256] = {
 		{0xFF, 0xFF}
 };
 
-static int regget(struct usb_device *pusb_device, u16 index, void *pvoid)
+static int regget(struct usb_device *pusb_device,
+		u16 index, void *reg, int reg_size)
 {
 	int rc;
 
@@ -264,46 +265,32 @@ static int regget(struct usb_device *pusb_device, u16 index, void *pvoid)
 		return -ENODEV;
 
 	rc = usb_control_msg(pusb_device, usb_rcvctrlpipe(pusb_device, 0),
-			(u8)0x00,
-			(u8)(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
-			(u16)0x00,
-			(u16)index,
-			(void *)pvoid,
-			sizeof(u8),
-			(int)50000);
+			0x00,
+			(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
+			0x00,
+			index, reg, reg_size, 50000);
 
 	return 0xFF & rc;
 }
 
 static int regset(struct usb_device *pusb_device, u16 index, u16 value)
 {
-	u16 igot;
 	int rc0, rc1;
+	u16 igot;
 
 	if (!pusb_device)
 		return -ENODEV;
 
 	rc1 = 0;  igot = 0;
 	rc0 = usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0),
-			(u8)0x01,
-			(u8)(USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
-			(u16)value,
-			(u16)index,
-			NULL,
-			(u16)0,
-			(int)500);
+			0x01,
+			(USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
+			value, index, NULL, 0, 500);
 
 #ifdef NOREADBACK
 #
 #else
-	rc1 = usb_control_msg(pusb_device, usb_rcvctrlpipe(pusb_device, 0),
-			(u8)0x00,
-			(u8)(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
-			(u16)0x00,
-			(u16)index,
-			(void *)&igot,
-			(u16)sizeof(u16),
-			(int)50000);
+	rc1 = regget(pusb_device, index, &igot, sizeof(igot));
 	igot = 0xFF & igot;
 	switch (index) {
 	case 0x000:
