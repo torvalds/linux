@@ -140,16 +140,17 @@ static struct wlc_info *wlc_info_dbg = (struct wlc_info *) (NULL);
  */
 enum {
 	IOV_MPC = 1,
+	IOV_RTSTHRESH,
 	IOV_QTXPOWER,
 	IOV_BCN_LI_BCN,		/* Beacon listen interval in # of beacons */
 	IOV_LAST		/* In case of a need to check max ID number */
 };
 
 const bcm_iovar_t wlc_iovars[] = {
-	{"mpc", IOV_MPC, (IOVF_OPEN_ALLOW), IOVT_BOOL, 0},
-	{"qtxpower", IOV_QTXPOWER, (IOVF_WHL | IOVF_OPEN_ALLOW), IOVT_UINT32,
-	 0},
-	{"bcn_li_bcn", IOV_BCN_LI_BCN, 0, IOVT_UINT8, 0},
+	{"mpc", IOV_MPC, (0), IOVT_BOOL, 0},
+	{"rtsthresh", IOV_RTSTHRESH, (IOVF_WHL), IOVT_UINT16, 0},
+	{"qtxpower", IOV_QTXPOWER, (IOVF_WHL), IOVT_UINT32, 0},
+	{"bcn_li_bcn", IOV_BCN_LI_BCN, (0), IOVT_UINT8, 0},
 	{NULL, 0, 0, 0, 0}
 };
 
@@ -239,6 +240,7 @@ static u16 BCMFASTPATH wlc_d11hdrs_mac80211(struct wlc_info *wlc,
 					       wsec_key_t *key,
 					       ratespec_t rspec_override);
 
+static void wlc_ctrupd_cache(u16 cur_stat, u16 *macstat_snapshot, u32 *macstat);
 static void wlc_bss_default_init(struct wlc_info *wlc);
 static void wlc_ucode_mac_upd(struct wlc_info *wlc);
 static ratespec_t mac80211_wlc_set_nrate(struct wlc_info *wlc,
@@ -4577,6 +4579,9 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 		 wlc->pub->unit, __func__, IOV_ID(actionid));
 	/* Do the actual parameter implementation */
 	switch (actionid) {
+	case IOV_SVAL(IOV_RTSTHRESH):
+		wlc->RTSThresh = int_val;
+		break;
 
 	case IOV_GVAL(IOV_QTXPOWER):{
 			uint qdbm;
@@ -5969,6 +5974,11 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	/* Reset these for use with AMPDU's */
 	txrate[0]->count = 0;
 	txrate[1]->count = 0;
+
+	/* (2) PROTECTION, may change rspec */
+	if ((ieee80211_is_data(fc) || ieee80211_is_mgmt(fc)) &&
+	    (phylen > wlc->RTSThresh) && !is_multicast_ether_addr(h->addr1))
+		use_rts = true;
 
 	/* (3) PLCP: determine PLCP header and MAC duration, fill d11txh_t */
 	wlc_compute_plcp(wlc, rspec[0], phylen, plcp);

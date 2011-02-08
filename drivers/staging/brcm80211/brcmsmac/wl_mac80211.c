@@ -461,7 +461,11 @@ wl_ops_get_stats(struct ieee80211_hw *hw,
 
 static int wl_ops_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 {
-	WL_ERROR("%s: Enter\n", __func__);
+	struct wl_info *wl = hw->priv;
+
+	WL_LOCK(wl);
+	wlc_iovar_setint(wl->wlc, "rtsthresh", value & 0xFFFF);
+	WL_UNLOCK(wl);
 	return 0;
 }
 
