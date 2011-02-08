@@ -489,7 +489,7 @@ int irq_set_irq_wake(unsigned int irq, unsigned int on)
 			if (ret)
 				desc->wake_depth = 0;
 			else
-				desc->status |= IRQ_WAKEUP;
+				desc->istate |= IRQS_WAKEUP;
 		}
 	} else {
 		if (desc->wake_depth == 0) {
@@ -499,7 +499,7 @@ int irq_set_irq_wake(unsigned int irq, unsigned int on)
 			if (ret)
 				desc->wake_depth = 1;
 			else
-				desc->status &= ~IRQ_WAKEUP;
+				desc->istate &= ~IRQS_WAKEUP;
 		}
 	}
 

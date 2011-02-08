@@ -49,6 +49,7 @@ enum {
  * IRQS_PENDING			- irq is pending and replayed later
  * IRQS_MASKED			- irq is masked
  * IRQS_SUSPENDED		- irq is suspended
+ * IRQS_WAKEUP			- irq triggers system wakeup from suspend
  */
 enum {
 	IRQS_AUTODETECT		= 0x00000001,
@@ -62,6 +63,7 @@ enum {
 	IRQS_PENDING		= 0x00000200,
 	IRQS_MASKED		= 0x00000400,
 	IRQS_SUSPENDED		= 0x00000800,
+	IRQS_WAKEUP		= 0x00001000,
 };
 
 #define irq_data_to_desc(data)	container_of(data, struct irq_desc, irq_data)
