@@ -358,6 +358,13 @@ static void acpi_kref_del_iomap(struct kref *ref)
 	list_del_rcu(&map->list);
 }
 
+static void acpi_os_remove_map(struct acpi_ioremap *map)
+{
+	synchronize_rcu();
+	iounmap(map->virt);
+	kfree(map);
+}
+
 void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 {
 	struct acpi_ioremap *map;
@@ -372,20 +379,14 @@ void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 	map = acpi_map_lookup_virt(virt, size);
 	if (!map) {
 		mutex_unlock(&acpi_ioremap_lock);
-		printk(KERN_ERR PREFIX "%s: bad address %p\n", __func__, virt);
-		dump_stack();
+		WARN(true, PREFIX "%s: bad address %p\n", __func__, virt);
 		return;
 	}
-
 	del = kref_put(&map->ref, acpi_kref_del_iomap);
 	mutex_unlock(&acpi_ioremap_lock);
 
-	if (!del)
-		return;
-
-	synchronize_rcu();
-	iounmap(map->virt);
-	kfree(map);
+	if (del)
+		acpi_os_remove_map(map);
 }
 EXPORT_SYMBOL_GPL(acpi_os_unmap_memory);
 
@@ -414,8 +415,8 @@ static int acpi_os_map_generic_address(struct acpi_generic_address *addr)
 
 static void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
 {
-	void __iomem *virt;
-	acpi_size size = addr->bit_width / 8;
+	struct acpi_ioremap *map;
+	int del;
 
 	if (addr->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
 		return;
@@ -424,10 +425,16 @@ static void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
 		return;
 
 	mutex_lock(&acpi_ioremap_lock);
-	virt = acpi_map_vaddr_lookup(addr->address, size);
+	map = acpi_map_lookup(addr->address, addr->bit_width / 8);
+	if (!map) {
+		mutex_unlock(&acpi_ioremap_lock);
+		return;
+	}
+	del = kref_put(&map->ref, acpi_kref_del_iomap);
 	mutex_unlock(&acpi_ioremap_lock);
 
-	acpi_os_unmap_memory(virt, size);
+	if (del)
+		acpi_os_remove_map(map);
 }
 
 #ifdef ACPI_FUTURE_USAGE
