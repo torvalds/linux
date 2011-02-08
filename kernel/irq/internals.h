@@ -139,3 +139,14 @@ static inline void irqd_clr_move_pending(struct irq_data *d)
 	d->state_use_accessors &= ~IRQD_SETAFFINITY_PENDING;
 	irq_compat_clr_move_pending(irq_data_to_desc(d));
 }
+
+static inline void irqd_clear(struct irq_data *d, unsigned int mask)
+{
+	d->state_use_accessors &= ~mask;
+}
+
+static inline void irqd_set(struct irq_data *d, unsigned int mask)
+{
+	d->state_use_accessors |= mask;
+}
+

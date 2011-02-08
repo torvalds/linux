@@ -706,12 +706,15 @@ void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set)
 	if (!desc)
 		return;
 
-	/* Sanitize flags */
-	set &= IRQF_MODIFY_MASK;
-	clr &= IRQF_MODIFY_MASK;
-
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc->status &= ~clr;
-	desc->status |= set;
+
+	irq_settings_clr_and_set(desc, clr, set);
+
+	irqd_clear(&desc->irq_data, IRQD_NO_BALANCING | IRQD_PER_CPU);
+	if (irq_settings_has_no_balance_set(desc))
+		irqd_set(&desc->irq_data, IRQD_NO_BALANCING);
+	if (irq_settings_is_per_cpu(desc))
+		irqd_set(&desc->irq_data, IRQD_PER_CPU);
+
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }

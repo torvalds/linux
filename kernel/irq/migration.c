@@ -15,7 +15,7 @@ void move_masked_irq(int irq)
 	/*
 	 * Paranoia: cpu-local interrupts shouldn't be calling in here anyway.
 	 */
-	if (desc->status & (IRQ_PER_CPU | IRQ_NO_BALANCING)) {
+	if (!irqd_can_balance(&desc->irq_data)) {
 		WARN_ON(1);
 		return;
 	}

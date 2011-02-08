@@ -73,8 +73,8 @@ int irq_can_set_affinity(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if ((desc->status & (IRQ_PER_CPU | IRQ_NO_BALANCING)) ||
-	    !desc->irq_data.chip || !desc->irq_data.chip->irq_set_affinity)
+	if (!irqd_can_balance(&desc->irq_data) || !desc->irq_data.chip ||
+	    !desc->irq_data.chip->irq_set_affinity)
 		return 0;
 
 	return 1;
@@ -897,8 +897,10 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 				  IRQS_INPROGRESS | IRQS_ONESHOT | \
 				  IRQS_WAITING);
 
-		if (new->flags & IRQF_PERCPU)
-			desc->status |= IRQ_PER_CPU;
+		if (new->flags & IRQF_PERCPU) {
+			irqd_set(&desc->irq_data, IRQD_PER_CPU);
+			irq_settings_set_per_cpu(desc);
+		}
 
 		if (new->flags & IRQF_ONESHOT)
 			desc->istate |= IRQS_ONESHOT;
@@ -910,8 +912,10 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 			desc->depth = 1;
 
 		/* Exclude IRQ from balancing if requested */
-		if (new->flags & IRQF_NOBALANCING)
-			desc->status |= IRQ_NO_BALANCING;
+		if (new->flags & IRQF_NOBALANCING) {
+			irq_settings_set_no_balancing(desc);
+			irqd_set(&desc->irq_data, IRQD_NO_BALANCING);
+		}
 
 		/* Set default affinity mask once everything is setup */
 		setup_affinity(irq, desc, mask);

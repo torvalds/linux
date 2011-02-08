@@ -132,15 +132,29 @@ struct irq_data {
  * Bit masks for irq_data.state
  *
  * IRQD_SETAFFINITY_PENDING	- Affinity setting is pending
+ * IRQD_NO_BALANCING		- Balancing disabled for this IRQ
+ * IRQD_PER_CPU			- Interrupt is per cpu
  */
 enum {
 	/* Bit 0 - 7 reserved for TYPE will use later */
-	IRQD_SETAFFINITY_PENDING = (1 << 8),
+	IRQD_SETAFFINITY_PENDING	= (1 <<  8),
+	IRQD_NO_BALANCING		= (1 << 10),
+	IRQD_PER_CPU			= (1 << 11),
 };
 
 static inline bool irqd_is_setaffinity_pending(struct irq_data *d)
 {
 	return d->state_use_accessors & IRQD_SETAFFINITY_PENDING;
+}
+
+static inline bool irqd_is_per_cpu(struct irq_data *d)
+{
+	return d->state_use_accessors & IRQD_PER_CPU;
+}
+
+static inline bool irqd_can_balance(struct irq_data *d)
+{
+	return !(d->state_use_accessors & (IRQD_PER_CPU | IRQD_NO_BALANCING));
 }
 
 /**
