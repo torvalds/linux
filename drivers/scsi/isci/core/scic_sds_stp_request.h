@@ -58,7 +58,6 @@
 
 #include <linux/dma-mapping.h>
 #include "intel_sata.h"
-#include "sci_types.h"
 #include "scic_sds_request.h"
 
 /**

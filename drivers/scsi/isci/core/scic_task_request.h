@@ -65,7 +65,6 @@
  */
 
 
-#include "sci_types.h"
 #include "sci_status.h"
 
 struct scic_sds_request;

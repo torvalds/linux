@@ -64,7 +64,6 @@
  *
  */
 
-#include "sci_types.h"
 #include "sci_base_state.h"
 #include "sci_base_state_machine.h"
 

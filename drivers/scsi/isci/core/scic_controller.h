@@ -64,7 +64,6 @@
  */
 
 
-#include "sci_types.h"
 #include "sci_status.h"
 #include "sci_controller.h"
 #include "scic_config_parameters.h"
@@ -73,6 +72,13 @@ struct scic_sds_request;
 struct scic_sds_phy;
 struct scic_sds_port;
 struct scic_sds_remote_device;
+
+
+enum sci_controller_mode {
+	SCI_MODE_SPEED,		/* Optimized for performance */
+	SCI_MODE_SIZE		/* Optimized for memory use */
+};
+
 
 /**
  * enum _SCIC_INTERRUPT_TYPE - This enumeration depicts the various types of

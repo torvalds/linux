@@ -56,6 +56,8 @@
 #ifndef _SCI_BASE_STATE_MACHINE_H_
 #define _SCI_BASE_STATE_MACHINE_H_
 
+#include <linux/string.h>
+
 /**
  * This file contains all structures, constants, or method declarations common
  *    to all state machines defined in SCI.

@@ -62,7 +62,6 @@
  *
  *
  */
-#include "sci_types.h"
 
 /**
  * struct ssp_remote_node_context - This structure contains the SCU hardware

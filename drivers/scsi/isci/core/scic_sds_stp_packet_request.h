@@ -56,7 +56,6 @@
 #define _SCIC_SDS_STP_PACKET_REQUEST_H_
 
 #include "intel_sas.h"
-#include "sci_types.h"
 #include "scic_sds_stp_request.h"
 
 /**

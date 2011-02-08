@@ -64,7 +64,7 @@
 #ifndef _SCU_UNSOLICITED_FRAME_H_
 #define _SCU_UNSOLICITED_FRAME_H_
 
-#include "sci_types.h"
+#include <linux/string.h>
 
 /**
  *

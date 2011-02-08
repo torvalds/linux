@@ -63,7 +63,6 @@
  *
  */
 
-#include "sci_types.h"
 
 #define SCU_VIIT_ENTRY_ID_MASK         (0xC0000000)
 #define SCU_VIIT_ENTRY_ID_SHIFT        (30)

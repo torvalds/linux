@@ -56,7 +56,7 @@
 #ifndef _SCI_UTIL_H_
 #define _SCI_UTIL_H_
 
-#include "sci_types.h"
+#include <linux/string.h>
 
 /**
  * SCIC_SWAP_DWORD() -
@@ -80,6 +80,11 @@
 	)
 
 #define SCI_FIELD_OFFSET(type, field)   ((unsigned long)&(((type *)0)->field))
+
+
+#define sci_cb_make_physical_address(physical_addr, addr_upper, addr_lower) \
+	((physical_addr) = (addr_lower) | ((u64)addr_upper) << 32)
+
 
 /**
  * sci_physical_address_add() -

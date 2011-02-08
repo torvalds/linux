@@ -64,7 +64,6 @@
  */
 
 
-#include "sci_types.h"
 #include "sci_status.h"
 
 #include "intel_sata.h"

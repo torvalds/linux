@@ -63,7 +63,6 @@
  *
  */
 
-#include "sci_types.h"
 #include "scu_viit_data.h"
 
 

@@ -65,7 +65,6 @@
  */
 
 
-#include "sci_types.h"
 #include "sci_status.h"
 #include "intel_sas.h"
 #include "sci_controller_constants.h"

@@ -64,7 +64,6 @@
  */
 
 
-#include "sci_types.h"
 
 struct sci_base_memory_descriptor_list;
 

@@ -79,7 +79,6 @@
 #include <scsi/libsas.h>
 #include <scsi/scsi.h>
 
-#include "sci_types.h"
 #include "sci_base_controller.h"
 #include "scic_controller.h"
 #include "host.h"

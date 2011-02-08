@@ -64,7 +64,6 @@
  */
 
 
-#include "sci_types.h"
 #include "sci_memory_descriptor_list.h"
 
 

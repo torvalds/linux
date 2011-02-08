@@ -64,7 +64,6 @@
  */
 
 #include <asm/io.h>
-#include "sci_types.h"
 
 struct scic_sds_controller;
 

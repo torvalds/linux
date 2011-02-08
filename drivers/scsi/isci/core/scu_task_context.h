@@ -63,7 +63,6 @@
  *
  */
 
-#include "sci_types.h"
 
 /**
  * enum SCU_SSP_TASK_TYPE - This enumberation defines the various SSP task

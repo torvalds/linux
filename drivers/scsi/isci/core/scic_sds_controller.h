@@ -56,6 +56,8 @@
 #ifndef _SCIC_SDS_CONTROLLER_H_
 #define _SCIC_SDS_CONTROLLER_H_
 
+#include <linux/string.h>
+
 /**
  * This file contains the structures, constants and prototypes used for the
  *    core controller object.
