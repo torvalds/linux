@@ -220,8 +220,6 @@ static inline u32
 dst_allfrag(const struct dst_entry *dst)
 {
 	int ret = dst_feature(dst,  RTAX_FEATURE_ALLFRAG);
-	/* Yes, _exactly_. This is paranoia. */
-	barrier();
 	return ret;
 }
 
