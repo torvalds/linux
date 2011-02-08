@@ -135,7 +135,7 @@ struct vmstorage_channel_properties {
 	/*  This id is unique for each channel and will correspond with */
 	/*  vendor specific data in the inquirydata */
 	unsigned long long unique_id;
-} __attribute__((packed));
+} __packed;
 
 /*  This structure is sent during the storage protocol negotiations. */
 struct vmstorage_protocol_version {
@@ -149,7 +149,7 @@ struct vmstorage_protocol_version {
 	 * builds.
 	 */
 	unsigned short revision;
-} __attribute__((packed));
+} __packed;
 
 /* Channel Property Flags */
 #define STORAGE_CHANNEL_REMOVABLE_FLAG		0x1
@@ -179,7 +179,7 @@ struct vstor_packet {
 		/* Used during version negotiations. */
 		struct vmstorage_protocol_version version;
 	};
-} __attribute__((packed));
+} __packed;
 
 /* Packet flags */
 /*

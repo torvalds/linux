@@ -75,7 +75,7 @@ struct vmbus_channel_offer {
 		} pipe;
 	} u;
 	u32 padding;
-} __attribute__((packed));
+} __packed;
 
 /* Server Flags */
 #define VMBUS_CHANNEL_ENUMERATE_DEVICE_INTERFACE	1

@@ -51,7 +51,7 @@ struct hv_ring_buffer {
 	 * !!! DO NOT place any fields below this !!!
 	 */
 	u8 buffer[0];
-} __attribute__((packed));
+} __packed;
 
 struct hv_ring_buffer_info {
 	struct hv_ring_buffer *ring_buffer;

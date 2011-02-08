@@ -30,17 +30,17 @@ struct vmpacket_descriptor {
 	u16 len8;
 	u16 flags;
 	u64 trans_id;
-} __attribute__((packed));
+} __packed;
 
 struct vmpacket_header {
 	u32 prev_pkt_start_offset;
 	struct vmpacket_descriptor descriptor;
-} __attribute__((packed));
+} __packed;
 
 struct vmtransfer_page_range {
 	u32 byte_count;
 	u32 byte_offset;
-} __attribute__((packed));
+} __packed;
 
 struct vmtransfer_page_packet_header {
 	struct vmpacket_descriptor d;
@@ -49,20 +49,20 @@ struct vmtransfer_page_packet_header {
 	u8 reserved;
 	u32 range_cnt;
 	struct vmtransfer_page_range ranges[1];
-} __attribute__((packed));
+} __packed;
 
 struct vmgpadl_packet_header {
 	struct vmpacket_descriptor d;
 	u32 gpadl;
 	u32 reserved;
-} __attribute__((packed));
+} __packed;
 
 struct vmadd_remove_transfer_page_set {
 	struct vmpacket_descriptor d;
 	u32 gpadl;
 	u16 xfer_pageset_id;
 	u16 reserved;
-} __attribute__((packed));
+} __packed;
 
 /*
  * This structure defines a range in guest physical space that can be made to
@@ -86,7 +86,7 @@ struct vmestablish_gpadl {
 	u32 gpadl;
 	u32 range_cnt;
 	struct gpa_range range[1];
-} __attribute__((packed));
+} __packed;
 
 /*
  * This is the format for a Teardown Gpadl packet, which indicates that the
@@ -96,7 +96,7 @@ struct vmteardown_gpadl {
 	struct vmpacket_descriptor d;
 	u32 gpadl;
 	u32 reserved;	/* for alignment to a 8-byte boundary */
-} __attribute__((packed));
+} __packed;
 
 /*
  * This is the format for a GPA-Direct packet, which contains a set of GPA
@@ -107,7 +107,7 @@ struct vmdata_gpa_direct {
 	u32 reserved;
 	u32 range_cnt;
 	struct gpa_range range[1];
-} __attribute__((packed));
+} __packed;
 
 /* This is the format for a Additional Data Packet. */
 struct vmadditional_data {
@@ -116,7 +116,7 @@ struct vmadditional_data {
 	u32 offset;
 	u32 byte_cnt;
 	unsigned char data[1];
-} __attribute__((packed));
+} __packed;
 
 union vmpacket_largest_possible_header {
 	struct vmpacket_descriptor simple_hdr;
