@@ -3145,7 +3145,7 @@ static const struct v4l2_file_operations v4l2_fops = {
 static int easycap_usb_probe(struct usb_interface *pusb_interface,
 			    const struct usb_device_id *pusb_device_id)
 {
-	struct usb_device *pusb_device, *pusb_device1;
+	struct usb_device *pusb_device;
 	struct usb_host_interface *pusb_host_interface;
 	struct usb_endpoint_descriptor *pepd;
 	struct usb_interface_descriptor *pusb_interface_descriptor;
@@ -3182,32 +3182,13 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
-/* setup modules params */
-
-	if (NULL == pusb_interface) {
-		SAY("ERROR: pusb_interface is NULL\n");
-		return -EFAULT;
-	}
 /*---------------------------------------------------------------------------*/
 /*
  *  GET POINTER TO STRUCTURE usb_device
  */
 /*---------------------------------------------------------------------------*/
-	pusb_device1 = container_of(pusb_interface->dev.parent,
-							struct usb_device, dev);
-	if (NULL == pusb_device1) {
-		SAY("ERROR: pusb_device1 is NULL\n");
-		return -EFAULT;
-	}
-	pusb_device = usb_get_dev(pusb_device1);
-	if (NULL == pusb_device) {
-		SAY("ERROR: pusb_device is NULL\n");
-		return -EFAULT;
-	}
-	if ((unsigned long int)pusb_device1 != (unsigned long int)pusb_device) {
-		JOT(4, "ERROR: pusb_device1 != pusb_device\n");
-		return -EFAULT;
-	}
+	pusb_device = interface_to_usbdev(pusb_interface);
+
 	JOT(4, "bNumConfigurations=%i\n", pusb_device->descriptor.bNumConfigurations);
 /*---------------------------------------------------------------------------*/
 	pusb_host_interface = pusb_interface->cur_altsetting;
@@ -4568,10 +4549,6 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 
 	JOT(4, "\n");
 
-	if (NULL == pusb_interface) {
-		JOT(4, "ERROR: pusb_interface is NULL\n");
-		return;
-	}
 	pusb_host_interface = pusb_interface->cur_altsetting;
 	if (NULL == pusb_host_interface) {
 		JOT(4, "ERROR: pusb_host_interface is NULL\n");
