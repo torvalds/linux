@@ -143,7 +143,6 @@ struct isci_host {
 struct isci_pci_info {
 	struct msix_entry msix_entries[SCI_MAX_MSIX_INT];
 	int core_lib_array_index;
-	SCI_LIBRARY_HANDLE_T core_lib_handle;
 	struct isci_host *hosts;
 };
 

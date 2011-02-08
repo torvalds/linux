@@ -63,15 +63,6 @@
 
 #define SCI_INVALID_HANDLE 0x0
 
-/**
- * The SCI_LIBRARY_HANDLE_T will be utilized by SCI users as an opaque handle
- *    for the SCI Library object.
- *
- * SCI_LIBRARY_HANDLE_T
- */
-typedef void *SCI_LIBRARY_HANDLE_T;
-
-
 typedef enum {
 	SCI_IO_REQUEST_DATA_IN = 0,	/* Read operation */
 	SCI_IO_REQUEST_DATA_OUT,	/* Write operation */
