@@ -645,13 +645,13 @@ typedef int (*drbd_work_cb)(struct drbd_conf *, struct drbd_work *, int cancel);
 struct drbd_work {
 	struct list_head list;
 	drbd_work_cb cb;
+	struct drbd_conf *mdev;
 };
 
 #include "drbd_interval.h"
 
 struct drbd_request {
 	struct drbd_work w;
-	struct drbd_conf *mdev;
 
 	/* if local IO is not allowed, will be NULL.
 	 * if local IO _is_ allowed, holds the locally submitted bio clone,
@@ -715,7 +715,6 @@ struct digest_info {
 struct drbd_peer_request {
 	struct drbd_work w;
 	struct drbd_epoch *epoch; /* for writes */
-	struct drbd_conf *mdev;
 	struct page *pages;
 	atomic_t pending_bios;
 	struct drbd_interval i;
@@ -1537,7 +1536,7 @@ extern void _drbd_wait_ee_list_empty(struct drbd_conf *mdev,
 		struct list_head *head);
 extern void drbd_set_recv_tcq(struct drbd_conf *mdev, int tcq_enabled);
 extern void _drbd_clear_done_ee(struct drbd_conf *mdev, struct list_head *to_be_freed);
-extern void drbd_flush_workqueue(struct drbd_tconn *tconn);
+extern void drbd_flush_workqueue(struct drbd_conf *mdev);
 
 /* yes, there is kernel_setsockopt, but only since 2.6.18. we don't need to
  * mess with get_fs/set_fs, we know we are KERNEL_DS always. */

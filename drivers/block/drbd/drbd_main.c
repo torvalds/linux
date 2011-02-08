@@ -1836,6 +1836,14 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	mdev->md_sync_work.cb = w_md_sync;
 	mdev->bm_io_work.w.cb = w_bitmap_io;
 	mdev->start_resync_work.cb = w_start_resync;
+
+	mdev->resync_work.mdev  = mdev;
+	mdev->unplug_work.mdev  = mdev;
+	mdev->go_diskless.mdev  = mdev;
+	mdev->md_sync_work.mdev = mdev;
+	mdev->bm_io_work.w.mdev = mdev;
+	mdev->start_resync_work.mdev = mdev;
+
 	init_timer(&mdev->resync_timer);
 	init_timer(&mdev->md_sync_timer);
 	init_timer(&mdev->start_resync_timer);

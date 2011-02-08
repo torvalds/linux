@@ -345,7 +345,7 @@ drbd_alloc_ee(struct drbd_conf *mdev, u64 id, sector_t sector,
 	peer_req->i.waiting = false;
 
 	peer_req->epoch = NULL;
-	peer_req->mdev = mdev;
+	peer_req->w.mdev = mdev;
 	peer_req->pages = page;
 	atomic_set(&peer_req->pending_bios, 0);
 	peer_req->flags = 0;
@@ -3820,13 +3820,14 @@ static void drbdd(struct drbd_tconn *tconn)
 	}
 }
 
-void drbd_flush_workqueue(struct drbd_tconn *tconn)
+void drbd_flush_workqueue(struct drbd_conf *mdev)
 {
 	struct drbd_wq_barrier barr;
 
 	barr.w.cb = w_prev_work_done;
+	barr.w.mdev = mdev;
 	init_completion(&barr.done);
-	drbd_queue_work(&tconn->data.work, &barr.w);
+	drbd_queue_work(&mdev->tconn->data.work, &barr.w);
 	wait_for_completion(&barr.done);
 }
 
@@ -3906,7 +3907,7 @@ static int drbd_disconnected(int vnr, void *p, void *data)
 	/* wait for all w_e_end_data_req, w_e_end_rsdata_req, w_send_barrier,
 	 * w_make_resync_request etc. which may still be on the worker queue
 	 * to be "canceled" */
-	drbd_flush_workqueue(mdev->tconn);
+	drbd_flush_workqueue(mdev);
 
 	/* This also does reclaim_net_ee().  If we do this too early, we might
 	 * miss some resync ee and pages.*/
@@ -4507,6 +4508,7 @@ static int got_OVResult(struct drbd_conf *mdev, enum drbd_packet cmd)
 		w = kmalloc(sizeof(*w), GFP_NOIO);
 		if (w) {
 			w->cb = w_ov_finished;
+			w->mdev = mdev;
 			drbd_queue_work_front(&mdev->tconn->data.work, w);
 		} else {
 			dev_err(DEV, "kmalloc(w) failed.");

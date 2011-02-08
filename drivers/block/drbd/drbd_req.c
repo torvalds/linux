@@ -67,7 +67,7 @@ static struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 
 	drbd_req_make_private_bio(req, bio_src);
 	req->rq_state    = bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0;
-	req->mdev        = mdev;
+	req->w.mdev      = mdev;
 	req->master_bio  = bio_src;
 	req->epoch       = 0;
 
@@ -155,6 +155,7 @@ static void queue_barrier(struct drbd_conf *mdev)
 
 	b = mdev->tconn->newest_tle;
 	b->w.cb = w_send_barrier;
+	b->w.mdev = mdev;
 	/* inc_ap_pending done here, so we won't
 	 * get imbalanced on connection loss.
 	 * dec_ap_pending will be done in got_BarrierAck
@@ -192,7 +193,7 @@ void complete_master_bio(struct drbd_conf *mdev,
 static void drbd_remove_request_interval(struct rb_root *root,
 					 struct drbd_request *req)
 {
-	struct drbd_conf *mdev = req->mdev;
+	struct drbd_conf *mdev = req->w.mdev;
 	struct drbd_interval *i = &req->i;
 
 	drbd_remove_interval(root, i);
@@ -211,7 +212,7 @@ static void drbd_remove_request_interval(struct rb_root *root,
 void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 {
 	const unsigned long s = req->rq_state;
-	struct drbd_conf *mdev = req->mdev;
+	struct drbd_conf *mdev = req->w.mdev;
 	/* only WRITES may end up here without a master bio (on barrier ack) */
 	int rw = req->master_bio ? bio_data_dir(req->master_bio) : WRITE;
 
@@ -294,7 +295,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 
 static void _req_may_be_done_not_susp(struct drbd_request *req, struct bio_and_error *m)
 {
-	struct drbd_conf *mdev = req->mdev;
+	struct drbd_conf *mdev = req->w.mdev;
 
 	if (!is_susp(mdev->state))
 		_req_may_be_done(req, m);
@@ -315,7 +316,7 @@ static void _req_may_be_done_not_susp(struct drbd_request *req, struct bio_and_e
 int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		struct bio_and_error *m)
 {
-	struct drbd_conf *mdev = req->mdev;
+	struct drbd_conf *mdev = req->w.mdev;
 	int rv = 0;
 	m->bio = NULL;
 

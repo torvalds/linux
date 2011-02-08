@@ -843,6 +843,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 		ascw->ns = ns;
 		ascw->flags = flags;
 		ascw->w.cb = w_after_state_ch;
+		ascw->w.mdev = mdev;
 		ascw->done = done;
 		drbd_queue_work(&mdev->tconn->data.work, &ascw->w);
 	} else {

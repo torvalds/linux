@@ -228,6 +228,7 @@ void drbd_al_begin_io(struct drbd_conf *mdev, sector_t sector)
 		al_work.enr = enr;
 		al_work.old_enr = al_ext->lc_number;
 		al_work.w.cb = w_al_write_transaction;
+		al_work.w.mdev = mdev;
 		drbd_queue_work_front(&mdev->tconn->data.work, &al_work.w);
 		wait_for_completion(&al_work.event);
 
@@ -717,6 +718,7 @@ static void drbd_try_clear_on_disk_bm(struct drbd_conf *mdev, sector_t sector,
 			if (udw) {
 				udw->enr = ext->lce.lc_number;
 				udw->w.cb = w_update_odbm;
+				udw->w.mdev = mdev;
 				drbd_queue_work_front(&mdev->tconn->data.work, &udw->w);
 			} else {
 				dev_warn(DEV, "Could not kmalloc an udw\n");

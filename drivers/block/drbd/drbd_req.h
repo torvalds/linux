@@ -255,7 +255,7 @@ extern void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
  * outside the spinlock, e.g. when walking some list on cleanup. */
 static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what)
 {
-	struct drbd_conf *mdev = req->mdev;
+	struct drbd_conf *mdev = req->w.mdev;
 	struct bio_and_error m;
 	int rv;
 
@@ -275,7 +275,7 @@ static inline int req_mod(struct drbd_request *req,
 		enum drbd_req_event what)
 {
 	unsigned long flags;
-	struct drbd_conf *mdev = req->mdev;
+	struct drbd_conf *mdev = req->w.mdev;
 	struct bio_and_error m;
 	int rv;
 

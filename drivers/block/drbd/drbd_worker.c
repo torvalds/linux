@@ -83,7 +83,7 @@ void drbd_md_io_complete(struct bio *bio, int error)
 void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __releases(local)
 {
 	unsigned long flags = 0;
-	struct drbd_conf *mdev = peer_req->mdev;
+	struct drbd_conf *mdev = peer_req->w.mdev;
 
 	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 	mdev->read_cnt += peer_req->i.size >> 9;
@@ -103,7 +103,7 @@ void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __releases(lo
 static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(local)
 {
 	unsigned long flags = 0;
-	struct drbd_conf *mdev = peer_req->mdev;
+	struct drbd_conf *mdev = peer_req->w.mdev;
 	sector_t e_sector;
 	int do_wake;
 	u64 block_id;
@@ -155,7 +155,7 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
 void drbd_endio_sec(struct bio *bio, int error)
 {
 	struct drbd_peer_request *peer_req = bio->bi_private;
-	struct drbd_conf *mdev = peer_req->mdev;
+	struct drbd_conf *mdev = peer_req->w.mdev;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 	int is_write = bio_data_dir(bio) == WRITE;
 
@@ -192,7 +192,7 @@ void drbd_endio_pri(struct bio *bio, int error)
 {
 	unsigned long flags;
 	struct drbd_request *req = bio->bi_private;
-	struct drbd_conf *mdev = req->mdev;
+	struct drbd_conf *mdev = req->w.mdev;
 	struct bio_and_error m;
 	enum drbd_req_event what;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
