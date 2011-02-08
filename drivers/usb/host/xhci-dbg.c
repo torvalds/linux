@@ -450,7 +450,7 @@ char *xhci_get_slot_state(struct xhci_hcd *xhci,
 	}
 }
 
-void xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx)
+static void xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx)
 {
 	/* Fields are 32 bits wide, DMA addresses are in bytes */
 	int field_size = 32 / 8;
@@ -489,7 +489,7 @@ void xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx)
 		dbg_rsvd64(xhci, (u64 *)slot_ctx, dma);
 }
 
-void xhci_dbg_ep_ctx(struct xhci_hcd *xhci,
+static void xhci_dbg_ep_ctx(struct xhci_hcd *xhci,
 		     struct xhci_container_ctx *ctx,
 		     unsigned int last_ep)
 {

@@ -307,7 +307,7 @@ struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci,
 
 /***************** Streams structures manipulation *************************/
 
-void xhci_free_stream_ctx(struct xhci_hcd *xhci,
+static void xhci_free_stream_ctx(struct xhci_hcd *xhci,
 		unsigned int num_stream_ctxs,
 		struct xhci_stream_ctx *stream_ctx, dma_addr_t dma)
 {
@@ -335,7 +335,7 @@ void xhci_free_stream_ctx(struct xhci_hcd *xhci,
  * The stream context array must be a power of 2, and can be as small as
  * 64 bytes or as large as 1MB.
  */
-struct xhci_stream_ctx *xhci_alloc_stream_ctx(struct xhci_hcd *xhci,
+static struct xhci_stream_ctx *xhci_alloc_stream_ctx(struct xhci_hcd *xhci,
 		unsigned int num_stream_ctxs, dma_addr_t *dma,
 		gfp_t mem_flags)
 {
