@@ -78,7 +78,8 @@ void symbol__annotate_zero_histograms(struct symbol *sym);
 int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize);
 int symbol__annotate_init(struct map *map __used, struct symbol *sym);
 int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
-			    bool full_paths, int min_pcnt, int max_lines);
+			    bool full_paths, int min_pcnt, int max_lines,
+			    int context);
 void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
 void symbol__annotate_decay_histogram(struct symbol *sym, int evidx);
 void objdump_line_list__purge(struct list_head *head);

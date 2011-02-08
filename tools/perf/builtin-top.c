@@ -231,7 +231,7 @@ static void show_details(struct sym_entry *syme)
 	printf("  Events  Pcnt (>=%d%%)\n", sym_pcnt_filter);
 
 	more = symbol__annotate_printf(symbol, syme->map, top.sym_evsel->idx,
-				       0, sym_pcnt_filter, top.print_entries);
+				       0, sym_pcnt_filter, top.print_entries, 4);
 	if (top.zero)
 		symbol__annotate_zero_histogram(symbol, top.sym_evsel->idx);
 	else

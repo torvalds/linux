@@ -111,7 +111,8 @@ struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
 
 static int objdump_line__print(struct objdump_line *oline, struct symbol *sym,
 			       int evidx, u64 len, int min_pcnt,
-			       int printed, int max_lines)
+			       int printed, int max_lines,
+			       struct objdump_line *queue)
 {
 	static const char *prev_line;
 	static const char *prev_color;
@@ -150,6 +151,15 @@ static int objdump_line__print(struct objdump_line *oline, struct symbol *sym,
 		if (max_lines && printed >= max_lines)
 			return 1;
 
+		if (queue != NULL) {
+			list_for_each_entry_from(queue, &notes->src->source, node) {
+				if (queue == oline)
+					break;
+				objdump_line__print(queue, sym, evidx, len,
+						    0, 0, 1, NULL);
+			}
+		}
+
 		color = get_percent_color(percent);
 
 		/*
@@ -172,6 +182,9 @@ static int objdump_line__print(struct objdump_line *oline, struct symbol *sym,
 	} else if (max_lines && printed >= max_lines)
 		return 1;
 	else {
+		if (queue)
+			return -1;
+
 		if (!*oline->line)
 			printf("         :\n");
 		else
@@ -452,13 +465,14 @@ static void symbol__annotate_hits(struct symbol *sym, int evidx)
 }
 
 int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
-			    bool full_paths, int min_pcnt, int max_lines)
+			    bool full_paths, int min_pcnt, int max_lines,
+			    int context)
 {
 	struct dso *dso = map->dso;
 	const char *filename = dso->long_name, *d_filename;
 	struct annotation *notes = symbol__annotation(sym);
-	struct objdump_line *pos;
-	int printed = 2;
+	struct objdump_line *pos, *queue = NULL;
+	int printed = 2, queue_len = 0;
 	int more = 0;
 	u64 len;
 
@@ -476,10 +490,20 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 		symbol__annotate_hits(sym, evidx);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
+		if (context && queue == NULL) {
+			queue = pos;
+			queue_len = 0;
+		}
+
 		switch (objdump_line__print(pos, sym, evidx, len, min_pcnt,
-					    printed, max_lines)) {
+					    printed, max_lines, queue)) {
 		case 0:
 			++printed;
+			if (context) {
+				printed += queue_len;
+				queue = NULL;
+				queue_len = 0;
+			}
 			break;
 		case 1:
 			/* filtered by max_lines */
@@ -487,7 +511,16 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 			break;
 		case -1:
 		default:
-			/* filtered by min_pcnt */
+			/*
+			 * Filtered by min_pcnt or non IP lines when
+			 * context != 0
+			 */
+			if (!context)
+				break;
+			if (queue_len == context)
+				queue = list_entry(queue->node.next, typeof(*queue), node);
+			else
+				++queue_len;
 			break;
 		}
 	}
@@ -550,7 +583,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 	}
 
 	symbol__annotate_printf(sym, map, evidx, full_paths,
-				min_pcnt, max_lines);
+				min_pcnt, max_lines, 0);
 	if (print_lines)
 		symbol__free_source_line(sym, len);
 
