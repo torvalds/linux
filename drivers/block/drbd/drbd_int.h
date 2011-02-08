@@ -1108,6 +1108,11 @@ static inline unsigned int mdev_to_minor(struct drbd_conf *mdev)
 	return mdev->minor;
 }
 
+static inline struct drbd_conf *vnr_to_mdev(struct drbd_tconn *tconn, int vnr)
+{
+	return (struct drbd_conf *)idr_find(&tconn->volumes, vnr);
+}
+
 /* returns 1 if it was successful,
  * returns 0 if there was no data socket.
  * so wherever you are going to use the data.socket, e.g. do

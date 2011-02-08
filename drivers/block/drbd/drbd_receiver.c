@@ -939,6 +939,7 @@ static bool decode_header(struct drbd_tconn *tconn, struct p_header *h, struct p
 	if (h->h80.magic == cpu_to_be32(DRBD_MAGIC)) {
 		pi->cmd = be16_to_cpu(h->h80.command);
 		pi->size = be16_to_cpu(h->h80.length);
+		pi->vnr = 0;
 	} else if (h->h95.magic == cpu_to_be16(DRBD_MAGIC_BIG)) {
 		pi->cmd = be16_to_cpu(h->h95.command);
 		pi->size = be32_to_cpu(h->h95.length) & 0x00ffffff;
@@ -3771,42 +3772,42 @@ static struct data_cmd drbd_cmd_handler[] = {
    p_header, but they may not rely on that. Since there is also p_header95 !
  */
 
-static void drbdd(struct drbd_conf *mdev)
+static void drbdd(struct drbd_tconn *tconn)
 {
-	struct p_header *header = &mdev->tconn->data.rbuf.header;
+	struct p_header *header = &tconn->data.rbuf.header;
 	struct packet_info pi;
 	size_t shs; /* sub header size */
 	int rv;
 
-	while (get_t_state(&mdev->tconn->receiver) == RUNNING) {
-		drbd_thread_current_set_cpu(&mdev->tconn->receiver);
-		if (!drbd_recv_header(mdev->tconn, &pi))
+	while (get_t_state(&tconn->receiver) == RUNNING) {
+		drbd_thread_current_set_cpu(&tconn->receiver);
+		if (!drbd_recv_header(tconn, &pi))
 			goto err_out;
 
 		if (unlikely(pi.cmd >= P_MAX_CMD || !drbd_cmd_handler[pi.cmd].function)) {
-			dev_err(DEV, "unknown packet type %d, l: %d!\n", pi.cmd, pi.size);
+			conn_err(tconn, "unknown packet type %d, l: %d!\n", pi.cmd, pi.size);
 			goto err_out;
 		}
 
 		shs = drbd_cmd_handler[pi.cmd].pkt_size - sizeof(struct p_header);
 		if (pi.size - shs > 0 && !drbd_cmd_handler[pi.cmd].expect_payload) {
-			dev_err(DEV, "No payload expected %s l:%d\n", cmdname(pi.cmd), pi.size);
+			conn_err(tconn, "No payload expected %s l:%d\n", cmdname(pi.cmd), pi.size);
 			goto err_out;
 		}
 
 		if (shs) {
-			rv = drbd_recv(mdev->tconn, &header->payload, shs);
+			rv = drbd_recv(tconn, &header->payload, shs);
 			if (unlikely(rv != shs)) {
 				if (!signal_pending(current))
-					dev_warn(DEV, "short read while reading sub header: rv=%d\n", rv);
+					conn_warn(tconn, "short read while reading sub header: rv=%d\n", rv);
 				goto err_out;
 			}
 		}
 
-		rv = drbd_cmd_handler[pi.cmd].function(mdev, pi.cmd, pi.size - shs);
+		rv = drbd_cmd_handler[pi.cmd].function(vnr_to_mdev(tconn, pi.vnr), pi.cmd, pi.size - shs);
 
 		if (unlikely(!rv)) {
-			dev_err(DEV, "error receiving %s, l: %d!\n",
+			conn_err(tconn, "error receiving %s, l: %d!\n",
 			    cmdname(pi.cmd), pi.size);
 			goto err_out;
 		}
@@ -3814,11 +3815,8 @@ static void drbdd(struct drbd_conf *mdev)
 
 	if (0) {
 	err_out:
-		drbd_force_state(mdev, NS(conn, C_PROTOCOL_ERROR));
+		drbd_force_state(tconn->volume0, NS(conn, C_PROTOCOL_ERROR));
 	}
-	/* If we leave here, we probably want to update at least the
-	 * "Connected" indicator on stable storage. Do so explicitly here. */
-	drbd_md_sync(mdev);
 }
 
 void drbd_flush_workqueue(struct drbd_tconn *tconn)
@@ -4239,7 +4237,7 @@ int drbdd_init(struct drbd_thread *thi)
 
 	if (h > 0) {
 		if (get_net_conf(mdev->tconn)) {
-			drbdd(mdev);
+			drbdd(mdev->tconn);
 			put_net_conf(mdev->tconn);
 		}
 	}
