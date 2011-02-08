@@ -110,14 +110,6 @@ int acpi_save_state_mem(void)
 	return 0;
 }
 
-/*
- * acpi_restore_state - undo effects of acpi_save_state_mem
- */
-void acpi_restore_state_mem(void)
-{
-}
-
-
 /**
  * acpi_reserve_wakeup_memory - do _very_ early ACPI initialisation
  *

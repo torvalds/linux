@@ -293,10 +293,6 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	local_irq_restore(flags);
 	printk(KERN_DEBUG "Back to C!\n");
 
-	/* restore processor state */
-	if (acpi_state == ACPI_STATE_S3)
-		acpi_restore_state_mem();
-
 	suspend_nvs_restore();
 
 	return ACPI_SUCCESS(status) ? 0 : -EFAULT;

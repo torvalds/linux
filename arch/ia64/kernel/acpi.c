@@ -1041,11 +1041,6 @@ EXPORT_SYMBOL(acpi_unregister_ioapic);
 int acpi_save_state_mem(void) { return 0; } 
 
 /*
- * acpi_restore_state()
- */
-void acpi_restore_state_mem(void) {}
-
-/*
  * do_suspend_lowlevel()
  */
 void do_suspend_lowlevel(void) {}

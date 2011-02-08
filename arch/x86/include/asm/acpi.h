@@ -112,9 +112,8 @@ static inline void acpi_disable_pci(void)
 	acpi_noirq_set();
 }
 
-/* routines for saving/restoring kernel state */
+/* Routine for saving kernel state during suspend. */
 extern int acpi_save_state_mem(void);
-extern void acpi_restore_state_mem(void);
 
 extern unsigned long acpi_wakeup_address;
 
