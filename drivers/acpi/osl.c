@@ -397,7 +397,7 @@ void __init early_acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 		__acpi_unmap_table(virt, size);
 }
 
-int acpi_os_map_generic_address(struct acpi_generic_address *addr)
+static int acpi_os_map_generic_address(struct acpi_generic_address *addr)
 {
 	void __iomem *virt;
 
@@ -413,9 +413,8 @@ int acpi_os_map_generic_address(struct acpi_generic_address *addr)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(acpi_os_map_generic_address);
 
-void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
+static void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
 {
 	void __iomem *virt;
 	unsigned long flags;
@@ -433,7 +432,6 @@ void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
 
 	acpi_os_unmap_memory(virt, size);
 }
-EXPORT_SYMBOL_GPL(acpi_os_unmap_generic_address);
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
