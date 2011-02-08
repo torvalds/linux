@@ -1426,28 +1426,29 @@ static int mmc_test_area_cleanup(struct mmc_test_card *test)
 }
 
 /*
- * Initialize an area for testing large transfers.  The size of the area is the
- * preferred erase size which is a good size for optimal transfer speed.  Note
- * that is typically 4MiB for modern cards.  The test area is set to the middle
- * of the card because cards may have different charateristics at the front
- * (for FAT file system optimization).  Optionally, the area is erased (if the
- * card supports it) which may improve write performance.  Optionally, the area
- * is filled with data for subsequent read tests.
+ * Initialize an area for testing large transfers.  The test area is set to the
+ * middle of the card because cards may have different charateristics at the
+ * front (for FAT file system optimization).  Optionally, the area is erased
+ * (if the card supports it) which may improve write performance.  Optionally,
+ * the area is filled with data for subsequent read tests.
  */
 static int mmc_test_area_init(struct mmc_test_card *test, int erase, int fill)
 {
 	struct mmc_test_area *t = &test->area;
-	unsigned long min_sz = 64 * 1024;
+	unsigned long min_sz = 64 * 1024, sz;
 	int ret;
 
 	ret = mmc_test_set_blksize(test, 512);
 	if (ret)
 		return ret;
 
-	if (test->card->pref_erase > TEST_AREA_MAX_SIZE >> 9)
-		t->max_sz = TEST_AREA_MAX_SIZE;
-	else
-		t->max_sz = (unsigned long)test->card->pref_erase << 9;
+	/* Make the test area size about 4MiB */
+	sz = (unsigned long)test->card->pref_erase << 9;
+	t->max_sz = sz;
+	while (t->max_sz < 4 * 1024 * 1024)
+		t->max_sz += sz;
+	while (t->max_sz > TEST_AREA_MAX_SIZE && t->max_sz > sz)
+		t->max_sz -= sz;
 
 	t->max_segs = test->card->host->max_segs;
 	t->max_seg_sz = test->card->host->max_seg_size;
