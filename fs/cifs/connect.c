@@ -341,7 +341,7 @@ cifs_echo_request(struct work_struct *work)
 	 * We cannot send an echo until the NEGOTIATE_PROTOCOL request is done.
 	 * Also, no need to ping if we got a response recently
 	 */
-	if (server->tcpStatus != CifsGood ||
+	if ((server->tcpStatus != CifsGood) || (server->maxBuf == 0) ||
 	    time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
 		goto requeue_echo;
 
