@@ -5640,7 +5640,8 @@ F:	arch/arm/mach-s3c2410/bast-ide.c
 F:	arch/arm/mach-s3c2410/bast-irq.c
 
 TI DAVINCI MACHINE SUPPORT
-M:	Kevin Hilman <khilman@deeprootsystems.com>
+M:	Sekhar Nori <nsekhar@ti.com>
+M:	Kevin Hilman <khilman@ti.com>
 L:	davinci-linux-open-source@linux.davincidsp.com (subscribers-only)
 Q:	http://patchwork.kernel.org/project/linux-davinci/list/
 S:	Supported
