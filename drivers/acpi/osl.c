@@ -109,7 +109,7 @@ struct acpi_ioremap {
 };
 
 static LIST_HEAD(acpi_ioremaps);
-static DEFINE_SPINLOCK(acpi_ioremap_lock);
+static DEFINE_MUTEX(acpi_ioremap_lock);
 
 static void __init acpi_osi_setup_late(void);
 
@@ -303,7 +303,6 @@ void __iomem *__init_refok
 acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
 	struct acpi_ioremap *map, *tmp_map;
-	unsigned long flags;
 	void __iomem *virt;
 	acpi_physical_address pg_off;
 	acpi_size pg_sz;
@@ -334,18 +333,18 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 	map->size = pg_sz;
 	kref_init(&map->ref);
 
-	spin_lock_irqsave(&acpi_ioremap_lock, flags);
+	mutex_lock(&acpi_ioremap_lock);
 	/* Check if page has already been mapped. */
 	tmp_map = acpi_map_lookup(phys, size);
 	if (tmp_map) {
 		kref_get(&tmp_map->ref);
-		spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+		mutex_unlock(&acpi_ioremap_lock);
 		iounmap(map->virt);
 		kfree(map);
 		return tmp_map->virt + (phys - tmp_map->phys);
 	}
 	list_add_tail_rcu(&map->list, &acpi_ioremaps);
-	spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+	mutex_unlock(&acpi_ioremap_lock);
 
 	return map->virt + (phys - map->phys);
 }
@@ -362,7 +361,6 @@ static void acpi_kref_del_iomap(struct kref *ref)
 void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 {
 	struct acpi_ioremap *map;
-	unsigned long flags;
 	int del;
 
 	if (!acpi_gbl_permanent_mmap) {
@@ -370,17 +368,17 @@ void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 		return;
 	}
 
-	spin_lock_irqsave(&acpi_ioremap_lock, flags);
+	mutex_lock(&acpi_ioremap_lock);
 	map = acpi_map_lookup_virt(virt, size);
 	if (!map) {
-		spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+		mutex_unlock(&acpi_ioremap_lock);
 		printk(KERN_ERR PREFIX "%s: bad address %p\n", __func__, virt);
 		dump_stack();
 		return;
 	}
 
 	del = kref_put(&map->ref, acpi_kref_del_iomap);
-	spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+	mutex_unlock(&acpi_ioremap_lock);
 
 	if (!del)
 		return;
@@ -417,7 +415,6 @@ static int acpi_os_map_generic_address(struct acpi_generic_address *addr)
 static void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
 {
 	void __iomem *virt;
-	unsigned long flags;
 	acpi_size size = addr->bit_width / 8;
 
 	if (addr->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
@@ -426,9 +423,9 @@ static void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
 	if (!addr->address || !addr->bit_width)
 		return;
 
-	spin_lock_irqsave(&acpi_ioremap_lock, flags);
+	mutex_lock(&acpi_ioremap_lock);
 	virt = acpi_map_vaddr_lookup(addr->address, size);
-	spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+	mutex_unlock(&acpi_ioremap_lock);
 
 	acpi_os_unmap_memory(virt, size);
 }
