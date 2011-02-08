@@ -224,6 +224,7 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 		       struct nouveau_page_flip_state *s,
 		       struct nouveau_fence **pfence)
 {
+	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct drm_device *dev = chan->dev;
 	unsigned long flags;
 	int ret;
@@ -243,9 +244,12 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 	if (ret)
 		goto fail;
 
-	BEGIN_RING(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
-	OUT_RING(chan, 0);
-	FIRE_RING(chan);
+	if (dev_priv->card_type < NV_C0)
+		BEGIN_RING(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
+	else
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0500, 1);
+	OUT_RING  (chan, 0);
+	FIRE_RING (chan);
 
 	ret = nouveau_fence_new(chan, pfence, true);
 	if (ret)
