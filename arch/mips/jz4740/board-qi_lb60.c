@@ -23,6 +23,7 @@
 #include <linux/spi/spi_gpio.h>
 #include <linux/power_supply.h>
 #include <linux/power/jz4740-battery.h>
+#include <linux/power/gpio-charger.h>
 
 #include <asm/mach-jz4740/jz4740_fb.h>
 #include <asm/mach-jz4740/jz4740_mmc.h>
@@ -396,6 +397,28 @@ static struct platform_device qi_lb60_pwm_beeper = {
 	},
 };
 
+/* charger */
+static char *qi_lb60_batteries[] = {
+	"battery",
+};
+
+static struct gpio_charger_platform_data qi_lb60_charger_pdata = {
+	.name = "usb",
+	.type = POWER_SUPPLY_TYPE_USB,
+	.gpio = JZ_GPIO_PORTD(28),
+	.gpio_active_low = 1,
+	.supplied_to = qi_lb60_batteries,
+	.num_supplicants = ARRAY_SIZE(qi_lb60_batteries),
+};
+
+static struct platform_device qi_lb60_charger_device = {
+	.name = "gpio-charger",
+	.dev = {
+		.platform_data = &qi_lb60_charger_pdata,
+	},
+};
+
+
 static struct platform_device *jz_platform_devices[] __initdata = {
 	&jz4740_udc_device,
 	&jz4740_mmc_device,
@@ -410,6 +433,7 @@ static struct platform_device *jz_platform_devices[] __initdata = {
 	&jz4740_adc_device,
 	&qi_lb60_gpio_keys,
 	&qi_lb60_pwm_beeper,
+	&qi_lb60_charger_device,
 };
 
 static void __init board_gpio_setup(void)
