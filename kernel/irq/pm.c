@@ -69,7 +69,8 @@ int check_wakeup_irqs(void)
 	int irq;
 
 	for_each_irq_desc(irq, desc)
-		if ((desc->status & IRQ_WAKEUP) && (desc->status & IRQ_PENDING))
+		if ((desc->status & IRQ_WAKEUP) &&
+		    (desc->istate & IRQS_PENDING))
 			return -EBUSY;
 
 	return 0;

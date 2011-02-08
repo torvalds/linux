@@ -518,7 +518,8 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 	 * then mask it and get out of here:
 	 */
 	if (unlikely(!desc->action || (desc->istate & IRQS_DISABLED))) {
-		desc->status |= IRQ_PENDING;
+		irq_compat_set_pending(desc);
+		desc->istate |= IRQS_PENDING;
 		mask_irq(desc);
 		goto out;
 	}
@@ -558,7 +559,8 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 	if (unlikely((desc->istate & (IRQS_DISABLED | IRQS_INPROGRESS) ||
 		      !desc->action))) {
 		if (!irq_check_poll(desc)) {
-			desc->status |= IRQ_PENDING;
+			irq_compat_set_pending(desc);
+			desc->istate |= IRQS_PENDING;
 			mask_ack_irq(desc);
 			goto out_unlock;
 		}
@@ -579,7 +581,7 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 		 * one, we could have masked the irq.
 		 * Renable it, if it was not disabled in meantime.
 		 */
-		if (unlikely(desc->status & IRQ_PENDING)) {
+		if (unlikely(desc->istate & IRQS_PENDING)) {
 			if (!(desc->istate & IRQS_DISABLED) &&
 			    (desc->status & IRQ_MASKED))
 				unmask_irq(desc);
@@ -587,7 +589,7 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 
 		handle_irq_event(desc);
 
-	} while ((desc->status & IRQ_PENDING) &&
+	} while ((desc->istate & IRQS_PENDING) &&
 		 !(desc->istate & IRQS_DISABLED));
 
 out_unlock:

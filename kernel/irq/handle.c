@@ -122,7 +122,8 @@ irqreturn_t handle_irq_event(struct irq_desc *desc)
 	struct irqaction *action = desc->action;
 	irqreturn_t ret;
 
-	desc->status &= ~IRQ_PENDING;
+	irq_compat_clr_pending(desc);
+	desc->istate &= ~IRQS_PENDING;
 	irq_compat_set_progress(desc);
 	desc->istate |= IRQS_INPROGRESS;
 	raw_spin_unlock(&desc->lock);

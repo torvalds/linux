@@ -714,10 +714,11 @@ static int irq_thread(void *data)
 			 * CHECKME: We might need a dedicated
 			 * IRQ_THREAD_PENDING flag here, which
 			 * retriggers the thread in check_irq_resend()
-			 * but AFAICT IRQ_PENDING should be fine as it
+			 * but AFAICT IRQS_PENDING should be fine as it
 			 * retriggers the interrupt itself --- tglx
 			 */
-			desc->status |= IRQ_PENDING;
+			irq_compat_set_pending(desc);
+			desc->istate |= IRQS_PENDING;
 			raw_spin_unlock_irq(&desc->lock);
 		} else {
 			raw_spin_unlock_irq(&desc->lock);

@@ -93,7 +93,8 @@ static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 		 * Already running: If it is shared get the other
 		 * CPU to go looking for our mystery interrupt too
 		 */
-		desc->status |= IRQ_PENDING;
+		irq_compat_set_pending(desc);
+		desc->istate |= IRQS_PENDING;
 		goto out;
 	}
 
@@ -103,7 +104,7 @@ static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 		if (handle_irq_event(desc) == IRQ_HANDLED)
 			ret = IRQ_HANDLED;
 		action = desc->action;
-	} while ((desc->status & IRQ_PENDING) && action);
+	} while ((desc->istate & IRQS_PENDING) && action);
 	desc->istate &= ~IRQS_POLL_INPROGRESS;
 out:
 	raw_spin_unlock(&desc->lock);
