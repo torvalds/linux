@@ -575,8 +575,6 @@ int              stop_100(struct usb_device *);
 int              write_300(struct usb_device *);
 int              read_vt(struct usb_device *, u16);
 int              write_vt(struct usb_device *, u16, u16);
-int              regset(struct usb_device *, u16, u16);
-int              regget(struct usb_device *, u16, void *);
 int		isdongle(struct easycap *);
 /*---------------------------------------------------------------------------*/
 struct signed_div_result {
@@ -585,27 +583,6 @@ struct signed_div_result {
 } signed_div(long long int, long long int);
 
 
-/*---------------------------------------------------------------------------*/
-/*
- *  MACROS
- */
-/*---------------------------------------------------------------------------*/
-#define GET(X, Y, Z) do { \
-	int __rc; \
-	*(Z) = (u16)0; \
-	__rc = regget(X, Y, Z); \
-	if (0 > __rc) { \
-		JOT(8, ":-(%i\n", __LINE__);  return __rc; \
-	} \
-} while (0)
-
-#define SET(X, Y, Z) do { \
-	int __rc; \
-	__rc = regset(X, Y, Z); \
-	if (0 > __rc) { \
-		JOT(8, ":-(%i\n", __LINE__);  return __rc; \
-	} \
-} while (0)
 /*---------------------------------------------------------------------------*/
 /*
  *  MACROS SAM(...) AND JOM(...) ALLOW DIAGNOSTIC OUTPUT TO BE TAGGED WITH
