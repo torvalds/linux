@@ -20,8 +20,6 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
-#define USB_PHY_MAX_CONTEXT_REGS 10
-
 struct tegra_utmip_config {
 	u8 hssync_start_delay;
 	u8 elastic_limit;
@@ -40,7 +38,7 @@ struct tegra_ulpi_config {
 enum tegra_usb_phy_port_speed {
 	TEGRA_USB_PHY_PORT_SPEED_FULL = 0,
 	TEGRA_USB_PHY_PORT_SPEED_LOW,
-	TEGRA_USB_PHY_PORT_HIGH,
+	TEGRA_USB_PHY_PORT_SPEED_HIGH,
 };
 
 enum tegra_usb_phy_mode {
@@ -82,4 +80,4 @@ int tegra_ehci_phy_restore_end(struct tegra_usb_phy *phy);
 
 int tegra_usb_phy_close(struct tegra_usb_phy *phy);
 
-#endif //__MACH_USB_PHY_H
+#endif /* __MACH_USB_PHY_H */
