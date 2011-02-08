@@ -2151,13 +2151,6 @@ case VIDIOC_QBUF: {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_DQBUF:
 	{
-#ifdef AUDIOTIME
-	struct signed_div_result sdr;
-	long long int above, below, dnbydt, fudge, sll;
-	unsigned long long int ull;
-	struct timeval timeval8;
-	struct timeval timeval1;
-#endif /*AUDIOTIME*/
 	struct timeval timeval, timeval2;
 	int i, j;
 	struct v4l2_buffer v4l2_buffer;
@@ -2263,41 +2256,6 @@ case VIDIOC_DQBUF:
 		v4l2_buffer.field = V4L2_FIELD_NONE;
 	do_gettimeofday(&timeval);
 	timeval2 = timeval;
-
-#ifdef AUDIOTIME
-	if (!peasycap->timeval0.tv_sec) {
-		timeval8 = timeval;
-		timeval1 = timeval;
-		timeval2 = timeval;
-		dnbydt = 192000;
-		peasycap->timeval0 = timeval8;
-	} else {
-		dnbydt = peasycap->dnbydt;
-		timeval1 = peasycap->timeval1;
-		above = dnbydt * MICROSECONDS(timeval, timeval1);
-		below = 192000;
-		sdr = signed_div(above, below);
-
-		above = sdr.quotient + timeval1.tv_usec - 350000;
-
-		below = 1000000;
-		sdr = signed_div(above, below);
-		timeval2.tv_usec = sdr.remainder;
-		timeval2.tv_sec = timeval1.tv_sec + sdr.quotient;
-	}
-	if (!(peasycap->isequence % 500)) {
-		fudge = ((long long int)(1000000)) *
-				((long long int)(timeval.tv_sec -
-						timeval2.tv_sec)) +
-				(long long int)(timeval.tv_usec -
-						timeval2.tv_usec);
-		sdr = signed_div(fudge, 1000);
-		sll = sdr.quotient;
-		ull = sdr.remainder;
-
-		SAM("%5lli.%-3lli=ms timestamp fudge\n", sll, ull);
-	}
-#endif /*AUDIOTIME*/
 
 	v4l2_buffer.timestamp = timeval2;
 	v4l2_buffer.sequence = peasycap->isequence++;
