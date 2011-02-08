@@ -382,6 +382,8 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	  .class = PCI_CLASS_STORAGE_SATA_AHCI,
 	  .class_mask = 0xffffff,
 	  .driver_data = board_ahci_yes_fbs },			/* 88se9128 */
+	{ PCI_DEVICE(0x1b4b, 0x9125),
+	  .driver_data = board_ahci_yes_fbs },			/* 88se9125 */
 
 	/* Promise */
 	{ PCI_VDEVICE(PROMISE, 0x3f20), board_ahci },	/* PDC42819 */
