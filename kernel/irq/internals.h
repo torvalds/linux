@@ -150,3 +150,7 @@ static inline void irqd_set(struct irq_data *d, unsigned int mask)
 	d->state_use_accessors |= mask;
 }
 
+static inline bool irqd_has_set(struct irq_data *d, unsigned int mask)
+{
+	return d->state_use_accessors & mask;
+}

@@ -164,7 +164,8 @@ int irq_set_affinity(unsigned int irq, const struct cpumask *mask)
 		kref_get(&desc->affinity_notify->kref);
 		schedule_work(&desc->affinity_notify->work);
 	}
-	desc->status |= IRQ_AFFINITY_SET;
+	irq_compat_set_affinity(desc);
+	irqd_set(&desc->irq_data, IRQD_AFFINITY_SET);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return ret;
 }
@@ -272,12 +273,14 @@ setup_affinity(unsigned int irq, struct irq_desc *desc, struct cpumask *mask)
 	 * Preserve an userspace affinity setup, but make sure that
 	 * one of the targets is online.
 	 */
-	if (desc->status & (IRQ_AFFINITY_SET)) {
+	if (irqd_has_set(&desc->irq_data, IRQD_AFFINITY_SET)) {
 		if (cpumask_intersects(desc->irq_data.affinity,
 				       cpu_online_mask))
 			set = desc->irq_data.affinity;
-		else
-			desc->status &= ~IRQ_AFFINITY_SET;
+		else {
+			irq_compat_clr_affinity(desc);
+			irqd_clear(&desc->irq_data, IRQD_AFFINITY_SET);
+		}
 	}
 
 	cpumask_and(mask, cpu_online_mask, set);

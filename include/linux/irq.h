@@ -60,6 +60,7 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_MASKED		0x00002000	/* DEPRECATED */
 /* DEPRECATED use irq_setaffinity_pending() instead*/
 #define IRQ_MOVE_PENDING	0x00004000
+#define IRQ_AFFINITY_SET	0x02000000	/* DEPRECATED */
 #endif
 
 #define IRQ_LEVEL		0x00008000	/* IRQ level triggered */
@@ -70,7 +71,6 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_WAKEUP		0x00100000	/* IRQ triggers system wakeup */
 #define IRQ_NO_BALANCING	0x00400000	/* IRQ is excluded from balancing */
 #define IRQ_MOVE_PCNTXT		0x01000000	/* IRQ migration from process context */
-#define IRQ_AFFINITY_SET	0x02000000	/* IRQ affinity was set from userspace*/
 #define IRQ_NESTED_THREAD	0x10000000	/* IRQ is nested into another, no own handler thread */
 
 #define IRQF_MODIFY_MASK	\
@@ -134,12 +134,14 @@ struct irq_data {
  * IRQD_SETAFFINITY_PENDING	- Affinity setting is pending
  * IRQD_NO_BALANCING		- Balancing disabled for this IRQ
  * IRQD_PER_CPU			- Interrupt is per cpu
+ * IRQD_AFFINITY_SET		- Interrupt affinity was set
  */
 enum {
 	/* Bit 0 - 7 reserved for TYPE will use later */
 	IRQD_SETAFFINITY_PENDING	= (1 <<  8),
 	IRQD_NO_BALANCING		= (1 << 10),
 	IRQD_PER_CPU			= (1 << 11),
+	IRQD_AFFINITY_SET		= (1 << 12),
 };
 
 static inline bool irqd_is_setaffinity_pending(struct irq_data *d)
@@ -155,6 +157,11 @@ static inline bool irqd_is_per_cpu(struct irq_data *d)
 static inline bool irqd_can_balance(struct irq_data *d)
 {
 	return !(d->state_use_accessors & (IRQD_PER_CPU | IRQD_NO_BALANCING));
+}
+
+static inline bool irqd_affinity_was_set(struct irq_data *d)
+{
+	return d->state_use_accessors & IRQD_AFFINITY_SET;
 }
 
 /**
