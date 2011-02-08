@@ -94,6 +94,33 @@ static int erase_eraseblock(int ebnum)
 	return 0;
 }
 
+static int multiblock_erase(int ebnum, int blocks)
+{
+	int err;
+	struct erase_info ei;
+	loff_t addr = ebnum * mtd->erasesize;
+
+	memset(&ei, 0, sizeof(struct erase_info));
+	ei.mtd  = mtd;
+	ei.addr = addr;
+	ei.len  = mtd->erasesize * blocks;
+
+	err = mtd->erase(mtd, &ei);
+	if (err) {
+		printk(PRINT_PREF "error %d while erasing EB %d, blocks %d\n",
+		       err, ebnum, blocks);
+		return err;
+	}
+
+	if (ei.state == MTD_ERASE_FAILED) {
+		printk(PRINT_PREF "some erase error occurred at EB %d,"
+		       "blocks %d\n", ebnum, blocks);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int erase_whole_device(void)
 {
 	int err;
@@ -292,7 +319,10 @@ static long calc_speed(void)
 	ms = (finish.tv_sec - start.tv_sec) * 1000 +
 	     (finish.tv_usec - start.tv_usec) / 1000;
 	k = goodebcnt * mtd->erasesize / 1024;
-	speed = (k * 1000) / ms;
+	if (ms)
+		speed = (k * 1000) / ms;
+	else
+		speed = 0;
 	return speed;
 }
 
@@ -325,7 +355,7 @@ out:
 
 static int __init mtd_speedtest_init(void)
 {
-	int err, i;
+	int err, i, blocks, j, k;
 	long speed;
 	uint64_t tmp;
 
@@ -495,6 +525,31 @@ static int __init mtd_speedtest_init(void)
 	speed = calc_speed();
 	printk(PRINT_PREF "erase speed is %ld KiB/s\n", speed);
 
+	/* Multi-block erase all eraseblocks */
+	for (k = 1; k < 7; k++) {
+		blocks = 1 << k;
+		printk(PRINT_PREF "Testing %dx multi-block erase speed\n",
+		       blocks);
+		start_timing();
+		for (i = 0; i < ebcnt; ) {
+			for (j = 0; j < blocks && (i + j) < ebcnt; j++)
+				if (bbt[i + j])
+					break;
+			if (j < 1) {
+				i++;
+				continue;
+			}
+			err = multiblock_erase(i, j);
+			if (err)
+				goto out;
+			cond_resched();
+			i += j;
+		}
+		stop_timing();
+		speed = calc_speed();
+		printk(PRINT_PREF "%dx multi-block erase speed is %ld KiB/s\n",
+		       blocks, speed);
+	}
 	printk(PRINT_PREF "finished\n");
 out:
 	kfree(iobuf);
