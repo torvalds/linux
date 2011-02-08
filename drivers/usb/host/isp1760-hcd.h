@@ -69,6 +69,7 @@ void deinit_kmem_cache(void);
 
 #define HC_INTERRUPT_ENABLE	0x314
 #define INTERRUPT_ENABLE_MASK	(HC_INTL_INT | HC_ATL_INT | HC_EOT_INT)
+#define INTERRUPT_ENABLE_SOT_MASK	(HC_INTL_INT | HC_SOT_INT | HC_EOT_INT)
 
 #define HC_ISO_INT		(1 << 9)
 #define HC_ATL_INT		(1 << 8)

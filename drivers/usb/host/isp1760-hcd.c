@@ -33,6 +33,7 @@ struct isp1760_hcd {
 	struct inter_packet_info atl_ints[32];
 	struct inter_packet_info int_ints[32];
 	struct memory_chunk memory_pool[BLOCKS];
+	u32 atl_queued;
 
 	/* periodic schedule support */
 #define	DEFAULT_I_TDPS		1024
@@ -850,6 +851,11 @@ static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	skip_map &= ~queue_entry;
 	isp1760_writel(skip_map, hcd->regs + HC_ATL_PTD_SKIPMAP_REG);
 
+	priv->atl_queued++;
+	if (priv->atl_queued == 2)
+		isp1760_writel(INTERRUPT_ENABLE_SOT_MASK,
+				hcd->regs + HC_INTERRUPT_ENABLE);
+
 	buffstatus = isp1760_readl(hcd->regs + HC_BUFFER_STATUS_REG);
 	buffstatus |= ATL_BUFFER;
 	isp1760_writel(buffstatus, hcd->regs + HC_BUFFER_STATUS_REG);
@@ -992,6 +998,7 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 		u32 dw3;
 
 		status = 0;
+		priv->atl_queued--;
 
 		queue_entry = __ffs(done_map);
 		done_map &= ~(1 << queue_entry);
@@ -1054,11 +1061,6 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 			 * device is not able to send data fast enough.
 			 * This happens mostly on slower hardware.
 			 */
-			printk(KERN_NOTICE "Reloading ptd %p/%p... qh %p read: "
-					"%d of %zu done: %08x cur: %08x\n", qtd,
-					urb, qh, PTD_XFERRED_LENGTH(dw3),
-					qtd->length, done_map,
-					(1 << queue_entry));
 
 			/* RL counter = ERR counter */
 			dw3 &= ~(0xf << 19);
@@ -1085,6 +1087,11 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 			ptd.dw0 |= cpu_to_le32(PTD_VALID);
 			priv_write_copy(priv, (u32 *)&ptd, usb_hcd->regs +
 					atl_regs, sizeof(ptd));
+
+			priv->atl_queued++;
+			if (priv->atl_queued == 2)
+				isp1760_writel(INTERRUPT_ENABLE_SOT_MASK,
+				    usb_hcd->regs + HC_INTERRUPT_ENABLE);
 
 			buffstatus = isp1760_readl(usb_hcd->regs +
 					HC_BUFFER_STATUS_REG);
@@ -1191,6 +1198,9 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 		skip_map = isp1760_readl(usb_hcd->regs +
 				HC_ATL_PTD_SKIPMAP_REG);
 	}
+	if (priv->atl_queued <= 1)
+		isp1760_writel(INTERRUPT_ENABLE_MASK,
+				usb_hcd->regs + HC_INTERRUPT_ENABLE);
 }
 
 static void do_intl_int(struct usb_hcd *usb_hcd)
@@ -1770,7 +1780,7 @@ static irqreturn_t isp1760_irq(struct usb_hcd *usb_hcd)
 		goto leave;
 
 	isp1760_writel(imask, usb_hcd->regs + HC_INTERRUPT_REG);
-	if (imask & HC_ATL_INT)
+	if (imask & (HC_ATL_INT | HC_SOT_INT))
 		do_atl_int(usb_hcd);
 
 	if (imask & HC_INTL_INT)
