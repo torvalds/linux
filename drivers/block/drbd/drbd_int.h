@@ -1109,26 +1109,26 @@ static inline unsigned int mdev_to_minor(struct drbd_conf *mdev)
 /* returns 1 if it was successful,
  * returns 0 if there was no data socket.
  * so wherever you are going to use the data.socket, e.g. do
- * if (!drbd_get_data_sock(mdev))
+ * if (!drbd_get_data_sock(mdev->tconn))
  *	return 0;
  *	CODE();
- * drbd_put_data_sock(mdev);
+ * drbd_get_data_sock(mdev->tconn);
  */
-static inline int drbd_get_data_sock(struct drbd_conf *mdev)
+static inline int drbd_get_data_sock(struct drbd_tconn *tconn)
 {
-	mutex_lock(&mdev->tconn->data.mutex);
+	mutex_lock(&tconn->data.mutex);
 	/* drbd_disconnect() could have called drbd_free_sock()
 	 * while we were waiting in down()... */
-	if (unlikely(mdev->tconn->data.socket == NULL)) {
-		mutex_unlock(&mdev->tconn->data.mutex);
+	if (unlikely(tconn->data.socket == NULL)) {
+		mutex_unlock(&tconn->data.mutex);
 		return 0;
 	}
 	return 1;
 }
 
-static inline void drbd_put_data_sock(struct drbd_conf *mdev)
+static inline void drbd_put_data_sock(struct drbd_tconn *tconn)
 {
-	mutex_unlock(&mdev->tconn->data.mutex);
+	mutex_unlock(&tconn->data.mutex);
 }
 
 /*
@@ -1171,12 +1171,12 @@ extern int drbd_send_state(struct drbd_conf *mdev);
 extern int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct socket *sock,
 			  enum drbd_packet cmd, struct p_header *h, size_t size,
 			  unsigned msg_flags);
+extern int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd,
+			  char *data, size_t size);
 #define USE_DATA_SOCKET 1
 #define USE_META_SOCKET 0
 extern int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
 			 enum drbd_packet cmd, struct p_header *h, size_t size);
-extern int drbd_send_cmd2(struct drbd_conf *mdev, enum drbd_packet cmd,
-			  char *data, size_t size);
 extern int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc);
 extern int drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
 			u32 set_size);

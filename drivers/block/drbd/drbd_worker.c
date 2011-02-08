@@ -1197,7 +1197,7 @@ int w_send_barrier(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	if (cancel)
 		return 1;
 
-	if (!drbd_get_data_sock(mdev))
+	if (!drbd_get_data_sock(mdev->tconn))
 		return 0;
 	p->barrier = b->br_number;
 	/* inc_ap_pending was done where this was queued.
@@ -1205,7 +1205,7 @@ int w_send_barrier(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	 * or (on connection loss) in w_clear_epoch.  */
 	ok = _drbd_send_cmd(mdev, mdev->tconn->data.socket, P_BARRIER,
 			    &p->head, sizeof(*p), 0);
-	drbd_put_data_sock(mdev);
+	drbd_put_data_sock(mdev->tconn);
 
 	return ok;
 }
