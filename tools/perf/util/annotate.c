@@ -132,7 +132,7 @@ static int objdump_line__print(struct objdump_line *oline,
 		if (percent < min_pcnt)
 			return -1;
 
-		if (printed >= max_lines)
+		if (max_lines && printed >= max_lines)
 			return 1;
 
 		color = get_percent_color(percent);
@@ -154,7 +154,7 @@ static int objdump_line__print(struct objdump_line *oline,
 		color_fprintf(stdout, color, " %7.2f", percent);
 		printf(" :	");
 		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", oline->line);
-	} else if (printed >= max_lines)
+	} else if (max_lines && printed >= max_lines)
 		return 1;
 	else {
 		if (!*oline->line)
