@@ -69,7 +69,7 @@ MODULE_LICENSE("GPL");
  * 		kvm->lock --> kvm->slots_lock --> kvm->irq_lock
  */
 
-DEFINE_SPINLOCK(kvm_lock);
+DEFINE_RAW_SPINLOCK(kvm_lock);
 LIST_HEAD(vm_list);
 
 static cpumask_var_t cpus_hardware_enabled;
@@ -481,9 +481,9 @@ static struct kvm *kvm_create_vm(void)
 	mutex_init(&kvm->irq_lock);
 	mutex_init(&kvm->slots_lock);
 	atomic_set(&kvm->users_count, 1);
-	spin_lock(&kvm_lock);
+	raw_spin_lock(&kvm_lock);
 	list_add(&kvm->vm_list, &vm_list);
-	spin_unlock(&kvm_lock);
+	raw_spin_unlock(&kvm_lock);
 
 	return kvm;
 
@@ -556,9 +556,9 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	struct mm_struct *mm = kvm->mm;
 
 	kvm_arch_sync_events(kvm);
-	spin_lock(&kvm_lock);
+	raw_spin_lock(&kvm_lock);
 	list_del(&kvm->vm_list);
-	spin_unlock(&kvm_lock);
+	raw_spin_unlock(&kvm_lock);
 	kvm_free_irq_routing(kvm);
 	for (i = 0; i < KVM_NR_BUSES; i++)
 		kvm_io_bus_destroy(kvm->buses[i]);
@@ -2177,9 +2177,9 @@ static void hardware_enable_nolock(void *junk)
 
 static void hardware_enable(void *junk)
 {
-	spin_lock(&kvm_lock);
+	raw_spin_lock(&kvm_lock);
 	hardware_enable_nolock(junk);
-	spin_unlock(&kvm_lock);
+	raw_spin_unlock(&kvm_lock);
 }
 
 static void hardware_disable_nolock(void *junk)
@@ -2194,9 +2194,9 @@ static void hardware_disable_nolock(void *junk)
 
 static void hardware_disable(void *junk)
 {
-	spin_lock(&kvm_lock);
+	raw_spin_lock(&kvm_lock);
 	hardware_disable_nolock(junk);
-	spin_unlock(&kvm_lock);
+	raw_spin_unlock(&kvm_lock);
 }
 
 static void hardware_disable_all_nolock(void)
@@ -2210,16 +2210,16 @@ static void hardware_disable_all_nolock(void)
 
 static void hardware_disable_all(void)
 {
-	spin_lock(&kvm_lock);
+	raw_spin_lock(&kvm_lock);
 	hardware_disable_all_nolock();
-	spin_unlock(&kvm_lock);
+	raw_spin_unlock(&kvm_lock);
 }
 
 static int hardware_enable_all(void)
 {
 	int r = 0;
 
-	spin_lock(&kvm_lock);
+	raw_spin_lock(&kvm_lock);
 
 	kvm_usage_count++;
 	if (kvm_usage_count == 1) {
@@ -2232,7 +2232,7 @@ static int hardware_enable_all(void)
 		}
 	}
 
-	spin_unlock(&kvm_lock);
+	raw_spin_unlock(&kvm_lock);
 
 	return r;
 }
@@ -2394,10 +2394,10 @@ static int vm_stat_get(void *_offset, u64 *val)
 	struct kvm *kvm;
 
 	*val = 0;
-	spin_lock(&kvm_lock);
+	raw_spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list)
 		*val += *(u32 *)((void *)kvm + offset);
-	spin_unlock(&kvm_lock);
+	raw_spin_unlock(&kvm_lock);
 	return 0;
 }
 
@@ -2411,12 +2411,12 @@ static int vcpu_stat_get(void *_offset, u64 *val)
 	int i;
 
 	*val = 0;
-	spin_lock(&kvm_lock);
+	raw_spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list)
 		kvm_for_each_vcpu(i, vcpu, kvm)
 			*val += *(u32 *)((void *)vcpu + offset);
 
-	spin_unlock(&kvm_lock);
+	raw_spin_unlock(&kvm_lock);
 	return 0;
 }
 
@@ -2457,7 +2457,7 @@ static int kvm_suspend(struct sys_device *dev, pm_message_t state)
 static int kvm_resume(struct sys_device *dev)
 {
 	if (kvm_usage_count) {
-		WARN_ON(spin_is_locked(&kvm_lock));
+		WARN_ON(raw_spin_is_locked(&kvm_lock));
 		hardware_enable_nolock(NULL);
 	}
 	return 0;
