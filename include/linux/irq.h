@@ -57,11 +57,11 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_WAITING		0x00000400	/* DEPRECATED */
 #define IRQ_DISABLED		0x00000800	/* DEPRECATED */
 #define IRQ_PENDING		0x00001000	/* DEPRECATED */
+#define IRQ_MASKED		0x00002000	/* DEPRECATED */
 #endif
 
 
 #define IRQ_LEVEL		0x00004000	/* IRQ level triggered */
-#define IRQ_MASKED		0x00008000	/* IRQ masked - shouldn't be seen again */
 #define IRQ_PER_CPU		0x00010000	/* IRQ is per CPU */
 #define IRQ_NOPROBE		0x00020000	/* IRQ is not valid for probing */
 #define IRQ_NOREQUEST		0x00040000	/* IRQ cannot be requested */

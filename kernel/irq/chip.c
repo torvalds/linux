@@ -176,6 +176,18 @@ static void irq_state_set_disabled(struct irq_desc *desc)
 	irq_compat_set_disabled(desc);
 }
 
+static void irq_state_clr_masked(struct irq_desc *desc)
+{
+	desc->istate &= ~IRQS_MASKED;
+	irq_compat_clr_masked(desc);
+}
+
+static void irq_state_set_masked(struct irq_desc *desc)
+{
+	desc->istate |= IRQS_MASKED;
+	irq_compat_set_masked(desc);
+}
+
 int irq_startup(struct irq_desc *desc)
 {
 	irq_state_clr_disabled(desc);
@@ -183,7 +195,7 @@ int irq_startup(struct irq_desc *desc)
 
 	if (desc->irq_data.chip->irq_startup) {
 		int ret = desc->irq_data.chip->irq_startup(&desc->irq_data);
-		desc->status &= ~IRQ_MASKED;
+		irq_state_clr_masked(desc);
 		return ret;
 	}
 
@@ -201,7 +213,7 @@ void irq_shutdown(struct irq_desc *desc)
 		desc->irq_data.chip->irq_disable(&desc->irq_data);
 	else
 		desc->irq_data.chip->irq_mask(&desc->irq_data);
-	desc->status |= IRQ_MASKED;
+	irq_state_set_masked(desc);
 }
 
 void irq_enable(struct irq_desc *desc)
@@ -211,7 +223,7 @@ void irq_enable(struct irq_desc *desc)
 		desc->irq_data.chip->irq_enable(&desc->irq_data);
 	else
 		desc->irq_data.chip->irq_unmask(&desc->irq_data);
-	desc->status &= ~IRQ_MASKED;
+	irq_state_clr_masked(desc);
 }
 
 void irq_disable(struct irq_desc *desc)
@@ -219,8 +231,8 @@ void irq_disable(struct irq_desc *desc)
 	irq_state_set_disabled(desc);
 	if (desc->irq_data.chip->irq_disable) {
 		desc->irq_data.chip->irq_disable(&desc->irq_data);
-		desc->status |= IRQ_MASKED;
 	}
+	irq_state_set_masked(desc);
 }
 
 #ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
@@ -352,14 +364,14 @@ static inline void mask_ack_irq(struct irq_desc *desc)
 		if (desc->irq_data.chip->irq_ack)
 			desc->irq_data.chip->irq_ack(&desc->irq_data);
 	}
-	desc->status |= IRQ_MASKED;
+	irq_state_set_masked(desc);
 }
 
 static inline void mask_irq(struct irq_desc *desc)
 {
 	if (desc->irq_data.chip->irq_mask) {
 		desc->irq_data.chip->irq_mask(&desc->irq_data);
-		desc->status |= IRQ_MASKED;
+		irq_state_set_masked(desc);
 	}
 }
 
@@ -367,7 +379,7 @@ static inline void unmask_irq(struct irq_desc *desc)
 {
 	if (desc->irq_data.chip->irq_unmask) {
 		desc->irq_data.chip->irq_unmask(&desc->irq_data);
-		desc->status &= ~IRQ_MASKED;
+		irq_state_clr_masked(desc);
 	}
 }
 
@@ -583,7 +595,7 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 		 */
 		if (unlikely(desc->istate & IRQS_PENDING)) {
 			if (!(desc->istate & IRQS_DISABLED) &&
-			    (desc->status & IRQ_MASKED))
+			    (desc->istate & IRQS_MASKED))
 				unmask_irq(desc);
 		}
 

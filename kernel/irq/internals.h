@@ -47,6 +47,7 @@ enum {
  * IRQS_WAITING			- irq is waiting
  * IRQS_DISABLED		- irq is disabled
  * IRQS_PENDING			- irq is pending and replayed later
+ * IRQS_MASKED			- irq is masked
  */
 enum {
 	IRQS_AUTODETECT		= 0x00000001,
@@ -58,6 +59,7 @@ enum {
 	IRQS_WAITING		= 0x00000080,
 	IRQS_DISABLED		= 0x00000100,
 	IRQS_PENDING		= 0x00000200,
+	IRQS_MASKED		= 0x00000400,
 };
 
 #define irq_data_to_desc(data)	container_of(data, struct irq_desc, irq_data)
@@ -142,7 +144,6 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 	}
 
 	P(IRQ_LEVEL);
-	P(IRQ_MASKED);
 #ifdef CONFIG_IRQ_PER_CPU
 	P(IRQ_PER_CPU);
 #endif
@@ -156,6 +157,7 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 	PS(IRQS_WAITING);
 	PS(IRQS_DISABLED);
 	PS(IRQS_PENDING);
+	PS(IRQS_MASKED);
 }
 
 #undef P

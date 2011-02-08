@@ -646,8 +646,9 @@ again:
 		goto again;
 	}
 
-	if (!(desc->istate & IRQS_DISABLED) && (desc->status & IRQ_MASKED)) {
-		desc->status &= ~IRQ_MASKED;
+	if (!(desc->istate & IRQS_DISABLED) && (desc->istate & IRQS_MASKED)) {
+		irq_compat_clr_masked(desc);
+		desc->istate &= ~IRQS_MASKED;
 		desc->irq_data.chip->irq_unmask(&desc->irq_data);
 	}
 	raw_spin_unlock_irq(&desc->lock);

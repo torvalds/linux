@@ -69,7 +69,7 @@ void move_native_irq(int irq)
 	 * threaded interrupt with ONESHOT set, we can end up with an
 	 * interrupt storm.
 	 */
-	masked = desc->status & IRQ_MASKED;
+	masked = desc->istate & IRQS_MASKED;
 	if (!masked)
 		desc->irq_data.chip->irq_mask(&desc->irq_data);
 	move_masked_irq(irq);
