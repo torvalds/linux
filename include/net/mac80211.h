@@ -341,6 +341,9 @@ struct ieee80211_bss_conf {
  *	the off-channel channel when a remain-on-channel offload is done
  *	in hardware -- normal packets still flow and are expected to be
  *	handled properly by the device.
+ * @IEEE80211_TX_INTFL_TKIP_MIC_FAILURE: Marks this packet to be used for TKIP
+ *	testing. It will be sent out with incorrect Michael MIC key to allow
+ *	TKIP countermeasures to be tested.
  *
  * Note: If you have to add new flags to the enumeration, then don't
  *	 forget to update %IEEE80211_TX_TEMPORARY_FLAGS when necessary.
@@ -370,6 +373,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_LDPC			= BIT(22),
 	IEEE80211_TX_CTL_STBC			= BIT(23) | BIT(24),
 	IEEE80211_TX_CTL_TX_OFFCHAN		= BIT(25),
+	IEEE80211_TX_INTFL_TKIP_MIC_FAILURE	= BIT(26),
 };
 
 #define IEEE80211_TX_CTL_STBC_SHIFT		23
@@ -1069,6 +1073,13 @@ enum ieee80211_tkip_key_type {
  *	to decrypt group addressed frames, then IBSS RSN support is still
  *	possible but software crypto will be used. Advertise the wiphy flag
  *	only in that case.
+ *
+ * @IEEE80211_HW_AP_LINK_PS: When operating in AP mode the device
+ *	autonomously manages the PS status of connected stations. When
+ *	this flag is set mac80211 will not trigger PS mode for connected
+ *	stations based on the PM bit of incoming frames.
+ *	Use ieee80211_start_ps()/ieee8021_end_ps() to manually configure
+ *	the PS mode of connected stations.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1093,6 +1104,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
 	IEEE80211_HW_SUPPORTS_CQM_RSSI			= 1<<20,
 	IEEE80211_HW_SUPPORTS_PER_STA_GTK		= 1<<21,
+	IEEE80211_HW_AP_LINK_PS				= 1<<22,
 };
 
 /**
@@ -1701,7 +1713,9 @@ enum ieee80211_ampdu_mlme_action {
  *	station, AP, IBSS/WDS/mesh peer etc. This callback can sleep.
  *
  * @sta_notify: Notifies low level driver about power state transition of an
- *	associated station, AP,  IBSS/WDS/mesh peer etc. Must be atomic.
+ *	associated station, AP,  IBSS/WDS/mesh peer etc. For a VIF operating
+ *	in AP mode, this callback will not be called when the flag
+ *	%IEEE80211_HW_AP_LINK_PS is set. Must be atomic.
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
@@ -2129,6 +2143,48 @@ static inline void ieee80211_rx_ni(struct ieee80211_hw *hw,
 	local_bh_disable();
 	ieee80211_rx(hw, skb);
 	local_bh_enable();
+}
+
+/**
+ * ieee80211_sta_ps_transition - PS transition for connected sta
+ *
+ * When operating in AP mode with the %IEEE80211_HW_AP_LINK_PS
+ * flag set, use this function to inform mac80211 about a connected station
+ * entering/leaving PS mode.
+ *
+ * This function may not be called in IRQ context or with softirqs enabled.
+ *
+ * Calls to this function for a single hardware must be synchronized against
+ * each other.
+ *
+ * The function returns -EINVAL when the requested PS mode is already set.
+ *
+ * @sta: currently connected sta
+ * @start: start or stop PS
+ */
+int ieee80211_sta_ps_transition(struct ieee80211_sta *sta, bool start);
+
+/**
+ * ieee80211_sta_ps_transition_ni - PS transition for connected sta
+ *                                  (in process context)
+ *
+ * Like ieee80211_sta_ps_transition() but can be called in process context
+ * (internally disables bottom halves). Concurrent call restriction still
+ * applies.
+ *
+ * @sta: currently connected sta
+ * @start: start or stop PS
+ */
+static inline int ieee80211_sta_ps_transition_ni(struct ieee80211_sta *sta,
+						  bool start)
+{
+	int ret;
+
+	local_bh_disable();
+	ret = ieee80211_sta_ps_transition(sta, start);
+	local_bh_enable();
+
+	return ret;
 }
 
 /*

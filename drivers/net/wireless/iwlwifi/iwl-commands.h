@@ -178,7 +178,6 @@ enum {
 	REPLY_BT_COEX_PRIO_TABLE = 0xcc,
 	REPLY_BT_COEX_PROT_ENV = 0xcd,
 	REPLY_BT_COEX_PROFILE_NOTIF = 0xce,
-	REPLY_BT_COEX_SCO = 0xcf,
 
 	/* PAN commands */
 	REPLY_WIPAN_PARAMS = 0xb2,
@@ -3078,6 +3077,13 @@ struct iwl3945_beacon_notif {
 
 struct iwl4965_beacon_notif {
 	struct iwl4965_tx_resp beacon_notify_hdr;
+	__le32 low_tsf;
+	__le32 high_tsf;
+	__le32 ibss_mgr_status;
+} __packed;
+
+struct iwlagn_beacon_notif {
+	struct iwlagn_tx_resp beacon_notify_hdr;
 	__le32 low_tsf;
 	__le32 high_tsf;
 	__le32 ibss_mgr_status;

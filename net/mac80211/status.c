@@ -98,6 +98,10 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	 *  (b) always process RX events before TX status events if ordering
 	 *      can be unknown, for example with different interrupt status
 	 *	bits.
+	 *  (c) if PS mode transitions are manual (i.e. the flag
+	 *      %IEEE80211_HW_AP_LINK_PS is set), always process PS state
+	 *      changes before calling TX status events if ordering can be
+	 *	unknown.
 	 */
 	if (test_sta_flags(sta, WLAN_STA_PS_STA) &&
 	    skb_queue_len(&sta->tx_filtered) < STA_MAX_TX_BUFFER) {

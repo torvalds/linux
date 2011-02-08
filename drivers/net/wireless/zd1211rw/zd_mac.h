@@ -163,6 +163,17 @@ struct housekeeping {
 	struct delayed_work link_led_work;
 };
 
+struct beacon {
+	struct delayed_work watchdog_work;
+	unsigned long last_update;
+	u16 interval;
+	u8 period;
+};
+
+enum zd_device_flags {
+	ZD_DEVICE_RUNNING,
+};
+
 #define ZD_MAC_STATS_BUFFER_SIZE 16
 
 #define ZD_MAC_MAX_ACK_WAITERS 50
@@ -172,17 +183,19 @@ struct zd_mac {
 	spinlock_t lock;
 	spinlock_t intr_lock;
 	struct ieee80211_hw *hw;
+	struct ieee80211_vif *vif;
 	struct housekeeping housekeeping;
-	struct work_struct set_multicast_hash_work;
+	struct beacon beacon;
 	struct work_struct set_rts_cts_work;
-	struct work_struct set_rx_filter_work;
 	struct work_struct process_intr;
 	struct zd_mc_hash multicast_hash;
 	u8 intr_buffer[USB_MAX_EP_INT_BUFFER];
 	u8 regdomain;
 	u8 default_regdomain;
+	u8 channel;
 	int type;
 	int associated;
+	unsigned long flags;
 	struct sk_buff_head ack_wait_queue;
 	struct ieee80211_channel channels[14];
 	struct ieee80211_rate rates[12];
@@ -190,9 +203,6 @@ struct zd_mac {
 
 	/* Short preamble (used for RTS/CTS) */
 	unsigned int short_preamble:1;
-
-	/* flags to indicate update in progress */
-	unsigned int updating_rts_rate:1;
 
 	/* whether to pass frames with CRC errors to stack */
 	unsigned int pass_failed_fcs:1;
@@ -303,6 +313,10 @@ int zd_mac_init_hw(struct ieee80211_hw *hw);
 int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length);
 void zd_mac_tx_failed(struct urb *urb);
 void zd_mac_tx_to_dev(struct sk_buff *skb, int error);
+
+int zd_op_start(struct ieee80211_hw *hw);
+void zd_op_stop(struct ieee80211_hw *hw);
+int zd_restore_settings(struct zd_mac *mac);
 
 #ifdef DEBUG
 void zd_dump_rx_status(const struct rx_status *status);

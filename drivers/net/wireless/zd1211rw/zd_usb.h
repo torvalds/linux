@@ -32,6 +32,10 @@
 #define ZD_USB_TX_HIGH  5
 #define ZD_USB_TX_LOW   2
 
+#define ZD_TX_TIMEOUT		(HZ * 5)
+#define ZD_TX_WATCHDOG_INTERVAL	round_jiffies_relative(HZ)
+#define ZD_RX_IDLE_INTERVAL	round_jiffies_relative(30 * HZ)
+
 enum devicetype {
 	DEVICE_ZD1211  = 0,
 	DEVICE_ZD1211B = 1,
@@ -162,6 +166,8 @@ struct zd_usb_interrupt {
 	struct read_regs_int read_regs;
 	spinlock_t lock;
 	struct urb *urb;
+	void *buffer;
+	dma_addr_t buffer_dma;
 	int interval;
 	u8 read_regs_enabled:1;
 };
@@ -175,7 +181,9 @@ static inline struct usb_int_regs *get_read_regs(struct zd_usb_interrupt *intr)
 
 struct zd_usb_rx {
 	spinlock_t lock;
-	u8 fragment[2*USB_MAX_RX_SIZE];
+	struct mutex setup_mutex;
+	struct delayed_work idle_work;
+	u8 fragment[2 * USB_MAX_RX_SIZE];
 	unsigned int fragment_length;
 	unsigned int usb_packet_size;
 	struct urb **urbs;
@@ -184,19 +192,21 @@ struct zd_usb_rx {
 
 /**
  * struct zd_usb_tx - structure used for transmitting frames
+ * @enabled: atomic enabled flag, indicates whether tx is enabled
  * @lock: lock for transmission
- * @free_urb_list: list of free URBs, contains all the URBs, which can be used
+ * @submitted: anchor for URBs sent to device
  * @submitted_urbs: atomic integer that counts the URBs having sent to the
  *	device, which haven't been completed
- * @enabled: enabled flag, indicates whether tx is enabled
  * @stopped: indicates whether higher level tx queues are stopped
  */
 struct zd_usb_tx {
+	atomic_t enabled;
 	spinlock_t lock;
-	struct list_head free_urb_list;
+	struct delayed_work watchdog_work;
+	struct sk_buff_head submitted_skbs;
+	struct usb_anchor submitted;
 	int submitted_urbs;
-	int enabled;
-	int stopped;
+	u8 stopped:1, watchdog_enabled:1;
 };
 
 /* Contains the usb parts. The structure doesn't require a lock because intf
@@ -207,7 +217,8 @@ struct zd_usb {
 	struct zd_usb_rx rx;
 	struct zd_usb_tx tx;
 	struct usb_interface *intf;
-	u8 is_zd1211b:1, initialized:1;
+	u8 req_buf[64]; /* zd_usb_iowrite16v needs 62 bytes */
+	u8 is_zd1211b:1, initialized:1, was_running:1;
 };
 
 #define zd_usb_dev(usb) (&usb->intf->dev)
@@ -234,11 +245,16 @@ void zd_usb_clear(struct zd_usb *usb);
 
 int zd_usb_scnprint_id(struct zd_usb *usb, char *buffer, size_t size);
 
+void zd_tx_watchdog_enable(struct zd_usb *usb);
+void zd_tx_watchdog_disable(struct zd_usb *usb);
+
 int zd_usb_enable_int(struct zd_usb *usb);
 void zd_usb_disable_int(struct zd_usb *usb);
 
 int zd_usb_enable_rx(struct zd_usb *usb);
 void zd_usb_disable_rx(struct zd_usb *usb);
+
+void zd_usb_reset_rx_idle_timer(struct zd_usb *usb);
 
 void zd_usb_enable_tx(struct zd_usb *usb);
 void zd_usb_disable_tx(struct zd_usb *usb);

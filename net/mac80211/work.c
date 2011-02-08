@@ -924,18 +924,44 @@ static void ieee80211_work_work(struct work_struct *work)
 		}
 
 		if (!started && !local->tmp_channel) {
-			/*
-			 * TODO: could optimize this by leaving the
-			 *	 station vifs in awake mode if they
-			 *	 happen to be on the same channel as
-			 *	 the requested channel
-			 */
-			ieee80211_offchannel_stop_beaconing(local);
-			ieee80211_offchannel_stop_station(local);
+			bool on_oper_chan;
+			bool tmp_chan_changed = false;
+			bool on_oper_chan2;
+			on_oper_chan = ieee80211_cfg_on_oper_channel(local);
+			if (local->tmp_channel)
+				if ((local->tmp_channel != wk->chan) ||
+				    (local->tmp_channel_type != wk->chan_type))
+					tmp_chan_changed = true;
 
 			local->tmp_channel = wk->chan;
 			local->tmp_channel_type = wk->chan_type;
-			ieee80211_hw_config(local, 0);
+			/*
+			 * Leave the station vifs in awake mode if they
+			 * happen to be on the same channel as
+			 * the requested channel.
+			 */
+			on_oper_chan2 = ieee80211_cfg_on_oper_channel(local);
+			if (on_oper_chan != on_oper_chan2) {
+				if (on_oper_chan2) {
+					/* going off oper channel, PS too */
+					ieee80211_offchannel_stop_vifs(local,
+								       true);
+					ieee80211_hw_config(local, 0);
+				} else {
+					/* going on channel, but leave PS
+					 * off-channel. */
+					ieee80211_hw_config(local, 0);
+					ieee80211_offchannel_return(local,
+								    true,
+								    false);
+				}
+			} else if (tmp_chan_changed)
+				/* Still off-channel, but on some other
+				 * channel, so update hardware.
+				 * PS should already be off-channel.
+				 */
+				ieee80211_hw_config(local, 0);
+
 			started = true;
 			wk->timeout = jiffies;
 		}
@@ -1011,9 +1037,27 @@ static void ieee80211_work_work(struct work_struct *work)
 	}
 
 	if (!remain_off_channel && local->tmp_channel) {
+		bool on_oper_chan = ieee80211_cfg_on_oper_channel(local);
 		local->tmp_channel = NULL;
-		ieee80211_hw_config(local, 0);
-		ieee80211_offchannel_return(local, true);
+		/* If tmp_channel wasn't operating channel, then
+		 * we need to go back on-channel.
+		 * NOTE:  If we can ever be here while scannning,
+		 * or if the hw_config() channel config logic changes,
+		 * then we may need to do a more thorough check to see if
+		 * we still need to do a hardware config.  Currently,
+		 * we cannot be here while scanning, however.
+		 */
+		if (ieee80211_cfg_on_oper_channel(local) && !on_oper_chan)
+			ieee80211_hw_config(local, 0);
+
+		/* At the least, we need to disable offchannel_ps,
+		 * so just go ahead and run the entire offchannel
+		 * return logic here.  We *could* skip enabling
+		 * beaconing if we were already on-oper-channel
+		 * as a future optimization.
+		 */
+		ieee80211_offchannel_return(local, true, true);
+
 		/* give connection some time to breathe */
 		run_again(local, jiffies + HZ/2);
 	}

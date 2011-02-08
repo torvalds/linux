@@ -1587,10 +1587,9 @@ static ssize_t iwl_dbgfs_bt_traffic_read(struct file *file,
 			 "last traffic notif: %d\n",
 		priv->bt_status ? "On" : "Off", priv->last_bt_traffic_load);
 	pos += scnprintf(buf + pos, bufsz - pos, "ch_announcement: %d, "
-			 "sco_active: %d, kill_ack_mask: %x, "
-			 "kill_cts_mask: %x\n",
-		priv->bt_ch_announce, priv->bt_sco_active,
-		priv->kill_ack_mask, priv->kill_cts_mask);
+			 "kill_ack_mask: %x, kill_cts_mask: %x\n",
+		priv->bt_ch_announce, priv->kill_ack_mask,
+		priv->kill_cts_mask);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "bluetooth traffic load: ");
 	switch (priv->bt_traffic_load) {

@@ -18,17 +18,6 @@
 #include "ath9k.h"
 #include "btcoex.h"
 
-static void ath_update_txpow(struct ath_softc *sc)
-{
-	struct ath_hw *ah = sc->sc_ah;
-
-	if (sc->curtxpow != sc->config.txpowlimit) {
-		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
-		/* read back in case value is clamped */
-		sc->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
-	}
-}
-
 static u8 parse_mpdudensity(u8 mpdudensity)
 {
 	/*
@@ -62,19 +51,6 @@ static u8 parse_mpdudensity(u8 mpdudensity)
 	default:
 		return 0;
 	}
-}
-
-static struct ath9k_channel *ath_get_curchannel(struct ath_softc *sc,
-						struct ieee80211_hw *hw)
-{
-	struct ieee80211_channel *curchan = hw->conf.channel;
-	struct ath9k_channel *channel;
-	u8 chan_idx;
-
-	chan_idx = curchan->hw_value;
-	channel = &sc->sc_ah->channels[chan_idx];
-	ath9k_cmn_update_ichannel(channel, curchan, hw->conf.channel_type);
-	return channel;
 }
 
 bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode)
@@ -177,7 +153,12 @@ static void ath_update_survey_nf(struct ath_softc *sc, int channel)
 	}
 }
 
-static void ath_update_survey_stats(struct ath_softc *sc)
+/*
+ * Updates the survey statistics and returns the busy time since last
+ * update in %, if the measurement duration was long enough for the
+ * result to be useful, -1 otherwise.
+ */
+static int ath_update_survey_stats(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -185,9 +166,10 @@ static void ath_update_survey_stats(struct ath_softc *sc)
 	struct survey_info *survey = &sc->survey[pos];
 	struct ath_cycle_counters *cc = &common->cc_survey;
 	unsigned int div = common->clockrate * 1000;
+	int ret = 0;
 
 	if (!ah->curchan)
-		return;
+		return -1;
 
 	if (ah->power_mode == ATH9K_PM_AWAKE)
 		ath_hw_cycle_counters_update(common);
@@ -202,9 +184,18 @@ static void ath_update_survey_stats(struct ath_softc *sc)
 		survey->channel_time_rx += cc->rx_frame / div;
 		survey->channel_time_tx += cc->tx_frame / div;
 	}
+
+	if (cc->cycles < div)
+		return -1;
+
+	if (cc->cycles > 0)
+		ret = cc->rx_busy * 100 / cc->cycles;
+
 	memset(cc, 0, sizeof(*cc));
 
 	ath_update_survey_nf(sc, pos);
+
+	return ret;
 }
 
 /*
@@ -225,6 +216,8 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 
 	if (sc->sc_flags & SC_OP_INVALID)
 		return -EIO;
+
+	sc->hw_busy_count = 0;
 
 	del_timer_sync(&common->ani.timer);
 	cancel_work_sync(&sc->paprd_work);
@@ -284,7 +277,8 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		goto ps_restore;
 	}
 
-	ath_update_txpow(sc);
+	ath9k_cmn_update_txpow(ah, sc->curtxpow,
+			       sc->config.txpowlimit, &sc->curtxpow);
 	ath9k_hw_set_interrupts(ah, ah->imask);
 
 	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL))) {
@@ -592,17 +586,25 @@ static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 void ath_hw_check(struct work_struct *work)
 {
 	struct ath_softc *sc = container_of(work, struct ath_softc, hw_check_work);
-	int i;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	unsigned long flags;
+	int busy;
 
 	ath9k_ps_wakeup(sc);
+	if (ath9k_hw_check_alive(sc->sc_ah))
+		goto out;
 
-	for (i = 0; i < 3; i++) {
-		if (ath9k_hw_check_alive(sc->sc_ah))
-			goto out;
+	spin_lock_irqsave(&common->cc_lock, flags);
+	busy = ath_update_survey_stats(sc);
+	spin_unlock_irqrestore(&common->cc_lock, flags);
 
-		msleep(1);
-	}
-	ath_reset(sc, true);
+	ath_dbg(common, ATH_DBG_RESET, "Possible baseband hang, "
+		"busy=%d (try %d)\n", busy, sc->hw_busy_count + 1);
+	if (busy >= 99) {
+		if (++sc->hw_busy_count >= 3)
+			ath_reset(sc, true);
+	} else if (busy >= 0)
+		sc->hw_busy_count = 0;
 
 out:
 	ath9k_ps_restore(sc);
@@ -867,7 +869,7 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	ath9k_hw_configpcipowersave(ah, 0, 0);
 
 	if (!ah->curchan)
-		ah->curchan = ath_get_curchannel(sc, sc->hw);
+		ah->curchan = ath9k_cmn_get_curchannel(sc->hw, ah);
 
 	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (r) {
@@ -876,7 +878,8 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 			channel->center_freq, r);
 	}
 
-	ath_update_txpow(sc);
+	ath9k_cmn_update_txpow(ah, sc->curtxpow,
+			       sc->config.txpowlimit, &sc->curtxpow);
 	if (ath_startrecv(sc) != 0) {
 		ath_err(common, "Unable to restart recv logic\n");
 		goto out;
@@ -928,7 +931,7 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	ath_flushrecv(sc);		/* flush recv queue */
 
 	if (!ah->curchan)
-		ah->curchan = ath_get_curchannel(sc, hw);
+		ah->curchan = ath9k_cmn_get_curchannel(hw, ah);
 
 	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (r) {
@@ -951,6 +954,8 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_hw *hw = sc->hw;
 	int r;
+
+	sc->hw_busy_count = 0;
 
 	/* Stop ANI */
 	del_timer_sync(&common->ani.timer);
@@ -979,7 +984,8 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	 * that changes the channel so update any state that
 	 * might change as a result.
 	 */
-	ath_update_txpow(sc);
+	ath9k_cmn_update_txpow(ah, sc->curtxpow,
+			       sc->config.txpowlimit, &sc->curtxpow);
 
 	if ((sc->sc_flags & SC_OP_BEACONS) || !(sc->sc_flags & (SC_OP_OFFCHANNEL)))
 		ath_beacon_config(sc, NULL);	/* restart beacons */
@@ -1029,7 +1035,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	/* setup initial channel */
 	sc->chan_idx = curchan->hw_value;
 
-	init_channel = ath_get_curchannel(sc, hw);
+	init_channel = ath9k_cmn_get_curchannel(hw, ah);
 
 	/* Reset SERDES registers */
 	ath9k_hw_configpcipowersave(ah, 0, 0);
@@ -1055,7 +1061,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * This is needed only to setup initial state
 	 * but it's best done after a reset.
 	 */
-	ath_update_txpow(sc);
+	ath9k_cmn_update_txpow(ah, sc->curtxpow,
+			sc->config.txpowlimit, &sc->curtxpow);
 
 	/*
 	 * Setup the hardware after reset:
@@ -1374,6 +1381,7 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 
 	ath9k_calculate_iter_data(hw, vif, &iter_data);
 
+	ath9k_ps_wakeup(sc);
 	/* Set BSSID mask. */
 	memcpy(common->bssidmask, iter_data.mask, ETH_ALEN);
 	ath_hw_setbssidmask(common);
@@ -1408,6 +1416,7 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	}
 
 	ath9k_hw_set_interrupts(ah, ah->imask);
+	ath9k_ps_restore(sc);
 
 	/* Set up ANI */
 	if ((iter_data.naps + iter_data.nadhocs) > 0) {
@@ -1437,9 +1446,7 @@ static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
 		 * there.
 		 */
 		error = ath_beacon_alloc(sc, vif);
-		if (error)
-			ath9k_reclaim_beacon(sc, vif);
-		else
+		if (!error)
 			ath_beacon_config(sc, vif);
 	}
 }
@@ -1720,7 +1727,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		sc->config.txpowlimit = 2 * conf->power_level;
 		ath9k_ps_wakeup(sc);
-		ath_update_txpow(sc);
+		ath9k_cmn_update_txpow(ah, sc->curtxpow,
+				       sc->config.txpowlimit, &sc->curtxpow);
 		ath9k_ps_restore(sc);
 	}
 

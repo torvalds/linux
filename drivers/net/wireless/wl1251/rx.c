@@ -96,8 +96,52 @@ static void wl1251_rx_status(struct wl1251 *wl,
 	if (unlikely(!(desc->flags & RX_DESC_VALID_FCS)))
 		status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
+	switch (desc->rate) {
+		/* skip 1 and 12 Mbps because they have same value 0x0a */
+	case RATE_2MBPS:
+		status->rate_idx = 1;
+		break;
+	case RATE_5_5MBPS:
+		status->rate_idx = 2;
+		break;
+	case RATE_11MBPS:
+		status->rate_idx = 3;
+		break;
+	case RATE_6MBPS:
+		status->rate_idx = 4;
+		break;
+	case RATE_9MBPS:
+		status->rate_idx = 5;
+		break;
+	case RATE_18MBPS:
+		status->rate_idx = 7;
+		break;
+	case RATE_24MBPS:
+		status->rate_idx = 8;
+		break;
+	case RATE_36MBPS:
+		status->rate_idx = 9;
+		break;
+	case RATE_48MBPS:
+		status->rate_idx = 10;
+		break;
+	case RATE_54MBPS:
+		status->rate_idx = 11;
+		break;
+	}
 
-	/* FIXME: set status->rate_idx */
+	/* for 1 and 12 Mbps we have to check the modulation */
+	if (desc->rate == RATE_1MBPS) {
+		if (!(desc->mod_pre & OFDM_RATE_BIT))
+			/* CCK -> RATE_1MBPS */
+			status->rate_idx = 0;
+		else
+			/* OFDM -> RATE_12MBPS */
+			status->rate_idx = 6;
+	}
+
+	if (desc->mod_pre & SHORT_PREAMBLE_BIT)
+		status->flag |= RX_FLAG_SHORTPRE;
 }
 
 static void wl1251_rx_body(struct wl1251 *wl,

@@ -308,14 +308,6 @@ void iwlagn_init_alive_start(struct iwl_priv *priv)
 {
 	int ret = 0;
 
-	/* Check alive response for "valid" sign from uCode */
-	if (priv->card_alive_init.is_valid != UCODE_VALID_OK) {
-		/* We had an error bringing up the hardware, so take it
-		 * all the way back down so we can try again */
-		IWL_DEBUG_INFO(priv, "Initialize Alive failed.\n");
-		goto restart;
-	}
-
 	/* initialize uCode was loaded... verify inst image.
 	 * This is a paranoid check, because we would not have gotten the
 	 * "initialize" alive if code weren't properly loaded.  */
