@@ -60,7 +60,7 @@ void check_irq_resend(struct irq_desc *desc, unsigned int irq)
 	 * interrupts are resent by hardware when they are still
 	 * active.
 	 */
-	if (desc->status & IRQ_LEVEL)
+	if (irq_settings_is_level(desc))
 		return;
 	if (desc->istate & IRQS_REPLAY)
 		return;

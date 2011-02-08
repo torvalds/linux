@@ -567,23 +567,32 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		return 0;
 	}
 
+	flags &= IRQ_TYPE_SENSE_MASK;
 	/* caller masked out all except trigger mode flags */
 	ret = chip->irq_set_type(&desc->irq_data, flags);
 
-	if (ret)
-		pr_err("setting trigger mode %lu for irq %u failed (%pF)\n",
-		       flags, irq, chip->irq_set_type);
-	else {
-		if (flags & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
-			flags |= IRQ_LEVEL;
-		/* note that IRQF_TRIGGER_MASK == IRQ_TYPE_SENSE_MASK */
-		desc->status &= ~(IRQ_LEVEL | IRQ_TYPE_SENSE_MASK);
-		desc->status |= flags;
+	switch (ret) {
+	case IRQ_SET_MASK_OK:
+		irqd_clear(&desc->irq_data, IRQD_TRIGGER_MASK);
+		irqd_set(&desc->irq_data, flags);
+
+	case IRQ_SET_MASK_OK_NOCOPY:
+		flags = irqd_get_trigger_type(&desc->irq_data);
+		irq_settings_set_trigger_mask(desc, flags);
+		irqd_clear(&desc->irq_data, IRQD_LEVEL);
+		irq_settings_clr_level(desc);
+		if (flags & IRQ_TYPE_LEVEL_MASK) {
+			irq_settings_set_level(desc);
+			irqd_set(&desc->irq_data, IRQD_LEVEL);
+		}
 
 		if (chip != desc->irq_data.chip)
 			irq_chip_set_defaults(desc->irq_data.chip);
+		return 0;
+	default:
+		pr_err("setting trigger mode %lu for irq %u failed (%pF)\n",
+		       flags, irq, chip->irq_set_type);
 	}
-
 	return ret;
 }
 
@@ -923,13 +932,14 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		/* Set default affinity mask once everything is setup */
 		setup_affinity(irq, desc, mask);
 
-	} else if ((new->flags & IRQF_TRIGGER_MASK)
-			&& (new->flags & IRQF_TRIGGER_MASK)
-				!= (desc->status & IRQ_TYPE_SENSE_MASK)) {
-		/* hope the handler works with the actual trigger mode... */
-		pr_warning("IRQ %d uses trigger mode %d; requested %d\n",
-				irq, (int)(desc->status & IRQ_TYPE_SENSE_MASK),
-				(int)(new->flags & IRQF_TRIGGER_MASK));
+	} else if (new->flags & IRQF_TRIGGER_MASK) {
+		unsigned int nmsk = new->flags & IRQF_TRIGGER_MASK;
+		unsigned int omsk = irq_settings_get_trigger_mask(desc);
+
+		if (nmsk != omsk)
+			/* hope the handler works with current  trigger mode */
+			pr_warning("IRQ %d uses trigger mode %u; requested %u\n",
+				   irq, nmsk, omsk);
 	}
 
 	new->irq = irq;

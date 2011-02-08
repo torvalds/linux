@@ -5,6 +5,7 @@
 enum {
 	_IRQ_DEFAULT_INIT_FLAGS	= IRQ_DEFAULT_INIT_FLAGS,
 	_IRQ_PER_CPU		= IRQ_PER_CPU,
+	_IRQ_LEVEL		= IRQ_LEVEL,
 	_IRQ_NO_BALANCING	= IRQ_NO_BALANCING,
 	_IRQF_MODIFY_MASK	= IRQF_MODIFY_MASK,
 };
@@ -31,6 +32,8 @@ enum {
 #define IRQ_NO_BALANCING	GOT_YOU_MORON
 #undef IRQ_AFFINITY_SET
 #define IRQ_AFFINITY_SET	GOT_YOU_MORON
+#undef IRQ_LEVEL
+#define IRQ_LEVEL		GOT_YOU_MORON
 #undef IRQF_MODIFY_MASK
 #define IRQF_MODIFY_MASK	GOT_YOU_MORON
 
@@ -59,4 +62,31 @@ static inline void irq_settings_set_no_balancing(struct irq_desc *desc)
 static inline bool irq_settings_has_no_balance_set(struct irq_desc *desc)
 {
 	return desc->status & _IRQ_NO_BALANCING;
+}
+
+static inline u32 irq_settings_get_trigger_mask(struct irq_desc *desc)
+{
+	return desc->status & IRQ_TYPE_SENSE_MASK;
+}
+
+static inline void
+irq_settings_set_trigger_mask(struct irq_desc *desc, u32 mask)
+{
+	desc->status &= ~IRQ_TYPE_SENSE_MASK;
+	desc->status |= mask & IRQ_TYPE_SENSE_MASK;
+}
+
+static inline bool irq_settings_is_level(struct irq_desc *desc)
+{
+	return desc->status & _IRQ_LEVEL;
+}
+
+static inline void irq_settings_clr_level(struct irq_desc *desc)
+{
+	desc->status &= ~_IRQ_LEVEL;
+}
+
+static inline void irq_settings_set_level(struct irq_desc *desc)
+{
+	desc->status |= _IRQ_LEVEL;
 }
