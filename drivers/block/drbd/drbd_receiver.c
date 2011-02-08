@@ -4226,33 +4226,33 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 
 int drbdd_init(struct drbd_thread *thi)
 {
-	struct drbd_conf *mdev = thi->mdev;
+	struct drbd_tconn *tconn = thi->mdev->tconn;
 	int h;
 
-	dev_info(DEV, "receiver (re)started\n");
+	conn_info(tconn, "receiver (re)started\n");
 
 	do {
-		h = drbd_connect(mdev->tconn);
+		h = drbd_connect(tconn);
 		if (h == 0) {
-			drbd_disconnect(mdev->tconn);
+			drbd_disconnect(tconn);
 			schedule_timeout_interruptible(HZ);
 		}
 		if (h == -1) {
-			dev_warn(DEV, "Discarding network configuration.\n");
-			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+			conn_warn(tconn, "Discarding network configuration.\n");
+			drbd_force_state(tconn->volume0, NS(conn, C_DISCONNECTING));
 		}
 	} while (h == 0);
 
 	if (h > 0) {
-		if (get_net_conf(mdev->tconn)) {
-			drbdd(mdev->tconn);
-			put_net_conf(mdev->tconn);
+		if (get_net_conf(tconn)) {
+			drbdd(tconn);
+			put_net_conf(tconn);
 		}
 	}
 
-	drbd_disconnect(mdev->tconn);
+	drbd_disconnect(tconn);
 
-	dev_info(DEV, "receiver terminated\n");
+	conn_info(tconn, "receiver terminated\n");
 	return 0;
 }
 
