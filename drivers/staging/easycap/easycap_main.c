@@ -51,6 +51,10 @@ static int easycap_gain = 16;
 module_param_named(gain, easycap_gain, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(gain, "Audio gain: 0,...,16(default),...31");
 
+static bool easycap_ntsc;
+module_param_named(ntsc, easycap_ntsc, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ntsc, "NTCS default encoding (default PAL)");
+
 
 
 struct easycap_dongle easycapdc60_dongle[DONGLE_MANY];
@@ -4102,13 +4106,9 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
  *  BEWARE.
 */
 /*---------------------------------------------------------------------------*/
-#ifdef PREFER_NTSC
-		peasycap->ntsc = true;
-		JOM(8, "defaulting initially to NTSC\n");
-#else
-		peasycap->ntsc = false;
-		JOM(8, "defaulting initially to PAL\n");
-#endif /*PREFER_NTSC*/
+		peasycap->ntsc = easycap_ntsc;
+		JOM(8, "defaulting initially to %s\n",
+			easycap_ntsc ? "NTSC" : "PAL");
 		rc = reset(peasycap);
 		if (rc) {
 			SAM("ERROR: reset() returned %i\n", rc);
