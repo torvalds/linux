@@ -600,7 +600,7 @@ void scic_cb_port_invalid_link_up(
  * @port: This parameter specifies the SCI port object for which the callback
  *    is being invoked.  For instances where the phy on which the primitive was
  *    received is not part of a port, this parameter will be
- *    SCI_INVALID_HANDLE_T.
+ *    NULL.
  * @phy: This parameter specifies the phy on which the primitive was received.
  *
  */
@@ -620,7 +620,7 @@ void scic_cb_port_bc_change_primitive_received(
  *    phy.
  * @port: This parameter specifies the port object for which the user callback
  *    is being invoked.  There may be conditions where this parameter can be
- *    SCI_INVALID_HANDLE
+ *    NULL
  * @phy: This parameter specifies the phy object for which the user callback is
  *    being invoked.
  *
@@ -638,7 +638,7 @@ void scic_cb_port_link_up(
  *    phy.
  * @port: This parameter specifies the port object for which the user callback
  *    is being invoked.  There may be conditions where this parameter can be
- *    SCI_INVALID_HANDLE
+ *    NULL
  * @phy: This parameter specifies the phy object for which the user callback is
  *    being invoked.
  *

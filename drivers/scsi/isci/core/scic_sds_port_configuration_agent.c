@@ -118,9 +118,9 @@ static s32 sci_sas_address_compare(
  *
  * This routine will find a matching port for the phy.  This means that the
  * port and phy both have the same broadcast sas address and same received sas
- * address. The port address or the SCI_INVALID_HANDLE if there is no matching
+ * address. The port address or the NULL if there is no matching
  * port. port address if the port can be found to match the phy.
- * SCI_INVALID_HANDLE if there is no matching port for the phy.
+ * NULL if there is no matching port for the phy.
  */
 static struct scic_sds_port *scic_sds_port_configuration_agent_find_port(
 	struct scic_sds_controller *controller,
@@ -156,7 +156,7 @@ static struct scic_sds_port *scic_sds_port_configuration_agent_find_port(
 		}
 	}
 
-	return SCI_INVALID_HANDLE;
+	return NULL;
 }
 
 /**
@@ -390,7 +390,7 @@ static void scic_sds_mpc_agent_timeout_handler(
  * @controller: This is the controller object that receives the link up
  *    notification.
  * @port: This is the port object associated with the phy.  If the is no
- *    associated port this is an SCI_INVALID_HANDLE.
+ *    associated port this is an NULL.
  * @phy: This is the phy object which has gone ready.
  *
  * This method handles the manual port configuration link up notifications.
@@ -409,7 +409,7 @@ static void scic_sds_mpc_agent_link_up(
 	 * If the port has an invalid handle then the phy was not assigned to
 	 * a port.  This is because the phy was not given the same SAS Address
 	 * as the other PHYs in the port. */
-	if (port != SCI_INVALID_HANDLE) {
+	if (port != NULL) {
 		port_agent->phy_ready_mask |= (1 << scic_sds_phy_get_index(phy));
 
 		scic_sds_port_link_up(port, phy);
@@ -425,7 +425,7 @@ static void scic_sds_mpc_agent_link_up(
  * @controller: This is the controller object that receives the link down
  *    notification.
  * @port: This is the port object associated with the phy.  If the is no
- *    associated port this is an SCI_INVALID_HANDLE.  The port is an invalid
+ *    associated port this is an NULL.  The port is an invalid
  *    handle only if the phy was never port of this port.  This happens when
  *    the phy is not broadcasting the same SAS address as the other phys in the
  *    assigned port.
@@ -443,7 +443,7 @@ static void scic_sds_mpc_agent_link_down(
 	struct scic_sds_port *port,
 	struct scic_sds_phy *phy)
 {
-	if (port != SCI_INVALID_HANDLE) {
+	if (port != NULL) {
 		/*
 		 * If we can form a new port from the remainder of the phys then we want
 		 * to start the timer to allow the SCI User to cleanup old devices and
@@ -573,7 +573,7 @@ static void scic_sds_apc_agent_configure_ports(
 
 	port = scic_sds_port_configuration_agent_find_port(controller, phy);
 
-	if (port != SCI_INVALID_HANDLE) {
+	if (port != NULL) {
 		if (scic_sds_port_is_valid_phy_assignment(port, phy->phy_index))
 			apc_activity = SCIC_SDS_APC_ADD_PHY;
 		else
@@ -680,7 +680,7 @@ static void scic_sds_apc_agent_configure_ports(
  * @controller: This is the controller object that receives the link up
  *    notification.
  * @port: This is the port object associated with the phy.  If the is no
- *    associated port this is an SCI_INVALID_HANDLE.
+ *    associated port this is an NULL.
  * @phy: This is the phy object which has gone link up.
  *
  * This method handles the automatic port configuration for link up
@@ -693,7 +693,7 @@ static void scic_sds_apc_agent_link_up(
 	struct scic_sds_port *port,
 	struct scic_sds_phy *phy)
 {
-	BUG_ON(port != SCI_INVALID_HANDLE);
+	BUG_ON(port != NULL);
 
 	port_agent->phy_ready_mask |= (1 << scic_sds_phy_get_index(phy));
 
@@ -705,7 +705,7 @@ static void scic_sds_apc_agent_link_up(
  * @controller: This is the controller object that receives the link down
  *    notification.
  * @port: This is the port object associated with the phy.  If the is no
- *    associated port this is an SCI_INVALID_HANDLE.
+ *    associated port this is an NULL.
  * @phy: This is the phy object which has gone link down.
  *
  * This method handles the automatic port configuration link down
@@ -721,7 +721,7 @@ static void scic_sds_apc_agent_link_down(
 {
 	port_agent->phy_ready_mask &= ~(1 << scic_sds_phy_get_index(phy));
 
-	if (port != SCI_INVALID_HANDLE) {
+	if (port != NULL) {
 		if (port_agent->phy_configured_mask & (1 << phy->phy_index)) {
 			enum sci_status status;
 

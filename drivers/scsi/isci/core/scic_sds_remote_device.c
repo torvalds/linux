@@ -1170,7 +1170,7 @@ enum sci_status scic_sds_remote_device_general_frame_handler(
 		io_request = scic_sds_controller_get_io_request_from_tag(
 			scic_sds_remote_device_get_controller(this_device), frame_header->tag);
 
-		if ((io_request == SCI_INVALID_HANDLE)
+		if ((io_request == NULL)
 		    || (io_request->target_device != this_device)) {
 			/*
 			 * We could not map this tag to a valid IO request

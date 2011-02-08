@@ -277,8 +277,8 @@ enum sci_status scic_sds_port_set_phy(
 	 * that means that the phy is not part of a port and that the port does
 	 * not already have a phy assinged to the phy index. */
 	if (
-		(port->phy_table[phy->phy_index] == SCI_INVALID_HANDLE)
-		&& (scic_sds_phy_get_port(phy) == SCI_INVALID_HANDLE)
+		(port->phy_table[phy->phy_index] == NULL)
+		&& (scic_sds_phy_get_port(phy) == NULL)
 		&& scic_sds_port_is_valid_phy_assignment(port, phy->phy_index)
 		) {
 		/*
@@ -318,7 +318,7 @@ enum sci_status scic_sds_port_clear_phy(
 			&scic_sds_port_get_controller(port)->port_table[SCI_MAX_PORTS]
 			);
 
-		port->phy_table[phy->phy_index] = SCI_INVALID_HANDLE;
+		port->phy_table[phy->phy_index] = NULL;
 
 		return SCI_SUCCESS;
 	}
@@ -529,7 +529,7 @@ void scic_sds_port_construct(
 	this_port->started_request_count = 0;
 	this_port->assigned_device_count = 0;
 
-	this_port->timer_handle = SCI_INVALID_HANDLE;
+	this_port->timer_handle = NULL;
 
 	this_port->transport_layer_registers = NULL;
 	this_port->port_task_scheduler_registers = NULL;
@@ -669,7 +669,7 @@ enum sci_status scic_port_get_properties(
 	struct scic_sds_port *port,
 	struct scic_port_properties *prop)
 {
-	if ((port == SCI_INVALID_HANDLE) ||
+	if ((port == NULL) ||
 	    (port->logical_port_index == SCIC_SDS_DUMMY_PORT))
 		return SCI_FAILURE_INVALID_PORT;
 
@@ -1267,29 +1267,29 @@ static enum sci_status scic_sds_port_ready_operational_substate_reset_handler(
 	enum sci_status status = SCI_FAILURE_INVALID_PHY;
 	u32 phy_index;
 	struct scic_sds_port *this_port = (struct scic_sds_port *)port;
-	struct scic_sds_phy *selected_phy = SCI_INVALID_HANDLE;
+	struct scic_sds_phy *selected_phy = NULL;
 
 
 	/* Select a phy on which we can send the hard reset request. */
 	for (
 		phy_index = 0;
 		(phy_index < SCI_MAX_PHYS)
-		&& (selected_phy == SCI_INVALID_HANDLE);
+		&& (selected_phy == NULL);
 		phy_index++
 		) {
 		selected_phy = this_port->phy_table[phy_index];
 
 		if (
-			(selected_phy != SCI_INVALID_HANDLE)
+			(selected_phy != NULL)
 			&& !scic_sds_port_active_phy(this_port, selected_phy)
 			) {
 			/* We found a phy but it is not ready select different phy */
-			selected_phy = SCI_INVALID_HANDLE;
+			selected_phy = NULL;
 		}
 	}
 
 	/* If we have a phy then go ahead and start the reset procedure */
-	if (selected_phy != SCI_INVALID_HANDLE) {
+	if (selected_phy != NULL) {
 		status = scic_sds_phy_reset(selected_phy);
 
 		if (status == SCI_SUCCESS) {

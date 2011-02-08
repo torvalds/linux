@@ -76,7 +76,7 @@ void sci_mdl_first_entry(
 	/*
 	 * If this MDL is managing another MDL, then recursively rewind that MDL
 	 * object as well. */
-	if (base_mdl->next_mdl != SCI_INVALID_HANDLE)
+	if (base_mdl->next_mdl != NULL)
 		sci_mdl_first_entry(base_mdl->next_mdl);
 }
 
@@ -93,7 +93,7 @@ void sci_mdl_next_entry(
 		/*
 		 * This MDL has exhausted it's set of entries.  If this MDL is managing
 		 * another MDL, then start iterating through that MDL. */
-		if (base_mdl->next_mdl != SCI_INVALID_HANDLE)
+		if (base_mdl->next_mdl != NULL)
 			sci_mdl_next_entry(base_mdl->next_mdl);
 	}
 }
@@ -108,7 +108,7 @@ struct sci_physical_memory_descriptor *sci_mdl_get_current_entry(
 		/*
 		 * This MDL has exhausted it's set of entries.  If this MDL is managing
 		 * another MDL, then return it's current entry. */
-		if (base_mdl->next_mdl != SCI_INVALID_HANDLE)
+		if (base_mdl->next_mdl != NULL)
 			return sci_mdl_get_current_entry(base_mdl->next_mdl);
 	}
 

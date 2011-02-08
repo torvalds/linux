@@ -94,8 +94,7 @@ struct sci_base_memory_descriptor_list {
 
 	/**
 	 * This field simply allows a user to chain memory descriptor lists
-	 * together if desired.  This field will be initialized to
-	 * SCI_INVALID_HANDLE.
+	 * together if desired.  This field will be initialized to NULL.
 	 */
 	struct sci_base_memory_descriptor_list *next_mdl;
 

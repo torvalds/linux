@@ -82,7 +82,7 @@ struct scic_sds_port;
 struct scic_phy_properties {
 	/**
 	 * This field specifies the port that currently contains the
-	 * supplied phy.  This field may be set to SCI_INVALID_HANDLE
+	 * supplied phy.  This field may be set to NULL
 	 * if the phy is not currently contained in a port.
 	 */
 	struct scic_sds_port *owning_port;

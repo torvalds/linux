@@ -414,15 +414,15 @@ void scic_sds_phy_construct(
  *    containing port.
  *
  * This method returns a handle to a port that contains the supplied phy.
- * SCI_INVALID_HANDLE This value is returned if the phy is not part of a real
- * port (i.e. it's contained in the dummy port). !SCI_INVALID_HANDLE All other
+ * NULL This value is returned if the phy is not part of a real
+ * port (i.e. it's contained in the dummy port). !NULL All other
  * values indicate a handle/pointer to the port containing the phy.
  */
 struct scic_sds_port *scic_sds_phy_get_port(
 	struct scic_sds_phy *this_phy)
 {
 	if (scic_sds_port_get_index(this_phy->owning_port) == SCIC_SDS_DUMMY_PORT)
-		return SCI_INVALID_HANDLE;
+		return NULL;
 
 	return this_phy->owning_port;
 }
@@ -2373,7 +2373,7 @@ static enum sci_status scic_sds_phy_ready_state_event_handler(
 
 	case SCU_EVENT_BROADCAST_CHANGE:
 		/* Broadcast change received. Notify the port. */
-		if (scic_sds_phy_get_port(this_phy) != SCI_INVALID_HANDLE)
+		if (scic_sds_phy_get_port(this_phy) != NULL)
 			scic_sds_port_broadcast_change_received(this_phy->owning_port, this_phy);
 		else
 			this_phy->bcn_received_while_port_unassigned = true;

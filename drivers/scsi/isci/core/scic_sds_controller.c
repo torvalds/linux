@@ -890,7 +890,7 @@ enum sci_status scic_sds_controller_start_next_phy(
 			for (index = 0; index < SCI_MAX_PHYS; index++) {
 				the_phy = &this_controller->phy_table[index];
 
-				if (scic_sds_phy_get_port(the_phy) != SCI_INVALID_HANDLE) {
+				if (scic_sds_phy_get_port(the_phy) != NULL) {
 					/**
 					 * The controller start operation is complete if and only
 					 * if:
@@ -940,7 +940,7 @@ enum sci_status scic_sds_controller_start_next_phy(
 				scic_sds_controller_get_port_configuration_mode(this_controller)
 				== SCIC_PORT_MANUAL_CONFIGURATION_MODE
 				) {
-				if (scic_sds_phy_get_port(the_phy) == SCI_INVALID_HANDLE) {
+				if (scic_sds_phy_get_port(the_phy) == NULL) {
 					this_controller->next_phy_to_start++;
 
 					/*
@@ -1025,7 +1025,7 @@ enum sci_status scic_sds_controller_stop_devices(
 	status = SCI_SUCCESS;
 
 	for (index = 0; index < this_controller->remote_node_entries; index++) {
-		if (this_controller->device_table[index] != SCI_INVALID_HANDLE) {
+		if (this_controller->device_table[index] != NULL) {
 			/* / @todo What timeout value do we want to provide to this request? */
 			device_status = scic_remote_device_stop(this_controller->device_table[index], 0);
 
@@ -1197,7 +1197,7 @@ static void scic_sds_controller_task_completion(
 
 	/* Make sure that we really want to process this IO request */
 	if (
-		(io_request != SCI_INVALID_HANDLE)
+		(io_request != NULL)
 		&& (io_request->io_tag != SCI_CONTROLLER_INVALID_IO_TAG)
 		&& (
 			scic_sds_io_tag_get_sequence(io_request->io_tag)
@@ -1395,7 +1395,7 @@ static void scic_sds_controller_event_completion(
 		case SCU_EVENT_SPECIFIC_SMP_RESPONSE_NO_PE:
 		case SCU_EVENT_SPECIFIC_TASK_TIMEOUT:
 			io_request = this_controller->io_request_table[index];
-			if (io_request != SCI_INVALID_HANDLE)
+			if (io_request != NULL)
 				scic_sds_io_request_event_handler(io_request, completion_entry);
 			else
 				dev_warn(scic_to_dev(this_controller),
@@ -1410,7 +1410,7 @@ static void scic_sds_controller_event_completion(
 
 		case SCU_EVENT_SPECIFIC_IT_NEXUS_TIMEOUT:
 			device = this_controller->device_table[index];
-			if (device != SCI_INVALID_HANDLE)
+			if (device != NULL)
 				scic_sds_remote_device_event_handler(device, completion_entry);
 			else
 				dev_warn(scic_to_dev(this_controller),
@@ -2174,7 +2174,7 @@ struct scic_sds_request *scic_sds_controller_get_io_request_from_tag(
 	task_index = scic_sds_io_tag_get_index(io_tag);
 
 	if (task_index  < this_controller->task_context_entries) {
-		if (this_controller->io_request_table[task_index] != SCI_INVALID_HANDLE) {
+		if (this_controller->io_request_table[task_index] != NULL) {
 			task_sequence = scic_sds_io_tag_get_sequence(io_tag);
 
 			if (task_sequence == this_controller->io_request_sequence[task_index]) {
@@ -2183,7 +2183,7 @@ struct scic_sds_request *scic_sds_controller_get_io_request_from_tag(
 		}
 	}
 
-	return SCI_INVALID_HANDLE;
+	return NULL;
 }
 
 /**
@@ -2240,7 +2240,7 @@ void scic_sds_controller_free_remote_node_context(
 	u32 remote_node_count = scic_sds_remote_device_node_count(the_device);
 
 	if (this_controller->device_table[node_id] == the_device) {
-		this_controller->device_table[node_id] = SCI_INVALID_HANDLE;
+		this_controller->device_table[node_id] = NULL;
 
 		scic_sds_remote_node_table_release_remote_node_index(
 			&this_controller->available_remote_nodes, remote_node_count, node_id
@@ -2262,7 +2262,7 @@ union scu_remote_node_context *scic_sds_controller_get_remote_node_context_buffe
 	) {
 	if (
 		(node_id < this_controller->remote_node_entries)
-		&& (this_controller->device_table[node_id] != SCI_INVALID_HANDLE)
+		&& (this_controller->device_table[node_id] != NULL)
 		) {
 		return &this_controller->remote_node_context_table[node_id];
 	}
@@ -2449,7 +2449,7 @@ u32 scic_controller_get_suggested_start_timeout(
 	struct scic_sds_controller *sc)
 {
 	/* Validate the user supplied parameters. */
-	if (sc == SCI_INVALID_HANDLE)
+	if (sc == NULL)
 		return 0;
 
 	/*
@@ -3659,7 +3659,7 @@ static enum sci_status scic_sds_controller_ready_state_complete_io_handler(
 
 	if (status == SCI_SUCCESS) {
 		index = scic_sds_io_tag_get_index(the_request->io_tag);
-		this_controller->io_request_table[index] = SCI_INVALID_HANDLE;
+		this_controller->io_request_table[index] = NULL;
 	}
 
 	return status;

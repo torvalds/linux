@@ -61,8 +61,6 @@
 #define sci_cb_make_physical_address(physical_addr, addr_upper, addr_lower) \
 	((physical_addr) = (addr_lower) | ((u64)addr_upper) << 32)
 
-#define SCI_INVALID_HANDLE 0x0
-
 typedef enum {
 	SCI_IO_REQUEST_DATA_IN = 0,	/* Read operation */
 	SCI_IO_REQUEST_DATA_OUT,	/* Write operation */
