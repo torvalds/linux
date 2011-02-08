@@ -4829,10 +4829,10 @@ static int __init easycap_module_init(void)
 {
 	int k, rc;
 
-	SAY("========easycap=======\n");
+	printk(KERN_INFO "Easycap version: "EASYCAP_DRIVER_VERSION "\n");
+
 	JOT(4, "begins.  %i=debug %i=bars %i=gain\n",
 		easycap_debug, easycap_bars, easycap_gain);
-	SAY("version: " EASYCAP_DRIVER_VERSION "\n");
 
 	mutex_init(&mutex_dongle);
 	for (k = 0; k < DONGLE_MANY; k++) {
@@ -4840,22 +4840,16 @@ static int __init easycap_module_init(void)
 		mutex_init(&easycapdc60_dongle[k].mutex_video);
 		mutex_init(&easycapdc60_dongle[k].mutex_audio);
 	}
-	JOT(4, "registering driver easycap\n");
 	rc = usb_register(&easycap_usb_driver);
 	if (rc)
-		SAY("ERROR:  usb_register returned %i\n", rc);
+		printk(KERN_ERR "Easycap: usb_register failed rc=%d\n", rc);
 
-	JOT(4, "ends\n");
 	return rc;
 }
 /*****************************************************************************/
 static void __exit easycap_module_exit(void)
 {
-	JOT(4, "begins\n");
-
 	usb_deregister(&easycap_usb_driver);
-
-	JOT(4, "ends\n");
 }
 /*****************************************************************************/
 
