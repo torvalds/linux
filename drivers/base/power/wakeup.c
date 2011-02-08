@@ -242,6 +242,35 @@ int device_wakeup_disable(struct device *dev)
 EXPORT_SYMBOL_GPL(device_wakeup_disable);
 
 /**
+ * device_set_wakeup_capable - Set/reset device wakeup capability flag.
+ * @dev: Device to handle.
+ * @capable: Whether or not @dev is capable of waking up the system from sleep.
+ *
+ * If @capable is set, set the @dev's power.can_wakeup flag and add its
+ * wakeup-related attributes to sysfs.  Otherwise, unset the @dev's
+ * power.can_wakeup flag and remove its wakeup-related attributes from sysfs.
+ *
+ * This function may sleep and it can't be called from any context where
+ * sleeping is not allowed.
+ */
+void device_set_wakeup_capable(struct device *dev, bool capable)
+{
+	if (!!dev->power.can_wakeup == !!capable)
+		return;
+
+	if (device_is_registered(dev)) {
+		if (capable) {
+			if (wakeup_sysfs_add(dev))
+				return;
+		} else {
+			wakeup_sysfs_remove(dev);
+		}
+	}
+	dev->power.can_wakeup = capable;
+}
+EXPORT_SYMBOL_GPL(device_set_wakeup_capable);
+
+/**
  * device_init_wakeup - Device wakeup initialization.
  * @dev: Device to handle.
  * @enable: Whether or not to enable @dev as a wakeup device.

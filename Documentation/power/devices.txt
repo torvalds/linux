@@ -159,18 +159,18 @@ matter, and the kernel is responsible for keeping track of it.  By contrast,
 whether or not a wakeup-capable device should issue wakeup events is a policy
 decision, and it is managed by user space through a sysfs attribute: the
 power/wakeup file.  User space can write the strings "enabled" or "disabled" to
-set or clear the should_wakeup flag, respectively.  Reads from the file will
-return the corresponding string if can_wakeup is true, but if can_wakeup is
-false then reads will return an empty string, to indicate that the device
-doesn't support wakeup events.  (But even though the file appears empty, writes
-will still affect the should_wakeup flag.)
+set or clear the "should_wakeup" flag, respectively.  This file is only present
+for wakeup-capable devices (i.e. devices whose "can_wakeup" flags are set)
+and is created (or removed) by device_set_wakeup_capable().  Reads from the
+file will return the corresponding string.
 
 The device_may_wakeup() routine returns true only if both flags are set.
-Drivers should check this routine when putting devices in a low-power state
-during a system sleep transition, to see whether or not to enable the devices'
-wakeup mechanisms.  However for runtime power management, wakeup events should
-be enabled whenever the device and driver both support them, regardless of the
-should_wakeup flag.
+This information is used by subsystems, like the PCI bus type code, to see
+whether or not to enable the devices' wakeup mechanisms.  If device wakeup
+mechanisms are enabled or disabled directly by drivers, they also should use
+device_may_wakeup() to decide what to do during a system sleep transition.
+However for runtime power management, wakeup events should be enabled whenever
+the device and driver both support them, regardless of the should_wakeup flag.
 
 
 /sys/devices/.../power/control files
