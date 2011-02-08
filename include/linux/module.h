@@ -64,6 +64,9 @@ struct module_version_attribute {
 	const char *version;
 } __attribute__ ((__aligned__(sizeof(void *))));
 
+extern ssize_t __modver_version_show(struct module_attribute *,
+				     struct module *, char *);
+
 struct module_kobject
 {
 	struct kobject kobj;
@@ -172,8 +175,6 @@ extern struct module __this_module;
 #define MODULE_VERSION(_version) MODULE_INFO(version, _version)
 #else
 #define MODULE_VERSION(_version)					\
-	extern ssize_t __modver_version_show(struct module_attribute *,	\
-					     struct module *, char *);	\
 	static struct module_version_attribute ___modver_attr = {	\
 		.mattr	= {						\
 			.attr	= {					\
