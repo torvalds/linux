@@ -40,6 +40,7 @@
 #include <linux/major.h>
 #include <linux/blkdev.h>
 #include <linux/genhd.h>
+#include <linux/idr.h>
 #include <net/tcp.h>
 #include <linux/lru_cache.h>
 #include <linux/prefetch.h>
@@ -916,8 +917,9 @@ struct drbd_tconn {			/* is a resource from the config file */
 	char *name;			/* Resource name */
 	struct list_head all_tconn;	/* List of all drbd_tconn, prot by global_state_lock */
 	struct drbd_conf *volume0;	/* TODO: Remove me again */
-	unsigned long flags;
+	struct idr volumes;             /* <tconn, vnr> to mdev mapping */
 
+	unsigned long flags;
 	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
 	atomic_t net_cnt;		/* Users of net_conf */
 	wait_queue_head_t net_cnt_wait;

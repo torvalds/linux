@@ -2183,6 +2183,7 @@ struct drbd_tconn *drbd_new_tconn(char *name)
 
 	atomic_set(&tconn->net_cnt, 0);
 	init_waitqueue_head(&tconn->net_cnt_wait);
+	idr_init(&tconn->volumes);
 
 	write_lock_irq(&global_state_lock);
 	list_add(&tconn->all_tconn, &drbd_tconns);
@@ -2202,6 +2203,7 @@ void drbd_free_tconn(struct drbd_tconn *tconn)
 	write_lock_irq(&global_state_lock);
 	list_del(&tconn->all_tconn);
 	write_unlock_irq(&global_state_lock);
+	idr_destroy(&tconn->volumes);
 
 	kfree(tconn->name);
 	kfree(tconn->int_dig_out);
@@ -2216,6 +2218,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	struct gendisk *disk;
 	struct request_queue *q;
 	char conn_name[9]; /* drbd1234N */
+	int vnr;
 
 	/* GFP_KERNEL, we are outside of all write-out paths */
 	mdev = kzalloc(sizeof(struct drbd_conf), GFP_KERNEL);
@@ -2225,7 +2228,14 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	mdev->tconn = drbd_new_tconn(conn_name);
 	if (!mdev->tconn)
 		goto out_no_tconn;
-
+	if (!idr_pre_get(&mdev->tconn->volumes, GFP_KERNEL))
+		goto out_no_cpumask;
+	if (idr_get_new(&mdev->tconn->volumes, mdev, &vnr))
+		goto out_no_cpumask;
+	if (vnr != 0) {
+		dev_err(DEV, "vnr = %d\n", vnr);
+		goto out_no_cpumask;
+	}
 	if (!zalloc_cpumask_var(&mdev->cpu_mask, GFP_KERNEL))
 		goto out_no_cpumask;
 
