@@ -16,7 +16,7 @@
  *
  * Test read and write speed of a MTD device.
  *
- * Author: Adrian Hunter <ext-adrian.hunter@nokia.com>
+ * Author: Adrian Hunter <adrian.hunter@nokia.com>
  */
 
 #include <linux/init.h>
@@ -32,6 +32,11 @@
 static int dev;
 module_param(dev, int, S_IRUGO);
 MODULE_PARM_DESC(dev, "MTD device number to use");
+
+static int count;
+module_param(count, int, S_IRUGO);
+MODULE_PARM_DESC(count, "Maximum number of eraseblocks to use "
+			"(0 means use all)");
 
 static struct mtd_info *mtd;
 static unsigned char *iobuf;
@@ -326,7 +331,10 @@ static int __init mtd_speedtest_init(void)
 
 	printk(KERN_INFO "\n");
 	printk(KERN_INFO "=================================================\n");
-	printk(PRINT_PREF "MTD device: %d\n", dev);
+	if (count)
+		printk(PRINT_PREF "MTD device: %d    count: %d\n", dev, count);
+	else
+		printk(PRINT_PREF "MTD device: %d\n", dev);
 
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
@@ -352,6 +360,9 @@ static int __init mtd_speedtest_init(void)
 	       "eraseblock %u, OOB size %u\n",
 	       (unsigned long long)mtd->size, mtd->erasesize,
 	       pgsize, ebcnt, pgcnt, mtd->oobsize);
+
+	if (count > 0 && count < ebcnt)
+		ebcnt = count;
 
 	err = -ENOMEM;
 	iobuf = kmalloc(mtd->erasesize, GFP_KERNEL);
