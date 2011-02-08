@@ -244,16 +244,9 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 {
 	acpi_status status = AE_OK;
 	u32 acpi_state = acpi_target_sleep_state;
+	int error;
 
 	ACPI_FLUSH_CPU_CACHE();
-
-	/* Do arch specific saving of state. */
-	if (acpi_state == ACPI_STATE_S3) {
-		int error = acpi_save_state_mem();
-
-		if (error)
-			return error;
-	}
 
 	switch (acpi_state) {
 	case ACPI_STATE_S1:
@@ -262,6 +255,9 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 		break;
 
 	case ACPI_STATE_S3:
+		error = acpi_save_state_mem();
+		if (error)
+			return error;
 		do_suspend_lowlevel();
 		pr_info(PREFIX "Low-level resume complete\n");
 		break;
