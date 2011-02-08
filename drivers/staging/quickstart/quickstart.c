@@ -5,7 +5,7 @@
  *  Copyright (C) 2007-2010 Angelo Arrifano <miknix@gmail.com>
  *
  *  Information gathered from disassebled dsdt and from here:
- *  <http://www.microsoft.com/whdc/system/platform/firmware/DirAppLaunch.mspx> 
+ *  <http://www.microsoft.com/whdc/system/platform/firmware/DirAppLaunch.mspx>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -141,7 +141,8 @@ static ssize_t pressed_button_show(struct device *dev,
 					char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%s\n",
-		(quickstart_data.pressed?quickstart_data.pressed->name:"none"));
+			(quickstart_data.pressed ?
+			 quickstart_data.pressed->name : "none"));
 }
 
 
