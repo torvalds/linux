@@ -55,9 +55,6 @@
  */
 /*---------------------------------------------------------------------------*/
 #undef  EASYCAP_TESTCARD
-#ifdef CONFIG_EASYCAP_OSS
-#undef  EASYCAP_TESTTONE
-#endif /* CONFIG_EASYCAP_OSS */
 /*---------------------------------------------------------------------------*/
 #include <linux/kernel.h>
 #include <linux/errno.h>

@@ -119,11 +119,6 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 
 		more = purb->iso_frame_desc[i].actual_length;
 
-#ifdef TESTTONE
-		if (!more)
-			more = purb->iso_frame_desc[i].length;
-#endif
-
 		if (!more)
 			peasycap->audio_mt++;
 		else {
@@ -166,11 +161,6 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 				}
 				if (PAGE_SIZE == (paudio_buffer->pto -
 							paudio_buffer->pgo)) {
-
-#ifdef TESTTONE
-					easyoss_testtone(peasycap,
-							peasycap->audio_fill);
-#endif /*TESTTONE*/
 
 					paudio_buffer->pto =
 							paudio_buffer->pgo;
