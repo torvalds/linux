@@ -243,7 +243,6 @@ static int acpi_suspend_begin(suspend_state_t pm_state)
 static int acpi_suspend_enter(suspend_state_t pm_state)
 {
 	acpi_status status = AE_OK;
-	unsigned long flags = 0;
 	u32 acpi_state = acpi_target_sleep_state;
 
 	ACPI_FLUSH_CPU_CACHE();
@@ -256,7 +255,6 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 			return error;
 	}
 
-	local_irq_save(flags);
 	switch (acpi_state) {
 	case ACPI_STATE_S1:
 		barrier();
@@ -290,7 +288,6 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	/* Allow EC transactions to happen. */
 	acpi_ec_unblock_transactions_early();
 
-	local_irq_restore(flags);
 	printk(KERN_DEBUG "Back to C!\n");
 
 	suspend_nvs_restore();
