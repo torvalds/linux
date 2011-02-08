@@ -790,7 +790,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	struct resource *r, *mem;
 	resource_size_t dma_rx_chan = SPI_NO_RESOURCE;
 	resource_size_t	dma_tx_chan = SPI_NO_RESOURCE;
-	resource_size_t	dma_eventq = SPI_NO_RESOURCE;
 	int i = 0, ret = 0;
 	u32 spipc0;
 
@@ -878,17 +877,13 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (r)
 		dma_tx_chan = r->start;
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 2);
-	if (r)
-		dma_eventq = r->start;
 
 	dspi->bitbang.txrx_bufs = davinci_spi_bufs;
 	if (dma_rx_chan != SPI_NO_RESOURCE &&
-	    dma_tx_chan != SPI_NO_RESOURCE &&
-	    dma_eventq != SPI_NO_RESOURCE) {
+	    dma_tx_chan != SPI_NO_RESOURCE) {
 		dspi->dma.rx_channel = dma_rx_chan;
 		dspi->dma.tx_channel = dma_tx_chan;
-		dspi->dma.eventq = dma_eventq;
+		dspi->dma.eventq = pdata->dma_event_q;
 
 		ret = davinci_spi_request_dma(dspi);
 		if (ret)
@@ -897,7 +892,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "DMA: supported\n");
 		dev_info(&pdev->dev, "DMA: RX channel: %d, TX channel: %d, "
 				"event queue: %d\n", dma_rx_chan, dma_tx_chan,
-				dma_eventq);
+				pdata->dma_event_q);
 	}
 
 	dspi->get_rx = davinci_spi_rx_buf_u8;
