@@ -3779,7 +3779,7 @@ static void drbdd(struct drbd_conf *mdev)
 	int rv;
 
 	while (get_t_state(&mdev->tconn->receiver) == RUNNING) {
-		drbd_thread_current_set_cpu(mdev, &mdev->tconn->receiver);
+		drbd_thread_current_set_cpu(&mdev->tconn->receiver);
 		if (!drbd_recv_header(mdev->tconn, &pi))
 			goto err_out;
 
@@ -4568,7 +4568,7 @@ int drbd_asender(struct drbd_thread *thi)
 	current->rt_priority = 2;    /* more important than all other tasks */
 
 	while (get_t_state(thi) == RUNNING) {
-		drbd_thread_current_set_cpu(mdev, thi);
+		drbd_thread_current_set_cpu(thi);
 		if (test_and_clear_bit(SEND_PING, &mdev->tconn->flags)) {
 			if (!drbd_send_ping(mdev)) {
 				dev_err(DEV, "drbd_send_ping has failed\n");

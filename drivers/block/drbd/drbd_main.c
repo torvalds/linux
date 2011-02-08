@@ -606,6 +606,12 @@ char *drbd_task_to_thread_name(struct drbd_conf *mdev, struct task_struct *task)
 }
 
 #ifdef CONFIG_SMP
+static int conn_lowest_minor(struct drbd_tconn *tconn)
+{
+	int minor = 0;
+	idr_get_next(&tconn->volumes, &minor);
+	return minor;
+}
 /**
  * drbd_calc_cpu_mask() - Generate CPU masks, spread over all CPUs
  * @mdev:	DRBD device.
@@ -613,23 +619,23 @@ char *drbd_task_to_thread_name(struct drbd_conf *mdev, struct task_struct *task)
  * Forces all threads of a device onto the same CPU. This is beneficial for
  * DRBD's performance. May be overwritten by user's configuration.
  */
-void drbd_calc_cpu_mask(struct drbd_conf *mdev)
+void drbd_calc_cpu_mask(struct drbd_tconn *tconn)
 {
 	int ord, cpu;
 
 	/* user override. */
-	if (cpumask_weight(mdev->cpu_mask))
+	if (cpumask_weight(tconn->cpu_mask))
 		return;
 
-	ord = mdev_to_minor(mdev) % cpumask_weight(cpu_online_mask);
+	ord = conn_lowest_minor(tconn) % cpumask_weight(cpu_online_mask);
 	for_each_online_cpu(cpu) {
 		if (ord-- == 0) {
-			cpumask_set_cpu(cpu, mdev->cpu_mask);
+			cpumask_set_cpu(cpu, tconn->cpu_mask);
 			return;
 		}
 	}
 	/* should not be reached */
-	cpumask_setall(mdev->cpu_mask);
+	cpumask_setall(tconn->cpu_mask);
 }
 
 /**
@@ -640,14 +646,14 @@ void drbd_calc_cpu_mask(struct drbd_conf *mdev)
  * call in the "main loop" of _all_ threads, no need for any mutex, current won't die
  * prematurely.
  */
-void drbd_thread_current_set_cpu(struct drbd_conf *mdev, struct drbd_thread *thi)
+void drbd_thread_current_set_cpu(struct drbd_thread *thi)
 {
 	struct task_struct *p = current;
 
 	if (!thi->reset_cpu_mask)
 		return;
 	thi->reset_cpu_mask = 0;
-	set_cpus_allowed_ptr(p, mdev->cpu_mask);
+	set_cpus_allowed_ptr(p, thi->mdev->tconn->cpu_mask);
 }
 #endif
 
@@ -2236,7 +2242,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 		dev_err(DEV, "vnr = %d\n", vnr);
 		goto out_no_cpumask;
 	}
-	if (!zalloc_cpumask_var(&mdev->cpu_mask, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&mdev->tconn->cpu_mask, GFP_KERNEL))
 		goto out_no_cpumask;
 
 	mdev->tconn->volume0 = mdev;
@@ -2313,7 +2319,7 @@ out_no_io_page:
 out_no_disk:
 	blk_cleanup_queue(q);
 out_no_q:
-	free_cpumask_var(mdev->cpu_mask);
+	free_cpumask_var(mdev->tconn->cpu_mask);
 out_no_cpumask:
 	drbd_free_tconn(mdev->tconn);
 out_no_tconn:
@@ -2332,7 +2338,6 @@ void drbd_free_mdev(struct drbd_conf *mdev)
 	__free_page(mdev->md_io_page);
 	put_disk(mdev->vdisk);
 	blk_cleanup_queue(mdev->rq_queue);
-	free_cpumask_var(mdev->cpu_mask);
 	kfree(mdev);
 }
 

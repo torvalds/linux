@@ -1884,9 +1884,9 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 	if (mdev->state.conn >= C_CONNECTED)
 		drbd_send_sync_param(mdev, &sc);
 
-	if (!cpumask_equal(mdev->cpu_mask, new_cpu_mask)) {
-		cpumask_copy(mdev->cpu_mask, new_cpu_mask);
-		drbd_calc_cpu_mask(mdev);
+	if (!cpumask_equal(mdev->tconn->cpu_mask, new_cpu_mask)) {
+		cpumask_copy(mdev->tconn->cpu_mask, new_cpu_mask);
+		drbd_calc_cpu_mask(mdev->tconn);
 		mdev->tconn->receiver.reset_cpu_mask = 1;
 		mdev->tconn->asender.reset_cpu_mask = 1;
 		mdev->tconn->worker.reset_cpu_mask = 1;

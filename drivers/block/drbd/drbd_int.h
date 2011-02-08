@@ -946,6 +946,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 	struct drbd_thread receiver;
 	struct drbd_thread worker;
 	struct drbd_thread asender;
+	cpumask_var_t cpu_mask;
 };
 
 struct drbd_conf {
@@ -1075,7 +1076,6 @@ struct drbd_conf {
 	spinlock_t peer_seq_lock;
 	unsigned int minor;
 	unsigned long comm_bm_set; /* communicated number of set bits. */
-	cpumask_var_t cpu_mask;
 	struct bm_io_work bm_io_work;
 	u64 ed_uuid; /* UUID of the exposed data */
 	struct mutex state_mutex;
@@ -1149,10 +1149,10 @@ extern int  drbd_thread_start(struct drbd_thread *thi);
 extern void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait);
 extern char *drbd_task_to_thread_name(struct drbd_conf *mdev, struct task_struct *task);
 #ifdef CONFIG_SMP
-extern void drbd_thread_current_set_cpu(struct drbd_conf *mdev, struct drbd_thread *thi);
-extern void drbd_calc_cpu_mask(struct drbd_conf *mdev);
+extern void drbd_thread_current_set_cpu(struct drbd_thread *thi);
+extern void drbd_calc_cpu_mask(struct drbd_tconn *tconn);
 #else
-#define drbd_thread_current_set_cpu(A, B) ({})
+#define drbd_thread_current_set_cpu(A) ({})
 #define drbd_calc_cpu_mask(A) ({})
 #endif
 extern void drbd_free_resources(struct drbd_conf *mdev);
