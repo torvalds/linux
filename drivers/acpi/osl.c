@@ -105,7 +105,7 @@ struct acpi_ioremap {
 	void __iomem *virt;
 	acpi_physical_address phys;
 	acpi_size size;
-	struct kref ref;
+	unsigned long refcount;
 };
 
 static LIST_HEAD(acpi_ioremaps);
@@ -319,7 +319,7 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 	/* Check if there's a suitable mapping already. */
 	map = acpi_map_lookup(phys, size);
 	if (map) {
-		kref_get(&map->ref);
+		map->refcount++;
 		goto out;
 	}
 
@@ -342,7 +342,7 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 	map->virt = virt;
 	map->phys = pg_off;
 	map->size = pg_sz;
-	kref_init(&map->ref);
+	map->refcount = 1;
 
 	list_add_tail_rcu(&map->list, &acpi_ioremaps);
 
@@ -352,25 +352,24 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 }
 EXPORT_SYMBOL_GPL(acpi_os_map_memory);
 
-static void acpi_kref_del_iomap(struct kref *ref)
+static void acpi_os_drop_map_ref(struct acpi_ioremap *map)
 {
-	struct acpi_ioremap *map;
-
-	map = container_of(ref, struct acpi_ioremap, ref);
-	list_del_rcu(&map->list);
+	if (!--map->refcount)
+		list_del_rcu(&map->list);
 }
 
-static void acpi_os_remove_map(struct acpi_ioremap *map)
+static void acpi_os_map_cleanup(struct acpi_ioremap *map)
 {
-	synchronize_rcu();
-	iounmap(map->virt);
-	kfree(map);
+	if (!map->refcount) {
+		synchronize_rcu();
+		iounmap(map->virt);
+		kfree(map);
+	}
 }
 
 void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 {
 	struct acpi_ioremap *map;
-	int del;
 
 	if (!acpi_gbl_permanent_mmap) {
 		__acpi_unmap_table(virt, size);
@@ -384,11 +383,10 @@ void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 		WARN(true, PREFIX "%s: bad address %p\n", __func__, virt);
 		return;
 	}
-	del = kref_put(&map->ref, acpi_kref_del_iomap);
+	acpi_os_drop_map_ref(map);
 	mutex_unlock(&acpi_ioremap_lock);
 
-	if (del)
-		acpi_os_remove_map(map);
+	acpi_os_map_cleanup(map);
 }
 EXPORT_SYMBOL_GPL(acpi_os_unmap_memory);
 
@@ -418,7 +416,6 @@ static int acpi_os_map_generic_address(struct acpi_generic_address *addr)
 static void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
 {
 	struct acpi_ioremap *map;
-	int del;
 
 	if (addr->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
 		return;
@@ -432,11 +429,10 @@ static void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
 		mutex_unlock(&acpi_ioremap_lock);
 		return;
 	}
-	del = kref_put(&map->ref, acpi_kref_del_iomap);
+	acpi_os_drop_map_ref(map);
 	mutex_unlock(&acpi_ioremap_lock);
 
-	if (del)
-		acpi_os_remove_map(map);
+	acpi_os_map_cleanup(map);
 }
 
 #ifdef ACPI_FUTURE_USAGE
