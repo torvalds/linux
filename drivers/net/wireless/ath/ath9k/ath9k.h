@@ -370,7 +370,7 @@ struct ath_vif {
 #define IEEE80211_MS_TO_TU(x)           (((x) * 1000) / 1024)
 
 struct ath_beacon_config {
-	u16 beacon_interval;
+	int beacon_interval;
 	u16 listen_interval;
 	u16 dtim_period;
 	u16 bmiss_timeout;
@@ -632,8 +632,6 @@ struct ath_softc {
 
 	struct ath9k_hw_cal_data caldata;
 	int last_rssi;
-
-	int beacon_interval;
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 	struct ath9k_debug debug;

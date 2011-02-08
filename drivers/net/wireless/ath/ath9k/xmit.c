@@ -1055,6 +1055,7 @@ int ath_txq_update(struct ath_softc *sc, int qnum,
 int ath_cabq_update(struct ath_softc *sc)
 {
 	struct ath9k_tx_queue_info qi;
+	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
 	int qnum = sc->beacon.cabq->axq_qnum;
 
 	ath9k_hw_get_txq_props(sc->sc_ah, qnum, &qi);
@@ -1066,7 +1067,7 @@ int ath_cabq_update(struct ath_softc *sc)
 	else if (sc->config.cabqReadytime > ATH9K_READY_TIME_HI_BOUND)
 		sc->config.cabqReadytime = ATH9K_READY_TIME_HI_BOUND;
 
-	qi.tqi_readyTime = (sc->beacon_interval *
+	qi.tqi_readyTime = (cur_conf->beacon_interval *
 			    sc->config.cabqReadytime) / 100;
 	ath_txq_update(sc, qnum, &qi);
 

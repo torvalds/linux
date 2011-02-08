@@ -1891,6 +1891,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				   u32 changed)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
@@ -1949,7 +1950,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
-		sc->beacon_interval = bss_conf->beacon_int;
+		cur_conf->beacon_interval = bss_conf->beacon_int;
 		/*
 		 * In case of AP mode, the HW TSF has to be reset
 		 * when the beacon interval changes.
