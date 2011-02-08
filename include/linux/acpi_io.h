@@ -10,4 +10,6 @@ static inline void __iomem *acpi_os_ioremap(acpi_physical_address phys,
        return ioremap_cache(phys, size);
 }
 
+void __iomem *acpi_os_get_iomem(acpi_physical_address phys, unsigned int size);
+
 #endif
