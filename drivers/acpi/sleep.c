@@ -199,8 +199,6 @@ static void acpi_pm_end(void)
 #endif /* CONFIG_ACPI_SLEEP */
 
 #ifdef CONFIG_SUSPEND
-extern void do_suspend_lowlevel(void);
-
 static u32 acpi_suspend_states[] = {
 	[PM_SUSPEND_ON] = ACPI_STATE_S0,
 	[PM_SUSPEND_STANDBY] = ACPI_STATE_S1,
@@ -255,10 +253,9 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 		break;
 
 	case ACPI_STATE_S3:
-		error = acpi_save_state_mem();
+		error = acpi_suspend_lowlevel();
 		if (error)
 			return error;
-		do_suspend_lowlevel();
 		pr_info(PREFIX "Low-level resume complete\n");
 		break;
 	}

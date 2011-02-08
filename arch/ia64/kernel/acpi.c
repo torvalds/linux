@@ -1034,13 +1034,8 @@ int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base)
 EXPORT_SYMBOL(acpi_unregister_ioapic);
 
 /*
- * acpi_save_state_mem() - save kernel state
+ * acpi_suspend_lowlevel() - save kernel state and suspend.
  *
  * TBD when when IA64 starts to support suspend...
  */
-int acpi_save_state_mem(void) { return 0; } 
-
-/*
- * do_suspend_lowlevel()
- */
-void do_suspend_lowlevel(void) {}
+int acpi_suspend_lowlevel(void) { return 0; }
