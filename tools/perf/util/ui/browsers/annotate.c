@@ -60,7 +60,6 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 }
 
 static double objdump_line__calc_percent(struct objdump_line *self,
-					 struct list_head *head,
 					 struct symbol *sym, int evidx)
 {
 	double percent = 0.0;
@@ -69,11 +68,12 @@ static double objdump_line__calc_percent(struct objdump_line *self,
 		int len = sym->end - sym->start;
 		unsigned int hits = 0;
 		struct annotation *notes = symbol__annotation(sym);
-		struct source_line *src_line = notes->src_line;
+		struct source_line *src_line = notes->src->lines;
 		struct sym_hist *h = annotation__histogram(notes, evidx);
 		s64 offset = self->offset;
-		struct objdump_line *next = objdump__get_next_ip_line(head, self);
+		struct objdump_line *next;
 
+		next = objdump__get_next_ip_line(&notes->src->source, self);
 		while (offset < (s64)len &&
 		       (next == NULL || offset < next->offset)) {
 			if (src_line) {
@@ -192,10 +192,10 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx)
 {
 	struct objdump_line *pos, *n;
 	struct objdump_line_rb_node *rbpos;
-	LIST_HEAD(head);
+	struct annotation *notes = symbol__annotation(sym);
 	struct annotate_browser browser = {
 		.b = {
-			.entries = &head,
+			.entries = &notes->src->source,
 			.refresh = ui_browser__list_head_refresh,
 			.seek	 = ui_browser__list_head_seek,
 			.write	 = annotate_browser__write,
@@ -210,20 +210,20 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx)
 	if (map->dso->annotate_warned)
 		return -1;
 
-	if (symbol__annotate(sym, map, &head, sizeof(*rbpos)) < 0) {
+	if (symbol__annotate(sym, map, sizeof(*rbpos)) < 0) {
 		ui__error_window(ui_helpline__last_msg);
 		return -1;
 	}
 
 	ui_helpline__push("Press <- or ESC to exit");
 
-	list_for_each_entry(pos, &head, node) {
+	list_for_each_entry(pos, &notes->src->source, node) {
 		size_t line_len = strlen(pos->line);
 		if (browser.b.width < line_len)
 			browser.b.width = line_len;
 		rbpos = objdump_line__rb(pos);
 		rbpos->idx = browser.b.nr_entries++;
-		rbpos->percent = objdump_line__calc_percent(pos, &head, sym, evidx);
+		rbpos->percent = objdump_line__calc_percent(pos, sym, evidx);
 		if (rbpos->percent < 0.01)
 			continue;
 		objdump__insert_line(&browser.entries, rbpos);
@@ -238,7 +238,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx)
 
 	browser.b.width += 18; /* Percentage */
 	ret = annotate_browser__run(&browser);
-	list_for_each_entry_safe(pos, n, &head, node) {
+	list_for_each_entry_safe(pos, n, &notes->src->source, node) {
 		list_del(&pos->node);
 		objdump_line__free(pos);
 	}

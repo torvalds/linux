@@ -955,10 +955,9 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 ip)
 	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evidx, ip);
 }
 
-int hist_entry__annotate(struct hist_entry *he, struct list_head *head,
-			 size_t privsize)
+int hist_entry__annotate(struct hist_entry *he, size_t privsize)
 {
-	return symbol__annotate(he->ms.sym, he->ms.map, head, privsize);
+	return symbol__annotate(he->ms.sym, he->ms.map, privsize);
 }
 
 void hists__inc_nr_events(struct hists *self, u32 type)

@@ -62,7 +62,8 @@ static int hists__add_entry(struct hists *self, struct addr_location *al)
 		 * All aggregated on the first sym_hist.
 		 */
 		struct annotation *notes = symbol__annotation(he->ms.sym);
-		if (notes->histograms == NULL && symbol__alloc_hist(he->ms.sym, 1) < 0)
+		if (notes->src == NULL &&
+		    symbol__alloc_hist(he->ms.sym, 1) < 0)
 			return -ENOMEM;
 
 		return hist_entry__inc_addr_samples(he, 0, al->addr);
@@ -77,7 +78,8 @@ static int process_sample_event(union perf_event *event,
 {
 	struct addr_location al;
 
-	if (perf_event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
+	if (perf_event__preprocess_sample(event, session, &al, sample,
+					  symbol__annotate_init) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -111,7 +113,7 @@ static void hists__find_annotations(struct hists *self)
 			goto find_next;
 
 		notes = symbol__annotation(he->ms.sym);
-		if (notes->histograms == NULL) {
+		if (notes->src == NULL) {
 find_next:
 			if (key == KEY_LEFT)
 				nd = rb_prev(nd);
@@ -142,11 +144,11 @@ find_next:
 			nd = rb_next(nd);
 			/*
 			 * Since we have a hist_entry per IP for the same
-			 * symbol, free he->ms.sym->histogram to signal we already
+			 * symbol, free he->ms.sym->src to signal we already
 			 * processed this symbol.
 			 */
-			free(notes->histograms);
-			notes->histograms = NULL;
+			free(notes->src);
+			notes->src = NULL;
 		}
 	}
 }

@@ -11,11 +11,6 @@
 struct perf_evlist;
 struct perf_evsel;
 
-struct sym_entry_source {
-	struct list_head	head;
-	pthread_mutex_t		lock;
-};
-
 struct sym_entry {
 	struct rb_node		rb_node;
 	struct list_head	node;
@@ -24,7 +19,6 @@ struct sym_entry {
 	int			skip;
 	u8			origin;
 	struct map		*map;
-	struct sym_entry_source	*src;
 	unsigned long		count[0];
 };
 

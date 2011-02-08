@@ -139,7 +139,7 @@ static void sig_winch_handler(int sig __used)
 static int parse_source(struct sym_entry *syme)
 {
 	struct symbol *sym;
-	struct sym_entry_source *source;
+	struct annotation *notes;
 	struct map *map;
 	int err = -1;
 
@@ -152,39 +152,35 @@ static int parse_source(struct sym_entry *syme)
 	/*
 	 * We can't annotate with just /proc/kallsyms
 	 */
-	if (map->dso->origin == DSO__ORIG_KERNEL)
+	if (map->dso->origin == DSO__ORIG_KERNEL) {
+		pr_err("Can't annotate %s: No vmlinux file was found in the "
+		       "path\n", sym->name);
+		sleep(1);
 		return -1;
-
-	if (syme->src == NULL) {
-		syme->src = zalloc(sizeof(*source));
-		if (syme->src == NULL)
-			return -1;
-		pthread_mutex_init(&syme->src->lock, NULL);
-		INIT_LIST_HEAD(&syme->src->head);
 	}
 
-	source = syme->src;
-
-	if (symbol__annotation(sym)->histograms != NULL) {
-		pthread_mutex_lock(&source->lock);
+	notes = symbol__annotation(sym);
+	if (notes->src != NULL) {
+		pthread_mutex_lock(&notes->lock);
 		goto out_assign;
 	}
 
-	pthread_mutex_lock(&source->lock);
+	pthread_mutex_lock(&notes->lock);
 
 	if (symbol__alloc_hist(sym, top.evlist->nr_entries) < 0) {
 		pr_err("Not enough memory for annotating '%s' symbol!\n",
 		       sym->name);
+		sleep(1);
 		goto out_unlock;
 	}
 
-	err = symbol__annotate(sym, syme->map, &source->head, 0);
+	err = symbol__annotate(sym, syme->map, 0);
 	if (err == 0) {
 out_assign:
 	sym_filter_entry = syme;
 	}
 out_unlock:
-	pthread_mutex_unlock(&source->lock);
+	pthread_mutex_unlock(&notes->lock);
 	return err;
 }
 
@@ -196,20 +192,27 @@ static void __zero_source_counters(struct sym_entry *syme)
 
 static void record_precise_ip(struct sym_entry *syme, int counter, u64 ip)
 {
+	struct annotation *notes;
+	struct symbol *sym;
+
 	if (syme != sym_filter_entry)
 		return;
 
-	if (pthread_mutex_trylock(&syme->src->lock))
+	sym = sym_entry__symbol(syme);
+	notes = symbol__annotation(sym);
+
+	if (pthread_mutex_trylock(&notes->lock))
 		return;
 
 	ip = syme->map->map_ip(syme->map, ip);
-	symbol__inc_addr_samples(sym_entry__symbol(syme), syme->map, counter, ip);
+	symbol__inc_addr_samples(sym, syme->map, counter, ip);
 
-	pthread_mutex_unlock(&syme->src->lock);
+	pthread_mutex_unlock(&notes->lock);
 }
 
 static void show_details(struct sym_entry *syme)
 {
+	struct annotation *notes;
 	struct symbol *symbol;
 	int more;
 
@@ -217,24 +220,26 @@ static void show_details(struct sym_entry *syme)
 		return;
 
 	symbol = sym_entry__symbol(syme);
-	if (!syme->src || symbol__annotation(symbol)->histograms == NULL)
-		return;
+	notes = symbol__annotation(symbol);
+
+	pthread_mutex_lock(&notes->lock);
+
+	if (notes->src == NULL)
+		goto out_unlock;
 
 	printf("Showing %s for %s\n", event_name(top.sym_evsel), symbol->name);
 	printf("  Events  Pcnt (>=%d%%)\n", sym_pcnt_filter);
 
-	pthread_mutex_lock(&syme->src->lock);
-	more = symbol__annotate_printf(symbol, syme->map, &syme->src->head,
-				       top.sym_evsel->idx, 0, sym_pcnt_filter,
-				       top.print_entries);
+	more = symbol__annotate_printf(symbol, syme->map, top.sym_evsel->idx,
+				       0, sym_pcnt_filter, top.print_entries);
 	if (top.zero)
 		symbol__annotate_zero_histogram(symbol, top.sym_evsel->idx);
 	else
-		symbol__annotate_decay_histogram(symbol, &syme->src->head,
-						 top.sym_evsel->idx);
-	pthread_mutex_unlock(&syme->src->lock);
+		symbol__annotate_decay_histogram(symbol, top.sym_evsel->idx);
 	if (more != 0)
 		printf("%d lines not displayed, maybe increase display entries [e]\n", more);
+out_unlock:
+	pthread_mutex_unlock(&notes->lock);
 }
 
 static const char		CONSOLE_CLEAR[] = "[H[2J";
@@ -372,10 +377,8 @@ static void prompt_symbol(struct sym_entry **target, const char *msg)
 
 	/* zero counters of active symbol */
 	if (syme) {
-		pthread_mutex_lock(&syme->src->lock);
 		__zero_source_counters(syme);
 		*target = NULL;
-		pthread_mutex_unlock(&syme->src->lock);
 	}
 
 	fprintf(stdout, "\n%s: ", msg);
@@ -554,10 +557,8 @@ static void handle_keypress(struct perf_session *session, int c)
 			else {
 				struct sym_entry *syme = sym_filter_entry;
 
-				pthread_mutex_lock(&syme->src->lock);
 				sym_filter_entry = NULL;
 				__zero_source_counters(syme);
-				pthread_mutex_unlock(&syme->src->lock);
 			}
 			break;
 		case 'U':
@@ -653,7 +654,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 
 	syme = symbol__priv(sym);
 	syme->map = map;
-	syme->src = NULL;
+	symbol__annotate_init(map, sym);
 
 	if (!sym_filter_entry && sym_filter && !strcmp(name, sym_filter)) {
 		/* schedule initial sym_filter_entry setup */

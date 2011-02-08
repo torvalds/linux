@@ -123,7 +123,7 @@ static int perf_session__add_hist_entry(struct perf_session *session,
 		 * All aggregated on the first sym_hist.
 		 */
 		struct annotation *notes = symbol__annotation(he->ms.sym);
-		if (notes->histograms == NULL &&
+		if (notes->src == NULL &&
 		    symbol__alloc_hist(he->ms.sym, 1) < 0)
 			err = -ENOMEM;
 		else
@@ -166,7 +166,8 @@ static int process_sample_event(union perf_event *event,
 	struct addr_location al;
 	struct perf_event_attr *attr;
 
-	if (perf_event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
+	if (perf_event__preprocess_sample(event, session, &al, sample,
+					  symbol__annotate_init) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;

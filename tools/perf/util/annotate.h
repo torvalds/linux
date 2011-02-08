@@ -28,22 +28,29 @@ struct source_line {
 	char		*path;
 };
 
-/** struct annotation - symbols with hits have this attached as in sannotation
+/** struct annotated_source - symbols with hits have this attached as in sannotation
  *
  * @histogram: Array of addr hit histograms per event being monitored
- * @src_line: If 'print_lines' is specified, per source code line percentages
+ * @lines: If 'print_lines' is specified, per source code line percentages
+ * @source: source parsed from objdump -dS
  *
- * src_line is allocated, percentages calculated and all sorted by percentage
+ * lines is allocated, percentages calculated and all sorted by percentage
  * when the annotation is about to be presented, so the percentages are for
  * one of the entries in the histogram array, i.e. for the event/counter being
  * presented. It is deallocated right after symbol__{tui,tty,etc}_annotate
  * returns.
  */
-struct annotation {
-	struct source_line *src_line;
-	struct sym_hist	   *histograms;
+struct annotated_source {
+	struct list_head   source;
+	struct source_line *lines;
 	int    		   nr_histograms;
 	int    		   sizeof_sym_hist;
+	struct sym_hist	   histograms[0];
+};
+
+struct annotation {
+	pthread_mutex_t		lock;
+	struct annotated_source *src;
 };
 
 struct sannotation {
@@ -53,7 +60,8 @@ struct sannotation {
 
 static inline struct sym_hist *annotation__histogram(struct annotation *notes, int idx)
 {
-	return ((void *)notes->histograms) + (notes->sizeof_sym_hist * idx);
+	return (((void *)&notes->src->histograms) +
+	 	(notes->src->sizeof_sym_hist * idx));
 }
 
 static inline struct annotation *symbol__annotation(struct symbol *sym)
@@ -67,14 +75,12 @@ int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 int symbol__alloc_hist(struct symbol *sym, int nevents);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
-int symbol__annotate(struct symbol *sym, struct map *map,
-		     struct list_head *head, size_t privsize);
-int symbol__annotate_printf(struct symbol *sym, struct map *map,
-			    struct list_head *head, int evidx, bool full_paths,
-			    int min_pcnt, int max_lines);
+int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize);
+int symbol__annotate_init(struct map *map __used, struct symbol *sym);
+int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
+			    bool full_paths, int min_pcnt, int max_lines);
 void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
-void symbol__annotate_decay_histogram(struct symbol *sym,
-				      struct list_head *head, int evidx);
+void symbol__annotate_decay_histogram(struct symbol *sym, int evidx);
 void objdump_line_list__purge(struct list_head *head);
 
 int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
