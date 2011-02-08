@@ -133,11 +133,7 @@ static const struct saa7113config{
 	int set;
 } saa7113configPAL[256] = {
 		{0x01, 0x08},
-#ifdef ANTIALIAS
-		{0x02, 0xC0},
-#else
 		{0x02, 0x80},
-#endif /*ANTIALIAS*/
 		{0x03, 0x33},
 		{0x04, 0x00},
 		{0x05, 0x00},
@@ -191,11 +187,7 @@ static const struct saa7113config{
 /*--------------------------------------------------------------------------*/
 static const struct saa7113config saa7113configNTSC[256] = {
 		{0x01, 0x08},
-#ifdef ANTIALIAS
-		{0x02, 0xC0},
-#else
 		{0x02, 0x80},
-#endif /*ANTIALIAS*/
 		{0x03, 0x33},
 		{0x04, 0x00},
 		{0x05, 0x00},

@@ -4188,9 +4188,6 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
  */
 /*--------------------------------------------------------------------------*/
 	case 1: {
-#ifdef EASYCAP_SILENT
-		return -ENOENT;
-#endif /*EASYCAP_SILENT*/
 		if (!peasycap) {
 			SAM("MISTAKE: peasycap is NULL\n");
 			return -EFAULT;
@@ -4207,9 +4204,6 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 	}
 	/*--------------------------------------------------------------------------*/
 	case 2: {
-#ifdef EASYCAP_SILENT
-		return -ENOENT;
-#endif /*EASYCAP_SILENT*/
 		if (!peasycap) {
 			SAM("MISTAKE: peasycap is NULL\n");
 			return -EFAULT;
