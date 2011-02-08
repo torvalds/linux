@@ -657,6 +657,7 @@ extern int easycap_debug;
  */
 /*---------------------------------------------------------------------------*/
 
+extern bool easycap_readback;
 extern const struct easycap_standard easycap_standard[];
 extern struct easycap_format easycap_format[];
 extern struct v4l2_queryctrl easycap_control[];

@@ -42,6 +42,10 @@ module_param_named(debug, easycap_debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug level: 0(default),1,2,...,9");
 #endif /* CONFIG_EASYCAP_DEBUG */
 
+bool easycap_readback;
+module_param_named(readback, easycap_readback, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(readback, "read back written registers: (default false)");
+
 static int easycap_bars = 1;
 module_param_named(bars, easycap_bars, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(bars,
