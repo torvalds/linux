@@ -263,6 +263,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 
 	case ACPI_STATE_S3:
 		do_suspend_lowlevel();
+		pr_info(PREFIX "Low-level resume complete\n");
 		break;
 	}
 
@@ -287,8 +288,6 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	acpi_disable_all_gpes();
 	/* Allow EC transactions to happen. */
 	acpi_ec_unblock_transactions_early();
-
-	printk(KERN_DEBUG "Back to C!\n");
 
 	suspend_nvs_restore();
 
