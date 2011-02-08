@@ -228,36 +228,40 @@ static void tmio_mmc_kunmap_atomic(void *virt, unsigned long *flags)
 
 #ifdef CONFIG_MMC_DEBUG
 
-#define STATUS_TO_TEXT(a) \
+#define STATUS_TO_TEXT(a, status, i) \
 	do { \
-		if (status & TMIO_STAT_##a) \
+		if (status & TMIO_STAT_##a) { \
+			if (i++) \
+				printk(" | "); \
 			printk(#a); \
+		} \
 	} while (0)
 
 void pr_debug_status(u32 status)
 {
+	int i = 0;
 	printk(KERN_DEBUG "status: %08x = ", status);
-	STATUS_TO_TEXT(CARD_REMOVE);
-	STATUS_TO_TEXT(CARD_INSERT);
-	STATUS_TO_TEXT(SIGSTATE);
-	STATUS_TO_TEXT(WRPROTECT);
-	STATUS_TO_TEXT(CARD_REMOVE_A);
-	STATUS_TO_TEXT(CARD_INSERT_A);
-	STATUS_TO_TEXT(SIGSTATE_A);
-	STATUS_TO_TEXT(CMD_IDX_ERR);
-	STATUS_TO_TEXT(STOPBIT_ERR);
-	STATUS_TO_TEXT(ILL_FUNC);
-	STATUS_TO_TEXT(CMD_BUSY);
-	STATUS_TO_TEXT(CMDRESPEND);
-	STATUS_TO_TEXT(DATAEND);
-	STATUS_TO_TEXT(CRCFAIL);
-	STATUS_TO_TEXT(DATATIMEOUT);
-	STATUS_TO_TEXT(CMDTIMEOUT);
-	STATUS_TO_TEXT(RXOVERFLOW);
-	STATUS_TO_TEXT(TXUNDERRUN);
-	STATUS_TO_TEXT(RXRDY);
-	STATUS_TO_TEXT(TXRQ);
-	STATUS_TO_TEXT(ILL_ACCESS);
+	STATUS_TO_TEXT(CARD_REMOVE, status, i);
+	STATUS_TO_TEXT(CARD_INSERT, status, i);
+	STATUS_TO_TEXT(SIGSTATE, status, i);
+	STATUS_TO_TEXT(WRPROTECT, status, i);
+	STATUS_TO_TEXT(CARD_REMOVE_A, status, i);
+	STATUS_TO_TEXT(CARD_INSERT_A, status, i);
+	STATUS_TO_TEXT(SIGSTATE_A, status, i);
+	STATUS_TO_TEXT(CMD_IDX_ERR, status, i);
+	STATUS_TO_TEXT(STOPBIT_ERR, status, i);
+	STATUS_TO_TEXT(ILL_FUNC, status, i);
+	STATUS_TO_TEXT(CMD_BUSY, status, i);
+	STATUS_TO_TEXT(CMDRESPEND, status, i);
+	STATUS_TO_TEXT(DATAEND, status, i);
+	STATUS_TO_TEXT(CRCFAIL, status, i);
+	STATUS_TO_TEXT(DATATIMEOUT, status, i);
+	STATUS_TO_TEXT(CMDTIMEOUT, status, i);
+	STATUS_TO_TEXT(RXOVERFLOW, status, i);
+	STATUS_TO_TEXT(TXUNDERRUN, status, i);
+	STATUS_TO_TEXT(RXRDY, status, i);
+	STATUS_TO_TEXT(TXRQ, status, i);
+	STATUS_TO_TEXT(ILL_ACCESS, status, i);
 	printk("\n");
 }
 
