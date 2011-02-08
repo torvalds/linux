@@ -73,6 +73,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8900 if I2C
 	select SND_SOC_WM8903 if I2C
 	select SND_SOC_WM8904 if I2C
+	select SND_SOC_WM8915 if I2C
 	select SND_SOC_WM8940 if I2C
 	select SND_SOC_WM8955 if I2C
 	select SND_SOC_WM8960 if I2C
@@ -300,6 +301,9 @@ config SND_SOC_WM8903
 	tristate
 
 config SND_SOC_WM8904
+	tristate
+
+config SND_SOC_WM8915
 	tristate
 
 config SND_SOC_WM8940
