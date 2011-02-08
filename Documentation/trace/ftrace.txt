@@ -80,11 +80,11 @@ of ftrace. Here is a list of some of the key files:
 	tracers listed here can be configured by
 	echoing their name into current_tracer.
 
-  tracing_enabled:
+  tracing_on:
 
-	This sets or displays whether the current_tracer
-	is activated and tracing or not. Echo 0 into this
-	file to disable the tracer or 1 to enable it.
+	This sets or displays whether writing to the trace
+	ring buffer is enabled. Echo 0 into this file to disable
+	the tracer or 1 to enable it.
 
   trace:
 
@@ -497,10 +497,10 @@ an example:
  # echo irqsoff > current_tracer
  # echo latency-format > trace_options
  # echo 0 > tracing_max_latency
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # ls -ltr
  [...]
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: irqsoff
 #
@@ -605,10 +605,10 @@ is much like the irqsoff tracer.
  # echo preemptoff > current_tracer
  # echo latency-format > trace_options
  # echo 0 > tracing_max_latency
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # ls -ltr
  [...]
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: preemptoff
 #
@@ -753,10 +753,10 @@ tracers.
  # echo preemptirqsoff > current_tracer
  # echo latency-format > trace_options
  # echo 0 > tracing_max_latency
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # ls -ltr
  [...]
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: preemptirqsoff
 #
@@ -916,9 +916,9 @@ Instead of performing an 'ls', we will run 'sleep 1' under
  # echo wakeup > current_tracer
  # echo latency-format > trace_options
  # echo 0 > tracing_max_latency
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # chrt -f 5 sleep 1
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: wakeup
 #
@@ -1030,9 +1030,9 @@ ftrace_enabled is set; otherwise this tracer is a nop.
 
  # sysctl kernel.ftrace_enabled=1
  # echo function > current_tracer
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # usleep 1
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: function
 #
@@ -1070,7 +1070,7 @@ int trace_fd;
 [...]
 int main(int argc, char *argv[]) {
 	[...]
-	trace_fd = open(tracing_file("tracing_enabled"), O_WRONLY);
+	trace_fd = open(tracing_file("tracing_on"), O_WRONLY);
 	[...]
 	if (condition_hit()) {
 		write(trace_fd, "0", 1);
@@ -1521,9 +1521,9 @@ If I am only interested in sys_nanosleep and hrtimer_interrupt:
  # echo sys_nanosleep hrtimer_interrupt \
 		> set_ftrace_filter
  # echo function > current_tracer
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # usleep 1
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: ftrace
 #
@@ -1769,9 +1769,9 @@ different. The trace is live.
  # echo function > current_tracer
  # cat trace_pipe > /tmp/trace.out &
 [1] 4153
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # usleep 1
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: function
 #
