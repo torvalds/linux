@@ -281,18 +281,20 @@ static inline char *translate_scan(struct _adapter *padapter,
 	/* parsing WPA/WPA2 IE */
 	{
 		u16 wpa_len = 0, rsn_len = 0;
-		u8 *p;
+		int n;
 		sint out_len = 0;
 		out_len = r8712_get_sec_ie(pnetwork->network.IEs,
 					   pnetwork->network.
 					   IELength, rsn_ie, &rsn_len,
 					   wpa_ie, &wpa_len);
 		if (wpa_len > 0) {
-			p = buf;
 			memset(buf, 0, MAX_WPA_IE_LEN);
-			p += snprintf(p, 7, "wpa_ie=");
-			for (i = 0; i < wpa_len; i++)
-				p += snprintf(p, 2, "%02x", wpa_ie[i]);
+			n = sprintf(buf, "wpa_ie=");
+			for (i = 0; i < wpa_len; i++) {
+				n += snprintf(buf + n, MAX_WPA_IE_LEN - n, "%02x", wpa_ie[i]);
+				if (n >= MAX_WPA_IE_LEN)
+					break;
+			}
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVCUSTOM;
 			iwe.u.data.length = (u16)strlen(buf);
@@ -305,11 +307,13 @@ static inline char *translate_scan(struct _adapter *padapter,
 				&iwe, wpa_ie);
 		}
 		if (rsn_len > 0) {
-			p = buf;
 			memset(buf, 0, MAX_WPA_IE_LEN);
-			p += snprintf(p, 7, "rsn_ie=");
-			for (i = 0; i < rsn_len; i++)
-				p += snprintf(p, 2, "%02x", rsn_ie[i]);
+			n = sprintf(buf, "rsn_ie=");
+			for (i = 0; i < rsn_len; i++) {
+				n += snprintf(buf + n, MAX_WPA_IE_LEN - n, "%02x", rsn_ie[i]);
+				if (n >= MAX_WPA_IE_LEN)
+					break;
+			}
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVCUSTOM;
 			iwe.u.data.length = strlen(buf);
