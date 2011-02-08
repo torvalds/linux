@@ -2389,12 +2389,13 @@ case VIDIOC_STREAMOFF: {
 /*---------------------------------------------------------------------------*/
 	JOM(8, "calling wake_up on wq_video and wq_audio\n");
 	wake_up_interruptible(&(peasycap->wq_video));
-#ifdef EASYCAP_NEEDS_ALSA
+#ifdef CONFIG_EASYCAP_OSS
+	wake_up_interruptible(&(peasycap->wq_audio));
+
+#else
 	if (NULL != peasycap->psubstream)
 		snd_pcm_period_elapsed(peasycap->psubstream);
-#else
-	wake_up_interruptible(&(peasycap->wq_audio));
-#endif /*EASYCAP_NEEDS_ALSA*/
+#endif /* CONFIG_EASYCAP_OSS */
 /*---------------------------------------------------------------------------*/
 	break;
 }
