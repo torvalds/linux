@@ -268,6 +268,8 @@
 /* SPROM Revision 4 */
 #define SSB_SPROM4_BFLLO		0x0044	/* Boardflags (low 16 bits) */
 #define SSB_SPROM4_BFLHI		0x0046  /* Board Flags Hi */
+#define SSB_SPROM4_BFL2LO		0x0048	/* Board flags 2 (low 16 bits) */
+#define SSB_SPROM4_BFL2HI		0x004A	/* Board flags 2 Hi */
 #define SSB_SPROM4_IL0MAC		0x004C	/* 6 byte MAC address for a/b/g/n */
 #define SSB_SPROM4_CCODE		0x0052	/* Country Code (2 bytes) */
 #define SSB_SPROM4_GPIOA		0x0056	/* Gen. Purpose IO # 0 and 1 */
@@ -358,6 +360,8 @@
 #define SSB_SPROM5_CCODE		0x0044	/* Country Code (2 bytes) */
 #define SSB_SPROM5_BFLLO		0x004A	/* Boardflags (low 16 bits) */
 #define SSB_SPROM5_BFLHI		0x004C  /* Board Flags Hi */
+#define SSB_SPROM5_BFL2LO		0x004E	/* Board flags 2 (low 16 bits) */
+#define SSB_SPROM5_BFL2HI		0x0050	/* Board flags 2 Hi */
 #define SSB_SPROM5_IL0MAC		0x0052	/* 6 byte MAC address for a/b/g/n */
 #define SSB_SPROM5_GPIOA		0x0076	/* Gen. Purpose IO # 0 and 1 */
 #define  SSB_SPROM5_GPIOA_P0		0x00FF	/* Pin 0 */
