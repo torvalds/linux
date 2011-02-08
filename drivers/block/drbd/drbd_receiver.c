@@ -62,6 +62,7 @@ enum finish_epoch {
 
 static int drbd_do_handshake(struct drbd_tconn *tconn);
 static int drbd_do_auth(struct drbd_tconn *tconn);
+static int drbd_disconnected(int vnr, void *p, void *data);
 
 static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *, struct drbd_epoch *, enum epoch_event);
 static int e_end_block(struct drbd_conf *, struct drbd_work *, int);
@@ -3829,19 +3830,49 @@ void drbd_flush_workqueue(struct drbd_tconn *tconn)
 	wait_for_completion(&barr.done);
 }
 
-static void drbd_disconnect(struct drbd_conf *mdev)
+static void drbd_disconnect(struct drbd_tconn *tconn)
 {
-	enum drbd_fencing_p fp;
 	union drbd_state os, ns;
 	int rv = SS_UNKNOWN_ERROR;
-	unsigned int i;
 
-	if (mdev->state.conn == C_STANDALONE)
+	if (tconn->volume0->state.conn == C_STANDALONE)
 		return;
 
 	/* asender does not clean up anything. it must not interfere, either */
-	drbd_thread_stop(&mdev->tconn->asender);
-	drbd_free_sock(mdev);
+	drbd_thread_stop(&tconn->asender);
+	drbd_free_sock(tconn);
+
+	idr_for_each(&tconn->volumes, drbd_disconnected, tconn);
+
+	conn_info(tconn, "Connection closed\n");
+
+	spin_lock_irq(&tconn->req_lock);
+	os = tconn->volume0->state;
+	if (os.conn >= C_UNCONNECTED) {
+		/* Do not restart in case we are C_DISCONNECTING */
+		ns.i = os.i;
+		ns.conn = C_UNCONNECTED;
+		rv = _drbd_set_state(tconn->volume0, ns, CS_VERBOSE, NULL);
+	}
+	spin_unlock_irq(&tconn->req_lock);
+
+	if (os.conn == C_DISCONNECTING) {
+		wait_event(tconn->net_cnt_wait, atomic_read(&tconn->net_cnt) == 0);
+
+		crypto_free_hash(tconn->cram_hmac_tfm);
+		tconn->cram_hmac_tfm = NULL;
+
+		kfree(tconn->net_conf);
+		tconn->net_conf = NULL;
+		drbd_request_state(tconn->volume0, NS(conn, C_STANDALONE));
+	}
+}
+
+static int drbd_disconnected(int vnr, void *p, void *data)
+{
+	struct drbd_conf *mdev = (struct drbd_conf *)p;
+	enum drbd_fencing_p fp;
+	unsigned int i;
 
 	/* wait for current activity to cease. */
 	spin_lock_irq(&mdev->tconn->req_lock);
@@ -3887,8 +3918,6 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	if (!is_susp(mdev->state))
 		tl_clear(mdev);
 
-	dev_info(DEV, "Connection closed\n");
-
 	drbd_md_sync(mdev);
 
 	fp = FP_DONT_CARE;
@@ -3899,27 +3928,6 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 
 	if (mdev->state.role == R_PRIMARY && fp >= FP_RESOURCE && mdev->state.pdsk >= D_UNKNOWN)
 		drbd_try_outdate_peer_async(mdev);
-
-	spin_lock_irq(&mdev->tconn->req_lock);
-	os = mdev->state;
-	if (os.conn >= C_UNCONNECTED) {
-		/* Do not restart in case we are C_DISCONNECTING */
-		ns = os;
-		ns.conn = C_UNCONNECTED;
-		rv = _drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
-	}
-	spin_unlock_irq(&mdev->tconn->req_lock);
-
-	if (os.conn == C_DISCONNECTING) {
-		wait_event(mdev->tconn->net_cnt_wait, atomic_read(&mdev->tconn->net_cnt) == 0);
-
-		crypto_free_hash(mdev->tconn->cram_hmac_tfm);
-		mdev->tconn->cram_hmac_tfm = NULL;
-
-		kfree(mdev->tconn->net_conf);
-		mdev->tconn->net_conf = NULL;
-		drbd_request_state(mdev, NS(conn, C_STANDALONE));
-	}
 
 	/* serialize with bitmap writeout triggered by the state change,
 	 * if any. */
@@ -3950,6 +3958,8 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	/* ok, no more ee's on the fly, it is safe to reset the epoch_size */
 	atomic_set(&mdev->current_epoch->epoch_size, 0);
 	D_ASSERT(list_empty(&mdev->current_epoch->list));
+
+	return 0;
 }
 
 /*
@@ -4226,7 +4236,7 @@ int drbdd_init(struct drbd_thread *thi)
 	do {
 		h = drbd_connect(mdev->tconn);
 		if (h == 0) {
-			drbd_disconnect(mdev);
+			drbd_disconnect(mdev->tconn);
 			schedule_timeout_interruptible(HZ);
 		}
 		if (h == -1) {
@@ -4242,7 +4252,7 @@ int drbdd_init(struct drbd_thread *thi)
 		}
 	}
 
-	drbd_disconnect(mdev);
+	drbd_disconnect(mdev->tconn);
 
 	dev_info(DEV, "receiver terminated\n");
 	return 0;

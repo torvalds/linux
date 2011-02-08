@@ -2430,21 +2430,21 @@ void drbd_free_bc(struct drbd_backing_dev *ldev)
 	kfree(ldev);
 }
 
-void drbd_free_sock(struct drbd_conf *mdev)
+void drbd_free_sock(struct drbd_tconn *tconn)
 {
-	if (mdev->tconn->data.socket) {
-		mutex_lock(&mdev->tconn->data.mutex);
-		kernel_sock_shutdown(mdev->tconn->data.socket, SHUT_RDWR);
-		sock_release(mdev->tconn->data.socket);
-		mdev->tconn->data.socket = NULL;
-		mutex_unlock(&mdev->tconn->data.mutex);
+	if (tconn->data.socket) {
+		mutex_lock(&tconn->data.mutex);
+		kernel_sock_shutdown(tconn->data.socket, SHUT_RDWR);
+		sock_release(tconn->data.socket);
+		tconn->data.socket = NULL;
+		mutex_unlock(&tconn->data.mutex);
 	}
-	if (mdev->tconn->meta.socket) {
-		mutex_lock(&mdev->tconn->meta.mutex);
-		kernel_sock_shutdown(mdev->tconn->meta.socket, SHUT_RDWR);
-		sock_release(mdev->tconn->meta.socket);
-		mdev->tconn->meta.socket = NULL;
-		mutex_unlock(&mdev->tconn->meta.mutex);
+	if (tconn->meta.socket) {
+		mutex_lock(&tconn->meta.mutex);
+		kernel_sock_shutdown(tconn->meta.socket, SHUT_RDWR);
+		sock_release(tconn->meta.socket);
+		tconn->meta.socket = NULL;
+		mutex_unlock(&tconn->meta.mutex);
 	}
 }
 
@@ -2462,7 +2462,7 @@ void drbd_free_resources(struct drbd_conf *mdev)
 	crypto_free_hash(mdev->tconn->integrity_r_tfm);
 	mdev->tconn->integrity_r_tfm = NULL;
 
-	drbd_free_sock(mdev);
+	drbd_free_sock(mdev->tconn);
 
 	__no_warn(local,
 		  drbd_free_bc(mdev->ldev);
