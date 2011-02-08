@@ -457,16 +457,13 @@ static int acpi_hibernation_begin(void)
 static int acpi_hibernation_enter(void)
 {
 	acpi_status status = AE_OK;
-	unsigned long flags = 0;
 
 	ACPI_FLUSH_CPU_CACHE();
 
-	local_irq_save(flags);
 	/* This shouldn't return.  If it returns, we have a problem */
 	status = acpi_enter_sleep_state(ACPI_STATE_S4);
 	/* Reprogram control registers and execute _BFS */
 	acpi_leave_sleep_state_prep(ACPI_STATE_S4);
-	local_irq_restore(flags);
 
 	return ACPI_SUCCESS(status) ? 0 : -EFAULT;
 }
