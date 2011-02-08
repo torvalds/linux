@@ -466,6 +466,15 @@ static void iwl_rx_reply_alive(struct iwl_priv *priv,
 		IWL_WARN(priv, "%s uCode did not respond OK.\n",
 			(palive->ver_subtype == INITIALIZE_SUBTYPE) ?
 			"init" : "runtime");
+		/*
+		 * If fail to load init uCode,
+		 * let's try to load the init uCode again.
+		 * We should not get into this situation, but if it
+		 * does happen, we should not move on and loading "runtime"
+		 * without proper calibrate the device.
+		 */
+		if (palive->ver_subtype == INITIALIZE_SUBTYPE)
+			priv->ucode_type = UCODE_NONE;
 		queue_work(priv->workqueue, &priv->restart);
 	}
 }
