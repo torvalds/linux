@@ -4227,10 +4227,7 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 int drbdd_init(struct drbd_thread *thi)
 {
 	struct drbd_conf *mdev = thi->mdev;
-	unsigned int minor = mdev_to_minor(mdev);
 	int h;
-
-	sprintf(current->comm, "drbd%d_receiver", minor);
 
 	dev_info(DEV, "receiver (re)started\n");
 
@@ -4571,8 +4568,6 @@ int drbd_asender(struct drbd_thread *thi)
 	int expect   = sizeof(struct p_header);
 	int ping_timeout_active = 0;
 	int empty;
-
-	sprintf(current->comm, "drbd%d_asender", mdev_to_minor(mdev));
 
 	current->policy = SCHED_RR;  /* Make this a realtime task! */
 	current->rt_priority = 2;    /* more important than all other tasks */

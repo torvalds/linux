@@ -446,6 +446,9 @@ static int drbd_thread_setup(void *arg)
 	unsigned long flags;
 	int retval;
 
+	snprintf(current->comm, sizeof(current->comm), "drbd_%c_%s",
+		 thi->name[0], thi->mdev->tconn->name);
+
 restart:
 	retval = thi->function(thi);
 

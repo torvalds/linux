@@ -1631,8 +1631,6 @@ int drbd_worker(struct drbd_thread *thi)
 	LIST_HEAD(work_list);
 	int intr = 0, i;
 
-	sprintf(current->comm, "drbd%d_worker", mdev_to_minor(mdev));
-
 	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(thi);
 
