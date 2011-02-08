@@ -903,86 +903,86 @@ for (k = 0;  k < max;  k++) {
 return -1;
 }
 /****************************************************************************/
-int
-regset(struct usb_device *pusb_device, u16 index, u16 value)
+int regset(struct usb_device *pusb_device, u16 index, u16 value)
 {
-u16 igot;
-int rc0, rc1;
+	u16 igot;
+	int rc0, rc1;
 
-if (!pusb_device)
-	return -ENODEV;
-rc1 = 0;  igot = 0;
-rc0 = usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0),
-		(u8)0x01,
-		(u8)(USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
-		(u16)value,
-		(u16)index,
-		NULL,
-		(u16)0,
-		(int)500);
+	if (!pusb_device)
+		return -ENODEV;
+
+	rc1 = 0;  igot = 0;
+	rc0 = usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0),
+			(u8)0x01,
+			(u8)(USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
+			(u16)value,
+			(u16)index,
+			NULL,
+			(u16)0,
+			(int)500);
 
 #ifdef NOREADBACK
 #
 #else
-rc1 = usb_control_msg(pusb_device, usb_rcvctrlpipe(pusb_device, 0),
-		(u8)0x00,
-		(u8)(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
-		(u16)0x00,
-		(u16)index,
-		(void *)&igot,
-		(u16)sizeof(u16),
-		(int)50000);
-igot = 0xFF & igot;
-switch (index) {
-case 0x000:
-case 0x500:
-case 0x502:
-case 0x503:
-case 0x504:
-case 0x506:
-case 0x507: {
-	break;
-}
-case 0x204:
-case 0x205:
-case 0x350:
-case 0x351: {
-	if (0 != (0xFF & igot)) {
-		JOT(8, "unexpected 0x%02X for STK register 0x%03X\n",
+	rc1 = usb_control_msg(pusb_device, usb_rcvctrlpipe(pusb_device, 0),
+			(u8)0x00,
+			(u8)(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
+			(u16)0x00,
+			(u16)index,
+			(void *)&igot,
+			(u16)sizeof(u16),
+			(int)50000);
+	igot = 0xFF & igot;
+	switch (index) {
+	case 0x000:
+	case 0x500:
+	case 0x502:
+	case 0x503:
+	case 0x504:
+	case 0x506:
+	case 0x507:
+		break;
+
+	case 0x204:
+	case 0x205:
+	case 0x350:
+	case 0x351:
+		if (0 != (0xFF & igot)) {
+			JOT(8, "unexpected 0x%02X for STK register 0x%03X\n",
 								igot, index);
+		}
+		break;
+
+	default:
+		if ((0xFF & value) != (0xFF & igot)) {
+			JOT(8, "unexpected 0x%02X != 0x%02X "
+						"for STK register 0x%03X\n",
+						igot, value, index);
+		}
+		break;
 	}
-break;
-}
-default: {
-	if ((0xFF & value) != (0xFF & igot)) {
-		JOT(8, "unexpected 0x%02X != 0x%02X "
-					"for STK register 0x%03X\n",
-					igot, value, index);
-	}
-break;
-}
-}
 #endif /* ! NOREADBACK*/
 
-return (0 > rc0) ? rc0 : rc1;
+	return (0 > rc0) ? rc0 : rc1;
 }
 /*****************************************************************************/
-int
-regget(struct usb_device *pusb_device, u16 index, void *pvoid)
+int regget(struct usb_device *pusb_device, u16 index, void *pvoid)
 {
-int ir;
+	int rc;
 
-if (!pusb_device)
-	return -ENODEV;
-ir = usb_control_msg(pusb_device, usb_rcvctrlpipe(pusb_device, 0),
-		(u8)0x00,
-		(u8)(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
-		(u16)0x00,
-		(u16)index,
-		(void *)pvoid,
-		sizeof(u8),
-		(int)50000);
-return 0xFF & ir;
+	if (!pusb_device)
+		return -ENODEV;
+
+	rc = usb_control_msg(pusb_device, usb_rcvctrlpipe(pusb_device, 0),
+			(u8)0x00,
+			(u8)(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE),
+			(u16)0x00,
+			(u16)index,
+			(void *)pvoid,
+			sizeof(u8),
+			(int)50000);
+
+	return 0xFF & rc;
 }
 /*****************************************************************************/
 int
