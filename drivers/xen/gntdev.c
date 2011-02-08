@@ -289,7 +289,12 @@ static int unmap_grant_pages(struct grant_map *map, int offset, int pages)
 
 	if (map->notify.flags & UNMAP_NOTIFY_CLEAR_BYTE) {
 		int pgno = (map->notify.addr >> PAGE_SHIFT);
-		if (pgno >= offset && pgno < offset + pages) {
+		if (pgno >= offset && pgno < offset + pages && use_ptemod) {
+			void __user *tmp;
+			tmp = map->vma->vm_start + map->notify.addr;
+			copy_to_user(tmp, &err, 1);
+			map->notify.flags &= ~UNMAP_NOTIFY_CLEAR_BYTE;
+		} else if (pgno >= offset && pgno < offset + pages) {
 			uint8_t *tmp = kmap(map->pages[pgno]);
 			tmp[map->notify.addr & (PAGE_SIZE-1)] = 0;
 			kunmap(map->pages[pgno]);
@@ -298,7 +303,7 @@ static int unmap_grant_pages(struct grant_map *map, int offset, int pages)
 	}
 
 	pr_debug("map %d+%d [%d+%d]\n", map->index, map->count, offset, pages);
-	err = gnttab_unmap_refs(map->unmap_ops + offset, map->pages, pages);
+	err = gnttab_unmap_refs(map->unmap_ops + offset, map->pages + offset, pages);
 	if (err)
 		return err;
 
