@@ -169,27 +169,22 @@ int ft1000_write_register(struct ft1000_device *ft1000dev, u16 value,
 //
 //---------------------------------------------------------------------------
 
-int ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u16 cnt)
+int ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
+			u16 cnt)
 {
-    int ret = STATUS_SUCCESS;
+	int ret = STATUS_SUCCESS;
 
-    //DEBUG("ft1000_read_dpram32: indx: %d  cnt: %d\n", indx, cnt);
-    ret =ft1000_control(ft1000dev,
-                         usb_rcvctrlpipe(ft1000dev->dev,0),
-                         HARLEY_READ_DPRAM_32,                //request --READ_DPRAM_32
-                         HARLEY_READ_OPERATION,               //requestType
-                         0,                                   //value
-                         indx,                                //index
-                         buffer,                              //data
-                         cnt,                                 //data size
-                         LARGE_TIMEOUT );                     //timeout
+	ret = ft1000_control(ft1000dev,
+			     usb_rcvctrlpipe(ft1000dev->dev, 0),
+			     HARLEY_READ_DPRAM_32,
+			     HARLEY_READ_OPERATION,
+			     0,
+			     indx,
+			     buffer,
+			     cnt,
+			     LARGE_TIMEOUT);
 
-   //DEBUG("ft1000_read_dpram32: ret is  %d \n", ret);
-
-   //DEBUG("ft1000_read_dpram32: ret=%d \n", ret);
-
-   return ret;
-
+	return ret;
 }
 
 //---------------------------------------------------------------------------
@@ -208,25 +203,25 @@ int ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u
 // Notes:
 //
 //---------------------------------------------------------------------------
-int ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u16 cnt)
+int ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
+			 u16 cnt)
 {
-     int ret = STATUS_SUCCESS;
+	int ret = STATUS_SUCCESS;
 
-     //DEBUG("ft1000_write_dpram32: indx: %d   buffer: %x cnt: %d\n", indx, buffer, cnt);
-     if ( cnt % 4)
-         cnt += cnt - (cnt % 4);
+	if (cnt % 4)
+		cnt += cnt - (cnt % 4);
 
-     ret = ft1000_control(ft1000dev,
-                           usb_sndctrlpipe(ft1000dev->dev, 0),
-                           HARLEY_WRITE_DPRAM_32,              //request -- WRITE_DPRAM_32
-                           HARLEY_WRITE_OPERATION,             //requestType
-                           0,                                  //value
-                           indx,                               //index
-                           buffer,                             //buffer
-                           cnt,                                //buffer size
-                           LARGE_TIMEOUT );
+	ret = ft1000_control(ft1000dev,
+			     usb_sndctrlpipe(ft1000dev->dev, 0),
+			     HARLEY_WRITE_DPRAM_32,
+			     HARLEY_WRITE_OPERATION,
+			     0,
+			     indx,
+			     buffer,
+			     cnt,
+			     LARGE_TIMEOUT);
 
-    return ret;
+	return ret;
 }
 
 //---------------------------------------------------------------------------
