@@ -138,6 +138,13 @@ void __trace_note_message(struct blk_trace *bt, const char *fmt, ...)
 		     !blk_tracer_enabled))
 		return;
 
+	/*
+	 * If the BLK_TC_NOTIFY action mask isn't set, don't send any note
+	 * message to the trace.
+	 */
+	if (!(bt->act_mask & BLK_TC_NOTIFY))
+		return;
+
 	local_irq_save(flags);
 	buf = per_cpu_ptr(bt->msg_data, smp_processor_id());
 	va_start(args, fmt);
