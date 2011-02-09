@@ -882,6 +882,7 @@ struct se_port {
 } ____cacheline_aligned;
 
 struct se_tpg_np {
+	struct se_portal_group *tpg_np_parent;
 	struct config_group	tpg_np_group;
 } ____cacheline_aligned;
 
