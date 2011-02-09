@@ -174,7 +174,7 @@ ivtv_write_vbi_from_user(struct ivtv *itv,
 			ret = -EFAULT;
 			break;
 		}
-		ivtv_write_vbi_line(itv, sliced + i, &cc, &found_cc);
+		ivtv_write_vbi_line(itv, &d, &cc, &found_cc);
 	}
 
 	if (found_cc)
