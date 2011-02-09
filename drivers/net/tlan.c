@@ -1522,7 +1522,8 @@ static u32 tlan_handle_tx_eof(struct net_device *dev, u16 host_int)
 		head_list = priv->tx_list + priv->tx_head;
 		head_list_phys = priv->tx_list_dma
 			+ sizeof(struct tlan_list)*priv->tx_head;
-		if (head_list->c_stat & TLAN_CSTAT_READY) {
+		if ((head_list->c_stat & TLAN_CSTAT_READY)
+		    == TLAN_CSTAT_READY) {
 			outl(head_list_phys, dev->base_addr + TLAN_CH_PARM);
 			ack |= TLAN_HC_GO;
 		} else {
@@ -1766,7 +1767,8 @@ static u32 tlan_handle_tx_eoc(struct net_device *dev, u16 host_int)
 		head_list = priv->tx_list + priv->tx_head;
 		head_list_phys = priv->tx_list_dma
 			+ sizeof(struct tlan_list)*priv->tx_head;
-		if (head_list->c_stat & TLAN_CSTAT_READY) {
+		if ((head_list->c_stat & TLAN_CSTAT_READY)
+		    == TLAN_CSTAT_READY) {
 			netif_stop_queue(dev);
 			outl(head_list_phys, dev->base_addr + TLAN_CH_PARM);
 			ack |= TLAN_HC_GO;
