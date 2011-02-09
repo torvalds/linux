@@ -65,45 +65,26 @@ static u8 tempbuffer[1600];
 // Notes:
 //
 //---------------------------------------------------------------------------
-static int ft1000_control(struct ft1000_device *ft1000dev,unsigned int pipe,
-                          u8 request,
-                          u8 requesttype,
-                          u16 value,
-                          u16 index,
-                          void *data,
-                          u16 size,
-                          int timeout)
+static int ft1000_control(struct ft1000_device *ft1000dev, unsigned int pipe,
+			  u8 request, u8 requesttype, u16 value, u16 index,
+			  void *data, u16 size, int timeout)
 {
 	u16 ret;
 
-    if (ft1000dev == NULL )
-    {
-        DEBUG("NULL ft1000dev, failure\n");
-	return -ENODEV;
-    }
-    else if ( ft1000dev->dev == NULL )
-    {
-        DEBUG("NULL ft1000dev->dev, failure\n");
-	return -ENODEV;
-    }
+	if ((ft1000dev == NULL) || (ft1000dev->dev == NULL)) {
+		DEBUG("ft1000dev or ft1000dev->dev == NULL, failure\n");
+		return -ENODEV;
+	}
 
-    ret = usb_control_msg(ft1000dev->dev,
-                          pipe,
-                          request,
-                          requesttype,
-                          value,
-                          index,
-                          data,
-                          size,
-                          LARGE_TIMEOUT);
+	ret = usb_control_msg(ft1000dev->dev, pipe, request, requesttype,
+			      value, index, data, size, LARGE_TIMEOUT);
 
 	if (ret > 0)
 		ret = 0;
 
-    return ret;
-
-
+	return ret;
 }
+
 //---------------------------------------------------------------------------
 // Function:    ft1000_read_register
 //
