@@ -258,6 +258,9 @@ static int map_grant_pages(struct grant_map *map)
 	phys_addr_t addr;
 
 	if (!use_ptemod) {
+		/* Note: it could already be mapped */
+		if (map->map_ops[0].handle)
+			return 0;
 		for (i = 0; i < map->count; i++) {
 			addr = (phys_addr_t)
 				pfn_to_kaddr(page_to_pfn(map->pages[i]));
@@ -668,9 +671,15 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	if (use_ptemod)
 		map->vma = vma;
 
-	map->flags = GNTMAP_host_map;
-	if (!(vma->vm_flags & VM_WRITE))
-		map->flags |= GNTMAP_readonly;
+	if (map->flags) {
+		if ((vma->vm_flags & VM_WRITE) &&
+				(map->flags & GNTMAP_readonly))
+			return -EINVAL;
+	} else {
+		map->flags = GNTMAP_host_map;
+		if (!(vma->vm_flags & VM_WRITE))
+			map->flags |= GNTMAP_readonly;
+	}
 
 	spin_unlock(&priv->lock);
 
