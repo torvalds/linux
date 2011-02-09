@@ -1836,6 +1836,12 @@ static int __devinit serial_console_setup(struct console *co, char *options)
 	sci_port = &sci_ports[co->index];
 	port = &sci_port->port;
 
+	/*
+	 * Refuse to handle uninitialized ports.
+	 */
+	if (!port->ops)
+		return -ENODEV;
+
 	ret = sci_remap_port(port);
 	if (unlikely(ret != 0))
 		return ret;
