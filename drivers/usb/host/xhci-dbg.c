@@ -169,9 +169,10 @@ static void xhci_print_ports(struct xhci_hcd *xhci)
 	}
 }
 
-void xhci_print_ir_set(struct xhci_hcd *xhci, struct xhci_intr_reg *ir_set, int set_num)
+void xhci_print_ir_set(struct xhci_hcd *xhci, int set_num)
 {
-	void *addr;
+	struct xhci_intr_reg __iomem *ir_set = &xhci->run_regs->ir_set[set_num];
+	void __iomem *addr;
 	u32 temp;
 	u64 temp_64;
 

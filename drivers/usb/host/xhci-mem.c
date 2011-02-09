@@ -1961,7 +1961,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	/* Set the event ring dequeue address */
 	xhci_set_hc_event_deq(xhci);
 	xhci_dbg(xhci, "Wrote ERST address to ir_set 0.\n");
-	xhci_print_ir_set(xhci, xhci->ir_set, 0);
+	xhci_print_ir_set(xhci, 0);
 
 	/*
 	 * XXX: Might need to set the Interrupter Moderation Register to

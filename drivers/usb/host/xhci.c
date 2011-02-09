@@ -473,7 +473,7 @@ int xhci_run(struct usb_hcd *hcd)
 			xhci->ir_set, (unsigned int) ER_IRQ_ENABLE(temp));
 	xhci_writel(xhci, ER_IRQ_ENABLE(temp),
 			&xhci->ir_set->irq_pending);
-	xhci_print_ir_set(xhci, xhci->ir_set, 0);
+	xhci_print_ir_set(xhci, 0);
 
 	if (NUM_TEST_NOOPS > 0)
 		doorbell = xhci_setup_one_noop(xhci);
@@ -528,7 +528,7 @@ void xhci_stop(struct usb_hcd *hcd)
 	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
 	xhci_writel(xhci, ER_IRQ_DISABLE(temp),
 			&xhci->ir_set->irq_pending);
-	xhci_print_ir_set(xhci, xhci->ir_set, 0);
+	xhci_print_ir_set(xhci, 0);
 
 	xhci_dbg(xhci, "cleaning up memory\n");
 	xhci_mem_cleanup(xhci);
@@ -755,7 +755,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
 		xhci_writel(xhci, ER_IRQ_DISABLE(temp),
 				&xhci->ir_set->irq_pending);
-		xhci_print_ir_set(xhci, xhci->ir_set, 0);
+		xhci_print_ir_set(xhci, 0);
 
 		xhci_dbg(xhci, "cleaning up memory\n");
 		xhci_mem_cleanup(xhci);
