@@ -1781,8 +1781,8 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 	}
 
 	val = snd_soc_read(codec, WM8903_REVISION_NUMBER);
-	dev_info(codec->dev, "WM8903 revision %d\n",
-		 val & WM8903_CHIP_REV_MASK);
+	dev_info(codec->dev, "WM8903 revision %c\n",
+		 (val & WM8903_CHIP_REV_MASK) + 'A');
 
 	wm8903_reset(codec);
 
