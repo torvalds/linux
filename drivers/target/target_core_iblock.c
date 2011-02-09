@@ -154,7 +154,7 @@ static struct se_device *iblock_create_virtdevice(
 
 	bd = blkdev_get_by_path(ib_dev->ibd_udev_path,
 				FMODE_WRITE|FMODE_READ|FMODE_EXCL, ib_dev);
-	if (!(bd))
+	if (IS_ERR(bd))
 		goto failed;
 	/*
 	 * Setup the local scope queue_limits from struct request_queue->limits
