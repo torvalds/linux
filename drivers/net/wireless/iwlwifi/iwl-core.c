@@ -948,6 +948,9 @@ EXPORT_SYMBOL(iwl_print_rx_config_cmd);
  */
 void iwl_irq_handle_error(struct iwl_priv *priv)
 {
+	unsigned int reload_msec;
+	unsigned long reload_jiffies;
+
 	/* Set the FW error flag -- cleared on iwl_down */
 	set_bit(STATUS_FW_ERROR, &priv->status);
 
@@ -990,6 +993,25 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 	/* Keep the restart process from trying to send host
 	 * commands by clearing the INIT status bit */
 	clear_bit(STATUS_READY, &priv->status);
+
+	/*
+	 * If firmware keep reloading, then it indicate something
+	 * serious wrong and firmware having problem to recover
+	 * from it. Instead of keep trying which will fill the syslog
+	 * and hang the system, let's just stop it
+	 */
+	reload_jiffies = jiffies;
+	reload_msec = jiffies_to_msecs((long) reload_jiffies -
+				(long) priv->reload_jiffies);
+	priv->reload_jiffies = reload_jiffies;
+	if (reload_msec <= IWL_MIN_RELOAD_DURATION) {
+		priv->reload_count++;
+		if (priv->reload_count >= IWL_MAX_CONTINUE_RELOAD_CNT) {
+			IWL_ERR(priv, "BUG_ON, Stop restarting\n");
+			return;
+		}
+	} else
+		priv->reload_count = 0;
 
 	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		IWL_DEBUG(priv, IWL_DL_FW_ERRORS,
