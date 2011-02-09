@@ -1549,7 +1549,7 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 		skb_orphan(skb);
 	}
 
-	if (skb_header_cloned(skb))
+	if (skb_cloned(skb))
 		I802_DEBUG_INC(local->tx_expand_skb_head_cloned);
 	else if (head_need || tail_need)
 		I802_DEBUG_INC(local->tx_expand_skb_head);

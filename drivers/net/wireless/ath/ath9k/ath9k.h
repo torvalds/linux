@@ -218,6 +218,7 @@ struct ath_frame_info {
 struct ath_buf_state {
 	u8 bf_type;
 	u8 bfs_paprd;
+	unsigned long bfs_paprd_timestamp;
 	enum ath9k_internal_frame_type bfs_ftype;
 };
 
@@ -600,7 +601,6 @@ struct ath_softc {
 	struct work_struct paprd_work;
 	struct work_struct hw_check_work;
 	struct completion paprd_complete;
-	bool paprd_pending;
 
 	unsigned int hw_busy_count;
 

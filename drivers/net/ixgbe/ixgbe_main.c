@@ -52,7 +52,7 @@ char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
 			      "Intel(R) 10 Gigabit PCI Express Network Driver";
 
-#define DRV_VERSION "3.0.12-k2"
+#define DRV_VERSION "3.2.9-k2"
 const char ixgbe_driver_version[] = DRV_VERSION;
 static char ixgbe_copyright[] = "Copyright (c) 1999-2010 Intel Corporation.";
 
@@ -3176,9 +3176,16 @@ static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
 	u32 mhadd, hlreg0;
 
 	/* Decide whether to use packet split mode or not */
+	/* On by default */
+	adapter->flags |= IXGBE_FLAG_RX_PS_ENABLED;
+
 	/* Do not use packet split if we're in SR-IOV Mode */
-	if (!adapter->num_vfs)
-		adapter->flags |= IXGBE_FLAG_RX_PS_ENABLED;
+	if (adapter->num_vfs)
+		adapter->flags &= ~IXGBE_FLAG_RX_PS_ENABLED;
+
+	/* Disable packet split due to 82599 erratum #45 */
+	if (hw->mac.type == ixgbe_mac_82599EB)
+		adapter->flags &= ~IXGBE_FLAG_RX_PS_ENABLED;
 
 	/* Set the RX buffer length according to the mode */
 	if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
@@ -4863,16 +4870,13 @@ static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 {
 	int q_idx, num_q_vectors;
 	struct ixgbe_q_vector *q_vector;
-	int napi_vectors;
 	int (*poll)(struct napi_struct *, int);
 
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
 		num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-		napi_vectors = adapter->num_rx_queues;
 		poll = &ixgbe_clean_rxtx_many;
 	} else {
 		num_q_vectors = 1;
-		napi_vectors = 1;
 		poll = &ixgbe_poll;
 	}
 
