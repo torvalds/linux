@@ -38,9 +38,8 @@
 #include "drbd_int.h"
 #include "drbd_req.h"
 
-static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int cancel);
-static int w_make_resync_request(struct drbd_conf *mdev,
-				 struct drbd_work *w, int cancel);
+static int w_make_ov_request(struct drbd_work *w, int cancel);
+static int w_make_resync_request(struct drbd_work *w, int cancel);
 
 
 
@@ -228,9 +227,10 @@ void drbd_endio_pri(struct bio *bio, int error)
 		complete_master_bio(mdev, &m);
 }
 
-int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_read_retry_remote(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
+	struct drbd_conf *mdev = w->mdev;
 
 	/* We should not detach for read io-error,
 	 * but try to WRITE the P_DATA_REPLY to the failed location,
@@ -244,7 +244,7 @@ int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	}
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
-	return w_send_read_req(mdev, w, 0);
+	return w_send_read_req(w, 0);
 }
 
 void drbd_csum_ee(struct drbd_conf *mdev, struct crypto_hash *tfm,
@@ -295,11 +295,10 @@ void drbd_csum_bio(struct drbd_conf *mdev, struct crypto_hash *tfm, struct bio *
 	crypto_hash_final(&desc, digest);
 }
 
-/* TODO merge common code with w_e_end_ov_req */
-int w_e_send_csum(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+static int w_e_send_csum(struct drbd_work *w, int cancel)
 {
-	struct drbd_peer_request *peer_req =
-		container_of(w, struct drbd_peer_request, w);
+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
+	struct drbd_conf *mdev = w->mdev;
 	int digest_size;
 	void *digest;
 	int ok = 1;
@@ -383,14 +382,15 @@ defer:
 	return -EAGAIN;
 }
 
-int w_resync_timer(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_resync_timer(struct drbd_work *w, int cancel)
 {
+	struct drbd_conf *mdev = w->mdev;
 	switch (mdev->state.conn) {
 	case C_VERIFY_S:
-		w_make_ov_request(mdev, w, cancel);
+		w_make_ov_request(w, cancel);
 		break;
 	case C_SYNC_TARGET:
-		w_make_resync_request(mdev, w, cancel);
+		w_make_resync_request(w, cancel);
 		break;
 	}
 
@@ -504,9 +504,9 @@ static int drbd_rs_number_requests(struct drbd_conf *mdev)
 	return number;
 }
 
-static int w_make_resync_request(struct drbd_conf *mdev,
-				 struct drbd_work *w, int cancel)
+static int w_make_resync_request(struct drbd_work *w, int cancel)
 {
+	struct drbd_conf *mdev = w->mdev;
 	unsigned long bit;
 	sector_t sector;
 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
@@ -664,8 +664,9 @@ next_sector:
 	return 1;
 }
 
-static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+static int w_make_ov_request(struct drbd_work *w, int cancel)
 {
+	struct drbd_conf *mdev = w->mdev;
 	int number, i, size;
 	sector_t sector;
 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
@@ -707,8 +708,9 @@ static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int ca
 	return 1;
 }
 
-int w_ov_finished(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_ov_finished(struct drbd_work *w, int cancel)
 {
+	struct drbd_conf *mdev = w->mdev;
 	kfree(w);
 	ov_oos_print(mdev);
 	drbd_resync_finished(mdev);
@@ -716,8 +718,9 @@ int w_ov_finished(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	return 1;
 }
 
-static int w_resync_finished(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+static int w_resync_finished(struct drbd_work *w, int cancel)
 {
+	struct drbd_conf *mdev = w->mdev;
 	kfree(w);
 
 	drbd_resync_finished(mdev);
@@ -901,9 +904,10 @@ static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_peer_requ
  * @w:		work object.
  * @cancel:	The connection will be closed anyways
  */
-int w_e_end_data_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_e_end_data_req(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
+	struct drbd_conf *mdev = w->mdev;
 	int ok;
 
 	if (unlikely(cancel)) {
@@ -937,9 +941,10 @@ int w_e_end_data_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
  * @w:		work object.
  * @cancel:	The connection will be closed anyways
  */
-int w_e_end_rsdata_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
+	struct drbd_conf *mdev = w->mdev;
 	int ok;
 
 	if (unlikely(cancel)) {
@@ -985,9 +990,10 @@ int w_e_end_rsdata_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	return ok;
 }
 
-int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
+	struct drbd_conf *mdev = w->mdev;
 	struct digest_info *di;
 	int digest_size;
 	void *digest = NULL;
@@ -1047,10 +1053,10 @@ int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	return ok;
 }
 
-/* TODO merge common code with w_e_send_csum */
-int w_e_end_ov_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_e_end_ov_req(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
+	struct drbd_conf *mdev = w->mdev;
 	sector_t sector = peer_req->i.sector;
 	unsigned int size = peer_req->i.size;
 	int digest_size;
@@ -1105,9 +1111,10 @@ void drbd_ov_oos_found(struct drbd_conf *mdev, sector_t sector, int size)
 	drbd_set_out_of_sync(mdev, sector, size);
 }
 
-int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_e_end_ov_reply(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
+	struct drbd_conf *mdev = w->mdev;
 	struct digest_info *di;
 	void *digest;
 	sector_t sector = peer_req->i.sector;
@@ -1172,16 +1179,18 @@ int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	return ok;
 }
 
-int w_prev_work_done(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_prev_work_done(struct drbd_work *w, int cancel)
 {
 	struct drbd_wq_barrier *b = container_of(w, struct drbd_wq_barrier, w);
+
 	complete(&b->done);
 	return 1;
 }
 
-int w_send_barrier(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_send_barrier(struct drbd_work *w, int cancel)
 {
 	struct drbd_tl_epoch *b = container_of(w, struct drbd_tl_epoch, w);
+	struct drbd_conf *mdev = w->mdev;
 	struct p_barrier *p = &mdev->tconn->data.sbuf.barrier;
 	int ok = 1;
 
@@ -1210,16 +1219,18 @@ int w_send_barrier(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	return ok;
 }
 
-int w_send_write_hint(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_send_write_hint(struct drbd_work *w, int cancel)
 {
+	struct drbd_conf *mdev = w->mdev;
 	if (cancel)
 		return 1;
 	return drbd_send_short_cmd(mdev, P_UNPLUG_REMOTE);
 }
 
-int w_send_oos(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_send_oos(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
+	struct drbd_conf *mdev = w->mdev;
 	int ok;
 
 	if (unlikely(cancel)) {
@@ -1239,9 +1250,10 @@ int w_send_oos(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
  * @w:		work object.
  * @cancel:	The connection will be closed anyways
  */
-int w_send_dblock(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_send_dblock(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
+	struct drbd_conf *mdev = w->mdev;
 	int ok;
 
 	if (unlikely(cancel)) {
@@ -1261,9 +1273,10 @@ int w_send_dblock(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
  * @w:		work object.
  * @cancel:	The connection will be closed anyways
  */
-int w_send_read_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_send_read_req(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
+	struct drbd_conf *mdev = w->mdev;
 	int ok;
 
 	if (unlikely(cancel)) {
@@ -1285,9 +1298,10 @@ int w_send_read_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	return ok;
 }
 
-int w_restart_disk_io(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_restart_disk_io(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
+	struct drbd_conf *mdev = w->mdev;
 
 	if (bio_data_dir(req->master_bio) == WRITE && req->rq_state & RQ_IN_ACT_LOG)
 		drbd_al_begin_io(mdev, req->i.sector);
@@ -1447,8 +1461,10 @@ void start_resync_timer_fn(unsigned long data)
 	drbd_queue_work(&mdev->tconn->data.work, &mdev->start_resync_work);
 }
 
-int w_start_resync(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+int w_start_resync(struct drbd_work *w, int cancel)
 {
+	struct drbd_conf *mdev = w->mdev;
+
 	if (atomic_read(&mdev->unacked_cnt) || atomic_read(&mdev->rs_pending_cnt)) {
 		dev_warn(DEV, "w_start_resync later...\n");
 		mdev->start_resync_timer.expires = jiffies + HZ/10;
@@ -1702,7 +1718,7 @@ int drbd_worker(struct drbd_thread *thi)
 		list_del_init(&w->list);
 		spin_unlock_irq(&tconn->data.work.q_lock);
 
-		if (!w->cb(w->mdev, w, tconn->volume0->state.conn < C_CONNECTED)) {
+		if (!w->cb(w, tconn->volume0->state.conn < C_CONNECTED)) {
 			/* dev_warn(DEV, "worker: a callback failed! \n"); */
 			if (tconn->volume0->state.conn >= C_CONNECTED)
 				drbd_force_state(tconn->volume0,
@@ -1718,7 +1734,7 @@ int drbd_worker(struct drbd_thread *thi)
 		while (!list_empty(&work_list)) {
 			w = list_entry(work_list.next, struct drbd_work, list);
 			list_del_init(&w->list);
-			w->cb(w->mdev, w, 1);
+			w->cb(w, 1);
 		}
 
 		spin_lock_irq(&tconn->data.work.q_lock);

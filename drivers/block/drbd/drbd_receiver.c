@@ -65,7 +65,7 @@ static int drbd_do_auth(struct drbd_tconn *tconn);
 static int drbd_disconnected(int vnr, void *p, void *data);
 
 static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *, struct drbd_epoch *, enum epoch_event);
-static int e_end_block(struct drbd_conf *, struct drbd_work *, int);
+static int e_end_block(struct drbd_work *, int);
 
 
 #define GFP_TRY	(__GFP_HIGHMEM | __GFP_NOWARN)
@@ -420,7 +420,7 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
 	 */
 	list_for_each_entry_safe(peer_req, t, &work_list, w.list) {
 		/* list_del not necessary, next/prev members not touched */
-		ok = peer_req->w.cb(mdev, &peer_req->w, !ok) && ok;
+		ok = peer_req->w.cb(&peer_req->w, !ok) && ok;
 		drbd_free_ee(mdev, peer_req);
 	}
 	wake_up(&mdev->ee_wait);
@@ -1447,9 +1447,10 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
 
 /* e_end_resync_block() is called via
  * drbd_process_done_ee() by asender only */
-static int e_end_resync_block(struct drbd_conf *mdev, struct drbd_work *w, int unused)
+static int e_end_resync_block(struct drbd_work *w, int unused)
 {
 	struct drbd_peer_request *peer_req = (struct drbd_peer_request *)w;
+	struct drbd_conf *mdev = w->mdev;
 	sector_t sector = peer_req->i.sector;
 	int ok;
 
@@ -1584,9 +1585,10 @@ static int receive_RSDataReply(struct drbd_conf *mdev, enum drbd_packet cmd,
 /* e_end_block() is called via drbd_process_done_ee().
  * this means this function only runs in the asender thread
  */
-static int e_end_block(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+static int e_end_block(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = (struct drbd_peer_request *)w;
+	struct drbd_conf *mdev = w->mdev;
 	sector_t sector = peer_req->i.sector;
 	int ok = 1, pcmd;
 
@@ -1621,9 +1623,10 @@ static int e_end_block(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	return ok;
 }
 
-static int e_send_discard_ack(struct drbd_conf *mdev, struct drbd_work *w, int unused)
+static int e_send_discard_ack(struct drbd_work *w, int unused)
 {
 	struct drbd_peer_request *peer_req = (struct drbd_peer_request *)w;
+	struct drbd_conf *mdev = w->mdev;
 	int ok = 1;
 
 	D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);

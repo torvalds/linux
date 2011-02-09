@@ -64,10 +64,10 @@ int drbd_asender(struct drbd_thread *);
 int drbd_init(void);
 static int drbd_open(struct block_device *bdev, fmode_t mode);
 static int drbd_release(struct gendisk *gd, fmode_t mode);
-static int w_md_sync(struct drbd_conf *mdev, struct drbd_work *w, int unused);
+static int w_md_sync(struct drbd_work *w, int unused);
 static void md_sync_timer_fn(unsigned long data);
-static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused);
-static int w_go_diskless(struct drbd_conf *mdev, struct drbd_work *w, int unused);
+static int w_bitmap_io(struct drbd_work *w, int unused);
+static int w_go_diskless(struct drbd_work *w, int unused);
 
 MODULE_AUTHOR("Philipp Reisner <phil@linbit.com>, "
 	      "Lars Ellenberg <lars@linbit.com>");
@@ -2790,9 +2790,10 @@ int drbd_bmio_clear_n_write(struct drbd_conf *mdev)
 	return rv;
 }
 
-static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused)
+static int w_bitmap_io(struct drbd_work *w, int unused)
 {
 	struct bm_io_work *work = container_of(w, struct bm_io_work, w);
+	struct drbd_conf *mdev = w->mdev;
 	int rv = -EIO;
 
 	D_ASSERT(atomic_read(&mdev->ap_bio_cnt) == 0);
@@ -2835,8 +2836,10 @@ void drbd_ldev_destroy(struct drbd_conf *mdev)
 	clear_bit(GO_DISKLESS, &mdev->flags);
 }
 
-static int w_go_diskless(struct drbd_conf *mdev, struct drbd_work *w, int unused)
+static int w_go_diskless(struct drbd_work *w, int unused)
 {
+	struct drbd_conf *mdev = w->mdev;
+
 	D_ASSERT(mdev->state.disk == D_FAILED);
 	/* we cannot assert local_cnt == 0 here, as get_ldev_if_state will
 	 * inc/dec it frequently. Once we are D_DISKLESS, no one will touch
@@ -2949,8 +2952,10 @@ static void md_sync_timer_fn(unsigned long data)
 	drbd_queue_work_front(&mdev->tconn->data.work, &mdev->md_sync_work);
 }
 
-static int w_md_sync(struct drbd_conf *mdev, struct drbd_work *w, int unused)
+static int w_md_sync(struct drbd_work *w, int unused)
 {
+	struct drbd_conf *mdev = w->mdev;
+
 	dev_warn(DEV, "md_sync_timer expired! Worker calls drbd_md_sync().\n");
 #ifdef DEBUG
 	dev_warn(DEV, "last md_mark_dirty: %s:%u\n",
