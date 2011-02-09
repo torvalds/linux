@@ -35,7 +35,11 @@
 #endif
 
 #ifdef CONFIG_FUNCTION_TRACER
-#define MCOUNT_ADDR		((long)(mcount))
+#ifdef CC_USING_FENTRY
+# define MCOUNT_ADDR		((long)(__fentry__))
+#else
+# define MCOUNT_ADDR		((long)(mcount))
+#endif
 #define MCOUNT_INSN_SIZE	5 /* sizeof mcount call */
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -46,6 +50,7 @@
 #ifndef __ASSEMBLY__
 extern void mcount(void);
 extern atomic_t modifying_ftrace_code;
+extern void __fentry__(void);
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {

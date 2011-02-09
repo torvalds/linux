@@ -68,10 +68,18 @@
 	.section .entry.text, "ax"
 
 #ifdef CONFIG_FUNCTION_TRACER
+
+#ifdef CC_USING_FENTRY
+# define function_hook	__fentry__
+#else
+# define function_hook	mcount
+#endif
+
 #ifdef CONFIG_DYNAMIC_FTRACE
-ENTRY(mcount)
+
+ENTRY(function_hook)
 	retq
-END(mcount)
+END(function_hook)
 
 /* skip is set if stack has been adjusted */
 .macro ftrace_caller_setup skip=0
@@ -84,7 +92,11 @@ END(mcount)
 	movq RIP(%rsp), %rdi
 	subq $MCOUNT_INSN_SIZE, %rdi
 	/* Load the parent_ip into the second parameter */
+#ifdef CC_USING_FENTRY
+	movq SS+16(%rsp), %rsi
+#else
 	movq 8(%rbp), %rsi
+#endif
 .endm
 
 ENTRY(ftrace_caller)
@@ -177,7 +189,8 @@ END(ftrace_regs_caller)
 
 
 #else /* ! CONFIG_DYNAMIC_FTRACE */
-ENTRY(mcount)
+
+ENTRY(function_hook)
 	cmpl $0, function_trace_stop
 	jne  ftrace_stub
 
@@ -199,7 +212,11 @@ trace:
 	MCOUNT_SAVE_FRAME
 
 	movq RIP(%rsp), %rdi
+#ifdef CC_USING_FENTRY
+	movq SS+16(%rsp), %rsi
+#else
 	movq 8(%rbp), %rsi
+#endif
 	subq $MCOUNT_INSN_SIZE, %rdi
 
 	call   *ftrace_trace_function
@@ -207,7 +224,7 @@ trace:
 	MCOUNT_RESTORE_FRAME
 
 	jmp ftrace_stub
-END(mcount)
+END(function_hook)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_FUNCTION_TRACER */
 
@@ -215,9 +232,14 @@ END(mcount)
 ENTRY(ftrace_graph_caller)
 	MCOUNT_SAVE_FRAME
 
+#ifdef CC_USING_FENTRY
+	leaq SS+16(%rsp), %rdi
+	movq $0, %rdx	/* No framepointers needed */
+#else
 	leaq 8(%rbp), %rdi
-	movq RIP(%rsp), %rsi
 	movq (%rbp), %rdx
+#endif
+	movq RIP(%rsp), %rsi
 	subq $MCOUNT_INSN_SIZE, %rsi
 
 	call	prepare_ftrace_return
