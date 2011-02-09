@@ -448,8 +448,7 @@ static ssize_t get_performance_level(struct device *dev,
 		return retval;
 
 	/* The logic is backwards, yeah, lots of fun... */
-	for (pLevel = 0; sabi_config->performance_levels[pLevel].name; ++pLevel)
-	{
+	for (pLevel = 0; sabi_config->performance_levels[pLevel].name; ++pLevel) {
 		if (sretval.retval[0] == sabi_config->performance_levels[pLevel].value)
 			return sprintf(buf, "%s\n", sabi_config->performance_levels[pLevel].name);
 	}
@@ -462,12 +461,10 @@ static ssize_t set_performance_level(struct device *dev,
 {
 	if (count >= 1) {
 		int pLevel;
-		for (pLevel = 0; sabi_config->performance_levels[pLevel].name; ++pLevel)
-		{
+		for (pLevel = 0; sabi_config->performance_levels[pLevel].name; ++pLevel) {
 			struct sabi_performance_level *level =
 				&sabi_config->performance_levels[pLevel];
-			if (!strncasecmp(level->name, buf, strlen(level->name)))
-			{
+			if (!strncasecmp(level->name, buf, strlen(level->name))) {
 				sabi_set_command(sabi_config->commands.set_performance_level,
 				                 level->value);
 				break;
@@ -564,8 +561,7 @@ static int __init samsung_init(void)
 	}
 
 	/* Try to find one of the signatures in memory to find the header */
-	for (pConfig = 0; sabi_configs[pConfig].test_string != 0; ++pConfig)
-	{
+	for (pConfig = 0; sabi_configs[pConfig].test_string != 0; ++pConfig) {
 		sabi_config = &sabi_configs[pConfig];
 		loca = find_signature(f0000_segment, sabi_config->test_string);
 		if (loca != 0xffff)
@@ -619,8 +615,7 @@ static int __init samsung_init(void)
 	}
 
 	/* Turn on "Linux" mode in the BIOS */
-	if (sabi_config->commands.set_linux != 0xff)
-	{
+	if (sabi_config->commands.set_linux != 0xff) {
 		retval = sabi_set_command(sabi_config->commands.set_linux, 0x81);
 		if (retval) {
 			printk(KERN_ERR KBUILD_MODNAME ": Linux mode was not set!\n");
