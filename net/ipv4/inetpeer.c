@@ -167,9 +167,9 @@ static int addr_compare(const struct inetpeer_addr *a,
 	int i, n = (a->family == AF_INET ? 1 : 4);
 
 	for (i = 0; i < n; i++) {
-		if (a->a6[i] == b->a6[i])
+		if (a->addr.a6[i] == b->addr.a6[i])
 			continue;
-		if (a->a6[i] < b->a6[i])
+		if (a->addr.a6[i] < b->addr.a6[i])
 			return -1;
 		return 1;
 	}
@@ -510,7 +510,7 @@ struct inet_peer *inet_getpeer(struct inetpeer_addr *daddr, int create)
 		p->daddr = *daddr;
 		atomic_set(&p->refcnt, 1);
 		atomic_set(&p->rid, 0);
-		atomic_set(&p->ip_id_count, secure_ip_id(daddr->a4));
+		atomic_set(&p->ip_id_count, secure_ip_id(daddr->addr.a4));
 		p->tcp_ts_stamp = 0;
 		p->metrics[RTAX_LOCK-1] = INETPEER_METRICS_NEW;
 		p->rate_tokens = 0;

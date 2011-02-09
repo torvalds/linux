@@ -15,12 +15,16 @@
 #include <net/ipv6.h>
 #include <asm/atomic.h>
 
-struct inetpeer_addr {
+struct inetpeer_addr_base {
 	union {
-		__be32		a4;
-		__be32		a6[4];
+		__be32			a4;
+		__be32			a6[4];
 	};
-	__u16	family;
+};
+
+struct inetpeer_addr {
+	struct inetpeer_addr_base	addr;
+	__u16				family;
 };
 
 struct inet_peer {
@@ -67,7 +71,7 @@ static inline struct inet_peer *inet_getpeer_v4(__be32 v4daddr, int create)
 {
 	struct inetpeer_addr daddr;
 
-	daddr.a4 = v4daddr;
+	daddr.addr.a4 = v4daddr;
 	daddr.family = AF_INET;
 	return inet_getpeer(&daddr, create);
 }
@@ -76,7 +80,7 @@ static inline struct inet_peer *inet_getpeer_v6(struct in6_addr *v6daddr, int cr
 {
 	struct inetpeer_addr daddr;
 
-	ipv6_addr_copy((struct in6_addr *)daddr.a6, v6daddr);
+	ipv6_addr_copy((struct in6_addr *)daddr.addr.a6, v6daddr);
 	daddr.family = AF_INET6;
 	return inet_getpeer(&daddr, create);
 }
