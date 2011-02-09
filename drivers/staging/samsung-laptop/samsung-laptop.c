@@ -54,11 +54,15 @@ struct sabi_header_offsets {
 };
 
 struct sabi_commands {
-        /* Brightness is 0 - 8, as described above. Value 0 is for the BIOS to use */
+	/*
+	 * Brightness is 0 - 8, as described above.
+	 * Value 0 is for the BIOS to use
+	 */
 	u8 get_brightness;
 	u8 set_brightness;
 
-	/* first byte:
+	/*
+	 * first byte:
 	 * 0x00 - wireless is off
 	 * 0x01 - wireless is on
 	 * second byte:
@@ -358,7 +362,8 @@ static u8 read_brightness(void)
 	int user_brightness = 0;
 	int retval;
 
-	retval = sabi_get_command(sabi_config->commands.get_brightness, &sretval);
+	retval = sabi_get_command(sabi_config->commands.get_brightness,
+				  &sretval);
 	if (!retval)
 		user_brightness = sretval.retval[0];
 		if (user_brightness != 0)
@@ -368,7 +373,8 @@ static u8 read_brightness(void)
 
 static void set_brightness(u8 user_brightness)
 {
-	sabi_set_command(sabi_config->commands.set_brightness, user_brightness + 1);
+	sabi_set_command(sabi_config->commands.set_brightness,
+			 user_brightness + 1);
 }
 
 static int get_brightness(struct backlight_device *bd)
@@ -443,7 +449,8 @@ static ssize_t get_performance_level(struct device *dev,
 	int pLevel;
 
 	/* Read the state */
-	retval = sabi_get_command(sabi_config->commands.get_performance_level, &sretval);
+	retval = sabi_get_command(sabi_config->commands.get_performance_level,
+				  &sretval);
 	if (retval)
 		return retval;
 
@@ -466,7 +473,7 @@ static ssize_t set_performance_level(struct device *dev,
 				&sabi_config->performance_levels[pLevel];
 			if (!strncasecmp(level->name, buf, strlen(level->name))) {
 				sabi_set_command(sabi_config->commands.set_performance_level,
-				                 level->value);
+						 level->value);
 				break;
 			}
 		}
@@ -610,13 +617,15 @@ static int __init samsung_init(void)
 		test_backlight();
 		test_wireless();
 
-		retval = sabi_get_command(sabi_config->commands.get_brightness, &sretval);
+		retval = sabi_get_command(sabi_config->commands.get_brightness,
+					  &sretval);
 		printk(KERN_DEBUG "brightness = 0x%02x\n", sretval.retval[0]);
 	}
 
 	/* Turn on "Linux" mode in the BIOS */
 	if (sabi_config->commands.set_linux != 0xff) {
-		retval = sabi_set_command(sabi_config->commands.set_linux, 0x81);
+		retval = sabi_set_command(sabi_config->commands.set_linux,
+					  0x81);
 		if (retval) {
 			printk(KERN_ERR KBUILD_MODNAME ": Linux mode was not set!\n");
 			goto error_no_platform;
