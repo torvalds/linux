@@ -49,6 +49,11 @@ config HAVE_SYSCALL_TRACEPOINTS
 	help
 	  See Documentation/trace/ftrace-design.txt
 
+config HAVE_FENTRY
+	bool
+	help
+	  Arch supports the gcc options -pg with -mfentry
+
 config HAVE_C_RECORDMCOUNT
 	bool
 	help
