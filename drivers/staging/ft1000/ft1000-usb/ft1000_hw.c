@@ -365,68 +365,58 @@ int fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx,
 //---------------------------------------------------------------------------
 int fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer)
 {
-    u16 pos1;
-    u16 pos2;
-    u16 i;
-    u8 buf[32];
-    u8 resultbuffer[32];
-    u8 *pdata;
-    int ret  = STATUS_SUCCESS;
+	u16 pos1;
+	u16 pos2;
+	u16 i;
+	u8 buf[32];
+	u8 resultbuffer[32];
+	u8 *pdata;
+	int ret  = STATUS_SUCCESS;
 
-    //DEBUG("fix_ft1000_write_dpram32: Entered:\n");
+	pos1 = (indx / 4) * 4;
+	pdata = buffer;
+	ret = ft1000_read_dpram32(ft1000dev, pos1, buf, 16);
 
-    pos1 = (indx / 4)*4;
-    pdata = buffer;
-    ret = ft1000_read_dpram32(ft1000dev, pos1, buf, 16);
-    if (ret == STATUS_SUCCESS)
-    {
-        pos2 = (indx % 4)*4;
-        buf[pos2++] = *buffer++;
-        buf[pos2++] = *buffer++;
-        buf[pos2++] = *buffer++;
-        buf[pos2++] = *buffer++;
-        ret = ft1000_write_dpram32(ft1000dev, pos1, buf, 16);
-    }
-    else
-    {
-        DEBUG("fix_ft1000_write_dpram32: DPRAM32 Read failed\n");
+	if (ret == STATUS_SUCCESS) {
+		pos2 = (indx % 4)*4;
+		buf[pos2++] = *buffer++;
+		buf[pos2++] = *buffer++;
+		buf[pos2++] = *buffer++;
+		buf[pos2++] = *buffer++;
+		ret = ft1000_write_dpram32(ft1000dev, pos1, buf, 16);
+	} else {
+		DEBUG("fix_ft1000_write_dpram32: DPRAM32 Read failed\n");
+		return ret;
+	}
 
-        return ret;
-    }
+	ret = ft1000_read_dpram32(ft1000dev, pos1, (u8 *)&resultbuffer[0], 16);
 
-    ret = ft1000_read_dpram32(ft1000dev, pos1, (u8 *)&resultbuffer[0], 16);
-    if (ret == STATUS_SUCCESS)
-    {
-        buffer = pdata;
-        for (i=0; i<16; i++)
-        {
-            if (buf[i] != resultbuffer[i]){
+	if (ret == STATUS_SUCCESS) {
+		buffer = pdata;
+		for (i = 0; i < 16; i++) {
+			if (buf[i] != resultbuffer[i])
+				ret = STATUS_FAILURE;
+		}
+	}
 
-                ret = STATUS_FAILURE;
-            }
-        }
-    }
+	if (ret == STATUS_FAILURE) {
+		ret = ft1000_write_dpram32(ft1000dev, pos1,
+					   (u8 *)&tempbuffer[0], 16);
+		ret = ft1000_read_dpram32(ft1000dev, pos1,
+					  (u8 *)&resultbuffer[0], 16);
+		if (ret == STATUS_SUCCESS) {
+			buffer = pdata;
+			for (i = 0; i < 16; i++) {
+				if (tempbuffer[i] != resultbuffer[i]) {
+					ret = STATUS_FAILURE;
+					DEBUG("%s Failed to write\n",
+					      __func__);
+				}
+			}
+		}
+	}
 
-    if (ret == STATUS_FAILURE)
-    {
-        ret = ft1000_write_dpram32(ft1000dev, pos1, (u8 *)&tempbuffer[0], 16);
-        ret = ft1000_read_dpram32(ft1000dev, pos1, (u8 *)&resultbuffer[0], 16);
-        if (ret == STATUS_SUCCESS)
-        {
-            buffer = pdata;
-            for (i=0; i<16; i++)
-            {
-                if (tempbuffer[i] != resultbuffer[i])
-                {
-                    ret = STATUS_FAILURE;
-                    DEBUG("fix_ft1000_write_dpram32 Failed to write\n");
-                }
-            }
-         }
-    }
-
-    return ret;
-
+	return ret;
 }
 
 
