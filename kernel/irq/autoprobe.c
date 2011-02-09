@@ -45,7 +45,7 @@ unsigned long probe_irq_on(void)
 	 */
 	for_each_irq_desc_reverse(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
-		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
+		if (!desc->action && irq_settings_can_probe(desc)) {
 			/*
 			 * An old-style architecture might still have
 			 * the handle_bad_irq handler there:
@@ -74,7 +74,7 @@ unsigned long probe_irq_on(void)
 	 */
 	for_each_irq_desc_reverse(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
-		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
+		if (!desc->action && irq_settings_can_probe(desc)) {
 			desc->istate |= IRQS_AUTODETECT | IRQS_WAITING;
 			if (irq_startup(desc)) {
 				irq_compat_set_pending(desc);

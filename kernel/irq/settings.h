@@ -6,7 +6,12 @@ enum {
 	_IRQ_DEFAULT_INIT_FLAGS	= IRQ_DEFAULT_INIT_FLAGS,
 	_IRQ_PER_CPU		= IRQ_PER_CPU,
 	_IRQ_LEVEL		= IRQ_LEVEL,
+	_IRQ_NOPROBE		= IRQ_NOPROBE,
+	_IRQ_NOREQUEST		= IRQ_NOREQUEST,
+	_IRQ_NOAUTOEN		= IRQ_NOAUTOEN,
+	_IRQ_MOVE_PCNTXT	= IRQ_MOVE_PCNTXT,
 	_IRQ_NO_BALANCING	= IRQ_NO_BALANCING,
+	_IRQ_NESTED_THREAD	= IRQ_NESTED_THREAD,
 	_IRQF_MODIFY_MASK	= IRQF_MODIFY_MASK,
 };
 
@@ -34,6 +39,14 @@ enum {
 #define IRQ_AFFINITY_SET	GOT_YOU_MORON
 #undef IRQ_LEVEL
 #define IRQ_LEVEL		GOT_YOU_MORON
+#undef IRQ_NOPROBE
+#define IRQ_NOPROBE		GOT_YOU_MORON
+#undef IRQ_NOREQUEST
+#define IRQ_NOREQUEST		GOT_YOU_MORON
+#undef IRQ_NOAUTOEN
+#define IRQ_NOAUTOEN		GOT_YOU_MORON
+#undef IRQ_NESTED_THREAD
+#define IRQ_NESTED_THREAD	GOT_YOU_MORON
 #undef IRQF_MODIFY_MASK
 #define IRQF_MODIFY_MASK	GOT_YOU_MORON
 
@@ -89,4 +102,49 @@ static inline void irq_settings_clr_level(struct irq_desc *desc)
 static inline void irq_settings_set_level(struct irq_desc *desc)
 {
 	desc->status |= _IRQ_LEVEL;
+}
+
+static inline bool irq_settings_can_request(struct irq_desc *desc)
+{
+	return !(desc->status & _IRQ_NOREQUEST);
+}
+
+static inline void irq_settings_clr_norequest(struct irq_desc *desc)
+{
+	desc->status &= ~_IRQ_NOREQUEST;
+}
+
+static inline void irq_settings_set_norequest(struct irq_desc *desc)
+{
+	desc->status |= _IRQ_NOREQUEST;
+}
+
+static inline bool irq_settings_can_probe(struct irq_desc *desc)
+{
+	return !(desc->status & _IRQ_NOPROBE);
+}
+
+static inline void irq_settings_clr_noprobe(struct irq_desc *desc)
+{
+	desc->status &= ~_IRQ_NOPROBE;
+}
+
+static inline void irq_settings_set_noprobe(struct irq_desc *desc)
+{
+	desc->status |= _IRQ_NOPROBE;
+}
+
+static inline bool irq_settings_can_move_pcntxt(struct irq_desc *desc)
+{
+	return desc->status & _IRQ_MOVE_PCNTXT;
+}
+
+static inline bool irq_settings_can_autoenable(struct irq_desc *desc)
+{
+	return !(desc->status & _IRQ_NOAUTOEN);
+}
+
+static inline bool irq_settings_is_nested_thread(struct irq_desc *desc)
+{
+	return desc->status & _IRQ_NESTED_THREAD;
 }

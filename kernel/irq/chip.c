@@ -674,7 +674,8 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 	desc->name = name;
 
 	if (handle != handle_bad_irq && is_chained) {
-		desc->status |= IRQ_NOREQUEST | IRQ_NOPROBE;
+		irq_settings_set_noprobe(desc);
+		irq_settings_set_norequest(desc);
 		irq_startup(desc);
 	}
 	raw_spin_unlock_irqrestore(&desc->lock, flags);

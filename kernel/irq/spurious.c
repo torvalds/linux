@@ -68,8 +68,7 @@ static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 	raw_spin_lock(&desc->lock);
 
 	/* PER_CPU and nested thread interrupts are never polled */
-	if (irq_settings_is_per_cpu(desc) ||
-	    (desc->status & IRQ_NESTED_THREAD))
+	if (irq_settings_is_per_cpu(desc) || irq_settings_is_nested_thread(desc))
 		goto out;
 
 	/*

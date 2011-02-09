@@ -103,7 +103,7 @@ void irq_set_thread_affinity(struct irq_desc *desc)
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 static inline bool irq_can_move_pcntxt(struct irq_desc *desc)
 {
-	return desc->status & IRQ_MOVE_PCNTXT;
+	return irq_settings_can_move_pcntxt(desc);
 }
 static inline bool irq_move_pending(struct irq_desc *desc)
 {
@@ -411,7 +411,7 @@ void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume)
 		if (desc->istate & IRQS_SUSPENDED)
 			goto err_out;
 		/* Prevent probing on this irq: */
-		desc->status |= IRQ_NOPROBE;
+		irq_settings_set_noprobe(desc);
 		irq_enable(desc);
 		check_irq_resend(desc, irq);
 		/* fall-through */
@@ -526,7 +526,7 @@ int can_request_irq(unsigned int irq, unsigned long irqflags)
 	if (!desc)
 		return 0;
 
-	if (desc->status & IRQ_NOREQUEST)
+	if (!irq_settings_can_request(desc))
 		return 0;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
@@ -820,7 +820,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	 * Check whether the interrupt nests into another interrupt
 	 * thread.
 	 */
-	nested = desc->status & IRQ_NESTED_THREAD;
+	nested = irq_settings_is_nested_thread(desc);
 	if (nested) {
 		if (!new->thread_fn)
 			return -EINVAL;
@@ -917,7 +917,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		if (new->flags & IRQF_ONESHOT)
 			desc->istate |= IRQS_ONESHOT;
 
-		if (!(desc->status & IRQ_NOAUTOEN))
+		if (irq_settings_can_autoenable(desc))
 			irq_startup(desc);
 		else
 			/* Undo nested disables: */
@@ -1217,7 +1217,7 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 	if (!desc)
 		return -EINVAL;
 
-	if (desc->status & IRQ_NOREQUEST)
+	if (!irq_settings_can_request(desc))
 		return -EINVAL;
 
 	if (!handler) {
@@ -1292,7 +1292,7 @@ int request_any_context_irq(unsigned int irq, irq_handler_t handler,
 	if (!desc)
 		return -EINVAL;
 
-	if (desc->status & IRQ_NESTED_THREAD) {
+	if (irq_settings_is_nested_thread(desc)) {
 		ret = request_threaded_irq(irq, NULL, handler,
 					   flags, name, dev_id);
 		return !ret ? IRQC_IS_NESTED : ret;
