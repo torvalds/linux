@@ -43,13 +43,17 @@ struct inet_peer {
 	 */
 	union {
 		struct {
-			atomic_t	rid;		/* Frag reception counter */
-			atomic_t	ip_id_count;	/* IP ID for the next packet */
-			__u32		tcp_ts;
-			__u32		tcp_ts_stamp;
-			u32		metrics[RTAX_MAX];
-			u32		rate_tokens;	/* rate limiting for ICMP */
-			unsigned long	rate_last;
+			atomic_t			rid;		/* Frag reception counter */
+			atomic_t			ip_id_count;	/* IP ID for the next packet */
+			__u32				tcp_ts;
+			__u32				tcp_ts_stamp;
+			u32				metrics[RTAX_MAX];
+			u32				rate_tokens;	/* rate limiting for ICMP */
+			unsigned long			rate_last;
+			unsigned long			pmtu_expires;
+			u32				pmtu_orig;
+			u32				pmtu_learned;
+			struct inetpeer_addr_base	redirect_learned;
 		};
 		struct rcu_head         rcu;
 	};
