@@ -3361,7 +3361,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32
 	log_blk = (u16)(start_sector >> ms_card->block_shift);
 	start_page = (u8)(start_sector & ms_card->page_off);
 
-	for (seg_no = 0; seg_no < sizeof(ms_start_idx)/2; seg_no++) {
+	for (seg_no = 0; seg_no < ARRAY_SIZE(ms_start_idx) - 1; seg_no++) {
 		if (log_blk < ms_start_idx[seg_no+1])
 			break;
 	}
