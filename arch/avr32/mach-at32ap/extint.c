@@ -191,7 +191,7 @@ static int __init eic_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int_irq = platform_get_irq(pdev, 0);
-	if (!regs || !int_irq) {
+	if (!regs || (int)int_irq <= 0) {
 		dev_dbg(&pdev->dev, "missing regs and/or irq resource\n");
 		return -ENXIO;
 	}
