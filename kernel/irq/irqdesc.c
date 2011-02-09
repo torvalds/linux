@@ -79,7 +79,7 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node)
 	desc->irq_data.chip_data = NULL;
 	desc->irq_data.handler_data = NULL;
 	desc->irq_data.msi_desc = NULL;
-	desc->status = _IRQ_DEFAULT_INIT_FLAGS;
+	irq_settings_clr_and_set(desc, ~0, _IRQ_DEFAULT_INIT_FLAGS);
 	desc->istate = IRQS_DISABLED;
 	desc->handle_irq = handle_bad_irq;
 	desc->depth = 1;
@@ -247,7 +247,6 @@ int __init early_irq_init(void)
 
 struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS-1] = {
-		.status		= _IRQ_DEFAULT_INIT_FLAGS,
 		.istate		= IRQS_DISABLED,
 		.handle_irq	= handle_bad_irq,
 		.depth		= 1,
@@ -271,6 +270,7 @@ int __init early_irq_init(void)
 		desc[i].irq_data.irq = i;
 		desc[i].irq_data.chip = &no_irq_chip;
 		desc[i].kstat_irqs = alloc_percpu(unsigned int);
+		irq_settings_clr_and_set(desc, ~0, _IRQ_DEFAULT_INIT_FLAGS);
 		alloc_masks(desc + i, GFP_KERNEL, node);
 		desc_smp_init(desc + i, node);
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
