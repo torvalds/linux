@@ -16,6 +16,8 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
+#include <linux/kmsg_dump.h>
 #include <asm/uaccess.h>
 #include <asm/nvram.h>
 #include <asm/rtas.h>
@@ -39,7 +41,7 @@ struct nvram_os_partition {
 	const char *name;
 	int req_size;	/* desired size, in bytes */
 	int min_size;	/* minimum acceptable size (0 means req_size) */
-	long size;	/* size of data portion of partition */
+	long size;	/* size of data portion (excluding err_log_info) */
 	long index;	/* offset of data portion of partition */
 };
 
@@ -50,10 +52,34 @@ static struct nvram_os_partition rtas_log_partition = {
 	.index = -1
 };
 
+static struct nvram_os_partition oops_log_partition = {
+	.name = "lnx,oops-log",
+	.req_size = 4000,
+	.min_size = 2000,
+	.index = -1
+};
+
 static const char *pseries_nvram_os_partitions[] = {
 	"ibm,rtas-log",
+	"lnx,oops-log",
 	NULL
 };
+
+static void oops_to_nvram(struct kmsg_dumper *dumper,
+		enum kmsg_dump_reason reason,
+		const char *old_msgs, unsigned long old_len,
+		const char *new_msgs, unsigned long new_len);
+
+static struct kmsg_dumper nvram_kmsg_dumper = {
+	.dump = oops_to_nvram
+};
+
+/* See clobbering_unread_rtas_event() */
+#define NVRAM_RTAS_READ_TIMEOUT 5		/* seconds */
+static unsigned long last_unread_rtas_event;	/* timestamp */
+
+/* We preallocate oops_buf during init to avoid kmalloc during oops/panic. */
+static char *oops_buf;
 
 static ssize_t pSeries_nvram_read(char *buf, size_t count, loff_t *index)
 {
@@ -214,8 +240,11 @@ int nvram_write_os_partition(struct nvram_os_partition *part, char * buff,
 int nvram_write_error_log(char * buff, int length,
                           unsigned int err_type, unsigned int error_log_cnt)
 {
-	return nvram_write_os_partition(&rtas_log_partition, buff, length,
+	int rc = nvram_write_os_partition(&rtas_log_partition, buff, length,
 						err_type, error_log_cnt);
+	if (!rc)
+		last_unread_rtas_event = get_seconds();
+	return rc;
 }
 
 /* nvram_read_error_log
@@ -274,6 +303,7 @@ int nvram_clear_error_log(void)
 		printk(KERN_ERR "nvram_clear_error_log: Failed nvram_write (%d)\n", rc);
 		return rc;
 	}
+	last_unread_rtas_event = 0;
 
 	return 0;
 }
@@ -342,9 +372,35 @@ static int __init pseries_nvram_init_os_partition(struct nvram_os_partition
 	return 0;
 }
 
+static void __init nvram_init_oops_partition(int rtas_partition_exists)
+{
+	int rc;
+
+	rc = pseries_nvram_init_os_partition(&oops_log_partition);
+	if (rc != 0) {
+		if (!rtas_partition_exists)
+			return;
+		pr_notice("nvram: Using %s partition to log both"
+			" RTAS errors and oops/panic reports\n",
+			rtas_log_partition.name);
+		memcpy(&oops_log_partition, &rtas_log_partition,
+						sizeof(rtas_log_partition));
+	}
+	oops_buf = kmalloc(oops_log_partition.size, GFP_KERNEL);
+	rc = kmsg_dump_register(&nvram_kmsg_dumper);
+	if (rc != 0) {
+		pr_err("nvram: kmsg_dump_register() failed; returned %d\n", rc);
+		kfree(oops_buf);
+		return;
+	}
+}
+
 static int __init pseries_nvram_init_log_partitions(void)
 {
-	(void) pseries_nvram_init_os_partition(&rtas_log_partition);
+	int rc;
+
+	rc = pseries_nvram_init_os_partition(&rtas_log_partition);
+	nvram_init_oops_partition(rc == 0);
 	return 0;
 }
 machine_arch_initcall(pseries, pseries_nvram_init_log_partitions);
@@ -377,4 +433,60 @@ int __init pSeries_nvram_init(void)
 	ppc_md.nvram_size	= pSeries_nvram_get_size;
 
 	return 0;
+}
+
+/*
+ * Try to capture the last capture_len bytes of the printk buffer.  Return
+ * the amount actually captured.
+ */
+static size_t capture_last_msgs(const char *old_msgs, size_t old_len,
+				const char *new_msgs, size_t new_len,
+				char *captured, size_t capture_len)
+{
+	if (new_len >= capture_len) {
+		memcpy(captured, new_msgs + (new_len - capture_len),
+								capture_len);
+		return capture_len;
+	} else {
+		/* Grab the end of old_msgs. */
+		size_t old_tail_len = min(old_len, capture_len - new_len);
+		memcpy(captured, old_msgs + (old_len - old_tail_len),
+								old_tail_len);
+		memcpy(captured + old_tail_len, new_msgs, new_len);
+		return old_tail_len + new_len;
+	}
+}
+
+/*
+ * Are we using the ibm,rtas-log for oops/panic reports?  And if so,
+ * would logging this oops/panic overwrite an RTAS event that rtas_errd
+ * hasn't had a chance to read and process?  Return 1 if so, else 0.
+ *
+ * We assume that if rtas_errd hasn't read the RTAS event in
+ * NVRAM_RTAS_READ_TIMEOUT seconds, it's probably not going to.
+ */
+static int clobbering_unread_rtas_event(void)
+{
+	return (oops_log_partition.index == rtas_log_partition.index
+		&& last_unread_rtas_event
+		&& get_seconds() - last_unread_rtas_event <=
+						NVRAM_RTAS_READ_TIMEOUT);
+}
+
+/* our kmsg_dump callback */
+static void oops_to_nvram(struct kmsg_dumper *dumper,
+		enum kmsg_dump_reason reason,
+		const char *old_msgs, unsigned long old_len,
+		const char *new_msgs, unsigned long new_len)
+{
+	static unsigned int oops_count = 0;
+	size_t text_len;
+
+	if (clobbering_unread_rtas_event())
+		return;
+
+	text_len = capture_last_msgs(old_msgs, old_len, new_msgs, new_len,
+					oops_buf, oops_log_partition.size);
+	(void) nvram_write_os_partition(&oops_log_partition, oops_buf,
+		(int) text_len, ERR_TYPE_KERNEL_PANIC, ++oops_count);
 }
