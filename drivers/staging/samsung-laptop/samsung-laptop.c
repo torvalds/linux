@@ -1,5 +1,5 @@
 /*
- * Samsung N130 Laptop driver
+ * Samsung Laptop driver
  *
  * Copyright (C) 2009 Greg Kroah-Hartman (gregkh@suse.de)
  * Copyright (C) 2009 Novell Inc.
@@ -544,6 +544,54 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 		},
 		.callback = dmi_check_cb,
 		},
+	{
+		.ident = "X360",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR,
+					"SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X360"),
+			DMI_MATCH(DMI_BOARD_NAME, "X360"),
+		},
+		.callback = dmi_check_cb,
+	},
+	{
+		.ident = "R518",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR,
+					"SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "R518"),
+			DMI_MATCH(DMI_BOARD_NAME, "R518"),
+		},
+		.callback = dmi_check_cb,
+	},
+	{
+		.ident = "N150/N210/N220",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR,
+					"SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "N150/N210/N220"),
+			DMI_MATCH(DMI_BOARD_NAME, "N150/N210/N220"),
+		},
+		.callback = dmi_check_cb,
+	},
+	{
+		.ident = "R530/R730",
+		.matches = {
+		      DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		      DMI_MATCH(DMI_PRODUCT_NAME, "R530/R730"),
+		      DMI_MATCH(DMI_BOARD_NAME, "R530/R730"),
+		},
+		.callback = dmi_check_cb,
+	},
+	{
+		.ident = "NF110/NF210/NF310",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "NF110/NF210/NF310"),
+			DMI_MATCH(DMI_BOARD_NAME, "NF110/NF210/NF310"),
+		},
+		.callback = dmi_check_cb,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(dmi, samsung_dmi_table);
