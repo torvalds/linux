@@ -294,7 +294,9 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 		if (pgno >= offset && pgno < offset + pages && use_ptemod) {
 			void __user *tmp;
 			tmp = map->vma->vm_start + map->notify.addr;
-			copy_to_user(tmp, &err, 1);
+			err = copy_to_user(tmp, &err, 1);
+			if (err)
+				return err;
 			map->notify.flags &= ~UNMAP_NOTIFY_CLEAR_BYTE;
 		} else if (pgno >= offset && pgno < offset + pages) {
 			uint8_t *tmp = kmap(map->pages[pgno]);
@@ -599,6 +601,12 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 	goto unlock_out;
 
  found:
+	if ((op.action & UNMAP_NOTIFY_CLEAR_BYTE) &&
+			(map->flags & GNTMAP_readonly)) {
+		rc = -EINVAL;
+		goto unlock_out;
+	}
+
 	map->notify.flags = op.action;
 	map->notify.addr = op.index - (map->index << PAGE_SHIFT);
 	map->notify.event = op.event_channel_port;
