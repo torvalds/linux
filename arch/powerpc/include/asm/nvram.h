@@ -51,7 +51,8 @@ static inline int mmio_nvram_init(void)
 extern int __init nvram_scan_partitions(void);
 extern loff_t nvram_create_partition(const char *name, int sig,
 				     int req_size, int min_size);
-extern int nvram_remove_partition(const char *name, int sig);
+extern int nvram_remove_partition(const char *name, int sig,
+					const char *exceptions[]);
 extern int nvram_get_partition_size(loff_t data_index);
 extern loff_t nvram_find_partition(const char *name, int sig, int *out_size);
 
