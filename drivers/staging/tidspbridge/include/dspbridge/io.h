@@ -22,7 +22,18 @@
 #include <dspbridge/cfgdefs.h>
 #include <dspbridge/devdefs.h>
 
-#include <dspbridge/iodefs.h>
+/* IO Objects: */
+struct io_mgr;
+
+/* IO manager attributes: */
+struct io_attrs {
+	u8 birq;		/* Channel's I/O IRQ number. */
+	bool irq_shared;	/* TRUE if the IRQ is shareable. */
+	u32 word_size;		/* DSP Word size. */
+	u32 shm_base;		/* Physical base address of shared memory. */
+	u32 sm_length;		/* Size (in bytes) of shared memory. */
+};
+
 
 /*
  *  ======== io_create ========
@@ -94,21 +105,5 @@ extern void io_exit(void);
  *      A requirement for each of the other public CHNL functions.
  */
 extern bool io_init(void);
-
-/*
- *  ======== io_on_loaded ========
- *  Purpose:
- *      Called when a program is loaded so IO manager can update its
- *      internal state.
- *  Parameters:
- *      hio_mgr:         IOmanager object.
- *  Returns:
- *      0:        Success.
- *      -EFAULT:    hio_mgr was invalid.
- *  Requires:
- *      io_init(void) called.
- *  Ensures:
- */
-extern int io_on_loaded(struct io_mgr *hio_mgr);
 
 #endif /* CHNL_ */

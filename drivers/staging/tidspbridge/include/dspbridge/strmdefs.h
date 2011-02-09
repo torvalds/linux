@@ -19,18 +19,16 @@
 #ifndef STRMDEFS_
 #define STRMDEFS_
 
-#define STRM_MAXEVTNAMELEN      32
-
 struct strm_mgr;
 
 struct strm_object;
 
 struct strm_attr {
 	void *user_event;
-	char *pstr_event_name;
+	char *str_event_name;
 	void *virt_base;	/* Process virtual base address of
 				 * mapped SM */
-	u32 ul_virt_size;	/* Size of virtual space in bytes */
+	u32 virt_size;		/* Size of virtual space in bytes */
 	struct dsp_streamattrin *stream_attr_in;
 };
 

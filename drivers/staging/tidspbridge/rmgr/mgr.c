@@ -44,7 +44,7 @@
 #define ZLDLLNAME               ""
 
 struct mgr_object {
-	struct dcd_manager *hdcd_mgr;	/* Proc/Node data manager */
+	struct dcd_manager *dcd_mgr;	/* Proc/Node data manager */
 };
 
 /*  ----------------------------------- Globals */
@@ -67,7 +67,7 @@ int mgr_create(struct mgr_object **mgr_obj,
 
 	pmgr_obj = kzalloc(sizeof(struct mgr_object), GFP_KERNEL);
 	if (pmgr_obj) {
-		status = dcd_create_manager(ZLDLLNAME, &pmgr_obj->hdcd_mgr);
+		status = dcd_create_manager(ZLDLLNAME, &pmgr_obj->dcd_mgr);
 		if (!status) {
 			/* If succeeded store the handle in the MGR Object */
 			if (drv_datap) {
@@ -81,7 +81,7 @@ int mgr_create(struct mgr_object **mgr_obj,
 			if (!status) {
 				*mgr_obj = pmgr_obj;
 			} else {
-				dcd_destroy_manager(pmgr_obj->hdcd_mgr);
+				dcd_destroy_manager(pmgr_obj->dcd_mgr);
 				kfree(pmgr_obj);
 			}
 		} else {
@@ -110,8 +110,8 @@ int mgr_destroy(struct mgr_object *hmgr_obj)
 	DBC_REQUIRE(hmgr_obj);
 
 	/* Free resources */
-	if (hmgr_obj->hdcd_mgr)
-		dcd_destroy_manager(hmgr_obj->hdcd_mgr);
+	if (hmgr_obj->dcd_mgr)
+		dcd_destroy_manager(hmgr_obj->dcd_mgr);
 
 	kfree(pmgr_obj);
 	/* Update the driver data with NULL for MGR Object */
@@ -134,8 +134,7 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 			      u32 undb_props_size, u32 *pu_num_nodes)
 {
 	int status = 0;
-	struct dsp_uuid node_uuid, temp_uuid;
-	u32 temp_index = 0;
+	struct dsp_uuid node_uuid;
 	u32 node_index = 0;
 	struct dcd_genericobj gen_obj;
 	struct mgr_object *pmgr_obj = NULL;
@@ -149,46 +148,33 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 	*pu_num_nodes = 0;
 	/* Get the Manager Object from the driver data */
 	if (!drv_datap || !drv_datap->mgr_object) {
-		status = -ENODATA;
 		pr_err("%s: Failed to retrieve the object handle\n", __func__);
-		goto func_cont;
-	} else {
-		pmgr_obj = drv_datap->mgr_object;
+		return -ENODATA;
 	}
+	pmgr_obj = drv_datap->mgr_object;
 
 	DBC_ASSERT(pmgr_obj);
 	/* Forever loop till we hit failed or no more items in the
 	 * Enumeration. We will exit the loop other than 0; */
-	while (status == 0) {
-		status = dcd_enumerate_object(temp_index++, DSP_DCDNODETYPE,
-					      &temp_uuid);
-		if (status == 0) {
-			node_index++;
-			if (node_id == (node_index - 1))
-				node_uuid = temp_uuid;
-
-		}
-	}
-	if (!status) {
-		if (node_id > (node_index - 1)) {
-			status = -EINVAL;
-		} else {
-			status = dcd_get_object_def(pmgr_obj->hdcd_mgr,
-						    (struct dsp_uuid *)
-						    &node_uuid, DSP_DCDNODETYPE,
-						    &gen_obj);
-			if (!status) {
-				/* Get the Obj def */
-				*pndb_props =
-				    gen_obj.obj_data.node_obj.ndb_props;
-				*pu_num_nodes = node_index;
-			}
+	while (!status) {
+		status = dcd_enumerate_object(node_index++, DSP_DCDNODETYPE,
+				&node_uuid);
+		if (status)
+			break;
+		*pu_num_nodes = node_index;
+		if (node_id == (node_index - 1)) {
+			status = dcd_get_object_def(pmgr_obj->dcd_mgr,
+					&node_uuid, DSP_DCDNODETYPE, &gen_obj);
+			if (status)
+				break;
+			/* Get the Obj def */
+			*pndb_props = gen_obj.obj_data.node_obj.ndb_props;
 		}
 	}
 
-func_cont:
-	DBC_ENSURE((!status && *pu_num_nodes > 0) ||
-		   (status && *pu_num_nodes == 0));
+	/* the last status is not 0, but neither an error */
+	if (status > 0)
+		status = 0;
 
 	return status;
 }
@@ -272,7 +258,7 @@ int mgr_enum_processor_info(u32 processor_id,
 		if (proc_detect != false)
 			continue;
 
-		status2 = dcd_get_object_def(pmgr_obj->hdcd_mgr,
+		status2 = dcd_get_object_def(pmgr_obj->dcd_mgr,
 					     (struct dsp_uuid *)&temp_uuid,
 					     DSP_DCDPROCESSORTYPE, &gen_obj);
 		if (!status2) {
@@ -347,7 +333,7 @@ int mgr_get_dcd_handle(struct mgr_object *mgr_handle,
 
 	*dcd_handle = (u32) NULL;
 	if (pmgr_obj) {
-		*dcd_handle = (u32) pmgr_obj->hdcd_mgr;
+		*dcd_handle = (u32) pmgr_obj->dcd_mgr;
 		status = 0;
 	}
 	DBC_ENSURE((!status && *dcd_handle != (u32) NULL) ||

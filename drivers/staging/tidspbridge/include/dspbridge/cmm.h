@@ -81,7 +81,7 @@ extern void *cmm_calloc_buf(struct cmm_object *hcmm_mgr,
  *  Requires:
  *      cmm_init(void) called.
  *      ph_cmm_mgr != NULL.
- *      mgr_attrts->ul_min_block_size >= 4 bytes.
+ *      mgr_attrts->min_block_size >= 4 bytes.
  *  Ensures:
  *
  */
