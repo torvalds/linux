@@ -561,9 +561,15 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 
 static int __devexit altera_uart_remove(struct platform_device *pdev)
 {
-	struct uart_port *port = &altera_uart_ports[pdev->id].port;
+	struct uart_port *port;
+	int i = pdev->id;
 
+	if (i == -1)
+		i = 0;
+
+	port = &altera_uart_ports[i].port;
 	uart_remove_one_port(&altera_uart_driver, port);
+
 	return 0;
 }
 
