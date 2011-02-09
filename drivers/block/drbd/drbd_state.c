@@ -45,6 +45,10 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags);
 static void after_conn_state_ch(struct drbd_tconn *tconn, union drbd_state os,
 				union drbd_state ns, enum chg_state_flags flags);
+static enum drbd_state_rv is_valid_state(struct drbd_conf *, union drbd_state);
+static enum drbd_state_rv is_valid_soft_transition(union drbd_state, union drbd_state);
+static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state os,
+				       union drbd_state ns, const char **warn_sync_abort);
 
 /**
  * cl_wide_st_chg() - true if the state change is a cluster wide one
@@ -94,15 +98,6 @@ void drbd_force_state(struct drbd_conf *mdev,
 	drbd_change_state(mdev, CS_HARD, mask, val);
 }
 
-static enum drbd_state_rv is_valid_state(struct drbd_conf *, union drbd_state);
-static enum drbd_state_rv is_valid_state_transition(struct drbd_conf *,
-						    union drbd_state,
-						    union drbd_state);
-static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state os,
-				       union drbd_state ns, const char **warn_sync_abort);
-int drbd_send_state_req(struct drbd_conf *,
-			union drbd_state, union drbd_state);
-
 static enum drbd_state_rv
 _req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
 	     union drbd_state val)
@@ -128,7 +123,7 @@ _req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
 	if (!rv) {
 		rv = is_valid_state(mdev, ns);
 		if (rv == SS_SUCCESS) {
-			rv = is_valid_state_transition(mdev, ns, os);
+			rv = is_valid_soft_transition(os, ns);
 			if (rv == SS_SUCCESS)
 				rv = SS_UNKNOWN_ERROR; /* cont waiting, otherwise fail. */
 		}
@@ -171,7 +166,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 	if (cl_wide_st_chg(mdev, os, ns)) {
 		rv = is_valid_state(mdev, ns);
 		if (rv == SS_SUCCESS)
-			rv = is_valid_state_transition(mdev, ns, os);
+			rv = is_valid_soft_transition(os, ns);
 		spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 		if (rv < SS_SUCCESS) {
@@ -344,14 +339,13 @@ is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
 }
 
 /**
- * is_valid_state_transition() - Returns an SS_ error code if the state transition is not possible
+ * is_valid_soft_transition() - Returns an SS_ error code if the state transition is not possible
  * @mdev:	DRBD device.
  * @ns:		new state.
  * @os:		old state.
  */
 static enum drbd_state_rv
-is_valid_state_transition(struct drbd_conf *mdev, union drbd_state ns,
-			  union drbd_state os)
+is_valid_soft_transition(union drbd_state os, union drbd_state ns)
 {
 	enum drbd_state_rv rv = SS_SUCCESS;
 
@@ -657,9 +651,9 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 			   this happen...*/
 
 			if (is_valid_state(mdev, os) == rv)
-				rv = is_valid_state_transition(mdev, ns, os);
+				rv = is_valid_soft_transition(os, ns);
 		} else
-			rv = is_valid_state_transition(mdev, ns, os);
+			rv = is_valid_soft_transition(os, ns);
 	}
 
 	if (rv < SS_SUCCESS) {
