@@ -395,12 +395,14 @@ int core_update_device_list_for_node(
 				printk(KERN_ERR "struct se_dev_entry->se_lun_acl"
 					" already set for demo mode -> explict"
 					" LUN ACL transition\n");
+				spin_unlock_irq(&nacl->device_list_lock);
 				return -1;
 			}
 			if (deve->se_lun != lun) {
 				printk(KERN_ERR "struct se_dev_entry->se_lun does"
 					" match passed struct se_lun for demo mode"
 					" -> explict LUN ACL transition\n");
+				spin_unlock_irq(&nacl->device_list_lock);
 				return -1;
 			}
 			deve->se_lun_acl = lun_acl;
