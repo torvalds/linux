@@ -906,7 +906,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_err(&pdev->dev, "no DMA resource\n");
 		ret = -ENODEV;
-		goto err_release_region;
+		goto err_release_clk;
 	}
 
 	dma_data->channel = res->start;
@@ -921,7 +921,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_err(&pdev->dev, "no DMA resource\n");
 		ret = -ENODEV;
-		goto err_release_region;
+		goto err_release_clk;
 	}
 
 	dma_data->channel = res->start;
@@ -929,9 +929,12 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	ret = snd_soc_register_dai(&pdev->dev, &davinci_mcasp_dai[pdata->op_mode]);
 
 	if (ret != 0)
-		goto err_release_region;
+		goto err_release_clk;
 	return 0;
 
+err_release_clk:
+	clk_disable(dev->clk);
+	clk_put(dev->clk);
 err_release_region:
 	release_mem_region(mem->start, resource_size(mem));
 err_release_data:
