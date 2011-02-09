@@ -111,15 +111,15 @@ static struct sabi_config sabi_configs[] = {
 	{
 		test_string: "SECLINUX",
 
-	  	main_function: 0x4c59,
+		main_function: 0x4c59,
 
-  		header_offsets: {
-  			port: 0x00,
-  			re_mem: 0x02,
-  			iface_func: 0x03,
-  			en_mem: 0x04,
-  			data_offset: 0x05,
-  			data_segment: 0x07,
+		header_offsets: {
+			port: 0x00,
+			re_mem: 0x02,
+			iface_func: 0x03,
+			en_mem: 0x04,
+			data_offset: 0x05,
+			data_segment: 0x07,
 		},
 
 		commands: {
@@ -156,15 +156,15 @@ static struct sabi_config sabi_configs[] = {
 	{
 		test_string: "SwSmi@",
 
-  		main_function: 0x5843,
+		main_function: 0x5843,
 
-	  	header_offsets: {
-  			port: 0x00,
-  			re_mem: 0x04,
-  			iface_func: 0x02,
-  			en_mem: 0x03,
-  			data_offset: 0x05,
-  			data_segment: 0x07,
+		header_offsets: {
+			port: 0x00,
+			re_mem: 0x04,
+			iface_func: 0x02,
+			en_mem: 0x03,
+			data_offset: 0x05,
+			data_segment: 0x07,
 		},
 
 		commands: {
