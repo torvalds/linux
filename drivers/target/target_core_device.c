@@ -867,9 +867,6 @@ static void se_dev_stop(struct se_device *dev)
 		}
 	}
 	spin_unlock(&hba->device_lock);
-
-	while (atomic_read(&hba->dev_mib_access_count))
-		cpu_relax();
 }
 
 int se_dev_check_online(struct se_device *dev)
