@@ -44,8 +44,6 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		struct objdump_line_rb_node *olrb = objdump_line__rb(ol);
 		ui_browser__set_percent_color(self, olrb->percent, current_entry);
 		slsmg_printf(" %7.2f ", olrb->percent);
-		if (!current_entry)
-			ui_browser__set_color(self, HE_COLORSET_CODE);
 	} else {
 		ui_browser__set_percent_color(self, 0, current_entry);
 		slsmg_write_nstring(" ", 9);
@@ -57,6 +55,9 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		slsmg_write_nstring(" ", width - 18);
 	else
 		slsmg_write_nstring(ol->line, width - 18);
+
+	if (!current_entry)
+		ui_browser__set_color(self, HE_COLORSET_CODE);
 }
 
 static double objdump_line__calc_percent(struct objdump_line *self,
