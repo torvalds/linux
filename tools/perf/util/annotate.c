@@ -541,11 +541,12 @@ void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evidx);
 	struct objdump_line *pos;
+	int len = sym->end - sym->start;
 
 	h->sum = 0;
 
 	list_for_each_entry(pos, &notes->src->source, node) {
-		if (pos->offset != -1) {
+		if (pos->offset != -1 && pos->offset < len) {
 			h->addr[pos->offset] = h->addr[pos->offset] * 7 / 8;
 			h->sum += h->addr[pos->offset];
 		}
