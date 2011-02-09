@@ -13,9 +13,6 @@
 # define IRQ_BITMAP_BITS	NR_IRQS
 #endif
 
-#include "compat.h"
-#include "settings.h"
-
 #define istate core_internal_state__do_not_mess_with_it
 
 extern int noirqdebug;
@@ -65,6 +62,10 @@ enum {
 	IRQS_SUSPENDED		= 0x00000800,
 	IRQS_WAKEUP		= 0x00001000,
 };
+
+#include "compat.h"
+#include "debug.h"
+#include "settings.h"
 
 #define irq_data_to_desc(data)	container_of(data, struct irq_desc, irq_data)
 
@@ -138,44 +139,3 @@ static inline void irqd_clr_move_pending(struct irq_data *d)
 	d->state_use_accessors &= ~IRQD_SETAFFINITY_PENDING;
 	irq_compat_clr_move_pending(irq_data_to_desc(d));
 }
-
-/*
- * Debugging printout:
- */
-
-#include <linux/kallsyms.h>
-
-#define P(f) if (desc->status & f) printk("%14s set\n", #f)
-#define PS(f) if (desc->istate & f) printk("%14s set\n", #f)
-
-static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
-{
-	printk("irq %d, desc: %p, depth: %d, count: %d, unhandled: %d\n",
-		irq, desc, desc->depth, desc->irq_count, desc->irqs_unhandled);
-	printk("->handle_irq():  %p, ", desc->handle_irq);
-	print_symbol("%s\n", (unsigned long)desc->handle_irq);
-	printk("->irq_data.chip(): %p, ", desc->irq_data.chip);
-	print_symbol("%s\n", (unsigned long)desc->irq_data.chip);
-	printk("->action(): %p\n", desc->action);
-	if (desc->action) {
-		printk("->action->handler(): %p, ", desc->action->handler);
-		print_symbol("%s\n", (unsigned long)desc->action->handler);
-	}
-
-	P(IRQ_LEVEL);
-	P(IRQ_PER_CPU);
-	P(IRQ_NOPROBE);
-	P(IRQ_NOREQUEST);
-	P(IRQ_NOAUTOEN);
-
-	PS(IRQS_AUTODETECT);
-	PS(IRQS_INPROGRESS);
-	PS(IRQS_REPLAY);
-	PS(IRQS_WAITING);
-	PS(IRQS_DISABLED);
-	PS(IRQS_PENDING);
-	PS(IRQS_MASKED);
-}
-
-#undef P
-#undef PS
