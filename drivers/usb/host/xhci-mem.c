@@ -1900,11 +1900,11 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	val &= DBOFF_MASK;
 	xhci_dbg(xhci, "// Doorbell array is located at offset 0x%x"
 			" from cap regs base addr\n", val);
-	xhci->dba = (void *) xhci->cap_regs + val;
+	xhci->dba = (void __iomem *) xhci->cap_regs + val;
 	xhci_dbg_regs(xhci);
 	xhci_print_run_regs(xhci);
 	/* Set ir_set to interrupt register set 0 */
-	xhci->ir_set = (void *) xhci->run_regs->ir_set;
+	xhci->ir_set = &xhci->run_regs->ir_set[0];
 
 	/*
 	 * Event ring setup: Allocate a normal ring, but also setup
