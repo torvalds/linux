@@ -430,33 +430,40 @@ int fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buff
 //
 //  Returns:    None
 //-----------------------------------------------------------------------
-static void card_reset_dsp (struct ft1000_device *ft1000dev, bool value)
+static void card_reset_dsp(struct ft1000_device *ft1000dev, bool value)
 {
-    u16 status = STATUS_SUCCESS;
-    u16 tempword;
+	u16 status = STATUS_SUCCESS;
+	u16 tempword;
 
-    status = ft1000_write_register (ft1000dev, HOST_INTF_BE, FT1000_REG_SUP_CTRL);
-    status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_SUP_CTRL);
-    if (value)
-    {
-        DEBUG("Reset DSP\n");
-        status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_RESET);
-        tempword |= DSP_RESET_BIT;
-        status = ft1000_write_register(ft1000dev, tempword, FT1000_REG_RESET);
-    }
-    else
-    {
-        DEBUG("Activate DSP\n");
-        status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_RESET);
-	tempword |= DSP_ENCRYPTED;
-	tempword &= ~DSP_UNENCRYPTED;
-	status = ft1000_write_register(ft1000dev, tempword, FT1000_REG_RESET);
-        status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_RESET);
-        tempword &= ~EFUSE_MEM_DISABLE;
-        tempword &= ~DSP_RESET_BIT;
-        status = ft1000_write_register(ft1000dev, tempword, FT1000_REG_RESET);
-        status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_RESET);
-    }
+	status = ft1000_write_register(ft1000dev, HOST_INTF_BE,
+					FT1000_REG_SUP_CTRL);
+	status = ft1000_read_register(ft1000dev, &tempword,
+				      FT1000_REG_SUP_CTRL);
+
+	if (value) {
+		DEBUG("Reset DSP\n");
+		status = ft1000_read_register(ft1000dev, &tempword,
+					      FT1000_REG_RESET);
+		tempword |= DSP_RESET_BIT;
+		status = ft1000_write_register(ft1000dev, tempword,
+					       FT1000_REG_RESET);
+	} else {
+		DEBUG("Activate DSP\n");
+		status = ft1000_read_register(ft1000dev, &tempword,
+					      FT1000_REG_RESET);
+		tempword |= DSP_ENCRYPTED;
+		tempword &= ~DSP_UNENCRYPTED;
+		status = ft1000_write_register(ft1000dev, tempword,
+					       FT1000_REG_RESET);
+		status = ft1000_read_register(ft1000dev, &tempword,
+					      FT1000_REG_RESET);
+		tempword &= ~EFUSE_MEM_DISABLE;
+		tempword &= ~DSP_RESET_BIT;
+		status = ft1000_write_register(ft1000dev, tempword,
+					       FT1000_REG_RESET);
+		status = ft1000_read_register(ft1000dev, &tempword,
+					      FT1000_REG_RESET);
+	}
 }
 
 //---------------------------------------------------------------------------
