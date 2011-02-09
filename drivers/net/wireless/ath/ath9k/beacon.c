@@ -143,7 +143,7 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 	avp = (void *)vif->drv_priv;
 	cabq = sc->beacon.cabq;
 
-	if (avp->av_bcbuf == NULL)
+	if ((avp->av_bcbuf == NULL) || !avp->is_bslot_active)
 		return NULL;
 
 	/* Release the old beacon first */
@@ -249,6 +249,7 @@ int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif)
 			for (slot = 0; slot < ATH_BCBUF; slot++)
 				if (sc->beacon.bslot[slot] == NULL) {
 					avp->av_bslot = slot;
+					avp->is_bslot_active = false;
 
 					/* NB: keep looking for a double slot */
 					if (slot == 0 || !sc->beacon.bslot[slot-1])
@@ -315,6 +316,7 @@ int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif)
 		ath_err(common, "dma_mapping_error on beacon alloc\n");
 		return -ENOMEM;
 	}
+	avp->is_bslot_active = true;
 
 	return 0;
 }
@@ -748,4 +750,37 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
 	}
 
 	sc->sc_flags |= SC_OP_BEACONS;
+}
+
+void ath9k_set_beaconing_status(struct ath_softc *sc, bool status)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_vif *avp;
+	int slot;
+	bool found = false;
+
+	ath9k_ps_wakeup(sc);
+	if (status) {
+		for (slot = 0; slot < ATH_BCBUF; slot++) {
+			if (sc->beacon.bslot[slot]) {
+				avp = (void *)sc->beacon.bslot[slot]->drv_priv;
+				if (avp->is_bslot_active) {
+					found = true;
+					break;
+				}
+			}
+		}
+		if (found) {
+			/* Re-enable beaconing */
+			ah->imask |= ATH9K_INT_SWBA;
+			ath9k_hw_set_interrupts(ah, ah->imask);
+		}
+	} else {
+		/* Disable SWBA interrupt */
+		ah->imask &= ~ATH9K_INT_SWBA;
+		ath9k_hw_set_interrupts(ah, ah->imask);
+		tasklet_kill(&sc->bcon_tasklet);
+		ath9k_hw_stoptxdma(ah, sc->beacon.beaconq);
+	}
+	ath9k_ps_restore(sc);
 }

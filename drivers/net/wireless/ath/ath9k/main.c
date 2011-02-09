@@ -1293,24 +1293,10 @@ static void ath9k_reclaim_beacon(struct ath_softc *sc,
 {
 	struct ath_vif *avp = (void *)vif->drv_priv;
 
-	/* Disable SWBA interrupt */
-	sc->sc_ah->imask &= ~ATH9K_INT_SWBA;
-	ath9k_ps_wakeup(sc);
-	ath9k_hw_set_interrupts(sc->sc_ah, sc->sc_ah->imask);
-	ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
-	tasklet_kill(&sc->bcon_tasklet);
-	ath9k_ps_restore(sc);
-
+	ath9k_set_beaconing_status(sc, false);
 	ath_beacon_return(sc, avp);
+	ath9k_set_beaconing_status(sc, true);
 	sc->sc_flags &= ~SC_OP_BEACONS;
-
-	if (sc->nbcnvifs > 0) {
-		/* Re-enable beaconing */
-		sc->sc_ah->imask |= ATH9K_INT_SWBA;
-		ath9k_ps_wakeup(sc);
-		ath9k_hw_set_interrupts(sc->sc_ah, sc->sc_ah->imask);
-		ath9k_ps_restore(sc);
-	}
 }
 
 static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
@@ -1438,16 +1424,17 @@ static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
 
 	if (ath9k_uses_beacons(vif->type)) {
 		int error;
-		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
 		/* This may fail because upper levels do not have beacons
 		 * properly configured yet.  That's OK, we assume it
 		 * will be properly configured and then we will be notified
 		 * in the info_changed method and set up beacons properly
 		 * there.
 		 */
+		ath9k_set_beaconing_status(sc, false);
 		error = ath_beacon_alloc(sc, vif);
 		if (!error)
 			ath_beacon_config(sc, vif);
+		ath9k_set_beaconing_status(sc, true);
 	}
 }
 
@@ -1920,10 +1907,11 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	/* Enable transmission of beacons (AP, IBSS, MESH) */
 	if ((changed & BSS_CHANGED_BEACON) ||
 	    ((changed & BSS_CHANGED_BEACON_ENABLED) && bss_conf->enable_beacon)) {
-		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
+		ath9k_set_beaconing_status(sc, false);
 		error = ath_beacon_alloc(sc, vif);
 		if (!error)
 			ath_beacon_config(sc, vif);
+		ath9k_set_beaconing_status(sc, true);
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
@@ -1946,8 +1934,12 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	/* Disable transmission of beacons */
-	if ((changed & BSS_CHANGED_BEACON_ENABLED) && !bss_conf->enable_beacon)
-		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
+	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
+	    !bss_conf->enable_beacon) {
+		ath9k_set_beaconing_status(sc, false);
+		avp->is_bslot_active = false;
+		ath9k_set_beaconing_status(sc, true);
+	}
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		cur_conf->beacon_interval = bss_conf->beacon_int;
@@ -1957,10 +1949,11 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		 */
 		if (vif->type == NL80211_IFTYPE_AP) {
 			sc->sc_flags |= SC_OP_TSF_RESET;
-			ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
+			ath9k_set_beaconing_status(sc, false);
 			error = ath_beacon_alloc(sc, vif);
 			if (!error)
 				ath_beacon_config(sc, vif);
+			ath9k_set_beaconing_status(sc, true);
 		} else {
 			ath_beacon_config(sc, vif);
 		}
