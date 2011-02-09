@@ -34,6 +34,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <sound/jack.h>
 #include "sn95031.h"
 
 #define SN95031_RATES (SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_44100)
@@ -648,6 +649,61 @@ struct snd_soc_dai_driver sn95031_dais[] = {
 	.ops = &sn95031_vib2_dai_ops,
 },
 };
+
+static inline void sn95031_disable_jack_btn(struct snd_soc_codec *codec)
+{
+	snd_soc_write(codec, SN95031_BTNCTRL2, 0x00);
+}
+
+static inline void sn95031_enable_jack_btn(struct snd_soc_codec *codec)
+{
+	snd_soc_write(codec, SN95031_BTNCTRL1, 0x77);
+	snd_soc_write(codec, SN95031_BTNCTRL2, 0x01);
+}
+
+static int sn95031_get_headset_state(struct snd_soc_jack *mfld_jack)
+{
+	/* Defaulting to HEADSET for now.
+	 * will change after adding soc-jack detection apis */
+	int jack_type = SND_JACK_HEADSET;
+
+	pr_debug("jack type detected = %d\n", jack_type);
+	if (jack_type == SND_JACK_HEADSET)
+		sn95031_enable_jack_btn(mfld_jack->codec);
+	return jack_type;
+}
+
+void sn95031_jack_detection(struct mfld_jack_data *jack_data)
+{
+	unsigned int status;
+	unsigned int mask = SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_HEADSET;
+
+	pr_debug("interrupt id read in sram = 0x%x\n", jack_data->intr_id);
+	if (jack_data->intr_id & 0x1) {
+		pr_debug("short_push detected\n");
+		status = SND_JACK_HEADSET | SND_JACK_BTN_0;
+	} else if (jack_data->intr_id & 0x2) {
+		pr_debug("long_push detected\n");
+		status = SND_JACK_HEADSET | SND_JACK_BTN_1;
+	} else if (jack_data->intr_id & 0x4) {
+		pr_debug("headset or headphones inserted\n");
+		status = sn95031_get_headset_state(jack_data->mfld_jack);
+	} else if (jack_data->intr_id & 0x8) {
+		pr_debug("headset or headphones removed\n");
+		status = 0;
+		sn95031_disable_jack_btn(jack_data->mfld_jack->codec);
+	} else {
+		pr_err("unidentified interrupt\n");
+		return;
+	}
+
+	snd_soc_jack_report(jack_data->mfld_jack, status, mask);
+	/*button pressed and released so we send explicit button release */
+	if ((status & SND_JACK_BTN_0) | (status & SND_JACK_BTN_1))
+		snd_soc_jack_report(jack_data->mfld_jack,
+				SND_JACK_HEADSET, mask);
+}
+EXPORT_SYMBOL_GPL(sn95031_jack_detection);
 
 /* codec registration */
 static int sn95031_codec_probe(struct snd_soc_codec *codec)

@@ -96,4 +96,13 @@
 #define SN95031_SSR5			0x384
 #define SN95031_SSR6			0x385
 
+#define SN95031_AUDIO_GPIO_CTRL 0x070
+struct mfld_jack_data {
+	int intr_id;
+	int micbias_vol;
+	struct snd_soc_jack *mfld_jack;
+};
+
+extern void sn95031_jack_detection(struct mfld_jack_data *jack_data);
+
 #endif
