@@ -49,7 +49,7 @@ struct gic_chip_data {
  * Default make them NULL.
  */
 struct irq_chip gic_arch_extn = {
-	.irq_ack	= NULL,
+	.irq_eoi	= NULL,
 	.irq_mask	= NULL,
 	.irq_unmask	= NULL,
 	.irq_retrigger	= NULL,
@@ -84,15 +84,6 @@ static inline unsigned int gic_irq(struct irq_data *d)
 /*
  * Routines to acknowledge, disable and enable interrupts
  */
-static void gic_ack_irq(struct irq_data *d)
-{
-	spin_lock(&irq_controller_lock);
-	if (gic_arch_extn.irq_ack)
-		gic_arch_extn.irq_ack(d);
-	writel(gic_irq(d), gic_cpu_base(d) + GIC_CPU_EOI);
-	spin_unlock(&irq_controller_lock);
-}
-
 static void gic_mask_irq(struct irq_data *d)
 {
 	u32 mask = 1 << (d->irq % 32);
@@ -113,6 +104,17 @@ static void gic_unmask_irq(struct irq_data *d)
 		gic_arch_extn.irq_unmask(d);
 	writel(mask, gic_dist_base(d) + GIC_DIST_ENABLE_SET + (gic_irq(d) / 32) * 4);
 	spin_unlock(&irq_controller_lock);
+}
+
+static void gic_eoi_irq(struct irq_data *d)
+{
+	if (gic_arch_extn.irq_eoi) {
+		spin_lock(&irq_controller_lock);
+		gic_arch_extn.irq_eoi(d);
+		spin_unlock(&irq_controller_lock);
+	}
+
+	writel(gic_irq(d), gic_cpu_base(d) + GIC_CPU_EOI);
 }
 
 static int gic_set_type(struct irq_data *d, unsigned int type)
@@ -218,8 +220,7 @@ static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	unsigned int cascade_irq, gic_irq;
 	unsigned long status;
 
-	/* primary controller ack'ing */
-	chip->irq_ack(&desc->irq_data);
+	chained_irq_enter(chip, desc);
 
 	spin_lock(&irq_controller_lock);
 	status = readl(chip_data->cpu_base + GIC_CPU_INTACK);
@@ -236,15 +237,14 @@ static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 		generic_handle_irq(cascade_irq);
 
  out:
-	/* primary controller unmasking */
-	chip->irq_unmask(&desc->irq_data);
+	chained_irq_exit(chip, desc);
 }
 
 static struct irq_chip gic_chip = {
 	.name			= "GIC",
-	.irq_ack		= gic_ack_irq,
 	.irq_mask		= gic_mask_irq,
 	.irq_unmask		= gic_unmask_irq,
+	.irq_eoi		= gic_eoi_irq,
 	.irq_set_type		= gic_set_type,
 	.irq_retrigger		= gic_retrigger,
 #ifdef CONFIG_SMP
@@ -319,7 +319,7 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 	 * Setup the Linux IRQ subsystem.
 	 */
 	for (i = irq_start; i < irq_limit; i++) {
-		irq_set_chip_and_handler(i, &gic_chip, handle_level_irq);
+		irq_set_chip_and_handler(i, &gic_chip, handle_fasteoi_irq);
 		irq_set_chip_data(i, gic);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
