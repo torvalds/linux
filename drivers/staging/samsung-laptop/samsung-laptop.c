@@ -109,95 +109,95 @@ struct sabi_config {
 
 static struct sabi_config sabi_configs[] = {
 	{
-		test_string: "SECLINUX",
+		.test_string = "SECLINUX",
 
-		main_function: 0x4c59,
+		.main_function = 0x4c59,
 
-		header_offsets: {
-			port: 0x00,
-			re_mem: 0x02,
-			iface_func: 0x03,
-			en_mem: 0x04,
-			data_offset: 0x05,
-			data_segment: 0x07,
+		.header_offsets = {
+			.port = 0x00,
+			.re_mem = 0x02,
+			.iface_func = 0x03,
+			.en_mem = 0x04,
+			.data_offset = 0x05,
+			.data_segment = 0x07,
 		},
 
-		commands: {
-			get_brightness: 0x00,
-			set_brightness: 0x01,
+		.commands = {
+			.get_brightness = 0x00,
+			.set_brightness = 0x01,
 
-			get_wireless_button: 0x02,
-			set_wireless_button: 0x03,
+			.get_wireless_button = 0x02,
+			.set_wireless_button = 0x03,
 
-			get_backlight: 0x04,
-			set_backlight: 0x05,
+			.get_backlight = 0x04,
+			.set_backlight = 0x05,
 
-			get_recovery_mode: 0x06,
-			set_recovery_mode: 0x07,
+			.get_recovery_mode = 0x06,
+			.set_recovery_mode = 0x07,
 
-			get_performance_level: 0x08,
-			set_performance_level: 0x09,
+			.get_performance_level = 0x08,
+			.set_performance_level = 0x09,
 
-			set_linux: 0x0a,
+			.set_linux = 0x0a,
 		},
 
-		performance_levels: {
+		.performance_levels = {
 			{
-				name: "silent",
-				value: 0,
+				.name = "silent",
+				.value = 0,
 			},
 			{
-				name: "normal",
-				value: 1,
+				.name = "normal",
+				.value = 1,
 			},
 			{ },
 		},
 	},
 	{
-		test_string: "SwSmi@",
+		.test_string = "SwSmi@",
 
-		main_function: 0x5843,
+		.main_function = 0x5843,
 
-		header_offsets: {
-			port: 0x00,
-			re_mem: 0x04,
-			iface_func: 0x02,
-			en_mem: 0x03,
-			data_offset: 0x05,
-			data_segment: 0x07,
+		.header_offsets = {
+			.port = 0x00,
+			.re_mem = 0x04,
+			.iface_func = 0x02,
+			.en_mem = 0x03,
+			.data_offset = 0x05,
+			.data_segment = 0x07,
 		},
 
-		commands: {
-			get_brightness: 0x10,
-			set_brightness: 0x11,
+		.commands = {
+			.get_brightness = 0x10,
+			.set_brightness = 0x11,
 
-			get_wireless_button: 0x12,
-			set_wireless_button: 0x13,
+			.get_wireless_button = 0x12,
+			.set_wireless_button = 0x13,
 
-			get_backlight: 0x2d,
-			set_backlight: 0x2e,
+			.get_backlight = 0x2d,
+			.set_backlight = 0x2e,
 
-			get_recovery_mode: 0xff,
-			set_recovery_mode: 0xff,
+			.get_recovery_mode = 0xff,
+			.set_recovery_mode = 0xff,
 
-			get_performance_level: 0x31,
-			set_performance_level: 0x32,
+			.get_performance_level = 0x31,
+			.set_performance_level = 0x32,
 
-			set_linux: 0xff,
+			.set_linux = 0xff,
 		},
 
-		performance_levels: {
+		.performance_levels = {
 			{
-				name: "normal",
-				value: 0,
+				.name = "normal",
+				.value = 0,
 			},
 			{
-				name: "silent",
-				value: 1,
+				.name = "silent",
+				.value = 1,
 			},
 			{
-				name: "overclock",
-				value: 2,
+				.name = "overclock",
+				.value = 2,
 			},
 			{ },
 		},
