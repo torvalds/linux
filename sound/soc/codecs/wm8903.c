@@ -674,6 +674,22 @@ static const struct soc_enum lsidetone_enum =
 static const struct soc_enum rsidetone_enum =
 	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_0, 0, 3, sidetone_text);
 
+static const char *aif_text[] = {
+	"Left", "Right"
+};
+
+static const struct soc_enum lcapture_enum =
+	SOC_ENUM_SINGLE(WM8903_AUDIO_INTERFACE_0, 7, 2, aif_text);
+
+static const struct soc_enum rcapture_enum =
+	SOC_ENUM_SINGLE(WM8903_AUDIO_INTERFACE_0, 6, 2, aif_text);
+
+static const struct soc_enum lplay_enum =
+	SOC_ENUM_SINGLE(WM8903_AUDIO_INTERFACE_0, 5, 2, aif_text);
+
+static const struct soc_enum rplay_enum =
+	SOC_ENUM_SINGLE(WM8903_AUDIO_INTERFACE_0, 4, 2, aif_text);
+
 static const struct snd_kcontrol_new wm8903_snd_controls[] = {
 
 /* Input PGAs - No TLV since the scale depends on PGA mode */
@@ -791,6 +807,18 @@ static const struct snd_kcontrol_new lsidetone_mux =
 static const struct snd_kcontrol_new rsidetone_mux =
 	SOC_DAPM_ENUM("DACR Sidetone Mux", rsidetone_enum);
 
+static const struct snd_kcontrol_new lcapture_mux =
+	SOC_DAPM_ENUM("Left Capture Mux", lcapture_enum);
+
+static const struct snd_kcontrol_new rcapture_mux =
+	SOC_DAPM_ENUM("Right Capture Mux", rcapture_enum);
+
+static const struct snd_kcontrol_new lplay_mux =
+	SOC_DAPM_ENUM("Left Playback Mux", lplay_enum);
+
+static const struct snd_kcontrol_new rplay_mux =
+	SOC_DAPM_ENUM("Right Playback Mux", rplay_enum);
+
 static const struct snd_kcontrol_new left_output_mixer[] = {
 SOC_DAPM_SINGLE("DACL Switch", WM8903_ANALOGUE_LEFT_MIX_0, 3, 1, 0),
 SOC_DAPM_SINGLE("DACR Switch", WM8903_ANALOGUE_LEFT_MIX_0, 2, 1, 0),
@@ -854,14 +882,26 @@ SND_SOC_DAPM_MUX("Right Input Mode Mux", SND_SOC_NOPM, 0, 0, &rinput_mode_mux),
 SND_SOC_DAPM_PGA("Left Input PGA", WM8903_POWER_MANAGEMENT_0, 1, 0, NULL, 0),
 SND_SOC_DAPM_PGA("Right Input PGA", WM8903_POWER_MANAGEMENT_0, 0, 0, NULL, 0),
 
-SND_SOC_DAPM_ADC("ADCL", "Left HiFi Capture", WM8903_POWER_MANAGEMENT_6, 1, 0),
-SND_SOC_DAPM_ADC("ADCR", "Right HiFi Capture", WM8903_POWER_MANAGEMENT_6, 0, 0),
+SND_SOC_DAPM_ADC("ADCL", NULL, WM8903_POWER_MANAGEMENT_6, 1, 0),
+SND_SOC_DAPM_ADC("ADCR", NULL, WM8903_POWER_MANAGEMENT_6, 0, 0),
+
+SND_SOC_DAPM_MUX("Left Capture Mux", SND_SOC_NOPM, 0, 0, &lcapture_mux),
+SND_SOC_DAPM_MUX("Right Capture Mux", SND_SOC_NOPM, 0, 0, &rcapture_mux),
+
+SND_SOC_DAPM_AIF_OUT("AIFTXL", "Left HiFi Capture", 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIFTXR", "Right HiFi Capture", 0, SND_SOC_NOPM, 0, 0),
 
 SND_SOC_DAPM_MUX("DACL Sidetone", SND_SOC_NOPM, 0, 0, &lsidetone_mux),
 SND_SOC_DAPM_MUX("DACR Sidetone", SND_SOC_NOPM, 0, 0, &rsidetone_mux),
 
-SND_SOC_DAPM_DAC("DACL", "Left Playback", WM8903_POWER_MANAGEMENT_6, 3, 0),
-SND_SOC_DAPM_DAC("DACR", "Right Playback", WM8903_POWER_MANAGEMENT_6, 2, 0),
+SND_SOC_DAPM_AIF_IN("AIFRXL", "Left Playback", 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIFRXR", "Right Playback", 0, SND_SOC_NOPM, 0, 0),
+
+SND_SOC_DAPM_MUX("Left Playback Mux", SND_SOC_NOPM, 0, 0, &lplay_mux),
+SND_SOC_DAPM_MUX("Right Playback Mux", SND_SOC_NOPM, 0, 0, &rplay_mux),
+
+SND_SOC_DAPM_DAC("DACL", NULL, WM8903_POWER_MANAGEMENT_6, 3, 0),
+SND_SOC_DAPM_DAC("DACR", NULL, WM8903_POWER_MANAGEMENT_6, 2, 0),
 
 SND_SOC_DAPM_MIXER("Left Output Mixer", WM8903_POWER_MANAGEMENT_1, 1, 0,
 		   left_output_mixer, ARRAY_SIZE(left_output_mixer)),
@@ -943,18 +983,36 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{ "Left Input PGA", NULL, "Left Input Mode Mux" },
 	{ "Right Input PGA", NULL, "Right Input Mode Mux" },
 
+	{ "Left Capture Mux", "Left", "ADCL" },
+	{ "Left Capture Mux", "Right", "ADCR" },
+
+	{ "Right Capture Mux", "Left", "ADCL" },
+	{ "Right Capture Mux", "Right", "ADCR" },
+
+	{ "AIFTXL", NULL, "Left Capture Mux" },
+	{ "AIFTXR", NULL, "Right Capture Mux" },
+
 	{ "ADCL", NULL, "Left Input PGA" },
 	{ "ADCL", NULL, "CLK_DSP" },
 	{ "ADCR", NULL, "Right Input PGA" },
 	{ "ADCR", NULL, "CLK_DSP" },
+
+	{ "Left Playback Mux", "Left", "AIFRXL" },
+	{ "Left Playback Mux", "Right", "AIFRXR" },
+
+	{ "Right Playback Mux", "Left", "AIFRXL" },
+	{ "Right Playback Mux", "Right", "AIFRXR" },
 
 	{ "DACL Sidetone", "Left", "ADCL" },
 	{ "DACL Sidetone", "Right", "ADCR" },
 	{ "DACR Sidetone", "Left", "ADCL" },
 	{ "DACR Sidetone", "Right", "ADCR" },
 
+	{ "DACL", NULL, "Left Playback Mux" },
 	{ "DACL", NULL, "DACL Sidetone" },
 	{ "DACL", NULL, "CLK_DSP" },
+
+	{ "DACR", NULL, "Right Playback Mux" },
 	{ "DACR", NULL, "DACR Sidetone" },
 	{ "DACR", NULL, "CLK_DSP" },
 
