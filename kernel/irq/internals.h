@@ -13,6 +13,8 @@
 # define IRQ_BITMAP_BITS	NR_IRQS
 #endif
 
+#include "settings.h"
+
 #define istate core_internal_state__do_not_mess_with_it
 
 extern int noirqdebug;
