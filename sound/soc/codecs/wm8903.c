@@ -860,9 +860,17 @@ SND_SOC_DAPM_PGA("Right Speaker PGA", WM8903_POWER_MANAGEMENT_5, 0, 0,
 SND_SOC_DAPM_SUPPLY("Charge Pump", WM8903_CHARGE_PUMP_0, 0, 0,
 		    wm8903_cp_event, SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_SUPPLY("CLK_DSP", WM8903_CLOCK_RATES_2, 1, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("CLK_SYS", WM8903_CLOCK_RATES_2, 2, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
+
+	{ "CLK_DSP", NULL, "CLK_SYS" },
+	{ "Mic Bias", NULL, "CLK_SYS" },
+	{ "HPL_DCS", NULL, "CLK_SYS" },
+	{ "HPR_DCS", NULL, "CLK_SYS" },
+	{ "LINEOUTL_DCS", NULL, "CLK_SYS" },
+	{ "LINEOUTR_DCS", NULL, "CLK_SYS" },
 
 	{ "Left Input Mux", "IN1L", "IN1L" },
 	{ "Left Input Mux", "IN2L", "IN2L" },
@@ -1059,10 +1067,11 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
+		snd_soc_update_bits(codec, WM8903_CLOCK_RATES_2,
+				    WM8903_CLK_SYS_ENA, WM8903_CLK_SYS_ENA);
 		wm8903_run_sequence(codec, 32);
-		reg = snd_soc_read(codec, WM8903_CLOCK_RATES_2);
-		reg &= ~WM8903_CLK_SYS_ENA;
-		snd_soc_write(codec, WM8903_CLOCK_RATES_2, reg);
+		snd_soc_update_bits(codec, WM8903_CLOCK_RATES_2,
+				    WM8903_CLK_SYS_ENA, 0);
 		break;
 	}
 
