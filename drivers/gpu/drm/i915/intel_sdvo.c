@@ -1690,6 +1690,22 @@ static void intel_sdvo_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
+static bool intel_sdvo_detect_hdmi_audio(struct drm_connector *connector)
+{
+	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
+	struct edid *edid;
+	bool has_audio = false;
+
+	if (!intel_sdvo->is_hdmi)
+		return false;
+
+	edid = intel_sdvo_get_edid(connector);
+	if (edid != NULL && edid->input & DRM_EDID_INPUT_DIGITAL)
+		has_audio = drm_detect_monitor_audio(edid);
+
+	return has_audio;
+}
+
 static int
 intel_sdvo_set_property(struct drm_connector *connector,
 			struct drm_property *property,
@@ -1706,17 +1722,23 @@ intel_sdvo_set_property(struct drm_connector *connector,
 		return ret;
 
 	if (property == intel_sdvo_connector->force_audio_property) {
-		if (val == intel_sdvo_connector->force_audio)
+		int i = val;
+		bool has_audio;
+
+		if (i == intel_sdvo_connector->force_audio)
 			return 0;
 
-		intel_sdvo_connector->force_audio = val;
+		intel_sdvo_connector->force_audio = i;
 
-		if (val > 0 && intel_sdvo->has_hdmi_audio)
-			return 0;
-		if (val < 0 && !intel_sdvo->has_hdmi_audio)
+		if (i == 0)
+			has_audio = intel_sdvo_detect_hdmi_audio(connector);
+		else
+			has_audio = i > 0;
+
+		if (has_audio == intel_sdvo->has_hdmi_audio)
 			return 0;
 
-		intel_sdvo->has_hdmi_audio = val > 0;
+		intel_sdvo->has_hdmi_audio = has_audio;
 		goto done;
 	}
 
