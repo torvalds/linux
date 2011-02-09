@@ -1060,7 +1060,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 
 		connect_bsp_APIC();
 		setup_local_APIC();
-		end_local_APIC_setup();
+		bsp_end_local_APIC_setup();
 		return -1;
 	}
 
@@ -1137,7 +1137,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	if (!skip_ioapic_setup && nr_ioapics)
 		enable_IO_APIC();
 
-	end_local_APIC_setup();
+	bsp_end_local_APIC_setup();
 
 	map_cpu_to_logical_apicid();
 
