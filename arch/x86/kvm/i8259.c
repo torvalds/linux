@@ -62,9 +62,6 @@ static void pic_unlock(struct kvm_pic *s)
 		}
 
 		if (!found)
-			found = s->kvm->bsp_vcpu;
-
-		if (!found)
 			return;
 
 		kvm_make_request(KVM_REQ_EVENT, found);
@@ -75,7 +72,6 @@ static void pic_unlock(struct kvm_pic *s)
 static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
 {
 	s->isr &= ~(1 << irq);
-	s->isr_ack |= (1 << irq);
 	if (s != &s->pics_state->pics[0])
 		irq += 8;
 	/*
@@ -87,16 +83,6 @@ static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
 	pic_unlock(s->pics_state);
 	kvm_notify_acked_irq(s->pics_state->kvm, SELECT_PIC(irq), irq);
 	pic_lock(s->pics_state);
-}
-
-void kvm_pic_clear_isr_ack(struct kvm *kvm)
-{
-	struct kvm_pic *s = pic_irqchip(kvm);
-
-	pic_lock(s);
-	s->pics[0].isr_ack = 0xff;
-	s->pics[1].isr_ack = 0xff;
-	pic_unlock(s);
 }
 
 /*
@@ -281,7 +267,6 @@ void kvm_pic_reset(struct kvm_kpic_state *s)
 	s->irr = 0;
 	s->imr = 0;
 	s->isr = 0;
-	s->isr_ack = 0xff;
 	s->priority_add = 0;
 	s->irq_base = 0;
 	s->read_reg_select = 0;
@@ -545,15 +530,11 @@ static int picdev_read(struct kvm_io_device *this,
  */
 static void pic_irq_request(struct kvm *kvm, int level)
 {
-	struct kvm_vcpu *vcpu = kvm->bsp_vcpu;
 	struct kvm_pic *s = pic_irqchip(kvm);
-	int irq = pic_get_irq(&s->pics[0]);
 
-	s->output = level;
-	if (vcpu && level && (s->pics[0].isr_ack & (1 << irq))) {
-		s->pics[0].isr_ack &= ~(1 << irq);
+	if (!s->output)
 		s->wakeup_needed = true;
-	}
+	s->output = level;
 }
 
 static const struct kvm_io_device_ops picdev_ops = {
@@ -575,8 +556,6 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 	s->pics[1].elcr_mask = 0xde;
 	s->pics[0].pics_state = s;
 	s->pics[1].pics_state = s;
-	s->pics[0].isr_ack = 0xff;
-	s->pics[1].isr_ack = 0xff;
 
 	/*
 	 * Initialize PIO device

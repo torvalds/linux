@@ -2669,8 +2669,6 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 	vcpu->arch.interrupt.pending = events->interrupt.injected;
 	vcpu->arch.interrupt.nr = events->interrupt.nr;
 	vcpu->arch.interrupt.soft = events->interrupt.soft;
-	if (vcpu->arch.interrupt.pending && irqchip_in_kernel(vcpu->kvm))
-		kvm_pic_clear_isr_ack(vcpu->kvm);
 	if (events->flags & KVM_VCPUEVENT_VALID_SHADOW)
 		kvm_x86_ops->set_interrupt_shadow(vcpu,
 						  events->interrupt.shadow);
@@ -5621,8 +5619,6 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	if (pending_vec < max_bits) {
 		kvm_queue_interrupt(vcpu, pending_vec, false);
 		pr_debug("Set back pending irq %d\n", pending_vec);
-		if (irqchip_in_kernel(vcpu->kvm))
-			kvm_pic_clear_isr_ack(vcpu->kvm);
 	}
 
 	kvm_set_segment(vcpu, &sregs->cs, VCPU_SREG_CS);
