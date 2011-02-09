@@ -234,6 +234,7 @@ struct snd_soc_codec;
 struct snd_soc_codec_driver;
 struct soc_enum;
 struct snd_soc_jack;
+struct snd_soc_jack_zone;
 struct snd_soc_jack_pin;
 struct snd_soc_cache_ops;
 #include <sound/soc-dapm.h>
@@ -307,6 +308,9 @@ void snd_soc_jack_notifier_register(struct snd_soc_jack *jack,
 				    struct notifier_block *nb);
 void snd_soc_jack_notifier_unregister(struct snd_soc_jack *jack,
 				      struct notifier_block *nb);
+int snd_soc_jack_add_zones(struct snd_soc_jack *jack, int count,
+			  struct snd_soc_jack_zone *zones);
+int snd_soc_jack_get_type(struct snd_soc_jack *jack, int micbias_voltage);
 #ifdef CONFIG_GPIOLIB
 int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios);
@@ -407,6 +411,24 @@ struct snd_soc_jack_pin {
 };
 
 /**
+ * struct snd_soc_jack_zone - Describes voltage zones of jack detection
+ *
+ * @min_mv: start voltage in mv
+ * @max_mv: end voltage in mv
+ * @jack_type: type of jack that is expected for this voltage
+ * @debounce_time: debounce_time for jack, codec driver should wait for this
+ *		duration before reading the adc for voltages
+ * @:list: list container
+ */
+struct snd_soc_jack_zone {
+	unsigned int min_mv;
+	unsigned int max_mv;
+	unsigned int jack_type;
+	unsigned int debounce_time;
+	struct list_head list;
+};
+
+/**
  * struct snd_soc_jack_gpio - Describes a gpio pin for jack detection
  *
  * @gpio:         gpio number
@@ -435,6 +457,7 @@ struct snd_soc_jack {
 	struct list_head pins;
 	int status;
 	struct blocking_notifier_head notifier;
+	struct list_head jack_zones;
 };
 
 /* SoC PCM stream information */

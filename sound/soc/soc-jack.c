@@ -37,6 +37,7 @@ int snd_soc_jack_new(struct snd_soc_codec *codec, const char *id, int type,
 {
 	jack->codec = codec;
 	INIT_LIST_HEAD(&jack->pins);
+	INIT_LIST_HEAD(&jack->jack_zones);
 	BLOCKING_INIT_NOTIFIER_HEAD(&jack->notifier);
 
 	return snd_jack_new(codec->card->snd_card, id, type, &jack->jack);
@@ -110,6 +111,51 @@ out:
 	mutex_unlock(&codec->mutex);
 }
 EXPORT_SYMBOL_GPL(snd_soc_jack_report);
+
+/**
+ * snd_soc_jack_add_zones - Associate voltage zones with jack
+ *
+ * @jack:  ASoC jack
+ * @count: Number of zones
+ * @zone:  Array of zones
+ *
+ * After this function has been called the zones specified in the
+ * array will be associated with the jack.
+ */
+int snd_soc_jack_add_zones(struct snd_soc_jack *jack, int count,
+			  struct snd_soc_jack_zone *zones)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		INIT_LIST_HEAD(&zones[i].list);
+		list_add(&(zones[i].list), &jack->jack_zones);
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_jack_add_zones);
+
+/**
+ * snd_soc_jack_get_type - Based on the mic bias value, this function returns
+ * the type of jack from the zones delcared in the jack type
+ *
+ * @micbias_voltage:  mic bias voltage at adc channel when jack is plugged in
+ *
+ * Based on the mic bias value passed, this function helps identify
+ * the type of jack from the already delcared jack zones
+ */
+int snd_soc_jack_get_type(struct snd_soc_jack *jack, int micbias_voltage)
+{
+	struct snd_soc_jack_zone *zone;
+
+	list_for_each_entry(zone, &jack->jack_zones, list) {
+		if (micbias_voltage >= zone->min_mv &&
+			micbias_voltage < zone->max_mv)
+				return zone->jack_type;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_jack_get_type);
 
 /**
  * snd_soc_jack_add_pins - Associate DAPM pins with an ASoC jack
