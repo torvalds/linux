@@ -240,36 +240,28 @@ int ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
 // Notes:
 //
 //---------------------------------------------------------------------------
-int ft1000_read_dpram16(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u8 highlow)
+int ft1000_read_dpram16(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer,
+			u8 highlow)
 {
-    int ret = STATUS_SUCCESS;
+	int ret = STATUS_SUCCESS;
+	u8 request;
 
-    //DEBUG("ft1000_read_dpram16: indx: %d  hightlow: %d\n", indx, highlow);
+	if (highlow == 0)
+		request = HARLEY_READ_DPRAM_LOW;
+	else
+		request = HARLEY_READ_DPRAM_HIGH;
 
-    u8 request;
+	ret = ft1000_control(ft1000dev,
+			     usb_rcvctrlpipe(ft1000dev->dev, 0),
+			     request,
+			     HARLEY_READ_OPERATION,
+			     0,
+			     indx,
+			     buffer,
+			     2,
+			     LARGE_TIMEOUT);
 
-    if (highlow == 0 )
-        request = HARLEY_READ_DPRAM_LOW;
-    else
-        request = HARLEY_READ_DPRAM_HIGH;
-
-    ret = ft1000_control(ft1000dev,
-                         usb_rcvctrlpipe(ft1000dev->dev,0),
-                         request,                     //request --READ_DPRAM_H/L
-                         HARLEY_READ_OPERATION,       //requestType
-                         0,                           //value
-                         indx,                        //index
-                         buffer,                      //data
-                         2,                           //data size
-                         LARGE_TIMEOUT );             //timeout
-
-   //DEBUG("ft1000_read_dpram16: ret is  %d \n", ret);
-
-
-   //DEBUG("ft1000_read_dpram16: data is  %x \n", *buffer);
-
-   return ret;
-
+	return ret;
 }
 
 //---------------------------------------------------------------------------
@@ -290,31 +282,25 @@ int ft1000_read_dpram16(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u
 //---------------------------------------------------------------------------
 int ft1000_write_dpram16(struct ft1000_device *ft1000dev, u16 indx, u16 value, u8 highlow)
 {
-     int ret = STATUS_SUCCESS;
+	int ret = STATUS_SUCCESS;
+	u8 request;
 
+	if (highlow == 0)
+		request = HARLEY_WRITE_DPRAM_LOW;
+	else
+		request = HARLEY_WRITE_DPRAM_HIGH;
 
+	ret = ft1000_control(ft1000dev,
+			     usb_sndctrlpipe(ft1000dev->dev, 0),
+			     request,
+			     HARLEY_WRITE_OPERATION,
+			     value,
+			     indx,
+			     NULL,
+			     0,
+			     LARGE_TIMEOUT);
 
-     //DEBUG("ft1000_write_dpram16: indx: %d  value: %d  highlow: %d\n", indx, value, highlow);
-
-     u8 request;
-
-
-     if ( highlow == 0 )
-         request = HARLEY_WRITE_DPRAM_LOW;
-     else
-         request = HARLEY_WRITE_DPRAM_HIGH;
-
-     ret = ft1000_control(ft1000dev,
-                           usb_sndctrlpipe(ft1000dev->dev, 0),
-                           request,                             //request -- WRITE_DPRAM_H/L
-                           HARLEY_WRITE_OPERATION,              //requestType
-                           value,                                   //value
-                           indx,                                //index
-                           NULL,                               //buffer
-                           0,                                   //buffer size
-                           LARGE_TIMEOUT );
-
-    return ret;
+	return ret;
 }
 
 //---------------------------------------------------------------------------
