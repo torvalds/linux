@@ -135,20 +135,6 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 		/* go to extremely low power mode */
 		wl1271_ps_elp_sleep(wl);
 		break;
-	case EVENT_EXIT_POWER_SAVE_FAIL:
-		wl1271_debug(DEBUG_PSM, "PSM exit failed");
-
-		if (test_bit(WL1271_FLAG_PSM, &wl->flags)) {
-			wl->psm_entry_retry = 0;
-			break;
-		}
-
-		/* make sure the firmware goes to active mode - the frame to
-		   be sent next will indicate to the AP, that we are active. */
-		ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
-					 wl->basic_rate, false);
-		break;
-	case EVENT_EXIT_POWER_SAVE_SUCCESS:
 	default:
 		break;
 	}

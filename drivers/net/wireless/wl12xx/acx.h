@@ -133,7 +133,6 @@ enum {
 
 #define DEFAULT_UCAST_PRIORITY          0
 #define DEFAULT_RX_Q_PRIORITY           0
-#define DEFAULT_NUM_STATIONS            1
 #define DEFAULT_RXQ_PRIORITY            0 /* low 0 .. 15 high  */
 #define DEFAULT_RXQ_TYPE                0x07    /* All frames, Data/Ctrl/Mgmt */
 #define TRACE_BUFFER_MAX_SIZE           256
@@ -797,12 +796,9 @@ struct acx_tx_config_options {
 	__le16 tx_compl_threshold;   /* number of packets */
 } __packed;
 
-#define ACX_RX_MEM_BLOCKS     70
-#define ACX_TX_MIN_MEM_BLOCKS 40
 #define ACX_TX_DESCRIPTORS    32
-#define ACX_NUM_SSID_PROFILES 1
 
-struct wl1271_acx_config_memory {
+struct wl1271_acx_ap_config_memory {
 	struct acx_header header;
 
 	u8 rx_mem_block_num;
@@ -810,6 +806,20 @@ struct wl1271_acx_config_memory {
 	u8 num_stations;
 	u8 num_ssid_profiles;
 	__le32 total_tx_descriptors;
+} __packed;
+
+struct wl1271_acx_sta_config_memory {
+	struct acx_header header;
+
+	u8 rx_mem_block_num;
+	u8 tx_min_mem_block_num;
+	u8 num_stations;
+	u8 num_ssid_profiles;
+	__le32 total_tx_descriptors;
+	u8 dyn_mem_enable;
+	u8 tx_free_req;
+	u8 rx_free_req;
+	u8 tx_min;
 } __packed;
 
 struct wl1271_acx_mem_map {
@@ -1136,6 +1146,15 @@ struct wl1271_acx_max_tx_retry {
 	u8 padding_1[2];
 } __packed;
 
+struct wl1271_acx_config_ps {
+	struct acx_header header;
+
+	u8 exit_retries;
+	u8 enter_retries;
+	u8 padding[2];
+	__le32 null_data_rate;
+} __packed;
+
 enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
 	ACX_MEM_CFG                 = 0x0003,
@@ -1193,6 +1212,8 @@ enum {
 	ACX_HT_BSS_OPERATION        = 0x0058,
 	ACX_COEX_ACTIVITY           = 0x0059,
 	ACX_SET_DCO_ITRIM_PARAMS    = 0x0061,
+	ACX_GEN_FW_CMD              = 0x0070,
+	ACX_HOST_IF_CFG_BITMAP      = 0x0071,
 	ACX_MAX_TX_FAILURE          = 0x0072,
 	DOT11_RX_MSDU_LIFE_TIME     = 0x1004,
 	DOT11_CUR_TX_PWR            = 0x100D,
@@ -1200,10 +1221,8 @@ enum {
 	DOT11_RTS_THRESHOLD         = 0x1013,
 	DOT11_GROUP_ADDRESS_TBL     = 0x1014,
 	ACX_PM_CONFIG               = 0x1016,
-
-	MAX_DOT11_IE = DOT11_GROUP_ADDRESS_TBL,
-
-	MAX_IE = 0xFFFF
+	ACX_CONFIG_PS               = 0x1017,
+	ACX_CONFIG_HANGOVER         = 0x1018,
 };
 
 
@@ -1245,7 +1264,8 @@ int wl1271_acx_tid_cfg(struct wl1271 *wl, u8 queue_id, u8 channel_type,
 		       u32 apsd_conf0, u32 apsd_conf1);
 int wl1271_acx_frag_threshold(struct wl1271 *wl, u16 frag_threshold);
 int wl1271_acx_tx_config_options(struct wl1271 *wl);
-int wl1271_acx_mem_cfg(struct wl1271 *wl);
+int wl1271_acx_ap_mem_cfg(struct wl1271 *wl);
+int wl1271_acx_sta_mem_cfg(struct wl1271 *wl);
 int wl1271_acx_init_mem_config(struct wl1271 *wl);
 int wl1271_acx_init_rx_interrupt(struct wl1271 *wl);
 int wl1271_acx_smart_reflex(struct wl1271 *wl);
@@ -1269,5 +1289,6 @@ int wl1271_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index, u16 ssn,
 				       bool enable);
 int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
 int wl1271_acx_max_tx_retry(struct wl1271 *wl);
+int wl1271_acx_config_ps(struct wl1271 *wl);
 
 #endif /* __WL1271_ACX_H__ */

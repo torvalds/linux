@@ -39,7 +39,7 @@ int wl1271_cmd_test(struct wl1271 *wl, void *buf, size_t buf_len, u8 answer);
 int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_data_path(struct wl1271 *wl, bool enable);
-int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, u32 rates, bool send);
+int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode);
 int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
 			   size_t len);
 int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
@@ -140,6 +140,7 @@ enum cmd_templ {
 				  * For CTS-to-self (FastCTS) mechanism
 				  * for BT/WLAN coexistence (SoftGemini). */
 	CMD_TEMPL_ARP_RSP,
+	CMD_TEMPL_LINK_MEASUREMENT_REPORT,
 
 	/* AP-mode specific */
 	CMD_TEMPL_AP_BEACON = 13,
@@ -216,6 +217,7 @@ struct wl1271_cmd_join {
 	 * ACK or CTS frames).
 	 */
 	__le32 basic_rate_set;
+	__le32 supported_rate_set;
 	u8 dtim_interval;
 	/*
 	 * bits 0-2: This bitwise field specifies the type
@@ -278,15 +280,7 @@ struct wl1271_cmd_ps_params {
 	struct wl1271_cmd_header header;
 
 	u8 ps_mode; /* STATION_* */
-	u8 send_null_data; /* Do we have to send NULL data packet ? */
-	u8 retries; /* Number of retires for the initial NULL data packet */
-
-	 /*
-	  * TUs during which the target stays awake after switching
-	  * to power save mode.
-	  */
-	u8 hang_over_period;
-	__le32 null_data_rate;
+	u8 padding[3];
 } __packed;
 
 /* HW encryption keys */

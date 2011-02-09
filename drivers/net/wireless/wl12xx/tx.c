@@ -334,34 +334,12 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 {
 	struct sk_buff *skb;
 	bool woken_up = false;
-	u32 sta_rates = 0;
 	u32 buf_offset = 0;
 	bool sent_packets = false;
 	int ret;
 
-	/* check if the rates supported by the AP have changed */
-	if (unlikely(test_and_clear_bit(WL1271_FLAG_STA_RATES_CHANGED,
-					&wl->flags))) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&wl->wl_lock, flags);
-		sta_rates = wl->sta_rate_set;
-		spin_unlock_irqrestore(&wl->wl_lock, flags);
-	}
-
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
-
-	/* if rates have changed, re-configure the rate policy */
-	if (unlikely(sta_rates)) {
-		ret = wl1271_ps_elp_wakeup(wl, false);
-		if (ret < 0)
-			goto out;
-		woken_up = true;
-
-		wl->rate_set = wl1271_tx_enabled_rates_get(wl, sta_rates);
-		wl1271_acx_sta_rate_policies(wl);
-	}
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
 		if (!woken_up) {

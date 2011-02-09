@@ -783,6 +783,10 @@ int wl1271_acx_sta_rate_policies(struct wl1271 *wl)
 
 	acx->rate_class_cnt = cpu_to_le32(ACX_TX_RATE_POLICY_CNT);
 
+	wl1271_debug(DEBUG_ACX, "basic_rate: 0x%x, full_rate: 0x%x",
+		acx->rate_class[ACX_TX_BASIC_RATE].enabled_rates,
+		acx->rate_class[ACX_TX_AP_FULL_RATE].enabled_rates);
+
 	ret = wl1271_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("Setting of rate policies failed: %d", ret);
@@ -947,9 +951,9 @@ out:
 	return ret;
 }
 
-int wl1271_acx_mem_cfg(struct wl1271 *wl)
+int wl1271_acx_ap_mem_cfg(struct wl1271 *wl)
 {
-	struct wl1271_acx_config_memory *mem_conf;
+	struct wl1271_acx_ap_config_memory *mem_conf;
 	int ret;
 
 	wl1271_debug(DEBUG_ACX, "wl1271 mem cfg");
@@ -961,11 +965,47 @@ int wl1271_acx_mem_cfg(struct wl1271 *wl)
 	}
 
 	/* memory config */
-	mem_conf->num_stations = DEFAULT_NUM_STATIONS;
-	mem_conf->rx_mem_block_num = ACX_RX_MEM_BLOCKS;
-	mem_conf->tx_min_mem_block_num = ACX_TX_MIN_MEM_BLOCKS;
-	mem_conf->num_ssid_profiles = ACX_NUM_SSID_PROFILES;
+	mem_conf->num_stations = wl->conf.mem.num_stations;
+	mem_conf->rx_mem_block_num = wl->conf.mem.rx_block_num;
+	mem_conf->tx_min_mem_block_num = wl->conf.mem.tx_min_block_num;
+	mem_conf->num_ssid_profiles = wl->conf.mem.ssid_profiles;
 	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
+
+	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
+				   sizeof(*mem_conf));
+	if (ret < 0) {
+		wl1271_warning("wl1271 mem config failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(mem_conf);
+	return ret;
+}
+
+int wl1271_acx_sta_mem_cfg(struct wl1271 *wl)
+{
+	struct wl1271_acx_sta_config_memory *mem_conf;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "wl1271 mem cfg");
+
+	mem_conf = kzalloc(sizeof(*mem_conf), GFP_KERNEL);
+	if (!mem_conf) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* memory config */
+	mem_conf->num_stations = wl->conf.mem.num_stations;
+	mem_conf->rx_mem_block_num = wl->conf.mem.rx_block_num;
+	mem_conf->tx_min_mem_block_num = wl->conf.mem.tx_min_block_num;
+	mem_conf->num_ssid_profiles = wl->conf.mem.ssid_profiles;
+	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
+	mem_conf->dyn_mem_enable = wl->conf.mem.dynamic_memory;
+	mem_conf->tx_free_req = wl->conf.mem.min_req_tx_blocks;
+	mem_conf->rx_free_req = wl->conf.mem.min_req_rx_blocks;
+	mem_conf->tx_min = wl->conf.mem.tx_min;
 
 	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
 				   sizeof(*mem_conf));
@@ -982,10 +1022,6 @@ out:
 int wl1271_acx_init_mem_config(struct wl1271 *wl)
 {
 	int ret;
-
-	ret = wl1271_acx_mem_cfg(wl);
-	if (ret < 0)
-		return ret;
 
 	wl->target_mem_map = kzalloc(sizeof(struct wl1271_acx_mem_map),
 				     GFP_KERNEL);
@@ -1474,5 +1510,35 @@ int wl1271_acx_max_tx_retry(struct wl1271 *wl)
 
 out:
 	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_config_ps(struct wl1271 *wl)
+{
+	struct wl1271_acx_config_ps *config_ps;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx config ps");
+
+	config_ps = kzalloc(sizeof(*config_ps), GFP_KERNEL);
+	if (!config_ps) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	config_ps->exit_retries = wl->conf.conn.psm_exit_retries;
+	config_ps->enter_retries = wl->conf.conn.psm_entry_retries;
+	config_ps->null_data_rate = cpu_to_le32(wl->basic_rate);
+
+	ret = wl1271_cmd_configure(wl, ACX_CONFIG_PS, config_ps,
+				   sizeof(*config_ps));
+
+	if (ret < 0) {
+		wl1271_warning("acx config ps failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(config_ps);
 	return ret;
 }

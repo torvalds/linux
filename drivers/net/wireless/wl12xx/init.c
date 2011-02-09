@@ -325,6 +325,11 @@ static int wl1271_sta_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
+	/* PS config */
+	ret = wl1271_acx_config_ps(wl);
+	if (ret < 0)
+		return ret;
+
 	ret = wl1271_sta_init_templates_config(wl);
 	if (ret < 0)
 		return ret;
@@ -364,6 +369,10 @@ static int wl1271_sta_hw_init(struct wl1271 *wl)
 		return ret;
 
 	ret = wl1271_acx_sta_rate_policies(wl);
+	if (ret < 0)
+		return ret;
+
+	ret = wl1271_acx_sta_mem_cfg(wl);
 	if (ret < 0)
 		return ret;
 
@@ -430,6 +439,10 @@ static int wl1271_ap_hw_init(struct wl1271 *wl)
 		return ret;
 
 	ret = wl1271_acx_max_tx_retry(wl);
+	if (ret < 0)
+		return ret;
+
+	ret = wl1271_acx_ap_mem_cfg(wl);
 	if (ret < 0)
 		return ret;
 
