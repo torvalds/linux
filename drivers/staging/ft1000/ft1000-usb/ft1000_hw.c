@@ -101,9 +101,9 @@ static int ft1000_control(struct ft1000_device *ft1000dev, unsigned int pipe,
 //
 //---------------------------------------------------------------------------
 
-u16 ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data, u16 nRegIndx)
+int ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data, u16 nRegIndx)
 {
-    u16 ret = STATUS_SUCCESS;
+    int ret = STATUS_SUCCESS;
 
     //DEBUG("ft1000_read_register: reg index is %d\n", nRegIndx);
     //DEBUG("ft1000_read_register: spin_lock locked\n");
@@ -140,9 +140,9 @@ u16 ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data, u16 nRegInd
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 ft1000_write_register(struct ft1000_device *ft1000dev, u16 value, u16 nRegIndx)
+int ft1000_write_register(struct ft1000_device *ft1000dev, u16 value, u16 nRegIndx)
 {
-     u16 ret = STATUS_SUCCESS;
+     int ret = STATUS_SUCCESS;
 
      //DEBUG("ft1000_write_register: value is: %d, reg index is: %d\n", value, nRegIndx);
 
@@ -176,9 +176,9 @@ u16 ft1000_write_register(struct ft1000_device *ft1000dev, u16 value, u16 nRegIn
 //
 //---------------------------------------------------------------------------
 
-u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u16 cnt)
+int ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u16 cnt)
 {
-    u16 ret = STATUS_SUCCESS;
+    int ret = STATUS_SUCCESS;
 
     //DEBUG("ft1000_read_dpram32: indx: %d  cnt: %d\n", indx, cnt);
     ret =ft1000_control(ft1000dev,
@@ -215,9 +215,9 @@ u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u16 cnt)
+int ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u16 cnt)
 {
-     u16 ret = STATUS_SUCCESS;
+     int ret = STATUS_SUCCESS;
 
      //DEBUG("ft1000_write_dpram32: indx: %d   buffer: %x cnt: %d\n", indx, buffer, cnt);
      if ( cnt % 4)
@@ -252,9 +252,9 @@ u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, 
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u8 highlow)
+int ft1000_read_dpram16(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u8 highlow)
 {
-    u16 ret = STATUS_SUCCESS;
+    int ret = STATUS_SUCCESS;
 
     //DEBUG("ft1000_read_dpram16: indx: %d  hightlow: %d\n", indx, highlow);
 
@@ -300,9 +300,9 @@ u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, u16 indx, u16 value, u8 highlow)
+int ft1000_write_dpram16(struct ft1000_device *ft1000dev, u16 indx, u16 value, u8 highlow)
 {
-     u16 ret = STATUS_SUCCESS;
+     int ret = STATUS_SUCCESS;
 
 
 
@@ -345,11 +345,11 @@ u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, u16 indx, u16 value, u
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer)
+int fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer)
 {
     u8 buf[16];
     u16 pos;
-    u16 ret = STATUS_SUCCESS;
+    int ret = STATUS_SUCCESS;
 
     //DEBUG("fix_ft1000_read_dpram32: indx: %d  \n", indx);
     pos = (indx / 4)*4;
@@ -394,7 +394,7 @@ u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffe
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer)
+int fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer)
 {
     u16 pos1;
     u16 pos2;
@@ -402,7 +402,7 @@ u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buff
     u8 buf[32];
     u8 resultbuffer[32];
     u8 *pdata;
-    u16 ret  = STATUS_SUCCESS;
+    int ret  = STATUS_SUCCESS;
 
     //DEBUG("fix_ft1000_write_dpram32: Entered:\n");
 
