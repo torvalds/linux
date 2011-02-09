@@ -54,10 +54,6 @@ static void __init rcu_bootup_announce_oddness(void)
 #ifdef CONFIG_RCU_TORTURE_TEST_RUNNABLE
 	printk(KERN_INFO "\tRCU torture testing starts during boot.\n");
 #endif
-#ifndef CONFIG_RCU_CPU_STALL_DETECTOR
-	printk(KERN_INFO
-	       "\tRCU-based detection of stalled CPUs is disabled.\n");
-#endif
 #if defined(CONFIG_TREE_PREEMPT_RCU) && !defined(CONFIG_RCU_CPU_STALL_VERBOSE)
 	printk(KERN_INFO "\tVerbose stalled-CPUs detection is disabled.\n");
 #endif
@@ -356,8 +352,6 @@ void __rcu_read_unlock(void)
 }
 EXPORT_SYMBOL_GPL(__rcu_read_unlock);
 
-#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
-
 #ifdef CONFIG_RCU_CPU_STALL_VERBOSE
 
 /*
@@ -429,8 +423,6 @@ static void rcu_preempt_stall_reset(void)
 {
 	rcu_preempt_state.jiffies_stall = jiffies + ULONG_MAX / 2;
 }
-
-#endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 
 /*
  * Check that the list of blocked tasks for the newly completed grace
@@ -862,8 +854,6 @@ static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp, unsigned long flags)
 
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
-#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
-
 /*
  * Because preemptable RCU does not exist, we never have to check for
  * tasks blocked within RCU read-side critical sections.
@@ -887,8 +877,6 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
 static void rcu_preempt_stall_reset(void)
 {
 }
-
-#endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 
 /*
  * Because there is no preemptable RCU, there can be no readers blocked,

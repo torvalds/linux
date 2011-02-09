@@ -21,7 +21,7 @@ rcu.txt
 RTFP.txt
 	- List of RCU papers (bibliography) going back to 1980.
 stallwarn.txt
-	- RCU CPU stall warnings (CONFIG_RCU_CPU_STALL_DETECTOR)
+	- RCU CPU stall warnings (module parameter rcu_cpu_stall_suppress)
 torture.txt
 	- RCU Torture Test Operation (CONFIG_RCU_TORTURE_TEST)
 trace.txt
