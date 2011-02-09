@@ -24,10 +24,11 @@
 
 #define NO_LENGTH_CHECK 0xffffffff
 
-struct omap_board_config_kernel *omap_board_config;
+struct omap_board_config_kernel *omap_board_config __initdata;
 int omap_board_config_size;
 
-static const void *get_config(u16 tag, size_t len, int skip, size_t *len_out)
+static const void *__init get_config(u16 tag, size_t len,
+		int skip, size_t *len_out)
 {
 	struct omap_board_config_kernel *kinfo = NULL;
 	int i;
