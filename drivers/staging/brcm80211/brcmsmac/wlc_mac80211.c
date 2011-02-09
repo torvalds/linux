@@ -6327,6 +6327,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 						    (u16) newfragthresh;
 					}
 				}
+#if defined(BCMDBG)
 			} else
 				WL_ERROR("wl%d: %s txop invalid for rate %d\n",
 					 wlc->pub->unit, fifo_names[queue],
@@ -6338,6 +6339,9 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 					 fifo_names[queue],
 					 phylen, wlc->fragthresh[queue],
 					 dur, wlc->edcf_txop[ac]);
+#else
+			}
+#endif
 		}
 	}
 
@@ -6607,7 +6611,9 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	if (txs->phyerr) {
 		WL_ERROR("phyerr 0x%x, rate 0x%x\n",
 			 txs->phyerr, txh->MainRates);
+#if defined(BCMDBG)
 		wlc_print_txdesc(txh);
+#endif
 		wlc_print_txstatus(txs);
 	}
 

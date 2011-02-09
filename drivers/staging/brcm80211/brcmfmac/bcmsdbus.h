@@ -58,7 +58,7 @@ extern SDIOH_API_RC sdioh_interrupt_query(sdioh_info_t *si, bool *onoff);
 /* enable or disable SD interrupt */
 extern SDIOH_API_RC sdioh_interrupt_set(sdioh_info_t *si, bool enable_disable);
 
-#if defined(BCMDBG)
+#if defined(DHD_DEBUG)
 extern bool sdioh_interrupt_pending(sdioh_info_t *si);
 #endif
 
