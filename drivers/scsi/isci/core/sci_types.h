@@ -61,13 +61,6 @@
 #define sci_cb_make_physical_address(physical_addr, addr_upper, addr_lower) \
 	((physical_addr) = (addr_lower) | ((u64)addr_upper) << 32)
 
-typedef enum {
-	SCI_IO_REQUEST_DATA_IN = 0,	/* Read operation */
-	SCI_IO_REQUEST_DATA_OUT,	/* Write operation */
-	SCI_IO_REQUEST_NO_DATA
-} SCI_IO_REQUEST_DATA_DIRECTION;
-
-
 enum sci_controller_mode {
 	SCI_MODE_SPEED,		/* Optimized for performance */
 	SCI_MODE_SIZE		/* Optimized for memory use */

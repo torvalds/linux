@@ -56,6 +56,7 @@
 #ifndef _SCIC_SDS_STP_REQUEST_T_
 #define _SCIC_SDS_STP_REQUEST_T_
 
+#include <linux/dma-mapping.h>
 #include "intel_sata.h"
 #include "sci_types.h"
 #include "scic_sds_request.h"
@@ -201,7 +202,7 @@ enum sci_status scic_sds_stp_pio_request_construct_pass_through(
 enum sci_status scic_sds_stp_udma_request_construct(
 	struct scic_sds_request *this_request,
 	u32 transfer_length,
-	SCI_IO_REQUEST_DATA_DIRECTION data_direction);
+	enum dma_data_direction dir);
 
 enum sci_status scic_sds_stp_non_data_request_construct(
 	struct scic_sds_request *this_request);
@@ -212,7 +213,7 @@ enum sci_status scic_sds_stp_soft_reset_request_construct(
 enum sci_status scic_sds_stp_ncq_request_construct(
 	struct scic_sds_request *this_request,
 	u32 transfer_length,
-	SCI_IO_REQUEST_DATA_DIRECTION data_direction);
+	enum dma_data_direction dir);
 
 void scu_stp_raw_request_construct_task_context(
 	struct scic_sds_stp_request *this_request,

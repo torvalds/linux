@@ -346,8 +346,7 @@ void isci_request_io_request_complete(
 u32 isci_request_io_request_get_transfer_length(
 	struct isci_request *request);
 
-SCI_IO_REQUEST_DATA_DIRECTION isci_request_io_request_get_data_direction(
-	struct isci_request *request);
+enum dma_data_direction isci_request_io_request_get_data_direction(struct isci_request *req);
 
 /**
  * isci_request_io_request_get_next_sge() - This function is called by the sci

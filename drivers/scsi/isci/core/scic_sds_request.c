@@ -588,34 +588,34 @@ static void scu_ssp_reqeust_construct_task_context(
  *
  */
 static void scu_ssp_io_request_construct_task_context(
-	struct scic_sds_request *this_request,
-	SCI_IO_REQUEST_DATA_DIRECTION data_direction,
-	u32 transfer_length_bytes)
+	struct scic_sds_request *sci_req,
+	enum dma_data_direction dir,
+	u32 len)
 {
 	struct scu_task_context *task_context;
 
-	task_context = scic_sds_request_get_task_context(this_request);
+	task_context = scic_sds_request_get_task_context(sci_req);
 
-	scu_ssp_reqeust_construct_task_context(this_request, task_context);
+	scu_ssp_reqeust_construct_task_context(sci_req, task_context);
 
 	task_context->ssp_command_iu_length = sizeof(struct sci_ssp_command_iu) / sizeof(u32);
 	task_context->type.ssp.frame_type = SCI_SAS_COMMAND_FRAME;
 
-	switch (data_direction) {
-	case SCI_IO_REQUEST_DATA_IN:
-	case SCI_IO_REQUEST_NO_DATA:
+	switch (dir) {
+	case DMA_FROM_DEVICE:
+	case DMA_NONE:
+	default:
 		task_context->task_type = SCU_TASK_TYPE_IOREAD;
 		break;
-	case SCI_IO_REQUEST_DATA_OUT:
+	case DMA_TO_DEVICE:
 		task_context->task_type = SCU_TASK_TYPE_IOWRITE;
 		break;
 	}
 
-	task_context->transfer_length_bytes = transfer_length_bytes;
+	task_context->transfer_length_bytes = len;
 
-	if (task_context->transfer_length_bytes > 0) {
-		scic_sds_request_build_sgl(this_request);
-	}
+	if (task_context->transfer_length_bytes > 0)
+		scic_sds_request_build_sgl(sci_req);
 }
 
 
@@ -694,37 +694,35 @@ static void scu_ssp_task_request_construct_task_context(
  *
  * enum sci_status
  */
-static enum sci_status scic_io_request_construct_sata(
-	struct scic_sds_request *this_request,
-	u8 sat_protocol,
-	u32 transfer_length,
-	SCI_IO_REQUEST_DATA_DIRECTION data_direction,
-	bool copy_rx_frame)
+static enum sci_status scic_io_request_construct_sata(struct scic_sds_request *sci_req,
+						      u8 proto, u32 len,
+						      enum dma_data_direction dir,
+						      bool copy)
 {
 	enum sci_status status = SCI_SUCCESS;
 
-	switch (sat_protocol) {
+	switch (proto) {
 	case SAT_PROTOCOL_PIO_DATA_IN:
 	case SAT_PROTOCOL_PIO_DATA_OUT:
-		status = scic_sds_stp_pio_request_construct(this_request, sat_protocol, copy_rx_frame);
+		status = scic_sds_stp_pio_request_construct(sci_req, proto, copy);
 		break;
 
 	case SAT_PROTOCOL_UDMA_DATA_IN:
 	case SAT_PROTOCOL_UDMA_DATA_OUT:
-		status = scic_sds_stp_udma_request_construct(this_request, transfer_length, data_direction);
+		status = scic_sds_stp_udma_request_construct(sci_req, len, dir);
 		break;
 
 	case SAT_PROTOCOL_ATA_HARD_RESET:
 	case SAT_PROTOCOL_SOFT_RESET:
-		status = scic_sds_stp_soft_reset_request_construct(this_request);
+		status = scic_sds_stp_soft_reset_request_construct(sci_req);
 		break;
 
 	case SAT_PROTOCOL_NON_DATA:
-		status = scic_sds_stp_non_data_request_construct(this_request);
+		status = scic_sds_stp_non_data_request_construct(sci_req);
 		break;
 
 	case SAT_PROTOCOL_FPDMA:
-		status = scic_sds_stp_ncq_request_construct(this_request, transfer_length, data_direction);
+		status = scic_sds_stp_ncq_request_construct(sci_req, len, dir);
 		break;
 
 #if !defined(DISABLE_ATAPI)
@@ -733,7 +731,7 @@ static enum sci_status scic_io_request_construct_sata(
 	case SAT_PROTOCOL_PACKET_DMA_DATA_OUT:
 	case SAT_PROTOCOL_PACKET_PIO_DATA_IN:
 	case SAT_PROTOCOL_PACKET_PIO_DATA_OUT:
-		status = scic_sds_stp_packet_request_construct(this_request);
+		status = scic_sds_stp_packet_request_construct(sci_req);
 		break;
 #endif
 
@@ -743,10 +741,10 @@ static enum sci_status scic_io_request_construct_sata(
 	case SAT_PROTOCOL_DEVICE_RESET:
 	case SAT_PROTOCOL_RETURN_RESPONSE_INFO:
 	default:
-		dev_err(scic_to_dev(this_request->owning_controller),
+		dev_err(scic_to_dev(sci_req->owning_controller),
 			"%s: SCIC IO Request 0x%p received un-handled "
 			"SAT Protocl %d.\n",
-			__func__, this_request, sat_protocol);
+			__func__, sci_req, proto);
 
 		status = SCI_FAILURE;
 		break;
@@ -945,35 +943,25 @@ enum sci_status scic_task_request_construct_ssp(
 }
 
 
-enum sci_status scic_io_request_construct_basic_sata(
-	struct scic_sds_request *sci_req)
+enum sci_status scic_io_request_construct_basic_sata(struct scic_sds_request *sci_req)
 {
 	enum sci_status status;
-	struct scic_sds_stp_request *this_stp_request;
-	u8 sat_protocol;
-	u32 transfer_length;
-	SCI_IO_REQUEST_DATA_DIRECTION data_direction;
-	bool copy_rx_frame = false;
+	struct scic_sds_stp_request *stp_req;
+	u8 proto;
+	u32 len;
+	enum dma_data_direction dir;
+	bool copy = false;
 
-	this_stp_request = (struct scic_sds_stp_request *)sci_req;
+	stp_req = container_of(sci_req, typeof(*stp_req), parent);
 
 	sci_req->protocol = SCIC_STP_PROTOCOL;
 
-	transfer_length =
-		scic_cb_io_request_get_transfer_length(sci_req->user_request);
-	data_direction =
-		scic_cb_io_request_get_data_direction(sci_req->user_request);
+	len = scic_cb_io_request_get_transfer_length(sci_req->user_request);
+	dir = scic_cb_io_request_get_data_direction(sci_req->user_request);
+	proto = scic_cb_request_get_sat_protocol(sci_req->user_request);
+	copy = scic_cb_io_request_do_copy_rx_frames(stp_req->parent.user_request);
 
-	sat_protocol = scic_cb_request_get_sat_protocol(sci_req->user_request);
-	copy_rx_frame = scic_cb_io_request_do_copy_rx_frames(this_stp_request->parent.user_request);
-
-	status = scic_io_request_construct_sata(
-		sci_req,
-		sat_protocol,
-		transfer_length,
-		data_direction,
-		copy_rx_frame
-		);
+	status = scic_io_request_construct_sata(sci_req, proto, len, dir, copy);
 
 	if (status == SCI_SUCCESS)
 		sci_base_state_machine_change_state(

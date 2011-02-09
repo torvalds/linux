@@ -139,16 +139,10 @@ u32 scic_cb_io_request_get_transfer_length(
  * @scic_user_io_request: This parameter points to the user's IO request
  *    object.  It is a cookie that allows the user to provide the necessary
  *    information for this callback.
- *
- * This method returns the value of SCI_IO_REQUEST_DATA_OUT or
- * SCI_IO_REQUEST_DATA_IN, or SCI_IO_REQUEST_NO_DATA.
  */
-SCI_IO_REQUEST_DATA_DIRECTION scic_cb_io_request_get_data_direction(
-	void *scic_user_io_request)
+enum dma_data_direction scic_cb_io_request_get_data_direction(void *req)
 {
-	return isci_request_io_request_get_data_direction(
-		       scic_user_io_request
-		       );
+	return isci_request_io_request_get_data_direction(req);
 }
 
 

@@ -288,7 +288,7 @@ void scic_sds_stp_non_ncq_request_construct(
 
 /**
  *
- * @this_request: This parameter specifies the request to be constructed as an
+ * @sci_req: This parameter specifies the request to be constructed as an
  *    optimized request.
  * @optimized_task_type: This parameter specifies whether the request is to be
  *    an UDMA request or a NCQ request. - A value of 0 indicates UDMA. - A
@@ -298,24 +298,23 @@ void scic_sds_stp_non_ncq_request_construct(
  * requests that are optimized by the silicon (i.e. UDMA, NCQ). This method
  * returns an indication as to whether the construction was successful.
  */
-static void scic_sds_stp_optimized_request_construct(
-	struct scic_sds_request *this_request,
-	u8 optimized_task_type,
-	u32 transfer_length,
-	SCI_IO_REQUEST_DATA_DIRECTION data_direction)
+static void scic_sds_stp_optimized_request_construct(struct scic_sds_request *sci_req,
+						     u8 optimized_task_type,
+						     u32 len,
+						     enum dma_data_direction dir)
 {
-	struct scu_task_context *task_context = this_request->task_context_buffer;
+	struct scu_task_context *task_context = sci_req->task_context_buffer;
 
 	/* Build the STP task context structure */
-	scu_sata_reqeust_construct_task_context(this_request, task_context);
+	scu_sata_reqeust_construct_task_context(sci_req, task_context);
 
 	/* Copy over the SGL elements */
-	scic_sds_request_build_sgl(this_request);
+	scic_sds_request_build_sgl(sci_req);
 
 	/* Copy over the number of bytes to be transfered */
-	task_context->transfer_length_bytes = transfer_length;
+	task_context->transfer_length_bytes = len;
 
-	if (data_direction == SCI_IO_REQUEST_DATA_OUT) {
+	if (dir == DMA_TO_DEVICE) {
 		/*
 		 * The difference between the DMA IN and DMA OUT request task type
 		 * values are consistent with the difference between FPDMA READ
@@ -334,29 +333,24 @@ static void scic_sds_stp_optimized_request_construct(
 
 /**
  *
- * @this_request: This parameter specifies the request to be constructed.
+ * @sci_req: This parameter specifies the request to be constructed.
  *
  * This method will construct the STP UDMA request and its associated TC data.
  * This method returns an indication as to whether the construction was
  * successful. SCI_SUCCESS Currently this method always returns this value.
  */
-enum sci_status scic_sds_stp_udma_request_construct(
-	struct scic_sds_request *this_request,
-	u32 transfer_length,
-	SCI_IO_REQUEST_DATA_DIRECTION data_direction)
+enum sci_status scic_sds_stp_udma_request_construct(struct scic_sds_request *sci_req,
+						    u32 len,
+						    enum dma_data_direction dir)
 {
-	scic_sds_stp_non_ncq_request_construct(this_request);
+	scic_sds_stp_non_ncq_request_construct(sci_req);
 
-	scic_sds_stp_optimized_request_construct(
-		this_request,
-		SCU_TASK_TYPE_DMA_IN,
-		transfer_length,
-		data_direction
-		);
+	scic_sds_stp_optimized_request_construct(sci_req, SCU_TASK_TYPE_DMA_IN,
+						 len, dir);
 
 	sci_base_state_machine_construct(
-		&this_request->started_substate_machine,
-		&this_request->parent.parent,
+		&sci_req->started_substate_machine,
+		&sci_req->parent.parent,
 		scic_sds_stp_request_started_udma_substate_table,
 		SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE
 		);
@@ -366,23 +360,19 @@ enum sci_status scic_sds_stp_udma_request_construct(
 
 /**
  *
- * @this_request: This parameter specifies the request to be constructed.
+ * @sci_req: This parameter specifies the request to be constructed.
  *
  * This method will construct the STP UDMA request and its associated TC data.
  * This method returns an indication as to whether the construction was
  * successful. SCI_SUCCESS Currently this method always returns this value.
  */
-enum sci_status scic_sds_stp_ncq_request_construct(
-	struct scic_sds_request *this_request,
-	u32 transfer_length,
-	SCI_IO_REQUEST_DATA_DIRECTION data_direction)
+enum sci_status scic_sds_stp_ncq_request_construct(struct scic_sds_request *sci_req,
+						   u32 len,
+						   enum dma_data_direction dir)
 {
-	scic_sds_stp_optimized_request_construct(
-		this_request,
-		SCU_TASK_TYPE_FPDMAQ_READ,
-		transfer_length,
-		data_direction
-		);
+	scic_sds_stp_optimized_request_construct(sci_req,
+						 SCU_TASK_TYPE_FPDMAQ_READ,
+						 len, dir);
 	return SCI_SUCCESS;
 }
 

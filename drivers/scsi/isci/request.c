@@ -1237,44 +1237,12 @@ u32 isci_request_io_request_get_transfer_length(struct isci_request *request)
  *
  * data direction for specified request.
  */
-SCI_IO_REQUEST_DATA_DIRECTION isci_request_io_request_get_data_direction(
+enum dma_data_direction isci_request_io_request_get_data_direction(
 	struct isci_request *request)
 {
 	struct sas_task *task = isci_request_access_task(request);
-	SCI_IO_REQUEST_DATA_DIRECTION ret;
 
-	switch (task->data_dir) {
-
-	case DMA_FROM_DEVICE:
-		ret = SCI_IO_REQUEST_DATA_IN;
-		dev_dbg(&request->isci_host->pdev->dev,
-			"%s: request=%p, FROM_DEVICE\n",
-			__func__,
-			request);
-		break;
-
-	case DMA_TO_DEVICE:
-		ret = SCI_IO_REQUEST_DATA_OUT;
-		dev_dbg(&request->isci_host->pdev->dev,
-			"%s: request=%p, TO_DEVICE\n",
-			__func__,
-			request);
-		break;
-
-	case DMA_BIDIRECTIONAL:
-	case DMA_NONE:
-	default:
-		ret = SCI_IO_REQUEST_NO_DATA;
-		dev_dbg(&request->isci_host->pdev->dev,
-			"%s: request=%p, unhandled direction case, "
-			"data_dir=%d\n",
-			__func__,
-			request,
-			task->data_dir);
-		break;
-
-	}
-	return ret;
+	return task->data_dir;
 }
 
 /**
