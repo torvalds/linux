@@ -59,6 +59,7 @@
 #include <mach/bcm_bt_lpm.h>
 
 #include <linux/usb/android_composite.h>
+#include <linux/usb/f_accessory.h>
 
 #include "board.h"
 #include "board-stingray.h"
@@ -241,11 +242,18 @@ static struct tegra_audio_platform_data tegra_spdif_pdata = {
 
 static char *usb_functions_mtp[] = { "mtp" };
 static char *usb_functions_mtp_adb[] = { "mtp", "adb" };
+#ifdef CONFIG_USB_ANDROID_ACCESSORY
+static char *usb_functions_accessory[] = { "accessory" };
+static char *usb_functions_accessory_adb[] = { "accessory", "adb" };
+#endif
 #ifdef CONFIG_USB_ANDROID_RNDIS
 static char *usb_functions_rndis[] = { "rndis" };
 static char *usb_functions_rndis_adb[] = { "rndis", "adb" };
 #endif
 static char *usb_functions_all[] = {
+#ifdef CONFIG_USB_ANDROID_ACCESSORY
+	"accessory",
+#endif
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	"rndis",
 #endif
@@ -264,6 +272,20 @@ static struct android_usb_product usb_products[] = {
 		.num_functions	= ARRAY_SIZE(usb_functions_mtp_adb),
 		.functions	= usb_functions_mtp_adb,
 	},
+#ifdef CONFIG_USB_ANDROID_ACCESSORY
+	{
+		.vendor_id	= USB_ACCESSORY_VENDOR_ID,
+		.product_id	= USB_ACCESSORY_PRODUCT_ID,
+		.num_functions	= ARRAY_SIZE(usb_functions_accessory),
+		.functions	= usb_functions_accessory,
+	},
+	{
+		.vendor_id	= USB_ACCESSORY_VENDOR_ID,
+		.product_id	= USB_ACCESSORY_ADB_PRODUCT_ID,
+		.num_functions	= ARRAY_SIZE(usb_functions_accessory_adb),
+		.functions	= usb_functions_accessory_adb,
+	},
+#endif
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	{
 		.product_id	= USB_PRODUCT_ID_RNDIS,
