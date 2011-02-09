@@ -115,7 +115,7 @@ static struct mipid_platform_data nokia770_mipid_platform_data = {
 	.shutdown = mipid_shutdown,
 };
 
-static void mipid_dev_init(void)
+static void __init mipid_dev_init(void)
 {
 	const struct omap_lcd_config *conf;
 
@@ -126,7 +126,7 @@ static void mipid_dev_init(void)
 	}
 }
 
-static void ads7846_dev_init(void)
+static void __init ads7846_dev_init(void)
 {
 	if (gpio_request(ADS7846_PENDOWN_GPIO, "ADS7846 pendown") < 0)
 		printk(KERN_ERR "can't get ads7846 pen down GPIO\n");
@@ -170,7 +170,7 @@ static struct hwa742_platform_data nokia770_hwa742_platform_data = {
 	.te_connected		= 1,
 };
 
-static void hwa742_dev_init(void)
+static void __init hwa742_dev_init(void)
 {
 	clk_add_alias("hwa_sys_ck", NULL, "bclk", NULL);
 	omapfb_set_ctrl_platform_data(&nokia770_hwa742_platform_data);
