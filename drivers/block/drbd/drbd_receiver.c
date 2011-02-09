@@ -4279,16 +4279,17 @@ static int got_RqSReply(struct drbd_conf *mdev, enum drbd_packet cmd)
 
 static int got_Ping(struct drbd_conf *mdev, enum drbd_packet cmd)
 {
-	return drbd_send_ping_ack(mdev);
+	return drbd_send_ping_ack(mdev->tconn);
 
 }
 
 static int got_PingAck(struct drbd_conf *mdev, enum drbd_packet cmd)
 {
+	struct drbd_tconn *tconn = mdev->tconn;
 	/* restore idle timeout */
-	mdev->tconn->meta.socket->sk->sk_rcvtimeo = mdev->tconn->net_conf->ping_int*HZ;
-	if (!test_and_set_bit(GOT_PING_ACK, &mdev->flags))
-		wake_up(&mdev->misc_wait);
+	tconn->meta.socket->sk->sk_rcvtimeo = tconn->net_conf->ping_int*HZ;
+	if (!test_and_set_bit(GOT_PING_ACK, &tconn->flags))
+		wake_up(&tconn->ping_wait);
 
 	return true;
 }
@@ -4610,7 +4611,7 @@ int drbd_asender(struct drbd_thread *thi)
 	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(thi);
 		if (test_and_clear_bit(SEND_PING, &tconn->flags)) {
-			if (!drbd_send_ping(tconn->volume0)) {
+			if (!drbd_send_ping(tconn)) {
 				conn_err(tconn, "drbd_send_ping has failed\n");
 				goto reconnect;
 			}

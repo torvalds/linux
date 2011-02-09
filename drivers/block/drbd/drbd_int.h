@@ -790,7 +790,6 @@ enum {
 	RESIZE_PENDING,		/* Size change detected locally, waiting for the response from
 				 * the peer, if it changed there as well. */
 	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
-	GOT_PING_ACK,		/* set when we receive a ping_ack packet, misc wait gets woken */
 	NEW_CUR_UUID,		/* Create new current UUID when thawing IO */
 	AL_SUSPENDED,		/* Activity logging is currently suspended. */
 	AHEAD_TO_SYNC_SOURCE,   /* Ahead -> SyncSource queued */
@@ -913,6 +912,7 @@ enum {
 	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
 	SEND_PING,		/* whether asender should send a ping asap */
 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
+	GOT_PING_ACK,		/* set when we receive a ping_ack packet, ping_wait gets woken */
 };
 
 struct drbd_tconn {			/* is a resource from the config file */
@@ -925,6 +925,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
 	atomic_t net_cnt;		/* Users of net_conf */
 	wait_queue_head_t net_cnt_wait;
+	wait_queue_head_t ping_wait;		/* Woken upon reception of a ping, and a state change */
 
 	struct drbd_socket data;	/* data/barrier/cstate/parameter packets */
 	struct drbd_socket meta;	/* ping/ack (metadata) packets */
@@ -1180,12 +1181,12 @@ extern int drbd_send_state(struct drbd_conf *mdev);
 extern int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct socket *sock,
 			  enum drbd_packet cmd, struct p_header *h, size_t size,
 			  unsigned msg_flags);
+extern int conn_send_cmd(struct drbd_tconn *tconn, int vnr, int use_data_socket,
+			 enum drbd_packet cmd, struct p_header *h, size_t size);
 extern int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd,
 			  char *data, size_t size);
 #define USE_DATA_SOCKET 1
 #define USE_META_SOCKET 0
-extern int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
-			 enum drbd_packet cmd, struct p_header *h, size_t size);
 extern int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc);
 extern int drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
 			u32 set_size);
@@ -1886,6 +1887,12 @@ static inline int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
 	return _conn_send_cmd(mdev->tconn, mdev->vnr, sock, cmd, h, size, msg_flags);
 }
 
+static inline int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
+				enum drbd_packet cmd, struct p_header *h, size_t size)
+{
+	return conn_send_cmd(mdev->tconn, mdev->vnr, use_data_socket, cmd, h, size);
+}
+
 static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
 				      enum drbd_packet cmd)
 {
@@ -1893,16 +1900,16 @@ static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
 	return drbd_send_cmd(mdev, USE_DATA_SOCKET, cmd, &h, sizeof(h));
 }
 
-static inline int drbd_send_ping(struct drbd_conf *mdev)
+static inline int drbd_send_ping(struct drbd_tconn *tconn)
 {
 	struct p_header h;
-	return drbd_send_cmd(mdev, USE_META_SOCKET, P_PING, &h, sizeof(h));
+	return conn_send_cmd(tconn, 0, USE_META_SOCKET, P_PING, &h, sizeof(h));
 }
 
-static inline int drbd_send_ping_ack(struct drbd_conf *mdev)
+static inline int drbd_send_ping_ack(struct drbd_tconn *tconn)
 {
 	struct p_header h;
-	return drbd_send_cmd(mdev, USE_META_SOCKET, P_PING_ACK, &h, sizeof(h));
+	return conn_send_cmd(tconn, 0, USE_META_SOCKET, P_PING_ACK, &h, sizeof(h));
 }
 
 static inline void drbd_thread_stop(struct drbd_thread *thi)

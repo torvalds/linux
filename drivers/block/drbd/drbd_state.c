@@ -737,6 +737,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 
 	wake_up(&mdev->misc_wait);
 	wake_up(&mdev->state_wait);
+	wake_up(&mdev->tconn->ping_wait);
 
 	/* aborted verify run. log the last position */
 	if ((os.conn == C_VERIFY_S || os.conn == C_VERIFY_T) &&

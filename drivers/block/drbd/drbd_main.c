@@ -707,29 +707,29 @@ int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct socket *sock,
 /* don't pass the socket. we may only look at it
  * when we hold the appropriate socket mutex.
  */
-int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
+int conn_send_cmd(struct drbd_tconn *tconn, int vnr, int use_data_socket,
 		  enum drbd_packet cmd, struct p_header *h, size_t size)
 {
 	int ok = 0;
 	struct socket *sock;
 
 	if (use_data_socket) {
-		mutex_lock(&mdev->tconn->data.mutex);
-		sock = mdev->tconn->data.socket;
+		mutex_lock(&tconn->data.mutex);
+		sock = tconn->data.socket;
 	} else {
-		mutex_lock(&mdev->tconn->meta.mutex);
-		sock = mdev->tconn->meta.socket;
+		mutex_lock(&tconn->meta.mutex);
+		sock = tconn->meta.socket;
 	}
 
 	/* drbd_disconnect() could have called drbd_free_sock()
 	 * while we were waiting in down()... */
 	if (likely(sock != NULL))
-		ok = _drbd_send_cmd(mdev, sock, cmd, h, size, 0);
+		ok = _conn_send_cmd(tconn, vnr, sock, cmd, h, size, 0);
 
 	if (use_data_socket)
-		mutex_unlock(&mdev->tconn->data.mutex);
+		mutex_unlock(&tconn->data.mutex);
 	else
-		mutex_unlock(&mdev->tconn->meta.mutex);
+		mutex_unlock(&tconn->meta.mutex);
 	return ok;
 }
 
@@ -2191,6 +2191,7 @@ struct drbd_tconn *drbd_new_tconn(char *name)
 	spin_lock_init(&tconn->req_lock);
 	atomic_set(&tconn->net_cnt, 0);
 	init_waitqueue_head(&tconn->net_cnt_wait);
+	init_waitqueue_head(&tconn->ping_wait);
 	idr_init(&tconn->volumes);
 
 	drbd_init_workqueue(&tconn->data.work);

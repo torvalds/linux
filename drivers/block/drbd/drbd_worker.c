@@ -730,10 +730,12 @@ static int w_resync_finished(struct drbd_work *w, int cancel)
 
 static void ping_peer(struct drbd_conf *mdev)
 {
-	clear_bit(GOT_PING_ACK, &mdev->flags);
-	request_ping(mdev->tconn);
-	wait_event(mdev->misc_wait,
-		   test_bit(GOT_PING_ACK, &mdev->flags) || mdev->state.conn < C_CONNECTED);
+	struct drbd_tconn *tconn = mdev->tconn;
+
+	clear_bit(GOT_PING_ACK, &tconn->flags);
+	request_ping(tconn);
+	wait_event(tconn->ping_wait,
+		   test_bit(GOT_PING_ACK, &tconn->flags) || mdev->state.conn < C_CONNECTED);
 }
 
 int drbd_resync_finished(struct drbd_conf *mdev)
