@@ -868,7 +868,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	}
 
 	ioarea = request_mem_region(mem->start,
-			(mem->end - mem->start) + 1, pdev->name);
+			resource_size(mem), pdev->name);
 	if (!ioarea) {
 		dev_err(&pdev->dev, "Audio region already claimed\n");
 		ret = -EBUSY;
@@ -933,7 +933,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	return 0;
 
 err_release_region:
-	release_mem_region(mem->start, (mem->end - mem->start) + 1);
+	release_mem_region(mem->start, resource_size(mem));
 err_release_data:
 	kfree(dev);
 
@@ -951,7 +951,7 @@ static int davinci_mcasp_remove(struct platform_device *pdev)
 	dev->clk = NULL;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mem->start, (mem->end - mem->start) + 1);
+	release_mem_region(mem->start, resource_size(mem));
 
 	kfree(dev);
 
