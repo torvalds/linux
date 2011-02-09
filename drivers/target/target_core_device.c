@@ -373,11 +373,11 @@ int core_update_device_list_for_node(
 		/*
 		 * deve->se_lun_acl will be NULL for demo-mode created LUNs
 		 * that have not been explictly concerted to MappedLUNs ->
-		 * struct se_lun_acl.
+		 * struct se_lun_acl, but we remove deve->alua_port_list from
+		 * port->sep_alua_list. This also means that active UAs and
+		 * NodeACL context specific PR metadata for demo-mode
+		 * MappedLUN *deve will be released below..
 		 */
-		if (!(deve->se_lun_acl))
-			return 0;
-
 		spin_lock_bh(&port->sep_alua_lock);
 		list_del(&deve->alua_port_list);
 		spin_unlock_bh(&port->sep_alua_lock);
