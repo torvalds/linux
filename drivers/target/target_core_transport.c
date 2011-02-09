@@ -4827,6 +4827,8 @@ static int transport_do_se_mem_map(
 
 		return ret;
 	}
+
+	BUG_ON(list_empty(se_mem_list));
 	/*
 	 * This is the normal path for all normal non BIDI and BIDI-COMMAND
 	 * WRITE payloads..  If we need to do BIDI READ passthrough for
@@ -5008,7 +5010,9 @@ transport_map_control_cmd_to_task(struct se_cmd *cmd)
 		struct se_mem *se_mem = NULL, *se_mem_lout = NULL;
 		u32 se_mem_cnt = 0, task_offset = 0;
 
-		BUG_ON(list_empty(cmd->t_task->t_mem_list));
+		if (!list_empty(T_TASK(cmd)->t_mem_list))
+			se_mem = list_entry(T_TASK(cmd)->t_mem_list->next,
+					struct se_mem, se_list);
 
 		ret = transport_do_se_mem_map(dev, task,
 				cmd->t_task->t_mem_list, NULL, se_mem,
