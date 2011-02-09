@@ -1600,4 +1600,13 @@ config SERIAL_PCH_UART
 	  Output Hub) which is for IVI(In-Vehicle Infotainment) use.
 	  ML7213 is companion chip for Intel Atom E6xx series.
 	  ML7213 is completely compatible for Intel EG20T PCH.
+
+config SERIAL_MSM_SMD
+	bool "Enable tty device interface for some SMD ports"
+	default n
+	depends on MSM_SMD
+	help
+	  Enables userspace clients to read and write to some streaming SMD
+	  ports via tty device interface for MSM chipset.
+
 endmenu
