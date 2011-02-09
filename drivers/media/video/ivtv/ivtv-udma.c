@@ -132,7 +132,12 @@ int ivtv_udma_setup(struct ivtv *itv, unsigned long ivtv_dest_addr,
 	if (user_dma.page_count != err) {
 		IVTV_DEBUG_WARN("failed to map user pages, returned %d instead of %d\n",
 			   err, user_dma.page_count);
-		return -EINVAL;
+		if (err >= 0) {
+			for (i = 0; i < err; i++)
+				put_page(dma->map[i]);
+			return -EINVAL;
+		}
+		return err;
 	}
 
 	dma->page_count = user_dma.page_count;
