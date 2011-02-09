@@ -625,7 +625,7 @@ struct drbd_thread {
 	struct completion stop;
 	enum drbd_thread_state t_state;
 	int (*function) (struct drbd_thread *);
-	struct drbd_conf *mdev;
+	struct drbd_tconn *tconn;
 	int reset_cpu_mask;
 	char name[9];
 };
@@ -1151,7 +1151,7 @@ enum dds_flags {
 extern void drbd_init_set_defaults(struct drbd_conf *mdev);
 extern int  drbd_thread_start(struct drbd_thread *thi);
 extern void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait);
-extern char *drbd_task_to_thread_name(struct drbd_conf *mdev, struct task_struct *task);
+extern char *drbd_task_to_thread_name(struct drbd_tconn *tconn, struct task_struct *task);
 #ifdef CONFIG_SMP
 extern void drbd_thread_current_set_cpu(struct drbd_thread *thi);
 extern void drbd_calc_cpu_mask(struct drbd_tconn *tconn);

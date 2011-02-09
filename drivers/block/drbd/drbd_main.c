@@ -442,12 +442,12 @@ void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 static int drbd_thread_setup(void *arg)
 {
 	struct drbd_thread *thi = (struct drbd_thread *) arg;
-	struct drbd_conf *mdev = thi->mdev;
+	struct drbd_tconn *tconn = thi->tconn;
 	unsigned long flags;
 	int retval;
 
 	snprintf(current->comm, sizeof(current->comm), "drbd_%c_%s",
-		 thi->name[0], thi->mdev->tconn->name);
+		 thi->name[0], thi->tconn->name);
 
 restart:
 	retval = thi->function(thi);
@@ -465,7 +465,7 @@ restart:
 	 */
 
 	if (thi->t_state == RESTARTING) {
-		dev_info(DEV, "Restarting %s thread\n", thi->name);
+		conn_info(tconn, "Restarting %s thread\n", thi->name);
 		thi->t_state = RUNNING;
 		spin_unlock_irqrestore(&thi->t_lock, flags);
 		goto restart;
@@ -477,27 +477,27 @@ restart:
 	complete(&thi->stop);
 	spin_unlock_irqrestore(&thi->t_lock, flags);
 
-	dev_info(DEV, "Terminating %s\n", current->comm);
+	conn_info(tconn, "Terminating %s\n", current->comm);
 
 	/* Release mod reference taken when thread was started */
 	module_put(THIS_MODULE);
 	return retval;
 }
 
-static void drbd_thread_init(struct drbd_conf *mdev, struct drbd_thread *thi,
+static void drbd_thread_init(struct drbd_tconn *tconn, struct drbd_thread *thi,
 			     int (*func) (struct drbd_thread *), char *name)
 {
 	spin_lock_init(&thi->t_lock);
 	thi->task    = NULL;
 	thi->t_state = NONE;
 	thi->function = func;
-	thi->mdev = mdev;
+	thi->tconn = tconn;
 	strncpy(thi->name, name, ARRAY_SIZE(thi->name));
 }
 
 int drbd_thread_start(struct drbd_thread *thi)
 {
-	struct drbd_conf *mdev = thi->mdev;
+	struct drbd_tconn *tconn = thi->tconn;
 	struct task_struct *nt;
 	unsigned long flags;
 
@@ -507,28 +507,27 @@ int drbd_thread_start(struct drbd_thread *thi)
 
 	switch (thi->t_state) {
 	case NONE:
-		dev_info(DEV, "Starting %s thread (from %s [%d])\n",
+		conn_info(tconn, "Starting %s thread (from %s [%d])\n",
 			 thi->name, current->comm, current->pid);
 
 		/* Get ref on module for thread - this is released when thread exits */
 		if (!try_module_get(THIS_MODULE)) {
-			dev_err(DEV, "Failed to get module reference in drbd_thread_start\n");
+			conn_err(tconn, "Failed to get module reference in drbd_thread_start\n");
 			spin_unlock_irqrestore(&thi->t_lock, flags);
 			return false;
 		}
 
 		init_completion(&thi->stop);
-		D_ASSERT(thi->task == NULL);
 		thi->reset_cpu_mask = 1;
 		thi->t_state = RUNNING;
 		spin_unlock_irqrestore(&thi->t_lock, flags);
 		flush_signals(current); /* otherw. may get -ERESTARTNOINTR */
 
 		nt = kthread_create(drbd_thread_setup, (void *) thi,
-				    "drbd%d_%s", mdev_to_minor(mdev), thi->name);
+				    "drbd_%c_%s", thi->name[0], thi->tconn->name);
 
 		if (IS_ERR(nt)) {
-			dev_err(DEV, "Couldn't start thread\n");
+			conn_err(tconn, "Couldn't start thread\n");
 
 			module_put(THIS_MODULE);
 			return false;
@@ -541,7 +540,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 		break;
 	case EXITING:
 		thi->t_state = RESTARTING;
-		dev_info(DEV, "Restarting %s thread (from %s [%d])\n",
+		conn_info(tconn, "Restarting %s thread (from %s [%d])\n",
 				thi->name, current->comm, current->pid);
 		/* fall through */
 	case RUNNING:
@@ -582,7 +581,6 @@ void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait)
 		init_completion(&thi->stop);
 		if (thi->task != current)
 			force_sig(DRBD_SIGKILL, thi->task);
-
 	}
 
 	spin_unlock_irqrestore(&thi->t_lock, flags);
@@ -591,9 +589,8 @@ void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait)
 		wait_for_completion(&thi->stop);
 }
 
-static struct drbd_thread *drbd_task_to_thread(struct drbd_conf *mdev, struct task_struct *task)
+static struct drbd_thread *drbd_task_to_thread(struct drbd_tconn *tconn, struct task_struct *task)
 {
-	struct drbd_tconn *tconn = mdev->tconn;
 	struct drbd_thread *thi =
 		task == tconn->receiver.task ? &tconn->receiver :
 		task == tconn->asender.task  ? &tconn->asender :
@@ -602,9 +599,9 @@ static struct drbd_thread *drbd_task_to_thread(struct drbd_conf *mdev, struct ta
 	return thi;
 }
 
-char *drbd_task_to_thread_name(struct drbd_conf *mdev, struct task_struct *task)
+char *drbd_task_to_thread_name(struct drbd_tconn *tconn, struct task_struct *task)
 {
-	struct drbd_thread *thi = drbd_task_to_thread(mdev, task);
+	struct drbd_thread *thi = drbd_task_to_thread(tconn, task);
 	return thi ? thi->name : task->comm;
 }
 
@@ -656,7 +653,7 @@ void drbd_thread_current_set_cpu(struct drbd_thread *thi)
 	if (!thi->reset_cpu_mask)
 		return;
 	thi->reset_cpu_mask = 0;
-	set_cpus_allowed_ptr(p, thi->mdev->tconn->cpu_mask);
+	set_cpus_allowed_ptr(p, thi->tconn->cpu_mask);
 }
 #endif
 
@@ -1866,10 +1863,6 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	init_waitqueue_head(&mdev->al_wait);
 	init_waitqueue_head(&mdev->seq_wait);
 
-	drbd_thread_init(mdev, &mdev->tconn->receiver, drbdd_init, "receiver");
-	drbd_thread_init(mdev, &mdev->tconn->worker, drbd_worker, "worker");
-	drbd_thread_init(mdev, &mdev->tconn->asender, drbd_asender, "asender");
-
 	/* mdev->tconn->agreed_pro_version gets initialized in drbd_connect() */
 	mdev->write_ordering = WO_bdev_flush;
 	mdev->resync_wenr = LC_FREE;
@@ -2201,6 +2194,10 @@ struct drbd_tconn *drbd_new_tconn(char *name)
 	atomic_set(&tconn->net_cnt, 0);
 	init_waitqueue_head(&tconn->net_cnt_wait);
 	idr_init(&tconn->volumes);
+
+	drbd_thread_init(tconn, &tconn->receiver, drbdd_init, "receiver");
+	drbd_thread_init(tconn, &tconn->worker, drbd_worker, "worker");
+	drbd_thread_init(tconn, &tconn->asender, drbd_asender, "asender");
 
 	write_lock_irq(&global_state_lock);
 	list_add(&tconn->all_tconn, &drbd_tconns);

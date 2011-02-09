@@ -1643,7 +1643,7 @@ static int _worker_dying(int vnr, void *p, void *data)
 
 int drbd_worker(struct drbd_thread *thi)
 {
-	struct drbd_tconn *tconn = thi->mdev->tconn;
+	struct drbd_tconn *tconn = thi->tconn;
 	struct drbd_work *w = NULL;
 	LIST_HEAD(work_list);
 	int intr = 0;
