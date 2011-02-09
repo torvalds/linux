@@ -49,17 +49,15 @@ static const void *get_config(u16 tag, size_t len, int skip, size_t *len_out)
 	return kinfo->data;
 }
 
-const void *__omap_get_config(u16 tag, size_t len, int nr)
+const void *__init __omap_get_config(u16 tag, size_t len, int nr)
 {
         return get_config(tag, len, nr, NULL);
 }
-EXPORT_SYMBOL(__omap_get_config);
 
-const void *omap_get_var_config(u16 tag, size_t *len)
+const void *__init omap_get_var_config(u16 tag, size_t *len)
 {
         return get_config(tag, NO_LENGTH_CHECK, 0, len);
 }
-EXPORT_SYMBOL(omap_get_var_config);
 
 void __init omap_reserve(void)
 {
