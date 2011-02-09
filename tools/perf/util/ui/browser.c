@@ -1,4 +1,5 @@
 #include "libslang.h"
+#include "ui.h"
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -178,6 +179,7 @@ int ui_browser__show(struct ui_browser *self, const char *title,
 	if (self->sb == NULL)
 		return -1;
 
+	pthread_mutex_lock(&ui__lock);
 	SLsmg_gotorc(0, 0);
 	ui_browser__set_color(self, NEWT_COLORSET_ROOT);
 	slsmg_write_nstring(title, self->width);
@@ -188,25 +190,30 @@ int ui_browser__show(struct ui_browser *self, const char *title,
 	va_start(ap, helpline);
 	ui_helpline__vpush(helpline, ap);
 	va_end(ap);
+	pthread_mutex_unlock(&ui__lock);
 	return 0;
 }
 
 void ui_browser__hide(struct ui_browser *self)
 {
+	pthread_mutex_lock(&ui__lock);
 	newtFormDestroy(self->form);
 	self->form = NULL;
 	ui_helpline__pop();
+	pthread_mutex_unlock(&ui__lock);
 }
 
 int ui_browser__refresh(struct ui_browser *self)
 {
 	int row;
 
+	pthread_mutex_lock(&ui__lock);
 	newtScrollbarSet(self->sb, self->index, self->nr_entries - 1);
 	row = self->refresh(self);
 	ui_browser__set_color(self, HE_COLORSET_NORMAL);
 	SLsmg_fill_region(self->y + row, self->x,
 			  self->height - row, self->width, ' ');
+	pthread_mutex_unlock(&ui__lock);
 
 	return 0;
 }

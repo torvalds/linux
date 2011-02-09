@@ -637,6 +637,7 @@ else
 		LIB_H += util/ui/libslang.h
 		LIB_H += util/ui/progress.h
 		LIB_H += util/ui/util.h
+		LIB_H += util/ui/ui.h
 	endif
 endif
 
