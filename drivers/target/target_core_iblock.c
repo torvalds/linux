@@ -220,8 +220,10 @@ static void iblock_free_device(void *p)
 {
 	struct iblock_dev *ib_dev = p;
 
-	blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
-	bioset_free(ib_dev->ibd_bio_set);
+	if (ib_dev->ibd_bd != NULL)
+		blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
+	if (ib_dev->ibd_bio_set != NULL)
+		bioset_free(ib_dev->ibd_bio_set);
 	kfree(ib_dev);
 }
 
