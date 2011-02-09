@@ -3178,8 +3178,7 @@ static void target_core_exit_configfs(void)
 		config_item_put(item);
 	}
 	kfree(lu_gp_cg->default_groups);
-	core_alua_free_lu_gp(se_global->default_lu_gp);
-	se_global->default_lu_gp = NULL;
+	lu_gp_cg->default_groups = NULL;
 
 	alua_cg = &se_global->alua_group;
 	for (i = 0; alua_cg->default_groups[i]; i++) {
@@ -3188,6 +3187,7 @@ static void target_core_exit_configfs(void)
 		config_item_put(item);
 	}
 	kfree(alua_cg->default_groups);
+	alua_cg->default_groups = NULL;
 
 	hba_cg = &se_global->target_core_hbagroup;
 	for (i = 0; hba_cg->default_groups[i]; i++) {
@@ -3196,15 +3196,17 @@ static void target_core_exit_configfs(void)
 		config_item_put(item);
 	}
 	kfree(hba_cg->default_groups);
-
-	for (i = 0; subsys->su_group.default_groups[i]; i++) {
-		item = &subsys->su_group.default_groups[i]->cg_item;
-		subsys->su_group.default_groups[i] = NULL;
-		config_item_put(item);
-	}
+	hba_cg->default_groups = NULL;
+	/*
+	 * We expect subsys->su_group.default_groups to be released
+	 * by configfs subsystem provider logic..
+	 */
+	configfs_unregister_subsystem(subsys);
 	kfree(subsys->su_group.default_groups);
 
-	configfs_unregister_subsystem(subsys);
+	core_alua_free_lu_gp(se_global->default_lu_gp);
+	se_global->default_lu_gp = NULL;
+
 	printk(KERN_INFO "TARGET_CORE[0]: Released ConfigFS Fabric"
 			" Infrastructure\n");
 
