@@ -1110,38 +1110,6 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
 }
 
 /**
- * smk_mmap_list_check - the mmap check
- * @sub: subject label
- * @obj: object label
- * @access: access mode
- * @local: the task specific rule list
- *
- * Returns 0 if acces is permitted, -EACCES otherwise
- */
-static int smk_mmap_list_check(char *sub, char *obj, int access,
-				struct list_head *local)
-{
-	int may;
-
-	/*
-	 * If there is not a global rule that
-	 * allows access say no.
-	 */
-	may = smk_access_entry(sub, obj, &smack_rule_list);
-	if (may == -ENOENT || (may & access) != access)
-		return -EACCES;
-	/*
-	 * If there is a task local rule that
-	 * denies access say no.
-	 */
-	may = smk_access_entry(sub, obj, local);
-	if (may != -ENOENT && (may & access) != access)
-		return -EACCES;
-
-	return 0;
-}
-
-/**
  * smack_file_mmap :
  * Check permissions for a mmap operation.  The @file may be NULL, e.g.
  * if mapping anonymous memory.
@@ -1160,8 +1128,12 @@ static int smack_file_mmap(struct file *file,
 	struct task_smack *tsp;
 	char *sp;
 	char *msmack;
+	char *osmack;
 	struct inode_smack *isp;
 	struct dentry *dp;
+	int may;
+	int mmay;
+	int tmay;
 	int rc;
 
 	/* do DAC check on address space usage */
@@ -1199,16 +1171,57 @@ static int smack_file_mmap(struct file *file,
 	list_for_each_entry_rcu(srp, &smack_rule_list, list) {
 		if (srp->smk_subject != sp)
 			continue;
+
+		osmack = srp->smk_object;
 		/*
 		 * Matching labels always allows access.
 		 */
-		if (msmack == srp->smk_object)
+		if (msmack == osmack)
+			continue;
+		/*
+		 * If there is a matching local rule take
+		 * that into account as well.
+		 */
+		may = smk_access_entry(srp->smk_subject, osmack,
+					&tsp->smk_rules);
+		if (may == -ENOENT)
+			may = srp->smk_access;
+		else
+			may &= srp->smk_access;
+		/*
+		 * If may is zero the SMACK64MMAP subject can't
+		 * possibly have less access.
+		 */
+		if (may == 0)
 			continue;
 
-		rc = smk_mmap_list_check(msmack, srp->smk_object,
-					 srp->smk_access, &tsp->smk_rules);
-		if (rc != 0)
+		/*
+		 * Fetch the global list entry.
+		 * If there isn't one a SMACK64MMAP subject
+		 * can't have as much access as current.
+		 */
+		mmay = smk_access_entry(msmack, osmack, &smack_rule_list);
+		if (mmay == -ENOENT) {
+			rc = -EACCES;
 			break;
+		}
+		/*
+		 * If there is a local entry it modifies the
+		 * potential access, too.
+		 */
+		tmay = smk_access_entry(msmack, osmack, &tsp->smk_rules);
+		if (tmay != -ENOENT)
+			mmay &= tmay;
+
+		/*
+		 * If there is any access available to current that is
+		 * not available to a SMACK64MMAP subject
+		 * deny access.
+		 */
+		if ((may | mmay) != may) {
+			rc = -EACCES;
+			break;
+		}
 	}
 
 	rcu_read_unlock();
