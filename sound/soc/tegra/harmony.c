@@ -225,7 +225,7 @@ static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link harmony_wm8903_dai = {
 	.name = "WM8903",
 	.stream_name = "WM8903 PCM",
-	.codec_name = "wm8903-codec.0-001a",
+	.codec_name = "wm8903.0-001a",
 	.platform_name = "tegra-pcm-audio",
 	.cpu_dai_name = "tegra-i2s.0",
 	.codec_dai_name = "wm8903-hifi",
