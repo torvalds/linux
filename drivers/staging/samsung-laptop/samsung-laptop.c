@@ -446,7 +446,7 @@ static ssize_t get_performance_level(struct device *dev,
 {
 	struct sabi_retval sretval;
 	int retval;
-	int pLevel;
+	int i;
 
 	/* Read the state */
 	retval = sabi_get_command(sabi_config->commands.get_performance_level,
@@ -455,9 +455,9 @@ static ssize_t get_performance_level(struct device *dev,
 		return retval;
 
 	/* The logic is backwards, yeah, lots of fun... */
-	for (pLevel = 0; sabi_config->performance_levels[pLevel].name; ++pLevel) {
-		if (sretval.retval[0] == sabi_config->performance_levels[pLevel].value)
-			return sprintf(buf, "%s\n", sabi_config->performance_levels[pLevel].name);
+	for (i = 0; sabi_config->performance_levels[i].name; ++i) {
+		if (sretval.retval[0] == sabi_config->performance_levels[i].value)
+			return sprintf(buf, "%s\n", sabi_config->performance_levels[i].name);
 	}
 	return sprintf(buf, "%s\n", "unknown");
 }
@@ -467,17 +467,17 @@ static ssize_t set_performance_level(struct device *dev,
 				size_t count)
 {
 	if (count >= 1) {
-		int pLevel;
-		for (pLevel = 0; sabi_config->performance_levels[pLevel].name; ++pLevel) {
+		int i;
+		for (i = 0; sabi_config->performance_levels[i].name; ++i) {
 			struct sabi_performance_level *level =
-				&sabi_config->performance_levels[pLevel];
+				&sabi_config->performance_levels[i];
 			if (!strncasecmp(level->name, buf, strlen(level->name))) {
 				sabi_set_command(sabi_config->commands.set_performance_level,
 						 level->value);
 				break;
 			}
 		}
-		if (!sabi_config->performance_levels[pLevel].name)
+		if (!sabi_config->performance_levels[i].name)
 			return -EINVAL;
 	}
 	return count;
@@ -530,18 +530,18 @@ MODULE_DEVICE_TABLE(dmi, samsung_dmi_table);
 
 static int find_signature(void __iomem *memcheck, const char *testStr)
 {
-	int pStr;
+	int i = 0;
 	int loca;
-	pStr = 0;
+
 	for (loca = 0; loca < 0xffff; loca++) {
 		char temp = readb(memcheck + loca);
 
-		if (temp == testStr[pStr]) {
-			if (pStr == strlen(testStr)-1)
+		if (temp == testStr[i]) {
+			if (i == strlen(testStr)-1)
 				break;
-			++pStr;
+			++i;
 		} else {
-			pStr = 0;
+			i = 0;
 		}
 	}
 	return loca;
@@ -552,7 +552,7 @@ static int __init samsung_init(void)
 	struct backlight_properties props;
 	struct sabi_retval sretval;
 	unsigned int ifaceP;
-	int pConfig;
+	int i;
 	int loca;
 	int retval;
 
@@ -568,8 +568,8 @@ static int __init samsung_init(void)
 	}
 
 	/* Try to find one of the signatures in memory to find the header */
-	for (pConfig = 0; sabi_configs[pConfig].test_string != 0; ++pConfig) {
-		sabi_config = &sabi_configs[pConfig];
+	for (i = 0; sabi_configs[i].test_string != 0; ++i) {
+		sabi_config = &sabi_configs[i];
 		loca = find_signature(f0000_segment, sabi_config->test_string);
 		if (loca != 0xffff)
 			break;
