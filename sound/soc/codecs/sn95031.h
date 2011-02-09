@@ -96,7 +96,31 @@
 #define SN95031_SSR5			0x384
 #define SN95031_SSR6			0x385
 
+/* ADC registers */
+
+#define SN95031_ADC1CNTL1 0x1C0
+#define SN95031_ADC_ENBL 0x10
+#define SN95031_ADC_START 0x08
+#define SN95031_ADC1CNTL3 0x1C2
+#define SN95031_ADCTHERM_ENBL 0x04
+#define SN95031_ADCRRDATA_ENBL 0x05
+#define SN95031_STOPBIT_MASK 16
+#define SN95031_ADCTHERM_MASK 4
+#define SN95031_ADC_CHANLS_MAX 15 /* Number of ADC channels */
+#define SN95031_ADC_LOOP_MAX (SN95031_ADC_CHANLS_MAX - 1)
+#define SN95031_ADC_NO_LOOP 0x07
 #define SN95031_AUDIO_GPIO_CTRL 0x070
+
+/* ADC channel code values */
+#define SN95031_AUDIO_DETECT_CODE 0x06
+
+/* ADC base addresses */
+#define SN95031_ADC_CHNL_START_ADDR 0x1C5 /* increments by 1 */
+#define SN95031_ADC_DATA_START_ADDR 0x1D4  /* increments by 2 */
+/* multipier to convert to mV */
+#define SN95031_ADC_ONE_LSB_MULTIPLIER 2346
+
+
 struct mfld_jack_data {
 	int intr_id;
 	int micbias_vol;
