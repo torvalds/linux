@@ -77,7 +77,6 @@ struct grant_map {
 	int index;
 	int count;
 	int flags;
-	int is_mapped;
 	atomic_t users;
 	struct unmap_notify notify;
 	struct ioctl_gntdev_grant_ref *grants;
@@ -322,7 +321,6 @@ static void gntdev_vma_close(struct vm_area_struct *vma)
 	struct grant_map *map = vma->vm_private_data;
 
 	pr_debug("close %p\n", vma);
-	map->is_mapped = 0;
 	map->vma = NULL;
 	vma->vm_private_data = NULL;
 	gntdev_put_map(map);
@@ -346,8 +344,6 @@ static void mn_invl_range_start(struct mmu_notifier *mn,
 	spin_lock(&priv->lock);
 	list_for_each_entry(map, &priv->maps, next) {
 		if (!map->vma)
-			continue;
-		if (!map->is_mapped)
 			continue;
 		if (map->vma->vm_start >= end)
 			continue;
@@ -663,8 +659,6 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	if (err)
 		goto out_put_map;
 
-	map->is_mapped = 1;
-
 	if (!use_ptemod) {
 		for (i = 0; i < count; i++) {
 			err = vm_insert_page(vma, vma->vm_start + i*PAGE_SIZE,
@@ -681,6 +675,8 @@ unlock_out:
 	return err;
 
 out_put_map:
+	if (use_ptemod)
+		map->vma = NULL;
 	gntdev_put_map(map);
 	return err;
 }
