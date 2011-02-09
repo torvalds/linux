@@ -18,7 +18,23 @@
 
 #ifdef CONFIG_THUMB2_KERNEL
 #define SEV		ALT_SMP("sev.w", "nop.w")
-#define WFE(cond)	ALT_SMP("wfe" cond ".w", "nop.w")
+/*
+ * For Thumb-2, special care is needed to ensure that the conditional WFE
+ * instruction really does assemble to exactly 4 bytes (as required by
+ * the SMP_ON_UP fixup code).   By itself "wfene" might cause the
+ * assembler to insert a extra (16-bit) IT instruction, depending on the
+ * presence or absence of neighbouring conditional instructions.
+ *
+ * To avoid this unpredictableness, an approprite IT is inserted explicitly:
+ * the assembler won't change IT instructions which are explicitly present
+ * in the input.
+ */
+#define WFE(cond)	ALT_SMP(		\
+	"it " cond "\n\t"			\
+	"wfe" cond ".n",			\
+						\
+	"nop.w"					\
+)
 #else
 #define SEV		ALT_SMP("sev", "nop")
 #define WFE(cond)	ALT_SMP("wfe" cond, "nop")
