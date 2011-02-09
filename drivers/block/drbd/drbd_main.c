@@ -1801,17 +1801,9 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	atomic_set(&mdev->ap_in_flight, 0);
 
 	mutex_init(&mdev->md_io_mutex);
-	mutex_init(&mdev->tconn->data.mutex);
-	mutex_init(&mdev->tconn->meta.mutex);
-	sema_init(&mdev->tconn->data.work.s, 0);
-	sema_init(&mdev->tconn->meta.work.s, 0);
 	mutex_init(&mdev->state_mutex);
 
-	spin_lock_init(&mdev->tconn->data.work.q_lock);
-	spin_lock_init(&mdev->tconn->meta.work.q_lock);
-
 	spin_lock_init(&mdev->al_lock);
-	spin_lock_init(&mdev->tconn->req_lock);
 	spin_lock_init(&mdev->peer_seq_lock);
 	spin_lock_init(&mdev->epoch_lock);
 
@@ -1821,8 +1813,6 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	INIT_LIST_HEAD(&mdev->read_ee);
 	INIT_LIST_HEAD(&mdev->net_ee);
 	INIT_LIST_HEAD(&mdev->resync_reads);
-	INIT_LIST_HEAD(&mdev->tconn->data.work.q);
-	INIT_LIST_HEAD(&mdev->tconn->meta.work.q);
 	INIT_LIST_HEAD(&mdev->resync_work.list);
 	INIT_LIST_HEAD(&mdev->unplug_work.list);
 	INIT_LIST_HEAD(&mdev->go_diskless.list);
@@ -2179,6 +2169,13 @@ out:
 	return r;
 }
 
+static void drbd_init_workqueue(struct drbd_work_queue* wq)
+{
+	sema_init(&wq->s, 0);
+	spin_lock_init(&wq->q_lock);
+	INIT_LIST_HEAD(&wq->q);
+}
+
 struct drbd_tconn *drbd_new_tconn(char *name)
 {
 	struct drbd_tconn *tconn;
@@ -2191,9 +2188,16 @@ struct drbd_tconn *drbd_new_tconn(char *name)
 	if (!tconn->name)
 		goto fail;
 
+	spin_lock_init(&tconn->req_lock);
 	atomic_set(&tconn->net_cnt, 0);
 	init_waitqueue_head(&tconn->net_cnt_wait);
 	idr_init(&tconn->volumes);
+
+	drbd_init_workqueue(&tconn->data.work);
+	mutex_init(&tconn->data.mutex);
+
+	drbd_init_workqueue(&tconn->meta.work);
+	mutex_init(&tconn->meta.mutex);
 
 	drbd_thread_init(tconn, &tconn->receiver, drbdd_init, "receiver");
 	drbd_thread_init(tconn, &tconn->worker, drbd_worker, "worker");
