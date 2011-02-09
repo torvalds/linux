@@ -282,7 +282,7 @@ static int map_grant_pages(struct grant_map *map)
 	return err;
 }
 
-static int unmap_grant_pages(struct grant_map *map, int offset, int pages)
+static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 {
 	int i, err = 0;
 
@@ -301,7 +301,6 @@ static int unmap_grant_pages(struct grant_map *map, int offset, int pages)
 		}
 	}
 
-	pr_debug("map %d+%d [%d+%d]\n", map->index, map->count, offset, pages);
 	err = gnttab_unmap_refs(map->unmap_ops + offset, map->pages + offset, pages);
 	if (err)
 		return err;
@@ -311,6 +310,36 @@ static int unmap_grant_pages(struct grant_map *map, int offset, int pages)
 			err = -EINVAL;
 		map->unmap_ops[offset+i].handle = 0;
 	}
+	return err;
+}
+
+static int unmap_grant_pages(struct grant_map *map, int offset, int pages)
+{
+	int range, err = 0;
+
+	pr_debug("unmap %d+%d [%d+%d]\n", map->index, map->count, offset, pages);
+
+	/* It is possible the requested range will have a "hole" where we
+	 * already unmapped some of the grants. Only unmap valid ranges.
+	 */
+	while (pages && !err) {
+		while (pages && !map->unmap_ops[offset].handle) {
+			offset++;
+			pages--;
+		}
+		range = 0;
+		while (range < pages) {
+			if (!map->unmap_ops[offset+range].handle) {
+				range--;
+				break;
+			}
+			range++;
+		}
+		err = __unmap_grant_pages(map, offset, range);
+		offset += range;
+		pages -= range;
+	}
+
 	return err;
 }
 
