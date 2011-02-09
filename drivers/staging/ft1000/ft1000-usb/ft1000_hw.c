@@ -101,28 +101,22 @@ static int ft1000_control(struct ft1000_device *ft1000dev, unsigned int pipe,
 //
 //---------------------------------------------------------------------------
 
-int ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data, u16 nRegIndx)
+int ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data,
+			 u16 nRegIndx)
 {
-    int ret = STATUS_SUCCESS;
+	int ret = STATUS_SUCCESS;
 
-    //DEBUG("ft1000_read_register: reg index is %d\n", nRegIndx);
-    //DEBUG("ft1000_read_register: spin_lock locked\n");
-    ret = ft1000_control(ft1000dev,
-                         usb_rcvctrlpipe(ft1000dev->dev,0),
-                         HARLEY_READ_REGISTER,   //request --READ_REGISTER
-                         HARLEY_READ_OPERATION,  //requestType
-                         0,                      //value
-                         nRegIndx,               //index
-                         Data,                   //data
-                         2,                      //data size
-                         LARGE_TIMEOUT );        //timeout
+	ret = ft1000_control(ft1000dev,
+			     usb_rcvctrlpipe(ft1000dev->dev, 0),
+			     HARLEY_READ_REGISTER,
+			     HARLEY_READ_OPERATION,
+			     0,
+			     nRegIndx,
+			     Data,
+			     2,
+			     LARGE_TIMEOUT);
 
-   //DEBUG("ft1000_read_register: ret is  %d \n", ret);
-
-   //DEBUG("ft1000_read_register: data is  %x \n", *Data);
-
-   return ret;
-
+	return ret;
 }
 
 //---------------------------------------------------------------------------
@@ -140,23 +134,22 @@ int ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data, u16 nRegInd
 // Notes:
 //
 //---------------------------------------------------------------------------
-int ft1000_write_register(struct ft1000_device *ft1000dev, u16 value, u16 nRegIndx)
+int ft1000_write_register(struct ft1000_device *ft1000dev, u16 value,
+			  u16 nRegIndx)
 {
-     int ret = STATUS_SUCCESS;
+	int ret = STATUS_SUCCESS;
 
-     //DEBUG("ft1000_write_register: value is: %d, reg index is: %d\n", value, nRegIndx);
+	ret = ft1000_control(ft1000dev,
+			     usb_sndctrlpipe(ft1000dev->dev, 0),
+			     HARLEY_WRITE_REGISTER,
+			     HARLEY_WRITE_OPERATION,
+			     value,
+			     nRegIndx,
+			     NULL,
+			     0,
+			     LARGE_TIMEOUT);
 
-     ret = ft1000_control(ft1000dev,
-                           usb_sndctrlpipe(ft1000dev->dev, 0),
-                           HARLEY_WRITE_REGISTER,       //request -- WRITE_REGISTER
-                           HARLEY_WRITE_OPERATION,      //requestType
-                           value,
-                           nRegIndx,
-                           NULL,
-                           0,
-                           LARGE_TIMEOUT );
-
-    return ret;
+	return ret;
 }
 
 //---------------------------------------------------------------------------
