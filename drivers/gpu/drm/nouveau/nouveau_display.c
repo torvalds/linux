@@ -32,6 +32,7 @@
 #include "nouveau_hw.h"
 #include "nouveau_crtc.h"
 #include "nouveau_dma.h"
+#include "nv50_display.h"
 
 static void
 nouveau_user_framebuffer_destroy(struct drm_framebuffer *drm_fb)
@@ -61,18 +62,59 @@ static const struct drm_framebuffer_funcs nouveau_framebuffer_funcs = {
 };
 
 int
-nouveau_framebuffer_init(struct drm_device *dev, struct nouveau_framebuffer *nouveau_fb,
-			 struct drm_mode_fb_cmd *mode_cmd, struct nouveau_bo *nvbo)
+nouveau_framebuffer_init(struct drm_device *dev,
+			 struct nouveau_framebuffer *nv_fb,
+			 struct drm_mode_fb_cmd *mode_cmd,
+			 struct nouveau_bo *nvbo)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct drm_framebuffer *fb = &nv_fb->base;
 	int ret;
 
-	ret = drm_framebuffer_init(dev, &nouveau_fb->base, &nouveau_framebuffer_funcs);
+	ret = drm_framebuffer_init(dev, fb, &nouveau_framebuffer_funcs);
 	if (ret) {
 		return ret;
 	}
 
-	drm_helper_mode_fill_fb_struct(&nouveau_fb->base, mode_cmd);
-	nouveau_fb->nvbo = nvbo;
+	drm_helper_mode_fill_fb_struct(fb, mode_cmd);
+	nv_fb->nvbo = nvbo;
+
+	if (dev_priv->card_type >= NV_50) {
+		u32 tile_flags = nouveau_bo_tile_layout(nvbo);
+		if (tile_flags == 0x7a00 ||
+		    tile_flags == 0xfe00)
+			nv_fb->r_dma = NvEvoFB32;
+		else
+		if (tile_flags == 0x7000)
+			nv_fb->r_dma = NvEvoFB16;
+		else
+			nv_fb->r_dma = NvEvoVRAM_LP;
+
+		switch (fb->depth) {
+		case  8: nv_fb->r_format = NV50_EVO_CRTC_FB_DEPTH_8; break;
+		case 15: nv_fb->r_format = NV50_EVO_CRTC_FB_DEPTH_15; break;
+		case 16: nv_fb->r_format = NV50_EVO_CRTC_FB_DEPTH_16; break;
+		case 24:
+		case 32: nv_fb->r_format = NV50_EVO_CRTC_FB_DEPTH_24; break;
+		case 30: nv_fb->r_format = NV50_EVO_CRTC_FB_DEPTH_30; break;
+		default:
+			 NV_ERROR(dev, "unknown depth %d\n", fb->depth);
+			 return -EINVAL;
+		}
+
+		if (dev_priv->chipset == 0x50)
+			nv_fb->r_format |= (tile_flags << 8);
+
+		if (!tile_flags)
+			nv_fb->r_pitch = 0x00100000 | fb->pitch;
+		else {
+			u32 mode = nvbo->tile_mode;
+			if (dev_priv->card_type >= NV_C0)
+				mode >>= 4;
+			nv_fb->r_pitch = ((fb->pitch / 4) << 4) | mode;
+		}
+	}
+
 	return 0;
 }
 
