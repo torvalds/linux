@@ -1870,9 +1870,9 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8903_ANALOGUE_OUT3_RIGHT, val);
 
 	/* Enable DAC soft mute by default */
-	val = snd_soc_read(codec, WM8903_DAC_DIGITAL_1);
-	val |= WM8903_DAC_MUTEMODE;
-	snd_soc_write(codec, WM8903_DAC_DIGITAL_1, val);
+	snd_soc_update_bits(codec, WM8903_DAC_DIGITAL_1,
+			    WM8903_DAC_MUTEMODE | WM8903_DAC_MUTE,
+			    WM8903_DAC_MUTEMODE | WM8903_DAC_MUTE);
 
 	snd_soc_add_controls(codec, wm8903_snd_controls,
 				ARRAY_SIZE(wm8903_snd_controls));
