@@ -388,7 +388,7 @@ typedef struct _pciconfig_cap_msi {
 	u32 msgaddr;
 } pciconfig_cap_msi;
 
-/* Data structure to define the Power managment facility
+/* Data structure to define the Power management facility
  * Valid for PCI and PCIE configurations
  */
 typedef struct _pciconfig_cap_pwrmgmt {
