@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
-#include <linux/mdm6600_ctrl.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -26,6 +25,8 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kobject.h>
+#include <linux/radio_ctrl/mdm6600_ctrl.h>
+#include <linux/radio_ctrl/radio_class.h>
 
 #define AP_STATUS_BP_PANIC_ACK      0x00
 #define AP_STATUS_DATA_ONLY_BYPASS  0x01
@@ -84,9 +85,8 @@ static DEFINE_MUTEX(mdm_ctrl_info_lock);
 
 struct workqueue_struct *working_queue = NULL;
 
-static dev_t dev_number;
 struct class *radio_cls = NULL;
-struct device *mdm_dev = NULL;
+static struct radio_dev radio_cdev;
 
 static unsigned int bp_status_idx = BP_STATUS_UNDEFINED;
 static unsigned int bp_power_idx = 0;
@@ -111,8 +111,7 @@ static const char *bp_power_state_string(unsigned int stat)
 		return "status out of range";
 }
 
-static ssize_t mdm_status_show(struct device *dev,
-			       struct device_attribute *attr, char *buff)
+static ssize_t mdm_status_show(struct radio_dev *dev, char *buff)
 {
 	ssize_t status = 0;
 	status = snprintf(buff, BP_STATUS_MAX_LENGTH, "%s\n",
@@ -121,8 +120,7 @@ static ssize_t mdm_status_show(struct device *dev,
 	return status;
 }
 
-static ssize_t mdm_power_show(struct device *dev,
-			      struct device_attribute *attr, char *buff)
+static ssize_t mdm_power_show(struct radio_dev *rdev, char *buff)
 {
 	ssize_t status = 0;
 	status = snprintf(buff, BP_STATUS_MAX_LENGTH, "%s\n",
@@ -131,21 +129,8 @@ static ssize_t mdm_power_show(struct device *dev,
 	return status;
 }
 
-static ssize_t mdm_user_command(struct device *dev,
-				struct device_attribute *attr, const char *buff,
-				size_t size)
+static ssize_t mdm_user_command(struct radio_dev *rdev, char *post_strip)
 {
-	char tmp[BP_COMMAND_MAX_LENGTH];
-	char *post_strip = NULL;
-
-	if (size > BP_COMMAND_MAX_LENGTH - 1) {
-		return size;
-	}
-
-	/* strip whitespaces if any */
-	memcpy(tmp, buff, size);
-	tmp[size] = '\0';
-	post_strip = strim(tmp);
 
 	pr_info("%s: user command = %s\n", mdmctrl, post_strip);
 
@@ -157,14 +142,12 @@ static ssize_t mdm_user_command(struct device *dev,
 		mdm_ctrl_set_bootmode(0);
 	} else if (strcmp(post_strip,"bootmode_flash") == 0) {
 		mdm_ctrl_set_bootmode(1);
+	} else {
+		return -EINVAL;
 	}
 
-	return size;
+	return 0;
 }
-
-static DEVICE_ATTR(status, 0444, mdm_status_show, NULL);
-static DEVICE_ATTR(power_status, 0444, mdm_power_show, NULL);
-static DEVICE_ATTR(command, 0200, NULL, mdm_user_command);
 
 static unsigned int mdm_gpio_get_value(struct mdm_ctrl_gpio gpio)
 {
@@ -312,7 +295,7 @@ static void update_bp_status(void) {
 		bp_status_string(bp_status_idx),
 		bp_power_state_string(bp_power_idx));
 
-	kobject_uevent(&mdm_dev->kobj, KOBJ_CHANGE);
+	kobject_uevent(&radio_cdev.dev->kobj, KOBJ_CHANGE);
 }
 
 static void mdm_ctrl_powerup(void)
@@ -340,8 +323,6 @@ static void mdm_ctrl_powerup(void)
 
 static void mdm_ctrl_set_bootmode(int mode)
 {
-	unsigned int bp_status;
-
 	mutex_lock(&mdm_ctrl_info_lock);
 	if (mdm_ctrl.pdata && ((mode == 0) || (mode == 1))) {
 		gpio_request(mdm_ctrl.pdata->cmd_gpios.cmd1,
@@ -425,6 +406,13 @@ static void mdm_gpio_cleanup_internal(void)
 	mutex_unlock(&mdm_ctrl_info_lock);
 }
 
+static struct radio_dev radio_cdev = {
+	.name = "mdm6600",
+	.power_status = mdm_power_show,
+	.status = mdm_status_show,
+        .command = mdm_user_command,
+};
+
 static int __devinit mdm_ctrl_probe(struct platform_device *pdev)
 {
 	int i;
@@ -432,42 +420,7 @@ static int __devinit mdm_ctrl_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "mdm_ctrl_probe");
 
-	if (alloc_chrdev_region(&dev_number, 0, 1, "mdm_ctrl") < 0) {
-		dev_err(&pdev->dev, "Can't register new device.");
-		return -1;
-	}
-
-	/* /sys/class/radio */
-	radio_cls = class_create(THIS_MODULE, "radio");
-	if (IS_ERR(radio_cls)) {
-		dev_err(&pdev->dev, "Failed to create radio class.");
-		goto err_cls;
-	}
-
-	/* /sys/class/radio/mdm6600 */
-	mdm_dev = device_create(radio_cls, NULL, dev_number, NULL, "mdm6600");
-	if (IS_ERR(mdm_dev)) {
-		dev_err(&pdev->dev, "Failed to create mdm_dev.");
-		goto err_mdm;
-	}
-
-	/* /sys/class/radio/mdm6600/status */
-	if (device_create_file(mdm_dev, &dev_attr_status) > 0) {
-		dev_err(&pdev->dev, "Failed to create status sysfile.");
-		goto err_status;
-	}
-
-	/* /sys/class/radio/mdm6600/power_status */
-	if (device_create_file(mdm_dev, &dev_attr_power_status) > 0) {
-		dev_err(&pdev->dev, "Failed to create power sysfile .");
-		goto err_power;
-	}
-
-	/* /sys/class/radio/mdm6600/command */
-	if (device_create_file(mdm_dev, &dev_attr_command) > 0) {
-		dev_err(&pdev->dev, "Failed to create command sysfile.");
-		goto err_command;
-	}
+	pr_debug("%s: radio_cdev = %p\n", __func__, &radio_cdev);
 
 	for (i = 0; i < MDM_CTRL_NUM_GPIOS; i++) {
 		if (mdm_gpio_setup(&pdata->gpios[i])) {
@@ -488,6 +441,11 @@ static int __devinit mdm_ctrl_probe(struct platform_device *pdev)
 		goto err_setup;
 	}
 
+	if (radio_dev_register(&radio_cdev)) {
+		pr_err("%s: failed to register mdm_ctr device\n", __func__);
+		goto err_setup;
+	}
+
 	update_bp_status();
 
 	return 0;
@@ -502,27 +460,6 @@ probe_cleanup:
 	for (i = 0; i < MDM_CTRL_NUM_GPIOS; i++)
 		mdm_gpio_free(&pdata->gpios[i]);
 
-err_command:
-	device_remove_file(mdm_dev, &dev_attr_command);
-
-err_power:
-	device_remove_file(mdm_dev, &dev_attr_power_status);
-
-err_status:
-	device_remove_file(mdm_dev, &dev_attr_status);
-
-err_mdm:
-	if (!IS_ERR_OR_NULL(mdm_dev)) {
-		device_destroy(radio_cls, dev_number);
-		mdm_dev = NULL;
-	}
-
-err_cls:
-	if (!IS_ERR_OR_NULL(radio_cls)) {
-		class_destroy(radio_cls);
-		radio_cls = NULL;
-	}
-
 	return -1;
 }
 
@@ -533,6 +470,8 @@ static int __devexit mdm_ctrl_remove(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "cleanup\n");
 
+	radio_dev_unregister(&radio_cdev);
+
 	mdm_gpio_cleanup_internal();
 
         if (working_queue)
@@ -540,20 +479,6 @@ static int __devexit mdm_ctrl_remove(struct platform_device *pdev)
 
 	for (i = 0; i < MDM_CTRL_NUM_GPIOS; i++)
 		mdm_gpio_free(&pdata->gpios[i]);
-
-	device_remove_file(mdm_dev, &dev_attr_command);
-	device_remove_file(mdm_dev, &dev_attr_power_status);
-	device_remove_file(mdm_dev, &dev_attr_status);
-
-	if (!IS_ERR_OR_NULL(mdm_dev)) {
-		device_destroy(radio_cls, dev_number);
-		mdm_dev = NULL;
-	}
-
-	if (!IS_ERR_OR_NULL(radio_cls)) {
-		class_destroy(radio_cls);
-		radio_cls = NULL;
-	}
 
 	return 0;
 }
@@ -651,6 +576,6 @@ module_init(mdm6600_ctrl_init);
 module_exit(mdm6600_ctrl_exit);
 
 MODULE_AUTHOR("Motorola");
-MODULE_DESCRIPTION("Modem Control Driver");
-MODULE_VERSION("1.1.3");
+MODULE_DESCRIPTION("MDM6X00 Control Driver");
+MODULE_VERSION("1.1.4");
 MODULE_LICENSE("GPL");
