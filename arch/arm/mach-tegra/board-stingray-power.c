@@ -22,10 +22,10 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/leds-ld-cpcap.h>
-#include <linux/mdm6600_ctrl.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
+#include <linux/radio_ctrl/mdm6600_ctrl.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
