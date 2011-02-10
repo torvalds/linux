@@ -152,7 +152,6 @@ struct tmio_mmc_host {
 	struct tasklet_struct	dma_complete;
 	struct tasklet_struct	dma_issue;
 #ifdef CONFIG_TMIO_MMC_DMA
-	unsigned int            dma_sglen;
 	u8			bounce_buf[PAGE_CACHE_SIZE] __attribute__((aligned(MAX_ALIGN)));
 	struct scatterlist	bounce_sg;
 #endif
@@ -830,11 +829,9 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 	}
 
 	ret = dma_map_sg(chan->device->dev, sg, host->sg_len, DMA_FROM_DEVICE);
-	if (ret > 0) {
-		host->dma_sglen = ret;
+	if (ret > 0)
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
 			DMA_FROM_DEVICE, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	}
 
 	if (desc) {
 		desc->callback = tmio_dma_complete;
@@ -911,11 +908,9 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 	}
 
 	ret = dma_map_sg(chan->device->dev, sg, host->sg_len, DMA_TO_DEVICE);
-	if (ret > 0) {
-		host->dma_sglen = ret;
+	if (ret > 0)
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
 			DMA_TO_DEVICE, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	}
 
 	if (desc) {
 		desc->callback = tmio_dma_complete;
