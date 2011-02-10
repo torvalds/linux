@@ -34,6 +34,42 @@
 #include "ixgbe_dcb_82599.h"
 
 /**
+ * ixgbe_ieee_credits - This calculates the ieee traffic class
+ * credits from the configured bandwidth percentages. Credits
+ * are the smallest unit programable into the underlying
+ * hardware. The IEEE 802.1Qaz specification do not use bandwidth
+ * groups so this is much simplified from the CEE case.
+ */
+s32 ixgbe_ieee_credits(__u8 *bw, __u16 *refill, __u16 *max, int max_frame)
+{
+	int min_percent = 100;
+	int min_credit, multiplier;
+	int i;
+
+	min_credit = ((max_frame / 2) + DCB_CREDIT_QUANTUM - 1) /
+			DCB_CREDIT_QUANTUM;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		if (bw[i] < min_percent && bw[i])
+			min_percent = bw[i];
+	}
+
+	multiplier = (min_credit / min_percent) + 1;
+
+	/* Find out the hw credits for each TC */
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		int val = min(bw[i] * multiplier, MAX_CREDIT_REFILL);
+
+		if (val < min_credit)
+			val = min_credit;
+		refill[i] = val;
+
+		max[i] = (bw[i] * MAX_CREDIT)/100;
+	}
+	return 0;
+}
+
+/**
  * ixgbe_dcb_calculate_tc_credits - Calculates traffic class credits
  * @ixgbe_dcb_config: Struct containing DCB settings.
  * @direction: Configuring either Tx or Rx.
@@ -236,3 +272,70 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
 	return ret;
 }
 
+/* Helper routines to abstract HW specifics from DCB netlink ops */
+s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en)
+{
+	int ret = -EINVAL;
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+		ret = ixgbe_dcb_config_pfc_82598(hw, pfc_en);
+		break;
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		ret = ixgbe_dcb_config_pfc_82599(hw, pfc_en);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw,
+			    u16 *refill, u16 *max, u8 *bwg_id, u8 *tsa)
+{
+	int i;
+	u8 prio_type[IEEE_8021QAZ_MAX_TCS];
+
+	/* Map TSA onto CEE prio type */
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		switch (tsa[i]) {
+		case IEEE_8021QAZ_TSA_STRICT:
+			prio_type[i] = 2;
+			break;
+		case IEEE_8021QAZ_TSA_ETS:
+			prio_type[i] = 0;
+			break;
+		default:
+			/* Hardware only supports priority strict or
+			 * ETS transmission selection algorithms if
+			 * we receive some other value from dcbnl
+			 * throw an error
+			 */
+			return -EINVAL;
+		}
+	}
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+		ixgbe_dcb_config_rx_arbiter_82598(hw, refill, max,
+							prio_type);
+		ixgbe_dcb_config_tx_desc_arbiter_82598(hw, refill, max,
+							     bwg_id, prio_type);
+		ixgbe_dcb_config_tx_data_arbiter_82598(hw, refill, max,
+							     bwg_id, prio_type);
+		break;
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		ixgbe_dcb_config_rx_arbiter_82599(hw, refill, max,
+						  bwg_id, prio_type);
+		ixgbe_dcb_config_tx_desc_arbiter_82599(hw, refill, max,
+						       bwg_id, prio_type);
+		ixgbe_dcb_config_tx_data_arbiter_82599(hw, refill, max,
+						       bwg_id, prio_type);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}

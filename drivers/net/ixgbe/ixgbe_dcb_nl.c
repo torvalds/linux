@@ -606,7 +606,98 @@ static u8 ixgbe_dcbnl_setapp(struct net_device *netdev,
 	return rval;
 }
 
+static int ixgbe_dcbnl_ieee_getets(struct net_device *dev,
+				   struct ieee_ets *ets)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ieee_ets *my_ets = adapter->ixgbe_ieee_ets;
+
+	/* No IEEE PFC settings available */
+	if (!my_ets)
+		return -EINVAL;
+
+	ets->ets_cap = MAX_TRAFFIC_CLASS;
+	ets->cbs = my_ets->cbs;
+	memcpy(ets->tc_tx_bw, my_ets->tc_tx_bw, sizeof(ets->tc_tx_bw));
+	memcpy(ets->tc_rx_bw, my_ets->tc_rx_bw, sizeof(ets->tc_rx_bw));
+	memcpy(ets->tc_tsa, my_ets->tc_tsa, sizeof(ets->tc_tsa));
+	memcpy(ets->prio_tc, my_ets->prio_tc, sizeof(ets->prio_tc));
+	return 0;
+}
+
+static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
+				   struct ieee_ets *ets)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	__u16 refill[IEEE_8021QAZ_MAX_TCS], max[IEEE_8021QAZ_MAX_TCS];
+	int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
+	int err;
+	/* naively give each TC a bwg to map onto CEE hardware */
+	__u8 bwg_id[IEEE_8021QAZ_MAX_TCS] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+	if (!adapter->ixgbe_ieee_ets) {
+		adapter->ixgbe_ieee_ets = kmalloc(sizeof(struct ieee_ets),
+						  GFP_KERNEL);
+		if (!adapter->ixgbe_ieee_ets)
+			return -ENOMEM;
+	}
+
+
+	memcpy(adapter->ixgbe_ieee_ets, ets, sizeof(*adapter->ixgbe_ieee_ets));
+
+	ixgbe_ieee_credits(ets->tc_tx_bw, refill, max, max_frame);
+	err = ixgbe_dcb_hw_ets_config(&adapter->hw, refill, max,
+				      bwg_id, ets->tc_tsa);
+	return err;
+}
+
+static int ixgbe_dcbnl_ieee_getpfc(struct net_device *dev,
+				   struct ieee_pfc *pfc)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ieee_pfc *my_pfc = adapter->ixgbe_ieee_pfc;
+	int i;
+
+	/* No IEEE PFC settings available */
+	if (!my_pfc)
+		return -EINVAL;
+
+	pfc->pfc_cap = MAX_TRAFFIC_CLASS;
+	pfc->pfc_en = my_pfc->pfc_en;
+	pfc->mbc = my_pfc->mbc;
+	pfc->delay = my_pfc->delay;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		pfc->requests[i] = adapter->stats.pxoffrxc[i];
+		pfc->indications[i] = adapter->stats.pxofftxc[i];
+	}
+
+	return 0;
+}
+
+static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
+				   struct ieee_pfc *pfc)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	int err;
+
+	if (!adapter->ixgbe_ieee_pfc) {
+		adapter->ixgbe_ieee_pfc = kmalloc(sizeof(struct ieee_pfc),
+						  GFP_KERNEL);
+		if (!adapter->ixgbe_ieee_pfc)
+			return -ENOMEM;
+	}
+
+	memcpy(adapter->ixgbe_ieee_pfc, pfc, sizeof(*adapter->ixgbe_ieee_pfc));
+	err = ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc->pfc_en);
+	return err;
+}
+
 const struct dcbnl_rtnl_ops dcbnl_ops = {
+	.ieee_getets	= ixgbe_dcbnl_ieee_getets,
+	.ieee_setets	= ixgbe_dcbnl_ieee_setets,
+	.ieee_getpfc	= ixgbe_dcbnl_ieee_getpfc,
+	.ieee_setpfc	= ixgbe_dcbnl_ieee_setpfc,
 	.getstate	= ixgbe_dcbnl_get_state,
 	.setstate	= ixgbe_dcbnl_set_state,
 	.getpermhwaddr	= ixgbe_dcbnl_get_perm_hw_addr,
