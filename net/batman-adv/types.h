@@ -268,7 +268,7 @@ struct softif_neigh {
 	uint8_t addr[ETH_ALEN];
 	unsigned long last_seen;
 	short vid;
-	struct kref refcount;
+	atomic_t refcount;
 	struct rcu_head rcu;
 };
 
