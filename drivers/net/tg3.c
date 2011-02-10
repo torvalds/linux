@@ -12463,9 +12463,11 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 			tp->tg3_flags3 |= TG3_FLG3_RGMII_EXT_IBND_TX_EN;
 	}
 done:
-	device_init_wakeup(&tp->pdev->dev, tp->tg3_flags & TG3_FLAG_WOL_CAP);
-	device_set_wakeup_enable(&tp->pdev->dev,
+	if (tp->tg3_flags & TG3_FLAG_WOL_CAP)
+		device_set_wakeup_enable(&tp->pdev->dev,
 				 tp->tg3_flags & TG3_FLAG_WOL_ENABLE);
+	else
+		device_set_wakeup_capable(&tp->pdev->dev, false);
 }
 
 static int __devinit tg3_issue_otp_command(struct tg3 *tp, u32 cmd)
