@@ -1290,33 +1290,36 @@ static u16 adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	struct hpi_hw_obj *phw = pao->priv;
 	struct dsp_code dsp_code;
 	u16 boot_code_id[HPI6205_MAX_FILES_TO_LOAD];
-	u16 firmware_id = pao->pci.pci_dev->subsystem_device;
 	u32 temp;
 	int dsp = 0, i = 0;
 	u16 err = 0;
 
 	boot_code_id[0] = HPI_ADAPTER_ASI(0x6205);
 
-	/* special cases where firmware_id != subsys ID */
-	switch (firmware_id) {
+	boot_code_id[1] = pao->pci.pci_dev->subsystem_device;
+	boot_code_id[1] = HPI_ADAPTER_FAMILY_ASI(boot_code_id[1]);
+
+	/* fix up cases where bootcode id[1] != subsys id */
+	switch (boot_code_id[1]) {
 	case HPI_ADAPTER_FAMILY_ASI(0x5000):
-		boot_code_id[0] = firmware_id;
-		firmware_id = 0;
+		boot_code_id[0] = boot_code_id[1];
+		boot_code_id[1] = 0;
 		break;
 	case HPI_ADAPTER_FAMILY_ASI(0x5300):
 	case HPI_ADAPTER_FAMILY_ASI(0x5400):
 	case HPI_ADAPTER_FAMILY_ASI(0x6300):
-		firmware_id = HPI_ADAPTER_FAMILY_ASI(0x6400);
+		boot_code_id[1] = HPI_ADAPTER_FAMILY_ASI(0x6400);
 		break;
 	case HPI_ADAPTER_FAMILY_ASI(0x5600):
 	case HPI_ADAPTER_FAMILY_ASI(0x6500):
-		firmware_id = HPI_ADAPTER_FAMILY_ASI(0x6600);
+		boot_code_id[1] = HPI_ADAPTER_FAMILY_ASI(0x6600);
 		break;
 	case HPI_ADAPTER_FAMILY_ASI(0x8800):
-		firmware_id = HPI_ADAPTER_FAMILY_ASI(0x8900);
+		boot_code_id[1] = HPI_ADAPTER_FAMILY_ASI(0x8900);
+		break;
+	default:
 		break;
 	}
-	boot_code_id[1] = firmware_id;
 
 	/* reset DSP by writing a 1 to the WARMRESET bit */
 	temp = C6205_HDCR_WARMRESET;
