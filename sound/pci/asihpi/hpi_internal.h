@@ -104,6 +104,16 @@ enum HPI_BUSES {
 	HPI_BUS_NET = 4
 };
 
+enum HPI_SUBSYS_OPTIONS {
+	/* 0, 256 are invalid, 1..255 reserved for global options */
+	HPI_SUBSYS_OPT_NET_ENABLE = 257,
+	HPI_SUBSYS_OPT_NET_BROADCAST = 258,
+	HPI_SUBSYS_OPT_NET_UNICAST = 259,
+	HPI_SUBSYS_OPT_NET_ADDR = 260,
+	HPI_SUBSYS_OPT_NET_MASK = 261,
+	HPI_SUBSYS_OPT_NET_ADAPTER_ADDRESS_ADD = 262
+};
+
 /******************************************* CONTROL ATTRIBUTES ****/
 /* (in order of control type ID */
 
@@ -365,7 +375,8 @@ enum HPI_OBJECT_TYPES {
 };
 
 #define HPI_OBJ_FUNCTION_SPACING 0x100
-#define HPI_FUNC_ID(obj, index) (HPI_OBJ_##obj * HPI_OBJ_FUNCTION_SPACING + index)
+#define HPI_FUNC_ID(obj, index) \
+	(HPI_OBJ_##obj * HPI_OBJ_FUNCTION_SPACING + index)
 
 #define HPI_EXTRACT_INDEX(fn) (fn & 0xff)
 
@@ -1171,7 +1182,7 @@ struct hpi_response {
 	sizeof(struct hpi_response_header) + sizeof(struct hpi_async_res) \
 }
 
-/*********************** version 1 message/response *****************************/
+/*********************** version 1 message/response **************************/
 #define HPINET_ETHERNET_DATA_SIZE (1500)
 #define HPINET_IP_HDR_SIZE (20)
 #define HPINET_IP_DATA_SIZE (HPINET_ETHERNET_DATA_SIZE - HPINET_IP_HDR_SIZE)
@@ -1484,8 +1495,7 @@ struct hpi_control_cache_pad {
 	u32 traffic_anouncement;
 };
 
-/*/////////////////////////////////////////////////////////////////////////// */
-/* declarations for 2^N sized FIFO buffer (internal to HPI<->DSP interaction) */
+/* 2^N sized FIFO buffer (internal to HPI<->DSP interaction) */
 struct hpi_fifo_buffer {
 	u32 size;
 	u32 dSP_index;
@@ -1510,25 +1520,22 @@ u32 hpi_indexes_to_handle(const char c_object, const u16 adapter_index,
 /*////////////////////////////////////////////////////////////////////////// */
 
 /* main HPI entry point */
-hpi_handler_func hpi_send_recv;
+void hpi_send_recv(struct hpi_message *phm, struct hpi_response *phr);
 
 /* UDP message */
 void hpi_send_recvUDP(struct hpi_message *phm, struct hpi_response *phr,
 	const unsigned int timeout);
 
 /* used in PnP OS/driver */
-u16 hpi_subsys_create_adapter(const struct hpi_hsubsys *ph_subsys,
-	const struct hpi_resource *p_resource, u16 *pw_adapter_index);
+u16 hpi_subsys_create_adapter(const struct hpi_resource *p_resource,
+	u16 *pw_adapter_index);
 
-u16 hpi_subsys_delete_adapter(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index);
+u16 hpi_subsys_delete_adapter(u16 adapter_index);
 
-u16 hpi_outstream_host_buffer_get_info(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, u8 **pp_buffer,
+u16 hpi_outstream_host_buffer_get_info(u32 h_outstream, u8 **pp_buffer,
 	struct hpi_hostbuffer_status **pp_status);
 
-u16 hpi_instream_host_buffer_get_info(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream, u8 **pp_buffer,
+u16 hpi_instream_host_buffer_get_info(u32 h_instream, u8 **pp_buffer,
 	struct hpi_hostbuffer_status **pp_status);
 
 u16 hpi_adapter_restart(u16 adapter_index);

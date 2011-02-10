@@ -24,17 +24,10 @@
 
  The HPI is a low-level hardware abstraction layer to all
  AudioScience digital audio adapters
-*/
-/*
- You must define one operating system that the HPI is to be compiled under
- HPI_OS_WIN32_USER   32bit Windows
- HPI_OS_DSP_C6000    DSP TI C6000  (automatically set)
- HPI_OS_WDM          Windows WDM kernel driver
- HPI_OS_LINUX        Linux userspace
- HPI_OS_LINUX_KERNEL Linux kernel (automatically set)
 
 (C) Copyright AudioScience Inc. 1998-2010
-******************************************************************************/
+*/
+
 #ifndef _HPI_H_
 #define _HPI_H_
 /* HPI Version
@@ -50,8 +43,8 @@ i.e 3.05.02 is a development version
 #define HPI_VER_RELEASE(v) ((int)(v & 0xFF))
 
 /* Use single digits for versions less that 10 to avoid octal. */
-#define HPI_VER HPI_VERSION_CONSTRUCTOR(4L, 5, 14)
-#define HPI_VER_STRING "4.05.14"
+#define HPI_VER HPI_VERSION_CONSTRUCTOR(4L, 5, 17)
+#define HPI_VER_STRING "4.05.17"
 
 /* Library version as documented in hpi-api-versions.txt */
 #define HPI_LIB_VER  HPI_VERSION_CONSTRUCTOR(9, 0, 0)
@@ -60,9 +53,7 @@ i.e 3.05.02 is a development version
 #define HPI_EXCLUDE_DEPRECATED
 
 /******************************************************************************/
-/******************************************************************************/
 /********       HPI API DEFINITIONS                                       *****/
-/******************************************************************************/
 /******************************************************************************/
 
 /*******************************************/
@@ -175,7 +166,6 @@ The range is +1.0 to -1.0, which corresponds to digital fullscale.
 	HPI_FORMAT_UNDEFINED = 0xffff
 };
 
-/******************************************* in/out Stream states */
 /*******************************************/
 /** Stream States
 \ingroup stream
@@ -195,7 +185,7 @@ enum HPI_STREAM_STATES {
 		cards to be ready. */
 	HPI_STATE_WAIT = 6
 };
-/******************************************* mixer source node types */
+/*******************************************/
 /** Source node types
 \ingroup mixer
 */
@@ -225,7 +215,7 @@ enum HPI_SOURCENODES {
 		/* AX6 max sourcenode types = 15 */
 };
 
-/******************************************* mixer dest node types */
+/*******************************************/
 /** Destination node types
 \ingroup mixer
 */
@@ -263,7 +253,7 @@ enum HPI_CONTROLS {
 	HPI_CONTROL_MUTE = 4,	/*mute control - not used at present. */
 	HPI_CONTROL_MULTIPLEXER = 5,	/**< multiplexer control. */
 
-	HPI_CONTROL_AESEBU_TRANSMITTER = 6,	/**< AES/EBU transmitter control. */
+	HPI_CONTROL_AESEBU_TRANSMITTER = 6, /**< AES/EBU transmitter control */
 	HPI_CONTROL_AESEBUTX = 6,	/* HPI_CONTROL_AESEBU_TRANSMITTER */
 
 	HPI_CONTROL_AESEBU_RECEIVER = 7, /**< AES/EBU receiver control. */
@@ -297,10 +287,7 @@ enum HPI_CONTROLS {
 /* WARNING types 256 or greater impact bit packing in all AX6 DSP code */
 };
 
-/* Shorthand names that match attribute names */
-
-/******************************************* ADAPTER ATTRIBUTES ****/
-
+/*******************************************/
 /** Adapter properties
 These are used in HPI_AdapterSetProperty() and HPI_AdapterGetProperty()
 \ingroup adapter
@@ -331,9 +318,9 @@ by the driver and is not passed on to the DSP at all.
 Indicates the state of the adapter's SSX2 setting. This setting is stored in
 non-volatile memory on the adapter. A typical call sequence would be to use
 HPI_ADAPTER_PROPERTY_SSX2_SETTING to set SSX2 on the adapter and then to reload
-the driver. The driver would query HPI_ADAPTER_PROPERTY_SSX2_SETTING during startup
-and if SSX2 is set, it would then call HPI_ADAPTER_PROPERTY_ENABLE_SSX2 to enable
-SSX2 stream mapping within the kernel level of the driver.
+the driver. The driver would query HPI_ADAPTER_PROPERTY_SSX2_SETTING during
+startup and if SSX2 is set, it would then call HPI_ADAPTER_PROPERTY_ENABLE_SSX2
+to enable SSX2 stream mapping within the kernel level of the driver.
 */
 	HPI_ADAPTER_PROPERTY_SSX2_SETTING = 4,
 
@@ -455,7 +442,7 @@ enum HPI_ADAPTER_MODE_CMDS {
 };
 
 /** Adapter Modes
-	These are used by HPI_AdapterSetModeEx()
+ These are used by HPI_AdapterSetModeEx()
 
 \warning - more than 16 possible modes breaks
 a bitmask in the Windows WAVE DLL
@@ -630,10 +617,13 @@ enum HPI_MIXER_STORE_COMMAND {
 	HPI_MIXER_STORE_SAVE_SINGLE = 6
 };
 
-/************************************* CONTROL ATTRIBUTE VALUES ****/
+/****************************/
+/* CONTROL ATTRIBUTE VALUES */
+/****************************/
+
 /** Used by mixer plugin enable functions
 
-E.g. HPI_ParametricEQ_SetState()
+E.g. HPI_ParametricEq_SetState()
 \ingroup mixer
 */
 enum HPI_SWITCH_STATES {
@@ -642,6 +632,7 @@ enum HPI_SWITCH_STATES {
 };
 
 /* Volume control special gain values */
+
 /** volumes units are 100ths of a dB
 \ingroup volume
 */
@@ -668,7 +659,7 @@ enum HPI_VOLUME_AUTOFADES {
 
 /** The physical encoding format of the AESEBU I/O.
 
-Used in HPI_AESEBU_Transmitter_SetFormat(), HPI_AESEBU_Receiver_SetFormat()
+Used in HPI_Aesebu_Transmitter_SetFormat(), HPI_Aesebu_Receiver_SetFormat()
 along with related Get and Query functions
 \ingroup aestx
 */
@@ -681,7 +672,7 @@ enum HPI_AESEBU_FORMATS {
 
 /** AES/EBU error status bits
 
-Returned by HPI_AESEBU_Receiver_GetErrorStatus()
+Returned by HPI_Aesebu_Receiver_GetErrorStatus()
 \ingroup aesrx
 */
 enum HPI_AESEBU_ERRORS {
@@ -832,7 +823,7 @@ enum HPI_SAMPLECLOCK_SOURCES {
 	HPI_SAMPLECLOCK_SOURCE_LAST = 10
 };
 
-/** Equalizer filter types. Used by HPI_ParametricEQ_SetBand()
+/** Equalizer filter types. Used by HPI_ParametricEq_SetBand()
 \ingroup parmeq
 */
 enum HPI_FILTER_TYPE {
@@ -875,7 +866,7 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_INVALID_OBJ = 101,
 	/** Function does not exist. */
 	HPI_ERROR_INVALID_FUNC = 102,
-	/** The specified object (adapter/Stream) does not exist. */
+	/** The specified object does not exist. */
 	HPI_ERROR_INVALID_OBJ_INDEX = 103,
 	/** Trying to access an object that has not been opened yet. */
 	HPI_ERROR_OBJ_NOT_OPEN = 104,
@@ -883,8 +874,8 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_OBJ_ALREADY_OPEN = 105,
 	/** PCI, ISA resource not valid. */
 	HPI_ERROR_INVALID_RESOURCE = 106,
-	/** GetInfo call from SubSysFindAdapters failed. */
-	HPI_ERROR_SUBSYSFINDADAPTERS_GETINFO = 107,
+	/* GetInfo call from SubSysFindAdapters failed. */
+	/*HPI_ERROR_SUBSYSFINDADAPTERS_GETINFO= 107, */
 	/** Default response was never updated with actual error code. */
 	HPI_ERROR_INVALID_RESPONSE = 108,
 	/** wSize field of response was not updated,
@@ -892,40 +883,47 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_PROCESSING_MESSAGE = 109,
 	/** The network did not respond in a timely manner. */
 	HPI_ERROR_NETWORK_TIMEOUT = 110,
-	/** An HPI handle is invalid (uninitialised?). */
+	/* An HPI handle is invalid (uninitialised?). */
 	HPI_ERROR_INVALID_HANDLE = 111,
 	/** A function or attribute has not been implemented yet. */
 	HPI_ERROR_UNIMPLEMENTED = 112,
-	/** There are too many clients attempting to access a network resource. */
+	/** There are too many clients attempting
+	    to access a network resource. */
 	HPI_ERROR_NETWORK_TOO_MANY_CLIENTS = 113,
-	/** Response buffer passed to HPI_Message was smaller than returned response */
+	/** Response buffer passed to HPI_Message
+	    was smaller than returned response.
+	    wSpecificError field of hpi response contains the required size.
+	*/
 	HPI_ERROR_RESPONSE_BUFFER_TOO_SMALL = 114,
 	/** The returned response did not match the sent message */
 	HPI_ERROR_RESPONSE_MISMATCH = 115,
 	/** A control setting that should have been cached was not. */
 	HPI_ERROR_CONTROL_CACHING = 116,
+	/** A message buffer in the path to the adapter was smaller
+	    than the message size.
+	    wSpecificError field of hpi response contains the actual size.
+	*/
+	HPI_ERROR_MESSAGE_BUFFER_TOO_SMALL = 117,
 
-	/** Too many adapters.*/
-	HPI_ERROR_TOO_MANY_ADAPTERS = 200,
+	/* Too many adapters. */
+	/* HPI_ERROR_TOO_MANY_ADAPTERS= 200, */
 	/** Bad adpater. */
 	HPI_ERROR_BAD_ADAPTER = 201,
 	/** Adapter number out of range or not set properly. */
 	HPI_ERROR_BAD_ADAPTER_NUMBER = 202,
 	/** 2 adapters with the same adapter number. */
 	HPI_DUPLICATE_ADAPTER_NUMBER = 203,
-	/** DSP code failed to bootload. */
+	/** DSP code failed to bootload. (unused?) */
 	HPI_ERROR_DSP_BOOTLOAD = 204,
-	/** Adapter failed DSP code self test. */
+	/** Adapter failed DSP code self test. (unused?) */
 	HPI_ERROR_DSP_SELFTEST = 205,
 	/** Couldn't find or open the DSP code file. */
 	HPI_ERROR_DSP_FILE_NOT_FOUND = 206,
 	/** Internal DSP hardware error. */
 	HPI_ERROR_DSP_HARDWARE = 207,
-	/** Could not allocate memory in DOS. */
-	HPI_ERROR_DOS_MEMORY_ALLOC = 208,
 	/** Could not allocate memory */
 	HPI_ERROR_MEMORY_ALLOC = 208,
-	/** Failed to correctly load/config PLD .*/
+	/** Failed to correctly load/config PLD. (unused?) */
 	HPI_ERROR_PLD_LOAD = 209,
 	/** Unexpected end of file, block length too big etc. */
 	HPI_ERROR_DSP_FILE_FORMAT = 210,
@@ -934,8 +932,8 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_DSP_FILE_ACCESS_DENIED = 211,
 	/** First DSP code section header not found in DSP file. */
 	HPI_ERROR_DSP_FILE_NO_HEADER = 212,
-	/** File read operation on DSP code file failed. */
-	HPI_ERROR_DSP_FILE_READ_ERROR = 213,
+	/* File read operation on DSP code file failed. */
+	/*HPI_ERROR_DSP_FILE_READ_ERROR= 213, */
 	/** DSP code for adapter family not found. */
 	HPI_ERROR_DSP_SECTION_NOT_FOUND = 214,
 	/** Other OS specific error opening DSP file. */
@@ -945,8 +943,8 @@ enum HPI_ERROR_CODES {
 	/** DSP code section header had size == 0. */
 	HPI_ERROR_DSP_FILE_NULL_HEADER = 217,
 
-	/** Base number for flash errors. */
-	HPI_ERROR_FLASH = 220,
+	/* Base number for flash errors. */
+	/* HPI_ERROR_FLASH              = 220, */
 
 	/** Flash has bad checksum */
 	HPI_ERROR_BAD_CHECKSUM = 221,
@@ -960,8 +958,8 @@ enum HPI_ERROR_CODES {
 	/** Reserved for OEMs. */
 	HPI_ERROR_RESERVED_1 = 290,
 
-	/** Stream does not exist. */
-	HPI_ERROR_INVALID_STREAM = 300,
+	/* Stream does not exist. */
+	/*HPI_ERROR_INVALID_STREAM= 300, // use HPI_ERROR_INVALID_OBJ_INDEX */
 	/** Invalid compression format. */
 	HPI_ERROR_INVALID_FORMAT = 301,
 	/** Invalid format samplerate */
@@ -972,21 +970,21 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_INVALID_BITRATE = 304,
 	/** Invalid datasize used for stream read/write. */
 	HPI_ERROR_INVALID_DATASIZE = 305,
-	/** Stream buffer is full during stream write. */
-	HPI_ERROR_BUFFER_FULL = 306,
-	/** Stream buffer is empty during stream read. */
-	HPI_ERROR_BUFFER_EMPTY = 307,
-	/** Invalid datasize used for stream read/write. */
-	HPI_ERROR_INVALID_DATA_TRANSFER = 308,
+	/* Stream buffer is full during stream write. */
+	/*HPI_ERROR_BUFFER_FULL = 306, // USE HPI_ERROR_INVALID_DATASIZE */
+	/* Stream buffer is empty during stream read. */
+	/*HPI_ERROR_BUFFER_EMPTY = 307, // USE HPI_ERROR_INVALID_DATASIZE */
+	/** Null data pointer used for stream read/write. */
+	HPI_ERROR_INVALID_DATA_POINTER = 308,
 	/** Packet ordering error for stream read/write. */
 	HPI_ERROR_INVALID_PACKET_ORDER = 309,
 
 	/** Object can't do requested operation in its current
-	state, eg set format, change rec mux state while recording.*/
+	    state, eg set format, change rec mux state while recording.*/
 	HPI_ERROR_INVALID_OPERATION = 310,
 
-	/** Where an SRG is shared amongst streams, an incompatible samplerate is one
-	that is different to any currently playing or recording stream. */
+	/** Where a SRG is shared amongst streams, an incompatible samplerate
+	    is one that is different to any currently active stream. */
 	HPI_ERROR_INCOMPATIBLE_SAMPLERATE = 311,
 	/** Adapter mode is illegal.*/
 	HPI_ERROR_BAD_ADAPTER_MODE = 312,
@@ -1068,7 +1066,7 @@ enum HPI_ERROR_CODES {
 
 /**\}*/
 
-/* ////////////////////////////////////////////////////////////////////// */
+/**************/
 /* STRUCTURES */
 #ifndef DISABLE_PRAGMA_PACK1
 #pragma pack(push, 1)
@@ -1116,724 +1114,573 @@ struct hpi_async_event {
 /* skip host side function declarations for
    DSP compile and documentation extraction */
 
-struct hpi_hsubsys {
-	int not_really_used;
-};
-
 #ifndef DISABLE_PRAGMA_PACK1
 #pragma pack(pop)
 #endif
 
-/*////////////////////////////////////////////////////////////////////////// */
+/*****************/
 /* HPI FUNCTIONS */
+/*****************/
 
-/*/////////////////////////// */
-/* DATA and FORMAT and STREAM */
-
+/* Stream */
 u16 hpi_stream_estimate_buffer_size(struct hpi_format *pF,
 	u32 host_polling_rate_in_milli_seconds, u32 *recommended_buffer_size);
 
-/*/////////// */
-/* SUB SYSTEM */
-struct hpi_hsubsys *hpi_subsys_create(void);
+/*************/
+/* SubSystem */
+/*************/
 
-void hpi_subsys_free(const struct hpi_hsubsys *ph_subsys);
+u16 hpi_subsys_get_version_ex(u32 *pversion_ex);
 
-u16 hpi_subsys_get_version_ex(const struct hpi_hsubsys *ph_subsys,
-	u32 *pversion_ex);
+u16 hpi_subsys_get_num_adapters(int *pn_num_adapters);
 
-u16 hpi_subsys_get_num_adapters(const struct hpi_hsubsys *ph_subsys,
-	int *pn_num_adapters);
+u16 hpi_subsys_get_adapter(int iterator, u32 *padapter_index,
+	u16 *pw_adapter_type);
 
-u16 hpi_subsys_get_adapter(const struct hpi_hsubsys *ph_subsys, int iterator,
-	u32 *padapter_index, u16 *pw_adapter_type);
+/***********/
+/* Adapter */
+/***********/
 
-/*///////// */
-/* ADAPTER */
+u16 hpi_adapter_open(u16 adapter_index);
 
-u16 hpi_adapter_open(const struct hpi_hsubsys *ph_subsys, u16 adapter_index);
+u16 hpi_adapter_close(u16 adapter_index);
 
-u16 hpi_adapter_close(const struct hpi_hsubsys *ph_subsys, u16 adapter_index);
+u16 hpi_adapter_get_info(u16 adapter_index, u16 *pw_num_outstreams,
+	u16 *pw_num_instreams, u16 *pw_version, u32 *pserial_number,
+	u16 *pw_adapter_type);
 
-u16 hpi_adapter_get_info(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u16 *pw_num_outstreams, u16 *pw_num_instreams,
-	u16 *pw_version, u32 *pserial_number, u16 *pw_adapter_type);
+u16 hpi_adapter_get_module_by_index(u16 adapter_index, u16 module_index,
+	u16 *pw_num_outputs, u16 *pw_num_inputs, u16 *pw_version,
+	u32 *pserial_number, u16 *pw_module_type, u32 *ph_module);
 
-u16 hpi_adapter_get_module_by_index(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u16 module_index, u16 *pw_num_outputs,
-	u16 *pw_num_inputs, u16 *pw_version, u32 *pserial_number,
-	u16 *pw_module_type, u32 *ph_module);
+u16 hpi_adapter_set_mode(u16 adapter_index, u32 adapter_mode);
 
-u16 hpi_adapter_set_mode(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u32 adapter_mode);
+u16 hpi_adapter_set_mode_ex(u16 adapter_index, u32 adapter_mode,
+	u16 query_or_set);
 
-u16 hpi_adapter_set_mode_ex(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u32 adapter_mode, u16 query_or_set);
+u16 hpi_adapter_get_mode(u16 adapter_index, u32 *padapter_mode);
 
-u16 hpi_adapter_get_mode(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u32 *padapter_mode);
+u16 hpi_adapter_get_assert2(u16 adapter_index, u16 *p_assert_count,
+	char *psz_assert, u32 *p_param1, u32 *p_param2,
+	u32 *p_dsp_string_addr, u16 *p_processor_id);
 
-u16 hpi_adapter_get_assert2(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u16 *p_assert_count, char *psz_assert,
-	u32 *p_param1, u32 *p_param2, u32 *p_dsp_string_addr,
-	u16 *p_processor_id);
+u16 hpi_adapter_test_assert(u16 adapter_index, u16 assert_id);
 
-u16 hpi_adapter_test_assert(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u16 assert_id);
+u16 hpi_adapter_enable_capability(u16 adapter_index, u16 capability, u32 key);
 
-u16 hpi_adapter_enable_capability(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u16 capability, u32 key);
+u16 hpi_adapter_self_test(u16 adapter_index);
 
-u16 hpi_adapter_self_test(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index);
+u16 hpi_adapter_debug_read(u16 adapter_index, u32 dsp_address, char *p_bytes,
+	int *count_bytes);
 
-u16 hpi_adapter_debug_read(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u32 dsp_address, char *p_bytes, int *count_bytes);
+u16 hpi_adapter_set_property(u16 adapter_index, u16 property, u16 paramter1,
+	u16 paramter2);
 
-u16 hpi_adapter_set_property(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u16 property, u16 paramter1, u16 paramter2);
+u16 hpi_adapter_get_property(u16 adapter_index, u16 property,
+	u16 *pw_paramter1, u16 *pw_paramter2);
 
-u16 hpi_adapter_get_property(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u16 property, u16 *pw_paramter1,
-	u16 *pw_paramter2);
+u16 hpi_adapter_enumerate_property(u16 adapter_index, u16 index,
+	u16 what_to_enumerate, u16 property_index, u32 *psetting);
+/*************/
+/* OutStream */
+/*************/
+u16 hpi_outstream_open(u16 adapter_index, u16 outstream_index,
+	u32 *ph_outstream);
 
-u16 hpi_adapter_enumerate_property(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u16 index, u16 what_to_enumerate,
-	u16 property_index, u32 *psetting);
-/**************/
-/* OUT STREAM */
-/**************/
-u16 hpi_outstream_open(const struct hpi_hsubsys *ph_subsys, u16 adapter_index,
-	u16 outstream_index, u32 *ph_outstream);
+u16 hpi_outstream_close(u32 h_outstream);
 
-u16 hpi_outstream_close(const struct hpi_hsubsys *ph_subsys, u32 h_outstream);
+u16 hpi_outstream_get_info_ex(u32 h_outstream, u16 *pw_state,
+	u32 *pbuffer_size, u32 *pdata_to_play, u32 *psamples_played,
+	u32 *pauxiliary_data_to_play);
 
-u16 hpi_outstream_get_info_ex(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, u16 *pw_state, u32 *pbuffer_size, u32 *pdata_to_play,
-	u32 *psamples_played, u32 *pauxiliary_data_to_play);
+u16 hpi_outstream_write_buf(u32 h_outstream, const u8 *pb_write_buf,
+	u32 bytes_to_write, const struct hpi_format *p_format);
 
-u16 hpi_outstream_write_buf(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, const u8 *pb_write_buf, u32 bytes_to_write,
-	const struct hpi_format *p_format);
+u16 hpi_outstream_start(u32 h_outstream);
 
-u16 hpi_outstream_start(const struct hpi_hsubsys *ph_subsys, u32 h_outstream);
+u16 hpi_outstream_wait_start(u32 h_outstream);
 
-u16 hpi_outstream_wait_start(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream);
+u16 hpi_outstream_stop(u32 h_outstream);
 
-u16 hpi_outstream_stop(const struct hpi_hsubsys *ph_subsys, u32 h_outstream);
+u16 hpi_outstream_sinegen(u32 h_outstream);
 
-u16 hpi_outstream_sinegen(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream);
+u16 hpi_outstream_reset(u32 h_outstream);
 
-u16 hpi_outstream_reset(const struct hpi_hsubsys *ph_subsys, u32 h_outstream);
+u16 hpi_outstream_query_format(u32 h_outstream, struct hpi_format *p_format);
 
-u16 hpi_outstream_query_format(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, struct hpi_format *p_format);
+u16 hpi_outstream_set_format(u32 h_outstream, struct hpi_format *p_format);
 
-u16 hpi_outstream_set_format(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, struct hpi_format *p_format);
+u16 hpi_outstream_set_punch_in_out(u32 h_outstream, u32 punch_in_sample,
+	u32 punch_out_sample);
 
-u16 hpi_outstream_set_punch_in_out(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, u32 punch_in_sample, u32 punch_out_sample);
+u16 hpi_outstream_set_velocity(u32 h_outstream, short velocity);
 
-u16 hpi_outstream_set_velocity(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, short velocity);
+u16 hpi_outstream_ancillary_reset(u32 h_outstream, u16 mode);
 
-u16 hpi_outstream_ancillary_reset(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, u16 mode);
+u16 hpi_outstream_ancillary_get_info(u32 h_outstream, u32 *pframes_available);
 
-u16 hpi_outstream_ancillary_get_info(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, u32 *pframes_available);
-
-u16 hpi_outstream_ancillary_read(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, struct hpi_anc_frame *p_anc_frame_buffer,
+u16 hpi_outstream_ancillary_read(u32 h_outstream,
+	struct hpi_anc_frame *p_anc_frame_buffer,
 	u32 anc_frame_buffer_size_in_bytes,
 	u32 number_of_ancillary_frames_to_read);
 
-u16 hpi_outstream_set_time_scale(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, u32 time_scaleX10000);
+u16 hpi_outstream_set_time_scale(u32 h_outstream, u32 time_scaleX10000);
 
-u16 hpi_outstream_host_buffer_allocate(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, u32 size_in_bytes);
+u16 hpi_outstream_host_buffer_allocate(u32 h_outstream, u32 size_in_bytes);
 
-u16 hpi_outstream_host_buffer_free(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream);
+u16 hpi_outstream_host_buffer_free(u32 h_outstream);
 
-u16 hpi_outstream_group_add(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, u32 h_stream);
+u16 hpi_outstream_group_add(u32 h_outstream, u32 h_stream);
 
-u16 hpi_outstream_group_get_map(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream, u32 *poutstream_map, u32 *pinstream_map);
+u16 hpi_outstream_group_get_map(u32 h_outstream, u32 *poutstream_map,
+	u32 *pinstream_map);
 
-u16 hpi_outstream_group_reset(const struct hpi_hsubsys *ph_subsys,
-	u32 h_outstream);
+u16 hpi_outstream_group_reset(u32 h_outstream);
 
-/*////////// */
-/* IN_STREAM */
-u16 hpi_instream_open(const struct hpi_hsubsys *ph_subsys, u16 adapter_index,
-	u16 instream_index, u32 *ph_instream);
+/************/
+/* InStream */
+/************/
+u16 hpi_instream_open(u16 adapter_index, u16 instream_index,
+	u32 *ph_instream);
 
-u16 hpi_instream_close(const struct hpi_hsubsys *ph_subsys, u32 h_instream);
+u16 hpi_instream_close(u32 h_instream);
 
-u16 hpi_instream_query_format(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream, const struct hpi_format *p_format);
+u16 hpi_instream_query_format(u32 h_instream,
+	const struct hpi_format *p_format);
 
-u16 hpi_instream_set_format(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream, const struct hpi_format *p_format);
+u16 hpi_instream_set_format(u32 h_instream,
+	const struct hpi_format *p_format);
 
-u16 hpi_instream_read_buf(const struct hpi_hsubsys *ph_subsys, u32 h_instream,
-	u8 *pb_read_buf, u32 bytes_to_read);
+u16 hpi_instream_read_buf(u32 h_instream, u8 *pb_read_buf, u32 bytes_to_read);
 
-u16 hpi_instream_start(const struct hpi_hsubsys *ph_subsys, u32 h_instream);
+u16 hpi_instream_start(u32 h_instream);
 
-u16 hpi_instream_wait_start(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream);
+u16 hpi_instream_wait_start(u32 h_instream);
 
-u16 hpi_instream_stop(const struct hpi_hsubsys *ph_subsys, u32 h_instream);
+u16 hpi_instream_stop(u32 h_instream);
 
-u16 hpi_instream_reset(const struct hpi_hsubsys *ph_subsys, u32 h_instream);
+u16 hpi_instream_reset(u32 h_instream);
 
-u16 hpi_instream_get_info_ex(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream, u16 *pw_state, u32 *pbuffer_size, u32 *pdata_recorded,
-	u32 *psamples_recorded, u32 *pauxiliary_data_recorded);
+u16 hpi_instream_get_info_ex(u32 h_instream, u16 *pw_state, u32 *pbuffer_size,
+	u32 *pdata_recorded, u32 *psamples_recorded,
+	u32 *pauxiliary_data_recorded);
 
-u16 hpi_instream_ancillary_reset(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream, u16 bytes_per_frame, u16 mode, u16 alignment,
-	u16 idle_bit);
+u16 hpi_instream_ancillary_reset(u32 h_instream, u16 bytes_per_frame,
+	u16 mode, u16 alignment, u16 idle_bit);
 
-u16 hpi_instream_ancillary_get_info(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream, u32 *pframe_space);
+u16 hpi_instream_ancillary_get_info(u32 h_instream, u32 *pframe_space);
 
-u16 hpi_instream_ancillary_write(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream, const struct hpi_anc_frame *p_anc_frame_buffer,
+u16 hpi_instream_ancillary_write(u32 h_instream,
+	const struct hpi_anc_frame *p_anc_frame_buffer,
 	u32 anc_frame_buffer_size_in_bytes,
 	u32 number_of_ancillary_frames_to_write);
 
-u16 hpi_instream_host_buffer_allocate(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream, u32 size_in_bytes);
+u16 hpi_instream_host_buffer_allocate(u32 h_instream, u32 size_in_bytes);
 
-u16 hpi_instream_host_buffer_free(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream);
+u16 hpi_instream_host_buffer_free(u32 h_instream);
 
-u16 hpi_instream_group_add(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream, u32 h_stream);
+u16 hpi_instream_group_add(u32 h_instream, u32 h_stream);
 
-u16 hpi_instream_group_get_map(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream, u32 *poutstream_map, u32 *pinstream_map);
+u16 hpi_instream_group_get_map(u32 h_instream, u32 *poutstream_map,
+	u32 *pinstream_map);
 
-u16 hpi_instream_group_reset(const struct hpi_hsubsys *ph_subsys,
-	u32 h_instream);
+u16 hpi_instream_group_reset(u32 h_instream);
 
 /*********/
-/* MIXER */
+/* Mixer */
 /*********/
-u16 hpi_mixer_open(const struct hpi_hsubsys *ph_subsys, u16 adapter_index,
-	u32 *ph_mixer);
+u16 hpi_mixer_open(u16 adapter_index, u32 *ph_mixer);
 
-u16 hpi_mixer_close(const struct hpi_hsubsys *ph_subsys, u32 h_mixer);
+u16 hpi_mixer_close(u32 h_mixer);
 
-u16 hpi_mixer_get_control(const struct hpi_hsubsys *ph_subsys, u32 h_mixer,
-	u16 src_node_type, u16 src_node_type_index, u16 dst_node_type,
-	u16 dst_node_type_index, u16 control_type, u32 *ph_control);
+u16 hpi_mixer_get_control(u32 h_mixer, u16 src_node_type,
+	u16 src_node_type_index, u16 dst_node_type, u16 dst_node_type_index,
+	u16 control_type, u32 *ph_control);
 
-u16 hpi_mixer_get_control_by_index(const struct hpi_hsubsys *ph_subsys,
-	u32 h_mixer, u16 control_index, u16 *pw_src_node_type,
-	u16 *pw_src_node_index, u16 *pw_dst_node_type, u16 *pw_dst_node_index,
-	u16 *pw_control_type, u32 *ph_control);
+u16 hpi_mixer_get_control_by_index(u32 h_mixer, u16 control_index,
+	u16 *pw_src_node_type, u16 *pw_src_node_index, u16 *pw_dst_node_type,
+	u16 *pw_dst_node_index, u16 *pw_control_type, u32 *ph_control);
 
-u16 hpi_mixer_store(const struct hpi_hsubsys *ph_subsys, u32 h_mixer,
-	enum HPI_MIXER_STORE_COMMAND command, u16 index);
-/*************************/
-/* mixer CONTROLS                */
-/*************************/
-/*************************/
-/* volume control                */
-/*************************/
-u16 hpi_volume_set_gain(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	short an_gain0_01dB[HPI_MAX_CHANNELS]
+u16 hpi_mixer_store(u32 h_mixer, enum HPI_MIXER_STORE_COMMAND command,
+	u16 index);
+/************/
+/* Controls */
+/************/
+/******************/
+/* Volume control */
+/******************/
+u16 hpi_volume_set_gain(u32 h_control, short an_gain0_01dB[HPI_MAX_CHANNELS]
 	);
 
-u16 hpi_volume_get_gain(const struct hpi_hsubsys *ph_subsys, u32 h_control,
+u16 hpi_volume_get_gain(u32 h_control,
 	short an_gain0_01dB_out[HPI_MAX_CHANNELS]
 	);
 
 #define hpi_volume_get_range hpi_volume_query_range
-u16 hpi_volume_query_range(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	short *min_gain_01dB, short *max_gain_01dB, short *step_gain_01dB);
+u16 hpi_volume_query_range(u32 h_control, short *min_gain_01dB,
+	short *max_gain_01dB, short *step_gain_01dB);
 
-u16 hpi_volume_query_channels(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_volume, u32 *p_channels);
+u16 hpi_volume_query_channels(const u32 h_volume, u32 *p_channels);
 
-u16 hpi_volume_auto_fade(const struct hpi_hsubsys *ph_subsys, u32 h_control,
+u16 hpi_volume_auto_fade(u32 h_control,
 	short an_stop_gain0_01dB[HPI_MAX_CHANNELS], u32 duration_ms);
 
-u16 hpi_volume_auto_fade_profile(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, short an_stop_gain0_01dB[HPI_MAX_CHANNELS],
-	u32 duration_ms, u16 profile);
+u16 hpi_volume_auto_fade_profile(u32 h_control,
+	short an_stop_gain0_01dB[HPI_MAX_CHANNELS], u32 duration_ms,
+	u16 profile);
 
-/*************************/
-/* level control         */
-/*************************/
-u16 hpi_level_query_range(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	short *min_gain_01dB, short *max_gain_01dB, short *step_gain_01dB);
+/*****************/
+/* Level control */
+/*****************/
+u16 hpi_level_query_range(u32 h_control, short *min_gain_01dB,
+	short *max_gain_01dB, short *step_gain_01dB);
 
-u16 hpi_level_set_gain(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	short an_gain0_01dB[HPI_MAX_CHANNELS]
+u16 hpi_level_set_gain(u32 h_control, short an_gain0_01dB[HPI_MAX_CHANNELS]
 	);
 
-u16 hpi_level_get_gain(const struct hpi_hsubsys *ph_subsys, u32 h_control,
+u16 hpi_level_get_gain(u32 h_control,
 	short an_gain0_01dB_out[HPI_MAX_CHANNELS]
 	);
 
-/*************************/
-/* meter control                 */
-/*************************/
-u16 hpi_meter_query_channels(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_meter, u32 *p_channels);
+/*****************/
+/* Meter control */
+/*****************/
+u16 hpi_meter_query_channels(const u32 h_meter, u32 *p_channels);
 
-u16 hpi_meter_get_peak(const struct hpi_hsubsys *ph_subsys, u32 h_control,
+u16 hpi_meter_get_peak(u32 h_control,
 	short an_peak0_01dB_out[HPI_MAX_CHANNELS]
 	);
 
-u16 hpi_meter_get_rms(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	short an_peak0_01dB_out[HPI_MAX_CHANNELS]
+u16 hpi_meter_get_rms(u32 h_control, short an_peak0_01dB_out[HPI_MAX_CHANNELS]
 	);
 
-u16 hpi_meter_set_peak_ballistics(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 attack, u16 decay);
+u16 hpi_meter_set_peak_ballistics(u32 h_control, u16 attack, u16 decay);
 
-u16 hpi_meter_set_rms_ballistics(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 attack, u16 decay);
+u16 hpi_meter_set_rms_ballistics(u32 h_control, u16 attack, u16 decay);
 
-u16 hpi_meter_get_peak_ballistics(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 *attack, u16 *decay);
+u16 hpi_meter_get_peak_ballistics(u32 h_control, u16 *attack, u16 *decay);
 
-u16 hpi_meter_get_rms_ballistics(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 *attack, u16 *decay);
+u16 hpi_meter_get_rms_ballistics(u32 h_control, u16 *attack, u16 *decay);
 
-/*************************/
-/* channel mode control  */
-/*************************/
-u16 hpi_channel_mode_query_mode(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_mode, const u32 index, u16 *pw_mode);
+/************************/
+/* ChannelMode control */
+/************************/
+u16 hpi_channel_mode_query_mode(const u32 h_mode, const u32 index,
+	u16 *pw_mode);
 
-u16 hpi_channel_mode_set(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u16 mode);
+u16 hpi_channel_mode_set(u32 h_control, u16 mode);
 
-u16 hpi_channel_mode_get(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u16 *mode);
+u16 hpi_channel_mode_get(u32 h_control, u16 *mode);
 
-/*************************/
-/* Tuner control                 */
-/*************************/
-u16 hpi_tuner_query_band(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_tuner, const u32 index, u16 *pw_band);
+/*****************/
+/* Tuner control */
+/*****************/
+u16 hpi_tuner_query_band(const u32 h_tuner, const u32 index, u16 *pw_band);
 
-u16 hpi_tuner_set_band(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u16 band);
+u16 hpi_tuner_set_band(u32 h_control, u16 band);
 
-u16 hpi_tuner_get_band(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u16 *pw_band);
+u16 hpi_tuner_get_band(u32 h_control, u16 *pw_band);
 
-u16 hpi_tuner_query_frequency(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_tuner, const u32 index, const u16 band, u32 *pfreq);
+u16 hpi_tuner_query_frequency(const u32 h_tuner, const u32 index,
+	const u16 band, u32 *pfreq);
 
-u16 hpi_tuner_set_frequency(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 freq_ink_hz);
+u16 hpi_tuner_set_frequency(u32 h_control, u32 freq_ink_hz);
 
-u16 hpi_tuner_get_frequency(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *pw_freq_ink_hz);
+u16 hpi_tuner_get_frequency(u32 h_control, u32 *pw_freq_ink_hz);
 
-u16 hpi_tuner_getRF_level(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	short *pw_level);
+u16 hpi_tuner_get_rf_level(u32 h_control, short *pw_level);
 
-u16 hpi_tuner_get_rawRF_level(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, short *pw_level);
+u16 hpi_tuner_get_raw_rf_level(u32 h_control, short *pw_level);
 
-u16 hpi_tuner_query_gain(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_tuner, const u32 index, u16 *pw_gain);
+u16 hpi_tuner_query_gain(const u32 h_tuner, const u32 index, u16 *pw_gain);
 
-u16 hpi_tuner_set_gain(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	short gain);
+u16 hpi_tuner_set_gain(u32 h_control, short gain);
 
-u16 hpi_tuner_get_gain(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	short *pn_gain);
+u16 hpi_tuner_get_gain(u32 h_control, short *pn_gain);
 
-u16 hpi_tuner_get_status(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u16 *pw_status_mask, u16 *pw_status);
+u16 hpi_tuner_get_status(u32 h_control, u16 *pw_status_mask, u16 *pw_status);
 
-u16 hpi_tuner_set_mode(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u32 mode, u32 value);
+u16 hpi_tuner_set_mode(u32 h_control, u32 mode, u32 value);
 
-u16 hpi_tuner_get_mode(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u32 mode, u32 *pn_value);
+u16 hpi_tuner_get_mode(u32 h_control, u32 mode, u32 *pn_value);
 
-u16 hpi_tuner_getRDS(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	char *p_rds_data);
+u16 hpi_tuner_get_rds(u32 h_control, char *p_rds_data);
 
-u16 hpi_tuner_query_deemphasis(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_tuner, const u32 index, const u16 band, u32 *pdeemphasis);
+u16 hpi_tuner_query_deemphasis(const u32 h_tuner, const u32 index,
+	const u16 band, u32 *pdeemphasis);
 
-u16 hpi_tuner_set_deemphasis(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 deemphasis);
-u16 hpi_tuner_get_deemphasis(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *pdeemphasis);
+u16 hpi_tuner_set_deemphasis(u32 h_control, u32 deemphasis);
+u16 hpi_tuner_get_deemphasis(u32 h_control, u32 *pdeemphasis);
 
-u16 hpi_tuner_query_program(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_tuner, u32 *pbitmap_program);
+u16 hpi_tuner_query_program(const u32 h_tuner, u32 *pbitmap_program);
 
-u16 hpi_tuner_set_program(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u32 program);
+u16 hpi_tuner_set_program(u32 h_control, u32 program);
 
-u16 hpi_tuner_get_program(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u32 *pprogram);
+u16 hpi_tuner_get_program(u32 h_control, u32 *pprogram);
 
-u16 hpi_tuner_get_hd_radio_dsp_version(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, char *psz_dsp_version, const u32 string_size);
+u16 hpi_tuner_get_hd_radio_dsp_version(u32 h_control, char *psz_dsp_version,
+	const u32 string_size);
 
-u16 hpi_tuner_get_hd_radio_sdk_version(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, char *psz_sdk_version, const u32 string_size);
+u16 hpi_tuner_get_hd_radio_sdk_version(u32 h_control, char *psz_sdk_version,
+	const u32 string_size);
 
-u16 hpi_tuner_get_hd_radio_signal_quality(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *pquality);
+u16 hpi_tuner_get_hd_radio_signal_quality(u32 h_control, u32 *pquality);
 
-u16 hpi_tuner_get_hd_radio_signal_blend(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *pblend);
+u16 hpi_tuner_get_hd_radio_signal_blend(u32 h_control, u32 *pblend);
 
-u16 hpi_tuner_set_hd_radio_signal_blend(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, const u32 blend);
+u16 hpi_tuner_set_hd_radio_signal_blend(u32 h_control, const u32 blend);
 
-/****************************/
-/* PADs control             */
-/****************************/
+/***************/
+/* PAD control */
+/***************/
 
-u16 HPI_PAD__get_channel_name(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, char *psz_string, const u32 string_length);
-
-u16 HPI_PAD__get_artist(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	char *psz_string, const u32 string_length);
-
-u16 HPI_PAD__get_title(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	char *psz_string, const u32 string_length);
-
-u16 HPI_PAD__get_comment(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	char *psz_string, const u32 string_length);
-
-u16 HPI_PAD__get_program_type(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *ppTY);
-
-u16 HPI_PAD__get_rdsPI(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u32 *ppI);
-
-u16 HPI_PAD__get_program_type_string(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, const u32 data_type, const u32 pTY, char *psz_string,
+u16 hpi_pad_get_channel_name(u32 h_control, char *psz_string,
 	const u32 string_length);
+
+u16 hpi_pad_get_artist(u32 h_control, char *psz_string,
+	const u32 string_length);
+
+u16 hpi_pad_get_title(u32 h_control, char *psz_string,
+	const u32 string_length);
+
+u16 hpi_pad_get_comment(u32 h_control, char *psz_string,
+	const u32 string_length);
+
+u16 hpi_pad_get_program_type(u32 h_control, u32 *ppTY);
+
+u16 hpi_pad_get_rdsPI(u32 h_control, u32 *ppI);
+
+u16 hpi_pad_get_program_type_string(u32 h_control, const u32 data_type,
+	const u32 pTY, char *psz_string, const u32 string_length);
 
 /****************************/
 /* AES/EBU Receiver control */
 /****************************/
-u16 HPI_AESEBU__receiver_query_format(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_aes_rx, const u32 index, u16 *pw_format);
+u16 hpi_aesebu_receiver_query_format(const u32 h_aes_rx, const u32 index,
+	u16 *pw_format);
 
-u16 HPI_AESEBU__receiver_set_format(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 source);
+u16 hpi_aesebu_receiver_set_format(u32 h_control, u16 source);
 
-u16 HPI_AESEBU__receiver_get_format(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 *pw_source);
+u16 hpi_aesebu_receiver_get_format(u32 h_control, u16 *pw_source);
 
-u16 HPI_AESEBU__receiver_get_sample_rate(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *psample_rate);
+u16 hpi_aesebu_receiver_get_sample_rate(u32 h_control, u32 *psample_rate);
 
-u16 HPI_AESEBU__receiver_get_user_data(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 index, u16 *pw_data);
+u16 hpi_aesebu_receiver_get_user_data(u32 h_control, u16 index, u16 *pw_data);
 
-u16 HPI_AESEBU__receiver_get_channel_status(const struct hpi_hsubsys
-	*ph_subsys, u32 h_control, u16 index, u16 *pw_data);
+u16 hpi_aesebu_receiver_get_channel_status(u32 h_control, u16 index,
+	u16 *pw_data);
 
-u16 HPI_AESEBU__receiver_get_error_status(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 *pw_error_data);
+u16 hpi_aesebu_receiver_get_error_status(u32 h_control, u16 *pw_error_data);
 
 /*******************************/
 /* AES/EBU Transmitter control */
 /*******************************/
-u16 HPI_AESEBU__transmitter_set_sample_rate(const struct hpi_hsubsys
-	*ph_subsys, u32 h_control, u32 sample_rate);
+u16 hpi_aesebu_transmitter_set_sample_rate(u32 h_control, u32 sample_rate);
 
-u16 HPI_AESEBU__transmitter_set_user_data(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 index, u16 data);
+u16 hpi_aesebu_transmitter_set_user_data(u32 h_control, u16 index, u16 data);
 
-u16 HPI_AESEBU__transmitter_set_channel_status(const struct hpi_hsubsys
-	*ph_subsys, u32 h_control, u16 index, u16 data);
+u16 hpi_aesebu_transmitter_set_channel_status(u32 h_control, u16 index,
+	u16 data);
 
-u16 HPI_AESEBU__transmitter_get_channel_status(const struct hpi_hsubsys
-	*ph_subsys, u32 h_control, u16 index, u16 *pw_data);
+u16 hpi_aesebu_transmitter_get_channel_status(u32 h_control, u16 index,
+	u16 *pw_data);
 
-u16 HPI_AESEBU__transmitter_query_format(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_aes_tx, const u32 index, u16 *pw_format);
+u16 hpi_aesebu_transmitter_query_format(const u32 h_aes_tx, const u32 index,
+	u16 *pw_format);
 
-u16 HPI_AESEBU__transmitter_set_format(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 output_format);
+u16 hpi_aesebu_transmitter_set_format(u32 h_control, u16 output_format);
 
-u16 HPI_AESEBU__transmitter_get_format(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 *pw_output_format);
+u16 hpi_aesebu_transmitter_get_format(u32 h_control, u16 *pw_output_format);
 
 /***********************/
-/* multiplexer control */
+/* Multiplexer control */
 /***********************/
-u16 hpi_multiplexer_set_source(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 source_node_type, u16 source_node_index);
+u16 hpi_multiplexer_set_source(u32 h_control, u16 source_node_type,
+	u16 source_node_index);
 
-u16 hpi_multiplexer_get_source(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 *source_node_type, u16 *source_node_index);
-
-u16 hpi_multiplexer_query_source(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 index, u16 *source_node_type,
+u16 hpi_multiplexer_get_source(u32 h_control, u16 *source_node_type,
 	u16 *source_node_index);
 
-/***************/
-/* VOX control */
-/***************/
-u16 hpi_vox_set_threshold(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	short an_gain0_01dB);
+u16 hpi_multiplexer_query_source(u32 h_control, u16 index,
+	u16 *source_node_type, u16 *source_node_index);
 
-u16 hpi_vox_get_threshold(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	short *an_gain0_01dB);
+/***************/
+/* Vox control */
+/***************/
+u16 hpi_vox_set_threshold(u32 h_control, short an_gain0_01dB);
+
+u16 hpi_vox_get_threshold(u32 h_control, short *an_gain0_01dB);
 
 /*********************/
 /* Bitstream control */
 /*********************/
-u16 hpi_bitstream_set_clock_edge(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 edge_type);
+u16 hpi_bitstream_set_clock_edge(u32 h_control, u16 edge_type);
 
-u16 hpi_bitstream_set_data_polarity(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 polarity);
+u16 hpi_bitstream_set_data_polarity(u32 h_control, u16 polarity);
 
-u16 hpi_bitstream_get_activity(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 *pw_clk_activity, u16 *pw_data_activity);
+u16 hpi_bitstream_get_activity(u32 h_control, u16 *pw_clk_activity,
+	u16 *pw_data_activity);
 
 /***********************/
 /* SampleClock control */
 /***********************/
 
-u16 hpi_sample_clock_query_source(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_clock, const u32 index, u16 *pw_source);
+u16 hpi_sample_clock_query_source(const u32 h_clock, const u32 index,
+	u16 *pw_source);
 
-u16 hpi_sample_clock_set_source(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 source);
+u16 hpi_sample_clock_set_source(u32 h_control, u16 source);
 
-u16 hpi_sample_clock_get_source(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 *pw_source);
+u16 hpi_sample_clock_get_source(u32 h_control, u16 *pw_source);
 
-u16 hpi_sample_clock_query_source_index(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_clock, const u32 index, const u32 source,
-	u16 *pw_source_index);
+u16 hpi_sample_clock_query_source_index(const u32 h_clock, const u32 index,
+	const u32 source, u16 *pw_source_index);
 
-u16 hpi_sample_clock_set_source_index(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 source_index);
+u16 hpi_sample_clock_set_source_index(u32 h_control, u16 source_index);
 
-u16 hpi_sample_clock_get_source_index(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 *pw_source_index);
+u16 hpi_sample_clock_get_source_index(u32 h_control, u16 *pw_source_index);
 
-u16 hpi_sample_clock_get_sample_rate(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *psample_rate);
+u16 hpi_sample_clock_get_sample_rate(u32 h_control, u32 *psample_rate);
 
-u16 hpi_sample_clock_query_local_rate(const struct hpi_hsubsys *ph_subsys,
-	const u32 h_clock, const u32 index, u32 *psource);
+u16 hpi_sample_clock_query_local_rate(const u32 h_clock, const u32 index,
+	u32 *psource);
 
-u16 hpi_sample_clock_set_local_rate(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 sample_rate);
+u16 hpi_sample_clock_set_local_rate(u32 h_control, u32 sample_rate);
 
-u16 hpi_sample_clock_get_local_rate(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *psample_rate);
+u16 hpi_sample_clock_get_local_rate(u32 h_control, u32 *psample_rate);
 
-u16 hpi_sample_clock_set_auto(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 enable);
+u16 hpi_sample_clock_set_auto(u32 h_control, u32 enable);
 
-u16 hpi_sample_clock_get_auto(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *penable);
+u16 hpi_sample_clock_get_auto(u32 h_control, u32 *penable);
 
-u16 hpi_sample_clock_set_local_rate_lock(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 lock);
+u16 hpi_sample_clock_set_local_rate_lock(u32 h_control, u32 lock);
 
-u16 hpi_sample_clock_get_local_rate_lock(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *plock);
+u16 hpi_sample_clock_get_local_rate_lock(u32 h_control, u32 *plock);
 
 /***********************/
 /* Microphone control */
 /***********************/
-u16 hpi_microphone_set_phantom_power(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 on_off);
+u16 hpi_microphone_set_phantom_power(u32 h_control, u16 on_off);
 
-u16 hpi_microphone_get_phantom_power(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 *pw_on_off);
+u16 hpi_microphone_get_phantom_power(u32 h_control, u16 *pw_on_off);
 
-/*******************************
-  Parametric Equalizer control
-*******************************/
-u16 hpi_parametricEQ__get_info(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 *pw_number_of_bands, u16 *pw_enabled);
+/********************************/
+/* Parametric Equalizer control */
+/********************************/
+u16 hpi_parametric_eq_get_info(u32 h_control, u16 *pw_number_of_bands,
+	u16 *pw_enabled);
 
-u16 hpi_parametricEQ__set_state(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 on_off);
+u16 hpi_parametric_eq_set_state(u32 h_control, u16 on_off);
 
-u16 hpi_parametricEQ__set_band(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 index, u16 type, u32 frequency_hz, short q100,
-	short gain0_01dB);
+u16 hpi_parametric_eq_set_band(u32 h_control, u16 index, u16 type,
+	u32 frequency_hz, short q100, short gain0_01dB);
 
-u16 hpi_parametricEQ__get_band(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 index, u16 *pn_type, u32 *pfrequency_hz,
-	short *pnQ100, short *pn_gain0_01dB);
+u16 hpi_parametric_eq_get_band(u32 h_control, u16 index, u16 *pn_type,
+	u32 *pfrequency_hz, short *pnQ100, short *pn_gain0_01dB);
 
-u16 hpi_parametricEQ__get_coeffs(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u16 index, short coeffs[5]
+u16 hpi_parametric_eq_get_coeffs(u32 h_control, u16 index, short coeffs[5]
 	);
 
-/*******************************
-  Compressor Expander control
-*******************************/
+/*******************************/
+/* Compressor Expander control */
+/*******************************/
 
-u16 hpi_compander_set_enable(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 on);
+u16 hpi_compander_set_enable(u32 h_control, u32 on);
 
-u16 hpi_compander_get_enable(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *pon);
+u16 hpi_compander_get_enable(u32 h_control, u32 *pon);
 
-u16 hpi_compander_set_makeup_gain(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, short makeup_gain0_01dB);
+u16 hpi_compander_set_makeup_gain(u32 h_control, short makeup_gain0_01dB);
 
-u16 hpi_compander_get_makeup_gain(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, short *pn_makeup_gain0_01dB);
+u16 hpi_compander_get_makeup_gain(u32 h_control, short *pn_makeup_gain0_01dB);
 
-u16 hpi_compander_set_attack_time_constant(const struct hpi_hsubsys
-	*ph_subsys, u32 h_control, u32 index, u32 attack);
+u16 hpi_compander_set_attack_time_constant(u32 h_control, u32 index,
+	u32 attack);
 
-u16 hpi_compander_get_attack_time_constant(const struct hpi_hsubsys
-	*ph_subsys, u32 h_control, u32 index, u32 *pw_attack);
+u16 hpi_compander_get_attack_time_constant(u32 h_control, u32 index,
+	u32 *pw_attack);
 
-u16 hpi_compander_set_decay_time_constant(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 index, u32 decay);
+u16 hpi_compander_set_decay_time_constant(u32 h_control, u32 index,
+	u32 decay);
 
-u16 hpi_compander_get_decay_time_constant(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 index, u32 *pw_decay);
+u16 hpi_compander_get_decay_time_constant(u32 h_control, u32 index,
+	u32 *pw_decay);
 
-u16 hpi_compander_set_threshold(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 index, short threshold0_01dB);
+u16 hpi_compander_set_threshold(u32 h_control, u32 index,
+	short threshold0_01dB);
 
-u16 hpi_compander_get_threshold(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 index, short *pn_threshold0_01dB);
+u16 hpi_compander_get_threshold(u32 h_control, u32 index,
+	short *pn_threshold0_01dB);
 
-u16 hpi_compander_set_ratio(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 index, u32 ratio100);
+u16 hpi_compander_set_ratio(u32 h_control, u32 index, u32 ratio100);
 
-u16 hpi_compander_get_ratio(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 index, u32 *pw_ratio100);
+u16 hpi_compander_get_ratio(u32 h_control, u32 index, u32 *pw_ratio100);
 
-/*******************************
-  Cobranet HMI control
-*******************************/
-u16 hpi_cobranet_hmi_write(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u32 hmi_address, u32 byte_count, u8 *pb_data);
+/********************/
+/* Cobranet control */
+/********************/
+u16 hpi_cobranet_hmi_write(u32 h_control, u32 hmi_address, u32 byte_count,
+	u8 *pb_data);
 
-u16 hpi_cobranet_hmi_read(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u32 hmi_address, u32 max_byte_count, u32 *pbyte_count, u8 *pb_data);
+u16 hpi_cobranet_hmi_read(u32 h_control, u32 hmi_address, u32 max_byte_count,
+	u32 *pbyte_count, u8 *pb_data);
 
-u16 hpi_cobranet_hmi_get_status(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *pstatus, u32 *preadable_size,
-	u32 *pwriteable_size);
+u16 hpi_cobranet_hmi_get_status(u32 h_control, u32 *pstatus,
+	u32 *preadable_size, u32 *pwriteable_size);
 
-/*Read the current IP address
-*/
-u16 hpi_cobranet_getI_paddress(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *pi_paddress);
+u16 hpi_cobranet_get_ip_address(u32 h_control, u32 *pdw_ip_address);
 
-/* Write the current IP address
-*/
-u16 hpi_cobranet_setI_paddress(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 i_paddress);
+u16 hpi_cobranet_set_ip_address(u32 h_control, u32 dw_ip_address);
 
-/* Read the static IP address
-*/
-u16 hpi_cobranet_get_staticI_paddress(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *pi_paddress);
+u16 hpi_cobranet_get_static_ip_address(u32 h_control, u32 *pdw_ip_address);
 
-/* Write the static IP address
-*/
-u16 hpi_cobranet_set_staticI_paddress(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 i_paddress);
+u16 hpi_cobranet_set_static_ip_address(u32 h_control, u32 dw_ip_address);
 
-/* Read the MAC address
-*/
-u16 hpi_cobranet_getMA_caddress(const struct hpi_hsubsys *ph_subsys,
-	u32 h_control, u32 *pmAC_MS_bs, u32 *pmAC_LS_bs);
+u16 hpi_cobranet_get_macaddress(u32 h_control, u32 *pmAC_MS_bs,
+	u32 *pmAC_LS_bs);
 
-/*******************************
-  Tone Detector control
-*******************************/
-u16 hpi_tone_detector_get_state(const struct hpi_hsubsys *ph_subsys, u32 hC,
-	u32 *state);
+/*************************/
+/* Tone Detector control */
+/*************************/
+u16 hpi_tone_detector_get_state(u32 hC, u32 *state);
 
-u16 hpi_tone_detector_set_enable(const struct hpi_hsubsys *ph_subsys, u32 hC,
-	u32 enable);
+u16 hpi_tone_detector_set_enable(u32 hC, u32 enable);
 
-u16 hpi_tone_detector_get_enable(const struct hpi_hsubsys *ph_subsys, u32 hC,
-	u32 *enable);
+u16 hpi_tone_detector_get_enable(u32 hC, u32 *enable);
 
-u16 hpi_tone_detector_set_event_enable(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, u32 event_enable);
+u16 hpi_tone_detector_set_event_enable(u32 hC, u32 event_enable);
 
-u16 hpi_tone_detector_get_event_enable(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, u32 *event_enable);
+u16 hpi_tone_detector_get_event_enable(u32 hC, u32 *event_enable);
 
-u16 hpi_tone_detector_set_threshold(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, int threshold);
+u16 hpi_tone_detector_set_threshold(u32 hC, int threshold);
 
-u16 hpi_tone_detector_get_threshold(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, int *threshold);
+u16 hpi_tone_detector_get_threshold(u32 hC, int *threshold);
 
-u16 hpi_tone_detector_get_frequency(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, u32 index, u32 *frequency);
+u16 hpi_tone_detector_get_frequency(u32 hC, u32 index, u32 *frequency);
 
-/*******************************
-  Silence Detector control
-*******************************/
-u16 hpi_silence_detector_get_state(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, u32 *state);
+/****************************/
+/* Silence Detector control */
+/****************************/
+u16 hpi_silence_detector_get_state(u32 hC, u32 *state);
 
-u16 hpi_silence_detector_set_enable(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, u32 enable);
+u16 hpi_silence_detector_set_enable(u32 hC, u32 enable);
 
-u16 hpi_silence_detector_get_enable(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, u32 *enable);
+u16 hpi_silence_detector_get_enable(u32 hC, u32 *enable);
 
-u16 hpi_silence_detector_set_event_enable(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, u32 event_enable);
+u16 hpi_silence_detector_set_event_enable(u32 hC, u32 event_enable);
 
-u16 hpi_silence_detector_get_event_enable(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, u32 *event_enable);
+u16 hpi_silence_detector_get_event_enable(u32 hC, u32 *event_enable);
 
-u16 hpi_silence_detector_set_delay(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, u32 delay);
+u16 hpi_silence_detector_set_delay(u32 hC, u32 delay);
 
-u16 hpi_silence_detector_get_delay(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, u32 *delay);
+u16 hpi_silence_detector_get_delay(u32 hC, u32 *delay);
 
-u16 hpi_silence_detector_set_threshold(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, int threshold);
+u16 hpi_silence_detector_set_threshold(u32 hC, int threshold);
 
-u16 hpi_silence_detector_get_threshold(const struct hpi_hsubsys *ph_subsys,
-	u32 hC, int *threshold);
-/*//////////////////// */
-/* UTILITY functions */
+u16 hpi_silence_detector_get_threshold(u32 hC, int *threshold);
+/*********************/
+/* Utility functions */
+/*********************/
 
 u16 hpi_format_create(struct hpi_format *p_format, u16 channels, u16 format,
 	u32 sample_rate, u32 bit_rate, u32 attributes);
 
-/* Until it's verified, this function is for Windows OSs only */
-
-#endif	 /*_H_HPI_ */
-/*
-///////////////////////////////////////////////////////////////////////////////
-// See CVS for history.  Last complete set in rev 1.146
-////////////////////////////////////////////////////////////////////////////////
-*/
+#endif	 /*_HPI_H_ */
