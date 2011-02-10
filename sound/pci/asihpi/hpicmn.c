@@ -156,7 +156,7 @@ static void subsys_get_adapter(struct hpi_message *phm,
 	/* find the nCount'th nonzero adapter in array */
 	for (index = 0; index < HPI_MAX_ADAPTERS; index++) {
 		if (adapters.adapter[index].adapter_type) {
-			if (count == 0)
+			if (!count)
 				break;
 			count--;
 		}
@@ -199,7 +199,7 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 				&p_master_cache[byte_count];
 
 			if (!info->size_in32bit_words) {
-				if (i == 0) {
+				if (!i) {
 					HPI_DEBUG_LOG(INFO,
 						"adap %d cache not ready?\n",
 						pC->adap_idx);
@@ -277,28 +277,6 @@ static short find_control(u16 control_index,
 			(*pI)->control_type);
 	}
 	return 1;
-}
-
-/** Used by the kernel driver to figure out if a buffer needs mapping.
- */
-short hpi_check_buffer_mapping(struct hpi_control_cache *p_cache,
-	struct hpi_message *phm, void **p, unsigned int *pN)
-{
-	*pN = 0;
-	*p = NULL;
-	if ((phm->function == HPI_CONTROL_GET_STATE)
-		&& (phm->object == HPI_OBJ_CONTROLEX)
-		) {
-		struct hpi_control_cache_info *pI;
-
-		if (!find_control(phm->obj_index, p_cache, &pI)) {
-			HPI_DEBUG_LOG(VERBOSE,
-				"HPICMN find_control() failed for adap %d\n",
-				phm->adapter_index);
-			return 0;
-		}
-	}
-	return 0;
 }
 
 /* allow unified treatment of several string fields within struct */
@@ -612,24 +590,24 @@ void hpi_cmn_control_cache_sync_to_msg(struct hpi_control_cache *p_cache,
 	}
 }
 
-struct hpi_control_cache *hpi_alloc_control_cache(const u32
-	number_of_controls, const u32 size_in_bytes, u8 *pDSP_control_buffer)
+struct hpi_control_cache *hpi_alloc_control_cache(const u32 control_count,
+	const u32 size_in_bytes, u8 *p_dsp_control_buffer)
 {
 	struct hpi_control_cache *p_cache =
 		kmalloc(sizeof(*p_cache), GFP_KERNEL);
 	if (!p_cache)
 		return NULL;
+
 	p_cache->p_info =
-		kmalloc(sizeof(*p_cache->p_info) * number_of_controls,
-			GFP_KERNEL);
+		kmalloc(sizeof(*p_cache->p_info) * control_count, GFP_KERNEL);
 	if (!p_cache->p_info) {
 		kfree(p_cache);
 		return NULL;
 	}
+	memset(p_cache->p_info, 0, sizeof(*p_cache->p_info) * control_count);
 	p_cache->cache_size_in_bytes = size_in_bytes;
-	p_cache->control_count = number_of_controls;
-	p_cache->p_cache =
-		(struct hpi_control_cache_single *)pDSP_control_buffer;
+	p_cache->control_count = control_count;
+	p_cache->p_cache = p_dsp_control_buffer;
 	p_cache->init = 0;
 	return p_cache;
 }
@@ -638,8 +616,6 @@ void hpi_free_control_cache(struct hpi_control_cache *p_cache)
 {
 	if (p_cache) {
 		kfree(p_cache->p_info);
-		p_cache->p_info = NULL;
-		p_cache->init = 0;
 		kfree(p_cache);
 	}
 }

@@ -33,15 +33,15 @@ struct hpi_adapter_obj {
 };
 
 struct hpi_control_cache {
-	u16 init;	     /**< indicates whether the
-				structures are initialized */
+	/** indicates whether the structures are initialized */
+	u16 init;
 	u16 adap_idx;
 	u32 control_count;
 	u32 cache_size_in_bytes;
-	struct hpi_control_cache_info
-	**p_info;		 /**< pointer to allocated memory of
-				lookup pointers. */
-	u8 *p_cache;	/**< pointer to DSP's control cache. */
+	/** pointer to allocated memory of lookup pointers. */
+	struct hpi_control_cache_info **p_info;
+	/** pointer to DSP's control cache. */
+	u8 *p_cache;
 };
 
 struct hpi_adapter_obj *hpi_find_adapter(u16 adapter_index);
@@ -57,6 +57,5 @@ void hpi_free_control_cache(struct hpi_control_cache *p_cache);
 
 void hpi_cmn_control_cache_sync_to_msg(struct hpi_control_cache *pC,
 	struct hpi_message *phm, struct hpi_response *phr);
+
 u16 hpi_validate_response(struct hpi_message *phm, struct hpi_response *phr);
-short hpi_check_buffer_mapping(struct hpi_control_cache *p_cache,
-	struct hpi_message *phm, void **p, unsigned int *pN);
