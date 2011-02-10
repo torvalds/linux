@@ -716,7 +716,6 @@ MgntActSet_RF_State(
 	bool 			bConnectBySSID = false;
 	RT_RF_POWER_STATE	rtState;
 	u16					RFWaitCounter = 0;
-	unsigned long flag;
 	RT_TRACE(COMP_POWER, "===>MgntActSet_RF_State(): StateToSet(%d)\n",StateToSet);
 
 	//1//
@@ -726,10 +725,10 @@ MgntActSet_RF_State(
 
 	while(true)
 	{
-		spin_lock_irqsave(&priv->rf_ps_lock,flag);
+		spin_lock(&priv->rf_ps_lock);
 		if(priv->RFChangeInProgress)
 		{
-			spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
+			spin_unlock(&priv->rf_ps_lock);
 			RT_TRACE(COMP_POWER, "MgntActSet_RF_State(): RF Change in progress! Wait to set..StateToSet(%d).\n", StateToSet);
 
 			// Set RF after the previous action is done.
@@ -751,7 +750,7 @@ MgntActSet_RF_State(
 		else
 		{
 			priv->RFChangeInProgress = true;
-			spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
+			spin_unlock(&priv->rf_ps_lock);
 			break;
 		}
 	}
@@ -809,9 +808,9 @@ MgntActSet_RF_State(
 	}
 
 	// Release RF spinlock
-	spin_lock_irqsave(&priv->rf_ps_lock,flag);
+	spin_lock(&priv->rf_ps_lock);
 	priv->RFChangeInProgress = false;
-	spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
+	spin_unlock(&priv->rf_ps_lock);
 
 	RT_TRACE(COMP_POWER, "<===MgntActSet_RF_State()\n");
 	return bActionAllowed;
