@@ -249,7 +249,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 		spin_unlock_irqrestore(&ieee->lock, flags);
 	}else{
 		spin_unlock_irqrestore(&ieee->lock, flags);
-		spin_lock_irqsave(&ieee->mgmt_tx_lock, flags);
+		spin_lock(&ieee->mgmt_tx_lock);
 
 		header->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
 
@@ -270,7 +270,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 		} else {
 			ieee->softmac_hard_start_xmit(skb,ieee->dev);
 		}
-		spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags);
+		spin_unlock(&ieee->mgmt_tx_lock);
 	}
 }
 
@@ -1830,8 +1830,7 @@ inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 
 	u32 th,tl;
 	short sleep;
-
-	unsigned long flags,flags2;
+	unsigned long flags;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -1842,11 +1841,11 @@ inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 	//	#warning CHECK_LOCK_HERE
 		printk("=====>%s(): no need to ps,wake up!! ieee->ps is %d,ieee->iw_mode is %d,ieee->state is %d\n",
 			__FUNCTION__,ieee->ps,ieee->iw_mode,ieee->state);
-		spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
+		spin_lock(&ieee->mgmt_tx_lock);
 
 		ieee80211_sta_wakeup(ieee, 1);
 
-		spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags2);
+		spin_unlock(&ieee->mgmt_tx_lock);
 	}
 
 	sleep = ieee80211_sta_ps_sleep(ieee,&th, &tl);
@@ -1861,7 +1860,7 @@ inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 		}
 
 		else if(ieee->sta_sleep == 0){
-			spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
+			spin_lock(&ieee->mgmt_tx_lock);
 
 			if(ieee->ps_is_queue_empty(ieee->dev)){
 				ieee->sta_sleep = 2;
@@ -1870,18 +1869,18 @@ inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 				ieee->ps_th = th;
 				ieee->ps_tl = tl;
 			}
-			spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags2);
+			spin_unlock(&ieee->mgmt_tx_lock);
 
 		}
 
 		ieee->bAwakePktSent = false;//after null to power save we set it to false. not listen every beacon.
 
 	}else if(sleep == 2){
-		spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
+		spin_lock(&ieee->mgmt_tx_lock);
 
 		ieee80211_sta_wakeup(ieee,1);
 
-		spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags2);
+		spin_unlock(&ieee->mgmt_tx_lock);
 	}
 
 out:
@@ -1933,7 +1932,7 @@ void ieee80211_sta_wakeup(struct ieee80211_device *ieee, short nl)
 
 void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success)
 {
-	unsigned long flags,flags2;
+	unsigned long flags;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -1946,7 +1945,7 @@ void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success)
 	} else {/* 21112005 - tx again null without PS bit if lost */
 
 		if((ieee->sta_sleep == 0) && !success){
-			spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
+			spin_lock(&ieee->mgmt_tx_lock);
 			//ieee80211_sta_ps_send_null_frame(ieee, 0);
 			if(ieee->pHTInfo->IOTAction & HT_IOT_ACT_NULL_DATA_POWER_SAVING)
 			{
@@ -1956,7 +1955,7 @@ void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success)
 			{
 				ieee80211_sta_ps_send_pspoll_frame(ieee);
 			}
-			spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags2);
+			spin_unlock(&ieee->mgmt_tx_lock);
 		}
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);

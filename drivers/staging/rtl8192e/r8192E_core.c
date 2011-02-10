@@ -3234,16 +3234,14 @@ bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,	u8 rtPsMode)
 	// Awake immediately
 	if(priv->ieee80211->sta_sleep != 0 && rtPsMode == IEEE80211_PS_DISABLED)
 	{
-                unsigned long flags;
-
 		// Notify the AP we awke.
 		rtl8192_hw_wakeup(dev);
 		priv->ieee80211->sta_sleep = 0;
 
-                spin_lock_irqsave(&(priv->ieee80211->mgmt_tx_lock), flags);
+                spin_lock(&priv->ieee80211->mgmt_tx_lock);
 		printk("LPS leave: notify AP we are awaked ++++++++++ SendNullFunctionData\n");
 		ieee80211_sta_ps_send_null_frame(priv->ieee80211, 0);
-                spin_unlock_irqrestore(&(priv->ieee80211->mgmt_tx_lock), flags);
+                spin_unlock(&priv->ieee80211->mgmt_tx_lock);
 	}
 
 	return true;
