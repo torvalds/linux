@@ -100,9 +100,9 @@ short hpi_dsp_code_open(u32 adapter, struct dsp_code *ps_dsp_code,
 		goto error2;
 	}
 
-	if (header.version / 10000 != HPI_VER_DECIMAL / 10000) {
+	if (header.version / 100 != HPI_VER_DECIMAL / 100) {
 		dev_printk(KERN_ERR, &ps_dsp_code->ps_dev->dev,
-			"Firmware Major Version mismatch "
+			"Incompatible firmware version "
 			"DSP image %d != Driver %d\n", header.version,
 			HPI_VER_DECIMAL);
 		goto error2;
@@ -110,9 +110,8 @@ short hpi_dsp_code_open(u32 adapter, struct dsp_code *ps_dsp_code,
 
 	if (header.version != HPI_VER_DECIMAL) {
 		dev_printk(KERN_WARNING, &ps_dsp_code->ps_dev->dev,
-			"firmware: version mismatch  DSP image %d != Driver %d\n",
+			"Firmware: release version mismatch  DSP image %d != Driver %d\n",
 			header.version, HPI_VER_DECIMAL);
-		/* goto error2;  still allow driver to load */
 	}
 
 	HPI_DEBUG_LOG(DEBUG, "dsp code %s opened\n", fw_name);
