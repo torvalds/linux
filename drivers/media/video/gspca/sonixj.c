@@ -1789,7 +1789,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	const u8 *sn9c1xx;
-	u8 regGpio[] = { 0x29, 0x74 };		/* with audio */
+	u8 regGpio[] = { 0x29, 0x70 };		/* no audio */
 	u8 regF1;
 
 	/* setup a selector by bridge */
@@ -1801,6 +1801,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	if (gspca_dev->usb_err < 0)
 		return gspca_dev->usb_err;
 	PDEBUG(D_PROBE, "Sonix chip id: %02x", regF1);
+	if (gspca_dev->audio)
+		regGpio[1] |= 0x04;		/* with audio */
 	switch (sd->bridge) {
 	case BRIDGE_SN9C102P:
 	case BRIDGE_SN9C105:
@@ -1840,7 +1842,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		reg_w1(gspca_dev, 0x02, 0x62);
 		break;
 	case BRIDGE_SN9C120:
-		regGpio[1] = 0x70;		/* no audio */
 		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
 	}
