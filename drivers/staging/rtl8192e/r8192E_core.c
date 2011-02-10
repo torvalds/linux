@@ -3706,15 +3706,75 @@ static int r8192_set_mac_adr(struct net_device *dev, void *mac)
 	return 0;
 }
 
+static void r8192e_set_hw_key(struct r8192_priv *priv, struct ieee_param *ipw)
+{
+	struct ieee80211_device *ieee = priv->ieee80211;
+	struct net_device *dev = priv->ieee80211->dev;
+	u8 broadcast_addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
+	u32 key[4];
+
+	if (ipw->u.crypt.set_tx) {
+		if (strcmp(ipw->u.crypt.alg, "CCMP") == 0)
+			ieee->pairwise_key_type = KEY_TYPE_CCMP;
+		else if (strcmp(ipw->u.crypt.alg, "TKIP") == 0)
+			ieee->pairwise_key_type = KEY_TYPE_TKIP;
+		else if (strcmp(ipw->u.crypt.alg, "WEP") == 0) {
+			if (ipw->u.crypt.key_len == 13)
+				ieee->pairwise_key_type = KEY_TYPE_WEP104;
+			else if (ipw->u.crypt.key_len == 5)
+				ieee->pairwise_key_type = KEY_TYPE_WEP40;
+		} else
+			ieee->pairwise_key_type = KEY_TYPE_NA;
+
+		if (ieee->pairwise_key_type) {
+			memcpy(key, ipw->u.crypt.key, 16);
+			EnableHWSecurityConfig8192(dev);
+			/*
+			 * We fill both index entry and 4th entry for pairwise
+			 * key as in IPW interface, adhoc will only get here,
+			 * so we need index entry for its default key serching!
+			 */
+			setKey(dev, 4, ipw->u.crypt.idx,
+			       ieee->pairwise_key_type,
+			       (u8*)ieee->ap_mac_addr, 0, key);
+
+			/* LEAP WEP will never set this. */
+			if (ieee->auth_mode != 2)
+				setKey(dev, ipw->u.crypt.idx, ipw->u.crypt.idx,
+				       ieee->pairwise_key_type,
+				       (u8*)ieee->ap_mac_addr, 0, key);
+		}
+		if ((ieee->pairwise_key_type == KEY_TYPE_CCMP) &&
+		    ieee->pHTInfo->bCurrentHTSupport) {
+			write_nic_byte(priv, 0x173, 1); /* fix aes bug */
+		}
+	} else {
+		memcpy(key, ipw->u.crypt.key, 16);
+		if (strcmp(ipw->u.crypt.alg, "CCMP") == 0)
+			ieee->group_key_type= KEY_TYPE_CCMP;
+		else if (strcmp(ipw->u.crypt.alg, "TKIP") == 0)
+			ieee->group_key_type = KEY_TYPE_TKIP;
+		else if (strcmp(ipw->u.crypt.alg, "WEP") == 0) {
+			if (ipw->u.crypt.key_len == 13)
+				ieee->group_key_type = KEY_TYPE_WEP104;
+			else if (ipw->u.crypt.key_len == 5)
+				ieee->group_key_type = KEY_TYPE_WEP40;
+		} else
+			ieee->group_key_type = KEY_TYPE_NA;
+
+		if (ieee->group_key_type) {
+			setKey(dev, ipw->u.crypt.idx, ipw->u.crypt.idx,
+			       ieee->group_key_type, broadcast_addr, 0, key);
+		}
+	}
+}
+
 /* based on ipw2200 driver */
 static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct iwreq *wrq = (struct iwreq *)rq;
 	int ret=-1;
-	struct ieee80211_device *ieee = priv->ieee80211;
-	u32 key[4];
-	u8 broadcast_addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 	struct iw_point *p = &wrq->u.data;
 	struct ieee_param *ipw = NULL;//(struct ieee_param *)wrq->u.data.pointer;
 
@@ -3738,74 +3798,14 @@ static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
      }
 
 	switch (cmd) {
-	    case RTL_IOCTL_WPA_SUPPLICANT:
-		//parse here for HW security
-			if (ipw->cmd == IEEE_CMD_SET_ENCRYPTION)
-			{
-				if (ipw->u.crypt.set_tx)
-				{
-					if (strcmp(ipw->u.crypt.alg, "CCMP") == 0)
-						ieee->pairwise_key_type = KEY_TYPE_CCMP;
-					else if (strcmp(ipw->u.crypt.alg, "TKIP") == 0)
-						ieee->pairwise_key_type = KEY_TYPE_TKIP;
-					else if (strcmp(ipw->u.crypt.alg, "WEP") == 0)
-					{
-						if (ipw->u.crypt.key_len == 13)
-							ieee->pairwise_key_type = KEY_TYPE_WEP104;
-						else if (ipw->u.crypt.key_len == 5)
-							ieee->pairwise_key_type = KEY_TYPE_WEP40;
-					}
-					else
-						ieee->pairwise_key_type = KEY_TYPE_NA;
-
-					if (ieee->pairwise_key_type)
-					{
-						memcpy((u8*)key, ipw->u.crypt.key, 16);
-						EnableHWSecurityConfig8192(dev);
-					//we fill both index entry and 4th entry for pairwise key as in IPW interface, adhoc will only get here, so we need index entry for its default key serching!
-					//added by WB.
-						setKey(dev, 4, ipw->u.crypt.idx, ieee->pairwise_key_type, (u8*)ieee->ap_mac_addr, 0, key);
-						if (ieee->auth_mode != 2)  //LEAP WEP will never set this.
-						setKey(dev, ipw->u.crypt.idx, ipw->u.crypt.idx, ieee->pairwise_key_type, (u8*)ieee->ap_mac_addr, 0, key);
-					}
-					if ((ieee->pairwise_key_type == KEY_TYPE_CCMP) && ieee->pHTInfo->bCurrentHTSupport){
-							write_nic_byte(priv, 0x173, 1); //fix aes bug
-						}
-
-				}
-				else //if (ipw->u.crypt.idx) //group key use idx > 0
-				{
-					memcpy((u8*)key, ipw->u.crypt.key, 16);
-					if (strcmp(ipw->u.crypt.alg, "CCMP") == 0)
-						ieee->group_key_type= KEY_TYPE_CCMP;
-					else if (strcmp(ipw->u.crypt.alg, "TKIP") == 0)
-						ieee->group_key_type = KEY_TYPE_TKIP;
-					else if (strcmp(ipw->u.crypt.alg, "WEP") == 0)
-					{
-						if (ipw->u.crypt.key_len == 13)
-							ieee->group_key_type = KEY_TYPE_WEP104;
-						else if (ipw->u.crypt.key_len == 5)
-							ieee->group_key_type = KEY_TYPE_WEP40;
-					}
-					else
-						ieee->group_key_type = KEY_TYPE_NA;
-
-					if (ieee->group_key_type)
-					{
-							setKey(	dev,
-								ipw->u.crypt.idx,
-								ipw->u.crypt.idx,		//KeyIndex
-						     		ieee->group_key_type,	//KeyType
-						            	broadcast_addr,	//MacAddr
-								0,		//DefaultKey
-							      	key);		//KeyContent
-					}
-				}
-			}
+	case RTL_IOCTL_WPA_SUPPLICANT:
+		/* parse here for HW security */
+		if (ipw->cmd == IEEE_CMD_SET_ENCRYPTION)
+			r8192e_set_hw_key(priv, ipw);
 		ret = ieee80211_wpa_supplicant_ioctl(priv->ieee80211, &wrq->u.data);
 		break;
 
-	    default:
+	default:
 		ret = -EOPNOTSUPP;
 		break;
 	}
