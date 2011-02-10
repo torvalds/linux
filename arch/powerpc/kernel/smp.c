@@ -502,7 +502,7 @@ static struct device_node *cpu_to_l2cache(int cpu)
 }
 
 /* Activate a secondary processor. */
-int __devinit start_secondary(void *unused)
+void __devinit start_secondary(void *unused)
 {
 	unsigned int cpu = smp_processor_id();
 	struct device_node *l2_cache;
@@ -558,7 +558,8 @@ int __devinit start_secondary(void *unused)
 	local_irq_enable();
 
 	cpu_idle();
-	return 0;
+
+	BUG();
 }
 
 int setup_profiling_timer(unsigned int multiplier)
@@ -660,5 +661,9 @@ void cpu_die(void)
 {
 	if (ppc_md.cpu_die)
 		ppc_md.cpu_die();
+
+	/* If we return, we re-enter start_secondary */
+	start_secondary_resume();
 }
+
 #endif
