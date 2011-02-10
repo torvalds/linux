@@ -28,20 +28,18 @@
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
 
-static void gw_node_free_ref(struct kref *refcount)
-{
-	struct gw_node *gw_node;
-
-	gw_node = container_of(refcount, struct gw_node, refcount);
-	kfree(gw_node);
-}
-
 static void gw_node_free_rcu(struct rcu_head *rcu)
 {
 	struct gw_node *gw_node;
 
 	gw_node = container_of(rcu, struct gw_node, rcu);
-	kref_put(&gw_node->refcount, gw_node_free_ref);
+	kfree(gw_node);
+}
+
+static void gw_node_free_ref(struct gw_node *gw_node)
+{
+	if (atomic_dec_and_test(&gw_node->refcount))
+		call_rcu(&gw_node->rcu, gw_node_free_rcu);
 }
 
 void *gw_get_selected(struct bat_priv *bat_priv)
@@ -61,25 +59,26 @@ void gw_deselect(struct bat_priv *bat_priv)
 	bat_priv->curr_gw = NULL;
 
 	if (gw_node)
-		kref_put(&gw_node->refcount, gw_node_free_ref);
+		gw_node_free_ref(gw_node);
 }
 
-static struct gw_node *gw_select(struct bat_priv *bat_priv,
-			  struct gw_node *new_gw_node)
+static void gw_select(struct bat_priv *bat_priv, struct gw_node *new_gw_node)
 {
 	struct gw_node *curr_gw_node = bat_priv->curr_gw;
 
-	if (new_gw_node)
-		kref_get(&new_gw_node->refcount);
+	if (new_gw_node && !atomic_inc_not_zero(&new_gw_node->refcount))
+		new_gw_node = NULL;
 
 	bat_priv->curr_gw = new_gw_node;
-	return curr_gw_node;
+
+	if (curr_gw_node)
+		gw_node_free_ref(curr_gw_node);
 }
 
 void gw_election(struct bat_priv *bat_priv)
 {
 	struct hlist_node *node;
-	struct gw_node *gw_node, *curr_gw_tmp = NULL, *old_gw_node = NULL;
+	struct gw_node *gw_node, *curr_gw_tmp = NULL;
 	uint8_t max_tq = 0;
 	uint32_t max_gw_factor = 0, tmp_gw_factor = 0;
 	int down, up;
@@ -174,14 +173,10 @@ void gw_election(struct bat_priv *bat_priv)
 				curr_gw_tmp->orig_node->gw_flags,
 				curr_gw_tmp->orig_node->router->tq_avg);
 
-		old_gw_node = gw_select(bat_priv, curr_gw_tmp);
+		gw_select(bat_priv, curr_gw_tmp);
 	}
 
 	rcu_read_unlock();
-
-	/* the kfree() has to be outside of the rcu lock */
-	if (old_gw_node)
-		kref_put(&old_gw_node->refcount, gw_node_free_ref);
 }
 
 void gw_check_election(struct bat_priv *bat_priv, struct orig_node *orig_node)
@@ -242,7 +237,7 @@ static void gw_node_add(struct bat_priv *bat_priv,
 	memset(gw_node, 0, sizeof(struct gw_node));
 	INIT_HLIST_NODE(&gw_node->list);
 	gw_node->orig_node = orig_node;
-	kref_init(&gw_node->refcount);
+	atomic_set(&gw_node->refcount, 1);
 
 	spin_lock_bh(&bat_priv->gw_list_lock);
 	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw_list);
@@ -325,7 +320,7 @@ void gw_node_purge(struct bat_priv *bat_priv)
 			gw_deselect(bat_priv);
 
 		hlist_del_rcu(&gw_node->list);
-		call_rcu(&gw_node->rcu, gw_node_free_rcu);
+		gw_node_free_ref(gw_node);
 	}
 
 
