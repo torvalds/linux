@@ -1375,8 +1375,6 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 	struct after_conn_state_chg_work *acscw;
 	enum drbd_conns oc = tconn->cstate;
 
-	read_lock(&global_state_lock);
-
 	rv = is_valid_conn_transition(oc, val.conn);
 	if (rv < SS_SUCCESS)
 		goto abort;
@@ -1418,8 +1416,6 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 	}
 
 abort:
-	read_unlock(&global_state_lock);
-
 	return rv;
 }
 
