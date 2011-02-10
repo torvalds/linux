@@ -1946,6 +1946,7 @@ void set_page_extent_mapped(struct page *page)
 
 static void set_page_extent_head(struct page *page, unsigned long len)
 {
+	WARN_ON(!PagePrivate(page));
 	set_page_private(page, EXTENT_PAGE_PRIVATE_FIRST_PAGE | len << 2);
 }
 
@@ -3195,7 +3196,13 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 		}
 		if (!PageUptodate(p))
 			uptodate = 0;
-		unlock_page(p);
+
+		/*
+		 * see below about how we avoid a nasty race with release page
+		 * and why we unlock later
+		 */
+		if (i != 0)
+			unlock_page(p);
 	}
 	if (uptodate)
 		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
@@ -3219,9 +3226,26 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	atomic_inc(&eb->refs);
 	spin_unlock(&tree->buffer_lock);
 	radix_tree_preload_end();
+
+	/*
+	 * there is a race where release page may have
+	 * tried to find this extent buffer in the radix
+	 * but failed.  It will tell the VM it is safe to
+	 * reclaim the, and it will clear the page private bit.
+	 * We must make sure to set the page private bit properly
+	 * after the extent buffer is in the radix tree so
+	 * it doesn't get lost
+	 */
+	set_page_extent_mapped(eb->first_page);
+	set_page_extent_head(eb->first_page, eb->len);
+	if (!page0)
+		unlock_page(eb->first_page);
 	return eb;
 
 free_eb:
+	if (eb->first_page && !page0)
+		unlock_page(eb->first_page);
+
 	if (!atomic_dec_and_test(&eb->refs))
 		return exists;
 	btrfs_release_extent_buffer(eb);
@@ -3272,10 +3296,11 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 			continue;
 
 		lock_page(page);
+		WARN_ON(!PagePrivate(page));
+
+		set_page_extent_mapped(page);
 		if (i == 0)
 			set_page_extent_head(page, eb->len);
-		else
-			set_page_private(page, EXTENT_PAGE_PRIVATE);
 
 		clear_page_dirty_for_io(page);
 		spin_lock_irq(&page->mapping->tree_lock);
@@ -3465,6 +3490,13 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 
 	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
+
+		WARN_ON(!PagePrivate(page));
+
+		set_page_extent_mapped(page);
+		if (i == 0)
+			set_page_extent_head(page, eb->len);
+
 		if (inc_all_pages)
 			page_cache_get(page);
 		if (!PageUptodate(page)) {
