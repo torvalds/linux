@@ -38,6 +38,11 @@
 #include <wl_export.h>
 #include <wl_dbg.h>
 
+/*
+ *	Disable AMPDU statistics counters for now
+ */
+#define WLCNTINCR(a)
+#define WLCNTADD(a, b)
 
 #define AMPDU_MAX_MPDU		32	/* max number of mpdus in an ampdu */
 #define AMPDU_NUM_MPDU_LEGACY	16	/* max number of mpdus in an ampdu to a legacy */
@@ -1043,10 +1048,10 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			if (supr_status == TX_STATUS_SUPR_BADCH ||
 			    supr_status == TX_STATUS_SUPR_EXPTIME) {
 				retry = false;
-				WLCNTINCR(wlc->pub->_cnt->txchanrej);
+				wlc->pub->_cnt->txchanrej++;
 			} else if (supr_status == TX_STATUS_SUPR_EXPTIME) {
 
-				WLCNTINCR(wlc->pub->_cnt->txexptime);
+				wlc->pub->_cnt->txexptime++;
 
 				/* TX underflow : try tuning pre-loading or ampdu size */
 			} else if (supr_status == TX_STATUS_SUPR_FRAG) {
@@ -1060,7 +1065,7 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			}
 		} else if (txs->phyerr) {
 			update_rate = false;
-			WLCNTINCR(wlc->pub->_cnt->txphyerr);
+			wlc->pub->_cnt->txphyerr++;
 			WL_ERROR("wl%d: wlc_ampdu_dotxstatus: tx phy error (0x%x)\n",
 				 wlc->pub->unit, txs->phyerr);
 

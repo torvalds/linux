@@ -383,7 +383,7 @@ bool BCMFASTPATH wlc_dpc(struct wlc_info *wlc, bool bounded)
 
 	/* phy tx error */
 	if (macintstatus & MI_PHYTXERR) {
-		WLCNTINCR(wlc->pub->_cnt->txphyerr);
+		wlc->pub->_cnt->txphyerr++;
 	}
 
 	/* received data or control frame, MI_DMAINT is indication of RX_FIFO interrupt */
@@ -413,7 +413,7 @@ bool BCMFASTPATH wlc_dpc(struct wlc_info *wlc, bool bounded)
 					__func__, wlc_hw->sih->chip,
 					wlc_hw->sih->chiprev);
 
-		WLCNTINCR(wlc->pub->_cnt->psmwds);
+		wlc->pub->_cnt->psmwds++;
 
 		/* big hammer */
 		wl_init(wlc->wl);
@@ -427,7 +427,7 @@ bool BCMFASTPATH wlc_dpc(struct wlc_info *wlc, bool bounded)
 	if (macintstatus & MI_RFDISABLE) {
 		WL_TRACE("wl%d: BMAC Detected a change on the RF Disable Input\n", wlc_hw->unit);
 
-		WLCNTINCR(wlc->pub->_cnt->rfdisable);
+		wlc->pub->_cnt->rfdisable++;
 		wl_rfkill_set_hw_state(wlc->wl);
 	}
 
@@ -1088,7 +1088,7 @@ void wlc_bmac_reset(struct wlc_hw_info *wlc_hw)
 {
 	WL_TRACE("wl%d: wlc_bmac_reset\n", wlc_hw->unit);
 
-	WLCNTINCR(wlc_hw->wlc->pub->_cnt->reset);
+	wlc_hw->wlc->pub->_cnt->reset++;
 
 	/* reset the core */
 	if (!DEVICEREMOVED(wlc_hw->wlc))
@@ -2877,40 +2877,40 @@ void wlc_bmac_fifoerrors(struct wlc_hw_info *wlc_hw)
 		if (intstatus & I_RO) {
 			WL_ERROR("wl%d: fifo %d: receive fifo overflow\n",
 				 unit, idx);
-			WLCNTINCR(wlc_hw->wlc->pub->_cnt->rxoflo);
+			wlc_hw->wlc->pub->_cnt->rxoflo++;
 			fatal = true;
 		}
 
 		if (intstatus & I_PC) {
 			WL_ERROR("wl%d: fifo %d: descriptor error\n",
 				 unit, idx);
-			WLCNTINCR(wlc_hw->wlc->pub->_cnt->dmade);
+			wlc_hw->wlc->pub->_cnt->dmade++;
 			fatal = true;
 		}
 
 		if (intstatus & I_PD) {
 			WL_ERROR("wl%d: fifo %d: data error\n", unit, idx);
-			WLCNTINCR(wlc_hw->wlc->pub->_cnt->dmada);
+			wlc_hw->wlc->pub->_cnt->dmada++;
 			fatal = true;
 		}
 
 		if (intstatus & I_DE) {
 			WL_ERROR("wl%d: fifo %d: descriptor protocol error\n",
 				 unit, idx);
-			WLCNTINCR(wlc_hw->wlc->pub->_cnt->dmape);
+			wlc_hw->wlc->pub->_cnt->dmape++;
 			fatal = true;
 		}
 
 		if (intstatus & I_RU) {
 			WL_ERROR("wl%d: fifo %d: receive descriptor underflow\n",
 				 idx, unit);
-			WLCNTINCR(wlc_hw->wlc->pub->_cnt->rxuflo[idx]);
+			wlc_hw->wlc->pub->_cnt->rxuflo[idx]++;
 		}
 
 		if (intstatus & I_XU) {
 			WL_ERROR("wl%d: fifo %d: transmit fifo underflow\n",
 				 idx, unit);
-			WLCNTINCR(wlc_hw->wlc->pub->_cnt->txuflo);
+			wlc_hw->wlc->pub->_cnt->txuflo++;
 			fatal = true;
 		}
 

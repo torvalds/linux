@@ -17,6 +17,7 @@
 #ifndef _wlc_pub_h_
 #define _wlc_pub_h_
 
+#include <wlioctl.h>
 #include <wlc_types.h>
 #include <wlc_scb.h>
 
@@ -326,6 +327,8 @@ struct wlc_pub {
 	bool _lmacproto;	/* lmac protocol module included and enabled */
 	bool phy_11ncapable;	/* the PHY/HW is capable of 802.11N */
 	bool _ampdumac;		/* mac assist ampdu enabled or not */
+
+	struct wl_cnt *_cnt;	/* low-level counters in driver */
 };
 
 /* wl_monitor rx status per packet */
@@ -477,12 +480,6 @@ extern const u8 wme_fifo2ac[];
 
 #define WLC_USE_COREFLAGS	0xffffffff	/* invalid core flags, use the saved coreflags */
 
-#define WLC_UPDATE_STATS(wlc)	0	/* No stats support */
-#define WLCNTINCR(a)		/* No stats support */
-#define WLCNTDECR(a)		/* No stats support */
-#define WLCNTADD(a, delta)	/* No stats support */
-#define WLCNTSET(a, value)	/* No stats support */
-#define WLCNTVAL(a)		0	/* No stats support */
 
 /* common functions for every port */
 extern void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit,

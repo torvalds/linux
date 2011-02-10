@@ -1262,7 +1262,7 @@ struct tsinfo_arg {
 
 #define	WL_CNT_T_VERSION	7	/* current version of wl_cnt_t struct */
 
-typedef struct {
+struct wl_cnt {
 	u16 version;		/* see definition of WL_CNT_T_VERSION */
 	u16 length;		/* length of entire structure */
 
@@ -1492,7 +1492,7 @@ typedef struct {
 	u32 rxmpdu_sgi;	/* count for sgi received */
 	u32 txmpdu_stbc;	/* count for stbc transmit */
 	u32 rxmpdu_stbc;	/* count for stbc received */
-} wl_cnt_t;
+};
 
 #define	WL_DELTA_STATS_T_VERSION	1	/* current version of wl_delta_stats_t struct */
 

@@ -53,6 +53,12 @@
 #include <net/mac80211.h>
 #include <wl_dbg.h>
 
+/*
+ *	Disable statistics counting for WME
+ */
+#define WLCNTSET(a, b)
+#define WLCNTINCR(a)
+#define WLCNTADD(a, b)
 
 /*
  * WPA(2) definitions
@@ -379,13 +385,11 @@ void wlc_reset(struct wlc_info *wlc)
 	wlc->check_for_unaligned_tbtt = false;
 
 	/* slurp up hw mac counters before core reset */
-	if (WLC_UPDATE_STATS(wlc)) {
-		wlc_statsupd(wlc);
+	wlc_statsupd(wlc);
 
-		/* reset our snapshot of macstat counters */
-		memset((char *)wlc->core->macstat_snapshot, 0,
-			sizeof(macstat_t));
-	}
+	/* reset our snapshot of macstat counters */
+	memset((char *)wlc->core->macstat_snapshot, 0,
+		sizeof(macstat_t));
 
 	wlc_bmac_reset(wlc->hw);
 	wlc_ampdu_reset(wlc->ampdu);
@@ -1947,8 +1951,8 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	wlc->cfg->wlc = wlc;
 	pub->txmaxpkts = MAXTXPKTS;
 
-	WLCNTSET(pub->_cnt->version, WL_CNT_T_VERSION);
-	WLCNTSET(pub->_cnt->length, sizeof(wl_cnt_t));
+	pub->_cnt->version = WL_CNT_T_VERSION;
+	pub->_cnt->length = sizeof(struct wl_cnt);
 
 	WLCNTSET(pub->_wme_cnt->version, WL_WME_CNT_VERSION);
 	WLCNTSET(pub->_wme_cnt->length, sizeof(wl_wme_cnt_t));
@@ -2501,8 +2505,7 @@ static void wlc_watchdog(void *arg)
 	wlc_bmac_watchdog(wlc);
 
 	/* occasionally sample mac stat counters to detect 16-bit counter wrap */
-	if ((WLC_UPDATE_STATS(wlc))
-	    && (!(wlc->pub->now % SW_TIMER_MAC_STAT_UPD)))
+	if ((wlc->pub->now % SW_TIMER_MAC_STAT_UPD) == 0)
 		wlc_statsupd(wlc);
 
 	/* Manage TKIP countermeasures timers */
@@ -3855,19 +3858,18 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 	case WLC_GET_PKTCNTS:{
 			get_pktcnt_t *pktcnt = (get_pktcnt_t *) pval;
-			if (WLC_UPDATE_STATS(wlc))
-				wlc_statsupd(wlc);
-			pktcnt->rx_good_pkt = WLCNTVAL(wlc->pub->_cnt->rxframe);
-			pktcnt->rx_bad_pkt = WLCNTVAL(wlc->pub->_cnt->rxerror);
+			wlc_statsupd(wlc);
+			pktcnt->rx_good_pkt = wlc->pub->_cnt->rxframe;
+			pktcnt->rx_bad_pkt = wlc->pub->_cnt->rxerror;
 			pktcnt->tx_good_pkt =
-			    WLCNTVAL(wlc->pub->_cnt->txfrmsnt);
+			    wlc->pub->_cnt->txfrmsnt;
 			pktcnt->tx_bad_pkt =
-			    WLCNTVAL(wlc->pub->_cnt->txerror) +
-			    WLCNTVAL(wlc->pub->_cnt->txfail);
+			    wlc->pub->_cnt->txerror +
+			    wlc->pub->_cnt->txfail;
 			if (len >= (int)sizeof(get_pktcnt_t)) {
 				/* Be backward compatible - only if buffer is large enough  */
 				pktcnt->rx_ocast_good_pkt =
-				    WLCNTVAL(wlc->pub->_cnt->rxmfrmocast);
+				    wlc->pub->_cnt->rxmfrmocast;
 			}
 			break;
 		}
@@ -4746,12 +4748,28 @@ void wlc_print_txstatus(tx_status_t *txs)
 #endif				/* defined(BCMDBG) */
 }
 
+static void
+wlc_ctrupd_cache(u16 cur_stat, u16 *macstat_snapshot, u32 *macstat)
+{
+	u16 v;
+	u16 delta;
+
+	v = ltoh16(cur_stat);
+	delta = (u16)(v - *macstat_snapshot);
+
+	if (delta != 0) {
+		*macstat += delta;
+		*macstat_snapshot = v;
+	}
+}
+
 #define MACSTATUPD(name) \
 	wlc_ctrupd_cache(macstats.name, &wlc->core->macstat_snapshot->name, &wlc->pub->_cnt->name)
 
 void wlc_statsupd(struct wlc_info *wlc)
 {
 	int i;
+	macstat_t macstats;
 #ifdef BCMDBG
 	u16 delta;
 	u16 rxf0ovfl;
@@ -4770,6 +4788,66 @@ void wlc_statsupd(struct wlc_info *wlc)
 	for (i = 0; i < NFIFO; i++)
 		txfunfl[i] = wlc->core->macstat_snapshot->txfunfl[i];
 #endif				/* BCMDBG */
+
+	/* Read mac stats from contiguous shared memory */
+	wlc_bmac_copyfrom_shm(wlc->hw, M_UCODE_MACSTAT,
+			      &macstats, sizeof(macstat_t));
+
+	/* update mac stats */
+	MACSTATUPD(txallfrm);
+	MACSTATUPD(txrtsfrm);
+	MACSTATUPD(txctsfrm);
+	MACSTATUPD(txackfrm);
+	MACSTATUPD(txdnlfrm);
+	MACSTATUPD(txbcnfrm);
+	for (i = 0; i < NFIFO; i++)
+		MACSTATUPD(txfunfl[i]);
+	MACSTATUPD(txtplunfl);
+	MACSTATUPD(txphyerr);
+	MACSTATUPD(rxfrmtoolong);
+	MACSTATUPD(rxfrmtooshrt);
+	MACSTATUPD(rxinvmachdr);
+	MACSTATUPD(rxbadfcs);
+	MACSTATUPD(rxbadplcp);
+	MACSTATUPD(rxcrsglitch);
+	MACSTATUPD(rxstrt);
+	MACSTATUPD(rxdfrmucastmbss);
+	MACSTATUPD(rxmfrmucastmbss);
+	MACSTATUPD(rxcfrmucast);
+	MACSTATUPD(rxrtsucast);
+	MACSTATUPD(rxctsucast);
+	MACSTATUPD(rxackucast);
+	MACSTATUPD(rxdfrmocast);
+	MACSTATUPD(rxmfrmocast);
+	MACSTATUPD(rxcfrmocast);
+	MACSTATUPD(rxrtsocast);
+	MACSTATUPD(rxctsocast);
+	MACSTATUPD(rxdfrmmcast);
+	MACSTATUPD(rxmfrmmcast);
+	MACSTATUPD(rxcfrmmcast);
+	MACSTATUPD(rxbeaconmbss);
+	MACSTATUPD(rxdfrmucastobss);
+	MACSTATUPD(rxbeaconobss);
+	MACSTATUPD(rxrsptmout);
+	MACSTATUPD(bcntxcancl);
+	MACSTATUPD(rxf0ovfl);
+	MACSTATUPD(rxf1ovfl);
+	MACSTATUPD(rxf2ovfl);
+	MACSTATUPD(txsfovfl);
+	MACSTATUPD(pmqovfl);
+	MACSTATUPD(rxcgprqfrm);
+	MACSTATUPD(rxcgprsqovfl);
+	MACSTATUPD(txcgprsfail);
+	MACSTATUPD(txcgprssuc);
+	MACSTATUPD(prs_timeout);
+	MACSTATUPD(rxnack);
+	MACSTATUPD(frmscons);
+	MACSTATUPD(txnack);
+	MACSTATUPD(txglitch_nack);
+	MACSTATUPD(txburst);
+	MACSTATUPD(phywatchdog);
+	MACSTATUPD(pktengrxducast);
+	MACSTATUPD(pktengrxdmcast);
 
 #ifdef BCMDBG
 	/* check for rx fifo 0 overflow */
@@ -4828,7 +4906,7 @@ void wlc_statsupd(struct wlc_info *wlc)
 		 wlc->pub->_cnt->rxgiant + wlc->pub->_cnt->rxnoscb +
 		 wlc->pub->_cnt->rxbadsrcmac);
 	for (i = 0; i < NFIFO; i++)
-		WLCNTADD(wlc->pub->_cnt->rxerror, wlc->pub->_cnt->rxuflo[i]);
+		wlc->pub->_cnt->rxerror += wlc->pub->_cnt->rxuflo[i];
 }
 
 bool wlc_chipmatch(u16 vendor, u16 device)
@@ -5075,7 +5153,7 @@ wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q, struct sk_buff *pkt,
 
 		ASSERT(0);
 		pkt_buf_free_skb(wlc->osh, p, true);
-		WLCNTINCR(wlc->pub->_cnt->txnobuf);
+		wlc->pub->_cnt->txnobuf++;
 	}
 
 	/* Enqueue */
@@ -5108,7 +5186,7 @@ void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 
 		/* ASSERT(9 == 8); *//* XXX we might hit this condtion in case packet flooding from mac80211 stack */
 		pkt_buf_free_skb(wlc->osh, sdu, true);
-		WLCNTINCR(wlc->pub->_cnt->txnobuf);
+		wlc->pub->_cnt->txnobuf++;
 	}
 
 	/* Check if flow control needs to be turned on after enqueuing the packet
@@ -5160,7 +5238,7 @@ wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 	wlc_txq_enq(wlc, scb, pkt, WLC_PRIO_TO_PREC(prio));
 	wlc_send_q(wlc, wlc->active_queue);
 
-	WLCNTINCR(wlc->pub->_cnt->ieee_tx);
+	wlc->pub->_cnt->ieee_tx++;
 	return 0;
 }
 
@@ -6207,7 +6285,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 		       || !IS_MCS(rspec[0]));
 		if (RSPEC2RATE(rspec[0]) != WLC_RATE_1M)
 			phyctl |= PHY_TXC_SHORT_HDR;
-		WLCNTINCR(wlc->pub->_cnt->txprshort);
+		wlc->pub->_cnt->txprshort++;
 	}
 
 	/* phytxant is properly bit shifted */
@@ -6355,7 +6433,7 @@ void wlc_tbtt(struct wlc_info *wlc, d11regs_t *regs)
 {
 	wlc_bsscfg_t *cfg = wlc->cfg;
 
-	WLCNTINCR(wlc->pub->_cnt->tbtt);
+	wlc->pub->_cnt->tbtt++;
 
 	if (BSSCFG_STA(cfg)) {
 		/* run watchdog here if the watchdog timer is not armed */
@@ -6473,7 +6551,7 @@ void wlc_high_dpc(struct wlc_info *wlc, u32 macintstatus)
 					__func__, wlc->pub->sih->chip,
 					wlc->pub->sih->chiprev);
 
-		WLCNTINCR(wlc->pub->_cnt->psmwds);
+		wlc->pub->_cnt->psmwds++;
 
 		/* big hammer */
 		wl_init(wlc->wl);
@@ -6531,7 +6609,7 @@ static void *wlc_15420war(struct wlc_info *wlc, uint queue)
 
 	/* if tx ring is now empty, reset and re-init the tx dma channel */
 	if (dma_txactive(wlc->hw->di[queue]) == 0) {
-		WLCNTINCR(wlc->pub->_cnt->txdmawar);
+		wlc->pub->_cnt->txdmawar++;
 		if (!dma_txreset(di))
 			WL_ERROR("wl%d: %s: dma_txreset[%d]: cannot stop dma\n",
 				 wlc->pub->unit, __func__, queue);
@@ -6633,9 +6711,9 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	if (N_ENAB(wlc->pub)) {
 		u8 *plcp = (u8 *) (txh + 1);
 		if (PLCP3_ISSGI(plcp[3]))
-			WLCNTINCR(wlc->pub->_cnt->txmpdu_sgi);
+			wlc->pub->_cnt->txmpdu_sgi++;
 		if (PLCP3_ISSTBC(plcp[3]))
-			WLCNTINCR(wlc->pub->_cnt->txmpdu_stbc);
+			wlc->pub->_cnt->txmpdu_stbc++;
 	}
 
 	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
@@ -6707,7 +6785,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 		skb_pull(p, D11_PHY_HDR_LEN);
 		skb_pull(p, D11_TXH_LEN);
 		ieee80211_tx_status_irqsafe(wlc->pub->ieee_hw, p);
-		WLCNTINCR(wlc->pub->_cnt->ieee_tx_status);
+		wlc->pub->_cnt->ieee_tx_status++;
 	} else {
 		WL_ERROR("%s: Not last frame => not calling tx_status\n",
 			 __func__);
@@ -6985,7 +7063,7 @@ wlc_recvctl(struct wlc_info *wlc, struct osl_info *osh, d11rxhdr_t *rxh,
 	memcpy(IEEE80211_SKB_RXCB(p), &rx_status, sizeof(rx_status));
 	ieee80211_rx_irqsafe(wlc->pub->ieee_hw, p);
 
-	WLCNTINCR(wlc->pub->_cnt->ieee_rx);
+	wlc->pub->_cnt->ieee_rx++;
 	osh->pktalloced--;
 	return;
 }
@@ -7041,7 +7119,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	/* MAC inserts 2 pad bytes for a4 headers or QoS or A-MSDU subframes */
 	if (rxh->RxStatus1 & RXS_PBPRES) {
 		if (p->len < 2) {
-			WLCNTINCR(wlc->pub->_cnt->rxrunt);
+			wlc->pub->_cnt->rxrunt++;
 			WL_ERROR("wl%d: wlc_recv: rcvd runt of len %d\n",
 				 wlc->pub->unit, p->len);
 			goto toss;
@@ -7066,7 +7144,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	if (len >= D11_PHY_HDR_LEN + sizeof(h->frame_control)) {
 		fc = ltoh16(h->frame_control);
 	} else {
-		WLCNTINCR(wlc->pub->_cnt->rxrunt);
+		wlc->pub->_cnt->rxrunt++;
 		goto toss;
 	}
 
@@ -7082,10 +7160,10 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 				WL_ERROR("wl%d: %s: dropping a frame with "
 					 "invalid src mac address, a2: %pM\n",
 					 wlc->pub->unit, __func__, h->addr2);
-				WLCNTINCR(wlc->pub->_cnt->rxbadsrcmac);
+				wlc->pub->_cnt->rxbadsrcmac++;
 				goto toss;
 			}
-			WLCNTINCR(wlc->pub->_cnt->rxfrag);
+			wlc->pub->_cnt->rxfrag++;
 		}
 	}
 
@@ -7884,7 +7962,7 @@ int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifop)
 
 	if ((ltoh16(txh->MacFrameControl) & IEEE80211_FCTL_FTYPE) !=
 	    IEEE80211_FTYPE_DATA)
-		WLCNTINCR(wlc->pub->_cnt->txctl);
+		wlc->pub->_cnt->txctl++;
 
 	return 0;
 }

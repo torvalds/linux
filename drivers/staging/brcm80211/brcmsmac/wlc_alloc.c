@@ -70,13 +70,13 @@ static struct wlc_pub *wlc_pub_malloc(struct osl_info *osh, uint unit,
 {
 	struct wlc_pub *pub;
 
-	pub = (struct wlc_pub *) wlc_calloc(osh, unit, sizeof(struct wlc_pub));
+	pub = wlc_calloc(osh, unit, sizeof(struct wlc_pub));
 	if (pub == NULL) {
 		*err = 1001;
 		goto fail;
 	}
 
-	pub->tunables = (wlc_tunables_t *)wlc_calloc(osh, unit,
+	pub->tunables = wlc_calloc(osh, unit,
 		sizeof(wlc_tunables_t));
 	if (pub->tunables == NULL) {
 		*err = 1028;
@@ -85,6 +85,10 @@ static struct wlc_pub *wlc_pub_malloc(struct osl_info *osh, uint unit,
 
 	/* need to init the tunables now */
 	wlc_tunables_init(pub->tunables, devid);
+
+	pub->_cnt = wlc_calloc(osh, unit, sizeof(struct wl_cnt));
+	if (pub->_cnt == NULL)
+		goto fail;
 
 	pub->multicast = (u8 *)wlc_calloc(osh, unit,
 		(ETH_ALEN * MAXMULTILIST));
@@ -105,13 +109,9 @@ static void wlc_pub_mfree(struct osl_info *osh, struct wlc_pub *pub)
 	if (pub == NULL)
 		return;
 
-	if (pub->multicast)
-		kfree(pub->multicast);
-	if (pub->tunables) {
-		kfree(pub->tunables);
-		pub->tunables = NULL;
-	}
-
+	kfree(pub->multicast);
+	kfree(pub->_cnt);
+	kfree(pub->tunables);
 	kfree(pub);
 }
 

@@ -3568,7 +3568,7 @@ int
 wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats)
 {
 	int res = 0;
-	wl_cnt_t cnt;
+	struct wl_cnt cnt;
 	int phy_noise;
 	int rssi;
 	scb_val_t scb_val;
@@ -3611,11 +3611,13 @@ wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats)
 #endif
 
 #if WIRELESS_EXT > 11
-	WL_TRACE("wl_iw_get_wireless_stats counters=%zu\n", sizeof(wl_cnt_t));
+	WL_TRACE("wl_iw_get_wireless_stats counters=%zu\n",
+		 sizeof(struct wl_cnt));
 
-	memset(&cnt, 0, sizeof(wl_cnt_t));
+	memset(&cnt, 0, sizeof(struct wl_cnt));
 	res =
-	    dev_wlc_bufvar_get(dev, "counters", (char *)&cnt, sizeof(wl_cnt_t));
+	    dev_wlc_bufvar_get(dev, "counters", (char *)&cnt,
+			       sizeof(struct wl_cnt));
 	if (res) {
 		WL_ERROR("wl_iw_get_wireless_stats counters failed error=%d\n",
 			 res);
@@ -3624,7 +3626,7 @@ wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats)
 
 	cnt.version = dtoh16(cnt.version);
 	if (cnt.version != WL_CNT_T_VERSION) {
-		WL_TRACE("\tIncorrect version of counters struct: expected %d; got %d\n",
+		WL_TRACE("\tIncorrect counter version: expected %d; got %d\n",
 			 WL_CNT_T_VERSION, cnt.version);
 		goto done;
 	}
