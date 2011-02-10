@@ -145,7 +145,7 @@ static const struct stk1160config stk1160configNTSC[256] = {
 		{0xFFF, 0xFFFF}
 };
 /*--------------------------------------------------------------------------*/
-static const struct saa7113config{
+static const struct saa7113config {
 	int reg;
 	int set;
 } saa7113configPAL[256] = {
@@ -600,10 +600,7 @@ int merit_saa(struct usb_device *p)
 	if (NULL == p)
 		return -ENODEV;
 	rc = read_saa(p, 0x1F);
-	if ((0 > rc) || (0x02 & rc))
-		return 1 ;
-	else
-		return 0;
+	return ((0 > rc) || (0x02 & rc)) ? 1 : 0;
 }
 /****************************************************************************/
 int ready_saa(struct usb_device *p)
@@ -785,28 +782,28 @@ select_input(struct usb_device *p, int input, int mode)
 	switch (input) {
 	case 0:
 	case 1: {
-		if (0 != write_saa(p, 0x02, 0x80)) {
+		if (0 != write_saa(p, 0x02, 0x80))
 			SAY("ERROR: failed to set SAA register 0x02 "
 						"for input %i\n", input);
-		}
+
 		SET(p, 0x0000, 0x0098);
 		SET(p, 0x0002, 0x0078);
 		break;
 	}
 	case 2: {
-		if (0 != write_saa(p, 0x02, 0x80)) {
+		if (0 != write_saa(p, 0x02, 0x80))
 			SAY("ERROR: failed to set SAA register 0x02 "
 						"for input %i\n", input);
-		}
+
 		SET(p, 0x0000, 0x0090);
 		SET(p, 0x0002, 0x0078);
 		break;
 	}
 	case 3: {
-		if (0 != write_saa(p, 0x02, 0x80)) {
+		if (0 != write_saa(p, 0x02, 0x80))
 			SAY("ERROR: failed to set SAA register 0x02 "
 					" for input %i\n", input);
-		}
+
 		SET(p, 0x0000, 0x0088);
 		SET(p, 0x0002, 0x0078);
 		break;
@@ -825,48 +822,48 @@ select_input(struct usb_device *p, int input, int mode)
 			mode = 7;
 		switch (mode) {
 		case 7: {
-			if (0 != write_saa(p, 0x02, 0x87)) {
+			if (0 != write_saa(p, 0x02, 0x87))
 				SAY("ERROR: failed to set SAA register 0x02 "
 						"for input %i\n", input);
-			}
-			if (0 != write_saa(p, 0x05, 0xFF)) {
+
+			if (0 != write_saa(p, 0x05, 0xFF))
 				SAY("ERROR: failed to set SAA register 0x05 "
 						"for input %i\n", input);
-			}
+
 			break;
 		}
 		case 9: {
-			if (0 != write_saa(p, 0x02, 0x89)) {
+			if (0 != write_saa(p, 0x02, 0x89))
 				SAY("ERROR: failed to set SAA register 0x02 "
 						"for input %i\n", input);
-			}
-			if (0 != write_saa(p, 0x05, 0x00)) {
+
+			if (0 != write_saa(p, 0x05, 0x00))
 				SAY("ERROR: failed to set SAA register 0x05 "
 						"for input %i\n", input);
-			}
-		break;
+
+			break;
 		}
-		default: {
+		default:
 			SAY("MISTAKE:  bad mode: %i\n", mode);
 			return -1;
 		}
-		}
-		if (0 != write_saa(p, 0x04, 0x00)) {
+
+		if (0 != write_saa(p, 0x04, 0x00))
 			SAY("ERROR: failed to set SAA register 0x04 "
 					"for input %i\n", input);
-		}
-		if (0 != write_saa(p, 0x09, 0x80)) {
+
+		if (0 != write_saa(p, 0x09, 0x80))
 			SAY("ERROR: failed to set SAA register 0x09 "
 						"for input %i\n", input);
-		}
+
 		SET(p, 0x0002, 0x0093);
 		break;
 	}
-	default: {
+	default:
 		SAY("ERROR:  bad input: %i\n", input);
 		return -1;
 	}
-	}
+
 	ir = read_stk(p, 0x00);
 	JOT(8, "STK register 0x00 has 0x%02X\n", ir);
 	ir = read_saa(p, 0x02);
@@ -952,20 +949,18 @@ int wait_i2c(struct usb_device *p)
 
 	if (NULL == p)
 		return -ENODEV;
+
 	for (k = 0;  k < max;  k++) {
 		GET(p, 0x0201, &igot);  get0 = igot;
 		switch (get0) {
 		case 0x04:
-		case 0x01: {
+		case 0x01:
 			return 0;
-		}
-		case 0x00: {
+		case 0x00:
 			msleep(20);
 			continue;
-		}
-		default: {
+		default:
 			return get0 - 1;
-		}
 		}
 	}
 	return -1;
@@ -977,20 +972,17 @@ int wakeup_device(struct usb_device *pusb_device)
 	if (!pusb_device)
 		return -ENODEV;
 	return usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0),
-			(u8)USB_REQ_SET_FEATURE,
+			USB_REQ_SET_FEATURE,
 			USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
 			USB_DEVICE_REMOTE_WAKEUP,
-			(u16)0,
-			(void *) NULL,
-			(u16)0,
-			(int)50000);
+			0, NULL, 0, 50000);
 }
 /*****************************************************************************/
 int
 audio_setup(struct easycap *peasycap)
 {
 	struct usb_device *pusb_device;
-	unsigned char buffer[1];
+	u8 buffer[1];
 	int rc, id1, id2;
 /*---------------------------------------------------------------------------*/
 /*
@@ -1027,25 +1019,18 @@ audio_setup(struct easycap *peasycap)
 	buffer[0] = 0x01;
 
 	rc = usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0),
-				(u8)request,
-				(u8)requesttype,
-				(u16)value_unmute,
-				(u16)index,
-				(void *)&buffer[0],
-				(u16)length,
-				(int)50000);
+				request, requesttype, value_unmute,
+				index, &buffer[0], length, 50000);
 
-	JOT(8, "0x%02X=buffer\n", *((u8 *) &buffer[0]));
+	JOT(8, "0x%02X=buffer\n", buffer[0]);
 	if (rc != (int)length) {
 		switch (rc) {
-		case -EPIPE: {
+		case -EPIPE:
 			SAY("usb_control_msg returned -EPIPE\n");
 			break;
-		}
-		default: {
+		default:
 			SAY("ERROR: usb_control_msg returned %i\n", rc);
 			break;
-		}
 		}
 	}
 /*--------------------------------------------------------------------------*/
