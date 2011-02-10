@@ -170,6 +170,8 @@ struct irq_data {
  * IRQD_LEVEL			- Interrupt is level triggered
  * IRQD_WAKEUP_STATE		- Interrupt is configured for wakeup
  *				  from suspend
+ * IRDQ_MOVE_PCNTXT		- Interrupt can be moved in process
+ *				  context
  */
 enum {
 	IRQD_TRIGGER_MASK		= 0xf,
@@ -179,6 +181,7 @@ enum {
 	IRQD_AFFINITY_SET		= (1 << 12),
 	IRQD_LEVEL			= (1 << 13),
 	IRQD_WAKEUP_STATE		= (1 << 14),
+	IRQD_MOVE_PCNTXT		= (1 << 15),
 };
 
 static inline bool irqd_is_setaffinity_pending(struct irq_data *d)
@@ -223,6 +226,11 @@ static inline bool irqd_is_level_type(struct irq_data *d)
 static inline bool irqd_is_wakeup_set(struct irq_data *d)
 {
 	return d->state_use_accessors & IRQD_WAKEUP_STATE;
+}
+
+static inline bool irqd_can_move_in_process_context(struct irq_data *d)
+{
+	return d->state_use_accessors & IRQD_MOVE_PCNTXT;
 }
 
 /**
