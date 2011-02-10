@@ -155,12 +155,6 @@ struct smack_known {
 #define SMACK_MAGIC	0x43415d53 /* "SMAC" */
 
 /*
- * A limit on the number of entries in the lists
- * makes some of the list administration easier.
- */
-#define SMACK_LIST_MAX	10000
-
-/*
  * CIPSO defaults.
  */
 #define SMACK_CIPSO_DOI_DEFAULT		3	/* Historical */
@@ -177,9 +171,7 @@ struct smack_known {
 /*
  * Just to make the common cases easier to deal with
  */
-#define MAY_ANY		(MAY_READ | MAY_WRITE | MAY_APPEND | MAY_EXEC)
 #define MAY_ANYREAD	(MAY_READ | MAY_EXEC)
-#define MAY_ANYWRITE	(MAY_WRITE | MAY_APPEND)
 #define MAY_READWRITE	(MAY_READ | MAY_WRITE)
 #define MAY_NOT		0
 
