@@ -240,7 +240,7 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
 	int enable;
 	int report;
 
-	enable = gpio_get_value(gpio->gpio);
+	enable = gpio_get_value_cansleep(gpio->gpio);
 	if (gpio->invert)
 		enable = !enable;
 
