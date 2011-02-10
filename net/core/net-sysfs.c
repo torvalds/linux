@@ -330,7 +330,7 @@ static struct device_attribute net_class_attributes[] = {
 	__ATTR(flags, S_IRUGO | S_IWUSR, show_flags, store_flags),
 	__ATTR(tx_queue_len, S_IRUGO | S_IWUSR, show_tx_queue_len,
 	       store_tx_queue_len),
-	__ATTR(group, S_IRUGO | S_IWUSR, show_group, store_group),
+	__ATTR(netdev_group, S_IRUGO | S_IWUSR, show_group, store_group),
 	{}
 };
 
