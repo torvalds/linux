@@ -365,12 +365,12 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 	}
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		/* Beacon interval changed */
-		WL_NONE("%s: Beacon Interval: %d\n",
+		WL_NONE("%s: Beacon Interval: %d (implement)\n",
 			__func__, info->beacon_int);
 	}
 	if (changed & BSS_CHANGED_BSSID) {
 		/* BSSID changed, for whatever reason (IBSS and managed mode) */
-		WL_NONE("new BSSID:\taid %d  bss:%pM\n",
+		WL_NONE("%s: new BSSID: aid %d  bss:%pM\n", __func__,
 			info->aid, info->bssid);
 		/* FIXME: need to store bssid in bsscfg */
 		wlc_set_addrmatch(wl->wlc, RCM_BSSID_OFFSET,
@@ -378,12 +378,41 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 	}
 	if (changed & BSS_CHANGED_BEACON) {
 		/* Beacon data changed, retrieve new beacon (beaconing modes) */
-		WL_ERROR("BSS_CHANGED_BEACON\n");
+		WL_ERROR("%s: beacon changed\n", __func__);
 	}
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		/* Beaconing should be enabled/disabled (beaconing modes) */
-		WL_ERROR("Beacon enabled: %s\n",
+		WL_ERROR("%s: Beacon enabled: %s\n", __func__,
 			 info->enable_beacon ? "true" : "false");
+	}
+	if (changed & BSS_CHANGED_CQM) {
+		/* Connection quality monitor config changed */
+		WL_ERROR("%s: cqm change: threshold %d, hys %d (implement)\n",
+			__func__, info->cqm_rssi_thold, info->cqm_rssi_hyst);
+	}
+	if (changed & BSS_CHANGED_IBSS) {
+		/* IBSS join status changed */
+		WL_ERROR("%s: IBSS joined: %s (implement)\n", __func__,
+			info->ibss_joined ? "true" : "false");
+	}
+	if (changed & BSS_CHANGED_ARP_FILTER) {
+		/* Hardware ARP filter address list or state changed */
+		WL_ERROR("%s: arp filtering: enabled %s, count %d (implement)\n",
+			__func__, info->arp_filter_enabled ? "true" : "false",
+			info->arp_addr_cnt);
+	}
+	if (changed & BSS_CHANGED_QOS) {
+		/*
+		 * QoS for this association was enabled/disabled.
+		 * Note that it is only ever disabled for station mode.
+		 */
+		WL_ERROR("%s: qos enabled: %s (implement)\n", __func__,
+			info->qos ? "true" : "false");
+	}
+	if (changed & BSS_CHANGED_IDLE) {
+		/* Idle changed for this BSS/interface */
+		WL_ERROR("%s: BSS idle: %s (implement)\n", __func__,
+			info->idle ? "true" : "false");
 	}
 	return;
 }
