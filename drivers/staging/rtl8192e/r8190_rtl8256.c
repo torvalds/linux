@@ -339,19 +339,15 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 	case eRfOn:
 
 		// turn on RF
-		if((priv->ieee80211->eRFPowerState == eRfOff) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
-		{ // The current RF state is OFF and the RF OFF level is halting the NIC, re-initialize the NIC.
-			bool rtstatus = true;
-			u32 InitializeCount = 3;
-			do
-			{
-				InitializeCount--;
-				rtstatus = NicIFEnableNIC(dev);
-			}while( (rtstatus != true) &&(InitializeCount >0) );
-
-			if(rtstatus != true)
-			{
-				RT_TRACE(COMP_ERR,"%s():Initialize Adapter fail,return\n",__FUNCTION__);
+		if ((priv->ieee80211->eRFPowerState == eRfOff) &&
+		    RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
+		{
+			/*
+			 * The current RF state is OFF and the RF OFF level
+			 * is halting the NIC, re-initialize the NIC.
+			 */
+			if (!NicIFEnableNIC(dev)) {
+				RT_TRACE(COMP_ERR, "%s(): NicIFEnableNIC failed\n",__FUNCTION__);
 				priv->SetRFPowerStateInProgress = false;
 				return false;
 			}
