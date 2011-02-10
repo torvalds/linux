@@ -59,28 +59,18 @@ err:
 	return 0;
 }
 
-void neigh_node_free_ref(struct kref *refcount)
-{
-	struct neigh_node *neigh_node;
-
-	neigh_node = container_of(refcount, struct neigh_node, refcount);
-	kfree(neigh_node);
-}
-
 static void neigh_node_free_rcu(struct rcu_head *rcu)
 {
 	struct neigh_node *neigh_node;
 
 	neigh_node = container_of(rcu, struct neigh_node, rcu);
-	kref_put(&neigh_node->refcount, neigh_node_free_ref);
+	kfree(neigh_node);
 }
 
-void neigh_node_free_rcu_bond(struct rcu_head *rcu)
+void neigh_node_free_ref(struct neigh_node *neigh_node)
 {
-	struct neigh_node *neigh_node;
-
-	neigh_node = container_of(rcu, struct neigh_node, rcu_bond);
-	kref_put(&neigh_node->refcount, neigh_node_free_ref);
+	if (atomic_dec_and_test(&neigh_node->refcount))
+		call_rcu(&neigh_node->rcu, neigh_node_free_rcu);
 }
 
 struct neigh_node *create_neighbor(struct orig_node *orig_node,
@@ -104,7 +94,7 @@ struct neigh_node *create_neighbor(struct orig_node *orig_node,
 	memcpy(neigh_node->addr, neigh, ETH_ALEN);
 	neigh_node->orig_node = orig_neigh_node;
 	neigh_node->if_incoming = if_incoming;
-	kref_init(&neigh_node->refcount);
+	atomic_set(&neigh_node->refcount, 1);
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
 	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
@@ -126,14 +116,14 @@ void orig_node_free_ref(struct kref *refcount)
 	list_for_each_entry_safe(neigh_node, tmp_neigh_node,
 				 &orig_node->bond_list, bonding_list) {
 		list_del_rcu(&neigh_node->bonding_list);
-		call_rcu(&neigh_node->rcu_bond, neigh_node_free_rcu_bond);
+		neigh_node_free_ref(neigh_node);
 	}
 
 	/* for all neighbors towards this originator ... */
 	hlist_for_each_entry_safe(neigh_node, node, node_tmp,
 				  &orig_node->neigh_list, list) {
 		hlist_del_rcu(&neigh_node->list);
-		call_rcu(&neigh_node->rcu, neigh_node_free_rcu);
+		neigh_node_free_ref(neigh_node);
 	}
 
 	spin_unlock_bh(&orig_node->neigh_list_lock);
@@ -315,7 +305,7 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 
 			hlist_del_rcu(&neigh_node->list);
 			bonding_candidate_del(orig_node, neigh_node);
-			call_rcu(&neigh_node->rcu, neigh_node_free_rcu);
+			neigh_node_free_ref(neigh_node);
 		} else {
 			if ((!*best_neigh_node) ||
 			    (neigh_node->tq_avg > (*best_neigh_node)->tq_avg))

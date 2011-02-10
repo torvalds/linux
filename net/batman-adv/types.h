@@ -117,9 +117,8 @@ struct neigh_node {
 	struct list_head bonding_list;
 	unsigned long last_valid;
 	unsigned long real_bits[NUM_WORDS];
-	struct kref refcount;
+	atomic_t refcount;
 	struct rcu_head rcu;
-	struct rcu_head rcu_bond;
 	struct orig_node *orig_node;
 	struct batman_if *if_incoming;
 };

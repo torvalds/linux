@@ -764,21 +764,35 @@ static void unicast_vis_packet(struct bat_priv *bat_priv,
 			       struct vis_info *info)
 {
 	struct orig_node *orig_node;
+	struct neigh_node *neigh_node = NULL;
 	struct sk_buff *skb;
 	struct vis_packet *packet;
 	struct batman_if *batman_if;
 	uint8_t dstaddr[ETH_ALEN];
 
-	spin_lock_bh(&bat_priv->orig_hash_lock);
 	packet = (struct vis_packet *)info->skb_packet->data;
+
+	spin_lock_bh(&bat_priv->orig_hash_lock);
 	rcu_read_lock();
 	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
 						   compare_orig, choose_orig,
 						   packet->target_orig));
-	rcu_read_unlock();
 
-	if ((!orig_node) || (!orig_node->router))
-		goto out;
+	if (!orig_node)
+		goto unlock;
+
+	kref_get(&orig_node->refcount);
+	neigh_node = orig_node->router;
+
+	if (!neigh_node)
+		goto unlock;
+
+	if (!atomic_inc_not_zero(&neigh_node->refcount)) {
+		neigh_node = NULL;
+		goto unlock;
+	}
+
+	rcu_read_unlock();
 
 	/* don't lock while sending the packets ... we therefore
 	 * copy the required data before sending */
@@ -790,10 +804,17 @@ static void unicast_vis_packet(struct bat_priv *bat_priv,
 	if (skb)
 		send_skb_packet(skb, batman_if, dstaddr);
 
-	return;
+	goto out;
 
-out:
+unlock:
+	rcu_read_unlock();
 	spin_unlock_bh(&bat_priv->orig_hash_lock);
+out:
+	if (neigh_node)
+		neigh_node_free_ref(neigh_node);
+	if (orig_node)
+		kref_put(&orig_node->refcount, orig_node_free_ref);
+	return;
 }
 
 /* only send one vis packet. called from send_vis_packets() */
