@@ -440,7 +440,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	mtd->flags   = MTD_CAP_NORFLASH;
 	mtd->name    = map->name;
 	mtd->writesize = 1;
-	mtd->writebufsize = 1 << cfi->cfiq->MaxBufWriteSize;
+	mtd->writebufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "MTD %s(): write buffer size %d\n",
 		__func__, mtd->writebufsize);
