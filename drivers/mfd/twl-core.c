@@ -864,6 +864,10 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 		child = add_regulator(TWL6030_REG_VAUX3_6030, pdata->vaux3);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_CLK32KG, pdata->clk32kg);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
 	}
 
 	if (twl_has_bci() && pdata->bci &&
