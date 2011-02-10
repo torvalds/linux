@@ -449,10 +449,8 @@ void __devexit asihpi_adapter_remove(struct pci_dev *pci_dev)
 		}
 	}
 
-	if (pa->p_buffer) {
-		pa->buffer_size = 0;
+	if (pa->p_buffer)
 		vfree(pa->p_buffer);
-	}
 
 	pci_set_drvdata(pci_dev, NULL);
 	if (1)
@@ -461,6 +459,8 @@ void __devexit asihpi_adapter_remove(struct pci_dev *pci_dev)
 			pci_dev->vendor, pci_dev->device,
 			pci_dev->subsystem_vendor, pci_dev->subsystem_device,
 			pci_dev->devfn, pa->index);
+
+	memset(pa, 0, sizeof(*pa));
 }
 
 void __init asihpi_init(void)
