@@ -836,13 +836,8 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 	if (desc) {
 		desc->callback = tmio_dma_complete;
 		desc->callback_param = host;
-		cookie = desc->tx_submit(desc);
-		if (cookie < 0) {
-			desc = NULL;
-			ret = cookie;
-		} else {
-			chan->device->device_issue_pending(chan);
-		}
+		cookie = dmaengine_submit(desc);
+		dma_async_issue_pending(chan);
 	}
 	dev_dbg(&host->pdev->dev, "%s(): mapped %d -> %d, cookie %d, rq %p\n",
 		__func__, host->sg_len, ret, cookie, host->mrq);
@@ -915,11 +910,7 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 	if (desc) {
 		desc->callback = tmio_dma_complete;
 		desc->callback_param = host;
-		cookie = desc->tx_submit(desc);
-		if (cookie < 0) {
-			desc = NULL;
-			ret = cookie;
-		}
+		cookie = dmaengine_submit(desc);
 	}
 	dev_dbg(&host->pdev->dev, "%s(): mapped %d -> %d, cookie %d, rq %p\n",
 		__func__, host->sg_len, ret, cookie, host->mrq);
@@ -963,7 +954,7 @@ static void tmio_issue_tasklet_fn(unsigned long priv)
 	struct tmio_mmc_host *host = (struct tmio_mmc_host *)priv;
 	struct dma_chan *chan = host->chan_tx;
 
-	chan->device->device_issue_pending(chan);
+	dma_async_issue_pending(chan);
 }
 
 static void tmio_tasklet_fn(unsigned long arg)
