@@ -270,7 +270,7 @@ static int regget(struct usb_device *pusb_device,
 			0x00,
 			index, reg, reg_size, 50000);
 
-	return 0xFF & rc;
+	return rc;
 }
 
 static int regset(struct usb_device *pusb_device, u16 index, u16 value)
