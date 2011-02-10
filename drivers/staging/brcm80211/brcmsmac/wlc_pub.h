@@ -481,6 +481,19 @@ extern const u8 wme_fifo2ac[];
 #define WLC_USE_COREFLAGS	0xffffffff	/* invalid core flags, use the saved coreflags */
 
 
+/* network protection config */
+#define	WLC_PROT_G_SPEC		1	/* SPEC g protection */
+#define	WLC_PROT_G_OVR		2	/* SPEC g prot override */
+#define	WLC_PROT_G_USER		3	/* gmode specified by user */
+#define	WLC_PROT_OVERLAP	4	/* overlap */
+#define	WLC_PROT_N_USER		10	/* nmode specified by user */
+#define	WLC_PROT_N_CFG		11	/* n protection */
+#define	WLC_PROT_N_CFG_OVR	12	/* n protection override */
+#define	WLC_PROT_N_NONGF	13	/* non-GF protection */
+#define	WLC_PROT_N_NONGF_OVR	14	/* non-GF protection override */
+#define	WLC_PROT_N_PAM_OVR	15	/* n preamble override */
+#define	WLC_PROT_N_OBSS		16	/* non-HT OBSS present */
+
 /* common functions for every port */
 extern void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit,
 			bool piomode, struct osl_info *osh, void *regsva,
@@ -514,6 +527,7 @@ extern int wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 		     struct wlc_if *wlcif);
 /* helper functions */
 extern void wlc_statsupd(struct wlc_info *wlc);
+extern void wlc_protection_upd(struct wlc_info *wlc, uint idx, int val);
 extern int wlc_get_header_len(void);
 extern void wlc_mac_bcn_promisc_change(struct wlc_info *wlc, bool promisc);
 extern void wlc_set_addrmatch(struct wlc_info *wlc, int match_reg_offset,

@@ -357,7 +357,13 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_HT) {
 		/* 802.11n parameters changed */
 		u16 mode = info->ht_operation_mode;
-		WL_NONE("%s: HT mode: 0x%04X (implement)\n", __func__, mode);
+		WL_NONE("%s: HT mode: 0x%04X\n", __func__, mode);
+		wlc_protection_upd(wl->wlc, WLC_PROT_N_CFG,
+			mode & IEEE80211_HT_OP_MODE_PROTECTION);
+		wlc_protection_upd(wl->wlc, WLC_PROT_N_NONGF,
+			mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+		wlc_protection_upd(wl->wlc, WLC_PROT_N_OBSS,
+			mode & IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT);
 	}
 	if (changed & BSS_CHANGED_BASIC_RATES) {
 		/* Basic rateset changed */

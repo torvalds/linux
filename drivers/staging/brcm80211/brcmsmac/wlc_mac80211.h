@@ -29,19 +29,6 @@
 #define	MAXCOREREV		28	/* max # supported core revisions (0 .. MAXCOREREV - 1) */
 #define WLC_MAXMODULES		22	/* max #  wlc_module_register() calls */
 
-/* network protection config */
-#define	WLC_PROT_G_SPEC		1	/* SPEC g protection */
-#define	WLC_PROT_G_OVR		2	/* SPEC g prot override */
-#define	WLC_PROT_G_USER		3	/* gmode specified by user */
-#define	WLC_PROT_OVERLAP	4	/* overlap */
-#define	WLC_PROT_N_USER		10	/* nmode specified by user */
-#define	WLC_PROT_N_CFG		11	/* n protection */
-#define	WLC_PROT_N_CFG_OVR	12	/* n protection override */
-#define	WLC_PROT_N_NONGF	13	/* non-GF protection */
-#define	WLC_PROT_N_NONGF_OVR	14	/* non-GF protection override */
-#define	WLC_PROT_N_PAM_OVR	15	/* n preamble override */
-#define	WLC_PROT_N_OBSS		16	/* non-HT OBSS present */
-
 #define WLC_BITSCNT(x)	bcm_bitcount((u8 *)&(x), sizeof(u8))
 
 /* Maximum wait time for a MAC suspend */
@@ -847,7 +834,6 @@ extern void wlc_set_cwmax(struct wlc_info *wlc, u16 newmax);
 extern void wlc_fifoerrors(struct wlc_info *wlc);
 extern void wlc_pllreq(struct wlc_info *wlc, bool set, mbool req_bit);
 extern void wlc_reset_bmac_done(struct wlc_info *wlc);
-extern void wlc_protection_upd(struct wlc_info *wlc, uint idx, int val);
 extern void wlc_hwtimer_gptimer_set(struct wlc_info *wlc, uint us);
 extern void wlc_hwtimer_gptimer_abort(struct wlc_info *wlc);
 
