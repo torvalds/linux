@@ -1039,7 +1039,6 @@ typedef struct r8192_priv
 }r8192_priv;
 
 bool init_firmware(struct net_device *dev);
-short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
 u32 read_cam(struct r8192_priv *priv, u8 addr);
 void write_cam(struct r8192_priv *priv, u8 addr, u32 data);
 u8 read_nic_byte(struct r8192_priv *priv, int x);

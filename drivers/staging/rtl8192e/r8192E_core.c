@@ -109,6 +109,7 @@ static void rtl8192_restart(struct work_struct *work);
 static void watch_dog_timer_callback(unsigned long data);
 static int _rtl8192_up(struct net_device *dev);
 static void rtl8192_cancel_deferred_work(struct r8192_priv* priv);
+static short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
 
 #ifdef ENABLE_DOT11D
 
@@ -1255,7 +1256,7 @@ static u8 QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)
  * skb->cb will contain all the following information,
  * priority, morefrag, rate, &dev.
  */
-short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
+static short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct rtl8192_tx_ring *ring;
