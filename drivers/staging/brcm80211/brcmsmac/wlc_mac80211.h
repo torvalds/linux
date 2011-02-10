@@ -842,6 +842,8 @@ extern void wlc_print_rxh(d11rxhdr_t *rxh);
 extern void wlc_print_hdrs(struct wlc_info *wlc, const char *prefix, u8 *frame,
 			   d11txh_t *txh, d11rxhdr_t *rxh, uint len);
 extern void wlc_print_txdesc(d11txh_t *txh);
+#else
+#define wlc_print_txdesc(a)
 #endif
 #if defined(BCMDBG)
 extern void wlc_print_dot11_mac_hdr(u8 *buf, int len);

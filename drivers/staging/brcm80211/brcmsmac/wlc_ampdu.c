@@ -1069,13 +1069,11 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			WL_ERROR("wl%d: wlc_ampdu_dotxstatus: tx phy error (0x%x)\n",
 				 wlc->pub->unit, txs->phyerr);
 
-#ifdef BCMDBG
 			if (WL_ERROR_ON()) {
 				prpkt("txpkt (AMPDU)", wlc->osh, p);
 				wlc_print_txdesc((d11txh_t *) p->data);
-				wlc_print_txstatus(txs);
 			}
-#endif				/* BCMDBG */
+			wlc_print_txstatus(txs);
 		}
 	}
 

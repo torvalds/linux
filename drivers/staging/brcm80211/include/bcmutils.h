@@ -152,7 +152,10 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 #ifdef BCMDBG
 	extern void prpkt(const char *msg, struct osl_info *osh,
 			  struct sk_buff *p0);
+#else
+#define prpkt(a, b, c)
 #endif				/* BCMDBG */
+
 #define bcm_perf_enable()
 #define bcmstats(fmt)
 #define	bcmlog(fmt, a1, a2)

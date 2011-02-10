@@ -222,6 +222,8 @@ static bool in_send_q = false;
 static const char *fifo_names[] = {
 	"AC_BK", "AC_BE", "AC_VI", "AC_VO", "BCMC", "ATIM" };
 const char *aci_names[] = { "AC_BE", "AC_BK", "AC_VI", "AC_VO" };
+#else
+static const char fifo_names[6][0];
 #endif
 
 static const u8 acbitmap2maxprio[] = {
@@ -6414,7 +6416,6 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 						    (u16) newfragthresh;
 					}
 				}
-#if defined(BCMDBG)
 			} else
 				WL_ERROR("wl%d: %s txop invalid for rate %d\n",
 					 wlc->pub->unit, fifo_names[queue],
@@ -6426,9 +6427,6 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 					 fifo_names[queue],
 					 phylen, wlc->fragthresh[queue],
 					 dur, wlc->edcf_txop[ac]);
-#else
-			}
-#endif
 		}
 	}
 
@@ -6696,11 +6694,11 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	mcl = ltoh16(txh->MacTxControlLow);
 
 	if (txs->phyerr) {
-		WL_ERROR("phyerr 0x%x, rate 0x%x\n",
-			 txs->phyerr, txh->MainRates);
-#if defined(BCMDBG)
-		wlc_print_txdesc(txh);
-#endif
+		if (WL_ERROR_ON()) {
+			WL_ERROR("phyerr 0x%x, rate 0x%x\n",
+				 txs->phyerr, txh->MainRates);
+			wlc_print_txdesc(txh);
+		}
 		wlc_print_txstatus(txs);
 	}
 
