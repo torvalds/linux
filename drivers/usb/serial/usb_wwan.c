@@ -424,6 +424,7 @@ int usb_wwan_open(struct tty_struct *tty, struct usb_serial_port *port)
 	spin_lock_irq(&intfdata->susp_lock);
 	portdata->opened = 1;
 	spin_unlock_irq(&intfdata->susp_lock);
+	/* this balances a get in the generic USB serial code */
 	usb_autopm_put_interface(serial->interface);
 
 	return 0;
@@ -450,7 +451,8 @@ void usb_wwan_close(struct usb_serial_port *port)
 			usb_kill_urb(portdata->in_urbs[i]);
 		for (i = 0; i < N_OUT_URB; i++)
 			usb_kill_urb(portdata->out_urbs[i]);
-		usb_autopm_get_interface(serial->interface);
+		/* balancing - important as an error cannot be handled*/
+		usb_autopm_get_interface_no_resume(serial->interface);
 		serial->interface->needs_remote_wakeup = 0;
 	}
 }
