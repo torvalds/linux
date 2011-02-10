@@ -1889,6 +1889,7 @@ void account_system_vtime(struct task_struct *curr)
 
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(account_system_vtime);
 
 static void sched_irq_time_avg_update(struct rq *rq, u64 curr_irq_time)
 {
