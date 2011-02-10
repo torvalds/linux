@@ -46,17 +46,19 @@ static struct hpi_adapters_list adapters;
 u16 hpi_validate_response(struct hpi_message *phm, struct hpi_response *phr)
 {
 	if (phr->type != HPI_TYPE_RESPONSE) {
-		HPI_DEBUG_LOG(ERROR, "header type %d invalid", phr->type);
+		HPI_DEBUG_LOG(ERROR, "header type %d invalid\n", phr->type);
 		return HPI_ERROR_INVALID_RESPONSE;
 	}
 
 	if (phr->object != phm->object) {
-		HPI_DEBUG_LOG(ERROR, "header object %d invalid", phr->object);
+		HPI_DEBUG_LOG(ERROR, "header object %d invalid\n",
+			phr->object);
 		return HPI_ERROR_INVALID_RESPONSE;
 	}
 
 	if (phr->function != phm->function) {
-		HPI_DEBUG_LOG(ERROR, "header type %d invalid", phr->function);
+		HPI_DEBUG_LOG(ERROR, "header type %d invalid\n",
+			phr->function);
 		return HPI_ERROR_INVALID_RESPONSE;
 	}
 
@@ -114,7 +116,7 @@ struct hpi_adapter_obj *hpi_find_adapter(u16 adapter_index)
 	struct hpi_adapter_obj *pao = NULL;
 
 	if (adapter_index >= HPI_MAX_ADAPTERS) {
-		HPI_DEBUG_LOG(VERBOSE, "find_adapter invalid index %d ",
+		HPI_DEBUG_LOG(VERBOSE, "find_adapter invalid index %d\n",
 			adapter_index);
 		return NULL;
 	}
@@ -203,9 +205,10 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 						pC->adap_idx);
 					return 0;
 				}
-				/* ? This is a severe error, the cache is probably
-				   corrupted.  Minimum valid entry size is
-				   sizeof(struct hpi_control_cache_info) */
+				/* The cache is invalid.
+				 * Minimum valid entry size is
+				 * sizeof(struct hpi_control_cache_info)
+				 */
 				HPI_DEBUG_LOG(ERROR,
 					"adap %d zero size cache entry %d\n",
 					pC->adap_idx, i);
@@ -226,9 +229,10 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 				info->control_index, info->control_type,
 				info->size_in32bit_words);
 
-			/* quit loop early if whole cache has been scanned. */
-			/* pC->dwControlCount is the maximum possible entries, */
-			/* but some may not be in the cache at all */
+			/* quit loop early if whole cache has been scanned.
+			 * dwControlCount is the maximum possible entries
+			 * but some may be absent from the cache
+			 */
 			if (byte_count >= pC->cache_size_in_bytes)
 				break;
 			/* have seen last control index */
@@ -238,15 +242,15 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 
 		if (byte_count != pC->cache_size_in_bytes)
 			HPI_DEBUG_LOG(WARNING,
-				"adap %d bytecount %d != cache size %d",
+				"adap %d bytecount %d != cache size %d\n",
 				pC->adap_idx, byte_count,
 				pC->cache_size_in_bytes);
 		else
 			HPI_DEBUG_LOG(DEBUG,
-				"adap %d cache good, bytecount == cache size = %d",
+				"adap %d cache good, bytecount == cache size = %d\n",
 				pC->adap_idx, byte_count);
 
-		pC->init = cached;
+		pC->init = (u16)cached;
 	}
 	return pC->init;
 }
@@ -430,7 +434,6 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 	case HPI_CONTROL_SILENCEDETECTOR:
 		if (phm->u.c.attribute == HPI_SILENCEDETECTOR_STATE) {
 			phr->u.c.param1 = pC->u.silence.state;
-			/*? phr->u.c.dwParam2 = pC->u.silence.dwCount; */
 		} else
 			found = 0;
 		break;

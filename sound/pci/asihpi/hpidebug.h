@@ -80,17 +80,17 @@ void hpi_debug_data(u16 *pdata, u32 len);
 #define HPI_DEBUG_MESSAGE(level, phm) \
 	do { \
 		if (hpi_debug_level >= HPI_DEBUG_LEVEL_##level) { \
-			hpi_debug_message(phm,HPI_DEBUG_FLAG_##level \
+			hpi_debug_message(phm, HPI_DEBUG_FLAG_##level \
 				FILE_LINE __stringify(level)); \
 		} \
 	} while (0)
 
 #define HPI_DEBUG_RESPONSE(phr) \
 	do { \
-		if (((hpi_debug_level >= HPI_DEBUG_LEVEL_DEBUG) && (phr->error)) ||\
+		if (((hpi_debug_level >= HPI_DEBUG_LEVEL_DEBUG) && \
+			(phr->error)) ||\
 		(hpi_debug_level >= HPI_DEBUG_LEVEL_VERBOSE)) \
-			printk(KERN_DEBUG\
-				"HPI_RES%d,%d,%d\n", \
+			printk(KERN_DEBUG "HPI_RES%d,%d,%d\n", \
 				phr->version, phr->error, phr->specific_error); \
 	} while (0)
 

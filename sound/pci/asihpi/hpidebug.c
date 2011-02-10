@@ -48,7 +48,7 @@ int hpi_debug_level_get(void)
 void hpi_debug_message(struct hpi_message *phm, char *sz_fileline)
 {
 	if (phm) {
-		printk("HPI_MSG%d,%d,%d,%d,%d\n", phm->version,
+		printk(KERN_DEBUG "HPI_MSG%d,%d,%d,%d,%d\n", phm->version,
 			phm->adapter_index, phm->obj_index, phm->function,
 			phm->u.c.attribute);
 	}

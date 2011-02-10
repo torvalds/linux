@@ -43,7 +43,8 @@
 #define HPI_HIF_ERROR_MASK      0x4000
 
 /* HPI6000 specific error codes */
-#define HPI6000_ERROR_BASE                              900	/* not actually used anywhere */
+#define HPI6000_ERROR_BASE 900	/* not actually used anywhere */
+
 /* operational/messaging errors */
 #define HPI6000_ERROR_MSG_RESP_IDLE_TIMEOUT             901
 
