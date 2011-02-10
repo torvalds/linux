@@ -55,7 +55,7 @@ set_render_target(struct radeon_device *rdev, int format,
 	if (h < 8)
 		h = 8;
 
-	cb_color_info = ((format << 2) | (1 << 24));
+	cb_color_info = ((format << 2) | (1 << 24) | (1 << 8));
 	pitch = (w / 8) - 1;
 	slice = ((w * h) / 64) - 1;
 
@@ -176,7 +176,7 @@ set_tex_resource(struct radeon_device *rdev,
 	sq_tex_resource_word0 = (1 << 0); /* 2D */
 	sq_tex_resource_word0 |= ((((pitch >> 3) - 1) << 6) |
 				  ((w - 1) << 18));
-	sq_tex_resource_word1 = ((h - 1) << 0);
+	sq_tex_resource_word1 = ((h - 1) << 0) | (1 << 28);
 	/* xyzw swizzles */
 	sq_tex_resource_word4 = (0 << 16) | (1 << 19) | (2 << 22) | (3 << 25);
 
