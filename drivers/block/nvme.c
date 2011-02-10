@@ -321,6 +321,7 @@ static int nvme_map_bio(struct device *dev, struct nvme_req_info *info,
 	sg_init_table(sg, psegs);
 	bio_for_each_segment(bvec, bio, i) {
 		sg_set_page(sg, bvec->bv_page, bvec->bv_len, bvec->bv_offset);
+		sg++;
 		/* XXX: handle non-mergable here */
 		nsegs++;
 	}
