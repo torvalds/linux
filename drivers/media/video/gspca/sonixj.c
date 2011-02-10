@@ -29,8 +29,6 @@ MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA/SONIX JPEG USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-static int starcam;
-
 /* controls */
 enum e_ctrl {
 	BRIGHTNESS,
@@ -2192,14 +2190,11 @@ static void setillum(struct gspca_dev *gspca_dev)
 			sd->ctrls[ILLUM].val ? 0x64 : 0x60);
 		break;
 	case SENSOR_MT9V111:
-		if (starcam)
-			reg_w1(gspca_dev, 0x02,
-				sd->ctrls[ILLUM].val ?
-						0x55 : 0x54);	/* 370i */
-		else
-			reg_w1(gspca_dev, 0x02,
-				sd->ctrls[ILLUM].val ?
-						0x66 : 0x64);	/* Clip */
+		reg_w1(gspca_dev, 0x02,
+			sd->ctrls[ILLUM].val ? 0x77 : 0x74);
+/* should have been: */
+/*						0x55 : 0x54);	* 370i */
+/*						0x66 : 0x64);	* Clip */
 		break;
 	}
 }
@@ -3114,7 +3109,3 @@ static void __exit sd_mod_exit(void)
 
 module_init(sd_mod_init);
 module_exit(sd_mod_exit);
-
-module_param(starcam, int, 0644);
-MODULE_PARM_DESC(starcam,
-	"StarCam model. 0: Clip, 1: 370i");
