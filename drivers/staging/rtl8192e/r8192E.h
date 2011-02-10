@@ -796,7 +796,6 @@ typedef struct r8192_priv
 	LED_STRATEGY_8190	LedStrategy;
 	u8	IC_Cut;
 	int irq;
-	short irq_enabled;
 	struct ieee80211_device *ieee80211;
 #ifdef ENABLE_LPS
 	bool ps_force;

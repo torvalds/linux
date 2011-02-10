@@ -658,7 +658,6 @@ static void tx_timeout(struct net_device *dev)
 static void rtl8192_irq_enable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	priv->irq_enabled = 1;
 	write_nic_dword(priv, INTA_MASK, priv->irq_mask);
 }
 
@@ -667,7 +666,7 @@ void rtl8192_irq_disable(struct net_device *dev)
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
 	write_nic_dword(priv, INTA_MASK, 0);
-	priv->irq_enabled = 0;
+	synchronize_irq(dev->irq);
 }
 
 void rtl8192_update_msr(struct net_device *dev)
@@ -2003,7 +2002,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->txringcount = 64;//32;
 	priv->rxbuffersize = 9100;//2048;//1024;
 	priv->rxringcount = MAX_RX_COUNT;//64;
-	priv->irq_enabled=0;
 	priv->rx_skb_complete = 1;
 	priv->chan = 1; //set to channel 1
 	priv->RegWirelessMode = WIRELESS_MODE_AUTO;
@@ -5345,10 +5343,6 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 	irqreturn_t ret = IRQ_HANDLED;
 
 	spin_lock_irqsave(&priv->irq_th_lock, flags);
-
-	/* We should return IRQ_NONE, but for now let me keep this */
-	if (priv->irq_enabled == 0)
-		goto out_unlock;
 
 	/* ISR: 4bytes */
 
