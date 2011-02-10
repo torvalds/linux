@@ -61,11 +61,19 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 
 int
 nouveau_gem_new(struct drm_device *dev, struct nouveau_channel *chan,
-		int size, int align, uint32_t flags, uint32_t tile_mode,
+		int size, int align, uint32_t domain, uint32_t tile_mode,
 		uint32_t tile_flags, struct nouveau_bo **pnvbo)
 {
 	struct nouveau_bo *nvbo;
+	u32 flags = 0;
 	int ret;
+
+	if (domain & NOUVEAU_GEM_DOMAIN_VRAM)
+		flags |= TTM_PL_FLAG_VRAM;
+	if (domain & NOUVEAU_GEM_DOMAIN_GART)
+		flags |= TTM_PL_FLAG_TT;
+	if (!flags || domain & NOUVEAU_GEM_DOMAIN_CPU)
+		flags |= TTM_PL_FLAG_SYSTEM;
 
 	ret = nouveau_bo_new(dev, chan, size, align, flags, tile_mode,
 			     tile_flags, pnvbo);
@@ -110,18 +118,10 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	struct drm_nouveau_gem_new *req = data;
 	struct nouveau_bo *nvbo = NULL;
 	struct nouveau_channel *chan = NULL;
-	uint32_t flags = 0;
 	int ret = 0;
 
 	if (unlikely(dev_priv->ttm.bdev.dev_mapping == NULL))
 		dev_priv->ttm.bdev.dev_mapping = dev_priv->dev->dev_mapping;
-
-	if (req->info.domain & NOUVEAU_GEM_DOMAIN_VRAM)
-		flags |= TTM_PL_FLAG_VRAM;
-	if (req->info.domain & NOUVEAU_GEM_DOMAIN_GART)
-		flags |= TTM_PL_FLAG_TT;
-	if (!flags || req->info.domain & NOUVEAU_GEM_DOMAIN_CPU)
-		flags |= TTM_PL_FLAG_SYSTEM;
 
 	if (!dev_priv->engine.vram.flags_valid(dev, req->info.tile_flags)) {
 		NV_ERROR(dev, "bad page flags: 0x%08x\n", req->info.tile_flags);
@@ -134,8 +134,9 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 			return PTR_ERR(chan);
 	}
 
-	ret = nouveau_gem_new(dev, chan, req->info.size, req->align, flags,
-			      req->info.tile_mode, req->info.tile_flags, &nvbo);
+	ret = nouveau_gem_new(dev, chan, req->info.size, req->align,
+			      req->info.domain, req->info.tile_mode,
+			      req->info.tile_flags, &nvbo);
 	if (chan)
 		nouveau_channel_put(&chan);
 	if (ret)

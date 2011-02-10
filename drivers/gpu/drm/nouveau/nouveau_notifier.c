@@ -39,9 +39,9 @@ nouveau_notifier_init_channel(struct nouveau_channel *chan)
 	int ret;
 
 	if (nouveau_vram_notify)
-		flags = TTM_PL_FLAG_VRAM;
+		flags = NOUVEAU_GEM_DOMAIN_VRAM;
 	else
-		flags = TTM_PL_FLAG_TT;
+		flags = NOUVEAU_GEM_DOMAIN_GART;
 
 	ret = nouveau_gem_new(dev, NULL, PAGE_SIZE, 0, flags, 0, 0, &ntfy);
 	if (ret)
