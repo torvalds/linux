@@ -135,7 +135,7 @@ static inline void cond_unlock(struct hpios_spinlock *l)
 
 #define hpios_msgxlock_init(obj)      spin_lock_init(&(obj)->lock)
 #define hpios_msgxlock_lock(obj)   cond_lock(obj)
-#define hpios_msgxlock_un_lock(obj) cond_unlock(obj)
+#define hpios_msgxlock_unlock(obj) cond_unlock(obj)
 
 #define hpios_dsplock_init(obj)       spin_lock_init(&(obj)->dsp_lock.lock)
 #define hpios_dsplock_lock(obj)    cond_lock(&(obj)->dsp_lock)
@@ -148,7 +148,7 @@ static inline void cond_unlock(struct hpios_spinlock *l)
 #define HPI_ALIST_LOCKING
 #define hpios_alistlock_init(obj)    spin_lock_init(&((obj)->list_lock.lock))
 #define hpios_alistlock_lock(obj) spin_lock(&((obj)->list_lock.lock))
-#define hpios_alistlock_un_lock(obj) spin_unlock(&((obj)->list_lock.lock))
+#define hpios_alistlock_unlock(obj) spin_unlock(&((obj)->list_lock.lock))
 
 struct hpi_adapter {
 	/* mutex prevents contention for one card

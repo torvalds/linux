@@ -98,21 +98,7 @@ static struct hpi_hsubsys gh_subsys;
 
 struct hpi_hsubsys *hpi_subsys_create(void)
 {
-	struct hpi_message hm;
-	struct hpi_response hr;
-
-	memset(&gh_subsys, 0, sizeof(struct hpi_hsubsys));
-
-	{
-		hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
-			HPI_SUBSYS_OPEN);
-		hpi_send_recv(&hm, &hr);
-
-		if (hr.error == 0)
-			return &gh_subsys;
-
-	}
-	return NULL;
+	return &gh_subsys;
 }
 
 void hpi_subsys_free(const struct hpi_hsubsys *ph_subsys)
@@ -126,18 +112,6 @@ void hpi_subsys_free(const struct hpi_hsubsys *ph_subsys)
 
 }
 
-u16 hpi_subsys_get_version(const struct hpi_hsubsys *ph_subsys, u32 *pversion)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
-		HPI_SUBSYS_GET_VERSION);
-	hpi_send_recv(&hm, &hr);
-	*pversion = hr.u.s.version;
-	return hr.error;
-}
-
 u16 hpi_subsys_get_version_ex(const struct hpi_hsubsys *ph_subsys,
 	u32 *pversion_ex)
 {
@@ -148,49 +122,6 @@ u16 hpi_subsys_get_version_ex(const struct hpi_hsubsys *ph_subsys,
 		HPI_SUBSYS_GET_VERSION);
 	hpi_send_recv(&hm, &hr);
 	*pversion_ex = hr.u.s.data;
-	return hr.error;
-}
-
-u16 hpi_subsys_get_info(const struct hpi_hsubsys *ph_subsys, u32 *pversion,
-	u16 *pw_num_adapters, u16 aw_adapter_list[], u16 list_length)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
-		HPI_SUBSYS_GET_INFO);
-
-	hpi_send_recv(&hm, &hr);
-
-	*pversion = hr.u.s.version;
-	if (list_length > HPI_MAX_ADAPTERS)
-		memcpy(aw_adapter_list, &hr.u.s.aw_adapter_list,
-			HPI_MAX_ADAPTERS);
-	else
-		memcpy(aw_adapter_list, &hr.u.s.aw_adapter_list, list_length);
-	*pw_num_adapters = hr.u.s.num_adapters;
-	return hr.error;
-}
-
-u16 hpi_subsys_find_adapters(const struct hpi_hsubsys *ph_subsys,
-	u16 *pw_num_adapters, u16 aw_adapter_list[], u16 list_length)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
-		HPI_SUBSYS_FIND_ADAPTERS);
-
-	hpi_send_recv(&hm, &hr);
-
-	if (list_length > HPI_MAX_ADAPTERS) {
-		memcpy(aw_adapter_list, &hr.u.s.aw_adapter_list,
-			HPI_MAX_ADAPTERS * sizeof(u16));
-		memset(&aw_adapter_list[HPI_MAX_ADAPTERS], 0,
-			(list_length - HPI_MAX_ADAPTERS) * sizeof(u16));
-	} else
-		memcpy(aw_adapter_list, &hr.u.s.aw_adapter_list,
-			list_length * sizeof(u16));
-	*pw_num_adapters = hr.u.s.num_adapters;
-
 	return hr.error;
 }
 
@@ -217,7 +148,7 @@ u16 hpi_subsys_delete_adapter(const struct hpi_hsubsys *ph_subsys,
 	struct hpi_response hr;
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
 		HPI_SUBSYS_DELETE_ADAPTER);
-	hm.adapter_index = adapter_index;
+	hm.obj_index = adapter_index;
 	hpi_send_recv(&hm, &hr);
 	return hr.error;
 }
@@ -241,24 +172,10 @@ u16 hpi_subsys_get_adapter(const struct hpi_hsubsys *ph_subsys, int iterator,
 	struct hpi_response hr;
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
 		HPI_SUBSYS_GET_ADAPTER);
-	hm.adapter_index = (u16)iterator;
+	hm.obj_index = (u16)iterator;
 	hpi_send_recv(&hm, &hr);
 	*padapter_index = (int)hr.u.s.adapter_index;
 	*pw_adapter_type = hr.u.s.aw_adapter_list[0];
-	return hr.error;
-}
-
-u16 hpi_subsys_set_host_network_interface(const struct hpi_hsubsys *ph_subsys,
-	const char *sz_interface)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
-		HPI_SUBSYS_SET_NETWORK_INTERFACE);
-	if (sz_interface == NULL)
-		return HPI_ERROR_INVALID_RESOURCE;
-	hm.u.s.resource.r.net_if = sz_interface;
-	hpi_send_recv(&hm, &hr);
 	return hr.error;
 }
 
@@ -305,8 +222,8 @@ u16 hpi_adapter_set_mode_ex(const struct hpi_hsubsys *ph_subsys,
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_ADAPTER,
 		HPI_ADAPTER_SET_MODE);
 	hm.adapter_index = adapter_index;
-	hm.u.a.adapter_mode = adapter_mode;
-	hm.u.a.assert_id = query_or_set;
+	hm.u.ax.mode.adapter_mode = adapter_mode;
+	hm.u.ax.mode.query_or_set = query_or_set;
 	hpi_send_recv(&hm, &hr);
 	return hr.error;
 }
@@ -321,7 +238,7 @@ u16 hpi_adapter_get_mode(const struct hpi_hsubsys *ph_subsys,
 	hm.adapter_index = adapter_index;
 	hpi_send_recv(&hm, &hr);
 	if (padapter_mode)
-		*padapter_mode = hr.u.a.serial_number;
+		*padapter_mode = hr.u.ax.mode.adapter_mode;
 	return hr.error;
 }
 
@@ -337,11 +254,11 @@ u16 hpi_adapter_get_info(const struct hpi_hsubsys *ph_subsys,
 
 	hpi_send_recv(&hm, &hr);
 
-	*pw_adapter_type = hr.u.a.adapter_type;
-	*pw_num_outstreams = hr.u.a.num_outstreams;
-	*pw_num_instreams = hr.u.a.num_instreams;
-	*pw_version = hr.u.a.version;
-	*pserial_number = hr.u.a.serial_number;
+	*pw_adapter_type = hr.u.ax.info.adapter_type;
+	*pw_num_outstreams = hr.u.ax.info.num_outstreams;
+	*pw_num_instreams = hr.u.ax.info.num_instreams;
+	*pw_version = hr.u.ax.info.version;
+	*pserial_number = hr.u.ax.info.serial_number;
 	return hr.error;
 }
 
@@ -360,56 +277,20 @@ u16 hpi_adapter_get_module_by_index(const struct hpi_hsubsys *ph_subsys,
 
 	hpi_send_recv(&hm, &hr);
 
-	*pw_module_type = hr.u.a.adapter_type;
-	*pw_num_outputs = hr.u.a.num_outstreams;
-	*pw_num_inputs = hr.u.a.num_instreams;
-	*pw_version = hr.u.a.version;
-	*pserial_number = hr.u.a.serial_number;
+	*pw_module_type = hr.u.ax.info.adapter_type;
+	*pw_num_outputs = hr.u.ax.info.num_outstreams;
+	*pw_num_inputs = hr.u.ax.info.num_instreams;
+	*pw_version = hr.u.ax.info.version;
+	*pserial_number = hr.u.ax.info.serial_number;
 	*ph_module = 0;
 
 	return hr.error;
 }
 
-u16 hpi_adapter_get_assert(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u16 *assert_present, char *psz_assert,
-	u16 *pw_line_number)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_ADAPTER,
-		HPI_ADAPTER_GET_ASSERT);
-	hm.adapter_index = adapter_index;
-	hpi_send_recv(&hm, &hr);
-
-	*assert_present = 0;
-
-	if (!hr.error) {
-
-		*pw_line_number = (u16)hr.u.a.serial_number;
-		if (*pw_line_number) {
-
-			int i;
-			char *src = (char *)hr.u.a.sz_adapter_assert;
-			char *dst = psz_assert;
-
-			*assert_present = 1;
-
-			for (i = 0; i < HPI_STRING_LEN; i++) {
-				char c;
-				c = *src++;
-				*dst++ = c;
-				if (c == 0)
-					break;
-			}
-
-		}
-	}
-	return hr.error;
-}
-
-u16 hpi_adapter_get_assert_ex(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u16 *assert_present, char *psz_assert,
-	u32 *pline_number, u16 *pw_assert_on_dsp)
+u16 hpi_adapter_get_assert2(const struct hpi_hsubsys *ph_subsys,
+	u16 adapter_index, u16 *p_assert_count, char *psz_assert,
+	u32 *p_param1, u32 *p_param2, u32 *p_dsp_string_addr,
+	u16 *p_processor_id)
 {
 	struct hpi_message hm;
 	struct hpi_response hr;
@@ -419,34 +300,18 @@ u16 hpi_adapter_get_assert_ex(const struct hpi_hsubsys *ph_subsys,
 
 	hpi_send_recv(&hm, &hr);
 
-	*assert_present = 0;
+	*p_assert_count = 0;
 
 	if (!hr.error) {
+		*p_assert_count = hr.u.ax.assert.count;
 
-		*pline_number = hr.u.a.serial_number;
-
-		*assert_present = hr.u.a.adapter_type;
-
-		*pw_assert_on_dsp = hr.u.a.adapter_index;
-
-		if (!*assert_present && *pline_number)
-
-			*assert_present = 1;
-
-		if (*assert_present) {
-
-			int i;
-			char *src = (char *)hr.u.a.sz_adapter_assert;
-			char *dst = psz_assert;
-
-			for (i = 0; i < HPI_STRING_LEN; i++) {
-				char c;
-				c = *src++;
-				*dst++ = c;
-				if (c == 0)
-					break;
-			}
-
+		if (*p_assert_count) {
+			*p_param1 = hr.u.ax.assert.p1;
+			*p_param2 = hr.u.ax.assert.p2;
+			*p_processor_id = hr.u.ax.assert.dsp_index;
+			*p_dsp_string_addr = hr.u.ax.assert.dsp_msg_addr;
+			memcpy(psz_assert, hr.u.ax.assert.sz_message,
+				HPI_STRING_LEN);
 		} else {
 			*psz_assert = 0;
 		}
@@ -462,7 +327,7 @@ u16 hpi_adapter_test_assert(const struct hpi_hsubsys *ph_subsys,
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_ADAPTER,
 		HPI_ADAPTER_TEST_ASSERT);
 	hm.adapter_index = adapter_index;
-	hm.u.a.assert_id = assert_id;
+	hm.u.ax.test_assert.value = assert_id;
 
 	hpi_send_recv(&hm, &hr);
 
@@ -472,17 +337,21 @@ u16 hpi_adapter_test_assert(const struct hpi_hsubsys *ph_subsys,
 u16 hpi_adapter_enable_capability(const struct hpi_hsubsys *ph_subsys,
 	u16 adapter_index, u16 capability, u32 key)
 {
+#if 1
+	return HPI_ERROR_UNIMPLEMENTED;
+#else
 	struct hpi_message hm;
 	struct hpi_response hr;
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_ADAPTER,
 		HPI_ADAPTER_ENABLE_CAPABILITY);
 	hm.adapter_index = adapter_index;
-	hm.u.a.assert_id = capability;
-	hm.u.a.adapter_mode = key;
+	hm.u.ax.enable_cap.cap = capability;
+	hm.u.ax.enable_cap.key = key;
 
 	hpi_send_recv(&hm, &hr);
 
 	return hr.error;
+#endif
 }
 
 u16 hpi_adapter_self_test(const struct hpi_hsubsys *ph_subsys,
@@ -500,29 +369,32 @@ u16 hpi_adapter_self_test(const struct hpi_hsubsys *ph_subsys,
 u16 hpi_adapter_debug_read(const struct hpi_hsubsys *ph_subsys,
 	u16 adapter_index, u32 dsp_address, char *p_buffer, int *count_bytes)
 {
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_ADAPTER,
-		HPI_ADAPTER_DEBUG_READ);
+	struct hpi_msg_adapter_debug_read hm;
+	struct hpi_res_adapter_debug_read hr;
 
-	hr.size = sizeof(hr);
+	hpi_init_message_responseV1(&hm.h, sizeof(hm), &hr.h, sizeof(hr),
+		HPI_OBJ_ADAPTER, HPI_ADAPTER_DEBUG_READ);
 
-	hm.adapter_index = adapter_index;
-	hm.u.ax.debug_read.dsp_address = dsp_address;
+	hm.h.adapter_index = adapter_index;
+	hm.dsp_address = dsp_address;
 
-	if (*count_bytes > (int)sizeof(hr.u.bytes))
-		*count_bytes = sizeof(hr.u.bytes);
+	if (*count_bytes > (int)sizeof(hr.bytes))
+		*count_bytes = (int)sizeof(hr.bytes);
 
-	hm.u.ax.debug_read.count_bytes = *count_bytes;
+	hm.count_bytes = *count_bytes;
 
-	hpi_send_recv(&hm, &hr);
+	hpi_send_recv((struct hpi_message *)&hm, (struct hpi_response *)&hr);
 
-	if (!hr.error) {
-		*count_bytes = hr.size - 12;
-		memcpy(p_buffer, &hr.u.bytes, *count_bytes);
+	if (!hr.h.error) {
+		int res_bytes = hr.h.size - sizeof(hr.h);
+		if (res_bytes > *count_bytes)
+			res_bytes = *count_bytes;
+		*count_bytes = res_bytes;
+		memcpy(p_buffer, &hr.bytes, res_bytes);
 	} else
 		*count_bytes = 0;
-	return hr.error;
+
+	return hr.h.error;
 }
 
 u16 hpi_adapter_set_property(const struct hpi_hsubsys *ph_subsys,
@@ -1682,7 +1554,7 @@ static u16 hpi_control_get_string(const u32 h_control, const u16 attribute,
 	unsigned int sub_string_index = 0, j = 0;
 	char c = 0;
 	unsigned int n = 0;
-	u16 hE = 0;
+	u16 err = 0;
 
 	if ((string_length < 1) || (string_length > 256))
 		return HPI_ERROR_INVALID_CONTROL_VALUE;
@@ -1705,7 +1577,7 @@ static u16 hpi_control_get_string(const u32 h_control, const u16 attribute,
 			return HPI_ERROR_INVALID_CONTROL_VALUE;
 
 		if (hr.error) {
-			hE = hr.error;
+			err = hr.error;
 			break;
 		}
 		for (j = 0; j < 8; j++) {
@@ -1714,7 +1586,7 @@ static u16 hpi_control_get_string(const u32 h_control, const u16 attribute,
 			n++;
 			if (n >= string_length) {
 				psz_string[string_length - 1] = 0;
-				hE = HPI_ERROR_INVALID_CONTROL_VALUE;
+				err = HPI_ERROR_INVALID_CONTROL_VALUE;
 				break;
 			}
 			if (c == 0)
@@ -1730,7 +1602,7 @@ static u16 hpi_control_get_string(const u32 h_control, const u16 attribute,
 		if (c == 0)
 			break;
 	}
-	return hE;
+	return err;
 }
 
 u16 HPI_AESEBU__receiver_query_format(const struct hpi_hsubsys *ph_subsys,
@@ -2709,7 +2581,7 @@ u16 hpi_tone_detector_set_enable(const struct hpi_hsubsys *ph_subsys,
 	u32 h_control, u32 enable)
 {
 	return hpi_control_param_set(ph_subsys, h_control, HPI_GENERIC_ENABLE,
-		(u32)enable, 0);
+		enable, 0);
 }
 
 u16 hpi_tone_detector_get_enable(const struct hpi_hsubsys *ph_subsys,
@@ -2758,7 +2630,7 @@ u16 hpi_silence_detector_set_enable(const struct hpi_hsubsys *ph_subsys,
 	u32 h_control, u32 enable)
 {
 	return hpi_control_param_set(ph_subsys, h_control, HPI_GENERIC_ENABLE,
-		(u32)enable, 0);
+		enable, 0);
 }
 
 u16 hpi_silence_detector_get_enable(const struct hpi_hsubsys *ph_subsys,
@@ -2904,11 +2776,10 @@ u16 hpi_tuner_getRF_level(const struct hpi_hsubsys *ph_subsys, u32 h_control,
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_CONTROL,
 		HPI_CONTROL_GET_STATE);
 	u32TOINDEXES(h_control, &hm.adapter_index, &hm.obj_index);
-	hm.u.c.attribute = HPI_TUNER_LEVEL;
-	hm.u.c.param1 = HPI_TUNER_LEVEL_AVERAGE;
+	hm.u.cu.attribute = HPI_TUNER_LEVEL_AVG;
 	hpi_send_recv(&hm, &hr);
 	if (pw_level)
-		*pw_level = (short)hr.u.c.param1;
+		*pw_level = hr.u.cu.tuner.s_level;
 	return hr.error;
 }
 
@@ -2921,11 +2792,10 @@ u16 hpi_tuner_get_rawRF_level(const struct hpi_hsubsys *ph_subsys,
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_CONTROL,
 		HPI_CONTROL_GET_STATE);
 	u32TOINDEXES(h_control, &hm.adapter_index, &hm.obj_index);
-	hm.u.c.attribute = HPI_TUNER_LEVEL;
-	hm.u.c.param1 = HPI_TUNER_LEVEL_RAW;
+	hm.u.cu.attribute = HPI_TUNER_LEVEL_RAW;
 	hpi_send_recv(&hm, &hr);
 	if (pw_level)
-		*pw_level = (short)hr.u.c.param1;
+		*pw_level = hr.u.cu.tuner.s_level;
 	return hr.error;
 }
 
@@ -3210,731 +3080,6 @@ u16 hpi_vox_get_threshold(const struct hpi_hsubsys *ph_subsys, u32 h_control,
 	hpi_send_recv(&hm, &hr);
 
 	*an_gain0_01dB = hr.u.c.an_log_value[0];
-
-	return hr.error;
-}
-
-static size_t strv_packet_size = MIN_STRV_PACKET_SIZE;
-
-static size_t entity_type_to_size[LAST_ENTITY_TYPE] = {
-	0,
-	sizeof(struct hpi_entity),
-	sizeof(void *),
-
-	sizeof(int),
-	sizeof(float),
-	sizeof(double),
-
-	sizeof(char),
-	sizeof(char),
-
-	4 * sizeof(char),
-	16 * sizeof(char),
-	6 * sizeof(char),
-};
-
-static inline size_t hpi_entity_size(struct hpi_entity *entity_ptr)
-{
-	return entity_ptr->header.size;
-}
-
-static inline size_t hpi_entity_header_size(struct hpi_entity *entity_ptr)
-{
-	return sizeof(entity_ptr->header);
-}
-
-static inline size_t hpi_entity_value_size(struct hpi_entity *entity_ptr)
-{
-	return hpi_entity_size(entity_ptr) -
-		hpi_entity_header_size(entity_ptr);
-}
-
-static inline size_t hpi_entity_item_count(struct hpi_entity *entity_ptr)
-{
-	return hpi_entity_value_size(entity_ptr) /
-		entity_type_to_size[entity_ptr->header.type];
-}
-
-static inline struct hpi_entity *hpi_entity_ptr_to_next(struct hpi_entity
-	*entity_ptr)
-{
-	return (void *)(((u8 *)entity_ptr) + hpi_entity_size(entity_ptr));
-}
-
-static inline u16 hpi_entity_check_type(const enum e_entity_type t)
-{
-	if (t >= 0 && t < STR_TYPE_FIELD_MAX)
-		return 0;
-	return HPI_ERROR_ENTITY_TYPE_INVALID;
-}
-
-static inline u16 hpi_entity_check_role(const enum e_entity_role r)
-{
-	if (r >= 0 && r < STR_ROLE_FIELD_MAX)
-		return 0;
-	return HPI_ERROR_ENTITY_ROLE_INVALID;
-}
-
-static u16 hpi_entity_get_next(struct hpi_entity *entity, int recursive_flag,
-	void *guard_p, struct hpi_entity **next)
-{
-	HPI_DEBUG_ASSERT(entity != NULL);
-	HPI_DEBUG_ASSERT(next != NULL);
-	HPI_DEBUG_ASSERT(hpi_entity_size(entity) != 0);
-
-	if (guard_p <= (void *)entity) {
-		*next = NULL;
-		return 0;
-	}
-
-	if (recursive_flag && entity->header.type == entity_type_sequence)
-		*next = (struct hpi_entity *)entity->value;
-	else
-		*next = (struct hpi_entity *)hpi_entity_ptr_to_next(entity);
-
-	if (guard_p <= (void *)*next) {
-		*next = NULL;
-		return 0;
-	}
-
-	HPI_DEBUG_ASSERT(guard_p >= (void *)hpi_entity_ptr_to_next(*next));
-	return 0;
-}
-
-u16 hpi_entity_find_next(struct hpi_entity *container_entity,
-	enum e_entity_type type, enum e_entity_role role, int recursive_flag,
-	struct hpi_entity **current_match)
-{
-	struct hpi_entity *tmp = NULL;
-	void *guard_p = NULL;
-
-	HPI_DEBUG_ASSERT(container_entity != NULL);
-	guard_p = hpi_entity_ptr_to_next(container_entity);
-
-	if (*current_match != NULL)
-		hpi_entity_get_next(*current_match, recursive_flag, guard_p,
-			&tmp);
-	else
-		hpi_entity_get_next(container_entity, 1, guard_p, &tmp);
-
-	while (tmp) {
-		u16 err;
-
-		HPI_DEBUG_ASSERT((void *)tmp >= (void *)container_entity);
-
-		if ((!type || tmp->header.type == type) && (!role
-				|| tmp->header.role == role)) {
-			*current_match = tmp;
-			return 0;
-		}
-
-		err = hpi_entity_get_next(tmp, recursive_flag, guard_p,
-			current_match);
-		if (err)
-			return err;
-
-		tmp = *current_match;
-	}
-
-	*current_match = NULL;
-	return 0;
-}
-
-void hpi_entity_free(struct hpi_entity *entity)
-{
-	kfree(entity);
-}
-
-static u16 hpi_entity_alloc_and_copy(struct hpi_entity *src,
-	struct hpi_entity **dst)
-{
-	size_t buf_size;
-	HPI_DEBUG_ASSERT(dst != NULL);
-	HPI_DEBUG_ASSERT(src != NULL);
-
-	buf_size = hpi_entity_size(src);
-	*dst = kmalloc(buf_size, GFP_KERNEL);
-	if (*dst == NULL)
-		return HPI_ERROR_MEMORY_ALLOC;
-	memcpy(*dst, src, buf_size);
-	return 0;
-}
-
-u16 hpi_universal_info(const struct hpi_hsubsys *ph_subsys, u32 hC,
-	struct hpi_entity **info)
-{
-	struct hpi_msg_strv hm;
-	struct hpi_res_strv *phr;
-	u16 hpi_err;
-	int remaining_attempts = 2;
-	size_t resp_packet_size = 1024;
-
-	*info = NULL;
-
-	while (remaining_attempts--) {
-		phr = kmalloc(resp_packet_size, GFP_KERNEL);
-		HPI_DEBUG_ASSERT(phr != NULL);
-
-		hpi_init_message_responseV1(&hm.h, (u16)sizeof(hm), &phr->h,
-			(u16)resp_packet_size, HPI_OBJ_CONTROL,
-			HPI_CONTROL_GET_INFO);
-		u32TOINDEXES(hC, &hm.h.adapter_index, &hm.h.obj_index);
-
-		hm.strv.header.size = sizeof(hm.strv);
-		phr->strv.header.size = resp_packet_size - sizeof(phr->h);
-
-		hpi_send_recv((struct hpi_message *)&hm.h,
-			(struct hpi_response *)&phr->h);
-		if (phr->h.error == HPI_ERROR_RESPONSE_BUFFER_TOO_SMALL) {
-
-			HPI_DEBUG_ASSERT(phr->h.specific_error >
-				MIN_STRV_PACKET_SIZE
-				&& phr->h.specific_error < 1500);
-			resp_packet_size = phr->h.specific_error;
-		} else {
-			remaining_attempts = 0;
-			if (!phr->h.error)
-				hpi_entity_alloc_and_copy(&phr->strv, info);
-		}
-
-		hpi_err = phr->h.error;
-		kfree(phr);
-	}
-
-	return hpi_err;
-}
-
-u16 hpi_universal_get(const struct hpi_hsubsys *ph_subsys, u32 hC,
-	struct hpi_entity **value)
-{
-	struct hpi_msg_strv hm;
-	struct hpi_res_strv *phr;
-	u16 hpi_err;
-	int remaining_attempts = 2;
-
-	*value = NULL;
-
-	while (remaining_attempts--) {
-		phr = kmalloc(strv_packet_size, GFP_KERNEL);
-		if (!phr)
-			return HPI_ERROR_MEMORY_ALLOC;
-
-		hpi_init_message_responseV1(&hm.h, (u16)sizeof(hm), &phr->h,
-			(u16)strv_packet_size, HPI_OBJ_CONTROL,
-			HPI_CONTROL_GET_STATE);
-		u32TOINDEXES(hC, &hm.h.adapter_index, &hm.h.obj_index);
-
-		hm.strv.header.size = sizeof(hm.strv);
-		phr->strv.header.size = strv_packet_size - sizeof(phr->h);
-
-		hpi_send_recv((struct hpi_message *)&hm.h,
-			(struct hpi_response *)&phr->h);
-		if (phr->h.error == HPI_ERROR_RESPONSE_BUFFER_TOO_SMALL) {
-
-			HPI_DEBUG_ASSERT(phr->h.specific_error >
-				MIN_STRV_PACKET_SIZE
-				&& phr->h.specific_error < 1000);
-			strv_packet_size = phr->h.specific_error;
-		} else {
-			remaining_attempts = 0;
-			if (!phr->h.error)
-				hpi_entity_alloc_and_copy(&phr->strv, value);
-		}
-
-		hpi_err = phr->h.error;
-		kfree(phr);
-	}
-
-	return hpi_err;
-}
-
-u16 hpi_universal_set(const struct hpi_hsubsys *ph_subsys, u32 hC,
-	struct hpi_entity *value)
-{
-	struct hpi_msg_strv *phm;
-	struct hpi_res_strv hr;
-
-	phm = kmalloc(sizeof(phm->h) + value->header.size, GFP_KERNEL);
-	HPI_DEBUG_ASSERT(phm != NULL);
-
-	hpi_init_message_responseV1(&phm->h,
-		sizeof(phm->h) + value->header.size, &hr.h, sizeof(hr),
-		HPI_OBJ_CONTROL, HPI_CONTROL_SET_STATE);
-	u32TOINDEXES(hC, &phm->h.adapter_index, &phm->h.obj_index);
-	hr.strv.header.size = sizeof(hr.strv);
-
-	memcpy(&phm->strv, value, value->header.size);
-	hpi_send_recv((struct hpi_message *)&phm->h,
-		(struct hpi_response *)&hr.h);
-
-	return hr.h.error;
-}
-
-u16 hpi_entity_alloc_and_pack(const enum e_entity_type type,
-	const size_t item_count, const enum e_entity_role role, void *value,
-	struct hpi_entity **entity)
-{
-	size_t bytes_to_copy, total_size;
-	u16 hE = 0;
-	*entity = NULL;
-
-	hE = hpi_entity_check_type(type);
-	if (hE)
-		return hE;
-
-	HPI_DEBUG_ASSERT(role > entity_role_null && type < LAST_ENTITY_TYPE);
-
-	bytes_to_copy = entity_type_to_size[type] * item_count;
-	total_size = hpi_entity_header_size(*entity) + bytes_to_copy;
-
-	HPI_DEBUG_ASSERT(total_size >= hpi_entity_header_size(*entity)
-		&& total_size < STR_SIZE_FIELD_MAX);
-
-	*entity = kmalloc(total_size, GFP_KERNEL);
-	if (*entity == NULL)
-		return HPI_ERROR_MEMORY_ALLOC;
-	memcpy((*entity)->value, value, bytes_to_copy);
-	(*entity)->header.size =
-		hpi_entity_header_size(*entity) + bytes_to_copy;
-	(*entity)->header.type = type;
-	(*entity)->header.role = role;
-	return 0;
-}
-
-u16 hpi_entity_copy_value_from(struct hpi_entity *entity,
-	enum e_entity_type type, size_t item_count, void *value_dst_p)
-{
-	size_t bytes_to_copy;
-
-	if (entity->header.type != type)
-		return HPI_ERROR_ENTITY_TYPE_MISMATCH;
-
-	if (hpi_entity_item_count(entity) != item_count)
-		return HPI_ERROR_ENTITY_ITEM_COUNT;
-
-	bytes_to_copy = entity_type_to_size[type] * item_count;
-	memcpy(value_dst_p, entity->value, bytes_to_copy);
-	return 0;
-}
-
-u16 hpi_entity_unpack(struct hpi_entity *entity, enum e_entity_type *type,
-	size_t *item_count, enum e_entity_role *role, void **value)
-{
-	u16 err = 0;
-	HPI_DEBUG_ASSERT(entity != NULL);
-
-	if (type)
-		*type = entity->header.type;
-
-	if (role)
-		*role = entity->header.role;
-
-	if (value)
-		*value = entity->value;
-
-	if (item_count != NULL) {
-		if (entity->header.type == entity_type_sequence) {
-			void *guard_p = hpi_entity_ptr_to_next(entity);
-			struct hpi_entity *next = NULL;
-			void *contents = entity->value;
-
-			*item_count = 0;
-			while (contents < guard_p) {
-				(*item_count)++;
-				err = hpi_entity_get_next(contents, 0,
-					guard_p, &next);
-				if (next == NULL || err)
-					break;
-				contents = next;
-			}
-		} else {
-			*item_count = hpi_entity_item_count(entity);
-		}
-	}
-	return err;
-}
-
-u16 hpi_gpio_open(const struct hpi_hsubsys *ph_subsys, u16 adapter_index,
-	u32 *ph_gpio, u16 *pw_number_input_bits, u16 *pw_number_output_bits)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_GPIO, HPI_GPIO_OPEN);
-	hm.adapter_index = adapter_index;
-
-	hpi_send_recv(&hm, &hr);
-
-	if (hr.error == 0) {
-		*ph_gpio =
-			hpi_indexes_to_handle(HPI_OBJ_GPIO, adapter_index, 0);
-		if (pw_number_input_bits)
-			*pw_number_input_bits = hr.u.l.number_input_bits;
-		if (pw_number_output_bits)
-			*pw_number_output_bits = hr.u.l.number_output_bits;
-	} else
-		*ph_gpio = 0;
-	return hr.error;
-}
-
-u16 hpi_gpio_read_bit(const struct hpi_hsubsys *ph_subsys, u32 h_gpio,
-	u16 bit_index, u16 *pw_bit_data)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_GPIO, HPI_GPIO_READ_BIT);
-	u32TOINDEX(h_gpio, &hm.adapter_index);
-	hm.u.l.bit_index = bit_index;
-
-	hpi_send_recv(&hm, &hr);
-
-	*pw_bit_data = hr.u.l.bit_data[0];
-	return hr.error;
-}
-
-u16 hpi_gpio_read_all_bits(const struct hpi_hsubsys *ph_subsys, u32 h_gpio,
-	u16 aw_all_bit_data[4]
-	)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_GPIO, HPI_GPIO_READ_ALL);
-	u32TOINDEX(h_gpio, &hm.adapter_index);
-
-	hpi_send_recv(&hm, &hr);
-
-	if (aw_all_bit_data) {
-		aw_all_bit_data[0] = hr.u.l.bit_data[0];
-		aw_all_bit_data[1] = hr.u.l.bit_data[1];
-		aw_all_bit_data[2] = hr.u.l.bit_data[2];
-		aw_all_bit_data[3] = hr.u.l.bit_data[3];
-	}
-	return hr.error;
-}
-
-u16 hpi_gpio_write_bit(const struct hpi_hsubsys *ph_subsys, u32 h_gpio,
-	u16 bit_index, u16 bit_data)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_GPIO, HPI_GPIO_WRITE_BIT);
-	u32TOINDEX(h_gpio, &hm.adapter_index);
-	hm.u.l.bit_index = bit_index;
-	hm.u.l.bit_data = bit_data;
-
-	hpi_send_recv(&hm, &hr);
-
-	return hr.error;
-}
-
-u16 hpi_gpio_write_status(const struct hpi_hsubsys *ph_subsys, u32 h_gpio,
-	u16 aw_all_bit_data[4]
-	)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_GPIO,
-		HPI_GPIO_WRITE_STATUS);
-	u32TOINDEX(h_gpio, &hm.adapter_index);
-
-	hpi_send_recv(&hm, &hr);
-
-	if (aw_all_bit_data) {
-		aw_all_bit_data[0] = hr.u.l.bit_data[0];
-		aw_all_bit_data[1] = hr.u.l.bit_data[1];
-		aw_all_bit_data[2] = hr.u.l.bit_data[2];
-		aw_all_bit_data[3] = hr.u.l.bit_data[3];
-	}
-	return hr.error;
-}
-
-u16 hpi_async_event_open(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u32 *ph_async)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_ASYNCEVENT,
-		HPI_ASYNCEVENT_OPEN);
-	hm.adapter_index = adapter_index;
-
-	hpi_send_recv(&hm, &hr);
-
-	if (hr.error == 0)
-
-		*ph_async =
-			hpi_indexes_to_handle(HPI_OBJ_ASYNCEVENT,
-			adapter_index, 0);
-	else
-		*ph_async = 0;
-	return hr.error;
-
-}
-
-u16 hpi_async_event_close(const struct hpi_hsubsys *ph_subsys, u32 h_async)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_ASYNCEVENT,
-		HPI_ASYNCEVENT_OPEN);
-	u32TOINDEX(h_async, &hm.adapter_index);
-
-	hpi_send_recv(&hm, &hr);
-
-	return hr.error;
-}
-
-u16 hpi_async_event_wait(const struct hpi_hsubsys *ph_subsys, u32 h_async,
-	u16 maximum_events, struct hpi_async_event *p_events,
-	u16 *pw_number_returned)
-{
-
-	return 0;
-}
-
-u16 hpi_async_event_get_count(const struct hpi_hsubsys *ph_subsys,
-	u32 h_async, u16 *pw_count)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_ASYNCEVENT,
-		HPI_ASYNCEVENT_GETCOUNT);
-	u32TOINDEX(h_async, &hm.adapter_index);
-
-	hpi_send_recv(&hm, &hr);
-
-	if (hr.error == 0)
-		if (pw_count)
-			*pw_count = hr.u.as.u.count.count;
-
-	return hr.error;
-}
-
-u16 hpi_async_event_get(const struct hpi_hsubsys *ph_subsys, u32 h_async,
-	u16 maximum_events, struct hpi_async_event *p_events,
-	u16 *pw_number_returned)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_ASYNCEVENT,
-		HPI_ASYNCEVENT_GET);
-	u32TOINDEX(h_async, &hm.adapter_index);
-
-	hpi_send_recv(&hm, &hr);
-	if (!hr.error) {
-		memcpy(p_events, &hr.u.as.u.event,
-			sizeof(struct hpi_async_event));
-		*pw_number_returned = 1;
-	}
-
-	return hr.error;
-}
-
-u16 hpi_nv_memory_open(const struct hpi_hsubsys *ph_subsys, u16 adapter_index,
-	u32 *ph_nv_memory, u16 *pw_size_in_bytes)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_NVMEMORY,
-		HPI_NVMEMORY_OPEN);
-	hm.adapter_index = adapter_index;
-
-	hpi_send_recv(&hm, &hr);
-
-	if (hr.error == 0) {
-		*ph_nv_memory =
-			hpi_indexes_to_handle(HPI_OBJ_NVMEMORY, adapter_index,
-			0);
-		if (pw_size_in_bytes)
-			*pw_size_in_bytes = hr.u.n.size_in_bytes;
-	} else
-		*ph_nv_memory = 0;
-	return hr.error;
-}
-
-u16 hpi_nv_memory_read_byte(const struct hpi_hsubsys *ph_subsys,
-	u32 h_nv_memory, u16 index, u16 *pw_data)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_NVMEMORY,
-		HPI_NVMEMORY_READ_BYTE);
-	u32TOINDEX(h_nv_memory, &hm.adapter_index);
-	hm.u.n.address = index;
-
-	hpi_send_recv(&hm, &hr);
-
-	*pw_data = hr.u.n.data;
-	return hr.error;
-}
-
-u16 hpi_nv_memory_write_byte(const struct hpi_hsubsys *ph_subsys,
-	u32 h_nv_memory, u16 index, u16 data)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_NVMEMORY,
-		HPI_NVMEMORY_WRITE_BYTE);
-	u32TOINDEX(h_nv_memory, &hm.adapter_index);
-	hm.u.n.address = index;
-	hm.u.n.data = data;
-
-	hpi_send_recv(&hm, &hr);
-
-	return hr.error;
-}
-
-u16 hpi_profile_open_all(const struct hpi_hsubsys *ph_subsys,
-	u16 adapter_index, u16 profile_index, u32 *ph_profile,
-	u16 *pw_max_profiles)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_PROFILE,
-		HPI_PROFILE_OPEN_ALL);
-	hm.adapter_index = adapter_index;
-	hm.obj_index = profile_index;
-	hpi_send_recv(&hm, &hr);
-
-	*pw_max_profiles = hr.u.p.u.o.max_profiles;
-	if (hr.error == 0)
-		*ph_profile =
-			hpi_indexes_to_handle(HPI_OBJ_PROFILE, adapter_index,
-			profile_index);
-	else
-		*ph_profile = 0;
-	return hr.error;
-}
-
-u16 hpi_profile_get(const struct hpi_hsubsys *ph_subsys, u32 h_profile,
-	u16 bin_index, u16 *pw_seconds, u32 *pmicro_seconds, u32 *pcall_count,
-	u32 *pmax_micro_seconds, u32 *pmin_micro_seconds)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_PROFILE, HPI_PROFILE_GET);
-	u32TOINDEXES(h_profile, &hm.adapter_index, &hm.obj_index);
-	hm.u.p.bin_index = bin_index;
-	hpi_send_recv(&hm, &hr);
-	if (pw_seconds)
-		*pw_seconds = hr.u.p.u.t.seconds;
-	if (pmicro_seconds)
-		*pmicro_seconds = hr.u.p.u.t.micro_seconds;
-	if (pcall_count)
-		*pcall_count = hr.u.p.u.t.call_count;
-	if (pmax_micro_seconds)
-		*pmax_micro_seconds = hr.u.p.u.t.max_micro_seconds;
-	if (pmin_micro_seconds)
-		*pmin_micro_seconds = hr.u.p.u.t.min_micro_seconds;
-	return hr.error;
-}
-
-u16 hpi_profile_get_utilization(const struct hpi_hsubsys *ph_subsys,
-	u32 h_profile, u32 *putilization)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_PROFILE,
-		HPI_PROFILE_GET_UTILIZATION);
-	u32TOINDEXES(h_profile, &hm.adapter_index, &hm.obj_index);
-	hpi_send_recv(&hm, &hr);
-	if (hr.error) {
-		if (putilization)
-			*putilization = 0;
-	} else {
-		if (putilization)
-			*putilization = hr.u.p.u.t.call_count;
-	}
-	return hr.error;
-}
-
-u16 hpi_profile_get_name(const struct hpi_hsubsys *ph_subsys, u32 h_profile,
-	u16 bin_index, char *sz_name, u16 name_length)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_PROFILE,
-		HPI_PROFILE_GET_NAME);
-	u32TOINDEXES(h_profile, &hm.adapter_index, &hm.obj_index);
-	hm.u.p.bin_index = bin_index;
-	hpi_send_recv(&hm, &hr);
-	if (hr.error) {
-		if (sz_name)
-			strcpy(sz_name, "??");
-	} else {
-		if (sz_name)
-			memcpy(sz_name, (char *)hr.u.p.u.n.sz_name,
-				name_length);
-	}
-	return hr.error;
-}
-
-u16 hpi_profile_start_all(const struct hpi_hsubsys *ph_subsys, u32 h_profile)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_PROFILE,
-		HPI_PROFILE_START_ALL);
-	u32TOINDEXES(h_profile, &hm.adapter_index, &hm.obj_index);
-	hpi_send_recv(&hm, &hr);
-
-	return hr.error;
-}
-
-u16 hpi_profile_stop_all(const struct hpi_hsubsys *ph_subsys, u32 h_profile)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_PROFILE,
-		HPI_PROFILE_STOP_ALL);
-	u32TOINDEXES(h_profile, &hm.adapter_index, &hm.obj_index);
-	hpi_send_recv(&hm, &hr);
-
-	return hr.error;
-}
-
-u16 hpi_watchdog_open(const struct hpi_hsubsys *ph_subsys, u16 adapter_index,
-	u32 *ph_watchdog)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_WATCHDOG,
-		HPI_WATCHDOG_OPEN);
-	hm.adapter_index = adapter_index;
-
-	hpi_send_recv(&hm, &hr);
-
-	if (hr.error == 0)
-		*ph_watchdog =
-			hpi_indexes_to_handle(HPI_OBJ_WATCHDOG, adapter_index,
-			0);
-	else
-		*ph_watchdog = 0;
-	return hr.error;
-}
-
-u16 hpi_watchdog_set_time(const struct hpi_hsubsys *ph_subsys, u32 h_watchdog,
-	u32 time_millisec)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_WATCHDOG,
-		HPI_WATCHDOG_SET_TIME);
-	u32TOINDEX(h_watchdog, &hm.adapter_index);
-	hm.u.w.time_ms = time_millisec;
-
-	hpi_send_recv(&hm, &hr);
-
-	return hr.error;
-}
-
-u16 hpi_watchdog_ping(const struct hpi_hsubsys *ph_subsys, u32 h_watchdog)
-{
-	struct hpi_message hm;
-	struct hpi_response hr;
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_WATCHDOG,
-		HPI_WATCHDOG_PING);
-	u32TOINDEX(h_watchdog, &hm.adapter_index);
-
-	hpi_send_recv(&hm, &hr);
 
 	return hr.error;
 }

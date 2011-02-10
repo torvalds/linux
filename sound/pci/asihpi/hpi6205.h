@@ -78,8 +78,8 @@ struct bus_master_interface {
 	u32 dsp_ack;
 	u32 transfer_size_in_bytes;
 	union {
-		struct hpi_message message_buffer;
-		struct hpi_response response_buffer;
+		struct hpi_message_header message_buffer;
+		struct hpi_response_header response_buffer;
 		u8 b_data[HPI6205_SIZEOF_DATA];
 	} u;
 	struct controlcache_6205 control_cache;

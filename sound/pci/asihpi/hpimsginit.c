@@ -50,7 +50,7 @@ static void hpi_init_message(struct hpi_message *phm, u16 object,
 	phm->object = object;
 	phm->function = function;
 	phm->version = 0;
-	phm->adapter_index = 0xFFFF;
+	phm->adapter_index = HPI_ADAPTER_INDEX_INVALID;
 	/* Expect actual adapter index to be set by caller */
 }
 

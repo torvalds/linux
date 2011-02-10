@@ -40,8 +40,7 @@ struct hpi_control_cache {
 	struct hpi_control_cache_info
 	**p_info;		 /**< pointer to allocated memory of
 				lookup pointers. */
-	struct hpi_control_cache_single
-	*p_cache;		 /**< pointer to DSP's control cache. */
+	u8 *p_cache;	/**< pointer to DSP's control cache. */
 };
 
 struct hpi_adapter_obj *hpi_find_adapter(u16 adapter_index);
@@ -52,12 +51,10 @@ void hpi_delete_adapter(struct hpi_adapter_obj *pao);
 short hpi_check_control_cache(struct hpi_control_cache *pC,
 	struct hpi_message *phm, struct hpi_response *phr);
 struct hpi_control_cache *hpi_alloc_control_cache(const u32
-	number_of_controls, const u32 size_in_bytes,
-	struct hpi_control_cache_info
-	*pDSP_control_buffer);
+	number_of_controls, const u32 size_in_bytes, u8 *pDSP_control_buffer);
 void hpi_free_control_cache(struct hpi_control_cache *p_cache);
 
-void hpi_sync_control_cache(struct hpi_control_cache *pC,
+void hpi_cmn_control_cache_sync_to_msg(struct hpi_control_cache *pC,
 	struct hpi_message *phm, struct hpi_response *phr);
 u16 hpi_validate_response(struct hpi_message *phm, struct hpi_response *phr);
 short hpi_check_buffer_mapping(struct hpi_control_cache *p_cache,
