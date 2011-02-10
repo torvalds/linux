@@ -194,10 +194,12 @@ static void mmcif_dma_complete(void *arg)
 		return;
 
 	if (host->data->flags & MMC_DATA_READ)
-		dma_unmap_sg(&host->pd->dev, host->data->sg, host->dma_sglen,
+		dma_unmap_sg(host->chan_rx->device->dev,
+			     host->data->sg, host->dma_sglen,
 			     DMA_FROM_DEVICE);
 	else
-		dma_unmap_sg(&host->pd->dev, host->data->sg, host->dma_sglen,
+		dma_unmap_sg(host->chan_tx->device->dev,
+			     host->data->sg, host->dma_sglen,
 			     DMA_TO_DEVICE);
 
 	complete(&host->dma_complete);
@@ -211,7 +213,8 @@ static void sh_mmcif_start_dma_rx(struct sh_mmcif_host *host)
 	dma_cookie_t cookie = -EINVAL;
 	int ret;
 
-	ret = dma_map_sg(&host->pd->dev, sg, host->data->sg_len, DMA_FROM_DEVICE);
+	ret = dma_map_sg(chan->device->dev, sg, host->data->sg_len,
+			 DMA_FROM_DEVICE);
 	if (ret > 0) {
 		host->dma_sglen = ret;
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
@@ -263,7 +266,8 @@ static void sh_mmcif_start_dma_tx(struct sh_mmcif_host *host)
 	dma_cookie_t cookie = -EINVAL;
 	int ret;
 
-	ret = dma_map_sg(&host->pd->dev, sg, host->data->sg_len, DMA_TO_DEVICE);
+	ret = dma_map_sg(chan->device->dev, sg, host->data->sg_len,
+			 DMA_TO_DEVICE);
 	if (ret > 0) {
 		host->dma_sglen = ret;
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
