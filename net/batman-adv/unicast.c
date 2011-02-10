@@ -226,6 +226,7 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	int ucf_hdr_len = sizeof(struct unicast_frag_packet);
 	int data_len = skb->len - uc_hdr_len;
 	int large_tail = 0;
+	uint16_t seqno;
 
 	if (!bat_priv->primary_if)
 		goto dropped;
@@ -261,10 +262,9 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	frag1->flags = UNI_FRAG_HEAD | large_tail;
 	frag2->flags = large_tail;
 
-	frag1->seqno = htons((uint16_t)atomic_inc_return(
-			     &batman_if->frag_seqno));
-	frag2->seqno = htons((uint16_t)atomic_inc_return(
-			     &batman_if->frag_seqno));
+	seqno = atomic_add_return(2, &batman_if->frag_seqno);
+	frag1->seqno = htons(seqno - 1);
+	frag2->seqno = htons(seqno);
 
 	send_skb_packet(skb, batman_if, dstaddr);
 	send_skb_packet(frag_skb, batman_if, dstaddr);
