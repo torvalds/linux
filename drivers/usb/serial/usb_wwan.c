@@ -261,6 +261,7 @@ int usb_wwan_write(struct tty_struct *tty, struct usb_serial_port *port,
 				intfdata->in_flight--;
 				spin_unlock_irqrestore(&intfdata->susp_lock,
 						       flags);
+				usb_autopm_put_interface_async(port->serial->interface);
 				continue;
 			}
 		}
