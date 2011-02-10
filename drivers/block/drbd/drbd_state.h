@@ -2,6 +2,7 @@
 #define DRBD_STATE_H
 
 struct drbd_conf;
+struct drbd_tconn;
 
 /**
  * DOC: DRBD State macros
@@ -61,6 +62,7 @@ enum chg_state_flags {
 	CS_WAIT_COMPLETE = 4,
 	CS_SERIALIZE    = 8,
 	CS_ORDERED      = CS_WAIT_COMPLETE + CS_SERIALIZE,
+	CS_NO_CSTATE_CHG = 16, /* Do not display changes in cstate. Internal to drbd_state.c */
 };
 
 extern enum drbd_state_rv drbd_change_state(struct drbd_conf *mdev,
@@ -78,6 +80,14 @@ extern enum drbd_state_rv __drbd_set_state(struct drbd_conf *, union drbd_state,
 					   struct completion *done);
 extern void print_st_err(struct drbd_conf *, union drbd_state,
 			union drbd_state, int);
+
+enum drbd_state_rv
+_conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
+		    enum chg_state_flags flags);
+
+enum drbd_state_rv
+conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
+		   enum chg_state_flags flags);
 
 extern void drbd_resume_al(struct drbd_conf *mdev);
 

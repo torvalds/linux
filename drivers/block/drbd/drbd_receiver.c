@@ -551,7 +551,7 @@ static int drbd_recv(struct drbd_tconn *tconn, void *buf, size_t size)
 	set_fs(oldfs);
 
 	if (rv != size)
-		drbd_force_state(tconn->volume0, NS(conn, C_BROKEN_PIPE));
+		conn_request_state(tconn, NS(conn, C_BROKEN_PIPE), CS_HARD);
 
 	return rv;
 }
@@ -647,7 +647,7 @@ out:
 			conn_err(tconn, "%s failed, err = %d\n", what, err);
 		}
 		if (disconnect_on_error)
-			drbd_force_state(tconn->volume0, NS(conn, C_DISCONNECTING));
+			conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 	}
 	put_net_conf(tconn);
 	return sock;
@@ -694,7 +694,7 @@ out:
 	if (err < 0) {
 		if (err != -EAGAIN && err != -EINTR && err != -ERESTARTSYS) {
 			conn_err(tconn, "%s failed, err = %d\n", what, err);
-			drbd_force_state(tconn->volume0, NS(conn, C_DISCONNECTING));
+			conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 		}
 	}
 	put_net_conf(tconn);
@@ -776,7 +776,7 @@ static int drbd_connect(struct drbd_tconn *tconn)
 	struct socket *s, *sock, *msock;
 	int try, h, ok;
 
-	if (drbd_request_state(tconn->volume0, NS(conn, C_WF_CONNECTION)) < SS_SUCCESS)
+	if (conn_request_state(tconn, NS(conn, C_WF_CONNECTION), CS_VERBOSE) < SS_SUCCESS)
 		return -2;
 
 	clear_bit(DISCARD_CONCURRENT, &tconn->flags);
@@ -850,7 +850,7 @@ retry:
 			}
 		}
 
-		if (tconn->volume0->state.conn <= C_DISCONNECTING)
+		if (tconn->cstate <= C_DISCONNECTING)
 			goto out_release_sockets;
 		if (signal_pending(current)) {
 			flush_signals(current);
@@ -912,7 +912,7 @@ retry:
 		}
 	}
 
-	if (drbd_request_state(tconn->volume0, NS(conn, C_WF_REPORT_PARAMS)) < SS_SUCCESS)
+	if (conn_request_state(tconn, NS(conn, C_WF_REPORT_PARAMS), CS_VERBOSE) < SS_SUCCESS)
 		return 0;
 
 	sock->sk->sk_sndtimeo = tconn->net_conf->timeout*HZ/10;
@@ -3817,7 +3817,7 @@ static void drbdd(struct drbd_tconn *tconn)
 
 	if (0) {
 	err_out:
-		drbd_force_state(tconn->volume0, NS(conn, C_PROTOCOL_ERROR));
+		conn_request_state(tconn, NS(conn, C_PROTOCOL_ERROR), CS_HARD);
 	}
 }
 
@@ -3834,10 +3834,10 @@ void drbd_flush_workqueue(struct drbd_conf *mdev)
 
 static void drbd_disconnect(struct drbd_tconn *tconn)
 {
-	union drbd_state os, ns;
+	enum drbd_conns oc;
 	int rv = SS_UNKNOWN_ERROR;
 
-	if (tconn->volume0->state.conn == C_STANDALONE)
+	if (tconn->cstate == C_STANDALONE)
 		return;
 
 	/* asender does not clean up anything. it must not interfere, either */
@@ -3849,16 +3849,13 @@ static void drbd_disconnect(struct drbd_tconn *tconn)
 	conn_info(tconn, "Connection closed\n");
 
 	spin_lock_irq(&tconn->req_lock);
-	os = tconn->volume0->state;
-	if (os.conn >= C_UNCONNECTED) {
-		/* Do not restart in case we are C_DISCONNECTING */
-		ns.i = os.i;
-		ns.conn = C_UNCONNECTED;
-		rv = _drbd_set_state(tconn->volume0, ns, CS_VERBOSE, NULL);
-	}
+	oc = tconn->cstate;
+	if (oc >= C_UNCONNECTED)
+		rv = _conn_request_state(tconn, NS(conn, C_UNCONNECTED), CS_VERBOSE);
+
 	spin_unlock_irq(&tconn->req_lock);
 
-	if (os.conn == C_DISCONNECTING) {
+	if (oc == C_DISCONNECTING) {
 		wait_event(tconn->net_cnt_wait, atomic_read(&tconn->net_cnt) == 0);
 
 		crypto_free_hash(tconn->cram_hmac_tfm);
@@ -3866,7 +3863,7 @@ static void drbd_disconnect(struct drbd_tconn *tconn)
 
 		kfree(tconn->net_conf);
 		tconn->net_conf = NULL;
-		drbd_request_state(tconn->volume0, NS(conn, C_STANDALONE));
+		conn_request_state(tconn, NS(conn, C_STANDALONE), CS_VERBOSE);
 	}
 }
 
@@ -4240,7 +4237,7 @@ int drbdd_init(struct drbd_thread *thi)
 		}
 		if (h == -1) {
 			conn_warn(tconn, "Discarding network configuration.\n");
-			drbd_force_state(tconn->volume0, NS(conn, C_DISCONNECTING));
+			conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 		}
 	} while (h == 0);
 
@@ -4709,11 +4706,11 @@ int drbd_asender(struct drbd_thread *thi)
 
 	if (0) {
 reconnect:
-		drbd_force_state(tconn->volume0, NS(conn, C_NETWORK_FAILURE));
+		conn_request_state(tconn, NS(conn, C_NETWORK_FAILURE), CS_HARD);
 	}
 	if (0) {
 disconnect:
-		drbd_force_state(tconn->volume0, NS(conn, C_DISCONNECTING));
+		conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 	}
 	clear_bit(SIGNAL_ASENDER, &tconn->flags);
 

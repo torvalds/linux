@@ -1720,11 +1720,10 @@ int drbd_worker(struct drbd_thread *thi)
 		list_del_init(&w->list);
 		spin_unlock_irq(&tconn->data.work.q_lock);
 
-		if (!w->cb(w, tconn->volume0->state.conn < C_CONNECTED)) {
+		if (!w->cb(w, tconn->cstate < C_WF_REPORT_PARAMS)) {
 			/* dev_warn(DEV, "worker: a callback failed! \n"); */
-			if (tconn->volume0->state.conn >= C_CONNECTED)
-				drbd_force_state(tconn->volume0,
-						 NS(conn, C_NETWORK_FAILURE));
+			if (tconn->cstate >= C_WF_REPORT_PARAMS)
+				conn_request_state(tconn, NS(conn, C_NETWORK_FAILURE), CS_HARD);
 		}
 	}
 

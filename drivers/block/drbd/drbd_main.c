@@ -1344,7 +1344,7 @@ static int we_should_drop_the_connection(struct drbd_tconn *tconn, struct socket
 	drop_it =   tconn->meta.socket == sock
 		|| !tconn->asender.task
 		|| get_t_state(&tconn->asender) != RUNNING
-		|| tconn->volume0->state.conn < C_CONNECTED;
+		|| tconn->cstate < C_WF_REPORT_PARAMS;
 
 	if (drop_it)
 		return true;
@@ -1705,9 +1705,9 @@ int drbd_send(struct drbd_tconn *tconn, struct socket *sock,
 			conn_err(tconn, "%s_sendmsg returned %d\n",
 				 sock == tconn->meta.socket ? "msock" : "sock",
 				 rv);
-			drbd_force_state(tconn->volume0, NS(conn, C_BROKEN_PIPE));
+			conn_request_state(tconn, NS(conn, C_BROKEN_PIPE), CS_HARD);
 		} else
-			drbd_force_state(tconn->volume0, NS(conn, C_TIMEOUT));
+			conn_request_state(tconn, NS(conn, C_TIMEOUT), CS_HARD);
 	}
 
 	return sent;
@@ -2188,6 +2188,7 @@ struct drbd_tconn *drbd_new_tconn(char *name)
 	if (!tconn->name)
 		goto fail;
 
+	tconn->cstate = C_STANDALONE;
 	spin_lock_init(&tconn->req_lock);
 	atomic_set(&tconn->net_cnt, 0);
 	init_waitqueue_head(&tconn->net_cnt_wait);
@@ -2258,7 +2259,6 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	if (!zalloc_cpumask_var(&mdev->tconn->cpu_mask, GFP_KERNEL))
 		goto out_no_cpumask;
 
-	mdev->tconn->volume0 = mdev;
 	mdev->minor = minor;
 
 	drbd_init_set_defaults(mdev);

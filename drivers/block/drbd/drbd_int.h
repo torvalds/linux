@@ -918,8 +918,8 @@ enum {
 struct drbd_tconn {			/* is a resource from the config file */
 	char *name;			/* Resource name */
 	struct list_head all_tconn;	/* List of all drbd_tconn, prot by global_state_lock */
-	struct drbd_conf *volume0;	/* TODO: Remove me again */
 	struct idr volumes;             /* <tconn, vnr> to mdev mapping */
+	enum drbd_conns cstate;        /* Only C_STANDALONE to C_WF_REPORT_PARAMS */
 
 	unsigned long flags;
 	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
@@ -2024,7 +2024,7 @@ static inline int get_net_conf(struct drbd_tconn *tconn)
 	int have_net_conf;
 
 	atomic_inc(&tconn->net_cnt);
-	have_net_conf = tconn->volume0->state.conn >= C_UNCONNECTED;
+	have_net_conf = tconn->cstate >= C_UNCONNECTED;
 	if (!have_net_conf)
 		put_net_conf(tconn);
 	return have_net_conf;

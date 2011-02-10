@@ -1547,7 +1547,7 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	mdev->tconn->int_dig_out=int_dig_out;
 	mdev->tconn->int_dig_in=int_dig_in;
 	mdev->tconn->int_dig_vv=int_dig_vv;
-	retcode = _drbd_set_state(_NS(mdev, conn, C_UNCONNECTED), CS_VERBOSE, NULL);
+	retcode = _conn_request_state(mdev->tconn, NS(conn, C_UNCONNECTED), CS_VERBOSE);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	kobject_uevent(&disk_to_dev(mdev->vdisk)->kobj, KOBJ_CHANGE);

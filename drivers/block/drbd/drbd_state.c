@@ -43,8 +43,7 @@ int drbd_send_state_req(struct drbd_conf *, union drbd_state, union drbd_state);
 static int w_after_state_ch(struct drbd_work *w, int unused);
 static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags);
-static void after_conn_state_ch(struct drbd_tconn *tconn, union drbd_state os,
-				union drbd_state ns, enum chg_state_flags flags);
+static void after_all_state_ch(struct drbd_tconn *tconn, union drbd_state ns);
 static enum drbd_state_rv is_valid_state(struct drbd_conf *, union drbd_state);
 static enum drbd_state_rv is_valid_soft_transition(union drbd_state, union drbd_state);
 static enum drbd_state_rv is_valid_transition(union drbd_state os, union drbd_state ns);
@@ -275,6 +274,51 @@ void print_st_err(struct drbd_conf *mdev, union drbd_state os,
 	print_st(mdev, "wanted", ns);
 }
 
+static void print_state_change(struct drbd_conf *mdev, union drbd_state os, union drbd_state ns,
+			       enum chg_state_flags flags)
+{
+	char *pbp, pb[300];
+	pbp = pb;
+	*pbp = 0;
+	if (ns.role != os.role)
+		pbp += sprintf(pbp, "role( %s -> %s ) ",
+			       drbd_role_str(os.role),
+			       drbd_role_str(ns.role));
+	if (ns.peer != os.peer)
+		pbp += sprintf(pbp, "peer( %s -> %s ) ",
+			       drbd_role_str(os.peer),
+			       drbd_role_str(ns.peer));
+	if (ns.conn != os.conn && !(flags & CS_NO_CSTATE_CHG))
+		pbp += sprintf(pbp, "conn( %s -> %s ) ",
+			       drbd_conn_str(os.conn),
+			       drbd_conn_str(ns.conn));
+	if (ns.disk != os.disk)
+		pbp += sprintf(pbp, "disk( %s -> %s ) ",
+			       drbd_disk_str(os.disk),
+			       drbd_disk_str(ns.disk));
+	if (ns.pdsk != os.pdsk)
+		pbp += sprintf(pbp, "pdsk( %s -> %s ) ",
+			       drbd_disk_str(os.pdsk),
+			       drbd_disk_str(ns.pdsk));
+	if (is_susp(ns) != is_susp(os))
+		pbp += sprintf(pbp, "susp( %d -> %d ) ",
+			       is_susp(os),
+			       is_susp(ns));
+	if (ns.aftr_isp != os.aftr_isp)
+		pbp += sprintf(pbp, "aftr_isp( %d -> %d ) ",
+			       os.aftr_isp,
+			       ns.aftr_isp);
+	if (ns.peer_isp != os.peer_isp)
+		pbp += sprintf(pbp, "peer_isp( %d -> %d ) ",
+			       os.peer_isp,
+			       ns.peer_isp);
+	if (ns.user_isp != os.user_isp)
+		pbp += sprintf(pbp, "user_isp( %d -> %d ) ",
+			       os.user_isp,
+			       ns.user_isp);
+	if (pbp != pb)
+		dev_info(DEV, "%s\n", pb);
+}
 
 /**
  * is_valid_state() - Returns an SS_ error code if ns is not valid
@@ -704,48 +748,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	if (warn_sync_abort)
 		dev_warn(DEV, "%s aborted.\n", warn_sync_abort);
 
-	{
-	char *pbp, pb[300];
-	pbp = pb;
-	*pbp = 0;
-	if (ns.role != os.role)
-		pbp += sprintf(pbp, "role( %s -> %s ) ",
-			       drbd_role_str(os.role),
-			       drbd_role_str(ns.role));
-	if (ns.peer != os.peer)
-		pbp += sprintf(pbp, "peer( %s -> %s ) ",
-			       drbd_role_str(os.peer),
-			       drbd_role_str(ns.peer));
-	if (ns.conn != os.conn)
-		pbp += sprintf(pbp, "conn( %s -> %s ) ",
-			       drbd_conn_str(os.conn),
-			       drbd_conn_str(ns.conn));
-	if (ns.disk != os.disk)
-		pbp += sprintf(pbp, "disk( %s -> %s ) ",
-			       drbd_disk_str(os.disk),
-			       drbd_disk_str(ns.disk));
-	if (ns.pdsk != os.pdsk)
-		pbp += sprintf(pbp, "pdsk( %s -> %s ) ",
-			       drbd_disk_str(os.pdsk),
-			       drbd_disk_str(ns.pdsk));
-	if (is_susp(ns) != is_susp(os))
-		pbp += sprintf(pbp, "susp( %d -> %d ) ",
-			       is_susp(os),
-			       is_susp(ns));
-	if (ns.aftr_isp != os.aftr_isp)
-		pbp += sprintf(pbp, "aftr_isp( %d -> %d ) ",
-			       os.aftr_isp,
-			       ns.aftr_isp);
-	if (ns.peer_isp != os.peer_isp)
-		pbp += sprintf(pbp, "peer_isp( %d -> %d ) ",
-			       os.peer_isp,
-			       ns.peer_isp);
-	if (ns.user_isp != os.user_isp)
-		pbp += sprintf(pbp, "user_isp( %d -> %d ) ",
-			       os.user_isp,
-			       ns.user_isp);
-	dev_info(DEV, "%s\n", pb);
-	}
+	print_state_change(mdev, os, ns, flags);
 
 	/* solve the race between becoming unconfigured,
 	 * worker doing the cleanup, and
@@ -887,7 +890,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 		ascw->done = done;
 		drbd_queue_work(&mdev->tconn->data.work, &ascw->w);
 	} else {
-		dev_warn(DEV, "Could not kmalloc an ascw\n");
+		dev_err(DEV, "Could not kmalloc an ascw\n");
 	}
 
 	return rv;
@@ -1239,21 +1242,202 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			resume_next_sg(mdev);
 	}
 
-	after_conn_state_ch(mdev->tconn, os, ns, flags);
+	after_all_state_ch(mdev->tconn, ns);
+
 	drbd_md_sync(mdev);
 }
 
-static void after_conn_state_ch(struct drbd_tconn *tconn, union drbd_state os,
-				union drbd_state ns, enum chg_state_flags flags)
-{
-	/* Upon network configuration, we need to start the receiver */
-	if (os.conn == C_STANDALONE && ns.conn == C_UNCONNECTED)
-		drbd_thread_start(&tconn->receiver);
+struct after_conn_state_chg_work {
+	struct drbd_work w;
+	enum drbd_conns oc;
+	union drbd_state nms; /* new, max state, over all mdevs */
+	enum chg_state_flags flags;
+};
 
-	if (ns.disk == D_DISKLESS &&
-	    ns.conn == C_STANDALONE &&
-	    ns.role == R_SECONDARY) {
+static void after_all_state_ch(struct drbd_tconn *tconn, union drbd_state ns)
+{
+	if (ns.disk == D_DISKLESS && ns.conn == C_STANDALONE && ns.role == R_SECONDARY) {
 		/* if (test_bit(DEVICE_DYING, &mdev->flags)) TODO: DEVICE_DYING functionality */
 		drbd_thread_stop_nowait(&tconn->worker);
 	}
+}
+
+static int w_after_conn_state_ch(struct drbd_work *w, int unused)
+{
+	struct after_conn_state_chg_work *acscw =
+		container_of(w, struct after_conn_state_chg_work, w);
+	struct drbd_tconn *tconn = w->tconn;
+	enum drbd_conns oc = acscw->oc;
+	union drbd_state nms = acscw->nms;
+
+	kfree(acscw);
+
+	/* Upon network configuration, we need to start the receiver */
+	if (oc == C_STANDALONE && nms.conn == C_UNCONNECTED)
+		drbd_thread_start(&tconn->receiver);
+
+	//conn_err(tconn, STATE_FMT, STATE_ARGS("nms", nms));
+	after_all_state_ch(tconn, nms);
+
+	return 1;
+}
+
+static void print_conn_state_change(struct drbd_tconn *tconn, enum drbd_conns oc, enum drbd_conns nc)
+{
+	char *pbp, pb[300];
+	pbp = pb;
+	*pbp = 0;
+	if (nc != oc)
+		pbp += sprintf(pbp, "conn( %s -> %s ) ",
+			       drbd_conn_str(oc),
+			       drbd_conn_str(nc));
+
+	conn_info(tconn, "%s\n", pb);
+}
+
+struct _is_valid_itr_params {
+	enum chg_state_flags flags;
+	union drbd_state mask, val;
+	union drbd_state ms; /* maximal state, over all mdevs */
+	enum drbd_conns oc;
+	enum {
+		OC_UNINITIALIZED,
+		OC_CONSISTENT,
+		OC_INCONSISTENT,
+	} oc_state;
+};
+
+static int _is_valid_itr_fn(int vnr, void *p, void *data)
+{
+	struct drbd_conf *mdev = (struct drbd_conf *)p;
+	struct _is_valid_itr_params *params = (struct _is_valid_itr_params *)data;
+	enum chg_state_flags flags = params->flags;
+	union drbd_state ns, os;
+	enum drbd_state_rv rv;
+
+	os = mdev->state;
+	ns = apply_mask_val(os, params->mask, params->val);
+	ns = sanitize_state(mdev, ns, NULL);
+	rv = is_valid_state(mdev, ns);
+
+	if (rv < SS_SUCCESS) {
+		/* If the old state was illegal as well, then let this happen...*/
+
+		if (is_valid_state(mdev, os) == rv)
+			rv = is_valid_soft_transition(os, ns);
+	} else
+		rv = is_valid_soft_transition(os, ns);
+
+	switch (params->oc_state) {
+	case OC_UNINITIALIZED:
+		params->oc = os.conn;
+		params->oc_state = OC_CONSISTENT;
+		break;
+	case OC_CONSISTENT:
+		if (params->oc != os.conn)
+			params->oc_state = OC_INCONSISTENT;
+		break;
+	case OC_INCONSISTENT:
+		break;
+	}
+
+	if (rv < SS_SUCCESS) {
+		if (flags & CS_VERBOSE)
+			print_st_err(mdev, os, ns, rv);
+		return rv;
+	} else
+		return 0;
+}
+
+static int _set_state_itr_fn(int vnr, void *p, void *data)
+{
+	struct drbd_conf *mdev = (struct drbd_conf *)p;
+	struct _is_valid_itr_params *params = (struct _is_valid_itr_params *)data;
+	enum chg_state_flags flags = params->flags;
+	union drbd_state os, ns, ms = params->ms;
+	enum drbd_state_rv rv;
+
+	os = mdev->state;
+	ns = apply_mask_val(os, params->mask, params->val);
+	ns = sanitize_state(mdev, ns, NULL);
+
+	rv = __drbd_set_state(mdev, ns, flags, NULL);
+
+	ms.role = max_t(enum drbd_role, mdev->state.role, ms.role);
+	ms.peer = max_t(enum drbd_role, mdev->state.peer, ms.peer);
+	ms.disk = max_t(enum drbd_role, mdev->state.disk, ms.disk);
+	ms.pdsk = max_t(enum drbd_role, mdev->state.pdsk, ms.pdsk);
+	params->ms = ms;
+
+	return 0;
+}
+
+enum drbd_state_rv
+_conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
+		    enum chg_state_flags flags)
+{
+	enum drbd_state_rv rv = SS_SUCCESS;
+	struct _is_valid_itr_params params;
+	struct after_conn_state_chg_work *acscw;
+	enum drbd_conns oc = tconn->cstate;
+
+	read_lock(&global_state_lock);
+
+	rv = is_valid_conn_transition(oc, val.conn);
+	if (rv < SS_SUCCESS)
+		goto abort;
+
+	params.flags = flags;
+	params.mask = mask;
+	params.val = val;
+	params.oc_state = OC_UNINITIALIZED;
+
+	if (!(flags & CS_HARD))
+		rv = idr_for_each(&tconn->volumes, _is_valid_itr_fn, &params);
+
+	if (rv == 0)  /* idr_for_each semantics */
+		rv = SS_SUCCESS;
+
+	if (rv < SS_SUCCESS)
+		goto abort;
+
+	if (params.oc_state == OC_CONSISTENT) {
+		oc = params.oc;
+		print_conn_state_change(tconn, oc, val.conn);
+		params.flags |= CS_NO_CSTATE_CHG;
+	}
+	tconn->cstate = val.conn;
+	params.ms.i = 0;
+	params.ms.conn = val.conn;
+	idr_for_each(&tconn->volumes, _set_state_itr_fn, &params);
+
+	acscw = kmalloc(sizeof(*acscw), GFP_ATOMIC);
+	if (acscw) {
+		acscw->oc = oc;
+		acscw->nms = params.ms;
+		acscw->flags = flags;
+		acscw->w.cb = w_after_conn_state_ch;
+		acscw->w.tconn = tconn;
+		drbd_queue_work(&tconn->data.work, &acscw->w);
+	} else {
+		conn_err(tconn, "Could not kmalloc an acscw\n");
+	}
+
+abort:
+	read_unlock(&global_state_lock);
+
+	return rv;
+}
+
+enum drbd_state_rv
+conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
+		   enum chg_state_flags flags)
+{
+	enum drbd_state_rv rv;
+
+	spin_lock_irq(&tconn->req_lock);
+	rv = _conn_request_state(tconn, mask, val, flags);
+	spin_unlock_irq(&tconn->req_lock);
+
+	return rv;
 }
