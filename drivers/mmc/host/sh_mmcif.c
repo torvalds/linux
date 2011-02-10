@@ -195,11 +195,11 @@ static void mmcif_dma_complete(void *arg)
 
 	if (host->data->flags & MMC_DATA_READ)
 		dma_unmap_sg(host->chan_rx->device->dev,
-			     host->data->sg, host->dma_sglen,
+			     host->data->sg, host->data->sg_len,
 			     DMA_FROM_DEVICE);
 	else
 		dma_unmap_sg(host->chan_tx->device->dev,
-			     host->data->sg, host->dma_sglen,
+			     host->data->sg, host->data->sg_len,
 			     DMA_TO_DEVICE);
 
 	complete(&host->dma_complete);
