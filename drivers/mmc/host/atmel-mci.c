@@ -687,10 +687,9 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 
 	sglen = dma_map_sg(chan->device->dev, data->sg,
 			   data->sg_len, direction);
-	if (sglen != data->sg_len)
-		goto unmap_exit;
+
 	desc = chan->device->device_prep_slave_sg(chan,
-			data->sg, data->sg_len, direction,
+			data->sg, sglen, direction,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
 		goto unmap_exit;
@@ -701,7 +700,7 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 
 	return 0;
 unmap_exit:
-	dma_unmap_sg(chan->device->dev, data->sg, sglen, direction);
+	dma_unmap_sg(chan->device->dev, data->sg, data->sg_len, direction);
 	return -ENOMEM;
 }
 
