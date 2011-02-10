@@ -392,19 +392,25 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_dev *dev,
 static int nvme_map_bio(struct device *dev, struct nvme_bio *nbio,
 		struct bio *bio, enum dma_data_direction dma_dir, int psegs)
 {
-	struct bio_vec *bvec;
-	struct scatterlist *sg = nbio->sg;
-	int i, nsegs;
+	struct bio_vec *bvec, *bvprv = NULL;
+	struct scatterlist *sg = NULL;
+	int i, nsegs = 0;
 
-	sg_init_table(sg, psegs);
+	sg_init_table(nbio->sg, psegs);
 	bio_for_each_segment(bvec, bio, i) {
-		sg_set_page(sg, bvec->bv_page, bvec->bv_len, bvec->bv_offset);
-		sg++;
-		/* XXX: handle non-mergable here */
-		nsegs++;
+		if (bvprv && BIOVEC_PHYS_MERGEABLE(bvprv, bvec)) {
+			sg->length += bvec->bv_len;
+		} else {
+			/* Check bvprv && offset == 0 */
+			sg = sg ? sg + 1 : nbio->sg;
+			sg_set_page(sg, bvec->bv_page, bvec->bv_len,
+							bvec->bv_offset);
+			nsegs++;
+		}
+		bvprv = bvec;
 	}
 	nbio->nents = nsegs;
-
+	sg_mark_end(sg);
 	return dma_map_sg(dev, nbio->sg, nbio->nents, dma_dir);
 }
 
