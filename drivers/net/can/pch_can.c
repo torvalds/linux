@@ -185,9 +185,9 @@ struct pch_can_priv {
 
 static struct can_bittiming_const pch_can_bittiming_const = {
 	.name = KBUILD_MODNAME,
-	.tseg1_min = 1,
+	.tseg1_min = 2,
 	.tseg1_max = 16,
-	.tseg2_min = 2,
+	.tseg2_min = 1,
 	.tseg2_max = 8,
 	.sjw_max = 4,
 	.brp_min = 1,
