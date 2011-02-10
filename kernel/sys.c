@@ -567,11 +567,6 @@ static int set_user(struct cred *new)
 	if (!new_user)
 		return -EAGAIN;
 
-	if (!task_can_switch_user(new_user, current)) {
-		free_uid(new_user);
-		return -EINVAL;
-	}
-
 	if (atomic_read(&new_user->processes) >=
 				current->signal->rlim[RLIMIT_NPROC].rlim_cur &&
 			new_user != INIT_USER) {
