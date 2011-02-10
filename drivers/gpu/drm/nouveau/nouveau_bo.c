@@ -805,6 +805,25 @@ out:
 	return ret;
 }
 
+static void
+nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
+{
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+
+	if (dev_priv->card_type < NV_50 || nvbo->no_vm)
+		return;
+
+	switch (new_mem->mem_type) {
+	case TTM_PL_VRAM:
+		nouveau_vm_map(&nvbo->vma, new_mem->mm_node);
+		break;
+	case TTM_PL_TT:
+	default:
+		break;
+	}
+}
+
 static int
 nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
 		   struct nouveau_tile_reg **new_tile)
@@ -812,19 +831,13 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
 	struct drm_device *dev = dev_priv->dev;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	uint64_t offset;
+	u64 offset = new_mem->start << PAGE_SHIFT;
 
-	if (new_mem->mem_type != TTM_PL_VRAM) {
-		/* Nothing to do. */
-		*new_tile = NULL;
+	*new_tile = NULL;
+	if (new_mem->mem_type != TTM_PL_VRAM)
 		return 0;
-	}
 
-	offset = new_mem->start << PAGE_SHIFT;
-
-	if (dev_priv->chan_vm) {
-		nouveau_vm_map(&nvbo->vma, new_mem->mm_node);
-	} else if (dev_priv->card_type >= NV_10) {
+	if (dev_priv->card_type >= NV_10) {
 		*new_tile = nv10_mem_set_tiling(dev, offset, new_mem->size,
 						nvbo->tile_mode,
 						nvbo->tile_flags);
@@ -841,11 +854,8 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
 	struct drm_device *dev = dev_priv->dev;
 
-	if (dev_priv->card_type >= NV_10 &&
-	    dev_priv->card_type < NV_50) {
-		nv10_mem_put_tile_region(dev, *old_tile, bo->sync_obj);
-		*old_tile = new_tile;
-	}
+	nv10_mem_put_tile_region(dev, *old_tile, bo->sync_obj);
+	*old_tile = new_tile;
 }
 
 static int
@@ -859,9 +869,11 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	struct nouveau_tile_reg *new_tile = NULL;
 	int ret = 0;
 
-	ret = nouveau_bo_vm_bind(bo, new_mem, &new_tile);
-	if (ret)
-		return ret;
+	if (dev_priv->card_type < NV_50) {
+		ret = nouveau_bo_vm_bind(bo, new_mem, &new_tile);
+		if (ret)
+			return ret;
+	}
 
 	/* Fake bo copy. */
 	if (old_mem->mem_type == TTM_PL_SYSTEM && !bo->ttm) {
@@ -892,10 +904,12 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	ret = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 
 out:
-	if (ret)
-		nouveau_bo_vm_cleanup(bo, NULL, &new_tile);
-	else
-		nouveau_bo_vm_cleanup(bo, new_tile, &nvbo->tile);
+	if (dev_priv->card_type < NV_50) {
+		if (ret)
+			nouveau_bo_vm_cleanup(bo, NULL, &new_tile);
+		else
+			nouveau_bo_vm_cleanup(bo, new_tile, &nvbo->tile);
+	}
 
 	return ret;
 }
@@ -1039,6 +1053,7 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.invalidate_caches = nouveau_bo_invalidate_caches,
 	.init_mem_type = nouveau_bo_init_mem_type,
 	.evict_flags = nouveau_bo_evict_flags,
+	.move_notify = nouveau_bo_move_ntfy,
 	.move = nouveau_bo_move,
 	.verify_access = nouveau_bo_verify_access,
 	.sync_obj_signaled = __nouveau_fence_signalled,
