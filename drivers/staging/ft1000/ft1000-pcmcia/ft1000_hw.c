@@ -1940,7 +1940,7 @@ int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
 	}
 
 	info->stats.tx_packets++;
-	// Add 14 bytes for MAC adddress plus ethernet type
+	// Add 14 bytes for MAC address plus ethernet type
 	info->stats.tx_bytes += (len + 14);
 	return SUCCESS;
 }

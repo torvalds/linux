@@ -190,7 +190,7 @@ typedef volatile struct {
 } dma64dd_t;
 
 /*
- * Each descriptor ring must be 8kB aligned, and fit within a contiguous 8kB physical addresss.
+ * Each descriptor ring must be 8kB aligned, and fit within a contiguous 8kB physical address.
  */
 #define D64RINGALIGN_BITS	13
 #define	D64MAXRINGSZ		(1 << D64RINGALIGN_BITS)

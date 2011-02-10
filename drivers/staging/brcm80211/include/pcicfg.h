@@ -465,8 +465,8 @@ typedef struct _pcie_enhanced_caphdr {
 #define bar0_window	dev_dep[0x80 - 0x40]
 #define bar1_window	dev_dep[0x84 - 0x40]
 #define sprom_control	dev_dep[0x88 - 0x40]
-#define	PCI_BAR0_WIN		0x80	/* backplane addres space accessed by BAR0 */
-#define	PCI_BAR1_WIN		0x84	/* backplane addres space accessed by BAR1 */
+#define	PCI_BAR0_WIN		0x80	/* backplane address space accessed by BAR0 */
+#define	PCI_BAR1_WIN		0x84	/* backplane address space accessed by BAR1 */
 #define	PCI_SPROM_CONTROL	0x88	/* sprom property control */
 #define	PCI_BAR1_CONTROL	0x8c	/* BAR1 region burst control */
 #define	PCI_INT_STATUS		0x90	/* PCI and other cores interrupts */
@@ -475,7 +475,7 @@ typedef struct _pcie_enhanced_caphdr {
 #define PCI_BACKPLANE_ADDR	0xa0	/* address an arbitrary location on the system backplane */
 #define PCI_BACKPLANE_DATA	0xa4	/* data at the location specified by above address */
 #define	PCI_CLK_CTL_ST		0xa8	/* pci config space clock control/status (>=rev14) */
-#define	PCI_BAR0_WIN2		0xac	/* backplane addres space accessed by second 4KB of BAR0 */
+#define	PCI_BAR0_WIN2		0xac	/* backplane address space accessed by second 4KB of BAR0 */
 #define	PCI_GPIO_IN		0xb0	/* pci config space gpio input (>=rev3) */
 #define	PCI_GPIO_OUT		0xb4	/* pci config space gpio output (>=rev3) */
 #define	PCI_GPIO_OUTEN		0xb8	/* pci config space gpio output enable (>=rev3) */
