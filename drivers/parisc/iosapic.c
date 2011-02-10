@@ -615,10 +615,10 @@ iosapic_set_irt_data( struct vector_info *vi, u32 *dp0, u32 *dp1)
 }
 
 
-static void iosapic_mask_irq(unsigned int irq)
+static void iosapic_mask_irq(struct irq_data *d)
 {
 	unsigned long flags;
-	struct vector_info *vi = get_irq_chip_data(irq);
+	struct vector_info *vi = irq_data_get_irq_chip_data(d);
 	u32 d0, d1;
 
 	spin_lock_irqsave(&iosapic_lock, flags);
@@ -628,9 +628,9 @@ static void iosapic_mask_irq(unsigned int irq)
 	spin_unlock_irqrestore(&iosapic_lock, flags);
 }
 
-static void iosapic_unmask_irq(unsigned int irq)
+static void iosapic_unmask_irq(struct irq_data *d)
 {
-	struct vector_info *vi = get_irq_chip_data(irq);
+	struct vector_info *vi = irq_data_get_irq_chip_data(d);
 	u32 d0, d1;
 
 	/* data is initialized by fixup_irq */
@@ -666,34 +666,34 @@ printk("\n");
 	 * enables their IRQ. It can lead to "interesting" race conditions
 	 * in the driver initialization sequence.
 	 */
-	DBG(KERN_DEBUG "enable_irq(%d): eoi(%p, 0x%x)\n", irq,
+	DBG(KERN_DEBUG "enable_irq(%d): eoi(%p, 0x%x)\n", d->irq,
 			vi->eoi_addr, vi->eoi_data);
 	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
 }
 
-static void iosapic_eoi_irq(unsigned int irq)
+static void iosapic_eoi_irq(struct irq_data *d)
 {
-	struct vector_info *vi = get_irq_chip_data(irq);
+	struct vector_info *vi = irq_data_get_irq_chip_data(d);
 
 	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
-	cpu_eoi_irq(irq);
+	cpu_eoi_irq(d);
 }
 
 #ifdef CONFIG_SMP
-static int iosapic_set_affinity_irq(unsigned int irq,
-				     const struct cpumask *dest)
+static int iosapic_set_affinity_irq(struct irq_data *d,
+				    const struct cpumask *dest, bool force)
 {
-	struct vector_info *vi = get_irq_chip_data(irq);
+	struct vector_info *vi = irq_data_get_irq_chip_data(d);
 	u32 d0, d1, dummy_d0;
 	unsigned long flags;
 	int dest_cpu;
 
-	dest_cpu = cpu_check_affinity(irq, dest);
+	dest_cpu = cpu_check_affinity(d, dest);
 	if (dest_cpu < 0)
 		return -1;
 
-	cpumask_copy(irq_desc[irq].affinity, cpumask_of(dest_cpu));
-	vi->txn_addr = txn_affinity_addr(irq, dest_cpu);
+	cpumask_copy(d->affinity, cpumask_of(dest_cpu));
+	vi->txn_addr = txn_affinity_addr(d->irq, dest_cpu);
 
 	spin_lock_irqsave(&iosapic_lock, flags);
 	/* d1 contains the destination CPU, so only want to set that
@@ -708,13 +708,13 @@ static int iosapic_set_affinity_irq(unsigned int irq,
 #endif
 
 static struct irq_chip iosapic_interrupt_type = {
-	.name	=	"IO-SAPIC-level",
-	.unmask	=	iosapic_unmask_irq,
-	.mask	=	iosapic_mask_irq,
-	.ack	=	cpu_ack_irq,
-	.eoi	=	iosapic_eoi_irq,
+	.name		=	"IO-SAPIC-level",
+	.irq_unmask	=	iosapic_unmask_irq,
+	.irq_mask	=	iosapic_mask_irq,
+	.irq_ack	=	cpu_ack_irq,
+	.irq_eoi	=	iosapic_eoi_irq,
 #ifdef CONFIG_SMP
-	.set_affinity =	iosapic_set_affinity_irq,
+	.irq_set_affinity =	iosapic_set_affinity_irq,
 #endif
 };
 
