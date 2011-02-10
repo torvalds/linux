@@ -1,5 +1,5 @@
 /*
- * ov534-ov772x gspca driver
+ * ov534-ov7xxx gspca driver
  *
  * Copyright (C) 2008 Antonio Ospite <ospite@studenti.unina.it>
  * Copyright (C) 2008 Jim Paris <jim@jtan.com>
@@ -75,6 +75,12 @@ struct sd {
 	u16 last_fid;
 	u8 frame_rate;
 
+	u8 sensor;
+};
+enum sensors {
+	SENSOR_OV767x,
+	SENSOR_OV772x,
+	NSENSORS
 };
 
 /* V4L2 controls supported by the driver */
@@ -239,6 +245,16 @@ static const struct v4l2_pix_format ov772x_mode[] = {
 	 .colorspace = V4L2_COLORSPACE_SRGB,
 	 .priv = 0},
 };
+static const struct v4l2_pix_format ov767x_mode[] = {
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG},
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG},
+};
 
 static const u8 qvga_rates[] = {125, 100, 75, 60, 50, 40, 30};
 static const u8 vga_rates[] = {60, 50, 40, 30, 15};
@@ -254,7 +270,288 @@ static const struct framerates ov772x_framerates[] = {
 	},
 };
 
-static const u8 bridge_init[][2] = {
+struct reg_array {
+	const u8 (*val)[2];
+	int len;
+};
+
+static const u8 bridge_init_767x[][2] = {
+/* comments from the ms-win file apollo7670.set */
+/* str1 */
+	{0xf1, 0x42},
+	{0x88, 0xf8},
+	{0x89, 0xff},
+	{0x76, 0x03},
+	{0x92, 0x03},
+	{0x95, 0x10},
+	{0xe2, 0x00},
+	{0xe7, 0x3e},
+	{0x8d, 0x1c},
+	{0x8e, 0x00},
+	{0x8f, 0x00},
+	{0x1f, 0x00},
+	{0xc3, 0xf9},
+	{0x89, 0xff},
+	{0x88, 0xf8},
+	{0x76, 0x03},
+	{0x92, 0x01},
+	{0x93, 0x18},
+	{0x1c, 0x00},
+	{0x1d, 0x48},
+	{0x1d, 0x00},
+	{0x1d, 0xff},
+	{0x1d, 0x02},
+	{0x1d, 0x58},
+	{0x1d, 0x00},
+	{0x1c, 0x0a},
+	{0x1d, 0x0a},
+	{0x1d, 0x0e},
+	{0xc0, 0x50},	/* HSize 640 */
+	{0xc1, 0x3c},	/* VSize 480 */
+	{0x34, 0x05},	/* enable Audio Suspend mode */
+	{0xc2, 0x0c},	/* Input YUV */
+	{0xc3, 0xf9},	/* enable PRE */
+	{0x34, 0x05},	/* enable Audio Suspend mode */
+	{0xe7, 0x2e},	/* this solves failure of "SuspendResumeTest" */
+	{0x31, 0xf9},	/* enable 1.8V Suspend */
+	{0x35, 0x02},	/* turn on JPEG */
+	{0xd9, 0x10},
+	{0x25, 0x42},	/* GPIO[8]:Input */
+	{0x94, 0x11},	/* If the default setting is loaded when
+			 * system boots up, this flag is closed here */
+};
+static const u8 sensor_init_767x[][2] = {
+	{0x12, 0x80},
+	{0x11, 0x03},
+	{0x3a, 0x04},
+	{0x12, 0x00},
+	{0x17, 0x13},
+	{0x18, 0x01},
+	{0x32, 0xb6},
+	{0x19, 0x02},
+	{0x1a, 0x7a},
+	{0x03, 0x0a},
+	{0x0c, 0x00},
+	{0x3e, 0x00},
+	{0x70, 0x3a},
+	{0x71, 0x35},
+	{0x72, 0x11},
+	{0x73, 0xf0},
+	{0xa2, 0x02},
+	{0x7a, 0x2a},	/* set Gamma=1.6 below */
+	{0x7b, 0x12},
+	{0x7c, 0x1d},
+	{0x7d, 0x2d},
+	{0x7e, 0x45},
+	{0x7f, 0x50},
+	{0x80, 0x59},
+	{0x81, 0x62},
+	{0x82, 0x6b},
+	{0x83, 0x73},
+	{0x84, 0x7b},
+	{0x85, 0x8a},
+	{0x86, 0x98},
+	{0x87, 0xb2},
+	{0x88, 0xca},
+	{0x89, 0xe0},
+	{0x13, 0xe0},
+	{0x00, 0x00},
+	{0x10, 0x00},
+	{0x0d, 0x40},
+	{0x14, 0x38},	/* gain max 16x */
+	{0xa5, 0x05},
+	{0xab, 0x07},
+	{0x24, 0x95},
+	{0x25, 0x33},
+	{0x26, 0xe3},
+	{0x9f, 0x78},
+	{0xa0, 0x68},
+	{0xa1, 0x03},
+	{0xa6, 0xd8},
+	{0xa7, 0xd8},
+	{0xa8, 0xf0},
+	{0xa9, 0x90},
+	{0xaa, 0x94},
+	{0x13, 0xe5},
+	{0x0e, 0x61},
+	{0x0f, 0x4b},
+	{0x16, 0x02},
+	{0x21, 0x02},
+	{0x22, 0x91},
+	{0x29, 0x07},
+	{0x33, 0x0b},
+	{0x35, 0x0b},
+	{0x37, 0x1d},
+	{0x38, 0x71},
+	{0x39, 0x2a},
+	{0x3c, 0x78},
+	{0x4d, 0x40},
+	{0x4e, 0x20},
+	{0x69, 0x00},
+	{0x6b, 0x4a},
+	{0x74, 0x10},
+	{0x8d, 0x4f},
+	{0x8e, 0x00},
+	{0x8f, 0x00},
+	{0x90, 0x00},
+	{0x91, 0x00},
+	{0x96, 0x00},
+	{0x9a, 0x80},
+	{0xb0, 0x84},
+	{0xb1, 0x0c},
+	{0xb2, 0x0e},
+	{0xb3, 0x82},
+	{0xb8, 0x0a},
+	{0x43, 0x0a},
+	{0x44, 0xf0},
+	{0x45, 0x34},
+	{0x46, 0x58},
+	{0x47, 0x28},
+	{0x48, 0x3a},
+	{0x59, 0x88},
+	{0x5a, 0x88},
+	{0x5b, 0x44},
+	{0x5c, 0x67},
+	{0x5d, 0x49},
+	{0x5e, 0x0e},
+	{0x6c, 0x0a},
+	{0x6d, 0x55},
+	{0x6e, 0x11},
+	{0x6f, 0x9f},
+	{0x6a, 0x40},
+	{0x01, 0x40},
+	{0x02, 0x40},
+	{0x13, 0xe7},
+	{0x4f, 0x80},
+	{0x50, 0x80},
+	{0x51, 0x00},
+	{0x52, 0x22},
+	{0x53, 0x5e},
+	{0x54, 0x80},
+	{0x58, 0x9e},
+	{0x41, 0x08},
+	{0x3f, 0x00},
+	{0x75, 0x04},
+	{0x76, 0xe1},
+	{0x4c, 0x00},
+	{0x77, 0x01},
+	{0x3d, 0xc2},
+	{0x4b, 0x09},
+	{0xc9, 0x60},
+	{0x41, 0x38},	/* jfm: auto sharpness + auto de-noise  */
+	{0x56, 0x40},
+	{0x34, 0x11},
+	{0x3b, 0xc2},
+	{0xa4, 0x8a},	/* Night mode trigger point */
+	{0x96, 0x00},
+	{0x97, 0x30},
+	{0x98, 0x20},
+	{0x99, 0x20},
+	{0x9a, 0x84},
+	{0x9b, 0x29},
+	{0x9c, 0x03},
+	{0x9d, 0x4c},
+	{0x9e, 0x3f},
+	{0x78, 0x04},
+	{0x79, 0x01},
+	{0xc8, 0xf0},
+	{0x79, 0x0f},
+	{0xc8, 0x00},
+	{0x79, 0x10},
+	{0xc8, 0x7e},
+	{0x79, 0x0a},
+	{0xc8, 0x80},
+	{0x79, 0x0b},
+	{0xc8, 0x01},
+	{0x79, 0x0c},
+	{0xc8, 0x0f},
+	{0x79, 0x0d},
+	{0xc8, 0x20},
+	{0x79, 0x09},
+	{0xc8, 0x80},
+	{0x79, 0x02},
+	{0xc8, 0xc0},
+	{0x79, 0x03},
+	{0xc8, 0x20},
+	{0x79, 0x26},
+};
+static const u8 bridge_start_vga_767x[][2] = {
+/* str59 JPG */
+	{0x94, 0xaa},
+	{0xf1, 0x42},
+	{0xe5, 0x04},
+	{0xc0, 0x50},
+	{0xc1, 0x3c},
+	{0xc2, 0x0c},
+	{0x35, 0x02},	/* turn on JPEG */
+	{0xd9, 0x10},
+	{0xda, 0x00},	/* for higher clock rate(30fps) */
+	{0x34, 0x05},	/* enable Audio Suspend mode */
+	{0xc3, 0xf9},	/* enable PRE */
+	{0x8c, 0x00},	/* CIF VSize LSB[2:0] */
+	{0x8d, 0x1c},	/* output YUV */
+/*	{0x34, 0x05},	 * enable Audio Suspend mode (?) */
+	{0x50, 0x00},	/* H/V divider=0 */
+	{0x51, 0xa0},	/* input H=640/4 */
+	{0x52, 0x3c},	/* input V=480/4 */
+	{0x53, 0x00},	/* offset X=0 */
+	{0x54, 0x00},	/* offset Y=0 */
+	{0x55, 0x00},	/* H/V size[8]=0 */
+	{0x57, 0x00},	/* H-size[9]=0 */
+	{0x5c, 0x00},	/* output size[9:8]=0 */
+	{0x5a, 0xa0},	/* output H=640/4 */
+	{0x5b, 0x78},	/* output V=480/4 */
+	{0x1c, 0x0a},
+	{0x1d, 0x0a},
+	{0x94, 0x11},
+};
+static const u8 sensor_start_vga_767x[][2] = {
+	{0x11, 0x01},
+	{0x1e, 0x04},
+	{0x19, 0x02},
+	{0x1a, 0x7a},
+};
+static const u8 bridge_start_qvga_767x[][2] = {
+/* str86 JPG */
+	{0x94, 0xaa},
+	{0xf1, 0x42},
+	{0xe5, 0x04},
+	{0xc0, 0x80},
+	{0xc1, 0x60},
+	{0xc2, 0x0c},
+	{0x35, 0x02},	/* turn on JPEG */
+	{0xd9, 0x10},
+	{0xc0, 0x50},	/* CIF HSize 640 */
+	{0xc1, 0x3c},	/* CIF VSize 480 */
+	{0x8c, 0x00},	/* CIF VSize LSB[2:0] */
+	{0x8d, 0x1c},	/* output YUV */
+	{0x34, 0x05},	/* enable Audio Suspend mode */
+	{0xc2, 0x4c},	/* output YUV and Enable DCW */
+	{0xc3, 0xf9},	/* enable PRE */
+	{0x1c, 0x00},	/* indirect addressing */
+	{0x1d, 0x48},	/* output YUV422 */
+	{0x50, 0x89},	/* H/V divider=/2; plus DCW AVG */
+	{0x51, 0xa0},	/* DCW input H=640/4 */
+	{0x52, 0x78},	/* DCW input V=480/4 */
+	{0x53, 0x00},	/* offset X=0 */
+	{0x54, 0x00},	/* offset Y=0 */
+	{0x55, 0x00},	/* H/V size[8]=0 */
+	{0x57, 0x00},	/* H-size[9]=0 */
+	{0x5c, 0x00},	/* DCW output size[9:8]=0 */
+	{0x5a, 0x50},	/* DCW output H=320/4 */
+	{0x5b, 0x3c},	/* DCW output V=240/4 */
+	{0x1c, 0x0a},
+	{0x1d, 0x0a},
+	{0x94, 0x11},
+};
+static const u8 sensor_start_qvga_767x[][2] = {
+	{0x11, 0x01},
+	{0x1e, 0x04},
+	{0x19, 0x02},
+	{0x1a, 0x7a},
+};
+
+static const u8 bridge_init_772x[][2] = {
 	{ 0xc2, 0x0c },
 	{ 0x88, 0xf8 },
 	{ 0xc3, 0x69 },
@@ -312,7 +609,7 @@ static const u8 bridge_init[][2] = {
 	{ 0xc1, 0x3c },
 	{ 0xc2, 0x0c },
 };
-static const u8 sensor_init[][2] = {
+static const u8 sensor_init_772x[][2] = {
 	{ 0x12, 0x80 },
 	{ 0x11, 0x01 },
 /*fixme: better have a delay?*/
@@ -405,7 +702,7 @@ static const u8 sensor_init[][2] = {
 	{ 0x8e, 0x00 },		/* De-noise threshold */
 	{ 0x0c, 0xd0 }
 };
-static const u8 bridge_start_vga[][2] = {
+static const u8 bridge_start_vga_772x[][2] = {
 	{0x1c, 0x00},
 	{0x1d, 0x40},
 	{0x1d, 0x02},
@@ -416,7 +713,7 @@ static const u8 bridge_start_vga[][2] = {
 	{0xc0, 0x50},
 	{0xc1, 0x3c},
 };
-static const u8 sensor_start_vga[][2] = {
+static const u8 sensor_start_vga_772x[][2] = {
 	{0x12, 0x00},
 	{0x17, 0x26},
 	{0x18, 0xa0},
@@ -426,7 +723,7 @@ static const u8 sensor_start_vga[][2] = {
 	{0x2c, 0xf0},
 	{0x65, 0x20},
 };
-static const u8 bridge_start_qvga[][2] = {
+static const u8 bridge_start_qvga_772x[][2] = {
 	{0x1c, 0x00},
 	{0x1d, 0x40},
 	{0x1d, 0x02},
@@ -437,7 +734,7 @@ static const u8 bridge_start_qvga[][2] = {
 	{0xc0, 0x28},
 	{0xc1, 0x1e},
 };
-static const u8 sensor_start_qvga[][2] = {
+static const u8 sensor_start_qvga_772x[][2] = {
 	{0x12, 0x40},
 	{0x17, 0x3f},
 	{0x18, 0x50},
@@ -620,6 +917,8 @@ static void set_frame_rate(struct gspca_dev *gspca_dev)
 		{30, 0x04, 0x41, 0x04},
 	};
 
+	if (sd->sensor != SENSOR_OV772x)
+		return;
 	if (gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv == 0) {
 		r = rate_0;
 		i = ARRAY_SIZE(rate_0);
@@ -643,15 +942,28 @@ static void set_frame_rate(struct gspca_dev *gspca_dev)
 static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	int val;
 
-	sccb_reg_write(gspca_dev, 0x9b, sd->ctrls[BRIGHTNESS].val);
+	val = sd->ctrls[BRIGHTNESS].val;
+	if (sd->sensor == SENSOR_OV767x) {
+		if (val < 0)
+			val = 0x80 - val;
+		sccb_reg_write(gspca_dev, 0x55, val);	/* bright */
+	} else {
+		sccb_reg_write(gspca_dev, 0x9b, val);
+	}
 }
 
 static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	u8 val;
 
-	sccb_reg_write(gspca_dev, 0x9c, sd->ctrls[CONTRAST].val);
+	val = sd->ctrls[CONTRAST].val;
+	if (sd->sensor == SENSOR_OV767x)
+		sccb_reg_write(gspca_dev, 0x56, val);	/* contras */
+	else
+		sccb_reg_write(gspca_dev, 0x9c, val);
 }
 
 static void setgain(struct gspca_dev *gspca_dev)
@@ -692,15 +1004,22 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	if (sd->ctrls[AEC].val)
 		return;
 
-	/* 'val' is one byte and represents half of the exposure value we are
-	 * going to set into registers, a two bytes value:
-	 *
-	 *    MSB: ((u16) val << 1) >> 8   == val >> 7
-	 *    LSB: ((u16) val << 1) & 0xff == val << 1
-	 */
 	val = sd->ctrls[EXPOSURE].val;
-	sccb_reg_write(gspca_dev, 0x08, val >> 7);
-	sccb_reg_write(gspca_dev, 0x10, val << 1);
+	if (sd->sensor == SENSOR_OV767x) {
+
+		/* set only aec[9:2] */
+		sccb_reg_write(gspca_dev, 0x10, val);	/* aech */
+	} else {
+
+		/* 'val' is one byte and represents half of the exposure value
+		 * we are going to set into registers, a two bytes value:
+		 *
+		 *    MSB: ((u16) val << 1) >> 8   == val >> 7
+		 *    LSB: ((u16) val << 1) & 0xff == val << 1
+		 */
+		sccb_reg_write(gspca_dev, 0x08, val >> 7);
+		sccb_reg_write(gspca_dev, 0x10, val << 1);
+	}
 }
 
 static void setagc(struct gspca_dev *gspca_dev)
@@ -729,12 +1048,14 @@ static void setawb(struct gspca_dev *gspca_dev)
 	if (sd->ctrls[AWB].val) {
 		sccb_reg_write(gspca_dev, 0x13,
 				sccb_reg_read(gspca_dev, 0x13) | 0x02);
-		sccb_reg_write(gspca_dev, 0x63,
+		if (sd->sensor == SENSOR_OV772x)
+			sccb_reg_write(gspca_dev, 0x63,
 				sccb_reg_read(gspca_dev, 0x63) | 0xc0);
 	} else {
 		sccb_reg_write(gspca_dev, 0x13,
 				sccb_reg_read(gspca_dev, 0x13) & ~0x02);
-		sccb_reg_write(gspca_dev, 0x63,
+		if (sd->sensor == SENSOR_OV772x)
+			sccb_reg_write(gspca_dev, 0x63,
 				sccb_reg_read(gspca_dev, 0x63) & ~0xc0);
 	}
 }
@@ -742,14 +1063,22 @@ static void setawb(struct gspca_dev *gspca_dev)
 static void setaec(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	u8 data;
 
+	data = sd->sensor == SENSOR_OV767x ?
+			0x05 :		/* agc + aec */
+			0x01;		/* agc */
 	if (sd->ctrls[AEC].val)
 		sccb_reg_write(gspca_dev, 0x13,
-				sccb_reg_read(gspca_dev, 0x13) | 0x01);
+				sccb_reg_read(gspca_dev, 0x13) | data);
 	else {
 		sccb_reg_write(gspca_dev, 0x13,
-				sccb_reg_read(gspca_dev, 0x13) & ~0x01);
-		setexposure(gspca_dev);
+				sccb_reg_read(gspca_dev, 0x13) & ~data);
+		if (sd->sensor == SENSOR_OV767x)
+			sd->ctrls[EXPOSURE].val =
+				sccb_reg_read(gspca_dev, 10);	/* aech */
+		else
+			setexposure(gspca_dev);
 	}
 }
 
@@ -768,23 +1097,37 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 val;
 
-	val = sccb_reg_read(gspca_dev, 0x0c);
-	val &= ~0xc0;
-	if (sd->ctrls[HFLIP].val == 0)
-		val |= 0x40;
-	if (sd->ctrls[VFLIP].val == 0)
-		val |= 0x80;
-	sccb_reg_write(gspca_dev, 0x0c, val);
+	if (sd->sensor == SENSOR_OV767x) {
+		val = sccb_reg_read(gspca_dev, 0x1e);	/* mvfp */
+		val &= ~0x30;
+		if (sd->ctrls[HFLIP].val)
+			val |= 0x20;
+		if (sd->ctrls[VFLIP].val)
+			val |= 0x10;
+		sccb_reg_write(gspca_dev, 0x1e, val);
+	} else {
+		val = sccb_reg_read(gspca_dev, 0x0c);
+		val &= ~0xc0;
+		if (sd->ctrls[HFLIP].val == 0)
+			val |= 0x40;
+		if (sd->ctrls[VFLIP].val == 0)
+			val |= 0x80;
+		sccb_reg_write(gspca_dev, 0x0c, val);
+	}
 }
 
 static void setlightfreq(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	u8 val;
 
-	if (sd->ctrls[LIGHTFREQ].val == 0)
-		sccb_reg_write(gspca_dev, 0x2b, 0x00);
-	else
-		sccb_reg_write(gspca_dev, 0x2b, 0x9e);
+	val = sd->ctrls[LIGHTFREQ].val ? 0x9e : 0x00;
+	if (sd->sensor == SENSOR_OV767x) {
+		sccb_reg_write(gspca_dev, 0x2a, 0x00);
+		if (val)
+			val = 0x9d;	/* insert dummy to 25fps for 50Hz */
+	}
+	sccb_reg_write(gspca_dev, 0x2b, val);
 }
 
 
@@ -805,11 +1148,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam->cam_mode = ov772x_mode;
 	cam->nmodes = ARRAY_SIZE(ov772x_mode);
-	cam->mode_framerates = ov772x_framerates;
-
-	cam->bulk = 1;
-	cam->bulk_size = 16384;
-	cam->bulk_nurbs = 2;
 
 	sd->frame_rate = 30;
 
@@ -819,7 +1157,16 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	u16 sensor_id;
+	static const struct reg_array bridge_init[NSENSORS] = {
+	[SENSOR_OV767x] = {bridge_init_767x, ARRAY_SIZE(bridge_init_767x)},
+	[SENSOR_OV772x] = {bridge_init_772x, ARRAY_SIZE(bridge_init_772x)},
+	};
+	static const struct reg_array sensor_init[NSENSORS] = {
+	[SENSOR_OV767x] = {sensor_init_767x, ARRAY_SIZE(sensor_init_767x)},
+	[SENSOR_OV772x] = {sensor_init_772x, ARRAY_SIZE(sensor_init_772x)},
+	};
 
 	/* reset bridge */
 	ov534_reg_write(gspca_dev, 0xe7, 0x3a);
@@ -840,35 +1187,82 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	sensor_id |= sccb_reg_read(gspca_dev, 0x0b);
 	PDEBUG(D_PROBE, "Sensor ID: %04x", sensor_id);
 
+	if ((sensor_id & 0xfff0) == 0x7670) {
+		sd->sensor = SENSOR_OV767x;
+		gspca_dev->ctrl_dis = (1 << GAIN) |
+					(1 << AGC) |
+					(1 << SHARPNESS);	/* auto */
+		sd->ctrls[BRIGHTNESS].min = -127;
+		sd->ctrls[BRIGHTNESS].max = 127;
+		sd->ctrls[BRIGHTNESS].def = 0;
+		sd->ctrls[CONTRAST].max = 0x80;
+		sd->ctrls[CONTRAST].def = 0x40;
+		sd->ctrls[EXPOSURE].min = 0x08;
+		sd->ctrls[EXPOSURE].max = 0x60;
+		sd->ctrls[EXPOSURE].def = 0x13;
+		sd->ctrls[SHARPNESS].max = 9;
+		sd->ctrls[SHARPNESS].def = 4;
+		sd->ctrls[HFLIP].def = 1;
+		gspca_dev->cam.cam_mode = ov767x_mode;
+		gspca_dev->cam.nmodes = ARRAY_SIZE(ov767x_mode);
+	} else {
+		sd->sensor = SENSOR_OV772x;
+		gspca_dev->cam.bulk = 1;
+		gspca_dev->cam.bulk_size = 16384;
+		gspca_dev->cam.bulk_nurbs = 2;
+		gspca_dev->cam.mode_framerates = ov772x_framerates;
+	}
+
 	/* initialize */
-	reg_w_array(gspca_dev, bridge_init,
-			ARRAY_SIZE(bridge_init));
+	reg_w_array(gspca_dev, bridge_init[sd->sensor].val,
+			bridge_init[sd->sensor].len);
 	ov534_set_led(gspca_dev, 1);
-	sccb_w_array(gspca_dev, sensor_init,
-			ARRAY_SIZE(sensor_init));
-	ov534_reg_write(gspca_dev, 0xe0, 0x09);
-	ov534_set_led(gspca_dev, 0);
-	set_frame_rate(gspca_dev);
+	sccb_w_array(gspca_dev, sensor_init[sd->sensor].val,
+			sensor_init[sd->sensor].len);
+	if (sd->sensor == SENSOR_OV767x)
+		sd_start(gspca_dev);
+	sd_stopN(gspca_dev);
+/*	set_frame_rate(gspca_dev);	*/
 
 	return gspca_dev->usb_err;
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	int mode;
+	static const struct reg_array bridge_start[NSENSORS][2] = {
+	[SENSOR_OV767x] = {{bridge_start_qvga_767x,
+					ARRAY_SIZE(bridge_start_qvga_767x)},
+			{bridge_start_vga_767x,
+					ARRAY_SIZE(bridge_start_vga_767x)}},
+	[SENSOR_OV772x] = {{bridge_start_qvga_772x,
+					ARRAY_SIZE(bridge_start_qvga_772x)},
+			{bridge_start_vga_772x,
+					ARRAY_SIZE(bridge_start_vga_772x)}},
+	};
+	static const struct reg_array sensor_start[NSENSORS][2] = {
+	[SENSOR_OV767x] = {{sensor_start_qvga_767x,
+					ARRAY_SIZE(sensor_start_qvga_767x)},
+			{sensor_start_vga_767x,
+					ARRAY_SIZE(sensor_start_vga_767x)}},
+	[SENSOR_OV772x] = {{sensor_start_qvga_772x,
+					ARRAY_SIZE(sensor_start_qvga_772x)},
+			{sensor_start_vga_772x,
+					ARRAY_SIZE(sensor_start_vga_772x)}},
+	};
 
-	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
-	if (mode != 0) {	/* 320x240 */
-		reg_w_array(gspca_dev, bridge_start_qvga,
-				ARRAY_SIZE(bridge_start_qvga));
-		sccb_w_array(gspca_dev, sensor_start_qvga,
-				ARRAY_SIZE(sensor_start_qvga));
-	} else {		/* 640x480 */
-		reg_w_array(gspca_dev, bridge_start_vga,
-				ARRAY_SIZE(bridge_start_vga));
-		sccb_w_array(gspca_dev, sensor_start_vga,
-				ARRAY_SIZE(sensor_start_vga));
-	}
+	/* (from ms-win trace) */
+	if (sd->sensor == SENSOR_OV767x)
+		sccb_reg_write(gspca_dev, 0x1e, 0x04);
+					/* black sun enable ? */
+
+	mode = gspca_dev->curr_mode;	/* 0: 320x240, 1: 640x480 */
+	reg_w_array(gspca_dev, bridge_start[sd->sensor][mode].val,
+				bridge_start[sd->sensor][mode].len);
+	sccb_w_array(gspca_dev, sensor_start[sd->sensor][mode].val,
+				sensor_start[sd->sensor][mode].len);
+
 	set_frame_rate(gspca_dev);
 
 	if (!(gspca_dev->ctrl_dis & (1 << AGC)))
@@ -913,9 +1307,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	__u32 this_pts;
 	u16 this_fid;
 	int remaining_len = len;
+	int payload_len;
 
+	payload_len = gspca_dev->cam.bulk ? 2048 : 2040;
 	do {
-		len = min(remaining_len, 2048);
+		len = min(remaining_len, payload_len);
 
 		/* Payloads are prefixed with a UVC-style header.  We
 		   consider a frame to start when the FID toggles, or the PTS
@@ -955,8 +1351,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		/* If this packet is marked as EOF, end the frame */
 		} else if (data[1] & UVC_STREAM_EOF) {
 			sd->last_pts = 0;
-			if (gspca_dev->image_len + len - 12 !=
-			    gspca_dev->width * gspca_dev->height * 2) {
+			if (gspca_dev->pixfmt == V4L2_PIX_FMT_YUYV
+			 && gspca_dev->image_len + len - 12 !=
+				   gspca_dev->width * gspca_dev->height * 2) {
 				PDEBUG(D_PACK, "wrong sized frame");
 				goto discard;
 			}
@@ -1073,6 +1470,7 @@ static const struct sd_desc sd_desc = {
 /* -- module initialisation -- */
 static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x1415, 0x2000)},
+	{USB_DEVICE(0x06f8, 0x3002)},
 	{}
 };
 
