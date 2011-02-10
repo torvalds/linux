@@ -2311,6 +2311,11 @@ void wlc_radio_mpc_upd(struct wlc_info *wlc)
  */
 static void wlc_radio_upd(struct wlc_info *wlc)
 {
+	if (wlc->pub->radio_disabled) {
+		wlc_radio_disable(wlc);
+	} else {
+		wlc_radio_enable(wlc);
+	}
 }
 
 /* maintain LED behavior in down state */
