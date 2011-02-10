@@ -58,6 +58,7 @@ struct nvme_dev {
 	u32 __iomem *dbs;
 	struct pci_dev *pci_dev;
 	struct dma_pool *prp_page_pool;
+	struct dma_pool *prp_small_pool;
 	int instance;
 	int queue_count;
 	u32 ctrl_config;
@@ -249,11 +250,6 @@ static int nvme_submit_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd)
 	return 0;
 }
 
-static __le64 *alloc_prp_list(struct nvme_dev *dev, dma_addr_t *addr)
-{
-	return dma_pool_alloc(dev->prp_page_pool, GFP_ATOMIC, addr);
-}
-
 struct nvme_prps {
 	int npages;
 	dma_addr_t first_dma;
@@ -271,6 +267,9 @@ static void nvme_free_prps(struct nvme_queue *nvmeq, struct nvme_prps *prps)
 		return;
 
 	prp_dma = prps->first_dma;
+
+	if (prps->npages == 0)
+		dma_pool_free(dev->prp_small_pool, prps->list[0], prp_dma);
 	for (i = 0; i < prps->npages; i++) {
 		__le64 *prp_list = prps->list[i];
 		dma_addr_t next_prp_dma = le64_to_cpu(prp_list[last_prp]);
@@ -322,6 +321,7 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_queue *nvmeq,
 					struct scatterlist *sg, int length)
 {
 	struct nvme_dev *dev = nvmeq->dev;
+	struct dma_pool *pool;
 	int dma_len = sg_dma_len(sg);
 	u64 dma_addr = sg_dma_address(sg);
 	int offset = offset_in_page(dma_addr);
@@ -352,9 +352,16 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_queue *nvmeq,
 	nprps = DIV_ROUND_UP(length, PAGE_SIZE);
 	npages = DIV_ROUND_UP(8 * nprps, PAGE_SIZE);
 	prps = kmalloc(sizeof(*prps) + sizeof(__le64 *) * npages, GFP_ATOMIC);
-	prps->npages = npages;
 	prp_page = 0;
-	prp_list = alloc_prp_list(dev, &prp_dma);
+	if (nprps <= (256 / 8)) {
+		pool = dev->prp_small_pool;
+		prps->npages = 0;
+	} else {
+		pool = dev->prp_page_pool;
+		prps->npages = npages;
+	}
+
+	prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma);
 	prps->list[prp_page++] = prp_list;
 	prps->first_dma = prp_dma;
 	cmd->prp2 = cpu_to_le64(prp_dma);
@@ -362,7 +369,7 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_queue *nvmeq,
 	for (;;) {
 		if (i == PAGE_SIZE / 8 - 1) {
 			__le64 *old_prp_list = prp_list;
-			prp_list = alloc_prp_list(dev, &prp_dma);
+			prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma);
 			prps->list[prp_page++] = prp_list;
 			old_prp_list[i] = cpu_to_le64(prp_dma);
 			i = 0;
@@ -1313,12 +1320,20 @@ static int nvme_setup_prp_pools(struct nvme_dev *dev)
 	if (!dev->prp_page_pool)
 		return -ENOMEM;
 
+	/* Optimisation for I/Os between 4k and 128k */
+	dev->prp_small_pool = dma_pool_create("prp list 256", dmadev,
+						256, 256, 0);
+	if (!dev->prp_small_pool) {
+		dma_pool_destroy(dev->prp_page_pool);
+		return -ENOMEM;
+	}
 	return 0;
 }
 
 static void nvme_release_prp_pools(struct nvme_dev *dev)
 {
 	dma_pool_destroy(dev->prp_page_pool);
+	dma_pool_destroy(dev->prp_small_pool);
 }
 
 /* XXX: Use an ida or something to let remove / add work correctly */
