@@ -52,10 +52,14 @@
 
 #define DRV_NAME "tegra-snd-harmony"
 
+#define GPIO_SPKR_EN    BIT(0)
+#define GPIO_INT_MIC_EN BIT(1)
+#define GPIO_EXT_MIC_EN BIT(2)
+
 struct tegra_harmony {
 	struct tegra_asoc_utils_data util_data;
 	struct harmony_audio_platform_data *pdata;
-	int gpio_spkr_en_requested;
+	int gpio_requested;
 };
 
 static int harmony_asoc_hw_params(struct snd_pcm_substream *substream,
@@ -202,9 +206,29 @@ static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
 		dev_err(card->dev, "cannot get spkr_en gpio\n");
 		return ret;
 	}
-	harmony->gpio_spkr_en_requested = 1;
+	harmony->gpio_requested |= GPIO_SPKR_EN;
 
 	gpio_direction_output(pdata->gpio_spkr_en, 0);
+
+	ret = gpio_request(pdata->gpio_int_mic_en, "int_mic_en");
+	if (ret) {
+		dev_err(card->dev, "cannot get int_mic_en gpio\n");
+		return ret;
+	}
+	harmony->gpio_requested |= GPIO_INT_MIC_EN;
+
+	/* Disable int mic; enable signal is active-high */
+	gpio_direction_output(pdata->gpio_int_mic_en, 0);
+
+	ret = gpio_request(pdata->gpio_ext_mic_en, "ext_mic_en");
+	if (ret) {
+		dev_err(card->dev, "cannot get ext_mic_en gpio\n");
+		return ret;
+	}
+	harmony->gpio_requested |= GPIO_EXT_MIC_EN;
+
+	/* Enable ext mic; enable signal is active-low */
+	gpio_direction_output(pdata->gpio_ext_mic_en, 0);
 
 	ret = snd_soc_add_controls(codec, harmony_controls,
 				   ARRAY_SIZE(harmony_controls));
@@ -330,7 +354,11 @@ static int __devexit tegra_snd_harmony_remove(struct platform_device *pdev)
 
 	tegra_asoc_utils_fini(&harmony->util_data);
 
-	if (harmony->gpio_spkr_en_requested)
+	if (harmony->gpio_requested & GPIO_EXT_MIC_EN)
+		gpio_free(pdata->gpio_ext_mic_en);
+	if (harmony->gpio_requested & GPIO_INT_MIC_EN)
+		gpio_free(pdata->gpio_int_mic_en);
+	if (harmony->gpio_requested & GPIO_SPKR_EN)
 		gpio_free(pdata->gpio_spkr_en);
 
 	kfree(harmony);
