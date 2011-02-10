@@ -1852,7 +1852,6 @@ static void collapse_huge_page(struct mm_struct *mm,
 		set_pmd_at(mm, address, pmd, _pmd);
 		spin_unlock(&mm->page_table_lock);
 		anon_vma_unlock(vma->anon_vma);
-		mem_cgroup_uncharge_page(new_page);
 		goto out;
 	}
 
@@ -1898,6 +1897,7 @@ out_up_write:
 	return;
 
 out:
+	mem_cgroup_uncharge_page(new_page);
 #ifdef CONFIG_NUMA
 	put_page(new_page);
 #endif
