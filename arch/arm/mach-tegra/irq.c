@@ -48,6 +48,7 @@ static u32 tegra_lp0_wake_level_any;
 
 static void (*tegra_gic_mask_irq)(struct irq_data *d);
 static void (*tegra_gic_unmask_irq)(struct irq_data *d);
+static void (*tegra_gic_ack_irq)(struct irq_data *d);
 
 /* ensures that sufficient time is passed for a register write to
  * serialize into the 32KHz domain */
@@ -112,10 +113,24 @@ static void tegra_unmask(struct irq_data *d)
 	tegra_legacy_unmask_irq(d->irq);
 }
 
+static void tegra_ack(struct irq_data *d)
+{
+	tegra_legacy_force_irq_clr(d->irq);
+	tegra_gic_ack_irq(d);
+}
+
+static int tegra_retrigger(struct irq_data *d)
+{
+	tegra_legacy_force_irq_set(d->irq);
+	return 1;
+}
+
 static struct irq_chip tegra_irq = {
 	.name			= "PPI",
+	.irq_ack		= tegra_ack,
 	.irq_mask		= tegra_mask,
 	.irq_unmask		= tegra_unmask,
+	.irq_retrigger		= tegra_retrigger,
 };
 
 void __init tegra_init_irq(void)
@@ -132,7 +147,7 @@ void __init tegra_init_irq(void)
 	gic = get_irq_chip(29);
 	tegra_gic_unmask_irq = gic->irq_unmask;
 	tegra_gic_mask_irq = gic->irq_mask;
-	tegra_irq.irq_ack = gic->irq_ack;
+	tegra_gic_ack_irq = gic->irq_ack;
 #ifdef CONFIG_SMP
 	tegra_irq.irq_set_affinity = gic->irq_set_affinity;
 #endif
