@@ -35,18 +35,6 @@
  * Symbols in this file are called "nmk_gpio" for "nomadik gpio"
  */
 
-static const u32 backup_regs[] = {
-	NMK_GPIO_PDIS,
-	NMK_GPIO_DIR,
-	NMK_GPIO_AFSLA,
-	NMK_GPIO_AFSLB,
-	NMK_GPIO_SLPC,
-	NMK_GPIO_RIMSC,
-	NMK_GPIO_FIMSC,
-	NMK_GPIO_RWIMSC,
-	NMK_GPIO_FWIMSC,
-};
-
 #define NMK_GPIO_PER_CHIP	32
 
 struct nmk_gpio_chip {
@@ -62,9 +50,6 @@ struct nmk_gpio_chip {
 	/* Keep track of configured edges */
 	u32 edge_rising;
 	u32 edge_falling;
-	u32 backup[ARRAY_SIZE(backup_regs)];
-	/* Bitmap, 1 = pull up, 0 = pull down */
-	u32 pull;
 };
 
 static struct nmk_gpio_chip *
@@ -117,13 +102,10 @@ static void __nmk_gpio_set_pull(struct nmk_gpio_chip *nmk_chip,
 		pdis &= ~bit;
 	writel(pdis, nmk_chip->addr + NMK_GPIO_PDIS);
 
-	if (pull == NMK_GPIO_PULL_UP) {
-		nmk_chip->pull |= bit;
+	if (pull == NMK_GPIO_PULL_UP)
 		writel(bit, nmk_chip->addr + NMK_GPIO_DATS);
-	} else if (pull == NMK_GPIO_PULL_DOWN) {
-		nmk_chip->pull &= ~bit;
+	else if (pull == NMK_GPIO_PULL_DOWN)
 		writel(bit, nmk_chip->addr + NMK_GPIO_DATC);
-	}
 }
 
 static void __nmk_gpio_make_input(struct nmk_gpio_chip *nmk_chip,
@@ -991,64 +973,12 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_NOMADIK_GPIO_PM
-static int nmk_gpio_pm(struct platform_device *dev, bool suspend)
-{
-	struct nmk_gpio_chip *nmk_chip = platform_get_drvdata(dev);
-	int i;
-	u32 dir;
-	u32 dat;
-
-	for (i = 0; i < ARRAY_SIZE(backup_regs); i++) {
-		if (suspend)
-			nmk_chip->backup[i] = readl(nmk_chip->addr +
-						    backup_regs[i]);
-		else
-			writel(nmk_chip->backup[i],
-			       nmk_chip->addr + backup_regs[i]);
-	}
-
-	if (!suspend) {
-		/*
-		 * Restore pull-up and pull-down on inputs and
-		 * outputs.
-		 */
-		dir = readl(nmk_chip->addr + NMK_GPIO_DIR);
-		dat = readl(nmk_chip->addr + NMK_GPIO_DAT);
-
-		writel((nmk_chip->pull & ~dir) |
-		       (dat & dir),
-		       nmk_chip->addr + NMK_GPIO_DATS);
-
-		writel((~nmk_chip->pull & ~dir) |
-		       (~dat & dir),
-		       nmk_chip->addr + NMK_GPIO_DATC);
-	}
-	return 0;
-}
-
-static int nmk_gpio_suspend(struct platform_device *dev, pm_message_t state)
-{
-	return nmk_gpio_pm(dev, true);
-}
-
-static int nmk_gpio_resume(struct platform_device *dev)
-{
-	return nmk_gpio_pm(dev, false);
-}
-#else
-#define nmk_gpio_suspend	NULL
-#define nmk_gpio_resume		NULL
-#endif
-
 static struct platform_driver nmk_gpio_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "gpio",
-		},
+	},
 	.probe = nmk_gpio_probe,
-	.suspend = nmk_gpio_suspend,
-	.resume = nmk_gpio_resume,
 };
 
 static int __init nmk_gpio_init(void)
