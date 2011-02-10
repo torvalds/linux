@@ -451,7 +451,8 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 		dma_dir = DMA_FROM_DEVICE;
 	}
 
-	nvme_map_bio(nvmeq->q_dmadev, nbio, bio, dma_dir, psegs);
+	if (nvme_map_bio(nvmeq->q_dmadev, nbio, bio, dma_dir, psegs) == 0)
+		goto mapping_failed;
 
 	cmnd->rw.flags = 1;
 	cmnd->rw.command_id = cmdid;
@@ -469,6 +470,11 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 
 	spin_unlock_irqrestore(&nvmeq->q_lock, flags);
 
+	return 0;
+
+ mapping_failed:
+	free_nbio(nvmeq, nbio);
+	bio_endio(bio, -ENOMEM);
 	return 0;
 
  free_nbio:
