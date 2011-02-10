@@ -347,8 +347,21 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 		if (phm->u.c.attribute == HPI_VOLUME_GAIN) {
 			phr->u.c.an_log_value[0] = pC->u.vol.an_log[0];
 			phr->u.c.an_log_value[1] = pC->u.vol.an_log[1];
-		} else
+		} else if (phm->u.c.attribute == HPI_VOLUME_MUTE) {
+			if (pC->u.vol.flags & HPI_VOLUME_FLAG_HAS_MUTE) {
+				if (pC->u.vol.flags & HPI_VOLUME_FLAG_MUTED)
+					phr->u.c.param1 =
+						HPI_BITMASK_ALL_CHANNELS;
+				else
+					phr->u.c.param1 = 0;
+			} else {
+				phr->error =
+					HPI_ERROR_INVALID_CONTROL_ATTRIBUTE;
+				phr->u.c.param1 = 0;
+			}
+		} else {
 			found = 0;
+		}
 		break;
 	case HPI_CONTROL_MULTIPLEXER:
 		if (phm->u.c.attribute == HPI_MULTIPLEXER_SOURCE) {
@@ -544,6 +557,11 @@ void hpi_cmn_control_cache_sync_to_msg(struct hpi_control_cache *p_cache,
 		if (phm->u.c.attribute == HPI_VOLUME_GAIN) {
 			pC->u.vol.an_log[0] = phr->u.c.an_log_value[0];
 			pC->u.vol.an_log[1] = phr->u.c.an_log_value[1];
+		} else if (phm->u.c.attribute == HPI_VOLUME_MUTE) {
+			if (phm->u.c.param1)
+				pC->u.vol.flags |= HPI_VOLUME_FLAG_MUTED;
+			else
+				pC->u.vol.flags &= ~HPI_VOLUME_FLAG_MUTED;
 		}
 		break;
 	case HPI_CONTROL_MULTIPLEXER:

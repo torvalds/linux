@@ -2888,6 +2888,16 @@ u16 hpi_volume_get_gain(u32 h_control, short an_log_gain[HPI_MAX_CHANNELS]
 		&an_log_gain[0], &an_log_gain[1]);
 }
 
+u16 hpi_volume_set_mute(u32 h_control, u32 mute)
+{
+	return hpi_control_param_set(h_control, HPI_VOLUME_MUTE, mute, 0);
+}
+
+u16 hpi_volume_get_mute(u32 h_control, u32 *mute)
+{
+	return hpi_control_param1_get(h_control, HPI_VOLUME_MUTE, mute);
+}
+
 u16 hpi_volume_query_range(u32 h_control, short *min_gain_01dB,
 	short *max_gain_01dB, short *step_gain_01dB)
 {

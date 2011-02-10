@@ -114,6 +114,18 @@ enum HPI_SUBSYS_OPTIONS {
 	HPI_SUBSYS_OPT_NET_ADAPTER_ADDRESS_ADD = 262
 };
 
+/** Volume flags
+*/
+enum HPI_VOLUME_FLAGS {
+	/** Set if the volume control is muted */
+	HPI_VOLUME_FLAG_MUTED = (1 << 0),
+	/** Set if the volume control has a mute function */
+	HPI_VOLUME_FLAG_HAS_MUTE = (1 << 1),
+	/** Set if volume control can do autofading */
+	HPI_VOLUME_FLAG_HAS_AUTOFADE = (1 << 2)
+		/* Note Flags >= (1<<8) are for DSP internal use only */
+};
+
 /******************************************* CONTROL ATTRIBUTES ****/
 /* (in order of control type ID */
 
@@ -139,6 +151,8 @@ enum HPI_CONTROL_ATTRIBUTES {
 
 	HPI_VOLUME_GAIN = HPI_CTL_ATTR(VOLUME, 1),
 	HPI_VOLUME_AUTOFADE = HPI_CTL_ATTR(VOLUME, 2),
+	HPI_VOLUME_MUTE = HPI_CTL_ATTR(VOLUME, 3),
+	HPI_VOLUME_GAIN_AND_FLAGS = HPI_CTL_ATTR(VOLUME, 4),
 	HPI_VOLUME_NUM_CHANNELS = HPI_CTL_ATTR(VOLUME, 6),
 	HPI_VOLUME_RANGE = HPI_CTL_ATTR(VOLUME, 10),
 
@@ -1389,7 +1403,8 @@ struct hpi_control_cache_info {
 struct hpi_control_cache_vol {
 	struct hpi_control_cache_info i;
 	short an_log[2];
-	char temp_padding[4];
+	unsigned short flags;
+	char padding[2];
 };
 
 struct hpi_control_cache_meter {

@@ -645,6 +645,11 @@ enum HPI_SWITCH_STATES {
 */
 #define HPI_GAIN_OFF                    (-100 * HPI_UNITS_PER_dB)
 
+/** channel mask specifying all channels
+\ingroup volume
+*/
+#define HPI_BITMASK_ALL_CHANNELS        (0xFFFFFFFF)
+
 /** value returned for no signal
 \ingroup meter
 */
@@ -1311,6 +1316,10 @@ u16 hpi_volume_set_gain(u32 h_control, short an_gain0_01dB[HPI_MAX_CHANNELS]
 u16 hpi_volume_get_gain(u32 h_control,
 	short an_gain0_01dB_out[HPI_MAX_CHANNELS]
 	);
+
+u16 hpi_volume_set_mute(u32 h_control, u32 mute);
+
+u16 hpi_volume_get_mute(u32 h_control, u32 *mute);
 
 #define hpi_volume_get_range hpi_volume_query_range
 u16 hpi_volume_query_range(u32 h_control, short *min_gain_01dB,
