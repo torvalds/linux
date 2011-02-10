@@ -57,12 +57,18 @@ struct sd {
 	atomic_t avg_lum;
 	u32 exposure;
 
+	struct work_struct work;
+	struct workqueue_struct *work_thread;
+
+	u32 pktsz;			/* (used by pkt_scan) */
+	u16 npkt;
+	u8 nchg;
 	s8 short_mark;
 
 	u8 quality;			/* image quality */
-#define QUALITY_MIN 60
-#define QUALITY_MAX 95
-#define QUALITY_DEF 80
+#define QUALITY_MIN 25
+#define QUALITY_MAX 90
+#define QUALITY_DEF 70
 
 	u8 reg01;
 	u8 reg17;
@@ -99,6 +105,8 @@ enum sensors {
 	SENSOR_SOI768,
 	SENSOR_SP80708,
 };
+
+static void qual_upd(struct work_struct *work);
 
 /* device flags */
 #define F_PDN_INV	0x01	/* inverse pin S_PWR_DN / sn_xxx tables */
@@ -1786,6 +1794,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->ag_cnt = -1;
 	sd->quality = QUALITY_DEF;
 
+	INIT_WORK(&sd->work, qual_upd);
+
 	return 0;
 }
 
@@ -2297,6 +2307,19 @@ static void setjpegqual(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x18, sd->reg18);
 }
 
+/* JPEG quality update */
+/* This function is executed from a work queue. */
+static void qual_upd(struct work_struct *work)
+{
+	struct sd *sd = container_of(work, struct sd, work);
+	struct gspca_dev *gspca_dev = &sd->gspca_dev;
+
+	mutex_lock(&gspca_dev->usb_lock);
+	PDEBUG(D_STREAM, "qual_upd %d%%", sd->quality);
+	setjpegqual(gspca_dev);
+	mutex_unlock(&gspca_dev->usb_lock);
+}
+
 /* -- start the camera -- */
 static int sd_start(struct gspca_dev *gspca_dev)
 {
@@ -2610,6 +2633,11 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setcolors(gspca_dev);
 	setautogain(gspca_dev);
 	setfreq(gspca_dev);
+
+	sd->pktsz = sd->npkt = 0;
+	sd->nchg = sd->short_mark = 0;
+	sd->work_thread = create_singlethread_workqueue(MODULE_NAME);
+
 	return gspca_dev->usb_err;
 }
 
@@ -2684,6 +2712,20 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x01, reg01);
 	/* Don't disable sensor clock as that disables the button on the cam */
 	/* reg_w1(gspca_dev, 0xf1, 0x01); */
+}
+
+/* called on streamoff with alt==0 and on disconnect */
+/* the usb_lock is held at entry - restore on exit */
+static void sd_stop0(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->work_thread != NULL) {
+		mutex_unlock(&gspca_dev->usb_lock);
+		destroy_workqueue(sd->work_thread);
+		mutex_lock(&gspca_dev->usb_lock);
+		sd->work_thread = NULL;
+	}
 }
 
 static void do_autogain(struct gspca_dev *gspca_dev)
@@ -2778,7 +2820,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
+	int i, new_qual;
 
 	/*
 	 * A frame ends on the marker
@@ -2818,6 +2860,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		data += i;
 	}
 
+	/* count the packets and their size */
+	sd->npkt++;
+	sd->pktsz += len;
+
 	/* search backwards if there is a marker in the packet */
 	for (i = len - 1; --i >= 0; ) {
 		if (data[i] != 0xff) {
@@ -2843,19 +2889,53 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	return;
 
 	/* marker found */
-	/* if some error, discard the frame */
+	/* if some error, discard the frame and decrease the quality */
 marker_found:
+	new_qual = 0;
 	if (i > 2) {
 		if (data[i - 2] != 0xff || data[i - 1] != 0xd9) {
 			gspca_dev->last_packet_type = DISCARD_PACKET;
+			new_qual = -3;
 		}
 	} else if (i + 6 < len) {
 		if (data[i + 6] & 0x08) {
 			gspca_dev->last_packet_type = DISCARD_PACKET;
+			new_qual = -5;
 		}
 	}
 
 	gspca_frame_add(gspca_dev, LAST_PACKET, data, i);
+
+	/* compute the filling rate and a new JPEG quality */
+	if (new_qual == 0) {
+		int r;
+
+		r = (sd->pktsz * 100) /
+			(sd->npkt *
+				gspca_dev->urb[0]->iso_frame_desc[0].length);
+		if (r >= 85)
+			new_qual = -3;
+		else if (r < 75)
+			new_qual = 2;
+	}
+	if (new_qual != 0) {
+		sd->nchg += new_qual;
+		if (sd->nchg < -6 || sd->nchg >= 12) {
+			sd->nchg = 0;
+			new_qual += sd->quality;
+			if (new_qual < QUALITY_MIN)
+				new_qual = QUALITY_MIN;
+			else if (new_qual > QUALITY_MAX)
+				new_qual = QUALITY_MAX;
+			if (new_qual != sd->quality) {
+				sd->quality = new_qual;
+				queue_work(sd->work_thread, &sd->work);
+			}
+		}
+	} else {
+		sd->nchg = 0;
+	}
+	sd->pktsz = sd->npkt = 0;
 
 	/* if the marker is smaller than 62 bytes,
 	 * memorize the number of bytes to skip in the next packet */
@@ -2863,7 +2943,6 @@ marker_found:
 		sd->short_mark = i + 62 - len;
 		return;
 	}
-
 	if (sd->ag_cnt >= 0)
 		set_lum(sd, data + i);
 
@@ -2876,22 +2955,6 @@ marker_found:
 				sd->jpeg_hdr, JPEG_HDR_SZ);
 		gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 	}
-}
-
-static int sd_set_jcomp(struct gspca_dev *gspca_dev,
-			struct v4l2_jpegcompression *jcomp)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	if (jcomp->quality < QUALITY_MIN)
-		sd->quality = QUALITY_MIN;
-	else if (jcomp->quality > QUALITY_MAX)
-		sd->quality = QUALITY_MAX;
-	else
-		sd->quality = jcomp->quality;
-	if (gspca_dev->streaming)
-		setjpegqual(gspca_dev);
-	return 0;
 }
 
 static int sd_get_jcomp(struct gspca_dev *gspca_dev,
@@ -2955,10 +3018,10 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
+	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
 	.get_jcomp = sd_get_jcomp,
-	.set_jcomp = sd_set_jcomp,
 	.querymenu = sd_querymenu,
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	.int_pkt_scan = sd_int_pkt_scan,
