@@ -362,14 +362,13 @@ void generic_mach_cpu_die(void)
 	unsigned int cpu;
 
 	local_irq_disable();
+	idle_task_exit();
 	cpu = smp_processor_id();
 	printk(KERN_DEBUG "CPU%d offline\n", cpu);
 	__get_cpu_var(cpu_state) = CPU_DEAD;
 	smp_wmb();
 	while (__get_cpu_var(cpu_state) != CPU_UP_PREPARE)
 		cpu_relax();
-	set_cpu_online(cpu, true);
-	local_irq_enable();
 }
 #endif
 
