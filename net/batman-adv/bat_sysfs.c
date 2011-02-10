@@ -450,7 +450,7 @@ static ssize_t show_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	length = sprintf(buff, "%s\n", batman_if->if_status == IF_NOT_IN_USE ?
 			 "none" : batman_if->soft_iface->name);
 
-	kref_put(&batman_if->refcount, hardif_free_ref);
+	hardif_free_ref(batman_if);
 
 	return length;
 }
@@ -461,7 +461,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	struct net_device *net_dev = kobj_to_netdev(kobj);
 	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
 	int status_tmp = -1;
-	int ret;
+	int ret = count;
 
 	if (!batman_if)
 		return count;
@@ -472,7 +472,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	if (strlen(buff) >= IFNAMSIZ) {
 		pr_err("Invalid parameter for 'mesh_iface' setting received: "
 		       "interface name too long '%s'\n", buff);
-		kref_put(&batman_if->refcount, hardif_free_ref);
+		hardif_free_ref(batman_if);
 		return -EINVAL;
 	}
 
@@ -482,17 +482,14 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 		status_tmp = IF_I_WANT_YOU;
 
 	if ((batman_if->if_status == status_tmp) || ((batman_if->soft_iface) &&
-	    (strncmp(batman_if->soft_iface->name, buff, IFNAMSIZ) == 0))) {
-		kref_put(&batman_if->refcount, hardif_free_ref);
-		return count;
-	}
+	    (strncmp(batman_if->soft_iface->name, buff, IFNAMSIZ) == 0)))
+		goto out;
 
 	if (status_tmp == IF_NOT_IN_USE) {
 		rtnl_lock();
 		hardif_disable_interface(batman_if);
 		rtnl_unlock();
-		kref_put(&batman_if->refcount, hardif_free_ref);
-		return count;
+		goto out;
 	}
 
 	/* if the interface already is in use */
@@ -503,8 +500,9 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	}
 
 	ret = hardif_enable_interface(batman_if, buff);
-	kref_put(&batman_if->refcount, hardif_free_ref);
 
+out:
+	hardif_free_ref(batman_if);
 	return ret;
 }
 
@@ -537,7 +535,7 @@ static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
 		break;
 	}
 
-	kref_put(&batman_if->refcount, hardif_free_ref);
+	hardif_free_ref(batman_if);
 
 	return length;
 }

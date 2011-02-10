@@ -37,13 +37,12 @@ void hardif_disable_interface(struct batman_if *batman_if);
 void hardif_remove_interfaces(void);
 int hardif_min_mtu(struct net_device *soft_iface);
 void update_min_mtu(struct net_device *soft_iface);
+void hardif_free_rcu(struct rcu_head *rcu);
 
-static inline void hardif_free_ref(struct kref *refcount)
+static inline void hardif_free_ref(struct batman_if *batman_if)
 {
-	struct batman_if *batman_if;
-
-	batman_if = container_of(refcount, struct batman_if, refcount);
-	kfree(batman_if);
+	if (atomic_dec_and_test(&batman_if->refcount))
+		call_rcu(&batman_if->rcu, hardif_free_rcu);
 }
 
 #endif /* _NET_BATMAN_ADV_HARD_INTERFACE_H_ */
