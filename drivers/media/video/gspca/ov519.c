@@ -431,6 +431,11 @@ static const struct v4l2_pix_format ovfx2_cif_mode[] = {
 		.priv = 0},
 };
 static const struct v4l2_pix_format ovfx2_ov2610_mode[] = {
+	{800, 600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 800,
+		.sizeimage = 800 * 600,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
 	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 1600,
 		.sizeimage = 1600 * 1200,
@@ -547,6 +552,7 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
  * buffers, there are some pretty strict real time constraints for
  * isochronous transfer for larger frame sizes).
  */
+/*jfm: this value works well for 1600x1200, but not 800x600 - see isoc_init */
 #define OVFX2_BULK_SIZE (13 * 4096)
 
 /* I2C registers */
@@ -3434,6 +3440,22 @@ error:
 	return -EINVAL;
 }
 
+/* function called at start time before URB creation */
+static int sd_isoc_init(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (sd->bridge) {
+	case BRIDGE_OVFX2:
+		if (gspca_dev->width == 1600)
+			gspca_dev->cam.bulk_size = OVFX2_BULK_SIZE;
+		else
+			gspca_dev->cam.bulk_size = 7 * 4096;
+		break;
+	}
+	return 0;
+}
+
 /* Set up the OV511/OV511+ with the given image parameters.
  *
  * Do not put any sensor-specific code in here (including I2C I/O functions)
@@ -4788,6 +4810,7 @@ static const struct sd_desc sd_desc = {
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
+	.isoc_init = sd_isoc_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
