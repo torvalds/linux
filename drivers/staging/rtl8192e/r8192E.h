@@ -807,7 +807,6 @@ typedef struct r8192_priv
 	u8 Rf_Mode;
 	u8 card_8192_version; /* if TCR reports card V B/C this discriminates */
 	spinlock_t irq_th_lock;
-	spinlock_t tx_lock;
 	spinlock_t rf_ps_lock;
         struct mutex mutex;
 	spinlock_t ps_lock;

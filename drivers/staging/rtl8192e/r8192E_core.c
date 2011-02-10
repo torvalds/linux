@@ -2116,7 +2116,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 
 static void rtl8192_init_priv_lock(struct r8192_priv* priv)
 {
-	spin_lock_init(&priv->tx_lock);
 	spin_lock_init(&priv->irq_th_lock);
 	spin_lock_init(&priv->rf_ps_lock);
 	spin_lock_init(&priv->ps_lock);
@@ -3000,12 +2999,10 @@ static void rtl8192_prepare_beacon(unsigned long arg)
 {
 	struct r8192_priv *priv = (struct r8192_priv*) arg;
 	struct sk_buff *skb;
-	//unsigned long flags;
 	cb_desc *tcb_desc;
 
 	skb = ieee80211_get_beacon(priv->ieee80211);
 	tcb_desc = (cb_desc *)(skb->cb + 8);
-	//spin_lock_irqsave(&priv->tx_lock,flags);
 	/* prepare misc info for the beacon xmit */
 	tcb_desc->queue_index = BEACON_QUEUE;
 	/* IBSS does not support HT yet, use 1M defaultly */
@@ -3018,7 +3015,6 @@ static void rtl8192_prepare_beacon(unsigned long arg)
 	if(skb){
 		rtl8192_tx(priv->ieee80211->dev,skb);
 	}
-	//spin_unlock_irqrestore (&priv->tx_lock, flags);
 }
 
 
@@ -3747,7 +3743,6 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
        struct net_device *dev = priv->ieee80211->dev;
 	struct ieee80211_device* ieee = priv->ieee80211;
 	RESET_TYPE	ResetType = RESET_TYPE_NORESET;
-	unsigned long flags;
 	bool bBusyTraffic = false;
 	bool bEnterPS = false;
 
@@ -3840,14 +3835,12 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
               ieee->LinkDetectInfo.NumRecvDataInPeriod=0;
 
 	//check if reset the driver
-	spin_lock_irqsave(&priv->tx_lock,flags);
 	if (priv->watchdog_check_reset_cnt++ >= 3 && !ieee->is_roaming && 
 	    priv->watchdog_last_time != 1)
 	{
     		ResetType = rtl819x_ifcheck_resetornot(dev);
 		priv->watchdog_check_reset_cnt = 3;
 	}
-	spin_unlock_irqrestore(&priv->tx_lock,flags);
 	if(!priv->bDisableNormalResetCheck && ResetType == RESET_TYPE_NORMAL)
 	{
 		priv->ResetProgress = RESET_TYPE_NORMAL;

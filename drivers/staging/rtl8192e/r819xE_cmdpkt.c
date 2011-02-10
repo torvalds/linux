@@ -52,7 +52,6 @@ RT_STATUS cmpk_message_handle_tx(
 	PTX_FWINFO_8190PCI      pTxFwInfo = NULL;
         int i;
 
-	//spin_lock_irqsave(&priv->tx_lock,flags);
 	RT_TRACE(COMP_CMDPKT,"%s(),buffer_len is %d\n",__FUNCTION__,buffer_len);
 	firmware_init_param(dev);
 	//Fragmentation might be required
@@ -113,7 +112,6 @@ RT_STATUS cmpk_message_handle_tx(
         }while(frag_offset < buffer_len);
 
 Failed:
-	//spin_unlock_irqrestore(&priv->tx_lock,flags);
 	return rt_status;
 }
 
