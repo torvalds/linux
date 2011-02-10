@@ -78,8 +78,18 @@ u16 hpi_add_adapter(struct hpi_adapter_obj *pao)
 	}
 
 	if (adapters.adapter[pao->index].adapter_type) {
-		{
-			retval = HPI_DUPLICATE_ADAPTER_NUMBER;
+		int a;
+		for (a = HPI_MAX_ADAPTERS - 1; a >= 0; a--) {
+			if (!adapters.adapter[a].adapter_type) {
+				HPI_DEBUG_LOG(WARNING,
+					"ASI%X duplicate index %d moved to %d\n",
+					pao->adapter_type, pao->index, a);
+				pao->index = a;
+				break;
+			}
+		}
+		if (a < 0) {
+			retval = HPI_ERROR_DUPLICATE_ADAPTER_NUMBER;
 			goto unlock;
 		}
 	}
