@@ -654,7 +654,7 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   MID_REQUEST_SUBMITTED 2
 #define   MID_RESPONSE_RECEIVED 4
 #define   MID_RETRY_NEEDED      8 /* session closed while this request out */
-#define   MID_NO_RESP_NEEDED 0x10
+#define   MID_RESPONSE_MALFORMED 0x10
 
 /* Types of response buffer returned from SendReceive2 */
 #define   CIFS_NO_BUFFER        0    /* Response buffer not returned */

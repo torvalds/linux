@@ -586,11 +586,20 @@ incomplete_rcv:
 		total_read += 4; /* account for rfc1002 hdr */
 
 		dump_smb(smb_buffer, total_read);
-		if (checkSMB(smb_buffer, smb_buffer->Mid, total_read)) {
+
+		/*
+		 * We know that we received enough to get to the MID as we
+		 * checked the pdu_length earlier. Now check to see
+		 * if the rest of the header is OK. We borrow the length
+		 * var for the rest of the loop to avoid a new stack var.
+		 *
+		 * 48 bytes is enough to display the header and a little bit
+		 * into the payload for debugging purposes.
+		 */
+		length = checkSMB(smb_buffer, smb_buffer->Mid, total_read);
+		if (length != 0)
 			cifs_dump_mem("Bad SMB: ", smb_buffer,
-					total_read < 48 ? total_read : 48);
-			continue;
-		}
+					min_t(unsigned int, total_read, 48));
 
 		mid_entry = NULL;
 		server->lstrp = jiffies;
@@ -602,7 +611,8 @@ incomplete_rcv:
 			if ((mid_entry->mid == smb_buffer->Mid) &&
 			    (mid_entry->midState == MID_REQUEST_SUBMITTED) &&
 			    (mid_entry->command == smb_buffer->Command)) {
-				if (check2ndT2(smb_buffer,server->maxBuf) > 0) {
+				if (length == 0 &&
+				   check2ndT2(smb_buffer, server->maxBuf) > 0) {
 					/* We have a multipart transact2 resp */
 					isMultiRsp = true;
 					if (mid_entry->resp_buf) {
@@ -637,7 +647,12 @@ incomplete_rcv:
 				mid_entry->resp_buf = smb_buffer;
 				mid_entry->largeBuf = isLargeBuf;
 multi_t2_fnd:
-				mid_entry->midState = MID_RESPONSE_RECEIVED;
+				if (length == 0)
+					mid_entry->midState =
+							MID_RESPONSE_RECEIVED;
+				else
+					mid_entry->midState =
+							MID_RESPONSE_MALFORMED;
 #ifdef CONFIG_CIFS_STATS2
 				mid_entry->when_received = jiffies;
 #endif
@@ -658,6 +673,9 @@ multi_t2_fnd:
 				else
 					smallbuf = NULL;
 			}
+		} else if (length != 0) {
+			/* response sanity checks failed */
+			continue;
 		} else if (!is_valid_oplock_break(smb_buffer, server) &&
 			   !isMultiRsp) {
 			cERROR(1, "No task to wake, unknown frame received! "
