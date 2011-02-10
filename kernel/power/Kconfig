@@ -295,6 +295,10 @@ config PM_RUNTIME_CLK
 	def_bool y
 	depends on PM_RUNTIME && HAVE_CLK
 
+config CPU_PM
+	bool
+	depends on SUSPEND || CPU_IDLE
+
 config SUSPEND_TIME
 	bool "Log time spent in suspend"
 	---help---
