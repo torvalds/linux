@@ -1218,7 +1218,7 @@ static int smack_file_mmap(struct file *file,
 		 * not available to a SMACK64MMAP subject
 		 * deny access.
 		 */
-		if ((may | mmay) != may) {
+		if ((may | mmay) != mmay) {
 			rc = -EACCES;
 			break;
 		}
