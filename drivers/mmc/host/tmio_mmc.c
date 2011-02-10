@@ -829,7 +829,7 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 		sg = host->sg_ptr;
 	}
 
-	ret = dma_map_sg(&host->pdev->dev, sg, host->sg_len, DMA_FROM_DEVICE);
+	ret = dma_map_sg(chan->device->dev, sg, host->sg_len, DMA_FROM_DEVICE);
 	if (ret > 0) {
 		host->dma_sglen = ret;
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
@@ -910,7 +910,7 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 		sg = host->sg_ptr;
 	}
 
-	ret = dma_map_sg(&host->pdev->dev, sg, host->sg_len, DMA_TO_DEVICE);
+	ret = dma_map_sg(chan->device->dev, sg, host->sg_len, DMA_TO_DEVICE);
 	if (ret > 0) {
 		host->dma_sglen = ret;
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
@@ -982,10 +982,12 @@ static void tmio_tasklet_fn(unsigned long arg)
 		goto out;
 
 	if (host->data->flags & MMC_DATA_READ)
-		dma_unmap_sg(&host->pdev->dev, host->sg_ptr, host->dma_sglen,
+		dma_unmap_sg(host->chan_rx->device->dev,
+			     host->sg_ptr, host->dma_sglen,
 			     DMA_FROM_DEVICE);
 	else
-		dma_unmap_sg(&host->pdev->dev, host->sg_ptr, host->dma_sglen,
+		dma_unmap_sg(host->chan_tx->device->dev,
+			     host->sg_ptr, host->dma_sglen,
 			     DMA_TO_DEVICE);
 
 	tmio_mmc_do_data_irq(host);
