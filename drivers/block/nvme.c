@@ -256,10 +256,9 @@ struct nvme_prps {
 	__le64 *list[0];
 };
 
-static void nvme_free_prps(struct nvme_queue *nvmeq, struct nvme_prps *prps)
+static void nvme_free_prps(struct nvme_dev *dev, struct nvme_prps *prps)
 {
 	const int last_prp = PAGE_SIZE / 8 - 1;
-	struct nvme_dev *dev = nvmeq->dev;
 	int i;
 	dma_addr_t prp_dma;
 
@@ -295,7 +294,7 @@ static struct nvme_bio *alloc_nbio(unsigned nseg, gfp_t gfp)
 
 static void free_nbio(struct nvme_queue *nvmeq, struct nvme_bio *nbio)
 {
-	nvme_free_prps(nvmeq, nbio->prps);
+	nvme_free_prps(nvmeq->dev, nbio->prps);
 	kfree(nbio);
 }
 
@@ -316,11 +315,10 @@ static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
 }
 
 /* length is in bytes */
-static struct nvme_prps *nvme_setup_prps(struct nvme_queue *nvmeq,
+static struct nvme_prps *nvme_setup_prps(struct nvme_dev *dev,
 					struct nvme_common_command *cmd,
 					struct scatterlist *sg, int length)
 {
-	struct nvme_dev *dev = nvmeq->dev;
 	struct dma_pool *pool;
 	int dma_len = sg_dma_len(sg);
 	u64 dma_addr = sg_dma_address(sg);
@@ -458,7 +456,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	cmnd->rw.flags = 1;
 	cmnd->rw.command_id = cmdid;
 	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
-	nbio->prps = nvme_setup_prps(nvmeq, &cmnd->common, nbio->sg,
+	nbio->prps = nvme_setup_prps(nvmeq->dev, &cmnd->common, nbio->sg,
 								bio->bi_size);
 	cmnd->rw.slba = cpu_to_le64(bio->bi_sector >> (ns->lba_shift - 9));
 	cmnd->rw.length = cpu_to_le16((bio->bi_size >> ns->lba_shift) - 1);
@@ -939,10 +937,10 @@ static int nvme_submit_user_admin_command(struct nvme_dev *dev,
 	nents = nvme_map_user_pages(dev, 0, addr, length, &sg);
 	if (nents < 0)
 		return nents;
-	prps = nvme_setup_prps(dev->queues[0], &cmd->common, sg, length);
+	prps = nvme_setup_prps(dev, &cmd->common, sg, length);
 	err = nvme_submit_admin_cmd(dev, cmd, NULL);
 	nvme_unmap_user_pages(dev, 0, addr, length, sg, nents);
-	nvme_free_prps(dev->queues[0], prps);
+	nvme_free_prps(dev, prps);
 	return err ? -EIO : 0;
 }
 
@@ -1000,10 +998,10 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	c.rw.reftag = cpu_to_le32(io.reftag);	/* XXX: endian? */
 	c.rw.apptag = cpu_to_le16(io.apptag);
 	c.rw.appmask = cpu_to_le16(io.appmask);
-	nvmeq = get_nvmeq(ns);
 	/* XXX: metadata */
-	prps = nvme_setup_prps(nvmeq, &c.common, sg, length);
+	prps = nvme_setup_prps(dev, &c.common, sg, length);
 
+	nvmeq = get_nvmeq(ns);
 	/* Since nvme_submit_sync_cmd sleeps, we can't keep preemption
 	 * disabled.  We may be preempted at any point, and be rescheduled
 	 * to a different CPU.  That will cause cacheline bouncing, but no
@@ -1013,7 +1011,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	status = nvme_submit_sync_cmd(nvmeq, &c, &result, IO_TIMEOUT);
 
 	nvme_unmap_user_pages(dev, io.opcode & 1, io.addr, length, sg, nents);
-	nvme_free_prps(nvmeq, prps);
+	nvme_free_prps(dev, prps);
 	put_user(result, &uio->result);
 	return status;
 }
@@ -1041,11 +1039,11 @@ static int nvme_download_firmware(struct nvme_ns *ns,
 	c.dlfw.opcode = nvme_admin_download_fw;
 	c.dlfw.numd = cpu_to_le32(dlfw.length);
 	c.dlfw.offset = cpu_to_le32(dlfw.offset);
-	prps = nvme_setup_prps(dev->queues[0], &c.common, sg, dlfw.length * 4);
+	prps = nvme_setup_prps(dev, &c.common, sg, dlfw.length * 4);
 
 	status = nvme_submit_admin_cmd(dev, &c, NULL);
 	nvme_unmap_user_pages(dev, 0, dlfw.addr, dlfw.length * 4, sg, nents);
-	nvme_free_prps(dev->queues[0], prps);
+	nvme_free_prps(dev, prps);
 	return status;
 }
 
