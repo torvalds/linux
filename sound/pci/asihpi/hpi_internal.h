@@ -626,10 +626,11 @@ struct hpi_subsys_msg {
 
 struct hpi_subsys_res {
 	u32 version;
-	u32 data;		/* used to return extended version */
-	u16 num_adapters;	/* number of adapters */
+	u32 data;		/* extended version */
+	u16 num_adapters;
 	u16 adapter_index;
-	u16 aw_adapter_list[HPI_MAX_ADAPTERS];
+	u16 adapter_type;
+	u16 pad16;
 };
 
 union hpi_adapterx_msg {

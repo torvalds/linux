@@ -164,11 +164,10 @@ static void subsys_get_adapter(struct hpi_message *phm,
 
 	if (index < HPI_MAX_ADAPTERS) {
 		phr->u.s.adapter_index = adapters.adapter[index].index;
-		phr->u.s.aw_adapter_list[0] =
-			adapters.adapter[index].adapter_type;
+		phr->u.s.adapter_type = adapters.adapter[index].adapter_type;
 	} else {
 		phr->u.s.adapter_index = 0;
-		phr->u.s.aw_adapter_list[0] = 0;
+		phr->u.s.adapter_type = 0;
 		phr->error = HPI_ERROR_BAD_ADAPTER_NUMBER;
 	}
 }

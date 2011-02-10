@@ -389,7 +389,7 @@ int __devinit asihpi_adapter_probe(struct pci_dev *pci_dev,
 	}
 
 	adapter.index = hr.u.s.adapter_index;
-	adapter.type = hr.u.s.aw_adapter_list[adapter.index];
+	adapter.type = hr.u.s.adapter_type;
 	hm.adapter_index = adapter.index;
 
 	err = hpi_adapter_open(adapter.index);

@@ -153,7 +153,8 @@ u16 hpi_subsys_get_adapter(int iterator, u32 *padapter_index,
 	hm.obj_index = (u16)iterator;
 	hpi_send_recv(&hm, &hr);
 	*padapter_index = (int)hr.u.s.adapter_index;
-	*pw_adapter_type = hr.u.s.aw_adapter_list[0];
+	*pw_adapter_type = hr.u.s.adapter_type;
+
 	return hr.error;
 }
 

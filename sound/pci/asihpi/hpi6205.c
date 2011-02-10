@@ -488,9 +488,8 @@ static void subsys_create_adapter(struct hpi_message *phm,
 		return;
 	}
 
-	phr->u.s.aw_adapter_list[ao.index] = ao.adapter_type;
+	phr->u.s.adapter_type = ao.adapter_type;
 	phr->u.s.adapter_index = ao.index;
-	phr->u.s.num_adapters++;
 	phr->error = 0;
 }
 
