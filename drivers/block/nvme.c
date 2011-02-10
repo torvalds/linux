@@ -247,21 +247,55 @@ static int nvme_submit_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd)
 	return 0;
 }
 
+static __le64 *alloc_prp_list(struct nvme_queue *nvmeq, int length,
+				 dma_addr_t *addr)
+{
+	return dma_alloc_coherent(nvmeq->q_dmadev, PAGE_SIZE, addr, GFP_ATOMIC);
+}
+
+struct nvme_prps {
+	int npages;
+	dma_addr_t first_dma;
+	__le64 *list[0];
+};
+
+static void nvme_free_prps(struct nvme_queue *nvmeq, struct nvme_prps *prps)
+{
+	const int last_prp = PAGE_SIZE / 8 - 1;
+	int i;
+	dma_addr_t prp_dma;
+
+	if (!prps)
+		return;
+
+	prp_dma = prps->first_dma;
+	for (i = 0; i < prps->npages; i++) {
+		__le64 *prp_list = prps->list[i];
+		dma_addr_t next_prp_dma = le64_to_cpu(prp_list[last_prp]);
+		dma_free_coherent(nvmeq->q_dmadev, PAGE_SIZE, prp_list,
+								prp_dma);
+		prp_dma = next_prp_dma;
+	}
+	kfree(prps);
+}
+
 struct nvme_req_info {
 	struct bio *bio;
 	int nents;
+	struct nvme_prps *prps;
 	struct scatterlist sg[0];
 };
 
 /* XXX: use a mempool */
 static struct nvme_req_info *alloc_info(unsigned nseg, gfp_t gfp)
 {
-	return kmalloc(sizeof(struct nvme_req_info) +
+	return kzalloc(sizeof(struct nvme_req_info) +
 			sizeof(struct scatterlist) * nseg, gfp);
 }
 
-static void free_info(struct nvme_req_info *info)
+static void free_info(struct nvme_queue *nvmeq, struct nvme_req_info *info)
 {
+	nvme_free_prps(nvmeq, info->prps);
 	kfree(info);
 }
 
@@ -274,7 +308,7 @@ static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
 
 	dma_unmap_sg(nvmeq->q_dmadev, info->sg, info->nents,
 			bio_data_dir(bio) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-	free_info(info);
+	free_info(nvmeq, info);
 	bio_endio(bio, status ? -EIO : 0);
 	bio = bio_list_pop(&nvmeq->sq_cong);
 	if (bio)
@@ -282,17 +316,22 @@ static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
 }
 
 /* length is in bytes */
-static void nvme_setup_prps(struct nvme_common_command *cmd,
+static struct nvme_prps *nvme_setup_prps(struct nvme_queue *nvmeq,
+					struct nvme_common_command *cmd,
 					struct scatterlist *sg, int length)
 {
 	int dma_len = sg_dma_len(sg);
 	u64 dma_addr = sg_dma_address(sg);
 	int offset = offset_in_page(dma_addr);
+	__le64 *prp_list;
+	dma_addr_t prp_dma;
+	int nprps, npages, i, prp_page;
+	struct nvme_prps *prps = NULL;
 
 	cmd->prp1 = cpu_to_le64(dma_addr);
 	length -= (PAGE_SIZE - offset);
 	if (length <= 0)
-		return;
+		return prps;
 
 	dma_len -= (PAGE_SIZE - offset);
 	if (dma_len) {
@@ -305,10 +344,42 @@ static void nvme_setup_prps(struct nvme_common_command *cmd,
 
 	if (length <= PAGE_SIZE) {
 		cmd->prp2 = cpu_to_le64(dma_addr);
-		return;
+		return prps;
 	}
 
-	/* XXX: support PRP lists */
+	nprps = DIV_ROUND_UP(length, PAGE_SIZE);
+	npages = DIV_ROUND_UP(8 * nprps, PAGE_SIZE);
+	prps = kmalloc(sizeof(*prps) + sizeof(__le64 *) * npages, GFP_ATOMIC);
+	prps->npages = npages;
+	prp_page = 0;
+	prp_list = alloc_prp_list(nvmeq, length, &prp_dma);
+	prps->list[prp_page++] = prp_list;
+	prps->first_dma = prp_dma;
+	cmd->prp2 = cpu_to_le64(prp_dma);
+	i = 0;
+	for (;;) {
+		if (i == PAGE_SIZE / 8 - 1) {
+			__le64 *old_prp_list = prp_list;
+			prp_list = alloc_prp_list(nvmeq, length, &prp_dma);
+			prps->list[prp_page++] = prp_list;
+			old_prp_list[i] = cpu_to_le64(prp_dma);
+			i = 0;
+		}
+		prp_list[i++] = cpu_to_le64(dma_addr);
+		dma_len -= PAGE_SIZE;
+		dma_addr += PAGE_SIZE;
+		length -= PAGE_SIZE;
+		if (length <= 0)
+			break;
+		if (dma_len > 0)
+			continue;
+		BUG_ON(dma_len < 0);
+		sg = sg_next(sg);
+		dma_addr = sg_dma_address(sg);
+		dma_len = sg_dma_len(sg);
+	}
+
+	return prps;
 }
 
 static int nvme_map_bio(struct device *dev, struct nvme_req_info *info,
@@ -378,7 +449,8 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	cmnd->rw.flags = 1;
 	cmnd->rw.command_id = cmdid;
 	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
-	nvme_setup_prps(&cmnd->common, info->sg, bio->bi_size);
+	info->prps = nvme_setup_prps(nvmeq, &cmnd->common, info->sg,
+								bio->bi_size);
 	cmnd->rw.slba = cpu_to_le64(bio->bi_sector >> (ns->lba_shift - 9));
 	cmnd->rw.length = cpu_to_le16((bio->bi_size >> ns->lba_shift) - 1);
 	cmnd->rw.control = cpu_to_le16(control);
@@ -393,7 +465,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	return 0;
 
  free_info:
-	free_info(info);
+	free_info(nvmeq, info);
  congestion:
 	return -EBUSY;
 }
@@ -852,13 +924,15 @@ static int nvme_submit_user_admin_command(struct nvme_dev *dev,
 {
 	int err, nents;
 	struct scatterlist *sg;
+	struct nvme_prps *prps;
 
 	nents = nvme_map_user_pages(dev, 0, addr, length, &sg);
 	if (nents < 0)
 		return nents;
-	nvme_setup_prps(&cmd->common, sg, length);
+	prps = nvme_setup_prps(dev->queues[0], &cmd->common, sg, length);
 	err = nvme_submit_admin_cmd(dev, cmd, NULL);
 	nvme_unmap_user_pages(dev, 0, addr, length, sg, nents);
+	nvme_free_prps(dev->queues[0], prps);
 	return err ? -EIO : 0;
 }
 
@@ -896,6 +970,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	u32 result;
 	int nents, status;
 	struct scatterlist *sg;
+	struct nvme_prps *prps;
 
 	if (copy_from_user(&io, uio, sizeof(io)))
 		return -EFAULT;
@@ -915,10 +990,10 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	c.rw.reftag = cpu_to_le32(io.reftag);	/* XXX: endian? */
 	c.rw.apptag = cpu_to_le16(io.apptag);
 	c.rw.appmask = cpu_to_le16(io.appmask);
-	/* XXX: metadata */
-	nvme_setup_prps(&c.common, sg, length);
-
 	nvmeq = get_nvmeq(ns);
+	/* XXX: metadata */
+	prps = nvme_setup_prps(nvmeq, &c.common, sg, length);
+
 	/* Since nvme_submit_sync_cmd sleeps, we can't keep preemption
 	 * disabled.  We may be preempted at any point, and be rescheduled
 	 * to a different CPU.  That will cause cacheline bouncing, but no
@@ -928,6 +1003,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	status = nvme_submit_sync_cmd(nvmeq, &c, &result, IO_TIMEOUT);
 
 	nvme_unmap_user_pages(dev, io.opcode & 1, io.addr, length, sg, nents);
+	nvme_free_prps(nvmeq, prps);
 	put_user(result, &uio->result);
 	return status;
 }
@@ -940,6 +1016,7 @@ static int nvme_download_firmware(struct nvme_ns *ns,
 	struct nvme_command c;
 	int nents, status;
 	struct scatterlist *sg;
+	struct nvme_prps *prps;
 
 	if (copy_from_user(&dlfw, udlfw, sizeof(dlfw)))
 		return -EFAULT;
@@ -954,10 +1031,11 @@ static int nvme_download_firmware(struct nvme_ns *ns,
 	c.dlfw.opcode = nvme_admin_download_fw;
 	c.dlfw.numd = cpu_to_le32(dlfw.length);
 	c.dlfw.offset = cpu_to_le32(dlfw.offset);
-	nvme_setup_prps(&c.common, sg, dlfw.length * 4);
+	prps = nvme_setup_prps(dev->queues[0], &c.common, sg, dlfw.length * 4);
 
 	status = nvme_submit_admin_cmd(dev, &c, NULL);
 	nvme_unmap_user_pages(dev, 0, dlfw.addr, dlfw.length * 4, sg, nents);
+	nvme_free_prps(dev->queues[0], prps);
 	return status;
 }
 
