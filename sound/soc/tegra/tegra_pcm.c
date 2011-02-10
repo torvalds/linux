@@ -39,6 +39,8 @@
 
 #include "tegra_pcm.h"
 
+#define DRV_NAME "tegra-pcm-audio"
+
 static const struct snd_pcm_hardware tegra_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
@@ -377,7 +379,7 @@ static int __devexit tegra_pcm_platform_remove(struct platform_device *pdev)
 
 static struct platform_driver tegra_pcm_driver = {
 	.driver = {
-		.name = "tegra-pcm-audio",
+		.name = DRV_NAME,
 		.owner = THIS_MODULE,
 	},
 	.probe = tegra_pcm_platform_probe,
@@ -399,3 +401,4 @@ module_exit(snd_tegra_pcm_exit);
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Tegra PCM ASoC driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRV_NAME);
