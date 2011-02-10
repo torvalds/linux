@@ -74,7 +74,7 @@ nouveau_vm_map(struct nouveau_vma *vma, struct nouveau_mem *node)
 
 void
 nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
-		  dma_addr_t *list)
+		  struct nouveau_mem *mem, dma_addr_t *list)
 {
 	struct nouveau_vm *vm = vma->vm;
 	int big = vma->node->type != vm->spg_shift;
@@ -94,7 +94,7 @@ nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 			end = max;
 		len = end - pte;
 
-		vm->map_sg(vma, pgt, pte, list, len);
+		vm->map_sg(vma, pgt, mem, pte, len, list);
 
 		num  -= len;
 		pte  += len;

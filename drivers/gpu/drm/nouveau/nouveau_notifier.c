@@ -98,6 +98,7 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 		       int size, uint32_t *b_offset)
 {
 	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *nobj = NULL;
 	struct drm_mm_node *mem;
 	uint32_t offset;
@@ -111,11 +112,16 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 		return -ENOMEM;
 	}
 
-	if (chan->notifier_bo->bo.mem.mem_type == TTM_PL_VRAM)
-		target = NV_MEM_TARGET_VRAM;
-	else
-		target = NV_MEM_TARGET_GART;
-	offset  = chan->notifier_bo->bo.mem.start << PAGE_SHIFT;
+	if (dev_priv->card_type < NV_50) {
+		if (chan->notifier_bo->bo.mem.mem_type == TTM_PL_VRAM)
+			target = NV_MEM_TARGET_VRAM;
+		else
+			target = NV_MEM_TARGET_GART;
+		offset  = chan->notifier_bo->bo.mem.start << PAGE_SHIFT;
+	} else {
+		target = NV_MEM_TARGET_VM;
+		offset = chan->notifier_bo->vma.offset;
+	}
 	offset += mem->start;
 
 	ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, offset,

@@ -375,12 +375,10 @@ static int
 nv50_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)be;
-	struct drm_nouveau_private *dev_priv = nvbe->dev->dev_private;
-
-	nvbe->offset = mem->start << PAGE_SHIFT;
-
-	nouveau_vm_map_sg(&dev_priv->gart_info.vma, nvbe->offset,
-			  nvbe->nr_pages << PAGE_SHIFT, nvbe->pages);
+	struct nouveau_mem *node = mem->mm_node;
+	/* noop: bound in move_notify() */
+	node->pages = nvbe->pages;
+	nvbe->pages = (dma_addr_t *)node;
 	nvbe->bound = true;
 	return 0;
 }
@@ -389,13 +387,10 @@ static int
 nv50_sgdma_unbind(struct ttm_backend *be)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)be;
-	struct drm_nouveau_private *dev_priv = nvbe->dev->dev_private;
-
-	if (!nvbe->bound)
-		return 0;
-
-	nouveau_vm_unmap_at(&dev_priv->gart_info.vma, nvbe->offset,
-			    nvbe->nr_pages << PAGE_SHIFT);
+	struct nouveau_mem *node = (struct nouveau_mem *)nvbe->pages;
+	/* noop: unbound in move_notify() */
+	nvbe->pages = node->pages;
+	node->pages = NULL;
 	nvbe->bound = false;
 	return 0;
 }
@@ -457,13 +452,7 @@ nouveau_sgdma_init(struct drm_device *dev)
 	}
 
 	if (dev_priv->card_type >= NV_50) {
-		ret = nouveau_vm_get(dev_priv->chan_vm, aper_size,
-				     12, NV_MEM_ACCESS_RW,
-				     &dev_priv->gart_info.vma);
-		if (ret)
-			return ret;
-
-		dev_priv->gart_info.aper_base = dev_priv->gart_info.vma.offset;
+		dev_priv->gart_info.aper_base = 0;
 		dev_priv->gart_info.aper_size = aper_size;
 		dev_priv->gart_info.type = NOUVEAU_GART_HW;
 		dev_priv->gart_info.func = &nv50_sgdma_backend;
@@ -522,7 +511,6 @@ nouveau_sgdma_takedown(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	nouveau_gpuobj_ref(NULL, &dev_priv->gart_info.sg_ctxdma);
-	nouveau_vm_put(&dev_priv->gart_info.vma);
 
 	if (dev_priv->gart_info.dummy.page) {
 		pci_unmap_page(dev->pdev, dev_priv->gart_info.dummy.addr,

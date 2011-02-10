@@ -785,3 +785,84 @@ const struct ttm_mem_type_manager_func nouveau_vram_manager = {
 	nouveau_vram_manager_del,
 	nouveau_vram_manager_debug
 };
+
+static int
+nouveau_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
+{
+	return 0;
+}
+
+static int
+nouveau_gart_manager_fini(struct ttm_mem_type_manager *man)
+{
+	return 0;
+}
+
+static void
+nouveau_gart_manager_del(struct ttm_mem_type_manager *man,
+			 struct ttm_mem_reg *mem)
+{
+	struct nouveau_mem *node = mem->mm_node;
+
+	if (node->tmp_vma.node) {
+		nouveau_vm_unmap(&node->tmp_vma);
+		nouveau_vm_put(&node->tmp_vma);
+	}
+	mem->mm_node = NULL;
+}
+
+static int
+nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
+			 struct ttm_buffer_object *bo,
+			 struct ttm_placement *placement,
+			 struct ttm_mem_reg *mem)
+{
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	struct nouveau_vma *vma = &nvbo->vma;
+	struct nouveau_vm *vm = vma->vm;
+	struct nouveau_mem *node;
+	int ret;
+
+	if (unlikely((mem->num_pages << PAGE_SHIFT) >=
+		     dev_priv->gart_info.aper_size))
+		return -ENOMEM;
+
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
+
+	/* This node must be for evicting large-paged VRAM
+	 * to system memory.  Due to a nv50 limitation of
+	 * not being able to mix large/small pages within
+	 * the same PDE, we need to create a temporary
+	 * small-paged VMA for the eviction.
+	 */
+	if (vma->node->type != vm->spg_shift) {
+		ret = nouveau_vm_get(vm, (u64)vma->node->length << 12,
+				     vm->spg_shift, NV_MEM_ACCESS_RW,
+				     &node->tmp_vma);
+		if (ret) {
+			kfree(node);
+			return ret;
+		}
+	}
+
+	node->page_shift = nvbo->vma.node->type;
+	mem->mm_node = node;
+	mem->start   = 0;
+	return 0;
+}
+
+void
+nouveau_gart_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
+{
+}
+
+const struct ttm_mem_type_manager_func nouveau_gart_manager = {
+	nouveau_gart_manager_init,
+	nouveau_gart_manager_fini,
+	nouveau_gart_manager_new,
+	nouveau_gart_manager_del,
+	nouveau_gart_manager_debug
+};

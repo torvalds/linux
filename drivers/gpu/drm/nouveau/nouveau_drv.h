@@ -73,6 +73,7 @@ struct nouveau_mem {
 	u8  page_shift;
 
 	struct list_head regions;
+	dma_addr_t *pages;
 	u32 memtype;
 	u64 offset;
 	u64 size;
@@ -706,7 +707,6 @@ struct drm_nouveau_private {
 		} dummy;
 
 		struct nouveau_gpuobj *sg_ctxdma;
-		struct nouveau_vma vma;
 	} gart_info;
 
 	/* nv10-nv40 tiling regions */
@@ -846,6 +846,7 @@ extern void nv10_mem_put_tile_region(struct drm_device *dev,
 				     struct nouveau_tile_reg *tile,
 				     struct nouveau_fence *fence);
 extern const struct ttm_mem_type_manager_func nouveau_vram_manager;
+extern const struct ttm_mem_type_manager_func nouveau_gart_manager;
 
 /* nouveau_notifier.c */
 extern int  nouveau_notifier_init_channel(struct nouveau_channel *);
