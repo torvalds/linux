@@ -57,6 +57,8 @@ struct sd {
 	atomic_t avg_lum;
 	u32 exposure;
 
+	s8 short_mark;
+
 	u8 quality;			/* image quality */
 #define QUALITY_MIN 60
 #define QUALITY_MAX 95
@@ -2787,39 +2789,104 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int sof;
+	int i;
 
-	/* the image ends on a 64 bytes block starting with
-	 *	ff d9 ff ff 00 c4 c4 96
-	 * and followed by various information including luminosity */
-	/* this block may be splitted between two packets */
-	/* a new image always starts in a new packet */
-	switch (gspca_dev->last_packet_type) {
-	case DISCARD_PACKET:		/* restart image building */
-		sof = len - 64;
-		if (sof >= 0 && data[sof] == 0xff && data[sof + 1] == 0xd9)
-			gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
-		return;
-	case LAST_PACKET:		/* put the JPEG 422 header */
+	/*
+	 * A frame ends on the marker
+	 *		ff ff 00 c4 c4 96 ..
+	 * which is 62 bytes long and is followed by various information
+	 * including statuses and luminosity.
+	 *
+	 * A marker may be splitted on two packets.
+	 *
+	 * The 6th byte of a marker contains the bits:
+	 *	0x08: USB full
+	 *	0xc0: frame sequence
+	 * When the bit 'USB full' is set, the frame must be discarded;
+	 * this is also the case when the 2 bytes before the marker are
+	 * not the JPEG end of frame ('ff d9').
+	 */
+
+/*fixme: assumption about the following code:
+ *	- there can be only one marker in a packet
+ */
+
+	/* skip the remaining bytes of a short marker */
+	i = sd->short_mark;
+	if (i != 0) {
+		sd->short_mark = 0;
+		if (i < 0	/* if 'ff' at end of previous packet */
+		 && data[0] == 0xff
+		 && data[1] == 0x00)
+			goto marker_found;
+		if (data[0] == 0xff && data[1] == 0xff) {
+			i = 0;
+			goto marker_found;
+		}
+		len -= i;
+		if (len <= 0)
+			return;
+		data += i;
+	}
+
+	/* search backwards if there is a marker in the packet */
+	for (i = len - 1; --i >= 0; ) {
+		if (data[i] != 0xff) {
+			i--;
+			continue;
+		}
+		if (data[i + 1] == 0xff) {
+
+			/* (there may be 'ff ff' inside a marker) */
+			if (i + 2 >= len || data[i + 2] == 0x00)
+				goto marker_found;
+		}
+	}
+
+	/* no marker found */
+	/* add the JPEG header if first fragment */
+	if (data[len - 1] == 0xff)
+		sd->short_mark = -1;
+	if (gspca_dev->last_packet_type == LAST_PACKET)
 		gspca_frame_add(gspca_dev, FIRST_PACKET,
 				sd->jpeg_hdr, JPEG_HDR_SZ);
-		break;
-	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
+	return;
 
-	data = gspca_dev->image;
-	if (data == NULL)
-		return;
-	sof = gspca_dev->image_len - 64;
-	if (data[sof] != 0xff
-	 || data[sof + 1] != 0xd9)
-		return;
+	/* marker found */
+	/* if some error, discard the frame */
+marker_found:
+	if (i > 2) {
+		if (data[i - 2] != 0xff || data[i - 1] != 0xd9) {
+			gspca_dev->last_packet_type = DISCARD_PACKET;
+		}
+	} else if (i + 6 < len) {
+		if (data[i + 6] & 0x08) {
+			gspca_dev->last_packet_type = DISCARD_PACKET;
+		}
+	}
 
-	/* end of image found - remove the trailing data */
-	gspca_dev->image_len = sof + 2;
-	gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
+	gspca_frame_add(gspca_dev, LAST_PACKET, data, i);
+
+	/* if the marker is smaller than 62 bytes,
+	 * memorize the number of bytes to skip in the next packet */
+	if (i + 62 > len) {			/* no more usable data */
+		sd->short_mark = i + 62 - len;
+		return;
+	}
+
 	if (sd->ag_cnt >= 0)
-		set_lum(sd, data + sof + 2);
+		set_lum(sd, data + i);
+
+	/* if more data, start a new frame */
+	i += 62;
+	if (i < len) {
+		data += i;
+		len -= i;
+		gspca_frame_add(gspca_dev, FIRST_PACKET,
+				sd->jpeg_hdr, JPEG_HDR_SZ);
+		gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
+	}
 }
 
 static int sd_set_jcomp(struct gspca_dev *gspca_dev,
