@@ -245,7 +245,7 @@ usbotg_free_reset:
 	return err;
 }
 
-static int mx31_3ds_host2_init(struct platform_device *pdev)
+static int __maybe_unused mx31_3ds_host2_init(struct platform_device *pdev)
 {
 	int err;
 
