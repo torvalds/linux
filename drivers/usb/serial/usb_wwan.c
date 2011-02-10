@@ -664,6 +664,18 @@ int usb_wwan_suspend(struct usb_serial *serial, pm_message_t message)
 }
 EXPORT_SYMBOL(usb_wwan_suspend);
 
+static void unbusy_queued_urb(struct urb *urb, struct usb_wwan_port_private *portdata)
+{
+	int i;
+
+	for (i = 0; i < N_OUT_URB; i++) {
+		if (urb == portdata->out_urbs[i]) {
+			clear_bit(i, &portdata->out_busy);
+			break;
+		}
+	}
+}
+
 static void play_delayed(struct usb_serial_port *port)
 {
 	struct usb_wwan_intf_private *data;
@@ -675,8 +687,17 @@ static void play_delayed(struct usb_serial_port *port)
 	data = port->serial->private;
 	while ((urb = usb_get_from_anchor(&portdata->delayed))) {
 		err = usb_submit_urb(urb, GFP_ATOMIC);
-		if (!err)
+		if (!err) {
 			data->in_flight++;
+		} else {
+			/* we have to throw away the rest */
+			do {
+				unbusy_queued_urb(urb, portdata);
+				//extremely dirty
+				atomic_dec(&port->serial->interface->dev.power.usage_count);
+			} while ((urb = usb_get_from_anchor(&portdata->delayed)));
+			break;
+		}
 	}
 }
 
