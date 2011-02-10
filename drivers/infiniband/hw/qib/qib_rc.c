@@ -1439,6 +1439,8 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 	}
 
 	spin_lock_irqsave(&qp->s_lock, flags);
+	if (!(ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK))
+		goto ack_done;
 
 	/* Ignore invalid responses. */
 	if (qib_cmp24(psn, qp->s_next_psn) >= 0)
