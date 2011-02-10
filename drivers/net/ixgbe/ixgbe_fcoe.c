@@ -165,7 +165,7 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 	unsigned int thisoff = 0;
 	unsigned int thislen = 0;
 	u32 fcbuff, fcdmarw, fcfltrw;
-	dma_addr_t addr;
+	dma_addr_t addr = 0;
 
 	if (!netdev || !sgl)
 		return 0;
