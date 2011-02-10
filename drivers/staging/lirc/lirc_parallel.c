@@ -295,7 +295,7 @@ static void irq_handler(void *blah)
 	} while (lirc_get_signal());
 
 	if (signal != 0) {
-		/* ajust value to usecs */
+		/* adjust value to usecs */
 		__u64 helper;
 
 		helper = ((__u64) signal)*1000000;

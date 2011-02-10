@@ -3911,7 +3911,7 @@ int GLOB_FTL_Page_Write(u8 *pData, u64 dwPageAddr)
 * Description:  erases the specified block
 *               increments the erase count
 *               If erase count reaches its upper limit,call function to
-*               do the ajustment as per the relative erase count values
+*               do the adjustment as per the relative erase count values
 *&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*/
 int GLOB_FTL_Block_Erase(u64 blk_addr)
 {
