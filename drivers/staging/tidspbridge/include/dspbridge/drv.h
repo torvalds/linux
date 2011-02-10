@@ -395,7 +395,7 @@ void bridge_recover_schedule(void);
 /*
  *  ======== mem_ext_phys_pool_init ========
  *  Purpose:
- *      Uses the physical memory chunk passed for internal consitent memory
+ *      Uses the physical memory chunk passed for internal consistent memory
  *      allocations.
  *      physical address based on the page frame address.
  *  Parameters:

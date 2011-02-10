@@ -317,7 +317,7 @@ c4hw_attach_all (void)
         pr_warning("No boards found\n");
         return ENODEV;
     }
-    /* sanity check for consistant hardware found */
+    /* sanity check for consistent hardware found */
     for (i = 0, hi = hdw_info; i < MAX_BOARDS; i++, hi++)
     {
         if (hi->pci_slot != 0xff && (!hi->addr[0] || !hi->addr[1]))
