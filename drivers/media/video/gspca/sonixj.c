@@ -1835,13 +1835,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	case BRIDGE_SN9C102P:
 		reg_w1(gspca_dev, 0x02, regGpio[1]);
 		break;
-	case BRIDGE_SN9C105:
-		reg_w(gspca_dev, 0x01, regGpio, 2);
-		break;
-	case BRIDGE_SN9C110:
-		reg_w1(gspca_dev, 0x02, 0x62);
-		break;
-	case BRIDGE_SN9C120:
+	default:
 		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
 	}
