@@ -214,7 +214,7 @@ static int cyasdevice_initialize(void)
 	cy_as_dev = cy_as_hal_alloc(sizeof(cyasdevice));
 	if (cy_as_dev == NULL) {
 		cy_as_hal_print_message("<1>_cy_as_device: "
-			"memmory allocation failed\n");
+			"memory allocation failed\n");
 		return -ENOMEM;
 	}
 	memset(cy_as_dev, 0, sizeof(cyasdevice));
