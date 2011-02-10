@@ -1,23 +1,7 @@
 config PM
-	bool "Power Management support"
-	depends on !IA64_HP_SIM
-	---help---
-	  "Power Management" means that parts of your computer are shut
-	  off or put into a power conserving "sleep" mode if they are not
-	  being used.  There are two competing standards for doing this: APM
-	  and ACPI.  If you want to use either one, say Y here and then also
-	  to the requisite support below.
-
-	  Power Management is most important for battery powered laptop
-	  computers; if you have a laptop, check out the Linux Laptop home
-	  page on the WWW at <http://www.linux-on-laptops.com/> or
-	  Tuxmobil - Linux on Mobile Computers at <http://www.tuxmobil.org/>
-	  and the Battery Powered Linux mini-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  Note that, even if you say N here, Linux on the x86 architecture
-	  will issue the hlt instruction if nothing is to be done, thereby
-	  sending the processor to sleep and saving power.
+	bool
+	depends on PM_SLEEP || PM_RUNTIME
+	default y
 
 config PM_DEBUG
 	bool "Power Management Debug Support"
@@ -102,7 +86,7 @@ config PM_SLEEP_ADVANCED_DEBUG
 
 config SUSPEND
 	bool "Suspend to RAM and standby"
-	depends on PM && ARCH_SUSPEND_POSSIBLE
+	depends on ARCH_SUSPEND_POSSIBLE
 	default y
 	---help---
 	  Allow the system to enter sleep states in which main memory is
@@ -133,7 +117,7 @@ config SUSPEND_FREEZER
 
 config HIBERNATION
 	bool "Hibernation (aka 'suspend to disk')"
-	depends on PM && SWAP && ARCH_HIBERNATION_POSSIBLE
+	depends on SWAP && ARCH_HIBERNATION_POSSIBLE
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
 	---help---
@@ -224,7 +208,7 @@ config APM_EMULATION
 
 config PM_RUNTIME
 	bool "Run-time PM core functionality"
-	depends on PM
+	depends on !IA64_HP_SIM
 	---help---
 	  Enable functionality allowing I/O devices to be put into energy-saving
 	  (low power) states at run time (or autosuspended) after a specified
@@ -246,7 +230,6 @@ config ARCH_HAS_OPP
 
 config PM_OPP
 	bool "Operating Performance Point (OPP) Layer library"
-	depends on PM
 	depends on ARCH_HAS_OPP
 	---help---
 	  SOCs have a standard set of tuples consisting of frequency and
