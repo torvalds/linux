@@ -8336,7 +8336,7 @@ void wlc_txflowcontrol(struct wlc_info *wlc, wlc_txq_info_t *qi,
 	uint prio_bits;
 	uint cur_bits;
 
-	WL_ERROR("%s: flow control kicks in\n", __func__);
+	WL_TRACE("%s: flow control kicks in\n", __func__);
 
 	if (prio == ALLPRIO) {
 		prio_bits = TXQ_STOP_FOR_PRIOFC_MASK;

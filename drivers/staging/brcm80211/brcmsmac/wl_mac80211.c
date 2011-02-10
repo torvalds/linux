@@ -149,6 +149,7 @@ static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	int status;
 	struct wl_info *wl = hw->priv;
+
 	WL_LOCK(wl);
 	if (!wl->pub->up) {
 		WL_ERROR("ops->tx called while down\n");
@@ -262,8 +263,6 @@ static int wl_ops_config(struct ieee80211_hw *hw, u32 changed)
 
 	WL_LOCK(wl);
 	if (changed & IEEE80211_CONF_CHANGE_LISTEN_INTERVAL) {
-		WL_NONE("%s: Setting listen interval to %d\n",
-			__func__, conf->listen_interval);
 		if (wlc_iovar_setint
 		    (wl->wlc, "bcn_li_bcn", conf->listen_interval)) {
 			WL_ERROR("%s: Error setting listen_interval\n",
@@ -275,13 +274,15 @@ static int wl_ops_config(struct ieee80211_hw *hw, u32 changed)
 		ASSERT(new_int == conf->listen_interval);
 	}
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR)
-		WL_NONE("Need to set monitor mode\n");
+		WL_ERROR("%s: change monitor mode: %s (implement)\n", __func__,
+			 conf->flags & IEEE80211_CONF_MONITOR ?
+				"true" : "false");
 	if (changed & IEEE80211_CONF_CHANGE_PS)
-		WL_NONE("Need to set Power-save mode\n");
+		WL_ERROR("%s: change power-save mode: %s (implement)\n",
+			 __func__, conf->flags & IEEE80211_CONF_PS ?
+				"true" : "false");
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		WL_NONE("%s: Setting tx power to %d dbm\n",
-			__func__, conf->power_level);
 		if (wlc_iovar_setint
 		    (wl->wlc, "qtxpower", conf->power_level * 4)) {
 			WL_ERROR("%s: Error setting power_level\n", __func__);
@@ -297,10 +298,6 @@ static int wl_ops_config(struct ieee80211_hw *hw, u32 changed)
 		err = ieee_set_channel(hw, conf->channel, conf->channel_type);
 	}
 	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS) {
-		WL_NONE("%s: srl %d, lrl %d\n",
-			__func__,
-			conf->short_frame_max_tx_count,
-			conf->long_frame_max_tx_count);
 		if (wlc_set
 		    (wl->wlc, WLC_SET_SRL,
 		     conf->short_frame_max_tx_count) < 0) {
@@ -329,64 +326,63 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 	struct wl_info *wl = HW_TO_WL(hw);
 	int val;
 
-
 	if (changed & BSS_CHANGED_ASSOC) {
-		WL_ERROR("Associated:\t%s\n", info->assoc ? "True" : "False");
 		/* association status changed (associated/disassociated)
 		 * also implies a change in the AID.
 		 */
+		WL_ERROR("%s: %s: %sassociated\n", KBUILD_MODNAME, __func__,
+			 info->assoc ? "" : "dis");
 	}
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
-		WL_NONE("Use_cts_prot:\t%s Implement me\n",
-			info->use_cts_prot ? "True" : "False");
 		/* CTS protection changed */
+		WL_ERROR("%s: use_cts_prot: %s (implement)\n", __func__,
+			info->use_cts_prot ? "true" : "false");
 	}
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
-		WL_NONE("Short preamble:\t%s Implement me\n",
-			info->use_short_preamble ? "True" : "False");
 		/* preamble changed */
+		WL_ERROR("%s: short preamble: %s (implement)\n", __func__,
+			info->use_short_preamble ? "true" : "false");
 	}
 	if (changed & BSS_CHANGED_ERP_SLOT) {
-		WL_NONE("Changing short slot:\t%s\n",
-			info->use_short_slot ? "True" : "False");
+		/* slot timing changed */
 		if (info->use_short_slot)
 			val = 1;
 		else
 			val = 0;
 		wlc_set(wl->wlc, WLC_SET_SHORTSLOT_OVERRIDE, val);
-		/* slot timing changed */
 	}
 
 	if (changed & BSS_CHANGED_HT) {
-		WL_NONE("%s: HT mode - Implement me\n", __func__);
 		/* 802.11n parameters changed */
+		u16 mode = info->ht_operation_mode;
+		WL_NONE("%s: HT mode: 0x%04X (implement)\n", __func__, mode);
 	}
 	if (changed & BSS_CHANGED_BASIC_RATES) {
-		WL_NONE("Need to change Basic Rates:\t0x%x! Implement me\n",
-			(u32) info->basic_rates);
 		/* Basic rateset changed */
+		WL_ERROR("%s: Need to change Basic Rates: 0x%x (implement)\n",
+			 __func__, (u32) info->basic_rates);
 	}
 	if (changed & BSS_CHANGED_BEACON_INT) {
-		WL_NONE("Beacon Interval:\t%d Implement me\n",
-			info->beacon_int);
 		/* Beacon interval changed */
+		WL_NONE("%s: Beacon Interval: %d\n",
+			__func__, info->beacon_int);
 	}
 	if (changed & BSS_CHANGED_BSSID) {
+		/* BSSID changed, for whatever reason (IBSS and managed mode) */
 		WL_NONE("new BSSID:\taid %d  bss:%pM\n",
 			info->aid, info->bssid);
-		/* BSSID changed, for whatever reason (IBSS and managed mode) */
 		/* FIXME: need to store bssid in bsscfg */
 		wlc_set_addrmatch(wl->wlc, RCM_BSSID_OFFSET,
 				  info->bssid);
 	}
 	if (changed & BSS_CHANGED_BEACON) {
-		WL_ERROR("BSS_CHANGED_BEACON\n");
 		/* Beacon data changed, retrieve new beacon (beaconing modes) */
+		WL_ERROR("BSS_CHANGED_BEACON\n");
 	}
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
-		WL_ERROR("Beacon enabled:\t%s\n",
-			 info->enable_beacon ? "True" : "False");
 		/* Beaconing should be enabled/disabled (beaconing modes) */
+		WL_ERROR("Beacon enabled: %s\n",
+			 info->enable_beacon ? "true" : "false");
 	}
 	return;
 }
@@ -430,7 +426,7 @@ wl_ops_configure_filter(struct ieee80211_hw *hw,
 static int
 wl_ops_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 {
-	WL_ERROR("%s: Enter\n", __func__);
+	WL_NONE("%s: Enter\n", __func__);
 	return 0;
 }
 
@@ -611,7 +607,7 @@ static void wl_ops_rfkill_poll(struct ieee80211_hw *hw)
 	blocked = wlc_check_radio_disabled(wl->wlc);
 	WL_UNLOCK(wl);
 
-	WL_ERROR("wl: rfkill_poll: %d\n", blocked);
+	WL_NONE("wl: rfkill_poll: %d\n", blocked);
 	wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, blocked);
 }
 
@@ -641,7 +637,7 @@ static const struct ieee80211_ops wl_ops = {
 
 static int wl_set_hint(struct wl_info *wl, char *abbrev)
 {
-	WL_ERROR("%s: Sending country code %c%c to MAC80211\n",
+	WL_NONE("%s: Sending country code %c%c to MAC80211\n",
 		 __func__, abbrev[0], abbrev[1]);
 	return regulatory_hint(wl->pub->ieee_hw->wiphy, abbrev);
 }
@@ -1497,12 +1493,12 @@ static void BCMFASTPATH wl_dpc(unsigned long data)
 
 static void wl_link_up(struct wl_info *wl, char *ifname)
 {
-	WL_ERROR("wl%d: link up (%s)\n", wl->pub->unit, ifname);
+	WL_NONE("wl%d: link up (%s)\n", wl->pub->unit, ifname);
 }
 
 static void wl_link_down(struct wl_info *wl, char *ifname)
 {
-	WL_ERROR("wl%d: link down (%s)\n", wl->pub->unit, ifname);
+	WL_NONE("wl%d: link down (%s)\n", wl->pub->unit, ifname);
 }
 
 void wl_event(struct wl_info *wl, char *ifname, wlc_event_t *e)
@@ -1850,7 +1846,8 @@ bool wl_rfkill_set_hw_state(struct wl_info *wl)
 {
 	bool blocked = wlc_check_radio_disabled(wl->wlc);
 
-	WL_ERROR("%s: update hw state: blocked=%s\n", __func__, blocked ? "true" : "false");
+	WL_NONE("%s: update hw state: blocked=%s\n", __func__,
+		blocked ? "true" : "false");
 	wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, blocked);
 	if (blocked)
 		wiphy_rfkill_start_polling(wl->pub->ieee_hw->wiphy);

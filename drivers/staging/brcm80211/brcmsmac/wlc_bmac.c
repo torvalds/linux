@@ -995,7 +995,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 		goto fail;
 	}
 
-	WL_ERROR("%s:: deviceid 0x%x nbands %d board 0x%x macaddr: %s\n",
+	WL_TRACE("%s:: deviceid 0x%x nbands %d board 0x%x macaddr: %s\n",
 		 __func__, wlc_hw->deviceid, wlc_hw->_nbands,
 		 wlc_hw->sih->boardtype, macaddr);
 
