@@ -711,8 +711,8 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 
 	/* prepare ucode */
 	if (wl_request_fw(wl, (struct pci_dev *)btparam)) {
-		printf("%s: Failed to find firmware usually in %s\n",
-			KBUILD_MODNAME, "/lib/firmware/brcm");
+		WL_ERROR("%s: Failed to find firmware usually in %s\n",
+			 KBUILD_MODNAME, "/lib/firmware/brcm");
 		wl_release_fw(wl);
 		wl_remove((struct pci_dev *)btparam);
 		goto fail1;
@@ -723,8 +723,8 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 			     wl->regsva, wl->bcm_bustype, btparam, &err);
 	wl_release_fw(wl);
 	if (!wl->wlc) {
-		printf("%s: wlc_attach() failed with code %d\n",
-			KBUILD_MODNAME, err);
+		WL_ERROR("%s: wlc_attach() failed with code %d\n",
+			 KBUILD_MODNAME, err);
 		goto fail;
 	}
 	wl->pub = wlc_pub(wl->wlc);
@@ -1705,15 +1705,15 @@ int wl_ucode_init_buf(struct wl_info *wl, void **pbuf, u32 idx)
 				pdata = wl->fw.fw_bin[i]->data + hdr->offset;
 				*pbuf = kmalloc(hdr->len, GFP_ATOMIC);
 				if (*pbuf == NULL) {
-					printf("fail to alloc %d bytes\n",
-					       hdr->len);
+					WL_ERROR("fail to alloc %d bytes\n",
+						 hdr->len);
 				}
 				bcopy(pdata, *pbuf, hdr->len);
 				return 0;
 			}
 		}
 	}
-	printf("ERROR: ucode buf tag:%d can not be found!\n", idx);
+	WL_ERROR("ERROR: ucode buf tag:%d can not be found!\n", idx);
 	*pbuf = NULL;
 	return -1;
 }
@@ -1735,7 +1735,7 @@ int wl_ucode_init_uint(struct wl_info *wl, u32 *data, u32 idx)
 			}
 		}
 	}
-	printf("ERROR: ucode tag:%d can not be found!\n", idx);
+	WL_ERROR("ERROR: ucode tag:%d can not be found!\n", idx);
 	return -1;
 }
 
@@ -1755,8 +1755,8 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 		WL_NONE("request fw %s\n", fw_name);
 		status = request_firmware(&wl->fw.fw_bin[i], fw_name, device);
 		if (status) {
-			printf("%s: fail to load firmware %s\n",
-				KBUILD_MODNAME, fw_name);
+			WL_ERROR("%s: fail to load firmware %s\n",
+				 KBUILD_MODNAME, fw_name);
 			wl_release_fw(wl);
 			return status;
 		}
@@ -1765,8 +1765,8 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 			UCODE_LOADER_API_VER);
 		status = request_firmware(&wl->fw.fw_hdr[i], fw_name, device);
 		if (status) {
-			printf("%s: fail to load firmware %s\n",
-				KBUILD_MODNAME, fw_name);
+			WL_ERROR("%s: fail to load firmware %s\n",
+				 KBUILD_MODNAME, fw_name);
 			wl_release_fw(wl);
 			return status;
 		}

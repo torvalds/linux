@@ -1951,34 +1951,34 @@ static int dhdsdio_mem_dump(dhd_bus_t *bus)
 	size = bus->ramsize;
 	buf = kmalloc(size, GFP_ATOMIC);
 	if (!buf) {
-		printf("%s: Out of memory (%d bytes)\n", __func__, size);
+		DHD_ERROR(("%s: Out of memory (%d bytes)\n", __func__, size));
 		return -1;
 	}
 
 	/* Read mem content */
-	printf("Dump dongle memory");
+	printk(KERN_DEBUG "Dump dongle memory");
 	databuf = buf;
 	while (size) {
 		read_size = min(MEMBLOCK, size);
 		ret = dhdsdio_membytes(bus, false, start, databuf, read_size);
 		if (ret) {
-			printf("%s: Error membytes %d\n", __func__, ret);
+			DHD_ERROR(("%s: Error membytes %d\n", __func__, ret));
 			if (buf)
 				kfree(buf);
 			return -1;
 		}
-		printf(".");
+		printk(".");
 
 		/* Decrement size and increment start address */
 		size -= read_size;
 		start += read_size;
 		databuf += read_size;
 	}
-	printf("Done\n");
+	printk(KERN_DEBUG "Done\n");
 
 	/* free buf before return !!! */
 	if (write_to_file(bus->dhd, buf, bus->ramsize)) {
-		printf("%s: Error writing to files\n", __func__);
+		DHD_ERROR(("%s: Error writing to files\n", __func__));
 		return -1;
 	}
 
@@ -2056,7 +2056,7 @@ static int dhdsdio_readconsole(dhd_bus_t *bus)
 			if (line[n - 1] == '\r')
 				n--;
 			line[n] = 0;
-			printf("CONSOLE: %s\n", line);
+			printk(KERN_DEBUG "CONSOLE: %s\n", line);
 		}
 	}
 break2:
@@ -4500,7 +4500,7 @@ clkwait:
 		if (ret == 0)
 			bus->tx_seq = (bus->tx_seq + 1) % SDPCM_SEQUENCE_WRAP;
 
-		printf("Return_dpc value is : %d\n", ret);
+		DHD_INFO(("Return_dpc value is : %d\n", ret));
 		bus->ctrl_frame_stat = false;
 		dhd_wait_event_wakeup(bus->dhd);
 	}
@@ -4640,7 +4640,7 @@ static void dhdsdio_pktgen(dhd_bus_t *bus)
 	/* Display current count if appropriate */
 	if (bus->pktgen_print && (++bus->pktgen_ptick >= bus->pktgen_print)) {
 		bus->pktgen_ptick = 0;
-		printf("%s: send attempts %d rcvd %d\n",
+		printk(KERN_DEBUG "%s: send attempts %d rcvd %d\n",
 		       __func__, bus->pktgen_sent, bus->pktgen_rcvd);
 	}
 
@@ -5237,7 +5237,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, struct osl_info *osh, void *sdh,
 		DHD_ERROR(("%s: FAILED to return to SI_ENUM_BASE\n", __func__));
 
 #ifdef DHD_DEBUG
-	printf("F1 signature read @0x18000000=0x%4x\n",
+	printk(KERN_DEBUG "F1 signature read @0x18000000=0x%4x\n",
 	       bcmsdh_reg_read(bus->sdh, SI_ENUM_BASE, 4));
 
 #endif				/* DHD_DEBUG */

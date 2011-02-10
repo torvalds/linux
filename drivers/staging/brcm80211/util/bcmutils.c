@@ -414,7 +414,7 @@ void prpkt(const char *msg, struct osl_info *osh, struct sk_buff *p0)
 	struct sk_buff *p;
 
 	if (msg && (msg[0] != '\0'))
-		printf("%s:\n", msg);
+		printk(KERN_DEBUG "%s:\n", msg);
 
 	for (p = p0; p; p = p->next)
 		prhex(NULL, p->data, p->len);
@@ -865,7 +865,7 @@ void prhex(const char *msg, unsigned char *buf, uint nbytes)
 	uint i;
 
 	if (msg && (msg[0] != '\0'))
-		printf("%s:\n", msg);
+		printk(KERN_DEBUG "%s:\n", msg);
 
 	p = line;
 	for (i = 0; i < nbytes; i++) {
@@ -881,7 +881,7 @@ void prhex(const char *msg, unsigned char *buf, uint nbytes)
 		}
 
 		if (i % 16 == 15) {
-			printf("%s\n", line);	/* flush line */
+			printk(KERN_DEBUG "%s\n", line);	/* flush line */
 			p = line;
 			len = sizeof(line);
 		}
@@ -889,7 +889,7 @@ void prhex(const char *msg, unsigned char *buf, uint nbytes)
 
 	/* flush last partial line */
 	if (p != line)
-		printf("%s\n", line);
+		printk(KERN_DEBUG "%s\n", line);
 }
 
 char *bcm_chipname(uint chipid, char *buf, uint len)

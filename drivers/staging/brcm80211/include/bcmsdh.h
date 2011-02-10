@@ -23,8 +23,16 @@
 extern const uint bcmsdh_msglevel;
 
 #ifdef BCMDBG
-#define BCMSDH_ERROR(x)	do { if ((bcmsdh_msglevel & BCMSDH_ERROR_VAL) && net_ratelimit()) printf x; } while (0)
-#define BCMSDH_INFO(x)	do { if ((bcmsdh_msglevel & BCMSDH_INFO_VAL) && net_ratelimit()) printf x; } while (0)
+#define BCMSDH_ERROR(x) \
+	do { \
+		if ((bcmsdh_msglevel & BCMSDH_ERROR_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define BCMSDH_INFO(x)	\
+	do { \
+		if ((bcmsdh_msglevel & BCMSDH_INFO_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
 #else				/* BCMDBG */
 #define BCMSDH_ERROR(x)
 #define BCMSDH_INFO(x)

@@ -3444,10 +3444,10 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 			wrqu.data.length = sizeof(status) + 1;
 			extra[0] = WLC_E_ACTION_FRAME_COMPLETE;
 			memcpy(&extra[1], &status, sizeof(status));
-			printf("wl_iw_event status %d PacketId %d\n", status,
-			       toto);
-			printf("WLC_E_ACTION_FRAME_COMPLETE len %d\n",
-			       wrqu.data.length);
+			WL_TRACE("wl_iw_event status %d PacketId %d\n", status,
+				 toto);
+			WL_TRACE("WLC_E_ACTION_FRAME_COMPLETE len %d\n",
+				 wrqu.data.length);
 		}
 		break;
 #endif				/* WIRELESS_EXT > 14 */

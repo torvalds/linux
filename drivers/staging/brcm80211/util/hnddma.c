@@ -40,14 +40,14 @@
 		if (!(*di->msg_level & 1)) \
 			; \
 		else \
-			printf args; \
+			printk args; \
 	} while (0)
 #define	DMA_TRACE(args) \
 	do { \
 		if (!(*di->msg_level & 2)) \
 			; \
 		else \
-			printf args; \
+			printk args; \
 	} while (0)
 #else
 #define	DMA_ERROR(args)
@@ -287,7 +287,7 @@ struct hnddma_pub *dma_attach(struct osl_info *osh, char *name, si_t *sih,
 	di = kzalloc(sizeof(dma_info_t), GFP_ATOMIC);
 	if (di == NULL) {
 #ifdef BCMDBG
-		printf("dma_attach: out of memory\n");
+		printk(KERN_ERR "dma_attach: out of memory\n");
 #endif
 		return NULL;
 	}

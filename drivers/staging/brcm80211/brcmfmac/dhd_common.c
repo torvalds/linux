@@ -739,10 +739,11 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 			memcpy(&hdr, buf, MSGTRACE_HDRLEN);
 
 			if (hdr.version != MSGTRACE_VERSION) {
-				printf
+				DHD_ERROR(
 				    ("\nMACEVENT: %s [unsupported version --> "
 				     "dhd version:%d dongle version:%d]\n",
-				     event_name, MSGTRACE_VERSION, hdr.version);
+				     event_name, MSGTRACE_VERSION, hdr.version)
+				);
 				/* Reset datalen to avoid display below */
 				datalen = 0;
 				break;
@@ -753,18 +754,18 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 
 			if (ntoh32(hdr.discarded_bytes)
 			    || ntoh32(hdr.discarded_printf)) {
-				printf
+				DHD_ERROR(
 				    ("\nWLC_E_TRACE: [Discarded traces in dongle -->"
 				     "discarded_bytes %d discarded_printf %d]\n",
 				     ntoh32(hdr.discarded_bytes),
-				     ntoh32(hdr.discarded_printf));
+				     ntoh32(hdr.discarded_printf)));
 			}
 
 			nblost = ntoh32(hdr.seqnum) - seqnum_prev - 1;
 			if (nblost > 0) {
-				printf
+				DHD_ERROR(
 				    ("\nWLC_E_TRACE: [Event lost --> seqnum %d nblost %d\n",
-				     ntoh32(hdr.seqnum), nblost);
+				     ntoh32(hdr.seqnum), nblost));
 			}
 			seqnum_prev = ntoh32(hdr.seqnum);
 
@@ -775,10 +776,10 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 			p = (char *)&buf[MSGTRACE_HDRLEN];
 			while ((s = strstr(p, "\n")) != NULL) {
 				*s = '\0';
-				printf("%s\n", p);
+				printk(KERN_DEBUG"%s\n", p);
 				p = s + 1;
 			}
-			printf("%s\n", p);
+			printk(KERN_DEBUG "%s\n", p);
 
 			/* Reset datalen to avoid display below */
 			datalen = 0;

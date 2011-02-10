@@ -2299,7 +2299,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 		goto fail;
 	}
 
-	printf("%s: Broadcom Dongle Host Driver\n", net->name);
+	DHD_INFO(("%s: Broadcom Dongle Host Driver\n", net->name));
 
 	return 0;
 
@@ -2934,7 +2934,7 @@ int write_to_file(dhd_pub_t *dhd, u8 *buf, int size)
 	/* open file to write */
 	fp = filp_open("/tmp/mem_dump", O_WRONLY | O_CREAT, 0640);
 	if (!fp) {
-		printf("%s: open file error\n", __func__);
+		DHD_ERROR(("%s: open file error\n", __func__));
 		ret = -1;
 		goto exit;
 	}

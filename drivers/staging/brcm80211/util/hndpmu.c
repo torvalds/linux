@@ -31,7 +31,7 @@
 #define	PMU_ERROR(args)
 
 #ifdef BCMDBG
-#define	PMU_MSG(args)	printf args
+#define	PMU_MSG(args)	printk args
 
 /* debug-only definitions */
 /* #define BCMDBG_FORCEHT */

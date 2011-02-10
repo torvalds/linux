@@ -188,7 +188,7 @@ extern void si_sprom_init(si_t *sih);
 #define	SI_ERROR(args)
 
 #ifdef BCMDBG
-#define	SI_MSG(args)	printf args
+#define	SI_MSG(args)	printk args
 #else
 #define	SI_MSG(args)
 #endif				/* BCMDBG */

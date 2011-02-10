@@ -106,7 +106,6 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 #define	PKTBUFSZ	2048
 
 #define OSL_SYSUPTIME()		((u32)jiffies * (1000 / HZ))
-#define	printf(fmt, args...)	printk(fmt , ## args)
 #ifdef BRCM_FULLMAC
 #include <linux/kernel.h>	/* for vsn/printf's */
 #include <linux/string.h>	/* for mem*, str* */
