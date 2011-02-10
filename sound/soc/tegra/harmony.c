@@ -43,6 +43,8 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
+#include "../codecs/wm8903.h"
+
 #include "tegra_das.h"
 #include "tegra_i2s.h"
 #include "tegra_pcm.h"
@@ -142,6 +144,15 @@ static struct snd_soc_jack_gpio harmony_hp_jack_gpios[] = {
 	}
 };
 
+static struct snd_soc_jack harmony_mic_jack;
+
+static struct snd_soc_jack_pin harmony_mic_jack_pins[] = {
+	{
+		.pin = "Mic Jack",
+		.mask = SND_JACK_MICROPHONE,
+	},
+};
+
 static int harmony_event_int_spk(struct snd_soc_dapm_widget *w,
 					struct snd_kcontrol *k, int event)
 {
@@ -206,9 +217,6 @@ static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_add_routes(dapm, harmony_audio_map,
 				ARRAY_SIZE(harmony_audio_map));
 
-	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
-	snd_soc_dapm_sync(dapm);
-
 	harmony_hp_jack_gpios[0].gpio = pdata->gpio_hp_det;
 	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
 			 &harmony_hp_jack);
@@ -218,6 +226,17 @@ static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_jack_add_gpios(&harmony_hp_jack,
 			       ARRAY_SIZE(harmony_hp_jack_gpios),
 			       harmony_hp_jack_gpios);
+
+	snd_soc_jack_new(codec, "Mic Jack", SND_JACK_MICROPHONE,
+			 &harmony_mic_jack);
+	snd_soc_jack_add_pins(&harmony_mic_jack,
+			      ARRAY_SIZE(harmony_mic_jack_pins),
+			      harmony_mic_jack_pins);
+	wm8903_mic_detect(codec, &harmony_mic_jack, SND_JACK_MICROPHONE, 0);
+
+	snd_soc_dapm_force_enable_pin(dapm, "Mic Bias");
+
+	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }
