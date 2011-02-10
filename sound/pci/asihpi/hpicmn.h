@@ -45,6 +45,7 @@ struct hpi_control_cache {
 };
 
 struct hpi_adapter_obj *hpi_find_adapter(u16 adapter_index);
+
 u16 hpi_add_adapter(struct hpi_adapter_obj *pao);
 
 void hpi_delete_adapter(struct hpi_adapter_obj *pao);

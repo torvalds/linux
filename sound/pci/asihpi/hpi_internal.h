@@ -553,12 +553,10 @@ struct hpi_resource {
 /** Format info used inside struct hpi_message
     Not the same as public API struct hpi_format */
 struct hpi_msg_format {
-	u32 sample_rate;
-				/**< 11025, 32000, 44100 ... */
-	u32 bit_rate;	      /**< for MPEG */
-	u32 attributes;
-				/**< Stereo/JointStereo/Mono */
-	u16 channels;	      /**< 1,2..., (or ancillary mode or idle bit */
+	u32 sample_rate; /**< 11025, 32000, 44100 etc. */
+	u32 bit_rate; /**< for MPEG */
+	u32 attributes;	/**< stereo/joint_stereo/mono */
+	u16 channels; /**< 1,2..., (or ancillary mode or idle bit */
 	u16 format; /**< HPI_FORMAT_PCM16, _MPEG etc. see \ref HPI_FORMATS. */
 };
 
@@ -593,7 +591,7 @@ struct hpi_data_compat32 {
 struct hpi_buffer {
   /** placehoder for backward compatability (see dwBufferSize) */
 	struct hpi_msg_format reserved;
-	u32 command;	/**< HPI_BUFFER_CMD_xxx*/
+	u32 command; /**< HPI_BUFFER_CMD_xxx*/
 	u32 pci_address; /**< PCI physical address of buffer for DSP DMA */
 	u32 buffer_size; /**< must line up with data_size of HPI_DATA*/
 };
@@ -1125,6 +1123,11 @@ struct hpi_message {
 	sizeof(struct hpi_message_header) + sizeof(struct hpi_async_msg) \
 }
 
+/*
+Note that the wSpecificError error field should be inspected and potentially
+reported whenever HPI_ERROR_DSP_COMMUNICATION or HPI_ERROR_DSP_BOOTLOAD is
+returned in wError.
+*/
 struct hpi_response_header {
 	u16 size;
 	u8 type;		/* HPI_TYPE_RESPONSE  */

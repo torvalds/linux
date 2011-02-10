@@ -230,7 +230,7 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr,
 
 		break;
 	default:
-		/* Must explicitly send subsys messages to individual backends */
+		/* Must explicitly handle every subsys message in this switch */
 		hpi_init_response(phr, HPI_OBJ_SUBSYSTEM, phm->function,
 			HPI_ERROR_INVALID_FUNC);
 		break;

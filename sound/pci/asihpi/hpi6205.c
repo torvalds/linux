@@ -752,6 +752,9 @@ static void delete_adapter_obj(struct hpi_adapter_obj *pao)
 }
 
 /*****************************************************************************/
+/* Adapter functions */
+
+/*****************************************************************************/
 /* OutStream Host buffer functions */
 
 /** Allocate or attach buffer for busmastering
@@ -1781,12 +1784,66 @@ static u16 boot_loader_config_emif(struct hpi_adapter_obj *pao, int dsp_index)
 		   BAR1 via BootLoader_WriteMem32) */
 		boot_loader_write_mem32(pao, dsp_index, C6713_EMIF_GCTL,
 			0x000034A8);
+
+		/* EMIF CE0 setup - 2Mx32 Sync DRAM
+		   31..28       Wr setup
+		   27..22       Wr strobe
+		   21..20       Wr hold
+		   19..16       Rd setup
+		   15..14       -
+		   13..8        Rd strobe
+		   7..4         MTYPE   0011            Sync DRAM 32bits
+		   3            Wr hold MSB
+		   2..0         Rd hold
+		 */
 		boot_loader_write_mem32(pao, dsp_index, C6713_EMIF_CE0,
 			0x00000030);
+
+		/* EMIF SDRAM Extension
+		   0x00
+		   31-21        0000b 0000b 000b
+		   20           WR2RD = 2cycles-1  = 1b
+
+		   19-18        WR2DEAC = 3cycle-1 = 10b
+		   17           WR2WR = 2cycle-1   = 1b
+		   16-15        R2WDQM = 4cycle-1  = 11b
+		   14-12        RD2WR = 6cycles-1  = 101b
+
+		   11-10        RD2DEAC = 4cycle-1 = 11b
+		   9            RD2RD = 2cycle-1   = 1b
+		   8-7          THZP = 3cycle-1    = 10b
+		   6-5          TWR  = 2cycle-1    = 01b (tWR = 17ns)
+		   4            TRRD = 2cycle      = 0b  (tRRD = 14ns)
+		   3-1          TRAS = 5cycle-1    = 100b (Tras=42ns)
+		   1            CAS latency = 3cyc = 1b
+		   (for Micron 2M32-7 operating at 100MHz)
+		 */
 		boot_loader_write_mem32(pao, dsp_index, C6713_EMIF_SDRAMEXT,
 			0x001BDF29);
+
+		/* EMIF SDRAM control - set up for a 2Mx32 SDRAM (512x32x4 bank)
+		   31           -       0b       -
+		   30           SDBSZ   1b              4 bank
+		   29..28       SDRSZ   00b             11 row address pins
+
+		   27..26       SDCSZ   01b             8 column address pins
+		   25           RFEN    1b              refersh enabled
+		   24           INIT    1b              init SDRAM!
+
+		   23..20       TRCD    0001b                   (Trcd/Tcyc)-1 = (20/10)-1 = 1
+
+		   19..16       TRP     0001b                   (Trp/Tcyc)-1 = (20/10)-1 = 1
+
+		   15..12       TRC     0110b                   (Trc/Tcyc)-1 = (70/10)-1 = 6
+
+		   11..0        -       0000b 0000b 0000b
+		 */
 		boot_loader_write_mem32(pao, dsp_index, C6713_EMIF_SDRAMCTL,
-			0x47117000);
+			0x47116000);
+
+		/* SDRAM refresh timing
+		   Need 4,096 refresh cycles every 64ms = 15.625us = 1562cycles of 100MHz = 0x61A
+		 */
 		boot_loader_write_mem32(pao, dsp_index,
 			C6713_EMIF_SDRAMTIMING, 0x00000410);
 

@@ -957,8 +957,7 @@ enum HPI_ERROR_CODES {
 	/** Reserved for OEMs. */
 	HPI_ERROR_RESERVED_1 = 290,
 
-	/* HPI_ERROR_INVALID_STREAM = 300,
-	   use HPI_ERROR_INVALID_OBJ_INDEX  */
+	/* HPI_ERROR_INVALID_STREAM = 300 use HPI_ERROR_INVALID_OBJ_INDEX */
 	/** Invalid compression format. */
 	HPI_ERROR_INVALID_FORMAT = 301,
 	/** Invalid format samplerate */
@@ -969,12 +968,8 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_INVALID_BITRATE = 304,
 	/** Invalid datasize used for stream read/write. */
 	HPI_ERROR_INVALID_DATASIZE = 305,
-	/* Stream buffer is full during stream write.
-	   HPI_ERROR_BUFFER_FULL = 306,
-	   Stream buffer is empty during stream read.
-	   HPI_ERROR_BUFFER_EMPTY = 307,
-	   Use HPI_ERROR_INVALID_DATASIZE
-	 */
+	/* HPI_ERROR_BUFFER_FULL = 306 use HPI_ERROR_INVALID_DATASIZE */
+	/* HPI_ERROR_BUFFER_EMPTY = 307 use HPI_ERROR_INVALID_DATASIZE */
 	/** Null data pointer used for stream read/write. */
 	HPI_ERROR_INVALID_DATA_POINTER = 308,
 	/** Packet ordering error for stream read/write. */
@@ -1098,16 +1093,16 @@ struct hpi_anc_frame {
 */
 struct hpi_async_event {
 	u16 event_type;	/**< type of event. \sa async_event  */
-	u16 sequence;  /**< Sequence number, allows lost event detection */
-	u32 state;    /**< New state */
-	u32 h_object;	 /**< handle to the object returning the event. */
+	u16 sequence; /**< Sequence number, allows lost event detection */
+	u32 state; /**< New state */
+	u32 h_object; /**< handle to the object returning the event. */
 	union {
 		struct {
 			u16 index; /**< GPIO bit index. */
 		} gpio;
 		struct {
 			u16 node_index;	/**< what node is the control on ? */
-			u16 node_type;	/**< what type of node is the control on ? */
+			u16 node_type; /**< what type of node is the control on ? */
 		} control;
 	} u;
 };
@@ -1635,8 +1630,8 @@ u16 hpi_cobranet_get_static_ip_address(u32 h_control, u32 *pdw_ip_address);
 
 u16 hpi_cobranet_set_static_ip_address(u32 h_control, u32 dw_ip_address);
 
-u16 hpi_cobranet_get_macaddress(u32 h_control, u32 *pmAC_MS_bs,
-	u32 *pmAC_LS_bs);
+u16 hpi_cobranet_get_macaddress(u32 h_control, u32 *p_mac_msbs,
+	u32 *p_mac_lsbs);
 
 /*************************/
 /* Tone Detector control */
