@@ -98,10 +98,46 @@ static inline struct irq_desc *move_irq_desc(struct irq_desc *desc, int node)
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 
-#define get_irq_desc_chip(desc)		((desc)->irq_data.chip)
-#define get_irq_desc_chip_data(desc)	((desc)->irq_data.chip_data)
-#define get_irq_desc_data(desc)		((desc)->irq_data.handler_data)
-#define get_irq_desc_msi(desc)		((desc)->irq_data.msi_desc)
+static inline struct irq_chip *irq_desc_get_chip(struct irq_desc *desc)
+{
+	return desc->irq_data.chip;
+}
+
+static inline void *irq_desc_get_chip_data(struct irq_desc *desc)
+{
+	return desc->irq_data.chip_data;
+}
+
+static inline void *irq_desc_get_handler_data(struct irq_desc *desc)
+{
+	return desc->irq_data.handler_data;
+}
+
+static inline struct msi_desc *irq_desc_get_msi_desc(struct irq_desc *desc)
+{
+	return desc->irq_data.msi_desc;
+}
+
+#ifndef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
+static inline struct irq_chip *get_irq_desc_chip(struct irq_desc *desc)
+{
+	return irq_desc_get_chip(desc);
+}
+static inline void *get_irq_desc_data(struct irq_desc *desc)
+{
+	return irq_desc_get_handler_data(desc);
+}
+
+static inline void *get_irq_desc_chip_data(struct irq_desc *desc)
+{
+	return irq_desc_get_chip_data(desc);
+}
+
+static inline struct msi_desc *get_irq_desc_msi(struct irq_desc *desc)
+{
+	return irq_desc_get_msi_desc(desc);
+}
+#endif
 
 /*
  * Architectures call this to let the generic IRQ layer

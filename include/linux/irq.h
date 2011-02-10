@@ -292,8 +292,7 @@ set_irq_handler(unsigned int irq, irq_flow_handler_t handle)
  *  IRQ_NOREQUEST and IRQ_NOPROBE)
  */
 static inline void
-set_irq_chained_handler(unsigned int irq,
-			irq_flow_handler_t handle)
+set_irq_chained_handler(unsigned int irq, irq_flow_handler_t handle)
 {
 	__set_irq_handler(irq, handle, 1, NULL);
 }
@@ -312,12 +311,12 @@ static inline void irq_clear_status_flags(unsigned int irq, unsigned long clr)
 	irq_modify_status(irq, clr, 0);
 }
 
-static inline void set_irq_noprobe(unsigned int irq)
+static inline void irq_set_noprobe(unsigned int irq)
 {
 	irq_modify_status(irq, 0, IRQ_NOPROBE);
 }
 
-static inline void set_irq_probe(unsigned int irq)
+static inline void irq_set_probe(unsigned int irq)
 {
 	irq_modify_status(irq, IRQ_NOPROBE, 0);
 }
@@ -338,14 +337,14 @@ static inline void dynamic_irq_init(unsigned int irq)
 }
 
 /* Set/get chip/data for an IRQ: */
-extern int set_irq_chip(unsigned int irq, struct irq_chip *chip);
-extern int set_irq_data(unsigned int irq, void *data);
-extern int set_irq_chip_data(unsigned int irq, void *data);
-extern int set_irq_type(unsigned int irq, unsigned int type);
-extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
+extern int irq_set_chip(unsigned int irq, struct irq_chip *chip);
+extern int irq_set_handler_data(unsigned int irq, void *data);
+extern int irq_set_chip_data(unsigned int irq, void *data);
+extern int irq_set_irq_type(unsigned int irq, unsigned int type);
+extern int irq_set_msi_desc(unsigned int irq, struct msi_desc *entry);
 extern struct irq_data *irq_get_irq_data(unsigned int irq);
 
-static inline struct irq_chip *get_irq_chip(unsigned int irq)
+static inline struct irq_chip *irq_get_chip(unsigned int irq)
 {
 	struct irq_data *d = irq_get_irq_data(irq);
 	return d ? d->chip : NULL;
@@ -356,7 +355,7 @@ static inline struct irq_chip *irq_data_get_irq_chip(struct irq_data *d)
 	return d->chip;
 }
 
-static inline void *get_irq_chip_data(unsigned int irq)
+static inline void *irq_get_chip_data(unsigned int irq)
 {
 	struct irq_data *d = irq_get_irq_data(irq);
 	return d ? d->chip_data : NULL;
@@ -367,18 +366,18 @@ static inline void *irq_data_get_irq_chip_data(struct irq_data *d)
 	return d->chip_data;
 }
 
-static inline void *get_irq_data(unsigned int irq)
+static inline void *irq_get_handler_data(unsigned int irq)
 {
 	struct irq_data *d = irq_get_irq_data(irq);
 	return d ? d->handler_data : NULL;
 }
 
-static inline void *irq_data_get_irq_data(struct irq_data *d)
+static inline void *irq_data_get_irq_handler_data(struct irq_data *d)
 {
 	return d->handler_data;
 }
 
-static inline struct msi_desc *get_irq_msi(unsigned int irq)
+static inline struct msi_desc *irq_get_msi_desc(unsigned int irq)
 {
 	struct irq_data *d = irq_get_irq_data(irq);
 	return d ? d->msi_desc : NULL;
@@ -388,6 +387,58 @@ static inline struct msi_desc *irq_data_get_msi(struct irq_data *d)
 {
 	return d->msi_desc;
 }
+
+#ifndef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
+/* Please do not use: Use the replacement functions instead */
+static inline int set_irq_chip(unsigned int irq, struct irq_chip *chip)
+{
+	return irq_set_chip(irq, chip);
+}
+static inline int set_irq_data(unsigned int irq, void *data)
+{
+	return irq_set_handler_data(irq, data);
+}
+static inline int set_irq_chip_data(unsigned int irq, void *data)
+{
+	return irq_set_chip_data(irq, data);
+}
+static inline int set_irq_type(unsigned int irq, unsigned int type)
+{
+	return irq_set_irq_type(irq, type);
+}
+static inline int set_irq_msi(unsigned int irq, struct msi_desc *entry)
+{
+	return irq_set_msi_desc(irq, entry);
+}
+static inline struct irq_chip *get_irq_chip(unsigned int irq)
+{
+	return irq_get_chip(irq);
+}
+static inline void *get_irq_chip_data(unsigned int irq)
+{
+	return irq_get_chip_data(irq);
+}
+static inline void *get_irq_data(unsigned int irq)
+{
+	return irq_get_handler_data(irq);
+}
+static inline void *irq_data_get_irq_data(struct irq_data *d)
+{
+	return irq_data_get_irq_handler_data(d);
+}
+static inline struct msi_desc *get_irq_msi(unsigned int irq)
+{
+	return irq_get_msi_desc(irq);
+}
+static inline void set_irq_noprobe(unsigned int irq)
+{
+	irq_set_noprobe(irq);
+}
+static inline void set_irq_probe(unsigned int irq)
+{
+	irq_set_probe(irq);
+}
+#endif
 
 int irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node);
 void irq_free_descs(unsigned int irq, unsigned int cnt);

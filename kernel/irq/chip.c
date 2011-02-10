@@ -19,11 +19,11 @@
 #include "internals.h"
 
 /**
- *	set_irq_chip - set the irq chip for an irq
+ *	irq_set_chip - set the irq chip for an irq
  *	@irq:	irq number
  *	@chip:	pointer to irq chip description structure
  */
-int set_irq_chip(unsigned int irq, struct irq_chip *chip)
+int irq_set_chip(unsigned int irq, struct irq_chip *chip)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
@@ -43,14 +43,14 @@ int set_irq_chip(unsigned int irq, struct irq_chip *chip)
 
 	return 0;
 }
-EXPORT_SYMBOL(set_irq_chip);
+EXPORT_SYMBOL(irq_set_chip);
 
 /**
- *	set_irq_type - set the irq trigger type for an irq
+ *	irq_set_type - set the irq trigger type for an irq
  *	@irq:	irq number
  *	@type:	IRQ_TYPE_{LEVEL,EDGE}_* value - see include/linux/irq.h
  */
-int set_irq_type(unsigned int irq, unsigned int type)
+int irq_set_irq_type(unsigned int irq, unsigned int type)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
@@ -72,16 +72,16 @@ int set_irq_type(unsigned int irq, unsigned int type)
 	chip_bus_sync_unlock(desc);
 	return ret;
 }
-EXPORT_SYMBOL(set_irq_type);
+EXPORT_SYMBOL(irq_set_irq_type);
 
 /**
- *	set_irq_data - set irq type data for an irq
+ *	irq_set_handler_data - set irq handler data for an irq
  *	@irq:	Interrupt number
  *	@data:	Pointer to interrupt specific data
  *
  *	Set the hardware irq controller data for an irq
  */
-int set_irq_data(unsigned int irq, void *data)
+int irq_set_handler_data(unsigned int irq, void *data)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
@@ -97,16 +97,16 @@ int set_irq_data(unsigned int irq, void *data)
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL(set_irq_data);
+EXPORT_SYMBOL(irq_set_handler_data);
 
 /**
- *	set_irq_msi - set MSI descriptor data for an irq
+ *	irq_set_msi_desc - set MSI descriptor data for an irq
  *	@irq:	Interrupt number
  *	@entry:	Pointer to MSI descriptor data
  *
  *	Set the MSI descriptor entry for an irq
  */
-int set_irq_msi(unsigned int irq, struct msi_desc *entry)
+int irq_set_msi_desc(unsigned int irq, struct msi_desc *entry)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
@@ -126,13 +126,13 @@ int set_irq_msi(unsigned int irq, struct msi_desc *entry)
 }
 
 /**
- *	set_irq_chip_data - set irq chip data for an irq
+ *	irq_set_chip_data - set irq chip data for an irq
  *	@irq:	Interrupt number
  *	@data:	Pointer to chip specific data
  *
  *	Set the hardware irq chip data for an irq
  */
-int set_irq_chip_data(unsigned int irq, void *data)
+int irq_set_chip_data(unsigned int irq, void *data)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
@@ -154,7 +154,7 @@ int set_irq_chip_data(unsigned int irq, void *data)
 
 	return 0;
 }
-EXPORT_SYMBOL(set_irq_chip_data);
+EXPORT_SYMBOL(irq_set_chip_data);
 
 struct irq_data *irq_get_irq_data(unsigned int irq)
 {

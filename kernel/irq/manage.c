@@ -434,7 +434,7 @@ static int set_irq_wake_real(unsigned int irq, unsigned int on)
 }
 
 /**
- *	set_irq_wake - control irq power management wakeup
+ *	irq_set_irq_wake - control irq power management wakeup
  *	@irq:	interrupt to control
  *	@on:	enable/disable power management wakeup
  *
@@ -445,7 +445,7 @@ static int set_irq_wake_real(unsigned int irq, unsigned int on)
  *	Wakeup mode lets this IRQ wake the system from sleep
  *	states like "suspend to RAM".
  */
-int set_irq_wake(unsigned int irq, unsigned int on)
+int irq_set_irq_wake(unsigned int irq, unsigned int on)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
@@ -480,7 +480,7 @@ int set_irq_wake(unsigned int irq, unsigned int on)
 	chip_bus_sync_unlock(desc);
 	return ret;
 }
-EXPORT_SYMBOL(set_irq_wake);
+EXPORT_SYMBOL(irq_set_irq_wake);
 
 /*
  * Internal function that tells the architecture code whether a
