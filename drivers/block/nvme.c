@@ -57,6 +57,7 @@ struct nvme_dev {
 	struct nvme_queue **queues;
 	u32 __iomem *dbs;
 	struct pci_dev *pci_dev;
+	struct dma_pool *prp_page_pool;
 	int instance;
 	int queue_count;
 	u32 ctrl_config;
@@ -88,6 +89,7 @@ struct nvme_ns {
  */
 struct nvme_queue {
 	struct device *q_dmadev;
+	struct nvme_dev *dev;
 	spinlock_t q_lock;
 	struct nvme_command *sq_cmds;
 	volatile struct nvme_completion *cqes;
@@ -247,10 +249,9 @@ static int nvme_submit_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd)
 	return 0;
 }
 
-static __le64 *alloc_prp_list(struct nvme_queue *nvmeq, int length,
-				 dma_addr_t *addr)
+static __le64 *alloc_prp_list(struct nvme_dev *dev, dma_addr_t *addr)
 {
-	return dma_alloc_coherent(nvmeq->q_dmadev, PAGE_SIZE, addr, GFP_ATOMIC);
+	return dma_pool_alloc(dev->prp_page_pool, GFP_ATOMIC, addr);
 }
 
 struct nvme_prps {
@@ -262,6 +263,7 @@ struct nvme_prps {
 static void nvme_free_prps(struct nvme_queue *nvmeq, struct nvme_prps *prps)
 {
 	const int last_prp = PAGE_SIZE / 8 - 1;
+	struct nvme_dev *dev = nvmeq->dev;
 	int i;
 	dma_addr_t prp_dma;
 
@@ -272,8 +274,7 @@ static void nvme_free_prps(struct nvme_queue *nvmeq, struct nvme_prps *prps)
 	for (i = 0; i < prps->npages; i++) {
 		__le64 *prp_list = prps->list[i];
 		dma_addr_t next_prp_dma = le64_to_cpu(prp_list[last_prp]);
-		dma_free_coherent(nvmeq->q_dmadev, PAGE_SIZE, prp_list,
-								prp_dma);
+		dma_pool_free(dev->prp_page_pool, prp_list, prp_dma);
 		prp_dma = next_prp_dma;
 	}
 	kfree(prps);
@@ -320,6 +321,7 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_queue *nvmeq,
 					struct nvme_common_command *cmd,
 					struct scatterlist *sg, int length)
 {
+	struct nvme_dev *dev = nvmeq->dev;
 	int dma_len = sg_dma_len(sg);
 	u64 dma_addr = sg_dma_address(sg);
 	int offset = offset_in_page(dma_addr);
@@ -352,7 +354,7 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_queue *nvmeq,
 	prps = kmalloc(sizeof(*prps) + sizeof(__le64 *) * npages, GFP_ATOMIC);
 	prps->npages = npages;
 	prp_page = 0;
-	prp_list = alloc_prp_list(nvmeq, length, &prp_dma);
+	prp_list = alloc_prp_list(dev, &prp_dma);
 	prps->list[prp_page++] = prp_list;
 	prps->first_dma = prp_dma;
 	cmd->prp2 = cpu_to_le64(prp_dma);
@@ -360,7 +362,7 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_queue *nvmeq,
 	for (;;) {
 		if (i == PAGE_SIZE / 8 - 1) {
 			__le64 *old_prp_list = prp_list;
-			prp_list = alloc_prp_list(nvmeq, length, &prp_dma);
+			prp_list = alloc_prp_list(dev, &prp_dma);
 			prps->list[prp_page++] = prp_list;
 			old_prp_list[i] = cpu_to_le64(prp_dma);
 			i = 0;
@@ -752,6 +754,7 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 		goto free_cqdma;
 
 	nvmeq->q_dmadev = dmadev;
+	nvmeq->dev = dev;
 	spin_lock_init(&nvmeq->q_lock);
 	nvmeq->cq_head = 0;
 	nvmeq->cq_phase = 1;
@@ -1302,6 +1305,22 @@ static int nvme_dev_remove(struct nvme_dev *dev)
 	return 0;
 }
 
+static int nvme_setup_prp_pools(struct nvme_dev *dev)
+{
+	struct device *dmadev = &dev->pci_dev->dev;
+	dev->prp_page_pool = dma_pool_create("prp list page", dmadev,
+						PAGE_SIZE, PAGE_SIZE, 0);
+	if (!dev->prp_page_pool)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void nvme_release_prp_pools(struct nvme_dev *dev)
+{
+	dma_pool_destroy(dev->prp_page_pool);
+}
+
 /* XXX: Use an ida or something to let remove / add work correctly */
 static void nvme_set_instance(struct nvme_dev *dev)
 {
@@ -1346,6 +1365,10 @@ static int __devinit nvme_probe(struct pci_dev *pdev,
 	nvme_set_instance(dev);
 	dev->entry[0].vector = pdev->irq;
 
+	result = nvme_setup_prp_pools(dev);
+	if (result)
+		goto disable_msix;
+
 	dev->bar = ioremap(pci_resource_start(pdev, 0), 8192);
 	if (!dev->bar) {
 		result = -ENOMEM;
@@ -1369,6 +1392,7 @@ static int __devinit nvme_probe(struct pci_dev *pdev,
  disable_msix:
 	pci_disable_msix(pdev);
 	nvme_release_instance(dev);
+	nvme_release_prp_pools(dev);
  disable:
 	pci_disable_device(pdev);
 	pci_release_regions(pdev);
@@ -1386,6 +1410,7 @@ static void __devexit nvme_remove(struct pci_dev *pdev)
 	pci_disable_msix(pdev);
 	iounmap(dev->bar);
 	nvme_release_instance(dev);
+	nvme_release_prp_pools(dev);
 	pci_disable_device(pdev);
 	pci_release_regions(pdev);
 	kfree(dev->queues);
