@@ -618,7 +618,7 @@ out_unlock:
 void
 handle_percpu_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 
 	kstat_incr_irqs_this_cpu(irq, desc);
 
@@ -685,7 +685,7 @@ void
 set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,
 			 irq_flow_handler_t handle)
 {
-	set_irq_chip(irq, chip);
+	irq_set_chip(irq, chip);
 	__set_irq_handler(irq, handle, 0, NULL);
 }
 
@@ -693,7 +693,7 @@ void
 set_irq_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
 			      irq_flow_handler_t handle, const char *name)
 {
-	set_irq_chip(irq, chip);
+	irq_set_chip(irq, chip);
 	__set_irq_handler(irq, handle, 0, name);
 }
 
