@@ -335,7 +335,7 @@ void usb_hcd_pci_shutdown(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(usb_hcd_pci_shutdown);
 
-#ifdef	CONFIG_PM_OPS
+#ifdef	CONFIG_PM
 
 #ifdef	CONFIG_PPC_PMAC
 static void powermac_set_asic(struct pci_dev *pci_dev, int enable)
@@ -580,4 +580,4 @@ const struct dev_pm_ops usb_hcd_pci_pm_ops = {
 };
 EXPORT_SYMBOL_GPL(usb_hcd_pci_pm_ops);
 
-#endif	/* CONFIG_PM_OPS */
+#endif	/* CONFIG_PM */
