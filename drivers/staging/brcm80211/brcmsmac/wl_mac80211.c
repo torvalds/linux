@@ -135,13 +135,14 @@ static void wl_ops_sta_notify(struct ieee80211_hw *hw,
 static int wl_ops_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			  const struct ieee80211_tx_queue_params *params);
 static u64 wl_ops_get_tsf(struct ieee80211_hw *hw);
-static int wl_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+static int wl_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta);
-static int wl_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+static int wl_ops_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta);
-static int wl_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			   enum ieee80211_ampdu_mlme_action action,
-			   struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+static int wl_ops_ampdu_action(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       enum ieee80211_ampdu_mlme_action action,
+			       struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 static void wl_ops_rfkill_poll(struct ieee80211_hw *hw);
 
 static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
@@ -514,8 +515,8 @@ static u64 wl_ops_get_tsf(struct ieee80211_hw *hw)
 }
 
 static int
-wl_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-	   struct ieee80211_sta *sta)
+wl_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       struct ieee80211_sta *sta)
 {
 	struct scb *scb;
 
@@ -549,18 +550,18 @@ wl_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 static int
-wl_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-	      struct ieee80211_sta *sta)
+wl_ops_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		  struct ieee80211_sta *sta)
 {
 	WL_NONE("%s: Enter\n", __func__);
 	return 0;
 }
 
 static int
-wl_ampdu_action(struct ieee80211_hw *hw,
-		struct ieee80211_vif *vif,
-		enum ieee80211_ampdu_mlme_action action,
-		struct ieee80211_sta *sta, u16 tid, u16 *ssn)
+wl_ops_ampdu_action(struct ieee80211_hw *hw,
+		    struct ieee80211_vif *vif,
+		    enum ieee80211_ampdu_mlme_action action,
+		    struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 #if defined(BCMDBG)
 	struct scb *scb = (struct scb *)sta->drv_priv;
@@ -632,9 +633,9 @@ static const struct ieee80211_ops wl_ops = {
 	.sta_notify = wl_ops_sta_notify,
 	.conf_tx = wl_ops_conf_tx,
 	.get_tsf = wl_ops_get_tsf,
-	.sta_add = wl_sta_add,
-	.sta_remove = wl_sta_remove,
-	.ampdu_action = wl_ampdu_action,
+	.sta_add = wl_ops_sta_add,
+	.sta_remove = wl_ops_sta_remove,
+	.ampdu_action = wl_ops_ampdu_action,
 	.rfkill_poll = wl_ops_rfkill_poll,
 };
 
