@@ -582,6 +582,9 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 		pao->adapter_type, pao->index);
 	pao->open = 0;	/* upon creation the adapter is closed */
 
+	if (phw->p_cache)
+		phw->p_cache->adap_idx = pao->index;
+
 	return hpi_add_adapter(pao);
 }
 

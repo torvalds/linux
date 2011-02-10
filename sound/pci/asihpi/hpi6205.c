@@ -718,6 +718,9 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 
 	pao->open = 0;	/* upon creation the adapter is closed */
 
+	if (phw->p_cache)
+		phw->p_cache->adap_idx = pao->index;
+
 	HPI_DEBUG_LOG(INFO, "bootload DSP OK\n");
 
 	return hpi_add_adapter(pao);

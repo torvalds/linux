@@ -33,8 +33,9 @@ struct hpi_adapter_obj {
 };
 
 struct hpi_control_cache {
-	u32 init;	     /**< indicates whether the
+	u16 init;	     /**< indicates whether the
 				structures are initialized */
+	u16 adap_idx;
 	u32 control_count;
 	u32 cache_size_in_bytes;
 	struct hpi_control_cache_info

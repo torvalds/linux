@@ -197,11 +197,18 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 				&p_master_cache[byte_count];
 
 			if (!info->size_in32bit_words) {
+				if (i == 0) {
+					HPI_DEBUG_LOG(INFO,
+						"adap %d cache not ready?\n",
+						pC->adap_idx);
+					return 0;
+				}
 				/* ? This is a severe error, the cache is probably
 				   corrupted.  Minimum valid entry size is
 				   sizeof(struct hpi_control_cache_info) */
 				HPI_DEBUG_LOG(ERROR,
-					"zero size cache entry %d\n", i);
+					"adap %d zero size cache entry %d\n",
+					pC->adap_idx, i);
 				break;
 			}
 
@@ -231,12 +238,13 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 
 		if (byte_count != pC->cache_size_in_bytes)
 			HPI_DEBUG_LOG(WARNING,
-				"bytecount %d != cache size %d", byte_count,
+				"adap %d bytecount %d != cache size %d",
+				pC->adap_idx, byte_count,
 				pC->cache_size_in_bytes);
 		else
 			HPI_DEBUG_LOG(DEBUG,
-				"cache good. bytecount == cache size = %d",
-				byte_count);
+				"adap %d cache good, bytecount == cache size = %d",
+				pC->adap_idx, byte_count);
 
 		pC->init = cached;
 	}
