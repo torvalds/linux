@@ -63,7 +63,6 @@ struct sd {
 #define QUALITY_MIN 60
 #define QUALITY_MAX 95
 #define QUALITY_DEF 80
-	u8 jpegqual;			/* webcam quality */
 
 	u8 reg01;
 	u8 reg17;
@@ -1786,7 +1785,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	sd->ag_cnt = -1;
 	sd->quality = QUALITY_DEF;
-	sd->jpegqual = 80;
 
 	return 0;
 }
@@ -2273,18 +2271,12 @@ static void setfreq(struct gspca_dev *gspca_dev)
 static void setjpegqual(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int i, sc;
 
-	if (sd->jpegqual < 50)
-		sc = 5000 / sd->jpegqual;
-	else
-		sc = 200 - sd->jpegqual * 2;
+	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 #if USB_BUF_SZ < 64
 #error "No room enough in usb_buf for quantization table"
 #endif
-	for (i = 0; i < 64; i++)
-		gspca_dev->usb_buf[i] =
-			(jpeg_head[JPEG_QT0_OFFSET + i] * sc + 50) / 100;
+	memcpy(gspca_dev->usb_buf, &sd->jpeg_hdr[JPEG_QT0_OFFSET], 64);
 	usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0x08,
@@ -2292,9 +2284,7 @@ static void setjpegqual(struct gspca_dev *gspca_dev)
 			0x0100, 0,
 			gspca_dev->usb_buf, 64,
 			500);
-	for (i = 0; i < 64; i++)
-		gspca_dev->usb_buf[i] =
-			(jpeg_head[JPEG_QT1_OFFSET + i] * sc + 50) / 100;
+	memcpy(gspca_dev->usb_buf, &sd->jpeg_hdr[JPEG_QT1_OFFSET], 64);
 	usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0x08,
@@ -2340,7 +2330,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* create the JPEG header */
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x21);		/* JPEG 422 */
-	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 
 	/* initialize the bridge */
 	sn9c1xx = sn_tb[sd->sensor];
@@ -2901,7 +2890,7 @@ static int sd_set_jcomp(struct gspca_dev *gspca_dev,
 	else
 		sd->quality = jcomp->quality;
 	if (gspca_dev->streaming)
-		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+		setjpegqual(gspca_dev);
 	return 0;
 }
 
