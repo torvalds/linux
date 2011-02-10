@@ -333,6 +333,7 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 		 */
 		WL_ERROR("%s: %s: %sassociated\n", KBUILD_MODNAME, __func__,
 			 info->assoc ? "" : "dis");
+		wlc_associate_upd(wl->wlc, info->assoc);
 	}
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
 		/* CTS protection changed */

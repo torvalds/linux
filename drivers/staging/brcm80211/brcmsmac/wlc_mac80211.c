@@ -8590,3 +8590,9 @@ void wlc_scan_stop(struct wlc_info *wlc)
 {
 	wlc_phy_hold_upd(wlc->band->pi, PHY_HOLD_FOR_SCAN, false);
 }
+
+void wlc_associate_upd(struct wlc_info *wlc, bool state)
+{
+	wlc->pub->associated = state;
+	wlc->cfg->associated = state;
+}
