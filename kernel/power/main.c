@@ -17,10 +17,20 @@
 
 DEFINE_MUTEX(pm_mutex);
 
+#ifdef CONFIG_PM_SLEEP
+
 unsigned int pm_flags;
 EXPORT_SYMBOL(pm_flags);
 
-#ifdef CONFIG_PM_SLEEP
+bool pm_apm_enabled(void)
+{
+	return !!(pm_flags & PM_APM);
+}
+
+void pm_set_acpi_flag(void)
+{
+	pm_flags |= PM_ACPI;
+}
 
 /* Routines for PM-transition notifications */
 
