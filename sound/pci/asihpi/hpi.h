@@ -324,6 +324,15 @@ to enable SSX2 stream mapping within the kernel level of the driver.
 */
 	HPI_ADAPTER_PROPERTY_SSX2_SETTING = 4,
 
+/** Enables/disables PCI(e) IRQ.
+A setting of 0 indicates that no interrupts are being generated. A DSP boot
+this property is set to 0. Setting to a non-zero value specifies the number
+of frames of audio that should be processed between interrupts. This property
+should be set to multiple of the mixer interval as read back from the
+HPI_ADAPTER_PROPERTY_INTERVAL property.
+*/
+	HPI_ADAPTER_PROPERTY_IRQ_RATE = 5,
+
 /** Base number for readonly properties */
 	HPI_ADAPTER_PROPERTY_READONLYBASE = 256,
 
@@ -428,7 +437,13 @@ return value is true (1) or false (0). If the current adapter
 mode is MONO SSX2 is disabled, even though this property will
 return true.
 */
-	HPI_ADAPTER_PROPERTY_SUPPORTS_SSX2 = 271
+	HPI_ADAPTER_PROPERTY_SUPPORTS_SSX2 = 271,
+/** Readonly supports PCI(e) IRQ.
+Indicates that the adapter in it's current mode supports interrupts
+across the host bus. Note, this does not imply that interrupts are
+enabled. Instead it indicates that they can be enabled.
+*/
+	HPI_ADAPTER_PROPERTY_SUPPORTS_IRQ = 272
 };
 
 /** Adapter mode commands
@@ -998,6 +1013,8 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_NO_INTERADAPTER_GROUPS = 314,
 	/** Streams on different DSPs cannot be grouped. */
 	HPI_ERROR_NO_INTERDSP_GROUPS = 315,
+	/** Stream wait cancelled before threshold reached. */
+	HPI_ERROR_WAIT_CANCELLED = 316,
 
 	/** Invalid mixer node for this adapter. */
 	HPI_ERROR_INVALID_NODE = 400,

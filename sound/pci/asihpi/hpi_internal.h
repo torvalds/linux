@@ -432,7 +432,9 @@ enum HPI_FUNCTION_IDS {
 	HPI_ADAPTER_ENUM_PROPERTY = HPI_FUNC_ID(ADAPTER, 16),
 	HPI_ADAPTER_MODULE_INFO = HPI_FUNC_ID(ADAPTER, 17),
 	HPI_ADAPTER_DEBUG_READ = HPI_FUNC_ID(ADAPTER, 18),
-#define HPI_ADAPTER_FUNCTION_COUNT 18
+	HPI_ADAPTER_IRQ_QUERY_AND_CLEAR = HPI_FUNC_ID(ADAPTER, 19),
+	HPI_ADAPTER_IRQ_CALLBACK = HPI_FUNC_ID(ADAPTER, 20),
+#define HPI_ADAPTER_FUNCTION_COUNT 20
 
 	HPI_OSTREAM_OPEN = HPI_FUNC_ID(OSTREAM, 1),
 	HPI_OSTREAM_CLOSE = HPI_FUNC_ID(OSTREAM, 2),
@@ -458,7 +460,8 @@ enum HPI_FUNCTION_IDS {
 	HPI_OSTREAM_GROUP_RESET = HPI_FUNC_ID(OSTREAM, 22),
 	HPI_OSTREAM_HOSTBUFFER_GET_INFO = HPI_FUNC_ID(OSTREAM, 23),
 	HPI_OSTREAM_WAIT_START = HPI_FUNC_ID(OSTREAM, 24),
-#define HPI_OSTREAM_FUNCTION_COUNT 24
+	HPI_OSTREAM_WAIT = HPI_FUNC_ID(OSTREAM, 25),
+#define HPI_OSTREAM_FUNCTION_COUNT 25
 
 	HPI_ISTREAM_OPEN = HPI_FUNC_ID(ISTREAM, 1),
 	HPI_ISTREAM_CLOSE = HPI_FUNC_ID(ISTREAM, 2),
@@ -479,7 +482,8 @@ enum HPI_FUNCTION_IDS {
 	HPI_ISTREAM_GROUP_RESET = HPI_FUNC_ID(ISTREAM, 17),
 	HPI_ISTREAM_HOSTBUFFER_GET_INFO = HPI_FUNC_ID(ISTREAM, 18),
 	HPI_ISTREAM_WAIT_START = HPI_FUNC_ID(ISTREAM, 19),
-#define HPI_ISTREAM_FUNCTION_COUNT 19
+	HPI_ISTREAM_WAIT = HPI_FUNC_ID(ISTREAM, 20),
+#define HPI_ISTREAM_FUNCTION_COUNT 20
 
 /* NOTE:
    GET_NODE_INFO, SET_CONNECTION, GET_CONNECTIONS are not currently used */
@@ -494,7 +498,8 @@ enum HPI_FUNCTION_IDS {
 	HPI_MIXER_GET_CONTROL_ARRAY_BY_INDEX = HPI_FUNC_ID(MIXER, 9),
 	HPI_MIXER_GET_CONTROL_MULTIPLE_VALUES = HPI_FUNC_ID(MIXER, 10),
 	HPI_MIXER_STORE = HPI_FUNC_ID(MIXER, 11),
-#define HPI_MIXER_FUNCTION_COUNT 11
+	HPI_MIXER_GET_CACHE_INFO = HPI_FUNC_ID(MIXER, 12),
+#define HPI_MIXER_FUNCTION_COUNT 12
 
 	HPI_CONTROL_GET_INFO = HPI_FUNC_ID(CONTROL, 1),
 	HPI_CONTROL_GET_STATE = HPI_FUNC_ID(CONTROL, 2),
@@ -693,6 +698,9 @@ union hpi_adapterx_msg {
 		u32 pad32;
 		u16 value;
 	} test_assert;
+	struct {
+		u32 yes;
+	} irq_query;
 };
 
 struct hpi_adapter_res {
@@ -731,6 +739,9 @@ union hpi_adapterx_res {
 		u32 length;
 		u32 version;
 	} query_flash;
+	struct {
+		u32 yes;
+	} irq_query;
 };
 
 struct hpi_stream_msg {
@@ -742,6 +753,7 @@ struct hpi_stream_msg {
 		u32 time_scale;
 		struct hpi_buffer buffer;
 		struct hpi_streamid stream;
+		u32 threshold_bytes;
 	} u;
 };
 
@@ -828,6 +840,11 @@ union hpi_mixerx_res {
 		u32 p_data;	/* pointer to data array */
 		u16 more_to_do;	/* indicates if there is more to do */
 	} gcabi;
+	struct {
+		u32 total_controls;	/* count of controls in the mixer */
+		u32 cache_controls;	/* count of controls in the cac */
+		u32 cache_bytes;	/* size of cache */
+	} cache_info;
 };
 
 struct hpi_control_msg {
