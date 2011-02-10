@@ -5824,7 +5824,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 	/* add Broadcom tx descriptor header */
 	txh = (d11txh_t *) skb_push(p, D11_TXH_LEN);
-	memset((char *)txh, 0, D11_TXH_LEN);
+	memset(txh, 0, D11_TXH_LEN);
 
 	/* setup frameid */
 	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
