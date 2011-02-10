@@ -134,4 +134,5 @@ static inline bool irq_settings_is_nested_thread(struct irq_desc *desc)
 }
 
 /* Nothing should touch desc->status from now on */
+#undef status
 #define status		USE_THE_PROPER_WRAPPERS_YOU_MORON

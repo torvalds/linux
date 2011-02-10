@@ -15,6 +15,10 @@
 
 #define istate core_internal_state__do_not_mess_with_it
 
+#ifdef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
+# define status status_use_accessors
+#endif
+
 extern int noirqdebug;
 
 /*

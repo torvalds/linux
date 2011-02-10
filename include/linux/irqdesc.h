@@ -64,7 +64,11 @@ struct irq_desc {
 	unsigned int __percpu	*kstat_irqs;
 	irq_flow_handler_t	handle_irq;
 	struct irqaction	*action;	/* IRQ action list */
+#ifdef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
+	unsigned int		status_use_accessors;
+#else
 	unsigned int		status;		/* IRQ status */
+#endif
 	unsigned int		core_internal_state__do_not_mess_with_it;
 	unsigned int		depth;		/* nested irq disables */
 	unsigned int		wake_depth;	/* nested wake enables */
@@ -164,6 +168,7 @@ static inline int irq_has_action(unsigned int irq)
 	return desc->action != NULL;
 }
 
+#ifndef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
 static inline int irq_balancing_disabled(unsigned int irq)
 {
 	struct irq_desc *desc;
@@ -171,6 +176,7 @@ static inline int irq_balancing_disabled(unsigned int irq)
 	desc = irq_to_desc(irq);
 	return desc->status & IRQ_NO_BALANCING_MASK;
 }
+#endif
 
 /* caller has locked the irq_desc and both params are valid */
 static inline void __set_irq_handler_unlocked(int irq,
