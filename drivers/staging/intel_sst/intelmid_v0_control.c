@@ -68,7 +68,7 @@ int rev_id = 0x20;
 /****
  * fs_init_card - initialize the sound card
  *
- * This initilizes the audio paths to know values in case of this sound card
+ * This initializes the audio paths to know values in case of this sound card
  */
 static int fs_init_card(void)
 {

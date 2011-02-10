@@ -84,9 +84,9 @@ enum reg_v3 {
 };
 
 /****
- * nc_init_card - initilize the sound card
+ * nc_init_card - initialize the sound card
  *
- * This initilizes the audio paths to know values in case of this sound card
+ * This initializes the audio paths to know values in case of this sound card
  */
 static int nc_init_card(void)
 {

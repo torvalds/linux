@@ -653,7 +653,7 @@ cy_as_dma_stop(cy_as_device *dev_p)
 /*
  * CyAsDmaStart()
  *
- * This function intializes the DMA module to insure it is up and running.
+ * This function initializes the DMA module to insure it is up and running.
  */
 cy_as_return_status_t
 cy_as_dma_start(cy_as_device *dev_p)

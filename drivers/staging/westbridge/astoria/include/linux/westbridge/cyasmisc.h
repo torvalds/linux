@@ -550,7 +550,7 @@ cy_as_misc_destroy_device(
    West Bridge.
 
    Description
-   This function intializes the hardware to establish basic
+   This function initializes the hardware to establish basic
    communication with the West Bridge device.  This is always the first
    function called to initialize communication with the West Bridge
    device.

@@ -554,7 +554,7 @@ void wlc_init(struct wlc_info *wlc)
 	 * Initialize WME parameters; if they haven't been set by some other
 	 * mechanism (IOVar, etc) then read them from the hardware.
 	 */
-	if (WLC_WME_RETRY_SHORT_GET(wlc, 0) == 0) {	/* Unintialized; read from HW */
+	if (WLC_WME_RETRY_SHORT_GET(wlc, 0) == 0) {	/* Uninitialized; read from HW */
 		int ac;
 
 		ASSERT(wlc->clk);
@@ -1660,7 +1660,7 @@ void wlc_info_init(struct wlc_info *wlc, int unit)
 	wlc->ibss_coalesce_allowed = true;
 	wlc->pub->_coex = ON;
 
-	/* intialize mpc delay */
+	/* initialize mpc delay */
 	wlc->mpc_delay_off = wlc->mpc_dlycnt = WLC_MPC_MIN_DELAYCNT;
 
 	wlc->pr80838_war = true;

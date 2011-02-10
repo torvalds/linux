@@ -35,7 +35,7 @@
 	at some future time.
 
 	The DMA module must be started before it can be used.  It is
-	started by calling CyAsDmaStart().  This function intializes
+	started by calling CyAsDmaStart().  This function initializes
 	all of the endpoint data structures.
 
 	In order to perform DMA on a particular endpoint, the endpoint
