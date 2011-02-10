@@ -74,6 +74,12 @@ static struct snd_soc_jack_pin mfld_jack_pins[] = {
 	},
 };
 
+/* jack detection voltage zones */
+static struct snd_soc_jack_zone mfld_zones[] = {
+	{MFLD_MV_START, MFLD_MV_AM_HS, SND_JACK_HEADPHONE},
+	{MFLD_MV_AM_HS, MFLD_MV_HS, SND_JACK_HEADSET},
+};
+
 /* sound card controls */
 static const char *headset_switch_text[] = {"Earpiece", "Headset"};
 
@@ -262,6 +268,12 @@ static int mfld_init(struct snd_soc_pcm_runtime *runtime)
 			ARRAY_SIZE(mfld_jack_pins), mfld_jack_pins);
 	if (ret_val) {
 		pr_err("adding jack pins failed\n");
+		return ret_val;
+	}
+	ret_val = snd_soc_jack_add_zones(&mfld_jack,
+			ARRAY_SIZE(mfld_zones), mfld_zones);
+	if (ret_val) {
+		pr_err("adding jack zones failed\n");
 		return ret_val;
 	}
 

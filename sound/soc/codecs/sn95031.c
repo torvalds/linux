@@ -782,9 +782,7 @@ static int sn95031_get_headset_state(struct snd_soc_jack *mfld_jack)
 {
 	int micbias = sn95031_get_mic_bias(mfld_jack->codec);
 
-	/* Defaulting to HEADSET for now.
-	 * will change after adding soc-jack detection apis */
-	int jack_type = SND_JACK_HEADSET;
+	int jack_type = snd_soc_jack_get_type(mfld_jack, micbias);
 
 	pr_debug("jack type detected = %d\n", jack_type);
 	if (jack_type == SND_JACK_HEADSET)
