@@ -221,7 +221,6 @@ static bool in_send_q = false;
 #ifdef BCMDBG
 static const char *fifo_names[] = {
 	"AC_BK", "AC_BE", "AC_VI", "AC_VO", "BCMC", "ATIM" };
-const char *aci_names[] = { "AC_BE", "AC_BK", "AC_VI", "AC_VO" };
 #else
 static const char fifo_names[6][0];
 #endif
