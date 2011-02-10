@@ -308,6 +308,15 @@ struct irq_chip {
 #endif
 };
 
+/*
+ * irq_chip specific flags
+ *
+ * IRQCHIP_SET_TYPE_MASKED:		Mask before calling chip.irq_set_type()
+ */
+enum {
+	IRQCHIP_SET_TYPE_MASKED		= (1 <<  0),
+};
+
 /* This include will go away once we isolated irq_desc usage to core code */
 #include <linux/irqdesc.h>
 

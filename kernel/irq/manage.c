@@ -554,8 +554,8 @@ void compat_irq_chip_set_default_handler(struct irq_desc *desc)
 int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		      unsigned long flags)
 {
-	int ret;
 	struct irq_chip *chip = desc->irq_data.chip;
+	int ret, unmask = 0;
 
 	if (!chip || !chip->irq_set_type) {
 		/*
@@ -568,6 +568,14 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 	}
 
 	flags &= IRQ_TYPE_SENSE_MASK;
+
+	if (chip->flags & IRQCHIP_SET_TYPE_MASKED) {
+		if (!(desc->istate & IRQS_MASKED))
+			mask_irq(desc);
+		if (!(desc->istate & IRQS_DISABLED))
+			unmask = 1;
+	}
+
 	/* caller masked out all except trigger mode flags */
 	ret = chip->irq_set_type(&desc->irq_data, flags);
 
@@ -588,11 +596,13 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 
 		if (chip != desc->irq_data.chip)
 			irq_chip_set_defaults(desc->irq_data.chip);
-		return 0;
+		ret = 0;
 	default:
 		pr_err("setting trigger mode %lu for irq %u failed (%pF)\n",
 		       flags, irq, chip->irq_set_type);
 	}
+	if (unmask)
+		unmask_irq(desc);
 	return ret;
 }
 
@@ -669,7 +679,7 @@ again:
 
 #ifdef CONFIG_SMP
 /*
- * Check whether we need to change the affinity of the interrupt thread.
+ * Check whether we need to chasnge the affinity of the interrupt thread.
  */
 static void
 irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *action)
