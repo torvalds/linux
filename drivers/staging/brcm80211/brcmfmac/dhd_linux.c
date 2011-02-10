@@ -2444,7 +2444,7 @@ static int __init dhd_module_init(void)
 	error = wifi_add_dev();
 	if (error) {
 		DHD_ERROR(("%s: platform_driver_register failed\n", __func__));
-		goto faild;
+		goto failed;
 	}
 
 	/* Waiting callback after platform_driver_register is done or
@@ -2454,7 +2454,7 @@ static int __init dhd_module_init(void)
 			__func__);
 		/* remove device */
 		wifi_del_dev();
-		goto faild;
+		goto failed;
 	}
 #endif	/* #if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC) */
 
@@ -2462,11 +2462,11 @@ static int __init dhd_module_init(void)
 
 	if (error) {
 		DHD_ERROR(("%s: sdio_register_driver failed\n", __func__));
-		goto faild;
+		goto failed;
 	}
 	return error;
 
-faild:
+failed:
 	/* turn off power and exit */
 	dhd_customer_gpio_wlan_ctrl(WLAN_POWER_OFF);
 	return -EINVAL;
