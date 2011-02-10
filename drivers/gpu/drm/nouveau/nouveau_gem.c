@@ -64,6 +64,7 @@ nouveau_gem_new(struct drm_device *dev, struct nouveau_channel *chan,
 		int size, int align, uint32_t domain, uint32_t tile_mode,
 		uint32_t tile_flags, struct nouveau_bo **pnvbo)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *nvbo;
 	u32 flags = 0;
 	int ret;
@@ -80,6 +81,15 @@ nouveau_gem_new(struct drm_device *dev, struct nouveau_channel *chan,
 	if (ret)
 		return ret;
 	nvbo = *pnvbo;
+
+	/* we restrict allowed domains on nv50+ to only the types
+	 * that were requested at creation time.  not possibly on
+	 * earlier chips without busting the ABI.
+	 */
+	nvbo->valid_domains = NOUVEAU_GEM_DOMAIN_VRAM |
+			      NOUVEAU_GEM_DOMAIN_GART;
+	if (dev_priv->card_type >= NV_50)
+		nvbo->valid_domains &= domain;
 
 	nvbo->gem = drm_gem_object_alloc(dev, nvbo->bo.mem.size);
 	if (!nvbo->gem) {
@@ -159,7 +169,7 @@ nouveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
 {
 	struct nouveau_bo *nvbo = gem->driver_private;
 	struct ttm_buffer_object *bo = &nvbo->bo;
-	uint32_t domains = valid_domains &
+	uint32_t domains = valid_domains & nvbo->valid_domains &
 		(write_domains ? write_domains : read_domains);
 	uint32_t pref_flags = 0, valid_flags = 0;
 

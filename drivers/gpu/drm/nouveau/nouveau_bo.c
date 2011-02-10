@@ -54,8 +54,8 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 }
 
 static void
-nouveau_bo_fixup_align(struct nouveau_bo *nvbo, int *align, int *size,
-		       int *page_shift)
+nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
+		       int *align, int *size, int *page_shift)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(nvbo->bo.bdev);
 
@@ -80,7 +80,7 @@ nouveau_bo_fixup_align(struct nouveau_bo *nvbo, int *align, int *size,
 		}
 	} else {
 		if (likely(dev_priv->chan_vm)) {
-			if (*size > 256 * 1024)
+			if (!(flags & TTM_PL_FLAG_TT) &&  *size > 256 * 1024)
 				*page_shift = dev_priv->chan_vm->lpg_shift;
 			else
 				*page_shift = dev_priv->chan_vm->spg_shift;
@@ -113,7 +113,7 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &dev_priv->ttm.bdev;
 
-	nouveau_bo_fixup_align(nvbo, &align, &size, &page_shift);
+	nouveau_bo_fixup_align(nvbo, flags, &align, &size, &page_shift);
 	align >>= PAGE_SHIFT;
 
 	if (dev_priv->chan_vm) {

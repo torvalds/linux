@@ -90,6 +90,7 @@ struct nouveau_tile_reg {
 struct nouveau_bo {
 	struct ttm_buffer_object bo;
 	struct ttm_placement placement;
+	u32 valid_domains;
 	u32 placements[3];
 	u32 busy_placements[3];
 	struct ttm_bo_kmap_obj kmap;
