@@ -478,7 +478,12 @@ static void subsys_create_adapter(struct hpi_message *phm,
 	err = create_adapter_obj(&ao, &os_error_code);
 	if (err) {
 		delete_adapter_obj(&ao);
-		phr->error = err;
+		if (err >= HPI_ERROR_BACKEND_BASE) {
+			phr->error = HPI_ERROR_DSP_BOOTLOAD;
+			phr->specific_error = err;
+		} else {
+			phr->error = err;
+		}
 		phr->u.s.data = os_error_code;
 		return;
 	}
@@ -2242,7 +2247,13 @@ static void hw_message(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 	/* maybe an error response */
 	if (err) {
 		/* something failed in the HPI/DSP interface */
-		phr->error = err;
+		if (err >= HPI_ERROR_BACKEND_BASE) {
+			phr->error = HPI_ERROR_DSP_COMMUNICATION;
+			phr->specific_error = err;
+		} else {
+			phr->error = err;
+		}
+
 		pao->dsp_crashed++;
 
 		/* just the header of the response is valid */

@@ -43,8 +43,8 @@ i.e 3.05.02 is a development version
 #define HPI_VER_RELEASE(v) ((int)(v & 0xFF))
 
 /* Use single digits for versions less that 10 to avoid octal. */
-#define HPI_VER HPI_VERSION_CONSTRUCTOR(4L, 5, 17)
-#define HPI_VER_STRING "4.05.17"
+#define HPI_VER HPI_VERSION_CONSTRUCTOR(4L, 5, 19)
+#define HPI_VER_STRING "4.05.19"
 
 /* Library version as documented in hpi-api-versions.txt */
 #define HPI_LIB_VER  HPI_VERSION_CONSTRUCTOR(9, 0, 0)
@@ -433,11 +433,14 @@ return true.
 
 /** Adapter mode commands
 
-Used in wQueryOrSet field of HPI_AdapterSetModeEx().
+Used in wQueryOrSet parameter of HPI_AdapterSetModeEx().
 \ingroup adapter
 */
 enum HPI_ADAPTER_MODE_CMDS {
+	/** Set the mode to the given parameter */
 	HPI_ADAPTER_MODE_SET = 0,
+	/** Return 0 or error depending whether mode is valid,
+	but don't set the mode */
 	HPI_ADAPTER_MODE_QUERY = 1
 };
 
@@ -874,8 +877,7 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_OBJ_ALREADY_OPEN = 105,
 	/** PCI, ISA resource not valid. */
 	HPI_ERROR_INVALID_RESOURCE = 106,
-	/* GetInfo call from SubSysFindAdapters failed. */
-	/*HPI_ERROR_SUBSYSFINDADAPTERS_GETINFO= 107, */
+	/* HPI_ERROR_SUBSYSFINDADAPTERS_GETINFO= 107 */
 	/** Default response was never updated with actual error code. */
 	HPI_ERROR_INVALID_RESPONSE = 108,
 	/** wSize field of response was not updated,
@@ -905,8 +907,7 @@ enum HPI_ERROR_CODES {
 	*/
 	HPI_ERROR_MESSAGE_BUFFER_TOO_SMALL = 117,
 
-	/* Too many adapters. */
-	/* HPI_ERROR_TOO_MANY_ADAPTERS= 200, */
+	/* HPI_ERROR_TOO_MANY_ADAPTERS= 200 */
 	/** Bad adpater. */
 	HPI_ERROR_BAD_ADAPTER = 201,
 	/** Adapter number out of range or not set properly. */
@@ -915,15 +916,15 @@ enum HPI_ERROR_CODES {
 	HPI_DUPLICATE_ADAPTER_NUMBER = 203,
 	/** DSP code failed to bootload. (unused?) */
 	HPI_ERROR_DSP_BOOTLOAD = 204,
-	/** Adapter failed DSP code self test. (unused?) */
-	HPI_ERROR_DSP_SELFTEST = 205,
+	/** Communication with DSP failed */
+	HPI_ERROR_DSP_COMMUNICATION = 205,
 	/** Couldn't find or open the DSP code file. */
 	HPI_ERROR_DSP_FILE_NOT_FOUND = 206,
 	/** Internal DSP hardware error. */
 	HPI_ERROR_DSP_HARDWARE = 207,
 	/** Could not allocate memory */
 	HPI_ERROR_MEMORY_ALLOC = 208,
-	/** Failed to correctly load/config PLD. (unused?) */
+	/** Failed to correctly load/config PLD. (unused) */
 	HPI_ERROR_PLD_LOAD = 209,
 	/** Unexpected end of file, block length too big etc. */
 	HPI_ERROR_DSP_FILE_FORMAT = 210,
@@ -932,8 +933,7 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_DSP_FILE_ACCESS_DENIED = 211,
 	/** First DSP code section header not found in DSP file. */
 	HPI_ERROR_DSP_FILE_NO_HEADER = 212,
-	/* File read operation on DSP code file failed. */
-	/*HPI_ERROR_DSP_FILE_READ_ERROR= 213, */
+	/* HPI_ERROR_DSP_FILE_READ_ERROR= 213, */
 	/** DSP code for adapter family not found. */
 	HPI_ERROR_DSP_SECTION_NOT_FOUND = 214,
 	/** Other OS specific error opening DSP file. */
@@ -943,8 +943,7 @@ enum HPI_ERROR_CODES {
 	/** DSP code section header had size == 0. */
 	HPI_ERROR_DSP_FILE_NULL_HEADER = 217,
 
-	/* Base number for flash errors. */
-	/* HPI_ERROR_FLASH              = 220, */
+	/* HPI_ERROR_FLASH = 220, */
 
 	/** Flash has bad checksum */
 	HPI_ERROR_BAD_CHECKSUM = 221,
@@ -958,8 +957,8 @@ enum HPI_ERROR_CODES {
 	/** Reserved for OEMs. */
 	HPI_ERROR_RESERVED_1 = 290,
 
-	/* Stream does not exist. */
-	/*HPI_ERROR_INVALID_STREAM= 300, // use HPI_ERROR_INVALID_OBJ_INDEX */
+	/* HPI_ERROR_INVALID_STREAM = 300,
+	   use HPI_ERROR_INVALID_OBJ_INDEX  */
 	/** Invalid compression format. */
 	HPI_ERROR_INVALID_FORMAT = 301,
 	/** Invalid format samplerate */
@@ -970,10 +969,12 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_INVALID_BITRATE = 304,
 	/** Invalid datasize used for stream read/write. */
 	HPI_ERROR_INVALID_DATASIZE = 305,
-	/* Stream buffer is full during stream write. */
-	/*HPI_ERROR_BUFFER_FULL = 306, // USE HPI_ERROR_INVALID_DATASIZE */
-	/* Stream buffer is empty during stream read. */
-	/*HPI_ERROR_BUFFER_EMPTY = 307, // USE HPI_ERROR_INVALID_DATASIZE */
+	/* Stream buffer is full during stream write.
+	   HPI_ERROR_BUFFER_FULL = 306,
+	   Stream buffer is empty during stream read.
+	   HPI_ERROR_BUFFER_EMPTY = 307,
+	   Use HPI_ERROR_INVALID_DATASIZE
+	 */
 	/** Null data pointer used for stream read/write. */
 	HPI_ERROR_INVALID_DATA_POINTER = 308,
 	/** Packet ordering error for stream read/write. */
@@ -1010,6 +1011,7 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_CONTROL_DISABLED = 404,
 	/** I2C transaction failed due to a missing ACK. */
 	HPI_ERROR_CONTROL_I2C_MISSING_ACK = 405,
+	HPI_ERROR_I2C_MISSING_ACK = 405,
 	/** Control is busy, or coming out of
 	reset and cannot be accessed at this time. */
 	HPI_ERROR_CONTROL_NOT_READY = 407,
@@ -1020,7 +1022,6 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_NVMEM_FAIL = 452,
 
 	/** I2C */
-	HPI_ERROR_I2C_MISSING_ACK = 405,	/*HPI_ERROR_CONTROL_I2C_MISSING_ACK */
 	HPI_ERROR_I2C_BAD_ADR = 460,
 
 	/** Entity errors */

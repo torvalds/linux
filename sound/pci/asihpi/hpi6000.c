@@ -237,10 +237,19 @@ static void control_message(struct hpi_adapter_obj *pao,
 	switch (phm->function) {
 	case HPI_CONTROL_GET_STATE:
 		if (pao->has_control_cache) {
-			phr->error = hpi6000_update_control_cache(pao, phm);
+			u16 err;
+			err = hpi6000_update_control_cache(pao, phm);
 
-			if (phr->error)
+			if (err) {
+				if (err >= HPI_ERROR_BACKEND_BASE) {
+					phr->error =
+						HPI_ERROR_CONTROL_CACHING;
+					phr->specific_error = err;
+				} else {
+					phr->error = err;
+				}
 				break;
+			}
 
 			if (hpi_check_control_cache(((struct hpi_hw_obj *)
 						pao->priv)->p_cache, phm,
@@ -405,7 +414,7 @@ static void subsys_create_adapter(struct hpi_message *phm,
 	struct hpi_adapter_obj ao;
 	struct hpi_adapter_obj *pao;
 	u32 os_error_code;
-	short error = 0;
+	u16 err = 0;
 	u32 dsp_index = 0;
 
 	HPI_DEBUG_LOG(VERBOSE, "subsys_create_adapter\n");
@@ -422,10 +431,16 @@ static void subsys_create_adapter(struct hpi_message *phm,
 	/* create the adapter object based on the resource information */
 	ao.pci = *phm->u.s.resource.r.pci;
 
-	error = create_adapter_obj(&ao, &os_error_code);
-	if (error) {
+	err = create_adapter_obj(&ao, &os_error_code);
+	if (err) {
 		delete_adapter_obj(&ao);
-		phr->error = error;
+		if (err >= HPI_ERROR_BACKEND_BASE) {
+			phr->error = HPI_ERROR_DSP_BOOTLOAD;
+			phr->specific_error = err;
+		} else {
+			phr->error = err;
+		}
+
 		phr->u.s.data = os_error_code;
 		return;
 	}
@@ -434,7 +449,7 @@ static void subsys_create_adapter(struct hpi_message *phm,
 	if (!pao) {
 		/* We just added this adapter, why can't we find it!? */
 		HPI_DEBUG_LOG(ERROR, "lost adapter after boot\n");
-		phr->error = 950;
+		phr->error = HPI_ERROR_BAD_ADAPTER;
 		return;
 	}
 
@@ -1763,17 +1778,11 @@ static void hw_message(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 	hpios_dsplock_lock(pao);
 	error = hpi6000_message_response_sequence(pao, dsp_index, phm, phr);
 
-	/* maybe an error response */
-	if (error) {
-		/* something failed in the HPI/DSP interface */
-		phr->error = error;
-		/* just the header of the response is valid */
-		phr->size = sizeof(struct hpi_response_header);
+	if (error)	/* something failed in the HPI/DSP interface */
 		goto err;
-	}
 
-	if (phr->error != 0)	/* something failed in the DSP */
-		goto err;
+	if (phr->error)	/* something failed in the DSP */
+		goto out;
 
 	switch (phm->function) {
 	case HPI_OSTREAM_WRITE:
@@ -1796,10 +1805,19 @@ static void hw_message(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 		}
 	}
 
-	if (error)
-		phr->error = error;
-
 err:
+	if (error) {
+		if (error >= HPI_ERROR_BACKEND_BASE) {
+			phr->error = HPI_ERROR_DSP_COMMUNICATION;
+			phr->specific_error = error;
+		} else {
+			phr->error = error;
+		}
+
+		/* just the header of the response is valid */
+		phr->size = sizeof(struct hpi_response_header);
+	}
+out:
 	hpios_dsplock_unlock(pao);
 	return;
 }
