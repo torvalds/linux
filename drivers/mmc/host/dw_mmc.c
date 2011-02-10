@@ -1441,6 +1441,12 @@ static int __init dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	/* Card initially undetected */
 	slot->last_detect_state = 0;
 
+	/*
+	 * Card may have been plugged in prior to boot so we
+	 * need to run the detect tasklet
+	 */
+	tasklet_schedule(&host->card_tasklet);
+
 	return 0;
 }
 
