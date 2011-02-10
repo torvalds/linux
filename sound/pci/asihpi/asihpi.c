@@ -625,7 +625,8 @@ static int snd_card_asihpi_trigger(struct snd_pcm_substream *substream,
 		VPRINTK1(KERN_INFO "start\n");
 		/* start the master stream */
 		snd_card_asihpi_pcm_timer_start(substream);
-		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		if ((substream->stream == SNDRV_PCM_STREAM_CAPTURE) ||
+			!card->support_mmap)
 			hpi_handle_error(hpi_stream_start(dpcm->h_stream));
 		break;
 
