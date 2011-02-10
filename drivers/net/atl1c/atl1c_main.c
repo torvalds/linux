@@ -2718,7 +2718,6 @@ static int __devinit atl1c_probe(struct pci_dev *pdev,
 		goto err_reset;
 	}
 
-	device_init_wakeup(&pdev->dev, 1);
 	/* reset the controller to
 	 * put the device in a known good starting state */
 	err = atl1c_phy_init(&adapter->hw);
