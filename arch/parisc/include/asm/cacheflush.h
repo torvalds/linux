@@ -35,6 +35,13 @@ void flush_cache_all_local(void);
 void flush_cache_all(void);
 void flush_cache_mm(struct mm_struct *mm);
 
+#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
+void flush_kernel_dcache_page_addr(void *addr);
+static inline void flush_kernel_dcache_page(struct page *page)
+{
+	flush_kernel_dcache_page_addr(page_address(page));
+}
+
 #define flush_kernel_dcache_range(start,size) \
 	flush_kernel_dcache_range_asm((start), (start)+(size));
 /* vmap range flushes and invalidates.  Architecturally, we don't need
@@ -48,6 +55,16 @@ static inline void flush_kernel_vmap_range(void *vaddr, int size)
 }
 static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
 {
+	unsigned long start = (unsigned long)vaddr;
+	void *cursor = vaddr;
+
+	for ( ; cursor < vaddr + size; cursor += PAGE_SIZE) {
+		struct page *page = vmalloc_to_page(cursor);
+
+		if (test_and_clear_bit(PG_dcache_dirty, &page->flags))
+			flush_kernel_dcache_page(page);
+	}
+	flush_kernel_dcache_range_asm(start, start + size);
 }
 
 #define flush_cache_vmap(start, end)		flush_cache_all()
@@ -97,13 +114,6 @@ flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vma
 {
 	if (PageAnon(page))
 		flush_dcache_page_asm(page_to_phys(page), vmaddr);
-}
-
-#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
-void flush_kernel_dcache_page_addr(void *addr);
-static inline void flush_kernel_dcache_page(struct page *page)
-{
-	flush_kernel_dcache_page_addr(page_address(page));
 }
 
 #ifdef CONFIG_DEBUG_RODATA
