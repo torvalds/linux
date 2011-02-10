@@ -111,9 +111,9 @@ static const struct spi_imx_master spi1_pdata __initconst = {
 	.num_chipselect	= ARRAY_SIZE(spi_internal_chipselect),
 };
 
-static struct mc13783_platform_data mc13783_pdata __initdata = {
-	.flags  = MC13783_USE_RTC |
-		  MC13783_USE_REGULATOR,
+static struct mc13xxx_platform_data mc13783_pdata __initdata = {
+	.flags  = MC13XXX_USE_RTC |
+		  MC13XXX_USE_REGULATOR,
 };
 
 static struct spi_board_info mc13783_spi_dev __initdata = {

@@ -216,7 +216,7 @@ static struct regulator_init_data vgen_init = {
 	.consumer_supplies = vgen_consumers,
 };
 
-static struct mc13783_regulator_init_data mx27_3ds_regulators[] = {
+static struct mc13xxx_regulator_init_data mx27_3ds_regulators[] = {
 	{
 		.id = MC13783_REG_VMMC1,
 		.init_data = &vmmc1_init,
@@ -227,10 +227,10 @@ static struct mc13783_regulator_init_data mx27_3ds_regulators[] = {
 };
 
 /* MC13783 */
-static struct mc13783_platform_data mc13783_pdata __initdata = {
+static struct mc13xxx_platform_data mc13783_pdata __initdata = {
 	.regulators = mx27_3ds_regulators,
 	.num_regulators = ARRAY_SIZE(mx27_3ds_regulators),
-	.flags  = MC13783_USE_REGULATOR,
+	.flags  = MC13XXX_USE_REGULATOR,
 };
 
 /* SPI */

@@ -214,7 +214,7 @@ static struct regulator_init_data cam_vreg_data = {
 	.consumer_supplies = cam_consumers,
 };
 
-static struct mc13783_regulator_init_data moboard_regulators[] = {
+static struct mc13xxx_regulator_init_data moboard_regulators[] = {
 	{
 		.id = MC13783_REG_VMMC1,
 		.init_data = &sdhc_vreg_data,
@@ -267,12 +267,12 @@ static struct mc13783_leds_platform_data moboard_leds = {
 	.tc2_period = MC13783_LED_PERIOD_10MS,
 };
 
-static struct mc13783_platform_data moboard_pmic = {
+static struct mc13xxx_platform_data moboard_pmic = {
 	.regulators = moboard_regulators,
 	.num_regulators = ARRAY_SIZE(moboard_regulators),
 	.leds = &moboard_leds,
-	.flags = MC13783_USE_REGULATOR | MC13783_USE_RTC |
-		MC13783_USE_ADC | MC13783_USE_LED,
+	.flags = MC13XXX_USE_REGULATOR | MC13XXX_USE_RTC |
+		MC13XXX_USE_ADC | MC13XXX_USE_LED,
 };
 
 static struct spi_board_info moboard_spi_board_info[] __initdata = {
