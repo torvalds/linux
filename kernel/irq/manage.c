@@ -957,9 +957,14 @@ out_thread:
  */
 int setup_irq(unsigned int irq, struct irqaction *act)
 {
+	int retval;
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	return __setup_irq(irq, desc, act);
+	chip_bus_lock(desc);
+	retval = __setup_irq(irq, desc, act);
+	chip_bus_sync_unlock(desc);
+
+	return retval;
 }
 EXPORT_SYMBOL_GPL(setup_irq);
 
