@@ -5558,9 +5558,7 @@ static void intel_crtc_reset(struct drm_crtc *crtc)
 	/* Reset flags back to the 'unknown' status so that they
 	 * will be correctly set on the initial modeset.
 	 */
-	intel_crtc->cursor_addr = 0;
 	intel_crtc->dpms_mode = -1;
-	intel_crtc->active = true; /* force the pipe off on setup_init_config */
 }
 
 static struct drm_crtc_helper_funcs intel_helper_funcs = {
@@ -5666,6 +5664,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
 
 	intel_crtc_reset(&intel_crtc->base);
+	intel_crtc->active = true; /* force the pipe off on setup_init_config */
 
 	if (HAS_PCH_SPLIT(dev)) {
 		intel_helper_funcs.prepare = ironlake_crtc_prepare;
