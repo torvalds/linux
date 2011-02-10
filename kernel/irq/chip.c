@@ -471,6 +471,16 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(handle_level_irq);
 
+#ifdef CONFIG_IRQ_PREFLOW_FASTEOI
+static inline void preflow_handler(struct irq_desc *desc)
+{
+	if (desc->preflow_handler)
+		desc->preflow_handler(&desc->irq_data);
+}
+#else
+static inline void preflow_handler(struct irq_desc *desc) { }
+#endif
+
 /**
  *	handle_fasteoi_irq - irq handler for transparent controllers
  *	@irq:	the interrupt number
@@ -503,6 +513,7 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 		mask_irq(desc);
 		goto out;
 	}
+	preflow_handler(desc);
 	handle_irq_event(desc);
 out:
 	desc->irq_data.chip->irq_eoi(&desc->irq_data);

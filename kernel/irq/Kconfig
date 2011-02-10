@@ -35,6 +35,9 @@ config AUTO_IRQ_AFFINITY
 config HARDIRQS_SW_RESEND
        def_bool n
 
+config IRQ_PREFLOW_FASTEOI
+       def_bool n
+
 config SPARSE_IRQ
 	bool "Support sparse irq numbering"
 	depends on HAVE_SPARSE_IRQ

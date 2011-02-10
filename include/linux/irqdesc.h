@@ -63,6 +63,9 @@ struct irq_desc {
 	struct timer_rand_state *timer_rand_state;
 	unsigned int __percpu	*kstat_irqs;
 	irq_flow_handler_t	handle_irq;
+#ifdef CONFIG_IRQ_PREFLOW_FASTEOI
+	irq_preflow_handler_t	preflow_handler;
+#endif
 	struct irqaction	*action;	/* IRQ action list */
 #ifdef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
 	unsigned int		status_use_accessors;
@@ -187,6 +190,17 @@ static inline void __set_irq_handler_unlocked(int irq,
 	desc = irq_to_desc(irq);
 	desc->handle_irq = handler;
 }
+
+#ifdef CONFIG_IRQ_PREFLOW_FASTEOI
+static inline void
+__irq_set_preflow_handler(unsigned int irq, irq_preflow_handler_t handler)
+{
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	desc->preflow_handler = handler;
+}
+#endif
 #endif
 
 #endif
