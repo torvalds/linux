@@ -525,6 +525,7 @@ struct rq {
 	struct mm_struct *prev_mm;
 
 	u64 clock;
+	u64 clock_task;
 
 	atomic_t nr_iowait;
 
@@ -620,9 +621,17 @@ static inline int cpu_of(struct rq *rq)
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 #define raw_rq()		(&__raw_get_cpu_var(runqueues))
 
+static u64 irq_time_cpu(int cpu);
+
 inline void update_rq_clock(struct rq *rq)
 {
+	int cpu = cpu_of(rq);
+	u64 irq_time;
+
 	rq->clock = sched_clock_cpu(cpu_of(rq));
+	irq_time = irq_time_cpu(cpu);
+	if (rq->clock - irq_time > rq->clock_task)
+		rq->clock_task = rq->clock - irq_time;
 }
 
 /*
@@ -1809,6 +1818,18 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 
+/*
+ * There are no locks covering percpu hardirq/softirq time.
+ * They are only modified in account_system_vtime, on corresponding CPU
+ * with interrupts disabled. So, writes are safe.
+ * They are read and saved off onto struct rq in update_rq_clock().
+ * This may result in other CPU reading this CPU's irq time and can
+ * race with irq/account_system_vtime on this CPU. We would either get old
+ * or new value (or semi updated value on 32 bit) with a side effect of
+ * accounting a slice of irq time to wrong task when irq is in progress
+ * while we read rq->clock. That is a worthy compromise in place of having
+ * locks on each irq in account_system_time.
+ */
 static DEFINE_PER_CPU(u64, cpu_hardirq_time);
 static DEFINE_PER_CPU(u64, cpu_softirq_time);
 
@@ -1823,6 +1844,14 @@ void enable_sched_clock_irqtime(void)
 void disable_sched_clock_irqtime(void)
 {
 	sched_clock_irqtime = 0;
+}
+
+static u64 irq_time_cpu(int cpu)
+{
+	if (!sched_clock_irqtime)
+		return 0;
+
+	return per_cpu(cpu_softirq_time, cpu) + per_cpu(cpu_hardirq_time, cpu);
 }
 
 void account_system_vtime(struct task_struct *curr)
@@ -1852,6 +1881,13 @@ void account_system_vtime(struct task_struct *curr)
 		per_cpu(cpu_softirq_time, cpu) += delta;
 
 	local_irq_restore(flags);
+}
+
+#else
+
+static u64 irq_time_cpu(int cpu)
+{
+	return 0;
 }
 
 #endif
@@ -3295,7 +3331,7 @@ int can_migrate_task(struct task_struct *p, struct rq *rq, int this_cpu,
 	 * 2) too many balance attempts have failed.
 	 */
 
-	tsk_cache_hot = task_hot(p, rq->clock, sd);
+	tsk_cache_hot = task_hot(p, rq->clock_task, sd);
 	if (!tsk_cache_hot ||
 		sd->nr_balance_failed > sd->cache_nice_tries) {
 #ifdef CONFIG_SCHEDSTATS
@@ -5083,7 +5119,7 @@ static u64 do_task_delta_exec(struct task_struct *p, struct rq *rq)
 
 	if (task_current(rq, p)) {
 		update_rq_clock(rq);
-		ns = rq->clock - p->se.exec_start;
+		ns = rq->clock_task - p->se.exec_start;
 		if ((s64)ns < 0)
 			ns = 0;
 	}
