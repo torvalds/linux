@@ -246,6 +246,7 @@ ieee_set_channel(struct ieee80211_hw *hw, struct ieee80211_channel *chan,
 	case NL80211_CHAN_HT40MINUS:
 	case NL80211_CHAN_HT40PLUS:
 		WL_ERROR("%s: Need to implement 40 Mhz Channels!\n", __func__);
+		err = 1;
 		break;
 	}
 
