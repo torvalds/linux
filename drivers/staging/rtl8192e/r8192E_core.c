@@ -3069,60 +3069,6 @@ static void rtl8192_start_beacon(struct net_device *dev)
 	rtl8192_irq_enable(dev);
 }
 
-static bool HalTxCheckStuck8190Pci(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u16 RegTxCounter = read_nic_word(priv, 0x128);
-	bool				bStuck = FALSE;
-	RT_TRACE(COMP_RESET,"%s():RegTxCounter is %d,TxCounter is %d\n",__FUNCTION__,RegTxCounter,priv->TxCounter);
-	if(priv->TxCounter==RegTxCounter)
-		bStuck = TRUE;
-
-	priv->TxCounter = RegTxCounter;
-
-	return bStuck;
-}
-
-/*
- * Assumption: RT_TX_SPINLOCK is acquired.
- */
-static RESET_TYPE
-TxCheckStuck(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u8			ResetThreshold = NIC_SEND_HANG_THRESHOLD_POWERSAVE;
-	bool			bCheckFwTxCnt = false;
-
-	//
-	// Decide Stuch threshold according to current power save mode
-	//
-	switch (priv->ieee80211->dot11PowerSaveMode)
-	{
-		// The threshold value  may required to be adjusted .
-		case eActive:		// Active/Continuous access.
-			ResetThreshold = NIC_SEND_HANG_THRESHOLD_NORMAL;
-			break;
-		case eMaxPs:		// Max power save mode.
-			ResetThreshold = NIC_SEND_HANG_THRESHOLD_POWERSAVE;
-			break;
-		case eFastPs:	// Fast power save mode.
-			ResetThreshold = NIC_SEND_HANG_THRESHOLD_POWERSAVE;
-			break;
-	}
-
-	if(bCheckFwTxCnt)
-	{
-		if(HalTxCheckStuck8190Pci(dev))
-		{
-			RT_TRACE(COMP_RESET, "TxCheckStuck(): Fw indicates no Tx condition! \n");
-			return RESET_TYPE_SILENT;
-		}
-	}
-
-	return RESET_TYPE_NORESET;
-}
-
-
 static bool HalRxCheckStuck8190Pci(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -3204,8 +3150,6 @@ rtl819x_ifcheck_resetornot(struct net_device *dev)
 	RT_RF_POWER_STATE 	rfState;
 
 	rfState = priv->ieee80211->eRFPowerState;
-
-	TxResetType = TxCheckStuck(dev);
 
 	if( rfState != eRfOff &&
 		/*ADAPTER_TEST_STATUS_FLAG(Adapter, ADAPTER_STATUS_FW_DOWNLOAD_FAILURE)) &&*/
