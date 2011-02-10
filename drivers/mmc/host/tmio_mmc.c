@@ -983,11 +983,11 @@ static void tmio_tasklet_fn(unsigned long arg)
 
 	if (host->data->flags & MMC_DATA_READ)
 		dma_unmap_sg(host->chan_rx->device->dev,
-			     host->sg_ptr, host->dma_sglen,
+			     host->sg_ptr, host->sg_len,
 			     DMA_FROM_DEVICE);
 	else
 		dma_unmap_sg(host->chan_tx->device->dev,
-			     host->sg_ptr, host->dma_sglen,
+			     host->sg_ptr, host->sg_len,
 			     DMA_TO_DEVICE);
 
 	tmio_mmc_do_data_irq(host);
