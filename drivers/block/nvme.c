@@ -279,7 +279,7 @@ static void nvme_free_prps(struct nvme_queue *nvmeq, struct nvme_prps *prps)
 	kfree(prps);
 }
 
-struct nvme_req_info {
+struct nvme_bio {
 	struct bio *bio;
 	int nents;
 	struct nvme_prps *prps;
@@ -287,28 +287,28 @@ struct nvme_req_info {
 };
 
 /* XXX: use a mempool */
-static struct nvme_req_info *alloc_info(unsigned nseg, gfp_t gfp)
+static struct nvme_bio *alloc_nbio(unsigned nseg, gfp_t gfp)
 {
-	return kzalloc(sizeof(struct nvme_req_info) +
+	return kzalloc(sizeof(struct nvme_bio) +
 			sizeof(struct scatterlist) * nseg, gfp);
 }
 
-static void free_info(struct nvme_queue *nvmeq, struct nvme_req_info *info)
+static void free_nbio(struct nvme_queue *nvmeq, struct nvme_bio *nbio)
 {
-	nvme_free_prps(nvmeq, info->prps);
-	kfree(info);
+	nvme_free_prps(nvmeq, nbio->prps);
+	kfree(nbio);
 }
 
 static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
 						struct nvme_completion *cqe)
 {
-	struct nvme_req_info *info = ctx;
-	struct bio *bio = info->bio;
+	struct nvme_bio *nbio = ctx;
+	struct bio *bio = nbio->bio;
 	u16 status = le16_to_cpup(&cqe->status) >> 1;
 
-	dma_unmap_sg(nvmeq->q_dmadev, info->sg, info->nents,
+	dma_unmap_sg(nvmeq->q_dmadev, nbio->sg, nbio->nents,
 			bio_data_dir(bio) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-	free_info(nvmeq, info);
+	free_nbio(nvmeq, nbio);
 	bio_endio(bio, status ? -EIO : 0);
 	bio = bio_list_pop(&nvmeq->sq_cong);
 	if (bio)
@@ -382,11 +382,11 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_queue *nvmeq,
 	return prps;
 }
 
-static int nvme_map_bio(struct device *dev, struct nvme_req_info *info,
+static int nvme_map_bio(struct device *dev, struct nvme_bio *nbio,
 		struct bio *bio, enum dma_data_direction dma_dir, int psegs)
 {
 	struct bio_vec *bvec;
-	struct scatterlist *sg = info->sg;
+	struct scatterlist *sg = nbio->sg;
 	int i, nsegs;
 
 	sg_init_table(sg, psegs);
@@ -396,16 +396,16 @@ static int nvme_map_bio(struct device *dev, struct nvme_req_info *info,
 		/* XXX: handle non-mergable here */
 		nsegs++;
 	}
-	info->nents = nsegs;
+	nbio->nents = nsegs;
 
-	return dma_map_sg(dev, info->sg, info->nents, dma_dir);
+	return dma_map_sg(dev, nbio->sg, nbio->nents, dma_dir);
 }
 
 static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 								struct bio *bio)
 {
 	struct nvme_command *cmnd;
-	struct nvme_req_info *info;
+	struct nvme_bio *nbio;
 	enum dma_data_direction dma_dir;
 	int cmdid;
 	u16 control;
@@ -413,14 +413,14 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	unsigned long flags;
 	int psegs = bio_phys_segments(ns->queue, bio);
 
-	info = alloc_info(psegs, GFP_NOIO);
-	if (!info)
+	nbio = alloc_nbio(psegs, GFP_NOIO);
+	if (!nbio)
 		goto congestion;
-	info->bio = bio;
+	nbio->bio = bio;
 
-	cmdid = alloc_cmdid(nvmeq, info, bio_completion_id, IO_TIMEOUT);
+	cmdid = alloc_cmdid(nvmeq, nbio, bio_completion_id, IO_TIMEOUT);
 	if (unlikely(cmdid < 0))
-		goto free_info;
+		goto free_nbio;
 
 	control = 0;
 	if (bio->bi_rw & REQ_FUA)
@@ -444,12 +444,12 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 		dma_dir = DMA_FROM_DEVICE;
 	}
 
-	nvme_map_bio(nvmeq->q_dmadev, info, bio, dma_dir, psegs);
+	nvme_map_bio(nvmeq->q_dmadev, nbio, bio, dma_dir, psegs);
 
 	cmnd->rw.flags = 1;
 	cmnd->rw.command_id = cmdid;
 	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
-	info->prps = nvme_setup_prps(nvmeq, &cmnd->common, info->sg,
+	nbio->prps = nvme_setup_prps(nvmeq, &cmnd->common, nbio->sg,
 								bio->bi_size);
 	cmnd->rw.slba = cpu_to_le64(bio->bi_sector >> (ns->lba_shift - 9));
 	cmnd->rw.length = cpu_to_le16((bio->bi_size >> ns->lba_shift) - 1);
@@ -464,8 +464,8 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 
 	return 0;
 
- free_info:
-	free_info(nvmeq, info);
+ free_nbio:
+	free_nbio(nvmeq, nbio);
  congestion:
 	return -EBUSY;
 }
