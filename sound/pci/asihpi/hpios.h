@@ -27,9 +27,7 @@ HPI Operating System Specific macros for Linux Kernel driver
 #define HPI_OS_LINUX_KERNEL
 
 #define HPI_OS_DEFINED
-#define HPI_KERNEL_MODE
-
-#define HPI_REASSIGN_DUPLICATE_ADAPTER_IDX
+#define HPI_BUILD_KERNEL_MODE
 
 #include <linux/io.h>
 #include <asm/system.h>
@@ -142,7 +140,7 @@ static inline void cond_unlock(struct hpios_spinlock *l)
 #define hpios_dsplock_unlock(obj)  cond_unlock(&(obj)->dsp_lock)
 
 #ifdef CONFIG_SND_DEBUG
-#define HPI_DEBUG
+#define HPI_BUILD_DEBUG
 #endif
 
 #define HPI_ALIST_LOCKING

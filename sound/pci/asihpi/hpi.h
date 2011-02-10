@@ -43,14 +43,15 @@ i.e 3.05.02 is a development version
 #define HPI_VER_RELEASE(v) ((int)(v & 0xFF))
 
 /* Use single digits for versions less that 10 to avoid octal. */
-#define HPI_VER HPI_VERSION_CONSTRUCTOR(4L, 5, 19)
-#define HPI_VER_STRING "4.05.19"
+#define HPI_VER HPI_VERSION_CONSTRUCTOR(4L, 5, 32)
+#define HPI_VER_STRING "4.05.32"
 
 /* Library version as documented in hpi-api-versions.txt */
 #define HPI_LIB_VER  HPI_VERSION_CONSTRUCTOR(9, 0, 0)
 
 #include <linux/types.h>
-#define HPI_EXCLUDE_DEPRECATED
+#define HPI_BUILD_EXCLUDE_DEPRECATED
+#define HPI_BUILD_KERNEL_MODE
 
 /******************************************************************************/
 /********       HPI API DEFINITIONS                                       *****/
@@ -933,11 +934,9 @@ enum HPI_ERROR_CODES {
 	/** Adapter number out of range or not set properly. */
 	HPI_ERROR_BAD_ADAPTER_NUMBER = 202,
 	/** 2 adapters with the same adapter number. */
-	HPI_DUPLICATE_ADAPTER_NUMBER = 203,
+	HPI_ERROR_DUPLICATE_ADAPTER_NUMBER = 203,
 	/** DSP code failed to bootload. (unused?) */
 	HPI_ERROR_DSP_BOOTLOAD = 204,
-	/** Communication with DSP failed */
-	HPI_ERROR_DSP_COMMUNICATION = 205,
 	/** Couldn't find or open the DSP code file. */
 	HPI_ERROR_DSP_FILE_NOT_FOUND = 206,
 	/** Internal DSP hardware error. */
@@ -1056,8 +1055,18 @@ enum HPI_ERROR_CODES {
 	/** hpioct32.c can't obtain mutex */
 	HPI_ERROR_MUTEX_TIMEOUT = 700,
 
-	/** errors from HPI backends have values >= this */
-	HPI_ERROR_BACKEND_BASE = 900
+	/** Backend errors used to be greater than this.
+	    \deprecated Now, all backends return only errors defined here in hpi.h
+	*/
+	HPI_ERROR_BACKEND_BASE = 900,
+
+	/** Communication with DSP failed */
+	HPI_ERROR_DSP_COMMUNICATION = 900
+		/* Note that the dsp communication error is set to this value so that
+		   it remains compatible with any software that expects such errors
+		   to be backend errors i.e. >= 900.
+		   Do not define any new error codes with values > 900.
+		 */
 };
 
 /** \defgroup maximums HPI maximum values

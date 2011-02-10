@@ -309,8 +309,8 @@ enum HPI_CONTROL_ATTRIBUTES {
 
 #define HPI_ETHERNET_UDP_PORT (44600)	/*!< UDP messaging port */
 
-/** Base network time out is set to 100 milli-seconds. */
-#define HPI_ETHERNET_TIMEOUT_MS      (100)
+/** Default network timeout in milli-seconds. */
+#define HPI_ETHERNET_TIMEOUT_MS 500
 
 /** Locked memory buffer alloc/free phases */
 enum HPI_BUFFER_CMDS {
@@ -389,8 +389,7 @@ enum HPI_OBJECT_TYPES {
 };
 
 #define HPI_OBJ_FUNCTION_SPACING 0x100
-#define HPI_FUNC_ID(obj, index) \
-	(HPI_OBJ_##obj * HPI_OBJ_FUNCTION_SPACING + index)
+#define HPI_FUNC_ID(obj, i) (HPI_OBJ_##obj * HPI_OBJ_FUNCTION_SPACING + i)
 
 #define HPI_EXTRACT_INDEX(fn) (fn & 0xff)
 
