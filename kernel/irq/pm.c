@@ -69,7 +69,7 @@ int check_wakeup_irqs(void)
 	int irq;
 
 	for_each_irq_desc(irq, desc)
-		if ((desc->istate & IRQS_WAKEUP) &&
+		if (irqd_is_wakeup_set(&desc->irq_data) &&
 		    (desc->istate & IRQS_PENDING))
 			return -EBUSY;
 

@@ -168,6 +168,8 @@ struct irq_data {
  * IRQD_PER_CPU			- Interrupt is per cpu
  * IRQD_AFFINITY_SET		- Interrupt affinity was set
  * IRQD_LEVEL			- Interrupt is level triggered
+ * IRQD_WAKEUP_STATE		- Interrupt is configured for wakeup
+ *				  from suspend
  */
 enum {
 	IRQD_TRIGGER_MASK		= 0xf,
@@ -176,6 +178,7 @@ enum {
 	IRQD_PER_CPU			= (1 << 11),
 	IRQD_AFFINITY_SET		= (1 << 12),
 	IRQD_LEVEL			= (1 << 13),
+	IRQD_WAKEUP_STATE		= (1 << 14),
 };
 
 static inline bool irqd_is_setaffinity_pending(struct irq_data *d)
@@ -215,6 +218,11 @@ static inline void irqd_set_trigger_type(struct irq_data *d, u32 type)
 static inline bool irqd_is_level_type(struct irq_data *d)
 {
 	return d->state_use_accessors & IRQD_LEVEL;
+}
+
+static inline bool irqd_is_wakeup_set(struct irq_data *d)
+{
+	return d->state_use_accessors & IRQD_WAKEUP_STATE;
 }
 
 /**
