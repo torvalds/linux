@@ -2840,9 +2840,11 @@ static int __devinit snd_asihpi_probe(struct pci_dev *pci_dev,
 			hpi_card->index, card->number);
 	}
 
+	snd_card_set_dev(card, &pci_dev->dev);
+
 	asihpi = (struct snd_card_asihpi *) card->private_data;
 	asihpi->card = card;
-	asihpi->pci = hpi_card->pci;
+	asihpi->pci = pci_dev;
 	asihpi->adapter_index = hpi_card->index;
 	hpi_handle_error(hpi_adapter_get_info(
 				 asihpi->adapter_index,
