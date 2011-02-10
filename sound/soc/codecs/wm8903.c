@@ -229,8 +229,6 @@ struct wm8903_priv {
 	/* Reference count */
 	int class_w_users;
 
-	struct completion wseq;
-
 	struct snd_soc_jack *mic_jack;
 	int mic_det;
 	int mic_short;
@@ -260,41 +258,6 @@ static int wm8903_volatile_register(struct snd_soc_codec *codec, unsigned int re
 	default:
 		return 0;
 	}
-}
-
-static int wm8903_run_sequence(struct snd_soc_codec *codec, unsigned int start)
-{
-	u16 reg[5];
-	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
-
-	BUG_ON(start > 48);
-
-	/* Enable the sequencer if it's not already on */
-	reg[0] = snd_soc_read(codec, WM8903_WRITE_SEQUENCER_0);
-	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0,
-		      reg[0] | WM8903_WSEQ_ENA);
-
-	dev_dbg(codec->dev, "Starting sequence at %d\n", start);
-
-	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_3,
-		     start | WM8903_WSEQ_START);
-
-	/* Wait for it to complete.  If we have the interrupt wired up then
-	 * that will break us out of the poll early.
-	 */
-	do {
-		wait_for_completion_timeout(&wm8903->wseq,
-					    msecs_to_jiffies(10));
-
-		reg[4] = snd_soc_read(codec, WM8903_WRITE_SEQUENCER_4);
-	} while (reg[4] & WM8903_WSEQ_BUSY);
-
-	dev_dbg(codec->dev, "Sequence complete\n");
-
-	/* Disable the sequencer again if we enabled it */
-	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0, reg[0]);
-
-	return 0;
 }
 
 static void wm8903_reset(struct snd_soc_codec *codec)
@@ -1213,11 +1176,26 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		snd_soc_update_bits(codec, WM8903_CLOCK_RATES_2,
-				    WM8903_CLK_SYS_ENA, WM8903_CLK_SYS_ENA);
-		wm8903_run_sequence(codec, 32);
-		snd_soc_update_bits(codec, WM8903_CLOCK_RATES_2,
-				    WM8903_CLK_SYS_ENA, 0);
+		snd_soc_update_bits(codec, WM8903_BIAS_CONTROL_0,
+				    WM8903_BIAS_ENA, 0);
+
+		snd_soc_update_bits(codec, WM8903_VMID_CONTROL_0,
+				    WM8903_VMID_SOFT_MASK,
+				    2 << WM8903_VMID_SOFT_SHIFT);
+
+		snd_soc_update_bits(codec, WM8903_VMID_CONTROL_0,
+				    WM8903_VMID_BUF_ENA, 0);
+
+		msleep(290);
+
+		snd_soc_update_bits(codec, WM8903_VMID_CONTROL_0,
+				    WM8903_VMID_TIE_ENA | WM8903_BUFIO_ENA |
+				    WM8903_VMID_IO_ENA | WM8903_VMID_RES_MASK |
+				    WM8903_VMID_SOFT_MASK |
+				    WM8903_VMID_BUF_ENA, 0);
+
+		snd_soc_update_bits(codec, WM8903_BIAS_CONTROL_0,
+				    WM8903_STARTUP_BIAS_ENA, 0);
 		break;
 	}
 
@@ -1670,8 +1648,7 @@ static irqreturn_t wm8903_irq(int irq, void *data)
 	int_val = snd_soc_read(codec, WM8903_INTERRUPT_STATUS_1) & mask;
 
 	if (int_val & WM8903_WSEQ_BUSY_EINT) {
-		dev_dbg(codec->dev, "Write sequencer done\n");
-		complete(&wm8903->wseq);
+		dev_warn(codec->dev, "Write sequencer done\n");
 	}
 
 	/*
@@ -1918,7 +1895,6 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 	u16 val;
 
 	wm8903->codec = codec;
-	init_completion(&wm8903->wseq);
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
