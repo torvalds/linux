@@ -764,8 +764,12 @@ static void stingray_usb_init(void)
 	if (strncmp(boot_mode, "factorycable", BOOT_MODE_MAX_LEN) ||
             !mot_boot_recovery)
 		platform_device_register(&tegra_udc_device);
-	platform_device_register(&tegra_ehci2_device);
-	platform_device_register(&tegra_ehci3_device);
+
+	if (stingray_hw_has_cdma()) {
+		platform_device_register(&tegra_ehci2_device);
+		platform_device_register(&tegra_ehci3_device);
+	}
+
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	src = usb_serial_num;
 
