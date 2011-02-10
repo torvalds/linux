@@ -1939,10 +1939,10 @@ static u32 setexposure(struct gspca_dev *gspca_dev,
 		u8 expo_c1[] =
 			{ 0xb1, 0x5c, 0x09, 0x00, 0x00, 0x00, 0x00, 0x10 };
 
-		if (expo > 0x0280)
-			expo = 0x0280;
-		else if (expo < 0x0040)
-			expo = 0x0040;
+		if (expo > 0x0390)
+			expo = 0x0390;
+		else if (expo < 0x0060)
+			expo = 0x0060;
 		expo_c1[3] = expo >> 8;
 		expo_c1[4] = expo;
 		i2c_w8(gspca_dev, expo_c1);
@@ -1999,8 +1999,11 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		sd->exposure = setexposure(gspca_dev, expo);
 		break;
 	case SENSOR_GC0307:
-	case SENSOR_MT9V111:
 		expo = brightness;
+		sd->exposure = setexposure(gspca_dev, expo);
+		return;			/* don't set the Y offset */
+	case SENSOR_MT9V111:
+		expo = brightness << 2;
 		sd->exposure = setexposure(gspca_dev, expo);
 		return;			/* don't set the Y offset */
 	case SENSOR_OM6802:
@@ -2750,6 +2753,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 					(unsigned int) (expotimes << 8));
 			break;
 		case SENSOR_OM6802:
+		case SENSOR_MT9V111:
 			expotimes = sd->exposure;
 			expotimes += (luma_mean - delta) >> 2;
 			if (expotimes < 0)
@@ -2762,7 +2766,6 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 /*		case SENSOR_MO4000: */
 /*		case SENSOR_MI0360: */
 /*		case SENSOR_MI0360B: */
-/*		case SENSOR_MT9V111: */
 			expotimes = sd->exposure;
 			expotimes += (luma_mean - delta) >> 6;
 			if (expotimes < 0)
