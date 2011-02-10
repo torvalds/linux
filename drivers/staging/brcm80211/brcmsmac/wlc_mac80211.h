@@ -735,7 +735,7 @@ struct wlc_info {
 	u32 apsd_trigger_timeout;	/* timeout value for apsd_trigger_timer (in ms)
 					 * 0 == disable
 					 */
-	ac_bitmap_t apsd_trigger_ac;	/* Permissible Acess Category in which APSD Null
+	ac_bitmap_t apsd_trigger_ac;	/* Permissible Access Category in which APSD Null
 					 * Trigger frames can be send
 					 */
 	u8 htphy_membership;	/* HT PHY membership */

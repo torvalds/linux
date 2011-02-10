@@ -271,7 +271,7 @@ typedef struct si_info {
 
 /*
  * Macros to disable/restore function core(D11, ENET, ILINE20, etc) interrupts
- * before after core switching to avoid invalid register accesss inside ISR.
+ * before after core switching to avoid invalid register access inside ISR.
  */
 #define INTR_OFF(si, intr_val) \
 	if ((si)->intrsoff_fn && (si)->coreid[(si)->curidx] == (si)->dev_coreid) {	\
