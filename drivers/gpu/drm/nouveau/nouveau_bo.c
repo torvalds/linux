@@ -508,10 +508,12 @@ nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	int ret;
 
 	src_offset = old_mem->start << PAGE_SHIFT;
-	if (old_mem->mem_type == TTM_PL_VRAM)
-		src_offset  = nvbo->vma.offset;
-	else
+	if (old_mem->mem_type == TTM_PL_VRAM) {
+		struct nouveau_vram *node = old_mem->mm_node;
+		src_offset  = node->tmp_vma.offset;
+	} else {
 		src_offset += dev_priv->gart_info.aper_base;
+	}
 
 	dst_offset = new_mem->start << PAGE_SHIFT;
 	if (new_mem->mem_type == TTM_PL_VRAM)
@@ -559,10 +561,12 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	int ret;
 
 	src_offset = old_mem->start << PAGE_SHIFT;
-	if (old_mem->mem_type == TTM_PL_VRAM)
-		src_offset  = nvbo->vma.offset;
-	else
+	if (old_mem->mem_type == TTM_PL_VRAM) {
+		struct nouveau_vram *node = old_mem->mm_node;
+		src_offset  = node->tmp_vma.offset;
+	} else {
 		src_offset += dev_priv->gart_info.aper_base;
+	}
 
 	dst_offset = new_mem->start << PAGE_SHIFT;
 	if (new_mem->mem_type == TTM_PL_VRAM)
@@ -711,6 +715,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct nouveau_channel *chan;
 	int ret;
 
@@ -718,6 +723,21 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	if (!chan) {
 		chan = dev_priv->channel;
 		mutex_lock_nested(&chan->mutex, NOUVEAU_KCHANNEL_MUTEX);
+	}
+
+	/* create temporary vma for old memory, this will get cleaned
+	 * up after ttm destroys the ttm_mem_reg
+	 */
+	if (dev_priv->card_type >= NV_50 && old_mem->mem_type == TTM_PL_VRAM) {
+		struct nouveau_vram *node = old_mem->mm_node;
+
+		ret = nouveau_vm_get(chan->vm, old_mem->num_pages << PAGE_SHIFT,
+				     nvbo->vma.node->type, NV_MEM_ACCESS_RO,
+				     &node->tmp_vma);
+		if (ret)
+			goto out;
+
+		nouveau_vm_map(&node->tmp_vma, node);
 	}
 
 	if (dev_priv->card_type < NV_50)
@@ -733,6 +753,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 						    no_wait_gpu, new_mem);
 	}
 
+out:
 	if (chan == dev_priv->channel)
 		mutex_unlock(&chan->mutex);
 	return ret;
@@ -811,7 +832,7 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
-	if (dev_priv->card_type < NV_50 || nvbo->no_vm)
+	if (dev_priv->card_type < NV_50)
 		return;
 
 	switch (new_mem->mem_type) {
@@ -820,6 +841,7 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 		break;
 	case TTM_PL_TT:
 	default:
+		nouveau_vm_unmap(&nvbo->vma);
 		break;
 	}
 }

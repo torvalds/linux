@@ -710,7 +710,13 @@ nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(man->bdev);
 	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
+	struct nouveau_vram *node = mem->mm_node;
 	struct drm_device *dev = dev_priv->dev;
+
+	if (node->tmp_vma.node) {
+		nouveau_vm_unmap(&node->tmp_vma);
+		nouveau_vm_put(&node->tmp_vma);
+	}
 
 	vram->put(dev, (struct nouveau_vram **)&mem->mm_node);
 }
