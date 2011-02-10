@@ -73,8 +73,8 @@ int irq_can_set_affinity(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (!irqd_can_balance(&desc->irq_data) || !desc->irq_data.chip ||
-	    !desc->irq_data.chip->irq_set_affinity)
+	if (!desc || !irqd_can_balance(&desc->irq_data) ||
+	    !desc->irq_data.chip || !desc->irq_data.chip->irq_set_affinity)
 		return 0;
 
 	return 1;
