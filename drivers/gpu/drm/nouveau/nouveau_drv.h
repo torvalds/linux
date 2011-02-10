@@ -57,7 +57,7 @@ struct nouveau_fpriv {
 #include "nouveau_util.h"
 
 struct nouveau_grctx;
-struct nouveau_vram;
+struct nouveau_mem;
 #include "nouveau_vm.h"
 
 #define MAX_NUM_DCB_ENTRIES 16
@@ -65,7 +65,7 @@ struct nouveau_vram;
 #define NOUVEAU_MAX_CHANNEL_NR 128
 #define NOUVEAU_MAX_TILE_NR 15
 
-struct nouveau_vram {
+struct nouveau_mem {
 	struct drm_device *dev;
 
 	struct nouveau_vma bar_vma;
@@ -510,8 +510,8 @@ struct nouveau_crypt_engine {
 struct nouveau_vram_engine {
 	int  (*init)(struct drm_device *);
 	int  (*get)(struct drm_device *, u64, u32 align, u32 size_nc,
-		    u32 type, struct nouveau_vram **);
-	void (*put)(struct drm_device *, struct nouveau_vram **);
+		    u32 type, struct nouveau_mem **);
+	void (*put)(struct drm_device *, struct nouveau_mem **);
 
 	bool (*flags_valid)(struct drm_device *, u32 tile_flags);
 };

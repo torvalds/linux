@@ -84,7 +84,7 @@ nv50_vm_addr(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 
 void
 nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
-	    struct nouveau_vram *mem, u32 pte, u32 cnt, u64 phys)
+	    struct nouveau_mem *mem, u32 pte, u32 cnt, u64 phys)
 {
 	u32 block;
 	int i;

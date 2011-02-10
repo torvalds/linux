@@ -67,7 +67,7 @@ struct nouveau_vm {
 	void (*map_pgt)(struct nouveau_gpuobj *pgd, u32 pde,
 			struct nouveau_gpuobj *pgt[2]);
 	void (*map)(struct nouveau_vma *, struct nouveau_gpuobj *,
-		    struct nouveau_vram *, u32 pte, u32 cnt, u64 phys);
+		    struct nouveau_mem *, u32 pte, u32 cnt, u64 phys);
 	void (*map_sg)(struct nouveau_vma *, struct nouveau_gpuobj *,
 		       u32 pte, dma_addr_t *, u32 cnt);
 	void (*unmap)(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt);
@@ -82,8 +82,8 @@ int  nouveau_vm_ref(struct nouveau_vm *, struct nouveau_vm **,
 int  nouveau_vm_get(struct nouveau_vm *, u64 size, u32 page_shift,
 		    u32 access, struct nouveau_vma *);
 void nouveau_vm_put(struct nouveau_vma *);
-void nouveau_vm_map(struct nouveau_vma *, struct nouveau_vram *);
-void nouveau_vm_map_at(struct nouveau_vma *, u64 offset, struct nouveau_vram *);
+void nouveau_vm_map(struct nouveau_vma *, struct nouveau_mem *);
+void nouveau_vm_map_at(struct nouveau_vma *, u64 offset, struct nouveau_mem *);
 void nouveau_vm_unmap(struct nouveau_vma *);
 void nouveau_vm_unmap_at(struct nouveau_vma *, u64 offset, u64 length);
 void nouveau_vm_map_sg(struct nouveau_vma *, u64 offset, u64 length,
@@ -93,7 +93,7 @@ void nouveau_vm_map_sg(struct nouveau_vma *, u64 offset, u64 length,
 void nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
 		     struct nouveau_gpuobj *pgt[2]);
 void nv50_vm_map(struct nouveau_vma *, struct nouveau_gpuobj *,
-		 struct nouveau_vram *, u32 pte, u32 cnt, u64 phys);
+		 struct nouveau_mem *, u32 pte, u32 cnt, u64 phys);
 void nv50_vm_map_sg(struct nouveau_vma *, struct nouveau_gpuobj *,
 		    u32 pte, dma_addr_t *, u32 cnt);
 void nv50_vm_unmap(struct nouveau_gpuobj *, u32 pte, u32 cnt);
@@ -104,7 +104,7 @@ void nv50_vm_flush_engine(struct drm_device *, int engine);
 void nvc0_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
 		     struct nouveau_gpuobj *pgt[2]);
 void nvc0_vm_map(struct nouveau_vma *, struct nouveau_gpuobj *,
-		 struct nouveau_vram *, u32 pte, u32 cnt, u64 phys);
+		 struct nouveau_mem *, u32 pte, u32 cnt, u64 phys);
 void nvc0_vm_map_sg(struct nouveau_vma *, struct nouveau_gpuobj *,
 		    u32 pte, dma_addr_t *, u32 cnt);
 void nvc0_vm_unmap(struct nouveau_gpuobj *, u32 pte, u32 cnt);

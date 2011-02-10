@@ -509,7 +509,7 @@ nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 	src_offset = old_mem->start << PAGE_SHIFT;
 	if (old_mem->mem_type == TTM_PL_VRAM) {
-		struct nouveau_vram *node = old_mem->mm_node;
+		struct nouveau_mem *node = old_mem->mm_node;
 		src_offset  = node->tmp_vma.offset;
 	} else {
 		src_offset += dev_priv->gart_info.aper_base;
@@ -562,7 +562,7 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 
 	src_offset = old_mem->start << PAGE_SHIFT;
 	if (old_mem->mem_type == TTM_PL_VRAM) {
-		struct nouveau_vram *node = old_mem->mm_node;
+		struct nouveau_mem *node = old_mem->mm_node;
 		src_offset  = node->tmp_vma.offset;
 	} else {
 		src_offset += dev_priv->gart_info.aper_base;
@@ -729,7 +729,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	 * up after ttm destroys the ttm_mem_reg
 	 */
 	if (dev_priv->card_type >= NV_50 && old_mem->mem_type == TTM_PL_VRAM) {
-		struct nouveau_vram *node = old_mem->mm_node;
+		struct nouveau_mem *node = old_mem->mm_node;
 
 		ret = nouveau_vm_get(chan->vm, old_mem->num_pages << PAGE_SHIFT,
 				     nvbo->vma.node->type, NV_MEM_ACCESS_RO,
@@ -972,7 +972,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		break;
 	case TTM_PL_VRAM:
 	{
-		struct nouveau_vram *vram = mem->mm_node;
+		struct nouveau_mem *node = mem->mm_node;
 		u8 page_shift;
 
 		if (!dev_priv->bar1_vm) {
@@ -983,23 +983,23 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		}
 
 		if (dev_priv->card_type == NV_C0)
-			page_shift = vram->page_shift;
+			page_shift = node->page_shift;
 		else
 			page_shift = 12;
 
 		ret = nouveau_vm_get(dev_priv->bar1_vm, mem->bus.size,
 				     page_shift, NV_MEM_ACCESS_RW,
-				     &vram->bar_vma);
+				     &node->bar_vma);
 		if (ret)
 			return ret;
 
-		nouveau_vm_map(&vram->bar_vma, vram);
+		nouveau_vm_map(&node->bar_vma, node);
 		if (ret) {
-			nouveau_vm_put(&vram->bar_vma);
+			nouveau_vm_put(&node->bar_vma);
 			return ret;
 		}
 
-		mem->bus.offset = vram->bar_vma.offset;
+		mem->bus.offset = node->bar_vma.offset;
 		if (dev_priv->card_type == NV_50) /*XXX*/
 			mem->bus.offset -= 0x0020000000ULL;
 		mem->bus.base = pci_resource_start(dev->pdev, 1);
@@ -1016,16 +1016,16 @@ static void
 nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bdev);
-	struct nouveau_vram *vram = mem->mm_node;
+	struct nouveau_mem *node = mem->mm_node;
 
 	if (!dev_priv->bar1_vm || mem->mem_type != TTM_PL_VRAM)
 		return;
 
-	if (!vram->bar_vma.node)
+	if (!node->bar_vma.node)
 		return;
 
-	nouveau_vm_unmap(&vram->bar_vma);
-	nouveau_vm_put(&vram->bar_vma);
+	nouveau_vm_unmap(&node->bar_vma);
+	nouveau_vm_put(&node->bar_vma);
 }
 
 static int

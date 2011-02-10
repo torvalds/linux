@@ -28,7 +28,7 @@
 #include "nouveau_vm.h"
 
 void
-nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_vram *vram)
+nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 {
 	struct nouveau_vm *vm = vma->vm;
 	struct nouveau_mm_node *r;
@@ -40,7 +40,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_vram *vram)
 	u32 max  = 1 << (vm->pgt_bits - bits);
 	u32 end, len;
 
-	list_for_each_entry(r, &vram->regions, rl_entry) {
+	list_for_each_entry(r, &node->regions, rl_entry) {
 		u64 phys = (u64)r->offset << 12;
 		u32 num  = r->length >> bits;
 
@@ -52,7 +52,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_vram *vram)
 				end = max;
 			len = end - pte;
 
-			vm->map(vma, pgt, vram, pte, len, phys);
+			vm->map(vma, pgt, node, pte, len, phys);
 
 			num -= len;
 			pte += len;
@@ -67,9 +67,9 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_vram *vram)
 }
 
 void
-nouveau_vm_map(struct nouveau_vma *vma, struct nouveau_vram *vram)
+nouveau_vm_map(struct nouveau_vma *vma, struct nouveau_mem *node)
 {
-	nouveau_vm_map_at(vma, 0, vram);
+	nouveau_vm_map_at(vma, 0, node);
 }
 
 void
