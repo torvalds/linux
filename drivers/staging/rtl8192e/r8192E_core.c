@@ -24,7 +24,7 @@
  * Jerry chuang <wlanfae@realtek.com>
  */
 
-//#define CONFIG_RTL8192_IO_MAP
+
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
@@ -209,46 +209,6 @@ u32 read_cam(struct r8192_priv *priv, u8 addr)
         return read_nic_dword(priv, 0xa8);
 }
 
-#ifdef CONFIG_RTL8180_IO_MAP
-
-u8 read_nic_byte(struct r8192_priv *priv, int x)
-{
-	struct net_device *dev = priv->ieee80211->dev;
-        return 0xff&inb(dev->base_addr +x);
-}
-
-u32 read_nic_dword(struct r8192_priv *priv, int x)
-{
-	struct net_device *dev = priv->ieee80211->dev;
-        return inl(dev->base_addr +x);
-}
-
-u16 read_nic_word(struct r8192_priv *priv, int x)
-{
-	struct net_device *dev = priv->ieee80211->dev;
-        return inw(dev->base_addr +x);
-}
-
-void write_nic_byte(struct r8192_priv *priv, int x,u8 y)
-{
-	struct net_device *dev = priv->ieee80211->dev;
-        outb(y&0xff,dev->base_addr +x);
-}
-
-void write_nic_word(struct r8192_priv *priv, int x,u16 y)
-{
-	struct net_device *dev = priv->ieee80211->dev;
-        outw(y,dev->base_addr +x);
-}
-
-void write_nic_dword(struct r8192_priv *priv, int x,u32 y)
-{
-	struct net_device *dev = priv->ieee80211->dev;
-        outl(y,dev->base_addr +x);
-}
-
-#else /* RTL_IO_MAP */
-
 u8 read_nic_byte(struct r8192_priv *priv, int x)
 {
 	struct net_device *dev = priv->ieee80211->dev;
@@ -287,8 +247,6 @@ void write_nic_word(struct r8192_priv *priv, int x,u16 y)
         writew(y,(u8*)dev->mem_start +x);
 	udelay(20);
 }
-
-#endif /* RTL_IO_MAP */
 
 u8 rtl8192e_ap_sec_type(struct ieee80211_device *ieee)
 {
@@ -4744,12 +4702,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	struct r8192_priv *priv= NULL;
 	u8 unit = 0;
 	int ret = -ENODEV;
-
-#ifdef CONFIG_RTL8192_IO_MAP
-	unsigned long pio_start, pio_len, pio_flags;
-#else
 	unsigned long pmem_start, pmem_len, pmem_flags;
-#endif //end #ifdef RTL_IO_MAP
 
 	RT_TRACE(COMP_INIT,"Configuring chip resources");
 
@@ -4780,28 +4733,6 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 		priv->ieee80211->bSupportRemoteWakeUp = 0;
 	}
 
-#ifdef CONFIG_RTL8192_IO_MAP
-
-	pio_start = (unsigned long)pci_resource_start (pdev, 0);
-	pio_len = (unsigned long)pci_resource_len (pdev, 0);
-	pio_flags = (unsigned long)pci_resource_flags (pdev, 0);
-
-      	if (!(pio_flags & IORESOURCE_IO)) {
-		RT_TRACE(COMP_ERR,"region #0 not a PIO resource, aborting");
-		goto fail;
-	}
-
-	//DMESG("IO space @ 0x%08lx", pio_start );
-	if( ! request_region( pio_start, pio_len, RTL819xE_MODULE_NAME ) ){
-		RT_TRACE(COMP_ERR,"request_region failed!");
-		goto fail;
-	}
-
-	ioaddr = pio_start;
-	dev->base_addr = ioaddr; // device I/O address
-
-#else
-
 	pmem_start = pci_resource_start(pdev, 1);
 	pmem_len = pci_resource_len(pdev, 1);
 	pmem_flags = pci_resource_flags (pdev, 1);
@@ -4827,8 +4758,6 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 
 	dev->mem_start = ioaddr; // shared mem start
 	dev->mem_end = ioaddr + pci_resource_len(pdev, 0); // shared mem end
-
-#endif //end #ifdef RTL_IO_MAP
 
         /* We disable the RETRY_TIMEOUT register (0x41) to keep
          * PCI Tx retries from interfering with C3 CPU state */
@@ -4870,20 +4799,11 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 
 fail1:
 
-#ifdef CONFIG_RTL8180_IO_MAP
-
-	if( dev->base_addr != 0 ){
-
-		release_region(dev->base_addr,
-	       pci_resource_len(pdev, 0) );
-	}
-#else
 	if( dev->mem_start != (unsigned long)NULL ){
 		iounmap( (void *)dev->mem_start );
 		release_mem_region( pci_resource_start(pdev, 1),
 				    pci_resource_len(pdev, 1) );
 	}
-#endif //end #ifdef RTL_IO_MAP
 
 fail:
 	if(dev){
@@ -4957,22 +4877,13 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 			priv->irq=0;
 		}
 
-#ifdef CONFIG_RTL8180_IO_MAP
-
-		if( dev->base_addr != 0 ){
-
-			release_region(dev->base_addr,
-				       pci_resource_len(pdev, 0) );
-		}
-#else
 		if( dev->mem_start != (unsigned long)NULL ){
 			iounmap( (void *)dev->mem_start );
 			release_mem_region( pci_resource_start(pdev, 1),
 					    pci_resource_len(pdev, 1) );
 		}
-#endif /*end #ifdef RTL_IO_MAP*/
-		free_ieee80211(dev);
 
+		free_ieee80211(dev);
 	}
 
 	pci_disable_device(pdev);
