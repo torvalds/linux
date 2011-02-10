@@ -1541,10 +1541,6 @@ u32 hpi_indexes_to_handle(const char c_object, const u16 adapter_index,
 /* main HPI entry point */
 void hpi_send_recv(struct hpi_message *phm, struct hpi_response *phr);
 
-/* UDP message */
-void hpi_send_recvUDP(struct hpi_message *phm, struct hpi_response *phr,
-	const unsigned int timeout);
-
 /* used in PnP OS/driver */
 u16 hpi_subsys_create_adapter(const struct hpi_resource *p_resource,
 	u16 *pw_adapter_index);

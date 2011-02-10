@@ -127,9 +127,6 @@ struct hpi_hw_obj {
 	u32 outstream_host_buffer_size[HPI_MAX_STREAMS];
 
 	struct consistent_dma_area h_control_cache;
-	struct consistent_dma_area h_async_event_buffer;
-/*      struct hpi_control_cache_single *pControlCache; */
-	struct hpi_async_event *p_async_event_buffer;
 	struct hpi_control_cache *p_cache;
 };
 
@@ -625,34 +622,6 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 			pao->has_control_cache = 0;
 		}
 	}
-	/* allocate bus mastering async buffer and tell the DSP about it */
-	if (interface->async_buffer.b.size) {
-		err = hpios_locked_mem_alloc(&phw->h_async_event_buffer,
-			interface->async_buffer.b.size *
-			sizeof(struct hpi_async_event), pao->pci.pci_dev);
-		if (!err)
-			err = hpios_locked_mem_get_virt_addr
-				(&phw->h_async_event_buffer, (void *)
-				&phw->p_async_event_buffer);
-		if (!err)
-			memset((void *)phw->p_async_event_buffer, 0,
-				interface->async_buffer.b.size *
-				sizeof(struct hpi_async_event));
-		if (!err) {
-			err = hpios_locked_mem_get_phys_addr
-				(&phw->h_async_event_buffer, &phys_addr);
-			interface->async_buffer.physical_address32 =
-				phys_addr;
-		}
-		if (err) {
-			if (hpios_locked_mem_valid(&phw->
-					h_async_event_buffer)) {
-				hpios_locked_mem_free
-					(&phw->h_async_event_buffer);
-				phw->p_async_event_buffer = NULL;
-			}
-		}
-	}
 	send_dsp_command(phw, H620_HIF_IDLE);
 
 	{
@@ -715,11 +684,6 @@ static void delete_adapter_obj(struct hpi_adapter_obj *pao)
 	int i;
 
 	phw = pao->priv;
-
-	if (hpios_locked_mem_valid(&phw->h_async_event_buffer)) {
-		hpios_locked_mem_free(&phw->h_async_event_buffer);
-		phw->p_async_event_buffer = NULL;
-	}
 
 	if (hpios_locked_mem_valid(&phw->h_control_cache)) {
 		hpios_locked_mem_free(&phw->h_control_cache);
@@ -1126,6 +1090,7 @@ static void instream_host_buffer_allocate(struct hpi_adapter_obj *pao,
 		status->auxiliary_data_available = 0;
 
 		hw_message(pao, phm, phr);
+
 		if (phr->error
 			&& hpios_locked_mem_valid(&phw->
 				instream_host_buffers[phm->obj_index])) {
