@@ -25,9 +25,6 @@ Copyright AudioScience, Inc., 2003
 #ifndef _HPI6205_H_
 #define _HPI6205_H_
 
-/* transitional conditional compile shared between host and DSP */
-/* #define HPI6205_NO_HSR_POLL */
-
 #include "hpi_internal.h"
 
 /***********************************************************
