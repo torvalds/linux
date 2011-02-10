@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/etherdevice.h>
+#include <linux/string.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <wlc_cfg.h>
@@ -8342,6 +8343,8 @@ wlc_set_addrmatch(struct wlc_info *wlc, int match_reg_offset,
 		  const u8 *addr)
 {
 	wlc_bmac_set_addrmatch(wlc->hw, match_reg_offset, addr);
+	if (match_reg_offset == RCM_BSSID_OFFSET)
+		memcpy(wlc->cfg->BSSID, addr, ETH_ALEN);
 }
 
 void wlc_set_rcmta(struct wlc_info *wlc, int idx, const u8 *addr)

@@ -380,7 +380,6 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 		/* BSSID changed, for whatever reason (IBSS and managed mode) */
 		WL_NONE("%s: new BSSID: aid %d  bss:%pM\n", __func__,
 			info->aid, info->bssid);
-		/* FIXME: need to store bssid in bsscfg */
 		wlc_set_addrmatch(wl->wlc, RCM_BSSID_OFFSET,
 				  info->bssid);
 	}
