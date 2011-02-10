@@ -372,8 +372,9 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 	}
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		/* Beacon interval changed */
-		WL_NONE("%s: Beacon Interval: %d (implement)\n",
+		WL_NONE("%s: Beacon Interval: %d\n",
 			__func__, info->beacon_int);
+		wlc_set(wl->wlc, WLC_SET_BCNPRD, info->beacon_int);
 	}
 	if (changed & BSS_CHANGED_BSSID) {
 		/* BSSID changed, for whatever reason (IBSS and managed mode) */
