@@ -1230,6 +1230,7 @@ out:
 		set_need_resched();
 	case 0:
 	case -ERESTARTSYS:
+	case -EINTR:
 		return VM_FAULT_NOPAGE;
 	case -ENOMEM:
 		return VM_FAULT_OOM;
