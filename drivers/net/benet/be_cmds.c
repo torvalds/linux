@@ -598,7 +598,7 @@ int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 
 /* Uses synchronous MCCQ */
 int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
-		u32 if_id, u32 *pmac_id)
+		u32 if_id, u32 *pmac_id, u32 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_pmac_add *req;
@@ -619,6 +619,7 @@ int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_NTWK_PMAC_ADD, sizeof(*req));
 
+	req->hdr.domain = domain;
 	req->if_id = cpu_to_le32(if_id);
 	memcpy(req->mac_address, mac_addr, ETH_ALEN);
 
@@ -634,7 +635,7 @@ err:
 }
 
 /* Uses synchronous MCCQ */
-int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id, u32 pmac_id)
+int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id, u32 pmac_id, u32 dom)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_pmac_del *req;
@@ -655,6 +656,7 @@ int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id, u32 pmac_id)
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_NTWK_PMAC_DEL, sizeof(*req));
 
+	req->hdr.domain = dom;
 	req->if_id = cpu_to_le32(if_id);
 	req->pmac_id = cpu_to_le32(pmac_id);
 

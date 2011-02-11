@@ -999,8 +999,9 @@ extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 			u8 type, bool permanent, u32 if_handle);
 extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
-			u32 if_id, u32 *pmac_id);
-extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id, u32 pmac_id);
+			u32 if_id, u32 *pmac_id, u32 domain);
+extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id,
+			u32 pmac_id, u32 domain);
 extern int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags,
 			u32 en_flags, u8 *mac, bool pmac_invalid,
 			u32 *if_handle, u32 *pmac_id, u32 domain);
