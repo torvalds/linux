@@ -1019,6 +1019,8 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 extern int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 			struct ip_vs_proto_data *pd);
 
+extern void ip_vs_scheduler_err(struct ip_vs_service *svc, const char *msg);
+
 
 /*
  *      IPVS control data and functions (from ip_vs_ctl.c)

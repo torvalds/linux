@@ -70,7 +70,7 @@ ip_vs_lc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	}
 
 	if (!least)
-		IP_VS_ERR_RL("LC: no destination available\n");
+		ip_vs_scheduler_err(svc, "no destination available");
 	else
 		IP_VS_DBG_BUF(6, "LC: server %s:%u activeconns %d "
 			      "inactconns %d\n",

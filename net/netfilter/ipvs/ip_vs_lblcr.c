@@ -692,7 +692,7 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		/* The cache entry is invalid, time to schedule */
 		dest = __ip_vs_lblcr_schedule(svc);
 		if (!dest) {
-			IP_VS_ERR_RL("LBLCR: no destination available\n");
+			ip_vs_scheduler_err(svc, "no destination available");
 			read_unlock(&svc->sched_lock);
 			return NULL;
 		}
