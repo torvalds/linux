@@ -28,14 +28,6 @@
 #include <mach/hardware.h>
 #include <mach/iomux-v3.h>
 
-/*!
- * @file mm.c
- *
- * @brief This file creates static virtual to physical mappings, common to all MX3 boards.
- *
- * @ingroup Memory
- */
-
 #ifdef CONFIG_SOC_IMX31
 static struct map_desc mx31_io_desc[] __initdata = {
 	imx_map_entry(MX31, X_MEMC, MT_DEVICE),
@@ -135,4 +127,3 @@ static int mxc_init_l2x0(void)
 
 arch_initcall(mxc_init_l2x0);
 #endif
-

@@ -69,9 +69,6 @@
 #define EXPIO_INT_XUART_INTB	(MXC_EXP_IO_BASE + 11)
 
 #define MXC_MAX_EXP_IO_LINES	16
-/*
- * This file contains the board-specific initialization routines.
- */
 
 /*
  * The serial port definition structure.
@@ -497,9 +494,7 @@ static void mxc_init_audio(void)
 	mxc_iomux_setup_multiple_pins(ssi_pins, ARRAY_SIZE(ssi_pins), "ssi");
 }
 
-/*!
- * This structure defines static mappings for the i.MX31ADS board.
- */
+/* static mappings */
 static struct map_desc mx31ads_io_desc[] __initdata = {
 	{
 		.virtual	= MX31_CS4_BASE_ADDR_VIRT,
@@ -509,9 +504,6 @@ static struct map_desc mx31ads_io_desc[] __initdata = {
 	},
 };
 
-/*!
- * Set up static virtual mappings.
- */
 static void __init mx31ads_map_io(void)
 {
 	mx31_map_io();
@@ -541,10 +533,6 @@ static struct sys_timer mx31ads_timer = {
 	.init	= mx31ads_timer_init,
 };
 
-/*
- * The following uses standard kernel macros defined in arch.h in order to
- * initialize __mach_desc_MX31ADS data structure.
- */
 MACHINE_START(MX31ADS, "Freescale MX31ADS")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.boot_params = MX3x_PHYS_OFFSET + 0x100,

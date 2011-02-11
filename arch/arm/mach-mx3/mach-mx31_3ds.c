@@ -42,10 +42,6 @@
 /* CPLD IRQ line for external uart, external ethernet etc */
 #define EXPIO_PARENT_INT	IOMUX_TO_IRQ(MX31_PIN_GPIO1_1)
 
-/*
- * This file contains the board-specific initialization routines.
- */
-
 static int mx31_3ds_pins[] = {
 	/* UART1 */
 	MX31_PIN_CTS1__CTS1,
@@ -371,10 +367,6 @@ static struct sys_timer mx31_3ds_timer = {
 	.init	= mx31_3ds_timer_init,
 };
 
-/*
- * The following uses standard kernel macros defined in arch.h in order to
- * initialize __mach_desc_MX31_3DS data structure.
- */
 MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.boot_params = MX3x_PHYS_OFFSET + 0x100,

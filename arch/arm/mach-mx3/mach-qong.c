@@ -54,10 +54,6 @@
 
 #define QONG_FPGA_IRQ		IOMUX_TO_IRQ(MX31_PIN_DTR_DCE1)
 
-/*
- * This file contains the board-specific initialization routines.
- */
-
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
@@ -262,11 +258,6 @@ static void __init qong_timer_init(void)
 static struct sys_timer qong_timer = {
 	.init	= qong_timer_init,
 };
-
-/*
- * The following uses standard kernel macros defined in arch.h in order to
- * initialize __mach_desc_QONG data structure.
- */
 
 MACHINE_START(QONG, "Dave/DENX QongEVB-LITE")
 	/* Maintainer: DENX Software Engineering GmbH */
