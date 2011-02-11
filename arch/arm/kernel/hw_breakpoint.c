@@ -137,11 +137,10 @@ static u8 get_debug_arch(void)
 	u32 didr;
 
 	/* Do we implement the extended CPUID interface? */
-	if (((read_cpuid_id() >> 16) & 0xf) != 0xf) {
-		pr_warning("CPUID feature registers not supported. "
-				"Assuming v6 debug is present.\n");
+	if (WARN_ONCE((((read_cpuid_id() >> 16) & 0xf) != 0xf),
+	    "CPUID feature registers not supported. "
+	    "Assuming v6 debug is present.\n"))
 		return ARM_DEBUG_ARCH_V6;
-	}
 
 	ARM_DBG_READ(c0, 0, didr);
 	return (didr >> 16) & 0xf;
@@ -150,6 +149,12 @@ static u8 get_debug_arch(void)
 u8 arch_get_debug_arch(void)
 {
 	return debug_arch;
+}
+
+static int debug_arch_supported(void)
+{
+	u8 arch = get_debug_arch();
+	return arch >= ARM_DEBUG_ARCH_V6 && arch <= ARM_DEBUG_ARCH_V7_ECP14;
 }
 
 /* Determine number of BRP register available. */
@@ -268,6 +273,9 @@ out:
 
 int hw_breakpoint_slots(int type)
 {
+	if (!debug_arch_supported())
+		return 0;
+
 	/*
 	 * We can be called early, so don't rely on
 	 * our static variables being initialised.
@@ -882,7 +890,7 @@ static int __init arch_hw_breakpoint_init(void)
 
 	debug_arch = get_debug_arch();
 
-	if (debug_arch > ARM_DEBUG_ARCH_V7_ECP14) {
+	if (!debug_arch_supported()) {
 		pr_info("debug architecture 0x%x unsupported.\n", debug_arch);
 		return 0;
 	}
