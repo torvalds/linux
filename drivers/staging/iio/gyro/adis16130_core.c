@@ -25,11 +25,7 @@
 
 #include "adis16130.h"
 
-#define DRIVER_NAME		"adis16130"
-
-struct adis16130_state *adis16130_st;
-
-int adis16130_spi_write(struct device *dev, u8 reg_addr,
+static int adis16130_spi_write(struct device *dev, u8 reg_addr,
 		u8 val)
 {
 	int ret;
@@ -46,7 +42,7 @@ int adis16130_spi_write(struct device *dev, u8 reg_addr,
 	return ret;
 }
 
-int adis16130_spi_read(struct device *dev, u8 reg_addr,
+static int adis16130_spi_read(struct device *dev, u8 reg_addr,
 		u32 *val)
 {
 	int ret;
@@ -148,7 +144,8 @@ static IIO_DEV_ATTR_GYRO(adis16130_gyro_read,
 #define IIO_DEV_ATTR_BITS_MODE(_mode, _show, _store, _addr)	\
 	IIO_DEVICE_ATTR(bits_mode, _mode, _show, _store, _addr)
 
-static IIO_DEV_ATTR_BITS_MODE(S_IWUSR | S_IRUGO, adis16130_bitsmode_read, adis16130_bitsmode_write,
+static IIO_DEV_ATTR_BITS_MODE(S_IWUSR | S_IRUGO, adis16130_bitsmode_read,
+			adis16130_bitsmode_write,
 			ADIS16130_MODE);
 
 static struct attribute *adis16130_event_attributes[] = {
@@ -173,7 +170,7 @@ static const struct attribute_group adis16130_attribute_group = {
 
 static int __devinit adis16130_probe(struct spi_device *spi)
 {
-	int ret, regdone = 0;
+	int ret;
 	struct adis16130_state *st = kzalloc(sizeof *st, GFP_KERNEL);
 	if (!st) {
 		ret =  -ENOMEM;
@@ -211,50 +208,14 @@ static int __devinit adis16130_probe(struct spi_device *spi)
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 	st->mode = 1;
 
-	ret = adis16130_configure_ring(st->indio_dev);
+	ret = iio_device_register(st->indio_dev);
 	if (ret)
 		goto error_free_dev;
 
-	ret = iio_device_register(st->indio_dev);
-	if (ret)
-		goto error_unreg_ring_funcs;
-	regdone = 1;
-
-	ret = adis16130_initialize_ring(st->indio_dev->ring);
-	if (ret) {
-		printk(KERN_ERR "failed to initialize the ring\n");
-		goto error_unreg_ring_funcs;
-	}
-
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
-		ret = iio_register_interrupt_line(spi->irq,
-				st->indio_dev,
-				0,
-				IRQF_TRIGGER_RISING,
-				"adis16130");
-		if (ret)
-			goto error_uninitialize_ring;
-
-		ret = adis16130_probe_trigger(st->indio_dev);
-		if (ret)
-			goto error_unregister_line;
-	}
-
-	adis16130_st = st;
 	return 0;
 
-error_unregister_line:
-	if (st->indio_dev->modes & INDIO_RING_TRIGGERED)
-		iio_unregister_interrupt_line(st->indio_dev, 0);
-error_uninitialize_ring:
-	adis16130_uninitialize_ring(st->indio_dev->ring);
-error_unreg_ring_funcs:
-	adis16130_unconfigure_ring(st->indio_dev);
 error_free_dev:
-	if (regdone)
-		iio_device_unregister(st->indio_dev);
-	else
-		iio_free_device(st->indio_dev);
+	iio_free_device(st->indio_dev);
 error_free_tx:
 	kfree(st->tx);
 error_free_rx:
@@ -271,14 +232,6 @@ static int adis16130_remove(struct spi_device *spi)
 	struct adis16130_state *st = spi_get_drvdata(spi);
 	struct iio_dev *indio_dev = st->indio_dev;
 
-	flush_scheduled_work();
-
-	adis16130_remove_trigger(indio_dev);
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
-		iio_unregister_interrupt_line(indio_dev, 0);
-
-	adis16130_uninitialize_ring(indio_dev->ring);
-	adis16130_unconfigure_ring(indio_dev);
 	iio_device_unregister(indio_dev);
 	kfree(st->tx);
 	kfree(st->rx);
