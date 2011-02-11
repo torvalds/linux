@@ -754,7 +754,7 @@ void solo_enc_v4l2_isr(struct solo6010_dev *solo_dev)
 
 	cur_q = ((solo_reg_read(solo_dev, SOLO_VE_STATE(11)) & 0xF) + 1) % MP4_QS;
 
-	reg_mpeg_size = ((solo_reg_read(solo_dev, SOLO_VE_STATE(0)) & 0xFFFFF) + 64 + 32) & ~31;
+	reg_mpeg_size = ((solo_reg_read(solo_dev, SOLO_VE_STATE(0)) & 0xFFFFF) + 64 + 8) & ~7;
 
 	while (solo_dev->enc_idx != cur_q) {
 		mpeg_current = solo_reg_read(solo_dev,

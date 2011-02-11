@@ -176,7 +176,6 @@ static void solo_mp4e_config(struct solo6010_dev *solo_dev)
 		       SOLO_VE_BLOCK_BASE(SOLO_MP4E_EXT_ADDR(solo_dev) >> 16));
 
 	solo_reg_write(solo_dev, SOLO_VE_CFG1,
-		       SOLO_VE_BYTE_ALIGN(2) |
 		       SOLO_VE_INSERT_INDEX | SOLO_VE_MOTION_MODE(0));
 
 	solo_reg_write(solo_dev, SOLO_VE_WMRK_POLY, 0);
