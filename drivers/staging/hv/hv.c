@@ -230,12 +230,7 @@ int hv_init(void)
 	* Allocate the hypercall page memory
 	* virtaddr = osd_page_alloc(1);
 	*/
-#ifdef __x86_64__
 	virtaddr = __vmalloc(PAGE_SIZE, GFP_KERNEL, PAGE_KERNEL_EXEC);
-#else
-	virtaddr =  __vmalloc(PAGE_SIZE, GFP_KERNEL,
-			__pgprot(__PAGE_KERNEL & (~_PAGE_NX)));
-#endif
 
 	if (!virtaddr) {
 		DPRINT_ERR(VMBUS,
