@@ -61,7 +61,7 @@ static ssize_t ade7854_read_24bit(struct device *dev,
 		char *buf)
 {
 	int ret;
-	u32 val = 0;
+	u32 val;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ade7854_state *st = iio_dev_get_devdata(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
@@ -70,7 +70,7 @@ static ssize_t ade7854_read_24bit(struct device *dev,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%u\n", val & 0xFFFFFF);
+	return sprintf(buf, "%u\n", val);
 }
 
 static ssize_t ade7854_read_32bit(struct device *dev,
@@ -178,15 +178,12 @@ static int ade7854_reset(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ade7854_state *st = iio_dev_get_devdata(indio_dev);
-
-	int ret;
 	u16 val;
 
 	st->read_reg_16(dev, ADE7854_CONFIG, &val);
 	val |= 1 << 7; /* Software Chip Reset */
-	ret = st->write_reg_16(dev, ADE7854_CONFIG, val);
 
-	return ret;
+	return st->write_reg_16(dev, ADE7854_CONFIG, val);
 }
 
 
@@ -477,14 +474,6 @@ static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("8000");
 
 static IIO_CONST_ATTR(name, "ade7854");
 
-static struct attribute *ade7854_event_attributes[] = {
-	NULL
-};
-
-static struct attribute_group ade7854_event_attribute_group = {
-	.attrs = ade7854_event_attributes,
-};
-
 static struct attribute *ade7854_attributes[] = {
 	&iio_dev_attr_aigain.dev_attr.attr,
 	&iio_dev_attr_bigain.dev_attr.attr,
@@ -564,7 +553,7 @@ static const struct attribute_group ade7854_attribute_group = {
 
 int ade7854_probe(struct ade7854_state *st, struct device *dev)
 {
-	int ret, regdone = 0;
+	int ret;
 
 	/* Allocate the comms buffers */
 	st->rx = kzalloc(sizeof(*st->rx)*ADE7854_MAX_RX, GFP_KERNEL);
@@ -586,71 +575,34 @@ int ade7854_probe(struct ade7854_state *st, struct device *dev)
 	}
 
 	st->indio_dev->dev.parent = dev;
-	st->indio_dev->num_interrupt_lines = 1;
-	st->indio_dev->event_attrs = &ade7854_event_attribute_group;
 	st->indio_dev->attrs = &ade7854_attribute_group;
 	st->indio_dev->dev_data = (void *)(st);
 	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = ade7854_configure_ring(st->indio_dev);
+	ret = iio_device_register(st->indio_dev);
 	if (ret)
 		goto error_free_dev;
 
-	ret = iio_device_register(st->indio_dev);
-	if (ret)
-		goto error_unreg_ring_funcs;
-	regdone = 1;
-
-	ret = ade7854_initialize_ring(st->indio_dev->ring);
-	if (ret) {
-		printk(KERN_ERR "failed to initialize the ring\n");
-		goto error_unreg_ring_funcs;
-	}
-
-	if (st->irq) {
-		ret = iio_register_interrupt_line(st->irq,
-				st->indio_dev,
-				0,
-				IRQF_TRIGGER_FALLING,
-				"ade7854");
-		if (ret)
-			goto error_uninitialize_ring;
-
-		ret = ade7854_probe_trigger(st->indio_dev);
-		if (ret)
-			goto error_unregister_line;
-	}
 	/* Get the device into a sane initial state */
 	ret = ade7854_initial_setup(st);
 	if (ret)
-		goto error_remove_trigger;
+		goto error_unreg_dev;
 
 	return 0;
 
-error_remove_trigger:
-	if (st->indio_dev->modes & INDIO_RING_TRIGGERED)
-		ade7854_remove_trigger(st->indio_dev);
-error_unregister_line:
-	if (st->indio_dev->modes & INDIO_RING_TRIGGERED)
-		iio_unregister_interrupt_line(st->indio_dev, 0);
-error_uninitialize_ring:
-	ade7854_uninitialize_ring(st->indio_dev->ring);
-error_unreg_ring_funcs:
-	ade7854_unconfigure_ring(st->indio_dev);
+error_unreg_dev:
+	iio_device_unregister(st->indio_dev);
 error_free_dev:
-	if (regdone)
-		iio_device_unregister(st->indio_dev);
-	else
-		iio_free_device(st->indio_dev);
+	iio_free_device(st->indio_dev);
 error_free_tx:
 	kfree(st->tx);
 error_free_rx:
 	kfree(st->rx);
 error_free_st:
 	kfree(st);
-	return ret;
 
+	return ret;
 }
 EXPORT_SYMBOL(ade7854_probe);
 
@@ -658,14 +610,6 @@ int ade7854_remove(struct ade7854_state *st)
 {
 	struct iio_dev *indio_dev = st->indio_dev;
 
-	flush_scheduled_work();
-
-	ade7854_remove_trigger(indio_dev);
-	if (st->irq)
-		iio_unregister_interrupt_line(indio_dev, 0);
-
-	ade7854_uninitialize_ring(indio_dev->ring);
-	ade7854_unconfigure_ring(indio_dev);
 	iio_device_unregister(indio_dev);
 	kfree(st->tx);
 	kfree(st->rx);
@@ -676,5 +620,5 @@ int ade7854_remove(struct ade7854_state *st)
 EXPORT_SYMBOL(ade7854_remove);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
-MODULE_DESCRIPTION("Analog Devices ADE7854/58/68/78 Polyphase Multifunction Energy Metering IC Driver");
+MODULE_DESCRIPTION("Analog Devices ADE7854/58/68/78 Polyphase Energy Meter");
 MODULE_LICENSE("GPL v2");
