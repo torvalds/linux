@@ -57,7 +57,7 @@ static int dcon_was_irq(void)
 	return 0;
 }
 
-static int dcon_init_xo_1_5(void)
+static int dcon_init_xo_1_5(struct dcon_priv *dcon)
 {
 	unsigned int irq;
 	u_int8_t tmp;
@@ -96,19 +96,18 @@ static int dcon_init_xo_1_5(void)
 
 	/* Determine the current state of DCONLOAD, likely set by firmware */
 	/* GPIO1 */
-	dcon_source = (inl(VX855_GENL_PURPOSE_OUTPUT) & 0x1000) ?
+	dcon->curr_src = (inl(VX855_GENL_PURPOSE_OUTPUT) & 0x1000) ?
 			DCON_SOURCE_CPU : DCON_SOURCE_DCON;
-	dcon_pending = dcon_source;
+	dcon->pending_src = dcon->curr_src;
 
 	pci_dev_put(pdev);
 
 	/* we're sharing the IRQ with ACPI */
 	irq = acpi_gbl_FADT.sci_interrupt;
-	if (request_irq(irq, &dcon_interrupt, IRQF_SHARED, "DCON", &dcon_driver)) {
+	if (request_irq(irq, &dcon_interrupt, IRQF_SHARED, "DCON", dcon)) {
 		printk(KERN_ERR PREFIX "DCON (IRQ%d) allocation failed\n", irq);
 		return 1;
 	}
-
 
 	return 0;
 }

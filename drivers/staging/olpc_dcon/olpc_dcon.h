@@ -1,6 +1,9 @@
 #ifndef OLPC_DCON_H_
 #define OLPC_DCON_H_
 
+#include <linux/notifier.h>
+#include <linux/workqueue.h>
+
 /* DCON registers */
 
 #define DCON_REG_ID		 0
@@ -44,8 +47,32 @@
 /* Interrupt */
 #define DCON_IRQ                6
 
+struct dcon_priv {
+	struct i2c_client *client;
+	struct fb_info *fbinfo;
+
+	struct work_struct switch_source;
+	struct notifier_block reboot_nb;
+	struct notifier_block fbevent_nb;
+
+	/* Shadow register for the DCON_REG_MODE register */
+	u8 disp_mode;
+
+	/* Current source, initialized at probe time */
+	int curr_src;
+
+	/* Desired source */
+	int pending_src;
+
+	/* Current output type; true == mono, false == color */
+	bool mono;
+	bool asleep;
+	/* This get set while controlling fb blank state from the driver */
+	bool ignore_fb_events;
+};
+
 struct dcon_platform_data {
-	int (*init)(void);
+	int (*init)(struct dcon_priv *);
 	void (*bus_stabilize_wiggle)(void);
 	void (*set_dconload)(int);
 	u8 (*read_status)(void);
@@ -53,10 +80,7 @@ struct dcon_platform_data {
 
 #include <linux/interrupt.h>
 
-extern int dcon_source;
-extern int dcon_pending;
 extern irqreturn_t dcon_interrupt(int irq, void *id);
-extern struct i2c_driver dcon_driver;
 
 #ifdef CONFIG_FB_OLPC_DCON_1
 extern struct dcon_platform_data dcon_pdata_xo_1;

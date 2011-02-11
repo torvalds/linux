@@ -23,7 +23,6 @@
 #include <linux/delay.h>
 #include <linux/backlight.h>
 #include <linux/device.h>
-#include <linux/notifier.h>
 #include <linux/uaccess.h>
 #include <linux/ctype.h>
 #include <linux/reboot.h>
@@ -46,24 +45,6 @@ module_param(useaa, int, 0444);
 
 static struct dcon_platform_data *pdata;
 
-struct dcon_priv {
-	struct i2c_client *client;
-	struct fb_info *fbinfo;
-
-	struct work_struct switch_source;
-	struct notifier_block reboot_nb;
-	struct notifier_block fbevent_nb;
-
-	/* Shadow register for the DCON_REG_MODE register */
-	u8 disp_mode;
-
-	/* Current output type; true == mono, false == color */
-	bool mono;
-	bool asleep;
-	/* This get set while controlling fb blank state from the driver */
-	bool ignore_fb_events;
-};
-
 /* I2C structures */
 
 /* Platform devices */
@@ -71,12 +52,6 @@ static struct platform_device *dcon_device;
 
 /* Backlight device */
 static struct backlight_device *dcon_bl_dev;
-
-/* Current source, initialized at probe time */
-int dcon_source;
-
-/* Desired source */
-int dcon_pending;
 
 /* Variables used during switches */
 static int dcon_switched;
@@ -119,7 +94,7 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 	if (is_init) {
 		printk(KERN_INFO "olpc-dcon:  Discovered DCON version %x\n",
 				ver & 0xFF);
-		rc = pdata->init();
+		rc = pdata->init(dcon);
 		if (rc != 0) {
 			printk(KERN_ERR "olpc-dcon:  Unable to init.\n");
 			goto err;
@@ -366,9 +341,9 @@ static void dcon_source_switch(struct work_struct *work)
 	struct dcon_priv *dcon = container_of(work, struct dcon_priv,
 			switch_source);
 	DECLARE_WAITQUEUE(wait, current);
-	int source = dcon_pending;
+	int source = dcon->pending_src;
 
-	if (dcon_source == source)
+	if (dcon->curr_src == source)
 		return;
 
 	dcon_load_holdoff();
@@ -406,7 +381,7 @@ static void dcon_source_switch(struct work_struct *work)
 		 */
 		if (!dcon_blank_fb(dcon, false)) {
 			printk(KERN_ERR "olpc-dcon:  Failed to enter CPU mode\n");
-			dcon_pending = DCON_SOURCE_DCON;
+			dcon->pending_src = DCON_SOURCE_DCON;
 			return;
 		}
 
@@ -468,17 +443,17 @@ static void dcon_source_switch(struct work_struct *work)
 		BUG();
 	}
 
-	dcon_source = source;
+	dcon->curr_src = source;
 }
 
 static void dcon_set_source(struct dcon_priv *dcon, int arg)
 {
-	if (dcon_pending == arg)
+	if (dcon->pending_src == arg)
 		return;
 
-	dcon_pending = arg;
+	dcon->pending_src = arg;
 
-	if ((dcon_source != arg) && !work_pending(&dcon->switch_source))
+	if ((dcon->curr_src != arg) && !work_pending(&dcon->switch_source))
 		schedule_work(&dcon->switch_source);
 }
 
@@ -524,7 +499,8 @@ static ssize_t dcon_sleep_show(struct device *dev,
 static ssize_t dcon_freeze_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dcon_source == DCON_SOURCE_DCON ? 1 : 0);
+	struct dcon_priv *dcon = dev_get_drvdata(dev);
+	return sprintf(buf, "%d\n", dcon->curr_src == DCON_SOURCE_DCON ? 1 : 0);
 }
 
 static ssize_t dcon_mono_show(struct device *dev,
@@ -765,7 +741,7 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	platform_device_unregister(dcon_device);
 	dcon_device = NULL;
  eirq:
-	free_irq(DCON_IRQ, &dcon_driver);
+	free_irq(DCON_IRQ, dcon);
  einit:
 	i2c_set_clientdata(client, NULL);
 	kfree(dcon);
@@ -782,7 +758,7 @@ static int dcon_remove(struct i2c_client *client)
 	unregister_reboot_notifier(&dcon->reboot_nb);
 	atomic_notifier_chain_unregister(&panic_notifier_list, &dcon_panic_nb);
 
-	free_irq(DCON_IRQ, &dcon_driver);
+	free_irq(DCON_IRQ, dcon);
 
 	if (dcon_bl_dev != NULL)
 		backlight_device_unregister(dcon_bl_dev);
@@ -826,6 +802,7 @@ static int dcon_resume(struct i2c_client *client)
 
 irqreturn_t dcon_interrupt(int irq, void *id)
 {
+	struct dcon_priv *dcon = id;
 	int status = pdata->read_status();
 
 	if (status == -1)
@@ -851,7 +828,7 @@ irqreturn_t dcon_interrupt(int irq, void *id)
 		 * of the DCON happened long before this point.
 		 * see http://dev.laptop.org/ticket/9869
 		 */
-		if (dcon_source != dcon_pending && !dcon_switched) {
+		if (dcon->curr_src != dcon->pending_src && !dcon_switched) {
 			dcon_switched = 1;
 			getnstimeofday(&dcon_irq_time);
 			wake_up(&dcon_wait_queue);
