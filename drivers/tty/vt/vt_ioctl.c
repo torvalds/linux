@@ -1010,8 +1010,9 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 			if (ret)
 				break;
 			/* Commence switch and lock */
-			set_console(arg);
+			set_console(vsa.console);
 		}
+		break;
 	}
 
 	/*
