@@ -60,6 +60,7 @@ struct hci_conn_hash {
 	spinlock_t       lock;
 	unsigned int     acl_num;
 	unsigned int     sco_num;
+	unsigned int     le_num;
 };
 
 struct bdaddr_list {
@@ -309,20 +310,36 @@ static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	list_add(&c->list, &h->list);
-	if (c->type == ACL_LINK)
+	switch (c->type) {
+	case ACL_LINK:
 		h->acl_num++;
-	else
+		break;
+	case LE_LINK:
+		h->le_num++;
+		break;
+	case SCO_LINK:
+	case ESCO_LINK:
 		h->sco_num++;
+		break;
+	}
 }
 
 static inline void hci_conn_hash_del(struct hci_dev *hdev, struct hci_conn *c)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	list_del(&c->list);
-	if (c->type == ACL_LINK)
+	switch (c->type) {
+	case ACL_LINK:
 		h->acl_num--;
-	else
+		break;
+	case LE_LINK:
+		h->le_num--;
+		break;
+	case SCO_LINK:
+	case ESCO_LINK:
 		h->sco_num--;
+		break;
+	}
 }
 
 static inline struct hci_conn *hci_conn_hash_lookup_handle(struct hci_dev *hdev,

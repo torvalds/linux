@@ -168,6 +168,8 @@ enum {
 #define SCO_LINK	0x00
 #define ACL_LINK	0x01
 #define ESCO_LINK	0x02
+/* Low Energy links do not have defined link type. Use invented one */
+#define LE_LINK		0x80
 
 /* LMP features */
 #define LMP_3SLOT	0x01
