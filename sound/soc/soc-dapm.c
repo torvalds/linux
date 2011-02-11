@@ -712,7 +712,15 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 		    !path->connected(path->source, path->sink))
 			continue;
 
-		if (path->sink && path->sink->power_check &&
+		if (!path->sink)
+			continue;
+
+		if (path->sink->force) {
+			power = 1;
+			break;
+		}
+
+		if (path->sink->power_check &&
 		    path->sink->power_check(path->sink)) {
 			power = 1;
 			break;
