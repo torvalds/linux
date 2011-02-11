@@ -516,12 +516,23 @@ be_phys_id(struct net_device *netdev, u32 data)
 	return status;
 }
 
+static bool
+be_is_wol_supported(struct be_adapter *adapter)
+{
+	if (!be_physfn(adapter))
+		return false;
+	else
+		return true;
+}
+
 static void
 be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	wol->supported = WAKE_MAGIC;
+	if (be_is_wol_supported(adapter))
+		wol->supported = WAKE_MAGIC;
+
 	if (adapter->wol)
 		wol->wolopts = WAKE_MAGIC;
 	else
@@ -537,7 +548,7 @@ be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
 
-	if (wol->wolopts & WAKE_MAGIC)
+	if ((wol->wolopts & WAKE_MAGIC) && be_is_wol_supported(adapter))
 		adapter->wol = true;
 	else
 		adapter->wol = false;
