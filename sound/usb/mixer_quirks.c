@@ -502,49 +502,44 @@ void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
 
 int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 {
-	int err;
+	int err = 0;
 	struct snd_info_entry *entry;
 
 	if ((err = snd_usb_soundblaster_remote_init(mixer)) < 0)
 		return err;
 
-	if (mixer->chip->usb_id == USB_ID(0x041e, 0x3020) ||
-	    mixer->chip->usb_id == USB_ID(0x041e, 0x3040) ||
-	    mixer->chip->usb_id == USB_ID(0x041e, 0x3042) ||
-	    mixer->chip->usb_id == USB_ID(0x041e, 0x3048)) {
-		if ((err = snd_audigy2nx_controls_create(mixer)) < 0)
-			return err;
+	switch (mixer->chip->usb_id) {
+	case USB_ID(0x041e, 0x3020):
+	case USB_ID(0x041e, 0x3040):
+	case USB_ID(0x041e, 0x3042):
+	case USB_ID(0x041e, 0x3048):
+		err = snd_audigy2nx_controls_create(mixer);
+		if (err < 0)
+			break;
 		if (!snd_card_proc_new(mixer->chip->card, "audigy2nx", &entry))
 			snd_info_set_text_ops(entry, mixer,
 					      snd_audigy2nx_proc_read);
-	}
+		break;
 
-	if (mixer->chip->usb_id == USB_ID(0x0b05, 0x1739) ||
-	    mixer->chip->usb_id == USB_ID(0x0b05, 0x1743)) {
+	case USB_ID(0x0b05, 0x1739):
+	case USB_ID(0x0b05, 0x1743):
 		err = snd_xonar_u1_controls_create(mixer);
-		if (err < 0)
-			return err;
-	}
+		break;
 
-	/* Traktor Audio 6 */
-	if (mixer->chip->usb_id == USB_ID(0x17cc, 0x1011)) {
+	case USB_ID(0x17cc, 0x1011): /* Traktor Audio 6 */
 		err = snd_nativeinstruments_create_mixer(mixer,
 				snd_nativeinstruments_ta6_mixers,
 				ARRAY_SIZE(snd_nativeinstruments_ta6_mixers));
-		if (err < 0)
-			return err;
-	}
+		break;
 
-	/* Traktor Audio 10 */
-	if (mixer->chip->usb_id == USB_ID(0x17cc, 0x1021)) {
+	case USB_ID(0x17cc, 0x1021): /* Traktor Audio 10 */
 		err = snd_nativeinstruments_create_mixer(mixer,
 				snd_nativeinstruments_ta10_mixers,
 				ARRAY_SIZE(snd_nativeinstruments_ta10_mixers));
-		if (err < 0)
-			return err;
+		break;
 	}
 
-	return 0;
+	return err;
 }
 
 void snd_usb_mixer_rc_memory_change(struct usb_mixer_interface *mixer,
