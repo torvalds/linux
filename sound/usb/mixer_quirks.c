@@ -346,6 +346,141 @@ static int snd_xonar_u1_controls_create(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
+/* Native Instruments device quirks */
+
+#define _MAKE_NI_CONTROL(bRequest,wIndex) ((bRequest) << 16 | (wIndex))
+
+static int snd_nativeinstruments_control_get(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_interface *mixer = snd_kcontrol_chip(kcontrol);
+	struct usb_device *dev = mixer->chip->dev;
+	u8 bRequest = (kcontrol->private_value >> 16) & 0xff;
+	u16 wIndex = kcontrol->private_value & 0xffff;
+	u8 tmp;
+
+	int ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), bRequest,
+				  USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
+				  0, cpu_to_le16(wIndex),
+				  &tmp, sizeof(tmp), 1000);
+
+	if (ret < 0) {
+		snd_printk(KERN_ERR
+			   "unable to issue vendor read request (ret = %d)", ret);
+		return ret;
+	}
+
+	ucontrol->value.integer.value[0] = tmp;
+
+	return 0;
+}
+
+static int snd_nativeinstruments_control_put(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_interface *mixer = snd_kcontrol_chip(kcontrol);
+	struct usb_device *dev = mixer->chip->dev;
+	u8 bRequest = (kcontrol->private_value >> 16) & 0xff;
+	u16 wIndex = kcontrol->private_value & 0xffff;
+	u16 wValue = ucontrol->value.integer.value[0];
+
+	int ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0), bRequest,
+				  USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+				  cpu_to_le16(wValue), cpu_to_le16(wIndex),
+				  NULL, 0, 1000);
+
+	if (ret < 0) {
+		snd_printk(KERN_ERR
+			   "unable to issue vendor write request (ret = %d)", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static struct snd_kcontrol_new snd_nativeinstruments_ta6_mixers[] = {
+	{
+		.name = "Direct Thru Channel A",
+		.private_value = _MAKE_NI_CONTROL(0x01, 0x03),
+	},
+	{
+		.name = "Direct Thru Channel B",
+		.private_value = _MAKE_NI_CONTROL(0x01, 0x05),
+	},
+	{
+		.name = "Phono Input Channel A",
+		.private_value = _MAKE_NI_CONTROL(0x02, 0x03),
+	},
+	{
+		.name = "Phono Input Channel B",
+		.private_value = _MAKE_NI_CONTROL(0x02, 0x05),
+	},
+};
+
+static struct snd_kcontrol_new snd_nativeinstruments_ta10_mixers[] = {
+	{
+		.name = "Direct Thru Channel A",
+		.private_value = _MAKE_NI_CONTROL(0x01, 0x03),
+	},
+	{
+		.name = "Direct Thru Channel B",
+		.private_value = _MAKE_NI_CONTROL(0x01, 0x05),
+	},
+	{
+		.name = "Direct Thru Channel C",
+		.private_value = _MAKE_NI_CONTROL(0x01, 0x07),
+	},
+	{
+		.name = "Direct Thru Channel D",
+		.private_value = _MAKE_NI_CONTROL(0x01, 0x09),
+	},
+	{
+		.name = "Phono Input Channel A",
+		.private_value = _MAKE_NI_CONTROL(0x02, 0x03),
+	},
+	{
+		.name = "Phono Input Channel B",
+		.private_value = _MAKE_NI_CONTROL(0x02, 0x05),
+	},
+	{
+		.name = "Phono Input Channel C",
+		.private_value = _MAKE_NI_CONTROL(0x02, 0x07),
+	},
+	{
+		.name = "Phono Input Channel D",
+		.private_value = _MAKE_NI_CONTROL(0x02, 0x09),
+	},
+};
+
+static int snd_nativeinstruments_create_mixer(struct usb_mixer_interface *mixer,
+					      const struct snd_kcontrol_new *kc,
+					      unsigned int count)
+{
+	int i, err = 0;
+	struct snd_kcontrol_new template = {
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.get = snd_nativeinstruments_control_get,
+		.put = snd_nativeinstruments_control_put,
+		.info = snd_ctl_boolean_mono_info,
+	};
+
+	for (i = 0; i < count; i++) {
+		struct snd_kcontrol *c;
+
+		template.name = kc[i].name;
+		template.private_value = kc[i].private_value;
+
+		c = snd_ctl_new1(&template, mixer);
+		err = snd_ctl_add(mixer->chip->card, c);
+
+		if (err < 0)
+			break;
+	}
+
+	return err;
+}
+
 void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
 			       unsigned char samplerate_id)
 {
@@ -387,6 +522,24 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 	if (mixer->chip->usb_id == USB_ID(0x0b05, 0x1739) ||
 	    mixer->chip->usb_id == USB_ID(0x0b05, 0x1743)) {
 		err = snd_xonar_u1_controls_create(mixer);
+		if (err < 0)
+			return err;
+	}
+
+	/* Traktor Audio 6 */
+	if (mixer->chip->usb_id == USB_ID(0x17cc, 0x1011)) {
+		err = snd_nativeinstruments_create_mixer(mixer,
+				snd_nativeinstruments_ta6_mixers,
+				ARRAY_SIZE(snd_nativeinstruments_ta6_mixers));
+		if (err < 0)
+			return err;
+	}
+
+	/* Traktor Audio 10 */
+	if (mixer->chip->usb_id == USB_ID(0x17cc, 0x1021)) {
+		err = snd_nativeinstruments_create_mixer(mixer,
+				snd_nativeinstruments_ta10_mixers,
+				ARRAY_SIZE(snd_nativeinstruments_ta10_mixers));
 		if (err < 0)
 			return err;
 	}
