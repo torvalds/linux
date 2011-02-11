@@ -896,7 +896,7 @@ struct rtl_security {
 };
 
 struct rtl_dm {
-	/*PHY status for DM */
+	/*PHY status for DM (dynamic management) */
 	long entry_min_undecoratedsmoothed_pwdb;
 	long undecorated_smoothed_pwdb;	/*out dm */
 	long entry_max_undecoratedsmoothed_pwdb;
