@@ -465,7 +465,7 @@ retry:
 	 */
 
 	err = -EMSGSIZE;
-	if (len > dev->mtu + dev->hard_header_len)
+	if (len > dev->mtu + dev->hard_header_len + VLAN_HLEN)
 		goto out_unlock;
 
 	if (!skb) {
@@ -496,6 +496,19 @@ retry:
 		goto retry;
 	}
 
+	if (len > (dev->mtu + dev->hard_header_len)) {
+		/* Earlier code assumed this would be a VLAN pkt,
+		 * double-check this now that we have the actual
+		 * packet in hand.
+		 */
+		struct ethhdr *ehdr;
+		skb_reset_mac_header(skb);
+		ehdr = eth_hdr(skb);
+		if (ehdr->h_proto != htons(ETH_P_8021Q)) {
+			err = -EMSGSIZE;
+			goto out_unlock;
+		}
+	}
 
 	skb->protocol = proto;
 	skb->dev = dev;
@@ -1199,7 +1212,7 @@ static int packet_snd(struct socket *sock,
 	}
 
 	err = -EMSGSIZE;
-	if (!gso_type && (len > dev->mtu+reserve))
+	if (!gso_type && (len > dev->mtu + reserve + VLAN_HLEN))
 		goto out_unlock;
 
 	err = -ENOBUFS;
@@ -1223,6 +1236,20 @@ static int packet_snd(struct socket *sock,
 	err = sock_tx_timestamp(sk, &skb_shinfo(skb)->tx_flags);
 	if (err < 0)
 		goto out_free;
+
+	if (!gso_type && (len > dev->mtu + reserve)) {
+		/* Earlier code assumed this would be a VLAN pkt,
+		 * double-check this now that we have the actual
+		 * packet in hand.
+		 */
+		struct ethhdr *ehdr;
+		skb_reset_mac_header(skb);
+		ehdr = eth_hdr(skb);
+		if (ehdr->h_proto != htons(ETH_P_8021Q)) {
+			err = -EMSGSIZE;
+			goto out_free;
+		}
+	}
 
 	skb->protocol = proto;
 	skb->dev = dev;
