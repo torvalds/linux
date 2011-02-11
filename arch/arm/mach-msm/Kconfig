@@ -150,7 +150,7 @@ endmenu
 
 config MSM_IOMMU
 	bool "MSM IOMMU Support"
-	depends on ARCH_MSM8X60
+	depends on ARCH_MSM8X60 || ARCH_MSM8960
 	select IOMMU_API
 	default n
 	help
