@@ -326,6 +326,11 @@ int hci_conn_del(struct hci_conn *conn)
 
 		/* Unacked frames */
 		hdev->acl_cnt += conn->sent;
+	} else if (conn->type == LE_LINK) {
+		if (hdev->le_pkts)
+			hdev->le_cnt += conn->sent;
+		else
+			hdev->acl_cnt += conn->sent;
 	} else {
 		struct hci_conn *acl = conn->link;
 		if (acl) {

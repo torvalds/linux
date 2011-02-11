@@ -263,6 +263,14 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	hci_send_cmd(hdev, HCI_OP_DELETE_STORED_LINK_KEY, sizeof(cp), &cp);
 }
 
+static void hci_le_init_req(struct hci_dev *hdev, unsigned long opt)
+{
+	BT_DBG("%s", hdev->name);
+
+	/* Read LE buffer size */
+	hci_send_cmd(hdev, HCI_OP_LE_READ_BUFFER_SIZE, 0, NULL);
+}
+
 static void hci_scan_req(struct hci_dev *hdev, unsigned long opt)
 {
 	__u8 scan = opt;
@@ -529,6 +537,10 @@ int hci_dev_open(__u16 dev)
 		ret = __hci_request(hdev, hci_init_req, 0,
 					msecs_to_jiffies(HCI_INIT_TIMEOUT));
 
+		if (lmp_le_capable(hdev))
+			ret = __hci_request(hdev, hci_le_init_req, 0,
+					msecs_to_jiffies(HCI_INIT_TIMEOUT));
+
 		clear_bit(HCI_INIT, &hdev->flags);
 	}
 
@@ -671,7 +683,7 @@ int hci_dev_reset(__u16 dev)
 		hdev->flush(hdev);
 
 	atomic_set(&hdev->cmd_cnt, 1);
-	hdev->acl_cnt = 0; hdev->sco_cnt = 0;
+	hdev->acl_cnt = 0; hdev->sco_cnt = 0; hdev->le_cnt = 0;
 
 	if (!test_bit(HCI_RAW, &hdev->flags))
 		ret = __hci_request(hdev, hci_reset_req, 0,
@@ -1672,8 +1684,25 @@ static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int
 	}
 
 	if (conn) {
-		int cnt = (type == ACL_LINK ? hdev->acl_cnt : hdev->sco_cnt);
-		int q = cnt / num;
+		int cnt, q;
+
+		switch (conn->type) {
+		case ACL_LINK:
+			cnt = hdev->acl_cnt;
+			break;
+		case SCO_LINK:
+		case ESCO_LINK:
+			cnt = hdev->sco_cnt;
+			break;
+		case LE_LINK:
+			cnt = hdev->le_mtu ? hdev->le_cnt : hdev->acl_cnt;
+			break;
+		default:
+			cnt = 0;
+			BT_ERR("Unknown link type");
+		}
+
+		q = cnt / num;
 		*quote = q ? q : 1;
 	} else
 		*quote = 0;
@@ -1772,6 +1801,40 @@ static inline void hci_sched_esco(struct hci_dev *hdev)
 	}
 }
 
+static inline void hci_sched_le(struct hci_dev *hdev)
+{
+	struct hci_conn *conn;
+	struct sk_buff *skb;
+	int quote, cnt;
+
+	BT_DBG("%s", hdev->name);
+
+	if (!test_bit(HCI_RAW, &hdev->flags)) {
+		/* LE tx timeout must be longer than maximum
+		 * link supervision timeout (40.9 seconds) */
+		if (!hdev->le_cnt &&
+				time_after(jiffies, hdev->le_last_tx + HZ * 45))
+			hci_acl_tx_to(hdev);
+	}
+
+	cnt = hdev->le_pkts ? hdev->le_cnt : hdev->acl_cnt;
+	while (cnt && (conn = hci_low_sent(hdev, LE_LINK, &quote))) {
+		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
+			BT_DBG("skb %p len %d", skb, skb->len);
+
+			hci_send_frame(skb);
+			hdev->le_last_tx = jiffies;
+
+			cnt--;
+			conn->sent++;
+		}
+	}
+	if (hdev->le_pkts)
+		hdev->le_cnt = cnt;
+	else
+		hdev->acl_cnt = cnt;
+}
+
 static void hci_tx_task(unsigned long arg)
 {
 	struct hci_dev *hdev = (struct hci_dev *) arg;
@@ -1779,7 +1842,8 @@ static void hci_tx_task(unsigned long arg)
 
 	read_lock(&hci_task_lock);
 
-	BT_DBG("%s acl %d sco %d", hdev->name, hdev->acl_cnt, hdev->sco_cnt);
+	BT_DBG("%s acl %d sco %d le %d", hdev->name, hdev->acl_cnt,
+		hdev->sco_cnt, hdev->le_cnt);
 
 	/* Schedule queues and send stuff to HCI driver */
 
@@ -1788,6 +1852,8 @@ static void hci_tx_task(unsigned long arg)
 	hci_sched_sco(hdev);
 
 	hci_sched_esco(hdev);
+
+	hci_sched_le(hdev);
 
 	/* Send next queued raw (unknown type) packet */
 	while ((skb = skb_dequeue(&hdev->raw_q)))
