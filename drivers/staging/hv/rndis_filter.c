@@ -19,6 +19,8 @@
  *   Hank Janssen  <hjanssen@microsoft.com>
  */
 #include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/highmem.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -57,7 +59,8 @@ struct rndis_device {
 
 struct rndis_request {
 	struct list_head list_ent;
-	struct osd_waitevent *waitevent;
+	int wait_condition;
+	wait_queue_head_t wait_event;
 
 	/*
 	 * FIXME: We assumed a fixed size response here. If we do ever need to
@@ -129,11 +132,7 @@ static struct rndis_request *get_rndis_request(struct rndis_device *dev,
 	if (!request)
 		return NULL;
 
-	request->waitevent = osd_waitevent_create();
-	if (!request->waitevent) {
-		kfree(request);
-		return NULL;
-	}
+	init_waitqueue_head(&request->wait_event);
 
 	rndis_msg = &request->request_msg;
 	rndis_msg->ndis_msg_type = msg_type;
@@ -164,7 +163,6 @@ static void put_rndis_request(struct rndis_device *dev,
 	list_del(&req->list_ent);
 	spin_unlock_irqrestore(&dev->request_lock, flags);
 
-	kfree(req->waitevent);
 	kfree(req);
 }
 
@@ -321,7 +319,8 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 			}
 		}
 
-		osd_waitevent_set(request->waitevent);
+		request->wait_condition = 1;
+		wake_up(&request->wait_event);
 	} else {
 		DPRINT_ERR(NETVSC, "no rndis request found for this response "
 			   "(id 0x%x res type 0x%x)",
@@ -503,11 +502,17 @@ static int rndis_filter_query_device(struct rndis_device *dev, u32 oid,
 	query->info_buflen = 0;
 	query->dev_vc_handle = 0;
 
+	request->wait_condition = 0;
 	ret = rndis_filter_send_request(dev, request);
 	if (ret != 0)
 		goto Cleanup;
 
-	osd_waitevent_wait(request->waitevent);
+	wait_event_timeout(request->wait_event, request->wait_condition,
+				msecs_to_jiffies(1000));
+	if (request->wait_condition == 0) {
+		ret = -ETIMEDOUT;
+		goto Cleanup;
+	}
 
 	/* Copy the response back */
 	query_complete = &request->response_msg.msg.query_complete;
@@ -578,12 +583,14 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 	memcpy((void *)(unsigned long)set + sizeof(struct rndis_set_request),
 	       &new_filter, sizeof(u32));
 
+	request->wait_condition = 0;
 	ret = rndis_filter_send_request(dev, request);
 	if (ret != 0)
 		goto Cleanup;
 
-	ret = osd_waitevent_waitex(request->waitevent, 2000/*2sec*/);
-	if (!ret) {
+	wait_event_timeout(request->wait_event, request->wait_condition,
+		msecs_to_jiffies(2000));
+	if (request->wait_condition == 0) {
 		ret = -1;
 		DPRINT_ERR(NETVSC, "timeout before we got a set response...");
 		/*
@@ -669,13 +676,20 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 
 	dev->state = RNDIS_DEV_INITIALIZING;
 
+	request->wait_condition = 0;
 	ret = rndis_filter_send_request(dev, request);
 	if (ret != 0) {
 		dev->state = RNDIS_DEV_UNINITIALIZED;
 		goto Cleanup;
 	}
 
-	osd_waitevent_wait(request->waitevent);
+
+	wait_event_timeout(request->wait_event, request->wait_condition,
+		msecs_to_jiffies(1000));
+	if (request->wait_condition == 0) {
+		ret = -ETIMEDOUT;
+		goto Cleanup;
+	}
 
 	init_complete = &request->response_msg.msg.init_complete;
 	status = init_complete->status;

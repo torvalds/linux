@@ -19,6 +19,8 @@
  *   Hank Janssen  <hjanssen@microsoft.com>
  */
 #include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -243,11 +245,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 		goto errorout;
 	}
 
-	openInfo->waitevent = osd_waitevent_create();
-	if (!openInfo->waitevent) {
-		err = -ENOMEM;
-		goto errorout;
-	}
+	init_waitqueue_head(&openInfo->waitevent);
 
 	openMsg = (struct vmbus_channel_open_channel *)openInfo->msg;
 	openMsg->header.msgtype = CHANNELMSG_OPENCHANNEL;
@@ -280,8 +278,15 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 		goto Cleanup;
 	}
 
-	/* FIXME: Need to time-out here */
-	osd_waitevent_wait(openInfo->waitevent);
+	openInfo->wait_condition = 0;
+	wait_event_timeout(openInfo->waitevent,
+			openInfo->wait_condition,
+			msecs_to_jiffies(1000));
+	if (openInfo->wait_condition == 0) {
+		err = -ETIMEDOUT;
+		goto errorout;
+	}
+
 
 	if (openInfo->response.open_result.status == 0)
 		DPRINT_INFO(VMBUS, "channel <%p> open success!!", newchannel);
@@ -294,7 +299,6 @@ Cleanup:
 	list_del(&openInfo->msglistentry);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
-	kfree(openInfo->waitevent);
 	kfree(openInfo);
 	return 0;
 
@@ -509,11 +513,7 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	if (ret)
 		return ret;
 
-	msginfo->waitevent = osd_waitevent_create();
-	if (!msginfo->waitevent) {
-		ret = -ENOMEM;
-		goto Cleanup;
-	}
+	init_waitqueue_head(&msginfo->waitevent);
 
 	gpadlmsg = (struct vmbus_channel_gpadl_header *)msginfo->msg;
 	gpadlmsg->header.msgtype = CHANNELMSG_GPADL_HEADER;
@@ -533,6 +533,7 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	DPRINT_DBG(VMBUS, "Sending GPADL Header - len %zd",
 		   msginfo->msgsize - sizeof(*msginfo));
 
+	msginfo->wait_condition = 0;
 	ret = vmbus_post_msg(gpadlmsg, msginfo->msgsize -
 			       sizeof(*msginfo));
 	if (ret != 0) {
@@ -566,7 +567,11 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 
 		}
 	}
-	osd_waitevent_wait(msginfo->waitevent);
+	wait_event_timeout(msginfo->waitevent,
+				msginfo->wait_condition,
+				msecs_to_jiffies(1000));
+	BUG_ON(msginfo->wait_condition == 0);
+
 
 	/* At this point, we received the gpadl created msg */
 	DPRINT_DBG(VMBUS, "Received GPADL created "
@@ -582,7 +587,6 @@ Cleanup:
 	list_del(&msginfo->msglistentry);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
-	kfree(msginfo->waitevent);
 	kfree(msginfo);
 	return ret;
 }
@@ -605,11 +609,7 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 	if (!info)
 		return -ENOMEM;
 
-	info->waitevent = osd_waitevent_create();
-	if (!info->waitevent) {
-		kfree(info);
-		return -ENOMEM;
-	}
+	init_waitqueue_head(&info->waitevent);
 
 	msg = (struct vmbus_channel_gpadl_teardown *)info->msg;
 
@@ -621,22 +621,20 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 	list_add_tail(&info->msglistentry,
 		      &vmbus_connection.chn_msg_list);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
-
+	info->wait_condition = 0;
 	ret = vmbus_post_msg(msg,
 			       sizeof(struct vmbus_channel_gpadl_teardown));
-	if (ret != 0) {
-		/* TODO: */
-		/* something... */
-	}
 
-	osd_waitevent_wait(info->waitevent);
+	BUG_ON(ret != 0);
+	wait_event_timeout(info->waitevent,
+			info->wait_condition, msecs_to_jiffies(1000));
+	BUG_ON(info->wait_condition == 0);
 
 	/* Received a torndown response */
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&info->msglistentry);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
-	kfree(info->waitevent);
 	kfree(info);
 	return ret;
 }
@@ -664,18 +662,14 @@ void vmbus_close(struct vmbus_channel *channel)
 	if (!info)
 		return;
 
-	/* info->waitEvent = osd_waitevent_create(); */
 
 	msg = (struct vmbus_channel_close_channel *)info->msg;
 	msg->header.msgtype = CHANNELMSG_CLOSECHANNEL;
 	msg->child_relid = channel->offermsg.child_relid;
 
 	ret = vmbus_post_msg(msg, sizeof(struct vmbus_channel_close_channel));
-	if (ret != 0) {
-		/* TODO: */
-		/* something... */
-	}
 
+	BUG_ON(ret != 0);
 	/* Tear down the gpadl for the channel's ring buffer */
 	if (channel->ringbuffer_gpadlhandle)
 		vmbus_teardown_gpadl(channel,

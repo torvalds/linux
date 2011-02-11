@@ -19,6 +19,8 @@
  *   Hank Janssen  <hjanssen@microsoft.com>
  */
 #include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -230,7 +232,7 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 			   "unable to allocate receive buffer of size %d",
 			   net_device->recv_buf_size);
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 	/* page-aligned buffer */
 	/* ASSERT(((unsigned long)netDevice->ReceiveBuffer & (PAGE_SIZE - 1)) == */
@@ -249,10 +251,9 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC,
 			   "unable to establish receive buffer's gpadl");
-		goto Cleanup;
+		goto cleanup;
 	}
 
-	/* osd_waitevent_wait(ext->ChannelInitEvent); */
 
 	/* Notify the NetVsp of the gpadl handle */
 	DPRINT_INFO(NETVSC, "Sending NvspMessage1TypeSendReceiveBuffer...");
@@ -268,6 +269,7 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 		send_recv_buf.id = NETVSC_RECEIVE_BUFFER_ID;
 
 	/* Send the gpadl notification request */
+	net_device->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
@@ -276,10 +278,14 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC,
 			   "unable to send receive buffer's gpadl to netvsp");
-		goto Cleanup;
+		goto cleanup;
 	}
 
-	osd_waitevent_wait(net_device->channel_init_event);
+	wait_event_timeout(net_device->channel_init_wait,
+			net_device->wait_condition,
+			msecs_to_jiffies(1000));
+	BUG_ON(net_device->wait_condition == 0);
+
 
 	/* Check the response */
 	if (init_packet->msg.v1_msg.
@@ -289,7 +295,7 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 			   init_packet->msg.v1_msg.
 			   send_recv_buf_complete.status);
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	/* Parse the response */
@@ -303,7 +309,7 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 		* sizeof(struct nvsp_1_receive_buffer_section), GFP_KERNEL);
 	if (net_device->recv_section == NULL) {
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	memcpy(net_device->recv_section,
@@ -327,15 +333,15 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 	if (net_device->recv_section_cnt != 1 ||
 	    net_device->recv_section->offset != 0) {
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
-	goto Exit;
+	goto exit;
 
-Cleanup:
+cleanup:
 	netvsc_destroy_recv_buf(net_device);
 
-Exit:
+exit:
 	put_net_device(device);
 	return ret;
 }
@@ -354,7 +360,7 @@ static int netvsc_init_send_buf(struct hv_device *device)
 	}
 	if (net_device->send_buf_size <= 0) {
 		ret = -EINVAL;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	/* page-size grandularity */
@@ -367,7 +373,7 @@ static int netvsc_init_send_buf(struct hv_device *device)
 		DPRINT_ERR(NETVSC, "unable to allocate send buffer of size %d",
 			   net_device->send_buf_size);
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 	/* page-aligned buffer */
 	/* ASSERT(((unsigned long)netDevice->SendBuffer & (PAGE_SIZE - 1)) == 0); */
@@ -384,10 +390,8 @@ static int netvsc_init_send_buf(struct hv_device *device)
 				    &net_device->send_buf_gpadl_handle);
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC, "unable to establish send buffer's gpadl");
-		goto Cleanup;
+		goto cleanup;
 	}
-
-	/* osd_waitevent_wait(ext->ChannelInitEvent); */
 
 	/* Notify the NetVsp of the gpadl handle */
 	DPRINT_INFO(NETVSC, "Sending NvspMessage1TypeSendSendBuffer...");
@@ -403,6 +407,7 @@ static int netvsc_init_send_buf(struct hv_device *device)
 		NETVSC_SEND_BUFFER_ID;
 
 	/* Send the gpadl notification request */
+	net_device->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
@@ -411,10 +416,13 @@ static int netvsc_init_send_buf(struct hv_device *device)
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC,
 			   "unable to send receive buffer's gpadl to netvsp");
-		goto Cleanup;
+		goto cleanup;
 	}
 
-	osd_waitevent_wait(net_device->channel_init_event);
+	wait_event_timeout(net_device->channel_init_wait,
+			net_device->wait_condition,
+			msecs_to_jiffies(1000));
+	BUG_ON(net_device->wait_condition == 0);
 
 	/* Check the response */
 	if (init_packet->msg.v1_msg.
@@ -424,18 +432,18 @@ static int netvsc_init_send_buf(struct hv_device *device)
 			   init_packet->msg.v1_msg.
 			   send_send_buf_complete.status);
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	net_device->send_section_size = init_packet->
 	msg.v1_msg.send_send_buf_complete.section_size;
 
-	goto Exit;
+	goto exit;
 
-Cleanup:
+cleanup:
 	netvsc_destroy_send_buf(net_device);
 
-Exit:
+exit:
 	put_net_device(device);
 	return ret;
 }
@@ -611,6 +619,7 @@ static int netvsc_connect_vsp(struct hv_device *device)
 	DPRINT_INFO(NETVSC, "Sending NvspMessageTypeInit...");
 
 	/* Send the init request */
+	net_device->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
@@ -619,10 +628,16 @@ static int netvsc_connect_vsp(struct hv_device *device)
 
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC, "unable to send NvspMessageTypeInit");
-		goto Cleanup;
+		goto cleanup;
 	}
 
-	osd_waitevent_wait(net_device->channel_init_event);
+	wait_event_timeout(net_device->channel_init_wait,
+			net_device->wait_condition,
+			msecs_to_jiffies(1000));
+	if (net_device->wait_condition == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
 
 	/* Now, check the response */
 	/* ASSERT(initPacket->Messages.InitMessages.InitComplete.MaximumMdlChainLength <= MAX_MULTIPAGE_BUFFER_COUNT); */
@@ -637,7 +652,7 @@ static int netvsc_connect_vsp(struct hv_device *device)
 			"unable to initialize with netvsp (status 0x%x)",
 			init_packet->msg.init_msg.init_complete.status);
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	if (init_packet->msg.init_msg.init_complete.
@@ -647,7 +662,7 @@ static int netvsc_connect_vsp(struct hv_device *device)
 			   init_packet->msg.init_msg.
 			   init_complete.negotiated_protocol_ver);
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 	DPRINT_INFO(NETVSC, "Sending NvspMessage1TypeSendNdisVersion...");
 
@@ -666,29 +681,22 @@ static int netvsc_connect_vsp(struct hv_device *device)
 
 	/* Send the init request */
 	ret = vmbus_sendpacket(device->channel, init_packet,
-			       sizeof(struct nvsp_message),
-			       (unsigned long)init_packet,
-			       VM_PKT_DATA_INBAND, 0);
+				sizeof(struct nvsp_message),
+				(unsigned long)init_packet,
+				VM_PKT_DATA_INBAND, 0);
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC,
 			   "unable to send NvspMessage1TypeSendNdisVersion");
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
-	/*
-	 * BUGBUG - We have to wait for the above msg since the
-	 * netvsp uses KMCL which acknowledges packet (completion
-	 * packet) since our Vmbus always set the
-	 * VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED flag
-	 */
-	 /* osd_waitevent_wait(NetVscChannel->ChannelInitEvent); */
 
 	/* Post the big receive buffer to NetVSP */
 	ret = netvsc_init_recv_buf(device);
 	if (ret == 0)
 		ret = netvsc_init_send_buf(device);
 
-Cleanup:
+cleanup:
 	put_net_device(device);
 	return ret;
 }
@@ -715,7 +723,7 @@ static int netvsc_device_add(struct hv_device *device, void *additional_info)
 	net_device = alloc_net_device(device);
 	if (!net_device) {
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	DPRINT_DBG(NETVSC, "netvsc channel object allocated - %p", net_device);
@@ -741,11 +749,7 @@ static int netvsc_device_add(struct hv_device *device, void *additional_info)
 		list_add_tail(&packet->list_ent,
 			      &net_device->recv_pkt_list);
 	}
-	net_device->channel_init_event = osd_waitevent_create();
-	if (!net_device->channel_init_event) {
-		ret = -ENOMEM;
-		goto Cleanup;
-	}
+	init_waitqueue_head(&net_device->channel_init_wait);
 
 	/* Open the channel */
 	ret = vmbus_open(device->channel, net_driver->ring_buf_size,
@@ -755,7 +759,7 @@ static int netvsc_device_add(struct hv_device *device, void *additional_info)
 	if (ret != 0) {
 		DPRINT_ERR(NETVSC, "unable to open channel: %d", ret);
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	/* Channel is opened */
@@ -778,11 +782,9 @@ close:
 	/* Now, we can close the channel safely */
 	vmbus_close(device->channel);
 
-Cleanup:
+cleanup:
 
 	if (net_device) {
-		kfree(net_device->channel_init_event);
-
 		list_for_each_entry_safe(packet, pos,
 					 &net_device->recv_pkt_list,
 					 list_ent) {
@@ -847,7 +849,6 @@ static int netvsc_device_remove(struct hv_device *device)
 		kfree(netvsc_packet);
 	}
 
-	kfree(net_device->channel_init_event);
 	free_net_device(net_device);
 	return 0;
 }
@@ -887,7 +888,8 @@ static void netvsc_send_completion(struct hv_device *device,
 		/* Copy the response back */
 		memcpy(&net_device->channel_init_pkt, nvsp_packet,
 		       sizeof(struct nvsp_message));
-		osd_waitevent_set(net_device->channel_init_event);
+		net_device->wait_condition = 1;
+		wake_up(&net_device->channel_init_wait);
 	} else if (nvsp_packet->hdr.msg_type ==
 		   NVSP_MSG1_TYPE_SEND_RNDIS_PKT_COMPLETE) {
 		/* Get the send context */

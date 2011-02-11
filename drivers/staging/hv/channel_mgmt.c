@@ -19,6 +19,8 @@
  *   Hank Janssen  <hjanssen@microsoft.com>
  */
 #include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/list.h>
@@ -593,7 +595,8 @@ static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 				memcpy(&msginfo->response.open_result,
 				       result,
 				       sizeof(struct vmbus_channel_open_result));
-				osd_waitevent_set(msginfo->waitevent);
+				msginfo->wait_condition = 1;
+				wake_up(&msginfo->waitevent);
 				break;
 			}
 		}
@@ -643,7 +646,8 @@ static void vmbus_ongpadl_created(struct vmbus_channel_message_header *hdr)
 				memcpy(&msginfo->response.gpadl_created,
 				       gpadlcreated,
 				       sizeof(struct vmbus_channel_gpadl_created));
-				osd_waitevent_set(msginfo->waitevent);
+				msginfo->wait_condition = 1;
+				wake_up(&msginfo->waitevent);
 				break;
 			}
 		}
@@ -689,7 +693,8 @@ static void vmbus_ongpadl_torndown(
 				memcpy(&msginfo->response.gpadl_torndown,
 				       gpadl_torndown,
 				       sizeof(struct vmbus_channel_gpadl_torndown));
-				osd_waitevent_set(msginfo->waitevent);
+				msginfo->wait_condition = 1;
+				wake_up(&msginfo->waitevent);
 				break;
 			}
 		}
@@ -730,7 +735,8 @@ static void vmbus_onversion_response(
 			memcpy(&msginfo->response.version_response,
 			      version_response,
 			      sizeof(struct vmbus_channel_version_response));
-			osd_waitevent_set(msginfo->waitevent);
+			msginfo->wait_condition = 1;
+			wake_up(&msginfo->waitevent);
 		}
 	}
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
@@ -805,44 +811,34 @@ int vmbus_request_offers(void)
 	if (!msginfo)
 		return -ENOMEM;
 
-	msginfo->waitevent = osd_waitevent_create();
-	if (!msginfo->waitevent) {
-		kfree(msginfo);
-		return -ENOMEM;
-	}
+	init_waitqueue_head(&msginfo->waitevent);
 
 	msg = (struct vmbus_channel_message_header *)msginfo->msg;
 
 	msg->msgtype = CHANNELMSG_REQUESTOFFERS;
 
-	/*SpinlockAcquire(gVmbusConnection.channelMsgLock);
-	INSERT_TAIL_LIST(&gVmbusConnection.channelMsgList,
-			 &msgInfo->msgListEntry);
-	SpinlockRelease(gVmbusConnection.channelMsgLock);*/
 
 	ret = vmbus_post_msg(msg,
 			       sizeof(struct vmbus_channel_message_header));
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS, "Unable to request offers - %d", ret);
 
-		/*SpinlockAcquire(gVmbusConnection.channelMsgLock);
-		REMOVE_ENTRY_LIST(&msgInfo->msgListEntry);
-		SpinlockRelease(gVmbusConnection.channelMsgLock);*/
-
-		goto Cleanup;
+		goto cleanup;
 	}
-	/* osd_waitevent_wait(msgInfo->waitEvent); */
 
-	/*SpinlockAcquire(gVmbusConnection.channelMsgLock);
-	REMOVE_ENTRY_LIST(&msgInfo->msgListEntry);
-	SpinlockRelease(gVmbusConnection.channelMsgLock);*/
+	msginfo->wait_condition = 0;
+	wait_event_timeout(msginfo->waitevent, msginfo->wait_condition,
+			msecs_to_jiffies(1000));
+	if (msginfo->wait_condition == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
 
 
-Cleanup:
-	if (msginfo) {
-		kfree(msginfo->waitevent);
+
+cleanup:
+	if (msginfo)
 		kfree(msginfo);
-	}
 
 	return ret;
 }

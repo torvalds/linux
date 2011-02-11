@@ -318,7 +318,8 @@ struct netvsc_device {
 	struct nvsp_1_receive_buffer_section *recv_section;
 
 	/* Used for NetVSP initialization protocol */
-	struct osd_waitevent *channel_init_event;
+	int wait_condition;
+	wait_queue_head_t channel_init_wait;
 	struct nvsp_message channel_init_pkt;
 
 	struct nvsp_message revoke_packet;

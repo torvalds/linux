@@ -21,6 +21,8 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -97,11 +99,7 @@ int vmbus_connect(void)
 		goto Cleanup;
 	}
 
-	msginfo->waitevent = osd_waitevent_create();
-	if (!msginfo->waitevent) {
-		ret = -ENOMEM;
-		goto Cleanup;
-	}
+	init_waitqueue_head(&msginfo->waitevent);
 
 	msg = (struct vmbus_channel_initiate_contact *)msginfo->msg;
 
@@ -131,14 +129,30 @@ int vmbus_connect(void)
 	ret = vmbus_post_msg(msg,
 			       sizeof(struct vmbus_channel_initiate_contact));
 	if (ret != 0) {
+		spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 		list_del(&msginfo->msglistentry);
+		spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock,
+					flags);
 		goto Cleanup;
 	}
 
 	/* Wait for the connection response */
-	osd_waitevent_wait(msginfo->waitevent);
+	msginfo->wait_condition = 0;
+	wait_event_timeout(msginfo->waitevent, msginfo->wait_condition,
+			msecs_to_jiffies(1000));
+	if (msginfo->wait_condition == 0) {
+		spin_lock_irqsave(&vmbus_connection.channelmsg_lock,
+				flags);
+		list_del(&msginfo->msglistentry);
+		spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock,
+					flags);
+		ret = -ETIMEDOUT;
+		goto Cleanup;
+	}
 
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&msginfo->msglistentry);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
 	/* Check if successful */
 	if (msginfo->response.version_response.version_supported) {
@@ -153,7 +167,6 @@ int vmbus_connect(void)
 		goto Cleanup;
 	}
 
-	kfree(msginfo->waitevent);
 	kfree(msginfo);
 	return 0;
 
@@ -174,7 +187,6 @@ Cleanup:
 	}
 
 	if (msginfo) {
-		kfree(msginfo->waitevent);
 		kfree(msginfo);
 	}
 

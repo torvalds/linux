@@ -289,8 +289,8 @@ struct vmbus_channel_msginfo {
 	struct list_head submsglist;
 
 	/* Synchronize the request/response if needed */
-	struct osd_waitevent *waitevent;
-
+	int wait_condition;
+	wait_queue_head_t waitevent;
 	union {
 		struct vmbus_channel_version_supported version_supported;
 		struct vmbus_channel_open_result open_result;

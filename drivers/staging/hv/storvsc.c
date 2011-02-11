@@ -19,6 +19,8 @@
  *   Hank Janssen  <hjanssen@microsoft.com>
  */
 #include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
@@ -38,7 +40,8 @@ struct storvsc_request_extension {
 	struct hv_device *device;
 
 	/* Synchronize the request/response if needed */
-	struct osd_waitevent *wait_event;
+	int wait_condition;
+	wait_queue_head_t wait_event;
 
 	struct vstor_packet vstor_packet;
 };
@@ -200,21 +203,13 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	 * channel
 	 */
 	memset(request, 0, sizeof(struct storvsc_request_extension));
-	request->wait_event = osd_waitevent_create();
-	if (!request->wait_event) {
-		ret = -ENOMEM;
-		goto nomem;
-	}
-
+	init_waitqueue_head(&request->wait_event);
 	vstor_packet->operation = VSTOR_OPERATION_BEGIN_INITIALIZATION;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
-	/*SpinlockAcquire(gDriverExt.packetListLock);
-	INSERT_TAIL_LIST(&gDriverExt.packetList, &packet->listEntry.entry);
-	SpinlockRelease(gDriverExt.packetListLock);*/
-
 	DPRINT_INFO(STORVSC, "BEGIN_INITIALIZATION_OPERATION...");
 
+	request->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)request,
@@ -223,17 +218,23 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
 			   "unable to send BEGIN_INITIALIZATION_OPERATION");
-		goto Cleanup;
+		goto cleanup;
 	}
 
-	osd_waitevent_wait(request->wait_event);
+	wait_event_timeout(request->wait_event, request->wait_condition,
+			msecs_to_jiffies(1000));
+	if (request->wait_condition == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
+
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
 	    vstor_packet->status != 0) {
 		DPRINT_ERR(STORVSC, "BEGIN_INITIALIZATION_OPERATION failed "
 			   "(op %d status 0x%x)",
 			   vstor_packet->operation, vstor_packet->status);
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	DPRINT_INFO(STORVSC, "QUERY_PROTOCOL_VERSION_OPERATION...");
@@ -246,6 +247,7 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	vstor_packet->version.major_minor = VMSTOR_PROTOCOL_VERSION_CURRENT;
 	FILL_VMSTOR_REVISION(vstor_packet->version.revision);
 
+	request->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)request,
@@ -254,10 +256,15 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
 			   "unable to send BEGIN_INITIALIZATION_OPERATION");
-		goto Cleanup;
+		goto cleanup;
 	}
 
-	osd_waitevent_wait(request->wait_event);
+	wait_event_timeout(request->wait_event, request->wait_condition,
+			msecs_to_jiffies(1000));
+	if (request->wait_condition == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
 
 	/* TODO: Check returned version */
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
@@ -265,7 +272,7 @@ static int stor_vsc_channel_init(struct hv_device *device)
 		DPRINT_ERR(STORVSC, "QUERY_PROTOCOL_VERSION_OPERATION failed "
 			   "(op %d status 0x%x)",
 			   vstor_packet->operation, vstor_packet->status);
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	/* Query channel properties */
@@ -277,6 +284,7 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	vstor_packet->storage_channel_properties.port_number =
 					stor_device->port_number;
 
+	request->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)request,
@@ -286,10 +294,15 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
 			   "unable to send QUERY_PROPERTIES_OPERATION");
-		goto Cleanup;
+		goto cleanup;
 	}
 
-	osd_waitevent_wait(request->wait_event);
+	wait_event_timeout(request->wait_event, request->wait_condition,
+			msecs_to_jiffies(1000));
+	if (request->wait_condition == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
 
 	/* TODO: Check returned version */
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
@@ -297,7 +310,7 @@ static int stor_vsc_channel_init(struct hv_device *device)
 		DPRINT_ERR(STORVSC, "QUERY_PROPERTIES_OPERATION failed "
 			   "(op %d status 0x%x)",
 			   vstor_packet->operation, vstor_packet->status);
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	stor_device->path_id = vstor_packet->storage_channel_properties.path_id;
@@ -314,6 +327,7 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	vstor_packet->operation = VSTOR_OPERATION_END_INITIALIZATION;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
+	request->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)request,
@@ -323,25 +337,27 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
 			   "unable to send END_INITIALIZATION_OPERATION");
-		goto Cleanup;
+		goto cleanup;
 	}
 
-	osd_waitevent_wait(request->wait_event);
+	wait_event_timeout(request->wait_event, request->wait_condition,
+			msecs_to_jiffies(1000));
+	if (request->wait_condition == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
 	    vstor_packet->status != 0) {
 		DPRINT_ERR(STORVSC, "END_INITIALIZATION_OPERATION failed "
 			   "(op %d status 0x%x)",
 			   vstor_packet->operation, vstor_packet->status);
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	DPRINT_INFO(STORVSC, "**** storage channel up and running!! ****");
 
-Cleanup:
-	kfree(request->wait_event);
-	request->wait_event = NULL;
-nomem:
+cleanup:
 	put_stor_device(device);
 	return ret;
 }
@@ -476,8 +492,8 @@ static void stor_vsc_on_channel_callback(void *context)
 
 				memcpy(&request->vstor_packet, packet,
 				       sizeof(struct vstor_packet));
-
-				osd_waitevent_set(request->wait_event);
+				request->wait_condition = 1;
+				wake_up(&request->wait_event);
 			} else {
 				stor_vsc_on_receive(device,
 						(struct vstor_packet *)packet,
@@ -539,7 +555,7 @@ static int stor_vsc_on_device_add(struct hv_device *device,
 	stor_device = alloc_stor_device(device);
 	if (!stor_device) {
 		ret = -1;
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	/* Save the channel properties to our storvsc channel */
@@ -569,7 +585,7 @@ static int stor_vsc_on_device_add(struct hv_device *device,
 		   stor_device->port_number, stor_device->path_id,
 		   stor_device->target_id);
 
-Cleanup:
+cleanup:
 	return ret;
 }
 
@@ -629,16 +645,13 @@ int stor_vsc_on_host_reset(struct hv_device *device)
 	request = &stor_device->reset_request;
 	vstor_packet = &request->vstor_packet;
 
-	request->wait_event = osd_waitevent_create();
-	if (!request->wait_event) {
-		ret = -ENOMEM;
-		goto Cleanup;
-	}
+	init_waitqueue_head(&request->wait_event);
 
 	vstor_packet->operation = VSTOR_OPERATION_RESET_BUS;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 	vstor_packet->vm_srb.path_id = stor_device->path_id;
 
+	request->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)&stor_device->reset_request,
@@ -647,13 +660,16 @@ int stor_vsc_on_host_reset(struct hv_device *device)
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC, "Unable to send reset packet %p ret %d",
 			   vstor_packet, ret);
-		goto Cleanup;
+		goto cleanup;
 	}
 
-	/* FIXME: Add a timeout */
-	osd_waitevent_wait(request->wait_event);
+	wait_event_timeout(request->wait_event, request->wait_condition,
+			msecs_to_jiffies(1000));
+	if (request->wait_condition == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
 
-	kfree(request->wait_event);
 	DPRINT_INFO(STORVSC, "host adapter reset completed");
 
 	/*
@@ -661,7 +677,7 @@ int stor_vsc_on_host_reset(struct hv_device *device)
 	 * should have been flushed out and return to us
 	 */
 
-Cleanup:
+cleanup:
 	put_stor_device(device);
 	return ret;
 }

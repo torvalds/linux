@@ -91,7 +91,8 @@ struct vmbus_msginfo {
 	struct list_head msglist_entry;
 
 	/* Synchronize the request/response if needed */
-	struct osd_waitevent *wait_event;
+	int wait_condition;
+	wait_queue_head_t  wait_event;
 
 	/* The message itself */
 	unsigned char msg[0];
