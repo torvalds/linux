@@ -402,46 +402,6 @@
 #define	  SOLO_DCT_INTERVAL(n)			((n)<<16)
 
 #define SOLO_VE_STATE(n)			(0x0640+((n)*4))
-struct videnc_status {
-	union {
-		u32 status0;
-		struct {
-			u32 mp4_enc_code_size:20, sad_motion:1, vid_motion:1,
-			    vop_type:2, video_channel:5, source_field_idx:1,
-			    interlace:1, progressive:1;
-		} status0_st;
-	};
-	union {
-		u32 status1;
-		struct {
-			u32 vsize:8, hsize:8, last_queue:4, foo1:8, scale:4;
-		} status1_st;
-	};
-	union {
-		u32 status4;
-		struct {
-			u32 jpeg_code_size:20, interval:10, foo1:2;
-		} status4_st;
-	};
-	union {
-		u32 status9;
-		struct {
-			u32 channel:5, foo1:27;
-		} status9_st;
-	};
-	union {
-		u32 status10;
-		struct {
-			u32 mp4_code_size:20, foo:12;
-		} status10_st;
-	};
-	union {
-		u32 status11;
-		struct {
-			u32 last_queue:8, foo1:24;
-		} status11_st;
-	};
-};
 
 #define SOLO_VE_JPEG_QP_TBL			0x0670
 #define SOLO_VE_JPEG_QP_CH_L			0x0674
