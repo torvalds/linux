@@ -421,7 +421,7 @@ int m2p_add_override(unsigned long mfn, struct page *page)
 {
 	unsigned long flags;
 	unsigned long pfn;
-	unsigned long address;
+	unsigned long uninitialized_var(address);
 	unsigned level;
 	pte_t *ptep = NULL;
 
@@ -455,7 +455,7 @@ int m2p_remove_override(struct page *page)
 	unsigned long flags;
 	unsigned long mfn;
 	unsigned long pfn;
-	unsigned long address;
+	unsigned long uninitialized_var(address);
 	unsigned level;
 	pte_t *ptep = NULL;
 
