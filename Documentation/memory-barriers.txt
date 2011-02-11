@@ -21,6 +21,7 @@ Contents:
      - SMP barrier pairing.
      - Examples of memory barrier sequences.
      - Read memory barriers vs load speculation.
+     - Transitivity
 
  (*) Explicit kernel barriers.
 
@@ -957,6 +958,63 @@ the speculation will be cancelled and the value reloaded:
 	The speculation is discarded --->   --->| A->1  |------>|       |
 	and an updated value is                 +-------+       |       |
 	retrieved                               :       :       +-------+
+
+
+TRANSITIVITY
+------------
+
+Transitivity is a deeply intuitive notion about ordering that is not
+always provided by real computer systems.  The following example
+demonstrates transitivity (also called "cumulativity"):
+
+	CPU 1			CPU 2			CPU 3
+	=======================	=======================	=======================
+		{ X = 0, Y = 0 }
+	STORE X=1		LOAD X			STORE Y=1
+				<general barrier>	<general barrier>
+				LOAD Y			LOAD X
+
+Suppose that CPU 2's load from X returns 1 and its load from Y returns 0.
+This indicates that CPU 2's load from X in some sense follows CPU 1's
+store to X and that CPU 2's load from Y in some sense preceded CPU 3's
+store to Y.  The question is then "Can CPU 3's load from X return 0?"
+
+Because CPU 2's load from X in some sense came after CPU 1's store, it
+is natural to expect that CPU 3's load from X must therefore return 1.
+This expectation is an example of transitivity: if a load executing on
+CPU A follows a load from the same variable executing on CPU B, then
+CPU A's load must either return the same value that CPU B's load did,
+or must return some later value.
+
+In the Linux kernel, use of general memory barriers guarantees
+transitivity.  Therefore, in the above example, if CPU 2's load from X
+returns 1 and its load from Y returns 0, then CPU 3's load from X must
+also return 1.
+
+However, transitivity is -not- guaranteed for read or write barriers.
+For example, suppose that CPU 2's general barrier in the above example
+is changed to a read barrier as shown below:
+
+	CPU 1			CPU 2			CPU 3
+	=======================	=======================	=======================
+		{ X = 0, Y = 0 }
+	STORE X=1		LOAD X			STORE Y=1
+				<read barrier>		<general barrier>
+				LOAD Y			LOAD X
+
+This substitution destroys transitivity: in this example, it is perfectly
+legal for CPU 2's load from X to return 1, its load from Y to return 0,
+and CPU 3's load from X to return 0.
+
+The key point is that although CPU 2's read barrier orders its pair
+of loads, it does not guarantee to order CPU 1's store.  Therefore, if
+this example runs on a system where CPUs 1 and 2 share a store buffer
+or a level of cache, CPU 2 might have early access to CPU 1's writes.
+General barriers are therefore required to ensure that all CPUs agree
+on the combined order of CPU 1's and CPU 2's accesses.
+
+To reiterate, if your code requires transitivity, use general barriers
+throughout.
 
 
 ========================
