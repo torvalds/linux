@@ -29,9 +29,6 @@
 #include <string.h>
 #include "iio_utils.h"
 
-const int buf_len = 128;
-const int num_loops = 2;
-
 /**
  * size_from_channelarray() - calculate the storage size of a scan
  * @channels: the channel info array
@@ -119,6 +116,11 @@ void process_scan(char *data,
 
 int main(int argc, char **argv)
 {
+	unsigned long num_loops = 2;
+	unsigned long timedelay = 1000000;
+	unsigned long buf_len = 128;
+
+
 	int ret, c, i, j, toread;
 
 	FILE *fp_ev;
@@ -136,10 +138,11 @@ int main(int argc, char **argv)
 	char *buffer_access, *buffer_event;
 	int scan_size;
 	int noevents = 0;
+	char *dummy;
 
 	struct iio_channel_info *infoarray;
 
-	while ((c = getopt(argc, argv, "et:n:")) != -1) {
+	while ((c = getopt(argc, argv, "l:w:c:et:n:")) != -1) {
 		switch (c) {
 		case 'n':
 			device_name = optarg;
@@ -150,6 +153,15 @@ int main(int argc, char **argv)
 			break;
 		case 'e':
 			noevents = 1;
+			break;
+		case 'c':
+			num_loops = strtoul(optarg, &dummy, 10);
+			break;
+		case 'w':
+			timedelay = strtoul(optarg, &dummy, 10);
+			break;
+		case 'l':
+			buf_len = strtoul(optarg, &dummy, 10);
 			break;
 		case '?':
 			return -1;
@@ -285,7 +297,7 @@ int main(int argc, char **argv)
 				continue;
 			}
 		} else {
-			usleep(1000);
+			usleep(timedelay);
 			toread = 64;
 		}
 
