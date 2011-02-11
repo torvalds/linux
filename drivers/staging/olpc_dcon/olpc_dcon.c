@@ -549,48 +549,33 @@ static ssize_t dcon_resumeline_show(struct device *dev,
 	return sprintf(buf, "%d\n", resumeline);
 }
 
-static int _strtoul(const char *buf, int len, unsigned int *val)
-{
-
-	char *endp;
-	unsigned int output = simple_strtoul(buf, &endp, 0);
-	int size = endp - buf;
-
-	if (*endp && isspace(*endp))
-		size++;
-
-	if (size != len)
-		return -EINVAL;
-
-	*val = output;
-	return 0;
-}
-
 static ssize_t dcon_mono_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	int enable_mono;
-	int rc = -EINVAL;
+	unsigned long enable_mono;
+	int rc;
 
-	if (_strtoul(buf, count, &enable_mono))
-		return -EINVAL;
+	rc = strict_strtoul(buf, 10, &enable_mono);
+	if (rc)
+		return rc;
 
 	dcon_set_mono_mode(dev_get_drvdata(dev), enable_mono ? true : false);
-	rc = count;
 
-	return rc;
+	return count;
 }
 
 static ssize_t dcon_freeze_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
-	int output;
+	unsigned long output;
+	int ret;
 
-	if (_strtoul(buf, count, &output))
-		return -EINVAL;
+	ret = strict_strtoul(buf, 10, &output);
+	if (ret)
+		return ret;
 
-	printk(KERN_INFO "dcon_freeze_store: %d\n", output);
+	printk(KERN_INFO "dcon_freeze_store: %lu\n", output);
 
 	switch (output) {
 	case 0:
@@ -612,26 +597,28 @@ static ssize_t dcon_freeze_store(struct device *dev,
 static ssize_t dcon_resumeline_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	int rl;
-	int rc = -EINVAL;
+	unsigned long rl;
+	int rc;
 
-	if (_strtoul(buf, count, &rl))
+	rc = strict_strtoul(buf, 10, &rl);
+	if (rc)
 		return rc;
 
 	resumeline = rl;
 	dcon_write(dev_get_drvdata(dev), DCON_REG_SCAN_INT, resumeline);
-	rc = count;
 
-	return rc;
+	return count;
 }
 
 static ssize_t dcon_sleep_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	int output;
+	unsigned long output;
+	int ret;
 
-	if (_strtoul(buf, count, &output))
-		return -EINVAL;
+	ret = strict_strtoul(buf, 10, &output);
+	if (ret)
+		return ret;
 
 	dcon_sleep(dev_get_drvdata(dev), output ? true : false);
 	return count;
