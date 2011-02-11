@@ -280,7 +280,7 @@ static void solo_fillbuf(struct solo_filehandle *fh,
 	sg_dma = sg_dma_address(sg);
 	sg_size_left = sg_dma_len(sg);
 
-	fdma_addr = SOLO_DISP_EXT_ADDR(solo_dev) + (fh->old_write *
+	fdma_addr = SOLO_DISP_EXT_ADDR + (fh->old_write *
 			(SOLO_HW_BPL * solo_vlines(solo_dev)));
 
 	for (i = 0; i < solo_vlines(solo_dev); i++) {

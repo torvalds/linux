@@ -93,8 +93,7 @@ static void solo_capture_config(struct solo6010_dev *solo_dev)
 
 	/* Clear OSD */
 	solo_reg_write(solo_dev, SOLO_VE_OSD_CH, 0);
-	solo_reg_write(solo_dev, SOLO_VE_OSD_BASE,
-		       SOLO_EOSD_EXT_ADDR(solo_dev) >> 16);
+	solo_reg_write(solo_dev, SOLO_VE_OSD_BASE, SOLO_EOSD_EXT_ADDR >> 16);
 	solo_reg_write(solo_dev, SOLO_VE_OSD_CLR,
 		       0xF0 << 16 | 0x80 << 8 | 0x80);
 	solo_reg_write(solo_dev, SOLO_VE_OSD_OPT, 0);
@@ -107,7 +106,7 @@ static void solo_capture_config(struct solo6010_dev *solo_dev)
 	for (i = 0; i < solo_dev->nr_chans; i++) {
 		for (j = 0; j < SOLO_EOSD_EXT_SIZE; j += OSG_BUFFER_SIZE) {
 			solo_p2m_dma(solo_dev, SOLO_P2M_DMA_ID_MP4E, 1, buf,
-				     SOLO_EOSD_EXT_ADDR(solo_dev) +
+				     SOLO_EOSD_EXT_ADDR +
 				     (i * SOLO_EOSD_EXT_SIZE) + j,
 				     OSG_BUFFER_SIZE);
 		}
@@ -143,7 +142,7 @@ int solo_osd_print(struct solo_enc_dev *solo_enc)
 		}
 	}
 
-	solo_p2m_dma(solo_dev, 0, 1, buf, SOLO_EOSD_EXT_ADDR(solo_dev) +
+	solo_p2m_dma(solo_dev, 0, 1, buf, SOLO_EOSD_EXT_ADDR +
 		     (solo_enc->ch * SOLO_EOSD_EXT_SIZE), SOLO_EOSD_EXT_SIZE);
 	reg |= (1 << solo_enc->ch);
 	solo_reg_write(solo_dev, SOLO_VE_OSD_CH, reg);
