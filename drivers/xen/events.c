@@ -114,7 +114,7 @@ struct cpu_evtchn_s {
 static __initdata struct cpu_evtchn_s init_evtchn_mask = {
 	.bits[0 ... (NR_EVENT_CHANNELS/BITS_PER_LONG)-1] = ~0ul,
 };
-static struct cpu_evtchn_s *cpu_evtchn_mask_p = &init_evtchn_mask;
+static struct cpu_evtchn_s __refdata *cpu_evtchn_mask_p = &init_evtchn_mask;
 
 static inline unsigned long *cpu_evtchn_mask(int cpu)
 {
