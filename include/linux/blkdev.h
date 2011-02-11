@@ -99,25 +99,26 @@ struct request {
 	/*
 	 * The rb_node is only used inside the io scheduler, requests
 	 * are pruned when moved to the dispatch queue. So let the
-	 * flush fields share space with the rb_node.
+	 * completion_data share space with the rb_node.
 	 */
 	union {
 		struct rb_node rb_node;	/* sort/lookup */
-		struct {
-			unsigned int			seq;
-			struct list_head		list;
-		} flush;
+		void *completion_data;
 	};
-
-	void *completion_data;
 
 	/*
 	 * Three pointers are available for the IO schedulers, if they need
-	 * more they have to dynamically allocate it.
+	 * more they have to dynamically allocate it.  Flush requests are
+	 * never put on the IO scheduler. So let the flush fields share
+	 * space with the three elevator_private pointers.
 	 */
-	void *elevator_private;
-	void *elevator_private2;
-	void *elevator_private3;
+	union {
+		void *elevator_private[3];
+		struct {
+			unsigned int		seq;
+			struct list_head	list;
+		} flush;
+	};
 
 	struct gendisk *rq_disk;
 	unsigned long start_time;

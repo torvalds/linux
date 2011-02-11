@@ -764,7 +764,7 @@ int elv_set_request(struct request_queue *q, struct request *rq, gfp_t gfp_mask)
 	if (e->ops->elevator_set_req_fn)
 		return e->ops->elevator_set_req_fn(q, rq, gfp_mask);
 
-	rq->elevator_private = NULL;
+	rq->elevator_private[0] = NULL;
 	return 0;
 }
 
