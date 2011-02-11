@@ -450,9 +450,8 @@ static inline void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
 	mac[5] = (u8)(addr & 0xFF);
 	mac[4] = (u8)((addr >> 8) & 0xFF);
 	mac[3] = (u8)((addr >> 16) & 0xFF);
-	mac[2] = 0xC9;
-	mac[1] = 0x00;
-	mac[0] = 0x00;
+	/* Use the OUI from the current MAC address */
+	memcpy(mac, adapter->netdev->dev_addr, 3);
 }
 
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
