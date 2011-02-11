@@ -37,9 +37,7 @@ struct after_state_chg_work {
 	struct completion *done;
 };
 
-
 extern void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
-int drbd_send_state_req(struct drbd_conf *, union drbd_state, union drbd_state);
 static int w_after_state_ch(struct drbd_work *w, int unused);
 static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags);

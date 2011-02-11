@@ -221,8 +221,10 @@ enum drbd_packet {
 	P_DELAY_PROBE         = 0x27, /* is used on BOTH sockets */
 	P_OUT_OF_SYNC         = 0x28, /* Mark as out of sync (Outrunning), data socket */
 	P_RS_CANCEL           = 0x29, /* meta: Used to cancel RS_DATA_REQUEST packet by SyncSource */
+	P_CONN_ST_CHG_REQ     = 0x2a, /* data sock: Connection wide state request */
+	P_CONN_ST_CHG_REPLY   = 0x2b, /* meta sock: Connection side state req reply */
 
-	P_MAX_CMD	      = 0x2A,
+	P_MAX_CMD	      = 0x2c,
 	P_MAY_IGNORE	      = 0x100, /* Flag to test if (cmd > P_MAY_IGNORE) ... */
 	P_MAX_OPT_CMD	      = 0x101,
 
@@ -1177,6 +1179,8 @@ extern int drbd_send_uuids(struct drbd_conf *mdev);
 extern int drbd_send_uuids_skip_initial_sync(struct drbd_conf *mdev);
 extern int drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev);
 extern int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags flags);
+extern int _conn_send_state_req(struct drbd_tconn *, int vnr, enum drbd_packet cmd,
+				union drbd_state, union drbd_state);
 extern int _drbd_send_state(struct drbd_conf *mdev);
 extern int drbd_send_state(struct drbd_conf *mdev);
 extern int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct socket *sock,
@@ -1894,6 +1898,19 @@ static inline int drbd_send_ping_ack(struct drbd_tconn *tconn)
 {
 	struct p_header h;
 	return conn_send_cmd(tconn, 0, USE_META_SOCKET, P_PING_ACK, &h, sizeof(h));
+}
+
+static inline int drbd_send_state_req(struct drbd_conf *mdev,
+				      union drbd_state mask, union drbd_state val)
+{
+	return _conn_send_state_req(mdev->tconn, mdev->vnr, P_STATE_CHG_REQ, mask, val);
+}
+
+static inline int conn_send_state_req(struct drbd_tconn *tconn,
+				      union drbd_state mask, union drbd_state val)
+{
+	enum drbd_packet cmd = tconn->agreed_pro_version < 100 ? P_STATE_CHG_REQ : P_CONN_ST_CHG_REQ;
+	return _conn_send_state_req(tconn, 0, cmd, mask, val);
 }
 
 static inline void drbd_thread_stop(struct drbd_thread *thi)
