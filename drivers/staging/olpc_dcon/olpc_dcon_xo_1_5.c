@@ -7,6 +7,20 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/pci.h>
+#include <linux/gpio.h>
+#include <asm/olpc.h>
+
+/* TODO: this eventually belongs in linux/vx855.h */
+#define NR_VX855_GPI    14
+#define NR_VX855_GPO    13
+#define NR_VX855_GPIO   15
+
+#define VX855_GPI(n)    (n)
+#define VX855_GPO(n)    (NR_VX855_GPI + (n))
+#define VX855_GPIO(n)   (NR_VX855_GPI + NR_VX855_GPO + (n))
+
+#include "olpc_dcon.h"
 
 /* Hardware setup on the XO 1.5:
  * 	DCONLOAD connects to
@@ -25,8 +39,6 @@
 #define BIT_GPIO12 0x40
 
 #define PREFIX "OLPC DCON:"
-
-static struct dcon_platform_data dcon_pdata_xo_1_5;
 
 static void dcon_clear_irq(void)
 {
@@ -173,7 +185,7 @@ static u8 dcon_read_status_xo_1_5(void)
 	return status;
 }
 
-static struct dcon_platform_data dcon_pdata_xo_1_5 = {
+struct dcon_platform_data dcon_pdata_xo_1_5 = {
 	.init = dcon_init_xo_1_5,
 	.bus_stabilize_wiggle = dcon_wiggle_xo_1_5,
 	.set_dconload = dcon_set_dconload_xo_1_5,

@@ -44,4 +44,26 @@
 /* Interrupt */
 #define DCON_IRQ                6
 
+struct dcon_platform_data {
+	int (*init)(void);
+	void (*bus_stabilize_wiggle)(void);
+	void (*set_dconload)(int);
+	u8 (*read_status)(void);
+};
+
+#include <linux/interrupt.h>
+
+extern int dcon_source;
+extern int dcon_pending;
+extern irqreturn_t dcon_interrupt(int irq, void *id);
+extern struct i2c_driver dcon_driver;
+
+#ifdef CONFIG_FB_OLPC_DCON_1
+extern struct dcon_platform_data dcon_pdata_xo_1;
+#endif
+
+#ifdef CONFIG_FB_OLPC_DCON_1_5
+extern struct dcon_platform_data dcon_pdata_xo_1_5;
+#endif
+
 #endif

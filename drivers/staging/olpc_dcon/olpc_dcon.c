@@ -4,7 +4,7 @@
  * Copyright © 2006-2007  Red Hat, Inc.
  * Copyright © 2006-2007  Advanced Micro Devices, Inc.
  * Copyright © 2009       VIA Technology, Inc.
- * Copyright (c) 2010  Andres Salomon <dilinger@queued.net>
+ * Copyright (c) 2010-2011  Andres Salomon <dilinger@queued.net>
  *
  * This program is free software.  You can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -44,13 +44,6 @@ module_param(noinit, int, 0444);
 static int useaa = 1;
 module_param(useaa, int, 0444);
 
-struct dcon_platform_data {
-	int (*init)(void);
-	void (*bus_stabilize_wiggle)(void);
-	void (*set_dconload)(int);
-	u8 (*read_status)(void);
-};
-
 static struct dcon_platform_data *pdata;
 
 struct dcon_priv {
@@ -73,8 +66,6 @@ struct dcon_priv {
 
 /* I2C structures */
 
-static struct i2c_driver dcon_driver;
-
 /* Platform devices */
 static struct platform_device *dcon_device;
 
@@ -82,10 +73,10 @@ static struct platform_device *dcon_device;
 static struct backlight_device *dcon_bl_dev;
 
 /* Current source, initialized at probe time */
-static int dcon_source;
+int dcon_source;
 
 /* Desired source */
-static int dcon_pending;
+int dcon_pending;
 
 /* Variables used during switches */
 static int dcon_switched;
@@ -693,6 +684,9 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct dcon_priv *dcon;
 	int rc, i, j;
 
+	if (!pdata)
+		return -ENXIO;
+
 	dcon = kzalloc(sizeof(*dcon), GFP_KERNEL);
 	if (!dcon)
 		return -ENOMEM;
@@ -830,7 +824,7 @@ static int dcon_resume(struct i2c_client *client)
 #endif
 
 
-static irqreturn_t dcon_interrupt(int irq, void *id)
+irqreturn_t dcon_interrupt(int irq, void *id)
 {
 	int status = pdata->read_status();
 
@@ -877,7 +871,7 @@ static const struct i2c_device_id dcon_idtable[] = {
 
 MODULE_DEVICE_TABLE(i2c, dcon_idtable);
 
-static struct i2c_driver dcon_driver = {
+struct i2c_driver dcon_driver = {
 	.driver = {
 		.name	= "olpc_dcon",
 	},
@@ -893,11 +887,17 @@ static struct i2c_driver dcon_driver = {
 #endif
 };
 
-#include "olpc_dcon_xo_1.c"
-
 static int __init olpc_dcon_init(void)
 {
-	pdata = &dcon_pdata_xo_1;
+#ifdef CONFIG_FB_OLPC_DCON_1_5
+	/* XO-1.5 */
+	if (olpc_board_at_least(olpc_board(0xd0)))
+		pdata = &dcon_pdata_xo_1_5;
+#endif
+#ifdef CONFIG_FB_OLPC_DCON_1
+	if (!pdata)
+		pdata = &dcon_pdata_xo_1;
+#endif
 
 	return i2c_add_driver(&dcon_driver);
 }
