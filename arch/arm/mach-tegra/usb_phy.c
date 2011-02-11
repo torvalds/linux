@@ -25,19 +25,13 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/usb/otg.h>
+#include <linux/usb/ulpi.h>
 #include <asm/mach-types.h>
 #include <mach/usb_phy.h>
 #include <mach/iomap.h>
 
 #define ULPI_VIEWPORT		0x170
-#define   ULPI_WAKEUP		(1 << 31)
-#define   ULPI_RUN		(1 << 30)
-#define   ULPI_RD_RW_WRITE	(1 << 29)
-#define   ULPI_RD_RW_READ	(0 << 29)
-#define   ULPI_PORT(x)		(((x) & 0x7) << 24)
-#define   ULPI_ADDR(x)		(((x) & 0xff) << 16)
-#define   ULPI_DATA_RD(x)	(((x) & 0xff) << 8)
-#define   ULPI_DATA_WR(x)	(((x) & 0xff) << 0)
 
 #define USB_PORTSC1		0x184
 #define   USB_PORTSC1_PTS(x)	(((x) & 0x3) << 30)
@@ -572,21 +566,9 @@ static void utmi_phy_restore_end(struct tegra_usb_phy *phy)
 	udelay(10);
 }
 
-static void ulpi_viewport_write(struct tegra_usb_phy *phy, u8 addr, u8 data)
-{
-	unsigned long val;
-	void __iomem *base = phy->regs;
-
-	val = ULPI_RUN | ULPI_RD_RW_WRITE | ULPI_PORT(0);
-	val |= ULPI_ADDR(addr) | ULPI_DATA_WR(data);
-	writel(val, base + ULPI_VIEWPORT);
-
-	if (utmi_wait_register(base + ULPI_VIEWPORT, ULPI_RUN, 0))
-		pr_err("%s: timeout accessing ulpi phy\n", __func__);
-}
-
 static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 {
+	int ret;
 	unsigned long val;
 	void __iomem *base = phy->regs;
 	struct tegra_ulpi_config *config = phy->config;
@@ -624,17 +606,18 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 	val |= ULPI_DIR_TRIMMER_LOAD;
 	writel(val, base + ULPI_TIMING_CTRL_1);
 
-	val = ULPI_WAKEUP | ULPI_RD_RW_WRITE | ULPI_PORT(0);
-	writel(val, base + ULPI_VIEWPORT);
-
-	if (utmi_wait_register(base + ULPI_VIEWPORT, ULPI_WAKEUP, 0)) {
-		pr_err("%s: timeout waiting for ulpi phy wakeup\n", __func__);
-		return -EIO;
+	/* Fix VbusInvalid due to floating VBUS */
+	ret = otg_io_write(phy->ulpi, 0x40, 0x08);
+	if (ret) {
+		pr_err("%s: ulpi write failed\n", __func__);
+		return ret;
 	}
 
-	/* Fix VbusInvalid due to floating VBUS */
-	ulpi_viewport_write(phy, 0x08, 0x40);
-	ulpi_viewport_write(phy, 0x0B, 0x80);
+	ret = otg_io_write(phy->ulpi, 0x80, 0x0B);
+	if (ret) {
+		pr_err("%s: ulpi write failed\n", __func__);
+		return ret;
+	}
 
 	val = readl(base + USB_PORTSC1);
 	val |= USB_PORTSC1_WKOC | USB_PORTSC1_WKDS | USB_PORTSC1_WKCN;
@@ -729,6 +712,8 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 		tegra_gpio_enable(ulpi_config->reset_gpio);
 		gpio_request(ulpi_config->reset_gpio, "ulpi_phy_reset_b");
 		gpio_direction_output(ulpi_config->reset_gpio, 0);
+		phy->ulpi = otg_ulpi_create(&ulpi_viewport_access_ops, 0);
+		phy->ulpi->io_priv = regs + ULPI_VIEWPORT;
 	} else {
 		err = utmip_pad_open(phy);
 		if (err < 0)
