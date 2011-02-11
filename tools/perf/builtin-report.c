@@ -44,6 +44,7 @@ static const char	default_pretty_printing_style[] = "normal";
 static const char	*pretty_printing_style = default_pretty_printing_style;
 
 static char		callchain_default_opt[] = "fractal,0.5";
+static symbol_filter_t	annotate_init;
 
 static struct hists *perf_session__hists_findnew(struct perf_session *self,
 						 u64 event_stream, u32 type,
@@ -167,7 +168,7 @@ static int process_sample_event(union perf_event *event,
 	struct perf_event_attr *attr;
 
 	if (perf_event__preprocess_sample(event, session, &al, sample,
-					  symbol__annotate_init) < 0) {
+					  annotate_init) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
@@ -520,6 +521,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	 */
 	if (use_browser > 0) {
 		symbol_conf.priv_size = sizeof(struct annotation);
+		annotate_init	      = symbol__annotate_init;
 		/*
  		 * For searching by name on the "Browse map details".
  		 * providing it only in verbose mode not to bloat too
