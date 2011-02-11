@@ -361,14 +361,9 @@ static int uinput_setup_device(struct uinput_device *udev, const char __user *bu
 
 	dev = udev->dev;
 
-	user_dev = kmalloc(sizeof(struct uinput_user_dev), GFP_KERNEL);
-	if (!user_dev)
-		return -ENOMEM;
-
-	if (copy_from_user(user_dev, buffer, sizeof(struct uinput_user_dev))) {
-		retval = -EFAULT;
-		goto exit;
-	}
+	user_dev = memdup_user(buffer, sizeof(struct uinput_user_dev));
+	if (!IS_ERR(user_dev))
+		return PTR_ERR(user_dev);
 
 	udev->ff_effects_max = user_dev->ff_effects_max;
 
@@ -621,7 +616,6 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 	struct uinput_ff_upload ff_up;
 	struct uinput_ff_erase  ff_erase;
 	struct uinput_request   *req;
-	int                     length;
 	char			*phys;
 
 	retval = mutex_lock_interruptible(&udev->mutex);
@@ -688,24 +682,15 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 				retval = -EINVAL;
 				goto out;
 			}
-			length = strnlen_user(p, 1024);
-			if (length <= 0) {
-				retval = -EFAULT;
-				break;
+
+			phys = strndup_user(p, 1024);
+			if (IS_ERR(phys)) {
+				retval = PTR_ERR(phys);
+				goto out;
 			}
+
 			kfree(udev->dev->phys);
-			udev->dev->phys = phys = kmalloc(length, GFP_KERNEL);
-			if (!phys) {
-				retval = -ENOMEM;
-				break;
-			}
-			if (copy_from_user(phys, p, length)) {
-				udev->dev->phys = NULL;
-				kfree(phys);
-				retval = -EFAULT;
-				break;
-			}
-			phys[length - 1] = '\0';
+			udev->dev->phys = phys;
 			break;
 
 		case UI_BEGIN_FF_UPLOAD:
