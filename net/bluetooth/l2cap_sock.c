@@ -168,13 +168,13 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 	len = min_t(unsigned int, sizeof(la), alen);
 	memcpy(&la, addr, len);
 
-	if (la.l2_cid)
+	if (la.l2_cid && la.l2_psm)
 		return -EINVAL;
 
 	lock_sock(sk);
 
 	if ((sk->sk_type == SOCK_SEQPACKET || sk->sk_type == SOCK_STREAM)
-			&& !la.l2_psm) {
+			&& !(la.l2_psm || la.l2_cid)) {
 		err = -EINVAL;
 		goto done;
 	}
@@ -216,7 +216,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 
 	/* PSM must be odd and lsb of upper byte must be 0 */
 	if ((__le16_to_cpu(la.l2_psm) & 0x0101) != 0x0001 &&
-		sk->sk_type != SOCK_RAW) {
+				sk->sk_type != SOCK_RAW && !la.l2_cid) {
 		err = -EINVAL;
 		goto done;
 	}
@@ -224,6 +224,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 	/* Set destination address and psm */
 	bacpy(&bt_sk(sk)->dst, &la.l2_bdaddr);
 	l2cap_pi(sk)->psm = la.l2_psm;
+	l2cap_pi(sk)->dcid = la.l2_cid;
 
 	err = l2cap_do_connect(sk);
 	if (err)
