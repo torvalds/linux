@@ -21,14 +21,12 @@
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
-
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-common.h>
 #include <media/videobuf-dma-sg.h>
-
-#include "solo6010.h"
-#include "solo6010-tw28.h"
-#include "solo6010-jpeg.h"
+#include "solo6x10.h"
+#include "tw28.h"
+#include "jpeg.h"
 
 #define MIN_VID_BUFFERS		4
 #define FRAME_BUF_SIZE		(128 * 1024)

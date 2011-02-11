@@ -21,13 +21,11 @@
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
-
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-common.h>
 #include <media/videobuf-dma-sg.h>
-
-#include "solo6010.h"
-#include "solo6010-tw28.h"
+#include "solo6x10.h"
+#include "tw28.h"
 
 #define SOLO_HW_BPL		2048
 #define SOLO_DISP_PIX_FIELD	V4L2_FIELD_INTERLACED

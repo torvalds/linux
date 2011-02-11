@@ -20,7 +20,7 @@
 #ifndef __SOLO6010_TW28_H
 #define __SOLO6010_TW28_H
 
-#include "solo6010.h"
+#include "solo6x10.h"
 
 #define TW_NUM_CHIP				4
 #define TW_BASE_ADDR				0x28

@@ -22,9 +22,8 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/videodev2.h>
-
-#include "solo6010.h"
-#include "solo6010-tw28.h"
+#include "solo6x10.h"
+#include "tw28.h"
 
 MODULE_DESCRIPTION("Softlogic 6010 MP4 Encoder/Decoder V4L2/ALSA Driver");
 MODULE_AUTHOR("Ben Collins <bcollins@bluecherry.net>");

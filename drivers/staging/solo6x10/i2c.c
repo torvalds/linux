@@ -26,8 +26,7 @@
  * thread context, ACK the interrupt, and move on. -- BenC */
 
 #include <linux/kernel.h>
-
-#include "solo6010.h"
+#include "solo6x10.h"
 
 u8 solo_i2c_readbyte(struct solo6010_dev *solo_dev, int id, u8 addr, u8 off)
 {

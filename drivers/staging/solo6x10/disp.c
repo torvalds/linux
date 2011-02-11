@@ -21,8 +21,7 @@
 #include <linux/module.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-ioctl.h>
-
-#include "solo6010.h"
+#include "solo6x10.h"
 
 #define SOLO_VCLK_DELAY			3
 #define SOLO_PROGRESSIVE_VSIZE		1024

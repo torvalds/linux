@@ -20,7 +20,7 @@
 #ifndef __SOLO6010_REGISTERS_H
 #define __SOLO6010_REGISTERS_H
 
-#include "solo6010-offsets.h"
+#include "offsets.h"
 
 /* Global 6010 system configuration */
 #define SOLO_SYS_CFG				0x0000

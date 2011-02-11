@@ -18,9 +18,8 @@
  */
 
 #include <linux/kernel.h>
-
-#include "solo6010.h"
-#include "solo6010-osd-font.h"
+#include "solo6x10.h"
+#include "osd-font.h"
 
 #define CAPTURE_MAX_BANDWIDTH		32	/* D1 4channel (D1 == 4) */
 #define OSG_BUFFER_SIZE			1024

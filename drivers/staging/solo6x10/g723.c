@@ -22,14 +22,12 @@
 #include <linux/poll.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
-
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/control.h>
-
-#include "solo6010.h"
-#include "solo6010-tw28.h"
+#include "solo6x10.h"
+#include "tw28.h"
 
 #define G723_INTR_ORDER		0
 #define G723_FDMA_PAGES		32

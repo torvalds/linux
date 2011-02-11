@@ -30,12 +30,10 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/atomic.h>
-
 #include <linux/videodev2.h>
 #include <media/v4l2-dev.h>
 #include <media/videobuf-core.h>
-
-#include "solo6010-registers.h"
+#include "registers.h"
 
 #ifndef PCI_VENDOR_ID_SOFTLOGIC
 #define PCI_VENDOR_ID_SOFTLOGIC		0x9413
