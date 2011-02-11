@@ -987,11 +987,18 @@ tree_search_offset(struct btrfs_block_group_cache *block_group,
 	return entry;
 }
 
-static void unlink_free_space(struct btrfs_block_group_cache *block_group,
-			      struct btrfs_free_space *info)
+static inline void
+__unlink_free_space(struct btrfs_block_group_cache *block_group,
+		    struct btrfs_free_space *info)
 {
 	rb_erase(&info->offset_index, &block_group->free_space_offset);
 	block_group->free_extents--;
+}
+
+static void unlink_free_space(struct btrfs_block_group_cache *block_group,
+			      struct btrfs_free_space *info)
+{
+	__unlink_free_space(block_group, info);
 	block_group->free_space -= info->bytes;
 }
 
@@ -1016,14 +1023,18 @@ static void recalculate_thresholds(struct btrfs_block_group_cache *block_group)
 	u64 max_bytes;
 	u64 bitmap_bytes;
 	u64 extent_bytes;
+	u64 size = block_group->key.offset;
 
 	/*
 	 * The goal is to keep the total amount of memory used per 1gb of space
 	 * at or below 32k, so we need to adjust how much memory we allow to be
 	 * used by extent based free space tracking
 	 */
-	max_bytes = MAX_CACHE_BYTES_PER_GIG *
-		(div64_u64(block_group->key.offset, 1024 * 1024 * 1024));
+	if (size < 1024 * 1024 * 1024)
+		max_bytes = MAX_CACHE_BYTES_PER_GIG;
+	else
+		max_bytes = MAX_CACHE_BYTES_PER_GIG *
+			div64_u64(size, 1024 * 1024 * 1024);
 
 	/*
 	 * we want to account for 1 more bitmap than what we have so we can make
@@ -1171,6 +1182,16 @@ static void add_new_bitmap(struct btrfs_block_group_cache *block_group,
 	recalculate_thresholds(block_group);
 }
 
+static void free_bitmap(struct btrfs_block_group_cache *block_group,
+			struct btrfs_free_space *bitmap_info)
+{
+	unlink_free_space(block_group, bitmap_info);
+	kfree(bitmap_info->bitmap);
+	kfree(bitmap_info);
+	block_group->total_bitmaps--;
+	recalculate_thresholds(block_group);
+}
+
 static noinline int remove_from_bitmap(struct btrfs_block_group_cache *block_group,
 			      struct btrfs_free_space *bitmap_info,
 			      u64 *offset, u64 *bytes)
@@ -1195,6 +1216,7 @@ again:
 	 */
 	search_start = *offset;
 	search_bytes = *bytes;
+	search_bytes = min(search_bytes, end - search_start + 1);
 	ret = search_bitmap(block_group, bitmap_info, &search_start,
 			    &search_bytes);
 	BUG_ON(ret < 0 || search_start != *offset);
@@ -1211,13 +1233,8 @@ again:
 
 	if (*bytes) {
 		struct rb_node *next = rb_next(&bitmap_info->offset_index);
-		if (!bitmap_info->bytes) {
-			unlink_free_space(block_group, bitmap_info);
-			kfree(bitmap_info->bitmap);
-			kfree(bitmap_info);
-			block_group->total_bitmaps--;
-			recalculate_thresholds(block_group);
-		}
+		if (!bitmap_info->bytes)
+			free_bitmap(block_group, bitmap_info);
 
 		/*
 		 * no entry after this bitmap, but we still have bytes to
@@ -1250,13 +1267,8 @@ again:
 			return -EAGAIN;
 
 		goto again;
-	} else if (!bitmap_info->bytes) {
-		unlink_free_space(block_group, bitmap_info);
-		kfree(bitmap_info->bitmap);
-		kfree(bitmap_info);
-		block_group->total_bitmaps--;
-		recalculate_thresholds(block_group);
-	}
+	} else if (!bitmap_info->bytes)
+		free_bitmap(block_group, bitmap_info);
 
 	return 0;
 }
@@ -1359,22 +1371,14 @@ out:
 	return ret;
 }
 
-int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
-			 u64 offset, u64 bytes)
+bool try_merge_free_space(struct btrfs_block_group_cache *block_group,
+			  struct btrfs_free_space *info, bool update_stat)
 {
-	struct btrfs_free_space *right_info = NULL;
-	struct btrfs_free_space *left_info = NULL;
-	struct btrfs_free_space *info = NULL;
-	int ret = 0;
-
-	info = kzalloc(sizeof(struct btrfs_free_space), GFP_NOFS);
-	if (!info)
-		return -ENOMEM;
-
-	info->offset = offset;
-	info->bytes = bytes;
-
-	spin_lock(&block_group->tree_lock);
+	struct btrfs_free_space *left_info;
+	struct btrfs_free_space *right_info;
+	bool merged = false;
+	u64 offset = info->offset;
+	u64 bytes = info->bytes;
 
 	/*
 	 * first we want to see if there is free space adjacent to the range we
@@ -1388,37 +1392,62 @@ int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 	else
 		left_info = tree_search_offset(block_group, offset - 1, 0, 0);
 
-	/*
-	 * If there was no extent directly to the left or right of this new
-	 * extent then we know we're going to have to allocate a new extent, so
-	 * before we do that see if we need to drop this into a bitmap
-	 */
-	if ((!left_info || left_info->bitmap) &&
-	    (!right_info || right_info->bitmap)) {
-		ret = insert_into_bitmap(block_group, info);
-
-		if (ret < 0) {
-			goto out;
-		} else if (ret) {
-			ret = 0;
-			goto out;
-		}
-	}
-
 	if (right_info && !right_info->bitmap) {
-		unlink_free_space(block_group, right_info);
+		if (update_stat)
+			unlink_free_space(block_group, right_info);
+		else
+			__unlink_free_space(block_group, right_info);
 		info->bytes += right_info->bytes;
 		kfree(right_info);
+		merged = true;
 	}
 
 	if (left_info && !left_info->bitmap &&
 	    left_info->offset + left_info->bytes == offset) {
-		unlink_free_space(block_group, left_info);
+		if (update_stat)
+			unlink_free_space(block_group, left_info);
+		else
+			__unlink_free_space(block_group, left_info);
 		info->offset = left_info->offset;
 		info->bytes += left_info->bytes;
 		kfree(left_info);
+		merged = true;
 	}
 
+	return merged;
+}
+
+int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
+			 u64 offset, u64 bytes)
+{
+	struct btrfs_free_space *info;
+	int ret = 0;
+
+	info = kzalloc(sizeof(struct btrfs_free_space), GFP_NOFS);
+	if (!info)
+		return -ENOMEM;
+
+	info->offset = offset;
+	info->bytes = bytes;
+
+	spin_lock(&block_group->tree_lock);
+
+	if (try_merge_free_space(block_group, info, true))
+		goto link;
+
+	/*
+	 * There was no extent directly to the left or right of this new
+	 * extent then we know we're going to have to allocate a new extent, so
+	 * before we do that see if we need to drop this into a bitmap
+	 */
+	ret = insert_into_bitmap(block_group, info);
+	if (ret < 0) {
+		goto out;
+	} else if (ret) {
+		ret = 0;
+		goto out;
+	}
+link:
 	ret = link_free_space(block_group, info);
 	if (ret)
 		kfree(info);
@@ -1621,6 +1650,7 @@ __btrfs_return_cluster_to_free_space(
 		node = rb_next(&entry->offset_index);
 		rb_erase(&entry->offset_index, &cluster->root);
 		BUG_ON(entry->bitmap);
+		try_merge_free_space(block_group, entry, false);
 		tree_insert_offset(&block_group->free_space_offset,
 				   entry->offset, &entry->offset_index, 0);
 	}
@@ -1685,13 +1715,8 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
 	ret = offset;
 	if (entry->bitmap) {
 		bitmap_clear_bits(block_group, entry, offset, bytes);
-		if (!entry->bytes) {
-			unlink_free_space(block_group, entry);
-			kfree(entry->bitmap);
-			kfree(entry);
-			block_group->total_bitmaps--;
-			recalculate_thresholds(block_group);
-		}
+		if (!entry->bytes)
+			free_bitmap(block_group, entry);
 	} else {
 		unlink_free_space(block_group, entry);
 		entry->offset += bytes;
@@ -1789,6 +1814,8 @@ static u64 btrfs_alloc_from_bitmap(struct btrfs_block_group_cache *block_group,
 
 	ret = search_start;
 	bitmap_clear_bits(block_group, entry, ret, bytes);
+	if (entry->bytes == 0)
+		free_bitmap(block_group, entry);
 out:
 	spin_unlock(&cluster->lock);
 	spin_unlock(&block_group->tree_lock);
@@ -1842,14 +1869,25 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 		entry->offset += bytes;
 		entry->bytes -= bytes;
 
-		if (entry->bytes == 0) {
+		if (entry->bytes == 0)
 			rb_erase(&entry->offset_index, &cluster->root);
-			kfree(entry);
-		}
 		break;
 	}
 out:
 	spin_unlock(&cluster->lock);
+
+	if (!ret)
+		return 0;
+
+	spin_lock(&block_group->tree_lock);
+
+	block_group->free_space -= bytes;
+	if (entry->bytes == 0) {
+		block_group->free_extents--;
+		kfree(entry);
+	}
+
+	spin_unlock(&block_group->tree_lock);
 
 	return ret;
 }

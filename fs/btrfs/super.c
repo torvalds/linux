@@ -383,7 +383,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 		struct btrfs_fs_devices **fs_devices)
 {
 	substring_t args[MAX_OPT_ARGS];
-	char *opts, *p;
+	char *opts, *orig, *p;
 	int error = 0;
 	int intarg;
 
@@ -397,6 +397,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 	opts = kstrdup(options, GFP_KERNEL);
 	if (!opts)
 		return -ENOMEM;
+	orig = opts;
 
 	while ((p = strsep(&opts, ",")) != NULL) {
 		int token;
@@ -432,7 +433,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 	}
 
  out_free_opts:
-	kfree(opts);
+	kfree(orig);
  out:
 	/*
 	 * If no subvolume name is specified we use the default one.  Allocate
@@ -623,6 +624,8 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	btrfs_wait_ordered_extents(root, 0, 0);
 
 	trans = btrfs_start_transaction(root, 0);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 	ret = btrfs_commit_transaction(trans, root);
 	return ret;
 }
@@ -761,6 +764,8 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 		}
 
 		btrfs_close_devices(fs_devices);
+		kfree(fs_info);
+		kfree(tree_root);
 	} else {
 		char b[BDEVNAME_SIZE];
 

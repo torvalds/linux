@@ -372,6 +372,10 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 
 		ppace = kmalloc(num_aces * sizeof(struct cifs_ace *),
 				GFP_KERNEL);
+		if (!ppace) {
+			cERROR(1, "DACL memory allocation error");
+			return;
+		}
 
 		for (i = 0; i < num_aces; ++i) {
 			ppace[i] = (struct cifs_ace *) (acl_base + acl_size);

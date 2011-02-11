@@ -471,6 +471,7 @@ static void __init vdd_debugfs_init(struct omap_vdd_info *vdd)
 	strcat(name, vdd->voltdm.name);
 
 	vdd->debug_dir = debugfs_create_dir(name, voltage_dir);
+	kfree(name);
 	if (IS_ERR(vdd->debug_dir)) {
 		pr_warning("%s: Unable to create debugfs directory for"
 			" vdd_%s\n", __func__, vdd->voltdm.name);

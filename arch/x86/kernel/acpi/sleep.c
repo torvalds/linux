@@ -12,10 +12,8 @@
 #include <linux/cpumask.h>
 #include <asm/segment.h>
 #include <asm/desc.h>
-
-#ifdef CONFIG_X86_32
 #include <asm/pgtable.h>
-#endif
+#include <asm/cacheflush.h>
 
 #include "realmode/wakeup.h"
 #include "sleep.h"
@@ -148,6 +146,15 @@ void __init acpi_reserve_wakeup_memory(void)
 	acpi_wakeup_address = mem;
 	memblock_x86_reserve_range(mem, mem + WAKEUP_SIZE, "ACPI WAKEUP");
 }
+
+int __init acpi_configure_wakeup_memory(void)
+{
+	if (acpi_realmode)
+		set_memory_x(acpi_realmode, WAKEUP_SIZE >> PAGE_SHIFT);
+
+	return 0;
+}
+arch_initcall(acpi_configure_wakeup_memory);
 
 
 static int __init acpi_sleep_setup(char *str)

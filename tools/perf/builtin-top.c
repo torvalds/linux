@@ -876,8 +876,8 @@ static int __cmd_top(void)
 		return -ENOMEM;
 
 	if (top.target_tid != -1)
-		perf_event__synthesize_thread(top.target_tid, perf_event__process,
-					      session);
+		perf_event__synthesize_thread_map(top.evlist->threads,
+						  perf_event__process, session);
 	else
 		perf_event__synthesize_threads(perf_event__process, session);
 
