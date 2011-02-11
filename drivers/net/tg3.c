@@ -13318,7 +13318,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	}
 
 	/* Determine TSO capabilities */
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5719_A0)
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
 		; /* Do nothing. HW bug. */
 	else if (tp->tg3_flags3 & TG3_FLG3_5717_PLUS)
 		tp->tg3_flags2 |= TG3_FLG2_HW_TSO_3;
@@ -13372,7 +13372,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	}
 
 	if ((tp->tg3_flags3 & TG3_FLG3_5717_PLUS) &&
-	    tp->pci_chip_rev_id != CHIPREV_ID_5719_A0)
+	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5719)
 		tp->tg3_flags3 |= TG3_FLG3_USE_JUMBO_BDFLAG;
 
 	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS) ||
