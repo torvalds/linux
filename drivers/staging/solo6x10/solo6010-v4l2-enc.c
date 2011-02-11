@@ -1034,13 +1034,17 @@ static int solo_enc_try_fmt_cap(struct file *file, void *priv,
 		if (pix->width != solo_enc->width ||
 		    pix->height != solo_enc->height)
 			return -EBUSY;
-	} else if (!(pix->width == solo_dev->video_hsize &&
-	      pix->height == solo_dev->video_vsize << 1) &&
-	    !(pix->width == solo_dev->video_hsize >> 1 &&
-	      pix->height == solo_dev->video_vsize)) {
+	}
+
+	if (pix->width < solo_dev->video_hsize ||
+	    pix->height < solo_dev->video_vsize << 1) {
 		/* Default to CIF 1/2 size */
 		pix->width = solo_dev->video_hsize >> 1;
 		pix->height = solo_dev->video_vsize;
+	} else {
+		/* Full frame */
+		pix->width = solo_dev->video_hsize;
+		pix->height = solo_dev->video_vsize << 1;
 	}
 
 	if (pix->field == V4L2_FIELD_ANY)
