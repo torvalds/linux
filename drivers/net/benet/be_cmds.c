@@ -995,7 +995,7 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 }
 
 /* Uses mbox */
-int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id)
+int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id, u32 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_if_destroy *req;
@@ -1016,6 +1016,7 @@ int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id)
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_NTWK_INTERFACE_DESTROY, sizeof(*req));
 
+	req->hdr.domain = domain;
 	req->interface_id = cpu_to_le32(interface_id);
 
 	status = be_mbox_notify_wait(adapter);

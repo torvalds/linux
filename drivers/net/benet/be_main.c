@@ -2335,8 +2335,9 @@ if_destroy:
 	for (vf = 0; vf < num_vfs; vf++)
 		if (adapter->vf_cfg[vf].vf_if_handle)
 			be_cmd_if_destroy(adapter,
-					adapter->vf_cfg[vf].vf_if_handle);
-	be_cmd_if_destroy(adapter, adapter->if_handle);
+					adapter->vf_cfg[vf].vf_if_handle,
+					vf + 1);
+	be_cmd_if_destroy(adapter, adapter->if_handle, 0);
 do_none:
 	return status;
 }
@@ -2350,7 +2351,7 @@ static int be_clear(struct be_adapter *adapter)
 	be_rx_queues_destroy(adapter);
 	be_tx_queues_destroy(adapter);
 
-	be_cmd_if_destroy(adapter, adapter->if_handle);
+	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
 
 	/* tell fw we're done with firing cmds */
 	be_cmd_fw_clean(adapter);
