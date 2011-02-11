@@ -28,7 +28,7 @@ int force_sensor;
 static int dump_bridge;
 int dump_sensor;
 
-static const __devinitdata struct usb_device_id m5602_table[] = {
+static const struct usb_device_id m5602_table[] = {
 	{USB_DEVICE(0x0402, 0x5602)},
 	{}
 };

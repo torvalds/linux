@@ -113,6 +113,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 
 	if (ieee80211_is_data(fc)) {
 		struct tx_frame_hdr tx_hdr;
+		u32 flags = 0;
 		u8 *qc;
 
 		memset(&tx_hdr, 0, sizeof(struct tx_frame_hdr));
@@ -136,13 +137,14 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 		/* Check for RTS protection */
 		if (priv->hw->wiphy->rts_threshold != (u32) -1)
 			if (skb->len > priv->hw->wiphy->rts_threshold)
-				tx_hdr.flags |= ATH9K_HTC_TX_RTSCTS;
+				flags |= ATH9K_HTC_TX_RTSCTS;
 
 		/* CTS-to-self */
-		if (!(tx_hdr.flags & ATH9K_HTC_TX_RTSCTS) &&
+		if (!(flags & ATH9K_HTC_TX_RTSCTS) &&
 		    (priv->op_flags & OP_PROTECT_ENABLE))
-			tx_hdr.flags |= ATH9K_HTC_TX_CTSONLY;
+			flags |= ATH9K_HTC_TX_CTSONLY;
 
+		tx_hdr.flags = cpu_to_be32(flags);
 		tx_hdr.key_type = ath9k_cmn_get_hw_crypto_keytype(skb);
 		if (tx_hdr.key_type == ATH9K_KEY_TYPE_CLEAR)
 			tx_hdr.keyix = (u8) ATH9K_TXKEYIX_INVALID;

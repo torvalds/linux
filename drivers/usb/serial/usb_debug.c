@@ -75,6 +75,7 @@ static struct usb_serial_driver debug_device = {
 		.name =		"debug",
 	},
 	.id_table =		id_table,
+	.usb_driver =		&debug_driver,
 	.num_ports =		1,
 	.bulk_out_size =	USB_DEBUG_MAX_PACKET_SIZE,
 	.break_ctl =		usb_debug_break_ctl,

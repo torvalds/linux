@@ -355,6 +355,7 @@ int evergreen_resume(struct radeon_device *rdev);
 bool evergreen_gpu_is_lockup(struct radeon_device *rdev);
 int evergreen_asic_reset(struct radeon_device *rdev);
 void evergreen_bandwidth_update(struct radeon_device *rdev);
+void evergreen_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int evergreen_copy_blit(struct radeon_device *rdev,
 			uint64_t src_offset, uint64_t dst_offset,
 			unsigned num_pages, struct radeon_fence *fence);

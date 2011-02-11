@@ -263,7 +263,7 @@ static void __setup_broadcast_timer(void *arg)
 	clockevents_notify(reason, &cpu);
 }
 
-static int __cpuinit setup_broadcast_cpuhp_notify(struct notifier_block *n,
+static int setup_broadcast_cpuhp_notify(struct notifier_block *n,
 		unsigned long action, void *hcpu)
 {
 	int hotcpu = (unsigned long)hcpu;
@@ -273,15 +273,11 @@ static int __cpuinit setup_broadcast_cpuhp_notify(struct notifier_block *n,
 		smp_call_function_single(hotcpu, __setup_broadcast_timer,
 			(void *)true, 1);
 		break;
-	case CPU_DOWN_PREPARE:
-		smp_call_function_single(hotcpu, __setup_broadcast_timer,
-			(void *)false, 1);
-		break;
 	}
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata setup_broadcast_notifier = {
+static struct notifier_block setup_broadcast_notifier = {
 	.notifier_call = setup_broadcast_cpuhp_notify,
 };
 

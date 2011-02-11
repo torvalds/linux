@@ -2294,6 +2294,8 @@ ath5k_tx_complete_poll_work(struct work_struct *work)
 	int i;
 	bool needreset = false;
 
+	mutex_lock(&sc->lock);
+
 	for (i = 0; i < ARRAY_SIZE(sc->txqs); i++) {
 		if (sc->txqs[i].setup) {
 			txq = &sc->txqs[i];
@@ -2320,6 +2322,8 @@ ath5k_tx_complete_poll_work(struct work_struct *work)
 			  "TX queues stuck, resetting\n");
 		ath5k_reset(sc, NULL, true);
 	}
+
+	mutex_unlock(&sc->lock);
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work,
 		msecs_to_jiffies(ATH5K_TX_COMPLETE_POLL_INT));

@@ -325,6 +325,8 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 {
 	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_tx_control txctl;
 	int time_left;
 
@@ -342,8 +344,12 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 	init_completion(&sc->paprd_complete);
 	sc->paprd_pending = true;
 	txctl.paprd = BIT(chain);
-	if (ath_tx_start(hw, skb, &txctl) != 0)
+
+	if (ath_tx_start(hw, skb, &txctl) != 0) {
+		ath_dbg(common, ATH_DBG_XMIT, "PAPRD TX failed\n");
+		dev_kfree_skb_any(skb);
 		return false;
+	}
 
 	time_left = wait_for_completion_timeout(&sc->paprd_complete,
 			msecs_to_jiffies(ATH_PAPRD_TIMEOUT));
@@ -592,14 +598,12 @@ void ath9k_tasklet(unsigned long data)
 	u32 status = sc->intrstatus;
 	u32 rxmask;
 
-	ath9k_ps_wakeup(sc);
-
 	if (status & ATH9K_INT_FATAL) {
 		ath_reset(sc, true);
-		ath9k_ps_restore(sc);
 		return;
 	}
 
+	ath9k_ps_wakeup(sc);
 	spin_lock(&sc->sc_pcu_lock);
 
 	if (!ath9k_hw_check_alive(ah))
@@ -955,8 +959,6 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 	ath9k_ps_restore(sc);
-
-	ath9k_setpower(sc, ATH9K_PM_FULL_SLEEP);
 }
 
 int ath_reset(struct ath_softc *sc, bool retry_tx)
@@ -969,6 +971,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	/* Stop ANI */
 	del_timer_sync(&common->ani.timer);
 
+	ath9k_ps_wakeup(sc);
 	spin_lock_bh(&sc->sc_pcu_lock);
 
 	ieee80211_stop_queues(hw);
@@ -1015,6 +1018,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 
 	/* Start ANI */
 	ath_start_ani(common);
+	ath9k_ps_restore(sc);
 
 	return r;
 }
@@ -1309,6 +1313,9 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	spin_lock_bh(&sc->sc_pcu_lock);
 
+	/* prevent tasklets to enable interrupts once we disable them */
+	ah->imask &= ~ATH9K_INT_GLOBAL;
+
 	/* make sure h/w will not generate any interrupt
 	 * before setting the invalid flag. */
 	ath9k_hw_disable_interrupts(ah);
@@ -1325,6 +1332,12 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	ath9k_hw_configpcipowersave(ah, 1, 1);
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
+
+	/* we can now sync irq and kill any running tasklets, since we already
+	 * disabled interrupts and not holding a spin lock */
+	synchronize_irq(sc->irq);
+	tasklet_kill(&sc->intr_tq);
+	tasklet_kill(&sc->bcon_tasklet);
 
 	ath9k_ps_restore(sc);
 
@@ -1701,7 +1714,9 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 skip_chan_change:
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		sc->config.txpowlimit = 2 * conf->power_level;
+		ath9k_ps_wakeup(sc);
 		ath_update_txpow(sc);
+		ath9k_ps_restore(sc);
 	}
 
 	spin_lock_bh(&sc->wiphy_lock);

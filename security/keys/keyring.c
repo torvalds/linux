@@ -25,14 +25,16 @@
 		(keyring)->payload.subscriptions,			\
 		rwsem_is_locked((struct rw_semaphore *)&(keyring)->sem)))
 
+#define KEY_LINK_FIXQUOTA 1UL
+
 /*
- * when plumbing the depths of the key tree, this sets a hard limit set on how
- * deep we're willing to go
+ * When plumbing the depths of the key tree, this sets a hard limit
+ * set on how deep we're willing to go.
  */
 #define KEYRING_SEARCH_MAX_DEPTH 6
 
 /*
- * we keep all named keyrings in a hash to speed looking them up
+ * We keep all named keyrings in a hash to speed looking them up.
  */
 #define KEYRING_NAME_HASH_SIZE	(1 << 5)
 
@@ -50,7 +52,9 @@ static inline unsigned keyring_hash(const char *desc)
 }
 
 /*
- * the keyring type definition
+ * The keyring key type definition.  Keyrings are simply keys of this type and
+ * can be treated as ordinary keys in addition to having their own special
+ * operations.
  */
 static int keyring_instantiate(struct key *keyring,
 			       const void *data, size_t datalen);
@@ -71,19 +75,17 @@ struct key_type key_type_keyring = {
 	.describe	= keyring_describe,
 	.read		= keyring_read,
 };
-
 EXPORT_SYMBOL(key_type_keyring);
 
 /*
- * semaphore to serialise link/link calls to prevent two link calls in parallel
- * introducing a cycle
+ * Semaphore to serialise link/link calls to prevent two link calls in parallel
+ * introducing a cycle.
  */
 static DECLARE_RWSEM(keyring_serialise_link_sem);
 
-/*****************************************************************************/
 /*
- * publish the name of a keyring so that it can be found by name (if it has
- * one)
+ * Publish the name of a keyring so that it can be found by name (if it has
+ * one).
  */
 static void keyring_publish_name(struct key *keyring)
 {
@@ -102,13 +104,12 @@ static void keyring_publish_name(struct key *keyring)
 
 		write_unlock(&keyring_name_lock);
 	}
+}
 
-} /* end keyring_publish_name() */
-
-/*****************************************************************************/
 /*
- * initialise a keyring
- * - we object if we were given any data
+ * Initialise a keyring.
+ *
+ * Returns 0 on success, -EINVAL if given any data.
  */
 static int keyring_instantiate(struct key *keyring,
 			       const void *data, size_t datalen)
@@ -123,23 +124,20 @@ static int keyring_instantiate(struct key *keyring,
 	}
 
 	return ret;
+}
 
-} /* end keyring_instantiate() */
-
-/*****************************************************************************/
 /*
- * match keyrings on their name
+ * Match keyrings on their name
  */
 static int keyring_match(const struct key *keyring, const void *description)
 {
 	return keyring->description &&
 		strcmp(keyring->description, description) == 0;
+}
 
-} /* end keyring_match() */
-
-/*****************************************************************************/
 /*
- * dispose of the data dangling from the corpse of a keyring
+ * Clean up a keyring when it is destroyed.  Unpublish its name if it had one
+ * and dispose of its data.
  */
 static void keyring_destroy(struct key *keyring)
 {
@@ -164,12 +162,10 @@ static void keyring_destroy(struct key *keyring)
 			key_put(klist->keys[loop]);
 		kfree(klist);
 	}
+}
 
-} /* end keyring_destroy() */
-
-/*****************************************************************************/
 /*
- * describe the keyring
+ * Describe a keyring for /proc.
  */
 static void keyring_describe(const struct key *keyring, struct seq_file *m)
 {
@@ -187,13 +183,12 @@ static void keyring_describe(const struct key *keyring, struct seq_file *m)
 	else
 		seq_puts(m, ": empty");
 	rcu_read_unlock();
+}
 
-} /* end keyring_describe() */
-
-/*****************************************************************************/
 /*
- * read a list of key IDs from the keyring's contents
- * - the keyring's semaphore is read-locked
+ * Read a list of key IDs from the keyring's contents in binary form
+ *
+ * The keyring's semaphore is read-locked by the caller.
  */
 static long keyring_read(const struct key *keyring,
 			 char __user *buffer, size_t buflen)
@@ -241,12 +236,10 @@ static long keyring_read(const struct key *keyring,
 
 error:
 	return ret;
+}
 
-} /* end keyring_read() */
-
-/*****************************************************************************/
 /*
- * allocate a keyring and link into the destination keyring
+ * Allocate a keyring and link into the destination keyring.
  */
 struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 			  const struct cred *cred, unsigned long flags,
@@ -269,20 +262,42 @@ struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 	}
 
 	return keyring;
+}
 
-} /* end keyring_alloc() */
-
-/*****************************************************************************/
-/*
- * search the supplied keyring tree for a key that matches the criterion
- * - perform a breadth-then-depth search up to the prescribed limit
- * - we only find keys on which we have search permission
- * - we use the supplied match function to see if the description (or other
- *   feature of interest) matches
- * - we rely on RCU to prevent the keyring lists from disappearing on us
- * - we return -EAGAIN if we didn't find any matching key
- * - we return -ENOKEY if we only found negative matching keys
- * - we propagate the possession attribute from the keyring ref to the key ref
+/**
+ * keyring_search_aux - Search a keyring tree for a key matching some criteria
+ * @keyring_ref: A pointer to the keyring with possession indicator.
+ * @cred: The credentials to use for permissions checks.
+ * @type: The type of key to search for.
+ * @description: Parameter for @match.
+ * @match: Function to rule on whether or not a key is the one required.
+ *
+ * Search the supplied keyring tree for a key that matches the criteria given.
+ * The root keyring and any linked keyrings must grant Search permission to the
+ * caller to be searchable and keys can only be found if they too grant Search
+ * to the caller. The possession flag on the root keyring pointer controls use
+ * of the possessor bits in permissions checking of the entire tree.  In
+ * addition, the LSM gets to forbid keyring searches and key matches.
+ *
+ * The search is performed as a breadth-then-depth search up to the prescribed
+ * limit (KEYRING_SEARCH_MAX_DEPTH).
+ *
+ * Keys are matched to the type provided and are then filtered by the match
+ * function, which is given the description to use in any way it sees fit.  The
+ * match function may use any attributes of a key that it wishes to to
+ * determine the match.  Normally the match function from the key type would be
+ * used.
+ *
+ * RCU is used to prevent the keyring key lists from disappearing without the
+ * need to take lots of locks.
+ *
+ * Returns a pointer to the found key and increments the key usage count if
+ * successful; -EAGAIN if no matching keys were found, or if expired or revoked
+ * keys were found; -ENOKEY if only negative keys were found; -ENOTDIR if the
+ * specified keyring wasn't a keyring.
+ *
+ * In the case of a successful return, the possession attribute from
+ * @keyring_ref is propagated to the returned key reference.
  */
 key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 			     const struct cred *cred,
@@ -444,17 +459,16 @@ error_2:
 	rcu_read_unlock();
 error:
 	return key_ref;
+}
 
-} /* end keyring_search_aux() */
-
-/*****************************************************************************/
-/*
- * search the supplied keyring tree for a key that matches the criterion
- * - perform a breadth-then-depth search up to the prescribed limit
- * - we only find keys on which we have search permission
- * - we readlock the keyrings as we search down the tree
- * - we return -EAGAIN if we didn't find any matching key
- * - we return -ENOKEY if we only found negative matching keys
+/**
+ * keyring_search - Search the supplied keyring tree for a matching key
+ * @keyring: The root of the keyring tree to be searched.
+ * @type: The type of keyring we want to find.
+ * @description: The name of the keyring we want to find.
+ *
+ * As keyring_search_aux() above, but using the current task's credentials and
+ * type's default matching function.
  */
 key_ref_t keyring_search(key_ref_t keyring,
 			 struct key_type *type,
@@ -465,16 +479,23 @@ key_ref_t keyring_search(key_ref_t keyring,
 
 	return keyring_search_aux(keyring, current->cred,
 				  type, description, type->match);
-
-} /* end keyring_search() */
-
+}
 EXPORT_SYMBOL(keyring_search);
 
-/*****************************************************************************/
 /*
- * search the given keyring only (no recursion)
- * - keyring must be locked by caller
- * - caller must guarantee that the keyring is a keyring
+ * Search the given keyring only (no recursion).
+ *
+ * The caller must guarantee that the keyring is a keyring and that the
+ * permission is granted to search the keyring as no check is made here.
+ *
+ * RCU is used to make it unnecessary to lock the keyring key list here.
+ *
+ * Returns a pointer to the found key with usage count incremented if
+ * successful and returns -ENOKEY if not found.  Revoked keys and keys not
+ * providing the requested permission are skipped over.
+ *
+ * If successful, the possession indicator is propagated from the keyring ref
+ * to the returned key reference.
  */
 key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 			       const struct key_type *ktype,
@@ -514,14 +535,18 @@ found:
 	atomic_inc(&key->usage);
 	rcu_read_unlock();
 	return make_key_ref(key, possessed);
+}
 
-} /* end __keyring_search_one() */
-
-/*****************************************************************************/
 /*
- * find a keyring with the specified name
- * - all named keyrings are searched
- * - normally only finds keyrings with search permission for the current process
+ * Find a keyring with the specified name.
+ *
+ * All named keyrings in the current user namespace are searched, provided they
+ * grant Search permission directly to the caller (unless this check is
+ * skipped).  Keyrings whose usage points have reached zero or who have been
+ * revoked are skipped.
+ *
+ * Returns a pointer to the keyring with the keyring's refcount having being
+ * incremented on success.  -ENOKEY is returned if a key could not be found.
  */
 struct key *find_keyring_by_name(const char *name, bool skip_perm_check)
 {
@@ -569,15 +594,14 @@ struct key *find_keyring_by_name(const char *name, bool skip_perm_check)
 out:
 	read_unlock(&keyring_name_lock);
 	return keyring;
+}
 
-} /* end find_keyring_by_name() */
-
-/*****************************************************************************/
 /*
- * see if a cycle will will be created by inserting acyclic tree B in acyclic
- * tree A at the topmost level (ie: as a direct child of A)
- * - since we are adding B to A at the top level, checking for cycles should
- *   just be a matter of seeing if node A is somewhere in tree B
+ * See if a cycle will will be created by inserting acyclic tree B in acyclic
+ * tree A at the topmost level (ie: as a direct child of A).
+ *
+ * Since we are adding B to A at the top level, checking for cycles should just
+ * be a matter of seeing if node A is somewhere in tree B.
  */
 static int keyring_detect_cycle(struct key *A, struct key *B)
 {
@@ -657,11 +681,10 @@ too_deep:
 cycle_detected:
 	ret = -EDEADLK;
 	goto error;
-
-} /* end keyring_detect_cycle() */
+}
 
 /*
- * dispose of a keyring list after the RCU grace period, freeing the unlinked
+ * Dispose of a keyring list after the RCU grace period, freeing the unlinked
  * key
  */
 static void keyring_unlink_rcu_disposal(struct rcu_head *rcu)
@@ -675,14 +698,14 @@ static void keyring_unlink_rcu_disposal(struct rcu_head *rcu)
 }
 
 /*
- * preallocate memory so that a key can be linked into to a keyring
+ * Preallocate memory so that a key can be linked into to a keyring.
  */
 int __key_link_begin(struct key *keyring, const struct key_type *type,
-		     const char *description,
-		     struct keyring_list **_prealloc)
+		     const char *description, unsigned long *_prealloc)
 	__acquires(&keyring->sem)
 {
 	struct keyring_list *klist, *nklist;
+	unsigned long prealloc;
 	unsigned max;
 	size_t size;
 	int loop, ret;
@@ -725,6 +748,7 @@ int __key_link_begin(struct key *keyring, const struct key_type *type,
 
 				/* note replacement slot */
 				klist->delkey = nklist->delkey = loop;
+				prealloc = (unsigned long)nklist;
 				goto done;
 			}
 		}
@@ -739,6 +763,7 @@ int __key_link_begin(struct key *keyring, const struct key_type *type,
 	if (klist && klist->nkeys < klist->maxkeys) {
 		/* there's sufficient slack space to append directly */
 		nklist = NULL;
+		prealloc = KEY_LINK_FIXQUOTA;
 	} else {
 		/* grow the key list */
 		max = 4;
@@ -773,8 +798,9 @@ int __key_link_begin(struct key *keyring, const struct key_type *type,
 		nklist->keys[nklist->delkey] = NULL;
 	}
 
+	prealloc = (unsigned long)nklist | KEY_LINK_FIXQUOTA;
 done:
-	*_prealloc = nklist;
+	*_prealloc = prealloc;
 	kleave(" = 0");
 	return 0;
 
@@ -792,10 +818,10 @@ error_krsem:
 }
 
 /*
- * check already instantiated keys aren't going to be a problem
- * - the caller must have called __key_link_begin()
- * - don't need to call this for keys that were created since __key_link_begin()
- *   was called
+ * Check already instantiated keys aren't going to be a problem.
+ *
+ * The caller must have called __key_link_begin(). Don't need to call this for
+ * keys that were created since __key_link_begin() was called.
  */
 int __key_link_check_live_key(struct key *keyring, struct key *key)
 {
@@ -807,17 +833,20 @@ int __key_link_check_live_key(struct key *keyring, struct key *key)
 }
 
 /*
- * link a key into to a keyring
- * - must be called with __key_link_begin() having being called
- * - discard already extant link to matching key if there is one
+ * Link a key into to a keyring.
+ *
+ * Must be called with __key_link_begin() having being called.  Discards any
+ * already extant link to matching key if there is one, so that each keyring
+ * holds at most one link to any given key of a particular type+description
+ * combination.
  */
 void __key_link(struct key *keyring, struct key *key,
-		struct keyring_list **_prealloc)
+		unsigned long *_prealloc)
 {
 	struct keyring_list *klist, *nklist;
 
-	nklist = *_prealloc;
-	*_prealloc = NULL;
+	nklist = (struct keyring_list *)(*_prealloc & ~KEY_LINK_FIXQUOTA);
+	*_prealloc = 0;
 
 	kenter("%d,%d,%p", keyring->serial, key->serial, nklist);
 
@@ -852,34 +881,54 @@ void __key_link(struct key *keyring, struct key *key,
 }
 
 /*
- * finish linking a key into to a keyring
- * - must be called with __key_link_begin() having being called
+ * Finish linking a key into to a keyring.
+ *
+ * Must be called with __key_link_begin() having being called.
  */
 void __key_link_end(struct key *keyring, struct key_type *type,
-		    struct keyring_list *prealloc)
+		    unsigned long prealloc)
 	__releases(&keyring->sem)
 {
 	BUG_ON(type == NULL);
 	BUG_ON(type->name == NULL);
-	kenter("%d,%s,%p", keyring->serial, type->name, prealloc);
+	kenter("%d,%s,%lx", keyring->serial, type->name, prealloc);
 
 	if (type == &key_type_keyring)
 		up_write(&keyring_serialise_link_sem);
 
 	if (prealloc) {
-		kfree(prealloc);
-		key_payload_reserve(keyring,
-				    keyring->datalen - KEYQUOTA_LINK_BYTES);
+		if (prealloc & KEY_LINK_FIXQUOTA)
+			key_payload_reserve(keyring,
+					    keyring->datalen -
+					    KEYQUOTA_LINK_BYTES);
+		kfree((struct keyring_list *)(prealloc & ~KEY_LINK_FIXQUOTA));
 	}
 	up_write(&keyring->sem);
 }
 
-/*
- * link a key to a keyring
+/**
+ * key_link - Link a key to a keyring
+ * @keyring: The keyring to make the link in.
+ * @key: The key to link to.
+ *
+ * Make a link in a keyring to a key, such that the keyring holds a reference
+ * on that key and the key can potentially be found by searching that keyring.
+ *
+ * This function will write-lock the keyring's semaphore and will consume some
+ * of the user's key data quota to hold the link.
+ *
+ * Returns 0 if successful, -ENOTDIR if the keyring isn't a keyring,
+ * -EKEYREVOKED if the keyring has been revoked, -ENFILE if the keyring is
+ * full, -EDQUOT if there is insufficient key data quota remaining to add
+ * another link or -ENOMEM if there's insufficient memory.
+ *
+ * It is assumed that the caller has checked that it is permitted for a link to
+ * be made (the keyring should have Write permission and the key Link
+ * permission).
  */
 int key_link(struct key *keyring, struct key *key)
 {
-	struct keyring_list *prealloc;
+	unsigned long prealloc;
 	int ret;
 
 	key_check(keyring);
@@ -895,12 +944,24 @@ int key_link(struct key *keyring, struct key *key)
 
 	return ret;
 }
-
 EXPORT_SYMBOL(key_link);
 
-/*****************************************************************************/
-/*
- * unlink the first link to a key from a keyring
+/**
+ * key_unlink - Unlink the first link to a key from a keyring.
+ * @keyring: The keyring to remove the link from.
+ * @key: The key the link is to.
+ *
+ * Remove a link from a keyring to a key.
+ *
+ * This function will write-lock the keyring's semaphore.
+ *
+ * Returns 0 if successful, -ENOTDIR if the keyring isn't a keyring, -ENOENT if
+ * the key isn't linked to by the keyring or -ENOMEM if there's insufficient
+ * memory.
+ *
+ * It is assumed that the caller has checked that it is permitted for a link to
+ * be removed (the keyring should have Write permission; no permissions are
+ * required on the key).
  */
 int key_unlink(struct key *keyring, struct key *key)
 {
@@ -968,15 +1029,12 @@ nomem:
 	ret = -ENOMEM;
 	up_write(&keyring->sem);
 	goto error;
-
-} /* end key_unlink() */
-
+}
 EXPORT_SYMBOL(key_unlink);
 
-/*****************************************************************************/
 /*
- * dispose of a keyring list after the RCU grace period, releasing the keys it
- * links to
+ * Dispose of a keyring list after the RCU grace period, releasing the keys it
+ * links to.
  */
 static void keyring_clear_rcu_disposal(struct rcu_head *rcu)
 {
@@ -989,13 +1047,15 @@ static void keyring_clear_rcu_disposal(struct rcu_head *rcu)
 		key_put(klist->keys[loop]);
 
 	kfree(klist);
+}
 
-} /* end keyring_clear_rcu_disposal() */
-
-/*****************************************************************************/
-/*
- * clear the specified process keyring
- * - implements keyctl(KEYCTL_CLEAR)
+/**
+ * keyring_clear - Clear a keyring
+ * @keyring: The keyring to clear.
+ *
+ * Clear the contents of the specified keyring.
+ *
+ * Returns 0 if successful or -ENOTDIR if the keyring isn't a keyring.
  */
 int keyring_clear(struct key *keyring)
 {
@@ -1027,15 +1087,13 @@ int keyring_clear(struct key *keyring)
 	}
 
 	return ret;
-
-} /* end keyring_clear() */
-
+}
 EXPORT_SYMBOL(keyring_clear);
 
-/*****************************************************************************/
 /*
- * dispose of the links from a revoked keyring
- * - called with the key sem write-locked
+ * Dispose of the links from a revoked keyring.
+ *
+ * This is called with the key sem write-locked.
  */
 static void keyring_revoke(struct key *keyring)
 {
@@ -1050,11 +1108,10 @@ static void keyring_revoke(struct key *keyring)
 		rcu_assign_pointer(keyring->payload.subscriptions, NULL);
 		call_rcu(&klist->rcu, keyring_clear_rcu_disposal);
 	}
-
-} /* end keyring_revoke() */
+}
 
 /*
- * Determine whether a key is dead
+ * Determine whether a key is dead.
  */
 static bool key_is_dead(struct key *key, time_t limit)
 {
@@ -1063,7 +1120,12 @@ static bool key_is_dead(struct key *key, time_t limit)
 }
 
 /*
- * Collect garbage from the contents of a keyring
+ * Collect garbage from the contents of a keyring, replacing the old list with
+ * a new one with the pointers all shuffled down.
+ *
+ * Dead keys are classed as oned that are flagged as being dead or are revoked,
+ * expired or negative keys that were revoked or expired before the specified
+ * limit.
  */
 void keyring_gc(struct key *keyring, time_t limit)
 {

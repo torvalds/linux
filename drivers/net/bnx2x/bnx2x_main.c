@@ -2301,15 +2301,10 @@ static void bnx2x_rxq_set_mac_filters(struct bnx2x *bp, u16 cl_id, u32 filters)
 		/* accept matched ucast */
 		drop_all_ucast = 0;
 	}
-	if (filters & BNX2X_ACCEPT_MULTICAST) {
+	if (filters & BNX2X_ACCEPT_MULTICAST)
 		/* accept matched mcast */
 		drop_all_mcast = 0;
-		if (IS_MF_SI(bp))
-			/* since mcast addresses won't arrive with ovlan,
-			 * fw needs to accept all of them in
-			 * switch-independent mode */
-			accp_all_mcast = 1;
-	}
+
 	if (filters & BNX2X_ACCEPT_ALL_UNICAST) {
 		/* accept all mcast */
 		drop_all_ucast = 0;
@@ -5296,10 +5291,6 @@ static int bnx2x_init_hw_common(struct bnx2x *bp, u32 load_code)
 		}
 	}
 
-	bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
-						       bp->common.shmem_base,
-						       bp->common.shmem2_base);
-
 	bnx2x_setup_fan_failure_detection(bp);
 
 	/* clear PXP2 attentions */
@@ -5503,9 +5494,6 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, MCP_BLOCK, init_stage);
 	bnx2x_init_block(bp, DMAE_BLOCK, init_stage);
-	bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
-						       bp->common.shmem_base,
-						       bp->common.shmem2_base);
 	if (bnx2x_fan_failure_det_req(bp, bp->common.shmem_base,
 				      bp->common.shmem2_base, port)) {
 		u32 reg_addr = (port ? MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0 :
@@ -8379,6 +8367,17 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 		 (ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN))
 		bp->mdio.prtad =
 			XGXS_EXT_PHY_ADDR(ext_phy_config);
+
+	/*
+	 * Check if hw lock is required to access MDC/MDIO bus to the PHY(s)
+	 * In MF mode, it is set to cover self test cases
+	 */
+	if (IS_MF(bp))
+		bp->port.need_hw_lock = 1;
+	else
+		bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
+							bp->common.shmem_base,
+							bp->common.shmem2_base);
 }
 
 static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)

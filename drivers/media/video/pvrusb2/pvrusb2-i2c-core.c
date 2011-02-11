@@ -19,6 +19,7 @@
  */
 
 #include <linux/i2c.h>
+#include <media/ir-kbd-i2c.h>
 #include "pvrusb2-i2c-core.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
@@ -47,13 +48,6 @@ module_param_named(disable_autoload_ir_video, pvr2_disable_ir_video,
 		   int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(disable_autoload_ir_video,
 		 "1=do not try to autoload ir_video IR receiver");
-
-/* Mapping of IR schemes to known I2C addresses - if any */
-static const unsigned char ir_video_addresses[] = {
-	[PVR2_IR_SCHEME_ZILOG] = 0x71,
-	[PVR2_IR_SCHEME_29XXX] = 0x18,
-	[PVR2_IR_SCHEME_24XXX] = 0x18,
-};
 
 static int pvr2_i2c_write(struct pvr2_hdw *hdw, /* Context */
 			  u8 i2c_addr,      /* I2C address we're talking to */
@@ -574,26 +568,55 @@ static void do_i2c_scan(struct pvr2_hdw *hdw)
 static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 {
 	struct i2c_board_info info;
-	unsigned char addr = 0;
+	struct IR_i2c_init_data *init_data = &hdw->ir_init_data;
 	if (pvr2_disable_ir_video) {
 		pvr2_trace(PVR2_TRACE_INFO,
 			   "Automatic binding of ir_video has been disabled.");
 		return;
 	}
-	if (hdw->ir_scheme_active < ARRAY_SIZE(ir_video_addresses)) {
-		addr = ir_video_addresses[hdw->ir_scheme_active];
-	}
-	if (!addr) {
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	switch (hdw->ir_scheme_active) {
+	case PVR2_IR_SCHEME_24XXX: /* FX2-controlled IR */
+	case PVR2_IR_SCHEME_29XXX: /* Original 29xxx device */
+		init_data->ir_codes              = RC_MAP_HAUPPAUGE_NEW;
+		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP;
+		init_data->type                  = RC_TYPE_RC5;
+		init_data->name                  = hdw->hdw_desc->description;
+		init_data->polling_interval      = 100; /* ms From ir-kbd-i2c */
+		/* IR Receiver */
+		info.addr          = 0x18;
+		info.platform_data = init_data;
+		strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+		pvr2_trace(PVR2_TRACE_INFO, "Binding %s to i2c address 0x%02x.",
+			   info.type, info.addr);
+		i2c_new_device(&hdw->i2c_adap, &info);
+		break;
+	case PVR2_IR_SCHEME_ZILOG:     /* HVR-1950 style */
+	case PVR2_IR_SCHEME_24XXX_MCE: /* 24xxx MCE device */
+		init_data->ir_codes              = RC_MAP_HAUPPAUGE_NEW;
+		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
+		init_data->type                  = RC_TYPE_RC5;
+		init_data->name                  = hdw->hdw_desc->description;
+		/* IR Receiver */
+		info.addr          = 0x71;
+		info.platform_data = init_data;
+		strlcpy(info.type, "ir_rx_z8f0811_haup", I2C_NAME_SIZE);
+		pvr2_trace(PVR2_TRACE_INFO, "Binding %s to i2c address 0x%02x.",
+			   info.type, info.addr);
+		i2c_new_device(&hdw->i2c_adap, &info);
+		/* IR Trasmitter */
+		info.addr          = 0x70;
+		info.platform_data = init_data;
+		strlcpy(info.type, "ir_tx_z8f0811_haup", I2C_NAME_SIZE);
+		pvr2_trace(PVR2_TRACE_INFO, "Binding %s to i2c address 0x%02x.",
+			   info.type, info.addr);
+		i2c_new_device(&hdw->i2c_adap, &info);
+		break;
+	default:
 		/* The device either doesn't support I2C-based IR or we
 		   don't know (yet) how to operate IR on the device. */
-		return;
+		break;
 	}
-	pvr2_trace(PVR2_TRACE_INFO,
-		   "Binding ir_video to i2c address 0x%02x.", addr);
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
-	info.addr = addr;
-	i2c_new_device(&hdw->i2c_adap, &info);
 }
 
 void pvr2_i2c_core_init(struct pvr2_hdw *hdw)

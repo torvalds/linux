@@ -699,13 +699,13 @@ static void cnic_free_dma(struct cnic_dev *dev, struct cnic_dma *dma)
 static void cnic_setup_page_tbl(struct cnic_dev *dev, struct cnic_dma *dma)
 {
 	int i;
-	u32 *page_table = dma->pgtbl;
+	__le32 *page_table = (__le32 *) dma->pgtbl;
 
 	for (i = 0; i < dma->num_pages; i++) {
 		/* Each entry needs to be in big endian format. */
-		*page_table = (u32) ((u64) dma->pg_map_arr[i] >> 32);
+		*page_table = cpu_to_le32((u64) dma->pg_map_arr[i] >> 32);
 		page_table++;
-		*page_table = (u32) dma->pg_map_arr[i];
+		*page_table = cpu_to_le32(dma->pg_map_arr[i] & 0xffffffff);
 		page_table++;
 	}
 }
@@ -713,13 +713,13 @@ static void cnic_setup_page_tbl(struct cnic_dev *dev, struct cnic_dma *dma)
 static void cnic_setup_page_tbl_le(struct cnic_dev *dev, struct cnic_dma *dma)
 {
 	int i;
-	u32 *page_table = dma->pgtbl;
+	__le32 *page_table = (__le32 *) dma->pgtbl;
 
 	for (i = 0; i < dma->num_pages; i++) {
 		/* Each entry needs to be in little endian format. */
-		*page_table = dma->pg_map_arr[i] & 0xffffffff;
+		*page_table = cpu_to_le32(dma->pg_map_arr[i] & 0xffffffff);
 		page_table++;
-		*page_table = (u32) ((u64) dma->pg_map_arr[i] >> 32);
+		*page_table = cpu_to_le32((u64) dma->pg_map_arr[i] >> 32);
 		page_table++;
 	}
 }

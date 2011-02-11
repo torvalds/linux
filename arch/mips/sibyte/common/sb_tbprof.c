@@ -410,14 +410,13 @@ static int sbprof_tb_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 
 	memset(&sbp, 0, sizeof(struct sbprof_tb));
-	sbp.sbprof_tbbuf = vmalloc(MAX_TBSAMPLE_BYTES);
+	sbp.sbprof_tbbuf = vzalloc(MAX_TBSAMPLE_BYTES);
 	if (!sbp.sbprof_tbbuf) {
 		sbp.open = SB_CLOSED;
 		wmb();
 		return -ENOMEM;
 	}
 
-	memset(sbp.sbprof_tbbuf, 0, MAX_TBSAMPLE_BYTES);
 	init_waitqueue_head(&sbp.tb_sync);
 	init_waitqueue_head(&sbp.tb_read);
 	mutex_init(&sbp.lock);

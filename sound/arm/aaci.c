@@ -30,6 +30,8 @@
 
 #define DRIVER_NAME	"aaci-pl041"
 
+#define FRAME_PERIOD_US	21
+
 /*
  * PM support is not complete.  Turn it off.
  */
@@ -48,7 +50,11 @@ static void aaci_ac97_select_codec(struct aaci *aaci, struct snd_ac97 *ac97)
 	if (v & SLFR_1RXV)
 		readl(aaci->base + AACI_SL1RX);
 
-	writel(maincr, aaci->base + AACI_MAINCR);
+	if (maincr != readl(aaci->base + AACI_MAINCR)) {
+		writel(maincr, aaci->base + AACI_MAINCR);
+		readl(aaci->base + AACI_MAINCR);
+		udelay(1);
+	}
 }
 
 /*
@@ -64,8 +70,8 @@ static void aaci_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 			    unsigned short val)
 {
 	struct aaci *aaci = ac97->private_data;
+	int timeout;
 	u32 v;
-	int timeout = 5000;
 
 	if (ac97->num >= 4)
 		return;
@@ -81,14 +87,17 @@ static void aaci_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	writel(val << 4, aaci->base + AACI_SL2TX);
 	writel(reg << 12, aaci->base + AACI_SL1TX);
 
-	/*
-	 * Wait for the transmission of both slots to complete.
-	 */
+	/* Initially, wait one frame period */
+	udelay(FRAME_PERIOD_US);
+
+	/* And then wait an additional eight frame periods for it to be sent */
+	timeout = FRAME_PERIOD_US * 8;
 	do {
+		udelay(1);
 		v = readl(aaci->base + AACI_SLFR);
 	} while ((v & (SLFR_1TXB|SLFR_2TXB)) && --timeout);
 
-	if (!timeout)
+	if (v & (SLFR_1TXB|SLFR_2TXB))
 		dev_err(&aaci->dev->dev,
 			"timeout waiting for write to complete\n");
 
@@ -101,9 +110,8 @@ static void aaci_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	struct aaci *aaci = ac97->private_data;
+	int timeout, retries = 10;
 	u32 v;
-	int timeout = 5000;
-	int retries = 10;
 
 	if (ac97->num >= 4)
 		return ~0;
@@ -117,35 +125,34 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 	 */
 	writel((reg << 12) | (1 << 19), aaci->base + AACI_SL1TX);
 
-	/*
-	 * Wait for the transmission to complete.
-	 */
+	/* Initially, wait one frame period */
+	udelay(FRAME_PERIOD_US);
+
+	/* And then wait an additional eight frame periods for it to be sent */
+	timeout = FRAME_PERIOD_US * 8;
 	do {
+		udelay(1);
 		v = readl(aaci->base + AACI_SLFR);
 	} while ((v & SLFR_1TXB) && --timeout);
 
-	if (!timeout) {
+	if (v & SLFR_1TXB) {
 		dev_err(&aaci->dev->dev, "timeout on slot 1 TX busy\n");
 		v = ~0;
 		goto out;
 	}
 
-	/*
-	 * Give the AC'97 codec more than enough time
-	 * to respond. (42us = ~2 frames at 48kHz.)
-	 */
-	udelay(42);
+	/* Now wait for the response frame */
+	udelay(FRAME_PERIOD_US);
 
-	/*
-	 * Wait for slot 2 to indicate data.
-	 */
-	timeout = 5000;
+	/* And then wait an additional eight frame periods for data */
+	timeout = FRAME_PERIOD_US * 8;
 	do {
+		udelay(1);
 		cond_resched();
 		v = readl(aaci->base + AACI_SLFR) & (SLFR_1RXV|SLFR_2RXV);
 	} while ((v != (SLFR_1RXV|SLFR_2RXV)) && --timeout);
 
-	if (!timeout) {
+	if (v != (SLFR_1RXV|SLFR_2RXV)) {
 		dev_err(&aaci->dev->dev, "timeout on RX valid\n");
 		v = ~0;
 		goto out;
@@ -179,6 +186,7 @@ aaci_chan_wait_ready(struct aaci_runtime *aacirun, unsigned long mask)
 	int timeout = 5000;
 
 	do {
+		udelay(1);
 		val = readl(aacirun->base + AACI_SR);
 	} while (val & mask && timeout--);
 }
@@ -874,7 +882,7 @@ static int __devinit aaci_probe_ac97(struct aaci *aaci)
 	 * Give the AC'97 codec more than enough time
 	 * to wake up. (42us = ~2 frames at 48kHz.)
 	 */
-	udelay(42);
+	udelay(FRAME_PERIOD_US * 2);
 
 	ret = snd_ac97_bus(aaci->card, 0, &aaci_bus_ops, aaci, &ac97_bus);
 	if (ret)
@@ -989,6 +997,8 @@ static unsigned int __devinit aaci_size_fifo(struct aaci *aaci)
 	 * disabling the channel doesn't clear the FIFO.
 	 */
 	writel(aaci->maincr & ~MAINCR_IE, aaci->base + AACI_MAINCR);
+	readl(aaci->base + AACI_MAINCR);
+	udelay(1);
 	writel(aaci->maincr, aaci->base + AACI_MAINCR);
 
 	/*

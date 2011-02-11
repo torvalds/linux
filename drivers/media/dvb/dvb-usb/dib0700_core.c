@@ -514,8 +514,8 @@ struct dib0700_rc_response {
 	union {
 		u16 system16;
 		struct {
-			u8 system;
 			u8 not_system;
+			u8 system;
 		};
 	};
 	u8 data;
@@ -575,7 +575,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		if ((poll_reply->system ^ poll_reply->not_system) != 0xff) {
 			deb_data("NEC extended protocol\n");
 			/* NEC extended code - 24 bits */
-			keycode = poll_reply->system16 << 8 | poll_reply->data;
+			keycode = be16_to_cpu(poll_reply->system16) << 8 | poll_reply->data;
 		} else {
 			deb_data("NEC normal protocol\n");
 			/* normal NEC code - 16 bits */
@@ -587,7 +587,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		deb_data("RC5 protocol\n");
 		/* RC5 Protocol */
 		toggle = poll_reply->report_id;
-		keycode = poll_reply->system16 << 8 | poll_reply->data;
+		keycode = poll_reply->system << 8 | poll_reply->data;
 
 		break;
 	}

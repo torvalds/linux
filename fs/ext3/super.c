@@ -754,7 +754,7 @@ static int ext3_release_dquot(struct dquot *dquot);
 static int ext3_mark_dquot_dirty(struct dquot *dquot);
 static int ext3_write_info(struct super_block *sb, int type);
 static int ext3_quota_on(struct super_block *sb, int type, int format_id,
-				char *path);
+			 struct path *path);
 static int ext3_quota_on_mount(struct super_block *sb, int type);
 static ssize_t ext3_quota_read(struct super_block *sb, int type, char *data,
 			       size_t len, loff_t off);
@@ -2877,27 +2877,20 @@ static int ext3_quota_on_mount(struct super_block *sb, int type)
  * Standard function to be called on quota_on
  */
 static int ext3_quota_on(struct super_block *sb, int type, int format_id,
-			 char *name)
+			 struct path *path)
 {
 	int err;
-	struct path path;
 
 	if (!test_opt(sb, QUOTA))
 		return -EINVAL;
 
-	err = kern_path(name, LOOKUP_FOLLOW, &path);
-	if (err)
-		return err;
-
 	/* Quotafile not on the same filesystem? */
-	if (path.mnt->mnt_sb != sb) {
-		path_put(&path);
+	if (path->mnt->mnt_sb != sb)
 		return -EXDEV;
-	}
 	/* Journaling quota? */
 	if (EXT3_SB(sb)->s_qf_names[type]) {
 		/* Quotafile not of fs root? */
-		if (path.dentry->d_parent != sb->s_root)
+		if (path->dentry->d_parent != sb->s_root)
 			ext3_msg(sb, KERN_WARNING,
 				"warning: Quota file not on filesystem root. "
 				"Journaled quota will not work.");
@@ -2907,7 +2900,7 @@ static int ext3_quota_on(struct super_block *sb, int type, int format_id,
 	 * When we journal data on quota file, we have to flush journal to see
 	 * all updates to the file when we bypass pagecache...
 	 */
-	if (ext3_should_journal_data(path.dentry->d_inode)) {
+	if (ext3_should_journal_data(path->dentry->d_inode)) {
 		/*
 		 * We don't need to lock updates but journal_flush() could
 		 * otherwise be livelocked...
@@ -2915,15 +2908,11 @@ static int ext3_quota_on(struct super_block *sb, int type, int format_id,
 		journal_lock_updates(EXT3_SB(sb)->s_journal);
 		err = journal_flush(EXT3_SB(sb)->s_journal);
 		journal_unlock_updates(EXT3_SB(sb)->s_journal);
-		if (err) {
-			path_put(&path);
+		if (err)
 			return err;
-		}
 	}
 
-	err = dquot_quota_on_path(sb, type, format_id, &path);
-	path_put(&path);
-	return err;
+	return dquot_quota_on(sb, type, format_id, path);
 }
 
 /* Read data from quotafile - avoid pagecache and such because we cannot afford

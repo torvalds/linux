@@ -27,7 +27,6 @@ obj-$(CONFIG_VIDEO_V4L2_COMMON) += v4l2-common.o
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o
 obj-$(CONFIG_VIDEO_TVAUDIO) += tvaudio.o
 obj-$(CONFIG_VIDEO_TDA7432) += tda7432.o
-obj-$(CONFIG_VIDEO_TDA9875) += tda9875.o
 obj-$(CONFIG_VIDEO_SAA6588) += saa6588.o
 obj-$(CONFIG_VIDEO_TDA9840) += tda9840.o
 obj-$(CONFIG_VIDEO_TEA6415C) += tea6415c.o

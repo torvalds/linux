@@ -701,16 +701,12 @@ static int __devinit pxa168fb_probe(struct platform_device *pdev)
 	 */
 	pxa168fb_init_mode(info, mi);
 
-	ret = pxa168fb_check_var(&info->var, info);
-	if (ret)
-		goto failed_free_fbmem;
-
 	/*
 	 * Fill in sane defaults.
 	 */
 	ret = pxa168fb_check_var(&info->var, info);
 	if (ret)
-		goto failed;
+		goto failed_free_fbmem;
 
 	/*
 	 * enable controller clock

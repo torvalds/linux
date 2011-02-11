@@ -1031,8 +1031,8 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	WREG32(RADEON_CP_CSQ_MODE,
 	       REG_SET(RADEON_INDIRECT2_START, indirect2_start) |
 	       REG_SET(RADEON_INDIRECT1_START, indirect1_start));
-	WREG32(0x718, 0);
-	WREG32(0x744, 0x00004D4D);
+	WREG32(RADEON_CP_RB_WPTR_DELAY, 0);
+	WREG32(RADEON_CP_CSQ_MODE, 0x00004D4D);
 	WREG32(RADEON_CP_CSQ_CNTL, RADEON_CSQ_PRIBM_INDBM);
 	radeon_ring_start(rdev);
 	r = radeon_ring_test(rdev);
@@ -2347,10 +2347,10 @@ void r100_vga_set_state(struct radeon_device *rdev, bool state)
 
 	temp = RREG32(RADEON_CONFIG_CNTL);
 	if (state == false) {
-		temp &= ~(1<<8);
-		temp |= (1<<9);
+		temp &= ~RADEON_CFG_VGA_RAM_EN;
+		temp |= RADEON_CFG_VGA_IO_DIS;
 	} else {
-		temp &= ~(1<<9);
+		temp &= ~RADEON_CFG_VGA_IO_DIS;
 	}
 	WREG32(RADEON_CONFIG_CNTL, temp);
 }
@@ -3522,7 +3522,7 @@ int r100_ring_test(struct radeon_device *rdev)
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ring test succeeded in %d usecs\n", i);
 	} else {
-		DRM_ERROR("radeon: ring test failed (sracth(0x%04X)=0x%08X)\n",
+		DRM_ERROR("radeon: ring test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);
 		r = -EINVAL;
 	}

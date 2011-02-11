@@ -2442,6 +2442,17 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 
 	rdev->pm.default_power_state_index = -1;
 
+	/* allocate 2 power states */
+	rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state) * 2, GFP_KERNEL);
+	if (!rdev->pm.power_state) {
+		rdev->pm.default_power_state_index = state_index;
+		rdev->pm.num_power_states = 0;
+
+		rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
+		rdev->pm.current_clock_mode_index = 0;
+		return;
+	}
+
 	if (rdev->flags & RADEON_IS_MOBILITY) {
 		offset = combios_get_table_offset(dev, COMBIOS_POWERPLAY_INFO_TABLE);
 		if (offset) {

@@ -838,9 +838,9 @@ int ath5k_hw_dma_stop(struct ath5k_hw *ah)
 	for (i = 0; i < qmax; i++) {
 		err = ath5k_hw_stop_tx_dma(ah, i);
 		/* -EINVAL -> queue inactive */
-		if (err != -EINVAL)
+		if (err && err != -EINVAL)
 			return err;
 	}
 
-	return err;
+	return 0;
 }
