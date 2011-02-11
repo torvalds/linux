@@ -2461,8 +2461,8 @@ static int be_flash_data(struct be_adapter *adapter,
 			continue;
 		if ((pflashcomp[i].optype == IMG_TYPE_REDBOOT) &&
 			(!be_flash_redboot(adapter, fw->data,
-			 pflashcomp[i].offset, pflashcomp[i].size,
-			 filehdr_size)))
+			pflashcomp[i].offset, pflashcomp[i].size, filehdr_size +
+			(num_of_images * sizeof(struct image_hdr)))))
 			continue;
 		p = fw->data;
 		p += filehdr_size + pflashcomp[i].offset
