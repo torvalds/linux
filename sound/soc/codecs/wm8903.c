@@ -1917,12 +1917,26 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 
 	/* Set up GPIOs and microphone detection */
 	if (pdata) {
+		bool mic_gpio = false;
+
 		for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
 			if (pdata->gpio_cfg[i] == WM8903_GPIO_NO_CONFIG)
 				continue;
 
 			snd_soc_write(codec, WM8903_GPIO_CONTROL_1 + i,
 				      pdata->gpio_cfg[i] & 0xffff);
+
+			val = (pdata->gpio_cfg[i] & WM8903_GP1_FN_MASK)
+				>> WM8903_GP1_FN_SHIFT;
+
+			switch (val) {
+			case WM8903_GPn_FN_MICBIAS_CURRENT_DETECT:
+			case WM8903_GPn_FN_MICBIAS_SHORT_DETECT:
+				mic_gpio = true;
+				break;
+			default:
+				break;
+			}
 		}
 
 		snd_soc_write(codec, WM8903_MIC_BIAS_CONTROL_0,
@@ -1932,6 +1946,14 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 		if (pdata->micdet_cfg)
 			snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
 					    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
+
+		/* If microphone detection is enabled by pdata but
+		 * detected via IRQ then interrupts can be lost before
+		 * the machine driver has set up microphone detection
+		 * IRQs as the IRQs are clear on read.  The detection
+		 * will be enabled when the machine driver configures.
+		 */
+		WARN_ON(!mic_gpio && (pdata->micdet_cfg & WM8903_MICDET_ENA));
 
 		wm8903->mic_delay = pdata->micdet_delay;
 	}
