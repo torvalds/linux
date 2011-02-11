@@ -2277,22 +2277,26 @@ static int be_setup(struct be_adapter *adapter)
 		goto do_none;
 
 	if (be_physfn(adapter)) {
-		while (vf < num_vfs) {
-			cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED
-					| BE_IF_FLAGS_BROADCAST;
-			status = be_cmd_if_create(adapter, cap_flags, en_flags,
-					mac, true,
+		if (adapter->sriov_enabled) {
+			while (vf < num_vfs) {
+				cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED |
+							BE_IF_FLAGS_BROADCAST;
+				status = be_cmd_if_create(adapter, cap_flags,
+					en_flags, mac, true,
 					&adapter->vf_cfg[vf].vf_if_handle,
 					NULL, vf+1);
-			if (status) {
-				dev_err(&adapter->pdev->dev,
-				"Interface Create failed for VF %d\n", vf);
-				goto if_destroy;
+				if (status) {
+					dev_err(&adapter->pdev->dev,
+					"Interface Create failed for VF %d\n",
+					vf);
+					goto if_destroy;
+				}
+				adapter->vf_cfg[vf].vf_pmac_id =
+							BE_INVALID_PMAC_ID;
+				vf++;
 			}
-			adapter->vf_cfg[vf].vf_pmac_id = BE_INVALID_PMAC_ID;
-			vf++;
 		}
-	} else if (!be_physfn(adapter)) {
+	} else {
 		status = be_cmd_mac_addr_query(adapter, mac,
 			MAC_ADDRESS_TYPE_NETWORK, false, adapter->if_handle);
 		if (!status) {
@@ -2313,7 +2317,7 @@ static int be_setup(struct be_adapter *adapter)
 	if (status != 0)
 		goto rx_qs_destroy;
 
-	if (be_physfn(adapter)) {
+	if (be_physfn(adapter) && adapter->sriov_enabled) {
 		status = be_vf_eth_addr_config(adapter);
 		if (status)
 			goto mcc_q_destroy;
@@ -2332,9 +2336,10 @@ rx_qs_destroy:
 tx_qs_destroy:
 	be_tx_queues_destroy(adapter);
 if_destroy:
-	for (vf = 0; vf < num_vfs; vf++)
-		if (adapter->vf_cfg[vf].vf_if_handle)
-			be_cmd_if_destroy(adapter,
+	if (be_physfn(adapter) && adapter->sriov_enabled)
+		for (vf = 0; vf < num_vfs; vf++)
+			if (adapter->vf_cfg[vf].vf_if_handle)
+				be_cmd_if_destroy(adapter,
 					adapter->vf_cfg[vf].vf_if_handle,
 					vf + 1);
 	be_cmd_if_destroy(adapter, adapter->if_handle, 0);
@@ -2344,7 +2349,7 @@ do_none:
 
 static int be_clear(struct be_adapter *adapter)
 {
-	if (be_physfn(adapter))
+	if (be_physfn(adapter) && adapter->sriov_enabled)
 		be_vf_eth_addr_rem(adapter);
 
 	be_mcc_queues_destroy(adapter);
