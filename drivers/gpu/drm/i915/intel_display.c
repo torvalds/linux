@@ -1630,19 +1630,19 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		struct drm_i915_gem_object *obj = to_intel_framebuffer(old_fb)->obj;
 
 		wait_event(dev_priv->pending_flip_queue,
+			   atomic_read(&dev_priv->mm.wedged) ||
 			   atomic_read(&obj->pending_flip) == 0);
 
 		/* Big Hammer, we also need to ensure that any pending
 		 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
 		 * current scanout is retired before unpinning the old
 		 * framebuffer.
+		 *
+		 * This should only fail upon a hung GPU, in which case we
+		 * can safely continue.
 		 */
 		ret = i915_gem_object_flush_gpu(obj, false);
-		if (ret) {
-			i915_gem_object_unpin(to_intel_framebuffer(crtc->fb)->obj);
-			mutex_unlock(&dev->struct_mutex);
-			return ret;
-		}
+		(void) ret;
 	}
 
 	ret = intel_pipe_set_base_atomic(crtc, crtc->fb, x, y,
