@@ -1,4 +1,5 @@
 #include <linux/linkage.h>
+#include <linux/threads.h>
 #include <asm/asm-offsets.h>
 #include <asm/assembler.h>
 #include <asm/glue-cache.h>
@@ -26,7 +27,14 @@ ENTRY(cpu_suspend)
 	stmfd	sp!, {r1, r2, r3, ip}	@ save v:p, virt SP, retfn, phys resume fn
 	ldr	r3, =sleep_save_sp
 	add	r2, sp, r1		@ convert SP to phys
+#ifdef CONFIG_SMP
+	ALT_SMP(mrc p15, 0, lr, c0, c0, 5)
+	ALT_UP(mov lr, #0)
+	and	lr, lr, #15
+	str	r2, [r3, lr, lsl #2]	@ save phys SP
+#else
 	str	r2, [r3]		@ save phys SP
+#endif
 	mov	lr, pc
 	ldr	pc, [r10, #CPU_DO_SUSPEND] @ save CPU state
 #else
@@ -37,7 +45,14 @@ ENTRY(cpu_suspend)
 	stmfd	sp!, {r1, r2, r3}	@ save v:p, virt SP, return fn
 	ldr	r3, =sleep_save_sp
 	add	r2, sp, r1		@ convert SP to phys
+#ifdef CONFIG_SMP
+	ALT_SMP(mrc p15, 0, lr, c0, c0, 5)
+	ALT_UP(mov lr, #0)
+	and	lr, lr, #15
+	str	r2, [r3, lr, lsl #2]	@ save phys SP
+#else
 	str	r2, [r3]		@ save phys SP
+#endif
 	bl	cpu_do_suspend
 #endif
 
@@ -95,7 +110,15 @@ ENDPROC(cpu_resume_after_mmu)
 	.data
 	.align
 ENTRY(cpu_resume)
+#ifdef CONFIG_SMP
+	adr	r0, sleep_save_sp
+	ALT_SMP(mrc p15, 0, r1, c0, c0, 5)
+	ALT_UP(mov r1, #0)
+	and	r1, r1, #15
+	ldr	r0, [r0, r1, lsl #2]	@ stack phys addr
+#else
 	ldr	r0, sleep_save_sp	@ stack phys addr
+#endif
 	msr	cpsr_c, #PSR_I_BIT | PSR_F_BIT | SVC_MODE @ set SVC, irqs off
 #ifdef MULTI_CPU
 	ldmia	r0!, {r1, sp, lr, pc}	@ load v:p, stack, return fn, resume fn
@@ -106,4 +129,6 @@ ENTRY(cpu_resume)
 ENDPROC(cpu_resume)
 
 sleep_save_sp:
-	.word	0				@ preserve stack phys ptr here
+	.rept	CONFIG_NR_CPUS
+	.long	0				@ preserve stack phys ptr here
+	.endr
