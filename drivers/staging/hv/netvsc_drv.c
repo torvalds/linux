@@ -36,7 +36,7 @@
 #include <net/route.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
-#include "osd.h"
+#include "hv_api.h"
 #include "logging.h"
 #include "version_info.h"
 #include "vmbus.h"

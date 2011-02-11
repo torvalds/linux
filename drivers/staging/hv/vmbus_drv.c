@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 #include <linux/completion.h>
 #include "version_info.h"
-#include "osd.h"
+#include "hv_api.h"
 #include "logging.h"
 #include "vmbus.h"
 #include "channel.h"

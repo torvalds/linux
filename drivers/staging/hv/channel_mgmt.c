@@ -26,7 +26,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/completion.h>
-#include "osd.h"
+#include "hv_api.h"
 #include "logging.h"
 #include "vmbus_private.h"
 #include "utils.h"

@@ -28,7 +28,7 @@
 #include <linux/pci.h>
 
 #include "logging.h"
-#include "osd.h"
+#include "hv_api.h"
 #include "vmbus.h"
 #include "vmbus_packet_format.h"
 #include "vmbus_channel_interface.h"

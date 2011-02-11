@@ -26,8 +26,8 @@
 #include <linux/io.h>
 #include <linux/if_ether.h>
 
-#include "osd.h"
 #include "logging.h"
+#include "hv_api.h"
 #include "netvsc_api.h"
 #include "rndis_filter.h"
 

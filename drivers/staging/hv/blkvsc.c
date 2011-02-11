@@ -22,7 +22,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include "osd.h"
+#include "hv_api.h"
 #include "storvsc.c"
 
 static const char *g_blk_driver_name = "blkvsc";

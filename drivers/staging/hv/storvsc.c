@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
-#include "osd.h"
+#include "hv_api.h"
 #include "logging.h"
 #include "storvsc_api.h"
 #include "vmbus_packet_format.h"

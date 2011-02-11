@@ -24,9 +24,12 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include "osd.h"
+#include "hv_api.h"
 #include "logging.h"
 #include "vmbus_private.h"
+
+#define NUM_PAGES_SPANNED(addr, len) \
+((PAGE_ALIGN(addr + len) >> PAGE_SHIFT) - (addr >> PAGE_SHIFT))
 
 /* Internal routines */
 static int create_gpadl_header(
