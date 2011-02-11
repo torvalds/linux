@@ -239,38 +239,6 @@ int oprofile_set_ulong(unsigned long *addr, unsigned long val)
 	return err;
 }
 
-#ifdef CONFIG_HAVE_HWSAMPLER
-int oprofile_set_hwsampler(unsigned long val)
-{
-	int err = 0;
-
-	mutex_lock(&start_mutex);
-
-	if (oprofile_started) {
-		err = -EBUSY;
-		goto out;
-	}
-
-	switch (val) {
-	case 1:
-		/* Switch to hardware sampling. */
-		__oprofile_timer_exit();
-		err = oprofile_arch_set_hwsampler(&oprofile_ops);
-		break;
-	case 0:
-		printk(KERN_INFO "oprofile: using timer interrupt.\n");
-		err = __oprofile_timer_init(&oprofile_ops);
-		break;
-	default:
-		err = -EINVAL;
-	}
-
-out:
-	mutex_unlock(&start_mutex);
-	return err;
-}
-#endif /* CONFIG_HAVE_HWSAMPLER */
-
 static int __init oprofile_init(void)
 {
 	int err;

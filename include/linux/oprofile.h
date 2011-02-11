@@ -91,27 +91,6 @@ int oprofile_arch_init(struct oprofile_operations * ops);
  */
 void oprofile_arch_exit(void);
 
-#ifdef CONFIG_HAVE_HWSAMPLER
-/**
- * setup hardware sampler for oprofiling.
- */
-
-int oprofile_set_hwsampler(unsigned long);
-
-/**
- * hardware sampler module initialization for the s390 arch
- */
-
-int oprofile_arch_set_hwsampler(struct oprofile_operations *ops);
-
-/**
- * Add an s390 hardware sample.
- */
-void oprofile_add_ext_hw_sample(unsigned long pc, struct pt_regs * const regs,
-	unsigned long event, int is_kernel,
-	struct task_struct *task);
-#endif /* CONFIG_HAVE_HWSAMPLER */
-
 /**
  * Add a sample. This may be called from any context.
  */

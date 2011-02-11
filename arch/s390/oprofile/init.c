@@ -11,7 +11,6 @@
 #include <linux/oprofile.h>
 #include <linux/init.h>
 #include <linux/errno.h>
-#include <linux/fs.h>
 
 extern int oprofile_hwsampler_init(struct oprofile_operations* ops);
 extern void oprofile_hwsampler_exit(void);

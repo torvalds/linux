@@ -8,6 +8,7 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 
+#include "../../../drivers/oprofile/oprof.h"
 #include "hwsampler.h"
 
 #define DEFAULT_INTERVAL	4096
@@ -22,11 +23,19 @@ static unsigned long oprofile_max_interval;
 static unsigned long oprofile_sdbt_blocks = DEFAULT_SDBT_BLOCKS;
 static unsigned long oprofile_sdb_blocks = DEFAULT_SDB_BLOCKS;
 
-static unsigned long oprofile_hwsampler;
+static int hwsampler_file;
+static int hwsampler_running;	/* start_mutex must be held to change */
+
+static struct oprofile_operations timer_ops;
 
 static int oprofile_hwsampler_start(void)
 {
 	int retval;
+
+	hwsampler_running = hwsampler_file;
+
+	if (!hwsampler_running)
+		return timer_ops.start();
 
 	retval = hwsampler_allocate(oprofile_sdbt_blocks, oprofile_sdb_blocks);
 	if (retval)
@@ -41,25 +50,20 @@ static int oprofile_hwsampler_start(void)
 
 static void oprofile_hwsampler_stop(void)
 {
+	if (!hwsampler_running) {
+		timer_ops.stop();
+		return;
+	}
+
 	hwsampler_stop_all();
 	hwsampler_deallocate();
 	return;
 }
 
-int oprofile_arch_set_hwsampler(struct oprofile_operations *ops)
-{
-	printk(KERN_INFO "oprofile: using hardware sampling\n");
-	ops->start = oprofile_hwsampler_start;
-	ops->stop = oprofile_hwsampler_stop;
-	ops->cpu_type = "timer";
-
-	return 0;
-}
-
 static ssize_t hwsampler_read(struct file *file, char __user *buf,
 		size_t count, loff_t *offset)
 {
-	return oprofilefs_ulong_to_user(oprofile_hwsampler, buf, count, offset);
+	return oprofilefs_ulong_to_user(hwsampler_file, buf, count, offset);
 }
 
 static ssize_t hwsampler_write(struct file *file, char const __user *buf,
@@ -75,15 +79,16 @@ static ssize_t hwsampler_write(struct file *file, char const __user *buf,
 	if (retval)
 		return retval;
 
-	if (oprofile_hwsampler == val)
-		return -EINVAL;
+	if (oprofile_started)
+		/*
+		 * save to do without locking as we set
+		 * hwsampler_running in start() when start_mutex is
+		 * held
+		 */
+		return -EBUSY;
 
-	retval = oprofile_set_hwsampler(val);
+	hwsampler_file = val;
 
-	if (retval)
-		return retval;
-
-	oprofile_hwsampler = val;
 	return count;
 }
 
@@ -98,7 +103,7 @@ static int oprofile_create_hwsampling_files(struct super_block *sb,
 	struct dentry *hw_dir;
 
 	/* reinitialize default values */
-	oprofile_hwsampler = 1;
+	hwsampler_file = 1;
 
 	hw_dir = oprofilefs_mkdir(sb, root, "hwsampling");
 	if (!hw_dir)
@@ -125,7 +130,6 @@ int oprofile_hwsampler_init(struct oprofile_operations* ops)
 	/*
 	 * create hwsampler files only if hwsampler_setup() succeeds.
 	 */
-	ops->create_files = oprofile_create_hwsampling_files;
 	oprofile_min_interval = hwsampler_query_min_interval();
 	if (oprofile_min_interval < 0) {
 		oprofile_min_interval = 0;
@@ -136,11 +140,23 @@ int oprofile_hwsampler_init(struct oprofile_operations* ops)
 		oprofile_max_interval = 0;
 		return -ENODEV;
 	}
-	oprofile_arch_set_hwsampler(ops);
+
+	if (oprofile_timer_init(ops))
+		return -ENODEV;
+
+	printk(KERN_INFO "oprofile: using hardware sampling\n");
+
+	memcpy(&timer_ops, ops, sizeof(timer_ops));
+
+	ops->start = oprofile_hwsampler_start;
+	ops->stop = oprofile_hwsampler_stop;
+	ops->create_files = oprofile_create_hwsampling_files;
+
 	return 0;
 }
 
 void oprofile_hwsampler_exit(void)
 {
+	oprofile_timer_exit();
 	hwsampler_shutdown();
 }
