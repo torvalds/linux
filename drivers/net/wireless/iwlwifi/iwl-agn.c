@@ -2744,9 +2744,11 @@ static void iwl_alive_start(struct iwl_priv *priv)
 			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
 	}
 
-	if (priv->cfg->bt_params &&
-	    !priv->cfg->bt_params->advanced_bt_coexist) {
-		/* Configure Bluetooth device coexistence support */
+	if (!priv->cfg->bt_params || (priv->cfg->bt_params &&
+	    !priv->cfg->bt_params->advanced_bt_coexist)) {
+		/*
+		 * default is 2-wire BT coexexistence support
+		 */
 		priv->cfg->ops->hcmd->send_bt_config(priv);
 	}
 
