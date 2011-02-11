@@ -17,8 +17,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef __SOLO6010_H
-#define __SOLO6010_H
+#ifndef __SOLO6X10_H
+#define __SOLO6X10_H
 
 #include <linux/version.h>
 #include <linux/pci.h>
@@ -57,22 +57,22 @@
 #define PCI_DEVICE_ID_BC_6110_16	0x5310
 #endif /* Bluecherry */
 
-#define SOLO6010_NAME			"solo6010"
+#define SOLO6X10_NAME			"solo6x10"
 
 #define SOLO_MAX_CHANNELS		16
 
 /* Make sure these two match */
-#define SOLO6010_VERSION		"2.0.0"
-#define SOLO6010_VER_MAJOR		2
-#define SOLO6010_VER_MINOR		0
-#define SOLO6010_VER_SUB		0
-#define SOLO6010_VER_NUM \
-	KERNEL_VERSION(SOLO6010_VER_MAJOR, SOLO6010_VER_MINOR, SOLO6010_VER_SUB)
+#define SOLO6X10_VERSION		"2.1.0"
+#define SOLO6X10_VER_MAJOR		2
+#define SOLO6X10_VER_MINOR		0
+#define SOLO6X10_VER_SUB		0
+#define SOLO6X10_VER_NUM \
+	KERNEL_VERSION(SOLO6X10_VER_MAJOR, SOLO6X10_VER_MINOR, SOLO6X10_VER_SUB)
 
 #define FLAGS_6110			1
 
 /*
- * The SOLO6010 actually has 8 i2c channels, but we only use 2.
+ * The SOLO6x10 actually has 8 i2c channels, but we only use 2.
  * 0 - Techwell chip(s)
  * 1 - SAA7128
  */
@@ -148,7 +148,7 @@ enum solo_enc_types {
 };
 
 struct solo_enc_dev {
-	struct solo6010_dev	*solo_dev;
+	struct solo_dev		*solo_dev;
 	/* V4L2 Items */
 	struct video_device	*vfd;
 	/* General accounting */
@@ -177,8 +177,8 @@ struct solo_enc_buf {
 	struct timeval		ts;
 };
 
-/* The SOLO6010 PCI Device */
-struct solo6010_dev {
+/* The SOLO6x10 PCI Device */
+struct solo_dev {
 	/* General stuff */
 	struct pci_dev		*pdev;
 	u8 __iomem		*reg_base;
@@ -236,7 +236,7 @@ struct solo6010_dev {
 	int			g723_hw_idx;
 };
 
-static inline u32 solo_reg_read(struct solo6010_dev *solo_dev, int reg)
+static inline u32 solo_reg_read(struct solo_dev *solo_dev, int reg)
 {
 	unsigned long flags;
 	u32 ret;
@@ -254,8 +254,7 @@ static inline u32 solo_reg_read(struct solo6010_dev *solo_dev, int reg)
 	return ret;
 }
 
-static inline void solo_reg_write(struct solo6010_dev *solo_dev, int reg,
-				      u32 data)
+static inline void solo_reg_write(struct solo_dev *solo_dev, int reg, u32 data)
 {
 	unsigned long flags;
 	u16 val;
@@ -270,67 +269,67 @@ static inline void solo_reg_write(struct solo6010_dev *solo_dev, int reg,
 	spin_unlock_irqrestore(&solo_dev->reg_io_lock, flags);
 }
 
-void solo6010_irq_on(struct solo6010_dev *solo_dev, u32 mask);
-void solo6010_irq_off(struct solo6010_dev *solo_dev, u32 mask);
+void solo_irq_on(struct solo_dev *solo_dev, u32 mask);
+void solo_irq_off(struct solo_dev *solo_dev, u32 mask);
 
 /* Init/exit routeines for subsystems */
-int solo_disp_init(struct solo6010_dev *solo_dev);
-void solo_disp_exit(struct solo6010_dev *solo_dev);
+int solo_disp_init(struct solo_dev *solo_dev);
+void solo_disp_exit(struct solo_dev *solo_dev);
 
-int solo_gpio_init(struct solo6010_dev *solo_dev);
-void solo_gpio_exit(struct solo6010_dev *solo_dev);
+int solo_gpio_init(struct solo_dev *solo_dev);
+void solo_gpio_exit(struct solo_dev *solo_dev);
 
-int solo_i2c_init(struct solo6010_dev *solo_dev);
-void solo_i2c_exit(struct solo6010_dev *solo_dev);
+int solo_i2c_init(struct solo_dev *solo_dev);
+void solo_i2c_exit(struct solo_dev *solo_dev);
 
-int solo_p2m_init(struct solo6010_dev *solo_dev);
-void solo_p2m_exit(struct solo6010_dev *solo_dev);
+int solo_p2m_init(struct solo_dev *solo_dev);
+void solo_p2m_exit(struct solo_dev *solo_dev);
 
-int solo_v4l2_init(struct solo6010_dev *solo_dev);
-void solo_v4l2_exit(struct solo6010_dev *solo_dev);
+int solo_v4l2_init(struct solo_dev *solo_dev);
+void solo_v4l2_exit(struct solo_dev *solo_dev);
 
-int solo_enc_init(struct solo6010_dev *solo_dev);
-void solo_enc_exit(struct solo6010_dev *solo_dev);
+int solo_enc_init(struct solo_dev *solo_dev);
+void solo_enc_exit(struct solo_dev *solo_dev);
 
-int solo_enc_v4l2_init(struct solo6010_dev *solo_dev);
-void solo_enc_v4l2_exit(struct solo6010_dev *solo_dev);
+int solo_enc_v4l2_init(struct solo_dev *solo_dev);
+void solo_enc_v4l2_exit(struct solo_dev *solo_dev);
 
-int solo_g723_init(struct solo6010_dev *solo_dev);
-void solo_g723_exit(struct solo6010_dev *solo_dev);
+int solo_g723_init(struct solo_dev *solo_dev);
+void solo_g723_exit(struct solo_dev *solo_dev);
 
 /* ISR's */
-int solo_i2c_isr(struct solo6010_dev *solo_dev);
-void solo_p2m_isr(struct solo6010_dev *solo_dev, int id);
-void solo_p2m_error_isr(struct solo6010_dev *solo_dev, u32 status);
-void solo_enc_v4l2_isr(struct solo6010_dev *solo_dev);
-void solo_g723_isr(struct solo6010_dev *solo_dev);
-void solo_motion_isr(struct solo6010_dev *solo_dev);
-void solo_video_in_isr(struct solo6010_dev *solo_dev);
+int solo_i2c_isr(struct solo_dev *solo_dev);
+void solo_p2m_isr(struct solo_dev *solo_dev, int id);
+void solo_p2m_error_isr(struct solo_dev *solo_dev, u32 status);
+void solo_enc_v4l2_isr(struct solo_dev *solo_dev);
+void solo_g723_isr(struct solo_dev *solo_dev);
+void solo_motion_isr(struct solo_dev *solo_dev);
+void solo_video_in_isr(struct solo_dev *solo_dev);
 
 /* i2c read/write */
-u8 solo_i2c_readbyte(struct solo6010_dev *solo_dev, int id, u8 addr, u8 off);
-void solo_i2c_writebyte(struct solo6010_dev *solo_dev, int id, u8 addr, u8 off,
+u8 solo_i2c_readbyte(struct solo_dev *solo_dev, int id, u8 addr, u8 off);
+void solo_i2c_writebyte(struct solo_dev *solo_dev, int id, u8 addr, u8 off,
 			u8 data);
 
 /* P2M DMA */
-int solo_p2m_dma_t(struct solo6010_dev *solo_dev, u8 id, int wr,
+int solo_p2m_dma_t(struct solo_dev *solo_dev, u8 id, int wr,
 		   dma_addr_t dma_addr, u32 ext_addr, u32 size);
-int solo_p2m_dma(struct solo6010_dev *solo_dev, u8 id, int wr,
+int solo_p2m_dma(struct solo_dev *solo_dev, u8 id, int wr,
 		 void *sys_addr, u32 ext_addr, u32 size);
-int solo_p2m_dma_sg(struct solo6010_dev *solo_dev, u8 id,
+int solo_p2m_dma_sg(struct solo_dev *solo_dev, u8 id,
 		    struct p2m_desc *pdesc, int wr,
 		    struct scatterlist *sglist, u32 sg_off,
 		    u32 ext_addr, u32 size);
 void solo_p2m_push_desc(struct p2m_desc *desc, int wr, dma_addr_t dma_addr,
 			u32 ext_addr, u32 size, int repeat, u32 ext_size);
-int solo_p2m_dma_desc(struct solo6010_dev *solo_dev, u8 id,
+int solo_p2m_dma_desc(struct solo_dev *solo_dev, u8 id,
 		      struct p2m_desc *desc, int desc_count);
 
 /* Set the threshold for motion detection */
-void solo_set_motion_threshold(struct solo6010_dev *solo_dev, u8 ch, u16 val);
+void solo_set_motion_threshold(struct solo_dev *solo_dev, u8 ch, u16 val);
 #define SOLO_DEF_MOT_THRESH		0x0300
 
 /* Write text on OSD */
 int solo_osd_print(struct solo_enc_dev *solo_enc);
 
-#endif /* __SOLO6010_H */
+#endif /* __SOLO6X10_H */

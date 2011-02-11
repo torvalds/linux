@@ -17,12 +17,12 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef __SOLO6010_REGISTERS_H
-#define __SOLO6010_REGISTERS_H
+#ifndef __SOLO6X10_REGISTERS_H
+#define __SOLO6X10_REGISTERS_H
 
 #include "offsets.h"
 
-/* Global 6010 system configuration */
+/* Global 6X10 system configuration */
 #define SOLO_SYS_CFG				0x0000
 #define   SOLO6010_SYS_CFG_FOUT_EN		0x00000001 /* 6010 only */
 #define   SOLO6010_SYS_CFG_PLL_BYPASS		0x00000002 /* 6010 only */
@@ -634,4 +634,4 @@
 #define WATCHDOG_STAT(status)			(status<<8)
 #define WATCHDOG_TIME(sec)			(sec&0xff)
 
-#endif /* __SOLO6010_REGISTERS_H */
+#endif /* __SOLO6X10_REGISTERS_H */

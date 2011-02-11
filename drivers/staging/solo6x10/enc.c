@@ -27,7 +27,7 @@
 #define VI_PROG_HSIZE			(1280 - 16)
 #define VI_PROG_VSIZE			(1024 - 16)
 
-static void solo_capture_config(struct solo6010_dev *solo_dev)
+static void solo_capture_config(struct solo_dev *solo_dev)
 {
 	int i, j;
 	unsigned long height;
@@ -115,7 +115,7 @@ static void solo_capture_config(struct solo6010_dev *solo_dev)
 
 int solo_osd_print(struct solo_enc_dev *solo_enc)
 {
-	struct solo6010_dev *solo_dev = solo_enc->solo_dev;
+	struct solo_dev *solo_dev = solo_enc->solo_dev;
 	char *str = solo_enc->osd_text;
 	u8 *buf;
 	u32 reg = solo_reg_read(solo_dev, SOLO_VE_OSD_CH);
@@ -151,7 +151,7 @@ int solo_osd_print(struct solo_enc_dev *solo_enc)
 	return 0;
 }
 
-static void solo_jpeg_config(struct solo6010_dev *solo_dev)
+static void solo_jpeg_config(struct solo_dev *solo_dev)
 {
 	u32 reg;
 	if (solo_dev->flags & FLAGS_6110)
@@ -169,7 +169,7 @@ static void solo_jpeg_config(struct solo6010_dev *solo_dev)
 	solo_reg_write(solo_dev, 0x0688, (0 << 16) | (30 << 8) | 60);
 }
 
-static void solo_mp4e_config(struct solo6010_dev *solo_dev)
+static void solo_mp4e_config(struct solo_dev *solo_dev)
 {
 	int i;
 	u32 reg;
@@ -206,7 +206,7 @@ static void solo_mp4e_config(struct solo6010_dev *solo_dev)
 		solo_reg_write(solo_dev, 0x0634, 0x00040008); /* ? */
 }
 
-int solo_enc_init(struct solo6010_dev *solo_dev)
+int solo_enc_init(struct solo_dev *solo_dev)
 {
 	int i;
 
@@ -219,16 +219,16 @@ int solo_enc_init(struct solo6010_dev *solo_dev)
 		solo_reg_write(solo_dev, SOLO_CAP_CH_COMP_ENA_E(i), 0);
 	}
 
-	solo6010_irq_on(solo_dev, SOLO_IRQ_ENCODER);
+	solo_irq_on(solo_dev, SOLO_IRQ_ENCODER);
 
 	return 0;
 }
 
-void solo_enc_exit(struct solo6010_dev *solo_dev)
+void solo_enc_exit(struct solo_dev *solo_dev)
 {
 	int i;
 
-	solo6010_irq_off(solo_dev, SOLO_IRQ_ENCODER);
+	solo_irq_off(solo_dev, SOLO_IRQ_ENCODER);
 
 	for (i = 0; i < solo_dev->nr_chans; i++) {
 		solo_reg_write(solo_dev, SOLO_CAP_CH_SCALE(i), 0);

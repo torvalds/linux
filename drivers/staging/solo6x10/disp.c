@@ -37,7 +37,7 @@ static unsigned video_type;
 module_param(video_type, uint, 0644);
 MODULE_PARM_DESC(video_type, "video_type (0 = NTSC/Default, 1 = PAL)");
 
-static void solo_vin_config(struct solo6010_dev *solo_dev)
+static void solo_vin_config(struct solo_dev *solo_dev)
 {
 	solo_dev->vin_hstart = 8;
 	solo_dev->vin_vstart = 2;
@@ -97,7 +97,7 @@ static void solo_vin_config(struct solo6010_dev *solo_dev)
 		       SOLO_VI_PB_HSTOP(16 + 720));
 }
 
-static void solo_disp_config(struct solo6010_dev *solo_dev)
+static void solo_disp_config(struct solo_dev *solo_dev)
 {
 	solo_dev->vout_hstart = 6;
 	solo_dev->vout_vstart = 8;
@@ -145,7 +145,7 @@ static void solo_disp_config(struct solo6010_dev *solo_dev)
 	solo_reg_write(solo_dev, SOLO_WATCHDOG, 0);
 }
 
-static int solo_dma_vin_region(struct solo6010_dev *solo_dev, u32 off,
+static int solo_dma_vin_region(struct solo_dev *solo_dev, u32 off,
 			       u16 val, int reg_size)
 {
 	u16 buf[64];
@@ -163,7 +163,7 @@ static int solo_dma_vin_region(struct solo6010_dev *solo_dev, u32 off,
 	return ret;
 }
 
-void solo_set_motion_threshold(struct solo6010_dev *solo_dev, u8 ch, u16 val)
+void solo_set_motion_threshold(struct solo_dev *solo_dev, u8 ch, u16 val)
 {
 	if (ch > solo_dev->nr_chans)
 		return;
@@ -177,7 +177,7 @@ void solo_set_motion_threshold(struct solo6010_dev *solo_dev, u8 ch, u16 val)
  * threshold and working table for each channel. Atleast that's what the
  * spec says. However, this code (take from rdk) has some mystery 8k
  * block right after the flag area, before the first thresh table. */
-static void solo_motion_config(struct solo6010_dev *solo_dev)
+static void solo_motion_config(struct solo_dev *solo_dev)
 {
 	int i;
 
@@ -209,7 +209,7 @@ static void solo_motion_config(struct solo6010_dev *solo_dev)
 	solo_reg_write(solo_dev, SOLO_VI_MOTION_BAR, 0);
 }
 
-int solo_disp_init(struct solo6010_dev *solo_dev)
+int solo_disp_init(struct solo_dev *solo_dev)
 {
 	int i;
 
@@ -234,11 +234,11 @@ int solo_disp_init(struct solo6010_dev *solo_dev)
 	return 0;
 }
 
-void solo_disp_exit(struct solo6010_dev *solo_dev)
+void solo_disp_exit(struct solo_dev *solo_dev)
 {
 	int i;
 
-	solo6010_irq_off(solo_dev, SOLO_IRQ_MOTION);
+	solo_irq_off(solo_dev, SOLO_IRQ_MOTION);
 
 	solo_reg_write(solo_dev, SOLO_VO_DISP_CTRL, 0);
 	solo_reg_write(solo_dev, SOLO_VO_ZOOM_CTRL, 0);

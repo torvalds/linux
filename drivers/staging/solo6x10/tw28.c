@@ -140,7 +140,7 @@ static u8 tbl_tw2865_pal_template[] = {
 
 #define is_tw286x(__solo, __id) (!(__solo->tw2815 & (1 << __id)))
 
-static u8 tw_readbyte(struct solo6010_dev *solo_dev, int chip_id, u8 tw6x_off,
+static u8 tw_readbyte(struct solo_dev *solo_dev, int chip_id, u8 tw6x_off,
 		      u8 tw_off)
 {
 	if (is_tw286x(solo_dev, chip_id))
@@ -153,7 +153,7 @@ static u8 tw_readbyte(struct solo6010_dev *solo_dev, int chip_id, u8 tw6x_off,
 					 tw_off);
 }
 
-static void tw_writebyte(struct solo6010_dev *solo_dev, int chip_id,
+static void tw_writebyte(struct solo_dev *solo_dev, int chip_id,
 			 u8 tw6x_off, u8 tw_off, u8 val)
 {
 	if (is_tw286x(solo_dev, chip_id))
@@ -166,7 +166,7 @@ static void tw_writebyte(struct solo6010_dev *solo_dev, int chip_id,
 				   tw_off, val);
 }
 
-static void tw_write_and_verify(struct solo6010_dev *solo_dev, u8 addr, u8 off,
+static void tw_write_and_verify(struct solo_dev *solo_dev, u8 addr, u8 off,
 				u8 val)
 {
 	int i;
@@ -180,11 +180,11 @@ static void tw_write_and_verify(struct solo6010_dev *solo_dev, u8 addr, u8 off,
 		msleep_interruptible(1);
 	}
 
-/*	printk("solo6010/tw28: Error writing register: %02x->%02x [%02x]\n",
+/*	printk("solo6x10/tw28: Error writing register: %02x->%02x [%02x]\n",
 		addr, off, val); */
 }
 
-static int tw2865_setup(struct solo6010_dev *solo_dev, u8 dev_addr)
+static int tw2865_setup(struct solo_dev *solo_dev, u8 dev_addr)
 {
 	u8 tbl_tw2865_common[256];
 	int i;
@@ -234,7 +234,7 @@ static int tw2865_setup(struct solo6010_dev *solo_dev, u8 dev_addr)
 	return 0;
 }
 
-static int tw2864_setup(struct solo6010_dev *solo_dev, u8 dev_addr)
+static int tw2864_setup(struct solo_dev *solo_dev, u8 dev_addr)
 {
 	u8 tbl_tw2864_common[sizeof(tbl_tw2864_template)];
 	int i;
@@ -320,7 +320,7 @@ static int tw2864_setup(struct solo6010_dev *solo_dev, u8 dev_addr)
 	return 0;
 }
 
-static int tw2815_setup(struct solo6010_dev *solo_dev, u8 dev_addr)
+static int tw2815_setup(struct solo_dev *solo_dev, u8 dev_addr)
 {
 	u8 tbl_ntsc_tw2815_common[] = {
 		0x00, 0xc8, 0x20, 0xd0, 0x06, 0xf0, 0x08, 0x80,
@@ -481,7 +481,7 @@ static int tw2815_setup(struct solo6010_dev *solo_dev, u8 dev_addr)
 #define FIRST_ACTIVE_LINE	0x0008
 #define LAST_ACTIVE_LINE	0x0102
 
-static void saa7128_setup(struct solo6010_dev *solo_dev)
+static void saa7128_setup(struct solo_dev *solo_dev)
 {
 	int i;
 	unsigned char regs[128] = {
@@ -539,7 +539,7 @@ static void saa7128_setup(struct solo6010_dev *solo_dev)
 	return;
 }
 
-int solo_tw28_init(struct solo6010_dev *solo_dev)
+int solo_tw28_init(struct solo_dev *solo_dev)
 {
 	int i;
 	u8 value;
@@ -602,7 +602,7 @@ int solo_tw28_init(struct solo6010_dev *solo_dev)
  * (address 0x012C) of the SOLO6010 chip doesn't give the correct video
  * status signal values.
  */
-int tw28_get_video_status(struct solo6010_dev *solo_dev, u8 ch)
+int tw28_get_video_status(struct solo_dev *solo_dev, u8 ch)
 {
 	u8 val, chip_num;
 
@@ -619,7 +619,7 @@ int tw28_get_video_status(struct solo6010_dev *solo_dev, u8 ch)
 #if 0
 /* Status of audio from up to 4 techwell chips are combined into 1 variable.
  * See techwell datasheet for details. */
-u16 tw28_get_audio_status(struct solo6010_dev *solo_dev)
+u16 tw28_get_audio_status(struct solo_dev *solo_dev)
 {
 	u8 val;
 	u16 status = 0;
@@ -635,8 +635,7 @@ u16 tw28_get_audio_status(struct solo6010_dev *solo_dev)
 }
 #endif
 
-int tw28_set_ctrl_val(struct solo6010_dev *solo_dev, u32 ctrl, u8 ch,
-		      s32 val)
+int tw28_set_ctrl_val(struct solo_dev *solo_dev, u32 ctrl, u8 ch, s32 val)
 {
 	char sval;
 	u8 chip_num;
@@ -708,7 +707,7 @@ int tw28_set_ctrl_val(struct solo6010_dev *solo_dev, u32 ctrl, u8 ch,
 	return 0;
 }
 
-int tw28_get_ctrl_val(struct solo6010_dev *solo_dev, u32 ctrl, u8 ch,
+int tw28_get_ctrl_val(struct solo_dev *solo_dev, u32 ctrl, u8 ch,
 		      s32 *val)
 {
 	u8 rval, chip_num;
@@ -768,7 +767,7 @@ int tw28_get_ctrl_val(struct solo6010_dev *solo_dev, u32 ctrl, u8 ch,
  * don't need to offset TW_CHIP_OFFSET_ADDR. The TW_CHIP_OFFSET_ADDR used
  * is the base address of the techwell chip.
  */
-void tw2815_Set_AudioOutVol(struct solo6010_dev *solo_dev, unsigned int u_val)
+void tw2815_Set_AudioOutVol(struct solo_dev *solo_dev, unsigned int u_val)
 {
 	unsigned int val;
 	unsigned int chip_num;
@@ -785,7 +784,7 @@ void tw2815_Set_AudioOutVol(struct solo6010_dev *solo_dev, unsigned int u_val)
 }
 #endif
 
-u8 tw28_get_audio_gain(struct solo6010_dev *solo_dev, u8 ch)
+u8 tw28_get_audio_gain(struct solo_dev *solo_dev, u8 ch)
 {
 	u8 val;
 	u8 chip_num;
@@ -801,7 +800,7 @@ u8 tw28_get_audio_gain(struct solo6010_dev *solo_dev, u8 ch)
 	return (ch % 2) ? (val >> 4) : (val & 0x0f);
 }
 
-void tw28_set_audio_gain(struct solo6010_dev *solo_dev, u8 ch, u8 val)
+void tw28_set_audio_gain(struct solo_dev *solo_dev, u8 ch, u8 val)
 {
 	u8 old_val;
 	u8 chip_num;

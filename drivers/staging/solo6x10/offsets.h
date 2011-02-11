@@ -17,8 +17,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef __SOLO6010_OFFSETS_H
-#define __SOLO6010_OFFSETS_H
+#ifndef __SOLO6X10_OFFSETS_H
+#define __SOLO6X10_OFFSETS_H
 
 /* Offsets and sizes of the external address */
 #define SOLO_DISP_EXT_ADDR			0x00000000
@@ -71,4 +71,4 @@
 		 (SOLO_MP4D_EXT_SIZE * __solo->nr_chans))
 #define SOLO_JPEG_EXT_SIZE(__solo)		(0x00080000 * __solo->nr_chans)
 
-#endif /* __SOLO6010_OFFSETS_H */
+#endif /* __SOLO6X10_OFFSETS_H */

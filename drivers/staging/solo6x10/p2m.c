@@ -23,7 +23,7 @@
 
 /* #define SOLO_TEST_P2M */
 
-int solo_p2m_dma(struct solo6010_dev *solo_dev, u8 id, int wr,
+int solo_p2m_dma(struct solo_dev *solo_dev, u8 id, int wr,
 		 void *sys_addr, u32 ext_addr, u32 size)
 {
 	dma_addr_t dma_addr;
@@ -46,7 +46,7 @@ int solo_p2m_dma(struct solo6010_dev *solo_dev, u8 id, int wr,
 	return ret;
 }
 
-int solo_p2m_dma_t(struct solo6010_dev *solo_dev, u8 id, int wr,
+int solo_p2m_dma_t(struct solo_dev *solo_dev, u8 id, int wr,
 		   dma_addr_t dma_addr, u32 ext_addr, u32 size)
 {
 	struct p2m_desc *desc = kzalloc(sizeof(*desc) * 2, GFP_DMA);
@@ -80,7 +80,7 @@ void solo_p2m_push_desc(struct p2m_desc *desc, int wr, dma_addr_t dma_addr,
 	}
 }
 
-int solo_p2m_dma_desc(struct solo6010_dev *solo_dev, u8 id,
+int solo_p2m_dma_desc(struct solo_dev *solo_dev, u8 id,
 		      struct p2m_desc *desc, int desc_count)
 {
 	struct solo_p2m_dev *p2m_dev;
@@ -136,7 +136,7 @@ int solo_p2m_dma_desc(struct solo6010_dev *solo_dev, u8 id,
 	return ret;
 }
 
-int solo_p2m_dma_sg(struct solo6010_dev *solo_dev, u8 id,
+int solo_p2m_dma_sg(struct solo_dev *solo_dev, u8 id,
 		    struct p2m_desc *pdesc, int wr,
 		    struct scatterlist *sg, u32 sg_off,
 		    u32 ext_addr, u32 size)
@@ -185,7 +185,7 @@ int solo_p2m_dma_sg(struct solo6010_dev *solo_dev, u8 id,
 
 #define P2M_TEST_CHAR		0xbe
 
-static unsigned long long p2m_test(struct solo6010_dev *solo_dev, u8 id,
+static unsigned long long p2m_test(struct solo_dev *solo_dev, u8 id,
 				   u32 base, int size)
 {
 	u8 *wr_buf;
@@ -195,13 +195,13 @@ static unsigned long long p2m_test(struct solo6010_dev *solo_dev, u8 id,
 
 	wr_buf = kmalloc(size, GFP_KERNEL);
 	if (!wr_buf) {
-		printk(SOLO6010_NAME ": Failed to malloc for p2m_test\n");
+		printk(SOLO6X10_NAME ": Failed to malloc for p2m_test\n");
 		return size;
 	}
 
 	rd_buf = kmalloc(size, GFP_KERNEL);
 	if (!rd_buf) {
-		printk(SOLO6010_NAME ": Failed to malloc for p2m_test\n");
+		printk(SOLO6X10_NAME ": Failed to malloc for p2m_test\n");
 		kfree(wr_buf);
 		return size;
 	}
@@ -224,21 +224,21 @@ static unsigned long long p2m_test(struct solo6010_dev *solo_dev, u8 id,
 
 #define TEST_CHUNK_SIZE		(8 * 1024)
 
-static void run_p2m_test(struct solo6010_dev *solo_dev)
+static void run_p2m_test(struct solo_dev *solo_dev)
 {
 	unsigned long long errs = 0;
 	u32 size = SOLO_JPEG_EXT_ADDR(solo_dev) + SOLO_JPEG_EXT_SIZE(solo_dev);
 	int i, d;
 
 	printk(KERN_WARNING "%s: Testing %u bytes of external ram\n",
-	       SOLO6010_NAME, size);
+	       SOLO6X10_NAME, size);
 
 	for (i = 0; i < size; i += TEST_CHUNK_SIZE)
 		for (d = 0; d < 4; d++)
 			errs += p2m_test(solo_dev, d, i, TEST_CHUNK_SIZE);
 
 	printk(KERN_WARNING "%s: Found %llu errors during p2m test\n",
-	       SOLO6010_NAME, errs);
+	       SOLO6X10_NAME, errs);
 
 	return;
 }
@@ -246,7 +246,7 @@ static void run_p2m_test(struct solo6010_dev *solo_dev)
 #define run_p2m_test(__solo)	do {} while (0)
 #endif
 
-void solo_p2m_isr(struct solo6010_dev *solo_dev, int id)
+void solo_p2m_isr(struct solo_dev *solo_dev, int id)
 {
 	struct solo_p2m_dev *p2m_dev = &solo_dev->p2m_dev[id];
 
@@ -255,7 +255,7 @@ void solo_p2m_isr(struct solo6010_dev *solo_dev, int id)
 	complete(&p2m_dev->completion);
 }
 
-void solo_p2m_error_isr(struct solo6010_dev *solo_dev, u32 status)
+void solo_p2m_error_isr(struct solo_dev *solo_dev, u32 status)
 {
 	struct solo_p2m_dev *p2m_dev;
 	int i;
@@ -271,15 +271,15 @@ void solo_p2m_error_isr(struct solo6010_dev *solo_dev, u32 status)
 	}
 }
 
-void solo_p2m_exit(struct solo6010_dev *solo_dev)
+void solo_p2m_exit(struct solo_dev *solo_dev)
 {
 	int i;
 
 	for (i = 0; i < SOLO_NR_P2M; i++)
-		solo6010_irq_off(solo_dev, SOLO_IRQ_P2M(i));
+		solo_irq_off(solo_dev, SOLO_IRQ_P2M(i));
 }
 
-int solo_p2m_init(struct solo6010_dev *solo_dev)
+int solo_p2m_init(struct solo_dev *solo_dev)
 {
 	struct solo_p2m_dev *p2m_dev;
 	int i;
@@ -296,7 +296,7 @@ int solo_p2m_init(struct solo6010_dev *solo_dev)
 			       SOLO_P2M_DMA_INTERVAL(3) |
 			       SOLO_P2M_DESC_INTR_OPT |
 			       SOLO_P2M_PCI_MASTER_MODE);
-		solo6010_irq_on(solo_dev, SOLO_IRQ_P2M(i));
+		solo_irq_on(solo_dev, SOLO_IRQ_P2M(i));
 	}
 
 	run_p2m_test(solo_dev);

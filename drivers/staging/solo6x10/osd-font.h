@@ -17,8 +17,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef __SOLO6010_OSD_FONT_H
-#define __SOLO6010_OSD_FONT_H
+#ifndef __SOLO6X10_OSD_FONT_H
+#define __SOLO6X10_OSD_FONT_H
 
 static const unsigned int solo_osd_font[] = {
 	0x00000000, 0x0000c0c8, 0xccfefe0c, 0x08000000,
@@ -151,4 +151,4 @@ static const unsigned int solo_osd_font[] = {
 	0x00000000, 0x0010386c, 0xc6c6fe00, 0x00000000
 };
 
-#endif /* __SOLO6010_OSD_FONT_H */
+#endif /* __SOLO6X10_OSD_FONT_H */

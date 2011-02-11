@@ -17,8 +17,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef __SOLO6010_JPEG_H
-#define __SOLO6010_JPEG_H
+#ifndef __SOLO6X10_JPEG_H
+#define __SOLO6X10_JPEG_H
 
 static unsigned char jpeg_header[] = {
 	0xff, 0xd8, 0xff, 0xfe, 0x00, 0x0d, 0x42, 0x6c,
@@ -102,4 +102,4 @@ static unsigned char jpeg_header[] = {
 /* This is the byte marker for the start of SOF0: 0xffc0 marker */
 #define SOF0_START	575
 
-#endif /* __SOLO6010_JPEG_H */
+#endif /* __SOLO6X10_JPEG_H */

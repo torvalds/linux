@@ -17,7 +17,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-/* XXX: The SOLO6010 i2c does not have separate interrupts for each i2c
+/* XXX: The SOLO6x10 i2c does not have separate interrupts for each i2c
  * channel. The bus can only handle one i2c event at a time. The below handles
  * this all wrong. We should be using the status registers to see if the bus
  * is in use, and have a global lock to check the status register. Also,
@@ -28,7 +28,7 @@
 #include <linux/kernel.h>
 #include "solo6x10.h"
 
-u8 solo_i2c_readbyte(struct solo6010_dev *solo_dev, int id, u8 addr, u8 off)
+u8 solo_i2c_readbyte(struct solo_dev *solo_dev, int id, u8 addr, u8 off)
 {
 	struct i2c_msg msgs[2];
 	u8 data;
@@ -48,7 +48,7 @@ u8 solo_i2c_readbyte(struct solo6010_dev *solo_dev, int id, u8 addr, u8 off)
 	return data;
 }
 
-void solo_i2c_writebyte(struct solo6010_dev *solo_dev, int id, u8 addr,
+void solo_i2c_writebyte(struct solo_dev *solo_dev, int id, u8 addr,
 			u8 off, u8 data)
 {
 	struct i2c_msg msgs;
@@ -64,7 +64,7 @@ void solo_i2c_writebyte(struct solo6010_dev *solo_dev, int id, u8 addr,
 	i2c_transfer(&solo_dev->i2c_adap[id], &msgs, 1);
 }
 
-static void solo_i2c_flush(struct solo6010_dev *solo_dev, int wr)
+static void solo_i2c_flush(struct solo_dev *solo_dev, int wr)
 {
 	u32 ctrl;
 
@@ -87,7 +87,7 @@ static void solo_i2c_flush(struct solo6010_dev *solo_dev, int wr)
 	solo_reg_write(solo_dev, SOLO_IIC_CTRL, ctrl);
 }
 
-static void solo_i2c_start(struct solo6010_dev *solo_dev)
+static void solo_i2c_start(struct solo_dev *solo_dev)
 {
 	u32 addr = solo_dev->i2c_msg->addr << 1;
 
@@ -99,15 +99,15 @@ static void solo_i2c_start(struct solo6010_dev *solo_dev)
 	solo_i2c_flush(solo_dev, 1);
 }
 
-static void solo_i2c_stop(struct solo6010_dev *solo_dev)
+static void solo_i2c_stop(struct solo_dev *solo_dev)
 {
-	solo6010_irq_off(solo_dev, SOLO_IRQ_IIC);
+	solo_irq_off(solo_dev, SOLO_IRQ_IIC);
 	solo_reg_write(solo_dev, SOLO_IIC_CTRL, 0);
 	solo_dev->i2c_state = IIC_STATE_STOP;
 	wake_up(&solo_dev->i2c_wait);
 }
 
-static int solo_i2c_handle_read(struct solo6010_dev *solo_dev)
+static int solo_i2c_handle_read(struct solo_dev *solo_dev)
 {
 prepare_read:
 	if (solo_dev->i2c_msg_ptr != solo_dev->i2c_msg->len) {
@@ -136,7 +136,7 @@ prepare_read:
 	return 0;
 }
 
-static int solo_i2c_handle_write(struct solo6010_dev *solo_dev)
+static int solo_i2c_handle_write(struct solo_dev *solo_dev)
 {
 retry_write:
 	if (solo_dev->i2c_msg_ptr != solo_dev->i2c_msg->len) {
@@ -168,7 +168,7 @@ retry_write:
 	return 0;
 }
 
-int solo_i2c_isr(struct solo6010_dev *solo_dev)
+int solo_i2c_isr(struct solo_dev *solo_dev)
 {
 	u32 status = solo_reg_read(solo_dev, SOLO_IIC_CTRL);
 	int ret = -EINVAL;
@@ -212,7 +212,7 @@ int solo_i2c_isr(struct solo6010_dev *solo_dev)
 static int solo_i2c_master_xfer(struct i2c_adapter *adap,
 				struct i2c_msg msgs[], int num)
 {
-	struct solo6010_dev *solo_dev = adap->algo_data;
+	struct solo_dev *solo_dev = adap->algo_data;
 	unsigned long timeout;
 	int ret;
 	int i;
@@ -233,7 +233,7 @@ static int solo_i2c_master_xfer(struct i2c_adapter *adap,
 	solo_dev->i2c_msg_ptr = 0;
 
 	solo_reg_write(solo_dev, SOLO_IIC_CTRL, 0);
-	solo6010_irq_on(solo_dev, SOLO_IRQ_IIC);
+	solo_irq_on(solo_dev, SOLO_IRQ_IIC);
 	solo_i2c_start(solo_dev);
 
 	timeout = HZ / 2;
@@ -272,7 +272,7 @@ static struct i2c_algorithm solo_i2c_algo = {
 	.functionality	= solo_i2c_functionality,
 };
 
-int solo_i2c_init(struct solo6010_dev *solo_dev)
+int solo_i2c_init(struct solo_dev *solo_dev)
 {
 	int i;
 	int ret;
@@ -288,8 +288,7 @@ int solo_i2c_init(struct solo6010_dev *solo_dev)
 	for (i = 0; i < SOLO_I2C_ADAPTERS; i++) {
 		struct i2c_adapter *adap = &solo_dev->i2c_adap[i];
 
-		snprintf(adap->name, I2C_NAME_SIZE, "%s I2C %d",
-			 SOLO6010_NAME, i);
+		snprintf(adap->name, I2C_NAME_SIZE, "%s I2C %d", SOLO6X10_NAME, i);
 		adap->algo = &solo_i2c_algo;
 		adap->algo_data = solo_dev;
 		adap->retries = 1;
@@ -318,7 +317,7 @@ int solo_i2c_init(struct solo6010_dev *solo_dev)
 	return 0;
 }
 
-void solo_i2c_exit(struct solo6010_dev *solo_dev)
+void solo_i2c_exit(struct solo_dev *solo_dev)
 {
 	int i;
 

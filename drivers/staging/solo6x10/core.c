@@ -25,27 +25,27 @@
 #include "solo6x10.h"
 #include "tw28.h"
 
-MODULE_DESCRIPTION("Softlogic 6010 MP4 Encoder/Decoder V4L2/ALSA Driver");
+MODULE_DESCRIPTION("Softlogic 6x10 MP4/H.264 Encoder/Decoder V4L2/ALSA Driver");
 MODULE_AUTHOR("Ben Collins <bcollins@bluecherry.net>");
-MODULE_VERSION(SOLO6010_VERSION);
+MODULE_VERSION(SOLO6X10_VERSION);
 MODULE_LICENSE("GPL");
 
-void solo6010_irq_on(struct solo6010_dev *solo_dev, u32 mask)
+void solo_irq_on(struct solo_dev *solo_dev, u32 mask)
 {
 	solo_dev->irq_mask |= mask;
 	solo_reg_write(solo_dev, SOLO_IRQ_ENABLE, solo_dev->irq_mask);
 }
 
-void solo6010_irq_off(struct solo6010_dev *solo_dev, u32 mask)
+void solo_irq_off(struct solo_dev *solo_dev, u32 mask)
 {
 	solo_dev->irq_mask &= ~mask;
 	solo_reg_write(solo_dev, SOLO_IRQ_ENABLE, solo_dev->irq_mask);
 }
 
 /* XXX We should check the return value of the sub-device ISR's */
-static irqreturn_t solo6010_isr(int irq, void *data)
+static irqreturn_t solo_isr(int irq, void *data)
 {
-	struct solo6010_dev *solo_dev = data;
+	struct solo_dev *solo_dev = data;
 	u32 status;
 	int i;
 
@@ -88,7 +88,7 @@ static irqreturn_t solo6010_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void free_solo_dev(struct solo6010_dev *solo_dev)
+static void free_solo_dev(struct solo_dev *solo_dev)
 {
 	struct pci_dev *pdev;
 
@@ -116,7 +116,7 @@ static void free_solo_dev(struct solo6010_dev *solo_dev)
 
 	/* Now cleanup the PCI device */
 	if (solo_dev->reg_base) {
-		solo6010_irq_off(solo_dev, ~0);
+		solo_irq_off(solo_dev, ~0);
 		pci_iounmap(pdev, solo_dev->reg_base);
 		free_irq(pdev->irq, solo_dev);
 	}
@@ -128,10 +128,10 @@ static void free_solo_dev(struct solo6010_dev *solo_dev)
 	kfree(solo_dev);
 }
 
-static int __devinit solo6010_pci_probe(struct pci_dev *pdev,
-					const struct pci_device_id *id)
+static int __devinit solo_pci_probe(struct pci_dev *pdev,
+				    const struct pci_device_id *id)
 {
-	struct solo6010_dev *solo_dev;
+	struct solo_dev *solo_dev;
 	int ret;
 	int sdram;
 	u8 chip_id;
@@ -151,7 +151,7 @@ static int __devinit solo6010_pci_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	ret = pci_request_regions(pdev, SOLO6010_NAME);
+	ret = pci_request_regions(pdev, SOLO6X10_NAME);
 	if (ret)
 		goto fail_probe;
 
@@ -184,7 +184,7 @@ static int __devinit solo6010_pci_probe(struct pci_dev *pdev,
 	solo_dev->flags = id->driver_data;
 
 	/* Disable all interrupts to start */
-	solo6010_irq_off(solo_dev, ~0);
+	solo_irq_off(solo_dev, ~0);
 
 	reg = SOLO_SYS_CFG_SDRAM64BIT;
 	/* Initial global settings */
@@ -223,13 +223,13 @@ static int __devinit solo6010_pci_probe(struct pci_dev *pdev,
 	/* PLL locking time of 1ms */
 	mdelay(1);
 
-	ret = request_irq(pdev->irq, solo6010_isr, IRQF_SHARED, SOLO6010_NAME,
+	ret = request_irq(pdev->irq, solo_isr, IRQF_SHARED, SOLO6X10_NAME,
 			  solo_dev);
 	if (ret)
 		goto fail_probe;
 
 	/* Handle this from the start */
-	solo6010_irq_on(solo_dev, SOLO_IRQ_PCI_ERR);
+	solo_irq_on(solo_dev, SOLO_IRQ_PCI_ERR);
 
 	ret = solo_i2c_init(solo_dev);
 	if (ret)
@@ -283,14 +283,14 @@ fail_probe:
 	return ret;
 }
 
-static void __devexit solo6010_pci_remove(struct pci_dev *pdev)
+static void __devexit solo_pci_remove(struct pci_dev *pdev)
 {
-	struct solo6010_dev *solo_dev = pci_get_drvdata(pdev);
+	struct solo_dev *solo_dev = pci_get_drvdata(pdev);
 
 	free_solo_dev(solo_dev);
 }
 
-static struct pci_device_id solo6010_id_table[] = {
+static struct pci_device_id solo_id_table[] = {
 	/* 6010 based cards */
 	{PCI_DEVICE(PCI_VENDOR_ID_SOFTLOGIC, PCI_DEVICE_ID_SOLO6010)},
 	{PCI_DEVICE(PCI_VENDOR_ID_SOFTLOGIC, PCI_DEVICE_ID_SOLO6110),
@@ -308,24 +308,24 @@ static struct pci_device_id solo6010_id_table[] = {
 	{0,}
 };
 
-MODULE_DEVICE_TABLE(pci, solo6010_id_table);
+MODULE_DEVICE_TABLE(pci, solo_id_table);
 
-static struct pci_driver solo6010_pci_driver = {
-	.name = SOLO6010_NAME,
-	.id_table = solo6010_id_table,
-	.probe = solo6010_pci_probe,
-	.remove = solo6010_pci_remove,
+static struct pci_driver solo_pci_driver = {
+	.name = SOLO6X10_NAME,
+	.id_table = solo_id_table,
+	.probe = solo_pci_probe,
+	.remove = solo_pci_remove,
 };
 
-static int __init solo6010_module_init(void)
+static int __init solo_module_init(void)
 {
-	return pci_register_driver(&solo6010_pci_driver);
+	return pci_register_driver(&solo_pci_driver);
 }
 
-static void __exit solo6010_module_exit(void)
+static void __exit solo_module_exit(void)
 {
-	pci_unregister_driver(&solo6010_pci_driver);
+	pci_unregister_driver(&solo_pci_driver);
 }
 
-module_init(solo6010_module_init);
-module_exit(solo6010_module_exit);
+module_init(solo_module_init);
+module_exit(solo_module_exit);

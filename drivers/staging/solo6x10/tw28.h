@@ -17,8 +17,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef __SOLO6010_TW28_H
-#define __SOLO6010_TW28_H
+#ifndef __SOLO6X10_TW28_H
+#define __SOLO6X10_TW28_H
 
 #include "solo6x10.h"
 
@@ -46,20 +46,18 @@
 #define TW286x_AUDIO_OUTPUT_VOL_ADDR		0xdf
 #define TW286x_AUDIO_INPUT_GAIN_ADDR(n)		(0xD0 + ((n > 1) ? 1 : 0))
 
-int solo_tw28_init(struct solo6010_dev *solo_dev);
+int solo_tw28_init(struct solo_dev *solo_dev);
 
-int tw28_set_ctrl_val(struct solo6010_dev *solo_dev, u32 ctrl, u8 ch,
-		      s32 val);
-int tw28_get_ctrl_val(struct solo6010_dev *solo_dev, u32 ctrl, u8 ch,
-		      s32 *val);
+int tw28_set_ctrl_val(struct solo_dev *solo_dev, u32 ctrl, u8 ch, s32 val);
+int tw28_get_ctrl_val(struct solo_dev *solo_dev, u32 ctrl, u8 ch, s32 *val);
 
-u8 tw28_get_audio_gain(struct solo6010_dev *solo_dev, u8 ch);
-void tw28_set_audio_gain(struct solo6010_dev *solo_dev, u8 ch, u8 val);
-int tw28_get_video_status(struct solo6010_dev *solo_dev, u8 ch);
+u8 tw28_get_audio_gain(struct solo_dev *solo_dev, u8 ch);
+void tw28_set_audio_gain(struct solo_dev *solo_dev, u8 ch, u8 val);
+int tw28_get_video_status(struct solo_dev *solo_dev, u8 ch);
 
 #if 0
-unsigned int tw2815_get_audio_status(struct SOLO6010 *solo6010);
-void tw2815_Set_AudioOutVol(struct SOLO6010 *solo6010, unsigned int u_val);
+unsigned int tw2815_get_audio_status(struct SOLO *solo);
+void tw2815_Set_AudioOutVol(struct SOLO *solo, unsigned int u_val);
 #endif
 
-#endif /* __SOLO6010_TW28_H */
+#endif /* __SOLO6X10_TW28_H */
