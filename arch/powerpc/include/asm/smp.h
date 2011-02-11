@@ -43,7 +43,6 @@ DECLARE_PER_CPU(unsigned int, cpu_pvr);
 #ifdef CONFIG_HOTPLUG_CPU
 extern void fixup_irqs(const struct cpumask *map);
 int generic_cpu_disable(void);
-int generic_cpu_enable(unsigned int cpu);
 void generic_cpu_die(unsigned int cpu);
 void generic_mach_cpu_die(void);
 #endif

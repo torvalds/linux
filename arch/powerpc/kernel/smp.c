@@ -322,28 +322,6 @@ int generic_cpu_disable(void)
 	return 0;
 }
 
-int generic_cpu_enable(unsigned int cpu)
-{
-	/* Do the normal bootup if we haven't
-	 * already bootstrapped. */
-	if (system_state != SYSTEM_RUNNING)
-		return -ENOSYS;
-
-	/* get the target out of it's holding state */
-	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
-	smp_wmb();
-
-	while (!cpu_online(cpu))
-		cpu_relax();
-
-#ifdef CONFIG_PPC64
-	fixup_irqs(cpu_online_mask);
-	/* counter the irq disable in fixup_irqs */
-	local_irq_enable();
-#endif
-	return 0;
-}
-
 void generic_cpu_die(unsigned int cpu)
 {
 	int i;
