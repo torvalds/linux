@@ -223,7 +223,8 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 	/* ASSERT((netDevice->ReceiveBufferSize & (PAGE_SIZE - 1)) == 0); */
 
 	net_device->recv_buf =
-		osd_page_alloc(net_device->recv_buf_size >> PAGE_SHIFT);
+		(void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO,
+				get_order(net_device->recv_buf_size));
 	if (!net_device->recv_buf) {
 		DPRINT_ERR(NETVSC,
 			   "unable to allocate receive buffer of size %d",
@@ -360,7 +361,8 @@ static int netvsc_init_send_buf(struct hv_device *device)
 	/* ASSERT((netDevice->SendBufferSize & (PAGE_SIZE - 1)) == 0); */
 
 	net_device->send_buf =
-		osd_page_alloc(net_device->send_buf_size >> PAGE_SHIFT);
+		(void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO,
+				get_order(net_device->send_buf_size));
 	if (!net_device->send_buf) {
 		DPRINT_ERR(NETVSC, "unable to allocate send buffer of size %d",
 			   net_device->send_buf_size);
@@ -498,8 +500,8 @@ static int netvsc_destroy_recv_buf(struct netvsc_device *net_device)
 		DPRINT_INFO(NETVSC, "Freeing up receive buffer...");
 
 		/* Free up the receive buffer */
-		osd_page_free(net_device->recv_buf,
-			     net_device->recv_buf_size >> PAGE_SHIFT);
+		free_pages((unsigned long)net_device->recv_buf,
+			get_order(net_device->recv_buf_size));
 		net_device->recv_buf = NULL;
 	}
 
@@ -574,8 +576,8 @@ static int netvsc_destroy_send_buf(struct netvsc_device *net_device)
 		DPRINT_INFO(NETVSC, "Freeing up send buffer...");
 
 		/* Free up the receive buffer */
-		osd_page_free(net_device->send_buf,
-			     net_device->send_buf_size >> PAGE_SHIFT);
+		free_pages((unsigned long)net_device->send_buf,
+				get_order(net_device->send_buf_size));
 		net_device->send_buf = NULL;
 	}
 

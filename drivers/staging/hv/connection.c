@@ -66,7 +66,8 @@ int vmbus_connect(void)
 	 * Setup the vmbus event connection for channel interrupt
 	 * abstraction stuff
 	 */
-	vmbus_connection.int_page = osd_page_alloc(1);
+	vmbus_connection.int_page =
+	(void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO, 0);
 	if (vmbus_connection.int_page == NULL) {
 		ret = -1;
 		goto Cleanup;
@@ -81,7 +82,8 @@ int vmbus_connect(void)
 	 * Setup the monitor notification facility. The 1st page for
 	 * parent->child and the 2nd page for child->parent
 	 */
-	vmbus_connection.monitor_pages = osd_page_alloc(2);
+	vmbus_connection.monitor_pages =
+	(void *)__get_free_pages((GFP_KERNEL|__GFP_ZERO), 1);
 	if (vmbus_connection.monitor_pages == NULL) {
 		ret = -1;
 		goto Cleanup;
@@ -162,12 +164,12 @@ Cleanup:
 		destroy_workqueue(vmbus_connection.work_queue);
 
 	if (vmbus_connection.int_page) {
-		osd_page_free(vmbus_connection.int_page, 1);
+		free_pages((unsigned long)vmbus_connection.int_page, 0);
 		vmbus_connection.int_page = NULL;
 	}
 
 	if (vmbus_connection.monitor_pages) {
-		osd_page_free(vmbus_connection.monitor_pages, 2);
+		free_pages((unsigned long)vmbus_connection.monitor_pages, 1);
 		vmbus_connection.monitor_pages = NULL;
 	}
 
@@ -203,7 +205,8 @@ int vmbus_disconnect(void)
 	if (ret != 0)
 		goto Cleanup;
 
-	osd_page_free(vmbus_connection.int_page, 1);
+	free_pages((unsigned long)vmbus_connection.int_page, 0);
+	free_pages((unsigned long)vmbus_connection.monitor_pages, 1);
 
 	/* TODO: iterate thru the msg list and free up */
 	destroy_workqueue(vmbus_connection.work_queue);

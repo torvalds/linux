@@ -180,8 +180,9 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	newchannel->channel_callback_context = context;
 
 	/* Allocate the ring buffer */
-	out = osd_page_alloc((send_ringbuffer_size + recv_ringbuffer_size)
-			     >> PAGE_SHIFT);
+	out = (void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO,
+		get_order(send_ringbuffer_size + recv_ringbuffer_size));
+
 	if (!out)
 		return -ENOMEM;
 
@@ -300,8 +301,8 @@ Cleanup:
 errorout:
 	ringbuffer_cleanup(&newchannel->outbound);
 	ringbuffer_cleanup(&newchannel->inbound);
-	osd_page_free(out, (send_ringbuffer_size + recv_ringbuffer_size)
-		     >> PAGE_SHIFT);
+	free_pages((unsigned long)out,
+		get_order(send_ringbuffer_size + recv_ringbuffer_size));
 	kfree(openInfo);
 	return err;
 }
@@ -686,7 +687,8 @@ void vmbus_close(struct vmbus_channel *channel)
 	ringbuffer_cleanup(&channel->outbound);
 	ringbuffer_cleanup(&channel->inbound);
 
-	osd_page_free(channel->ringbuffer_pages, channel->ringbuffer_pagecount);
+	free_pages((unsigned long)channel->ringbuffer_pages,
+		get_order(channel->ringbuffer_pagecount * PAGE_SIZE));
 
 	kfree(info);
 
