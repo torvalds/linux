@@ -820,7 +820,7 @@ static int be_set_vf_tx_rate(struct net_device *netdev,
 		rate = 10000;
 
 	adapter->vf_cfg[vf].vf_tx_rate = rate;
-	status = be_cmd_set_qos(adapter, rate / 10, vf);
+	status = be_cmd_set_qos(adapter, rate / 10, vf + 1);
 
 	if (status)
 		dev_info(&adapter->pdev->dev,
