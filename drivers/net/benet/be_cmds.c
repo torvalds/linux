@@ -1868,8 +1868,8 @@ int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain)
 			OPCODE_COMMON_SET_QOS, sizeof(*req));
 
 	req->hdr.domain = domain;
-	req->valid_bits = BE_QOS_BITS_NIC;
-	req->max_bps_nic = bps;
+	req->valid_bits = cpu_to_le32(BE_QOS_BITS_NIC);
+	req->max_bps_nic = cpu_to_le32(bps);
 
 	status = be_mcc_notify_wait(adapter);
 
