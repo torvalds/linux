@@ -25,11 +25,9 @@
 
 #include "adis16060.h"
 
-#define DRIVER_NAME		"adis16060"
+static struct adis16060_state *adis16060_st;
 
-struct adis16060_state *adis16060_st;
-
-int adis16060_spi_write(struct device *dev,
+static int adis16060_spi_write(struct device *dev,
 		u8 val)
 {
 	int ret;
@@ -47,7 +45,7 @@ int adis16060_spi_write(struct device *dev,
 	return ret;
 }
 
-int adis16060_spi_read(struct device *dev,
+static int adis16060_spi_read(struct device *dev,
 		u16 *val)
 {
 	int ret;
@@ -58,12 +56,15 @@ int adis16060_spi_read(struct device *dev,
 
 	ret = spi_read(st->us_r, st->rx, 3);
 
-	/* The internal successive approximation ADC begins the conversion process
-	 * on the falling edge of MSEL1 and starts to place data MSB first on the
-	 * DOUT line at the 6th falling edge of SCLK
+	/* The internal successive approximation ADC begins the
+	 * conversion process on the falling edge of MSEL1 and
+	 * starts to place data MSB first on the DOUT line at
+	 * the 6th falling edge of SCLK
 	 */
 	if (ret == 0)
-		*val = ((st->rx[0] & 0x3) << 12) | (st->rx[1] << 4) | ((st->rx[2] >> 4) & 0xF);
+		*val = ((st->rx[0] & 0x3) << 12) |
+			(st->rx[1] << 4) |
+			((st->rx[2] >> 4) & 0xF);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -74,7 +75,7 @@ static ssize_t adis16060_read(struct device *dev,
 		char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	u16 val;
+	u16 val = 0;
 	ssize_t ret;
 
 	/* Take the iio_dev status lock */
@@ -174,45 +175,14 @@ static int __devinit adis16060_r_probe(struct spi_device *spi)
 	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = adis16060_configure_ring(st->indio_dev);
-	if (ret)
-		goto error_free_dev;
-
 	ret = iio_device_register(st->indio_dev);
 	if (ret)
-		goto error_unreg_ring_funcs;
+		goto error_free_dev;
 	regdone = 1;
-
-	ret = adis16060_initialize_ring(st->indio_dev->ring);
-	if (ret) {
-		printk(KERN_ERR "failed to initialize the ring\n");
-		goto error_unreg_ring_funcs;
-	}
-
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
-		ret = iio_register_interrupt_line(spi->irq,
-				st->indio_dev,
-				0,
-				IRQF_TRIGGER_RISING,
-				"adis16060");
-		if (ret)
-			goto error_uninitialize_ring;
-
-		ret = adis16060_probe_trigger(st->indio_dev);
-		if (ret)
-			goto error_unregister_line;
-	}
 
 	adis16060_st = st;
 	return 0;
 
-error_unregister_line:
-	if (st->indio_dev->modes & INDIO_RING_TRIGGERED)
-		iio_unregister_interrupt_line(st->indio_dev, 0);
-error_uninitialize_ring:
-	adis16060_uninitialize_ring(st->indio_dev->ring);
-error_unreg_ring_funcs:
-	adis16060_unconfigure_ring(st->indio_dev);
 error_free_dev:
 	if (regdone)
 		iio_device_unregister(st->indio_dev);
@@ -236,12 +206,9 @@ static int adis16060_r_remove(struct spi_device *spi)
 
 	flush_scheduled_work();
 
-	adis16060_remove_trigger(indio_dev);
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
 		iio_unregister_interrupt_line(indio_dev, 0);
 
-	adis16060_uninitialize_ring(indio_dev->ring);
-	adis16060_unconfigure_ring(indio_dev);
 	iio_device_unregister(indio_dev);
 	kfree(st->tx);
 	kfree(st->rx);
@@ -315,5 +282,5 @@ static __exit void adis16060_exit(void)
 module_exit(adis16060_exit);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
-MODULE_DESCRIPTION("Analog Devices ADIS16060 Yaw Rate Gyroscope with SPI driver");
+MODULE_DESCRIPTION("Analog Devices ADIS16060 Yaw Rate Gyroscope Driver");
 MODULE_LICENSE("GPL v2");
