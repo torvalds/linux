@@ -23,6 +23,12 @@ static void be_mcc_notify(struct be_adapter *adapter)
 	struct be_queue_info *mccq = &adapter->mcc_obj.q;
 	u32 val = 0;
 
+	if (adapter->eeh_err) {
+		dev_info(&adapter->pdev->dev,
+			"Error in Card Detected! Cannot issue commands\n");
+		return;
+	}
+
 	val |= mccq->id & DB_MCCQ_RING_ID_MASK;
 	val |= 1 << DB_MCCQ_NUM_POSTED_SHIFT;
 
@@ -217,6 +223,9 @@ static int be_mcc_wait_compl(struct be_adapter *adapter)
 	int i, num, status = 0;
 	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 
+	if (adapter->eeh_err)
+		return -EIO;
+
 	for (i = 0; i < mcc_timeout; i++) {
 		num = be_process_mcc(adapter, &status);
 		if (num)
@@ -245,6 +254,12 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 {
 	int msecs = 0;
 	u32 ready;
+
+	if (adapter->eeh_err) {
+		dev_err(&adapter->pdev->dev,
+			"Error detected in card.Cannot issue commands\n");
+		return -EIO;
+	}
 
 	do {
 		ready = ioread32(db);

@@ -1827,6 +1827,7 @@ void be_detect_dump_ue(struct be_adapter *adapter)
 
 	if (ue_status_lo || ue_status_hi) {
 		adapter->ue_detected = true;
+		adapter->eeh_err = true;
 		dev_err(&adapter->pdev->dev, "UE Detected!!\n");
 	}
 
