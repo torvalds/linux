@@ -311,11 +311,6 @@ static irqreturn_t prcm_interrupt_handler (int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void restore_control_register(u32 val)
-{
-	__asm__ __volatile__ ("mcr p15, 0, %0, c1, c0, 0" : : "r" (val));
-}
-
 /* Function to restore the table entry that was modified for enabling MMU */
 static void restore_table_entry(void)
 {
@@ -337,7 +332,7 @@ static void restore_table_entry(void)
 	control_reg_value = __raw_readl(scratchpad_address
 					+ OMAP343X_CONTROL_REG_VALUE_OFFSET);
 	/* This will enable caches and prediction */
-	restore_control_register(control_reg_value);
+	set_cr(control_reg_value);
 }
 
 void omap_sram_idle(void)
