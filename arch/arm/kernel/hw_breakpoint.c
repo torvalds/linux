@@ -834,11 +834,11 @@ static void reset_ctrl_regs(void *unused)
 
 	/*
 	 * v7 debug contains save and restore registers so that debug state
-	 * can be maintained across low-power modes without leaving
-	 * the debug logic powered up. It is IMPLEMENTATION DEFINED whether
-	 * we can write to the debug registers out of reset, so we must
-	 * unlock the OS Lock Access Register to avoid taking undefined
-	 * instruction exceptions later on.
+	 * can be maintained across low-power modes without leaving the debug
+	 * logic powered up. It is IMPLEMENTATION DEFINED whether we can access
+	 * the debug registers out of reset, so we must unlock the OS Lock
+	 * Access Register to avoid taking undefined instruction exceptions
+	 * later on.
 	 */
 	if (debug_arch >= ARM_DEBUG_ARCH_V7_ECP14) {
 		/*
@@ -899,18 +899,18 @@ static int __init arch_hw_breakpoint_init(void)
 		pr_info("%d breakpoint(s) reserved for watchpoint "
 				"single-step.\n", core_num_reserved_brps);
 
+	/*
+	 * Reset the breakpoint resources. We assume that a halting
+	 * debugger will leave the world in a nice state for us.
+	 */
+	on_each_cpu(reset_ctrl_regs, NULL, 1);
+
 	ARM_DBG_READ(c1, 0, dscr);
 	if (dscr & ARM_DSCR_HDBGEN) {
+		max_watchpoint_len = 4;
 		pr_warning("halting debug mode enabled. Assuming maximum "
-				"watchpoint size of 4 bytes.");
+			   "watchpoint size of %u bytes.", max_watchpoint_len);
 	} else {
-		/*
-		 * Reset the breakpoint resources. We assume that a halting
-		 * debugger will leave the world in a nice state for us.
-		 */
-		smp_call_function(reset_ctrl_regs, NULL, 1);
-		reset_ctrl_regs(NULL);
-
 		/* Work out the maximum supported watchpoint length. */
 		max_watchpoint_len = get_max_wp_len();
 		pr_info("maximum watchpoint size is %u bytes.\n",
