@@ -3023,6 +3023,7 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev =  adapter->netdev;
 
+	cancel_delayed_work_sync(&adapter->work);
 	if (adapter->wol)
 		be_setup_wol(adapter, true);
 
@@ -3035,6 +3036,7 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 	be_cmd_get_flow_control(adapter, &adapter->tx_fc, &adapter->rx_fc);
 	be_clear(adapter);
 
+	be_msix_disable(adapter);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
@@ -3056,6 +3058,7 @@ static int be_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
 
+	be_msix_enable(adapter);
 	/* tell fw we're ready to fire cmds */
 	status = be_cmd_fw_init(adapter);
 	if (status)
@@ -3071,6 +3074,8 @@ static int be_resume(struct pci_dev *pdev)
 
 	if (adapter->wol)
 		be_setup_wol(adapter, false);
+
+	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
 	return 0;
 }
 
@@ -3081,6 +3086,9 @@ static void be_shutdown(struct pci_dev *pdev)
 {
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev =  adapter->netdev;
+
+	if (netif_running(netdev))
+		cancel_delayed_work_sync(&adapter->work);
 
 	netif_device_detach(netdev);
 
