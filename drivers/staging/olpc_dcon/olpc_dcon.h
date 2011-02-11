@@ -64,6 +64,11 @@ struct dcon_priv {
 	/* Desired source */
 	int pending_src;
 
+	/* Variables used during switches */
+	bool switched;
+	struct timespec irq_time;
+	struct timespec load_time;
+
 	/* Current output type; true == mono, false == color */
 	bool mono;
 	bool asleep;

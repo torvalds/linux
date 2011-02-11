@@ -53,11 +53,6 @@ static struct platform_device *dcon_device;
 /* Backlight device */
 static struct backlight_device *dcon_bl_dev;
 
-/* Variables used during switches */
-static int dcon_switched;
-static struct timespec dcon_irq_time;
-static struct timespec dcon_load_time;
-
 static DECLARE_WAIT_QUEUE_HEAD(dcon_wait_queue);
 
 static unsigned short normal_i2c[] = { 0x0d, I2C_CLIENT_END };
@@ -297,12 +292,12 @@ static void dcon_sleep(struct dcon_priv *dcon, bool sleep)
  * normally we don't change it this fast, so in general we won't
  * delay here.
  */
-void dcon_load_holdoff(void)
+static void dcon_load_holdoff(struct dcon_priv *dcon)
 {
 	struct timespec delta_t, now;
 	while (1) {
 		getnstimeofday(&now);
-		delta_t = timespec_sub(now, dcon_load_time);
+		delta_t = timespec_sub(now, dcon->load_time);
 		if (delta_t.tv_sec != 0 ||
 			delta_t.tv_nsec > NSEC_PER_MSEC * 20) {
 			break;
@@ -346,9 +341,9 @@ static void dcon_source_switch(struct work_struct *work)
 	if (dcon->curr_src == source)
 		return;
 
-	dcon_load_holdoff();
+	dcon_load_holdoff(dcon);
 
-	dcon_switched = 0;
+	dcon->switched = false;
 
 	switch (source) {
 	case DCON_SOURCE_CPU:
@@ -361,10 +356,10 @@ static void dcon_source_switch(struct work_struct *work)
 		else {
 			/* Wait up to one second for the scanline interrupt */
 			wait_event_timeout(dcon_wait_queue,
-					   dcon_switched == 1, HZ);
+					   dcon->switched == true, HZ);
 		}
 
-		if (!dcon_switched)
+		if (!dcon->switched)
 			printk(KERN_ERR "olpc-dcon:  Timeout entering CPU mode; expect a screen glitch.\n");
 
 		/* Turn off the scanline interrupt */
@@ -387,7 +382,7 @@ static void dcon_source_switch(struct work_struct *work)
 
 		/* And turn off the DCON */
 		pdata->set_dconload(1);
-		getnstimeofday(&dcon_load_time);
+		getnstimeofday(&dcon->load_time);
 
 		printk(KERN_INFO "olpc-dcon: The CPU has control\n");
 		break;
@@ -403,13 +398,13 @@ static void dcon_source_switch(struct work_struct *work)
 
 		/* Clear DCONLOAD - this implies that the DCON is in control */
 		pdata->set_dconload(0);
-		getnstimeofday(&dcon_load_time);
+		getnstimeofday(&dcon->load_time);
 
 		t = schedule_timeout(HZ/2);
 		remove_wait_queue(&dcon_wait_queue, &wait);
 		set_current_state(TASK_RUNNING);
 
-		if (!dcon_switched) {
+		if (!dcon->switched) {
 			printk(KERN_ERR "olpc-dcon: Timeout entering DCON mode; expect a screen glitch.\n");
 		} else {
 			/* sometimes the DCON doesn't follow its own rules,
@@ -423,14 +418,14 @@ static void dcon_source_switch(struct work_struct *work)
 			 * deassert and reassert, and hope for the best.
 			 * see http://dev.laptop.org/ticket/9664
 			 */
-			delta_t = timespec_sub(dcon_irq_time, dcon_load_time);
-			if (dcon_switched && delta_t.tv_sec == 0 &&
+			delta_t = timespec_sub(dcon->irq_time, dcon->load_time);
+			if (dcon->switched && delta_t.tv_sec == 0 &&
 					delta_t.tv_nsec < NSEC_PER_MSEC * 20) {
 				printk(KERN_ERR "olpc-dcon: missed loading, retrying\n");
 				pdata->set_dconload(1);
 				mdelay(41);
 				pdata->set_dconload(0);
-				getnstimeofday(&dcon_load_time);
+				getnstimeofday(&dcon->load_time);
 				mdelay(41);
 			}
 		}
@@ -815,8 +810,8 @@ irqreturn_t dcon_interrupt(int irq, void *id)
 
 	case 2:	/* switch to DCON mode */
 	case 1: /* switch to CPU mode */
-		dcon_switched = 1;
-		getnstimeofday(&dcon_irq_time);
+		dcon->switched = true;
+		getnstimeofday(&dcon->irq_time);
 		wake_up(&dcon_wait_queue);
 		break;
 
@@ -828,9 +823,9 @@ irqreturn_t dcon_interrupt(int irq, void *id)
 		 * of the DCON happened long before this point.
 		 * see http://dev.laptop.org/ticket/9869
 		 */
-		if (dcon->curr_src != dcon->pending_src && !dcon_switched) {
-			dcon_switched = 1;
-			getnstimeofday(&dcon_irq_time);
+		if (dcon->curr_src != dcon->pending_src && !dcon->switched) {
+			dcon->switched = true;
+			getnstimeofday(&dcon->irq_time);
 			wake_up(&dcon_wait_queue);
 			printk(KERN_DEBUG "olpc-dcon: switching w/ status 0/0\n");
 		} else {
