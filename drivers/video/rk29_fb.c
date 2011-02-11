@@ -189,7 +189,7 @@ struct rk29fb_inf {
     struct rk29fb_screen panel1_info;         // 1st panel, it's lcd normally
     struct rk29fb_screen panel2_info;         // 2nd panel
     struct rk29fb_screen *cur_screen;
-#ifdef CONFIG_CPU_FREQ
+#if 0 //def CONFIG_CPU_FREQ
     struct notifier_block freq_transition;
 #endif
 
@@ -661,7 +661,7 @@ void load_screen(struct fb_info *info, bool initscreen)
     }
 
 }
-#ifdef CONFIG_CPU_FREQ
+#if 0 //def  CONFIG_CPU_FREQ
 /*
 * CPU clock speed change handler. We need to adjust the LCD timing
 * parameters when the CPU clock is adjusted by the power management
@@ -1247,7 +1247,7 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
     struct rk29fb_inf *inf = dev_get_drvdata(info->device);
     struct fb_var_screeninfo *var1 = &info->var;
     //struct fb_fix_screeninfo *fix1 = &info->fix;
-    struct win0_par *par = info->par;
+   // struct win0_par *par = info->par;
 
     u32 offset = 0;
 
@@ -1800,15 +1800,16 @@ static ssize_t dsp_win0_info_read(struct device *device,
 
     return snprintf(buf, PAGE_SIZE, "%d,%d,%d,%d\n", xpos,ypos,xsize,ysize);
 }
+
 static ssize_t dsp_win0_info_write(struct device *device,
-			   struct device_attribute *attr, char *buf)
+			   struct device_attribute *attr, const char *buf, size_t count)
 {
      printk("%s\n",__FUNCTION__);
      printk("%s %x \n",__FUNCTION__,*buf);
      return 0;
 }
 
-static DRIVER_ATTR(dsp_win0_info,  S_IRUGO|S_IWUSR, dsp_win0_info_read, dsp_win0_info_write);
+static DEVICE_ATTR(dsp_win0_info,  S_IRUGO|S_IWUSR, dsp_win0_info_read, dsp_win0_info_write);
 
 static irqreturn_t rk29fb_irq(int irq, void *dev_id)
 {
@@ -2193,7 +2194,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
  	fbprintk(">> Init all lcdc and lcd before register_framebuffer \n");
     init_lcdc(inf->fb0);
 
-  #ifdef CONFIG_CPU_FREQ
+  #if 0 //def CONFIG_CPU_FREQ
    // inf->freq_transition.notifier_call = rk29fb_freq_transition;
    // cpufreq_register_notifier(&inf->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
   #endif
@@ -2249,7 +2250,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
 		goto unregister_win1fb;
     }
 
-    ret = device_create_file(inf->fb1->dev, &driver_attr_dsp_win0_info);
+    ret = device_create_file(inf->fb1->dev, &dev_attr_dsp_win0_info);
     if(ret)
     {
         printk(">> fb1 dsp win0 info device_create_file err\n");
@@ -2330,7 +2331,7 @@ static int rk29fb_remove(struct platform_device *pdev)
         printk("inf==0, rk29_fb_remove fail! \n");
         return -EINVAL;
     }
-    driver_remove_file(inf->fb1->dev, &driver_attr_dsp_win0_info);
+    device_remove_file(inf->fb1->dev, &dev_attr_dsp_win0_info);
 
     irq = platform_get_irq(pdev, 0);
     if (irq >0)
@@ -2380,7 +2381,7 @@ static int rk29fb_remove(struct platform_device *pdev)
         inf->fb0 = NULL;
     }
 
-  #ifdef CONFIG_CPU_FREQ
+  #if 0 //def CONFIG_CPU_FREQ
    // cpufreq_unregister_notifier(&inf->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
   #endif
 
