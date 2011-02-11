@@ -63,8 +63,8 @@ struct dcon_priv {
 	u8 disp_mode;
 
 	/* Current output type; true == mono, false == color */
-	bool mono:1;
-	bool asleep:1;
+	bool mono;
+	bool asleep;
 };
 
 /* I2C structures */
@@ -516,7 +516,7 @@ static ssize_t dcon_sleep_show(struct device *dev,
 {
 
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
-	return sprintf(buf, "%d\n", dcon->asleep ? 1 : 0);
+	return sprintf(buf, "%d\n", dcon->asleep);
 }
 
 static ssize_t dcon_freeze_show(struct device *dev,
@@ -529,7 +529,7 @@ static ssize_t dcon_mono_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
-	return sprintf(buf, "%d\n", dcon->mono ? 1 : 0);
+	return sprintf(buf, "%d\n", dcon->mono);
 }
 
 static ssize_t dcon_resumeline_show(struct device *dev,
@@ -564,7 +564,7 @@ static ssize_t dcon_mono_store(struct device *dev,
 	if (_strtoul(buf, count, &enable_mono))
 		return -EINVAL;
 
-	dcon_set_mono_mode(dev_get_drvdata(dev), enable_mono ? 1 : 0);
+	dcon_set_mono_mode(dev_get_drvdata(dev), enable_mono ? true : false);
 	rc = count;
 
 	return rc;
