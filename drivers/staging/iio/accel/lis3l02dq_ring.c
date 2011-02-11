@@ -13,6 +13,7 @@
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../ring_sw.h"
+#include "../kfifo_buf.h"
 #include "accel.h"
 #include "../trigger.h"
 #include "lis3l02dq.h"
@@ -484,7 +485,7 @@ void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 void lis3l02dq_unconfigure_ring(struct iio_dev *indio_dev)
 {
 	kfree(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->ring);
+	lis3l02dq_free_buf(indio_dev->ring);
 }
 
 int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
@@ -495,13 +496,13 @@ int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 	INIT_WORK(&h->work_trigger_to_ring, lis3l02dq_trigger_bh_to_ring);
 	h->get_ring_element = &lis3l02dq_get_ring_element;
 
-	ring = iio_sw_rb_allocate(indio_dev);
+	ring = lis3l02dq_alloc_buf(indio_dev);
 	if (!ring)
 		return -ENOMEM;
 
 	indio_dev->ring = ring;
 	/* Effectively select the ring buffer implementation */
-	iio_ring_sw_register_funcs(&ring->access);
+	lis3l02dq_register_buf_funcs(&ring->access);
 	ring->bpe = 2;
 	ring->scan_el_attrs = &lis3l02dq_scan_el_group;
 	ring->scan_timestamp = true;
@@ -522,6 +523,6 @@ int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 	return 0;
 
 error_iio_sw_rb_free:
-	iio_sw_rb_free(indio_dev->ring);
+	lis3l02dq_free_buf(indio_dev->ring);
 	return ret;
 }
