@@ -923,8 +923,6 @@ struct smp_ops_t core99_smp_ops = {
 # if defined(CONFIG_PPC64)
 	.cpu_disable	= generic_cpu_disable,
 	.cpu_die	= generic_cpu_die,
-	/* intentionally do *NOT* assign cpu_enable,
-	 * the generic code will use kick_cpu then! */
 # endif
 #endif
 };

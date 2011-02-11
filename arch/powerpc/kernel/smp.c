@@ -350,21 +350,11 @@ void generic_mach_cpu_die(void)
 }
 #endif
 
-static int __devinit cpu_enable(unsigned int cpu)
-{
-	if (smp_ops && smp_ops->cpu_enable)
-		return smp_ops->cpu_enable(cpu);
-
-	return -ENOSYS;
-}
-
 int __cpuinit __cpu_up(unsigned int cpu)
 {
 	int c;
 
 	secondary_ti = current_set[cpu];
-	if (!cpu_enable(cpu))
-		return 0;
 
 	if (smp_ops == NULL ||
 	    (smp_ops->cpu_bootable && !smp_ops->cpu_bootable(cpu)))
