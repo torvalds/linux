@@ -136,7 +136,7 @@ static void p2m_init(unsigned long *p2m)
  * - After resume we're called from within stop_machine, but the mfn
  *   tree should alreay be completely allocated.
  */
-void xen_build_mfn_list_list(void)
+void __ref xen_build_mfn_list_list(void)
 {
 	unsigned long pfn;
 

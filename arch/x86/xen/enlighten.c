@@ -1292,7 +1292,7 @@ static int init_hvm_pv_info(int *major, int *minor)
 	return 0;
 }
 
-void xen_hvm_init_shared_info(void)
+void __ref xen_hvm_init_shared_info(void)
 {
 	int cpu;
 	struct xen_add_to_physmap xatp;
