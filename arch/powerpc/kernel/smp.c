@@ -317,8 +317,8 @@ int generic_cpu_disable(void)
 	set_cpu_online(cpu, false);
 #ifdef CONFIG_PPC64
 	vdso_data->processorCount--;
-	fixup_irqs(cpu_online_mask);
 #endif
+	migrate_irqs();
 	return 0;
 }
 
