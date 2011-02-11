@@ -5,13 +5,11 @@ Supported chips:
   * Winbond W83627EHF/EHG (ISA access ONLY)
     Prefix: 'w83627ehf'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet:
-        http://www.nuvoton.com.tw/NR/rdonlyres/A6A258F0-F0C9-4F97-81C0-C4D29E7E943E/0/W83627EHF.pdf
+    Datasheet: not available
   * Winbond W83627DHG
     Prefix: 'w83627dhg'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet:
-        http://www.nuvoton.com.tw/NR/rdonlyres/7885623D-A487-4CF9-A47F-30C5F73D6FE6/0/W83627DHG.pdf
+    Datasheet: not available
   * Winbond W83627DHG-P
     Prefix: 'w83627dhg'
     Addresses scanned: ISA address retrieved from Super I/O registers
