@@ -34,6 +34,7 @@
 #include <linux/firmware.h>
 #include <linux/version.h>
 #include <linux/etherdevice.h>
+#include <linux/usb.h>
 #include <net/mac80211.h>
 #include "debug.h"
 
@@ -117,6 +118,9 @@ enum hardware_type {
 	/*keep it last*/
 	HARDWARE_TYPE_NUM
 };
+
+#define IS_HARDWARE_TYPE_8192CE(rtlhal)			\
+	(rtlhal->hw_type == HARDWARE_TYPE_RTL8192CE)
 
 enum scan_operation_backup_opt {
 	SCAN_OPT_BACKUP = 0,
@@ -768,6 +772,7 @@ struct rtl_tid_data {
 struct rtl_priv;
 struct rtl_io {
 	struct device *dev;
+	struct mutex bb_mutex;
 
 	/*PCI MEM map */
 	unsigned long pci_mem_end;	/*shared mem end        */
@@ -779,10 +784,14 @@ struct rtl_io {
 	void (*write8_async) (struct rtl_priv *rtlpriv, u32 addr, u8 val);
 	void (*write16_async) (struct rtl_priv *rtlpriv, u32 addr, u16 val);
 	void (*write32_async) (struct rtl_priv *rtlpriv, u32 addr, u32 val);
+	int (*writeN_async) (struct rtl_priv *rtlpriv, u32 addr, u16 len,
+			     u8 *pdata);
 
 	 u8(*read8_sync) (struct rtl_priv *rtlpriv, u32 addr);
 	 u16(*read16_sync) (struct rtl_priv *rtlpriv, u32 addr);
 	 u32(*read32_sync) (struct rtl_priv *rtlpriv, u32 addr);
+	int (*readN_sync) (struct rtl_priv *rtlpriv, u32 addr, u16 len,
+			    u8 *pdata);
 
 };
 
@@ -1101,6 +1110,7 @@ struct rtl_tcb_desc {
 struct rtl_hal_ops {
 	int (*init_sw_vars) (struct ieee80211_hw *hw);
 	void (*deinit_sw_vars) (struct ieee80211_hw *hw);
+	void (*read_chip_version)(struct ieee80211_hw *hw);
 	void (*read_eeprom_info) (struct ieee80211_hw *hw);
 	void (*interrupt_recognized) (struct ieee80211_hw *hw,
 				      u32 *p_inta, u32 *p_intb);
@@ -1129,7 +1139,8 @@ struct rtl_hal_ops {
 	void (*fill_tx_cmddesc) (struct ieee80211_hw *hw, u8 *pdesc,
 				 bool b_firstseg, bool b_lastseg,
 				 struct sk_buff *skb);
-	 bool(*query_rx_desc) (struct ieee80211_hw *hw,
+	bool (*cmd_send_packet)(struct ieee80211_hw *hw, struct sk_buff *skb);
+	bool(*query_rx_desc) (struct ieee80211_hw *hw,
 			       struct rtl_stats *stats,
 			       struct ieee80211_rx_status *rx_status,
 			       u8 *pdesc, struct sk_buff *skb);
@@ -1166,6 +1177,7 @@ struct rtl_intf_ops {
 
 	int (*adapter_tx) (struct ieee80211_hw *hw, struct sk_buff *skb);
 	int (*reset_trx_ring) (struct ieee80211_hw *hw);
+	bool (*waitq_insert) (struct ieee80211_hw *hw, struct sk_buff *skb);
 
 	/*pci */
 	void (*disable_aspm) (struct ieee80211_hw *hw);
@@ -1179,11 +1191,35 @@ struct rtl_mod_params {
 	int sw_crypto;
 };
 
+struct rtl_hal_usbint_cfg {
+	/* data - rx */
+	u32 in_ep_num;
+	u32 rx_urb_num;
+	u32 rx_max_size;
+
+	/* op - rx */
+	void (*usb_rx_hdl)(struct ieee80211_hw *, struct sk_buff *);
+	void (*usb_rx_segregate_hdl)(struct ieee80211_hw *, struct sk_buff *,
+				     struct sk_buff_head *);
+
+	/* tx */
+	void (*usb_tx_cleanup)(struct ieee80211_hw *, struct sk_buff *);
+	int (*usb_tx_post_hdl)(struct ieee80211_hw *, struct urb *,
+			       struct sk_buff *);
+	struct sk_buff *(*usb_tx_aggregate_hdl)(struct ieee80211_hw *,
+						struct sk_buff_head *);
+
+	/* endpoint mapping */
+	int (*usb_endpoint_mapping)(struct ieee80211_hw *hw);
+	u16 (*usb_mq_to_hwq)(u16 fc, u16 mac80211_queue_index);
+};
+
 struct rtl_hal_cfg {
 	char *name;
 	char *fw_name;
 	struct rtl_hal_ops *ops;
 	struct rtl_mod_params *mod_params;
+	struct rtl_hal_usbint_cfg *usb_interface_cfg;
 
 	/*this map used for some registers or vars
 	   defined int HAL but used in MAIN */
@@ -1202,6 +1238,7 @@ struct rtl_locks {
 	spinlock_t rf_ps_lock;
 	spinlock_t rf_lock;
 	spinlock_t lps_lock;
+	spinlock_t tx_urb_lock;
 };
 
 struct rtl_works {
@@ -1437,10 +1474,8 @@ Set subfield of little-endian 4-byte value to specified value.	*/
 		(_os).octet = (u8 *)(_octet);		\
 		(_os).length = (_len);
 
-#define CP_MACADDR(des, src)	\
-	((des)[0] = (src)[0], (des)[1] = (src)[1],\
-	(des)[2] = (src)[2], (des)[3] = (src)[3],\
-	(des)[4] = (src)[4], (des)[5] = (src)[5])
+#define CP_MACADDR(des, src)		\
+	memcpy((des), (src), ETH_ALEN)
 
 static inline u8 rtl_read_byte(struct rtl_priv *rtlpriv, u32 addr)
 {
