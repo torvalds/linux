@@ -135,6 +135,7 @@ static struct rtl_hal_ops rtl8192ce_hal_ops = {
 	.set_bbreg = rtl92c_phy_set_bb_reg,
 	.get_rfreg = rtl92c_phy_query_rf_reg,
 	.set_rfreg = rtl92c_phy_set_rf_reg,
+	.cmd_send_packet = _rtl92c_cmd_send_packet,
 };
 
 static struct rtl_mod_params rtl92ce_mod_params = {

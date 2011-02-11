@@ -711,4 +711,6 @@ void rtl92ce_tx_polling(struct ieee80211_hw *hw, unsigned int hw_queue);
 void rtl92ce_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 			     bool b_firstseg, bool b_lastseg,
 			     struct sk_buff *skb);
+bool _rtl92c_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb);
+
 #endif
