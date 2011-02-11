@@ -865,7 +865,7 @@ static void __devinit smp_core99_setup_cpu(int cpu_nr)
 }
 
 
-#if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PPC32)
+#ifdef CONFIG_HOTPLUG_CPU
 
 static int smp_core99_cpu_disable(void)
 {
@@ -878,7 +878,9 @@ static int smp_core99_cpu_disable(void)
 	return 0;
 }
 
-void pmac32_cpu_die(void)
+#ifdef CONFIG_PPC32
+
+static void pmac_cpu_die(void)
 {
 	local_irq_disable();
 	idle_task_exit();
@@ -889,7 +891,52 @@ void pmac32_cpu_die(void)
 	low_cpu_die();
 }
 
-#endif /* CONFIG_HOTPLUG_CPU && CONFIG_PP32 */
+#else /* CONFIG_PPC32 */
+
+static void pmac_cpu_die(void)
+{
+	local_irq_disable();
+	idle_task_exit();
+
+	/*
+	 * turn off as much as possible, we'll be
+	 * kicked out as this will only be invoked
+	 * on core99 platforms for now ...
+	 */
+
+	printk(KERN_INFO "CPU#%d offline\n", smp_processor_id());
+	__get_cpu_var(cpu_state) = CPU_DEAD;
+	smp_wmb();
+
+	/*
+	 * during the path that leads here preemption is disabled,
+	 * reenable it now so that when coming up preempt count is
+	 * zero correctly
+	 */
+	preempt_enable();
+
+	/*
+	 * hard-disable interrupts for the non-NAP case, the NAP code
+	 * needs to re-enable interrupts (but soft-disables them)
+	 */
+	hard_irq_disable();
+
+	while (1) {
+		/* let's not take timer interrupts too often ... */
+		set_dec(0x7fffffff);
+
+		/* should always be true at this point */
+		if (cpu_has_feature(CPU_FTR_CAN_NAP))
+			power4_cpu_offline_powersave();
+		else {
+			HMT_low();
+			HMT_very_low();
+		}
+	}
+}
+
+#endif /* else CONFIG_PPC32 */
+#endif /* CONFIG_HOTPLUG_CPU */
 
 /* Core99 Macs (dual G4s and G5s) */
 struct smp_ops_t core99_smp_ops = {
@@ -933,5 +980,10 @@ void __init pmac_setup_smp(void)
 		smp_ops = &psurge_smp_ops;
 	}
 #endif /* CONFIG_PPC32 */
+
+#ifdef CONFIG_HOTPLUG_CPU
+	ppc_md.cpu_die = pmac_cpu_die;
+#endif
 }
+
 
