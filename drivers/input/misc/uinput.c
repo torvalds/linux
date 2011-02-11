@@ -347,8 +347,7 @@ static int uinput_setup_device(struct uinput_device *udev, const char __user *bu
 {
 	struct uinput_user_dev	*user_dev;
 	struct input_dev	*dev;
-	char			*name;
-	int			i, size;
+	int			i;
 	int			retval;
 
 	if (count != sizeof(struct uinput_user_dev))
@@ -373,19 +372,19 @@ static int uinput_setup_device(struct uinput_device *udev, const char __user *bu
 
 	udev->ff_effects_max = user_dev->ff_effects_max;
 
-	size = strnlen(user_dev->name, UINPUT_MAX_NAME_SIZE) + 1;
-	if (!size) {
+	/* Ensure name is filled in */
+	if (!user_dev->name[0]) {
 		retval = -EINVAL;
 		goto exit;
 	}
 
 	kfree(dev->name);
-	dev->name = name = kmalloc(size, GFP_KERNEL);
-	if (!name) {
+	dev->name = kstrndup(user_dev->name, UINPUT_MAX_NAME_SIZE,
+			     GFP_KERNEL);
+	if (!dev->name) {
 		retval = -ENOMEM;
 		goto exit;
 	}
-	strlcpy(name, user_dev->name, size);
 
 	dev->id.bustype	= user_dev->id.bustype;
 	dev->id.vendor	= user_dev->id.vendor;
