@@ -1536,21 +1536,21 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 	}
 
 	if (current == mdev->tconn->worker.task) {
-		/* The worker should not sleep waiting for drbd_state_lock(),
+		/* The worker should not sleep waiting for state_mutex,
 		   that can take long */
-		if (test_and_set_bit(CLUSTER_ST_CHANGE, &mdev->flags)) {
+		if (!mutex_trylock(&mdev->state_mutex)) {
 			set_bit(B_RS_H_DONE, &mdev->flags);
 			mdev->start_resync_timer.expires = jiffies + HZ/5;
 			add_timer(&mdev->start_resync_timer);
 			return;
 		}
 	} else {
-		drbd_state_lock(mdev);
+		mutex_lock(&mdev->state_mutex);
 	}
 	clear_bit(B_RS_H_DONE, &mdev->flags);
 
 	if (!get_ldev_if_state(mdev, D_NEGOTIATING)) {
-		drbd_state_unlock(mdev);
+		mutex_unlock(&mdev->state_mutex);
 		return;
 	}
 
@@ -1639,7 +1639,7 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 		drbd_md_sync(mdev);
 	}
 	put_ldev(mdev);
-	drbd_state_unlock(mdev);
+	mutex_unlock(&mdev->state_mutex);
 }
 
 static int _worker_dying(int vnr, void *p, void *data)

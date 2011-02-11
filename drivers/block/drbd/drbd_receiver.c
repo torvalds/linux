@@ -3167,7 +3167,8 @@ static int receive_uuids(struct drbd_conf *mdev, enum drbd_packet cmd,
 	   ongoing cluster wide state change is finished. That is important if
 	   we are primary and are detaching from our disk. We need to see the
 	   new disk state... */
-	wait_event(mdev->misc_wait, !test_bit(CLUSTER_ST_CHANGE, &mdev->flags));
+	mutex_lock(&mdev->state_mutex);
+	mutex_unlock(&mdev->state_mutex);
 	if (mdev->state.conn >= C_CONNECTED && mdev->state.disk < D_INCONSISTENT)
 		updated_uuids |= drbd_set_ed_uuid(mdev, p_uuid[UI_CURRENT]);
 
@@ -3218,7 +3219,7 @@ static int receive_req_state(struct drbd_conf *mdev, enum drbd_packet cmd,
 	val.i = be32_to_cpu(p->val);
 
 	if (test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags) &&
-	    test_bit(CLUSTER_ST_CHANGE, &mdev->flags)) {
+	    mutex_is_locked(&mdev->state_mutex)) {
 		drbd_send_sr_reply(mdev, SS_CONCURRENT_ST_CHG);
 		return true;
 	}

@@ -764,7 +764,6 @@ enum {
 	UNPLUG_REMOTE,		/* sending a "UnplugRemote" could help */
 	MD_DIRTY,		/* current uuids and flags not yet on disk */
 	USE_DEGR_WFC_T,		/* degr-wfc-timeout instead of wfc-timeout. */
-	CLUSTER_ST_CHANGE,	/* Cluster wide state change going on... */
 	CL_ST_CHG_SUCCESS,
 	CL_ST_CHG_FAIL,
 	CRASHED_PRIMARY,	/* This node was a crashed primary.
@@ -1662,23 +1661,6 @@ static inline int drbd_ee_has_active_page(struct drbd_peer_request *peer_req)
 			return 1;
 	}
 	return 0;
-}
-
-
-
-
-
-
-static inline void drbd_state_lock(struct drbd_conf *mdev)
-{
-	wait_event(mdev->misc_wait,
-		   !test_and_set_bit(CLUSTER_ST_CHANGE, &mdev->flags));
-}
-
-static inline void drbd_state_unlock(struct drbd_conf *mdev)
-{
-	clear_bit(CLUSTER_ST_CHANGE, &mdev->flags);
-	wake_up(&mdev->misc_wait);
 }
 
 static inline enum drbd_state_rv

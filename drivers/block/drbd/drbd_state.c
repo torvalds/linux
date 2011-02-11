@@ -184,9 +184,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 			goto abort;
 		}
 
-		drbd_state_lock(mdev);
 		if (!drbd_send_state_req(mdev, mask, val)) {
-			drbd_state_unlock(mdev);
 			rv = SS_CW_FAILED_BY_PEER;
 			if (f & CS_VERBOSE)
 				print_st_err(mdev, os, ns, rv);
@@ -197,7 +195,6 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 			(rv = _req_st_cond(mdev, mask, val)));
 
 		if (rv < SS_SUCCESS) {
-			drbd_state_unlock(mdev);
 			if (f & CS_VERBOSE)
 				print_st_err(mdev, os, ns, rv);
 			goto abort;
@@ -205,7 +202,6 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 		spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 		ns = apply_mask_val(mdev->state, mask, val);
 		rv = _drbd_set_state(mdev, ns, f, &done);
-		drbd_state_unlock(mdev);
 	} else {
 		rv = _drbd_set_state(mdev, ns, f, &done);
 	}
