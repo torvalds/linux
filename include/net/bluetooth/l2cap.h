@@ -89,6 +89,8 @@ struct l2cap_conninfo {
 #define L2CAP_ECHO_RSP		0x09
 #define L2CAP_INFO_REQ		0x0a
 #define L2CAP_INFO_RSP		0x0b
+#define L2CAP_CONN_PARAM_UPDATE_REQ	0x12
+#define L2CAP_CONN_PARAM_UPDATE_RSP	0x13
 
 /* L2CAP feature mask */
 #define L2CAP_FEAT_FLOWCTL	0x00000001
