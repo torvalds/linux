@@ -2501,6 +2501,63 @@ static inline int l2cap_information_rsp(struct l2cap_conn *conn, struct l2cap_cm
 	return 0;
 }
 
+static int inline l2cap_check_conn_param(u16 min, u16 max, u16 latency,
+							u16 to_multiplier)
+{
+	u16 max_latency;
+
+	if (min > max || min < 6 || max > 3200)
+		return -EINVAL;
+
+	if (to_multiplier < 10 || to_multiplier > 3200)
+		return -EINVAL;
+
+	if (max >= to_multiplier * 8)
+		return -EINVAL;
+
+	max_latency = (to_multiplier * 8 / max) - 1;
+	if (latency > 499 || latency > max_latency)
+		return -EINVAL;
+
+	return 0;
+}
+
+static inline int l2cap_conn_param_update_req(struct l2cap_conn *conn,
+					struct l2cap_cmd_hdr *cmd, u8 *data)
+{
+	struct hci_conn *hcon = conn->hcon;
+	struct l2cap_conn_param_update_req *req;
+	struct l2cap_conn_param_update_rsp rsp;
+	u16 min, max, latency, to_multiplier, cmd_len;
+
+	if (!(hcon->link_mode & HCI_LM_MASTER))
+		return -EINVAL;
+
+	cmd_len = __le16_to_cpu(cmd->len);
+	if (cmd_len != sizeof(struct l2cap_conn_param_update_req))
+		return -EPROTO;
+
+	req = (struct l2cap_conn_param_update_req *) data;
+	min 		= __le16_to_cpu(req->min);
+	max 		= __le16_to_cpu(req->max);
+	latency		= __le16_to_cpu(req->latency);
+	to_multiplier	= __le16_to_cpu(req->to_multiplier);
+
+	BT_DBG("min 0x%4.4x max 0x%4.4x latency: 0x%4.4x Timeout: 0x%4.4x",
+						min, max, latency, to_multiplier);
+
+	memset(&rsp, 0, sizeof(rsp));
+	if (l2cap_check_conn_param(min, max, latency, to_multiplier))
+		rsp.result = cpu_to_le16(L2CAP_CONN_PARAM_REJECTED);
+	else
+		rsp.result = cpu_to_le16(L2CAP_CONN_PARAM_ACCEPTED);
+
+	l2cap_send_cmd(conn, cmd->ident, L2CAP_CONN_PARAM_UPDATE_RSP,
+							sizeof(rsp), &rsp);
+
+	return 0;
+}
+
 static inline int l2cap_bredr_sig_cmd(struct l2cap_conn *conn,
 			struct l2cap_cmd_hdr *cmd, u16 cmd_len, u8 *data)
 {
@@ -2567,7 +2624,7 @@ static inline int l2cap_le_sig_cmd(struct l2cap_conn *conn,
 		return 0;
 
 	case L2CAP_CONN_PARAM_UPDATE_REQ:
-		return -EINVAL;
+		return l2cap_conn_param_update_req(conn, cmd, data);
 
 	case L2CAP_CONN_PARAM_UPDATE_RSP:
 		return 0;

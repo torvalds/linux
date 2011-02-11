@@ -261,6 +261,21 @@ struct l2cap_info_rsp {
 #define L2CAP_IR_SUCCESS    0x0000
 #define L2CAP_IR_NOTSUPP    0x0001
 
+struct l2cap_conn_param_update_req {
+	__le16      min;
+	__le16      max;
+	__le16      latency;
+	__le16      to_multiplier;
+} __packed;
+
+struct l2cap_conn_param_update_rsp {
+	__le16      result;
+} __packed;
+
+/* Connection Parameters result */
+#define L2CAP_CONN_PARAM_ACCEPTED	0x0000
+#define L2CAP_CONN_PARAM_REJECTED	0x0001
+
 /* ----- L2CAP connections ----- */
 struct l2cap_chan_list {
 	struct sock	*head;
