@@ -103,7 +103,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	len = min_t(unsigned int, sizeof(la), alen);
 	memcpy(&la, addr, len);
 
-	if (la.l2_cid)
+	if (la.l2_cid && la.l2_psm)
 		return -EINVAL;
 
 	lock_sock(sk);
@@ -144,6 +144,9 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 					__le16_to_cpu(la.l2_psm) == 0x0003)
 			l2cap_pi(sk)->sec_level = BT_SECURITY_SDP;
 	}
+
+	if (la.l2_cid)
+		l2cap_pi(sk)->scid = la.l2_cid;
 
 	write_unlock_bh(&l2cap_sk_list.lock);
 
@@ -266,7 +269,7 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 		goto done;
 	}
 
-	if (!l2cap_pi(sk)->psm) {
+	if (!l2cap_pi(sk)->psm && !l2cap_pi(sk)->dcid) {
 		bdaddr_t *src = &bt_sk(sk)->src;
 		u16 psm;
 
