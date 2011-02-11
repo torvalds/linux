@@ -73,7 +73,7 @@ struct iio_ring_access_funcs {
 	int (*read_last)(struct iio_ring_buffer *ring, u8 *data);
 	int (*rip_lots)(struct iio_ring_buffer *ring,
 			size_t count,
-			u8 **data,
+			char __user *buf,
 			int *dead_offset);
 
 	int (*mark_param_change)(struct iio_ring_buffer *ring);
