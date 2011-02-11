@@ -880,29 +880,15 @@ int smp_core99_cpu_disable(void)
 	return 0;
 }
 
-static int cpu_dead[NR_CPUS];
-
 void pmac32_cpu_die(void)
 {
 	local_irq_disable();
-	cpu_dead[smp_processor_id()] = 1;
+	idle_task_exit();
+	printk(KERN_DEBUG "CPU%d offline\n", smp_processor_id());
+	__get_cpu_var(cpu_state) = CPU_DEAD;
+	smp_wmb();
 	mb();
 	low_cpu_die();
-}
-
-void smp_core99_cpu_die(unsigned int cpu)
-{
-	int timeout;
-
-	timeout = 1000;
-	while (!cpu_dead[cpu]) {
-		if (--timeout == 0) {
-			printk("CPU %u refused to die!\n", cpu);
-			break;
-		}
-		msleep(1);
-	}
-	cpu_dead[cpu] = 0;
 }
 
 #endif /* CONFIG_HOTPLUG_CPU && CONFIG_PP32 */
@@ -918,12 +904,11 @@ struct smp_ops_t core99_smp_ops = {
 #if defined(CONFIG_HOTPLUG_CPU)
 # if defined(CONFIG_PPC32)
 	.cpu_disable	= smp_core99_cpu_disable,
-	.cpu_die	= smp_core99_cpu_die,
 # endif
 # if defined(CONFIG_PPC64)
 	.cpu_disable	= generic_cpu_disable,
-	.cpu_die	= generic_cpu_die,
 # endif
+	.cpu_die	= generic_cpu_die,
 #endif
 };
 

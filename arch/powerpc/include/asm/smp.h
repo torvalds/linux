@@ -45,6 +45,7 @@ extern void fixup_irqs(const struct cpumask *map);
 int generic_cpu_disable(void);
 void generic_cpu_die(unsigned int cpu);
 void generic_mach_cpu_die(void);
+DECLARE_PER_CPU(int, cpu_state);
 #endif
 
 #ifdef CONFIG_PPC64
