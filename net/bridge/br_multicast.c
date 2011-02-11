@@ -1178,7 +1178,7 @@ static int br_ip4_multicast_query(struct net_bridge *br,
 		if (timer_pending(&p->timer) ?
 		    time_after(p->timer.expires, now + max_delay) :
 		    try_to_del_timer_sync(&p->timer) >= 0)
-			mod_timer(&mp->timer, now + max_delay);
+			mod_timer(&p->timer, now + max_delay);
 	}
 
 out:
@@ -1249,7 +1249,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		if (timer_pending(&p->timer) ?
 		    time_after(p->timer.expires, now + max_delay) :
 		    try_to_del_timer_sync(&p->timer) >= 0)
-			mod_timer(&mp->timer, now + max_delay);
+			mod_timer(&p->timer, now + max_delay);
 	}
 
 out:
