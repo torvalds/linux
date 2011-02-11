@@ -339,8 +339,8 @@ static int hp_sw_bus_attach(struct scsi_device *sdev)
 	unsigned long flags;
 	int ret;
 
-	scsi_dh_data = kzalloc(sizeof(struct scsi_device_handler *)
-			       + sizeof(struct hp_sw_dh_data) , GFP_KERNEL);
+	scsi_dh_data = kzalloc(sizeof(*scsi_dh_data)
+			       + sizeof(*h) , GFP_KERNEL);
 	if (!scsi_dh_data) {
 		sdev_printk(KERN_ERR, sdev, "%s: Attach Failed\n",
 			    HP_SW_NAME);
