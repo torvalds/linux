@@ -1359,15 +1359,9 @@ static struct snd_soc_dai_ops twl6040_dai_ops = {
 	.set_sysclk	= twl6040_set_dai_sysclk,
 };
 
-static struct snd_soc_dai_driver twl6040_dai = {
-	.name = "twl6040-hifi",
-	.playback = {
-		.stream_name = "Playback",
-		.channels_min = 1,
-		.channels_max = 4,
-		.rates = TWL6040_RATES,
-		.formats = TWL6040_FORMATS,
-	},
+static struct snd_soc_dai_driver twl6040_dai[] = {
+{
+	.name = "twl6040-ul",
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 1,
@@ -1376,6 +1370,40 @@ static struct snd_soc_dai_driver twl6040_dai = {
 		.formats = TWL6040_FORMATS,
 	},
 	.ops = &twl6040_dai_ops,
+},
+{
+	.name = "twl6040-dl1",
+	.playback = {
+		.stream_name = "Headset Playback",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = TWL6040_RATES,
+		.formats = TWL6040_FORMATS,
+	},
+	.ops = &twl6040_dai_ops,
+},
+{
+	.name = "twl6040-dl2",
+	.playback = {
+		.stream_name = "Handsfree Playback",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = TWL6040_RATES,
+		.formats = TWL6040_FORMATS,
+	},
+	.ops = &twl6040_dai_ops,
+},
+{
+	.name = "twl6040-vib",
+	.playback = {
+		.stream_name = "Vibra Playback",
+		.channels_min = 2,
+		.channels_max = 2,
+		.rates = SNDRV_PCM_RATE_CONTINUOUS,
+		.formats = TWL6040_FORMATS,
+	},
+	.ops = &twl6040_dai_ops,
+},
 };
 
 #ifdef CONFIG_PM
@@ -1502,8 +1530,8 @@ static struct snd_soc_codec_driver soc_codec_dev_twl6040 = {
 
 static int __devinit twl6040_codec_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev,
-			&soc_codec_dev_twl6040, &twl6040_dai, 1);
+	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_twl6040,
+				      twl6040_dai, ARRAY_SIZE(twl6040_dai));
 }
 
 static int __devexit twl6040_codec_remove(struct platform_device *pdev)
