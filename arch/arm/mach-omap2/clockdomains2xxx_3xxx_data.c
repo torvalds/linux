@@ -89,6 +89,8 @@ static struct clkdm_dep gfx_sgx_wkdeps[] = {
 
 /* 24XX-specific possible dependencies */
 
+#ifdef CONFIG_ARCH_OMAP2
+
 /* Wakeup dependency source arrays */
 
 /* 2420/2430 PM_WKDEP_DSP: CORE, MPU, WKUP */
@@ -168,6 +170,7 @@ static struct clkdm_dep core_24xx_wkdeps[] = {
 	{ NULL },
 };
 
+#endif /* CONFIG_ARCH_OMAP2 */
 
 /* 2430-specific possible wakeup dependencies */
 
