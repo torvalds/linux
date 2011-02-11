@@ -58,7 +58,7 @@ static int adxl34x_spi_read_block(struct device *dev,
 	return (status < 0) ? status : 0;
 }
 
-static const struct adxl34x_bus_ops adx134x_spi_bops = {
+static const struct adxl34x_bus_ops adxl34x_spi_bops = {
 	.bustype	= BUS_SPI,
 	.write		= adxl34x_spi_write,
 	.read		= adxl34x_spi_read,
@@ -77,7 +77,7 @@ static int __devinit adxl34x_spi_probe(struct spi_device *spi)
 
 	ac = adxl34x_probe(&spi->dev, spi->irq,
 			   spi->max_speed_hz > MAX_FREQ_NO_FIFODELAY,
-			   &adx134x_spi_bops);
+			   &adxl34x_spi_bops);
 
 	if (IS_ERR(ac))
 		return PTR_ERR(ac);
