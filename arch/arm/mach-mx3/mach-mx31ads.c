@@ -144,7 +144,7 @@ static void mx31ads_expio_irq_handler(u32 irq, struct irq_desc *desc)
 
 /*
  * Disable an expio pin's interrupt by setting the bit in the imr.
- * @param irq           an expio virtual irq number
+ * @param d	an expio virtual irq description
  */
 static void expio_mask_irq(struct irq_data *d)
 {
@@ -156,7 +156,7 @@ static void expio_mask_irq(struct irq_data *d)
 
 /*
  * Acknowledge an expanded io pin's interrupt by clearing the bit in the isr.
- * @param irq           an expanded io virtual irq number
+ * @param d	an expio virtual irq description
  */
 static void expio_ack_irq(struct irq_data *d)
 {
@@ -167,7 +167,7 @@ static void expio_ack_irq(struct irq_data *d)
 
 /*
  * Enable a expio pin's interrupt by clearing the bit in the imr.
- * @param irq           a expio virtual irq number
+ * @param d	an expio virtual irq description
  */
 static void expio_unmask_irq(struct irq_data *d)
 {
