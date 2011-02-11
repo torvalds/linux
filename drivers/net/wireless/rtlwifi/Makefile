@@ -8,6 +8,7 @@ rtlwifi-objs	:=		\
 		pci.o		\
 		ps.o		\
 		rc.o		\
-		regd.o
+		regd.o		\
+		usb.o
 
 obj-$(CONFIG_RTL8192CE)		+= rtl8192ce/
