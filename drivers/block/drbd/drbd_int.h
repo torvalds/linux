@@ -917,8 +917,9 @@ enum {
 struct drbd_tconn {			/* is a resource from the config file */
 	char *name;			/* Resource name */
 	struct list_head all_tconn;	/* List of all drbd_tconn, prot by global_state_lock */
-	struct idr volumes;             /* <tconn, vnr> to mdev mapping */
-	enum drbd_conns cstate;        /* Only C_STANDALONE to C_WF_REPORT_PARAMS */
+	struct idr volumes;		/* <tconn, vnr> to mdev mapping */
+	enum drbd_conns cstate;		/* Only C_STANDALONE to C_WF_REPORT_PARAMS */
+	struct mutex cstate_mutex;	/* Protects graceful disconnects */
 
 	unsigned long flags;
 	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
@@ -1080,7 +1081,8 @@ struct drbd_conf {
 	unsigned long comm_bm_set; /* communicated number of set bits. */
 	struct bm_io_work bm_io_work;
 	u64 ed_uuid; /* UUID of the exposed data */
-	struct mutex state_mutex;
+	struct mutex own_state_mutex;
+	struct mutex *state_mutex; /* either own_state_mutex or mdev->tconn->cstate_mutex */
 	char congestion_reason;  /* Why we where congested... */
 	atomic_t rs_sect_in; /* for incoming resync data rate, SyncTarget */
 	atomic_t rs_sect_ev; /* for submitted resync data rate, both */
