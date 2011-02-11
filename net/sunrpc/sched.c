@@ -836,12 +836,6 @@ struct rpc_task *rpc_new_task(const struct rpc_task_setup *setup_data)
 	}
 
 	rpc_init_task(task, setup_data);
-	if (task->tk_status < 0) {
-		int err = task->tk_status;
-		rpc_put_task(task);
-		return ERR_PTR(err);
-	}
-
 	task->tk_flags |= flags;
 	dprintk("RPC:       allocated task %p\n", task);
 	return task;
