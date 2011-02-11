@@ -229,7 +229,7 @@ void __init mx31lite_map_io(void)
 static int mx31lite_baseboard;
 core_param(mx31lite_baseboard, mx31lite_baseboard, int, 0444);
 
-static void __init mxc_board_init(void)
+static void __init mx31lite_init(void)
 {
 	int ret;
 
@@ -288,5 +288,5 @@ MACHINE_START(MX31LITE, "LogicPD i.MX31 SOM")
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.timer = &mx31lite_timer,
-	.init_machine = mxc_board_init,
+	.init_machine = mx31lite_init,
 MACHINE_END

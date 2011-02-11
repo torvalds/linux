@@ -507,7 +507,7 @@ core_param(mx31moboard_baseboard, mx31moboard_baseboard, int, 0444);
 /*
  * Board specific initialization.
  */
-static void __init mxc_board_init(void)
+static void __init mx31moboard_init(void)
 {
 	mxc_iomux_setup_multiple_pins(moboard_pins, ARRAY_SIZE(moboard_pins),
 		"moboard");
@@ -573,5 +573,5 @@ MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.timer = &mx31moboard_timer,
-	.init_machine = mxc_board_init,
+	.init_machine = mx31moboard_init,
 MACHINE_END

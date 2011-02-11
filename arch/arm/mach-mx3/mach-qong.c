@@ -247,7 +247,7 @@ static void __init qong_init_fpga(void)
 /*
  * Board specific initialization.
  */
-static void __init mxc_board_init(void)
+static void __init qong_init(void)
 {
 	mxc_init_imx_uart();
 	qong_init_nor_mtd();
@@ -275,5 +275,5 @@ MACHINE_START(QONG, "Dave/DENX QongEVB-LITE")
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.timer = &qong_timer,
-	.init_machine = mxc_board_init,
+	.init_machine = qong_init,
 MACHINE_END

@@ -524,10 +524,7 @@ static void __init mx31ads_init_irq(void)
 	mx31ads_init_expio();
 }
 
-/*!
- * Board specific initialization.
- */
-static void __init mxc_board_init(void)
+static void __init mx31ads_init(void)
 {
 	mxc_init_extuart();
 	mxc_init_imx_uart();
@@ -555,5 +552,5 @@ MACHINE_START(MX31ADS, "Freescale MX31ADS")
 	.init_early = imx31_init_early,
 	.init_irq = mx31ads_init_irq,
 	.timer = &mx31ads_timer,
-	.init_machine = mxc_board_init,
+	.init_machine = mx31ads_init,
 MACHINE_END

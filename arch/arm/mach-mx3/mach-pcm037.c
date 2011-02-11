@@ -578,7 +578,7 @@ __setup("otg_mode=", pcm037_otg_mode);
 /*
  * Board specific initialization.
  */
-static void __init mxc_board_init(void)
+static void __init pcm037_init(void)
 {
 	int ret;
 
@@ -690,5 +690,5 @@ MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.timer = &pcm037_timer,
-	.init_machine = mxc_board_init,
+	.init_machine = pcm037_init,
 MACHINE_END

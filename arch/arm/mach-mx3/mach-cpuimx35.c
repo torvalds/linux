@@ -156,7 +156,7 @@ __setup("otg_mode=", eukrea_cpuimx35_otg_mode);
 /*
  * Board specific initialization.
  */
-static void __init mxc_board_init(void)
+static void __init eukrea_cpuimx35_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(eukrea_cpuimx35_pads,
 			ARRAY_SIZE(eukrea_cpuimx35_pads));
@@ -199,5 +199,5 @@ MACHINE_START(EUKREA_CPUIMX35, "Eukrea CPUIMX35")
 	.init_ext3_fs = imx35_init_early,
 	.init_irq = mx35_init_irq,
 	.timer = &eukrea_cpuimx35_timer,
-	.init_machine = mxc_board_init,
+	.init_machine = eukrea_cpuimx35_init,
 MACHINE_END

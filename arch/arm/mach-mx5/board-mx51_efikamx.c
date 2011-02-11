@@ -303,7 +303,7 @@ void mx51_efikamx_reset(void)
 		gpio_direction_output(EFIKAMX_RESET, 0);
 }
 
-static void __init mxc_board_init(void)
+static void __init mx51_efikamx_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx51efikamx_pads,
 					ARRAY_SIZE(mx51efikamx_pads));
@@ -341,8 +341,8 @@ static void __init mx51_efikamx_timer_init(void)
 	mx51_clocks_init(32768, 24000000, 22579200, 24576000);
 }
 
-static struct sys_timer mxc_timer = {
-	.init	= mx51_efikamx_timer_init,
+static struct sys_timer mx51_efikamx_timer = {
+	.init = mx51_efikamx_timer_init,
 };
 
 MACHINE_START(MX51_EFIKAMX, "Genesi EfikaMX nettop")
@@ -351,6 +351,6 @@ MACHINE_START(MX51_EFIKAMX, "Genesi EfikaMX nettop")
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
-	.timer = &mxc_timer,
-	.init_machine =  mxc_board_init,
+	.timer = &mx51_efikamx_timer,
+	.init_machine = mx51_efikamx_init,
 MACHINE_END

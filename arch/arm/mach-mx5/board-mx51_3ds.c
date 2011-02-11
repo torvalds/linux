@@ -133,7 +133,7 @@ static struct spi_board_info mx51_3ds_spi_nor_device[] = {
 /*
  * Board specific initialization.
  */
-static void __init mxc_board_init(void)
+static void __init mx51_3ds_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx51_3ds_pads,
 					ARRAY_SIZE(mx51_3ds_pads));
@@ -160,8 +160,8 @@ static void __init mx51_3ds_timer_init(void)
 	mx51_clocks_init(32768, 24000000, 22579200, 0);
 }
 
-static struct sys_timer mxc_timer = {
-	.init	= mx51_3ds_timer_init,
+static struct sys_timer mx51_3ds_timer = {
+	.init = mx51_3ds_timer_init,
 };
 
 MACHINE_START(MX51_3DS, "Freescale MX51 3-Stack Board")
@@ -170,6 +170,6 @@ MACHINE_START(MX51_3DS, "Freescale MX51 3-Stack Board")
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
-	.timer = &mxc_timer,
-	.init_machine = mxc_board_init,
+	.timer = &mx51_3ds_timer,
+	.init_machine = mx51_3ds_init,
 MACHINE_END

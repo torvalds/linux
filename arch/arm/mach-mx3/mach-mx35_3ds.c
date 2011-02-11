@@ -166,7 +166,7 @@ __setup("otg_mode=", mx35_3ds_otg_mode);
 /*
  * Board specific initialization.
  */
-static void __init mxc_board_init(void)
+static void __init mx35_3ds_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx35pdk_pads, ARRAY_SIZE(mx35pdk_pads));
 
@@ -208,5 +208,5 @@ MACHINE_START(MX35_3DS, "Freescale MX35PDK")
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
 	.timer = &mx35pdk_timer,
-	.init_machine = mxc_board_init,
+	.init_machine = mx35_3ds_init,
 MACHINE_END

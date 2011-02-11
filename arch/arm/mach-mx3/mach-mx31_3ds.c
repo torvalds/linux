@@ -327,10 +327,7 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-/*!
- * Board specific initialization.
- */
-static void __init mxc_board_init(void)
+static void __init mx31_3ds_init(void)
 {
 	mxc_iomux_setup_multiple_pins(mx31_3ds_pins, ARRAY_SIZE(mx31_3ds_pins),
 				      "mx31_3ds");
@@ -385,5 +382,5 @@ MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.timer = &mx31_3ds_timer,
-	.init_machine = mxc_board_init,
+	.init_machine = mx31_3ds_init,
 MACHINE_END

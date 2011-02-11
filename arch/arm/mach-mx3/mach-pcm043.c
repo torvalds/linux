@@ -351,7 +351,7 @@ __setup("otg_mode=", pcm043_otg_mode);
 /*
  * Board specific initialization.
  */
-static void __init mxc_board_init(void)
+static void __init pcm043_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(pcm043_pads, ARRAY_SIZE(pcm043_pads));
 
@@ -418,5 +418,5 @@ MACHINE_START(PCM043, "Phytec Phycore pcm043")
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
 	.timer = &pcm043_timer,
-	.init_machine = mxc_board_init,
+	.init_machine = pcm043_init,
 MACHINE_END

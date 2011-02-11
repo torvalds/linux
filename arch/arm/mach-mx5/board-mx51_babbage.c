@@ -341,7 +341,7 @@ static const struct spi_imx_master mx51_babbage_spi_pdata __initconst = {
 /*
  * Board specific initialization.
  */
-static void __init mxc_board_init(void)
+static void __init mx51_babbage_init(void)
 {
 	iomux_v3_cfg_t usbh1stp = MX51_PAD_USBH1_STP__USBH1_STP;
 	iomux_v3_cfg_t power_key = _MX51_PAD_EIM_A27__GPIO2_21 |
@@ -395,8 +395,8 @@ static void __init mx51_babbage_timer_init(void)
 	mx51_clocks_init(32768, 24000000, 22579200, 0);
 }
 
-static struct sys_timer mxc_timer = {
-	.init	= mx51_babbage_timer_init,
+static struct sys_timer mx51_babbage_timer = {
+	.init = mx51_babbage_timer_init,
 };
 
 MACHINE_START(MX51_BABBAGE, "Freescale MX51 Babbage Board")
@@ -405,6 +405,6 @@ MACHINE_START(MX51_BABBAGE, "Freescale MX51 Babbage Board")
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
-	.timer = &mxc_timer,
-	.init_machine = mxc_board_init,
+	.timer = &mx51_babbage_timer,
+	.init_machine = mx51_babbage_init,
 MACHINE_END
