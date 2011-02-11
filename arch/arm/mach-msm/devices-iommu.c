@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,15 +18,13 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/bootmem.h>
-
-#include <mach/msm_iomap-8x60.h>
-#include <mach/irqs-8x60.h>
+#include <mach/irqs.h>
 #include <mach/iommu.h>
 
 static struct resource msm_iommu_jpegd_resources[] = {
 	{
-		.start = MSM_IOMMU_JPEGD_PHYS,
-		.end   = MSM_IOMMU_JPEGD_PHYS + MSM_IOMMU_JPEGD_SIZE - 1,
+		.start = 0x07300000,
+		.end   = 0x07300000 + SZ_1M - 1,
 		.name  = "physbase",
 		.flags = IORESOURCE_MEM,
 	},
@@ -46,8 +44,8 @@ static struct resource msm_iommu_jpegd_resources[] = {
 
 static struct resource msm_iommu_vpe_resources[] = {
 	{
-		.start = MSM_IOMMU_VPE_PHYS,
-		.end   = MSM_IOMMU_VPE_PHYS + MSM_IOMMU_VPE_SIZE - 1,
+		.start = 0x07400000,
+		.end   = 0x07400000 + SZ_1M - 1,
 		.name  = "physbase",
 		.flags = IORESOURCE_MEM,
 	},
@@ -67,8 +65,8 @@ static struct resource msm_iommu_vpe_resources[] = {
 
 static struct resource msm_iommu_mdp0_resources[] = {
 	{
-		.start = MSM_IOMMU_MDP0_PHYS,
-		.end   = MSM_IOMMU_MDP0_PHYS + MSM_IOMMU_MDP0_SIZE - 1,
+		.start = 0x07500000,
+		.end   = 0x07500000 + SZ_1M - 1,
 		.name  = "physbase",
 		.flags = IORESOURCE_MEM,
 	},
@@ -88,8 +86,8 @@ static struct resource msm_iommu_mdp0_resources[] = {
 
 static struct resource msm_iommu_mdp1_resources[] = {
 	{
-		.start = MSM_IOMMU_MDP1_PHYS,
-		.end   = MSM_IOMMU_MDP1_PHYS + MSM_IOMMU_MDP1_SIZE - 1,
+		.start = 0x07600000,
+		.end   = 0x07600000 + SZ_1M - 1,
 		.name  = "physbase",
 		.flags = IORESOURCE_MEM,
 	},
@@ -109,8 +107,8 @@ static struct resource msm_iommu_mdp1_resources[] = {
 
 static struct resource msm_iommu_rot_resources[] = {
 	{
-		.start = MSM_IOMMU_ROT_PHYS,
-		.end   = MSM_IOMMU_ROT_PHYS + MSM_IOMMU_ROT_SIZE - 1,
+		.start = 0x07700000,
+		.end   = 0x07700000 + SZ_1M - 1,
 		.name  = "physbase",
 		.flags = IORESOURCE_MEM,
 	},
@@ -130,8 +128,8 @@ static struct resource msm_iommu_rot_resources[] = {
 
 static struct resource msm_iommu_ijpeg_resources[] = {
 	{
-		.start = MSM_IOMMU_IJPEG_PHYS,
-		.end   = MSM_IOMMU_IJPEG_PHYS + MSM_IOMMU_IJPEG_SIZE - 1,
+		.start = 0x07800000,
+		.end   = 0x07800000 + SZ_1M - 1,
 		.name  = "physbase",
 		.flags = IORESOURCE_MEM,
 	},
@@ -151,8 +149,8 @@ static struct resource msm_iommu_ijpeg_resources[] = {
 
 static struct resource msm_iommu_vfe_resources[] = {
 	{
-		.start = MSM_IOMMU_VFE_PHYS,
-		.end   = MSM_IOMMU_VFE_PHYS + MSM_IOMMU_VFE_SIZE - 1,
+		.start = 0x07900000,
+		.end   = 0x07900000 + SZ_1M - 1,
 		.name  = "physbase",
 		.flags = IORESOURCE_MEM,
 	},
@@ -172,8 +170,8 @@ static struct resource msm_iommu_vfe_resources[] = {
 
 static struct resource msm_iommu_vcodec_a_resources[] = {
 	{
-		.start = MSM_IOMMU_VCODEC_A_PHYS,
-		.end   = MSM_IOMMU_VCODEC_A_PHYS + MSM_IOMMU_VCODEC_A_SIZE - 1,
+		.start = 0x07A00000,
+		.end   = 0x07A00000 + SZ_1M - 1,
 		.name  = "physbase",
 		.flags = IORESOURCE_MEM,
 	},
@@ -193,8 +191,8 @@ static struct resource msm_iommu_vcodec_a_resources[] = {
 
 static struct resource msm_iommu_vcodec_b_resources[] = {
 	{
-		.start = MSM_IOMMU_VCODEC_B_PHYS,
-		.end   = MSM_IOMMU_VCODEC_B_PHYS + MSM_IOMMU_VCODEC_B_SIZE - 1,
+		.start = 0x07B00000,
+		.end   = 0x07B00000 + SZ_1M - 1,
 		.name  = "physbase",
 		.flags = IORESOURCE_MEM,
 	},
@@ -214,8 +212,8 @@ static struct resource msm_iommu_vcodec_b_resources[] = {
 
 static struct resource msm_iommu_gfx3d_resources[] = {
 	{
-		.start = MSM_IOMMU_GFX3D_PHYS,
-		.end   = MSM_IOMMU_GFX3D_PHYS + MSM_IOMMU_GFX3D_SIZE - 1,
+		.start = 0x07C00000,
+		.end   = 0x07C00000 + SZ_1M - 1,
 		.name  = "physbase",
 		.flags = IORESOURCE_MEM,
 	},
@@ -235,8 +233,8 @@ static struct resource msm_iommu_gfx3d_resources[] = {
 
 static struct resource msm_iommu_gfx2d0_resources[] = {
 	{
-		.start = MSM_IOMMU_GFX2D0_PHYS,
-		.end   = MSM_IOMMU_GFX2D0_PHYS + MSM_IOMMU_GFX2D0_SIZE - 1,
+		.start = 0x07D00000,
+		.end   = 0x07D00000 + SZ_1M - 1,
 		.name  = "physbase",
 		.flags = IORESOURCE_MEM,
 	},
@@ -256,8 +254,8 @@ static struct resource msm_iommu_gfx2d0_resources[] = {
 
 static struct resource msm_iommu_gfx2d1_resources[] = {
 	{
-		.start = MSM_IOMMU_GFX2D1_PHYS,
-		.end   = MSM_IOMMU_GFX2D1_PHYS + MSM_IOMMU_GFX2D1_SIZE - 1,
+		.start = 0x07E00000,
+		.end   = 0x07E00000 + SZ_1M - 1,
 		.name  = "physbase",
 		.flags = IORESOURCE_MEM,
 	},
