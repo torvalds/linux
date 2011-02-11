@@ -3839,18 +3839,18 @@ L:	linux-security-module@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/chrisw/lsm-2.6.git
 S:	Supported
 
+LIS3LV02D ACCELEROMETER DRIVER
+M:	Eric Piel <eric.piel@tremplin-utc.net>
+S:	Maintained
+F:	Documentation/hwmon/lis3lv02d
+F:	drivers/hwmon/lis3lv02d.*
+
 LLC (802.2)
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
 S:	Maintained
 F:	include/linux/llc.h
 F:	include/net/llc*
 F:	net/llc/
-
-LIS3LV02D ACCELEROMETER DRIVER
-M:	Eric Piel <eric.piel@tremplin-utc.net>
-S:	Maintained
-F:	Documentation/hwmon/lis3lv02d
-F:	drivers/hwmon/lis3lv02d.*
 
 LM73 HARDWARE MONITOR DRIVER
 M:	Guillaume Ligneul <guillaume.ligneul@gmail.com>
