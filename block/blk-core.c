@@ -738,6 +738,25 @@ static void freed_request(struct request_queue *q, int sync, int priv)
 }
 
 /*
+ * Determine if elevator data should be initialized when allocating the
+ * request associated with @bio.
+ */
+static bool blk_rq_should_init_elevator(struct bio *bio)
+{
+	if (!bio)
+		return true;
+
+	/*
+	 * Flush requests do not use the elevator so skip initialization.
+	 * This allows a request to share the flush and elevator data.
+	 */
+	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA))
+		return false;
+
+	return true;
+}
+
+/*
  * Get a free request, queue_lock must be held.
  * Returns NULL on failure, with queue_lock held.
  * Returns !NULL on success, with queue_lock *not held*.
@@ -749,7 +768,7 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	struct request_list *rl = &q->rq;
 	struct io_context *ioc = NULL;
 	const bool is_sync = rw_is_sync(rw_flags) != 0;
-	int may_queue, priv;
+	int may_queue, priv = 0;
 
 	may_queue = elv_may_queue(q, rw_flags);
 	if (may_queue == ELV_MQUEUE_NO)
@@ -793,9 +812,11 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	rl->count[is_sync]++;
 	rl->starved[is_sync] = 0;
 
-	priv = !test_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
-	if (priv)
-		rl->elvpriv++;
+	if (blk_rq_should_init_elevator(bio)) {
+		priv = !test_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
+		if (priv)
+			rl->elvpriv++;
+	}
 
 	if (blk_queue_io_stat(q))
 		rw_flags |= REQ_IO_STAT;
