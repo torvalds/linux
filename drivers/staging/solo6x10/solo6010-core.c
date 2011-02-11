@@ -136,6 +136,7 @@ static int __devinit solo6010_pci_probe(struct pci_dev *pdev,
 	int ret;
 	int sdram;
 	u8 chip_id;
+	u32 reg;
 
 	solo_dev = kzalloc(sizeof(*solo_dev), GFP_KERNEL);
 	if (solo_dev == NULL)
@@ -181,14 +182,43 @@ static int __devinit solo6010_pci_probe(struct pci_dev *pdev,
 		solo_dev->nr_ext = 1;
 	}
 
+	solo_dev->flags = id->driver_data;
+
 	/* Disable all interrupts to start */
 	solo6010_irq_off(solo_dev, ~0);
 
+	reg = SOLO_SYS_CFG_SDRAM64BIT;
 	/* Initial global settings */
-	solo_reg_write(solo_dev, SOLO_SYS_CFG, SOLO_SYS_CFG_SDRAM64BIT |
-		       SOLO_SYS_CFG_INPUTDIV(25) |
-		       SOLO_SYS_CFG_FEEDBACKDIV((SOLO_CLOCK_MHZ * 2) - 2) |
-		       SOLO_SYS_CFG_OUTDIV(3));
+	if (!(solo_dev->flags & FLAGS_6110))
+		reg |= SOLO6010_SYS_CFG_INPUTDIV(25) |
+			SOLO6010_SYS_CFG_FEEDBACKDIV((SOLO_CLOCK_MHZ * 2) - 2) |
+			SOLO6010_SYS_CFG_OUTDIV(3);
+	solo_reg_write(solo_dev, SOLO_SYS_CFG, reg);
+
+        if (solo_dev->flags & FLAGS_6110) {
+                u32 sys_clock_MHz = SOLO_CLOCK_MHZ;
+                u32 pll_DIVQ;
+                u32 pll_DIVF;
+
+                if (sys_clock_MHz < 125) {
+                        pll_DIVQ = 3;
+                        pll_DIVF = (sys_clock_MHz * 4) / 3;
+                } else {
+                        pll_DIVQ = 2;
+                        pll_DIVF = (sys_clock_MHz * 2) / 3;
+                }
+
+                solo_reg_write(solo_dev, SOLO6110_PLL_CONFIG,
+			       SOLO6110_PLL_RANGE_5_10MHZ |
+			       SOLO6110_PLL_DIVR(9) |
+			       SOLO6110_PLL_DIVQ_EXP(pll_DIVQ) |
+			       SOLO6110_PLL_DIVF(pll_DIVF) | SOLO6110_PLL_FSEN);
+		mdelay(1);      // PLL Locking time (1ms)
+
+		solo_reg_write(solo_dev, SOLO_DMA_CTRL1, 3 << 8); /* ? */
+        } else
+		solo_reg_write(solo_dev, SOLO_DMA_CTRL1, 1 << 8); /* ? */
+
 	solo_reg_write(solo_dev, SOLO_TIMER_CLOCK_NUM, SOLO_CLOCK_MHZ - 1);
 
 	/* PLL locking time of 1ms */
@@ -264,6 +294,8 @@ static void __devexit solo6010_pci_remove(struct pci_dev *pdev)
 static struct pci_device_id solo6010_id_table[] = {
 	/* 6010 based cards */
 	{PCI_DEVICE(PCI_VENDOR_ID_SOFTLOGIC, PCI_DEVICE_ID_SOLO6010)},
+	{PCI_DEVICE(PCI_VENDOR_ID_SOFTLOGIC, PCI_DEVICE_ID_SOLO6110),
+	 .driver_data = FLAGS_6110},
 	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_NEUSOLO_4)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_NEUSOLO_9)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_NEUSOLO_16)},

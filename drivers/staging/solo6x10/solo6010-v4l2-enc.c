@@ -479,12 +479,42 @@ static void write_bits(u8 **out, unsigned *bits, u32 value, unsigned count)
 	}
 }
 
+static void write_ue(u8 **out, unsigned *bits, unsigned value) /* H.264 only */
+{
+	uint32_t max = 0, cnt = 0;
+
+	while (value > max) {
+		max = (max + 2) * 2 - 2;
+		cnt++;
+	}
+	write_bits(out, bits, 1, cnt + 1);
+	write_bits(out, bits, ~(max - value), cnt);
+}
+
+static void write_se(u8 **out, unsigned *bits, int value) /* H.264 only */
+{
+	if (value <= 0)
+		write_ue(out, bits, -value * 2);
+	else
+		write_ue(out, bits, value * 2 - 1);
+}
+
 static void write_mpeg4_end(u8 **out, unsigned *bits)
 {
 	write_bits(out, bits, 0, 1);
 	/* align on 32-bit boundary */
 	if (*bits % 32)
 		write_bits(out, bits, 0xFFFFFFFF, 32 - *bits % 32);
+}
+
+static void write_h264_end(u8 **out, unsigned *bits, int align)
+{
+	write_bits(out, bits, 1, 1);
+	while ((*bits) % 8)
+		write_bits(out, bits, 0, 1);
+	if (align)
+		while ((*bits) % 32)
+			write_bits(out, bits, 0, 1);
 }
 
 static void mpeg4_write_vol(u8 **out, struct solo6010_dev *solo_dev,
@@ -541,6 +571,54 @@ static void mpeg4_write_vol(u8 **out, struct solo6010_dev *solo_dev,
 	write_mpeg4_end(out, &bits);
 }
 
+static void h264_write_vol(u8 **out, struct solo6010_dev *solo_dev, __le32 *vh)
+{
+	static const u8 sps[] = {
+		0, 0, 0, 1 /* start code */, 0x67, 66 /* profile_idc */,
+		0 /* constraints */, 30 /* level_idc */
+	};
+	static const u8 pps[] = {
+		0, 0, 0, 1 /* start code */, 0x68
+	};
+
+	unsigned bits = 0;
+	unsigned mbs_w = vop_hsize(vh);
+	unsigned mbs_h = vop_vsize(vh);
+
+	write_bytes(out, &bits, sps, sizeof(sps));
+	write_ue(out, &bits,   0);	/* seq_parameter_set_id */
+	write_ue(out, &bits,   5);	/* log2_max_frame_num_minus4 */
+	write_ue(out, &bits,   0);	/* pic_order_cnt_type */
+	write_ue(out, &bits,   6);	/* log2_max_pic_order_cnt_lsb_minus4 */
+	write_ue(out, &bits,   1);	/* max_num_ref_frames */
+	write_bits(out, &bits, 0, 1);	/* gaps_in_frame_num_value_allowed_flag */
+	write_ue(out, &bits, mbs_w - 1);	/* pic_width_in_mbs_minus1 */
+	write_ue(out, &bits, mbs_h - 1);	/* pic_height_in_map_units_minus1 */
+	write_bits(out, &bits, 1, 1);	/* frame_mbs_only_flag */
+	write_bits(out, &bits, 1, 1);	/* direct_8x8_frame_field_flag */
+	write_bits(out, &bits, 0, 1);	/* frame_cropping_flag */
+	write_bits(out, &bits, 0, 1);	/* vui_parameters_present_flag */
+	write_h264_end(out, &bits, 0);
+
+	write_bytes(out, &bits, pps, sizeof(pps));
+	write_ue(out, &bits,   0);	/* pic_parameter_set_id */
+	write_ue(out, &bits,   0);	/* seq_parameter_set_id */
+	write_bits(out, &bits, 0, 1);	/* entropy_coding_mode_flag */
+	write_bits(out, &bits, 0, 1);	/* bottom_field_pic_order_in_frame_present_flag */
+	write_ue(out, &bits,   0);	/* num_slice_groups_minus1 */
+	write_ue(out, &bits,   0);	/* num_ref_idx_l0_default_active_minus1 */
+	write_ue(out, &bits,   0);	/* num_ref_idx_l1_default_active_minus1 */
+	write_bits(out, &bits, 0, 1);	/* weighted_pred_flag */
+	write_bits(out, &bits, 0, 2);	/* weighted_bipred_idc */
+	write_se(out, &bits,   0);	/* pic_init_qp_minus26 */
+	write_se(out, &bits,   0);	/* pic_init_qs_minus26 */
+	write_se(out, &bits,   2);	/* chroma_qp_index_offset */
+	write_bits(out, &bits, 0, 1);	/* deblocking_filter_control_present_flag */
+	write_bits(out, &bits, 1, 1);	/* constrained_intra_pred_flag */
+	write_bits(out, &bits, 0, 1);	/* redundant_pic_cnt_present_flag */
+	write_h264_end(out, &bits, 1);
+}
+
 static int solo_fill_mpeg(struct solo_enc_fh *fh, struct solo_enc_buf *enc_buf,
 			  struct videobuf_buffer *vb,
 			  struct videobuf_dmabuf *vbuf)
@@ -575,8 +653,12 @@ static int solo_fill_mpeg(struct solo_enc_fh *fh, struct solo_enc_buf *enc_buf,
 	if (!enc_buf->vop) {
 		u8 header[MAX_VOL_HEADER_LENGTH], *out = header;
 
-		mpeg4_write_vol(&out, solo_dev, vh, solo_dev->fps * 1000,
-				solo_enc->interval * 1000);
+		if (solo_dev->flags & FLAGS_6110)
+			h264_write_vol(&out, solo_dev, vh);
+		else
+			mpeg4_write_vol(&out, solo_dev, vh,
+					solo_dev->fps * 1000,
+					solo_enc->interval * 1000);
 		skip = out - header;
 		enc_write_sg(vbuf->sglist, header, skip);
 		/* Adjust the dma buffer past this header */

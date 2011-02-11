@@ -155,19 +155,26 @@ int solo_osd_print(struct solo_enc_dev *solo_enc)
 
 static void solo_jpeg_config(struct solo6010_dev *solo_dev)
 {
-	solo_reg_write(solo_dev, SOLO_VE_JPEG_QP_TBL,
-		       (2 << 24) | (2 << 16) | (2 << 8) | (2 << 0));
+	u32 reg;
+	if (solo_dev->flags & FLAGS_6110)
+		reg = (4 << 24) | (3 << 16) | (2 << 8) | (1 << 0);
+	else
+		reg = (2 << 24) | (2 << 16) | (2 << 8) | (2 << 0);
+	solo_reg_write(solo_dev, SOLO_VE_JPEG_QP_TBL, reg);
 	solo_reg_write(solo_dev, SOLO_VE_JPEG_QP_CH_L, 0);
 	solo_reg_write(solo_dev, SOLO_VE_JPEG_QP_CH_H, 0);
 	solo_reg_write(solo_dev, SOLO_VE_JPEG_CFG,
 		(SOLO_JPEG_EXT_SIZE(solo_dev) & 0xffff0000) |
 		((SOLO_JPEG_EXT_ADDR(solo_dev) >> 16) & 0x0000ffff));
 	solo_reg_write(solo_dev, SOLO_VE_JPEG_CTRL, 0xffffffff);
+	/* que limit, samp limit, pos limit */
+	solo_reg_write(solo_dev, 0x0688, (0 << 16) | (30 << 8) | 60);
 }
 
 static void solo_mp4e_config(struct solo6010_dev *solo_dev)
 {
 	int i;
+	u32 reg;
 
 	/* We can only use VE_INTR_CTRL(0) if we want to support mjpeg */
 	solo_reg_write(solo_dev, SOLO_VE_CFG0,
@@ -184,17 +191,21 @@ static void solo_mp4e_config(struct solo6010_dev *solo_dev)
 	solo_reg_write(solo_dev, SOLO_VE_ENCRYP_POLY, 0);
 	solo_reg_write(solo_dev, SOLO_VE_ENCRYP_INIT, 0);
 
-	solo_reg_write(solo_dev, SOLO_VE_ATTR,
-		       SOLO_VE_LITTLE_ENDIAN |
-		       SOLO_COMP_ATTR_FCODE(1) |
-		       SOLO_COMP_TIME_INC(0) |
-		       SOLO_COMP_TIME_WIDTH(15) |
-		       SOLO_DCT_INTERVAL(36 / 4));
+	reg = SOLO_VE_LITTLE_ENDIAN | SOLO_COMP_ATTR_FCODE(1) |
+		SOLO_COMP_TIME_INC(0) | SOLO_COMP_TIME_WIDTH(15);
+	if (solo_dev->flags & FLAGS_6110)
+		reg |= SOLO_DCT_INTERVAL(10);
+	else
+		reg |= SOLO_DCT_INTERVAL(36 / 4);
+	solo_reg_write(solo_dev, SOLO_VE_ATTR, reg);
 
 	for (i = 0; i < solo_dev->nr_chans; i++)
 		solo_reg_write(solo_dev, SOLO_VE_CH_REF_BASE(i),
 			       (SOLO_EREF_EXT_ADDR(solo_dev) +
 			       (i * SOLO_EREF_EXT_SIZE)) >> 16);
+
+	if (solo_dev->flags & FLAGS_6110)
+		solo_reg_write(solo_dev, 0x0634, 0x00040008); /* ? */
 }
 
 int solo_enc_init(struct solo6010_dev *solo_dev)

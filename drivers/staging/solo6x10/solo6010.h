@@ -40,6 +40,7 @@
 #ifndef PCI_VENDOR_ID_SOFTLOGIC
 #define PCI_VENDOR_ID_SOFTLOGIC		0x9413
 #define PCI_DEVICE_ID_SOLO6010		0x6010
+#define PCI_DEVICE_ID_SOLO6110		0x6110
 #endif
 
 #ifndef PCI_VENDOR_ID_BLUECHERRY
@@ -69,6 +70,8 @@
 #define SOLO6010_VER_SUB		0
 #define SOLO6010_VER_NUM \
 	KERNEL_VERSION(SOLO6010_VER_MAJOR, SOLO6010_VER_MINOR, SOLO6010_VER_SUB)
+
+#define FLAGS_6110			1
 
 /*
  * The SOLO6010 actually has 8 i2c channels, but we only use 2.
@@ -183,6 +186,7 @@ struct solo6010_dev {
 	u8 __iomem		*reg_base;
 	int			nr_chans;
 	int			nr_ext;
+	u32			flags;
 	u32			irq_mask;
 	u32			motion_mask;
 	spinlock_t		reg_io_lock;

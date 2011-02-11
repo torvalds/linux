@@ -66,18 +66,18 @@ int solo_p2m_dma_t(struct solo6010_dev *solo_dev, u8 id, int wr,
 void solo_p2m_push_desc(struct p2m_desc *desc, int wr, dma_addr_t dma_addr,
 			u32 ext_addr, u32 size, int repeat, u32 ext_size)
 {
-	desc->ta = dma_addr;
-	desc->fa = ext_addr;
+	desc->ta = cpu_to_le32(dma_addr);
+	desc->fa = cpu_to_le32(ext_addr);
 
-	desc->ext = SOLO_P2M_COPY_SIZE(size >> 2);
-	desc->ctrl = SOLO_P2M_BURST_SIZE(SOLO_P2M_BURST_256) |
-		(wr ? SOLO_P2M_WRITE : 0) | SOLO_P2M_TRANS_ON;
+	desc->ext = cpu_to_le32(SOLO_P2M_COPY_SIZE(size >> 2));
+	desc->ctrl = cpu_to_le32(SOLO_P2M_BURST_SIZE(SOLO_P2M_BURST_256) |
+				 (wr ? SOLO_P2M_WRITE : 0) | SOLO_P2M_TRANS_ON);
 
 	/* Ext size only matters when we're repeating */
 	if (repeat) {
-		desc->ext |= SOLO_P2M_EXT_INC(ext_size >> 2);
-		desc->ctrl |=  SOLO_P2M_PCI_INC(size >> 2) |
-			SOLO_P2M_REPEAT(repeat);
+		desc->ext |= cpu_to_le32(SOLO_P2M_EXT_INC(ext_size >> 2));
+		desc->ctrl |=  cpu_to_le32(SOLO_P2M_PCI_INC(size >> 2) |
+					   SOLO_P2M_REPEAT(repeat));
 	}
 }
 

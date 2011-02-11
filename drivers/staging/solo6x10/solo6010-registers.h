@@ -24,16 +24,16 @@
 
 /* Global 6010 system configuration */
 #define SOLO_SYS_CFG				0x0000
-#define   SOLO_SYS_CFG_FOUT_EN			0x00000001
-#define   SOLO_SYS_CFG_PLL_BYPASS		0x00000002
-#define   SOLO_SYS_CFG_PLL_PWDN			0x00000004
-#define   SOLO_SYS_CFG_OUTDIV(__n)		(((__n) & 0x003) << 3)
-#define   SOLO_SYS_CFG_FEEDBACKDIV(__n)		(((__n) & 0x1ff) << 5)
-#define   SOLO_SYS_CFG_INPUTDIV(__n)		(((__n) & 0x01f) << 14)
+#define   SOLO6010_SYS_CFG_FOUT_EN		0x00000001 /* 6010 only */
+#define   SOLO6010_SYS_CFG_PLL_BYPASS		0x00000002 /* 6010 only */
+#define   SOLO6010_SYS_CFG_PLL_PWDN		0x00000004 /* 6010 only */
+#define   SOLO6010_SYS_CFG_OUTDIV(__n)		(((__n) & 0x003) << 3) /* 6010 only */
+#define   SOLO6010_SYS_CFG_FEEDBACKDIV(__n)	(((__n) & 0x1ff) << 5) /* 6010 only */
+#define   SOLO6010_SYS_CFG_INPUTDIV(__n)	(((__n) & 0x01f) << 14) /* 6010 only */
 #define   SOLO_SYS_CFG_CLOCK_DIV		0x00080000
 #define   SOLO_SYS_CFG_NCLK_DELAY(__n)		(((__n) & 0x003) << 24)
 #define   SOLO_SYS_CFG_PCLK_DELAY(__n)		(((__n) & 0x00f) << 26)
-#define   SOLO_SYS_CFG_SDRAM64BIT		0x40000000
+#define   SOLO_SYS_CFG_SDRAM64BIT		0x40000000 /* 6110: must be set */
 #define   SOLO_SYS_CFG_RESET			0x80000000
 
 #define	SOLO_DMA_CTRL				0x0004
@@ -45,6 +45,7 @@
 #define	  SOLO_DMA_CTRL_READ_DATA_SELECT	(1<<3)
 #define	  SOLO_DMA_CTRL_READ_CLK_SELECT		(1<<2)
 #define	  SOLO_DMA_CTRL_LATENCY(n)		((n)<<0)
+#define	SOLO_DMA_CTRL1				0x0008
 
 #define SOLO_SYS_VCLK				0x000C
 #define	  SOLO_VCLK_INVERT			(1<<22)
@@ -80,6 +81,23 @@
 
 #define SOLO_CHIP_OPTION			0x001C
 #define   SOLO_CHIP_ID_MASK			0x00000007
+
+#define SOLO6110_PLL_CONFIG			0x0020
+#define   SOLO6110_PLL_RANGE_BYPASS		(0 << 20)
+#define   SOLO6110_PLL_RANGE_5_10MHZ		(1 << 20)
+#define   SOLO6110_PLL_RANGE_8_16MHZ		(2 << 20)
+#define   SOLO6110_PLL_RANGE_13_26MHZ		(3 << 20)
+#define   SOLO6110_PLL_RANGE_21_42MHZ		(4 << 20)
+#define   SOLO6110_PLL_RANGE_34_68MHZ		(5 << 20)
+#define   SOLO6110_PLL_RANGE_54_108MHZ		(6 << 20)
+#define   SOLO6110_PLL_RANGE_88_200MHZ		(7 << 20)
+#define   SOLO6110_PLL_DIVR(x)			(((x) - 1) << 15)
+#define   SOLO6110_PLL_DIVQ_EXP(x)		((x) << 12)
+#define   SOLO6110_PLL_DIVF(x)			(((x) - 1) << 4)
+#define   SOLO6110_PLL_RESET			(1 << 3)
+#define   SOLO6110_PLL_BYPASS			(1 << 2)
+#define   SOLO6110_PLL_FSEN			(1 << 1)
+#define   SOLO6110_PLL_FB			(1 << 0)
 
 #define SOLO_EEPROM_CTRL			0x0060
 #define	  SOLO_EEPROM_ACCESS_EN			(1<<7)
@@ -383,7 +401,9 @@
 #define	  SOLO_VE_BLOCK_BASE(n)			((n)<<0)
 
 #define SOLO_VE_CFG1				0x0614
-#define	  SOLO_VE_BYTE_ALIGN(n)			((n)<<24)
+#define   SOLO6110_VE_MPEG_SIZE_H(n)		((n)<<28) /* 6110 only */
+#define	  SOLO6010_VE_BYTE_ALIGN(n)		((n)<<24) /* 6010 only */
+#define   SOLO6110_VE_JPEG_SIZE_H(n)		((n)<<20) /* 6110 only */
 #define	  SOLO_VE_INSERT_INDEX			(1<<18)
 #define	  SOLO_VE_MOTION_MODE(n)		((n)<<16)
 #define	  SOLO_VE_MOTION_BASE(n)		((n)<<0)
@@ -415,7 +435,7 @@
 #define SOLO_VE_OSD_OPT				0x069C
 
 #define SOLO_VE_CH_INTL(ch)			(0x0700+((ch)*4))
-#define SOLO_VE_CH_MOT(ch)			(0x0740+((ch)*4))
+#define SOLO6010_VE_CH_MOT(ch)			(0x0740+((ch)*4)) /* 6010 only */
 #define SOLO_VE_CH_QP(ch)			(0x0780+((ch)*4))
 #define SOLO_VE_CH_QP_E(ch)			(0x07C0+((ch)*4))
 #define SOLO_VE_CH_GOP(ch)			(0x0800+((ch)*4))
@@ -427,7 +447,7 @@
 #define SOLO_VE_JPEG_QUE(n)			(0x0A04+((n)*8))
 
 #define SOLO_VD_CFG0				0x0900
-#define	  SOLO_VD_CFG_NO_WRITE_NO_WINDOW	(1<<24)
+#define	  SOLO6010_VD_CFG_NO_WRITE_NO_WINDOW	(1<<24) /* 6010 only */
 #define	  SOLO_VD_CFG_BUSY_WIAT_CODE		(1<<23)
 #define	  SOLO_VD_CFG_BUSY_WIAT_REF		(1<<22)
 #define	  SOLO_VD_CFG_BUSY_WIAT_RES		(1<<21)
