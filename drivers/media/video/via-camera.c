@@ -1246,6 +1246,62 @@ static const struct v4l2_ioctl_ops viacam_ioctl_ops = {
 /*
  * Power management.
  */
+#ifdef CONFIG_PM
+
+static int viacam_suspend(void *priv)
+{
+	struct via_camera *cam = priv;
+	enum viacam_opstate state = cam->opstate;
+
+	if (cam->opstate != S_IDLE) {
+		viacam_stop_engine(cam);
+		cam->opstate = state; /* So resume restarts */
+	}
+
+	return 0;
+}
+
+static int viacam_resume(void *priv)
+{
+	struct via_camera *cam = priv;
+	int ret = 0;
+
+	/*
+	 * Get back to a reasonable operating state.
+	 */
+	via_write_reg_mask(VIASR, 0x78, 0, 0x80);
+	via_write_reg_mask(VIASR, 0x1e, 0xc0, 0xc0);
+	viacam_int_disable(cam);
+	set_bit(CF_CONFIG_NEEDED, &cam->flags);
+	/*
+	 * Make sure the sensor's power state is correct
+	 */
+	if (cam->users > 0)
+		via_sensor_power_up(cam);
+	else
+		via_sensor_power_down(cam);
+	/*
+	 * If it was operating, try to restart it.
+	 */
+	if (cam->opstate != S_IDLE) {
+		mutex_lock(&cam->lock);
+		ret = viacam_configure_sensor(cam);
+		if (!ret)
+			ret = viacam_config_controller(cam);
+		mutex_unlock(&cam->lock);
+		if (!ret)
+			viacam_start_engine(cam);
+	}
+
+	return ret;
+}
+
+static struct viafb_pm_hooks viacam_pm_hooks = {
+	.suspend = viacam_suspend,
+	.resume = viacam_resume
+};
+
+#endif /* CONFIG_PM */
 
 /*
  * Setup stuff.
@@ -1368,6 +1424,14 @@ static __devinit int viacam_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_irq;
 	video_set_drvdata(&cam->vdev, cam);
+
+#ifdef CONFIG_PM
+	/*
+	 * Hook into PM events
+	 */
+	viacam_pm_hooks.private = cam;
+	viafb_pm_register(&viacam_pm_hooks);
+#endif
 
 	/* Power the sensor down until somebody opens the device */
 	via_sensor_power_down(cam);
