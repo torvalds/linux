@@ -2317,19 +2317,10 @@ static int be_setup(struct be_adapter *adapter)
 	if (status != 0)
 		goto rx_qs_destroy;
 
-	if (be_physfn(adapter) && adapter->sriov_enabled) {
-		status = be_vf_eth_addr_config(adapter);
-		if (status)
-			goto mcc_q_destroy;
-	}
-
 	adapter->link_speed = -1;
 
 	return 0;
 
-mcc_q_destroy:
-	if (be_physfn(adapter))
-		be_vf_eth_addr_rem(adapter);
 	be_mcc_queues_destroy(adapter);
 rx_qs_destroy:
 	be_rx_queues_destroy(adapter);
@@ -2985,10 +2976,18 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		goto unsetup;
 	netif_carrier_off(netdev);
 
+	if (be_physfn(adapter) && adapter->sriov_enabled) {
+		status = be_vf_eth_addr_config(adapter);
+		if (status)
+			goto unreg_netdev;
+	}
+
 	dev_info(&pdev->dev, "%s port %d\n", nic_name(pdev), adapter->port_num);
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
 	return 0;
 
+unreg_netdev:
+	unregister_netdev(netdev);
 unsetup:
 	be_clear(adapter);
 msix_disable:
