@@ -98,7 +98,7 @@ static int fimc_subdev_attach(struct fimc_dev *fimc, int index)
 			continue;
 
 		sd = fimc_subdev_register(fimc, isp_info);
-		if (sd) {
+		if (!IS_ERR_OR_NULL(sd)) {
 			vid_cap->sd = sd;
 			vid_cap->input_index = i;
 
