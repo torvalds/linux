@@ -296,24 +296,6 @@ enum cru_soft_reset {
 #define CRU_SOFTRST1_CON	0x70
 #define CRU_SOFTRST2_CON	0x74
 
-static inline void cru_set_soft_reset(enum cru_soft_reset idx, bool on)
-{
-	unsigned long flags;
-	u32 addr = RK29_CRU_BASE + CRU_SOFTRST0_CON + ((idx >> 5) << 2);
-	u32 mask = 1 << (idx & 31);
-	u32 v;
-
-	if (idx >= SOFT_RST_MAX)
-		return;
-
-	local_irq_save(flags);
-	v = readl(addr);
-	if (on)
-		v |= mask;
-	else
-		v &= ~mask;
-	writel(v, addr);
-	local_irq_restore(flags);
-}
+void cru_set_soft_reset(enum cru_soft_reset idx, bool on);
 
 #endif

@@ -179,6 +179,9 @@ static int clksel_set_parent(struct clk *clk, struct clk *parent)
 	return -EINVAL;
 }
 
+/* Work around CRU_CLKGATE3_CON bit21~20 bug */
+static volatile u32 cru_clkgate3_con_mirror;
+
 static int gate_mode(struct clk *clk, int on)
 {
 	u32 reg;
@@ -192,15 +195,53 @@ static int gate_mode(struct clk *clk, int on)
 	reg += (idx >> 5) << 2;
 	idx &= 0x1F;
 
-	v = cru_readl(reg);
-	if (on) {
+	if (reg == CRU_CLKGATE3_CON)
+		v = cru_clkgate3_con_mirror;
+	else
+		v = cru_readl(reg);
+
+	if (on)
 		v &= ~(1 << idx);	// clear bit 
-	} else {
+	else
 		v |= (1 << idx);	// set bit
-	}
+
+	if (reg == CRU_CLKGATE3_CON)
+		cru_clkgate3_con_mirror = v;
 	cru_writel(v, reg);
 
 	return 0;
+}
+
+/* Work around CRU_SOFTRST0_CON bit29~27 bug */
+static volatile u32 cru_softrst0_con_mirror;
+
+void cru_set_soft_reset(enum cru_soft_reset idx, bool on)
+{
+	unsigned long flags;
+	u32 reg = CRU_SOFTRST0_CON + ((idx >> 5) << 2);
+	u32 mask = 1 << (idx & 31);
+	u32 v;
+
+	if (idx >= SOFT_RST_MAX)
+		return;
+
+	local_irq_save(flags);
+
+	if (reg == CRU_SOFTRST0_CON)
+		v = cru_softrst0_con_mirror;
+	else
+		v = cru_readl(reg);
+
+	if (on)
+		v |= mask;
+	else
+		v &= ~mask;
+
+	if (reg == CRU_SOFTRST0_CON)
+		cru_softrst0_con_mirror = v;
+	cru_writel(v, reg);
+
+	local_irq_restore(flags);
 }
 
 static struct clk xin24m = {
@@ -2259,6 +2300,9 @@ void __init rk29_clock_init(void)
 {
 	struct clk_lookup *lk;
 
+	cru_clkgate3_con_mirror = cru_readl(CRU_CLKGATE3_CON);
+	cru_softrst0_con_mirror = cru_readl(CRU_SOFTRST0_CON);
+
 	for (lk = clks; lk < clks + ARRAY_SIZE(clks); lk++)
 		clk_preinit(lk->clk);
 
@@ -2311,7 +2355,10 @@ static void dump_clock(struct seq_file *s, struct clk *clk, int deep)
 		reg += (idx >> 5) << 2;
 		idx &= 0x1F;
 
-		v = cru_readl(reg) & (1 << idx);
+		if (reg == CRU_CLKGATE3_CON)
+			v = cru_clkgate3_con_mirror & (1 << idx);
+		else
+			v = cru_readl(reg) & (1 << idx);
 		
 		seq_printf(s, "%s ", v ? "off" : "on ");
 	}
@@ -2409,6 +2456,11 @@ static int proc_clk_show(struct seq_file *s, void *v)
 	seq_printf(s, "CLKGATE1 : 0x%08x\n", cru_readl(CRU_CLKGATE1_CON));
 	seq_printf(s, "CLKGATE2 : 0x%08x\n", cru_readl(CRU_CLKGATE2_CON));
 	seq_printf(s, "CLKGATE3 : 0x%08x\n", cru_readl(CRU_CLKGATE3_CON));
+	seq_printf(s, "CLKGATE3M: 0x%08x\n", cru_clkgate3_con_mirror);
+	seq_printf(s, "SOFTRST0 : 0x%08x\n", cru_readl(CRU_SOFTRST0_CON));
+	seq_printf(s, "SOFTRST0M: 0x%08x\n", cru_softrst0_con_mirror);
+	seq_printf(s, "SOFTRST1 : 0x%08x\n", cru_readl(CRU_SOFTRST1_CON));
+	seq_printf(s, "SOFTRST2 : 0x%08x\n", cru_readl(CRU_SOFTRST2_CON));
 
 	seq_printf(s, "\nPMU Registers:\n");
 	seq_printf(s, "WAKEUP_EN0 : 0x%08x\n", pmu_readl(PMU_WAKEUP_EN0));
