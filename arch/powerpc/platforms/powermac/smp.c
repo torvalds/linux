@@ -928,10 +928,6 @@ static void pmac_cpu_die(void)
 		/* should always be true at this point */
 		if (cpu_has_feature(CPU_FTR_CAN_NAP))
 			power4_cpu_offline_powersave();
-		else {
-			HMT_low();
-			HMT_very_low();
-		}
 	}
 }
 
