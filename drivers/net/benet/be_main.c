@@ -2340,12 +2340,21 @@ do_none:
 
 static int be_clear(struct be_adapter *adapter)
 {
+	int vf;
+
 	if (be_physfn(adapter) && adapter->sriov_enabled)
 		be_vf_eth_addr_rem(adapter);
 
 	be_mcc_queues_destroy(adapter);
 	be_rx_queues_destroy(adapter);
 	be_tx_queues_destroy(adapter);
+
+	if (be_physfn(adapter) && adapter->sriov_enabled)
+		for (vf = 0; vf < num_vfs; vf++)
+			if (adapter->vf_cfg[vf].vf_if_handle)
+				be_cmd_if_destroy(adapter,
+					adapter->vf_cfg[vf].vf_if_handle,
+					vf + 1);
 
 	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
 
