@@ -29,9 +29,6 @@
 #include <mach/usb_phy.h>
 #include <mach/iomap.h>
 
-#define USB_USBSTS		0x144
-#define   USB_USBSTS_PCI	(1 << 2)
-
 #define ULPI_VIEWPORT		0x170
 #define   ULPI_WAKEUP		(1 << 31)
 #define   ULPI_RUN		(1 << 30)
@@ -150,26 +147,48 @@
 static DEFINE_SPINLOCK(utmip_pad_lock);
 static int utmip_pad_count;
 
-static const int udc_freq_table[] = {
-	12000000,
-	13000000,
-	19200000,
-	26000000,
+struct tegra_xtal_freq {
+	int freq;
+	u8 enable_delay;
+	u8 stable_count;
+	u8 active_delay;
+	u8 xtal_freq_count;
+	u16 debounce;
 };
 
-static const u8 udc_delay_table[][4] = {
-	/* ENABLE_DLY, STABLE_CNT, ACTIVE_DLY, XTAL_FREQ_CNT */
-	{0x02,         0x2F,       0x04,       0x76}, /* 12 MHz */
-	{0x02,         0x33,       0x05,       0x7F}, /* 13 MHz */
-	{0x03,         0x4B,       0x06,       0xBB}, /* 19.2 MHz */
-	{0x04,         0x66,       0x09,       0xFE}, /* 26 Mhz */
-};
-
-static const u16 udc_debounce_table[] = {
-	0x7530, /* 12 MHz */
-	0x7EF4, /* 13 MHz */
-	0xBB80, /* 19.2 MHz */
-	0xFDE8, /* 26 MHz */
+static const struct tegra_xtal_freq tegra_freq_table[] = {
+	{
+		.freq = 12000000,
+		.enable_delay = 0x02,
+		.stable_count = 0x2F,
+		.active_delay = 0x04,
+		.xtal_freq_count = 0x76,
+		.debounce = 0x7530,
+	},
+	{
+		.freq = 13000000,
+		.enable_delay = 0x02,
+		.stable_count = 0x33,
+		.active_delay = 0x05,
+		.xtal_freq_count = 0x7F,
+		.debounce = 0x7EF4,
+	},
+	{
+		.freq = 19200000,
+		.enable_delay = 0x03,
+		.stable_count = 0x4B,
+		.active_delay = 0x06,
+		.xtal_freq_count = 0xBB,
+		.debounce = 0xBB80,
+	},
+	{
+		.freq = 26000000,
+		.enable_delay = 0x04,
+		.stable_count = 0x66,
+		.active_delay = 0x09,
+		.xtal_freq_count = 0xFE,
+		.debounce = 0xFDE8,
+	},
 };
 
 static struct tegra_utmip_config utmip_default[] = {
@@ -193,12 +212,17 @@ static struct tegra_utmip_config utmip_default[] = {
 	},
 };
 
+static inline bool phy_is_ulpi(struct tegra_usb_phy *phy)
+{
+	return (phy->instance == 1);
+}
+
 static int utmip_pad_open(struct tegra_usb_phy *phy)
 {
 	phy->pad_clk = clk_get_sys("utmip-pad", NULL);
 	if (IS_ERR(phy->pad_clk)) {
 		pr_err("%s: can't get utmip pad clock\n", __func__);
-		return -1;
+		return PTR_ERR(phy->pad_clk);
 	}
 
 	if (phy->instance == 0) {
@@ -248,7 +272,7 @@ static int utmip_pad_power_off(struct tegra_usb_phy *phy)
 
 	if (!utmip_pad_count) {
 		pr_err("%s: utmip pad already powered off\n", __func__);
-		return -1;
+		return -EINVAL;
 	}
 
 	clk_enable(phy->pad_clk);
@@ -335,7 +359,7 @@ static void utmi_phy_clk_enable(struct tegra_usb_phy *phy)
 		pr_err("%s: timeout waiting for phy to stabilize\n", __func__);
 }
 
-static void utmi_phy_power_on(struct tegra_usb_phy *phy)
+static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 {
 	unsigned long val;
 	void __iomem *base = phy->regs;
@@ -368,7 +392,7 @@ static void utmi_phy_power_on(struct tegra_usb_phy *phy)
 
 	val = readl(base + UTMIP_DEBOUNCE_CFG0);
 	val &= ~UTMIP_BIAS_DEBOUNCE_A(~0);
-	val |= UTMIP_BIAS_DEBOUNCE_A(udc_debounce_table[phy->freq_sel]);
+	val |= UTMIP_BIAS_DEBOUNCE_A(phy->freq->debounce);
 	writel(val, base + UTMIP_DEBOUNCE_CFG0);
 
 	val = readl(base + UTMIP_MISC_CFG0);
@@ -377,14 +401,14 @@ static void utmi_phy_power_on(struct tegra_usb_phy *phy)
 
 	val = readl(base + UTMIP_MISC_CFG1);
 	val &= ~(UTMIP_PLL_ACTIVE_DLY_COUNT(~0) | UTMIP_PLLU_STABLE_COUNT(~0));
-	val |= UTMIP_PLL_ACTIVE_DLY_COUNT(udc_delay_table[phy->freq_sel][2]) |
-		UTMIP_PLLU_STABLE_COUNT(udc_delay_table[phy->freq_sel][1]);
+	val |= UTMIP_PLL_ACTIVE_DLY_COUNT(phy->freq->active_delay) |
+		UTMIP_PLLU_STABLE_COUNT(phy->freq->stable_count);
 	writel(val, base + UTMIP_MISC_CFG1);
 
 	val = readl(base + UTMIP_PLL_CFG1);
 	val &= ~(UTMIP_XTAL_FREQ_COUNT(~0) | UTMIP_PLLU_ENABLE_DLY_COUNT(~0));
-	val |= UTMIP_XTAL_FREQ_COUNT(udc_delay_table[phy->freq_sel][3]) |
-		UTMIP_PLLU_ENABLE_DLY_COUNT(udc_delay_table[phy->freq_sel][0]);
+	val |= UTMIP_XTAL_FREQ_COUNT(phy->freq->xtal_freq_count) |
+		UTMIP_PLLU_ENABLE_DLY_COUNT(phy->freq->enable_delay);
 	writel(val, base + UTMIP_PLL_CFG1);
 
 	if (phy->mode == TEGRA_USB_PHY_MODE_DEVICE) {
@@ -457,6 +481,8 @@ static void utmi_phy_power_on(struct tegra_usb_phy *phy)
 		val &= ~USB_PORTSC1_PTS(~0);
 		writel(val, base + USB_PORTSC1);
 	}
+
+	return 0;
 }
 
 static void utmi_phy_power_off(struct tegra_usb_phy *phy)
@@ -559,7 +585,7 @@ static void ulpi_viewport_write(struct tegra_usb_phy *phy, u8 addr, u8 data)
 		pr_err("%s: timeout accessing ulpi phy\n", __func__);
 }
 
-static void ulpi_phy_power_on(struct tegra_usb_phy *phy)
+static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 {
 	unsigned long val;
 	void __iomem *base = phy->regs;
@@ -603,7 +629,7 @@ static void ulpi_phy_power_on(struct tegra_usb_phy *phy)
 
 	if (utmi_wait_register(base + ULPI_VIEWPORT, ULPI_WAKEUP, 0)) {
 		pr_err("%s: timeout waiting for ulpi phy wakeup\n", __func__);
-		return;
+		return -EIO;
 	}
 
 	/* Fix VbusInvalid due to floating VBUS */
@@ -622,6 +648,8 @@ static void ulpi_phy_power_on(struct tegra_usb_phy *phy)
 	val = readl(base + USB_SUSP_CTRL);
 	val &= ~USB_SUSP_CLR;
 	writel(val, base + USB_SUSP_CTRL);
+
+	return 0;
 }
 
 static void ulpi_phy_power_off(struct tegra_usb_phy *phy)
@@ -647,7 +675,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 	struct tegra_usb_phy *phy;
 	struct tegra_ulpi_config *ulpi_config;
 	unsigned long parent_rate;
-	int freq_sel;
+	int i;
 	int err;
 
 	phy = kmalloc(sizeof(struct tegra_usb_phy), GFP_KERNEL);
@@ -660,7 +688,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 	phy->mode = phy_mode;
 
 	if (!phy->config) {
-		if (instance == 1) {
+		if (phy_is_ulpi(phy)) {
 			pr_err("%s: ulpi phy configuration missing", __func__);
 			err = -EINVAL;
 			goto err0;
@@ -678,18 +706,19 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 	clk_enable(phy->pll_u);
 
 	parent_rate = clk_get_rate(clk_get_parent(phy->pll_u));
-	for (freq_sel = 0; freq_sel < ARRAY_SIZE(udc_freq_table); freq_sel++) {
-		if (udc_freq_table[freq_sel] == parent_rate)
+	for (i = 0; i < ARRAY_SIZE(tegra_freq_table); i++) {
+		if (tegra_freq_table[i].freq == parent_rate) {
+			phy->freq = &tegra_freq_table[i];
 			break;
+		}
 	}
-	if (freq_sel == ARRAY_SIZE(udc_freq_table)) {
+	if (!phy->freq) {
 		pr_err("invalid pll_u parent rate %ld\n", parent_rate);
 		err = -EINVAL;
 		goto err1;
 	}
-	phy->freq_sel = freq_sel;
 
-	if (phy->instance == 1) {
+	if (phy_is_ulpi(phy)) {
 		ulpi_config = config;
 		phy->clk = clk_get_sys(NULL, ulpi_config->clk);
 		if (IS_ERR(phy->clk)) {
@@ -718,77 +747,64 @@ err0:
 
 int tegra_usb_phy_power_on(struct tegra_usb_phy *phy)
 {
-	if (phy->instance == 1)
-		ulpi_phy_power_on(phy);
+	if (phy_is_ulpi(phy))
+		return ulpi_phy_power_on(phy);
 	else
-		utmi_phy_power_on(phy);
-
-	return 0;
+		return utmi_phy_power_on(phy);
 }
 
-int tegra_usb_phy_power_off(struct tegra_usb_phy *phy)
+void tegra_usb_phy_power_off(struct tegra_usb_phy *phy)
 {
-	if (phy->instance == 1)
+	if (phy_is_ulpi(phy))
 		ulpi_phy_power_off(phy);
 	else
 		utmi_phy_power_off(phy);
-
-	return 0;
 }
 
-int tegra_usb_phy_preresume(struct tegra_usb_phy *phy)
+void tegra_usb_phy_preresume(struct tegra_usb_phy *phy)
 {
-	if (phy->instance != 1)
+	if (!phy_is_ulpi(phy))
 		utmi_phy_preresume(phy);
-	return 0;
 }
 
-int tegra_usb_phy_postresume(struct tegra_usb_phy *phy)
+void tegra_usb_phy_postresume(struct tegra_usb_phy *phy)
 {
-	if (phy->instance != 1)
+	if (!phy_is_ulpi(phy))
 		utmi_phy_postresume(phy);
-	return 0;
 }
 
-int tegra_ehci_phy_restore_start(struct tegra_usb_phy *phy,
+void tegra_ehci_phy_restore_start(struct tegra_usb_phy *phy,
 				 enum tegra_usb_phy_port_speed port_speed)
 {
-	if (phy->instance != 1)
+	if (!phy_is_ulpi(phy))
 		utmi_phy_restore_start(phy, port_speed);
-	return 0;
 }
 
-int tegra_ehci_phy_restore_end(struct tegra_usb_phy *phy)
+void tegra_ehci_phy_restore_end(struct tegra_usb_phy *phy)
 {
-	if (phy->instance != 1)
+	if (!phy_is_ulpi(phy))
 		utmi_phy_restore_end(phy);
-	return 0;
 }
 
-int tegra_usb_phy_clk_disable(struct tegra_usb_phy *phy)
+void tegra_usb_phy_clk_disable(struct tegra_usb_phy *phy)
 {
-	if (phy->instance != 1)
+	if (!phy_is_ulpi(phy))
 		utmi_phy_clk_disable(phy);
-
-	return 0;
 }
 
-int tegra_usb_phy_clk_enable(struct tegra_usb_phy *phy)
+void tegra_usb_phy_clk_enable(struct tegra_usb_phy *phy)
 {
-	if (phy->instance != 1)
+	if (!phy_is_ulpi(phy))
 		utmi_phy_clk_enable(phy);
-
-	return 0;
 }
 
-int tegra_usb_phy_close(struct tegra_usb_phy *phy)
+void tegra_usb_phy_close(struct tegra_usb_phy *phy)
 {
-	if (phy->instance == 1)
+	if (phy_is_ulpi(phy))
 		clk_put(phy->clk);
 	else
 		utmip_pad_close(phy);
 	clk_disable(phy->pll_u);
 	clk_put(phy->pll_u);
 	kfree(phy);
-	return 0;
 }
