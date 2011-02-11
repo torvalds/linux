@@ -1935,7 +1935,7 @@ static void jedec_reset(u32 base, struct map_info *map, struct cfi_private *cfi)
 }
 
 
-static int cfi_jedec_setup(struct cfi_private *cfi, int index)
+static int cfi_jedec_setup(struct map_info *map, struct cfi_private *cfi, int index)
 {
 	int i,num_erase_regions;
 	uint8_t uaddr;
@@ -1962,6 +1962,7 @@ static int cfi_jedec_setup(struct cfi_private *cfi, int index)
 	cfi->cfiq->NumEraseRegions = jedec_table[index].nr_regions;
 	cfi->cfiq->DevSize = jedec_table[index].dev_size;
 	cfi->cfi_mode = CFI_MODE_JEDEC;
+	cfi->sector_erase_cmd = CMD(0x30);
 
 	for (i=0; i<num_erase_regions; i++){
 		cfi->cfiq->EraseRegionInfo[i] = jedec_table[index].regions[i];
@@ -2175,7 +2176,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 				       "MTD %s(): matched device 0x%x,0x%x unlock_addrs: 0x%.4x 0x%.4x\n",
 				       __func__, cfi->mfr, cfi->id,
 				       cfi->addr_unlock1, cfi->addr_unlock2 );
-				if (!cfi_jedec_setup(cfi, i))
+				if (!cfi_jedec_setup(map, cfi, i))
 					return 0;
 				goto ok_out;
 			}
