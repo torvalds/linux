@@ -44,10 +44,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define dprintk(level, fmt, arg...) do {			\
 	if (debug >= level) 					\
-	printk(KERN_DEBUG "rk29xx_camera: " fmt , ## arg); } while (0)
+	printk(KERN_WARNING"rk29xx_camera: " fmt , ## arg); } while (0)
 
 #define RK29CAMERA_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
-#define RK29CAMERA_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
+#define RK29CAMERA_DG(format, ...) dprintk(0, format, ## __VA_ARGS__)
 
 // VIP Reg Offset
 #define RK29_VIP_AHBR_CTRL                0x00
@@ -146,7 +146,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define RK29_CAM_W_MAX        3856            /* ddl@rock-chips.com : 10M Pixel */
 #define RK29_CAM_H_MAX        2764
 #define RK29_CAM_FRAME_INVAL_INIT 3
-#define RK29_CAM_FRAME_INVAL_DC 1          /* ddl@rock-chips.com :  */
+#define RK29_CAM_FRAME_INVAL_DC 3          /* ddl@rock-chips.com :  */
 
 #define RK29_CAM_AXI   0
 #define RK29_CAM_AHB   1
@@ -708,8 +708,8 @@ static int rk29_camera_add_device(struct soc_camera_device *icd)
         goto ebusy;
     }
 
-    dev_info(&icd->dev, "RK29 Camera driver attached to camera %d\n",
-             icd->devnum);
+    dev_info(&icd->dev, "RK29 Camera driver attached to camera%d(%s)\n",
+             icd->devnum,dev_name(icd->pdev));
 
 	pcdev->frame_inval = RK29_CAM_FRAME_INVAL_INIT;
     pcdev->active = NULL;
@@ -748,8 +748,8 @@ static void rk29_camera_remove_device(struct soc_camera_device *icd)
 
     BUG_ON(icd != pcdev->icd);
 
-    dev_info(&icd->dev, "RK29 Camera driver detached from camera %d\n",
-             icd->devnum);
+    dev_info(&icd->dev, "RK29 Camera driver detached from camera%d(%s)\n",
+             icd->devnum,dev_name(icd->pdev));
 
     v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_DEACTIVATE,NULL);
 	rk29_camera_deactivate(pcdev);
@@ -1278,12 +1278,23 @@ static void rk29_camera_reinit_work(struct work_struct *work)
 {
 	struct device *control;
     struct v4l2_subdev *sd;
+	struct v4l2_format cam_f;
+	const struct soc_camera_format_xlate *xlate;
 	int ret;
 
+	rk29_camera_s_stream(rk29_camdev_info_ptr->icd, 0);
 	control = to_soc_camera_control(rk29_camdev_info_ptr->icd);
 	sd = dev_get_drvdata(control);
 	ret = v4l2_subdev_call(sd,core, init, 1);
-	RK29CAMERA_DG("Camera host haven't recevie data from sensor,Reinit sensor now! ret:0x%x\n",ret);
+
+	cam_f.fmt.pix.width = rk29_camdev_info_ptr->icd->user_width;
+	cam_f.fmt.pix.height = rk29_camdev_info_ptr->icd->user_height;
+	xlate = soc_camera_xlate_by_fourcc(rk29_camdev_info_ptr->icd, rk29_camdev_info_ptr->icd->current_fmt->fourcc);
+	cam_f.fmt.pix.pixelformat = xlate->cam_fmt->fourcc;
+	ret |= v4l2_subdev_call(sd, video, s_fmt, &cam_f);
+	rk29_camera_s_stream(rk29_camdev_info_ptr->icd, 1);
+
+	RK29CAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor now! ret:0x%x\n",ret);
 }
 static enum hrtimer_restart rk29_camera_fps_func(struct hrtimer *timer)
 {

@@ -1,5 +1,5 @@
 /*
-o* Driver for MT9M001 CMOS Image Sensor from Micron
+ * Driver for OV5640 CMOS Image Sensor from OmniVision
  *
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
  *
@@ -20,6 +20,7 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
 #include <mach/rk29_camera.h>
+#include "ov5640.h"
 
 static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR);
@@ -30,7 +31,6 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define SENSOR_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
 #define SENSOR_DG(format, ...) dprintk(0, format, ## __VA_ARGS__)
-
 
 #define _CONS(a,b) a##b
 #define CONS(a,b) _CONS(a,b)
@@ -43,17 +43,17 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define MAX(x,y)    ((x>y) ? x: y)
 
 /* Sensor Driver Configuration */
-#define SENSOR_NAME ov2659
-#define SENSOR_V4L2_IDENT V4L2_IDENT_OV2659
-#define SENSOR_ID 0x2656
-#define SENSOR_MIN_WIDTH    800
-#define SENSOR_MIN_HEIGHT   600
-#define SENSOR_MAX_WIDTH    1600
-#define SENSOR_MAX_HEIGHT   1200
+#define SENSOR_NAME ov5640
+#define SENSOR_V4L2_IDENT V4L2_IDENT_OV5640
+#define SENSOR_ID 0x5640
+#define SENSOR_MIN_WIDTH    176
+#define SENSOR_MIN_HEIGHT   144
+#define SENSOR_MAX_WIDTH    2592
+#define SENSOR_MAX_HEIGHT   1944
 #define SENSOR_INIT_WIDTH	800			/* Sensor pixel size for sensor_init_data array */
 #define SENSOR_INIT_HEIGHT  600
 #define SENSOR_INIT_WINSEQADR sensor_svga
-#define SENSOR_INIT_PIXFMT V4L2_PIX_FMT_YUYV
+#define SENSOR_INIT_PIXFMT V4L2_PIX_FMT_UYVY
 
 #define CONFIG_SENSOR_WhiteBalance	1
 #define CONFIG_SENSOR_Brightness	0
@@ -62,18 +62,24 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Effect        1
 #define CONFIG_SENSOR_Scene         1
 #define CONFIG_SENSOR_DigitalZoom   0
-#define CONFIG_SENSOR_Focus         0
 #define CONFIG_SENSOR_Exposure      0
 #define CONFIG_SENSOR_Flash         0
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
+#ifdef CONFIG_OV5640_AUTOFOCUS
+#define CONFIG_SENSOR_Focus         1
+#include "ov5640_af_firmware.c"
+#else
+#define CONFIG_SENSOR_Focus         0
+#endif
 
-#define CONFIG_SENSOR_I2C_SPEED     250000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
-#define CONFIG_SENSOR_I2C_NOSCHED   1
+#define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
 
-#define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_FALLING|\
+
+#define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\
                           SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |\
                           SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
 
@@ -89,636 +95,699 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_NAME_STRING(a) STR(CONS(SENSOR_NAME, a))
 #define SENSOR_NAME_VARFUN(a) CONS(SENSOR_NAME, a)
 
-struct reginfo
-{
-    u16 reg;
-    u8 val;
-};
-/* init 800*600 SVGA */
+#define SENSOR_AF_IS_ERR    (0x00<<0)
+#define SENSOR_AF_IS_OK		(0x01<<0)
+
+#if CONFIG_SENSOR_Focus
+#define SENSOR_AF_MODE_INFINITY    0
+#define SENSOR_AF_MODE_MACRO       1
+#define SENSOR_AF_MODE_FIXED       2
+#define SENSOR_AF_MODE_AUTO        3
+#define SENSOR_AF_MODE_CONTINUOUS  4
+#define SENSOR_AF_MODE_CLOSE       5
+#endif
+
+#if CONFIG_SENSOR_Focus
+/* ov5640 VCM Command and Status Registers */
+#define CMD_MAIN_Reg      0x3024
+#define CMD_TAG_Reg       0x3025
+#define CMD_PARA0_Reg     0x5085
+#define CMD_PARA1_Reg     0x5084
+#define CMD_PARA2_Reg     0x5083
+#define CMD_PARA3_Reg     0x5082
+#define STA_ZONE_Reg      0x3026
+#define STA_FOCUS_Reg     0x3027
+
+/* ov5640 VCM Command  */
+#define OverlayEn_Cmd     0x01
+#define OverlayDis_Cmd    0x02
+#define SingleFocus_Cmd   0x03
+#define ConstFocus_Cmd    0x04
+#define StepMode_Cmd      0x05
+#define PauseFocus_Cmd    0x06
+#define ReturnIdle_Cmd    0x08
+#define SetZone_Cmd       0x10
+#define UpdateZone_Cmd    0x12
+#define SetMotor_Cmd      0x20
+
+/* ov5640 Focus State */
+#define S_FIRWRE          0xFF
+#define S_STARTUP         0xfa
+#define S_ERROR           0xfe
+#define S_DRVICERR        0xee
+#define S_IDLE            0x00
+#define S_FOCUSING        0x01
+#define S_FOCUSED         0x02
+#define S_CAPTURE         0x12
+#define S_STEP            0x20
+
+/* ov5640 Zone State */
+#define Zone_Is_Focused(a, zone_val)    (zone_val&(1<<(a-3)))
+#define Zone_Get_ID(zone_val)           (zone_val&0x03)
+
+#define Zone_CenterMode   0x01
+#define Zone_5xMode       0x02
+#define Zone_5PlusMode    0x03
+#define Zone_4fMode       0x04
+
+#define ZoneSel_Auto      0x0b
+#define ZoneSel_SemiAuto  0x0c
+#define ZoneSel_Manual    0x0d
+#define ZoneSel_Rotate    0x0e
+
+/* ov5640 Step Focus Commands */
+#define StepFocus_Near_Tag       0x01
+#define StepFocus_Far_Tag        0x02
+#define StepFocus_Furthest_Tag   0x03
+#define StepFocus_Nearest_Tag    0x04
+#define StepFocus_Spec_Tag       0x10
+#endif
+
+/* init 800X600 SVGA */
 static struct reginfo sensor_init_data[] =
 {
-	{0x3000, 0x0f},
-	{0x3001, 0xff},
-	{0x3002, 0xff},
-	{0x0100, 0x01},
-	{0x3633, 0x3d},
-	{0x3620, 0x02},
-	{0x3631, 0x11},
-	{0x3612, 0x04},
-	{0x3630, 0x20},
-	{0x4702, 0x02},
-	{0x370c, 0x34},
-	{0x3004, 0x10},
-	{0x3005, 0x18},
-	{0x3800, 0x00},
-	{0x3801, 0x00},
-	{0x3802, 0x00},
-	{0x3803, 0x00},
-	{0x3804, 0x06},
-	{0x3805, 0x5f},
-	{0x3806, 0x04},
-	{0x3807, 0xb7},
-	{0x3808, 0x03},
-	{0x3809, 0x20},
-	{0x380a, 0x02},
-	{0x380b, 0x58},
-	{0x380c, 0x05},
-	{0x380d, 0x14},
-	{0x380e, 0x02},
-	{0x380f, 0x68},
-	{0x3811, 0x08},
-	{0x3813, 0x02},
-	{0x3814, 0x31},
-	{0x3815, 0x31},
-	{0x3a02, 0x02},
-	{0x3a03, 0x68},
-	{0x3a08, 0x00},
-	{0x3a09, 0x5c},
-	{0x3a0a, 0x00},
-	{0x3a0b, 0x4d},
-	{0x3a0d, 0x08},
-	{0x3a0e, 0x06},
-	{0x3a14, 0x02},
-	{0x3a15, 0x28},
-		{0x4708, 0x00},
-	{0x3623, 0x00},
-	{0x3634, 0x76},
-	{0x3701, 0x44},
-	{0x3702, 0x18},
-	{0x3703, 0x24},
-	{0x3704, 0x24},
-	{0x3705, 0x0c},
-	{0x3820, 0x81},
-	{0x3821, 0x01},
-	{0x370a, 0x52},
-	{0x4608, 0x00},
-	{0x4609, 0x80},
-	{0x4300, 0x32},
-	{0x5086, 0x02},
-	{0x5000, 0xfb},
-	{0x5001, 0x1f},
-	{0x5002, 0x00},
-	{0x5025, 0x0e},
-	{0x5026, 0x18},
-	{0x5027, 0x34},
-	{0x5028, 0x4c},
-	{0x5029, 0x62},
-	{0x502a, 0x74},
-	{0x502b, 0x85},
-	{0x502c, 0x92},
-	{0x502d, 0x9e},
-	{0x502e, 0xb2},
-	{0x502f, 0xc0},
-	{0x5030, 0xcc},
-	{0x5031, 0xe0},
-	{0x5032, 0xee},
-	{0x5033, 0xf6},
-	{0x5034, 0x11},
-	{0x5070, 0x1c},
-	{0x5071, 0x5b},
-	{0x5072, 0x05},
-	{0x5073, 0x20},
-	{0x5074, 0x94},
-	{0x5075, 0xb4},
-	{0x5076, 0xb4},
-	{0x5077, 0xaf},
-	{0x5078, 0x05},
-	{0x5079, 0x98},
-	{0x507a, 0x21},
-	{0x5035, 0x6a},
-	{0x5036, 0x11},
-	{0x5037, 0x92},
-	{0x5038, 0x21},
+	{0x3008,0x82},
+	{0x3103,0x03},
+	{0x3017,0xff},
+	{0x3018,0xff},
+	{0x3108,0x01},
+	{0x3037,0x13},
+	{0x3630,0x2e},
+	{0x3632,0xe2},
+	{0x3633,0x23},
+	{0x3634,0x44},
+	{0x3621,0xe0},
+	{0x3704,0xa0},
+	{0x3703,0x5a},
+	{0x3715,0x78},
+	{0x3717,0x01},
+	{0x370b,0x60},
+	{0x3705,0x1a},
+	{0x3905,0x02},
+	{0x3906,0x10},
+	{0x3901,0x0a},
+	{0x3731,0x12},
+	{0x3600,0x08},
+	{0x3601,0x33},
+	{0x471c,0x50},
+	{0x3820,0x41},
+	{0x3821,0x07},
+	{0x3814,0x31},
+	{0x3815,0x31},
+	{0x3800,0x00},
+	{0x3801,0x00},
+	{0x3802,0x00},
+	{0x3803,0x04},
+	{0x3804,0x0a},
+	{0x3805,0x3f},
+	{0x3806,0x07},
+	{0x3807,0x9b},
+	{0x3808,0x02},
+	{0x3809,0x80},
+	{0x380a,0x01},
+	{0x380b,0xe0},
+	{0x380c,0x07},
+	{0x380d,0x68},
+	{0x380e,0x03},
+	{0x380f,0xd8},
+	{0x3810,0x00},
+	{0x3811,0x10},
+	{0x3812,0x00},
+	{0x3813,0x06},
+	{0x3618,0x00},
+	{0x3612,0x49},
+	{0x3708,0x62},
+	{0x3709,0x52},
+	{0x370c,0x03},
+	{0x3a02,0x03},
+	{0x3a03,0xd8},
+	{0x3a08,0x01},
+	{0x3a09,0x27},
+	{0x3a0a,0x00},
+	{0x3a0b,0xf6},
+	{0x3a0e,0x03},
+	{0x3a0d,0x04},
+	{0x3a14,0x03},
+	{0x3a15,0xd8},
+	{0x4001,0x02},
+	{0x4004,0x02},
+	{0x3002,0x1c},
+	{0x3006,0xc3},
+	{0x4300,0x30},
+	{0x501f,0x00},
+	{0x4713,0x03},
+	{0x3035,0x11},
+	{0x3036,0x46},
+	{0x4407,0x04},
+	{0x460b,0x35},
+	{0x460c,0x22},
+	{0x3824,0x02},
+	{0x5000,0xa7},
+	{0x5001,0xa3},
+	{0x5000,0xa7},
+	{0x3622,0x01},
+	{0x3635,0x1c},
+	{0x3634,0x40},
+	{0x3c01,0x34},
+	{0x3c00,0x00},
+	{0x3c04,0x28},
+	{0x3c05,0x98},
+	{0x3c06,0x00},
+	{0x3c07,0x08},
+	{0x3c08,0x00},
+	{0x3c09,0x1c},
+	{0x300c,0x22},
+	{0x3c0a,0x9c},
+	{0x3c0b,0x40},
+	{0x5180,0xff},
+	{0x5181,0xf2},
+	{0x5182,0x00},
+	{0x5183,0x94},
+	{0x5184,0x25},
+	{0x5185,0x24},
+	{0x5186,0x06},
+	{0x5187,0x08},
+	{0x5188,0x08},
+	{0x5189,0x78},
+	{0x518a,0x54},
+	{0x518b,0xb2},
+	{0x518c,0xb2},
+	{0x518d,0x44},
+	{0x518e,0x3d},
+	{0x518f,0x58},
+	{0x5190,0x46},
+	{0x5191,0xf8},
+	{0x5192,0x04},
+	{0x5193,0x70},
+	{0x5194,0xf0},
+	{0x5195,0xf0},
+	{0x5196,0x03},
+	{0x5197,0x01},
+	{0x5198,0x04},
+	{0x5199,0x12},
+	{0x519a,0x04},
+	{0x519b,0x00},
+	{0x519c,0x06},
+	{0x519d,0x82},
+	{0x519e,0x38},
+	{0x5381,0x1c},
+	{0x5382,0x5a},
+	{0x5383,0x06},
+	{0x5384,0x20},
+	{0x5385,0x80},
+	{0x5386,0xa0},
+	{0x5387,0xa2},
+	{0x5388,0xa0},
+	{0x5389,0x02},
+	{0x538a,0x01},
+	{0x538b,0x98},
+	{0x5300,0x08},
+	{0x5301,0x30},
+	{0x5302,0x10},
+	{0x5303,0x00},
+	{0x5304,0x08},
+	{0x5305,0x30},
+	{0x5306,0x08},
+	{0x5307,0x16},
+	{0x5309,0x08},
+	{0x530a,0x30},
+	{0x530b,0x04},
+	{0x530c,0x06},
+	{0x5480,0x01},
+	{0x5481,0x08},
+	{0x5482,0x14},
+	{0x5483,0x28},
+	{0x5484,0x51},
+	{0x5485,0x65},
+	{0x5486,0x71},
+	{0x5487,0x7d},
+	{0x5488,0x87},
+	{0x5489,0x91},
+	{0x548a,0x9a},
+	{0x548b,0xaa},
+	{0x548c,0xb8},
+	{0x548d,0xcd},
+	{0x548e,0xdd},
+	{0x548f,0xea},
+	{0x5490,0x1d},
+	{0x5580,0x02},
+	{0x5583,0x40},
+	{0x5584,0x10},
+	{0x5589,0x10},
+	{0x558a,0x00},
+	{0x558b,0xf8},
+	{0x5800,0x23},
+	{0x5801,0x15},
+	{0x5802,0x10},
+	{0x5803,0x10},
+	{0x5804,0x15},
+	{0x5805,0x23},
+	{0x5806,0x0c},
+	{0x5807,0x08},
+	{0x5808,0x05},
+	{0x5809,0x05},
+	{0x580a,0x08},
+	{0x580b,0x0c},
+	{0x580c,0x07},
+	{0x580d,0x03},
+	{0x580e,0x00},
+	{0x580f,0x00},
+	{0x5810,0x03},
+	{0x5811,0x07},
+	{0x5812,0x07},
+	{0x5813,0x03},
+	{0x5814,0x00},
+	{0x5815,0x00},
+	{0x5816,0x03},
+	{0x5817,0x07},
+	{0x5818,0x0b},
+	{0x5819,0x08},
+	{0x581a,0x05},
+	{0x581b,0x05},
+	{0x581c,0x07},
+	{0x581d,0x0b},
+	{0x581e,0x2a},
+	{0x581f,0x16},
+	{0x5820,0x11},
+	{0x5821,0x11},
+	{0x5822,0x15},
+	{0x5823,0x29},
+	{0x5824,0xbf},
+	{0x5825,0xaf},
+	{0x5826,0x9f},
+	{0x5827,0xaf},
+	{0x5828,0xdf},
+	{0x5829,0x6f},
+	{0x582a,0x8e},
+	{0x582b,0xab},
+	{0x582c,0x9e},
+	{0x582d,0x7f},
+	{0x582e,0x4f},
+	{0x582f,0x89},
+	{0x5830,0x86},
+	{0x5831,0x98},
+	{0x5832,0x6f},
+	{0x5833,0x4f},
+	{0x5834,0x6e},
+	{0x5835,0x7b},
+	{0x5836,0x7e},
+	{0x5837,0x6f},
+	{0x5838,0xde},
+	{0x5839,0xbf},
+	{0x583a,0x9f},
+	{0x583b,0xbf},
+	{0x583c,0xec},
+	{0x5025,0x00},
+	{0x3a0f,0x30},
+	{0x3a10,0x28},
+	{0x3a1b,0x30},
+	{0x3a1e,0x26},
+	{0x3a11,0x60},
+	{0x3a1f,0x14},
+	{0x3a18,0x00},
+	{0x3a19,0xf8},
+	{0x3035,0x21},
 
-	{0x5039, 0xe1},
-	{0x503a, 0x01},
-	{0x503c, 0x05},
-	{0x503d, 0x08},
-	{0x503e, 0x08},
-	{0x503f, 0x64},
-	{0x5040, 0x58},
-	{0x5041, 0x2a},
-	{0x5042, 0xc5},
-	{0x5043, 0x2e},
-	{0x5044, 0x3a},
-	{0x5045, 0x3c},
-	{0x5046, 0x44},
-	{0x5047, 0xf8},
-	{0x5048, 0x08},
-	{0x5049, 0x70},
-	{0x504a, 0xf0},
-	{0x504b, 0xf0},
-	{0x500c, 0x03},
-	{0x500d, 0x20},
-	{0x500e, 0x02},
-	{0x500f, 0x5c},
-	{0x5010, 0x48},
-	{0x5011, 0x00},
-	{0x5012, 0x66},
-	{0x5013, 0x03},
-	{0x5014, 0x30},
-	{0x5015, 0x02},
-	{0x5016, 0x7c},
-	{0x5017, 0x40},
-	{0x5018, 0x00},
-	{0x5019, 0x66},
-	{0x501a, 0x03},
-	{0x501b, 0x10},
-	{0x501c, 0x02},
-	{0x501d, 0x7c},
-	{0x501e, 0x3a},
-	{0x501f, 0x00},
-	{0x5020, 0x66},
-	{0x506e, 0x44},
-	{0x5064, 0x08},
-	{0x5065, 0x10},
-	{0x5066, 0x12},
-	{0x5067, 0x02},
-	{0x506c, 0x08},
-	{0x506d, 0x10},
-	{0x506f, 0xa6},
-	{0x5068, 0x08},
-
-
-	{0x5069, 0x10},
-	{0x506a, 0x04},
-	{0x506b, 0x12},
-	{0x507e, 0x40},
-	{0x507f, 0x20},
-	{0x507b, 0x02},
-	{0x507a, 0x01},
-	{0x5084, 0x0c},
-	{0x5085, 0x3e},
-	{0x5005, 0x80},
-	{0x3a0f, 0x30},
-	{0x3a10, 0x28},
-	{0x3a1b, 0x32},
-	{0x3a1e, 0x26},
-	{0x3a11, 0x60},
-	{0x3a1f, 0x14},
-	{0x5060, 0x69},
-	{0x5061, 0x7d},
-	{0x5062, 0x7d},
-	{0x5063, 0x69},
-	{0x3004, 0x20},
-	{0x0000, 0x00}
+	{0x3800 ,0x0 },
+	{0x3801 ,0x0 },
+	{0x3802 ,0x0 },
+	{0x3803 ,0x4 },
+	{0x3804 ,0xa },
+	{0x3805 ,0x3f},
+	{0x3806 ,0x7 },
+	{0x3807 ,0x9b},
+	{0x3808 ,0x3 },
+	{0x3809 ,0x20},
+	{0x380a ,0x2 },
+	{0x380b ,0x58},
+	{0x380c ,0x7 },
+	{0x380d ,0x68},
+	{0x380e ,0x3 },
+	{SEQUENCE_END, 0x00}
 };
 
-/* 1280x720 */
+/* 720p 15fps @ 1280x720 */
+
 static struct reginfo sensor_720p[]=
 {
-	{0x0103, 0x01	},
-	{0x3000, 0x0f	},
-	{0x3001, 0xff	},
-	{0x3002, 0xff	},
-	{0x0100, 0x01	},
-	{0x3633, 0x3d	},
-	{0x3620, 0x02	},
-	{0x3631, 0x11	},
-	{0x3612, 0x04	},
-	{0x3630, 0x20	},
-	{0x4702, 0x02	},
-	{0x370c, 0x34	},
-	{0x3004, 0x10	},
-	{0x3005, 0x24	},
-	{0x3800, 0x00	},
-	{0x3801, 0xa0	},
-	{0x3802, 0x00	},
-	{0x3803, 0xf0	},
-	{0x3804, 0x05	},
-	{0x3805, 0xbf	},
-	{0x3806, 0x03	},
-	{0x3807, 0xcb	},
-	{0x3808, 0x05	},
-	{0x3809, 0x00	},
-	{0x380a, 0x02	},
-	{0x380b, 0xd0	},
-	{0x380c, 0x06	},
-	{0x380d, 0x4c	},
-	{0x380e, 0x02	},
-	{0x380f, 0xe8	},
-	{0x3811, 0x10	},
-	{0x3813, 0x06	},
-	{0x3814, 0x11	},
-	{0x3815, 0x11	},
-	{0x3a02, 0x02	},
-	{0x3a03, 0xe8	},
-	{0x3a08, 0x00	},
-	{0x3a09, 0x6f	},
-	{0x3a0a, 0x00	},
-	{0x3a0b, 0x5d	},
-	{0x3a0d, 0x08	},
-	{0x3a0e, 0x06	},
-	{0x3a14, 0x02	},
-	{0x3a15, 0x9a	},
-	    {0x4708, 0x00  },
-	{0x3623, 0x02	},
-	{0x3634, 0x44	},
-	{0x3701, 0x41	},
-	{0x3702, 0x30	},
-	{0x3703, 0x48	},
-	{0x3704, 0x48	},
-	{0x3705, 0x18	},
-	{0x3820, 0x80	},
-	{0x3821, 0x00	},
-	{0x370a, 0x12	},
-	{0x4608, 0x00	},
-	{0x4609, 0x80	},
-	{0x4300, 0x32	},
-	{0x5086, 0x02	},
-	{0x5000, 0xfb	},
-	{0x5001, 0x1f	},
-	{0x5002, 0x00	},
-	{0x5025, 0x0e	},
-	{0x5026, 0x18	},
-	{0x5027, 0x34	},
-	{0x5028, 0x4c	},
-	{0x5029, 0x62	},
-	{0x502a, 0x74	},
-	{0x502b, 0x85	},
-	{0x502c, 0x92	},
-	{0x502d, 0x9e	},
-	{0x502e, 0xb2	},
-	{0x502f, 0xc0	},
-	{0x5030, 0xcc	},
-	{0x5031, 0xe0	},
-	{0x5032, 0xee	},
-	{0x5033, 0xf6	},
-	{0x5034, 0x11	},
-	{0x5070, 0x1c	},
-	{0x5071, 0x5b	},
-	{0x5072, 0x05	},
-	{0x5073, 0x20	},
-	{0x5074, 0x94	},
-	{0x5075, 0xb4	},
-	{0x5076, 0xb4	},
-	{0x5077, 0xaf	},
-	{0x5078, 0x05	},
-	{0x5079, 0x98	},
-	{0x507a, 0x21	},
-	{0x5035, 0x6a	},
-	{0x5036, 0x11	},
-	{0x5037, 0x92	},
-	{0x5038, 0x21	},
-	{0x5039, 0xe1	},
-	{0x503a, 0x01	},
-	{0x503c, 0x05	},
-	{0x503d, 0x08	},
-	{0x503e, 0x08	},
-	{0x503f, 0x64	},
-	{0x5040, 0x58	},
-	{0x5041, 0x2a	},
-	{0x5042, 0xc5	},
-	{0x5043, 0x2e	},
-	{0x5044, 0x3a	},
-	{0x5045, 0x3c	},
-	{0x5046, 0x44	},
-	{0x5047, 0xf8	},
-	{0x5048, 0x08	},
-	{0x5049, 0x70	},
-	{0x504a, 0xf0	},
-	{0x504b, 0xf0	},
-	{0x500c, 0x03	},
-	{0x500d, 0x20	},
-	{0x500e, 0x02	},
-	{0x500f, 0x5c	},
-	{0x5010, 0x48	},
-	{0x5011, 0x00	},
-	{0x5012, 0x66	},
-	{0x5013, 0x03	},
-	{0x5014, 0x30	},
-	{0x5015, 0x02	},
-	{0x5016, 0x7c	},
-	{0x5017, 0x40	},
-	{0x5018, 0x00	},
-	{0x5019, 0x66	},
-	{0x501a, 0x03	},
-	{0x501b, 0x10	},
-	{0x501c, 0x02	},
-	{0x501d, 0x7c	},
-	{0x501e, 0x3a	},
-	{0x501f, 0x00	},
-	{0x5020, 0x66	},
-	{0x506e, 0x44	},
-	{0x5064, 0x08	},
-	{0x5065, 0x10	},
-	{0x5066, 0x12	},
-	{0x5067, 0x02	},
-	{0x506c, 0x08	},
-	{0x506d, 0x10	},
-	{0x506f, 0xa6	},
-	{0x5068, 0x08	},
-	{0x5069, 0x10	},
-	{0x506a, 0x04	},
-	{0x506b, 0x12	},
-	{0x507e, 0x40	},
-	{0x507f, 0x20	},
-	{0x507b, 0x02	},
-	{0x507a, 0x01	},
-	{0x5084, 0x0c	},
-	{0x5085, 0x3e	},
-	{0x5005, 0x80	},
-	{0x3a0f, 0x30	},
-	{0x3a10, 0x28	},
-	{0x3a1b, 0x32	},
-	{0x3a1e, 0x26	},
-	{0x3a11, 0x60	},
-	{0x3a1f, 0x14	},
-	{0x5060, 0x69	},
-	{0x5061, 0x7d	},
-	{0x5062, 0x7d	},
-	{0x5063, 0x69	},
-	{0x0000 ,0x00}
 
+	{SEQUENCE_END, 0x00}
+};
+
+/* 	1080p, 0x15fps, 0xyuv @1920x1080 */
+
+static struct reginfo sensor_1080p[]=
+{
+
+	{SEQUENCE_END, 0x00}
+};
+
+/* 2592X1944 QSXGA */
+static struct reginfo sensor_qsxga[] =
+{
+	{0x3820 ,0x40},
+	{0x3821 ,0x06},
+	{0x3814 ,0x11},
+	{0x3815 ,0x11},
+	{0x3803 ,0x00},
+	{0x3807 ,0x9f},
+	{0x3808 ,0x0a},
+	{0x3809 ,0x20},
+	{0x380a ,0x07},
+	{0x380b ,0x98},
+	{0x380c ,0x0b},
+	{0x380d ,0x1c},
+	{0x380e ,0x07},
+	{0x380f ,0xb0},
+	{0x3813 ,0x04},
+	{0x3618 ,0x04},
+	{0x3612 ,0x4b},
+	{0x3708 ,0x21},
+	{0x3709 ,0x12},
+	{0x370c ,0x00},
+	{0x3a02 ,0x07},
+	{0x3a03 ,0xb0},
+	{0x3a0e ,0x06},
+	{0x3a0d ,0x08},
+	{0x3a14 ,0x07},
+	{0x3a15 ,0xb0},
+	{0x4004 ,0x06},
+	{0x5000 ,0x07},
+	{0x5181 ,0x52},
+	{0x5182 ,0x00},
+	{0x5197 ,0x01},
+	{0x519e ,0x38},
+	{0x3035 ,0x21},
+	{0x5000 ,0x27},
+	{0x5001 ,0x83},
+	{0x3035 ,0x71},
+	{0x4713 ,0x02},
+	{0x3036 ,0x69},
+	{0x4407 ,0x0c},
+	{0x460b ,0x37},
+	{0x460c ,0x20},
+	{0x3824 ,0x01},
+	{SEQUENCE_END, 0x00}
+};
+/* 2048*1536 QXGA */
+static struct reginfo sensor_qxga[] =
+{
+	{0x3820 ,0x40},
+	{0x3821 ,0x06},
+	{0x3814 ,0x11},
+	{0x3815 ,0x11},
+	{0x3803 ,0x00},
+	{0x3807 ,0x9f},
+	{0x3808 ,0x0a},
+	{0x3809 ,0x20},
+	{0x380a ,0x07},
+	{0x380b ,0x98},
+	{0x380c ,0x0b},
+	{0x380d ,0x1c},
+	{0x380e ,0x07},
+	{0x380f ,0xb0},
+	{0x3813 ,0x04},
+	{0x3618 ,0x04},
+	{0x3612 ,0x4b},
+	{0x3708 ,0x21},
+	{0x3709 ,0x12},
+	{0x370c ,0x00},
+	{0x3a02 ,0x07},
+	{0x3a03 ,0xb0},
+	{0x3a0e ,0x06},
+	{0x3a0d ,0x08},
+	{0x3a14 ,0x07},
+	{0x3a15 ,0xb0},
+	{0x4004 ,0x06},
+	{0x5000 ,0x07},
+	{0x5181 ,0x52},
+	{0x5182 ,0x00},
+	{0x5197 ,0x01},
+	{0x519e ,0x38},
+	{0x3035 ,0x21},
+	{0x5000 ,0x27},
+	{0x5001 ,0x83},
+	{0x3035 ,0x71},
+	{0x4713 ,0x02},
+	{0x3036 ,0x69},
+	{0x4407 ,0x0c},
+	{0x460b ,0x37},
+	{0x460c ,0x20},
+	{0x3824 ,0x01},
+
+	{0x3800 ,0x1 },
+	{0x3801 ,0x8A},
+	{0x3802 ,0x0 },
+	{0x3803 ,0xA },
+	{0x3804 ,0xA },
+	{0x3805 ,0x20},
+	{0x3806 ,0x7 },
+	{0x3807 ,0x98},
+	{0x3808 ,0x8 },
+	{0x3809 ,0x0 },
+	{0x380a ,0x6 },
+	{0x380b ,0x0 },
+	{0x380c ,0xc },
+	{0x380d ,0x80},
+	{0x380e ,0x7 },
+	{0x380f ,0xd0},
+	{0x5001 ,0x7f},
+	{0x5680 ,0x0 },
+	{0x5681 ,0x0 },
+	{0x5682 ,0xA },
+	{0x5683 ,0x20},
+	{0x5684 ,0x0 },
+	{0x5685 ,0x0 },
+	{0x5686 ,0x7 },
+	{0x5687 ,0x98},
+	{SEQUENCE_END, 0x00}
 };
 
 /* 1600X1200 UXGA */
 static struct reginfo sensor_uxga[] =
 {
-    {0x3800, 0x00},
-	{0x3801, 0x00},
-	{0x3802, 0x00},
-	{0x3803, 0x00},
-	{0x3804, 0x06},
-	{0x3805, 0x5f},
-	{0x3806, 0x04},
-	{0x3807, 0xbb},
-	{0x3808, 0x06},
-	{0x3809, 0x40},
-	{0x380a, 0x04},
-	{0x380b, 0xb0},
-	{0x380c, 0x07},
-	{0x380d, 0x9f},
-	{0x380e, 0x04},
-	{0x380f, 0xd0},
-	{0x3811, 0x10},
-	{0x3813, 0x06},
-	{0x3814, 0x11},
-	{0x3815, 0x11},
-	{0x3a02, 0x04},
-	{0x3a03, 0xd0},
-	{0x3a08, 0x00},
-	{0x3a09, 0xb8},
-	{0x3a0a, 0x00},
-	{0x3a0b, 0x9a},
-	{0x3a0d, 0x08},
-	{0x3a0e, 0x06},
-	{0x3a14, 0x04},
-	{0x3a15, 0x50},
-	{0x3623, 0x00},
-	{0x3634, 0x44},
-	{0x3701, 0x44},
-	{0x3702, 0x30},
-	{0x3703, 0x48},
-	{0x3704, 0x48},
-	{0x3705, 0x18},
-	{0x3820, 0x80},
-	{0x3821, 0x00},
-	{0x370a, 0x12},
-	{0x4608, 0x00},
-	{0x4609, 0x80},
-	{0x5002, 0x00},
-	{0x3005, 0x24},
-	{0x3004, 0x20},
-	{0x0000, 0x00}
+	{0x3820 ,0x40},
+	{0x3821 ,0x06},
+	{0x3814 ,0x11},
+	{0x3815 ,0x11},
+	{0x3803 ,0x00},
+	{0x3807 ,0x9f},
+	{0x3808 ,0x0a},
+	{0x3809 ,0x20},
+	{0x380a ,0x07},
+	{0x380b ,0x98},
+	{0x380c ,0x0b},
+	{0x380d ,0x1c},
+	{0x380e ,0x07},
+	{0x380f ,0xb0},
+	{0x3813 ,0x04},
+	{0x3618 ,0x04},
+	{0x3612 ,0x4b},
+	{0x3708 ,0x21},
+	{0x3709 ,0x12},
+	{0x370c ,0x00},
+	{0x3a02 ,0x07},
+	{0x3a03 ,0xb0},
+	{0x3a0e ,0x06},
+	{0x3a0d ,0x08},
+	{0x3a14 ,0x07},
+	{0x3a15 ,0xb0},
+	{0x4004 ,0x06},
+	{0x5000 ,0x07},
+	{0x5181 ,0x52},
+	{0x5182 ,0x00},
+	{0x5197 ,0x01},
+	{0x519e ,0x38},
+	{0x3035 ,0x21},
+	{0x5000 ,0x27},
+	{0x5001 ,0x83},
+	{0x3035 ,0x71},
+	{0x4713 ,0x02},
+	{0x3036 ,0x69},
+	{0x4407 ,0x0c},
+	{0x460b ,0x37},
+	{0x460c ,0x20},
+	{0x3824 ,0x01},
+
+	{0x3800 ,0x1 },
+	{0x3801 ,0x8A},
+	{0x3802 ,0x0 },
+	{0x3803 ,0xA },
+	{0x3804 ,0xA },
+	{0x3805 ,0x20},
+	{0x3806 ,0x7 },
+	{0x3807 ,0x98},
+	{0x3808 ,0x6 },
+	{0x3809 ,0x40},
+	{0x380a ,0x4 },
+	{0x380b ,0xb0},
+	{0x380c ,0xc },
+	{0x380d ,0x80},
+	{0x380e ,0x7 },
+	{0x380f ,0xd0},
+	{0x5001 ,0x7f},
+	{0x5680 ,0x0 },
+	{0x5681 ,0x0 },
+	{0x5682 ,0xA },
+	{0x5683 ,0x20},
+	{0x5684 ,0x0 },
+	{0x5685 ,0x0 },
+	{0x5686 ,0x7 },
+	{0x5687 ,0x98},
+	{SEQUENCE_END, 0x00}
 };
 
 /* 1280X1024 SXGA */
 static struct reginfo sensor_sxga[] =
 {
-	{0x0, 0x0}
+
+	{SEQUENCE_END, 0x00}
 };
 
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
 {
-		{0x0100, 0x00},    //software sleep : Sensor vsync singal may not output if haven't sleep the sensor when transfer the array,
-	{0x3800, 0x00},
-	{0x3801, 0x00},
-	{0x3802, 0x00},
-	{0x3803, 0x00},
-	{0x3804, 0x06},
-	{0x3805, 0x5f},
-	{0x3806, 0x04},
-	{0x3807, 0xb7},
-	{0x3808, 0x03},
-	{0x3809, 0x20},
-	{0x380a, 0x02},
-	{0x380b, 0x58},
-	{0x380c, 0x05},
-	{0x380d, 0x14},
-	{0x380e, 0x02},
-	{0x380f, 0x68},
-	{0x3811, 0x08},
-	{0x3813, 0x02},
-	{0x3814, 0x31},
-	{0x3815, 0x31},
-	{0x3a02, 0x02},
-	{0x3a03, 0x68},
-	{0x3a08, 0x00},
-	{0x3a09, 0x5c},
-	{0x3a0a, 0x00},
-	{0x3a0b, 0x4d},
-	{0x3a0d, 0x08},
-	{0x3a0e, 0x06},
-	{0x3a14, 0x02},
-	{0x3a15, 0x28},
-	{0x3623, 0x00},
-	{0x3634, 0x76},
-	{0x3701, 0x44},
-	{0x3702, 0x18},
-	{0x3703, 0x24},
-	{0x3704, 0x24},
-	{0x3705, 0x0c},
-	{0x3820, 0x81},
-	{0x3821, 0x01},
-	{0x370a, 0x52},
-	{0x4608, 0x00},
-	{0x4609, 0x80},
-	{0x5002, 0x10},
-	{0x3005, 0x18},
-	{0x3004, 0x20},
-		{0x0100, 0x01},		//software wake
-	{0x0000, 0x00}
+	{0x3820 ,0x41},
+	{0x3821 ,0x7 },
+	{0x3814 ,0x31},
+	{0x3815 ,0x31},
+	{0x3803 ,0x4 },
+	{0x3807 ,0x9b},
+	{0x3808 ,0x2 },
+	{0x3809 ,0x80},
+	{0x380a ,0x1 },
+	{0x380b ,0xe0},
+	{0x380c ,0x7 },
+	{0x380d ,0x68},
+	{0x380e ,0x3 },
+	{0x380f ,0xd8},
+	{0x3813 ,0x6 },
+	{0x3618 ,0x0 },
+	{0x3612 ,0x49},
+	{0x3708 ,0x62},
+	{0x3709 ,0x52},
+	{0x370c ,0x3 },
+	{0x3a02 ,0x3 },
+	{0x3a03 ,0xd8},
+	{0x3a0e ,0x3 },
+	{0x3a0d ,0x4 },
+	{0x3a14 ,0x3 },
+	{0x3a15 ,0xd8},
+	{0x4004 ,0x2 },
+	{0x5000 ,0xa7},
+	{0x5181 ,0xf2},
+	{0x5182 ,0x0 },
+	{0x5197 ,0x1 },
+	{0x519e ,0x38},
+	{0x3035 ,0x21},
+	{0x5000 ,0xa7},
+	{0x5001 ,0xa3},
+	{0x3035 ,0x21},
+	{0x4713 ,0x3 },
+	{0x3036 ,0x46},
+	{0x4407 ,0x4 },
+	{0x460b ,0x35},
+	{0x460c ,0x22},
+	{0x3824 ,0x2 },
+	{SEQUENCE_END, 0x00}
 };
 
 /* 640X480 VGA */
 static struct reginfo sensor_vga[] =
 {
-	{0x0, 0x0}
-};
 
+	{SEQUENCE_END, 0x00}
+};
 /* 352X288 CIF */
 static struct reginfo sensor_cif[] =
 {
-	{0x0, 0x0}
+
+	{SEQUENCE_END, 0x00}
 };
 
 /* 320*240 QVGA */
 static  struct reginfo sensor_qvga[] =
 {
-	{0x0, 0x0}
+
+	{SEQUENCE_END, 0x00}
 };
 
 /* 176X144 QCIF*/
 static struct reginfo sensor_qcif[] =
 {
-	{0x0, 0x0}
+
+	{SEQUENCE_END, 0x00}
 };
-#if 0
-/* 160X120 QQVGA*/
-static struct reginfo ov2655_qqvga[] =
-{
-
-    {0x300E, 0x34},
-    {0x3011, 0x01},
-    {0x3012, 0x10},
-    {0x302a, 0x02},
-    {0x302b, 0xE6},
-    {0x306f, 0x14},
-    {0x3362, 0x90},
-
-    {0x3070, 0x5d},
-    {0x3072, 0x5d},
-    {0x301c, 0x07},
-    {0x301d, 0x07},
-
-    {0x3020, 0x01},
-    {0x3021, 0x18},
-    {0x3022, 0x00},
-    {0x3023, 0x06},
-    {0x3024, 0x06},
-    {0x3025, 0x58},
-    {0x3026, 0x02},
-    {0x3027, 0x61},
-    {0x3088, 0x00},
-    {0x3089, 0xa0},
-    {0x308a, 0x00},
-    {0x308b, 0x78},
-    {0x3316, 0x64},
-    {0x3317, 0x25},
-    {0x3318, 0x80},
-    {0x3319, 0x08},
-    {0x331a, 0x0a},
-    {0x331b, 0x07},
-    {0x331c, 0x80},
-    {0x331d, 0x38},
-    {0x3100, 0x00},
-    {0x3302, 0x11},
-
-    {0x0, 0x0},
-};
-
-
-
-static  struct reginfo ov2655_Sharpness_auto[] =
-{
-    {0x3306, 0x00},
-};
-
-static  struct reginfo ov2655_Sharpness1[] =
-{
-    {0x3306, 0x08},
-    {0x3371, 0x00},
-};
-
-static  struct reginfo ov2655_Sharpness2[][3] =
-{
-    //Sharpness 2
-    {0x3306, 0x08},
-    {0x3371, 0x01},
-};
-
-static  struct reginfo ov2655_Sharpness3[] =
-{
-    //default
-    {0x3306, 0x08},
-    {0x332d, 0x02},
-};
-static  struct reginfo ov2655_Sharpness4[]=
-{
-    //Sharpness 4
-    {0x3306, 0x08},
-    {0x332d, 0x03},
-};
-
-static  struct reginfo ov2655_Sharpness5[] =
-{
-    //Sharpness 5
-    {0x3306, 0x08},
-    {0x332d, 0x04},
-};
-#endif
 
 static  struct reginfo sensor_ClrFmt_YUYV[]=
 {
-    {0x4300, 0x30},
-    {0x0000, 0x00}
+	{0x4300,0x30},
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_ClrFmt_UYVY[]=
 {
-    {0x4300, 0x32},
-    {0x0000, 0x00}
+	{0x4300,0x32},
+	{SEQUENCE_END, 0x00}
 };
+
 
 #if CONFIG_SENSOR_WhiteBalance
 static  struct reginfo sensor_WhiteB_Auto[]=
 {
-    {0x3406, 0x00},  //AWB auto, bit[1]:0,auto
-    {0x0000, 0x00}
+	{0x3406 ,0x00},
+	{0x5183 ,0x94},
+	{0x5191 ,0xff},
+	{0x5192 ,0x00},
+	{SEQUENCE_END, 0x00}
 };
 /* Cloudy Colour Temperature : 6500K - 8000K  */
 static  struct reginfo sensor_WhiteB_Cloudy[]=
 {
-    {0x3406, 0x01},
-    {0x3400, 0x07},
-    {0x3401, 0x08},
-    {0x3402, 0x04},
-    {0x3403, 0x00},
-    {0x3404, 0x05},
-    {0x3405, 0x00},
-    {0x0000, 0x00}
+	{0x3406 ,0x1 },
+	{0x3400 ,0x6 },
+	{0x3401 ,0x48},
+	{0x3402 ,0x4 },
+	{0x3403 ,0x0 },
+	{0x3404 ,0x4 },
+	{0x3405 ,0xd3 },
+	{SEQUENCE_END, 0x00}
 };
 /* ClearDay Colour Temperature : 5000K - 6500K  */
 static  struct reginfo sensor_WhiteB_ClearDay[]=
 {
-    //Sunny
-    {0x3406, 0x01},
-    {0x3400, 0x07},
-    {0x3401, 0x02},
-    {0x3402, 0x04},
-    {0x3403, 0x00},
-    {0x3404, 0x05},
-    {0x3405, 0x15},
-    {0x0000, 0x00}
+	{0x3406 ,0x1 },
+	{0x3400 ,0x6 },
+	{0x3401 ,0x1c},
+	{0x3402 ,0x4 },
+	{0x3403 ,0x0 },
+	{0x3404 ,0x4 },
+	{0x3405 ,0xf3},
+	{SEQUENCE_END, 0x00}
 };
 /* Office Colour Temperature : 3500K - 5000K  */
 static  struct reginfo sensor_WhiteB_TungstenLamp1[]=
 {
-    //Office
-    {0x3406, 0x01},
-    {0x3400, 0x06},
-    {0x3401, 0x2a},
-    {0x3402, 0x04},
-    {0x3403, 0x00},
-    {0x3404, 0x07},
-    {0x3405, 0x24},
-    {0x0000, 0x00}
-
+	{0x3406 ,0x1 },
+	{0x3400 ,0x5 },
+	{0x3401 ,0x48},
+	{0x3402 ,0x4 },
+	{0x3403 ,0x0 },
+	{0x3404 ,0x7 },
+	{0x3405 ,0xcf},
+	{SEQUENCE_END, 0x00}
 };
 /* Home Colour Temperature : 2500K - 3500K  */
 static  struct reginfo sensor_WhiteB_TungstenLamp2[]=
 {
-    //Home
-    {0x3406, 0x01},
-    {0x3400, 0x04},
-    {0x3401, 0x58},
-    {0x3402, 0x04},
-    {0x3403, 0x00},
-    {0x3404, 0x07},
-    {0x3405, 0x24},
-    {0x0000, 0x00}
+	{0x3406 ,0x1 },
+	{0x3400 ,0x4 },
+	{0x3401 ,0x10},
+	{0x3402 ,0x4 },
+	{0x3403 ,0x0 },
+	{0x3404 ,0x8 },
+	{0x3405 ,0xb6},
+	{SEQUENCE_END, 0x00}
 };
 static struct reginfo *sensor_WhiteBalanceSeqe[] = {sensor_WhiteB_Auto, sensor_WhiteB_TungstenLamp1,sensor_WhiteB_TungstenLamp2,
     sensor_WhiteB_ClearDay, sensor_WhiteB_Cloudy,NULL,
@@ -728,43 +797,29 @@ static struct reginfo *sensor_WhiteBalanceSeqe[] = {sensor_WhiteB_Auto, sensor_W
 #if CONFIG_SENSOR_Brightness
 static  struct reginfo sensor_Brightness0[]=
 {
-    // Brightness -2
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_Brightness1[]=
 {
-    // Brightness -1
-
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Brightness2[]=
 {
-    //  Brightness 0
-
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_Brightness3[]=
 {
-    // Brightness +1
-
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_Brightness4[]=
 {
-    //  Brightness +2
-
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Brightness5[]=
 {
-    //  Brightness +3
-
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 static struct reginfo *sensor_BrightnessSeqe[] = {sensor_Brightness0, sensor_Brightness1, sensor_Brightness2, sensor_Brightness3,
     sensor_Brightness4, sensor_Brightness5,NULL,
@@ -775,46 +830,51 @@ static struct reginfo *sensor_BrightnessSeqe[] = {sensor_Brightness0, sensor_Bri
 #if CONFIG_SENSOR_Effect
 static  struct reginfo sensor_Effect_Normal[] =
 {
-    {0x507b, 0x00},
-    {0x0000, 0x00}
+    {0x5001, 0x7f},
+	{0x5580, 0x00},
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_Effect_WandB[] =
 {
-    {0x507b, 0x20},
-    {0x0000, 0x00}
+    {0x5001, 0xff},
+	{0x5580, 0x18},
+	{0x5585, 0x80},
+	{0x5586, 0x80},
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_Effect_Sepia[] =
 {
-    {0x507b, 0x18},
-    {0x507e, 0x40},
-    {0x507f, 0xa0},
-    {0x0000, 0x00}
+    {0x5001, 0xff},
+	{0x5580, 0x18},
+	{0x5585, 0x40},
+	{0x5586, 0xa0},
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Effect_Negative[] =
 {
     //Negative
-    {0x507b, 0x40}, //bit[6] negative
-    {0x0000, 0x00}
-};
-static  struct reginfo sensor_Effect_Bluish[] =
+    {0x5001, 0xff},
+	{0x5580, 0x40},
+	{SEQUENCE_END, 0x00}
+};static  struct reginfo sensor_Effect_Bluish[] =
 {
     // Bluish
-    {0x507b, 0x18},
-    {0x507e, 0xa0},
-    {0x507f, 0x40},
-    {0x0000, 0x00}
+    {0x5001, 0xff},
+	{0x5580, 0x18},
+	{0x5585, 0xa0},
+	{0x5586, 0x40},
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Effect_Green[] =
 {
     //  Greenish
-    {0x507b, 0x18},
-    {0x507e, 0x60},
-    {0x507f, 0x60},
-    {0x0000, 0x00}
+    {0x5001, 0xff},
+	{0x5580, 0x18},
+	{0x5585, 0x60},
+	{0x5586, 0x60},
+	{SEQUENCE_END, 0x00}
 };
 static struct reginfo *sensor_EffectSeqe[] = {sensor_Effect_Normal, sensor_Effect_WandB, sensor_Effect_Negative,sensor_Effect_Sepia,
     sensor_Effect_Bluish, sensor_Effect_Green,NULL,
@@ -823,39 +883,33 @@ static struct reginfo *sensor_EffectSeqe[] = {sensor_Effect_Normal, sensor_Effec
 #if CONFIG_SENSOR_Exposure
 static  struct reginfo sensor_Exposure0[]=
 {
-	{0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_Exposure1[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_Exposure2[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Exposure3[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_Exposure4[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_Exposure5[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_Exposure6[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
-
 static struct reginfo *sensor_ExposureSeqe[] = {sensor_Exposure0, sensor_Exposure1, sensor_Exposure2, sensor_Exposure3,
     sensor_Exposure4, sensor_Exposure5,sensor_Exposure6,NULL,
 };
@@ -863,56 +917,54 @@ static struct reginfo *sensor_ExposureSeqe[] = {sensor_Exposure0, sensor_Exposur
 #if CONFIG_SENSOR_Saturation
 static  struct reginfo sensor_Saturation0[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Saturation1[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Saturation2[]=
 {
-    {0x0000, 0x00}
-};
-static struct reginfo *sensor_SaturationSeqe[] = {sensor_Saturation0, sensor_Saturation1, sensor_Saturation2, NULL,};
+	{SEQUENCE_END, 0x00}
+};static struct reginfo *sensor_SaturationSeqe[] = {sensor_Saturation0, sensor_Saturation1, sensor_Saturation2, NULL,};
 
 #endif
 #if CONFIG_SENSOR_Contrast
 static  struct reginfo sensor_Contrast0[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Contrast1[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_Contrast2[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Contrast3[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Contrast4[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 
 
 static  struct reginfo sensor_Contrast5[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Contrast6[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 static struct reginfo *sensor_ContrastSeqe[] = {sensor_Contrast0, sensor_Contrast1, sensor_Contrast2, sensor_Contrast3,
     sensor_Contrast4, sensor_Contrast5, sensor_Contrast6, NULL,
@@ -922,24 +974,23 @@ static struct reginfo *sensor_ContrastSeqe[] = {sensor_Contrast0, sensor_Contras
 #if CONFIG_SENSOR_Mirror
 static  struct reginfo sensor_MirrorOn[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_MirrorOff[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 static struct reginfo *sensor_MirrorSeqe[] = {sensor_MirrorOff, sensor_MirrorOn,NULL,};
 #endif
 #if CONFIG_SENSOR_Flip
 static  struct reginfo sensor_FlipOn[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_FlipOff[]=
 {
-    {0x0000, 0x00}
+	{SEQUENCE_END, 0x00}
 };
 static struct reginfo *sensor_FlipSeqe[] = {sensor_FlipOff, sensor_FlipOn,NULL,};
 
@@ -947,22 +998,30 @@ static struct reginfo *sensor_FlipSeqe[] = {sensor_FlipOff, sensor_FlipOn,NULL,}
 #if CONFIG_SENSOR_Scene
 static  struct reginfo sensor_SceneAuto[] =
 {
-    {0x3a00, 0x78},
-    {0x0000, 0x00}
+	{0x3a00 , 0x78},
+	{SEQUENCE_END, 0x00}
 };
-
 static  struct reginfo sensor_SceneNight[] =
 {
-    {0x3003, 0x80},
-	{0x3004, 0x20},
-	{0x3005, 0x18},
-	{0x3006, 0x0d},
-	{0x3a00, 0x7c},
-	{0x3a02 ,0x07},
-	{0x3a03 ,0x38},
-	{0x3a14 ,0x07},
-	{0x3a15 ,0x38},
-    {0x0000, 0x00}
+    //15fps ~ 3.75fps night mode for 60/50Hz light environment, 24Mhz clock input,24Mzh pclk
+	{0x3034 ,0x1a},
+	{0x3035 ,0x21},
+	{0x3036 ,0x46},
+	{0x3037 ,0x13},
+	{0x3038 ,0x00},
+	{0x3039 ,0x00},
+	{0x3a00 ,0x7c},
+	{0x3a08 ,0x01},
+	{0x3a09 ,0x27},
+	{0x3a0a ,0x00},
+	{0x3a0b ,0xf6},
+	{0x3a0d ,0x04},
+	{0x3a0e ,0x04},
+	{0x3a02 ,0x0b},
+	{0x3a03 ,0x88},
+	{0x3a14 ,0x0b},
+	{0x3a15 ,0x88},
+	{SEQUENCE_END, 0x00}
 };
 static struct reginfo *sensor_SceneSeqe[] = {sensor_SceneAuto, sensor_SceneNight,NULL,};
 
@@ -970,25 +1029,24 @@ static struct reginfo *sensor_SceneSeqe[] = {sensor_SceneAuto, sensor_SceneNight
 #if CONFIG_SENSOR_DigitalZoom
 static struct reginfo sensor_Zoom0[] =
 {
-    {0x0, 0x0},
+	{SEQUENCE_END, 0x00}
 };
-
 static struct reginfo sensor_Zoom1[] =
 {
-     {0x0, 0x0},
+	{SEQUENCE_END, 0x00}
 };
 
 static struct reginfo sensor_Zoom2[] =
 {
-    {0x0, 0x0},
+	{SEQUENCE_END, 0x00}
 };
 
 
 static struct reginfo sensor_Zoom3[] =
 {
-    {0x0, 0x0},
+	{SEQUENCE_END, 0x00}
 };
-static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL,};
+static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL};
 #endif
 static const struct v4l2_querymenu sensor_menus[] =
 {
@@ -1162,6 +1220,23 @@ static const struct v4l2_queryctrl sensor_controls[] =
         .step		= 1,
         .default_value = 125,
     },
+	{
+        .id		= V4L2_CID_FOCUS_AUTO,
+        .type		= V4L2_CTRL_TYPE_BOOLEAN,
+        .name		= "Focus Control",
+        .minimum	= 0,
+        .maximum	= 1,
+        .step		= 1,
+        .default_value = 0,
+    },{
+        .id		= V4L2_CID_FOCUS_CONTINUOUS,
+        .type		= V4L2_CTRL_TYPE_BOOLEAN,
+        .name		= "Focus Control",
+        .minimum	= 0,
+        .maximum	= 1,
+        .step		= 1,
+        .default_value = 0,
+    },
     #endif
 
 	#if CONFIG_SENSOR_Flash
@@ -1211,6 +1286,17 @@ static const struct soc_camera_data_format sensor_colour_formats[] = {
 	JPG_FMT(SENSOR_NAME_STRING(UYVY), 16, V4L2_PIX_FMT_UYVY),
 	JPG_FMT(SENSOR_NAME_STRING(YUYV), 16, V4L2_PIX_FMT_YUYV),
 };
+enum sensor_work_state
+{
+	sensor_work_ready = 0,
+	sensor_working,
+};
+struct sensor_work
+{
+	struct i2c_client *client;
+	struct delayed_work dwork;
+	enum sensor_work_state state;
+};
 
 typedef struct sensor_info_priv_s
 {
@@ -1222,20 +1308,41 @@ typedef struct sensor_info_priv_s
     int scene;
     int digitalzoom;
     int focus;
+	int auto_focus;
+	int affm_reinit;
     int flash;
     int exposure;
     unsigned char mirror;                                        /* HFLIP */
     unsigned char flip;                                          /* VFLIP */
-    unsigned int winseqe_cur_addr;
+    struct reginfo *winseqe_cur_addr;
 	unsigned int pixfmt;
-
+	unsigned int enable;
+	unsigned int funmodule_state;
 } sensor_info_priv_t;
+
+
+
+struct sensor_parameter
+{
+	unsigned short int preview_maxlines;
+	unsigned short int preview_exposure;
+	unsigned short int preview_line_width;
+	unsigned short int preview_gain;
+
+	unsigned short int capture_framerate;
+	unsigned short int preview_framerate;
+	char awb[6];
+};
 
 struct sensor
 {
     struct v4l2_subdev subdev;
     struct i2c_client *client;
     sensor_info_priv_t info_priv;
+	struct sensor_parameter parameter;
+	struct workqueue_struct *sensor_wq;
+	struct sensor_work sensor_wk;
+	struct mutex wq_lock;
     int model;	/* V4L2_IDENT_OV* codes from v4l2-chip-ident.h */
 #if CONFIG_SENSOR_I2C_NOSCHED
 	atomic_t tasklock_cnt;
@@ -1244,6 +1351,7 @@ struct sensor
 };
 
 static int sensor_deactivate(struct i2c_client *client);
+
 
 static struct sensor* to_sensor(const struct i2c_client *client)
 {
@@ -1353,12 +1461,25 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
 {
     int err = 0, cnt;
     int i = 0;
+#if CONFIG_SENSOR_Focus
+	struct sensor *sensor = to_sensor(client);
+#endif
+#if CONFIG_SENSOR_I2C_RDWRCHK
 	char valchk;
+#endif
 
 	cnt = 0;
 	sensor_task_lock(client, 1);
-    while (regarray[i].reg != 0)
+    while (regarray[i].reg != SEQUENCE_END)
     {
+    	#if CONFIG_SENSOR_Focus
+    	if ((regarray == sensor_af_firmware) && (sensor->info_priv.enable == 0)) {
+			SENSOR_DG("%s disable, Download af firmware terminated!\n",SENSOR_NAME_STRING());
+			err = -EINVAL;
+			goto sensor_write_array_end;
+    	}
+		#endif
+
         err = sensor_write(client, regarray[i].reg, regarray[i].val);
         if (err < 0)
         {
@@ -1378,13 +1499,22 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
 				SENSOR_TR("%s Reg:0x%x write(0x%x, 0x%x) fail\n",SENSOR_NAME_STRING(), regarray[i].reg, regarray[i].val, valchk);
 		#endif
         }
+
         i++;
     }
 
+	#if CONFIG_SENSOR_Focus
+	if (((regarray->reg == SEQUENCE_PROPERTY) && (regarray->val == SEQUENCE_INIT))
+		|| (regarray == sensor_init_data)) {
+		sensor->info_priv.affm_reinit = 1;
+	}
+	#endif
+
 sensor_write_array_end:
 	sensor_task_lock(client,0);
-	return err;
+    return err;
 }
+#if CONFIG_SENSOR_I2C_RDWRCHK
 static int sensor_readchk_array(struct i2c_client *client, struct reginfo *regarray)
 {
     int cnt;
@@ -1402,6 +1532,461 @@ static int sensor_readchk_array(struct i2c_client *client, struct reginfo *regar
         i++;
     }
     return 0;
+}
+#endif
+#if CONFIG_SENSOR_Focus
+struct af_cmdinfo
+{
+	char cmd_tag;
+	char cmd_para[4];
+	char validate_bit;
+};
+static int sensor_af_cmdset(struct i2c_client *client, int cmd_main, struct af_cmdinfo *cmdinfo)
+{
+	int i;
+	char read_tag=0xff,cnt;
+
+	if (cmdinfo) {
+		if (cmdinfo->validate_bit & 0x80) {
+			if (sensor_write(client, CMD_TAG_Reg, cmdinfo->cmd_tag)) {
+				SENSOR_TR("%s write CMD_TAG_Reg(main:0x%x tag:0x%x) error!\n",SENSOR_NAME_STRING(),cmd_main,cmdinfo->cmd_tag);
+				goto sensor_af_cmdset_err;
+			}
+			SENSOR_DG("%s write CMD_TAG_Reg(main:0x%x tag:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,cmdinfo->cmd_tag);
+		}
+		for (i=0; i<4; i++) {
+			if (cmdinfo->validate_bit & (1<<i)) {
+				if (sensor_write(client, CMD_PARA0_Reg-i, cmdinfo->cmd_para[i])) {
+					SENSOR_TR("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) error!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
+					goto sensor_af_cmdset_err;
+				}
+				SENSOR_DG("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
+			}
+		}
+	} else {
+		if (sensor_write(client, CMD_TAG_Reg, 0xff)) {
+			SENSOR_TR("%s write CMD_TAG_Reg(main:0x%x no tag) error!\n",SENSOR_NAME_STRING(),cmd_main);
+			goto sensor_af_cmdset_err;
+		}
+		SENSOR_DG("%s write CMD_TAG_Reg(main:0x%x no tag) success!\n",SENSOR_NAME_STRING(),cmd_main);
+	}
+
+	if (sensor_write(client, CMD_MAIN_Reg, cmd_main)) {
+		SENSOR_TR("%s write CMD_MAIN_Reg(main:0x%x) error!\n",SENSOR_NAME_STRING(),cmd_main);
+		goto sensor_af_cmdset_err;
+	}
+
+	cnt = 0;
+	do
+	{
+		msleep(5);
+		if (sensor_read(client,CMD_TAG_Reg,&read_tag)){
+		   SENSOR_TR("%s[%d] read TAG failed\n",SENSOR_NAME_STRING(),__LINE__);
+		   break;
+		}
+    } while((read_tag != 0x00)&& (cnt++<100));
+
+	SENSOR_DG("%s write CMD_MAIN_Reg(main:0x%x read tag:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,read_tag);
+	return 0;
+sensor_af_cmdset_err:
+	return -1;
+}
+
+static int sensor_af_idlechk(struct i2c_client *client)
+{
+	int ret = 0;
+	char state,cnt;
+
+	cnt = 0;
+	do
+	{
+		ret = sensor_read(client, STA_FOCUS_Reg, &state);
+		if (ret != 0){
+		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
+		   ret = -1;
+		   goto sensor_af_idlechk_end;
+		}
+
+		if (state != S_IDLE) {
+			sensor_af_cmdset(client, ReturnIdle_Cmd, NULL);
+			msleep(1);
+			cnt++;
+		}
+    } while((state != S_IDLE)&& (cnt<100));
+
+	ret = (state == S_IDLE) ? 0 : -1;
+
+sensor_af_idlechk_end:
+	return ret;
+}
+
+static int sensor_af_single(struct i2c_client *client)
+{
+	int ret = 0;
+	char state,cnt;
+
+	if (sensor_af_idlechk(client))
+		goto sensor_af_single_end;
+
+	if (sensor_af_cmdset(client, SingleFocus_Cmd, NULL)) {
+		SENSOR_TR("%s single focus mode set error!\n",SENSOR_NAME_STRING());
+		ret = -1;
+		goto sensor_af_single_end;
+	}
+
+	cnt = 0;
+    do
+    {
+    	if (cnt != 0) {
+			msleep(1);
+    	}
+    	cnt++;
+		ret = sensor_read(client, STA_FOCUS_Reg, &state);
+		if (ret != 0){
+		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
+		   ret = -1;
+		   goto sensor_af_single_end;
+		}
+    }while((state == S_FOCUSING) && (cnt<100));
+
+	if (state != S_FOCUSED) {
+        SENSOR_TR("%s[%d] focus state(0x%x) is error!\n",SENSOR_NAME_STRING(),__LINE__,state);
+		ret = -1;
+		goto sensor_af_single_end;
+    }
+
+	sensor_af_cmdset(client, ReturnIdle_Cmd, NULL);
+sensor_af_single_end:
+	return ret;
+}
+
+static int sensor_af_const(struct i2c_client *client)
+{
+	int ret = 0;
+
+	if (sensor_af_idlechk(client))
+		goto sensor_af_const_end;
+
+	if (sensor_af_cmdset(client, ConstFocus_Cmd, NULL)) {
+		SENSOR_TR("%s const focus mode set error!\n",SENSOR_NAME_STRING());
+		ret = -1;
+		goto sensor_af_const_end;
+	}
+sensor_af_const_end:
+	return ret;
+}
+static int sensor_af_pause2capture(struct i2c_client *client)
+{
+	int ret = 0;
+	char state,cnt;
+
+	if (sensor_af_cmdset(client, PauseFocus_Cmd, NULL)) {
+		SENSOR_TR("%s pause focus mode set error!\n",SENSOR_NAME_STRING());
+		ret = -1;
+		goto sensor_af_pause_end;
+	}
+
+	cnt = 0;
+    do
+    {
+    	if (cnt != 0) {
+			msleep(1);
+    	}
+    	cnt++;
+		ret = sensor_read(client, STA_FOCUS_Reg, &state);
+		if (ret != 0){
+		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
+		   ret = -1;
+		   goto sensor_af_pause_end;
+		}
+    }while((state != S_CAPTURE) && (cnt<100));
+
+	if (state != S_CAPTURE) {
+        SENSOR_TR("%s[%d] focus state(0x%x) is error!\n",SENSOR_NAME_STRING(),__LINE__,state);
+		ret = -1;
+		goto sensor_af_pause_end;
+    }
+sensor_af_pause_end:
+	return ret;
+}
+static int sensor_af_zoneupdate(struct i2c_client *client)
+{
+	int ret = 0;
+
+	if (sensor_af_idlechk(client))
+		goto sensor_af_zoneupdate_end;
+
+	if (sensor_af_cmdset(client, UpdateZone_Cmd, NULL)) {
+		SENSOR_TR("%s update zone fail!\n",SENSOR_NAME_STRING());
+		ret = -1;
+		goto sensor_af_zoneupdate_end;
+	}
+
+sensor_af_zoneupdate_end:
+	return ret;
+}
+static int sensor_af_init(struct i2c_client *client)
+{
+	int ret = 0;
+	char state,cnt;
+
+	ret = sensor_write_array(client, sensor_af_firmware);
+    if (ret != 0) {
+       SENSOR_TR("%s Download firmware failed\n",SENSOR_NAME_STRING());
+       ret = -1;
+	   goto sensor_af_init_end;
+    }
+
+	cnt = 0;
+    do
+    {
+    	if (cnt != 0) {
+			msleep(1);
+    	}
+    	cnt++;
+		ret = sensor_read(client, STA_FOCUS_Reg, &state);
+		if (ret != 0){
+		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
+		   ret = -1;
+		   goto sensor_af_init_end;
+		}
+    }while((state == S_STARTUP) && (cnt<100));
+
+    if (state != S_IDLE) {
+        SENSOR_TR("%s focus state(0x%x) is error!\n",SENSOR_NAME_STRING(),state);
+		ret = -1;
+		goto sensor_af_init_end;
+    }
+
+sensor_af_init_end:
+	SENSOR_DG("%s %s ret:0x%x \n",SENSOR_NAME_STRING(),__FUNCTION__,ret);
+	return ret;
+}
+
+static int sensor_af_wq_function(struct i2c_client *client)
+{
+	struct sensor *sensor = to_sensor(client);
+	struct af_cmdinfo cmdinfo;
+	int ret=0, focus_pos = 0xfe;
+
+	SENSOR_DG("%s %s Enter\n",SENSOR_NAME_STRING(), __FUNCTION__);
+
+	mutex_lock(&sensor->wq_lock);
+	if (sensor_af_init(client)) {
+		sensor->info_priv.funmodule_state &= (~SENSOR_AF_IS_OK);
+		ret = -1;
+	} else {
+		sensor->info_priv.funmodule_state |= SENSOR_AF_IS_OK;
+
+		switch (sensor->info_priv.auto_focus)
+		{
+			case SENSOR_AF_MODE_INFINITY:
+			{
+				focus_pos = 0x00;
+			}
+			case SENSOR_AF_MODE_MACRO:
+			{
+				if (focus_pos != 0x00)
+					focus_pos = 0xff;
+
+				sensor_af_idlechk(client);
+				cmdinfo.cmd_tag = StepFocus_Spec_Tag;
+				cmdinfo.cmd_para[0] = focus_pos;
+				cmdinfo.validate_bit = 0x81;
+				ret = sensor_af_cmdset(client, StepMode_Cmd, &cmdinfo);
+				break;
+			}
+			case SENSOR_AF_MODE_AUTO:
+			{
+				ret = sensor_af_single(client);
+				break;
+			}
+			case SENSOR_AF_MODE_CONTINUOUS:
+			{
+				ret = sensor_af_const(client);
+				break;
+			}
+			case SENSOR_AF_MODE_CLOSE:
+			{
+				ret = 0;
+				break;
+			}
+			default:
+				SENSOR_DG("%s focus mode(0x%x) is unkonwn\n",SENSOR_NAME_STRING(),sensor->info_priv.auto_focus);
+		}
+
+		SENSOR_DG("%s sensor_af_wq_function set focus mode(0x%x) ret:0x%x\n",SENSOR_NAME_STRING(), sensor->info_priv.auto_focus,ret);
+	}
+
+sensor_af_wq_function_end:
+	sensor->sensor_wk.state = sensor_work_ready;
+	mutex_unlock(&sensor->wq_lock);
+	return ret;
+}
+static void sensor_af_workqueue(struct work_struct *work)
+{
+	struct sensor_work *sensor_work = container_of(work, struct sensor_work, dwork.work);
+	struct i2c_client *client = sensor_work->client;
+	struct sensor *sensor = to_sensor(client);
+
+	if (sensor_af_wq_function(client) < 0) {
+		SENSOR_TR("%s af workqueue return false\n",SENSOR_NAME_STRING());
+	}
+}
+#endif
+static int sensor_parameter_record(struct i2c_client *client)
+{
+	u8 ret_l,ret_m,ret_h;
+	u8 tp_l,tp_m,tp_h;
+	struct sensor *sensor = to_sensor(client);
+
+	sensor_write(client,0x3503,0x07);	//stop AE/AG
+	sensor_write(client,0x3406,0x01);   //stop AWB
+
+	sensor_read(client,0x3500,&ret_h);
+	sensor_read(client,0x3501, &ret_m);
+	sensor_read(client,0x3502, &ret_l);
+	tp_l = ret_l;
+	tp_m = ret_m;
+	tp_h = ret_h;
+	SENSOR_DG(" %s Read 0x3500 = 0x%02x  0x3501 = 0x%02x 0x3502=0x%02x \n",SENSOR_NAME_STRING(), ret_h, ret_m, ret_l);
+	sensor->parameter.preview_exposure = (tp_h<<12)+(tp_m<<4)+(tp_l>>4);
+	sensor_read(client,0x350c, &ret_h);
+	sensor_read(client,0x350d, &ret_l);
+	sensor->parameter.preview_line_width = ret_h & 0xff;
+	sensor->parameter.preview_line_width = (sensor->parameter.preview_line_width << 8) +ret_l;
+	//Read back AGC Gain for preview
+	sensor_read(client,0x350b, &tp_l);
+	sensor->parameter.preview_gain = tp_l;
+
+	sensor->parameter.capture_framerate = 900;
+	sensor->parameter.preview_framerate = 1500;
+
+	sensor_read(client,0x3400,&sensor->parameter.awb[0]);		//record awb value
+	sensor_read(client,0x3401,&sensor->parameter.awb[1]);
+	sensor_read(client,0x3402,&sensor->parameter.awb[2]);
+	sensor_read(client,0x3403,&sensor->parameter.awb[3]);
+	sensor_read(client,0x3404,&sensor->parameter.awb[4]);
+	sensor_read(client,0x3405,&sensor->parameter.awb[5]);
+
+	SENSOR_DG(" %s Read 0x350c = 0x%02x  0x350d = 0x%02x 0x350b=0x%02x \n",SENSOR_NAME_STRING(), ret_h, ret_l, sensor->parameter.preview_gain);
+	return 0;
+}
+static int sensor_ae_transfer(struct i2c_client *client)
+{
+	u8  ExposureLow;
+	u8  ExposureMid;
+	u8  ExposureHigh;
+	u16 ulCapture_Exposure;
+	u32 ulCapture_Exposure_Gain;
+	u16  iCapture_Gain;
+	u8   Lines_10ms;
+	bool m_60Hz = 0;
+	u8  reg_l = 0,reg_h =0;
+	u16 Preview_Maxlines;
+	u8  Gain;
+	u32  Capture_MaxLines;
+	struct sensor *sensor = to_sensor(client);
+
+	Preview_Maxlines = sensor->parameter.preview_line_width;
+	Gain = sensor->parameter.preview_gain;
+	sensor_read(client,0x350c, &reg_h);
+	sensor_read(client,0x350d, &reg_l);
+	Capture_MaxLines = reg_h & 0xff;
+	Capture_MaxLines = (Capture_MaxLines << 8) + reg_l;
+
+	if(m_60Hz== 1) {
+		Lines_10ms = sensor->parameter.capture_framerate * Capture_MaxLines/12000;
+	} else {
+		Lines_10ms = sensor->parameter.capture_framerate * Capture_MaxLines/10000;
+	}
+
+	if(Preview_Maxlines == 0)
+		Preview_Maxlines = 1;
+
+	ulCapture_Exposure =
+		(sensor->parameter.preview_exposure*(sensor->parameter.capture_framerate)*(Capture_MaxLines))/(((Preview_Maxlines)*(sensor->parameter.preview_framerate)));
+	iCapture_Gain = (Gain & 0x0f) + 16;
+	if (Gain & 0x10) {
+		iCapture_Gain = iCapture_Gain << 1;
+	}
+	if (Gain & 0x20) {
+		iCapture_Gain = iCapture_Gain << 1;
+	}
+	if (Gain & 0x40) {
+		iCapture_Gain = iCapture_Gain << 1;
+	}
+	if (Gain & 0x80) {
+		iCapture_Gain = iCapture_Gain << 1;
+	}
+	ulCapture_Exposure_Gain =(u32) (11 * ulCapture_Exposure * iCapture_Gain/5);   //0ld value 2.5, 解决过亮
+	if(ulCapture_Exposure_Gain < Capture_MaxLines*16) {
+		ulCapture_Exposure = ulCapture_Exposure_Gain/16;
+		if (ulCapture_Exposure > Lines_10ms)
+		{
+			//ulCapture_Exposure *= 1.7;
+		 	ulCapture_Exposure /= Lines_10ms;
+		 	ulCapture_Exposure *= Lines_10ms;
+		}
+	} else {
+		ulCapture_Exposure = Capture_MaxLines;
+		//ulCapture_Exposure_Gain *= 1.5;
+	}
+	if(ulCapture_Exposure == 0)
+		ulCapture_Exposure = 1;
+	iCapture_Gain = (ulCapture_Exposure_Gain*2/ulCapture_Exposure + 1)/2;
+	ExposureLow = ((unsigned char)ulCapture_Exposure)<<4;
+	ExposureMid = (unsigned char)(ulCapture_Exposure >> 4) & 0xff;
+	ExposureHigh = (unsigned char)(ulCapture_Exposure >> 12);
+
+	Gain = 0;
+	if (iCapture_Gain > 31) {
+		Gain |= 0x10;
+		iCapture_Gain = iCapture_Gain >> 1;
+	}
+	if (iCapture_Gain > 31) {
+		Gain |= 0x20;
+		iCapture_Gain = iCapture_Gain >> 1;
+	}
+	if (iCapture_Gain > 31) {
+		Gain |= 0x40;
+		iCapture_Gain = iCapture_Gain >> 1;
+	}
+	if (iCapture_Gain > 31) {
+		Gain |= 0x80;
+		iCapture_Gain = iCapture_Gain >> 1;
+	}
+	if (iCapture_Gain > 16)
+		Gain |= ((iCapture_Gain -16) & 0x0f);
+	if(Gain == 0x10)
+		Gain = 0x11;
+	// write the gain and exposure to 0x350* registers
+	//m_iWrite0x350b=Gain;
+	sensor_write(client,0x350b, Gain);
+	//m_iWrite0x3502=ExposureLow;
+	sensor_write(client,0x3502, ExposureLow);
+	//m_iWrite0x3501=ExposureMid;
+	sensor_write(client,0x3501, ExposureMid);
+	//m_iWrite0x3500=ExposureHigh;
+	sensor_write(client,0x3500, ExposureHigh);
+	// SendToFile("Gain = 0x%x\r\n", Gain);
+	// SendToFile("ExposureLow = 0x%x\r\n", ExposureLow);
+	// SendToFile("ExposureMid = 0x%x\r\n", ExposureMid);
+	// SendToFile("ExposureHigh = 0x%x\r\n", ExposureHigh);
+	//加长延时，避免暗处拍照时的明暗分界问题
+	//camera_timed_wait(200);
+	//linzhk camera_timed_wait(500);
+
+	sensor_write(client,0x3400,sensor->parameter.awb[0]);		// resume awb value
+	sensor_write(client,0x3401,sensor->parameter.awb[1]);
+	sensor_write(client,0x3402,sensor->parameter.awb[2]);
+	sensor_write(client,0x3403,sensor->parameter.awb[3]);
+	sensor_write(client,0x3404,sensor->parameter.awb[4]);
+	sensor_write(client,0x3405,sensor->parameter.awb[5]);
+
+	SENSOR_DG(" %s Write 0x350b = 0x%02x  0x3502 = 0x%02x 0x3501=0x%02x 0x3500 = 0x%02x\n",SENSOR_NAME_STRING(), Gain, ExposureLow, ExposureMid, ExposureHigh);
+	mdelay(100);
+	return 0;
 }
 static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd cmd, int on)
 {
@@ -1436,6 +2021,7 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 			if (sensor->sensor_io_request && sensor->sensor_io_request->sensor_ioctrl) {
 				sensor->sensor_io_request->sensor_ioctrl(icd->pdev,Cam_Flash, on);
 			}
+			break;
 		}
 		default:
 		{
@@ -1443,6 +2029,7 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 			break;
 		}
 	}
+
 sensor_power_end:
 	return ret;
 }
@@ -1464,15 +2051,14 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 
     /* soft reset */
 	sensor_task_lock(client,1);
-    ret = sensor_write(client, 0x0103, 0x01);
-    if (ret != 0)
-    {
+    ret = sensor_write(client, 0x3008, 0x80);
+    if (ret != 0) {
         SENSOR_TR("%s soft reset sensor failed\n",SENSOR_NAME_STRING());
         ret = -ENODEV;
 		goto sensor_INIT_ERR;
     }
-    mdelay(5);  //delay 5 microseconds
 
+    mdelay(5);  //delay 5 microseconds
 	/* check if it is an sensor sensor */
     ret = sensor_read(client, 0x300a, &value);
     if (ret != 0) {
@@ -1491,7 +2077,8 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     }
 
     pid |= (value & 0xff);
-    SENSOR_DG("\n %s  pid = 0x%x\n", SENSOR_NAME_STRING(), pid);
+    SENSOR_DG("\n %s  pid = 0x%x \n", SENSOR_NAME_STRING(), pid);
+
     if (pid == SENSOR_ID) {
         sensor->model = SENSOR_V4L2_IDENT;
     } else {
@@ -1509,7 +2096,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	sensor_task_lock(client,0);
     //icd->user_width = SENSOR_INIT_WIDTH;
     //icd->user_height = SENSOR_INIT_HEIGHT;
-    sensor->info_priv.winseqe_cur_addr  = (int)SENSOR_INIT_WINSEQADR;
+    sensor->info_priv.winseqe_cur_addr  = SENSOR_INIT_WINSEQADR;
 	sensor->info_priv.pixfmt = SENSOR_INIT_PIXFMT;
 
     /* sensor sensor information for initialization  */
@@ -1546,20 +2133,15 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         sensor->info_priv.digitalzoom = qctrl->default_value;
 
     /* ddl@rock-chips.com : if sensor support auto focus and flash, programer must run focus and flash code  */
-	#if CONFIG_SENSOR_Focus
-    sensor_set_focus();
-    qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FOCUS_ABSOLUTE);
+	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FOCUS_ABSOLUTE);
 	if (qctrl)
         sensor->info_priv.focus = qctrl->default_value;
-	#endif
 
 	#if CONFIG_SENSOR_Flash
-	sensor_set_flash();
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FLASH);
 	if (qctrl)
         sensor->info_priv.flash = qctrl->default_value;
     #endif
-
     SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),((val == 0)?__FUNCTION__:"sensor_reinit"),icd->user_width,icd->user_height);
 
     return 0;
@@ -1568,31 +2150,25 @@ sensor_INIT_ERR:
 	sensor_deactivate(client);
     return ret;
 }
-
 static int sensor_deactivate(struct i2c_client *client)
 {
 	struct soc_camera_device *icd = client->dev.platform_data;
-	u8 reg_val;
 
 	SENSOR_DG("\n%s..%s.. Enter\n",SENSOR_NAME_STRING(),__FUNCTION__);
 
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
 	sensor_task_lock(client, 1);
-	sensor_read(client,0x3000,&reg_val);
-    sensor_write(client, 0x3000, reg_val&0xfc);
-	sensor_write(client, 0x3001, 0x00);
-	sensor_read(client,0x3002,&reg_val);
-	sensor_write(client, 0x3002, reg_val&0x1f);
+    sensor_write(client, 0x3017, 0x00);  // FREX,VSYNC,HREF,PCLK,D9-D6
+	sensor_write(client, 0x3018, 0x03);  // D5-D0
+	sensor_write(client,0x3019,0x00);    // STROBE,SDA
 	sensor_task_lock(client, 0);
 	sensor_ioctrl(icd, Sensor_PowerDown, 1);
-
 	/* ddl@rock-chips.com : sensor config init width , because next open sensor quickly(soc_camera_open -> Try to configure with default parameters) */
 	icd->user_width = SENSOR_INIT_WIDTH;
     icd->user_height = SENSOR_INIT_HEIGHT;
 	msleep(100);
 	return 0;
 }
-
 static  struct reginfo sensor_power_down_sequence[]=
 {
     {0x00,0x00}
@@ -1619,6 +2195,7 @@ static int sensor_suspend(struct soc_camera_device *icd, pm_message_t pm_msg)
         SENSOR_TR("\n %s cann't suppout Suspend..\n",SENSOR_NAME_STRING());
         return -EINVAL;
     }
+
     return 0;
 }
 
@@ -1633,9 +2210,7 @@ static int sensor_resume(struct soc_camera_device *icd)
     }
 
 	SENSOR_DG("\n %s Enter Resume.. \n", SENSOR_NAME_STRING());
-
-    return 0;
-
+	return 0;
 }
 
 static int sensor_set_bus_param(struct soc_camera_device *icd,
@@ -1668,13 +2243,31 @@ static int sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 
     return 0;
 }
+static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+    bool ret = false;
+
+	if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 1024)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 1600) && (f->fmt.pix.height == 1200)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 2048) && (f->fmt.pix.height == 1536)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 2592) && (f->fmt.pix.height == 1944)) {
+		ret = true;
+	}
+
+	if (ret == true)
+		SENSOR_DG("%s %dx%d is capture format\n", __FUNCTION__, f->fmt.pix.width, f->fmt.pix.height);
+	return ret;
+}
 static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
     struct i2c_client *client = sd->priv;
     struct sensor *sensor = to_sensor(client);
     struct v4l2_pix_format *pix = &f->fmt.pix;
     struct reginfo *winseqe_set_addr=NULL;
-    int ret=0, set_w,set_h;
+    int ret = 0, set_w,set_h;
 
 	if (sensor->info_priv.pixfmt != pix->pixelformat) {
 		switch (pix->pixelformat)
@@ -1735,7 +2328,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         set_w = 800;
         set_h = 600;
     }
-    else if (((set_w <= 1280) && (set_h <= 720)) && sensor_720p[0].reg)
+	else if (((set_w <= 1280) && (set_h <= 720)) && sensor_720p[0].reg)
     {
         winseqe_set_addr = sensor_720p;
         set_w = 1280;
@@ -1753,6 +2346,24 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         set_w = 1600;
         set_h = 1200;
     }
+    else if (((set_w <= 1920) && (set_h <= 1080)) && sensor_1080p[0].reg)
+    {
+        winseqe_set_addr = sensor_1080p;
+        set_w = 1920;
+        set_h = 1080;
+    }
+	else if (((set_w <= 2048) && (set_h <= 1536)) && sensor_qxga[0].reg)
+    {
+        winseqe_set_addr = sensor_qxga;
+        set_w = 2048;
+        set_h = 1536;
+    }
+	else if (((set_w <= 2592) && (set_h <= 1944)) && sensor_qsxga[0].reg)
+    {
+        winseqe_set_addr = sensor_qsxga;
+        set_w = 2592;
+        set_h = 1944;
+    }
     else
     {
         winseqe_set_addr = SENSOR_INIT_WINSEQADR;               /* ddl@rock-chips.com : Sensor output smallest size if  isn't support app  */
@@ -1762,17 +2373,36 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 		SENSOR_TR("\n %s..%s Format is Invalidate. pix->width = %d.. pix->height = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,pix->width,pix->height);
     }
 
-    if ((int)winseqe_set_addr  != sensor->info_priv.winseqe_cur_addr)
+    if (winseqe_set_addr  != sensor->info_priv.winseqe_cur_addr)
     {
+		if (sensor_fmt_capturechk(sd,f) == true) {					/* ddl@rock-chips.com : Capture */
+			sensor_parameter_record(client);
+		#if CONFIG_SENSOR_Focus
+			sensor_af_idlechk(client);
+			if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS)
+				sensor_af_cmdset(client, PauseFocus_Cmd, NULL);
+		#endif
+		}
+
+		if ((sensor->info_priv.winseqe_cur_addr->reg == SEQUENCE_PROPERTY) && (sensor->info_priv.winseqe_cur_addr->val == SEQUENCE_INIT)) {
+			if (((winseqe_set_addr->reg == SEQUENCE_PROPERTY) && (winseqe_set_addr->val == SEQUENCE_NORMAL))
+				|| (winseqe_set_addr->reg != SEQUENCE_PROPERTY)) {
+				ret |= sensor_write_array(client,sensor_init_data);
+				SENSOR_DG("\n%s reinit ret:0x%x \n",SENSOR_NAME_STRING(), ret);
+			}
+		}
+
         ret |= sensor_write_array(client, winseqe_set_addr);
         if (ret != 0) {
             SENSOR_TR("%s set format capability failed\n", SENSOR_NAME_STRING());
             goto sensor_s_fmt_end;
         }
 
-        sensor->info_priv.winseqe_cur_addr  = (int)winseqe_set_addr;
+        sensor->info_priv.winseqe_cur_addr  = winseqe_set_addr;
 
-
+		if (sensor_fmt_capturechk(sd,f) == true) {				    /* ddl@rock-chips.com : Capture */
+			sensor_ae_transfer(client);
+		}
         SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
     }
     else
@@ -1781,8 +2411,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     }
 
 	pix->width = set_w;
-    pix->height = set_h;
-
+	pix->height = set_h;
 sensor_s_fmt_end:
     return ret;
 }
@@ -2081,6 +2710,132 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
     return -EINVAL;
 }
 #endif
+#if CONFIG_SENSOR_Focus
+static int sensor_set_focus_absolute(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
+{
+	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+    struct sensor *sensor = to_sensor(client);
+	const struct v4l2_queryctrl *qctrl_info;
+	struct af_cmdinfo cmdinfo;
+	int ret = 0;
+
+	qctrl_info = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FOCUS_ABSOLUTE);
+	if (!qctrl_info)
+		return -EINVAL;
+
+	if ((sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK) && (sensor->info_priv.affm_reinit == 0)) {
+		if ((value >= qctrl_info->minimum) && (value <= qctrl_info->maximum)) {
+
+			if (sensor_af_idlechk(client))
+				goto sensor_set_focus_absolute_end;
+
+			cmdinfo.cmd_tag = StepFocus_Spec_Tag;
+			cmdinfo.cmd_para[0] = value;
+			cmdinfo.validate_bit = 0x81;
+			ret = sensor_af_cmdset(client, StepMode_Cmd, &cmdinfo);
+			//ret |= sensor_af_cmdset(client, ReturnIdle_Cmd, NULL);
+			SENSOR_DG("%s..%s : %d  ret:0x%x\n",SENSOR_NAME_STRING(),__FUNCTION__, value,ret);
+		} else {
+			ret = -EINVAL;
+			SENSOR_TR("\n %s..%s valure = %d is invalidate..    \n",SENSOR_NAME_STRING(),__FUNCTION__,value);
+		}
+	} else {
+		ret = -EACCES;
+		SENSOR_TR("\n %s..%s AF module state(0x%x, 0x%x) is error!\n",SENSOR_NAME_STRING(),__FUNCTION__,
+			sensor->info_priv.funmodule_state,sensor->info_priv.affm_reinit);
+	}
+
+sensor_set_focus_absolute_end:
+	return ret;
+}
+static int sensor_set_focus_relative(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
+{
+	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct sensor *sensor = to_sensor(client);
+	const struct v4l2_queryctrl *qctrl_info;
+	struct af_cmdinfo cmdinfo;
+	int ret = 0;
+
+	qctrl_info = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FOCUS_RELATIVE);
+	if (!qctrl_info)
+		return -EINVAL;
+
+	if ((sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK) && (sensor->info_priv.affm_reinit == 0)) {
+		if ((value >= qctrl_info->minimum) && (value <= qctrl_info->maximum)) {
+
+			if (sensor_af_idlechk(client))
+				goto sensor_set_focus_relative_end;
+
+			if (value > 0) {
+				cmdinfo.cmd_tag = StepFocus_Near_Tag;
+			} else if (value < 0) {
+				cmdinfo.cmd_tag = StepFocus_Far_Tag;
+			}
+			cmdinfo.validate_bit = 0x80;
+			ret = sensor_af_cmdset(client, StepMode_Cmd, &cmdinfo);
+
+			SENSOR_DG("%s..%s : %d  ret:0x%x\n",SENSOR_NAME_STRING(),__FUNCTION__, value,ret);
+		} else {
+			ret = -EINVAL;
+			SENSOR_TR("\n %s..%s valure = %d is invalidate..    \n",SENSOR_NAME_STRING(),__FUNCTION__,value);
+		}
+	} else {
+		ret = -EACCES;
+		SENSOR_TR("\n %s..%s AF module state(0x%x, 0x%x) is error!\n",SENSOR_NAME_STRING(),__FUNCTION__,
+			sensor->info_priv.funmodule_state,sensor->info_priv.affm_reinit);
+	}
+sensor_set_focus_relative_end:
+	return ret;
+}
+
+static int sensor_set_focus_mode(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
+{
+	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct sensor *sensor = to_sensor(client);
+	int ret = 0;
+
+	if ((sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)  && (sensor->info_priv.affm_reinit == 0)) {
+		switch (value)
+		{
+			case SENSOR_AF_MODE_AUTO:
+			{
+				ret = sensor_af_single(client);
+				break;
+			}
+
+			case SENSOR_AF_MODE_MACRO:
+			{
+				ret = sensor_set_focus_absolute(icd, qctrl, 0xff);
+				break;
+			}
+
+			case SENSOR_AF_MODE_INFINITY:
+			{
+				ret = sensor_set_focus_absolute(icd, qctrl, 0x00);
+				break;
+			}
+
+			case SENSOR_AF_MODE_CONTINUOUS:
+			{
+				ret = sensor_af_const(client);
+				break;
+			}
+			default:
+				SENSOR_TR("\n %s..%s AF value(0x%x) is error!\n",SENSOR_NAME_STRING(),__FUNCTION__,value);
+				break;
+
+		}
+
+		SENSOR_DG("%s..%s : %d  ret:0x%x\n",SENSOR_NAME_STRING(),__FUNCTION__, value,ret);
+	} else {
+		ret = -EACCES;
+		SENSOR_TR("\n %s..%s AF module state(0x%x, 0x%x) is error!\n",SENSOR_NAME_STRING(),__FUNCTION__,
+			sensor->info_priv.funmodule_state,sensor->info_priv.affm_reinit);
+	}
+
+	return ret;
+}
+#endif
 static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
     struct i2c_client *client = sd->priv;
@@ -2091,7 +2846,7 @@ static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
     if (!qctrl)
     {
-        SENSOR_TR("\n %s ioctrl id = %d  is invalidate \n", SENSOR_NAME_STRING(), ctrl->id);
+        SENSOR_TR("\n %s ioctrl id = 0x%x  is invalidate \n", SENSOR_NAME_STRING(), ctrl->id);
         return -EINVAL;
     }
 
@@ -2152,7 +2907,7 @@ static int sensor_s_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
     if (!qctrl)
     {
-        SENSOR_TR("\n %s ioctrl id = %d  is invalidate \n", SENSOR_NAME_STRING(), ctrl->id);
+        SENSOR_TR("\n %s ioctrl id = 0x%x  is invalidate \n", SENSOR_NAME_STRING(), ctrl->id);
         return -EINVAL;
     }
 
@@ -2268,7 +3023,7 @@ static int sensor_g_ext_control(struct soc_camera_device *icd , struct v4l2_ext_
 
     if (!qctrl)
     {
-        SENSOR_TR("\n %s ioctrl id = %d  is invalidate \n", SENSOR_NAME_STRING(), ext_ctrl->id);
+        SENSOR_TR("\n %s ioctrl id = 0x%x  is invalidate \n", SENSOR_NAME_STRING(), ext_ctrl->id);
         return -EINVAL;
     }
 
@@ -2295,8 +3050,7 @@ static int sensor_g_ext_control(struct soc_camera_device *icd , struct v4l2_ext_
             }
         case V4L2_CID_FOCUS_ABSOLUTE:
             {
-                ext_ctrl->value = sensor->info_priv.focus;
-                break;
+                return -EINVAL;
             }
         case V4L2_CID_FOCUS_RELATIVE:
             {
@@ -2323,7 +3077,7 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
 
     if (!qctrl)
     {
-        SENSOR_TR("\n %s ioctrl id = %d  is invalidate \n", SENSOR_NAME_STRING(), ext_ctrl->id);
+        SENSOR_TR("\n %s ioctrl id = 0x%x  is invalidate \n", SENSOR_NAME_STRING(), ext_ctrl->id);
         return -EINVAL;
     }
 
@@ -2392,25 +3146,52 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
                 if ((ext_ctrl->value < qctrl->minimum) || (ext_ctrl->value > qctrl->maximum))
                     return -EINVAL;
 
-                if (ext_ctrl->value != sensor->info_priv.focus)
-                {
-                    val_offset = ext_ctrl->value -sensor->info_priv.focus;
-
-                    sensor->info_priv.focus += val_offset;
-                }
+				if (sensor_set_focus_absolute(icd, qctrl,ext_ctrl->value) == 0) {
+					if (ext_ctrl->value == qctrl->minimum) {
+						sensor->info_priv.auto_focus = SENSOR_AF_MODE_INFINITY;
+					} else if (ext_ctrl->value == qctrl->maximum) {
+						sensor->info_priv.auto_focus = SENSOR_AF_MODE_MACRO;
+					} else {
+						sensor->info_priv.auto_focus = SENSOR_AF_MODE_FIXED;
+					}
+				}
 
                 break;
             }
         case V4L2_CID_FOCUS_RELATIVE:
             {
-                if (ext_ctrl->value)
-                {
-                    sensor->info_priv.focus += ext_ctrl->value;
+                if ((ext_ctrl->value < qctrl->minimum) || (ext_ctrl->value > qctrl->maximum))
+                    return -EINVAL;
 
-                    SENSOR_DG("%s focus is %x\n", SENSOR_NAME_STRING(), sensor->info_priv.focus);
-                }
+                sensor_set_focus_relative(icd, qctrl,ext_ctrl->value);
                 break;
             }
+		case V4L2_CID_FOCUS_AUTO:
+			{
+				if (ext_ctrl->value == 1) {
+					if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_AUTO) != 0)
+						return -EINVAL;
+					sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
+				} else if (SENSOR_AF_MODE_AUTO == sensor->info_priv.auto_focus){
+					if (ext_ctrl->value == 0)
+						sensor->info_priv.auto_focus = SENSOR_AF_MODE_CLOSE;
+				}
+				break;
+			}
+		case V4L2_CID_FOCUS_CONTINUOUS:
+			{
+				if (SENSOR_AF_MODE_CONTINUOUS != sensor->info_priv.auto_focus) {
+					if (ext_ctrl->value == 1) {
+						if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_CONTINUOUS) != 0)
+							return -EINVAL;
+						sensor->info_priv.auto_focus = SENSOR_AF_MODE_CONTINUOUS;
+					}
+				} else {
+					if (ext_ctrl->value == 0)
+						sensor->info_priv.auto_focus = SENSOR_AF_MODE_CLOSE;
+				}
+				break;
+			}
 #endif
 #if CONFIG_SENSOR_Flash
         case V4L2_CID_FLASH:
@@ -2459,7 +3240,6 @@ static int sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
     struct soc_camera_device *icd = client->dev.platform_data;
     int i, error_cnt=0, error_idx=-1;
 
-
     for (i=0; i<ext_ctrl->count; i++) {
         if (sensor_s_ext_control(icd, &ext_ctrl->controls[i]) != 0) {
             error_cnt++;
@@ -2476,6 +3256,54 @@ static int sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
     } else {
         return 0;
     }
+}
+
+static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
+{
+	struct i2c_client *client = sd->priv;
+    struct sensor *sensor = to_sensor(client);
+	#if CONFIG_SENSOR_Focus
+	struct soc_camera_device *icd = client->dev.platform_data;
+	struct v4l2_format fmt;
+	#endif
+
+	if (enable == 1) {
+		sensor->info_priv.enable = 1;
+		#if CONFIG_SENSOR_Focus
+		fmt.fmt.pix.width = icd->user_width;
+		fmt.fmt.pix.height = icd->user_height;
+		/* If auto focus firmware haven't download success, must download firmware again when in video or preview stream on */
+		if (sensor_fmt_capturechk(sd, &fmt) == false) {
+			if ((sensor->info_priv.affm_reinit == 1) || ((sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)==0)) {
+				if (sensor->sensor_wq != NULL) {
+					mutex_lock(&sensor->wq_lock);
+					if (sensor->sensor_wk.state == sensor_working) {
+						SENSOR_DG("%s sensor af firmware thread is runing, Ingore current work",SENSOR_NAME_STRING());
+						mutex_unlock(&sensor->wq_lock);
+						goto sensor_s_stream_end;
+					}
+					sensor->sensor_wk.state = sensor_working;
+					mutex_unlock(&sensor->wq_lock);
+					sensor->sensor_wk.client = client;
+					INIT_WORK(&(sensor->sensor_wk.dwork.work), sensor_af_workqueue);
+					queue_delayed_work(sensor->sensor_wq,&(sensor->sensor_wk.dwork), 0);
+				}
+				sensor->info_priv.affm_reinit = 0;
+			}
+		}
+		#endif
+	} else if (enable == 0) {
+		sensor->info_priv.enable = 0;
+		#if CONFIG_SENSOR_Focus
+		flush_work(&(sensor->sensor_wk.dwork.work));
+		mutex_lock(&sensor->wq_lock);
+		sensor->sensor_wk.state = sensor_work_ready;
+		mutex_unlock(&sensor->wq_lock);
+		#endif
+	}
+
+sensor_s_stream_end:
+	return 0;
 }
 
 /* Interface active, can use i2c. If it fails, it can indeed mean, that
@@ -2497,14 +3325,13 @@ static int sensor_video_probe(struct soc_camera_device *icd,
 		ret = -ENODEV;
 		goto sensor_video_probe_err;
 	}
-
     /* soft reset */
-    ret = sensor_write(client, 0x0103, 0x01);
+    ret = sensor_write(client, 0x3012, 0x80);
     if (ret != 0) {
         SENSOR_TR("soft reset %s failed\n",SENSOR_NAME_STRING());
         ret = -ENODEV;
 		goto sensor_video_probe_err;
-	}
+    }
     mdelay(5);          //delay 5 microseconds
 
     /* check if it is an sensor sensor */
@@ -2542,7 +3369,6 @@ static int sensor_video_probe(struct soc_camera_device *icd,
 sensor_video_probe_err:
     return ret;
 }
-
 static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct i2c_client *client = sd->priv;
@@ -2556,7 +3382,6 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			sensor_deactivate(client);
 			break;
 		}
-
 		case RK29_CAM_SUBDEV_IOREQUEST:
 		{
 			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;
@@ -2587,6 +3412,7 @@ static struct v4l2_subdev_video_ops sensor_subdev_video_ops = {
 	.s_fmt		= sensor_s_fmt,
 	.g_fmt		= sensor_g_fmt,
 	.try_fmt	= sensor_try_fmt,
+	.s_stream   = sensor_s_stream,
 };
 
 static struct v4l2_subdev_ops sensor_subdev_ops = {
@@ -2640,6 +3466,15 @@ static int sensor_probe(struct i2c_client *client,
         i2c_set_clientdata(client, NULL);
         kfree(sensor);
     }
+
+	#if CONFIG_SENSOR_Focus
+	sensor->sensor_wq = create_workqueue(SENSOR_NAME_STRING( wq));
+	if (sensor->sensor_wq == NULL)
+		SENSOR_TR("%s workqueue create fail!", SENSOR_NAME_STRING( wq));
+	mutex_init(&sensor->wq_lock);
+	sensor->sensor_wk.state = sensor_work_ready;
+	#endif
+
     SENSOR_DG("\n%s..%s..%d  ret = %x \n",__FUNCTION__,__FILE__,__LINE__,ret);
     return ret;
 }
@@ -2648,6 +3483,13 @@ static int sensor_remove(struct i2c_client *client)
 {
     struct sensor *sensor = to_sensor(client);
     struct soc_camera_device *icd = client->dev.platform_data;
+
+	#if CONFIG_SENSOR_Focus
+	if (sensor->sensor_wq) {
+		destroy_workqueue(sensor->sensor_wq);
+		sensor->sensor_wq = NULL;
+	}
+	#endif
 
     icd->ops = NULL;
     i2c_set_clientdata(client, NULL);

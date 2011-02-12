@@ -30,7 +30,7 @@ static struct rk29_pl330_platdata rk29_dmac0_pdata = {
 		[4] = DMACH_I2S_2CH_TX,
 		[5] = DMACH_I2S_2CH_RX,
 		[6] = DMACH_SPDIF,
-        [7] = DMACH_DMAC0_MEMTOMEM,
+        [7] = DMACH_MAX,
 		[8] = DMACH_MAX,
 		[9] = DMACH_MAX,
 		[10] = DMACH_MAX,
@@ -83,8 +83,9 @@ static struct rk29_pl330_platdata rk29_dmac2_pdata = {
 		[11] = DMACH_SPI0_RX,
 		[12] = DMACH_SPI1_TX,
 		[13] = DMACH_SPI1_RX,
-		[14] = DMACH_PID_FILTER,
-		[15] = DMACH_MAX,
+		[14] = DMACH_PID_FILTER, 
+        [15] = DMACH_DMAC0_MEMTOMEM,
+		[16] = DMACH_MAX,
 	},
 };
 

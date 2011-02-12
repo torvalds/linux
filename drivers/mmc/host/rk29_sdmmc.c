@@ -1281,7 +1281,8 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 
 				rk29_sdmmc_request_end(host, mrq);
 			} else {
-				list_del(&host->queue_node);
+				if (host->queue_node.next && host->queue_node.prev)
+					list_del(&host->queue_node);
 				mrq->cmd->error = -ENOMEDIUM;
 				if (mrq->data)
 					mrq->data->error = -ENOMEDIUM;
