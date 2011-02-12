@@ -75,12 +75,12 @@ struct scic_sds_request;
 struct scic_sds_remote_device_state_handler;
 
 /**
- * enum SCIC_SDS_SSP_REMOTE_DEVICE_READY_SUBSTATES -
+ * enum scic_sds_ssp_remote_device_ready_substates -
  *
  * This is the enumeration of the ready substates for the
  * struct scic_sds_remote_device.
  */
-enum SCIC_SDS_SSP_REMOTE_DEVICE_READY_SUBSTATES {
+enum scic_sds_ssp_remote_device_ready_substates {
 	/**
 	 * This is the initial state for the remote device ready substate.
 	 */
@@ -109,12 +109,12 @@ enum SCIC_SDS_SSP_REMOTE_DEVICE_READY_SUBSTATES {
 };
 
 /**
- * enum SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATES -
+ * enum scic_sds_stp_remote_device_ready_substates -
  *
  * This is the enumeration for the struct scic_sds_remote_device ready substates
  * for the STP remote device.
  */
-enum SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATES {
+enum scic_sds_stp_remote_device_ready_substates {
 	/**
 	 * This is the idle substate for the stp remote device.  When there are no
 	 * active IO for the device it is is in this state.
@@ -163,11 +163,11 @@ enum SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATES {
 };
 
 /**
- * enum SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATES -
+ * enum scic_sds_smp_remote_device_ready_substates -
  *
  * This is the enumeration of the ready substates for the SMP REMOTE DEVICE.
  */
-enum SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATES {
+enum scic_sds_smp_remote_device_ready_substates {
 	/**
 	 * This is the ready operational substate for the remote device.  This is the
 	 * normal operational state for a remote device.
