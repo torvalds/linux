@@ -65,9 +65,11 @@ int set_irq_type(unsigned int irq, unsigned int type)
 	if (type == IRQ_TYPE_NONE)
 		return 0;
 
+	chip_bus_lock(desc);
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	ret = __irq_set_trigger(desc, irq, type);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	chip_bus_sync_unlock(desc);
 	return ret;
 }
 EXPORT_SYMBOL(set_irq_type);

@@ -454,6 +454,7 @@ int set_irq_wake(unsigned int irq, unsigned int on)
 	/* wakeup-capable irqs can be shared between drivers that
 	 * don't need to have the same sleep mode behaviors.
 	 */
+	chip_bus_lock(desc);
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	if (on) {
 		if (desc->wake_depth++ == 0) {
@@ -476,6 +477,7 @@ int set_irq_wake(unsigned int irq, unsigned int on)
 	}
 
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	chip_bus_sync_unlock(desc);
 	return ret;
 }
 EXPORT_SYMBOL(set_irq_wake);
