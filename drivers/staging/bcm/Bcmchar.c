@@ -15,21 +15,22 @@
 
 static int bcm_char_open(struct inode *inode, struct file * filp)
 {
-	PMINI_ADAPTER 		Adapter = NULL;
-    PPER_TARANG_DATA 	pTarang = NULL;
+	PMINI_ADAPTER       Adapter = NULL;
+	PPER_TARANG_DATA    pTarang = NULL;
 
 	Adapter = GET_BCM_ADAPTER(gblpnetdev);
-    pTarang = (PPER_TARANG_DATA)kmalloc(sizeof(PER_TARANG_DATA), GFP_KERNEL);
-    if (!pTarang)
-        return -ENOMEM;
+	pTarang = (PPER_TARANG_DATA)kmalloc(sizeof(PER_TARANG_DATA),
+					    GFP_KERNEL);
+	if (!pTarang)
+		return -ENOMEM;
 
-	memset (pTarang, 0, sizeof(PER_TARANG_DATA));
-    pTarang->Adapter = Adapter;
-	pTarang->RxCntrlMsgBitMask = 0xFFFFFFFF & ~(1 << 0xB) ;
+	memset(pTarang, 0, sizeof(PER_TARANG_DATA));
+	pTarang->Adapter = Adapter;
+	pTarang->RxCntrlMsgBitMask = 0xFFFFFFFF & ~(1 << 0xB);
 
 	down(&Adapter->RxAppControlQueuelock);
-    pTarang->next = Adapter->pTarangs;
-    Adapter->pTarangs = pTarang;
+	pTarang->next = Adapter->pTarangs;
+	Adapter->pTarangs = pTarang;
 	up(&Adapter->RxAppControlQueuelock);
 
 	/* Store the Adapter structure */
@@ -41,6 +42,7 @@ static int bcm_char_open(struct inode *inode, struct file * filp)
 	nonseekable_open(inode, filp);
 	return 0;
 }
+
 static int bcm_char_release(struct inode *inode, struct file *filp)
 {
     PPER_TARANG_DATA pTarang, tmp, ptmp;
