@@ -262,12 +262,10 @@ struct _mmc_csd {
 #define EXT_CSD_S_A_TIMEOUT		217	/* RO */
 #define EXT_CSD_ERASE_TIMEOUT_MULT	223	/* RO */
 #define EXT_CSD_HC_ERASE_GRP_SIZE	224	/* RO */
-#define EXT_CSD_BOOT_SIZE_MULTI		226
 #define EXT_CSD_SEC_TRIM_MULT		229	/* RO */
 #define EXT_CSD_SEC_ERASE_MULT		230	/* RO */
 #define EXT_CSD_SEC_FEATURE_SUPPORT	231	/* RO */
 #define EXT_CSD_TRIM_MULT		232	/* RO */
-#define EXT_CSD_BOOT_SIZE_MULTI		226	/* RO */
 
 /*
  * EXT_CSD field definitions
