@@ -153,16 +153,16 @@ struct sci_base_remote_device {
 };
 
 
-typedef enum sci_status (*SCI_BASE_REMOTE_DEVICE_HANDLER_T)(
+typedef enum sci_status (*sci_base_remote_device_handler_t)(
 	struct sci_base_remote_device *
 	);
 
-typedef enum sci_status (*SCI_BASE_REMOTE_DEVICE_REQUEST_HANDLER_T)(
+typedef enum sci_status (*sci_base_remote_device_request_handler_t)(
 	struct sci_base_remote_device *,
 	struct sci_base_request *
 	);
 
-typedef enum sci_status (*SCI_BASE_REMOTE_DEVICE_HIGH_PRIORITY_REQUEST_COMPLETE_HANDLER_T)(
+typedef enum sci_status (*sci_base_remote_device_high_priority_request_complete_handler_t)(
 	struct sci_base_remote_device *,
 	struct sci_base_request *,
 	void *,
@@ -182,68 +182,68 @@ struct sci_base_remote_device_state_handler {
 	 * The start_handler specifies the method invoked when a user attempts to
 	 * start a remote device.
 	 */
-	SCI_BASE_REMOTE_DEVICE_HANDLER_T start_handler;
+	sci_base_remote_device_handler_t start_handler;
 
 	/**
 	 * The stop_handler specifies the method invoked when a user attempts to
 	 * stop a remote device.
 	 */
-	SCI_BASE_REMOTE_DEVICE_HANDLER_T stop_handler;
+	sci_base_remote_device_handler_t stop_handler;
 
 	/**
 	 * The fail_handler specifies the method invoked when a remote device
 	 * failure has occurred.  A failure may be due to an inability to
 	 * initialize/configure the device.
 	 */
-	SCI_BASE_REMOTE_DEVICE_HANDLER_T fail_handler;
+	sci_base_remote_device_handler_t fail_handler;
 
 	/**
 	 * The destruct_handler specifies the method invoked when attempting to
 	 * destruct a remote device.
 	 */
-	SCI_BASE_REMOTE_DEVICE_HANDLER_T destruct_handler;
+	sci_base_remote_device_handler_t destruct_handler;
 
 	/**
 	 * The reset handler specifies the method invloked when requesting to reset a
 	 * remote device.
 	 */
-	SCI_BASE_REMOTE_DEVICE_HANDLER_T reset_handler;
+	sci_base_remote_device_handler_t reset_handler;
 
 	/**
 	 * The reset complete handler specifies the method invloked when reporting
 	 * that a reset has completed to the remote device.
 	 */
-	SCI_BASE_REMOTE_DEVICE_HANDLER_T reset_complete_handler;
+	sci_base_remote_device_handler_t reset_complete_handler;
 
 	/**
 	 * The start_io_handler specifies the method invoked when a user
 	 * attempts to start an IO request for a remote device.
 	 */
-	SCI_BASE_REMOTE_DEVICE_REQUEST_HANDLER_T start_io_handler;
+	sci_base_remote_device_request_handler_t start_io_handler;
 
 	/**
 	 * The complete_io_handler specifies the method invoked when a user
 	 * attempts to complete an IO request for a remote device.
 	 */
-	SCI_BASE_REMOTE_DEVICE_REQUEST_HANDLER_T complete_io_handler;
+	sci_base_remote_device_request_handler_t complete_io_handler;
 
 	/**
 	 * The continue_io_handler specifies the method invoked when a user
 	 * attempts to continue an IO request for a remote device.
 	 */
-	SCI_BASE_REMOTE_DEVICE_REQUEST_HANDLER_T continue_io_handler;
+	sci_base_remote_device_request_handler_t continue_io_handler;
 
 	/**
 	 * The start_task_handler specifies the method invoked when a user
 	 * attempts to start a task management request for a remote device.
 	 */
-	SCI_BASE_REMOTE_DEVICE_REQUEST_HANDLER_T start_task_handler;
+	sci_base_remote_device_request_handler_t start_task_handler;
 
 	/**
 	 * The complete_task_handler specifies the method invoked when a user
 	 * attempts to complete a task management request for a remote device.
 	 */
-	SCI_BASE_REMOTE_DEVICE_REQUEST_HANDLER_T complete_task_handler;
+	sci_base_remote_device_request_handler_t complete_task_handler;
 
 };
 
