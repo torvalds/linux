@@ -667,6 +667,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		}
 		track->cb[i].robj = reloc->robj;
 		track->cb[i].offset = idx_value;
+		track->cb_dirty = true;
 		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		break;
 	case R300_ZB_DEPTHOFFSET:
@@ -679,6 +680,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		}
 		track->zb.robj = reloc->robj;
 		track->zb.offset = idx_value;
+		track->zb_dirty = true;
 		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		break;
 	case R300_TX_OFFSET_0:
@@ -717,6 +719,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		tmp |= tile_flags;
 		ib[idx] = tmp;
 		track->textures[i].robj = reloc->robj;
+		track->tex_dirty = true;
 		break;
 	/* Tracked registers */
 	case 0x2084:
@@ -743,6 +746,8 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		if (p->rdev->family < CHIP_RV515) {
 			track->maxy -= 1440;
 		}
+		track->cb_dirty = true;
+		track->zb_dirty = true;
 		break;
 	case 0x4E00:
 		/* RB3D_CCTL */
@@ -752,6 +757,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 		track->num_cb = ((idx_value >> 5) & 0x3) + 1;
+		track->cb_dirty = true;
 		break;
 	case 0x4E38:
 	case 0x4E3C:
@@ -814,6 +820,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 				  ((idx_value >> 21) & 0xF));
 			return -EINVAL;
 		}
+		track->cb_dirty = true;
 		break;
 	case 0x4F00:
 		/* ZB_CNTL */
@@ -822,6 +829,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		} else {
 			track->z_enabled = false;
 		}
+		track->zb_dirty = true;
 		break;
 	case 0x4F10:
 		/* ZB_FORMAT */
@@ -838,6 +846,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 				  (idx_value & 0xF));
 			return -EINVAL;
 		}
+		track->zb_dirty = true;
 		break;
 	case 0x4F24:
 		/* ZB_DEPTHPITCH */
@@ -861,6 +870,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		ib[idx] = tmp;
 
 		track->zb.pitch = idx_value & 0x3FFC;
+		track->zb_dirty = true;
 		break;
 	case 0x4104:
 		for (i = 0; i < 16; i++) {
@@ -869,6 +879,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			enabled = !!(idx_value & (1 << i));
 			track->textures[i].enabled = enabled;
 		}
+		track->tex_dirty = true;
 		break;
 	case 0x44C0:
 	case 0x44C4:
@@ -951,8 +962,8 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			DRM_ERROR("Invalid texture format %u\n",
 				  (idx_value & 0x1F));
 			return -EINVAL;
-			break;
 		}
+		track->tex_dirty = true;
 		break;
 	case 0x4400:
 	case 0x4404:
@@ -980,6 +991,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		if (tmp == 2 || tmp == 4 || tmp == 6) {
 			track->textures[i].roundup_h = false;
 		}
+		track->tex_dirty = true;
 		break;
 	case 0x4500:
 	case 0x4504:
@@ -1017,6 +1029,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			DRM_ERROR("Forbidden bit TXFORMAT_MSB\n");
 			return -EINVAL;
 		}
+		track->tex_dirty = true;
 		break;
 	case 0x4480:
 	case 0x4484:
@@ -1046,6 +1059,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		track->textures[i].use_pitch = !!tmp;
 		tmp = (idx_value >> 22) & 0xF;
 		track->textures[i].txdepth = tmp;
+		track->tex_dirty = true;
 		break;
 	case R300_ZB_ZPASS_ADDR:
 		r = r100_cs_packet_next_reloc(p, &reloc);
@@ -1060,6 +1074,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case 0x4e0c:
 		/* RB3D_COLOR_CHANNEL_MASK */
 		track->color_channel_mask = idx_value;
+		track->cb_dirty = true;
 		break;
 	case 0x43a4:
 		/* SC_HYPERZ_EN */
@@ -1073,6 +1088,8 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case 0x4f1c:
 		/* ZB_BW_CNTL */
 		track->zb_cb_clear = !!(idx_value & (1 << 5));
+		track->cb_dirty = true;
+		track->zb_dirty = true;
 		if (p->rdev->hyperz_filp != p->filp) {
 			if (idx_value & (R300_HIZ_ENABLE |
 					 R300_RD_COMP_ENABLE |
@@ -1084,6 +1101,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case 0x4e04:
 		/* RB3D_BLENDCNTL */
 		track->blend_read_enable = !!(idx_value & (1 << 2));
+		track->cb_dirty = true;
 		break;
 	case 0x4f28: /* ZB_DEPTHCLEARVALUE */
 		break;

@@ -52,14 +52,7 @@ struct r100_cs_track_texture {
 	unsigned                compress_format;
 };
 
-struct r100_cs_track_limits {
-	unsigned num_cb;
-	unsigned num_texture;
-	unsigned max_levels;
-};
-
 struct r100_cs_track {
-	struct radeon_device *rdev;
 	unsigned			num_cb;
 	unsigned                        num_texture;
 	unsigned			maxy;
@@ -78,6 +71,10 @@ struct r100_cs_track {
 	bool                            separate_cube;
 	bool				zb_cb_clear;
 	bool				blend_read_enable;
+
+	bool				cb_dirty;
+	bool				zb_dirty;
+	bool				tex_dirty;
 };
 
 int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track);
