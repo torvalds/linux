@@ -31,7 +31,6 @@
 
 #include "clock.h"
 #include "fuse.h"
-#include "tegra2_dvfs.h"
 
 #define RST_DEVICES			0x004
 #define RST_DEVICES_SET			0x300
@@ -1650,7 +1649,6 @@ static struct clk tegra_clk_virtual_cpu = {
 	.backup    = &tegra_pll_p,
 	.ops       = &tegra_cpu_ops,
 	.max_rate  = 1000000000,
-	.dvfs      = &tegra_dvfs_virtual_cpu_dvfs,
 };
 
 static struct clk tegra_clk_hclk = {
