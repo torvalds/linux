@@ -126,6 +126,34 @@ static inline void chip_bus_sync_unlock(struct irq_desc *desc)
 		desc->irq_data.chip->irq_bus_sync_unlock(&desc->irq_data);
 }
 
+struct irq_desc *
+__irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus);
+void __irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags, bool bus);
+
+static inline struct irq_desc *
+irq_get_desc_buslock(unsigned int irq, unsigned long *flags)
+{
+	return __irq_get_desc_lock(irq, flags, true);
+}
+
+static inline void
+irq_put_desc_busunlock(struct irq_desc *desc, unsigned long flags)
+{
+	__irq_put_desc_unlock(desc, flags, true);
+}
+
+static inline struct irq_desc *
+irq_get_desc_lock(unsigned int irq, unsigned long *flags)
+{
+	return __irq_get_desc_lock(irq, flags, false);
+}
+
+static inline void
+irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags)
+{
+	__irq_put_desc_unlock(desc, flags, false);
+}
+
 /*
  * Manipulation functions for irq_data.state
  */

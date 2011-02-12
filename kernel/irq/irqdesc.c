@@ -402,6 +402,26 @@ unsigned int irq_get_next_irq(unsigned int offset)
 	return find_next_bit(allocated_irqs, nr_irqs, offset);
 }
 
+struct irq_desc *
+__irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if (desc) {
+		if (bus)
+			chip_bus_lock(desc);
+		raw_spin_lock_irqsave(&desc->lock, *flags);
+	}
+	return desc;
+}
+
+void __irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags, bool bus)
+{
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	if (bus)
+		chip_bus_sync_unlock(desc);
+}
+
 /**
  * dynamic_irq_cleanup - cleanup a dynamically allocated irq
  * @irq:	irq number to initialize
