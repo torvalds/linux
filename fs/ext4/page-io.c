@@ -32,14 +32,8 @@
 
 static struct kmem_cache *io_page_cachep, *io_end_cachep;
 
-#define WQ_HASH_SZ		37
-#define to_ioend_wq(v)	(&ioend_wq[((unsigned long)v) % WQ_HASH_SZ])
-static wait_queue_head_t ioend_wq[WQ_HASH_SZ];
-
 int __init ext4_init_pageio(void)
 {
-	int i;
-
 	io_page_cachep = KMEM_CACHE(ext4_io_page, SLAB_RECLAIM_ACCOUNT);
 	if (io_page_cachep == NULL)
 		return -ENOMEM;
@@ -48,9 +42,6 @@ int __init ext4_init_pageio(void)
 		kmem_cache_destroy(io_page_cachep);
 		return -ENOMEM;
 	}
-	for (i = 0; i < WQ_HASH_SZ; i++)
-		init_waitqueue_head(&ioend_wq[i]);
-
 	return 0;
 }
 
@@ -62,7 +53,7 @@ void ext4_exit_pageio(void)
 
 void ext4_ioend_wait(struct inode *inode)
 {
-	wait_queue_head_t *wq = to_ioend_wq(inode);
+	wait_queue_head_t *wq = ext4_ioend_wq(inode);
 
 	wait_event(*wq, (atomic_read(&EXT4_I(inode)->i_ioend_count) == 0));
 }
@@ -87,7 +78,7 @@ void ext4_free_io_end(ext4_io_end_t *io)
 	for (i = 0; i < io->num_io_pages; i++)
 		put_io_page(io->pages[i]);
 	io->num_io_pages = 0;
-	wq = to_ioend_wq(io->inode);
+	wq = ext4_ioend_wq(io->inode);
 	if (atomic_dec_and_test(&EXT4_I(io->inode)->i_ioend_count) &&
 	    waitqueue_active(wq))
 		wake_up_all(wq);
@@ -102,6 +93,7 @@ int ext4_end_io_nolock(ext4_io_end_t *io)
 	struct inode *inode = io->inode;
 	loff_t offset = io->offset;
 	ssize_t size = io->size;
+	wait_queue_head_t *wq;
 	int ret = 0;
 
 	ext4_debug("ext4_end_io_nolock: io 0x%p from inode %lu,list->next 0x%p,"
@@ -126,7 +118,16 @@ int ext4_end_io_nolock(ext4_io_end_t *io)
 	if (io->iocb)
 		aio_complete(io->iocb, io->result, 0);
 	/* clear the DIO AIO unwritten flag */
-	io->flag &= ~EXT4_IO_END_UNWRITTEN;
+	if (io->flag & EXT4_IO_END_UNWRITTEN) {
+		io->flag &= ~EXT4_IO_END_UNWRITTEN;
+		/* Wake up anyone waiting on unwritten extent conversion */
+		wq = ext4_ioend_wq(io->inode);
+		if (atomic_dec_and_test(&EXT4_I(inode)->i_aiodio_unwritten) &&
+		    waitqueue_active(wq)) {
+			wake_up_all(wq);
+		}
+	}
+
 	return ret;
 }
 
