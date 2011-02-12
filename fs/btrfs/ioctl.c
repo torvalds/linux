@@ -203,7 +203,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 
 
 	trans = btrfs_join_transaction(root, 1);
-	BUG_ON(!trans);
+	BUG_ON(IS_ERR(trans));
 
 	ret = btrfs_update_inode(trans, root, inode);
 	BUG_ON(ret);
@@ -907,6 +907,10 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 
 	if (new_size > old_size) {
 		trans = btrfs_start_transaction(root, 0);
+		if (IS_ERR(trans)) {
+			ret = PTR_ERR(trans);
+			goto out_unlock;
+		}
 		ret = btrfs_grow_device(trans, device, new_size);
 		btrfs_commit_transaction(trans, root);
 	} else {
@@ -1898,7 +1902,10 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 			memcpy(&new_key, &key, sizeof(new_key));
 			new_key.objectid = inode->i_ino;
-			new_key.offset = key.offset + destoff - off;
+			if (off <= key.offset)
+				new_key.offset = key.offset + destoff - off;
+			else
+				new_key.offset = destoff;
 
 			trans = btrfs_start_transaction(root, 1);
 			if (IS_ERR(trans)) {
@@ -2082,7 +2089,7 @@ static long btrfs_ioctl_trans_start(struct file *file)
 
 	ret = -ENOMEM;
 	trans = btrfs_start_ioctl_transaction(root, 0);
-	if (!trans)
+	if (IS_ERR(trans))
 		goto out_drop;
 
 	file->private_data = trans;
@@ -2138,9 +2145,9 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	path->leave_spinning = 1;
 
 	trans = btrfs_start_transaction(root, 1);
-	if (!trans) {
+	if (IS_ERR(trans)) {
 		btrfs_free_path(path);
-		return -ENOMEM;
+		return PTR_ERR(trans);
 	}
 
 	dir_id = btrfs_super_root_dir(&root->fs_info->super_copy);
@@ -2334,6 +2341,8 @@ static noinline long btrfs_ioctl_start_sync(struct file *file, void __user *argp
 	u64 transid;
 
 	trans = btrfs_start_transaction(root, 0);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 	transid = trans->transid;
 	btrfs_commit_transaction_async(trans, root, 0);
 

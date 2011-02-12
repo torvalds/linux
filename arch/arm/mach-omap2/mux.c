@@ -1000,6 +1000,7 @@ int __init omap_mux_init(const char *name, u32 flags,
 	if (!partition->base) {
 		pr_err("%s: Could not ioremap mux partition at 0x%08x\n",
 			__func__, partition->phys);
+		kfree(partition);
 		return -ENODEV;
 	}
 

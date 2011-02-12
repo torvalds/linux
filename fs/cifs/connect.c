@@ -337,8 +337,12 @@ cifs_echo_request(struct work_struct *work)
 	struct TCP_Server_Info *server = container_of(work,
 					struct TCP_Server_Info, echo.work);
 
-	/* no need to ping if we got a response recently */
-	if (time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
+	/*
+	 * We cannot send an echo until the NEGOTIATE_PROTOCOL request is done.
+	 * Also, no need to ping if we got a response recently
+	 */
+	if (server->tcpStatus != CifsGood ||
+	    time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
 		goto requeue_echo;
 
 	rc = CIFSSMBEcho(server);
@@ -578,12 +582,12 @@ incomplete_rcv:
 		else if (reconnect == 1)
 			continue;
 
-		length += 4; /* account for rfc1002 hdr */
+		total_read += 4; /* account for rfc1002 hdr */
 
-
-		dump_smb(smb_buffer, length);
-		if (checkSMB(smb_buffer, smb_buffer->Mid, total_read+4)) {
-			cifs_dump_mem("Bad SMB: ", smb_buffer, 48);
+		dump_smb(smb_buffer, total_read);
+		if (checkSMB(smb_buffer, smb_buffer->Mid, total_read)) {
+			cifs_dump_mem("Bad SMB: ", smb_buffer,
+					total_read < 48 ? total_read : 48);
 			continue;
 		}
 
@@ -633,11 +637,11 @@ incomplete_rcv:
 				mid_entry->largeBuf = isLargeBuf;
 multi_t2_fnd:
 				mid_entry->midState = MID_RESPONSE_RECEIVED;
-				list_del_init(&mid_entry->qhead);
-				mid_entry->callback(mid_entry);
 #ifdef CONFIG_CIFS_STATS2
 				mid_entry->when_received = jiffies;
 #endif
+				list_del_init(&mid_entry->qhead);
+				mid_entry->callback(mid_entry);
 				break;
 			}
 			mid_entry = NULL;
