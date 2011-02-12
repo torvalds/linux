@@ -1522,9 +1522,13 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 {
 	enum drm_connector_status status;
 
-	/* Can't disconnect eDP */
-	if (is_edp(intel_dp))
-		return connector_status_connected;
+	/* Can't disconnect eDP, but you can close the lid... */
+	if (is_edp(intel_dp)) {
+		status = intel_panel_detect(intel_dp->base.base.dev);
+		if (status == connector_status_unknown)
+			status = connector_status_connected;
+		return status;
+	}
 
 	status = connector_status_disconnected;
 	if (intel_dp_aux_native_read(intel_dp,
