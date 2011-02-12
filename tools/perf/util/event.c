@@ -6,6 +6,7 @@
 #include "string.h"
 #include "strlist.h"
 #include "thread.h"
+#include "thread_map.h"
 
 static const char *perf_event__names[] = {
 	[0]			 = "TOTAL",
@@ -265,11 +266,12 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 					     process, session);
 }
 
-int perf_event__synthesize_thread(pid_t pid, perf_event__handler_t process,
-				  struct perf_session *session)
+int perf_event__synthesize_thread_map(struct thread_map *threads,
+				      perf_event__handler_t process,
+				      struct perf_session *session)
 {
 	union perf_event *comm_event, *mmap_event;
-	int err = -1;
+	int err = -1, thread;
 
 	comm_event = malloc(sizeof(comm_event->comm) + session->id_hdr_size);
 	if (comm_event == NULL)
@@ -279,8 +281,15 @@ int perf_event__synthesize_thread(pid_t pid, perf_event__handler_t process,
 	if (mmap_event == NULL)
 		goto out_free_comm;
 
-	err = __event__synthesize_thread(comm_event, mmap_event, pid,
-					 process, session);
+	err = 0;
+	for (thread = 0; thread < threads->nr; ++thread) {
+		if (__event__synthesize_thread(comm_event, mmap_event,
+					       threads->map[thread],
+					       process, session)) {
+			err = -1;
+			break;
+		}
+	}
 	free(mmap_event);
 out_free_comm:
 	free(comm_event);

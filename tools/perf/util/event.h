@@ -135,6 +135,7 @@ union perf_event {
 void perf_event__print_totals(void);
 
 struct perf_session;
+struct thread_map;
 
 typedef int (*perf_event__handler_synth_t)(union perf_event *event, 
 					   struct perf_session *session);
@@ -142,8 +143,9 @@ typedef int (*perf_event__handler_t)(union perf_event *event,
 				     struct perf_sample *sample,
 				      struct perf_session *session);
 
-int perf_event__synthesize_thread(pid_t pid, perf_event__handler_t process,
-				  struct perf_session *session);
+int perf_event__synthesize_thread_map(struct thread_map *threads,
+				      perf_event__handler_t process,
+				      struct perf_session *session);
 int perf_event__synthesize_threads(perf_event__handler_t process,
 				   struct perf_session *session);
 int perf_event__synthesize_kernel_mmap(perf_event__handler_t process,

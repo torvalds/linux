@@ -680,9 +680,9 @@ static int __cmd_record(int argc, const char **argv)
 					       perf_event__synthesize_guest_os);
 
 	if (!system_wide)
-		perf_event__synthesize_thread(target_tid,
-					      process_synthesized_event,
-					      session);
+		perf_event__synthesize_thread_map(evsel_list->threads,
+						  process_synthesized_event,
+						  session);
 	else
 		perf_event__synthesize_threads(process_synthesized_event,
 					       session);
