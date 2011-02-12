@@ -40,7 +40,7 @@
 static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id *id);
 
 #define MMA8452_SPEED		200 * 1000
-
+#define MMA8452_DEVID		0x1a
 /* Addresses to scan -- protected by sense_data_mutex */
 //static char sense_data[RBUFF_SIZE + 1];
 static struct i2c_client *this_client;
@@ -137,7 +137,7 @@ static int mma845x_write_reg(struct i2c_client *client,int addr,int value)
 
 static char mma8452_get_devid(struct i2c_client *client)
 {
-	mmaprintk("mma8452 devid:%x\n",mma845x_read_reg(client,MMA8452_REG_WHO_AM_I));
+	printk("mma8452 devid:%x\n",mma845x_read_reg(client,MMA8452_REG_WHO_AM_I));
 	return mma845x_read_reg(client,MMA8452_REG_WHO_AM_I);
 }
 
@@ -250,6 +250,7 @@ static int mma8452_start(struct i2c_client *client, char rate)
 { 
     struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
     
+   printk("%s::enter\n",__FUNCTION__); 
     if (mma8452->status == MMA8452_OPEN) {
         return 0;      
     }
@@ -266,7 +267,7 @@ static int mma8452_close_dev(struct i2c_client *client)
 static int mma8452_close(struct i2c_client *client)
 {
     struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
-    
+   printk("%s::enter\n",__FUNCTION__); 
     mma8452->status = MMA8452_CLOSE;
     
     return mma8452_close_dev(client);
@@ -501,28 +502,46 @@ static int mma8452_remove(struct i2c_client *client)
 static void mma8452_suspend(struct early_suspend *h)
 {
 	struct i2c_client *client = container_of(mma8452_device.parent, struct i2c_client, dev);
-	mmaprintk("Gsensor mma7760 enter suspend\n");
-	mma8452_close_dev(client);
+	struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
+	mmaprintk("Gsensor mma7760 enter suspend mma8452->status %d\n",mma8452->status);
+//	if(mma8452->status == MMA8452_OPEN)
+//	{
+		//mma8452->status = MMA8452_SUSPEND;
+//		mma8452_close_dev(client);
+//	}
 }
 
 static void mma8452_resume(struct early_suspend *h)
 {
 	struct i2c_client *client = container_of(mma8452_device.parent, struct i2c_client, dev);
     struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
-	mmaprintk("Gsensor mma7760 resume!!\n");
-	mma8452_start_dev(client,mma8452->curr_tate);
+	mmaprintk("Gsensor mma7760 resume!! mma8452->status %d\n",mma8452->status);
+	//if((mma8452->status == MMA8452_SUSPEND) && (mma8452->status != MMA8452_OPEN))
+//	if (mma8452->status == MMA8452_OPEN)
+//		mma8452_start_dev(client,mma8452->curr_tate);
 }
 #else
 static int mma8452_suspend(struct i2c_client *client, pm_message_t mesg)
 {
-	mmaprintk("Gsensor mma7760 enter 2 level  suspend\n");
-	return mma8452_close_dev(client);
+	int ret;
+	mmaprintk("Gsensor mma7760 enter 2 level  suspend mma8452->status %d\n",mma8452->status);
+	struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
+//	if(mma8452->status == MMA8452_OPEN)
+//	{
+	//	mma8452->status = MMA8452_SUSPEND;
+//		ret = mma8452_close_dev(client);
+//	}
+	return ret;
 }
 static int mma8452_resume(struct i2c_client *client)
 {
+	int ret;
 	struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
-	mmaprintk("Gsensor mma7760 2 level resume!!\n");
-	return mma8452_start_dev(client, mma8452->curr_tate);
+	mmaprintk("Gsensor mma7760 2 level resume!! mma8452->status %d\n",mma8452->status);
+//	if((mma8452->status == MMA8452_SUSPEND) && (mma8452->status != MMA8452_OPEN))
+//if (mma8452->status == MMA8452_OPEN)
+//		ret = mma8452_start_dev(client, mma8452->curr_tate);
+	return ret;
 }
 #endif
 
@@ -658,8 +677,10 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
     mma8452_early_suspend.level = 0x2;
     register_early_suspend(&mma8452_early_suspend);
 #endif
-	mma8452_get_devid(this_client);
-	mmaprintk(KERN_INFO "mma8452 probe ok\n");
+	if(MMA8452_DEVID == mma8452_get_devid(this_client))
+		printk(KERN_INFO "mma8452 probe ok\n");
+	else
+		goto exit_gsensor_sysfs_init_failed;
 	
 
 	mma8452->status = -1;
