@@ -2377,6 +2377,8 @@ extern int		netdev_max_backlog;
 extern int		netdev_tstamp_prequeue;
 extern int		weight_p;
 extern int		netdev_set_master(struct net_device *dev, struct net_device *master);
+extern int netdev_set_bond_master(struct net_device *dev,
+				  struct net_device *master);
 extern int skb_checksum_help(struct sk_buff *skb);
 extern struct sk_buff *skb_gso_segment(struct sk_buff *skb, u32 features);
 #ifdef CONFIG_BUG
@@ -2435,6 +2437,11 @@ static inline void netif_set_gso_max_size(struct net_device *dev,
 					  unsigned int size)
 {
 	dev->gso_max_size = size;
+}
+
+static inline int netif_is_bond_slave(struct net_device *dev)
+{
+	return dev->flags & IFF_SLAVE && dev->priv_flags & IFF_BONDING;
 }
 
 extern struct pernet_operations __net_initdata loopback_net_ops;

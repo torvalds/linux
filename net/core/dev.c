@@ -3146,7 +3146,6 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	struct packet_type *ptype, *pt_prev;
 	rx_handler_func_t *rx_handler;
 	struct net_device *orig_dev;
-	struct net_device *master;
 	struct net_device *null_or_orig;
 	struct net_device *orig_or_bond;
 	int ret = NET_RX_DROP;
@@ -3173,15 +3172,19 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	 */
 	null_or_orig = NULL;
 	orig_dev = skb->dev;
-	master = ACCESS_ONCE(orig_dev->master);
 	if (skb->deliver_no_wcard)
 		null_or_orig = orig_dev;
-	else if (master) {
-		if (__skb_bond_should_drop(skb, master)) {
-			skb->deliver_no_wcard = 1;
-			null_or_orig = orig_dev; /* deliver only exact match */
-		} else
-			skb->dev = master;
+	else if (netif_is_bond_slave(orig_dev)) {
+		struct net_device *bond_master = ACCESS_ONCE(orig_dev->master);
+
+		if (likely(bond_master)) {
+			if (__skb_bond_should_drop(skb, bond_master)) {
+				skb->deliver_no_wcard = 1;
+				/* deliver only exact match */
+				null_or_orig = orig_dev;
+			} else
+				skb->dev = bond_master;
+		}
 	}
 
 	__this_cpu_inc(softnet_data.processed);
@@ -4346,15 +4349,14 @@ static int __init dev_proc_init(void)
 
 
 /**
- *	netdev_set_master	-	set up master/slave pair
+ *	netdev_set_master	-	set up master pointer
  *	@slave: slave device
  *	@master: new master device
  *
  *	Changes the master device of the slave. Pass %NULL to break the
  *	bonding. The caller must hold the RTNL semaphore. On a failure
  *	a negative errno code is returned. On success the reference counts
- *	are adjusted, %RTM_NEWLINK is sent to the routing socket and the
- *	function returns zero.
+ *	are adjusted and the function returns zero.
  */
 int netdev_set_master(struct net_device *slave, struct net_device *master)
 {
@@ -4374,6 +4376,29 @@ int netdev_set_master(struct net_device *slave, struct net_device *master)
 		synchronize_net();
 		dev_put(old);
 	}
+	return 0;
+}
+EXPORT_SYMBOL(netdev_set_master);
+
+/**
+ *	netdev_set_bond_master	-	set up bonding master/slave pair
+ *	@slave: slave device
+ *	@master: new master device
+ *
+ *	Changes the master device of the slave. Pass %NULL to break the
+ *	bonding. The caller must hold the RTNL semaphore. On a failure
+ *	a negative errno code is returned. On success %RTM_NEWLINK is sent
+ *	to the routing socket and the function returns zero.
+ */
+int netdev_set_bond_master(struct net_device *slave, struct net_device *master)
+{
+	int err;
+
+	ASSERT_RTNL();
+
+	err = netdev_set_master(slave, master);
+	if (err)
+		return err;
 	if (master)
 		slave->flags |= IFF_SLAVE;
 	else
@@ -4382,7 +4407,7 @@ int netdev_set_master(struct net_device *slave, struct net_device *master)
 	rtmsg_ifinfo(RTM_NEWLINK, slave, IFF_SLAVE);
 	return 0;
 }
-EXPORT_SYMBOL(netdev_set_master);
+EXPORT_SYMBOL(netdev_set_bond_master);
 
 static void dev_change_rx_flags(struct net_device *dev, int flags)
 {

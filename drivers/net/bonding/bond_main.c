@@ -1594,9 +1594,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		}
 	}
 
-	res = netdev_set_master(slave_dev, bond_dev);
+	res = netdev_set_bond_master(slave_dev, bond_dev);
 	if (res) {
-		pr_debug("Error %d calling netdev_set_master\n", res);
+		pr_debug("Error %d calling netdev_set_bond_master\n", res);
 		goto err_restore_mac;
 	}
 	/* open the slave since the application closed it */
@@ -1812,7 +1812,7 @@ err_close:
 	dev_close(slave_dev);
 
 err_unset_master:
-	netdev_set_master(slave_dev, NULL);
+	netdev_set_bond_master(slave_dev, NULL);
 
 err_restore_mac:
 	if (!bond->params.fail_over_mac) {
@@ -1992,7 +1992,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		netif_addr_unlock_bh(bond_dev);
 	}
 
-	netdev_set_master(slave_dev, NULL);
+	netdev_set_bond_master(slave_dev, NULL);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	read_lock_bh(&bond->lock);
@@ -2114,7 +2114,7 @@ static int bond_release_all(struct net_device *bond_dev)
 			netif_addr_unlock_bh(bond_dev);
 		}
 
-		netdev_set_master(slave_dev, NULL);
+		netdev_set_bond_master(slave_dev, NULL);
 
 		/* close slave before restoring its mac address */
 		dev_close(slave_dev);

@@ -1118,7 +1118,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 		return rc;
 	}
 
-	if (nesvnic->netdev->master)
+	if (netif_is_bond_slave(netdev))
 		netdev = nesvnic->netdev->master;
 	else
 		netdev = nesvnic->netdev;
