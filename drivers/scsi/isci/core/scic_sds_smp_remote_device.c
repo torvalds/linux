@@ -214,49 +214,40 @@ static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_frame_handl
 
 /* --------------------------------------------------------------------------- */
 
-struct scic_sds_remote_device_state_handler
-scic_sds_smp_remote_device_ready_substate_handler_table[
-	SCIC_SDS_SMP_REMOTE_DEVICE_READY_MAX_SUBSTATES] =
-{
-	/* SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE */
-	{
-		{
-			scic_sds_remote_device_default_start_handler,
-			scic_sds_remote_device_ready_state_stop_handler,
-			scic_sds_remote_device_default_fail_handler,
-			scic_sds_remote_device_default_destruct_handler,
-			scic_sds_remote_device_default_reset_handler,
-			scic_sds_remote_device_default_reset_complete_handler,
-			scic_sds_smp_remote_device_ready_idle_substate_start_io_handler,
-			scic_sds_remote_device_default_complete_request_handler,
-			scic_sds_remote_device_default_continue_request_handler,
-			scic_sds_remote_device_default_start_request_handler,
-			scic_sds_remote_device_default_complete_request_handler
-		},
-		scic_sds_remote_device_default_suspend_handler,
-		scic_sds_remote_device_default_resume_handler,
-		scic_sds_remote_device_general_event_handler,
-		scic_sds_remote_device_default_frame_handler
+const struct scic_sds_remote_device_state_handler scic_sds_smp_remote_device_ready_substate_handler_table[] = {
+	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
+		.parent.start_handler		= scic_sds_remote_device_default_start_handler,
+		.parent.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,
+		.parent.fail_handler		= scic_sds_remote_device_default_fail_handler,
+		.parent.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
+		.parent.reset_handler		= scic_sds_remote_device_default_reset_handler,
+		.parent.reset_complete_handler	= scic_sds_remote_device_default_reset_complete_handler,
+		.parent.start_io_handler	= scic_sds_smp_remote_device_ready_idle_substate_start_io_handler,
+		.parent.complete_io_handler	= scic_sds_remote_device_default_complete_request_handler,
+		.parent.continue_io_handler	= scic_sds_remote_device_default_continue_request_handler,
+		.parent.start_task_handler	= scic_sds_remote_device_default_start_request_handler,
+		.parent.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
+		.suspend_handler		= scic_sds_remote_device_default_suspend_handler,
+		.resume_handler			= scic_sds_remote_device_default_resume_handler,
+		.event_handler			= scic_sds_remote_device_general_event_handler,
+		.frame_handler			= scic_sds_remote_device_default_frame_handler
 	},
-	/* SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD */
-	{
-		{
-			scic_sds_remote_device_default_start_handler,
-			scic_sds_remote_device_ready_state_stop_handler,
-			scic_sds_remote_device_default_fail_handler,
-			scic_sds_remote_device_default_destruct_handler,
-			scic_sds_remote_device_default_reset_handler,
-			scic_sds_remote_device_default_reset_complete_handler,
-			scic_sds_smp_remote_device_ready_cmd_substate_start_io_handler,
-			scic_sds_smp_remote_device_ready_cmd_substate_complete_io_handler,
-			scic_sds_remote_device_default_continue_request_handler,
-			scic_sds_remote_device_default_start_request_handler,
-			scic_sds_remote_device_default_complete_request_handler
-		},
-		scic_sds_remote_device_default_suspend_handler,
-		scic_sds_remote_device_default_resume_handler,
-		scic_sds_remote_device_general_event_handler,
-		scic_sds_smp_remote_device_ready_cmd_substate_frame_handler
+	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
+		.parent.start_handler		= scic_sds_remote_device_default_start_handler,
+		.parent.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,
+		.parent.fail_handler		= scic_sds_remote_device_default_fail_handler,
+		.parent.destruct_handler	= scic_sds_remote_device_default_destruct_handler,
+		.parent.reset_handler		= scic_sds_remote_device_default_reset_handler,
+		.parent.reset_complete_handler	= scic_sds_remote_device_default_reset_complete_handler,
+		.parent.start_io_handler	= scic_sds_smp_remote_device_ready_cmd_substate_start_io_handler,
+		.parent.complete_io_handler	= scic_sds_smp_remote_device_ready_cmd_substate_complete_io_handler,
+		.parent.continue_io_handler	= scic_sds_remote_device_default_continue_request_handler,
+		.parent.start_task_handler	= scic_sds_remote_device_default_start_request_handler,
+		.parent.complete_task_handler	= scic_sds_remote_device_default_complete_request_handler,
+		.suspend_handler		= scic_sds_remote_device_default_suspend_handler,
+		.resume_handler			= scic_sds_remote_device_default_resume_handler,
+		.event_handler			= scic_sds_remote_device_general_event_handler,
+		.frame_handler			= scic_sds_smp_remote_device_ready_cmd_substate_frame_handler
 	}
 };
 /*
