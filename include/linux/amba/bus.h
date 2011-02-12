@@ -56,6 +56,8 @@ enum amba_vendor {
 	AMBA_VENDOR_ST = 0x80,
 };
 
+extern struct bus_type amba_bustype;
+
 #define amba_get_drvdata(d)	dev_get_drvdata(&d->dev)
 #define amba_set_drvdata(d,p)	dev_set_drvdata(&d->dev, p)
 

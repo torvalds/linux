@@ -106,7 +106,7 @@ static struct device_attribute amba_dev_attrs[] = {
  * Primecells are part of the Advanced Microcontroller Bus Architecture,
  * so we call the bus "amba".
  */
-static struct bus_type amba_bustype = {
+struct bus_type amba_bustype = {
 	.name		= "amba",
 	.dev_attrs	= amba_dev_attrs,
 	.match		= amba_match,
