@@ -1856,6 +1856,9 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	if (!intel_dp)
 		return;
 
+	intel_dp->output_reg = output_reg;
+	intel_dp->dpms_mode = -1;
+
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
 		kfree(intel_dp);
@@ -1894,10 +1897,6 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
-
-	intel_dp->output_reg = output_reg;
-	intel_dp->has_audio = false;
-	intel_dp->dpms_mode = DRM_MODE_DPMS_ON;
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_dp_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
@@ -1951,14 +1950,18 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 		ret = intel_dp_aux_native_read(intel_dp, DP_DPCD_REV,
 					       intel_dp->dpcd,
 					       sizeof(intel_dp->dpcd));
+		ironlake_edp_panel_vdd_off(intel_dp);
 		if (ret == sizeof(intel_dp->dpcd)) {
 			if (intel_dp->dpcd[0] >= 0x11)
 				dev_priv->no_aux_handshake = intel_dp->dpcd[3] &
 					DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
 		} else {
+			/* if this fails, presume the device is a ghost */
 			DRM_ERROR("failed to retrieve link info\n");
+			intel_dp_destroy(&intel_connector->base);
+			intel_dp_encoder_destroy(&intel_dp->base.base);
+			return;
 		}
-		ironlake_edp_panel_vdd_off(intel_dp);
 	}
 
 	intel_encoder->hot_plug = intel_dp_hot_plug;
