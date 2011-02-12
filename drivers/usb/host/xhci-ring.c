@@ -2369,6 +2369,7 @@ static unsigned int count_sg_trbs_needed(struct xhci_hcd *xhci, struct urb *urb)
 		/* Scatter gather list entries may cross 64KB boundaries */
 		running_total = TRB_MAX_BUFF_SIZE -
 			(sg_dma_address(sg) & (TRB_MAX_BUFF_SIZE - 1));
+		running_total &= TRB_MAX_BUFF_SIZE - 1;
 		if (running_total != 0)
 			num_trbs++;
 
@@ -2661,6 +2662,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* How much data is (potentially) left before the 64KB boundary? */
 	running_total = TRB_MAX_BUFF_SIZE -
 		(urb->transfer_dma & (TRB_MAX_BUFF_SIZE - 1));
+	running_total &= TRB_MAX_BUFF_SIZE - 1;
 
 	/* If there's some data on this 64KB chunk, or we have to send a
 	 * zero-length transfer, we need at least one TRB
@@ -2884,6 +2886,7 @@ static int count_isoc_trbs_needed(struct xhci_hcd *xhci,
 	td_len = urb->iso_frame_desc[i].length;
 
 	running_total = TRB_MAX_BUFF_SIZE - (addr & (TRB_MAX_BUFF_SIZE - 1));
+	running_total &= TRB_MAX_BUFF_SIZE - 1;
 	if (running_total != 0)
 		num_trbs++;
 
