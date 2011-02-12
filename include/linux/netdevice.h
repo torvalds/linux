@@ -2437,17 +2437,6 @@ static inline void netif_set_gso_max_size(struct net_device *dev,
 	dev->gso_max_size = size;
 }
 
-extern int __skb_bond_should_drop(struct sk_buff *skb,
-				  struct net_device *master);
-
-static inline int skb_bond_should_drop(struct sk_buff *skb,
-				       struct net_device *master)
-{
-	if (master)
-		return __skb_bond_should_drop(skb, master);
-	return 0;
-}
-
 extern struct pernet_operations __net_initdata loopback_net_ops;
 
 static inline int dev_ethtool_get_settings(struct net_device *dev,
