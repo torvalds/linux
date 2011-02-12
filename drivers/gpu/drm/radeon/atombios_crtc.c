@@ -48,29 +48,29 @@ static void atombios_overscan_setup(struct drm_crtc *crtc,
 
 	switch (radeon_crtc->rmx_type) {
 	case RMX_CENTER:
-		args.usOverscanTop = (adjusted_mode->crtc_vdisplay - mode->crtc_vdisplay) / 2;
-		args.usOverscanBottom = (adjusted_mode->crtc_vdisplay - mode->crtc_vdisplay) / 2;
-		args.usOverscanLeft = (adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2;
-		args.usOverscanRight = (adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2;
+		args.usOverscanTop = cpu_to_le16((adjusted_mode->crtc_vdisplay - mode->crtc_vdisplay) / 2);
+		args.usOverscanBottom = cpu_to_le16((adjusted_mode->crtc_vdisplay - mode->crtc_vdisplay) / 2);
+		args.usOverscanLeft = cpu_to_le16((adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2);
+		args.usOverscanRight = cpu_to_le16((adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2);
 		break;
 	case RMX_ASPECT:
 		a1 = mode->crtc_vdisplay * adjusted_mode->crtc_hdisplay;
 		a2 = adjusted_mode->crtc_vdisplay * mode->crtc_hdisplay;
 
 		if (a1 > a2) {
-			args.usOverscanLeft = (adjusted_mode->crtc_hdisplay - (a2 / mode->crtc_vdisplay)) / 2;
-			args.usOverscanRight = (adjusted_mode->crtc_hdisplay - (a2 / mode->crtc_vdisplay)) / 2;
+			args.usOverscanLeft = cpu_to_le16((adjusted_mode->crtc_hdisplay - (a2 / mode->crtc_vdisplay)) / 2);
+			args.usOverscanRight = cpu_to_le16((adjusted_mode->crtc_hdisplay - (a2 / mode->crtc_vdisplay)) / 2);
 		} else if (a2 > a1) {
-			args.usOverscanLeft = (adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2;
-			args.usOverscanRight = (adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2;
+			args.usOverscanLeft = cpu_to_le16((adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2);
+			args.usOverscanRight = cpu_to_le16((adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2);
 		}
 		break;
 	case RMX_FULL:
 	default:
-		args.usOverscanRight = radeon_crtc->h_border;
-		args.usOverscanLeft = radeon_crtc->h_border;
-		args.usOverscanBottom = radeon_crtc->v_border;
-		args.usOverscanTop = radeon_crtc->v_border;
+		args.usOverscanRight = cpu_to_le16(radeon_crtc->h_border);
+		args.usOverscanLeft = cpu_to_le16(radeon_crtc->h_border);
+		args.usOverscanBottom = cpu_to_le16(radeon_crtc->v_border);
+		args.usOverscanTop = cpu_to_le16(radeon_crtc->v_border);
 		break;
 	}
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -419,23 +419,23 @@ static void atombios_crtc_program_ss(struct drm_crtc *crtc,
 	memset(&args, 0, sizeof(args));
 
 	if (ASIC_IS_DCE5(rdev)) {
-		args.v3.usSpreadSpectrumAmountFrac = 0;
+		args.v3.usSpreadSpectrumAmountFrac = cpu_to_le16(0);
 		args.v3.ucSpreadSpectrumType = ss->type;
 		switch (pll_id) {
 		case ATOM_PPLL1:
 			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_P1PLL;
-			args.v3.usSpreadSpectrumAmount = ss->amount;
-			args.v3.usSpreadSpectrumStep = ss->step;
+			args.v3.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
+			args.v3.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 			break;
 		case ATOM_PPLL2:
 			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_P2PLL;
-			args.v3.usSpreadSpectrumAmount = ss->amount;
-			args.v3.usSpreadSpectrumStep = ss->step;
+			args.v3.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
+			args.v3.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 			break;
 		case ATOM_DCPLL:
 			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_DCPLL;
-			args.v3.usSpreadSpectrumAmount = 0;
-			args.v3.usSpreadSpectrumStep = 0;
+			args.v3.usSpreadSpectrumAmount = cpu_to_le16(0);
+			args.v3.usSpreadSpectrumStep = cpu_to_le16(0);
 			break;
 		case ATOM_PPLL_INVALID:
 			return;
@@ -447,18 +447,18 @@ static void atombios_crtc_program_ss(struct drm_crtc *crtc,
 		switch (pll_id) {
 		case ATOM_PPLL1:
 			args.v2.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V2_P1PLL;
-			args.v2.usSpreadSpectrumAmount = ss->amount;
-			args.v2.usSpreadSpectrumStep = ss->step;
+			args.v2.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
+			args.v2.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 			break;
 		case ATOM_PPLL2:
 			args.v2.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V2_P2PLL;
-			args.v2.usSpreadSpectrumAmount = ss->amount;
-			args.v2.usSpreadSpectrumStep = ss->step;
+			args.v2.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
+			args.v2.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 			break;
 		case ATOM_DCPLL:
 			args.v2.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V2_DCPLL;
-			args.v2.usSpreadSpectrumAmount = 0;
-			args.v2.usSpreadSpectrumStep = 0;
+			args.v2.usSpreadSpectrumAmount = cpu_to_le16(0);
+			args.v2.usSpreadSpectrumStep = cpu_to_le16(0);
 			break;
 		case ATOM_PPLL_INVALID:
 			return;
@@ -721,7 +721,7 @@ static void atombios_crtc_set_dcpll(struct drm_crtc *crtc,
 			 * SetPixelClock provides the dividers
 			 */
 			args.v5.ucCRTC = ATOM_CRTC_INVALID;
-			args.v5.usPixelClock = dispclk;
+			args.v5.usPixelClock = cpu_to_le16(dispclk);
 			args.v5.ucPpll = ATOM_DCPLL;
 			break;
 		case 6:

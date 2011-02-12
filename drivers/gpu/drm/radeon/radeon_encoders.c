@@ -910,7 +910,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 
 	args.v1.ucAction = action;
 	if (action == ATOM_TRANSMITTER_ACTION_INIT) {
-		args.v1.usInitInfo = connector_object_id;
+		args.v1.usInitInfo = cpu_to_le16(connector_object_id);
 	} else if (action == ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH) {
 		args.v1.asMode.ucLaneSel = lane_num;
 		args.v1.asMode.ucLaneSet = lane_set;
@@ -1140,7 +1140,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 		case 3:
 			args.v3.sExtEncoder.ucAction = action;
 			if (action == EXTERNAL_ENCODER_ACTION_V3_ENCODER_INIT)
-				args.v3.sExtEncoder.usConnectorId = connector_object_id;
+				args.v3.sExtEncoder.usConnectorId = cpu_to_le16(connector_object_id);
 			else
 				args.v3.sExtEncoder.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 			args.v3.sExtEncoder.ucEncoderMode = atombios_get_encoder_mode(encoder);
