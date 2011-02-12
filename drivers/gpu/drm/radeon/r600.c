@@ -2105,7 +2105,11 @@ static int r600_cp_load_microcode(struct radeon_device *rdev)
 
 	r600_cp_stop(rdev);
 
-	WREG32(CP_RB_CNTL, RB_NO_UPDATE | RB_BLKSZ(15) | RB_BUFSZ(3));
+	WREG32(CP_RB_CNTL,
+#ifdef __BIG_ENDIAN
+	       BUF_SWAP_32BIT |
+#endif
+	       RB_NO_UPDATE | RB_BLKSZ(15) | RB_BUFSZ(3));
 
 	/* Reset cp */
 	WREG32(GRBM_SOFT_RESET, SOFT_RESET_CP);
@@ -2192,7 +2196,11 @@ int r600_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_RB_WPTR, 0);
 
 	/* set the wb address whether it's enabled or not */
-	WREG32(CP_RB_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC);
+	WREG32(CP_RB_RPTR_ADDR,
+#ifdef __BIG_ENDIAN
+	       RB_RPTR_SWAP(2) |
+#endif
+	       ((rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC));
 	WREG32(CP_RB_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
 	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
 
@@ -2628,7 +2636,11 @@ void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	/* FIXME: implement */
 	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
-	radeon_ring_write(rdev, ib->gpu_addr & 0xFFFFFFFC);
+	radeon_ring_write(rdev,
+#ifdef __BIG_ENDIAN
+			  (2 << 0) |
+#endif
+			  (ib->gpu_addr & 0xFFFFFFFC));
 	radeon_ring_write(rdev, upper_32_bits(ib->gpu_addr) & 0xFF);
 	radeon_ring_write(rdev, ib->length_dw);
 }
@@ -3297,8 +3309,8 @@ restart_ih:
 	while (rptr != wptr) {
 		/* wptr/rptr are in bytes! */
 		ring_index = rptr / 4;
-		src_id =  rdev->ih.ring[ring_index] & 0xff;
-		src_data = rdev->ih.ring[ring_index + 1] & 0xfffffff;
+		src_id = le32_to_cpu(rdev->ih.ring[ring_index]) & 0xff;
+		src_data = le32_to_cpu(rdev->ih.ring[ring_index + 1]) & 0xfffffff;
 
 		switch (src_id) {
 		case 1: /* D1 vblank/vline */
