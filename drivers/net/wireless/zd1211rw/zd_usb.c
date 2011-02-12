@@ -1634,15 +1634,15 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 
 	udev = zd_usb_to_usbdev(usb);
 	prepare_read_regs_int(usb);
-	r = usb_bulk_msg(udev, usb_sndbulkpipe(udev, EP_REGS_OUT),
-			 req, req_len, &actual_req_len, 50 /* ms */);
+	r = usb_interrupt_msg(udev, usb_sndintpipe(udev, EP_REGS_OUT),
+			      req, req_len, &actual_req_len, 50 /* ms */);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_bulk_msg(). Error number %d\n", r);
+			"error in usb_interrupt_msg(). Error number %d\n", r);
 		goto error;
 	}
 	if (req_len != actual_req_len) {
-		dev_dbg_f(zd_usb_dev(usb), "error in usb_bulk_msg()\n"
+		dev_dbg_f(zd_usb_dev(usb), "error in usb_interrupt_msg()\n"
 			" req_len %d != actual_req_len %d\n",
 			req_len, actual_req_len);
 		r = -EIO;
@@ -1705,16 +1705,16 @@ int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 	}
 
 	udev = zd_usb_to_usbdev(usb);
-	r = usb_bulk_msg(udev, usb_sndbulkpipe(udev, EP_REGS_OUT),
-			 req, req_len, &actual_req_len, 50 /* ms */);
+	r = usb_interrupt_msg(udev, usb_sndintpipe(udev, EP_REGS_OUT),
+			      req, req_len, &actual_req_len, 50 /* ms */);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_bulk_msg(). Error number %d\n", r);
+			"error in usb_interrupt_msg(). Error number %d\n", r);
 		goto error;
 	}
 	if (req_len != actual_req_len) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_bulk_msg()"
+			"error in usb_interrupt_msg()"
 			" req_len %d != actual_req_len %d\n",
 			req_len, actual_req_len);
 		r = -EIO;
@@ -1794,15 +1794,15 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 	}
 
 	udev = zd_usb_to_usbdev(usb);
-	r = usb_bulk_msg(udev, usb_sndbulkpipe(udev, EP_REGS_OUT),
-			 req, req_len, &actual_req_len, 50 /* ms */);
+	r = usb_interrupt_msg(udev, usb_sndintpipe(udev, EP_REGS_OUT),
+			      req, req_len, &actual_req_len, 50 /* ms */);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_bulk_msg(). Error number %d\n", r);
+			"error in usb_interrupt_msg(). Error number %d\n", r);
 		goto out;
 	}
 	if (req_len != actual_req_len) {
-		dev_dbg_f(zd_usb_dev(usb), "error in usb_bulk_msg()"
+		dev_dbg_f(zd_usb_dev(usb), "error in usb_interrupt_msg()"
 			" req_len %d != actual_req_len %d\n",
 			req_len, actual_req_len);
 		r = -EIO;
