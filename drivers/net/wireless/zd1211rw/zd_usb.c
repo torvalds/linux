@@ -1674,7 +1674,7 @@ static void iowrite16v_urb_complete(struct urb *urb)
 
 static int zd_submit_waiting_urb(struct zd_usb *usb, bool last)
 {
-	int r;
+	int r = 0;
 	struct urb *urb = usb->urb_async_waiting;
 
 	if (!urb)
@@ -1700,7 +1700,7 @@ error:
 	return r;
 }
 
-static void zd_usb_iowrite16v_async_start(struct zd_usb *usb)
+void zd_usb_iowrite16v_async_start(struct zd_usb *usb)
 {
 	ZD_ASSERT(usb_anchor_empty(&usb->submitted_cmds));
 	ZD_ASSERT(usb->urb_async_waiting == NULL);
@@ -1713,7 +1713,7 @@ static void zd_usb_iowrite16v_async_start(struct zd_usb *usb)
 	usb->urb_async_waiting = NULL;
 }
 
-static int zd_usb_iowrite16v_async_end(struct zd_usb *usb, unsigned int timeout)
+int zd_usb_iowrite16v_async_end(struct zd_usb *usb, unsigned int timeout)
 {
 	int r;
 
@@ -1749,9 +1749,8 @@ error:
 	return r;
 }
 
-static int zd_usb_iowrite16v_async(struct zd_usb *usb,
-				   const struct zd_ioreq16 *ioreqs,
-				   unsigned int count)
+int zd_usb_iowrite16v_async(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
+			    unsigned int count)
 {
 	int r;
 	struct usb_device *udev;
