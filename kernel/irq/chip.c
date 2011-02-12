@@ -25,22 +25,18 @@
  */
 int irq_set_chip(unsigned int irq, struct irq_chip *chip)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_lock(irq, &flags);
 
-	if (!desc) {
-		WARN(1, KERN_ERR "Trying to install chip for IRQ%d\n", irq);
+	if (!desc)
 		return -EINVAL;
-	}
 
 	if (!chip)
 		chip = &no_irq_chip;
 
-	raw_spin_lock_irqsave(&desc->lock, flags);
 	irq_chip_set_defaults(chip);
 	desc->irq_data.chip = chip;
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-
+	irq_put_desc_unlock(desc, flags);
 	return 0;
 }
 EXPORT_SYMBOL(irq_set_chip);
@@ -52,24 +48,17 @@ EXPORT_SYMBOL(irq_set_chip);
  */
 int irq_set_irq_type(unsigned int irq, unsigned int type)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
-	int ret = -ENXIO;
+	struct irq_desc *desc = irq_get_desc_buslock(irq, &flags);
+	int ret = 0;
 
-	if (!desc) {
-		printk(KERN_ERR "Trying to set irq type for IRQ%d\n", irq);
-		return -ENODEV;
-	}
+	if (!desc)
+		return -EINVAL;
 
 	type &= IRQ_TYPE_SENSE_MASK;
-	if (type == IRQ_TYPE_NONE)
-		return 0;
-
-	chip_bus_lock(desc);
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	ret = __irq_set_trigger(desc, irq, type);
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-	chip_bus_sync_unlock(desc);
+	if (type != IRQ_TYPE_NONE)
+		ret = __irq_set_trigger(desc, irq, type);
+	irq_put_desc_busunlock(desc, flags);
 	return ret;
 }
 EXPORT_SYMBOL(irq_set_irq_type);
@@ -83,18 +72,13 @@ EXPORT_SYMBOL(irq_set_irq_type);
  */
 int irq_set_handler_data(unsigned int irq, void *data)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_lock(irq, &flags);
 
-	if (!desc) {
-		printk(KERN_ERR
-		       "Trying to install controller data for IRQ%d\n", irq);
+	if (!desc)
 		return -EINVAL;
-	}
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
 	desc->irq_data.handler_data = data;
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	irq_put_desc_unlock(desc, flags);
 	return 0;
 }
 EXPORT_SYMBOL(irq_set_handler_data);
@@ -108,20 +92,15 @@ EXPORT_SYMBOL(irq_set_handler_data);
  */
 int irq_set_msi_desc(unsigned int irq, struct msi_desc *entry)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_lock(irq, &flags);
 
-	if (!desc) {
-		printk(KERN_ERR
-		       "Trying to install msi data for IRQ%d\n", irq);
+	if (!desc)
 		return -EINVAL;
-	}
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
 	desc->irq_data.msi_desc = entry;
 	if (entry)
 		entry->irq = irq;
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	irq_put_desc_unlock(desc, flags);
 	return 0;
 }
 
@@ -134,24 +113,13 @@ int irq_set_msi_desc(unsigned int irq, struct msi_desc *entry)
  */
 int irq_set_chip_data(unsigned int irq, void *data)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_lock(irq, &flags);
 
-	if (!desc) {
-		printk(KERN_ERR
-		       "Trying to install chip data for IRQ%d\n", irq);
+	if (!desc)
 		return -EINVAL;
-	}
-
-	if (!desc->irq_data.chip) {
-		printk(KERN_ERR "BUG: bad set_irq_chip_data(IRQ#%d)\n", irq);
-		return -EINVAL;
-	}
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
 	desc->irq_data.chip_data = data;
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-
+	irq_put_desc_unlock(desc, flags);
 	return 0;
 }
 EXPORT_SYMBOL(irq_set_chip_data);
@@ -635,24 +603,18 @@ void
 __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 		  const char *name)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_buslock(irq, &flags);
 
-	if (!desc) {
-		printk(KERN_ERR
-		       "Trying to install type control for IRQ%d\n", irq);
+	if (!desc)
 		return;
-	}
 
 	if (!handle) {
 		handle = handle_bad_irq;
 	} else {
 		if (WARN_ON(desc->irq_data.chip == &no_irq_chip))
-			return;
+			goto out;
 	}
-
-	chip_bus_lock(desc);
-	raw_spin_lock_irqsave(&desc->lock, flags);
 
 	/* Uninstall? */
 	if (handle == handle_bad_irq) {
@@ -670,8 +632,8 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 		irq_settings_set_norequest(desc);
 		irq_startup(desc);
 	}
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-	chip_bus_sync_unlock(desc);
+out:
+	irq_put_desc_busunlock(desc, flags);
 }
 EXPORT_SYMBOL_GPL(__set_irq_handler);
 
@@ -693,14 +655,11 @@ set_irq_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
 
 void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_lock(irq, &flags);
 
 	if (!desc)
 		return;
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
-
 	irq_settings_clr_and_set(desc, clr, set);
 
 	irqd_clear(&desc->irq_data, IRQD_NO_BALANCING | IRQD_PER_CPU |
@@ -714,5 +673,5 @@ void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set)
 
 	irqd_set(&desc->irq_data, irq_settings_get_trigger_mask(desc));
 
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	irq_put_desc_unlock(desc, flags);
 }

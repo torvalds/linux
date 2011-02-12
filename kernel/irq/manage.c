@@ -172,16 +172,13 @@ int irq_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 int irq_set_affinity_hint(unsigned int irq, const struct cpumask *m)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_lock(irq, &flags);
 
 	if (!desc)
 		return -EINVAL;
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
 	desc->affinity_hint = m;
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-
+	irq_put_desc_unlock(desc, flags);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(irq_set_affinity_hint);
@@ -336,6 +333,18 @@ void __disable_irq(struct irq_desc *desc, unsigned int irq, bool suspend)
 		irq_disable(desc);
 }
 
+static int __disable_irq_nosync(unsigned int irq)
+{
+	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_buslock(irq, &flags);
+
+	if (!desc)
+		return -EINVAL;
+	__disable_irq(desc, irq, false);
+	irq_put_desc_busunlock(desc, flags);
+	return 0;
+}
+
 /**
  *	disable_irq_nosync - disable an irq without waiting
  *	@irq: Interrupt to disable
@@ -349,17 +358,7 @@ void __disable_irq(struct irq_desc *desc, unsigned int irq, bool suspend)
  */
 void disable_irq_nosync(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned long flags;
-
-	if (!desc)
-		return;
-
-	chip_bus_lock(desc);
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	__disable_irq(desc, irq, false);
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-	chip_bus_sync_unlock(desc);
+	__disable_irq_nosync(irq);
 }
 EXPORT_SYMBOL(disable_irq_nosync);
 
@@ -377,13 +376,7 @@ EXPORT_SYMBOL(disable_irq_nosync);
  */
 void disable_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-
-	if (!desc)
-		return;
-
-	disable_irq_nosync(irq);
-	if (desc->action)
+	if (!__disable_irq_nosync(irq))
 		synchronize_irq(irq);
 }
 EXPORT_SYMBOL(disable_irq);
@@ -434,21 +427,18 @@ void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume)
  */
 void enable_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_buslock(irq, &flags);
 
 	if (!desc)
 		return;
-
 	if (WARN(!desc->irq_data.chip,
 		 KERN_ERR "enable_irq before setup/request_irq: irq %u\n", irq))
-		return;
+		goto out;
 
-	chip_bus_lock(desc);
-	raw_spin_lock_irqsave(&desc->lock, flags);
 	__enable_irq(desc, irq, false);
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-	chip_bus_sync_unlock(desc);
+out:
+	irq_put_desc_busunlock(desc, flags);
 }
 EXPORT_SYMBOL(enable_irq);
 
@@ -477,15 +467,13 @@ static int set_irq_wake_real(unsigned int irq, unsigned int on)
  */
 int irq_set_irq_wake(unsigned int irq, unsigned int on)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_buslock(irq, &flags);
 	int ret = 0;
 
 	/* wakeup-capable irqs can be shared between drivers that
 	 * don't need to have the same sleep mode behaviors.
 	 */
-	chip_bus_lock(desc);
-	raw_spin_lock_irqsave(&desc->lock, flags);
 	if (on) {
 		if (desc->wake_depth++ == 0) {
 			ret = set_irq_wake_real(irq, on);
@@ -505,9 +493,7 @@ int irq_set_irq_wake(unsigned int irq, unsigned int on)
 				irqd_clear(&desc->irq_data, IRQD_WAKEUP_STATE);
 		}
 	}
-
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-	chip_bus_sync_unlock(desc);
+	irq_put_desc_busunlock(desc, flags);
 	return ret;
 }
 EXPORT_SYMBOL(irq_set_irq_wake);
@@ -519,25 +505,20 @@ EXPORT_SYMBOL(irq_set_irq_wake);
  */
 int can_request_irq(unsigned int irq, unsigned long irqflags)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct irqaction *action;
 	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_lock(irq, &flags);
+	int canrequest = 0;
 
 	if (!desc)
 		return 0;
 
-	if (!irq_settings_can_request(desc))
-		return 0;
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	action = desc->action;
-	if (action)
-		if (irqflags & action->flags & IRQF_SHARED)
-			action = NULL;
-
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-
-	return !action;
+	if (irq_settings_can_request(desc)) {
+		if (desc->action)
+			if (irqflags & desc->action->flags & IRQF_SHARED)
+				canrequest =1;
+	}
+	irq_put_desc_unlock(desc, flags);
+	return canrequest;
 }
 
 int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
