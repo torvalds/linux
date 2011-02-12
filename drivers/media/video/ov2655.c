@@ -1456,10 +1456,12 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 
 		atomic_add(1, &sensor->tasklock_cnt);
 	} else {
-		atomic_sub(1, &sensor->tasklock_cnt);
+		if (atomic_read(&sensor->tasklock_cnt) > 0) {
+			atomic_sub(1, &sensor->tasklock_cnt);
 
-		if (atomic_read(&sensor->tasklock_cnt) == 0)
-			preempt_enable();
+			if (atomic_read(&sensor->tasklock_cnt) == 0)
+				preempt_enable();
+		}
 	}
 #endif
 	return 0;
@@ -1757,6 +1759,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 
     return 0;
 sensor_INIT_ERR:
+	sensor_task_lock(client,0);
 	sensor_deactivate(client);
     return ret;
 }

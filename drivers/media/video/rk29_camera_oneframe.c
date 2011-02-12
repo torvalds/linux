@@ -44,10 +44,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define dprintk(level, fmt, arg...) do {			\
 	if (debug >= level) 					\
-	printk(KERN_DEBUG "rk29xx_camera: " fmt , ## arg); } while (0)
+	printk(KERN_WARNING"rk29xx_camera: " fmt , ## arg); } while (0)
 
 #define RK29CAMERA_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
-#define RK29CAMERA_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
+#define RK29CAMERA_DG(format, ...) dprintk(0, format, ## __VA_ARGS__)
 
 // VIP Reg Offset
 #define RK29_VIP_AHBR_CTRL                0x00
@@ -708,8 +708,8 @@ static int rk29_camera_add_device(struct soc_camera_device *icd)
         goto ebusy;
     }
 
-    dev_info(&icd->dev, "RK29 Camera driver attached to camera %d\n",
-             icd->devnum);
+    dev_info(&icd->dev, "RK29 Camera driver attached to camera%d(%s)\n",
+             icd->devnum,dev_name(icd->pdev));
 
 	pcdev->frame_inval = RK29_CAM_FRAME_INVAL_INIT;
     pcdev->active = NULL;
@@ -748,8 +748,8 @@ static void rk29_camera_remove_device(struct soc_camera_device *icd)
 
     BUG_ON(icd != pcdev->icd);
 
-    dev_info(&icd->dev, "RK29 Camera driver detached from camera %d\n",
-             icd->devnum);
+    dev_info(&icd->dev, "RK29 Camera driver detached from camera%d(%s)\n",
+             icd->devnum,dev_name(icd->pdev));
 
     v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_DEACTIVATE,NULL);
 	rk29_camera_deactivate(pcdev);
@@ -1278,8 +1278,6 @@ static void rk29_camera_reinit_work(struct work_struct *work)
 {
 	struct device *control;
     struct v4l2_subdev *sd;
-	struct i2c_client *client;
-    struct soc_camera_device *icd;
 	struct v4l2_format cam_f;
 	const struct soc_camera_format_xlate *xlate;
 	int ret;

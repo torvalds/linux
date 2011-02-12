@@ -67,8 +67,9 @@ enum {
 	V4L2_IDENT_OV2655 = 257,                            /* ddl@rock-chips.com : ov2655 support */
 	V4L2_IDENT_OV2659 = 258,
 	V4L2_IDENT_OV3640 = 259,
-	V4L2_IDENT_OV5642 = 260,
-	V4L2_IDENT_OV7675 = 261,
+	V4L2_IDENT_OV5640 = 260,
+	V4L2_IDENT_OV5642 = 261,
+	V4L2_IDENT_OV7675 = 262,
 
 	/* module saa7146: reserved range 300-309 */
 	V4L2_IDENT_SAA7146 = 300,
