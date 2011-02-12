@@ -2242,6 +2242,7 @@ enum ixgbe_mac_type {
 
 enum ixgbe_phy_type {
 	ixgbe_phy_unknown = 0,
+	ixgbe_phy_none,
 	ixgbe_phy_tn,
 	ixgbe_phy_aq,
 	ixgbe_phy_cu_unknown,

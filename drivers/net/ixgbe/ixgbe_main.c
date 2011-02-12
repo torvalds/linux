@@ -3889,7 +3889,7 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	 * If we're not hot-pluggable SFP+, we just need to configure link
 	 * and bring it up.
 	 */
-	if (hw->phy.type == ixgbe_phy_unknown)
+	if (hw->phy.type == ixgbe_phy_none)
 		schedule_work(&adapter->sfp_config_module_task);
 
 	/* enable transmits */

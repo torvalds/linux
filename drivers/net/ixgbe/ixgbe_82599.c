@@ -329,11 +329,14 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 	enum ixgbe_media_type media_type;
 
 	/* Detect if there is a copper PHY attached. */
-	if (hw->phy.type == ixgbe_phy_cu_unknown ||
-	    hw->phy.type == ixgbe_phy_tn ||
-	    hw->phy.type == ixgbe_phy_aq) {
+	switch (hw->phy.type) {
+	case ixgbe_phy_cu_unknown:
+	case ixgbe_phy_tn:
+	case ixgbe_phy_aq:
 		media_type = ixgbe_media_type_copper;
 		goto out;
+	default:
+		break;
 	}
 
 	switch (hw->device_id) {
@@ -353,6 +356,9 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 		break;
 	case IXGBE_DEV_ID_82599_CX4:
 		media_type = ixgbe_media_type_cx4;
+		break;
+	case IXGBE_DEV_ID_82599_T3_LOM:
+		media_type = ixgbe_media_type_copper;
 		break;
 	default:
 		media_type = ixgbe_media_type_unknown;
@@ -1733,13 +1739,34 @@ static s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
  *  @hw: pointer to hardware structure
  *
  *  Determines the physical layer module found on the current adapter.
+ *  If PHY already detected, maintains current PHY type in hw struct,
+ *  otherwise executes the PHY detection routine.
  **/
-static s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
+s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
 {
 	s32 status = IXGBE_ERR_PHY_ADDR_INVALID;
+
+	/* Detect PHY if not unknown - returns success if already detected. */
 	status = ixgbe_identify_phy_generic(hw);
-	if (status != 0)
-		status = ixgbe_identify_sfp_module_generic(hw);
+	if (status != 0) {
+		/* 82599 10GBASE-T requires an external PHY */
+		if (hw->mac.ops.get_media_type(hw) == ixgbe_media_type_copper)
+			goto out;
+		else
+			status = ixgbe_identify_sfp_module_generic(hw);
+	}
+
+	/* Set PHY type none if no PHY detected */
+	if (hw->phy.type == ixgbe_phy_unknown) {
+		hw->phy.type = ixgbe_phy_none;
+		status = 0;
+	}
+
+	/* Return error if SFP module has been detected but is not supported */
+	if (hw->phy.type == ixgbe_phy_sfp_unsupported)
+		status = IXGBE_ERR_SFP_NOT_SUPPORTED;
+
+out:
 	return status;
 }
 
@@ -1763,11 +1790,12 @@ static u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 
 	hw->phy.ops.identify(hw);
 
-	if (hw->phy.type == ixgbe_phy_tn ||
-	    hw->phy.type == ixgbe_phy_aq ||
-	    hw->phy.type == ixgbe_phy_cu_unknown) {
+	switch (hw->phy.type) {
+	case ixgbe_phy_tn:
+	case ixgbe_phy_aq:
+	case ixgbe_phy_cu_unknown:
 		hw->phy.ops.read_reg(hw, MDIO_PMA_EXTABLE, MDIO_MMD_PMAPMD,
-				     &ext_ability);
+							 &ext_ability);
 		if (ext_ability & MDIO_PMA_EXTABLE_10GBT)
 			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_T;
 		if (ext_ability & MDIO_PMA_EXTABLE_1000BT)
@@ -1775,6 +1803,8 @@ static u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 		if (ext_ability & MDIO_PMA_EXTABLE_100BTX)
 			physical_layer |= IXGBE_PHYSICAL_LAYER_100BASE_TX;
 		goto out;
+	default:
+		break;
 	}
 
 	switch (autoc & IXGBE_AUTOC_LMS_MASK) {
