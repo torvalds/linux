@@ -25,6 +25,11 @@
 /* IEEE 802.1Qaz std supported values */
 #define IEEE_8021QAZ_MAX_TCS	8
 
+#define IEEE_8021QAZ_TSA_STRICT		0
+#define IEEE_8021QAZ_TSA_CB_SHABER	1
+#define IEEE_8021QAZ_TSA_ETS		2
+#define IEEE_8021QAZ_TSA_VENDOR		255
+
 /* This structure contains the IEEE 802.1Qaz ETS managed object
  *
  * @willing: willing bit in ETS configuratin TLV

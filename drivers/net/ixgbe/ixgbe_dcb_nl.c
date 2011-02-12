@@ -37,7 +37,6 @@
 #define BIT_PG_RX	0x04
 #define BIT_PG_TX	0x08
 #define BIT_APP_UPCHG	0x10
-#define BIT_RESETLINK   0x40
 #define BIT_LINKSPEED   0x80
 
 /* Responses for the DCB_C_SET_ALL command */
@@ -225,10 +224,8 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 	    (adapter->temp_dcb_cfg.tc_config[tc].path[0].bwg_percent !=
 	     adapter->dcb_cfg.tc_config[tc].path[0].bwg_percent) ||
 	    (adapter->temp_dcb_cfg.tc_config[tc].path[0].up_to_tc_bitmap !=
-	     adapter->dcb_cfg.tc_config[tc].path[0].up_to_tc_bitmap)) {
+	     adapter->dcb_cfg.tc_config[tc].path[0].up_to_tc_bitmap))
 		adapter->dcb_set_bitmap |= BIT_PG_TX;
-		adapter->dcb_set_bitmap |= BIT_RESETLINK;
-	}
 }
 
 static void ixgbe_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
@@ -239,10 +236,8 @@ static void ixgbe_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
 	adapter->temp_dcb_cfg.bw_percentage[0][bwg_id] = bw_pct;
 
 	if (adapter->temp_dcb_cfg.bw_percentage[0][bwg_id] !=
-	    adapter->dcb_cfg.bw_percentage[0][bwg_id]) {
+	    adapter->dcb_cfg.bw_percentage[0][bwg_id])
 		adapter->dcb_set_bitmap |= BIT_PG_TX;
-		adapter->dcb_set_bitmap |= BIT_RESETLINK;
-	}
 }
 
 static void ixgbe_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev, int tc,
@@ -269,10 +264,8 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev, int tc,
 	    (adapter->temp_dcb_cfg.tc_config[tc].path[1].bwg_percent !=
 	     adapter->dcb_cfg.tc_config[tc].path[1].bwg_percent) ||
 	    (adapter->temp_dcb_cfg.tc_config[tc].path[1].up_to_tc_bitmap !=
-	     adapter->dcb_cfg.tc_config[tc].path[1].up_to_tc_bitmap)) {
+	     adapter->dcb_cfg.tc_config[tc].path[1].up_to_tc_bitmap))
 		adapter->dcb_set_bitmap |= BIT_PG_RX;
-		adapter->dcb_set_bitmap |= BIT_RESETLINK;
-	}
 }
 
 static void ixgbe_dcbnl_set_pg_bwg_cfg_rx(struct net_device *netdev, int bwg_id,
@@ -283,10 +276,8 @@ static void ixgbe_dcbnl_set_pg_bwg_cfg_rx(struct net_device *netdev, int bwg_id,
 	adapter->temp_dcb_cfg.bw_percentage[1][bwg_id] = bw_pct;
 
 	if (adapter->temp_dcb_cfg.bw_percentage[1][bwg_id] !=
-	    adapter->dcb_cfg.bw_percentage[1][bwg_id]) {
+	    adapter->dcb_cfg.bw_percentage[1][bwg_id])
 		adapter->dcb_set_bitmap |= BIT_PG_RX;
-		adapter->dcb_set_bitmap |= BIT_RESETLINK;
-	}
 }
 
 static void ixgbe_dcbnl_get_pg_tc_cfg_tx(struct net_device *netdev, int tc,
@@ -365,21 +356,17 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		return DCB_NO_HW_CHG;
 
 	/*
-	 * Only take down the adapter if the configuration change
-	 * requires a reset.
+	 * Only take down the adapter if an app change occured. FCoE
+	 * may shuffle tx rings in this case and this can not be done
+	 * without a reset currently.
 	 */
-	if (adapter->dcb_set_bitmap & BIT_RESETLINK) {
+	if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
 		while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
 			msleep(1);
 
-		if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
-			if (netif_running(netdev))
-				netdev->netdev_ops->ndo_stop(netdev);
-			ixgbe_clear_interrupt_scheme(adapter);
-		} else {
-			if (netif_running(netdev))
-				ixgbe_down(adapter);
-		}
+		if (netif_running(netdev))
+			netdev->netdev_ops->ndo_stop(netdev);
+		ixgbe_clear_interrupt_scheme(adapter);
 	}
 
 	if (adapter->dcb_cfg.pfc_mode_enable) {
@@ -408,29 +395,51 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		}
 	}
 
-	if (adapter->dcb_set_bitmap & BIT_RESETLINK) {
-		if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
-			ixgbe_init_interrupt_scheme(adapter);
-			if (netif_running(netdev))
-				netdev->netdev_ops->ndo_open(netdev);
-		} else {
-			if (netif_running(netdev))
-				ixgbe_up(adapter);
-		}
+	if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
+		ixgbe_init_interrupt_scheme(adapter);
+		if (netif_running(netdev))
+			netdev->netdev_ops->ndo_open(netdev);
 		ret = DCB_HW_CHG_RST;
-	} else if (adapter->dcb_set_bitmap & BIT_PFC) {
-		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
-			ixgbe_dcb_config_pfc_82598(&adapter->hw,
-			                           &adapter->dcb_cfg);
-		else if (adapter->hw.mac.type == ixgbe_mac_82599EB)
-			ixgbe_dcb_config_pfc_82599(&adapter->hw,
-			                           &adapter->dcb_cfg);
+	}
+
+	if (adapter->dcb_set_bitmap & BIT_PFC) {
+		u8 pfc_en;
+		ixgbe_dcb_unpack_pfc(&adapter->dcb_cfg, &pfc_en);
+		ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc_en);
 		ret = DCB_HW_CHG;
 	}
+
+	if (adapter->dcb_set_bitmap & (BIT_PG_TX|BIT_PG_RX)) {
+		u16 refill[MAX_TRAFFIC_CLASS], max[MAX_TRAFFIC_CLASS];
+		u8 bwg_id[MAX_TRAFFIC_CLASS], prio_type[MAX_TRAFFIC_CLASS];
+		int max_frame = adapter->netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
+
+#ifdef CONFIG_FCOE
+		if (adapter->netdev->features & NETIF_F_FCOE_MTU)
+			max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
+#endif
+
+		ixgbe_dcb_calculate_tc_credits(&adapter->hw, &adapter->dcb_cfg,
+					       max_frame, DCB_TX_CONFIG);
+		ixgbe_dcb_calculate_tc_credits(&adapter->hw, &adapter->dcb_cfg,
+					       max_frame, DCB_RX_CONFIG);
+
+		ixgbe_dcb_unpack_refill(&adapter->dcb_cfg,
+					DCB_TX_CONFIG, refill);
+		ixgbe_dcb_unpack_max(&adapter->dcb_cfg, max);
+		ixgbe_dcb_unpack_bwgid(&adapter->dcb_cfg,
+				       DCB_TX_CONFIG, bwg_id);
+		ixgbe_dcb_unpack_prio(&adapter->dcb_cfg,
+				      DCB_TX_CONFIG, prio_type);
+
+		ixgbe_dcb_hw_ets_config(&adapter->hw, refill, max,
+					bwg_id, prio_type);
+	}
+
 	if (adapter->dcb_cfg.pfc_mode_enable)
 		adapter->hw.fc.current_mode = ixgbe_fc_pfc;
 
-	if (adapter->dcb_set_bitmap & BIT_RESETLINK)
+	if (adapter->dcb_set_bitmap & BIT_APP_UPCHG)
 		clear_bit(__IXGBE_RESETTING, &adapter->state);
 	adapter->dcb_set_bitmap = 0x00;
 	return ret;
@@ -568,18 +577,29 @@ static u8 ixgbe_dcbnl_setapp(struct net_device *netdev,
 	case DCB_APP_IDTYPE_ETHTYPE:
 #ifdef IXGBE_FCOE
 		if (id == ETH_P_FCOE) {
-			u8 tc;
-			struct ixgbe_adapter *adapter;
+			u8 old_tc;
+			struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-			adapter = netdev_priv(netdev);
-			tc = adapter->fcoe.tc;
+			/* Get current programmed tc */
+			old_tc = adapter->fcoe.tc;
 			rval = ixgbe_fcoe_setapp(adapter, up);
-			if ((!rval) && (tc != adapter->fcoe.tc) &&
-			    (adapter->flags & IXGBE_FLAG_DCB_ENABLED) &&
-			    (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)) {
+
+			if (rval ||
+			   !(adapter->flags & IXGBE_FLAG_DCB_ENABLED) ||
+			   !(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
+				break;
+
+			/* The FCoE application priority may be changed multiple
+			 * times in quick sucession with switches that build up
+			 * TLVs. To avoid creating uneeded device resets this
+			 * checks the actual HW configuration and clears
+			 * BIT_APP_UPCHG if a HW configuration change is not
+			 * need
+			 */
+			if (old_tc == adapter->fcoe.tc)
+				adapter->dcb_set_bitmap &= ~BIT_APP_UPCHG;
+			else
 				adapter->dcb_set_bitmap |= BIT_APP_UPCHG;
-				adapter->dcb_set_bitmap |= BIT_RESETLINK;
-			}
 		}
 #endif
 		break;
@@ -591,7 +611,98 @@ static u8 ixgbe_dcbnl_setapp(struct net_device *netdev,
 	return rval;
 }
 
+static int ixgbe_dcbnl_ieee_getets(struct net_device *dev,
+				   struct ieee_ets *ets)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ieee_ets *my_ets = adapter->ixgbe_ieee_ets;
+
+	/* No IEEE PFC settings available */
+	if (!my_ets)
+		return -EINVAL;
+
+	ets->ets_cap = MAX_TRAFFIC_CLASS;
+	ets->cbs = my_ets->cbs;
+	memcpy(ets->tc_tx_bw, my_ets->tc_tx_bw, sizeof(ets->tc_tx_bw));
+	memcpy(ets->tc_rx_bw, my_ets->tc_rx_bw, sizeof(ets->tc_rx_bw));
+	memcpy(ets->tc_tsa, my_ets->tc_tsa, sizeof(ets->tc_tsa));
+	memcpy(ets->prio_tc, my_ets->prio_tc, sizeof(ets->prio_tc));
+	return 0;
+}
+
+static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
+				   struct ieee_ets *ets)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	__u16 refill[IEEE_8021QAZ_MAX_TCS], max[IEEE_8021QAZ_MAX_TCS];
+	int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
+	int err;
+	/* naively give each TC a bwg to map onto CEE hardware */
+	__u8 bwg_id[IEEE_8021QAZ_MAX_TCS] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+	if (!adapter->ixgbe_ieee_ets) {
+		adapter->ixgbe_ieee_ets = kmalloc(sizeof(struct ieee_ets),
+						  GFP_KERNEL);
+		if (!adapter->ixgbe_ieee_ets)
+			return -ENOMEM;
+	}
+
+
+	memcpy(adapter->ixgbe_ieee_ets, ets, sizeof(*adapter->ixgbe_ieee_ets));
+
+	ixgbe_ieee_credits(ets->tc_tx_bw, refill, max, max_frame);
+	err = ixgbe_dcb_hw_ets_config(&adapter->hw, refill, max,
+				      bwg_id, ets->tc_tsa);
+	return err;
+}
+
+static int ixgbe_dcbnl_ieee_getpfc(struct net_device *dev,
+				   struct ieee_pfc *pfc)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ieee_pfc *my_pfc = adapter->ixgbe_ieee_pfc;
+	int i;
+
+	/* No IEEE PFC settings available */
+	if (!my_pfc)
+		return -EINVAL;
+
+	pfc->pfc_cap = MAX_TRAFFIC_CLASS;
+	pfc->pfc_en = my_pfc->pfc_en;
+	pfc->mbc = my_pfc->mbc;
+	pfc->delay = my_pfc->delay;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		pfc->requests[i] = adapter->stats.pxoffrxc[i];
+		pfc->indications[i] = adapter->stats.pxofftxc[i];
+	}
+
+	return 0;
+}
+
+static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
+				   struct ieee_pfc *pfc)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	int err;
+
+	if (!adapter->ixgbe_ieee_pfc) {
+		adapter->ixgbe_ieee_pfc = kmalloc(sizeof(struct ieee_pfc),
+						  GFP_KERNEL);
+		if (!adapter->ixgbe_ieee_pfc)
+			return -ENOMEM;
+	}
+
+	memcpy(adapter->ixgbe_ieee_pfc, pfc, sizeof(*adapter->ixgbe_ieee_pfc));
+	err = ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc->pfc_en);
+	return err;
+}
+
 const struct dcbnl_rtnl_ops dcbnl_ops = {
+	.ieee_getets	= ixgbe_dcbnl_ieee_getets,
+	.ieee_setets	= ixgbe_dcbnl_ieee_setets,
+	.ieee_getpfc	= ixgbe_dcbnl_ieee_getpfc,
+	.ieee_setpfc	= ixgbe_dcbnl_ieee_setpfc,
 	.getstate	= ixgbe_dcbnl_get_state,
 	.setstate	= ixgbe_dcbnl_set_state,
 	.getpermhwaddr	= ixgbe_dcbnl_get_perm_hw_addr,

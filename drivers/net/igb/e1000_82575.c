@@ -238,9 +238,15 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		size = 14;
 	nvm->word_size = 1 << size;
 
-	/* if 82576 then initialize mailbox parameters */
-	if (mac->type == e1000_82576)
+	/* if part supports SR-IOV then initialize mailbox parameters */
+	switch (mac->type) {
+	case e1000_82576:
+	case e1000_i350:
 		igb_init_mbx_params_pf(hw);
+		break;
+	default:
+		break;
+	}
 
 	/* setup PHY parameters */
 	if (phy->media_type != e1000_media_type_copper) {

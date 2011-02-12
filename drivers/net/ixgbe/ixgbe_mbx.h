@@ -86,7 +86,9 @@ s32 ixgbe_write_mbx(struct ixgbe_hw *, u32 *, u16, u16);
 s32 ixgbe_check_for_msg(struct ixgbe_hw *, u16);
 s32 ixgbe_check_for_ack(struct ixgbe_hw *, u16);
 s32 ixgbe_check_for_rst(struct ixgbe_hw *, u16);
+#ifdef CONFIG_PCI_IOV
 void ixgbe_init_mbx_params_pf(struct ixgbe_hw *);
+#endif /* CONFIG_PCI_IOV */
 
 extern struct ixgbe_mbx_operations mbx_ops_generic;
 
