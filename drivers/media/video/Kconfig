@@ -746,6 +746,19 @@ config VIDEO_NOON010PC30
 	---help---
 	  This driver supports NOON010PC30 CIF camera from Siliconfile
 
+config VIDEO_OMAP3
+	tristate "OMAP 3 Camera support (EXPERIMENTAL)"
+	select OMAP_IOMMU
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && ARCH_OMAP3 && EXPERIMENTAL
+	---help---
+	  Driver for an OMAP 3 camera controller.
+
+config VIDEO_OMAP3_DEBUG
+	bool "OMAP 3 Camera debug messages"
+	depends on VIDEO_OMAP3
+	---help---
+	  Enable debug messages on OMAP 3 camera controller driver.
+
 config SOC_CAMERA
 	tristate "SoC camera support"
 	depends on VIDEO_V4L2 && HAS_DMA && I2C

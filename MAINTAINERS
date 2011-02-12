@@ -4556,6 +4556,12 @@ L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	arch/arm/mach-omap2/omap_hwmod_44xx_data.c
 
+OMAP IMAGE SIGNAL PROCESSOR (ISP)
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/video/omap3isp/*
+
 OMAP USB SUPPORT
 M:	Felipe Balbi <balbi@ti.com>
 M:	David Brownell <dbrownell@users.sourceforge.net>
