@@ -93,7 +93,7 @@ static int p54_compare_channels(const void *_a,
 	const struct p54_channel_entry *a = _a;
 	const struct p54_channel_entry *b = _b;
 
-	return a->index - b->index;
+	return a->freq - b->freq;
 }
 
 static int p54_fill_band_bitrates(struct ieee80211_hw *dev,
@@ -291,7 +291,7 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 		}
 	}
 
-	/* sort the list by the channel index */
+	/* sort the channel list by frequency */
 	sort(list->channels, list->entries, sizeof(struct p54_channel_entry),
 	     p54_compare_channels, NULL);
 
