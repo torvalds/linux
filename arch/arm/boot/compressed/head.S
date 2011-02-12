@@ -128,14 +128,14 @@ wait:		mrc	p14, 0, pc, c0, c1, 0
 		.arm				@ Always enter in ARM state
 start:
 		.type	start,#function
- THUMB(		adr	r12, BSYM(1f)	)
- THUMB(		bx	r12		)
- THUMB(		.rept	6		)
- ARM(		.rept	8		)
+		.rept	7
 		mov	r0, r0
 		.endr
+   ARM(		mov	r0, r0		)
+   ARM(		b	1f		)
+ THUMB(		adr	r12, BSYM(1f)	)
+ THUMB(		bx	r12		)
 
-		b	1f
 		.word	0x016f2818		@ Magic numbers to help the loader
 		.word	start			@ absolute load/run zImage address
 		.word	_edata			@ zImage end address
