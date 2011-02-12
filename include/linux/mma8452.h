@@ -92,6 +92,7 @@
 
 
 /*status*/
+#define MMA8452_SUSPEND           2
 #define MMA8452_OPEN           1
 #define MMA8452_CLOSE          0
 
