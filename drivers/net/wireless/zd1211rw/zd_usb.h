@@ -217,8 +217,11 @@ struct zd_usb {
 	struct zd_usb_rx rx;
 	struct zd_usb_tx tx;
 	struct usb_interface *intf;
+	struct usb_anchor submitted_cmds;
+	struct urb *urb_async_waiting;
+	int cmd_error;
 	u8 req_buf[64]; /* zd_usb_iowrite16v needs 62 bytes */
-	u8 is_zd1211b:1, initialized:1, was_running:1;
+	u8 is_zd1211b:1, initialized:1, was_running:1, in_async:1;
 };
 
 #define zd_usb_dev(usb) (&usb->intf->dev)
