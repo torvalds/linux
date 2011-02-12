@@ -25,7 +25,6 @@
 #include "translation-table.h"
 #include "soft-interface.h"
 #include "hard-interface.h"
-#include "types.h"
 #include "vis.h"
 #include "aggregation.h"
 #include "gateway_common.h"

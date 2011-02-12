@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include "icmp_socket.h"
 #include "send.h"
-#include "types.h"
 #include "hash.h"
 #include "originator.h"
 #include "hard-interface.h"

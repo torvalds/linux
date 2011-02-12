@@ -39,8 +39,8 @@ static struct sk_buff *frag_merge_packet(struct list_head *head,
 		(struct unicast_frag_packet *)skb->data;
 	struct sk_buff *tmp_skb;
 	struct unicast_packet *unicast_packet;
-	int hdr_len = sizeof(struct unicast_packet),
-	    uni_diff = sizeof(struct unicast_frag_packet) - hdr_len;
+	int hdr_len = sizeof(struct unicast_packet);
+	int uni_diff = sizeof(struct unicast_frag_packet) - hdr_len;
 
 	/* set skb to the first part and tmp_skb to the second part */
 	if (up->flags & UNI_FRAG_HEAD) {
@@ -231,6 +231,7 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	int ucf_hdr_len = sizeof(struct unicast_frag_packet);
 	int data_len = skb->len - uc_hdr_len;
 	int large_tail = 0;
+	uint16_t seqno;
 
 	if (!bat_priv->primary_if)
 		goto dropped;
@@ -266,10 +267,9 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	frag1->flags = UNI_FRAG_HEAD | large_tail;
 	frag2->flags = large_tail;
 
-	frag1->seqno = htons((uint16_t)atomic_inc_return(
-			     &batman_if->frag_seqno));
-	frag2->seqno = htons((uint16_t)atomic_inc_return(
-			     &batman_if->frag_seqno));
+	seqno = atomic_add_return(2, &batman_if->frag_seqno);
+	frag1->seqno = htons(seqno - 1);
+	frag2->seqno = htons(seqno);
 
 	send_skb_packet(skb, batman_if, dstaddr);
 	send_skb_packet(frag_skb, batman_if, dstaddr);
@@ -286,7 +286,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct unicast_packet *unicast_packet;
-	struct orig_node *orig_node;
+	struct orig_node *orig_node = NULL;
 	struct batman_if *batman_if;
 	struct neigh_node *router;
 	int data_len = skb->len;
@@ -297,11 +297,6 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	/* get routing information */
 	if (is_multicast_ether_addr(ethhdr->h_dest))
 		orig_node = (struct orig_node *)gw_get_selected(bat_priv);
-	else
-		orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
-							   compare_orig,
-							   choose_orig,
-							   ethhdr->h_dest));
 
 	/* check for hna host */
 	if (!orig_node)
