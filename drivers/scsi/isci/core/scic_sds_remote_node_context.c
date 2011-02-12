@@ -195,7 +195,7 @@ void scic_sds_remote_node_context_construct_buffer(
  */
 static void scic_sds_remote_node_context_setup_to_resume(
 	struct scic_sds_remote_node_context *this_rnc,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	if (this_rnc->destination_state != SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_FINAL) {
@@ -216,7 +216,7 @@ static void scic_sds_remote_node_context_setup_to_resume(
  */
 static void scic_sds_remote_node_context_setup_to_destory(
 	struct scic_sds_remote_node_context *this_rnc,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	this_rnc->destination_state = SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_FINAL;
@@ -234,7 +234,7 @@ static void scic_sds_remote_node_context_setup_to_destory(
  */
 static enum sci_status scic_sds_remote_node_context_continue_to_resume_handler(
 	struct scic_sds_remote_node_context *this_rnc,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	if (this_rnc->destination_state == SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_READY) {
@@ -251,7 +251,7 @@ static enum sci_status scic_sds_remote_node_context_continue_to_resume_handler(
 
 static enum sci_status scic_sds_remote_node_context_default_destruct_handler(
 	struct scic_sds_remote_node_context *this_rnc,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	dev_warn(scirdev_to_dev(this_rnc->device),
@@ -270,7 +270,7 @@ static enum sci_status scic_sds_remote_node_context_default_destruct_handler(
 static enum sci_status scic_sds_remote_node_context_default_suspend_handler(
 	struct scic_sds_remote_node_context *this_rnc,
 	u32 suspend_type,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	dev_warn(scirdev_to_dev(this_rnc->device),
@@ -285,7 +285,7 @@ static enum sci_status scic_sds_remote_node_context_default_suspend_handler(
 
 static enum sci_status scic_sds_remote_node_context_default_resume_handler(
 	struct scic_sds_remote_node_context *this_rnc,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	dev_warn(scirdev_to_dev(this_rnc->device),
@@ -372,7 +372,7 @@ static enum sci_status scic_sds_remote_node_context_success_start_task_handler(
  */
 static enum sci_status scic_sds_remote_node_context_general_destruct_handler(
 	struct scic_sds_remote_node_context *this_rnc,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	scic_sds_remote_node_context_setup_to_destory(
@@ -391,7 +391,7 @@ static enum sci_status scic_sds_remote_node_context_general_destruct_handler(
 
 static enum sci_status scic_sds_remote_node_context_initial_state_resume_handler(
 	struct scic_sds_remote_node_context *this_rnc,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	if (this_rnc->remote_node_index != SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX) {
@@ -449,7 +449,7 @@ static enum sci_status scic_sds_remote_node_context_posting_state_event_handler(
 
 static enum sci_status scic_sds_remote_node_context_invalidating_state_destruct_handler(
 	struct scic_sds_remote_node_context *this_rnc,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	scic_sds_remote_node_context_setup_to_destory(
@@ -575,7 +575,7 @@ static enum sci_status scic_sds_remote_node_context_resuming_state_event_handler
 static enum sci_status scic_sds_remote_node_context_ready_state_suspend_handler(
 	struct scic_sds_remote_node_context *this_rnc,
 	u32 suspend_type,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	this_rnc->user_callback   = the_callback;
@@ -662,7 +662,7 @@ static enum sci_status scic_sds_remote_node_context_ready_state_event_handler(
 
 static enum sci_status scic_sds_remote_node_context_tx_suspended_state_resume_handler(
 	struct scic_sds_remote_node_context *this_rnc,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	enum sci_status status;
@@ -737,7 +737,7 @@ static enum sci_status scic_sds_remote_node_context_suspended_start_task_handler
 
 static enum sci_status scic_sds_remote_node_context_tx_rx_suspended_state_resume_handler(
 	struct scic_sds_remote_node_context *this_rnc,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	scic_sds_remote_node_context_setup_to_resume(
@@ -761,7 +761,7 @@ static enum sci_status scic_sds_remote_node_context_tx_rx_suspended_state_resume
  */
 static enum sci_status scic_sds_remote_node_context_await_suspension_state_resume_handler(
 	struct scic_sds_remote_node_context *this_rnc,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter)
 {
 	scic_sds_remote_node_context_setup_to_resume(

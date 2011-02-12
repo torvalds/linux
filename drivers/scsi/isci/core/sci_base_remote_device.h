@@ -130,9 +130,6 @@ enum sci_base_remote_device_states {
 	 * Simply the final state for the base remote device state machine.
 	 */
 	SCI_BASE_REMOTE_DEVICE_STATE_FINAL,
-
-	SCI_BASE_REMOTE_DEVICE_MAX_STATES
-
 };
 
 /**

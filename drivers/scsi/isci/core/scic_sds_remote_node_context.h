@@ -67,8 +67,6 @@
 #include "sci_base_state.h"
 #include "sci_base_state_machine.h"
 
-/* --------------------------------------------------------------------------- */
-
 /**
  *
  *
@@ -85,77 +83,71 @@ struct scic_sds_request;
 struct scic_sds_remote_device;
 struct scic_sds_remote_node_context;
 
-typedef void (*SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK)(void *);
+typedef void (*scics_sds_remote_node_context_callback)(void *);
 
-typedef enum sci_status (*SCIC_SDS_REMOTE_NODE_CONTEXT_OPERATION)(
+typedef enum sci_status (*scic_sds_remote_node_context_operation)(
 	struct scic_sds_remote_node_context *this_rnc,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter
 	);
 
-typedef enum sci_status (*SCIC_SDS_REMOTE_NODE_CONTEXT_SUSPEND_OPERATION)(
+typedef enum sci_status (*scic_sds_remote_node_context_suspend_operation)(
 	struct scic_sds_remote_node_context *this_rnc,
 	u32 suspension_type,
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK the_callback,
+	scics_sds_remote_node_context_callback the_callback,
 	void *callback_parameter
 	);
 
-typedef enum sci_status (*SCIC_SDS_REMOTE_NODE_CONTEXT_IO_REQUEST)(
+typedef enum sci_status (*scic_sds_remote_node_context_io_request)(
 	struct scic_sds_remote_node_context *this_rnc,
 	struct scic_sds_request *the_request
 	);
 
-typedef enum sci_status (*SCIC_SDS_REMOTE_NODE_CONTEXT_EVENT_HANDLER)(
+typedef enum sci_status (*scic_sds_remote_node_context_event_handler)(
 	struct scic_sds_remote_node_context *this_rnc,
 	u32 event_code
 	);
-
-/* --------------------------------------------------------------------------- */
 
 struct scic_sds_remote_node_context_handlers {
 	/**
 	 * This handle is invoked to stop the RNC.  The callback is invoked when after
 	 * the hardware notification that the RNC has been invalidated.
 	 */
-	SCIC_SDS_REMOTE_NODE_CONTEXT_OPERATION destruct_handler;
+	scic_sds_remote_node_context_operation destruct_handler;
 
 	/**
 	 * This handler is invoked when there is a request to suspend  the RNC.  The
 	 * callback is invoked after the hardware notification that the remote node is
 	 * suspended.
 	 */
-	SCIC_SDS_REMOTE_NODE_CONTEXT_SUSPEND_OPERATION suspend_handler;
+	scic_sds_remote_node_context_suspend_operation suspend_handler;
 
 	/**
 	 * This handler is invoked when there is a request to resume the RNC.  The
 	 * callback is invoked when after the RNC has reached the ready state.
 	 */
-	SCIC_SDS_REMOTE_NODE_CONTEXT_OPERATION resume_handler;
+	scic_sds_remote_node_context_operation resume_handler;
 
 	/**
 	 * This handler is invoked when there is a request to start an io request
 	 * operation.
 	 */
-	SCIC_SDS_REMOTE_NODE_CONTEXT_IO_REQUEST start_io_handler;
+	scic_sds_remote_node_context_io_request start_io_handler;
 
 	/**
 	 * This handler is invoked when there is a request to start a task request
 	 * operation.
 	 */
-	SCIC_SDS_REMOTE_NODE_CONTEXT_IO_REQUEST start_task_handler;
+	scic_sds_remote_node_context_io_request start_task_handler;
 
 	/**
 	 * This handler is invoked where there is an RNC event that must be processed.
 	 */
-	SCIC_SDS_REMOTE_NODE_CONTEXT_EVENT_HANDLER event_handler;
+	scic_sds_remote_node_context_event_handler event_handler;
 
 };
 
-/* --------------------------------------------------------------------------- */
-
 /**
- *
- *
  * This is the enumeration of the remote node context states.
  */
 enum scis_sds_remote_node_context_states {
@@ -232,8 +224,6 @@ enum SCIC_SDS_REMOTE_NODE_CONTEXT_DESTINATION_STATE {
  *    associated with the remote node context object.  The remote node context
  *    (RNC) object models the the remote device information necessary to manage
  *    the silicon RNC.
- *
- *
  */
 struct scic_sds_remote_node_context {
 	/*
@@ -273,7 +263,7 @@ struct scic_sds_remote_node_context {
 	 * This field contains the callback function that the user requested to be
 	 * called when the requested state transition is complete.
 	 */
-	SCICS_SDS_REMOTE_NODE_CONTEXT_CALLBACK user_callback;
+	scics_sds_remote_node_context_callback user_callback;
 
 	/**
 	 * This field contains the parameter that is called when the user requested
@@ -289,15 +279,11 @@ struct scic_sds_remote_node_context {
 	struct scic_sds_remote_node_context_handlers *state_handlers;
 };
 
-/* --------------------------------------------------------------------------- */
-
 extern const struct sci_base_state scic_sds_remote_node_context_state_table[];
 
 extern struct scic_sds_remote_node_context_handlers
 	scic_sds_remote_node_context_state_handler_table[
 	SCIC_SDS_REMOTE_NODE_CONTEXT_MAX_STATES];
-
-/* --------------------------------------------------------------------------- */
 
 void scic_sds_remote_node_context_construct(
 	struct scic_sds_remote_device *device,
@@ -306,7 +292,6 @@ void scic_sds_remote_node_context_construct(
 
 void scic_sds_remote_node_context_construct_buffer(
 	struct scic_sds_remote_node_context *rnc);
-
 
 bool scic_sds_remote_node_context_is_ready(
 	struct scic_sds_remote_node_context *this_rnc);
@@ -335,7 +320,4 @@ bool scic_sds_remote_node_context_is_ready(
 #define scic_sds_remote_node_context_start_task(rnc, task) \
 	((rnc)->state_handlers->start_task_handler(rnc, task))
 
-/* --------------------------------------------------------------------------- */
-
 #endif  /* _SCIC_SDS_REMOTE_NODE_CONTEXT_H_ */
-
