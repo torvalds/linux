@@ -145,25 +145,26 @@ static int p54_generate_band(struct ieee80211_hw *dev,
 
 	for (i = 0, j = 0; (j < list->band_channel_num[band]) &&
 			   (i < list->entries); i++) {
+		struct p54_channel_entry *chan = &list->channels[i];
 
-		if (list->channels[i].band != band)
+		if (chan->band != band)
 			continue;
 
-		if (list->channels[i].data != CHAN_HAS_ALL) {
-			wiphy_err(dev->wiphy,
-				  "%s%s%s is/are missing for channel:%d [%d MHz].\n",
-				  (list->channels[i].data & CHAN_HAS_CAL ? "" :
+		if (chan->data != CHAN_HAS_ALL) {
+			wiphy_err(dev->wiphy, "%s%s%s is/are missing for "
+				  "channel:%d [%d MHz].\n",
+				  (chan->data & CHAN_HAS_CAL ? "" :
 				   " [iqauto calibration data]"),
-				  (list->channels[i].data & CHAN_HAS_LIMIT ? "" :
+				  (chan->data & CHAN_HAS_LIMIT ? "" :
 				   " [output power limits]"),
-				  (list->channels[i].data & CHAN_HAS_CURVE ? "" :
+				  (chan->data & CHAN_HAS_CURVE ? "" :
 				   " [curve data]"),
-				  list->channels[i].index, list->channels[i].freq);
+				  chan->index, chan->freq);
 			continue;
 		}
 
-		tmp->channels[j].band = list->channels[i].band;
-		tmp->channels[j].center_freq = list->channels[i].freq;
+		tmp->channels[j].band = chan->band;
+		tmp->channels[j].center_freq = chan->freq;
 		j++;
 	}
 
