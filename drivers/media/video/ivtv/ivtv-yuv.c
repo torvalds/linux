@@ -77,22 +77,50 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 	/* Get user pages for DMA Xfer */
 	down_read(&current->mm->mmap_sem);
 	y_pages = get_user_pages(current, current->mm, y_dma.uaddr, y_dma.page_count, 0, 1, &dma->map[0], NULL);
-	uv_pages = get_user_pages(current, current->mm, uv_dma.uaddr, uv_dma.page_count, 0, 1, &dma->map[y_pages], NULL);
+	uv_pages = 0; /* silence gcc. value is set and consumed only if: */
+	if (y_pages == y_dma.page_count) {
+		uv_pages = get_user_pages(current, current->mm,
+					  uv_dma.uaddr, uv_dma.page_count, 0, 1,
+					  &dma->map[y_pages], NULL);
+	}
 	up_read(&current->mm->mmap_sem);
 
-	dma->page_count = y_dma.page_count + uv_dma.page_count;
+	if (y_pages != y_dma.page_count || uv_pages != uv_dma.page_count) {
+		int rc = -EFAULT;
 
-	if (y_pages + uv_pages != dma->page_count) {
-		IVTV_DEBUG_WARN
-		    ("failed to map user pages, returned %d instead of %d\n",
-		     y_pages + uv_pages, dma->page_count);
+		if (y_pages == y_dma.page_count) {
+			IVTV_DEBUG_WARN
+				("failed to map uv user pages, returned %d "
+				 "expecting %d\n", uv_pages, uv_dma.page_count);
 
-		for (i = 0; i < dma->page_count; i++) {
-			put_page(dma->map[i]);
+			if (uv_pages >= 0) {
+				for (i = 0; i < uv_pages; i++)
+					put_page(dma->map[y_pages + i]);
+				rc = -EFAULT;
+			} else {
+				rc = uv_pages;
+			}
+		} else {
+			IVTV_DEBUG_WARN
+				("failed to map y user pages, returned %d "
+				 "expecting %d\n", y_pages, y_dma.page_count);
 		}
-		dma->page_count = 0;
-		return -EINVAL;
+		if (y_pages >= 0) {
+			for (i = 0; i < y_pages; i++)
+				put_page(dma->map[i]);
+			/*
+			 * Inherit the -EFAULT from rc's
+			 * initialization, but allow it to be
+			 * overriden by uv_pages above if it was an
+			 * actual errno.
+			 */
+		} else {
+			rc = y_pages;
+		}
+		return rc;
 	}
+
+	dma->page_count = y_pages + uv_pages;
 
 	/* Fill & map SG List */
 	if (ivtv_udma_fill_sg_list (dma, &uv_dma, ivtv_udma_fill_sg_list (dma, &y_dma, 0)) < 0) {
