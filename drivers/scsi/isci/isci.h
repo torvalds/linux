@@ -85,7 +85,6 @@
 #include "timers.h"
 #include "sci_status.h"
 
-extern int loglevel;
 extern struct kmem_cache *isci_kmem_cache;
 
 #define ISCI_FW_NAME		"isci/isci_firmware.bin"

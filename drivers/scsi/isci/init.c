@@ -98,8 +98,6 @@ static struct pci_driver isci_pci_driver = {
 };
 
 /* linux isci specific settings */
-int loglevel = 3;
-module_param(loglevel, int, S_IRUGO | S_IWUSR);
 
 #if defined(CONFIG_PBG_HBA_A0)
 int isci_si_rev = ISCI_SI_REVA0;
