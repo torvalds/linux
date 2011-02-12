@@ -76,7 +76,7 @@ static void rtc_uie_task(struct work_struct *work)
 	}
 	spin_unlock_irq(&rtc->irq_lock);
 	if (num)
-		rtc_update_irq(rtc, num, RTC_UF | RTC_IRQF);
+		rtc_handle_legacy_irq(rtc, num, RTC_UF);
 }
 static void rtc_uie_timer(unsigned long data)
 {

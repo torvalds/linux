@@ -250,6 +250,7 @@ extern int rtc_alarm_irq_enable(struct rtc_device *rtc, unsigned int enabled);
 extern int rtc_dev_update_irq_enable_emul(struct rtc_device *rtc,
 						unsigned int enabled);
 
+void rtc_handle_legacy_irq(struct rtc_device *rtc, int num, int mode);
 void rtc_aie_update_irq(void *private);
 void rtc_uie_update_irq(void *private);
 enum hrtimer_restart rtc_pie_update_irq(struct hrtimer *timer);

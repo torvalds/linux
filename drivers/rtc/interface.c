@@ -228,6 +228,12 @@ int rtc_update_irq_enable(struct rtc_device *rtc, unsigned int enabled)
 	if (err)
 		return err;
 
+#ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
+	if (enabled == 0 && rtc->uie_irq_active) {
+		mutex_unlock(&rtc->ops_lock);
+		return rtc_dev_update_irq_enable_emul(rtc, 0);
+	}
+#endif
 	/* make sure we're changing state */
 	if (rtc->uie_rtctimer.enabled == enabled)
 		goto out;
@@ -247,6 +253,16 @@ int rtc_update_irq_enable(struct rtc_device *rtc, unsigned int enabled)
 
 out:
 	mutex_unlock(&rtc->ops_lock);
+#ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
+	/*
+	 * Enable emulation if the driver did not provide
+	 * the update_irq_enable function pointer or if returned
+	 * -EINVAL to signal that it has been configured without
+	 * interrupts or that are not available at the moment.
+	 */
+	if (err == -EINVAL)
+		err = rtc_dev_update_irq_enable_emul(rtc, enabled);
+#endif
 	return err;
 
 }
@@ -262,7 +278,7 @@ EXPORT_SYMBOL_GPL(rtc_update_irq_enable);
  *
  * Triggers the registered irq_task function callback.
  */
-static void rtc_handle_legacy_irq(struct rtc_device *rtc, int num, int mode)
+void rtc_handle_legacy_irq(struct rtc_device *rtc, int num, int mode)
 {
 	unsigned long flags;
 
