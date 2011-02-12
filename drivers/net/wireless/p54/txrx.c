@@ -273,11 +273,9 @@ void p54_tx(struct p54_common *priv, struct sk_buff *skb)
 
 static int p54_rssi_to_dbm(struct p54_common *priv, int rssi)
 {
-	int band = priv->hw->conf.channel->band;
-
 	if (priv->rxhw != 5) {
-		return ((rssi * priv->rssical_db[band].mul) / 64 +
-			 priv->rssical_db[band].add) / 4;
+		return ((rssi * priv->cur_rssi->mul) / 64 +
+			 priv->cur_rssi->add) / 4;
 	} else {
 		/*
 		 * TODO: find the correct formula
