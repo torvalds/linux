@@ -188,7 +188,6 @@ static enum sci_status scic_sds_stp_remote_device_ready_substate_start_request_h
 
 			scic_sds_remote_node_context_resume(
 				this_device->rnc,
-				(scics_sds_remote_node_context_callback)
 				scic_sds_remote_device_continue_request,
 				this_device);
 		}

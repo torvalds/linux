@@ -509,8 +509,7 @@ void scic_sds_remote_device_start_request(
 	struct scic_sds_request *the_request,
 	enum sci_status status);
 
-void scic_sds_remote_device_continue_request(
-	struct scic_sds_remote_device *this_device);
+void scic_sds_remote_device_continue_request(void *sci_dev);
 
 enum sci_status scic_sds_remote_device_default_start_handler(
 	struct sci_base_remote_device *this_device);

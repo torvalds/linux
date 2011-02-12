@@ -583,19 +583,20 @@ void scic_sds_remote_device_start_request(
  * serves as a callback when RNC gets resumed during a task management
  * sequence. none
  */
-void scic_sds_remote_device_continue_request(
-	struct scic_sds_remote_device *this_device)
+void scic_sds_remote_device_continue_request(void *dev)
 {
+	struct scic_sds_remote_device *sci_dev = dev;
+	struct scic_sds_request *sci_req = sci_dev->working_request;
+
 	/* we need to check if this request is still valid to continue. */
-	if (this_device->working_request != NULL) {
-		struct scic_sds_request *this_request = this_device->working_request;
-		struct scic_sds_controller *scic = this_request->owning_controller;
+	if (sci_req) {
+		struct scic_sds_controller *scic = sci_req->owning_controller;
 		u32 state = scic->parent.state_machine.current_state_id;
 		sci_base_controller_request_handler_t continue_io;
 
 		continue_io = scic_sds_controller_state_handler_table[state].base.continue_io;
-		continue_io(&scic->parent, &this_request->target_device->parent,
-			    &this_request->parent);
+		continue_io(&scic->parent, &sci_req->target_device->parent,
+			    &sci_req->parent);
 	}
 }
 
