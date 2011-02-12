@@ -2768,6 +2768,15 @@ F:	Documentation/isdn/README.gigaset
 F:	drivers/isdn/gigaset/
 F:	include/linux/gigaset_dev.h
 
+GPIO SUBSYSTEM
+M:	Grant Likely <grant.likely@secretlab.ca>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+T:	git git://git.secretlab.ca/git/linux-2.6.git
+F:	Documentation/gpio/gpio.txt
+F:	drivers/gpio/
+F:	include/linux/gpio*
+
 GRETH 10/100/1G Ethernet MAC device driver
 M:	Kristoffer Glembo <kristoffer@gaisler.com>
 L:	netdev@vger.kernel.org
