@@ -103,6 +103,37 @@ enum jme_spi_op_bits {
 #define HALF_US 500	/* 500 ns */
 #define JMESPIIOCTL	SIOCDEVPRIVATE
 
+#define PCI_PRIV_PE1		0xE4
+
+enum pci_priv_pe1_bit_masks {
+	PE1_ASPMSUPRT	= 0x00000003, /*
+				       * RW:
+				       * Aspm_support[1:0]
+				       * (R/W Port of 5C[11:10])
+				       */
+	PE1_MULTIFUN	= 0x00000004, /* RW: Multi_fun_bit */
+	PE1_RDYDMA	= 0x00000008, /* RO: ~link.rdy_for_dma */
+	PE1_ASPMOPTL	= 0x00000030, /* RW: link.rx10s_option[1:0] */
+	PE1_ASPMOPTH	= 0x000000C0, /* RW: 10_req=[3]?HW:[2] */
+	PE1_GPREG0	= 0x0000FF00, /*
+				       * SRW:
+				       * Cfg_gp_reg0
+				       * [7:6] phy_giga BG control
+				       * [5] CREQ_N as CREQ_N1 (CPPE# as CREQ#)
+				       * [4:0] Reserved
+				       */
+	PE1_GPREG0_PBG	= 0x0000C000, /* phy_giga BG control */
+	PE1_GPREG1	= 0x00FF0000, /* RW: Cfg_gp_reg1 */
+	PE1_REVID	= 0xFF000000, /* RO: Rev ID */
+};
+
+enum pci_priv_pe1_values {
+	PE1_GPREG0_ENBG		= 0x00000000, /* en BG */
+	PE1_GPREG0_PDD3COLD	= 0x00004000, /* giga_PD + d3cold */
+	PE1_GPREG0_PDPCIESD	= 0x00008000, /* giga_PD + pcie_shutdown */
+	PE1_GPREG0_PDPCIEIDDQ	= 0x0000C000, /* giga_PD + pcie_iddq */
+};
+
 /*
  * Dynamic(adaptive)/Static PCC values
  */
@@ -499,6 +530,7 @@ enum jme_iomap_regs {
 	JME_PMCS	= JME_MAC | 0x60, /* Power Management Control/Stat */
 
 
+	JME_PHY_PWR	= JME_PHY | 0x24, /* New PHY Power Ctrl Register */
 	JME_PHY_CS	= JME_PHY | 0x28, /* PHY Ctrl and Status Register */
 	JME_PHY_LINK	= JME_PHY | 0x30, /* PHY Link Status Register */
 	JME_SMBCSR	= JME_PHY | 0x40, /* SMB Control and Status */
@@ -832,6 +864,21 @@ enum jme_pmcs_bit_masks {
 	PMCS_LFEN	= 0x00000004,
 	PMCS_LREN	= 0x00000002,
 	PMCS_MFEN	= 0x00000001,
+};
+
+/*
+ * New PHY Power Control Register
+ */
+enum jme_phy_pwr_bit_masks {
+	PHY_PWR_DWN1SEL	= 0x01000000, /* Phy_giga.p_PWR_DOWN1_SEL */
+	PHY_PWR_DWN1SW	= 0x02000000, /* Phy_giga.p_PWR_DOWN1_SW */
+	PHY_PWR_DWN2	= 0x04000000, /* Phy_giga.p_PWR_DOWN2 */
+	PHY_PWR_CLKSEL	= 0x08000000, /*
+				       * XTL_OUT Clock select
+				       * (an internal free-running clock)
+				       * 0: xtl_out = phy_giga.A_XTL25_O
+				       * 1: xtl_out = phy_giga.PD_OSC
+				       */
 };
 
 /*
@@ -1189,6 +1236,11 @@ enum jme_phy_reg17_vals {
 static inline int is_buggy250(unsigned short device, u8 chiprev)
 {
 	return device == PCI_DEVICE_ID_JMICRON_JMC250 && chiprev == 0x11;
+}
+
+static inline int new_phy_power_ctrl(u8 chip_main_rev)
+{
+	return chip_main_rev >= 5;
 }
 
 /*

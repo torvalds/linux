@@ -1577,6 +1577,38 @@ jme_free_irq(struct jme_adapter *jme)
 }
 
 static inline void
+jme_new_phy_on(struct jme_adapter *jme)
+{
+	u32 reg;
+
+	reg = jread32(jme, JME_PHY_PWR);
+	reg &= ~(PHY_PWR_DWN1SEL | PHY_PWR_DWN1SW |
+		 PHY_PWR_DWN2 | PHY_PWR_CLKSEL);
+	jwrite32(jme, JME_PHY_PWR, reg);
+
+	pci_read_config_dword(jme->pdev, PCI_PRIV_PE1, &reg);
+	reg &= ~PE1_GPREG0_PBG;
+	reg |= PE1_GPREG0_ENBG;
+	pci_write_config_dword(jme->pdev, PCI_PRIV_PE1, reg);
+}
+
+static inline void
+jme_new_phy_off(struct jme_adapter *jme)
+{
+	u32 reg;
+
+	reg = jread32(jme, JME_PHY_PWR);
+	reg |= PHY_PWR_DWN1SEL | PHY_PWR_DWN1SW |
+	       PHY_PWR_DWN2 | PHY_PWR_CLKSEL;
+	jwrite32(jme, JME_PHY_PWR, reg);
+
+	pci_read_config_dword(jme->pdev, PCI_PRIV_PE1, &reg);
+	reg &= ~PE1_GPREG0_PBG;
+	reg |= PE1_GPREG0_PDD3COLD;
+	pci_write_config_dword(jme->pdev, PCI_PRIV_PE1, reg);
+}
+
+static inline void
 jme_phy_on(struct jme_adapter *jme)
 {
 	u32 bmcr;
@@ -1584,6 +1616,22 @@ jme_phy_on(struct jme_adapter *jme)
 	bmcr = jme_mdio_read(jme->dev, jme->mii_if.phy_id, MII_BMCR);
 	bmcr &= ~BMCR_PDOWN;
 	jme_mdio_write(jme->dev, jme->mii_if.phy_id, MII_BMCR, bmcr);
+
+	if (new_phy_power_ctrl(jme->chip_main_rev))
+		jme_new_phy_on(jme);
+}
+
+static inline void
+jme_phy_off(struct jme_adapter *jme)
+{
+	u32 bmcr;
+
+	bmcr = jme_mdio_read(jme->dev, jme->mii_if.phy_id, MII_BMCR);
+	bmcr |= BMCR_PDOWN;
+	jme_mdio_write(jme->dev, jme->mii_if.phy_id, MII_BMCR, bmcr);
+
+	if (new_phy_power_ctrl(jme->chip_main_rev))
+		jme_new_phy_off(jme);
 }
 
 static int
@@ -1606,12 +1654,11 @@ jme_open(struct net_device *netdev)
 
 	jme_start_irq(jme);
 
-	if (test_bit(JME_FLAG_SSET, &jme->flags)) {
-		jme_phy_on(jme);
+	jme_phy_on(jme);
+	if (test_bit(JME_FLAG_SSET, &jme->flags))
 		jme_set_settings(netdev, &jme->old_ecmd);
-	} else {
+	else
 		jme_reset_phy_processor(jme);
-	}
 
 	jme_reset_link(jme);
 
@@ -1655,12 +1702,6 @@ jme_wait_link(struct jme_adapter *jme)
 		mdelay(10);
 		phylink = jme_linkstat_from_phy(jme);
 	}
-}
-
-static inline void
-jme_phy_off(struct jme_adapter *jme)
-{
-	jme_mdio_write(jme->dev, jme->mii_if.phy_id, MII_BMCR, BMCR_PDOWN);
 }
 
 static void
@@ -3068,12 +3109,11 @@ jme_resume(struct pci_dev *pdev)
 	jme_clear_pm(jme);
 	pci_restore_state(pdev);
 
-	if (test_bit(JME_FLAG_SSET, &jme->flags)) {
-		jme_phy_on(jme);
+	jme_phy_on(jme);
+	if (test_bit(JME_FLAG_SSET, &jme->flags))
 		jme_set_settings(netdev, &jme->old_ecmd);
-	} else {
+	else
 		jme_reset_phy_processor(jme);
-	}
 
 	jme_start_irq(jme);
 	netif_device_attach(netdev);
