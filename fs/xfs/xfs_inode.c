@@ -1016,8 +1016,8 @@ xfs_ialloc(
 	 * This is because we're setting fields here we need
 	 * to prevent others from looking at until we're done.
 	 */
-	error = xfs_trans_iget(tp->t_mountp, tp, ino,
-				XFS_IGET_CREATE, XFS_ILOCK_EXCL, &ip);
+	error = xfs_iget(tp->t_mountp, tp, ino, XFS_IGET_CREATE,
+			 XFS_ILOCK_EXCL, &ip);
 	if (error)
 		return error;
 	ASSERT(ip != NULL);
@@ -1166,6 +1166,7 @@ xfs_ialloc(
 	/*
 	 * Log the new values stuffed into the inode.
 	 */
+	xfs_trans_ijoin_ref(tp, ip, XFS_ILOCK_EXCL);
 	xfs_trans_log_inode(tp, ip, flags);
 
 	/* now that we have an i_mode we can setup inode ops and unlock */

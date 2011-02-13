@@ -1230,13 +1230,6 @@ xfs_qm_qino_alloc(
 	}
 
 	/*
-	 * Keep an extra reference to this quota inode. This inode is
-	 * locked exclusively and joined to the transaction already.
-	 */
-	ASSERT(xfs_isilocked(*ip, XFS_ILOCK_EXCL));
-	IHOLD(*ip);
-
-	/*
 	 * Make the changes in the superblock, and log those too.
 	 * sbfields arg may contain fields other than *QUOTINO;
 	 * VERSIONNUM for example.
