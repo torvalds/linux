@@ -4936,6 +4936,40 @@ sisfb_post_xgi_setclocks(struct sis_video_info *ivideo, u8 regb)
 	sisfb_post_xgi_delay(ivideo, 0x43);
 }
 
+static u8 __devinit
+sisfb_post_xgi_ramtype(struct sis_video_info *ivideo)
+{
+	unsigned char *bios = ivideo->bios_abase;
+	u8 ramtype;
+	u8 reg;
+	u8 v1;
+
+	ramtype = 0x00; v1 = 0x10;
+	if (ivideo->haveXGIROM) {
+		ramtype = bios[0x62];
+		v1 = bios[0x1d2];
+	}
+	if (!(ramtype & 0x80)) {
+		if (ivideo->chip == XGI_20) {
+			SiS_SetReg(SISCR, 0x97, v1);
+			reg = SiS_GetReg(SISCR, 0x97);
+			if (reg & 0x10) {
+				ramtype = (reg & 0x01) << 1;
+			}
+		} else {
+			reg = SiS_GetReg(SISSR, 0x39);
+			ramtype = reg & 0x02;
+			if (!(ramtype)) {
+				reg = SiS_GetReg(SISSR, 0x3a);
+				ramtype = (reg >> 1) & 0x01;
+			}
+		}
+	}
+	ramtype &= 0x07;
+
+	return ramtype;
+}
+
 static int __devinit
 sisfb_post_xgi(struct pci_dev *pdev)
 {
@@ -5380,28 +5414,7 @@ sisfb_post_xgi(struct pci_dev *pdev)
 		SiS_SetReg(SISSR, 0x1c, 0x00);
 	}
 
-	ramtype = 0x00; v1 = 0x10;
-	if(ivideo->haveXGIROM) {
-		ramtype = bios[0x62];
-		v1 = bios[0x1d2];
-	}
-	if(!(ramtype & 0x80)) {
-		if(ivideo->chip == XGI_20) {
-			SiS_SetReg(SISCR, 0x97, v1);
-			reg = SiS_GetReg(SISCR, 0x97);
-			if(reg & 0x10) {
-				ramtype = (reg & 0x01) << 1;
-			}
-		} else {
-			reg = SiS_GetReg(SISSR, 0x39);
-			ramtype = reg & 0x02;
-			if(!(ramtype)) {
-				reg = SiS_GetReg(SISSR, 0x3a);
-				ramtype = (reg >> 1) & 0x01;
-			}
-		}
-	}
-	ramtype &= 0x07;
+	ramtype = sisfb_post_xgi_ramtype(ivideo);
 
 	regb = 0;	/* ! */
 
