@@ -17,13 +17,9 @@
 /*
  * R6 (0x06) - Mic Bias Control 0
  */
-#define WM8903_MICDET_HYST_ENA                  0x0080  /* MICDET_HYST_ENA */
-#define WM8903_MICDET_HYST_ENA_MASK             0x0080  /* MICDET_HYST_ENA */
-#define WM8903_MICDET_HYST_ENA_SHIFT                 7  /* MICDET_HYST_ENA */
-#define WM8903_MICDET_HYST_ENA_WIDTH                 1  /* MICDET_HYST_ENA */
-#define WM8903_MICDET_THR_MASK                  0x0070  /* MICDET_THR - [6:4] */
-#define WM8903_MICDET_THR_SHIFT                      4  /* MICDET_THR - [6:4] */
-#define WM8903_MICDET_THR_WIDTH                      3  /* MICDET_THR - [6:4] */
+#define WM8903_MICDET_THR_MASK                  0x0030  /* MICDET_THR - [5:4] */
+#define WM8903_MICDET_THR_SHIFT                      4  /* MICDET_THR - [5:4] */
+#define WM8903_MICDET_THR_WIDTH                      2  /* MICDET_THR - [5:4] */
 #define WM8903_MICSHORT_THR_MASK                0x000C  /* MICSHORT_THR - [3:2] */
 #define WM8903_MICSHORT_THR_SHIFT                    2  /* MICSHORT_THR - [3:2] */
 #define WM8903_MICSHORT_THR_WIDTH                    2  /* MICSHORT_THR - [3:2] */
