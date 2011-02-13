@@ -907,10 +907,10 @@ nv50_pgraph_trap_handler(struct drm_device *dev, u32 display, u64 inst, u32 chid
 			printk("\n");
 			NV_INFO(dev, "PGRAPH - TRAP_CCACHE %08x %08x %08x %08x"
 				     " %08x %08x %08x\n",
-				nv_rd32(dev, 0x405800), nv_rd32(dev, 0x405804),
-				nv_rd32(dev, 0x405808), nv_rd32(dev, 0x40580c),
-				nv_rd32(dev, 0x405810), nv_rd32(dev, 0x405814),
-				nv_rd32(dev, 0x40581c));
+				nv_rd32(dev, 0x405000), nv_rd32(dev, 0x405004),
+				nv_rd32(dev, 0x405008), nv_rd32(dev, 0x40500c),
+				nv_rd32(dev, 0x405010), nv_rd32(dev, 0x405014),
+				nv_rd32(dev, 0x40501c));
 
 		}
 
