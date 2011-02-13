@@ -3959,9 +3959,6 @@ static int md_alloc(dev_t dev, char *name)
 		goto abort;
 	mddev->queue->queuedata = mddev;
 
-	/* Can be unlocked because the queue is new: no concurrency */
-	queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, mddev->queue);
-
 	blk_queue_make_request(mddev->queue, md_make_request);
 
 	disk = alloc_disk(1 << shift);
@@ -4802,7 +4799,7 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 				PTR_ERR(rdev));
 			return PTR_ERR(rdev);
 		}
-		/* set save_raid_disk if appropriate */
+		/* set saved_raid_disk if appropriate */
 		if (!mddev->persistent) {
 			if (info->state & (1<<MD_DISK_SYNC)  &&
 			    info->raid_disk < mddev->raid_disks)
@@ -4812,7 +4809,10 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		} else
 			super_types[mddev->major_version].
 				validate_super(mddev, rdev);
-		rdev->saved_raid_disk = rdev->raid_disk;
+		if (test_bit(In_sync, &rdev->flags))
+			rdev->saved_raid_disk = rdev->raid_disk;
+		else
+			rdev->saved_raid_disk = -1;
 
 		clear_bit(In_sync, &rdev->flags); /* just to be sure */
 		if (info->state & (1<<MD_DISK_WRITEMOSTLY))

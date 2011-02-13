@@ -1082,11 +1082,6 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	 */
 	q->limits = *limits;
 
-	if (limits->no_cluster)
-		queue_flag_clear_unlocked(QUEUE_FLAG_CLUSTER, q);
-	else
-		queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, q);
-
 	dm_table_set_integrity(t);
 
 	/*

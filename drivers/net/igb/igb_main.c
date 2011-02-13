@@ -4560,7 +4560,7 @@ static void igb_receive_skb(struct igb_ring *ring, u8 status,
 	bool vlan_extracted = (adapter->vlgrp && (status & E1000_RXD_STAT_VP));
 
 	skb_record_rx_queue(skb, ring->queue_index);
-	if (vlan_extracted)
+	if (vlan_extracted && adapter->vlgrp)
 		vlan_gro_receive(&ring->napi, adapter->vlgrp,
 		                 le16_to_cpu(rx_desc->wb.upper.vlan),
 		                 skb);

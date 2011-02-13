@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/module.h>
+#include <linux/compat.h>
 
 static const struct file_operations fuse_direct_io_file_operations;
 
@@ -1619,6 +1620,58 @@ static int fuse_ioctl_copy_user(struct page **pages, struct iovec *iov,
 	return 0;
 }
 
+/* Make sure iov_length() won't overflow */
+static int fuse_verify_ioctl_iov(struct iovec *iov, size_t count)
+{
+	size_t n;
+	u32 max = FUSE_MAX_PAGES_PER_REQ << PAGE_SHIFT;
+
+	for (n = 0; n < count; n++) {
+		if (iov->iov_len > (size_t) max)
+			return -ENOMEM;
+		max -= iov->iov_len;
+	}
+	return 0;
+}
+
+/*
+ * CUSE servers compiled on 32bit broke on 64bit kernels because the
+ * ABI was defined to be 'struct iovec' which is different on 32bit
+ * and 64bit.  Fortunately we can determine which structure the server
+ * used from the size of the reply.
+ */
+static int fuse_copy_ioctl_iovec(struct iovec *dst, void *src,
+				 size_t transferred, unsigned count,
+				 bool is_compat)
+{
+#ifdef CONFIG_COMPAT
+	if (count * sizeof(struct compat_iovec) == transferred) {
+		struct compat_iovec *ciov = src;
+		unsigned i;
+
+		/*
+		 * With this interface a 32bit server cannot support
+		 * non-compat (i.e. ones coming from 64bit apps) ioctl
+		 * requests
+		 */
+		if (!is_compat)
+			return -EINVAL;
+
+		for (i = 0; i < count; i++) {
+			dst[i].iov_base = compat_ptr(ciov[i].iov_base);
+			dst[i].iov_len = ciov[i].iov_len;
+		}
+		return 0;
+	}
+#endif
+
+	if (count * sizeof(struct iovec) != transferred)
+		return -EIO;
+
+	memcpy(dst, src, transferred);
+	return 0;
+}
+
 /*
  * For ioctls, there is no generic way to determine how much memory
  * needs to be read and/or written.  Furthermore, ioctls are allowed
@@ -1800,17 +1853,24 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 		    in_iovs + out_iovs > FUSE_IOCTL_MAX_IOV)
 			goto out;
 
-		err = -EIO;
-		if ((in_iovs + out_iovs) * sizeof(struct iovec) != transferred)
-			goto out;
-
-		/* okay, copy in iovs and retry */
 		vaddr = kmap_atomic(pages[0], KM_USER0);
-		memcpy(page_address(iov_page), vaddr, transferred);
+		err = fuse_copy_ioctl_iovec(page_address(iov_page), vaddr,
+					    transferred, in_iovs + out_iovs,
+					    (flags & FUSE_IOCTL_COMPAT) != 0);
 		kunmap_atomic(vaddr, KM_USER0);
+		if (err)
+			goto out;
 
 		in_iov = page_address(iov_page);
 		out_iov = in_iov + in_iovs;
+
+		err = fuse_verify_ioctl_iov(in_iov, in_iovs);
+		if (err)
+			goto out;
+
+		err = fuse_verify_ioctl_iov(out_iov, out_iovs);
+		if (err)
+			goto out;
 
 		goto retry;
 	}
