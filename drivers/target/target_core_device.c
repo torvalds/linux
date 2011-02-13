@@ -65,6 +65,12 @@ int transport_get_lun_for_cmd(
 	unsigned long flags;
 	int read_only = 0;
 
+	if (unpacked_lun >= TRANSPORT_MAX_LUNS_PER_TPG) {
+		se_cmd->scsi_sense_reason = TCM_NON_EXISTENT_LUN;
+		se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+		return -1;
+	}
+
 	spin_lock_irq(&SE_NODE_ACL(se_sess)->device_list_lock);
 	deve = se_cmd->se_deve =
 			&SE_NODE_ACL(se_sess)->device_list[unpacked_lun];
@@ -186,6 +192,12 @@ int transport_get_lun_for_tmr(
 	struct se_lun *se_lun = NULL;
 	struct se_session *se_sess = SE_SESS(se_cmd);
 	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
+
+	if (unpacked_lun >= TRANSPORT_MAX_LUNS_PER_TPG) {
+		se_cmd->scsi_sense_reason = TCM_NON_EXISTENT_LUN;
+		se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+		return -1;
+	}
 
 	spin_lock_irq(&SE_NODE_ACL(se_sess)->device_list_lock);
 	deve = se_cmd->se_deve =
