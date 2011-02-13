@@ -5160,8 +5160,7 @@ void pvr2_hdw_status_poll(struct pvr2_hdw *hdw)
 	   using v4l2-subdev - therefore we can't support that AT ALL right
 	   now.  (Of course, no sub-drivers seem to implement it either.
 	   But now it's a a chicken and egg problem...) */
-	v4l2_device_call_all(&hdw->v4l2_dev, 0, tuner, g_tuner,
-			     &hdw->tuner_signal_info);
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, tuner, g_tuner, vtp);
 	pvr2_trace(PVR2_TRACE_CHIPS, "subdev status poll"
 		   " type=%u strength=%u audio=0x%x cap=0x%x"
 		   " low=%u hi=%u",
