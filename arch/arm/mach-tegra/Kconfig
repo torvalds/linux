@@ -65,3 +65,6 @@ config TEGRA_SYSTEM_DMA
 	  several Tegra device drivers
 
 endif
+
+config TEGRA_EMC_SCALING_ENABLE
+	bool "Enable scaling the memory frequency"
