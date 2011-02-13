@@ -956,8 +956,34 @@ jme_disable_rx_engine(struct jme_adapter *jme)
 	jme_mac_rxclk_off(jme);
 }
 
+static u16
+jme_udpsum(struct sk_buff *skb)
+{
+	u16 csum = 0xFFFFu;
+
+	if (skb->len < (ETH_HLEN + sizeof(struct iphdr)))
+		return csum;
+	if (skb->protocol != htons(ETH_P_IP))
+		return csum;
+	skb_set_network_header(skb, ETH_HLEN);
+	if ((ip_hdr(skb)->protocol != IPPROTO_UDP) ||
+	    (skb->len < (ETH_HLEN +
+			(ip_hdr(skb)->ihl << 2) +
+			sizeof(struct udphdr)))) {
+		skb_reset_network_header(skb);
+		return csum;
+	}
+	skb_set_transport_header(skb,
+			ETH_HLEN + (ip_hdr(skb)->ihl << 2));
+	csum = udp_hdr(skb)->check;
+	skb_reset_transport_header(skb);
+	skb_reset_network_header(skb);
+
+	return csum;
+}
+
 static int
-jme_rxsum_ok(struct jme_adapter *jme, u16 flags)
+jme_rxsum_ok(struct jme_adapter *jme, u16 flags, struct sk_buff *skb)
 {
 	if (!(flags & (RXWBFLAG_TCPON | RXWBFLAG_UDPON | RXWBFLAG_IPV4)))
 		return false;
@@ -970,7 +996,7 @@ jme_rxsum_ok(struct jme_adapter *jme, u16 flags)
 	}
 
 	if (unlikely((flags & (RXWBFLAG_MF | RXWBFLAG_UDPON | RXWBFLAG_UDPCS))
-			== RXWBFLAG_UDPON)) {
+			== RXWBFLAG_UDPON) && jme_udpsum(skb)) {
 		if (flags & RXWBFLAG_IPV4)
 			netif_err(jme, rx_err, jme->dev, "UDP Checksum error\n");
 		return false;
@@ -1018,7 +1044,7 @@ jme_alloc_and_feed_skb(struct jme_adapter *jme, int idx)
 		skb_put(skb, framesize);
 		skb->protocol = eth_type_trans(skb, jme->dev);
 
-		if (jme_rxsum_ok(jme, le16_to_cpu(rxdesc->descwb.flags)))
+		if (jme_rxsum_ok(jme, le16_to_cpu(rxdesc->descwb.flags), skb))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
 			skb_checksum_none_assert(skb);
