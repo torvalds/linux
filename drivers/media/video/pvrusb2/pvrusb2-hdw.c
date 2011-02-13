@@ -3165,6 +3165,19 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 	struct pvr2_ctrl *cptr;
 	int disruptive_change;
 
+	if (hdw->input_dirty && hdw->state_pathway_ok &&
+	    (((hdw->input_val == PVR2_CVAL_INPUT_DTV) ?
+	      PVR2_PATHWAY_DIGITAL : PVR2_PATHWAY_ANALOG) !=
+	     hdw->pathway_state)) {
+		/* Change of mode being asked for... */
+		hdw->state_pathway_ok = 0;
+		trace_stbit("state_pathway_ok", hdw->state_pathway_ok);
+	}
+	if (!hdw->state_pathway_ok) {
+		/* Can't commit anything until pathway is ok. */
+		return 0;
+	}
+
 	/* Handle some required side effects when the video standard is
 	   changed.... */
 	if (hdw->std_dirty) {
@@ -3199,18 +3212,6 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 		}
 	}
 
-	if (hdw->input_dirty && hdw->state_pathway_ok &&
-	    (((hdw->input_val == PVR2_CVAL_INPUT_DTV) ?
-	      PVR2_PATHWAY_DIGITAL : PVR2_PATHWAY_ANALOG) !=
-	     hdw->pathway_state)) {
-		/* Change of mode being asked for... */
-		hdw->state_pathway_ok = 0;
-		trace_stbit("state_pathway_ok",hdw->state_pathway_ok);
-	}
-	if (!hdw->state_pathway_ok) {
-		/* Can't commit anything until pathway is ok. */
-		return 0;
-	}
 	/* The broadcast decoder can only scale down, so if
 	 * res_*_dirty && crop window < output format ==> enlarge crop.
 	 *
