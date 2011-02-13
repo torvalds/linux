@@ -765,7 +765,7 @@ static int __devexit metronomefb_remove(struct platform_device *dev)
 
 static struct platform_driver metronomefb_driver = {
 	.probe	= metronomefb_probe,
-	.remove = metronomefb_remove,
+	.remove = __devexit_p(metronomefb_remove),
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= "metronomefb",
