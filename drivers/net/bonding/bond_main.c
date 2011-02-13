@@ -4657,6 +4657,8 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_netpoll_cleanup	= bond_netpoll_cleanup,
 	.ndo_poll_controller	= bond_poll_controller,
 #endif
+	.ndo_add_slave		= bond_enslave,
+	.ndo_del_slave		= bond_release,
 };
 
 static void bond_destructor(struct net_device *bond_dev)
