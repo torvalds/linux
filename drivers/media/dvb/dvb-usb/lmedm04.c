@@ -747,7 +747,7 @@ static int lme_firmware_switch(struct usb_device *udev, int cold)
 			fw_lme = fw_s0194;
 			ret = request_firmware(&fw, fw_lme, &udev->dev);
 			if (ret == 0) {
-				cold = 0;/*lme2510-s0194 cannot cold reset*/
+				cold = 0;
 				break;
 			}
 			dvb_usb_lme2510_firmware = TUNER_LG;
@@ -769,8 +769,10 @@ static int lme_firmware_switch(struct usb_device *udev, int cold)
 		case TUNER_S7395:
 			fw_lme = fw_c_s7395;
 			ret = request_firmware(&fw, fw_lme, &udev->dev);
-			if (ret == 0)
+			if (ret == 0) {
+				cold = 0;
 				break;
+			}
 			dvb_usb_lme2510_firmware = TUNER_LG;
 		case TUNER_LG:
 			fw_lme = fw_c_lg;
@@ -796,13 +798,13 @@ static int lme_firmware_switch(struct usb_device *udev, int cold)
 		ret = lme2510_download_firmware(udev, fw);
 	}
 
+	release_firmware(fw);
+
 	if (cold) {
 		info("FRM Changing to %s firmware", fw_lme);
 		lme_coldreset(udev);
 		return -ENODEV;
 	}
-
-	release_firmware(fw);
 
 	return ret;
 }
@@ -1220,5 +1222,5 @@ module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.80");
+MODULE_VERSION("1.81");
 MODULE_LICENSE("GPL");
