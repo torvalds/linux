@@ -4955,7 +4955,13 @@ sisfb_post_xgi_ramtype(struct sis_video_info *ivideo)
 		v1 = bios[0x1d2];
 	}
 	if (!(ramtype & 0x80)) {
-		if (ivideo->chip == XGI_20) {
+		if (sisfb_xgi_is21(ivideo)) {
+			SiS_SetRegAND(SISCR, 0xb4, 0xfd); /* GPIO control */
+			SiS_SetRegOR(SISCR, 0x4a, 0x80);  /* GPIOH EN */
+			reg = SiS_GetReg(SISCR, 0x48);
+			SiS_SetRegOR(SISCR, 0xb4, 0x02);
+			ramtype = reg & 0x01;		  /* GPIOH */
+		} else if (ivideo->chip == XGI_20) {
 			SiS_SetReg(SISCR, 0x97, v1);
 			reg = SiS_GetReg(SISCR, 0x97);
 			if (reg & 0x10) {
