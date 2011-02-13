@@ -336,13 +336,13 @@ jme_linkstat_from_phy(struct jme_adapter *jme)
 }
 
 static inline void
-jme_set_phyfifoa(struct jme_adapter *jme)
+jme_set_phyfifo_5level(struct jme_adapter *jme)
 {
 	jme_mdio_write(jme->dev, jme->mii_if.phy_id, 27, 0x0004);
 }
 
 static inline void
-jme_set_phyfifob(struct jme_adapter *jme)
+jme_set_phyfifo_8level(struct jme_adapter *jme)
 {
 	jme_mdio_write(jme->dev, jme->mii_if.phy_id, 27, 0x0000);
 }
@@ -457,15 +457,15 @@ jme_check_link(struct net_device *netdev, int testonly)
 				gpreg1 |= GPREG1_HALFMODEPATCH;
 			switch (phylink & PHY_LINK_SPEED_MASK) {
 			case PHY_LINK_SPEED_10M:
-				jme_set_phyfifoa(jme);
+				jme_set_phyfifo_8level(jme);
 				gpreg1 |= GPREG1_RSSPATCH;
 				break;
 			case PHY_LINK_SPEED_100M:
-				jme_set_phyfifob(jme);
+				jme_set_phyfifo_5level(jme);
 				gpreg1 |= GPREG1_RSSPATCH;
 				break;
 			case PHY_LINK_SPEED_1000M:
-				jme_set_phyfifoa(jme);
+				jme_set_phyfifo_8level(jme);
 				break;
 			default:
 				break;
@@ -2979,7 +2979,7 @@ jme_init_one(struct pci_dev *pdev,
 	jme->mii_if.mdio_write = jme_mdio_write;
 
 	jme_clear_pm(jme);
-	jme_set_phyfifoa(jme);
+	jme_set_phyfifo_5level(jme);
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &jme->pcirev);
 	if (!jme->fpgaver)
 		jme_phy_init(jme);
