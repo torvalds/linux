@@ -4563,6 +4563,11 @@ sisfb_post_sis315330(struct pci_dev *pdev)
 }
 #endif
 
+static inline int sisfb_xgi_is21(struct sis_video_info *ivideo)
+{
+	return ivideo->chip_real_id == XGI_21;
+}
+
 static void __devinit
 sisfb_post_xgi_delay(struct sis_video_info *ivideo, int delay)
 {
@@ -5802,6 +5807,7 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 	ivideo->chip = chipinfo->chip;
+	ivideo->chip_real_id = chipinfo->chip;
 	ivideo->sisvga_engine = chipinfo->vgaengine;
 	ivideo->hwcursor_size = chipinfo->hwcursor_size;
 	ivideo->CRT2_write_enable = chipinfo->CRT2_write_enable;
@@ -6034,6 +6040,18 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if(ivideo->SiS_Pr.SiS_CustomT == CUT_NONE) {
 		sisfb_detect_custom_timing(ivideo);
 	}
+
+#ifdef CONFIG_FB_SIS_315
+	if (ivideo->chip == XGI_20) {
+		/* Check if our Z7 chip is actually Z9 */
+		SiS_SetRegOR(SISCR, 0x4a, 0x40);	/* GPIOG EN */
+		reg = SiS_GetReg(SISCR, 0x48);
+		if (reg & 0x02) {			/* GPIOG */
+			ivideo->chip_real_id = XGI_21;
+			dev_info(&pdev->dev, "Z9 detected\n");
+		}
+	}
+#endif
 
 	/* POST card in case this has not been done by the BIOS */
 	if( (!ivideo->sisvga_enabled)
