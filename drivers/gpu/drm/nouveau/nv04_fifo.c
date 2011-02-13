@@ -379,6 +379,15 @@ out:
 	return handled;
 }
 
+static const char *nv_dma_state_err(u32 state)
+{
+	static const char * const desc[] = {
+		"NONE", "CALL_SUBR_ACTIVE", "INVALID_MTHD", "RET_SUBR_INACTIVE",
+		"INVALID_CMD", "IB_EMPTY"/* NV50+ */, "MEM_FAULT", "UNK"
+	};
+	return desc[(state >> 29) & 0x7];
+}
+
 void
 nv04_fifo_isr(struct drm_device *dev)
 {
@@ -460,9 +469,10 @@ nv04_fifo_isr(struct drm_device *dev)
 				if (nouveau_ratelimit())
 					NV_INFO(dev, "PFIFO_DMA_PUSHER - Ch %d Get 0x%02x%08x "
 					     "Put 0x%02x%08x IbGet 0x%08x IbPut 0x%08x "
-					     "State 0x%08x Push 0x%08x\n",
+					     "State 0x%08x (err: %s) Push 0x%08x\n",
 						chid, ho_get, dma_get, ho_put,
 						dma_put, ib_get, ib_put, state,
+						nv_dma_state_err(state),
 						push);
 
 				/* METHOD_COUNT, in DMA_STATE on earlier chipsets */
@@ -476,8 +486,9 @@ nv04_fifo_isr(struct drm_device *dev)
 				}
 			} else {
 				NV_INFO(dev, "PFIFO_DMA_PUSHER - Ch %d Get 0x%08x "
-					     "Put 0x%08x State 0x%08x Push 0x%08x\n",
-					chid, dma_get, dma_put, state, push);
+					     "Put 0x%08x State 0x%08x (err: %s) Push 0x%08x\n",
+					chid, dma_get, dma_put, state,
+					nv_dma_state_err(state), push);
 
 				if (dma_get != dma_put)
 					nv_wr32(dev, 0x003244, dma_put);
