@@ -434,6 +434,7 @@ struct jme_adapter {
 	u32			reg_rxmcs;
 	u32			reg_ghc;
 	u32			reg_pmcs;
+	u32			reg_gpreg1;
 	u32			phylink;
 	u32			tx_ring_size;
 	u32			tx_ring_mask;
@@ -821,6 +822,8 @@ static inline u32 smi_phy_addr(int x)
  */
 enum jme_ghc_bit_mask {
 	GHC_SWRST		= 0x40000000,
+	GHC_TO_CLK_SRC		= 0x00C00000,
+	GHC_TXMAC_CLK_SRC	= 0x00300000,
 	GHC_DPX			= 0x00000040,
 	GHC_SPEED		= 0x00000030,
 	GHC_LINK_POLL		= 0x00000001,
@@ -999,18 +1002,17 @@ enum jme_gpreg0_vals {
 
 /*
  * General Purpose REG-1
- * Note: All theses bits defined here are for
- *       Chip mode revision 0x11 only
  */
-enum jme_gpreg1_masks {
+enum jme_gpreg1_bit_masks {
+	GPREG1_RXCLKOFF		= 0x04000000,
+	GPREG1_PCREQN		= 0x00020000,
+	GPREG1_HALFMODEPATCH	= 0x00000040, /* For Chip revision 0x11 only */
+	GPREG1_RSSPATCH		= 0x00000020, /* For Chip revision 0x11 only */
 	GPREG1_INTRDELAYUNIT	= 0x00000018,
 	GPREG1_INTRDELAYENABLE	= 0x00000007,
 };
 
 enum jme_gpreg1_vals {
-	GPREG1_HALFMODEPATCH	= 0x00000040,
-	GPREG1_RSSPATCH		= 0x00000020,
-
 	GPREG1_INTDLYUNIT_16NS	= 0x00000000,
 	GPREG1_INTDLYUNIT_256NS	= 0x00000008,
 	GPREG1_INTDLYUNIT_1US	= 0x00000010,
@@ -1024,7 +1026,7 @@ enum jme_gpreg1_vals {
 	GPREG1_INTDLYEN_6U	= 0x00000006,
 	GPREG1_INTDLYEN_7U	= 0x00000007,
 
-	GPREG1_DEFAULT		= 0x00000000,
+	GPREG1_DEFAULT		= GPREG1_PCREQN,
 };
 
 /*
