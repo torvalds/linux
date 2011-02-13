@@ -20,8 +20,9 @@
 #ifndef __MACH_TEGRA_CLOCK_H
 #define __MACH_TEGRA_CLOCK_H
 
-#include <linux/list.h>
 #include <linux/clkdev.h>
+#include <linux/list.h>
+#include <linux/spinlock.h>
 
 #define DIV_BUS			(1 << 0)
 #define DIV_U71			(1 << 1)
@@ -75,8 +76,6 @@ enum clk_state {
 struct clk {
 	/* node for master clocks list */
 	struct list_head	node;		/* node for list of all clocks */
-	struct list_head	children;	/* list of children */
-	struct list_head	sibling;	/* node for children */
 	struct clk_lookup	lookup;
 
 #ifdef CONFIG_DEBUG_FS
@@ -122,8 +121,9 @@ struct clk {
 			struct clk			*backup;
 		} cpu;
 	} u;
-};
 
+	spinlock_t spinlock;
+};
 
 struct clk_duplicate {
 	const char *name;
@@ -143,11 +143,9 @@ void tegra2_periph_reset_assert(struct clk *c);
 void clk_init(struct clk *clk);
 struct clk *tegra_get_clock_by_name(const char *name);
 unsigned long clk_measure_input_freq(void);
-void clk_disable_locked(struct clk *c);
-int clk_enable_locked(struct clk *c);
-int clk_set_parent_locked(struct clk *c, struct clk *parent);
-int clk_set_rate_locked(struct clk *c, unsigned long rate);
 int clk_reparent(struct clk *c, struct clk *parent);
 void tegra_clk_init_from_table(struct tegra_clk_init_table *table);
+unsigned long clk_get_rate_locked(struct clk *c);
+int clk_set_rate_locked(struct clk *c, unsigned long rate);
 
 #endif

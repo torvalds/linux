@@ -23,8 +23,8 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/hrtimer.h>
 #include <linux/clkdev.h>
+#include <linux/clk.h>
 
 #include <mach/iomap.h>
 #include <mach/suspend.h>
@@ -146,6 +146,13 @@
 
 static void __iomem *reg_clk_base = IO_ADDRESS(TEGRA_CLK_RESET_BASE);
 static void __iomem *reg_pmc_base = IO_ADDRESS(TEGRA_PMC_BASE);
+
+/*
+ * Some clocks share a register with other clocks.  Any clock op that
+ * non-atomically modifies a register used by another clock must lock
+ * clock_register_lock first.
+ */
+static DEFINE_SPINLOCK(clock_register_lock);
 
 #define clk_writel(value, reg) \
 	__raw_writel(value, (u32)reg_clk_base + (reg))
@@ -330,12 +337,12 @@ static int tegra2_super_clk_set_parent(struct clk *c, struct clk *p)
 			val |= sel->value << shift;
 
 			if (c->refcnt)
-				clk_enable_locked(p);
+				clk_enable(p);
 
 			clk_writel(val, c->reg);
 
 			if (c->refcnt && c->parent)
-				clk_disable_locked(c->parent);
+				clk_disable(c->parent);
 
 			clk_reparent(c, p);
 			return 0;
@@ -378,22 +385,22 @@ static void tegra2_cpu_clk_disable(struct clk *c)
 static int tegra2_cpu_clk_set_rate(struct clk *c, unsigned long rate)
 {
 	int ret;
-	ret = clk_set_parent_locked(c->parent, c->u.cpu.backup);
+	ret = clk_set_parent(c->parent, c->u.cpu.backup);
 	if (ret) {
 		pr_err("Failed to switch cpu to clock %s\n", c->u.cpu.backup->name);
 		return ret;
 	}
 
-	if (rate == c->u.cpu.backup->rate)
+	if (rate == clk_get_rate(c->u.cpu.backup))
 		goto out;
 
-	ret = clk_set_rate_locked(c->u.cpu.main, rate);
+	ret = clk_set_rate(c->u.cpu.main, rate);
 	if (ret) {
 		pr_err("Failed to change cpu pll to %lu\n", rate);
 		return ret;
 	}
 
-	ret = clk_set_parent_locked(c->parent, c->u.cpu.main);
+	ret = clk_set_parent(c->parent, c->u.cpu.main);
 	if (ret) {
 		pr_err("Failed to switch cpu to clock %s\n", c->u.cpu.main->name);
 		return ret;
@@ -421,24 +428,45 @@ static void tegra2_bus_clk_init(struct clk *c)
 
 static int tegra2_bus_clk_enable(struct clk *c)
 {
-	u32 val = clk_readl(c->reg);
+	u32 val;
+	unsigned long flags;
+
+	spin_lock_irqsave(&clock_register_lock, flags);
+
+	val = clk_readl(c->reg);
 	val &= ~(BUS_CLK_DISABLE << c->reg_shift);
 	clk_writel(val, c->reg);
+
+	spin_unlock_irqrestore(&clock_register_lock, flags);
+
 	return 0;
 }
 
 static void tegra2_bus_clk_disable(struct clk *c)
 {
-	u32 val = clk_readl(c->reg);
+	u32 val;
+	unsigned long flags;
+
+	spin_lock_irqsave(&clock_register_lock, flags);
+
+	val = clk_readl(c->reg);
 	val |= BUS_CLK_DISABLE << c->reg_shift;
 	clk_writel(val, c->reg);
+
+	spin_unlock_irqrestore(&clock_register_lock, flags);
 }
 
 static int tegra2_bus_clk_set_rate(struct clk *c, unsigned long rate)
 {
-	u32 val = clk_readl(c->reg);
-	unsigned long parent_rate = c->parent->rate;
+	u32 val;
+	unsigned long parent_rate = clk_get_rate(c->parent);
+	unsigned long flags;
+	int ret = -EINVAL;
 	int i;
+
+	spin_lock_irqsave(&clock_register_lock, flags);
+
+	val = clk_readl(c->reg);
 	for (i = 1; i <= 4; i++) {
 		if (rate == parent_rate / i) {
 			val &= ~(BUS_CLK_DIV_MASK << c->reg_shift);
@@ -446,10 +474,14 @@ static int tegra2_bus_clk_set_rate(struct clk *c, unsigned long rate)
 			clk_writel(val, c->reg);
 			c->div = i;
 			c->mul = 1;
-			return 0;
+			ret = 0;
+			break;
 		}
 	}
-	return -EINVAL;
+
+	spin_unlock_irqrestore(&clock_register_lock, flags);
+
+	return ret;
 }
 
 static struct clk_ops tegra_bus_ops = {
@@ -511,14 +543,15 @@ static void tegra2_blink_clk_disable(struct clk *c)
 
 static int tegra2_blink_clk_set_rate(struct clk *c, unsigned long rate)
 {
-	if (rate >= c->parent->rate) {
+	unsigned long parent_rate = clk_get_rate(c->parent);
+	if (rate >= parent_rate) {
 		c->div = 1;
 		pmc_writel(0, c->reg);
 	} else {
 		unsigned int on_off;
 		u32 val;
 
-		on_off = DIV_ROUND_UP(c->parent->rate / 8, rate);
+		on_off = DIV_ROUND_UP(parent_rate / 8, rate);
 		c->div = on_off * 8;
 
 		val = (on_off & PMC_BLINK_TIMER_DATA_ON_MASK) <<
@@ -604,7 +637,7 @@ static int tegra2_pll_clk_set_rate(struct clk *c, unsigned long rate)
 
 	pr_debug("%s: %s %lu\n", __func__, c->name, rate);
 
-	input_rate = c->parent->rate;
+	input_rate = clk_get_rate(c->parent);
 	for (sel = c->u.pll.freq_table; sel->input_rate != 0; sel++) {
 		if (sel->input_rate == input_rate && sel->output_rate == rate) {
 			c->mul = sel->n;
@@ -717,9 +750,11 @@ static int tegra2_pll_div_clk_enable(struct clk *c)
 {
 	u32 val;
 	u32 new_val;
+	unsigned long flags;
 
 	pr_debug("%s: %s\n", __func__, c->name);
 	if (c->flags & DIV_U71) {
+		spin_lock_irqsave(&clock_register_lock, flags);
 		val = clk_readl(c->reg);
 		new_val = val >> c->reg_shift;
 		new_val &= 0xFFFF;
@@ -729,12 +764,15 @@ static int tegra2_pll_div_clk_enable(struct clk *c)
 		val &= ~(0xFFFF << c->reg_shift);
 		val |= new_val << c->reg_shift;
 		clk_writel(val, c->reg);
+		spin_unlock_irqrestore(&clock_register_lock, flags);
 		return 0;
 	} else if (c->flags & DIV_2) {
 		BUG_ON(!(c->flags & PLLD));
+		spin_lock_irqsave(&clock_register_lock, flags);
 		val = clk_readl(c->reg);
 		val &= ~PLLD_MISC_DIV_RST;
 		clk_writel(val, c->reg);
+		spin_unlock_irqrestore(&clock_register_lock, flags);
 		return 0;
 	}
 	return -EINVAL;
@@ -744,9 +782,11 @@ static void tegra2_pll_div_clk_disable(struct clk *c)
 {
 	u32 val;
 	u32 new_val;
+	unsigned long flags;
 
 	pr_debug("%s: %s\n", __func__, c->name);
 	if (c->flags & DIV_U71) {
+		spin_lock_irqsave(&clock_register_lock, flags);
 		val = clk_readl(c->reg);
 		new_val = val >> c->reg_shift;
 		new_val &= 0xFFFF;
@@ -756,11 +796,14 @@ static void tegra2_pll_div_clk_disable(struct clk *c)
 		val &= ~(0xFFFF << c->reg_shift);
 		val |= new_val << c->reg_shift;
 		clk_writel(val, c->reg);
+		spin_unlock_irqrestore(&clock_register_lock, flags);
 	} else if (c->flags & DIV_2) {
 		BUG_ON(!(c->flags & PLLD));
+		spin_lock_irqsave(&clock_register_lock, flags);
 		val = clk_readl(c->reg);
 		val |= PLLD_MISC_DIV_RST;
 		clk_writel(val, c->reg);
+		spin_unlock_irqrestore(&clock_register_lock, flags);
 	}
 }
 
@@ -769,10 +812,14 @@ static int tegra2_pll_div_clk_set_rate(struct clk *c, unsigned long rate)
 	u32 val;
 	u32 new_val;
 	int divider_u71;
+	unsigned long parent_rate = clk_get_rate(c->parent);
+	unsigned long flags;
+
 	pr_debug("%s: %s %lu\n", __func__, c->name, rate);
 	if (c->flags & DIV_U71) {
-		divider_u71 = clk_div71_get_divider(c->parent->rate, rate);
+		divider_u71 = clk_div71_get_divider(parent_rate, rate);
 		if (divider_u71 >= 0) {
+			spin_lock_irqsave(&clock_register_lock, flags);
 			val = clk_readl(c->reg);
 			new_val = val >> c->reg_shift;
 			new_val &= 0xFFFF;
@@ -786,10 +833,11 @@ static int tegra2_pll_div_clk_set_rate(struct clk *c, unsigned long rate)
 			clk_writel(val, c->reg);
 			c->div = divider_u71 + 2;
 			c->mul = 2;
+			spin_unlock_irqrestore(&clock_register_lock, flags);
 			return 0;
 		}
 	} else if (c->flags & DIV_2) {
-		if (c->parent->rate == rate * 2)
+		if (parent_rate == rate * 2)
 			return 0;
 	}
 	return -EINVAL;
@@ -798,15 +846,16 @@ static int tegra2_pll_div_clk_set_rate(struct clk *c, unsigned long rate)
 static long tegra2_pll_div_clk_round_rate(struct clk *c, unsigned long rate)
 {
 	int divider;
+	unsigned long parent_rate = clk_get_rate(c->parent);
 	pr_debug("%s: %s %lu\n", __func__, c->name, rate);
 
 	if (c->flags & DIV_U71) {
-		divider = clk_div71_get_divider(c->parent->rate, rate);
+		divider = clk_div71_get_divider(parent_rate, rate);
 		if (divider < 0)
 			return divider;
-		return c->parent->rate * 2 / (divider + 2);
+		return parent_rate * 2 / (divider + 2);
 	} else if (c->flags & DIV_2) {
-		return c->parent->rate / 2;
+		return parent_rate / 2;
 	}
 	return -EINVAL;
 }
@@ -912,12 +961,12 @@ static int tegra2_periph_clk_set_parent(struct clk *c, struct clk *p)
 			val |= (sel->value) << PERIPH_CLK_SOURCE_SHIFT;
 
 			if (c->refcnt)
-				clk_enable_locked(p);
+				clk_enable(p);
 
 			clk_writel(val, c->reg);
 
 			if (c->refcnt && c->parent)
-				clk_disable_locked(c->parent);
+				clk_disable(c->parent);
 
 			clk_reparent(c, p);
 			return 0;
@@ -931,9 +980,10 @@ static int tegra2_periph_clk_set_rate(struct clk *c, unsigned long rate)
 {
 	u32 val;
 	int divider;
-	pr_debug("%s: %lu\n", __func__, rate);
+	unsigned long parent_rate = clk_get_rate(c->parent);
+
 	if (c->flags & DIV_U71) {
-		divider = clk_div71_get_divider(c->parent->rate, rate);
+		divider = clk_div71_get_divider(parent_rate, rate);
 		if (divider >= 0) {
 			val = clk_readl(c->reg);
 			val &= ~PERIPH_CLK_SOURCE_DIVU71_MASK;
@@ -944,7 +994,7 @@ static int tegra2_periph_clk_set_rate(struct clk *c, unsigned long rate)
 			return 0;
 		}
 	} else if (c->flags & DIV_U16) {
-		divider = clk_div16_get_divider(c->parent->rate, rate);
+		divider = clk_div16_get_divider(parent_rate, rate);
 		if (divider >= 0) {
 			val = clk_readl(c->reg);
 			val &= ~PERIPH_CLK_SOURCE_DIVU16_MASK;
@@ -954,7 +1004,7 @@ static int tegra2_periph_clk_set_rate(struct clk *c, unsigned long rate)
 			c->mul = 1;
 			return 0;
 		}
-	} else if (c->parent->rate <= rate) {
+	} else if (parent_rate <= rate) {
 		c->div = 1;
 		c->mul = 1;
 		return 0;
@@ -966,19 +1016,20 @@ static long tegra2_periph_clk_round_rate(struct clk *c,
 	unsigned long rate)
 {
 	int divider;
+	unsigned long parent_rate = clk_get_rate(c->parent);
 	pr_debug("%s: %s %lu\n", __func__, c->name, rate);
 
 	if (c->flags & DIV_U71) {
-		divider = clk_div71_get_divider(c->parent->rate, rate);
+		divider = clk_div71_get_divider(parent_rate, rate);
 		if (divider < 0)
 			return divider;
 
-		return c->parent->rate * 2 / (divider + 2);
+		return parent_rate * 2 / (divider + 2);
 	} else if (c->flags & DIV_U16) {
-		divider = clk_div16_get_divider(c->parent->rate, rate);
+		divider = clk_div16_get_divider(parent_rate, rate);
 		if (divider < 0)
 			return divider;
-		return c->parent->rate / (divider + 1);
+		return parent_rate / (divider + 1);
 	}
 	return -EINVAL;
 }
@@ -1006,7 +1057,7 @@ static void tegra2_clk_double_init(struct clk *c)
 
 static int tegra2_clk_double_set_rate(struct clk *c, unsigned long rate)
 {
-	if (rate != 2 * c->parent->rate)
+	if (rate != 2 * clk_get_rate(c->parent))
 		return -EINVAL;
 	c->mul = 2;
 	c->div = 1;
@@ -1057,12 +1108,12 @@ static int tegra2_audio_sync_clk_set_parent(struct clk *c, struct clk *p)
 			val |= sel->value;
 
 			if (c->refcnt)
-				clk_enable_locked(p);
+				clk_enable(p);
 
 			clk_writel(val, c->reg);
 
 			if (c->refcnt && c->parent)
-				clk_disable_locked(c->parent);
+				clk_disable(c->parent);
 
 			clk_reparent(c, p);
 			return 0;
