@@ -1,5 +1,5 @@
 config VGA_ARB
-	bool "VGA Arbitration" if EMBEDDED
+	bool "VGA Arbitration" if EXPERT
 	default y
 	depends on PCI
 	help

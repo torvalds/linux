@@ -18,7 +18,6 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/seq_file.h>
-#include <linux/kexec.h>
 #include <linux/of_platform.h>
 #include <linux/memblock.h>
 #include <mm/mmu_decl.h>
@@ -226,13 +225,6 @@ static void wii_shutdown(void)
 	flipper_quiesce();
 }
 
-#ifdef CONFIG_KEXEC
-static int wii_machine_kexec_prepare(struct kimage *image)
-{
-	return 0;
-}
-#endif /* CONFIG_KEXEC */
-
 define_machine(wii) {
 	.name			= "wii",
 	.probe			= wii_probe,
@@ -246,9 +238,6 @@ define_machine(wii) {
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 	.machine_shutdown	= wii_shutdown,
-#ifdef CONFIG_KEXEC
-	.machine_kexec_prepare	= wii_machine_kexec_prepare,
-#endif
 };
 
 static struct of_device_id wii_of_bus[] = {

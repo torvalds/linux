@@ -928,6 +928,7 @@ static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
 
 int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 {
+	int reread = 0;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long end;
@@ -940,9 +941,8 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 		 * fallback to the slow and accurate path.
 		 */
 		head = intel_read_status_page(ring, 4);
-		if (head < ring->actual_head)
+		if (reread)
 			head = I915_READ_HEAD(ring);
-		ring->actual_head = head;
 		ring->head = head & HEAD_ADDR;
 		ring->space = ring->head - (ring->tail + 8);
 		if (ring->space < 0)
@@ -961,6 +961,7 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 		msleep(1);
 		if (atomic_read(&dev_priv->mm.wedged))
 			return -EAGAIN;
+		reread = 1;
 	} while (!time_after(jiffies, end));
 	trace_i915_ring_wait_end (dev);
 	return -EBUSY;

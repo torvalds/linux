@@ -64,6 +64,12 @@ _GLOBAL(__setup_cpu_e500v2)
 	bl	__e500_icache_setup
 	bl	__e500_dcache_setup
 	bl	__setup_e500_ivors
+#ifdef CONFIG_RAPIDIO
+	/* Ensure that RFXE is set */
+	mfspr	r3,SPRN_HID1
+	oris	r3,r3,HID1_RFXE@h
+	mtspr	SPRN_HID1,r3
+#endif
 	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_e500mc)

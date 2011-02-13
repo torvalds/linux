@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -389,7 +389,7 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 	 * acpi_gbl_root_node->Object is NULL at PASS1.
 	 */
 	if ((type == ACPI_TYPE_DEVICE) && parent_node->object) {
-		method_obj->method.extra.handler =
+		method_obj->method.dispatch.handler =
 		    parent_node->object->device.handler;
 	}
 

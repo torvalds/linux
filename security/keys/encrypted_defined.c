@@ -888,7 +888,6 @@ static int __init init_encrypted(void)
 out:
 	encrypted_shash_release();
 	return ret;
-
 }
 
 static void __exit cleanup_encrypted(void)

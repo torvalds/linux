@@ -243,6 +243,8 @@ extern int test_taint(unsigned flag);
 extern unsigned long get_taint(void);
 extern int root_mountflags;
 
+extern bool early_boot_irqs_disabled;
+
 /* Values used for system_state */
 extern enum system_states {
 	SYSTEM_BOOTING,

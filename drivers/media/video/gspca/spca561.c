@@ -1061,7 +1061,7 @@ static const struct sd_desc *sd_desc[2] = {
 };
 
 /* -- module initialisation -- */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x401a), .driver_info = Rev072A},
 	{USB_DEVICE(0x041e, 0x403b), .driver_info = Rev012A},
 	{USB_DEVICE(0x0458, 0x7004), .driver_info = Rev072A},

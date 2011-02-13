@@ -238,59 +238,40 @@ static struct v4l2_queryctrl controls[] = {
 static int cpia2_open(struct file *file)
 {
 	struct camera_data *cam = video_drvdata(file);
-	int retval = 0;
+	struct cpia2_fh *fh;
 
 	if (!cam) {
 		ERR("Internal error, camera_data not found!\n");
 		return -ENODEV;
 	}
 
-	if(mutex_lock_interruptible(&cam->busy_lock))
-		return -ERESTARTSYS;
+	if (!cam->present)
+		return -ENODEV;
 
-	if(!cam->present) {
-		retval = -ENODEV;
-		goto err_return;
+	if (cam->open_count == 0) {
+		if (cpia2_allocate_buffers(cam))
+			return -ENOMEM;
+
+		/* reset the camera */
+		if (cpia2_reset_camera(cam) < 0)
+			return -EIO;
+
+		cam->APP_len = 0;
+		cam->COM_len = 0;
 	}
 
-	if (cam->open_count > 0) {
-		goto skip_init;
-	}
-
-	if (cpia2_allocate_buffers(cam)) {
-		retval = -ENOMEM;
-		goto err_return;
-	}
-
-	/* reset the camera */
-	if (cpia2_reset_camera(cam) < 0) {
-		retval = -EIO;
-		goto err_return;
-	}
-
-	cam->APP_len = 0;
-	cam->COM_len = 0;
-
-skip_init:
-	{
-		struct cpia2_fh *fh = kmalloc(sizeof(*fh),GFP_KERNEL);
-		if(!fh) {
-			retval = -ENOMEM;
-			goto err_return;
-		}
-		file->private_data = fh;
-		fh->prio = V4L2_PRIORITY_UNSET;
-		v4l2_prio_open(&cam->prio, &fh->prio);
-		fh->mmapped = 0;
-	}
+	fh = kmalloc(sizeof(*fh), GFP_KERNEL);
+	if (!fh)
+		return -ENOMEM;
+	file->private_data = fh;
+	fh->prio = V4L2_PRIORITY_UNSET;
+	v4l2_prio_open(&cam->prio, &fh->prio);
+	fh->mmapped = 0;
 
 	++cam->open_count;
 
 	cpia2_dbg_dump_registers(cam);
-
-err_return:
-	mutex_unlock(&cam->busy_lock);
-	return retval;
+	return 0;
 }
 
 /******************************************************************************
@@ -304,15 +285,11 @@ static int cpia2_close(struct file *file)
 	struct camera_data *cam = video_get_drvdata(dev);
 	struct cpia2_fh *fh = file->private_data;
 
-	mutex_lock(&cam->busy_lock);
-
 	if (cam->present &&
-	    (cam->open_count == 1
-	     || fh->prio == V4L2_PRIORITY_RECORD
-	    )) {
+	    (cam->open_count == 1 || fh->prio == V4L2_PRIORITY_RECORD)) {
 		cpia2_usb_stream_stop(cam);
 
-		if(cam->open_count == 1) {
+		if (cam->open_count == 1) {
 			/* save camera state for later open */
 			cpia2_save_camera_state(cam);
 
@@ -321,25 +298,20 @@ static int cpia2_close(struct file *file)
 		}
 	}
 
-	{
-		if(fh->mmapped)
-			cam->mmapped = 0;
-		v4l2_prio_close(&cam->prio, fh->prio);
-		file->private_data = NULL;
-		kfree(fh);
-	}
+	if (fh->mmapped)
+		cam->mmapped = 0;
+	v4l2_prio_close(&cam->prio, fh->prio);
+	file->private_data = NULL;
+	kfree(fh);
 
 	if (--cam->open_count == 0) {
 		cpia2_free_buffers(cam);
 		if (!cam->present) {
 			video_unregister_device(dev);
-			mutex_unlock(&cam->busy_lock);
 			kfree(cam);
 			return 0;
 		}
 	}
-
-	mutex_unlock(&cam->busy_lock);
 
 	return 0;
 }
@@ -405,11 +377,11 @@ static int sync(struct camera_data *cam, int frame_nr)
 			return 0;
 		}
 
-		mutex_unlock(&cam->busy_lock);
+		mutex_unlock(&cam->v4l2_lock);
 		wait_event_interruptible(cam->wq_stream,
 					 !cam->streaming ||
 					 frame->status == FRAME_READY);
-		mutex_lock(&cam->busy_lock);
+		mutex_lock(&cam->v4l2_lock);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
 		if(!cam->present)
@@ -1293,11 +1265,11 @@ static int ioctl_dqbuf(void *arg,struct camera_data *cam, struct file *file)
 	if(frame < 0) {
 		/* Wait for a frame to become available */
 		struct framebuf *cb=cam->curbuff;
-		mutex_unlock(&cam->busy_lock);
+		mutex_unlock(&cam->v4l2_lock);
 		wait_event_interruptible(cam->wq_stream,
 					 !cam->present ||
 					 (cb=cam->curbuff)->status == FRAME_READY);
-		mutex_lock(&cam->busy_lock);
+		mutex_lock(&cam->v4l2_lock);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
 		if(!cam->present)
@@ -1337,14 +1309,8 @@ static long cpia2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	if (!cam)
 		return -ENOTTY;
 
-	/* make this _really_ smp-safe */
-	if (mutex_lock_interruptible(&cam->busy_lock))
-		return -ERESTARTSYS;
-
-	if (!cam->present) {
-		mutex_unlock(&cam->busy_lock);
+	if (!cam->present)
 		return -ENODEV;
-	}
 
 	/* Priority check */
 	switch (cmd) {
@@ -1352,10 +1318,8 @@ static long cpia2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		struct cpia2_fh *fh = file->private_data;
 		retval = v4l2_prio_check(&cam->prio, fh->prio);
-		if(retval) {
-			mutex_unlock(&cam->busy_lock);
+		if (retval)
 			return retval;
-		}
 		break;
 	}
 	default:
@@ -1529,7 +1493,6 @@ static long cpia2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		break;
 	}
 
-	mutex_unlock(&cam->busy_lock);
 	return retval;
 }
 
@@ -1596,7 +1559,7 @@ static const struct v4l2_file_operations cpia2_fops = {
 	.release	= cpia2_close,
 	.read		= cpia2_v4l_read,
 	.poll		= cpia2_v4l_poll,
-	.ioctl		= cpia2_ioctl,
+	.unlocked_ioctl	= cpia2_ioctl,
 	.mmap		= cpia2_mmap,
 };
 
@@ -1620,6 +1583,7 @@ int cpia2_register_camera(struct camera_data *cam)
 
 	memcpy(cam->vdev, &cpia2_template, sizeof(cpia2_template));
 	video_set_drvdata(cam->vdev, cam);
+	cam->vdev->lock = &cam->v4l2_lock;
 
 	reset_camera_struct_v4l(cam);
 

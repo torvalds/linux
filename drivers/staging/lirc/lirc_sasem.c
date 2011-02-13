@@ -448,6 +448,7 @@ static ssize_t vfd_write(struct file *file, const char *buf,
 exit:
 
 	mutex_unlock(&context->ctx_lock);
+	kfree(data_buf);
 
 	return (!retval) ? n_bytes : retval;
 }

@@ -60,11 +60,11 @@ static void __init mpc831x_rdb_init_IRQ(void)
 	ipic_set_default_priority();
 }
 
-struct const char *board[] __initdata = {
+static const char *board[] __initdata = {
 	"MPC8313ERDB",
 	"fsl,mpc8315erdb",
 	NULL
-}
+};
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened

@@ -47,7 +47,6 @@ struct  intel_ring_buffer {
 	struct		drm_device *dev;
 	struct		drm_i915_gem_object *obj;
 
-	u32		actual_head;
 	u32		head;
 	u32		tail;
 	int		space;

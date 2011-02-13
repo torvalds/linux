@@ -81,7 +81,7 @@ config SERIAL_8250_GSC
 	default SERIAL_8250
 
 config SERIAL_8250_PCI
-	tristate "8250/16550 PCI device support" if EMBEDDED
+	tristate "8250/16550 PCI device support" if EXPERT
 	depends on SERIAL_8250 && PCI
 	default SERIAL_8250
 	help
@@ -90,7 +90,7 @@ config SERIAL_8250_PCI
 	  Saves about 9K.
 
 config SERIAL_8250_PNP
-	tristate "8250/16550 PNP device support" if EMBEDDED
+	tristate "8250/16550 PNP device support" if EXPERT
 	depends on SERIAL_8250 && PNP
 	default SERIAL_8250
 	help

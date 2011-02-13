@@ -104,43 +104,21 @@ static void (*interrupt[NR_IRQS])(void) = {
 	IRQ31_interrupt
 };
 
-static void enable_crisv10_irq(unsigned int irq);
-
-static unsigned int startup_crisv10_irq(unsigned int irq)
+static void enable_crisv10_irq(struct irq_data *data)
 {
-	enable_crisv10_irq(irq);
-	return 0;
+	crisv10_unmask_irq(data->irq);
 }
 
-#define shutdown_crisv10_irq	disable_crisv10_irq
-
-static void enable_crisv10_irq(unsigned int irq)
+static void disable_crisv10_irq(struct irq_data *data)
 {
-	crisv10_unmask_irq(irq);
-}
-
-static void disable_crisv10_irq(unsigned int irq)
-{
-	crisv10_mask_irq(irq);
-}
-
-static void ack_crisv10_irq(unsigned int irq)
-{
-}
-
-static void end_crisv10_irq(unsigned int irq)
-{
+	crisv10_mask_irq(data->irq);
 }
 
 static struct irq_chip crisv10_irq_type = {
-	.name =        "CRISv10",
-	.startup =     startup_crisv10_irq,
-	.shutdown =    shutdown_crisv10_irq,
-	.enable =      enable_crisv10_irq,
-	.disable =     disable_crisv10_irq,
-	.ack =         ack_crisv10_irq,
-	.end =         end_crisv10_irq,
-	.set_affinity = NULL
+	.name		= "CRISv10",
+	.irq_shutdown	= disable_crisv10_irq,
+	.irq_enable	= enable_crisv10_irq,
+	.irq_disable	= disable_crisv10_irq,
 };
 
 void weird_irq(void);
@@ -221,7 +199,8 @@ init_IRQ(void)
 
 	/* Initialize IRQ handler descriptors. */
 	for(i = 2; i < NR_IRQS; i++) {
-		irq_desc[i].chip = &crisv10_irq_type;
+		set_irq_desc_and_handler(i, &crisv10_irq_type,
+					 handle_simple_irq);
 		set_int_vector(i, interrupt[i]);
 	}
 

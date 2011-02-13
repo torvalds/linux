@@ -1,6 +1,6 @@
 config SUPERH
 	def_bool y
-	select EMBEDDED
+	select EXPERT
 	select CLKDEV_LOOKUP
 	select HAVE_IDE if HAS_IOPORT
 	select HAVE_MEMBLOCK

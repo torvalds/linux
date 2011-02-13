@@ -627,11 +627,11 @@ config APB_TIMER
          as it is off-chip. APB timers are always running regardless of CPU
          C states, they are used as per CPU clockevent device when possible.
 
-# Mark as embedded because too many people got it wrong.
+# Mark as expert because too many people got it wrong.
 # The code disables itself when not needed.
 config DMI
 	default y
-	bool "Enable DMI scanning" if EMBEDDED
+	bool "Enable DMI scanning" if EXPERT
 	---help---
 	  Enabled scanning of DMI to identify machine quirks. Say Y
 	  here unless you have verified that your setup is not
@@ -639,7 +639,7 @@ config DMI
 	  BIOS code.
 
 config GART_IOMMU
-	bool "GART IOMMU support" if EMBEDDED
+	bool "GART IOMMU support" if EXPERT
 	default y
 	select SWIOTLB
 	depends on X86_64 && PCI && AMD_NB
@@ -889,7 +889,7 @@ config X86_THERMAL_VECTOR
 	depends on X86_MCE_INTEL
 
 config VM86
-	bool "Enable VM86 support" if EMBEDDED
+	bool "Enable VM86 support" if EXPERT
 	default y
 	depends on X86_32
 	---help---
@@ -1073,7 +1073,7 @@ endchoice
 
 choice
 	depends on EXPERIMENTAL
-	prompt "Memory split" if EMBEDDED
+	prompt "Memory split" if EXPERT
 	default VMSPLIT_3G
 	depends on X86_32
 	---help---
@@ -1135,7 +1135,7 @@ config ARCH_DMA_ADDR_T_64BIT
 	def_bool X86_64 || HIGHMEM64G
 
 config DIRECT_GBPAGES
-	bool "Enable 1GB pages for kernel pagetables" if EMBEDDED
+	bool "Enable 1GB pages for kernel pagetables" if EXPERT
 	default y
 	depends on X86_64
 	---help---
@@ -1369,7 +1369,7 @@ config MATH_EMULATION
 
 config MTRR
 	def_bool y
-	prompt "MTRR (Memory Type Range Register) support" if EMBEDDED
+	prompt "MTRR (Memory Type Range Register) support" if EXPERT
 	---help---
 	  On Intel P6 family processors (Pentium Pro, Pentium II and later)
 	  the Memory Type Range Registers (MTRRs) may be used to control
@@ -1435,7 +1435,7 @@ config MTRR_SANITIZER_SPARE_REG_NR_DEFAULT
 
 config X86_PAT
 	def_bool y
-	prompt "x86 PAT support" if EMBEDDED
+	prompt "x86 PAT support" if EXPERT
 	depends on MTRR
 	---help---
 	  Use PAT attributes to setup page level cache control.
@@ -1539,7 +1539,7 @@ config KEXEC_JUMP
 	  code in physical address mode via KEXEC
 
 config PHYSICAL_START
-	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
+	hex "Physical address where the kernel is loaded" if (EXPERT || CRASH_DUMP)
 	default "0x1000000"
 	---help---
 	  This gives the physical address where the kernel is loaded.
@@ -1934,7 +1934,7 @@ config PCI_MMCONFIG
 	depends on X86_64 && PCI && ACPI
 
 config PCI_CNB20LE_QUIRK
-	bool "Read CNB20LE Host Bridge Windows" if EMBEDDED
+	bool "Read CNB20LE Host Bridge Windows" if EXPERT
 	default n
 	depends on PCI && EXPERIMENTAL
 	help
