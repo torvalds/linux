@@ -783,6 +783,14 @@ struct netdev_tc_txq {
  *	Set hardware filter for RFS.  rxq_index is the target queue index;
  *	flow_id is a flow ID to be passed to rps_may_expire_flow() later.
  *	Return the filter ID on success, or a negative error code.
+ *
+ *	Slave management functions (for bridge, bonding, etc). User should
+ *	call netdev_set_master() to set dev->master properly.
+ * int (*ndo_add_slave)(struct net_device *dev, struct net_device *slave_dev);
+ *	Called to make another netdev an underling.
+ *
+ * int (*ndo_del_slave)(struct net_device *dev, struct net_device *slave_dev);
+ *	Called to release previously enslaved netdev.
  */
 #define HAVE_NET_DEVICE_OPS
 struct net_device_ops {
@@ -862,6 +870,10 @@ struct net_device_ops {
 						     u16 rxq_index,
 						     u32 flow_id);
 #endif
+	int			(*ndo_add_slave)(struct net_device *dev,
+						 struct net_device *slave_dev);
+	int			(*ndo_del_slave)(struct net_device *dev,
+						 struct net_device *slave_dev);
 };
 
 /*

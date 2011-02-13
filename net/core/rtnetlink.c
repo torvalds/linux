@@ -1036,6 +1036,7 @@ const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_MAP]		= { .len = sizeof(struct rtnl_link_ifmap) },
 	[IFLA_MTU]		= { .type = NLA_U32 },
 	[IFLA_LINK]		= { .type = NLA_U32 },
+	[IFLA_MASTER]		= { .type = NLA_U32 },
 	[IFLA_TXQLEN]		= { .type = NLA_U32 },
 	[IFLA_WEIGHT]		= { .type = NLA_U32 },
 	[IFLA_OPERSTATE]	= { .type = NLA_U8 },
@@ -1178,6 +1179,41 @@ static int do_setvfinfo(struct net_device *dev, struct nlattr *attr)
 	return err;
 }
 
+static int do_set_master(struct net_device *dev, int ifindex)
+{
+	struct net_device *master_dev;
+	const struct net_device_ops *ops;
+	int err;
+
+	if (dev->master) {
+		if (dev->master->ifindex == ifindex)
+			return 0;
+		ops = dev->master->netdev_ops;
+		if (ops->ndo_del_slave) {
+			err = ops->ndo_del_slave(dev->master, dev);
+			if (err)
+				return err;
+		} else {
+			return -EOPNOTSUPP;
+		}
+	}
+
+	if (ifindex) {
+		master_dev = __dev_get_by_index(dev_net(dev), ifindex);
+		if (!master_dev)
+			return -EINVAL;
+		ops = master_dev->netdev_ops;
+		if (ops->ndo_add_slave) {
+			err = ops->ndo_add_slave(master_dev, dev);
+			if (err)
+				return err;
+		} else {
+			return -EOPNOTSUPP;
+		}
+	}
+	return 0;
+}
+
 static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		      struct nlattr **tb, char *ifname, int modified)
 {
@@ -1299,6 +1335,13 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		err = dev_change_flags(dev, rtnl_dev_combine_flags(dev, ifm));
 		if (err < 0)
 			goto errout;
+	}
+
+	if (tb[IFLA_MASTER]) {
+		err = do_set_master(dev, nla_get_u32(tb[IFLA_MASTER]));
+		if (err)
+			goto errout;
+		modified = 1;
 	}
 
 	if (tb[IFLA_TXQLEN])
