@@ -81,7 +81,7 @@
 
 extern struct sys_timer rk29_timer;
 
-int rk29_nand_io_init(void)
+static int rk29_nand_io_init(void)
 {
     return 0;
 }
@@ -128,7 +128,7 @@ static int rk29_lcd_io_deinit(void)
     return ret;
 }
 
-struct rk29lcd_info rk29_lcd_info = {
+static struct rk29lcd_info rk29_lcd_info = {
     .txd_pin  = LCD_TXD_PIN,
     .clk_pin = LCD_CLK_PIN,
     .cs_pin = LCD_CS_PIN,
@@ -185,7 +185,7 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
     return ret;
 }
 
-struct rk29fb_info rk29_fb_info = {
+static struct rk29fb_info rk29_fb_info = {
     .fb_id   = FB_ID,
     .disp_on_pin = FB_DISPLAY_ON_PIN,
     .disp_on_value = FB_DISPLAY_ON_VALUE,
@@ -197,7 +197,7 @@ struct rk29fb_info rk29_fb_info = {
 };
 
 /* rk29 fb resource */
-struct resource rk29_fb_resource[] = {
+static struct resource rk29_fb_resource[] = {
 	[0] = {
         .name  = "lcdc reg",
 		.start = RK29_LCDC_PHYS,
@@ -326,7 +326,7 @@ struct p1003_platform_data p1003_info = {
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN0_PA2
 
-int EETI_EGALAX_init_platform_hw(void)
+static int EETI_EGALAX_init_platform_hw(void)
 {
     if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
       gpio_free(TOUCH_RESET_PIN);
@@ -350,7 +350,7 @@ int EETI_EGALAX_init_platform_hw(void)
 }
 
 
-struct eeti_egalax_platform_data eeti_egalax_info = {
+static struct eeti_egalax_platform_data eeti_egalax_info = {
   .model= 1003,
   .init_platform_hw= EETI_EGALAX_init_platform_hw,
 
@@ -360,7 +360,7 @@ struct eeti_egalax_platform_data eeti_egalax_info = {
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK29_PIN0_PA3
 
-int mma8452_init_platform_hw(void)
+static int mma8452_init_platform_hw(void)
 {
 
     if(gpio_request(MMA8452_INT_PIN,NULL) != 0){
@@ -373,7 +373,7 @@ int mma8452_init_platform_hw(void)
 }
 
 
-struct mma8452_platform_data mma8452_info = {
+static struct mma8452_platform_data mma8452_info = {
   .model= 8452,
   .swap_xy = 0,
   .init_platform_hw= mma8452_init_platform_hw,
@@ -605,7 +605,7 @@ static int rk29_sensor_io_init(void);
 static int rk29_sensor_io_deinit(int sensor);
 static int rk29_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd,int on);
 
-struct rk29camera_platform_data rk29_camera_platform_data = {
+static struct rk29camera_platform_data rk29_camera_platform_data = {
     .io_init = rk29_sensor_io_init,
     .io_deinit = rk29_sensor_io_deinit,
     .sensor_ioctrl = rk29_sensor_ioctrl,
@@ -888,7 +888,7 @@ static struct i2c_board_info rk29_i2c_cam_info_0[] = {
 	},
 };
 
-struct soc_camera_link rk29_iclink_0 = {
+static struct soc_camera_link rk29_iclink_0 = {
 	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
 	.power		= rk29_sensor_power,
 	.powerdown  = rk29_sensor_powerdown,
@@ -898,7 +898,7 @@ struct soc_camera_link rk29_iclink_0 = {
 };
 
 /*platform_device : soc-camera need  */
-struct platform_device rk29_soc_camera_pdrv_0 = {
+static struct platform_device rk29_soc_camera_pdrv_0 = {
 	.name	= "soc-camera-pdrv",
 	.id	= 0,
 	.dev	= {
@@ -913,7 +913,7 @@ static struct i2c_board_info rk29_i2c_cam_info_1[] = {
 	},
 };
 
-struct soc_camera_link rk29_iclink_1 = {
+static struct soc_camera_link rk29_iclink_1 = {
 	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
 	.power		= rk29_sensor_power,
 	.powerdown  = rk29_sensor_powerdown,
@@ -923,7 +923,7 @@ struct soc_camera_link rk29_iclink_1 = {
 };
 
 /*platform_device : soc-camera need  */
-struct platform_device rk29_soc_camera_pdrv_1 = {
+static struct platform_device rk29_soc_camera_pdrv_1 = {
 	.name	= "soc-camera-pdrv",
 	.id	= 1,
 	.dev	= {
@@ -934,7 +934,7 @@ struct platform_device rk29_soc_camera_pdrv_1 = {
 
 
 static u64 rockchip_device_camera_dmamask = 0xffffffffUL;
-struct resource rk29_camera_resource[] = {
+static struct resource rk29_camera_resource[] = {
 	[0] = {
 		.start = RK29_VIP_PHYS,
 		.end   = RK29_VIP_PHYS + RK29_VIP_SIZE - 1,
@@ -948,7 +948,7 @@ struct resource rk29_camera_resource[] = {
 };
 
 /*platform_device : */
-struct platform_device rk29_device_camera = {
+static struct platform_device rk29_device_camera = {
 	.name		  = RK29_CAM_DRV_NAME,
 	.id		  = RK29_CAM_PLATFORM_DEV_ID,               /* This is used to put cameras on this interface */
 	.num_resources	  = ARRAY_SIZE(rk29_camera_resource),
@@ -1294,7 +1294,7 @@ static struct resource resources_gpu[] = {
         .flags  = IORESOURCE_MEM,
     },
 };
-struct platform_device rk29_device_gpu = {
+static struct platform_device rk29_device_gpu = {
     .name             = "galcore",
     .id               = 0,
     .num_resources    = ARRAY_SIZE(resources_gpu),
@@ -1549,7 +1549,7 @@ struct rk29_vmac_platform_data rk29_vmac_pdata = {
  * author: cmc@rock-chips.com
  *****************************************************************************************/
 #define SPI_CHIPSELECT_NUM 2
-struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
+static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
     {
 		.name = "spi0 cs0",
 		.cs_gpio = RK29_PIN2_PC1,
@@ -1563,7 +1563,7 @@ struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
 	}
 };
 
-struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
+static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
     {
 		.name = "spi1 cs0",
 		.cs_gpio = RK29_PIN2_PC5,
