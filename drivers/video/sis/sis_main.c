@@ -4627,11 +4627,11 @@ sisfb_post_xgi_rwtest(struct sis_video_info *ivideo, int starta,
 	return 1;
 }
 
-static void __devinit
+static int __devinit
 sisfb_post_xgi_ramsize(struct sis_video_info *ivideo)
 {
 	unsigned int buswidth, ranksize, channelab, mapsize;
-	int i, j, k, l;
+	int i, j, k, l, status;
 	u8 reg, sr14;
 	static const u8 dramsr13[12 * 5] = {
 		0x02, 0x0e, 0x0b, 0x80, 0x5d,
@@ -4673,7 +4673,7 @@ sisfb_post_xgi_ramsize(struct sis_video_info *ivideo)
 		SiS_SetReg(SISSR, 0x13, 0x35);
 		SiS_SetReg(SISSR, 0x14, 0x41);
 		/* TODO */
-		return;
+		return -ENOMEM;
 	}
 
 	/* Non-interleaving */
@@ -4835,6 +4835,7 @@ bail_out:
 
 	j = (ivideo->chip == XGI_20) ? 5 : 9;
 	k = (ivideo->chip == XGI_20) ? 12 : 4;
+	status = -EIO;
 
 	for(i = 0; i < k; i++) {
 
@@ -4868,11 +4869,15 @@ bail_out:
 		SiS_SetRegANDOR(SISSR, 0x14, 0x0f, (reg & 0xf0));
 		sisfb_post_xgi_delay(ivideo, 1);
 
-		if(sisfb_post_xgi_rwtest(ivideo, j, ((reg >> 4) + channelab - 2 + 20), mapsize))
+		if (sisfb_post_xgi_rwtest(ivideo, j, ((reg >> 4) + channelab - 2 + 20), mapsize)) {
+			status = 0;
 			break;
+		}
 	}
 
 	iounmap(ivideo->video_vbase);
+
+	return status;
 }
 
 static void __devinit
@@ -5648,6 +5653,7 @@ sisfb_post_xgi(struct pci_dev *pdev)
 		SiS_SetReg(SISSR, 0x14, bios[regb + 0xe0 + 8]);
 
 	} else {
+		int err;
 
 		/* Set default mode, don't clear screen */
 		ivideo->SiS_Pr.SiS_UseOEM = false;
@@ -5661,10 +5667,16 @@ sisfb_post_xgi(struct pci_dev *pdev)
 
 		/* Disable read-cache */
 		SiS_SetRegAND(SISSR, 0x21, 0xdf);
-		sisfb_post_xgi_ramsize(ivideo);
+		err = sisfb_post_xgi_ramsize(ivideo);
 		/* Enable read-cache */
 		SiS_SetRegOR(SISSR, 0x21, 0x20);
 
+		if (err) {
+			dev_err(&pdev->dev,
+				"%s: RAM size detection failed: %d\n",
+				__func__, err);
+			return 0;
+		}
 	}
 
 #if 0
