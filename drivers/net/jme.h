@@ -658,6 +658,14 @@ enum jme_txtrhd_shifts {
 	TXTRHD_TXRL_SHIFT	= 0,
 };
 
+enum jme_txtrhd_values {
+	TXTRHD_FULLDUPLEX	= 0x00000000,
+	TXTRHD_HALFDUPLEX	= TXTRHD_TXPEN |
+				  ((0x2000 << TXTRHD_TXP_SHIFT) & TXTRHD_TXP) |
+				  TXTRHD_TXREN |
+				  ((8 << TXTRHD_TXRL_SHIFT) & TXTRHD_TXRL),
+};
+
 /*
  * RX Control/Status Bits
  */

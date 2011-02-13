@@ -439,16 +439,14 @@ jme_check_link(struct net_device *netdev, int testonly)
 
 		if (phylink & PHY_LINK_DUPLEX) {
 			jwrite32(jme, JME_TXMCS, TXMCS_DEFAULT);
+			jwrite32(jme, JME_TXTRHD, TXTRHD_FULLDUPLEX);
 			ghc |= GHC_DPX;
 		} else {
 			jwrite32(jme, JME_TXMCS, TXMCS_DEFAULT |
 						TXMCS_BACKOFF |
 						TXMCS_CARRIERSENSE |
 						TXMCS_COLLISION);
-			jwrite32(jme, JME_TXTRHD, TXTRHD_TXPEN |
-				((0x2000 << TXTRHD_TXP_SHIFT) & TXTRHD_TXP) |
-				TXTRHD_TXREN |
-				((8 << TXTRHD_TXRL_SHIFT) & TXTRHD_TXRL));
+			jwrite32(jme, JME_TXTRHD, TXTRHD_HALFDUPLEX);
 		}
 
 		gpreg1 = GPREG1_DEFAULT;
