@@ -83,8 +83,9 @@ nv50_vm_addr(struct nouveau_vma *vma, u64 phys, u32 memtype, u32 target)
 
 void
 nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
-	    struct nouveau_mem *mem, u32 pte, u32 cnt, u64 phys)
+	    struct nouveau_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
+	u32 comp = (mem->memtype & 0x180) >> 7;
 	u32 block;
 	int i;
 
@@ -105,6 +106,11 @@ nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 
 		phys += block << (vma->node->type - 3);
 		cnt  -= block;
+		if (comp) {
+			u32 tag = mem->tag->start + ((delta >> 16) * comp);
+			offset_h |= (tag << 17);
+			delta    += block << (vma->node->type - 3);
+		}
 
 		while (block) {
 			nv_wo32(pgt, pte + 0, offset_l);

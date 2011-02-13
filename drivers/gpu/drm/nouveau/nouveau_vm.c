@@ -40,6 +40,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 	u32 max  = 1 << (vm->pgt_bits - bits);
 	u32 end, len;
 
+	delta = 0;
 	list_for_each_entry(r, &node->regions, rl_entry) {
 		u64 phys = (u64)r->offset << 12;
 		u32 num  = r->length >> bits;
@@ -52,7 +53,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 				end = max;
 			len = end - pte;
 
-			vm->map(vma, pgt, node, pte, len, phys);
+			vm->map(vma, pgt, node, pte, len, phys, delta);
 
 			num -= len;
 			pte += len;
@@ -60,6 +61,8 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 				pde++;
 				pte = 0;
 			}
+
+			delta += (u64)len << vma->node->type;
 		}
 	}
 

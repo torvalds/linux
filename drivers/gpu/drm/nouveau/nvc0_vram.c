@@ -78,7 +78,7 @@ nvc0_vram_new(struct drm_device *dev, u64 size, u32 align, u32 ncmin,
 
 	INIT_LIST_HEAD(&mem->regions);
 	mem->dev = dev_priv->dev;
-	mem->memtype = type;
+	mem->memtype = (type & 0xff);
 	mem->size = size;
 
 	mutex_lock(&mm->mutex);

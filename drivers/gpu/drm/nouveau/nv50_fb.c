@@ -8,31 +8,61 @@ struct nv50_fb_priv {
 	dma_addr_t r100c08;
 };
 
+static void
+nv50_fb_destroy(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
+	struct nv50_fb_priv *priv = pfb->priv;
+
+	if (drm_mm_initialized(&pfb->tag_heap))
+		drm_mm_takedown(&pfb->tag_heap);
+
+	if (priv->r100c08_page) {
+		pci_unmap_page(dev->pdev, priv->r100c08, PAGE_SIZE,
+			       PCI_DMA_BIDIRECTIONAL);
+		__free_page(priv->r100c08_page);
+	}
+
+	kfree(priv);
+	pfb->priv = NULL;
+}
+
 static int
 nv50_fb_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
 	struct nv50_fb_priv *priv;
+	u32 tagmem;
+	int ret;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+	pfb->priv = priv;
 
 	priv->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!priv->r100c08_page) {
-		kfree(priv);
+		nv50_fb_destroy(dev);
 		return -ENOMEM;
 	}
 
 	priv->r100c08 = pci_map_page(dev->pdev, priv->r100c08_page, 0,
 				     PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 	if (pci_dma_mapping_error(dev->pdev, priv->r100c08)) {
-		__free_page(priv->r100c08_page);
-		kfree(priv);
+		nv50_fb_destroy(dev);
 		return -EFAULT;
 	}
 
-	dev_priv->engine.fb.priv = priv;
+	tagmem = nv_rd32(dev, 0x100320);
+	NV_DEBUG(dev, "%d tags available\n", tagmem);
+	ret = drm_mm_init(&pfb->tag_heap, 0, tagmem);
+	if (ret) {
+		nv50_fb_destroy(dev);
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -81,18 +111,7 @@ nv50_fb_init(struct drm_device *dev)
 void
 nv50_fb_takedown(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv50_fb_priv *priv;
-
-	priv = dev_priv->engine.fb.priv;
-	if (!priv)
-		return;
-	dev_priv->engine.fb.priv = NULL;
-
-	pci_unmap_page(dev->pdev, priv->r100c08, PAGE_SIZE,
-		       PCI_DMA_BIDIRECTIONAL);
-	__free_page(priv->r100c08_page);
-	kfree(priv);
+	nv50_fb_destroy(dev);
 }
 
 void

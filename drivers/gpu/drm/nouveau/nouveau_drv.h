@@ -72,6 +72,7 @@ struct nouveau_mem {
 	struct nouveau_vma tmp_vma;
 	u8  page_shift;
 
+	struct drm_mm_node *tag;
 	struct list_head regions;
 	dma_addr_t *pages;
 	u32 memtype;

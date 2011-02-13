@@ -59,7 +59,7 @@ nvc0_vm_addr(struct nouveau_vma *vma, u64 phys, u32 memtype, u32 target)
 
 void
 nvc0_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
-	    struct nouveau_mem *mem, u32 pte, u32 cnt, u64 phys)
+	    struct nouveau_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
 	u32 next = 1 << (vma->node->type - 8);
 

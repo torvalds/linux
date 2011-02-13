@@ -67,7 +67,8 @@ struct nouveau_vm {
 	void (*map_pgt)(struct nouveau_gpuobj *pgd, u32 pde,
 			struct nouveau_gpuobj *pgt[2]);
 	void (*map)(struct nouveau_vma *, struct nouveau_gpuobj *,
-		    struct nouveau_mem *, u32 pte, u32 cnt, u64 phys);
+		    struct nouveau_mem *, u32 pte, u32 cnt,
+		    u64 phys, u64 delta);
 	void (*map_sg)(struct nouveau_vma *, struct nouveau_gpuobj *,
 		       struct nouveau_mem *, u32 pte, u32 cnt, dma_addr_t *);
 	void (*unmap)(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt);
@@ -93,7 +94,7 @@ void nouveau_vm_map_sg(struct nouveau_vma *, u64 offset, u64 length,
 void nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
 		     struct nouveau_gpuobj *pgt[2]);
 void nv50_vm_map(struct nouveau_vma *, struct nouveau_gpuobj *,
-		 struct nouveau_mem *, u32 pte, u32 cnt, u64 phys);
+		 struct nouveau_mem *, u32 pte, u32 cnt, u64 phys, u64 delta);
 void nv50_vm_map_sg(struct nouveau_vma *, struct nouveau_gpuobj *,
 		    struct nouveau_mem *, u32 pte, u32 cnt, dma_addr_t *);
 void nv50_vm_unmap(struct nouveau_gpuobj *, u32 pte, u32 cnt);
@@ -104,7 +105,7 @@ void nv50_vm_flush_engine(struct drm_device *, int engine);
 void nvc0_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
 		     struct nouveau_gpuobj *pgt[2]);
 void nvc0_vm_map(struct nouveau_vma *, struct nouveau_gpuobj *,
-		 struct nouveau_mem *, u32 pte, u32 cnt, u64 phys);
+		 struct nouveau_mem *, u32 pte, u32 cnt, u64 phys, u64 delta);
 void nvc0_vm_map_sg(struct nouveau_vma *, struct nouveau_gpuobj *,
 		    struct nouveau_mem *, u32 pte, u32 cnt, dma_addr_t *);
 void nvc0_vm_unmap(struct nouveau_gpuobj *, u32 pte, u32 cnt);

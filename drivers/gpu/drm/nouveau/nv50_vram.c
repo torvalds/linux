@@ -69,6 +69,11 @@ nv50_vram_del(struct drm_device *dev, struct nouveau_mem **pmem)
 		list_del(&this->rl_entry);
 		nouveau_mm_put(mm, this);
 	}
+
+	if (mem->tag) {
+		drm_mm_put_block(mem->tag);
+		mem->tag = NULL;
+	}
 	mutex_unlock(&mm->mutex);
 
 	kfree(mem);
@@ -76,7 +81,7 @@ nv50_vram_del(struct drm_device *dev, struct nouveau_mem **pmem)
 
 int
 nv50_vram_new(struct drm_device *dev, u64 size, u32 align, u32 size_nc,
-	      u32 type, struct nouveau_mem **pmem)
+	      u32 memtype, struct nouveau_mem **pmem)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct ttm_bo_device *bdev = &dev_priv->ttm.bdev;
@@ -84,6 +89,8 @@ nv50_vram_new(struct drm_device *dev, u64 size, u32 align, u32 size_nc,
 	struct nouveau_mm *mm = man->priv;
 	struct nouveau_mm_node *r;
 	struct nouveau_mem *mem;
+	int comp = (memtype & 0x300) >> 8;
+	int type = (memtype & 0x07f);
 	int ret;
 
 	if (!types[type])
@@ -96,12 +103,26 @@ nv50_vram_new(struct drm_device *dev, u64 size, u32 align, u32 size_nc,
 	if (!mem)
 		return -ENOMEM;
 
+	mutex_lock(&mm->mutex);
+	if (comp) {
+		if (align == 16) {
+			struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
+			int n = (size >> 4) * comp;
+
+			mem->tag = drm_mm_search_free(&pfb->tag_heap, n, 0, 0);
+			if (mem->tag)
+				mem->tag = drm_mm_get_block(mem->tag, n, 0);
+		}
+
+		if (unlikely(!mem->tag))
+			comp = 0;
+	}
+
 	INIT_LIST_HEAD(&mem->regions);
 	mem->dev = dev_priv->dev;
-	mem->memtype = type;
+	mem->memtype = (comp << 7) | type;
 	mem->size = size;
 
-	mutex_lock(&mm->mutex);
 	do {
 		ret = nouveau_mm_get(mm, types[type], size, size_nc, align, &r);
 		if (ret) {
