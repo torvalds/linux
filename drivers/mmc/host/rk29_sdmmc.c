@@ -446,7 +446,7 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 		rk29_dma_ctrl(host->dma_chn,RK29_DMAOP_STOP);
 		rk29_dma_ctrl(host->dma_chn,RK29_DMAOP_FLUSH);
 		rk29_sdmmc_write(host->regs, SDMMC_CTRL, (rk29_sdmmc_read(host->regs, SDMMC_CTRL))&(~SDMMC_CTRL_DMA_ENABLE));
-		printk("%s: sdio dma complete err\n",__FUNCTION__);
+		printk(KERN_DEBUG "%s: sdio dma complete err\n",__FUNCTION__);
 	}
 }
 

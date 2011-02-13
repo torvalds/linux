@@ -1971,7 +1971,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 		req->errors = 0;
 
 	if (error && (blk_fs_request(req) && !(req->cmd_flags & REQ_QUIET))) {
-		printk(KERN_ERR "end_request: I/O error, dev %s, sector %llu\n",
+		printk(KERN_DEBUG "end_request: I/O error, dev %s, sector %llu\n",
 				req->rq_disk ? req->rq_disk->disk_name : "?",
 				(unsigned long long)blk_rq_pos(req));
 	}

@@ -1249,7 +1249,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	sb_min_blocksize(sb, 512);
 	bh = sb_bread(sb, 0);
 	if (bh == NULL) {
-		printk(KERN_ERR "FAT: unable to read boot sector\n");
+		printk(KERN_DEBUG "FAT: unable to read boot sector\n");
 		goto out_fail;
 	}
 
@@ -1315,7 +1315,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 		}
 		bh = sb_bread(sb, 0);
 		if (bh == NULL) {
-			printk(KERN_ERR "FAT: unable to read boot sector"
+			printk(KERN_DEBUG "FAT: unable to read boot sector"
 			       " (logical sector size = %lu)\n",
 			       sb->s_blocksize);
 			goto out_fail;
