@@ -2333,7 +2333,6 @@ xfs_bmap_rtalloc(
 	xfs_extlen_t	prod = 0;	/* product factor for allocators */
 	xfs_extlen_t	ralen = 0;	/* realtime allocation length */
 	xfs_extlen_t	align;		/* minimum allocation alignment */
-	xfs_inode_t	*ip;		/* bitmap incore inode */
 	xfs_rtblock_t	rtb;
 
 	mp = ap->ip->i_mount;
@@ -2370,11 +2369,8 @@ xfs_bmap_rtalloc(
 	/*
 	 * Lock out other modifications to the RT bitmap inode.
 	 */
-	error = xfs_trans_iget(mp, ap->tp, mp->m_sb.sb_rbmino, 0,
-			       XFS_ILOCK_EXCL | XFS_ILOCK_RTBITMAP, &ip);
-	if (error)
-		return error;
-	ASSERT(ip == mp->m_rbmip);
+	xfs_ilock(mp->m_rbmip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin_ref(ap->tp, mp->m_rbmip, XFS_ILOCK_EXCL);
 
 	/*
 	 * If it's an allocation to an empty file at offset 0,
