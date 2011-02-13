@@ -89,6 +89,12 @@ static unsigned int copybreak __read_mostly = PCH_GBE_COPYBREAK_DEFAULT;
 static int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg);
 static void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg,
 			       int data);
+
+inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
+{
+	iowrite32(0x01, &hw->reg->MAC_ADDR_LOAD);
+}
+
 /**
  * pch_gbe_mac_read_mac_addr - Read MAC address
  * @hw:	            Pointer to the HW structure
@@ -2331,6 +2337,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	netdev->features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_GRO;
 	pch_gbe_set_ethtool_ops(netdev);
 
+	pch_gbe_mac_load_mac_addr(&adapter->hw);
 	pch_gbe_mac_reset_hw(&adapter->hw);
 
 	/* setup the private structure */
