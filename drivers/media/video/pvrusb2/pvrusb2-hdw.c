@@ -499,31 +499,35 @@ static int ctrl_cropt_max_get(struct pvr2_ctrl *cptr, int *top)
 	return 0;
 }
 
-static int ctrl_cropw_max_get(struct pvr2_ctrl *cptr, int *val)
+static int ctrl_cropw_max_get(struct pvr2_ctrl *cptr, int *width)
 {
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
-	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
+	int stat, bleftend, cleft;
+
+	stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
 		return stat;
 	}
-	*val = 0;
-	if (cap->bounds.width > cptr->hdw->cropl_val) {
-		*val = cap->bounds.width - cptr->hdw->cropl_val;
-	}
+	bleftend = cap->bounds.left+cap->bounds.width;
+	cleft = cptr->hdw->cropl_val;
+
+	*width = cleft < bleftend ? bleftend-cleft : 0;
 	return 0;
 }
 
-static int ctrl_croph_max_get(struct pvr2_ctrl *cptr, int *val)
+static int ctrl_croph_max_get(struct pvr2_ctrl *cptr, int *height)
 {
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
-	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
+	int stat, btopend, ctop;
+
+	stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
 		return stat;
 	}
-	*val = 0;
-	if (cap->bounds.height > cptr->hdw->cropt_val) {
-		*val = cap->bounds.height - cptr->hdw->cropt_val;
-	}
+	btopend = cap->bounds.top+cap->bounds.height;
+	ctop = cptr->hdw->cropt_val;
+
+	*height = ctop < btopend ? btopend-ctop : 0;
 	return 0;
 }
 
