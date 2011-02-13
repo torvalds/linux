@@ -670,6 +670,7 @@ static void *raid0_takeover_raid1(mddev_t *mddev)
 	mddev->new_layout = 0;
 	mddev->new_chunk_sectors = 128; /* by default set chunk size to 64k */
 	mddev->delta_disks = 1 - mddev->raid_disks;
+	mddev->raid_disks = 1;
 	/* make sure it will be not marked as dirty */
 	mddev->recovery_cp = MaxSector;
 
