@@ -4983,6 +4983,48 @@ sisfb_post_xgi_ddr2_mrs_default(struct sis_video_info *ivideo, u8 regb)
 }
 
 static void __devinit
+sisfb_post_xgi_ddr2_mrs_xg21(struct sis_video_info *ivideo)
+{
+	sisfb_post_xgi_setclocks(ivideo, 1);
+
+	SiS_SetReg(SISCR, 0x97, 0x11);
+	sisfb_post_xgi_delay(ivideo, 0x46);
+
+	SiS_SetReg(SISSR, 0x18, 0x00);	/* EMRS2 */
+	SiS_SetReg(SISSR, 0x19, 0x80);
+	SiS_SetReg(SISSR, 0x16, 0x05);
+	SiS_SetReg(SISSR, 0x16, 0x85);
+
+	SiS_SetReg(SISSR, 0x18, 0x00);	/* EMRS3 */
+	SiS_SetReg(SISSR, 0x19, 0xc0);
+	SiS_SetReg(SISSR, 0x16, 0x05);
+	SiS_SetReg(SISSR, 0x16, 0x85);
+
+	SiS_SetReg(SISSR, 0x18, 0x00);	/* EMRS1 */
+	SiS_SetReg(SISSR, 0x19, 0x40);
+	SiS_SetReg(SISSR, 0x16, 0x05);
+	SiS_SetReg(SISSR, 0x16, 0x85);
+
+	SiS_SetReg(SISSR, 0x18, 0x42);	/* MRS1 */
+	SiS_SetReg(SISSR, 0x19, 0x02);
+	SiS_SetReg(SISSR, 0x16, 0x05);
+	SiS_SetReg(SISSR, 0x16, 0x85);
+	sisfb_post_xgi_delay(ivideo, 1);
+
+	SiS_SetReg(SISSR, 0x1b, 0x04);
+	sisfb_post_xgi_delay(ivideo, 1);
+
+	SiS_SetReg(SISSR, 0x1b, 0x00);
+	sisfb_post_xgi_delay(ivideo, 1);
+
+	SiS_SetReg(SISSR, 0x18, 0x42);	/* MRS1 */
+	SiS_SetReg(SISSR, 0x19, 0x00);
+	SiS_SetReg(SISSR, 0x16, 0x05);
+	SiS_SetReg(SISSR, 0x16, 0x85);
+	sisfb_post_xgi_delay(ivideo, 1);
+}
+
+static void __devinit
 sisfb_post_xgi_ddr2(struct sis_video_info *ivideo, u8 regb)
 {
 	unsigned char *bios = ivideo->bios_abase;
@@ -5000,6 +5042,7 @@ sisfb_post_xgi_ddr2(struct sis_video_info *ivideo, u8 regb)
 	u8 v2;
 	u8 v3;
 
+	SiS_SetReg(SISCR, 0xb0, 0x80); /* DDR2 dual frequency mode */
 	SiS_SetReg(SISCR, 0x82, 0x77);
 	SiS_SetReg(SISCR, 0x86, 0x00);
 	reg = SiS_GetReg(SISCR, 0x86);
@@ -5021,7 +5064,10 @@ sisfb_post_xgi_ddr2(struct sis_video_info *ivideo, u8 regb)
 	SiS_SetReg(SISCR, 0x82, v3);
 	SiS_SetReg(SISCR, 0x98, 0x01);
 	SiS_SetReg(SISCR, 0x9a, 0x02);
-	sisfb_post_xgi_ddr2_default(ivideo, regb);
+	if (sisfb_xgi_is21(ivideo))
+		sisfb_post_xgi_ddr2_mrs_xg21(ivideo);
+	else
+		sisfb_post_xgi_ddr2_mrs_default(ivideo, regb);
 }
 
 static u8 __devinit
@@ -5346,9 +5392,23 @@ sisfb_post_xgi(struct pci_dev *pdev)
 		SiS_SetReg(SISCR, 0x77, v1);
 	}
 
-	/* RAM type */
-
-	regb = 0;	/* ! */
+	/* RAM type:
+	 *
+	 * 0 == DDR1, 1 == DDR2, 2..7 == reserved?
+	 *
+	 * The code seems to written so that regb should equal ramtype,
+	 * however, so far it has been hardcoded to 0. Enable other values only
+	 * on XGI Z9, as it passes the POST, and add a warning for others.
+	 */
+	ramtype = sisfb_post_xgi_ramtype(ivideo);
+	if (!sisfb_xgi_is21(ivideo) && ramtype) {
+		dev_warn(&pdev->dev,
+			 "RAM type something else than expected: %d\n",
+			 ramtype);
+		regb = 0;
+	} else {
+		regb = ramtype;
+	}
 
 	v1 = 0xff;
 	if(ivideo->haveXGIROM) {
@@ -5500,17 +5560,16 @@ sisfb_post_xgi(struct pci_dev *pdev)
 		}
 	}
 
-	SiS_SetReg(SISSR, 0x17, 0x00);
+	if (regb == 1)
+		SiS_SetReg(SISSR, 0x17, 0x80);		/* DDR2 */
+	else
+		SiS_SetReg(SISSR, 0x17, 0x00);		/* DDR1 */
 	SiS_SetReg(SISSR, 0x1a, 0x87);
 
 	if(ivideo->chip == XGI_20) {
 		SiS_SetReg(SISSR, 0x15, 0x00);
 		SiS_SetReg(SISSR, 0x1c, 0x00);
 	}
-
-	ramtype = sisfb_post_xgi_ramtype(ivideo);
-
-	regb = 0;	/* ! */
 
 	switch(ramtype) {
 	case 0:
