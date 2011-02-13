@@ -1114,6 +1114,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.internal_id = PVR2_CID_CROPW,
 		.default_value = 720,
 		DEFREF(cropw),
+		DEFINT(0, 864),
 		.get_max_value = ctrl_cropw_max_get,
 		.get_def_value = ctrl_get_cropcapdw,
 	}, {
@@ -1122,6 +1123,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.internal_id = PVR2_CID_CROPH,
 		.default_value = 480,
 		DEFREF(croph),
+		DEFINT(0, 576),
 		.get_max_value = ctrl_croph_max_get,
 		.get_def_value = ctrl_get_cropcapdh,
 	}, {
