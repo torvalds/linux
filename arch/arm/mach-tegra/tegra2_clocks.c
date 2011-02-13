@@ -1188,6 +1188,110 @@ static struct clk_ops tegra_cdev_clk_ops = {
 	.disable		= &tegra2_cdev_clk_disable,
 };
 
+/* shared bus ops */
+/*
+ * Some clocks may have multiple downstream users that need to request a
+ * higher clock rate.  Shared bus clocks provide a unique shared_bus_user
+ * clock to each user.  The frequency of the bus is set to the highest
+ * enabled shared_bus_user clock, with a minimum value set by the
+ * shared bus.
+ */
+static int tegra_clk_shared_bus_update(struct clk *bus)
+{
+	struct clk *c;
+	unsigned long rate = bus->min_rate;
+
+	list_for_each_entry(c, &bus->shared_bus_list, u.shared_bus_user.node)
+		if (c->u.shared_bus_user.enabled)
+			rate = max(c->u.shared_bus_user.rate, rate);
+
+	if (rate == clk_get_rate_locked(bus))
+		return 0;
+
+	return clk_set_rate_locked(bus, rate);
+};
+
+static void tegra_clk_shared_bus_init(struct clk *c)
+{
+	unsigned long flags;
+
+	c->max_rate = c->parent->max_rate;
+	c->u.shared_bus_user.rate = c->parent->max_rate;
+	c->state = OFF;
+#ifdef CONFIG_DEBUG_FS
+	c->set = true;
+#endif
+
+	spin_lock_irqsave(&c->parent->spinlock, flags);
+
+	list_add_tail(&c->u.shared_bus_user.node,
+		&c->parent->shared_bus_list);
+
+	spin_unlock_irqrestore(&c->parent->spinlock, flags);
+}
+
+static int tegra_clk_shared_bus_set_rate(struct clk *c, unsigned long rate)
+{
+	unsigned long flags;
+	int ret;
+
+	rate = clk_round_rate(c->parent, rate);
+	if (rate < 0)
+		return rate;
+
+	spin_lock_irqsave(&c->parent->spinlock, flags);
+
+	c->u.shared_bus_user.rate = rate;
+	ret = tegra_clk_shared_bus_update(c->parent);
+
+	spin_unlock_irqrestore(&c->parent->spinlock, flags);
+
+	return ret;
+}
+
+static long tegra_clk_shared_bus_round_rate(struct clk *c, unsigned long rate)
+{
+	return clk_round_rate(c->parent, rate);
+}
+
+static int tegra_clk_shared_bus_enable(struct clk *c)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&c->parent->spinlock, flags);
+
+	c->u.shared_bus_user.enabled = true;
+	ret = tegra_clk_shared_bus_update(c->parent);
+
+	spin_unlock_irqrestore(&c->parent->spinlock, flags);
+
+	return ret;
+}
+
+static void tegra_clk_shared_bus_disable(struct clk *c)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&c->parent->spinlock, flags);
+
+	c->u.shared_bus_user.enabled = false;
+	ret = tegra_clk_shared_bus_update(c->parent);
+	WARN_ON_ONCE(ret);
+
+	spin_unlock_irqrestore(&c->parent->spinlock, flags);
+}
+
+static struct clk_ops tegra_clk_shared_bus_ops = {
+	.init = tegra_clk_shared_bus_init,
+	.enable = tegra_clk_shared_bus_enable,
+	.disable = tegra_clk_shared_bus_disable,
+	.set_rate = tegra_clk_shared_bus_set_rate,
+	.round_rate = tegra_clk_shared_bus_round_rate,
+};
+
+
 /* Clock definitions */
 static struct clk tegra_clk_32k = {
 	.name = "clk_32k",
@@ -1863,6 +1967,17 @@ static struct clk_mux_sel mux_pclk[] = {
 		},					\
 	}
 
+#define SHARED_CLK(_name, _dev, _con, _parent)		\
+	{						\
+		.name      = _name,			\
+		.lookup    = {				\
+			.dev_id    = _dev,		\
+			.con_id    = _con,		\
+		},					\
+		.ops       = &tegra_clk_shared_bus_ops,	\
+		.parent = _parent,			\
+	}
+
 struct clk tegra_list_clks[] = {
 	PERIPH_CLK("apbdma",	"tegra-dma",		NULL,	34,	0,	108000000, mux_pclk,			0),
 	PERIPH_CLK("rtc",	"rtc-tegra",		NULL,	4,	0,	32768,     mux_clk_32k,			PERIPH_NO_RESET),
@@ -2007,6 +2122,7 @@ struct clk *tegra_ptr_clks[] = {
 static void tegra2_init_one_clock(struct clk *c)
 {
 	clk_init(c);
+	INIT_LIST_HEAD(&c->shared_bus_list);
 	if (!c->lookup.dev_id && !c->lookup.con_id)
 		c->lookup.con_id = c->name;
 	c->lookup.clk = c;

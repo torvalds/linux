@@ -85,6 +85,7 @@ struct clk {
 	struct clk_ops		*ops;
 	unsigned long		rate;
 	unsigned long		max_rate;
+	unsigned long		min_rate;
 	u32			flags;
 	const char		*name;
 
@@ -97,6 +98,8 @@ struct clk {
 	const struct clk_mux_sel	*inputs;
 	u32				reg;
 	u32				reg_shift;
+
+	struct list_head		shared_bus_list;
 
 	union {
 		struct {
@@ -120,6 +123,11 @@ struct clk {
 			struct clk			*main;
 			struct clk			*backup;
 		} cpu;
+		struct {
+			struct list_head		node;
+			bool				enabled;
+			unsigned long			rate;
+		} shared_bus_user;
 	} u;
 
 	spinlock_t spinlock;
