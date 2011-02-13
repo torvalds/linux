@@ -452,7 +452,7 @@ struct w83627ehf_data {
 	u8 in[10];		/* Register value */
 	u8 in_max[10];		/* Register value */
 	u8 in_min[10];		/* Register value */
-	u16 fan[5];
+	unsigned int rpm[5];
 	u16 fan_min[5];
 	u8 fan_div[5];
 	u8 has_fan;		/* some fan inputs can be disabled */
@@ -775,11 +775,14 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 
 		/* Measured fan speeds and limits */
 		for (i = 0; i < 5; i++) {
+			u16 reg;
+
 			if (!(data->has_fan & (1 << i)))
 				continue;
 
-			data->fan[i] = w83627ehf_read_value(data,
-							    data->REG_FAN[i]);
+			reg = w83627ehf_read_value(data, data->REG_FAN[i]);
+			data->rpm[i] = data->fan_from_reg(reg,
+							  data->fan_div[i]);
 
 			if (data->has_fan_min & (1 << i))
 				data->fan_min[i] = w83627ehf_read_value(data,
@@ -789,9 +792,8 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 			   divider can be increased, let's try that for next
 			   time */
 			if (data->has_fan_div
-			    && (data->fan[i] >= 0xff
-				|| (sio_data->kind == nct6775
-				    && data->fan[i] == 0x00))
+			    && (reg >= 0xff || (sio_data->kind == nct6775
+						&& reg == 0x00))
 			    && data->fan_div[i] < 0x07) {
 				dev_dbg(dev, "Increasing fan%d "
 					"clock divider from %u to %u\n",
@@ -984,8 +986,7 @@ show_fan(struct device *dev, struct device_attribute *attr, char *buf)
 	struct w83627ehf_data *data = w83627ehf_update_device(dev);
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
-	return sprintf(buf, "%d\n",
-		       data->fan_from_reg(data->fan[nr], data->fan_div[nr]));
+	return sprintf(buf, "%d\n", data->rpm[nr]);
 }
 
 static ssize_t
@@ -1078,16 +1079,6 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 	/* Write both the fan clock divider (if it changed) and the new
 	   fan min (unconditionally) */
 	if (new_div != data->fan_div[nr]) {
-		/* Preserve the fan speed reading */
-		if (data->fan[nr] != 0xff) {
-			if (new_div > data->fan_div[nr])
-				data->fan[nr] >>= new_div - data->fan_div[nr];
-			else if (data->fan[nr] & 0x80)
-				data->fan[nr] = 0xff;
-			else
-				data->fan[nr] <<= data->fan_div[nr] - new_div;
-		}
-
 		dev_dbg(dev, "fan%u clock divider changed from %u to %u\n",
 			nr + 1, div_from_reg(data->fan_div[nr]),
 			div_from_reg(new_div));
