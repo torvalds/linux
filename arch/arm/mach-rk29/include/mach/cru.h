@@ -296,6 +296,7 @@ enum cru_soft_reset {
 #define CRU_SOFTRST1_CON	0x70
 #define CRU_SOFTRST2_CON	0x74
 
+extern volatile u32 cru_clkgate3_con_mirror;
 void cru_set_soft_reset(enum cru_soft_reset idx, bool on);
 
 #endif

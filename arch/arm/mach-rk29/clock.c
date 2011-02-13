@@ -180,7 +180,7 @@ static int clksel_set_parent(struct clk *clk, struct clk *parent)
 }
 
 /* Work around CRU_CLKGATE3_CON bit21~20 bug */
-static volatile u32 cru_clkgate3_con_mirror;
+volatile u32 cru_clkgate3_con_mirror;
 
 static int gate_mode(struct clk *clk, int on)
 {

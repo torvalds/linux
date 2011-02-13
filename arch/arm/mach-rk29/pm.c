@@ -92,7 +92,7 @@ static int rk29_pm_enter(suspend_state_t state)
 	clkgate[0] = cru_readl(CRU_CLKGATE0_CON);
 	clkgate[1] = cru_readl(CRU_CLKGATE1_CON);
 	clkgate[2] = cru_readl(CRU_CLKGATE2_CON);
-	clkgate[3] = cru_readl(CRU_CLKGATE3_CON);
+	clkgate[3] = cru_clkgate3_con_mirror;
 	cru_writel(~((1 << CLK_GATE_CORE)
 		   | (1 << CLK_GATE_ACLK_CPU)
 		   | (1 << CLK_GATE_ACLK_CPU2)
