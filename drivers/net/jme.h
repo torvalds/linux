@@ -411,8 +411,10 @@ struct jme_adapter {
 	u32			rx_ring_mask;
 	u8			mrrs;
 	unsigned int		fpgaver;
-	unsigned int		chiprev;
-	u8			rev;
+	u8			chiprev;
+	u8			chip_main_rev;
+	u8			chip_sub_rev;
+	u8			pcirev;
 	u32			msg_enable;
 	struct ethtool_cmd	old_ecmd;
 	unsigned int		old_mtu;
@@ -1184,7 +1186,7 @@ enum jme_phy_reg17_vals {
 /*
  * Workaround
  */
-static inline int is_buggy250(unsigned short device, unsigned int chiprev)
+static inline int is_buggy250(unsigned short device, u8 chiprev)
 {
 	return device == PCI_DEVICE_ID_JMICRON_JMC250 && chiprev == 0x11;
 }

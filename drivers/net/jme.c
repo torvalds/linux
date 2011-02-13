@@ -2731,6 +2731,8 @@ jme_check_hw_ver(struct jme_adapter *jme)
 
 	jme->fpgaver = (chipmode & CM_FPGAVER_MASK) >> CM_FPGAVER_SHIFT;
 	jme->chiprev = (chipmode & CM_CHIPREV_MASK) >> CM_CHIPREV_SHIFT;
+	jme->chip_main_rev = jme->chiprev & 0xF;
+	jme->chip_sub_rev = (jme->chiprev >> 4) & 0xF;
 }
 
 static const struct net_device_ops jme_netdev_ops = {
@@ -2937,7 +2939,7 @@ jme_init_one(struct pci_dev *pdev,
 
 	jme_clear_pm(jme);
 	jme_set_phyfifoa(jme);
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &jme->rev);
+	pci_read_config_byte(pdev, PCI_REVISION_ID, &jme->pcirev);
 	if (!jme->fpgaver)
 		jme_phy_init(jme);
 	jme_phy_off(jme);
@@ -2964,14 +2966,14 @@ jme_init_one(struct pci_dev *pdev,
 		goto err_out_unmap;
 	}
 
-	netif_info(jme, probe, jme->dev, "%s%s ver:%x rev:%x macaddr:%pM\n",
+	netif_info(jme, probe, jme->dev, "%s%s chiprev:%x pcirev:%x macaddr:%pM\n",
 		   (jme->pdev->device == PCI_DEVICE_ID_JMICRON_JMC250) ?
 		   "JMC250 Gigabit Ethernet" :
 		   (jme->pdev->device == PCI_DEVICE_ID_JMICRON_JMC260) ?
 		   "JMC260 Fast Ethernet" : "Unknown",
 		   (jme->fpgaver != 0) ? " (FPGA)" : "",
 		   (jme->fpgaver != 0) ? jme->fpgaver : jme->chiprev,
-		   jme->rev, netdev->dev_addr);
+		   jme->pcirev, netdev->dev_addr);
 
 	return 0;
 
