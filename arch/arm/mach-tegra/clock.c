@@ -86,6 +86,7 @@ static unsigned long clk_predict_rate_from_parent(struct clk *c, struct clk *p)
 
 	if (c->mul != 0 && c->div != 0) {
 		rate *= c->mul;
+		rate += c->div - 1; /* round up */
 		do_div(rate, c->div);
 	}
 
@@ -240,11 +241,22 @@ EXPORT_SYMBOL(clk_get_parent);
 
 int clk_set_rate_locked(struct clk *c, unsigned long rate)
 {
+	long new_rate;
+
 	if (!c->ops || !c->ops->set_rate)
 		return -ENOSYS;
 
 	if (rate > c->max_rate)
 		rate = c->max_rate;
+
+	if (c->ops && c->ops->round_rate) {
+		new_rate = c->ops->round_rate(c, rate);
+
+		if (new_rate < 0)
+			return new_rate;
+
+		rate = new_rate;
+	}
 
 	return c->ops->set_rate(c, rate);
 }
