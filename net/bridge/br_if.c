@@ -148,6 +148,8 @@ static void del_nbp(struct net_bridge_port *p)
 
 	netdev_rx_handler_unregister(dev);
 
+	netdev_set_master(dev, NULL);
+
 	br_multicast_del_port(p);
 
 	kobject_uevent(&p->kobj, KOBJ_REMOVE);
@@ -429,9 +431,13 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (br_netpoll_info(br) && ((err = br_netpoll_enable(p))))
 		goto err3;
 
-	err = netdev_rx_handler_register(dev, br_handle_frame, p);
+	err = netdev_set_master(dev, br->dev);
 	if (err)
 		goto err3;
+
+	err = netdev_rx_handler_register(dev, br_handle_frame, p);
+	if (err)
+		goto err4;
 
 	dev->priv_flags |= IFF_BRIDGE_PORT;
 
@@ -455,6 +461,9 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	kobject_uevent(&p->kobj, KOBJ_ADD);
 
 	return 0;
+
+err4:
+	netdev_set_master(dev, NULL);
 err3:
 	sysfs_remove_link(br->ifobj, p->dev->name);
 err2:
