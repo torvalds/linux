@@ -74,6 +74,10 @@
 #define PERIPH_CLK_SOURCE_DIVU16_MASK	0xFFFF
 #define PERIPH_CLK_SOURCE_DIV_SHIFT	0
 
+#define SDMMC_CLK_INT_FB_SEL		(1 << 23)
+#define SDMMC_CLK_INT_FB_DLY_SHIFT	16
+#define SDMMC_CLK_INT_FB_DLY_MASK	(0xF << SDMMC_CLK_INT_FB_DLY_SHIFT)
+
 #define PLL_BASE			0x0
 #define PLL_BASE_BYPASS			(1<<31)
 #define PLL_BASE_ENABLE			(1<<30)
@@ -1051,6 +1055,21 @@ static struct clk_ops tegra_periph_clk_ops = {
 	.round_rate		= &tegra2_periph_clk_round_rate,
 	.reset			= &tegra2_periph_clk_reset,
 };
+
+/* The SDMMC controllers have extra bits in the clock source register that
+ * adjust the delay between the clock and data to compenstate for delays
+ * on the PCB. */
+void tegra2_sdmmc_tap_delay(struct clk *c, int delay)
+{
+	u32 reg;
+
+	delay = clamp(delay, 0, 15);
+	reg = clk_readl(c->reg);
+	reg &= ~SDMMC_CLK_INT_FB_DLY_MASK;
+	reg |= SDMMC_CLK_INT_FB_SEL;
+	reg |= delay << SDMMC_CLK_INT_FB_DLY_SHIFT;
+	clk_writel(reg, c->reg);
+}
 
 /* External memory controller clock ops */
 static void tegra2_emc_clk_init(struct clk *c)
