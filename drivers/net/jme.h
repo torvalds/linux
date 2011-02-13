@@ -1258,6 +1258,7 @@ static inline int new_phy_power_ctrl(u8 chip_main_rev)
  */
 static int jme_set_settings(struct net_device *netdev,
 				struct ethtool_cmd *ecmd);
+static void jme_set_unicastaddr(struct net_device *netdev);
 static void jme_set_multi(struct net_device *netdev);
 
 #endif

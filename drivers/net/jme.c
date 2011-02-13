@@ -898,6 +898,7 @@ jme_enable_rx_engine(struct jme_adapter *jme)
 	/*
 	 * Setup Unicast Filter
 	 */
+	jme_set_unicastaddr(jme->dev);
 	jme_set_multi(jme->dev);
 
 	/*
@@ -2114,27 +2115,34 @@ jme_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	return NETDEV_TX_OK;
 }
 
+static void
+jme_set_unicastaddr(struct net_device *netdev)
+{
+	struct jme_adapter *jme = netdev_priv(netdev);
+	u32 val;
+
+	val = (netdev->dev_addr[3] & 0xff) << 24 |
+	      (netdev->dev_addr[2] & 0xff) << 16 |
+	      (netdev->dev_addr[1] & 0xff) <<  8 |
+	      (netdev->dev_addr[0] & 0xff);
+	jwrite32(jme, JME_RXUMA_LO, val);
+	val = (netdev->dev_addr[5] & 0xff) << 8 |
+	      (netdev->dev_addr[4] & 0xff);
+	jwrite32(jme, JME_RXUMA_HI, val);
+}
+
 static int
 jme_set_macaddr(struct net_device *netdev, void *p)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 	struct sockaddr *addr = p;
-	u32 val;
 
 	if (netif_running(netdev))
 		return -EBUSY;
 
 	spin_lock_bh(&jme->macaddr_lock);
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-
-	val = (addr->sa_data[3] & 0xff) << 24 |
-	      (addr->sa_data[2] & 0xff) << 16 |
-	      (addr->sa_data[1] & 0xff) <<  8 |
-	      (addr->sa_data[0] & 0xff);
-	jwrite32(jme, JME_RXUMA_LO, val);
-	val = (addr->sa_data[5] & 0xff) << 8 |
-	      (addr->sa_data[4] & 0xff);
-	jwrite32(jme, JME_RXUMA_HI, val);
+	jme_set_unicastaddr(netdev);
 	spin_unlock_bh(&jme->macaddr_lock);
 
 	return 0;
