@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h,v 1.601.4.15.2.14.2.62.4.1 2010/11/17 03:09:28 Exp $
+ * $Id: wlioctl.h,v 1.601.4.15.2.14.2.62.4.3 2011/02/09 23:31:02 Exp $
  */
 
 
@@ -254,6 +254,11 @@ typedef struct wl_join_params {
 
 #define WLC_CNTRY_BUF_SZ	4		
 
+typedef struct wl_country {
+	char country_abbrev[WLC_CNTRY_BUF_SZ];
+	int32 rev;
+	char ccode[WLC_CNTRY_BUF_SZ];
+} wl_country_t;
 
 typedef enum sup_auth_status {
 	
@@ -1309,12 +1314,16 @@ enum {
 #define ENABLE_BKGRD_SCAN_BIT	2
 #define IMMEDIATE_SCAN_BIT		3
 #define	AUTO_CONNECT_BIT		4
+#define	ENABLE_BD_SCAN_BIT		5
+#define ENABLE_ADAPTSCAN_BIT	6
 
 #define SORT_CRITERIA_MASK		0x01
 #define AUTO_NET_SWITCH_MASK	0x02
 #define ENABLE_BKGRD_SCAN_MASK	0x04
 #define IMMEDIATE_SCAN_MASK		0x08
 #define	AUTO_CONNECT_MASK		0x10
+#define ENABLE_BD_SCAN_MASK		0x20
+#define ENABLE_ADAPTSCAN_MASK	0x40
 
 #define PFN_VERSION			1
 
@@ -1327,6 +1336,8 @@ typedef struct wl_pfn_param {
 	int32 lost_network_timeout;	
 	int16 flags;			
 	int16 rssi_margin;		
+	int32  repeat_scan;
+	int32  max_freq_adjust;
 } wl_pfn_param_t;
 
 typedef struct wl_pfn {
@@ -1336,13 +1347,11 @@ typedef struct wl_pfn {
 	int32			auth;			
 	uint32			wpa_auth;		
 	int32			wsec;			
-#ifdef WLPFN_AUTO_CONNECT
-	union {
-		wl_wsec_key_t	sec_key;		
-		wsec_pmk_t	wpa_sec_key;		
-	} pfn_security;
-#endif 
 } wl_pfn_t;
+
+#define PNO_SCAN_MAX_FW		508*1000
+#define PNO_SCAN_MAX_FW_SEC	PNO_SCAN_MAX_FW/1000
+#define PNO_SCAN_MIN_FW_SEC	10
 
 
 #define TOE_TX_CSUM_OL		0x00000001

@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h,v 1.32.4.7.2.4.14.49.4.7 2010/11/12 22:48:36 Exp $
+ * $Id: dhd.h,v 1.32.4.7.2.4.14.49.4.9 2011/01/14 22:40:45 Exp $
  */
 
 /****************
@@ -164,7 +164,7 @@ typedef struct dhd_pub {
 	char * pktfilter[100];
 	int pktfilter_count;
 
-	uint8 country_code[WLC_CNTRY_BUF_SZ];
+	wl_country_t dhd_cspec;		/* Current Locale info */
 	char eventmask[WL_EVENTING_MASK_LEN];
 
 } dhd_pub_t;
@@ -213,6 +213,20 @@ typedef struct dhd_pub {
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) */
 
 #define DHD_IF_VIF	0x01	/* Virtual IF (Hidden from user) */
+
+inline static void NETIF_ADDR_LOCK(struct net_device *dev)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
+	netif_addr_lock_bh(dev);
+#endif
+}
+
+inline static void NETIF_ADDR_UNLOCK(struct net_device *dev)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
+	netif_addr_unlock_bh(dev);
+#endif
+}
 
 /* Wakelock Functions */
 extern int dhd_os_wake_lock(dhd_pub_t *pub);
