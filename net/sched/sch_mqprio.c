@@ -29,18 +29,18 @@ static void mqprio_destroy(struct Qdisc *sch)
 	struct mqprio_sched *priv = qdisc_priv(sch);
 	unsigned int ntx;
 
-	if (!priv->qdiscs)
-		return;
-
-	for (ntx = 0; ntx < dev->num_tx_queues && priv->qdiscs[ntx]; ntx++)
-		qdisc_destroy(priv->qdiscs[ntx]);
+	if (priv->qdiscs) {
+		for (ntx = 0;
+		     ntx < dev->num_tx_queues && priv->qdiscs[ntx];
+		     ntx++)
+			qdisc_destroy(priv->qdiscs[ntx]);
+		kfree(priv->qdiscs);
+	}
 
 	if (priv->hw_owned && dev->netdev_ops->ndo_setup_tc)
 		dev->netdev_ops->ndo_setup_tc(dev, 0);
 	else
 		netdev_set_num_tc(dev, 0);
-
-	kfree(priv->qdiscs);
 }
 
 static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt)
