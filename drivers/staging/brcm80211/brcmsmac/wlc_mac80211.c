@@ -1005,7 +1005,7 @@ static int wlc_get_current_txpwr(struct wlc_info *wlc, void *pwr, uint len)
 	 * or convert to a tx_power_legacy_t struct
 	 */
 	if (!old_power) {
-		bcopy(&power, pwr, sizeof(tx_power_t));
+		memcpy(pwr, &power, sizeof(tx_power_t));
 	} else {
 		int band_idx = CHSPEC_IS2G(power.chanspec) ? 0 : 1;
 
@@ -1855,8 +1855,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 
 	wlc_bmac_hw_etheraddr(wlc->hw, wlc->perm_etheraddr);
 
-	bcopy((char *)&wlc->perm_etheraddr, (char *)&pub->cur_etheraddr,
-	      ETH_ALEN);
+	memcpy(&pub->cur_etheraddr, &wlc->perm_etheraddr, ETH_ALEN);
 
 	for (j = 0; j < NBANDS(wlc); j++) {
 		/* Use band 1 for single band 11a */
@@ -2916,8 +2915,8 @@ int wlc_set_gmode(struct wlc_info *wlc, u8 gmode, bool config)
 
 	/* Set default bss rateset */
 	wlc->default_bss->rateset.count = rs.count;
-	bcopy((char *)rs.rates, (char *)wlc->default_bss->rateset.rates,
-	      sizeof(wlc->default_bss->rateset.rates));
+	memcpy(wlc->default_bss->rateset.rates, rs.rates, 
+	       sizeof(wlc->default_bss->rateset.rates));
 
 	return ret;
 }
@@ -3010,7 +3009,7 @@ static int wlc_set_rateset(struct wlc_info *wlc, wlc_rateset_t *rs_arg)
 	wlc_rateset_t rs, new;
 	uint bandunit;
 
-	bcopy((char *)rs_arg, (char *)&rs, sizeof(wlc_rateset_t));
+	memcpy(&rs, rs_arg, sizeof(wlc_rateset_t));
 
 	/* check for bad count value */
 	if ((rs.count == 0) || (rs.count > WLC_NUMRATES))
@@ -3018,7 +3017,7 @@ static int wlc_set_rateset(struct wlc_info *wlc, wlc_rateset_t *rs_arg)
 
 	/* try the current band */
 	bandunit = wlc->band->bandunit;
-	bcopy((char *)&rs, (char *)&new, sizeof(wlc_rateset_t));
+	memcpy(&new, &rs, sizeof(wlc_rateset_t));
 	if (wlc_rate_hwrs_filter_sort_validate
 	    (&new, &wlc->bandstate[bandunit]->hw_rateset, true,
 	     wlc->stf->txstreams))
@@ -3027,7 +3026,7 @@ static int wlc_set_rateset(struct wlc_info *wlc, wlc_rateset_t *rs_arg)
 	/* try the other band */
 	if (IS_MBAND_UNLOCKED(wlc)) {
 		bandunit = OTHERBANDUNIT(wlc);
-		bcopy((char *)&rs, (char *)&new, sizeof(wlc_rateset_t));
+		memcpy(&new, &rs, sizeof(wlc_rateset_t));
 		if (wlc_rate_hwrs_filter_sort_validate(&new,
 						       &wlc->
 						       bandstate[bandunit]->
@@ -3040,10 +3039,9 @@ static int wlc_set_rateset(struct wlc_info *wlc, wlc_rateset_t *rs_arg)
 
  good:
 	/* apply new rateset */
-	bcopy((char *)&new, (char *)&wlc->default_bss->rateset,
-	      sizeof(wlc_rateset_t));
-	bcopy((char *)&new, (char *)&wlc->bandstate[bandunit]->defrateset,
-	      sizeof(wlc_rateset_t));
+	memcpy(&wlc->default_bss->rateset, &new, sizeof(wlc_rateset_t));
+	memcpy(&wlc->bandstate[bandunit]->defrateset, &new,
+	       sizeof(wlc_rateset_t));
 	return 0;
 }
 
@@ -3123,7 +3121,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 	/* This will prevent the misaligned access */
 	if (pval && (u32) len >= sizeof(val))
-		bcopy(pval, &val, sizeof(val));
+		memcpy(&val, pval, sizeof(val));
 	else
 		val = 0;
 
@@ -3612,18 +3610,17 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			if (src_key) {
 				key.index = src_key->id;
 				key.len = src_key->len;
-				bcopy(src_key->data, key.data, key.len);
+				memcpy(key.data, src_key->data, key.len);
 				key.algo = src_key->algo;
 				if (WSEC_SOFTKEY(wlc, src_key, bsscfg))
 					key.flags |= WL_SOFT_KEY;
 				if (src_key->flags & WSEC_PRIMARY_KEY)
 					key.flags |= WL_PRIMARY_KEY;
 
-				bcopy(src_key->ea, key.ea,
-				      ETH_ALEN);
+				memcpy(key.ea, src_key->ea, ETH_ALEN);
 			}
 
-			bcopy((char *)&key, arg, sizeof(key));
+			memcpy(arg, &key, sizeof(key));
 		} else
 			bcmerror = BCME_BADKEYIDX;
 		break;
@@ -3674,7 +3671,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 				seq[6] = 0;
 				seq[7] = 0;
 
-				bcopy((char *)seq, arg, sizeof(seq));
+				memcpy(arg, seq, sizeof(seq));
 			} else {
 				bcmerror = BCME_BADKEYIDX;
 			}
@@ -3697,7 +3694,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 			/* Copy only legacy rateset section */
 			ret_rs->count = rs->count;
-			bcopy(&rs->rates, &ret_rs->rates, rs->count);
+			memcpy(&ret_rs->rates, &rs->rates, rs->count);
 			break;
 		}
 
@@ -3715,7 +3712,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 			/* Copy only legacy rateset section */
 			ret_rs->count = rs.count;
-			bcopy(&rs.rates, &ret_rs->rates, rs.count);
+			memcpy(&ret_rs->rates, &rs.rates, rs.count);
 			break;
 		}
 
@@ -3737,16 +3734,18 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 			/* Copy only legacy rateset section */
 			rs.count = in_rs->count;
-			bcopy(&in_rs->rates, &rs.rates, rs.count);
+			memcpy(&rs.rates, &in_rs->rates, rs.count);
 
 			/* merge rateset coming in with the current mcsset */
 			if (N_ENAB(wlc->pub)) {
 				if (bsscfg->associated)
-					bcopy(&current_bss->rateset.mcs[0],
-					      rs.mcs, MCSSET_LEN);
+					memcpy(rs.mcs,
+					       &current_bss->rateset.mcs[0],
+					       MCSSET_LEN);
 				else
-					bcopy(&wlc->default_bss->rateset.mcs[0],
-					      rs.mcs, MCSSET_LEN);
+					memcpy(rs.mcs,
+					       &wlc->default_bss->rateset.mcs[0],
+					       MCSSET_LEN);
 			}
 
 			bcmerror = wlc_set_rateset(wlc, &rs);
@@ -4048,7 +4047,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 				bcmerror = BCME_BUFTOOSHORT;
 				break;
 			}
-			bcopy((char *)arg, (char *)&rs, sizeof(wlc_rateset_t));
+			memcpy(&rs, arg, sizeof(wlc_rateset_t));
 
 			/* check for bad count value */
 			if (rs.count > WLC_NUMRATES) {
@@ -4084,7 +4083,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			}
 
 			/* apply new rateset to the override */
-			bcopy((char *)&new, (char *)&wlc->sup_rates_override,
+			memcpy(&wlc->sup_rates_override, &new,
 			      sizeof(wlc_rateset_t));
 
 			/* update bcn and probe resp if needed */
@@ -4108,8 +4107,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			bcmerror = BCME_BUFTOOSHORT;
 			break;
 		}
-		bcopy((char *)&wlc->sup_rates_override, (char *)arg,
-		      sizeof(wlc_rateset_t));
+		memcpy(arg, &wlc->sup_rates_override, sizeof(wlc_rateset_t));
 
 		break;
 
@@ -4518,7 +4516,7 @@ wlc_iovar_check(struct wlc_pub *pub, const bcm_iovar_t *vi, void *arg, int len,
 		case IOVT_UINT8:
 		case IOVT_UINT16:
 		case IOVT_UINT32:
-			bcopy(arg, &int_val, sizeof(int));
+			memcpy(&int_val, arg, sizeof(int));
 			err = wlc_iovar_rangecheck(wlc, int_val, vi);
 			break;
 		}
@@ -4562,11 +4560,12 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 
 	/* convenience int and bool vals for first 8 bytes of buffer */
 	if (p_len >= (int)sizeof(int_val))
-		bcopy(params, &int_val, sizeof(int_val));
+		memcpy(&int_val, params, sizeof(int_val));
 
 	if (p_len >= (int)sizeof(int_val) * 2)
-		bcopy((void *)((unsigned long)params + sizeof(int_val)), &int_val2,
-		      sizeof(int_val));
+		memcpy(&int_val2,
+		       (void *)((unsigned long)params + sizeof(int_val)),
+		       sizeof(int_val));
 
 	/* convenience int ptr for 4-byte gets (requires int aligned arg) */
 	ret_int_ptr = (s32 *) arg;
@@ -6061,8 +6060,8 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	/* (3) PLCP: determine PLCP header and MAC duration, fill d11txh_t */
 	wlc_compute_plcp(wlc, rspec[0], phylen, plcp);
 	wlc_compute_plcp(wlc, rspec[1], phylen, plcp_fallback);
-	bcopy(plcp_fallback, (char *)&txh->FragPLCPFallback,
-	      sizeof(txh->FragPLCPFallback));
+	memcpy(&txh->FragPLCPFallback,
+	       plcp_fallback, sizeof(txh->FragPLCPFallback));
 
 	/* Length field now put in CCK FBR CRC field */
 	if (IS_CCK(rspec[1])) {
@@ -6135,14 +6134,13 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	}
 
 	/* MacFrameControl */
-	bcopy((char *)&h->frame_control, (char *)&txh->MacFrameControl,
-	    sizeof(u16));
+	memcpy(&txh->MacFrameControl, &h->frame_control, sizeof(u16));
 	txh->TxFesTimeNormal = htol16(0);
 
 	txh->TxFesTimeFallback = htol16(0);
 
 	/* TxFrameRA */
-	bcopy((char *)&h->addr1, (char *)&txh->TxFrameRA, ETH_ALEN);
+	memcpy(&txh->TxFrameRA, &h->addr1, ETH_ALEN);
 
 	/* TxFrameID */
 	txh->TxFrameID = htol16(frameid);
@@ -6207,8 +6205,8 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 		/* fallback rate version of RTS PLCP header */
 		wlc_compute_plcp(wlc, rts_rspec[1], rts_phylen,
 				 rts_plcp_fallback);
-		bcopy(rts_plcp_fallback, (char *)&txh->RTSPLCPFallback,
-		      sizeof(txh->RTSPLCPFallback));
+		memcpy(&txh->RTSPLCPFallback, rts_plcp_fallback,
+		       sizeof(txh->RTSPLCPFallback));
 
 		/* RTS frame fields... */
 		rts = (struct ieee80211_rts *)&txh->rts_frame;
@@ -6226,11 +6224,10 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 		if (use_cts) {
 			rts->frame_control = htol16(FC_CTS);
-			bcopy((char *)&h->addr2, (char *)&rts->ra, ETH_ALEN);
+			memcpy(&rts->ra, &h->addr2, ETH_ALEN);
 		} else {
 			rts->frame_control = htol16((u16) FC_RTS);
-			bcopy((char *)&h->addr1, (char *)&rts->ra,
-			      2 * ETH_ALEN);
+			memcpy(&rts->ra, &h->addr1, 2 * ETH_ALEN);
 		}
 
 		/* mainrate
@@ -7726,10 +7723,9 @@ wlc_bcn_prb_template(struct wlc_info *wlc, uint type, ratespec_t bcn_rspec,
 	/* DUR is 0 for multicast bcn, or filled in by MAC for prb resp */
 	/* A1 filled in by MAC for prb resp, broadcast for bcn */
 	if (type == FC_BEACON)
-		bcopy((const char *)&ether_bcast, (char *)&h->da,
-		      ETH_ALEN);
-	bcopy((char *)&cfg->cur_etheraddr, (char *)&h->sa, ETH_ALEN);
-	bcopy((char *)&cfg->BSSID, (char *)&h->bssid, ETH_ALEN);
+		memcpy(&h->da, &ether_bcast, ETH_ALEN);
+	memcpy(&h->sa, &cfg->cur_etheraddr, ETH_ALEN);
+	memcpy(&h->bssid, &cfg->BSSID, ETH_ALEN);
 
 	/* SEQ filled in by MAC */
 
@@ -7820,7 +7816,7 @@ void wlc_shm_ssid_upd(struct wlc_info *wlc, wlc_bsscfg_t *cfg)
 
 	/* padding the ssid with zero and copy it into shm */
 	memset(ssidbuf, 0, IEEE80211_MAX_SSID_LEN);
-	bcopy(ssidptr, ssidbuf, cfg->SSID_len);
+	memcpy(ssidbuf, ssidptr, cfg->SSID_len);
 
 	wlc_copyto_shm(wlc, base, ssidbuf, IEEE80211_MAX_SSID_LEN);
 

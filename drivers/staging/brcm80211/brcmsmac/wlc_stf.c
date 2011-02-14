@@ -489,7 +489,7 @@ void wlc_stf_phy_chain_calc(struct wlc_info *wlc)
 	wlc->stf->rxstreams = (u8) WLC_BITSCNT(wlc->stf->hw_rxchain);
 
 	/* initialize the txcore table */
-	bcopy(txcore_default, wlc->stf->txcore, sizeof(wlc->stf->txcore));
+	memcpy(wlc->stf->txcore, txcore_default, sizeof(wlc->stf->txcore));
 
 	/* default spatial_policy */
 	wlc->stf->spatial_policy = MIN_SPATIAL_EXPANSION;

@@ -1336,8 +1336,8 @@ int srom_parsecis(struct osl_info *osh, u8 *pcis[], uint ciscnt, char **vars,
 						u8 srev = cis[i + 1 + 70];
 						ASSERT(srev == 3);
 						/* make tuple value 16-bit aligned and parse it */
-						bcopy(&cis[i + 1], srom,
-						      sizeof(srom));
+						memcpy(srom, &cis[i + 1],
+						       sizeof(srom));
 						_initvars_srom_pci(srev, srom,
 								   SROM3_SWRGN_OFF,
 								   &b);
@@ -1518,7 +1518,7 @@ static int otp_read_pci(struct osl_info *osh, si_t *sih, u16 *buf, uint bufsz)
 
 	err = otp_read_region(sih, OTP_HW_RGN, (u16 *) otp, &sz);
 
-	bcopy(otp, buf, bufsz);
+	memcpy(buf, otp, bufsz);
 
 	if (otp)
 		kfree(otp);
@@ -1562,7 +1562,7 @@ static int initvars_table(struct osl_info *osh, char *start, char *end,
 		ASSERT(vp != NULL);
 		if (!vp)
 			return BCME_NOMEM;
-		bcopy(start, vp, c);
+		memcpy(vp, start, c);
 		*vars = vp;
 		*count = c;
 	} else {

@@ -289,7 +289,7 @@ dev_wlc_bufvar_get(struct net_device *dev, char *name, char *buf, int buflen)
 	    dev_wlc_ioctl(dev, WLC_GET_VAR, (void *)ioctlbuf,
 			  MAX_WLIW_IOCTL_LEN);
 	if (!error)
-		bcopy(ioctlbuf, buf, buflen);
+		memcpy(buf, ioctlbuf, buflen);
 
 	return error;
 }
@@ -841,7 +841,7 @@ wl_iw_mlme(struct net_device *dev,
 	}
 
 	scbval.val = mlme->reason_code;
-	bcopy(&mlme->addr.sa_data, &scbval.ea, ETH_ALEN);
+	memcpy(&scbval.ea, &mlme->addr.sa_data, ETH_ALEN);
 
 	if (mlme->cmd == IW_MLME_DISASSOC) {
 		scbval.val = htod32(scbval.val);
@@ -1078,7 +1078,7 @@ static void wl_iw_set_event_mask(struct net_device *dev)
 	char iovbuf[WL_EVENTING_MASK_LEN + 12];
 
 	dev_iw_iovar_getbuf(dev, "event_msgs", "", 0, iovbuf, sizeof(iovbuf));
-	bcopy(iovbuf, eventmask, WL_EVENTING_MASK_LEN);
+	memcpy(eventmask, iovbuf, WL_EVENTING_MASK_LEN);
 	setbit(eventmask, WLC_E_SCAN_COMPLETE);
 	dev_iw_iovar_setbuf(dev, "event_msgs", eventmask, WL_EVENTING_MASK_LEN,
 			    iovbuf, sizeof(iovbuf));
@@ -2555,8 +2555,7 @@ wl_iw_set_encodeext(struct net_device *dev,
 	key.len = iwe->key_len;
 
 	if (!is_multicast_ether_addr(iwe->addr.sa_data))
-		bcopy((void *)&iwe->addr.sa_data, (char *)&key.ea,
-		      ETH_ALEN);
+		memcpy(&key.ea, &iwe->addr.sa_data, ETH_ALEN);
 
 	if (key.len == 0) {
 		if (iwe->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
@@ -2581,13 +2580,13 @@ wl_iw_set_encodeext(struct net_device *dev,
 			key.flags = WL_PRIMARY_KEY;
 		}
 
-		bcopy((void *)iwe->key, key.data, iwe->key_len);
+		memcpy(key.data, iwe->key, iwe->key_len);
 
 		if (iwe->alg == IW_ENCODE_ALG_TKIP) {
 			u8 keybuf[8];
-			bcopy(&key.data[24], keybuf, sizeof(keybuf));
-			bcopy(&key.data[16], &key.data[24], sizeof(keybuf));
-			bcopy(keybuf, &key.data[16], sizeof(keybuf));
+			memcpy(keybuf, &key.data[24], sizeof(keybuf));
+			memcpy(&key.data[24], &key.data[16], sizeof(keybuf));
+			memcpy(&key.data[16], keybuf, sizeof(keybuf));
 		}
 
 		if (iwe->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
@@ -2661,10 +2660,12 @@ wl_iw_set_pmksa(struct net_device *dev,
 			uint j;
 			pmkidptr = &pmkid;
 
-			bcopy(&iwpmksa->bssid.sa_data[0],
-			      &pmkidptr->pmkid[0].BSSID, ETH_ALEN);
-			bcopy(&iwpmksa->pmkid[0], &pmkidptr->pmkid[0].PMKID,
-			      WLAN_PMKID_LEN);
+			memcpy(&pmkidptr->pmkid[0].BSSID,
+			       &iwpmksa->bssid.sa_data[0],
+			       ETH_ALEN);
+			memcpy(&pmkidptr->pmkid[0].PMKID,
+			       &iwpmksa->pmkid[0],
+			       WLAN_PMKID_LEN);
 
 			WL_WSEC("wl_iw_set_pmksa:IW_PMKSA_REMOVE:PMKID: "
 				"%pM = ", &pmkidptr->pmkid[0].BSSID);
@@ -2683,12 +2684,12 @@ wl_iw_set_pmksa(struct net_device *dev,
 		    && (i < pmkid_list.pmkids.npmkid)) {
 			memset(&pmkid_list.pmkids.pmkid[i], 0, sizeof(pmkid_t));
 			for (; i < (pmkid_list.pmkids.npmkid - 1); i++) {
-				bcopy(&pmkid_list.pmkids.pmkid[i + 1].BSSID,
-				      &pmkid_list.pmkids.pmkid[i].BSSID,
-				      ETH_ALEN);
-				bcopy(&pmkid_list.pmkids.pmkid[i + 1].PMKID,
-				      &pmkid_list.pmkids.pmkid[i].PMKID,
-				      WLAN_PMKID_LEN);
+				memcpy(&pmkid_list.pmkids.pmkid[i].BSSID,
+				       &pmkid_list.pmkids.pmkid[i + 1].BSSID,
+				       ETH_ALEN);
+				memcpy(&pmkid_list.pmkids.pmkid[i].PMKID,
+				       &pmkid_list.pmkids.pmkid[i + 1].PMKID,
+				       WLAN_PMKID_LEN);
 			}
 			pmkid_list.pmkids.npmkid--;
 		} else
@@ -2702,12 +2703,12 @@ wl_iw_set_pmksa(struct net_device *dev,
 			     &pmkid_list.pmkids.pmkid[i].BSSID, ETH_ALEN))
 				break;
 		if (i < MAXPMKID) {
-			bcopy(&iwpmksa->bssid.sa_data[0],
-			      &pmkid_list.pmkids.pmkid[i].BSSID,
-			      ETH_ALEN);
-			bcopy(&iwpmksa->pmkid[0],
-			      &pmkid_list.pmkids.pmkid[i].PMKID,
-			      WLAN_PMKID_LEN);
+			memcpy(&pmkid_list.pmkids.pmkid[i].BSSID,
+			       &iwpmksa->bssid.sa_data[0],
+			       ETH_ALEN);
+			memcpy(&pmkid_list.pmkids.pmkid[i].PMKID,
+			       &iwpmksa->pmkid[0],
+			       WLAN_PMKID_LEN);
 			if (i == pmkid_list.pmkids.npmkid)
 				pmkid_list.pmkids.npmkid++;
 		} else
@@ -3491,9 +3492,9 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 					if (pmkidcand->preauth)
 						iwpmkidcand->flags |=
 						    IW_PMKID_CAND_PREAUTH;
-					bcopy(&pmkidcand->BSSID,
-					      &iwpmkidcand->bssid.sa_data,
-					      ETH_ALEN);
+					memcpy(&iwpmkidcand->bssid.sa_data,
+					       &pmkidcand->BSSID,
+					       ETH_ALEN);
 #ifndef SANDGATE2G
 					wireless_send_event(dev, cmd, &wrqu,
 							    extra);

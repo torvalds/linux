@@ -945,7 +945,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 			}
 
 			PKTALIGN(osh, new, pkt->len, DHD_SDALIGN);
-			bcopy(pkt->data, new->data, pkt->len);
+			memcpy(new->data, pkt->data, pkt->len);
 			if (free_pkt)
 				pkt_buf_free_skb(osh, pkt, true);
 			/* free the pkt if canned one is not used */
@@ -1395,7 +1395,7 @@ int dhd_bus_rxctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 
 	dhd_os_sdlock(bus->dhd);
 	rxlen = bus->rxlen;
-	bcopy(bus->rxctl, msg, min(msglen, rxlen));
+	memcpy(msg, bus->rxctl, min(msglen, rxlen));
 	bus->rxlen = 0;
 	dhd_os_sdunlock(bus->dhd);
 
@@ -1658,7 +1658,7 @@ static int dhdsdio_pktgen_get(dhd_bus_t *bus, u8 *arg)
 	pktgen.mode = bus->pktgen_mode;
 	pktgen.stop = bus->pktgen_stop;
 
-	bcopy(&pktgen, arg, sizeof(pktgen));
+	memcpy(arg, &pktgen, sizeof(pktgen));
 
 	return 0;
 }
@@ -1668,7 +1668,7 @@ static int dhdsdio_pktgen_set(dhd_bus_t *bus, u8 *arg)
 	dhd_pktgen_t pktgen;
 	uint oldcnt, oldmode;
 
-	bcopy(arg, &pktgen, sizeof(pktgen));
+	memcpy(&pktgen, arg, sizeof(pktgen));
 	if (pktgen.version != DHD_PKTGEN_VERSION)
 		return BCME_BADARG;
 
@@ -2094,7 +2094,7 @@ int dhdsdio_downloadvars(dhd_bus_t *bus, void *arg, int len)
 
 	/* Copy the passed variables, which should include the
 		 terminating double-null */
-	bcopy(arg, bus->vars, bus->varsz);
+	memcpy(bus->vars, arg, bus->varsz);
 err:
 	return bcmerror;
 }
@@ -2117,7 +2117,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		goto exit;
 
 	if (plen >= (int)sizeof(int_val))
-		bcopy(params, &int_val, sizeof(int_val));
+		memcpy(&int_val, params, sizeof(int_val));
 
 	bool_val = (int_val != 0) ? true : false;
 
@@ -2137,7 +2137,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 			bcmerror = dhdsdio_bussleep(bus, bool_val);
 		} else {
 			int_val = (s32) bus->sleeping;
-			bcopy(&int_val, arg, val_size);
+			memcpy(arg, &int_val, val_size);
 		}
 		goto exit;
 	}
@@ -2151,7 +2151,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 	switch (actionid) {
 	case IOV_GVAL(IOV_INTR):
 		int_val = (s32) bus->intr;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_INTR):
@@ -2172,7 +2172,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_POLLRATE):
 		int_val = (s32) bus->pollrate;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_POLLRATE):
@@ -2182,7 +2182,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_IDLETIME):
 		int_val = bus->idletime;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_IDLETIME):
@@ -2194,7 +2194,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_IDLECLOCK):
 		int_val = (s32) bus->idleclock;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_IDLECLOCK):
@@ -2203,7 +2203,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_SD1IDLE):
 		int_val = (s32) sd1idle;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_SD1IDLE):
@@ -2222,8 +2222,8 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 			ASSERT(plen >= 2 * sizeof(int));
 
 			address = (u32) int_val;
-			bcopy((char *)params + sizeof(int_val), &int_val,
-			      sizeof(int_val));
+			memcpy(&int_val, (char *)params + sizeof(int_val),
+			       sizeof(int_val));
 			size = (uint) int_val;
 
 			/* Do some validation */
@@ -2266,12 +2266,12 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_MEMSIZE):
 		int_val = (s32) bus->ramsize;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_GVAL(IOV_SDIOD_DRIVE):
 		int_val = (s32) dhd_sdiod_drive_strength;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_SDIOD_DRIVE):
@@ -2290,7 +2290,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_READAHEAD):
 		int_val = (s32) dhd_readahead;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_READAHEAD):
@@ -2301,7 +2301,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_SDRXCHAIN):
 		int_val = (s32) bus->use_rxchain;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_SDRXCHAIN):
@@ -2312,7 +2312,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		break;
 	case IOV_GVAL(IOV_ALIGNCTL):
 		int_val = (s32) dhd_alignctl;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_ALIGNCTL):
@@ -2321,13 +2321,13 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_SDALIGN):
 		int_val = DHD_SDALIGN;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 #ifdef DHD_DEBUG
 	case IOV_GVAL(IOV_VARS):
 		if (bus->varsz < (uint) len)
-			bcopy(bus->vars, arg, bus->varsz);
+			memcpy(arg, bus->vars, bus->varsz);
 		else
 			bcmerror = BCME_BUFTOOSHORT;
 		break;
@@ -2346,7 +2346,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 			int_val = (s32) bcmsdh_reg_read(bus->sdh, addr, size);
 			if (bcmsdh_regfail(bus->sdh))
 				bcmerror = BCME_SDIO_ERROR;
-			bcopy(&int_val, arg, sizeof(s32));
+			memcpy(arg, &int_val, sizeof(s32));
 			break;
 		}
 
@@ -2372,14 +2372,14 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 			sdreg_t sdreg;
 			u32 addr, size;
 
-			bcopy(params, &sdreg, sizeof(sdreg));
+			memcpy(&sdreg, params, sizeof(sdreg));
 
 			addr = SI_ENUM_BASE + sdreg.offset;
 			size = sdreg.func;
 			int_val = (s32) bcmsdh_reg_read(bus->sdh, addr, size);
 			if (bcmsdh_regfail(bus->sdh))
 				bcmerror = BCME_SDIO_ERROR;
-			bcopy(&int_val, arg, sizeof(s32));
+			memcpy(arg, &int_val, sizeof(s32));
 			break;
 		}
 
@@ -2388,7 +2388,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 			sdreg_t sdreg;
 			u32 addr, size;
 
-			bcopy(params, &sdreg, sizeof(sdreg));
+			memcpy(&sdreg, params, sizeof(sdreg));
 
 			addr = SI_ENUM_BASE + sdreg.offset;
 			size = sdreg.func;
@@ -2419,7 +2419,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_FORCEEVEN):
 		int_val = (s32) forcealign;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_FORCEEVEN):
@@ -2428,7 +2428,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_TXBOUND):
 		int_val = (s32) dhd_txbound;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_TXBOUND):
@@ -2437,7 +2437,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_RXBOUND):
 		int_val = (s32) dhd_rxbound;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_RXBOUND):
@@ -2446,7 +2446,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_TXMINMAX):
 		int_val = (s32) dhd_txminmax;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_TXMINMAX):
@@ -2457,7 +2457,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 #ifdef SDTEST
 	case IOV_GVAL(IOV_EXTLOOP):
 		int_val = (s32) bus->ext_loop;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_EXTLOOP):
@@ -2491,7 +2491,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 		/* Get its status */
 		int_val = (bool) bus->dhd->dongle_reset;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 
 		break;
 
@@ -2536,7 +2536,7 @@ static int dhdsdio_write_vars(dhd_bus_t *bus)
 			return BCME_NOMEM;
 
 		memset(vbuffer, 0, varsize);
-		bcopy(bus->vars, vbuffer, bus->varsz);
+		memcpy(vbuffer, bus->vars, bus->varsz);
 
 		/* Write the vars list */
 		bcmerror =
@@ -3099,13 +3099,13 @@ dhdsdio_read_control(dhd_bus_t *bus, u8 *hdr, uint len, uint doff)
 	ASSERT(bus->rxctl >= bus->rxbuf);
 
 	/* Copy the already-read portion over */
-	bcopy(hdr, bus->rxctl, firstread);
+	memcpy(bus->rxctl, hdr, firstread);
 	if (len <= firstread)
 		goto gotpkt;
 
 	/* Copy the full data pkt in gSPI case and process ioctl. */
 	if (bus->bus == SPI_BUS) {
-		bcopy(hdr, bus->rxctl, len);
+		memcpy(bus->rxctl, hdr, len);
 		goto gotpkt;
 	}
 
@@ -3769,7 +3769,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			dhd_os_sdunlock_rxq(bus->dhd);
 
 			/* Now check the header */
-			bcopy(rxbuf, bus->rxhdr, SDPCM_HDRLEN);
+			memcpy(bus->rxhdr, rxbuf, SDPCM_HDRLEN);
 
 			/* Extract hardware header fields */
 			len = ltoh16_ua(bus->rxhdr);
@@ -4135,7 +4135,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 
 		/* Copy the already-read portion */
 		skb_push(pkt, firstread);
-		bcopy(bus->rxhdr, pkt->data, firstread);
+		memcpy(pkt->data, bus->rxhdr, firstread);
 
 #ifdef DHD_DEBUG
 		if (DHD_BYTES_ON() && DHD_DATA_ON())

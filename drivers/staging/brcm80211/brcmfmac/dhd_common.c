@@ -214,7 +214,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 		goto exit;
 
 	if (plen >= (int)sizeof(int_val))
-		bcopy(params, &int_val, sizeof(int_val));
+		memcpy(&int_val, params, sizeof(int_val));
 
 	switch (actionid) {
 	case IOV_GVAL(IOV_VERSION):
@@ -224,7 +224,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_MSGLEVEL):
 		int_val = (s32) dhd_msg_level;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_MSGLEVEL):
@@ -239,12 +239,12 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_BCMERROR):
 		int_val = (s32) dhd_pub->bcmerror;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_GVAL(IOV_WDTICK):
 		int_val = (s32) dhd_watchdog_ms;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_WDTICK):
@@ -262,7 +262,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 #ifdef DHD_DEBUG
 	case IOV_GVAL(IOV_DCONSOLE_POLL):
 		int_val = (s32) dhd_console_ms;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_DCONSOLE_POLL):
@@ -290,7 +290,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_GVAL(IOV_IOCTLTIMEOUT):{
 			int_val = (s32) dhd_os_get_ioctl_resp_timeout();
-			bcopy(&int_val, arg, sizeof(int_val));
+			memcpy(arg, &int_val, sizeof(int_val));
 			break;
 		}
 
@@ -1498,7 +1498,7 @@ int dhd_iscan_delete_bss(void *dhdp, void *addr, iscan_buf_t *iscan_skip)
 								(bi->length));
 /*
 			if(bi && bi_new) {
-				bcopy(bi, bi_new, results->buflen -
+				memcpy(bi_new, bi, results->buflen -
 				dtoh32(bi_new->length));
 				results->buflen -= dtoh32(bi_new->length);
 			}
@@ -1522,7 +1522,7 @@ int dhd_iscan_delete_bss(void *dhdp, void *addr, iscan_buf_t *iscan_skip)
 							    (wl_bss_info_t *)((unsigned long)bi +
 								 dtoh32
 								 (bi->length));
-							bcopy(bi, bi_new,
+							memcpy(bi_new, bi,
 							      dtoh32
 							      (bi->length));
 							bi_new =

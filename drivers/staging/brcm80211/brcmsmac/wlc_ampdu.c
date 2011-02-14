@@ -1324,7 +1324,7 @@ void wlc_ampdu_macaddr_upd(struct wlc_info *wlc)
 
 	/* driver needs to write the ta in the template; ta is at offset 16 */
 	memset(template, 0, sizeof(template));
-	bcopy((char *)wlc->pub->cur_etheraddr, template, ETH_ALEN);
+	memcpy(template, wlc->pub->cur_etheraddr, ETH_ALEN);
 	wlc_write_template_ram(wlc, (T_BA_TPL_BASE + 16), (T_RAM_ACCESS_SZ * 2),
 			       template);
 }

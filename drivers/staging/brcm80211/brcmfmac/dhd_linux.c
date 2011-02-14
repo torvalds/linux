@@ -2167,7 +2167,7 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 	bcm_mkiovar("event_msgs", dhdp->eventmask, WL_EVENTING_MASK_LEN, iovbuf,
 		    sizeof(iovbuf));
 	dhdcdc_query_ioctl(dhdp, 0, WLC_GET_VAR, iovbuf, sizeof(iovbuf));
-	bcopy(iovbuf, dhdp->eventmask, WL_EVENTING_MASK_LEN);
+	memcpy(dhdp->eventmask, iovbuf, WL_EVENTING_MASK_LEN);
 
 	setbit(dhdp->eventmask, WLC_E_SET_SSID);
 	setbit(dhdp->eventmask, WLC_E_PRUNE);

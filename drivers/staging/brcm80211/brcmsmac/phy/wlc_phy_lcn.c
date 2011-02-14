@@ -1965,8 +1965,9 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 			    tbl_iqcal_gainparams_lcnphy[band_idx][j][2];
 			cal_gains.pad_gain =
 			    tbl_iqcal_gainparams_lcnphy[band_idx][j][3];
-			bcopy(&tbl_iqcal_gainparams_lcnphy[band_idx][j][3],
-			      ncorr_override, sizeof(ncorr_override));
+			memcpy(ncorr_override,
+			       &tbl_iqcal_gainparams_lcnphy[band_idx][j][3],
+			       sizeof(ncorr_override));
 			break;
 		}
 	}

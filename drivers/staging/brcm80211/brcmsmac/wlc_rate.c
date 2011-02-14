@@ -382,7 +382,7 @@ ratespec_t BCMFASTPATH wlc_compute_rspec(d11rxhdr_t *rxh, u8 *plcp)
 /* copy rateset src to dst as-is (no masking or sorting) */
 void wlc_rateset_copy(const wlc_rateset_t *src, wlc_rateset_t *dst)
 {
-	bcopy(src, dst, sizeof(wlc_rateset_t));
+	memcpy(dst, src, sizeof(wlc_rateset_t));
 }
 
 /*
@@ -417,7 +417,7 @@ wlc_rateset_filter(wlc_rateset_t *src, wlc_rateset_t *dst, bool basic_only,
 	dst->htphy_membership = src->htphy_membership;
 
 	if (mcsallow && rates != WLC_RATES_CCK)
-		bcopy(&src->mcs[0], &dst->mcs[0], MCSSET_LEN);
+		memcpy(&dst->mcs[0], &src->mcs[0], MCSSET_LEN);
 	else
 		wlc_rateset_mcs_clear(dst);
 }
@@ -487,7 +487,7 @@ void wlc_rateset_mcs_clear(wlc_rateset_t *rateset)
 
 void wlc_rateset_mcs_build(wlc_rateset_t *rateset, u8 txstreams)
 {
-	bcopy(&cck_ofdm_mimo_rates.mcs[0], &rateset->mcs[0], MCSSET_LEN);
+	memcpy(&rateset->mcs[0], &cck_ofdm_mimo_rates.mcs[0], MCSSET_LEN);
 	wlc_rateset_mcs_upd(rateset, txstreams);
 }
 

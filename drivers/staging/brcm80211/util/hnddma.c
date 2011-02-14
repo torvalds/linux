@@ -1758,8 +1758,8 @@ static void dma64_txrotate(dma_info_t *di)
 
 		/* Move the map */
 		if (DMASGLIST_ENAB) {
-			bcopy(&di->txp_dmah[old], &di->txp_dmah[new],
-			      sizeof(hnddma_seg_map_t));
+			memcpy(&di->txp_dmah[new], &di->txp_dmah[old],
+			       sizeof(hnddma_seg_map_t));
 			memset(&di->txp_dmah[old], 0, sizeof(hnddma_seg_map_t));
 		}
 

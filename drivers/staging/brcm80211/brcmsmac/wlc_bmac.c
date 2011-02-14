@@ -1275,7 +1275,7 @@ void wlc_bmac_wait_for_wake(struct wlc_hw_info *wlc_hw)
 
 void wlc_bmac_hw_etheraddr(struct wlc_hw_info *wlc_hw, u8 *ea)
 {
-	bcopy(wlc_hw->etheraddr, ea, ETH_ALEN);
+	memcpy(ea, wlc_hw->etheraddr, ETH_ALEN);
 }
 
 int wlc_bmac_bandtype(struct wlc_hw_info *wlc_hw)
@@ -1698,7 +1698,7 @@ wlc_bmac_write_template_ram(struct wlc_hw_info *wlc_hw, int offset, int len,
 	be_bit = (R_REG(osh, &regs->maccontrol) & MCTL_BIGEND) != 0;
 
 	while (len > 0) {
-		bcopy((u8 *) buf, &word, sizeof(u32));
+		memcpy(&word, buf, sizeof(u32));
 
 		if (be_bit)
 			word = hton32(word);

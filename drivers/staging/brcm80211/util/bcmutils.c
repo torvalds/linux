@@ -50,7 +50,7 @@ uint pktfrombuf(struct osl_info *osh, struct sk_buff *p, uint offset, int len,
 	/* copy the data */
 	for (; p && len; p = p->next) {
 		n = min((uint) (p->len) - offset, (uint) len);
-		bcopy(buf, p->data + offset, n);
+		memcpy(p->data + offset, buf, n);
 		buf += n;
 		len -= n;
 		ret += n;

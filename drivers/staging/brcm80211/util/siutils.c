@@ -697,7 +697,7 @@ void si_detach(si_t *sih)
 	uint idx;
 
 	struct si_pub *si_local = NULL;
-	bcopy(&sih, &si_local, sizeof(si_t **));
+	memcpy(&si_local, &sih, sizeof(si_t **));
 
 	sii = SI_INFO(sih);
 

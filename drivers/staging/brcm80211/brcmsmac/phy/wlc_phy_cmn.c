@@ -779,7 +779,7 @@ wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype, char *vars
 
 	pi->vars = (char *)&pi->vars;
 
-	bcopy(&pi->pubpi, &pi->pubpi_ro, sizeof(wlc_phy_t));
+	memcpy(&pi->pubpi_ro, &pi->pubpi, sizeof(wlc_phy_t));
 
 	return &pi->pubpi_ro;
 
@@ -1619,40 +1619,36 @@ void wlc_phy_txpower_target_set(wlc_phy_t *ppi, struct txpwr_limits *txpwr)
 	bool mac_enabled = false;
 	phy_info_t *pi = (phy_info_t *) ppi;
 
-	bcopy(&txpwr->cck[0], &pi->tx_user_target[TXP_FIRST_CCK],
-	      WLC_NUM_RATES_CCK);
+	memcpy(&pi->tx_user_target[TXP_FIRST_CCK],
+	       &txpwr->cck[0], WLC_NUM_RATES_CCK);
 
-	bcopy(&txpwr->ofdm[0], &pi->tx_user_target[TXP_FIRST_OFDM],
-	      WLC_NUM_RATES_OFDM);
-	bcopy(&txpwr->ofdm_cdd[0], &pi->tx_user_target[TXP_FIRST_OFDM_20_CDD],
-	      WLC_NUM_RATES_OFDM);
+	memcpy(&pi->tx_user_target[TXP_FIRST_OFDM],
+	       &txpwr->ofdm[0], WLC_NUM_RATES_OFDM);
+	memcpy(&pi->tx_user_target[TXP_FIRST_OFDM_20_CDD],
+	       &txpwr->ofdm_cdd[0], WLC_NUM_RATES_OFDM);
 
-	bcopy(&txpwr->ofdm_40_siso[0],
-	      &pi->tx_user_target[TXP_FIRST_OFDM_40_SISO], WLC_NUM_RATES_OFDM);
-	bcopy(&txpwr->ofdm_40_cdd[0],
-	      &pi->tx_user_target[TXP_FIRST_OFDM_40_CDD], WLC_NUM_RATES_OFDM);
+	memcpy(&pi->tx_user_target[TXP_FIRST_OFDM_40_SISO],
+	       &txpwr->ofdm_40_siso[0], WLC_NUM_RATES_OFDM);
+	memcpy(&pi->tx_user_target[TXP_FIRST_OFDM_40_CDD],
+	       &txpwr->ofdm_40_cdd[0], WLC_NUM_RATES_OFDM);
 
-	bcopy(&txpwr->mcs_20_siso[0],
-	      &pi->tx_user_target[TXP_FIRST_MCS_20_SISO],
-	      WLC_NUM_RATES_MCS_1_STREAM);
-	bcopy(&txpwr->mcs_20_cdd[0], &pi->tx_user_target[TXP_FIRST_MCS_20_CDD],
-	      WLC_NUM_RATES_MCS_1_STREAM);
-	bcopy(&txpwr->mcs_20_stbc[0],
-	      &pi->tx_user_target[TXP_FIRST_MCS_20_STBC],
-	      WLC_NUM_RATES_MCS_1_STREAM);
-	bcopy(&txpwr->mcs_20_mimo[0], &pi->tx_user_target[TXP_FIRST_MCS_20_SDM],
-	      WLC_NUM_RATES_MCS_2_STREAM);
+	memcpy(&pi->tx_user_target[TXP_FIRST_MCS_20_SISO],
+	       &txpwr->mcs_20_siso[0], WLC_NUM_RATES_MCS_1_STREAM);
+	memcpy(&pi->tx_user_target[TXP_FIRST_MCS_20_CDD],
+	       &txpwr->mcs_20_cdd[0], WLC_NUM_RATES_MCS_1_STREAM);
+	memcpy(&pi->tx_user_target[TXP_FIRST_MCS_20_STBC],
+	       &txpwr->mcs_20_stbc[0], WLC_NUM_RATES_MCS_1_STREAM);
+	memcpy(&pi->tx_user_target[TXP_FIRST_MCS_20_SDM],
+	       &txpwr->mcs_20_mimo[0], WLC_NUM_RATES_MCS_2_STREAM);
 
-	bcopy(&txpwr->mcs_40_siso[0],
-	      &pi->tx_user_target[TXP_FIRST_MCS_40_SISO],
-	      WLC_NUM_RATES_MCS_1_STREAM);
-	bcopy(&txpwr->mcs_40_cdd[0], &pi->tx_user_target[TXP_FIRST_MCS_40_CDD],
-	      WLC_NUM_RATES_MCS_1_STREAM);
-	bcopy(&txpwr->mcs_40_stbc[0],
-	      &pi->tx_user_target[TXP_FIRST_MCS_40_STBC],
-	      WLC_NUM_RATES_MCS_1_STREAM);
-	bcopy(&txpwr->mcs_40_mimo[0], &pi->tx_user_target[TXP_FIRST_MCS_40_SDM],
-	      WLC_NUM_RATES_MCS_2_STREAM);
+	memcpy(&pi->tx_user_target[TXP_FIRST_MCS_40_SISO],
+	       &txpwr->mcs_40_siso[0], WLC_NUM_RATES_MCS_1_STREAM);
+	memcpy(&pi->tx_user_target[TXP_FIRST_MCS_40_CDD],
+	       &txpwr->mcs_40_cdd[0], WLC_NUM_RATES_MCS_1_STREAM);
+	memcpy(&pi->tx_user_target[TXP_FIRST_MCS_40_STBC],
+	       &txpwr->mcs_40_stbc[0], WLC_NUM_RATES_MCS_1_STREAM);
+	memcpy(&pi->tx_user_target[TXP_FIRST_MCS_40_SDM],
+	       &txpwr->mcs_40_mimo[0], WLC_NUM_RATES_MCS_2_STREAM);
 
 	if (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC)
 		mac_enabled = true;

@@ -818,7 +818,7 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 			if (offset + dsz >= *len) {
 				goto out;
 			}
-			bcopy((char *)&rawotp[i + 2], &data[offset], dsz);
+			memcpy(&data[offset], &rawotp[i + 2], dsz);
 			offset += dsz;
 			/* Remove extra null characters at the end */
 			while (offset > 1 &&

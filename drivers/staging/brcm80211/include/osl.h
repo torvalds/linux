@@ -110,8 +110,6 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 #include <linux/kernel.h>	/* for vsn/printf's */
 #include <linux/string.h>	/* for mem*, str* */
 #endif
-/* bcopy's: Linux kernel doesn't provide these (anymore) */
-#define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
 
 /* register access macros */
 #ifndef IL_BIGENDIAN
@@ -203,8 +201,6 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 		(OSL_WRITE_REG(osh, r, v))); \
 	} while (0)
 #endif				/* IL_BIGENDIAN */
-
-#define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
 
 /* packet primitives */
 extern struct sk_buff *pkt_buf_get_skb(struct osl_info *osh, uint len);

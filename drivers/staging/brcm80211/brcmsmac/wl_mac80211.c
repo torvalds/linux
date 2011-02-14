@@ -799,7 +799,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 		goto fail;
 	}
 
-	bcopy(&wl->pub->cur_etheraddr, perm, ETH_ALEN);
+	memcpy(perm, &wl->pub->cur_etheraddr, ETH_ALEN);
 	ASSERT(is_valid_ether_addr(perm));
 	SET_IEEE80211_PERM_ADDR(hw, perm);
 
@@ -1754,7 +1754,7 @@ int wl_ucode_init_buf(struct wl_info *wl, void **pbuf, u32 idx)
 						 hdr->len);
 					goto fail;
 				}
-				bcopy(pdata, *pbuf, hdr->len);
+				memcpy(*pbuf, pdata, hdr->len);
 				return 0;
 			}
 		}
