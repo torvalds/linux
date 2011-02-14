@@ -573,13 +573,13 @@ static int qeth_l2_send_setmac_cb(struct qeth_card *card,
 		case IPA_RC_L2_DUP_LAYER3_MAC:
 			dev_warn(&card->gdev->dev,
 				"MAC address %pM already exists\n",
-				card->dev->dev_addr);
+				cmd->data.setdelmac.mac);
 			break;
 		case IPA_RC_L2_MAC_NOT_AUTH_BY_HYP:
 		case IPA_RC_L2_MAC_NOT_AUTH_BY_ADP:
 			dev_warn(&card->gdev->dev,
 				"MAC address %pM is not authorized\n",
-				card->dev->dev_addr);
+				cmd->data.setdelmac.mac);
 			break;
 		default:
 			break;

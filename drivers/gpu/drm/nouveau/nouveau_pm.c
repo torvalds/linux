@@ -443,7 +443,7 @@ nouveau_hwmon_fini(struct drm_device *dev)
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 
 	if (pm->hwmon) {
-		sysfs_remove_group(&pm->hwmon->kobj, &hwmon_attrgroup);
+		sysfs_remove_group(&dev->pdev->dev.kobj, &hwmon_attrgroup);
 		hwmon_device_unregister(pm->hwmon);
 	}
 #endif

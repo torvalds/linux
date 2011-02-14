@@ -10,6 +10,7 @@
  * 66.66... MHz. We do a convulted calculation of CLOCK_TICK_RATE b/c the
  * timer register ignores the bottom 2 bits of the LATCH value.
  */
-#define FREQ 66666000
-#define CLOCK_TICK_RATE (((FREQ / HZ & ~IXP4XX_OST_RELOAD_MASK) + 1) * HZ)
+#define IXP4XX_TIMER_FREQ 66666000
+#define CLOCK_TICK_RATE \
+	(((IXP4XX_TIMER_FREQ / HZ & ~IXP4XX_OST_RELOAD_MASK) + 1) * HZ)
 

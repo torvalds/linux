@@ -101,7 +101,7 @@ extern phys_addr_t kernstart_addr;
 
 #ifdef CONFIG_FLATMEM
 #define ARCH_PFN_OFFSET		(MEMORY_START >> PAGE_SHIFT)
-#define pfn_valid(pfn)		((pfn) >= ARCH_PFN_OFFSET && (pfn) < (ARCH_PFN_OFFSET + max_mapnr))
+#define pfn_valid(pfn)		((pfn) >= ARCH_PFN_OFFSET && (pfn) < max_mapnr)
 #endif
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)

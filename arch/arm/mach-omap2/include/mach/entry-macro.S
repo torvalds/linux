@@ -38,20 +38,6 @@
  */
 
 #ifdef MULTI_OMAP2
-
-/*
- * We use __glue to avoid errors with multiple definitions of
- * .globl omap_irq_base as it's included from entry-armv.S but not
- * from entry-common.S.
- */
-#ifdef __glue
-		.pushsection .data
-		.globl	omap_irq_base
-omap_irq_base:
-		.word	0
-		.popsection
-#endif
-
 		/*
 		 * Configure the interrupt base on the first interrupt.
 		 * See also omap_irq_base_init for setting omap_irq_base.

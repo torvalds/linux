@@ -43,10 +43,7 @@ DECLARE_EARLY_PER_CPU(int, x86_cpu_to_logical_apicid);
 #endif
 
 /* Static state in head.S used to set up a CPU */
-extern struct {
-	void *sp;
-	unsigned short ss;
-} stack_start;
+extern unsigned long stack_start; /* Initial stack pointer address */
 
 struct smp_ops {
 	void (*smp_prepare_boot_cpu)(void);

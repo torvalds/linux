@@ -86,7 +86,7 @@ static const u32 tegra_kbc_default_keymap[] = {
 	KEY(0, 5, KEY_Z),
 	KEY(0, 7, KEY_FN),
 
-	KEY(1, 7, KEY_MENU),
+	KEY(1, 7, KEY_LEFTMETA),
 
 	KEY(2, 6, KEY_RIGHTALT),
 	KEY(2, 7, KEY_LEFTALT),
@@ -355,8 +355,8 @@ static void tegra_kbc_config_pins(struct tegra_kbc *kbc)
 	for (i = 0; i < KBC_MAX_GPIO; i++) {
 		u32 r_shft = 5 * (i % 6);
 		u32 c_shft = 4 * (i % 8);
-		u32 r_mask = 0x1f << r_shift;
-		u32 c_mask = 0x0f << c_shift;
+		u32 r_mask = 0x1f << r_shft;
+		u32 c_mask = 0x0f << c_shft;
 		u32 r_offs = (i / 6) * 4 + KBC_ROW_CFG0_0;
 		u32 c_offs = (i / 8) * 4 + KBC_COL_CFG0_0;
 		u32 row_cfg = readl(kbc->mmio + r_offs);
