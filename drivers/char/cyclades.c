@@ -2429,7 +2429,7 @@ static int get_lsr_info(struct cyclades_port *info, unsigned int __user *value)
 	return put_user(result, (unsigned long __user *)value);
 }
 
-static int cy_tiocmget(struct tty_struct *tty, struct file *file)
+static int cy_tiocmget(struct tty_struct *tty)
 {
 	struct cyclades_port *info = tty->driver_data;
 	struct cyclades_card *card;

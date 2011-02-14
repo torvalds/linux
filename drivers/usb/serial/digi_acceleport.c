@@ -445,7 +445,7 @@ static void digi_rx_unthrottle(struct tty_struct *tty);
 static void digi_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios);
 static void digi_break_ctl(struct tty_struct *tty, int break_state);
-static int digi_tiocmget(struct tty_struct *tty, struct file *file);
+static int digi_tiocmget(struct tty_struct *tty);
 static int digi_tiocmset(struct tty_struct *tty, struct file *file,
 	unsigned int set, unsigned int clear);
 static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
@@ -1118,7 +1118,7 @@ static void digi_break_ctl(struct tty_struct *tty, int break_state)
 }
 
 
-static int digi_tiocmget(struct tty_struct *tty, struct file *file)
+static int digi_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct digi_port *priv = usb_get_serial_port_data(port);

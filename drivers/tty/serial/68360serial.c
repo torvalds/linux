@@ -1240,7 +1240,7 @@ static int get_lsr_info(struct async_struct * info, unsigned int *value)
 }
 #endif
 
-static int rs_360_tiocmget(struct tty_struct *tty, struct file *file)
+static int rs_360_tiocmget(struct tty_struct *tty)
 {
 	ser_info_t *info = (ser_info_t *)tty->driver_data;
 	unsigned int result = 0;

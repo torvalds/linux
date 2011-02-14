@@ -2648,7 +2648,7 @@ static void gsmtty_wait_until_sent(struct tty_struct *tty, int timeout)
 	   to do here */
 }
 
-static int gsmtty_tiocmget(struct tty_struct *tty, struct file *filp)
+static int gsmtty_tiocmget(struct tty_struct *tty)
 {
 	struct gsm_dlci *dlci = tty->driver_data;
 	return dlci->modem_rx;

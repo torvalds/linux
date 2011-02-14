@@ -268,7 +268,7 @@ struct usb_serial_driver {
 	int  (*chars_in_buffer)(struct tty_struct *tty);
 	void (*throttle)(struct tty_struct *tty);
 	void (*unthrottle)(struct tty_struct *tty);
-	int  (*tiocmget)(struct tty_struct *tty, struct file *file);
+	int  (*tiocmget)(struct tty_struct *tty);
 	int  (*tiocmset)(struct tty_struct *tty, struct file *file,
 			 unsigned int set, unsigned int clear);
 	int  (*get_icount)(struct tty_struct *tty,

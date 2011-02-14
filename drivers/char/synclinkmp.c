@@ -546,7 +546,7 @@ static int  tx_abort(SLMP_INFO *info);
 static int  rx_enable(SLMP_INFO *info, int enable);
 static int  modem_input_wait(SLMP_INFO *info,int arg);
 static int  wait_mgsl_event(SLMP_INFO *info, int __user *mask_ptr);
-static int  tiocmget(struct tty_struct *tty, struct file *file);
+static int  tiocmget(struct tty_struct *tty);
 static int  tiocmset(struct tty_struct *tty, struct file *file,
 		     unsigned int set, unsigned int clear);
 static int  set_break(struct tty_struct *tty, int break_state);
@@ -3207,7 +3207,7 @@ static int modem_input_wait(SLMP_INFO *info,int arg)
 
 /* return the state of the serial control and status signals
  */
-static int tiocmget(struct tty_struct *tty, struct file *file)
+static int tiocmget(struct tty_struct *tty)
 {
 	SLMP_INFO *info = tty->driver_data;
 	unsigned int result;

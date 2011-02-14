@@ -1873,7 +1873,7 @@ static int sx_break(struct tty_struct *tty, int flag)
 	return 0;
 }
 
-static int sx_tiocmget(struct tty_struct *tty, struct file *file)
+static int sx_tiocmget(struct tty_struct *tty)
 {
 	struct sx_port *port = tty->driver_data;
 	return sx_getsignals(port);

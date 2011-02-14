@@ -1833,7 +1833,7 @@ static int get_lsr_info(struct tty_struct *tty,
 	return 0;
 }
 
-static int mos7720_tiocmget(struct tty_struct *tty, struct file *file)
+static int mos7720_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct moschip_port *mos7720_port = usb_get_serial_port_data(port);
@@ -1865,7 +1865,7 @@ static int mos7720_tiocmset(struct tty_struct *tty, struct file *file,
 	struct moschip_port *mos7720_port = usb_get_serial_port_data(port);
 	unsigned int mcr ;
 	dbg("%s - port %d", __func__, port->number);
-	dbg("he was at tiocmget");
+	dbg("he was at tiocmset");
 
 	mcr = mos7720_port->shadowMCR;
 

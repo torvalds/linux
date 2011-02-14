@@ -3614,7 +3614,7 @@ rs_tiocmset(struct tty_struct *tty, struct file *file,
 }
 
 static int
-rs_tiocmget(struct tty_struct *tty, struct file *file)
+rs_tiocmget(struct tty_struct *tty)
 {
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
 	unsigned int result;

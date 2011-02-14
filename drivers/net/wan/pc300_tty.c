@@ -133,7 +133,7 @@ static void cpc_tty_signal_on(pc300dev_t *pc300dev, unsigned char);
 
 static int pc300_tiocmset(struct tty_struct *, struct file *,
 			  unsigned int, unsigned int);
-static int pc300_tiocmget(struct tty_struct *, struct file *);
+static int pc300_tiocmget(struct tty_struct *);
 
 /* functions called by PC300 driver */
 void cpc_tty_init(pc300dev_t *dev);
@@ -570,7 +570,7 @@ static int pc300_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static int pc300_tiocmget(struct tty_struct *tty, struct file *file)
+static int pc300_tiocmget(struct tty_struct *tty)
 {
 	unsigned int result;
 	unsigned char status;

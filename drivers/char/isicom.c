@@ -1065,7 +1065,7 @@ static int isicom_send_break(struct tty_struct *tty, int length)
 	return 0;
 }
 
-static int isicom_tiocmget(struct tty_struct *tty, struct file *file)
+static int isicom_tiocmget(struct tty_struct *tty)
 {
 	struct isi_port *port = tty->driver_data;
 	/* just send the port status */

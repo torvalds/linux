@@ -173,7 +173,7 @@ static int  cypress_ioctl(struct tty_struct *tty, struct file *file,
 			unsigned int cmd, unsigned long arg);
 static void cypress_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
-static int  cypress_tiocmget(struct tty_struct *tty, struct file *file);
+static int  cypress_tiocmget(struct tty_struct *tty);
 static int  cypress_tiocmset(struct tty_struct *tty, struct file *file,
 			unsigned int set, unsigned int clear);
 static int  cypress_chars_in_buffer(struct tty_struct *tty);
@@ -864,7 +864,7 @@ static int cypress_write_room(struct tty_struct *tty)
 }
 
 
-static int cypress_tiocmget(struct tty_struct *tty, struct file *file)
+static int cypress_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct cypress_private *priv = usb_get_serial_port_data(port);

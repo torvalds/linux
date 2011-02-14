@@ -41,7 +41,7 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 	unsigned int *cflagp, unsigned int *baudp);
 static void cp210x_set_termios(struct tty_struct *, struct usb_serial_port *,
 							struct ktermios*);
-static int cp210x_tiocmget(struct tty_struct *, struct file *);
+static int cp210x_tiocmget(struct tty_struct *);
 static int cp210x_tiocmset(struct tty_struct *, struct file *,
 		unsigned int, unsigned int);
 static int cp210x_tiocmset_port(struct usb_serial_port *port, struct file *,
@@ -742,7 +742,7 @@ static void cp210x_dtr_rts(struct usb_serial_port *p, int on)
 		cp210x_tiocmset_port(p, NULL,  0, TIOCM_DTR|TIOCM_RTS);
 }
 
-static int cp210x_tiocmget (struct tty_struct *tty, struct file *file)
+static int cp210x_tiocmget (struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	unsigned int control;

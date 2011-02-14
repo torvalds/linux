@@ -1644,7 +1644,7 @@ static void mos7840_unthrottle(struct tty_struct *tty)
 	}
 }
 
-static int mos7840_tiocmget(struct tty_struct *tty, struct file *file)
+static int mos7840_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct moschip_port *mos7840_port;

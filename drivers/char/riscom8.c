@@ -1086,7 +1086,7 @@ static int rc_chars_in_buffer(struct tty_struct *tty)
 	return port->xmit_cnt;
 }
 
-static int rc_tiocmget(struct tty_struct *tty, struct file *file)
+static int rc_tiocmget(struct tty_struct *tty)
 {
 	struct riscom_port *port = tty->driver_data;
 	struct riscom_board *bp;

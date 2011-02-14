@@ -352,7 +352,7 @@ static void opticon_unthrottle(struct tty_struct *tty)
 	}
 }
 
-static int opticon_tiocmget(struct tty_struct *tty, struct file *file)
+static int opticon_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct opticon_private *priv = usb_get_serial_data(port->serial);

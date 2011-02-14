@@ -1656,7 +1656,7 @@ static int hso_get_count(struct tty_struct *tty,
 }
 
 
-static int hso_serial_tiocmget(struct tty_struct *tty, struct file *file)
+static int hso_serial_tiocmget(struct tty_struct *tty)
 {
 	int retval;
 	struct hso_serial *serial = get_serial_by_tty(tty);

@@ -79,7 +79,7 @@ void usb_wwan_set_termios(struct tty_struct *tty,
 }
 EXPORT_SYMBOL(usb_wwan_set_termios);
 
-int usb_wwan_tiocmget(struct tty_struct *tty, struct file *file)
+int usb_wwan_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	unsigned int value;

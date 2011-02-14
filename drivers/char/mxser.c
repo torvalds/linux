@@ -1320,7 +1320,7 @@ static int mxser_get_lsr_info(struct mxser_port *info,
 	return put_user(result, value);
 }
 
-static int mxser_tiocmget(struct tty_struct *tty, struct file *file)
+static int mxser_tiocmget(struct tty_struct *tty)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned char control, status;

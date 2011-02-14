@@ -1308,7 +1308,7 @@ check_and_exit:
 	return startup(info);
 }				/* set_serial_info */
 
-static int cy_tiocmget(struct tty_struct *tty, struct file *file)
+static int cy_tiocmget(struct tty_struct *tty)
 {
 	struct cyclades_port *info = tty->driver_data;
 	int channel;

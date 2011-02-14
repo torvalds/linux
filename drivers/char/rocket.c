@@ -1169,7 +1169,7 @@ static int sGetChanRI(CHANNEL_T * ChP)
  *  Returns the state of the serial modem control lines.  These next 2 functions 
  *  are the way kernel versions > 2.5 handle modem control lines rather than IOCTLs.
  */
-static int rp_tiocmget(struct tty_struct *tty, struct file *file)
+static int rp_tiocmget(struct tty_struct *tty)
 {
 	struct r_port *info = tty->driver_data;
 	unsigned int control, result, ChanStatus;

@@ -618,7 +618,7 @@ static int spcp8x5_tiocmset(struct tty_struct *tty, struct file *file,
 	return spcp8x5_set_ctrlLine(port->serial->dev, control , priv->type);
 }
 
-static int spcp8x5_tiocmget(struct tty_struct *tty, struct file *file)
+static int spcp8x5_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);

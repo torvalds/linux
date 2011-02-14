@@ -484,7 +484,7 @@ static int ssu100_attach(struct usb_serial *serial)
 	return ssu100_initdevice(serial->dev);
 }
 
-static int ssu100_tiocmget(struct tty_struct *tty, struct file *file)
+static int ssu100_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_device *dev = port->serial->dev;

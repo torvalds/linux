@@ -1095,7 +1095,7 @@ static void hvsi_unthrottle(struct tty_struct *tty)
 	h_vio_signal(hp->vtermno, VIO_IRQ_ENABLE);
 }
 
-static int hvsi_tiocmget(struct tty_struct *tty, struct file *file)
+static int hvsi_tiocmget(struct tty_struct *tty)
 {
 	struct hvsi_struct *hp = tty->driver_data;
 

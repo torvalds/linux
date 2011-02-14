@@ -1194,7 +1194,7 @@ static int get_lsr_info(struct async_struct * info, unsigned int __user *value)
 }
 
 
-static int rs_tiocmget(struct tty_struct *tty, struct file *file)
+static int rs_tiocmget(struct tty_struct *tty)
 {
 	struct async_struct * info = tty->driver_data;
 	unsigned char control, status;

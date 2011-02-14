@@ -199,7 +199,7 @@ static void moxa_set_termios(struct tty_struct *, struct ktermios *);
 static void moxa_stop(struct tty_struct *);
 static void moxa_start(struct tty_struct *);
 static void moxa_hangup(struct tty_struct *);
-static int moxa_tiocmget(struct tty_struct *tty, struct file *file);
+static int moxa_tiocmget(struct tty_struct *tty);
 static int moxa_tiocmset(struct tty_struct *tty, struct file *file,
 			 unsigned int set, unsigned int clear);
 static void moxa_poll(unsigned long);
@@ -1257,7 +1257,7 @@ static int moxa_chars_in_buffer(struct tty_struct *tty)
 	return chars;
 }
 
-static int moxa_tiocmget(struct tty_struct *tty, struct file *file)
+static int moxa_tiocmget(struct tty_struct *tty)
 {
 	struct moxa_port *ch = tty->driver_data;
 	int flag = 0, dtr, rts;

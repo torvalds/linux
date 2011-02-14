@@ -245,7 +245,7 @@ static void ifx_spi_timeout(unsigned long arg)
  *	Map the signal state into Linux modem flags and report the value
  *	in Linux terms
  */
-static int ifx_spi_tiocmget(struct tty_struct *tty, struct file *filp)
+static int ifx_spi_tiocmget(struct tty_struct *tty)
 {
 	unsigned int value;
 	struct ifx_spi_device *ifx_dev = tty->driver_data;
