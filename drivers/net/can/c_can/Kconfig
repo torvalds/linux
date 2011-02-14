@@ -1,0 +1,15 @@
+menuconfig CAN_C_CAN
+	tristate "Bosch C_CAN devices"
+	depends on CAN_DEV && HAS_IOMEM
+
+if CAN_C_CAN
+
+config CAN_C_CAN_PLATFORM
+	tristate "Generic Platform Bus based C_CAN driver"
+	---help---
+	  This driver adds support for the C_CAN chips connected to
+	  the "platform bus" (Linux abstraction for directly to the
+	  processor attached devices) which can be found on various
+	  boards from ST Microelectronics (http://www.st.com)
+	  like the SPEAr1310 and SPEAr320 evaluation boards.
+endif
