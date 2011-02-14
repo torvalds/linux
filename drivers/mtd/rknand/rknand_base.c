@@ -362,6 +362,31 @@ static void rk28xxnand_sync(struct mtd_info *mtd)
 #endif
 }
 
+extern void FtlWriteCacheEn(int);
+static int rk28xxnand_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf)
+{
+	int sector = len >> 9;
+	int LBA = (int)(to >> 9);
+
+	if (sector) {
+		FtlWriteCacheEn(0);
+		NandWrite(LBA, sector, (void *)buf);
+		FtlWriteCacheEn(1);
+	}
+	*retlen = len;
+	return 0;
+}
+
+static int rk28xxnand_block_isbad(struct mtd_info *mtd, loff_t ofs)
+{
+	return 0;
+}
+
+static int rk28xxnand_block_markbad(struct mtd_info *mtd, loff_t ofs)
+{
+	return 0;
+}
+
 static int rk28xxnand_init(struct rknand_info *nand_info)
 {
 	struct mtd_info	   *mtd = &nand_info->mtd;
@@ -401,15 +426,15 @@ static int rk28xxnand_init(struct rknand_info *nand_info)
 	mtd->write = rk28xxnand_write;
 	mtd->read_oob = NULL;
 	mtd->write_oob = NULL;
-	mtd->panic_write = NULL;
+	mtd->panic_write = rk28xxnand_panic_write;
 
 	mtd->sync = rk28xxnand_sync;
 	mtd->lock = NULL;
 	mtd->unlock = NULL;
 	mtd->suspend = NULL;
 	mtd->resume = NULL;
-	mtd->block_isbad = NULL;
-	mtd->block_markbad = NULL;
+	mtd->block_isbad = rk28xxnand_block_isbad;
+	mtd->block_markbad = rk28xxnand_block_markbad;
 	mtd->owner = THIS_MODULE;
 
 #ifdef PAGE_REMAP
