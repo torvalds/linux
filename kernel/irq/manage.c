@@ -309,8 +309,6 @@ int irq_select_affinity_usr(unsigned int irq, struct cpumask *mask)
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	ret = setup_affinity(irq, desc, mask);
-	if (!ret)
-		irq_set_thread_affinity(desc);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return ret;
 }
