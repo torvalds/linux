@@ -273,6 +273,13 @@ int __generic_block_fiemap(struct inode *inode,
 		len = isize;
 	}
 
+	/*
+	 * Some filesystems can't deal with being asked to map less than
+	 * blocksize, so make sure our len is at least block length.
+	 */
+	if (logical_to_blk(inode, len) == 0)
+		len = blk_to_logical(inode, 1);
+
 	start_blk = logical_to_blk(inode, start);
 	last_blk = logical_to_blk(inode, start + len - 1);
 

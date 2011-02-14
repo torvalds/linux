@@ -78,18 +78,23 @@ u32 rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 }
 
 /* get temperature in millidegrees */
-u32 rv770_get_temp(struct radeon_device *rdev)
+int rv770_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = (RREG32(CG_MULT_THERMAL_STATUS) & ASIC_T_MASK) >>
 		ASIC_T_SHIFT;
-	u32 actual_temp = 0;
+	int actual_temp;
 
-	if ((temp >> 9) & 1)
-		actual_temp = 0;
-	else
-		actual_temp = (temp >> 1) & 0xff;
+	if (temp & 0x400)
+		actual_temp = -256;
+	else if (temp & 0x200)
+		actual_temp = 255;
+	else if (temp & 0x100) {
+		actual_temp = temp & 0x1ff;
+		actual_temp |= ~0x1ff;
+	} else
+		actual_temp = temp & 0xff;
 
-	return actual_temp * 1000;
+	return (actual_temp * 1000) / 2;
 }
 
 void rv770_pm_misc(struct radeon_device *rdev)

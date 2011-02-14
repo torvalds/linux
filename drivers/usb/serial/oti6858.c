@@ -157,6 +157,7 @@ static struct usb_serial_driver oti6858_device = {
 		.name =		"oti6858",
 	},
 	.id_table =		id_table,
+	.usb_driver =		&oti6858_driver,
 	.num_ports =		1,
 	.open =			oti6858_open,
 	.close =		oti6858_close,

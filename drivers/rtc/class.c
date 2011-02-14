@@ -143,6 +143,7 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->id = id;
 	rtc->ops = ops;
 	rtc->owner = owner;
+	rtc->irq_freq = 1;
 	rtc->max_user_freq = 64;
 	rtc->dev.parent = dev;
 	rtc->dev.class = rtc_class;

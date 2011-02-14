@@ -620,7 +620,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	 * target processor state.
 	 */
 	startup_ipi_hook(phys_apicid, (unsigned long) start_secondary,
-			 (unsigned long)stack_start.sp);
+			 stack_start);
 
 	/*
 	 * Run STARTUP IPI loop.
@@ -767,7 +767,7 @@ do_rest:
 #endif
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
-	stack_start.sp = (void *) c_idle.idle->thread.sp;
+	stack_start  = c_idle.idle->thread.sp;
 
 	/* start_ip had better be page-aligned! */
 	start_ip = setup_trampoline();

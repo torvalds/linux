@@ -55,9 +55,6 @@
 /* SMB echo "timeout" -- FIXME: tunable? */
 #define SMB_ECHO_INTERVAL (60 * HZ)
 
-extern void SMBNTencrypt(unsigned char *passwd, unsigned char *c8,
-			 unsigned char *p24);
-
 extern mempool_t *cifs_req_poolp;
 
 struct smb_vol {
@@ -87,6 +84,7 @@ struct smb_vol {
 	bool no_xattr:1;   /* set if xattr (EA) support should be disabled*/
 	bool server_ino:1; /* use inode numbers from server ie UniqueId */
 	bool direct_io:1;
+	bool strict_io:1; /* strict cache behavior */
 	bool remap:1;      /* set to remap seven reserved chars in filenames */
 	bool posix_paths:1; /* unset to not ask for posix pathnames. */
 	bool no_linux_ext:1;
@@ -339,8 +337,12 @@ cifs_echo_request(struct work_struct *work)
 	struct TCP_Server_Info *server = container_of(work,
 					struct TCP_Server_Info, echo.work);
 
-	/* no need to ping if we got a response recently */
-	if (time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
+	/*
+	 * We cannot send an echo until the NEGOTIATE_PROTOCOL request is done.
+	 * Also, no need to ping if we got a response recently
+	 */
+	if (server->tcpStatus != CifsGood ||
+	    time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
 		goto requeue_echo;
 
 	rc = CIFSSMBEcho(server);
@@ -580,12 +582,12 @@ incomplete_rcv:
 		else if (reconnect == 1)
 			continue;
 
-		length += 4; /* account for rfc1002 hdr */
+		total_read += 4; /* account for rfc1002 hdr */
 
-
-		dump_smb(smb_buffer, length);
-		if (checkSMB(smb_buffer, smb_buffer->Mid, total_read+4)) {
-			cifs_dump_mem("Bad SMB: ", smb_buffer, 48);
+		dump_smb(smb_buffer, total_read);
+		if (checkSMB(smb_buffer, smb_buffer->Mid, total_read)) {
+			cifs_dump_mem("Bad SMB: ", smb_buffer,
+					total_read < 48 ? total_read : 48);
 			continue;
 		}
 
@@ -635,11 +637,11 @@ incomplete_rcv:
 				mid_entry->largeBuf = isLargeBuf;
 multi_t2_fnd:
 				mid_entry->midState = MID_RESPONSE_RECEIVED;
-				list_del_init(&mid_entry->qhead);
-				mid_entry->callback(mid_entry);
 #ifdef CONFIG_CIFS_STATS2
 				mid_entry->when_received = jiffies;
 #endif
+				list_del_init(&mid_entry->qhead);
+				mid_entry->callback(mid_entry);
 				break;
 			}
 			mid_entry = NULL;
@@ -1344,6 +1346,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->direct_io = 1;
 		} else if (strnicmp(data, "forcedirectio", 13) == 0) {
 			vol->direct_io = 1;
+		} else if (strnicmp(data, "strictcache", 11) == 0) {
+			vol->strict_io = 1;
 		} else if (strnicmp(data, "noac", 4) == 0) {
 			printk(KERN_WARNING "CIFS: Mount option noac not "
 				"supported. Instead set "
@@ -2584,6 +2588,8 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 	if (pvolume_info->multiuser)
 		cifs_sb->mnt_cifs_flags |= (CIFS_MOUNT_MULTIUSER |
 					    CIFS_MOUNT_NO_PERM);
+	if (pvolume_info->strict_io)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_STRICT_IO;
 	if (pvolume_info->direct_io) {
 		cFYI(1, "mounting share using direct i/o");
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
@@ -2985,7 +2991,8 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 					 bcc_ptr);
 		else
 #endif /* CIFS_WEAK_PW_HASH */
-		SMBNTencrypt(tcon->password, ses->server->cryptkey, bcc_ptr);
+		rc = SMBNTencrypt(tcon->password, ses->server->cryptkey,
+					bcc_ptr);
 
 		bcc_ptr += CIFS_AUTH_RESP_SIZE;
 		if (ses->capabilities & CAP_UNICODE) {

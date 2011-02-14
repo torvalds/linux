@@ -226,7 +226,8 @@ static int xhci_setup_msi(struct xhci_hcd *xhci)
 static int xhci_setup_msix(struct xhci_hcd *xhci)
 {
 	int i, ret = 0;
-	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
 
 	/*
 	 * calculate number of msi-x vectors supported.
@@ -265,6 +266,7 @@ static int xhci_setup_msix(struct xhci_hcd *xhci)
 			goto disable_msix;
 	}
 
+	hcd->msix_enabled = 1;
 	return ret;
 
 disable_msix:
@@ -280,7 +282,8 @@ free_entries:
 /* Free any IRQs and disable MSI-X */
 static void xhci_cleanup_msix(struct xhci_hcd *xhci)
 {
-	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
 
 	xhci_free_irq(xhci);
 
@@ -292,6 +295,7 @@ static void xhci_cleanup_msix(struct xhci_hcd *xhci)
 		pci_disable_msi(pdev);
 	}
 
+	hcd->msix_enabled = 0;
 	return;
 }
 
@@ -508,8 +512,9 @@ void xhci_stop(struct usb_hcd *hcd)
 	spin_lock_irq(&xhci->lock);
 	xhci_halt(xhci);
 	xhci_reset(xhci);
-	xhci_cleanup_msix(xhci);
 	spin_unlock_irq(&xhci->lock);
+
+	xhci_cleanup_msix(xhci);
 
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
 	/* Tell the event ring poll function not to reschedule */
@@ -544,8 +549,9 @@ void xhci_shutdown(struct usb_hcd *hcd)
 
 	spin_lock_irq(&xhci->lock);
 	xhci_halt(xhci);
-	xhci_cleanup_msix(xhci);
 	spin_unlock_irq(&xhci->lock);
+
+	xhci_cleanup_msix(xhci);
 
 	xhci_dbg(xhci, "xhci_shutdown completed - status = %x\n",
 		    xhci_readl(xhci, &xhci->op_regs->status));
@@ -647,6 +653,7 @@ int xhci_suspend(struct xhci_hcd *xhci)
 	int			rc = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	u32			command;
+	int			i;
 
 	spin_lock_irq(&xhci->lock);
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
@@ -677,9 +684,14 @@ int xhci_suspend(struct xhci_hcd *xhci)
 		spin_unlock_irq(&xhci->lock);
 		return -ETIMEDOUT;
 	}
-	/* step 5: remove core well power */
-	xhci_cleanup_msix(xhci);
 	spin_unlock_irq(&xhci->lock);
+
+	/* step 5: remove core well power */
+	/* synchronize irq when using MSI-X */
+	if (xhci->msix_entries) {
+		for (i = 0; i < xhci->msix_count; i++)
+			synchronize_irq(xhci->msix_entries[i].vector);
+	}
 
 	return rc;
 }
@@ -694,7 +706,6 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 {
 	u32			command, temp = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
-	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
 	int	old_state, retval;
 
 	old_state = hcd->state;
@@ -729,9 +740,8 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		xhci_dbg(xhci, "Stop HCD\n");
 		xhci_halt(xhci);
 		xhci_reset(xhci);
-		if (hibernated)
-			xhci_cleanup_msix(xhci);
 		spin_unlock_irq(&xhci->lock);
+		xhci_cleanup_msix(xhci);
 
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
 		/* Tell the event ring poll function not to reschedule */
@@ -765,30 +775,6 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		return retval;
 	}
 
-	spin_unlock_irq(&xhci->lock);
-	/* Re-setup MSI-X */
-	if (hcd->irq)
-		free_irq(hcd->irq, hcd);
-	hcd->irq = -1;
-
-	retval = xhci_setup_msix(xhci);
-	if (retval)
-		/* fall back to msi*/
-		retval = xhci_setup_msi(xhci);
-
-	if (retval) {
-		/* fall back to legacy interrupt*/
-		retval = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
-					hcd->irq_descr, hcd);
-		if (retval) {
-			xhci_err(xhci, "request interrupt %d failed\n",
-					pdev->irq);
-			return retval;
-		}
-		hcd->irq = pdev->irq;
-	}
-
-	spin_lock_irq(&xhci->lock);
 	/* step 4: set Run/Stop bit */
 	command = xhci_readl(xhci, &xhci->op_regs->command);
 	command |= CMD_RUN;
@@ -2445,8 +2431,12 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		xhci_err(xhci, "Error while assigning device slot ID\n");
 		return 0;
 	}
-	/* xhci_alloc_virt_device() does not touch rings; no need to lock */
-	if (!xhci_alloc_virt_device(xhci, xhci->slot_id, udev, GFP_KERNEL)) {
+	/* xhci_alloc_virt_device() does not touch rings; no need to lock.
+	 * Use GFP_NOIO, since this function can be called from
+	 * xhci_discover_or_reset_device(), which may be called as part of
+	 * mass storage driver error handling.
+	 */
+	if (!xhci_alloc_virt_device(xhci, xhci->slot_id, udev, GFP_NOIO)) {
 		/* Disable slot, if we can do it without mem alloc */
 		xhci_warn(xhci, "Could not allocate xHCI USB device data structures\n");
 		spin_lock_irqsave(&xhci->lock, flags);

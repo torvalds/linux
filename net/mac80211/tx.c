@@ -2230,6 +2230,9 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 
 	sdata = vif_to_sdata(vif);
 
+	if (!ieee80211_sdata_running(sdata))
+		goto out;
+
 	if (tim_offset)
 		*tim_offset = 0;
 	if (tim_length)

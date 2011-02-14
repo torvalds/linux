@@ -749,7 +749,8 @@ EXPORT_SYMBOL(dev_get_by_index);
  *	@ha: hardware address
  *
  *	Search for an interface by MAC address. Returns NULL if the device
- *	is not found or a pointer to the device. The caller must hold RCU
+ *	is not found or a pointer to the device.
+ *	The caller must hold RCU or RTNL.
  *	The returned device has not had its ref count increased
  *	and the caller must therefore be careful about locking
  *
@@ -2562,7 +2563,8 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 
 	map = rcu_dereference(rxqueue->rps_map);
 	if (map) {
-		if (map->len == 1) {
+		if (map->len == 1 &&
+		    !rcu_dereference_raw(rxqueue->rps_flow_table)) {
 			tcpu = map->cpus[0];
 			if (cpu_online(tcpu))
 				cpu = tcpu;
@@ -3423,6 +3425,8 @@ static void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 	__skb_pull(skb, skb_headlen(skb));
 	skb_reserve(skb, NET_IP_ALIGN - skb_headroom(skb));
 	skb->vlan_tci = 0;
+	skb->dev = napi->dev;
+	skb->skb_iif = 0;
 
 	napi->skb = skb;
 }

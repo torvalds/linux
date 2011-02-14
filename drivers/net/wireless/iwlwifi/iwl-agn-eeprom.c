@@ -152,11 +152,14 @@ int iwl_eeprom_check_sku(struct iwl_priv *priv)
 
 	eeprom_sku = iwl_eeprom_query16(priv, EEPROM_SKU_CAP);
 
-	priv->cfg->sku = ((eeprom_sku & EEPROM_SKU_CAP_BAND_SELECTION) >>
+	if (!priv->cfg->sku) {
+		/* not using sku overwrite */
+		priv->cfg->sku =
+			((eeprom_sku & EEPROM_SKU_CAP_BAND_SELECTION) >>
 			EEPROM_SKU_CAP_BAND_POS);
-	if (eeprom_sku & EEPROM_SKU_CAP_11N_ENABLE)
-		priv->cfg->sku |= IWL_SKU_N;
-
+		if (eeprom_sku & EEPROM_SKU_CAP_11N_ENABLE)
+			priv->cfg->sku |= IWL_SKU_N;
+	}
 	if (!priv->cfg->sku) {
 		IWL_ERR(priv, "Invalid device sku\n");
 		return -EINVAL;

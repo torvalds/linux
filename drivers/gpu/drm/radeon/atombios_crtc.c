@@ -555,6 +555,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					dp_clock = dig_connector->dp_clock;
 				}
 			}
+/* this might work properly with the new pll algo */
 #if 0 /* doesn't work properly on some laptops */
 			/* use recommended ref_div for ss */
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
@@ -572,6 +573,11 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					adjusted_clock = mode->clock * 2;
 				if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT))
 					pll->flags |= RADEON_PLL_PREFER_CLOSEST_LOWER;
+				/* rv515 needs more testing with this option */
+				if (rdev->family != CHIP_RV515) {
+					if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
+						pll->flags |= RADEON_PLL_IS_LCD;
+				}
 			} else {
 				if (encoder->encoder_type != DRM_MODE_ENCODER_DAC)
 					pll->flags |= RADEON_PLL_NO_ODD_POST_DIV;
@@ -951,8 +957,16 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 	/* adjust pixel clock as needed */
 	adjusted_clock = atombios_adjust_pll(crtc, mode, pll, ss_enabled, &ss);
 
-	radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
-			   &ref_div, &post_div);
+	/* rv515 seems happier with the old algo */
+	if (rdev->family == CHIP_RV515)
+		radeon_compute_pll_legacy(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
+					  &ref_div, &post_div);
+	else if (ASIC_IS_AVIVO(rdev))
+		radeon_compute_pll_avivo(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
+					 &ref_div, &post_div);
+	else
+		radeon_compute_pll_legacy(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
+					  &ref_div, &post_div);
 
 	atombios_crtc_program_ss(crtc, ATOM_DISABLE, radeon_crtc->pll_id, &ss);
 
@@ -994,6 +1008,7 @@ static int evergreen_crtc_do_set_base(struct drm_crtc *crtc,
 	struct radeon_bo *rbo;
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
+	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
 	int r;
 
 	/* no fb bound */
@@ -1045,11 +1060,17 @@ static int evergreen_crtc_do_set_base(struct drm_crtc *crtc,
 	case 16:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_16BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB565));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN16);
+#endif
 		break;
 	case 24:
 	case 32:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_32BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB8888));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
+#endif
 		break;
 	default:
 		DRM_ERROR("Unsupported screen depth %d\n",
@@ -1094,6 +1115,7 @@ static int evergreen_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(EVERGREEN_GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
 	       (u32) fb_location & EVERGREEN_GRPH_SURFACE_ADDRESS_MASK);
 	WREG32(EVERGREEN_GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
+	WREG32(EVERGREEN_GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
 
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
@@ -1150,6 +1172,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	struct drm_framebuffer *target_fb;
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
+	u32 fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
 	int r;
 
 	/* no fb bound */
@@ -1203,12 +1226,18 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_16BPP |
 		    AVIVO_D1GRPH_CONTROL_16BPP_RGB565;
+#ifdef __BIG_ENDIAN
+		fb_swap = R600_D1GRPH_SWAP_ENDIAN_16BIT;
+#endif
 		break;
 	case 24:
 	case 32:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_32BPP |
 		    AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
+#ifdef __BIG_ENDIAN
+		fb_swap = R600_D1GRPH_SWAP_ENDIAN_32BIT;
+#endif
 		break;
 	default:
 		DRM_ERROR("Unsupported screen depth %d\n",
@@ -1248,6 +1277,8 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS +
 	       radeon_crtc->crtc_offset, (u32) fb_location);
 	WREG32(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
+	if (rdev->family >= CHIP_R600)
+		WREG32(R600_D1GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
 
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);

@@ -40,9 +40,6 @@ static struct regulator_consumer_supply rm680_vemmc_consumers[] = {
 static struct regulator_init_data rm680_vemmc = {
 	.constraints =	{
 		.name			= "rm680_vemmc",
-		.min_uV			= 2900000,
-		.max_uV			= 2900000,
-		.apply_uV		= 1,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
 		.valid_ops_mask		= REGULATOR_CHANGE_STATUS

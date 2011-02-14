@@ -47,14 +47,6 @@ static inline int svc_is_backchannel(const struct svc_rqst *rqstp)
 		return 1;
 	return 0;
 }
-static inline struct nfs4_sessionid *bc_xprt_sid(struct svc_rqst *rqstp)
-{
-	if (svc_is_backchannel(rqstp))
-		return (struct nfs4_sessionid *)
-			rqstp->rq_server->sv_bc_xprt->xpt_bc_sid;
-	return NULL;
-}
-
 #else /* CONFIG_NFS_V4_1 */
 static inline int xprt_setup_backchannel(struct rpc_xprt *xprt,
 					 unsigned int min_reqs)
@@ -65,11 +57,6 @@ static inline int xprt_setup_backchannel(struct rpc_xprt *xprt,
 static inline int svc_is_backchannel(const struct svc_rqst *rqstp)
 {
 	return 0;
-}
-
-static inline struct nfs4_sessionid *bc_xprt_sid(struct svc_rqst *rqstp)
-{
-	return NULL;
 }
 
 static inline void xprt_free_bc_request(struct rpc_rqst *req)

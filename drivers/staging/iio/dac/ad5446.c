@@ -87,7 +87,7 @@ static ssize_t ad5446_show_scale(struct device *dev,
 	/* Corresponds to Vref / 2^(bits) */
 	unsigned int scale_uv = (st->vref_mv * 1000) >> st->chip_info->bits;
 
-	return sprintf(buf, "%d.%d\n", scale_uv / 1000, scale_uv % 1000);
+	return sprintf(buf, "%d.%03d\n", scale_uv / 1000, scale_uv % 1000);
 }
 static IIO_DEVICE_ATTR(out_scale, S_IRUGO, ad5446_show_scale, NULL, 0);
 

@@ -2460,9 +2460,9 @@ static void find_module_sections(struct module *mod, struct load_info *info)
 #endif
 
 #ifdef CONFIG_TRACEPOINTS
-	mod->tracepoints = section_objs(info, "__tracepoints",
-					sizeof(*mod->tracepoints),
-					&mod->num_tracepoints);
+	mod->tracepoints_ptrs = section_objs(info, "__tracepoints_ptrs",
+					     sizeof(*mod->tracepoints_ptrs),
+					     &mod->num_tracepoints);
 #endif
 #ifdef HAVE_JUMP_LABEL
 	mod->jump_entries = section_objs(info, "__jump_table",
@@ -3393,7 +3393,7 @@ void module_layout(struct module *mod,
 		   struct modversion_info *ver,
 		   struct kernel_param *kp,
 		   struct kernel_symbol *ks,
-		   struct tracepoint *tp)
+		   struct tracepoint * const *tp)
 {
 }
 EXPORT_SYMBOL(module_layout);
@@ -3407,8 +3407,8 @@ void module_update_tracepoints(void)
 	mutex_lock(&module_mutex);
 	list_for_each_entry(mod, &modules, list)
 		if (!mod->taints)
-			tracepoint_update_probe_range(mod->tracepoints,
-				mod->tracepoints + mod->num_tracepoints);
+			tracepoint_update_probe_range(mod->tracepoints_ptrs,
+				mod->tracepoints_ptrs + mod->num_tracepoints);
 	mutex_unlock(&module_mutex);
 }
 
@@ -3432,8 +3432,8 @@ int module_get_iter_tracepoints(struct tracepoint_iter *iter)
 			else if (iter_mod > iter->module)
 				iter->tracepoint = NULL;
 			found = tracepoint_get_iter_range(&iter->tracepoint,
-				iter_mod->tracepoints,
-				iter_mod->tracepoints
+				iter_mod->tracepoints_ptrs,
+				iter_mod->tracepoints_ptrs
 					+ iter_mod->num_tracepoints);
 			if (found) {
 				iter->module = iter_mod;

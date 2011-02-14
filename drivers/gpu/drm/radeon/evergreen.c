@@ -97,26 +97,29 @@ u32 evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 }
 
 /* get temperature in millidegrees */
-u32 evergreen_get_temp(struct radeon_device *rdev)
+int evergreen_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = (RREG32(CG_MULT_THERMAL_STATUS) & ASIC_T_MASK) >>
 		ASIC_T_SHIFT;
 	u32 actual_temp = 0;
 
-	if ((temp >> 10) & 1)
-		actual_temp = 0;
-	else if ((temp >> 9) & 1)
+	if (temp & 0x400)
+		actual_temp = -256;
+	else if (temp & 0x200)
 		actual_temp = 255;
-	else
-		actual_temp = (temp >> 1) & 0xff;
+	else if (temp & 0x100) {
+		actual_temp = temp & 0x1ff;
+		actual_temp |= ~0x1ff;
+	} else
+		actual_temp = temp & 0xff;
 
-	return actual_temp * 1000;
+	return (actual_temp * 1000) / 2;
 }
 
-u32 sumo_get_temp(struct radeon_device *rdev)
+int sumo_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = RREG32(CG_THERMAL_STATUS) & 0xff;
-	u32 actual_temp = (temp >> 1) & 0xff;
+	int actual_temp = temp - 49;
 
 	return actual_temp * 1000;
 }
@@ -1182,6 +1185,18 @@ static void evergreen_mc_program(struct radeon_device *rdev)
 /*
  * CP.
  */
+void evergreen_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
+{
+	/* set to DX10/11 mode */
+	radeon_ring_write(rdev, PACKET3(PACKET3_MODE_CONTROL, 0));
+	radeon_ring_write(rdev, 1);
+	/* FIXME: implement */
+	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
+	radeon_ring_write(rdev, ib->gpu_addr & 0xFFFFFFFC);
+	radeon_ring_write(rdev, upper_32_bits(ib->gpu_addr) & 0xFF);
+	radeon_ring_write(rdev, ib->length_dw);
+}
+
 
 static int evergreen_cp_load_microcode(struct radeon_device *rdev)
 {
@@ -1233,7 +1248,7 @@ static int evergreen_cp_start(struct radeon_device *rdev)
 	cp_me = 0xff;
 	WREG32(CP_ME_CNTL, cp_me);
 
-	r = radeon_ring_lock(rdev, evergreen_default_size + 15);
+	r = radeon_ring_lock(rdev, evergreen_default_size + 19);
 	if (r) {
 		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
 		return r;
@@ -1265,6 +1280,11 @@ static int evergreen_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(rdev, 0xffffffff);
 	radeon_ring_write(rdev, 0xffffffff);
 	radeon_ring_write(rdev, 0xffffffff);
+
+	radeon_ring_write(rdev, 0xc0026900);
+	radeon_ring_write(rdev, 0x00000316);
+	radeon_ring_write(rdev, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
+	radeon_ring_write(rdev, 0x00000010); /*  */
 
 	radeon_ring_unlock_commit(rdev);
 
@@ -2072,6 +2092,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	WREG32(VGT_CACHE_INVALIDATION, vgt_cache_invalidation);
 
 	WREG32(VGT_GS_VERTEX_REUSE, 16);
+	WREG32(PA_SU_LINE_STIPPLE_VALUE, 0);
 	WREG32(PA_SC_LINE_STIPPLE_STATE, 0);
 
 	WREG32(VGT_VERTEX_REUSE_BLOCK_CNTL, 14);
