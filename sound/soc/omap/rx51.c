@@ -394,10 +394,10 @@ static int __init rx51_soc_init(void)
 	if (!machine_is_nokia_rx51())
 		return -ENODEV;
 
-	err = gpio_request(RX51_TVOUT_SEL_GPIO, "tvout_sel");
+	err = gpio_request_one(RX51_TVOUT_SEL_GPIO,
+			       GPIOF_DIR_OUT | GPIOF_INIT_LOW, "tvout_sel");
 	if (err)
 		goto err_gpio_tvout_sel;
-	gpio_direction_output(RX51_TVOUT_SEL_GPIO, 0);
 
 	rx51_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!rx51_snd_device) {
