@@ -116,6 +116,8 @@ struct ubi_volume_info {
  * struct ubi_device_info - UBI device description data structure.
  * @ubi_num: ubi device number
  * @leb_size: logical eraseblock size on this UBI device
+ * @leb_start: starting offset of logical eraseblocks within physical
+ *             eraseblocks
  * @min_io_size: minimal I/O unit size
  * @max_write_size: maximum amount of bytes the underlying flash can write at a
  *                  time (MTD write buffer size)
@@ -145,6 +147,7 @@ struct ubi_volume_info {
 struct ubi_device_info {
 	int ubi_num;
 	int leb_size;
+	int leb_start;
 	int min_io_size;
 	int max_write_size;
 	int ro_mode;
