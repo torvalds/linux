@@ -1861,12 +1861,12 @@ int wl_check_firmwares(struct wl_info *wl)
 			WL_ERROR("%s: invalid bin/hdr fw\n", __func__);
 			rc = -EBADF;
 		} else if (fw_hdr->size % sizeof(struct wl_fw_hdr)) {
-			WL_ERROR("%s: non integral fw hdr file size %d/%zu\n",
+			WL_ERROR("%s: non integral fw hdr file size %zu/%zu\n",
 				 __func__, fw_hdr->size,
 				 sizeof(struct wl_fw_hdr));
 			rc = -EBADF;
 		} else if (fw->size < MIN_FW_SIZE || fw->size > MAX_FW_SIZE) {
-			WL_ERROR("%s: out of bounds fw file size %d\n",
+			WL_ERROR("%s: out of bounds fw file size %zu\n",
 				 __func__, fw->size);
 			rc = -EBADF;
 		} else {

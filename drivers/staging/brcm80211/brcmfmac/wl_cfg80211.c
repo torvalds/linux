@@ -1375,7 +1375,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	memcpy(join_params.params.bssid, ether_bcast, ETH_ALEN);
 
 	wl_ch_to_chanspec(wl->channel, &join_params, &join_params_size);
-	WL_DBG("join_param_size %d\n", join_params_size);
+	WL_DBG("join_param_size %zu\n", join_params_size);
 
 	if (join_params.ssid.SSID_len < IEEE80211_MAX_SSID_LEN) {
 		WL_DBG("ssid \"%s\", len (%d)\n",
