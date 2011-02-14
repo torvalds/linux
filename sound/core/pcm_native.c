@@ -941,7 +941,7 @@ static struct action_ops snd_pcm_action_stop = {
  *
  * The state of each stream is then changed to the given state unconditionally.
  */
-int snd_pcm_stop(struct snd_pcm_substream *substream, int state)
+int snd_pcm_stop(struct snd_pcm_substream *substream, snd_pcm_state_t state)
 {
 	return snd_pcm_action(&snd_pcm_action_stop, substream, state);
 }
