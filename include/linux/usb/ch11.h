@@ -132,8 +132,8 @@ struct usb_port_status {
 
 /*
  * wPortChange bit field
- * See USB 2.0 spec Table 11-22
- * Bits 0 to 4 shown, bits 5 to 15 are reserved
+ * See USB 2.0 spec Table 11-22 and USB 2.0 LPM ECN Table-4.10
+ * Bits 0 to 5 shown, bits 6 to 15 are reserved
  */
 #define USB_PORT_STAT_C_CONNECTION	0x0001
 #define USB_PORT_STAT_C_ENABLE		0x0002
