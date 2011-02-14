@@ -1189,7 +1189,7 @@ void fib_select_default(struct fib_result *res)
 		fib_result_assign(res, last_resort);
 	tb->tb_default = last_idx;
 out:
-	rcu_read_unlock();
+	return;
 }
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
