@@ -1059,6 +1059,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	x86_init.oem.banner();
 
+	x86_init.timers.wallclock_init();
+
 	mcheck_init();
 
 	local_irq_save(flags);
