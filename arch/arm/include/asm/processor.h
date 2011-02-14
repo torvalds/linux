@@ -29,19 +29,7 @@
 #define STACK_TOP_MAX	TASK_SIZE
 #endif
 
-union debug_insn {
-	u32	arm;
-	u16	thumb;
-};
-
-struct debug_entry {
-	u32			address;
-	union debug_insn	insn;
-};
-
 struct debug_info {
-	int			nsaved;
-	struct debug_entry	bp[2];
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	struct perf_event	*hbp[ARM_MAX_HBP_SLOTS];
 #endif

@@ -23,6 +23,7 @@
 #include <linux/kexec.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
@@ -32,7 +33,6 @@
 #include <asm/unwind.h>
 #include <asm/tls.h>
 
-#include "ptrace.h"
 #include "signal.h"
 
 static const char *handler[]= { "prefetch abort", "data abort", "address exception", "interrupt" };
