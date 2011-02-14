@@ -231,6 +231,13 @@ config SPI_FSL_ESPI
 	  From MPC8536, 85xx platform uses the controller, and all P10xx,
 	  P20xx, P30xx,P40xx, P50xx uses this controller.
 
+config SPI_OC_TINY
+	tristate "OpenCores tiny SPI"
+	depends on GENERIC_GPIO
+	select SPI_BITBANG
+	help
+	  This is the driver for OpenCores tiny SPI master controller.
+
 config SPI_OMAP_UWIRE
 	tristate "OMAP1 MicroWire"
 	depends on ARCH_OMAP1
