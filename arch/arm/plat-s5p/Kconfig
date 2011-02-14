@@ -7,10 +7,10 @@
 
 config PLAT_S5P
 	bool
-	depends on (ARCH_S5P64X0 || ARCH_S5P6442 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5PV310)
+	depends on (ARCH_S5P64X0 || ARCH_S5P6442 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS4)
 	default y
-	select ARM_VIC if !ARCH_S5PV310
-	select ARM_GIC if ARCH_S5PV310
+	select ARM_VIC if !ARCH_EXYNOS4
+	select ARM_GIC if ARCH_EXYNOS4
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
 	select S3C_GPIO_TRACK
@@ -41,7 +41,7 @@ comment "System MMU"
 
 config S5P_SYSTEM_MMU
 	bool "S5P SYSTEM MMU"
-	depends on ARCH_S5PV310
+	depends on ARCH_EXYNOS4
 	help
 	  Say Y here if you want to enable System MMU
 

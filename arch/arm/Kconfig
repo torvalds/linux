@@ -760,8 +760,8 @@ config ARCH_S5PV210
 	help
 	  Samsung S5PV210/S5PC110 series based systems
 
-config ARCH_S5PV310
-	bool "Samsung S5PV310/S5PC210"
+config ARCH_EXYNOS4
+	bool "Samsung EXYNOS4"
 	select CPU_V7
 	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_GPIO
@@ -772,7 +772,7 @@ config ARCH_S5PV310
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	help
-	  Samsung S5PV310 series based systems
+	  Samsung EXYNOS4 series based systems
 
 config ARCH_SHARK
 	bool "Shark"
@@ -991,7 +991,7 @@ source "arch/arm/mach-s5pc100/Kconfig"
 
 source "arch/arm/mach-s5pv210/Kconfig"
 
-source "arch/arm/mach-s5pv310/Kconfig"
+source "arch/arm/mach-exynos4/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
 
@@ -1278,7 +1278,7 @@ config SMP
 	depends on GENERIC_CLOCKEVENTS
 	depends on REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP || \
 		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || \
-		 ARCH_S5PV310 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || \
+		 ARCH_EXYNOS4 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || \
 		 ARCH_MSM_SCORPIONMP || ARCH_SHMOBILE
 	select USE_GENERIC_SMP_HELPERS
 	select HAVE_ARM_SCU if !ARCH_MSM_SCORPIONMP
@@ -1378,7 +1378,7 @@ source kernel/Kconfig.preempt
 config HZ
 	int
 	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P64X0 || \
-		ARCH_S5P6442 || ARCH_S5PV210 || ARCH_S5PV310
+		ARCH_S5P6442 || ARCH_S5PV210 || ARCH_EXYNOS4
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
 	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
