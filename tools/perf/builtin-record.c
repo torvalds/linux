@@ -807,6 +807,9 @@ const struct option record_options[] = {
 		    "do not update the buildid cache"),
 	OPT_BOOLEAN('B', "no-buildid", &no_buildid,
 		    "do not collect buildids in perf.data"),
+	OPT_CALLBACK('G', "cgroup", &evsel_list, "name",
+		     "monitor event in cgroup name only",
+		     parse_cgroups),
 	OPT_END()
 };
 
@@ -833,6 +836,12 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		write_mode = WRITE_APPEND;
 	} else {
 		write_mode = WRITE_FORCE;
+	}
+
+	if (nr_cgroups && !system_wide) {
+		fprintf(stderr, "cgroup monitoring only available in"
+			" system-wide mode\n");
+		usage_with_options(record_usage, record_options);
 	}
 
 	symbol__init();

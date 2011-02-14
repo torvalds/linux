@@ -390,6 +390,9 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 
 	fprintf(stderr, fmt, cpustr, msecs, csv_sep, event_name(evsel));
 
+	if (evsel->cgrp)
+		fprintf(stderr, "%s%s", csv_sep, evsel->cgrp->name);
+
 	if (csv_output)
 		return;
 
@@ -419,6 +422,9 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		cpu = 0;
 
 	fprintf(stderr, fmt, cpustr, avg, csv_sep, event_name(evsel));
+
+	if (evsel->cgrp)
+		fprintf(stderr, "%s%s", csv_sep, evsel->cgrp->name);
 
 	if (csv_output)
 		return;
@@ -460,9 +466,17 @@ static void print_counter_aggr(struct perf_evsel *counter)
 	int scaled = counter->counts->scaled;
 
 	if (scaled == -1) {
-		fprintf(stderr, "%*s%s%-24s\n",
+		fprintf(stderr, "%*s%s%*s",
 			csv_output ? 0 : 18,
-			"<not counted>", csv_sep, event_name(counter));
+			"<not counted>",
+			csv_sep,
+			csv_output ? 0 : -24,
+			event_name(counter));
+
+		if (counter->cgrp)
+			fprintf(stderr, "%s%s", csv_sep, counter->cgrp->name);
+
+		fputc('\n', stderr);
 		return;
 	}
 
@@ -487,7 +501,6 @@ static void print_counter_aggr(struct perf_evsel *counter)
 		fprintf(stderr, "  (scaled from %.2f%%)",
 				100 * avg_running / avg_enabled);
 	}
-
 	fprintf(stderr, "\n");
 }
 
@@ -505,14 +518,18 @@ static void print_counter(struct perf_evsel *counter)
 		ena = counter->counts->cpu[cpu].ena;
 		run = counter->counts->cpu[cpu].run;
 		if (run == 0 || ena == 0) {
-			fprintf(stderr, "CPU%*d%s%*s%s%-24s",
+			fprintf(stderr, "CPU%*d%s%*s%s%*s",
 				csv_output ? 0 : -4,
 				evsel_list->cpus->map[cpu], csv_sep,
 				csv_output ? 0 : 18,
 				"<not counted>", csv_sep,
+				csv_output ? 0 : -24,
 				event_name(counter));
 
-			fprintf(stderr, "\n");
+			if (counter->cgrp)
+				fprintf(stderr, "%s%s", csv_sep, counter->cgrp->name);
+
+			fputc('\n', stderr);
 			continue;
 		}
 
@@ -529,7 +546,7 @@ static void print_counter(struct perf_evsel *counter)
 					100.0 * run / ena);
 			}
 		}
-		fprintf(stderr, "\n");
+		fputc('\n', stderr);
 	}
 }
 
@@ -642,6 +659,9 @@ static const struct option options[] = {
 		    "disable CPU count aggregation"),
 	OPT_STRING('x', "field-separator", &csv_sep, "separator",
 		   "print counts with custom separator"),
+	OPT_CALLBACK('G', "cgroup", &evsel_list, "name",
+		     "monitor event in cgroup name only",
+		     parse_cgroups),
 	OPT_END()
 };
 
@@ -682,9 +702,13 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	if (run_count <= 0)
 		usage_with_options(stat_usage, options);
 
-	/* no_aggr is for system-wide only */
-	if (no_aggr && !system_wide)
+	/* no_aggr, cgroup are for system-wide only */
+	if ((no_aggr || nr_cgroups) && !system_wide) {
+		fprintf(stderr, "both cgroup and no-aggregation "
+			"modes only available in system-wide mode\n");
+
 		usage_with_options(stat_usage, options);
+	}
 
 	/* Set attrs and nr_counters if no event is selected and !null_run */
 	if (!null_run && !evsel_list->nr_entries) {

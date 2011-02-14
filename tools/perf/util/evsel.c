@@ -85,6 +85,7 @@ void perf_evsel__exit(struct perf_evsel *evsel)
 void perf_evsel__delete(struct perf_evsel *evsel)
 {
 	perf_evsel__exit(evsel);
+	close_cgroup(evsel->cgrp);
 	free(evsel);
 }
 
@@ -163,10 +164,17 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 			      struct thread_map *threads, bool group, bool inherit)
 {
 	int cpu, thread;
+	unsigned long flags = 0;
+	int pid = -1;
 
 	if (evsel->fd == NULL &&
 	    perf_evsel__alloc_fd(evsel, cpus->nr, threads->nr) < 0)
 		return -1;
+
+	if (evsel->cgrp) {
+		flags = PERF_FLAG_PID_CGROUP;
+		pid = evsel->cgrp->fd;
+	}
 
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 		int group_fd = -1;
@@ -174,10 +182,14 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 		evsel->attr.inherit = (cpus->map[cpu] < 0) && inherit;
 
 		for (thread = 0; thread < threads->nr; thread++) {
+
+			if (!evsel->cgrp)
+				pid = threads->map[thread];
+
 			FD(evsel, cpu, thread) = sys_perf_event_open(&evsel->attr,
-								     threads->map[thread],
+								     pid,
 								     cpus->map[cpu],
-								     group_fd, 0);
+								     group_fd, flags);
 			if (FD(evsel, cpu, thread) < 0)
 				goto out_close;
 
