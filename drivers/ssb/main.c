@@ -1192,10 +1192,10 @@ void ssb_device_enable(struct ssb_device *dev, u32 core_specific_flags)
 }
 EXPORT_SYMBOL(ssb_device_enable);
 
-/* Wait for a bit in a register to get set or unset.
+/* Wait for bitmask in a register to get set or cleared.
  * timeout is in units of ten-microseconds */
-static int ssb_wait_bit(struct ssb_device *dev, u16 reg, u32 bitmask,
-			int timeout, int set)
+static int ssb_wait_bits(struct ssb_device *dev, u16 reg, u32 bitmask,
+			 int timeout, int set)
 {
 	int i;
 	u32 val;
@@ -1203,7 +1203,7 @@ static int ssb_wait_bit(struct ssb_device *dev, u16 reg, u32 bitmask,
 	for (i = 0; i < timeout; i++) {
 		val = ssb_read32(dev, reg);
 		if (set) {
-			if (val & bitmask)
+			if ((val & bitmask) == bitmask)
 				return 0;
 		} else {
 			if (!(val & bitmask))
@@ -1227,8 +1227,8 @@ void ssb_device_disable(struct ssb_device *dev, u32 core_specific_flags)
 
 	reject = ssb_tmslow_reject_bitmask(dev);
 	ssb_write32(dev, SSB_TMSLOW, reject | SSB_TMSLOW_CLOCK);
-	ssb_wait_bit(dev, SSB_TMSLOW, reject, 1000, 1);
-	ssb_wait_bit(dev, SSB_TMSHIGH, SSB_TMSHIGH_BUSY, 1000, 0);
+	ssb_wait_bits(dev, SSB_TMSLOW, reject, 1000, 1);
+	ssb_wait_bits(dev, SSB_TMSHIGH, SSB_TMSHIGH_BUSY, 1000, 0);
 	ssb_write32(dev, SSB_TMSLOW,
 		    SSB_TMSLOW_FGC | SSB_TMSLOW_CLOCK |
 		    reject | SSB_TMSLOW_RESET |
