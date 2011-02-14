@@ -1104,6 +1104,27 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		track->blend_read_enable = !!(idx_value & (1 << 2));
 		track->cb_dirty = true;
 		break;
+	case R300_RB3D_AARESOLVE_OFFSET:
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+				  idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+		track->aa.robj = reloc->robj;
+		track->aa.offset = idx_value;
+		track->aa_dirty = true;
+		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
+		break;
+	case R300_RB3D_AARESOLVE_PITCH:
+		track->aa.pitch = idx_value & 0x3FFE;
+		track->aa_dirty = true;
+		break;
+	case R300_RB3D_AARESOLVE_CTL:
+		track->aaresolve = idx_value & 0x1;
+		track->aa_dirty = true;
+		break;
 	case 0x4f30: /* ZB_MASK_OFFSET */
 	case 0x4f34: /* ZB_ZMASK_PITCH */
 	case 0x4f44: /* ZB_HIZ_OFFSET */
