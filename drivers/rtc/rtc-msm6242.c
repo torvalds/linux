@@ -82,7 +82,7 @@ static inline unsigned int msm6242_read(struct msm6242_priv *priv,
 static inline void msm6242_write(struct msm6242_priv *priv, unsigned int val,
 				unsigned int reg)
 {
-	return __raw_writel(val, &priv->regs[reg]);
+	__raw_writel(val, &priv->regs[reg]);
 }
 
 static inline void msm6242_set(struct msm6242_priv *priv, unsigned int val,
