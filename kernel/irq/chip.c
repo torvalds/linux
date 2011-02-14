@@ -600,7 +600,7 @@ handle_percpu_irq(unsigned int irq, struct irq_desc *desc)
 }
 
 void
-__set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
+__irq_set_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 		  const char *name)
 {
 	unsigned long flags;
@@ -635,22 +635,14 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 out:
 	irq_put_desc_busunlock(desc, flags);
 }
-EXPORT_SYMBOL_GPL(__set_irq_handler);
+EXPORT_SYMBOL_GPL(__irq_set_handler);
 
 void
-set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,
-			 irq_flow_handler_t handle)
-{
-	irq_set_chip(irq, chip);
-	__set_irq_handler(irq, handle, 0, NULL);
-}
-
-void
-set_irq_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
+irq_set_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
 			      irq_flow_handler_t handle, const char *name)
 {
 	irq_set_chip(irq, chip);
-	__set_irq_handler(irq, handle, 0, name);
+	__irq_set_handler(irq, handle, 0, name);
 }
 
 void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set)

@@ -398,23 +398,23 @@ extern struct irq_chip no_irq_chip;
 extern struct irq_chip dummy_irq_chip;
 
 extern void
-set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,
-			 irq_flow_handler_t handle);
-extern void
-set_irq_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
+irq_set_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
 			      irq_flow_handler_t handle, const char *name);
 
+static inline void irq_set_chip_and_handler(unsigned int irq, struct irq_chip *chip,
+					    irq_flow_handler_t handle)
+{
+	irq_set_chip_and_handler_name(irq, chip, handle, NULL);
+}
+
 extern void
-__set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
+__irq_set_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 		  const char *name);
 
-/*
- * Set a highlevel flow handler for a given IRQ:
- */
 static inline void
-set_irq_handler(unsigned int irq, irq_flow_handler_t handle)
+irq_set_handler(unsigned int irq, irq_flow_handler_t handle)
 {
-	__set_irq_handler(irq, handle, 0, NULL);
+	__irq_set_handler(irq, handle, 0, NULL);
 }
 
 /*
@@ -423,9 +423,9 @@ set_irq_handler(unsigned int irq, irq_flow_handler_t handle)
  *  IRQ_NOREQUEST and IRQ_NOPROBE)
  */
 static inline void
-set_irq_chained_handler(unsigned int irq, irq_flow_handler_t handle)
+irq_set_chained_handler(unsigned int irq, irq_flow_handler_t handle)
 {
-	__set_irq_handler(irq, handle, 1, NULL);
+	__irq_set_handler(irq, handle, 1, NULL);
 }
 
 void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set);
@@ -578,6 +578,33 @@ static inline void set_irq_probe(unsigned int irq)
 static inline void set_irq_nested_thread(unsigned int irq, int nest)
 {
 	irq_set_nested_thread(irq, nest);
+}
+static inline void
+set_irq_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
+			      irq_flow_handler_t handle, const char *name)
+{
+	irq_set_chip_and_handler_name(irq, chip, handle, name);
+}
+static inline void
+set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,
+			 irq_flow_handler_t handle)
+{
+	irq_set_chip_and_handler(irq, chip, handle);
+}
+static inline void
+__set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
+		  const char *name)
+{
+	__irq_set_handler(irq, handle, is_chained, name);
+}
+static inline void set_irq_handler(unsigned int irq, irq_flow_handler_t handle)
+{
+	irq_set_handler(irq, handle);
+}
+static inline void
+set_irq_chained_handler(unsigned int irq, irq_flow_handler_t handle)
+{
+	irq_set_chained_handler(irq, handle);
 }
 #endif
 
