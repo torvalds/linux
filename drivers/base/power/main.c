@@ -459,9 +459,7 @@ static void dpm_drv_timeout(unsigned long data)
 	printk(KERN_EMERG "dpm suspend stack:\n");
 	show_stack(tsk, NULL);
 
-#ifndef CONFIG_ARCH_RK29
 	BUG();
-#endif
 }
 
 /**
