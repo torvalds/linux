@@ -377,6 +377,7 @@ static int nvmap_reloc_pin_array(struct nvmap_client *client,
 			unsigned long kaddr = (unsigned long)addr;
 			set_pte_at(&init_mm, kaddr, *pte, pfn_pte(pfn, prot));
 			flush_tlb_kernel_page(kaddr);
+			last_pfn = pfn;
 		}
 
 		reloc_addr = handle_phys(pin) + arr[i].pin_offset;
