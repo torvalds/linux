@@ -773,13 +773,14 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	unsigned int beacon_base;
 	unsigned int padding_len;
-	u32 reg;
+	u32 orig_reg, reg;
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
 	 * otherwise we might be sending out invalid data.
 	 */
 	rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+	orig_reg = reg;
 	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
@@ -810,7 +811,14 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 	 * Write entire beacon with TXWI and padding to register.
 	 */
 	padding_len = roundup(entry->skb->len, 4) - entry->skb->len;
-	skb_pad(entry->skb, padding_len);
+	if (padding_len && skb_pad(entry->skb, padding_len)) {
+		ERROR(rt2x00dev, "Failure padding beacon, aborting\n");
+		/* skb freed by skb_pad() on failure */
+		entry->skb = NULL;
+		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, orig_reg);
+		return;
+	}
+
 	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
 	rt2800_register_multiwrite(rt2x00dev, beacon_base, entry->skb->data,
 				   entry->skb->len + padding_len);
