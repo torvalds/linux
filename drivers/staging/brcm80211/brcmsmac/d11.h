@@ -73,7 +73,7 @@ typedef volatile union {
 /* pio register set 2/4 bytes union for d11 fifo */
 typedef volatile union {
 	pio2regp_t b2;		/* < corerev 8 */
-	pio4regp_t b4;		/* >= corerev 8 */
+	pio4regp_t b4;
 } u_pioreg_t;
 
 /* dma/pio corerev >= 11 */
@@ -95,7 +95,7 @@ typedef volatile struct _d11regs {
 	u32 biststatus;	/* 0xC */
 	u32 biststatus2;	/* 0x10 */
 	u32 PAD;		/* 0x14 */
-	u32 gptimer;		/* 0x18 *//* for corerev >= 3 */
+	u32 gptimer;		/* 0x18 */
 	u32 usectimer;	/* 0x1c *//* for corerev >= 26 */
 
 	/* Interrupt Control *//* 0x20 */
@@ -103,7 +103,6 @@ typedef volatile struct _d11regs {
 
 	u32 PAD[40];		/* 0x60 - 0xFC */
 
-	/* tx fifos 6-7 and rx fifos 1-3 removed in corerev 5 */
 	u32 intrcvlazy[4];	/* 0x100 - 0x10C */
 
 	u32 PAD[4];		/* 0x110 - 0x11c */
@@ -125,22 +124,20 @@ typedef volatile struct _d11regs {
 	u32 PAD;		/* 0x14C */
 
 	u32 chnstatus;	/* 0x150 */
-	u32 psmdebug;	/* 0x154 *//* for corerev >= 3 */
-	u32 phydebug;	/* 0x158 *//* for corerev >= 3 */
-	u32 machwcap;	/* 0x15C *//* Corerev >= 13 */
+	u32 psmdebug;	/* 0x154 */
+	u32 phydebug;	/* 0x158 */
+	u32 machwcap;	/* 0x15C */
 
 	/* Extended Internal Objects */
 	u32 objaddr;		/* 0x160 */
 	u32 objdata;		/* 0x164 */
 	u32 PAD[2];		/* 0x168 - 0x16c */
 
-	/* New txstatus registers on corerev >= 5 */
 	u32 frmtxstatus;	/* 0x170 */
 	u32 frmtxstatus2;	/* 0x174 */
 	u32 PAD[2];		/* 0x178 - 0x17c */
 
-	/* New TSF host access on corerev >= 3 */
-
+	/* TSF host access */
 	u32 tsf_timerlow;	/* 0x180 */
 	u32 tsf_timerhigh;	/* 0x184 */
 	u32 tsf_cfprep;	/* 0x188 */
@@ -152,17 +149,17 @@ typedef volatile struct _d11regs {
 	u32 machwcap1;	/* 0x1a4 */
 	u32 PAD[14];		/* 0x1a8 - 0x1dc */
 
-	/* Clock control and hardware workarounds (corerev >= 13) */
+	/* Clock control and hardware workarounds*/
 	u32 clk_ctl_st;	/* 0x1e0 */
 	u32 hw_war;
-	u32 d11_phypllctl;	/* 0x1e8 (corerev == 16), the phypll request/avail bits are
-				 *   moved to clk_ctl_st for corerev >= 17
+	u32 d11_phypllctl;	/* the phypll request/avail bits are
+				 * moved to clk_ctl_st
 				 */
 	u32 PAD[5];		/* 0x1ec - 0x1fc */
 
 	/* 0x200-0x37F dma/pio registers */
 	volatile union {
-		fifo64_t f64regs[6];	/* on corerev >= 11 */
+		fifo64_t f64regs[6];
 	} fifo;
 
 	/* FIFO diagnostic port access */
@@ -174,7 +171,10 @@ typedef volatile struct _d11regs {
 	u16 radioregaddr;	/* 0x3d8 */
 	u16 radioregdata;	/* 0x3da */
 
-	/* time delay between the change on rf disable input and radio shutdown corerev 10 */
+	/*
+	 * time delay between the change on rf disable input and
+	 * radio shutdown
+	 */
 	u32 rfdisabledly;	/* 0x3DC */
 
 	/* PHY register access */
@@ -341,7 +341,7 @@ typedef volatile struct _d11regs {
 	u16 PAD[0X14];	/* 0x632 - 0x658 */
 	u16 tsf_random;	/* 0x65A */
 	u16 PAD[0x05];	/* 0x65C - 0x664 */
-	/* GPTimer 2 registers are corerev >= 3 */
+	/* GPTimer 2 registers */
 	u16 tsf_gpt2_stat;	/* 0x666 */
 	u16 tsf_gpt2_ctr_l;	/* 0x668 */
 	u16 tsf_gpt2_ctr_h;	/* 0x66A */
@@ -361,11 +361,11 @@ typedef volatile struct _d11regs {
 	u16 ifsmedbusyctl;	/* 0x692 */
 	u16 iftxdur;		/* 0x694 */
 	u16 PAD[0x3];	/* 0x696 - 0x69b */
-	/* EDCF support in dot11macs with corerevs >= 16 */
+	/* EDCF support in dot11macs */
 	u16 ifs_aifsn;	/* 0x69c */
 	u16 ifs_ctl1;	/* 0x69e */
 
-	/* New slow clock registers on corerev >= 5 */
+	/* slow clock registers */
 	u16 scc_ctl;		/* 0x6a0 */
 	u16 scc_timer_l;	/* 0x6a2 */
 	u16 scc_timer_h;	/* 0x6a4 */
@@ -500,12 +500,11 @@ typedef volatile struct _d11regs {
 #define	MI_RESERVED3		(1 << 22)
 #define	MI_RESERVED2		(1 << 23)
 #define MI_RESERVED1		(1 << 25)
-#define MI_RFDISABLE		(1 << 28)	/* MAC detected a change on RF Disable input
-						 * (corerev >= 10)
-						 */
-#define	MI_TFS			(1 << 29)	/* MAC has completed a TX (corerev >= 5) */
+/* MAC detected change on RF Disable input*/
+#define MI_RFDISABLE		(1 << 28)
+#define	MI_TFS			(1 << 29)	/* MAC has completed a TX */
 #define	MI_PHYCHANGED		(1 << 30)	/* A phy status change wrt G mode */
-#define	MI_TO			(1U << 31)	/* general purpose timeout (corerev >= 3) */
+#define	MI_TO			(1U << 31)	/* general purpose timeout */
 
 /* Mac capabilities registers */
 /* machwcap */
@@ -523,7 +522,7 @@ typedef volatile struct _d11regs {
 #define	PMQH_OFLO		0x00000004	/* pmq overflow indication */
 #define	PMQH_NOT_EMPTY		0x00000008	/* entries are present in pmq */
 
-/* phydebug (corerev >= 3) */
+/* phydebug */
 #define	PDBG_CRS		(1 << 0)	/* phy is asserting carrier sense */
 #define	PDBG_TXA		(1 << 1)	/* phy is taking xmit byte from mac this cycle */
 #define	PDBG_TXF		(1 << 2)	/* mac is instructing the phy to transmit a frame */
@@ -552,7 +551,6 @@ typedef volatile struct _d11regs {
 /* frmtxstatus */
 #define	TXS_V			(1 << 0)	/* valid bit */
 #define	TXS_STATUS_MASK		0xffff
-/* sw mask to map txstatus for corerevs <= 4 to be the same as for corerev > 4 */
 #define	TXS_COMPAT_MASK		0x3
 #define	TXS_COMPAT_SHIFT	1
 #define	TXS_FID_MASK		0xffff0000
@@ -565,7 +563,7 @@ typedef volatile struct _d11regs {
 #define	TXS_MU_MASK		0x01000000
 #define	TXS_MU_SHIFT		24
 
-/* clk_ctl_st, corerev >= 17 */
+/* clk_ctl_st */
 #define CCS_ERSRC_REQ_D11PLL	0x00000100	/* d11 core pll request */
 #define CCS_ERSRC_REQ_PHYPLL	0x00000200	/* PHY pll request */
 #define CCS_ERSRC_AVAIL_D11PLL	0x01000000	/* d11 core pll available */
@@ -584,7 +582,6 @@ typedef volatile struct _d11regs {
 #define	CFPREP_CBI_SHIFT	6
 #define	CFPREP_CFPP		0x00000001
 
-/* tx fifo sizes for corerev >= 9 */
 /* tx fifo sizes values are in terms of 256 byte blocks */
 #define TXFIFOCMD_RESET_MASK	(1 << 15)	/* reset */
 #define TXFIFOCMD_FIFOSEL_SHIFT	8	/* fifo */
@@ -724,10 +721,10 @@ struct d11txh {
 	u16 AmpduSeqCtl;	/* 0x25 */
 	u16 TxFrameID;	/* 0x26 */
 	u16 TxStatus;	/* 0x27 */
-	u16 MaxNMpdus;	/* 0x28 corerev >=16 */
-	u16 MaxABytes_MRT;	/* 0x29 corerev >=16 */
-	u16 MaxABytes_FBR;	/* 0x2a corerev >=16 */
-	u16 MinMBytes;	/* 0x2b corerev >=16 */
+	u16 MaxNMpdus;	/* 0x28 */
+	u16 MaxABytes_MRT;	/* 0x29 */
+	u16 MaxABytes_FBR;	/* 0x2a */
+	u16 MinMBytes;	/* 0x2b */
 	u8 RTSPhyHeader[D11_PHY_HDR_LEN];	/* 0x2c - 0x2e */
 	struct ieee80211_rts rts_frame;	/* 0x2f - 0x36 */
 	u16 PAD;		/* 0x37 */
@@ -865,7 +862,7 @@ struct tx_status {
 #define TX_STATUS_SUPR_MASK	0x1C	/* suppress status bits (4:2) */
 #define TX_STATUS_SUPR_SHIFT	2
 #define	TX_STATUS_ACK_RCV	(1 << 1)	/* ACK received */
-#define	TX_STATUS_VALID		(1 << 0)	/* Tx status valid (corerev >= 5) */
+#define	TX_STATUS_VALID		(1 << 0)	/* Tx status valid */
 #define	TX_STATUS_NO_ACK	0
 
 /* suppress status reason codes */
@@ -1612,9 +1609,9 @@ typedef struct macstat {
 #define	SICF_PCLKE		0x0004	/* PHY clock enable */
 #define	SICF_PRST		0x0008	/* PHY reset */
 #define	SICF_MPCLKE		0x0010	/* MAC PHY clockcontrol enable */
-#define	SICF_FREF		0x0020	/* PLL FreqRefSelect (corerev >= 5) */
+#define	SICF_FREF		0x0020	/* PLL FreqRefSelect */
 /* NOTE: the following bw bits only apply when the core is attached
- * to a NPHY (and corerev >= 11 which it will always be for NPHYs).
+ * to a NPHY
  */
 #define	SICF_BWMASK		0x00c0	/* phy clock mask (b6 & b7) */
 #define	SICF_BW40		0x0080	/* 40MHz BW (160MHz phyclk) */
@@ -1623,10 +1620,10 @@ typedef struct macstat {
 #define	SICF_GMODE		0x2000	/* gmode enable */
 
 /* dot11 core-specific status flags */
-#define	SISF_2G_PHY		0x0001	/* 2.4G capable phy (corerev >= 5) */
-#define	SISF_5G_PHY		0x0002	/* 5G capable phy (corerev >= 5) */
-#define	SISF_FCLKA		0x0004	/* FastClkAvailable (corerev >= 5) */
-#define	SISF_DB_PHY		0x0008	/* Dualband phy (corerev >= 11) */
+#define	SISF_2G_PHY		0x0001	/* 2.4G capable phy */
+#define	SISF_5G_PHY		0x0002	/* 5G capable phy */
+#define	SISF_FCLKA		0x0004	/* FastClkAvailable */
+#define	SISF_DB_PHY		0x0008	/* Dualband phy */
 
 /* === End of MAC reg, Beginning of PHY(b/a/g/n) reg, radio and LPPHY regs are separated === */
 

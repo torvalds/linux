@@ -420,8 +420,8 @@ struct wlc_hw_info {
 	u16 boardrev;	/* version # of particular board */
 	u32 boardflags;	/* Board specific flags from srom */
 	u32 boardflags2;	/* More board flags if sromrev >= 4 */
-	u32 machwcap;	/* MAC capabilities (corerev >= 13) */
-	u32 machwcap_backup;	/* backup of machwcap (corerev >= 13) */
+	u32 machwcap;	/* MAC capabilities */
+	u32 machwcap_backup;	/* backup of machwcap */
 	u16 ucode_dbgsel;	/* dbgsel for ucode debug(config gpio) */
 
 	si_t *sih;		/* SB handle (cookie for siutils calls) */

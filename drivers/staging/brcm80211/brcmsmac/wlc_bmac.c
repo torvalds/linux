@@ -595,8 +595,6 @@ static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 		 * FIFO 3
 		 * TX: TX_AC_VO_FIFO (TX AC Voice data packets)
 		 *   (legacy) TX_CTL_FIFO (TX control & mgmt packets)
-		 * RX: RX_TXSTATUS_FIFO (transmit-status packets)
-		 *      for corerev < 5 only
 		 */
 		ASSERT(TX_AC_VO_FIFO == 3);
 		ASSERT(TX_CTL_FIFO == 3);
@@ -2133,8 +2131,9 @@ bool wlc_bmac_radio_read_hwdisabled(struct wlc_hw_info *wlc_hw)
 	clk = wlc_hw->clk;
 	if (!clk) {
 		/*
-		 * corerev >= 18, mac no longer enables phyclk automatically when driver accesses
-		 * phyreg throughput mac. This can be skipped since only mac reg is accessed below
+		 * mac no longer enables phyclk automatically when driver
+		 * accesses phyreg throughput mac. This can be skipped since
+		 * only mac reg is accessed below
 		 */
 		flags |= SICF_PCLKE;
 
@@ -2296,8 +2295,7 @@ void wlc_bmac_corereset(struct wlc_hw_info *wlc_hw, u32 flags)
 		wlc_clkctl_clk(wlc_hw, CLK_DYNAMIC);
 }
 
-/* If the ucode that supports corerev 5 is used for corerev 9 and above,
- * txfifo sizes needs to be modified(increased) since the newer cores
+/* txfifo sizes needs to be modified(increased) since the newer cores
  * have more memory.
  */
 static void wlc_corerev_fifofixup(struct wlc_hw_info *wlc_hw)
@@ -2335,7 +2333,10 @@ static void wlc_corerev_fifofixup(struct wlc_hw_info *wlc_hw)
 		txfifo_startblk += wlc_hw->xmtfifo_sz[fifo_nu];
 	}
  exit:
-	/* need to propagate to shm location to be in sync since ucode/hw won't do this */
+	/*
+	 * need to propagate to shm location to be in sync since ucode/hw won't
+	 * do this
+	 */
 	wlc_bmac_write_shm(wlc_hw, M_FIFOSIZE0,
 			   wlc_hw->xmtfifo_sz[TX_AC_BE_FIFO]);
 	wlc_bmac_write_shm(wlc_hw, M_FIFOSIZE1,
@@ -2416,7 +2417,7 @@ static void wlc_coreinit(struct wlc_info *wlc)
 			 __func__, wlc_hw->unit, wlc_hw->corerev);
 	}
 
-	/* For old ucode, txfifo sizes needs to be modified(increased) for Corerev >= 9 */
+	/* For old ucode, txfifo sizes needs to be modified(increased) */
 	if (fifosz_fixup == true) {
 		wlc_corerev_fifofixup(wlc_hw);
 	}

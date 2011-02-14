@@ -303,7 +303,7 @@ typedef volatile struct {
 
 #define D64_RX_FRM_STS_LEN	0x0000ffff	/* frame length mask */
 #define D64_RX_FRM_STS_OVFL	0x00800000	/* RxOverFlow */
-#define D64_RX_FRM_STS_DSCRCNT	0x0f000000	/* no. of descriptors used - 1, d11corerev >= 22 */
+#define D64_RX_FRM_STS_DSCRCNT	0x0f000000  /* no. of descriptors used - 1 */
 #define D64_RX_FRM_STS_DATATYPE	0xf0000000	/* core-dependent data type */
 
 /* receive frame status */
