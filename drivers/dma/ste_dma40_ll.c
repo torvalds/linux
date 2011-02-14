@@ -125,13 +125,15 @@ void d40_phy_cfg(struct stedma40_chan_cfg *cfg,
 static int d40_phy_fill_lli(struct d40_phy_lli *lli,
 			    dma_addr_t data,
 			    u32 data_size,
-			    int psize,
 			    dma_addr_t next_lli,
 			    u32 reg_cfg,
-			    bool term_int,
-			    u32 data_width,
-			    bool is_device)
+			    struct stedma40_half_channel_info *info,
+			    unsigned int flags)
 {
+	bool addr_inc = flags & LLI_ADDR_INC;
+	bool term_int = flags & LLI_TERM_INT;
+	unsigned int data_width = info->data_width;
+	int psize = info->psize;
 	int num_elems;
 
 	if (psize == STEDMA40_PSIZE_PHY_1)
@@ -154,7 +156,7 @@ static int d40_phy_fill_lli(struct d40_phy_lli *lli,
 	 * Distance to next element sized entry.
 	 * Usually the size of the element unless you want gaps.
 	 */
-	if (!is_device)
+	if (addr_inc)
 		lli->reg_elt |= (0x1 << data_width) <<
 			D40_SREG_ELEM_PHY_EIDX_POS;
 
@@ -198,47 +200,51 @@ static int d40_seg_size(int size, int data_width1, int data_width2)
 	return seg_max;
 }
 
-struct d40_phy_lli *d40_phy_buf_to_lli(struct d40_phy_lli *lli,
-				       dma_addr_t addr,
-				       u32 size,
-				       int psize,
-				       dma_addr_t lli_phys,
-				       u32 reg_cfg,
-				       bool term_int,
-				       u32 data_width1,
-				       u32 data_width2,
-				       bool is_device)
+static struct d40_phy_lli *
+d40_phy_buf_to_lli(struct d40_phy_lli *lli, dma_addr_t addr, u32 size,
+		   dma_addr_t lli_phys, dma_addr_t first_phys, u32 reg_cfg,
+		   struct stedma40_half_channel_info *info,
+		   struct stedma40_half_channel_info *otherinfo,
+		   unsigned long flags)
 {
+	bool lastlink = flags & LLI_LAST_LINK;
+	bool addr_inc = flags & LLI_ADDR_INC;
+	bool term_int = flags & LLI_TERM_INT;
+	bool cyclic = flags & LLI_CYCLIC;
 	int err;
 	dma_addr_t next = lli_phys;
 	int size_rest = size;
 	int size_seg = 0;
 
+	/*
+	 * This piece may be split up based on d40_seg_size(); we only want the
+	 * term int on the last part.
+	 */
+	if (term_int)
+		flags &= ~LLI_TERM_INT;
+
 	do {
-		size_seg = d40_seg_size(size_rest, data_width1, data_width2);
+		size_seg = d40_seg_size(size_rest, info->data_width,
+					otherinfo->data_width);
 		size_rest -= size_seg;
 
-		if (term_int && size_rest == 0)
-			next = 0;
+		if (size_rest == 0 && term_int)
+			flags |= LLI_TERM_INT;
+
+		if (size_rest == 0 && lastlink)
+			next = cyclic ? first_phys : 0;
 		else
 			next = ALIGN(next + sizeof(struct d40_phy_lli),
 				     D40_LLI_ALIGN);
 
-		err = d40_phy_fill_lli(lli,
-				       addr,
-				       size_seg,
-				       psize,
-				       next,
-				       reg_cfg,
-				       !next,
-				       data_width1,
-				       is_device);
+		err = d40_phy_fill_lli(lli, addr, size_seg, next,
+				       reg_cfg, info, flags);
 
 		if (err)
 			goto err;
 
 		lli++;
-		if (!is_device)
+		if (addr_inc)
 			addr += size_seg;
 	} while (size_rest);
 
@@ -254,39 +260,35 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		      struct d40_phy_lli *lli_sg,
 		      dma_addr_t lli_phys,
 		      u32 reg_cfg,
-		      u32 data_width1,
-		      u32 data_width2,
-		      int psize)
+		      struct stedma40_half_channel_info *info,
+		      struct stedma40_half_channel_info *otherinfo,
+		      unsigned long flags)
 {
 	int total_size = 0;
 	int i;
 	struct scatterlist *current_sg = sg;
-	dma_addr_t dst;
 	struct d40_phy_lli *lli = lli_sg;
 	dma_addr_t l_phys = lli_phys;
 
+	if (!target)
+		flags |= LLI_ADDR_INC;
+
 	for_each_sg(sg, current_sg, sg_len, i) {
+		dma_addr_t sg_addr = sg_dma_address(current_sg);
+		unsigned int len = sg_dma_len(current_sg);
+		dma_addr_t dst = target ?: sg_addr;
 
 		total_size += sg_dma_len(current_sg);
 
-		if (target)
-			dst = target;
-		else
-			dst = sg_phys(current_sg);
+		if (i == sg_len - 1)
+			flags |= LLI_TERM_INT | LLI_LAST_LINK;
 
 		l_phys = ALIGN(lli_phys + (lli - lli_sg) *
 			       sizeof(struct d40_phy_lli), D40_LLI_ALIGN);
 
-		lli = d40_phy_buf_to_lli(lli,
-					 dst,
-					 sg_dma_len(current_sg),
-					 psize,
-					 l_phys,
-					 reg_cfg,
-					 sg_len - 1 == i,
-					 data_width1,
-					 data_width2,
-					 target == dst);
+		lli = d40_phy_buf_to_lli(lli, dst, len, l_phys, lli_phys,
+					 reg_cfg, info, otherinfo, flags);
+
 		if (lli == NULL)
 			return -EINVAL;
 	}
@@ -295,45 +297,22 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 }
 
 
-void d40_phy_lli_write(void __iomem *virtbase,
-		       u32 phy_chan_num,
-		       struct d40_phy_lli *lli_dst,
-		       struct d40_phy_lli *lli_src)
-{
-
-	writel(lli_src->reg_cfg, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SSCFG);
-	writel(lli_src->reg_elt, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SSELT);
-	writel(lli_src->reg_ptr, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SSPTR);
-	writel(lli_src->reg_lnk, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SSLNK);
-
-	writel(lli_dst->reg_cfg, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SDCFG);
-	writel(lli_dst->reg_elt, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SDELT);
-	writel(lli_dst->reg_ptr, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SDPTR);
-	writel(lli_dst->reg_lnk, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SDLNK);
-
-}
-
 /* DMA logical lli operations */
 
 static void d40_log_lli_link(struct d40_log_lli *lli_dst,
 			     struct d40_log_lli *lli_src,
-			     int next)
+			     int next, unsigned int flags)
 {
+	bool interrupt = flags & LLI_TERM_INT;
 	u32 slos = 0;
 	u32 dlos = 0;
 
 	if (next != -EINVAL) {
 		slos = next * 2;
 		dlos = next * 2 + 1;
-	} else {
+	}
+
+	if (interrupt) {
 		lli_dst->lcsp13 |= D40_MEM_LCSP1_SCFG_TIM_MASK;
 		lli_dst->lcsp13 |= D40_MEM_LCSP3_DTCP_MASK;
 	}
@@ -348,9 +327,9 @@ static void d40_log_lli_link(struct d40_log_lli *lli_dst,
 void d40_log_lli_lcpa_write(struct d40_log_lli_full *lcpa,
 			   struct d40_log_lli *lli_dst,
 			   struct d40_log_lli *lli_src,
-			   int next)
+			   int next, unsigned int flags)
 {
-	d40_log_lli_link(lli_dst, lli_src, next);
+	d40_log_lli_link(lli_dst, lli_src, next, flags);
 
 	writel(lli_src->lcsp02, &lcpa[0].lcsp0);
 	writel(lli_src->lcsp13, &lcpa[0].lcsp1);
@@ -361,9 +340,9 @@ void d40_log_lli_lcpa_write(struct d40_log_lli_full *lcpa,
 void d40_log_lli_lcla_write(struct d40_log_lli *lcla,
 			   struct d40_log_lli *lli_dst,
 			   struct d40_log_lli *lli_src,
-			   int next)
+			   int next, unsigned int flags)
 {
-	d40_log_lli_link(lli_dst, lli_src, next);
+	d40_log_lli_link(lli_dst, lli_src, next, flags);
 
 	writel(lli_src->lcsp02, &lcla[0].lcsp02);
 	writel(lli_src->lcsp13, &lcla[0].lcsp13);
@@ -375,8 +354,10 @@ static void d40_log_fill_lli(struct d40_log_lli *lli,
 			     dma_addr_t data, u32 data_size,
 			     u32 reg_cfg,
 			     u32 data_width,
-			     bool addr_inc)
+			     unsigned int flags)
 {
+	bool addr_inc = flags & LLI_ADDR_INC;
+
 	lli->lcsp13 = reg_cfg;
 
 	/* The number of elements to transfer */
@@ -395,67 +376,15 @@ static void d40_log_fill_lli(struct d40_log_lli *lli,
 
 }
 
-int d40_log_sg_to_dev(struct scatterlist *sg,
-		      int sg_len,
-		      struct d40_log_lli_bidir *lli,
-		      struct d40_def_lcsp *lcsp,
-		      u32 src_data_width,
-		      u32 dst_data_width,
-		      enum dma_data_direction direction,
-		      dma_addr_t dev_addr)
-{
-	int total_size = 0;
-	struct scatterlist *current_sg = sg;
-	int i;
-	struct d40_log_lli *lli_src = lli->src;
-	struct d40_log_lli *lli_dst = lli->dst;
-
-	for_each_sg(sg, current_sg, sg_len, i) {
-		total_size += sg_dma_len(current_sg);
-
-		if (direction == DMA_TO_DEVICE) {
-			lli_src =
-				d40_log_buf_to_lli(lli_src,
-						   sg_phys(current_sg),
-						   sg_dma_len(current_sg),
-						   lcsp->lcsp1, src_data_width,
-						   dst_data_width,
-						   true);
-			lli_dst =
-				d40_log_buf_to_lli(lli_dst,
-						   dev_addr,
-						   sg_dma_len(current_sg),
-						   lcsp->lcsp3, dst_data_width,
-						   src_data_width,
-						   false);
-		} else {
-			lli_dst =
-				d40_log_buf_to_lli(lli_dst,
-						   sg_phys(current_sg),
-						   sg_dma_len(current_sg),
-						   lcsp->lcsp3, dst_data_width,
-						   src_data_width,
-						   true);
-			lli_src =
-				d40_log_buf_to_lli(lli_src,
-						   dev_addr,
-						   sg_dma_len(current_sg),
-						   lcsp->lcsp1, src_data_width,
-						   dst_data_width,
-						   false);
-		}
-	}
-	return total_size;
-}
-
-struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
+static struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
 				       dma_addr_t addr,
 				       int size,
 				       u32 lcsp13, /* src or dst*/
 				       u32 data_width1,
 				       u32 data_width2,
-				       bool addr_inc)
+				       unsigned int flags)
 {
+	bool addr_inc = flags & LLI_ADDR_INC;
 	struct d40_log_lli *lli = lli_sg;
 	int size_rest = size;
 	int size_seg = 0;
@@ -468,7 +397,7 @@ struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
 				 addr,
 				 size_seg,
 				 lcsp13, data_width1,
-				 addr_inc);
+				 flags);
 		if (addr_inc)
 			addr += size_seg;
 		lli++;
@@ -479,6 +408,7 @@ struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
 
 int d40_log_sg_to_lli(struct scatterlist *sg,
 		      int sg_len,
+		      dma_addr_t dev_addr,
 		      struct d40_log_lli *lli_sg,
 		      u32 lcsp13, /* src or dst*/
 		      u32 data_width1, u32 data_width2)
@@ -487,14 +417,24 @@ int d40_log_sg_to_lli(struct scatterlist *sg,
 	struct scatterlist *current_sg = sg;
 	int i;
 	struct d40_log_lli *lli = lli_sg;
+	unsigned long flags = 0;
+
+	if (!dev_addr)
+		flags |= LLI_ADDR_INC;
 
 	for_each_sg(sg, current_sg, sg_len, i) {
+		dma_addr_t sg_addr = sg_dma_address(current_sg);
+		unsigned int len = sg_dma_len(current_sg);
+		dma_addr_t addr = dev_addr ?: sg_addr;
+
 		total_size += sg_dma_len(current_sg);
-		lli = d40_log_buf_to_lli(lli,
-					 sg_phys(current_sg),
-					 sg_dma_len(current_sg),
+
+		lli = d40_log_buf_to_lli(lli, addr, len,
 					 lcsp13,
-					 data_width1, data_width2, true);
+					 data_width1,
+					 data_width2,
+					 flags);
 	}
+
 	return total_size;
 }

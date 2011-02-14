@@ -104,6 +104,8 @@ struct stedma40_half_channel_info {
  *
  * @dir: MEM 2 MEM, PERIPH 2 MEM , MEM 2 PERIPH, PERIPH 2 PERIPH
  * @high_priority: true if high-priority
+ * @realtime: true if realtime mode is to be enabled.  Only available on DMA40
+ * version 3+, i.e DB8500v2+
  * @mode: channel mode: physical, logical, or operation
  * @mode_opt: options for the chosen channel mode
  * @src_dev_type: Src device type
@@ -119,6 +121,7 @@ struct stedma40_half_channel_info {
 struct stedma40_chan_cfg {
 	enum stedma40_xfer_dir			 dir;
 	bool					 high_priority;
+	bool					 realtime;
 	enum stedma40_mode			 mode;
 	enum stedma40_mode_opt			 mode_opt;
 	int					 src_dev_type;
@@ -167,25 +170,6 @@ struct stedma40_platform_data {
  */
 
 bool stedma40_filter(struct dma_chan *chan, void *data);
-
-/**
- * stedma40_memcpy_sg() - extension of the dma framework, memcpy to/from
- * scattergatter lists.
- *
- * @chan: dmaengine handle
- * @sgl_dst: Destination scatter list
- * @sgl_src: Source scatter list
- * @sgl_len: The length of each scatterlist. Both lists must be of equal length
- * and each element must match the corresponding element in the other scatter
- * list.
- * @flags: is actually enum dma_ctrl_flags. See dmaengine.h
- */
-
-struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
-						   struct scatterlist *sgl_dst,
-						   struct scatterlist *sgl_src,
-						   unsigned int sgl_len,
-						   unsigned long flags);
 
 /**
  * stedma40_slave_mem() - Transfers a raw data buffer to or from a slave
