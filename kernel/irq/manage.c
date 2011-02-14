@@ -540,17 +540,6 @@ int can_request_irq(unsigned int irq, unsigned long irqflags)
 	return !action;
 }
 
-void compat_irq_chip_set_default_handler(struct irq_desc *desc)
-{
-	/*
-	 * If the architecture still has not overriden
-	 * the flow handler then zap the default. This
-	 * should catch incorrect flow-type setting.
-	 */
-	if (desc->handle_irq == &handle_bad_irq)
-		desc->handle_irq = NULL;
-}
-
 int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		      unsigned long flags)
 {
@@ -912,8 +901,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 
 			if (ret)
 				goto out_mask;
-		} else
-			compat_irq_chip_set_default_handler(desc);
+		}
 
 		desc->istate &= ~(IRQS_AUTODETECT | IRQS_SPURIOUS_DISABLED | \
 				  IRQS_INPROGRESS | IRQS_ONESHOT | \

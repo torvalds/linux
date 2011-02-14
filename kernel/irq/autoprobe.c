@@ -47,12 +47,6 @@ unsigned long probe_irq_on(void)
 		raw_spin_lock_irq(&desc->lock);
 		if (!desc->action && irq_settings_can_probe(desc)) {
 			/*
-			 * An old-style architecture might still have
-			 * the handle_bad_irq handler there:
-			 */
-			compat_irq_chip_set_default_handler(desc);
-
-			/*
 			 * Some chips need to know about probing in
 			 * progress:
 			 */
