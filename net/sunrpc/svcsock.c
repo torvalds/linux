@@ -982,9 +982,9 @@ static int svc_process_calldir(struct svc_sock *svsk, struct svc_rqst *rqstp,
 			       struct rpc_rqst **reqpp, struct kvec *vec)
 {
 	struct rpc_rqst *req = NULL;
-	u32 *p;
-	u32 xid;
-	u32 calldir;
+	__be32 *p;
+	__be32 xid;
+	__be32 calldir;
 	int len;
 
 	len = svc_recvfrom(rqstp, vec, 1, 8);
