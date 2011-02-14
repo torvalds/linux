@@ -578,7 +578,7 @@ static struct notifier_block hws_oom_notifier = {
 	.notifier_call = hws_oom_callback
 };
 
-static int __cpuinit hws_cpu_callback(struct notifier_block *nfb,
+static int hws_cpu_callback(struct notifier_block *nfb,
 	unsigned long action, void *hcpu)
 {
 	/* We do not have sampler space available for all possible CPUs.
