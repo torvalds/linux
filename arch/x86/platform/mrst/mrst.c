@@ -31,6 +31,7 @@
 #include <asm/apic.h>
 #include <asm/io_apic.h>
 #include <asm/mrst.h>
+#include <asm/mrst-vrtc.h>
 #include <asm/io.h>
 #include <asm/i8259.h>
 #include <asm/intel_scu_ipc.h>
@@ -294,6 +295,7 @@ void __init x86_mrst_early_setup(void)
 
 	x86_platform.calibrate_tsc = mrst_calibrate_tsc;
 	x86_platform.i8042_detect = mrst_i8042_detect;
+	x86_init.timers.wallclock_init = mrst_rtc_init;
 	x86_init.pci.init = pci_mrst_init;
 	x86_init.pci.fixup_irqs = x86_init_noop;
 

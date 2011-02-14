@@ -62,6 +62,17 @@ static inline int is_intr(u8 rtc_intr)
 	return rtc_intr & RTC_IRQMASK;
 }
 
+static inline unsigned char vrtc_is_updating(void)
+{
+	unsigned char uip;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtc_lock, flags);
+	uip = (vrtc_cmos_read(RTC_FREQ_SELECT) & RTC_UIP);
+	spin_unlock_irqrestore(&rtc_lock, flags);
+	return uip;
+}
+
 /*
  * rtc_time's year contains the increment over 1900, but vRTC's YEAR
  * register can't be programmed to value larger than 0x64, so vRTC
@@ -76,7 +87,7 @@ static int mrst_read_time(struct device *dev, struct rtc_time *time)
 {
 	unsigned long flags;
 
-	if (rtc_is_updating())
+	if (vrtc_is_updating())
 		mdelay(20);
 
 	spin_lock_irqsave(&rtc_lock, flags);
