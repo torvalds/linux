@@ -2489,17 +2489,6 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 
 	/*
-	 * Vet our module parameters.
-	 */
-	if (msi != MSI_MSIX && msi != MSI_MSI) {
-		dev_err(&pdev->dev, "bad module parameter msi=%d; must be %d"
-			" (MSI-X or MSI) or %d (MSI)\n", msi, MSI_MSIX,
-			MSI_MSI);
-		err = -EINVAL;
-		goto err_out;
-	}
-
-	/*
 	 * Print our driver banner the first time we're called to initialize a
 	 * device.
 	 */
@@ -2802,7 +2791,6 @@ err_release_regions:
 err_disable_device:
 	pci_disable_device(pdev);
 
-err_out:
 	return err;
 }
 
@@ -2914,6 +2902,17 @@ static struct pci_driver cxgb4vf_driver = {
 static int __init cxgb4vf_module_init(void)
 {
 	int ret;
+
+	/*
+	 * Vet our module parameters.
+	 */
+	if (msi != MSI_MSIX && msi != MSI_MSI) {
+		printk(KERN_WARNING KBUILD_MODNAME
+		       ": bad module parameter msi=%d; must be %d"
+		       " (MSI-X or MSI) or %d (MSI)\n",
+		       msi, MSI_MSIX, MSI_MSI);
+		return -EINVAL;
+	}
 
 	/* Debugfs support is optional, just warn if this fails */
 	cxgb4vf_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
