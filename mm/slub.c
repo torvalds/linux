@@ -797,10 +797,34 @@ static inline int slab_pre_alloc_hook(struct kmem_cache *s, gfp_t flags)
 	return should_failslab(s->objsize, flags, s->flags);
 }
 
+static inline size_t slab_ksize(const struct kmem_cache *s)
+{
+#ifdef CONFIG_SLUB_DEBUG
+	/*
+	 * Debugging requires use of the padding between object
+	 * and whatever may come after it.
+	 */
+	if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
+		return s->objsize;
+
+#endif
+	/*
+	 * If we have the need to store the freelist pointer
+	 * back there or track user information then we can
+	 * only use the space before that information.
+	 */
+	if (s->flags & (SLAB_DESTROY_BY_RCU | SLAB_STORE_USER))
+		return s->inuse;
+	/*
+	 * Else we can use all the padding etc for the allocation
+	 */
+	return s->size;
+}
+
 static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags, void *object)
 {
 	flags &= gfp_allowed_mask;
-	kmemcheck_slab_alloc(s, flags, object, s->objsize);
+	kmemcheck_slab_alloc(s, flags, object, slab_ksize(s));
 	kmemleak_alloc_recursive(object, s->objsize, 1, s->flags, flags);
 }
 
@@ -2690,7 +2714,6 @@ EXPORT_SYMBOL(__kmalloc_node);
 size_t ksize(const void *object)
 {
 	struct page *page;
-	struct kmem_cache *s;
 
 	if (unlikely(object == ZERO_SIZE_PTR))
 		return 0;
@@ -2701,28 +2724,8 @@ size_t ksize(const void *object)
 		WARN_ON(!PageCompound(page));
 		return PAGE_SIZE << compound_order(page);
 	}
-	s = page->slab;
 
-#ifdef CONFIG_SLUB_DEBUG
-	/*
-	 * Debugging requires use of the padding between object
-	 * and whatever may come after it.
-	 */
-	if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
-		return s->objsize;
-
-#endif
-	/*
-	 * If we have the need to store the freelist pointer
-	 * back there or track user information then we can
-	 * only use the space before that information.
-	 */
-	if (s->flags & (SLAB_DESTROY_BY_RCU | SLAB_STORE_USER))
-		return s->inuse;
-	/*
-	 * Else we can use all the padding etc for the allocation
-	 */
-	return s->size;
+	return slab_ksize(page->slab);
 }
 EXPORT_SYMBOL(ksize);
 
