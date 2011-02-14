@@ -16,9 +16,12 @@
 /**
  * struct dw_dma_platform_data - Controller configuration parameters
  * @nr_channels: Number of channels supported by hardware (max 8)
+ * @is_private: The device channels should be marked as private and not for
+ *	by the general purpose DMA channel allocator.
  */
 struct dw_dma_platform_data {
 	unsigned int	nr_channels;
+	bool		is_private;
 };
 
 /**
@@ -52,6 +55,8 @@ struct dw_dma_slave {
 	enum dw_dma_slave_width	reg_width;
 	u32			cfg_hi;
 	u32			cfg_lo;
+	int			src_master;
+	int			dst_master;
 };
 
 /* Platform-configurable bits in CFG_HI */
