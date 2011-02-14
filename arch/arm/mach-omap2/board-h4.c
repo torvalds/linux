@@ -290,12 +290,16 @@ static struct omap_board_config_kernel h4_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&h4_lcd_config },
 };
 
-static void __init omap_h4_init_irq(void)
+static void __init omap_h4_init_early(void)
 {
 	omap_board_config = h4_config;
 	omap_board_config_size = ARRAY_SIZE(h4_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
+}
+
+static void __init omap_h4_init_irq(void)
+{
 	omap_init_irq();
 	h4_init_flash();
 }
@@ -378,8 +382,9 @@ static void __init omap_h4_map_io(void)
 MACHINE_START(OMAP_H4, "OMAP2420 H4 board")
 	/* Maintainer: Paul Mundt <paul.mundt@nokia.com> */
 	.boot_params	= 0x80000100,
-	.map_io		= omap_h4_map_io,
 	.reserve	= omap_reserve,
+	.map_io		= omap_h4_map_io,
+	.init_early	= omap_h4_init_early,
 	.init_irq	= omap_h4_init_irq,
 	.init_machine	= omap_h4_init,
 	.timer		= &omap_timer,

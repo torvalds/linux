@@ -98,7 +98,7 @@ static struct omap_board_config_kernel rx51_config[] = {
 	{ OMAP_TAG_LCD,		&rx51_lcd_config },
 };
 
-static void __init rx51_init_irq(void)
+static void __init rx51_init_early(void)
 {
 	struct omap_sdrc_params *sdrc_params;
 
@@ -108,7 +108,6 @@ static void __init rx51_init_irq(void)
 	omap2_init_common_infrastructure();
 	sdrc_params = nokia_get_sdram_timings();
 	omap2_init_common_devices(sdrc_params, sdrc_params);
-	omap_init_irq();
 }
 
 extern void __init rx51_peripherals_init(void);
@@ -149,9 +148,10 @@ static void __init rx51_map_io(void)
 MACHINE_START(NOKIA_RX51, "Nokia RX-51 board")
 	/* Maintainer: Lauri Leukkunen <lauri.leukkunen@nokia.com> */
 	.boot_params	= 0x80000100,
-	.map_io		= rx51_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= rx51_init_irq,
+	.map_io		= rx51_map_io,
+	.init_early	= rx51_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= rx51_init,
 	.timer		= &omap_timer,
 MACHINE_END

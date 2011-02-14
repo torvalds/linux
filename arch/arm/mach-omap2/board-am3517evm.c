@@ -396,13 +396,12 @@ static struct platform_device *am3517_evm_devices[] __initdata = {
 	&am3517_evm_dss_device,
 };
 
-static void __init am3517_evm_init_irq(void)
+static void __init am3517_evm_init_early(void)
 {
 	omap_board_config = am3517_evm_config;
 	omap_board_config_size = ARRAY_SIZE(am3517_evm_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
-	omap_init_irq();
 }
 
 static struct omap_musb_board_data musb_board_data = {
@@ -521,9 +520,10 @@ static void __init am3517_evm_init(void)
 
 MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= am3517_evm_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= am3517_evm_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= am3517_evm_init,
 	.timer		= &omap_timer,
 MACHINE_END

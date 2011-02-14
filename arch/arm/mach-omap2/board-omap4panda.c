@@ -76,11 +76,10 @@ static struct platform_device *panda_devices[] __initdata = {
 	&leds_gpio,
 };
 
-static void __init omap4_panda_init_irq(void)
+static void __init omap4_panda_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
-	gic_init_irq();
 }
 
 static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
@@ -424,7 +423,8 @@ MACHINE_START(OMAP4_PANDA, "OMAP4 Panda board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap4_panda_map_io,
-	.init_irq	= omap4_panda_init_irq,
+	.init_early	= omap4_panda_init_early,
+	.init_irq	= gic_init_irq,
 	.init_machine	= omap4_panda_init,
 	.timer		= &omap_timer,
 MACHINE_END

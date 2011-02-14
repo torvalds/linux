@@ -327,14 +327,13 @@ static struct platform_device *sdp3430_devices[] __initdata = {
 static struct omap_board_config_kernel sdp3430_config[] __initdata = {
 };
 
-static void __init omap_3430sdp_init_irq(void)
+static void __init omap_3430sdp_init_early(void)
 {
 	omap_board_config = sdp3430_config;
 	omap_board_config_size = ARRAY_SIZE(sdp3430_config);
 	omap3_pm_init_cpuidle(omap3_cpuidle_params_table);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(hyb18m512160af6_sdrc_params, NULL);
-	omap_init_irq();
 }
 
 static int sdp3430_batt_table[] = {
@@ -822,9 +821,10 @@ static void __init omap_3430sdp_init(void)
 MACHINE_START(OMAP_3430SDP, "OMAP3430 3430SDP board")
 	/* Maintainer: Syed Khasim - Texas Instruments Inc */
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_3430sdp_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= omap_3430sdp_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= omap_3430sdp_init,
 	.timer		= &omap_timer,
 MACHINE_END

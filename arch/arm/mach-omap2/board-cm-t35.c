@@ -683,7 +683,7 @@ static void __init cm_t35_init_i2c(void)
 static struct omap_board_config_kernel cm_t35_config[] __initdata = {
 };
 
-static void __init cm_t35_init_irq(void)
+static void __init cm_t35_init_early(void)
 {
 	omap_board_config = cm_t35_config;
 	omap_board_config_size = ARRAY_SIZE(cm_t35_config);
@@ -691,7 +691,6 @@ static void __init cm_t35_init_irq(void)
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
 			     mt46h32m32lf6_sdrc_params);
-	omap_init_irq();
 }
 
 static struct omap_board_mux board_mux[] __initdata = {
@@ -815,9 +814,10 @@ static void __init cm_t35_init(void)
 
 MACHINE_START(CM_T35, "Compulab CM-T35")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= cm_t35_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= cm_t35_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= cm_t35_init,
 	.timer		= &omap_timer,
 MACHINE_END

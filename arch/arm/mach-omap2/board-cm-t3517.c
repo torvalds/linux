@@ -254,14 +254,13 @@ static inline void cm_t3517_init_nand(void) {}
 static struct omap_board_config_kernel cm_t3517_config[] __initdata = {
 };
 
-static void __init cm_t3517_init_irq(void)
+static void __init cm_t3517_init_early(void)
 {
 	omap_board_config = cm_t3517_config;
 	omap_board_config_size = ARRAY_SIZE(cm_t3517_config);
 
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
-	omap_init_irq();
 }
 
 static struct omap_board_mux board_mux[] __initdata = {
@@ -303,9 +302,10 @@ static void __init cm_t3517_init(void)
 
 MACHINE_START(CM_T3517, "Compulab CM-T3517")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve        = omap_reserve,
-	.init_irq	= cm_t3517_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= cm_t3517_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= cm_t3517_init,
 	.timer		= &omap_timer,
 MACHINE_END

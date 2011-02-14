@@ -591,12 +591,16 @@ static struct spi_board_info omap3stalker_spi_board_info[] = {
 static struct omap_board_config_kernel omap3_stalker_config[] __initdata = {
 };
 
-static void __init omap3_stalker_init_irq(void)
+static void __init omap3_stalker_init_early(void)
 {
 	omap_board_config = omap3_stalker_config;
 	omap_board_config_size = ARRAY_SIZE(omap3_stalker_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params, NULL);
+}
+
+static void __init omap3_stalker_init_irq(void)
+{
 	omap_init_irq();
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(12);
@@ -666,6 +670,7 @@ MACHINE_START(SBC3530, "OMAP3 STALKER")
 	/* Maintainer: Jason Lam -lzg@ema-tech.com */
 	.boot_params		= 0x80000100,
 	.map_io			= omap3_map_io,
+	.init_early		= omap3_stalker_init_early,
 	.init_irq		= omap3_stalker_init_irq,
 	.init_machine		= omap3_stalker_init,
 	.timer			= &omap_timer,
