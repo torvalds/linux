@@ -1,9 +1,9 @@
-/* linux/arch/arm/mach-s5pv310/include/mach/sysmmu.h
+/* linux/arch/arm/mach-exynos4/include/mach/sysmmu.h
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
- * Samsung sysmmu driver for S5PV310
+ * Samsung sysmmu driver for EXYNOS4
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,10 +13,10 @@
 #ifndef __ASM_ARM_ARCH_SYSMMU_H
 #define __ASM_ARM_ARCH_SYSMMU_H __FILE__
 
-#define S5PV310_SYSMMU_TOTAL_IPNUM	16
-#define S5P_SYSMMU_TOTAL_IPNUM		S5PV310_SYSMMU_TOTAL_IPNUM
+#define EXYNOS4_SYSMMU_TOTAL_IPNUM	16
+#define S5P_SYSMMU_TOTAL_IPNUM		EXYNOS4_SYSMMU_TOTAL_IPNUM
 
-enum s5pv310_sysmmu_ips {
+enum exynos4_sysmmu_ips {
 	SYSMMU_MDMA,
 	SYSMMU_SSS,
 	SYSMMU_FIMC0,
@@ -35,7 +35,7 @@ enum s5pv310_sysmmu_ips {
 	SYSMMU_MFC_R,
 };
 
-static char *sysmmu_ips_name[S5PV310_SYSMMU_TOTAL_IPNUM] = {
+static char *sysmmu_ips_name[EXYNOS4_SYSMMU_TOTAL_IPNUM] = {
 	"SYSMMU_MDMA"	,
 	"SYSMMU_SSS"	,
 	"SYSMMU_FIMC0"	,
@@ -54,7 +54,7 @@ static char *sysmmu_ips_name[S5PV310_SYSMMU_TOTAL_IPNUM] = {
 	"SYSMMU_MFC_R"	,
 };
 
-typedef enum s5pv310_sysmmu_ips sysmmu_ips;
+typedef enum exynos4_sysmmu_ips sysmmu_ips;
 
 struct sysmmu_tt_info {
 	unsigned long *pgd;

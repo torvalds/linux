@@ -1,7 +1,7 @@
-/* linux/arch/arm/mach-s5pv310/include/mach/vmalloc.h
+/* linux/arch/arm/mach-exynos4/include/mach/vmalloc.h
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
  * Copyright 2010 Ben Dooks <ben-linux@fluff.org>
  *
@@ -11,7 +11,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * S5PV310 vmalloc definition
+ * EXYNOS4 vmalloc definition
 */
 
 #ifndef __ASM_ARCH_VMALLOC_H

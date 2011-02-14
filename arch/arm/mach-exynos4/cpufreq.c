@@ -1,9 +1,9 @@
-/* linux/arch/arm/mach-s5pv310/cpufreq.c
+/* linux/arch/arm/mach-exynos4/cpufreq.c
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * S5PV310 - CPU frequency scaling support
+ * EXYNOS4 - CPU frequency scaling support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -39,7 +39,7 @@ static struct regulator *int_regulator;
 static struct cpufreq_freqs freqs;
 static unsigned int memtype;
 
-enum s5pv310_memory_type {
+enum exynos4_memory_type {
 	DDR2 = 4,
 	LPDDR2,
 	DDR3,
@@ -49,7 +49,7 @@ enum cpufreq_level_index {
 	L0, L1, L2, L3, CPUFREQ_LEVEL_END,
 };
 
-static struct cpufreq_frequency_table s5pv310_freq_table[] = {
+static struct cpufreq_frequency_table exynos4_freq_table[] = {
 	{L0, 1000*1000},
 	{L1, 800*1000},
 	{L2, 400*1000},
@@ -160,7 +160,7 @@ struct cpufreq_voltage_table {
 	unsigned int	int_volt;
 };
 
-static struct cpufreq_voltage_table s5pv310_volt_table[CPUFREQ_LEVEL_END] = {
+static struct cpufreq_voltage_table exynos4_volt_table[CPUFREQ_LEVEL_END] = {
 	{
 		.index		= L0,
 		.arm_volt	= 1200000,
@@ -180,7 +180,7 @@ static struct cpufreq_voltage_table s5pv310_volt_table[CPUFREQ_LEVEL_END] = {
 	},
 };
 
-static unsigned int s5pv310_apll_pms_table[CPUFREQ_LEVEL_END] = {
+static unsigned int exynos4_apll_pms_table[CPUFREQ_LEVEL_END] = {
 	/* APLL FOUT L0: 1000MHz */
 	((250 << 16) | (6 << 8) | 1),
 
@@ -194,17 +194,17 @@ static unsigned int s5pv310_apll_pms_table[CPUFREQ_LEVEL_END] = {
 	((200 << 16) | (6 << 8) | 4),
 };
 
-int s5pv310_verify_speed(struct cpufreq_policy *policy)
+int exynos4_verify_speed(struct cpufreq_policy *policy)
 {
-	return cpufreq_frequency_table_verify(policy, s5pv310_freq_table);
+	return cpufreq_frequency_table_verify(policy, exynos4_freq_table);
 }
 
-unsigned int s5pv310_getspeed(unsigned int cpu)
+unsigned int exynos4_getspeed(unsigned int cpu)
 {
 	return clk_get_rate(cpu_clk) / 1000;
 }
 
-void s5pv310_set_clkdiv(unsigned int div_index)
+void exynos4_set_clkdiv(unsigned int div_index)
 {
 	unsigned int tmp;
 
@@ -321,7 +321,7 @@ void s5pv310_set_clkdiv(unsigned int div_index)
 	} while (tmp & 0x11);
 }
 
-static void s5pv310_set_apll(unsigned int index)
+static void exynos4_set_apll(unsigned int index)
 {
 	unsigned int tmp;
 
@@ -340,7 +340,7 @@ static void s5pv310_set_apll(unsigned int index)
 	/* 3. Change PLL PMS values */
 	tmp = __raw_readl(S5P_APLL_CON0);
 	tmp &= ~((0x3ff << 16) | (0x3f << 8) | (0x7 << 0));
-	tmp |= s5pv310_apll_pms_table[index];
+	tmp |= exynos4_apll_pms_table[index];
 	__raw_writel(tmp, S5P_APLL_CON0);
 
 	/* 4. wait_lock_time */
@@ -357,77 +357,77 @@ static void s5pv310_set_apll(unsigned int index)
 	} while (tmp != (0x1 << S5P_CLKSRC_CPU_MUXCORE_SHIFT));
 }
 
-static void s5pv310_set_frequency(unsigned int old_index, unsigned int new_index)
+static void exynos4_set_frequency(unsigned int old_index, unsigned int new_index)
 {
 	unsigned int tmp;
 
 	if (old_index > new_index) {
 		/* The frequency changing to L0 needs to change apll */
-		if (freqs.new == s5pv310_freq_table[L0].frequency) {
+		if (freqs.new == exynos4_freq_table[L0].frequency) {
 			/* 1. Change the system clock divider values */
-			s5pv310_set_clkdiv(new_index);
+			exynos4_set_clkdiv(new_index);
 
 			/* 2. Change the apll m,p,s value */
-			s5pv310_set_apll(new_index);
+			exynos4_set_apll(new_index);
 		} else {
 			/* 1. Change the system clock divider values */
-			s5pv310_set_clkdiv(new_index);
+			exynos4_set_clkdiv(new_index);
 
 			/* 2. Change just s value in apll m,p,s value */
 			tmp = __raw_readl(S5P_APLL_CON0);
 			tmp &= ~(0x7 << 0);
-			tmp |= (s5pv310_apll_pms_table[new_index] & 0x7);
+			tmp |= (exynos4_apll_pms_table[new_index] & 0x7);
 			__raw_writel(tmp, S5P_APLL_CON0);
 		}
 	}
 
 	else if (old_index < new_index) {
 		/* The frequency changing from L0 needs to change apll */
-		if (freqs.old == s5pv310_freq_table[L0].frequency) {
+		if (freqs.old == exynos4_freq_table[L0].frequency) {
 			/* 1. Change the apll m,p,s value */
-			s5pv310_set_apll(new_index);
+			exynos4_set_apll(new_index);
 
 			/* 2. Change the system clock divider values */
-			s5pv310_set_clkdiv(new_index);
+			exynos4_set_clkdiv(new_index);
 		} else {
 			/* 1. Change just s value in apll m,p,s value */
 			tmp = __raw_readl(S5P_APLL_CON0);
 			tmp &= ~(0x7 << 0);
-			tmp |= (s5pv310_apll_pms_table[new_index] & 0x7);
+			tmp |= (exynos4_apll_pms_table[new_index] & 0x7);
 			__raw_writel(tmp, S5P_APLL_CON0);
 
 			/* 2. Change the system clock divider values */
-			s5pv310_set_clkdiv(new_index);
+			exynos4_set_clkdiv(new_index);
 		}
 	}
 }
 
-static int s5pv310_target(struct cpufreq_policy *policy,
+static int exynos4_target(struct cpufreq_policy *policy,
 			  unsigned int target_freq,
 			  unsigned int relation)
 {
 	unsigned int index, old_index;
 	unsigned int arm_volt, int_volt;
 
-	freqs.old = s5pv310_getspeed(policy->cpu);
+	freqs.old = exynos4_getspeed(policy->cpu);
 
-	if (cpufreq_frequency_table_target(policy, s5pv310_freq_table,
+	if (cpufreq_frequency_table_target(policy, exynos4_freq_table,
 					   freqs.old, relation, &old_index))
 		return -EINVAL;
 
-	if (cpufreq_frequency_table_target(policy, s5pv310_freq_table,
+	if (cpufreq_frequency_table_target(policy, exynos4_freq_table,
 					   target_freq, relation, &index))
 		return -EINVAL;
 
-	freqs.new = s5pv310_freq_table[index].frequency;
+	freqs.new = exynos4_freq_table[index].frequency;
 	freqs.cpu = policy->cpu;
 
 	if (freqs.new == freqs.old)
 		return 0;
 
 	/* get the voltage value */
-	arm_volt = s5pv310_volt_table[index].arm_volt;
-	int_volt = s5pv310_volt_table[index].int_volt;
+	arm_volt = exynos4_volt_table[index].arm_volt;
+	int_volt = exynos4_volt_table[index].int_volt;
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
@@ -441,7 +441,7 @@ static int s5pv310_target(struct cpufreq_policy *policy,
 	}
 
 	/* Clock Configuration Procedure */
-	s5pv310_set_frequency(old_index, index);
+	exynos4_set_frequency(old_index, index);
 
 	/* control regulator */
 	if (freqs.new < freqs.old) {
@@ -458,52 +458,52 @@ static int s5pv310_target(struct cpufreq_policy *policy,
 }
 
 #ifdef CONFIG_PM
-static int s5pv310_cpufreq_suspend(struct cpufreq_policy *policy,
+static int exynos4_cpufreq_suspend(struct cpufreq_policy *policy,
 				   pm_message_t pmsg)
 {
 	return 0;
 }
 
-static int s5pv310_cpufreq_resume(struct cpufreq_policy *policy)
+static int exynos4_cpufreq_resume(struct cpufreq_policy *policy)
 {
 	return 0;
 }
 #endif
 
-static int s5pv310_cpufreq_cpu_init(struct cpufreq_policy *policy)
+static int exynos4_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	policy->cur = policy->min = policy->max = s5pv310_getspeed(policy->cpu);
+	policy->cur = policy->min = policy->max = exynos4_getspeed(policy->cpu);
 
-	cpufreq_frequency_table_get_attr(s5pv310_freq_table, policy->cpu);
+	cpufreq_frequency_table_get_attr(exynos4_freq_table, policy->cpu);
 
 	/* set the transition latency value */
 	policy->cpuinfo.transition_latency = 100000;
 
 	/*
-	 * S5PV310 multi-core processors has 2 cores
+	 * EXYNOS4 multi-core processors has 2 cores
 	 * that the frequency cannot be set independently.
 	 * Each cpu is bound to the same speed.
 	 * So the affected cpu is all of the cpus.
 	 */
 	cpumask_setall(policy->cpus);
 
-	return cpufreq_frequency_table_cpuinfo(policy, s5pv310_freq_table);
+	return cpufreq_frequency_table_cpuinfo(policy, exynos4_freq_table);
 }
 
-static struct cpufreq_driver s5pv310_driver = {
+static struct cpufreq_driver exynos4_driver = {
 	.flags		= CPUFREQ_STICKY,
-	.verify		= s5pv310_verify_speed,
-	.target		= s5pv310_target,
-	.get		= s5pv310_getspeed,
-	.init		= s5pv310_cpufreq_cpu_init,
-	.name		= "s5pv310_cpufreq",
+	.verify		= exynos4_verify_speed,
+	.target		= exynos4_target,
+	.get		= exynos4_getspeed,
+	.init		= exynos4_cpufreq_cpu_init,
+	.name		= "exynos4_cpufreq",
 #ifdef CONFIG_PM
-	.suspend	= s5pv310_cpufreq_suspend,
-	.resume		= s5pv310_cpufreq_resume,
+	.suspend	= exynos4_cpufreq_suspend,
+	.resume		= exynos4_cpufreq_resume,
 #endif
 };
 
-static int __init s5pv310_cpufreq_init(void)
+static int __init exynos4_cpufreq_init(void)
 {
 	cpu_clk = clk_get(NULL, "armclk");
 	if (IS_ERR(cpu_clk))
@@ -550,7 +550,7 @@ static int __init s5pv310_cpufreq_init(void)
 		printk(KERN_DEBUG "%s: memtype= 0x%x\n", __func__, memtype);
 	}
 
-	return cpufreq_register_driver(&s5pv310_driver);
+	return cpufreq_register_driver(&exynos4_driver);
 
 out:
 	if (!IS_ERR(cpu_clk))
@@ -577,4 +577,4 @@ out:
 
 	return -EINVAL;
 }
-late_initcall(s5pv310_cpufreq_init);
+late_initcall(exynos4_cpufreq_init);

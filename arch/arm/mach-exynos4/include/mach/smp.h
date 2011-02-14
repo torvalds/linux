@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s5pv310/include/mach/smp.h
+/* linux/arch/arm/mach-exynos4/include/mach/smp.h
  *
  * Cloned from arch/arm/mach-realview/include/mach/smp.h
 */

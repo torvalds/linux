@@ -1,7 +1,7 @@
 /* linux/arch/arm/plat-s5p/cpu.c
  *
- * Copyright (c) 2009 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2009-2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
  * S5P CPU Support
  *
@@ -12,17 +12,20 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <mach/map.h>
+
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+
+#include <mach/map.h>
 #include <mach/regs-clock.h>
+
 #include <plat/cpu.h>
 #include <plat/s5p6440.h>
 #include <plat/s5p6442.h>
 #include <plat/s5p6450.h>
 #include <plat/s5pc100.h>
 #include <plat/s5pv210.h>
-#include <plat/s5pv310.h>
+#include <plat/exynos4.h>
 
 /* table of supported CPUs */
 
@@ -31,7 +34,7 @@ static const char name_s5p6442[] = "S5P6442";
 static const char name_s5p6450[] = "S5P6450";
 static const char name_s5pc100[] = "S5PC100";
 static const char name_s5pv210[] = "S5PV210/S5PC110";
-static const char name_s5pv310[] = "S5PV310";
+static const char name_exynos4210[] = "EXYNOS4210";
 
 static struct cpu_table cpu_ids[] __initdata = {
 	{
@@ -75,13 +78,13 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.init		= s5pv210_init,
 		.name		= name_s5pv210,
 	}, {
-		.idcode		= 0x43200000,
+		.idcode		= 0x43210000,
 		.idmask		= 0xfffff000,
-		.map_io		= s5pv310_map_io,
-		.init_clocks	= s5pv310_init_clocks,
-		.init_uarts	= s5pv310_init_uarts,
-		.init		= s5pv310_init,
-		.name		= name_s5pv310,
+		.map_io		= exynos4_map_io,
+		.init_clocks	= exynos4_init_clocks,
+		.init_uarts	= exynos4_init_uarts,
+		.init		= exynos4_init,
+		.name		= name_exynos4210,
 	},
 };
 

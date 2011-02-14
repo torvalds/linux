@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s5pv310/init.c
+/* linux/arch/arm/mach-exynos4/init.c
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -14,7 +14,7 @@
 #include <plat/devs.h>
 #include <plat/regs-serial.h>
 
-static struct s3c24xx_uart_clksrc s5pv310_serial_clocks[] = {
+static struct s3c24xx_uart_clksrc exynos4_serial_clocks[] = {
 	[0] = {
 		.name		= "uclk1",
 		.divisor	= 1,
@@ -24,7 +24,7 @@ static struct s3c24xx_uart_clksrc s5pv310_serial_clocks[] = {
 };
 
 /* uart registration process */
-void __init s5pv310_common_init_uarts(struct s3c2410_uartcfg *cfg, int no)
+void __init exynos4_common_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 {
 	struct s3c2410_uartcfg *tcfg = cfg;
 	u32 ucnt;
@@ -32,8 +32,8 @@ void __init s5pv310_common_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	for (ucnt = 0; ucnt < no; ucnt++, tcfg++) {
 		if (!tcfg->clocks) {
 			tcfg->has_fracval = 1;
-			tcfg->clocks = s5pv310_serial_clocks;
-			tcfg->clocks_size = ARRAY_SIZE(s5pv310_serial_clocks);
+			tcfg->clocks = exynos4_serial_clocks;
+			tcfg->clocks_size = ARRAY_SIZE(exynos4_serial_clocks);
 		}
 	}
 

@@ -1,9 +1,9 @@
-/* linux/arch/arm/mach-s5pv310/include/mach/regs-mem.h
+/* linux/arch/arm/mach-exynos4/include/mach/regs-mem.h
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * S5PV310 - SROMC and DMC register definitions
+ * EXYNOS4 - SROMC and DMC register definitions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

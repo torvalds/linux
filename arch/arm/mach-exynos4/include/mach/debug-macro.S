@@ -1,7 +1,7 @@
-/* linux/arch/arm/mach-s5pv310/include/mach/debug-macro.S
+/* linux/arch/arm/mach-exynos4/include/mach/debug-macro.S
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
  * Based on arch/arm/mach-s3c6400/include/mach/debug-macro.S
  *

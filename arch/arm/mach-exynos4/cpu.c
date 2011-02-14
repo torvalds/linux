@@ -1,7 +1,7 @@
-/* linux/arch/arm/mach-s5pv310/cpu.c
+/* linux/arch/arm/mach-exynos4/cpu.c
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,7 +19,7 @@
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
-#include <plat/s5pv310.h>
+#include <plat/exynos4.h>
 #include <plat/sdhci.h>
 
 #include <mach/regs-irq.h>
@@ -29,55 +29,55 @@ extern int combiner_init(unsigned int combiner_nr, void __iomem *base,
 extern void combiner_cascade_irq(unsigned int combiner_nr, unsigned int irq);
 
 /* Initial IO mappings */
-static struct map_desc s5pv310_iodesc[] __initdata = {
+static struct map_desc exynos4_iodesc[] __initdata = {
 	{
 		.virtual	= (unsigned long)S5P_VA_SYSRAM,
-		.pfn		= __phys_to_pfn(S5PV310_PA_SYSRAM),
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_SYSRAM),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_CMU,
-		.pfn		= __phys_to_pfn(S5PV310_PA_CMU),
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_CMU),
 		.length		= SZ_128K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_PMU,
-		.pfn		= __phys_to_pfn(S5PV310_PA_PMU),
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_PMU),
 		.length		= SZ_64K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_COMBINER_BASE,
-		.pfn		= __phys_to_pfn(S5PV310_PA_COMBINER),
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_COMBINER),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_COREPERI_BASE,
-		.pfn		= __phys_to_pfn(S5PV310_PA_COREPERI),
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_COREPERI),
 		.length		= SZ_8K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_L2CC,
-		.pfn		= __phys_to_pfn(S5PV310_PA_L2CC),
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_L2CC),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_GPIO1,
-		.pfn		= __phys_to_pfn(S5PV310_PA_GPIO1),
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_GPIO1),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_GPIO2,
-		.pfn		= __phys_to_pfn(S5PV310_PA_GPIO2),
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_GPIO2),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_GPIO3,
-		.pfn		= __phys_to_pfn(S5PV310_PA_GPIO3),
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_GPIO3),
 		.length		= SZ_256,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_DMC0,
-		.pfn		= __phys_to_pfn(S5PV310_PA_DMC0),
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_DMC0),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
@@ -87,13 +87,13 @@ static struct map_desc s5pv310_iodesc[] __initdata = {
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_SROMC,
-		.pfn		= __phys_to_pfn(S5PV310_PA_SROMC),
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_SROMC),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	},
 };
 
-static void s5pv310_idle(void)
+static void exynos4_idle(void)
 {
 	if (!need_resched())
 		cpu_do_idle();
@@ -101,32 +101,33 @@ static void s5pv310_idle(void)
 	local_irq_enable();
 }
 
-/* s5pv310_map_io
+/*
+ * exynos4_map_io
  *
  * register the standard cpu IO areas
-*/
-void __init s5pv310_map_io(void)
+ */
+void __init exynos4_map_io(void)
 {
-	iotable_init(s5pv310_iodesc, ARRAY_SIZE(s5pv310_iodesc));
+	iotable_init(exynos4_iodesc, ARRAY_SIZE(exynos4_iodesc));
 
 	/* initialize device information early */
-	s5pv310_default_sdhci0();
-	s5pv310_default_sdhci1();
-	s5pv310_default_sdhci2();
-	s5pv310_default_sdhci3();
+	exynos4_default_sdhci0();
+	exynos4_default_sdhci1();
+	exynos4_default_sdhci2();
+	exynos4_default_sdhci3();
 }
 
-void __init s5pv310_init_clocks(int xtal)
+void __init exynos4_init_clocks(int xtal)
 {
 	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
 
 	s3c24xx_register_baseclocks(xtal);
 	s5p_register_clocks(xtal);
-	s5pv310_register_clocks();
-	s5pv310_setup_clocks();
+	exynos4_register_clocks();
+	exynos4_setup_clocks();
 }
 
-void __init s5pv310_init_irq(void)
+void __init exynos4_init_irq(void)
 {
 	int irq;
 
@@ -148,29 +149,29 @@ void __init s5pv310_init_irq(void)
 	}
 
 	/* The parameters of s5p_init_irq() are for VIC init.
-	 * Theses parameters should be NULL and 0 because S5PV310
+	 * Theses parameters should be NULL and 0 because EXYNOS4
 	 * uses GIC instead of VIC.
 	 */
 	s5p_init_irq(NULL, 0);
 }
 
-struct sysdev_class s5pv310_sysclass = {
-	.name	= "s5pv310-core",
+struct sysdev_class exynos4_sysclass = {
+	.name	= "exynos4-core",
 };
 
-static struct sys_device s5pv310_sysdev = {
-	.cls	= &s5pv310_sysclass,
+static struct sys_device exynos4_sysdev = {
+	.cls	= &exynos4_sysclass,
 };
 
-static int __init s5pv310_core_init(void)
+static int __init exynos4_core_init(void)
 {
-	return sysdev_class_register(&s5pv310_sysclass);
+	return sysdev_class_register(&exynos4_sysclass);
 }
 
-core_initcall(s5pv310_core_init);
+core_initcall(exynos4_core_init);
 
 #ifdef CONFIG_CACHE_L2X0
-static int __init s5pv310_l2x0_cache_init(void)
+static int __init exynos4_l2x0_cache_init(void)
 {
 	/* TAG, Data Latency Control: 2cycle */
 	__raw_writel(0x110, S5P_VA_L2CC + L2X0_TAG_LATENCY_CTRL);
@@ -188,15 +189,15 @@ static int __init s5pv310_l2x0_cache_init(void)
 	return 0;
 }
 
-early_initcall(s5pv310_l2x0_cache_init);
+early_initcall(exynos4_l2x0_cache_init);
 #endif
 
-int __init s5pv310_init(void)
+int __init exynos4_init(void)
 {
-	printk(KERN_INFO "S5PV310: Initializing architecture\n");
+	printk(KERN_INFO "EXYNOS4: Initializing architecture\n");
 
 	/* set idle function */
-	pm_idle = s5pv310_idle;
+	pm_idle = exynos4_idle;
 
-	return sysdev_register(&s5pv310_sysdev);
+	return sysdev_register(&exynos4_sysdev);
 }

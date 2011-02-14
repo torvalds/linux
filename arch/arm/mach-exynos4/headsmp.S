@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/mach-s5pv310/headsmp.S
+ *  linux/arch/arm/mach-exynos4/headsmp.S
  *
  *  Cloned from linux/arch/arm/mach-realview/headsmp.S
  *
@@ -16,11 +16,11 @@
 	__INIT
 
 /*
- * s5pv310 specific entry point for secondary CPUs.  This provides
+ * exynos4 specific entry point for secondary CPUs.  This provides
  * a "holding pen" into which all secondary cores are held until we're
  * ready for them to initialise.
  */
-ENTRY(s5pv310_secondary_startup)
+ENTRY(exynos4_secondary_startup)
 	mrc	p15, 0, r0, c0, c0, 5
 	and	r0, r0, #15
 	adr	r4, 1f

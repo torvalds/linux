@@ -1,9 +1,9 @@
-/* linux/arch/arm/mach-s5pv310/include/mach/regs-sysmmu.h
+/* linux/arch/arm/mach-exynos4/include/mach/regs-sysmmu.h
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * S5PV310 - System MMU register
+ * EXYNOS4 - System MMU register
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

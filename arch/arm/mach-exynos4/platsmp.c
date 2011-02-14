@@ -1,7 +1,7 @@
-/* linux/arch/arm/mach-s5pv310/platsmp.c
+/* linux/arch/arm/mach-exynos4/platsmp.c
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
  * Cloned from linux/arch/arm/mach-vexpress/platsmp.c
  *
@@ -28,7 +28,7 @@
 #include <mach/hardware.h>
 #include <mach/regs-clock.h>
 
-extern void s5pv310_secondary_startup(void);
+extern void exynos4_secondary_startup(void);
 
 /*
  * control for which core is the next to come out of the secondary
@@ -139,7 +139,7 @@ void __init smp_init_cpus(void)
 	/* sanity check */
 	if (ncores > NR_CPUS) {
 		printk(KERN_WARNING
-		       "S5PV310: no. of cores (%d) greater than configured "
+		       "EXYNOS4: no. of cores (%d) greater than configured "
 		       "maximum of %d - clipping\n",
 		       ncores, NR_CPUS);
 		ncores = NR_CPUS;
@@ -168,5 +168,5 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	 * until it receives a soft interrupt, and then the
 	 * secondary CPU branches to this address.
 	 */
-	__raw_writel(BSYM(virt_to_phys(s5pv310_secondary_startup)), S5P_VA_SYSRAM);
+	__raw_writel(BSYM(virt_to_phys(exynos4_secondary_startup)), S5P_VA_SYSRAM);
 }

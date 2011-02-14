@@ -1,8 +1,8 @@
-/* arch/arm/mach-s5pv310/include/mach/entry-macro.S
+/* arch/arm/mach-exynos4/include/mach/entry-macro.S
  *
  * Cloned from arch/arm/mach-realview/include/mach/entry-macro.S
  *
- * Low-level IRQ helper macros for S5PV310 platforms
+ * Low-level IRQ helper macros for EXYNOS4 platforms
  *
  * This file is licensed under  the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any

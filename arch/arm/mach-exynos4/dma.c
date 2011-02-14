@@ -1,4 +1,8 @@
-/*
+/* linux/arch/arm/mach-exynos4/dma.c
+ *
+ * Copyright (c) 2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
  * Copyright (C) 2010 Samsung Electronics Co. Ltd.
  *	Jaswinder Singh <jassi.brar@samsung.com>
  *
@@ -30,10 +34,10 @@
 
 static u64 dma_dmamask = DMA_BIT_MASK(32);
 
-static struct resource s5pv310_pdma0_resource[] = {
+static struct resource exynos4_pdma0_resource[] = {
 	[0] = {
-		.start	= S5PV310_PA_PDMA0,
-		.end	= S5PV310_PA_PDMA0 + SZ_4K,
+		.start	= EXYNOS4_PA_PDMA0,
+		.end	= EXYNOS4_PA_PDMA0 + SZ_4K,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -43,7 +47,7 @@ static struct resource s5pv310_pdma0_resource[] = {
 	},
 };
 
-static struct s3c_pl330_platdata s5pv310_pdma0_pdata = {
+static struct s3c_pl330_platdata exynos4_pdma0_pdata = {
 	.peri = {
 		[0] = DMACH_PCM0_RX,
 		[1] = DMACH_PCM0_TX,
@@ -80,22 +84,22 @@ static struct s3c_pl330_platdata s5pv310_pdma0_pdata = {
 	},
 };
 
-static struct platform_device s5pv310_device_pdma0 = {
+static struct platform_device exynos4_device_pdma0 = {
 	.name		= "s3c-pl330",
 	.id		= 0,
-	.num_resources	= ARRAY_SIZE(s5pv310_pdma0_resource),
-	.resource	= s5pv310_pdma0_resource,
+	.num_resources	= ARRAY_SIZE(exynos4_pdma0_resource),
+	.resource	= exynos4_pdma0_resource,
 	.dev		= {
 		.dma_mask = &dma_dmamask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
-		.platform_data = &s5pv310_pdma0_pdata,
+		.platform_data = &exynos4_pdma0_pdata,
 	},
 };
 
-static struct resource s5pv310_pdma1_resource[] = {
+static struct resource exynos4_pdma1_resource[] = {
 	[0] = {
-		.start	= S5PV310_PA_PDMA1,
-		.end	= S5PV310_PA_PDMA1 + SZ_4K,
+		.start	= EXYNOS4_PA_PDMA1,
+		.end	= EXYNOS4_PA_PDMA1 + SZ_4K,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -105,7 +109,7 @@ static struct resource s5pv310_pdma1_resource[] = {
 	},
 };
 
-static struct s3c_pl330_platdata s5pv310_pdma1_pdata = {
+static struct s3c_pl330_platdata exynos4_pdma1_pdata = {
 	.peri = {
 		[0] = DMACH_PCM0_RX,
 		[1] = DMACH_PCM0_TX,
@@ -142,27 +146,27 @@ static struct s3c_pl330_platdata s5pv310_pdma1_pdata = {
 	},
 };
 
-static struct platform_device s5pv310_device_pdma1 = {
+static struct platform_device exynos4_device_pdma1 = {
 	.name		= "s3c-pl330",
 	.id		= 1,
-	.num_resources	= ARRAY_SIZE(s5pv310_pdma1_resource),
-	.resource	= s5pv310_pdma1_resource,
+	.num_resources	= ARRAY_SIZE(exynos4_pdma1_resource),
+	.resource	= exynos4_pdma1_resource,
 	.dev		= {
 		.dma_mask = &dma_dmamask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
-		.platform_data = &s5pv310_pdma1_pdata,
+		.platform_data = &exynos4_pdma1_pdata,
 	},
 };
 
-static struct platform_device *s5pv310_dmacs[] __initdata = {
-	&s5pv310_device_pdma0,
-	&s5pv310_device_pdma1,
+static struct platform_device *exynos4_dmacs[] __initdata = {
+	&exynos4_device_pdma0,
+	&exynos4_device_pdma1,
 };
 
-static int __init s5pv310_dma_init(void)
+static int __init exynos4_dma_init(void)
 {
-	platform_add_devices(s5pv310_dmacs, ARRAY_SIZE(s5pv310_dmacs));
+	platform_add_devices(exynos4_dmacs, ARRAY_SIZE(exynos4_dmacs));
 
 	return 0;
 }
-arch_initcall(s5pv310_dma_init);
+arch_initcall(exynos4_dma_init);
