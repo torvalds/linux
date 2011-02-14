@@ -29,6 +29,7 @@
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mpspec.h>
+#include <asm/trampoline.h>
 
 #define COMPILER_DEPENDENT_INT64   long long
 #define COMPILER_DEPENDENT_UINT64  unsigned long long
@@ -116,7 +117,8 @@ static inline void acpi_disable_pci(void)
 extern int acpi_save_state_mem(void);
 extern void acpi_restore_state_mem(void);
 
-extern unsigned long acpi_wakeup_address;
+extern const unsigned char acpi_wakeup_code[];
+#define acpi_wakeup_address (__pa(TRAMPOLINE_SYM(acpi_wakeup_code)))
 
 /* early initialization routine */
 extern void acpi_reserve_wakeup_memory(void);

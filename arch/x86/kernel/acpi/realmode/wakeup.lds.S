@@ -13,9 +13,19 @@ ENTRY(_start)
 SECTIONS
 {
 	. = 0;
+	.jump	: {
+		*(.jump)
+	} = 0x90909090
+
+	. = WAKEUP_HEADER_OFFSET;
+	.header : {
+		*(.header)
+	}
+
+	. = ALIGN(16);
 	.text : {
 		 *(.text*)
-	}
+	} = 0x90909090
 
 	. = ALIGN(16);
 	.rodata : {
@@ -33,11 +43,6 @@ SECTIONS
 		 *(.data*)
 	}
 
-	.signature : {
-		end_signature = .;
-		LONG(0x65a22c82)
-	}
-
 	. = ALIGN(16);
 	.bss :	{
 		__bss_start = .;
@@ -45,20 +50,13 @@ SECTIONS
 		__bss_end = .;
 	}
 
-	. = HEADER_OFFSET;
-	.header : {
-		*(.header)
+	.signature : {
+		*(.signature)
 	}
 
-	. = ALIGN(16);
 	_end = .;
 
 	/DISCARD/ : {
 		*(.note*)
 	}
-
-	/*
-	 * The ASSERT() sink to . is intentional, for binutils 2.14 compatibility:
-	 */
-	. = ASSERT(_end <= WAKEUP_SIZE, "Wakeup too big!");
 }

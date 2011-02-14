@@ -937,13 +937,6 @@ void __init setup_arch(char **cmdline_p)
 
 	setup_trampolines();
 
-#ifdef CONFIG_ACPI_SLEEP
-	/*
-	 * Reserve low memory region for sleep support.
-	 * even before init_memory_mapping
-	 */
-	acpi_reserve_wakeup_memory();
-#endif
 	init_gbpages();
 
 	/* max_pfn_mapped is updated here */
