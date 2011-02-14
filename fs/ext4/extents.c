@@ -2844,7 +2844,7 @@ fix_extent_len:
  * ext4_get_blocks_dio_write() when DIO to write
  * to an uninitialized extent.
  *
- * Writing to an uninitized extent may result in splitting the uninitialized
+ * Writing to an uninitialized extent may result in splitting the uninitialized
  * extent into multiple /initialized uninitialized extents (up to three)
  * There are three possibilities:
  *   a> There is no split required: Entire extent should be uninitialized
