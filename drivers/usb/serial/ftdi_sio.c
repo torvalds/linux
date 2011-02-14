@@ -859,7 +859,7 @@ static void ftdi_set_termios(struct tty_struct *tty,
 static int  ftdi_tiocmget(struct tty_struct *tty);
 static int  ftdi_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
-static int  ftdi_ioctl(struct tty_struct *tty, struct file *file,
+static int  ftdi_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
 static void ftdi_break_ctl(struct tty_struct *tty, int break_state);
 
@@ -2210,7 +2210,7 @@ static int ftdi_tiocmset(struct tty_struct *tty,
 	return update_mctrl(port, set, clear);
 }
 
-static int ftdi_ioctl(struct tty_struct *tty, struct file *file,
+static int ftdi_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

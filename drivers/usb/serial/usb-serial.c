@@ -417,7 +417,7 @@ static int serial_ioctl(struct tty_struct *tty, struct file *file,
 	/* pass on to the driver specific version of this function
 	   if it is available */
 	if (port->serial->type->ioctl) {
-		retval = port->serial->type->ioctl(tty, file, cmd, arg);
+		retval = port->serial->type->ioctl(tty, cmd, arg);
 	} else
 		retval = -ENOIOCTLCMD;
 	return retval;

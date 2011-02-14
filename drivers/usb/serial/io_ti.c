@@ -2552,7 +2552,7 @@ static int get_serial_info(struct edgeport_port *edge_port,
 	return 0;
 }
 
-static int edge_ioctl(struct tty_struct *tty, struct file *file,
+static int edge_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

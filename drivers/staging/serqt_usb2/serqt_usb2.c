@@ -1191,7 +1191,7 @@ static int qt_write_room(struct tty_struct *tty)
 
 }
 
-static int qt_ioctl(struct tty_struct *tty, struct file *file,
+static int qt_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

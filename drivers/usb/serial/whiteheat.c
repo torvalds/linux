@@ -152,7 +152,7 @@ static int  whiteheat_write(struct tty_struct *tty,
 			struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 static int  whiteheat_write_room(struct tty_struct *tty);
-static int  whiteheat_ioctl(struct tty_struct *tty, struct file *file,
+static int  whiteheat_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
 static void whiteheat_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
@@ -874,7 +874,7 @@ static int whiteheat_tiocmset(struct tty_struct *tty,
 }
 
 
-static int whiteheat_ioctl(struct tty_struct *tty, struct file *file,
+static int whiteheat_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

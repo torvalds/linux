@@ -396,7 +396,7 @@ static int get_serial_info(struct opticon_private *priv,
 	return 0;
 }
 
-static int opticon_ioctl(struct tty_struct *tty, struct file *file,
+static int opticon_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

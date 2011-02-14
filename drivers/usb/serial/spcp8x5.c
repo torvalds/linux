@@ -576,7 +576,7 @@ static int spcp8x5_wait_modem_info(struct usb_serial_port *port,
 	return 0;
 }
 
-static int spcp8x5_ioctl(struct tty_struct *tty, struct file *file,
+static int spcp8x5_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

@@ -852,7 +852,7 @@ static int qt2_chars_in_buffer(struct tty_struct *tty)
  * TIOCMGET and TIOCMSET are filtered off to their own methods before they get
  * here, so we don't have to handle them.
  */
-static int qt2_ioctl(struct tty_struct *tty, struct file *file,
+static int qt2_ioctl(struct tty_struct *tty,
 		     unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

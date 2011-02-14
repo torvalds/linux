@@ -260,7 +260,7 @@ struct usb_serial_driver {
 			const unsigned char *buf, int count);
 	/* Called only by the tty layer */
 	int  (*write_room)(struct tty_struct *tty);
-	int  (*ioctl)(struct tty_struct *tty, struct file *file,
+	int  (*ioctl)(struct tty_struct *tty,
 		      unsigned int cmd, unsigned long arg);
 	void (*set_termios)(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);

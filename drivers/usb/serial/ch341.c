@@ -552,8 +552,7 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 	return 0;
 }
 
-/*static int ch341_ioctl(struct usb_serial_port *port, struct file *file,*/
-static int ch341_ioctl(struct tty_struct *tty, struct file *file,
+static int ch341_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

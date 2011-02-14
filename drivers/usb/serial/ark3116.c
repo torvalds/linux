@@ -431,7 +431,7 @@ static int ark3116_get_icount(struct tty_struct *tty,
 	return 0;
 }
 
-static int ark3116_ioctl(struct tty_struct *tty, struct file *file,
+static int ark3116_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

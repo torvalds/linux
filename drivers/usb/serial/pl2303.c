@@ -606,7 +606,7 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 	return 0;
 }
 
-static int pl2303_ioctl(struct tty_struct *tty, struct file *file,
+static int pl2303_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
 	struct serial_struct ser;

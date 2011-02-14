@@ -106,7 +106,7 @@ static int ti_write_room(struct tty_struct *tty);
 static int ti_chars_in_buffer(struct tty_struct *tty);
 static void ti_throttle(struct tty_struct *tty);
 static void ti_unthrottle(struct tty_struct *tty);
-static int ti_ioctl(struct tty_struct *tty, struct file *file,
+static int ti_ioctl(struct tty_struct *tty,
 		unsigned int cmd, unsigned long arg);
 static int ti_get_icount(struct tty_struct *tty,
 		struct serial_icounter_struct *icount);
@@ -818,7 +818,7 @@ static int ti_get_icount(struct tty_struct *tty,
 	return 0;
 }
 
-static int ti_ioctl(struct tty_struct *tty, struct file *file,
+static int ti_ioctl(struct tty_struct *tty,
 	unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

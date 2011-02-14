@@ -135,7 +135,7 @@ static void oti6858_close(struct usb_serial_port *port);
 static void oti6858_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static void oti6858_init_termios(struct tty_struct *tty);
-static int oti6858_ioctl(struct tty_struct *tty, struct file *file,
+static int oti6858_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
 static void oti6858_read_int_callback(struct urb *urb);
 static void oti6858_read_bulk_callback(struct urb *urb);
@@ -728,7 +728,7 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 	return 0;
 }
 
-static int oti6858_ioctl(struct tty_struct *tty, struct file *file,
+static int oti6858_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
