@@ -845,6 +845,11 @@ config CACHE_XSC3L2
 	help
 	  This option enables the L2 cache on XScale3.
 
+config ARM_L1_CACHE_SHIFT_6
+	bool
+	help
+	  Setting ARM L1 cache line size to 64 Bytes.
+
 config ARM_L1_CACHE_SHIFT
 	int
 	default 6 if ARM_L1_CACHE_SHIFT_6

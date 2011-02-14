@@ -178,11 +178,6 @@ config FIQ
 config ARCH_MTD_XIP
 	bool
 
-config ARM_L1_CACHE_SHIFT_6
-	bool
-	help
-	  Setting ARM L1 cache line size to 64 Bytes.
-
 config VECTORS_BASE
 	hex
 	default 0xffff0000 if MMU || CPU_HIGH_VECTOR
