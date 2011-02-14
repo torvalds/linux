@@ -8,7 +8,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/io.h>
 #include <linux/wakelock.h>
-#include <linux/console.h>
 
 #include <mach/rk29_iomap.h>
 #include <mach/cru.h>
@@ -234,9 +233,6 @@ static int __init rk29_pm_init(void)
 
 	/* set idle function */
 	pm_idle = rk29_idle;
-
-	/* for debug */
-	console_suspend_enabled = 0;
 
 	return 0;
 }
