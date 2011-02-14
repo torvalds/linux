@@ -421,6 +421,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	int err, ddr = 0;
 	u32 cid[4];
 	unsigned int max_dtr;
+	u32 rocr;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
@@ -434,7 +435,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	mmc_go_idle(host);
 
 	/* The extra bit indicates that we support high capacity */
-	err = mmc_send_op_cond(host, ocr | (1 << 30), NULL);
+	err = mmc_send_op_cond(host, ocr | (1 << 30), &rocr);
 	if (err)
 		goto err;
 
@@ -522,6 +523,15 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_read_ext_csd(card);
 		if (err)
 			goto free_card;
+
+		/* If doing byte addressing, check if required to do sector
+		 * addressing.  Handle the case of <2GB cards needing sector
+		 * addressing.  See section 8.1 JEDEC Standard JED84-A441;
+		 * ocr register has bit 30 set for sector addressing.
+		 */
+		if (!(mmc_card_blockaddr(card)) && (rocr & (1<<30)))
+			mmc_card_set_blockaddr(card);
+
 		/* Erase size depends on CSD and Extended CSD */
 		mmc_set_erase_size(card);
 	}
