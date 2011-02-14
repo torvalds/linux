@@ -325,6 +325,24 @@ config MTD_OOPS
 	  To use, add console=ttyMTDx to the kernel command line,
 	  where x is the MTD device number to use.
 
+config MTD_SWAP
+	tristate "Swap on MTD device support"
+	depends on MTD && SWAP
+	select MTD_BLKDEVS
+	help
+	  Provides volatile block device driver on top of mtd partition
+          suitable for swapping.  The mapping of written blocks is not saved.
+	  The driver provides wear leveling by storing erase counter into the
+	  OOB.
+
+config MTD_SWAP_STRICT
+       bool "Strict erase error handling"
+       depends on MTD_SWAP
+       help
+	 Enables strict tolerance on failed erasures, marking erase blocks bad
+	 right after the first failed operation. With non-strict mode the
+	 erase operation is retried.
+
 source "drivers/mtd/chips/Kconfig"
 
 source "drivers/mtd/maps/Kconfig"
