@@ -79,6 +79,13 @@
 	.idProduct = 0x3f0a,
 	.bInterfaceClass = USB_CLASS_AUDIO,
 },
+{
+	/* E-Mu 0204 USB */
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
+	.idVendor = 0x041e,
+	.idProduct = 0x3f19,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+},
 
 /*
  * Logitech QuickCam: bDeviceClass is vendor-specific, so generic interface
@@ -705,11 +712,11 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.data = (const struct snd_usb_audio_quirk[]) {
 			{
 				.ifnum = 0,
-				.type = QUIRK_IGNORE_INTERFACE
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
 			},
 			{
 				.ifnum = 1,
-				.type = QUIRK_IGNORE_INTERFACE
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
 			},
 			{
 				.ifnum = 2,

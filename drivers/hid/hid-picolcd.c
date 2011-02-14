@@ -253,7 +253,7 @@ static struct hid_report *picolcd_report(int id, struct hid_device *hdev, int di
 		if (report->id == id)
 			return report;
 	}
-	dev_warn(&hdev->dev, "No report with id 0x%x found\n", id);
+	hid_warn(hdev, "No report with id 0x%x found\n", id);
 	return NULL;
 }
 
@@ -1329,7 +1329,7 @@ static int picolcd_check_version(struct hid_device *hdev)
 
 	verinfo = picolcd_send_and_wait(hdev, REPORT_VERSION, NULL, 0);
 	if (!verinfo) {
-		dev_err(&hdev->dev, "no version response from PicoLCD");
+		hid_err(hdev, "no version response from PicoLCD\n");
 		return -ENODEV;
 	}
 
@@ -1337,14 +1337,14 @@ static int picolcd_check_version(struct hid_device *hdev)
 		data->version[0] = verinfo->raw_data[1];
 		data->version[1] = verinfo->raw_data[0];
 		if (data->status & PICOLCD_BOOTLOADER) {
-			dev_info(&hdev->dev, "PicoLCD, bootloader version %d.%d\n",
-					verinfo->raw_data[1], verinfo->raw_data[0]);
+			hid_info(hdev, "PicoLCD, bootloader version %d.%d\n",
+				 verinfo->raw_data[1], verinfo->raw_data[0]);
 		} else {
-			dev_info(&hdev->dev, "PicoLCD, firmware version %d.%d\n",
-					verinfo->raw_data[1], verinfo->raw_data[0]);
+			hid_info(hdev, "PicoLCD, firmware version %d.%d\n",
+				 verinfo->raw_data[1], verinfo->raw_data[0]);
 		}
 	} else {
-		dev_err(&hdev->dev, "confused, got unexpected version response from PicoLCD\n");
+		hid_err(hdev, "confused, got unexpected version response from PicoLCD\n");
 		ret = -EINVAL;
 	}
 	kfree(verinfo);
@@ -1544,7 +1544,7 @@ static ssize_t picolcd_debug_eeprom_read(struct file *f, char __user *u,
 
 	/* prepare buffer with info about what we want to read (addr & len) */
 	raw_data[0] = *off & 0xff;
-	raw_data[1] = (*off >> 8) && 0xff;
+	raw_data[1] = (*off >> 8) & 0xff;
 	raw_data[2] = s < 20 ? s : 20;
 	if (*off + raw_data[2] > 0xff)
 		raw_data[2] = 0x100 - *off;
@@ -1583,7 +1583,7 @@ static ssize_t picolcd_debug_eeprom_write(struct file *f, const char __user *u,
 
 	memset(raw_data, 0, sizeof(raw_data));
 	raw_data[0] = *off & 0xff;
-	raw_data[1] = (*off >> 8) && 0xff;
+	raw_data[1] = (*off >> 8) & 0xff;
 	raw_data[2] = s < 20 ? s : 20;
 	if (*off + raw_data[2] > 0xff)
 		raw_data[2] = 0x100 - *off;
@@ -1867,6 +1867,7 @@ static void picolcd_debug_out_report(struct picolcd_data *data,
 			report->id, raw_size);
 	hid_debug_event(hdev, buff);
 	if (raw_size + 5 > sizeof(raw_data)) {
+		kfree(buff);
 		hid_debug_event(hdev, " TOO BIG\n");
 		return;
 	} else {
@@ -2328,8 +2329,7 @@ static void picolcd_init_devfs(struct picolcd_data *data,
 			(flash_w ? S_IWUSR : 0) | (flash_r ? S_IRUSR : 0),
 			hdev->debug_dir, data, &picolcd_debug_flash_fops);
 	} else if (flash_r || flash_w)
-		dev_warn(&hdev->dev, "Unexpected FLASH access reports, "
-				"please submit rdesc for review\n");
+		hid_warn(hdev, "Unexpected FLASH access reports, please submit rdesc for review\n");
 }
 
 static void picolcd_exit_devfs(struct picolcd_data *data)
@@ -2457,13 +2457,13 @@ static int picolcd_init_keys(struct picolcd_data *data,
 		return -ENODEV;
 	if (report->maxfield != 1 || report->field[0]->report_count != 2 ||
 			report->field[0]->report_size != 8) {
-		dev_err(&hdev->dev, "unsupported KEY_STATE report");
+		hid_err(hdev, "unsupported KEY_STATE report\n");
 		return -EINVAL;
 	}
 
 	idev = input_allocate_device();
 	if (idev == NULL) {
-		dev_err(&hdev->dev, "failed to allocate input device");
+		hid_err(hdev, "failed to allocate input device\n");
 		return -ENOMEM;
 	}
 	input_set_drvdata(idev, hdev);
@@ -2485,7 +2485,7 @@ static int picolcd_init_keys(struct picolcd_data *data,
 		input_set_capability(idev, EV_KEY, data->keycode[i]);
 	error = input_register_device(idev);
 	if (error) {
-		dev_err(&hdev->dev, "error registering the input device");
+		hid_err(hdev, "error registering the input device\n");
 		input_free_device(idev);
 		return error;
 	}
@@ -2522,9 +2522,8 @@ static int picolcd_probe_lcd(struct hid_device *hdev, struct picolcd_data *data)
 		return error;
 
 	if (data->version[0] != 0 && data->version[1] != 3)
-		dev_info(&hdev->dev, "Device with untested firmware revision, "
-				"please submit /sys/kernel/debug/hid/%s/rdesc for this device.\n",
-				dev_name(&hdev->dev));
+		hid_info(hdev, "Device with untested firmware revision, please submit /sys/kernel/debug/hid/%s/rdesc for this device.\n",
+			 dev_name(&hdev->dev));
 
 	/* Setup keypad input device */
 	error = picolcd_init_keys(data, picolcd_in_report(REPORT_KEY_STATE, hdev));
@@ -2581,9 +2580,8 @@ static int picolcd_probe_bootloader(struct hid_device *hdev, struct picolcd_data
 		return error;
 
 	if (data->version[0] != 1 && data->version[1] != 0)
-		dev_info(&hdev->dev, "Device with untested bootloader revision, "
-				"please submit /sys/kernel/debug/hid/%s/rdesc for this device.\n",
-				dev_name(&hdev->dev));
+		hid_info(hdev, "Device with untested bootloader revision, please submit /sys/kernel/debug/hid/%s/rdesc for this device.\n",
+			 dev_name(&hdev->dev));
 
 	picolcd_init_devfs(data, NULL, NULL,
 			picolcd_out_report(REPORT_BL_READ_MEMORY, hdev),
@@ -2605,7 +2603,7 @@ static int picolcd_probe(struct hid_device *hdev,
 	 */
 	data = kzalloc(sizeof(struct picolcd_data), GFP_KERNEL);
 	if (data == NULL) {
-		dev_err(&hdev->dev, "can't allocate space for Minibox PicoLCD device data\n");
+		hid_err(hdev, "can't allocate space for Minibox PicoLCD device data\n");
 		error = -ENOMEM;
 		goto err_no_cleanup;
 	}
@@ -2621,7 +2619,7 @@ static int picolcd_probe(struct hid_device *hdev,
 	/* Parse the device reports and start it up */
 	error = hid_parse(hdev);
 	if (error) {
-		dev_err(&hdev->dev, "device report parse failed\n");
+		hid_err(hdev, "device report parse failed\n");
 		goto err_cleanup_data;
 	}
 
@@ -2631,25 +2629,25 @@ static int picolcd_probe(struct hid_device *hdev,
 	error = hid_hw_start(hdev, 0);
 	hdev->claimed = 0;
 	if (error) {
-		dev_err(&hdev->dev, "hardware start failed\n");
+		hid_err(hdev, "hardware start failed\n");
 		goto err_cleanup_data;
 	}
 
-	error = hdev->ll_driver->open(hdev);
+	error = hid_hw_open(hdev);
 	if (error) {
-		dev_err(&hdev->dev, "failed to open input interrupt pipe for key and IR events\n");
+		hid_err(hdev, "failed to open input interrupt pipe for key and IR events\n");
 		goto err_cleanup_hid_hw;
 	}
 
 	error = device_create_file(&hdev->dev, &dev_attr_operation_mode_delay);
 	if (error) {
-		dev_err(&hdev->dev, "failed to create sysfs attributes\n");
+		hid_err(hdev, "failed to create sysfs attributes\n");
 		goto err_cleanup_hid_ll;
 	}
 
 	error = device_create_file(&hdev->dev, &dev_attr_operation_mode);
 	if (error) {
-		dev_err(&hdev->dev, "failed to create sysfs attributes\n");
+		hid_err(hdev, "failed to create sysfs attributes\n");
 		goto err_cleanup_sysfs1;
 	}
 
@@ -2668,7 +2666,7 @@ err_cleanup_sysfs2:
 err_cleanup_sysfs1:
 	device_remove_file(&hdev->dev, &dev_attr_operation_mode_delay);
 err_cleanup_hid_ll:
-	hdev->ll_driver->close(hdev);
+	hid_hw_close(hdev);
 err_cleanup_hid_hw:
 	hid_hw_stop(hdev);
 err_cleanup_data:
@@ -2699,7 +2697,7 @@ static void picolcd_remove(struct hid_device *hdev)
 	picolcd_exit_devfs(data);
 	device_remove_file(&hdev->dev, &dev_attr_operation_mode);
 	device_remove_file(&hdev->dev, &dev_attr_operation_mode_delay);
-	hdev->ll_driver->close(hdev);
+	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 	hid_set_drvdata(hdev, NULL);
 
@@ -2753,7 +2751,7 @@ static void __exit picolcd_exit(void)
 {
 	hid_unregister_driver(&picolcd_driver);
 #ifdef CONFIG_HID_PICOLCD_FB
-	flush_scheduled_work();
+	flush_work_sync(&picolcd_fb_cleanup);
 	WARN_ON(fb_pending);
 #endif
 }

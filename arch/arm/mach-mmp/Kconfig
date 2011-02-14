@@ -37,25 +37,38 @@ config MACH_TTC_DKB
 	  Say 'Y' here if you want to support the Marvell PXA910-based
 	  TTC_DKB Development Board.
 
+config MACH_BROWNSTONE
+	bool "Marvell's Brownstone Development Platform"
+	depends on !CPU_MOHAWK
+	select CPU_MMP2
+	help
+	  Say 'Y' here if you want to support the Marvell MMP2-based
+	  Brown Development Platform.
+	  MMP2-based board can't be co-existed with PXA168-based &
+	  PXA910-based development board. Since MMP2 is compatible to
+	  ARMv7 architecture.
+
 config MACH_FLINT
 	bool "Marvell's Flint Development Platform"
+	depends on !CPU_MOHAWK
 	select CPU_MMP2
 	help
 	  Say 'Y' here if you want to support the Marvell MMP2-based
 	  Flint Development Platform.
 	  MMP2-based board can't be co-existed with PXA168-based &
 	  PXA910-based development board. Since MMP2 is compatible to
-	  ARMv6 architecture.
+	  ARMv7 architecture.
 
 config MACH_MARVELL_JASPER
 	bool "Marvell's Jasper Development Platform"
+	depends on !CPU_MOHAWK
 	select CPU_MMP2
 	help
 	  Say 'Y' here if you want to support the Marvell MMP2-base
 	  Jasper Development Platform.
 	  MMP2-based board can't be co-existed with PXA168-based &
 	  PXA910-based development board. Since MMP2 is compatible to
-	  ARMv6 architecture.
+	  ARMv7 architecture.
 
 config MACH_TETON_BGA
 	bool "Marvell's PXA168 Teton BGA Development Board"
@@ -80,8 +93,7 @@ config CPU_PXA910
 
 config CPU_MMP2
 	bool
-	select CPU_V6
-	select CPU_32v6K
+	select CPU_PJ4
 	help
-	  Select code specific to MMP2. MMP2 is ARMv6 compatible.
+	  Select code specific to MMP2. MMP2 is ARMv7 compatible.
 endif

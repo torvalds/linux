@@ -484,6 +484,8 @@ acpi_sbs_add_fs(struct proc_dir_entry **dir,
 		const struct file_operations *state_fops,
 		const struct file_operations *alarm_fops, void *data)
 {
+	printk(KERN_WARNING PREFIX "Deprecated procfs I/F for SBS is loaded,"
+			" please retry with CONFIG_ACPI_PROCFS_POWER cleared\n");
 	if (!*dir) {
 		*dir = proc_mkdir(dir_name, parent_dir);
 		if (!*dir) {

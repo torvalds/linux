@@ -18,6 +18,7 @@ config CPU_S3C2440
 config CPU_S3C2442
 	bool
 	select CPU_ARM920T
+	select S3C_GPIO_PULL_DOWN
 	select S3C2410_CLOCK
 	select S3C2410_GPIO
 	select S3C2410_PM if PM
@@ -178,6 +179,9 @@ config MACH_MINI2440
 	bool "MINI2440 development board"
 	select CPU_S3C2440
 	select EEPROM_AT24
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_TRIGGER
 	select LEDS_TRIGGER_BACKLIGHT
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST

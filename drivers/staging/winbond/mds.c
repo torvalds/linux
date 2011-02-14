@@ -1,9 +1,7 @@
 #include "mds_f.h"
-#include "mlmetxrx_f.h"
 #include "mto.h"
-#include "sysdef.h"
-#include "wbhal_f.h"
-#include "wblinux_f.h"
+#include "wbhal.h"
+#include "wb35tx_f.h"
 
 unsigned char
 Mds_initial(struct wbsoft_priv *adapter)
@@ -15,11 +13,6 @@ Mds_initial(struct wbsoft_priv *adapter)
 	pMds->TxFragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD;
 
 	return hal_get_tx_buffer(&adapter->sHwData, &pMds->pTxBuffer);
-}
-
-void
-Mds_Destroy(struct wbsoft_priv *adapter)
-{
 }
 
 static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor *pDes,  u8 *buffer)
@@ -350,9 +343,7 @@ static void Mds_HeaderCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *
 	ctmp1 = ctmpf = CURRENT_TX_RATE_FOR_MNG;
 
 	pDes->TxRate = ctmp1;
-	#ifdef _PE_TX_DUMP_
-	printk("Tx rate =%x\n", ctmp1);
-	#endif
+	pr_debug("Tx rate =%x\n", ctmp1);
 
 	pT01->T01_modulation_type = (ctmp1%3) ? 0 : 1;
 
@@ -404,6 +395,44 @@ static void Mds_HeaderCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *
 
 }
 
+static void MLME_GetNextPacket(struct wbsoft_priv *adapter, struct wb35_descriptor *desc)
+{
+	desc->InternalUsed = desc->buffer_start_index + desc->buffer_number;
+	desc->InternalUsed %= MAX_DESCRIPTOR_BUFFER_INDEX;
+	desc->buffer_address[desc->InternalUsed] = adapter->sMlmeFrame.pMMPDU;
+	desc->buffer_size[desc->InternalUsed] = adapter->sMlmeFrame.len;
+	desc->buffer_total_size += adapter->sMlmeFrame.len;
+	desc->buffer_number++;
+	desc->Type = adapter->sMlmeFrame.DataType;
+}
+
+static void MLMEfreeMMPDUBuffer(struct wbsoft_priv *adapter, s8 *pData)
+{
+	int i;
+
+	/* Reclaim the data buffer */
+	for (i = 0; i < MAX_NUM_TX_MMPDU; i++) {
+		if (pData == (s8 *)&(adapter->sMlmeFrame.TxMMPDU[i]))
+			break;
+	}
+	if (adapter->sMlmeFrame.TxMMPDUInUse[i])
+		adapter->sMlmeFrame.TxMMPDUInUse[i] = false;
+	else  {
+		/* Something wrong
+		 PD43 Add debug code here??? */
+	}
+}
+
+static void MLME_SendComplete(struct wbsoft_priv *adapter, u8 PacketID, unsigned char SendOK)
+{
+    /* Reclaim the data buffer */
+	adapter->sMlmeFrame.len = 0;
+	MLMEfreeMMPDUBuffer(adapter, adapter->sMlmeFrame.pMMPDU);
+
+	/* Return resource */
+	adapter->sMlmeFrame.IsInUsed = PACKET_FREE_TO_USE;
+}
+
 void
 Mds_Tx(struct wbsoft_priv *adapter)
 {
@@ -430,9 +459,7 @@ Mds_Tx(struct wbsoft_priv *adapter)
 	do {
 		FillIndex = pMds->TxFillIndex;
 		if (pMds->TxOwner[FillIndex]) { /* Is owned by software 0:Yes 1:No */
-#ifdef _PE_TX_DUMP_
-			printk("[Mds_Tx] Tx Owner is H/W.\n");
-#endif
+			pr_debug("[Mds_Tx] Tx Owner is H/W.\n");
 			break;
 		}
 
@@ -476,9 +503,7 @@ Mds_Tx(struct wbsoft_priv *adapter)
 
 			/* For speed up Key setting */
 			if (pTxDes->EapFix) {
-#ifdef _PE_TX_DUMP_
-				printk("35: EPA 4th frame detected. Size = %d\n", PacketSize);
-#endif
+				pr_debug("35: EPA 4th frame detected. Size = %d\n", PacketSize);
 				pHwData->IsKeyPreSet = 1;
 			}
 
@@ -491,11 +516,6 @@ Mds_Tx(struct wbsoft_priv *adapter)
 			/* Shift to the next address */
 			XmitBufSize += CurrentSize;
 			XmitBufAddress += CurrentSize;
-
-#ifdef _IBSS_BEACON_SEQ_STICK_
-			if ((XmitBufAddress[DOT_11_DA_OFFSET+8] & 0xfc) != MAC_SUBTYPE_MNGMNT_PROBE_REQUEST) /* +8 for USB hdr */
-#endif
-				pMds->TxToggle = true;
 
 			/* Get packet to transmit completed, 1:TESTSTA 2:MLME 3: Ndis data */
 			MLME_SendComplete(adapter, 0, true);
@@ -567,9 +587,7 @@ Mds_SendComplete(struct wbsoft_priv *adapter, struct T02_descriptor *pT02)
 					pHwData->tx_retry_count[RetryCount] += RetryCount;
 				else
 					pHwData->tx_retry_count[7] += RetryCount;
-				#ifdef _PE_STATE_DUMP_
-				printk("dto_tx_retry_count =%d\n", pHwData->dto_tx_retry_count);
-				#endif
+				pr_debug("dto_tx_retry_count =%d\n", pHwData->dto_tx_retry_count);
 				MTO_SetTxCount(adapter, TxRate, RetryCount);
 			}
 			pHwData->dto_tx_frag_count += (RetryCount+1);

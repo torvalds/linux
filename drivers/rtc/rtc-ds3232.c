@@ -463,7 +463,7 @@ static int __devexit ds3232_remove(struct i2c_client *client)
 		mutex_unlock(&ds3232->mutex);
 
 		free_irq(client->irq, client);
-		flush_scheduled_work();
+		cancel_work_sync(&ds3232->work);
 	}
 
 	rtc_device_unregister(ds3232->rtc);

@@ -30,14 +30,14 @@ const struct imx_imx_ssi_data imx21_imx_ssi_data[] __initconst = {
 };
 #endif /* ifdef CONFIG_SOC_IMX21 */
 
-#ifdef CONFIG_ARCH_MX25
+#ifdef CONFIG_SOC_IMX25
 const struct imx_imx_ssi_data imx25_imx_ssi_data[] __initconst = {
 #define imx25_imx_ssi_data_entry(_id, _hwid)				\
 	imx_imx_ssi_data_entry(MX25, _id, _hwid, SZ_4K)
 	imx25_imx_ssi_data_entry(0, 1),
 	imx25_imx_ssi_data_entry(1, 2),
 };
-#endif /* ifdef CONFIG_ARCH_MX25 */
+#endif /* ifdef CONFIG_SOC_IMX25 */
 
 #ifdef CONFIG_SOC_IMX27
 const struct imx_imx_ssi_data imx27_imx_ssi_data[] __initconst = {
@@ -48,32 +48,33 @@ const struct imx_imx_ssi_data imx27_imx_ssi_data[] __initconst = {
 };
 #endif /* ifdef CONFIG_SOC_IMX27 */
 
-#ifdef CONFIG_ARCH_MX31
+#ifdef CONFIG_SOC_IMX31
 const struct imx_imx_ssi_data imx31_imx_ssi_data[] __initconst = {
 #define imx31_imx_ssi_data_entry(_id, _hwid)				\
 	imx_imx_ssi_data_entry(MX31, _id, _hwid, SZ_4K)
 	imx31_imx_ssi_data_entry(0, 1),
 	imx31_imx_ssi_data_entry(1, 2),
 };
-#endif /* ifdef CONFIG_ARCH_MX31 */
+#endif /* ifdef CONFIG_SOC_IMX31 */
 
-#ifdef CONFIG_ARCH_MX35
+#ifdef CONFIG_SOC_IMX35
 const struct imx_imx_ssi_data imx35_imx_ssi_data[] __initconst = {
 #define imx35_imx_ssi_data_entry(_id, _hwid)				\
 	imx_imx_ssi_data_entry(MX35, _id, _hwid, SZ_4K)
 	imx35_imx_ssi_data_entry(0, 1),
 	imx35_imx_ssi_data_entry(1, 2),
 };
-#endif /* ifdef CONFIG_ARCH_MX35 */
+#endif /* ifdef CONFIG_SOC_IMX35 */
 
-#ifdef CONFIG_ARCH_MX51
+#ifdef CONFIG_SOC_IMX51
 const struct imx_imx_ssi_data imx51_imx_ssi_data[] __initconst = {
 #define imx51_imx_ssi_data_entry(_id, _hwid)				\
 	imx_imx_ssi_data_entry(MX51, _id, _hwid, SZ_4K)
 	imx51_imx_ssi_data_entry(0, 1),
 	imx51_imx_ssi_data_entry(1, 2),
+	imx51_imx_ssi_data_entry(2, 3),
 };
-#endif /* ifdef CONFIG_ARCH_MX51 */
+#endif /* ifdef CONFIG_SOC_IMX51 */
 
 struct platform_device *__init imx_add_imx_ssi(
 		const struct imx_imx_ssi_data *data,

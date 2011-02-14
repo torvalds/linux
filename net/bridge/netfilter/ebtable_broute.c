@@ -87,7 +87,8 @@ static int __init ebtable_broute_init(void)
 	if (ret < 0)
 		return ret;
 	/* see br_input.c */
-	rcu_assign_pointer(br_should_route_hook, ebt_broute);
+	rcu_assign_pointer(br_should_route_hook,
+			   (br_should_route_hook_t *)ebt_broute);
 	return 0;
 }
 

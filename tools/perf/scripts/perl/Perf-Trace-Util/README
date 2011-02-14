@@ -1,7 +1,7 @@
 Perf-Trace-Util version 0.01
 ============================
 
-This module contains utility functions for use with perf trace.
+This module contains utility functions for use with perf script.
 
 Core.pm and Util.pm are pure Perl modules; Core.pm contains routines
 that the core perf support for Perl calls on and should always be
@@ -33,7 +33,7 @@ After you do that:
 
 INSTALLATION
 
-Building perf with perf trace Perl scripting should install this
+Building perf with perf script Perl scripting should install this
 module in the right place.
 
 You should make sure libperl and ExtUtils/Embed.pm are installed first

@@ -11,8 +11,13 @@ obj-$(CONFIG_IIO_SW_RING) += ring_sw.o
 
 obj-y += accel/
 obj-y += adc/
+obj-y += addac/
+obj-y += dac/
+obj-y += dds/
 obj-y += gyro/
 obj-y += imu/
 obj-y += light/
-obj-y += trigger/
 obj-y += magnetometer/
+obj-y += meter/
+obj-y += resolver/
+obj-y += trigger/

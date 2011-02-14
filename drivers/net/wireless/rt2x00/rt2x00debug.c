@@ -162,10 +162,10 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	struct timeval timestamp;
 	u32 data_len;
 
-	do_gettimeofday(&timestamp);
-
-	if (!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags))
+	if (likely(!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags)))
 		return;
+
+	do_gettimeofday(&timestamp);
 
 	if (skb_queue_len(&intf->frame_dump_skbqueue) > 20) {
 		DEBUG(rt2x00dev, "txrx dump queue length exceeded.\n");
@@ -339,18 +339,19 @@ static ssize_t rt2x00debug_read_queue_stats(struct file *file,
 		return -ENOMEM;
 
 	temp = data +
-	    sprintf(data, "qid\tcount\tlimit\tlength\tindex\tdma done\tdone\n");
+	    sprintf(data, "qid\tflags\t\tcount\tlimit\tlength\tindex\tdma done\tdone\n");
 
 	queue_for_each(intf->rt2x00dev, queue) {
-		spin_lock_irqsave(&queue->lock, irqflags);
+		spin_lock_irqsave(&queue->index_lock, irqflags);
 
-		temp += sprintf(temp, "%d\t%d\t%d\t%d\t%d\t%d\t%d\n", queue->qid,
+		temp += sprintf(temp, "%d\t0x%.8x\t%d\t%d\t%d\t%d\t%d\t\t%d\n",
+				queue->qid, (unsigned int)queue->flags,
 				queue->count, queue->limit, queue->length,
 				queue->index[Q_INDEX],
 				queue->index[Q_INDEX_DMA_DONE],
 				queue->index[Q_INDEX_DONE]);
 
-		spin_unlock_irqrestore(&queue->lock, irqflags);
+		spin_unlock_irqrestore(&queue->index_lock, irqflags);
 	}
 
 	size = strlen(data);

@@ -186,7 +186,7 @@ enum {
  * struct i2400m_poke_table - Hardware poke table for the Intel 2400m
  *
  * This structure will be used to create a device specific poke table
- * to put the device in a consistant state at boot time.
+ * to put the device in a consistent state at boot time.
  *
  * @address: The device address to poke
  *
@@ -632,6 +632,11 @@ struct i2400m {
 	struct work_struct wake_tx_ws;
 	struct sk_buff *wake_tx_skb;
 
+	struct work_struct reset_ws;
+	const char *reset_reason;
+
+	struct work_struct recovery_ws;
+
 	struct dentry *debugfs_dentry;
 	const char *fw_name;		/* name of the current firmware image */
 	unsigned long fw_version;	/* version of the firmware interface */
@@ -698,7 +703,7 @@ enum i2400m_bm_cmd_flags {
  * @I2400M_BRI_MAC_REINIT: We need to reinitialize the boot
  *     rom after reading the MAC address. This is quite a dirty hack,
  *     if you ask me -- the device requires the bootrom to be
- *     intialized after reading the MAC address.
+ *     initialized after reading the MAC address.
  */
 enum i2400m_bri {
 	I2400M_BRI_SOFT       = 1 << 1,
@@ -895,20 +900,6 @@ struct device *i2400m_dev(struct i2400m *i2400m)
 {
 	return i2400m->wimax_dev.net_dev->dev.parent;
 }
-
-/*
- * Helper for scheduling simple work functions
- *
- * This struct can get any kind of payload attached (normally in the
- * form of a struct where you pack the stuff you want to pass to the
- * _work function).
- */
-struct i2400m_work {
-	struct work_struct ws;
-	struct i2400m *i2400m;
-	size_t pl_size;
-	u8 pl[0];
-};
 
 extern int i2400m_msg_check_status(const struct i2400m_l3l4_hdr *,
 				   char *, size_t);

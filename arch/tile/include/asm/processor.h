@@ -292,7 +292,17 @@ extern int kstack_hash;
 /* Are we using huge pages in the TLB for kernel data? */
 extern int kdata_huge;
 
+/* Support standard Linux prefetching. */
+#define ARCH_HAS_PREFETCH
+#define prefetch(x) __builtin_prefetch(x)
 #define PREFETCH_STRIDE CHIP_L2_LINE_SIZE()
+
+/* Bring a value into the L1D, faulting the TLB if necessary. */
+#ifdef __tilegx__
+#define prefetch_L1(x) __insn_prefetch_l1_fault((void *)(x))
+#else
+#define prefetch_L1(x) __insn_prefetch_L1((void *)(x))
+#endif
 
 #else /* __ASSEMBLY__ */
 

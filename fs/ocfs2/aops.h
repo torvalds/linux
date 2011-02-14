@@ -68,8 +68,27 @@ static inline void ocfs2_iocb_set_rw_locked(struct kiocb *iocb, int level)
 	else
 		clear_bit(1, (unsigned long *)&iocb->private);
 }
+
+/*
+ * Using a named enum representing lock types in terms of #N bit stored in
+ * iocb->private, which is going to be used for communication bewteen
+ * ocfs2_dio_end_io() and ocfs2_file_aio_write/read().
+ */
+enum ocfs2_iocb_lock_bits {
+	OCFS2_IOCB_RW_LOCK = 0,
+	OCFS2_IOCB_RW_LOCK_LEVEL,
+	OCFS2_IOCB_SEM,
+	OCFS2_IOCB_NUM_LOCKS
+};
+
 #define ocfs2_iocb_clear_rw_locked(iocb) \
-	clear_bit(0, (unsigned long *)&iocb->private)
+	clear_bit(OCFS2_IOCB_RW_LOCK, (unsigned long *)&iocb->private)
 #define ocfs2_iocb_rw_locked_level(iocb) \
-	test_bit(1, (unsigned long *)&iocb->private)
+	test_bit(OCFS2_IOCB_RW_LOCK_LEVEL, (unsigned long *)&iocb->private)
+#define ocfs2_iocb_set_sem_locked(iocb) \
+	set_bit(OCFS2_IOCB_SEM, (unsigned long *)&iocb->private)
+#define ocfs2_iocb_clear_sem_locked(iocb) \
+	clear_bit(OCFS2_IOCB_SEM, (unsigned long *)&iocb->private)
+#define ocfs2_iocb_is_sem_locked(iocb) \
+	test_bit(OCFS2_IOCB_SEM, (unsigned long *)&iocb->private)
 #endif /* OCFS2_FILE_H */

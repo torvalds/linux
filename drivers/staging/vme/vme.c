@@ -245,7 +245,7 @@ struct vme_resource *vme_slave_request(struct device *dev,
 	}
 
 	/* Loop through slave resources */
-	list_for_each(slave_pos, &(bridge->slave_resources)) {
+	list_for_each(slave_pos, &bridge->slave_resources) {
 		slave_image = list_entry(slave_pos,
 			struct vme_slave_resource, list);
 
@@ -255,17 +255,17 @@ struct vme_resource *vme_slave_request(struct device *dev,
 		}
 
 		/* Find an unlocked and compatible image */
-		mutex_lock(&(slave_image->mtx));
+		mutex_lock(&slave_image->mtx);
 		if (((slave_image->address_attr & address) == address) &&
 			((slave_image->cycle_attr & cycle) == cycle) &&
 			(slave_image->locked == 0)) {
 
 			slave_image->locked = 1;
-			mutex_unlock(&(slave_image->mtx));
+			mutex_unlock(&slave_image->mtx);
 			allocated_image = slave_image;
 			break;
 		}
-		mutex_unlock(&(slave_image->mtx));
+		mutex_unlock(&slave_image->mtx);
 	}
 
 	/* No free image */
@@ -278,15 +278,15 @@ struct vme_resource *vme_slave_request(struct device *dev,
 		goto err_alloc;
 	}
 	resource->type = VME_SLAVE;
-	resource->entry = &(allocated_image->list);
+	resource->entry = &allocated_image->list;
 
 	return resource;
 
 err_alloc:
 	/* Unlock image */
-	mutex_lock(&(slave_image->mtx));
+	mutex_lock(&slave_image->mtx);
 	slave_image->locked = 0;
-	mutex_unlock(&(slave_image->mtx));
+	mutex_unlock(&slave_image->mtx);
 err_image:
 err_bus:
 	return NULL;
@@ -369,12 +369,12 @@ void vme_slave_free(struct vme_resource *resource)
 	}
 
 	/* Unlock image */
-	mutex_lock(&(slave_image->mtx));
+	mutex_lock(&slave_image->mtx);
 	if (slave_image->locked == 0)
 		printk(KERN_ERR "Image is already free\n");
 
 	slave_image->locked = 0;
-	mutex_unlock(&(slave_image->mtx));
+	mutex_unlock(&slave_image->mtx);
 
 	/* Free up resource memory */
 	kfree(resource);
@@ -401,7 +401,7 @@ struct vme_resource *vme_master_request(struct device *dev,
 	}
 
 	/* Loop through master resources */
-	list_for_each(master_pos, &(bridge->master_resources)) {
+	list_for_each(master_pos, &bridge->master_resources) {
 		master_image = list_entry(master_pos,
 			struct vme_master_resource, list);
 
@@ -411,18 +411,18 @@ struct vme_resource *vme_master_request(struct device *dev,
 		}
 
 		/* Find an unlocked and compatible image */
-		spin_lock(&(master_image->lock));
+		spin_lock(&master_image->lock);
 		if (((master_image->address_attr & address) == address) &&
 			((master_image->cycle_attr & cycle) == cycle) &&
 			((master_image->width_attr & dwidth) == dwidth) &&
 			(master_image->locked == 0)) {
 
 			master_image->locked = 1;
-			spin_unlock(&(master_image->lock));
+			spin_unlock(&master_image->lock);
 			allocated_image = master_image;
 			break;
 		}
-		spin_unlock(&(master_image->lock));
+		spin_unlock(&master_image->lock);
 	}
 
 	/* Check to see if we found a resource */
@@ -437,16 +437,16 @@ struct vme_resource *vme_master_request(struct device *dev,
 		goto err_alloc;
 	}
 	resource->type = VME_MASTER;
-	resource->entry = &(allocated_image->list);
+	resource->entry = &allocated_image->list;
 
 	return resource;
 
 	kfree(resource);
 err_alloc:
 	/* Unlock image */
-	spin_lock(&(master_image->lock));
+	spin_lock(&master_image->lock);
 	master_image->locked = 0;
-	spin_unlock(&(master_image->lock));
+	spin_unlock(&master_image->lock);
 err_image:
 err_bus:
 	return NULL;
@@ -628,12 +628,12 @@ void vme_master_free(struct vme_resource *resource)
 	}
 
 	/* Unlock image */
-	spin_lock(&(master_image->lock));
+	spin_lock(&master_image->lock);
 	if (master_image->locked == 0)
 		printk(KERN_ERR "Image is already free\n");
 
 	master_image->locked = 0;
-	spin_unlock(&(master_image->lock));
+	spin_unlock(&master_image->lock);
 
 	/* Free up resource memory */
 	kfree(resource);
@@ -662,7 +662,7 @@ struct vme_resource *vme_dma_request(struct device *dev, vme_dma_route_t route)
 	}
 
 	/* Loop through DMA resources */
-	list_for_each(dma_pos, &(bridge->dma_resources)) {
+	list_for_each(dma_pos, &bridge->dma_resources) {
 		dma_ctrlr = list_entry(dma_pos,
 			struct vme_dma_resource, list);
 
@@ -672,16 +672,16 @@ struct vme_resource *vme_dma_request(struct device *dev, vme_dma_route_t route)
 		}
 
 		/* Find an unlocked and compatible controller */
-		mutex_lock(&(dma_ctrlr->mtx));
+		mutex_lock(&dma_ctrlr->mtx);
 		if (((dma_ctrlr->route_attr & route) == route) &&
 			(dma_ctrlr->locked == 0)) {
 
 			dma_ctrlr->locked = 1;
-			mutex_unlock(&(dma_ctrlr->mtx));
+			mutex_unlock(&dma_ctrlr->mtx);
 			allocated_ctrlr = dma_ctrlr;
 			break;
 		}
-		mutex_unlock(&(dma_ctrlr->mtx));
+		mutex_unlock(&dma_ctrlr->mtx);
 	}
 
 	/* Check to see if we found a resource */
@@ -694,15 +694,15 @@ struct vme_resource *vme_dma_request(struct device *dev, vme_dma_route_t route)
 		goto err_alloc;
 	}
 	resource->type = VME_DMA;
-	resource->entry = &(allocated_ctrlr->list);
+	resource->entry = &allocated_ctrlr->list;
 
 	return resource;
 
 err_alloc:
 	/* Unlock image */
-	mutex_lock(&(dma_ctrlr->mtx));
+	mutex_lock(&dma_ctrlr->mtx);
 	dma_ctrlr->locked = 0;
-	mutex_unlock(&(dma_ctrlr->mtx));
+	mutex_unlock(&dma_ctrlr->mtx);
 err_ctrlr:
 err_bus:
 	return NULL;
@@ -729,9 +729,9 @@ struct vme_dma_list *vme_new_dma_list(struct vme_resource *resource)
 		printk(KERN_ERR "Unable to allocate memory for new dma list\n");
 		return NULL;
 	}
-	INIT_LIST_HEAD(&(dma_list->entries));
+	INIT_LIST_HEAD(&dma_list->entries);
 	dma_list->parent = ctrlr;
-	mutex_init(&(dma_list->mtx));
+	mutex_init(&dma_list->mtx);
 
 	return dma_list;
 }
@@ -880,14 +880,14 @@ int vme_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 		return -EINVAL;
 	}
 
-	if (!mutex_trylock(&(list->mtx))) {
+	if (!mutex_trylock(&list->mtx)) {
 		printk(KERN_ERR "Link List already submitted\n");
 		return -EINVAL;
 	}
 
 	retval = bridge->dma_list_add(list, src, dest, count);
 
-	mutex_unlock(&(list->mtx));
+	mutex_unlock(&list->mtx);
 
 	return retval;
 }
@@ -903,11 +903,11 @@ int vme_dma_list_exec(struct vme_dma_list *list)
 		return -EINVAL;
 	}
 
-	mutex_lock(&(list->mtx));
+	mutex_lock(&list->mtx);
 
 	retval = bridge->dma_list_exec(list);
 
-	mutex_unlock(&(list->mtx));
+	mutex_unlock(&list->mtx);
 
 	return retval;
 }
@@ -923,7 +923,7 @@ int vme_dma_list_free(struct vme_dma_list *list)
 		return -EINVAL;
 	}
 
-	if (!mutex_trylock(&(list->mtx))) {
+	if (!mutex_trylock(&list->mtx)) {
 		printk(KERN_ERR "Link List in use\n");
 		return -EINVAL;
 	}
@@ -935,10 +935,10 @@ int vme_dma_list_free(struct vme_dma_list *list)
 	retval = bridge->dma_list_empty(list);
 	if (retval) {
 		printk(KERN_ERR "Unable to empty link-list entries\n");
-		mutex_unlock(&(list->mtx));
+		mutex_unlock(&list->mtx);
 		return retval;
 	}
-	mutex_unlock(&(list->mtx));
+	mutex_unlock(&list->mtx);
 	kfree(list);
 
 	return retval;
@@ -956,20 +956,20 @@ int vme_dma_free(struct vme_resource *resource)
 
 	ctrlr = list_entry(resource->entry, struct vme_dma_resource, list);
 
-	if (!mutex_trylock(&(ctrlr->mtx))) {
+	if (!mutex_trylock(&ctrlr->mtx)) {
 		printk(KERN_ERR "Resource busy, can't free\n");
 		return -EBUSY;
 	}
 
-	if (!(list_empty(&(ctrlr->pending)) && list_empty(&(ctrlr->running)))) {
+	if (!(list_empty(&ctrlr->pending) && list_empty(&ctrlr->running))) {
 		printk(KERN_WARNING "Resource still processing transfers\n");
-		mutex_unlock(&(ctrlr->mtx));
+		mutex_unlock(&ctrlr->mtx);
 		return -EBUSY;
 	}
 
 	ctrlr->locked = 0;
 
-	mutex_unlock(&(ctrlr->mtx));
+	mutex_unlock(&ctrlr->mtx);
 
 	return 0;
 }
@@ -1013,10 +1013,10 @@ int vme_irq_request(struct device *dev, int level, int statid,
 		return -EINVAL;
 	}
 
-	mutex_lock(&(bridge->irq_mtx));
+	mutex_lock(&bridge->irq_mtx);
 
 	if (bridge->irq[level - 1].callback[statid].func) {
-		mutex_unlock(&(bridge->irq_mtx));
+		mutex_unlock(&bridge->irq_mtx);
 		printk(KERN_WARNING "VME Interrupt already taken\n");
 		return -EBUSY;
 	}
@@ -1028,7 +1028,7 @@ int vme_irq_request(struct device *dev, int level, int statid,
 	/* Enable IRQ level */
 	bridge->irq_set(bridge, level, 1, 1);
 
-	mutex_unlock(&(bridge->irq_mtx));
+	mutex_unlock(&bridge->irq_mtx);
 
 	return 0;
 }
@@ -1054,7 +1054,7 @@ void vme_irq_free(struct device *dev, int level, int statid)
 		return;
 	}
 
-	mutex_lock(&(bridge->irq_mtx));
+	mutex_lock(&bridge->irq_mtx);
 
 	bridge->irq[level - 1].count--;
 
@@ -1065,7 +1065,7 @@ void vme_irq_free(struct device *dev, int level, int statid)
 	bridge->irq[level - 1].callback[statid].func = NULL;
 	bridge->irq[level - 1].callback[statid].priv_data = NULL;
 
-	mutex_unlock(&(bridge->irq_mtx));
+	mutex_unlock(&bridge->irq_mtx);
 }
 EXPORT_SYMBOL(vme_irq_free);
 
@@ -1111,7 +1111,7 @@ struct vme_resource *vme_lm_request(struct device *dev)
 	}
 
 	/* Loop through DMA resources */
-	list_for_each(lm_pos, &(bridge->lm_resources)) {
+	list_for_each(lm_pos, &bridge->lm_resources) {
 		lm = list_entry(lm_pos,
 			struct vme_lm_resource, list);
 
@@ -1122,14 +1122,14 @@ struct vme_resource *vme_lm_request(struct device *dev)
 		}
 
 		/* Find an unlocked controller */
-		mutex_lock(&(lm->mtx));
+		mutex_lock(&lm->mtx);
 		if (lm->locked == 0) {
 			lm->locked = 1;
-			mutex_unlock(&(lm->mtx));
+			mutex_unlock(&lm->mtx);
 			allocated_lm = lm;
 			break;
 		}
-		mutex_unlock(&(lm->mtx));
+		mutex_unlock(&lm->mtx);
 	}
 
 	/* Check to see if we found a resource */
@@ -1142,15 +1142,15 @@ struct vme_resource *vme_lm_request(struct device *dev)
 		goto err_alloc;
 	}
 	resource->type = VME_LM;
-	resource->entry = &(allocated_lm->list);
+	resource->entry = &allocated_lm->list;
 
 	return resource;
 
 err_alloc:
 	/* Unlock image */
-	mutex_lock(&(lm->mtx));
+	mutex_lock(&lm->mtx);
 	lm->locked = 0;
-	mutex_unlock(&(lm->mtx));
+	mutex_unlock(&lm->mtx);
 err_lm:
 err_bus:
 	return NULL;
@@ -1270,7 +1270,7 @@ void vme_lm_free(struct vme_resource *resource)
 
 	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
-	mutex_lock(&(lm->mtx));
+	mutex_lock(&lm->mtx);
 
 	/* XXX
 	 * Check to see that there aren't any callbacks still attached, if
@@ -1279,7 +1279,7 @@ void vme_lm_free(struct vme_resource *resource)
 
 	lm->locked = 0;
 
-	mutex_unlock(&(lm->mtx));
+	mutex_unlock(&lm->mtx);
 
 	kfree(resource);
 }
@@ -1326,7 +1326,7 @@ static int vme_alloc_bus_num(void)
 static void vme_free_bus_num(int bus)
 {
 	mutex_lock(&vme_bus_num_mtx);
-	vme_bus_numbers |= ~(0x1 << bus);
+	vme_bus_numbers &= ~(0x1 << bus);
 	mutex_unlock(&vme_bus_num_mtx);
 }
 
@@ -1343,11 +1343,11 @@ int vme_register_bridge(struct vme_bridge *bridge)
 	 * specification.
 	 */
 	for (i = 0; i < VME_SLOTS_MAX; i++) {
-		dev = &(bridge->dev[i]);
+		dev = &bridge->dev[i];
 		memset(dev, 0, sizeof(struct device));
 
 		dev->parent = bridge->parent;
-		dev->bus = &(vme_bus_type);
+		dev->bus = &vme_bus_type;
 		/*
 		 * We save a pointer to the bridge in platform_data so that we
 		 * can get to it later. We keep driver_data for use by the
@@ -1366,7 +1366,7 @@ int vme_register_bridge(struct vme_bridge *bridge)
 	i = VME_SLOTS_MAX;
 err_reg:
 	while (i > -1) {
-		dev = &(bridge->dev[i]);
+		dev = &bridge->dev[i];
 		device_unregister(dev);
 	}
 	vme_free_bus_num(bridge->num);
@@ -1381,7 +1381,7 @@ void vme_unregister_bridge(struct vme_bridge *bridge)
 
 
 	for (i = 0; i < VME_SLOTS_MAX; i++) {
-		dev = &(bridge->dev[i]);
+		dev = &bridge->dev[i];
 		device_unregister(dev);
 	}
 	vme_free_bus_num(bridge->num);
@@ -1418,7 +1418,7 @@ static int vme_calc_slot(struct device *dev)
 	/* Determine slot number */
 	num = 0;
 	while (num < VME_SLOTS_MAX) {
-		if (&(bridge->dev[num]) == dev)
+		if (&bridge->dev[num] == dev)
 			break;
 
 		num++;

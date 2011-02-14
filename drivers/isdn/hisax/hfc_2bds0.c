@@ -292,7 +292,7 @@ hfc_fill_fifo(struct BCState *bcs)
 	}
 	count = GetFreeFifoBytes_B(bcs);
 	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "hfc_fill_fifo %d count(%ld/%d),%lx",
+		debugl1(cs, "hfc_fill_fifo %d count(%u/%d),%lx",
 			bcs->channel, bcs->tx_skb->len,
 			count, current->state);
 	if (count < bcs->tx_skb->len) {
@@ -719,7 +719,7 @@ hfc_fill_dfifo(struct IsdnCardState *cs)
 	}
 	count = GetFreeFifoBytes_D(cs);
 	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "hfc_fill_Dfifo count(%ld/%d)",
+		debugl1(cs, "hfc_fill_Dfifo count(%u/%d)",
 			cs->tx_skb->len, count);
 	if (count < cs->tx_skb->len) {
 		if (cs->debug & L1_DEB_ISAC)

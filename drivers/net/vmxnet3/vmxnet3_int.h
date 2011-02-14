@@ -68,11 +68,15 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.0.14.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.0.25.0-k"
 
 /* a 32-bit int, each byte encode a verion number in VMXNET3_DRIVER_VERSION */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01000E00
+#define VMXNET3_DRIVER_VERSION_NUM      0x01001900
 
+#if defined(CONFIG_PCI_MSI)
+	/* RSS only makes sense if MSI-X is supported. */
+	#define VMXNET3_RSS
+#endif
 
 /*
  * Capabilities
@@ -218,16 +222,19 @@ struct vmxnet3_tx_ctx {
 };
 
 struct vmxnet3_tx_queue {
+	char			name[IFNAMSIZ+8]; /* To identify interrupt */
+	struct vmxnet3_adapter		*adapter;
 	spinlock_t                      tx_lock;
 	struct vmxnet3_cmd_ring         tx_ring;
-	struct vmxnet3_tx_buf_info     *buf_info;
+	struct vmxnet3_tx_buf_info      *buf_info;
 	struct vmxnet3_tx_data_ring     data_ring;
 	struct vmxnet3_comp_ring        comp_ring;
-	struct Vmxnet3_TxQueueCtrl            *shared;
+	struct Vmxnet3_TxQueueCtrl      *shared;
 	struct vmxnet3_tq_driver_stats  stats;
 	bool                            stopped;
 	int                             num_stop;  /* # of times the queue is
 						    * stopped */
+	int				qid;
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
 enum vmxnet3_rx_buf_type {
@@ -259,6 +266,9 @@ struct vmxnet3_rq_driver_stats {
 };
 
 struct vmxnet3_rx_queue {
+	char			name[IFNAMSIZ + 8]; /* To identify interrupt */
+	struct vmxnet3_adapter	  *adapter;
+	struct napi_struct        napi;
 	struct vmxnet3_cmd_ring   rx_ring[2];
 	struct vmxnet3_comp_ring  comp_ring;
 	struct vmxnet3_rx_ctx     rx_ctx;
@@ -271,7 +281,16 @@ struct vmxnet3_rx_queue {
 	struct vmxnet3_rq_driver_stats  stats;
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
-#define VMXNET3_LINUX_MAX_MSIX_VECT     1
+#define VMXNET3_DEVICE_MAX_TX_QUEUES 8
+#define VMXNET3_DEVICE_MAX_RX_QUEUES 8   /* Keep this value as a power of 2 */
+
+/* Should be less than UPT1_RSS_MAX_IND_TABLE_SIZE */
+#define VMXNET3_RSS_IND_TABLE_SIZE (VMXNET3_DEVICE_MAX_RX_QUEUES * 4)
+
+#define VMXNET3_LINUX_MAX_MSIX_VECT     (VMXNET3_DEVICE_MAX_TX_QUEUES + \
+					 VMXNET3_DEVICE_MAX_RX_QUEUES + 1)
+#define VMXNET3_LINUX_MIN_MSIX_VECT     2 /* 1 for tx-rx pair and 1 for event */
+
 
 struct vmxnet3_intr {
 	enum vmxnet3_intr_mask_mode  mask_mode;
@@ -279,27 +298,33 @@ struct vmxnet3_intr {
 	u8  num_intrs;			/* # of intr vectors */
 	u8  event_intr_idx;		/* idx of the intr vector for event */
 	u8  mod_levels[VMXNET3_LINUX_MAX_MSIX_VECT]; /* moderation level */
+	char	event_msi_vector_name[IFNAMSIZ+11];
 #ifdef CONFIG_PCI_MSI
 	struct msix_entry msix_entries[VMXNET3_LINUX_MAX_MSIX_VECT];
 #endif
 };
 
+/* Interrupt sharing schemes, share_intr */
+#define VMXNET3_INTR_BUDDYSHARE 0    /* Corresponding tx,rx queues share irq */
+#define VMXNET3_INTR_TXSHARE 1	     /* All tx queues share one irq */
+#define VMXNET3_INTR_DONTSHARE 2     /* each queue has its own irq */
+
+
 #define VMXNET3_STATE_BIT_RESETTING   0
 #define VMXNET3_STATE_BIT_QUIESCED    1
 struct vmxnet3_adapter {
-	struct vmxnet3_tx_queue         tx_queue;
-	struct vmxnet3_rx_queue         rx_queue;
-	struct napi_struct              napi;
-	struct vlan_group              *vlan_grp;
-
-	struct vmxnet3_intr             intr;
-
-	struct Vmxnet3_DriverShared    *shared;
-	struct Vmxnet3_PMConf          *pm_conf;
-	struct Vmxnet3_TxQueueDesc     *tqd_start;     /* first tx queue desc */
-	struct Vmxnet3_RxQueueDesc     *rqd_start;     /* first rx queue desc */
-	struct net_device              *netdev;
-	struct pci_dev                 *pdev;
+	struct vmxnet3_tx_queue		tx_queue[VMXNET3_DEVICE_MAX_TX_QUEUES];
+	struct vmxnet3_rx_queue		rx_queue[VMXNET3_DEVICE_MAX_RX_QUEUES];
+	struct vlan_group		*vlan_grp;
+	struct vmxnet3_intr		intr;
+	spinlock_t			cmd_lock;
+	struct Vmxnet3_DriverShared	*shared;
+	struct Vmxnet3_PMConf		*pm_conf;
+	struct Vmxnet3_TxQueueDesc	*tqd_start;     /* all tx queue desc */
+	struct Vmxnet3_RxQueueDesc	*rqd_start;	/* all rx queue desc */
+	struct net_device		*netdev;
+	struct net_device_stats		net_stats;
+	struct pci_dev			*pdev;
 
 	u8			__iomem *hw_addr0; /* for BAR 0 */
 	u8			__iomem *hw_addr1; /* for BAR 1 */
@@ -308,6 +333,12 @@ struct vmxnet3_adapter {
 	bool				rxcsum;
 	bool				lro;
 	bool				jumbo_frame;
+#ifdef VMXNET3_RSS
+	struct UPT1_RSSConf		*rss_conf;
+	bool				rss;
+#endif
+	u32				num_rx_queues;
+	u32				num_tx_queues;
 
 	/* rx buffer related */
 	unsigned			skb_buf_size;
@@ -327,6 +358,7 @@ struct vmxnet3_adapter {
 	unsigned long  state;    /* VMXNET3_STATE_BIT_xxx */
 
 	int dev_number;
+	int share_intr;
 };
 
 #define VMXNET3_WRITE_BAR0_REG(adapter, reg, val)  \
@@ -366,12 +398,10 @@ void
 vmxnet3_reset_dev(struct vmxnet3_adapter *adapter);
 
 void
-vmxnet3_tq_destroy(struct vmxnet3_tx_queue *tq,
-		   struct vmxnet3_adapter *adapter);
+vmxnet3_tq_destroy_all(struct vmxnet3_adapter *adapter);
 
 void
-vmxnet3_rq_destroy(struct vmxnet3_rx_queue *rq,
-		   struct vmxnet3_adapter *adapter);
+vmxnet3_rq_destroy_all(struct vmxnet3_adapter *adapter);
 
 int
 vmxnet3_create_queues(struct vmxnet3_adapter *adapter,

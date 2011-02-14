@@ -90,13 +90,10 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 
 		*masked = isr & ATH9K_INT_COMMON;
 
-		if (ah->config.rx_intr_mitigation) {
-			if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM))
-				*masked |= ATH9K_INT_RX;
-		}
-
-		if (isr & (AR_ISR_RXOK | AR_ISR_RXERR))
+		if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM |
+			   AR_ISR_RXOK | AR_ISR_RXERR))
 			*masked |= ATH9K_INT_RX;
+
 		if (isr &
 		    (AR_ISR_TXOK | AR_ISR_TXDESC | AR_ISR_TXERR |
 		     AR_ISR_TXEOL)) {
@@ -114,16 +111,8 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 		}
 
 		if (isr & AR_ISR_RXORN) {
-			ath_print(common, ATH_DBG_INTERRUPT,
-				  "receive FIFO overrun interrupt\n");
-		}
-
-		if (!AR_SREV_9100(ah)) {
-			if (!(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
-				u32 isr5 = REG_READ(ah, AR_ISR_S5_S);
-				if (isr5 & AR_ISR_S5_TIM_TIMER)
-					*masked |= ATH9K_INT_TIM_TIMER;
-			}
+			ath_dbg(common, ATH_DBG_INTERRUPT,
+				"receive FIFO overrun interrupt\n");
 		}
 
 		*masked |= mask2;
@@ -136,17 +125,18 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 		u32 s5_s;
 
 		s5_s = REG_READ(ah, AR_ISR_S5_S);
-		if (isr & AR_ISR_GENTMR) {
-			ah->intr_gen_timer_trigger =
+		ah->intr_gen_timer_trigger =
 				MS(s5_s, AR_ISR_S5_GENTIMER_TRIG);
 
-			ah->intr_gen_timer_thresh =
-				MS(s5_s, AR_ISR_S5_GENTIMER_THRESH);
+		ah->intr_gen_timer_thresh =
+			MS(s5_s, AR_ISR_S5_GENTIMER_THRESH);
 
-			if (ah->intr_gen_timer_trigger)
-				*masked |= ATH9K_INT_GENTIMER;
+		if (ah->intr_gen_timer_trigger)
+			*masked |= ATH9K_INT_GENTIMER;
 
-		}
+		if ((s5_s & AR_ISR_S5_TIM_TIMER) &&
+		    !(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
+			*masked |= ATH9K_INT_TIM_TIMER;
 	}
 
 	if (sync_cause) {
@@ -157,25 +147,25 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 
 		if (fatal_int) {
 			if (sync_cause & AR_INTR_SYNC_HOST1_FATAL) {
-				ath_print(common, ATH_DBG_ANY,
-					  "received PCI FATAL interrupt\n");
+				ath_dbg(common, ATH_DBG_ANY,
+					"received PCI FATAL interrupt\n");
 			}
 			if (sync_cause & AR_INTR_SYNC_HOST1_PERR) {
-				ath_print(common, ATH_DBG_ANY,
-					  "received PCI PERR interrupt\n");
+				ath_dbg(common, ATH_DBG_ANY,
+					"received PCI PERR interrupt\n");
 			}
 			*masked |= ATH9K_INT_FATAL;
 		}
 		if (sync_cause & AR_INTR_SYNC_RADM_CPL_TIMEOUT) {
-			ath_print(common, ATH_DBG_INTERRUPT,
-				  "AR_INTR_SYNC_RADM_CPL_TIMEOUT\n");
+			ath_dbg(common, ATH_DBG_INTERRUPT,
+				"AR_INTR_SYNC_RADM_CPL_TIMEOUT\n");
 			REG_WRITE(ah, AR_RC, AR_RC_HOSTIF);
 			REG_WRITE(ah, AR_RC, 0);
 			*masked |= ATH9K_INT_FATAL;
 		}
 		if (sync_cause & AR_INTR_SYNC_LOCAL_TIMEOUT) {
-			ath_print(common, ATH_DBG_INTERRUPT,
-				  "AR_INTR_SYNC_LOCAL_TIMEOUT\n");
+			ath_dbg(common, ATH_DBG_INTERRUPT,
+				"AR_INTR_SYNC_LOCAL_TIMEOUT\n");
 		}
 
 		REG_WRITE(ah, AR_INTR_SYNC_CAUSE_CLR, sync_cause);
@@ -218,77 +208,70 @@ static int ar9002_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 				 struct ath_tx_status *ts)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
+	u32 status;
 
-	if ((ads->ds_txstatus9 & AR_TxDone) == 0)
+	status = ACCESS_ONCE(ads->ds_txstatus9);
+	if ((status & AR_TxDone) == 0)
 		return -EINPROGRESS;
 
-	ts->ts_seqnum = MS(ads->ds_txstatus9, AR_SeqNum);
 	ts->ts_tstamp = ads->AR_SendTimestamp;
 	ts->ts_status = 0;
 	ts->ts_flags = 0;
 
-	if (ads->ds_txstatus1 & AR_FrmXmitOK)
-		ts->ts_status |= ATH9K_TX_ACKED;
-	if (ads->ds_txstatus1 & AR_ExcessiveRetries)
-		ts->ts_status |= ATH9K_TXERR_XRETRY;
-	if (ads->ds_txstatus1 & AR_Filtered)
-		ts->ts_status |= ATH9K_TXERR_FILT;
-	if (ads->ds_txstatus1 & AR_FIFOUnderrun) {
-		ts->ts_status |= ATH9K_TXERR_FIFO;
-		ath9k_hw_updatetxtriglevel(ah, true);
-	}
-	if (ads->ds_txstatus9 & AR_TxOpExceeded)
+	if (status & AR_TxOpExceeded)
 		ts->ts_status |= ATH9K_TXERR_XTXOP;
-	if (ads->ds_txstatus1 & AR_TxTimerExpired)
-		ts->ts_status |= ATH9K_TXERR_TIMER_EXPIRED;
+	ts->tid = MS(status, AR_TxTid);
+	ts->ts_rateindex = MS(status, AR_FinalTxIdx);
+	ts->ts_seqnum = MS(status, AR_SeqNum);
 
-	if (ads->ds_txstatus1 & AR_DescCfgErr)
-		ts->ts_flags |= ATH9K_TX_DESC_CFG_ERR;
-	if (ads->ds_txstatus1 & AR_TxDataUnderrun) {
-		ts->ts_flags |= ATH9K_TX_DATA_UNDERRUN;
-		ath9k_hw_updatetxtriglevel(ah, true);
-	}
-	if (ads->ds_txstatus1 & AR_TxDelimUnderrun) {
-		ts->ts_flags |= ATH9K_TX_DELIM_UNDERRUN;
-		ath9k_hw_updatetxtriglevel(ah, true);
-	}
-	if (ads->ds_txstatus0 & AR_TxBaStatus) {
+	status = ACCESS_ONCE(ads->ds_txstatus0);
+	ts->ts_rssi_ctl0 = MS(status, AR_TxRSSIAnt00);
+	ts->ts_rssi_ctl1 = MS(status, AR_TxRSSIAnt01);
+	ts->ts_rssi_ctl2 = MS(status, AR_TxRSSIAnt02);
+	if (status & AR_TxBaStatus) {
 		ts->ts_flags |= ATH9K_TX_BA;
 		ts->ba_low = ads->AR_BaBitmapLow;
 		ts->ba_high = ads->AR_BaBitmapHigh;
 	}
 
-	ts->ts_rateindex = MS(ads->ds_txstatus9, AR_FinalTxIdx);
-	switch (ts->ts_rateindex) {
-	case 0:
-		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate0);
-		break;
-	case 1:
-		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate1);
-		break;
-	case 2:
-		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate2);
-		break;
-	case 3:
-		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate3);
-		break;
+	status = ACCESS_ONCE(ads->ds_txstatus1);
+	if (status & AR_FrmXmitOK)
+		ts->ts_status |= ATH9K_TX_ACKED;
+	else {
+		if (status & AR_ExcessiveRetries)
+			ts->ts_status |= ATH9K_TXERR_XRETRY;
+		if (status & AR_Filtered)
+			ts->ts_status |= ATH9K_TXERR_FILT;
+		if (status & AR_FIFOUnderrun) {
+			ts->ts_status |= ATH9K_TXERR_FIFO;
+			ath9k_hw_updatetxtriglevel(ah, true);
+		}
 	}
+	if (status & AR_TxTimerExpired)
+		ts->ts_status |= ATH9K_TXERR_TIMER_EXPIRED;
+	if (status & AR_DescCfgErr)
+		ts->ts_flags |= ATH9K_TX_DESC_CFG_ERR;
+	if (status & AR_TxDataUnderrun) {
+		ts->ts_flags |= ATH9K_TX_DATA_UNDERRUN;
+		ath9k_hw_updatetxtriglevel(ah, true);
+	}
+	if (status & AR_TxDelimUnderrun) {
+		ts->ts_flags |= ATH9K_TX_DELIM_UNDERRUN;
+		ath9k_hw_updatetxtriglevel(ah, true);
+	}
+	ts->ts_shortretry = MS(status, AR_RTSFailCnt);
+	ts->ts_longretry = MS(status, AR_DataFailCnt);
+	ts->ts_virtcol = MS(status, AR_VirtRetryCnt);
 
-	ts->ts_rssi = MS(ads->ds_txstatus5, AR_TxRSSICombined);
-	ts->ts_rssi_ctl0 = MS(ads->ds_txstatus0, AR_TxRSSIAnt00);
-	ts->ts_rssi_ctl1 = MS(ads->ds_txstatus0, AR_TxRSSIAnt01);
-	ts->ts_rssi_ctl2 = MS(ads->ds_txstatus0, AR_TxRSSIAnt02);
-	ts->ts_rssi_ext0 = MS(ads->ds_txstatus5, AR_TxRSSIAnt10);
-	ts->ts_rssi_ext1 = MS(ads->ds_txstatus5, AR_TxRSSIAnt11);
-	ts->ts_rssi_ext2 = MS(ads->ds_txstatus5, AR_TxRSSIAnt12);
+	status = ACCESS_ONCE(ads->ds_txstatus5);
+	ts->ts_rssi = MS(status, AR_TxRSSICombined);
+	ts->ts_rssi_ext0 = MS(status, AR_TxRSSIAnt10);
+	ts->ts_rssi_ext1 = MS(status, AR_TxRSSIAnt11);
+	ts->ts_rssi_ext2 = MS(status, AR_TxRSSIAnt12);
+
 	ts->evm0 = ads->AR_TxEVM0;
 	ts->evm1 = ads->AR_TxEVM1;
 	ts->evm2 = ads->AR_TxEVM2;
-	ts->ts_shortretry = MS(ads->ds_txstatus1, AR_RTSFailCnt);
-	ts->ts_longretry = MS(ads->ds_txstatus1, AR_DataFailCnt);
-	ts->ts_virtcol = MS(ads->ds_txstatus1, AR_VirtRetryCnt);
-	ts->tid = MS(ads->ds_txstatus9, AR_TxTid);
-	ts->ts_antenna = 0;
 
 	return 0;
 }
@@ -300,7 +283,6 @@ static void ar9002_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
 
-	txPower += ah->txpower_indexoffset;
 	if (txPower > 63)
 		txPower = 63;
 

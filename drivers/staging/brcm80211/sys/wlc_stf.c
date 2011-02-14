@@ -15,8 +15,8 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <wlc_cfg.h>
-#include <linuxver.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>
@@ -25,29 +25,33 @@
 #include <proto/802.11.h>
 #include <wlioctl.h>
 #include <bcmwifi.h>
+#include <sbhndpio.h>
+#include <sbhnddma.h>
 #include <d11.h>
 #include <wlc_rate.h>
 #include <wlc_pub.h>
 #include <wlc_key.h>
 #include <wlc_channel.h>
 #include <wlc_bsscfg.h>
+#include <wlc_event.h>
 #include <wlc_mac80211.h>
 #include <wlc_scb.h>
 #include <wl_export.h>
 #include <wlc_bmac.h>
 #include <wlc_stf.h>
+#include <wl_dbg.h>
 
 #define WLC_STF_SS_STBC_RX(wlc) (WLCISNPHY(wlc->band) && \
 	NREV_GT(wlc->band->phyrev, 3) && NREV_LE(wlc->band->phyrev, 6))
 
-static s8 wlc_stf_stbc_rx_get(wlc_info_t *wlc);
-static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, s32 int_val);
-static int wlc_stf_txcore_set(wlc_info_t *wlc, u8 Nsts, u8 val);
-static int wlc_stf_spatial_policy_set(wlc_info_t *wlc, int val);
-static void wlc_stf_stbc_rx_ht_update(wlc_info_t *wlc, int val);
+static s8 wlc_stf_stbc_rx_get(struct wlc_info *wlc);
+static bool wlc_stf_stbc_tx_set(struct wlc_info *wlc, s32 int_val);
+static int wlc_stf_txcore_set(struct wlc_info *wlc, u8 Nsts, u8 val);
+static int wlc_stf_spatial_policy_set(struct wlc_info *wlc, int val);
+static void wlc_stf_stbc_rx_ht_update(struct wlc_info *wlc, int val);
 
-static void _wlc_stf_phy_txant_upd(wlc_info_t *wlc);
-static u16 _wlc_stf_phytxchain_sel(wlc_info_t *wlc, ratespec_t rspec);
+static void _wlc_stf_phy_txant_upd(struct wlc_info *wlc);
+static u16 _wlc_stf_phytxchain_sel(struct wlc_info *wlc, ratespec_t rspec);
 
 #define NSTS_1	1
 #define NSTS_2	2
@@ -61,7 +65,7 @@ const u8 txcore_default[5] = {
 	(0x0f)			/* For Nsts = 4, enable all cores */
 };
 
-static void wlc_stf_stbc_rx_ht_update(wlc_info_t *wlc, int val)
+static void wlc_stf_stbc_rx_ht_update(struct wlc_info *wlc, int val)
 {
 	ASSERT((val == HT_CAP_RX_STBC_NO)
 	       || (val == HT_CAP_RX_STBC_ONE_STREAM));
@@ -82,7 +86,7 @@ static void wlc_stf_stbc_rx_ht_update(wlc_info_t *wlc, int val)
 }
 
 /* every WLC_TEMPSENSE_PERIOD seconds temperature check to decide whether to turn on/off txchain */
-void wlc_tempsense_upd(wlc_info_t *wlc)
+void wlc_tempsense_upd(struct wlc_info *wlc)
 {
 	wlc_phy_t *pi = wlc->band->pi;
 	uint active_chains, txchain;
@@ -106,7 +110,7 @@ void wlc_tempsense_upd(wlc_info_t *wlc)
 }
 
 void
-wlc_stf_ss_algo_channel_get(wlc_info_t *wlc, u16 *ss_algo_channel,
+wlc_stf_ss_algo_channel_get(struct wlc_info *wlc, u16 *ss_algo_channel,
 			    chanspec_t chanspec)
 {
 	tx_power_t power;
@@ -147,12 +151,12 @@ wlc_stf_ss_algo_channel_get(wlc_info_t *wlc, u16 *ss_algo_channel,
 		setbit(ss_algo_channel, PHY_TXC1_MODE_STBC);
 }
 
-static s8 wlc_stf_stbc_rx_get(wlc_info_t *wlc)
+static s8 wlc_stf_stbc_rx_get(struct wlc_info *wlc)
 {
 	return (wlc->ht_cap.cap & HT_CAP_RX_STBC_MASK) >> HT_CAP_RX_STBC_SHIFT;
 }
 
-static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, s32 int_val)
+static bool wlc_stf_stbc_tx_set(struct wlc_info *wlc, s32 int_val)
 {
 	if ((int_val != AUTO) && (int_val != OFF) && (int_val != ON)) {
 		return false;
@@ -173,7 +177,7 @@ static bool wlc_stf_stbc_tx_set(wlc_info_t *wlc, s32 int_val)
 	return true;
 }
 
-bool wlc_stf_stbc_rx_set(wlc_info_t *wlc, s32 int_val)
+bool wlc_stf_stbc_rx_set(struct wlc_info *wlc, s32 int_val)
 {
 	if ((int_val != HT_CAP_RX_STBC_NO)
 	    && (int_val != HT_CAP_RX_STBC_ONE_STREAM)) {
@@ -190,10 +194,10 @@ bool wlc_stf_stbc_rx_set(wlc_info_t *wlc, s32 int_val)
 	return true;
 }
 
-static int wlc_stf_txcore_set(wlc_info_t *wlc, u8 Nsts, u8 core_mask)
+static int wlc_stf_txcore_set(struct wlc_info *wlc, u8 Nsts, u8 core_mask)
 {
-	WL_TRACE(("wl%d: %s: Nsts %d core_mask %x\n",
-		  wlc->pub->unit, __func__, Nsts, core_mask));
+	WL_TRACE("wl%d: %s: Nsts %d core_mask %x\n",
+		 wlc->pub->unit, __func__, Nsts, core_mask);
 
 	ASSERT((Nsts > 0) && (Nsts <= MAX_STREAMS_SUPPORTED));
 
@@ -227,12 +231,12 @@ static int wlc_stf_txcore_set(wlc_info_t *wlc, u8 Nsts, u8 core_mask)
 	return BCME_OK;
 }
 
-static int wlc_stf_spatial_policy_set(wlc_info_t *wlc, int val)
+static int wlc_stf_spatial_policy_set(struct wlc_info *wlc, int val)
 {
 	int i;
 	u8 core_mask = 0;
 
-	WL_TRACE(("wl%d: %s: val %x\n", wlc->pub->unit, __func__, val));
+	WL_TRACE("wl%d: %s: val %x\n", wlc->pub->unit, __func__, val);
 
 	wlc->stf->spatial_policy = (s8) val;
 	for (i = 1; i <= MAX_STREAMS_SUPPORTED; i++) {
@@ -243,7 +247,7 @@ static int wlc_stf_spatial_policy_set(wlc_info_t *wlc, int val)
 	return BCME_OK;
 }
 
-int wlc_stf_txchain_set(wlc_info_t *wlc, s32 int_val, bool force)
+int wlc_stf_txchain_set(struct wlc_info *wlc, s32 int_val, bool force)
 {
 	u8 txchain = (u8) int_val;
 	u8 txstreams;
@@ -274,13 +278,15 @@ int wlc_stf_txchain_set(wlc_info_t *wlc, s32 int_val, bool force)
 				if (RSPEC_STF(wlc->bandstate[i]->rspec_override)
 				    != PHY_TXC1_MODE_SISO) {
 					wlc->bandstate[i]->rspec_override = 0;
-					WL_ERROR(("%s(): temp sense override non-SISO" " rspec_override.\n", __func__));
+					WL_ERROR("%s(): temp sense override non-SISO rspec_override\n",
+						 __func__);
 				}
 				if (RSPEC_STF
 				    (wlc->bandstate[i]->mrspec_override) !=
 				    PHY_TXC1_MODE_SISO) {
 					wlc->bandstate[i]->mrspec_override = 0;
-					WL_ERROR(("%s(): temp sense override non-SISO" " mrspec_override.\n", __func__));
+					WL_ERROR("%s(): temp sense override non-SISO mrspec_override\n",
+						 __func__);
 				}
 			}
 	}
@@ -303,7 +309,7 @@ int wlc_stf_txchain_set(wlc_info_t *wlc, s32 int_val, bool force)
 	return BCME_OK;
 }
 
-int wlc_stf_rxchain_set(wlc_info_t *wlc, s32 int_val)
+int wlc_stf_rxchain_set(struct wlc_info *wlc, s32 int_val)
 {
 	u8 rxchain_cnt;
 	u8 rxchain = (u8) int_val;
@@ -367,7 +373,7 @@ int wlc_stf_rxchain_set(wlc_info_t *wlc, s32 int_val)
 }
 
 /* update wlc->stf->ss_opmode which represents the operational stf_ss mode we're using */
-int wlc_stf_ss_update(wlc_info_t *wlc, wlcband_t *band)
+int wlc_stf_ss_update(struct wlc_info *wlc, struct wlcband *band)
 {
 	int ret_code = 0;
 	u8 prev_stf_ss;
@@ -402,7 +408,7 @@ int wlc_stf_ss_update(wlc_info_t *wlc, wlcband_t *band)
 	return ret_code;
 }
 
-int wlc_stf_attach(wlc_info_t *wlc)
+int wlc_stf_attach(struct wlc_info *wlc)
 {
 	wlc->bandstate[BAND_2G_INDEX]->band_stf_ss_mode = PHY_TXC1_MODE_SISO;
 	wlc->bandstate[BAND_5G_INDEX]->band_stf_ss_mode = PHY_TXC1_MODE_CDD;
@@ -425,11 +431,11 @@ int wlc_stf_attach(wlc_info_t *wlc)
 	return 0;
 }
 
-void wlc_stf_detach(wlc_info_t *wlc)
+void wlc_stf_detach(struct wlc_info *wlc)
 {
 }
 
-int wlc_stf_ant_txant_validate(wlc_info_t *wlc, s8 val)
+int wlc_stf_ant_txant_validate(struct wlc_info *wlc, s8 val)
 {
 	int bcmerror = BCME_OK;
 
@@ -476,7 +482,7 @@ int wlc_stf_ant_txant_validate(wlc_info_t *wlc, s8 val)
  *    do tx-antenna selection for SISO transmissions
  * for NREV>=7, bit 6 and bit 7 mean antenna 0 and 1 respectively, nit6+bit7 means both cores active
 */
-static void _wlc_stf_phy_txant_upd(wlc_info_t *wlc)
+static void _wlc_stf_phy_txant_upd(struct wlc_info *wlc)
 {
 	s8 txant;
 
@@ -517,12 +523,12 @@ static void _wlc_stf_phy_txant_upd(wlc_info_t *wlc)
 	wlc_bmac_txant_set(wlc->hw, wlc->stf->phytxant);
 }
 
-void wlc_stf_phy_txant_upd(wlc_info_t *wlc)
+void wlc_stf_phy_txant_upd(struct wlc_info *wlc)
 {
 	_wlc_stf_phy_txant_upd(wlc);
 }
 
-void wlc_stf_phy_chain_calc(wlc_info_t *wlc)
+void wlc_stf_phy_chain_calc(struct wlc_info *wlc)
 {
 	/* get available rx/tx chains */
 	wlc->stf->hw_txchain = (u8) getintvar(wlc->pub->vars, "txchain");
@@ -559,7 +565,7 @@ void wlc_stf_phy_chain_calc(wlc_info_t *wlc)
 	wlc_stf_spatial_policy_set(wlc, MIN_SPATIAL_EXPANSION);
 }
 
-static u16 _wlc_stf_phytxchain_sel(wlc_info_t *wlc, ratespec_t rspec)
+static u16 _wlc_stf_phytxchain_sel(struct wlc_info *wlc, ratespec_t rspec)
 {
 	u16 phytxant = wlc->stf->phytxant;
 
@@ -572,12 +578,12 @@ static u16 _wlc_stf_phytxchain_sel(wlc_info_t *wlc, ratespec_t rspec)
 	return phytxant;
 }
 
-u16 wlc_stf_phytxchain_sel(wlc_info_t *wlc, ratespec_t rspec)
+u16 wlc_stf_phytxchain_sel(struct wlc_info *wlc, ratespec_t rspec)
 {
 	return _wlc_stf_phytxchain_sel(wlc, rspec);
 }
 
-u16 wlc_stf_d11hdrs_phyctl_txant(wlc_info_t *wlc, ratespec_t rspec)
+u16 wlc_stf_d11hdrs_phyctl_txant(struct wlc_info *wlc, ratespec_t rspec)
 {
 	u16 phytxant = wlc->stf->phytxant;
 	u16 mask = PHY_TXC_ANT_MASK;

@@ -29,26 +29,6 @@
 #define DCON_REG_SCAN_INT	9
 #define DCON_REG_BRIGHT		10
 
-/* GPIO registers (CS5536) */
-
-#define MSR_LBAR_GPIO		0x5140000C
-
-#define GPIOx_OUT_VAL     0x00
-#define GPIOx_OUT_EN      0x04
-#define GPIOx_IN_EN       0x20
-#define GPIOx_INV_EN      0x24
-#define GPIOx_IN_FLTR_EN  0x28
-#define GPIOx_EVNTCNT_EN  0x2C
-#define GPIOx_READ_BACK   0x30
-#define GPIOx_EVNT_EN     0x38
-#define GPIOx_NEGEDGE_EN  0x44
-#define GPIOx_NEGEDGE_STS 0x4C
-#define GPIO_FLT7_AMNT    0xD8
-#define GPIO_MAP_X        0xE0
-#define GPIO_MAP_Y        0xE4
-#define GPIO_FE7_SEL      0xF7
-
-
 /* Status values */
 
 #define DCONSTAT_SCANINT	0

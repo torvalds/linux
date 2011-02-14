@@ -2,7 +2,8 @@
  * linux/fs/hfsplus/part_tbl.c
  *
  * Copyright (C) 1996-1997  Paul H. Hargrove
- * This file may be distributed under the terms of the GNU General Public License.
+ * This file may be distributed under the terms of
+ * the GNU General Public License.
  *
  * Original code to handle the new style Mac partition table based on
  * a patch contributed by Holger Schemel (aeglos@valinor.owl.de).
@@ -13,6 +14,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include "hfsplus_fs.h"
 
 /* offsets to various blocks */
@@ -58,77 +60,94 @@ struct new_pmap {
  */
 struct old_pmap {
 	__be16		pdSig;	/* Signature bytes */
-	struct 	old_pmap_entry {
+	struct old_pmap_entry {
 		__be32	pdStart;
 		__be32	pdSize;
 		__be32	pdFSID;
 	}	pdEntry[42];
 } __packed;
 
-/*
- * hfs_part_find()
- *
- * Parse the partition map looking for the
- * start and length of the 'part'th HFS partition.
- */
-int hfs_part_find(struct super_block *sb,
-		  sector_t *part_start, sector_t *part_size)
+static int hfs_parse_old_pmap(struct super_block *sb, struct old_pmap *pm,
+		sector_t *part_start, sector_t *part_size)
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
-	struct buffer_head *bh;
-	__be16 *data;
-	int i, size, res;
+	int i;
 
-	res = -ENOENT;
-	bh = sb_bread512(sb, *part_start + HFS_PMAP_BLK, data);
-	if (!bh)
-		return -EIO;
+	for (i = 0; i < 42; i++) {
+		struct old_pmap_entry *p = &pm->pdEntry[i];
 
-	switch (be16_to_cpu(*data)) {
-	case HFS_OLD_PMAP_MAGIC:
-	  {
-		struct old_pmap *pm;
-		struct old_pmap_entry *p;
-
-		pm = (struct old_pmap *)bh->b_data;
-		p = pm->pdEntry;
-		size = 42;
-		for (i = 0; i < size; p++, i++) {
-			if (p->pdStart && p->pdSize &&
-			    p->pdFSID == cpu_to_be32(0x54465331)/*"TFS1"*/ &&
-			    (sbi->part < 0 || sbi->part == i)) {
-				*part_start += be32_to_cpu(p->pdStart);
-				*part_size = be32_to_cpu(p->pdSize);
-				res = 0;
-			}
+		if (p->pdStart && p->pdSize &&
+		    p->pdFSID == cpu_to_be32(0x54465331)/*"TFS1"*/ &&
+		    (sbi->part < 0 || sbi->part == i)) {
+			*part_start += be32_to_cpu(p->pdStart);
+			*part_size = be32_to_cpu(p->pdSize);
+			return 0;
 		}
-		break;
-	  }
-	case HFS_NEW_PMAP_MAGIC:
-	  {
-		struct new_pmap *pm;
-
-		pm = (struct new_pmap *)bh->b_data;
-		size = be32_to_cpu(pm->pmMapBlkCnt);
-		for (i = 0; i < size;) {
-			if (!memcmp(pm->pmPartType,"Apple_HFS", 9) &&
-			    (sbi->part < 0 || sbi->part == i)) {
-				*part_start += be32_to_cpu(pm->pmPyPartStart);
-				*part_size = be32_to_cpu(pm->pmPartBlkCnt);
-				res = 0;
-				break;
-			}
-			brelse(bh);
-			bh = sb_bread512(sb, *part_start + HFS_PMAP_BLK + ++i, pm);
-			if (!bh)
-				return -EIO;
-			if (pm->pmSig != cpu_to_be16(HFS_NEW_PMAP_MAGIC))
-				break;
-		}
-		break;
-	  }
 	}
-	brelse(bh);
 
+	return -ENOENT;
+}
+
+static int hfs_parse_new_pmap(struct super_block *sb, struct new_pmap *pm,
+		sector_t *part_start, sector_t *part_size)
+{
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
+	int size = be32_to_cpu(pm->pmMapBlkCnt);
+	int res;
+	int i = 0;
+
+	do {
+		if (!memcmp(pm->pmPartType, "Apple_HFS", 9) &&
+		    (sbi->part < 0 || sbi->part == i)) {
+			*part_start += be32_to_cpu(pm->pmPyPartStart);
+			*part_size = be32_to_cpu(pm->pmPartBlkCnt);
+			return 0;
+		}
+
+		if (++i >= size)
+			return -ENOENT;
+
+		res = hfsplus_submit_bio(sb->s_bdev,
+					 *part_start + HFS_PMAP_BLK + i,
+					 pm, READ);
+		if (res)
+			return res;
+	} while (pm->pmSig == cpu_to_be16(HFS_NEW_PMAP_MAGIC));
+
+	return -ENOENT;
+}
+
+/*
+ * Parse the partition map looking for the start and length of a
+ * HFS/HFS+ partition.
+ */
+int hfs_part_find(struct super_block *sb,
+		sector_t *part_start, sector_t *part_size)
+{
+	void *data;
+	int res;
+
+	data = kmalloc(HFSPLUS_SECTOR_SIZE, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	res = hfsplus_submit_bio(sb->s_bdev, *part_start + HFS_PMAP_BLK,
+				 data, READ);
+	if (res)
+		goto out;
+
+	switch (be16_to_cpu(*((__be16 *)data))) {
+	case HFS_OLD_PMAP_MAGIC:
+		res = hfs_parse_old_pmap(sb, data, part_start, part_size);
+		break;
+	case HFS_NEW_PMAP_MAGIC:
+		res = hfs_parse_new_pmap(sb, data, part_start, part_size);
+		break;
+	default:
+		res = -ENOENT;
+		break;
+	}
+out:
+	kfree(data);
 	return res;
 }

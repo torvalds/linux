@@ -387,7 +387,7 @@ static struct spi_board_info yl9200_spi_devices[] = {
  * EPSON S1D13806 FB (discontinued chip)
  * EPSON S1D13506 FB
  */
-#if defined(CONFIG_FB_S1D135XX) || defined(CONFIG_FB_S1D13XXX_MODULE)
+#if defined(CONFIG_FB_S1D13XXX) || defined(CONFIG_FB_S1D13XXX_MODULE)
 #include <video/s1d13xxxfb.h>
 
 

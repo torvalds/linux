@@ -487,7 +487,7 @@ struct hdspm {
 	struct snd_kcontrol *playback_mixer_ctls[HDSPM_MAX_CHANNELS];
 	/* but input to much, so not used */
 	struct snd_kcontrol *input_mixer_ctls[HDSPM_MAX_CHANNELS];
-	/* full mixer accessable over mixer ioctl or hwdep-device */
+	/* full mixer accessible over mixer ioctl or hwdep-device */
 	struct hdspm_mixer *mixer;
 
 };
@@ -550,7 +550,7 @@ static inline int HDSPM_bit2freq(int n)
 	return bit2freq_tab[n];
 }
 
-/* Write/read to/from HDSPM with Adresses in Bytes
+/* Write/read to/from HDSPM with Addresses in Bytes
    not words but only 32Bit writes are allowed */
 
 static inline void hdspm_write(struct hdspm * hdspm, unsigned int reg,
@@ -2908,7 +2908,7 @@ static int snd_hdspm_create_controls(struct snd_card *card, struct hdspm * hdspm
 
 	/* Channel playback mixer as default control 
 	   Note: the whole matrix would be 128*HDSPM_MIXER_CHANNELS Faders,
-	   thats too * big for any alsamixer they are accesible via special
+	   thats too * big for any alsamixer they are accessible via special
 	   IOCTL on hwdep and the mixer 2dimensional mixer control
 	*/
 

@@ -2,4 +2,4 @@
 # description: display a process of packet and processing time
 # args: [tx] [rx] [dev=] [debug]
 
-perf trace -s "$PERF_EXEC_PATH"/scripts/python/netdev-times.py $@
+perf script -s "$PERF_EXEC_PATH"/scripts/python/netdev-times.py $@

@@ -29,6 +29,9 @@
  *  This file contains all dsp controlling functions like firmware download,
  * setting/resetting dsp cores, etc
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/fs.h>
 #include <linux/firmware.h>
@@ -47,8 +50,9 @@ static int intel_sst_reset_dsp_mrst(void)
 {
 	union config_status_reg csr;
 
-	pr_debug("sst: Resetting the DSP in mrst\n");
-	csr.full = 0x3a2;
+	pr_debug("Resetting the DSP in mrst\n");
+	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
+	csr.full |= 0x382;
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
 	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
 	csr.part.strb_cntr_rst = 0;
@@ -68,7 +72,7 @@ static int intel_sst_reset_dsp_medfield(void)
 {
 	union config_status_reg csr;
 
-	pr_debug("sst: Resetting the DSP in medfield\n");
+	pr_debug("Resetting the DSP in medfield\n");
 	csr.full = 0x048303E2;
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
 
@@ -90,7 +94,7 @@ static int sst_start_mrst(void)
 	csr.part.run_stall = 0;
 	csr.part.sst_reset = 0;
 	csr.part.strb_cntr_rst = 1;
-	pr_debug("sst: Setting SST to execute_mrst 0x%x\n", csr.full);
+	pr_debug("Setting SST to execute_mrst 0x%x\n", csr.full);
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
 
 	return 0;
@@ -111,7 +115,7 @@ static int sst_start_medfield(void)
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
 	csr.full = 0x04830061;
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
-	pr_debug("sst: Starting the DSP_medfld\n");
+	pr_debug("Starting the DSP_medfld\n");
 
 	return 0;
 }
@@ -130,16 +134,16 @@ static int sst_parse_module(struct fw_module_header *module)
 	u32 count;
 	void __iomem *ram;
 
-	pr_debug("sst: module sign %s size %x blocks %x type %x\n",
+	pr_debug("module sign %s size %x blocks %x type %x\n",
 			module->signature, module->mod_size,
 			module->blocks, module->type);
-	pr_debug("sst: module entrypoint 0x%x\n", module->entry_point);
+	pr_debug("module entrypoint 0x%x\n", module->entry_point);
 
 	block = (void *)module + sizeof(*module);
 
 	for (count = 0; count < module->blocks; count++) {
 		if (block->size <= 0) {
-			pr_err("sst: block size invalid\n");
+			pr_err("block size invalid\n");
 			return -EINVAL;
 		}
 		switch (block->type) {
@@ -150,7 +154,7 @@ static int sst_parse_module(struct fw_module_header *module)
 			ram = sst_drv_ctx->dram;
 			break;
 		default:
-			pr_err("sst: wrong ram type0x%x in block0x%x\n",
+			pr_err("wrong ram type0x%x in block0x%x\n",
 					block->type, count);
 			return -EINVAL;
 		}
@@ -184,10 +188,10 @@ static int sst_parse_fw_image(const struct firmware *sst_fw)
 	if ((strncmp(header->signature, SST_FW_SIGN, 4) != 0) ||
 			(sst_fw->size != header->file_size + sizeof(*header))) {
 		/* Invalid FW signature */
-		pr_err("sst: InvalidFW sign/filesize mismatch\n");
+		pr_err("Invalid FW sign/filesize mismatch\n");
 		return -EINVAL;
 	}
-	pr_debug("sst: header sign=%s size=%x modules=%x fmt=%x size=%x\n",
+	pr_debug("header sign=%s size=%x modules=%x fmt=%x size=%x\n",
 			header->signature, header->file_size, header->modules,
 			header->file_format, sizeof(*header));
 	module = (void *)sst_fw->data + sizeof(*header);
@@ -214,7 +218,7 @@ int sst_load_fw(const struct firmware *fw, void *context)
 {
 	int ret_val;
 
-	pr_debug("sst: load_fw called\n");
+	pr_debug("load_fw called\n");
 	BUG_ON(!fw);
 
 	if (sst_drv_ctx->pci_id == SST_MRST_PCI_ID)
@@ -239,7 +243,7 @@ int sst_load_fw(const struct firmware *fw, void *context)
 	if (ret_val)
 		return ret_val;
 
-	pr_debug("sst: fw loaded successful!!!\n");
+	pr_debug("fw loaded successful!!!\n");
 	return ret_val;
 }
 
@@ -261,7 +265,7 @@ static int sst_download_library(const struct firmware *fw_lib,
 
 	pvt_id = sst_assign_pvt_id(sst_drv_ctx);
 	i = sst_get_block_stream(sst_drv_ctx);
-	pr_debug("sst: alloc block allocated = %d, pvt_id %d\n", i, pvt_id);
+	pr_debug("alloc block allocated = %d, pvt_id %d\n", i, pvt_id);
 	if (i < 0) {
 		kfree(msg);
 		return -ENOMEM;
@@ -281,11 +285,11 @@ static int sst_download_library(const struct firmware *fw_lib,
 	if (retval) {
 		/* error */
 		sst_drv_ctx->alloc_block[i].sst_id = BLOCK_UNINIT;
-		pr_err("sst: Prep codec downloaded failed %d\n",
+		pr_err("Prep codec downloaded failed %d\n",
 				retval);
 		return -EIO;
 	}
-	pr_debug("sst: FW responded, ready for download now...\n");
+	pr_debug("FW responded, ready for download now...\n");
 	/* downloading on success */
 	mutex_lock(&sst_drv_ctx->sst_lock);
 	sst_drv_ctx->sst_state = SST_FW_LOADED;
@@ -325,7 +329,7 @@ static int sst_download_library(const struct firmware *fw_lib,
 	list_add_tail(&msg->node, &sst_drv_ctx->ipc_dispatch_list);
 	spin_unlock(&sst_drv_ctx->list_spin_lock);
 	sst_post_message(&sst_drv_ctx->ipc_post_msg_wq);
-	pr_debug("sst: Waiting for FW response Download complete\n");
+	pr_debug("Waiting for FW response Download complete\n");
 	sst_drv_ctx->alloc_block[i].ops_block.condition = false;
 	retval = sst_wait_timeout(sst_drv_ctx, &sst_drv_ctx->alloc_block[i]);
 	if (retval) {
@@ -337,7 +341,7 @@ static int sst_download_library(const struct firmware *fw_lib,
 		return -EIO;
 	}
 
-	pr_debug("sst: FW sucess on Download complete\n");
+	pr_debug("FW success on Download complete\n");
 	sst_drv_ctx->alloc_block[i].sst_id = BLOCK_UNINIT;
 	mutex_lock(&sst_drv_ctx->sst_lock);
 	sst_drv_ctx->sst_state = SST_FW_RUNNING;
@@ -360,14 +364,14 @@ static int sst_validate_library(const struct firmware *fw_lib,
 
 	header = (struct fw_header *)fw_lib->data;
 	if (header->modules != 1) {
-		pr_err("sst: Module no mismatch found\n ");
+		pr_err("Module no mismatch found\n");
 		err = -EINVAL;
 		goto exit;
 	}
 	module = (void *)fw_lib->data + sizeof(*header);
 	*entry_point = module->entry_point;
-	pr_debug("sst: Module entry point 0x%x\n", *entry_point);
-	pr_debug("sst: Module Sign %s, Size 0x%x, Blocks 0x%x Type 0x%x\n",
+	pr_debug("Module entry point 0x%x\n", *entry_point);
+	pr_debug("Module Sign %s, Size 0x%x, Blocks 0x%x Type 0x%x\n",
 			module->signature, module->mod_size,
 			module->blocks, module->type);
 
@@ -381,20 +385,20 @@ static int sst_validate_library(const struct firmware *fw_lib,
 			dsize += block->size;
 			break;
 		default:
-			pr_err("sst: Invalid block type for 0x%x\n", n_blk);
+			pr_err("Invalid block type for 0x%x\n", n_blk);
 			err = -EINVAL;
 			goto exit;
 		}
 		block = (void *)block + sizeof(*block) + block->size;
 	}
 	if (isize > slot->iram_size || dsize > slot->dram_size) {
-		pr_err("sst: library exceeds size allocated\n");
+		pr_err("library exceeds size allocated\n");
 		err = -EINVAL;
 		goto exit;
 	} else
-		pr_debug("sst: Library is safe for download...\n");
+		pr_debug("Library is safe for download...\n");
 
-	pr_debug("sst: iram 0x%x, dram 0x%x, iram 0x%x, dram 0x%x\n",
+	pr_debug("iram 0x%x, dram 0x%x, iram 0x%x, dram 0x%x\n",
 			isize, dsize, slot->iram_size, slot->dram_size);
 exit:
 	return err;
@@ -414,15 +418,15 @@ int sst_load_library(struct snd_sst_lib_download *lib, u8 ops)
 
 	memset(buf, 0, sizeof(buf));
 
-	pr_debug("sst: Lib Type 0x%x, Slot 0x%x, ops 0x%x\n",
+	pr_debug("Lib Type 0x%x, Slot 0x%x, ops 0x%x\n",
 			lib->lib_info.lib_type, lib->slot_info.slot_num, ops);
-	pr_debug("sst: Version 0x%x, name %s, caps 0x%x media type 0x%x\n",
+	pr_debug("Version 0x%x, name %s, caps 0x%x media type 0x%x\n",
 		lib->lib_info.lib_version, lib->lib_info.lib_name,
 		lib->lib_info.lib_caps, lib->lib_info.media_type);
 
-	pr_debug("sst: IRAM Size 0x%x, offset 0x%x\n",
+	pr_debug("IRAM Size 0x%x, offset 0x%x\n",
 		lib->slot_info.iram_size, lib->slot_info.iram_offset);
-	pr_debug("sst: DRAM Size 0x%x, offset 0x%x\n",
+	pr_debug("DRAM Size 0x%x, offset 0x%x\n",
 		lib->slot_info.dram_size, lib->slot_info.dram_offset);
 
 	switch (lib->lib_info.lib_type) {
@@ -442,7 +446,7 @@ int sst_load_library(struct snd_sst_lib_download *lib, u8 ops)
 		type = "wma9_";
 		break;
 	default:
-		pr_err("sst: Invalid codec type\n");
+		pr_err("Invalid codec type\n");
 		error = -EINVAL;
 		goto wake;
 	}
@@ -458,11 +462,11 @@ int sst_load_library(struct snd_sst_lib_download *lib, u8 ops)
 			lib->slot_info.slot_num);
 	len += snprintf(buf + len, sizeof(buf) - len, ".bin");
 
-	pr_debug("sst: Requesting %s\n", buf);
+	pr_debug("Requesting %s\n", buf);
 
 	error = request_firmware(&fw_lib, buf, &sst_drv_ctx->pci->dev);
 	if (error) {
-		pr_err("sst: library load failed %d\n", error);
+		pr_err("library load failed %d\n", error);
 		goto wake;
 	}
 	error = sst_validate_library(fw_lib, &lib->slot_info, &entry_point);
@@ -476,7 +480,7 @@ int sst_load_library(struct snd_sst_lib_download *lib, u8 ops)
 		goto wake_free;
 
 	/* lib is downloaded and init send alloc again */
-	pr_debug("sst: Library is downloaded now...\n");
+	pr_debug("Library is downloaded now...\n");
 wake_free:
 	/* sst_wake_up_alloc_block(sst_drv_ctx, pvt_id, error, NULL); */
 	release_firmware(fw_lib);

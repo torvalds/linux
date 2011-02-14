@@ -38,23 +38,28 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 	int ret;
 
 	if (dev_priv->card_type >= NV_50) {
-		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
-					     dev_priv->vm_end, NV_DMA_ACCESS_RO,
-					     NV_DMA_TARGET_AGP, &pushbuf);
+		if (dev_priv->card_type < NV_C0) {
+			ret = nouveau_gpuobj_dma_new(chan,
+						     NV_CLASS_DMA_IN_MEMORY, 0,
+						     (1ULL << 40),
+						     NV_MEM_ACCESS_RO,
+						     NV_MEM_TARGET_VM,
+						     &pushbuf);
+		}
 		chan->pushbuf_base = pb->bo.offset;
 	} else
 	if (pb->bo.mem.mem_type == TTM_PL_TT) {
-		ret = nouveau_gpuobj_gart_dma_new(chan, 0,
-						  dev_priv->gart_info.aper_size,
-						  NV_DMA_ACCESS_RO, &pushbuf,
-						  NULL);
+		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
+					     dev_priv->gart_info.aper_size,
+					     NV_MEM_ACCESS_RO,
+					     NV_MEM_TARGET_GART, &pushbuf);
 		chan->pushbuf_base = pb->bo.mem.start << PAGE_SHIFT;
 	} else
 	if (dev_priv->card_type != NV_04) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
 					     dev_priv->fb_available_size,
-					     NV_DMA_ACCESS_RO,
-					     NV_DMA_TARGET_VIDMEM, &pushbuf);
+					     NV_MEM_ACCESS_RO,
+					     NV_MEM_TARGET_VRAM, &pushbuf);
 		chan->pushbuf_base = pb->bo.mem.start << PAGE_SHIFT;
 	} else {
 		/* NV04 cmdbuf hack, from original ddx.. not sure of it's
@@ -62,17 +67,16 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 		 * VRAM.
 		 */
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
-					     pci_resource_start(dev->pdev,
-					     1),
+					     pci_resource_start(dev->pdev, 1),
 					     dev_priv->fb_available_size,
-					     NV_DMA_ACCESS_RO,
-					     NV_DMA_TARGET_PCI, &pushbuf);
+					     NV_MEM_ACCESS_RO,
+					     NV_MEM_TARGET_PCI, &pushbuf);
 		chan->pushbuf_base = pb->bo.mem.start << PAGE_SHIFT;
 	}
 
 	nouveau_gpuobj_ref(pushbuf, &chan->pushbuf);
 	nouveau_gpuobj_ref(NULL, &pushbuf);
-	return 0;
+	return ret;
 }
 
 static struct nouveau_bo *
@@ -100,6 +104,13 @@ nouveau_channel_user_pushbuf_alloc(struct drm_device *dev)
 		return NULL;
 	}
 
+	ret = nouveau_bo_map(pushbuf);
+	if (ret) {
+		nouveau_bo_unpin(pushbuf);
+		nouveau_bo_ref(NULL, &pushbuf);
+		return NULL;
+	}
+
 	return pushbuf;
 }
 
@@ -107,74 +118,59 @@ nouveau_channel_user_pushbuf_alloc(struct drm_device *dev)
 int
 nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		      struct drm_file *file_priv,
-		      uint32_t vram_handle, uint32_t tt_handle)
+		      uint32_t vram_handle, uint32_t gart_handle)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_channel *chan;
-	int channel, user;
+	unsigned long flags;
 	int ret;
 
-	/*
-	 * Alright, here is the full story
-	 * Nvidia cards have multiple hw fifo contexts (praise them for that,
-	 * no complicated crash-prone context switches)
-	 * We allocate a new context for each app and let it write to it
-	 * directly (woo, full userspace command submission !)
-	 * When there are no more contexts, you lost
-	 */
-	for (channel = 0; channel < pfifo->channels; channel++) {
-		if (dev_priv->fifos[channel] == NULL)
-			break;
-	}
-
-	/* no more fifos. you lost. */
-	if (channel == pfifo->channels)
-		return -EINVAL;
-
-	dev_priv->fifos[channel] = kzalloc(sizeof(struct nouveau_channel),
-					   GFP_KERNEL);
-	if (!dev_priv->fifos[channel])
+	/* allocate and lock channel structure */
+	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
+	if (!chan)
 		return -ENOMEM;
-	chan = dev_priv->fifos[channel];
-	INIT_LIST_HEAD(&chan->nvsw.vbl_wait);
-	INIT_LIST_HEAD(&chan->fence.pending);
 	chan->dev = dev;
-	chan->id = channel;
 	chan->file_priv = file_priv;
 	chan->vram_handle = vram_handle;
-	chan->gart_handle = tt_handle;
+	chan->gart_handle = gart_handle;
 
-	NV_INFO(dev, "Allocating FIFO number %d\n", channel);
+	kref_init(&chan->ref);
+	atomic_set(&chan->users, 1);
+	mutex_init(&chan->mutex);
+	mutex_lock(&chan->mutex);
+
+	/* allocate hw channel id */
+	spin_lock_irqsave(&dev_priv->channels.lock, flags);
+	for (chan->id = 0; chan->id < pfifo->channels; chan->id++) {
+		if (!dev_priv->channels.ptr[chan->id]) {
+			nouveau_channel_ref(chan, &dev_priv->channels.ptr[chan->id]);
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
+
+	if (chan->id == pfifo->channels) {
+		mutex_unlock(&chan->mutex);
+		kfree(chan);
+		return -ENODEV;
+	}
+
+	NV_DEBUG(dev, "initialising channel %d\n", chan->id);
+	INIT_LIST_HEAD(&chan->nvsw.vbl_wait);
+	INIT_LIST_HEAD(&chan->nvsw.flip);
+	INIT_LIST_HEAD(&chan->fence.pending);
 
 	/* Allocate DMA push buffer */
 	chan->pushbuf_bo = nouveau_channel_user_pushbuf_alloc(dev);
 	if (!chan->pushbuf_bo) {
 		ret = -ENOMEM;
 		NV_ERROR(dev, "pushbuf %d\n", ret);
-		nouveau_channel_free(chan);
+		nouveau_channel_put(&chan);
 		return ret;
 	}
 
 	nouveau_dma_pre_init(chan);
-
-	/* Locate channel's user control regs */
-	if (dev_priv->card_type < NV_40)
-		user = NV03_USER(channel);
-	else
-	if (dev_priv->card_type < NV_50)
-		user = NV40_USER(channel);
-	else
-		user = NV50_USER(channel);
-
-	chan->user = ioremap(pci_resource_start(dev->pdev, 0) + user,
-								PAGE_SIZE);
-	if (!chan->user) {
-		NV_ERROR(dev, "ioremap of regs failed.\n");
-		nouveau_channel_free(chan);
-		return -ENOMEM;
-	}
 	chan->user_put = 0x40;
 	chan->user_get = 0x44;
 
@@ -182,15 +178,15 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	ret = nouveau_notifier_init_channel(chan);
 	if (ret) {
 		NV_ERROR(dev, "ntfy %d\n", ret);
-		nouveau_channel_free(chan);
+		nouveau_channel_put(&chan);
 		return ret;
 	}
 
 	/* Setup channel's default objects */
-	ret = nouveau_gpuobj_channel_init(chan, vram_handle, tt_handle);
+	ret = nouveau_gpuobj_channel_init(chan, vram_handle, gart_handle);
 	if (ret) {
 		NV_ERROR(dev, "gpuobj %d\n", ret);
-		nouveau_channel_free(chan);
+		nouveau_channel_put(&chan);
 		return ret;
 	}
 
@@ -198,24 +194,17 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	ret = nouveau_channel_pushbuf_ctxdma_init(chan);
 	if (ret) {
 		NV_ERROR(dev, "pbctxdma %d\n", ret);
-		nouveau_channel_free(chan);
+		nouveau_channel_put(&chan);
 		return ret;
 	}
 
 	/* disable the fifo caches */
 	pfifo->reassign(dev, false);
 
-	/* Create a graphics context for new channel */
-	ret = pgraph->create_context(chan);
-	if (ret) {
-		nouveau_channel_free(chan);
-		return ret;
-	}
-
 	/* Construct inital RAMFC for new channel */
 	ret = pfifo->create_context(chan);
 	if (ret) {
-		nouveau_channel_free(chan);
+		nouveau_channel_put(&chan);
 		return ret;
 	}
 
@@ -225,83 +214,111 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	if (!ret)
 		ret = nouveau_fence_channel_init(chan);
 	if (ret) {
-		nouveau_channel_free(chan);
+		nouveau_channel_put(&chan);
 		return ret;
 	}
 
 	nouveau_debugfs_channel_init(chan);
 
-	NV_INFO(dev, "%s: initialised FIFO %d\n", __func__, channel);
+	NV_DEBUG(dev, "channel %d initialised\n", chan->id);
 	*chan_ret = chan;
 	return 0;
 }
 
-/* stops a fifo */
-void
-nouveau_channel_free(struct nouveau_channel *chan)
+struct nouveau_channel *
+nouveau_channel_get_unlocked(struct nouveau_channel *ref)
 {
-	struct drm_device *dev = chan->dev;
+	struct nouveau_channel *chan = NULL;
+
+	if (likely(ref && atomic_inc_not_zero(&ref->users)))
+		nouveau_channel_ref(ref, &chan);
+
+	return chan;
+}
+
+struct nouveau_channel *
+nouveau_channel_get(struct drm_device *dev, struct drm_file *file_priv, int id)
+{
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
+	struct nouveau_channel *chan;
 	unsigned long flags;
-	int ret;
 
-	NV_INFO(dev, "%s: freeing fifo %d\n", __func__, chan->id);
+	if (unlikely(id < 0 || id >= NOUVEAU_MAX_CHANNEL_NR))
+		return ERR_PTR(-EINVAL);
 
-	nouveau_debugfs_channel_fini(chan);
+	spin_lock_irqsave(&dev_priv->channels.lock, flags);
+	chan = nouveau_channel_get_unlocked(dev_priv->channels.ptr[id]);
+	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 
-	/* Give outstanding push buffers a chance to complete */
-	nouveau_fence_update(chan);
-	if (chan->fence.sequence != chan->fence.sequence_ack) {
-		struct nouveau_fence *fence = NULL;
+	if (unlikely(!chan))
+		return ERR_PTR(-EINVAL);
 
-		ret = nouveau_fence_new(chan, &fence, true);
-		if (ret == 0) {
-			ret = nouveau_fence_wait(fence, NULL, false, false);
-			nouveau_fence_unref((void *)&fence);
-		}
-
-		if (ret)
-			NV_ERROR(dev, "Failed to idle channel %d.\n", chan->id);
+	if (unlikely(file_priv && chan->file_priv != file_priv)) {
+		nouveau_channel_put_unlocked(&chan);
+		return ERR_PTR(-EINVAL);
 	}
 
-	/* Ensure all outstanding fences are signaled.  They should be if the
+	mutex_lock(&chan->mutex);
+	return chan;
+}
+
+void
+nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
+{
+	struct nouveau_channel *chan = *pchan;
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
+	struct nouveau_crypt_engine *pcrypt = &dev_priv->engine.crypt;
+	unsigned long flags;
+
+	/* decrement the refcount, and we're done if there's still refs */
+	if (likely(!atomic_dec_and_test(&chan->users))) {
+		nouveau_channel_ref(NULL, pchan);
+		return;
+	}
+
+	/* noone wants the channel anymore */
+	NV_DEBUG(dev, "freeing channel %d\n", chan->id);
+	nouveau_debugfs_channel_fini(chan);
+
+	/* give it chance to idle */
+	nouveau_channel_idle(chan);
+
+	/* ensure all outstanding fences are signaled.  they should be if the
 	 * above attempts at idling were OK, but if we failed this'll tell TTM
 	 * we're done with the buffers.
 	 */
 	nouveau_fence_channel_fini(chan);
 
-	/* This will prevent pfifo from switching channels. */
+	/* boot it off the hardware */
 	pfifo->reassign(dev, false);
 
-	/* We want to give pgraph a chance to idle and get rid of all potential
-	 * errors. We need to do this before the lock, otherwise the irq handler
-	 * is unable to process them.
+	/* We want to give pgraph a chance to idle and get rid of all
+	 * potential errors. We need to do this without the context
+	 * switch lock held, otherwise the irq handler is unable to
+	 * process them.
 	 */
 	if (pgraph->channel(dev) == chan)
 		nouveau_wait_for_idle(dev);
 
-	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-
-	pgraph->fifo_access(dev, false);
-	if (pgraph->channel(dev) == chan)
-		pgraph->unload_context(dev);
-	pgraph->destroy_context(chan);
-	pgraph->fifo_access(dev, true);
-
-	if (pfifo->channel_id(dev) == chan->id) {
-		pfifo->disable(dev);
-		pfifo->unload_context(dev);
-		pfifo->enable(dev);
-	}
+	/* destroy the engine specific contexts */
 	pfifo->destroy_context(chan);
+	pgraph->destroy_context(chan);
+	if (pcrypt->destroy_context)
+		pcrypt->destroy_context(chan);
 
 	pfifo->reassign(dev, true);
 
-	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
+	/* aside from its resources, the channel should now be dead,
+	 * remove it from the channel list
+	 */
+	spin_lock_irqsave(&dev_priv->channels.lock, flags);
+	nouveau_channel_ref(NULL, &dev_priv->channels.ptr[chan->id]);
+	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
 
-	/* Release the channel's resources */
+	/* destroy any resources the channel owned */
 	nouveau_gpuobj_ref(NULL, &chan->pushbuf);
 	if (chan->pushbuf_bo) {
 		nouveau_bo_unmap(chan->pushbuf_bo);
@@ -310,11 +327,58 @@ nouveau_channel_free(struct nouveau_channel *chan)
 	}
 	nouveau_gpuobj_channel_takedown(chan);
 	nouveau_notifier_takedown_channel(chan);
-	if (chan->user)
-		iounmap(chan->user);
 
-	dev_priv->fifos[chan->id] = NULL;
+	nouveau_channel_ref(NULL, pchan);
+}
+
+void
+nouveau_channel_put(struct nouveau_channel **pchan)
+{
+	mutex_unlock(&(*pchan)->mutex);
+	nouveau_channel_put_unlocked(pchan);
+}
+
+static void
+nouveau_channel_del(struct kref *ref)
+{
+	struct nouveau_channel *chan =
+		container_of(ref, struct nouveau_channel, ref);
+
 	kfree(chan);
+}
+
+void
+nouveau_channel_ref(struct nouveau_channel *chan,
+		    struct nouveau_channel **pchan)
+{
+	if (chan)
+		kref_get(&chan->ref);
+
+	if (*pchan)
+		kref_put(&(*pchan)->ref, nouveau_channel_del);
+
+	*pchan = chan;
+}
+
+void
+nouveau_channel_idle(struct nouveau_channel *chan)
+{
+	struct drm_device *dev = chan->dev;
+	struct nouveau_fence *fence = NULL;
+	int ret;
+
+	nouveau_fence_update(chan);
+
+	if (chan->fence.sequence != chan->fence.sequence_ack) {
+		ret = nouveau_fence_new(chan, &fence, true);
+		if (!ret) {
+			ret = nouveau_fence_wait(fence, false, false);
+			nouveau_fence_unref(&fence);
+		}
+
+		if (ret)
+			NV_ERROR(dev, "Failed to idle channel %d.\n", chan->id);
+	}
 }
 
 /* cleans up all the fifos from file_priv */
@@ -323,31 +387,20 @@ nouveau_channel_cleanup(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_engine *engine = &dev_priv->engine;
+	struct nouveau_channel *chan;
 	int i;
 
 	NV_DEBUG(dev, "clearing FIFO enables from file_priv\n");
 	for (i = 0; i < engine->fifo.channels; i++) {
-		struct nouveau_channel *chan = dev_priv->fifos[i];
+		chan = nouveau_channel_get(dev, file_priv, i);
+		if (IS_ERR(chan))
+			continue;
 
-		if (chan && chan->file_priv == file_priv)
-			nouveau_channel_free(chan);
+		atomic_dec(&chan->users);
+		nouveau_channel_put(&chan);
 	}
 }
 
-int
-nouveau_channel_owner(struct drm_device *dev, struct drm_file *file_priv,
-		      int channel)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_engine *engine = &dev_priv->engine;
-
-	if (channel >= engine->fifo.channels)
-		return 0;
-	if (dev_priv->fifos[channel] == NULL)
-		return 0;
-
-	return (dev_priv->fifos[channel]->file_priv == file_priv);
-}
 
 /***********************************
  * ioctls wrapping the functions
@@ -383,36 +436,44 @@ nouveau_ioctl_fifo_alloc(struct drm_device *dev, void *data,
 	else
 		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_GART;
 
-	init->subchan[0].handle = NvM2MF;
-	if (dev_priv->card_type < NV_50)
-		init->subchan[0].grclass = 0x0039;
-	else
-		init->subchan[0].grclass = 0x5039;
-	init->subchan[1].handle = NvSw;
-	init->subchan[1].grclass = NV_SW;
-	init->nr_subchan = 2;
+	if (dev_priv->card_type < NV_C0) {
+		init->subchan[0].handle = NvM2MF;
+		if (dev_priv->card_type < NV_50)
+			init->subchan[0].grclass = 0x0039;
+		else
+			init->subchan[0].grclass = 0x5039;
+		init->subchan[1].handle = NvSw;
+		init->subchan[1].grclass = NV_SW;
+		init->nr_subchan = 2;
+	} else {
+		init->subchan[0].handle  = 0x9039;
+		init->subchan[0].grclass = 0x9039;
+		init->nr_subchan = 1;
+	}
 
 	/* Named memory object area */
 	ret = drm_gem_handle_create(file_priv, chan->notifier_bo->gem,
 				    &init->notifier_handle);
-	if (ret) {
-		nouveau_channel_free(chan);
-		return ret;
-	}
 
-	return 0;
+	if (ret == 0)
+		atomic_inc(&chan->users); /* userspace reference */
+	nouveau_channel_put(&chan);
+	return ret;
 }
 
 static int
 nouveau_ioctl_fifo_free(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
-	struct drm_nouveau_channel_free *cfree = data;
+	struct drm_nouveau_channel_free *req = data;
 	struct nouveau_channel *chan;
 
-	NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(cfree->channel, file_priv, chan);
+	chan = nouveau_channel_get(dev, file_priv, req->channel);
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
 
-	nouveau_channel_free(chan);
+	atomic_dec(&chan->users);
+	nouveau_channel_put(&chan);
 	return 0;
 }
 
@@ -421,18 +482,18 @@ nouveau_ioctl_fifo_free(struct drm_device *dev, void *data,
  ***********************************/
 
 struct drm_ioctl_desc nouveau_ioctls[] = {
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GETPARAM, nouveau_ioctl_getparam, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_SETPARAM, nouveau_ioctl_setparam, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_CHANNEL_ALLOC, nouveau_ioctl_fifo_alloc, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_CHANNEL_FREE, nouveau_ioctl_fifo_free, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GROBJ_ALLOC, nouveau_ioctl_grobj_alloc, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_NOTIFIEROBJ_ALLOC, nouveau_ioctl_notifier_alloc, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GPUOBJ_FREE, nouveau_ioctl_gpuobj_free, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_NEW, nouveau_gem_ioctl_new, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_PUSHBUF, nouveau_gem_ioctl_pushbuf, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_CPU_PREP, nouveau_gem_ioctl_cpu_prep, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_CPU_FINI, nouveau_gem_ioctl_cpu_fini, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_INFO, nouveau_gem_ioctl_info, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GETPARAM, nouveau_ioctl_getparam, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_SETPARAM, nouveau_ioctl_setparam, DRM_UNLOCKED|DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_CHANNEL_ALLOC, nouveau_ioctl_fifo_alloc, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_CHANNEL_FREE, nouveau_ioctl_fifo_free, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GROBJ_ALLOC, nouveau_ioctl_grobj_alloc, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_NOTIFIEROBJ_ALLOC, nouveau_ioctl_notifier_alloc, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GPUOBJ_FREE, nouveau_ioctl_gpuobj_free, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_NEW, nouveau_gem_ioctl_new, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_PUSHBUF, nouveau_gem_ioctl_pushbuf, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_CPU_PREP, nouveau_gem_ioctl_cpu_prep, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_CPU_FINI, nouveau_gem_ioctl_cpu_fini, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(NOUVEAU_GEM_INFO, nouveau_gem_ioctl_info, DRM_UNLOCKED|DRM_AUTH),
 };
 
 int nouveau_max_ioctl = DRM_ARRAY_SIZE(nouveau_ioctls);

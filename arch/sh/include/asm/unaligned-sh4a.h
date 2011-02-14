@@ -18,10 +18,20 @@
  * of spill registers and blowing up when building at low optimization
  * levels. See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34777.
  */
+#include <linux/unaligned/packed_struct.h>
 #include <linux/types.h>
 #include <asm/byteorder.h>
 
-static __always_inline u32 __get_unaligned_cpu32(const u8 *p)
+static inline u16 sh4a_get_unaligned_cpu16(const u8 *p)
+{
+#ifdef __LITTLE_ENDIAN
+	return p[0] | p[1] << 8;
+#else
+	return p[0] << 8 | p[1];
+#endif
+}
+
+static __always_inline u32 sh4a_get_unaligned_cpu32(const u8 *p)
 {
 	unsigned long unaligned;
 
@@ -34,218 +44,148 @@ static __always_inline u32 __get_unaligned_cpu32(const u8 *p)
 	return unaligned;
 }
 
-struct __una_u16 { u16 x __attribute__((packed)); };
-struct __una_u32 { u32 x __attribute__((packed)); };
-struct __una_u64 { u64 x __attribute__((packed)); };
-
-static inline u16 __get_unaligned_cpu16(const u8 *p)
-{
-#ifdef __LITTLE_ENDIAN
-	return p[0] | p[1] << 8;
-#else
-	return p[0] << 8 | p[1];
-#endif
-}
-
 /*
  * Even though movua.l supports auto-increment on the read side, it can
  * only store to r0 due to instruction encoding constraints, so just let
  * the compiler sort it out on its own.
  */
-static inline u64 __get_unaligned_cpu64(const u8 *p)
+static inline u64 sh4a_get_unaligned_cpu64(const u8 *p)
 {
 #ifdef __LITTLE_ENDIAN
-	return (u64)__get_unaligned_cpu32(p + 4) << 32 |
-		    __get_unaligned_cpu32(p);
+	return (u64)sh4a_get_unaligned_cpu32(p + 4) << 32 |
+		    sh4a_get_unaligned_cpu32(p);
 #else
-	return (u64)__get_unaligned_cpu32(p) << 32 |
-		    __get_unaligned_cpu32(p + 4);
+	return (u64)sh4a_get_unaligned_cpu32(p) << 32 |
+		    sh4a_get_unaligned_cpu32(p + 4);
 #endif
 }
 
 static inline u16 get_unaligned_le16(const void *p)
 {
-	return le16_to_cpu(__get_unaligned_cpu16(p));
+	return le16_to_cpu(sh4a_get_unaligned_cpu16(p));
 }
 
 static inline u32 get_unaligned_le32(const void *p)
 {
-	return le32_to_cpu(__get_unaligned_cpu32(p));
+	return le32_to_cpu(sh4a_get_unaligned_cpu32(p));
 }
 
 static inline u64 get_unaligned_le64(const void *p)
 {
-	return le64_to_cpu(__get_unaligned_cpu64(p));
+	return le64_to_cpu(sh4a_get_unaligned_cpu64(p));
 }
 
 static inline u16 get_unaligned_be16(const void *p)
 {
-	return be16_to_cpu(__get_unaligned_cpu16(p));
+	return be16_to_cpu(sh4a_get_unaligned_cpu16(p));
 }
 
 static inline u32 get_unaligned_be32(const void *p)
 {
-	return be32_to_cpu(__get_unaligned_cpu32(p));
+	return be32_to_cpu(sh4a_get_unaligned_cpu32(p));
 }
 
 static inline u64 get_unaligned_be64(const void *p)
 {
-	return be64_to_cpu(__get_unaligned_cpu64(p));
+	return be64_to_cpu(sh4a_get_unaligned_cpu64(p));
 }
 
-static inline void __put_le16_noalign(u8 *p, u16 val)
+static inline void nonnative_put_le16(u16 val, u8 *p)
 {
 	*p++ = val;
 	*p++ = val >> 8;
 }
 
-static inline void __put_le32_noalign(u8 *p, u32 val)
+static inline void nonnative_put_le32(u32 val, u8 *p)
 {
-	__put_le16_noalign(p, val);
-	__put_le16_noalign(p + 2, val >> 16);
+	nonnative_put_le16(val, p);
+	nonnative_put_le16(val >> 16, p + 2);
 }
 
-static inline void __put_le64_noalign(u8 *p, u64 val)
+static inline void nonnative_put_le64(u64 val, u8 *p)
 {
-	__put_le32_noalign(p, val);
-	__put_le32_noalign(p + 4, val >> 32);
+	nonnative_put_le32(val, p);
+	nonnative_put_le32(val >> 32, p + 4);
 }
 
-static inline void __put_be16_noalign(u8 *p, u16 val)
+static inline void nonnative_put_be16(u16 val, u8 *p)
 {
 	*p++ = val >> 8;
 	*p++ = val;
 }
 
-static inline void __put_be32_noalign(u8 *p, u32 val)
+static inline void nonnative_put_be32(u32 val, u8 *p)
 {
-	__put_be16_noalign(p, val >> 16);
-	__put_be16_noalign(p + 2, val);
+	nonnative_put_be16(val >> 16, p);
+	nonnative_put_be16(val, p + 2);
 }
 
-static inline void __put_be64_noalign(u8 *p, u64 val)
+static inline void nonnative_put_be64(u64 val, u8 *p)
 {
-	__put_be32_noalign(p, val >> 32);
-	__put_be32_noalign(p + 4, val);
+	nonnative_put_be32(val >> 32, p);
+	nonnative_put_be32(val, p + 4);
 }
 
 static inline void put_unaligned_le16(u16 val, void *p)
 {
 #ifdef __LITTLE_ENDIAN
-	((struct __una_u16 *)p)->x = val;
+	__put_unaligned_cpu16(val, p);
 #else
-	__put_le16_noalign(p, val);
+	nonnative_put_le16(val, p);
 #endif
 }
 
 static inline void put_unaligned_le32(u32 val, void *p)
 {
 #ifdef __LITTLE_ENDIAN
-	((struct __una_u32 *)p)->x = val;
+	__put_unaligned_cpu32(val, p);
 #else
-	__put_le32_noalign(p, val);
+	nonnative_put_le32(val, p);
 #endif
 }
 
 static inline void put_unaligned_le64(u64 val, void *p)
 {
 #ifdef __LITTLE_ENDIAN
-	((struct __una_u64 *)p)->x = val;
+	__put_unaligned_cpu64(val, p);
 #else
-	__put_le64_noalign(p, val);
+	nonnative_put_le64(val, p);
 #endif
 }
 
 static inline void put_unaligned_be16(u16 val, void *p)
 {
 #ifdef __BIG_ENDIAN
-	((struct __una_u16 *)p)->x = val;
+	__put_unaligned_cpu16(val, p);
 #else
-	__put_be16_noalign(p, val);
+	nonnative_put_be16(val, p);
 #endif
 }
 
 static inline void put_unaligned_be32(u32 val, void *p)
 {
 #ifdef __BIG_ENDIAN
-	((struct __una_u32 *)p)->x = val;
+	__put_unaligned_cpu32(val, p);
 #else
-	__put_be32_noalign(p, val);
+	nonnative_put_be32(val, p);
 #endif
 }
 
 static inline void put_unaligned_be64(u64 val, void *p)
 {
 #ifdef __BIG_ENDIAN
-	((struct __una_u64 *)p)->x = val;
+	__put_unaligned_cpu64(val, p);
 #else
-	__put_be64_noalign(p, val);
+	nonnative_put_be64(val, p);
 #endif
 }
 
 /*
- * Cause a link-time error if we try an unaligned access other than
- * 1,2,4 or 8 bytes long
+ * While it's a bit non-obvious, even though the generic le/be wrappers
+ * use the __get/put_xxx prefixing, they actually wrap in to the
+ * non-prefixed get/put_xxx variants as provided above.
  */
-extern void __bad_unaligned_access_size(void);
-
-#define __get_unaligned_le(ptr) ((__force typeof(*(ptr)))({			\
-	__builtin_choose_expr(sizeof(*(ptr)) == 1, *(ptr),			\
-	__builtin_choose_expr(sizeof(*(ptr)) == 2, get_unaligned_le16((ptr)),	\
-	__builtin_choose_expr(sizeof(*(ptr)) == 4, get_unaligned_le32((ptr)),	\
-	__builtin_choose_expr(sizeof(*(ptr)) == 8, get_unaligned_le64((ptr)),	\
-	__bad_unaligned_access_size()))));					\
-	}))
-
-#define __get_unaligned_be(ptr) ((__force typeof(*(ptr)))({			\
-	__builtin_choose_expr(sizeof(*(ptr)) == 1, *(ptr),			\
-	__builtin_choose_expr(sizeof(*(ptr)) == 2, get_unaligned_be16((ptr)),	\
-	__builtin_choose_expr(sizeof(*(ptr)) == 4, get_unaligned_be32((ptr)),	\
-	__builtin_choose_expr(sizeof(*(ptr)) == 8, get_unaligned_be64((ptr)),	\
-	__bad_unaligned_access_size()))));					\
-	}))
-
-#define __put_unaligned_le(val, ptr) ({					\
-	void *__gu_p = (ptr);						\
-	switch (sizeof(*(ptr))) {					\
-	case 1:								\
-		*(u8 *)__gu_p = (__force u8)(val);			\
-		break;							\
-	case 2:								\
-		put_unaligned_le16((__force u16)(val), __gu_p);		\
-		break;							\
-	case 4:								\
-		put_unaligned_le32((__force u32)(val), __gu_p);		\
-		break;							\
-	case 8:								\
-		put_unaligned_le64((__force u64)(val), __gu_p);		\
-		break;							\
-	default:							\
-		__bad_unaligned_access_size();				\
-		break;							\
-	}								\
-	(void)0; })
-
-#define __put_unaligned_be(val, ptr) ({					\
-	void *__gu_p = (ptr);						\
-	switch (sizeof(*(ptr))) {					\
-	case 1:								\
-		*(u8 *)__gu_p = (__force u8)(val);			\
-		break;							\
-	case 2:								\
-		put_unaligned_be16((__force u16)(val), __gu_p);		\
-		break;							\
-	case 4:								\
-		put_unaligned_be32((__force u32)(val), __gu_p);		\
-		break;							\
-	case 8:								\
-		put_unaligned_be64((__force u64)(val), __gu_p);		\
-		break;							\
-	default:							\
-		__bad_unaligned_access_size();				\
-		break;							\
-	}								\
-	(void)0; })
+#include <linux/unaligned/generic.h>
 
 #ifdef __LITTLE_ENDIAN
 # define get_unaligned __get_unaligned_le

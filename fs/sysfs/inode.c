@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 #include <linux/xattr.h>
 #include <linux/security.h>
 #include "sysfs.h"
@@ -348,13 +349,18 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns, const cha
 		return -ENOENT;
 }
 
-int sysfs_permission(struct inode *inode, int mask)
+int sysfs_permission(struct inode *inode, int mask, unsigned int flags)
 {
-	struct sysfs_dirent *sd = inode->i_private;
+	struct sysfs_dirent *sd;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
+
+	sd = inode->i_private;
 
 	mutex_lock(&sysfs_mutex);
 	sysfs_refresh_inode(sd, inode);
 	mutex_unlock(&sysfs_mutex);
 
-	return generic_permission(inode, mask, NULL);
+	return generic_permission(inode, mask, flags, NULL);
 }

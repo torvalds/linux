@@ -1,0 +1,6 @@
+What:		/sys/devices/platform/ideapad/camera_power
+Date:		Dec 2010
+KernelVersion:	2.6.37
+Contact:	"Ike Panhc <ike.pan@canonical.com>"
+Description:
+		Control the power of camera module. 1 means on, 0 means off.

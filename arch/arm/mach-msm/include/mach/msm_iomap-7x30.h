@@ -119,4 +119,7 @@
 #define MSM_AD5_PHYS          0xA7000000
 #define MSM_AD5_SIZE          (SZ_1M*13)
 
+#define MSM_HSUSB_PHYS        0xA3600000
+#define MSM_HSUSB_SIZE        SZ_1K
+
 #endif

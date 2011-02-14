@@ -98,7 +98,6 @@
 #define LP5521_EXT_CLK_USED		0x08
 
 struct lp5521_engine {
-	const struct attribute_group *attributes;
 	int		id;
 	u8		mode;
 	u8		prog_page;
@@ -125,11 +124,22 @@ struct lp5521_chip {
 	u8			num_leds;
 };
 
-#define cdev_to_led(c)		container_of(c, struct lp5521_led, cdev)
-#define engine_to_lp5521(eng)	container_of((eng), struct lp5521_chip, \
-						engines[(eng)->id - 1])
-#define led_to_lp5521(led)	container_of((led), struct lp5521_chip, \
-						leds[(led)->id])
+static inline struct lp5521_led *cdev_to_led(struct led_classdev *cdev)
+{
+	return container_of(cdev, struct lp5521_led, cdev);
+}
+
+static inline struct lp5521_chip *engine_to_lp5521(struct lp5521_engine *engine)
+{
+	return container_of(engine, struct lp5521_chip,
+			    engines[engine->id - 1]);
+}
+
+static inline struct lp5521_chip *led_to_lp5521(struct lp5521_led *led)
+{
+	return container_of(led, struct lp5521_chip,
+			    leds[led->id]);
+}
 
 static void lp5521_led_brightness_work(struct work_struct *work);
 
@@ -185,14 +195,17 @@ static int lp5521_load_program(struct lp5521_engine *eng, const u8 *pattern)
 
 	/* move current engine to direct mode and remember the state */
 	ret = lp5521_set_engine_mode(eng, LP5521_CMD_DIRECT);
-	usleep_range(1000, 10000);
+	/* Mode change requires min 500 us delay. 1 - 2 ms  with margin */
+	usleep_range(1000, 2000);
 	ret |= lp5521_read(client, LP5521_REG_OP_MODE, &mode);
 
 	/* For loading, all the engines to load mode */
 	lp5521_write(client, LP5521_REG_OP_MODE, LP5521_CMD_DIRECT);
-	usleep_range(1000, 10000);
+	/* Mode change requires min 500 us delay. 1 - 2 ms  with margin */
+	usleep_range(1000, 2000);
 	lp5521_write(client, LP5521_REG_OP_MODE, LP5521_CMD_LOAD);
-	usleep_range(1000, 10000);
+	/* Mode change requires min 500 us delay. 1 - 2 ms  with margin */
+	usleep_range(1000, 2000);
 
 	addr = LP5521_PROG_MEM_BASE + eng->prog_page * LP5521_PROG_MEM_SIZE;
 	i2c_smbus_write_i2c_block_data(client,
@@ -211,29 +224,22 @@ static int lp5521_set_led_current(struct lp5521_chip *chip, int led, u8 curr)
 		    curr);
 }
 
-static void lp5521_init_engine(struct lp5521_chip *chip,
-			const struct attribute_group *attr_group)
+static void lp5521_init_engine(struct lp5521_chip *chip)
 {
 	int i;
 	for (i = 0; i < ARRAY_SIZE(chip->engines); i++) {
 		chip->engines[i].id = i + 1;
 		chip->engines[i].engine_mask = LP5521_ENG_MASK_BASE >> (i * 2);
 		chip->engines[i].prog_page = i;
-		chip->engines[i].attributes = &attr_group[i];
 	}
 }
 
-static int lp5521_configure(struct i2c_client *client,
-			const struct attribute_group *attr_group)
+static int lp5521_configure(struct i2c_client *client)
 {
 	struct lp5521_chip *chip = i2c_get_clientdata(client);
 	int ret;
 
-	lp5521_init_engine(chip, attr_group);
-
-	lp5521_write(client, LP5521_REG_RESET, 0xff);
-
-	usleep_range(10000, 20000);
+	lp5521_init_engine(chip);
 
 	/* Set all PWMs to direct control mode */
 	ret = lp5521_write(client, LP5521_REG_OP_MODE, 0x3F);
@@ -251,8 +257,8 @@ static int lp5521_configure(struct i2c_client *client,
 	ret |= lp5521_write(client, LP5521_REG_ENABLE,
 			LP5521_MASTER_ENABLE | LP5521_LOGARITHMIC_PWM |
 			LP5521_EXEC_RUN);
-	/* enable takes 500us */
-	usleep_range(500, 20000);
+	/* enable takes 500us. 1 - 2 ms leaves some margin */
+	usleep_range(1000, 2000);
 
 	return ret;
 }
@@ -305,7 +311,8 @@ static int lp5521_detect(struct i2c_client *client)
 			LP5521_MASTER_ENABLE | LP5521_LOGARITHMIC_PWM);
 	if (ret)
 		return ret;
-	usleep_range(1000, 10000);
+	/* enable takes 500us. 1 - 2 ms leaves some margin */
+	usleep_range(1000, 2000);
 	ret = lp5521_read(client, LP5521_REG_ENABLE, &buf);
 	if (ret)
 		return ret;
@@ -318,9 +325,6 @@ static int lp5521_detect(struct i2c_client *client)
 /* Set engine mode and create appropriate sysfs attributes, if required. */
 static int lp5521_set_mode(struct lp5521_engine *engine, u8 mode)
 {
-	struct lp5521_chip *chip = engine_to_lp5521(engine);
-	struct i2c_client *client = chip->client;
-	struct device *dev = &client->dev;
 	int ret = 0;
 
 	/* if in that mode already do nothing, except for run */
@@ -332,17 +336,9 @@ static int lp5521_set_mode(struct lp5521_engine *engine, u8 mode)
 	} else if (mode == LP5521_CMD_LOAD) {
 		lp5521_set_engine_mode(engine, LP5521_CMD_DISABLED);
 		lp5521_set_engine_mode(engine, LP5521_CMD_LOAD);
-
-		ret = sysfs_create_group(&dev->kobj, engine->attributes);
-		if (ret)
-			return ret;
 	} else if (mode == LP5521_CMD_DISABLED) {
 		lp5521_set_engine_mode(engine, LP5521_CMD_DISABLED);
 	}
-
-	/* remove load attribute from sysfs if not in load mode */
-	if (engine->mode == LP5521_CMD_LOAD && mode != LP5521_CMD_LOAD)
-		sysfs_remove_group(&dev->kobj, engine->attributes);
 
 	engine->mode = mode;
 
@@ -362,6 +358,8 @@ static int lp5521_do_store_load(struct lp5521_engine *engine,
 	while ((offset < len - 1) && (i < LP5521_PROGRAM_LENGTH)) {
 		/* separate sscanfs because length is working only for %s */
 		ret = sscanf(buf + offset, "%2s%n ", c, &nrchars);
+		if (ret != 2)
+			goto fail;
 		ret = sscanf(c, "%2x", &cmd);
 		if (ret != 1)
 			goto fail;
@@ -376,7 +374,10 @@ static int lp5521_do_store_load(struct lp5521_engine *engine,
 		goto fail;
 
 	mutex_lock(&chip->lock);
-	ret = lp5521_load_program(engine, pattern);
+	if (engine->mode == LP5521_CMD_LOAD)
+		ret = lp5521_load_program(engine, pattern);
+	else
+		ret = -EINVAL;
 	mutex_unlock(&chip->lock);
 
 	if (ret) {
@@ -563,32 +564,14 @@ static struct attribute *lp5521_attributes[] = {
 	&dev_attr_engine2_mode.attr,
 	&dev_attr_engine3_mode.attr,
 	&dev_attr_selftest.attr,
-	NULL
-};
-
-static struct attribute *lp5521_engine1_attributes[] = {
 	&dev_attr_engine1_load.attr,
-	NULL
-};
-
-static struct attribute *lp5521_engine2_attributes[] = {
 	&dev_attr_engine2_load.attr,
-	NULL
-};
-
-static struct attribute *lp5521_engine3_attributes[] = {
 	&dev_attr_engine3_load.attr,
 	NULL
 };
 
 static const struct attribute_group lp5521_group = {
 	.attrs = lp5521_attributes,
-};
-
-static const struct attribute_group lp5521_engine_group[] = {
-	{.attrs = lp5521_engine1_attributes },
-	{.attrs = lp5521_engine2_attributes },
-	{.attrs = lp5521_engine3_attributes },
 };
 
 static int lp5521_register_sysfs(struct i2c_client *client)
@@ -604,12 +587,6 @@ static void lp5521_unregister_sysfs(struct i2c_client *client)
 	int i;
 
 	sysfs_remove_group(&dev->kobj, &lp5521_group);
-
-	for (i = 0; i <  ARRAY_SIZE(chip->engines); i++) {
-		if (chip->engines[i].mode == LP5521_CMD_LOAD)
-			sysfs_remove_group(&dev->kobj,
-					chip->engines[i].attributes);
-	}
 
 	for (i = 0; i < chip->num_leds; i++)
 		sysfs_remove_group(&chip->leds[i].cdev.dev->kobj,
@@ -640,7 +617,8 @@ static int __init lp5521_init_led(struct lp5521_led *led,
 		return -EINVAL;
 	}
 
-	snprintf(name, sizeof(name), "%s:channel%d", client->name, chan);
+	snprintf(name, sizeof(name), "%s:channel%d",
+			pdata->label ?: client->name, chan);
 	led->cdev.brightness_set = lp5521_set_brightness;
 	led->cdev.name = name;
 	res = led_classdev_register(dev, &led->cdev);
@@ -693,11 +671,16 @@ static int lp5521_probe(struct i2c_client *client,
 
 	if (pdata->enable) {
 		pdata->enable(0);
-		usleep_range(1000, 10000);
+		usleep_range(1000, 2000); /* Keep enable down at least 1ms */
 		pdata->enable(1);
-		usleep_range(1000, 10000); /* Spec says min 500us */
+		usleep_range(1000, 2000); /* 500us abs min. */
 	}
 
+	lp5521_write(client, LP5521_REG_RESET, 0xff);
+	usleep_range(10000, 20000); /*
+				     * Exact value is not available. 10 - 20ms
+				     * appears to be enough for reset.
+				     */
 	ret = lp5521_detect(client);
 
 	if (ret) {
@@ -707,7 +690,7 @@ static int lp5521_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "%s programmable led chip found\n", id->name);
 
-	ret = lp5521_configure(client, lp5521_engine_group);
+	ret = lp5521_configure(client);
 	if (ret < 0) {
 		dev_err(&client->dev, "error configuring chip\n");
 		goto fail2;

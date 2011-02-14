@@ -237,9 +237,16 @@ static struct inode *mqueue_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void mqueue_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(mqueue_inode_cachep, MQUEUE_I(inode));
+}
+
 static void mqueue_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(mqueue_inode_cachep, MQUEUE_I(inode));
+	call_rcu(&inode->i_rcu, mqueue_i_callback);
 }
 
 static void mqueue_evict_inode(struct inode *inode)

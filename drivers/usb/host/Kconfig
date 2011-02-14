@@ -133,6 +133,27 @@ config USB_EHCI_MXC
 	---help---
 	  Variation of ARC USB block used in some Freescale chips.
 
+config USB_EHCI_HCD_OMAP
+	bool "EHCI support for OMAP3 and later chips"
+	depends on USB_EHCI_HCD && ARCH_OMAP
+	default y
+	--- help ---
+	  Enables support for the on-chip EHCI controller on
+	  OMAP3 and later chips.
+
+config USB_EHCI_MSM
+	bool "Support for MSM on-chip EHCI USB controller"
+	depends on USB_EHCI_HCD && ARCH_MSM
+	select USB_EHCI_ROOT_HUB_TT
+	select USB_MSM_OTG_72K
+	---help---
+	  Enables support for the USB Host controller present on the
+	  Qualcomm chipsets. Root Hub has inbuilt TT.
+	  This driver depends on OTG driver for PHY initialization,
+	  clock management, powering up VBUS, and power management.
+	  This driver is not supported on boards like trout which
+	  has an external PHY.
+
 config USB_EHCI_HCD_PPC_OF
 	bool "EHCI support for PPC USB controller on OF platform bus"
 	depends on USB_EHCI_HCD && PPC_OF
@@ -146,6 +167,14 @@ config USB_W90X900_EHCI
 	depends on USB_EHCI_HCD && ARCH_W90X900
 	---help---
 		Enables support for the W90X900 USB controller
+
+config USB_CNS3XXX_EHCI
+	bool "Cavium CNS3XXX EHCI Module"
+	depends on USB_EHCI_HCD && ARCH_CNS3XXX
+	---help---
+	  Enable support for the CNS3XXX SOC's on-chip EHCI controller.
+	  It is needed for high-speed (480Mbit/sec) USB 2.0 device
+	  support.
 
 config USB_OXU210HP_HCD
 	tristate "OXU210HP HCD support"
@@ -285,6 +314,13 @@ config USB_OHCI_HCD_SSB
 	  Broadcom based SSB bus.
 
 	  If unsure, say N.
+
+config USB_CNS3XXX_OHCI
+	bool "Cavium CNS3XXX OHCI Module"
+	depends on USB_OHCI_HCD && ARCH_CNS3XXX
+	---help---
+	  Enable support for the CNS3XXX SOC's on-chip OHCI controller.
+	  It is needed for low-speed USB 1.0 device support.
 
 config USB_OHCI_BIG_ENDIAN_DESC
 	bool

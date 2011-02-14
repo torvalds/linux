@@ -25,8 +25,44 @@ create_package() {
 	chown -R root:root "$pdir"
 	chmod -R go-w "$pdir"
 
+	# Attempt to find the correct Debian architecture
+	local forcearch="" debarch=""
+	case "$UTS_MACHINE" in
+	i386|ia64|alpha)
+		debarch="$UTS_MACHINE" ;;
+	x86_64)
+		debarch=amd64 ;;
+	sparc*)
+		debarch=sparc ;;
+	s390*)
+		debarch=s390 ;;
+	ppc*)
+		debarch=powerpc ;;
+	parisc*)
+		debarch=hppa ;;
+	mips*)
+		debarch=mips$(grep -q CPU_LITTLE_ENDIAN=y .config && echo el) ;;
+	arm*)
+		debarch=arm$(grep -q CONFIG_AEABI=y .config && echo el) ;;
+	*)
+		echo "" >&2
+		echo "** ** **  WARNING  ** ** **" >&2
+		echo "" >&2
+		echo "Your architecture doesn't have it's equivalent" >&2
+		echo "Debian userspace architecture defined!" >&2
+		echo "Falling back to using your current userspace instead!" >&2
+		echo "Please add support for $UTS_MACHINE to ${0} ..." >&2
+		echo "" >&2
+	esac
+	if [ -n "$KBUILD_DEBARCH" ] ; then
+		debarch="$KBUILD_DEBARCH"
+	fi
+	if [ -n "$debarch" ] ; then
+		forcearch="-DArchitecture=$debarch"
+	fi
+
 	# Create the package
-	dpkg-gencontrol -isp -p$pname -P"$pdir"
+	dpkg-gencontrol -isp $forcearch -p$pname -P"$pdir"
 	dpkg --build "$pdir" ..
 }
 
@@ -40,17 +76,27 @@ else
 fi
 tmpdir="$objtree/debian/tmp"
 fwdir="$objtree/debian/fwtmp"
+kernel_headers_dir="$objtree/debian/hdrtmp"
+libc_headers_dir="$objtree/debian/headertmp"
 packagename=linux-image-$version
 fwpackagename=linux-firmware-image
+kernel_headers_packagename=linux-headers-$version
+libc_headers_packagename=linux-libc-dev
 
 if [ "$ARCH" = "um" ] ; then
 	packagename=user-mode-linux-$version
 fi
 
 # Setup the directory structure
-rm -rf "$tmpdir" "$fwdir"
-mkdir -p "$tmpdir/DEBIAN" "$tmpdir/lib" "$tmpdir/boot" "$tmpdir/usr/share/doc/$packagename"
-mkdir -p "$fwdir/DEBIAN" "$fwdir/lib" "$fwdir/usr/share/doc/$fwpackagename"
+rm -rf "$tmpdir" "$fwdir" "$kernel_headers_dir" "$libc_headers_dir"
+mkdir -m 755 -p "$tmpdir/DEBIAN"
+mkdir -p  "$tmpdir/lib" "$tmpdir/boot" "$tmpdir/usr/share/doc/$packagename"
+mkdir -m 755 -p "$fwdir/DEBIAN"
+mkdir -p "$fwdir/lib" "$fwdir/usr/share/doc/$fwpackagename"
+mkdir -m 755 -p "$libc_headers_dir/DEBIAN"
+mkdir -p "$libc_headers_dir/usr/share/doc/$libc_headers_packagename"
+mkdir -m 755 -p "$kernel_headers_dir/DEBIAN"
+mkdir -p "$kernel_headers_dir/usr/share/doc/$kernel_headers_packagename"
 if [ "$ARCH" = "um" ] ; then
 	mkdir -p "$tmpdir/usr/lib/uml/modules/$version" "$tmpdir/usr/bin"
 fi
@@ -80,6 +126,9 @@ if grep -q '^CONFIG_MODULES=y' .config ; then
 		rmdir "$tmpdir/lib/modules/$version"
 	fi
 fi
+
+make headers_check
+make headers_install INSTALL_HDR_PATH="$libc_headers_dir/usr"
 
 # Install the maintainer scripts
 # Note: hook scripts under /etc/kernel are also executed by official Debian
@@ -188,6 +237,30 @@ EOF
 
 fi
 
+# Build header package
+(cd $srctree; find . -name Makefile -o -name Kconfig\* -o -name \*.pl > /tmp/files$$)
+(cd $srctree; find arch/$SRCARCH/include include scripts -type f >> /tmp/files$$)
+(cd $objtree; find .config Module.symvers include scripts -type f >> /tmp/objfiles$$)
+destdir=$kernel_headers_dir/usr/src/linux-headers-$version
+mkdir -p "$destdir"
+(cd $srctree; tar -c -f - -T /tmp/files$$) | (cd $destdir; tar -xf -)
+(cd $objtree; tar -c -f - -T /tmp/objfiles$$) | (cd $destdir; tar -xf -)
+rm -f /tmp/files$$ /tmp/objfiles$$
+arch=$(dpkg --print-architecture)
+
+cat <<EOF >> debian/control
+
+Package: $kernel_headers_packagename
+Provides: linux-headers, linux-headers-2.6
+Architecture: $arch
+Description: Linux kernel headers for $KERNELRELEASE on $arch
+ This package provides kernel header files for $KERNELRELEASE on $arch
+ .
+ This is useful for people who need to build external modules
+EOF
+
+create_package "$kernel_headers_packagename" "$kernel_headers_dir"
+
 # Do we have firmware? Move it out of the way and build it into a package.
 if [ -e "$tmpdir/lib/firmware" ]; then
 	mv "$tmpdir/lib/firmware" "$fwdir/lib/"
@@ -203,6 +276,18 @@ EOF
 	create_package "$fwpackagename" "$fwdir"
 fi
 
+cat <<EOF >> debian/control
+
+Package: $libc_headers_packagename
+Section: devel
+Provides: linux-kernel-headers
+Architecture: any
+Description: Linux support headers for userspace development
+ This package provides userspaces headers from the Linux kernel.  These headers
+ are used by the installed headers for GNU glibc and other system libraries.
+EOF
+
+create_package "$libc_headers_packagename" "$libc_headers_dir"
 create_package "$packagename" "$tmpdir"
 
 exit 0

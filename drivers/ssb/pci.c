@@ -406,6 +406,46 @@ static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 	out->antenna_gain.ghz5.a3 = gain;
 }
 
+/* Revs 4 5 and 8 have partially shared layout */
+static void sprom_extract_r458(struct ssb_sprom *out, const u16 *in)
+{
+	SPEX(txpid2g[0], SSB_SPROM4_TXPID2G01,
+	     SSB_SPROM4_TXPID2G0, SSB_SPROM4_TXPID2G0_SHIFT);
+	SPEX(txpid2g[1], SSB_SPROM4_TXPID2G01,
+	     SSB_SPROM4_TXPID2G1, SSB_SPROM4_TXPID2G1_SHIFT);
+	SPEX(txpid2g[2], SSB_SPROM4_TXPID2G23,
+	     SSB_SPROM4_TXPID2G2, SSB_SPROM4_TXPID2G2_SHIFT);
+	SPEX(txpid2g[3], SSB_SPROM4_TXPID2G23,
+	     SSB_SPROM4_TXPID2G3, SSB_SPROM4_TXPID2G3_SHIFT);
+
+	SPEX(txpid5gl[0], SSB_SPROM4_TXPID5GL01,
+	     SSB_SPROM4_TXPID5GL0, SSB_SPROM4_TXPID5GL0_SHIFT);
+	SPEX(txpid5gl[1], SSB_SPROM4_TXPID5GL01,
+	     SSB_SPROM4_TXPID5GL1, SSB_SPROM4_TXPID5GL1_SHIFT);
+	SPEX(txpid5gl[2], SSB_SPROM4_TXPID5GL23,
+	     SSB_SPROM4_TXPID5GL2, SSB_SPROM4_TXPID5GL2_SHIFT);
+	SPEX(txpid5gl[3], SSB_SPROM4_TXPID5GL23,
+	     SSB_SPROM4_TXPID5GL3, SSB_SPROM4_TXPID5GL3_SHIFT);
+
+	SPEX(txpid5g[0], SSB_SPROM4_TXPID5G01,
+	     SSB_SPROM4_TXPID5G0, SSB_SPROM4_TXPID5G0_SHIFT);
+	SPEX(txpid5g[1], SSB_SPROM4_TXPID5G01,
+	     SSB_SPROM4_TXPID5G1, SSB_SPROM4_TXPID5G1_SHIFT);
+	SPEX(txpid5g[2], SSB_SPROM4_TXPID5G23,
+	     SSB_SPROM4_TXPID5G2, SSB_SPROM4_TXPID5G2_SHIFT);
+	SPEX(txpid5g[3], SSB_SPROM4_TXPID5G23,
+	     SSB_SPROM4_TXPID5G3, SSB_SPROM4_TXPID5G3_SHIFT);
+
+	SPEX(txpid5gh[0], SSB_SPROM4_TXPID5GH01,
+	     SSB_SPROM4_TXPID5GH0, SSB_SPROM4_TXPID5GH0_SHIFT);
+	SPEX(txpid5gh[1], SSB_SPROM4_TXPID5GH01,
+	     SSB_SPROM4_TXPID5GH1, SSB_SPROM4_TXPID5GH1_SHIFT);
+	SPEX(txpid5gh[2], SSB_SPROM4_TXPID5GH23,
+	     SSB_SPROM4_TXPID5GH2, SSB_SPROM4_TXPID5GH2_SHIFT);
+	SPEX(txpid5gh[3], SSB_SPROM4_TXPID5GH23,
+	     SSB_SPROM4_TXPID5GH3, SSB_SPROM4_TXPID5GH3_SHIFT);
+}
+
 static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 {
 	int i;
@@ -470,6 +510,8 @@ static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 	     SSB_SPROM4_AGAIN3, SSB_SPROM4_AGAIN3_SHIFT);
 	memcpy(&out->antenna_gain.ghz5, &out->antenna_gain.ghz24,
 	       sizeof(out->antenna_gain.ghz5));
+
+	sprom_extract_r458(out, in);
 
 	/* TODO - get remaining rev 4 stuff needed */
 }
@@ -561,6 +603,8 @@ static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 	memcpy(&out->antenna_gain.ghz5, &out->antenna_gain.ghz24,
 	       sizeof(out->antenna_gain.ghz5));
 
+	sprom_extract_r458(out, in);
+
 	/* TODO - get remaining rev 8 stuff needed */
 }
 
@@ -573,37 +617,34 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 	ssb_dprintk(KERN_DEBUG PFX "SPROM revision %d detected.\n", out->revision);
 	memset(out->et0mac, 0xFF, 6);		/* preset et0 and et1 mac */
 	memset(out->et1mac, 0xFF, 6);
+
 	if ((bus->chip_id & 0xFF00) == 0x4400) {
 		/* Workaround: The BCM44XX chip has a stupid revision
 		 * number stored in the SPROM.
 		 * Always extract r1. */
 		out->revision = 1;
+		ssb_dprintk(KERN_DEBUG PFX "SPROM treated as revision %d\n", out->revision);
+	}
+
+	switch (out->revision) {
+	case 1:
+	case 2:
+	case 3:
 		sprom_extract_r123(out, in);
-	} else if (bus->chip_id == 0x4321) {
-		/* the BCM4328 has a chipid == 0x4321 and a rev 4 SPROM */
-		out->revision = 4;
+		break;
+	case 4:
+	case 5:
 		sprom_extract_r45(out, in);
-	} else {
-		switch (out->revision) {
-		case 1:
-		case 2:
-		case 3:
-			sprom_extract_r123(out, in);
-			break;
-		case 4:
-		case 5:
-			sprom_extract_r45(out, in);
-			break;
-		case 8:
-			sprom_extract_r8(out, in);
-			break;
-		default:
-			ssb_printk(KERN_WARNING PFX "Unsupported SPROM"
-				   "  revision %d detected. Will extract"
-				   " v1\n", out->revision);
-			out->revision = 1;
-			sprom_extract_r123(out, in);
-		}
+		break;
+	case 8:
+		sprom_extract_r8(out, in);
+		break;
+	default:
+		ssb_printk(KERN_WARNING PFX "Unsupported SPROM"
+			   "  revision %d detected. Will extract"
+			   " v1\n", out->revision);
+		out->revision = 1;
+		sprom_extract_r123(out, in);
 	}
 
 	if (out->boardflags_lo == 0xFFFF)
@@ -618,7 +659,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 			     struct ssb_sprom *sprom)
 {
 	const struct ssb_sprom *fallback;
-	int err = -ENOMEM;
+	int err;
 	u16 *buf;
 
 	if (!ssb_is_sprom_available(bus)) {
@@ -645,7 +686,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 
 	buf = kcalloc(SSB_SPROMSIZE_WORDS_R123, sizeof(u16), GFP_KERNEL);
 	if (!buf)
-		goto out;
+		return -ENOMEM;
 	bus->sprom_size = SSB_SPROMSIZE_WORDS_R123;
 	sprom_do_read(bus, buf);
 	err = sprom_check_crc(buf, bus->sprom_size);
@@ -655,7 +696,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 		buf = kcalloc(SSB_SPROMSIZE_WORDS_R4, sizeof(u16),
 			      GFP_KERNEL);
 		if (!buf)
-			goto out;
+			return -ENOMEM;
 		bus->sprom_size = SSB_SPROMSIZE_WORDS_R4;
 		sprom_do_read(bus, buf);
 		err = sprom_check_crc(buf, bus->sprom_size);
@@ -677,7 +718,6 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 
 out_free:
 	kfree(buf);
-out:
 	return err;
 }
 

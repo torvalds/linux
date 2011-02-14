@@ -143,7 +143,6 @@ static struct irq_chip gsc_asic_interrupt_type = {
 	.name	=	"GSC-ASIC",
 	.unmask	=	gsc_asic_unmask_irq,
 	.mask	=	gsc_asic_mask_irq,
-	.ack	=	no_ack_irq,
 };
 
 int gsc_assign_irq(struct irq_chip *type, void *data)
@@ -153,7 +152,7 @@ int gsc_assign_irq(struct irq_chip *type, void *data)
 	if (irq > GSC_IRQ_MAX)
 		return NO_IRQ;
 
-	set_irq_chip_and_handler(irq, type, handle_level_irq);
+	set_irq_chip_and_handler(irq, type, handle_simple_irq);
 	set_irq_chip_data(irq, data);
 
 	return irq++;

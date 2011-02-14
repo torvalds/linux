@@ -218,7 +218,13 @@ static int snd_cx18_pcm_capture_close(struct snd_pcm_substream *substream)
 static int snd_cx18_pcm_ioctl(struct snd_pcm_substream *substream,
 		     unsigned int cmd, void *arg)
 {
-	return snd_pcm_lib_ioctl(substream, cmd, arg);
+	struct snd_cx18_card *cxsc = snd_pcm_substream_chip(substream);
+	int ret;
+
+	snd_cx18_lock(cxsc);
+	ret = snd_pcm_lib_ioctl(substream, cmd, arg);
+	snd_cx18_unlock(cxsc);
+	return ret;
 }
 
 

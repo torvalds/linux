@@ -1568,6 +1568,9 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	} else
 		skb_checksum_none_assert(skb);
 
+	/*
+	 * Deliver the packet to the stack.
+	 */
 	if (unlikely(pkt->vlan_ex)) {
 		struct vlan_group *grp = pi->vlan_grp;
 
@@ -2143,7 +2146,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 
 		/*
 		 * Calculate the size of the hardware free list ring plus
-		 * status page (which the SGE will place at the end of the
+		 * Status Page (which the SGE will place after the end of the
 		 * free list ring) in Egress Queue Units.
 		 */
 		flsz = (fl->size / FL_PER_EQ_UNIT +
@@ -2240,8 +2243,8 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 	struct port_info *pi = netdev_priv(dev);
 
 	/*
-	 * Calculate the size of the hardware TX Queue (including the
-	 * status age on the end) in units of TX Descriptors.
+	 * Calculate the size of the hardware TX Queue (including the Status
+	 * Page on the end of the TX Queue) in units of TX Descriptors.
 	 */
 	nentries = txq->q.size + STAT_LEN / sizeof(struct tx_desc);
 

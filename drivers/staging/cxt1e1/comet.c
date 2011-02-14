@@ -29,7 +29,7 @@
 #endif
 
 
-extern int  log_level;
+extern int  cxt1e1_log_level;
 
 #define COMET_NUM_SAMPLES   24  /* Number of entries in the waveform table */
 #define COMET_NUM_UNITS     5   /* Number of points per entry in table */
@@ -292,12 +292,12 @@ init_comet (void *ci, comet_t * comet, u_int32_t port_mode, int clockmaster,
                                                                  * i.e.FPMODE=0 (@0x20) */
         if ((moreParams & CFG_CLK_PORT_MASK) == CFG_CLK_PORT_INTERNAL)
         {
-            if (log_level >= LOG_SBEBUG12)
+            if (cxt1e1_log_level >= LOG_SBEBUG12)
                 pr_info(">> %s: clockmaster internal clock\n", __func__);
             pci_write_32 ((u_int32_t *) &comet->tx_time, 0x0d); /* internal oscillator */
         } else                      /* external clock source */
         {
-            if (log_level >= LOG_SBEBUG12)
+            if (cxt1e1_log_level >= LOG_SBEBUG12)
                 pr_info(">> %s: clockmaster external clock\n", __func__);
             pci_write_32 ((u_int32_t *) &comet->tx_time, 0x09); /* loop timing
                                                                  * (external) */
@@ -312,7 +312,7 @@ init_comet (void *ci, comet_t * comet, u_int32_t port_mode, int clockmaster,
             pci_write_32 ((u_int32_t *) &comet->brif_cfg, 0x21);        /* Slave Mode (CMODE=1) */
         pci_write_32 ((u_int32_t *) &comet->brif_fpcfg, 0x20);  /* Slave Mode i.e.
                                                                  * FPMODE=1 (@0x20) */
-        if (log_level >= LOG_SBEBUG12)
+        if (cxt1e1_log_level >= LOG_SBEBUG12)
             pr_info(">> %s: clockslave internal clock\n", __func__);
         pci_write_32 ((u_int32_t *) &comet->tx_time, 0x0d);     /* oscillator timing */
     }

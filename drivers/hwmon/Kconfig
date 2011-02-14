@@ -274,6 +274,16 @@ config SENSORS_ATXP1
 	  This driver can also be built as a module.  If so, the module
 	  will be called atxp1.
 
+config SENSORS_DS620
+	tristate "Dallas Semiconductor DS620"
+	depends on I2C
+	help
+	  If you say yes here you get support for Dallas Semiconductor
+	  DS620 sensor chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds620.
+
 config SENSORS_DS1621
 	tristate "Dallas Semiconductor DS1621 and DS1625"
 	depends on I2C
@@ -608,8 +618,8 @@ config SENSORS_LM93
 	depends on I2C
 	select HWMON_VID
 	help
-	  If you say yes here you get support for National Semiconductor LM93
-	  sensor chips.
+	  If you say yes here you get support for National Semiconductor LM93,
+	  LM94, and compatible sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm93.
@@ -734,6 +744,16 @@ config SENSORS_SHT15
 	  This driver can also be built as a module.  If so, the module
 	  will be called sht15.
 
+config SENSORS_SHT21
+	tristate "Sensiron humidity and temperature sensors. SHT21 and compat."
+	depends on I2C
+	help
+	  If you say yes here you get support for the Sensiron SHT21, SHT25
+	  humidity and temperature sensors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sht21.
+
 config SENSORS_S3C
 	tristate "Samsung built-in ADC"
 	depends on S3C_ADC
@@ -789,10 +809,10 @@ config SENSORS_DME1737
 	  will be called dme1737.
 
 config SENSORS_EMC1403
-	tristate "SMSC EMC1403 thermal sensor"
+	tristate "SMSC EMC1403/23 thermal sensor"
 	depends on I2C
 	help
-	  If you say yes here you get support for the SMSC EMC1403
+	  If you say yes here you get support for the SMSC EMC1403/23
 	  temperature monitoring chip.
 
 	  Threshold values can be configured using sysfs.

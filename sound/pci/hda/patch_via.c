@@ -263,8 +263,7 @@ static void vt1708_stop_hp_work(struct via_spec *spec)
 		return;
 	snd_hda_codec_write(spec->codec, 0x1, 0, 0xf81,
 			    !spec->vt1708_jack_detectect);
-	cancel_delayed_work(&spec->vt1708_hp_work);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&spec->vt1708_hp_work);
 }
 
 
@@ -2282,7 +2281,9 @@ static int vt1708_auto_create_multi_out_ctls(struct via_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
 	char name[32];
-	static const char *chname[4] = { "Front", "Surround", "C/LFE", "Side" };
+	static const char * const chname[4] = {
+		"Front", "Surround", "C/LFE", "Side"
+	};
 	hda_nid_t nid, nid_vol, nid_vols[] = {0x17, 0x19, 0x1a, 0x1b};
 	int i, err;
 
@@ -2371,7 +2372,7 @@ static void create_hp_imux(struct via_spec *spec)
 {
 	int i;
 	struct hda_input_mux *imux = &spec->private_imux[1];
-	static const char *texts[] = { "OFF", "ON", NULL};
+	static const char * const texts[] = { "OFF", "ON", NULL};
 
 	/* for hp mode select */
 	for (i = 0; texts[i]; i++)
@@ -2891,7 +2892,9 @@ static int vt1709_auto_create_multi_out_ctls(struct via_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
 	char name[32];
-	static const char *chname[4] = { "Front", "Surround", "C/LFE", "Side" };
+	static const char * const chname[4] = {
+		"Front", "Surround", "C/LFE", "Side"
+	};
 	hda_nid_t nid, nid_vol, nid_vols[] = {0x18, 0x1a, 0x1b, 0x29};
 	int i, err;
 
@@ -3434,7 +3437,9 @@ static int vt1708B_auto_create_multi_out_ctls(struct via_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
 	char name[32];
-	static const char *chname[4] = { "Front", "Surround", "C/LFE", "Side" };
+	static const char * const chname[4] = {
+		"Front", "Surround", "C/LFE", "Side"
+	};
 	hda_nid_t nid_vols[] = {0x16, 0x18, 0x26, 0x27};
 	hda_nid_t nid, nid_vol = 0;
 	int i, err;
@@ -3862,7 +3867,9 @@ static int vt1708S_auto_create_multi_out_ctls(struct via_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
 	char name[32];
-	static const char *chname[4] = { "Front", "Surround", "C/LFE", "Side" };
+	static const char * const chname[4] = {
+		"Front", "Surround", "C/LFE", "Side"
+	};
 	hda_nid_t nid_vols[] = {0x10, 0x11, 0x24, 0x25};
 	hda_nid_t nid_mutes[] = {0x1C, 0x18, 0x26, 0x27};
 	hda_nid_t nid, nid_vol, nid_mute;
@@ -4305,7 +4312,7 @@ static int vt1702_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 {
 	int err, i;
 	struct hda_input_mux *imux;
-	static const char *texts[] = { "ON", "OFF", NULL};
+	static const char * const texts[] = { "ON", "OFF", NULL};
 	if (!pin)
 		return 0;
 	spec->multiout.hp_nid = 0x1D;
@@ -4616,7 +4623,9 @@ static int vt1718S_auto_create_multi_out_ctls(struct via_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
 	char name[32];
-	static const char *chname[4] = { "Front", "Surround", "C/LFE", "Side" };
+	static const char * const chname[4] = {
+		"Front", "Surround", "C/LFE", "Side"
+	};
 	hda_nid_t nid_vols[] = {0x8, 0x9, 0xa, 0xb};
 	hda_nid_t nid_mutes[] = {0x24, 0x25, 0x26, 0x27};
 	hda_nid_t nid, nid_vol, nid_mute = 0;
@@ -5065,7 +5074,9 @@ static int vt1716S_auto_create_multi_out_ctls(struct via_spec *spec,
 					      const struct auto_pin_cfg *cfg)
 {
 	char name[32];
-	static const char *chname[3] = { "Front", "Surround", "C/LFE" };
+	static const char * const chname[3] = {
+		"Front", "Surround", "C/LFE"
+	};
 	hda_nid_t nid_vols[] = {0x10, 0x11, 0x25};
 	hda_nid_t nid_mutes[] = {0x1C, 0x18, 0x27};
 	hda_nid_t nid, nid_vol, nid_mute;

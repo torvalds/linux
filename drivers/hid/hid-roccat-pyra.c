@@ -27,6 +27,11 @@
 #include "hid-roccat.h"
 #include "hid-roccat-pyra.h"
 
+static uint profile_numbers[5] = {0, 1, 2, 3, 4};
+
+/* pyra_class is used for creating sysfs attributes via roccat char device */
+static struct class *pyra_class;
+
 static void profile_activated(struct pyra_device *pyra,
 		unsigned int new_profile)
 {
@@ -87,9 +92,8 @@ static int pyra_receive_control_status(struct usb_device *usb_dev)
 			control.value == 1)
 			return 0;
 	else {
-		dev_err(&usb_dev->dev, "receive control status: "
-				"unknown response 0x%x 0x%x\n",
-				control.request, control.value);
+		hid_err(usb_dev, "receive control status: unknown response 0x%x 0x%x\n",
+			control.request, control.value);
 		return -EINVAL;
 	}
 }
@@ -221,9 +225,10 @@ static int pyra_set_settings(struct usb_device *usb_dev,
 
 static ssize_t pyra_sysfs_read_profilex_settings(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count, int number)
+		loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev =
+			container_of(kobj, struct device, kobj)->parent->parent;
 	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
 
 	if (off >= sizeof(struct pyra_profile_settings))
@@ -233,58 +238,19 @@ static ssize_t pyra_sysfs_read_profilex_settings(struct file *fp,
 		count = sizeof(struct pyra_profile_settings) - off;
 
 	mutex_lock(&pyra->pyra_lock);
-	memcpy(buf, ((char const *)&pyra->profile_settings[number]) + off,
+	memcpy(buf, ((char const *)&pyra->profile_settings[*(uint *)(attr->private)]) + off,
 			count);
 	mutex_unlock(&pyra->pyra_lock);
 
 	return count;
 }
 
-static ssize_t pyra_sysfs_read_profile1_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_settings(fp, kobj,
-			attr, buf, off, count, 0);
-}
-
-static ssize_t pyra_sysfs_read_profile2_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_settings(fp, kobj,
-			attr, buf, off, count, 1);
-}
-
-static ssize_t pyra_sysfs_read_profile3_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_settings(fp, kobj,
-			attr, buf, off, count, 2);
-}
-
-static ssize_t pyra_sysfs_read_profile4_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_settings(fp, kobj,
-			attr, buf, off, count, 3);
-}
-
-static ssize_t pyra_sysfs_read_profile5_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_settings(fp, kobj,
-			attr, buf, off, count, 4);
-}
-
 static ssize_t pyra_sysfs_read_profilex_buttons(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count, int number)
+		loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev =
+			container_of(kobj, struct device, kobj)->parent->parent;
 	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
 
 	if (off >= sizeof(struct pyra_profile_buttons))
@@ -294,58 +260,19 @@ static ssize_t pyra_sysfs_read_profilex_buttons(struct file *fp,
 		count = sizeof(struct pyra_profile_buttons) - off;
 
 	mutex_lock(&pyra->pyra_lock);
-	memcpy(buf, ((char const *)&pyra->profile_buttons[number]) + off,
+	memcpy(buf, ((char const *)&pyra->profile_buttons[*(uint *)(attr->private)]) + off,
 			count);
 	mutex_unlock(&pyra->pyra_lock);
 
 	return count;
 }
 
-static ssize_t pyra_sysfs_read_profile1_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_buttons(fp, kobj,
-			attr, buf, off, count, 0);
-}
-
-static ssize_t pyra_sysfs_read_profile2_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_buttons(fp, kobj,
-			attr, buf, off, count, 1);
-}
-
-static ssize_t pyra_sysfs_read_profile3_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_buttons(fp, kobj,
-			attr, buf, off, count, 2);
-}
-
-static ssize_t pyra_sysfs_read_profile4_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_buttons(fp, kobj,
-			attr, buf, off, count, 3);
-}
-
-static ssize_t pyra_sysfs_read_profile5_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_buttons(fp, kobj,
-			attr, buf, off, count, 4);
-}
-
 static ssize_t pyra_sysfs_write_profile_settings(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev =
+			container_of(kobj, struct device, kobj)->parent->parent;
 	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	int retval = 0;
@@ -381,7 +308,8 @@ static ssize_t pyra_sysfs_write_profile_buttons(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev =
+			container_of(kobj, struct device, kobj)->parent->parent;
 	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	int retval = 0;
@@ -417,7 +345,8 @@ static ssize_t pyra_sysfs_read_settings(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev =
+			container_of(kobj, struct device, kobj)->parent->parent;
 	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
 
 	if (off >= sizeof(struct pyra_settings))
@@ -437,7 +366,8 @@ static ssize_t pyra_sysfs_write_settings(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev =
+			container_of(kobj, struct device, kobj)->parent->parent;
 	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	int retval = 0;
@@ -469,254 +399,124 @@ static ssize_t pyra_sysfs_write_settings(struct file *fp,
 static ssize_t pyra_sysfs_show_actual_cpi(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
+	struct pyra_device *pyra =
+			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	return snprintf(buf, PAGE_SIZE, "%d\n", pyra->actual_cpi);
 }
 
 static ssize_t pyra_sysfs_show_actual_profile(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
+	struct pyra_device *pyra =
+			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	return snprintf(buf, PAGE_SIZE, "%d\n", pyra->actual_profile);
 }
 
 static ssize_t pyra_sysfs_show_firmware_version(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
+	struct pyra_device *pyra =
+			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	return snprintf(buf, PAGE_SIZE, "%d\n", pyra->firmware_version);
 }
 
 static ssize_t pyra_sysfs_show_startup_profile(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
+	struct pyra_device *pyra =
+			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	return snprintf(buf, PAGE_SIZE, "%d\n", pyra->settings.startup_profile);
 }
 
-static DEVICE_ATTR(actual_cpi, 0440, pyra_sysfs_show_actual_cpi, NULL);
-
-static DEVICE_ATTR(actual_profile, 0440, pyra_sysfs_show_actual_profile, NULL);
-
-static DEVICE_ATTR(firmware_version, 0440,
-		pyra_sysfs_show_firmware_version, NULL);
-
-static DEVICE_ATTR(startup_profile, 0440,
-		pyra_sysfs_show_startup_profile, NULL);
-
-static struct attribute *pyra_attributes[] = {
-		&dev_attr_actual_cpi.attr,
-		&dev_attr_actual_profile.attr,
-		&dev_attr_firmware_version.attr,
-		&dev_attr_startup_profile.attr,
-		NULL
+static struct device_attribute pyra_attributes[] = {
+	__ATTR(actual_cpi, 0440, pyra_sysfs_show_actual_cpi, NULL),
+	__ATTR(actual_profile, 0440, pyra_sysfs_show_actual_profile, NULL),
+	__ATTR(firmware_version, 0440,
+			pyra_sysfs_show_firmware_version, NULL),
+	__ATTR(startup_profile, 0440,
+			pyra_sysfs_show_startup_profile, NULL),
+	__ATTR_NULL
 };
 
-static struct attribute_group pyra_attribute_group = {
-		.attrs = pyra_attributes
-};
-
-static struct bin_attribute pyra_profile_settings_attr = {
+static struct bin_attribute pyra_bin_attributes[] = {
+	{
 		.attr = { .name = "profile_settings", .mode = 0220 },
 		.size = sizeof(struct pyra_profile_settings),
 		.write = pyra_sysfs_write_profile_settings
-};
-
-static struct bin_attribute pyra_profile1_settings_attr = {
+	},
+	{
 		.attr = { .name = "profile1_settings", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_settings),
-		.read = pyra_sysfs_read_profile1_settings
-};
-
-static struct bin_attribute pyra_profile2_settings_attr = {
+		.read = pyra_sysfs_read_profilex_settings,
+		.private = &profile_numbers[0]
+	},
+	{
 		.attr = { .name = "profile2_settings", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_settings),
-		.read = pyra_sysfs_read_profile2_settings
-};
-
-static struct bin_attribute pyra_profile3_settings_attr = {
+		.read = pyra_sysfs_read_profilex_settings,
+		.private = &profile_numbers[1]
+	},
+	{
 		.attr = { .name = "profile3_settings", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_settings),
-		.read = pyra_sysfs_read_profile3_settings
-};
-
-static struct bin_attribute pyra_profile4_settings_attr = {
+		.read = pyra_sysfs_read_profilex_settings,
+		.private = &profile_numbers[2]
+	},
+	{
 		.attr = { .name = "profile4_settings", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_settings),
-		.read = pyra_sysfs_read_profile4_settings
-};
-
-static struct bin_attribute pyra_profile5_settings_attr = {
+		.read = pyra_sysfs_read_profilex_settings,
+		.private = &profile_numbers[3]
+	},
+	{
 		.attr = { .name = "profile5_settings", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_settings),
-		.read = pyra_sysfs_read_profile5_settings
-};
-
-static struct bin_attribute pyra_profile_buttons_attr = {
+		.read = pyra_sysfs_read_profilex_settings,
+		.private = &profile_numbers[4]
+	},
+	{
 		.attr = { .name = "profile_buttons", .mode = 0220 },
 		.size = sizeof(struct pyra_profile_buttons),
 		.write = pyra_sysfs_write_profile_buttons
-};
-
-static struct bin_attribute pyra_profile1_buttons_attr = {
+	},
+	{
 		.attr = { .name = "profile1_buttons", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_buttons),
-		.read = pyra_sysfs_read_profile1_buttons
-};
-
-static struct bin_attribute pyra_profile2_buttons_attr = {
+		.read = pyra_sysfs_read_profilex_buttons,
+		.private = &profile_numbers[0]
+	},
+	{
 		.attr = { .name = "profile2_buttons", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_buttons),
-		.read = pyra_sysfs_read_profile2_buttons
-};
-
-static struct bin_attribute pyra_profile3_buttons_attr = {
+		.read = pyra_sysfs_read_profilex_buttons,
+		.private = &profile_numbers[1]
+	},
+	{
 		.attr = { .name = "profile3_buttons", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_buttons),
-		.read = pyra_sysfs_read_profile3_buttons
-};
-
-static struct bin_attribute pyra_profile4_buttons_attr = {
+		.read = pyra_sysfs_read_profilex_buttons,
+		.private = &profile_numbers[2]
+	},
+	{
 		.attr = { .name = "profile4_buttons", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_buttons),
-		.read = pyra_sysfs_read_profile4_buttons
-};
-
-static struct bin_attribute pyra_profile5_buttons_attr = {
+		.read = pyra_sysfs_read_profilex_buttons,
+		.private = &profile_numbers[3]
+	},
+	{
 		.attr = { .name = "profile5_buttons", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_buttons),
-		.read = pyra_sysfs_read_profile5_buttons
-};
-
-static struct bin_attribute pyra_settings_attr = {
+		.read = pyra_sysfs_read_profilex_buttons,
+		.private = &profile_numbers[4]
+	},
+	{
 		.attr = { .name = "settings", .mode = 0660 },
 		.size = sizeof(struct pyra_settings),
 		.read = pyra_sysfs_read_settings,
 		.write = pyra_sysfs_write_settings
+	},
+	__ATTR_NULL
 };
-
-static int pyra_create_sysfs_attributes(struct usb_interface *intf)
-{
-	int retval;
-
-	retval = sysfs_create_group(&intf->dev.kobj, &pyra_attribute_group);
-	if (retval)
-		goto exit_1;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_profile_settings_attr);
-	if (retval)
-		goto exit_2;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_profile1_settings_attr);
-	if (retval)
-		goto exit_3;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_profile2_settings_attr);
-	if (retval)
-		goto exit_4;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_profile3_settings_attr);
-	if (retval)
-		goto exit_5;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_profile4_settings_attr);
-	if (retval)
-		goto exit_6;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_profile5_settings_attr);
-	if (retval)
-		goto exit_7;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_profile_buttons_attr);
-	if (retval)
-		goto exit_8;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_profile1_buttons_attr);
-	if (retval)
-		goto exit_9;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_profile2_buttons_attr);
-	if (retval)
-		goto exit_10;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_profile3_buttons_attr);
-	if (retval)
-		goto exit_11;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_profile4_buttons_attr);
-	if (retval)
-		goto exit_12;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_profile5_buttons_attr);
-	if (retval)
-		goto exit_13;
-
-	retval = sysfs_create_bin_file(&intf->dev.kobj,
-			&pyra_settings_attr);
-	if (retval)
-		goto exit_14;
-
-	return 0;
-
-exit_14:
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile5_buttons_attr);
-exit_13:
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile4_buttons_attr);
-exit_12:
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile3_buttons_attr);
-exit_11:
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile2_buttons_attr);
-exit_10:
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile1_buttons_attr);
-exit_9:
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile_buttons_attr);
-exit_8:
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile5_settings_attr);
-exit_7:
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile4_settings_attr);
-exit_6:
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile3_settings_attr);
-exit_5:
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile2_settings_attr);
-exit_4:
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile1_settings_attr);
-exit_3:
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile_settings_attr);
-exit_2:
-	sysfs_remove_group(&intf->dev.kobj, &pyra_attribute_group);
-exit_1:
-	return retval;
-}
-
-static void pyra_remove_sysfs_attributes(struct usb_interface *intf)
-{
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_settings_attr);
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile5_buttons_attr);
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile4_buttons_attr);
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile3_buttons_attr);
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile2_buttons_attr);
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile1_buttons_attr);
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile_buttons_attr);
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile5_settings_attr);
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile4_settings_attr);
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile3_settings_attr);
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile2_settings_attr);
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile1_settings_attr);
-	sysfs_remove_bin_file(&intf->dev.kobj, &pyra_profile_settings_attr);
-	sysfs_remove_group(&intf->dev.kobj, &pyra_attribute_group);
-}
 
 static int pyra_init_pyra_device_struct(struct usb_device *usb_dev,
 		struct pyra_device *pyra)
@@ -770,30 +570,23 @@ static int pyra_init_specials(struct hid_device *hdev)
 
 		pyra = kzalloc(sizeof(*pyra), GFP_KERNEL);
 		if (!pyra) {
-			dev_err(&hdev->dev, "can't alloc device descriptor\n");
+			hid_err(hdev, "can't alloc device descriptor\n");
 			return -ENOMEM;
 		}
 		hid_set_drvdata(hdev, pyra);
 
 		retval = pyra_init_pyra_device_struct(usb_dev, pyra);
 		if (retval) {
-			dev_err(&hdev->dev,
-					"couldn't init struct pyra_device\n");
+			hid_err(hdev, "couldn't init struct pyra_device\n");
 			goto exit_free;
 		}
 
-		retval = roccat_connect(hdev);
+		retval = roccat_connect(pyra_class, hdev);
 		if (retval < 0) {
-			dev_err(&hdev->dev, "couldn't init char dev\n");
+			hid_err(hdev, "couldn't init char dev\n");
 		} else {
 			pyra->chrdev_minor = retval;
 			pyra->roccat_claimed = 1;
-		}
-
-		retval = pyra_create_sysfs_attributes(intf);
-		if (retval) {
-			dev_err(&hdev->dev, "cannot create sysfs files\n");
-			goto exit_free;
 		}
 	} else {
 		hid_set_drvdata(hdev, NULL);
@@ -812,7 +605,6 @@ static void pyra_remove_specials(struct hid_device *hdev)
 
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
 			== USB_INTERFACE_PROTOCOL_MOUSE) {
-		pyra_remove_sysfs_attributes(intf);
 		pyra = hid_get_drvdata(hdev);
 		if (pyra->roccat_claimed)
 			roccat_disconnect(pyra->chrdev_minor);
@@ -826,19 +618,19 @@ static int pyra_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	retval = hid_parse(hdev);
 	if (retval) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto exit;
 	}
 
 	retval = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (retval) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto exit;
 	}
 
 	retval = pyra_init_specials(hdev);
 	if (retval) {
-		dev_err(&hdev->dev, "couldn't install mouse\n");
+		hid_err(hdev, "couldn't install mouse\n");
 		goto exit_stop;
 	}
 	return 0;
@@ -952,11 +744,24 @@ static struct hid_driver pyra_driver = {
 
 static int __init pyra_init(void)
 {
-	return hid_register_driver(&pyra_driver);
+	int retval;
+
+	/* class name has to be same as driver name */
+	pyra_class = class_create(THIS_MODULE, "pyra");
+	if (IS_ERR(pyra_class))
+		return PTR_ERR(pyra_class);
+	pyra_class->dev_attrs = pyra_attributes;
+	pyra_class->dev_bin_attrs = pyra_bin_attributes;
+
+	retval = hid_register_driver(&pyra_driver);
+	if (retval)
+		class_destroy(pyra_class);
+	return retval;
 }
 
 static void __exit pyra_exit(void)
 {
+	class_destroy(pyra_class);
 	hid_unregister_driver(&pyra_driver);
 }
 

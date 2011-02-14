@@ -46,8 +46,8 @@ typedef void (*sdioh_cb_fn_t) (void *);
  *  The handler shall be provided by all subsequent calls. No local cache
  *  cfghdl points to the starting address of pci device mapped memory
  */
-extern sdioh_info_t *sdioh_attach(osl_t *osh, void *cfghdl, uint irq);
-extern SDIOH_API_RC sdioh_detach(osl_t *osh, sdioh_info_t *si);
+extern sdioh_info_t *sdioh_attach(struct osl_info *osh, void *cfghdl, uint irq);
+extern SDIOH_API_RC sdioh_detach(struct osl_info *osh, sdioh_info_t *si);
 extern SDIOH_API_RC sdioh_interrupt_register(sdioh_info_t *si,
 					     sdioh_cb_fn_t fn, void *argh);
 extern SDIOH_API_RC sdioh_interrupt_deregister(sdioh_info_t *si);
@@ -79,7 +79,7 @@ extern SDIOH_API_RC sdioh_request_buffer(sdioh_info_t *si, uint pio_dma,
 					 uint fix_inc, uint rw, uint fnc_num,
 					 u32 addr, uint regwidth,
 					 u32 buflen, u8 *buffer,
-					 void *pkt);
+					 struct sk_buff *pkt);
 
 /* get cis data */
 extern SDIOH_API_RC sdioh_cis_read(sdioh_info_t *si, uint fuc, u8 *cis,

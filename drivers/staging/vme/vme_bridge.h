@@ -20,7 +20,7 @@ struct vme_master_resource {
 	vme_cycle_t cycle_attr;
 	vme_width_t width_attr;
 	struct resource bus_resource;
-	void *kern_base;
+	void __iomem *kern_base;
 };
 
 struct vme_slave_resource {

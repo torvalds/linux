@@ -64,7 +64,7 @@ config ATMEL_PWM
 
 config AB8500_PWM
 	bool "AB8500 PWM support"
-	depends on AB8500_CORE
+	depends on AB8500_CORE && ARCH_U8500
 	select HAVE_PWM
 	help
 	  This driver exports functions to enable/disble/config/free Pulse
@@ -402,7 +402,7 @@ config TI_DAC7512
 	  DAC7512 16-bit digital-to-analog converter.
 
 	  This driver can also be built as a module. If so, the module
-	  will be calles ti_dac7512.
+	  will be called ti_dac7512.
 
 config VMWARE_BALLOON
 	tristate "VMware Balloon Driver"

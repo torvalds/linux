@@ -264,10 +264,8 @@ void iwl3945_reply_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb);
 extern void iwl3945_disable_events(struct iwl_priv *priv);
 extern int iwl4965_get_temperature(const struct iwl_priv *priv);
-extern void iwl3945_post_associate(struct iwl_priv *priv,
-				   struct ieee80211_vif *vif);
-extern void iwl3945_config_ap(struct iwl_priv *priv,
-			      struct ieee80211_vif *vif);
+extern void iwl3945_post_associate(struct iwl_priv *priv);
+extern void iwl3945_config_ap(struct iwl_priv *priv);
 
 extern int iwl3945_commit_rxon(struct iwl_priv *priv,
 			       struct iwl_rxon_context *ctx);
@@ -281,6 +279,8 @@ extern int iwl3945_commit_rxon(struct iwl_priv *priv,
  * station tables.
  */
 extern u8 iwl3945_hw_find_station(struct iwl_priv *priv, const u8 *bssid);
+
+extern struct ieee80211_ops iwl3945_hw_ops;
 
 /*
  * Forward declare iwl-3945.c functions for iwl-base.c

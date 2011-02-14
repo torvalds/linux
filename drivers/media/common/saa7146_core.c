@@ -452,7 +452,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 	INFO(("found saa7146 @ mem %p (revision %d, irq %d) (0x%04x,0x%04x).\n", dev->mem, dev->revision, pci->irq, pci->subsystem_vendor, pci->subsystem_device));
 	dev->ext = ext;
 
-	mutex_init(&dev->lock);
+	mutex_init(&dev->v4l2_lock);
 	spin_lock_init(&dev->int_slock);
 	spin_lock_init(&dev->slock);
 

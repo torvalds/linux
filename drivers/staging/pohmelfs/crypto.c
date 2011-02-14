@@ -130,10 +130,8 @@ err_out_exit:
 
 void pohmelfs_crypto_engine_exit(struct pohmelfs_crypto_engine *e)
 {
-	if (e->hash)
-		crypto_free_hash(e->hash);
-	if (e->cipher)
-		crypto_free_ablkcipher(e->cipher);
+	crypto_free_hash(e->hash);
+	crypto_free_ablkcipher(e->cipher);
 	kfree(e->data);
 }
 

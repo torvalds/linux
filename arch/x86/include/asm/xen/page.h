@@ -5,6 +5,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/pfn.h>
+#include <linux/mm.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -35,9 +36,16 @@ typedef struct xpaddr {
 #define MAX_DOMAIN_PAGES						\
     ((unsigned long)((u64)CONFIG_XEN_MAX_DOMAIN_MEMORY * 1024 * 1024 * 1024 / PAGE_SIZE))
 
+extern unsigned long *machine_to_phys_mapping;
+extern unsigned int   machine_to_phys_order;
 
 extern unsigned long get_phys_to_machine(unsigned long pfn);
 extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+
+extern int m2p_add_override(unsigned long mfn, struct page *page);
+extern int m2p_remove_override(struct page *page);
+extern struct page *m2p_find_override(unsigned long mfn);
+extern unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn);
 
 static inline unsigned long pfn_to_mfn(unsigned long pfn)
 {
@@ -69,11 +77,6 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return mfn;
 
-#if 0
-	if (unlikely((mfn >> machine_to_phys_order) != 0))
-		return max_mapnr;
-#endif
-
 	pfn = 0;
 	/*
 	 * The array access can fail (e.g., device space beyond end of RAM).
@@ -81,6 +84,14 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 	 * but we must handle the fault without crashing!
 	 */
 	__get_user(pfn, &machine_to_phys_mapping[mfn]);
+
+	/*
+	 * If this appears to be a foreign mfn (because the pfn
+	 * doesn't map back to the mfn), then check the local override
+	 * table to see if there's a better pfn to use.
+	 */
+	if (get_phys_to_machine(pfn) != mfn)
+		pfn = m2p_find_override_pfn(mfn, pfn);
 
 	return pfn;
 }

@@ -464,6 +464,9 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		if (res->pub.beacon_ies) {
 			size_t used = dev->wiphy.bss_priv_size + sizeof(*res);
 			size_t ielen = res->pub.len_beacon_ies;
+			bool information_elements_is_beacon_ies =
+				(found->pub.information_elements ==
+				 found->pub.beacon_ies);
 
 			if (found->pub.beacon_ies &&
 			    !found->beacon_ies_allocated &&
@@ -486,6 +489,14 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 					found->pub.beacon_ies = ies;
 					found->pub.len_beacon_ies = ielen;
 				}
+			}
+
+			/* Override IEs if they were from a beacon before */
+			if (information_elements_is_beacon_ies) {
+				found->pub.information_elements =
+					found->pub.beacon_ies;
+				found->pub.len_information_elements =
+					found->pub.len_beacon_ies;
 			}
 		}
 

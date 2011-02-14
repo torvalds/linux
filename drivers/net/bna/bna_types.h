@@ -165,8 +165,7 @@ enum bna_rxp_type {
 
 enum bna_rxmode {
 	BNA_RXMODE_PROMISC 	= 1,
-	BNA_RXMODE_DEFAULT 	= 2,
-	BNA_RXMODE_ALLMULTI 	= 4
+	BNA_RXMODE_ALLMULTI 	= 2
 };
 
 enum bna_rx_event {
@@ -249,8 +248,9 @@ enum bna_link_status {
 };
 
 enum bna_llport_flags {
-	BNA_LLPORT_F_ENABLED 	= 1,
-	BNA_LLPORT_F_RX_ENABLED	= 2
+	BNA_LLPORT_F_ADMIN_UP	 	= 1,
+	BNA_LLPORT_F_PORT_ENABLED	= 2,
+	BNA_LLPORT_F_RX_STARTED		= 4
 };
 
 enum bna_port_flags {
@@ -405,7 +405,7 @@ struct bna_llport {
 
 	enum bna_link_status link_status;
 
-	int			admin_up_count;
+	int			rx_started_count;
 
 	void (*stop_cbfn)(struct bna_port *, enum bna_cb_status);
 
@@ -1117,7 +1117,6 @@ struct bna {
 
 	struct bna_rit_mod rit_mod;
 
-	int			rxf_default_id;
 	int			rxf_promisc_id;
 
 	struct bna_mbox_qe mbox_qe;

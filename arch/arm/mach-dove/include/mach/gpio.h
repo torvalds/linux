@@ -14,12 +14,14 @@
 #include <plat/gpio.h>
 #include <asm-generic/gpio.h>		/* cansleep wrappers */
 
-#define GPIO_MAX	64
+#define GPIO_MAX	72
 
 #define GPIO_BASE_LO		(DOVE_GPIO_VIRT_BASE + 0x00)
 #define GPIO_BASE_HI		(DOVE_GPIO_VIRT_BASE + 0x20)
 
-#define GPIO_BASE(pin)		((pin < 32) ? GPIO_BASE_LO : GPIO_BASE_HI)
+#define GPIO_BASE(pin)		((pin < 32) ? GPIO_BASE_LO :		\
+				 ((pin < 64) ? GPIO_BASE_HI :		\
+				  DOVE_GPIO2_VIRT_BASE))
 
 #define GPIO_OUT(pin)		(GPIO_BASE(pin) + 0x00)
 #define GPIO_IO_CONF(pin)	(GPIO_BASE(pin) + 0x04)

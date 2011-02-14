@@ -2788,7 +2788,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 
 	ctrl = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		const u64 csum_start_off = skb_transport_offset(skb);
+		const u64 csum_start_off = skb_checksum_start_offset(skb);
 		const u64 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		ctrl =  TX_DESC_CSUM_EN |
@@ -3203,6 +3203,10 @@ static int cas_get_vpd_info(struct cas *cp, unsigned char *dev_addr,
 	int phy_type = CAS_PHY_MII_MDIO0; /* default phy type */
 	int mac_off  = 0;
 
+#if defined(CONFIG_SPARC)
+	const unsigned char *addr;
+#endif
+
 	/* give us access to the PROM */
 	writel(BIM_LOCAL_DEV_PROM | BIM_LOCAL_DEV_PAD,
 	       cp->regs + REG_BIM_LOCAL_DEV_EN);
@@ -3349,6 +3353,14 @@ next:
 use_random_mac_addr:
 	if (found & VPD_FOUND_MAC)
 		goto done;
+
+#if defined(CONFIG_SPARC)
+	addr = of_get_property(cp->of_node, "local-mac-address", NULL);
+	if (addr != NULL) {
+		memcpy(dev_addr, addr, 6);
+		goto done;
+	}
+#endif
 
 	/* Sun MAC prefix then 3 random bytes. */
 	pr_info("MAC address not found in ROM VPD\n");
@@ -3880,7 +3892,7 @@ static int cas_change_mtu(struct net_device *dev, int new_mtu)
 	schedule_work(&cp->reset_task);
 #endif
 
-	flush_scheduled_work();
+	flush_work_sync(&cp->reset_task);
 	return 0;
 }
 
@@ -5019,6 +5031,10 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	cp->msg_enable = (cassini_debug < 0) ? CAS_DEF_MSG_ENABLE :
 	  cassini_debug;
 
+#if defined(CONFIG_SPARC)
+	cp->of_node = pci_device_to_OF_node(pdev);
+#endif
+
 	cp->link_transition = LINK_TRANSITION_UNKNOWN;
 	cp->link_transition_jiffies_valid = 0;
 
@@ -5177,7 +5193,7 @@ static void __devexit cas_remove_one(struct pci_dev *pdev)
 		vfree(cp->fw_data);
 
 	mutex_lock(&cp->pm_mutex);
-	flush_scheduled_work();
+	cancel_work_sync(&cp->reset_task);
 	if (cp->hw_running)
 		cas_shutdown(cp);
 	mutex_unlock(&cp->pm_mutex);

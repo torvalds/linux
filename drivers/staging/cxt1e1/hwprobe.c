@@ -37,7 +37,7 @@
 #define STATIC  static
 #endif
 
-extern int  log_level;
+extern int  cxt1e1_log_level;
 extern int  error_flag;
 extern int  drvr_state;
 
@@ -143,7 +143,7 @@ hdw_sn_get (hdw_info_t * hi, int brdno)
     if ((hi->promfmt = pmc_verify_cksum (&hi->mfg_info.data)) == PROM_FORMAT_Unk)
     {
         /* bad crc, data is suspect */
-        if (log_level >= LOG_WARN)
+        if (cxt1e1_log_level >= LOG_WARN)
             pr_info("%s: EEPROM cksum error\n", hi->devname);
         hi->mfg_info_sts = EEPROM_CRCERR;
     } else

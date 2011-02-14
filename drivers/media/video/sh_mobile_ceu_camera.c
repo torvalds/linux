@@ -1786,7 +1786,7 @@ static void sh_mobile_ceu_init_videobuf(struct videobuf_queue *q,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				       pcdev->field,
 				       sizeof(struct sh_mobile_ceu_buffer),
-				       icd, NULL);
+				       icd, &icd->video_lock);
 }
 
 static int sh_mobile_ceu_get_ctrl(struct soc_camera_device *icd,
@@ -1980,7 +1980,7 @@ static int __devinit sh_mobile_ceu_probe(struct platform_device *pdev)
 		 * we complete the completion.
 		 */
 
-		if (!csi2->driver || !csi2->driver->owner) {
+		if (!csi2->driver) {
 			complete(&wait.completion);
 			/* Either too late, or probing failed */
 			bus_unregister_notifier(&platform_bus_type, &wait.notifier);

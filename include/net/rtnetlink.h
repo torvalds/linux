@@ -83,6 +83,41 @@ extern void	__rtnl_link_unregister(struct rtnl_link_ops *ops);
 extern int	rtnl_link_register(struct rtnl_link_ops *ops);
 extern void	rtnl_link_unregister(struct rtnl_link_ops *ops);
 
+/**
+ * 	struct rtnl_af_ops - rtnetlink address family operations
+ *
+ *	@list: Used internally
+ * 	@family: Address family
+ * 	@fill_link_af: Function to fill IFLA_AF_SPEC with address family
+ * 		       specific netlink attributes.
+ * 	@get_link_af_size: Function to calculate size of address family specific
+ * 			   netlink attributes exlusive the container attribute.
+ *	@validate_link_af: Validate a IFLA_AF_SPEC attribute, must check attr
+ *			   for invalid configuration settings.
+ * 	@set_link_af: Function to parse a IFLA_AF_SPEC attribute and modify
+ *		      net_device accordingly.
+ */
+struct rtnl_af_ops {
+	struct list_head	list;
+	int			family;
+
+	int			(*fill_link_af)(struct sk_buff *skb,
+						const struct net_device *dev);
+	size_t			(*get_link_af_size)(const struct net_device *dev);
+
+	int			(*validate_link_af)(const struct net_device *dev,
+						    const struct nlattr *attr);
+	int			(*set_link_af)(struct net_device *dev,
+					       const struct nlattr *attr);
+};
+
+extern int	__rtnl_af_register(struct rtnl_af_ops *ops);
+extern void	__rtnl_af_unregister(struct rtnl_af_ops *ops);
+
+extern int	rtnl_af_register(struct rtnl_af_ops *ops);
+extern void	rtnl_af_unregister(struct rtnl_af_ops *ops);
+
+
 extern struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[]);
 extern struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
 	char *ifname, const struct rtnl_link_ops *ops, struct nlattr *tb[]);

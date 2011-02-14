@@ -23,7 +23,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
@@ -515,7 +514,7 @@ static int wm8804_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, WM8804_PWRDN, 0x9, 0);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8804->supplies),
 						    wm8804->supplies);
 			if (ret) {
@@ -537,7 +536,7 @@ static int wm8804_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -581,7 +580,7 @@ static int wm8804_probe(struct snd_soc_codec *codec)
 	wm8804 = snd_soc_codec_get_drvdata(codec);
 	wm8804->codec = codec;
 
-	codec->idle_bias_off = 1;
+	codec->dapm.idle_bias_off = 1;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, wm8804->control_type);
 	if (ret < 0) {

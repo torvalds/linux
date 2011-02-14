@@ -1,7 +1,6 @@
 config INFINIBAND_IPOIB
 	tristate "IP-over-InfiniBand"
 	depends on NETDEVICES && INET && (IPV6 || IPV6=n)
-	select INET_LRO
 	---help---
 	  Support for the IP-over-InfiniBand protocol (IPoIB). This
 	  transports IP packets over InfiniBand so you can use your IB
@@ -25,7 +24,7 @@ config INFINIBAND_IPOIB_CM
 	  unless you limit mtu for these destinations to 2044.
 
 config INFINIBAND_IPOIB_DEBUG
-	bool "IP-over-InfiniBand debugging" if EMBEDDED
+	bool "IP-over-InfiniBand debugging" if EXPERT
 	depends on INFINIBAND_IPOIB
 	default y
 	---help---

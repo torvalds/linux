@@ -43,11 +43,13 @@
 #include <net/sock.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+
+static int enable_mgmt;
 
 /* ----- HCI socket interface ----- */
 
@@ -102,6 +104,12 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 		if (skb->sk == sk)
 			continue;
 
+		if (bt_cb(skb)->channel != hci_pi(sk)->channel)
+			continue;
+
+		if (bt_cb(skb)->channel == HCI_CHANNEL_CONTROL)
+			goto clone;
+
 		/* Apply filter */
 		flt = &hci_pi(sk)->filter;
 
@@ -125,11 +133,14 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 				continue;
 		}
 
-		if (!(nskb = skb_clone(skb, GFP_ATOMIC)))
+clone:
+		nskb = skb_clone(skb, GFP_ATOMIC);
+		if (!nskb)
 			continue;
 
 		/* Put type byte before the data */
-		memcpy(skb_push(nskb, 1), &bt_cb(nskb)->pkt_type, 1);
+		if (bt_cb(skb)->channel == HCI_CHANNEL_RAW)
+			memcpy(skb_push(nskb, 1), &bt_cb(nskb)->pkt_type, 1);
 
 		if (sock_queue_rcv_skb(sk, nskb))
 			kfree_skb(nskb);
@@ -352,25 +363,39 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long a
 
 static int hci_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 {
-	struct sockaddr_hci *haddr = (struct sockaddr_hci *) addr;
+	struct sockaddr_hci haddr;
 	struct sock *sk = sock->sk;
 	struct hci_dev *hdev = NULL;
-	int err = 0;
+	int len, err = 0;
 
 	BT_DBG("sock %p sk %p", sock, sk);
 
-	if (!haddr || haddr->hci_family != AF_BLUETOOTH)
+	if (!addr)
+		return -EINVAL;
+
+	memset(&haddr, 0, sizeof(haddr));
+	len = min_t(unsigned int, sizeof(haddr), addr_len);
+	memcpy(&haddr, addr, len);
+
+	if (haddr.hci_family != AF_BLUETOOTH)
+		return -EINVAL;
+
+	if (haddr.hci_channel > HCI_CHANNEL_CONTROL)
+		return -EINVAL;
+
+	if (haddr.hci_channel == HCI_CHANNEL_CONTROL && !enable_mgmt)
 		return -EINVAL;
 
 	lock_sock(sk);
 
-	if (hci_pi(sk)->hdev) {
+	if (sk->sk_state == BT_BOUND || hci_pi(sk)->hdev) {
 		err = -EALREADY;
 		goto done;
 	}
 
-	if (haddr->hci_dev != HCI_DEV_NONE) {
-		if (!(hdev = hci_dev_get(haddr->hci_dev))) {
+	if (haddr.hci_dev != HCI_DEV_NONE) {
+		hdev = hci_dev_get(haddr.hci_dev);
+		if (!hdev) {
 			err = -ENODEV;
 			goto done;
 		}
@@ -378,6 +403,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 		atomic_inc(&hdev->promisc);
 	}
 
+	hci_pi(sk)->channel = haddr.hci_channel;
 	hci_pi(sk)->hdev = hdev;
 	sk->sk_state = BT_BOUND;
 
@@ -457,7 +483,8 @@ static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (sk->sk_state == BT_CLOSED)
 		return 0;
 
-	if (!(skb = skb_recv_datagram(sk, flags, noblock, &err)))
+	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	if (!skb)
 		return err;
 
 	msg->msg_namelen = 0;
@@ -499,7 +526,19 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	lock_sock(sk);
 
-	if (!(hdev = hci_pi(sk)->hdev)) {
+	switch (hci_pi(sk)->channel) {
+	case HCI_CHANNEL_RAW:
+		break;
+	case HCI_CHANNEL_CONTROL:
+		err = mgmt_control(sk, msg, len);
+		goto done;
+	default:
+		err = -EINVAL;
+		goto done;
+	}
+
+	hdev = hci_pi(sk)->hdev;
+	if (!hdev) {
 		err = -EBADFD;
 		goto done;
 	}
@@ -509,7 +548,8 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto done;
 	}
 
-	if (!(skb = bt_skb_send_alloc(sk, len, msg->msg_flags & MSG_DONTWAIT, &err)))
+	skb = bt_skb_send_alloc(sk, len, msg->msg_flags & MSG_DONTWAIT, &err);
+	if (!skb)
 		goto done;
 
 	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
@@ -826,3 +866,6 @@ void __exit hci_sock_cleanup(void)
 
 	proto_unregister(&hci_sk_proto);
 }
+
+module_param(enable_mgmt, bool, 0644);
+MODULE_PARM_DESC(enable_mgmt, "Enable Management interface");

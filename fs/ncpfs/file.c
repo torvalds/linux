@@ -17,10 +17,8 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 
-#include <linux/ncp_fs.h>
-#include "ncplib_kernel.h"
+#include "ncp_fs.h"
 
 static int ncp_fsync(struct file *file, int datasync)
 {

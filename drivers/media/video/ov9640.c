@@ -31,6 +31,8 @@
 
 #include "ov9640.h"
 
+#define to_ov9640_sensor(sd)	container_of(sd, struct ov9640_priv, subdev)
+
 /* default register setup */
 static const struct ov9640_reg ov9640_regs_dflt[] = {
 	{ OV9640_COM5,	OV9640_COM5_SYSCLK | OV9640_COM5_LONGEXP },
@@ -308,9 +310,7 @@ static unsigned long ov9640_query_bus_param(struct soc_camera_device *icd)
 /* Get status of additional camera capabilities */
 static int ov9640_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov9640_priv *priv = container_of(i2c_get_clientdata(client),
-					struct ov9640_priv, subdev);
+	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
@@ -327,8 +327,7 @@ static int ov9640_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 static int ov9640_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov9640_priv *priv = container_of(i2c_get_clientdata(client),
-					struct ov9640_priv, subdev);
+	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 
 	int ret = 0;
 
@@ -360,9 +359,7 @@ static int ov9640_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 static int ov9640_g_chip_ident(struct v4l2_subdev *sd,
 				struct v4l2_dbg_chip_ident *id)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov9640_priv *priv = container_of(i2c_get_clientdata(client),
-					struct ov9640_priv, subdev);
+	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 
 	id->ident	= priv->model;
 	id->revision	= priv->revision;
@@ -654,7 +651,8 @@ static int ov9640_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 static int ov9640_video_probe(struct soc_camera_device *icd,
 				struct i2c_client *client)
 {
-	struct ov9640_priv *priv = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 	u8		pid, ver, midh, midl;
 	const char	*devname;
 	int		ret = 0;
@@ -791,7 +789,8 @@ static int ov9640_probe(struct i2c_client *client,
 
 static int ov9640_remove(struct i2c_client *client)
 {
-	struct ov9640_priv *priv = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 
 	kfree(priv);
 	return 0;

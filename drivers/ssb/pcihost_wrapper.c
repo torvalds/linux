@@ -59,6 +59,7 @@ static int ssb_pcihost_probe(struct pci_dev *dev,
 	struct ssb_bus *ssb;
 	int err = -ENOMEM;
 	const char *name;
+	u32 val;
 
 	ssb = kzalloc(sizeof(*ssb), GFP_KERNEL);
 	if (!ssb)
@@ -73,6 +74,12 @@ static int ssb_pcihost_probe(struct pci_dev *dev,
 	if (err)
 		goto err_pci_disable;
 	pci_set_master(dev);
+
+	/* Disable the RETRY_TIMEOUT register (0x41) to keep
+	 * PCI Tx retries from interfering with C3 CPU state */
+	pci_read_config_dword(dev, 0x40, &val);
+	if ((val & 0x0000ff00) != 0)
+		pci_write_config_dword(dev, 0x40, val & 0xffff00ff);
 
 	err = ssb_bus_pcibus_register(ssb, dev);
 	if (err)

@@ -502,7 +502,8 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 	struct atmarp_entry *entry;
 	int error;
 	struct clip_vcc *clip_vcc;
-	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = ip, .tos = 1}} };
+	struct flowi fl = { .fl4_dst = ip,
+			    .fl4_tos = 1 };
 	struct rtable *rt;
 
 	if (vcc->push != clip_push) {

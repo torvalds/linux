@@ -74,14 +74,14 @@ static int sample_load_twice(struct drm_device *dev, bool sense[2])
 		 * use a 10ms timeout (guards against crtc being inactive, in
 		 * which case blank state would never change)
 		 */
-		if (!nouveau_wait_until(dev, 10000000, NV_PRMCIO_INP0__COLOR,
-					0x00000001, 0x00000000))
+		if (!nouveau_wait_eq(dev, 10000000, NV_PRMCIO_INP0__COLOR,
+				     0x00000001, 0x00000000))
 			return -EBUSY;
-		if (!nouveau_wait_until(dev, 10000000, NV_PRMCIO_INP0__COLOR,
-					0x00000001, 0x00000001))
+		if (!nouveau_wait_eq(dev, 10000000, NV_PRMCIO_INP0__COLOR,
+				     0x00000001, 0x00000001))
 			return -EBUSY;
-		if (!nouveau_wait_until(dev, 10000000, NV_PRMCIO_INP0__COLOR,
-					0x00000001, 0x00000000))
+		if (!nouveau_wait_eq(dev, 10000000, NV_PRMCIO_INP0__COLOR,
+				     0x00000001, 0x00000000))
 			return -EBUSY;
 
 		udelay(100);

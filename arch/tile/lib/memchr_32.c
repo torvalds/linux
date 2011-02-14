@@ -18,12 +18,24 @@
 
 void *memchr(const void *s, int c, size_t n)
 {
+	const uint32_t *last_word_ptr;
+	const uint32_t *p;
+	const char *last_byte_ptr;
+	uintptr_t s_int;
+	uint32_t goal, before_mask, v, bits;
+	char *ret;
+
+	if (__builtin_expect(n == 0, 0)) {
+		/* Don't dereference any memory if the array is empty. */
+		return NULL;
+	}
+
 	/* Get an aligned pointer. */
-	const uintptr_t s_int = (uintptr_t) s;
-	const uint32_t *p = (const uint32_t *)(s_int & -4);
+	s_int = (uintptr_t) s;
+	p = (const uint32_t *)(s_int & -4);
 
 	/* Create four copies of the byte for which we are looking. */
-	const uint32_t goal = 0x01010101 * (uint8_t) c;
+	goal = 0x01010101 * (uint8_t) c;
 
 	/* Read the first word, but munge it so that bytes before the array
 	 * will not match goal.
@@ -31,23 +43,14 @@ void *memchr(const void *s, int c, size_t n)
 	 * Note that this shift count expression works because we know
 	 * shift counts are taken mod 32.
 	 */
-	const uint32_t before_mask = (1 << (s_int << 3)) - 1;
-	uint32_t v = (*p | before_mask) ^ (goal & before_mask);
+	before_mask = (1 << (s_int << 3)) - 1;
+	v = (*p | before_mask) ^ (goal & before_mask);
 
 	/* Compute the address of the last byte. */
-	const char *const last_byte_ptr = (const char *)s + n - 1;
+	last_byte_ptr = (const char *)s + n - 1;
 
 	/* Compute the address of the word containing the last byte. */
-	const uint32_t *const last_word_ptr =
-	    (const uint32_t *)((uintptr_t) last_byte_ptr & -4);
-
-	uint32_t bits;
-	char *ret;
-
-	if (__builtin_expect(n == 0, 0)) {
-		/* Don't dereference any memory if the array is empty. */
-		return NULL;
-	}
+	last_word_ptr = (const uint32_t *)((uintptr_t) last_byte_ptr & -4);
 
 	while ((bits = __insn_seqb(v, goal)) == 0) {
 		if (__builtin_expect(p == last_word_ptr, 0)) {

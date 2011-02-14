@@ -2461,8 +2461,10 @@ static int ocfs2_dx_dir_attach_index(struct ocfs2_super *osb,
 
 	di->i_dx_root = cpu_to_le64(dr_blkno);
 
+	spin_lock(&OCFS2_I(dir)->ip_lock);
 	OCFS2_I(dir)->ip_dyn_features |= OCFS2_INDEXED_DIR_FL;
 	di->i_dyn_features = cpu_to_le16(OCFS2_I(dir)->ip_dyn_features);
+	spin_unlock(&OCFS2_I(dir)->ip_lock);
 
 	ocfs2_journal_dirty(handle, di_bh);
 
@@ -4466,8 +4468,10 @@ static int ocfs2_dx_dir_remove_index(struct inode *dir,
 		goto out_commit;
 	}
 
+	spin_lock(&OCFS2_I(dir)->ip_lock);
 	OCFS2_I(dir)->ip_dyn_features &= ~OCFS2_INDEXED_DIR_FL;
 	di->i_dyn_features = cpu_to_le16(OCFS2_I(dir)->ip_dyn_features);
+	spin_unlock(&OCFS2_I(dir)->ip_lock);
 	di->i_dx_root = cpu_to_le64(0ULL);
 
 	ocfs2_journal_dirty(handle, di_bh);

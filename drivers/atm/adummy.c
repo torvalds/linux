@@ -154,7 +154,7 @@ static int __init adummy_init(void)
 		err = -ENOMEM;
 		goto out;
 	}
-	atm_dev = atm_dev_register(DEV_LABEL, &adummy_ops, -1, NULL);
+	atm_dev = atm_dev_register(DEV_LABEL, NULL, &adummy_ops, -1, NULL);
 	if (!atm_dev) {
 		printk(KERN_ERR DEV_LABEL ": atm_dev_register() failed\n");
 		err = -ENODEV;

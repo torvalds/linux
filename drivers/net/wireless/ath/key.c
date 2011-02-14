@@ -20,7 +20,6 @@
 
 #include "ath.h"
 #include "reg.h"
-#include "debug.h"
 
 #define REG_READ			(common->ops->read)
 #define REG_WRITE(_ah, _reg, _val)	(common->ops->write)(_ah, _val, _reg)
@@ -37,8 +36,7 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry)
 	void *ah = common->ah;
 
 	if (entry >= common->keymax) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "keychache entry %u out of range\n", entry);
+		ath_err(common, "keycache entry %u out of range\n", entry);
 		return false;
 	}
 
@@ -60,6 +58,8 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry)
 		REG_WRITE(ah, AR_KEYTABLE_KEY1(micentry), 0);
 		REG_WRITE(ah, AR_KEYTABLE_KEY2(micentry), 0);
 		REG_WRITE(ah, AR_KEYTABLE_KEY3(micentry), 0);
+		if (common->crypt_caps & ATH_CRYPT_CAP_MIC_COMBINED)
+			REG_WRITE(ah, AR_KEYTABLE_KEY4(micentry), 0);
 
 	}
 
@@ -67,15 +67,15 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry)
 }
 EXPORT_SYMBOL(ath_hw_keyreset);
 
-bool ath_hw_keysetmac(struct ath_common *common, u16 entry, const u8 *mac)
+static bool ath_hw_keysetmac(struct ath_common *common,
+			     u16 entry, const u8 *mac)
 {
 	u32 macHi, macLo;
 	u32 unicast_flag = AR_KEYTABLE_VALID;
 	void *ah = common->ah;
 
 	if (entry >= common->keymax) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "keychache entry %u out of range\n", entry);
+		ath_err(common, "keycache entry %u out of range\n", entry);
 		return false;
 	}
 
@@ -107,17 +107,16 @@ bool ath_hw_keysetmac(struct ath_common *common, u16 entry, const u8 *mac)
 	return true;
 }
 
-bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
-				 const struct ath_keyval *k,
-				 const u8 *mac)
+static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
+				      const struct ath_keyval *k,
+				      const u8 *mac)
 {
 	void *ah = common->ah;
 	u32 key0, key1, key2, key3, key4;
 	u32 keyType;
 
 	if (entry >= common->keymax) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "keycache entry %u out of range\n", entry);
+		ath_err(common, "keycache entry %u out of range\n", entry);
 		return false;
 	}
 
@@ -127,8 +126,8 @@ bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 		break;
 	case ATH_CIPHER_AES_CCM:
 		if (!(common->crypt_caps & ATH_CRYPT_CAP_CIPHER_AESCCM)) {
-			ath_print(common, ATH_DBG_ANY,
-				  "AES-CCM not supported by this mac rev\n");
+			ath_dbg(common, ATH_DBG_ANY,
+				"AES-CCM not supported by this mac rev\n");
 			return false;
 		}
 		keyType = AR_KEYTABLE_TYPE_CCM;
@@ -136,15 +135,15 @@ bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 	case ATH_CIPHER_TKIP:
 		keyType = AR_KEYTABLE_TYPE_TKIP;
 		if (entry + 64 >= common->keymax) {
-			ath_print(common, ATH_DBG_ANY,
-				  "entry %u inappropriate for TKIP\n", entry);
+			ath_dbg(common, ATH_DBG_ANY,
+				"entry %u inappropriate for TKIP\n", entry);
 			return false;
 		}
 		break;
 	case ATH_CIPHER_WEP:
 		if (k->kv_len < WLAN_KEY_LEN_WEP40) {
-			ath_print(common, ATH_DBG_ANY,
-				  "WEP key length %u too small\n", k->kv_len);
+			ath_dbg(common, ATH_DBG_ANY,
+				"WEP key length %u too small\n", k->kv_len);
 			return false;
 		}
 		if (k->kv_len <= WLAN_KEY_LEN_WEP40)
@@ -158,8 +157,7 @@ bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 		keyType = AR_KEYTABLE_TYPE_CLR;
 		break;
 	default:
-		ath_print(common, ATH_DBG_FATAL,
-			  "cipher %u not supported\n", k->kv_type);
+		ath_err(common, "cipher %u not supported\n", k->kv_type);
 		return false;
 	}
 
@@ -340,8 +338,7 @@ static int ath_setkey_tkip(struct ath_common *common, u16 keyix, const u8 *key,
 	memcpy(hk->kv_mic, key_txmic, sizeof(hk->kv_mic));
 	if (!ath_hw_set_keycache_entry(common, keyix, hk, NULL)) {
 		/* TX MIC entry failed. No need to proceed further */
-		ath_print(common, ATH_DBG_FATAL,
-			  "Setting TX MIC Key Failed\n");
+		ath_err(common, "Setting TX MIC Key Failed\n");
 		return 0;
 	}
 

@@ -21,7 +21,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/jack.h>
 
 #include <asm/mach-types.h>
@@ -105,6 +104,7 @@ static struct snd_soc_jack_gpio hs_jack_gpios[] = {
 		.name		= "hsdet-gpio",
 		.report		= SND_JACK_HEADSET,
 		.debounce_time	= 200,
+		.invert		= 1,
 	},
 };
 
@@ -140,22 +140,23 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int z2_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	/* NC codec pins */
-	snd_soc_dapm_disable_pin(codec, "LINPUT3");
-	snd_soc_dapm_disable_pin(codec, "RINPUT3");
-	snd_soc_dapm_disable_pin(codec, "OUT3");
-	snd_soc_dapm_disable_pin(codec, "MONO");
+	snd_soc_dapm_disable_pin(dapm, "LINPUT3");
+	snd_soc_dapm_disable_pin(dapm, "RINPUT3");
+	snd_soc_dapm_disable_pin(dapm, "OUT3");
+	snd_soc_dapm_disable_pin(dapm, "MONO");
 
 	/* Add z2 specific widgets */
-	snd_soc_dapm_new_controls(codec, wm8750_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, wm8750_dapm_widgets,
 				 ARRAY_SIZE(wm8750_dapm_widgets));
 
 	/* Set up z2 specific audio paths */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	ret = snd_soc_dapm_sync(codec);
+	ret = snd_soc_dapm_sync(dapm);
 	if (ret)
 		goto err;
 
@@ -192,7 +193,7 @@ static struct snd_soc_dai_link z2_dai = {
 	.cpu_dai_name	= "pxa2xx-i2s",
 	.codec_dai_name	= "wm8750-hifi",
 	.platform_name = "pxa-pcm-audio",
-	.codec_name	= "wm8750-codec.0-001a",
+	.codec_name	= "wm8750-codec.0-001b",
 	.init		= z2_wm8750_init,
 	.ops		= &z2_ops,
 };

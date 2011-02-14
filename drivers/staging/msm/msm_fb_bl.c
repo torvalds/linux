@@ -42,7 +42,7 @@ static int msm_fb_bl_update_status(struct backlight_device *pbd)
 	return 0;
 }
 
-static struct backlight_ops msm_fb_bl_ops = {
+static const struct backlight_ops msm_fb_bl_ops = {
 	.get_brightness = msm_fb_bl_get_brightness,
 	.update_status = msm_fb_bl_update_status,
 };

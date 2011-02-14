@@ -1,4 +1,4 @@
-# Core.py - Python extension for perf trace, core functions
+# Core.py - Python extension for perf script, core functions
 #
 # Copyright (C) 2010 by Tom Zanussi <tzanussi@gmail.com>
 #

@@ -179,6 +179,14 @@ static int create_strip_zones(mddev_t *mddev, raid0_conf_t **private_conf)
 			rdev1->new_raid_disk = j;
 		}
 
+		if (mddev->level == 1) {
+			/* taiking over a raid1 array-
+			 * we have only one active disk
+			 */
+			j = 0;
+			rdev1->new_raid_disk = j;
+		}
+
 		if (j < 0 || j >= mddev->raid_disks) {
 			printk(KERN_ERR "md/raid0:%s: bad disk number %d - "
 			       "aborting!\n", mdname(mddev), j);
@@ -644,12 +652,38 @@ static void *raid0_takeover_raid10(mddev_t *mddev)
 	return priv_conf;
 }
 
+static void *raid0_takeover_raid1(mddev_t *mddev)
+{
+	raid0_conf_t *priv_conf;
+
+	/* Check layout:
+	 *  - (N - 1) mirror drives must be already faulty
+	 */
+	if ((mddev->raid_disks - 1) != mddev->degraded) {
+		printk(KERN_ERR "md/raid0:%s: (N - 1) mirrors drives must be already faulty!\n",
+		       mdname(mddev));
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* Set new parameters */
+	mddev->new_level = 0;
+	mddev->new_layout = 0;
+	mddev->new_chunk_sectors = 128; /* by default set chunk size to 64k */
+	mddev->delta_disks = 1 - mddev->raid_disks;
+	/* make sure it will be not marked as dirty */
+	mddev->recovery_cp = MaxSector;
+
+	create_strip_zones(mddev, &priv_conf);
+	return priv_conf;
+}
+
 static void *raid0_takeover(mddev_t *mddev)
 {
 	/* raid0 can take over:
 	 *  raid4 - if all data disks are active.
 	 *  raid5 - providing it is Raid4 layout and one disk is faulty
 	 *  raid10 - assuming we have all necessary active disks
+	 *  raid1 - with (N -1) mirror drives faulty
 	 */
 	if (mddev->level == 4)
 		return raid0_takeover_raid45(mddev);
@@ -664,6 +698,12 @@ static void *raid0_takeover(mddev_t *mddev)
 
 	if (mddev->level == 10)
 		return raid0_takeover_raid10(mddev);
+
+	if (mddev->level == 1)
+		return raid0_takeover_raid1(mddev);
+
+	printk(KERN_ERR "Takeover from raid%i to raid0 not supported\n",
+		mddev->level);
 
 	return ERR_PTR(-EINVAL);
 }

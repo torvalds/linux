@@ -1,6 +1,6 @@
 /*
  * include/linux/tipc.h: Include file for TIPC socket interface
- * 
+ *
  * Copyright (c) 2003-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
@@ -42,7 +42,7 @@
 /*
  * TIPC addressing primitives
  */
- 
+
 struct tipc_portid {
 	__u32 ref;
 	__u32 node;
@@ -89,7 +89,7 @@ static inline unsigned int tipc_node(__u32 addr)
 #define TIPC_TOP_SRV		1	/* topology service name type */
 #define TIPC_RESERVED_TYPES	64	/* lowest user-publishable name type */
 
-/* 
+/*
  * Publication scopes when binding port names and port name sequences
  */
 
@@ -112,7 +112,7 @@ static inline unsigned int tipc_node(__u32 addr)
 #define TIPC_HIGH_IMPORTANCE		2
 #define TIPC_CRITICAL_IMPORTANCE	3
 
-/* 
+/*
  * Msg rejection/connection shutdown reasons
  */
 
@@ -127,9 +127,9 @@ static inline unsigned int tipc_node(__u32 addr)
  * TIPC topology subscription service definitions
  */
 
-#define TIPC_SUB_PORTS     	0x01  	/* filter for port availability */
-#define TIPC_SUB_SERVICE     	0x02  	/* filter for service availability */
-#define TIPC_SUB_CANCEL         0x04    /* cancel a subscription */
+#define TIPC_SUB_PORTS		0x01	/* filter for port availability */
+#define TIPC_SUB_SERVICE	0x02	/* filter for service availability */
+#define TIPC_SUB_CANCEL		0x04	/* cancel a subscription */
 #if 0
 /* The following filter options are not currently implemented */
 #define TIPC_SUB_NO_BIND_EVTS	0x04	/* filter out "publish" events */
@@ -137,12 +137,12 @@ static inline unsigned int tipc_node(__u32 addr)
 #define TIPC_SUB_SINGLE_EVT	0x10	/* expire after first event */
 #endif
 
-#define TIPC_WAIT_FOREVER	~0	/* timeout for permanent subscription */
+#define TIPC_WAIT_FOREVER	(~0)	/* timeout for permanent subscription */
 
 struct tipc_subscr {
 	struct tipc_name_seq seq;	/* name sequence of interest */
 	__u32 timeout;			/* subscription duration (in ms) */
-        __u32 filter;   		/* bitmask of filter options */
+	__u32 filter;			/* bitmask of filter options */
 	char usr_handle[8];		/* available for subscriber use */
 };
 

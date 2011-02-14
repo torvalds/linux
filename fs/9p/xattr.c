@@ -133,7 +133,7 @@ int v9fs_xattr_set(struct dentry *dentry, const char *name,
 			"p9_client_xattrcreate failed %d\n", retval);
 		goto error;
 	}
-	msize = fid->clnt->msize;;
+	msize = fid->clnt->msize;
 	while (value_len) {
 		if (value_len > (msize - P9_IOHDRSZ))
 			write_count = msize - P9_IOHDRSZ;

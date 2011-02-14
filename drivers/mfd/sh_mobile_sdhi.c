@@ -131,11 +131,17 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	 */
 	mmc_data->flags |= TMIO_MMC_BLKSZ_2BYTES;
 
+	/*
+	 * All SDHI blocks support SDIO IRQ signalling.
+	 */
+	mmc_data->flags |= TMIO_MMC_SDIO_IRQ;
+
 	if (p && p->dma_slave_tx >= 0 && p->dma_slave_rx >= 0) {
 		priv->param_tx.slave_id = p->dma_slave_tx;
 		priv->param_rx.slave_id = p->dma_slave_rx;
 		priv->dma_priv.chan_priv_tx = &priv->param_tx;
 		priv->dma_priv.chan_priv_rx = &priv->param_rx;
+		priv->dma_priv.alignment_shift = 1; /* 2-byte alignment */
 		mmc_data->dma = &priv->dma_priv;
 	}
 

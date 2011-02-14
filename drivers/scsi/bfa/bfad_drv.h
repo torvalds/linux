@@ -26,7 +26,23 @@
 #ifndef __BFAD_DRV_H__
 #define __BFAD_DRV_H__
 
-#include "bfa_os_inc.h"
+#include <linux/types.h>
+#include <linux/version.h>
+#include <linux/pci.h>
+#include <linux/dma-mapping.h>
+#include <linux/idr.h>
+#include <linux/interrupt.h>
+#include <linux/cdev.h>
+#include <linux/fs.h>
+#include <linux/delay.h>
+#include <linux/vmalloc.h>
+#include <linux/workqueue.h>
+#include <linux/bitops.h>
+#include <scsi/scsi.h>
+#include <scsi/scsi_host.h>
+#include <scsi/scsi_tcq.h>
+#include <scsi/scsi_transport_fc.h>
+#include <scsi/scsi_transport.h>
 
 #include "bfa_modules.h"
 #include "bfa_fcs.h"
@@ -39,7 +55,7 @@
 #ifdef BFA_DRIVER_VERSION
 #define BFAD_DRIVER_VERSION    BFA_DRIVER_VERSION
 #else
-#define BFAD_DRIVER_VERSION    "2.3.2.0"
+#define BFAD_DRIVER_VERSION    "2.3.2.3"
 #endif
 
 #define BFAD_PROTO_NAME FCPI_NAME
@@ -263,27 +279,20 @@ struct bfad_hal_comp {
  */
 #define nextLowerInt(x)                         \
 do {                                            \
-	int i;                                  \
+	int __i;                                  \
 	(*x)--;					\
-	for (i = 1; i < (sizeof(int)*8); i <<= 1) \
-		(*x) = (*x) | (*x) >> i;	\
+	for (__i = 1; __i < (sizeof(int)*8); __i <<= 1) \
+		(*x) = (*x) | (*x) >> __i;	\
 	(*x)++;					\
 	(*x) = (*x) >> 1;			\
 } while (0)
 
 
-#define list_remove_head(list, entry, type, member)		\
-do {								\
-	entry = NULL;                                           \
-	if (!list_empty(list)) {                                \
-		entry = list_entry((list)->next, type, member);	\
-		list_del_init(&entry->member);			\
-	}							\
+#define BFA_LOG(level, bfad, mask, fmt, arg...)				\
+do {									\
+	if (((mask) == 4) || (level[1] <= '4'))				\
+		dev_printk(level, &((bfad)->pcidev)->dev, fmt, ##arg);	\
 } while (0)
-
-#define list_get_first(list, type, member)				\
-((list_empty(list)) ? NULL :						\
-	list_entry((list)->next, type, member))
 
 bfa_status_t	bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
 				  struct bfa_lport_cfg_s *port_cfg,
@@ -316,8 +325,8 @@ void		bfad_debugfs_exit(struct bfad_port_s *port);
 
 void bfad_pci_remove(struct pci_dev *pdev);
 int bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid);
-void bfad_os_rport_online_wait(struct bfad_s *bfad);
-int bfad_os_get_linkup_delay(struct bfad_s *bfad);
+void bfad_rport_online_wait(struct bfad_s *bfad);
+int bfad_get_linkup_delay(struct bfad_s *bfad);
 int bfad_install_msix_handler(struct bfad_s *bfad);
 
 extern struct idr bfad_im_port_index;
@@ -337,7 +346,7 @@ extern int	num_sgpgs;
 extern int      rport_del_timeout;
 extern int      bfa_lun_queue_depth;
 extern int      bfa_io_max_sge;
-extern int      log_level;
+extern int      bfa_log_level;
 extern int      ioc_auto_recover;
 extern int      bfa_linkup_delay;
 extern int      msix_disable_cb;

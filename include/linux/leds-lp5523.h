@@ -42,6 +42,7 @@ struct lp5523_platform_data {
 	int	(*setup_resources)(void);
 	void	(*release_resources)(void);
 	void	(*enable)(bool state);
+	const	char *label;
 };
 
 #endif /* __LINUX_LP5523_H */

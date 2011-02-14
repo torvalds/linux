@@ -68,6 +68,7 @@ static char *bnad_net_stats_strings[BNAD_ETHTOOL_STATS_NUM] = {
 
 	"netif_queue_stop",
 	"netif_queue_wakeup",
+	"netif_queue_stopped",
 	"tso4",
 	"tso6",
 	"tso_err",
@@ -274,7 +275,6 @@ bnad_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 
 	ioc_attr = kzalloc(sizeof(*ioc_attr), GFP_KERNEL);
 	if (ioc_attr) {
-		memset(ioc_attr, 0, sizeof(*ioc_attr));
 		spin_lock_irqsave(&bnad->bna_lock, flags);
 		bfa_nw_ioc_get_attr(&bnad->bna.device.ioc, ioc_attr);
 		spin_unlock_irqrestore(&bnad->bna_lock, flags);
@@ -330,10 +330,6 @@ do {								\
 
 	BNAD_GET_REG(PCIE_MISC_REG);
 
-	BNAD_GET_REG(HOST_SEM0_REG);
-	BNAD_GET_REG(HOST_SEM1_REG);
-	BNAD_GET_REG(HOST_SEM2_REG);
-	BNAD_GET_REG(HOST_SEM3_REG);
 	BNAD_GET_REG(HOST_SEM0_INFO_REG);
 	BNAD_GET_REG(HOST_SEM1_INFO_REG);
 	BNAD_GET_REG(HOST_SEM2_INFO_REG);
@@ -1183,6 +1179,9 @@ bnad_get_ethtool_stats(struct net_device *netdev, struct ethtool_stats *stats,
 	bnad_netdev_hwstats_fill(bnad, net_stats64);
 
 	bi = sizeof(*net_stats64) / sizeof(u64);
+
+	/* Get netif_queue_stopped from stack */
+	bnad->stats.drv_stats.netif_queue_stopped = netif_queue_stopped(netdev);
 
 	/* Fill driver stats into ethtool buffers */
 	stats64 = (u64 *)&bnad->stats.drv_stats;

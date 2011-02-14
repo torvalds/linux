@@ -102,7 +102,7 @@ struct vhost_virtqueue {
 	 * flush the vhost_work instead of synchronize_rcu. Therefore readers do
 	 * not need to call rcu_read_lock/rcu_read_unlock: the beginning of
 	 * vhost_work execution acts instead of rcu_read_lock() and the end of
-	 * vhost_work execution acts instead of rcu_read_lock().
+	 * vhost_work execution acts instead of rcu_read_unlock().
 	 * Writers use virtqueue mutex. */
 	void __rcu *private_data;
 	/* Log write descriptors */
@@ -173,9 +173,9 @@ static inline int vhost_has_feature(struct vhost_dev *dev, int bit)
 {
 	unsigned acked_features;
 
-	acked_features =
-		rcu_dereference_index_check(dev->acked_features,
-					    lockdep_is_held(&dev->mutex));
+	/* TODO: check that we are running from vhost_worker or dev mutex is
+	 * held? */
+	acked_features = rcu_dereference_index_check(dev->acked_features, 1);
 	return acked_features & (1 << bit);
 }
 

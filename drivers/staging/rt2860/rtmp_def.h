@@ -31,10 +31,11 @@
     Miniport related definition header
 
     Revision History:
-    Who         When          What
+    Who        	 	When          	What
     --------    ----------    ----------------------------------------------
-    Paul Lin    08-01-2002    created
-    John Chang  08-05-2003    add definition for 11g & other drafts
+    Paul Lin    	08-01-2002    	created
+    John Chang  	08-05-2003    	add definition for 11g & other drafts
+    Justin P. Mattock	11/07/2010	Fix some typos
 */
 #ifndef __RTMP_DEF_H__
 #define __RTMP_DEF_H__
@@ -111,11 +112,11 @@
 	WMM Note: If memory of your system is not much, please reduce the definition;
 	or when you do WMM test, the queue for low priority AC will be full, i.e.
 	TX_RING_SIZE + MAX_PACKETS_IN_QUEUE packets for the AC will be buffered in
-	WLAN, maybe no any packet buffer can be got in Ethernet driver.
+	WLAN, maybe no packet buffers can get into the Ethernet driver.
 
-	Sometimes no packet buffer can be got in Ethernet driver, the system will
+	Sometimes no packet buffer can be get into the Ethernet driver, the system will
 	send flow control packet to the sender to slow down its sending rate.
-	So no WMM can be saw in the air.
+	So no WMM can be seen in the air.
 */
 
 /*
@@ -125,7 +126,7 @@
 	And in rt_main_end.c, clConfig.clNum = RX_RING_SIZE * 3; is changed to
 	clConfig.clNum = RX_RING_SIZE * 4;
 */
-/* TODO: For VxWorks the size is 256. Shall we cahnge the value as 256 for all OS????? */
+/* TODO: For VxWorks the size is 256. Shall we change the value as 256 for all OS? */
 #define MAX_PACKETS_IN_QUEUE				(512)	/*(512)    // to pass WMM A5-WPAPSK */
 
 #define MAX_PACKETS_IN_MCAST_PS_QUEUE		32
@@ -171,7 +172,7 @@
 #define fRTMP_ADAPTER_SCAN_2040 			0x04000000
 #define	fRTMP_ADAPTER_RADIO_MEASUREMENT		0x08000000
 
-#define fRTMP_ADAPTER_START_UP         		0x10000000	/*Devive already initialized and enabled Tx/Rx. */
+#define fRTMP_ADAPTER_START_UP         		0x10000000	/*Device already initialized and enabled Tx/Rx. */
 #define fRTMP_ADAPTER_MEDIA_STATE_CHANGE    0x20000000
 #define fRTMP_ADAPTER_IDLE_RADIO_OFF        0x40000000
 
@@ -205,8 +206,8 @@
 #define fRTMP_PS_SET_PCI_CLK_OFF_COMMAND          0x00000002
 /* Indicate driver should disable kick off hardware to send packets from now. */
 #define fRTMP_PS_DISABLE_TX         0x00000004
-/* Indicate driver should IMMEDIATELY fo to sleep after receiving AP's beacon in which  doesn't indicate unicate nor multicast packets for me */
-/*. This flag is used ONLY in RTMPHandleRxDoneInterrupt routine. */
+/* Indicate driver should IMMEDIATELY go to sleep after receiving AP's beacon in which doesn't indicate unicate nor multicast packets for me */
+/* This flag is used ONLY in RTMPHandleRxDoneInterrupt routine. */
 #define fRTMP_PS_GO_TO_SLEEP_NOW         0x00000008
 #define fRTMP_PS_TOGGLE_L1		0x00000010	/* Use Toggle L1 mechanism for rt28xx PCIe */
 
@@ -303,7 +304,7 @@
 
 /* WDS definition */
 #define	MAX_WDS_ENTRY               4
-#define WDS_PAIRWISE_KEY_OFFSET     60	/* WDS links uses pairwise key#60 ~ 63 in ASIC pairwise key table */
+#define WDS_PAIRWISE_KEY_OFFSET     60	/* WDS links use pairwise key#60 ~ 63 in ASIC pairwise key table */
 
 #define	WDS_DISABLE_MODE            0
 #define	WDS_RESTRICT_MODE           1
@@ -559,7 +560,7 @@
 #define IE_ADD_HT2                        53	/* 802.11n d1. ADDITIONAL HT CAPABILITY. ELEMENT ID TBD */
 
 /* For 802.11n D3.03 */
-/*#define IE_NEW_EXT_CHA_OFFSET             62    // 802.11n d1. New extension channel offset elemet */
+/*#define IE_NEW_EXT_CHA_OFFSET             62    // 802.11n d1. New extension channel offset element */
 #define IE_SECONDARY_CH_OFFSET		62	/* 802.11n D3.03        Secondary Channel Offset element */
 #define IE_WAPI							68	/* WAPI information element */
 #define IE_2040_BSS_COEXIST               72	/* 802.11n D3.0.3 */
@@ -678,7 +679,7 @@
 
 #define ACT_MACHINE_BASE              0
 
-/*Those PEER_xx_CATE number is based on real Categary value in IEEE spec. Please don'es modify it by your self. */
+/*Those PEER_xx_CATE number is based on real Categary value in IEEE spec. Please do not modify it by your self. */
 /*Category */
 #define MT2_PEER_SPECTRUM_CATE              0
 #define MT2_PEER_QOS_CATE              1
@@ -748,7 +749,7 @@
 
 #define ACT_FUNC_SIZE                 (MAX_ACT_STATE * MAX_ACT_MSG)
 /* */
-/* STA's AUTHENTICATION state machine: states, evvents, total function # */
+/* STA's AUTHENTICATION state machine: states, events, total function # */
 /* */
 #define AUTH_REQ_IDLE                   0
 #define AUTH_WAIT_SEQ2                  1
@@ -948,7 +949,7 @@
 #define BLOCK_ACK                   0x60	/* b6:5 = 11 */
 
 /* */
-/* rtmp_data.c use these definition */
+/* rtmp_data.c uses this definition */
 /* */
 #define LENGTH_802_11               24
 #define LENGTH_802_11_AND_H         30
@@ -1288,7 +1289,7 @@
 #define IW_STA_LINKDOWN_EVENT_FLAG					0x0210
 #define IW_SCAN_COMPLETED_EVENT_FLAG				0x0211
 #define IW_SCAN_ENQUEUE_FAIL_EVENT_FLAG				0x0212
-/* if add new system event flag, please upadte the IW_SYS_EVENT_FLAG_END */
+/* if add new system event flag, please update the IW_SYS_EVENT_FLAG_END */
 #define	IW_SYS_EVENT_FLAG_END                       0x0212
 #define	IW_SYS_EVENT_TYPE_NUM						(IW_SYS_EVENT_FLAG_END - IW_SYS_EVENT_FLAG_START + 1)
 /* For system event - end */
@@ -1305,7 +1306,7 @@
 #define IW_SPOOF_DEAUTH_EVENT_FLAG					0x0307
 #define IW_SPOOF_UNKNOWN_MGMT_EVENT_FLAG			0x0308
 #define IW_REPLAY_ATTACK_EVENT_FLAG					0x0309
-/* if add new spoof attack event flag, please upadte the IW_SPOOF_EVENT_FLAG_END */
+/* if add new spoof attack event flag, please update the IW_SPOOF_EVENT_FLAG_END */
 #define	IW_SPOOF_EVENT_FLAG_END                     0x0309
 #define	IW_SPOOF_EVENT_TYPE_NUM						(IW_SPOOF_EVENT_FLAG_END - IW_SPOOF_EVENT_FLAG_START + 1)
 /* For spoof attack event - end */
@@ -1319,7 +1320,7 @@
 #define IW_FLOOD_DISASSOC_EVENT_FLAG				0x0404
 #define IW_FLOOD_DEAUTH_EVENT_FLAG					0x0405
 #define IW_FLOOD_EAP_REQ_EVENT_FLAG					0x0406
-/* if add new flooding attack event flag, please upadte the IW_FLOOD_EVENT_FLAG_END */
+/* if add new flooding attack event flag, please update the IW_FLOOD_EVENT_FLAG_END */
 #define	IW_FLOOD_EVENT_FLAG_END                   	0x0406
 #define	IW_FLOOD_EVENT_TYPE_NUM						(IW_FLOOD_EVENT_FLAG_END - IW_FLOOD_EVENT_FLAG_START + 1)
 /* For flooding attack - end */

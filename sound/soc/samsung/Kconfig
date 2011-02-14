@@ -1,0 +1,171 @@
+config SND_SOC_SAMSUNG
+	tristate "ASoC support for Samsung"
+	depends on ARCH_S3C2410 || ARCH_S3C64XX || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5P64X0 || ARCH_S5P6442 || ARCH_S5PV310
+	select S3C64XX_DMA if ARCH_S3C64XX
+	select S3C2410_DMA if ARCH_S3C2410
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Samsung SoCs' Audio interfaces. You will also need to
+	  select the audio interfaces to support below.
+
+config SND_S3C24XX_I2S
+	tristate
+	select S3C2410_DMA
+
+config SND_S3C_I2SV2_SOC
+	tristate
+
+config SND_S3C2412_SOC_I2S
+	tristate
+	select SND_S3C_I2SV2_SOC
+	select S3C2410_DMA
+
+config SND_SAMSUNG_PCM
+	tristate
+
+config SND_SAMSUNG_AC97
+	tristate
+	select SND_SOC_AC97_BUS
+
+config SND_SAMSUNG_SPDIF
+	tristate
+	select SND_SOC_SPDIF
+
+config SND_SAMSUNG_I2S
+	tristate
+
+config SND_SOC_SAMSUNG_NEO1973_WM8753
+	tristate "SoC I2S Audio support for NEO1973 - WM8753"
+	depends on SND_SOC_SAMSUNG && MACH_NEO1973_GTA01
+	select SND_S3C24XX_I2S
+	select SND_SOC_WM8753
+	help
+	  Say Y if you want to add support for SoC audio on smdk2440
+	  with the WM8753.
+
+config SND_SOC_SAMSUNG_NEO1973_GTA02_WM8753
+	tristate "Audio support for the Openmoko Neo FreeRunner (GTA02)"
+	depends on SND_SOC_SAMSUNG && MACH_NEO1973_GTA02
+	select SND_S3C24XX_I2S
+	select SND_SOC_WM8753
+	help
+	  This driver provides audio support for the Openmoko Neo FreeRunner
+	  smartphone.
+	  
+config SND_SOC_SAMSUNG_JIVE_WM8750
+	tristate "SoC I2S Audio support for Jive"
+	depends on SND_SOC_SAMSUNG && MACH_JIVE
+	select SND_SOC_WM8750
+	select SND_S3C2412_SOC_I2S
+	help
+	  Sat Y if you want to add support for SoC audio on the Jive.
+
+config SND_SOC_SAMSUNG_SMDK_WM8580
+	tristate "SoC I2S Audio support for WM8580 on SMDK"
+	depends on SND_SOC_SAMSUNG && (MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDK6440 || MACH_SMDK6450 || MACH_SMDK6442 || MACH_SMDKV210 || MACH_SMDKC110)
+	select SND_SOC_WM8580
+	select SND_SAMSUNG_I2S
+	help
+	  Say Y if you want to add support for SoC audio on the SMDKs.
+
+config SND_SOC_SAMSUNG_SMDK_WM8994
+	tristate "SoC I2S Audio support for WM8994 on SMDK"
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKV310 || MACH_SMDKC210)
+	select SND_SOC_WM8994
+	select SND_SAMSUNG_I2S
+	help
+		Say Y if you want to add support for SoC audio on the SMDKs.
+
+config SND_SOC_SAMSUNG_SMDK2443_WM9710
+	tristate "SoC AC97 Audio support for SMDK2443 - WM9710"
+	depends on SND_SOC_SAMSUNG && MACH_SMDK2443
+	select S3C2410_DMA
+	select AC97_BUS
+	select SND_SOC_AC97_CODEC
+	select SND_SAMSUNG_AC97
+	help
+	  Say Y if you want to add support for SoC audio on smdk2443
+	  with the WM9710.
+
+config SND_SOC_SAMSUNG_LN2440SBC_ALC650
+	tristate "SoC AC97 Audio support for LN2440SBC - ALC650"
+	depends on SND_SOC_SAMSUNG && ARCH_S3C2410
+	select S3C2410_DMA
+	select AC97_BUS
+	select SND_SOC_AC97_CODEC
+	select SND_SAMSUNG_AC97
+	help
+	  Say Y if you want to add support for SoC audio on ln2440sbc
+	  with the ALC650.
+
+config SND_SOC_SAMSUNG_S3C24XX_UDA134X
+	tristate "SoC I2S Audio support UDA134X wired to a S3C24XX"
+	depends on SND_SOC_SAMSUNG && ARCH_S3C2410
+	select SND_S3C24XX_I2S
+	select SND_SOC_L3
+	select SND_SOC_UDA134X
+
+config SND_SOC_SAMSUNG_SIMTEC
+	tristate
+	help
+	  Internal node for common S3C24XX/Simtec suppor
+
+config SND_SOC_SAMSUNG_SIMTEC_TLV320AIC23
+	tristate "SoC I2S Audio support for TLV320AIC23 on Simtec boards"
+	depends on SND_SOC_SAMSUNG && ARCH_S3C2410
+	select SND_S3C24XX_I2S
+	select SND_SOC_TLV320AIC23
+	select SND_SOC_SAMSUNG_SIMTEC
+
+config SND_SOC_SAMSUNG_SIMTEC_HERMES
+	tristate "SoC I2S Audio support for Simtec Hermes board"
+	depends on SND_SOC_SAMSUNG && ARCH_S3C2410
+	select SND_S3C24XX_I2S
+	select SND_SOC_TLV320AIC3X
+	select SND_SOC_SAMSUNG_SIMTEC
+
+config SND_SOC_SAMSUNG_H1940_UDA1380
+	tristate "Audio support for the HP iPAQ H1940"
+	depends on SND_SOC_SAMSUNG && ARCH_H1940
+	select SND_S3C24XX_I2S
+	select SND_SOC_UDA1380
+	help
+	  This driver provides audio support for HP iPAQ h1940 PDA.
+
+config SND_SOC_SAMSUNG_RX1950_UDA1380
+	tristate "Audio support for the HP iPAQ RX1950"
+	depends on SND_SOC_SAMSUNG && MACH_RX1950
+	select SND_S3C24XX_I2S
+	select SND_SOC_UDA1380
+	help
+	  This driver provides audio support for HP iPAQ RX1950 PDA.
+
+config SND_SOC_SAMSUNG_SMDK_WM9713
+	tristate "SoC AC97 Audio support for SMDK with WM9713"
+	depends on SND_SOC_SAMSUNG && (MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDKV210 || MACH_SMDKC110 || MACH_SMDKV310 || MACH_SMDKC210)
+	select SND_SOC_WM9713
+	select SND_SAMSUNG_AC97
+	help
+	  Sat Y if you want to add support for SoC audio on the SMDK.
+
+config SND_SOC_SMARTQ
+	tristate "SoC I2S Audio support for SmartQ board"
+	depends on SND_SOC_SAMSUNG && MACH_SMARTQ
+	select SND_SAMSUNG_I2S
+	select SND_SOC_WM8750
+
+config SND_SOC_GONI_AQUILA_WM8994
+	tristate "SoC I2S Audio support for AQUILA/GONI - WM8994"
+	depends on SND_SOC_SAMSUNG && (MACH_GONI || MACH_AQUILA)
+	select SND_SAMSUNG_I2S
+	select SND_SOC_WM8994
+	help
+	  Say Y if you want to add support for SoC audio on goni or aquila
+	  with the WM8994.
+
+config SND_SOC_SAMSUNG_SMDK_SPDIF
+	tristate "SoC S/PDIF Audio support for SMDK"
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKC100 || MACH_SMDKC110 || MACH_SMDKV210)
+	select SND_SAMSUNG_SPDIF
+	help
+	  Say Y if you want to add support for SoC S/PDIF audio on the SMDK.

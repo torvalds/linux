@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <linux/drbd.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/memcontrol.h>
@@ -194,8 +193,10 @@ void drbd_endio_sec(struct bio *bio, int error)
  */
 void drbd_endio_pri(struct bio *bio, int error)
 {
+	unsigned long flags;
 	struct drbd_request *req = bio->bi_private;
 	struct drbd_conf *mdev = req->mdev;
+	struct bio_and_error m;
 	enum drbd_req_event what;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 
@@ -221,7 +222,13 @@ void drbd_endio_pri(struct bio *bio, int error)
 	bio_put(req->private_bio);
 	req->private_bio = ERR_PTR(error);
 
-	req_mod(req, what);
+	/* not req_mod(), we need irqsave here! */
+	spin_lock_irqsave(&mdev->req_lock, flags);
+	__req_mod(req, what, &m);
+	spin_unlock_irqrestore(&mdev->req_lock, flags);
+
+	if (m.bio)
+		complete_master_bio(mdev, &m);
 }
 
 int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)

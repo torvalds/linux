@@ -51,6 +51,7 @@ struct tipc_node_map {
 	u32 map[MAX_NODES / WSIZE];
 };
 
+extern struct tipc_node_map tipc_bcast_nmap;
 
 #define PLSIZE 32
 

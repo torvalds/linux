@@ -27,6 +27,8 @@
  * e-mail - mail your message to <johann.deneux@it.uu.se>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/hid.h>
@@ -146,7 +148,7 @@ int lgff_init(struct hid_device* hid)
 
 	/* Find the report to use */
 	if (list_empty(report_list)) {
-		err_hid("No output report found");
+		hid_err(hid, "No output report found\n");
 		return -1;
 	}
 
@@ -154,7 +156,7 @@ int lgff_init(struct hid_device* hid)
 	report = list_entry(report_list->next, struct hid_report, list);
 	field = report->field[0];
 	if (!field) {
-		err_hid("NULL field");
+		hid_err(hid, "NULL field\n");
 		return -1;
 	}
 
@@ -176,7 +178,7 @@ int lgff_init(struct hid_device* hid)
 	if ( test_bit(FF_AUTOCENTER, dev->ffbit) )
 		dev->ff->set_autocenter = hid_lgff_set_autocenter;
 
-	printk(KERN_INFO "Force feedback for Logitech force feedback devices by Johann Deneux <johann.deneux@it.uu.se>\n");
+	pr_info("Force feedback for Logitech force feedback devices by Johann Deneux <johann.deneux@it.uu.se>\n");
 
 	return 0;
 }

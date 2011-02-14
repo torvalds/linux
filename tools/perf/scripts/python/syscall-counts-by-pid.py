@@ -14,7 +14,7 @@ from perf_trace_context import *
 from Core import *
 from Util import syscall_name
 
-usage = "perf trace -s syscall-counts-by-pid.py [comm]\n";
+usage = "perf script -s syscall-counts-by-pid.py [comm]\n";
 
 for_comm = None
 for_pid = None

@@ -16,13 +16,15 @@
 
 #ifndef _wlc_antsel_h_
 #define _wlc_antsel_h_
-extern antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
-					wlc_pub_t *pub,
-					wlc_hw_info_t *wlc_hw);
-extern void wlc_antsel_detach(antsel_info_t *asi);
-extern void wlc_antsel_init(antsel_info_t *asi);
-extern void wlc_antsel_antcfg_get(antsel_info_t *asi, bool usedef, bool sel,
+extern struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc,
+					struct osl_info *osh,
+					struct wlc_pub *pub,
+					struct wlc_hw_info *wlc_hw);
+extern void wlc_antsel_detach(struct antsel_info *asi);
+extern void wlc_antsel_init(struct antsel_info *asi);
+extern void wlc_antsel_antcfg_get(struct antsel_info *asi, bool usedef,
+				  bool sel,
 				  u8 id, u8 fbid, u8 *antcfg,
 				  u8 *fbantcfg);
-extern u8 wlc_antsel_antsel2id(antsel_info_t *asi, u16 antsel);
+extern u8 wlc_antsel_antsel2id(struct antsel_info *asi, u16 antsel);
 #endif				/* _wlc_antsel_h_ */

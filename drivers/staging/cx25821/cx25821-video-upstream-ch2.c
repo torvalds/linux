@@ -20,6 +20,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "cx25821-video.h"
 #include "cx25821-video-upstream-ch2.h"
 
@@ -211,8 +213,7 @@ void cx25821_stop_upstream_video_ch2(struct cx25821_dev *dev)
 	u32 tmp = 0;
 
 	if (!dev->_is_running_ch2) {
-		printk
-		    ("cx25821: No video file is currently running so return!\n");
+		pr_info("No video file is currently running so return!\n");
 		return;
 	}
 	/* Disable RISC interrupts */
@@ -301,19 +302,19 @@ int cx25821_get_frame_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 	myfile = filp_open(dev->_filename_ch2, O_RDONLY | O_LARGEFILE, 0);
 	if (IS_ERR(myfile)) {
 		const int open_errno = -PTR_ERR(myfile);
-		printk("%s(): ERROR opening file(%s) with errno = %d!\n",
-			__func__, dev->_filename_ch2, open_errno);
+		pr_err("%s(): ERROR opening file(%s) with errno = %d!\n",
+		       __func__, dev->_filename_ch2, open_errno);
 		return PTR_ERR(myfile);
 	} else {
 		if (!(myfile->f_op)) {
-			printk("%s: File has no file operations registered!",
+			pr_err("%s(): File has no file operations registered!\n",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
 		}
 
 		if (!myfile->f_op->read) {
-			printk("%s: File has no READ operations registered!",
+			pr_err("%s(): File has no READ operations registered!\n",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
@@ -340,9 +341,8 @@ int cx25821_get_frame_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 			frame_offset += vfs_read_retval;
 
 			if (vfs_read_retval < line_size) {
-				printk(KERN_INFO
-				       "Done: exit %s() since no more bytes to read from Video file.\n",
-				       __func__);
+				pr_info("Done: exit %s() since no more bytes to read from Video file\n",
+					__func__);
 				break;
 			}
 		}
@@ -366,8 +366,8 @@ static void cx25821_vidups_handler_ch2(struct work_struct *work)
 	    container_of(work, struct cx25821_dev, _irq_work_entry_ch2);
 
 	if (!dev) {
-		printk("ERROR %s(): since container_of(work_struct) FAILED!\n",
-			__func__);
+		pr_err("ERROR %s(): since container_of(work_struct) FAILED!\n",
+		       __func__);
 		return;
 	}
 
@@ -393,21 +393,20 @@ int cx25821_openfile_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 
 	if (IS_ERR(myfile)) {
 		const int open_errno = -PTR_ERR(myfile);
-		printk("%s(): ERROR opening file(%s) with errno = %d!\n",
-			__func__, dev->_filename_ch2, open_errno);
+		pr_err("%s(): ERROR opening file(%s) with errno = %d!\n",
+		       __func__, dev->_filename_ch2, open_errno);
 		return PTR_ERR(myfile);
 	} else {
 		if (!(myfile->f_op)) {
-			printk("%s: File has no file operations registered!",
+			pr_err("%s(): File has no file operations registered!\n",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
 		}
 
 		if (!myfile->f_op->read) {
-			printk
-			    ("%s: File has no READ operations registered!  Returning.",
-			     __func__);
+			pr_err("%s(): File has no READ operations registered!  Returning\n",
+			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
 		}
@@ -435,9 +434,8 @@ int cx25821_openfile_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 				offset += vfs_read_retval;
 
 				if (vfs_read_retval < line_size) {
-					printk(KERN_INFO
-					       "Done: exit %s() since no more bytes to read from Video file.\n",
-					       __func__);
+					pr_info("Done: exit %s() since no more bytes to read from Video file\n",
+						__func__);
 					break;
 				}
 			}
@@ -483,8 +481,7 @@ static int cx25821_upstream_buffer_prepare_ch2(struct cx25821_dev *dev,
 	dev->_risc_size_ch2 = dev->upstream_riscbuf_size_ch2;
 
 	if (!dev->_dma_virt_addr_ch2) {
-		printk
-		    ("cx25821: FAILED to allocate memory for Risc buffer! Returning.\n");
+		pr_err("FAILED to allocate memory for Risc buffer! Returning\n");
 		return -ENOMEM;
 	}
 
@@ -504,8 +501,7 @@ static int cx25821_upstream_buffer_prepare_ch2(struct cx25821_dev *dev,
 	dev->_data_buf_size_ch2 = dev->upstream_databuf_size_ch2;
 
 	if (!dev->_data_buf_virt_addr_ch2) {
-		printk
-		    ("cx25821: FAILED to allocate memory for data buffer! Returning.\n");
+		pr_err("FAILED to allocate memory for data buffer! Returning\n");
 		return -ENOMEM;
 	}
 
@@ -521,8 +517,7 @@ static int cx25821_upstream_buffer_prepare_ch2(struct cx25821_dev *dev,
 	    cx25821_risc_buffer_upstream_ch2(dev, dev->pci, 0, bpl,
 					     dev->_lines_count_ch2);
 	if (ret < 0) {
-		printk(KERN_INFO
-			"cx25821: Failed creating Video Upstream Risc programs!\n");
+		pr_info("Failed creating Video Upstream Risc programs!\n");
 		goto error;
 	}
 
@@ -602,8 +597,8 @@ int cx25821_video_upstream_irq_ch2(struct cx25821_dev *dev, int chan_num,
 	}
 
 	if (dev->_file_status_ch2 == END_OF_FILE) {
-		printk("cx25821: EOF Channel 2 Framecount = %d\n",
-		       dev->_frame_count_ch2);
+		pr_info("EOF Channel 2 Framecount = %d\n",
+			dev->_frame_count_ch2);
 		return -1;
 	}
 	/* ElSE, set the interrupt mask register, re-enable irq. */
@@ -714,8 +709,8 @@ int cx25821_start_video_dma_upstream_ch2(struct cx25821_dev *dev,
 	    request_irq(dev->pci->irq, cx25821_upstream_irq_ch2,
 			IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
 	if (err < 0) {
-		printk(KERN_ERR "%s: can't get upstream IRQ %d\n", dev->name,
-		       dev->pci->irq);
+		pr_err("%s: can't get upstream IRQ %d\n",
+		       dev->name, dev->pci->irq);
 		goto fail_irq;
 	}
 	/* Start the DMA  engine */
@@ -744,7 +739,7 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 	int str_length = 0;
 
 	if (dev->_is_running_ch2) {
-		printk("Video Channel is still running so return!\n");
+		pr_info("Video Channel is still running so return!\n");
 		return 0;
 	}
 
@@ -756,8 +751,7 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 	    create_singlethread_workqueue("cx25821_workqueue2");
 
 	if (!dev->_irq_queues_ch2) {
-		printk
-		    ("cx25821: create_singlethread_workqueue() for Video FAILED!\n");
+		pr_err("create_singlethread_workqueue() for Video FAILED!\n");
 		return -ENOMEM;
 	}
 	/*
@@ -829,8 +823,7 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 	    cx25821_upstream_buffer_prepare_ch2(dev, sram_ch,
 						dev->_line_size_ch2);
 	if (retval < 0) {
-		printk(KERN_ERR
-		       "%s: Failed to set up Video upstream buffers!\n",
+		pr_err("%s: Failed to set up Video upstream buffers!\n",
 		       dev->name);
 		goto error;
 	}

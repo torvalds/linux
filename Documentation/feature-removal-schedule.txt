@@ -97,36 +97,38 @@ Who:	Pavel Machek <pavel@ucw.cz>
 
 ---------------------------
 
-What:	Video4Linux API 1 ioctls and from Video devices.
-When:	kernel 2.6.38
-Files:	include/linux/videodev.h
-Check:	include/linux/videodev.h
-Why:	V4L1 AP1 was replaced by V4L2 API during migration from 2.4 to 2.6
-	series. The old API have lots of drawbacks and don't provide enough
-	means to work with all video and audio standards. The newer API is
-	already available on the main drivers and should be used instead.
-	Newer drivers should use v4l_compat_translate_ioctl function to handle
-	old calls, replacing to newer ones.
-	Decoder iocts are using internally to allow video drivers to
-	communicate with video decoders. This should also be improved to allow
-	V4L2 calls being translated into compatible internal ioctls.
-	Compatibility ioctls will be provided, for a while, via 
-	v4l1-compat module. 
-Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
-
----------------------------
-
 What:	Video4Linux obsolete drivers using V4L1 API
-When:	kernel 2.6.38
-Files:	drivers/staging/cpia/* drivers/staging/stradis/*
-Check:	drivers/staging/cpia/cpia.c drivers/staging/stradis/stradis.c
+When:	kernel 2.6.39
+Files:	drivers/staging/se401/* drivers/staging/usbvideo/*
+Check:	drivers/staging/se401/se401.c drivers/staging/usbvideo/usbvideo.c
 Why:	There are some drivers still using V4L1 API, despite all efforts we've done
 	to migrate. Those drivers are for obsolete hardware that the old maintainer
 	didn't care (or not have the hardware anymore), and that no other developer
 	could find any hardware to buy. They probably have no practical usage today,
 	and people with such old hardware could probably keep using an older version
-	of the kernel. Those drivers will be moved to staging on 2.6.37 and, if nobody
-	care enough to port and test them with V4L2 API, they'll be removed on 2.6.38.
+	of the kernel. Those drivers will be moved to staging on 2.6.38 and, if nobody
+	cares enough to port and test them with V4L2 API, they'll be removed on 2.6.39.
+Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
+
+---------------------------
+
+What:	Video4Linux: Remove obsolete ioctl's
+When:	kernel 2.6.39
+Files:	include/media/videodev2.h
+Why:	Some ioctl's were defined wrong on 2.6.2 and 2.6.6, using the wrong
+	type of R/W arguments. They were fixed, but the old ioctl names are
+	still there, maintained to avoid breaking binary compatibility:
+	  #define VIDIOC_OVERLAY_OLD   	_IOWR('V', 14, int)
+	  #define VIDIOC_S_PARM_OLD	_IOW('V', 22, struct v4l2_streamparm)
+	  #define VIDIOC_S_CTRL_OLD	_IOW('V', 28, struct v4l2_control)
+	  #define VIDIOC_G_AUDIO_OLD	_IOWR('V', 33, struct v4l2_audio)
+	  #define VIDIOC_G_AUDOUT_OLD	_IOWR('V', 49, struct v4l2_audioout)
+	  #define VIDIOC_CROPCAP_OLD	_IOR('V', 58, struct v4l2_cropcap)
+	There's no sense on preserving those forever, as it is very doubtful
+	that someone would try to use a such old binary with a modern kernel.
+	Removing them will allow us to remove some magic done at the V4L ioctl
+	handler.
+
 Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
 
 ---------------------------
@@ -191,6 +193,20 @@ Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
 
 ---------------------------
 
+What:	CS5535/CS5536 obsolete GPIO driver
+When:	June 2011
+Files:	drivers/staging/cs5535_gpio/*
+Check:	drivers/staging/cs5535_gpio/cs5535_gpio.c
+Why:	A newer driver replaces this; it is drivers/gpio/cs5535-gpio.c, and
+	integrates with the Linux GPIO subsystem.  The old driver has been
+	moved to staging, and will be removed altogether around 2.6.40.
+	Please test the new driver, and ensure that the functionality you
+	need and any bugfixes from the old driver are available in the new
+	one.
+Who:	Andres Salomon <dilinger@queued.net>
+
+--------------------------
+
 What:	remove EXPORT_SYMBOL(kernel_thread)
 When:	August 2006
 Files:	arch/*/kernel/*_ksyms.c
@@ -228,6 +244,17 @@ When:	July 2008
 Why:	ACPI sysfs conversion should be finished by January 2008.
 	ACPI procfs interface will be removed in July 2008 so that
 	there is enough time for the user space to catch up.
+Who:	Zhang Rui <rui.zhang@intel.com>
+
+---------------------------
+
+What:	CONFIG_ACPI_PROCFS_POWER
+When:	2.6.39
+Why:	sysfs I/F for ACPI power devices, including AC and Battery,
+        has been working in upstream kenrel since 2.6.24, Sep 2007.
+	In 2.6.37, we make the sysfs I/F always built in and this option
+	disabled by default.
+	Remove this option and the ACPI power procfs interface in 2.6.39.
 Who:	Zhang Rui <rui.zhang@intel.com>
 
 ---------------------------
@@ -327,14 +354,6 @@ Why:	See commits 129f8ae9b1b5be94517da76009ea956e89104ce8 and
 	Removal is subject to fixing any remaining bugs in ACPI which may
 	cause the thermal throttling not to happen at the right time.
 Who:	Dave Jones <davej@redhat.com>, Matthew Garrett <mjg@redhat.com>
-
------------------------------
-
-What:	__do_IRQ all in one fits nothing interrupt handler
-When:	2.6.32
-Why:	__do_IRQ was kept for easy migration to the type flow handlers.
-	More than two years of migration time is enough.
-Who:	Thomas Gleixner <tglx@linutronix.de>
 
 -----------------------------
 
@@ -562,5 +581,41 @@ Why:	This field is deprecated. I2C device drivers shouldn't change their
 	adapter driver should instantiate the I2C devices and provide the
 	needed platform-specific information.
 Who:	Jean Delvare <khali@linux-fr.org>
+
+----------------------------
+
+What:	cancel_rearming_delayed_work[queue]()
+When:	2.6.39
+
+Why:	The functions have been superceded by cancel_delayed_work_sync()
+	quite some time ago.  The conversion is trivial and there is no
+	in-kernel user left.
+Who:	Tejun Heo <tj@kernel.org>
+
+----------------------------
+
+What:	Legacy, non-standard chassis intrusion detection interface.
+When:	June 2011
+Why:	The adm9240, w83792d and w83793 hardware monitoring drivers have
+	legacy interfaces for chassis intrusion detection. A standard
+	interface has been added to each driver, so the legacy interface
+	can be removed.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+----------------------------
+
+What:	noswapaccount kernel command line parameter
+When:	2.6.40
+Why:	The original implementation of memsw feature enabled by
+	CONFIG_CGROUP_MEM_RES_CTLR_SWAP could be disabled by the noswapaccount
+	kernel parameter (introduced in 2.6.29-rc1). Later on, this decision
+	turned out to be not ideal because we cannot have the feature compiled
+	in and disabled by default and let only interested to enable it
+	(e.g. general distribution kernels might need it). Therefore we have
+	added swapaccount[=0|1] parameter (introduced in 2.6.37) which provides
+	the both possibilities. If we remove noswapaccount we will have
+	less command line parameters with the same functionality and we
+	can also cleanup the parameter handling a bit ().
+Who:	Michal Hocko <mhocko@suse.cz>
 
 ----------------------------

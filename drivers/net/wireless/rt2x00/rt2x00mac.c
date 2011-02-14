@@ -104,7 +104,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	enum data_queue_qid qid = skb_get_queue_mapping(skb);
-	struct data_queue *queue;
+	struct data_queue *queue = NULL;
 
 	/*
 	 * Mac80211 might be calling this function while we are trying
@@ -153,7 +153,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		goto exit_fail;
 
 	if (rt2x00queue_threshold(queue))
-		ieee80211_stop_queue(rt2x00dev->hw, qid);
+		rt2x00queue_pause_queue(queue);
 
 	return NETDEV_TX_OK;
 
@@ -268,13 +268,12 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	else
 		rt2x00dev->intf_sta_count++;
 
-	spin_lock_init(&intf->lock);
 	spin_lock_init(&intf->seqlock);
 	mutex_init(&intf->beacon_skb_mutex);
 	intf->beacon = entry;
 
 	/*
-	 * The MAC adddress must be configured after the device
+	 * The MAC address must be configured after the device
 	 * has been initialized. Otherwise the device can reset
 	 * the MAC registers.
 	 * The BSSID address must only be configured in AP mode,
@@ -282,15 +281,8 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	 * STA interfaces at this time, since this can cause
 	 * invalid behavior in the device.
 	 */
-	memcpy(&intf->mac, vif->addr, ETH_ALEN);
-	if (vif->type == NL80211_IFTYPE_AP) {
-		memcpy(&intf->bssid, vif->addr, ETH_ALEN);
-		rt2x00lib_config_intf(rt2x00dev, intf, vif->type,
-				      intf->mac, intf->bssid);
-	} else {
-		rt2x00lib_config_intf(rt2x00dev, intf, vif->type,
-				      intf->mac, NULL);
-	}
+	rt2x00lib_config_intf(rt2x00dev, intf, vif->type,
+			      vif->addr, NULL);
 
 	/*
 	 * Some filters depend on the current working mode. We can force
@@ -358,7 +350,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 * if for any reason the link tuner must be reset, this will be
 	 * handled by rt2x00lib_config().
 	 */
-	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF_LINK);
+	rt2x00queue_stop_queue(rt2x00dev->rx);
 
 	/*
 	 * When we've just turned on the radio, we want to reprogram
@@ -376,7 +368,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	rt2x00lib_config_antenna(rt2x00dev, rt2x00dev->default_ant);
 
 	/* Turn RX back on */
-	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON_LINK);
+	rt2x00queue_start_queue(rt2x00dev->rx);
 
 	return 0;
 }
@@ -451,9 +443,7 @@ static void rt2x00mac_set_tim_iter(void *data, u8 *mac,
 	    vif->type != NL80211_IFTYPE_WDS)
 		return;
 
-	spin_lock(&intf->lock);
-	intf->delayed_flags |= DELAYED_UPDATE_BEACON;
-	spin_unlock(&intf->lock);
+	set_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags);
 }
 
 int rt2x00mac_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
@@ -478,17 +468,17 @@ EXPORT_SYMBOL_GPL(rt2x00mac_set_tim);
 static void memcpy_tkip(struct rt2x00lib_crypto *crypto, u8 *key, u8 key_len)
 {
 	if (key_len > NL80211_TKIP_DATA_OFFSET_ENCR_KEY)
-		memcpy(&crypto->key,
+		memcpy(crypto->key,
 		       &key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY],
 		       sizeof(crypto->key));
 
 	if (key_len > NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY)
-		memcpy(&crypto->tx_mic,
+		memcpy(crypto->tx_mic,
 		       &key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
 		       sizeof(crypto->tx_mic));
 
 	if (key_len > NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY)
-		memcpy(&crypto->rx_mic,
+		memcpy(crypto->rx_mic,
 		       &key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
 		       sizeof(crypto->rx_mic));
 }
@@ -498,7 +488,6 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		      struct ieee80211_key_conf *key)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct rt2x00_intf *intf = vif_to_intf(vif);
 	int (*set_key) (struct rt2x00_dev *rt2x00dev,
 			struct rt2x00lib_crypto *crypto,
 			struct ieee80211_key_conf *key);
@@ -522,7 +511,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (rt2x00dev->intf_sta_count)
 		crypto.bssidx = 0;
 	else
-		crypto.bssidx = intf->mac[5] & (rt2x00dev->ops->max_ap_intf - 1);
+		crypto.bssidx = vif->addr[5] & (rt2x00dev->ops->max_ap_intf - 1);
 
 	crypto.cipher = rt2x00crypto_key_to_cipher(key);
 	if (crypto.cipher == CIPHER_NONE)
@@ -540,7 +529,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (crypto.cipher == CIPHER_TKIP)
 		memcpy_tkip(&crypto, &key->key[0], key->keylen);
 	else
-		memcpy(&crypto.key, &key->key[0], key->keylen);
+		memcpy(crypto.key, &key->key[0], key->keylen);
 	/*
 	 * Each BSS has a maximum of 4 shared keys.
 	 * Shared key index values:
@@ -620,22 +609,8 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return;
 
-	spin_lock(&intf->lock);
-
 	/*
-	 * conf->bssid can be NULL if coming from the internal
-	 * beacon update routine.
-	 */
-	if (changes & BSS_CHANGED_BSSID)
-		memcpy(&intf->bssid, bss_conf->bssid, ETH_ALEN);
-
-	spin_unlock(&intf->lock);
-
-	/*
-	 * Call rt2x00_config_intf() outside of the spinlock context since
-	 * the call will sleep for USB drivers. By using the ieee80211_if_conf
-	 * values as arguments we make keep access to rt2x00_intf thread safe
-	 * even without the lock.
+	 * Update the BSSID.
 	 */
 	if (changes & BSS_CHANGED_BSSID)
 		rt2x00lib_config_intf(rt2x00dev, intf, vif->type, NULL,
@@ -719,3 +694,13 @@ void rt2x00mac_rfkill_poll(struct ieee80211_hw *hw)
 	wiphy_rfkill_set_hw_state(hw->wiphy, !active);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_rfkill_poll);
+
+void rt2x00mac_flush(struct ieee80211_hw *hw, bool drop)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct data_queue *queue;
+
+	tx_queue_for_each(rt2x00dev, queue)
+		rt2x00queue_flush_queue(queue, drop);
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_flush);

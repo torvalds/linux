@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,12 +93,10 @@
 
 #define AOPOBJ_AML_CONSTANT         0x01	/* Integer is an AML constant */
 #define AOPOBJ_STATIC_POINTER       0x02	/* Data is part of an ACPI table, don't delete */
-#define AOPOBJ_DATA_VALID           0x04	/* Object is intialized and data is valid */
+#define AOPOBJ_DATA_VALID           0x04	/* Object is initialized and data is valid */
 #define AOPOBJ_OBJECT_INITIALIZED   0x08	/* Region is initialized, _REG was run */
 #define AOPOBJ_SETUP_COMPLETE       0x10	/* Region setup is complete */
 #define AOPOBJ_INVALID              0x20	/* Host OS won't allow a Region address */
-#define AOPOBJ_MODULE_LEVEL         0x40	/* Method is actually module-level code */
-#define AOPOBJ_MODIFIED_NAMESPACE   0x80	/* Method modified the namespace */
 
 /******************************************************************************
  *
@@ -175,7 +173,7 @@ struct acpi_object_region {
 };
 
 struct acpi_object_method {
-	ACPI_OBJECT_COMMON_HEADER u8 method_flags;
+	ACPI_OBJECT_COMMON_HEADER u8 info_flags;
 	u8 param_count;
 	u8 sync_level;
 	union acpi_operand_object *mutex;
@@ -183,12 +181,20 @@ struct acpi_object_method {
 	union {
 		ACPI_INTERNAL_METHOD implementation;
 		union acpi_operand_object *handler;
-	} extra;
+	} dispatch;
 
 	u32 aml_length;
 	u8 thread_count;
 	acpi_owner_id owner_id;
 };
+
+/* Flags for info_flags field above */
+
+#define ACPI_METHOD_MODULE_LEVEL        0x01	/* Method is actually module-level code */
+#define ACPI_METHOD_INTERNAL_ONLY       0x02	/* Method is implemented internally (_OSI) */
+#define ACPI_METHOD_SERIALIZED          0x04	/* Method is serialized */
+#define ACPI_METHOD_SERIALIZED_PENDING  0x08	/* Method is to be marked serialized */
+#define ACPI_METHOD_MODIFIED_NAMESPACE  0x10	/* Method modified the namespace */
 
 /******************************************************************************
  *

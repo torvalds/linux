@@ -68,7 +68,7 @@ static inline bool ixgbe_rx_is_fcoe(union ixgbe_adv_rx_desc *rx_desc)
 static inline void ixgbe_fcoe_clear_ddp(struct ixgbe_fcoe_ddp *ddp)
 {
 	ddp->len = 0;
-	ddp->err = 0;
+	ddp->err = 1;
 	ddp->udl = NULL;
 	ddp->udp = 0UL;
 	ddp->sgl = NULL;
@@ -92,6 +92,7 @@ int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid)
 	struct ixgbe_fcoe *fcoe;
 	struct ixgbe_adapter *adapter;
 	struct ixgbe_fcoe_ddp *ddp;
+	u32 fcbuff;
 
 	if (!netdev)
 		goto out_ddp_put;
@@ -115,7 +116,14 @@ int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid)
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCBUFF, 0);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCDMARW,
 				(xid | IXGBE_FCDMARW_WE));
+
+		/* guaranteed to be invalidated after 100us */
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCDMARW,
+				(xid | IXGBE_FCDMARW_RE));
+		fcbuff = IXGBE_READ_REG(&adapter->hw, IXGBE_FCBUFF);
 		spin_unlock_bh(&fcoe->lock);
+		if (fcbuff & IXGBE_FCBUFF_VALID)
+			udelay(100);
 	}
 	if (ddp->sgl)
 		pci_unmap_sg(adapter->pdev, ddp->sgl, ddp->sgc,
@@ -157,7 +165,7 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 	unsigned int thisoff = 0;
 	unsigned int thislen = 0;
 	u32 fcbuff, fcdmarw, fcfltrw;
-	dma_addr_t addr;
+	dma_addr_t addr = 0;
 
 	if (!netdev || !sgl)
 		return 0;
@@ -167,6 +175,11 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 		e_warn(drv, "xid=0x%x out-of-range\n", xid);
 		return 0;
 	}
+
+	/* no DDP if we are already down or resetting */
+	if (test_bit(__IXGBE_DOWN, &adapter->state) ||
+	    test_bit(__IXGBE_RESETTING, &adapter->state))
+		return 0;
 
 	fcoe = &adapter->fcoe;
 	if (!fcoe->pool) {

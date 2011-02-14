@@ -20,48 +20,48 @@
 
 #include "common.h"
 
-static void icu_mask_irq(unsigned int irq)
+static void icu_mask_irq(struct irq_data *d)
 {
-	uint32_t r = __raw_readl(ICU_INT_CONF(irq));
+	uint32_t r = __raw_readl(ICU_INT_CONF(d->irq));
 
 	r &= ~ICU_INT_ROUTE_PJ4_IRQ;
-	__raw_writel(r, ICU_INT_CONF(irq));
+	__raw_writel(r, ICU_INT_CONF(d->irq));
 }
 
-static void icu_unmask_irq(unsigned int irq)
+static void icu_unmask_irq(struct irq_data *d)
 {
-	uint32_t r = __raw_readl(ICU_INT_CONF(irq));
+	uint32_t r = __raw_readl(ICU_INT_CONF(d->irq));
 
 	r |= ICU_INT_ROUTE_PJ4_IRQ;
-	__raw_writel(r, ICU_INT_CONF(irq));
+	__raw_writel(r, ICU_INT_CONF(d->irq));
 }
 
 static struct irq_chip icu_irq_chip = {
 	.name		= "icu_irq",
-	.mask		= icu_mask_irq,
-	.mask_ack	= icu_mask_irq,
-	.unmask		= icu_unmask_irq,
+	.irq_mask	= icu_mask_irq,
+	.irq_mask_ack	= icu_mask_irq,
+	.irq_unmask	= icu_unmask_irq,
 };
 
-static void pmic_irq_ack(unsigned int irq)
+static void pmic_irq_ack(struct irq_data *d)
 {
-	if (irq == IRQ_MMP2_PMIC)
+	if (d->irq == IRQ_MMP2_PMIC)
 		mmp2_clear_pmic_int();
 }
 
 #define SECOND_IRQ_MASK(_name_, irq_base, prefix)			\
-static void _name_##_mask_irq(unsigned int irq)				\
+static void _name_##_mask_irq(struct irq_data *d)			\
 {									\
 	uint32_t r;							\
-	r = __raw_readl(prefix##_MASK) | (1 << (irq - irq_base));	\
+	r = __raw_readl(prefix##_MASK) | (1 << (d->irq - irq_base));	\
 	__raw_writel(r, prefix##_MASK);					\
 }
 
 #define SECOND_IRQ_UNMASK(_name_, irq_base, prefix)			\
-static void _name_##_unmask_irq(unsigned int irq)			\
+static void _name_##_unmask_irq(struct irq_data *d)			\
 {									\
 	uint32_t r;							\
-	r = __raw_readl(prefix##_MASK) & ~(1 << (irq - irq_base));	\
+	r = __raw_readl(prefix##_MASK) & ~(1 << (d->irq - irq_base));	\
 	__raw_writel(r, prefix##_MASK);					\
 }
 
@@ -88,8 +88,8 @@ SECOND_IRQ_UNMASK(_name_, irq_base, prefix)				\
 SECOND_IRQ_DEMUX(_name_, irq_base, prefix)				\
 static struct irq_chip _name_##_irq_chip = {				\
 	.name		= #_name_,					\
-	.mask		= _name_##_mask_irq,				\
-	.unmask		= _name_##_unmask_irq,				\
+	.irq_mask	= _name_##_mask_irq,				\
+	.irq_unmask	= _name_##_unmask_irq,				\
 }
 
 SECOND_IRQ_CHIP(pmic, IRQ_MMP2_PMIC_BASE, MMP2_ICU_INT4);
@@ -103,10 +103,12 @@ static void init_mux_irq(struct irq_chip *chip, int start, int num)
 	int irq;
 
 	for (irq = start; num > 0; irq++, num--) {
+		struct irq_data *d = irq_get_irq_data(irq);
+
 		/* mask and clear the IRQ */
-		chip->mask(irq);
-		if (chip->ack)
-			chip->ack(irq);
+		chip->irq_mask(d);
+		if (chip->irq_ack)
+			chip->irq_ack(d);
 
 		set_irq_chip(irq, chip);
 		set_irq_flags(irq, IRQF_VALID);
@@ -119,7 +121,7 @@ void __init mmp2_init_icu(void)
 	int irq;
 
 	for (irq = 0; irq < IRQ_MMP2_MUX_BASE; irq++) {
-		icu_mask_irq(irq);
+		icu_mask_irq(irq_get_irq_data(irq));
 		set_irq_chip(irq, &icu_irq_chip);
 		set_irq_flags(irq, IRQF_VALID);
 
@@ -139,7 +141,7 @@ void __init mmp2_init_icu(void)
 	/* NOTE: IRQ_MMP2_PMIC requires the PMIC MFPR register
 	 * to be written to clear the interrupt
 	 */
-	pmic_irq_chip.ack = pmic_irq_ack;
+	pmic_irq_chip.irq_ack = pmic_irq_ack;
 
 	init_mux_irq(&pmic_irq_chip, IRQ_MMP2_PMIC_BASE, 2);
 	init_mux_irq(&rtc_irq_chip, IRQ_MMP2_RTC_BASE, 2);

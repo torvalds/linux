@@ -34,9 +34,11 @@ struct lpfc_cq_event {
 	union {
 		struct lpfc_mcqe		mcqe_cmpl;
 		struct lpfc_acqe_link		acqe_link;
-		struct lpfc_acqe_fcoe		acqe_fcoe;
+		struct lpfc_acqe_fip		acqe_fip;
 		struct lpfc_acqe_dcbx		acqe_dcbx;
 		struct lpfc_acqe_grp5		acqe_grp5;
+		struct lpfc_acqe_fc_la		acqe_fc;
+		struct lpfc_acqe_sli		acqe_sli;
 		struct lpfc_rcqe		rcqe_cmpl;
 		struct sli4_wcqe_xri_aborted	wcqe_axri;
 		struct lpfc_wcqe_complete	wcqe_cmpl;
@@ -82,6 +84,7 @@ struct lpfc_iocbq {
 		struct lpfc_iocbq    *rsp_iocb;
 		struct lpfcMboxq     *mbox;
 		struct lpfc_nodelist *ndlp;
+		struct lpfc_node_rrq *rrq;
 	} context_un;
 
 	void (*fabric_iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,

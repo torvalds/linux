@@ -19,7 +19,7 @@
 
 #ifndef _hnddma_pub_
 #define _hnddma_pub_
-typedef const struct hnddma_pub hnddma_t;
+struct hnddma_pub;
 #endif				/* _hnddma_pub_ */
 
 /* range param for dma_getnexttxp() and dma_txreclaim */
@@ -30,52 +30,54 @@ typedef enum txd_range {
 } txd_range_t;
 
 /* dma function type */
-typedef void (*di_detach_t) (hnddma_t *dmah);
-typedef bool(*di_txreset_t) (hnddma_t *dmah);
-typedef bool(*di_rxreset_t) (hnddma_t *dmah);
-typedef bool(*di_rxidle_t) (hnddma_t *dmah);
-typedef void (*di_txinit_t) (hnddma_t *dmah);
-typedef bool(*di_txenabled_t) (hnddma_t *dmah);
-typedef void (*di_rxinit_t) (hnddma_t *dmah);
-typedef void (*di_txsuspend_t) (hnddma_t *dmah);
-typedef void (*di_txresume_t) (hnddma_t *dmah);
-typedef bool(*di_txsuspended_t) (hnddma_t *dmah);
-typedef bool(*di_txsuspendedidle_t) (hnddma_t *dmah);
-typedef int (*di_txfast_t) (hnddma_t *dmah, void *p, bool commit);
-typedef int (*di_txunframed_t) (hnddma_t *dmah, void *p, uint len,
+typedef void (*di_detach_t) (struct hnddma_pub *dmah);
+typedef bool(*di_txreset_t) (struct hnddma_pub *dmah);
+typedef bool(*di_rxreset_t) (struct hnddma_pub *dmah);
+typedef bool(*di_rxidle_t) (struct hnddma_pub *dmah);
+typedef void (*di_txinit_t) (struct hnddma_pub *dmah);
+typedef bool(*di_txenabled_t) (struct hnddma_pub *dmah);
+typedef void (*di_rxinit_t) (struct hnddma_pub *dmah);
+typedef void (*di_txsuspend_t) (struct hnddma_pub *dmah);
+typedef void (*di_txresume_t) (struct hnddma_pub *dmah);
+typedef bool(*di_txsuspended_t) (struct hnddma_pub *dmah);
+typedef bool(*di_txsuspendedidle_t) (struct hnddma_pub *dmah);
+typedef int (*di_txfast_t) (struct hnddma_pub *dmah, struct sk_buff *p,
+			    bool commit);
+typedef int (*di_txunframed_t) (struct hnddma_pub *dmah, void *p, uint len,
 				bool commit);
-typedef void *(*di_getpos_t) (hnddma_t *di, bool direction);
-typedef void (*di_fifoloopbackenable_t) (hnddma_t *dmah);
-typedef bool(*di_txstopped_t) (hnddma_t *dmah);
-typedef bool(*di_rxstopped_t) (hnddma_t *dmah);
-typedef bool(*di_rxenable_t) (hnddma_t *dmah);
-typedef bool(*di_rxenabled_t) (hnddma_t *dmah);
-typedef void *(*di_rx_t) (hnddma_t *dmah);
-typedef bool(*di_rxfill_t) (hnddma_t *dmah);
-typedef void (*di_txreclaim_t) (hnddma_t *dmah, txd_range_t range);
-typedef void (*di_rxreclaim_t) (hnddma_t *dmah);
-typedef unsigned long (*di_getvar_t) (hnddma_t *dmah, const char *name);
-typedef void *(*di_getnexttxp_t) (hnddma_t *dmah, txd_range_t range);
-typedef void *(*di_getnextrxp_t) (hnddma_t *dmah, bool forceall);
-typedef void *(*di_peeknexttxp_t) (hnddma_t *dmah);
-typedef void *(*di_peeknextrxp_t) (hnddma_t *dmah);
-typedef void (*di_rxparam_get_t) (hnddma_t *dmah, u16 *rxoffset,
+typedef void *(*di_getpos_t) (struct hnddma_pub *di, bool direction);
+typedef void (*di_fifoloopbackenable_t) (struct hnddma_pub *dmah);
+typedef bool(*di_txstopped_t) (struct hnddma_pub *dmah);
+typedef bool(*di_rxstopped_t) (struct hnddma_pub *dmah);
+typedef bool(*di_rxenable_t) (struct hnddma_pub *dmah);
+typedef bool(*di_rxenabled_t) (struct hnddma_pub *dmah);
+typedef void *(*di_rx_t) (struct hnddma_pub *dmah);
+typedef bool(*di_rxfill_t) (struct hnddma_pub *dmah);
+typedef void (*di_txreclaim_t) (struct hnddma_pub *dmah, txd_range_t range);
+typedef void (*di_rxreclaim_t) (struct hnddma_pub *dmah);
+typedef unsigned long (*di_getvar_t) (struct hnddma_pub *dmah,
+				      const char *name);
+typedef void *(*di_getnexttxp_t) (struct hnddma_pub *dmah, txd_range_t range);
+typedef void *(*di_getnextrxp_t) (struct hnddma_pub *dmah, bool forceall);
+typedef void *(*di_peeknexttxp_t) (struct hnddma_pub *dmah);
+typedef void *(*di_peeknextrxp_t) (struct hnddma_pub *dmah);
+typedef void (*di_rxparam_get_t) (struct hnddma_pub *dmah, u16 *rxoffset,
 				  u16 *rxbufsize);
-typedef void (*di_txblock_t) (hnddma_t *dmah);
-typedef void (*di_txunblock_t) (hnddma_t *dmah);
-typedef uint(*di_txactive_t) (hnddma_t *dmah);
-typedef void (*di_txrotate_t) (hnddma_t *dmah);
-typedef void (*di_counterreset_t) (hnddma_t *dmah);
-typedef uint(*di_ctrlflags_t) (hnddma_t *dmah, uint mask, uint flags);
-typedef char *(*di_dump_t) (hnddma_t *dmah, struct bcmstrbuf *b,
+typedef void (*di_txblock_t) (struct hnddma_pub *dmah);
+typedef void (*di_txunblock_t) (struct hnddma_pub *dmah);
+typedef uint(*di_txactive_t) (struct hnddma_pub *dmah);
+typedef void (*di_txrotate_t) (struct hnddma_pub *dmah);
+typedef void (*di_counterreset_t) (struct hnddma_pub *dmah);
+typedef uint(*di_ctrlflags_t) (struct hnddma_pub *dmah, uint mask, uint flags);
+typedef char *(*di_dump_t) (struct hnddma_pub *dmah, struct bcmstrbuf *b,
 			    bool dumpring);
-typedef char *(*di_dumptx_t) (hnddma_t *dmah, struct bcmstrbuf *b,
+typedef char *(*di_dumptx_t) (struct hnddma_pub *dmah, struct bcmstrbuf *b,
 			      bool dumpring);
-typedef char *(*di_dumprx_t) (hnddma_t *dmah, struct bcmstrbuf *b,
+typedef char *(*di_dumprx_t) (struct hnddma_pub *dmah, struct bcmstrbuf *b,
 			      bool dumpring);
-typedef uint(*di_rxactive_t) (hnddma_t *dmah);
-typedef uint(*di_txpending_t) (hnddma_t *dmah);
-typedef uint(*di_txcommitted_t) (hnddma_t *dmah);
+typedef uint(*di_rxactive_t) (struct hnddma_pub *dmah);
+typedef uint(*di_txpending_t) (struct hnddma_pub *dmah);
+typedef uint(*di_txcommitted_t) (struct hnddma_pub *dmah);
 
 /* dma opsvec */
 typedef struct di_fcn_s {
@@ -141,7 +143,8 @@ struct hnddma_pub {
 	uint txnobuf;		/* tx out of dma descriptors */
 };
 
-extern hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih,
+extern struct hnddma_pub *dma_attach(struct osl_info *osh, char *name,
+			    si_t *sih,
 			    void *dmaregstx, void *dmaregsrx, uint ntxd,
 			    uint nrxd, uint rxbufsize, int rxextheadroom,
 			    uint nrxpost, uint rxoffset, uint *msg_level);
@@ -238,6 +241,6 @@ extern const di_fcn_t dma64proc;
 extern uint dma_addrwidth(si_t *sih, void *dmaregs);
 
 /* pio helpers */
-extern void dma_txpioloopback(osl_t *osh, dma32regs_t *);
+extern void dma_txpioloopback(struct osl_info *osh, dma32regs_t *);
 
 #endif				/* _hnddma_h_ */

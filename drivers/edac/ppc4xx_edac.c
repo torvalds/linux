@@ -873,7 +873,7 @@ ppc4xx_edac_get_mtype(u32 mcopt1)
 }
 
 /**
- * ppc4xx_edac_init_csrows - intialize driver instance rows
+ * ppc4xx_edac_init_csrows - initialize driver instance rows
  * @mci: A pointer to the EDAC memory controller instance
  *       associated with the ibm,sdram-4xx-ddr2 controller for which
  *       the csrows (i.e. banks/ranks) are being initialized.
@@ -881,7 +881,7 @@ ppc4xx_edac_get_mtype(u32 mcopt1)
  *          currently set for the controller, from which bank width
  *          and memory typ information is derived.
  *
- * This routine intializes the virtual "chip select rows" associated
+ * This routine initializes the virtual "chip select rows" associated
  * with the EDAC memory controller instance. An ibm,sdram-4xx-ddr2
  * controller bank/rank is mapped to a row.
  *
@@ -992,7 +992,7 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 }
 
 /**
- * ppc4xx_edac_mc_init - intialize driver instance
+ * ppc4xx_edac_mc_init - initialize driver instance
  * @mci: A pointer to the EDAC memory controller instance being
  *       initialized.
  * @op: A pointer to the OpenFirmware device tree node associated

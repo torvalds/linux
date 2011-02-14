@@ -298,7 +298,6 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, struct name
 
 	end:
 	end_add:
-	hpfs_set_dentry_operations(dentry);
 	unlock_kernel();
 	d_add(dentry, result);
 	return NULL;

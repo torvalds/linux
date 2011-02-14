@@ -55,9 +55,6 @@ extern void iounmap(volatile void __iomem *addr);
 #define ioremap_writethrough(physaddr, size)	ioremap(physaddr, size)
 #define ioremap_fullcache(physaddr, size)	ioremap(physaddr, size)
 
-void __iomem *ioport_map(unsigned long port, unsigned int len);
-extern inline void ioport_unmap(void __iomem *addr) {}
-
 #define mmiowb()
 
 /* Conversion between virtual and physical mappings.  */
@@ -189,10 +186,20 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
  * we never run, uses them unconditionally.
  */
 
-static inline int ioport_panic(void)
+static inline long ioport_panic(void)
 {
 	panic("inb/outb and friends do not exist on tile");
 	return 0;
+}
+
+static inline void __iomem *ioport_map(unsigned long port, unsigned int len)
+{
+	return (void __iomem *) ioport_panic();
+}
+
+static inline void ioport_unmap(void __iomem *addr)
+{
+	ioport_panic();
 }
 
 static inline u8 inb(unsigned long addr)

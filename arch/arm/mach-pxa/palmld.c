@@ -313,7 +313,7 @@ static struct map_desc palmld_io_desc[] __initdata = {
 
 static void __init palmld_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 	iotable_init(palmld_io_desc, ARRAY_SIZE(palmld_io_desc));
 }
 

@@ -76,6 +76,15 @@ nv04_pm_clock_set(struct drm_device *dev, void *pre_state)
 		reg += 4;
 
 	nouveau_hw_setpll(dev, reg, &state->calc);
+
+	if (dev_priv->card_type < NV_30 && reg == NV_PRAMDAC_MPLL_COEFF) {
+		if (dev_priv->card_type == NV_20)
+			nv_mask(dev, 0x1002c4, 0, 1 << 20);
+
+		/* Reset the DLLs */
+		nv_mask(dev, 0x1002c0, 0, 1 << 8);
+	}
+
 	kfree(state);
 }
 

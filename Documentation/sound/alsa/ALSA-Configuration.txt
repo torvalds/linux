@@ -974,13 +974,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     See hdspm.txt for details.
 
-  Module snd-hifier
-  -----------------
-
-    Module for the MediaTek/TempoTec HiFier Fantasia sound card.
-
-    This module supports autoprobe and multiple cards.
-
   Module snd-ice1712
   ------------------
 
@@ -1531,15 +1524,20 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-oxygen
   -----------------
 
-    Module for sound cards based on the C-Media CMI8788 chip:
+    Module for sound cards based on the C-Media CMI8786/8787/8788 chip:
     * Asound A-8788
+    * Asus Xonar DG
     * AuzenTech X-Meridian
+    * AuzenTech X-Meridian 2G
     * Bgears b-Enspirer
     * Club3D Theatron DTS
     * HT-Omega Claro (plus)
     * HT-Omega Claro halo (XT)
+    * Kuroutoshikou CMI8787-HG2PCI
     * Razer Barracuda AC-1
     * Sondigo Inferno
+    * TempoTec HiFier Fantasia
+    * TempoTec HiFier Serenade
 
     This module supports autoprobe and multiple cards.
 
@@ -2006,9 +2004,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-virtuoso
   -------------------
 
-    Module for sound cards based on the Asus AV100/AV200 chips,
-    i.e., Xonar D1, DX, D2, D2X, DS, HDAV1.3 (Deluxe), Essence ST
-    (Deluxe) and Essence STX.
+    Module for sound cards based on the Asus AV66/AV100/AV200 chips,
+    i.e., Xonar D1, DX, D2, D2X, DS, Essence ST (Deluxe), Essence STX,
+    HDAV1.3 (Deluxe), and HDAV1.3 Slim.
 
     This module supports autoprobe and multiple cards.
 

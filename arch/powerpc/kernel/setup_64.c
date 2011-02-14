@@ -437,8 +437,8 @@ static void __init irqstack_early_init(void)
 	unsigned int i;
 
 	/*
-	 * interrupt stacks must be under 256MB, we cannot afford to take
-	 * SLB misses on them.
+	 * Interrupt stacks must be in the first segment since we
+	 * cannot afford to take SLB misses on them.
 	 */
 	for_each_possible_cpu(i) {
 		softirq_ctx[i] = (struct thread_info *)
@@ -497,9 +497,8 @@ static void __init emergency_stack_init(void)
 }
 
 /*
- * Called into from start_kernel, after lock_kernel has been called.
- * Initializes bootmem, which is unsed to manage page allocation until
- * mem_init is called.
+ * Called into from start_kernel this initializes bootmem, which is used
+ * to manage page allocation until mem_init is called.
  */
 void __init setup_arch(char **cmdline_p)
 {

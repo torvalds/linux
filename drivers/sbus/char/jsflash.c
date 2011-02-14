@@ -467,7 +467,7 @@ static int jsflash_init(void)
 
 	node = prom_getchild(prom_root_node);
 	node = prom_searchsiblings(node, "flash-memory");
-	if (node != 0 && node != -1) {
+	if (node != 0 && (s32)node != -1) {
 		if (prom_getproperty(node, "reg",
 		    (char *)&reg0, sizeof(reg0)) == -1) {
 			printk("jsflash: no \"reg\" property\n");

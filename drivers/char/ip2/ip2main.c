@@ -3224,7 +3224,7 @@ ip2trace (unsigned short pn, unsigned char cat, unsigned char label, unsigned lo
 
 MODULE_LICENSE("GPL");
 
-static struct pci_device_id ip2main_pci_tbl[] __devinitdata = {
+static struct pci_device_id ip2main_pci_tbl[] __devinitdata __used = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTONE, PCI_DEVICE_ID_COMPUTONE_IP2EX) },
 	{ }
 };

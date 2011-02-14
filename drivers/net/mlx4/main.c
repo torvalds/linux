@@ -829,7 +829,7 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 		goto err_uar_table_free;
 	}
 
-	priv->kar = ioremap(priv->driver_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
+	priv->kar = ioremap((phys_addr_t) priv->driver_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
 	if (!priv->kar) {
 		mlx4_err(dev, "Couldn't map kernel access region, "
 			 "aborting.\n");
@@ -1286,6 +1286,21 @@ static DEFINE_PCI_DEVICE_TABLE(mlx4_pci_table) = {
 	{ PCI_VDEVICE(MELLANOX, 0x6764) }, /* MT26468 ConnectX EN 10GigE PCIe gen2*/
 	{ PCI_VDEVICE(MELLANOX, 0x6746) }, /* MT26438 ConnectX EN 40GigE PCIe gen2 5GT/s */
 	{ PCI_VDEVICE(MELLANOX, 0x676e) }, /* MT26478 ConnectX2 40GigE PCIe gen2 */
+	{ PCI_VDEVICE(MELLANOX, 0x1002) }, /* MT25400 Family [ConnectX-2 Virtual Function] */
+	{ PCI_VDEVICE(MELLANOX, 0x1003) }, /* MT27500 Family [ConnectX-3] */
+	{ PCI_VDEVICE(MELLANOX, 0x1004) }, /* MT27500 Family [ConnectX-3 Virtual Function] */
+	{ PCI_VDEVICE(MELLANOX, 0x1005) }, /* MT27510 Family */
+	{ PCI_VDEVICE(MELLANOX, 0x1006) }, /* MT27511 Family */
+	{ PCI_VDEVICE(MELLANOX, 0x1007) }, /* MT27520 Family */
+	{ PCI_VDEVICE(MELLANOX, 0x1008) }, /* MT27521 Family */
+	{ PCI_VDEVICE(MELLANOX, 0x1009) }, /* MT27530 Family */
+	{ PCI_VDEVICE(MELLANOX, 0x100a) }, /* MT27531 Family */
+	{ PCI_VDEVICE(MELLANOX, 0x100b) }, /* MT27540 Family */
+	{ PCI_VDEVICE(MELLANOX, 0x100c) }, /* MT27541 Family */
+	{ PCI_VDEVICE(MELLANOX, 0x100d) }, /* MT27550 Family */
+	{ PCI_VDEVICE(MELLANOX, 0x100e) }, /* MT27551 Family */
+	{ PCI_VDEVICE(MELLANOX, 0x100f) }, /* MT27560 Family */
+	{ PCI_VDEVICE(MELLANOX, 0x1010) }, /* MT27561 Family */
 	{ 0, }
 };
 

@@ -91,3 +91,25 @@ isaset -y -f 0x2e 0xaa
 
 The above sequence assumes a Super-I/O config space at 0x2e/0x2f, but
 0x4e/0x4f is also possible.
+
+Voltage pin mapping
+-------------------
+
+Here is a summary of the voltage pin mapping for the W83627THF. This
+can be useful to convert data provided by board manufacturers into
+working libsensors configuration statements.
+
+    W83627THF		|
+  Pin	| Name		| Register	| Sysfs attribute
+-----------------------------------------------------
+  100	| CPUVCORE	| 20h		| in0
+   99	| VIN0		| 21h		| in1
+   98	| VIN1		| 22h		| in2
+   97	| VIN2		| 24h		| in4
+  114	| AVCC		| 23h		| in3
+   61	| 5VSB		| 50h (bank 5)	| in7
+   74	| VBAT		| 51h (bank 5)	| in8
+
+For other supported devices, you'll have to take the hard path and
+look up the information in the datasheet yourself (and then add it
+to this document please.)

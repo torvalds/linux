@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -150,6 +150,45 @@ u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info)
 	}
 
 	return (FALSE);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ev_get_gpe_device
+ *
+ * PARAMETERS:  GPE_WALK_CALLBACK
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Matches the input GPE index (0-current_gpe_count) with a GPE
+ *              block device. NULL if the GPE is one of the FADT-defined GPEs.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+		       struct acpi_gpe_block_info *gpe_block, void *context)
+{
+	struct acpi_gpe_device_info *info = context;
+
+	/* Increment Index by the number of GPEs in this block */
+
+	info->next_block_base_index += gpe_block->gpe_count;
+
+	if (info->index < info->next_block_base_index) {
+		/*
+		 * The GPE index is within this block, get the node. Leave the node
+		 * NULL for the FADT-defined GPEs
+		 */
+		if ((gpe_block->node)->type == ACPI_TYPE_DEVICE) {
+			info->gpe_device = gpe_block->node;
+		}
+
+		info->status = AE_OK;
+		return (AE_CTRL_END);
+	}
+
+	return (AE_OK);
 }
 
 /*******************************************************************************

@@ -21,7 +21,8 @@ typedef struct wlc_eventq wlc_eventq_t;
 
 typedef void (*wlc_eventq_cb_t) (void *arg);
 
-extern wlc_eventq_t *wlc_eventq_attach(wlc_pub_t *pub, struct wlc_info *wlc,
+extern wlc_eventq_t *wlc_eventq_attach(struct wlc_pub *pub,
+				       struct wlc_info *wlc,
 				       void *wl, wlc_eventq_cb_t cb);
 extern int wlc_eventq_detach(wlc_eventq_t *eq);
 extern int wlc_eventq_down(wlc_eventq_t *eq);
@@ -38,7 +39,7 @@ extern int wlc_eventq_query_ind(wlc_eventq_t *eq, void *bitvect);
 extern int wlc_eventq_test_ind(wlc_eventq_t *eq, int et);
 extern int wlc_eventq_set_ind(wlc_eventq_t *eq, uint et, bool on);
 extern void wlc_eventq_flush(wlc_eventq_t *eq);
-extern void wlc_assign_event_msg(wlc_info_t *wlc, wl_event_msg_t *msg,
+extern void wlc_assign_event_msg(struct wlc_info *wlc, wl_event_msg_t *msg,
 				 const wlc_event_t *e, u8 *data,
 				 u32 len);
 

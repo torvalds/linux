@@ -62,7 +62,10 @@ struct lppaca {
 	volatile u32 dyn_pir;		// Dynamic ProcIdReg value	x20-x23
 	u32	dsei_data;           	// DSEI data                  	x24-x27
 	u64	sprg3;               	// SPRG3 value                	x28-x2F
-	u8	reserved3[80];		// Reserved			x30-x7F
+	u8	reserved3[40];		// Reserved			x30-x57
+	volatile u8 vphn_assoc_counts[8]; // Virtual processor home node
+					// associativity change counters x58-x5F
+	u8	reserved4[32];		// Reserved			x60-x7F
 
 //=============================================================================
 // CACHE_LINE_2 0x0080 - 0x00FF Contains local read-write data

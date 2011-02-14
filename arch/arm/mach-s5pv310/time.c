@@ -211,7 +211,6 @@ struct clocksource pwm_clocksource = {
 	.rating		= 250,
 	.read		= s5pv310_pwm4_read,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS ,
 };
 
@@ -230,10 +229,7 @@ static void __init s5pv310_clocksource_init(void)
 	s5pv310_pwm_init(4, ~0);
 	s5pv310_pwm_start(4, 1);
 
-	pwm_clocksource.mult =
-		clocksource_khz2mult(clock_rate/1000, pwm_clocksource.shift);
-
-	if (clocksource_register(&pwm_clocksource))
+	if (clocksource_register_hz(&pwm_clocksource, clock_rate))
 		panic("%s: can't register clocksource\n", pwm_clocksource.name);
 }
 

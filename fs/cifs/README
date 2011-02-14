@@ -337,6 +337,15 @@ A partial list of the supported mount options follows:
   wsize		default write size (default 57344)
 		maximum wsize currently allowed by CIFS is 57344 (fourteen
 		4096 byte pages)
+  actimeo=n	attribute cache timeout in seconds (default 1 second).
+		After this timeout, the cifs client requests fresh attribute
+		information from the server. This option allows to tune the
+		attribute cache timeout to suit the workload needs. Shorter
+		timeouts mean better the cache coherency, but increased number
+		of calls to the server. Longer timeouts mean reduced number
+		of calls to the server at the expense of less stricter cache
+		coherency checks (i.e. incorrect attribute cache for a short
+		period of time).
   rw		mount the network share read-write (note that the
 		server may still consider the share read-only)
   ro		mount network share read-only
@@ -443,6 +452,11 @@ A partial list of the supported mount options follows:
 		if oplock (caching token) is granted and held. Note that
 		direct allows write operations larger than page size
 		to be sent to the server.
+  strictcache   Use for switching on strict cache mode. In this mode the
+		client read from the cache all the time it has Oplock Level II,
+		otherwise - read from the server. All written data are stored
+		in the cache, but if the client doesn't have Exclusive Oplock,
+		it writes the data to the server.
   acl   	Allow setfacl and getfacl to manage posix ACLs if server
 		supports them.  (default)
   noacl 	Do not allow setfacl and getfacl calls on this mount

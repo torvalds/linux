@@ -41,8 +41,8 @@
 #elif defined(CONFIG_M5407)
 #include <asm/m5407sim.h>
 #include <asm/mcfintc.h>
-#elif defined(CONFIG_M548x)
-#include <asm/m548xsim.h>
+#elif defined(CONFIG_M54xx)
+#include <asm/m54xxsim.h>
 #endif
 
 /****************************************************************************/

@@ -336,20 +336,20 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 			      struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_display_mode *adjusted_mode, saved_mode;
+	struct drm_display_mode *adjusted_mode, saved_mode, saved_hwmode;
 	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	struct drm_encoder_helper_funcs *encoder_funcs;
 	int saved_x, saved_y;
 	struct drm_encoder *encoder;
 	bool ret = true;
 
-	adjusted_mode = drm_mode_duplicate(dev, mode);
-
 	crtc->enabled = drm_helper_crtc_in_use(crtc);
-
 	if (!crtc->enabled)
 		return true;
 
+	adjusted_mode = drm_mode_duplicate(dev, mode);
+
+	saved_hwmode = crtc->hwmode;
 	saved_mode = crtc->mode;
 	saved_x = crtc->x;
 	saved_y = crtc->y;
@@ -427,11 +427,20 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 
 	}
 
-	/* XXX free adjustedmode */
-	drm_mode_destroy(dev, adjusted_mode);
+	/* Store real post-adjustment hardware mode. */
+	crtc->hwmode = *adjusted_mode;
+
+	/* Calculate and store various constants which
+	 * are later needed by vblank and swap-completion
+	 * timestamping. They are derived from true hwmode.
+	 */
+	drm_calc_timestamping_constants(crtc);
+
 	/* FIXME: add subpixel order */
 done:
+	drm_mode_destroy(dev, adjusted_mode);
 	if (!ret) {
+		crtc->hwmode = saved_hwmode;
 		crtc->mode = saved_mode;
 		crtc->x = saved_x;
 		crtc->y = saved_y;
@@ -471,6 +480,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	int count = 0, ro, fail = 0;
 	struct drm_crtc_helper_funcs *crtc_funcs;
 	int ret = 0;
+	int i;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -485,14 +495,17 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 
 	crtc_funcs = set->crtc->helper_private;
 
+	if (!set->mode)
+		set->fb = NULL;
+
 	if (set->fb) {
 		DRM_DEBUG_KMS("[CRTC:%d] [FB:%d] #connectors=%d (x y) (%i %i)\n",
 				set->crtc->base.id, set->fb->base.id,
 				(int)set->num_connectors, set->x, set->y);
 	} else {
-		DRM_DEBUG_KMS("[CRTC:%d] [NOFB] #connectors=%d (x y) (%i %i)\n",
-				set->crtc->base.id, (int)set->num_connectors,
-				set->x, set->y);
+		DRM_DEBUG_KMS("[CRTC:%d] [NOFB]\n", set->crtc->base.id);
+		set->mode = NULL;
+		set->num_connectors = 0;
 	}
 
 	dev = set->crtc->dev;
@@ -637,8 +650,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		mode_changed = true;
 
 	if (mode_changed) {
-		set->crtc->enabled = (set->mode != NULL);
-		if (set->mode != NULL) {
+		set->crtc->enabled = drm_helper_crtc_in_use(set->crtc);
+		if (set->crtc->enabled) {
 			DRM_DEBUG_KMS("attempting to set mode from"
 					" userspace\n");
 			drm_mode_debug_printmodeline(set->mode);
@@ -649,8 +662,15 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 						      old_fb)) {
 				DRM_ERROR("failed to set mode on [CRTC:%d]\n",
 					  set->crtc->base.id);
+				set->crtc->fb = old_fb;
 				ret = -EINVAL;
 				goto fail;
+			}
+			DRM_DEBUG_KMS("Setting connector DPMS state to on\n");
+			for (i = 0; i < set->num_connectors; i++) {
+				DRM_DEBUG_KMS("\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
+					      drm_get_connector_name(set->connectors[i]));
+				set->connectors[i]->dpms = DRM_MODE_DPMS_ON;
 			}
 		}
 		drm_helper_disable_unused_functions(dev);
@@ -663,8 +683,10 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			set->crtc->fb = set->fb;
 		ret = crtc_funcs->mode_set_base(set->crtc,
 						set->x, set->y, old_fb);
-		if (ret != 0)
+		if (ret != 0) {
+			set->crtc->fb = old_fb;
 			goto fail;
+		}
 	}
 
 	kfree(save_connectors);
@@ -841,7 +863,7 @@ static void output_poll_execute(struct work_struct *work)
 	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct drm_device *dev = container_of(delayed_work, struct drm_device, mode_config.output_poll_work);
 	struct drm_connector *connector;
-	enum drm_connector_status old_status, status;
+	enum drm_connector_status old_status;
 	bool repoll = false, changed = false;
 
 	if (!drm_kms_helper_poll)
@@ -866,8 +888,12 @@ static void output_poll_execute(struct work_struct *work)
 		    !(connector->polled & DRM_CONNECTOR_POLL_HPD))
 			continue;
 
-		status = connector->funcs->detect(connector, false);
-		if (old_status != status)
+		connector->status = connector->funcs->detect(connector, false);
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
+			      connector->base.id,
+			      drm_get_connector_name(connector),
+			      old_status, connector->status);
+		if (old_status != connector->status)
 			changed = true;
 	}
 

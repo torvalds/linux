@@ -3,11 +3,13 @@
 #
 
 obj-$(CONFIG_CAN_VCAN)		+= vcan.o
+obj-$(CONFIG_CAN_SLCAN)		+= slcan.o
 
 obj-$(CONFIG_CAN_DEV)		+= can-dev.o
 can-dev-y			:= dev.o
 
 obj-y				+= usb/
+obj-y				+= softing/
 
 obj-$(CONFIG_CAN_SJA1000)	+= sja1000/
 obj-$(CONFIG_CAN_MSCAN)		+= mscan/

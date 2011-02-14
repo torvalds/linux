@@ -39,7 +39,6 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include "agp.h"
@@ -958,13 +957,6 @@ static int agpioc_unbind_wrap(struct agp_file_private *priv, void __user *arg)
 	return agp_unbind_memory(memory);
 }
 
-int agpioc_chipset_flush_wrap(struct agp_file_private *priv)
-{
-	DBG("");
-	agp_flush_chipset(agp_bridge);
-	return 0;
-}
-
 static long agp_ioctl(struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
@@ -1040,7 +1032,6 @@ static long agp_ioctl(struct file *file,
 		break;
 	       
 	case AGPIOC_CHIPSET_FLUSH:
-		ret_val = agpioc_chipset_flush_wrap(curr_priv);
 		break;
 	}
 

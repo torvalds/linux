@@ -28,6 +28,7 @@
 #include <linux/io.h>
 #include <linux/sysdev.h>
 #include <linux/dmi.h>
+#include <linux/efi.h>
 #include <linux/mutex.h>
 #include <asm/bios_ebda.h>
 
@@ -220,32 +221,13 @@ static void rtl_teardown_sysfs(void) {
 	sysdev_class_unregister(&class_rtl);
 }
 
-static int dmi_check_cb(const struct dmi_system_id *id)
-{
-	RTL_DEBUG("found IBM server '%s'\n", id->ident);
-	return 0;
-}
-
-#define ibm_dmi_entry(NAME, TYPE)                  \
-{                                                  \
-	.ident = NAME,                             \
-	.matches = {                               \
-		DMI_MATCH(DMI_SYS_VENDOR, "IBM"),  \
-		DMI_MATCH(DMI_PRODUCT_NAME, TYPE), \
-	},                                         \
-	.callback = dmi_check_cb                   \
-}
 
 static struct dmi_system_id __initdata ibm_rtl_dmi_table[] = {
-	ibm_dmi_entry("BladeCenter LS21", "7971"),
-	ibm_dmi_entry("BladeCenter LS22", "7901"),
-	ibm_dmi_entry("BladeCenter HS21 XM", "7995"),
-	ibm_dmi_entry("BladeCenter HS22", "7870"),
-	ibm_dmi_entry("BladeCenter HS22V", "7871"),
-	ibm_dmi_entry("System x3550 M2", "7946"),
-	ibm_dmi_entry("System x3650 M2", "7947"),
-	ibm_dmi_entry("System x3550 M3", "7944"),
-	ibm_dmi_entry("System x3650 M3", "7945"),
+	{                                                  \
+		.matches = {                               \
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),  \
+		},                                         \
+	},
 	{ }
 };
 
@@ -257,7 +239,7 @@ static int __init ibm_rtl_init(void) {
 	if (force)
 		pr_warning("ibm-rtl: module loaded by force\n");
 	/* first ensure that we are running on IBM HW */
-	else if (!dmi_check_system(ibm_rtl_dmi_table))
+	else if (efi_enabled || !dmi_check_system(ibm_rtl_dmi_table))
 		return -ENODEV;
 
 	/* Get the address for the Extended BIOS Data Area */
@@ -302,7 +284,7 @@ static int __init ibm_rtl_init(void) {
 			RTL_DEBUG("rtl_cmd_width = %u, rtl_cmd_type = %u\n",
 			      rtl_cmd_width, rtl_cmd_type);
 			addr = ioread32(&rtl_table->cmd_port_address);
-			RTL_DEBUG("addr = %#llx\n", addr);
+			RTL_DEBUG("addr = %#llx\n", (unsigned long long)addr);
 			plen = rtl_cmd_width/sizeof(char);
 			rtl_cmd_addr = rtl_port_map(addr, plen);
 			RTL_DEBUG("rtl_cmd_addr = %#llx\n", (u64)rtl_cmd_addr);

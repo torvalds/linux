@@ -31,87 +31,163 @@
 #include "debug.h"
 #include "base.h"
 
+/*
+ * AR5212+ can use higher rates for ack transmition
+ * based on current tx rate instead of the base rate.
+ * It does this to better utilize channel usage.
+ * This is a mapping between G rates (that cover both
+ * CCK and OFDM) and ack rates that we use when setting
+ * rate -> duration table. This mapping is hw-based so
+ * don't change anything.
+ *
+ * To enable this functionality we must set
+ * ah->ah_ack_bitrate_high to true else base rate is
+ * used (1Mb for CCK, 6Mb for OFDM).
+ */
+static const unsigned int ack_rates_high[] =
+/* Tx	-> ACK	*/
+/* 1Mb	-> 1Mb	*/	{ 0,
+/* 2MB	-> 2Mb	*/	1,
+/* 5.5Mb -> 2Mb	*/	1,
+/* 11Mb	-> 2Mb	*/	1,
+/* 6Mb	-> 6Mb	*/	4,
+/* 9Mb	-> 6Mb	*/	4,
+/* 12Mb	-> 12Mb	*/	6,
+/* 18Mb	-> 12Mb	*/	6,
+/* 24Mb	-> 24Mb	*/	8,
+/* 36Mb	-> 24Mb	*/	8,
+/* 48Mb	-> 24Mb	*/	8,
+/* 54Mb	-> 24Mb	*/	8 };
+
 /*******************\
-* Generic functions *
+* Helper functions *
 \*******************/
 
 /**
- * ath5k_hw_set_opmode - Set PCU operating mode
+ * ath5k_hw_get_frame_duration - Get tx time of a frame
  *
  * @ah: The &struct ath5k_hw
- * @op_mode: &enum nl80211_iftype operating mode
+ * @len: Frame's length in bytes
+ * @rate: The @struct ieee80211_rate
  *
- * Initialize PCU for the various operating modes (AP/STA etc)
+ * Calculate tx duration of a frame given it's rate and length
+ * It extends ieee80211_generic_frame_duration for non standard
+ * bwmodes.
  */
-int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
+int ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
+		int len, struct ieee80211_rate *rate)
 {
-	struct ath_common *common = ath5k_hw_common(ah);
-	u32 pcu_reg, beacon_reg, low_id, high_id;
+	struct ath5k_softc *sc = ah->ah_sc;
+	int sifs, preamble, plcp_bits, sym_time;
+	int bitrate, bits, symbols, symbol_bits;
+	int dur;
 
-	ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_MODE, "mode %d\n", op_mode);
-
-	/* Preserve rest settings */
-	pcu_reg = ath5k_hw_reg_read(ah, AR5K_STA_ID1) & 0xffff0000;
-	pcu_reg &= ~(AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_AP
-			| AR5K_STA_ID1_KEYSRCH_MODE
-			| (ah->ah_version == AR5K_AR5210 ?
-			(AR5K_STA_ID1_PWR_SV | AR5K_STA_ID1_NO_PSPOLL) : 0));
-
-	beacon_reg = 0;
-
-	switch (op_mode) {
-	case NL80211_IFTYPE_ADHOC:
-		pcu_reg |= AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_KEYSRCH_MODE;
-		beacon_reg |= AR5K_BCR_ADHOC;
-		if (ah->ah_version == AR5K_AR5210)
-			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
-		else
-			AR5K_REG_ENABLE_BITS(ah, AR5K_CFG, AR5K_CFG_IBSS);
-		break;
-
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_MESH_POINT:
-		pcu_reg |= AR5K_STA_ID1_AP | AR5K_STA_ID1_KEYSRCH_MODE;
-		beacon_reg |= AR5K_BCR_AP;
-		if (ah->ah_version == AR5K_AR5210)
-			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
-		else
-			AR5K_REG_DISABLE_BITS(ah, AR5K_CFG, AR5K_CFG_IBSS);
-		break;
-
-	case NL80211_IFTYPE_STATION:
-		pcu_reg |= AR5K_STA_ID1_KEYSRCH_MODE
-			| (ah->ah_version == AR5K_AR5210 ?
-				AR5K_STA_ID1_PWR_SV : 0);
-	case NL80211_IFTYPE_MONITOR:
-		pcu_reg |= AR5K_STA_ID1_KEYSRCH_MODE
-			| (ah->ah_version == AR5K_AR5210 ?
-				AR5K_STA_ID1_NO_PSPOLL : 0);
-		break;
-
-	default:
-		return -EINVAL;
+	/* Fallback */
+	if (!ah->ah_bwmode) {
+		dur = ieee80211_generic_frame_duration(sc->hw,
+						NULL, len, rate);
+		return le16_to_cpu(dur);
 	}
 
-	/*
-	 * Set PCU registers
-	 */
-	low_id = get_unaligned_le32(common->macaddr);
-	high_id = get_unaligned_le16(common->macaddr + 4);
-	ath5k_hw_reg_write(ah, low_id, AR5K_STA_ID0);
-	ath5k_hw_reg_write(ah, pcu_reg | high_id, AR5K_STA_ID1);
+	bitrate = rate->bitrate;
+	preamble = AR5K_INIT_OFDM_PREAMPLE_TIME;
+	plcp_bits = AR5K_INIT_OFDM_PLCP_BITS;
+	sym_time = AR5K_INIT_OFDM_SYMBOL_TIME;
 
-	/*
-	 * Set Beacon Control Register on 5210
-	 */
-	if (ah->ah_version == AR5K_AR5210)
-		ath5k_hw_reg_write(ah, beacon_reg, AR5K_BCR);
+	switch (ah->ah_bwmode) {
+	case AR5K_BWMODE_40MHZ:
+		sifs = AR5K_INIT_SIFS_TURBO;
+		preamble = AR5K_INIT_OFDM_PREAMBLE_TIME_MIN;
+		break;
+	case AR5K_BWMODE_10MHZ:
+		sifs = AR5K_INIT_SIFS_HALF_RATE;
+		preamble *= 2;
+		sym_time *= 2;
+		break;
+	case AR5K_BWMODE_5MHZ:
+		sifs = AR5K_INIT_SIFS_QUARTER_RATE;
+		preamble *= 4;
+		sym_time *= 4;
+		break;
+	default:
+		sifs = AR5K_INIT_SIFS_DEFAULT_BG;
+		break;
+	}
 
-	return 0;
+	bits = plcp_bits + (len << 3);
+	/* Bit rate is in 100Kbits */
+	symbol_bits = bitrate * sym_time;
+	symbols = DIV_ROUND_UP(bits * 10, symbol_bits);
+
+	dur = sifs + preamble + (sym_time * symbols);
+
+	return dur;
 }
 
 /**
- * ath5k_hw_update - Update MIB counters (mac layer statistics)
+ * ath5k_hw_get_default_slottime - Get the default slot time for current mode
+ *
+ * @ah: The &struct ath5k_hw
+ */
+unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah)
+{
+	struct ieee80211_channel *channel = ah->ah_current_channel;
+	unsigned int slot_time;
+
+	switch (ah->ah_bwmode) {
+	case AR5K_BWMODE_40MHZ:
+		slot_time = AR5K_INIT_SLOT_TIME_TURBO;
+		break;
+	case AR5K_BWMODE_10MHZ:
+		slot_time = AR5K_INIT_SLOT_TIME_HALF_RATE;
+		break;
+	case AR5K_BWMODE_5MHZ:
+		slot_time = AR5K_INIT_SLOT_TIME_QUARTER_RATE;
+		break;
+	case AR5K_BWMODE_DEFAULT:
+		slot_time = AR5K_INIT_SLOT_TIME_DEFAULT;
+	default:
+		if (channel->hw_value & CHANNEL_CCK)
+			slot_time = AR5K_INIT_SLOT_TIME_B;
+		break;
+	}
+
+	return slot_time;
+}
+
+/**
+ * ath5k_hw_get_default_sifs - Get the default SIFS for current mode
+ *
+ * @ah: The &struct ath5k_hw
+ */
+unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah)
+{
+	struct ieee80211_channel *channel = ah->ah_current_channel;
+	unsigned int sifs;
+
+	switch (ah->ah_bwmode) {
+	case AR5K_BWMODE_40MHZ:
+		sifs = AR5K_INIT_SIFS_TURBO;
+		break;
+	case AR5K_BWMODE_10MHZ:
+		sifs = AR5K_INIT_SIFS_HALF_RATE;
+		break;
+	case AR5K_BWMODE_5MHZ:
+		sifs = AR5K_INIT_SIFS_QUARTER_RATE;
+		break;
+	case AR5K_BWMODE_DEFAULT:
+		sifs = AR5K_INIT_SIFS_DEFAULT_BG;
+	default:
+		if (channel->hw_value & CHANNEL_5GHZ)
+			sifs = AR5K_INIT_SIFS_DEFAULT_A;
+		break;
+	}
+
+	return sifs;
+}
+
+/**
+ * ath5k_hw_update_mib_counters - Update MIB counters (mac layer statistics)
  *
  * @ah: The &struct ath5k_hw
  *
@@ -133,35 +209,85 @@ void ath5k_hw_update_mib_counters(struct ath5k_hw *ah)
 	stats->beacons += ath5k_hw_reg_read(ah, AR5K_BEACON_CNT);
 }
 
-/**
- * ath5k_hw_set_ack_bitrate - set bitrate for ACKs
- *
- * @ah: The &struct ath5k_hw
- * @high: Flag to determine if we want to use high transmission rate
- * for ACKs or not
- *
- * If high flag is set, we tell hw to use a set of control rates based on
- * the current transmission rate (check out control_rates array inside reset.c).
- * If not hw just uses the lowest rate available for the current modulation
- * scheme being used (1Mbit for CCK and 6Mbits for OFDM).
- */
-void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high)
-{
-	if (ah->ah_version != AR5K_AR5212)
-		return;
-	else {
-		u32 val = AR5K_STA_ID1_BASE_RATE_11B | AR5K_STA_ID1_ACKCTS_6MB;
-		if (high)
-			AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1, val);
-		else
-			AR5K_REG_ENABLE_BITS(ah, AR5K_STA_ID1, val);
-	}
-}
-
 
 /******************\
 * ACK/CTS Timeouts *
 \******************/
+
+/**
+ * ath5k_hw_write_rate_duration - fill rate code to duration table
+ *
+ * @ah: the &struct ath5k_hw
+ * @mode: one of enum ath5k_driver_mode
+ *
+ * Write the rate code to duration table upon hw reset. This is a helper for
+ * ath5k_hw_pcu_init(). It seems all this is doing is setting an ACK timeout on
+ * the hardware, based on current mode, for each rate. The rates which are
+ * capable of short preamble (802.11b rates 2Mbps, 5.5Mbps, and 11Mbps) have
+ * different rate code so we write their value twice (one for long preamble
+ * and one for short).
+ *
+ * Note: Band doesn't matter here, if we set the values for OFDM it works
+ * on both a and g modes. So all we have to do is set values for all g rates
+ * that include all OFDM and CCK rates.
+ *
+ */
+static inline void ath5k_hw_write_rate_duration(struct ath5k_hw *ah)
+{
+	struct ath5k_softc *sc = ah->ah_sc;
+	struct ieee80211_rate *rate;
+	unsigned int i;
+	/* 802.11g covers both OFDM and CCK */
+	u8 band = IEEE80211_BAND_2GHZ;
+
+	/* Write rate duration table */
+	for (i = 0; i < sc->sbands[band].n_bitrates; i++) {
+		u32 reg;
+		u16 tx_time;
+
+		if (ah->ah_ack_bitrate_high)
+			rate = &sc->sbands[band].bitrates[ack_rates_high[i]];
+		/* CCK -> 1Mb */
+		else if (i < 4)
+			rate = &sc->sbands[band].bitrates[0];
+		/* OFDM -> 6Mb */
+		else
+			rate = &sc->sbands[band].bitrates[4];
+
+		/* Set ACK timeout */
+		reg = AR5K_RATE_DUR(rate->hw_value);
+
+		/* An ACK frame consists of 10 bytes. If you add the FCS,
+		 * which ieee80211_generic_frame_duration() adds,
+		 * its 14 bytes. Note we use the control rate and not the
+		 * actual rate for this rate. See mac80211 tx.c
+		 * ieee80211_duration() for a brief description of
+		 * what rate we should choose to TX ACKs. */
+		tx_time = ath5k_hw_get_frame_duration(ah, 10, rate);
+
+		ath5k_hw_reg_write(ah, tx_time, reg);
+
+		if (!(rate->flags & IEEE80211_RATE_SHORT_PREAMBLE))
+			continue;
+
+		/*
+		 * We're not distinguishing short preamble here,
+		 * This is true, all we'll get is a longer value here
+		 * which is not necessarilly bad. We could use
+		 * export ieee80211_frame_duration() but that needs to be
+		 * fixed first to be properly used by mac802111 drivers:
+		 *
+		 *  - remove erp stuff and let the routine figure ofdm
+		 *    erp rates
+		 *  - remove passing argument ieee80211_local as
+		 *    drivers don't have access to it
+		 *  - move drivers using ieee80211_generic_frame_duration()
+		 *    to this
+		 */
+		ath5k_hw_reg_write(ah, tx_time,
+			reg + (AR5K_SET_SHORT_PREAMBLE << 2));
+	}
+}
 
 /**
  * ath5k_hw_set_ack_timeout - Set ACK timeout on PCU
@@ -199,88 +325,10 @@ static int ath5k_hw_set_cts_timeout(struct ath5k_hw *ah, unsigned int timeout)
 	return 0;
 }
 
-/**
- * ath5k_hw_htoclock - Translate usec to hw clock units
- *
- * @ah: The &struct ath5k_hw
- * @usec: value in microseconds
- */
-unsigned int ath5k_hw_htoclock(struct ath5k_hw *ah, unsigned int usec)
-{
-	struct ath_common *common = ath5k_hw_common(ah);
-	return usec * common->clockrate;
-}
 
-/**
- * ath5k_hw_clocktoh - Translate hw clock units to usec
- * @clock: value in hw clock units
- */
-unsigned int ath5k_hw_clocktoh(struct ath5k_hw *ah, unsigned int clock)
-{
-	struct ath_common *common = ath5k_hw_common(ah);
-	return clock / common->clockrate;
-}
-
-/**
- * ath5k_hw_set_clockrate - Set common->clockrate for the current channel
- *
- * @ah: The &struct ath5k_hw
- */
-void ath5k_hw_set_clockrate(struct ath5k_hw *ah)
-{
-	struct ieee80211_channel *channel = ah->ah_current_channel;
-	struct ath_common *common = ath5k_hw_common(ah);
-	int clock;
-
-	if (channel->hw_value & CHANNEL_5GHZ)
-		clock = 40; /* 802.11a */
-	else if (channel->hw_value & CHANNEL_CCK)
-		clock = 22; /* 802.11b */
-	else
-		clock = 44; /* 802.11g */
-
-	/* Clock rate in turbo modes is twice the normal rate */
-	if (channel->hw_value & CHANNEL_TURBO)
-		clock *= 2;
-
-	common->clockrate = clock;
-}
-
-/**
- * ath5k_hw_get_default_slottime - Get the default slot time for current mode
- *
- * @ah: The &struct ath5k_hw
- */
-static unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah)
-{
-	struct ieee80211_channel *channel = ah->ah_current_channel;
-
-	if (channel->hw_value & CHANNEL_TURBO)
-		return 6; /* both turbo modes */
-
-	if (channel->hw_value & CHANNEL_CCK)
-		return 20; /* 802.11b */
-
-	return 9; /* 802.11 a/g */
-}
-
-/**
- * ath5k_hw_get_default_sifs - Get the default SIFS for current mode
- *
- * @ah: The &struct ath5k_hw
- */
-static unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah)
-{
-	struct ieee80211_channel *channel = ah->ah_current_channel;
-
-	if (channel->hw_value & CHANNEL_TURBO)
-		return 8; /* both turbo modes */
-
-	if (channel->hw_value & CHANNEL_5GHZ)
-		return 16; /* 802.11a */
-
-	return 10; /* 802.11 b/g */
-}
+/*******************\
+* RX filter Control *
+\*******************/
 
 /**
  * ath5k_hw_set_lladdr - Set station id
@@ -360,39 +408,6 @@ void ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask)
 	memcpy(common->bssidmask, mask, ETH_ALEN);
 	if (ah->ah_version == AR5K_AR5212)
 		ath_hw_setbssidmask(common);
-}
-
-/************\
-* RX Control *
-\************/
-
-/**
- * ath5k_hw_start_rx_pcu - Start RX engine
- *
- * @ah: The &struct ath5k_hw
- *
- * Starts RX engine on PCU so that hw can process RXed frames
- * (ACK etc).
- *
- * NOTE: RX DMA should be already enabled using ath5k_hw_start_rx_dma
- */
-void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah)
-{
-	AR5K_REG_DISABLE_BITS(ah, AR5K_DIAG_SW, AR5K_DIAG_SW_DIS_RX);
-}
-
-/**
- * at5k_hw_stop_rx_pcu - Stop RX engine
- *
- * @ah: The &struct ath5k_hw
- *
- * Stops RX engine on PCU
- *
- * TODO: Detach ANI here
- */
-void ath5k_hw_stop_rx_pcu(struct ath5k_hw *ah)
-{
-	AR5K_REG_ENABLE_BITS(ah, AR5K_DIAG_SW, AR5K_DIAG_SW_DIS_RX);
 }
 
 /*
@@ -746,7 +761,7 @@ ath5k_hw_check_beacon_timers(struct ath5k_hw *ah, int intval)
  * @ah: The &struct ath5k_hw
  * @coverage_class: IEEE 802.11 coverage class number
  *
- * Sets slot time, ACK timeout and CTS timeout for given coverage class.
+ * Sets IFS intervals and ACK/CTS timeouts for given coverage class.
  */
 void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class)
 {
@@ -755,9 +770,175 @@ void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class)
 	int ack_timeout = ath5k_hw_get_default_sifs(ah) + slot_time;
 	int cts_timeout = ack_timeout;
 
-	ath5k_hw_set_slot_time(ah, slot_time);
+	ath5k_hw_set_ifs_intervals(ah, slot_time);
 	ath5k_hw_set_ack_timeout(ah, ack_timeout);
 	ath5k_hw_set_cts_timeout(ah, cts_timeout);
 
 	ah->ah_coverage_class = coverage_class;
+}
+
+/***************************\
+* Init/Start/Stop functions *
+\***************************/
+
+/**
+ * ath5k_hw_start_rx_pcu - Start RX engine
+ *
+ * @ah: The &struct ath5k_hw
+ *
+ * Starts RX engine on PCU so that hw can process RXed frames
+ * (ACK etc).
+ *
+ * NOTE: RX DMA should be already enabled using ath5k_hw_start_rx_dma
+ */
+void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah)
+{
+	AR5K_REG_DISABLE_BITS(ah, AR5K_DIAG_SW, AR5K_DIAG_SW_DIS_RX);
+}
+
+/**
+ * at5k_hw_stop_rx_pcu - Stop RX engine
+ *
+ * @ah: The &struct ath5k_hw
+ *
+ * Stops RX engine on PCU
+ */
+void ath5k_hw_stop_rx_pcu(struct ath5k_hw *ah)
+{
+	AR5K_REG_ENABLE_BITS(ah, AR5K_DIAG_SW, AR5K_DIAG_SW_DIS_RX);
+}
+
+/**
+ * ath5k_hw_set_opmode - Set PCU operating mode
+ *
+ * @ah: The &struct ath5k_hw
+ * @op_mode: &enum nl80211_iftype operating mode
+ *
+ * Configure PCU for the various operating modes (AP/STA etc)
+ */
+int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
+{
+	struct ath_common *common = ath5k_hw_common(ah);
+	u32 pcu_reg, beacon_reg, low_id, high_id;
+
+	ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_MODE, "mode %d\n", op_mode);
+
+	/* Preserve rest settings */
+	pcu_reg = ath5k_hw_reg_read(ah, AR5K_STA_ID1) & 0xffff0000;
+	pcu_reg &= ~(AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_AP
+			| AR5K_STA_ID1_KEYSRCH_MODE
+			| (ah->ah_version == AR5K_AR5210 ?
+			(AR5K_STA_ID1_PWR_SV | AR5K_STA_ID1_NO_PSPOLL) : 0));
+
+	beacon_reg = 0;
+
+	switch (op_mode) {
+	case NL80211_IFTYPE_ADHOC:
+		pcu_reg |= AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_KEYSRCH_MODE;
+		beacon_reg |= AR5K_BCR_ADHOC;
+		if (ah->ah_version == AR5K_AR5210)
+			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
+		else
+			AR5K_REG_ENABLE_BITS(ah, AR5K_CFG, AR5K_CFG_IBSS);
+		break;
+
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
+		pcu_reg |= AR5K_STA_ID1_AP | AR5K_STA_ID1_KEYSRCH_MODE;
+		beacon_reg |= AR5K_BCR_AP;
+		if (ah->ah_version == AR5K_AR5210)
+			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
+		else
+			AR5K_REG_DISABLE_BITS(ah, AR5K_CFG, AR5K_CFG_IBSS);
+		break;
+
+	case NL80211_IFTYPE_STATION:
+		pcu_reg |= AR5K_STA_ID1_KEYSRCH_MODE
+			| (ah->ah_version == AR5K_AR5210 ?
+				AR5K_STA_ID1_PWR_SV : 0);
+	case NL80211_IFTYPE_MONITOR:
+		pcu_reg |= AR5K_STA_ID1_KEYSRCH_MODE
+			| (ah->ah_version == AR5K_AR5210 ?
+				AR5K_STA_ID1_NO_PSPOLL : 0);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	/*
+	 * Set PCU registers
+	 */
+	low_id = get_unaligned_le32(common->macaddr);
+	high_id = get_unaligned_le16(common->macaddr + 4);
+	ath5k_hw_reg_write(ah, low_id, AR5K_STA_ID0);
+	ath5k_hw_reg_write(ah, pcu_reg | high_id, AR5K_STA_ID1);
+
+	/*
+	 * Set Beacon Control Register on 5210
+	 */
+	if (ah->ah_version == AR5K_AR5210)
+		ath5k_hw_reg_write(ah, beacon_reg, AR5K_BCR);
+
+	return 0;
+}
+
+void ath5k_hw_pcu_init(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
+								u8 mode)
+{
+	/* Set bssid and bssid mask */
+	ath5k_hw_set_bssid(ah);
+
+	/* Set PCU config */
+	ath5k_hw_set_opmode(ah, op_mode);
+
+	/* Write rate duration table only on AR5212 and if
+	 * virtual interface has already been brought up
+	 * XXX: rethink this after new mode changes to
+	 * mac80211 are integrated */
+	if (ah->ah_version == AR5K_AR5212 &&
+		ah->ah_sc->nvifs)
+		ath5k_hw_write_rate_duration(ah);
+
+	/* Set RSSI/BRSSI thresholds
+	 *
+	 * Note: If we decide to set this value
+	 * dynamicaly, have in mind that when AR5K_RSSI_THR
+	 * register is read it might return 0x40 if we haven't
+	 * wrote anything to it plus BMISS RSSI threshold is zeroed.
+	 * So doing a save/restore procedure here isn't the right
+	 * choice. Instead store it on ath5k_hw */
+	ath5k_hw_reg_write(ah, (AR5K_TUNE_RSSI_THRES |
+				AR5K_TUNE_BMISS_THRES <<
+				AR5K_RSSI_THR_BMISS_S),
+				AR5K_RSSI_THR);
+
+	/* MIC QoS support */
+	if (ah->ah_mac_srev >= AR5K_SREV_AR2413) {
+		ath5k_hw_reg_write(ah, 0x000100aa, AR5K_MIC_QOS_CTL);
+		ath5k_hw_reg_write(ah, 0x00003210, AR5K_MIC_QOS_SEL);
+	}
+
+	/* QoS NOACK Policy */
+	if (ah->ah_version == AR5K_AR5212) {
+		ath5k_hw_reg_write(ah,
+			AR5K_REG_SM(2, AR5K_QOS_NOACK_2BIT_VALUES) |
+			AR5K_REG_SM(5, AR5K_QOS_NOACK_BIT_OFFSET)  |
+			AR5K_REG_SM(0, AR5K_QOS_NOACK_BYTE_OFFSET),
+			AR5K_QOS_NOACK);
+	}
+
+	/* Restore slot time and ACK timeouts */
+	if (ah->ah_coverage_class > 0)
+		ath5k_hw_set_coverage_class(ah, ah->ah_coverage_class);
+
+	/* Set ACK bitrate mode (see ack_rates_high) */
+	if (ah->ah_version == AR5K_AR5212) {
+		u32 val = AR5K_STA_ID1_BASE_RATE_11B | AR5K_STA_ID1_ACKCTS_6MB;
+		if (ah->ah_ack_bitrate_high)
+			AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1, val);
+		else
+			AR5K_REG_ENABLE_BITS(ah, AR5K_STA_ID1, val);
+	}
+	return;
 }

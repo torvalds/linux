@@ -139,7 +139,7 @@ static void sh7705_flush_dcache_page(void *arg)
 	struct address_space *mapping = page_mapping(page);
 
 	if (mapping && !mapping_mapped(mapping))
-		set_bit(PG_dcache_dirty, &page->flags);
+		clear_bit(PG_dcache_clean, &page->flags);
 	else
 		__flush_dcache_page(__pa(page_address(page)));
 }

@@ -14,6 +14,7 @@
 #include <linux/bootmem.h>
 #include <linux/pfn.h>
 #include <linux/suspend.h>
+#include <linux/acpi.h>
 #include <linux/firmware-map.h>
 #include <linux/memblock.h>
 

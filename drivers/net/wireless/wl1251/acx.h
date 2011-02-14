@@ -1272,10 +1272,10 @@ struct wl1251_acx_tid_cfg {
 /* OBSOLETE */
 #define WL1251_ACX_INTR_WAKE_ON_HOST	BIT(6)
 
-/* Trace meassge on MBOX #A */
+/* Trace message on MBOX #A */
 #define WL1251_ACX_INTR_TRACE_A		BIT(7)
 
-/* Trace meassge on MBOX #B */
+/* Trace message on MBOX #B */
 #define WL1251_ACX_INTR_TRACE_B		BIT(8)
 
 /* Command processing completion */

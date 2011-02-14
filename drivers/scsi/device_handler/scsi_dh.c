@@ -442,12 +442,19 @@ int scsi_dh_activate(struct request_queue *q, activate_complete fn, void *data)
 	sdev = q->queuedata;
 	if (sdev && sdev->scsi_dh_data)
 		scsi_dh = sdev->scsi_dh_data->scsi_dh;
-	if (!scsi_dh || !get_device(&sdev->sdev_gendev))
+	if (!scsi_dh || !get_device(&sdev->sdev_gendev) ||
+	    sdev->sdev_state == SDEV_CANCEL ||
+	    sdev->sdev_state == SDEV_DEL)
 		err = SCSI_DH_NOSYS;
+	if (sdev->sdev_state == SDEV_OFFLINE)
+		err = SCSI_DH_DEV_OFFLINED;
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
-	if (err)
+	if (err) {
+		if (fn)
+			fn(data, err);
 		return err;
+	}
 
 	if (scsi_dh->activate)
 		err = scsi_dh->activate(sdev, fn, data);

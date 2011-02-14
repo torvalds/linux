@@ -64,7 +64,7 @@ static inline void rt2x00pci_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 						 const void *value,
 						 const u32 length)
 {
-	memcpy_toio(rt2x00dev->csr.base + offset, value, length);
+	__iowrite32_copy(rt2x00dev->csr.base + offset, value, length >> 2);
 }
 
 /**

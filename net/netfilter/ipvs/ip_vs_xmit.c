@@ -96,12 +96,8 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 		if (!(rt = (struct rtable *)
 		      __ip_vs_dst_check(dest, rtos))) {
 			struct flowi fl = {
-				.oif = 0,
-				.nl_u = {
-					.ip4_u = {
-						.daddr = dest->addr.ip,
-						.saddr = 0,
-						.tos = rtos, } },
+				.fl4_dst = dest->addr.ip,
+				.fl4_tos = rtos,
 			};
 
 			if (ip_route_output_key(net, &rt, &fl)) {
@@ -118,12 +114,8 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 		spin_unlock(&dest->dst_lock);
 	} else {
 		struct flowi fl = {
-			.oif = 0,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = daddr,
-					.saddr = 0,
-					.tos = rtos, } },
+			.fl4_dst = daddr,
+			.fl4_tos = rtos,
 		};
 
 		if (ip_route_output_key(net, &rt, &fl)) {
@@ -169,7 +161,7 @@ __ip_vs_reroute_locally(struct sk_buff *skb)
 	struct net *net = dev_net(dev);
 	struct iphdr *iph = ip_hdr(skb);
 
-	if (rt->fl.iif) {
+	if (rt_is_input_route(rt)) {
 		unsigned long orefdst = skb->_skb_refdst;
 
 		if (ip_route_input(skb, iph->daddr, iph->saddr,
@@ -178,14 +170,9 @@ __ip_vs_reroute_locally(struct sk_buff *skb)
 		refdst_drop(orefdst);
 	} else {
 		struct flowi fl = {
-			.oif = 0,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = iph->daddr,
-					.saddr = iph->saddr,
-					.tos = RT_TOS(iph->tos),
-				}
-			},
+			.fl4_dst = iph->daddr,
+			.fl4_src = iph->saddr,
+			.fl4_tos = RT_TOS(iph->tos),
 			.mark = skb->mark,
 		};
 		struct rtable *rt;
@@ -216,12 +203,7 @@ __ip_vs_route_output_v6(struct net *net, struct in6_addr *daddr,
 {
 	struct dst_entry *dst;
 	struct flowi fl = {
-		.oif = 0,
-		.nl_u = {
-			.ip6_u = {
-				.daddr = *daddr,
-			},
-		},
+		.fl6_dst = *daddr,
 	};
 
 	dst = ip6_route_output(net, NULL, &fl);
@@ -552,7 +534,8 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 #endif
 
 	/* From world but DNAT to loopback address? */
-	if (local && ipv4_is_loopback(rt->rt_dst) && skb_rtable(skb)->fl.iif) {
+	if (local && ipv4_is_loopback(rt->rt_dst) &&
+	    rt_is_input_route(skb_rtable(skb))) {
 		IP_VS_DBG_RL_PKT(1, AF_INET, pp, skb, 0, "ip_vs_nat_xmit(): "
 				 "stopping DNAT to loopback address");
 		goto tx_error_put;
@@ -1165,7 +1148,8 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 #endif
 
 	/* From world but DNAT to loopback address? */
-	if (local && ipv4_is_loopback(rt->rt_dst) && skb_rtable(skb)->fl.iif) {
+	if (local && ipv4_is_loopback(rt->rt_dst) &&
+	    rt_is_input_route(skb_rtable(skb))) {
 		IP_VS_DBG(1, "%s(): "
 			  "stopping DNAT to loopback %pI4\n",
 			  __func__, &cp->daddr.ip);

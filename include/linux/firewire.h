@@ -302,9 +302,9 @@ struct fw_packet {
 struct fw_transaction {
 	int node_id; /* The generation is implied; it is always the current. */
 	int tlabel;
-	int timestamp;
 	struct list_head link;
 	struct fw_card *card;
+	bool is_split_transaction;
 	struct timer_list split_timeout_timer;
 
 	struct fw_packet packet;

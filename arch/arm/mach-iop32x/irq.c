@@ -32,24 +32,24 @@ static void intstr_write(u32 val)
 }
 
 static void
-iop32x_irq_mask(unsigned int irq)
+iop32x_irq_mask(struct irq_data *d)
 {
-	iop32x_mask &= ~(1 << irq);
+	iop32x_mask &= ~(1 << d->irq);
 	intctl_write(iop32x_mask);
 }
 
 static void
-iop32x_irq_unmask(unsigned int irq)
+iop32x_irq_unmask(struct irq_data *d)
 {
-	iop32x_mask |= 1 << irq;
+	iop32x_mask |= 1 << d->irq;
 	intctl_write(iop32x_mask);
 }
 
 struct irq_chip ext_chip = {
-	.name	= "IOP32x",
-	.ack	= iop32x_irq_mask,
-	.mask	= iop32x_irq_mask,
-	.unmask	= iop32x_irq_unmask,
+	.name		= "IOP32x",
+	.irq_ack	= iop32x_irq_mask,
+	.irq_mask	= iop32x_irq_mask,
+	.irq_unmask	= iop32x_irq_unmask,
 };
 
 void __init iop32x_init_irq(void)

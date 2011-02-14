@@ -30,9 +30,9 @@
 
 static struct s3c_gpio_chip *irq_chips[S5P_GPIOINT_GROUP_MAXNR];
 
-static int s5p_gpioint_get_group(unsigned int irq)
+static int s5p_gpioint_get_group(struct irq_data *data)
 {
-	struct gpio_chip *chip = get_irq_data(irq);
+	struct gpio_chip *chip = irq_data_get_irq_data(data);
 	struct s3c_gpio_chip *s3c_chip = container_of(chip,
 			struct s3c_gpio_chip, chip);
 	int group;
@@ -44,22 +44,22 @@ static int s5p_gpioint_get_group(unsigned int irq)
 	return group;
 }
 
-static int s5p_gpioint_get_offset(unsigned int irq)
+static int s5p_gpioint_get_offset(struct irq_data *data)
 {
-	struct gpio_chip *chip = get_irq_data(irq);
+	struct gpio_chip *chip = irq_data_get_irq_data(data);
 	struct s3c_gpio_chip *s3c_chip = container_of(chip,
 			struct s3c_gpio_chip, chip);
 
-	return irq - s3c_chip->irq_base;
+	return data->irq - s3c_chip->irq_base;
 }
 
-static void s5p_gpioint_ack(unsigned int irq)
+static void s5p_gpioint_ack(struct irq_data *data)
 {
 	int group, offset, pend_offset;
 	unsigned int value;
 
-	group = s5p_gpioint_get_group(irq);
-	offset = s5p_gpioint_get_offset(irq);
+	group = s5p_gpioint_get_group(data);
+	offset = s5p_gpioint_get_offset(data);
 	pend_offset = group << 2;
 
 	value = __raw_readl(S5P_GPIOREG(GPIOINT_PEND_OFFSET) + pend_offset);
@@ -67,13 +67,13 @@ static void s5p_gpioint_ack(unsigned int irq)
 	__raw_writel(value, S5P_GPIOREG(GPIOINT_PEND_OFFSET) + pend_offset);
 }
 
-static void s5p_gpioint_mask(unsigned int irq)
+static void s5p_gpioint_mask(struct irq_data *data)
 {
 	int group, offset, mask_offset;
 	unsigned int value;
 
-	group = s5p_gpioint_get_group(irq);
-	offset = s5p_gpioint_get_offset(irq);
+	group = s5p_gpioint_get_group(data);
+	offset = s5p_gpioint_get_offset(data);
 	mask_offset = group << 2;
 
 	value = __raw_readl(S5P_GPIOREG(GPIOINT_MASK_OFFSET) + mask_offset);
@@ -81,13 +81,13 @@ static void s5p_gpioint_mask(unsigned int irq)
 	__raw_writel(value, S5P_GPIOREG(GPIOINT_MASK_OFFSET) + mask_offset);
 }
 
-static void s5p_gpioint_unmask(unsigned int irq)
+static void s5p_gpioint_unmask(struct irq_data *data)
 {
 	int group, offset, mask_offset;
 	unsigned int value;
 
-	group = s5p_gpioint_get_group(irq);
-	offset = s5p_gpioint_get_offset(irq);
+	group = s5p_gpioint_get_group(data);
+	offset = s5p_gpioint_get_offset(data);
 	mask_offset = group << 2;
 
 	value = __raw_readl(S5P_GPIOREG(GPIOINT_MASK_OFFSET) + mask_offset);
@@ -95,19 +95,19 @@ static void s5p_gpioint_unmask(unsigned int irq)
 	__raw_writel(value, S5P_GPIOREG(GPIOINT_MASK_OFFSET) + mask_offset);
 }
 
-static void s5p_gpioint_mask_ack(unsigned int irq)
+static void s5p_gpioint_mask_ack(struct irq_data *data)
 {
-	s5p_gpioint_mask(irq);
-	s5p_gpioint_ack(irq);
+	s5p_gpioint_mask(data);
+	s5p_gpioint_ack(data);
 }
 
-static int s5p_gpioint_set_type(unsigned int irq, unsigned int type)
+static int s5p_gpioint_set_type(struct irq_data *data, unsigned int type)
 {
 	int group, offset, con_offset;
 	unsigned int value;
 
-	group = s5p_gpioint_get_group(irq);
-	offset = s5p_gpioint_get_offset(irq);
+	group = s5p_gpioint_get_group(data);
+	offset = s5p_gpioint_get_offset(data);
 	con_offset = group << 2;
 
 	switch (type) {
@@ -142,11 +142,11 @@ static int s5p_gpioint_set_type(unsigned int irq, unsigned int type)
 
 struct irq_chip s5p_gpioint = {
 	.name		= "s5p_gpioint",
-	.ack		= s5p_gpioint_ack,
-	.mask		= s5p_gpioint_mask,
-	.mask_ack	= s5p_gpioint_mask_ack,
-	.unmask		= s5p_gpioint_unmask,
-	.set_type	= s5p_gpioint_set_type,
+	.irq_ack	= s5p_gpioint_ack,
+	.irq_mask	= s5p_gpioint_mask,
+	.irq_mask_ack	= s5p_gpioint_mask_ack,
+	.irq_unmask	= s5p_gpioint_unmask,
+	.irq_set_type	= s5p_gpioint_set_type,
 };
 
 static void s5p_gpioint_handler(unsigned int irq, struct irq_desc *desc)

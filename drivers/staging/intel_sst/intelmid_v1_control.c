@@ -25,6 +25,8 @@
  *  This file contains the control operations of vendor 2
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/file.h>
 #include <asm/mrst.h>
@@ -132,56 +134,6 @@ static int mx_init_card(void)
 	return sst_sc_reg_access(sc_access, PMIC_WRITE, 47);
 }
 
-static int mx_init_capture_card(void)
-{
-	struct sc_reg_access sc_access[] = {
-		{0x206, 0x5a, 0x0},
-		{0x207, 0xbe, 0x0},
-		{0x208, 0x90, 0x0},
-		{0x209, 0x32, 0x0},
-		{0x20e, 0x22, 0x0},
-		{0x210, 0x84, 0x0},
-		{0x223, 0x20, 0x0},
-		{0x226, 0xC0, 0x0},
-	};
-
-	int retval = 0;
-
-	retval = sst_sc_reg_access(sc_access, PMIC_WRITE, 8);
-	if (0 != retval) {
-		/* pmic communication fails */
-		pr_debug("sst: pmic commn failed\n");
-		return retval;
-	}
-
-	pr_debug("sst: Capture configuration complete!!\n");
-	return 0;
-}
-
-static int mx_init_playback_card(void)
-{
-	struct sc_reg_access sc_access[] = {
-		{0x206, 0x00, 0x0},
-		{0x207, 0x00, 0x0},
-		{0x208, 0x00, 0x0},
-		{0x209, 0x51, 0x0},
-		{0x20e, 0x51, 0x0},
-		{0x210, 0x21, 0x0},
-		{0x223, 0x01, 0x0},
-	};
-	int retval = 0;
-
-	retval = sst_sc_reg_access(sc_access, PMIC_WRITE, 9);
-	if (0 != retval) {
-		/* pmic communication fails */
-		pr_debug("sst: pmic commn failed\n");
-		return retval;
-	}
-
-	pr_debug("sst: Playback configuration complete!!\n");
-	return 0;
-}
-
 static int mx_enable_audiodac(int value)
 {
 	struct sc_reg_access sc_access[3];
@@ -204,7 +156,7 @@ static int mx_enable_audiodac(int value)
 	retval = sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, 2);
 	if (retval)
 		return retval;
-	pr_debug("sst: mute status = %d", snd_pmic_ops_mx.mute_status);
+	pr_debug("mute status = %d\n", snd_pmic_ops_mx.mute_status);
 	if (snd_pmic_ops_mx.mute_status == MUTE ||
 				snd_pmic_ops_mx.master_mute == MUTE)
 		return retval;
@@ -412,7 +364,7 @@ static int mx_set_pcm_voice_params(void)
 		if (retval)
 			return retval;
 	}
-	pr_debug("sst: SST DBG mx_set_pcm_voice_params called\n");
+	pr_debug("SST DBG:mx_set_pcm_voice_params called\n");
 	return sst_sc_reg_access(sc_access, PMIC_WRITE, 44);
 }
 
@@ -529,7 +481,7 @@ static int mx_set_selected_output_dev(u8 dev_id)
 			return retval;
 	}
 
-	pr_debug("sst: mx_set_selected_output_dev dev_id:0x%x\n", dev_id);
+	pr_debug("mx_set_selected_output_dev dev_id:0x%x\n", dev_id);
 	snd_pmic_ops_mx.output_dev_id = dev_id;
 	switch (dev_id) {
 	case STEREO_HEADPHONE:
@@ -549,7 +501,7 @@ static int mx_set_selected_output_dev(u8 dev_id)
 		num_reg = 1;
 		break;
 	case RECEIVER:
-		pr_debug("sst: RECEIVER Koski selected\n");
+		pr_debug("RECEIVER Koski selected\n");
 
 		/* configuration - AS enable, receiver enable */
 		sc_access[0].reg_addr = 0xFF;
@@ -559,7 +511,7 @@ static int mx_set_selected_output_dev(u8 dev_id)
 		num_reg = 1;
 		break;
 	default:
-		pr_err("sst: Not a valid output dev\n");
+		pr_err("Not a valid output dev\n");
 		return 0;
 	}
 	return sst_sc_reg_access(sc_access, PMIC_WRITE, num_reg);
@@ -598,7 +550,7 @@ static int mx_set_selected_input_dev(u8 dev_id)
 			return retval;
 	}
 	snd_pmic_ops_mx.input_dev_id = dev_id;
-	pr_debug("sst: mx_set_selected_input_dev dev_id:0x%x\n", dev_id);
+	pr_debug("mx_set_selected_input_dev dev_id:0x%x\n", dev_id);
 
 	switch (dev_id) {
 	case AMIC:
@@ -646,7 +598,7 @@ static int mx_set_mute(int dev_id, u8 value)
 	}
 
 
-	pr_debug("sst: set_mute dev_id:0x%x , value:%d\n", dev_id, value);
+	pr_debug("set_mute dev_id:0x%x , value:%d\n", dev_id, value);
 
 	switch (dev_id) {
 	case PMIC_SND_DMIC_MUTE:
@@ -760,7 +712,7 @@ static int mx_set_vol(int dev_id, int value)
 		if (retval)
 			return retval;
 	}
-	pr_debug("sst: set_vol dev_id:0x%x ,value:%d\n", dev_id, value);
+	pr_debug("set_vol dev_id:0x%x ,value:%d\n", dev_id, value);
 	switch (dev_id) {
 	case PMIC_SND_RECEIVER_VOL:
 		return 0;
@@ -875,7 +827,7 @@ static int mx_get_vol(int dev_id, int *value)
 	if (retval)
 		return retval;
 	*value = -(sc_access.value & mask);
-	pr_debug("sst: get volume value extracted %d\n", *value);
+	pr_debug("get volume value extracted %d\n", *value);
 	return retval;
 }
 

@@ -45,7 +45,7 @@ struct queue_item {
 static struct kmem_cache *tipc_queue_item_cache;
 static struct list_head signal_queue_head;
 static DEFINE_SPINLOCK(qitem_lock);
-static int handler_enabled = 0;
+static int handler_enabled;
 
 static void process_signal_queue(unsigned long dummy);
 

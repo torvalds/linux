@@ -20,9 +20,6 @@
 
 #define get_descriptor_id(type, service) (((type - 4) << 4) | service)
 
-extern bool pcie_ports_disabled;
-extern bool pcie_ports_auto;
-
 extern struct bus_type pcie_port_bus_type;
 extern int pcie_port_device_register(struct pci_dev *dev);
 #ifdef CONFIG_PM
@@ -34,6 +31,8 @@ extern int __must_check pcie_port_bus_register(void);
 extern void pcie_port_bus_unregister(void);
 
 struct pci_dev;
+
+extern void pcie_clear_root_pme_status(struct pci_dev *dev);
 
 #ifdef CONFIG_PCIE_PME
 extern bool pcie_pme_msi_disabled;

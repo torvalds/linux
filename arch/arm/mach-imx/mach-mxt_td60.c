@@ -31,11 +31,8 @@
 #include <mach/iomux-mx27.h>
 #include <mach/mxc_nand.h>
 #include <linux/i2c/pca953x.h>
-#include <mach/imxfb.h>
-#include <mach/mmc.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 static const int mxt_td60_pins[] __initconst = {
 	/* UART0 */
@@ -196,7 +193,7 @@ static struct imx_fb_videomode mxt_td60_modes[] = {
 	},
 };
 
-static struct imx_fb_platform_data mxt_td60_fb_data = {
+static const struct imx_fb_platform_data mxt_td60_fb_data __initconst = {
 	.mode = mxt_td60_modes,
 	.num_modes = ARRAY_SIZE(mxt_td60_modes),
 
@@ -226,7 +223,7 @@ static void mxt_td60_sdhc1_exit(struct device *dev, void *data)
 	free_irq(IRQ_GPIOF(8), data);
 }
 
-static struct imxmmc_platform_data sdhc1_pdata = {
+static const struct imxmmc_platform_data sdhc1_pdata __initconst = {
 	.init = mxt_td60_sdhc1_init,
 	.exit = mxt_td60_sdhc1_exit,
 };
@@ -253,8 +250,8 @@ static void __init mxt_td60_board_init(void)
 
 	imx27_add_imx_i2c(0, &mxt_td60_i2c0_data);
 	imx27_add_imx_i2c(1, &mxt_td60_i2c1_data);
-	mxc_register_device(&mxc_fb_device, &mxt_td60_fb_data);
-	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
+	imx27_add_imx_fb(&mxt_td60_fb_data);
+	imx27_add_mxc_mmc(0, &sdhc1_pdata);
 	imx27_add_fec(NULL);
 }
 

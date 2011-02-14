@@ -29,6 +29,14 @@ config XEN_DEV_EVTCHN
 	  firing.
 	  If in doubt, say yes.
 
+config XEN_BACKEND
+	bool "Backend driver support"
+	depends on XEN_DOM0
+	default y
+	help
+	  Support for backend device drivers that provide I/O services
+	  to other virtual machines.
+
 config XENFS
 	tristate "Xen filesystem"
 	default y
@@ -62,9 +70,19 @@ config XEN_SYS_HYPERVISOR
 	 virtual environment, /sys/hypervisor will still be present,
 	 but will have no xen contents.
 
+config XEN_XENBUS_FRONTEND
+	tristate
+
+config XEN_GNTDEV
+	tristate "userspace grant access device driver"
+	depends on XEN
+	select MMU_NOTIFIER
+	help
+	  Allows userspace processes to use grants.
+
 config XEN_PLATFORM_PCI
 	tristate "xen platform pci device driver"
-	depends on XEN_PVHVM
+	depends on XEN_PVHVM && PCI
 	default m
 	help
 	  Driver for the Xen PCI Platform device: it is responsible for

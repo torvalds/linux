@@ -23,4 +23,6 @@
 #define ARCH_SLAB_MINALIGN 8
 #endif
 
+#define __read_mostly __attribute__((__section__(".data..read_mostly")))
+
 #endif

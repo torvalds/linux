@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -38,6 +38,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
+#include <linux/crc32.h>
 
 #include "hw.h"
 
@@ -482,6 +483,7 @@ extern const char e1000e_driver_version[];
 
 extern void e1000e_check_options(struct e1000_adapter *adapter);
 extern void e1000e_set_ethtool_ops(struct net_device *netdev);
+extern void e1000e_led_blink_task(struct work_struct *work);
 
 extern int e1000e_up(struct e1000_adapter *adapter);
 extern void e1000e_down(struct e1000_adapter *adapter);
@@ -495,6 +497,8 @@ extern void e1000e_free_tx_resources(struct e1000_adapter *adapter);
 extern void e1000e_update_stats(struct e1000_adapter *adapter);
 extern void e1000e_set_interrupt_capability(struct e1000_adapter *adapter);
 extern void e1000e_reset_interrupt_capability(struct e1000_adapter *adapter);
+extern void e1000e_get_hw_control(struct e1000_adapter *adapter);
+extern void e1000e_release_hw_control(struct e1000_adapter *adapter);
 extern void e1000e_disable_aspm(struct pci_dev *pdev, u16 state);
 
 extern unsigned int copybreak;
@@ -513,7 +517,8 @@ extern struct e1000_info e1000_pch_info;
 extern struct e1000_info e1000_pch2_info;
 extern struct e1000_info e1000_es2_info;
 
-extern s32 e1000e_read_pba_num(struct e1000_hw *hw, u32 *pba_num);
+extern s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
+					 u32 pba_num_size);
 
 extern s32  e1000e_commit_phy(struct e1000_hw *hw);
 

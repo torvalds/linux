@@ -200,6 +200,32 @@ static void pca9532_led_work(struct work_struct *work)
 	pca9532_setled(led);
 }
 
+static void pca9532_destroy_devices(struct pca9532_data *data, int n_devs)
+{
+	int i = n_devs;
+
+	if (!data)
+		return;
+
+	while (--i >= 0) {
+		switch (data->leds[i].type) {
+		case PCA9532_TYPE_NONE:
+			break;
+		case PCA9532_TYPE_LED:
+			led_classdev_unregister(&data->leds[i].ldev);
+			cancel_work_sync(&data->leds[i].work);
+			break;
+		case PCA9532_TYPE_N2100_BEEP:
+			if (data->idev != NULL) {
+				input_unregister_device(data->idev);
+				cancel_work_sync(&data->work);
+				data->idev = NULL;
+			}
+			break;
+		}
+	}
+}
+
 static int pca9532_configure(struct i2c_client *client,
 	struct pca9532_data *data, struct pca9532_platform_data *pdata)
 {
@@ -274,25 +300,7 @@ static int pca9532_configure(struct i2c_client *client,
 	return 0;
 
 exit:
-	if (i > 0)
-		for (i = i - 1; i >= 0; i--)
-			switch (data->leds[i].type) {
-			case PCA9532_TYPE_NONE:
-				break;
-			case PCA9532_TYPE_LED:
-				led_classdev_unregister(&data->leds[i].ldev);
-				cancel_work_sync(&data->leds[i].work);
-				break;
-			case PCA9532_TYPE_N2100_BEEP:
-				if (data->idev != NULL) {
-					input_unregister_device(data->idev);
-					input_free_device(data->idev);
-					cancel_work_sync(&data->work);
-					data->idev = NULL;
-				}
-				break;
-			}
-
+	pca9532_destroy_devices(data, i);
 	return err;
 }
 
@@ -329,25 +337,7 @@ static int pca9532_probe(struct i2c_client *client,
 static int pca9532_remove(struct i2c_client *client)
 {
 	struct pca9532_data *data = i2c_get_clientdata(client);
-	int i;
-	for (i = 0; i < 16; i++)
-		switch (data->leds[i].type) {
-		case PCA9532_TYPE_NONE:
-			break;
-		case PCA9532_TYPE_LED:
-			led_classdev_unregister(&data->leds[i].ldev);
-			cancel_work_sync(&data->leds[i].work);
-			break;
-		case PCA9532_TYPE_N2100_BEEP:
-			if (data->idev != NULL) {
-				input_unregister_device(data->idev);
-				input_free_device(data->idev);
-				cancel_work_sync(&data->work);
-				data->idev = NULL;
-			}
-			break;
-		}
-
+	pca9532_destroy_devices(data, 16);
 	kfree(data);
 	return 0;
 }

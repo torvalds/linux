@@ -51,7 +51,7 @@ extern void sdioh_sdmmc_osfree(sdioh_info_t *sd);
 #define CLIENT_INTR 		0x100	/* Get rid of this! */
 
 struct sdioh_info {
-	osl_t *osh;		/* osh handler */
+	struct osl_info *osh;		/* osh handler */
 	bool client_intr_enabled;	/* interrupt connnected flag */
 	bool intr_handler_valid;	/* client driver interrupt handler valid */
 	sdioh_cb_fn_t intr_handler;	/* registered interrupt handler */
@@ -94,8 +94,8 @@ extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
  */
 
 /* Register mapping routines */
-extern u32 *sdioh_sdmmc_reg_map(osl_t *osh, s32 addr, int size);
-extern void sdioh_sdmmc_reg_unmap(osl_t *osh, s32 addr, int size);
+extern u32 *sdioh_sdmmc_reg_map(struct osl_info *osh, s32 addr, int size);
+extern void sdioh_sdmmc_reg_unmap(struct osl_info *osh, s32 addr, int size);
 
 /* Interrupt (de)registration routines */
 extern int sdioh_sdmmc_register_irq(sdioh_info_t *sd, uint irq);

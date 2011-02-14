@@ -80,6 +80,16 @@ struct dn_route {
 	unsigned rt_type;
 };
 
+static inline bool dn_is_input_route(struct dn_route *rt)
+{
+	return rt->fl.iif != 0;
+}
+
+static inline bool dn_is_output_route(struct dn_route *rt)
+{
+	return rt->fl.iif == 0;
+}
+
 extern void dn_route_init(void);
 extern void dn_route_cleanup(void);
 

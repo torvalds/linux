@@ -17,7 +17,7 @@ export CPU_VER CPU_MAJOR CPU_MINOR CPU_REV
 # The various CONFIG_XILINX cpu features options are integers 0/1/2...
 # rather than bools y/n
 
-# Work out HW multipler support.  This is icky.
+# Work out HW multipler support. This is tricky.
 # 1. Spartan2 has no HW multiplers.
 # 2. MicroBlaze v3.x always uses them, except in Spartan 2
 # 3. All other FPGa/CPU ver combos, we can trust the CONFIG_ settings

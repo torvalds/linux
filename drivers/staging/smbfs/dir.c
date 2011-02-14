@@ -14,6 +14,7 @@
 #include <linux/ctype.h>
 #include <linux/net.h>
 #include <linux/sched.h>
+#include <linux/namei.h>
 
 #include "smb_fs.h"
 #include "smb_mount.h"
@@ -274,11 +275,15 @@ smb_dir_open(struct inode *dir, struct file *file)
  * Dentry operations routines
  */
 static int smb_lookup_validate(struct dentry *, struct nameidata *);
-static int smb_hash_dentry(struct dentry *, struct qstr *);
-static int smb_compare_dentry(struct dentry *, struct qstr *, struct qstr *);
-static int smb_delete_dentry(struct dentry *);
+static int smb_hash_dentry(const struct dentry *, const struct inode *,
+		struct qstr *);
+static int smb_compare_dentry(const struct dentry *,
+		const struct inode *,
+		const struct dentry *, const struct inode *,
+		unsigned int, const char *, const struct qstr *);
+static int smb_delete_dentry(const struct dentry *);
 
-static const struct dentry_operations smbfs_dentry_operations =
+const struct dentry_operations smbfs_dentry_operations =
 {
 	.d_revalidate	= smb_lookup_validate,
 	.d_hash		= smb_hash_dentry,
@@ -286,7 +291,7 @@ static const struct dentry_operations smbfs_dentry_operations =
 	.d_delete	= smb_delete_dentry,
 };
 
-static const struct dentry_operations smbfs_dentry_operations_case =
+const struct dentry_operations smbfs_dentry_operations_case =
 {
 	.d_revalidate	= smb_lookup_validate,
 	.d_delete	= smb_delete_dentry,
@@ -297,12 +302,19 @@ static const struct dentry_operations smbfs_dentry_operations_case =
  * This is the callback when the dcache has a lookup hit.
  */
 static int
-smb_lookup_validate(struct dentry * dentry, struct nameidata *nd)
+smb_lookup_validate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct smb_sb_info *server = server_from_dentry(dentry);
-	struct inode * inode = dentry->d_inode;
-	unsigned long age = jiffies - dentry->d_time;
+	struct smb_sb_info *server;
+	struct inode *inode;
+	unsigned long age;
 	int valid;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	server = server_from_dentry(dentry);
+	inode = dentry->d_inode;
+	age = jiffies - dentry->d_time;
 
 	/*
 	 * The default validation is based on dentry age:
@@ -333,7 +345,8 @@ smb_lookup_validate(struct dentry * dentry, struct nameidata *nd)
 }
 
 static int 
-smb_hash_dentry(struct dentry *dir, struct qstr *this)
+smb_hash_dentry(const struct dentry *dir, const struct inode *inode,
+		struct qstr *this)
 {
 	unsigned long hash;
 	int i;
@@ -347,14 +360,17 @@ smb_hash_dentry(struct dentry *dir, struct qstr *this)
 }
 
 static int
-smb_compare_dentry(struct dentry *dir, struct qstr *a, struct qstr *b)
+smb_compare_dentry(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
 	int i, result = 1;
 
-	if (a->len != b->len)
+	if (len != name->len)
 		goto out;
-	for (i=0; i < a->len; i++) {
-		if (tolower(a->name[i]) != tolower(b->name[i]))
+	for (i=0; i < len; i++) {
+		if (tolower(str[i]) != tolower(name->name[i]))
 			goto out;
 	}
 	result = 0;
@@ -367,7 +383,7 @@ out:
  * We use this to unhash dentries with bad inodes.
  */
 static int
-smb_delete_dentry(struct dentry * dentry)
+smb_delete_dentry(const struct dentry *dentry)
 {
 	if (dentry->d_inode) {
 		if (is_bad_inode(dentry->d_inode)) {
@@ -387,12 +403,6 @@ smb_delete_dentry(struct dentry * dentry)
 void
 smb_new_dentry(struct dentry *dentry)
 {
-	struct smb_sb_info *server = server_from_dentry(dentry);
-
-	if (server->mnt->flags & SMB_MOUNT_CASE)
-		dentry->d_op = &smbfs_dentry_operations_case;
-	else
-		dentry->d_op = &smbfs_dentry_operations;
 	dentry->d_time = jiffies;
 }
 
@@ -424,7 +434,6 @@ smb_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	struct smb_fattr finfo;
 	struct inode *inode;
 	int error;
-	struct smb_sb_info *server;
 
 	error = -ENAMETOOLONG;
 	if (dentry->d_name.len > SMB_MAXNAMELEN)
@@ -452,12 +461,6 @@ smb_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 		inode = smb_iget(dir->i_sb, &finfo);
 		if (inode) {
 	add_entry:
-			server = server_from_dentry(dentry);
-			if (server->mnt->flags & SMB_MOUNT_CASE)
-				dentry->d_op = &smbfs_dentry_operations_case;
-			else
-				dentry->d_op = &smbfs_dentry_operations;
-
 			d_add(dentry, inode);
 			smb_renew_times(dentry);
 			error = 0;

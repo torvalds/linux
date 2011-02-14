@@ -99,7 +99,6 @@ struct lcd_sync_arg {
 #define FBIPUT_COLOR		_IOW('F', 6, int)
 #define FBIPUT_HSYNC		_IOW('F', 9, int)
 #define FBIPUT_VSYNC		_IOW('F', 10, int)
-#define FBIO_WAITFORVSYNC	_IOW('F', 0x20, u_int32_t)
 
 #endif  /* ifndef DA8XX_FB_H */
 

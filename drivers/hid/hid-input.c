@@ -174,7 +174,7 @@ static int hidinput_setkeycode(struct input_dev *dev,
 
 		clear_bit(*old_keycode, dev->keybit);
 		set_bit(usage->code, dev->keybit);
-		dbg_hid(KERN_DEBUG "Assigned keycode %d to HID usage code %x\n",
+		dbg_hid("Assigned keycode %d to HID usage code %x\n",
 			usage->code, usage->hid);
 
 		/*
@@ -203,8 +203,8 @@ static int hidinput_setkeycode(struct input_dev *dev,
  *
  * as seen in the HID specification v1.11 6.2.2.7 Global Items.
  *
- * Only exponent 1 length units are processed. Centimeters are converted to
- * inches. Degrees are converted to radians.
+ * Only exponent 1 length units are processed. Centimeters and inches are
+ * converted to millimeters. Degrees are converted to radians.
  */
 static __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code)
 {
@@ -225,13 +225,16 @@ static __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code)
 	 */
 	if (code == ABS_X || code == ABS_Y || code == ABS_Z) {
 		if (field->unit == 0x11) {		/* If centimeters */
-			/* Convert to inches */
-			prev = logical_extents;
-			logical_extents *= 254;
-			if (logical_extents < prev)
+			/* Convert to millimeters */
+			unit_exponent += 1;
+		} else if (field->unit == 0x13) {	/* If inches */
+			/* Convert to millimeters */
+			prev = physical_extents;
+			physical_extents *= 254;
+			if (physical_extents < prev)
 				return 0;
-			unit_exponent += 2;
-		} else if (field->unit != 0x13) {	/* If not inches */
+			unit_exponent -= 1;
+		} else {
 			return 0;
 		}
 	} else if (code == ABS_RX || code == ABS_RY || code == ABS_RZ) {
@@ -287,6 +290,14 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		goto ignore;
 	}
 
+	if (field->report_type == HID_FEATURE_REPORT) {
+		if (device->driver->feature_mapping) {
+			device->driver->feature_mapping(device, hidinput, field,
+				usage);
+		}
+		goto ignore;
+	}
+
 	if (device->driver->input_mapping) {
 		int ret = device->driver->input_mapping(device, hidinput, field,
 				usage, &bit, &max);
@@ -316,21 +327,21 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 		switch (field->application) {
 		case HID_GD_MOUSE:
-		case HID_GD_POINTER:  code += 0x110; break;
+		case HID_GD_POINTER:  code += BTN_MOUSE; break;
 		case HID_GD_JOYSTICK:
 				if (code <= 0xf)
 					code += BTN_JOYSTICK;
 				else
 					code += BTN_TRIGGER_HAPPY;
 				break;
-		case HID_GD_GAMEPAD:  code += 0x130; break;
+		case HID_GD_GAMEPAD:  code += BTN_GAMEPAD; break;
 		default:
 			switch (field->physical) {
 			case HID_GD_MOUSE:
-			case HID_GD_POINTER:  code += 0x110; break;
-			case HID_GD_JOYSTICK: code += 0x120; break;
-			case HID_GD_GAMEPAD:  code += 0x130; break;
-			default:              code += 0x100;
+			case HID_GD_POINTER:  code += BTN_MOUSE; break;
+			case HID_GD_JOYSTICK: code += BTN_JOYSTICK; break;
+			case HID_GD_GAMEPAD:  code += BTN_GAMEPAD; break;
+			default:              code += BTN_MISC;
 			}
 		}
 
@@ -814,14 +825,14 @@ static int hidinput_open(struct input_dev *dev)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 
-	return hid->ll_driver->open(hid);
+	return hid_hw_open(hid);
 }
 
 static void hidinput_close(struct input_dev *dev)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 
-	hid->ll_driver->close(hid);
+	hid_hw_close(hid);
 }
 
 /*
@@ -836,7 +847,6 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 	struct hid_input *hidinput = NULL;
 	struct input_dev *input_dev;
 	int i, j, k;
-	int max_report_type = HID_OUTPUT_REPORT;
 
 	INIT_LIST_HEAD(&hid->inputs);
 
@@ -853,10 +863,11 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 			return -1;
 	}
 
-	if (hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORTS)
-		max_report_type = HID_INPUT_REPORT;
+	for (k = HID_INPUT_REPORT; k <= HID_FEATURE_REPORT; k++) {
+		if (k == HID_OUTPUT_REPORT &&
+			hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORTS)
+			continue;
 
-	for (k = HID_INPUT_REPORT; k <= max_report_type; k++)
 		list_for_each_entry(report, &hid->report_enum[k].report_list, list) {
 
 			if (!report->maxfield)
@@ -868,7 +879,7 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				if (!hidinput || !input_dev) {
 					kfree(hidinput);
 					input_free_device(input_dev);
-					err_hid("Out of memory during hid input probe");
+					hid_err(hid, "Out of memory during hid input probe\n");
 					goto out_unwind;
 				}
 
@@ -909,6 +920,7 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				hidinput = NULL;
 			}
 		}
+	}
 
 	if (hidinput && input_register_device(hidinput->input))
 		goto out_cleanup;

@@ -695,6 +695,25 @@ out:
 	return ret;
 }
 
+int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
+					  struct channel_path_desc_fmt1 *desc)
+{
+	struct chsc_response_struct *chsc_resp;
+	struct chsc_scpd *scpd_area;
+	int ret;
+
+	spin_lock_irq(&chsc_page_lock);
+	scpd_area = chsc_page;
+	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 1, 0, scpd_area);
+	if (ret)
+		goto out;
+	chsc_resp = (void *)&scpd_area->response;
+	memcpy(desc, &chsc_resp->data, sizeof(*desc));
+out:
+	spin_unlock_irq(&chsc_page_lock);
+	return ret;
+}
+
 static void
 chsc_initialize_cmg_chars(struct channel_path *chp, u8 cmcv,
 			  struct cmg_chars *chars)

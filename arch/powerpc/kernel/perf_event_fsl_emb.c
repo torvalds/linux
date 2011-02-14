@@ -596,6 +596,7 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 			if (left <= 0)
 				left = period;
 			record = 1;
+			event->hw.last_period = event->hw.sample_period;
 		}
 		if (left < 0x80000000LL)
 			val = 0x80000000LL - left;
@@ -681,7 +682,7 @@ int register_fsl_emb_pmu(struct fsl_emb_pmu *pmu)
 	pr_info("%s performance monitor hardware support registered\n",
 		pmu->name);
 
-	perf_pmu_register(&fsl_emb_pmu);
+	perf_pmu_register(&fsl_emb_pmu, "cpu", PERF_TYPE_RAW);
 
 	return 0;
 }

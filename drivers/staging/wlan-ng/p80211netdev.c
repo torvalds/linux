@@ -301,7 +301,8 @@ static void p80211netdev_rx_bh(unsigned long arg)
 					if (memcmp
 					    (hdr->a1, wlandev->netdev->dev_addr,
 					     ETH_ALEN) != 0) {
-						/* but reject anything else that isn't multicast */
+						/* but reject anything else that
+						   isn't multicast */
 						if (!(hdr->a1[0] & 0x01)) {
 							dev_kfree_skb(skb);
 							continue;
@@ -770,7 +771,8 @@ int wlan_setup(wlandevice_t *wlandev, struct device *physdev)
 	}
 
 	/* Allocate and initialize the struct device */
-	netdev = alloc_netdev(sizeof(struct wireless_dev), "wlan%d", ether_setup);
+	netdev = alloc_netdev(sizeof(struct wireless_dev), "wlan%d",
+				ether_setup);
 	if (netdev == NULL) {
 		printk(KERN_ERR "Failed to alloc netdev.\n");
 		wlan_free_wiphy(wiphy);

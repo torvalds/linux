@@ -126,12 +126,7 @@ static int gfs2_get_name(struct dentry *parent, char *name,
 
 static struct dentry *gfs2_get_parent(struct dentry *child)
 {
-	struct dentry *dentry;
-
-	dentry = d_obtain_alias(gfs2_lookupi(child->d_inode, &gfs2_qdotdot, 1));
-	if (!IS_ERR(dentry))
-		dentry->d_op = &gfs2_dops;
-	return dentry;
+	return d_obtain_alias(gfs2_lookupi(child->d_inode, &gfs2_qdotdot, 1));
 }
 
 static struct dentry *gfs2_get_dentry(struct super_block *sb,
@@ -139,7 +134,6 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb,
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct inode *inode;
-	struct dentry *dentry;
 
 	inode = gfs2_ilookup(sb, inum->no_addr);
 	if (inode) {
@@ -156,10 +150,7 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb,
 		return ERR_CAST(inode);
 
 out_inode:
-	dentry = d_obtain_alias(inode);
-	if (!IS_ERR(dentry))
-		dentry->d_op = &gfs2_dops;
-	return dentry;
+	return d_obtain_alias(inode);
 }
 
 static struct dentry *gfs2_fh_to_dentry(struct super_block *sb, struct fid *fid,

@@ -22,77 +22,27 @@
 #include "autofs_i.h"
 #include <linux/module.h>
 
-static void ino_lnkfree(struct autofs_info *ino)
+struct autofs_info *autofs4_new_ino(struct autofs_sb_info *sbi)
 {
-	if (ino->u.symlink) {
-		kfree(ino->u.symlink);
-		ino->u.symlink = NULL;
+	struct autofs_info *ino = kzalloc(sizeof(*ino), GFP_KERNEL);
+	if (ino) {
+		INIT_LIST_HEAD(&ino->active);
+		INIT_LIST_HEAD(&ino->expiring);
+		ino->last_used = jiffies;
+		ino->sbi = sbi;
 	}
+	return ino;
 }
 
-struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
-				     struct autofs_sb_info *sbi, mode_t mode)
+void autofs4_clean_ino(struct autofs_info *ino)
 {
-	int reinit = 1;
-
-	if (ino == NULL) {
-		reinit = 0;
-		ino = kmalloc(sizeof(*ino), GFP_KERNEL);
-	}
-
-	if (ino == NULL)
-		return NULL;
-
-	if (!reinit) {
-		ino->flags = 0;
-		ino->inode = NULL;
-		ino->dentry = NULL;
-		ino->size = 0;
-		INIT_LIST_HEAD(&ino->active);
-		ino->active_count = 0;
-		INIT_LIST_HEAD(&ino->expiring);
-		atomic_set(&ino->count, 0);
-	}
-
 	ino->uid = 0;
 	ino->gid = 0;
-	ino->mode = mode;
 	ino->last_used = jiffies;
-
-	ino->sbi = sbi;
-
-	if (reinit && ino->free)
-		(ino->free)(ino);
-
-	memset(&ino->u, 0, sizeof(ino->u));
-
-	ino->free = NULL;
-
-	if (S_ISLNK(mode))
-		ino->free = ino_lnkfree;
-
-	return ino;
 }
 
 void autofs4_free_ino(struct autofs_info *ino)
 {
-	struct autofs_info *p_ino;
-
-	if (ino->dentry) {
-		ino->dentry->d_fsdata = NULL;
-		if (ino->dentry->d_inode) {
-			struct dentry *parent = ino->dentry->d_parent;
-			if (atomic_dec_and_test(&ino->count)) {
-				p_ino = autofs4_dentry_ino(parent);
-				if (p_ino && parent != ino->dentry)
-					atomic_dec(&p_ino->count);
-			}
-			dput(ino->dentry);
-		}
-		ino->dentry = NULL;
-	}
-	if (ino->free)
-		(ino->free)(ino);
 	kfree(ino);
 }
 
@@ -148,9 +98,16 @@ static int autofs4_show_options(struct seq_file *m, struct vfsmount *mnt)
 	return 0;
 }
 
+static void autofs4_evict_inode(struct inode *inode)
+{
+	end_writeback(inode);
+	kfree(inode->i_private);
+}
+
 static const struct super_operations autofs4_sops = {
 	.statfs		= simple_statfs,
 	.show_options	= autofs4_show_options,
+	.evict_inode	= autofs4_evict_inode,
 };
 
 enum {Opt_err, Opt_fd, Opt_uid, Opt_gid, Opt_pgrp, Opt_minproto, Opt_maxproto,
@@ -240,21 +197,6 @@ static int parse_options(char *options, int *pipefd, uid_t *uid, gid_t *gid,
 	return (*pipefd < 0);
 }
 
-static struct autofs_info *autofs4_mkroot(struct autofs_sb_info *sbi)
-{
-	struct autofs_info *ino;
-
-	ino = autofs4_init_ino(NULL, sbi, S_IFDIR | 0755);
-	if (!ino)
-		return NULL;
-
-	return ino;
-}
-
-static const struct dentry_operations autofs4_sb_dentry_operations = {
-	.d_release      = autofs4_dentry_release,
-};
-
 int autofs4_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct inode * root_inode;
@@ -292,15 +234,16 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	s->s_blocksize_bits = 10;
 	s->s_magic = AUTOFS_SUPER_MAGIC;
 	s->s_op = &autofs4_sops;
+	s->s_d_op = &autofs4_dentry_operations;
 	s->s_time_gran = 1;
 
 	/*
 	 * Get the root inode and dentry, but defer checking for errors.
 	 */
-	ino = autofs4_mkroot(sbi);
+	ino = autofs4_new_ino(sbi);
 	if (!ino)
 		goto fail_free;
-	root_inode = autofs4_get_inode(s, ino);
+	root_inode = autofs4_get_inode(s, S_IFDIR | 0755);
 	if (!root_inode)
 		goto fail_ino;
 
@@ -309,7 +252,6 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 		goto fail_iput;
 	pipe = NULL;
 
-	root->d_op = &autofs4_sb_dentry_operations;
 	root->d_fsdata = ino;
 
 	/* Can this call block? */
@@ -320,10 +262,11 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 		goto fail_dput;
 	}
 
+	if (autofs_type_trigger(sbi->type))
+		__managed_dentry_set_managed(root);
+
 	root_inode->i_fop = &autofs4_root_operations;
-	root_inode->i_op = autofs_type_trigger(sbi->type) ?
-			&autofs4_direct_root_inode_operations :
-			&autofs4_indirect_root_inode_operations;
+	root_inode->i_op = &autofs4_dir_inode_operations;
 
 	/* Couldn't this be tested earlier? */
 	if (sbi->max_proto < AUTOFS_MIN_PROTO_VERSION ||
@@ -383,16 +326,14 @@ fail_unlock:
 	return -EINVAL;
 }
 
-struct inode *autofs4_get_inode(struct super_block *sb,
-				struct autofs_info *inf)
+struct inode *autofs4_get_inode(struct super_block *sb, mode_t mode)
 {
 	struct inode *inode = new_inode(sb);
 
 	if (inode == NULL)
 		return NULL;
 
-	inf->inode = inode;
-	inode->i_mode = inf->mode;
+	inode->i_mode = mode;
 	if (sb->s_root) {
 		inode->i_uid = sb->s_root->d_inode->i_uid;
 		inode->i_gid = sb->s_root->d_inode->i_gid;
@@ -400,12 +341,11 @@ struct inode *autofs4_get_inode(struct super_block *sb,
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	inode->i_ino = get_next_ino();
 
-	if (S_ISDIR(inf->mode)) {
+	if (S_ISDIR(mode)) {
 		inode->i_nlink = 2;
 		inode->i_op = &autofs4_dir_inode_operations;
 		inode->i_fop = &autofs4_dir_operations;
-	} else if (S_ISLNK(inf->mode)) {
-		inode->i_size = inf->size;
+	} else if (S_ISLNK(mode)) {
 		inode->i_op = &autofs4_symlink_inode_operations;
 	}
 

@@ -14,6 +14,11 @@
 #define	m5407sim_h
 /****************************************************************************/
 
+#define	CPU_NAME		"COLDFIRE(m5407)"
+#define	CPU_INSTR_PER_JIFFY	3
+
+#include <asm/m54xxacr.h>
+
 /*
  *	Define the 5407 SIM register set addresses.
  */
@@ -73,6 +78,9 @@
 #define MCFSIM_DACR1		0x110		/* DRAM 1 Addr and Ctrl (r/w) */
 #define MCFSIM_DMR1		0x114		/* DRAM 1 Mask reg (r/w) */
 
+#define MCFUART_BASE1		0x1c0           /* Base address of UART1 */
+#define MCFUART_BASE2		0x200           /* Base address of UART2 */
+
 #define	MCFSIM_PADDR		(MCF_MBAR + 0x244)
 #define	MCFSIM_PADAT		(MCF_MBAR + 0x248)
 
@@ -116,40 +124,6 @@
  */
 #define	MCF_IRQ_TIMER		30		/* Timer0, Level 6 */
 #define	MCF_IRQ_PROFILER	31		/* Timer1, Level 7 */
-
-/*
- *	Define the Cache register flags.
- */
-#define	CACR_DEC		0x80000000	/* Enable data cache */
-#define	CACR_DWP		0x40000000	/* Data write protection */
-#define	CACR_DESB		0x20000000	/* Enable data store buffer */
-#define	CACR_DDPI		0x10000000	/* Disable CPUSHL */
-#define	CACR_DHCLK		0x08000000	/* Half data cache lock mode */
-#define	CACR_DDCM_WT		0x00000000	/* Write through cache*/
-#define	CACR_DDCM_CP		0x02000000	/* Copyback cache */
-#define	CACR_DDCM_P		0x04000000	/* No cache, precise */
-#define	CACR_DDCM_IMP		0x06000000	/* No cache, imprecise */
-#define	CACR_DCINVA		0x01000000	/* Invalidate data cache */
-#define	CACR_BEC		0x00080000	/* Enable branch cache */
-#define	CACR_BCINVA		0x00040000	/* Invalidate branch cache */
-#define	CACR_IEC		0x00008000	/* Enable instruction cache */
-#define	CACR_DNFB		0x00002000	/* Inhibited fill buffer */
-#define	CACR_IDPI		0x00001000	/* Disable CPUSHL */
-#define	CACR_IHLCK		0x00000800	/* Intruction cache half lock */
-#define	CACR_IDCM		0x00000400	/* Intruction cache inhibit */
-#define	CACR_ICINVA		0x00000100	/* Invalidate instr cache */
-
-#define	ACR_BASE_POS		24		/* Address Base */
-#define	ACR_MASK_POS		16		/* Address Mask */
-#define	ACR_ENABLE		0x00008000	/* Enable address */
-#define	ACR_USER		0x00000000	/* User mode access only */
-#define	ACR_SUPER		0x00002000	/* Supervisor mode only */
-#define	ACR_ANY			0x00004000	/* Match any access mode */
-#define	ACR_CM_WT		0x00000000	/* Write through mode */
-#define	ACR_CM_CP		0x00000020	/* Copyback mode */
-#define	ACR_CM_OFF_PRE		0x00000040	/* No cache, precise */
-#define	ACR_CM_OFF_IMP		0x00000060	/* No cache, imprecise */
-#define	ACR_WPROTECT		0x00000004	/* Write protect */
 
 /****************************************************************************/
 #endif	/* m5407sim_h */

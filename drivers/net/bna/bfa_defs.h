@@ -112,16 +112,18 @@ struct bfa_ioc_pci_attr {
  * IOC states
  */
 enum bfa_ioc_state {
-	BFA_IOC_RESET		= 1,	/*!< IOC is in reset state */
-	BFA_IOC_SEMWAIT		= 2,	/*!< Waiting for IOC h/w semaphore */
-	BFA_IOC_HWINIT		= 3,	/*!< IOC h/w is being initialized */
-	BFA_IOC_GETATTR		= 4,	/*!< IOC is being configured */
-	BFA_IOC_OPERATIONAL	= 5,	/*!< IOC is operational */
-	BFA_IOC_INITFAIL	= 6,	/*!< IOC hardware failure */
-	BFA_IOC_HBFAIL		= 7,	/*!< IOC heart-beat failure */
-	BFA_IOC_DISABLING	= 8,	/*!< IOC is being disabled */
-	BFA_IOC_DISABLED	= 9,	/*!< IOC is disabled */
-	BFA_IOC_FWMISMATCH	= 10,	/*!< IOC f/w different from drivers */
+	BFA_IOC_UNINIT		= 1,	/*!< IOC is in uninit state */
+	BFA_IOC_RESET		= 2,	/*!< IOC is in reset state */
+	BFA_IOC_SEMWAIT		= 3,	/*!< Waiting for IOC h/w semaphore */
+	BFA_IOC_HWINIT		= 4,	/*!< IOC h/w is being initialized */
+	BFA_IOC_GETATTR		= 5,	/*!< IOC is being configured */
+	BFA_IOC_OPERATIONAL	= 6,	/*!< IOC is operational */
+	BFA_IOC_INITFAIL	= 7,	/*!< IOC hardware failure */
+	BFA_IOC_FAIL		= 8,	/*!< IOC heart-beat failure */
+	BFA_IOC_DISABLING	= 9,	/*!< IOC is being disabled */
+	BFA_IOC_DISABLED	= 10,	/*!< IOC is disabled */
+	BFA_IOC_FWMISMATCH	= 11,	/*!< IOC f/w different from drivers */
+	BFA_IOC_ENABLING	= 12,	/*!< IOC is being enabled */
 };
 
 /**

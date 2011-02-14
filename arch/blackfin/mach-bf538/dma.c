@@ -11,7 +11,7 @@
 #include <asm/blackfin.h>
 #include <asm/dma.h>
 
-struct dma_register *dma_io_base_addr[MAX_DMA_CHANNELS] = {
+struct dma_register * const dma_io_base_addr[MAX_DMA_CHANNELS] = {
 	(struct dma_register *) DMA0_NEXT_DESC_PTR,
 	(struct dma_register *) DMA1_NEXT_DESC_PTR,
 	(struct dma_register *) DMA2_NEXT_DESC_PTR,
@@ -32,14 +32,14 @@ struct dma_register *dma_io_base_addr[MAX_DMA_CHANNELS] = {
 	(struct dma_register *) DMA17_NEXT_DESC_PTR,
 	(struct dma_register *) DMA18_NEXT_DESC_PTR,
 	(struct dma_register *) DMA19_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA0_D0_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA0_S0_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA0_D1_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA0_S1_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA1_D0_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA1_S0_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA1_D1_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA1_S1_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_D0_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_S0_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_D1_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_S1_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_D2_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_S2_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_D3_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_S3_NEXT_DESC_PTR,
 };
 EXPORT_SYMBOL(dma_io_base_addr);
 

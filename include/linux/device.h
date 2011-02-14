@@ -30,9 +30,8 @@ struct device_private;
 struct device_driver;
 struct driver_private;
 struct class;
-struct class_private;
+struct subsys_private;
 struct bus_type;
-struct bus_type_private;
 struct device_node;
 
 struct bus_attribute {
@@ -65,7 +64,7 @@ struct bus_type {
 
 	const struct dev_pm_ops *pm;
 
-	struct bus_type_private *p;
+	struct subsys_private *p;
 };
 
 extern int __must_check bus_register(struct bus_type *bus);
@@ -197,6 +196,7 @@ struct class {
 
 	struct class_attribute		*class_attrs;
 	struct device_attribute		*dev_attrs;
+	struct bin_attribute		*dev_bin_attrs;
 	struct kobject			*dev_kobj;
 
 	int (*dev_uevent)(struct device *dev, struct kobj_uevent_env *env);
@@ -213,7 +213,7 @@ struct class {
 
 	const struct dev_pm_ops *pm;
 
-	struct class_private *p;
+	struct subsys_private *p;
 };
 
 struct class_dev_iter {
@@ -508,13 +508,13 @@ static inline int device_is_registered(struct device *dev)
 
 static inline void device_enable_async_suspend(struct device *dev)
 {
-	if (dev->power.status == DPM_ON)
+	if (!dev->power.in_suspend)
 		dev->power.async_suspend = true;
 }
 
 static inline void device_disable_async_suspend(struct device *dev)
 {
-	if (dev->power.status == DPM_ON)
+	if (!dev->power.in_suspend)
 		dev->power.async_suspend = false;
 }
 

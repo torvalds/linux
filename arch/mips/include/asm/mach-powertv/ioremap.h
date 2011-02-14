@@ -88,7 +88,7 @@ static inline dma_addr_t _dma_to_phys_offset_raw(dma_addr_t dma)
 }
 
 /* These are not portable and should not be used in drivers. Drivers should
- * be using ioremap() and friends to map physical addreses to virtual
+ * be using ioremap() and friends to map physical addresses to virtual
  * addresses and dma_map*() and friends to map virtual addresses into DMA
  * addresses and back.
  */

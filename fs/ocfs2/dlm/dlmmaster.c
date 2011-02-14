@@ -2346,7 +2346,8 @@ static void dlm_deref_lockres_worker(struct dlm_work_item *item, void *data)
  */
 static int dlm_is_lockres_migrateable(struct dlm_ctxt *dlm,
 				      struct dlm_lock_resource *res,
-				      int *numlocks)
+				      int *numlocks,
+				      int *hasrefs)
 {
 	int ret;
 	int i;
@@ -2355,6 +2356,9 @@ static int dlm_is_lockres_migrateable(struct dlm_ctxt *dlm,
 	struct dlm_lock *lock;
 
 	assert_spin_locked(&res->spinlock);
+
+	*numlocks = 0;
+	*hasrefs = 0;
 
 	ret = -EINVAL;
 	if (res->owner == DLM_LOCK_RES_OWNER_UNKNOWN) {
@@ -2386,7 +2390,13 @@ static int dlm_is_lockres_migrateable(struct dlm_ctxt *dlm,
 	}
 
 	*numlocks = count;
-	mlog(0, "migrateable lockres having %d locks\n", *numlocks);
+
+	count = find_next_bit(res->refmap, O2NM_MAX_NODES, 0);
+	if (count < O2NM_MAX_NODES)
+		*hasrefs = 1;
+
+	mlog(0, "%s: res %.*s, Migrateable, locks %d, refs %d\n", dlm->name,
+	     res->lockname.len, res->lockname.name, *numlocks, *hasrefs);
 
 leave:
 	return ret;
@@ -2408,7 +2418,7 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 	const char *name;
 	unsigned int namelen;
 	int mle_added = 0;
-	int numlocks;
+	int numlocks, hasrefs;
 	int wake = 0;
 
 	if (!dlm_grab(dlm))
@@ -2417,13 +2427,13 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 	name = res->lockname.name;
 	namelen = res->lockname.len;
 
-	mlog(0, "migrating %.*s to %u\n", namelen, name, target);
+	mlog(0, "%s: Migrating %.*s to %u\n", dlm->name, namelen, name, target);
 
 	/*
 	 * ensure this lockres is a proper candidate for migration
 	 */
 	spin_lock(&res->spinlock);
-	ret = dlm_is_lockres_migrateable(dlm, res, &numlocks);
+	ret = dlm_is_lockres_migrateable(dlm, res, &numlocks, &hasrefs);
 	if (ret < 0) {
 		spin_unlock(&res->spinlock);
 		goto leave;
@@ -2431,10 +2441,8 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 	spin_unlock(&res->spinlock);
 
 	/* no work to do */
-	if (numlocks == 0) {
-		mlog(0, "no locks were found on this lockres! done!\n");
+	if (numlocks == 0 && !hasrefs)
 		goto leave;
-	}
 
 	/*
 	 * preallocate up front
@@ -2459,14 +2467,14 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 	 * find a node to migrate the lockres to
 	 */
 
-	mlog(0, "picking a migration node\n");
 	spin_lock(&dlm->spinlock);
 	/* pick a new node */
 	if (!test_bit(target, dlm->domain_map) ||
 	    target >= O2NM_MAX_NODES) {
 		target = dlm_pick_migration_target(dlm, res);
 	}
-	mlog(0, "node %u chosen for migration\n", target);
+	mlog(0, "%s: res %.*s, Node %u chosen for migration\n", dlm->name,
+	     namelen, name, target);
 
 	if (target >= O2NM_MAX_NODES ||
 	    !test_bit(target, dlm->domain_map)) {
@@ -2667,7 +2675,7 @@ int dlm_empty_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 {
 	int ret;
 	int lock_dropped = 0;
-	int numlocks;
+	int numlocks, hasrefs;
 
 	spin_lock(&res->spinlock);
 	if (res->owner != dlm->node_num) {
@@ -2681,8 +2689,8 @@ int dlm_empty_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 	}
 
 	/* No need to migrate a lockres having no locks */
-	ret = dlm_is_lockres_migrateable(dlm, res, &numlocks);
-	if (ret >= 0 && numlocks == 0) {
+	ret = dlm_is_lockres_migrateable(dlm, res, &numlocks, &hasrefs);
+	if (ret >= 0 && numlocks == 0 && !hasrefs) {
 		spin_unlock(&res->spinlock);
 		goto leave;
 	}
@@ -2914,6 +2922,12 @@ static u8 dlm_pick_migration_target(struct dlm_ctxt *dlm,
 			}
 		}
 		queue++;
+	}
+
+	nodenum = find_next_bit(res->refmap, O2NM_MAX_NODES, 0);
+	if (nodenum < O2NM_MAX_NODES) {
+		spin_unlock(&res->spinlock);
+		return nodenum;
 	}
 	spin_unlock(&res->spinlock);
 	mlog(0, "have not found a suitable target yet! checking domain map\n");

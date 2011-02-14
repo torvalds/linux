@@ -999,7 +999,7 @@ static int __devinit intel_mid_i2c_probe(struct pci_dev *dev,
 
 	/* Initialize struct members */
 	snprintf(mrst->adap.name, sizeof(mrst->adap.name),
-		"MRST/Medfield I2C at %lx", start);
+		"Intel MID I2C at %lx", start);
 	mrst->adap.owner = THIS_MODULE;
 	mrst->adap.algo = &intel_mid_i2c_algorithm;
 	mrst->adap.dev.parent = &dev->dev;

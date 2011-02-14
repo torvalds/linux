@@ -852,8 +852,8 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 #endif
 
 	default :
-		ret = v4l_compat_translate_ioctl(file, cmd,
-						 arg, pvr2_v4l2_do_ioctl);
+		ret = -EINVAL;
+		break;
 	}
 
 	pvr2_hdw_commit_ctl(hdw);

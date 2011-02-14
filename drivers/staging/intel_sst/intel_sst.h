@@ -29,6 +29,7 @@
  *	and middleware.
  *  This file is shared between the SST and MAD drivers
  */
+#include "intel_sst_ioctl.h"
 
 #define SST_CARD_NAMES "intel_mid_card"
 
@@ -107,10 +108,15 @@ struct snd_pmic_ops {
 	int (*power_down_pmic) (void);
 };
 
+struct intel_sst_pcm_control {
+	int (*open) (struct snd_sst_params *str_param);
+	int (*device_control) (int cmd, void *arg);
+	int (*close) (unsigned int str_id);
+};
 struct intel_sst_card_ops {
 	char *module_name;
 	unsigned int  vendor_id;
-	int (*control_set) (int control_element, void *value);
+	struct intel_sst_pcm_control *pcm_control;
 	struct snd_pmic_ops *scard_ops;
 };
 

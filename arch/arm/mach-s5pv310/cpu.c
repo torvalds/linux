@@ -24,8 +24,6 @@
 
 #include <mach/regs-irq.h>
 
-void __iomem *gic_cpu_base_addr;
-
 extern int combiner_init(unsigned int combiner_nr, void __iomem *base,
 			 unsigned int irq_start);
 extern void combiner_cascade_irq(unsigned int combiner_nr, unsigned int irq);
@@ -41,6 +39,11 @@ static struct map_desc s5pv310_iodesc[] __initdata = {
 		.virtual	= (unsigned long)S5P_VA_CMU,
 		.pfn		= __phys_to_pfn(S5PV310_PA_CMU),
 		.length		= SZ_128K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_PMU,
+		.pfn		= __phys_to_pfn(S5PV310_PA_PMU),
+		.length		= SZ_64K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5P_VA_COMBINER_BASE,
@@ -71,6 +74,11 @@ static struct map_desc s5pv310_iodesc[] __initdata = {
 		.virtual	= (unsigned long)S5P_VA_GPIO3,
 		.pfn		= __phys_to_pfn(S5PV310_PA_GPIO3),
 		.length		= SZ_256,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_DMC0,
+		.pfn		= __phys_to_pfn(S5PV310_PA_DMC0),
+		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S3C_VA_UART,
@@ -122,11 +130,18 @@ void __init s5pv310_init_irq(void)
 {
 	int irq;
 
-	gic_cpu_base_addr = S5P_VA_GIC_CPU;
-	gic_dist_init(0, S5P_VA_GIC_DIST, IRQ_LOCALTIMER);
-	gic_cpu_init(0, S5P_VA_GIC_CPU);
+	gic_init(0, IRQ_LOCALTIMER, S5P_VA_GIC_DIST, S5P_VA_GIC_CPU);
 
 	for (irq = 0; irq < MAX_COMBINER_NR; irq++) {
+
+		/*
+		 * From SPI(0) to SPI(39) and SPI(51), SPI(53) are
+		 * connected to the interrupt combiner. These irqs
+		 * should be initialized to support cascade interrupt.
+		 */
+		if ((irq >= 40) && !(irq == 51) && !(irq == 53))
+			continue;
+
 		combiner_init(irq, (void __iomem *)S5P_VA_COMBINER(irq),
 				COMBINER_IRQ(irq, 0));
 		combiner_cascade_irq(irq, IRQ_SPI(irq));
@@ -168,7 +183,7 @@ static int __init s5pv310_l2x0_cache_init(void)
 	__raw_writel(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN,
 		     S5P_VA_L2CC + L2X0_POWER_CTRL);
 
-	l2x0_init(S5P_VA_L2CC, 0x7C070001, 0xC200ffff);
+	l2x0_init(S5P_VA_L2CC, 0x7C470001, 0xC200ffff);
 
 	return 0;
 }

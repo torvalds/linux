@@ -55,7 +55,6 @@ EXPORT_SYMBOL(inet_get_local_port_range);
 int inet_csk_bind_conflict(const struct sock *sk,
 			   const struct inet_bind_bucket *tb)
 {
-	const __be32 sk_rcv_saddr = inet_rcv_saddr(sk);
 	struct sock *sk2;
 	struct hlist_node *node;
 	int reuse = sk->sk_reuse;
@@ -74,10 +73,10 @@ int inet_csk_bind_conflict(const struct sock *sk,
 		     !sk2->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if)) {
 			if (!reuse || !sk2->sk_reuse ||
-			    sk2->sk_state == TCP_LISTEN) {
-				const __be32 sk2_rcv_saddr = inet_rcv_saddr(sk2);
-				if (!sk2_rcv_saddr || !sk_rcv_saddr ||
-				    sk2_rcv_saddr == sk_rcv_saddr)
+			    ((1 << sk2->sk_state) & (TCPF_LISTEN | TCPF_CLOSE))) {
+				const __be32 sk2_rcv_saddr = sk_rcv_saddr(sk2);
+				if (!sk2_rcv_saddr || !sk_rcv_saddr(sk) ||
+				    sk2_rcv_saddr == sk_rcv_saddr(sk))
 					break;
 			}
 		}
@@ -123,7 +122,8 @@ again:
 					    (tb->num_owners < smallest_size || smallest_size == -1)) {
 						smallest_size = tb->num_owners;
 						smallest_rover = rover;
-						if (atomic_read(&hashinfo->bsockets) > (high - low) + 1) {
+						if (atomic_read(&hashinfo->bsockets) > (high - low) + 1 &&
+						    !inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb)) {
 							spin_unlock(&head->lock);
 							snum = smallest_rover;
 							goto have_snum;
@@ -358,17 +358,14 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 	struct ip_options *opt = inet_rsk(req)->opt;
 	struct flowi fl = { .oif = sk->sk_bound_dev_if,
 			    .mark = sk->sk_mark,
-			    .nl_u = { .ip4_u =
-				      { .daddr = ((opt && opt->srr) ?
-						  opt->faddr :
-						  ireq->rmt_addr),
-					.saddr = ireq->loc_addr,
-					.tos = RT_CONN_FLAGS(sk) } },
+			    .fl4_dst = ((opt && opt->srr) ?
+					  opt->faddr : ireq->rmt_addr),
+			    .fl4_src = ireq->loc_addr,
+			    .fl4_tos = RT_CONN_FLAGS(sk),
 			    .proto = sk->sk_protocol,
 			    .flags = inet_sk_flowi_flags(sk),
-			    .uli_u = { .ports =
-				       { .sport = inet_sk(sk)->inet_sport,
-					 .dport = ireq->rmt_port } } };
+			    .fl_ip_sport = inet_sk(sk)->inet_sport,
+			    .fl_ip_dport = ireq->rmt_port };
 	struct net *net = sock_net(sk);
 
 	security_req_classify_flow(req, &fl);

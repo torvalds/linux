@@ -854,7 +854,6 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 
 	/* Cleanup the fc_lport */
 	fc_lport_destroy(lport);
-	fc_fcp_destroy(lport);
 
 	/* Stop the transmit retry timer */
 	del_timer_sync(&port->timer);
@@ -875,6 +874,9 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 	/* Detach from the scsi-ml */
 	fc_remove_host(lport->host);
 	scsi_remove_host(lport->host);
+
+	/* Destroy lport scsi_priv */
+	fc_fcp_destroy(lport);
 
 	/* There are no more rports or I/O, free the EM */
 	fc_exch_mgr_free(lport);

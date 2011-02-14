@@ -270,7 +270,7 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	imx2_wdt.clk = clk_get_sys("imx-wdt.0", NULL);
+	imx2_wdt.clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(imx2_wdt.clk)) {
 		dev_err(&pdev->dev, "can't get Watchdog clock\n");
 		return PTR_ERR(imx2_wdt.clk);

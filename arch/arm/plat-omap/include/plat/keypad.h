@@ -10,16 +10,18 @@
 #ifndef ASMARM_ARCH_KEYPAD_H
 #define ASMARM_ARCH_KEYPAD_H
 
-#warning: Please update the board to use matrix_keypad.h instead
+#ifndef CONFIG_ARCH_OMAP1
+#warning Please update the board to use matrix-keypad driver
+#endif
+#include <linux/input/matrix_keypad.h>
 
 struct omap_kp_platform_data {
 	int rows;
 	int cols;
-	int *keymap;
-	unsigned int keymapsize;
-	unsigned int rep:1;
+	const struct matrix_keymap_data *keymap_data;
+	bool rep;
 	unsigned long delay;
-	unsigned int dbounce:1;
+	bool dbounce;
 	/* specific to OMAP242x*/
 	unsigned int *row_gpios;
 	unsigned int *col_gpios;
@@ -28,18 +30,21 @@ struct omap_kp_platform_data {
 /* Group (0..3) -- when multiple keys are pressed, only the
  * keys pressed in the same group are considered as pressed. This is
  * in order to workaround certain crappy HW designs that produce ghost
- * keypresses. */
-#define GROUP_0		(0 << 16)
-#define GROUP_1		(1 << 16)
-#define GROUP_2		(2 << 16)
-#define GROUP_3		(3 << 16)
+ * keypresses. Two free bits, not used by neither row/col nor keynum,
+ * must be available for use as group bits. The below GROUP_SHIFT
+ * macro definition is based on some prior knowledge of the
+ * matrix_keypad defined KEY() macro internals.
+ */
+#define GROUP_SHIFT	14
+#define GROUP_0		(0 << GROUP_SHIFT)
+#define GROUP_1		(1 << GROUP_SHIFT)
+#define GROUP_2		(2 << GROUP_SHIFT)
+#define GROUP_3		(3 << GROUP_SHIFT)
 #define GROUP_MASK	GROUP_3
+#if KEY_MAX & GROUP_MASK
+#error Group bits in conflict with keynum bits
+#endif
 
-#define KEY_PERSISTENT		0x00800000
-#define KEYNUM_MASK		0x00EFFFFF
-#define KEY(col, row, val) (((col) << 28) | ((row) << 24) | (val))
-#define PERSISTENT_KEY(col, row) (((col) << 28) | ((row) << 24) | \
-						KEY_PERSISTENT)
 
 #endif
 

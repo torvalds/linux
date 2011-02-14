@@ -298,6 +298,8 @@ static inline int nf_ct_is_untracked(const struct nf_conn *ct)
 extern int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);
 extern unsigned int nf_conntrack_htable_size;
 extern unsigned int nf_conntrack_max;
+extern unsigned int nf_conntrack_hash_rnd;
+void init_nf_conntrack_hash_rnd(void);
 
 #define NF_CT_STAT_INC(net, count)	\
 	__this_cpu_inc((net)->ct.stat->count)

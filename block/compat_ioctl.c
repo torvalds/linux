@@ -8,7 +8,6 @@
 #include <linux/hdreg.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 

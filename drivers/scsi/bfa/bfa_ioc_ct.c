@@ -15,11 +15,21 @@
  * General Public License for more details.
  */
 
+#include "bfad_drv.h"
 #include "bfa_ioc.h"
 #include "bfi_ctreg.h"
 #include "bfa_defs.h"
 
 BFA_TRC_FILE(CNA, IOC_CT);
+
+#define bfa_ioc_ct_sync_pos(__ioc)      \
+		((uint32_t) (1 << bfa_ioc_pcifn(__ioc)))
+#define BFA_IOC_SYNC_REQD_SH    16
+#define bfa_ioc_ct_get_sync_ackd(__val) (__val & 0x0000ffff)
+#define bfa_ioc_ct_clear_sync_ackd(__val)       (__val & 0xffff0000)
+#define bfa_ioc_ct_get_sync_reqd(__val) (__val >> BFA_IOC_SYNC_REQD_SH)
+#define bfa_ioc_ct_sync_reqd_pos(__ioc) \
+			(bfa_ioc_ct_sync_pos(__ioc) << BFA_IOC_SYNC_REQD_SH)
 
 /*
  * forward declarations
@@ -29,10 +39,14 @@ static void bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_reg_init(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_map_port(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix);
-static void bfa_ioc_ct_notify_hbfail(struct bfa_ioc_s *ioc);
+static void bfa_ioc_ct_notify_fail(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc);
+static void bfa_ioc_ct_sync_join(struct bfa_ioc_s *ioc);
+static void bfa_ioc_ct_sync_leave(struct bfa_ioc_s *ioc);
+static void bfa_ioc_ct_sync_ack(struct bfa_ioc_s *ioc);
+static bfa_boolean_t bfa_ioc_ct_sync_complete(struct bfa_ioc_s *ioc);
 
-struct bfa_ioc_hwif_s hwif_ct;
+static struct bfa_ioc_hwif_s hwif_ct;
 
 /*
  * Called from bfa_ioc_attach() to map asic specific calls.
@@ -46,8 +60,12 @@ bfa_ioc_set_ct_hwif(struct bfa_ioc_s *ioc)
 	hwif_ct.ioc_reg_init = bfa_ioc_ct_reg_init;
 	hwif_ct.ioc_map_port = bfa_ioc_ct_map_port;
 	hwif_ct.ioc_isr_mode_set = bfa_ioc_ct_isr_mode_set;
-	hwif_ct.ioc_notify_hbfail = bfa_ioc_ct_notify_hbfail;
+	hwif_ct.ioc_notify_fail = bfa_ioc_ct_notify_fail;
 	hwif_ct.ioc_ownership_reset = bfa_ioc_ct_ownership_reset;
+	hwif_ct.ioc_sync_join = bfa_ioc_ct_sync_join;
+	hwif_ct.ioc_sync_leave = bfa_ioc_ct_sync_leave;
+	hwif_ct.ioc_sync_ack = bfa_ioc_ct_sync_ack;
+	hwif_ct.ioc_sync_complete = bfa_ioc_ct_sync_complete;
 
 	ioc->ioc_hwif = &hwif_ct;
 }
@@ -83,7 +101,8 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	 */
 	if (usecnt == 0) {
 		writel(1, ioc->ioc_regs.ioc_usage_reg);
-		bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+		writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
+		writel(0, ioc->ioc_regs.ioc_fail_sync);
 		bfa_trc(ioc, usecnt);
 		return BFA_TRUE;
 	}
@@ -94,14 +113,14 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	/*
 	 * Use count cannot be non-zero and chip in uninitialized state.
 	 */
-	bfa_assert(ioc_fwstate != BFI_IOC_UNINIT);
+	WARN_ON(ioc_fwstate == BFI_IOC_UNINIT);
 
 	/*
 	 * Check if another driver with a different firmware is active
 	 */
 	bfa_ioc_fwver_get(ioc, &fwhdr);
 	if (!bfa_ioc_fwver_cmp(ioc, &fwhdr)) {
-		bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+		writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 		bfa_trc(ioc, usecnt);
 		return BFA_FALSE;
 	}
@@ -111,7 +130,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	 */
 	usecnt++;
 	writel(usecnt, ioc->ioc_regs.ioc_usage_reg);
-	bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+	writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 	bfa_trc(ioc, usecnt);
 	return BFA_TRUE;
 }
@@ -139,25 +158,27 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 	 */
 	bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
 	usecnt = readl(ioc->ioc_regs.ioc_usage_reg);
-	bfa_assert(usecnt > 0);
+	WARN_ON(usecnt <= 0);
 
 	usecnt--;
 	writel(usecnt, ioc->ioc_regs.ioc_usage_reg);
 	bfa_trc(ioc, usecnt);
 
-	bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+	writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 }
 
 /*
  * Notify other functions on HB failure.
  */
 static void
-bfa_ioc_ct_notify_hbfail(struct bfa_ioc_s *ioc)
+bfa_ioc_ct_notify_fail(struct bfa_ioc_s *ioc)
 {
 	if (ioc->cna) {
 		writel(__FW_INIT_HALT_P, ioc->ioc_regs.ll_halt);
+		writel(__FW_INIT_HALT_P, ioc->ioc_regs.alt_ll_halt);
 		/* Wait for halt to take effect */
 		readl(ioc->ioc_regs.ll_halt);
+		readl(ioc->ioc_regs.alt_ll_halt);
 	} else {
 		writel(__PSS_ERR_STATUS_SET, ioc->ioc_regs.err_set);
 		readl(ioc->ioc_regs.err_set);
@@ -209,15 +230,19 @@ bfa_ioc_ct_reg_init(struct bfa_ioc_s *ioc)
 	if (ioc->port_id == 0) {
 		ioc->ioc_regs.heartbeat = rb + BFA_IOC0_HBEAT_REG;
 		ioc->ioc_regs.ioc_fwstate = rb + BFA_IOC0_STATE_REG;
+		ioc->ioc_regs.alt_ioc_fwstate = rb + BFA_IOC1_STATE_REG;
 		ioc->ioc_regs.hfn_mbox_cmd = rb + iocreg_mbcmd_p0[pcifn].hfn;
 		ioc->ioc_regs.lpu_mbox_cmd = rb + iocreg_mbcmd_p0[pcifn].lpu;
 		ioc->ioc_regs.ll_halt = rb + FW_INIT_HALT_P0;
+		ioc->ioc_regs.alt_ll_halt = rb + FW_INIT_HALT_P1;
 	} else {
 		ioc->ioc_regs.heartbeat = (rb + BFA_IOC1_HBEAT_REG);
 		ioc->ioc_regs.ioc_fwstate = (rb + BFA_IOC1_STATE_REG);
+		ioc->ioc_regs.alt_ioc_fwstate = rb + BFA_IOC0_STATE_REG;
 		ioc->ioc_regs.hfn_mbox_cmd = rb + iocreg_mbcmd_p1[pcifn].hfn;
 		ioc->ioc_regs.lpu_mbox_cmd = rb + iocreg_mbcmd_p1[pcifn].lpu;
 		ioc->ioc_regs.ll_halt = rb + FW_INIT_HALT_P1;
+		ioc->ioc_regs.alt_ll_halt = rb + FW_INIT_HALT_P0;
 	}
 
 	/*
@@ -235,6 +260,7 @@ bfa_ioc_ct_reg_init(struct bfa_ioc_s *ioc)
 	ioc->ioc_regs.ioc_usage_sem_reg = (rb + HOST_SEM1_REG);
 	ioc->ioc_regs.ioc_init_sem_reg = (rb + HOST_SEM2_REG);
 	ioc->ioc_regs.ioc_usage_reg = (rb + BFA_FW_USE_COUNT);
+	ioc->ioc_regs.ioc_fail_sync = (rb + BFA_IOC_FAIL_SYNC);
 
 	/*
 	 * sram memory access
@@ -313,7 +339,7 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc)
 	if (ioc->cna) {
 		bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
 		writel(0, ioc->ioc_regs.ioc_usage_reg);
-		bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+		writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 	}
 
 	/*
@@ -322,10 +348,80 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc)
 	 * will lock it instead of clearing it.
 	 */
 	readl(ioc->ioc_regs.ioc_sem_reg);
-	bfa_ioc_hw_sem_release(ioc);
+	writel(1, ioc->ioc_regs.ioc_sem_reg);
 }
 
+/*
+ * Synchronized IOC failure processing routines
+ */
+static void
+bfa_ioc_ct_sync_join(struct bfa_ioc_s *ioc)
+{
+	uint32_t r32 = readl(ioc->ioc_regs.ioc_fail_sync);
+	uint32_t sync_pos = bfa_ioc_ct_sync_reqd_pos(ioc);
 
+	writel((r32 | sync_pos), ioc->ioc_regs.ioc_fail_sync);
+}
+
+static void
+bfa_ioc_ct_sync_leave(struct bfa_ioc_s *ioc)
+{
+	uint32_t r32 = readl(ioc->ioc_regs.ioc_fail_sync);
+	uint32_t sync_msk = bfa_ioc_ct_sync_reqd_pos(ioc) |
+					bfa_ioc_ct_sync_pos(ioc);
+
+	writel((r32 & ~sync_msk), ioc->ioc_regs.ioc_fail_sync);
+}
+
+static void
+bfa_ioc_ct_sync_ack(struct bfa_ioc_s *ioc)
+{
+	uint32_t r32 = readl(ioc->ioc_regs.ioc_fail_sync);
+
+	writel((r32 | bfa_ioc_ct_sync_pos(ioc)),
+		ioc->ioc_regs.ioc_fail_sync);
+}
+
+static bfa_boolean_t
+bfa_ioc_ct_sync_complete(struct bfa_ioc_s *ioc)
+{
+	uint32_t r32 = readl(ioc->ioc_regs.ioc_fail_sync);
+	uint32_t sync_reqd = bfa_ioc_ct_get_sync_reqd(r32);
+	uint32_t sync_ackd = bfa_ioc_ct_get_sync_ackd(r32);
+	uint32_t tmp_ackd;
+
+	if (sync_ackd == 0)
+		return BFA_TRUE;
+
+	/*
+	 * The check below is to see whether any other PCI fn
+	 * has reinitialized the ASIC (reset sync_ackd bits)
+	 * and failed again while this IOC was waiting for hw
+	 * semaphore (in bfa_iocpf_sm_semwait()).
+	 */
+	tmp_ackd = sync_ackd;
+	if ((sync_reqd &  bfa_ioc_ct_sync_pos(ioc)) &&
+		!(sync_ackd & bfa_ioc_ct_sync_pos(ioc)))
+		sync_ackd |= bfa_ioc_ct_sync_pos(ioc);
+
+	if (sync_reqd == sync_ackd) {
+		writel(bfa_ioc_ct_clear_sync_ackd(r32),
+			ioc->ioc_regs.ioc_fail_sync);
+		writel(BFI_IOC_FAIL, ioc->ioc_regs.ioc_fwstate);
+		writel(BFI_IOC_FAIL, ioc->ioc_regs.alt_ioc_fwstate);
+		return BFA_TRUE;
+	}
+
+	/*
+	 * If another PCI fn reinitialized and failed again while
+	 * this IOC was waiting for hw sem, the sync_ackd bit for
+	 * this IOC need to be set again to allow reinitialization.
+	 */
+	if (tmp_ackd != sync_ackd)
+		writel((r32 | sync_ackd), ioc->ioc_regs.ioc_fail_sync);
+
+	return BFA_FALSE;
+}
 
 /*
  * Check the firmware state to know if pll_init has been completed already

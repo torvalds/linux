@@ -147,10 +147,6 @@
 	#if CONFIG_XILINX_MICROBLAZE0_USE_BARREL > 0
 	#define BSRLI(rD, rA, imm)	\
 		bsrli rD, rA, imm
-	#elif CONFIG_XILINX_MICROBLAZE0_USE_DIV > 0
-	#define BSRLI(rD, rA, imm)	\
-		ori rD, r0, (1 << imm);	\
-		idivu rD, rD, rA
 	#else
 	#define BSRLI(rD, rA, imm) BSRLI ## imm (rD, rA)
 	/* Only the used shift constants defined here - add more if needed */
@@ -945,11 +941,20 @@ store3:	sbi	r3, r4, 2;
 store4:	sbi	r3, r4, 3;	/* Delay slot */
 ex_shw_vm:
 	/* Store the lower half-word, byte-by-byte into destination address */
+#ifdef __MICROBLAZEEL__
+	lbui	r3, r5, 0;
+store5:	sbi	r3, r4, 0;
+	lbui	r3, r5, 1;
+	brid	ret_from_exc;
+store6:	sbi	r3, r4, 1;	/* Delay slot */
+#else
 	lbui	r3, r5, 2;
 store5:	sbi	r3, r4, 0;
 	lbui	r3, r5, 3;
 	brid	ret_from_exc;
 store6:	sbi	r3, r4, 1;	/* Delay slot */
+#endif
+
 ex_sw_end_vm:			/* Exception handling of store word, ends. */
 
 /* We have to prevent cases that get/put_user macros get unaligned pointer

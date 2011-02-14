@@ -93,7 +93,7 @@ typedef struct	mem_ctlr {
 } memctl8xx_t;
 
 /*-----------------------------------------------------------------------
- * BR - Memory Controler: Base Register					16-9
+ * BR - Memory Controller: Base Register					16-9
  */
 #define BR_BA_MSK	0xffff8000	/* Base Address Mask			*/
 #define BR_AT_MSK	0x00007000	/* Address Type Mask			*/
@@ -110,7 +110,7 @@ typedef struct	mem_ctlr {
 #define BR_V		0x00000001	/* Bank Valid				*/
 
 /*-----------------------------------------------------------------------
- * OR - Memory Controler: Option Register				16-11
+ * OR - Memory Controller: Option Register				16-11
  */
 #define OR_AM_MSK	0xffff8000	/* Address Mask Mask			*/
 #define OR_ATM_MSK	0x00007000	/* Address Type Mask Mask		*/

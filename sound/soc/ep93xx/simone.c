@@ -54,24 +54,26 @@ static int __init simone_init(void)
 
 	ret = platform_device_add(simone_snd_ac97_device);
 	if (ret)
-		goto fail;
+		goto fail1;
 
 	simone_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!simone_snd_device) {
 		ret = -ENOMEM;
-		goto fail;
+		goto fail2;
 	}
 
 	platform_set_drvdata(simone_snd_device, &snd_soc_simone);
 	ret = platform_device_add(simone_snd_device);
-	if (ret) {
-		platform_device_put(simone_snd_device);
-		goto fail;
-	}
+	if (ret)
+		goto fail3;
 
-	return ret;
+	return 0;
 
-fail:
+fail3:
+	platform_device_put(simone_snd_device);
+fail2:
+	platform_device_del(simone_snd_ac97_device);
+fail1:
 	platform_device_put(simone_snd_ac97_device);
 	return ret;
 }

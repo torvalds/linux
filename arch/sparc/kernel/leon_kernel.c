@@ -23,15 +23,16 @@
 #include "prom.h"
 #include "irq.h"
 
-struct leon3_irqctrl_regs_map *leon3_irqctrl_regs; /* interrupt controller base address, initialized by amba_init() */
-struct leon3_gptimer_regs_map *leon3_gptimer_regs; /* timer controller base address, initialized by amba_init() */
+struct leon3_irqctrl_regs_map *leon3_irqctrl_regs; /* interrupt controller base address */
+struct leon3_gptimer_regs_map *leon3_gptimer_regs; /* timer controller base address */
 struct amba_apb_device leon_percpu_timer_dev[16];
 
 int leondebug_irq_disable;
 int leon_debug_irqout;
 static int dummy_master_l10_counter;
 
-unsigned long leon3_gptimer_irq; /* interrupt controller irq number, initialized by amba_init() */
+unsigned long leon3_gptimer_irq; /* interrupt controller irq number */
+unsigned long leon3_gptimer_idx; /* Timer Index (0..6) within Timer Core */
 unsigned int sparc_leon_eirq;
 #define LEON_IMASK ((&leon3_irqctrl_regs->mask[0]))
 
@@ -105,21 +106,79 @@ static void leon_disable_irq(unsigned int irq_nr)
 void __init leon_init_timers(irq_handler_t counter_fn)
 {
 	int irq;
+	struct device_node *rootnp, *np, *nnp;
+	struct property *pp;
+	int len;
+	int cpu, icsel;
+	int ampopts;
 
 	leondebug_irq_disable = 0;
 	leon_debug_irqout = 0;
 	master_l10_counter = (unsigned int *)&dummy_master_l10_counter;
 	dummy_master_l10_counter = 0;
 
-	if (leon3_gptimer_regs && leon3_irqctrl_regs) {
-		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[0].val, 0);
-		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[0].rld,
-				      (((1000000 / 100) - 1)));
-		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[0].ctrl, 0);
+	/*Find IRQMP IRQ Controller Registers base address otherwise bail out.*/
+	rootnp = of_find_node_by_path("/ambapp0");
+	if (!rootnp)
+		goto bad;
+	np = of_find_node_by_name(rootnp, "GAISLER_IRQMP");
+	if (!np) {
+		np = of_find_node_by_name(rootnp, "01_00d");
+		if (!np)
+			goto bad;
+	}
+	pp = of_find_property(np, "reg", &len);
+	if (!pp)
+		goto bad;
+	leon3_irqctrl_regs = *(struct leon3_irqctrl_regs_map **)pp->value;
+
+	/* Find GPTIMER Timer Registers base address otherwise bail out. */
+	nnp = rootnp;
+	do {
+		np = of_find_node_by_name(nnp, "GAISLER_GPTIMER");
+		if (!np) {
+			np = of_find_node_by_name(nnp, "01_011");
+			if (!np)
+				goto bad;
+		}
+
+		ampopts = 0;
+		pp = of_find_property(np, "ampopts", &len);
+		if (pp) {
+			ampopts = *(int *)pp->value;
+			if (ampopts == 0) {
+				/* Skip this instance, resource already
+				 * allocated by other OS */
+				nnp = np;
+				continue;
+			}
+		}
+
+		/* Select Timer-Instance on Timer Core. Default is zero */
+		leon3_gptimer_idx = ampopts & 0x7;
+
+		pp = of_find_property(np, "reg", &len);
+		if (pp)
+			leon3_gptimer_regs = *(struct leon3_gptimer_regs_map **)
+						pp->value;
+		pp = of_find_property(np, "interrupts", &len);
+		if (pp)
+			leon3_gptimer_irq = *(unsigned int *)pp->value;
+	} while (0);
+
+	if (leon3_gptimer_regs && leon3_irqctrl_regs && leon3_gptimer_irq) {
+		LEON3_BYPASS_STORE_PA(
+			&leon3_gptimer_regs->e[leon3_gptimer_idx].val, 0);
+		LEON3_BYPASS_STORE_PA(
+			&leon3_gptimer_regs->e[leon3_gptimer_idx].rld,
+			(((1000000 / HZ) - 1)));
+		LEON3_BYPASS_STORE_PA(
+			&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl, 0);
 
 #ifdef CONFIG_SMP
 		leon_percpu_timer_dev[0].start = (int)leon3_gptimer_regs;
-		leon_percpu_timer_dev[0].irq = leon3_gptimer_irq+1;
+		leon_percpu_timer_dev[0].irq = leon3_gptimer_irq + 1 +
+					       leon3_gptimer_idx;
 
 		if (!(LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->config) &
 		      (1<<LEON3_GPTIMER_SEPIRQ))) {
@@ -127,17 +186,33 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 			BUG();
 		}
 
-		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].val, 0);
-		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].rld, (((1000000/100) - 1)));
-		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].ctrl, 0);
+		LEON3_BYPASS_STORE_PA(
+			&leon3_gptimer_regs->e[leon3_gptimer_idx+1].val, 0);
+		LEON3_BYPASS_STORE_PA(
+			&leon3_gptimer_regs->e[leon3_gptimer_idx+1].rld,
+			(((1000000/HZ) - 1)));
+		LEON3_BYPASS_STORE_PA(
+			&leon3_gptimer_regs->e[leon3_gptimer_idx+1].ctrl, 0);
 # endif
 
+		/*
+		 * The IRQ controller may (if implemented) consist of multiple
+		 * IRQ controllers, each mapped on a 4Kb boundary.
+		 * Each CPU may be routed to different IRQCTRLs, however
+		 * we assume that all CPUs (in SMP system) is routed to the
+		 * same IRQ Controller, and for non-SMP only one IRQCTRL is
+		 * accessed anyway.
+		 * In AMP systems, Linux must run on CPU0 for the time being.
+		 */
+		cpu = sparc_leon3_cpuid();
+		icsel = LEON3_BYPASS_LOAD_PA(&leon3_irqctrl_regs->icsel[cpu/8]);
+		icsel = (icsel >> ((7 - (cpu&0x7)) * 4)) & 0xf;
+		leon3_irqctrl_regs += icsel;
 	} else {
-		printk(KERN_ERR "No Timer/irqctrl found\n");
-		BUG();
+		goto bad;
 	}
 
-	irq = request_irq(leon3_gptimer_irq,
+	irq = request_irq(leon3_gptimer_irq+leon3_gptimer_idx,
 			  counter_fn,
 			  (IRQF_DISABLED | SA_STATIC_ALLOC), "timer", NULL);
 
@@ -169,13 +244,13 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 # endif
 
 	if (leon3_gptimer_regs) {
-		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[0].ctrl,
+		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl,
 				      LEON3_GPTIMER_EN |
 				      LEON3_GPTIMER_RL |
 				      LEON3_GPTIMER_LD | LEON3_GPTIMER_IRQEN);
 
 #ifdef CONFIG_SMP
-		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].ctrl,
+		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx+1].ctrl,
 				      LEON3_GPTIMER_EN |
 				      LEON3_GPTIMER_RL |
 				      LEON3_GPTIMER_LD |
@@ -183,6 +258,11 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 #endif
 
 	}
+	return;
+bad:
+	printk(KERN_ERR "No Timer/irqctrl found\n");
+	BUG();
+	return;
 }
 
 void leon_clear_clock_irq(void)

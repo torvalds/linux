@@ -14,6 +14,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
@@ -219,9 +220,9 @@ static int __devinit keypad_probe(struct platform_device *pdev)
 	}
 
 	kp->clk = clk_get(dev, NULL);
-	if (!kp->clk) {
+	if (IS_ERR(kp->clk)) {
 		dev_err(dev, "cannot claim device clock\n");
-		error = -EINVAL;
+		error = PTR_ERR(kp->clk);
 		goto error_clk;
 	}
 

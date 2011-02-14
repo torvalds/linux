@@ -1,0 +1,10 @@
+config DX_SEP
+	tristate "Discretix SEP driver"
+	depends on PCI
+	help
+	  Discretix SEP driver; used for the security processor subsystem
+	  on bard the Intel Mobile Internet Device.
+
+	  The driver's name is sep_driver.
+
+	  If unsure, select N.

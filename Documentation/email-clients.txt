@@ -104,6 +104,13 @@ Then from the "Message" menu item, select insert file and choose your patch.
 As an added bonus you can customise the message creation toolbar menu
 and put the "insert file" icon there.
 
+Make the the composer window wide enough so that no lines wrap. As of
+KMail 1.13.5 (KDE 4.5.4), KMail will apply word wrapping when sending
+the email if the lines wrap in the composer window. Having word wrapping
+disabled in the Options menu isn't enough. Thus, if your patch has very
+long lines, you must make the composer window very wide before sending
+the email. See: https://bugs.kde.org/show_bug.cgi?id=174034
+
 You can safely GPG sign attachments, but inlined text is preferred for
 patches so do not GPG sign them.  Signing patches that have been inserted
 as inlined text will make them tricky to extract from their 7-bit encoding.
@@ -179,26 +186,8 @@ Sylpheed (GUI)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Thunderbird (GUI)
 
-By default, thunderbird likes to mangle text, but there are ways to
-coerce it into being nice.
-
-- Under account settings, composition and addressing, uncheck "Compose
-  messages in HTML format".
-
-- Edit your Thunderbird config settings to tell it not to wrap lines:
-      user_pref("mailnews.wraplength", 0);
-
-- Edit your Thunderbird config settings so that it won't use format=flowed:
-      user_pref("mailnews.send_plaintext_flowed", false);
-
-- You need to get Thunderbird into preformat mode:
-. If you compose HTML messages by default, it's not too hard. Just select
-  "Preformat" from the drop-down box just under the subject line.
-. If you compose in text by default, you have to tell it to compose a new
-  message in HTML (just as a one-off), and then force it from there back to
-  text, else it will wrap lines. To do this, use shift-click on the Write
-  icon to compose to get HTML compose mode, then select "Preformat" from
-  the drop-down box just under the subject line.
+Thunderbird is an Outlook clone that likes to mangle text, but there are ways
+to coerce it into behaving.
 
 - Allows use of an external editor:
   The easiest thing to do with Thunderbird and patches is to use an
@@ -207,6 +196,27 @@ coerce it into being nice.
   and install the extension, then add a button for it using
   View->Toolbars->Customize... and finally just click on it when in the
   Compose dialog.
+
+To beat some sense out of the internal editor, do this:
+
+- Under account settings, composition and addressing, uncheck "Compose
+  messages in HTML format".
+
+- Edit your Thunderbird config settings so that it won't use format=flowed.
+  Go to "edit->preferences->advanced->config editor" to bring up the
+  thunderbird's registry editor, and set "mailnews.send_plaintext_flowed" to
+  "false".
+
+- Enable "preformat" mode: Shft-click on the Write icon to bring up the HTML
+  composer, select "Preformat" from the drop-down box just under the subject
+  line, then close the message without saving.  (This setting also applies to
+  the text composer, but the only control for it is in the HTML composer.)
+
+- Install the "toggle wordwrap" extension.  Download the file from:
+    https://addons.mozilla.org/thunderbird/addon/2351/
+  Then go to "tools->add ons", select "install" at the bottom of the screen,
+  and browse to where you saved the .xul file.  This adds an "Enable
+  Wordwrap" entry under the Options menu of the message composer.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 TkRat (GUI)

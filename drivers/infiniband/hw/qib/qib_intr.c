@@ -131,7 +131,8 @@ void qib_handle_e_ibstatuschanged(struct qib_pportdata *ppd, u64 ibcs)
 			/* start a 75msec timer to clear symbol errors */
 			mod_timer(&ppd->symerr_clear_timer,
 				  msecs_to_jiffies(75));
-		} else if (ltstate == IB_PHYSPORTSTATE_LINKUP) {
+		} else if (ltstate == IB_PHYSPORTSTATE_LINKUP &&
+			   !(ppd->lflags & QIBL_LINKACTIVE)) {
 			/* active, but not active defered */
 			qib_hol_up(ppd); /* useful only for 6120 now */
 			*ppd->statusp |=

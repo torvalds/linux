@@ -2,76 +2,85 @@ comment "S/390 character device drivers"
 	depends on S390
 
 config TN3270
-	tristate "Support for locally attached 3270 terminals"
+	def_tristate y
+	prompt "Support for locally attached 3270 terminals"
 	depends on CCW
 	help
 	  Include support for IBM 3270 terminals.
 
 config TN3270_TTY
-	tristate "Support for tty input/output on 3270 terminals"
+	def_tristate y
+	prompt "Support for tty input/output on 3270 terminals"
 	depends on TN3270
 	help
 	  Include support for using an IBM 3270 terminal as a Linux tty.
 
 config TN3270_FS
-	tristate "Support for fullscreen applications on 3270 terminals"
+	def_tristate m
+	prompt "Support for fullscreen applications on 3270 terminals"
 	depends on TN3270
 	help
 	  Include support for fullscreen applications on an IBM 3270 terminal.
 
 config TN3270_CONSOLE
-	bool "Support for console on 3270 terminal"
+	def_bool y
+	prompt "Support for console on 3270 terminal"
 	depends on TN3270=y && TN3270_TTY=y
 	help
 	  Include support for using an IBM 3270 terminal as a Linux system
 	  console.  Available only if 3270 support is compiled in statically.
 
 config TN3215
-	bool "Support for 3215 line mode terminal"
+	def_bool y
+	prompt "Support for 3215 line mode terminal"
 	depends on CCW
 	help
 	  Include support for IBM 3215 line-mode terminals.
 
 config TN3215_CONSOLE
-	bool "Support for console on 3215 line mode terminal"
+	def_bool y
+	prompt "Support for console on 3215 line mode terminal"
 	depends on TN3215
 	help
 	  Include support for using an IBM 3215 line-mode terminal as a
 	  Linux system console.
 
 config CCW_CONSOLE
-	bool
-	depends on TN3215_CONSOLE || TN3270_CONSOLE
-	default y
+	def_bool y if TN3215_CONSOLE || TN3270_CONSOLE
 
 config SCLP_TTY
-	bool "Support for SCLP line mode terminal"
+	def_bool y
+	prompt "Support for SCLP line mode terminal"
 	depends on S390
 	help
 	  Include support for IBM SCLP line-mode terminals.
 
 config SCLP_CONSOLE
-	bool "Support for console on SCLP line mode terminal"
+	def_bool y
+	prompt "Support for console on SCLP line mode terminal"
 	depends on SCLP_TTY
 	help
 	  Include support for using an IBM HWC line-mode terminal as the Linux
 	  system console.
 
 config SCLP_VT220_TTY
-	bool "Support for SCLP VT220-compatible terminal"
+	def_bool y
+	prompt "Support for SCLP VT220-compatible terminal"
 	depends on S390
 	help
 	  Include support for an IBM SCLP VT220-compatible terminal.
 
 config SCLP_VT220_CONSOLE
-	bool "Support for console on SCLP VT220-compatible terminal"
+	def_bool y
+	prompt "Support for console on SCLP VT220-compatible terminal"
 	depends on SCLP_VT220_TTY
 	help
 	  Include support for using an IBM SCLP VT220-compatible terminal as a
 	  Linux system console.
 
 config SCLP_CPI
-	tristate "Control-Program Identification"
+	def_tristate m
+	prompt "Control-Program Identification"
 	depends on S390
 	help
 	  This option enables the hardware console interface for system
@@ -83,7 +92,8 @@ config SCLP_CPI
 	  need this feature and intend to run your kernel in LPAR.
 
 config SCLP_ASYNC
-	tristate "Support for Call Home via Asynchronous SCLP Records"
+	def_tristate m
+	prompt "Support for Call Home via Asynchronous SCLP Records"
 	depends on S390
 	help
 	  This option enables the call home function, which is able to inform
@@ -93,7 +103,8 @@ config SCLP_ASYNC
 	  need this feature and intend to run your kernel in LPAR.
 
 config S390_TAPE
-	tristate "S/390 tape device support"
+	def_tristate m
+	prompt "S/390 tape device support"
 	depends on CCW
 	help
 	  Select this option if you want to access channel-attached tape
@@ -109,7 +120,8 @@ comment "S/390 tape interface support"
 	depends on S390_TAPE
 
 config S390_TAPE_BLOCK
-	bool "Support for tape block devices"
+	def_bool y
+	prompt "Support for tape block devices"
 	depends on S390_TAPE && BLOCK
 	help
 	  Select this option if you want to access your channel-attached tape
@@ -123,7 +135,8 @@ comment "S/390 tape hardware support"
 	depends on S390_TAPE
 
 config S390_TAPE_34XX
-	tristate "Support for 3480/3490 tape hardware"
+	def_tristate m
+	prompt "Support for 3480/3490 tape hardware"
 	depends on S390_TAPE
 	help
 	  Select this option if you want to access IBM 3480/3490 magnetic
@@ -131,7 +144,8 @@ config S390_TAPE_34XX
 	  It is safe to say "Y" here.
 
 config S390_TAPE_3590
-	tristate "Support for 3590 tape hardware"
+	def_tristate m
+	prompt "Support for 3590 tape hardware"
 	depends on S390_TAPE
 	help
 	  Select this option if you want to access IBM 3590 magnetic
@@ -139,7 +153,8 @@ config S390_TAPE_3590
 	  It is safe to say "Y" here.
 
 config VMLOGRDR
-	tristate "Support for the z/VM recording system services (VM only)"
+	def_tristate m
+	prompt "Support for the z/VM recording system services (VM only)"
 	depends on IUCV
 	help
 	  Select this option if you want to be able to receive records collected
@@ -148,29 +163,31 @@ config VMLOGRDR
 	  This driver depends on the IUCV support driver.
 
 config VMCP
-	bool "Support for the z/VM CP interface"
+	def_bool y
+	prompt "Support for the z/VM CP interface"
 	depends on S390
 	help
 	  Select this option if you want to be able to interact with the control
 	  program on z/VM
 
 config MONREADER
-	tristate "API for reading z/VM monitor service records"
+	def_tristate m
+	prompt "API for reading z/VM monitor service records"
 	depends on IUCV
 	help
 	  Character device driver for reading z/VM monitor service records
 
 config MONWRITER
-	tristate "API for writing z/VM monitor service records"
+	def_tristate m
+	prompt "API for writing z/VM monitor service records"
 	depends on S390
-	default "m"
 	help
 	  Character device driver for writing z/VM monitor service records
 
 config S390_VMUR
-	tristate "z/VM unit record device driver"
+	def_tristate m
+	prompt "z/VM unit record device driver"
 	depends on S390
-	default "m"
 	help
 	  Character device driver for z/VM reader, puncher and printer.
 

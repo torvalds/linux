@@ -62,9 +62,16 @@ static struct inode *smb_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void smb_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(smb_inode_cachep, SMB_I(inode));
+}
+
 static void smb_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(smb_inode_cachep, SMB_I(inode));
+	call_rcu(&inode->i_rcu, smb_i_callback);
 }
 
 static void init_once(void *foo)
@@ -607,6 +614,10 @@ static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 		printk(KERN_ERR "smbfs: failed to start smbiod\n");
 		goto out_no_smbiod;
 	}
+	if (server->mnt->flags & SMB_MOUNT_CASE)
+		sb->s_d_op = &smbfs_dentry_operations_case;
+	else
+		sb->s_d_op = &smbfs_dentry_operations;
 
 	/*
 	 * Keep the super block locked while we get the root inode.

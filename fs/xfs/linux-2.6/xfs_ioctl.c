@@ -39,6 +39,7 @@
 #include "xfs_dfrag.h"
 #include "xfs_fsops.h"
 #include "xfs_vnodeops.h"
+#include "xfs_discard.h"
 #include "xfs_quota.h"
 #include "xfs_inode_item.h"
 #include "xfs_export.h"
@@ -984,10 +985,22 @@ xfs_ioctl_setattr(
 
 		/*
 		 * Extent size must be a multiple of the appropriate block
-		 * size, if set at all.
+		 * size, if set at all. It must also be smaller than the
+		 * maximum extent size supported by the filesystem.
+		 *
+		 * Also, for non-realtime files, limit the extent size hint to
+		 * half the size of the AGs in the filesystem so alignment
+		 * doesn't result in extents larger than an AG.
 		 */
 		if (fa->fsx_extsize != 0) {
-			xfs_extlen_t	size;
+			xfs_extlen_t    size;
+			xfs_fsblock_t   extsize_fsb;
+
+			extsize_fsb = XFS_B_TO_FSB(mp, fa->fsx_extsize);
+			if (extsize_fsb > MAXEXTLEN) {
+				code = XFS_ERROR(EINVAL);
+				goto error_return;
+			}
 
 			if (XFS_IS_REALTIME_INODE(ip) ||
 			    ((mask & FSX_XFLAGS) &&
@@ -996,6 +1009,10 @@ xfs_ioctl_setattr(
 				       mp->m_sb.sb_blocklog;
 			} else {
 				size = mp->m_sb.sb_blocksize;
+				if (extsize_fsb > mp->m_sb.sb_agblocks / 2) {
+					code = XFS_ERROR(EINVAL);
+					goto error_return;
+				}
 			}
 
 			if (fa->fsx_extsize % size) {
@@ -1294,6 +1311,8 @@ xfs_file_ioctl(
 	trace_xfs_file_ioctl(ip);
 
 	switch (cmd) {
+	case FITRIM:
+		return xfs_ioc_trim(mp, arg);
 	case XFS_IOC_ALLOCSP:
 	case XFS_IOC_FREESP:
 	case XFS_IOC_RESVSP:

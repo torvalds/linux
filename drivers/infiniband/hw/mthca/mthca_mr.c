@@ -853,7 +853,7 @@ void mthca_arbel_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr)
 
 int mthca_init_mr_table(struct mthca_dev *dev)
 {
-	unsigned long addr;
+	phys_addr_t addr;
 	int mpts, mtts, err, i;
 
 	err = mthca_alloc_init(&dev->mr_table.mpt_alloc,

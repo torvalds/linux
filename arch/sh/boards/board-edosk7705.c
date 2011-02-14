@@ -66,7 +66,7 @@ static int __init init_edosk7705_devices(void)
 	return platform_add_devices(edosk7705_devices,
 				    ARRAY_SIZE(edosk7705_devices));
 }
-__initcall(init_edosk7705_devices);
+device_initcall(init_edosk7705_devices);
 
 /*
  * The Machine Vector

@@ -457,6 +457,11 @@ ChangeLog
 
 Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 
+2.1.30:
+	- Fix writev() (it kept writing the first segment over and over again
+	  instead of moving onto subsequent segments).
+	- Fix crash in ntfs_mft_record_alloc() when mapping the new extent mft
+	  record failed.
 2.1.29:
 	- Fix a deadlock when mounting read-write.
 2.1.28:

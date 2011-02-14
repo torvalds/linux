@@ -97,18 +97,6 @@ config RTC_INTF_DEV
 
 	  If unsure, say Y.
 
-config RTC_INTF_DEV_UIE_EMUL
-	bool "RTC UIE emulation on dev interface"
-	depends on RTC_INTF_DEV
-	help
-	  Provides an emulation for RTC_UIE if the underlying rtc chip
-	  driver does not expose RTC_UIE ioctls. Those requests generate
-	  once-per-second update interrupts, used for synchronization.
-
-	  The emulation code will read the time from the hardware
-	  clock several times per second, please enable this option
-	  only if you know that you really need it.
-
 config RTC_DRV_TEST
 	tristate "Test driver/device"
 	help
@@ -462,6 +450,18 @@ config RTC_DRV_CMOS
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-cmos.
+
+config RTC_DRV_VRTC
+	tristate "Virtual RTC for Moorestown platforms"
+	depends on X86_MRST
+	default y if X86_MRST
+
+	help
+	Say "yes" here to get direct support for the real time clock
+	found on Moorestown platforms. The VRTC is a emulated RTC that
+	derives its clock source from a real RTC in the PMIC. The MC146818
+	style programming interface is mostly conserved, but any
+	updates are done via IPC calls to the system controller FW.
 
 config RTC_DRV_DS1216
 	tristate "Dallas DS1216"

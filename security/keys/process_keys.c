@@ -1,4 +1,4 @@
-/* Management of a process's keyrings
+/* Manage a process's keyrings
  *
  * Copyright (C) 2004-2005, 2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -21,13 +21,13 @@
 #include <asm/uaccess.h>
 #include "internal.h"
 
-/* session keyring create vs join semaphore */
+/* Session keyring create vs join semaphore */
 static DEFINE_MUTEX(key_session_mutex);
 
-/* user keyring creation semaphore */
+/* User keyring creation semaphore */
 static DEFINE_MUTEX(key_user_keyring_mutex);
 
-/* the root user's tracking struct */
+/* The root user's tracking struct */
 struct key_user root_key_user = {
 	.usage		= ATOMIC_INIT(3),
 	.cons_lock	= __MUTEX_INITIALIZER(root_key_user.cons_lock),
@@ -38,9 +38,8 @@ struct key_user root_key_user = {
 	.user_ns	= &init_user_ns,
 };
 
-/*****************************************************************************/
 /*
- * install user and user session keyrings for a particular UID
+ * Install the user and user session keyrings for the current process's UID.
  */
 int install_user_keyrings(void)
 {
@@ -122,7 +121,8 @@ error:
 }
 
 /*
- * install a fresh thread keyring directly to new credentials
+ * Install a fresh thread keyring directly to new credentials.  This keyring is
+ * allowed to overrun the quota.
  */
 int install_thread_keyring_to_cred(struct cred *new)
 {
@@ -138,7 +138,7 @@ int install_thread_keyring_to_cred(struct cred *new)
 }
 
 /*
- * install a fresh thread keyring, discarding the old one
+ * Install a fresh thread keyring, discarding the old one.
  */
 static int install_thread_keyring(void)
 {
@@ -161,9 +161,10 @@ static int install_thread_keyring(void)
 }
 
 /*
- * install a process keyring directly to a credentials struct
- * - returns -EEXIST if there was already a process keyring, 0 if one installed,
- *   and other -ve on any other error
+ * Install a process keyring directly to a credentials struct.
+ *
+ * Returns -EEXIST if there was already a process keyring, 0 if one installed,
+ * and other value on any other error
  */
 int install_process_keyring_to_cred(struct cred *new)
 {
@@ -192,8 +193,11 @@ int install_process_keyring_to_cred(struct cred *new)
 }
 
 /*
- * make sure a process keyring is installed
- * - we
+ * Make sure a process keyring is installed for the current process.  The
+ * existing process keyring is not replaced.
+ *
+ * Returns 0 if there is a process keyring by the end of this function, some
+ * error otherwise.
  */
 static int install_process_keyring(void)
 {
@@ -214,7 +218,7 @@ static int install_process_keyring(void)
 }
 
 /*
- * install a session keyring directly to a credentials struct
+ * Install a session keyring directly to a credentials struct.
  */
 int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 {
@@ -254,8 +258,8 @@ int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 }
 
 /*
- * install a session keyring, discarding the old one
- * - if a keyring is not supplied, an empty one is invented
+ * Install a session keyring, discarding the old one.  If a keyring is not
+ * supplied, an empty one is invented.
  */
 static int install_session_keyring(struct key *keyring)
 {
@@ -275,9 +279,8 @@ static int install_session_keyring(struct key *keyring)
 	return commit_creds(new);
 }
 
-/*****************************************************************************/
 /*
- * the filesystem user ID changed
+ * Handle the fsuid changing.
  */
 void key_fsuid_changed(struct task_struct *tsk)
 {
@@ -288,12 +291,10 @@ void key_fsuid_changed(struct task_struct *tsk)
 		tsk->cred->thread_keyring->uid = tsk->cred->fsuid;
 		up_write(&tsk->cred->thread_keyring->sem);
 	}
+}
 
-} /* end key_fsuid_changed() */
-
-/*****************************************************************************/
 /*
- * the filesystem group ID changed
+ * Handle the fsgid changing.
  */
 void key_fsgid_changed(struct task_struct *tsk)
 {
@@ -304,16 +305,28 @@ void key_fsgid_changed(struct task_struct *tsk)
 		tsk->cred->thread_keyring->gid = tsk->cred->fsgid;
 		up_write(&tsk->cred->thread_keyring->sem);
 	}
+}
 
-} /* end key_fsgid_changed() */
-
-/*****************************************************************************/
 /*
- * search only my process keyrings for the first matching key
- * - we use the supplied match function to see if the description (or other
- *   feature of interest) matches
- * - we return -EAGAIN if we didn't find any matching key
- * - we return -ENOKEY if we found only negative matching keys
+ * Search the process keyrings attached to the supplied cred for the first
+ * matching key.
+ *
+ * The search criteria are the type and the match function.  The description is
+ * given to the match function as a parameter, but doesn't otherwise influence
+ * the search.  Typically the match function will compare the description
+ * parameter to the key's description.
+ *
+ * This can only search keyrings that grant Search permission to the supplied
+ * credentials.  Keyrings linked to searched keyrings will also be searched if
+ * they grant Search permission too.  Keys can only be found if they grant
+ * Search permission to the credentials.
+ *
+ * Returns a pointer to the key with the key usage count incremented if
+ * successful, -EAGAIN if we didn't find any matching key or -ENOKEY if we only
+ * matched negative keys.
+ *
+ * In the case of a successful return, the possession attribute is set on the
+ * returned key reference.
  */
 key_ref_t search_my_process_keyrings(struct key_type *type,
 				     const void *description,
@@ -428,13 +441,13 @@ found:
 	return key_ref;
 }
 
-/*****************************************************************************/
 /*
- * search the process keyrings for the first matching key
- * - we use the supplied match function to see if the description (or other
- *   feature of interest) matches
- * - we return -EAGAIN if we didn't find any matching key
- * - we return -ENOKEY if we found only negative matching keys
+ * Search the process keyrings attached to the supplied cred for the first
+ * matching key in the manner of search_my_process_keyrings(), but also search
+ * the keys attached to the assumed authorisation key using its credentials if
+ * one is available.
+ *
+ * Return same as search_my_process_keyrings().
  */
 key_ref_t search_process_keyrings(struct key_type *type,
 				  const void *description,
@@ -489,24 +502,33 @@ key_ref_t search_process_keyrings(struct key_type *type,
 
 found:
 	return key_ref;
+}
 
-} /* end search_process_keyrings() */
-
-/*****************************************************************************/
 /*
- * see if the key we're looking at is the target key
+ * See if the key we're looking at is the target key.
  */
 int lookup_user_key_possessed(const struct key *key, const void *target)
 {
 	return key == target;
+}
 
-} /* end lookup_user_key_possessed() */
-
-/*****************************************************************************/
 /*
- * lookup a key given a key ID from userspace with a given permissions mask
- * - don't create special keyrings unless so requested
- * - partially constructed keys aren't found unless requested
+ * Look up a key ID given us by userspace with a given permissions mask to get
+ * the key it refers to.
+ *
+ * Flags can be passed to request that special keyrings be created if referred
+ * to directly, to permit partially constructed keys to be found and to skip
+ * validity and permission checks on the found key.
+ *
+ * Returns a pointer to the key with an incremented usage count if successful;
+ * -EINVAL if the key ID is invalid; -ENOKEY if the key ID does not correspond
+ * to a key or the best found key was a negative key; -EKEYREVOKED or
+ * -EKEYEXPIRED if the best found key was revoked or expired; -EACCES if the
+ * found key doesn't grant the requested permit or the LSM denied access to it;
+ * or -ENOMEM if a special keyring couldn't be created.
+ *
+ * In the case of a successful return, the possession attribute is set on the
+ * returned key reference.
  */
 key_ref_t lookup_user_key(key_serial_t id, unsigned long lflags,
 			  key_perm_t perm)
@@ -711,15 +733,18 @@ invalid_key:
 reget_creds:
 	put_cred(cred);
 	goto try_again;
+}
 
-} /* end lookup_user_key() */
-
-/*****************************************************************************/
 /*
- * join the named keyring as the session keyring if possible, or attempt to
- * create a new one of that name if not
- * - if the name is NULL, an empty anonymous keyring is installed instead
- * - named session keyring joining is done with a semaphore held
+ * Join the named keyring as the session keyring if possible else attempt to
+ * create a new one of that name and join that.
+ *
+ * If the name is NULL, an empty anonymous keyring will be installed as the
+ * session keyring.
+ *
+ * Named session keyrings are joined with a semaphore held to prevent the
+ * keyrings from going away whilst the attempt is made to going them and also
+ * to prevent a race in creating compatible session keyrings.
  */
 long join_session_keyring(const char *name)
 {
@@ -791,8 +816,8 @@ error:
 }
 
 /*
- * Replace a process's session keyring when that process resumes userspace on
- * behalf of one of its children
+ * Replace a process's session keyring on behalf of one of its children when
+ * the target  process is about to resume userspace execution.
  */
 void key_replace_session_keyring(void)
 {

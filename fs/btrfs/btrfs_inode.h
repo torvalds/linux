@@ -157,7 +157,7 @@ struct btrfs_inode {
 	/*
 	 * always compress this one file
 	 */
-	unsigned force_compress:1;
+	unsigned force_compress:4;
 
 	struct inode vfs_inode;
 };

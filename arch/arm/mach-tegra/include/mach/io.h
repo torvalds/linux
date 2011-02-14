@@ -65,8 +65,8 @@
 
 #ifndef __ASSEMBLER__
 
-#define __arch_ioremap(p, s, t)	tegra_ioremap(p, s, t)
-#define __arch_iounmap(v)	tegra_iounmap(v)
+#define __arch_ioremap		tegra_ioremap
+#define __arch_iounmap		tegra_iounmap
 
 void __iomem *tegra_ioremap(unsigned long phys, size_t size, unsigned int type);
 void tegra_iounmap(volatile void __iomem *addr);

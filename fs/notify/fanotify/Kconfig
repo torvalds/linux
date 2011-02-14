@@ -6,7 +6,7 @@ config FANOTIFY
 	---help---
 	   Say Y here to enable fanotify suport.  fanotify is a file access
 	   notification system which differs from inotify in that it sends
-	   and open file descriptor to the userspace listener along with
+	   an open file descriptor to the userspace listener along with
 	   the event.
 
 	   If unsure, say Y.

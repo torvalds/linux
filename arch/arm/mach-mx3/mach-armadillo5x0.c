@@ -49,10 +49,8 @@
 
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
-#include <mach/mmc.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
@@ -245,13 +243,13 @@ h2_free_cs:
 	return err;
 }
 
-static struct mxc_usbh_platform_data usbotg_pdata = {
+static struct mxc_usbh_platform_data usbotg_pdata __initdata = {
 	.init	= usbotg_init,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh2_pdata = {
+static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.init	= usbh2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_DIFF_UNI,
@@ -453,7 +451,7 @@ static void armadillo5x0_sdhc1_exit(struct device *dev, void *data)
 	gpio_free(IOMUX_TO_GPIO(MX31_PIN_ATA_RESET_B));
 }
 
-static struct imxmmc_platform_data sdhc_pdata = {
+static const struct imxmmc_platform_data sdhc_pdata __initconst = {
 	.get_ro = armadillo5x0_sdhc1_get_ro,
 	.init = armadillo5x0_sdhc1_init,
 	.exit = armadillo5x0_sdhc1_exit,
@@ -520,7 +518,7 @@ static void __init armadillo5x0_init(void)
 	gpio_direction_input(MX31_PIN_GPIO1_0);
 
 	/* Register SDHC */
-	mxc_register_device(&mxcsdhc_device0, &sdhc_pdata);
+	imx31_add_mxc_mmc(0, &sdhc_pdata);
 
 	/* Register FB */
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
@@ -555,8 +553,8 @@ static void __init armadillo5x0_init(void)
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-	mxc_register_device(&mxc_otg_host, &usbotg_pdata);
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	imx31_add_mxc_ehci_otg(&usbotg_pdata);
+	imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
 #endif
 }
 

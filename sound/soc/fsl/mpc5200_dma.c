@@ -9,7 +9,6 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
-#include <linux/of_device.h>
 #include <linux/of_platform.h>
 
 #include <sound/soc.h>

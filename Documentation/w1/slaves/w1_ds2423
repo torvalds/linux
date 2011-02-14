@@ -1,0 +1,47 @@
+Kernel driver w1_ds2423
+=======================
+
+Supported chips:
+  * Maxim DS2423 based counter devices.
+
+supported family codes:
+	W1_THERM_DS2423	0x1D
+
+Author: Mika Laitio <lamikr@pilppa.org>
+
+Description
+-----------
+
+Support is provided through the sysfs w1_slave file. Each opening and
+read sequence of w1_slave file initiates the read of counters and ram
+available in DS2423 pages 12 - 15.
+
+Result of each page is provided as an ASCII output where each counter
+value and associated ram buffer is outpputed to own line.
+
+Each lines will contain the values of 42 bytes read from the counter and
+memory page along the crc=YES or NO for indicating whether the read operation
+was successfull and CRC matched.
+If the operation was successfull, there is also in the end of each line
+a counter value expressed as an integer after c=
+
+Meaning of 42 bytes represented is following:
+ - 1 byte from ram page
+ - 4 bytes for the counter value
+ - 4 zero bytes
+ - 2 bytes for crc16 which was calculated from the data read since the previous crc bytes
+ - 31 remaining bytes from the ram page
+ - crc=YES/NO indicating whether read was ok and crc matched
+ - c=<int> current counter value
+
+example from the successfull read:
+00 02 00 00 00 00 00 00 00 6d 38 00 ff ff 00 00 fe ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff crc=YES c=2
+00 02 00 00 00 00 00 00 00 e0 1f 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff crc=YES c=2
+00 29 c6 5d 18 00 00 00 00 04 37 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff crc=YES c=408798761
+00 05 00 00 00 00 00 00 00 8d 39 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff crc=YES c=5
+
+example from the read with crc errors:
+00 02 00 00 00 00 00 00 00 6d 38 00 ff ff 00 00 fe ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff crc=YES c=2
+00 02 00 00 22 00 00 00 00 e0 1f 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff crc=NO
+00 e1 61 5d 19 00 00 00 00 df 0b 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff crc=NO
+00 05 00 00 20 00 00 00 00 8d 39 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff crc=NO

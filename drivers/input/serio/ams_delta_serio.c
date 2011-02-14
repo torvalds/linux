@@ -172,6 +172,5 @@ static void __exit ams_delta_serio_exit(void)
 	free_irq(OMAP_GPIO_IRQ(AMS_DELTA_GPIO_PIN_KEYBRD_CLK), 0);
 	gpio_free(AMS_DELTA_GPIO_PIN_KEYBRD_CLK);
 	gpio_free(AMS_DELTA_GPIO_PIN_KEYBRD_DATA);
-	kfree(ams_delta_serio);
 }
 module_exit(ams_delta_serio_exit);

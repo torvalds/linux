@@ -309,7 +309,7 @@ static inline void i2o_block_request_free(struct i2o_block_request *ireq)
  *	@ireq: I2O block request
  *	@mptr: message body pointer
  *
- *	Builds the SG list and map it to be accessable by the controller.
+ *	Builds the SG list and map it to be accessible by the controller.
  *
  *	Returns 0 on failure or 1 on success.
  */

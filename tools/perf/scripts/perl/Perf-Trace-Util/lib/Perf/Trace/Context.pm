@@ -34,7 +34,7 @@ Perf::Trace::Context - Perl extension for accessing functions in perf.
 
 =head1 SEE ALSO
 
-Perf (trace) documentation
+Perf (script) documentation
 
 =head1 AUTHOR
 

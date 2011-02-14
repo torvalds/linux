@@ -150,7 +150,7 @@ struct net_local {
 #define PORT_OFFSET(o) (o)
 
 
-#define TX_TIMEOUT		10
+#define TX_TIMEOUT		(HZ/10)
 
 
 /* Index to functions, as function prototypes. */
@@ -270,9 +270,9 @@ static const struct net_device_ops at1700_netdev_ops = {
 
 static int __init at1700_probe1(struct net_device *dev, int ioaddr)
 {
-	char fmv_irqmap[4] = {3, 7, 10, 15};
-	char fmv_irqmap_pnp[8] = {3, 4, 5, 7, 9, 10, 11, 15};
-	char at1700_irqmap[8] = {3, 4, 5, 9, 10, 11, 14, 15};
+	static const char fmv_irqmap[4] = {3, 7, 10, 15};
+	static const char fmv_irqmap_pnp[8] = {3, 4, 5, 7, 9, 10, 11, 15};
+	static const char at1700_irqmap[8] = {3, 4, 5, 9, 10, 11, 14, 15};
 	unsigned int i, irq, is_fmv18x = 0, is_at1700 = 0;
 	int slot, ret = -ENODEV;
 	struct net_local *lp = netdev_priv(dev);

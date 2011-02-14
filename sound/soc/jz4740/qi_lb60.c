@@ -19,7 +19,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <linux/gpio.h>
 
 #define QI_LB60_SND_GPIO JZ_GPIO_PORTB(29)
@@ -59,10 +58,11 @@ static int qi_lb60_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
-	snd_soc_dapm_nc_pin(codec, "LIN");
-	snd_soc_dapm_nc_pin(codec, "RIN");
+	snd_soc_dapm_nc_pin(dapm, "LIN");
+	snd_soc_dapm_nc_pin(dapm, "RIN");
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, QI_LB60_DAIFMT);
 	if (ret < 0) {
@@ -70,9 +70,11 @@ static int qi_lb60_codec_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	snd_soc_dapm_new_controls(codec, qi_lb60_widgets, ARRAY_SIZE(qi_lb60_widgets));
-	snd_soc_dapm_add_routes(codec, qi_lb60_routes, ARRAY_SIZE(qi_lb60_routes));
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_new_controls(dapm, qi_lb60_widgets,
+				  ARRAY_SIZE(qi_lb60_widgets));
+	snd_soc_dapm_add_routes(dapm, qi_lb60_routes,
+				ARRAY_SIZE(qi_lb60_routes));
+	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }

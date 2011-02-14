@@ -67,4 +67,11 @@ struct kvm_lapic_irq {
 	u32 dest_id;
 };
 
+struct gfn_to_hva_cache {
+	u64 generation;
+	gpa_t gpa;
+	unsigned long hva;
+	struct kvm_memory_slot *memslot;
+};
+
 #endif /* __KVM_TYPES_H__ */

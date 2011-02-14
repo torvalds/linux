@@ -107,7 +107,8 @@ struct intel_sdvo {
 	 * This is set if we treat the device as HDMI, instead of DVI.
 	 */
 	bool is_hdmi;
-	bool has_audio;
+	bool has_hdmi_monitor;
+	bool has_hdmi_audio;
 
 	/**
 	 * This is set if we detect output of sdvo device as LVDS and
@@ -472,20 +473,6 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 		return false;
 	}
 
-	i = 3;
-	while (status == SDVO_CMD_STATUS_PENDING && i--) {
-		if (!intel_sdvo_read_byte(intel_sdvo,
-					  SDVO_I2C_CMD_STATUS,
-					  &status))
-			return false;
-	}
-	if (status != SDVO_CMD_STATUS_SUCCESS) {
-		DRM_DEBUG_KMS("command returns response %s [%d]\n",
-			      status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP ? cmd_status_names[status] : "???",
-			      status);
-		return false;
-	}
-
 	return true;
 }
 
@@ -496,6 +483,8 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 	u8 status;
 	int i;
 
+	DRM_DEBUG_KMS("%s: R: ", SDVO_NAME(intel_sdvo));
+
 	/*
 	 * The documentation states that all commands will be
 	 * processed within 15µs, and that we need only poll
@@ -504,14 +493,19 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 	 *
 	 * Check 5 times in case the hardware failed to read the docs.
 	 */
-	do {
+	if (!intel_sdvo_read_byte(intel_sdvo,
+				  SDVO_I2C_CMD_STATUS,
+				  &status))
+		goto log_fail;
+
+	while (status == SDVO_CMD_STATUS_PENDING && retry--) {
+		udelay(15);
 		if (!intel_sdvo_read_byte(intel_sdvo,
 					  SDVO_I2C_CMD_STATUS,
 					  &status))
-			return false;
-	} while (status == SDVO_CMD_STATUS_PENDING && --retry);
+			goto log_fail;
+	}
 
-	DRM_DEBUG_KMS("%s: R: ", SDVO_NAME(intel_sdvo));
 	if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP)
 		DRM_LOG_KMS("(%s)", cmd_status_names[status]);
 	else
@@ -532,7 +526,7 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 	return true;
 
 log_fail:
-	DRM_LOG_KMS("\n");
+	DRM_LOG_KMS("... failed\n");
 	return false;
 }
 
@@ -549,6 +543,7 @@ static int intel_sdvo_get_pixel_multiplier(struct drm_display_mode *mode)
 static bool intel_sdvo_set_control_bus_switch(struct intel_sdvo *intel_sdvo,
 					      u8 ddc_bus)
 {
+	/* This must be the immediately preceding write before the i2c xfer */
 	return intel_sdvo_write_cmd(intel_sdvo,
 				    SDVO_CMD_SET_CONTROL_BUS_SWITCH,
 				    &ddc_bus, 1);
@@ -556,7 +551,10 @@ static bool intel_sdvo_set_control_bus_switch(struct intel_sdvo *intel_sdvo,
 
 static bool intel_sdvo_set_value(struct intel_sdvo *intel_sdvo, u8 cmd, const void *data, int len)
 {
-	return intel_sdvo_write_cmd(intel_sdvo, cmd, data, len);
+	if (!intel_sdvo_write_cmd(intel_sdvo, cmd, data, len))
+		return false;
+
+	return intel_sdvo_read_response(intel_sdvo, NULL, 0);
 }
 
 static bool
@@ -858,18 +856,21 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo)
 
 	intel_dip_infoframe_csum(&avi_if);
 
-	if (!intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_HBUF_INDEX,
+	if (!intel_sdvo_set_value(intel_sdvo,
+				  SDVO_CMD_SET_HBUF_INDEX,
 				  set_buf_index, 2))
 		return false;
 
 	for (i = 0; i < sizeof(avi_if); i += 8) {
-		if (!intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_HBUF_DATA,
+		if (!intel_sdvo_set_value(intel_sdvo,
+					  SDVO_CMD_SET_HBUF_DATA,
 					  data, 8))
 			return false;
 		data++;
 	}
 
-	return intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_HBUF_TXRATE,
+	return intel_sdvo_set_value(intel_sdvo,
+				    SDVO_CMD_SET_HBUF_TXRATE,
 				    &tx_rate, 1);
 }
 
@@ -1023,9 +1024,13 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	if (!intel_sdvo_set_target_input(intel_sdvo))
 		return;
 
-	if (intel_sdvo->is_hdmi &&
-	    !intel_sdvo_set_avi_infoframe(intel_sdvo))
-		return;
+	if (intel_sdvo->has_hdmi_monitor) {
+		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_HDMI);
+		intel_sdvo_set_colorimetry(intel_sdvo,
+					   SDVO_COLORIMETRY_RGB256);
+		intel_sdvo_set_avi_infoframe(intel_sdvo);
+	} else
+		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_DVI);
 
 	if (intel_sdvo->is_tv &&
 	    !intel_sdvo_set_tv_format(intel_sdvo))
@@ -1044,7 +1049,9 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 
 	/* Set the SDVO control regs. */
 	if (INTEL_INFO(dev)->gen >= 4) {
-		sdvox = SDVO_BORDER_ENABLE;
+		sdvox = 0;
+		if (INTEL_INFO(dev)->gen < 5)
+			sdvox |= SDVO_BORDER_ENABLE;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 			sdvox |= SDVO_VSYNC_ACTIVE_HIGH;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
@@ -1063,7 +1070,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	}
 	if (intel_crtc->pipe == 1)
 		sdvox |= SDVO_PIPE_B_SELECT;
-	if (intel_sdvo->has_audio)
+	if (intel_sdvo->has_hdmi_audio)
 		sdvox |= SDVO_AUDIO_ENABLE;
 
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -1074,7 +1081,8 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		sdvox |= (pixel_multiplier - 1) << SDVO_PORT_MULTIPLY_SHIFT;
 	}
 
-	if (input_dtd.part2.sdvo_flags & SDVO_NEED_TO_STALL)
+	if (input_dtd.part2.sdvo_flags & SDVO_NEED_TO_STALL &&
+	    INTEL_INFO(dev)->gen < 5)
 		sdvox |= SDVO_STALL_SELECT;
 	intel_sdvo_write_sdvox(intel_sdvo, sdvox);
 }
@@ -1295,55 +1303,14 @@ intel_sdvo_get_edid(struct drm_connector *connector)
 	return drm_get_edid(connector, &sdvo->ddc);
 }
 
-static struct drm_connector *
-intel_find_analog_connector(struct drm_device *dev)
-{
-	struct drm_connector *connector;
-	struct intel_sdvo *encoder;
-
-	list_for_each_entry(encoder,
-			    &dev->mode_config.encoder_list,
-			    base.base.head) {
-		if (encoder->base.type == INTEL_OUTPUT_ANALOG) {
-			list_for_each_entry(connector,
-					    &dev->mode_config.connector_list,
-					    head) {
-				if (&encoder->base ==
-				    intel_attached_encoder(connector))
-					return connector;
-			}
-		}
-	}
-
-	return NULL;
-}
-
-static int
-intel_analog_is_connected(struct drm_device *dev)
-{
-	struct drm_connector *analog_connector;
-
-	analog_connector = intel_find_analog_connector(dev);
-	if (!analog_connector)
-		return false;
-
-	if (analog_connector->funcs->detect(analog_connector, false) ==
-			connector_status_disconnected)
-		return false;
-
-	return true;
-}
-
 /* Mac mini hack -- use the same DDC as the analog connector */
 static struct edid *
 intel_sdvo_get_analog_edid(struct drm_connector *connector)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 
-	if (!intel_analog_is_connected(connector->dev))
-		return NULL;
-
-	return drm_get_edid(connector, &dev_priv->gmbus[dev_priv->crt_ddc_pin].adapter);
+	return drm_get_edid(connector,
+			    &dev_priv->gmbus[dev_priv->crt_ddc_pin].adapter);
 }
 
 enum drm_connector_status
@@ -1388,8 +1355,10 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 		/* DDC bus is shared, match EDID to connector type */
 		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
 			status = connector_status_connected;
-			intel_sdvo->is_hdmi = drm_detect_hdmi_monitor(edid);
-			intel_sdvo->has_audio = drm_detect_monitor_audio(edid);
+			if (intel_sdvo->is_hdmi) {
+				intel_sdvo->has_hdmi_monitor = drm_detect_hdmi_monitor(edid);
+				intel_sdvo->has_hdmi_audio = drm_detect_monitor_audio(edid);
+			}
 		}
 		connector->display_info.raw_edid = NULL;
 		kfree(edid);
@@ -1398,7 +1367,7 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 	if (status == connector_status_connected) {
 		struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 		if (intel_sdvo_connector->force_audio)
-			intel_sdvo->has_audio = intel_sdvo_connector->force_audio > 0;
+			intel_sdvo->has_hdmi_audio = intel_sdvo_connector->force_audio > 0;
 	}
 
 	return status;
@@ -1415,10 +1384,12 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	if (!intel_sdvo_write_cmd(intel_sdvo,
 				  SDVO_CMD_GET_ATTACHED_DISPLAYS, NULL, 0))
 		return connector_status_unknown;
-	if (intel_sdvo->is_tv) {
-		/* add 30ms delay when the output type is SDVO-TV */
+
+	/* add 30ms delay when the output type might be TV */
+	if (intel_sdvo->caps.output_flags &
+	    (SDVO_OUTPUT_SVID0 | SDVO_OUTPUT_CVBS0))
 		mdelay(30);
-	}
+
 	if (!intel_sdvo_read_response(intel_sdvo, &response, 2))
 		return connector_status_unknown;
 
@@ -1430,6 +1401,9 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 		return connector_status_disconnected;
 
 	intel_sdvo->attached_output = response;
+
+	intel_sdvo->has_hdmi_monitor = false;
+	intel_sdvo->has_hdmi_audio = false;
 
 	if ((intel_sdvo_connector->output_flag & response) == 0)
 		ret = connector_status_disconnected;
@@ -1472,8 +1446,10 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 		edid = intel_sdvo_get_analog_edid(connector);
 
 	if (edid != NULL) {
-		drm_mode_connector_update_edid_property(connector, edid);
-		drm_add_edid_modes(connector, edid);
+		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
+			drm_mode_connector_update_edid_property(connector, edid);
+			drm_add_edid_modes(connector, edid);
+		}
 		connector->display_info.raw_edid = NULL;
 		kfree(edid);
 	}
@@ -1713,12 +1689,12 @@ intel_sdvo_set_property(struct drm_connector *connector,
 
 		intel_sdvo_connector->force_audio = val;
 
-		if (val > 0 && intel_sdvo->has_audio)
+		if (val > 0 && intel_sdvo->has_hdmi_audio)
 			return 0;
-		if (val < 0 && !intel_sdvo->has_audio)
+		if (val < 0 && !intel_sdvo->has_hdmi_audio)
 			return 0;
 
-		intel_sdvo->has_audio = val > 0;
+		intel_sdvo->has_hdmi_audio = val > 0;
 		goto done;
 	}
 
@@ -1942,28 +1918,18 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 		speed = mapping->i2c_speed;
 	}
 
-	sdvo->i2c = &dev_priv->gmbus[pin].adapter;
-	intel_gmbus_set_speed(sdvo->i2c, speed);
-	intel_gmbus_force_bit(sdvo->i2c, true);
+	if (pin < GMBUS_NUM_PORTS) {
+		sdvo->i2c = &dev_priv->gmbus[pin].adapter;
+		intel_gmbus_set_speed(sdvo->i2c, speed);
+		intel_gmbus_force_bit(sdvo->i2c, true);
+	} else
+		sdvo->i2c = &dev_priv->gmbus[GMBUS_PORT_DPB].adapter;
 }
 
 static bool
 intel_sdvo_is_hdmi_connector(struct intel_sdvo *intel_sdvo, int device)
 {
-	int is_hdmi;
-
-	if (!intel_sdvo_check_supp_encode(intel_sdvo))
-		return false;
-
-	if (!intel_sdvo_set_target_output(intel_sdvo,
-					  device == 0 ? SDVO_OUTPUT_TMDS0 : SDVO_OUTPUT_TMDS1))
-		return false;
-
-	is_hdmi = 0;
-	if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_ENCODE, &is_hdmi, 1))
-		return false;
-
-	return !!is_hdmi;
+	return intel_sdvo_check_supp_encode(intel_sdvo);
 }
 
 static u8
@@ -2065,10 +2031,6 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 	connector->connector_type = DRM_MODE_CONNECTOR_DVID;
 
 	if (intel_sdvo_is_hdmi_connector(intel_sdvo, device)) {
-		/* enable hdmi encoding mode if supported */
-		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_HDMI);
-		intel_sdvo_set_colorimetry(intel_sdvo,
-					   SDVO_COLORIMETRY_RGB256);
 		connector->connector_type = DRM_MODE_CONNECTOR_HDMIA;
 		intel_sdvo->is_hdmi = true;
 	}
@@ -2076,8 +2038,8 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 				       (1 << INTEL_ANALOG_CLONE_BIT));
 
 	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
-
-	intel_sdvo_add_hdmi_properties(intel_sdvo_connector);
+	if (intel_sdvo->is_hdmi)
+		intel_sdvo_add_hdmi_properties(intel_sdvo_connector);
 
 	return true;
 }

@@ -24,8 +24,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/hrtimer.h>
-
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 
 #include <mach/iomap.h>
 

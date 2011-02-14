@@ -29,7 +29,7 @@ static void uhci_set_next_interrupt(struct uhci_hcd *uhci)
 {
 	if (uhci->is_stopped)
 		mod_timer(&uhci_to_hcd(uhci)->rh_timer, jiffies);
-	uhci->term_td->status |= cpu_to_le32(TD_CTRL_IOC); 
+	uhci->term_td->status |= cpu_to_le32(TD_CTRL_IOC);
 }
 
 static inline void uhci_clear_next_interrupt(struct uhci_hcd *uhci)
@@ -195,7 +195,9 @@ static inline void uhci_remove_td_from_frame_list(struct uhci_hcd *uhci,
 		} else {
 			struct uhci_td *ntd;
 
-			ntd = list_entry(td->fl_list.next, struct uhci_td, fl_list);
+			ntd = list_entry(td->fl_list.next,
+					 struct uhci_td,
+					 fl_list);
 			uhci->frame[td->frame] = LINK_TO_TD(ntd);
 			uhci->frame_cpu[td->frame] = ntd;
 		}
@@ -728,7 +730,7 @@ static inline struct urb_priv *uhci_alloc_urb_priv(struct uhci_hcd *uhci,
 
 	urbp->urb = urb;
 	urb->hcpriv = urbp;
-	
+
 	INIT_LIST_HEAD(&urbp->node);
 	INIT_LIST_HEAD(&urbp->td_list);
 
@@ -846,7 +848,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 
 		/* Alternate Data0/1 (start with Data1) */
 		destination ^= TD_TOKEN_TOGGLE;
-	
+
 		uhci_add_td_to_urbp(td, urbp);
 		uhci_fill_td(td, status, destination | uhci_explen(pktsze),
 				data);
@@ -857,7 +859,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	}
 
 	/*
-	 * Build the final TD for control status 
+	 * Build the final TD for control status
 	 */
 	td = uhci_alloc_td(uhci);
 	if (!td)

@@ -86,15 +86,16 @@ config B43_PIO
 	select SSB_BLOCKIO
 	default y
 
-config B43_NPHY
-	bool "Pre IEEE 802.11n support (BROKEN)"
-	depends on B43 && EXPERIMENTAL && BROKEN
+config B43_PHY_N
+	bool "Support for 802.11n (N-PHY) devices (EXPERIMENTAL)"
+	depends on B43 && EXPERIMENTAL
 	---help---
-	  Support for the IEEE 802.11n draft.
+	  Support for the N-PHY.
 
-	  THIS IS BROKEN AND DOES NOT WORK YET.
+	  This enables support for devices with N-PHY revision up to 2.
 
-	  SAY N.
+	  Say N if you expect high stability and performance. Saying Y will not
+	  affect other devices support and may provide support for basic needs.
 
 config B43_PHY_LP
 	bool "Support for low-power (LP-PHY) devices (EXPERIMENTAL)"

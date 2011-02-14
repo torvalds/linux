@@ -570,8 +570,8 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 		int elems = count / sizeof(struct v4l2_sliced_vbi_data);
 
 		set_bit(IVTV_F_S_APPL_IO, &s->s_flags);
-		ivtv_write_vbi(itv, (const struct v4l2_sliced_vbi_data *)user_buf, elems);
-		return elems * sizeof(struct v4l2_sliced_vbi_data);
+		return ivtv_write_vbi_from_user(itv,
+		   (const struct v4l2_sliced_vbi_data __user *)user_buf, elems);
 	}
 
 	mode = s->type == IVTV_DEC_STREAM_TYPE_MPG ? OUT_MPG : OUT_YUV;

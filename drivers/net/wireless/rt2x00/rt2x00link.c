@@ -67,7 +67,7 @@
 	    (__avg).avg_weight  ? \
 		((((__avg).avg_weight * ((AVG_SAMPLES) - 1)) + \
 		  ((__val) * (AVG_FACTOR))) / \
-		 (AVG_SAMPLES) ) : \
+		 (AVG_SAMPLES)) : \
 		((__val) * (AVG_FACTOR)); \
 	__new.avg = __new.avg_weight / (AVG_FACTOR); \
 	__new; \

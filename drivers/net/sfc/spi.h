@@ -61,6 +61,11 @@ struct efx_spi_device {
 	unsigned int block_size;
 };
 
+static inline bool efx_spi_present(const struct efx_spi_device *spi)
+{
+	return spi->size != 0;
+}
+
 int falcon_spi_cmd(struct efx_nic *efx,
 		   const struct efx_spi_device *spi, unsigned int command,
 		   int address, const void* in, void *out, size_t len);

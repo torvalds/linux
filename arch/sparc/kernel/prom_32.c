@@ -136,18 +136,29 @@ static void __init ebus_path_component(struct device_node *dp, char *tmp_buf)
 /* "name:vendor:device@irq,addrlo" */
 static void __init ambapp_path_component(struct device_node *dp, char *tmp_buf)
 {
-	struct amba_prom_registers *regs; unsigned int *intr;
-	unsigned int *device, *vendor;
+	struct amba_prom_registers *regs;
+	unsigned int *intr, *device, *vendor, reg0;
 	struct property *prop;
+	int interrupt = 0;
 
+	/* In order to get a unique ID in the device tree (multiple AMBA devices
+	 * may have the same name) the node number is printed
+	 */
 	prop = of_find_property(dp, "reg", NULL);
-	if (!prop)
-		return;
-	regs = prop->value;
+	if (!prop) {
+		reg0 = (unsigned int)dp->phandle;
+	} else {
+		regs = prop->value;
+		reg0 = regs->phys_addr;
+	}
+
+	/* Not all cores have Interrupt */
 	prop = of_find_property(dp, "interrupts", NULL);
 	if (!prop)
-		return;
-	intr = prop->value;
+		intr = &interrupt; /* IRQ0 does not exist */
+	else
+		intr = prop->value;
+
 	prop = of_find_property(dp, "vendor", NULL);
 	if (!prop)
 		return;
@@ -159,7 +170,7 @@ static void __init ambapp_path_component(struct device_node *dp, char *tmp_buf)
 
 	sprintf(tmp_buf, "%s:%d:%d@%x,%x",
 		dp->name, *vendor, *device,
-		*intr, regs->phys_addr);
+		*intr, reg0);
 }
 
 static void __init __build_path_component(struct device_node *dp, char *tmp_buf)

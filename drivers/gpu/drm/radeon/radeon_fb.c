@@ -245,10 +245,8 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 		goto out_unref;
 	}
 	info->apertures->ranges[0].base = rdev->ddev->mode_config.fb_base;
-	info->apertures->ranges[0].size = rdev->mc.real_vram_size;
+	info->apertures->ranges[0].size = rdev->mc.aper_size;
 
-	info->fix.mmio_start = 0;
-	info->fix.mmio_len = 0;
 	info->pixmap.size = 64*1024;
 	info->pixmap.buf_align = 8;
 	info->pixmap.access_align = 32;

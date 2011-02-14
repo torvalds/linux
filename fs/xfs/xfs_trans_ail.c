@@ -28,8 +28,8 @@
 #include "xfs_trans_priv.h"
 #include "xfs_error.h"
 
-STATIC void xfs_ail_insert(struct xfs_ail *, xfs_log_item_t *);
-STATIC xfs_log_item_t * xfs_ail_delete(struct xfs_ail *, xfs_log_item_t *);
+STATIC void xfs_ail_splice(struct xfs_ail *, struct list_head *, xfs_lsn_t);
+STATIC void xfs_ail_delete(struct xfs_ail *, xfs_log_item_t *);
 STATIC xfs_log_item_t * xfs_ail_min(struct xfs_ail *);
 STATIC xfs_log_item_t * xfs_ail_next(struct xfs_ail *, xfs_log_item_t *);
 
@@ -449,129 +449,152 @@ xfs_trans_unlocked_item(
 		xfs_log_move_tail(ailp->xa_mount, 1);
 }	/* xfs_trans_unlocked_item */
 
-
 /*
- * Update the position of the item in the AIL with the new
- * lsn.  If it is not yet in the AIL, add it.  Otherwise, move
- * it to its new position by removing it and re-adding it.
+ * xfs_trans_ail_update - bulk AIL insertion operation.
  *
- * Wakeup anyone with an lsn less than the item's lsn.  If the item
- * we move in the AIL is the minimum one, update the tail lsn in the
- * log manager.
+ * @xfs_trans_ail_update takes an array of log items that all need to be
+ * positioned at the same LSN in the AIL. If an item is not in the AIL, it will
+ * be added.  Otherwise, it will be repositioned  by removing it and re-adding
+ * it to the AIL. If we move the first item in the AIL, update the log tail to
+ * match the new minimum LSN in the AIL.
  *
- * This function must be called with the AIL lock held.  The lock
- * is dropped before returning.
+ * This function takes the AIL lock once to execute the update operations on
+ * all the items in the array, and as such should not be called with the AIL
+ * lock held. As a result, once we have the AIL lock, we need to check each log
+ * item LSN to confirm it needs to be moved forward in the AIL.
+ *
+ * To optimise the insert operation, we delete all the items from the AIL in
+ * the first pass, moving them into a temporary list, then splice the temporary
+ * list into the correct position in the AIL. This avoids needing to do an
+ * insert operation on every item.
+ *
+ * This function must be called with the AIL lock held.  The lock is dropped
+ * before returning.
  */
 void
-xfs_trans_ail_update(
-	struct xfs_ail	*ailp,
-	xfs_log_item_t	*lip,
-	xfs_lsn_t	lsn) __releases(ailp->xa_lock)
+xfs_trans_ail_update_bulk(
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	**log_items,
+	int			nr_items,
+	xfs_lsn_t		lsn) __releases(ailp->xa_lock)
 {
-	xfs_log_item_t		*dlip = NULL;
-	xfs_log_item_t		*mlip;	/* ptr to minimum lip */
+	xfs_log_item_t		*mlip;
 	xfs_lsn_t		tail_lsn;
+	int			mlip_changed = 0;
+	int			i;
+	LIST_HEAD(tmp);
 
 	mlip = xfs_ail_min(ailp);
 
-	if (lip->li_flags & XFS_LI_IN_AIL) {
-		dlip = xfs_ail_delete(ailp, lip);
-		ASSERT(dlip == lip);
-		xfs_trans_ail_cursor_clear(ailp, dlip);
-	} else {
-		lip->li_flags |= XFS_LI_IN_AIL;
-	}
+	for (i = 0; i < nr_items; i++) {
+		struct xfs_log_item *lip = log_items[i];
+		if (lip->li_flags & XFS_LI_IN_AIL) {
+			/* check if we really need to move the item */
+			if (XFS_LSN_CMP(lsn, lip->li_lsn) <= 0)
+				continue;
 
-	lip->li_lsn = lsn;
-	xfs_ail_insert(ailp, lip);
-
-	if (mlip == dlip) {
-		mlip = xfs_ail_min(ailp);
-		/*
-		 * It is not safe to access mlip after the AIL lock is
-		 * dropped, so we must get a copy of li_lsn before we do
-		 * so.  This is especially important on 32-bit platforms
-		 * where accessing and updating 64-bit values like li_lsn
-		 * is not atomic.
-		 */
-		tail_lsn = mlip->li_lsn;
-		spin_unlock(&ailp->xa_lock);
-		xfs_log_move_tail(ailp->xa_mount, tail_lsn);
-	} else {
-		spin_unlock(&ailp->xa_lock);
-	}
-
-
-}	/* xfs_trans_update_ail */
-
-/*
- * Delete the given item from the AIL.  It must already be in
- * the AIL.
- *
- * Wakeup anyone with an lsn less than item's lsn.    If the item
- * we delete in the AIL is the minimum one, update the tail lsn in the
- * log manager.
- *
- * Clear the IN_AIL flag from the item, reset its lsn to 0, and
- * bump the AIL's generation count to indicate that the tree
- * has changed.
- *
- * This function must be called with the AIL lock held.  The lock
- * is dropped before returning.
- */
-void
-xfs_trans_ail_delete(
-	struct xfs_ail	*ailp,
-	xfs_log_item_t	*lip) __releases(ailp->xa_lock)
-{
-	xfs_log_item_t		*dlip;
-	xfs_log_item_t		*mlip;
-	xfs_lsn_t		tail_lsn;
-
-	if (lip->li_flags & XFS_LI_IN_AIL) {
-		mlip = xfs_ail_min(ailp);
-		dlip = xfs_ail_delete(ailp, lip);
-		ASSERT(dlip == lip);
-		xfs_trans_ail_cursor_clear(ailp, dlip);
-
-
-		lip->li_flags &= ~XFS_LI_IN_AIL;
-		lip->li_lsn = 0;
-
-		if (mlip == dlip) {
-			mlip = xfs_ail_min(ailp);
-			/*
-			 * It is not safe to access mlip after the AIL lock
-			 * is dropped, so we must get a copy of li_lsn
-			 * before we do so.  This is especially important
-			 * on 32-bit platforms where accessing and updating
-			 * 64-bit values like li_lsn is not atomic.
-			 */
-			tail_lsn = mlip ? mlip->li_lsn : 0;
-			spin_unlock(&ailp->xa_lock);
-			xfs_log_move_tail(ailp->xa_mount, tail_lsn);
+			xfs_ail_delete(ailp, lip);
+			if (mlip == lip)
+				mlip_changed = 1;
 		} else {
-			spin_unlock(&ailp->xa_lock);
+			lip->li_flags |= XFS_LI_IN_AIL;
 		}
+		lip->li_lsn = lsn;
+		list_add(&lip->li_ail, &tmp);
 	}
-	else {
-		/*
-		 * If the file system is not being shutdown, we are in
-		 * serious trouble if we get to this stage.
-		 */
-		struct xfs_mount	*mp = ailp->xa_mount;
 
+	xfs_ail_splice(ailp, &tmp, lsn);
+
+	if (!mlip_changed) {
 		spin_unlock(&ailp->xa_lock);
-		if (!XFS_FORCED_SHUTDOWN(mp)) {
-			xfs_cmn_err(XFS_PTAG_AILDELETE, CE_ALERT, mp,
-		"%s: attempting to delete a log item that is not in the AIL",
-					__func__);
-			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-		}
+		return;
 	}
+
+	/*
+	 * It is not safe to access mlip after the AIL lock is dropped, so we
+	 * must get a copy of li_lsn before we do so.  This is especially
+	 * important on 32-bit platforms where accessing and updating 64-bit
+	 * values like li_lsn is not atomic.
+	 */
+	mlip = xfs_ail_min(ailp);
+	tail_lsn = mlip->li_lsn;
+	spin_unlock(&ailp->xa_lock);
+	xfs_log_move_tail(ailp->xa_mount, tail_lsn);
 }
 
+/*
+ * xfs_trans_ail_delete_bulk - remove multiple log items from the AIL
+ *
+ * @xfs_trans_ail_delete_bulk takes an array of log items that all need to
+ * removed from the AIL. The caller is already holding the AIL lock, and done
+ * all the checks necessary to ensure the items passed in via @log_items are
+ * ready for deletion. This includes checking that the items are in the AIL.
+ *
+ * For each log item to be removed, unlink it  from the AIL, clear the IN_AIL
+ * flag from the item and reset the item's lsn to 0. If we remove the first
+ * item in the AIL, update the log tail to match the new minimum LSN in the
+ * AIL.
+ *
+ * This function will not drop the AIL lock until all items are removed from
+ * the AIL to minimise the amount of lock traffic on the AIL. This does not
+ * greatly increase the AIL hold time, but does significantly reduce the amount
+ * of traffic on the lock, especially during IO completion.
+ *
+ * This function must be called with the AIL lock held.  The lock is dropped
+ * before returning.
+ */
+void
+xfs_trans_ail_delete_bulk(
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	**log_items,
+	int			nr_items) __releases(ailp->xa_lock)
+{
+	xfs_log_item_t		*mlip;
+	xfs_lsn_t		tail_lsn;
+	int			mlip_changed = 0;
+	int			i;
 
+	mlip = xfs_ail_min(ailp);
+
+	for (i = 0; i < nr_items; i++) {
+		struct xfs_log_item *lip = log_items[i];
+		if (!(lip->li_flags & XFS_LI_IN_AIL)) {
+			struct xfs_mount	*mp = ailp->xa_mount;
+
+			spin_unlock(&ailp->xa_lock);
+			if (!XFS_FORCED_SHUTDOWN(mp)) {
+				xfs_cmn_err(XFS_PTAG_AILDELETE, CE_ALERT, mp,
+		"%s: attempting to delete a log item that is not in the AIL",
+						__func__);
+				xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+			}
+			return;
+		}
+
+		xfs_ail_delete(ailp, lip);
+		lip->li_flags &= ~XFS_LI_IN_AIL;
+		lip->li_lsn = 0;
+		if (mlip == lip)
+			mlip_changed = 1;
+	}
+
+	if (!mlip_changed) {
+		spin_unlock(&ailp->xa_lock);
+		return;
+	}
+
+	/*
+	 * It is not safe to access mlip after the AIL lock is dropped, so we
+	 * must get a copy of li_lsn before we do so.  This is especially
+	 * important on 32-bit platforms where accessing and updating 64-bit
+	 * values like li_lsn is not atomic. It is possible we've emptied the
+	 * AIL here, so if that is the case, pass an LSN of 0 to the tail move.
+	 */
+	mlip = xfs_ail_min(ailp);
+	tail_lsn = mlip ? mlip->li_lsn : 0;
+	spin_unlock(&ailp->xa_lock);
+	xfs_log_move_tail(ailp->xa_mount, tail_lsn);
+}
 
 /*
  * The active item list (AIL) is a doubly linked list of log
@@ -623,16 +646,13 @@ xfs_trans_ail_destroy(
 }
 
 /*
- * Insert the given log item into the AIL.
- * We almost always insert at the end of the list, so on inserts
- * we search from the end of the list to find where the
- * new item belongs.
+ * splice the log item list into the AIL at the given LSN.
  */
 STATIC void
-xfs_ail_insert(
+xfs_ail_splice(
 	struct xfs_ail	*ailp,
-	xfs_log_item_t	*lip)
-/* ARGSUSED */
+	struct list_head *list,
+	xfs_lsn_t	lsn)
 {
 	xfs_log_item_t	*next_lip;
 
@@ -640,39 +660,33 @@ xfs_ail_insert(
 	 * If the list is empty, just insert the item.
 	 */
 	if (list_empty(&ailp->xa_ail)) {
-		list_add(&lip->li_ail, &ailp->xa_ail);
+		list_splice(list, &ailp->xa_ail);
 		return;
 	}
 
 	list_for_each_entry_reverse(next_lip, &ailp->xa_ail, li_ail) {
-		if (XFS_LSN_CMP(next_lip->li_lsn, lip->li_lsn) <= 0)
+		if (XFS_LSN_CMP(next_lip->li_lsn, lsn) <= 0)
 			break;
 	}
 
 	ASSERT((&next_lip->li_ail == &ailp->xa_ail) ||
-	       (XFS_LSN_CMP(next_lip->li_lsn, lip->li_lsn) <= 0));
+	       (XFS_LSN_CMP(next_lip->li_lsn, lsn) <= 0));
 
-	list_add(&lip->li_ail, &next_lip->li_ail);
-
-	xfs_ail_check(ailp, lip);
+	list_splice_init(list, &next_lip->li_ail);
 	return;
 }
 
 /*
  * Delete the given item from the AIL.  Return a pointer to the item.
  */
-/*ARGSUSED*/
-STATIC xfs_log_item_t *
+STATIC void
 xfs_ail_delete(
 	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip)
-/* ARGSUSED */
 {
 	xfs_ail_check(ailp, lip);
-
 	list_del(&lip->li_ail);
-
-	return lip;
+	xfs_trans_ail_cursor_clear(ailp, lip);
 }
 
 /*
@@ -682,7 +696,6 @@ xfs_ail_delete(
 STATIC xfs_log_item_t *
 xfs_ail_min(
 	struct xfs_ail	*ailp)
-/* ARGSUSED */
 {
 	if (list_empty(&ailp->xa_ail))
 		return NULL;
@@ -699,7 +712,6 @@ STATIC xfs_log_item_t *
 xfs_ail_next(
 	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip)
-/* ARGSUSED */
 {
 	if (lip->li_ail.next == &ailp->xa_ail)
 		return NULL;

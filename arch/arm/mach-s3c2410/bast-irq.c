@@ -75,38 +75,38 @@ static unsigned char bast_pc104_irqmasks[] = {
 static unsigned char bast_pc104_irqs[] = { 3, 5, 7, 10 };
 
 static void
-bast_pc104_mask(unsigned int irqno)
+bast_pc104_mask(struct irq_data *data)
 {
 	unsigned long temp;
 
 	temp = __raw_readb(BAST_VA_PC104_IRQMASK);
-	temp &= ~bast_pc104_irqmasks[irqno];
+	temp &= ~bast_pc104_irqmasks[data->irq];
 	__raw_writeb(temp, BAST_VA_PC104_IRQMASK);
 }
 
 static void
-bast_pc104_maskack(unsigned int irqno)
+bast_pc104_maskack(struct irq_data *data)
 {
 	struct irq_desc *desc = irq_desc + IRQ_ISA;
 
-	bast_pc104_mask(irqno);
-	desc->chip->ack(IRQ_ISA);
+	bast_pc104_mask(data);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 }
 
 static void
-bast_pc104_unmask(unsigned int irqno)
+bast_pc104_unmask(struct irq_data *data)
 {
 	unsigned long temp;
 
 	temp = __raw_readb(BAST_VA_PC104_IRQMASK);
-	temp |= bast_pc104_irqmasks[irqno];
+	temp |= bast_pc104_irqmasks[data->irq];
 	__raw_writeb(temp, BAST_VA_PC104_IRQMASK);
 }
 
 static struct irq_chip  bast_pc104_chip = {
-	.mask	     = bast_pc104_mask,
-	.unmask	     = bast_pc104_unmask,
-	.ack	     = bast_pc104_maskack
+	.irq_mask	= bast_pc104_mask,
+	.irq_unmask	= bast_pc104_unmask,
+	.irq_ack	= bast_pc104_maskack
 };
 
 static void
@@ -123,7 +123,7 @@ bast_irq_pc104_demux(unsigned int irq,
 		/* ack if we get an irq with nothing (ie, startup) */
 
 		desc = irq_desc + IRQ_ISA;
-		desc->chip->ack(IRQ_ISA);
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 	} else {
 		/* handle the IRQ */
 

@@ -802,10 +802,9 @@ static void sierra_net_unbind(struct usbnet *dev, struct usb_interface *intf)
 
 	dev_dbg(&dev->udev->dev, "%s", __func__);
 
-	/* Kill the timer then flush the work queue */
+	/* kill the timer and work */
 	del_timer_sync(&priv->sync_timer);
-
-	flush_scheduled_work();
+	cancel_work_sync(&priv->sierra_net_kevent);
 
 	/* tell modem we are going away */
 	status = sierra_net_send_cmd(dev, priv->shdwn_msg,

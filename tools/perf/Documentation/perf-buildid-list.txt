@@ -18,6 +18,9 @@ perf report.
 
 OPTIONS
 -------
+-H::
+--with-hits::
+        Show only DSOs with hits.
 -i::
 --input=::
         Input file name. (default: perf.data)

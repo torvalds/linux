@@ -51,6 +51,7 @@
 #include <mach/irda.h>
 #include <mach/ohci.h>
 #include <plat/pxa27x_keypad.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -122,15 +123,15 @@ static unsigned long mainstone_pin_config[] = {
 
 static unsigned long mainstone_irq_enabled;
 
-static void mainstone_mask_irq(unsigned int irq)
+static void mainstone_mask_irq(struct irq_data *d)
 {
-	int mainstone_irq = (irq - MAINSTONE_IRQ(0));
+	int mainstone_irq = (d->irq - MAINSTONE_IRQ(0));
 	MST_INTMSKENA = (mainstone_irq_enabled &= ~(1 << mainstone_irq));
 }
 
-static void mainstone_unmask_irq(unsigned int irq)
+static void mainstone_unmask_irq(struct irq_data *d)
 {
-	int mainstone_irq = (irq - MAINSTONE_IRQ(0));
+	int mainstone_irq = (d->irq - MAINSTONE_IRQ(0));
 	/* the irq can be acknowledged only if deasserted, so it's done here */
 	MST_INTSETCLR &= ~(1 << mainstone_irq);
 	MST_INTMSKENA = (mainstone_irq_enabled |= (1 << mainstone_irq));
@@ -138,16 +139,17 @@ static void mainstone_unmask_irq(unsigned int irq)
 
 static struct irq_chip mainstone_irq_chip = {
 	.name		= "FPGA",
-	.ack		= mainstone_mask_irq,
-	.mask		= mainstone_mask_irq,
-	.unmask		= mainstone_unmask_irq,
+	.irq_ack	= mainstone_mask_irq,
+	.irq_mask	= mainstone_mask_irq,
+	.irq_unmask	= mainstone_unmask_irq,
 };
 
 static void mainstone_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long pending = MST_INTSETCLR & mainstone_irq_enabled;
 	do {
-		desc->chip->ack(irq);	/* clear useless edge notification */
+		/* clear useless edge notification */
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 		if (likely(pending)) {
 			irq = MAINSTONE_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);
@@ -565,7 +567,7 @@ static void __init mainstone_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	mst_flash_data[0].width = (BOOT_DEF & 1) ? 2 : 4;
+	mst_flash_data[0].width = (__raw_readl(BOOT_DEF) & 1) ? 2 : 4;
 	mst_flash_data[1].width = 4;
 
 	/* Compensate for SW7 which swaps the flash banks */
@@ -614,7 +616,7 @@ static struct map_desc mainstone_io_desc[] __initdata = {
 
 static void __init mainstone_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 	iotable_init(mainstone_io_desc, ARRAY_SIZE(mainstone_io_desc));
 
  	/*	for use I SRAM as framebuffer.	*/

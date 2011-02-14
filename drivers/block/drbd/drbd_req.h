@@ -339,7 +339,8 @@ static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what)
 }
 
 /* completion of master bio is outside of spinlock.
- * If you need it irqsave, do it your self! */
+ * If you need it irqsave, do it your self!
+ * Which means: don't use from bio endio callback. */
 static inline int req_mod(struct drbd_request *req,
 		enum drbd_req_event what)
 {

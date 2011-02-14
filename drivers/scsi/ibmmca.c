@@ -39,7 +39,7 @@
 #include <scsi/scsi_host.h>
 
 /* Common forward declarations for all Linux-versions: */
-static int ibmmca_queuecommand (Scsi_Cmnd *, void (*done) (Scsi_Cmnd *));
+static int ibmmca_queuecommand (struct Scsi_Host *, struct scsi_cmnd *);
 static int ibmmca_abort (Scsi_Cmnd *);
 static int ibmmca_host_reset (Scsi_Cmnd *);
 static int ibmmca_biosparam (struct scsi_device *, struct block_device *, sector_t, int *);
@@ -1691,7 +1691,7 @@ static int __devexit ibmmca_remove(struct device *dev)
 }
 
 /* The following routine is the SCSI command queue for the midlevel driver */
-static int ibmmca_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
+static int ibmmca_queuecommand_lck(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 {
 	unsigned int ldn;
 	unsigned int scsi_cmd;
@@ -1995,6 +1995,8 @@ static int ibmmca_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 	}
 	return 0;
 }
+
+static DEF_SCSI_QCMD(ibmmca_queuecommand)
 
 static int __ibmmca_abort(Scsi_Cmnd * cmd)
 {

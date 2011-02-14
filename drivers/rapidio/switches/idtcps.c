@@ -117,10 +117,6 @@ idtcps_get_domain(struct rio_mport *mport, u16 destid, u8 hopcount,
 
 static int idtcps_switch_init(struct rio_dev *rdev, int do_enum)
 {
-	struct rio_mport *mport = rdev->net->hport;
-	u16 destid = rdev->rswitch->destid;
-	u8 hopcount = rdev->rswitch->hopcount;
-
 	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
 	rdev->rswitch->add_entry = idtcps_route_add_entry;
 	rdev->rswitch->get_entry = idtcps_route_get_entry;
@@ -132,7 +128,7 @@ static int idtcps_switch_init(struct rio_dev *rdev, int do_enum)
 
 	if (do_enum) {
 		/* set TVAL = ~50us */
-		rio_mport_write_config_32(mport, destid, hopcount,
+		rio_write_config_32(rdev,
 			rdev->phys_efptr + RIO_PORT_LINKTO_CTL_CSR, 0x8e << 8);
 	}
 

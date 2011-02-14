@@ -20,6 +20,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "cx25821.h"
 #include "cx25821-medusa-video.h"
 #include "cx25821-biffuncs.h"
@@ -499,9 +501,8 @@ void medusa_set_resolution(struct cx25821_dev *dev, int width,
 
 	/* validate the width - cannot be negative */
 	if (width > MAX_WIDTH) {
-		printk
-		    ("cx25821 %s() : width %d > MAX_WIDTH %d ! resetting to MAX_WIDTH\n",
-		     __func__, width, MAX_WIDTH);
+		pr_info("%s(): width %d > MAX_WIDTH %d ! resetting to MAX_WIDTH\n",
+			__func__, width, MAX_WIDTH);
 		width = MAX_WIDTH;
 	}
 

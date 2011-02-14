@@ -95,11 +95,10 @@ static int zlib_compress_setup(struct crypto_pcomp *tfm, void *params,
 	zlib_comp_exit(ctx);
 
 	workspacesize = zlib_deflate_workspacesize();
-	stream->workspace = vmalloc(workspacesize);
+	stream->workspace = vzalloc(workspacesize);
 	if (!stream->workspace)
 		return -ENOMEM;
 
-	memset(stream->workspace, 0, workspacesize);
 	ret = zlib_deflateInit2(stream,
 				tb[ZLIB_COMP_LEVEL]
 					? nla_get_u32(tb[ZLIB_COMP_LEVEL])

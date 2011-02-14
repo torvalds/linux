@@ -355,13 +355,13 @@ subsystems, type:
 
 To change the set of subsystems bound to a mounted hierarchy, just
 remount with different options:
-# mount -o remount,cpuset,ns hier1 /dev/cgroup
+# mount -o remount,cpuset,blkio hier1 /dev/cgroup
 
-Now memory is removed from the hierarchy and ns is added.
+Now memory is removed from the hierarchy and blkio is added.
 
-Note this will add ns to the hierarchy but won't remove memory or
+Note this will add blkio to the hierarchy but won't remove memory or
 cpuset, because the new options are appended to the old ones:
-# mount -o remount,ns /dev/cgroup
+# mount -o remount,blkio /dev/cgroup
 
 To Specify a hierarchy's release_agent:
 # mount -t cgroup -o cpuset,release_agent="/sbin/cpuset_release_agent" \

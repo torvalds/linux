@@ -31,7 +31,7 @@
 #include <linux/wait.h>
 #include <asm/uaccess.h>
 
-#include <media/rds.h>
+#include <media/saa6588.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
 
@@ -181,7 +181,7 @@ static int block_to_user_buf(struct saa6588 *s, unsigned char __user *user_buf)
 	return 1;
 }
 
-static void read_from_buf(struct saa6588 *s, struct rds_command *a)
+static void read_from_buf(struct saa6588 *s, struct saa6588_command *a)
 {
 	unsigned long flags;
 
@@ -392,25 +392,25 @@ static void saa6588_configure(struct saa6588 *s)
 static long saa6588_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct saa6588 *s = to_saa6588(sd);
-	struct rds_command *a = arg;
+	struct saa6588_command *a = arg;
 
 	switch (cmd) {
 		/* --- open() for /dev/radio --- */
-	case RDS_CMD_OPEN:
+	case SAA6588_CMD_OPEN:
 		a->result = 0;	/* return error if chip doesn't work ??? */
 		break;
 		/* --- close() for /dev/radio --- */
-	case RDS_CMD_CLOSE:
+	case SAA6588_CMD_CLOSE:
 		s->data_available_for_read = 1;
 		wake_up_interruptible(&s->read_queue);
 		a->result = 0;
 		break;
 		/* --- read() for /dev/radio --- */
-	case RDS_CMD_READ:
+	case SAA6588_CMD_READ:
 		read_from_buf(s, a);
 		break;
 		/* --- poll() for /dev/radio --- */
-	case RDS_CMD_POLL:
+	case SAA6588_CMD_POLL:
 		a->result = 0;
 		if (s->data_available_for_read) {
 			a->result |= POLLIN | POLLRDNORM;

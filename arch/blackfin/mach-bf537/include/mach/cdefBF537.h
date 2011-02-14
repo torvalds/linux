@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2008 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later
  */
@@ -9,9 +9,6 @@
 
 /* Include MMRs Common to BF534 								*/
 #include "cdefBF534.h"
-
-/* Include all Core registers and bit definitions 									*/
-#include "defBF537.h"
 
 /* Include Macro "Defines" For EMAC (Unique to BF536/BF537		*/
 /* 10/100 Ethernet Controller	(0xFFC03000 - 0xFFC031FF) 						*/

@@ -1342,8 +1342,8 @@ handle_syscall:
 	lw      r20, r20
 
 	/* Jump to syscall handler. */
-	jalr    r20; .Lhandle_syscall_link:
-	FEEDBACK_REENTER(handle_syscall)
+	jalr    r20
+.Lhandle_syscall_link: /* value of "lr" after "jalr r20" above */
 
 	/*
 	 * Write our r0 onto the stack so it gets restored instead
@@ -1351,6 +1351,9 @@ handle_syscall:
 	 */
 	PTREGS_PTR(r29, PTREGS_OFFSET_REG(0))
 	sw      r29, r0
+
+.Lsyscall_sigreturn_skip:
+	FEEDBACK_REENTER(handle_syscall)
 
 	/* Do syscall trace again, if requested. */
 	lw	r30, r31
@@ -1536,9 +1539,24 @@ STD_ENTRY_LOCAL(bad_intr)
 	};                                              \
 	STD_ENDPROC(_##x)
 
+/*
+ * Special-case sigreturn to not write r0 to the stack on return.
+ * This is technically more efficient, but it also avoids difficulties
+ * in the 64-bit OS when handling 32-bit compat code, since we must not
+ * sign-extend r0 for the sigreturn return-value case.
+ */
+#define PTREGS_SYSCALL_SIGRETURN(x, reg)                \
+	STD_ENTRY(_##x);                                \
+	addli   lr, lr, .Lsyscall_sigreturn_skip - .Lhandle_syscall_link; \
+	{                                               \
+	 PTREGS_PTR(reg, PTREGS_OFFSET_BASE);           \
+	 j      x                                       \
+	};                                              \
+	STD_ENDPROC(_##x)
+
 PTREGS_SYSCALL(sys_execve, r3)
 PTREGS_SYSCALL(sys_sigaltstack, r2)
-PTREGS_SYSCALL(sys_rt_sigreturn, r0)
+PTREGS_SYSCALL_SIGRETURN(sys_rt_sigreturn, r0)
 PTREGS_SYSCALL(sys_cmpxchg_badaddr, r1)
 
 /* Save additional callee-saves to pt_regs, put address in r4 and jump. */

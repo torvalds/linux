@@ -477,6 +477,12 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 	if (!(pa->flags & ACPI_SRAT_CPU_ENABLED))
 		return;
 
+	if (srat_num_cpus >= ARRAY_SIZE(node_cpuid)) {
+		printk_once(KERN_WARNING
+			    "node_cpuid[%ld] is too small, may not be able to use all cpus\n",
+			    ARRAY_SIZE(node_cpuid));
+		return;
+	}
 	pxm = get_processor_proximity_domain(pa);
 
 	/* record this node in proximity bitmap */

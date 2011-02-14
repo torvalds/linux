@@ -1348,8 +1348,17 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	int reg1e;
 
 	*std = V4L2_STD_ALL;
-	if (state->ident != V4L2_IDENT_SAA7115)
+	if (state->ident != V4L2_IDENT_SAA7115) {
+		int reg1f = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
+
+		if (reg1f & 0x20)
+			*std = V4L2_STD_525_60;
+		else
+			*std = V4L2_STD_625_50;
+
 		return 0;
+	}
+
 	reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
 
 	switch (reg1e & 0x03) {
@@ -1556,7 +1565,7 @@ static int saa711x_probe(struct i2c_client *client,
 	chip_id = name[5];
 
 	/* Check whether this chip is part of the saa711x series */
-	if (memcmp(name, "1f711", 5)) {
+	if (memcmp(name + 1, "f711", 4)) {
 		v4l_dbg(1, debug, client, "chip found @ 0x%x (ID %s) does not match a known saa711x chip.\n",
 			client->addr << 1, name);
 		return -ENODEV;

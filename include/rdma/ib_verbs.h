@@ -47,9 +47,12 @@
 #include <linux/list.h>
 #include <linux/rwsem.h>
 #include <linux/scatterlist.h>
+#include <linux/workqueue.h>
 
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
+
+extern struct workqueue_struct *ib_wq;
 
 union ib_gid {
 	u8	raw[16];

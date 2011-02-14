@@ -147,7 +147,7 @@ static irqreturn_t wm97xx_chrg_irq(int irq, void *data)
 #ifdef CONFIG_PM
 static int wm97xx_bat_suspend(struct device *dev)
 {
-	flush_scheduled_work();
+	flush_work_sync(&bat_work);
 	return 0;
 }
 
@@ -273,7 +273,7 @@ static int __devexit wm97xx_bat_remove(struct platform_device *dev)
 		free_irq(gpio_to_irq(pdata->charge_gpio), dev);
 		gpio_free(pdata->charge_gpio);
 	}
-	flush_scheduled_work();
+	cancel_work_sync(&bat_work);
 	power_supply_unregister(&bat_ps);
 	kfree(prop);
 	return 0;

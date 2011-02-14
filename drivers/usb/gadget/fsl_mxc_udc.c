@@ -93,9 +93,9 @@ void fsl_udc_clk_finalize(struct platform_device *pdev)
 
 	/* workaround ENGcm09152 for i.MX35 */
 	if (pdata->workaround & FLS_USB2_WORKAROUND_ENGCM09152) {
-		v = readl(MX35_IO_ADDRESS(MX35_OTG_BASE_ADDR +
+		v = readl(MX35_IO_ADDRESS(MX35_USB_BASE_ADDR +
 				USBPHYCTRL_OTGBASE_OFFSET));
-		writel(v | USBPHYCTRL_EVDO, MX35_IO_ADDRESS(MX35_OTG_BASE_ADDR +
+		writel(v | USBPHYCTRL_EVDO, MX35_IO_ADDRESS(MX35_USB_BASE_ADDR +
 				USBPHYCTRL_OTGBASE_OFFSET));
 	}
 #endif

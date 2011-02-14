@@ -232,6 +232,7 @@ static ssize_t lirc_write(struct file *file, const char *buf,
 		i++;
 	}
 	terminate_send(tx_buf[i - 1]);
+	kfree(tx_buf);
 	return n;
 }
 

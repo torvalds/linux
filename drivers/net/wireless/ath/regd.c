@@ -342,6 +342,14 @@ int ath_reg_notifier_apply(struct wiphy *wiphy,
 	/* We always apply this */
 	ath_reg_apply_radar_flags(wiphy);
 
+	/*
+	 * This would happen when we have sent a custom regulatory request
+	 * a world regulatory domain and the scheduler hasn't yet processed
+	 * any pending requests in the queue.
+	 */
+	if (!request)
+		return 0;
+
 	switch (request->initiator) {
 	case NL80211_REGDOM_SET_BY_DRIVER:
 	case NL80211_REGDOM_SET_BY_CORE:

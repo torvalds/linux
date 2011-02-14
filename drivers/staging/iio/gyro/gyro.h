@@ -71,3 +71,12 @@
 
 #define IIO_DEV_ATTR_ANGL(_show, _addr)                         \
 	IIO_DEVICE_ATTR(angl_raw, S_IRUGO, _show, NULL, _addr)
+
+#define IIO_DEV_ATTR_ANGL_X(_show, _addr)				\
+	IIO_DEVICE_ATTR(angl_x_raw, S_IRUGO, _show, NULL, _addr)
+
+#define IIO_DEV_ATTR_ANGL_Y(_show, _addr)				\
+	IIO_DEVICE_ATTR(angl_y_raw, S_IRUGO, _show, NULL, _addr)
+
+#define IIO_DEV_ATTR_ANGL_Z(_show, _addr)				\
+	IIO_DEVICE_ATTR(angl_z_raw, S_IRUGO, _show, NULL, _addr)

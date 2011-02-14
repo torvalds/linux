@@ -172,6 +172,8 @@ static int hp_wmi_perform_query(int query, int write, u32 *buffer,
 	bios_return = *((struct bios_return *)obj->buffer.pointer);
 
 	memcpy(buffer, &bios_return.value, sizeof(bios_return.value));
+
+	kfree(obj);
 	return 0;
 }
 

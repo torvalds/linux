@@ -48,7 +48,7 @@ extern void nouveau_ramht_ref(struct nouveau_ramht *, struct nouveau_ramht **,
 
 extern int  nouveau_ramht_insert(struct nouveau_channel *, u32 handle,
 				 struct nouveau_gpuobj *);
-extern void nouveau_ramht_remove(struct nouveau_channel *, u32 handle);
+extern int  nouveau_ramht_remove(struct nouveau_channel *, u32 handle);
 extern struct nouveau_gpuobj *
 nouveau_ramht_find(struct nouveau_channel *chan, u32 handle);
 

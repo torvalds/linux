@@ -81,16 +81,41 @@ struct kthread_work {
 #define DEFINE_KTHREAD_WORK(work, fn)					\
 	struct kthread_work work = KTHREAD_WORK_INIT(work, fn)
 
-static inline void init_kthread_worker(struct kthread_worker *worker)
-{
-	*worker = (struct kthread_worker)KTHREAD_WORKER_INIT(*worker);
-}
+/*
+ * kthread_worker.lock and kthread_work.done need their own lockdep class
+ * keys if they are defined on stack with lockdep enabled.  Use the
+ * following macros when defining them on stack.
+ */
+#ifdef CONFIG_LOCKDEP
+# define KTHREAD_WORKER_INIT_ONSTACK(worker)				\
+	({ init_kthread_worker(&worker); worker; })
+# define DEFINE_KTHREAD_WORKER_ONSTACK(worker)				\
+	struct kthread_worker worker = KTHREAD_WORKER_INIT_ONSTACK(worker)
+# define KTHREAD_WORK_INIT_ONSTACK(work, fn)				\
+	({ init_kthread_work((&work), fn); work; })
+# define DEFINE_KTHREAD_WORK_ONSTACK(work, fn)				\
+	struct kthread_work work = KTHREAD_WORK_INIT_ONSTACK(work, fn)
+#else
+# define DEFINE_KTHREAD_WORKER_ONSTACK(worker) DEFINE_KTHREAD_WORKER(worker)
+# define DEFINE_KTHREAD_WORK_ONSTACK(work, fn) DEFINE_KTHREAD_WORK(work, fn)
+#endif
 
-static inline void init_kthread_work(struct kthread_work *work,
-				     kthread_work_func_t fn)
-{
-	*work = (struct kthread_work)KTHREAD_WORK_INIT(*work, fn);
-}
+extern void __init_kthread_worker(struct kthread_worker *worker,
+			const char *name, struct lock_class_key *key);
+
+#define init_kthread_worker(worker)					\
+	do {								\
+		static struct lock_class_key __key;			\
+		__init_kthread_worker((worker), "("#worker")->lock", &__key); \
+	} while (0)
+
+#define init_kthread_work(work, fn)					\
+	do {								\
+		memset((work), 0, sizeof(struct kthread_work));		\
+		INIT_LIST_HEAD(&(work)->node);				\
+		(work)->func = (fn);					\
+		init_waitqueue_head(&(work)->done);			\
+	} while (0)
 
 int kthread_worker_fn(void *worker_ptr);
 

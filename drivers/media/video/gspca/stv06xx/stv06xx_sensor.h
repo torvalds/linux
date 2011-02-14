@@ -53,6 +53,10 @@ struct stv06xx_sensor {
 	/* length of an i2c word */
 	u8 i2c_len;
 
+	/* Isoc packet size (per mode) */
+	int min_packet_size[4];
+	int max_packet_size[4];
+
 	/* Probes if the sensor is connected */
 	int (*probe)(struct sd *sd);
 

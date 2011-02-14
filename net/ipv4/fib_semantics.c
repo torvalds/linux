@@ -563,12 +563,8 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 		rcu_read_lock();
 		{
 			struct flowi fl = {
-				.nl_u = {
-					.ip4_u = {
-						.daddr = nh->nh_gw,
-						.scope = cfg->fc_scope + 1,
-					},
-				},
+				.fl4_dst = nh->nh_gw,
+				.fl4_scope = cfg->fc_scope + 1,
 				.oif = nh->nh_oif,
 			};
 

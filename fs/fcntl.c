@@ -815,7 +815,7 @@ static int __init fcntl_init(void)
 		__O_SYNC	| O_DSYNC	| FASYNC	|
 		O_DIRECT	| O_LARGEFILE	| O_DIRECTORY	|
 		O_NOFOLLOW	| O_NOATIME	| O_CLOEXEC	|
-		FMODE_EXEC
+		__FMODE_EXEC
 		));
 
 	fasync_cache = kmem_cache_create("fasync_cache",

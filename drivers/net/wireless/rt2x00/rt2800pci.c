@@ -84,20 +84,22 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
 }
 
-#ifdef CONFIG_RT2800PCI_SOC
+#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
 static void rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 {
-	u32 *base_addr = (u32 *) KSEG1ADDR(0x1F040000); /* XXX for RT3052 */
+	void __iomem *base_addr = ioremap(0x1F040000, EEPROM_SIZE);
 
 	memcpy_fromio(rt2x00dev->eeprom, base_addr, EEPROM_SIZE);
+
+	iounmap(base_addr);
 }
 #else
 static inline void rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 {
 }
-#endif /* CONFIG_RT2800PCI_SOC */
+#endif /* CONFIG_RALINK_RT288X || CONFIG_RALINK_RT305X */
 
-#ifdef CONFIG_RT2800PCI_PCI
+#ifdef CONFIG_PCI
 static void rt2800pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
 {
 	struct rt2x00_dev *rt2x00dev = eeprom->data;
@@ -181,7 +183,78 @@ static inline int rt2800pci_efuse_detect(struct rt2x00_dev *rt2x00dev)
 static inline void rt2800pci_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev)
 {
 }
-#endif /* CONFIG_RT2800PCI_PCI */
+#endif /* CONFIG_PCI */
+
+/*
+ * Queue handlers.
+ */
+static void rt2800pci_start_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u32 reg;
+
+	switch (queue->qid) {
+	case QID_RX:
+		rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
+		rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+		break;
+	case QID_BEACON:
+		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
+		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+		break;
+	default:
+		break;
+	};
+}
+
+static void rt2800pci_kick_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	struct queue_entry *entry;
+
+	switch (queue->qid) {
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_AC_BE:
+	case QID_AC_BK:
+		entry = rt2x00queue_get_entry(queue, Q_INDEX);
+		rt2800_register_write(rt2x00dev, TX_CTX_IDX(queue->qid), entry->entry_idx);
+		break;
+	case QID_MGMT:
+		entry = rt2x00queue_get_entry(queue, Q_INDEX);
+		rt2800_register_write(rt2x00dev, TX_CTX_IDX(5), entry->entry_idx);
+		break;
+	default:
+		break;
+	}
+}
+
+static void rt2800pci_stop_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u32 reg;
+
+	switch (queue->qid) {
+	case QID_RX:
+		rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 0);
+		rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+		break;
+	case QID_BEACON:
+		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
+		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+		break;
+	default:
+		break;
+	}
+}
 
 /*
  * Firmware functions
@@ -321,18 +394,6 @@ static int rt2800pci_init_queues(struct rt2x00_dev *rt2x00dev)
 /*
  * Device state switch handlers.
  */
-static void rt2800pci_toggle_rx(struct rt2x00_dev *rt2x00dev,
-				enum dev_state state)
-{
-	u32 reg;
-
-	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX,
-			   (state == STATE_RADIO_RX_ON) ||
-			   (state == STATE_RADIO_RX_ON_LINK));
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
-}
-
 static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 				 enum dev_state state)
 {
@@ -442,7 +503,7 @@ static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,
 	 * if the device is booting and wasn't asleep it will return
 	 * failure when attempting to wakeup.
 	 */
-	rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0, 2);
+	rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0xff, 2);
 
 	if (state == STATE_AWAKE) {
 		rt2800_mcu_request(rt2x00dev, MCU_WAKEUP, TOKEN_WAKUP, 0, 0);
@@ -475,12 +536,6 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		 */
 		rt2800pci_disable_radio(rt2x00dev);
 		rt2800pci_set_state(rt2x00dev, STATE_SLEEP);
-		break;
-	case STATE_RADIO_RX_ON:
-	case STATE_RADIO_RX_ON_LINK:
-	case STATE_RADIO_RX_OFF:
-	case STATE_RADIO_RX_OFF_LINK:
-		rt2800pci_toggle_rx(rt2x00dev, state);
 		break;
 	case STATE_RADIO_IRQ_ON:
 	case STATE_RADIO_IRQ_ON_ISR:
@@ -567,41 +622,6 @@ static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 }
 
 /*
- * TX data initialization
- */
-static void rt2800pci_kick_tx_queue(struct data_queue *queue)
-{
-	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
-	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
-	unsigned int qidx;
-
-	if (queue->qid == QID_MGMT)
-		qidx = 5;
-	else
-		qidx = queue->qid;
-
-	rt2800_register_write(rt2x00dev, TX_CTX_IDX(qidx), entry->entry_idx);
-}
-
-static void rt2800pci_kill_tx_queue(struct data_queue *queue)
-{
-	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
-	u32 reg;
-
-	if (queue->qid == QID_BEACON) {
-		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, 0);
-		return;
-	}
-
-	rt2800_register_read(rt2x00dev, WPDMA_RST_IDX, &reg);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX0, (queue->qid == QID_AC_BE));
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX1, (queue->qid == QID_AC_BK));
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX2, (queue->qid == QID_AC_VI));
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX3, (queue->qid == QID_AC_VO));
-	rt2800_register_write(rt2x00dev, WPDMA_RST_IDX, reg);
-}
-
-/*
  * RX control handlers
  */
 static void rt2800pci_fill_rxdone(struct queue_entry *entry,
@@ -668,14 +688,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 	u32 status;
 	u8 qid;
 
-	while (!kfifo_is_empty(&rt2x00dev->txstatus_fifo)) {
-		/* Now remove the tx status from the FIFO */
-		if (kfifo_out(&rt2x00dev->txstatus_fifo, &status,
-			      sizeof(status)) != sizeof(status)) {
-			WARN_ON(1);
-			break;
-		}
-
+	while (kfifo_get(&rt2x00dev->txstatus_fifo, &status)) {
 		qid = rt2x00_get_field32(status, TX_STA_FIFO_PID_QUEUE);
 		if (qid >= QID_RX) {
 			/*
@@ -683,7 +696,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			 * this tx status.
 			 */
 			WARNING(rt2x00dev, "Got TX status report with "
-					   "unexpected pid %u, dropping", qid);
+					   "unexpected pid %u, dropping\n", qid);
 			break;
 		}
 
@@ -694,7 +707,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			 * processing here and drop the tx status
 			 */
 			WARNING(rt2x00dev, "Got TX status for an unavailable "
-					   "queue %u, dropping", qid);
+					   "queue %u, dropping\n", qid);
 			break;
 		}
 
@@ -704,7 +717,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			 * and drop the tx status.
 			 */
 			WARNING(rt2x00dev, "Got TX status for an empty "
-					   "queue %u, dropping", qid);
+					   "queue %u, dropping\n", qid);
 			break;
 		}
 
@@ -777,20 +790,13 @@ static void rt2800pci_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
 	 * Since we have only one producer and one consumer we don't
 	 * need to lock the kfifo.
 	 */
-	for (i = 0; i < TX_ENTRIES; i++) {
+	for (i = 0; i < rt2x00dev->ops->tx->entry_num; i++) {
 		rt2800_register_read(rt2x00dev, TX_STA_FIFO, &status);
 
 		if (!rt2x00_get_field32(status, TX_STA_FIFO_VALID))
 			break;
 
-		if (kfifo_is_full(&rt2x00dev->txstatus_fifo)) {
-			WARNING(rt2x00dev, "TX status FIFO overrun,"
-				" drop tx status report.\n");
-			break;
-		}
-
-		if (kfifo_in(&rt2x00dev->txstatus_fifo, &status,
-			     sizeof(status)) != sizeof(status)) {
+		if (!kfifo_put(&rt2x00dev->txstatus_fifo, &status)) {
 			WARNING(rt2x00dev, "TX status FIFO overrun,"
 				"drop tx status report.\n");
 			break;
@@ -912,6 +918,7 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	__set_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_TXSTATUS_FIFO, &rt2x00dev->flags);
+	__set_bit(DRIVER_REQUIRE_TASKLET_CONTEXT, &rt2x00dev->flags);
 	if (!modparam_nohwcrypt)
 		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
 	__set_bit(DRIVER_SUPPORT_LINK_TUNING, &rt2x00dev->flags);
@@ -943,6 +950,8 @@ static const struct ieee80211_ops rt2800pci_mac80211_ops = {
 	.get_tsf		= rt2800_get_tsf,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 	.ampdu_action		= rt2800_ampdu_action,
+	.flush			= rt2x00mac_flush,
+	.get_survey		= rt2800_get_survey,
 };
 
 static const struct rt2800_ops rt2800pci_rt2800_ops = {
@@ -975,11 +984,12 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.link_stats		= rt2800_link_stats,
 	.reset_tuner		= rt2800_reset_tuner,
 	.link_tuner		= rt2800_link_tuner,
+	.start_queue		= rt2800pci_start_queue,
+	.kick_queue		= rt2800pci_kick_queue,
+	.stop_queue		= rt2800pci_stop_queue,
 	.write_tx_desc		= rt2800pci_write_tx_desc,
 	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
-	.kick_tx_queue		= rt2800pci_kick_tx_queue,
-	.kill_tx_queue		= rt2800pci_kill_tx_queue,
 	.fill_rxdone		= rt2800pci_fill_rxdone,
 	.config_shared_key	= rt2800_config_shared_key,
 	.config_pairwise_key	= rt2800_config_pairwise_key,
@@ -991,21 +1001,21 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 };
 
 static const struct data_queue_desc rt2800pci_queue_rx = {
-	.entry_num		= RX_ENTRIES,
+	.entry_num		= 128,
 	.data_size		= AGGREGATION_SIZE,
 	.desc_size		= RXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_pci),
 };
 
 static const struct data_queue_desc rt2800pci_queue_tx = {
-	.entry_num		= TX_ENTRIES,
+	.entry_num		= 64,
 	.data_size		= AGGREGATION_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_pci),
 };
 
 static const struct data_queue_desc rt2800pci_queue_bcn = {
-	.entry_num		= 8 * BEACON_ENTRIES,
+	.entry_num		= 8,
 	.data_size		= 0, /* No DMA required for beacons */
 	.desc_size		= TXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_pci),
@@ -1033,12 +1043,15 @@ static const struct rt2x00_ops rt2800pci_ops = {
 /*
  * RT2800pci module information.
  */
-#ifdef CONFIG_RT2800PCI_PCI
+#ifdef CONFIG_PCI
 static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 	{ PCI_DEVICE(0x1814, 0x0601), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x0681), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x0701), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x0781), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x3090), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x3091), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x3092), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7708), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7727), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7728), PCI_DEVICE_DATA(&rt2800pci_ops) },
@@ -1046,12 +1059,10 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 	{ PCI_DEVICE(0x1432, 0x7748), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7758), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7768), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1a3b, 0x1059), PCI_DEVICE_DATA(&rt2800pci_ops) },
-#ifdef CONFIG_RT2800PCI_RT30XX
-	{ PCI_DEVICE(0x1814, 0x3090), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x3091), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x3092), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1462, 0x891a), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1a3b, 0x1059), PCI_DEVICE_DATA(&rt2800pci_ops) },
+#ifdef CONFIG_RT2800PCI_RT33XX
+	{ PCI_DEVICE(0x1814, 0x3390), PCI_DEVICE_DATA(&rt2800pci_ops) },
 #endif
 #ifdef CONFIG_RT2800PCI_RT35XX
 	{ PCI_DEVICE(0x1814, 0x3060), PCI_DEVICE_DATA(&rt2800pci_ops) },
@@ -1062,19 +1073,19 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 #endif
 	{ 0, }
 };
-#endif /* CONFIG_RT2800PCI_PCI */
+#endif /* CONFIG_PCI */
 
 MODULE_AUTHOR(DRV_PROJECT);
 MODULE_VERSION(DRV_VERSION);
 MODULE_DESCRIPTION("Ralink RT2800 PCI & PCMCIA Wireless LAN driver.");
 MODULE_SUPPORTED_DEVICE("Ralink RT2860 PCI & PCMCIA chipset based cards");
-#ifdef CONFIG_RT2800PCI_PCI
+#ifdef CONFIG_PCI
 MODULE_FIRMWARE(FIRMWARE_RT2860);
 MODULE_DEVICE_TABLE(pci, rt2800pci_device_table);
-#endif /* CONFIG_RT2800PCI_PCI */
+#endif /* CONFIG_PCI */
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_RT2800PCI_SOC
+#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
 static int rt2800soc_probe(struct platform_device *pdev)
 {
 	return rt2x00soc_probe(pdev, &rt2800pci_ops);
@@ -1091,9 +1102,9 @@ static struct platform_driver rt2800soc_driver = {
 	.suspend	= rt2x00soc_suspend,
 	.resume		= rt2x00soc_resume,
 };
-#endif /* CONFIG_RT2800PCI_SOC */
+#endif /* CONFIG_RALINK_RT288X || CONFIG_RALINK_RT305X */
 
-#ifdef CONFIG_RT2800PCI_PCI
+#ifdef CONFIG_PCI
 static struct pci_driver rt2800pci_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rt2800pci_device_table,
@@ -1102,21 +1113,21 @@ static struct pci_driver rt2800pci_driver = {
 	.suspend	= rt2x00pci_suspend,
 	.resume		= rt2x00pci_resume,
 };
-#endif /* CONFIG_RT2800PCI_PCI */
+#endif /* CONFIG_PCI */
 
 static int __init rt2800pci_init(void)
 {
 	int ret = 0;
 
-#ifdef CONFIG_RT2800PCI_SOC
+#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
 	ret = platform_driver_register(&rt2800soc_driver);
 	if (ret)
 		return ret;
 #endif
-#ifdef CONFIG_RT2800PCI_PCI
+#ifdef CONFIG_PCI
 	ret = pci_register_driver(&rt2800pci_driver);
 	if (ret) {
-#ifdef CONFIG_RT2800PCI_SOC
+#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
 		platform_driver_unregister(&rt2800soc_driver);
 #endif
 		return ret;
@@ -1128,10 +1139,10 @@ static int __init rt2800pci_init(void)
 
 static void __exit rt2800pci_exit(void)
 {
-#ifdef CONFIG_RT2800PCI_PCI
+#ifdef CONFIG_PCI
 	pci_unregister_driver(&rt2800pci_driver);
 #endif
-#ifdef CONFIG_RT2800PCI_SOC
+#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
 	platform_driver_unregister(&rt2800soc_driver);
 #endif
 }

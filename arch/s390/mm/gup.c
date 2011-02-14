@@ -20,18 +20,17 @@
 static inline int gup_pte_range(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
-	unsigned long mask, result;
+	unsigned long mask;
 	pte_t *ptep, pte;
 	struct page *page;
 
-	result = write ? 0 : _PAGE_RO;
-	mask = result | _PAGE_INVALID | _PAGE_SPECIAL;
+	mask = (write ? _PAGE_RO : 0) | _PAGE_INVALID | _PAGE_SPECIAL;
 
 	ptep = ((pte_t *) pmd_deref(pmd)) + pte_index(addr);
 	do {
 		pte = *ptep;
 		barrier();
-		if ((pte_val(pte) & mask) != result)
+		if ((pte_val(pte) & mask) != 0)
 			return 0;
 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
 		page = pte_page(pte);
