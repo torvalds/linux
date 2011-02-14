@@ -1,7 +1,7 @@
-/* linux/arch/arm/mach-s5pv310/mach-smdkc210.c
+/* linux/arch/arm/mach-exynos4/mach-smdkc210.c
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,7 +21,7 @@
 
 #include <plat/regs-serial.h>
 #include <plat/regs-srom.h>
-#include <plat/s5pv310.h>
+#include <plat/exynos4.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/sdhci.h>
@@ -77,10 +77,10 @@ static struct s3c2410_uartcfg smdkc210_uartcfgs[] __initdata = {
 
 static struct s3c_sdhci_platdata smdkc210_hsmmc0_pdata __initdata = {
 	.cd_type		= S3C_SDHCI_CD_GPIO,
-	.ext_cd_gpio		= S5PV310_GPK0(2),
+	.ext_cd_gpio		= EXYNOS4_GPK0(2),
 	.ext_cd_gpio_invert	= 1,
 	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
-#ifdef CONFIG_S5PV310_SDHCI_CH0_8BIT
+#ifdef CONFIG_EXYNOS4_SDHCI_CH0_8BIT
 	.max_width		= 8,
 	.host_caps		= MMC_CAP_8_BIT_DATA,
 #endif
@@ -88,17 +88,17 @@ static struct s3c_sdhci_platdata smdkc210_hsmmc0_pdata __initdata = {
 
 static struct s3c_sdhci_platdata smdkc210_hsmmc1_pdata __initdata = {
 	.cd_type		= S3C_SDHCI_CD_GPIO,
-	.ext_cd_gpio		= S5PV310_GPK0(2),
+	.ext_cd_gpio		= EXYNOS4_GPK0(2),
 	.ext_cd_gpio_invert	= 1,
 	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
 };
 
 static struct s3c_sdhci_platdata smdkc210_hsmmc2_pdata __initdata = {
 	.cd_type		= S3C_SDHCI_CD_GPIO,
-	.ext_cd_gpio		= S5PV310_GPK2(2),
+	.ext_cd_gpio		= EXYNOS4_GPK2(2),
 	.ext_cd_gpio_invert	= 1,
 	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
-#ifdef CONFIG_S5PV310_SDHCI_CH2_8BIT
+#ifdef CONFIG_EXYNOS4_SDHCI_CH2_8BIT
 	.max_width		= 8,
 	.host_caps		= MMC_CAP_8_BIT_DATA,
 #endif
@@ -106,15 +106,15 @@ static struct s3c_sdhci_platdata smdkc210_hsmmc2_pdata __initdata = {
 
 static struct s3c_sdhci_platdata smdkc210_hsmmc3_pdata __initdata = {
 	.cd_type		= S3C_SDHCI_CD_GPIO,
-	.ext_cd_gpio		= S5PV310_GPK2(2),
+	.ext_cd_gpio		= EXYNOS4_GPK2(2),
 	.ext_cd_gpio_invert	= 1,
 	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
 };
 
 static struct resource smdkc210_smsc911x_resources[] = {
 	[0] = {
-		.start	= S5PV310_PA_SROM_BANK(1),
-		.end	= S5PV310_PA_SROM_BANK(1) + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SROM_BANK(1),
+		.end	= EXYNOS4_PA_SROM_BANK(1) + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -154,16 +154,16 @@ static struct platform_device *smdkc210_devices[] __initdata = {
 	&s3c_device_i2c1,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
-	&s5pv310_device_ac97,
-	&s5pv310_device_i2s0,
-	&s5pv310_device_pd[PD_MFC],
-	&s5pv310_device_pd[PD_G3D],
-	&s5pv310_device_pd[PD_LCD0],
-	&s5pv310_device_pd[PD_LCD1],
-	&s5pv310_device_pd[PD_CAM],
-	&s5pv310_device_pd[PD_TV],
-	&s5pv310_device_pd[PD_GPS],
-	&s5pv310_device_sysmmu,
+	&exynos4_device_ac97,
+	&exynos4_device_i2s0,
+	&exynos4_device_pd[PD_MFC],
+	&exynos4_device_pd[PD_G3D],
+	&exynos4_device_pd[PD_LCD0],
+	&exynos4_device_pd[PD_LCD1],
+	&exynos4_device_pd[PD_CAM],
+	&exynos4_device_pd[PD_TV],
+	&exynos4_device_pd[PD_GPS],
+	&exynos4_device_sysmmu,
 	&samsung_asoc_dma,
 	&smdkc210_smsc911x,
 };
@@ -216,8 +216,8 @@ static void __init smdkc210_machine_init(void)
 MACHINE_START(SMDKC210, "SMDKC210")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
 	.boot_params	= S5P_PA_SDRAM + 0x100,
-	.init_irq	= s5pv310_init_irq,
+	.init_irq	= exynos4_init_irq,
 	.map_io		= smdkc210_map_io,
 	.init_machine	= smdkc210_machine_init,
-	.timer		= &s5pv310_timer,
+	.timer		= &exynos4_timer,
 MACHINE_END
