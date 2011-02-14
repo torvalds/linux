@@ -79,6 +79,24 @@
 #define MEM_FB_BASE         (MEM_CAMIPP_BASE - MEM_FB_SIZE)
 #define LINUX_SIZE          (MEM_FB_BASE - RK29_SDRAM_PHYS)
 
+#define PREALLOC_WLAN_SEC_NUM           4
+#define PREALLOC_WLAN_BUF_NUM           160
+#define PREALLOC_WLAN_SECTION_HEADER    24
+
+#define WLAN_SECTION_SIZE_0     (PREALLOC_WLAN_BUF_NUM * 128)
+#define WLAN_SECTION_SIZE_1     (PREALLOC_WLAN_BUF_NUM * 128)
+#define WLAN_SECTION_SIZE_2     (PREALLOC_WLAN_BUF_NUM * 512)
+#define WLAN_SECTION_SIZE_3     (PREALLOC_WLAN_BUF_NUM * 1024)
+
+#define WLAN_SKB_BUF_NUM        16
+
+static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
+
+struct wifi_mem_prealloc {
+        void *mem_ptr;
+        unsigned long size;
+};
+
 extern struct sys_timer rk29_timer;
 
 static int rk29_nand_io_init(void)
@@ -1254,10 +1272,69 @@ int rk29sdk_wifi_set_carddetect(int val)
 }
 EXPORT_SYMBOL(rk29sdk_wifi_set_carddetect);
 
+static struct wifi_mem_prealloc wifi_mem_array[PREALLOC_WLAN_SEC_NUM] = {
+        {NULL, (WLAN_SECTION_SIZE_0 + PREALLOC_WLAN_SECTION_HEADER)},
+        {NULL, (WLAN_SECTION_SIZE_1 + PREALLOC_WLAN_SECTION_HEADER)},
+        {NULL, (WLAN_SECTION_SIZE_2 + PREALLOC_WLAN_SECTION_HEADER)},
+        {NULL, (WLAN_SECTION_SIZE_3 + PREALLOC_WLAN_SECTION_HEADER)}
+};
+
+static void *rk29sdk_mem_prealloc(int section, unsigned long size)
+{
+        if (section == PREALLOC_WLAN_SEC_NUM)
+                return wlan_static_skb;
+
+        if ((section < 0) || (section > PREALLOC_WLAN_SEC_NUM))
+                return NULL;
+
+        if (wifi_mem_array[section].size < size)
+                return NULL;
+
+        return wifi_mem_array[section].mem_ptr;
+}
+
+int __init rk29sdk_init_wifi_mem(void)
+{
+        int i;
+        int j;
+
+        for (i = 0 ; i < WLAN_SKB_BUF_NUM ; i++) {
+                wlan_static_skb[i] = dev_alloc_skb(
+                                ((i < (WLAN_SKB_BUF_NUM / 2)) ? 4096 : 8192));
+
+                if (!wlan_static_skb[i])
+                        goto err_skb_alloc;
+        }
+
+        for (i = 0 ; i < PREALLOC_WLAN_SEC_NUM ; i++) {
+                wifi_mem_array[i].mem_ptr =
+                                kmalloc(wifi_mem_array[i].size, GFP_KERNEL);
+
+                if (!wifi_mem_array[i].mem_ptr)
+                        goto err_mem_alloc;
+        }
+        return 0;
+
+ err_mem_alloc:
+        pr_err("Failed to mem_alloc for WLAN\n");
+        for (j = 0 ; j < i ; j++)
+                kfree(wifi_mem_array[j].mem_ptr);
+
+        i = WLAN_SKB_BUF_NUM;
+
+ err_skb_alloc:
+        pr_err("Failed to skb_alloc for WLAN\n");
+        for (j = 0 ; j < i ; j++)
+                dev_kfree_skb(wlan_static_skb[j]);
+
+        return -ENOMEM;
+}
+
 static struct wifi_platform_data rk29sdk_wifi_control = {
         .set_power = rk29sdk_wifi_power,
         .set_reset = rk29sdk_wifi_reset,
         .set_carddetect = rk29sdk_wifi_set_carddetect,
+        .mem_prealloc   = rk29sdk_mem_prealloc,
 };
 static struct platform_device rk29sdk_wifi_device = {
         .name = "bcm4329_wlan",
@@ -1795,6 +1872,8 @@ static void __init machine_rk29_board_init(void)
 #endif
 
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
+
+        rk29sdk_init_wifi_mem();
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
