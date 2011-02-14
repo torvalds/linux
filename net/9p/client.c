@@ -1333,12 +1333,21 @@ p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 
 	if (count < rsize)
 		rsize = count;
-	if (data)
-		req = p9_client_rpc(clnt, P9_TWRITE, "dqD", fid->fid, offset,
-								rsize, data);
-	else
-		req = p9_client_rpc(clnt, P9_TWRITE, "dqU", fid->fid, offset,
-								rsize, udata);
+
+	/* Don't bother zerocopy form small IO (< 1024) */
+	if (((clnt->trans_mod->pref & P9_TRANS_PREF_PAYLOAD_MASK) ==
+				P9_TRANS_PREF_PAYLOAD_SEP) && (rsize > 1024)) {
+		req = p9_client_rpc(clnt, P9_TWRITE, "dqE", fid->fid, offset,
+				rsize, data, udata);
+	} else {
+
+		if (data)
+			req = p9_client_rpc(clnt, P9_TWRITE, "dqD", fid->fid,
+					offset, rsize, data);
+		else
+			req = p9_client_rpc(clnt, P9_TWRITE, "dqU", fid->fid,
+					offset, rsize, udata);
+	}
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto error;
