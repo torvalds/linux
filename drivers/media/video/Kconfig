@@ -53,6 +53,7 @@ config VIDEO_TUNER
 # Multimedia Video device configuration
 #
 
+source "drivers/media/video/rk29xx/Kconfig"
 menuconfig VIDEO_CAPTURE_DRIVERS
 	bool "Video capture adapters"
 	depends on VIDEO_V4L2

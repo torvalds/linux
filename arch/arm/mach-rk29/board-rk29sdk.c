@@ -286,6 +286,9 @@ static struct platform_device rk29_vpu_mem_device = {
 	},
 };
 
+static struct platform_device rk29_v4l2_output_devce = {
+	.name		= "rk29_vout",
+};
 
 /*HANNSTAR_P1003 touch*/
 #if defined (CONFIG_HANNSTAR_P1003)
@@ -1479,6 +1482,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_RK29_IPP
 	&rk29_device_ipp,
+#endif
+#ifdef CONFIG_VIDEO_RK29XX_VOUT
+	&rk29_v4l2_output_devce,
 #endif
 };
 
