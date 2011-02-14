@@ -209,9 +209,8 @@ int rtc_alarm_irq_enable(struct rtc_device *rtc, unsigned int enabled)
 	}
 
 	if (err)
-		return err;
-
-	if (!rtc->ops)
+		/* nothing */;
+	else if (!rtc->ops)
 		err = -ENODEV;
 	else if (!rtc->ops->alarm_irq_enable)
 		err = -EINVAL;
