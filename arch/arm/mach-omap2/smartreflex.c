@@ -268,6 +268,7 @@ static int sr_late_init(struct omap_sr *sr_info)
 				0, name, (void *)sr_info);
 		if (ret)
 			goto error;
+		disable_irq(sr_info->irq);
 	}
 
 	if (pdata && pdata->enable_on_init)
