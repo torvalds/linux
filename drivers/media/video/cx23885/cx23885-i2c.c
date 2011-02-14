@@ -154,7 +154,6 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
  eio:
 	retval = -EIO;
- err:
 	if (i2c_debug)
 		printk(KERN_ERR " ERR: %d\n", retval);
 	return retval;
@@ -216,7 +215,6 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 
  eio:
 	retval = -EIO;
- err:
 	if (i2c_debug)
 		printk(KERN_ERR " ERR: %d\n", retval);
 	return retval;
