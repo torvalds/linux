@@ -955,6 +955,9 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 		}
 	}
 
+	if (svsk->sk_reclen < 8)
+		goto err_delete; /* client is nuts. */
+
 	/* Check whether enough data is available */
 	len = svc_recv_available(svsk);
 	if (len < 0)
@@ -1058,20 +1061,10 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	vec[0] = rqstp->rq_arg.head[0];
 	vlen = PAGE_SIZE;
 
-	/*
-	 * We have enough data for the whole tcp record. Let's try and read the
-	 * first 8 bytes to get the xid and the call direction. We can use this
-	 * to figure out if this is a call or a reply to a callback. If
-	 * sk_reclen is < 8 (xid and calldir), then this is a malformed packet.
-	 * In that case, don't bother with the calldir and just read the data.
-	 * It will be rejected in svc_process.
-	 */
-	if (len >= 8) {
-		len = svc_process_calldir(svsk, rqstp, &req, vec);
-		if (len < 0)
-			goto err_again;
-		vlen -= 8;
-	}
+	len = svc_process_calldir(svsk, rqstp, &req, vec);
+	if (len < 0)
+		goto err_again;
+	vlen -= 8;
 
 	pnum = 1;
 	while (vlen < svsk->sk_reclen - 8) {
