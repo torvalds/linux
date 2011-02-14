@@ -420,17 +420,17 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	struct nvme_command *cmnd;
 	struct nvme_bio *nbio;
 	enum dma_data_direction dma_dir;
-	int cmdid;
+	int cmdid, result = -ENOMEM;
 	u16 control;
 	u32 dsmgmt;
-	unsigned long flags;
 	int psegs = bio_phys_segments(ns->queue, bio);
 
-	nbio = alloc_nbio(psegs, GFP_NOIO);
+	nbio = alloc_nbio(psegs, GFP_ATOMIC);
 	if (!nbio)
-		goto congestion;
+		goto nomem;
 	nbio->bio = bio;
 
+	result = -EBUSY;
 	cmdid = alloc_cmdid(nvmeq, nbio, bio_completion_id, IO_TIMEOUT);
 	if (unlikely(cmdid < 0))
 		goto free_nbio;
@@ -445,7 +445,6 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	if (bio->bi_rw & REQ_RAHEAD)
 		dsmgmt |= NVME_RW_DSM_FREQ_PREFETCH;
 
-	spin_lock_irqsave(&nvmeq->q_lock, flags);
 	cmnd = &nvmeq->sq_cmds[nvmeq->sq_tail];
 
 	memset(cmnd, 0, sizeof(*cmnd));
@@ -457,8 +456,9 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 		dma_dir = DMA_FROM_DEVICE;
 	}
 
+	result = -ENOMEM;
 	if (nvme_map_bio(nvmeq->q_dmadev, nbio, bio, dma_dir, psegs) == 0)
-		goto mapping_failed;
+		goto free_nbio;
 
 	cmnd->rw.flags = 1;
 	cmnd->rw.command_id = cmdid;
@@ -474,19 +474,12 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	if (++nvmeq->sq_tail == nvmeq->q_depth)
 		nvmeq->sq_tail = 0;
 
-	spin_unlock_irqrestore(&nvmeq->q_lock, flags);
-
-	return 0;
-
- mapping_failed:
-	free_nbio(nvmeq, nbio);
-	bio_endio(bio, -ENOMEM);
 	return 0;
 
  free_nbio:
 	free_nbio(nvmeq, nbio);
- congestion:
-	return -EBUSY;
+ nomem:
+	return result;
 }
 
 static void nvme_resubmit_bio(struct nvme_queue *nvmeq, struct bio *bio)
@@ -507,13 +500,18 @@ static int nvme_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct nvme_ns *ns = q->queuedata;
 	struct nvme_queue *nvmeq = get_nvmeq(ns);
+	int result = -EBUSY;
 
-	if (nvme_submit_bio_queue(nvmeq, ns, bio)) {
-		blk_set_queue_congested(q, rw_is_sync(bio->bi_rw));
-		spin_lock_irq(&nvmeq->q_lock);
+	spin_lock_irq(&nvmeq->q_lock);
+	if (bio_list_empty(&nvmeq->sq_cong))
+		result = nvme_submit_bio_queue(nvmeq, ns, bio);
+	if (unlikely(result)) {
+		if (bio_list_empty(&nvmeq->sq_cong))
+			add_wait_queue(&nvmeq->sq_full, &nvmeq->sq_cong_wait);
 		bio_list_add(&nvmeq->sq_cong, bio);
-		spin_unlock_irq(&nvmeq->q_lock);
 	}
+
+	spin_unlock_irq(&nvmeq->q_lock);
 	put_nvmeq(nvmeq);
 
 	return 0;
