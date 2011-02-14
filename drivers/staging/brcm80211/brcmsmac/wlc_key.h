@@ -45,11 +45,10 @@ struct wlc_bsscfg;
 #define WLC_MAX_WSEC_HW_KEYS(wlc) WSEC_MAX_RCMTA_KEYS
 
 /* Max # of hardware TKIP MIC keys supported */
-#define WLC_MAX_TKMIC_HW_KEYS(wlc) ((D11REV_GE((wlc)->pub->corerev, 13)) ? \
-		WSEC_MAX_TKMIC_ENGINE_KEYS : 0)
+#define WLC_MAX_TKMIC_HW_KEYS(wlc) (WSEC_MAX_TKMIC_ENGINE_KEYS)
 
 #define WSEC_HW_TKMIC_KEY(wlc, key, bsscfg) \
-	(((D11REV_GE((wlc)->pub->corerev, 13)) && ((wlc)->machwcap & MCAP_TKIPMIC)) && \
+	((((wlc)->machwcap & MCAP_TKIPMIC)) && \
 	 (key) && ((key)->algo == CRYPTO_ALGO_TKIP) && \
 	 !WSEC_SOFTKEY(wlc, key, bsscfg) && \
 	WSEC_KEY_INDEX(wlc, key) >= WLC_DEFAULT_KEYS && \

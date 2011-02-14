@@ -254,9 +254,6 @@ static u32 WLBANDINITFN(wlc_setband_inact) (struct wlc_info *wlc, uint bandunit)
 
 	ASSERT(wlc_hw->clk);
 
-	if (D11REV_LT(wlc_hw->corerev, 17))
-		tmp = R_REG(wlc_hw->osh, &wlc_hw->regs->maccontrol);
-
 	wlc_bmac_core_phy_clk(wlc_hw, OFF);
 
 	wlc_setxband(wlc_hw, bandunit);
@@ -467,9 +464,6 @@ void wlc_bmac_watchdog(void *arg)
 
 	/* make sure RX dma has buffers */
 	dma_rxfill(wlc->hw->di[RX_FIFO]);
-	if (D11REV_IS(wlc_hw->corerev, 4)) {
-		dma_rxfill(wlc->hw->di[RX_TXSTATUS_FIFO]);
-	}
 
 	wlc_phy_watchdog(wlc_hw->band->pi);
 }
@@ -606,23 +600,11 @@ static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 		 */
 		ASSERT(TX_AC_VO_FIFO == 3);
 		ASSERT(TX_CTL_FIFO == 3);
-		if (D11REV_IS(wlc_hw->corerev, 4)) {
-			ASSERT(RX_TXSTATUS_FIFO == 3);
-			wlc_hw->di[3] = dma_attach(osh, name, wlc_hw->sih,
-						   DMAREG(wlc_hw, DMA_TX, 3),
-						   DMAREG(wlc_hw, DMA_RX, 3),
-						   tune->ntxd, tune->nrxd,
-						   sizeof(tx_status_t), -1,
-						   tune->nrxbufpost, 0,
-						   &wl_msg_level);
-			dma_attach_err |= (NULL == wlc_hw->di[3]);
-		} else {
-			wlc_hw->di[3] = dma_attach(osh, name, wlc_hw->sih,
-						   DMAREG(wlc_hw, DMA_TX, 3),
-						   NULL, tune->ntxd, 0, 0, -1,
-						   0, 0, &wl_msg_level);
-			dma_attach_err |= (NULL == wlc_hw->di[3]);
-		}
+		wlc_hw->di[3] = dma_attach(osh, name, wlc_hw->sih,
+					   DMAREG(wlc_hw, DMA_TX, 3),
+					   NULL, tune->ntxd, 0, 0, -1,
+					   0, 0, &wl_msg_level);
+		dma_attach_err |= (NULL == wlc_hw->di[3]);
 /* Cleaner to leave this as if with AP defined */
 
 		if (dma_attach_err) {
@@ -792,8 +774,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	wlc_hw->boardflags = (u32) getintvar(vars, "boardflags");
 	wlc_hw->boardflags2 = (u32) getintvar(vars, "boardflags2");
 
-	if (D11REV_LE(wlc_hw->corerev, 4)
-	    || (wlc_hw->boardflags & BFL_NOPLLDOWN))
+	if (wlc_hw->boardflags & BFL_NOPLLDOWN)
 		wlc_bmac_pllreq(wlc_hw, true, WLC_PLLREQ_SHARED);
 
 	if ((wlc_hw->sih->bustype == PCI_BUS)
@@ -879,10 +860,8 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 		wlc->band->bandtype = j ? WLC_BAND_5G : WLC_BAND_2G;
 		wlc->core->coreidx = si_coreidx(wlc_hw->sih);
 
-		if (D11REV_GE(wlc_hw->corerev, 13)) {
-			wlc_hw->machwcap = R_REG(wlc_hw->osh, &regs->machwcap);
-			wlc_hw->machwcap_backup = wlc_hw->machwcap;
-		}
+		wlc_hw->machwcap = R_REG(wlc_hw->osh, &regs->machwcap);
+		wlc_hw->machwcap_backup = wlc_hw->machwcap;
 
 		/* init tx fifo size */
 		ASSERT((wlc_hw->corerev - XMTFIFOTBL_STARTREV) <
@@ -1288,16 +1267,12 @@ int wlc_bmac_down_finish(struct wlc_hw_info *wlc_hw)
 
 void wlc_bmac_wait_for_wake(struct wlc_hw_info *wlc_hw)
 {
-	if (D11REV_IS(wlc_hw->corerev, 4))	/* no slowclock */
-		udelay(5);
-	else {
-		/* delay before first read of ucode state */
-		udelay(40);
+	/* delay before first read of ucode state */
+	udelay(40);
 
-		/* wait until ucode is no longer asleep */
-		SPINWAIT((wlc_bmac_read_shm(wlc_hw, M_UCODE_DBGST) ==
-			  DBGST_ASLEEP), wlc_hw->wlc->fastpwrup_dly);
-	}
+	/* wait until ucode is no longer asleep */
+	SPINWAIT((wlc_bmac_read_shm(wlc_hw, M_UCODE_DBGST) ==
+		  DBGST_ASLEEP), wlc_hw->wlc->fastpwrup_dly);
 
 	ASSERT(wlc_bmac_read_shm(wlc_hw, M_UCODE_DBGST) != DBGST_ASLEEP);
 }
@@ -1362,7 +1337,7 @@ static void wlc_clkctl_clk(struct wlc_hw_info *wlc_hw, uint mode)
 		 * then use FCA to verify mac is running fast clock
 		 */
 
-		wakeup_ucode = D11REV_LT(wlc_hw->corerev, 9);
+		wakeup_ucode = false;
 
 		if (wlc_hw->up && wakeup_ucode)
 			wlc_ucode_wake_override_set(wlc_hw,
@@ -1370,19 +1345,8 @@ static void wlc_clkctl_clk(struct wlc_hw_info *wlc_hw, uint mode)
 
 		wlc_hw->forcefastclk = si_clkctl_cc(wlc_hw->sih, mode);
 
-		if (D11REV_LT(wlc_hw->corerev, 11)) {
-			/* ucode WAR for old chips */
-			if (wlc_hw->forcefastclk)
-				wlc_bmac_mhf(wlc_hw, MHF1, MHF1_FORCEFASTCLK,
-					     MHF1_FORCEFASTCLK, WLC_BAND_ALL);
-			else
-				wlc_bmac_mhf(wlc_hw, MHF1, MHF1_FORCEFASTCLK, 0,
-					     WLC_BAND_ALL);
-		}
-
 		/* check fast clock is available (if core is not in reset) */
-		if (D11REV_GT(wlc_hw->corerev, 4) && wlc_hw->forcefastclk
-		    && wlc_hw->clk)
+		if (wlc_hw->forcefastclk && wlc_hw->clk)
 			ASSERT(si_core_sflags(wlc_hw->sih, 0, 0) & SISF_FCLKA);
 
 		/* keep the ucode wake bit on if forcefastclk is on
@@ -1803,8 +1767,6 @@ void wlc_bmac_bw_set(struct wlc_hw_info *wlc_hw, u16 bw)
 	wlc_phy_bw_state_set(wlc_hw->band->pi, bw);
 
 	ASSERT(wlc_hw->clk);
-	if (D11REV_LT(wlc_hw->corerev, 17))
-		tmp = R_REG(wlc_hw->osh, &wlc_hw->regs->maccontrol);
 
 	wlc_bmac_phy_reset(wlc_hw);
 	wlc_phy_init(wlc_hw->band->pi, wlc_phy_chanspec_get(wlc_hw->band->pi));
@@ -2170,15 +2132,11 @@ bool wlc_bmac_radio_read_hwdisabled(struct wlc_hw_info *wlc_hw)
 	/* may need to take core out of reset first */
 	clk = wlc_hw->clk;
 	if (!clk) {
-		if (D11REV_LE(wlc_hw->corerev, 11))
-			resetbits |= SICF_PCLKE;
-
 		/*
 		 * corerev >= 18, mac no longer enables phyclk automatically when driver accesses
 		 * phyreg throughput mac. This can be skipped since only mac reg is accessed below
 		 */
-		if (D11REV_GE(wlc_hw->corerev, 18))
-			flags |= SICF_PCLKE;
+		flags |= SICF_PCLKE;
 
 		/* AI chip doesn't restore bar0win2 on hibernation/resume, need sw fixup */
 		if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
@@ -2249,26 +2207,6 @@ void wlc_bmac_hw_up(struct wlc_hw_info *wlc_hw)
 static bool wlc_dma_rxreset(struct wlc_hw_info *wlc_hw, uint fifo)
 {
 	struct hnddma_pub *di = wlc_hw->di[fifo];
-	struct osl_info *osh;
-
-	if (D11REV_LT(wlc_hw->corerev, 12)) {
-		bool rxidle = true;
-		u16 rcv_frm_cnt = 0;
-
-		osh = wlc_hw->osh;
-
-		W_REG(osh, &wlc_hw->regs->rcv_fifo_ctl, fifo << 8);
-		SPINWAIT((!(rxidle = dma_rxidle(di))) &&
-			 ((rcv_frm_cnt =
-			   R_REG(osh, &wlc_hw->regs->rcv_frm_cnt)) != 0),
-			 50000);
-
-		if (!rxidle && (rcv_frm_cnt != 0))
-			WL_ERROR("wl%d: %s: rxdma[%d] not idle && rcv_frm_cnt(%d) not zero\n",
-				 wlc_hw->unit, __func__, fifo, rcv_frm_cnt);
-		mdelay(2);
-	}
-
 	return dma_rxreset(di);
 }
 
@@ -2312,12 +2250,6 @@ void wlc_bmac_corereset(struct wlc_hw_info *wlc_hw, u32 flags)
 			WL_ERROR("wl%d: %s: dma_rxreset[%d]: cannot stop dma\n",
 				 wlc_hw->unit, __func__, RX_FIFO);
 		}
-		if (D11REV_IS(wlc_hw->corerev, 4)
-		    && wlc_hw->di[RX_TXSTATUS_FIFO]
-		    && (!wlc_dma_rxreset(wlc_hw, RX_TXSTATUS_FIFO))) {
-			WL_ERROR("wl%d: %s: dma_rxreset[%d]: cannot stop dma\n",
-				 wlc_hw->unit, __func__, RX_TXSTATUS_FIFO);
-		}
 	}
 	/* if noreset, just stop the psm and return */
 	if (wlc_hw->noreset) {
@@ -2326,16 +2258,12 @@ void wlc_bmac_corereset(struct wlc_hw_info *wlc_hw, u32 flags)
 		return;
 	}
 
-	if (D11REV_LE(wlc_hw->corerev, 11))
-		resetbits |= SICF_PCLKE;
-
 	/*
-	 * corerev >= 18, mac no longer enables phyclk automatically when driver accesses phyreg
-	 * throughput mac, AND phy_reset is skipped at early stage when band->pi is invalid
-	 * need to enable PHY CLK
+	 * mac no longer enables phyclk automatically when driver accesses
+	 * phyreg throughput mac, AND phy_reset is skipped at early stage when
+	 * band->pi is invalid. need to enable PHY CLK
 	 */
-	if (D11REV_GE(wlc_hw->corerev, 18))
-		flags |= SICF_PCLKE;
+	flags |= SICF_PCLKE;
 
 	/* reset the core
 	 * In chips with PMU, the fastclk request goes through d11 core reg 0x1e0, which
@@ -2381,9 +2309,6 @@ static void wlc_corerev_fifofixup(struct wlc_hw_info *wlc_hw)
 	u16 txfifo_cmd;
 	struct osl_info *osh;
 
-	if (D11REV_LT(wlc_hw->corerev, 9))
-		goto exit;
-
 	/* tx fifos start at TXFIFO_START_BLK from the Base address */
 	txfifo_startblk = TXFIFO_START_BLK;
 
@@ -2403,8 +2328,7 @@ static void wlc_corerev_fifofixup(struct wlc_hw_info *wlc_hw)
 
 		W_REG(osh, &regs->xmtfifocmd, txfifo_cmd);
 		W_REG(osh, &regs->xmtfifodef, txfifo_def);
-		if (D11REV_GE(wlc_hw->corerev, 16))
-			W_REG(osh, &regs->xmtfifodef1, txfifo_def1);
+		W_REG(osh, &regs->xmtfifodef1, txfifo_def1);
 
 		W_REG(osh, &regs->xmtfifocmd, txfifo_cmd);
 
@@ -2454,12 +2378,9 @@ static void wlc_coreinit(struct wlc_info *wlc)
 
 	wlc_ucode_download(wlc_hw);
 	/*
-	 * FIFOSZ fixup
-	 * 1) core5-9 use ucode 5 to save space since the PSM is the same
-	 * 2) newer chips, driver wants to controls the fifo allocation
+	 * FIFOSZ fixup. driver wants to controls the fifo allocation.
 	 */
-	if (D11REV_GE(wlc_hw->corerev, 4))
-		fifosz_fixup = true;
+	fifosz_fixup = true;
 
 	/* let the PSM run to the suspended state, set mode to BSS STA */
 	W_REG(osh, &regs->macintstatus, -1);
@@ -2536,12 +2457,7 @@ static void wlc_coreinit(struct wlc_info *wlc)
 	if (err != 0) {
 		WL_ERROR("wlc_coreinit: txfifo mismatch: ucode size %d driver size %d index %d\n",
 			 buf[i], wlc_hw->xmtfifo_sz[i], i);
-		/* DO NOT ASSERT corerev < 4 even there is a mismatch
-		 * shmem, since driver don't overwrite those chip and
-		 * ucode initialize data will be used.
-		 */
-		if (D11REV_GE(wlc_hw->corerev, 4))
-			ASSERT(0);
+		ASSERT(0);
 	}
 
 	/* make sure we can still talk to the mac */
@@ -2555,8 +2471,6 @@ static void wlc_coreinit(struct wlc_info *wlc)
 
 	/* enable one rx interrupt per received frame */
 	W_REG(osh, &regs->intrcvlazy[0], (1 << IRL_FC_SHIFT));
-	if (D11REV_IS(wlc_hw->corerev, 4))
-		W_REG(osh, &regs->intrcvlazy[3], (1 << IRL_FC_SHIFT));
 
 	/* set the station mode (BSS STA) */
 	wlc_bmac_mctrl(wlc_hw,
@@ -2571,30 +2485,23 @@ static void wlc_coreinit(struct wlc_info *wlc)
 
 	/* write interrupt mask */
 	W_REG(osh, &regs->intctrlregs[RX_FIFO].intmask, DEF_RXINTMASK);
-	if (D11REV_IS(wlc_hw->corerev, 4))
-		W_REG(osh, &regs->intctrlregs[RX_TXSTATUS_FIFO].intmask,
-		      DEF_RXINTMASK);
 
 	/* allow the MAC to control the PHY clock (dynamic on/off) */
 	wlc_bmac_macphyclk_set(wlc_hw, ON);
 
 	/* program dynamic clock control fast powerup delay register */
-	if (D11REV_GT(wlc_hw->corerev, 4)) {
-		wlc->fastpwrup_dly = si_clkctl_fast_pwrup_delay(wlc_hw->sih);
-		W_REG(osh, &regs->scc_fastpwrup_dly, wlc->fastpwrup_dly);
-	}
+	wlc->fastpwrup_dly = si_clkctl_fast_pwrup_delay(wlc_hw->sih);
+	W_REG(osh, &regs->scc_fastpwrup_dly, wlc->fastpwrup_dly);
 
 	/* tell the ucode the corerev */
 	wlc_bmac_write_shm(wlc_hw, M_MACHW_VER, (u16) wlc_hw->corerev);
 
 	/* tell the ucode MAC capabilities */
-	if (D11REV_GE(wlc_hw->corerev, 13)) {
-		wlc_bmac_write_shm(wlc_hw, M_MACHW_CAP_L,
-				   (u16) (wlc_hw->machwcap & 0xffff));
-		wlc_bmac_write_shm(wlc_hw, M_MACHW_CAP_H,
-				   (u16) ((wlc_hw->
-					      machwcap >> 16) & 0xffff));
-	}
+	wlc_bmac_write_shm(wlc_hw, M_MACHW_CAP_L,
+			   (u16) (wlc_hw->machwcap & 0xffff));
+	wlc_bmac_write_shm(wlc_hw, M_MACHW_CAP_H,
+			   (u16) ((wlc_hw->
+				      machwcap >> 16) & 0xffff));
 
 	/* write retry limits to SCR, this done after PSM init */
 	W_REG(osh, &regs->objaddr, OBJADDR_SCR_SEL | S_DOT11_SRC_LMT);
@@ -2608,10 +2515,8 @@ static void wlc_coreinit(struct wlc_info *wlc)
 	wlc_bmac_write_shm(wlc_hw, M_SFRMTXCNTFBRTHSD, wlc_hw->SFBL);
 	wlc_bmac_write_shm(wlc_hw, M_LFRMTXCNTFBRTHSD, wlc_hw->LFBL);
 
-	if (D11REV_GE(wlc_hw->corerev, 16)) {
-		AND_REG(osh, &regs->ifs_ctl, 0x0FFF);
-		W_REG(osh, &regs->ifs_aifsn, EDCF_AIFSN_MIN);
-	}
+	AND_REG(osh, &regs->ifs_ctl, 0x0FFF);
+	W_REG(osh, &regs->ifs_aifsn, EDCF_AIFSN_MIN);
 
 	/* dma initializations */
 	wlc->txpend16165war = 0;
@@ -2625,10 +2530,6 @@ static void wlc_coreinit(struct wlc_info *wlc)
 	/* init the rx dma engine(s) and post receive buffers */
 	dma_rxinit(wlc_hw->di[RX_FIFO]);
 	dma_rxfill(wlc_hw->di[RX_FIFO]);
-	if (D11REV_IS(wlc_hw->corerev, 4)) {
-		dma_rxinit(wlc_hw->di[RX_TXSTATUS_FIFO]);
-		dma_rxfill(wlc_hw->di[RX_TXSTATUS_FIFO]);
-	}
 }
 
 /* This function is used for changing the tsf frac register
@@ -3160,45 +3061,12 @@ static inline u32 wlc_intstatus(struct wlc_info *wlc, bool in_isr)
 
 	/* MI_DMAINT is indication of non-zero intstatus */
 	if (macintstatus & MI_DMAINT) {
-		if (D11REV_IS(wlc_hw->corerev, 4)) {
-			intstatus_rxfifo =
-			    R_REG(osh, &regs->intctrlregs[RX_FIFO].intstatus);
-			intstatus_txsfifo =
-			    R_REG(osh,
-				  &regs->intctrlregs[RX_TXSTATUS_FIFO].
-				  intstatus);
-			WL_TRACE("wl%d: intstatus_rxfifo 0x%x, intstatus_txsfifo 0x%x\n",
-				 wlc_hw->unit,
-				 intstatus_rxfifo, intstatus_txsfifo);
-
-			/* defer unsolicited interrupt hints */
-			intstatus_rxfifo &= DEF_RXINTMASK;
-			intstatus_txsfifo &= DEF_RXINTMASK;
-
-			/* MI_DMAINT bit in macintstatus is indication of RX_FIFO interrupt */
-			/* clear interrupt hints */
-			if (intstatus_rxfifo)
-				W_REG(osh,
-				      &regs->intctrlregs[RX_FIFO].intstatus,
-				      intstatus_rxfifo);
-			else
-				macintstatus &= ~MI_DMAINT;
-
-			/* MI_TFS bit in macintstatus is encoding of RX_TXSTATUS_FIFO interrupt */
-			if (intstatus_txsfifo) {
-				W_REG(osh,
-				      &regs->intctrlregs[RX_TXSTATUS_FIFO].
-				      intstatus, intstatus_txsfifo);
-				macintstatus |= MI_TFS;
-			}
-		} else {
-			/*
-			 * For corerevs >= 5, only fifo interrupt enabled is I_RI in RX_FIFO.
-			 * If MI_DMAINT is set, assume it is set and clear the interrupt.
-			 */
-			W_REG(osh, &regs->intctrlregs[RX_FIFO].intstatus,
-			      DEF_RXINTMASK);
-		}
+		/*
+		 * only fifo interrupt enabled is I_RI in RX_FIFO. If
+		 * MI_DMAINT is set, assume it is set and clear the interrupt.
+		 */
+		W_REG(osh, &regs->intctrlregs[RX_FIFO].intstatus,
+		      DEF_RXINTMASK);
 	}
 
 	return macintstatus;
@@ -3324,14 +3192,7 @@ wlc_bmac_txstatus(struct wlc_hw_info *wlc_hw, bool bound, bool *fatal)
 
 	WL_TRACE("wl%d: wlc_bmac_txstatus\n", wlc_hw->unit);
 
-	if (D11REV_IS(wlc_hw->corerev, 4)) {
-		/* to retire soon */
-		*fatal = wlc_bmac_txstatus_corerev4(wlc->hw);
-
-		if (*fatal)
-			return 0;
-	} else {
-		/* corerev >= 5 */
+	{
 		d11regs_t *regs;
 		struct osl_info *osh;
 		tx_status_t txstatus, *txs;
@@ -3624,41 +3485,6 @@ bool wlc_bmac_validate_chip_access(struct wlc_hw_info *wlc_hw)
 	(void)R_REG(osh, &regs->objaddr);
 	W_REG(osh, &regs->objdata, w);
 
-	if (D11REV_LT(wlc_hw->corerev, 11)) {
-		/* if 32 bit writes are split into 16 bit writes, are they in the correct order
-		 * for our interface, low to high
-		 */
-		reg16 = (volatile u16 *)&regs->tsf_cfpstart;
-
-		/* write the CFPStart register low half explicitly, starting a buffered write */
-		W_REG(osh, reg16, 0xAAAA);
-
-		/* Write a 32 bit value to CFPStart to test the 16 bit split order.
-		 * If the low 16 bits are written first, followed by the high 16 bits then the
-		 * 32 bit value 0xCCCCBBBB should end up in the register.
-		 * If the order is reversed, then the write to the high half will trigger a buffered
-		 * write of 0xCCCCAAAA.
-		 * If the bus is 32 bits, then this is not much of a test, and the reg should
-		 * have the correct value 0xCCCCBBBB.
-		 */
-		W_REG(osh, &regs->tsf_cfpstart, 0xCCCCBBBB);
-
-		/* verify with the 16 bit registers that have no side effects */
-		val = R_REG(osh, &regs->tsf_cfpstrt_l);
-		if (val != (uint) 0xBBBB) {
-			WL_ERROR("wl%d: validate_chip_access: tsf_cfpstrt_l = 0x%x, expected 0x%x\n",
-				 wlc_hw->unit, val, 0xBBBB);
-			return false;
-		}
-		val = R_REG(osh, &regs->tsf_cfpstrt_h);
-		if (val != (uint) 0xCCCC) {
-			WL_ERROR("wl%d: validate_chip_access: tsf_cfpstrt_h = 0x%x, expected 0x%x\n",
-				 wlc_hw->unit, val, 0xCCCC);
-			return false;
-		}
-
-	}
-
 	/* clear CFPStart */
 	W_REG(osh, &regs->tsf_cfpstart, 0);
 
@@ -3688,9 +3514,6 @@ void wlc_bmac_core_phypll_ctl(struct wlc_hw_info *wlc_hw, bool on)
 	tmp = 0;
 	regs = wlc_hw->regs;
 	osh = wlc_hw->osh;
-
-	if (D11REV_LE(wlc_hw->corerev, 16) || D11REV_IS(wlc_hw->corerev, 20))
-		return;
 
 	if (on) {
 		if ((wlc_hw->sih->chip == BCM4313_CHIP_ID)) {
@@ -3813,8 +3636,6 @@ static void wlc_flushqueues(struct wlc_info *wlc)
 
 	/* free any posted rx packets */
 	dma_rxreclaim(wlc_hw->di[RX_FIFO]);
-	if (D11REV_IS(wlc_hw->corerev, 4))
-		dma_rxreclaim(wlc_hw->di[RX_TXSTATUS_FIFO]);
 }
 
 u16 wlc_bmac_read_shm(struct wlc_hw_info *wlc_hw, uint offset)

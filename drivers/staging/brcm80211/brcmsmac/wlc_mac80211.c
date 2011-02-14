@@ -457,7 +457,7 @@ void wlc_init(struct wlc_info *wlc)
 	wlc_bmac_init(wlc->hw, chanspec, mute);
 
 	wlc->seckeys = wlc_bmac_read_shm(wlc->hw, M_SECRXKEYS_PTR) * 2;
-	if (D11REV_GE(wlc->pub->corerev, 15) && (wlc->machwcap & MCAP_TKIPMIC))
+	if (wlc->machwcap & MCAP_TKIPMIC)
 		wlc->tkmickeys =
 		    wlc_bmac_read_shm(wlc->hw, M_TKMICKEYS_PTR) * 2;
 
@@ -547,8 +547,7 @@ void wlc_init(struct wlc_info *wlc)
 	wlc->tx_suspended = false;
 
 	/* enable the RF Disable Delay timer */
-	if (D11REV_GE(wlc->pub->corerev, 10))
-		W_REG(wlc->osh, &wlc->regs->rfdisabledly, RFDISABLE_DEFAULT);
+	W_REG(wlc->osh, &wlc->regs->rfdisabledly, RFDISABLE_DEFAULT);
 
 	/* initialize mpc delay */
 	wlc->mpc_delay_off = wlc->mpc_dlycnt = WLC_MPC_MIN_DELAYCNT;
@@ -3486,15 +3485,8 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 				break;
 			}
 
-			/* 4322 supports antdiv in phy, no need to set it to ucode */
-			if (WLCISNPHY(wlc->band)
-			    && D11REV_IS(wlc->pub->corerev, 16)) {
-				WL_ERROR("wl%d: can't set ucantdiv for 4322\n",
-					 wlc->pub->unit);
-				bcmerror = BCME_UNSUPPORTED;
-			} else
-				wlc_mhf(wlc, MHF1, MHF1_ANTDIV,
-					(val ? MHF1_ANTDIV : 0), WLC_BAND_AUTO);
+			wlc_mhf(wlc, MHF1, MHF1_ANTDIV,
+				(val ? MHF1_ANTDIV : 0), WLC_BAND_AUTO);
 			break;
 		}
 #endif				/* defined(BCMDBG) */
@@ -6162,16 +6154,13 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	 */
 	txh->TxStatus = htol16(status);
 
-	if (D11REV_GE(wlc->pub->corerev, 16)) {
-		/* extra fields for ucode AMPDU aggregation, the new fields are added to
-		 * the END of previous structure so that it's compatible in driver.
-		 * In old rev ucode, these fields should be ignored
-		 */
-		txh->MaxNMpdus = htol16(0);
-		txh->MaxABytes_MRT = htol16(0);
-		txh->MaxABytes_FBR = htol16(0);
-		txh->MinMBytes = htol16(0);
-	}
+	/* extra fields for ucode AMPDU aggregation, the new fields are added to
+	 * the END of previous structure so that it's compatible in driver.
+	 */
+	txh->MaxNMpdus = htol16(0);
+	txh->MaxABytes_MRT = htol16(0);
+	txh->MaxABytes_FBR = htol16(0);
+	txh->MinMBytes = htol16(0);
 
 	/* (5) RTS/CTS: determine RTS/CTS PLCP header and MAC duration, furnish d11txh_t */
 	/* RTS PLCP header and RTS frame */
@@ -6597,28 +6586,7 @@ static void *wlc_15420war(struct wlc_info *wlc, uint queue)
 
 	ASSERT(queue < NFIFO);
 
-	if ((D11REV_IS(wlc->pub->corerev, 4))
-	    || (D11REV_GT(wlc->pub->corerev, 6)))
-		return NULL;
-
-	di = wlc->hw->di[queue];
-	ASSERT(di != NULL);
-
-	/* get next packet, ignoring XmtStatus.Curr */
-	p = dma_getnexttxp(di, HNDDMA_RANGE_ALL);
-
-	/* sw block tx dma */
-	dma_txblock(di);
-
-	/* if tx ring is now empty, reset and re-init the tx dma channel */
-	if (dma_txactive(wlc->hw->di[queue]) == 0) {
-		wlc->pub->_cnt->txdmawar++;
-		if (!dma_txreset(di))
-			WL_ERROR("wl%d: %s: dma_txreset[%d]: cannot stop dma\n",
-				 wlc->pub->unit, __func__, queue);
-		dma_txinit(di);
-	}
-	return p;
+	return NULL;
 }
 
 static void wlc_war16165(struct wlc_info *wlc, bool tx)
