@@ -1,6 +1,6 @@
-/* linux/arch/arm/mach-s5pv310/irq-combiner.c
+/* linux/arch/arm/mach-exynos4/irq-combiner.c
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Based on arch/arm/common/gic.c
