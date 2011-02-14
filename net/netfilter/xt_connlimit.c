@@ -97,8 +97,7 @@ static int count_them(struct net *net,
 		      const struct nf_conntrack_tuple *tuple,
 		      const union nf_inet_addr *addr,
 		      const union nf_inet_addr *mask,
-		      u_int8_t family,
-		      unsigned int threshold)
+		      u_int8_t family)
 {
 	const struct nf_conntrack_tuple_hash *found;
 	struct xt_connlimit_conn *conn;
@@ -152,14 +151,9 @@ static int count_them(struct net *net,
 			continue;
 		}
 
-		if (same_source_net(addr, mask, &conn->tuple.src.u3, family)) {
+		if (same_source_net(addr, mask, &conn->tuple.src.u3, family))
 			/* same source network -> be counted! */
 			++matches;
-			if (matches > threshold) {
-				nf_ct_put(found_ct);
-				break;
-			}
-		}
 		nf_ct_put(found_ct);
 	}
 
@@ -213,8 +207,7 @@ connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 	spin_lock_bh(&info->data->lock);
 	connections = count_them(net, info->data, tuple_ptr, &addr,
-	                         &info->mask, par->family,
-	                         info->limit);
+	                         &info->mask, par->family);
 	spin_unlock_bh(&info->data->lock);
 
 	if (connections < 0)
