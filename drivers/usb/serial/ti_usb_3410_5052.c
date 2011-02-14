@@ -113,7 +113,7 @@ static int ti_get_icount(struct tty_struct *tty,
 static void ti_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios);
 static int ti_tiocmget(struct tty_struct *tty);
-static int ti_tiocmset(struct tty_struct *tty, struct file *file,
+static int ti_tiocmset(struct tty_struct *tty,
 		unsigned int set, unsigned int clear);
 static void ti_break(struct tty_struct *tty, int break_state);
 static void ti_interrupt_callback(struct urb *urb);
@@ -1033,8 +1033,8 @@ static int ti_tiocmget(struct tty_struct *tty)
 }
 
 
-static int ti_tiocmset(struct tty_struct *tty, struct file *file,
-	unsigned int set, unsigned int clear)
+static int ti_tiocmset(struct tty_struct *tty,
+				unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ti_port *tport = usb_get_serial_port_data(port);

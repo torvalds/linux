@@ -2483,7 +2483,7 @@ end:
 }				/* cy_tiomget */
 
 static int
-cy_tiocmset(struct tty_struct *tty, struct file *file,
+cy_tiocmset(struct tty_struct *tty,
 		unsigned int set, unsigned int clear)
 {
 	struct cyclades_port *info = tty->driver_data;

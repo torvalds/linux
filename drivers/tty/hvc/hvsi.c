@@ -1103,8 +1103,8 @@ static int hvsi_tiocmget(struct tty_struct *tty)
 	return hp->mctrl;
 }
 
-static int hvsi_tiocmset(struct tty_struct *tty, struct file *file,
-		unsigned int set, unsigned int clear)
+static int hvsi_tiocmset(struct tty_struct *tty,
+				unsigned int set, unsigned int clear)
 {
 	struct hvsi_struct *hp = tty->driver_data;
 	unsigned long flags;

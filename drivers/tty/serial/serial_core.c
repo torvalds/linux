@@ -925,8 +925,7 @@ static int uart_tiocmget(struct tty_struct *tty)
 }
 
 static int
-uart_tiocmset(struct tty_struct *tty, struct file *file,
-	      unsigned int set, unsigned int clear)
+uart_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *uport = state->uart_port;
@@ -934,8 +933,7 @@ uart_tiocmset(struct tty_struct *tty, struct file *file,
 	int ret = -EIO;
 
 	mutex_lock(&port->mutex);
-	if ((!file || !tty_hung_up_p(file)) &&
-	    !(tty->flags & (1 << TTY_IO_ERROR))) {
+	if (!(tty->flags & (1 << TTY_IO_ERROR))) {
 		uart_update_mctrl(uport, set, clear);
 		ret = 0;
 	}

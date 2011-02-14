@@ -517,7 +517,7 @@ mget_out:
 	return r;
 }
 
-static int ssu100_tiocmset(struct tty_struct *tty, struct file *file,
+static int ssu100_tiocmset(struct tty_struct *tty,
 			   unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;

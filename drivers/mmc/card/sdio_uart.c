@@ -970,7 +970,7 @@ static int sdio_uart_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static int sdio_uart_tiocmset(struct tty_struct *tty, struct file *file,
+static int sdio_uart_tiocmset(struct tty_struct *tty,
 			      unsigned int set, unsigned int clear)
 {
 	struct sdio_uart_port *port = tty->driver_data;

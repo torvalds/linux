@@ -157,7 +157,7 @@ static int  whiteheat_ioctl(struct tty_struct *tty, struct file *file,
 static void whiteheat_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  whiteheat_tiocmget(struct tty_struct *tty);
-static int  whiteheat_tiocmset(struct tty_struct *tty, struct file *file,
+static int  whiteheat_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 static void whiteheat_break_ctl(struct tty_struct *tty, int break_state);
 static int  whiteheat_chars_in_buffer(struct tty_struct *tty);
@@ -850,7 +850,7 @@ static int whiteheat_tiocmget(struct tty_struct *tty)
 	return modem_signals;
 }
 
-static int whiteheat_tiocmset(struct tty_struct *tty, struct file *file,
+static int whiteheat_tiocmset(struct tty_struct *tty,
 			       unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;

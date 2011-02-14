@@ -2444,7 +2444,7 @@ static void edge_set_termios(struct tty_struct *tty,
 	change_port_settings(tty, edge_port, old_termios);
 }
 
-static int edge_tiocmset(struct tty_struct *tty, struct file *file,
+static int edge_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;

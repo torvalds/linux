@@ -1879,8 +1879,8 @@ static int sx_tiocmget(struct tty_struct *tty)
 	return sx_getsignals(port);
 }
 
-static int sx_tiocmset(struct tty_struct *tty, struct file *file,
-		unsigned int set, unsigned int clear)
+static int sx_tiocmset(struct tty_struct *tty,
+					unsigned int set, unsigned int clear)
 {
 	struct sx_port *port = tty->driver_data;
 	int rts = -1, dtr = -1;

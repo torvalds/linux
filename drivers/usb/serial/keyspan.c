@@ -317,7 +317,7 @@ static int keyspan_tiocmget(struct tty_struct *tty)
 	return value;
 }
 
-static int keyspan_tiocmset(struct tty_struct *tty, struct file *file,
+static int keyspan_tiocmset(struct tty_struct *tty,
 			    unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;

@@ -2015,7 +2015,7 @@ static int pc_tiocmget(struct tty_struct *tty)
 	return mflag;
 }
 
-static int pc_tiocmset(struct tty_struct *tty, struct file *file,
+static int pc_tiocmset(struct tty_struct *tty,
 		       unsigned int set, unsigned int clear)
 {
 	struct channel *ch = tty->driver_data;
@@ -2081,7 +2081,7 @@ static int pc_ioctl(struct tty_struct *tty, struct file *file,
 	case TIOCMODS:
 		if (get_user(mstat, (unsigned __user *)argp))
 			return -EFAULT;
-		return pc_tiocmset(tty, file, mstat, ~mstat);
+		return pc_tiocmset(tty, mstat, ~mstat);
 	case TIOCSDTR:
 		spin_lock_irqsave(&epca_lock, flags);
 		ch->omodem |= ch->m_dtr;

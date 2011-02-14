@@ -1767,8 +1767,8 @@ static int ntty_tiocmget(struct tty_struct *tty)
 }
 
 /* Sets io controls parameters */
-static int ntty_tiocmset(struct tty_struct *tty, struct file *file,
-	unsigned int set, unsigned int clear)
+static int ntty_tiocmset(struct tty_struct *tty,
+					unsigned int set, unsigned int clear)
 {
 	struct nozomi *dc = get_dc_by_tty(tty);
 	unsigned long flags;

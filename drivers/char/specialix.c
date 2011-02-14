@@ -1778,7 +1778,7 @@ static int sx_tiocmget(struct tty_struct *tty)
 }
 
 
-static int sx_tiocmset(struct tty_struct *tty, struct file *file,
+static int sx_tiocmset(struct tty_struct *tty,
 		       unsigned int set, unsigned int clear)
 {
 	struct specialix_port *port = tty->driver_data;

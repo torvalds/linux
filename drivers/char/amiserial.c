@@ -1216,8 +1216,8 @@ static int rs_tiocmget(struct tty_struct *tty)
 		| (!(status  & SER_CTS) ? TIOCM_CTS : 0);
 }
 
-static int rs_tiocmset(struct tty_struct *tty, struct file *file,
-		       unsigned int set, unsigned int clear)
+static int rs_tiocmset(struct tty_struct *tty, unsigned int set,
+						unsigned int clear)
 {
 	struct async_struct * info = tty->driver_data;
 	unsigned long flags;

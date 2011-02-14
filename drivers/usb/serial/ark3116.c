@@ -511,7 +511,7 @@ static int ark3116_tiocmget(struct tty_struct *tty)
 		(ctrl   & UART_MCR_OUT2 ? TIOCM_OUT2 : 0);
 }
 
-static int ark3116_tiocmset(struct tty_struct *tty, struct file *file,
+static int ark3116_tiocmset(struct tty_struct *tty,
 			unsigned set, unsigned clr)
 {
 	struct usb_serial_port *port = tty->driver_data;

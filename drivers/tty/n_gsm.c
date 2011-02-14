@@ -2654,7 +2654,7 @@ static int gsmtty_tiocmget(struct tty_struct *tty)
 	return dlci->modem_rx;
 }
 
-static int gsmtty_tiocmset(struct tty_struct *tty, struct file *filp,
+static int gsmtty_tiocmset(struct tty_struct *tty,
 	unsigned int set, unsigned int clear)
 {
 	struct gsm_dlci *dlci = tty->driver_data;

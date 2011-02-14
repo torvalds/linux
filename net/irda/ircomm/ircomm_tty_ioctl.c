@@ -214,12 +214,12 @@ int ircomm_tty_tiocmget(struct tty_struct *tty)
 }
 
 /*
- * Function ircomm_tty_tiocmset (tty, file, set, clear)
+ * Function ircomm_tty_tiocmset (tty, set, clear)
  *
  *
  *
  */
-int ircomm_tty_tiocmset(struct tty_struct *tty, struct file *file,
+int ircomm_tty_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear)
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) tty->driver_data;

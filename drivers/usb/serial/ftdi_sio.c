@@ -857,7 +857,7 @@ static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
 static void ftdi_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  ftdi_tiocmget(struct tty_struct *tty);
-static int  ftdi_tiocmset(struct tty_struct *tty, struct file *file,
+static int  ftdi_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 static int  ftdi_ioctl(struct tty_struct *tty, struct file *file,
 			unsigned int cmd, unsigned long arg);
@@ -2202,7 +2202,7 @@ out:
 	return ret;
 }
 
-static int ftdi_tiocmset(struct tty_struct *tty, struct file *file,
+static int ftdi_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;

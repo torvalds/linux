@@ -69,7 +69,7 @@ static void klsi_105_close(struct usb_serial_port *port);
 static void klsi_105_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  klsi_105_tiocmget(struct tty_struct *tty);
-static int  klsi_105_tiocmset(struct tty_struct *tty, struct file *file,
+static int  klsi_105_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 static void klsi_105_process_read_urb(struct urb *urb);
 static int klsi_105_prepare_write_buffer(struct usb_serial_port *port,
@@ -661,7 +661,7 @@ static int klsi_105_tiocmget(struct tty_struct *tty)
 	return (int)line_state;
 }
 
-static int klsi_105_tiocmset(struct tty_struct *tty, struct file *file,
+static int klsi_105_tiocmset(struct tty_struct *tty,
 			     unsigned int set, unsigned int clear)
 {
 	int retval = -EINVAL;

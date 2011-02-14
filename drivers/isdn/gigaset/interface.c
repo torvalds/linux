@@ -123,7 +123,7 @@ static void if_throttle(struct tty_struct *tty);
 static void if_unthrottle(struct tty_struct *tty);
 static void if_set_termios(struct tty_struct *tty, struct ktermios *old);
 static int  if_tiocmget(struct tty_struct *tty);
-static int  if_tiocmset(struct tty_struct *tty, struct file *file,
+static int  if_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 static int  if_write(struct tty_struct *tty,
 		     const unsigned char *buf, int count);
@@ -303,7 +303,7 @@ static int if_tiocmget(struct tty_struct *tty)
 	return retval;
 }
 
-static int if_tiocmset(struct tty_struct *tty, struct file *file,
+static int if_tiocmset(struct tty_struct *tty,
 		       unsigned int set, unsigned int clear)
 {
 	struct cardstate *cs;

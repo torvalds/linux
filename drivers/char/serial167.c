@@ -1331,8 +1331,7 @@ static int cy_tiocmget(struct tty_struct *tty)
 }				/* cy_tiocmget */
 
 static int
-cy_tiocmset(struct tty_struct *tty, struct file *file,
-	    unsigned int set, unsigned int clear)
+cy_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear)
 {
 	struct cyclades_port *info = tty->driver_data;
 	int channel;

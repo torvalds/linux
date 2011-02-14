@@ -547,8 +547,8 @@ static int  rx_enable(SLMP_INFO *info, int enable);
 static int  modem_input_wait(SLMP_INFO *info,int arg);
 static int  wait_mgsl_event(SLMP_INFO *info, int __user *mask_ptr);
 static int  tiocmget(struct tty_struct *tty);
-static int  tiocmset(struct tty_struct *tty, struct file *file,
-		     unsigned int set, unsigned int clear);
+static int  tiocmset(struct tty_struct *tty,
+			unsigned int set, unsigned int clear);
 static int  set_break(struct tty_struct *tty, int break_state);
 
 static void add_device(SLMP_INFO *info);
@@ -3232,8 +3232,8 @@ static int tiocmget(struct tty_struct *tty)
 
 /* set modem control signals (DTR/RTS)
  */
-static int tiocmset(struct tty_struct *tty, struct file *file,
-		    unsigned int set, unsigned int clear)
+static int tiocmset(struct tty_struct *tty,
+					unsigned int set, unsigned int clear)
 {
 	SLMP_INFO *info = tty->driver_data;
  	unsigned long flags;

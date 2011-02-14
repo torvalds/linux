@@ -16,7 +16,7 @@ extern void usb_wwan_set_termios(struct tty_struct *tty,
 				 struct usb_serial_port *port,
 				 struct ktermios *old);
 extern int usb_wwan_tiocmget(struct tty_struct *tty);
-extern int usb_wwan_tiocmset(struct tty_struct *tty, struct file *file,
+extern int usb_wwan_tiocmset(struct tty_struct *tty,
 			     unsigned int set, unsigned int clear);
 extern int usb_wwan_ioctl(struct tty_struct *tty, struct file *file,
 			  unsigned int cmd, unsigned long arg);

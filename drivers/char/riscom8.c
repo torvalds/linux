@@ -1115,8 +1115,8 @@ static int rc_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static int rc_tiocmset(struct tty_struct *tty, struct file *file,
-		       unsigned int set, unsigned int clear)
+static int rc_tiocmset(struct tty_struct *tty,
+				       unsigned int set, unsigned int clear)
 {
 	struct riscom_port *port = tty->driver_data;
 	unsigned long flags;

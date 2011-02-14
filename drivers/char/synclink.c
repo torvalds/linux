@@ -824,7 +824,7 @@ static isr_dispatch_func UscIsrTable[7] =
  * ioctl call handlers
  */
 static int tiocmget(struct tty_struct *tty);
-static int tiocmset(struct tty_struct *tty, struct file *file,
+static int tiocmset(struct tty_struct *tty,
 		    unsigned int set, unsigned int clear);
 static int mgsl_get_stats(struct mgsl_struct * info, struct mgsl_icount
 	__user *user_icount);
@@ -2871,8 +2871,8 @@ static int tiocmget(struct tty_struct *tty)
 
 /* set modem control signals (DTR/RTS)
  */
-static int tiocmset(struct tty_struct *tty, struct file *file,
-		    unsigned int set, unsigned int clear)
+static int tiocmset(struct tty_struct *tty,
+				    unsigned int set, unsigned int clear)
 {
 	struct mgsl_struct *info = tty->driver_data;
  	unsigned long flags;

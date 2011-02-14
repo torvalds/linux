@@ -1271,7 +1271,7 @@ static int rs_360_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static int rs_360_tiocmset(struct tty_struct *tty, struct file *file,
+static int rs_360_tiocmset(struct tty_struct *tty,
 			   unsigned int set, unsigned int clear)
 {
 #ifdef modem_control

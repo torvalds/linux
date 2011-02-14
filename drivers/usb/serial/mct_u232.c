@@ -102,7 +102,7 @@ static void mct_u232_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static void mct_u232_break_ctl(struct tty_struct *tty, int break_state);
 static int  mct_u232_tiocmget(struct tty_struct *tty);
-static int  mct_u232_tiocmset(struct tty_struct *tty, struct file *file,
+static int  mct_u232_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 static void mct_u232_throttle(struct tty_struct *tty);
 static void mct_u232_unthrottle(struct tty_struct *tty);
@@ -778,7 +778,7 @@ static int mct_u232_tiocmget(struct tty_struct *tty)
 	return control_state;
 }
 
-static int mct_u232_tiocmset(struct tty_struct *tty, struct file *file,
+static int mct_u232_tiocmset(struct tty_struct *tty,
 			      unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;

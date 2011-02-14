@@ -410,7 +410,7 @@ static int ipw_tiocmget(struct tty_struct *linux_tty)
 }
 
 static int
-ipw_tiocmset(struct tty_struct *linux_tty, struct file *file,
+ipw_tiocmset(struct tty_struct *linux_tty,
 	     unsigned int set, unsigned int clear)
 {
 	struct ipw_tty *tty = linux_tty->driver_data;

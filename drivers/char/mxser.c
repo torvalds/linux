@@ -1347,7 +1347,7 @@ static int mxser_tiocmget(struct tty_struct *tty)
 		    ((status & UART_MSR_CTS) ? TIOCM_CTS : 0);
 }
 
-static int mxser_tiocmset(struct tty_struct *tty, struct file *file,
+static int mxser_tiocmset(struct tty_struct *tty,
 		unsigned int set, unsigned int clear)
 {
 	struct mxser_port *info = tty->driver_data;

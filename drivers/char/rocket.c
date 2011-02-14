@@ -1189,8 +1189,8 @@ static int rp_tiocmget(struct tty_struct *tty)
 /* 
  *  Sets the modem control lines
  */
-static int rp_tiocmset(struct tty_struct *tty, struct file *file,
-		    unsigned int set, unsigned int clear)
+static int rp_tiocmset(struct tty_struct *tty,
+				unsigned int set, unsigned int clear)
 {
 	struct r_port *info = tty->driver_data;
 
