@@ -1476,8 +1476,6 @@ wl_iw_get_wext_rssi(
 
         wrqu->sens.value = -rssi;
     
-        printk("%s rssi = %d\n", __func__, rssi);
-
         net_os_wake_unlock(dev);
         return error;
 }
