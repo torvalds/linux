@@ -292,7 +292,7 @@ struct hvcs_struct {
 	/*
 	 * Any variable below the kref is valid before a tty is connected and
 	 * stays valid after the tty is disconnected.  These shouldn't be
-	 * whacked until the koject refcount reaches zero though some entries
+	 * whacked until the kobject refcount reaches zero though some entries
 	 * may be changed via sysfs initiatives.
 	 */
 	struct kref kref; /* ref count & hvcs_struct lifetime */
