@@ -1,7 +1,7 @@
-/* linux/arch/arm/mach-s5pv310/include/mach/pwm-clock.h
+/* linux/arch/arm/mach-exynos4/include/mach/pwm-clock.h
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
@@ -10,7 +10,7 @@
  *
  * Based on arch/arm/mach-s3c64xx/include/mach/pwm-clock.h
  *
- * S5PV310 - pwm clock and timer support
+ * EXYNOS4 - pwm clock and timer support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

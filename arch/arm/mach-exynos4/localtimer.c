@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s5pv310/localtimer.c
+/* linux/arch/arm/mach-exynos4/localtimer.c
  *
  * Cloned from linux/arch/arm/mach-realview/localtimer.c
  *
