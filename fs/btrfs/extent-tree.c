@@ -6584,7 +6584,7 @@ static noinline int relocate_data_extent(struct inode *reloc_inode,
 	u64 end = start + extent_key->offset - 1;
 
 	em = alloc_extent_map(GFP_NOFS);
-	BUG_ON(!em || IS_ERR(em));
+	BUG_ON(!em);
 
 	em->start = start;
 	em->len = extent_key->offset;
