@@ -70,13 +70,6 @@ typedef volatile union {
 	} w;
 } pmqreg_t;
 
-/* pio register set 2/4 bytes union for d11 fifo */
-typedef volatile union {
-	pio2regp_t b2;		/* < corerev 8 */
-	pio4regp_t b4;
-} u_pioreg_t;
-
-/* dma/pio corerev >= 11 */
 typedef volatile struct {
 	dma64regs_t dmaxmt;	/* dma tx */
 	pio4regs_t piotx;	/* pio tx */
@@ -158,9 +151,7 @@ typedef volatile struct _d11regs {
 	u32 PAD[5];		/* 0x1ec - 0x1fc */
 
 	/* 0x200-0x37F dma/pio registers */
-	volatile union {
-		fifo64_t f64regs[6];
-	} fifo;
+	fifo64_t fifo64regs[6];
 
 	/* FIFO diagnostic port access */
 	dma32diag_t dmafifo;	/* 0x380 - 0x38C */
@@ -551,8 +542,6 @@ typedef volatile struct _d11regs {
 /* frmtxstatus */
 #define	TXS_V			(1 << 0)	/* valid bit */
 #define	TXS_STATUS_MASK		0xffff
-#define	TXS_COMPAT_MASK		0x3
-#define	TXS_COMPAT_SHIFT	1
 #define	TXS_FID_MASK		0xffff0000
 #define	TXS_FID_SHIFT		16
 
@@ -572,10 +561,6 @@ typedef volatile struct _d11regs {
 /* HT Cloclk Ctrl and Clock Avail for 4313 */
 #define CCS_ERSRC_REQ_HT    0x00000010	/* HT avail request */
 #define CCS_ERSRC_AVAIL_HT  0x00020000	/* HT clock available */
-
-/* d11_pwrctl, corerev16 only */
-#define D11_PHYPLL_AVAIL_REQ	0x000010000	/* request PHY PLL resource */
-#define D11_PHYPLL_AVAIL_STS	0x001000000	/* PHY PLL is available */
 
 /* tsf_cfprep register */
 #define	CFPREP_CBI_MASK		0xffffffc0

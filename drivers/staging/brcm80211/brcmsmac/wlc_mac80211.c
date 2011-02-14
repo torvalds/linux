@@ -326,8 +326,6 @@ void wlc_get_rcmta(struct wlc_info *wlc, int idx, u8 *addr)
 
 	WL_TRACE("wl%d: %s\n", WLCWLUNIT(wlc), __func__);
 
-	ASSERT(wlc->pub->corerev > 4);
-
 	osh = wlc->osh;
 
 	W_REG(osh, &regs->objaddr, (OBJADDR_RCMTA_SEL | (idx * 2)));
@@ -6459,13 +6457,11 @@ void wlc_tbtt(struct wlc_info *wlc, d11regs_t *regs)
 /* GP timer is a freerunning 32 bit counter, decrements at 1 us rate */
 void wlc_hwtimer_gptimer_set(struct wlc_info *wlc, uint us)
 {
-	ASSERT(wlc->pub->corerev >= 3);	/* no gptimer in earlier revs */
 	W_REG(wlc->osh, &wlc->regs->gptimer, us);
 }
 
 void wlc_hwtimer_gptimer_abort(struct wlc_info *wlc)
 {
-	ASSERT(wlc->pub->corerev >= 3);
 	W_REG(wlc->osh, &wlc->regs->gptimer, 0);
 }
 
@@ -6579,16 +6575,6 @@ void wlc_high_dpc(struct wlc_info *wlc, u32 macintstatus)
 	ASSERT(wlc_ps_check(wlc));
 }
 
-static void *wlc_15420war(struct wlc_info *wlc, uint queue)
-{
-	struct hnddma_pub *di;
-	void *p;
-
-	ASSERT(queue < NFIFO);
-
-	return NULL;
-}
-
 static void wlc_war16165(struct wlc_info *wlc, bool tx)
 {
 	if (tx) {
@@ -6651,9 +6637,6 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	p = GETNEXTTXP(wlc, queue);
 	if (WLC_WAR16165(wlc))
 		wlc_war16165(wlc, false);
-	if (p == NULL)
-		p = wlc_15420war(wlc, queue);
-	ASSERT(p != NULL);
 	if (p == NULL)
 		goto fatal;
 

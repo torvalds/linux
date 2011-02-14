@@ -88,8 +88,8 @@
 
 #define DMAREG(wlc_hw, direction, fifonum) \
 	((direction == DMA_TX) ? \
-		(void *)&(wlc_hw->regs->fifo.f64regs[fifonum].dmaxmt) : \
-		(void *)&(wlc_hw->regs->fifo.f64regs[fifonum].dmarcv))
+		(void *)&(wlc_hw->regs->fifo64regs[fifonum].dmaxmt) : \
+		(void *)&(wlc_hw->regs->fifo64regs[fifonum].dmarcv))
 
 /*
  * The following table lists the buffer memory allocated to xmt fifos in HW.
@@ -123,7 +123,6 @@ static void wlc_ucode_txant_set(struct wlc_hw_info *wlc_hw);
 /* used by wlc_dpc() */
 static bool wlc_bmac_dotxstatus(struct wlc_hw_info *wlc, tx_status_t *txs,
 				u32 s2);
-static bool wlc_bmac_txstatus_corerev4(struct wlc_hw_info *wlc);
 static bool wlc_bmac_txstatus(struct wlc_hw_info *wlc, bool bound, bool *fatal);
 static bool wlc_bmac_recv(struct wlc_hw_info *wlc_hw, uint fifo, bool bound);
 
@@ -237,7 +236,6 @@ static u32 WLBANDINITFN(wlc_setband_inact) (struct wlc_info *wlc, uint bandunit)
 {
 	struct wlc_hw_info *wlc_hw = wlc->hw;
 	u32 macintmask;
-	u32 tmp;
 
 	WL_TRACE("wl%d: wlc_setband_inact\n", wlc_hw->unit);
 
@@ -1329,17 +1327,10 @@ static void wlc_clkctl_clk(struct wlc_hw_info *wlc_hw, uint mode)
 		}
 		wlc_hw->forcefastclk = (mode == CLK_FAST);
 	} else {
-		bool wakeup_ucode;
 
 		/* old chips w/o PMU, force HT through cc,
 		 * then use FCA to verify mac is running fast clock
 		 */
-
-		wakeup_ucode = false;
-
-		if (wlc_hw->up && wakeup_ucode)
-			wlc_ucode_wake_override_set(wlc_hw,
-						    WLC_WAKE_OVERRIDE_CLKCTL);
 
 		wlc_hw->forcefastclk = si_clkctl_cc(wlc_hw->sih, mode);
 
@@ -1362,11 +1353,6 @@ static void wlc_clkctl_clk(struct wlc_hw_info *wlc_hw, uint mode)
 		else
 			mboolclr(wlc_hw->wake_override,
 				 WLC_WAKE_OVERRIDE_FORCEFAST);
-
-		/* ok to clear the wakeup now */
-		if (wlc_hw->up && wakeup_ucode)
-			wlc_ucode_wake_override_clear(wlc_hw,
-						      WLC_WAKE_OVERRIDE_CLKCTL);
 	}
 }
 
@@ -1635,8 +1621,6 @@ wlc_bmac_set_rcmta(struct wlc_hw_info *wlc_hw, int idx,
 
 	WL_TRACE("wl%d: %s\n", wlc_hw->unit, __func__);
 
-	ASSERT(wlc_hw->corerev > 4);
-
 	mac_hm =
 	    (addr[3] << 24) | (addr[2] << 16) |
 	    (addr[1] << 8) | addr[0];
@@ -1667,7 +1651,7 @@ wlc_bmac_set_addrmatch(struct wlc_hw_info *wlc_hw, int match_reg_offset,
 
 	WL_TRACE("wl%d: wlc_bmac_set_addrmatch\n", wlc_hw->unit);
 
-	ASSERT((match_reg_offset < RCM_SIZE) || (wlc_hw->corerev == 4));
+	ASSERT(match_reg_offset < RCM_SIZE);
 
 	regs = wlc_hw->regs;
 	mac_l = addr[0] | (addr[1] << 8);
@@ -1755,7 +1739,6 @@ void wlc_bmac_set_cwmax(struct wlc_hw_info *wlc_hw, u16 newmax)
 void wlc_bmac_bw_set(struct wlc_hw_info *wlc_hw, u16 bw)
 {
 	bool fastclk;
-	u32 tmp;
 
 	/* request FAST clock if not on */
 	fastclk = wlc_hw->forcefastclk;
@@ -2332,7 +2315,6 @@ static void wlc_corerev_fifofixup(struct wlc_hw_info *wlc_hw)
 
 		txfifo_startblk += wlc_hw->xmtfifo_sz[fifo_nu];
 	}
- exit:
 	/*
 	 * need to propagate to shm location to be in sync since ucode/hw won't
 	 * do this
@@ -3021,7 +3003,6 @@ static inline u32 wlc_intstatus(struct wlc_info *wlc, bool in_isr)
 	struct wlc_hw_info *wlc_hw = wlc->hw;
 	d11regs_t *regs = wlc_hw->regs;
 	u32 macintstatus;
-	u32 intstatus_rxfifo, intstatus_txsfifo;
 	struct osl_info *osh;
 
 	osh = wlc_hw->osh;
@@ -3130,42 +3111,6 @@ bool BCMFASTPATH wlc_isr(struct wlc_info *wlc, bool *wantdpc)
 
 }
 
-/* process tx completion events for corerev < 5 */
-static bool wlc_bmac_txstatus_corerev4(struct wlc_hw_info *wlc_hw)
-{
-	struct sk_buff *status_p;
-	tx_status_t *txs;
-	struct osl_info *osh;
-	bool fatal = false;
-
-	WL_TRACE("wl%d: wlc_txstatusrecv\n", wlc_hw->unit);
-
-	osh = wlc_hw->osh;
-
-	while (!fatal && (status_p = dma_rx(wlc_hw->di[RX_TXSTATUS_FIFO]))) {
-
-		txs = (tx_status_t *) status_p->data;
-		/* MAC uses little endian only */
-		ltoh16_buf((void *)txs, sizeof(tx_status_t));
-
-		/* shift low bits for tx_status_t status compatibility */
-		txs->status = (txs->status & ~TXS_COMPAT_MASK)
-		    | (((txs->status & TXS_COMPAT_MASK) << TXS_COMPAT_SHIFT));
-
-		fatal = wlc_bmac_dotxstatus(wlc_hw, txs, 0);
-
-		pkt_buf_free_skb(osh, status_p, false);
-	}
-
-	if (fatal)
-		return true;
-
-	/* post more rbufs */
-	dma_rxfill(wlc_hw->di[RX_TXSTATUS_FIFO]);
-
-	return false;
-}
-
 static bool BCMFASTPATH
 wlc_bmac_dotxstatus(struct wlc_hw_info *wlc_hw, tx_status_t *txs, u32 s2)
 {
@@ -3190,52 +3135,52 @@ wlc_bmac_txstatus(struct wlc_hw_info *wlc_hw, bool bound, bool *fatal)
 {
 	bool morepending = false;
 	struct wlc_info *wlc = wlc_hw->wlc;
+	d11regs_t *regs;
+	struct osl_info *osh;
+	tx_status_t txstatus, *txs;
+	u32 s1, s2;
+	uint n = 0;
+	/*
+	 * Param 'max_tx_num' indicates max. # tx status to process before
+	 * break out.
+	 */
+	uint max_tx_num = bound ? wlc->pub->tunables->txsbnd : -1;
 
 	WL_TRACE("wl%d: wlc_bmac_txstatus\n", wlc_hw->unit);
 
-	{
-		d11regs_t *regs;
-		struct osl_info *osh;
-		tx_status_t txstatus, *txs;
-		u32 s1, s2;
-		uint n = 0;
-		/* Param 'max_tx_num' indicates max. # tx status to process before break out. */
-		uint max_tx_num = bound ? wlc->pub->tunables->txsbnd : -1;
+	txs = &txstatus;
+	regs = wlc_hw->regs;
+	osh = wlc_hw->osh;
+	while (!(*fatal)
+	       && (s1 = R_REG(osh, &regs->frmtxstatus)) & TXS_V) {
 
-		txs = &txstatus;
-		regs = wlc_hw->regs;
-		osh = wlc_hw->osh;
-		while (!(*fatal)
-		       && (s1 = R_REG(osh, &regs->frmtxstatus)) & TXS_V) {
-
-			if (s1 == 0xffffffff) {
-				WL_ERROR("wl%d: %s: dead chip\n",
-					 wlc_hw->unit, __func__);
-				ASSERT(s1 != 0xffffffff);
-				return morepending;
-			}
-
-			s2 = R_REG(osh, &regs->frmtxstatus2);
-
-			txs->status = s1 & TXS_STATUS_MASK;
-			txs->frameid = (s1 & TXS_FID_MASK) >> TXS_FID_SHIFT;
-			txs->sequence = s2 & TXS_SEQ_MASK;
-			txs->phyerr = (s2 & TXS_PTX_MASK) >> TXS_PTX_SHIFT;
-			txs->lasttxtime = 0;
-
-			*fatal = wlc_bmac_dotxstatus(wlc_hw, txs, s2);
-
-			/* !give others some time to run! */
-			if (++n >= max_tx_num)
-				break;
+		if (s1 == 0xffffffff) {
+			WL_ERROR("wl%d: %s: dead chip\n",
+				 wlc_hw->unit, __func__);
+			ASSERT(s1 != 0xffffffff);
+			return morepending;
 		}
 
-		if (*fatal)
-			return 0;
+		s2 = R_REG(osh, &regs->frmtxstatus2);
 
-		if (n >= max_tx_num)
-			morepending = true;
+		txs->status = s1 & TXS_STATUS_MASK;
+		txs->frameid = (s1 & TXS_FID_MASK) >> TXS_FID_SHIFT;
+		txs->sequence = s2 & TXS_SEQ_MASK;
+		txs->phyerr = (s2 & TXS_PTX_MASK) >> TXS_PTX_SHIFT;
+		txs->lasttxtime = 0;
+
+		*fatal = wlc_bmac_dotxstatus(wlc_hw, txs, s2);
+
+		/* !give others some time to run! */
+		if (++n >= max_tx_num)
+			break;
 	}
+
+	if (*fatal)
+		return 0;
+
+	if (n >= max_tx_num)
+		morepending = true;
 
 	if (!pktq_empty(&wlc->active_queue->q))
 		wlc_send_q(wlc, wlc->active_queue);
@@ -3441,7 +3386,6 @@ bool wlc_bmac_validate_chip_access(struct wlc_hw_info *wlc_hw)
 {
 	d11regs_t *regs;
 	u32 w, val;
-	volatile u16 *reg16;
 	struct osl_info *osh;
 
 	WL_TRACE("wl%d: validate_chip_access\n", wlc_hw->unit);
