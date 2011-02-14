@@ -1494,6 +1494,12 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 		mmc_hostname(host), __func__, host->f_init);
 #endif
 	mmc_power_up(host);
+
+	/*
+	 * sdio_reset sends CMD52 to reset card.  Since we do not know
+	 * if the card is being re-initialized, just send it.  CMD52
+	 * should be ignored by SD/eMMC cards.
+	 */
 	sdio_reset(host);
 	mmc_go_idle(host);
 
