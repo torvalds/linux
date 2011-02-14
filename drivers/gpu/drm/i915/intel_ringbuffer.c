@@ -1059,22 +1059,25 @@ static void gen6_bsd_ring_write_tail(struct intel_ring_buffer *ring,
 }
 
 static int gen6_ring_flush(struct intel_ring_buffer *ring,
-			   u32 invalidate_domains,
-			   u32 flush_domains)
+			   u32 invalidate, u32 flush)
 {
+	uint32_t cmd;
 	int ret;
 
-	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
+	if (((invalidate | flush) & I915_GEM_GPU_DOMAINS) == 0)
 		return 0;
 
 	ret = intel_ring_begin(ring, 4);
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring, MI_FLUSH_DW);
+	cmd = MI_FLUSH_DW;
+	if (invalidate & I915_GEM_GPU_DOMAINS)
+		cmd |= MI_INVALIDATE_TLB | MI_INVALIDATE_BSD;
+	intel_ring_emit(ring, cmd);
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
 	return 0;
 }
@@ -1230,22 +1233,25 @@ static int blt_ring_begin(struct intel_ring_buffer *ring,
 }
 
 static int blt_ring_flush(struct intel_ring_buffer *ring,
-			   u32 invalidate_domains,
-			   u32 flush_domains)
+			  u32 invalidate, u32 flush)
 {
+	uint32_t cmd;
 	int ret;
 
-	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
+	if (((invalidate | flush) & I915_GEM_DOMAIN_RENDER) == 0)
 		return 0;
 
 	ret = blt_ring_begin(ring, 4);
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring, MI_FLUSH_DW);
+	cmd = MI_FLUSH_DW;
+	if (invalidate & I915_GEM_DOMAIN_RENDER)
+		cmd |= MI_INVALIDATE_TLB;
+	intel_ring_emit(ring, cmd);
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
 	return 0;
 }
