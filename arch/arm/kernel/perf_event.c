@@ -700,7 +700,7 @@ user_backtrace(struct frame_tail __user *tail,
 	 * Frame pointers should strictly progress back up the stack
 	 * (towards higher addresses).
 	 */
-	if (tail >= buftail.fp)
+	if (tail + 1 >= buftail.fp)
 		return NULL;
 
 	return buftail.fp - 1;
