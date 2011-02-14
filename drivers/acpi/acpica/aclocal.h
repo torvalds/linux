@@ -89,25 +89,6 @@ union acpi_parse_object;
 #define ACPI_MAX_MUTEX                  7
 #define ACPI_NUM_MUTEX                  ACPI_MAX_MUTEX+1
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
-#ifdef DEFINE_ACPI_GLOBALS
-
-/* Debug names for the mutexes above */
-
-static char *acpi_gbl_mutex_names[ACPI_NUM_MUTEX] = {
-	"ACPI_MTX_Interpreter",
-	"ACPI_MTX_Namespace",
-	"ACPI_MTX_Tables",
-	"ACPI_MTX_Events",
-	"ACPI_MTX_Caches",
-	"ACPI_MTX_Memory",
-	"ACPI_MTX_CommandComplete",
-	"ACPI_MTX_CommandReady"
-};
-
-#endif
-#endif
-
 /* Lock structure for reader/writer interfaces */
 
 struct acpi_rw_lock {
