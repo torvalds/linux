@@ -1413,8 +1413,7 @@ isdn_tty_tiocmset(struct tty_struct *tty,
 }
 
 static int
-isdn_tty_ioctl(struct tty_struct *tty, struct file *file,
-	       uint cmd, ulong arg)
+isdn_tty_ioctl(struct tty_struct *tty, uint cmd, ulong arg)
 {
 	modem_info *info = (modem_info *) tty->driver_data;
 	int retval;

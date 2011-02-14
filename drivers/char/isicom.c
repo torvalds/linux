@@ -1167,7 +1167,7 @@ static int isicom_get_serial_info(struct isi_port *port,
 	return 0;
 }
 
-static int isicom_ioctl(struct tty_struct *tty, struct file *filp,
+static int isicom_ioctl(struct tty_struct *tty,
 	unsigned int cmd, unsigned long arg)
 {
 	struct isi_port *port = tty->driver_data;

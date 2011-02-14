@@ -1099,7 +1099,7 @@ static int uart_get_icount(struct tty_struct *tty,
  * Called via sys_ioctl.  We can use spin_lock_irq() here.
  */
 static int
-uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
+uart_ioctl(struct tty_struct *tty, unsigned int cmd,
 	   unsigned long arg)
 {
 	struct uart_state *state = tty->driver_data;
@@ -1152,7 +1152,7 @@ uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
 
 	mutex_lock(&port->mutex);
 
-	if (tty_hung_up_p(filp)) {
+	if (tty->flags & (1 << TTY_IO_ERROR)) {
 		ret = -EIO;
 		goto out_up;
 	}

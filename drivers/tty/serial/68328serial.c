@@ -945,7 +945,7 @@ static void send_break(struct m68k_serial * info, unsigned int duration)
         local_irq_restore(flags);
 }
 
-static int rs_ioctl(struct tty_struct *tty, struct file * file,
+static int rs_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	int error;

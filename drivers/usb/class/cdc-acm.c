@@ -813,7 +813,7 @@ static int acm_tty_tiocmset(struct tty_struct *tty,
 	return acm_set_control(acm, acm->ctrlout = newctrl);
 }
 
-static int acm_tty_ioctl(struct tty_struct *tty, struct file *file,
+static int acm_tty_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	struct acm *acm = tty->driver_data;

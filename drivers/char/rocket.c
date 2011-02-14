@@ -1326,7 +1326,7 @@ static int get_version(struct r_port *info, struct rocket_version __user *retver
 }
 
 /*  IOCTL call handler into the driver */
-static int rp_ioctl(struct tty_struct *tty, struct file *file,
+static int rp_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct r_port *info = tty->driver_data;

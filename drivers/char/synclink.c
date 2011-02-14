@@ -2962,13 +2962,12 @@ static int msgl_get_icount(struct tty_struct *tty,
  * Arguments:
  * 
  * 	tty	pointer to tty instance data
- * 	file	pointer to associated file object for device
  * 	cmd	IOCTL command code
  * 	arg	command argument/context
  * 	
  * Return Value:	0 if success, otherwise error code
  */
-static int mgsl_ioctl(struct tty_struct *tty, struct file * file,
+static int mgsl_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct mgsl_struct * info = tty->driver_data;

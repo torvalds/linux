@@ -1730,7 +1730,7 @@ static int hso_serial_tiocmset(struct tty_struct *tty,
 			       USB_CTRL_SET_TIMEOUT);
 }
 
-static int hso_serial_ioctl(struct tty_struct *tty, struct file *file,
+static int hso_serial_ioctl(struct tty_struct *tty,
 			    unsigned int cmd, unsigned long arg)
 {
 	struct hso_serial *serial =  get_serial_by_tty(tty);

@@ -1824,7 +1824,7 @@ static int ntty_tiocgicount(struct tty_struct *tty,
 	return 0;
 }
 
-static int ntty_ioctl(struct tty_struct *tty, struct file *file,
+static int ntty_ioctl(struct tty_struct *tty,
 		      unsigned int cmd, unsigned long arg)
 {
 	struct port *port = tty->driver_data;

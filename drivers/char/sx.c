@@ -1899,7 +1899,7 @@ static int sx_tiocmset(struct tty_struct *tty,
 	return 0;
 }
 
-static int sx_ioctl(struct tty_struct *tty, struct file *filp,
+static int sx_ioctl(struct tty_struct *tty,
 		unsigned int cmd, unsigned long arg)
 {
 	int rc;

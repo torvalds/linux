@@ -425,7 +425,7 @@ ipw_tiocmset(struct tty_struct *linux_tty,
 	return set_control_lines(tty, set, clear);
 }
 
-static int ipw_ioctl(struct tty_struct *linux_tty, struct file *file,
+static int ipw_ioctl(struct tty_struct *linux_tty,
 		     unsigned int cmd, unsigned long arg)
 {
 	struct ipw_tty *tty = linux_tty->driver_data;
@@ -484,7 +484,7 @@ static int ipw_ioctl(struct tty_struct *linux_tty, struct file *file,
 			return tty_perform_flush(linux_tty, arg);
 		}
 	}
-	return tty_mode_ioctl(linux_tty, file, cmd , arg);
+	return -ENOIOCTLCMD;
 }
 
 static int add_tty(int j,

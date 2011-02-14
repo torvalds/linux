@@ -173,7 +173,7 @@ static void ip2_flush_chars(PTTY);
 static int  ip2_write_room(PTTY);
 static int  ip2_chars_in_buf(PTTY);
 static void ip2_flush_buffer(PTTY);
-static int  ip2_ioctl(PTTY, struct file *, UINT, ULONG);
+static int  ip2_ioctl(PTTY, UINT, ULONG);
 static void ip2_set_termios(PTTY, struct ktermios *);
 static void ip2_set_line_discipline(PTTY);
 static void ip2_throttle(PTTY);
@@ -2127,7 +2127,7 @@ static int ip2_tiocmset(struct tty_struct *tty,
 /*                                                                            */
 /******************************************************************************/
 static int
-ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
+ip2_ioctl ( PTTY tty, UINT cmd, ULONG arg )
 {
 	wait_queue_t wait;
 	i2ChanStrPtr pCh = DevTable[tty->index];

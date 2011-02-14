@@ -2676,7 +2676,7 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	if (tty->ops->ioctl) {
-		retval = (tty->ops->ioctl)(tty, file, cmd, arg);
+		retval = (tty->ops->ioctl)(tty, cmd, arg);
 		if (retval != -ENOIOCTLCMD)
 			return retval;
 	}
@@ -2704,7 +2704,7 @@ static long tty_compat_ioctl(struct file *file, unsigned int cmd,
 		return -EINVAL;
 
 	if (tty->ops->compat_ioctl) {
-		retval = (tty->ops->compat_ioctl)(tty, file, cmd, arg);
+		retval = (tty->ops->compat_ioctl)(tty, cmd, arg);
 		if (retval != -ENOIOCTLCMD)
 			return retval;
 	}

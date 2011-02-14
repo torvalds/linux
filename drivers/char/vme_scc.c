@@ -75,7 +75,7 @@ static void scc_hungup(void  *ptr);
 static void scc_close(void  *ptr);
 static int scc_chars_in_buffer(void * ptr);
 static int scc_open(struct tty_struct * tty, struct file * filp);
-static int scc_ioctl(struct tty_struct * tty, struct file * filp,
+static int scc_ioctl(struct tty_struct * tty,
                      unsigned int cmd, unsigned long arg);
 static void scc_throttle(struct tty_struct *tty);
 static void scc_unthrottle(struct tty_struct *tty);
@@ -1046,7 +1046,7 @@ static void scc_unthrottle (struct tty_struct * tty)
 }
 
 
-static int scc_ioctl(struct tty_struct *tty, struct file *file,
+static int scc_ioctl(struct tty_struct *tty,
 		     unsigned int cmd, unsigned long arg)
 {
 	return -ENOIOCTLCMD;

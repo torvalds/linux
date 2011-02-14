@@ -830,7 +830,7 @@ static int rfcomm_tty_write_room(struct tty_struct *tty)
 	return room;
 }
 
-static int rfcomm_tty_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd, unsigned long arg)
+static int rfcomm_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 {
 	BT_DBG("tty %p cmd 0x%02x", tty, cmd);
 

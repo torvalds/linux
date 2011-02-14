@@ -1236,7 +1236,7 @@ static int rc_get_serial_info(struct riscom_port *port,
 	return copy_to_user(retinfo, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
 
-static int rc_ioctl(struct tty_struct *tty, struct file *filp,
+static int rc_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct riscom_port *port = tty->driver_data;

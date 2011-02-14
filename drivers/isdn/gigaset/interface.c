@@ -115,7 +115,7 @@ static int if_config(struct cardstate *cs, int *arg)
 
 static int  if_open(struct tty_struct *tty, struct file *filp);
 static void if_close(struct tty_struct *tty, struct file *filp);
-static int  if_ioctl(struct tty_struct *tty, struct file *file,
+static int  if_ioctl(struct tty_struct *tty,
 		     unsigned int cmd, unsigned long arg);
 static int  if_write_room(struct tty_struct *tty);
 static int  if_chars_in_buffer(struct tty_struct *tty);
@@ -205,7 +205,7 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 	module_put(cs->driver->owner);
 }
 
-static int if_ioctl(struct tty_struct *tty, struct file *file,
+static int if_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct cardstate *cs;

@@ -287,7 +287,7 @@ static void moxa_low_water_check(void __iomem *ofsAddr)
  * TTY operations
  */
 
-static int moxa_ioctl(struct tty_struct *tty, struct file *file,
+static int moxa_ioctl(struct tty_struct *tty,
 		      unsigned int cmd, unsigned long arg)
 {
 	struct moxa_port *ch = tty->driver_data;

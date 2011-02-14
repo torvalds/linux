@@ -1655,7 +1655,7 @@ static int mxser_cflags_changed(struct mxser_port *info, unsigned long arg,
 	return ret;
 }
 
-static int mxser_ioctl(struct tty_struct *tty, struct file *file,
+static int mxser_ioctl(struct tty_struct *tty,
 		unsigned int cmd, unsigned long arg)
 {
 	struct mxser_port *info = tty->driver_data;

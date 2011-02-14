@@ -584,7 +584,7 @@ extern int pcxe_open(struct tty_struct *tty, struct file *filp);
 
 /* vt.c */
 
-extern int vt_ioctl(struct tty_struct *tty, struct file *file,
+extern int vt_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg);
 
 extern long vt_compat_ioctl(struct tty_struct *tty, struct file * file,

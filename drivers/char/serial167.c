@@ -1492,7 +1492,7 @@ get_default_timeout(struct cyclades_port *info, unsigned long __user * value)
 }
 
 static int
-cy_ioctl(struct tty_struct *tty, struct file *file,
+cy_ioctl(struct tty_struct *tty,
 	 unsigned int cmd, unsigned long arg)
 {
 	struct cyclades_port *info = tty->driver_data;

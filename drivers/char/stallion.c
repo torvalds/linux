@@ -1132,14 +1132,13 @@ static int stl_tiocmset(struct tty_struct *tty,
 	return 0;
 }
 
-static int stl_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg)
+static int stl_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 {
 	struct stlport	*portp;
 	int		rc;
 	void __user *argp = (void __user *)arg;
 
-	pr_debug("stl_ioctl(tty=%p,file=%p,cmd=%x,arg=%lx)\n", tty, file, cmd,
-			arg);
+	pr_debug("stl_ioctl(tty=%p,cmd=%x,arg=%lx)\n", tty, cmd, arg);
 
 	portp = tty->driver_data;
 	if (portp == NULL)

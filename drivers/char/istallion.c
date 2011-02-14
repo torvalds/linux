@@ -603,7 +603,7 @@ static int	stli_putchar(struct tty_struct *tty, unsigned char ch);
 static void	stli_flushchars(struct tty_struct *tty);
 static int	stli_writeroom(struct tty_struct *tty);
 static int	stli_charsinbuffer(struct tty_struct *tty);
-static int	stli_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg);
+static int	stli_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg);
 static void	stli_settermios(struct tty_struct *tty, struct ktermios *old);
 static void	stli_throttle(struct tty_struct *tty);
 static void	stli_unthrottle(struct tty_struct *tty);
@@ -1556,7 +1556,7 @@ static int stli_tiocmset(struct tty_struct *tty,
 			    sizeof(asysigs_t), 0);
 }
 
-static int stli_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg)
+static int stli_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 {
 	struct stliport *portp;
 	struct stlibrd *brdp;

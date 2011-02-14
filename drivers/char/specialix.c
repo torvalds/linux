@@ -1928,7 +1928,7 @@ static int sx_get_serial_info(struct specialix_port *port,
 }
 
 
-static int sx_ioctl(struct tty_struct *tty, struct file *filp,
+static int sx_ioctl(struct tty_struct *tty,
 				unsigned int cmd, unsigned long arg)
 {
 	struct specialix_port *port = tty->driver_data;

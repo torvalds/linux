@@ -2671,7 +2671,7 @@ static int gsmtty_tiocmset(struct tty_struct *tty,
 }
 
 
-static int gsmtty_ioctl(struct tty_struct *tty, struct file *filp,
+static int gsmtty_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
 	return -ENOIOCTLCMD;

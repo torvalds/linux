@@ -175,9 +175,9 @@ static unsigned termios2digi_i(struct channel *ch, unsigned);
 static unsigned termios2digi_c(struct channel *ch, unsigned);
 static void epcaparam(struct tty_struct *, struct channel *);
 static void receive_data(struct channel *, struct tty_struct *tty);
-static int pc_ioctl(struct tty_struct *, struct file *,
+static int pc_ioctl(struct tty_struct *,
 			unsigned int, unsigned long);
-static int info_ioctl(struct tty_struct *, struct file *,
+static int info_ioctl(struct tty_struct *,
 			unsigned int, unsigned long);
 static void pc_set_termios(struct tty_struct *, struct ktermios *);
 static void do_softint(struct work_struct *work);
@@ -1919,7 +1919,7 @@ static void receive_data(struct channel *ch, struct tty_struct *tty)
 	tty_schedule_flip(tty);
 }
 
-static int info_ioctl(struct tty_struct *tty, struct file *file,
+static int info_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
@@ -2057,7 +2057,7 @@ static int pc_tiocmset(struct tty_struct *tty,
 	return 0;
 }
 
-static int pc_ioctl(struct tty_struct *tty, struct file *file,
+static int pc_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	digiflow_t dflow;

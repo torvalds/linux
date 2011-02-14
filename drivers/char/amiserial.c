@@ -1293,7 +1293,7 @@ static int rs_get_icount(struct tty_struct *tty,
 	return 0;
 }
 
-static int rs_ioctl(struct tty_struct *tty, struct file * file,
+static int rs_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct async_struct * info = tty->driver_data;

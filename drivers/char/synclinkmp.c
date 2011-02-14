@@ -520,7 +520,7 @@ static void flush_buffer(struct tty_struct *tty);
 static void tx_hold(struct tty_struct *tty);
 static void tx_release(struct tty_struct *tty);
 
-static int  ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg);
+static int  ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg);
 static int  chars_in_buffer(struct tty_struct *tty);
 static void throttle(struct tty_struct * tty);
 static void unthrottle(struct tty_struct * tty);
@@ -1248,13 +1248,12 @@ static void tx_release(struct tty_struct *tty)
  * Arguments:
  *
  * 	tty	pointer to tty instance data
- * 	file	pointer to associated file object for device
  * 	cmd	IOCTL command code
  * 	arg	command argument/context
  *
  * Return Value:	0 if success, otherwise error code
  */
-static int ioctl(struct tty_struct *tty, struct file *file,
+static int ioctl(struct tty_struct *tty,
 		 unsigned int cmd, unsigned long arg)
 {
 	SLMP_INFO *info = tty->driver_data;

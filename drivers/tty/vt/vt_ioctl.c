@@ -495,7 +495,7 @@ do_unimap_ioctl(int cmd, struct unimapdesc __user *user_ud, int perm, struct vc_
  * We handle the console-specific ioctl's here.  We allow the
  * capability to modify any console, not just the fg_console. 
  */
-int vt_ioctl(struct tty_struct *tty, struct file * file,
+int vt_ioctl(struct tty_struct *tty,
 	     unsigned int cmd, unsigned long arg)
 {
 	struct vc_data *vc = tty->driver_data;
@@ -1495,7 +1495,7 @@ compat_unimap_ioctl(unsigned int cmd, struct compat_unimapdesc __user *user_ud,
 	return 0;
 }
 
-long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
+long vt_compat_ioctl(struct tty_struct *tty,
 	     unsigned int cmd, unsigned long arg)
 {
 	struct vc_data *vc = tty->driver_data;
@@ -1581,7 +1581,7 @@ out:
 
 fallback:
 	tty_unlock();
-	return vt_ioctl(tty, file, cmd, arg);
+	return vt_ioctl(tty, cmd, arg);
 }
 
 

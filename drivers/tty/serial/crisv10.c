@@ -3647,7 +3647,7 @@ rs_tiocmget(struct tty_struct *tty)
 
 
 static int
-rs_ioctl(struct tty_struct *tty, struct file * file,
+rs_ioctl(struct tty_struct *tty,
 	 unsigned int cmd, unsigned long arg)
 {
 	struct e100_serial * info = (struct e100_serial *)tty->driver_data;
