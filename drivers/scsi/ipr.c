@@ -1301,7 +1301,7 @@ static void ipr_handle_config_change(struct ipr_ioa_cfg *ioa_cfg,
 			ipr_clear_res_target(res);
 			list_move_tail(&res->queue, &ioa_cfg->free_res_q);
 		}
-	} else if (!res->sdev) {
+	} else if (!res->sdev || res->del_from_ml) {
 		res->add_to_ml = 1;
 		if (ioa_cfg->allow_ml_add_del)
 			schedule_work(&ioa_cfg->work_q);
@@ -3104,7 +3104,10 @@ restart:
 				did_work = 1;
 				sdev = res->sdev;
 				if (!scsi_device_get(sdev)) {
-					list_move_tail(&res->queue, &ioa_cfg->free_res_q);
+					if (!res->add_to_ml)
+						list_move_tail(&res->queue, &ioa_cfg->free_res_q);
+					else
+						res->del_from_ml = 0;
 					spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 					scsi_remove_device(sdev);
 					scsi_device_put(sdev);
