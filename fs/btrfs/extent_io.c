@@ -2822,9 +2822,17 @@ int try_release_extent_state(struct extent_map_tree *map,
 		 * at this point we can safely clear everything except the
 		 * locked bit and the nodatasum bit
 		 */
-		clear_extent_bit(tree, start, end,
+		ret = clear_extent_bit(tree, start, end,
 				 ~(EXTENT_LOCKED | EXTENT_NODATASUM),
 				 0, 0, NULL, mask);
+
+		/* if clear_extent_bit failed for enomem reasons,
+		 * we can't allow the release to continue.
+		 */
+		if (ret < 0)
+			ret = 0;
+		else
+			ret = 1;
 	}
 	return ret;
 }
