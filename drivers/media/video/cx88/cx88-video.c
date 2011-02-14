@@ -1882,6 +1882,15 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		request_module("ir-kbd-i2c");
 	}
 
+	/* Sets device info at pci_dev */
+	pci_set_drvdata(pci_dev, dev);
+
+	/* initial device configuration */
+	mutex_lock(&core->lock);
+	cx88_set_tvnorm(core, core->tvnorm);
+	init_controls(core);
+	cx88_video_mux(core, 0);
+
 	/* register v4l devices */
 	dev->video_dev = cx88_vdev_init(core,dev->pci,
 					&cx8800_video_template,"video");
@@ -1923,16 +1932,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		       core->name, video_device_node_name(dev->radio_dev));
 	}
 
-	/* everything worked */
-	pci_set_drvdata(pci_dev,dev);
-
-	/* initial device configuration */
-	mutex_lock(&core->lock);
-	cx88_set_tvnorm(core,core->tvnorm);
-	init_controls(core);
-	cx88_video_mux(core,0);
-	mutex_unlock(&core->lock);
-
 	/* start tvaudio thread */
 	if (core->board.tuner_type != TUNER_ABSENT) {
 		core->kthread = kthread_run(cx88_audio_thread, core, "cx88 tvaudio");
@@ -1942,11 +1941,14 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 			       core->name, err);
 		}
 	}
+	mutex_unlock(&core->lock);
+
 	return 0;
 
 fail_unreg:
 	cx8800_unregister_video(dev);
 	free_irq(pci_dev->irq, dev);
+	mutex_unlock(&core->lock);
 fail_core:
 	cx88_core_put(core,dev->pci);
 fail_free:
