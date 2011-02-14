@@ -29,14 +29,12 @@
 #include "hash.h"
 #include "gateway_common.h"
 #include "gateway_client.h"
-#include "send.h"
 #include "bat_sysfs.h"
 #include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include "unicast.h"
-#include "routing.h"
 
 
 static int bat_get_settings(struct net_device *dev, struct ethtool_cmd *cmd);
