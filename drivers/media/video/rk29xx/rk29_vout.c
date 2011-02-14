@@ -111,19 +111,43 @@ static struct rk29_fmt *get_format(struct v4l2_format *f)
 	return &formats[k];
 }
 /*  open lcd controler */
-static int lcd_controler_open(struct rk29_vout_device *vout)
+static int lcd_open(struct rk29_vout_device *vout)
 {
+	rk29_vout_dbg(vout->vid_dev->dev, "%s:\n", __func__);
+	rk29_vout_dbg(vout->vid_dev->dev, "pix.width = %u, pix.height = %u,pix.bytesperline = %u, pix.sizeimage = %u\n", 
+		vout->pix.width, vout->pix.height,vout->pix.bytesperline, vout->pix.sizeimage);
+	rk29_vout_dbg(vout->vid_dev->dev, "crop.width = %u, crop.height = %u,crop.left = %u, crop.top = %u\n", 
+		vout->crop.width, vout->crop.height,vout->crop.left, vout->crop.top);
+	rk29_vout_dbg(vout->vid_dev->dev, "win.width = %u, win.height = %u,win.left = %u, win.top = %u\n", 
+		vout->win.width, vout->win.height,vout->win.left, vout->win.top);
 	return 0;
 }
 /* close lcd_controler */
-static int lcd_controler_close(struct rk29_vout_device *vout)
+static int lcd_close(struct rk29_vout_device *vout)
 {
+	rk29_vout_dbg(vout->vid_dev->dev, "%s.\n", __func__);
 	return 0;
 }
-static int lcd_set_img_addr(struct rk29_vbuf vbuf)
+/* set lcd_controler var */
+static int lcd_set_var(struct rk29_vout_device *vout)
 {
+	rk29_vout_dbg(vout->vid_dev->dev, "%s.\n", __func__);
+	rk29_vout_dbg(vout->vid_dev->dev, "pix.width = %u, pix.height = %u,pix.bytesperline = %u, pix.sizeimage = %u\n", 
+		vout->pix.width, vout->pix.height,vout->pix.bytesperline, vout->pix.sizeimage);
+	rk29_vout_dbg(vout->vid_dev->dev, "crop.width = %u, crop.height = %u,crop.left = %u, crop.top = %u\n", 
+		vout->crop.width, vout->crop.height,vout->crop.left, vout->crop.top);
+	rk29_vout_dbg(vout->vid_dev->dev, "win.width = %u, win.height = %u,win.left = %u, win.top = %u\n", 
+		vout->win.width, vout->win.height,vout->win.left, vout->win.top);
+	
 	return 0;
 }
+/* set lcd_controler addr */
+static int lcd_set_addr(struct rk29_vout_device *vout)
+{
+	rk29_vout_dbg(vout->vid_dev->dev, "%s.\n", __func__);
+	return 0;
+}
+
 /**********************/
 
 
@@ -133,14 +157,7 @@ static int vidioc_g_fmt_vid_out(struct file *file, void *priv,
 {
 	struct rk29_vout_device *vout = priv;
 
-	if(f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
-		f->fmt.pix = vout->pix;
-	else if(f->type == V4L2_BUF_TYPE_VIDEO_OVERLAY) {
-		f->fmt.win.w.width = vout->win.width;
-		f->fmt.win.w.height = vout->win.height;
-	}
-	else
-		return -EINVAL;
+	f->fmt.pix = vout->pix;
 	return 0;
 }
 static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
@@ -172,70 +189,90 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
+	int ret = 0;
 	struct rk29_vout_device *vout = priv;
 
-	int ret = 0;
-	if(f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		ret = vidioc_try_fmt_vid_out(file, vout, f);
-		if (ret < 0)
-			return ret;
+	ret = vidioc_try_fmt_vid_out(file, vout, f);
+	if (ret < 0)
+		return ret;
 
-		mutex_lock(&vout->mutex);
+	mutex_lock(&vout->mutex);
 
-		if (videobuf_queue_is_busy(&vout->vbq)) {
-			rk29_vout_dbg(vout->vid_dev->dev, "%s queue busy\n", __func__);
-			ret = -EBUSY;
-			goto out;
-		}
+	if (videobuf_queue_is_busy(&vout->vbq)) {
+		rk29_vout_dbg(vout->vid_dev->dev, "%s queue busy\n", __func__);
+		ret = -EBUSY;
+		goto out;
+	}
 
-		vout->pix 			= f->fmt.pix;
-		vout->vbq.field 	= f->fmt.pix.field;
-		vout->type          = f->type;
-
-		ret = 0;
+	vout->pix 			= f->fmt.pix;
+	vout->vbq.field 	= f->fmt.pix.field;
+	vout->type          = f->type;
+	lcd_set_var(vout);
+	ret = 0;
 out:
-		mutex_unlock(&vout->mutex);
-	}
-	else if(f->type == V4L2_BUF_TYPE_VIDEO_OVERLAY) {
-		if ((f->fmt.win.w.width < 0) || (f->fmt.win.w.height < 0)) {
-			rk29_vout_dbg(vout->vid_dev->dev, "The win rect must be bigger than 0\n");
-			ret =  -EINVAL;
-		}
+	mutex_unlock(&vout->mutex);
 
-		if ((f->fmt.win.w.width > vout->win.width) || (f->fmt.win.w.height > vout->win.height)) {
-			rk29_vout_dbg(vout->vid_dev->dev, "The win width/height must be smaller than "
-				"%d and %d\n", vout->win.width, vout->win.height);
-			ret =  -EINVAL;
-		}
-
-		if ((f->fmt.win.w.left < 0) || (f->fmt.win.w.top < 0)) {
-			rk29_vout_dbg(vout->vid_dev->dev, "The win left, top must be  bigger than 0\n");
-			ret =  -EINVAL;
-		}
-
-		if ((f->fmt.win.w.left > vout->win.width) || (f->fmt.win.w.top > vout->win.height)) {
-			rk29_vout_dbg(vout->vid_dev->dev, "The win left, top must be smaller than %d, %d\n",
-				vout->win.width, vout->win.height);
-			ret =  -EINVAL;
-		}
-
-		if ((f->fmt.win.w.left + f->fmt.win.w.width) > vout->win.width) {
-			rk29_vout_dbg(vout->vid_dev->dev, "The win rect must be in bound rect\n");
-			ret =  -EINVAL;
-		}
-
-		if ((f->fmt.win.w.top + f->fmt.win.w.height) > vout->win.height) {
-			rk29_vout_dbg(vout->vid_dev->dev, "The win rect must be in bound rect\n");
-			ret =  -EINVAL;
-		}
-		mutex_lock(&vout->mutex);
-		vout->win = f->fmt.win.w;
-		mutex_unlock(&vout->mutex);
-	}
-	else
-		ret = -EINVAL;
 	return ret;
 }
+static int vidioc_g_fmt_vid_overlay(struct file *file, void *priv,
+			struct v4l2_format *f)
+{
+	struct rk29_vout_device *vout = priv;
+	
+	f->fmt.win.w.width = vout->win.width;
+	f->fmt.win.w.height = vout->win.height;
+		return 0;
+}
+static int vidioc_try_fmt_vid_overlay(struct file *file, void *priv,
+			struct v4l2_format *f)
+{
+	struct rk29_vout_device *vout = priv;
+
+	if (f->fmt.win.w.left < 0) {
+		f->fmt.win.w.width += f->fmt.win.w.left;
+		f->fmt.win.w.left = 0;
+	}
+	if (f->fmt.win.w.top < 0) {
+		f->fmt.win.w.height += f->fmt.win.w.top;
+		f->fmt.win.w.top = 0;
+	}
+	f->fmt.win.w.width = (f->fmt.win.w.width < vout->win.width) ?
+		f->fmt.win.w.width : vout->win.width;
+	f->fmt.win.w.height = (f->fmt.win.w.height < vout->win.height) ?
+		f->fmt.win.w.height : vout->win.height;
+	if (f->fmt.win.w.left + f->fmt.win.w.width > vout->win.width)
+		f->fmt.win.w.width = vout->win.width - f->fmt.win.w.left;
+	if (f->fmt.win.w.top + f->fmt.win.w.height > vout->win.height)
+		f->fmt.win.w.height = vout->win.height - f->fmt.win.w.top;
+	f->fmt.win.w.width &= ~1;
+	f->fmt.win.w.height &= ~1;
+
+	if (f->fmt.win.w.width <= 0 || f->fmt.win.w.height <= 0)
+		return -EINVAL;
+
+	f->fmt.win.field = V4L2_FIELD_NONE;
+
+	return 0;
+}
+static int vidioc_s_fmt_vid_overlay(struct file *file, void *priv,
+					struct v4l2_format *f)
+{
+	int ret = 0;
+	struct rk29_vout_device *vout = priv;
+
+	ret = vidioc_try_fmt_vid_overlay(file, vout, f);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&vout->mutex);
+	vout->win = f->fmt.win.w;
+	lcd_set_var(vout);
+	mutex_unlock(&vout->mutex);
+
+	return ret;
+}
+
+
 static int vidioc_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *p)
 {
@@ -280,7 +317,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (i != vout->type)
 		return -EINVAL;
 
-	if(lcd_controler_open(vout) < 0)
+	if(lcd_open(vout) < 0)
 		return -EINVAL;
 
 	return videobuf_streamon(&vout->vbq);
@@ -295,7 +332,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (i != vout->type)
 		return -EINVAL;
 
-	if(lcd_controler_close(vout) < 0)
+	if(lcd_close(vout) < 0)
 		return -EINVAL;
 	return videobuf_streamoff(&vout->vbq);
 }
@@ -314,7 +351,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	struct rk29_vout_device *vout = priv;
 
 	vout->ctrl = *ctrl;
-
+	lcd_set_var(vout);
 	return 0;
 }
 static int vidioc_g_crop(struct file *file, void *priv,
@@ -373,6 +410,7 @@ static int vidioc_s_crop(struct file *file, void *priv,
 	}
 
 	vout->crop = crop->c;
+	lcd_set_var(vout);
 	return 0;
 }
 
@@ -406,7 +444,7 @@ static int buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 						enum v4l2_field field)
 {
 	struct rk29_vout_device *vout  = vq->priv_data;
-	int rc;
+	//int rc;
 
 	if (vout->pix.width  < 48 || vout->pix.width  > norm_maxw() ||
 	    vout->pix.height < 32 || vout->pix.height > norm_maxh())
@@ -419,34 +457,42 @@ static int buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	vb->width  = vout->pix.width;
 	vb->height = vout->pix.height;
 	vb->field  = field;
-
+/*
 	if (VIDEOBUF_NEEDS_INIT == vb->state) {
 		rc = videobuf_iolock(vq, vb, NULL);
 		if (rc < 0)
 			goto fail;
 	}
-
+*/
 	vb->state = VIDEOBUF_PREPARED;
 
 	return 0;
-
+/*
 fail:
 	free_buffer(vq, vb);
 	return rc;
+*/
 }
 static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 {
 	struct rk29_vout_device *vout  = vq->priv_data;
 
-	lcd_set_img_addr(vout->vbuf);
-
-	vb->state = VIDEOBUF_QUEUED;
+	lcd_set_addr(vout);
+	vb->state = VIDEOBUF_DONE;
+	/*
+	if(vb->state == VIDEOBUF_QUEUED || vb->state == VIDEOBUF_ACTIVE)
+		vb->state = VIDEOBUF_DONE;
+	else
+		vb->state = VIDEOBUF_QUEUED;
+	*/
 }
 
 static void buffer_release(struct videobuf_queue *vq,
 			   struct videobuf_buffer *vb)
 {
-	free_buffer(vq, vb);
+	//free_buffer(vq, vb);
+	vb->state = VIDEOBUF_NEEDS_INIT;
+	return;
 }
 
 static struct videobuf_queue_ops rk29_video_qops = {
@@ -517,18 +563,21 @@ static const struct v4l2_file_operations rk29_vout_fops = {
 };
 
 static const struct v4l2_ioctl_ops rk29_ioctl_ops = {
-	.vidioc_g_fmt_vid_out     = vidioc_g_fmt_vid_out,
-	.vidioc_try_fmt_vid_out   = vidioc_try_fmt_vid_out,
-	.vidioc_s_fmt_vid_out     = vidioc_s_fmt_vid_out,
-	.vidioc_reqbufs       = vidioc_reqbufs,
-	.vidioc_qbuf          = vidioc_qbuf,
-	.vidioc_dqbuf         = vidioc_dqbuf,
-	.vidioc_g_ctrl        = vidioc_g_ctrl,
-	.vidioc_s_ctrl        = vidioc_s_ctrl,
-	.vidioc_g_crop        = vidioc_g_crop,
-	.vidioc_s_crop        = vidioc_s_crop,
-	.vidioc_streamon      = vidioc_streamon,
-	.vidioc_streamoff     = vidioc_streamoff,
+	.vidioc_g_fmt_vid_out     	= vidioc_g_fmt_vid_out,
+	.vidioc_try_fmt_vid_out   	= vidioc_try_fmt_vid_out,
+	.vidioc_s_fmt_vid_out     	= vidioc_s_fmt_vid_out,
+	.vidioc_g_fmt_vid_overlay	= vidioc_g_fmt_vid_overlay,
+	.vidioc_try_fmt_vid_overlay = vidioc_try_fmt_vid_overlay,
+	.vidioc_s_fmt_vid_overlay	= vidioc_s_fmt_vid_overlay,
+	.vidioc_reqbufs       		= vidioc_reqbufs,
+	.vidioc_qbuf          		= vidioc_qbuf,
+	.vidioc_dqbuf         		= vidioc_dqbuf,
+	.vidioc_g_ctrl        		= vidioc_g_ctrl,
+	.vidioc_s_ctrl        		= vidioc_s_ctrl,
+	.vidioc_g_crop        		= vidioc_g_crop,
+	.vidioc_s_crop        		= vidioc_s_crop,
+	.vidioc_streamon      		= vidioc_streamon,
+	.vidioc_streamoff     		= vidioc_streamoff,
 };
 
 static int rk29_vout_create_video_devices(struct platform_device *pdev)
