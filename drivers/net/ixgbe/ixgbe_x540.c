@@ -110,12 +110,9 @@ static s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
 	 * access and verify no pending requests before reset
 	 */
-	status = ixgbe_disable_pcie_master(hw);
-	if (status != 0) {
-		status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
-		hw_dbg(hw, "PCI-E Master disable polling has failed.\n");
-	}
+	ixgbe_disable_pcie_master(hw);
 
+mac_reset_top:
 	/*
 	 * Issue global reset to the MAC.  Needs to be SW reset if link is up.
 	 * If link reset is used when link is up, it might reset the PHY when
@@ -146,6 +143,19 @@ static s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 	if (ctrl & reset_bit) {
 		status = IXGBE_ERR_RESET_FAILED;
 		hw_dbg(hw, "Reset polling failed to complete.\n");
+	}
+
+	/*
+	 * Double resets are required for recovery from certain error
+	 * conditions.  Between resets, it is necessary to stall to allow time
+	 * for any pending HW events to complete.  We use 1usec since that is
+	 * what is needed for ixgbe_disable_pcie_master().  The second reset
+	 * then clears out any effects of those events.
+	 */
+	if (hw->mac.flags & IXGBE_FLAGS_DOUBLE_RESET_REQUIRED) {
+		hw->mac.flags &= ~IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+		udelay(1);
+		goto mac_reset_top;
 	}
 
 	/* Clear PF Reset Done bit so PF/VF Mail Ops can work */

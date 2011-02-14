@@ -904,12 +904,9 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
 	 * access and verify no pending requests before reset
 	 */
-	status = ixgbe_disable_pcie_master(hw);
-	if (status != 0) {
-		status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
-		hw_dbg(hw, "PCI-E Master disable polling has failed.\n");
-	}
+	ixgbe_disable_pcie_master(hw);
 
+mac_reset_top:
 	/*
 	 * Issue global reset to the MAC.  This needs to be a SW reset.
 	 * If link reset is used, it might reset the MAC when mng is using it
@@ -928,6 +925,19 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	if (ctrl & IXGBE_CTRL_RST) {
 		status = IXGBE_ERR_RESET_FAILED;
 		hw_dbg(hw, "Reset polling failed to complete.\n");
+	}
+
+	/*
+	 * Double resets are required for recovery from certain error
+	 * conditions.  Between resets, it is necessary to stall to allow time
+	 * for any pending HW events to complete.  We use 1usec since that is
+	 * what is needed for ixgbe_disable_pcie_master().  The second reset
+	 * then clears out any effects of those events.
+	 */
+	if (hw->mac.flags & IXGBE_FLAGS_DOUBLE_RESET_REQUIRED) {
+		hw->mac.flags &= ~IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+		udelay(1);
+		goto mac_reset_top;
 	}
 
 	msleep(50);

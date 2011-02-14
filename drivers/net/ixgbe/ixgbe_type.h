@@ -1614,6 +1614,8 @@
 #define IXGBE_ALT_SAN_MAC_ADDR_CAPS_ALTWWN  0x1 /* Alt. WWN base exists */
 
 /* PCI Bus Info */
+#define IXGBE_PCI_DEVICE_STATUS   0xAA
+#define IXGBE_PCI_DEVICE_STATUS_TRANSACTION_PENDING   0x0020
 #define IXGBE_PCI_LINK_STATUS     0xB2
 #define IXGBE_PCI_DEVICE_CONTROL2 0xC8
 #define IXGBE_PCI_LINK_WIDTH      0x3F0
@@ -2557,6 +2559,7 @@ struct ixgbe_eeprom_info {
 	u16                             address_bits;
 };
 
+#define IXGBE_FLAGS_DOUBLE_RESET_REQUIRED	0x01
 struct ixgbe_mac_info {
 	struct ixgbe_mac_operations     ops;
 	enum ixgbe_mac_type             type;
@@ -2579,6 +2582,7 @@ struct ixgbe_mac_info {
 	u32                             orig_autoc2;
 	bool                            orig_link_settings_stored;
 	bool                            autotry_restart;
+	u8                              flags;
 };
 
 struct ixgbe_phy_info {
