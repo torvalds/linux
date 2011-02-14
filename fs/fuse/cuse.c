@@ -458,7 +458,7 @@ static void cuse_fc_release(struct fuse_conn *fc)
  * @file: file struct being opened
  *
  * Userland CUSE server can create a CUSE device by opening /dev/cuse
- * and replying to the initilaization request kernel sends.  This
+ * and replying to the initialization request kernel sends.  This
  * function is responsible for handling CUSE device initialization.
  * Because the fd opened by this function is used during
  * initialization, this function only creates cuse_conn and sends
