@@ -355,10 +355,6 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 	struct rndis_packet *rndis_pkt;
 	u32 data_offset;
 
-	/* empty ethernet frame ?? */
-	/* ASSERT(Packet->PageBuffers[0].Length > */
-	/* 	RNDIS_MESSAGE_SIZE(struct rndis_packet)); */
-
 	rndis_pkt = &msg->msg.pkt;
 
 	/*
@@ -455,8 +451,6 @@ static int rndis_filter_receive(struct hv_device *dev,
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
 	case REMOTE_NDIS_QUERY_CMPLT:
 	case REMOTE_NDIS_SET_CMPLT:
-	/* case REMOTE_NDIS_RESET_CMPLT: */
-	/* case REMOTE_NDIS_KEEPALIVE_CMPLT: */
 		/* completion msgs */
 		rndis_filter_receive_response(rndis_dev, &rndis_msg);
 		break;
@@ -563,9 +557,6 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 	u32 status;
 	int ret;
 
-	/* ASSERT(RNDIS_MESSAGE_SIZE(struct rndis_set_request) + sizeof(u32) <= */
-	/* 	sizeof(struct rndis_message)); */
-
 	request = get_rndis_request(dev, REMOTE_NDIS_SET_MSG,
 			RNDIS_MESSAGE_SIZE(struct rndis_set_request) +
 			sizeof(u32));
@@ -634,8 +625,6 @@ int rndis_filter_init(struct netvsc_driver *drv)
 					drv->base.dev_rm;
 	rndis_filter.inner_drv.base.cleanup = drv->base.cleanup;
 
-	/* ASSERT(Driver->OnSend); */
-	/* ASSERT(Driver->OnReceiveCallback); */
 	rndis_filter.inner_drv.send = drv->send;
 	rndis_filter.inner_drv.recv_cb = drv->recv_cb;
 	rndis_filter.inner_drv.link_status_change =
@@ -646,7 +635,6 @@ int rndis_filter_init(struct netvsc_driver *drv)
 	drv->base.dev_rm = rndis_filter_device_remove;
 	drv->base.cleanup = rndis_filter_cleanup;
 	drv->send = rndis_filter_send;
-	/* Driver->QueryLinkStatus = RndisFilterQueryDeviceLinkStatus; */
 	drv->recv_cb = rndis_filter_receive;
 
 	return 0;
@@ -793,8 +781,6 @@ static int rndis_filte_device_add(struct hv_device *dev,
 
 	/* Initialize the rndis device */
 	netDevice = dev->ext;
-	/* ASSERT(netDevice); */
-	/* ASSERT(netDevice->Device); */
 
 	netDevice->extension = rndisDevice;
 	rndisDevice->net_dev = netDevice;
@@ -882,7 +868,6 @@ static int rndis_filter_send(struct hv_device *dev,
 
 	/* Add the rndis header */
 	filterPacket = (struct rndis_filter_packet *)pkt->extension;
-	/* ASSERT(filterPacket); */
 
 	memset(filterPacket, 0, sizeof(struct rndis_filter_packet));
 
