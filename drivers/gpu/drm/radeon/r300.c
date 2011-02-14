@@ -873,6 +873,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		track->zb_dirty = true;
 		break;
 	case 0x4104:
+		/* TX_ENABLE */
 		for (i = 0; i < 16; i++) {
 			bool enabled;
 
@@ -1102,8 +1103,6 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* RB3D_BLENDCNTL */
 		track->blend_read_enable = !!(idx_value & (1 << 2));
 		track->cb_dirty = true;
-		break;
-	case 0x4f28: /* ZB_DEPTHCLEARVALUE */
 		break;
 	case 0x4f30: /* ZB_MASK_OFFSET */
 	case 0x4f34: /* ZB_ZMASK_PITCH */
