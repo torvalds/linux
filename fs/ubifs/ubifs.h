@@ -1028,6 +1028,8 @@ struct ubifs_debug_info;
  *                  time (MTD write buffer size)
  * @max_write_shift: number of bits in @max_write_size minus one
  * @leb_size: logical eraseblock size in bytes
+ * @leb_start: starting offset of logical eraseblocks within physical
+ *             eraseblocks
  * @half_leb_size: half LEB size
  * @idx_leb_size: how many bytes of an LEB are effectively available when it is
  *                used to store indexing nodes (@leb_size - @max_idx_node_sz)
@@ -1276,6 +1278,7 @@ struct ubifs_info {
 	int max_write_size;
 	int max_write_shift;
 	int leb_size;
+	int leb_start;
 	int half_leb_size;
 	int idx_leb_size;
 	int leb_cnt;
