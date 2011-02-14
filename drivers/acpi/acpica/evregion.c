@@ -231,6 +231,8 @@ acpi_status acpi_ev_initialize_op_regions(void)
 		}
 	}
 
+	acpi_gbl_reg_methods_executed = TRUE;
+
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);
 }

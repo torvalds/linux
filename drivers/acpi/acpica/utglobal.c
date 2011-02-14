@@ -323,6 +323,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_db_output_flags = ACPI_DB_CONSOLE_OUTPUT;
 	acpi_gbl_osi_data = 0;
 	acpi_gbl_osi_mutex = NULL;
+	acpi_gbl_reg_methods_executed = FALSE;
 
 	/* Hardware oriented */
 
