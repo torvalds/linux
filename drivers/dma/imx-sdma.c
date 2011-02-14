@@ -230,7 +230,7 @@ struct sdma_engine;
  * struct sdma_channel - housekeeping for a SDMA channel
  *
  * @sdma		pointer to the SDMA engine for this channel
- * @channel		the channel number, matches dmaengine chan_id
+ * @channel		the channel number, matches dmaengine chan_id + 1
  * @direction		transfer type. Needed for setting SDMA script
  * @peripheral_type	Peripheral type. Needed for setting SDMA script
  * @event_id0		aka dma request line
@@ -301,6 +301,7 @@ struct sdma_firmware_header {
 
 struct sdma_engine {
 	struct device			*dev;
+	struct device_dma_parameters	dma_parms;
 	struct sdma_channel		channel[MAX_DMA_CHANNELS];
 	struct sdma_channel_control	*channel_control;
 	void __iomem			*regs;
@@ -449,7 +450,7 @@ static void sdma_handle_channel_loop(struct sdma_channel *sdmac)
 		if (bd->mode.status & BD_RROR)
 			sdmac->status = DMA_ERROR;
 		else
-			sdmac->status = DMA_SUCCESS;
+			sdmac->status = DMA_IN_PROGRESS;
 
 		bd->mode.status |= BD_DONE;
 		sdmac->buf_tail++;
@@ -798,7 +799,7 @@ static dma_cookie_t sdma_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	cookie = sdma_assign_cookie(sdmac);
 
-	sdma_enable_channel(sdma, tx->chan->chan_id);
+	sdma_enable_channel(sdma, sdmac->channel);
 
 	spin_unlock_irq(&sdmac->lock);
 
@@ -810,10 +811,6 @@ static int sdma_alloc_chan_resources(struct dma_chan *chan)
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct imx_dma_data *data = chan->private;
 	int prio, ret;
-
-	/* No need to execute this for internal channel 0 */
-	if (chan->chan_id == 0)
-		return 0;
 
 	if (!data)
 		return -EINVAL;
@@ -879,7 +876,7 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct sdma_engine *sdma = sdmac->sdma;
 	int ret, i, count;
-	int channel = chan->chan_id;
+	int channel = sdmac->channel;
 	struct scatterlist *sg;
 
 	if (sdmac->status == DMA_IN_PROGRESS)
@@ -924,21 +921,32 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 			ret =  -EINVAL;
 			goto err_out;
 		}
-		if (sdmac->word_size == DMA_SLAVE_BUSWIDTH_4_BYTES)
+
+		switch (sdmac->word_size) {
+		case DMA_SLAVE_BUSWIDTH_4_BYTES:
 			bd->mode.command = 0;
-		else
-			bd->mode.command = sdmac->word_size;
+			if (count & 3 || sg->dma_address & 3)
+				return NULL;
+			break;
+		case DMA_SLAVE_BUSWIDTH_2_BYTES:
+			bd->mode.command = 2;
+			if (count & 1 || sg->dma_address & 1)
+				return NULL;
+			break;
+		case DMA_SLAVE_BUSWIDTH_1_BYTE:
+			bd->mode.command = 1;
+			break;
+		default:
+			return NULL;
+		}
 
 		param = BD_DONE | BD_EXTD | BD_CONT;
 
-		if (sdmac->flags & IMX_DMA_SG_LOOP) {
+		if (i + 1 == sg_len) {
 			param |= BD_INTR;
-			if (i + 1 == sg_len)
-				param |= BD_WRAP;
+			param |= BD_LAST;
+			param &= ~BD_CONT;
 		}
-
-		if (i + 1 == sg_len)
-			param |= BD_INTR;
 
 		dev_dbg(sdma->dev, "entry %d: count: %d dma: 0x%08x %s%s\n",
 				i, count, sg->dma_address,
@@ -953,6 +961,7 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 
 	return &sdmac->desc;
 err_out:
+	sdmac->status = DMA_ERROR;
 	return NULL;
 }
 
@@ -963,7 +972,7 @@ static struct dma_async_tx_descriptor *sdma_prep_dma_cyclic(
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct sdma_engine *sdma = sdmac->sdma;
 	int num_periods = buf_len / period_len;
-	int channel = chan->chan_id;
+	int channel = sdmac->channel;
 	int ret, i = 0, buf = 0;
 
 	dev_dbg(sdma->dev, "%s channel: %d\n", __func__, channel);
@@ -1066,14 +1075,12 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 {
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	dma_cookie_t last_used;
-	enum dma_status ret;
 
 	last_used = chan->cookie;
 
-	ret = dma_async_is_complete(cookie, sdmac->last_completed, last_used);
 	dma_set_tx_state(txstate, sdmac->last_completed, last_used, 0);
 
-	return ret;
+	return sdmac->status;
 }
 
 static void sdma_issue_pending(struct dma_chan *chan)
@@ -1237,7 +1244,6 @@ static int __init sdma_probe(struct platform_device *pdev)
 	struct resource *iores;
 	struct sdma_platform_data *pdata = pdev->dev.platform_data;
 	int i;
-	dma_cap_mask_t mask;
 	struct sdma_engine *sdma;
 
 	sdma = kzalloc(sizeof(*sdma), GFP_KERNEL);
@@ -1280,6 +1286,9 @@ static int __init sdma_probe(struct platform_device *pdev)
 
 	sdma->version = pdata->sdma_version;
 
+	dma_cap_set(DMA_SLAVE, sdma->dma_device.cap_mask);
+	dma_cap_set(DMA_CYCLIC, sdma->dma_device.cap_mask);
+
 	INIT_LIST_HEAD(&sdma->dma_device.channels);
 	/* Initialize channel parameters */
 	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
@@ -1288,15 +1297,17 @@ static int __init sdma_probe(struct platform_device *pdev)
 		sdmac->sdma = sdma;
 		spin_lock_init(&sdmac->lock);
 
-		dma_cap_set(DMA_SLAVE, sdma->dma_device.cap_mask);
-		dma_cap_set(DMA_CYCLIC, sdma->dma_device.cap_mask);
-
 		sdmac->chan.device = &sdma->dma_device;
-		sdmac->chan.chan_id = i;
 		sdmac->channel = i;
 
-		/* Add the channel to the DMAC list */
-		list_add_tail(&sdmac->chan.device_node, &sdma->dma_device.channels);
+		/*
+		 * Add the channel to the DMAC list. Do not add channel 0 though
+		 * because we need it internally in the SDMA driver. This also means
+		 * that channel 0 in dmaengine counting matches sdma channel 1.
+		 */
+		if (i)
+			list_add_tail(&sdmac->chan.device_node,
+					&sdma->dma_device.channels);
 	}
 
 	ret = sdma_init(sdma);
@@ -1317,19 +1328,14 @@ static int __init sdma_probe(struct platform_device *pdev)
 	sdma->dma_device.device_prep_dma_cyclic = sdma_prep_dma_cyclic;
 	sdma->dma_device.device_control = sdma_control;
 	sdma->dma_device.device_issue_pending = sdma_issue_pending;
+	sdma->dma_device.dev->dma_parms = &sdma->dma_parms;
+	dma_set_max_seg_size(sdma->dma_device.dev, 65535);
 
 	ret = dma_async_device_register(&sdma->dma_device);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to register\n");
 		goto err_init;
 	}
-
-	/* request channel 0. This is an internal control channel
-	 * to the SDMA engine and not available to clients.
-	 */
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	dma_request_channel(mask, NULL, NULL);
 
 	dev_info(sdma->dev, "initialized\n");
 
