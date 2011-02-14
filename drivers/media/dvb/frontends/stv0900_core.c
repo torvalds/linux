@@ -1666,6 +1666,7 @@ static int stv0900_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		if (state->config->set_lock_led)
 			state->config->set_lock_led(fe, 1);
 	} else {
+		*status = 0;
 		if (state->config->set_lock_led)
 			state->config->set_lock_led(fe, 0);
 		dprintk("DEMOD LOCK FAIL\n");
