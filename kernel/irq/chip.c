@@ -164,34 +164,6 @@ struct irq_data *irq_get_irq_data(unsigned int irq)
 }
 EXPORT_SYMBOL_GPL(irq_get_irq_data);
 
-/**
- *	set_irq_nested_thread - Set/Reset the IRQ_NESTED_THREAD flag of an irq
- *
- *	@irq:	Interrupt number
- *	@nest:	0 to clear / 1 to set the IRQ_NESTED_THREAD flag
- *
- *	The IRQ_NESTED_THREAD flag indicates that on
- *	request_threaded_irq() no separate interrupt thread should be
- *	created for the irq as the handler are called nested in the
- *	context of a demultiplexing interrupt handler thread.
- */
-void set_irq_nested_thread(unsigned int irq, int nest)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned long flags;
-
-	if (!desc)
-		return;
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	if (nest)
-		desc->status |= IRQ_NESTED_THREAD;
-	else
-		desc->status &= ~IRQ_NESTED_THREAD;
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-}
-EXPORT_SYMBOL_GPL(set_irq_nested_thread);
-
 int irq_startup(struct irq_desc *desc)
 {
 	desc->status &= ~IRQ_DISABLED;

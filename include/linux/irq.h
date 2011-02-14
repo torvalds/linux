@@ -74,7 +74,7 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #define IRQF_MODIFY_MASK	\
 	(IRQ_TYPE_SENSE_MASK | IRQ_NOPROBE | IRQ_NOREQUEST | \
 	 IRQ_NOAUTOEN | IRQ_MOVE_PCNTXT | IRQ_LEVEL | IRQ_NO_BALANCING | \
-	 IRQ_PER_CPU)
+	 IRQ_PER_CPU | IRQ_NESTED_THREAD)
 
 #ifdef CONFIG_IRQ_PER_CPU
 # define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
@@ -307,8 +307,6 @@ set_irq_chained_handler(unsigned int irq, irq_flow_handler_t handle)
 	__set_irq_handler(irq, handle, 1, NULL);
 }
 
-extern void set_irq_nested_thread(unsigned int irq, int nest);
-
 void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set);
 
 static inline void irq_set_status_flags(unsigned int irq, unsigned long set)
@@ -329,6 +327,14 @@ static inline void irq_set_noprobe(unsigned int irq)
 static inline void irq_set_probe(unsigned int irq)
 {
 	irq_modify_status(irq, IRQ_NOPROBE, 0);
+}
+
+static inline void irq_set_nested_thread(unsigned int irq, bool nest)
+{
+	if (nest)
+		irq_set_status_flags(irq, IRQ_NESTED_THREAD);
+	else
+		irq_clear_status_flags(irq, IRQ_NESTED_THREAD);
 }
 
 /* Handle dynamic irq creation and destruction */
@@ -447,6 +453,10 @@ static inline void set_irq_noprobe(unsigned int irq)
 static inline void set_irq_probe(unsigned int irq)
 {
 	irq_set_probe(irq);
+}
+static inline void set_irq_nested_thread(unsigned int irq, int nest)
+{
+	irq_set_nested_thread(irq, nest);
 }
 #endif
 
