@@ -133,6 +133,9 @@ set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 
 	/* high addr, stride */
 	sq_vtx_constant_word2 = ((upper_32_bits(gpu_addr) & 0xff) | (16 << 8));
+#ifdef __BIG_ENDIAN
+	sq_vtx_constant_word2 |= (2 << 30);
+#endif
 	/* xyzw swizzles */
 	sq_vtx_constant_word3 = (0 << 3) | (1 << 6) | (2 << 9) | (3 << 12);
 
@@ -221,7 +224,11 @@ draw_auto(struct radeon_device *rdev)
 	radeon_ring_write(rdev, DI_PT_RECTLIST);
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_INDEX_TYPE, 0));
-	radeon_ring_write(rdev, DI_INDEX_SIZE_16_BIT);
+	radeon_ring_write(rdev,
+#ifdef __BIG_ENDIAN
+			  (2 << 2) |
+#endif
+			  DI_INDEX_SIZE_16_BIT);
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_NUM_INSTANCES, 0));
 	radeon_ring_write(rdev, 1);
@@ -541,7 +548,7 @@ static inline uint32_t i2f(uint32_t input)
 int evergreen_blit_init(struct radeon_device *rdev)
 {
 	u32 obj_size;
-	int r, dwords;
+	int i, r, dwords;
 	void *ptr;
 	u32 packet2s[16];
 	int num_packet2s = 0;
@@ -557,7 +564,7 @@ int evergreen_blit_init(struct radeon_device *rdev)
 
 	dwords = rdev->r600_blit.state_len;
 	while (dwords & 0xf) {
-		packet2s[num_packet2s++] = PACKET2(0);
+		packet2s[num_packet2s++] = cpu_to_le32(PACKET2(0));
 		dwords++;
 	}
 
@@ -598,8 +605,10 @@ int evergreen_blit_init(struct radeon_device *rdev)
 	if (num_packet2s)
 		memcpy_toio(ptr + rdev->r600_blit.state_offset + (rdev->r600_blit.state_len * 4),
 			    packet2s, num_packet2s * 4);
-	memcpy(ptr + rdev->r600_blit.vs_offset, evergreen_vs, evergreen_vs_size * 4);
-	memcpy(ptr + rdev->r600_blit.ps_offset, evergreen_ps, evergreen_ps_size * 4);
+	for (i = 0; i < evergreen_vs_size; i++)
+		*(u32 *)((unsigned long)ptr + rdev->r600_blit.vs_offset + i * 4) = cpu_to_le32(evergreen_vs[i]);
+	for (i = 0; i < evergreen_ps_size; i++)
+		*(u32 *)((unsigned long)ptr + rdev->r600_blit.ps_offset + i * 4) = cpu_to_le32(evergreen_ps[i]);
 	radeon_bo_kunmap(rdev->r600_blit.shader_obj);
 	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 
