@@ -96,7 +96,6 @@
 
 struct omap_board_data;
 
-extern void __init omap_serial_early_init(void);
 extern void omap_serial_init(void);
 extern void omap_serial_init_port(struct omap_board_data *bdata);
 extern int omap_uart_can_sleep(void);
