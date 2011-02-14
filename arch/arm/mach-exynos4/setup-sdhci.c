@@ -1,9 +1,9 @@
-/* linux/arch/arm/mach-s5pv310/setup-sdhci.c
+/* linux/arch/arm/mach-exynos4/setup-sdhci.c
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
- * S5PV310 - Helper functions for settign up SDHCI device(s) (HSMMC)
+ * EXYNOS4 - Helper functions for settign up SDHCI device(s) (HSMMC)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -23,14 +23,14 @@
 
 /* clock sources for the mmc bus clock, order as for the ctrl2[5..4] */
 
-char *s5pv310_hsmmc_clksrcs[4] = {
+char *exynos4_hsmmc_clksrcs[4] = {
 	[0] = NULL,
 	[1] = NULL,
 	[2] = "sclk_mmc",	/* mmc_bus */
 	[3] = NULL,
 };
 
-void s5pv310_setup_sdhci_cfg_card(struct platform_device *dev, void __iomem *r,
+void exynos4_setup_sdhci_cfg_card(struct platform_device *dev, void __iomem *r,
 				  struct mmc_ios *ios, struct mmc_card *card)
 {
 	u32 ctrl2, ctrl3;

@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-s5pv310/setup-i2c6.c
+ * linux/arch/arm/mach-exynos4/setup-i2c6.c
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *
@@ -18,6 +18,6 @@ struct platform_device; /* don't need the contents */
 
 void s3c_i2c6_cfg_gpio(struct platform_device *dev)
 {
-	s3c_gpio_cfgall_range(S5PV310_GPC1(3), 2,
+	s3c_gpio_cfgall_range(EXYNOS4_GPC1(3), 2,
 			      S3C_GPIO_SFN(4), S3C_GPIO_PULL_UP);
 }

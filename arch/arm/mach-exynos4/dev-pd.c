@@ -1,9 +1,9 @@
-/* linux/arch/arm/mach-s5pv310/dev-pd.c
+/* linux/arch/arm/mach-exynos4/dev-pd.c
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * S5PV310 - Power Domain support
+ * EXYNOS4 - Power Domain support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,7 +19,7 @@
 
 #include <plat/pd.h>
 
-static int s5pv310_pd_enable(struct device *dev)
+static int exynos4_pd_enable(struct device *dev)
 {
 	struct samsung_pd_info *pdata =  dev->platform_data;
 	u32 timeout;
@@ -42,7 +42,7 @@ static int s5pv310_pd_enable(struct device *dev)
 	return 0;
 }
 
-static int s5pv310_pd_disable(struct device *dev)
+static int exynos4_pd_disable(struct device *dev)
 {
 	struct samsung_pd_info *pdata =  dev->platform_data;
 	u32 timeout;
@@ -64,14 +64,14 @@ static int s5pv310_pd_disable(struct device *dev)
 	return 0;
 }
 
-struct platform_device s5pv310_device_pd[] = {
+struct platform_device exynos4_device_pd[] = {
 	{
 		.name		= "samsung-pd",
 		.id		= 0,
 		.dev = {
 			.platform_data = &(struct samsung_pd_info) {
-				.enable		= s5pv310_pd_enable,
-				.disable	= s5pv310_pd_disable,
+				.enable		= exynos4_pd_enable,
+				.disable	= exynos4_pd_disable,
 				.base		= S5P_PMU_MFC_CONF,
 			},
 		},
@@ -80,8 +80,8 @@ struct platform_device s5pv310_device_pd[] = {
 		.id		= 1,
 		.dev = {
 			.platform_data = &(struct samsung_pd_info) {
-				.enable		= s5pv310_pd_enable,
-				.disable	= s5pv310_pd_disable,
+				.enable		= exynos4_pd_enable,
+				.disable	= exynos4_pd_disable,
 				.base		= S5P_PMU_G3D_CONF,
 			},
 		},
@@ -90,8 +90,8 @@ struct platform_device s5pv310_device_pd[] = {
 		.id		= 2,
 		.dev = {
 			.platform_data = &(struct samsung_pd_info) {
-				.enable		= s5pv310_pd_enable,
-				.disable	= s5pv310_pd_disable,
+				.enable		= exynos4_pd_enable,
+				.disable	= exynos4_pd_disable,
 				.base		= S5P_PMU_LCD0_CONF,
 			},
 		},
@@ -100,8 +100,8 @@ struct platform_device s5pv310_device_pd[] = {
 		.id		= 3,
 		.dev = {
 			.platform_data = &(struct samsung_pd_info) {
-				.enable		= s5pv310_pd_enable,
-				.disable	= s5pv310_pd_disable,
+				.enable		= exynos4_pd_enable,
+				.disable	= exynos4_pd_disable,
 				.base		= S5P_PMU_LCD1_CONF,
 			},
 		},
@@ -110,8 +110,8 @@ struct platform_device s5pv310_device_pd[] = {
 		.id		= 4,
 		.dev = {
 			.platform_data = &(struct samsung_pd_info) {
-				.enable		= s5pv310_pd_enable,
-				.disable	= s5pv310_pd_disable,
+				.enable		= exynos4_pd_enable,
+				.disable	= exynos4_pd_disable,
 				.base		= S5P_PMU_TV_CONF,
 			},
 		},
@@ -120,8 +120,8 @@ struct platform_device s5pv310_device_pd[] = {
 		.id		= 5,
 		.dev = {
 			.platform_data = &(struct samsung_pd_info) {
-				.enable		= s5pv310_pd_enable,
-				.disable	= s5pv310_pd_disable,
+				.enable		= exynos4_pd_enable,
+				.disable	= exynos4_pd_disable,
 				.base		= S5P_PMU_CAM_CONF,
 			},
 		},
@@ -130,8 +130,8 @@ struct platform_device s5pv310_device_pd[] = {
 		.id		= 6,
 		.dev = {
 			.platform_data = &(struct samsung_pd_info) {
-				.enable		= s5pv310_pd_enable,
-				.disable	= s5pv310_pd_disable,
+				.enable		= exynos4_pd_enable,
+				.disable	= exynos4_pd_disable,
 				.base		= S5P_PMU_GPS_CONF,
 			},
 		},

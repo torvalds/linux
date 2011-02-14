@@ -1,7 +1,9 @@
-/* linux/arch/arm/mach-s5pv310/dev-sysmmu.c
+/* linux/arch/arm/mach-exynos4/dev-sysmmu.c
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
+ *
+ * EXYNOS4 - System MMU support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,10 +16,10 @@
 #include <mach/map.h>
 #include <mach/irqs.h>
 
-static struct resource s5pv310_sysmmu_resource[] = {
+static struct resource exynos4_sysmmu_resource[] = {
 	[0] = {
-		.start	= S5PV310_PA_SYSMMU_MDMA,
-		.end	= S5PV310_PA_SYSMMU_MDMA + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_MDMA,
+		.end	= EXYNOS4_PA_SYSMMU_MDMA + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -26,8 +28,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = {
-		.start	= S5PV310_PA_SYSMMU_SSS,
-		.end	= S5PV310_PA_SYSMMU_SSS + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_SSS,
+		.end	= EXYNOS4_PA_SYSMMU_SSS + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[3] = {
@@ -36,8 +38,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[4] = {
-		.start	= S5PV310_PA_SYSMMU_FIMC0,
-		.end	= S5PV310_PA_SYSMMU_FIMC0 + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_FIMC0,
+		.end	= EXYNOS4_PA_SYSMMU_FIMC0 + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[5] = {
@@ -46,8 +48,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[6] = {
-		.start	= S5PV310_PA_SYSMMU_FIMC1,
-		.end	= S5PV310_PA_SYSMMU_FIMC1 + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_FIMC1,
+		.end	= EXYNOS4_PA_SYSMMU_FIMC1 + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[7] = {
@@ -56,8 +58,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[8] = {
-		.start	= S5PV310_PA_SYSMMU_FIMC2,
-		.end	= S5PV310_PA_SYSMMU_FIMC2 + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_FIMC2,
+		.end	= EXYNOS4_PA_SYSMMU_FIMC2 + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[9] = {
@@ -66,8 +68,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[10] = {
-		.start	= S5PV310_PA_SYSMMU_FIMC3,
-		.end	= S5PV310_PA_SYSMMU_FIMC3 + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_FIMC3,
+		.end	= EXYNOS4_PA_SYSMMU_FIMC3 + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[11] = {
@@ -76,8 +78,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[12] = {
-		.start	= S5PV310_PA_SYSMMU_JPEG,
-		.end	= S5PV310_PA_SYSMMU_JPEG + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_JPEG,
+		.end	= EXYNOS4_PA_SYSMMU_JPEG + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[13] = {
@@ -86,8 +88,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[14] = {
-		.start	= S5PV310_PA_SYSMMU_FIMD0,
-		.end	= S5PV310_PA_SYSMMU_FIMD0 + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_FIMD0,
+		.end	= EXYNOS4_PA_SYSMMU_FIMD0 + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[15] = {
@@ -96,8 +98,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[16] = {
-		.start	= S5PV310_PA_SYSMMU_FIMD1,
-		.end	= S5PV310_PA_SYSMMU_FIMD1 + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_FIMD1,
+		.end	= EXYNOS4_PA_SYSMMU_FIMD1 + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[17] = {
@@ -106,8 +108,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[18] = {
-		.start	= S5PV310_PA_SYSMMU_PCIe,
-		.end	= S5PV310_PA_SYSMMU_PCIe + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_PCIe,
+		.end	= EXYNOS4_PA_SYSMMU_PCIe + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[19] = {
@@ -116,8 +118,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[20] = {
-		.start	= S5PV310_PA_SYSMMU_G2D,
-		.end	= S5PV310_PA_SYSMMU_G2D + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_G2D,
+		.end	= EXYNOS4_PA_SYSMMU_G2D + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[21] = {
@@ -126,8 +128,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[22] = {
-		.start	= S5PV310_PA_SYSMMU_ROTATOR,
-		.end	= S5PV310_PA_SYSMMU_ROTATOR + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_ROTATOR,
+		.end	= EXYNOS4_PA_SYSMMU_ROTATOR + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[23] = {
@@ -136,8 +138,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[24] = {
-		.start	= S5PV310_PA_SYSMMU_MDMA2,
-		.end	= S5PV310_PA_SYSMMU_MDMA2 + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_MDMA2,
+		.end	= EXYNOS4_PA_SYSMMU_MDMA2 + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[25] = {
@@ -146,8 +148,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[26] = {
-		.start	= S5PV310_PA_SYSMMU_TV,
-		.end	= S5PV310_PA_SYSMMU_TV + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_TV,
+		.end	= EXYNOS4_PA_SYSMMU_TV + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[27] = {
@@ -156,8 +158,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[28] = {
-		.start	= S5PV310_PA_SYSMMU_MFC_L,
-		.end	= S5PV310_PA_SYSMMU_MFC_L + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_MFC_L,
+		.end	= EXYNOS4_PA_SYSMMU_MFC_L + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[29] = {
@@ -166,8 +168,8 @@ static struct resource s5pv310_sysmmu_resource[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[30] = {
-		.start	= S5PV310_PA_SYSMMU_MFC_R,
-		.end	= S5PV310_PA_SYSMMU_MFC_R + SZ_64K - 1,
+		.start	= EXYNOS4_PA_SYSMMU_MFC_R,
+		.end	= EXYNOS4_PA_SYSMMU_MFC_R + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[31] = {
@@ -177,11 +179,11 @@ static struct resource s5pv310_sysmmu_resource[] = {
 	},
 };
 
-struct platform_device s5pv310_device_sysmmu = {
+struct platform_device exynos4_device_sysmmu = {
 	.name		= "s5p-sysmmu",
 	.id		= 32,
-	.num_resources	= ARRAY_SIZE(s5pv310_sysmmu_resource),
-	.resource	= s5pv310_sysmmu_resource,
+	.num_resources	= ARRAY_SIZE(exynos4_sysmmu_resource),
+	.resource	= exynos4_sysmmu_resource,
 };
 
-EXPORT_SYMBOL(s5pv310_device_sysmmu);
+EXPORT_SYMBOL(exynos4_device_sysmmu);
