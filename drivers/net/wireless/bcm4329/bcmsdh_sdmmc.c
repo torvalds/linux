@@ -675,7 +675,6 @@ sdioh_enable_hw_oob_intr(sdioh_info_t *sd, bool enable)
 		data = 3;	/* enable hw oob interrupt */
 	else
 		data = 4;	/* disable hw oob interrupt */
-
 	data |= 4;		/* Active HIGH */
 
 	status = sdioh_request_byte(sd, SDIOH_WRITE, 0, 0xf2, &data);

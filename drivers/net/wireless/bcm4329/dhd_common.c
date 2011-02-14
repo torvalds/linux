@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c,v 1.5.6.8.2.6.6.69.4.3 2010/09/10 21:30:16 Exp $
+ * $Id: dhd_common.c,v 1.5.6.8.2.6.6.69.4.20 2010/12/20 23:37:28 Exp $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -73,6 +73,13 @@ extern void dhd_ind_scan_confirm(void *h, bool status);
 extern int dhd_wl_ioctl(dhd_pub_t *dhd, uint cmd, char *buf, uint buflen);
 void dhd_iscan_lock(void);
 void dhd_iscan_unlock(void);
+
+#if defined(SOFTAP)
+extern bool ap_fw_loaded;
+#endif
+#if defined(KEEP_ALIVE)
+int dhd_keep_alive_onoff(dhd_pub_t *dhd, int ka_on);
+#endif /* KEEP_ALIVE */
 
 /* Packet alignment for most efficient SDIO (can change based on platform) */
 #ifndef DHD_SDALIGN
@@ -140,7 +147,7 @@ dhd_common_init(void)
 	 * behaviour since the value of the globals may be different on the
 	 * first time that the driver is initialized vs subsequent initializations.
 	 */
-	dhd_msg_level = DHD_ERROR_VAL |DHD_TRACE_VAL|DHD_INFO_VAL;
+	dhd_msg_level = DHD_ERROR_VAL;
 #ifdef CONFIG_BCM4329_FW_PATH
 	strncpy(fw_path, CONFIG_BCM4329_FW_PATH, MOD_PARAM_PATHLEN-1);
 #else
@@ -1225,11 +1232,15 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint power_mode = PM_FAST;
 	uint32 dongle_align = DHD_SDALIGN;
 	uint32 glom = 0;
-	uint bcn_timeout = 3;
+	uint bcn_timeout = 4;
 	int scan_assoc_time = 40;
 	int scan_unassoc_time = 40;
+	uint32 listen_interval = LISTEN_INTERVAL; /* Default Listen Interval in Beacons */
+#if defined(SOFTAP)
+	uint dtim = 1;
+#endif
+	int ret = 0;
 #ifdef GET_CUSTOM_MAC_ENABLE
-	int ret;
 	struct ether_addr ea_addr;
 #endif /* GET_CUSTOM_MAC_ENABLE */
 
@@ -1256,7 +1267,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #ifdef SET_RANDOM_MAC_SOFTAP
 	if (strstr(fw_path, "apsta") != NULL) {
 		uint rand_mac;
-		int ret;
 
 		srandom32((uint)jiffies);
 		rand_mac = random32();
@@ -1287,6 +1297,11 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		}
 	}
 
+	/* Set Listen Interval */
+	bcm_mkiovar("assoc_listen", (char *)&listen_interval, 4, iovbuf, sizeof(iovbuf));
+	if ((ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf))) < 0)
+		DHD_ERROR(("%s assoc_listen failed %d\n", __FUNCTION__, ret));
+
 	/* query for 'ver' to get version info from firmware */
 	memset(buf, 0, sizeof(buf));
 	ptr = buf;
@@ -1314,6 +1329,12 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* Enable/Disable build-in roaming to allowed ext supplicant to take of romaing */
 	bcm_mkiovar("roam_off", (char *)&dhd_roam, 4, iovbuf, sizeof(iovbuf));
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+
+#if defined(SOFTAP)
+	if (ap_fw_loaded == TRUE) {
+		dhdcdc_set_ioctl(dhd, 0, WLC_SET_DTIMPRD, (char *)&dtim, sizeof(dtim));
+	}
+#endif
 
 	if (dhd_roam == 0)
 	{
@@ -1395,6 +1416,19 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif /* PKT_FILTER_SUPPORT */
 
+#if defined(KEEP_ALIVE)
+	{
+	/* Set Keep Alive : be sure to use FW with -keepalive */
+	int res;
+
+	if (ap_fw_loaded == FALSE) {
+		if ((res = dhd_keep_alive_onoff(dhd, 1)) < 0)
+			DHD_ERROR(("%s set keeplive failed %d\n", \
+		__FUNCTION__, res));
+		}
+	}
+#endif
+
 	dhd_os_proto_unblock(dhd);
 
 	return 0;
@@ -1449,7 +1483,7 @@ dhd_iscan_free_buf(void *dhdp, iscan_buf_t *iscan_delete)
 	dhd_pub_t *dhd = dhd_bus_pub(dhdp);
 
 	dhd_iscan_lock();
-	/* If iscan_delete is null then delete the entire 
+	/* If iscan_delete is null then delete the entire
 	 * chain or else delete specific one provided
 	 */
 	if (!iscan_delete) {
@@ -1780,7 +1814,58 @@ fail:
 	return status;
 }
 
-#endif 
+#endif
+
+/* Function to estimate possible DTIM_SKIP value */
+int dhd_get_dtim_skip(dhd_pub_t *dhd)
+{
+	int bcn_li_dtim;
+	char buf[128];
+	int ret;
+	int dtim_assoc = 0;
+
+	if ((dhd->dtim_skip == 0) || (dhd->dtim_skip == 1))
+		bcn_li_dtim = 3;
+	else
+		bcn_li_dtim = dhd->dtim_skip;
+
+	/* Read DTIM value if associated */
+	memset(buf, 0, sizeof(buf));
+	bcm_mkiovar("dtim_assoc", 0, 0, buf, sizeof(buf));
+	if ((ret = dhdcdc_query_ioctl(dhd, 0, WLC_GET_VAR, buf, sizeof(buf))) < 0) {
+		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
+		bcn_li_dtim = 1;
+		goto exit;
+	}
+	else
+		dtim_assoc = dtoh32(*(int *)buf);
+
+	DHD_ERROR(("%s bcn_li_dtim=%d DTIM=%d Listen=%d\n", \
+			 __FUNCTION__, bcn_li_dtim, dtim_assoc, LISTEN_INTERVAL));
+
+	/* if not assocated just eixt */
+	if (dtim_assoc == 0) {
+		goto exit;
+	}
+
+	/* check if sta listen interval fits into AP dtim */
+	if (dtim_assoc > LISTEN_INTERVAL) {
+		/* AP DTIM to big for our Listen Interval : no dtim skiping */
+		bcn_li_dtim = 1;
+		DHD_ERROR(("%s DTIM=%d > Listen=%d : too big ...\n", \
+				 __FUNCTION__, dtim_assoc, LISTEN_INTERVAL));
+		goto exit;
+	}
+
+	if ((bcn_li_dtim * dtim_assoc) > LISTEN_INTERVAL) {
+		/* Round up dtim_skip to fit into STAs Listen Interval */
+		bcn_li_dtim = (int)(LISTEN_INTERVAL / dtim_assoc);
+		DHD_TRACE(("%s agjust dtim_skip as %d\n", __FUNCTION__, bcn_li_dtim));
+	}
+
+exit:
+	return bcn_li_dtim;
+}
 
 #ifdef PNO_SUPPORT
 int dhd_pno_clean(dhd_pub_t *dhd)
@@ -1888,6 +1973,11 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr)
 	if (scan_fr  != 0)
 		pfn_param.scan_freq = htod32(scan_fr);
 
+	if (pfn_param.scan_freq > PNO_SCAN_MAX_FW) {
+		DHD_ERROR(("%s pno freq above %d sec\n", __FUNCTION__, PNO_SCAN_MAX_FW));
+		return err;
+	}
+
 	bcm_mkiovar("pfn_set", (char *)&pfn_param, sizeof(pfn_param), iovbuf, sizeof(iovbuf));
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
@@ -1912,6 +2002,9 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr)
 					__FUNCTION__, i, err));
 				return err;
 			}
+			else
+				DHD_ERROR(("%s set OK with PNO time=%d\n", __FUNCTION__, \
+								pfn_param.scan_freq));
 		}
 		else DHD_ERROR(("%s failed err=%d\n", __FUNCTION__, err));
 	}
@@ -1932,6 +2025,53 @@ int dhd_pno_get_status(dhd_pub_t *dhd)
 }
 
 #endif /* PNO_SUPPORT */
+
+#if defined(KEEP_ALIVE)
+int dhd_keep_alive_onoff(dhd_pub_t *dhd, int ka_on)
+{
+	char buf[256];
+	char *buf_ptr = buf;
+	wl_keep_alive_pkt_t keep_alive_pkt;
+	char * str;
+	int str_len, buf_len;
+	int res = 0;
+	int keep_alive_period = KEEP_ALIVE_PERIOD; /* in ms */
+
+	DHD_TRACE(("%s: ka:%d\n", __FUNCTION__, ka_on));
+
+	if (ka_on) { /* on suspend */
+		keep_alive_pkt.period_msec = keep_alive_period;
+
+	} else {
+		/* on resume, turn off keep_alive packets  */
+		keep_alive_pkt.period_msec = 0;
+	}
+
+	/* IOC var name  */
+	str = "keep_alive";
+	str_len = strlen(str);
+	strncpy(buf, str, str_len);
+	buf[str_len] = '\0';
+	buf_len = str_len + 1;
+
+	/* set ptr to IOCTL payload after the var name */
+	buf_ptr += buf_len; /* include term Z */
+
+	/* copy Keep-alive attributes from local var keep_alive_pkt */
+	str = NULL_PKT_STR;
+	keep_alive_pkt.len_bytes = strlen(str);
+
+	memcpy(buf_ptr, &keep_alive_pkt, WL_KEEP_ALIVE_FIXED_LEN);
+	buf_ptr += WL_KEEP_ALIVE_FIXED_LEN;
+
+	/* copy packet data */
+	memcpy(buf_ptr, str, keep_alive_pkt.len_bytes);
+	buf_len += (WL_KEEP_ALIVE_FIXED_LEN + keep_alive_pkt.len_bytes);
+
+	res = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, buf_len);
+	return res;
+}
+#endif /* defined(KEEP_ALIVE) */
 
 #if defined(CSCAN)
 
@@ -2183,4 +2323,4 @@ wl_iw_parse_channel_list(char** list_str, uint16* channel_list, int channel_num)
 	return num;
 }
 
-#endif 
+#endif

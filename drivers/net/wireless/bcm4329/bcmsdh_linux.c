@@ -301,7 +301,7 @@ int bcmsdh_remove(struct device *dev)
 	MFREE(osh, sdhc, sizeof(bcmsdh_hc_t));
 	osl_detach(osh);
 
-#if !defined(BCMLXSDMMC)
+#if !defined(BCMLXSDMMC) || defined(OOB_INTR_ONLY)
 	dev_set_drvdata(dev, NULL);
 #endif /* !defined(BCMLXSDMMC) */
 
@@ -581,8 +581,6 @@ bcmsdh_unregister(void)
 #endif /* BCMPLATFORM_BUS */
 }
 
-
-
 #if defined(OOB_INTR_ONLY)
 void bcmsdh_oob_intr_set(bool enable)
 {
@@ -624,6 +622,9 @@ int bcmsdh_register_oob_intr(void * dhdp)
 
 	SDLX_MSG(("%s Enter\n", __FUNCTION__));
 
+/* Example of  HW_OOB for HW2: please refer to your host  specifiction */
+/* sdhcinfo->oob_flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE; */
+
 	dev_set_drvdata(sdhcinfo->dev, dhdp);
 
 	if (!sdhcinfo->oob_irq_registered) {
@@ -646,10 +647,12 @@ void bcmsdh_unregister_oob_intr(void)
 {
 	SDLX_MSG(("%s: Enter\n", __FUNCTION__));
 
-	set_irq_wake(sdhcinfo->oob_irq, 0);
-	disable_irq(sdhcinfo->oob_irq);	/* just in case.. */
-	free_irq(sdhcinfo->oob_irq, NULL);
-	sdhcinfo->oob_irq_registered = FALSE;
+	if (sdhcinfo->oob_irq_registered) {
+		set_irq_wake(sdhcinfo->oob_irq, 0);
+		disable_irq(sdhcinfo->oob_irq);	/* just in case.. */
+		free_irq(sdhcinfo->oob_irq, NULL);
+		sdhcinfo->oob_irq_registered = FALSE;
+	}
 }
 #endif /* defined(OOB_INTR_ONLY) */
 /* Module parameters specific to each host-controller driver */
