@@ -728,7 +728,7 @@ static void atombios_crtc_set_dcpll(struct drm_crtc *crtc,
 			/* if the default dcpll clock is specified,
 			 * SetPixelClock provides the dividers
 			 */
-			args.v6.ulDispEngClkFreq = dispclk;
+			args.v6.ulDispEngClkFreq = cpu_to_le32(dispclk);
 			args.v6.ucPpll = ATOM_DCPLL;
 			break;
 		default:
