@@ -122,10 +122,6 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 	if (!i2c_wait_done(i2c_adap))
 		goto eio;
-	if (!i2c_slave_did_ack(i2c_adap)) {
-		retval = -ENXIO;
-		goto err;
-	}
 	if (i2c_debug) {
 		printk(" <W %02x %02x", msg->addr << 1, msg->buf[0]);
 		if (!(ctrl & I2C_NOSTOP))
@@ -209,10 +205,6 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 
 		if (!i2c_wait_done(i2c_adap))
 			goto eio;
-		if (cnt == 0 && !i2c_slave_did_ack(i2c_adap)) {
-			retval = -ENXIO;
-			goto err;
-		}
 		msg->buf[cnt] = cx_read(bus->reg_rdata) & 0xff;
 		if (i2c_debug) {
 			dprintk(1, " %02x", msg->buf[cnt]);
