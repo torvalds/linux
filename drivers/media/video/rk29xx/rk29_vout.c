@@ -39,9 +39,14 @@
 #define norm_maxw() 	1920
 #define norm_maxh() 	1080
 
+#if 1
+#define rk29_vout_dbg(dev, format, arg...)		\
+	dev_printk(KERN_INFO , dev , format , ## arg)
+#else
+#define rk29_vout_dbg(dev, format, arg...)	
 
-static int dev_nr = 1; 
-static int debug = 1;
+#endif
+
 
 static unsigned int vid_limit = 16; //16M
 
@@ -54,7 +59,7 @@ struct rk29_vid_device {
 	struct rk29_vout_device *vouts[VOUT_NR];
 	struct v4l2_device 		v4l2_dev;
 
-	struct list_head 		devlist;
+	struct device 			*dev;
 };
 struct rk29_vout_device {
 	int 					vid;
@@ -65,6 +70,7 @@ struct rk29_vout_device {
 	enum v4l2_memory 		memory;
 	struct v4l2_pix_format 	pix;
 	struct v4l2_rect 		crop;
+	struct v4l2_rect 		win;
 	struct v4l2_control 	ctrl;
 	struct rk29_vbuf 		vbuf;
 
@@ -127,8 +133,14 @@ static int vidioc_g_fmt_vid_out(struct file *file, void *priv,
 {
 	struct rk29_vout_device *vout = priv;
 
-	f->fmt.pix = vout->pix;
-
+	if(f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		f->fmt.pix = vout->pix;
+	else if(f->type == V4L2_BUF_TYPE_VIDEO_OVERLAY) {
+		f->fmt.win.w.width = vout->win.width;
+		f->fmt.win.w.height = vout->win.height;
+	}
+	else
+		return -EINVAL;
 	return 0;
 }
 static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
@@ -140,7 +152,7 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 
 	fmt = get_format(f);
 	if (!fmt) {
-		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Fourcc format (0x%08x) invalid.\n",
+		rk29_vout_dbg(vout->vid_dev->dev, "Fourcc format (0x%08x) invalid.\n",
 			f->fmt.pix.pixelformat);
 		return -EINVAL;
 	}
@@ -162,26 +174,66 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 {
 	struct rk29_vout_device *vout = priv;
 
-	int ret = vidioc_try_fmt_vid_out(file, vout, f);
-	if (ret < 0)
-		return ret;
+	int ret = 0;
+	if(f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+		ret = vidioc_try_fmt_vid_out(file, vout, f);
+		if (ret < 0)
+			return ret;
 
-	mutex_lock(&vout->mutex);
+		mutex_lock(&vout->mutex);
 
-	if (videobuf_queue_is_busy(&vout->vbq)) {
-		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "%s queue busy\n", __func__);
-		ret = -EBUSY;
-		goto out;
-	}
+		if (videobuf_queue_is_busy(&vout->vbq)) {
+			rk29_vout_dbg(vout->vid_dev->dev, "%s queue busy\n", __func__);
+			ret = -EBUSY;
+			goto out;
+		}
 
-	vout->pix 			= f->fmt.pix;
-	vout->vbq.field 	= f->fmt.pix.field;
-	vout->type          = f->type;
+		vout->pix 			= f->fmt.pix;
+		vout->vbq.field 	= f->fmt.pix.field;
+		vout->type          = f->type;
 
-	ret = 0;
+		ret = 0;
 out:
-	mutex_unlock(&vout->mutex);
+		mutex_unlock(&vout->mutex);
+	}
+	else if(f->type == V4L2_BUF_TYPE_VIDEO_OVERLAY) {
+		if ((f->fmt.win.w.width < 0) || (f->fmt.win.w.height < 0)) {
+			rk29_vout_dbg(vout->vid_dev->dev, "The win rect must be bigger than 0\n");
+			ret =  -EINVAL;
+		}
 
+		if ((f->fmt.win.w.width > vout->win.width) || (f->fmt.win.w.height > vout->win.height)) {
+			rk29_vout_dbg(vout->vid_dev->dev, "The win width/height must be smaller than "
+				"%d and %d\n", vout->win.width, vout->win.height);
+			ret =  -EINVAL;
+		}
+
+		if ((f->fmt.win.w.left < 0) || (f->fmt.win.w.top < 0)) {
+			rk29_vout_dbg(vout->vid_dev->dev, "The win left, top must be  bigger than 0\n");
+			ret =  -EINVAL;
+		}
+
+		if ((f->fmt.win.w.left > vout->win.width) || (f->fmt.win.w.top > vout->win.height)) {
+			rk29_vout_dbg(vout->vid_dev->dev, "The win left, top must be smaller than %d, %d\n",
+				vout->win.width, vout->win.height);
+			ret =  -EINVAL;
+		}
+
+		if ((f->fmt.win.w.left + f->fmt.win.w.width) > vout->win.width) {
+			rk29_vout_dbg(vout->vid_dev->dev, "The win rect must be in bound rect\n");
+			ret =  -EINVAL;
+		}
+
+		if ((f->fmt.win.w.top + f->fmt.win.w.height) > vout->win.height) {
+			rk29_vout_dbg(vout->vid_dev->dev, "The win rect must be in bound rect\n");
+			ret =  -EINVAL;
+		}
+		mutex_lock(&vout->mutex);
+		vout->win = f->fmt.win.w;
+		mutex_unlock(&vout->mutex);
+	}
+	else
+		ret = -EINVAL;
 	return ret;
 }
 static int vidioc_reqbufs(struct file *file, void *priv,
@@ -285,44 +337,38 @@ static int vidioc_s_crop(struct file *file, void *priv,
 		return -EINVAL;
 
 	if (vout->vbq.streaming) {
-		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "vedio is running\n");
+		rk29_vout_dbg(vout->vid_dev->dev, "vedio is running\n");
 		return -EBUSY;
 	}
 	if ((crop->c.width < 0) || (crop->c.height < 0)) {
-		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, 
-			"The crop rect must be bigger than 0\n");
+		rk29_vout_dbg(vout->vid_dev->dev, "The crop rect must be bigger than 0\n");
 		return -EINVAL;
 	}
 
-	if ((crop->c.width > norm_maxw()) || (crop->c.height > norm_maxh())) {
-		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, 
-			"The crop width/height must be smaller than "
-			"%d and %d\n", norm_maxw(), norm_maxh());
+	if ((crop->c.width > vout->pix.width) || (crop->c.height > vout->pix.height)) {
+		rk29_vout_dbg(vout->vid_dev->dev, "The crop width/height must be smaller than "
+			"%d and %d\n", vout->pix.width, vout->pix.height);
 		return -EINVAL;
 	}
 
 	if ((crop->c.left < 0) || (crop->c.top < 0)) {
-		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, 
-			"The crop left, top must be  bigger than 0\n");
+		rk29_vout_dbg(vout->vid_dev->dev, "The crop left, top must be  bigger than 0\n");
 		return -EINVAL;
 	}
 
-	if ((crop->c.left > norm_maxw()) || (crop->c.top > norm_maxh())) {
-		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, 
-			"The crop left, top must be smaller than %d, %d\n",
-			norm_maxw(), norm_maxh());
+	if ((crop->c.left > vout->pix.width) || (crop->c.top > vout->pix.height)) {
+		rk29_vout_dbg(vout->vid_dev->dev, "The crop left, top must be smaller than %d, %d\n",
+			vout->pix.width, vout->pix.height);
 		return -EINVAL;
 	}
 
-	if ((crop->c.left + crop->c.width) > norm_maxw()) {
-		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, 
-			"The crop rect must be in bound rect\n");
+	if ((crop->c.left + crop->c.width) > vout->pix.width) {
+		rk29_vout_dbg(vout->vid_dev->dev, "The crop rect must be in bound rect\n");
 		return -EINVAL;
 	}
 
-	if ((crop->c.top + crop->c.height) > norm_maxh()) {
-		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, 
-			"The crop rect must be in bound rect\n");
+	if ((crop->c.top + crop->c.height) > vout->pix.height) {
+		rk29_vout_dbg(vout->vid_dev->dev, "The crop rect must be in bound rect\n");
 		return -EINVAL;
 	}
 
@@ -414,7 +460,7 @@ static int rk29_vout_open(struct file *file)
 {
 	struct rk29_vout_device *vout = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Entering %s\n", __func__);
+	rk29_vout_dbg(vout->vid_dev->dev, "Entering %s\n", __func__);
 
 	if (vout == NULL)
 		return -ENODEV;
@@ -437,7 +483,7 @@ static int rk29_vout_open(struct file *file)
 			vout->vbq.dev, &vout->lock, vout->type, V4L2_FIELD_NONE,
 			sizeof(struct videobuf_buffer), vout);
 
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
+	rk29_vout_dbg(vout->vid_dev->dev, "Exiting %s\n", __func__);
 
 	return 0;
 }
@@ -446,7 +492,7 @@ static int rk29_vout_release(struct file *file)
 	struct videobuf_queue *q;
 	struct rk29_vout_device *vout = file->private_data;
 	
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Entering %s\n", __func__);
+	rk29_vout_dbg(vout->vid_dev->dev, "Entering %s\n", __func__);
 	
 	if (!vout)
 		return 0;
@@ -458,7 +504,7 @@ static int rk29_vout_release(struct file *file)
 	vout->opened -= 1;
 	mutex_unlock(&vout->mutex);
 	file->private_data = NULL;
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
+	rk29_vout_dbg(vout->vid_dev->dev, "Exiting %s\n", __func__);
 	
 	return 0;
 }
@@ -506,8 +552,8 @@ static int rk29_vout_create_video_devices(struct platform_device *pdev)
 		vid_dev->vouts[k] = vout;
 		vout->vid_dev = vid_dev;
 
-		vout->pix.width = VOUT_WIDTH;
-		vout->pix.height = VOUT_HEIGHT;
+		vout->pix.width = norm_maxw();
+		vout->pix.height = norm_maxh();
 		
 		vout->pix.pixelformat = formats[0].fourcc;
 		vout->pix.field = V4L2_FIELD_NONE;
@@ -515,6 +561,11 @@ static int rk29_vout_create_video_devices(struct platform_device *pdev)
 		vout->pix.sizeimage = vout->pix.height * vout->pix.bytesperline;
 		vout->pix.colorspace = V4L2_COLORSPACE_JPEG;
 		vout->pix.priv = 0;
+
+		vout->win.width = VOUT_WIDTH;
+		vout->win.height = VOUT_HEIGHT;
+		vout->win.left = 0;
+		vout->win.top = 0;
 
 		vfd = vout->vfd = video_device_alloc();
 		if (!vfd){
@@ -546,7 +597,7 @@ error0:
 		return ret;
 
 success:
-		dev_info(&pdev->dev, ": registered and initialized"
+		dev_info(&pdev->dev, "registered and initialized"
 				" video device %d\n", vfd->minor);
 	}
 
@@ -561,6 +612,8 @@ static int __init rk29_vout_probe(struct platform_device *pdev)
 	vid_dev = kzalloc(sizeof(struct rk29_vid_device), GFP_KERNEL);
 	if (!vid_dev)
 		return -ENOMEM;
+
+	vid_dev->dev = &pdev->dev;
 
 	if ((ret = v4l2_device_register(&pdev->dev, &vid_dev->v4l2_dev)) < 0){
 		dev_err(&pdev->dev, "v4l2_device_register failed\n");
