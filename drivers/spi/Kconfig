@@ -53,6 +53,12 @@ if SPI_MASTER
 
 comment "SPI Master Controller Drivers"
 
+config SPI_ALTERA
+	tristate "Altera SPI Controller"
+	select SPI_BITBANG
+	help
+	  This is the driver for the Altera SPI Controller.
+
 config SPI_ATH79
 	tristate "Atheros AR71XX/AR724X/AR913X SPI controller driver"
 	depends on ATH79 && GENERIC_GPIO
