@@ -318,7 +318,7 @@ config ACPI_PCI_SLOT
 	  the module will be called pci_slot.
 
 config X86_PM_TIMER
-	bool "Power Management Timer Support" if EMBEDDED
+	bool "Power Management Timer Support" if EXPERT
 	depends on X86
 	default y
 	help

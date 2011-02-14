@@ -501,8 +501,8 @@ static int policydb_index(struct policydb *p)
 	if (rc)
 		goto out;
 
-	rc = -ENOMEM;
-	if (cond_init_bool_indexes(p))
+	rc = cond_init_bool_indexes(p);
+	if (rc)
 		goto out;
 
 	for (i = 0; i < SYM_NUM; i++) {

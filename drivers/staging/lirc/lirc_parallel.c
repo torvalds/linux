@@ -376,6 +376,7 @@ static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
 	unsigned long flags;
 	int counttimer;
 	int *wbuf;
+	ssize_t ret;
 
 	if (!is_claimed)
 		return -EBUSY;
@@ -393,8 +394,10 @@ static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
 	if (timer == 0) {
 		/* try again if device is ready */
 		timer = init_lirc_timer();
-		if (timer == 0)
-			return -EIO;
+		if (timer == 0) {
+			ret = -EIO;
+			goto out;
+		}
 	}
 
 	/* adjust values from usecs */
@@ -420,7 +423,8 @@ static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
 			if (check_pselecd && (in(1) & LP_PSELECD)) {
 				lirc_off();
 				local_irq_restore(flags);
-				return -EIO;
+				ret = -EIO;
+				goto out;
 			}
 		} while (counttimer < wbuf[i]);
 		i++;
@@ -436,7 +440,8 @@ static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
 			level = newlevel;
 			if (check_pselecd && (in(1) & LP_PSELECD)) {
 				local_irq_restore(flags);
-				return -EIO;
+				ret = -EIO;
+				goto out;
 			}
 		} while (counttimer < wbuf[i]);
 		i++;
@@ -445,7 +450,11 @@ static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
 #else
 	/* place code that handles write without external timer here */
 #endif
-	return n;
+	ret = n;
+out:
+	kfree(wbuf);
+
+	return ret;
 }
 
 static unsigned int lirc_poll(struct file *file, poll_table *wait)

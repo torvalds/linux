@@ -1573,7 +1573,7 @@ static void bnx2x_set_aer_mmd_xgxs(struct link_params *params,
 
 	offset = phy->addr + ser_lane;
 	if (CHIP_IS_E2(bp))
-		aer_val = 0x2800 + offset - 1;
+		aer_val = 0x3800 + offset - 1;
 	else
 		aer_val = 0x3800 + offset;
 	CL45_WR_OVER_CL22(bp, phy,
@@ -3166,7 +3166,23 @@ u8 bnx2x_set_led(struct link_params *params,
 		if (!vars->link_up)
 			break;
 	case LED_MODE_ON:
-		if (SINGLE_MEDIA_DIRECT(params)) {
+		if (params->phy[EXT_PHY1].type ==
+		    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727 &&
+		    CHIP_IS_E2(bp) && params->num_phys == 2) {
+			/**
+			* This is a work-around for E2+8727 Configurations
+			*/
+			if (mode == LED_MODE_ON ||
+				speed == SPEED_10000){
+				REG_WR(bp, NIG_REG_LED_MODE_P0 + port*4, 0);
+				REG_WR(bp, NIG_REG_LED_10G_P0 + port*4, 1);
+
+				tmp = EMAC_RD(bp, EMAC_REG_EMAC_LED);
+				EMAC_WR(bp, EMAC_REG_EMAC_LED,
+					(tmp | EMAC_LED_OVERRIDE));
+				return rc;
+			}
+		} else if (SINGLE_MEDIA_DIRECT(params)) {
 			/**
 			* This is a work-around for HW issue found when link
 			* is up in CL73
@@ -3854,11 +3870,14 @@ static void bnx2x_8073_resolve_fc(struct bnx2x_phy *phy,
 			   pause_result);
 	}
 }
-
-static void bnx2x_8073_8727_external_rom_boot(struct bnx2x *bp,
+static u8 bnx2x_8073_8727_external_rom_boot(struct bnx2x *bp,
 					      struct bnx2x_phy *phy,
 					      u8 port)
 {
+	u32 count = 0;
+	u16 fw_ver1, fw_msgout;
+	u8 rc = 0;
+
 	/* Boot port from external ROM  */
 	/* EDC grst */
 	bnx2x_cl45_write(bp, phy,
@@ -3888,56 +3907,45 @@ static void bnx2x_8073_8727_external_rom_boot(struct bnx2x *bp,
 		       MDIO_PMA_REG_GEN_CTRL,
 		       MDIO_PMA_REG_GEN_CTRL_ROM_RESET_INTERNAL_MP);
 
-	/* wait for 120ms for code download via SPI port */
-	msleep(120);
+	/* Delay 100ms per the PHY specifications */
+	msleep(100);
+
+	/* 8073 sometimes taking longer to download */
+	do {
+		count++;
+		if (count > 300) {
+			DP(NETIF_MSG_LINK,
+				 "bnx2x_8073_8727_external_rom_boot port %x:"
+				 "Download failed. fw version = 0x%x\n",
+				 port, fw_ver1);
+			rc = -EINVAL;
+			break;
+		}
+
+		bnx2x_cl45_read(bp, phy,
+				MDIO_PMA_DEVAD,
+				MDIO_PMA_REG_ROM_VER1, &fw_ver1);
+		bnx2x_cl45_read(bp, phy,
+				MDIO_PMA_DEVAD,
+				MDIO_PMA_REG_M8051_MSGOUT_REG, &fw_msgout);
+
+		msleep(1);
+	} while (fw_ver1 == 0 || fw_ver1 == 0x4321 ||
+			((fw_msgout & 0xff) != 0x03 && (phy->type ==
+			PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073)));
 
 	/* Clear ser_boot_ctl bit */
 	bnx2x_cl45_write(bp, phy,
 		       MDIO_PMA_DEVAD,
 		       MDIO_PMA_REG_MISC_CTRL1, 0x0000);
 	bnx2x_save_bcm_spirom_ver(bp, phy, port);
-}
 
-static void bnx2x_8073_set_xaui_low_power_mode(struct bnx2x *bp,
-					       struct bnx2x_phy *phy)
-{
-	u16 val;
-	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_8073_CHIP_REV, &val);
+	DP(NETIF_MSG_LINK,
+		 "bnx2x_8073_8727_external_rom_boot port %x:"
+		 "Download complete. fw version = 0x%x\n",
+		 port, fw_ver1);
 
-	if (val == 0) {
-		/* Mustn't set low power mode in 8073 A0 */
-		return;
-	}
-
-	/* Disable PLL sequencer (use read-modify-write to clear bit 13) */
-	bnx2x_cl45_read(bp, phy,
-			MDIO_XS_DEVAD, MDIO_XS_PLL_SEQUENCER, &val);
-	val &= ~(1<<13);
-	bnx2x_cl45_write(bp, phy,
-		       MDIO_XS_DEVAD, MDIO_XS_PLL_SEQUENCER, val);
-
-	/* PLL controls */
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x805E, 0x1077);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x805D, 0x0000);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x805C, 0x030B);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x805B, 0x1240);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x805A, 0x2490);
-
-	/* Tx Controls */
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x80A7, 0x0C74);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x80A6, 0x9041);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x80A5, 0x4640);
-
-	/* Rx Controls */
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x80FE, 0x01C4);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x80FD, 0x9249);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, 0x80FC, 0x2015);
-
-	/* Enable PLL sequencer  (use read-modify-write to set bit 13) */
-	bnx2x_cl45_read(bp, phy, MDIO_XS_DEVAD, MDIO_XS_PLL_SEQUENCER, &val);
-	val |= (1<<13);
-	bnx2x_cl45_write(bp, phy, MDIO_XS_DEVAD, MDIO_XS_PLL_SEQUENCER, val);
+	return rc;
 }
 
 /******************************************************************/
@@ -4098,8 +4106,6 @@ static u8 bnx2x_8073_config_init(struct bnx2x_phy *phy,
 
 	bnx2x_8073_set_pause_cl37(params, phy, vars);
 
-	bnx2x_8073_set_xaui_low_power_mode(bp, phy);
-
 	bnx2x_cl45_read(bp, phy,
 			MDIO_PMA_DEVAD, MDIO_PMA_REG_M8051_MSGOUT_REG, &tmp1);
 
@@ -4107,6 +4113,25 @@ static u8 bnx2x_8073_config_init(struct bnx2x_phy *phy,
 			MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM, &tmp1);
 
 	DP(NETIF_MSG_LINK, "Before rom RX_ALARM(port1): 0x%x\n", tmp1);
+
+	/**
+	 * If this is forced speed, set to KR or KX (all other are not
+	 * supported)
+	 */
+	/* Swap polarity if required - Must be done only in non-1G mode */
+	if (params->lane_config & PORT_HW_CFG_SWAP_PHY_POLARITY_ENABLED) {
+		/* Configure the 8073 to swap _P and _N of the KR lines */
+		DP(NETIF_MSG_LINK, "Swapping polarity for the 8073\n");
+		/* 10G Rx/Tx and 1G Tx signal polarity swap */
+		bnx2x_cl45_read(bp, phy,
+				MDIO_PMA_DEVAD,
+				MDIO_PMA_REG_8073_OPT_DIGITAL_CTRL, &val);
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD,
+				 MDIO_PMA_REG_8073_OPT_DIGITAL_CTRL,
+				 (val | (3<<9)));
+	}
+
 
 	/* Enable CL37 BAM */
 	if (REG_RD(bp, params->shmem_base +
@@ -4314,8 +4339,32 @@ static u8 bnx2x_8073_read_status(struct bnx2x_phy *phy,
 	}
 
 	if (link_up) {
+		/* Swap polarity if required */
+		if (params->lane_config &
+		    PORT_HW_CFG_SWAP_PHY_POLARITY_ENABLED) {
+			/* Configure the 8073 to swap P and N of the KR lines */
+			bnx2x_cl45_read(bp, phy,
+					MDIO_XS_DEVAD,
+					MDIO_XS_REG_8073_RX_CTRL_PCIE, &val1);
+			/**
+			* Set bit 3 to invert Rx in 1G mode and clear this bit
+			* when it`s in 10G mode.
+			*/
+			if (vars->line_speed == SPEED_1000) {
+				DP(NETIF_MSG_LINK, "Swapping 1G polarity for"
+					      "the 8073\n");
+				val1 |= (1<<3);
+			} else
+				val1 &= ~(1<<3);
+
+			bnx2x_cl45_write(bp, phy,
+					 MDIO_XS_DEVAD,
+					 MDIO_XS_REG_8073_RX_CTRL_PCIE,
+					 val1);
+		}
 		bnx2x_ext_phy_10G_an_resolve(bp, phy, vars);
 		bnx2x_8073_resolve_fc(phy, params, vars);
+		vars->duplex = DUPLEX_FULL;
 	}
 	return link_up;
 }
@@ -5062,6 +5111,7 @@ static u8 bnx2x_8706_8726_read_status(struct bnx2x_phy *phy,
 		else
 			vars->line_speed = SPEED_10000;
 		bnx2x_ext_phy_resolve_fc(phy, params, vars);
+		vars->duplex = DUPLEX_FULL;
 	}
 	return link_up;
 }
@@ -5758,8 +5808,11 @@ static u8 bnx2x_8727_read_status(struct bnx2x_phy *phy,
 		DP(NETIF_MSG_LINK, "port %x: External link is down\n",
 			   params->port);
 	}
-	if (link_up)
+	if (link_up) {
 		bnx2x_ext_phy_resolve_fc(phy, params, vars);
+		vars->duplex = DUPLEX_FULL;
+		DP(NETIF_MSG_LINK, "duplex = 0x%x\n", vars->duplex);
+	}
 
 	if ((DUAL_MEDIA(params)) &&
 	    (phy->req_line_speed == SPEED_1000)) {
@@ -5875,10 +5928,26 @@ static void bnx2x_848xx_set_led(struct bnx2x *bp,
 			 MDIO_PMA_REG_8481_LED2_MASK,
 			 0x18);
 
+	/* Select activity source by Tx and Rx, as suggested by PHY AE */
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD,
 			 MDIO_PMA_REG_8481_LED3_MASK,
-			 0x0040);
+			 0x0006);
+
+	/* Select the closest activity blink rate to that in 10/100/1000 */
+	bnx2x_cl45_write(bp, phy,
+			MDIO_PMA_DEVAD,
+			MDIO_PMA_REG_8481_LED3_BLINK,
+			0);
+
+	bnx2x_cl45_read(bp, phy,
+			MDIO_PMA_DEVAD,
+			MDIO_PMA_REG_84823_CTL_LED_CTL_1, &val);
+	val |= MDIO_PMA_REG_84823_LED3_STRETCH_EN; /* stretch_en for LED3*/
+
+	bnx2x_cl45_write(bp, phy,
+			 MDIO_PMA_DEVAD,
+			 MDIO_PMA_REG_84823_CTL_LED_CTL_1, val);
 
 	/* 'Interrupt Mask' */
 	bnx2x_cl45_write(bp, phy,
@@ -6126,6 +6195,7 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 	/* Check link 10G */
 	if (val2 & (1<<11)) {
 		vars->line_speed = SPEED_10000;
+		vars->duplex = DUPLEX_FULL;
 		link_up = 1;
 		bnx2x_ext_phy_10G_an_resolve(bp, phy, vars);
 	} else { /* Check Legacy speed link */
@@ -6405,6 +6475,18 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LED1_MASK,
 					 0x80);
+
+			/* Tell LED3 to blink on source */
+			bnx2x_cl45_read(bp, phy,
+					MDIO_PMA_DEVAD,
+					MDIO_PMA_REG_8481_LINK_SIGNAL,
+					&val);
+			val &= ~(7<<6);
+			val |= (1<<6); /* A83B[8:6]= 1 */
+			bnx2x_cl45_write(bp, phy,
+					 MDIO_PMA_DEVAD,
+					 MDIO_PMA_REG_8481_LINK_SIGNAL,
+					 val);
 		}
 		break;
 	}
@@ -6489,6 +6571,7 @@ static u8 bnx2x_7101_read_status(struct bnx2x_phy *phy,
 				MDIO_AN_DEVAD, MDIO_AN_REG_MASTER_STATUS,
 				&val2);
 		vars->line_speed = SPEED_10000;
+		vars->duplex = DUPLEX_FULL;
 		DP(NETIF_MSG_LINK, "SFX7101 AN status 0x%x->Master=%x\n",
 			   val2, (val2 & (1<<14)));
 		bnx2x_ext_phy_10G_an_resolve(bp, phy, vars);
@@ -7605,10 +7688,13 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp,
 	struct bnx2x_phy phy[PORT_MAX];
 	struct bnx2x_phy *phy_blk[PORT_MAX];
 	u16 val;
-	s8 port;
+	s8 port = 0;
 	s8 port_of_path = 0;
-
-	bnx2x_ext_phy_hw_reset(bp, 0);
+	u32 swap_val, swap_override;
+	swap_val = REG_RD(bp,  NIG_REG_PORT_SWAP);
+	swap_override = REG_RD(bp,  NIG_REG_STRAP_OVERRIDE);
+	port ^= (swap_val && swap_override);
+	bnx2x_ext_phy_hw_reset(bp, port);
 	/* PART1 - Reset both phys */
 	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
 		u32 shmem_base, shmem2_base;
@@ -7663,7 +7749,6 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp,
 
 	/* PART2 - Download firmware to both phys */
 	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
-		u16 fw_ver1;
 		if (CHIP_IS_E2(bp))
 			port_of_path = 0;
 		else
@@ -7671,19 +7756,9 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp,
 
 		DP(NETIF_MSG_LINK, "Loading spirom for phy address 0x%x\n",
 			   phy_blk[port]->addr);
-		bnx2x_8073_8727_external_rom_boot(bp, phy_blk[port],
-						  port_of_path);
-
-		bnx2x_cl45_read(bp, phy_blk[port],
-			      MDIO_PMA_DEVAD,
-			      MDIO_PMA_REG_ROM_VER1, &fw_ver1);
-		if (fw_ver1 == 0 || fw_ver1 == 0x4321) {
-			DP(NETIF_MSG_LINK,
-				 "bnx2x_8073_common_init_phy port %x:"
-				 "Download failed. fw version = 0x%x\n",
-				 port, fw_ver1);
+		if (bnx2x_8073_8727_external_rom_boot(bp, phy_blk[port],
+						      port_of_path))
 			return -EINVAL;
-		}
 
 		/* Only set bit 10 = 1 (Tx power down) */
 		bnx2x_cl45_read(bp, phy_blk[port],
@@ -7848,27 +7923,17 @@ static u8 bnx2x_8727_common_init_phy(struct bnx2x *bp,
 	}
 	/* PART2 - Download firmware to both phys */
 	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
-		u16 fw_ver1;
 		 if (CHIP_IS_E2(bp))
 			port_of_path = 0;
 		else
 			port_of_path = port;
 		DP(NETIF_MSG_LINK, "Loading spirom for phy address 0x%x\n",
 			   phy_blk[port]->addr);
-		bnx2x_8073_8727_external_rom_boot(bp, phy_blk[port],
-						  port_of_path);
-		bnx2x_cl45_read(bp, phy_blk[port],
-			      MDIO_PMA_DEVAD,
-			      MDIO_PMA_REG_ROM_VER1, &fw_ver1);
-		if (fw_ver1 == 0 || fw_ver1 == 0x4321) {
-			DP(NETIF_MSG_LINK,
-				 "bnx2x_8727_common_init_phy port %x:"
-				 "Download failed. fw version = 0x%x\n",
-				 port, fw_ver1);
+		if (bnx2x_8073_8727_external_rom_boot(bp, phy_blk[port],
+						      port_of_path))
 			return -EINVAL;
-		}
-	}
 
+	}
 	return 0;
 }
 
@@ -7916,12 +7981,23 @@ u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base_path[],
 			 u32 shmem2_base_path[], u32 chip_id)
 {
 	u8 rc = 0;
+	u32 phy_ver;
 	u8 phy_index;
 	u32 ext_phy_type, ext_phy_config;
 	DP(NETIF_MSG_LINK, "Begin common phy init\n");
 
 	if (CHIP_REV_IS_EMUL(bp))
 		return 0;
+
+	/* Check if common init was already done */
+	phy_ver = REG_RD(bp, shmem_base_path[0] +
+			 offsetof(struct shmem_region,
+				  port_mb[PORT_0].ext_phy_fw_version));
+	if (phy_ver) {
+		DP(NETIF_MSG_LINK, "Not doing common init; phy ver is 0x%x\n",
+			       phy_ver);
+		return 0;
+	}
 
 	/* Read the ext_phy_type for arbitrary port(0) */
 	for (phy_index = EXT_PHY1; phy_index < MAX_PHYS;

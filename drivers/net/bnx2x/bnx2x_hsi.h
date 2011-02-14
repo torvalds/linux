@@ -352,6 +352,10 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 #define PORT_HW_CFG_LANE_SWAP_CFG_31203120	    0x0000d8d8
 	/* forced only */
 #define PORT_HW_CFG_LANE_SWAP_CFG_32103210	    0x0000e4e4
+    /*	Indicate whether to swap the external phy polarity */
+#define PORT_HW_CFG_SWAP_PHY_POLARITY_MASK	       0x00010000
+#define PORT_HW_CFG_SWAP_PHY_POLARITY_DISABLED	    0x00000000
+#define PORT_HW_CFG_SWAP_PHY_POLARITY_ENABLED	    0x00010000
 
 	u32 external_phy_config;
 #define PORT_HW_CFG_SERDES_EXT_PHY_TYPE_MASK	    0xff000000

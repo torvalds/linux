@@ -2189,8 +2189,8 @@ int dquot_resume(struct super_block *sb, int type)
 }
 EXPORT_SYMBOL(dquot_resume);
 
-int dquot_quota_on_path(struct super_block *sb, int type, int format_id,
-		      struct path *path)
+int dquot_quota_on(struct super_block *sb, int type, int format_id,
+		   struct path *path)
 {
 	int error = security_quota_on(path->dentry);
 	if (error)
@@ -2202,20 +2202,6 @@ int dquot_quota_on_path(struct super_block *sb, int type, int format_id,
 		error = vfs_load_quota_inode(path->dentry->d_inode, type,
 					     format_id, DQUOT_USAGE_ENABLED |
 					     DQUOT_LIMITS_ENABLED);
-	return error;
-}
-EXPORT_SYMBOL(dquot_quota_on_path);
-
-int dquot_quota_on(struct super_block *sb, int type, int format_id, char *name)
-{
-	struct path path;
-	int error;
-
-	error = kern_path(name, LOOKUP_FOLLOW, &path);
-	if (!error) {
-		error = dquot_quota_on_path(sb, type, format_id, &path);
-		path_put(&path);
-	}
 	return error;
 }
 EXPORT_SYMBOL(dquot_quota_on);

@@ -35,6 +35,8 @@
 
 /* system i/o configuration register high */
 #define MPC83XX_SICRH_OFFS         0x118
+#define MPC8308_SICRH_USB_MASK     0x000c0000
+#define MPC8308_SICRH_USB_ULPI     0x00040000
 #define MPC834X_SICRH_USB_UTMI     0x00020000
 #define MPC831X_SICRH_USB_MASK     0x000000e0
 #define MPC831X_SICRH_USB_ULPI     0x000000a0

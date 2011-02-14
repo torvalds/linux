@@ -1213,6 +1213,26 @@ static bool g4x_fbc_enabled(struct drm_device *dev)
 	return I915_READ(DPFC_CONTROL) & DPFC_CTL_EN;
 }
 
+static void sandybridge_blit_fbc_update(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 blt_ecoskpd;
+
+	/* Make sure blitter notifies FBC of writes */
+	__gen6_force_wake_get(dev_priv);
+	blt_ecoskpd = I915_READ(GEN6_BLITTER_ECOSKPD);
+	blt_ecoskpd |= GEN6_BLITTER_FBC_NOTIFY <<
+		GEN6_BLITTER_LOCK_SHIFT;
+	I915_WRITE(GEN6_BLITTER_ECOSKPD, blt_ecoskpd);
+	blt_ecoskpd |= GEN6_BLITTER_FBC_NOTIFY;
+	I915_WRITE(GEN6_BLITTER_ECOSKPD, blt_ecoskpd);
+	blt_ecoskpd &= ~(GEN6_BLITTER_FBC_NOTIFY <<
+			 GEN6_BLITTER_LOCK_SHIFT);
+	I915_WRITE(GEN6_BLITTER_ECOSKPD, blt_ecoskpd);
+	POSTING_READ(GEN6_BLITTER_ECOSKPD);
+	__gen6_force_wake_put(dev_priv);
+}
+
 static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1266,6 +1286,7 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		I915_WRITE(SNB_DPFC_CTL_SA,
 			   SNB_CPU_FENCE_ENABLE | dev_priv->cfb_fence);
 		I915_WRITE(DPFC_CPU_FENCE_OFFSET, crtc->y);
+		sandybridge_blit_fbc_update(dev);
 	}
 
 	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
@@ -5530,6 +5551,18 @@ cleanup_work:
 	return ret;
 }
 
+static void intel_crtc_reset(struct drm_crtc *crtc)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	/* Reset flags back to the 'unknown' status so that they
+	 * will be correctly set on the initial modeset.
+	 */
+	intel_crtc->cursor_addr = 0;
+	intel_crtc->dpms_mode = -1;
+	intel_crtc->active = true; /* force the pipe off on setup_init_config */
+}
+
 static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.dpms = intel_crtc_dpms,
 	.mode_fixup = intel_crtc_mode_fixup,
@@ -5541,6 +5574,7 @@ static struct drm_crtc_helper_funcs intel_helper_funcs = {
 };
 
 static const struct drm_crtc_funcs intel_crtc_funcs = {
+	.reset = intel_crtc_reset,
 	.cursor_set = intel_crtc_cursor_set,
 	.cursor_move = intel_crtc_cursor_move,
 	.gamma_set = intel_crtc_gamma_set,
@@ -5631,9 +5665,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	dev_priv->plane_to_crtc_mapping[intel_crtc->plane] = &intel_crtc->base;
 	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
 
-	intel_crtc->cursor_addr = 0;
-	intel_crtc->dpms_mode = -1;
-	intel_crtc->active = true; /* force the pipe off on setup_init_config */
+	intel_crtc_reset(&intel_crtc->base);
 
 	if (HAS_PCH_SPLIT(dev)) {
 		intel_helper_funcs.prepare = ironlake_crtc_prepare;
@@ -6286,7 +6318,9 @@ void intel_enable_clock_gating(struct drm_device *dev)
 
 		if (IS_GEN5(dev)) {
 			/* Required for FBC */
-			dspclk_gate |= DPFDUNIT_CLOCK_GATE_DISABLE;
+			dspclk_gate |= DPFCUNIT_CLOCK_GATE_DISABLE |
+				DPFCRUNIT_CLOCK_GATE_DISABLE |
+				DPFDUNIT_CLOCK_GATE_DISABLE;
 			/* Required for CxSR */
 			dspclk_gate |= DPARBUNIT_CLOCK_GATE_DISABLE;
 

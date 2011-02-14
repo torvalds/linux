@@ -95,12 +95,6 @@ static int squashfs_xz_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 			if (!buffer_uptodate(bh[k]))
 				goto release_mutex;
 
-			if (avail == 0) {
-				offset = 0;
-				put_bh(bh[k++]);
-				continue;
-			}
-
 			stream->buf.in = bh[k]->b_data + offset;
 			stream->buf.in_size = avail;
 			stream->buf.in_pos = 0;

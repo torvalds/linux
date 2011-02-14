@@ -78,7 +78,7 @@ struct tx_frame_hdr {
 	u8 node_idx;
 	u8 vif_idx;
 	u8 tidno;
-	u32 flags; /* ATH9K_HTC_TX_* */
+	__be32 flags; /* ATH9K_HTC_TX_* */
 	u8 key_type;
 	u8 keyix;
 	u8 reserved[26];

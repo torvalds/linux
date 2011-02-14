@@ -966,7 +966,7 @@ static ssize_t lirc_write(struct file *file, const char *buf,
 	if (n % sizeof(int) || count % 2 == 0)
 		return -EINVAL;
 	wbuf = memdup_user(buf, n);
-	if (PTR_ERR(wbuf))
+	if (IS_ERR(wbuf))
 		return PTR_ERR(wbuf);
 	spin_lock_irqsave(&hardware[type].lock, flags);
 	if (type == LIRC_IRDEO) {
@@ -981,6 +981,7 @@ static ssize_t lirc_write(struct file *file, const char *buf,
 	}
 	off();
 	spin_unlock_irqrestore(&hardware[type].lock, flags);
+	kfree(wbuf);
 	return n;
 }
 

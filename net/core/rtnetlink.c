@@ -1121,8 +1121,7 @@ static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[])
 				return -EOPNOTSUPP;
 
 			if (af_ops->validate_link_af) {
-				err = af_ops->validate_link_af(dev,
-							tb[IFLA_AF_SPEC]);
+				err = af_ops->validate_link_af(dev, af);
 				if (err < 0)
 					return err;
 			}
@@ -1672,6 +1671,9 @@ replay:
 			snprintf(ifname, IFNAMSIZ, "%s%%d", ops->kind);
 
 		dest_net = rtnl_link_get_net(net, tb);
+		if (IS_ERR(dest_net))
+			return PTR_ERR(dest_net);
+
 		dev = rtnl_create_link(net, dest_net, ifname, ops, tb);
 
 		if (IS_ERR(dev))
@@ -1820,7 +1822,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (kind != 2 && security_netlink_recv(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (kind == 2 && (nlh->nlmsg_flags & NLM_F_DUMP) == NLM_F_DUMP) {
+	if (kind == 2 && nlh->nlmsg_flags&NLM_F_DUMP) {
 		struct sock *rtnl;
 		rtnl_dumpit_func dumpit;
 

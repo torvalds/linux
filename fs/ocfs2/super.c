@@ -993,8 +993,7 @@ static void ocfs2_disable_quotas(struct ocfs2_super *osb)
 }
 
 /* Handle quota on quotactl */
-static int ocfs2_quota_on(struct super_block *sb, int type, int format_id,
-			  char *path)
+static int ocfs2_quota_on(struct super_block *sb, int type, int format_id)
 {
 	unsigned int feature[MAXQUOTAS] = { OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
 					     OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
@@ -1013,7 +1012,7 @@ static int ocfs2_quota_off(struct super_block *sb, int type)
 }
 
 static const struct quotactl_ops ocfs2_quotactl_ops = {
-	.quota_on	= ocfs2_quota_on,
+	.quota_on_meta	= ocfs2_quota_on,
 	.quota_off	= ocfs2_quota_off,
 	.quota_sync	= dquot_quota_sync,
 	.get_info	= dquot_get_dqinfo,

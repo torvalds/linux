@@ -536,6 +536,8 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 	root = root->fs_info->csum_root;
 
 	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
 
 	while (1) {
 		key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
@@ -548,7 +550,10 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 			if (path->slots[0] == 0)
 				goto out;
 			path->slots[0]--;
+		} else if (ret < 0) {
+			goto out;
 		}
+
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 

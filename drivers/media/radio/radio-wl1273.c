@@ -1407,7 +1407,7 @@ static const struct v4l2_file_operations wl1273_fops = {
 	.read		= wl1273_fm_fops_read,
 	.write		= wl1273_fm_fops_write,
 	.poll		= wl1273_fm_fops_poll,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 	.open		= wl1273_fm_fops_open,
 	.release	= wl1273_fm_fops_release,
 };

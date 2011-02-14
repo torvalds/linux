@@ -476,7 +476,7 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 static int get_inbound_buffer_frontier(struct qdio_q *q)
 {
 	int count, stop;
-	unsigned char state;
+	unsigned char state = 0;
 
 	/*
 	 * Don't check 128 buffers, as otherwise qdio_inbound_q_moved
@@ -643,7 +643,7 @@ void qdio_inbound_processing(unsigned long data)
 static int get_outbound_buffer_frontier(struct qdio_q *q)
 {
 	int count, stop;
-	unsigned char state;
+	unsigned char state = 0;
 
 	if (need_siga_sync(q))
 		if (((queue_type(q) != QDIO_IQDIO_QFMT) &&

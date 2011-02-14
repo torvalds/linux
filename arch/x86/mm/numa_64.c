@@ -30,7 +30,6 @@ s16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
 
-int numa_off __initdata;
 static unsigned long __initdata nodemap_addr;
 static unsigned long __initdata nodemap_size;
 
@@ -262,6 +261,11 @@ void __init numa_init_array(void)
 static struct bootnode nodes[MAX_NUMNODES] __initdata;
 static struct bootnode physnodes[MAX_NUMNODES] __cpuinitdata;
 static char *cmdline __initdata;
+
+void __init numa_emu_cmdline(char *str)
+{
+	cmdline = str;
+}
 
 static int __init setup_physnodes(unsigned long start, unsigned long end,
 					int acpi, int amd)
@@ -669,24 +673,6 @@ unsigned long __init numa_free_all_bootmem(void)
 
 	return pages;
 }
-
-static __init int numa_setup(char *opt)
-{
-	if (!opt)
-		return -EINVAL;
-	if (!strncmp(opt, "off", 3))
-		numa_off = 1;
-#ifdef CONFIG_NUMA_EMU
-	if (!strncmp(opt, "fake=", 5))
-		cmdline = opt + 5;
-#endif
-#ifdef CONFIG_ACPI_NUMA
-	if (!strncmp(opt, "noacpi", 6))
-		acpi_numa = -1;
-#endif
-	return 0;
-}
-early_param("numa", numa_setup);
 
 #ifdef CONFIG_NUMA
 

@@ -564,7 +564,7 @@ static int stv06xx_config(struct gspca_dev *gspca_dev,
 
 
 /* -- module initialisation -- */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	/* QuickCam Express */
 	{USB_DEVICE(0x046d, 0x0840), .driver_info = BRIDGE_STV600 },
 	/* LEGO cam / QuickCam Web */

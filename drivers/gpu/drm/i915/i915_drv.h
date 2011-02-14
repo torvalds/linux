@@ -543,8 +543,11 @@ typedef struct drm_i915_private {
 		/** List of all objects in gtt_space. Used to restore gtt
 		 * mappings on resume */
 		struct list_head gtt_list;
-		/** End of mappable part of GTT */
+
+		/** Usable portion of the GTT for GEM */
+		unsigned long gtt_start;
 		unsigned long gtt_mappable_end;
+		unsigned long gtt_end;
 
 		struct io_mapping *gtt_mapping;
 		int gtt_mtrr;

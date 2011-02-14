@@ -60,7 +60,7 @@ extern int intel_agp_enabled;
 
 #define INTEL_VGA_DEVICE(id, info) {		\
 	.class = PCI_CLASS_DISPLAY_VGA << 8,	\
-	.class_mask = 0xffff00,			\
+	.class_mask = 0xff0000,			\
 	.vendor = 0x8086,			\
 	.device = id,				\
 	.subvendor = PCI_ANY_ID,		\
@@ -354,6 +354,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 		error = i915_gem_init_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
 
+		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
 
 		/* Resume the modeset for every activated CRTC */
@@ -542,6 +543,7 @@ int i915_reset(struct drm_device *dev, u8 flags)
 
 		mutex_unlock(&dev->struct_mutex);
 		drm_irq_uninstall(dev);
+		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
 		mutex_lock(&dev->struct_mutex);
 	}
@@ -566,6 +568,14 @@ int i915_reset(struct drm_device *dev, u8 flags)
 static int __devinit
 i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	/* Only bind to function 0 of the device. Early generations
+	 * used function 1 as a placeholder for multi-head. This causes
+	 * us confusion instead, especially on the systems where both
+	 * functions have the same PCI-ID!
+	 */
+	if (PCI_FUNC(pdev->devfn))
+		return -ENODEV;
+
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
@@ -751,6 +761,9 @@ static int __init i915_init(void)
 	if (vgacon_text_force() && i915_modeset == -1)
 		driver.driver_features &= ~DRIVER_MODESET;
 #endif
+
+	if (!(driver.driver_features & DRIVER_MODESET))
+		driver.get_vblank_timestamp = NULL;
 
 	return drm_init(&driver);
 }

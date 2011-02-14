@@ -338,6 +338,12 @@ static noinline int overwrite_item(struct btrfs_trans_handle *trans,
 		}
 		dst_copy = kmalloc(item_size, GFP_NOFS);
 		src_copy = kmalloc(item_size, GFP_NOFS);
+		if (!dst_copy || !src_copy) {
+			btrfs_release_path(root, path);
+			kfree(dst_copy);
+			kfree(src_copy);
+			return -ENOMEM;
+		}
 
 		read_extent_buffer(eb, src_copy, src_ptr, item_size);
 
@@ -665,6 +671,9 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 	btrfs_dir_item_key_to_cpu(leaf, di, &location);
 	name_len = btrfs_dir_name_len(leaf, di);
 	name = kmalloc(name_len, GFP_NOFS);
+	if (!name)
+		return -ENOMEM;
+
 	read_extent_buffer(leaf, name, (unsigned long)(di + 1), name_len);
 	btrfs_release_path(root, path);
 
@@ -744,6 +753,9 @@ static noinline int backref_in_log(struct btrfs_root *log,
 	int match = 0;
 
 	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
 	ret = btrfs_search_slot(NULL, log, key, path, 0, 0);
 	if (ret != 0)
 		goto out;
@@ -967,6 +979,8 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 	key.offset = (u64)-1;
 
 	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
 
 	while (1) {
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
@@ -1178,6 +1192,9 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 
 	name_len = btrfs_dir_name_len(eb, di);
 	name = kmalloc(name_len, GFP_NOFS);
+	if (!name)
+		return -ENOMEM;
+
 	log_type = btrfs_dir_type(eb, di);
 	read_extent_buffer(eb, name, (unsigned long)(di + 1),
 		   name_len);
@@ -1692,6 +1709,8 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 		root_owner = btrfs_header_owner(parent);
 
 		next = btrfs_find_create_tree_block(root, bytenr, blocksize);
+		if (!next)
+			return -ENOMEM;
 
 		if (*level == 1) {
 			wc->process_func(root, next, wc, ptr_gen);
@@ -2032,6 +2051,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		wait_log_commit(trans, log_root_tree,
 				log_root_tree->log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
+		ret = 0;
 		goto out;
 	}
 	atomic_set(&log_root_tree->log_commit[index2], 1);
@@ -2096,7 +2116,7 @@ out:
 	smp_mb();
 	if (waitqueue_active(&root->log_commit_wait[index1]))
 		wake_up(&root->log_commit_wait[index1]);
-	return 0;
+	return ret;
 }
 
 static void free_log_tree(struct btrfs_trans_handle *trans,
@@ -2194,6 +2214,9 @@ int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 
 	log = root->log_root;
 	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
 	di = btrfs_lookup_dir_item(trans, log, path, dir->i_ino,
 				   name, name_len, -1);
 	if (IS_ERR(di)) {
@@ -2594,6 +2617,9 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 
 	ins_data = kmalloc(nr * sizeof(struct btrfs_key) +
 			   nr * sizeof(u32), GFP_NOFS);
+	if (!ins_data)
+		return -ENOMEM;
+
 	ins_sizes = (u32 *)ins_data;
 	ins_keys = (struct btrfs_key *)(ins_data + nr * sizeof(u32));
 
@@ -2725,7 +2751,13 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	log = root->log_root;
 
 	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
 	dst_path = btrfs_alloc_path();
+	if (!dst_path) {
+		btrfs_free_path(path);
+		return -ENOMEM;
+	}
 
 	min_key.objectid = inode->i_ino;
 	min_key.type = BTRFS_INODE_ITEM_KEY;
@@ -3080,6 +3112,7 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	BUG_ON(!path);
 
 	trans = btrfs_start_transaction(fs_info->tree_root, 0);
+	BUG_ON(IS_ERR(trans));
 
 	wc.trans = trans;
 	wc.pin = 1;
