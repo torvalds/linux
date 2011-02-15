@@ -427,6 +427,34 @@ static int ethtool_set_one_feature(struct net_device *dev,
 	}
 }
 
+static int __ethtool_set_flags(struct net_device *dev, u32 data)
+{
+	u32 changed;
+
+	if (data & ~flags_dup_features)
+		return -EINVAL;
+
+	/* legacy set_flags() op */
+	if (dev->ethtool_ops->set_flags) {
+		if (unlikely(dev->hw_features & flags_dup_features))
+			netdev_warn(dev,
+				"driver BUG: mixed hw_features and set_flags()\n");
+		return dev->ethtool_ops->set_flags(dev, data);
+	}
+
+	/* allow changing only bits set in hw_features */
+	changed = (data ^ dev->wanted_features) & flags_dup_features;
+	if (changed & ~dev->hw_features)
+		return (changed & dev->hw_features) ? -EINVAL : -EOPNOTSUPP;
+
+	dev->wanted_features =
+		(dev->wanted_features & ~changed) | data;
+
+	netdev_update_features(dev);
+
+	return 0;
+}
+
 static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
@@ -1768,8 +1796,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 					ethtool_op_get_flags));
 		break;
 	case ETHTOOL_SFLAGS:
-		rc = ethtool_set_value(dev, useraddr,
-				       dev->ethtool_ops->set_flags);
+		rc = ethtool_set_value(dev, useraddr, __ethtool_set_flags);
 		break;
 	case ETHTOOL_GPFLAGS:
 		rc = ethtool_get_value(dev, useraddr, ethcmd,
