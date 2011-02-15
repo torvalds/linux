@@ -392,25 +392,17 @@ static int __devinit snd_mfld_mc_probe(struct platform_device *pdev)
 		pr_err("cannot register IRQ\n");
 		goto unalloc;
 	}
-	/* create soc device */
-	mc_drv_ctx->socdev = platform_device_alloc("soc-audio", -1);
-	if (!mc_drv_ctx->socdev) {
-		pr_err("soc-audio device allocation failed\n");
-		ret_val = -ENOMEM;
-		goto freeirq;
-	}
-	platform_set_drvdata(mc_drv_ctx->socdev, &snd_soc_card_mfld);
-	ret_val = platform_device_add(mc_drv_ctx->socdev);
+	/* register the soc card */
+	snd_soc_card_mfld.dev = &pdev->dev;
+	ret_val = snd_soc_register_card(&snd_soc_card_mfld);
 	if (ret_val) {
-		pr_err("Unable to add soc-audio device, err %d\n", ret_val);
-		goto unregister;
+		pr_debug("snd_soc_register_card failed %d\n", ret_val);
+		goto freeirq;
 	}
 	platform_set_drvdata(pdev, mc_drv_ctx);
 	pr_debug("successfully exited probe\n");
 	return ret_val;
 
-unregister:
-	platform_device_put(mc_drv_ctx->socdev);
 freeirq:
 	free_irq(irq, mc_drv_ctx);
 unalloc:
@@ -424,7 +416,7 @@ static int __devexit snd_mfld_mc_remove(struct platform_device *pdev)
 
 	pr_debug("snd_mfld_mc_remove called\n");
 	free_irq(platform_get_irq(pdev, 0), mc_drv_ctx);
-	platform_device_unregister(mc_drv_ctx->socdev);
+	snd_soc_unregister_card(&snd_soc_card_mfld);
 	kfree(mc_drv_ctx);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
