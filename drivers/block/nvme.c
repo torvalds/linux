@@ -1112,6 +1112,8 @@ static int nvme_kthread(void *data)
 			int i;
 			for (i = 0; i < dev->queue_count; i++) {
 				struct nvme_queue *nvmeq = dev->queues[i];
+				if (!nvmeq)
+					continue;
 				spin_lock_irq(&nvmeq->q_lock);
 				if (nvme_process_cq(nvmeq))
 					printk("process_cq did something\n");
@@ -1437,17 +1439,21 @@ static int __devinit nvme_probe(struct pci_dev *pdev,
 		goto unmap;
 	dev->queue_count++;
 
-	result = nvme_dev_add(dev);
-	if (result)
-		goto delete;
-
 	spin_lock(&dev_list_lock);
 	list_add(&dev->node, &dev_list);
 	spin_unlock(&dev_list_lock);
 
+	result = nvme_dev_add(dev);
+	if (result)
+		goto delete;
+
 	return 0;
 
  delete:
+	spin_lock(&dev_list_lock);
+	list_del(&dev->node);
+	spin_unlock(&dev_list_lock);
+
 	nvme_free_queues(dev);
  unmap:
 	iounmap(dev->bar);
