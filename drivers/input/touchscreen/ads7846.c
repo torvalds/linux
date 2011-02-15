@@ -941,28 +941,29 @@ static int __devinit ads7846_setup_pendown(struct spi_device *spi, struct ads784
 	struct ads7846_platform_data *pdata = spi->dev.platform_data;
 	int err;
 
-	/* REVISIT when the irq can be triggered active-low, or if for some
+	/*
+	 * REVISIT when the irq can be triggered active-low, or if for some
 	 * reason the touchscreen isn't hooked up, we don't need to access
 	 * the pendown state.
 	 */
-	if (!pdata->get_pendown_state && !gpio_is_valid(pdata->gpio_pendown)) {
-		dev_err(&spi->dev, "no get_pendown_state nor gpio_pendown?\n");
-		return -EINVAL;
-	}
 
 	if (pdata->get_pendown_state) {
 		ts->get_pendown_state = pdata->get_pendown_state;
-		return 0;
-	}
+	} else if (gpio_is_valid(pdata->gpio_pendown)) {
 
-	err = gpio_request(pdata->gpio_pendown, "ads7846_pendown");
-	if (err) {
-		dev_err(&spi->dev, "failed to request pendown GPIO%d\n",
-			pdata->gpio_pendown);
-		return err;
-	}
+		err = gpio_request(pdata->gpio_pendown, "ads7846_pendown");
+		if (err) {
+			dev_err(&spi->dev, "failed to request pendown GPIO%d\n",
+				pdata->gpio_pendown);
+			return err;
+		}
 
-	ts->gpio_pendown = pdata->gpio_pendown;
+		ts->gpio_pendown = pdata->gpio_pendown;
+
+	} else {
+		dev_err(&spi->dev, "no get_pendown_state nor gpio_pendown?\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1353,7 +1354,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
  err_put_regulator:
 	regulator_put(ts->reg);
  err_free_gpio:
-	if (ts->gpio_pendown != -1)
+	if (!ts->get_pendown_state)
 		gpio_free(ts->gpio_pendown);
  err_cleanup_filter:
 	if (ts->filter_cleanup)
@@ -1383,8 +1384,13 @@ static int __devexit ads7846_remove(struct spi_device *spi)
 	regulator_disable(ts->reg);
 	regulator_put(ts->reg);
 
-	if (ts->gpio_pendown != -1)
+	if (!ts->get_pendown_state) {
+		/*
+		 * If we are not using specialized pendown method we must
+		 * have been relying on gpio we set up ourselves.
+		 */
 		gpio_free(ts->gpio_pendown);
+	}
 
 	if (ts->filter_cleanup)
 		ts->filter_cleanup(ts->filter_data);
