@@ -497,15 +497,6 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 	return ret;
 }
 
-static inline uint32_t
-nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
-		      struct nouveau_channel *chan, struct ttm_mem_reg *mem)
-{
-	if (mem->mem_type == TTM_PL_TT)
-		return chan->gart_handle;
-	return chan->vram_handle;
-}
-
 static int
 nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
@@ -578,14 +569,6 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		dst_offset  = nvbo->vma.offset;
 	else
 		dst_offset += dev_priv->gart_info.aper_base;
-
-	ret = RING_SPACE(chan, 3);
-	if (ret)
-		return ret;
-
-	BEGIN_RING(chan, NvSubM2MF, 0x0184, 2);
-	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, old_mem));
-	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, new_mem));
 
 	while (length) {
 		u32 amount, stride, height;
@@ -664,6 +647,15 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	}
 
 	return 0;
+}
+
+static inline uint32_t
+nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
+		      struct nouveau_channel *chan, struct ttm_mem_reg *mem)
+{
+	if (mem->mem_type == TTM_PL_TT)
+		return chan->gart_handle;
+	return chan->vram_handle;
 }
 
 static int
