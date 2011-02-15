@@ -1202,29 +1202,30 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 
 static int __devinit nvme_setup_io_queues(struct nvme_dev *dev)
 {
-	int result, cpu, i, nr_queues;
+	int result, cpu, i, nr_io_queues;
 
-	nr_queues = num_online_cpus();
-	result = set_queue_count(dev, nr_queues);
+	nr_io_queues = num_online_cpus();
+	result = set_queue_count(dev, nr_io_queues);
 	if (result < 0)
 		return result;
-	if (result < nr_queues)
-		nr_queues = result;
+	if (result < nr_io_queues)
+		nr_io_queues = result;
 
 	/* Deregister the admin queue's interrupt */
 	free_irq(dev->entry[0].vector, dev->queues[0]);
 
-	for (i = 0; i < nr_queues; i++)
+	for (i = 0; i < nr_io_queues; i++)
 		dev->entry[i].entry = i;
 	for (;;) {
-		result = pci_enable_msix(dev->pci_dev, dev->entry, nr_queues);
+		result = pci_enable_msix(dev->pci_dev, dev->entry,
+								nr_io_queues);
 		if (result == 0) {
 			break;
 		} else if (result > 0) {
-			nr_queues = result;
+			nr_io_queues = result;
 			continue;
 		} else {
-			nr_queues = 1;
+			nr_io_queues = 1;
 			break;
 		}
 	}
@@ -1233,12 +1234,12 @@ static int __devinit nvme_setup_io_queues(struct nvme_dev *dev)
 	/* XXX: handle failure here */
 
 	cpu = cpumask_first(cpu_online_mask);
-	for (i = 0; i < nr_queues; i++) {
+	for (i = 0; i < nr_io_queues; i++) {
 		irq_set_affinity_hint(dev->entry[i].vector, get_cpu_mask(cpu));
 		cpu = cpumask_next(cpu, cpu_online_mask);
 	}
 
-	for (i = 0; i < nr_queues; i++) {
+	for (i = 0; i < nr_io_queues; i++) {
 		dev->queues[i + 1] = nvme_create_queue(dev, i + 1,
 							NVME_Q_DEPTH, i);
 		if (!dev->queues[i + 1])
