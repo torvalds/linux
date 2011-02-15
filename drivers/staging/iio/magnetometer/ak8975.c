@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 
 #include <linux/gpio.h>
+#include <linux/input/ak8975.h>
 
 #include "../iio.h"
 #include "magnet.h"
@@ -435,6 +436,7 @@ static int ak8975_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct ak8975_data *data;
+	struct ak8975_platform_data *pdata;
 	int err;
 
 	/* Allocate our device context. */
@@ -452,7 +454,11 @@ static int ak8975_probe(struct i2c_client *client,
 
 	/* Grab and set up the supplied GPIO. */
 	data->eoc_irq = client->irq;
-	data->eoc_gpio = irq_to_gpio(client->irq);
+	pdata = client->dev.platform_data;
+	if (pdata)
+		data->eoc_gpio = pdata->gpio;
+	else
+		data->eoc_gpio = irq_to_gpio(client->irq);
 
 	if (!data->eoc_gpio) {
 		dev_err(&client->dev, "failed, no valid GPIO\n");
