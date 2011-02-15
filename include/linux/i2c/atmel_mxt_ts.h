@@ -38,6 +38,7 @@ struct mxt_platform_data {
 	unsigned int threshold;
 	unsigned int voltage;
 	unsigned char orient;
+	unsigned long irqflags;
 };
 
 #endif /* __LINUX_ATMEL_MXT_TS_H */

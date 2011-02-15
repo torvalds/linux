@@ -25,6 +25,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
+#include <linux/interrupt.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -231,6 +232,7 @@ static struct mxt_platform_data qt602240_platform_data = {
 	.threshold	= 0x28,
 	.voltage	= 2800000,              /* 2.8V */
 	.orient		= MXT_DIAGONAL,
+	.irqflags	= IRQF_TRIGGER_FALLING,
 };
 
 static struct s3c2410_platform_i2c i2c2_data __initdata = {

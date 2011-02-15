@@ -1106,11 +1106,12 @@ static void mxt_input_close(struct input_dev *dev)
 static int __devinit mxt_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
+	const struct mxt_platform_data *pdata = client->dev.platform_data;
 	struct mxt_data *data;
 	struct input_dev *input_dev;
 	int error;
 
-	if (!client->dev.platform_data)
+	if (!pdata)
 		return -EINVAL;
 
 	data = kzalloc(sizeof(struct mxt_data), GFP_KERNEL);
@@ -1149,7 +1150,7 @@ static int __devinit mxt_probe(struct i2c_client *client,
 
 	data->client = client;
 	data->input_dev = input_dev;
-	data->pdata = client->dev.platform_data;
+	data->pdata = pdata;
 	data->irq = client->irq;
 
 	i2c_set_clientdata(client, data);
@@ -1159,7 +1160,7 @@ static int __devinit mxt_probe(struct i2c_client *client,
 		goto err_free_object;
 
 	error = request_threaded_irq(client->irq, NULL, mxt_interrupt,
-			IRQF_TRIGGER_FALLING, client->dev.driver->name, data);
+			pdata->irqflags, client->dev.driver->name, data);
 	if (error) {
 		dev_err(&client->dev, "Failed to register interrupt\n");
 		goto err_free_object;
