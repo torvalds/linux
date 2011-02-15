@@ -1337,11 +1337,11 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 
 	ret = btrfs_shrink_device(device, 0);
 	if (ret)
-		goto error_brelse;
+		goto error_undo;
 
 	ret = btrfs_rm_dev_item(root->fs_info->chunk_root, device);
 	if (ret)
-		goto error_brelse;
+		goto error_undo;
 
 	device->in_fs_metadata = 0;
 
@@ -1415,6 +1415,13 @@ out:
 	mutex_unlock(&root->fs_info->volume_mutex);
 	mutex_unlock(&uuid_mutex);
 	return ret;
+error_undo:
+	if (device->writeable) {
+		list_add(&device->dev_alloc_list,
+			 &root->fs_info->fs_devices->alloc_list);
+		root->fs_info->fs_devices->rw_devices++;
+	}
+	goto error_brelse;
 }
 
 /*
