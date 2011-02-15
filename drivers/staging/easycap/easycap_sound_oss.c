@@ -351,7 +351,7 @@ if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 /*---------------------------------------------------------------------------*/
 if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	SAY("ERROR: bad peasycap: %p\n", peasycap);
 	return -EFAULT;
 }
 /*---------------------------------------------------------------------------*/
@@ -377,7 +377,7 @@ if (NULL == peasycap) {
 	return -EFAULT;
 }
 if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	SAY("ERROR: bad peasycap: %p\n", peasycap);
 	return -EFAULT;
 }
 if (0 != kill_audio_urbs(peasycap)) {
@@ -424,7 +424,7 @@ if (NULL == peasycap) {
 	return -EFAULT;
 }
 if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	SAY("ERROR: bad peasycap: %p\n", peasycap);
 	return -EFAULT;
 }
 if (NULL == peasycap->pusb_device) {
@@ -460,8 +460,7 @@ if (0 <= kd && DONGLE_MANY > kd) {
 		return -ERESTARTSYS;
 	}
 	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: 0x%08lX\n",
-						(unsigned long int) peasycap);
+		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 		return -ERESTARTSYS;
 	}

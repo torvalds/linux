@@ -431,7 +431,7 @@ if (NULL == prt) {
 	return -EFAULT;
 }
 if (NULL != prt->dma_area) {
-	JOT(8, "0x%08lX=prt->dma_area\n", (unsigned long int)prt->dma_area);
+	JOT(8, "prt->dma_area = %p\n", prt->dma_area);
 	vfree(prt->dma_area);
 	prt->dma_area = NULL;
 } else

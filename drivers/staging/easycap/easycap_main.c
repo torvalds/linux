@@ -179,15 +179,14 @@ if (NULL == peasycap) {
 	return -EFAULT;
 }
 if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	SAY("ERROR: bad peasycap: %p\n", peasycap);
 	return -EFAULT;
 }
 if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
 } else {
-	JOM(16, "0x%08lX=peasycap->pusb_device\n",
-					(long int)peasycap->pusb_device);
+	JOM(16, "peasycap->pusb_device=%p\n", peasycap->pusb_device);
 }
 file->private_data = peasycap;
 rc = wakeup_device(peasycap->pusb_device);
@@ -746,7 +745,7 @@ if (NULL == peasycap) {
 	return -EFAULT;
 }
 if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	SAY("ERROR: bad peasycap: %p\n", peasycap);
 	return -EFAULT;
 }
 if (0 != kill_video_urbs(peasycap)) {
@@ -785,7 +784,7 @@ if (NULL == peasycap) {
 	return -EFAULT;
 }
 if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	SAY("ERROR: bad peasycap: %p\n", peasycap);
 	return -EFAULT;
 }
 if (0 != kill_video_urbs(peasycap)) {
@@ -825,7 +824,7 @@ if (NULL == peasycap) {
 	return;
 }
 if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	SAY("ERROR: bad peasycap: %p\n", peasycap);
 	return;
 }
 kd = isdongle(peasycap);
@@ -1041,7 +1040,7 @@ if (NULL == peasycap) {
 	return -EFAULT;
 }
 if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	SAY("ERROR: bad peasycap: %p\n", peasycap);
 	return -EFAULT;
 }
 if (NULL == peasycap->pusb_device) {
@@ -1078,8 +1077,7 @@ if (0 <= kd && DONGLE_MANY > kd) {
 		return -ERESTARTSYS;
 	}
 	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: 0x%08lX\n",
-						(unsigned long int) peasycap);
+		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -ERESTARTSYS;
 	}
@@ -2622,7 +2620,7 @@ if (NULL == peasycap) {
 	return;
 }
 if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	SAY("ERROR: bad peasycap: %p\n", peasycap);
 	return;
 }
 peasycap->vma_many++;
@@ -2640,7 +2638,7 @@ if (NULL == peasycap) {
 	return;
 }
 if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	SAY("ERROR: bad peasycap: %p\n", peasycap);
 	return;
 }
 peasycap->vma_many--;
@@ -2774,7 +2772,7 @@ if (NULL == peasycap) {
 	return;
 }
 if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	SAY("ERROR: bad peasycap: %p\n", peasycap);
 	return;
 }
 if (peasycap->video_eof)
@@ -3280,15 +3278,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 			SAY("ERROR: Could not allocate peasycap\n");
 			return -ENOMEM;
 		}
-		SAM("allocated 0x%08lX=peasycap\n", (unsigned long int) peasycap);
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#ifdef EASYCAP_IS_VIDEODEV_CLIENT
-		SAM("where     0x%08lX=&peasycap->video_device\n",
-				(unsigned long int) &peasycap->video_device);
-		SAM("and       0x%08lX=&peasycap->v4l2_device\n",
-				(unsigned long int) &peasycap->v4l2_device);
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+		SAM("allocated %p=peasycap\n", peasycap);
 /*---------------------------------------------------------------------------*/
 /*
  *  PERFORM URGENT INTIALIZATIONS ...
@@ -4573,7 +4563,7 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 /*---------------------------------------------------------------------------*/
 	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		return;
 	}
 /*---------------------------------------------------------------------------*/
