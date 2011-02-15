@@ -299,6 +299,11 @@ config MACH_OMAP_3630SDP
 	default y
 	select OMAP_PACKAGE_CBP
 
+config MACH_TI8168EVM
+	bool "TI8168 Evaluation Module"
+	depends on SOC_OMAPTI816X
+	default y
+
 config MACH_OMAP_4430SDP
 	bool "OMAP 4430 SDP board"
 	default y
