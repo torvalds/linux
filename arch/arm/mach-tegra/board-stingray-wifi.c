@@ -217,12 +217,51 @@ static int stingray_wifi_get_mac_addr(unsigned char *buf)
 	return 0;
 }
 
+/* Customized Locale table : OPTIONAL feature */
+#define WLC_CNTRY_BUF_SZ	4
+typedef struct cntry_locales_custom {
+	char iso_abbrev[WLC_CNTRY_BUF_SZ];
+	char custom_locale[WLC_CNTRY_BUF_SZ];
+	int  custom_locale_rev;
+} cntry_locales_custom_t;
+
+static cntry_locales_custom_t stingray_wifi_translate_custom_table[] = {
+/* Table should be filled out based on custom platform regulatory requirement */
+	{"US", "US", 69}, /* input ISO "US" to : US regrev 69 */
+	{"CA", "US", 69}, /* input ISO "CA" to : US regrev 69 */
+	{"EU", "EU",  5}, /* input ISO "EU" to : EU regrev 05 */
+	{"FR", "EU",  5},
+	{"DE", "EU",  5},
+	{"IR", "EU",  5},
+	{"UK", "EU",  5}, /* input ISO "UK" to : EU regrev 05 */
+	{"KR", "XY",  3},
+	{"AU", "XY",  3},
+	{"CN", "XY",  3}, /* input ISO "CN" to : XY regrev 03 */
+	{"TW", "XY",  3},
+	{"AR", "XY",  3},
+};
+
+static void *stingray_wifi_get_country_code(char *ccode)
+{
+	int size = ARRAY_SIZE(stingray_wifi_translate_custom_table);
+	int i;
+
+	if (!ccode)
+		return NULL;
+
+	for (i = 0; i < size; i++)
+		if (strcmp(ccode, stingray_wifi_translate_custom_table[i].iso_abbrev) == 0)
+			return &stingray_wifi_translate_custom_table[i];
+	return NULL;
+}
+
 static struct wifi_platform_data stingray_wifi_control = {
 	.set_power      = stingray_wifi_power,
 	.set_reset      = stingray_wifi_reset,
 	.set_carddetect = stingray_wifi_set_carddetect,
 	.mem_prealloc	= stingray_wifi_mem_prealloc,
 	.get_mac_addr	= stingray_wifi_get_mac_addr,
+	.get_country_code = stingray_wifi_get_country_code,
 };
 
 static struct platform_device stingray_wifi_device = {
