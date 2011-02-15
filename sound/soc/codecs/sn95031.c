@@ -359,7 +359,7 @@ static const struct snd_kcontrol_new sn95031_input4_mux_control =
 static const char *sn95031_micmode_text[] = {"Single Ended", "Differential"};
 
 /* 0dB to 30dB in 10dB steps */
-static const DECLARE_TLV_DB_SCALE(mic_tlv, 0, 10, 30);
+static const DECLARE_TLV_DB_SCALE(mic_tlv, 0, 10, 0);
 
 static const struct soc_enum sn95031_micmode1_enum =
 	SOC_ENUM_SINGLE(SN95031_MICAMP1, 1, 2, sn95031_micmode_text);
