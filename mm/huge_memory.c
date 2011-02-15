@@ -1811,6 +1811,8 @@ static void collapse_huge_page(struct mm_struct *mm,
 	/* VM_PFNMAP vmas may have vm_ops null but vm_file set */
 	if (!vma->anon_vma || vma->vm_ops || vma->vm_file)
 		goto out;
+	if (is_vma_temporary_stack(vma))
+		goto out;
 	VM_BUG_ON(is_linear_pfn_mapping(vma) || is_pfn_mapping(vma));
 
 	pgd = pgd_offset(mm, address);
@@ -2032,32 +2034,27 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
 		if ((!(vma->vm_flags & VM_HUGEPAGE) &&
 		     !khugepaged_always()) ||
 		    (vma->vm_flags & VM_NOHUGEPAGE)) {
+		skip:
 			progress++;
 			continue;
 		}
-
 		/* VM_PFNMAP vmas may have vm_ops null but vm_file set */
-		if (!vma->anon_vma || vma->vm_ops || vma->vm_file) {
-			khugepaged_scan.address = vma->vm_end;
-			progress++;
-			continue;
-		}
+		if (!vma->anon_vma || vma->vm_ops || vma->vm_file)
+			goto skip;
+		if (is_vma_temporary_stack(vma))
+			goto skip;
+
 		VM_BUG_ON(is_linear_pfn_mapping(vma) || is_pfn_mapping(vma));
 
 		hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
 		hend = vma->vm_end & HPAGE_PMD_MASK;
-		if (hstart >= hend) {
-			progress++;
-			continue;
-		}
+		if (hstart >= hend)
+			goto skip;
+		if (khugepaged_scan.address > hend)
+			goto skip;
 		if (khugepaged_scan.address < hstart)
 			khugepaged_scan.address = hstart;
-		if (khugepaged_scan.address > hend) {
-			khugepaged_scan.address = hend + HPAGE_PMD_SIZE;
-			progress++;
-			continue;
-		}
-		BUG_ON(khugepaged_scan.address & ~HPAGE_PMD_MASK);
+		VM_BUG_ON(khugepaged_scan.address & ~HPAGE_PMD_MASK);
 
 		while (khugepaged_scan.address < hend) {
 			int ret;
@@ -2086,7 +2083,7 @@ breakouterloop:
 breakouterloop_mmap_sem:
 
 	spin_lock(&khugepaged_mm_lock);
-	BUG_ON(khugepaged_scan.mm_slot != mm_slot);
+	VM_BUG_ON(khugepaged_scan.mm_slot != mm_slot);
 	/*
 	 * Release the current mm_slot if this mm is about to die, or
 	 * if we scanned all vmas of this mm.
@@ -2241,9 +2238,9 @@ static int khugepaged(void *none)
 
 	for (;;) {
 		mutex_unlock(&khugepaged_mutex);
-		BUG_ON(khugepaged_thread != current);
+		VM_BUG_ON(khugepaged_thread != current);
 		khugepaged_loop();
-		BUG_ON(khugepaged_thread != current);
+		VM_BUG_ON(khugepaged_thread != current);
 
 		mutex_lock(&khugepaged_mutex);
 		if (!khugepaged_enabled())
