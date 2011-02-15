@@ -2597,6 +2597,11 @@ static void ixgbe_free_irq(struct ixgbe_adapter *adapter)
 
 		i--;
 		for (; i >= 0; i--) {
+			/* free only the irqs that were actually requested */
+			if (!adapter->q_vector[i]->rxr_count &&
+			    !adapter->q_vector[i]->txr_count)
+				continue;
+
 			free_irq(adapter->msix_entries[i].vector,
 				 adapter->q_vector[i]);
 		}
