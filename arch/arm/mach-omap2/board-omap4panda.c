@@ -26,6 +26,7 @@
 #include <linux/usb/otg.h>
 #include <linux/i2c/twl.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 
 #include <mach/hardware.h>
 #include <mach/omap4-common.h>
@@ -45,6 +46,7 @@
 
 #define GPIO_HUB_POWER		1
 #define GPIO_HUB_NRESET		62
+#define GPIO_WIFI_PMENA		43
 
 static struct gpio_led gpio_leds[] = {
 	{
@@ -168,6 +170,37 @@ static struct regulator_consumer_supply omap4_panda_vmmc_supply[] = {
 	{
 		.supply = "vmmc",
 		.dev_name = "mmci-omap-hs.0",
+	},
+};
+
+static struct regulator_consumer_supply omap4_panda_vmmc5_supply = {
+	.supply = "vmmc",
+	.dev_name = "mmci-omap-hs.4",
+};
+
+static struct regulator_init_data panda_vmmc5 = {
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = 1,
+	.consumer_supplies = &omap4_panda_vmmc5_supply,
+};
+
+static struct fixed_voltage_config panda_vwlan = {
+	.supply_name = "vwl1271",
+	.microvolts = 1800000, /* 1.8V */
+	.gpio = GPIO_WIFI_PMENA,
+	.startup_delay = 70000, /* 70msec */
+	.enable_high = 1,
+	.enabled_at_boot = 0,
+	.init_data = &panda_vmmc5,
+};
+
+static struct platform_device omap_vwlan_device = {
+	.name		= "reg-fixed-voltage",
+	.id		= 1,
+	.dev = {
+		.platform_data = &panda_vwlan,
 	},
 };
 
@@ -416,6 +449,7 @@ static void __init omap4_panda_init(void)
 
 	omap4_panda_i2c_init();
 	platform_add_devices(panda_devices, ARRAY_SIZE(panda_devices));
+	platform_device_register(&omap_vwlan_device);
 	omap_serial_init();
 	omap4_twl6030_hsmmc_init(mmc);
 	omap4_ehci_init();
