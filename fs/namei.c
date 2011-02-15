@@ -1259,9 +1259,15 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 			return -ECHILD;
 
 		nd->seq = seq;
-		if (dentry->d_flags & DCACHE_OP_REVALIDATE)
-			goto need_revalidate;
-done2:
+		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE)) {
+			dentry = do_revalidate(dentry, nd);
+			if (!dentry)
+				goto need_lookup;
+			if (IS_ERR(dentry))
+				goto fail;
+			if (!(nd->flags & LOOKUP_RCU))
+				goto done;
+		}
 		path->mnt = mnt;
 		path->dentry = dentry;
 		if (likely(__follow_mount_rcu(nd, path, inode, false)))
@@ -1274,8 +1280,13 @@ done2:
 	if (!dentry)
 		goto need_lookup;
 found:
-	if (dentry->d_flags & DCACHE_OP_REVALIDATE)
-		goto need_revalidate;
+	if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE)) {
+		dentry = do_revalidate(dentry, nd);
+		if (!dentry)
+			goto need_lookup;
+		if (IS_ERR(dentry))
+			goto fail;
+	}
 done:
 	path->mnt = mnt;
 	path->dentry = dentry;
@@ -1316,16 +1327,6 @@ need_lookup:
 	 */
 	mutex_unlock(&dir->i_mutex);
 	goto found;
-
-need_revalidate:
-	dentry = do_revalidate(dentry, nd);
-	if (!dentry)
-		goto need_lookup;
-	if (IS_ERR(dentry))
-		goto fail;
-	if (nd->flags & LOOKUP_RCU)
-		goto done2;
-	goto done;
 
 fail:
 	return PTR_ERR(dentry);
