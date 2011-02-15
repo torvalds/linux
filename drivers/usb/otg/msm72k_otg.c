@@ -723,7 +723,8 @@ static int msm_otg_mode_open(struct inode *inode, struct file *file)
 static ssize_t msm_otg_mode_write(struct file *file, const char __user *ubuf,
 				size_t count, loff_t *ppos)
 {
-	struct msm_otg *motg = file->private_data;
+	struct seq_file *s = file->private_data;
+	struct msm_otg *motg = s->private;
 	char buf[16];
 	struct otg_transceiver *otg = &motg->otg;
 	int status = count;
