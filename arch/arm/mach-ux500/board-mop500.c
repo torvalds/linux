@@ -202,7 +202,6 @@ static struct gpio_keys_button mop500_gpio_keys[] = {
 		.desc			= "SFH7741 Proximity Sensor",
 		.type			= EV_SW,
 		.code			= SW_FRONT_PROXIMITY,
-		.gpio			= GPIO_PROX_SENSOR,
 		.active_low		= 0,
 		.can_disable		= 1,
 	}
@@ -379,8 +378,18 @@ static void __init mop500_uart_init(void)
 	db8500_add_uart2(&uart2_plat);
 }
 
-static void __init u8500_init_machine(void)
+static void __init mop500_init_machine(void)
 {
+	/*
+	 * The HREFv60 board removed a GPIO expander and routed
+	 * all these GPIO pins to the internal GPIO controller
+	 * instead.
+	 */
+	if (machine_is_hrefv60())
+		mop500_gpio_keys[0].gpio = HREFV60_PROX_SENSE_GPIO;
+	else
+		mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
+
 	u8500_init_devices();
 
 	mop500_pins_init();
@@ -407,5 +416,13 @@ MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
 	.init_irq	= ux500_init_irq,
 	/* we re-use nomadik timer here */
 	.timer		= &ux500_timer,
-	.init_machine	= u8500_init_machine,
+	.init_machine	= mop500_init_machine,
+MACHINE_END
+
+MACHINE_START(HREFV60, "ST-Ericsson U8500 Platform HREFv60+")
+	.boot_params	= 0x100,
+	.map_io		= u8500_map_io,
+	.init_irq	= ux500_init_irq,
+	.timer		= &ux500_timer,
+	.init_machine	= mop500_init_machine,
 MACHINE_END

@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/input/matrix_keypad.h>
+#include <asm/mach-types.h>
 
 #include "board-mop500.h"
 
@@ -154,7 +155,6 @@ static struct bu21013_platform_device tsc_plat_device = {
 	.cs_dis = bu21013_gpio_board_exit,
 	.irq_read_val = bu21013_read_pin_val,
 	.irq = NOMADIK_GPIO_TO_IRQ(TOUCH_GPIO_PIN),
-	.cs_pin = GPIO_BU21013_CS,
 	.touch_x_max = TOUCH_XMAX,
 	.touch_y_max = TOUCH_YMAX,
 	.ext_clk = false,
@@ -167,7 +167,6 @@ static struct bu21013_platform_device tsc_plat2_device = {
 	.cs_dis = bu21013_gpio_board_exit,
 	.irq_read_val = bu21013_read_pin_val,
 	.irq = NOMADIK_GPIO_TO_IRQ(TOUCH_GPIO_PIN),
-	.cs_pin = GPIO_BU21013_CS,
 	.touch_x_max = TOUCH_XMAX,
 	.touch_y_max = TOUCH_YMAX,
 	.ext_clk = false,
@@ -189,6 +188,15 @@ static struct i2c_board_info __initdata u8500_i2c3_devices_stuib[] = {
 
 void __init mop500_stuib_init(void)
 {
+	if (machine_is_hrefv60()) {
+		tsc_plat_device.cs_pin = HREFV60_TOUCH_RST_GPIO;
+		tsc_plat2_device.cs_pin = HREFV60_TOUCH_RST_GPIO;
+	} else {
+		tsc_plat_device.cs_pin = GPIO_BU21013_CS;
+		tsc_plat2_device.cs_pin = GPIO_BU21013_CS;
+
+	}
+
 	mop500_uib_i2c_add(0, mop500_i2c0_devices_stuib,
 			ARRAY_SIZE(mop500_i2c0_devices_stuib));
 

@@ -12,6 +12,7 @@
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
 
+#include <asm/mach-types.h>
 #include <plat/ste_dma40.h>
 #include <mach/devices.h>
 #include <mach/hardware.h>
@@ -68,7 +69,6 @@ static struct mmci_platform_data mop500_sdi0_data = {
 	.ocr_mask	= MMC_VDD_29_30,
 	.f_max		= 100000000,
 	.capabilities	= MMC_CAP_4_BIT_DATA,
-	.gpio_cd	= GPIO_SDMMC_CD,
 	.gpio_wp	= -1,
 #ifdef CONFIG_STE_DMA40
 	.dma_filter	= stedma40_filter,
@@ -77,21 +77,38 @@ static struct mmci_platform_data mop500_sdi0_data = {
 #endif
 };
 
-void mop500_sdi_tc35892_init(void)
+/* GPIO pins used by the sdi0 level shifter */
+static int sdi0_en = -1;
+static int sdi0_vsel = -1;
+
+static void sdi0_configure(void)
 {
 	int ret;
 
-	ret = gpio_request(GPIO_SDMMC_EN, "SDMMC_EN");
+	ret = gpio_request(sdi0_en, "level shifter enable");
 	if (!ret)
-		ret = gpio_request(GPIO_SDMMC_1V8_3V_SEL,
-				   "GPIO_SDMMC_1V8_3V_SEL");
-	if (ret)
+		ret = gpio_request(sdi0_vsel,
+				   "level shifter 1v8-3v select");
+
+	if (ret) {
+		pr_warning("unable to config sdi0 gpios for level shifter.\n");
 		return;
+	}
 
-	gpio_direction_output(GPIO_SDMMC_1V8_3V_SEL, 0);
-	gpio_direction_output(GPIO_SDMMC_EN, 1);
+	/* Select the default 2.9V and enable level shifter */
+	gpio_direction_output(sdi0_vsel, 0);
+	gpio_direction_output(sdi0_en, 1);
 
+	/* Add the device */
 	db8500_add_sdi0(&mop500_sdi0_data);
+}
+
+void mop500_sdi_tc35892_init(void)
+{
+	mop500_sdi0_data.gpio_cd = GPIO_SDMMC_CD;
+	sdi0_en = GPIO_SDMMC_EN;
+	sdi0_vsel = GPIO_SDMMC_1V8_3V_SEL;
+	sdi0_configure();
 }
 
 /*
@@ -179,8 +196,15 @@ void __init mop500_sdi_init(void)
 	/* On-board eMMC */
 	db8500_add_sdi4(&mop500_sdi4_data);
 
+	if (machine_is_hrefv60()) {
+		mop500_sdi0_data.gpio_cd = HREFV60_SDMMC_CD_GPIO;
+		sdi0_en = HREFV60_SDMMC_EN_GPIO;
+		sdi0_vsel = HREFV60_SDMMC_1V8_3V_GPIO;
+		sdi0_configure();
+	}
 	/*
-	 * sdi0 will finally be added when the TC35892 initializes and calls
+	 * On boards with the TC35892 GPIO expander, sdi0 will finally
+	 * be added when the TC35892 initializes and calls
 	 * mop500_sdi_tc35892_init() above.
 	 */
 }
