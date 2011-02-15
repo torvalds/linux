@@ -455,14 +455,6 @@ static int nameidata_dentry_drop_rcu(struct nameidata *nd, struct dentry *dentry
 	struct fs_struct *fs = current->fs;
 	struct dentry *parent = nd->path.dentry;
 
-	/*
-	 * It can be possible to revalidate the dentry that we started
-	 * the path walk with. force_reval_path may also revalidate the
-	 * dentry already committed to the nameidata.
-	 */
-	if (unlikely(parent == dentry))
-		return nameidata_drop_rcu(nd);
-
 	BUG_ON(!(nd->flags & LOOKUP_RCU));
 	if (nd->root.mnt) {
 		spin_lock(&fs->lock);
