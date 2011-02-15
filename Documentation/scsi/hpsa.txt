@@ -45,6 +45,7 @@ HPSA specific entries in /sys
 
   /sys/class/scsi_host/host*/rescan
   /sys/class/scsi_host/host*/firmware_revision
+  /sys/class/scsi_host/host*/transport_mode
 
   the host "rescan" attribute is a write only attribute.  Writing to this
   attribute will cause the driver to scan for new, changed, or removed devices
@@ -60,6 +61,10 @@ HPSA specific entries in /sys
 
 	root@host:/sys/class/scsi_host/host4# cat firmware_revision
 	7.14
+
+  The transport_mode indicates whether the controller is in "performant"
+  or "simple" mode.  This is controlled by the "hpsa_simple_mode" module
+  parameter.
 
   HPSA specific disk attributes:
   ------------------------------

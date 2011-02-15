@@ -161,6 +161,8 @@ static ssize_t host_show_firmware_revision(struct device *dev,
 	     struct device_attribute *attr, char *buf);
 static ssize_t host_show_commands_outstanding(struct device *dev,
 	     struct device_attribute *attr, char *buf);
+static ssize_t host_show_transport_mode(struct device *dev,
+	struct device_attribute *attr, char *buf);
 static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno);
 static ssize_t host_store_rescan(struct device *dev,
 	 struct device_attribute *attr, const char *buf, size_t count);
@@ -192,6 +194,8 @@ static DEVICE_ATTR(firmware_revision, S_IRUGO,
 	host_show_firmware_revision, NULL);
 static DEVICE_ATTR(commands_outstanding, S_IRUGO,
 	host_show_commands_outstanding, NULL);
+static DEVICE_ATTR(transport_mode, S_IRUGO,
+	host_show_transport_mode, NULL);
 
 static struct device_attribute *hpsa_sdev_attrs[] = {
 	&dev_attr_raid_level,
@@ -204,6 +208,7 @@ static struct device_attribute *hpsa_shost_attrs[] = {
 	&dev_attr_rescan,
 	&dev_attr_firmware_revision,
 	&dev_attr_commands_outstanding,
+	&dev_attr_transport_mode,
 	NULL,
 };
 
@@ -311,6 +316,18 @@ static ssize_t host_show_commands_outstanding(struct device *dev,
 	struct ctlr_info *h = shost_to_hba(shost);
 
 	return snprintf(buf, 20, "%d\n", h->commands_outstanding);
+}
+
+static ssize_t host_show_transport_mode(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct ctlr_info *h;
+	struct Scsi_Host *shost = class_to_shost(dev);
+
+	h = shost_to_hba(shost);
+	return snprintf(buf, 20, "%s\n",
+		h->transMethod == CFGTBL_Trans_Performant ?
+			"performant" : "simple");
 }
 
 /* Enqueuing and dequeuing functions for cmdlists. */
@@ -3768,7 +3785,6 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	h->pdev = pdev;
 	h->busy_initializing = 1;
 	h->intr_mode = hpsa_simple_mode ? SIMPLE_MODE_INT : PERF_MODE_INT;
-	printk(KERN_WARNING "hpsa_simple_mode is %d\n", hpsa_simple_mode);
 	INIT_LIST_HEAD(&h->cmpQ);
 	INIT_LIST_HEAD(&h->reqQ);
 	spin_lock_init(&h->lock);
