@@ -1639,7 +1639,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	device->dev_root = root->fs_info->dev_root;
 	device->bdev = bdev;
 	device->in_fs_metadata = 1;
-	device->mode = 0;
+	device->mode = FMODE_EXCL;
 	set_blocksize(device->bdev, 4096);
 
 	if (seeding_dev) {
