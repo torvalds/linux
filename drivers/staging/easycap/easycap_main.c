@@ -3132,7 +3132,6 @@ static const struct usb_class_driver easycap_class = {
 };
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef EASYCAP_IS_VIDEODEV_CLIENT
-#ifdef EASYCAP_NEEDS_V4L2_FOPS
 static const struct v4l2_file_operations v4l2_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easycap_open_noinode,
@@ -3141,7 +3140,6 @@ static const struct v4l2_file_operations v4l2_fops = {
 	.poll		= easycap_poll,
 	.mmap		= easycap_mmap,
 };
-#endif /*EASYCAP_NEEDS_V4L2_FOPS*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*****************************************************************************/
 /*---------------------------------------------------------------------------*/
@@ -3184,9 +3182,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 	struct easycap_format *peasycap_format;
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef EASYCAP_IS_VIDEODEV_CLIENT
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 	struct v4l2_device *pv4l2_device;
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
@@ -3289,10 +3285,8 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 #ifdef EASYCAP_IS_VIDEODEV_CLIENT
 		SAM("where     0x%08lX=&peasycap->video_device\n",
 				(unsigned long int) &peasycap->video_device);
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 		SAM("and       0x%08lX=&peasycap->v4l2_device\n",
 				(unsigned long int) &peasycap->v4l2_device);
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 /*---------------------------------------------------------------------------*/
@@ -3542,11 +3536,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 								bInterfaceNumber);
 			return -ENODEV;
 		}
-#ifndef EASYCAP_IS_VIDEODEV_CLIENT
-#
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#else
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
 /*---------------------------------------------------------------------------*/
 /*
  *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
@@ -3564,7 +3554,6 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 			peasycap = (struct easycap *)
 				container_of(pv4l2_device, struct easycap, v4l2_device);
 		}
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 }
 /*---------------------------------------------------------------------------*/
@@ -4136,7 +4125,6 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 		}
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #else
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 		if (0 != (v4l2_device_register(&(pusb_interface->dev),
 							&(peasycap->v4l2_device)))) {
 			SAM("v4l2_device_register() failed\n");
@@ -4156,14 +4144,9 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 		peasycap->video_device.v4l2_dev = NULL;
 /*---------------------------------------------------------------------------*/
 
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 
 		strcpy(&peasycap->video_device.name[0], "easycapdc60");
-#ifdef EASYCAP_NEEDS_V4L2_FOPS
 		peasycap->video_device.fops = &v4l2_fops;
-#else
-		peasycap->video_device.fops = &easycap_fops;
-#endif /*EASYCAP_NEEDS_V4L2_FOPS*/
 		peasycap->video_device.minor = -1;
 		peasycap->video_device.release = (void *)(&videodev_release);
 
@@ -4539,9 +4522,7 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 	int minor, m, kd;
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef EASYCAP_IS_VIDEODEV_CLIENT
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 	struct v4l2_device *pv4l2_device;
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
@@ -4571,7 +4552,6 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 	}
 /*---------------------------------------------------------------------------*/
 #ifdef EASYCAP_IS_VIDEODEV_CLIENT
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 /*---------------------------------------------------------------------------*/
 /*
  *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
@@ -4589,8 +4569,6 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 		peasycap = (struct easycap *)
 			container_of(pv4l2_device, struct easycap, v4l2_device);
 	}
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
-#
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 /*---------------------------------------------------------------------------*/
@@ -4689,7 +4667,6 @@ case 0: {
 	}
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #else
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 	if (!peasycap->v4l2_device.name[0]) {
 		SAM("ERROR: peasycap->v4l2_device.name is empty\n");
 		if (0 <= kd && DONGLE_MANY > kd)
@@ -4700,7 +4677,6 @@ case 0: {
 	JOM(4, "v4l2_device_disconnect() OK\n");
 	v4l2_device_unregister(&peasycap->v4l2_device);
 	JOM(4, "v4l2_device_unregister() OK\n");
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 
 	video_unregister_device(&peasycap->video_device);
 	JOM(4, "intf[%i]: video_unregister_device() OK\n", bInterfaceNumber);

@@ -31,8 +31,6 @@
  *                EASYCAP_DEBUG
  *                EASYCAP_IS_VIDEODEV_CLIENT
  *                EASYCAP_NEEDS_USBVIDEO_H
- *                EASYCAP_NEEDS_V4L2_DEVICE_H
- *                EASYCAP_NEEDS_V4L2_FOPS
  *
  *  IF REQUIRED THEY MUST BE EXTERNALLY DEFINED, FOR EXAMPLE AS COMPILER
  *  OPTIONS.
@@ -87,9 +85,7 @@
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef EASYCAP_IS_VIDEODEV_CLIENT
 #include <media/v4l2-dev.h>
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 #include <media/v4l2-device.h>
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 #include <linux/videodev2.h>
@@ -306,9 +302,7 @@ struct easycap {
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef EASYCAP_IS_VIDEODEV_CLIENT
 	struct video_device video_device;
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 	struct v4l2_device v4l2_device;
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 	int status;

@@ -308,9 +308,7 @@ struct easycap *peasycap;
 int subminor;
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef EASYCAP_IS_VIDEODEV_CLIENT
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
 struct v4l2_device *pv4l2_device;
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
@@ -331,11 +329,7 @@ if (NULL == peasycap) {
 	return -1;
 }
 /*---------------------------------------------------------------------------*/
-#ifndef EASYCAP_IS_VIDEODEV_CLIENT
-#
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#else
-#ifdef EASYCAP_NEEDS_V4L2_DEVICE_H
+#ifdef EASYCAP_IS_VIDEODEV_CLIENT
 /*---------------------------------------------------------------------------*/
 /*
  *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
@@ -353,8 +347,6 @@ if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 	peasycap = (struct easycap *)
 		container_of(pv4l2_device, struct easycap, v4l2_device);
 }
-#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
-#
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 /*---------------------------------------------------------------------------*/
