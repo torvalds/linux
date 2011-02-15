@@ -13,6 +13,8 @@
 #ifndef __LINUX_ATMEL_MXT_TS_H
 #define __LINUX_ATMEL_MXT_TS_H
 
+#include <linux/types.h>
+
 /* Orient */
 #define MXT_NORMAL		0x0
 #define MXT_DIAGONAL		0x1
@@ -25,6 +27,9 @@
 
 /* The platform data for the Atmel maXTouch touchscreen driver */
 struct mxt_platform_data {
+	const u8 *config;
+	size_t config_length;
+
 	unsigned int x_line;
 	unsigned int y_line;
 	unsigned int x_size;
