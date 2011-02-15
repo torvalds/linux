@@ -611,7 +611,7 @@ EXPORT_SYMBOL_GPL(p54_init_common);
 
 int p54_register_common(struct ieee80211_hw *dev, struct device *pdev)
 {
-	struct p54_common *priv = dev->priv;
+	struct p54_common __maybe_unused *priv = dev->priv;
 	int err;
 
 	err = ieee80211_register_hw(dev);
