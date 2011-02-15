@@ -264,8 +264,13 @@ static void etm_dump(void)
 
 static void sysrq_etm_dump(int key)
 {
+	if (!mutex_trylock(&tracer.mutex)) {
+		printk(KERN_INFO "Tracing hardware busy\n");
+		return;
+	}
 	dev_dbg(tracer.dev, "Dumping ETB buffer\n");
 	etm_dump();
+	mutex_unlock(&tracer.mutex);
 }
 
 static struct sysrq_key_op sysrq_etm_op = {
@@ -374,6 +379,7 @@ static int __devinit etb_probe(struct amba_device *dev, const struct amba_id *id
 	if (ret)
 		goto out;
 
+	mutex_lock(&t->mutex);
 	t->etb_regs = ioremap_nocache(dev->res.start, resource_size(&dev->res));
 	if (!t->etb_regs) {
 		ret = -ENOMEM;
@@ -381,6 +387,16 @@ static int __devinit etb_probe(struct amba_device *dev, const struct amba_id *id
 	}
 
 	amba_set_drvdata(dev, t);
+
+	etb_unlock(t);
+	t->etb_bufsz = etb_readl(t, ETBR_DEPTH);
+	dev_dbg(&dev->dev, "Size: %x\n", t->etb_bufsz);
+
+	/* make sure trace capture is disabled */
+	etb_writel(t, 0, ETBR_CTRL);
+	etb_writel(t, 0x1000, ETBR_FORMATTERCTRL);
+	etb_lock(t);
+	mutex_unlock(&t->mutex);
 
 	etb_miscdev.parent = &dev->dev;
 
@@ -395,25 +411,19 @@ static int __devinit etb_probe(struct amba_device *dev, const struct amba_id *id
 	else
 		clk_enable(t->emu_clk);
 
-	etb_unlock(t);
-	t->etb_bufsz = etb_readl(t, ETBR_DEPTH);
-	dev_dbg(&dev->dev, "Size: %x\n", t->etb_bufsz);
-
-	/* make sure trace capture is disabled */
-	etb_writel(t, 0, ETBR_CTRL);
-	etb_writel(t, 0x1000, ETBR_FORMATTERCTRL);
-	etb_lock(t);
-
 	dev_dbg(&dev->dev, "ETB AMBA driver initialized.\n");
 
 out:
 	return ret;
 
 out_unmap:
+	mutex_lock(&t->mutex);
 	amba_set_drvdata(dev, NULL);
 	iounmap(t->etb_regs);
+	t->etb_regs = NULL;
 
 out_release:
+	mutex_unlock(&t->mutex);
 	amba_release_regions(dev);
 
 	return ret;
@@ -475,7 +485,10 @@ static ssize_t trace_running_store(struct kobject *kobj,
 		return -EINVAL;
 
 	mutex_lock(&tracer.mutex);
-	ret = value ? trace_start(&tracer) : trace_stop(&tracer);
+	if (!tracer.etb_regs)
+		ret = -ENODEV;
+	else
+		ret = value ? trace_start(&tracer) : trace_stop(&tracer);
 	mutex_unlock(&tracer.mutex);
 
 	return ret ? : n;
@@ -491,18 +504,25 @@ static ssize_t trace_info_show(struct kobject *kobj,
 	u32 etb_wa, etb_ra, etb_st, etb_fc, etm_ctrl, etm_st;
 	int datalen;
 
-	etb_unlock(&tracer);
-	datalen = etb_getdatalen(&tracer);
-	etb_wa = etb_readl(&tracer, ETBR_WRITEADDR);
-	etb_ra = etb_readl(&tracer, ETBR_READADDR);
-	etb_st = etb_readl(&tracer, ETBR_STATUS);
-	etb_fc = etb_readl(&tracer, ETBR_FORMATTERCTRL);
-	etb_lock(&tracer);
+	mutex_lock(&tracer.mutex);
+	if (tracer.etb_regs) {
+		etb_unlock(&tracer);
+		datalen = etb_getdatalen(&tracer);
+		etb_wa = etb_readl(&tracer, ETBR_WRITEADDR);
+		etb_ra = etb_readl(&tracer, ETBR_READADDR);
+		etb_st = etb_readl(&tracer, ETBR_STATUS);
+		etb_fc = etb_readl(&tracer, ETBR_FORMATTERCTRL);
+		etb_lock(&tracer);
+	} else {
+		etb_wa = etb_ra = etb_st = etb_fc = ~0;
+		datalen = -1;
+	}
 
 	etm_unlock(&tracer);
 	etm_ctrl = etm_readl(&tracer, ETMR_CTRL);
 	etm_st = etm_readl(&tracer, ETMR_STATUS);
 	etm_lock(&tracer);
+	mutex_unlock(&tracer.mutex);
 
 	return sprintf(buf, "Trace buffer len: %d\nComparator pairs: %d\n"
 			"ETBR_WRITEADDR:\t%08x\n"
@@ -652,7 +672,6 @@ static int __devinit etm_probe(struct amba_device *dev, const struct amba_id *id
 
 	amba_set_drvdata(dev, t);
 
-	mutex_init(&t->mutex);
 	t->dev = &dev->dev;
 	t->flags = TRACER_CYCLE_ACC | TRACER_TRACE_DATA;
 	t->etm_portsz = 1;
@@ -745,6 +764,8 @@ static struct amba_driver etm_driver = {
 static int __init etm_init(void)
 {
 	int retval;
+
+	mutex_init(&tracer.mutex);
 
 	retval = amba_driver_register(&etb_driver);
 	if (retval) {
