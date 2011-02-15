@@ -462,7 +462,6 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	if (nvme_map_bio(nvmeq->q_dmadev, nbio, bio, dma_dir, psegs) == 0)
 		goto free_nbio;
 
-	cmnd->rw.flags = 1;
 	cmnd->rw.command_id = cmdid;
 	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
 	nbio->prps = nvme_setup_prps(nvmeq->dev, &cmnd->common, nbio->sg,
