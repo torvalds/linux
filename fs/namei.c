@@ -668,9 +668,6 @@ force_reval_path(struct path *path, struct nameidata *nd)
 		return 0;
 
 	if (!status) {
-		/* Don't d_invalidate in rcu-walk mode */
-		if (nameidata_drop_rcu(nd))
-			return -ECHILD;
 		d_invalidate(dentry);
 		status = -ESTALE;
 	}
@@ -777,6 +774,8 @@ __do_follow_link(const struct path *link, struct nameidata *nd, void **p)
 	int error;
 	struct dentry *dentry = link->dentry;
 
+	BUG_ON(nd->flags & LOOKUP_RCU);
+
 	touch_atime(link->mnt, dentry);
 	nd_set_link(nd, NULL);
 
@@ -811,6 +810,11 @@ static inline int do_follow_link(struct path *path, struct nameidata *nd)
 {
 	void *cookie;
 	int err = -ELOOP;
+
+	/* We drop rcu-walk here */
+	if (nameidata_dentry_drop_rcu_maybe(nd, path->dentry))
+		return -ECHILD;
+
 	if (current->link_count >= MAX_NESTED_LINKS)
 		goto loop;
 	if (current->total_link_count >= 40)
@@ -1419,9 +1423,6 @@ exec_again:
 			goto out_dput;
 
 		if (inode->i_op->follow_link) {
-			/* We commonly drop rcu-walk here */
-			if (nameidata_dentry_drop_rcu_maybe(nd, next.dentry))
-				return -ECHILD;
 			BUG_ON(inode != next.dentry->d_inode);
 			err = do_follow_link(&next, nd);
 			if (err)
@@ -1467,8 +1468,6 @@ last_component:
 			break;
 		if (inode && unlikely(inode->i_op->follow_link) &&
 		    (lookup_flags & LOOKUP_FOLLOW)) {
-			if (nameidata_dentry_drop_rcu_maybe(nd, next.dentry))
-				return -ECHILD;
 			BUG_ON(inode != next.dentry->d_inode);
 			err = do_follow_link(&next, nd);
 			if (err)
