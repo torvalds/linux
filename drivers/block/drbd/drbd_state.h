@@ -63,6 +63,7 @@ enum chg_state_flags {
 	CS_SERIALIZE    = 8,
 	CS_ORDERED      = CS_WAIT_COMPLETE + CS_SERIALIZE,
 	CS_NO_CSTATE_CHG = 16, /* Do not display changes in cstate. Internal to drbd_state.c */
+	CS_LOCAL_ONLY = 32, /* Do not consider a device pair wide state change */
 };
 
 extern enum drbd_state_rv drbd_change_state(struct drbd_conf *mdev,

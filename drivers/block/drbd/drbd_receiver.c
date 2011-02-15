@@ -3232,9 +3232,14 @@ static int receive_req_state(struct drbd_conf *mdev, enum drbd_packet cmd,
 	mask = convert_state(mask);
 	val = convert_state(val);
 
-	rv = drbd_change_state(mdev, CS_VERBOSE, mask, val);
+	if (cmd == P_CONN_ST_CHG_REQ) {
+		rv = conn_request_state(mdev->tconn, mask, val, CS_VERBOSE | CS_LOCAL_ONLY);
+		conn_send_sr_reply(mdev->tconn, rv);
+	} else {
+		rv = drbd_change_state(mdev, CS_VERBOSE, mask, val);
+		drbd_send_sr_reply(mdev, rv);
+	}
 
-	drbd_send_sr_reply(mdev, rv);
 	drbd_md_sync(mdev);
 
 	return true;
@@ -3768,6 +3773,7 @@ static struct data_cmd drbd_cmd_handler[] = {
 	[P_CSUM_RS_REQUEST] = { 1, sizeof(struct p_block_req), receive_DataRequest },
 	[P_DELAY_PROBE]     = { 0, sizeof(struct p_delay_probe93), receive_skip },
 	[P_OUT_OF_SYNC]     = { 0, sizeof(struct p_block_desc), receive_out_of_sync },
+	[P_CONN_ST_CHG_REQ] = { 0, sizeof(struct p_req_state), receive_req_state },
 	/* anything missing from this table is in
 	 * the asender_tbl, see get_asender_cmd */
 	[P_MAX_CMD]	    = { 0, 0, NULL },
