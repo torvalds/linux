@@ -363,8 +363,14 @@ static int watchdog_nmi_enable(int cpu)
 		goto out_save;
 	}
 
-	printk(KERN_ERR "NMI watchdog disabled for cpu%i: unable to create perf event: %ld\n",
-	       cpu, PTR_ERR(event));
+
+	/* vary the KERN level based on the returned errno */
+	if (PTR_ERR(event) == -EOPNOTSUPP)
+		printk(KERN_INFO "NMI watchdog disabled (cpu%i): not supported (no LAPIC?)\n", cpu);
+	else if (PTR_ERR(event) == -ENOENT)
+		printk(KERN_WARNING "NMI watchdog disabled (cpu%i): hardware events not enabled\n", cpu);
+	else
+		printk(KERN_ERR "NMI watchdog disabled (cpu%i): unable to create perf event: %ld\n", cpu, PTR_ERR(event));
 	return PTR_ERR(event);
 
 	/* success path */
