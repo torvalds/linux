@@ -538,7 +538,6 @@ static void tuner_lookup(struct i2c_adapter *adap,
 			continue;
 
 		mode_mask = pos->mode_mask;
-		pos->standby = 1;
 		if (*radio == NULL && mode_mask == T_RADIO)
 			*radio = pos;
 		/* Note: currently TDA9887 is the only demod-only
