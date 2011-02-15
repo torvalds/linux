@@ -34,12 +34,6 @@ u32 ethtool_op_get_link(struct net_device *dev)
 }
 EXPORT_SYMBOL(ethtool_op_get_link);
 
-u32 ethtool_op_get_rx_csum(struct net_device *dev)
-{
-	return (dev->features & NETIF_F_ALL_CSUM) != 0;
-}
-EXPORT_SYMBOL(ethtool_op_get_rx_csum);
-
 u32 ethtool_op_get_tx_csum(struct net_device *dev)
 {
 	return (dev->features & NETIF_F_ALL_CSUM) != 0;
@@ -274,7 +268,7 @@ static const char netdev_features_strings[ETHTOOL_DEV_FEATURE_WORDS * 32][ETH_GS
 	/* NETIF_F_FCOE_MTU */        "fcoe-mtu",
 	/* NETIF_F_NTUPLE */          "rx-ntuple-filter",
 	/* NETIF_F_RXHASH */          "rx-hashing",
-	"",
+	/* NETIF_F_RXCSUM */          "rx-checksum",
 	"",
 	"",
 };
@@ -313,6 +307,9 @@ static u32 ethtool_get_feature_mask(u32 eth_cmd)
 	case ETHTOOL_GTXCSUM:
 	case ETHTOOL_STXCSUM:
 		return NETIF_F_ALL_CSUM | NETIF_F_SCTP_CSUM;
+	case ETHTOOL_GRXCSUM:
+	case ETHTOOL_SRXCSUM:
+		return NETIF_F_RXCSUM;
 	case ETHTOOL_GSG:
 	case ETHTOOL_SSG:
 		return NETIF_F_SG;
@@ -343,6 +340,8 @@ static void *__ethtool_get_one_feature_actor(struct net_device *dev, u32 ethcmd)
 	switch (ethcmd) {
 	case ETHTOOL_GTXCSUM:
 		return ops->get_tx_csum;
+	case ETHTOOL_GRXCSUM:
+		return ops->get_rx_csum;
 	case ETHTOOL_SSG:
 		return ops->get_sg;
 	case ETHTOOL_STSO:
@@ -352,6 +351,11 @@ static void *__ethtool_get_one_feature_actor(struct net_device *dev, u32 ethcmd)
 	default:
 		return NULL;
 	}
+}
+
+static u32 __ethtool_get_rx_csum_oldbug(struct net_device *dev)
+{
+	return !!(dev->features & NETIF_F_ALL_CSUM);
 }
 
 static int ethtool_get_one_feature(struct net_device *dev,
@@ -369,6 +373,10 @@ static int ethtool_get_one_feature(struct net_device *dev,
 
 		actor = __ethtool_get_one_feature_actor(dev, ethcmd);
 
+		/* bug compatibility with old get_rx_csum */
+		if (ethcmd == ETHTOOL_GRXCSUM && !actor)
+			actor = __ethtool_get_rx_csum_oldbug;
+
 		if (actor)
 			edata.data = actor(dev);
 	}
@@ -379,6 +387,7 @@ static int ethtool_get_one_feature(struct net_device *dev,
 }
 
 static int __ethtool_set_tx_csum(struct net_device *dev, u32 data);
+static int __ethtool_set_rx_csum(struct net_device *dev, u32 data);
 static int __ethtool_set_sg(struct net_device *dev, u32 data);
 static int __ethtool_set_tso(struct net_device *dev, u32 data);
 static int __ethtool_set_ufo(struct net_device *dev, u32 data);
@@ -416,6 +425,8 @@ static int ethtool_set_one_feature(struct net_device *dev,
 	switch (ethcmd) {
 	case ETHTOOL_STXCSUM:
 		return __ethtool_set_tx_csum(dev, edata.data);
+	case ETHTOOL_SRXCSUM:
+		return __ethtool_set_rx_csum(dev, edata.data);
 	case ETHTOOL_SSG:
 		return __ethtool_set_sg(dev, edata.data);
 	case ETHTOOL_STSO:
@@ -1404,20 +1415,15 @@ static int __ethtool_set_tx_csum(struct net_device *dev, u32 data)
 	return dev->ethtool_ops->set_tx_csum(dev, data);
 }
 
-static int ethtool_set_rx_csum(struct net_device *dev, char __user *useraddr)
+static int __ethtool_set_rx_csum(struct net_device *dev, u32 data)
 {
-	struct ethtool_value edata;
-
 	if (!dev->ethtool_ops->set_rx_csum)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&edata, useraddr, sizeof(edata)))
-		return -EFAULT;
-
-	if (!edata.data && dev->ethtool_ops->set_sg)
+	if (!data)
 		dev->features &= ~NETIF_F_GRO;
 
-	return dev->ethtool_ops->set_rx_csum(dev, edata.data);
+	return dev->ethtool_ops->set_rx_csum(dev, data);
 }
 
 static int __ethtool_set_tso(struct net_device *dev, u32 data)
@@ -1765,15 +1771,6 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_SPAUSEPARAM:
 		rc = ethtool_set_pauseparam(dev, useraddr);
 		break;
-	case ETHTOOL_GRXCSUM:
-		rc = ethtool_get_value(dev, useraddr, ethcmd,
-				       (dev->ethtool_ops->get_rx_csum ?
-					dev->ethtool_ops->get_rx_csum :
-					ethtool_op_get_rx_csum));
-		break;
-	case ETHTOOL_SRXCSUM:
-		rc = ethtool_set_rx_csum(dev, useraddr);
-		break;
 	case ETHTOOL_TEST:
 		rc = ethtool_self_test(dev, useraddr);
 		break;
@@ -1846,6 +1843,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		rc = ethtool_set_features(dev, useraddr);
 		break;
 	case ETHTOOL_GTXCSUM:
+	case ETHTOOL_GRXCSUM:
 	case ETHTOOL_GSG:
 	case ETHTOOL_GTSO:
 	case ETHTOOL_GUFO:
@@ -1854,6 +1852,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		rc = ethtool_get_one_feature(dev, useraddr, ethcmd);
 		break;
 	case ETHTOOL_STXCSUM:
+	case ETHTOOL_SRXCSUM:
 	case ETHTOOL_SSG:
 	case ETHTOOL_STSO:
 	case ETHTOOL_SUFO:
