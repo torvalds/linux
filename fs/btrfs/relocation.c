@@ -1157,6 +1157,7 @@ static int clone_backref_node(struct btrfs_trans_handle *trans,
 	new_node->bytenr = dest->node->start;
 	new_node->level = node->level;
 	new_node->lowest = node->lowest;
+	new_node->checked = 1;
 	new_node->root = dest;
 
 	if (!node->lowest) {
