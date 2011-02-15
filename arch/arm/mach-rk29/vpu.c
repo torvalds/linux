@@ -106,13 +106,16 @@ static void vpu_power_on(void)
 	pr_debug("power on\n");
 	if (client.enabled)
 		return;
+#if 0
 	pr_debug("power domain on\n");
 	pmu_set_power_domain(PD_VCODEC, true);
 	udelay(10);
+#endif
 	clk_enable(aclk_vepu);
 	clk_enable(hclk_vepu);
 	clk_enable(aclk_ddr_vepu);
 	clk_enable(hclk_cpu_vcodec);
+#if 0
 	udelay(10);
 	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, true);
 	cru_set_soft_reset(SOFT_RST_VCODEC_AHB_BUS, true);
@@ -123,6 +126,7 @@ static void vpu_power_on(void)
 	cru_set_soft_reset(SOFT_RST_VCODEC_AHB_BUS, false);
 	cru_set_soft_reset(SOFT_RST_VCODEC_AXI_BUS, false);
 	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, false);
+#endif
 	client.enabled = true;
 }
 
@@ -135,8 +139,10 @@ static void vpu_power_off(void)
 	clk_disable(aclk_ddr_vepu);
 	clk_disable(hclk_vepu);
 	clk_disable(aclk_vepu);
+#if 0
 	pr_debug("power domain off\n");
 	pmu_set_power_domain(PD_VCODEC, false);
+#endif
 	client.enabled = false;
 }
 
