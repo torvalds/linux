@@ -5302,6 +5302,37 @@ u32 netdev_fix_features(struct net_device *dev, u32 features)
 }
 EXPORT_SYMBOL(netdev_fix_features);
 
+void netdev_update_features(struct net_device *dev)
+{
+	u32 features;
+	int err = 0;
+
+	features = netdev_get_wanted_features(dev);
+
+	if (dev->netdev_ops->ndo_fix_features)
+		features = dev->netdev_ops->ndo_fix_features(dev, features);
+
+	/* driver might be less strict about feature dependencies */
+	features = netdev_fix_features(dev, features);
+
+	if (dev->features == features)
+		return;
+
+	netdev_info(dev, "Features changed: 0x%08x -> 0x%08x\n",
+		dev->features, features);
+
+	if (dev->netdev_ops->ndo_set_features)
+		err = dev->netdev_ops->ndo_set_features(dev, features);
+
+	if (!err)
+		dev->features = features;
+	else if (err < 0)
+		netdev_err(dev,
+			"set_features() failed (%d); wanted 0x%08x, left 0x%08x\n",
+			err, features, dev->features);
+}
+EXPORT_SYMBOL(netdev_update_features);
+
 /**
  *	netif_stacked_transfer_operstate -	transfer operstate
  *	@rootdev: the root or lower level device to transfer state from
@@ -5436,15 +5467,18 @@ int register_netdevice(struct net_device *dev)
 	if (dev->iflink == -1)
 		dev->iflink = dev->ifindex;
 
-	/* Enable software offloads by default - will be stripped in
-	 * netdev_fix_features() if not supported. */
-	dev->features |= NETIF_F_SOFT_FEATURES;
+	/* Transfer changeable features to wanted_features and enable
+	 * software offloads (GSO and GRO).
+	 */
+	dev->hw_features |= NETIF_F_SOFT_FEATURES;
+	dev->wanted_features = (dev->features & dev->hw_features)
+		| NETIF_F_SOFT_FEATURES;
 
 	/* Avoid warning from netdev_fix_features() for GSO without SG */
-	if (!(dev->features & NETIF_F_SG))
-		dev->features &= ~NETIF_F_GSO;
+	if (!(dev->wanted_features & NETIF_F_SG))
+		dev->wanted_features &= ~NETIF_F_GSO;
 
-	dev->features = netdev_fix_features(dev, dev->features);
+	netdev_update_features(dev);
 
 	/* Enable GRO and NETIF_F_HIGHDMA for vlans by default,
 	 * vlan_dev_init() will do the dev->features check, so these features

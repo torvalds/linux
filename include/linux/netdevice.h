@@ -791,6 +791,18 @@ struct netdev_tc_txq {
  *
  * int (*ndo_del_slave)(struct net_device *dev, struct net_device *slave_dev);
  *	Called to release previously enslaved netdev.
+ *
+ *      Feature/offload setting functions.
+ * u32 (*ndo_fix_features)(struct net_device *dev, u32 features);
+ *	Adjusts the requested feature flags according to device-specific
+ *	constraints, and returns the resulting flags. Must not modify
+ *	the device state.
+ *
+ * int (*ndo_set_features)(struct net_device *dev, u32 features);
+ *	Called to update device configuration to new features. Passed
+ *	feature set might be less than what was returned by ndo_fix_features()).
+ *	Must return >0 or -errno if it changed dev->features itself.
+ *
  */
 #define HAVE_NET_DEVICE_OPS
 struct net_device_ops {
@@ -874,6 +886,10 @@ struct net_device_ops {
 						 struct net_device *slave_dev);
 	int			(*ndo_del_slave)(struct net_device *dev,
 						 struct net_device *slave_dev);
+	u32			(*ndo_fix_features)(struct net_device *dev,
+						    u32 features);
+	int			(*ndo_set_features)(struct net_device *dev,
+						    u32 features);
 };
 
 /*
@@ -925,11 +941,17 @@ struct net_device {
 	struct list_head	napi_list;
 	struct list_head	unreg_list;
 
-	/* Net device features */
+	/* currently active device features */
 	u32			features;
-
+	/* user-changeable features */
+	u32			hw_features;
+	/* user-requested features */
+	u32			wanted_features;
 	/* VLAN feature mask */
 	u32			vlan_features;
+
+	/* Net device feature bits; if you change something,
+	 * also update netdev_features_strings[] in ethtool.c */
 
 #define NETIF_F_SG		1	/* Scatter/gather IO. */
 #define NETIF_F_IP_CSUM		2	/* Can checksum TCP/UDP over IPv4. */
@@ -965,6 +987,12 @@ struct net_device {
 #define NETIF_F_TSO_ECN		(SKB_GSO_TCP_ECN << NETIF_F_GSO_SHIFT)
 #define NETIF_F_TSO6		(SKB_GSO_TCPV6 << NETIF_F_GSO_SHIFT)
 #define NETIF_F_FSO		(SKB_GSO_FCOE << NETIF_F_GSO_SHIFT)
+
+	/* Features valid for ethtool to change */
+	/* = all defined minus driver/device-class-related */
+#define NETIF_F_NEVER_CHANGE	(NETIF_F_HIGHDMA | NETIF_F_VLAN_CHALLENGED | \
+				  NETIF_F_LLTX | NETIF_F_NETNS_LOCAL)
+#define NETIF_F_ETHTOOL_BITS	(0x1f3fffff & ~NETIF_F_NEVER_CHANGE)
 
 	/* List of features with software fallbacks. */
 #define NETIF_F_GSO_SOFTWARE	(NETIF_F_TSO | NETIF_F_TSO_ECN | \
@@ -2428,8 +2456,13 @@ extern char *netdev_drivername(const struct net_device *dev, char *buffer, int l
 
 extern void linkwatch_run_queue(void);
 
+static inline u32 netdev_get_wanted_features(struct net_device *dev)
+{
+	return (dev->features & ~dev->hw_features) | dev->wanted_features;
+}
 u32 netdev_increment_features(u32 all, u32 one, u32 mask);
 u32 netdev_fix_features(struct net_device *dev, u32 features);
+void netdev_update_features(struct net_device *dev);
 
 void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 					struct net_device *dev);
