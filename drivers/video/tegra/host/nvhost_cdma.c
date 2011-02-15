@@ -522,16 +522,14 @@ void nvhost_cdma_stop(struct nvhost_cdma *cdma)
 {
 	void __iomem *chan_regs = cdma_to_channel(cdma)->aperture;
 
-	if (!cdma->running)
-		return;
-
 	mutex_lock(&cdma->lock);
-	wait_cdma(cdma, CDMA_EVENT_SYNC_QUEUE_EMPTY);
+	if (cdma->running) {
+		wait_cdma(cdma, CDMA_EVENT_SYNC_QUEUE_EMPTY);
+		writel(nvhost_channel_dmactrl(true, false, false),
+			chan_regs + HOST1X_CHANNEL_DMACTRL);
+		cdma->running = false;
+	}
 	mutex_unlock(&cdma->lock);
-	writel(nvhost_channel_dmactrl(true, false, false),
-		chan_regs + HOST1X_CHANNEL_DMACTRL);
-
-	cdma->running = false;
 }
 
 /**
@@ -539,9 +537,9 @@ void nvhost_cdma_stop(struct nvhost_cdma *cdma)
  */
 void nvhost_cdma_begin(struct nvhost_cdma *cdma)
 {
+	mutex_lock(&cdma->lock);
 	if (!cdma->running)
 		start_cdma(cdma);
-	mutex_lock(&cdma->lock);
 	cdma->slots_free = 0;
 	cdma->slots_used = 0;
 }
