@@ -832,6 +832,36 @@ err_out:
 	return -ENOMEM;
 }
 
+static char tegra_clk_dump_buff[16 * 1024];
+
+void tegra_clk_dump(void)
+{
+	struct seq_file s;
+	int i;
+	char c;
+
+	memset(&s, 0x0, sizeof(s));
+
+	s.buf = tegra_clk_dump_buff;
+	s.size = sizeof(tegra_clk_dump_buff);
+
+	clock_tree_show(&s, NULL);
+
+	i = 0;
+	while (i < s.count ) {
+		if ((s.count - i) > 256) {
+			c = s.buf[i + 256];
+			s.buf[i + 256] = 0;
+			printk("%s", s.buf + i);
+			s.buf[i + 256] = c;
+		} else {
+			printk("%s", s.buf + i);
+		}
+		i += 256;
+	}
+}
+
+
 static int clk_debugfs_register(struct clk *c)
 {
 	int err;

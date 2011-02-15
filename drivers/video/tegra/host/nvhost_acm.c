@@ -194,14 +194,18 @@ static int is_module_idle(struct nvhost_module *mod)
 	return (count == 0);
 }
 
+void tegra_clk_dump(void);
+
 void nvhost_module_suspend(struct nvhost_module *mod)
 {
 	int ret;
 
 	ret = wait_event_timeout(mod->idle, is_module_idle(mod),
 			   ACM_TIMEOUT + msecs_to_jiffies(500));
-	if (ret == 0)
+	if (ret == 0) {
+		tegra_clk_dump();
 		nvhost_debug_dump();
+	}
 	flush_delayed_work(&mod->powerdown);
 	BUG_ON(mod->powered);
 }
