@@ -571,25 +571,9 @@ void release_open_intent(struct nameidata *nd)
 	}
 }
 
-/*
- * Call d_revalidate and handle filesystems that request rcu-walk
- * to be dropped. This may be called and return in rcu-walk mode,
- * regardless of success or error. If -ECHILD is returned, the caller
- * must return -ECHILD back up the path walk stack so path walk may
- * be restarted in ref-walk mode.
- */
-static int d_revalidate(struct dentry *dentry, struct nameidata *nd)
+static inline int d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	int status;
-
-	status = dentry->d_op->d_revalidate(dentry, nd);
-	if (status == -ECHILD) {
-		if (nameidata_dentry_drop_rcu(nd, dentry))
-			return status;
-		status = dentry->d_op->d_revalidate(dentry, nd);
-	}
-
-	return status;
+	return dentry->d_op->d_revalidate(dentry, nd);
 }
 
 static struct dentry *
@@ -617,7 +601,7 @@ do_revalidate(struct dentry *dentry, struct nameidata *nd)
 static inline struct dentry *
 do_revalidate_rcu(struct dentry *dentry, struct nameidata *nd)
 {
-	int status = dentry->d_op->d_revalidate(dentry, nd);
+	int status = d_revalidate(dentry, nd);
 	if (likely(status > 0))
 		return dentry;
 	if (status == -ECHILD) {
@@ -1517,12 +1501,15 @@ return_reval:
 		 * We may need to check the cached dentry for staleness.
 		 */
 		if (need_reval_dot(nd->path.dentry)) {
+			if (nameidata_drop_rcu_last_maybe(nd))
+				return -ECHILD;
 			/* Note: we do not d_invalidate() */
 			err = d_revalidate(nd->path.dentry, nd);
 			if (!err)
 				err = -ESTALE;
 			if (err < 0)
 				break;
+			return 0;
 		}
 return_base:
 		if (nameidata_drop_rcu_last_maybe(nd))
