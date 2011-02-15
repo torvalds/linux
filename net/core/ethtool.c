@@ -172,6 +172,25 @@ EXPORT_SYMBOL(ethtool_ntuple_flush);
 
 /* Handlers for each ethtool command */
 
+static int __ethtool_get_sset_count(struct net_device *dev, int sset)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
+	if (ops && ops->get_sset_count && ops->get_strings)
+		return ops->get_sset_count(dev, sset);
+	else
+		return -EOPNOTSUPP;
+}
+
+static void __ethtool_get_strings(struct net_device *dev,
+	u32 stringset, u8 *data)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
+	/* ops->get_strings is valid because checked earlier */
+	ops->get_strings(dev, stringset, data);
+}
+
 static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
@@ -252,13 +271,9 @@ static noinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
 						    void __user *useraddr)
 {
 	struct ethtool_sset_info info;
-	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u64 sset_mask;
 	int i, idx = 0, n_bits = 0, ret, rc;
 	u32 *info_buf = NULL;
-
-	if (!ops->get_sset_count)
-		return -EOPNOTSUPP;
 
 	if (copy_from_user(&info, useraddr, sizeof(info)))
 		return -EFAULT;
@@ -286,7 +301,7 @@ static noinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
 		if (!(sset_mask & (1ULL << i)))
 			continue;
 
-		rc = ops->get_sset_count(dev, i);
+		rc = __ethtool_get_sset_count(dev, i);
 		if (rc >= 0) {
 			info.sset_mask |= (1ULL << i);
 			info_buf[idx++] = rc;
@@ -1287,17 +1302,13 @@ static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_gstrings gstrings;
-	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u8 *data;
 	int ret;
-
-	if (!ops->get_strings || !ops->get_sset_count)
-		return -EOPNOTSUPP;
 
 	if (copy_from_user(&gstrings, useraddr, sizeof(gstrings)))
 		return -EFAULT;
 
-	ret = ops->get_sset_count(dev, gstrings.string_set);
+	ret = __ethtool_get_sset_count(dev, gstrings.string_set);
 	if (ret < 0)
 		return ret;
 
@@ -1307,7 +1318,7 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 	if (!data)
 		return -ENOMEM;
 
-	ops->get_strings(dev, gstrings.string_set, data);
+	__ethtool_get_strings(dev, gstrings.string_set, data);
 
 	ret = -EFAULT;
 	if (copy_to_user(useraddr, &gstrings, sizeof(gstrings)))
@@ -1317,7 +1328,7 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 		goto out;
 	ret = 0;
 
- out:
+out:
 	kfree(data);
 	return ret;
 }
