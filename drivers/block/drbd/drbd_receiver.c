@@ -4265,18 +4265,29 @@ int drbdd_init(struct drbd_thread *thi)
 static int got_RqSReply(struct drbd_conf *mdev, enum drbd_packet cmd)
 {
 	struct p_req_state_reply *p = &mdev->tconn->meta.rbuf.req_state_reply;
+	struct drbd_tconn *tconn = mdev->tconn;
 
 	int retcode = be32_to_cpu(p->retcode);
 
-	if (retcode >= SS_SUCCESS) {
-		set_bit(CL_ST_CHG_SUCCESS, &mdev->flags);
-	} else {
-		set_bit(CL_ST_CHG_FAIL, &mdev->flags);
-		dev_err(DEV, "Requested state change failed by peer: %s (%d)\n",
-		    drbd_set_st_err_str(retcode), retcode);
+	if (cmd == P_STATE_CHG_REPLY) {
+		if (retcode >= SS_SUCCESS) {
+			set_bit(CL_ST_CHG_SUCCESS, &mdev->flags);
+		} else {
+			set_bit(CL_ST_CHG_FAIL, &mdev->flags);
+			dev_err(DEV, "Requested state change failed by peer: %s (%d)\n",
+				drbd_set_st_err_str(retcode), retcode);
+		}
+		wake_up(&mdev->state_wait);
+	} else /* conn == P_CONN_ST_CHG_REPLY */ {
+		if (retcode >= SS_SUCCESS) {
+			set_bit(CONN_WD_ST_CHG_OKAY, &tconn->flags);
+		} else {
+			set_bit(CONN_WD_ST_CHG_FAIL, &tconn->flags);
+			conn_err(tconn, "Requested state change failed by peer: %s (%d)\n",
+				 drbd_set_st_err_str(retcode), retcode);
+		}
+		wake_up(&tconn->ping_wait);
 	}
-	wake_up(&mdev->state_wait);
-
 	return true;
 }
 
@@ -4553,6 +4564,7 @@ static struct asender_cmd *get_asender_cmd(int cmd)
 	[P_RS_IS_IN_SYNC]   = { sizeof(struct p_block_ack), got_IsInSync },
 	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe93), got_skip },
 	[P_RS_CANCEL]       = { sizeof(struct p_block_ack), got_NegRSDReply},
+	[P_CONN_ST_CHG_REPLY]={ sizeof(struct p_req_state_reply), got_RqSReply },
 	[P_MAX_CMD]	    = { 0, NULL },
 	};
 	if (cmd > P_MAX_CMD || asender_tbl[cmd].process == NULL)

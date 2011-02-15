@@ -914,6 +914,8 @@ enum {
 	SEND_PING,		/* whether asender should send a ping asap */
 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
 	GOT_PING_ACK,		/* set when we receive a ping_ack packet, ping_wait gets woken */
+	CONN_WD_ST_CHG_OKAY,
+	CONN_WD_ST_CHG_FAIL,
 };
 
 struct drbd_tconn {			/* is a resource from the config file */
