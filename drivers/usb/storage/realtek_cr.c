@@ -141,7 +141,7 @@ static int init_realtek_cr(struct us_data *us);
 	.driver_info = (flags)|(USB_US_TYPE_STOR<<24)\
 }
 
-struct usb_device_id realtek_cr_ids[] = {
+static struct usb_device_id realtek_cr_ids[] = {
 #	include "unusual_realtek.h"
 	{ }		/* Terminating entry */
 };
@@ -570,7 +570,7 @@ static void realtek_cr_destructor(void *extra)
 }
 
 #ifdef CONFIG_PM
-void realtek_pm_hook(struct us_data *us, int pm_state)
+static void realtek_pm_hook(struct us_data *us, int pm_state)
 {
 	if (pm_state == US_SUSPEND)
 		(void)config_autodelink_before_power_down(us);
