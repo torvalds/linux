@@ -253,6 +253,9 @@ static int msm_otg_reset(struct otg_transceiver *otg)
 }
 
 #define PHY_SUSPEND_TIMEOUT_USEC	(500 * 1000)
+#define PHY_RESUME_TIMEOUT_USEC	(100 * 1000)
+
+#ifdef CONFIG_PM_SLEEP
 static int msm_otg_suspend(struct msm_otg *motg)
 {
 	struct otg_transceiver *otg = &motg->otg;
@@ -334,7 +337,6 @@ static int msm_otg_suspend(struct msm_otg *motg)
 	return 0;
 }
 
-#define PHY_RESUME_TIMEOUT_USEC	(100 * 1000)
 static int msm_otg_resume(struct msm_otg *motg)
 {
 	struct otg_transceiver *otg = &motg->otg;
@@ -399,6 +401,7 @@ skip_phy_resume:
 
 	return 0;
 }
+#endif
 
 static void msm_otg_start_host(struct otg_transceiver *otg, int on)
 {
@@ -972,7 +975,7 @@ static int __devexit msm_otg_remove(struct platform_device *pdev)
 	msm_otg_debugfs_cleanup();
 	cancel_work_sync(&motg->sm_work);
 
-	msm_otg_resume(motg);
+	pm_runtime_resume(&pdev->dev);
 
 	device_init_wakeup(&pdev->dev, 0);
 	pm_runtime_disable(&pdev->dev);
@@ -1050,13 +1053,9 @@ static int msm_otg_runtime_resume(struct device *dev)
 	dev_dbg(dev, "OTG runtime resume\n");
 	return msm_otg_resume(motg);
 }
-#else
-#define msm_otg_runtime_idle	NULL
-#define msm_otg_runtime_suspend	NULL
-#define msm_otg_runtime_resume	NULL
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int msm_otg_pm_suspend(struct device *dev)
 {
 	struct msm_otg *motg = dev_get_drvdata(dev);
@@ -1086,25 +1085,24 @@ static int msm_otg_pm_resume(struct device *dev)
 
 	return 0;
 }
-#else
-#define msm_otg_pm_suspend	NULL
-#define msm_otg_pm_resume	NULL
 #endif
 
+#ifdef CONFIG_PM
 static const struct dev_pm_ops msm_otg_dev_pm_ops = {
-	.runtime_suspend = msm_otg_runtime_suspend,
-	.runtime_resume  = msm_otg_runtime_resume,
-	.runtime_idle    = msm_otg_runtime_idle,
-	.suspend         = msm_otg_pm_suspend,
-	.resume          = msm_otg_pm_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(msm_otg_pm_suspend, msm_otg_pm_resume)
+	SET_RUNTIME_PM_OPS(msm_otg_runtime_suspend, msm_otg_runtime_resume,
+				msm_otg_runtime_idle)
 };
+#endif
 
 static struct platform_driver msm_otg_driver = {
 	.remove = __devexit_p(msm_otg_remove),
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
+#ifdef CONFIG_PM
 		.pm = &msm_otg_dev_pm_ops,
+#endif
 	},
 };
 
