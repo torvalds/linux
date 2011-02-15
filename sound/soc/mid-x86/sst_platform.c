@@ -365,6 +365,14 @@ static snd_pcm_uframes_t sst_platform_pcm_pointer
 	return stream->stream_info.buffer_ptr;
 }
 
+static int sst_platform_pcm_hw_params(struct snd_pcm_substream *substream,
+		struct snd_pcm_hw_params *params)
+{
+	snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
+	memset(substream->runtime->dma_area, 0, params_buffer_bytes(params));
+
+	return 0;
+}
 
 static struct snd_pcm_ops sst_platform_ops = {
 	.open = sst_platform_open,
@@ -373,6 +381,7 @@ static struct snd_pcm_ops sst_platform_ops = {
 	.prepare = sst_platform_pcm_prepare,
 	.trigger = sst_platform_pcm_trigger,
 	.pointer = sst_platform_pcm_pointer,
+	.hw_params = sst_platform_pcm_hw_params,
 };
 
 static void sst_pcm_free(struct snd_pcm *pcm)
