@@ -388,4 +388,4 @@ static int __init rk29_backlight_init(void)
 	platform_driver_register(&rk29_backlight_driver);
 	return 0;
 }
-postcore_initcall_sync(rk29_backlight_init);
+late_initcall(rk29_backlight_init);

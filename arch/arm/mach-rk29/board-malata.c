@@ -42,6 +42,7 @@
 #include <mach/rk29_camera.h>                          /* ddl@rock-chips.com : camera support */
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 #include <mach/vpu_mem.h>
+#include <mach/sram.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
@@ -78,9 +79,27 @@
 #define MEM_FB_BASE         (MEM_CAMIPP_BASE - MEM_FB_SIZE)
 #define LINUX_SIZE          (MEM_FB_BASE - RK29_SDRAM_PHYS)
 
+#define PREALLOC_WLAN_SEC_NUM           4
+#define PREALLOC_WLAN_BUF_NUM           160
+#define PREALLOC_WLAN_SECTION_HEADER    24
+
+#define WLAN_SECTION_SIZE_0     (PREALLOC_WLAN_BUF_NUM * 128)
+#define WLAN_SECTION_SIZE_1     (PREALLOC_WLAN_BUF_NUM * 128)
+#define WLAN_SECTION_SIZE_2     (PREALLOC_WLAN_BUF_NUM * 512)
+#define WLAN_SECTION_SIZE_3     (PREALLOC_WLAN_BUF_NUM * 1024)
+
+#define WLAN_SKB_BUF_NUM        16
+
+static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
+
+struct wifi_mem_prealloc {
+        void *mem_ptr;
+        unsigned long size;
+};
+
 extern struct sys_timer rk29_timer;
 
-int rk29_nand_io_init(void)
+static int rk29_nand_io_init(void)
 {
     return 0;
 }
@@ -127,7 +146,7 @@ static int rk29_lcd_io_deinit(void)
     return ret;
 }
 
-struct rk29lcd_info rk29_lcd_info = {
+static struct rk29lcd_info rk29_lcd_info = {
     .txd_pin  = LCD_TXD_PIN,
     .clk_pin = LCD_CLK_PIN,
     .cs_pin = LCD_CS_PIN,
@@ -184,7 +203,7 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
     return ret;
 }
 
-struct rk29fb_info rk29_fb_info = {
+static struct rk29fb_info rk29_fb_info = {
     .fb_id   = FB_ID,
     .disp_on_pin = FB_DISPLAY_ON_PIN,
     .disp_on_value = FB_DISPLAY_ON_VALUE,
@@ -196,7 +215,7 @@ struct rk29fb_info rk29_fb_info = {
 };
 
 /* rk29 fb resource */
-struct resource rk29_fb_resource[] = {
+static struct resource rk29_fb_resource[] = {
 	[0] = {
         .name  = "lcdc reg",
 		.start = RK29_LCDC_PHYS,
@@ -227,6 +246,13 @@ struct platform_device rk29_device_fb = {
 		.platform_data  = &rk29_fb_info,
 	}
 };
+
+struct platform_device rk29_device_dma_cpy = {
+	.name		  = "dma_memcpy",
+	.id		  = 4,
+
+};
+
 #endif
 
 static struct android_pmem_platform_data android_pmem_pdata = {
@@ -278,6 +304,9 @@ static struct platform_device rk29_vpu_mem_device = {
 	},
 };
 
+static struct platform_device rk29_v4l2_output_devce = {
+	.name		= "rk29_vout",
+};
 
 /*HANNSTAR_P1003 touch*/
 #if defined (CONFIG_HANNSTAR_P1003)
@@ -954,7 +983,7 @@ static struct i2c_board_info rk29_i2c_cam_info_0[] = {
 	},
 };
 
-struct soc_camera_link rk29_iclink_0 = {
+static struct soc_camera_link rk29_iclink_0 = {
 	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
 	.power		= rk29_sensor_power,
 	.powerdown  = rk29_sensor_powerdown,
@@ -964,7 +993,7 @@ struct soc_camera_link rk29_iclink_0 = {
 };
 
 /*platform_device : soc-camera need  */
-struct platform_device rk29_soc_camera_pdrv_0 = {
+static struct platform_device rk29_soc_camera_pdrv_0 = {
 	.name	= "soc-camera-pdrv",
 	.id	= 0,
 	.dev	= {
@@ -979,7 +1008,7 @@ static struct i2c_board_info rk29_i2c_cam_info_1[] = {
 	},
 };
 
-struct soc_camera_link rk29_iclink_1 = {
+static struct soc_camera_link rk29_iclink_1 = {
 	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
 	.power		= rk29_sensor_power,
 	.powerdown  = rk29_sensor_powerdown,
@@ -989,7 +1018,7 @@ struct soc_camera_link rk29_iclink_1 = {
 };
 
 /*platform_device : soc-camera need  */
-struct platform_device rk29_soc_camera_pdrv_1 = {
+static struct platform_device rk29_soc_camera_pdrv_1 = {
 	.name	= "soc-camera-pdrv",
 	.id	= 1,
 	.dev	= {
@@ -1000,7 +1029,7 @@ struct platform_device rk29_soc_camera_pdrv_1 = {
 
 
 static u64 rockchip_device_camera_dmamask = 0xffffffffUL;
-struct resource rk29_camera_resource[] = {
+static struct resource rk29_camera_resource[] = {
 	[0] = {
 		.start = RK29_VIP_PHYS,
 		.end   = RK29_VIP_PHYS + RK29_VIP_SIZE - 1,
@@ -1014,7 +1043,7 @@ struct resource rk29_camera_resource[] = {
 };
 
 /*platform_device : */
-struct platform_device rk29_device_camera = {
+static struct platform_device rk29_device_camera = {
 	.name		  = RK29_CAM_DRV_NAME,
 	.id		  = RK29_CAM_PLATFORM_DEV_ID,               /* This is used to put cameras on this interface */
 	.num_resources	  = ARRAY_SIZE(rk29_camera_resource),
@@ -1042,6 +1071,7 @@ struct platform_device rk29_device_camera = {
 #define PWM_MUX_NAME      GPIO1B5_PWM0_NAME
 #define PWM_MUX_MODE      GPIO1L_PWM0
 #define PWM_MUX_MODE_GPIO GPIO1L_GPIO1B5
+#define PWM_GPIO_PIN			RK29_PIN1_PB5
 #define PWM_EFFECT_VALUE  1
 
 //#define LCD_DISP_ON_PIN
@@ -1053,6 +1083,29 @@ struct platform_device rk29_device_camera = {
 #define BL_EN_PIN         GPIO0L_GPIO0A5
 #define BL_EN_VALUE       GPIO_HIGH
 #endif
+static void rk29_backlight_close(void){
+	 int ret;
+	 ret = gpio_request(FB_DISPLAY_ON_PIN, NULL);
+   if(ret != 0)
+   {
+            gpio_free(FB_DISPLAY_ON_PIN);
+            printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
+   }
+   gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
+   gpio_set_value(FB_DISPLAY_ON_PIN, GPIO_LOW);
+   gpio_free(FB_DISPLAY_ON_PIN);
+   
+   rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
+   ret = gpio_request(PWM_GPIO_PIN, NULL);
+   if(ret != 0)
+   {
+            gpio_free(PWM_GPIO_PIN);
+            printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
+   }
+   gpio_direction_output(PWM_GPIO_PIN, 0);
+   gpio_set_value(PWM_GPIO_PIN, GPIO_HIGH);
+   gpio_free(PWM_GPIO_PIN);
+}
 static int rk29_backlight_io_init(void)
 {
     int ret = 0;
@@ -1304,7 +1357,7 @@ static int rk29sdk_wifi_reset(int on)
         return 0;
 }
 
-static int rk29sdk_wifi_set_carddetect(int val)
+int rk29sdk_wifi_set_carddetect(int val)
 {
         pr_info("%s:%d\n", __func__, val);
         rk29sdk_wifi_cd = val;
@@ -1315,11 +1368,71 @@ static int rk29sdk_wifi_set_carddetect(int val)
         }
         return 0;
 }
+EXPORT_SYMBOL(rk29sdk_wifi_set_carddetect);
+
+static struct wifi_mem_prealloc wifi_mem_array[PREALLOC_WLAN_SEC_NUM] = {
+        {NULL, (WLAN_SECTION_SIZE_0 + PREALLOC_WLAN_SECTION_HEADER)},
+        {NULL, (WLAN_SECTION_SIZE_1 + PREALLOC_WLAN_SECTION_HEADER)},
+        {NULL, (WLAN_SECTION_SIZE_2 + PREALLOC_WLAN_SECTION_HEADER)},
+        {NULL, (WLAN_SECTION_SIZE_3 + PREALLOC_WLAN_SECTION_HEADER)}
+};
+
+static void *rk29sdk_mem_prealloc(int section, unsigned long size)
+{
+        if (section == PREALLOC_WLAN_SEC_NUM)
+                return wlan_static_skb;
+
+        if ((section < 0) || (section > PREALLOC_WLAN_SEC_NUM))
+                return NULL;
+
+        if (wifi_mem_array[section].size < size)
+                return NULL;
+
+        return wifi_mem_array[section].mem_ptr;
+}
+
+int __init rk29sdk_init_wifi_mem(void)
+{
+        int i;
+        int j;
+
+        for (i = 0 ; i < WLAN_SKB_BUF_NUM ; i++) {
+                wlan_static_skb[i] = dev_alloc_skb(
+                                ((i < (WLAN_SKB_BUF_NUM / 2)) ? 4096 : 8192));
+
+                if (!wlan_static_skb[i])
+                        goto err_skb_alloc;
+        }
+
+        for (i = 0 ; i < PREALLOC_WLAN_SEC_NUM ; i++) {
+                wifi_mem_array[i].mem_ptr =
+                                kmalloc(wifi_mem_array[i].size, GFP_KERNEL);
+
+                if (!wifi_mem_array[i].mem_ptr)
+                        goto err_mem_alloc;
+        }
+        return 0;
+
+ err_mem_alloc:
+        pr_err("Failed to mem_alloc for WLAN\n");
+        for (j = 0 ; j < i ; j++)
+                kfree(wifi_mem_array[j].mem_ptr);
+
+        i = WLAN_SKB_BUF_NUM;
+
+ err_skb_alloc:
+        pr_err("Failed to skb_alloc for WLAN\n");
+        for (j = 0 ; j < i ; j++)
+                dev_kfree_skb(wlan_static_skb[j]);
+
+        return -ENOMEM;
+}
 
 static struct wifi_platform_data rk29sdk_wifi_control = {
         .set_power = rk29sdk_wifi_power,
         .set_reset = rk29sdk_wifi_reset,
         .set_carddetect = rk29sdk_wifi_set_carddetect,
+        .mem_prealloc   = rk29sdk_mem_prealloc,
 };
 static struct platform_device rk29sdk_wifi_device = {
         .name = "bcm4329_wlan",
@@ -1359,7 +1472,7 @@ static struct resource resources_gpu[] = {
         .flags  = IORESOURCE_MEM,
     },
 };
-struct platform_device rk29_device_gpu = {
+static struct platform_device rk29_device_gpu = {
     .name             = "galcore",
     .id               = 0,
     .num_resources    = ARRAY_SIZE(resources_gpu),
@@ -1508,6 +1621,7 @@ static struct platform_device *devices[] __initdata = {
 
 #ifdef CONFIG_FB_RK29
 	&rk29_device_fb,
+	&rk29_device_dma_cpy,
 #endif
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
@@ -1543,6 +1657,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_RK29_IPP
 	&rk29_device_ipp,
+#endif
+#ifdef CONFIG_VIDEO_RK29XX_VOUT
+	&rk29_v4l2_output_devce,
 #endif
 };
 
@@ -1613,7 +1730,7 @@ struct rk29_vmac_platform_data rk29_vmac_pdata = {
  * author: cmc@rock-chips.com
  *****************************************************************************************/
 #define SPI_CHIPSELECT_NUM 2
-struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
+static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
     {
 		.name = "spi0 cs0",
 		.cs_gpio = RK29_PIN2_PC1,
@@ -1627,7 +1744,7 @@ struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
 	}
 };
 
-struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
+static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
     {
 		.name = "spi1 cs0",
 		.cs_gpio = RK29_PIN2_PC5,
@@ -1853,6 +1970,8 @@ static void __init machine_rk29_board_init(void)
 #endif
 
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
+
+        rk29sdk_init_wifi_mem();
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
@@ -1867,6 +1986,7 @@ static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tag
 static void __init machine_rk29_mapio(void)
 {
 	rk29_map_common_io();
+	rk29_sram_init();
 	rk29_clock_init();
 	rk29_iomux_init();
 }
