@@ -1,5 +1,5 @@
 /*
- * board-sdp-flash.c
+ * board-flash.c
  * Modified from mach-omap2/board-3430sdp-flash.c
  *
  * Copyright (C) 2009 Nokia Corporation
@@ -189,7 +189,7 @@ unmap:
 }
 
 /**
- * sdp3430_flash_init - Identify devices connected to GPMC and register.
+ * board_flash_init - Identify devices connected to GPMC and register.
  *
  * @return - void.
  */
