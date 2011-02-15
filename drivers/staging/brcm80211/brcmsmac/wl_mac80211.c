@@ -755,7 +755,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	spin_lock_init(&wl->isr_lock);
 
 	/* prepare ucode */
-	if (wl_request_fw(wl, (struct pci_dev *)btparam)) {
+	if (wl_request_fw(wl, (struct pci_dev *)btparam) < 0) {
 		WL_ERROR("%s: Failed to find firmware usually in %s\n",
 			 KBUILD_MODNAME, "/lib/firmware/brcm");
 		wl_release_fw(wl);
@@ -1760,7 +1760,7 @@ int wl_ucode_init_buf(struct wl_info *wl, void **pbuf, u32 idx)
 	WL_ERROR("ERROR: ucode buf tag:%d can not be found!\n", idx);
 	*pbuf = NULL;
 fail:
-	return -1;
+	return BCME_NOTFOUND;
 }
 
 int wl_ucode_init_uint(struct wl_info *wl, u32 *data, u32 idx)
@@ -1868,8 +1868,8 @@ int wl_check_firmwares(struct wl_info *wl)
 		} else {
 			/* check if ucode section overruns firmware image */
 			ucode_hdr = (struct wl_fw_hdr *)fw_hdr->data;
-			for (entry = 0; entry < wl->fw.hdr_num_entries[i] && rc;
-			     entry++, ucode_hdr++) {
+			for (entry = 0; entry < wl->fw.hdr_num_entries[i] &&
+			     !rc; entry++, ucode_hdr++) {
 				if (ucode_hdr->offset + ucode_hdr->len >
 				    fw->size) {
 					WL_ERROR("%s: conflicting bin/hdr\n",
