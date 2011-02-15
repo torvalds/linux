@@ -519,6 +519,8 @@ static const struct snd_soc_dapm_widget sn95031_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route sn95031_audio_map[] = {
 	/* headset and earpiece map */
+	{ "HPOUTL", NULL, "Headset Rail"},
+	{ "HPOUTR", NULL, "Headset Rail"},
 	{ "HPOUTL", NULL, "Headset Left Playback" },
 	{ "HPOUTR", NULL, "Headset Right Playback" },
 	{ "EPOUT", NULL, "Earpiece Playback" },
@@ -527,18 +529,16 @@ static const struct snd_soc_dapm_route sn95031_audio_map[] = {
 	{ "Earpiece Playback", NULL, "Headset Left Filter"},
 	{ "Headset Left Filter", NULL, "HSDAC Left"},
 	{ "Headset Right Filter", NULL, "HSDAC Right"},
-	{ "HSDAC Left", NULL, "Headset Rail"},
-	{ "HSDAC Right", NULL, "Headset Rail"},
 
 	/* speaker map */
+	{ "IHFOUTL", NULL, "Speaker Rail"},
+	{ "IHFOUTR", NULL, "Speaker Rail"},
 	{ "IHFOUTL", "NULL", "Speaker Left Playback"},
 	{ "IHFOUTR", "NULL", "Speaker Right Playback"},
 	{ "Speaker Left Playback", NULL, "Speaker Left Filter"},
 	{ "Speaker Right Playback", NULL, "Speaker Right Filter"},
 	{ "Speaker Left Filter", NULL, "IHFDAC Left"},
 	{ "Speaker Right Filter", NULL, "IHFDAC Right"},
-	{ "IHFDAC Left", NULL, "Speaker Rail"},
-	{ "IHFDAC Right", NULL, "Speaker Rail"},
 
 	/* vibra map */
 	{ "VIB1OUT", NULL, "Vibra1 Playback"},
