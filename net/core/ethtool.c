@@ -55,6 +55,7 @@ int ethtool_op_set_tx_csum(struct net_device *dev, u32 data)
 
 	return 0;
 }
+EXPORT_SYMBOL(ethtool_op_set_tx_csum);
 
 int ethtool_op_set_tx_hw_csum(struct net_device *dev, u32 data)
 {
@@ -1124,7 +1125,6 @@ static int ethtool_set_tx_csum(struct net_device *dev, char __user *useraddr)
 
 	return dev->ethtool_ops->set_tx_csum(dev, edata.data);
 }
-EXPORT_SYMBOL(ethtool_op_set_tx_csum);
 
 static int ethtool_set_rx_csum(struct net_device *dev, char __user *useraddr)
 {
