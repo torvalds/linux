@@ -1804,7 +1804,6 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 		if (status) {
 			WL_ERROR("%s: fail to load firmware %s\n",
 				 KBUILD_MODNAME, fw_name);
-			wl_release_fw(wl);
 			return status;
 		}
 		WL_NONE("request fw %s\n", fw_name);
@@ -1814,7 +1813,6 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 		if (status) {
 			WL_ERROR("%s: fail to load firmware %s\n",
 				 KBUILD_MODNAME, fw_name);
-			wl_release_fw(wl);
 			return status;
 		}
 		wl->fw.hdr_num_entries[i] =
