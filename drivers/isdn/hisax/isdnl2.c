@@ -1243,13 +1243,6 @@ l2_st7_tout_203(struct FsmInst *fi, int event, void *arg)
 	st->l2.rc = 0;
 }
 
-static int l2_hdr_space_needed(struct Layer2 *l2)
-{
-	int len = test_bit(FLG_LAPD, &l2->flag) ? 2 : 1;
-
-	return len + (test_bit(FLG_LAPD, &l2->flag) ? 2 : 1);
-}
-
 static void
 l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 {
@@ -1268,7 +1261,7 @@ l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 	if (!skb)
 		return;
 
-	hdr_space_needed = l2_hdr_space_needed(l2);
+	hdr_space_needed = l2headersize(l2, 0);
 	if (hdr_space_needed > skb_headroom(skb)) {
 		struct sk_buff *orig_skb = skb;
 
