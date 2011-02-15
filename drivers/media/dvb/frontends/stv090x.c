@@ -4783,7 +4783,13 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 	} else {
 		state->internal = kmalloc(sizeof(struct stv090x_internal),
 					  GFP_KERNEL);
+		if (!state->internal)
+			goto error;
 		temp_int = append_internal(state->internal);
+		if (!temp_int) {
+			kfree(state->internal);
+			goto error;
+		}
 		state->internal->num_used = 1;
 		state->internal->mclk = 0;
 		state->internal->dev_ver = 0;
@@ -4796,7 +4802,7 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 
 		if (stv090x_setup(&state->frontend) < 0) {
 			dprintk(FE_ERROR, 1, "Error setting up device");
-			goto error;
+			goto err_remove;
 		}
 	}
 
@@ -4811,6 +4817,9 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 
 	return &state->frontend;
 
+err_remove:
+	remove_dev(state->internal);
+	kfree(state->internal);
 error:
 	kfree(state);
 	return NULL;
