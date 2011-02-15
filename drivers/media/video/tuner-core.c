@@ -419,10 +419,17 @@ attach_failed:
  * it's applied. Otherwise status and type are applied only to
  * tuner with exactly the same addr.
 */
-
-static void set_addr(struct i2c_client *c, struct tuner_setup *tun_setup)
+static int tuner_s_type_addr(struct v4l2_subdev *sd,
+			     struct tuner_setup *tun_setup)
 {
-	struct tuner *t = to_tuner(i2c_get_clientdata(c));
+	struct tuner *t = to_tuner(sd);
+	struct i2c_client *c = v4l2_get_subdevdata(sd);
+
+	tuner_dbg("Calling set_type_addr for type=%d, addr=0x%02x, mode=0x%02x, config=0x%02x\n",
+			tun_setup->type,
+			tun_setup->addr,
+			tun_setup->mode_mask,
+			tun_setup->config);
 
 	if ((t->type == UNSET && ((tun_setup->addr == ADDR_UNSET) &&
 	    (t->mode_mask & tun_setup->mode_mask))) ||
@@ -434,20 +441,7 @@ static void set_addr(struct i2c_client *c, struct tuner_setup *tun_setup)
 			  "Asked to change tuner at addr 0x%02x, with mask %x\n",
 			  t->type, t->mode_mask,
 			  tun_setup->addr, tun_setup->mode_mask);
-}
 
-static int tuner_s_type_addr(struct v4l2_subdev *sd, struct tuner_setup *type)
-{
-	struct tuner *t = to_tuner(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	tuner_dbg("Calling set_type_addr for type=%d, addr=0x%02x, mode=0x%02x, config=0x%02x\n",
-			type->type,
-			type->addr,
-			type->mode_mask,
-			type->config);
-
-	set_addr(client, type);
 	return 0;
 }
 
@@ -898,27 +892,6 @@ static int set_mode_freq(struct i2c_client *client, struct tuner *t,
 	}
 
 	return 0;
-}
-
-/*
- * Functions that should be broken into separate radio/TV functions
- */
-
-static void set_freq(struct i2c_client *c, unsigned long freq)
-{
-	struct tuner *t = to_tuner(i2c_get_clientdata(c));
-
-	switch (t->mode) {
-	case V4L2_TUNER_RADIO:
-		set_radio_freq(c, freq);
-		break;
-	case V4L2_TUNER_ANALOG_TV:
-	case V4L2_TUNER_DIGITAL_TV:
-		set_tv_freq(c, freq);
-		break;
-	default:
-		tuner_dbg("freq set: unknown mode: 0x%04x!\n", t->mode);
-	}
 }
 
 /**
