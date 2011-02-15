@@ -592,12 +592,10 @@ static int d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	return status;
 }
 
-static inline struct dentry *
+static struct dentry *
 do_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	int status;
-
-	status = d_revalidate(dentry, nd);
+	int status = d_revalidate(dentry, nd);
 	if (unlikely(status <= 0)) {
 		/*
 		 * The dentry failed validation.
@@ -606,20 +604,35 @@ do_revalidate(struct dentry *dentry, struct nameidata *nd)
 		 * to return a fail status.
 		 */
 		if (status < 0) {
-			/* If we're in rcu-walk, we don't have a ref */
-			if (!(nd->flags & LOOKUP_RCU))
-				dput(dentry);
+			dput(dentry);
 			dentry = ERR_PTR(status);
-
-		} else {
-			/* Don't d_invalidate in rcu-walk mode */
-			if (nameidata_dentry_drop_rcu_maybe(nd, dentry))
-				return ERR_PTR(-ECHILD);
-			if (!d_invalidate(dentry)) {
-				dput(dentry);
-				dentry = NULL;
-			}
+		} else if (!d_invalidate(dentry)) {
+			dput(dentry);
+			dentry = NULL;
 		}
+	}
+	return dentry;
+}
+
+static inline struct dentry *
+do_revalidate_rcu(struct dentry *dentry, struct nameidata *nd)
+{
+	int status = dentry->d_op->d_revalidate(dentry, nd);
+	if (likely(status > 0))
+		return dentry;
+	if (status == -ECHILD) {
+		if (nameidata_dentry_drop_rcu(nd, dentry))
+			return ERR_PTR(-ECHILD);
+		return do_revalidate(dentry, nd);
+	}
+	if (status < 0)
+		return ERR_PTR(status);
+	/* Don't d_invalidate in rcu-walk mode */
+	if (nameidata_dentry_drop_rcu(nd, dentry))
+		return ERR_PTR(-ECHILD);
+	if (!d_invalidate(dentry)) {
+		dput(dentry);
+		dentry = NULL;
 	}
 	return dentry;
 }
@@ -1260,7 +1273,7 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 
 		nd->seq = seq;
 		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE)) {
-			dentry = do_revalidate(dentry, nd);
+			dentry = do_revalidate_rcu(dentry, nd);
 			if (!dentry)
 				goto need_lookup;
 			if (IS_ERR(dentry))
