@@ -344,7 +344,7 @@ static void __init e400_init(void)
 	/* Fixme - e400 may have a switched clock */
 	eseries_register_clks();
 	eseries_get_tmio_gpios();
-	set_pxa_fb_info(&e400_pxafb_mach_info);
+	pxa_set_fb_info(NULL, &e400_pxafb_mach_info);
 	platform_add_devices(ARRAY_AND_SIZE(e400_devices));
 	pxa_set_udc_info(&e7xx_udc_mach_info);
 }

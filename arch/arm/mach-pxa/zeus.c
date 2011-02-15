@@ -847,7 +847,7 @@ static void __init zeus_init(void)
 	if (zeus_setup_fb_gpios())
 		pr_err("Failed to setup fb gpios\n");
 	else
-		set_pxa_fb_info(&zeus_fb_info);
+		pxa_set_fb_info(NULL, &zeus_fb_info);
 
 	pxa_set_mci_info(&zeus_mci_platform_data);
 	pxa_set_udc_info(&zeus_udc_info);

@@ -272,7 +272,7 @@ static struct pxafb_mach_info z2_lcd_screen = {
 
 static void __init z2_lcd_init(void)
 {
-	set_pxa_fb_info(&z2_lcd_screen);
+	pxa_set_fb_info(NULL, &z2_lcd_screen);
 }
 #else
 static inline void z2_lcd_init(void) {}

@@ -158,7 +158,7 @@ void __init palm27x_lcd_init(int power, struct pxafb_mode_info *mode)
 		palm27x_lcd_screen.pxafb_lcd_power = palm27x_lcd_ctl;
 	}
 
-	set_pxa_fb_info(&palm27x_lcd_screen);
+	pxa_set_fb_info(NULL, &palm27x_lcd_screen);
 }
 #endif
 

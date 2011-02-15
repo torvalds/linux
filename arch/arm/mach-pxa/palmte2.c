@@ -346,7 +346,7 @@ static void __init palmte2_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	set_pxa_fb_info(&palmte2_lcd_screen);
+	pxa_set_fb_info(NULL, &palmte2_lcd_screen);
 	pxa_set_mci_info(&palmte2_mci_platform_data);
 	palmte2_udc_init();
 	pxa_set_ac97_info(&palmte2_ac97_pdata);

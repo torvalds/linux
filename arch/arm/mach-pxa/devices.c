@@ -188,14 +188,10 @@ struct platform_device pxa_device_fb = {
 	.resource	= pxafb_resources,
 };
 
-void __init set_pxa_fb_info(struct pxafb_mach_info *info)
+void __init pxa_set_fb_info(struct device *parent, struct pxafb_mach_info *info)
 {
+	pxa_device_fb.dev.parent = parent;
 	pxa_register_device(&pxa_device_fb, info);
-}
-
-void __init set_pxa_fb_parent(struct device *parent_dev)
-{
-	pxa_device_fb.dev.parent = parent_dev;
 }
 
 static struct resource pxa_resource_ffuart[] = {

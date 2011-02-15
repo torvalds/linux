@@ -445,8 +445,7 @@ static void __init poodle_init(void)
 	if (ret)
 		pr_warning("poodle: Unable to register LoCoMo device\n");
 
-	set_pxa_fb_parent(&poodle_locomo_device.dev);
-	set_pxa_fb_info(&poodle_fb_info);
+	pxa_set_fb_info(&poodle_locomo_device.dev, &poodle_fb_info);
 	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&poodle_mci_platform_data);
 	pxa_set_ficp_info(&poodle_ficp_platform_data);
