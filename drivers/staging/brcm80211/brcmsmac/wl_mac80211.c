@@ -1206,15 +1206,13 @@ static void wl_remove(struct pci_dev *pdev)
 		return;
 	}
 
-	/* make sure rfkill is not using driver */
-	wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, false);
-	wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
-
 	if (!wlc_chipmatch(pdev->vendor, pdev->device)) {
 		WL_ERROR("wl: wl_remove: wlc_chipmatch failed\n");
 		return;
 	}
 	if (wl->wlc) {
+		wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, false);
+		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
 		ieee80211_unregister_hw(hw);
 		WL_LOCK(wl);
 		wl_down(wl);
