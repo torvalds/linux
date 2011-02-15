@@ -193,8 +193,7 @@ repeat:
 	      }
 	    if (!suppress_type_lookup)
 	      {
-		struct symbol *sym = find_symbol(yytext, SYM_TYPEDEF);
-		if (sym && sym->type == SYM_TYPEDEF)
+		if (find_symbol(yytext, SYM_TYPEDEF, 1))
 		  token = TYPE;
 	      }
 	  }

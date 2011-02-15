@@ -58,7 +58,7 @@ typedef struct string_list **yystype;
 extern int cur_line;
 extern char *cur_filename;
 
-struct symbol *find_symbol(const char *name, enum symbol_type ns);
+struct symbol *find_symbol(const char *name, enum symbol_type ns, int exact);
 struct symbol *add_symbol(const char *name, enum symbol_type type,
 			  struct string_list *defn, int is_extern);
 void export_symbol(const char *);

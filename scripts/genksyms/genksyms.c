@@ -156,7 +156,7 @@ static enum symbol_type map_to_ns(enum symbol_type t)
 	return t;
 }
 
-struct symbol *find_symbol(const char *name, enum symbol_type ns)
+struct symbol *find_symbol(const char *name, enum symbol_type ns, int exact)
 {
 	unsigned long h = crc32(name) % HASH_BUCKETS;
 	struct symbol *sym;
@@ -167,6 +167,8 @@ struct symbol *find_symbol(const char *name, enum symbol_type ns)
 		    sym->is_declared)
 			break;
 
+	if (exact && sym && sym->type != ns)
+		return NULL;
 	return sym;
 }
 
@@ -511,7 +513,7 @@ static unsigned long expand_and_crc_sym(struct symbol *sym, unsigned long crc)
 			break;
 
 		case SYM_TYPEDEF:
-			subsym = find_symbol(cur->string, cur->tag);
+			subsym = find_symbol(cur->string, cur->tag, 0);
 			/* FIXME: Bad reference files can segfault here. */
 			if (subsym->expansion_trail) {
 				if (flag_dump_defs)
@@ -528,7 +530,7 @@ static unsigned long expand_and_crc_sym(struct symbol *sym, unsigned long crc)
 		case SYM_STRUCT:
 		case SYM_UNION:
 		case SYM_ENUM:
-			subsym = find_symbol(cur->string, cur->tag);
+			subsym = find_symbol(cur->string, cur->tag, 0);
 			if (!subsym) {
 				struct string_list *n;
 
@@ -582,7 +584,7 @@ void export_symbol(const char *name)
 {
 	struct symbol *sym;
 
-	sym = find_symbol(name, SYM_NORMAL);
+	sym = find_symbol(name, SYM_NORMAL, 0);
 	if (!sym)
 		error_with_pos("export undefined symbol %s", name);
 	else {
