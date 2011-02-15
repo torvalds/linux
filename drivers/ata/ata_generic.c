@@ -237,7 +237,7 @@ static struct pci_device_id ata_generic[] = {
 #endif
 	/* Intel, IDE class device */
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
-	  PCI_CLASS_STORAGE_IDE << 8, 0xFFFFFF00UL, 
+	  PCI_CLASS_STORAGE_IDE << 8, 0xFFFFFF00UL,
 	  .driver_data = ATA_GEN_INTEL_IDER },
 	/* Must come last. If you add entries adjust this table appropriately */
 	{ PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_IDE << 8, 0xFFFFFF00UL),

@@ -4210,7 +4210,7 @@ static int glob_match (const char *text, const char *pattern)
 		return 0;  /* End of both strings: match */
 	return 1;  /* No match */
 }
- 
+
 static unsigned long ata_dev_blacklisted(const struct ata_device *dev)
 {
 	unsigned char model_num[ATA_ID_PROD_LEN + 1];
@@ -5479,7 +5479,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
 	if (!ap)
 		return NULL;
-	
+
 	ap->pflags |= ATA_PFLAG_INITIALIZING;
 	ap->lock = &host->lock;
 	ap->print_id = -1;
@@ -5923,7 +5923,7 @@ int ata_port_probe(struct ata_port *ap)
 static void async_port_probe(void *data, async_cookie_t cookie)
 {
 	struct ata_port *ap = data;
-	
+
 	/*
 	 * If we're not allowed to scan this host in parallel,
 	 * we need to wait until all previous scans have completed
@@ -5981,7 +5981,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 	for (i = 0; i < host->n_ports; i++)
 		host->ports[i]->print_id = ata_print_id++;
 
-	
+
 	/* Create associated sysfs transport objects  */
 	for (i = 0; i < host->n_ports; i++) {
 		rc = ata_tport_add(host->dev,host->ports[i]);
@@ -6469,7 +6469,7 @@ static int __init ata_init(void)
 		ata_sff_exit();
 		rc = -ENOMEM;
 		goto err_out;
-	}		
+	}
 
 	printk(KERN_DEBUG "libata version " DRV_VERSION " loaded.\n");
 	return 0;
