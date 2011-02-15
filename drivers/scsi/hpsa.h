@@ -72,6 +72,7 @@ struct ctlr_info {
 	unsigned int intr[4];
 	unsigned int msix_vector;
 	unsigned int msi_vector;
+	int intr_mode; /* either PERF_MODE_INT or SIMPLE_MODE_INT */
 	struct access_method access;
 
 	/* queue and queue Info */
