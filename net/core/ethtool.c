@@ -357,15 +357,21 @@ static void *__ethtool_get_one_feature_actor(struct net_device *dev, u32 ethcmd)
 static int ethtool_get_one_feature(struct net_device *dev,
 	char __user *useraddr, u32 ethcmd)
 {
+	u32 mask = ethtool_get_feature_mask(ethcmd);
 	struct ethtool_value edata = {
 		.cmd = ethcmd,
-		.data = !!(dev->features & ethtool_get_feature_mask(ethcmd)),
+		.data = !!(dev->features & mask),
 	};
-	u32 (*actor)(struct net_device *);
 
-	actor = __ethtool_get_one_feature_actor(dev, ethcmd);
-	if (actor)
-		edata.data = actor(dev);
+	/* compatibility with discrete get_ ops */
+	if (!(dev->hw_features & mask)) {
+		u32 (*actor)(struct net_device *);
+
+		actor = __ethtool_get_one_feature_actor(dev, ethcmd);
+
+		if (actor)
+			edata.data = actor(dev);
+	}
 
 	if (copy_to_user(useraddr, &edata, sizeof(edata)))
 		return -EFAULT;
@@ -386,6 +392,27 @@ static int ethtool_set_one_feature(struct net_device *dev,
 	if (copy_from_user(&edata, useraddr, sizeof(edata)))
 		return -EFAULT;
 
+	mask = ethtool_get_feature_mask(ethcmd);
+	mask &= dev->hw_features;
+	if (mask) {
+		if (edata.data)
+			dev->wanted_features |= mask;
+		else
+			dev->wanted_features &= ~mask;
+
+		netdev_update_features(dev);
+		return 0;
+	}
+
+	/* Driver is not converted to ndo_fix_features or does not
+	 * support changing this offload. In the latter case it won't
+	 * have corresponding ethtool_ops field set.
+	 *
+	 * Following part is to be removed after all drivers advertise
+	 * their changeable features in netdev->hw_features and stop
+	 * using discrete offload setting ops.
+	 */
+
 	switch (ethcmd) {
 	case ETHTOOL_STXCSUM:
 		return __ethtool_set_tx_csum(dev, edata.data);
@@ -395,14 +422,6 @@ static int ethtool_set_one_feature(struct net_device *dev,
 		return __ethtool_set_tso(dev, edata.data);
 	case ETHTOOL_SUFO:
 		return __ethtool_set_ufo(dev, edata.data);
-	case ETHTOOL_SGSO:
-	case ETHTOOL_SGRO:
-		mask = ethtool_get_feature_mask(ethcmd);
-		if (edata.data)
-			dev->features |= mask;
-		else
-			dev->features &= ~mask;
-		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
