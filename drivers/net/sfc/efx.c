@@ -673,7 +673,7 @@ static void efx_fini_channels(struct efx_nic *efx)
 
 		efx_for_each_channel_rx_queue(rx_queue, channel)
 			efx_fini_rx_queue(rx_queue);
-		efx_for_each_channel_tx_queue(tx_queue, channel)
+		efx_for_each_possible_channel_tx_queue(tx_queue, channel)
 			efx_fini_tx_queue(tx_queue);
 		efx_fini_eventq(channel);
 	}
@@ -689,7 +689,7 @@ static void efx_remove_channel(struct efx_channel *channel)
 
 	efx_for_each_channel_rx_queue(rx_queue, channel)
 		efx_remove_rx_queue(rx_queue);
-	efx_for_each_channel_tx_queue(tx_queue, channel)
+	efx_for_each_possible_channel_tx_queue(tx_queue, channel)
 		efx_remove_tx_queue(tx_queue);
 	efx_remove_eventq(channel);
 }
@@ -1271,21 +1271,8 @@ static void efx_remove_interrupts(struct efx_nic *efx)
 
 static void efx_set_channels(struct efx_nic *efx)
 {
-	struct efx_channel *channel;
-	struct efx_tx_queue *tx_queue;
-
 	efx->tx_channel_offset =
 		separate_tx_channels ? efx->n_channels - efx->n_tx_channels : 0;
-
-	/* Channel pointers were set in efx_init_struct() but we now
-	 * need to clear them for TX queues in any RX-only channels. */
-	efx_for_each_channel(channel, efx) {
-		if (channel->channel - efx->tx_channel_offset >=
-		    efx->n_tx_channels) {
-			efx_for_each_channel_tx_queue(tx_queue, channel)
-				tx_queue->channel = NULL;
-		}
-	}
 }
 
 static int efx_probe_nic(struct efx_nic *efx)
@@ -1531,9 +1518,9 @@ void efx_init_irq_moderation(struct efx_nic *efx, int tx_usecs, int rx_usecs,
 	efx->irq_rx_adaptive = rx_adaptive;
 	efx->irq_rx_moderation = rx_ticks;
 	efx_for_each_channel(channel, efx) {
-		if (efx_channel_get_rx_queue(channel))
+		if (efx_channel_has_rx_queue(channel))
 			channel->irq_moderation = rx_ticks;
-		else if (efx_channel_get_tx_queue(channel, 0))
+		else if (efx_channel_has_tx_queues(channel))
 			channel->irq_moderation = tx_ticks;
 	}
 }
@@ -1849,6 +1836,7 @@ static const struct net_device_ops efx_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = efx_netpoll,
 #endif
+	.ndo_setup_tc		= efx_setup_tc,
 };
 
 static void efx_update_name(struct efx_nic *efx)
@@ -1910,10 +1898,8 @@ static int efx_register_netdev(struct efx_nic *efx)
 
 	efx_for_each_channel(channel, efx) {
 		struct efx_tx_queue *tx_queue;
-		efx_for_each_channel_tx_queue(tx_queue, channel) {
-			tx_queue->core_txq = netdev_get_tx_queue(
-				efx->net_dev, tx_queue->queue / EFX_TXQ_TYPES);
-		}
+		efx_for_each_channel_tx_queue(tx_queue, channel)
+			efx_init_tx_queue_core_txq(tx_queue);
 	}
 
 	/* Always start with carrier off; PHY events will detect the link */
@@ -2401,7 +2387,8 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	int i, rc;
 
 	/* Allocate and initialise a struct net_device and struct efx_nic */
-	net_dev = alloc_etherdev_mq(sizeof(*efx), EFX_MAX_CORE_TX_QUEUES);
+	net_dev = alloc_etherdev_mqs(sizeof(*efx), EFX_MAX_CORE_TX_QUEUES,
+				     EFX_MAX_RX_QUEUES);
 	if (!net_dev)
 		return -ENOMEM;
 	net_dev->features |= (type->offload_features | NETIF_F_SG |

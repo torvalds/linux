@@ -445,8 +445,8 @@ int efx_nic_probe_tx(struct efx_tx_queue *tx_queue)
 
 void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 {
-	efx_oword_t tx_desc_ptr;
 	struct efx_nic *efx = tx_queue->efx;
+	efx_oword_t reg;
 
 	tx_queue->flushed = FLUSH_NONE;
 
@@ -454,7 +454,7 @@ void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 	efx_init_special_buffer(efx, &tx_queue->txd);
 
 	/* Push TX descriptor ring to card */
-	EFX_POPULATE_OWORD_10(tx_desc_ptr,
+	EFX_POPULATE_OWORD_10(reg,
 			      FRF_AZ_TX_DESCQ_EN, 1,
 			      FRF_AZ_TX_ISCSI_DDIG_EN, 0,
 			      FRF_AZ_TX_ISCSI_HDIG_EN, 0,
@@ -470,17 +470,15 @@ void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
 		int csum = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
-		EFX_SET_OWORD_FIELD(tx_desc_ptr, FRF_BZ_TX_IP_CHKSM_DIS, !csum);
-		EFX_SET_OWORD_FIELD(tx_desc_ptr, FRF_BZ_TX_TCP_CHKSM_DIS,
+		EFX_SET_OWORD_FIELD(reg, FRF_BZ_TX_IP_CHKSM_DIS, !csum);
+		EFX_SET_OWORD_FIELD(reg, FRF_BZ_TX_TCP_CHKSM_DIS,
 				    !csum);
 	}
 
-	efx_writeo_table(efx, &tx_desc_ptr, efx->type->txd_ptr_tbl_base,
+	efx_writeo_table(efx, &reg, efx->type->txd_ptr_tbl_base,
 			 tx_queue->queue);
 
 	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0) {
-		efx_oword_t reg;
-
 		/* Only 128 bits in this register */
 		BUILD_BUG_ON(EFX_MAX_TX_QUEUES > 128);
 
@@ -490,6 +488,16 @@ void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 		else
 			set_bit_le(tx_queue->queue, (void *)&reg);
 		efx_writeo(efx, &reg, FR_AA_TX_CHKSM_CFG);
+	}
+
+	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
+		EFX_POPULATE_OWORD_1(reg,
+				     FRF_BZ_TX_PACE,
+				     (tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI) ?
+				     FFE_BZ_TX_PACE_OFF :
+				     FFE_BZ_TX_PACE_RESERVED);
+		efx_writeo_table(efx, &reg, FR_BZ_TX_PACE_TBL,
+				 tx_queue->queue);
 	}
 }
 
@@ -1238,8 +1246,10 @@ int efx_nic_flush_queues(struct efx_nic *efx)
 
 	/* Flush all tx queues in parallel */
 	efx_for_each_channel(channel, efx) {
-		efx_for_each_channel_tx_queue(tx_queue, channel)
-			efx_flush_tx_queue(tx_queue);
+		efx_for_each_possible_channel_tx_queue(tx_queue, channel) {
+			if (tx_queue->initialised)
+				efx_flush_tx_queue(tx_queue);
+		}
 	}
 
 	/* The hardware supports four concurrent rx flushes, each of which may
@@ -1262,8 +1272,9 @@ int efx_nic_flush_queues(struct efx_nic *efx)
 					++rx_pending;
 				}
 			}
-			efx_for_each_channel_tx_queue(tx_queue, channel) {
-				if (tx_queue->flushed != FLUSH_DONE)
+			efx_for_each_possible_channel_tx_queue(tx_queue, channel) {
+				if (tx_queue->initialised &&
+				    tx_queue->flushed != FLUSH_DONE)
 					++tx_pending;
 			}
 		}
@@ -1278,8 +1289,9 @@ int efx_nic_flush_queues(struct efx_nic *efx)
 	/* Mark the queues as all flushed. We're going to return failure
 	 * leading to a reset, or fake up success anyway */
 	efx_for_each_channel(channel, efx) {
-		efx_for_each_channel_tx_queue(tx_queue, channel) {
-			if (tx_queue->flushed != FLUSH_DONE)
+		efx_for_each_possible_channel_tx_queue(tx_queue, channel) {
+			if (tx_queue->initialised &&
+			    tx_queue->flushed != FLUSH_DONE)
 				netif_err(efx, hw, efx->net_dev,
 					  "tx queue %d flush command timed out\n",
 					  tx_queue->queue);
@@ -1682,6 +1694,19 @@ void efx_nic_init_common(struct efx_nic *efx)
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0)
 		EFX_SET_OWORD_FIELD(temp, FRF_BZ_TX_FLUSH_MIN_LEN_EN, 1);
 	efx_writeo(efx, &temp, FR_AZ_TX_RESERVED);
+
+	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
+		EFX_POPULATE_OWORD_4(temp,
+				     /* Default values */
+				     FRF_BZ_TX_PACE_SB_NOT_AF, 0x15,
+				     FRF_BZ_TX_PACE_SB_AF, 0xb,
+				     FRF_BZ_TX_PACE_FB_BASE, 0,
+				     /* Allow large pace values in the
+				      * fast bin. */
+				     FRF_BZ_TX_PACE_BIN_TH,
+				     FFE_BZ_TX_PACE_RESERVED);
+		efx_writeo(efx, &temp, FR_BZ_TX_PACE);
+	}
 }
 
 /* Register dump */

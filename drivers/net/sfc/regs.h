@@ -2907,6 +2907,12 @@
 #define FRF_CZ_TMFT_SRC_MAC_HI_LBN 44
 #define FRF_CZ_TMFT_SRC_MAC_HI_WIDTH 16
 
+/* TX_PACE_TBL */
+/* Values >20 are documented as reserved, but will result in a queue going
+ * into the fast bin with a pace value of zero. */
+#define FFE_BZ_TX_PACE_OFF 0
+#define FFE_BZ_TX_PACE_RESERVED 21
+
 /* DRIVER_EV */
 /* Sub-fields of an RX flush completion event */
 #define FSF_AZ_DRIVER_EV_RX_FLUSH_FAIL_LBN 12
