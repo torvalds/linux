@@ -555,6 +555,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					dp_clock = dig_connector->dp_clock;
 				}
 			}
+/* this might work properly with the new pll algo */
 #if 0 /* doesn't work properly on some laptops */
 			/* use recommended ref_div for ss */
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
@@ -572,6 +573,11 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					adjusted_clock = mode->clock * 2;
 				if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT))
 					pll->flags |= RADEON_PLL_PREFER_CLOSEST_LOWER;
+				/* rv515 needs more testing with this option */
+				if (rdev->family != CHIP_RV515) {
+					if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
+						pll->flags |= RADEON_PLL_IS_LCD;
+				}
 			} else {
 				if (encoder->encoder_type != DRM_MODE_ENCODER_DAC)
 					pll->flags |= RADEON_PLL_NO_ODD_POST_DIV;
@@ -951,8 +957,16 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 	/* adjust pixel clock as needed */
 	adjusted_clock = atombios_adjust_pll(crtc, mode, pll, ss_enabled, &ss);
 
-	radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
-			   &ref_div, &post_div);
+	/* rv515 seems happier with the old algo */
+	if (rdev->family == CHIP_RV515)
+		radeon_compute_pll_legacy(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
+					  &ref_div, &post_div);
+	else if (ASIC_IS_AVIVO(rdev))
+		radeon_compute_pll_avivo(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
+					 &ref_div, &post_div);
+	else
+		radeon_compute_pll_legacy(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
+					  &ref_div, &post_div);
 
 	atombios_crtc_program_ss(crtc, ATOM_DISABLE, radeon_crtc->pll_id, &ss);
 

@@ -561,10 +561,14 @@ static inline int nameidata_drop_rcu_last_maybe(struct nameidata *nd)
  */
 void release_open_intent(struct nameidata *nd)
 {
-	if (nd->intent.open.file->f_path.dentry == NULL)
-		put_filp(nd->intent.open.file);
-	else
-		fput(nd->intent.open.file);
+	struct file *file = nd->intent.open.file;
+
+	if (file && !IS_ERR(file)) {
+		if (file->f_path.dentry == NULL)
+			put_filp(file);
+		else
+			fput(file);
+	}
 }
 
 /*
@@ -2265,8 +2269,6 @@ static struct file *finish_open(struct nameidata *nd,
 	return filp;
 
 exit:
-	if (!IS_ERR(nd->intent.open.file))
-		release_open_intent(nd);
 	path_put(&nd->path);
 	return ERR_PTR(error);
 }
@@ -2389,8 +2391,6 @@ exit_mutex_unlock:
 exit_dput:
 	path_put_conditional(path, nd);
 exit:
-	if (!IS_ERR(nd->intent.open.file))
-		release_open_intent(nd);
 	path_put(&nd->path);
 	return ERR_PTR(error);
 }
@@ -2477,6 +2477,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	}
 	audit_inode(pathname, nd.path.dentry);
 	filp = finish_open(&nd, open_flag, acc_mode);
+	release_open_intent(&nd);
 	return filp;
 
 creat:
@@ -2553,6 +2554,7 @@ out:
 		path_put(&nd.root);
 	if (filp == ERR_PTR(-ESTALE) && !(flags & LOOKUP_REVAL))
 		goto reval;
+	release_open_intent(&nd);
 	return filp;
 
 exit_dput:
@@ -2560,8 +2562,6 @@ exit_dput:
 out_path:
 	path_put(&nd.path);
 out_filp:
-	if (!IS_ERR(nd.intent.open.file))
-		release_open_intent(&nd);
 	filp = ERR_PTR(error);
 	goto out;
 }

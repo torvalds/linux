@@ -969,10 +969,14 @@ EXPORT_SYMBOL(try_to_del_timer_sync);
 int del_timer_sync(struct timer_list *timer)
 {
 #ifdef CONFIG_LOCKDEP
+	unsigned long flags;
+
+	raw_local_irq_save(flags);
 	local_bh_disable();
 	lock_map_acquire(&timer->lockdep_map);
 	lock_map_release(&timer->lockdep_map);
-	local_bh_enable();
+	_local_bh_enable();
+	raw_local_irq_restore(flags);
 #endif
 	/*
 	 * don't use it in hardirq context, because it

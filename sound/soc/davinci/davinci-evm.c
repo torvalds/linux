@@ -218,7 +218,19 @@ static struct snd_soc_dai_link dm6467_evm_dai[] = {
 		.ops = &evm_spdif_ops,
 	},
 };
-static struct snd_soc_dai_link da8xx_evm_dai = {
+
+static struct snd_soc_dai_link da830_evm_dai = {
+	.name = "TLV320AIC3X",
+	.stream_name = "AIC3X",
+	.cpu_dai_name = "davinci-mcasp.1",
+	.codec_dai_name = "tlv320aic3x-hifi",
+	.codec_name = "tlv320aic3x-codec.1-0018",
+	.platform_name = "davinci-pcm-audio",
+	.init = evm_aic3x_init,
+	.ops = &evm_ops,
+};
+
+static struct snd_soc_dai_link da850_evm_dai = {
 	.name = "TLV320AIC3X",
 	.stream_name = "AIC3X",
 	.cpu_dai_name= "davinci-mcasp.0",
@@ -259,13 +271,13 @@ static struct snd_soc_card dm6467_snd_soc_card_evm = {
 
 static struct snd_soc_card da830_snd_soc_card = {
 	.name = "DA830/OMAP-L137 EVM",
-	.dai_link = &da8xx_evm_dai,
+	.dai_link = &da830_evm_dai,
 	.num_links = 1,
 };
 
 static struct snd_soc_card da850_snd_soc_card = {
 	.name = "DA850/OMAP-L138 EVM",
-	.dai_link = &da8xx_evm_dai,
+	.dai_link = &da850_evm_dai,
 	.num_links = 1,
 };
 
