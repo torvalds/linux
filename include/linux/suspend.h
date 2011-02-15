@@ -272,9 +272,6 @@ extern int unregister_pm_notifier(struct notifier_block *nb);
 	register_pm_notifier(&fn##_nb);			\
 }
 
-extern bool pm_apm_enabled(void);
-extern void pm_set_acpi_flag(void);
-
 /* drivers/base/power/wakeup.c */
 extern bool events_check_enabled;
 
@@ -294,9 +291,6 @@ static inline int unregister_pm_notifier(struct notifier_block *nb)
 }
 
 #define pm_notifier(fn, pri)	do { (void)(fn); } while (0)
-
-static inline bool pm_apm_enabled(void) { return false; }
-static inline void pm_set_acpi_flag(void) {}
 
 static inline bool pm_wakeup_pending(void) { return false; }
 #endif /* !CONFIG_PM_SLEEP */

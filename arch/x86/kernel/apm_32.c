@@ -227,6 +227,7 @@
 #include <linux/suspend.h>
 #include <linux/kthread.h>
 #include <linux/jiffies.h>
+#include <linux/acpi.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -2331,12 +2332,11 @@ static int __init apm_init(void)
 		apm_info.disabled = 1;
 		return -ENODEV;
 	}
-	if (pm_flags & PM_ACPI) {
+	if (!acpi_disabled) {
 		printk(KERN_NOTICE "apm: overridden by ACPI.\n");
 		apm_info.disabled = 1;
 		return -ENODEV;
 	}
-	pm_flags |= PM_APM;
 
 	/*
 	 * Set up the long jump entry point to the APM BIOS, which is called
@@ -2428,7 +2428,6 @@ static void __exit apm_exit(void)
 		kthread_stop(kapmd_task);
 		kapmd_task = NULL;
 	}
-	pm_flags &= ~PM_APM;
 }
 
 module_init(apm_init);

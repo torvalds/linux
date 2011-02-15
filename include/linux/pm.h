@@ -565,15 +565,6 @@ enum dpm_order {
 	DPM_ORDER_DEV_LAST,
 };
 
-/*
- * Global Power Management flags
- * Used to keep APM and ACPI from both being active
- */
-extern unsigned int	pm_flags;
-
-#define PM_APM	1
-#define PM_ACPI	2
-
 extern int pm_generic_suspend(struct device *dev);
 extern int pm_generic_resume(struct device *dev);
 extern int pm_generic_freeze(struct device *dev);
