@@ -141,7 +141,7 @@ static int init_realtek_cr(struct us_data *us);
 	.driver_info = (flags)|(USB_US_TYPE_STOR<<24)\
 }
 
-static struct usb_device_id realtek_cr_ids[] = {
+static const struct usb_device_id realtek_cr_ids[] = {
 #	include "unusual_realtek.h"
 	{ }		/* Terminating entry */
 };
