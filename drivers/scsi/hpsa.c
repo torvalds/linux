@@ -3614,7 +3614,7 @@ static void __devinit hpsa_wait_for_mode_change_ack(struct ctlr_info *h)
 		spin_lock_irqsave(&h->lock, flags);
 		doorbell_value = readl(h->vaddr + SA5_DOORBELL);
 		spin_unlock_irqrestore(&h->lock, flags);
-		if (!doorbell_value & CFGTBL_ChangeReq)
+		if (!(doorbell_value & CFGTBL_ChangeReq))
 			break;
 		/* delay and try again */
 		usleep_range(10000, 20000);
