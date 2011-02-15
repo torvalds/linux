@@ -346,7 +346,6 @@ int cifs_open(struct inode *inode, struct file *file)
 	struct cifsTconInfo *tcon;
 	struct tcon_link *tlink;
 	struct cifsFileInfo *pCifsFile = NULL;
-	struct cifsInodeInfo *pCifsInode;
 	char *full_path = NULL;
 	bool posix_open_ok = false;
 	__u16 netfid;
@@ -360,8 +359,6 @@ int cifs_open(struct inode *inode, struct file *file)
 		return PTR_ERR(tlink);
 	}
 	tcon = tlink_tcon(tlink);
-
-	pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
 	if (full_path == NULL) {
@@ -1146,7 +1143,6 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 	char *write_data;
 	int rc = -EFAULT;
 	int bytes_written = 0;
-	struct cifs_sb_info *cifs_sb;
 	struct inode *inode;
 	struct cifsFileInfo *open_file;
 
@@ -1154,7 +1150,6 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 		return -EFAULT;
 
 	inode = page->mapping->host;
-	cifs_sb = CIFS_SB(inode->i_sb);
 
 	offset += (loff_t)from;
 	write_data = kmap(page);
@@ -1667,9 +1662,10 @@ static ssize_t
 cifs_iovec_write(struct file *file, const struct iovec *iov,
 		 unsigned long nr_segs, loff_t *poffset)
 {
-	size_t total_written = 0, written = 0;
-	unsigned long num_pages, npages;
-	size_t copied, len, cur_len, i;
+	unsigned int written;
+	unsigned long num_pages, npages, i;
+	size_t copied, len, cur_len;
+	ssize_t total_written = 0;
 	struct kvec *to_send;
 	struct page **pages;
 	struct iov_iter it;
@@ -1825,7 +1821,8 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 {
 	int rc;
 	int xid;
-	unsigned int total_read, bytes_read = 0;
+	ssize_t total_read;
+	unsigned int bytes_read = 0;
 	size_t len, cur_len;
 	int iov_offset = 0;
 	struct cifs_sb_info *cifs_sb;

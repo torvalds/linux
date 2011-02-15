@@ -168,9 +168,10 @@ static void omap3_core_restore_context(void)
  * once during boot sequence, but this works as we are not using secure
  * services.
  */
-static void omap3_save_secure_ram_context(u32 target_mpu_state)
+static void omap3_save_secure_ram_context(void)
 {
 	u32 ret;
+	int mpu_next_state = pwrdm_read_next_pwrst(mpu_pwrdm);
 
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP) {
 		/*
@@ -181,7 +182,7 @@ static void omap3_save_secure_ram_context(u32 target_mpu_state)
 		pwrdm_set_next_pwrst(mpu_pwrdm, PWRDM_POWER_ON);
 		ret = _omap_save_secure_sram((u32 *)
 				__pa(omap3_secure_ram_storage));
-		pwrdm_set_next_pwrst(mpu_pwrdm, target_mpu_state);
+		pwrdm_set_next_pwrst(mpu_pwrdm, mpu_next_state);
 		/* Following is for error tracking, it should not happen */
 		if (ret) {
 			printk(KERN_ERR "save_secure_sram() returns %08x\n",
@@ -1094,7 +1095,7 @@ static int __init omap3_pm_init(void)
 		local_fiq_disable();
 
 		omap_dma_global_context_save();
-		omap3_save_secure_ram_context(PWRDM_POWER_ON);
+		omap3_save_secure_ram_context();
 		omap_dma_global_context_restore();
 
 		local_irq_enable();

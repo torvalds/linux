@@ -188,6 +188,8 @@ struct TCP_Server_Info {
 	/* multiplexed reads or writes */
 	unsigned int maxBuf;	/* maxBuf specifies the maximum */
 	/* message size the server can send or receive for non-raw SMBs */
+	/* maxBuf is returned by SMB NegotiateProtocol so maxBuf is only 0 */
+	/* when socket is setup (and during reconnect) before NegProt sent */
 	unsigned int max_rw;	/* maxRw specifies the maximum */
 	/* message size the server can send or receive for */
 	/* SMB_COM_WRITE_RAW or SMB_COM_READ_RAW. */
@@ -652,7 +654,7 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   MID_REQUEST_SUBMITTED 2
 #define   MID_RESPONSE_RECEIVED 4
 #define   MID_RETRY_NEEDED      8 /* session closed while this request out */
-#define   MID_NO_RESP_NEEDED 0x10
+#define   MID_RESPONSE_MALFORMED 0x10
 
 /* Types of response buffer returned from SendReceive2 */
 #define   CIFS_NO_BUFFER        0    /* Response buffer not returned */

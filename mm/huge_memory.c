@@ -1162,7 +1162,12 @@ static void __split_huge_page_refcount(struct page *page)
 		/* after clearing PageTail the gup refcount can be released */
 		smp_mb();
 
-		page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+		/*
+		 * retain hwpoison flag of the poisoned tail page:
+		 *   fix for the unsuitable process killed on Guest Machine(KVM)
+		 *   by the memory-failure.
+		 */
+		page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP | __PG_HWPOISON;
 		page_tail->flags |= (page->flags &
 				     ((1L << PG_referenced) |
 				      (1L << PG_swapbacked) |
@@ -1847,7 +1852,6 @@ static void collapse_huge_page(struct mm_struct *mm,
 		set_pmd_at(mm, address, pmd, _pmd);
 		spin_unlock(&mm->page_table_lock);
 		anon_vma_unlock(vma->anon_vma);
-		mem_cgroup_uncharge_page(new_page);
 		goto out;
 	}
 
@@ -1893,6 +1897,7 @@ out_up_write:
 	return;
 
 out:
+	mem_cgroup_uncharge_page(new_page);
 #ifdef CONFIG_NUMA
 	put_page(new_page);
 #endif
