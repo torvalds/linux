@@ -128,7 +128,7 @@ struct tuner {
  * tuner attach/detach logic
  */
 
-/** This macro allows us to probe dynamically, avoiding static links */
+/* This macro allows us to probe dynamically, avoiding static links */
 #ifdef CONFIG_MEDIA_ATTACH
 #define tuner_symbol_probe(FUNCTION, ARGS...) ({ \
 	int __r = -EINVAL; \
@@ -412,13 +412,20 @@ attach_failed:
 	return;
 }
 
-/*
- * This function apply tuner config to tuner specified
- * by tun_setup structure. I addr is unset, then admin status
- * and tun addr status is more precise then current status,
- * it's applied. Otherwise status and type are applied only to
- * tuner with exactly the same addr.
-*/
+/**
+ * tuner_s_type_addr - Sets the tuner type for a device
+ *
+ * @sd:		subdev descriptor
+ * @tun_setup:	type to be associated to a given tuner i2c address
+ *
+ * This function applys the tuner config to tuner specified
+ * by tun_setup structure.
+ * If tuner I2C address is UNSET, then it will only set the device
+ * if the tuner supports the mode specified in the call.
+ * If the address is specified, the change will be applied only if
+ * tuner I2C address matches.
+ * The call can change the tuner number and the tuner mode.
+ */
 static int tuner_s_type_addr(struct v4l2_subdev *sd,
 			     struct tuner_setup *tun_setup)
 {
