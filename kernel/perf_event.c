@@ -5602,6 +5602,10 @@ static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
 	u64 period;
 
 	event = container_of(hrtimer, struct perf_event, hw.hrtimer);
+
+	if (event->state != PERF_EVENT_STATE_ACTIVE)
+		return HRTIMER_NORESTART;
+
 	event->pmu->read(event);
 
 	perf_sample_data_init(&data, 0);
@@ -5628,9 +5632,6 @@ static void perf_swevent_start_hrtimer(struct perf_event *event)
 	if (!is_sampling_event(event))
 		return;
 
-	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hwc->hrtimer.function = perf_swevent_hrtimer;
-
 	period = local64_read(&hwc->period_left);
 	if (period) {
 		if (period < 0)
@@ -5654,6 +5655,30 @@ static void perf_swevent_cancel_hrtimer(struct perf_event *event)
 		local64_set(&hwc->period_left, ktime_to_ns(remaining));
 
 		hrtimer_cancel(&hwc->hrtimer);
+	}
+}
+
+static void perf_swevent_init_hrtimer(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (!is_sampling_event(event))
+		return;
+
+	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hwc->hrtimer.function = perf_swevent_hrtimer;
+
+	/*
+	 * Since hrtimers have a fixed rate, we can do a static freq->period
+	 * mapping and avoid the whole period adjust feedback stuff.
+	 */
+	if (event->attr.freq) {
+		long freq = event->attr.sample_freq;
+
+		event->attr.sample_period = NSEC_PER_SEC / freq;
+		hwc->sample_period = event->attr.sample_period;
+		local64_set(&hwc->period_left, hwc->sample_period);
+		event->attr.freq = 0;
 	}
 }
 
@@ -5708,6 +5733,8 @@ static int cpu_clock_event_init(struct perf_event *event)
 
 	if (event->attr.config != PERF_COUNT_SW_CPU_CLOCK)
 		return -ENOENT;
+
+	perf_swevent_init_hrtimer(event);
 
 	return 0;
 }
@@ -5786,6 +5813,8 @@ static int task_clock_event_init(struct perf_event *event)
 
 	if (event->attr.config != PERF_COUNT_SW_TASK_CLOCK)
 		return -ENOENT;
+
+	perf_swevent_init_hrtimer(event);
 
 	return 0;
 }
