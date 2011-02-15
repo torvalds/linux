@@ -90,8 +90,7 @@ nouveau_channel_user_pushbuf_alloc(struct drm_device *dev)
 	else
 		location = TTM_PL_FLAG_TT;
 
-	ret = nouveau_bo_new(dev, NULL, 65536, 0, location, 0, 0x0000, false,
-			     true, &pushbuf);
+	ret = nouveau_bo_new(dev, NULL, 65536, 0, location, 0, 0x0000, &pushbuf);
 	if (ret) {
 		NV_ERROR(dev, "error allocating DMA push buffer: %d\n", ret);
 		return NULL;

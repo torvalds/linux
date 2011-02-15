@@ -62,14 +62,13 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 int
 nouveau_gem_new(struct drm_device *dev, struct nouveau_channel *chan,
 		int size, int align, uint32_t flags, uint32_t tile_mode,
-		uint32_t tile_flags, bool no_vm, bool mappable,
-		struct nouveau_bo **pnvbo)
+		uint32_t tile_flags, struct nouveau_bo **pnvbo)
 {
 	struct nouveau_bo *nvbo;
 	int ret;
 
 	ret = nouveau_bo_new(dev, chan, size, align, flags, tile_mode,
-			     tile_flags, no_vm, mappable, pnvbo);
+			     tile_flags, pnvbo);
 	if (ret)
 		return ret;
 	nvbo = *pnvbo;
@@ -97,7 +96,7 @@ nouveau_gem_info(struct drm_gem_object *gem, struct drm_nouveau_gem_info *rep)
 
 	rep->size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
 	rep->offset = nvbo->bo.offset;
-	rep->map_handle = nvbo->mappable ? nvbo->bo.addr_space_offset : 0;
+	rep->map_handle = nvbo->bo.addr_space_offset;
 	rep->tile_mode = nvbo->tile_mode;
 	rep->tile_flags = nvbo->tile_flags;
 	return 0;
@@ -136,9 +135,7 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	}
 
 	ret = nouveau_gem_new(dev, chan, req->info.size, req->align, flags,
-			      req->info.tile_mode, req->info.tile_flags, false,
-			      (req->info.domain & NOUVEAU_GEM_DOMAIN_MAPPABLE),
-			      &nvbo);
+			      req->info.tile_mode, req->info.tile_flags, &nvbo);
 	if (chan)
 		nouveau_channel_put(&chan);
 	if (ret)

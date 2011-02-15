@@ -152,7 +152,6 @@ nouveau_mem_vram_fini(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	nouveau_bo_unpin(dev_priv->vga_ram);
 	nouveau_bo_ref(NULL, &dev_priv->vga_ram);
 
 	ttm_bo_device_release(&dev_priv->ttm.bdev);
@@ -461,13 +460,17 @@ nouveau_mem_vram_init(struct drm_device *dev)
 		return ret;
 	}
 
-	ret = nouveau_bo_new(dev, NULL, 256*1024, 0, TTM_PL_FLAG_VRAM,
-			     0, 0, true, true, &dev_priv->vga_ram);
-	if (ret == 0)
-		ret = nouveau_bo_pin(dev_priv->vga_ram, TTM_PL_FLAG_VRAM);
-	if (ret) {
-		NV_WARN(dev, "failed to reserve VGA memory\n");
-		nouveau_bo_ref(NULL, &dev_priv->vga_ram);
+	if (dev_priv->card_type < NV_50) {
+		ret = nouveau_bo_new(dev, NULL, 256*1024, 0, TTM_PL_FLAG_VRAM,
+				     0, 0, &dev_priv->vga_ram);
+		if (ret == 0)
+			ret = nouveau_bo_pin(dev_priv->vga_ram,
+					     TTM_PL_FLAG_VRAM);
+
+		if (ret) {
+			NV_WARN(dev, "failed to reserve VGA memory\n");
+			nouveau_bo_ref(NULL, &dev_priv->vga_ram);
+		}
 	}
 
 	dev_priv->fb_mtrr = drm_mtrr_add(pci_resource_start(dev->pdev, 1),
@@ -672,13 +675,14 @@ nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long p_size
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(man->bdev);
 	struct nouveau_mm *mm;
-	u32 b_size;
+	u64 size, block, rsvd;
 	int ret;
 
-	p_size = (p_size << PAGE_SHIFT) >> 12;
-	b_size = dev_priv->vram_rblock_size >> 12;
+	rsvd  = (256 * 1024); /* vga memory */
+	size  = (p_size << PAGE_SHIFT) - rsvd;
+	block = dev_priv->vram_rblock_size;
 
-	ret = nouveau_mm_init(&mm, 0, p_size, b_size);
+	ret = nouveau_mm_init(&mm, rsvd >> 12, size >> 12, block >> 12);
 	if (ret)
 		return ret;
 

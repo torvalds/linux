@@ -578,7 +578,7 @@ nouveau_fence_init(struct drm_device *dev)
 	/* Create a shared VRAM heap for cross-channel sync. */
 	if (USE_SEMA(dev)) {
 		ret = nouveau_bo_new(dev, NULL, size, 0, TTM_PL_FLAG_VRAM,
-				     0, 0, false, true, &dev_priv->fence.bo);
+				     0, 0, &dev_priv->fence.bo);
 		if (ret)
 			return ret;
 

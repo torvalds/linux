@@ -61,8 +61,6 @@ enum {
 	NvM2MF		= 0x80000001,
 	NvDmaFB		= 0x80000002,
 	NvDmaTT		= 0x80000003,
-	NvDmaVRAM	= 0x80000004,
-	NvDmaGART	= 0x80000005,
 	NvNotify0       = 0x80000006,
 	Nv2D		= 0x80000007,
 	NvCtxSurf2D	= 0x80000008,

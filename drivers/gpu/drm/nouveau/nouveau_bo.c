@@ -98,8 +98,7 @@ nouveau_bo_fixup_align(struct nouveau_bo *nvbo, int *align, int *size,
 int
 nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	       int size, int align, uint32_t flags, uint32_t tile_mode,
-	       uint32_t tile_flags, bool no_vm, bool mappable,
-	       struct nouveau_bo **pnvbo)
+	       uint32_t tile_flags, struct nouveau_bo **pnvbo)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *nvbo;
@@ -110,8 +109,6 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 		return -ENOMEM;
 	INIT_LIST_HEAD(&nvbo->head);
 	INIT_LIST_HEAD(&nvbo->entry);
-	nvbo->mappable = mappable;
-	nvbo->no_vm = no_vm;
 	nvbo->tile_mode = tile_mode;
 	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &dev_priv->ttm.bdev;
@@ -119,7 +116,7 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	nouveau_bo_fixup_align(nvbo, &align, &size, &page_shift);
 	align >>= PAGE_SHIFT;
 
-	if (!nvbo->no_vm && dev_priv->chan_vm) {
+	if (dev_priv->chan_vm) {
 		ret = nouveau_vm_get(dev_priv->chan_vm, size, page_shift,
 				     NV_MEM_ACCESS_RW, &nvbo->vma);
 		if (ret) {
@@ -504,14 +501,6 @@ static inline uint32_t
 nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
 		      struct nouveau_channel *chan, struct ttm_mem_reg *mem)
 {
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
-
-	if (nvbo->no_vm) {
-		if (mem->mem_type == TTM_PL_TT)
-			return NvDmaGART;
-		return NvDmaVRAM;
-	}
-
 	if (mem->mem_type == TTM_PL_TT)
 		return chan->gart_handle;
 	return chan->vram_handle;
@@ -523,22 +512,21 @@ nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	u64 src_offset = old_mem->start << PAGE_SHIFT;
-	u64 dst_offset = new_mem->start << PAGE_SHIFT;
 	u32 page_count = new_mem->num_pages;
+	u64 src_offset, dst_offset;
 	int ret;
 
-	if (!nvbo->no_vm) {
-		if (old_mem->mem_type == TTM_PL_VRAM)
-			src_offset  = nvbo->vma.offset;
-		else
-			src_offset += dev_priv->gart_info.aper_base;
+	src_offset = old_mem->start << PAGE_SHIFT;
+	if (old_mem->mem_type == TTM_PL_VRAM)
+		src_offset  = nvbo->vma.offset;
+	else
+		src_offset += dev_priv->gart_info.aper_base;
 
-		if (new_mem->mem_type == TTM_PL_VRAM)
-			dst_offset  = nvbo->vma.offset;
-		else
-			dst_offset += dev_priv->gart_info.aper_base;
-	}
+	dst_offset = new_mem->start << PAGE_SHIFT;
+	if (new_mem->mem_type == TTM_PL_VRAM)
+		dst_offset  = nvbo->vma.offset;
+	else
+		dst_offset += dev_priv->gart_info.aper_base;
 
 	page_count = new_mem->num_pages;
 	while (page_count) {
@@ -580,18 +568,16 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	int ret;
 
 	src_offset = old_mem->start << PAGE_SHIFT;
-	dst_offset = new_mem->start << PAGE_SHIFT;
-	if (!nvbo->no_vm) {
-		if (old_mem->mem_type == TTM_PL_VRAM)
-			src_offset  = nvbo->vma.offset;
-		else
-			src_offset += dev_priv->gart_info.aper_base;
+	if (old_mem->mem_type == TTM_PL_VRAM)
+		src_offset  = nvbo->vma.offset;
+	else
+		src_offset += dev_priv->gart_info.aper_base;
 
-		if (new_mem->mem_type == TTM_PL_VRAM)
-			dst_offset  = nvbo->vma.offset;
-		else
-			dst_offset += dev_priv->gart_info.aper_base;
-	}
+	dst_offset = new_mem->start << PAGE_SHIFT;
+	if (new_mem->mem_type == TTM_PL_VRAM)
+		dst_offset  = nvbo->vma.offset;
+	else
+		dst_offset += dev_priv->gart_info.aper_base;
 
 	ret = RING_SPACE(chan, 3);
 	if (ret)
@@ -737,7 +723,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	int ret;
 
 	chan = nvbo->channel;
-	if (!chan || nvbo->no_vm) {
+	if (!chan) {
 		chan = dev_priv->channel;
 		mutex_lock_nested(&chan->mutex, NOUVEAU_KCHANNEL_MUTEX);
 	}
@@ -836,7 +822,7 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	uint64_t offset;
 
-	if (nvbo->no_vm || new_mem->mem_type != TTM_PL_VRAM) {
+	if (new_mem->mem_type != TTM_PL_VRAM) {
 		/* Nothing to do. */
 		*new_tile = NULL;
 		return 0;

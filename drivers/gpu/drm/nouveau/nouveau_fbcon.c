@@ -297,7 +297,7 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	size = roundup(size, PAGE_SIZE);
 
 	ret = nouveau_gem_new(dev, dev_priv->channel, size, 0, TTM_PL_FLAG_VRAM,
-			      0, 0x0000, false, true, &nvbo);
+			      0, 0x0000, &nvbo);
 	if (ret) {
 		NV_ERROR(dev, "failed to allocate framebuffer\n");
 		goto out;

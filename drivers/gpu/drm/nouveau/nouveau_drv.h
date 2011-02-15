@@ -104,8 +104,6 @@ struct nouveau_bo {
 	struct nouveau_channel *channel;
 
 	struct nouveau_vma vma;
-	bool mappable;
-	bool no_vm;
 
 	uint32_t tile_mode;
 	uint32_t tile_flags;
@@ -1293,7 +1291,7 @@ extern struct ttm_bo_driver nouveau_bo_driver;
 extern int nouveau_bo_new(struct drm_device *, struct nouveau_channel *,
 			  int size, int align, uint32_t flags,
 			  uint32_t tile_mode, uint32_t tile_flags,
-			  bool no_vm, bool mappable, struct nouveau_bo **);
+			  struct nouveau_bo **);
 extern int nouveau_bo_pin(struct nouveau_bo *, uint32_t flags);
 extern int nouveau_bo_unpin(struct nouveau_bo *);
 extern int nouveau_bo_map(struct nouveau_bo *);
@@ -1356,7 +1354,7 @@ static inline struct nouveau_fence *nouveau_fence_ref(struct nouveau_fence *obj)
 extern int nouveau_gem_new(struct drm_device *, struct nouveau_channel *,
 			   int size, int align, uint32_t flags,
 			   uint32_t tile_mode, uint32_t tile_flags,
-			   bool no_vm, bool mappable, struct nouveau_bo **);
+			   struct nouveau_bo **);
 extern int nouveau_gem_object_new(struct drm_gem_object *);
 extern void nouveau_gem_object_del(struct drm_gem_object *);
 extern int nouveau_gem_ioctl_new(struct drm_device *, void *,

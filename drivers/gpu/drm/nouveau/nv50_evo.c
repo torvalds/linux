@@ -117,7 +117,7 @@ nv50_evo_channel_new(struct drm_device *dev, int chid,
 	evo->user_put = 0;
 
 	ret = nouveau_bo_new(dev, NULL, 4096, 0, TTM_PL_FLAG_VRAM, 0, 0,
-			     false, true, &evo->pushbuf_bo);
+			     &evo->pushbuf_bo);
 	if (ret == 0)
 		ret = nouveau_bo_pin(evo->pushbuf_bo, TTM_PL_FLAG_VRAM);
 	if (ret) {
@@ -331,7 +331,7 @@ nv50_evo_create(struct drm_device *dev)
 			goto err;
 
 		ret = nouveau_bo_new(dev, NULL, 4096, 0x1000, TTM_PL_FLAG_VRAM,
-				     0, 0x0000, false, true, &dispc->sem.bo);
+				     0, 0x0000, &dispc->sem.bo);
 		if (!ret) {
 			offset = dispc->sem.bo->bo.mem.start << PAGE_SHIFT;
 

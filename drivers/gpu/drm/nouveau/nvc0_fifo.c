@@ -116,7 +116,7 @@ nvc0_fifo_create_context(struct nouveau_channel *chan)
 
 	/* allocate vram for control regs, map into polling area */
 	ret = nouveau_bo_new(dev, NULL, 0x1000, 0, TTM_PL_FLAG_VRAM,
-			     0, 0, true, true, &fifoch->user);
+			     0, 0, &fifoch->user);
 	if (ret)
 		goto error;
 

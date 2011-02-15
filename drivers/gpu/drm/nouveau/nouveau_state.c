@@ -544,7 +544,6 @@ static int
 nouveau_card_init_channel(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *gpuobj = NULL;
 	int ret;
 
 	ret = nouveau_channel_alloc(dev, &dev_priv->channel,
@@ -552,41 +551,8 @@ nouveau_card_init_channel(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	/* no dma objects on fermi... */
-	if (dev_priv->card_type >= NV_C0)
-		goto out_done;
-
-	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
-				     0, dev_priv->vram_size,
-				     NV_MEM_ACCESS_RW, NV_MEM_TARGET_VRAM,
-				     &gpuobj);
-	if (ret)
-		goto out_err;
-
-	ret = nouveau_ramht_insert(dev_priv->channel, NvDmaVRAM, gpuobj);
-	nouveau_gpuobj_ref(NULL, &gpuobj);
-	if (ret)
-		goto out_err;
-
-	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
-				     0, dev_priv->gart_info.aper_size,
-				     NV_MEM_ACCESS_RW, NV_MEM_TARGET_GART,
-				     &gpuobj);
-	if (ret)
-		goto out_err;
-
-	ret = nouveau_ramht_insert(dev_priv->channel, NvDmaGART, gpuobj);
-	nouveau_gpuobj_ref(NULL, &gpuobj);
-	if (ret)
-		goto out_err;
-
-out_done:
 	mutex_unlock(&dev_priv->channel->mutex);
 	return 0;
-
-out_err:
-	nouveau_channel_put(&dev_priv->channel);
-	return ret;
 }
 
 static void nouveau_switcheroo_set_state(struct pci_dev *pdev,
