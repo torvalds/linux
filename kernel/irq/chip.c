@@ -515,9 +515,16 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 	}
 	preflow_handler(desc);
 	handle_irq_event(desc);
-out:
+
+out_eoi:
 	desc->irq_data.chip->irq_eoi(&desc->irq_data);
+out_unlock:
 	raw_spin_unlock(&desc->lock);
+	return;
+out:
+	if (!(desc->irq_data.chip->flags & IRQCHIP_EOI_IF_HANDLED))
+		goto out_eoi;
+	goto out_unlock;
 }
 
 /**

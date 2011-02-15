@@ -328,10 +328,12 @@ struct irq_chip {
 /*
  * irq_chip specific flags
  *
- * IRQCHIP_SET_TYPE_MASKED:		Mask before calling chip.irq_set_type()
+ * IRQCHIP_SET_TYPE_MASKED:	Mask before calling chip.irq_set_type()
+ * IRQCHIP_EOI_IF_HANDLED:	Only issue irq_eoi() when irq was handled
  */
 enum {
 	IRQCHIP_SET_TYPE_MASKED		= (1 <<  0),
+	IRQCHIP_EOI_IF_HANDLED		= (1 <<  1),
 };
 
 /* This include will go away once we isolated irq_desc usage to core code */
