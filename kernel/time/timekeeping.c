@@ -1040,11 +1040,14 @@ void do_timer(unsigned long ticks)
 }
 
 /**
- * get_xtime_and_monotonic_offset() - get xtime and wall_to_monotonic
+ * get_xtime_and_monotonic_and_sleep_offset() - get xtime, wall_to_monotonic,
+ *    and sleep offsets.
  * @xtim:	pointer to timespec to be set with xtime
  * @wtom:	pointer to timespec to be set with wall_to_monotonic
+ * @sleep:	pointer to timespec to be set with time in suspend
  */
-void get_xtime_and_monotonic_offset(struct timespec *xtim, struct timespec *wtom)
+void get_xtime_and_monotonic_and_sleep_offset(struct timespec *xtim,
+				struct timespec *wtom, struct timespec *sleep)
 {
 	unsigned long seq;
 
@@ -1052,6 +1055,7 @@ void get_xtime_and_monotonic_offset(struct timespec *xtim, struct timespec *wtom
 		seq = read_seqbegin(&xtime_lock);
 		*xtim = xtime;
 		*wtom = wall_to_monotonic;
+		*sleep = total_sleep_time;
 	} while (read_seqretry(&xtime_lock, seq));
 }
 
