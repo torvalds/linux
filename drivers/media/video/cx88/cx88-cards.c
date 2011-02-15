@@ -3165,9 +3165,7 @@ static void cx88_card_setup(struct cx88_core *core)
 {
 	static u8 eeprom[256];
 	struct tuner_setup tun_setup;
-	unsigned int mode_mask = T_RADIO     |
-				 T_ANALOG_TV |
-				 T_DIGITAL_TV;
+	unsigned int mode_mask = T_RADIO | T_ANALOG_TV;
 
 	memset(&tun_setup, 0, sizeof(tun_setup));
 

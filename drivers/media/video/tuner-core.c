@@ -497,7 +497,7 @@ static void tuner_lookup(struct i2c_adapter *adap,
 		   device. If other devices appear then we need to
 		   make this test more general. */
 		else if (*tv == NULL && pos->type != TUNER_TDA9887 &&
-			 (pos->mode_mask & (T_ANALOG_TV | T_DIGITAL_TV)))
+			 (pos->mode_mask & T_ANALOG_TV))
 			*tv = pos;
 	}
 }
@@ -565,8 +565,7 @@ static int tuner_probe(struct i2c_client *client,
 			} else {
 				/* Default is being tda9887 */
 				t->type = TUNER_TDA9887;
-				t->mode_mask = T_RADIO | T_ANALOG_TV |
-					       T_DIGITAL_TV;
+				t->mode_mask = T_RADIO | T_ANALOG_TV;
 				goto register_client;
 			}
 			break;
@@ -596,7 +595,7 @@ static int tuner_probe(struct i2c_client *client,
 	   first found TV tuner. */
 	tuner_lookup(t->i2c->adapter, &radio, &tv);
 	if (tv == NULL) {
-		t->mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
+		t->mode_mask = T_ANALOG_TV;
 		if (radio == NULL)
 			t->mode_mask |= T_RADIO;
 		tuner_dbg("Setting mode_mask to 0x%02x\n", t->mode_mask);
@@ -607,18 +606,15 @@ register_client:
 	/* Sets a default mode */
 	if (t->mode_mask & T_ANALOG_TV)
 		t->mode = V4L2_TUNER_ANALOG_TV;
-	else if (t->mode_mask & T_RADIO)
-		t->mode = V4L2_TUNER_RADIO;
 	else
-		t->mode = V4L2_TUNER_DIGITAL_TV;
+		t->mode = V4L2_TUNER_RADIO;
 	set_type(client, t->type, t->mode_mask, t->config, t->fe.callback);
 	list_add_tail(&t->list, &tuner_list);
 
-	tuner_info("Tuner %d found with type(s)%s%s%s.\n",
+	tuner_info("Tuner %d found with type(s)%s%s.\n",
 		   t->type,
-		   t->mode_mask & T_RADIO ? " radio" : "",
-		   t->mode_mask & T_ANALOG_TV ? " TV" : "",
-		   t->mode_mask & T_ANALOG_TV ? " DTV" : "");
+		   t->mode_mask & T_RADIO ? " Radio" : "",
+		   t->mode_mask & T_ANALOG_TV ? " TV" : "");
 	return 0;
 }
 
