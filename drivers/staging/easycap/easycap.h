@@ -30,7 +30,6 @@
  *
  *                EASYCAP_DEBUG
  *                EASYCAP_IS_VIDEODEV_CLIENT
- *                EASYCAP_NEEDS_USBVIDEO_H
  *
  *  IF REQUIRED THEY MUST BE EXTERNALLY DEFINED, FOR EXAMPLE AS COMPILER
  *  OPTIONS.
@@ -90,9 +89,6 @@
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 #include <linux/videodev2.h>
 #include <linux/soundcard.h>
-#ifdef EASYCAP_NEEDS_USBVIDEO_H
-#include <config/video/usbvideo.h>
-#endif /*EASYCAP_NEEDS_USBVIDEO_H*/
 
 #ifndef PAGE_SIZE
 #error "PAGE_SIZE not defined"
