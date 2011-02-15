@@ -984,6 +984,9 @@ struct net_device {
 				 NETIF_F_SG | NETIF_F_HIGHDMA |		\
 				 NETIF_F_FRAGLIST)
 
+	/* changeable features with no special hardware requirements */
+#define NETIF_F_SOFT_FEATURES	(NETIF_F_GSO | NETIF_F_GRO)
+
 	/* Interface index. Unique device identifier	*/
 	int			ifindex;
 	int			iflink;
