@@ -36,6 +36,16 @@ struct resource_list_x {
 	unsigned long flags;
 };
 
+#define free_list(type, head) do {                      \
+	struct type *list, *tmp;			\
+	for (list = (head)->next; list;) {		\
+		tmp = list;				\
+		list = list->next;			\
+		kfree(tmp);				\
+	}						\
+	(head)->next = NULL;				\
+} while (0)
+
 static void add_to_failed_list(struct resource_list_x *head,
 				 struct pci_dev *dev, struct resource *res)
 {
@@ -56,19 +66,6 @@ static void add_to_failed_list(struct resource_list_x *head,
 	tmp->end = res->end;
 	tmp->flags = res->flags;
 	list->next = tmp;
-}
-
-static void free_failed_list(struct resource_list_x *head)
-{
-	struct resource_list_x *list, *tmp;
-
-	for (list = head->next; list;) {
-		tmp = list;
-		list = list->next;
-		kfree(tmp);
-	}
-
-	head->next = NULL;
 }
 
 static void __dev_sort_resources(struct pci_dev *dev,
@@ -900,7 +897,7 @@ again:
 
 	if (tried_times >= 2) {
 		/* still fail, don't need to try more */
-		free_failed_list(&head);
+		free_list(resource_list_x, &head);
 		goto enable_all;
 	}
 
@@ -931,7 +928,7 @@ again:
 
 		list = list->next;
 	}
-	free_failed_list(&head);
+	free_list(resource_list_x, &head);
 
 	goto again;
 
