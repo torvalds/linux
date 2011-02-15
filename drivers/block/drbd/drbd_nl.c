@@ -1572,6 +1572,7 @@ fail:
 static int drbd_nl_disconnect(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			      struct drbd_nl_cfg_reply *reply)
 {
+	struct drbd_tconn *tconn = mdev->tconn;
 	int retcode;
 	struct disconnect dc;
 
@@ -1582,30 +1583,29 @@ static int drbd_nl_disconnect(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 	}
 
 	if (dc.force) {
-		spin_lock_irq(&mdev->tconn->req_lock);
-		if (mdev->state.conn >= C_WF_CONNECTION)
-			_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), CS_HARD, NULL);
-		spin_unlock_irq(&mdev->tconn->req_lock);
+		spin_lock_irq(&tconn->req_lock);
+		if (tconn->cstate >= C_WF_CONNECTION)
+			_conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
+		spin_unlock_irq(&tconn->req_lock);
 		goto done;
 	}
 
-	retcode = _drbd_request_state(mdev, NS(conn, C_DISCONNECTING), CS_ORDERED);
+	retcode = conn_request_state(tconn, NS(conn, C_DISCONNECTING), 0);
 
 	if (retcode == SS_NOTHING_TO_DO)
 		goto done;
 	else if (retcode == SS_ALREADY_STANDALONE)
 		goto done;
 	else if (retcode == SS_PRIMARY_NOP) {
-		/* Our statche checking code wants to see the peer outdated. */
-		retcode = drbd_request_state(mdev, NS2(conn, C_DISCONNECTING,
-						      pdsk, D_OUTDATED));
+		/* Our state checking code wants to see the peer outdated. */
+		retcode = conn_request_state(tconn, NS2(conn, C_DISCONNECTING,
+							pdsk, D_OUTDATED), CS_VERBOSE);
 	} else if (retcode == SS_CW_FAILED_BY_PEER) {
 		/* The peer probably wants to see us outdated. */
-		retcode = _drbd_request_state(mdev, NS2(conn, C_DISCONNECTING,
-							disk, D_OUTDATED),
-					      CS_ORDERED);
+		retcode = conn_request_state(tconn, NS2(conn, C_DISCONNECTING,
+							disk, D_OUTDATED), 0);
 		if (retcode == SS_IS_DISKLESS || retcode == SS_LOWER_THAN_OUTDATED) {
-			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+			conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 			retcode = SS_SUCCESS;
 		}
 	}
@@ -1613,8 +1613,8 @@ static int drbd_nl_disconnect(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 	if (retcode < SS_SUCCESS)
 		goto fail;
 
-	if (wait_event_interruptible(mdev->state_wait,
-				     mdev->state.conn != C_DISCONNECTING)) {
+	if (wait_event_interruptible(tconn->ping_wait,
+				     tconn->cstate != C_DISCONNECTING)) {
 		/* Do not test for mdev->state.conn == C_STANDALONE, since
 		   someone else might connect us in the mean time! */
 		retcode = ERR_INTR;

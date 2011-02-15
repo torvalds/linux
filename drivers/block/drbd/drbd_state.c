@@ -1366,6 +1366,61 @@ static int _set_state_itr_fn(int vnr, void *p, void *data)
 	return 0;
 }
 
+static enum drbd_state_rv
+_conn_rq_cond(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val)
+{
+	struct _is_valid_itr_params params;
+	enum drbd_state_rv rv;
+
+	if (test_and_clear_bit(CONN_WD_ST_CHG_OKAY, &tconn->flags))
+		return SS_CW_SUCCESS;
+
+	if (test_and_clear_bit(CONN_WD_ST_CHG_FAIL, &tconn->flags))
+		return SS_CW_FAILED_BY_PEER;
+
+	params.flags = CS_NO_CSTATE_CHG; /* öö think */
+	params.mask = mask;
+	params.val = val;
+
+	spin_lock_irq(&tconn->req_lock);
+	rv = tconn->cstate != C_WF_REPORT_PARAMS ? SS_CW_NO_NEED : SS_UNKNOWN_ERROR;
+
+	if (rv == SS_UNKNOWN_ERROR)
+		rv = idr_for_each(&tconn->volumes, _is_valid_itr_fn, &params);
+
+	if (rv == 0)  /* idr_for_each semantics */
+		rv = SS_UNKNOWN_ERROR;  /* cont waiting, otherwise fail. */
+
+	spin_unlock_irq(&tconn->req_lock);
+
+	return rv;
+}
+
+static enum drbd_state_rv
+conn_cl_wide(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
+	     enum chg_state_flags f)
+{
+	enum drbd_state_rv rv;
+
+	spin_unlock_irq(&tconn->req_lock);
+	mutex_lock(&tconn->cstate_mutex);
+
+	if (!conn_send_state_req(tconn, mask, val)) {
+		rv = SS_CW_FAILED_BY_PEER;
+		/* if (f & CS_VERBOSE)
+		   print_st_err(mdev, os, ns, rv); */
+		goto abort;
+	}
+
+	wait_event(tconn->ping_wait, (rv = _conn_rq_cond(tconn, mask, val)));
+
+abort:
+	mutex_unlock(&tconn->cstate_mutex);
+	spin_lock_irq(&tconn->req_lock);
+
+	return rv;
+}
+
 enum drbd_state_rv
 _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
 		    enum chg_state_flags flags)
@@ -1392,6 +1447,13 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 
 	if (rv < SS_SUCCESS)
 		goto abort;
+
+	if (oc == C_WF_REPORT_PARAMS && val.conn == C_DISCONNECTING &&
+	    !(flags & (CS_LOCAL_ONLY | CS_HARD))) {
+		rv = conn_cl_wide(tconn, mask, val, flags);
+		if (rv < SS_SUCCESS)
+			goto abort;
+	}
 
 	if (params.oc_state == OC_CONSISTENT) {
 		oc = params.oc;
