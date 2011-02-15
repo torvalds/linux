@@ -212,37 +212,40 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Validate wake_device is of type Device */
-
-	device_node = ACPI_CAST_PTR(struct acpi_namespace_node, wake_device);
-	if (device_node->type != ACPI_TYPE_DEVICE) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
-	}
-
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
 	/* Ensure that we have a valid GPE number */
 
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
-	if (gpe_event_info) {
-		/*
-		 * If there is no method or handler for this GPE, then the
-		 * wake_device will be notified whenever this GPE fires (aka
-		 * "implicit notify") Note: The GPE is assumed to be
-		 * level-triggered (for windows compatibility).
-		 */
-		if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
-		    ACPI_GPE_DISPATCH_NONE) {
-			gpe_event_info->flags =
-			    (ACPI_GPE_DISPATCH_NOTIFY |
-			     ACPI_GPE_LEVEL_TRIGGERED);
-			gpe_event_info->dispatch.device_node = device_node;
-		}
-
-		gpe_event_info->flags |= ACPI_GPE_CAN_WAKE;
-		status = AE_OK;
+	if (!gpe_event_info) {
+		goto unlock_and_exit;
 	}
 
+	/*
+	 * If there is no method or handler for this GPE, then the
+	 * wake_device will be notified whenever this GPE fires (aka
+	 * "implicit notify") Note: The GPE is assumed to be
+	 * level-triggered (for windows compatibility).
+	 */
+	if (((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
+	      ACPI_GPE_DISPATCH_NONE) && (wake_device != ACPI_ROOT_OBJECT)) {
+
+		/* Validate wake_device is of type Device */
+
+		device_node = ACPI_CAST_PTR(struct acpi_namespace_node,
+					    wake_device);
+		if (device_node->type != ACPI_TYPE_DEVICE) {
+			goto unlock_and_exit;
+		}
+		gpe_event_info->flags = (ACPI_GPE_DISPATCH_NOTIFY |
+					 ACPI_GPE_LEVEL_TRIGGERED);
+		gpe_event_info->dispatch.device_node = device_node;
+	}
+
+	gpe_event_info->flags |= ACPI_GPE_CAN_WAKE;
+	status = AE_OK;
+
+ unlock_and_exit:
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
 }
