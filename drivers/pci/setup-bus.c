@@ -88,6 +88,13 @@ static void __dev_sort_resources(struct pci_dev *dev,
 	pdev_sort_resources(dev, head);
 }
 
+static inline void reset_resource(struct resource *res)
+{
+	res->start = 0;
+	res->end = 0;
+	res->flags = 0;
+}
+
 static void __assign_resources_sorted(struct resource_list *head,
 				 struct resource_list_x *fail_head)
 {
@@ -109,9 +116,7 @@ static void __assign_resources_sorted(struct resource_list *head,
 				      (!(res->flags & IORESOURCE_ROM_ENABLE))))
 					add_to_failed_list(fail_head, list->dev, res);
 			}
-			res->start = 0;
-			res->end = 0;
-			res->flags = 0;
+			reset_resource(res);
 		}
 		tmp = list;
 		list = list->next;
