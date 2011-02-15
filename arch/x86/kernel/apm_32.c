@@ -975,20 +975,10 @@ recalc:
 
 static void apm_power_off(void)
 {
-	unsigned char po_bios_call[] = {
-		0xb8, 0x00, 0x10,	/* movw  $0x1000,ax  */
-		0x8e, 0xd0,		/* movw  ax,ss       */
-		0xbc, 0x00, 0xf0,	/* movw  $0xf000,sp  */
-		0xb8, 0x07, 0x53,	/* movw  $0x5307,ax  */
-		0xbb, 0x01, 0x00,	/* movw  $0x0001,bx  */
-		0xb9, 0x03, 0x00,	/* movw  $0x0003,cx  */
-		0xcd, 0x15		/* int   $0x15       */
-	};
-
 	/* Some bioses don't like being called from CPU != 0 */
 	if (apm_info.realmode_power_off) {
 		set_cpus_allowed_ptr(current, cpumask_of(0));
-		machine_real_restart(po_bios_call, sizeof(po_bios_call));
+		machine_real_restart(MRR_APM);
 	} else {
 		(void)set_system_power_state(APM_STATE_OFF);
 	}
