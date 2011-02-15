@@ -292,7 +292,7 @@ struct CommandList {
 	struct ctlr_info	   *h;
 	int			   cmd_type;
 	long			   cmdindex;
-	struct hlist_node list;
+	struct list_head list;
 	struct request *rq;
 	struct completion *waiting;
 	void   *scsi_cmd;

@@ -314,9 +314,9 @@ static ssize_t host_show_commands_outstanding(struct device *dev,
 }
 
 /* Enqueuing and dequeuing functions for cmdlists. */
-static inline void addQ(struct hlist_head *list, struct CommandList *c)
+static inline void addQ(struct list_head *list, struct CommandList *c)
 {
-	hlist_add_head(&c->list, list);
+	list_add_tail(&c->list, list);
 }
 
 static inline u32 next_command(struct ctlr_info *h)
@@ -366,9 +366,9 @@ static void enqueue_cmd_and_start_io(struct ctlr_info *h,
 
 static inline void removeQ(struct CommandList *c)
 {
-	if (WARN_ON(hlist_unhashed(&c->list)))
+	if (WARN_ON(list_empty(&c->list)))
 		return;
-	hlist_del_init(&c->list);
+	list_del_init(&c->list);
 }
 
 static inline int is_hba_lunid(unsigned char scsi3addr[])
@@ -2228,7 +2228,7 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 
 	c->cmdindex = i;
 
-	INIT_HLIST_NODE(&c->list);
+	INIT_LIST_HEAD(&c->list);
 	c->busaddr = (u32) cmd_dma_handle;
 	temp64.val = (u64) err_dma_handle;
 	c->ErrDesc.Addr.lower = temp64.val32.lower;
@@ -2266,7 +2266,7 @@ static struct CommandList *cmd_special_alloc(struct ctlr_info *h)
 	}
 	memset(c->err_info, 0, sizeof(*c->err_info));
 
-	INIT_HLIST_NODE(&c->list);
+	INIT_LIST_HEAD(&c->list);
 	c->busaddr = (u32) cmd_dma_handle;
 	temp64.val = (u64) err_dma_handle;
 	c->ErrDesc.Addr.lower = temp64.val32.lower;
@@ -2837,8 +2837,8 @@ static void start_io(struct ctlr_info *h)
 {
 	struct CommandList *c;
 
-	while (!hlist_empty(&h->reqQ)) {
-		c = hlist_entry(h->reqQ.first, struct CommandList, list);
+	while (!list_empty(&h->reqQ)) {
+		c = list_entry(h->reqQ.next, struct CommandList, list);
 		/* can't do anything if fifo is full */
 		if ((h->access.fifo_full(h))) {
 			dev_warn(&h->pdev->dev, "fifo full\n");
@@ -2929,10 +2929,9 @@ static inline u32 process_nonindexed_cmd(struct ctlr_info *h,
 {
 	u32 tag;
 	struct CommandList *c = NULL;
-	struct hlist_node *tmp;
 
 	tag = hpsa_tag_discard_error_bits(raw_tag);
-	hlist_for_each_entry(c, tmp, &h->cmpQ, list) {
+	list_for_each_entry(c, &h->cmpQ, list) {
 		if ((c->busaddr & 0xFFFFFFE0) == (tag & 0xFFFFFFE0)) {
 			finish_cmd(c, raw_tag);
 			return next_command(h);
@@ -3761,8 +3760,8 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 
 	h->pdev = pdev;
 	h->busy_initializing = 1;
-	INIT_HLIST_HEAD(&h->cmpQ);
-	INIT_HLIST_HEAD(&h->reqQ);
+	INIT_LIST_HEAD(&h->cmpQ);
+	INIT_LIST_HEAD(&h->reqQ);
 	spin_lock_init(&h->lock);
 	spin_lock_init(&h->scan_lock);
 	rc = hpsa_pci_init(h);
