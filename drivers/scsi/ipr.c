@@ -7515,16 +7515,10 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 	volatile u32 int_reg;
-	int rc;
 
 	ENTER;
 	ioa_cfg->pdev->state_saved = true;
-	rc = pci_restore_state(ioa_cfg->pdev);
-
-	if (rc != PCIBIOS_SUCCESSFUL) {
-		ipr_cmd->s.ioasa.hdr.ioasc = cpu_to_be32(IPR_IOASC_PCI_ACCESS_ERROR);
-		return IPR_RC_JOB_CONTINUE;
-	}
+	pci_restore_state(ioa_cfg->pdev);
 
 	if (ipr_set_pcix_cmd_reg(ioa_cfg)) {
 		ipr_cmd->s.ioasa.hdr.ioasc = cpu_to_be32(IPR_IOASC_PCI_ACCESS_ERROR);

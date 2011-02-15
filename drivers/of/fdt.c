@@ -692,12 +692,6 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 	return 1;
 }
 
-static void *__init early_device_tree_alloc(u64 size, u64 align)
-{
-	unsigned long mem = early_init_dt_alloc_memory_arch(size, align);
-	return __va(mem);
-}
-
 /**
  * unflatten_device_tree - create tree of device_nodes from flat blob
  *
@@ -709,7 +703,7 @@ static void *__init early_device_tree_alloc(u64 size, u64 align)
 void __init unflatten_device_tree(void)
 {
 	__unflatten_device_tree(initial_boot_params, &allnodes,
-				early_device_tree_alloc);
+				early_init_dt_alloc_memory_arch);
 
 	/* Get pointer to OF "/chosen" node for use everywhere */
 	of_chosen = of_find_node_by_path("/chosen");

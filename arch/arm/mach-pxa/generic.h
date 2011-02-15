@@ -9,11 +9,13 @@
  * published by the Free Software Foundation.
  */
 
+struct irq_data;
 struct sys_timer;
 
 extern struct sys_timer pxa_timer;
 extern void __init pxa_init_irq(int irq_nr,
-				int (*set_wake)(unsigned int, unsigned int));
+				int (*set_wake)(struct irq_data *,
+						unsigned int));
 extern void __init pxa25x_init_irq(void);
 #ifdef CONFIG_CPU_PXA26x
 extern void __init pxa26x_init_irq(void);

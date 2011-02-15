@@ -15,7 +15,7 @@ comment "MXS platforms:"
 config MACH_MX23EVK
 	bool "Support MX23EVK Platform"
 	select SOC_IMX23
-	select MXS_HAVE_PLATFORM_DUART
+	select MXS_HAVE_AMBA_DUART
 	default y
 	help
 	  Include support for MX23EVK platform. This includes specific
@@ -24,7 +24,7 @@ config MACH_MX23EVK
 config MACH_MX28EVK
 	bool "Support MX28EVK Platform"
 	select SOC_IMX28
-	select MXS_HAVE_PLATFORM_DUART
+	select MXS_HAVE_AMBA_DUART
 	select MXS_HAVE_PLATFORM_FEC
 	default y
 	help

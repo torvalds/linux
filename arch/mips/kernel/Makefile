@@ -95,6 +95,7 @@ obj-$(CONFIG_GPIO_TXX9)		+= gpio_txx9.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 obj-$(CONFIG_SPINLOCK_TEST)	+= spinlock_test.o
+obj-$(CONFIG_MIPS_MACHINE)	+= mips_machine.o
 
 obj-$(CONFIG_OF)		+= prom.o
 
@@ -105,5 +106,7 @@ obj-$(CONFIG_HAVE_STD_PC_SERIAL_PORT)	+= 8250-platform.o
 obj-$(CONFIG_MIPS_CPUFREQ)	+= cpufreq/
 
 obj-$(CONFIG_HW_PERF_EVENTS)	+= perf_event.o
+
+obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
 
 CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)

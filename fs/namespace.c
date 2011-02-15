@@ -183,7 +183,7 @@ static inline void mnt_dec_count(struct vfsmount *mnt)
 unsigned int mnt_get_count(struct vfsmount *mnt)
 {
 #ifdef CONFIG_SMP
-	unsigned int count = atomic_read(&mnt->mnt_longrefs);
+	unsigned int count = 0;
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
@@ -217,7 +217,7 @@ struct vfsmount *alloc_vfsmnt(const char *name)
 		if (!mnt->mnt_pcp)
 			goto out_free_devname;
 
-		atomic_set(&mnt->mnt_longrefs, 1);
+		this_cpu_add(mnt->mnt_pcp->mnt_count, 1);
 #else
 		mnt->mnt_count = 1;
 		mnt->mnt_writers = 0;
@@ -611,6 +611,21 @@ static void attach_mnt(struct vfsmount *mnt, struct path *path)
 	list_add_tail(&mnt->mnt_child, &path->mnt->mnt_mounts);
 }
 
+static inline void __mnt_make_longterm(struct vfsmount *mnt)
+{
+#ifdef CONFIG_SMP
+	atomic_inc(&mnt->mnt_longterm);
+#endif
+}
+
+/* needs vfsmount lock for write */
+static inline void __mnt_make_shortterm(struct vfsmount *mnt)
+{
+#ifdef CONFIG_SMP
+	atomic_dec(&mnt->mnt_longterm);
+#endif
+}
+
 /*
  * vfsmount lock must be held for write
  */
@@ -624,8 +639,11 @@ static void commit_tree(struct vfsmount *mnt)
 	BUG_ON(parent == mnt);
 
 	list_add_tail(&head, &mnt->mnt_list);
-	list_for_each_entry(m, &head, mnt_list)
+	list_for_each_entry(m, &head, mnt_list) {
 		m->mnt_ns = n;
+		__mnt_make_longterm(m);
+	}
+
 	list_splice(&head, n->list.prev);
 
 	list_add_tail(&mnt->mnt_hash, mount_hashtable +
@@ -734,51 +752,30 @@ static inline void mntfree(struct vfsmount *mnt)
 	deactivate_super(sb);
 }
 
-#ifdef CONFIG_SMP
-static inline void __mntput(struct vfsmount *mnt, int longrefs)
+static void mntput_no_expire(struct vfsmount *mnt)
 {
-	if (!longrefs) {
 put_again:
-		br_read_lock(vfsmount_lock);
-		if (likely(atomic_read(&mnt->mnt_longrefs))) {
-			mnt_dec_count(mnt);
-			br_read_unlock(vfsmount_lock);
-			return;
-		}
+#ifdef CONFIG_SMP
+	br_read_lock(vfsmount_lock);
+	if (likely(atomic_read(&mnt->mnt_longterm))) {
+		mnt_dec_count(mnt);
 		br_read_unlock(vfsmount_lock);
-	} else {
-		BUG_ON(!atomic_read(&mnt->mnt_longrefs));
-		if (atomic_add_unless(&mnt->mnt_longrefs, -1, 1))
-			return;
+		return;
 	}
+	br_read_unlock(vfsmount_lock);
 
 	br_write_lock(vfsmount_lock);
-	if (!longrefs)
-		mnt_dec_count(mnt);
-	else
-		atomic_dec(&mnt->mnt_longrefs);
+	mnt_dec_count(mnt);
 	if (mnt_get_count(mnt)) {
 		br_write_unlock(vfsmount_lock);
 		return;
 	}
-	if (unlikely(mnt->mnt_pinned)) {
-		mnt_add_count(mnt, mnt->mnt_pinned + 1);
-		mnt->mnt_pinned = 0;
-		br_write_unlock(vfsmount_lock);
-		acct_auto_close_mnt(mnt);
-		goto put_again;
-	}
-	br_write_unlock(vfsmount_lock);
-	mntfree(mnt);
-}
 #else
-static inline void __mntput(struct vfsmount *mnt, int longrefs)
-{
-put_again:
 	mnt_dec_count(mnt);
 	if (likely(mnt_get_count(mnt)))
 		return;
 	br_write_lock(vfsmount_lock);
+#endif
 	if (unlikely(mnt->mnt_pinned)) {
 		mnt_add_count(mnt, mnt->mnt_pinned + 1);
 		mnt->mnt_pinned = 0;
@@ -788,12 +785,6 @@ put_again:
 	}
 	br_write_unlock(vfsmount_lock);
 	mntfree(mnt);
-}
-#endif
-
-static void mntput_no_expire(struct vfsmount *mnt)
-{
-	__mntput(mnt, 0);
 }
 
 void mntput(struct vfsmount *mnt)
@@ -802,7 +793,7 @@ void mntput(struct vfsmount *mnt)
 		/* avoid cacheline pingpong, hope gcc doesn't get "smart" */
 		if (unlikely(mnt->mnt_expiry_mark))
 			mnt->mnt_expiry_mark = 0;
-		__mntput(mnt, 0);
+		mntput_no_expire(mnt);
 	}
 }
 EXPORT_SYMBOL(mntput);
@@ -814,33 +805,6 @@ struct vfsmount *mntget(struct vfsmount *mnt)
 	return mnt;
 }
 EXPORT_SYMBOL(mntget);
-
-void mntput_long(struct vfsmount *mnt)
-{
-#ifdef CONFIG_SMP
-	if (mnt) {
-		/* avoid cacheline pingpong, hope gcc doesn't get "smart" */
-		if (unlikely(mnt->mnt_expiry_mark))
-			mnt->mnt_expiry_mark = 0;
-		__mntput(mnt, 1);
-	}
-#else
-	mntput(mnt);
-#endif
-}
-EXPORT_SYMBOL(mntput_long);
-
-struct vfsmount *mntget_long(struct vfsmount *mnt)
-{
-#ifdef CONFIG_SMP
-	if (mnt)
-		atomic_inc(&mnt->mnt_longrefs);
-	return mnt;
-#else
-	return mntget(mnt);
-#endif
-}
-EXPORT_SYMBOL(mntget_long);
 
 void mnt_pin(struct vfsmount *mnt)
 {
@@ -1216,7 +1180,7 @@ void release_mounts(struct list_head *head)
 			dput(dentry);
 			mntput(m);
 		}
-		mntput_long(mnt);
+		mntput(mnt);
 	}
 }
 
@@ -1226,19 +1190,21 @@ void release_mounts(struct list_head *head)
  */
 void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 {
+	LIST_HEAD(tmp_list);
 	struct vfsmount *p;
 
 	for (p = mnt; p; p = next_mnt(p, mnt))
-		list_move(&p->mnt_hash, kill);
+		list_move(&p->mnt_hash, &tmp_list);
 
 	if (propagate)
-		propagate_umount(kill);
+		propagate_umount(&tmp_list);
 
-	list_for_each_entry(p, kill, mnt_hash) {
+	list_for_each_entry(p, &tmp_list, mnt_hash) {
 		list_del_init(&p->mnt_expire);
 		list_del_init(&p->mnt_list);
 		__touch_mnt_namespace(p->mnt_ns);
 		p->mnt_ns = NULL;
+		__mnt_make_shortterm(p);
 		list_del_init(&p->mnt_child);
 		if (p->mnt_parent != p) {
 			p->mnt_parent->mnt_ghosts++;
@@ -1246,6 +1212,7 @@ void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
 	}
+	list_splice(&tmp_list, kill);
 }
 
 static void shrink_submounts(struct vfsmount *mnt, struct list_head *umounts);
@@ -1844,9 +1811,10 @@ static int do_move_mount(struct path *path, char *old_name)
 		return err;
 
 	down_write(&namespace_sem);
-	while (d_mountpoint(path->dentry) &&
-	       follow_down(path))
-		;
+	err = follow_down(path, true);
+	if (err < 0)
+		goto out;
+
 	err = -EINVAL;
 	if (!check_mnt(path->mnt) || !check_mnt(old_path.mnt))
 		goto out;
@@ -1904,6 +1872,8 @@ out:
 	return err;
 }
 
+static int do_add_mount(struct vfsmount *, struct path *, int);
+
 /*
  * create a new mount for userspace and request it to be added into the
  * namespace's tree
@@ -1912,6 +1882,7 @@ static int do_new_mount(struct path *path, char *type, int flags,
 			int mnt_flags, char *name, void *data)
 {
 	struct vfsmount *mnt;
+	int err;
 
 	if (!type)
 		return -EINVAL;
@@ -1924,15 +1895,47 @@ static int do_new_mount(struct path *path, char *type, int flags,
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
-	return do_add_mount(mnt, path, mnt_flags, NULL);
+	err = do_add_mount(mnt, path, mnt_flags);
+	if (err)
+		mntput(mnt);
+	return err;
+}
+
+int finish_automount(struct vfsmount *m, struct path *path)
+{
+	int err;
+	/* The new mount record should have at least 2 refs to prevent it being
+	 * expired before we get a chance to add it
+	 */
+	BUG_ON(mnt_get_count(m) < 2);
+
+	if (m->mnt_sb == path->mnt->mnt_sb &&
+	    m->mnt_root == path->dentry) {
+		err = -ELOOP;
+		goto fail;
+	}
+
+	err = do_add_mount(m, path, path->mnt->mnt_flags | MNT_SHRINKABLE);
+	if (!err)
+		return 0;
+fail:
+	/* remove m from any expiration list it may be on */
+	if (!list_empty(&m->mnt_expire)) {
+		down_write(&namespace_sem);
+		br_write_lock(vfsmount_lock);
+		list_del_init(&m->mnt_expire);
+		br_write_unlock(vfsmount_lock);
+		up_write(&namespace_sem);
+	}
+	mntput(m);
+	mntput(m);
+	return err;
 }
 
 /*
  * add a mount into a namespace's mount tree
- * - provide the option of adding the new mount to an expiration list
  */
-int do_add_mount(struct vfsmount *newmnt, struct path *path,
-		 int mnt_flags, struct list_head *fslist)
+static int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
 {
 	int err;
 
@@ -1940,9 +1943,10 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path,
 
 	down_write(&namespace_sem);
 	/* Something was mounted here while we slept */
-	while (d_mountpoint(path->dentry) &&
-	       follow_down(path))
-		;
+	err = follow_down(path, true);
+	if (err < 0)
+		goto unlock;
+
 	err = -EINVAL;
 	if (!(mnt_flags & MNT_SHRINKABLE) && !check_mnt(path->mnt))
 		goto unlock;
@@ -1958,22 +1962,29 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path,
 		goto unlock;
 
 	newmnt->mnt_flags = mnt_flags;
-	if ((err = graft_tree(newmnt, path)))
-		goto unlock;
-
-	if (fslist) /* add to the specified expiration list */
-		list_add_tail(&newmnt->mnt_expire, fslist);
-
-	up_write(&namespace_sem);
-	return 0;
+	err = graft_tree(newmnt, path);
 
 unlock:
 	up_write(&namespace_sem);
-	mntput_long(newmnt);
 	return err;
 }
 
-EXPORT_SYMBOL_GPL(do_add_mount);
+/**
+ * mnt_set_expiry - Put a mount on an expiration list
+ * @mnt: The mount to list.
+ * @expiry_list: The list to add the mount to.
+ */
+void mnt_set_expiry(struct vfsmount *mnt, struct list_head *expiry_list)
+{
+	down_write(&namespace_sem);
+	br_write_lock(vfsmount_lock);
+
+	list_add_tail(&mnt->mnt_expire, expiry_list);
+
+	br_write_unlock(vfsmount_lock);
+	up_write(&namespace_sem);
+}
+EXPORT_SYMBOL(mnt_set_expiry);
 
 /*
  * process a list of expirable mountpoints with the intent of discarding any
@@ -2262,6 +2273,22 @@ static struct mnt_namespace *alloc_mnt_ns(void)
 	return new_ns;
 }
 
+void mnt_make_longterm(struct vfsmount *mnt)
+{
+	__mnt_make_longterm(mnt);
+}
+
+void mnt_make_shortterm(struct vfsmount *mnt)
+{
+#ifdef CONFIG_SMP
+	if (atomic_add_unless(&mnt->mnt_longterm, -1, 1))
+		return;
+	br_write_lock(vfsmount_lock);
+	atomic_dec(&mnt->mnt_longterm);
+	br_write_unlock(vfsmount_lock);
+#endif
+}
+
 /*
  * Allocate a new namespace structure and populate it with contents
  * copied from the namespace of the passed in task structure.
@@ -2299,14 +2326,19 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	q = new_ns->root;
 	while (p) {
 		q->mnt_ns = new_ns;
+		__mnt_make_longterm(q);
 		if (fs) {
 			if (p == fs->root.mnt) {
+				fs->root.mnt = mntget(q);
+				__mnt_make_longterm(q);
+				mnt_make_shortterm(p);
 				rootmnt = p;
-				fs->root.mnt = mntget_long(q);
 			}
 			if (p == fs->pwd.mnt) {
+				fs->pwd.mnt = mntget(q);
+				__mnt_make_longterm(q);
+				mnt_make_shortterm(p);
 				pwdmnt = p;
-				fs->pwd.mnt = mntget_long(q);
 			}
 		}
 		p = next_mnt(p, mnt_ns->root);
@@ -2315,9 +2347,9 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	up_write(&namespace_sem);
 
 	if (rootmnt)
-		mntput_long(rootmnt);
+		mntput(rootmnt);
 	if (pwdmnt)
-		mntput_long(pwdmnt);
+		mntput(pwdmnt);
 
 	return new_ns;
 }
@@ -2350,6 +2382,7 @@ struct mnt_namespace *create_mnt_ns(struct vfsmount *mnt)
 	new_ns = alloc_mnt_ns();
 	if (!IS_ERR(new_ns)) {
 		mnt->mnt_ns = new_ns;
+		__mnt_make_longterm(mnt);
 		new_ns->root = mnt;
 		list_add(&new_ns->list, &new_ns->root->mnt_list);
 	}

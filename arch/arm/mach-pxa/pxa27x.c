@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
@@ -343,18 +344,18 @@ static inline void pxa27x_init_pm(void) {}
 /* PXA27x:  Various gpios can issue wakeup events.  This logic only
  * handles the simple cases, not the WEMUX2 and WEMUX3 options
  */
-static int pxa27x_set_wake(unsigned int irq, unsigned int on)
+static int pxa27x_set_wake(struct irq_data *d, unsigned int on)
 {
-	int gpio = IRQ_TO_GPIO(irq);
+	int gpio = IRQ_TO_GPIO(d->irq);
 	uint32_t mask;
 
 	if (gpio >= 0 && gpio < 128)
 		return gpio_set_wake(gpio, on);
 
-	if (irq == IRQ_KEYPAD)
+	if (d->irq == IRQ_KEYPAD)
 		return keypad_set_wake(on);
 
-	switch (irq) {
+	switch (d->irq) {
 	case IRQ_RTCAlrm:
 		mask = PWER_RTC;
 		break;

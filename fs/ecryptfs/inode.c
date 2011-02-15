@@ -185,15 +185,13 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry)
 				"context; rc = [%d]\n", rc);
 		goto out;
 	}
-	if (!ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->lower_file) {
-		rc = ecryptfs_init_persistent_file(ecryptfs_dentry);
-		if (rc) {
-			printk(KERN_ERR "%s: Error attempting to initialize "
-			       "the persistent file for the dentry with name "
-			       "[%s]; rc = [%d]\n", __func__,
-			       ecryptfs_dentry->d_name.name, rc);
-			goto out;
-		}
+	rc = ecryptfs_init_persistent_file(ecryptfs_dentry);
+	if (rc) {
+		printk(KERN_ERR "%s: Error attempting to initialize "
+			"the persistent file for the dentry with name "
+			"[%s]; rc = [%d]\n", __func__,
+			ecryptfs_dentry->d_name.name, rc);
+		goto out;
 	}
 	rc = ecryptfs_write_metadata(ecryptfs_dentry);
 	if (rc) {
@@ -302,15 +300,13 @@ int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 		rc = -ENOMEM;
 		goto out;
 	}
-	if (!ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->lower_file) {
-		rc = ecryptfs_init_persistent_file(ecryptfs_dentry);
-		if (rc) {
-			printk(KERN_ERR "%s: Error attempting to initialize "
-			       "the persistent file for the dentry with name "
-			       "[%s]; rc = [%d]\n", __func__,
-			       ecryptfs_dentry->d_name.name, rc);
-			goto out_free_kmem;
-		}
+	rc = ecryptfs_init_persistent_file(ecryptfs_dentry);
+	if (rc) {
+		printk(KERN_ERR "%s: Error attempting to initialize "
+			"the persistent file for the dentry with name "
+			"[%s]; rc = [%d]\n", __func__,
+			ecryptfs_dentry->d_name.name, rc);
+		goto out_free_kmem;
 	}
 	crypt_stat = &ecryptfs_inode_to_private(
 					ecryptfs_dentry->d_inode)->crypt_stat;

@@ -1901,11 +1901,12 @@ static void __perf_event_read(void *info)
 		return;
 
 	raw_spin_lock(&ctx->lock);
-	update_context_time(ctx);
+	if (ctx->is_active)
+		update_context_time(ctx);
 	update_event_times(event);
+	if (event->state == PERF_EVENT_STATE_ACTIVE)
+		event->pmu->read(event);
 	raw_spin_unlock(&ctx->lock);
-
-	event->pmu->read(event);
 }
 
 static inline u64 perf_event_count(struct perf_event *event)
@@ -1999,8 +2000,7 @@ static int alloc_callchain_buffers(void)
 	 * accessed from NMI. Use a temporary manual per cpu allocation
 	 * until that gets sorted out.
 	 */
-	size = sizeof(*entries) + sizeof(struct perf_callchain_entry *) *
-		num_possible_cpus();
+	size = offsetof(struct callchain_cpus_entries, cpu_entries[nr_cpu_ids]);
 
 	entries = kzalloc(size, GFP_KERNEL);
 	if (!entries)
@@ -2201,13 +2201,6 @@ find_lively_task_by_vpid(pid_t vpid)
 	if (!task)
 		return ERR_PTR(-ESRCH);
 
-	/*
-	 * Can't attach events to a dying task.
-	 */
-	err = -ESRCH;
-	if (task->flags & PF_EXITING)
-		goto errout;
-
 	/* Reuse ptrace permission checks for now. */
 	err = -EACCES;
 	if (!ptrace_may_access(task, PTRACE_MODE_READ))
@@ -2228,13 +2221,10 @@ find_get_context(struct pmu *pmu, struct task_struct *task, int cpu)
 	unsigned long flags;
 	int ctxn, err;
 
-	if (!task && cpu != -1) {
+	if (!task) {
 		/* Must be root to operate on a CPU event: */
 		if (perf_paranoid_cpu() && !capable(CAP_SYS_ADMIN))
 			return ERR_PTR(-EACCES);
-
-		if (cpu < 0 || cpu >= nr_cpumask_bits)
-			return ERR_PTR(-EINVAL);
 
 		/*
 		 * We could be clever and allow to attach a event to an
@@ -2271,14 +2261,27 @@ retry:
 
 		get_ctx(ctx);
 
-		if (cmpxchg(&task->perf_event_ctxp[ctxn], NULL, ctx)) {
-			/*
-			 * We raced with some other task; use
-			 * the context they set.
-			 */
+		err = 0;
+		mutex_lock(&task->perf_event_mutex);
+		/*
+		 * If it has already passed perf_event_exit_task().
+		 * we must see PF_EXITING, it takes this mutex too.
+		 */
+		if (task->flags & PF_EXITING)
+			err = -ESRCH;
+		else if (task->perf_event_ctxp[ctxn])
+			err = -EAGAIN;
+		else
+			rcu_assign_pointer(task->perf_event_ctxp[ctxn], ctx);
+		mutex_unlock(&task->perf_event_mutex);
+
+		if (unlikely(err)) {
 			put_task_struct(task);
 			kfree(ctx);
-			goto retry;
+
+			if (err == -EAGAIN)
+				goto retry;
+			goto errout;
 		}
 	}
 
@@ -5377,6 +5380,8 @@ free_dev:
 	goto out;
 }
 
+static struct lock_class_key cpuctx_mutex;
+
 int perf_pmu_register(struct pmu *pmu, char *name, int type)
 {
 	int cpu, ret;
@@ -5425,6 +5430,7 @@ skip_type:
 
 		cpuctx = per_cpu_ptr(pmu->pmu_cpu_context, cpu);
 		__perf_event_init_context(&cpuctx->ctx);
+		lockdep_set_class(&cpuctx->ctx.mutex, &cpuctx_mutex);
 		cpuctx->ctx.type = cpu_context;
 		cpuctx->ctx.pmu = pmu;
 		cpuctx->jiffies_interval = 1;
@@ -5541,6 +5547,11 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 	struct hw_perf_event *hwc;
 	long err;
 
+	if ((unsigned)cpu >= nr_cpu_ids) {
+		if (!task || cpu != -1)
+			return ERR_PTR(-EINVAL);
+	}
+
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (!event)
 		return ERR_PTR(-ENOMEM);
@@ -5589,7 +5600,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 
 	if (!overflow_handler && parent_event)
 		overflow_handler = parent_event->overflow_handler;
-	
+
 	event->overflow_handler	= overflow_handler;
 
 	if (attr->disabled)
@@ -6125,7 +6136,7 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	 * scheduled, so we are now safe from rescheduling changing
 	 * our context.
 	 */
-	child_ctx = child->perf_event_ctxp[ctxn];
+	child_ctx = rcu_dereference_raw(child->perf_event_ctxp[ctxn]);
 	task_ctx_sched_out(child_ctx, EVENT_ALL);
 
 	/*
@@ -6438,11 +6449,6 @@ int perf_event_init_context(struct task_struct *child, int ctxn)
 	unsigned long flags;
 	int ret = 0;
 
-	child->perf_event_ctxp[ctxn] = NULL;
-
-	mutex_init(&child->perf_event_mutex);
-	INIT_LIST_HEAD(&child->perf_event_list);
-
 	if (likely(!parent->perf_event_ctxp[ctxn]))
 		return 0;
 
@@ -6494,7 +6500,6 @@ int perf_event_init_context(struct task_struct *child, int ctxn)
 
 	raw_spin_lock_irqsave(&parent_ctx->lock, flags);
 	parent_ctx->rotate_disable = 0;
-	raw_spin_unlock_irqrestore(&parent_ctx->lock, flags);
 
 	child_ctx = child->perf_event_ctxp[ctxn];
 
@@ -6502,12 +6507,11 @@ int perf_event_init_context(struct task_struct *child, int ctxn)
 		/*
 		 * Mark the child context as a clone of the parent
 		 * context, or of whatever the parent is a clone of.
-		 * Note that if the parent is a clone, it could get
-		 * uncloned at any point, but that doesn't matter
-		 * because the list of events and the generation
-		 * count can't have changed since we took the mutex.
+		 *
+		 * Note that if the parent is a clone, the holding of
+		 * parent_ctx->lock avoids it from being uncloned.
 		 */
-		cloned_ctx = rcu_dereference(parent_ctx->parent_ctx);
+		cloned_ctx = parent_ctx->parent_ctx;
 		if (cloned_ctx) {
 			child_ctx->parent_ctx = cloned_ctx;
 			child_ctx->parent_gen = parent_ctx->parent_gen;
@@ -6518,6 +6522,7 @@ int perf_event_init_context(struct task_struct *child, int ctxn)
 		get_ctx(child_ctx->parent_ctx);
 	}
 
+	raw_spin_unlock_irqrestore(&parent_ctx->lock, flags);
 	mutex_unlock(&parent_ctx->mutex);
 
 	perf_unpin_context(parent_ctx);
@@ -6531,6 +6536,10 @@ int perf_event_init_context(struct task_struct *child, int ctxn)
 int perf_event_init_task(struct task_struct *child)
 {
 	int ctxn, ret;
+
+	memset(child->perf_event_ctxp, 0, sizeof(child->perf_event_ctxp));
+	mutex_init(&child->perf_event_mutex);
+	INIT_LIST_HEAD(&child->perf_event_list);
 
 	for_each_task_context_nr(ctxn) {
 		ret = perf_event_init_context(child, ctxn);

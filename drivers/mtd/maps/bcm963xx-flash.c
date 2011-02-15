@@ -196,10 +196,15 @@ static int bcm963xx_probe(struct platform_device *pdev)
 	bcm963xx_mtd_info = do_map_probe("cfi_probe", &bcm963xx_map);
 	if (!bcm963xx_mtd_info) {
 		dev_err(&pdev->dev, "failed to probe using CFI\n");
+		bcm963xx_mtd_info = do_map_probe("jedec_probe", &bcm963xx_map);
+		if (bcm963xx_mtd_info)
+			goto probe_ok;
+		dev_err(&pdev->dev, "failed to probe using JEDEC\n");
 		err = -EIO;
 		goto err_probe;
 	}
 
+probe_ok:
 	bcm963xx_mtd_info->owner = THIS_MODULE;
 
 	/* This is mutually exclusive */

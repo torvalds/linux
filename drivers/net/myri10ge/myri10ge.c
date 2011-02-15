@@ -3403,9 +3403,7 @@ static int myri10ge_resume(struct pci_dev *pdev)
 		return -EIO;
 	}
 
-	status = pci_restore_state(pdev);
-	if (status)
-		return status;
+	pci_restore_state(pdev);
 
 	status = pci_enable_device(pdev);
 	if (status) {

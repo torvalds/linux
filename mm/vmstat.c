@@ -83,7 +83,31 @@ EXPORT_SYMBOL(vm_stat);
 
 #ifdef CONFIG_SMP
 
-static int calculate_threshold(struct zone *zone)
+int calculate_pressure_threshold(struct zone *zone)
+{
+	int threshold;
+	int watermark_distance;
+
+	/*
+	 * As vmstats are not up to date, there is drift between the estimated
+	 * and real values. For high thresholds and a high number of CPUs, it
+	 * is possible for the min watermark to be breached while the estimated
+	 * value looks fine. The pressure threshold is a reduced value such
+	 * that even the maximum amount of drift will not accidentally breach
+	 * the min watermark
+	 */
+	watermark_distance = low_wmark_pages(zone) - min_wmark_pages(zone);
+	threshold = max(1, (int)(watermark_distance / num_online_cpus()));
+
+	/*
+	 * Maximum threshold is 125
+	 */
+	threshold = min(125, threshold);
+
+	return threshold;
+}
+
+int calculate_normal_threshold(struct zone *zone)
 {
 	int threshold;
 	int mem;	/* memory in 128 MB units */
@@ -142,7 +166,7 @@ static void refresh_zone_stat_thresholds(void)
 	for_each_populated_zone(zone) {
 		unsigned long max_drift, tolerate_drift;
 
-		threshold = calculate_threshold(zone);
+		threshold = calculate_normal_threshold(zone);
 
 		for_each_online_cpu(cpu)
 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
@@ -158,6 +182,26 @@ static void refresh_zone_stat_thresholds(void)
 		if (max_drift > tolerate_drift)
 			zone->percpu_drift_mark = high_wmark_pages(zone) +
 					max_drift;
+	}
+}
+
+void set_pgdat_percpu_threshold(pg_data_t *pgdat,
+				int (*calculate_pressure)(struct zone *))
+{
+	struct zone *zone;
+	int cpu;
+	int threshold;
+	int i;
+
+	for (i = 0; i < pgdat->nr_zones; i++) {
+		zone = &pgdat->node_zones[i];
+		if (!zone->percpu_drift_mark)
+			continue;
+
+		threshold = (*calculate_pressure)(zone);
+		for_each_possible_cpu(cpu)
+			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+							= threshold;
 	}
 }
 
@@ -836,6 +880,7 @@ static const char * const vmstat_text[] = {
 	"numa_local",
 	"numa_other",
 #endif
+	"nr_anon_transparent_hugepages",
 	"nr_dirty_threshold",
 	"nr_dirty_background_threshold",
 
@@ -911,7 +956,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   "\n        scanned  %lu"
 		   "\n        spanned  %lu"
 		   "\n        present  %lu",
-		   zone_nr_free_pages(zone),
+		   zone_page_state(zone, NR_FREE_PAGES),
 		   min_wmark_pages(zone),
 		   low_wmark_pages(zone),
 		   high_wmark_pages(zone),

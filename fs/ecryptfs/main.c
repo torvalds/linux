@@ -36,6 +36,7 @@
 #include <linux/parser.h>
 #include <linux/fs_stack.h>
 #include <linux/slab.h>
+#include <linux/magic.h>
 #include "ecryptfs_kernel.h"
 
 /**
@@ -141,13 +142,12 @@ int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
 	return rc;
 }
 
-static inode *ecryptfs_get_inode(struct inode *lower_inode,
+static struct inode *ecryptfs_get_inode(struct inode *lower_inode,
 		       struct super_block *sb)
 {
 	struct inode *inode;
 	int rc = 0;
 
-	lower_inode = lower_dentry->d_inode;
 	if (lower_inode->i_sb != ecryptfs_superblock_to_lower(sb)) {
 		rc = -EXDEV;
 		goto out;
@@ -202,7 +202,7 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 {
 	struct inode *lower_inode = lower_dentry->d_inode;
 	struct inode *inode = ecryptfs_get_inode(lower_inode, sb);
-	if (IS_ERR(inode)
+	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 	if (flags & ECRYPTFS_INTERPOSE_FLAG_D_ADD)
 		d_add(dentry, inode);
@@ -565,6 +565,7 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 	ecryptfs_set_superblock_lower(s, path.dentry->d_sb);
 	s->s_maxbytes = path.dentry->d_sb->s_maxbytes;
 	s->s_blocksize = path.dentry->d_sb->s_blocksize;
+	s->s_magic = ECRYPTFS_SUPER_MAGIC;
 
 	inode = ecryptfs_get_inode(path.dentry->d_inode, s);
 	rc = PTR_ERR(inode);
@@ -809,9 +810,10 @@ static int __init ecryptfs_init(void)
 		ecryptfs_printk(KERN_ERR, "The eCryptfs extent size is "
 				"larger than the host's page size, and so "
 				"eCryptfs cannot run on this system. The "
-				"default eCryptfs extent size is [%d] bytes; "
-				"the page size is [%d] bytes.\n",
-				ECRYPTFS_DEFAULT_EXTENT_SIZE, PAGE_CACHE_SIZE);
+				"default eCryptfs extent size is [%u] bytes; "
+				"the page size is [%lu] bytes.\n",
+				ECRYPTFS_DEFAULT_EXTENT_SIZE,
+				(unsigned long)PAGE_CACHE_SIZE);
 		goto out;
 	}
 	rc = ecryptfs_init_kmem_caches();

@@ -147,11 +147,11 @@ extern struct gpio_chip *gpiochip_find(void *data,
 /* Always use the library code for GPIO management calls,
  * or when sleeping may be involved.
  */
-extern int __must_check gpio_request(unsigned gpio, const char *label);
+extern int gpio_request(unsigned gpio, const char *label);
 extern void gpio_free(unsigned gpio);
 
-extern int __must_check gpio_direction_input(unsigned gpio);
-extern int __must_check gpio_direction_output(unsigned gpio, int value);
+extern int gpio_direction_input(unsigned gpio);
+extern int gpio_direction_output(unsigned gpio, int value);
 
 extern int gpio_set_debounce(unsigned gpio, unsigned debounce);
 
@@ -192,8 +192,8 @@ struct gpio {
 	const char	*label;
 };
 
-extern int __must_check gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
-extern int __must_check gpio_request_array(struct gpio *array, size_t num);
+extern int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
+extern int gpio_request_array(struct gpio *array, size_t num);
 extern void gpio_free_array(struct gpio *array, size_t num);
 
 #ifdef CONFIG_GPIO_SYSFS

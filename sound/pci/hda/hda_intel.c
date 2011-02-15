@@ -2703,7 +2703,7 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto out_free;
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
-	if (patch[dev]) {
+	if (patch[dev] && *patch[dev]) {
 		snd_printk(KERN_ERR SFX "Applying patch firmware '%s'\n",
 			   patch[dev]);
 		err = snd_hda_load_patch(chip->bus, patch[dev]);
@@ -2809,6 +2809,8 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 #endif
 	/* Vortex86MX */
 	{ PCI_DEVICE(0x17f3, 0x3010), .driver_data = AZX_DRIVER_GENERIC },
+	/* VMware HDAudio */
+	{ PCI_DEVICE(0x15ad, 0x1977), .driver_data = AZX_DRIVER_GENERIC },
 	/* AMD/ATI Generic, PCI class code and Vendor ID for HD Audio */
 	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_ANY_ID),
 	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,

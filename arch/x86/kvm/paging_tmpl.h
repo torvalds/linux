@@ -550,6 +550,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	int r;
 	pfn_t pfn;
 	int level = PT_PAGE_TABLE_LEVEL;
+	int force_pt_level;
 	unsigned long mmu_seq;
 	bool map_writable;
 
@@ -577,7 +578,11 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 		return 0;
 	}
 
-	if (walker.level >= PT_DIRECTORY_LEVEL) {
+	if (walker.level >= PT_DIRECTORY_LEVEL)
+		force_pt_level = mapping_level_dirty_bitmap(vcpu, walker.gfn);
+	else
+		force_pt_level = 1;
+	if (!force_pt_level) {
 		level = min(walker.level, mapping_level(vcpu, walker.gfn));
 		walker.gfn = walker.gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
 	}
@@ -599,6 +604,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 
 	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PAGE_FAULT);
 	kvm_mmu_free_some_pages(vcpu);
+	if (!force_pt_level)
+		transparent_hugepage_adjust(vcpu, &walker.gfn, &pfn, &level);
 	sptep = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
 			     level, &write_pt, pfn, map_writable, prefault);
 	(void)sptep;

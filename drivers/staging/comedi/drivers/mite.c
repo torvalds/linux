@@ -61,8 +61,6 @@
 #define PCI_DAQ_SIZE		4096
 #define PCI_DAQ_SIZE_660X       8192
 
-MODULE_LICENSE("GPL");
-
 struct mite_struct *mite_devices;
 EXPORT_SYMBOL(mite_devices);
 

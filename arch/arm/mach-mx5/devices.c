@@ -120,25 +120,6 @@ struct platform_device mxc_usbh2_device = {
 	},
 };
 
-static struct resource mxc_kpp_resources[] = {
-	{
-		.start = MX51_MXC_INT_KPP,
-		.end = MX51_MXC_INT_KPP,
-		.flags = IORESOURCE_IRQ,
-	} , {
-		.start = MX51_KPP_BASE_ADDR,
-		.end = MX51_KPP_BASE_ADDR + 0x8 - 1,
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-struct platform_device mxc_keypad_device = {
-	.name = "imx-keypad",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_kpp_resources),
-	.resource = mxc_kpp_resources,
-};
-
 static struct mxc_gpio_port mxc_gpio_ports[] = {
 	{
 		.chip.label = "gpio-0",

@@ -1059,8 +1059,9 @@ static int acpi_thermal_resume(struct acpi_device *device)
 			break;
 		tz->trips.active[i].flags.enabled = 1;
 		for (j = 0; j < tz->trips.active[i].devices.count; j++) {
-			result = acpi_bus_get_power(tz->trips.active[i].devices.
-			    handles[j], &power_state);
+			result = acpi_bus_update_power(
+					tz->trips.active[i].devices.handles[j],
+					&power_state);
 			if (result || (power_state != ACPI_STATE_D0)) {
 				tz->trips.active[i].flags.enabled = 0;
 				break;

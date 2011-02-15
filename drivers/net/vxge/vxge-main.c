@@ -4120,6 +4120,7 @@ int vxge_fw_upgrade(struct vxgedev *vdev, char *fw_name, int override)
 	       "hotplug event.\n");
 
 out:
+	release_firmware(fw);
 	return ret;
 }
 

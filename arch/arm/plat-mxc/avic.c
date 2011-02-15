@@ -89,22 +89,22 @@ static int avic_set_irq_fiq(unsigned int irq, unsigned int type)
 #endif /* CONFIG_FIQ */
 
 /* Disable interrupt number "irq" in the AVIC */
-static void mxc_mask_irq(unsigned int irq)
+static void mxc_mask_irq(struct irq_data *d)
 {
-	__raw_writel(irq, avic_base + AVIC_INTDISNUM);
+	__raw_writel(d->irq, avic_base + AVIC_INTDISNUM);
 }
 
 /* Enable interrupt number "irq" in the AVIC */
-static void mxc_unmask_irq(unsigned int irq)
+static void mxc_unmask_irq(struct irq_data *d)
 {
-	__raw_writel(irq, avic_base + AVIC_INTENNUM);
+	__raw_writel(d->irq, avic_base + AVIC_INTENNUM);
 }
 
 static struct mxc_irq_chip mxc_avic_chip = {
 	.base = {
-		.ack = mxc_mask_irq,
-		.mask = mxc_mask_irq,
-		.unmask = mxc_unmask_irq,
+		.irq_ack = mxc_mask_irq,
+		.irq_mask = mxc_mask_irq,
+		.irq_unmask = mxc_unmask_irq,
 	},
 #ifdef CONFIG_MXC_IRQ_PRIOR
 	.set_priority = avic_irq_set_priority,

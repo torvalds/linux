@@ -99,6 +99,17 @@ static inline int is_broadcast_ether_addr(const u8 *addr)
 }
 
 /**
+ * is_unicast_ether_addr - Determine if the Ethernet address is unicast
+ * @addr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Return true if the address is a unicast address.
+ */
+static inline int is_unicast_ether_addr(const u8 *addr)
+{
+	return !is_multicast_ether_addr(addr);
+}
+
+/**
  * is_valid_ether_addr - Determine if the given Ethernet address is valid
  * @addr: Pointer to a six-byte array containing the Ethernet address
  *

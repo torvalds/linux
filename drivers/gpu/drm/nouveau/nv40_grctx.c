@@ -118,17 +118,6 @@
  */
 
 static int
-nv40_graph_4097(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	if ((dev_priv->chipset & 0xf0) == 0x60)
-		return 0;
-
-	return !!(0x0baf & (1 << dev_priv->chipset));
-}
-
-static int
 nv40_graph_vs_count(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -219,7 +208,7 @@ nv40_graph_construct_general(struct nouveau_grctx *ctx)
 		gr_def(ctx, 0x4009dc, 0x80000000);
 	} else {
 		cp_ctx(ctx, 0x400840, 20);
-		if (!nv40_graph_4097(ctx->dev)) {
+		if (nv44_graph_class(ctx->dev)) {
 			for (i = 0; i < 8; i++)
 				gr_def(ctx, 0x400860 + (i * 4), 0x00000001);
 		}
@@ -228,7 +217,7 @@ nv40_graph_construct_general(struct nouveau_grctx *ctx)
 		gr_def(ctx, 0x400888, 0x00000040);
 		cp_ctx(ctx, 0x400894, 11);
 		gr_def(ctx, 0x400894, 0x00000040);
-		if (nv40_graph_4097(ctx->dev)) {
+		if (!nv44_graph_class(ctx->dev)) {
 			for (i = 0; i < 8; i++)
 				gr_def(ctx, 0x4008a0 + (i * 4), 0x80000000);
 		}
@@ -546,7 +535,7 @@ nv40_graph_construct_state3d_2(struct nouveau_grctx *ctx)
 static void
 nv40_graph_construct_state3d_3(struct nouveau_grctx *ctx)
 {
-	int len = nv40_graph_4097(ctx->dev) ? 0x0684 : 0x0084;
+	int len = nv44_graph_class(ctx->dev) ? 0x0084 : 0x0684;
 
 	cp_out (ctx, 0x300000);
 	cp_lsr (ctx, len - 4);
@@ -582,11 +571,11 @@ nv40_graph_construct_shader(struct nouveau_grctx *ctx)
 	} else {
 		b0_offset = 0x1d40/4; /* 2200 */
 		b1_offset = 0x3f40/4; /* 0b00 : 0a40 */
-		vs_len = nv40_graph_4097(dev) ? 0x4a40/4 : 0x4980/4;
+		vs_len = nv44_graph_class(dev) ? 0x4980/4 : 0x4a40/4;
 	}
 
 	cp_lsr(ctx, vs_len * vs_nr + 0x300/4);
-	cp_out(ctx, nv40_graph_4097(dev) ? 0x800041 : 0x800029);
+	cp_out(ctx, nv44_graph_class(dev) ? 0x800029 : 0x800041);
 
 	offset = ctx->ctxvals_pos;
 	ctx->ctxvals_pos += (0x0300/4 + (vs_nr * vs_len));

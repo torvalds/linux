@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -1310,7 +1310,7 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 		 * apply workaround for hardware errata documented in errata
 		 * docs Fixes issue where some error prone or unreliable PCIe
 		 * completions are occurring, particularly with ASPM enabled.
-		 * Without fix, issue can cause tx timeouts.
+		 * Without fix, issue can cause Tx timeouts.
 		 */
 		reg = er32(GCR2);
 		reg |= 1;

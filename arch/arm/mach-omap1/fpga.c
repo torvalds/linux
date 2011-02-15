@@ -30,9 +30,9 @@
 #include <plat/fpga.h>
 #include <mach/gpio.h>
 
-static void fpga_mask_irq(unsigned int irq)
+static void fpga_mask_irq(struct irq_data *d)
 {
-	irq -= OMAP_FPGA_IRQ_BASE;
+	unsigned int irq = d->irq - OMAP_FPGA_IRQ_BASE;
 
 	if (irq < 8)
 		__raw_writeb((__raw_readb(OMAP1510_FPGA_IMR_LO)
@@ -58,14 +58,14 @@ static inline u32 get_fpga_unmasked_irqs(void)
 }
 
 
-static void fpga_ack_irq(unsigned int irq)
+static void fpga_ack_irq(struct irq_data *d)
 {
 	/* Don't need to explicitly ACK FPGA interrupts */
 }
 
-static void fpga_unmask_irq(unsigned int irq)
+static void fpga_unmask_irq(struct irq_data *d)
 {
-	irq -= OMAP_FPGA_IRQ_BASE;
+	unsigned int irq = d->irq - OMAP_FPGA_IRQ_BASE;
 
 	if (irq < 8)
 		__raw_writeb((__raw_readb(OMAP1510_FPGA_IMR_LO) | (1 << irq)),
@@ -78,10 +78,10 @@ static void fpga_unmask_irq(unsigned int irq)
 			      | (1 << (irq - 16))), INNOVATOR_FPGA_IMR2);
 }
 
-static void fpga_mask_ack_irq(unsigned int irq)
+static void fpga_mask_ack_irq(struct irq_data *d)
 {
-	fpga_mask_irq(irq);
-	fpga_ack_irq(irq);
+	fpga_mask_irq(d);
+	fpga_ack_irq(d);
 }
 
 void innovator_fpga_IRQ_demux(unsigned int irq, struct irq_desc *desc)
@@ -105,17 +105,17 @@ void innovator_fpga_IRQ_demux(unsigned int irq, struct irq_desc *desc)
 
 static struct irq_chip omap_fpga_irq_ack = {
 	.name		= "FPGA-ack",
-	.ack		= fpga_mask_ack_irq,
-	.mask		= fpga_mask_irq,
-	.unmask		= fpga_unmask_irq,
+	.irq_ack	= fpga_mask_ack_irq,
+	.irq_mask	= fpga_mask_irq,
+	.irq_unmask	= fpga_unmask_irq,
 };
 
 
 static struct irq_chip omap_fpga_irq = {
 	.name		= "FPGA",
-	.ack		= fpga_ack_irq,
-	.mask		= fpga_mask_irq,
-	.unmask		= fpga_unmask_irq,
+	.irq_ack	= fpga_ack_irq,
+	.irq_mask	= fpga_mask_irq,
+	.irq_unmask	= fpga_unmask_irq,
 };
 
 /*

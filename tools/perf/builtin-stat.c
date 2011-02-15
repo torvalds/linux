@@ -206,8 +206,8 @@ static int read_counter_aggr(struct perf_evsel *counter)
 		update_stats(&ps->res_stats[i], count[i]);
 
 	if (verbose) {
-		fprintf(stderr, "%s: %Ld %Ld %Ld\n", event_name(counter),
-				count[0], count[1], count[2]);
+		fprintf(stderr, "%s: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
+			event_name(counter), count[0], count[1], count[2]);
 	}
 
 	/*
@@ -743,6 +743,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 out_free_fd:
 	list_for_each_entry(pos, &evsel_list, node)
 		perf_evsel__free_stat_priv(pos);
+	perf_evsel_list__delete();
 out:
 	thread_map__delete(threads);
 	threads = NULL;

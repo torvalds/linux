@@ -226,6 +226,10 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 	    eep->baseEepHeader.pwdclkind == 0)
 		ah->need_an_top2_fixup = 1;
 
+	if ((common->bus_ops->ath_bus_type == ATH_USB) &&
+	    (AR_SREV_9280(ah)))
+		eep->modalHeader[0].xpaBiasLvl = 0;
+
 	return 0;
 }
 

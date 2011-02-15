@@ -638,7 +638,7 @@ err:
 	if (target->state == SRP_TARGET_CONNECTING) {
 		target->state = SRP_TARGET_DEAD;
 		INIT_WORK(&target->work, srp_remove_work);
-		schedule_work(&target->work);
+		queue_work(ib_wq, &target->work);
 	}
 	spin_unlock_irq(&target->lock);
 
@@ -1132,15 +1132,12 @@ static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
 
 	spin_lock_irqsave(&target->lock, flags);
 	iu = __srp_get_tx_iu(target, SRP_IU_CMD);
-	if (iu) {
-		req = list_first_entry(&target->free_reqs, struct srp_request,
-				      list);
-		list_del(&req->list);
-	}
-	spin_unlock_irqrestore(&target->lock, flags);
-
 	if (!iu)
-		goto err;
+		goto err_unlock;
+
+	req = list_first_entry(&target->free_reqs, struct srp_request, list);
+	list_del(&req->list);
+	spin_unlock_irqrestore(&target->lock, flags);
 
 	dev = target->srp_host->srp_dev->dev;
 	ib_dma_sync_single_for_cpu(dev, iu->dma, srp_max_iu_len,
@@ -1185,6 +1182,8 @@ err_iu:
 
 	spin_lock_irqsave(&target->lock, flags);
 	list_add(&req->list, &target->free_reqs);
+
+err_unlock:
 	spin_unlock_irqrestore(&target->lock, flags);
 
 err:
@@ -2199,7 +2198,7 @@ static void srp_remove_one(struct ib_device *device)
 		 * started before we marked our target ports as
 		 * removed, and any target port removal tasks.
 		 */
-		flush_scheduled_work();
+		flush_workqueue(ib_wq);
 
 		list_for_each_entry_safe(target, tmp_target,
 					 &host->target_list, list) {

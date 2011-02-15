@@ -220,7 +220,7 @@ void ipath_release_user_pages_on_close(struct page **p, size_t num_pages)
 	work->mm = mm;
 	work->num_pages = num_pages;
 
-	schedule_work(&work->work);
+	queue_work(ib_wq, &work->work);
 	return;
 
 bail_mm:

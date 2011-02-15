@@ -196,7 +196,7 @@ static struct clksrc_clk clk_hsspi = {
 static struct clksrc_clk clk_hsmmc_div = {
 	.clk	= {
 		.name		= "hsmmc-div",
-		.id		= -1,
+		.id		= 1,
 		.parent		= &clk_esysclk.clk,
 	},
 	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 2, .shift = 6 },
@@ -231,7 +231,7 @@ static int s3c2443_enable_hsmmc(struct clk *clk, int enable)
 
 static struct clk clk_hsmmc = {
 	.name		= "hsmmc-if",
-	.id		= -1,
+	.id		= 1,
 	.parent		= &clk_hsmmc_div.clk,
 	.enable		= s3c2443_enable_hsmmc,
 	.ops		= &(struct clk_ops) {

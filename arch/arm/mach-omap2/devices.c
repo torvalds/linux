@@ -978,7 +978,7 @@ static int __init omap2_init_devices(void)
 arch_initcall(omap2_init_devices);
 
 #if defined(CONFIG_OMAP_WATCHDOG) || defined(CONFIG_OMAP_WATCHDOG_MODULE)
-struct omap_device_pm_latency omap_wdt_latency[] = {
+static struct omap_device_pm_latency omap_wdt_latency[] = {
 	[0] = {
 		.deactivate_func = omap_device_idle_hwmods,
 		.activate_func   = omap_device_enable_hwmods,

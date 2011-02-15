@@ -13,6 +13,8 @@
 
 #include <plat/omap_hwmod.h>
 
+#include "wd_timer.h"
+
 /*
  * In order to avoid any assumptions from bootloader regarding WDT
  * settings, WDT module is reset during init. This enables the watchdog

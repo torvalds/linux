@@ -674,7 +674,8 @@ void mpic_unmask_irq(unsigned int irq)
 	/* make sure mask gets to controller before we return to user */
 	do {
 		if (!loops--) {
-			printk(KERN_ERR "mpic_enable_irq timeout\n");
+			printk(KERN_ERR "%s: timeout on hwirq %u\n",
+			       __func__, src);
 			break;
 		}
 	} while(mpic_irq_read(src, MPIC_INFO(IRQ_VECTOR_PRI)) & MPIC_VECPRI_MASK);
@@ -695,7 +696,8 @@ void mpic_mask_irq(unsigned int irq)
 	/* make sure mask gets to controller before we return to user */
 	do {
 		if (!loops--) {
-			printk(KERN_ERR "mpic_enable_irq timeout\n");
+			printk(KERN_ERR "%s: timeout on hwirq %u\n",
+			       __func__, src);
 			break;
 		}
 	} while(!(mpic_irq_read(src, MPIC_INFO(IRQ_VECTOR_PRI)) & MPIC_VECPRI_MASK));

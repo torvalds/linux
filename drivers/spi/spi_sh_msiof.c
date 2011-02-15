@@ -509,9 +509,11 @@ static int sh_msiof_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 	bytes_done = 0;
 
 	while (bytes_done < t->len) {
+		void *rx_buf = t->rx_buf ? t->rx_buf + bytes_done : NULL;
+		const void *tx_buf = t->tx_buf ? t->tx_buf + bytes_done : NULL;
 		n = sh_msiof_spi_txrx_once(p, tx_fifo, rx_fifo,
-					   t->tx_buf + bytes_done,
-					   t->rx_buf + bytes_done,
+					   tx_buf,
+					   rx_buf,
 					   words, bits);
 		if (n < 0)
 			break;
@@ -635,7 +637,7 @@ static int sh_msiof_spi_remove(struct platform_device *pdev)
 	ret = spi_bitbang_stop(&p->bitbang);
 	if (!ret) {
 		pm_runtime_disable(&pdev->dev);
-		free_irq(platform_get_irq(pdev, 0), sh_msiof_spi_irq);
+		free_irq(platform_get_irq(pdev, 0), p);
 		iounmap(p->mapbase);
 		clk_put(p->clk);
 		spi_master_put(p->bitbang.master);

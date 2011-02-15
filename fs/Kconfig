@@ -30,15 +30,6 @@ config FS_MBCACHE
 source "fs/reiserfs/Kconfig"
 source "fs/jfs/Kconfig"
 
-config FS_POSIX_ACL
-# Posix ACL utility routines (for now, only ext2/ext3/jfs/reiserfs/nfs4)
-#
-# NOTE: you can implement Posix ACLs without these helpers (XFS does).
-# 	Never use this symbol for ifdefs.
-#
-	bool
-	default n
-
 source "fs/xfs/Kconfig"
 source "fs/gfs2/Kconfig"
 source "fs/ocfs2/Kconfig"
@@ -47,11 +38,19 @@ source "fs/nilfs2/Kconfig"
 
 endif # BLOCK
 
+# Posix ACL utility routines
+#
+# Note: Posix ACLs can be implemented without these helpers.  Never use
+# this symbol for ifdefs in core code.
+#
+config FS_POSIX_ACL
+	def_bool n
+
 config EXPORTFS
 	tristate
 
 config FILE_LOCKING
-	bool "Enable POSIX file locking API" if EMBEDDED
+	bool "Enable POSIX file locking API" if EXPERT
 	default y
 	help
 	  This option enables standard file locking support, required

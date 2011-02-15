@@ -180,7 +180,7 @@ static const uint32_t mx25pdk_keymap[] = {
 	KEY(3, 3, KEY_POWER),
 };
 
-static const struct matrix_keymap_data mx25pdk_keymap_data __initdata = {
+static const struct matrix_keymap_data mx25pdk_keymap_data __initconst = {
 	.keymap		= mx25pdk_keymap,
 	.keymap_size	= ARRAY_SIZE(mx25pdk_keymap),
 };

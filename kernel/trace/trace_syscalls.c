@@ -23,9 +23,6 @@ static int syscall_exit_register(struct ftrace_event_call *event,
 static int syscall_enter_define_fields(struct ftrace_event_call *call);
 static int syscall_exit_define_fields(struct ftrace_event_call *call);
 
-/* All syscall exit events have the same fields */
-static LIST_HEAD(syscall_exit_fields);
-
 static struct list_head *
 syscall_get_enter_fields(struct ftrace_event_call *call)
 {
@@ -34,50 +31,45 @@ syscall_get_enter_fields(struct ftrace_event_call *call)
 	return &entry->enter_fields;
 }
 
-static struct list_head *
-syscall_get_exit_fields(struct ftrace_event_call *call)
-{
-	return &syscall_exit_fields;
-}
-
 struct trace_event_functions enter_syscall_print_funcs = {
-	.trace                  = print_syscall_enter,
+	.trace		= print_syscall_enter,
 };
 
 struct trace_event_functions exit_syscall_print_funcs = {
-	.trace                  = print_syscall_exit,
+	.trace		= print_syscall_exit,
 };
 
 struct ftrace_event_class event_class_syscall_enter = {
-	.system			= "syscalls",
-	.reg			= syscall_enter_register,
-	.define_fields		= syscall_enter_define_fields,
-	.get_fields		= syscall_get_enter_fields,
-	.raw_init		= init_syscall_trace,
+	.system		= "syscalls",
+	.reg		= syscall_enter_register,
+	.define_fields	= syscall_enter_define_fields,
+	.get_fields	= syscall_get_enter_fields,
+	.raw_init	= init_syscall_trace,
 };
 
 struct ftrace_event_class event_class_syscall_exit = {
-	.system			= "syscalls",
-	.reg			= syscall_exit_register,
-	.define_fields		= syscall_exit_define_fields,
-	.get_fields		= syscall_get_exit_fields,
-	.raw_init		= init_syscall_trace,
+	.system		= "syscalls",
+	.reg		= syscall_exit_register,
+	.define_fields	= syscall_exit_define_fields,
+	.fields		= LIST_HEAD_INIT(event_class_syscall_exit.fields),
+	.raw_init	= init_syscall_trace,
 };
 
-extern unsigned long __start_syscalls_metadata[];
-extern unsigned long __stop_syscalls_metadata[];
+extern struct syscall_metadata *__start_syscalls_metadata[];
+extern struct syscall_metadata *__stop_syscalls_metadata[];
 
 static struct syscall_metadata **syscalls_metadata;
 
-static struct syscall_metadata *find_syscall_meta(unsigned long syscall)
+static __init struct syscall_metadata *
+find_syscall_meta(unsigned long syscall)
 {
-	struct syscall_metadata *start;
-	struct syscall_metadata *stop;
+	struct syscall_metadata **start;
+	struct syscall_metadata **stop;
 	char str[KSYM_SYMBOL_LEN];
 
 
-	start = (struct syscall_metadata *)__start_syscalls_metadata;
-	stop = (struct syscall_metadata *)__stop_syscalls_metadata;
+	start = __start_syscalls_metadata;
+	stop = __stop_syscalls_metadata;
 	kallsyms_lookup(syscall, NULL, NULL, NULL, str);
 
 	for ( ; start < stop; start++) {
@@ -87,8 +79,8 @@ static struct syscall_metadata *find_syscall_meta(unsigned long syscall)
 		 * with "SyS" instead of "sys", leading to an unwanted
 		 * mismatch.
 		 */
-		if (start->name && !strcmp(start->name + 3, str + 3))
-			return start;
+		if ((*start)->name && !strcmp((*start)->name + 3, str + 3))
+			return *start;
 	}
 	return NULL;
 }

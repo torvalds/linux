@@ -464,7 +464,7 @@ unsigned long native_calibrate_tsc(void)
 		tsc_pit_min = min(tsc_pit_min, tsc_pit_khz);
 
 		/* hpet or pmtimer available ? */
-		if (!hpet && !ref1 && !ref2)
+		if (ref1 == ref2)
 			continue;
 
 		/* Check, whether the sampling was disturbed by an SMI */
@@ -935,7 +935,7 @@ static void tsc_refine_calibration_work(struct work_struct *work)
 	tsc_stop = tsc_read_refs(&ref_stop, hpet);
 
 	/* hpet or pmtimer available ? */
-	if (!hpet && !ref_start && !ref_stop)
+	if (ref_start == ref_stop)
 		goto out;
 
 	/* Check, whether the sampling was disturbed by an SMI */

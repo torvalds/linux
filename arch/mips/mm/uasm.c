@@ -68,7 +68,8 @@ enum opcode {
 	insn_pref, insn_rfe, insn_sc, insn_scd, insn_sd, insn_sll,
 	insn_sra, insn_srl, insn_rotr, insn_subu, insn_sw, insn_tlbp,
 	insn_tlbr, insn_tlbwi, insn_tlbwr, insn_xor, insn_xori,
-	insn_dins, insn_syscall, insn_bbit0, insn_bbit1
+	insn_dins, insn_dinsm, insn_syscall, insn_bbit0, insn_bbit1,
+	insn_lwx, insn_ldx
 };
 
 struct insn {
@@ -142,9 +143,12 @@ static struct insn insn_table[] __uasminitdata = {
 	{ insn_xor,  M(spec_op, 0, 0, 0, 0, xor_op),  RS | RT | RD },
 	{ insn_xori,  M(xori_op, 0, 0, 0, 0, 0),  RS | RT | UIMM },
 	{ insn_dins, M(spec3_op, 0, 0, 0, 0, dins_op), RS | RT | RD | RE },
+	{ insn_dinsm, M(spec3_op, 0, 0, 0, 0, dinsm_op), RS | RT | RD | RE },
 	{ insn_syscall, M(spec_op, 0, 0, 0, 0, syscall_op), SCIMM},
 	{ insn_bbit0, M(lwc2_op, 0, 0, 0, 0, 0), RS | RT | BIMM },
 	{ insn_bbit1, M(swc2_op, 0, 0, 0, 0, 0), RS | RT | BIMM },
+	{ insn_lwx, M(spec3_op, 0, 0, 0, lwx_op, lx_op), RS | RT | RD },
+	{ insn_ldx, M(spec3_op, 0, 0, 0, ldx_op, lx_op), RS | RT | RD },
 	{ insn_invalid, 0, 0 }
 };
 
@@ -152,91 +156,83 @@ static struct insn insn_table[] __uasminitdata = {
 
 static inline __uasminit u32 build_rs(u32 arg)
 {
-	if (arg & ~RS_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~RS_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & RS_MASK) << RS_SH;
 }
 
 static inline __uasminit u32 build_rt(u32 arg)
 {
-	if (arg & ~RT_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~RT_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & RT_MASK) << RT_SH;
 }
 
 static inline __uasminit u32 build_rd(u32 arg)
 {
-	if (arg & ~RD_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~RD_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & RD_MASK) << RD_SH;
 }
 
 static inline __uasminit u32 build_re(u32 arg)
 {
-	if (arg & ~RE_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~RE_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & RE_MASK) << RE_SH;
 }
 
 static inline __uasminit u32 build_simm(s32 arg)
 {
-	if (arg > 0x7fff || arg < -0x8000)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg > 0x7fff || arg < -0x8000,
+	     KERN_WARNING "Micro-assembler field overflow\n");
 
 	return arg & 0xffff;
 }
 
 static inline __uasminit u32 build_uimm(u32 arg)
 {
-	if (arg & ~IMM_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~IMM_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return arg & IMM_MASK;
 }
 
 static inline __uasminit u32 build_bimm(s32 arg)
 {
-	if (arg > 0x1ffff || arg < -0x20000)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg > 0x1ffff || arg < -0x20000,
+	     KERN_WARNING "Micro-assembler field overflow\n");
 
-	if (arg & 0x3)
-		printk(KERN_WARNING "Invalid micro-assembler branch target\n");
+	WARN(arg & 0x3, KERN_WARNING "Invalid micro-assembler branch target\n");
 
 	return ((arg < 0) ? (1 << 15) : 0) | ((arg >> 2) & 0x7fff);
 }
 
 static inline __uasminit u32 build_jimm(u32 arg)
 {
-	if (arg & ~((JIMM_MASK) << 2))
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~(JIMM_MASK << 2),
+	     KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg >> 2) & JIMM_MASK;
 }
 
 static inline __uasminit u32 build_scimm(u32 arg)
 {
-	if (arg & ~SCIMM_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~SCIMM_MASK,
+	     KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & SCIMM_MASK) << SCIMM_SH;
 }
 
 static inline __uasminit u32 build_func(u32 arg)
 {
-	if (arg & ~FUNC_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~FUNC_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return arg & FUNC_MASK;
 }
 
 static inline __uasminit u32 build_set(u32 arg)
 {
-	if (arg & ~SET_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~SET_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return arg & SET_MASK;
 }
@@ -340,6 +336,13 @@ Ip_u2u1msbu3(op)					\
 }							\
 UASM_EXPORT_SYMBOL(uasm_i##op);
 
+#define I_u2u1msb32u3(op)				\
+Ip_u2u1msbu3(op)					\
+{							\
+	build_insn(buf, insn##op, b, a, c+d-33, c);	\
+}							\
+UASM_EXPORT_SYMBOL(uasm_i##op);
+
 #define I_u1u2(op)					\
 Ip_u1u2(op)						\
 {							\
@@ -422,9 +425,12 @@ I_0(_tlbwr)
 I_u3u1u2(_xor)
 I_u2u1u3(_xori)
 I_u2u1msbu3(_dins);
+I_u2u1msb32u3(_dinsm);
 I_u1(_syscall);
 I_u1u2s3(_bbit0);
 I_u1u2s3(_bbit1);
+I_u3u1u2(_lwx)
+I_u3u1u2(_ldx)
 
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 #include <asm/octeon/octeon.h>

@@ -243,6 +243,7 @@ config MACH_MX27_3DS
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_SPI_IMX
+	select MXC_DEBUG_BOARD
 	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for MX27PDK platform. This includes specific

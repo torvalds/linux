@@ -63,29 +63,29 @@ static void _set_gpio_irqenable(struct mxc_gpio_port *port, u32 index,
 	__raw_writel(l, port->base + GPIO_IMR);
 }
 
-static void gpio_ack_irq(u32 irq)
+static void gpio_ack_irq(struct irq_data *d)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	_clear_gpio_irqstatus(&mxc_gpio_ports[gpio / 32], gpio & 0x1f);
 }
 
-static void gpio_mask_irq(u32 irq)
+static void gpio_mask_irq(struct irq_data *d)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	_set_gpio_irqenable(&mxc_gpio_ports[gpio / 32], gpio & 0x1f, 0);
 }
 
-static void gpio_unmask_irq(u32 irq)
+static void gpio_unmask_irq(struct irq_data *d)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	_set_gpio_irqenable(&mxc_gpio_ports[gpio / 32], gpio & 0x1f, 1);
 }
 
 static int mxc_gpio_get(struct gpio_chip *chip, unsigned offset);
 
-static int gpio_set_irq_type(u32 irq, u32 type)
+static int gpio_set_irq_type(struct irq_data *d, u32 type)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	struct mxc_gpio_port *port = &mxc_gpio_ports[gpio / 32];
 	u32 bit, val;
 	int edge;
@@ -211,9 +211,9 @@ static void mx2_gpio_irq_handler(u32 irq, struct irq_desc *desc)
  * @param  enable       enable as wake-up if equal to non-zero
  * @return       This function returns 0 on success.
  */
-static int gpio_set_wake_irq(u32 irq, u32 enable)
+static int gpio_set_wake_irq(struct irq_data *d, u32 enable)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	u32 gpio_idx = gpio & 0x1F;
 	struct mxc_gpio_port *port = &mxc_gpio_ports[gpio / 32];
 
@@ -233,11 +233,11 @@ static int gpio_set_wake_irq(u32 irq, u32 enable)
 }
 
 static struct irq_chip gpio_irq_chip = {
-	.ack = gpio_ack_irq,
-	.mask = gpio_mask_irq,
-	.unmask = gpio_unmask_irq,
-	.set_type = gpio_set_irq_type,
-	.set_wake = gpio_set_wake_irq,
+	.irq_ack = gpio_ack_irq,
+	.irq_mask = gpio_mask_irq,
+	.irq_unmask = gpio_unmask_irq,
+	.irq_set_type = gpio_set_irq_type,
+	.irq_set_wake = gpio_set_wake_irq,
 };
 
 static void _set_gpio_direction(struct gpio_chip *chip, unsigned offset,

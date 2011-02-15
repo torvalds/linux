@@ -65,7 +65,7 @@ static int ecryptfs_writepage(struct page *page, struct writeback_control *wbc)
 	rc = ecryptfs_encrypt_page(page);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error encrypting "
-				"page (upper index [0x%.16x])\n", page->index);
+				"page (upper index [0x%.16lx])\n", page->index);
 		ClearPageUptodate(page);
 		goto out;
 	}
@@ -237,7 +237,7 @@ out:
 		ClearPageUptodate(page);
 	else
 		SetPageUptodate(page);
-	ecryptfs_printk(KERN_DEBUG, "Unlocking page with index = [0x%.16x]\n",
+	ecryptfs_printk(KERN_DEBUG, "Unlocking page with index = [0x%.16lx]\n",
 			page->index);
 	unlock_page(page);
 	return rc;
@@ -290,6 +290,7 @@ static int ecryptfs_write_begin(struct file *file,
 		return -ENOMEM;
 	*pagep = page;
 
+	prev_page_end_size = ((loff_t)index << PAGE_CACHE_SHIFT);
 	if (!PageUptodate(page)) {
 		struct ecryptfs_crypt_stat *crypt_stat =
 			&ecryptfs_inode_to_private(mapping->host)->crypt_stat;
@@ -335,18 +336,23 @@ static int ecryptfs_write_begin(struct file *file,
 				SetPageUptodate(page);
 			}
 		} else {
-			rc = ecryptfs_decrypt_page(page);
-			if (rc) {
-				printk(KERN_ERR "%s: Error decrypting page "
-				       "at index [%ld]; rc = [%d]\n",
-				       __func__, page->index, rc);
-				ClearPageUptodate(page);
-				goto out;
+			if (prev_page_end_size
+			    >= i_size_read(page->mapping->host)) {
+				zero_user(page, 0, PAGE_CACHE_SIZE);
+			} else {
+				rc = ecryptfs_decrypt_page(page);
+				if (rc) {
+					printk(KERN_ERR "%s: Error decrypting "
+					       "page at index [%ld]; "
+					       "rc = [%d]\n",
+					       __func__, page->index, rc);
+					ClearPageUptodate(page);
+					goto out;
+				}
 			}
 			SetPageUptodate(page);
 		}
 	}
-	prev_page_end_size = ((loff_t)index << PAGE_CACHE_SHIFT);
 	/* If creating a page or more of holes, zero them out via truncate.
 	 * Note, this will increase i_size. */
 	if (index != 0) {
@@ -488,7 +494,7 @@ static int ecryptfs_write_end(struct file *file,
 	} else
 		ecryptfs_printk(KERN_DEBUG, "Not a new file\n");
 	ecryptfs_printk(KERN_DEBUG, "Calling fill_zeros_to_end_of_page"
-			"(page w/ index = [0x%.16x], to = [%d])\n", index, to);
+			"(page w/ index = [0x%.16lx], to = [%d])\n", index, to);
 	if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 		rc = ecryptfs_write_lower_page_segment(ecryptfs_inode, page, 0,
 						       to);
@@ -503,19 +509,20 @@ static int ecryptfs_write_end(struct file *file,
 	rc = fill_zeros_to_end_of_page(page, to);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error attempting to fill "
-			"zeros in page with index = [0x%.16x]\n", index);
+			"zeros in page with index = [0x%.16lx]\n", index);
 		goto out;
 	}
 	rc = ecryptfs_encrypt_page(page);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error encrypting page (upper "
-				"index [0x%.16x])\n", index);
+				"index [0x%.16lx])\n", index);
 		goto out;
 	}
 	if (pos + copied > i_size_read(ecryptfs_inode)) {
 		i_size_write(ecryptfs_inode, pos + copied);
 		ecryptfs_printk(KERN_DEBUG, "Expanded file size to "
-				"[0x%.16x]\n", i_size_read(ecryptfs_inode));
+			"[0x%.16llx]\n",
+			(unsigned long long)i_size_read(ecryptfs_inode));
 	}
 	rc = ecryptfs_write_inode_size_to_metadata(ecryptfs_inode);
 	if (rc)

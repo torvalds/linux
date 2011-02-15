@@ -441,7 +441,7 @@ redo:
 			break;
 		}
 		if (do_wakeup) {
-			wake_up_interruptible_sync_poll(&pipe->wait, POLLOUT);
+			wake_up_interruptible_sync_poll(&pipe->wait, POLLOUT | POLLWRNORM);
  			kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 		}
 		pipe_wait(pipe);
@@ -450,7 +450,7 @@ redo:
 
 	/* Signal writers asynchronously that there is more room. */
 	if (do_wakeup) {
-		wake_up_interruptible_sync_poll(&pipe->wait, POLLOUT);
+		wake_up_interruptible_sync_poll(&pipe->wait, POLLOUT | POLLWRNORM);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
 	if (ret > 0)
@@ -612,7 +612,7 @@ redo2:
 			break;
 		}
 		if (do_wakeup) {
-			wake_up_interruptible_sync_poll(&pipe->wait, POLLIN);
+			wake_up_interruptible_sync_poll(&pipe->wait, POLLIN | POLLRDNORM);
 			kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 			do_wakeup = 0;
 		}
@@ -623,7 +623,7 @@ redo2:
 out:
 	mutex_unlock(&inode->i_mutex);
 	if (do_wakeup) {
-		wake_up_interruptible_sync_poll(&pipe->wait, POLLIN);
+		wake_up_interruptible_sync_poll(&pipe->wait, POLLIN | POLLRDNORM);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	}
 	if (ret > 0)
@@ -715,7 +715,7 @@ pipe_release(struct inode *inode, int decr, int decw)
 	if (!pipe->readers && !pipe->writers) {
 		free_pipe_info(inode);
 	} else {
-		wake_up_interruptible_sync_poll(&pipe->wait, POLLIN | POLLOUT);
+		wake_up_interruptible_sync_poll(&pipe->wait, POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM | POLLERR | POLLHUP);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
@@ -1292,7 +1292,7 @@ static int __init init_pipe_fs(void)
 static void __exit exit_pipe_fs(void)
 {
 	unregister_filesystem(&pipe_fs_type);
-	mntput_long(pipe_mnt);
+	mntput(pipe_mnt);
 }
 
 fs_initcall(init_pipe_fs);

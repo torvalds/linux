@@ -667,6 +667,7 @@ restart:
 			if (ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
 						cb->nlh->nlmsg_seq,
 						IPCTNL_MSG_CT_NEW, ct) < 0) {
+				nf_conntrack_get(&ct->ct_general);
 				cb->args[1] = (unsigned long)ct;
 				goto out;
 			}
@@ -924,7 +925,7 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	u16 zone;
 	int err;
 
-	if ((nlh->nlmsg_flags & NLM_F_DUMP) == NLM_F_DUMP)
+	if (nlh->nlmsg_flags & NLM_F_DUMP)
 		return netlink_dump_start(ctnl, skb, nlh, ctnetlink_dump_table,
 					  ctnetlink_done);
 
@@ -972,7 +973,8 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 free:
 	kfree_skb(skb2);
 out:
-	return err;
+	/* this avoids a loop in nfnetlink. */
+	return err == -EAGAIN ? -ENOBUFS : err;
 }
 
 #ifdef CONFIG_NF_NAT_NEEDED
@@ -1786,7 +1788,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	u16 zone;
 	int err;
 
-	if ((nlh->nlmsg_flags & NLM_F_DUMP) == NLM_F_DUMP) {
+	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		return netlink_dump_start(ctnl, skb, nlh,
 					  ctnetlink_exp_dump_table,
 					  ctnetlink_exp_done);

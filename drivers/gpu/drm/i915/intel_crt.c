@@ -535,6 +535,15 @@ static int intel_crt_set_property(struct drm_connector *connector,
 	return 0;
 }
 
+static void intel_crt_reset(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct intel_crt *crt = intel_attached_crt(connector);
+
+	if (HAS_PCH_SPLIT(dev))
+		crt->force_hotplug_required = 1;
+}
+
 /*
  * Routines for controlling stuff on the analog port
  */
@@ -548,6 +557,7 @@ static const struct drm_encoder_helper_funcs intel_crt_helper_funcs = {
 };
 
 static const struct drm_connector_funcs intel_crt_connector_funcs = {
+	.reset = intel_crt_reset,
 	.dpms = drm_helper_connector_dpms,
 	.detect = intel_crt_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,

@@ -377,7 +377,7 @@ xfs_log_mount(
 		cmn_err(CE_NOTE, "XFS mounting filesystem %s", mp->m_fsname);
 	else {
 		cmn_err(CE_NOTE,
-			"!Mounting filesystem \"%s\" in no-recovery mode.  Filesystem will be inconsistent.",
+			"Mounting filesystem \"%s\" in no-recovery mode.  Filesystem will be inconsistent.",
 			mp->m_fsname);
 		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
 	}

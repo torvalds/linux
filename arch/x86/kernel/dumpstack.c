@@ -234,6 +234,7 @@ unsigned __kprobes long oops_begin(void)
 	bust_spinlocks(1);
 	return flags;
 }
+EXPORT_SYMBOL_GPL(oops_begin);
 
 void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 {

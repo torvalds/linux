@@ -49,9 +49,9 @@
 */
 
 static void
-s3c2412_irq_mask(unsigned int irqno)
+s3c2412_irq_mask(struct irq_data *data)
 {
-	unsigned long bitval = 1UL << (irqno - IRQ_EINT0);
+	unsigned long bitval = 1UL << (data->irq - IRQ_EINT0);
 	unsigned long mask;
 
 	mask = __raw_readl(S3C2410_INTMSK);
@@ -62,9 +62,9 @@ s3c2412_irq_mask(unsigned int irqno)
 }
 
 static inline void
-s3c2412_irq_ack(unsigned int irqno)
+s3c2412_irq_ack(struct irq_data *data)
 {
-	unsigned long bitval = 1UL << (irqno - IRQ_EINT0);
+	unsigned long bitval = 1UL << (data->irq - IRQ_EINT0);
 
 	__raw_writel(bitval, S3C2412_EINTPEND);
 	__raw_writel(bitval, S3C2410_SRCPND);
@@ -72,9 +72,9 @@ s3c2412_irq_ack(unsigned int irqno)
 }
 
 static inline void
-s3c2412_irq_maskack(unsigned int irqno)
+s3c2412_irq_maskack(struct irq_data *data)
 {
-	unsigned long bitval = 1UL << (irqno - IRQ_EINT0);
+	unsigned long bitval = 1UL << (data->irq - IRQ_EINT0);
 	unsigned long mask;
 
 	mask = __raw_readl(S3C2410_INTMSK);
@@ -89,9 +89,9 @@ s3c2412_irq_maskack(unsigned int irqno)
 }
 
 static void
-s3c2412_irq_unmask(unsigned int irqno)
+s3c2412_irq_unmask(struct irq_data *data)
 {
-	unsigned long bitval = 1UL << (irqno - IRQ_EINT0);
+	unsigned long bitval = 1UL << (data->irq - IRQ_EINT0);
 	unsigned long mask;
 
 	mask = __raw_readl(S3C2412_EINTMASK);
@@ -102,11 +102,11 @@ s3c2412_irq_unmask(unsigned int irqno)
 }
 
 static struct irq_chip s3c2412_irq_eint0t4 = {
-	.ack	   = s3c2412_irq_ack,
-	.mask	   = s3c2412_irq_mask,
-	.unmask	   = s3c2412_irq_unmask,
-	.set_wake  = s3c_irq_wake,
-	.set_type  = s3c_irqext_type,
+	.irq_ack	= s3c2412_irq_ack,
+	.irq_mask	= s3c2412_irq_mask,
+	.irq_unmask	= s3c2412_irq_unmask,
+	.irq_set_wake	= s3c_irq_wake,
+	.irq_set_type	= s3c_irqext_type,
 };
 
 #define INTBIT(x)	(1 << ((x) - S3C2410_IRQSUB(0)))
@@ -132,29 +132,29 @@ static void s3c2412_irq_demux_cfsdi(unsigned int irq, struct irq_desc *desc)
 #define INTMSK_CFSDI	(1UL << (IRQ_S3C2412_CFSDI - IRQ_EINT0))
 #define SUBMSK_CFSDI	INTMSK_SUB(IRQ_S3C2412_SDI, IRQ_S3C2412_CF)
 
-static void s3c2412_irq_cfsdi_mask(unsigned int irqno)
+static void s3c2412_irq_cfsdi_mask(struct irq_data *data)
 {
-	s3c_irqsub_mask(irqno, INTMSK_CFSDI, SUBMSK_CFSDI);
+	s3c_irqsub_mask(data->irq, INTMSK_CFSDI, SUBMSK_CFSDI);
 }
 
-static void s3c2412_irq_cfsdi_unmask(unsigned int irqno)
+static void s3c2412_irq_cfsdi_unmask(struct irq_data *data)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_CFSDI);
+	s3c_irqsub_unmask(data->irq, INTMSK_CFSDI);
 }
 
-static void s3c2412_irq_cfsdi_ack(unsigned int irqno)
+static void s3c2412_irq_cfsdi_ack(struct irq_data *data)
 {
-	s3c_irqsub_maskack(irqno, INTMSK_CFSDI, SUBMSK_CFSDI);
+	s3c_irqsub_maskack(data->irq, INTMSK_CFSDI, SUBMSK_CFSDI);
 }
 
 static struct irq_chip s3c2412_irq_cfsdi = {
 	.name		= "s3c2412-cfsdi",
-	.ack		= s3c2412_irq_cfsdi_ack,
-	.mask		= s3c2412_irq_cfsdi_mask,
-	.unmask		= s3c2412_irq_cfsdi_unmask,
+	.irq_ack	= s3c2412_irq_cfsdi_ack,
+	.irq_mask	= s3c2412_irq_cfsdi_mask,
+	.irq_unmask	= s3c2412_irq_cfsdi_unmask,
 };
 
-static int s3c2412_irq_rtc_wake(unsigned int irqno, unsigned int state)
+static int s3c2412_irq_rtc_wake(struct irq_data *data, unsigned int state)
 {
 	unsigned long pwrcfg;
 
@@ -165,7 +165,7 @@ static int s3c2412_irq_rtc_wake(unsigned int irqno, unsigned int state)
 		pwrcfg |= S3C2412_PWRCFG_RTC_MASKIRQ;
 	__raw_writel(pwrcfg, S3C2412_PWRCFG);
 
-	return s3c_irq_chip.set_wake(irqno, state);
+	return s3c_irq_chip.irq_set_wake(data, state);
 }
 
 static struct irq_chip s3c2412_irq_rtc_chip;
@@ -193,7 +193,7 @@ static int s3c2412_irq_add(struct sys_device *sysdev)
 	/* change RTC IRQ's set wake method */
 
 	s3c2412_irq_rtc_chip = s3c_irq_chip;
-	s3c2412_irq_rtc_chip.set_wake = s3c2412_irq_rtc_wake;
+	s3c2412_irq_rtc_chip.irq_set_wake = s3c2412_irq_rtc_wake;
 
 	set_irq_chip(IRQ_RTC, &s3c2412_irq_rtc_chip);
 

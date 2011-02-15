@@ -332,7 +332,7 @@ int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 	 */
 	twl6030_irq_chip = dummy_irq_chip;
 	twl6030_irq_chip.name = "twl6030";
-	twl6030_irq_chip.set_type = NULL;
+	twl6030_irq_chip.irq_set_type = NULL;
 
 	for (i = irq_base; i < irq_end; i++) {
 		set_irq_chip_and_handler(i, &twl6030_irq_chip,

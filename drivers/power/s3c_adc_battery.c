@@ -112,6 +112,13 @@ static int calc_full_volt(int volt_val, int cur_val, int impedance)
 	return volt_val + cur_val * impedance / 1000;
 }
 
+static int charge_finished(struct s3c_adc_bat *bat)
+{
+	return bat->pdata->gpio_inverted ?
+		!gpio_get_value(bat->pdata->gpio_charge_finished) :
+		gpio_get_value(bat->pdata->gpio_charge_finished);
+}
+
 static int s3c_adc_bat_get_property(struct power_supply *psy,
 				    enum power_supply_property psp,
 				    union power_supply_propval *val)
@@ -140,7 +147,7 @@ static int s3c_adc_bat_get_property(struct power_supply *psy,
 
 	if (bat->cable_plugged &&
 		((bat->pdata->gpio_charge_finished < 0) ||
-		!gpio_get_value(bat->pdata->gpio_charge_finished))) {
+		!charge_finished(bat))) {
 		lut = bat->pdata->lut_acin;
 		lut_size = bat->pdata->lut_acin_cnt;
 	}
@@ -236,8 +243,7 @@ static void s3c_adc_bat_work(struct work_struct *work)
 		}
 	} else {
 		if ((bat->pdata->gpio_charge_finished >= 0) && is_plugged) {
-			is_charged = gpio_get_value(
-				main_bat.pdata->gpio_charge_finished);
+			is_charged = charge_finished(&main_bat);
 			if (is_charged) {
 				if (bat->pdata->disable_charger)
 					bat->pdata->disable_charger();

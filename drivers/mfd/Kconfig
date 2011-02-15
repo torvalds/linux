@@ -496,13 +496,13 @@ config EZX_PCAP
 
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
-	depends on GENERIC_HARDIRQS && ABX500_CORE && SPI_MASTER && ARCH_U8500
+	depends on GENERIC_HARDIRQS && ABX500_CORE
 	select MFD_CORE
 	help
 	  Select this option to enable access to AB8500 power management
-	  chip. This connects to U8500 either on the SSP/SPI bus
-	  or the I2C bus via PRCMU. It also adds the irq_chip
-	  parts for handling the Mixed Signal chip events.
+	  chip. This connects to U8500 either on the SSP/SPI bus (deprecated
+	  since hardware version v1.0) or the I2C bus via PRCMU. It also adds
+	  the irq_chip parts for handling the Mixed Signal chip events.
 	  This chip embeds various other multimedia funtionalities as well.
 
 config AB8500_I2C_CORE
@@ -536,6 +536,14 @@ config AB3550_CORE
 	  of the AB3550 such as battery-backed RTC, charging control,
 	  LEDs, vibrator, system power and temperature, power management
 	  and ALSA sound.
+
+config MFD_CS5535
+	tristate "Support for CS5535 and CS5536 southbridge core functions"
+	select MFD_CORE
+	depends on PCI
+	---help---
+	  This is the core driver for CS5535/CS5536 MFD functions.  This is
+          necessary for using the board's GPIO and MFGPT functionality.
 
 config MFD_TIMBERDALE
 	tristate "Support for the Timberdale FPGA"

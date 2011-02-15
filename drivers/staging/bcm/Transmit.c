@@ -157,11 +157,11 @@ INT SetupNextSend(PMINI_ADAPTER Adapter,  struct sk_buff *Packet, USHORT Vcid)
 	}
 	else
 	{
-		struct netdev_queue *txq = netdev_get_tx_queue(Adapter->dev, QueueIndex);
+		struct net_device_stats *netstats = &Adapter->dev->stats;
 		Adapter->PackInfo[QueueIndex].uiTotalTxBytes += Leader.PLength;
 
-		txq->tx_bytes += Leader.PLength;
-		++txq->tx_packets;
+		netstats->tx_bytes += Leader.PLength;
+		++netstats->tx_packets;
 
 		Adapter->PackInfo[QueueIndex].uiCurrentTokenCount -= Leader.PLength << 3;
 		Adapter->PackInfo[QueueIndex].uiSentBytes += (Packet->len);

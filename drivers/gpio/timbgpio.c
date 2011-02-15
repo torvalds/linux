@@ -193,13 +193,13 @@ out:
 	return ret;
 }
 
-static void timbgpio_irq(struct irq_data *d, struct irq_desc *desc)
+static void timbgpio_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct timbgpio *tgpio = irq_data_get_irq_data(d);
+	struct timbgpio *tgpio = get_irq_data(irq);
 	unsigned long ipr;
 	int offset;
 
-	desc->irq_data.chip->ack(irq_get_irq_data(d));
+	desc->irq_data.chip->irq_ack(irq_get_irq_data(irq));
 	ipr = ioread32(tgpio->membase + TGPIO_IPR);
 	iowrite32(ipr, tgpio->membase + TGPIO_ICR);
 

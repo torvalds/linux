@@ -207,7 +207,7 @@ static struct omap_dss_device beagle_dvi_device = {
 	.driver_name = "generic_dpi_panel",
 	.data = &dvi_panel,
 	.phy.dpi.data_lines = 24,
-	.reset_gpio = 170,
+	.reset_gpio = -EINVAL,
 };
 
 static struct omap_dss_device beagle_tv_device = {
@@ -279,6 +279,8 @@ static struct gpio_led gpio_leds[];
 static int beagle_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
+	int r;
+
 	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM) {
 		mmc[0].gpio_wp = -EINVAL;
 	} else if ((omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_C1_3) ||
@@ -299,16 +301,62 @@ static int beagle_twl_gpio_setup(struct device *dev,
 	/* REVISIT: need ehci-omap hooks for external VBUS
 	 * power switch and overcurrent detect
 	 */
+	if (omap3_beagle_get_rev() != OMAP3BEAGLE_BOARD_XM) {
+		r = gpio_request(gpio + 1, "EHCI_nOC");
+		if (!r) {
+			r = gpio_direction_input(gpio + 1);
+			if (r)
+				gpio_free(gpio + 1);
+		}
+		if (r)
+			pr_err("%s: unable to configure EHCI_nOC\n", __func__);
+	}
 
-	gpio_request(gpio + 1, "EHCI_nOC");
-	gpio_direction_input(gpio + 1);
-
-	/* TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, active low) */
+	/*
+	 * TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, XM active
+	 * high / others active low)
+	 */
 	gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
-	gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM)
+		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 1);
+	else
+		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+
+	/* DVI reset GPIO is different between beagle revisions */
+	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM)
+		beagle_dvi_device.reset_gpio = 129;
+	else
+		beagle_dvi_device.reset_gpio = 170;
 
 	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
+
+	/*
+	 * gpio + 1 on Xm controls the TFP410's enable line (active low)
+	 * gpio + 2 control varies depending on the board rev as follows:
+	 * P7/P8 revisions(prototype): Camera EN
+	 * A2+ revisions (production): LDO (supplies DVI, serial, led blocks)
+	 */
+	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM) {
+		r = gpio_request(gpio + 1, "nDVI_PWR_EN");
+		if (!r) {
+			r = gpio_direction_output(gpio + 1, 0);
+			if (r)
+				gpio_free(gpio + 1);
+		}
+		if (r)
+			pr_err("%s: unable to configure nDVI_PWR_EN\n",
+				__func__);
+		r = gpio_request(gpio + 2, "DVI_LDO_EN");
+		if (!r) {
+			r = gpio_direction_output(gpio + 2, 1);
+			if (r)
+				gpio_free(gpio + 2);
+		}
+		if (r)
+			pr_err("%s: unable to configure DVI_LDO_EN\n",
+				__func__);
+	}
 
 	return 0;
 }

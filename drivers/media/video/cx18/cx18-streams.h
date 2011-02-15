@@ -42,8 +42,7 @@ static inline bool cx18_stream_enabled(struct cx18_stream *s)
 /* Related to submission of mdls to firmware */
 static inline void cx18_stream_load_fw_queue(struct cx18_stream *s)
 {
-	struct cx18 *cx = s->cx;
-	queue_work(cx->out_work_queue, &s->out_work_order);
+	schedule_work(&s->out_work_order);
 }
 
 static inline void cx18_stream_put_mdl_fw(struct cx18_stream *s,

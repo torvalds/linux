@@ -37,6 +37,14 @@ config S5P_GPIO_INT
 	help
 	  Common code for the GPIO interrupts (other than external interrupts.)
 
+comment "System MMU"
+
+config S5P_SYSTEM_MMU
+	bool "S5P SYSTEM MMU"
+	depends on ARCH_S5PV310
+	help
+	  Say Y here if you want to enable System MMU
+
 config S5P_DEV_FIMC0
 	bool
 	help
@@ -56,3 +64,13 @@ config S5P_DEV_ONENAND
 	bool
 	help
 	  Compile in platform device definition for OneNAND controller
+
+config S5P_DEV_CSIS0
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 0
+
+config S5P_DEV_CSIS1
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 1

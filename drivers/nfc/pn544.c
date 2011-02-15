@@ -69,7 +69,7 @@ struct pn544_info {
 	struct mutex read_mutex; /* Serialize read_irq access */
 	struct mutex mutex; /* Serialize info struct access */
 	u8 *buf;
-	unsigned int buflen;
+	size_t buflen;
 };
 
 static const char reg_vdd_io[]	= "Vdd_IO";

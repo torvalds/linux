@@ -103,9 +103,7 @@ struct clockdomain {
 		const char *name;
 		struct powerdomain *ptr;
 	} pwrdm;
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	const u16 clktrctrl_mask;
-#endif
 	const u8 flags;
 	const u8 dep_bit;
 	const u8 prcm_partition;

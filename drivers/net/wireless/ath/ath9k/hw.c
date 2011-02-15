@@ -369,6 +369,9 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	else
 		ah->config.ht_enable = 0;
 
+	/* PAPRD needs some more work to be enabled */
+	ah->config.paprd_disable = 1;
+
 	ah->config.rx_intr_mitigation = true;
 	ah->config.pcieSerDesWrite = true;
 
@@ -436,9 +439,10 @@ static int ath9k_hw_init_macaddr(struct ath_hw *ah)
 
 static int ath9k_hw_post_init(struct ath_hw *ah)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	int ecode;
 
-	if (!AR_SREV_9271(ah)) {
+	if (common->bus_ops->ath_bus_type != ATH_USB) {
 		if (!ath9k_hw_chip_test(ah))
 			return -ENODEV;
 	}
@@ -1213,7 +1217,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ah->txchainmask = common->tx_chainmask;
 	ah->rxchainmask = common->rx_chainmask;
 
-	if (!ah->chip_fullsleep) {
+	if ((common->bus_ops->ath_bus_type != ATH_USB) && !ah->chip_fullsleep) {
 		ath9k_hw_abortpcurecv(ah);
 		if (!ath9k_hw_stopdmarecv(ah)) {
 			ath_dbg(common, ATH_DBG_XMIT,
@@ -1932,7 +1936,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->rx_status_len = sizeof(struct ar9003_rxs);
 		pCap->tx_desc_len = sizeof(struct ar9003_txc);
 		pCap->txs_len = sizeof(struct ar9003_txs);
-		if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD))
+		if (!ah->config.paprd_disable &&
+		    ah->eep_ops->get_eeprom(ah, EEP_PAPRD))
 			pCap->hw_caps |= ATH9K_HW_CAP_PAPRD;
 	} else {
 		pCap->tx_desc_len = sizeof(struct ath_desc);

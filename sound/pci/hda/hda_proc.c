@@ -418,7 +418,7 @@ static void print_digital_conv(struct snd_info_buffer *buffer,
 
 static const char *get_pwr_state(u32 state)
 {
-	static const char *buf[4] = {
+	static const char * const buf[4] = {
 		"D0", "D1", "D2", "D3"
 	};
 	if (state < 4)

@@ -1,24 +1,33 @@
 # For a description of the syntax of this configuration file,
 # see Documentation/kbuild/config-language.txt.
 
+config TILE
+	def_bool y
+	select HAVE_KVM if !TILEGX
+	select GENERIC_FIND_FIRST_BIT
+	select GENERIC_FIND_NEXT_BIT
+	select USE_GENERIC_SMP_HELPERS
+	select CC_OPTIMIZE_FOR_SIZE
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_PROBE
+	select GENERIC_PENDING_IRQ if SMP
+
+# FIXME: investigate whether we need/want these options.
+#	select HAVE_IOREMAP_PROT
+#       select HAVE_OPTPROBES
+#       select HAVE_REGS_AND_STACK_ACCESS_API
+#       select HAVE_HW_BREAKPOINT
+#       select PERF_EVENTS
+#       select HAVE_USER_RETURN_NOTIFIER
+#       config NO_BOOTMEM
+#       config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+#       config HUGETLB_PAGE_SIZE_VARIABLE
+
 config MMU
 	def_bool y
 
 config GENERIC_CSUM
 	def_bool y
-
-config GENERIC_HARDIRQS
-	def_bool y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
-
-config GENERIC_IRQ_PROBE
-	def_bool y
-
-config GENERIC_PENDING_IRQ
-	def_bool y
-	depends on GENERIC_HARDIRQS && SMP
 
 config SEMAPHORE_SLEEPERS
 	def_bool y
@@ -96,26 +105,6 @@ config DEBUG_COPY_FROM_USER
 config HVC_TILE
 	select HVC_DRIVER
 	def_bool y
-
-config TILE
-	def_bool y
-	select HAVE_KVM if !TILEGX
-	select GENERIC_FIND_FIRST_BIT
-	select GENERIC_FIND_NEXT_BIT
-	select USE_GENERIC_SMP_HELPERS
-	select CC_OPTIMIZE_FOR_SIZE
-
-# FIXME: investigate whether we need/want these options.
-#	select HAVE_IOREMAP_PROT
-#       select HAVE_OPTPROBES
-#       select HAVE_REGS_AND_STACK_ACCESS_API
-#       select HAVE_HW_BREAKPOINT
-#       select PERF_EVENTS
-#       select HAVE_USER_RETURN_NOTIFIER
-#       config NO_BOOTMEM
-#       config ARCH_SUPPORTS_DEBUG_PAGEALLOC
-#       config HUGETLB_PAGE_SIZE_VARIABLE
-
 
 # Please note: TILE-Gx support is not yet finalized; this is
 # the preliminary support.  TILE-Gx drivers are only provided
@@ -220,7 +209,7 @@ config FORCE_MAX_ZONEORDER
 
 choice
 	depends on !TILEGX
-	prompt "Memory split" if EMBEDDED
+	prompt "Memory split" if EXPERT
 	default VMSPLIT_3G
 	---help---
 	  Select the desired split between kernel and user memory.

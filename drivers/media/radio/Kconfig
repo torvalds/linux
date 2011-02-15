@@ -151,20 +151,6 @@ config RADIO_GEMTEK_PROBE
 	  following ports will be probed: 0x20c, 0x30c, 0x24c, 0x34c, 0x248 and
 	  0x28c.
 
-config RADIO_GEMTEK_PCI
-	tristate "GemTek PCI Radio Card support"
-	depends on VIDEO_V4L2 && PCI
-	---help---
-	  Choose Y here if you have this PCI FM radio card.
-
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video for Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-gemtek-pci.
-
 config RADIO_MAXIRADIO
 	tristate "Guillemot MAXI Radio FM 2000 radio"
 	depends on VIDEO_V4L2 && PCI

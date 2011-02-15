@@ -99,7 +99,7 @@ static ssize_t gpio_trig_inverted_show(struct device *dev,
 	struct led_classdev *led = dev_get_drvdata(dev);
 	struct gpio_trig_data *gpio_data = led->trigger_data;
 
-	return sprintf(buf, "%s\n", gpio_data->inverted ? "yes" : "no");
+	return sprintf(buf, "%u\n", gpio_data->inverted);
 }
 
 static ssize_t gpio_trig_inverted_store(struct device *dev,
@@ -107,16 +107,17 @@ static ssize_t gpio_trig_inverted_store(struct device *dev,
 {
 	struct led_classdev *led = dev_get_drvdata(dev);
 	struct gpio_trig_data *gpio_data = led->trigger_data;
-	unsigned inverted;
+	unsigned long inverted;
 	int ret;
 
-	ret = sscanf(buf, "%u", &inverted);
-	if (ret < 1) {
-		dev_err(dev, "invalid value\n");
-		return -EINVAL;
-	}
+	ret = strict_strtoul(buf, 10, &inverted);
+	if (ret < 0)
+		return ret;
 
-	gpio_data->inverted = !!inverted;
+	if (inverted > 1)
+		return -EINVAL;
+
+	gpio_data->inverted = inverted;
 
 	/* After inverting, we need to update the LED. */
 	schedule_work(&gpio_data->work);

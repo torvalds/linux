@@ -509,6 +509,7 @@ int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(acpi_gsi_to_irq);
 
 int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
 {

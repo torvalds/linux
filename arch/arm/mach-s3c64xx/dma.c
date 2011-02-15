@@ -212,6 +212,7 @@ static int s3c64xx_dma_start(struct s3c2410_dma_chan *chan)
 
 	config = readl(chan->regs + PL080S_CH_CONFIG);
 	config |= PL080_CONFIG_ENABLE;
+	config &= ~PL080_CONFIG_HALT;
 
 	pr_debug("%s: writing config %08x\n", __func__, config);
 	writel(config, chan->regs + PL080S_CH_CONFIG);

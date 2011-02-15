@@ -451,8 +451,7 @@ nv40_graph_register(struct drm_device *dev)
 	NVOBJ_CLASS(dev, 0x309e, GR); /* swzsurf */
 
 	/* curie */
-	if (dev_priv->chipset >= 0x60 ||
-	    0x00005450 & (1 << (dev_priv->chipset & 0x0f)))
+	if (nv44_graph_class(dev))
 		NVOBJ_CLASS(dev, 0x4497, GR);
 	else
 		NVOBJ_CLASS(dev, 0x4097, GR);

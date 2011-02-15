@@ -177,6 +177,11 @@ void deactivate_locked_super(struct super_block *s)
 	struct file_system_type *fs = s->s_type;
 	if (atomic_dec_and_test(&s->s_active)) {
 		fs->kill_sb(s);
+		/*
+		 * We need to call rcu_barrier so all the delayed rcu free
+		 * inodes are flushed before we release the fs module.
+		 */
+		rcu_barrier();
 		put_filesystem(fs);
 		put_super(s);
 	} else {
@@ -1141,7 +1146,7 @@ static struct vfsmount *fs_set_subtype(struct vfsmount *mnt, const char *fstype)
 	return mnt;
 
  err:
-	mntput_long(mnt);
+	mntput(mnt);
 	return ERR_PTR(err);
 }
 

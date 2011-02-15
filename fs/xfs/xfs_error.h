@@ -136,8 +136,8 @@ extern int xfs_error_test(int, int *, char *, int, char *, unsigned long);
 	 xfs_error_test((tag), (mp)->m_fixedfsid, "expr", __LINE__, __FILE__, \
 			(rf))))
 
-extern int xfs_errortag_add(int error_tag, xfs_mount_t *mp);
-extern int xfs_errortag_clearall(xfs_mount_t *mp, int loud);
+extern int xfs_errortag_add(int error_tag, struct xfs_mount *mp);
+extern int xfs_errortag_clearall(struct xfs_mount *mp, int loud);
 #else
 #define XFS_TEST_ERROR(expr, mp, tag, rf)	(expr)
 #define xfs_errortag_add(tag, mp)		(ENOSYS)
@@ -162,21 +162,15 @@ extern int xfs_errortag_clearall(xfs_mount_t *mp, int loud);
 
 struct xfs_mount;
 
-extern void xfs_fs_vcmn_err(int level, struct xfs_mount *mp,
-		char *fmt, va_list ap)
-	__attribute__ ((format (printf, 3, 0)));
-extern void xfs_cmn_err(int panic_tag, int level, struct xfs_mount *mp,
-			char *fmt, ...)
-	__attribute__ ((format (printf, 4, 5)));
-extern void xfs_fs_cmn_err(int level, struct xfs_mount *mp, char *fmt, ...)
-	__attribute__ ((format (printf, 3, 4)));
-
 extern void xfs_hex_dump(void *p, int length);
 
 #define xfs_fs_repair_cmn_err(level, mp, fmt, args...) \
 	xfs_fs_cmn_err(level, mp, fmt "  Unmount and run xfs_repair.", ## args)
 
 #define xfs_fs_mount_cmn_err(f, fmt, args...) \
-	((f & XFS_MFSI_QUIET)? (void)0 : cmn_err(CE_WARN, "XFS: " fmt, ## args))
+	do { \
+		if (!(f & XFS_MFSI_QUIET)) 	\
+			cmn_err(CE_WARN, "XFS: " fmt, ## args); \
+	} while (0)
 
 #endif	/* __XFS_ERROR_H__ */

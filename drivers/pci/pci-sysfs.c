@@ -1149,7 +1149,7 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 		sysfs_bin_attr_init(attr);
 		attr->size = rom_size;
 		attr->attr.name = "rom";
-		attr->attr.mode = S_IRUSR;
+		attr->attr.mode = S_IRUSR | S_IWUSR;
 		attr->read = pci_read_rom;
 		attr->write = pci_write_rom;
 		retval = sysfs_create_bin_file(&pdev->dev.kobj, attr);

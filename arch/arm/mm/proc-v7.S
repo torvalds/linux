@@ -159,7 +159,9 @@ ENTRY(cpu_v7_set_pte_ext)
 	tstne	r1, #L_PTE_PRESENT
 	moveq	r3, #0
 
-	str	r3, [r0, #2048]!
+ ARM(	str	r3, [r0, #2048]! )
+ THUMB(	add	r0, r0, #2048 )
+ THUMB(	str	r3, [r0] )
 	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
 #endif
 	mov	pc, lr

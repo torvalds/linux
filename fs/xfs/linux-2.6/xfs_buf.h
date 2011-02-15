@@ -152,8 +152,6 @@ typedef struct xfs_buftarg {
 
 struct xfs_buf;
 typedef void (*xfs_buf_iodone_t)(struct xfs_buf *);
-typedef void (*xfs_buf_relse_t)(struct xfs_buf *);
-typedef int (*xfs_buf_bdstrat_t)(struct xfs_buf *);
 
 #define XB_PAGES	2
 
@@ -183,7 +181,6 @@ typedef struct xfs_buf {
 	void			*b_addr;	/* virtual address of buffer */
 	struct work_struct	b_iodone_work;
 	xfs_buf_iodone_t	b_iodone;	/* I/O completion function */
-	xfs_buf_relse_t		b_relse;	/* releasing function */
 	struct completion	b_iowait;	/* queue for I/O waiters */
 	void			*b_fspriv;
 	void			*b_fspriv2;
@@ -323,7 +320,6 @@ void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_FSPRIVATE2(bp, type)		((type)(bp)->b_fspriv2)
 #define XFS_BUF_SET_FSPRIVATE2(bp, val)		((bp)->b_fspriv2 = (void*)(val))
 #define XFS_BUF_SET_START(bp)			do { } while (0)
-#define XFS_BUF_SET_BRELSE_FUNC(bp, func)	((bp)->b_relse = (func))
 
 #define XFS_BUF_PTR(bp)			(xfs_caddr_t)((bp)->b_addr)
 #define XFS_BUF_SET_PTR(bp, val, cnt)	xfs_buf_associate_memory(bp, val, cnt)
@@ -360,8 +356,7 @@ xfs_buf_set_ref(
 
 static inline void xfs_buf_relse(xfs_buf_t *bp)
 {
-	if (!bp->b_relse)
-		xfs_buf_unlock(bp);
+	xfs_buf_unlock(bp);
 	xfs_buf_rele(bp);
 }
 

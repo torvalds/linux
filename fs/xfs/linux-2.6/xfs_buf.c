@@ -896,7 +896,6 @@ xfs_buf_rele(
 	trace_xfs_buf_rele(bp, _RET_IP_);
 
 	if (!pag) {
-		ASSERT(!bp->b_relse);
 		ASSERT(list_empty(&bp->b_lru));
 		ASSERT(RB_EMPTY_NODE(&bp->b_rbnode));
 		if (atomic_dec_and_test(&bp->b_hold))
@@ -908,11 +907,7 @@ xfs_buf_rele(
 
 	ASSERT(atomic_read(&bp->b_hold) > 0);
 	if (atomic_dec_and_lock(&bp->b_hold, &pag->pag_buf_lock)) {
-		if (bp->b_relse) {
-			atomic_inc(&bp->b_hold);
-			spin_unlock(&pag->pag_buf_lock);
-			bp->b_relse(bp);
-		} else if (!(bp->b_flags & XBF_STALE) &&
+		if (!(bp->b_flags & XBF_STALE) &&
 			   atomic_read(&bp->b_lru_ref)) {
 			xfs_buf_lru_add(bp);
 			spin_unlock(&pag->pag_buf_lock);

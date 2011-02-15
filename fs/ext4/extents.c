@@ -3174,9 +3174,10 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		 * that this IO needs to convertion to written when IO is
 		 * completed
 		 */
-		if (io)
+		if (io && !(io->flag & EXT4_IO_END_UNWRITTEN)) {
 			io->flag = EXT4_IO_END_UNWRITTEN;
-		else
+			atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
+		} else
 			ext4_set_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN);
 		if (ext4_should_dioread_nolock(inode))
 			map->m_flags |= EXT4_MAP_UNINIT;
@@ -3463,9 +3464,10 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 		 * that we need to perform convertion when IO is done.
 		 */
 		if ((flags & EXT4_GET_BLOCKS_PRE_IO)) {
-			if (io)
+			if (io && !(io->flag & EXT4_IO_END_UNWRITTEN)) {
 				io->flag = EXT4_IO_END_UNWRITTEN;
-			else
+				atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
+			} else
 				ext4_set_inode_state(inode,
 						     EXT4_STATE_DIO_UNWRITTEN);
 		}
@@ -3627,14 +3629,15 @@ static void ext4_falloc_update_inode(struct inode *inode,
 }
 
 /*
- * preallocate space for a file. This implements ext4's fallocate inode
+ * preallocate space for a file. This implements ext4's fallocate file
  * operation, which gets called from sys_fallocate system call.
  * For block-mapped files, posix_fallocate should fall back to the method
  * of writing zeroes to the required new blocks (the same behavior which is
  * expected for file systems which do not support fallocate() system call).
  */
-long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
+long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 {
+	struct inode *inode = file->f_path.dentry->d_inode;
 	handle_t *handle;
 	loff_t new_size;
 	unsigned int max_blocks;
@@ -3645,7 +3648,7 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	unsigned int credits, blkbits = inode->i_blkbits;
 
 	/* We only support the FALLOC_FL_KEEP_SIZE mode */
-	if (mode && (mode != FALLOC_FL_KEEP_SIZE))
+	if (mode & ~FALLOC_FL_KEEP_SIZE)
 		return -EOPNOTSUPP;
 
 	/*
@@ -3654,10 +3657,6 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	 */
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return -EOPNOTSUPP;
-
-	/* preallocation to directories is currently not supported */
-	if (S_ISDIR(inode->i_mode))
-		return -ENODEV;
 
 	map.m_lblk = offset >> blkbits;
 	/*

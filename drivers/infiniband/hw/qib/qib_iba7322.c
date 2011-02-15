@@ -623,7 +623,6 @@ struct qib_chippport_specific {
 	u8 ibmalfusesnap;
 	struct qib_qsfp_data qsfp_data;
 	char epmsgbuf[192]; /* for port error interrupt msg buffer */
-	u8 bounced;
 };
 
 static struct {
@@ -1881,23 +1880,7 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 		    IB_PHYSPORTSTATE_DISABLED)
 			qib_set_ib_7322_lstate(ppd, 0,
 			       QLOGIC_IB_IBCC_LINKINITCMD_DISABLE);
-		else {
-			u32 lstate;
-			/*
-			 * We need the current logical link state before
-			 * lflags are set in handle_e_ibstatuschanged.
-			 */
-			lstate = qib_7322_iblink_state(ibcs);
-
-			if (IS_QMH(dd) && !ppd->cpspec->bounced &&
-			    ltstate == IB_PHYSPORTSTATE_LINKUP &&
-			    (lstate >= IB_PORT_INIT &&
-				lstate <= IB_PORT_ACTIVE)) {
-				ppd->cpspec->bounced = 1;
-				qib_7322_set_ib_cfg(ppd, QIB_IB_CFG_LSTATE,
-					IB_LINKCMD_DOWN | IB_LINKINITCMD_POLL);
-			}
-
+		else
 			/*
 			 * Since going into a recovery state causes the link
 			 * state to go down and since recovery is transitory,
@@ -1911,7 +1894,6 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 			    ltstate != IB_PHYSPORTSTATE_RECOVERY_WAITRMT &&
 			    ltstate != IB_PHYSPORTSTATE_RECOVERY_IDLE)
 				qib_handle_e_ibstatuschanged(ppd, ibcs);
-		}
 	}
 	if (*msg && iserr)
 		qib_dev_porterr(dd, ppd->port, "%s error\n", msg);
@@ -2381,6 +2363,11 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 	qib_write_kreg_port(ppd, krp_rcvctrl, ppd->p_rcvctrl);
 	spin_unlock_irqrestore(&dd->cspec->rcvmod_lock, flags);
 
+	/* Hold the link state machine for mezz boards */
+	if (IS_QMH(dd) || IS_QME(dd))
+		qib_set_ib_7322_lstate(ppd, 0,
+				       QLOGIC_IB_IBCC_LINKINITCMD_DISABLE);
+
 	/* Also enable IBSTATUSCHG interrupt.  */
 	val = qib_read_kreg_port(ppd, krp_errmask);
 	qib_write_kreg_port(ppd, krp_errmask,
@@ -2406,10 +2393,9 @@ static void qib_7322_mini_quiet_serdes(struct qib_pportdata *ppd)
 	ppd->lflags &= ~QIBL_IB_AUTONEG_INPROG;
 	spin_unlock_irqrestore(&ppd->lflags_lock, flags);
 	wake_up(&ppd->cpspec->autoneg_wait);
-	cancel_delayed_work(&ppd->cpspec->autoneg_work);
+	cancel_delayed_work_sync(&ppd->cpspec->autoneg_work);
 	if (ppd->dd->cspec->r1)
-		cancel_delayed_work(&ppd->cpspec->ipg_work);
-	flush_scheduled_work();
+		cancel_delayed_work_sync(&ppd->cpspec->ipg_work);
 
 	ppd->cpspec->chase_end = 0;
 	if (ppd->cpspec->chase_timer.data) /* if initted */
@@ -2706,7 +2692,7 @@ static noinline void unknown_7322_gpio_intr(struct qib_devdata *dd)
 			if (!(pins & mask)) {
 				++handled;
 				qd->t_insert = get_jiffies_64();
-				schedule_work(&qd->work);
+				queue_work(ib_wq, &qd->work);
 			}
 		}
 	}
@@ -4990,8 +4976,8 @@ static void try_7322_autoneg(struct qib_pportdata *ppd)
 	set_7322_ibspeed_fast(ppd, QIB_IB_DDR);
 	qib_7322_mini_pcs_reset(ppd);
 	/* 2 msec is minimum length of a poll cycle */
-	schedule_delayed_work(&ppd->cpspec->autoneg_work,
-			      msecs_to_jiffies(2));
+	queue_delayed_work(ib_wq, &ppd->cpspec->autoneg_work,
+			   msecs_to_jiffies(2));
 }
 
 /*
@@ -5121,7 +5107,8 @@ static void try_7322_ipg(struct qib_pportdata *ppd)
 		ib_free_send_mad(send_buf);
 retry:
 	delay = 2 << ppd->cpspec->ipg_tries;
-	schedule_delayed_work(&ppd->cpspec->ipg_work, msecs_to_jiffies(delay));
+	queue_delayed_work(ib_wq, &ppd->cpspec->ipg_work,
+			   msecs_to_jiffies(delay));
 }
 
 /*
@@ -5702,6 +5689,11 @@ static void set_no_qsfp_atten(struct qib_devdata *dd, int change)
 				ppd->cpspec->h1_val = h1;
 			/* now change the IBC and serdes, overriding generic */
 			init_txdds_table(ppd, 1);
+			/* Re-enable the physical state machine on mezz boards
+			 * now that the correct settings have been set. */
+			if (IS_QMH(dd) || IS_QME(dd))
+				qib_set_ib_7322_lstate(ppd, 0,
+					    QLOGIC_IB_IBCC_LINKINITCMD_SLEEP);
 			any++;
 		}
 		if (*nxt == '\n')

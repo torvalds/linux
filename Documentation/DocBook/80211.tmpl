@@ -268,10 +268,6 @@
 !Finclude/net/mac80211.h ieee80211_ops
 !Finclude/net/mac80211.h ieee80211_alloc_hw
 !Finclude/net/mac80211.h ieee80211_register_hw
-!Finclude/net/mac80211.h ieee80211_get_tx_led_name
-!Finclude/net/mac80211.h ieee80211_get_rx_led_name
-!Finclude/net/mac80211.h ieee80211_get_assoc_led_name
-!Finclude/net/mac80211.h ieee80211_get_radio_led_name
 !Finclude/net/mac80211.h ieee80211_unregister_hw
 !Finclude/net/mac80211.h ieee80211_free_hw
       </chapter>
@@ -381,6 +377,23 @@
          improve performance.
         </para>
       </partintro>
+
+      <chapter id="led-support">
+        <title>LED support</title>
+        <para>
+         Mac80211 supports various ways of blinking LEDs. Wherever possible,
+         device LEDs should be exposed as LED class devices and hooked up to
+         the appropriate trigger, which will then be triggered appropriately
+         by mac80211.
+        </para>
+!Finclude/net/mac80211.h ieee80211_get_tx_led_name
+!Finclude/net/mac80211.h ieee80211_get_rx_led_name
+!Finclude/net/mac80211.h ieee80211_get_assoc_led_name
+!Finclude/net/mac80211.h ieee80211_get_radio_led_name
+!Finclude/net/mac80211.h ieee80211_tpt_blink
+!Finclude/net/mac80211.h ieee80211_tpt_led_trigger_flags
+!Finclude/net/mac80211.h ieee80211_create_tpt_led_trigger
+      </chapter>
 
       <chapter id="hardware-crypto-offload">
         <title>Hardware crypto acceleration</title>

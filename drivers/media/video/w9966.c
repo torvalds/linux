@@ -937,6 +937,7 @@ static void w9966_term(struct w9966 *cam)
 		parport_unregister_device(cam->pdev);
 		w9966_set_state(cam, W9966_STATE_PDEV, 0);
 	}
+	memset(cam, 0, sizeof(*cam));
 }
 
 

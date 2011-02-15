@@ -554,6 +554,8 @@ struct rtl8169_private {
 	struct mii_if_info mii;
 	struct rtl8169_counters counters;
 	u32 saved_wolopts;
+
+	const struct firmware *fw;
 };
 
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
@@ -971,7 +973,8 @@ static void __rtl8169_check_link_status(struct net_device *dev,
 		if (pm)
 			pm_request_resume(&tp->pci_dev->dev);
 		netif_carrier_on(dev);
-		netif_info(tp, ifup, dev, "link up\n");
+		if (net_ratelimit())
+			netif_info(tp, ifup, dev, "link up\n");
 	} else {
 		netif_carrier_off(dev);
 		netif_info(tp, ifdown, dev, "link down\n");
@@ -1766,6 +1769,29 @@ rtl_phy_write_fw(struct rtl8169_private *tp, const struct firmware *fw)
 	}
 }
 
+static void rtl_release_firmware(struct rtl8169_private *tp)
+{
+	release_firmware(tp->fw);
+	tp->fw = NULL;
+}
+
+static int rtl_apply_firmware(struct rtl8169_private *tp, const char *fw_name)
+{
+	const struct firmware **fw = &tp->fw;
+	int rc = !*fw;
+
+	if (rc) {
+		rc = request_firmware(fw, fw_name, &tp->pci_dev->dev);
+		if (rc < 0)
+			goto out;
+	}
+
+	/* TODO: release firmware once rtl_phy_write_fw signals failures. */
+	rtl_phy_write_fw(tp, *fw);
+out:
+	return rc;
+}
+
 static void rtl8169s_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
@@ -2139,7 +2165,6 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp)
 		{ 0x0d, 0xf880 }
 	};
 	void __iomem *ioaddr = tp->mmio_addr;
-	const struct firmware *fw;
 
 	rtl_writephy_batch(tp, phy_reg_init_0, ARRAY_SIZE(phy_reg_init_0));
 
@@ -2203,11 +2228,8 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp)
 
 	rtl_writephy(tp, 0x1f, 0x0005);
 	rtl_writephy(tp, 0x05, 0x001b);
-	if (rtl_readphy(tp, 0x06) == 0xbf00 &&
-	    request_firmware(&fw, FIRMWARE_8168D_1, &tp->pci_dev->dev) == 0) {
-		rtl_phy_write_fw(tp, fw);
-		release_firmware(fw);
-	} else {
+	if ((rtl_readphy(tp, 0x06) != 0xbf00) ||
+	    (rtl_apply_firmware(tp, FIRMWARE_8168D_1) < 0)) {
 		netif_warn(tp, probe, tp->dev, "unable to apply firmware patch\n");
 	}
 
@@ -2257,7 +2279,6 @@ static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp)
 		{ 0x0d, 0xf880 }
 	};
 	void __iomem *ioaddr = tp->mmio_addr;
-	const struct firmware *fw;
 
 	rtl_writephy_batch(tp, phy_reg_init_0, ARRAY_SIZE(phy_reg_init_0));
 
@@ -2312,11 +2333,8 @@ static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp)
 
 	rtl_writephy(tp, 0x1f, 0x0005);
 	rtl_writephy(tp, 0x05, 0x001b);
-	if (rtl_readphy(tp, 0x06) == 0xb300 &&
-	    request_firmware(&fw, FIRMWARE_8168D_2, &tp->pci_dev->dev) == 0) {
-		rtl_phy_write_fw(tp, fw);
-		release_firmware(fw);
-	} else {
+	if ((rtl_readphy(tp, 0x06) != 0xb300) ||
+	    (rtl_apply_firmware(tp, FIRMWARE_8168D_2) < 0)) {
 		netif_warn(tp, probe, tp->dev, "unable to apply firmware patch\n");
 	}
 
@@ -3200,6 +3218,8 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 
 	cancel_delayed_work_sync(&tp->task);
 
+	rtl_release_firmware(tp);
+
 	unregister_netdev(dev);
 
 	if (pci_dev_run_wake(pdev))
@@ -3738,7 +3758,8 @@ static void rtl_hw_start_8168(struct net_device *dev)
 	RTL_W16(IntrMitigate, 0x5151);
 
 	/* Work around for RxFIFO overflow. */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_11) {
+	if (tp->mac_version == RTL_GIGA_MAC_VER_11 ||
+	    tp->mac_version == RTL_GIGA_MAC_VER_22) {
 		tp->intr_event |= RxFIFOOver | PCSTimeout;
 		tp->intr_event &= ~RxOverflow;
 	}
@@ -4620,12 +4641,33 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 			break;
 		}
 
-		/* Work around for rx fifo overflow */
-		if (unlikely(status & RxFIFOOver) &&
-		(tp->mac_version == RTL_GIGA_MAC_VER_11)) {
-			netif_stop_queue(dev);
-			rtl8169_tx_timeout(dev);
-			break;
+		if (unlikely(status & RxFIFOOver)) {
+			switch (tp->mac_version) {
+			/* Work around for rx fifo overflow */
+			case RTL_GIGA_MAC_VER_11:
+			case RTL_GIGA_MAC_VER_22:
+			case RTL_GIGA_MAC_VER_26:
+				netif_stop_queue(dev);
+				rtl8169_tx_timeout(dev);
+				goto done;
+			/* Testers needed. */
+			case RTL_GIGA_MAC_VER_17:
+			case RTL_GIGA_MAC_VER_19:
+			case RTL_GIGA_MAC_VER_20:
+			case RTL_GIGA_MAC_VER_21:
+			case RTL_GIGA_MAC_VER_23:
+			case RTL_GIGA_MAC_VER_24:
+			case RTL_GIGA_MAC_VER_27:
+			case RTL_GIGA_MAC_VER_28:
+			/* Experimental science. Pktgen proof. */
+			case RTL_GIGA_MAC_VER_12:
+			case RTL_GIGA_MAC_VER_25:
+				if (status == RxFIFOOver)
+					goto done;
+				break;
+			default:
+				break;
+			}
 		}
 
 		if (unlikely(status & SYSErr)) {
@@ -4661,7 +4703,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 			(status & RxFIFOOver) ? (status | RxOverflow) : status);
 		status = RTL_R16(IntrStatus);
 	}
-
+done:
 	return IRQ_RETVAL(handled);
 }
 

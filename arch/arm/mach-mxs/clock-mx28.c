@@ -21,6 +21,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
+#include <linux/clkdev.h>
 
 #include <asm/clkdev.h>
 #include <asm/div64.h>
@@ -354,12 +355,12 @@ static int name##_set_rate(struct clk *clk, unsigned long rate)		\
 	} else {							\
 		reg &= ~BM_CLKCTRL_##dr##_DIV;				\
 		reg |= div << BP_CLKCTRL_##dr##_DIV;			\
-		if (reg | (1 << clk->enable_shift)) {			\
+		if (reg & (1 << clk->enable_shift)) {			\
 			pr_err("%s: clock is gated\n", __func__);	\
 			return -EINVAL;					\
 		}							\
 	}								\
-	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_CPU);		\
+	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_##dr);		\
 									\
 	for (i = 10000; i; i--)						\
 		if (!(__raw_readl(CLKCTRL_BASE_ADDR +			\
@@ -482,7 +483,7 @@ static int name##_set_parent(struct clk *clk, struct clk *parent)	\
 {									\
 	if (parent != clk->parent) {					\
 		__raw_writel(BM_CLKCTRL_CLKSEQ_BYPASS_##bit,		\
-			 HW_CLKCTRL_CLKSEQ_TOG);			\
+			 CLKCTRL_BASE_ADDR + HW_CLKCTRL_CLKSEQ_TOG);	\
 		clk->parent = parent;					\
 	}								\
 									\
@@ -602,8 +603,12 @@ _DEFINE_CLOCK(fec_clk, ENET, DISABLE, &hbus_clk);
 	},
 
 static struct clk_lookup lookups[] = {
-	_REGISTER_CLOCK("mxs-duart.0", NULL, uart_clk)
-	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
+	/* for amba bus driver */
+	_REGISTER_CLOCK("duart", "apb_pclk", xbus_clk)
+	/* for amba-pl011 driver */
+	_REGISTER_CLOCK("duart", NULL, uart_clk)
+	_REGISTER_CLOCK("imx28-fec.0", NULL, fec_clk)
+	_REGISTER_CLOCK("imx28-fec.1", NULL, fec_clk)
 	_REGISTER_CLOCK("rtc", NULL, rtc_clk)
 	_REGISTER_CLOCK("pll2", NULL, pll2_clk)
 	_REGISTER_CLOCK(NULL, "hclk", hbus_clk)
@@ -725,6 +730,12 @@ static int clk_misc_init(void)
 int __init mx28_clocks_init(void)
 {
 	clk_misc_init();
+
+	clk_enable(&cpu_clk);
+	clk_enable(&hbus_clk);
+	clk_enable(&xbus_clk);
+	clk_enable(&emi_clk);
+	clk_enable(&uart_clk);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

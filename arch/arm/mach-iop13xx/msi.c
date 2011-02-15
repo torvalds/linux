@@ -156,14 +156,14 @@ void arch_teardown_msi_irq(unsigned int irq)
 	destroy_irq(irq);
 }
 
-static void iop13xx_msi_nop(unsigned int irq)
+static void iop13xx_msi_nop(struct irq_data *d)
 {
 	return;
 }
 
 static struct irq_chip iop13xx_msi_chip = {
 	.name = "PCI-MSI",
-	.ack = iop13xx_msi_nop,
+	.irq_ack = iop13xx_msi_nop,
 	.irq_enable = unmask_msi_irq,
 	.irq_disable = mask_msi_irq,
 	.irq_mask = mask_msi_irq,

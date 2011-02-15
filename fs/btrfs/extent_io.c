@@ -1865,7 +1865,7 @@ static int submit_one_bio(int rw, struct bio *bio, int mirror_num,
 	bio_get(bio);
 
 	if (tree->ops && tree->ops->submit_bio_hook)
-		tree->ops->submit_bio_hook(page->mapping->host, rw, bio,
+		ret = tree->ops->submit_bio_hook(page->mapping->host, rw, bio,
 					   mirror_num, bio_flags, start);
 	else
 		submit_bio(rw, bio);
@@ -1920,6 +1920,8 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 		nr = bio_get_nr_vecs(bdev);
 
 	bio = btrfs_bio_alloc(bdev, sector, nr, GFP_NOFS | __GFP_HIGH);
+	if (!bio)
+		return -ENOMEM;
 
 	bio_add_page(bio, page, page_size, offset);
 	bio->bi_end_io = end_io_func;
@@ -2028,8 +2030,11 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 		BUG_ON(extent_map_end(em) <= cur);
 		BUG_ON(end < cur);
 
-		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
+		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
 			this_bio_flag = EXTENT_BIO_COMPRESSED;
+			extent_set_compress_type(&this_bio_flag,
+						 em->compress_type);
+		}
 
 		iosize = min(extent_map_end(em) - cur, end - cur + 1);
 		cur_end = min(extent_map_end(em) - 1, end);
@@ -2123,7 +2128,7 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 	ret = __extent_read_full_page(tree, page, get_extent, &bio, 0,
 				      &bio_flags);
 	if (bio)
-		submit_one_bio(READ, bio, 0, bio_flags);
+		ret = submit_one_bio(READ, bio, 0, bio_flags);
 	return ret;
 }
 
@@ -3072,6 +3077,8 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 #endif
 
 	eb = kmem_cache_zalloc(extent_buffer_cache, mask);
+	if (eb == NULL)
+		return NULL;
 	eb->start = start;
 	eb->len = len;
 	spin_lock_init(&eb->lock);

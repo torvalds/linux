@@ -278,6 +278,6 @@ void intel_panel_setup_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	dev_priv->backlight_level = intel_panel_get_max_backlight(dev);
+	dev_priv->backlight_level = intel_panel_get_backlight(dev);
 	dev_priv->backlight_enabled = dev_priv->backlight_level != 0;
 }

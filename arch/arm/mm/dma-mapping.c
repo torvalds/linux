@@ -577,7 +577,7 @@ EXPORT_SYMBOL(dma_map_sg);
  * dma_unmap_sg - unmap a set of SG buffers mapped by dma_map_sg
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
  * @sg: list of buffers
- * @nents: number of buffers to unmap (returned from dma_map_sg)
+ * @nents: number of buffers to unmap (same as was passed to dma_map_sg)
  * @dir: DMA transfer direction (same as was passed to dma_map_sg)
  *
  * Unmap a set of streaming mode DMA translations.  Again, CPU access

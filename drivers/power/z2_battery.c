@@ -254,7 +254,7 @@ static int __devexit z2_batt_remove(struct i2c_client *client)
 	struct z2_charger *charger = i2c_get_clientdata(client);
 	struct z2_battery_info *info = charger->info;
 
-	flush_scheduled_work();
+	cancel_work_sync(&charger->bat_work);
 	power_supply_unregister(&charger->batt_ps);
 
 	kfree(charger->batt_ps.properties);
@@ -271,7 +271,9 @@ static int __devexit z2_batt_remove(struct i2c_client *client)
 #ifdef CONFIG_PM
 static int z2_batt_suspend(struct i2c_client *client, pm_message_t state)
 {
-	flush_scheduled_work();
+	struct z2_charger *charger = i2c_get_clientdata(client);
+
+	flush_work_sync(&charger->bat_work);
 	return 0;
 }
 

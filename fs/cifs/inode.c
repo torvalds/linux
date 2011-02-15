@@ -32,7 +32,7 @@
 #include "fscache.h"
 
 
-static void cifs_set_ops(struct inode *inode, const bool is_dfs_referral)
+static void cifs_set_ops(struct inode *inode)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
@@ -44,12 +44,16 @@ static void cifs_set_ops(struct inode *inode, const bool is_dfs_referral)
 				inode->i_fop = &cifs_file_direct_nobrl_ops;
 			else
 				inode->i_fop = &cifs_file_direct_ops;
+		} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_STRICT_IO) {
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+				inode->i_fop = &cifs_file_strict_nobrl_ops;
+			else
+				inode->i_fop = &cifs_file_strict_ops;
 		} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
 			inode->i_fop = &cifs_file_nobrl_ops;
 		else { /* not direct, send byte range locks */
 			inode->i_fop = &cifs_file_ops;
 		}
-
 
 		/* check if server can support readpages */
 		if (cifs_sb_master_tcon(cifs_sb)->ses->server->maxBuf <
@@ -60,7 +64,7 @@ static void cifs_set_ops(struct inode *inode, const bool is_dfs_referral)
 		break;
 	case S_IFDIR:
 #ifdef CONFIG_CIFS_DFS_UPCALL
-		if (is_dfs_referral) {
+		if (IS_AUTOMOUNT(inode)) {
 			inode->i_op = &cifs_dfs_referral_inode_operations;
 		} else {
 #else /* NO DFS support, treat as a directory */
@@ -167,7 +171,9 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 	}
 	spin_unlock(&inode->i_lock);
 
-	cifs_set_ops(inode, fattr->cf_flags & CIFS_FATTR_DFS_REFERRAL);
+	if (fattr->cf_flags & CIFS_FATTR_DFS_REFERRAL)
+		inode->i_flags |= S_AUTOMOUNT;
+	cifs_set_ops(inode);
 }
 
 void
@@ -1677,7 +1683,7 @@ cifs_inode_needs_reval(struct inode *inode)
 /*
  * Zap the cache. Called when invalid_mapping flag is set.
  */
-static void
+void
 cifs_invalidate_mapping(struct inode *inode)
 {
 	int rc;

@@ -95,9 +95,9 @@ static unsigned long lpd270_pin_config[] __initdata = {
 
 static unsigned int lpd270_irq_enabled;
 
-static void lpd270_mask_irq(unsigned int irq)
+static void lpd270_mask_irq(struct irq_data *d)
 {
-	int lpd270_irq = irq - LPD270_IRQ(0);
+	int lpd270_irq = d->irq - LPD270_IRQ(0);
 
 	__raw_writew(~(1 << lpd270_irq), LPD270_INT_STATUS);
 
@@ -105,9 +105,9 @@ static void lpd270_mask_irq(unsigned int irq)
 	__raw_writew(lpd270_irq_enabled, LPD270_INT_MASK);
 }
 
-static void lpd270_unmask_irq(unsigned int irq)
+static void lpd270_unmask_irq(struct irq_data *d)
 {
-	int lpd270_irq = irq - LPD270_IRQ(0);
+	int lpd270_irq = d->irq - LPD270_IRQ(0);
 
 	lpd270_irq_enabled |= 1 << lpd270_irq;
 	__raw_writew(lpd270_irq_enabled, LPD270_INT_MASK);
@@ -115,9 +115,9 @@ static void lpd270_unmask_irq(unsigned int irq)
 
 static struct irq_chip lpd270_irq_chip = {
 	.name		= "CPLD",
-	.ack		= lpd270_mask_irq,
-	.mask		= lpd270_mask_irq,
-	.unmask		= lpd270_unmask_irq,
+	.irq_ack	= lpd270_mask_irq,
+	.irq_mask	= lpd270_mask_irq,
+	.irq_unmask	= lpd270_unmask_irq,
 };
 
 static void lpd270_irq_handler(unsigned int irq, struct irq_desc *desc)
@@ -126,7 +126,8 @@ static void lpd270_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 	pending = __raw_readw(LPD270_INT_STATUS) & lpd270_irq_enabled;
 	do {
-		desc->chip->ack(irq);	/* clear useless edge notification */
+		/* clear useless edge notification */
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 		if (likely(pending)) {
 			irq = LPD270_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);

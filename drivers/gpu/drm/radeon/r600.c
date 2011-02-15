@@ -97,12 +97,16 @@ void r600_irq_disable(struct radeon_device *rdev);
 static void r600_pcie_gen2_enable(struct radeon_device *rdev);
 
 /* get temperature in millidegrees */
-u32 rv6xx_get_temp(struct radeon_device *rdev)
+int rv6xx_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = (RREG32(CG_THERMAL_STATUS) & ASIC_T_MASK) >>
 		ASIC_T_SHIFT;
+	int actual_temp = temp & 0xff;
 
-	return temp * 1000;
+	if (temp & 0x100)
+		actual_temp -= 256;
+
+	return actual_temp * 1000;
 }
 
 void r600_pm_get_dynpm_state(struct radeon_device *rdev)
@@ -1287,6 +1291,9 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 			S_008014_CB2_BUSY(1) | S_008014_CB3_BUSY(1);
 	u32 tmp;
 
+	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
+		return 0;
+
 	dev_info(rdev->dev, "GPU softreset \n");
 	dev_info(rdev->dev, "  R_008010_GRBM_STATUS=0x%08X\n",
 		RREG32(R_008010_GRBM_STATUS));
@@ -2358,24 +2365,6 @@ void r600_clear_surface_reg(struct radeon_device *rdev, int reg)
 	/* FIXME: implement */
 }
 
-
-bool r600_card_posted(struct radeon_device *rdev)
-{
-	uint32_t reg;
-
-	/* first check CRTCs */
-	reg = RREG32(D1CRTC_CONTROL) |
-		RREG32(D2CRTC_CONTROL);
-	if (reg & CRTC_EN)
-		return true;
-
-	/* then check MEM_SIZE, in case the crtcs are off */
-	if (RREG32(CONFIG_MEMSIZE))
-		return true;
-
-	return false;
-}
-
 int r600_startup(struct radeon_device *rdev)
 {
 	int r;
@@ -2536,7 +2525,7 @@ int r600_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	/* Post card if necessary */
-	if (!r600_card_posted(rdev)) {
+	if (!radeon_card_posted(rdev)) {
 		if (!rdev->bios) {
 			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
 			return -EINVAL;
@@ -3657,6 +3646,9 @@ static void r600_pcie_gen2_enable(struct radeon_device *rdev)
 {
 	u32 link_width_cntl, lanes, speed_cntl, training_cntl, tmp;
 	u16 link_cntl2;
+
+	if (radeon_pcie_gen2 == 0)
+		return;
 
 	if (rdev->flags & RADEON_IS_IGP)
 		return;

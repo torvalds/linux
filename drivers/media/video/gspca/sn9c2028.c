@@ -703,7 +703,7 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0458, 0x7005)}, /* Genius Smart 300, version 2 */
 	/* The Genius Smart is untested. I can't find an owner ! */
 	/* {USB_DEVICE(0x0c45, 0x8000)}, DC31VC, Don't know this camera */

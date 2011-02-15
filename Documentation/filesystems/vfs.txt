@@ -415,8 +415,8 @@ otherwise noted.
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.
 
-	May be called in rcu-walk mode (flags & IPERM_RCU). If in rcu-walk
-	mode, the filesystem must check the permission without blocking or
+	May be called in rcu-walk mode (flags & IPERM_FLAG_RCU). If in rcu-walk
+        mode, the filesystem must check the permission without blocking or
 	storing to the inode.
 
 	If a situation is encountered that rcu-walk cannot handle, return
@@ -864,6 +864,8 @@ struct dentry_operations {
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
+	struct vfsmount *(*d_automount)(struct path *);
+	int (*d_manage)(struct dentry *, bool, bool);
 };
 
   d_revalidate: called when the VFS needs to revalidate a dentry. This
@@ -929,6 +931,47 @@ struct dentry_operations {
 	tricky. The correct way to return for example "Hello" is to put it
 	at the end of the buffer, and returns a pointer to the first char.
 	dynamic_dname() helper function is provided to take care of this.
+
+  d_automount: called when an automount dentry is to be traversed (optional).
+	This should create a new VFS mount record and return the record to the
+	caller.  The caller is supplied with a path parameter giving the
+	automount directory to describe the automount target and the parent
+	VFS mount record to provide inheritable mount parameters.  NULL should
+	be returned if someone else managed to make the automount first.  If
+	the vfsmount creation failed, then an error code should be returned.
+	If -EISDIR is returned, then the directory will be treated as an
+	ordinary directory and returned to pathwalk to continue walking.
+
+	If a vfsmount is returned, the caller will attempt to mount it on the
+	mountpoint and will remove the vfsmount from its expiration list in
+	the case of failure.  The vfsmount should be returned with 2 refs on
+	it to prevent automatic expiration - the caller will clean up the
+	additional ref.
+
+	This function is only used if DCACHE_NEED_AUTOMOUNT is set on the
+	dentry.  This is set by __d_instantiate() if S_AUTOMOUNT is set on the
+	inode being added.
+
+  d_manage: called to allow the filesystem to manage the transition from a
+	dentry (optional).  This allows autofs, for example, to hold up clients
+	waiting to explore behind a 'mountpoint' whilst letting the daemon go
+	past and construct the subtree there.  0 should be returned to let the
+	calling process continue.  -EISDIR can be returned to tell pathwalk to
+	use this directory as an ordinary directory and to ignore anything
+	mounted on it and not to check the automount flag.  Any other error
+	code will abort pathwalk completely.
+
+	If the 'mounting_here' parameter is true, then namespace_sem is being
+	held by the caller and the function should not initiate any mounts or
+	unmounts that it will then wait for.
+
+	If the 'rcu_walk' parameter is true, then the caller is doing a
+	pathwalk in RCU-walk mode.  Sleeping is not permitted in this mode,
+	and the caller can be asked to leave it and call again by returing
+	-ECHILD.
+
+	This function is only used if DCACHE_MANAGE_TRANSIT is set on the
+	dentry being transited from.
 
 Example :
 

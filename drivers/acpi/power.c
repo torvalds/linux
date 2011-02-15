@@ -56,9 +56,6 @@ ACPI_MODULE_NAME("power");
 #define ACPI_POWER_RESOURCE_STATE_ON	0x01
 #define ACPI_POWER_RESOURCE_STATE_UNKNOWN 0xFF
 
-int acpi_power_nocheck;
-module_param_named(power_nocheck, acpi_power_nocheck, bool, 000);
-
 static int acpi_power_add(struct acpi_device *device);
 static int acpi_power_remove(struct acpi_device *device, int type);
 static int acpi_power_resume(struct acpi_device *device);
@@ -148,9 +145,8 @@ static int acpi_power_get_state(acpi_handle handle, int *state)
 
 static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
 {
-	int result = 0, state1;
-	u32 i = 0;
-
+	int cur_state;
+	int i = 0;
 
 	if (!list || !state)
 		return -EINVAL;
@@ -158,25 +154,33 @@ static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
 	/* The state of the list is 'on' IFF all resources are 'on'. */
 
 	for (i = 0; i < list->count; i++) {
-		/*
-		 * The state of the power resource can be obtained by
-		 * using the ACPI handle. In such case it is unnecessary to
-		 * get the Power resource first and then get its state again.
-		 */
-		result = acpi_power_get_state(list->handles[i], &state1);
+		struct acpi_power_resource *resource;
+		acpi_handle handle = list->handles[i];
+		int result;
+
+		result = acpi_power_get_context(handle, &resource);
 		if (result)
 			return result;
 
-		*state = state1;
+		mutex_lock(&resource->resource_lock);
 
-		if (*state != ACPI_POWER_RESOURCE_STATE_ON)
+		result = acpi_power_get_state(handle, &cur_state);
+
+		mutex_unlock(&resource->resource_lock);
+
+		if (result)
+			return result;
+
+		if (cur_state != ACPI_POWER_RESOURCE_STATE_ON)
 			break;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource list is %s\n",
-			  *state ? "on" : "off"));
+			  cur_state ? "on" : "off"));
 
-	return result;
+	*state = cur_state;
+
+	return 0;
 }
 
 static int __acpi_power_on(struct acpi_power_resource *resource)
@@ -222,7 +226,7 @@ static int acpi_power_on(acpi_handle handle)
 	return result;
 }
 
-static int acpi_power_off_device(acpi_handle handle)
+static int acpi_power_off(acpi_handle handle)
 {
 	int result = 0;
 	acpi_status status = AE_OK;
@@ -262,6 +266,35 @@ static int acpi_power_off_device(acpi_handle handle)
 
  unlock:
 	mutex_unlock(&resource->resource_lock);
+
+	return result;
+}
+
+static void __acpi_power_off_list(struct acpi_handle_list *list, int num_res)
+{
+	int i;
+
+	for (i = num_res - 1; i >= 0 ; i--)
+		acpi_power_off(list->handles[i]);
+}
+
+static void acpi_power_off_list(struct acpi_handle_list *list)
+{
+	__acpi_power_off_list(list, list->count);
+}
+
+static int acpi_power_on_list(struct acpi_handle_list *list)
+{
+	int result = 0;
+	int i;
+
+	for (i = 0; i < list->count; i++) {
+		result = acpi_power_on(list->handles[i]);
+		if (result) {
+			__acpi_power_off_list(list, i);
+			break;
+		}
+	}
 
 	return result;
 }
@@ -404,8 +437,7 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 
 	/* Close power resource */
 	for (i = 0; i < dev->wakeup.resources.count; i++) {
-		int ret = acpi_power_off_device(
-				dev->wakeup.resources.handles[i]);
+		int ret = acpi_power_off(dev->wakeup.resources.handles[i]);
 		if (ret) {
 			printk(KERN_ERR PREFIX "Transition power state\n");
 			dev->wakeup.flags.valid = 0;
@@ -423,18 +455,15 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
                              Device Power Management
    -------------------------------------------------------------------------- */
 
-int acpi_power_get_inferred_state(struct acpi_device *device)
+int acpi_power_get_inferred_state(struct acpi_device *device, int *state)
 {
 	int result = 0;
 	struct acpi_handle_list *list = NULL;
 	int list_state = 0;
 	int i = 0;
 
-
-	if (!device)
+	if (!device || !state)
 		return -EINVAL;
-
-	device->power.state = ACPI_STATE_UNKNOWN;
 
 	/*
 	 * We know a device's inferred power state when all the resources
@@ -450,22 +479,26 @@ int acpi_power_get_inferred_state(struct acpi_device *device)
 			return result;
 
 		if (list_state == ACPI_POWER_RESOURCE_STATE_ON) {
-			device->power.state = i;
+			*state = i;
 			return 0;
 		}
 	}
 
-	device->power.state = ACPI_STATE_D3;
-
+	*state = ACPI_STATE_D3;
 	return 0;
+}
+
+int acpi_power_on_resources(struct acpi_device *device, int state)
+{
+	if (!device || state < ACPI_STATE_D0 || state > ACPI_STATE_D3)
+		return -EINVAL;
+
+	return acpi_power_on_list(&device->power.states[state].resources);
 }
 
 int acpi_power_transition(struct acpi_device *device, int state)
 {
-	int result = 0;
-	struct acpi_handle_list *cl = NULL;	/* Current Resources */
-	struct acpi_handle_list *tl = NULL;	/* Target Resources */
-	int i = 0;
+	int result;
 
 	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3))
 		return -EINVAL;
@@ -477,37 +510,20 @@ int acpi_power_transition(struct acpi_device *device, int state)
 	    || (device->power.state > ACPI_STATE_D3))
 		return -ENODEV;
 
-	cl = &device->power.states[device->power.state].resources;
-	tl = &device->power.states[state].resources;
-
 	/* TBD: Resources must be ordered. */
 
 	/*
 	 * First we reference all power resources required in the target list
-	 * (e.g. so the device doesn't lose power while transitioning).
+	 * (e.g. so the device doesn't lose power while transitioning).  Then,
+	 * we dereference all power resources used in the current list.
 	 */
-	for (i = 0; i < tl->count; i++) {
-		result = acpi_power_on(tl->handles[i]);
-		if (result)
-			goto end;
-	}
+	result = acpi_power_on_list(&device->power.states[state].resources);
+	if (!result)
+		acpi_power_off_list(
+			&device->power.states[device->power.state].resources);
 
-	/*
-	 * Then we dereference all power resources used in the current list.
-	 */
-	for (i = 0; i < cl->count; i++) {
-		result = acpi_power_off_device(cl->handles[i]);
-		if (result)
-			goto end;
-	}
-
-     end:
-	if (result)
-		device->power.state = ACPI_STATE_UNKNOWN;
-	else {
-	/* We shouldn't change the state till all above operations succeed */
-		device->power.state = state;
-	}
+	/* We shouldn't change the state unless the above operations succeed. */
+	device->power.state = result ? ACPI_STATE_UNKNOWN : state;
 
 	return result;
 }

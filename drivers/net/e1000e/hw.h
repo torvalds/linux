@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -102,7 +102,7 @@ enum e1e_registers {
 	E1000_RDTR     = 0x02820, /* Rx Delay Timer - RW */
 	E1000_RXDCTL_BASE = 0x02828, /* Rx Descriptor Control - RW */
 #define E1000_RXDCTL(_n)   (E1000_RXDCTL_BASE + (_n << 8))
-	E1000_RADV     = 0x0282C, /* RX Interrupt Absolute Delay Timer - RW */
+	E1000_RADV     = 0x0282C, /* Rx Interrupt Absolute Delay Timer - RW */
 
 /* Convenience macros
  *

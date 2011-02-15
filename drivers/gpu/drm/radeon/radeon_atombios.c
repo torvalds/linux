@@ -387,15 +387,11 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			*line_mux = 0x90;
 	}
 
-	/* mac rv630 */
-	if ((dev->pdev->device == 0x9588) &&
-	    (dev->pdev->subsystem_vendor == 0x106b) &&
-	    (dev->pdev->subsystem_device == 0x00a6)) {
-		if ((supported_device == ATOM_DEVICE_TV1_SUPPORT) &&
-		    (*connector_type == DRM_MODE_CONNECTOR_DVII)) {
-			*connector_type = DRM_MODE_CONNECTOR_9PinDIN;
-			*line_mux = CONNECTOR_7PIN_DIN_ENUM_ID1;
-		}
+	/* mac rv630, rv730, others */
+	if ((supported_device == ATOM_DEVICE_TV1_SUPPORT) &&
+	    (*connector_type == DRM_MODE_CONNECTOR_DVII)) {
+		*connector_type = DRM_MODE_CONNECTOR_9PinDIN;
+		*line_mux = CONNECTOR_7PIN_DIN_ENUM_ID1;
 	}
 
 	/* ASUS HD 3600 XT board lists the DVI port as HDMI */
@@ -1167,16 +1163,6 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 				p1pll->pll_out_min = 64800;
 			else
 				p1pll->pll_out_min = 20000;
-		} else if (p1pll->pll_out_min > 64800) {
-			/* Limiting the pll output range is a good thing generally as
-			 * it limits the number of possible pll combinations for a given
-			 * frequency presumably to the ones that work best on each card.
-			 * However, certain duallink DVI monitors seem to like
-			 * pll combinations that would be limited by this at least on
-			 * pre-DCE 3.0 r6xx hardware.  This might need to be adjusted per
-			 * family.
-			 */
-			p1pll->pll_out_min = 64800;
 		}
 
 		p1pll->pll_in_min =
@@ -1991,6 +1977,9 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 	num_modes = power_info->info.ucNumOfPowerModeEntries;
 	if (num_modes > ATOM_MAX_NUMBEROF_POWER_BLOCK)
 		num_modes = ATOM_MAX_NUMBEROF_POWER_BLOCK;
+	rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state) * num_modes, GFP_KERNEL);
+	if (!rdev->pm.power_state)
+		return state_index;
 	/* last mode is usually default, array is low to high */
 	for (i = 0; i < num_modes; i++) {
 		rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
@@ -2342,6 +2331,10 @@ static int radeon_atombios_parse_power_table_4_5(struct radeon_device *rdev)
 	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
 
 	radeon_atombios_add_pplib_thermal_controller(rdev, &power_info->pplib.sThermalController);
+	rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state) *
+				       power_info->pplib.ucNumStates, GFP_KERNEL);
+	if (!rdev->pm.power_state)
+		return state_index;
 	/* first mode is usually default, followed by low to high */
 	for (i = 0; i < power_info->pplib.ucNumStates; i++) {
 		mode_index = 0;
@@ -2422,6 +2415,10 @@ static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
 	non_clock_info_array = (struct NonClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
 		 power_info->pplib.usNonClockInfoArrayOffset);
+	rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state) *
+				       state_array->ucNumEntries, GFP_KERNEL);
+	if (!rdev->pm.power_state)
+		return state_index;
 	for (i = 0; i < state_array->ucNumEntries; i++) {
 		mode_index = 0;
 		power_state = (union pplib_power_state *)&state_array->states[i];
@@ -2495,19 +2492,22 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 			break;
 		}
 	} else {
-		/* add the default mode */
-		rdev->pm.power_state[state_index].type =
-			POWER_STATE_TYPE_DEFAULT;
-		rdev->pm.power_state[state_index].num_clock_modes = 1;
-		rdev->pm.power_state[state_index].clock_info[0].mclk = rdev->clock.default_mclk;
-		rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
-		rdev->pm.power_state[state_index].default_clock_mode =
-			&rdev->pm.power_state[state_index].clock_info[0];
-		rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
-		rdev->pm.power_state[state_index].pcie_lanes = 16;
-		rdev->pm.default_power_state_index = state_index;
-		rdev->pm.power_state[state_index].flags = 0;
-		state_index++;
+		rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state), GFP_KERNEL);
+		if (rdev->pm.power_state) {
+			/* add the default mode */
+			rdev->pm.power_state[state_index].type =
+				POWER_STATE_TYPE_DEFAULT;
+			rdev->pm.power_state[state_index].num_clock_modes = 1;
+			rdev->pm.power_state[state_index].clock_info[0].mclk = rdev->clock.default_mclk;
+			rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
+			rdev->pm.power_state[state_index].default_clock_mode =
+				&rdev->pm.power_state[state_index].clock_info[0];
+			rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
+			rdev->pm.power_state[state_index].pcie_lanes = 16;
+			rdev->pm.default_power_state_index = state_index;
+			rdev->pm.power_state[state_index].flags = 0;
+			state_index++;
+		}
 	}
 
 	rdev->pm.num_power_states = state_index;
@@ -2623,7 +2623,7 @@ void radeon_atom_initialize_bios_scratch_regs(struct drm_device *dev)
 	bios_2_scratch &= ~ATOM_S2_VRI_BRIGHT_ENABLE;
 
 	/* tell the bios not to handle mode switching */
-	bios_6_scratch |= (ATOM_S6_ACC_BLOCK_DISPLAY_SWITCH | ATOM_S6_ACC_MODE);
+	bios_6_scratch |= ATOM_S6_ACC_BLOCK_DISPLAY_SWITCH;
 
 	if (rdev->family >= CHIP_R600) {
 		WREG32(R600_BIOS_2_SCRATCH, bios_2_scratch);
@@ -2674,10 +2674,13 @@ void radeon_atom_output_lock(struct drm_encoder *encoder, bool lock)
 	else
 		bios_6_scratch = RREG32(RADEON_BIOS_6_SCRATCH);
 
-	if (lock)
+	if (lock) {
 		bios_6_scratch |= ATOM_S6_CRITICAL_STATE;
-	else
+		bios_6_scratch &= ~ATOM_S6_ACC_MODE;
+	} else {
 		bios_6_scratch &= ~ATOM_S6_CRITICAL_STATE;
+		bios_6_scratch |= ATOM_S6_ACC_MODE;
+	}
 
 	if (rdev->family >= CHIP_R600)
 		WREG32(R600_BIOS_6_SCRATCH, bios_6_scratch);

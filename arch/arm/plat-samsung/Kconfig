@@ -95,6 +95,12 @@ config S3C_GPIO_PULL_UPDOWN
 	help
 	  Internal configuration to enable the correct GPIO pull helper
 
+config S3C_GPIO_PULL_S3C2443
+	bool
+	select S3C_GPIO_PULL_UPDOWN
+	help
+	  Internal configuration to enable the correct GPIO pull helper for S3C2443-style GPIO
+
 config S3C_GPIO_PULL_DOWN
 	bool
 	help
@@ -332,5 +338,13 @@ config SAMSUNG_WAKEMASK
 	  Compile support for wakeup-mask controls found on the S3C6400
 	  and above. This code allows a set of interrupt to wakeup-mask
 	  mappings. See <plat/wakeup-mask.h>
+
+comment "Power Domain"
+
+config SAMSUNG_PD
+	bool "Samsung Power Domain"
+	depends on PM_RUNTIME
+	help
+	  Say Y here if you want to control Power Domain by Runtime PM.
 
 endif

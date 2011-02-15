@@ -120,7 +120,7 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 		goto out;
 
 	file = do_filp_open(AT_FDCWD, tmp,
-				O_LARGEFILE | O_RDONLY | FMODE_EXEC, 0,
+				O_LARGEFILE | O_RDONLY | __FMODE_EXEC, 0,
 				MAY_READ | MAY_EXEC | MAY_OPEN);
 	putname(tmp);
 	error = PTR_ERR(file);
@@ -723,7 +723,7 @@ struct file *open_exec(const char *name)
 	int err;
 
 	file = do_filp_open(AT_FDCWD, name,
-				O_LARGEFILE | O_RDONLY | FMODE_EXEC, 0,
+				O_LARGEFILE | O_RDONLY | __FMODE_EXEC, 0,
 				MAY_EXEC | MAY_OPEN);
 	if (IS_ERR(file))
 		goto out;

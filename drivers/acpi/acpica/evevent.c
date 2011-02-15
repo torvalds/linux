@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -217,9 +217,17 @@ u32 acpi_ev_fixed_event_detect(void)
 		     status_bit_mask)
 		    && (fixed_enable & acpi_gbl_fixed_event_info[i].
 			enable_bit_mask)) {
+			/*
+			 * Found an active (signalled) event. Invoke global event
+			 * handler if present.
+			 */
+			acpi_fixed_event_count[i]++;
+			if (acpi_gbl_global_event_handler) {
+				acpi_gbl_global_event_handler
+				    (ACPI_EVENT_TYPE_FIXED, NULL, i,
+				     acpi_gbl_global_event_handler_context);
+			}
 
-			/* Found an active (signalled) event */
-			acpi_os_fixed_event_count(i);
 			int_status |= acpi_ev_fixed_event_dispatch(i);
 		}
 	}

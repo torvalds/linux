@@ -112,7 +112,7 @@ out:
 	return ret;
 }
 
-static void vx855_remove(struct pci_dev *pdev)
+static void __devexit vx855_remove(struct pci_dev *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
 	pci_disable_device(pdev);

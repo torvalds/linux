@@ -199,6 +199,7 @@ static struct usb_serial_driver epic_device = {
 		.name		= "epic",
 	},
 	.description		= "EPiC device",
+	.usb_driver		= &io_driver,
 	.id_table		= Epic_port_id_table,
 	.num_ports		= 1,
 	.open			= edge_open,

@@ -278,6 +278,48 @@ s3c_gpio_pull_t s3c_gpio_getpull_updown(struct s3c_gpio_chip *chip,
 	pup &= 0x3;
 	return (__force s3c_gpio_pull_t)pup;
 }
+
+#ifdef CONFIG_S3C_GPIO_PULL_S3C2443
+int s3c_gpio_setpull_s3c2443(struct s3c_gpio_chip *chip,
+				unsigned int off, s3c_gpio_pull_t pull)
+{
+	switch (pull) {
+	case S3C_GPIO_PULL_NONE:
+		pull = 0x01;
+		break;
+	case S3C_GPIO_PULL_UP:
+		pull = 0x00;
+		break;
+	case S3C_GPIO_PULL_DOWN:
+		pull = 0x02;
+		break;
+	}
+	return s3c_gpio_setpull_updown(chip, off, pull);
+}
+
+s3c_gpio_pull_t s3c_gpio_getpull_s3c2443(struct s3c_gpio_chip *chip,
+					unsigned int off)
+{
+	s3c_gpio_pull_t pull;
+
+	pull = s3c_gpio_getpull_updown(chip, off);
+
+	switch (pull) {
+	case 0x00:
+		pull = S3C_GPIO_PULL_UP;
+		break;
+	case 0x01:
+	case 0x03:
+		pull = S3C_GPIO_PULL_NONE;
+		break;
+	case 0x02:
+		pull = S3C_GPIO_PULL_DOWN;
+		break;
+	}
+
+	return pull;
+}
+#endif
 #endif
 
 #if defined(CONFIG_S3C_GPIO_PULL_UP) || defined(CONFIG_S3C_GPIO_PULL_DOWN)

@@ -533,6 +533,33 @@ completion during sending a panic event.
 Other Pieces
 ------------
 
+Get the detailed info related with the IPMI device
+--------------------------------------------------
+
+Some users need more detailed information about a device, like where
+the address came from or the raw base device for the IPMI interface.
+You can use the IPMI smi_watcher to catch the IPMI interfaces as they
+come or go, and to grab the information, you can use the function
+ipmi_get_smi_info(), which returns the following structure:
+
+struct ipmi_smi_info {
+	enum ipmi_addr_src addr_src;
+	struct device *dev;
+	union {
+		struct {
+			void *acpi_handle;
+		} acpi_info;
+	} addr_info;
+};
+
+Currently special info for only for SI_ACPI address sources is
+returned.  Others may be added as necessary.
+
+Note that the dev pointer is included in the above structure, and
+assuming ipmi_smi_get_info returns success, you must call put_device
+on the dev pointer.
+
+
 Watchdog
 --------
 

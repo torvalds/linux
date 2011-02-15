@@ -520,9 +520,6 @@ struct netdev_queue {
 	 * please use this field instead of dev->trans_start
 	 */
 	unsigned long		trans_start;
-	u64			tx_bytes;
-	u64			tx_packets;
-	u64			tx_dropped;
 } ____cacheline_aligned_in_smp;
 
 static inline int netdev_queue_numa_node_read(const struct netdev_queue *q)
@@ -2265,8 +2262,6 @@ extern void		dev_load(struct net *net, const char *name);
 extern void		dev_mcast_init(void);
 extern struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
 					       struct rtnl_link_stats64 *storage);
-extern void		dev_txq_stats_fold(const struct net_device *dev,
-					   struct rtnl_link_stats64 *stats);
 
 extern int		netdev_max_backlog;
 extern int		netdev_tstamp_prequeue;

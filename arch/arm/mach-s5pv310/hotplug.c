@@ -30,10 +30,10 @@ static inline void cpu_enter_lowpower(void)
 	 * Turn off coherency
 	 */
 	"	mrc	p15, 0, %0, c1, c0, 1\n"
-	"	bic	%0, %0, %2\n"
+	"	bic	%0, %0, #0x20\n"
 	"	mcr	p15, 0, %0, c1, c0, 1\n"
 	"	mrc	p15, 0, %0, c1, c0, 0\n"
-	"	bic	%0, %0, #0x04\n"
+	"	bic	%0, %0, %2\n"
 	"	mcr	p15, 0, %0, c1, c0, 0\n"
 	  : "=&r" (v)
 	  : "r" (0), "Ir" (CR_C)

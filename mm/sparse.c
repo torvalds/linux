@@ -671,10 +671,10 @@ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
 static void free_map_bootmem(struct page *page, unsigned long nr_pages)
 {
 	unsigned long maps_section_nr, removing_section_nr, i;
-	int magic;
+	unsigned long magic;
 
 	for (i = 0; i < nr_pages; i++, page++) {
-		magic = atomic_read(&page->_mapcount);
+		magic = (unsigned long) page->lru.next;
 
 		BUG_ON(magic == NODE_INFO);
 

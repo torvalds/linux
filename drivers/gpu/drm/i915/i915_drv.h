@@ -543,8 +543,11 @@ typedef struct drm_i915_private {
 		/** List of all objects in gtt_space. Used to restore gtt
 		 * mappings on resume */
 		struct list_head gtt_list;
-		/** End of mappable part of GTT */
+
+		/** Usable portion of the GTT for GEM */
+		unsigned long gtt_start;
 		unsigned long gtt_mappable_end;
+		unsigned long gtt_end;
 
 		struct io_mapping *gtt_mapping;
 		int gtt_mtrr;
@@ -954,6 +957,7 @@ extern int i915_max_ioctl;
 extern unsigned int i915_fbpercrtc;
 extern unsigned int i915_powersave;
 extern unsigned int i915_lvds_downclock;
+extern unsigned int i915_panel_use_ssc;
 
 extern int i915_suspend(struct drm_device *dev, pm_message_t state);
 extern int i915_resume(struct drm_device *dev);

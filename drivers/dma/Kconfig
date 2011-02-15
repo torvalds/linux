@@ -200,11 +200,16 @@ config PL330_DMA
 	  platform_data for a dma-pl330 device.
 
 config PCH_DMA
-	tristate "Topcliff (Intel EG20T) PCH DMA support"
+	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR ML7213 IOH DMA support"
 	depends on PCI && X86
 	select DMA_ENGINE
 	help
-	  Enable support for the Topcliff (Intel EG20T) PCH DMA engine.
+	  Enable support for Intel EG20T PCH DMA engine.
+
+	  This driver also can be used for OKI SEMICONDUCTOR ML7213 IOH(Input/
+	  Output Hub) which is for IVI(In-Vehicle Infotainment) use.
+	  ML7213 is companion chip for Intel Atom E6xx series.
+	  ML7213 is completely compatible for Intel EG20T PCH.
 
 config IMX_SDMA
 	tristate "i.MX SDMA support"

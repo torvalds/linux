@@ -38,6 +38,7 @@
 #include <linux/workqueue.h>
 #include <linux/nmi.h>
 #include <linux/acpi.h>
+#include <linux/acpi_io.h>
 #include <linux/efi.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
@@ -302,9 +303,10 @@ void __iomem *__init_refok
 acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
 	struct acpi_ioremap *map, *tmp_map;
-	unsigned long flags, pg_sz;
+	unsigned long flags;
 	void __iomem *virt;
-	phys_addr_t pg_off;
+	acpi_physical_address pg_off;
+	acpi_size pg_sz;
 
 	if (phys > ULONG_MAX) {
 		printk(KERN_ERR PREFIX "Cannot map memory that high\n");
@@ -320,7 +322,7 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 
 	pg_off = round_down(phys, PAGE_SIZE);
 	pg_sz = round_up(phys + size, PAGE_SIZE) - pg_off;
-	virt = ioremap(pg_off, pg_sz);
+	virt = acpi_os_ioremap(pg_off, pg_sz);
 	if (!virt) {
 		kfree(map);
 		return NULL;
@@ -642,7 +644,7 @@ acpi_os_read_memory(acpi_physical_address phys_addr, u32 * value, u32 width)
 	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
 	rcu_read_unlock();
 	if (!virt_addr) {
-		virt_addr = ioremap(phys_addr, size);
+		virt_addr = acpi_os_ioremap(phys_addr, size);
 		unmap = 1;
 	}
 	if (!value)
@@ -678,7 +680,7 @@ acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
 	rcu_read_unlock();
 	if (!virt_addr) {
-		virt_addr = ioremap(phys_addr, size);
+		virt_addr = acpi_os_ioremap(phys_addr, size);
 		unmap = 1;
 	}
 
@@ -1233,8 +1235,7 @@ __setup("acpi_enforce_resources=", acpi_enforce_resources_setup);
 int acpi_check_resource_conflict(const struct resource *res)
 {
 	struct acpi_res_list *res_list_elem;
-	int ioport;
-	int clash = 0;
+	int ioport = 0, clash = 0;
 
 	if (acpi_enforce_resources == ENFORCE_RESOURCES_NO)
 		return 0;
@@ -1264,9 +1265,13 @@ int acpi_check_resource_conflict(const struct resource *res)
 	if (clash) {
 		if (acpi_enforce_resources != ENFORCE_RESOURCES_NO) {
 			printk(KERN_WARNING "ACPI: resource %s %pR"
-			       " conflicts with ACPI region %s %pR\n",
+			       " conflicts with ACPI region %s "
+			       "[%s 0x%zx-0x%zx]\n",
 			       res->name, res, res_list_elem->name,
-			       res_list_elem);
+			       (res_list_elem->resource_type ==
+				ACPI_ADR_SPACE_SYSTEM_IO) ? "io" : "mem",
+			       (size_t) res_list_elem->start,
+			       (size_t) res_list_elem->end);
 			if (acpi_enforce_resources == ENFORCE_RESOURCES_LAX)
 				printk(KERN_NOTICE "ACPI: This conflict may"
 				       " cause random problems and system"

@@ -13,6 +13,7 @@
 
 #define tlb_flush(tlb)	flush_tlb_mm((tlb)->mm)
 
+#include <linux/pagemap.h>
 #include <asm-generic/tlb.h>
 
 #ifdef CONFIG_MMU

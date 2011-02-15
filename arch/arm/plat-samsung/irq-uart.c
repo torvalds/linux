@@ -28,9 +28,9 @@
  * are consecutive when looking up the interrupt in the demux routines.
  */
 
-static inline void __iomem *s3c_irq_uart_base(unsigned int irq)
+static inline void __iomem *s3c_irq_uart_base(struct irq_data *data)
 {
-	struct s3c_uart_irq *uirq = get_irq_chip_data(irq);
+	struct s3c_uart_irq *uirq = irq_data_get_irq_chip_data(data);
 	return uirq->regs;
 }
 
@@ -39,10 +39,10 @@ static inline unsigned int s3c_irq_uart_bit(unsigned int irq)
 	return irq & 3;
 }
 
-static void s3c_irq_uart_mask(unsigned int irq)
+static void s3c_irq_uart_mask(struct irq_data *data)
 {
-	void __iomem *regs = s3c_irq_uart_base(irq);
-	unsigned int bit = s3c_irq_uart_bit(irq);
+	void __iomem *regs = s3c_irq_uart_base(data);
+	unsigned int bit = s3c_irq_uart_bit(data->irq);
 	u32 reg;
 
 	reg = __raw_readl(regs + S3C64XX_UINTM);
@@ -50,10 +50,10 @@ static void s3c_irq_uart_mask(unsigned int irq)
 	__raw_writel(reg, regs + S3C64XX_UINTM);
 }
 
-static void s3c_irq_uart_maskack(unsigned int irq)
+static void s3c_irq_uart_maskack(struct irq_data *data)
 {
-	void __iomem *regs = s3c_irq_uart_base(irq);
-	unsigned int bit = s3c_irq_uart_bit(irq);
+	void __iomem *regs = s3c_irq_uart_base(data);
+	unsigned int bit = s3c_irq_uart_bit(data->irq);
 	u32 reg;
 
 	reg = __raw_readl(regs + S3C64XX_UINTM);
@@ -62,10 +62,10 @@ static void s3c_irq_uart_maskack(unsigned int irq)
 	__raw_writel(1 << bit, regs + S3C64XX_UINTP);
 }
 
-static void s3c_irq_uart_unmask(unsigned int irq)
+static void s3c_irq_uart_unmask(struct irq_data *data)
 {
-	void __iomem *regs = s3c_irq_uart_base(irq);
-	unsigned int bit = s3c_irq_uart_bit(irq);
+	void __iomem *regs = s3c_irq_uart_base(data);
+	unsigned int bit = s3c_irq_uart_bit(data->irq);
 	u32 reg;
 
 	reg = __raw_readl(regs + S3C64XX_UINTM);
@@ -73,17 +73,17 @@ static void s3c_irq_uart_unmask(unsigned int irq)
 	__raw_writel(reg, regs + S3C64XX_UINTM);
 }
 
-static void s3c_irq_uart_ack(unsigned int irq)
+static void s3c_irq_uart_ack(struct irq_data *data)
 {
-	void __iomem *regs = s3c_irq_uart_base(irq);
-	unsigned int bit = s3c_irq_uart_bit(irq);
+	void __iomem *regs = s3c_irq_uart_base(data);
+	unsigned int bit = s3c_irq_uart_bit(data->irq);
 
 	__raw_writel(1 << bit, regs + S3C64XX_UINTP);
 }
 
 static void s3c_irq_demux_uart(unsigned int irq, struct irq_desc *desc)
 {
-	struct s3c_uart_irq *uirq = desc->handler_data;
+	struct s3c_uart_irq *uirq = desc->irq_data.handler_data;
 	u32 pend = __raw_readl(uirq->regs + S3C64XX_UINTP);
 	int base = uirq->base_irq;
 
@@ -99,10 +99,10 @@ static void s3c_irq_demux_uart(unsigned int irq, struct irq_desc *desc)
 
 static struct irq_chip s3c_irq_uart = {
 	.name		= "s3c-uart",
-	.mask		= s3c_irq_uart_mask,
-	.unmask		= s3c_irq_uart_unmask,
-	.mask_ack	= s3c_irq_uart_maskack,
-	.ack		= s3c_irq_uart_ack,
+	.irq_mask	= s3c_irq_uart_mask,
+	.irq_unmask	= s3c_irq_uart_unmask,
+	.irq_mask_ack	= s3c_irq_uart_maskack,
+	.irq_ack	= s3c_irq_uart_ack,
 };
 
 static void __init s3c_init_uart_irq(struct s3c_uart_irq *uirq)
@@ -124,7 +124,7 @@ static void __init s3c_init_uart_irq(struct s3c_uart_irq *uirq)
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
-	desc->handler_data = uirq;
+	desc->irq_data.handler_data = uirq;
 	set_irq_chained_handler(uirq->parent_irq, s3c_irq_demux_uart);
 }
 

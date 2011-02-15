@@ -585,7 +585,7 @@ err:
 	rcu_read_lock_bh();
 	vlan = rcu_dereference(q->vlan);
 	if (vlan)
-		netdev_get_tx_queue(vlan->dev, 0)->tx_dropped++;
+		vlan->dev->stats.tx_dropped++;
 	rcu_read_unlock_bh();
 
 	return err;

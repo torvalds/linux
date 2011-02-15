@@ -75,27 +75,26 @@ static void s3c2443_irq_demux_wdtac97(unsigned int irq, struct irq_desc *desc)
 #define INTMSK_WDTAC97	(1UL << (IRQ_WDT - IRQ_EINT0))
 #define SUBMSK_WDTAC97	INTMSK(IRQ_S3C2443_WDT, IRQ_S3C2443_AC97)
 
-static void s3c2443_irq_wdtac97_mask(unsigned int irqno)
+static void s3c2443_irq_wdtac97_mask(struct irq_data *data)
 {
-	s3c_irqsub_mask(irqno, INTMSK_WDTAC97, SUBMSK_WDTAC97);
+	s3c_irqsub_mask(data->irq, INTMSK_WDTAC97, SUBMSK_WDTAC97);
 }
 
-static void s3c2443_irq_wdtac97_unmask(unsigned int irqno)
+static void s3c2443_irq_wdtac97_unmask(struct irq_data *data)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_WDTAC97);
+	s3c_irqsub_unmask(data->irq, INTMSK_WDTAC97);
 }
 
-static void s3c2443_irq_wdtac97_ack(unsigned int irqno)
+static void s3c2443_irq_wdtac97_ack(struct irq_data *data)
 {
-	s3c_irqsub_maskack(irqno, INTMSK_WDTAC97, SUBMSK_WDTAC97);
+	s3c_irqsub_maskack(data->irq, INTMSK_WDTAC97, SUBMSK_WDTAC97);
 }
 
 static struct irq_chip s3c2443_irq_wdtac97 = {
-	.mask	    = s3c2443_irq_wdtac97_mask,
-	.unmask	    = s3c2443_irq_wdtac97_unmask,
-	.ack	    = s3c2443_irq_wdtac97_ack,
+	.irq_mask	= s3c2443_irq_wdtac97_mask,
+	.irq_unmask	= s3c2443_irq_wdtac97_unmask,
+	.irq_ack	= s3c2443_irq_wdtac97_ack,
 };
-
 
 /* LCD sub interrupts */
 
@@ -107,27 +106,26 @@ static void s3c2443_irq_demux_lcd(unsigned int irq, struct irq_desc *desc)
 #define INTMSK_LCD	(1UL << (IRQ_LCD - IRQ_EINT0))
 #define SUBMSK_LCD	INTMSK(IRQ_S3C2443_LCD1, IRQ_S3C2443_LCD4)
 
-static void s3c2443_irq_lcd_mask(unsigned int irqno)
+static void s3c2443_irq_lcd_mask(struct irq_data *data)
 {
-	s3c_irqsub_mask(irqno, INTMSK_LCD, SUBMSK_LCD);
+	s3c_irqsub_mask(data->irq, INTMSK_LCD, SUBMSK_LCD);
 }
 
-static void s3c2443_irq_lcd_unmask(unsigned int irqno)
+static void s3c2443_irq_lcd_unmask(struct irq_data *data)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_LCD);
+	s3c_irqsub_unmask(data->irq, INTMSK_LCD);
 }
 
-static void s3c2443_irq_lcd_ack(unsigned int irqno)
+static void s3c2443_irq_lcd_ack(struct irq_data *data)
 {
-	s3c_irqsub_maskack(irqno, INTMSK_LCD, SUBMSK_LCD);
+	s3c_irqsub_maskack(data->irq, INTMSK_LCD, SUBMSK_LCD);
 }
 
 static struct irq_chip s3c2443_irq_lcd = {
-	.mask	    = s3c2443_irq_lcd_mask,
-	.unmask	    = s3c2443_irq_lcd_unmask,
-	.ack	    = s3c2443_irq_lcd_ack,
+	.irq_mask	= s3c2443_irq_lcd_mask,
+	.irq_unmask	= s3c2443_irq_lcd_unmask,
+	.irq_ack	= s3c2443_irq_lcd_ack,
 };
-
 
 /* DMA sub interrupts */
 
@@ -139,28 +137,26 @@ static void s3c2443_irq_demux_dma(unsigned int irq, struct irq_desc *desc)
 #define INTMSK_DMA	(1UL << (IRQ_S3C2443_DMA - IRQ_EINT0))
 #define SUBMSK_DMA	INTMSK(IRQ_S3C2443_DMA0, IRQ_S3C2443_DMA5)
 
-
-static void s3c2443_irq_dma_mask(unsigned int irqno)
+static void s3c2443_irq_dma_mask(struct irq_data *data)
 {
-	s3c_irqsub_mask(irqno, INTMSK_DMA, SUBMSK_DMA);
+	s3c_irqsub_mask(data->irq, INTMSK_DMA, SUBMSK_DMA);
 }
 
-static void s3c2443_irq_dma_unmask(unsigned int irqno)
+static void s3c2443_irq_dma_unmask(struct irq_data *data)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_DMA);
+	s3c_irqsub_unmask(data->irq, INTMSK_DMA);
 }
 
-static void s3c2443_irq_dma_ack(unsigned int irqno)
+static void s3c2443_irq_dma_ack(struct irq_data *data)
 {
-	s3c_irqsub_maskack(irqno, INTMSK_DMA, SUBMSK_DMA);
+	s3c_irqsub_maskack(data->irq, INTMSK_DMA, SUBMSK_DMA);
 }
 
 static struct irq_chip s3c2443_irq_dma = {
-	.mask	    = s3c2443_irq_dma_mask,
-	.unmask	    = s3c2443_irq_dma_unmask,
-	.ack	    = s3c2443_irq_dma_ack,
+	.irq_mask	= s3c2443_irq_dma_mask,
+	.irq_unmask	= s3c2443_irq_dma_unmask,
+	.irq_ack	= s3c2443_irq_dma_ack,
 };
-
 
 /* UART3 sub interrupts */
 
@@ -172,27 +168,26 @@ static void s3c2443_irq_demux_uart3(unsigned int irq, struct irq_desc *desc)
 #define INTMSK_UART3	(1UL << (IRQ_S3C2443_UART3 - IRQ_EINT0))
 #define SUBMSK_UART3	(0x7 << (IRQ_S3C2443_RX3 - S3C2410_IRQSUB(0)))
 
-static void s3c2443_irq_uart3_mask(unsigned int irqno)
+static void s3c2443_irq_uart3_mask(struct irq_data *data)
 {
-	s3c_irqsub_mask(irqno, INTMSK_UART3, SUBMSK_UART3);
+	s3c_irqsub_mask(data->irq, INTMSK_UART3, SUBMSK_UART3);
 }
 
-static void s3c2443_irq_uart3_unmask(unsigned int irqno)
+static void s3c2443_irq_uart3_unmask(struct irq_data *data)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_UART3);
+	s3c_irqsub_unmask(data->irq, INTMSK_UART3);
 }
 
-static void s3c2443_irq_uart3_ack(unsigned int irqno)
+static void s3c2443_irq_uart3_ack(struct irq_data *data)
 {
-	s3c_irqsub_maskack(irqno, INTMSK_UART3, SUBMSK_UART3);
+	s3c_irqsub_maskack(data->irq, INTMSK_UART3, SUBMSK_UART3);
 }
 
 static struct irq_chip s3c2443_irq_uart3 = {
-	.mask	    = s3c2443_irq_uart3_mask,
-	.unmask	    = s3c2443_irq_uart3_unmask,
-	.ack	    = s3c2443_irq_uart3_ack,
+	.irq_mask	= s3c2443_irq_uart3_mask,
+	.irq_unmask	= s3c2443_irq_uart3_unmask,
+	.irq_ack	= s3c2443_irq_uart3_ack,
 };
-
 
 /* CAM sub interrupts */
 
@@ -204,25 +199,25 @@ static void s3c2443_irq_demux_cam(unsigned int irq, struct irq_desc *desc)
 #define INTMSK_CAM	(1UL << (IRQ_CAM - IRQ_EINT0))
 #define SUBMSK_CAM	INTMSK(IRQ_S3C2440_CAM_C, IRQ_S3C2440_CAM_P)
 
-static void s3c2443_irq_cam_mask(unsigned int irqno)
+static void s3c2443_irq_cam_mask(struct irq_data *data)
 {
-	s3c_irqsub_mask(irqno, INTMSK_CAM, SUBMSK_CAM);
+	s3c_irqsub_mask(data->irq, INTMSK_CAM, SUBMSK_CAM);
 }
 
-static void s3c2443_irq_cam_unmask(unsigned int irqno)
+static void s3c2443_irq_cam_unmask(struct irq_data *data)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_CAM);
+	s3c_irqsub_unmask(data->irq, INTMSK_CAM);
 }
 
-static void s3c2443_irq_cam_ack(unsigned int irqno)
+static void s3c2443_irq_cam_ack(struct irq_data *data)
 {
-	s3c_irqsub_maskack(irqno, INTMSK_CAM, SUBMSK_CAM);
+	s3c_irqsub_maskack(data->irq, INTMSK_CAM, SUBMSK_CAM);
 }
 
 static struct irq_chip s3c2443_irq_cam = {
-	.mask	    = s3c2443_irq_cam_mask,
-	.unmask	    = s3c2443_irq_cam_unmask,
-	.ack	    = s3c2443_irq_cam_ack,
+	.irq_mask	= s3c2443_irq_cam_mask,
+	.irq_unmask	= s3c2443_irq_cam_unmask,
+	.irq_ack	= s3c2443_irq_cam_ack,
 };
 
 /* IRQ initialisation code */

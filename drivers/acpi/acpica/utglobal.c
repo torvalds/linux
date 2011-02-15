@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -768,7 +768,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_gpe_fadt_blocks[0] = NULL;
 	acpi_gbl_gpe_fadt_blocks[1] = NULL;
 	acpi_current_gpe_count = 0;
-	acpi_all_gpes_initialized = FALSE;
+	acpi_gbl_all_gpes_initialized = FALSE;
 
 	/* Global handlers */
 
@@ -778,6 +778,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_init_handler = NULL;
 	acpi_gbl_table_handler = NULL;
 	acpi_gbl_interface_handler = NULL;
+	acpi_gbl_global_event_handler = NULL;
 
 	/* Global Lock support */
 

@@ -49,7 +49,7 @@ struct timekeeper {
 	u32	mult;
 };
 
-struct timekeeper timekeeper;
+static struct timekeeper timekeeper;
 
 /**
  * timekeeper_setup_internals - Set up internals to use clocksource clock.
@@ -164,7 +164,7 @@ static struct timespec total_sleep_time;
 /*
  * The raw monotonic time for the CLOCK_MONOTONIC_RAW posix clock.
  */
-struct timespec raw_time;
+static struct timespec raw_time;
 
 /* flag for if timekeeping is suspended */
 int __read_mostly timekeeping_suspended;

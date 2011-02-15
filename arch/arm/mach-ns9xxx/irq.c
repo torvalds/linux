@@ -22,40 +22,40 @@
 #define irq2prio(i) (i)
 #define prio2irq(p) (p)
 
-static void ns9xxx_mask_irq(unsigned int irq)
+static void ns9xxx_mask_irq(struct irq_data *d)
 {
 	/* XXX: better use cpp symbols */
-	int prio = irq2prio(irq);
+	int prio = irq2prio(d->irq);
 	u32 ic = __raw_readl(SYS_IC(prio / 4));
 	ic &= ~(1 << (7 + 8 * (3 - (prio & 3))));
 	__raw_writel(ic, SYS_IC(prio / 4));
 }
 
-static void ns9xxx_ack_irq(unsigned int irq)
+static void ns9xxx_ack_irq(struct irq_data *d)
 {
 	__raw_writel(0, SYS_ISRADDR);
 }
 
-static void ns9xxx_maskack_irq(unsigned int irq)
+static void ns9xxx_maskack_irq(struct irq_data *d)
 {
-	ns9xxx_mask_irq(irq);
-	ns9xxx_ack_irq(irq);
+	ns9xxx_mask_irq(d);
+	ns9xxx_ack_irq(d);
 }
 
-static void ns9xxx_unmask_irq(unsigned int irq)
+static void ns9xxx_unmask_irq(struct irq_data *d)
 {
 	/* XXX: better use cpp symbols */
-	int prio = irq2prio(irq);
+	int prio = irq2prio(d->irq);
 	u32 ic = __raw_readl(SYS_IC(prio / 4));
 	ic |= 1 << (7 + 8 * (3 - (prio & 3)));
 	__raw_writel(ic, SYS_IC(prio / 4));
 }
 
 static struct irq_chip ns9xxx_chip = {
-	.ack		= ns9xxx_ack_irq,
-	.mask		= ns9xxx_mask_irq,
-	.mask_ack	= ns9xxx_maskack_irq,
-	.unmask		= ns9xxx_unmask_irq,
+	.irq_ack	= ns9xxx_ack_irq,
+	.irq_mask	= ns9xxx_mask_irq,
+	.irq_mask_ack	= ns9xxx_maskack_irq,
+	.irq_unmask	= ns9xxx_unmask_irq,
 };
 
 #if 0
@@ -92,10 +92,10 @@ static void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
 
 	if (desc->status & IRQ_DISABLED)
 out_mask:
-		desc->chip->mask(irq);
+		desc->irq_data.chip->irq_mask(&desc->irq_data);
 
 	/* ack unconditionally to unmask lower prio irqs */
-	desc->chip->ack(irq);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 	raw_spin_unlock(&desc->lock);
 }

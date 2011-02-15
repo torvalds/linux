@@ -618,7 +618,7 @@ pfm_get_unmapped_area(struct file *file, unsigned long addr, unsigned long len, 
 }
 
 /* forward declaration */
-static static const struct dentry_operations pfmfs_dentry_operations;
+static const struct dentry_operations pfmfs_dentry_operations;
 
 static struct dentry *
 pfmfs_mount(struct file_system_type *fs_type, int flags, const char *dev_name, void *data)

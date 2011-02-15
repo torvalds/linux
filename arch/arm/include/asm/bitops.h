@@ -285,7 +285,7 @@ static inline int fls(int x)
 	if (__builtin_constant_p(x))
 	       return constant_fls(x);
 
-	asm("clz\t%0, %1" : "=r" (ret) : "r" (x) : "cc");
+	asm("clz\t%0, %1" : "=r" (ret) : "r" (x));
        	ret = 32 - ret;
 	return ret;
 }
