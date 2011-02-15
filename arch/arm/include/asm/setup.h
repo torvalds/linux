@@ -199,7 +199,7 @@ static struct tagtable __tagtable_##fn __tag = { tag, fn }
 #endif
 
 struct membank {
-	unsigned long start;
+	phys_addr_t start;
 	unsigned long size;
 	unsigned int highmem;
 };
