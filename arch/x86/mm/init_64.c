@@ -333,12 +333,28 @@ static __ref void *alloc_low_page(unsigned long *phys)
 	return adr;
 }
 
+static __ref void *map_low_page(void *virt)
+{
+	void *adr;
+	unsigned long phys, left;
+
+	if (after_bootmem)
+		return virt;
+
+	phys = __pa(virt);
+	left = phys & (PAGE_SIZE - 1);
+	adr = early_memremap(phys & PAGE_MASK, PAGE_SIZE);
+	adr = (void *)(((unsigned long)adr) | left);
+
+	return adr;
+}
+
 static __ref void unmap_low_page(void *adr)
 {
 	if (after_bootmem)
 		return;
 
-	early_iounmap(adr, PAGE_SIZE);
+	early_iounmap((void *)((unsigned long)adr & PAGE_MASK), PAGE_SIZE);
 }
 
 static unsigned long __meminit
@@ -386,15 +402,6 @@ phys_pte_init(pte_t *pte_page, unsigned long addr, unsigned long end,
 }
 
 static unsigned long __meminit
-phys_pte_update(pmd_t *pmd, unsigned long address, unsigned long end,
-		pgprot_t prot)
-{
-	pte_t *pte = (pte_t *)pmd_page_vaddr(*pmd);
-
-	return phys_pte_init(pte, address, end, prot);
-}
-
-static unsigned long __meminit
 phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 	      unsigned long page_size_mask, pgprot_t prot)
 {
@@ -420,8 +427,10 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 		if (pmd_val(*pmd)) {
 			if (!pmd_large(*pmd)) {
 				spin_lock(&init_mm.page_table_lock);
-				last_map_addr = phys_pte_update(pmd, address,
+				pte = map_low_page((pte_t *)pmd_page_vaddr(*pmd));
+				last_map_addr = phys_pte_init(pte, address,
 								end, prot);
+				unmap_low_page(pte);
 				spin_unlock(&init_mm.page_table_lock);
 				continue;
 			}
@@ -468,18 +477,6 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 }
 
 static unsigned long __meminit
-phys_pmd_update(pud_t *pud, unsigned long address, unsigned long end,
-		unsigned long page_size_mask, pgprot_t prot)
-{
-	pmd_t *pmd = pmd_offset(pud, 0);
-	unsigned long last_map_addr;
-
-	last_map_addr = phys_pmd_init(pmd, address, end, page_size_mask, prot);
-	__flush_tlb_all();
-	return last_map_addr;
-}
-
-static unsigned long __meminit
 phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 			 unsigned long page_size_mask)
 {
@@ -504,8 +501,11 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 
 		if (pud_val(*pud)) {
 			if (!pud_large(*pud)) {
-				last_map_addr = phys_pmd_update(pud, addr, end,
+				pmd = map_low_page(pmd_offset(pud, 0));
+				last_map_addr = phys_pmd_init(pmd, addr, end,
 							 page_size_mask, prot);
+				unmap_low_page(pmd);
+				__flush_tlb_all();
 				continue;
 			}
 			/*
@@ -553,17 +553,6 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 	return last_map_addr;
 }
 
-static unsigned long __meminit
-phys_pud_update(pgd_t *pgd, unsigned long addr, unsigned long end,
-		 unsigned long page_size_mask)
-{
-	pud_t *pud;
-
-	pud = (pud_t *)pgd_page_vaddr(*pgd);
-
-	return phys_pud_init(pud, addr, end, page_size_mask);
-}
-
 unsigned long __meminit
 kernel_physical_mapping_init(unsigned long start,
 			     unsigned long end,
@@ -587,8 +576,10 @@ kernel_physical_mapping_init(unsigned long start,
 			next = end;
 
 		if (pgd_val(*pgd)) {
-			last_map_addr = phys_pud_update(pgd, __pa(start),
+			pud = map_low_page((pud_t *)pgd_page_vaddr(*pgd));
+			last_map_addr = phys_pud_init(pud, __pa(start),
 						 __pa(end), page_size_mask);
+			unmap_low_page(pud);
 			continue;
 		}
 
@@ -616,8 +607,62 @@ void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn,
 				int acpi, int k8)
 {
 	memblock_x86_register_active_regions(0, start_pfn, end_pfn);
+	init_memory_mapping_high();
 }
 #endif
+
+struct mapping_work_data {
+	unsigned long start;
+	unsigned long end;
+	unsigned long pfn_mapped;
+};
+
+static int __init_refok
+mapping_work_fn(unsigned long start_pfn, unsigned long end_pfn, void *datax)
+{
+	struct mapping_work_data *data = datax;
+	unsigned long pfn_mapped;
+	unsigned long final_start, final_end;
+
+	final_start = max_t(unsigned long, start_pfn<<PAGE_SHIFT, data->start);
+	final_end = min_t(unsigned long, end_pfn<<PAGE_SHIFT, data->end);
+
+	if (final_end <= final_start)
+		return 0;
+
+	pfn_mapped = init_memory_mapping(final_start, final_end);
+
+	if (pfn_mapped > data->pfn_mapped)
+		data->pfn_mapped = pfn_mapped;
+
+	return 0;
+}
+
+static unsigned long __init_refok
+init_memory_mapping_active_regions(unsigned long start, unsigned long end)
+{
+	struct mapping_work_data data;
+
+	data.start = start;
+	data.end = end;
+	data.pfn_mapped = 0;
+
+	work_with_active_regions(MAX_NUMNODES, mapping_work_fn, &data);
+
+	return data.pfn_mapped;
+}
+
+void __init_refok init_memory_mapping_high(void)
+{
+	if (max_pfn > max_low_pfn) {
+		max_pfn_mapped = init_memory_mapping_active_regions(1UL<<32,
+							 max_pfn<<PAGE_SHIFT);
+		/* can we preserve max_low_pfn ? */
+		max_low_pfn = max_pfn;
+
+		memblock.current_limit = get_max_mapped();
+	}
+}
 
 void __init paging_init(void)
 {

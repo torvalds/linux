@@ -278,12 +278,14 @@ int __init amd_scan_nodes(void)
 		apicid_base = boot_cpu_physical_apicid;
 	}
 
-	for_each_node_mask(i, node_possible_map) {
-		int j;
-
+	for_each_node_mask(i, node_possible_map)
 		memblock_x86_register_active_regions(i,
 				nodes[i].start >> PAGE_SHIFT,
 				nodes[i].end >> PAGE_SHIFT);
+	init_memory_mapping_high();
+	for_each_node_mask(i, node_possible_map) {
+		int j;
+
 		for (j = apicid_base; j < cores + apicid_base; j++)
 			apicid_to_node[(i << bits) + j] = i;
 		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
