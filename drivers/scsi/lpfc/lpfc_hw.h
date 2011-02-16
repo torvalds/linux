@@ -341,6 +341,12 @@ struct csp {
 	uint8_t bbCreditMsb;
 	uint8_t bbCreditlsb;	/* FC Word 0, byte 3 */
 
+/*
+ * Word 1 Bit 31 in common service parameter is overloaded.
+ * Word 1 Bit 31 in FLOGI request is multiple NPort request
+ * Word 1 Bit 31 in FLOGI response is clean address bit
+ */
+#define clean_address_bit request_multiple_Nport /* Word 1, bit 31 */
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint16_t request_multiple_Nport:1;	/* FC Word 1, bit 31 */
 	uint16_t randomOffset:1;	/* FC Word 1, bit 30 */

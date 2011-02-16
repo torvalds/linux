@@ -325,6 +325,7 @@ struct lpfc_vport {
 #define FC_VPORT_CVL_RCVD	0x400000 /* VLink failed due to CVL	 */
 #define FC_VFI_REGISTERED	0x800000 /* VFI is registered */
 #define FC_FDISC_COMPLETED	0x1000000/* FDISC completed */
+#define FC_DISC_DELAYED		0x2000000/* Delay NPort discovery */
 
 	uint32_t ct_flags;
 #define FC_CT_RFF_ID		0x1	 /* RFF_ID accepted by switch */
@@ -348,6 +349,8 @@ struct lpfc_vport {
 
 	uint32_t fc_myDID;	/* fibre channel S_ID */
 	uint32_t fc_prevDID;	/* previous fibre channel S_ID */
+	struct lpfc_name fabric_portname;
+	struct lpfc_name fabric_nodename;
 
 	int32_t stopped;   /* HBA has not been restarted since last ERATT */
 	uint8_t fc_linkspeed;	/* Link speed after last READ_LA */
@@ -372,6 +375,7 @@ struct lpfc_vport {
 #define WORKER_DISC_TMO                0x1	/* vport: Discovery timeout */
 #define WORKER_ELS_TMO                 0x2	/* vport: ELS timeout */
 #define WORKER_FDMI_TMO                0x4	/* vport: FDMI timeout */
+#define WORKER_DELAYED_DISC_TMO        0x8	/* vport: delayed discovery */
 
 #define WORKER_MBOX_TMO                0x100	/* hba: MBOX timeout */
 #define WORKER_HB_TMO                  0x200	/* hba: Heart beat timeout */
@@ -382,6 +386,7 @@ struct lpfc_vport {
 
 	struct timer_list fc_fdmitmo;
 	struct timer_list els_tmofunc;
+	struct timer_list delayed_disc_tmo;
 
 	int unreg_vpi_cmpl;
 

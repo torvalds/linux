@@ -658,6 +658,8 @@ lpfc_work_done(struct lpfc_hba *phba)
 				lpfc_ramp_down_queue_handler(phba);
 			if (work_port_events & WORKER_RAMP_UP_QUEUE)
 				lpfc_ramp_up_queue_handler(phba);
+			if (work_port_events & WORKER_DELAYED_DISC_TMO)
+				lpfc_delayed_disc_timeout_handler(vport);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
@@ -838,6 +840,11 @@ lpfc_linkdown_port(struct lpfc_vport *vport)
 
 	lpfc_port_link_failure(vport);
 
+	/* Stop delayed Nport discovery */
+	spin_lock_irq(shost->host_lock);
+	vport->fc_flag &= ~FC_DISC_DELAYED;
+	spin_unlock_irq(shost->host_lock);
+	del_timer_sync(&vport->delayed_disc_tmo);
 }
 
 int

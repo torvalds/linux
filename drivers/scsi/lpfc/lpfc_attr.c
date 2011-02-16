@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -3365,6 +3365,25 @@ unsigned char lpfc_prot_guard = SHOST_DIX_GUARD_IP;
 module_param(lpfc_prot_guard, byte, 0);
 MODULE_PARM_DESC(lpfc_prot_guard, "host protection guard type");
 
+/*
+ * Delay initial NPort discovery when Clean Address bit is cleared in
+ * FLOGI/FDISC accept and FCID/Fabric name/Fabric portname is changed.
+ * This parameter can have value 0 or 1.
+ * When this parameter is set to 0, no delay is added to the initial
+ * discovery.
+ * When this parameter is set to non-zero value, initial Nport discovery is
+ * delayed by ra_tov seconds when Clean Address bit is cleared in FLOGI/FDISC
+ * accept and FCID/Fabric name/Fabric portname is changed.
+ * Driver always delay Nport discovery for subsequent FLOGI/FDISC completion
+ * when Clean Address bit is cleared in FLOGI/FDISC
+ * accept and FCID/Fabric name/Fabric portname is changed.
+ * Default value is 0.
+ */
+int lpfc_delay_discovery;
+module_param(lpfc_delay_discovery, int, 0);
+MODULE_PARM_DESC(lpfc_delay_discovery,
+	"Delay NPort discovery when Clean Address bit is cleared. "
+	"Allowed values: 0,1.");
 
 /*
  * lpfc_sg_seg_cnt - Initial Maximum DMA Segment Count

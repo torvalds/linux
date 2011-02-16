@@ -2292,6 +2292,7 @@ lpfc_stop_vport_timers(struct lpfc_vport *vport)
 {
 	del_timer_sync(&vport->els_tmofunc);
 	del_timer_sync(&vport->fc_fdmitmo);
+	del_timer_sync(&vport->delayed_disc_tmo);
 	lpfc_can_disctmo(vport);
 	return;
 }
@@ -2733,6 +2734,11 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	init_timer(&vport->els_tmofunc);
 	vport->els_tmofunc.function = lpfc_els_timeout;
 	vport->els_tmofunc.data = (unsigned long)vport;
+
+	init_timer(&vport->delayed_disc_tmo);
+	vport->delayed_disc_tmo.function = lpfc_delayed_disc_tmo;
+	vport->delayed_disc_tmo.data = (unsigned long)vport;
+
 	error = scsi_add_host_with_dma(shost, dev, &phba->pcidev->dev);
 	if (error)
 		goto out_put_shost;
