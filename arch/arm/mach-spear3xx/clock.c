@@ -39,10 +39,25 @@ static struct clk rtc_clk = {
 };
 
 /* clock derived from 24 MHz osc clk */
+/* pll masks structure */
+static struct pll_clk_masks pll1_masks = {
+	.mode_mask = PLL_MODE_MASK,
+	.mode_shift = PLL_MODE_SHIFT,
+	.norm_fdbk_m_mask = PLL_NORM_FDBK_M_MASK,
+	.norm_fdbk_m_shift = PLL_NORM_FDBK_M_SHIFT,
+	.dith_fdbk_m_mask = PLL_DITH_FDBK_M_MASK,
+	.dith_fdbk_m_shift = PLL_DITH_FDBK_M_SHIFT,
+	.div_p_mask = PLL_DIV_P_MASK,
+	.div_p_shift = PLL_DIV_P_SHIFT,
+	.div_n_mask = PLL_DIV_N_MASK,
+	.div_n_shift = PLL_DIV_N_SHIFT,
+};
+
 /* pll1 configuration structure */
 static struct pll_clk_config pll1_config = {
 	.mode_reg = PLL1_CTR,
 	.cfg_reg = PLL1_FRQ,
+	.masks = &pll1_masks,
 };
 
 /* PLL1 clock */
@@ -50,7 +65,7 @@ static struct clk pll1_clk = {
 	.pclk = &osc_24m_clk,
 	.en_reg = PLL1_CTR,
 	.en_reg_bit = PLL_ENABLE,
-	.recalc = &pll1_clk_recalc,
+	.recalc = &pll_clk_recalc,
 	.private_data = &pll1_config,
 };
 
@@ -76,11 +91,16 @@ static struct clk cpu_clk = {
 	.recalc = &follow_parent,
 };
 
+/* ahb masks structure */
+static struct bus_clk_masks ahb_masks = {
+	.mask = PLL_HCLK_RATIO_MASK,
+	.shift = PLL_HCLK_RATIO_SHIFT,
+};
+
 /* ahb configuration structure */
 static struct bus_clk_config ahb_config = {
 	.reg = CORE_CLK_CFG,
-	.mask = PLL_HCLK_RATIO_MASK,
-	.shift = PLL_HCLK_RATIO_SHIFT,
+	.masks = &ahb_masks,
 };
 
 /* ahb clock */
@@ -91,9 +111,22 @@ static struct clk ahb_clk = {
 	.private_data = &ahb_config,
 };
 
+/* auxiliary synthesizers masks */
+static struct aux_clk_masks aux_masks = {
+	.eq_sel_mask = AUX_EQ_SEL_MASK,
+	.eq_sel_shift = AUX_EQ_SEL_SHIFT,
+	.eq1_mask = AUX_EQ1_SEL,
+	.eq2_mask = AUX_EQ2_SEL,
+	.xscale_sel_mask = AUX_XSCALE_MASK,
+	.xscale_sel_shift = AUX_XSCALE_SHIFT,
+	.yscale_sel_mask = AUX_YSCALE_MASK,
+	.yscale_sel_shift = AUX_YSCALE_SHIFT,
+};
+
 /* uart configurations */
 static struct aux_clk_config uart_config = {
 	.synth_reg = UART_CLK_SYNT,
+	.masks = &aux_masks,
 };
 
 /* uart parents */
@@ -130,6 +163,7 @@ static struct clk uart_clk = {
 /* firda configurations */
 static struct aux_clk_config firda_config = {
 	.synth_reg = FIRDA_CLK_SYNT,
+	.masks = &aux_masks,
 };
 
 /* firda parents */
@@ -184,9 +218,18 @@ static struct pclk_sel gpt_pclk_sel = {
 	.pclk_sel_mask = GPT_CLK_MASK,
 };
 
+/* gpt synthesizer masks */
+static struct gpt_clk_masks gpt_masks = {
+	.mscale_sel_mask = GPT_MSCALE_MASK,
+	.mscale_sel_shift = GPT_MSCALE_SHIFT,
+	.nscale_sel_mask = GPT_NSCALE_MASK,
+	.nscale_sel_shift = GPT_NSCALE_SHIFT,
+};
+
 /* gpt0 configurations */
-static struct aux_clk_config gpt0_config = {
+static struct gpt_clk_config gpt0_config = {
 	.synth_reg = PRSC1_CLK_CFG,
+	.masks = &gpt_masks,
 };
 
 /* gpt0 timer clock */
@@ -199,8 +242,9 @@ static struct clk gpt0_clk = {
 };
 
 /* gpt1 configurations */
-static struct aux_clk_config gpt1_config = {
+static struct gpt_clk_config gpt1_config = {
 	.synth_reg = PRSC2_CLK_CFG,
+	.masks = &gpt_masks,
 };
 
 /* gpt1 timer clock */
@@ -214,8 +258,9 @@ static struct clk gpt1_clk = {
 };
 
 /* gpt2 configurations */
-static struct aux_clk_config gpt2_config = {
+static struct gpt_clk_config gpt2_config = {
 	.synth_reg = PRSC3_CLK_CFG,
+	.masks = &gpt_masks,
 };
 
 /* gpt2 timer clock */
@@ -253,11 +298,16 @@ static struct clk clcd_clk = {
 };
 
 /* clock derived from ahb clk */
+/* apb masks structure */
+static struct bus_clk_masks apb_masks = {
+	.mask = HCLK_PCLK_RATIO_MASK,
+	.shift = HCLK_PCLK_RATIO_SHIFT,
+};
+
 /* apb configuration structure */
 static struct bus_clk_config apb_config = {
 	.reg = CORE_CLK_CFG,
-	.mask = HCLK_PCLK_RATIO_MASK,
-	.shift = HCLK_PCLK_RATIO_SHIFT,
+	.masks = &apb_masks,
 };
 
 /* apb clock */

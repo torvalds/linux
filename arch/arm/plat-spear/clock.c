@@ -17,7 +17,6 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
-#include <mach/misc_regs.h>
 #include <plat/clock.h>
 
 static DEFINE_SPINLOCK(clocks_lock);
@@ -187,6 +186,20 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 }
 EXPORT_SYMBOL(clk_set_parent);
 
+/**
+ * clk_set_rate - set the clock rate for a clock source
+ * @clk: clock source
+ * @rate: desired clock rate in Hz
+ *
+ * Returns success (0) or negative errno.
+ */
+int clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	/* TODO */
+	return -EINVAL;
+}
+EXPORT_SYMBOL(clk_set_rate);
+
 /* registers clock in platform clock framework */
 void clk_register(struct clk_lookup *cl)
 {
@@ -212,6 +225,7 @@ void clk_register(struct clk_lookup *cl)
 		list_add(&clk->sibling, &clk->pclk->children);
 	} else {
 		/* add clocks with > 1 parent to 1st parent's children list */
+		clk->pclk = clk->pclk_sel->pclk_info[0].pclk;
 		list_add(&clk->sibling,
 			 &clk->pclk_sel->pclk_info[0].pclk->children);
 	}
@@ -283,29 +297,31 @@ static void change_parent(struct clk *cclk, struct clk *pclk)
  * In Dithered mode
  * rate = (2 * M[15:0] * Fin)/(256 * N * 2^P)
  */
-void pll1_clk_recalc(struct clk *clk)
+void pll_clk_recalc(struct clk *clk)
 {
 	struct pll_clk_config *config = clk->private_data;
 	unsigned int num = 2, den = 0, val, mode = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&clocks_lock, flags);
-	mode = (readl(config->mode_reg) >> PLL_MODE_SHIFT) &
-		PLL_MODE_MASK;
+	mode = (readl(config->mode_reg) >> config->masks->mode_shift) &
+		config->masks->mode_mask;
 
 	val = readl(config->cfg_reg);
 	/* calculate denominator */
-	den = (val >> PLL_DIV_P_SHIFT) & PLL_DIV_P_MASK;
+	den = (val >> config->masks->div_p_shift) & config->masks->div_p_mask;
 	den = 1 << den;
-	den *= (val >> PLL_DIV_N_SHIFT) & PLL_DIV_N_MASK;
+	den *= (val >> config->masks->div_n_shift) & config->masks->div_n_mask;
 
 	/* calculate numerator & denominator */
 	if (!mode) {
 		/* Normal mode */
-		num *= (val >> PLL_NORM_FDBK_M_SHIFT) & PLL_NORM_FDBK_M_MASK;
+		num *= (val >> config->masks->norm_fdbk_m_shift) &
+			config->masks->norm_fdbk_m_mask;
 	} else {
 		/* Dithered mode */
-		num *= (val >> PLL_DITH_FDBK_M_SHIFT) & PLL_DITH_FDBK_M_MASK;
+		num *= (val >> config->masks->dith_fdbk_m_shift) &
+			config->masks->dith_fdbk_m_mask;
 		den *= 256;
 	}
 
@@ -321,7 +337,8 @@ void bus_clk_recalc(struct clk *clk)
 	unsigned long flags;
 
 	spin_lock_irqsave(&clocks_lock, flags);
-	div = ((readl(config->reg) >> config->shift) & config->mask) + 1;
+	div = ((readl(config->reg) >> config->masks->shift) &
+			config->masks->mask) + 1;
 	clk->rate = (unsigned long)clk->pclk->rate / div;
 	spin_unlock_irqrestore(&clocks_lock, flags);
 }
@@ -359,15 +376,18 @@ void aux_clk_recalc(struct clk *clk)
 	if (pclk_info->scalable) {
 		val = readl(config->synth_reg);
 
-		eqn = (val >> AUX_EQ_SEL_SHIFT) & AUX_EQ_SEL_MASK;
-		if (eqn == AUX_EQ1_SEL)
+		eqn = (val >> config->masks->eq_sel_shift) &
+			config->masks->eq_sel_mask;
+		if (eqn == config->masks->eq1_mask)
 			den *= 2;
 
 		/* calculate numerator */
-		num = (val >> AUX_XSCALE_SHIFT) & AUX_XSCALE_MASK;
+		num = (val >> config->masks->xscale_sel_shift) &
+			config->masks->xscale_sel_mask;
 
 		/* calculate denominator */
-		den *= (val >> AUX_YSCALE_SHIFT) & AUX_YSCALE_MASK;
+		den *= (val >> config->masks->yscale_sel_shift) &
+			config->masks->yscale_sel_mask;
 		val = (((clk->pclk->rate/10000) * num) / den) * 10000;
 	} else
 		val = clk->pclk->rate;
@@ -383,7 +403,7 @@ void aux_clk_recalc(struct clk *clk)
  */
 void gpt_clk_recalc(struct clk *clk)
 {
-	struct aux_clk_config *config = clk->private_data;
+	struct gpt_clk_config *config = clk->private_data;
 	struct pclk_info *pclk_info = NULL;
 	unsigned int div = 1, val;
 	unsigned long flags;
@@ -402,8 +422,10 @@ void gpt_clk_recalc(struct clk *clk)
 	spin_lock_irqsave(&clocks_lock, flags);
 	if (pclk_info->scalable) {
 		val = readl(config->synth_reg);
-		div += (val >> GPT_MSCALE_SHIFT) & GPT_MSCALE_MASK;
-		div *= 1 << (((val >> GPT_NSCALE_SHIFT) & GPT_NSCALE_MASK) + 1);
+		div += (val >> config->masks->mscale_sel_shift) &
+			config->masks->mscale_sel_mask;
+		div *= 1 << (((val >> config->masks->nscale_sel_shift) &
+					config->masks->nscale_sel_mask) + 1);
 	}
 
 	clk->rate = (unsigned long)clk->pclk->rate / div;
@@ -411,15 +433,16 @@ void gpt_clk_recalc(struct clk *clk)
 }
 
 /*
- * Used for clocks that always have same value as the parent clock divided by a
+ * Used for clocks that always have value as the parent clock divided by a
  * fixed divisor
  */
 void follow_parent(struct clk *clk)
 {
 	unsigned long flags;
+	unsigned int div_factor = (clk->div_factor < 1) ? 1 : clk->div_factor;
 
 	spin_lock_irqsave(&clocks_lock, flags);
-	clk->rate = clk->pclk->rate;
+	clk->rate = clk->pclk->rate/div_factor;
 	spin_unlock_irqrestore(&clocks_lock, flags);
 }
 
