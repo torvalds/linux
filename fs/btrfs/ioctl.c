@@ -203,7 +203,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 
 
 	trans = btrfs_join_transaction(root, 1);
-	BUG_ON(!trans);
+	BUG_ON(IS_ERR(trans));
 
 	ret = btrfs_update_inode(trans, root, inode);
 	BUG_ON(ret);
@@ -907,6 +907,10 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 
 	if (new_size > old_size) {
 		trans = btrfs_start_transaction(root, 0);
+		if (IS_ERR(trans)) {
+			ret = PTR_ERR(trans);
+			goto out_unlock;
+		}
 		ret = btrfs_grow_device(trans, device, new_size);
 		btrfs_commit_transaction(trans, root);
 	} else {
@@ -1898,7 +1902,10 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 			memcpy(&new_key, &key, sizeof(new_key));
 			new_key.objectid = inode->i_ino;
-			new_key.offset = key.offset + destoff - off;
+			if (off <= key.offset)
+				new_key.offset = key.offset + destoff - off;
+			else
+				new_key.offset = destoff;
 
 			trans = btrfs_start_transaction(root, 1);
 			if (IS_ERR(trans)) {
@@ -2082,7 +2089,7 @@ static long btrfs_ioctl_trans_start(struct file *file)
 
 	ret = -ENOMEM;
 	trans = btrfs_start_ioctl_transaction(root, 0);
-	if (!trans)
+	if (IS_ERR(trans))
 		goto out_drop;
 
 	file->private_data = trans;
@@ -2138,9 +2145,9 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	path->leave_spinning = 1;
 
 	trans = btrfs_start_transaction(root, 1);
-	if (!trans) {
+	if (IS_ERR(trans)) {
 		btrfs_free_path(path);
-		return -ENOMEM;
+		return PTR_ERR(trans);
 	}
 
 	dir_id = btrfs_super_root_dir(&root->fs_info->super_copy);
@@ -2201,7 +2208,7 @@ long btrfs_ioctl_space_info(struct btrfs_root *root, void __user *arg)
 	int num_types = 4;
 	int alloc_size;
 	int ret = 0;
-	int slot_count = 0;
+	u64 slot_count = 0;
 	int i, c;
 
 	if (copy_from_user(&space_args,
@@ -2240,7 +2247,7 @@ long btrfs_ioctl_space_info(struct btrfs_root *root, void __user *arg)
 		goto out;
 	}
 
-	slot_count = min_t(int, space_args.space_slots, slot_count);
+	slot_count = min_t(u64, space_args.space_slots, slot_count);
 
 	alloc_size = sizeof(*dest) * slot_count;
 
@@ -2259,6 +2266,9 @@ long btrfs_ioctl_space_info(struct btrfs_root *root, void __user *arg)
 	/* now we have a buffer to copy into */
 	for (i = 0; i < num_types; i++) {
 		struct btrfs_space_info *tmp;
+
+		if (!slot_count)
+			break;
 
 		info = NULL;
 		rcu_read_lock();
@@ -2281,7 +2291,10 @@ long btrfs_ioctl_space_info(struct btrfs_root *root, void __user *arg)
 				memcpy(dest, &space, sizeof(space));
 				dest++;
 				space_args.total_spaces++;
+				slot_count--;
 			}
+			if (!slot_count)
+				break;
 		}
 		up_read(&info->groups_sem);
 	}
@@ -2334,6 +2347,8 @@ static noinline long btrfs_ioctl_start_sync(struct file *file, void __user *argp
 	u64 transid;
 
 	trans = btrfs_start_transaction(root, 0);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 	transid = trans->transid;
 	btrfs_commit_transaction_async(trans, root, 0);
 

@@ -1250,7 +1250,7 @@ void drm_handle_vblank_events(struct drm_device *dev, int crtc)
  * Drivers should call this routine in their vblank interrupt handlers to
  * update the vblank counter and send any signals that may be pending.
  */
-void drm_handle_vblank(struct drm_device *dev, int crtc)
+bool drm_handle_vblank(struct drm_device *dev, int crtc)
 {
 	u32 vblcount;
 	s64 diff_ns;
@@ -1258,7 +1258,7 @@ void drm_handle_vblank(struct drm_device *dev, int crtc)
 	unsigned long irqflags;
 
 	if (!dev->num_crtcs)
-		return;
+		return false;
 
 	/* Need timestamp lock to prevent concurrent execution with
 	 * vblank enable/disable, as this would cause inconsistent
@@ -1269,7 +1269,7 @@ void drm_handle_vblank(struct drm_device *dev, int crtc)
 	/* Vblank irq handling disabled. Nothing to do. */
 	if (!dev->vblank_enabled[crtc]) {
 		spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
-		return;
+		return false;
 	}
 
 	/* Fetch corresponding timestamp for this vblank interval from
@@ -1311,5 +1311,6 @@ void drm_handle_vblank(struct drm_device *dev, int crtc)
 	drm_handle_vblank_events(dev, crtc);
 
 	spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
+	return true;
 }
 EXPORT_SYMBOL(drm_handle_vblank);

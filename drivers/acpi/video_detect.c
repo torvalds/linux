@@ -82,6 +82,11 @@ long acpi_is_video_device(struct acpi_device *device)
 	if (!device)
 		return 0;
 
+	/* Is this device able to support video switching ? */
+	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_DOD", &h_dummy)) ||
+	    ACPI_SUCCESS(acpi_get_handle(device->handle, "_DOS", &h_dummy)))
+		video_caps |= ACPI_VIDEO_OUTPUT_SWITCHING;
+
 	/* Is this device able to retrieve a video ROM ? */
 	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_ROM", &h_dummy)))
 		video_caps |= ACPI_VIDEO_ROM_AVAILABLE;

@@ -564,7 +564,7 @@ static void carl9170_ps_beacon(struct ar9170 *ar, void *data, unsigned int len)
 	cam = ieee80211_check_tim(tim_ie, tim_len, ar->common.curaid);
 
 	/* 2. Maybe the AP wants to send multicast/broadcast data? */
-	cam = !!(tim_ie->bitmap_ctrl & 0x01);
+	cam |= !!(tim_ie->bitmap_ctrl & 0x01);
 
 	if (!cam) {
 		/* back to low-power land. */

@@ -404,6 +404,7 @@ static int bfin_musb_init(struct musb *musb)
 		musb->xceiv->set_power = bfin_musb_set_power;
 
 	musb->isr = blackfin_interrupt;
+	musb->double_buffer_not_ok = true;
 
 	return 0;
 }

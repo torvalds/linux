@@ -51,6 +51,10 @@ MODULE_LICENSE("GPL");
 #define W8001_PKTLEN_TPCCTL	11	/* control packet */
 #define W8001_PKTLEN_TOUCH2FG	13
 
+/* resolution in points/mm */
+#define W8001_PEN_RESOLUTION    100
+#define W8001_TOUCH_RESOLUTION  10
+
 struct w8001_coord {
 	u8 rdy;
 	u8 tsw;
@@ -198,7 +202,7 @@ static void parse_touchquery(u8 *data, struct w8001_touch_query *query)
 		query->y = 1024;
 		if (query->panel_res)
 			query->x = query->y = (1 << query->panel_res);
-		query->panel_res = 10;
+		query->panel_res = W8001_TOUCH_RESOLUTION;
 	}
 }
 
@@ -394,6 +398,8 @@ static int w8001_setup(struct w8001 *w8001)
 
 		input_set_abs_params(dev, ABS_X, 0, coord.x, 0, 0);
 		input_set_abs_params(dev, ABS_Y, 0, coord.y, 0, 0);
+		input_abs_set_res(dev, ABS_X, W8001_PEN_RESOLUTION);
+		input_abs_set_res(dev, ABS_Y, W8001_PEN_RESOLUTION);
 		input_set_abs_params(dev, ABS_PRESSURE, 0, coord.pen_pressure, 0, 0);
 		if (coord.tilt_x && coord.tilt_y) {
 			input_set_abs_params(dev, ABS_TILT_X, 0, coord.tilt_x, 0, 0);
@@ -418,14 +424,17 @@ static int w8001_setup(struct w8001 *w8001)
 		w8001->max_touch_x = touch.x;
 		w8001->max_touch_y = touch.y;
 
-		/* scale to pen maximum */
 		if (w8001->max_pen_x && w8001->max_pen_y) {
+			/* if pen is supported scale to pen maximum */
 			touch.x = w8001->max_pen_x;
 			touch.y = w8001->max_pen_y;
+			touch.panel_res = W8001_PEN_RESOLUTION;
 		}
 
 		input_set_abs_params(dev, ABS_X, 0, touch.x, 0, 0);
 		input_set_abs_params(dev, ABS_Y, 0, touch.y, 0, 0);
+		input_abs_set_res(dev, ABS_X, touch.panel_res);
+		input_abs_set_res(dev, ABS_Y, touch.panel_res);
 
 		switch (touch.sensor_id) {
 		case 0:

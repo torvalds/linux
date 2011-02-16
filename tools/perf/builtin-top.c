@@ -1306,7 +1306,7 @@ static int __cmd_top(void)
 		return -ENOMEM;
 
 	if (target_tid != -1)
-		event__synthesize_thread(target_tid, event__process, session);
+		event__synthesize_thread_map(threads, event__process, session);
 	else
 		event__synthesize_threads(event__process, session);
 

@@ -290,6 +290,8 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 
         fsopt->rsize = CEPH_MOUNT_RSIZE_DEFAULT;
         fsopt->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
+	fsopt->caps_wanted_delay_min = CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT;
+	fsopt->caps_wanted_delay_max = CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT;
         fsopt->cap_release_safety = CEPH_CAP_RELEASE_SAFETY_DEFAULT;
         fsopt->max_readdir = CEPH_MAX_READDIR_DEFAULT;
         fsopt->max_readdir_bytes = CEPH_MAX_READDIR_BYTES_DEFAULT;

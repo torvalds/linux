@@ -262,25 +262,47 @@ int dmesg_restrict = 1;
 int dmesg_restrict;
 #endif
 
+static int syslog_action_restricted(int type)
+{
+	if (dmesg_restrict)
+		return 1;
+	/* Unless restricted, we allow "read all" and "get buffer size" for everybody */
+	return type != SYSLOG_ACTION_READ_ALL && type != SYSLOG_ACTION_SIZE_BUFFER;
+}
+
+static int check_syslog_permissions(int type, bool from_file)
+{
+	/*
+	 * If this is from /proc/kmsg and we've already opened it, then we've
+	 * already done the capabilities checks at open time.
+	 */
+	if (from_file && type != SYSLOG_ACTION_OPEN)
+		return 0;
+
+	if (syslog_action_restricted(type)) {
+		if (capable(CAP_SYSLOG))
+			return 0;
+		/* For historical reasons, accept CAP_SYS_ADMIN too, with a warning */
+		if (capable(CAP_SYS_ADMIN)) {
+			WARN_ONCE(1, "Attempt to access syslog with CAP_SYS_ADMIN "
+				 "but no CAP_SYSLOG (deprecated).\n");
+			return 0;
+		}
+		return -EPERM;
+	}
+	return 0;
+}
+
 int do_syslog(int type, char __user *buf, int len, bool from_file)
 {
 	unsigned i, j, limit, count;
 	int do_clear = 0;
 	char c;
-	int error = 0;
+	int error;
 
-	/*
-	 * If this is from /proc/kmsg we only do the capabilities checks
-	 * at open time.
-	 */
-	if (type == SYSLOG_ACTION_OPEN || !from_file) {
-		if (dmesg_restrict && !capable(CAP_SYSLOG))
-			goto warn; /* switch to return -EPERM after 2.6.39 */
-		if ((type != SYSLOG_ACTION_READ_ALL &&
-		     type != SYSLOG_ACTION_SIZE_BUFFER) &&
-		    !capable(CAP_SYSLOG))
-			goto warn; /* switch to return -EPERM after 2.6.39 */
-	}
+	error = check_syslog_permissions(type, from_file);
+	if (error)
+		goto out;
 
 	error = security_syslog(type);
 	if (error)
@@ -423,12 +445,6 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 	}
 out:
 	return error;
-warn:
-	/* remove after 2.6.39 */
-	if (capable(CAP_SYS_ADMIN))
-		WARN_ONCE(1, "Attempt to access syslog with CAP_SYS_ADMIN "
-		  "but no CAP_SYSLOG (deprecated and denied).\n");
-	return -EPERM;
 }
 
 SYSCALL_DEFINE3(syslog, int, type, char __user *, buf, int, len)

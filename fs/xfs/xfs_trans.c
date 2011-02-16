@@ -1446,6 +1446,14 @@ xfs_log_item_batch_insert(
  * Bulk operation version of xfs_trans_committed that takes a log vector of
  * items to insert into the AIL. This uses bulk AIL insertion techniques to
  * minimise lock traffic.
+ *
+ * If we are called with the aborted flag set, it is because a log write during
+ * a CIL checkpoint commit has failed. In this case, all the items in the
+ * checkpoint have already gone through IOP_COMMITED and IOP_UNLOCK, which
+ * means that checkpoint commit abort handling is treated exactly the same
+ * as an iclog write error even though we haven't started any IO yet. Hence in
+ * this case all we need to do is IOP_COMMITTED processing, followed by an
+ * IOP_UNPIN(aborted) call.
  */
 void
 xfs_trans_committed_bulk(
@@ -1471,6 +1479,16 @@ xfs_trans_committed_bulk(
 		/* item_lsn of -1 means the item was freed */
 		if (XFS_LSN_CMP(item_lsn, (xfs_lsn_t)-1) == 0)
 			continue;
+
+		/*
+		 * if we are aborting the operation, no point in inserting the
+		 * object into the AIL as we are in a shutdown situation.
+		 */
+		if (aborted) {
+			ASSERT(XFS_FORCED_SHUTDOWN(ailp->xa_mount));
+			IOP_UNPIN(lip, 1);
+			continue;
+		}
 
 		if (item_lsn != commit_lsn) {
 
@@ -1503,20 +1521,24 @@ xfs_trans_committed_bulk(
 }
 
 /*
- * Called from the trans_commit code when we notice that
- * the filesystem is in the middle of a forced shutdown.
+ * Called from the trans_commit code when we notice that the filesystem is in
+ * the middle of a forced shutdown.
+ *
+ * When we are called here, we have already pinned all the items in the
+ * transaction. However, neither IOP_COMMITTING or IOP_UNLOCK has been called
+ * so we can simply walk the items in the transaction, unpin them with an abort
+ * flag and then free the items. Note that unpinning the items can result in
+ * them being freed immediately, so we need to use a safe list traversal method
+ * here.
  */
 STATIC void
 xfs_trans_uncommit(
 	struct xfs_trans	*tp,
 	uint			flags)
 {
-	struct xfs_log_item_desc *lidp;
+	struct xfs_log_item_desc *lidp, *n;
 
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		/*
-		 * Unpin all but those that aren't dirty.
-		 */
+	list_for_each_entry_safe(lidp, n, &tp->t_items, lid_trans) {
 		if (lidp->lid_flags & XFS_LID_DIRTY)
 			IOP_UNPIN(lidp->lid_item, 1);
 	}
@@ -1733,7 +1755,6 @@ xfs_trans_commit_cil(
 	int			flags)
 {
 	struct xfs_log_vec	*log_vector;
-	int			error;
 
 	/*
 	 * Get each log item to allocate a vector structure for
@@ -1744,9 +1765,7 @@ xfs_trans_commit_cil(
 	if (!log_vector)
 		return ENOMEM;
 
-	error = xfs_log_commit_cil(mp, tp, log_vector, commit_lsn, flags);
-	if (error)
-		return error;
+	xfs_log_commit_cil(mp, tp, log_vector, commit_lsn, flags);
 
 	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 	xfs_trans_free(tp);

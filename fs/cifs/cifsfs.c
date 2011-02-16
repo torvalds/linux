@@ -600,10 +600,17 @@ static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
 	ssize_t written;
+	int rc;
 
 	written = generic_file_aio_write(iocb, iov, nr_segs, pos);
-	if (!CIFS_I(inode)->clientCanCacheAll)
-		filemap_fdatawrite(inode->i_mapping);
+
+	if (CIFS_I(inode)->clientCanCacheAll)
+		return written;
+
+	rc = filemap_fdatawrite(inode->i_mapping);
+	if (rc)
+		cFYI(1, "cifs_file_aio_write: %d rc on %p inode", rc, inode);
+
 	return written;
 }
 
@@ -737,7 +744,7 @@ const struct file_operations cifs_file_strict_ops = {
 	.read = do_sync_read,
 	.write = do_sync_write,
 	.aio_read = cifs_strict_readv,
-	.aio_write = cifs_file_aio_write,
+	.aio_write = cifs_strict_writev,
 	.open = cifs_open,
 	.release = cifs_close,
 	.lock = cifs_lock,
@@ -793,7 +800,7 @@ const struct file_operations cifs_file_strict_nobrl_ops = {
 	.read = do_sync_read,
 	.write = do_sync_write,
 	.aio_read = cifs_strict_readv,
-	.aio_write = cifs_file_aio_write,
+	.aio_write = cifs_strict_writev,
 	.open = cifs_open,
 	.release = cifs_close,
 	.fsync = cifs_strict_fsync,

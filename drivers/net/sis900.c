@@ -1777,6 +1777,7 @@ static int sis900_rx(struct net_device *net_dev)
 					      "cur_rx:%4.4d, dirty_rx:%4.4d\n",
 					      net_dev->name, sis_priv->cur_rx,
 					      sis_priv->dirty_rx);
+				dev_kfree_skb(skb);
 				break;
 			}
 
