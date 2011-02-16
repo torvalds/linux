@@ -291,7 +291,6 @@ static struct dpll_data dpll1_dd = {
 	.max_multiplier = OMAP3_MAX_DPLL_MULT,
 	.min_divider	= 1,
 	.max_divider	= OMAP3_MAX_DPLL_DIV,
-	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE
 };
 
 static struct clk dpll1_ck = {
@@ -364,7 +363,6 @@ static struct dpll_data dpll2_dd = {
 	.max_multiplier = OMAP3_MAX_DPLL_MULT,
 	.min_divider	= 1,
 	.max_divider	= OMAP3_MAX_DPLL_DIV,
-	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE
 };
 
 static struct clk dpll2_ck = {
@@ -424,7 +422,6 @@ static struct dpll_data dpll3_dd = {
 	.max_multiplier = OMAP3_MAX_DPLL_MULT,
 	.min_divider	= 1,
 	.max_divider	= OMAP3_MAX_DPLL_DIV,
-	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE
 };
 
 static struct clk dpll3_ck = {
@@ -583,7 +580,6 @@ static struct dpll_data dpll4_dd_34xx __initdata = {
 	.max_multiplier = OMAP3_MAX_DPLL_MULT,
 	.min_divider	= 1,
 	.max_divider	= OMAP3_MAX_DPLL_DIV,
-	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE
 };
 
 static struct dpll_data dpll4_dd_3630 __initdata = {
@@ -607,7 +603,6 @@ static struct dpll_data dpll4_dd_3630 __initdata = {
 	.max_multiplier = OMAP3630_MAX_JTYPE_DPLL_MULT,
 	.min_divider	= 1,
 	.max_divider	= OMAP3_MAX_DPLL_DIV,
-	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE,
 	.flags		= DPLL_J_TYPE
 };
 
@@ -939,7 +934,6 @@ static struct dpll_data dpll5_dd = {
 	.max_multiplier = OMAP3_MAX_DPLL_MULT,
 	.min_divider	= 1,
 	.max_divider	= OMAP3_MAX_DPLL_DIV,
-	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE
 };
 
 static struct clk dpll5_ck = {

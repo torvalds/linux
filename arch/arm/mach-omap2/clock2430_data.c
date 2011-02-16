@@ -116,7 +116,6 @@ static struct dpll_data dpll_dd = {
 	.max_multiplier		= 1023,
 	.min_divider		= 1,
 	.max_divider		= 16,
-	.rate_tolerance		= DEFAULT_DPLL_RATE_TOLERANCE
 };
 
 /*

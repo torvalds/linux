@@ -109,7 +109,6 @@ struct clksel {
  * @clk_ref: struct clk pointer to the clock's reference clock input
  * @control_reg: register containing the DPLL mode bitfield
  * @enable_mask: mask of the DPLL mode bitfield in @control_reg
- * @rate_tolerance: maximum variance allowed from target rate (in Hz)
  * @last_rounded_rate: cache of the last rate result of omap2_dpll_round_rate()
  * @last_rounded_m: cache of the last M result of omap2_dpll_round_rate()
  * @max_multiplier: maximum valid non-bypass multiplier value (actual)
@@ -135,12 +134,9 @@ struct clksel {
  * XXX Some DPLLs have multiple bypass inputs, so it's not technically
  * correct to only have one @clk_bypass pointer.
  *
- * XXX @rate_tolerance should probably be deprecated - currently there
- * don't seem to be any usecases for DPLL rounding that is not exact.
- *
  * XXX The runtime-variable fields (@last_rounded_rate, @last_rounded_m,
  * @last_rounded_n) should be separated from the runtime-fixed fields
- * and placed into a differenct structure, so that the runtime-fixed data
+ * and placed into a different structure, so that the runtime-fixed data
  * can be placed into read-only space.
  */
 struct dpll_data {
@@ -151,7 +147,6 @@ struct dpll_data {
 	struct clk		*clk_ref;
 	void __iomem		*control_reg;
 	u32			enable_mask;
-	unsigned int		rate_tolerance;
 	unsigned long		last_rounded_rate;
 	u16			last_rounded_m;
 	u16			max_multiplier;
