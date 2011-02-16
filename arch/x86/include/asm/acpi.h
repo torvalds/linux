@@ -190,6 +190,7 @@ extern int x86_acpi_numa_init(void);
 #ifdef CONFIG_NUMA_EMU
 extern void acpi_fake_nodes(const struct bootnode *fake_nodes,
 				   int num_nodes);
+extern int acpi_emu_node_distance(int a, int b);
 #endif
 #endif /* CONFIG_ACPI_NUMA */
 

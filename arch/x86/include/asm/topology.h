@@ -138,7 +138,7 @@ extern unsigned long node_remap_size[];
 	.balance_interval	= 1,					\
 }
 
-#ifdef CONFIG_X86_64_ACPI_NUMA
+#ifdef CONFIG_X86_64
 extern int __node_distance(int, int);
 #define node_distance(a, b) __node_distance(a, b)
 #endif

@@ -45,6 +45,13 @@ static unsigned long __initdata nodemap_size;
 
 static struct numa_meminfo numa_meminfo __initdata;
 
+static int numa_distance_cnt;
+static u8 *numa_distance;
+
+#ifdef CONFIG_NUMA_EMU
+static bool numa_emu_dist;
+#endif
+
 /*
  * Given a shift value, try to populate memnodemap[]
  * Returns :
@@ -355,6 +362,92 @@ static void __init numa_nodemask_from_meminfo(nodemask_t *nodemask,
 		    mi->blk[i].nid != NUMA_NO_NODE)
 			node_set(mi->blk[i].nid, *nodemask);
 }
+
+/*
+ * Reset distance table.  The current table is freed.  The next
+ * numa_set_distance() call will create a new one.
+ */
+static void __init numa_reset_distance(void)
+{
+	size_t size;
+
+	size = numa_distance_cnt * sizeof(numa_distance[0]);
+	memblock_x86_free_range(__pa(numa_distance),
+				__pa(numa_distance) + size);
+	numa_distance = NULL;
+	numa_distance_cnt = 0;
+}
+
+/*
+ * Set the distance between node @from to @to to @distance.  If distance
+ * table doesn't exist, one which is large enough to accomodate all the
+ * currently known nodes will be created.
+ */
+void __init numa_set_distance(int from, int to, int distance)
+{
+	if (!numa_distance) {
+		nodemask_t nodes_parsed;
+		size_t size;
+		int i, j, cnt = 0;
+		u64 phys;
+
+		/* size the new table and allocate it */
+		nodes_parsed = numa_nodes_parsed;
+		numa_nodemask_from_meminfo(&nodes_parsed, &numa_meminfo);
+
+		for_each_node_mask(i, nodes_parsed)
+			cnt = i;
+		size = ++cnt * sizeof(numa_distance[0]);
+
+		phys = memblock_find_in_range(0,
+					      (u64)max_pfn_mapped << PAGE_SHIFT,
+					      size, PAGE_SIZE);
+		if (phys == MEMBLOCK_ERROR) {
+			pr_warning("NUMA: Warning: can't allocate distance table!\n");
+			/* don't retry until explicitly reset */
+			numa_distance = (void *)1LU;
+			return;
+		}
+		memblock_x86_reserve_range(phys, phys + size, "NUMA DIST");
+
+		numa_distance = __va(phys);
+		numa_distance_cnt = cnt;
+
+		/* fill with the default distances */
+		for (i = 0; i < cnt; i++)
+			for (j = 0; j < cnt; j++)
+				numa_distance[i * cnt + j] = i == j ?
+					LOCAL_DISTANCE : REMOTE_DISTANCE;
+		printk(KERN_DEBUG "NUMA: Initialized distance table, cnt=%d\n", cnt);
+	}
+
+	if (from >= numa_distance_cnt || to >= numa_distance_cnt) {
+		printk_once(KERN_DEBUG "NUMA: Debug: distance out of bound, from=%d to=%d distance=%d\n",
+			    from, to, distance);
+		return;
+	}
+
+	if ((u8)distance != distance ||
+	    (from == to && distance != LOCAL_DISTANCE)) {
+		pr_warn_once("NUMA: Warning: invalid distance parameter, from=%d to=%d distance=%d\n",
+			     from, to, distance);
+		return;
+	}
+
+	numa_distance[from * numa_distance_cnt + to] = distance;
+}
+
+int __node_distance(int from, int to)
+{
+#if defined(CONFIG_ACPI_NUMA) && defined(CONFIG_NUMA_EMU)
+	if (numa_emu_dist)
+		return acpi_emu_node_distance(from, to);
+#endif
+	if (from >= numa_distance_cnt || to >= numa_distance_cnt)
+		return from == to ? LOCAL_DISTANCE : REMOTE_DISTANCE;
+	return numa_distance[from * numa_distance_cnt + to];
+}
+EXPORT_SYMBOL(__node_distance);
 
 /*
  * Sanity check to catch more bad NUMA configurations (they are amazingly
@@ -826,6 +919,7 @@ static int __init numa_emulation(unsigned long start_pfn,
 	setup_physnodes(addr, max_addr);
 	fake_physnodes(acpi, amd, num_nodes);
 	numa_init_array();
+	numa_emu_dist = true;
 	return 0;
 }
 #endif /* CONFIG_NUMA_EMU */
@@ -869,6 +963,7 @@ void __init initmem_init(void)
 		nodes_clear(node_online_map);
 		memset(&numa_meminfo, 0, sizeof(numa_meminfo));
 		remove_all_active_ranges();
+		numa_reset_distance();
 
 		if (numa_init[i]() < 0)
 			continue;

@@ -50,9 +50,16 @@ static __init inline int srat_disabled(void)
 /* Callback for SLIT parsing */
 void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 {
+	int i, j;
 	unsigned length;
 	unsigned long phys;
 
+	for (i = 0; i < slit->locality_count; i++)
+		for (j = 0; j < slit->locality_count; j++)
+			numa_set_distance(pxm_to_node(i), pxm_to_node(j),
+				slit->entry[slit->locality_count * i + j]);
+
+	/* acpi_slit is used only by emulation */
 	length = slit->header.length;
 	phys = memblock_find_in_range(0, max_pfn_mapped<<PAGE_SHIFT, length,
 		 PAGE_SIZE);
@@ -313,29 +320,17 @@ void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 			node_set(i, numa_nodes_parsed);
 }
 
-static int null_slit_node_compare(int a, int b)
-{
-	return node_to_pxm(a) == node_to_pxm(b);
-}
-#else
-static int null_slit_node_compare(int a, int b)
-{
-	return a == b;
-}
-#endif /* CONFIG_NUMA_EMU */
-
-int __node_distance(int a, int b)
+int acpi_emu_node_distance(int a, int b)
 {
 	int index;
 
 	if (!acpi_slit)
-		return null_slit_node_compare(a, b) ? LOCAL_DISTANCE :
-						      REMOTE_DISTANCE;
+		return node_to_pxm(a) == node_to_pxm(b) ?
+			LOCAL_DISTANCE : REMOTE_DISTANCE;
 	index = acpi_slit->locality_count * node_to_pxm(a);
 	return acpi_slit->entry[index + node_to_pxm(b)];
 }
-
-EXPORT_SYMBOL(__node_distance);
+#endif /* CONFIG_NUMA_EMU */
 
 #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) || defined(CONFIG_ACPI_HOTPLUG_MEMORY)
 int memory_add_physaddr_to_nid(u64 start)
