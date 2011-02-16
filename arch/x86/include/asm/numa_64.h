@@ -8,9 +8,6 @@ struct bootnode {
 	u64 end;
 };
 
-extern int compute_hash_shift(struct bootnode *nodes, int numblks,
-			      int *nodeids);
-
 #define ZONE_ALIGN (1UL << (MAX_ORDER+PAGE_SHIFT))
 
 extern int numa_off;
@@ -33,7 +30,6 @@ extern struct bootnode numa_nodes[MAX_NUMNODES] __initdata;
 
 extern int __cpuinit numa_cpu_node(int cpu);
 extern int __init numa_add_memblk(int nodeid, u64 start, u64 end);
-extern int __init numa_register_memblks(void);
 
 #ifdef CONFIG_NUMA_EMU
 #define FAKE_NODE_MIN_SIZE	((u64)32 << 20)

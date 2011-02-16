@@ -308,11 +308,6 @@ int __init acpi_scan_nodes(void)
 	if (acpi_numa <= 0)
 		return -1;
 
-	if (numa_register_memblks() < 0) {
-		bad_srat();
-		return -1;
-	}
-
 	/* for out of order entries in SRAT */
 	sort_node_map();
 	if (!nodes_cover_memory(numa_nodes)) {

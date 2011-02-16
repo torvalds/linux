@@ -167,6 +167,7 @@ int __init amd_numa_init(void)
 
 		numa_nodes[nodeid].start = base;
 		numa_nodes[nodeid].end = limit;
+		numa_add_memblk(nodeid, base, limit);
 
 		prevbase = base;
 
@@ -263,18 +264,6 @@ int __init amd_scan_nodes(void)
 {
 	int i;
 
-	memnode_shift = compute_hash_shift(numa_nodes, 8, NULL);
-	if (memnode_shift < 0) {
-		pr_err("No NUMA node hash function found. Contact maintainer\n");
-		return -1;
-	}
-	pr_info("Using node hash shift of %d\n", memnode_shift);
-
-	/* use the coreid bits from early_identify_cpu */
-	for_each_node_mask(i, node_possible_map)
-		memblock_x86_register_active_regions(i,
-				numa_nodes[i].start >> PAGE_SHIFT,
-				numa_nodes[i].end >> PAGE_SHIFT);
 	init_memory_mapping_high();
 	for_each_node_mask(i, node_possible_map)
 		setup_node_bootmem(i, numa_nodes[i].start, numa_nodes[i].end);
