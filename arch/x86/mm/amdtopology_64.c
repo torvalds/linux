@@ -51,7 +51,7 @@ static __init int find_northbridge(void)
 		return num;
 	}
 
-	return -1;
+	return -ENOENT;
 }
 
 static __init void early_get_boot_cpu_id(void)
@@ -69,17 +69,17 @@ static __init void early_get_boot_cpu_id(void)
 #endif
 }
 
-int __init amd_numa_init(unsigned long start_pfn, unsigned long end_pfn)
+int __init amd_numa_init(void)
 {
-	unsigned long start = PFN_PHYS(start_pfn);
-	unsigned long end = PFN_PHYS(end_pfn);
+	unsigned long start = PFN_PHYS(0);
+	unsigned long end = PFN_PHYS(max_pfn);
 	unsigned numnodes;
 	unsigned long prevbase;
 	int i, nb, found = 0;
 	u32 nodeid, reg;
 
 	if (!early_pci_allowed())
-		return -1;
+		return -EINVAL;
 
 	nb = find_northbridge();
 	if (nb < 0)
@@ -90,7 +90,7 @@ int __init amd_numa_init(unsigned long start_pfn, unsigned long end_pfn)
 	reg = read_pci_config(0, nb, 0, 0x60);
 	numnodes = ((reg >> 4) & 0xF) + 1;
 	if (numnodes <= 1)
-		return -1;
+		return -ENOENT;
 
 	pr_info("Number of physical nodes %d\n", numnodes);
 
@@ -121,7 +121,7 @@ int __init amd_numa_init(unsigned long start_pfn, unsigned long end_pfn)
 		if ((base >> 8) & 3 || (limit >> 8) & 3) {
 			pr_err("Node %d using interleaving mode %lx/%lx\n",
 			       nodeid, (base >> 8) & 3, (limit >> 8) & 3);
-			return -1;
+			return -EINVAL;
 		}
 		if (node_isset(nodeid, nodes_parsed)) {
 			pr_info("Node %d already present, skipping\n",
@@ -160,7 +160,7 @@ int __init amd_numa_init(unsigned long start_pfn, unsigned long end_pfn)
 		if (prevbase > base) {
 			pr_err("Node map not sorted %lx,%lx\n",
 			       prevbase, base);
-			return -1;
+			return -EINVAL;
 		}
 
 		pr_info("Node %d MemBase %016lx Limit %016lx\n",
@@ -177,7 +177,7 @@ int __init amd_numa_init(unsigned long start_pfn, unsigned long end_pfn)
 	}
 
 	if (!found)
-		return -1;
+		return -ENOENT;
 	return 0;
 }
 

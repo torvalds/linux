@@ -596,7 +596,7 @@ void __init initmem_init(int acpi, int amd)
 #endif
 
 #ifdef CONFIG_ACPI_NUMA
-	if (!numa_off && acpi && !acpi_scan_nodes(0, max_pfn << PAGE_SHIFT))
+	if (!numa_off && acpi && !acpi_scan_nodes())
 		return;
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);

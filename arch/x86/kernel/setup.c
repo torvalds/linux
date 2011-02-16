@@ -995,12 +995,12 @@ void __init setup_arch(char **cmdline_p)
 	/*
 	 * Parse SRAT to discover nodes.
 	 */
-	acpi = acpi_numa_init();
+	acpi = !acpi_numa_init();
 #endif
 
 #ifdef CONFIG_AMD_NUMA
 	if (!acpi)
-		amd = !amd_numa_init(0, max_pfn);
+		amd = !amd_numa_init();
 #endif
 
 	initmem_init(acpi, amd);

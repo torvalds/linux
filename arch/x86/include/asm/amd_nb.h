@@ -16,7 +16,7 @@ struct bootnode;
 extern int early_is_amd_nb(u32 value);
 extern int amd_cache_northbridges(void);
 extern void amd_flush_garts(void);
-extern int amd_numa_init(unsigned long start_pfn, unsigned long end_pfn);
+extern int amd_numa_init(void);
 extern int amd_scan_nodes(void);
 extern int amd_get_subcaches(int);
 extern int amd_set_subcaches(int, int);

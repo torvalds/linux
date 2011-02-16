@@ -359,7 +359,7 @@ void __init acpi_get_nodes(struct bootnode *physnodes, unsigned long start,
 #endif /* CONFIG_NUMA_EMU */
 
 /* Use the information discovered above to actually set up the nodes. */
-int __init acpi_scan_nodes(unsigned long start, unsigned long end)
+int __init acpi_scan_nodes(void)
 {
 	int i;
 
@@ -368,7 +368,7 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 
 	/* First clean up the node list */
 	for (i = 0; i < MAX_NUMNODES; i++)
-		cutoff_node(i, start, end);
+		cutoff_node(i, 0, max_pfn << PAGE_SHIFT);
 
 	/*
 	 * Join together blocks on the same node, holes between
