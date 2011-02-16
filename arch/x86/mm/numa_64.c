@@ -624,11 +624,12 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
 	memnodemap[0] = 0;
 	node_set_online(0);
 	node_set(0, node_possible_map);
-	for (i = 0; i < nr_cpu_ids; i++)
-		numa_set_node(i, 0);
+	for (i = 0; i < MAX_LOCAL_APIC; i++)
+		set_apicid_to_node(i, NUMA_NO_NODE);
 	memblock_x86_register_active_regions(0, start_pfn, last_pfn);
 	init_memory_mapping_high();
 	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT);
+	numa_init_array();
 }
 
 unsigned long __init numa_free_all_bootmem(void)
