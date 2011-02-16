@@ -96,6 +96,10 @@
 #define AC97_FUNC_INFO		0x68	/* Function Information */
 #define AC97_SENSE_INFO		0x6a	/* Sense Details */
 
+/* volume controls */
+#define AC97_MUTE_MASK_MONO	0x8000
+#define AC97_MUTE_MASK_STEREO	0x8080
+
 /* slot allocation */
 #define AC97_SLOT_TAG		0
 #define AC97_SLOT_CMD_ADDR	1
@@ -138,6 +142,7 @@
 #define AC97_BC_18BIT_ADC	0x0100	/* 18-bit ADC resolution */
 #define AC97_BC_20BIT_ADC	0x0200	/* 20-bit ADC resolution */
 #define AC97_BC_ADC_MASK	0x0300
+#define AC97_BC_3D_TECH_ID_MASK	0x7c00	/* Per-vendor ID of 3D enhancement */
 
 /* general purpose */
 #define AC97_GP_DRSS_MASK	0x0c00	/* double rate slot select */
