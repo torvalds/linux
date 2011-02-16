@@ -728,7 +728,14 @@ int xen_destroy_irq(int irq)
 		unmap_irq.pirq = info->u.pirq.pirq;
 		unmap_irq.domid = info->u.pirq.domid;
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_unmap_pirq, &unmap_irq);
-		if (rc) {
+		/* If another domain quits without making the pci_disable_msix
+		 * call, the Xen hypervisor takes care of freeing the PIRQs
+		 * (free_domain_pirqs).
+		 */
+		if ((rc == -ESRCH && info->u.pirq.domid != DOMID_SELF))
+			printk(KERN_INFO "domain %d does not have %d anymore\n",
+				info->u.pirq.domid, info->u.pirq.pirq);
+		else if (rc) {
 			printk(KERN_WARNING "unmap irq failed %d\n", rc);
 			goto out;
 		}
