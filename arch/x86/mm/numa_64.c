@@ -36,7 +36,7 @@ struct numa_meminfo {
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 
-nodemask_t cpu_nodes_parsed __initdata;
+nodemask_t numa_nodes_parsed __initdata;
 nodemask_t mem_nodes_parsed __initdata;
 
 struct memnode memnode;
@@ -379,7 +379,7 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 	int i, j, nid;
 
 	/* Account for nodes with cpus and no memory */
-	nodes_or(node_possible_map, mem_nodes_parsed, cpu_nodes_parsed);
+	nodes_or(node_possible_map, mem_nodes_parsed, numa_nodes_parsed);
 	if (WARN_ON(nodes_empty(node_possible_map)))
 		return -EINVAL;
 
@@ -823,7 +823,7 @@ static int dummy_numa_init(void)
 	printk(KERN_INFO "Faking a node at %016lx-%016lx\n",
 	       0LU, max_pfn << PAGE_SHIFT);
 
-	node_set(0, cpu_nodes_parsed);
+	node_set(0, numa_nodes_parsed);
 	node_set(0, mem_nodes_parsed);
 	numa_add_memblk(0, 0, (u64)max_pfn << PAGE_SHIFT);
 
@@ -851,7 +851,7 @@ void __init initmem_init(void)
 		for (j = 0; j < MAX_LOCAL_APIC; j++)
 			set_apicid_to_node(j, NUMA_NO_NODE);
 
-		nodes_clear(cpu_nodes_parsed);
+		nodes_clear(numa_nodes_parsed);
 		nodes_clear(mem_nodes_parsed);
 		nodes_clear(node_possible_map);
 		nodes_clear(node_online_map);

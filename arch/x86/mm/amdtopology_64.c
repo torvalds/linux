@@ -168,7 +168,7 @@ int __init amd_numa_init(void)
 		prevbase = base;
 		numa_add_memblk(nodeid, base, limit);
 		node_set(nodeid, mem_nodes_parsed);
-		node_set(nodeid, cpu_nodes_parsed);
+		node_set(nodeid, numa_nodes_parsed);
 	}
 
 	if (!nodes_weight(mem_nodes_parsed))
@@ -189,7 +189,7 @@ int __init amd_numa_init(void)
 		apicid_base = boot_cpu_physical_apicid;
 	}
 
-	for_each_node_mask(i, cpu_nodes_parsed)
+	for_each_node_mask(i, numa_nodes_parsed)
 		for (j = apicid_base; j < cores + apicid_base; j++)
 			set_apicid_to_node((i << bits) + j, i);
 
