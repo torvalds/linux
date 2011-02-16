@@ -359,7 +359,7 @@ static int audit_get_nd(struct audit_watch *watch, struct path *parent)
 	struct dentry *d;
 	int err;
 
-	err = path_lookup(watch->path, LOOKUP_PARENT, &nd);
+	err = kern_path_parent(watch->path, &nd);
 	if (err)
 		return err;
 

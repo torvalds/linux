@@ -72,7 +72,7 @@ extern int user_path_at(int, const char __user *, unsigned, struct path *);
 
 extern int kern_path(const char *, unsigned, struct path *);
 
-extern int path_lookup(const char *, unsigned, struct nameidata *);
+extern int kern_path_parent(const char *, struct nameidata *);
 extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
 			   const char *, unsigned int, struct nameidata *);
 
