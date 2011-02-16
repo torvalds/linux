@@ -246,9 +246,9 @@ static int nvme_submit_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd)
 	spin_lock_irqsave(&nvmeq->q_lock, flags);
 	tail = nvmeq->sq_tail;
 	memcpy(&nvmeq->sq_cmds[tail], cmd, sizeof(*cmd));
-	writel(tail, nvmeq->q_db);
 	if (++tail == nvmeq->q_depth)
 		tail = 0;
+	writel(tail, nvmeq->q_db);
 	nvmeq->sq_tail = tail;
 	spin_unlock_irqrestore(&nvmeq->q_lock, flags);
 
@@ -471,9 +471,9 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	cmnd->rw.control = cpu_to_le16(control);
 	cmnd->rw.dsmgmt = cpu_to_le32(dsmgmt);
 
-	writel(nvmeq->sq_tail, nvmeq->q_db);
 	if (++nvmeq->sq_tail == nvmeq->q_depth)
 		nvmeq->sq_tail = 0;
+	writel(nvmeq->sq_tail, nvmeq->q_db);
 
 	return 0;
 
