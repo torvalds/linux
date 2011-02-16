@@ -91,6 +91,10 @@ extern int omap4430_phy_exit(struct device *dev);
 
 #endif
 
+extern void am35x_musb_reset(void);
+extern void am35x_musb_phy_power(u8 on);
+extern void am35x_musb_clear_irq(void);
+extern void am35x_musb_set_mode(u8 musb_mode);
 
 /*
  * FIXME correct answer depends on hmc_mode,
