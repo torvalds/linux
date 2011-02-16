@@ -459,10 +459,16 @@ void __init spear300_init(void)
 		if (ret)
 			printk(KERN_ERR "Error registering Shared IRQ\n");
 	}
-}
 
-void spear300_pmx_init(void)
-{
-	spear_pmx_init(&pmx_driver, SPEAR300_SOC_CONFIG_BASE,
+	/* pmx initialization */
+	pmx_driver.base = ioremap(SPEAR300_SOC_CONFIG_BASE,
 			SPEAR300_SOC_CONFIG_SIZE);
+	if (pmx_driver.base) {
+		ret = pmx_register(&pmx_driver);
+		if (ret)
+			printk(KERN_ERR "padmux: registeration failed. err no"
+					": %d\n", ret);
+		/* Free Mapping, device selection already done */
+		iounmap(pmx_driver.base);
+	}
 }

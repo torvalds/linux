@@ -51,14 +51,13 @@ static void __init spear300_evb_init(void)
 {
 	unsigned int i;
 
-	/* call spear300 machine init function */
-	spear300_init();
-
-	/* padmux initialization */
+	/* padmux initialization, must be done before spear300_init */
 	pmx_driver.mode = &photo_frame_mode;
 	pmx_driver.devs = pmx_devs;
 	pmx_driver.devs_count = ARRAY_SIZE(pmx_devs);
-	spear300_pmx_init();
+
+	/* call spear300 machine init function */
+	spear300_init();
 
 	/* Add Platform Devices */
 	platform_add_devices(plat_devs, ARRAY_SIZE(plat_devs));

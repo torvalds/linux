@@ -525,24 +525,3 @@ struct pmx_dev pmx_plgpio_45_46_49_50 = {
 };
 
 #endif
-
-/* spear padmux initialization function */
-void spear_pmx_init(struct pmx_driver *pmx_driver, uint base, uint size)
-{
-	int ret = 0;
-
-	/* pad mux initialization */
-	pmx_driver->base = ioremap(base, size);
-	if (!pmx_driver->base) {
-		ret = -ENOMEM;
-		goto pmx_fail;
-	}
-
-	ret = pmx_register(pmx_driver);
-	iounmap(pmx_driver->base);
-
-pmx_fail:
-	if (ret)
-		printk(KERN_ERR "padmux: registration failed. err no: %d\n",
-				ret);
-}

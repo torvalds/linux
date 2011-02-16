@@ -55,14 +55,13 @@ static void __init spear320_evb_init(void)
 {
 	unsigned int i;
 
-	/* call spear320 machine init function */
-	spear320_init();
-
-	/* padmux initialization */
+	/* padmux initialization, must be done before spear320_init */
 	pmx_driver.mode = &auto_net_mii_mode;
 	pmx_driver.devs = pmx_devs;
 	pmx_driver.devs_count = ARRAY_SIZE(pmx_devs);
-	spear320_pmx_init();
+
+	/* call spear320 machine init function */
+	spear320_init();
 
 	/* Add Platform Devices */
 	platform_add_devices(plat_devs, ARRAY_SIZE(plat_devs));

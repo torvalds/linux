@@ -293,10 +293,11 @@ void __init spear310_init(void)
 		if (ret)
 			printk(KERN_ERR "Error registering Shared IRQ 4\n");
 	}
-}
 
-void spear310_pmx_init(void)
-{
-	spear_pmx_init(&pmx_driver, SPEAR310_SOC_CONFIG_BASE,
-			SPEAR310_SOC_CONFIG_SIZE);
+	/* pmx initialization */
+	pmx_driver.base = base;
+	ret = pmx_register(&pmx_driver);
+	if (ret)
+		printk(KERN_ERR "padmux: registeration failed. err no: %d\n",
+				ret);
 }
