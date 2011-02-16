@@ -358,6 +358,16 @@ void __init acpi_get_nodes(struct bootnode *physnodes, unsigned long start,
 }
 #endif /* CONFIG_NUMA_EMU */
 
+int __init x86_acpi_numa_init(void)
+{
+	int ret;
+
+	ret = acpi_numa_init();
+	if (ret < 0)
+		return ret;
+	return srat_disabled() ? -EINVAL : 0;
+}
+
 /* Use the information discovered above to actually set up the nodes. */
 int __init acpi_scan_nodes(void)
 {
