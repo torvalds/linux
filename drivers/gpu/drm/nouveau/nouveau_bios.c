@@ -5950,6 +5950,11 @@ apply_dcb_connector_quirks(struct nvbios *bios, int idx)
 	}
 }
 
+static const u8 hpd_gpio[16] = {
+	0xff, 0x07, 0x08, 0xff, 0xff, 0x51, 0x52, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0x5e, 0x5f, 0x60,
+};
+
 static void
 parse_dcb_connector_table(struct nvbios *bios)
 {
@@ -5986,23 +5991,9 @@ parse_dcb_connector_table(struct nvbios *bios)
 
 		cte->type  = (cte->entry & 0x000000ff) >> 0;
 		cte->index2 = (cte->entry & 0x00000f00) >> 8;
-		switch (cte->entry & 0x00033000) {
-		case 0x00001000:
-			cte->gpio_tag = 0x07;
-			break;
-		case 0x00002000:
-			cte->gpio_tag = 0x08;
-			break;
-		case 0x00010000:
-			cte->gpio_tag = 0x51;
-			break;
-		case 0x00020000:
-			cte->gpio_tag = 0x52;
-			break;
-		default:
-			cte->gpio_tag = 0xff;
-			break;
-		}
+
+		cte->gpio_tag = ffs((cte->entry & 0x07033000) >> 12);
+		cte->gpio_tag = hpd_gpio[cte->gpio_tag];
 
 		if (cte->type == 0xff)
 			continue;
