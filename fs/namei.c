@@ -795,7 +795,7 @@ __do_follow_link(const struct path *link, struct nameidata *nd, void **p)
  * Without that kind of total limit, nasty chains of consecutive
  * symlinks can cause almost arbitrarily long lookups. 
  */
-static inline int do_follow_link(struct path *path, struct nameidata *nd)
+static inline int do_follow_link(struct inode *inode, struct path *path, struct nameidata *nd)
 {
 	void *cookie;
 	int err = -ELOOP;
@@ -803,6 +803,7 @@ static inline int do_follow_link(struct path *path, struct nameidata *nd)
 	/* We drop rcu-walk here */
 	if (nameidata_dentry_drop_rcu_maybe(nd, path->dentry))
 		return -ECHILD;
+	BUG_ON(inode != path->dentry->d_inode);
 
 	if (current->link_count >= MAX_NESTED_LINKS)
 		goto loop;
@@ -1413,8 +1414,7 @@ exec_again:
 			goto out_dput;
 
 		if (inode->i_op->follow_link) {
-			BUG_ON(inode != next.dentry->d_inode);
-			err = do_follow_link(&next, nd);
+			err = do_follow_link(inode, &next, nd);
 			if (err)
 				goto return_err;
 			nd->inode = nd->path.dentry->d_inode;
@@ -1458,8 +1458,7 @@ last_component:
 			break;
 		if (inode && unlikely(inode->i_op->follow_link) &&
 		    (lookup_flags & LOOKUP_FOLLOW)) {
-			BUG_ON(inode != next.dentry->d_inode);
-			err = do_follow_link(&next, nd);
+			err = do_follow_link(inode, &next, nd);
 			if (err)
 				goto return_err;
 			nd->inode = nd->path.dentry->d_inode;
