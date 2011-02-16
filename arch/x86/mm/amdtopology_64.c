@@ -74,8 +74,9 @@ int __init amd_numa_init(void)
 	unsigned long end = PFN_PHYS(max_pfn);
 	unsigned numnodes;
 	unsigned long prevbase;
-	int i, nb;
+	int i, j, nb;
 	u32 nodeid, reg;
+	unsigned int bits, cores, apicid_base;
 
 	if (!early_pci_allowed())
 		return -EINVAL;
@@ -176,6 +177,26 @@ int __init amd_numa_init(void)
 
 	if (!nodes_weight(mem_nodes_parsed))
 		return -ENOENT;
+
+	/*
+	 * We seem to have valid NUMA configuration.  Map apicids to nodes
+	 * using the coreid bits from early_identify_cpu.
+	 */
+	bits = boot_cpu_data.x86_coreid_bits;
+	cores = 1 << bits;
+	apicid_base = 0;
+
+	/* get the APIC ID of the BSP early for systems with apicid lifting */
+	early_get_boot_cpu_id();
+	if (boot_cpu_physical_apicid > 0) {
+		pr_info("BSP APIC ID: %02x\n", boot_cpu_physical_apicid);
+		apicid_base = boot_cpu_physical_apicid;
+	}
+
+	for_each_node_mask(i, cpu_nodes_parsed)
+		for (j = apicid_base; j < cores + apicid_base; j++)
+			set_apicid_to_node((i << bits) + j, i);
+
 	return 0;
 }
 
@@ -251,9 +272,6 @@ void __init amd_fake_nodes(const struct bootnode *nodes, int nr_nodes)
 
 int __init amd_scan_nodes(void)
 {
-	unsigned int bits;
-	unsigned int cores;
-	unsigned int apicid_base;
 	int i;
 
 	memnode_shift = compute_hash_shift(nodes, 8, NULL);
@@ -264,28 +282,13 @@ int __init amd_scan_nodes(void)
 	pr_info("Using node hash shift of %d\n", memnode_shift);
 
 	/* use the coreid bits from early_identify_cpu */
-	bits = boot_cpu_data.x86_coreid_bits;
-	cores = (1<<bits);
-	apicid_base = 0;
-	/* get the APIC ID of the BSP early for systems with apicid lifting */
-	early_get_boot_cpu_id();
-	if (boot_cpu_physical_apicid > 0) {
-		pr_info("BSP APIC ID: %02x\n", boot_cpu_physical_apicid);
-		apicid_base = boot_cpu_physical_apicid;
-	}
-
 	for_each_node_mask(i, node_possible_map)
 		memblock_x86_register_active_regions(i,
 				nodes[i].start >> PAGE_SHIFT,
 				nodes[i].end >> PAGE_SHIFT);
 	init_memory_mapping_high();
-	for_each_node_mask(i, node_possible_map) {
-		int j;
-
-		for (j = apicid_base; j < cores + apicid_base; j++)
-			set_apicid_to_node((i << bits) + j, i);
+	for_each_node_mask(i, node_possible_map)
 		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
-	}
 
 	numa_init_array();
 	return 0;
