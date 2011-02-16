@@ -768,15 +768,7 @@ static int __init split_nodes_interleave(struct numa_meminfo *ei,
 			    memblock_x86_hole_size(end, physnodes[i].end) < size)
 				end = physnodes[i].end;
 
-			/*
-			 * Avoid allocating more nodes than requested, which can
-			 * happen as a result of rounding down each node's size
-			 * to FAKE_NODE_MIN_SIZE.
-			 */
-			if (nodes_weight(physnode_mask) + nid >= nr_nodes)
-				end = physnodes[i].end;
-
-			ret = emu_setup_memblk(ei, nid++, i,
+			ret = emu_setup_memblk(ei, nid++ % nr_nodes, i,
 					       physnodes[i].start,
 					       min(end, physnodes[i].end));
 			if (ret < 0)
@@ -873,7 +865,7 @@ static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
 			    memblock_x86_hole_size(end, physnodes[i].end) < size)
 				end = physnodes[i].end;
 
-			ret = emu_setup_memblk(ei, nid++, i,
+			ret = emu_setup_memblk(ei, nid++ % MAX_NUMNODES, i,
 					       physnodes[i].start,
 					       min(end, physnodes[i].end));
 			if (ret < 0)
