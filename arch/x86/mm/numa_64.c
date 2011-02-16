@@ -63,12 +63,7 @@ static int __init populate_memnodemap(const struct bootnode *nodes,
 		do {
 			if (memnodemap[addr >> shift] != NUMA_NO_NODE)
 				return -1;
-
-			if (!nodeids)
-				memnodemap[addr >> shift] = i;
-			else
-				memnodemap[addr >> shift] = nodeids[i];
-
+			memnodemap[addr >> shift] = nodeids[i];
 			addr += (1UL << shift);
 		} while (addr < end);
 		res = 1;
@@ -706,6 +701,7 @@ static int __init split_nodes_size_interleave(u64 addr, u64 max_addr, u64 size)
 static int __init numa_emulation(unsigned long start_pfn,
 			unsigned long last_pfn, int acpi, int amd)
 {
+	static int nodeid[NR_NODE_MEMBLKS] __initdata;
 	u64 addr = start_pfn << PAGE_SHIFT;
 	u64 max_addr = last_pfn << PAGE_SHIFT;
 	int num_nodes;
@@ -730,7 +726,11 @@ static int __init numa_emulation(unsigned long start_pfn,
 
 	if (num_nodes < 0)
 		return num_nodes;
-	memnode_shift = compute_hash_shift(nodes, num_nodes, NULL);
+
+	for (i = 0; i < ARRAY_SIZE(nodeid); i++)
+		nodeid[i] = i;
+
+	memnode_shift = compute_hash_shift(nodes, num_nodes, nodeid);
 	if (memnode_shift < 0) {
 		memnode_shift = 0;
 		printk(KERN_ERR "No NUMA hash function found.  NUMA emulation "
