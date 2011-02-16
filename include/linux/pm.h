@@ -465,6 +465,14 @@ struct dev_pm_info {
 
 extern void update_pm_runtime_accounting(struct device *dev);
 
+/*
+ * Power domains provide callbacks that are executed during system suspend,
+ * hibernation, system resume and during runtime PM transitions along with
+ * subsystem-level and driver-level callbacks.
+ */
+struct dev_power_domain {
+	struct dev_pm_ops	ops;
+};
 
 /*
  * The PM_EVENT_ messages are also used by drivers implementing the legacy
