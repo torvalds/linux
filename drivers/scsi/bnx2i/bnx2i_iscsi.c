@@ -1458,42 +1458,40 @@ static void bnx2i_conn_destroy(struct iscsi_cls_conn *cls_conn)
 
 
 /**
- * bnx2i_conn_get_param - return iscsi connection parameter to caller
- * @cls_conn:	pointer to iscsi cls conn
+ * bnx2i_ep_get_param - return iscsi ep parameter to caller
+ * @ep:		pointer to iscsi endpoint
  * @param:	parameter type identifier
  * @buf: 	buffer pointer
  *
- * returns iSCSI connection parameters
+ * returns iSCSI ep parameters
  */
-static int bnx2i_conn_get_param(struct iscsi_cls_conn *cls_conn,
-				enum iscsi_param param, char *buf)
+static int bnx2i_ep_get_param(struct iscsi_endpoint *ep,
+			      enum iscsi_param param, char *buf)
 {
-	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct bnx2i_conn *bnx2i_conn = conn->dd_data;
-	int len = 0;
+	struct bnx2i_endpoint *bnx2i_ep = ep->dd_data;
+	struct bnx2i_hba *hba = bnx2i_ep->hba;
+	int len = -ENOTCONN;
 
-	if (!(bnx2i_conn && bnx2i_conn->ep && bnx2i_conn->ep->hba))
-		goto out;
+	if (!hba)
+		return -ENOTCONN;
 
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
-		mutex_lock(&bnx2i_conn->ep->hba->net_dev_lock);
-		if (bnx2i_conn->ep->cm_sk)
-			len = sprintf(buf, "%hu\n",
-				      bnx2i_conn->ep->cm_sk->dst_port);
-		mutex_unlock(&bnx2i_conn->ep->hba->net_dev_lock);
+		mutex_lock(&hba->net_dev_lock);
+		if (bnx2i_ep->cm_sk)
+			len = sprintf(buf, "%hu\n", bnx2i_ep->cm_sk->dst_port);
+		mutex_unlock(&hba->net_dev_lock);
 		break;
 	case ISCSI_PARAM_CONN_ADDRESS:
-		mutex_lock(&bnx2i_conn->ep->hba->net_dev_lock);
-		if (bnx2i_conn->ep->cm_sk)
-			len = sprintf(buf, "%pI4\n",
-				      &bnx2i_conn->ep->cm_sk->dst_ip);
-		mutex_unlock(&bnx2i_conn->ep->hba->net_dev_lock);
+		mutex_lock(&hba->net_dev_lock);
+		if (bnx2i_ep->cm_sk)
+			len = sprintf(buf, "%pI4\n", &bnx2i_ep->cm_sk->dst_ip);
+		mutex_unlock(&hba->net_dev_lock);
 		break;
 	default:
-		return iscsi_conn_get_param(cls_conn, param, buf);
+		return -ENOSYS;
 	}
-out:
+
 	return len;
 }
 
@@ -2204,7 +2202,7 @@ struct iscsi_transport bnx2i_iscsi_transport = {
 	.bind_conn		= bnx2i_conn_bind,
 	.destroy_conn		= bnx2i_conn_destroy,
 	.set_param		= iscsi_set_param,
-	.get_conn_param		= bnx2i_conn_get_param,
+	.get_conn_param		= iscsi_conn_get_param,
 	.get_session_param	= iscsi_session_get_param,
 	.get_host_param		= bnx2i_host_get_param,
 	.start_conn		= bnx2i_conn_start,
@@ -2213,6 +2211,7 @@ struct iscsi_transport bnx2i_iscsi_transport = {
 	.xmit_task		= bnx2i_task_xmit,
 	.get_stats		= bnx2i_conn_get_stats,
 	/* TCP connect - disconnect - option-2 interface calls */
+	.get_ep_param		= bnx2i_ep_get_param,
 	.ep_connect		= bnx2i_ep_connect,
 	.ep_poll		= bnx2i_ep_poll,
 	.ep_disconnect		= bnx2i_ep_disconnect,
