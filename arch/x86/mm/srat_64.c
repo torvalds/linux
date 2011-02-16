@@ -251,7 +251,7 @@ update_nodes_add(int node, unsigned long start, unsigned long end)
 void __init
 acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 {
-	struct bootnode *nd, oldnode;
+	struct bootnode *nd;
 	unsigned long start, end;
 	int node, pxm;
 	int i;
@@ -289,28 +289,23 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 		bad_srat();
 		return;
 	}
-	nd = &nodes[node];
-	oldnode = *nd;
-	if (!node_test_and_set(node, nodes_parsed)) {
-		nd->start = start;
-		nd->end = end;
-	} else {
-		if (start < nd->start)
-			nd->start = start;
-		if (nd->end < end)
-			nd->end = end;
-	}
 
 	printk(KERN_INFO "SRAT: Node %u PXM %u %lx-%lx\n", node, pxm,
 	       start, end);
 
-	if (ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) {
+	if (!(ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE)) {
+		nd = &nodes[node];
+		if (!node_test_and_set(node, nodes_parsed)) {
+			nd->start = start;
+			nd->end = end;
+		} else {
+			if (start < nd->start)
+				nd->start = start;
+			if (nd->end < end)
+				nd->end = end;
+		}
+	} else
 		update_nodes_add(node, start, end);
-		/* restore nodes[node] */
-		*nd = oldnode;
-		if ((nd->start | nd->end) == 0)
-			node_clear(node, nodes_parsed);
-	}
 
 	node_memblk_range[num_node_memblks].start = start;
 	node_memblk_range[num_node_memblks].end = end;
