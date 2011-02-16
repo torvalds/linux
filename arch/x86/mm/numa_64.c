@@ -287,6 +287,37 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	node_set_online(nodeid);
 }
 
+/*
+ * Sanity check to catch more bad NUMA configurations (they are amazingly
+ * common).  Make sure the nodes cover all memory.
+ */
+static int __init nodes_cover_memory(const struct bootnode *nodes)
+{
+	unsigned long numaram, e820ram;
+	int i;
+
+	numaram = 0;
+	for_each_node_mask(i, mem_nodes_parsed) {
+		unsigned long s = nodes[i].start >> PAGE_SHIFT;
+		unsigned long e = nodes[i].end >> PAGE_SHIFT;
+		numaram += e - s;
+		numaram -= __absent_pages_in_range(i, s, e);
+		if ((long)numaram < 0)
+			numaram = 0;
+	}
+
+	e820ram = max_pfn -
+		(memblock_x86_hole_size(0, max_pfn<<PAGE_SHIFT) >> PAGE_SHIFT);
+	/* We seem to lose 3 pages somewhere. Allow 1M of slack. */
+	if ((long)(e820ram - numaram) >= (1<<(20 - PAGE_SHIFT))) {
+		printk(KERN_ERR "NUMA: nodes only cover %luMB of your %luMB e820 RAM. Not used.\n",
+			(numaram << PAGE_SHIFT) >> 20,
+			(e820ram << PAGE_SHIFT) >> 20);
+		return 0;
+	}
+	return 1;
+}
+
 static int __init numa_register_memblks(void)
 {
 	int i;
@@ -349,6 +380,27 @@ static int __init numa_register_memblks(void)
 		memblock_x86_register_active_regions(memblk_nodeid[i],
 				node_memblk_range[i].start >> PAGE_SHIFT,
 				node_memblk_range[i].end >> PAGE_SHIFT);
+
+	/* for out of order entries */
+	sort_node_map();
+	if (!nodes_cover_memory(numa_nodes))
+		return -EINVAL;
+
+	init_memory_mapping_high();
+
+	/* Finally register nodes. */
+	for_each_node_mask(i, node_possible_map)
+		setup_node_bootmem(i, numa_nodes[i].start, numa_nodes[i].end);
+
+	/*
+	 * Try again in case setup_node_bootmem missed one due to missing
+	 * bootmem.
+	 */
+	for_each_node_mask(i, node_possible_map)
+		if (!node_online(i))
+			setup_node_bootmem(i, numa_nodes[i].start,
+					   numa_nodes[i].end);
+
 	return 0;
 }
 
@@ -714,16 +766,14 @@ static int dummy_numa_init(void)
 	node_set(0, cpu_nodes_parsed);
 	node_set(0, mem_nodes_parsed);
 	numa_add_memblk(0, 0, (u64)max_pfn << PAGE_SHIFT);
+	numa_nodes[0].start = 0;
+	numa_nodes[0].end = (u64)max_pfn << PAGE_SHIFT;
 
 	return 0;
 }
 
 static int dummy_scan_nodes(void)
 {
-	init_memory_mapping_high();
-	setup_node_bootmem(0, 0, max_pfn << PAGE_SHIFT);
-	numa_init_array();
-
 	return 0;
 }
 
@@ -759,6 +809,7 @@ void __init initmem_init(void)
 		memset(node_memblk_range, 0, sizeof(node_memblk_range));
 		memset(memblk_nodeid, 0, sizeof(memblk_nodeid));
 		memset(numa_nodes, 0, sizeof(numa_nodes));
+		remove_all_active_ranges();
 
 		if (numa_init[i]() < 0)
 			continue;
@@ -783,8 +834,19 @@ void __init initmem_init(void)
 		if (numa_register_memblks() < 0)
 			continue;
 
-		if (!scan_nodes[i]())
-			return;
+		if (scan_nodes[i]() < 0)
+			continue;
+
+		for (j = 0; j < nr_cpu_ids; j++) {
+			int nid = early_cpu_to_node(j);
+
+			if (nid == NUMA_NO_NODE)
+				continue;
+			if (!node_online(nid))
+				numa_clear_node(j);
+		}
+		numa_init_array();
+		return;
 	}
 	BUG();
 }

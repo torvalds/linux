@@ -44,7 +44,6 @@ static __init void bad_srat(void)
 		numa_nodes[i].start = numa_nodes[i].end = 0;
 		nodes_add[i].start = nodes_add[i].end = 0;
 	}
-	remove_all_active_ranges();
 }
 
 static __init inline int srat_disabled(void)
@@ -259,35 +258,6 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 		update_nodes_add(node, start, end);
 }
 
-/* Sanity check to catch more bad SRATs (they are amazingly common).
-   Make sure the PXMs cover all memory. */
-static int __init nodes_cover_memory(const struct bootnode *nodes)
-{
-	int i;
-	unsigned long pxmram, e820ram;
-
-	pxmram = 0;
-	for_each_node_mask(i, mem_nodes_parsed) {
-		unsigned long s = nodes[i].start >> PAGE_SHIFT;
-		unsigned long e = nodes[i].end >> PAGE_SHIFT;
-		pxmram += e - s;
-		pxmram -= __absent_pages_in_range(i, s, e);
-		if ((long)pxmram < 0)
-			pxmram = 0;
-	}
-
-	e820ram = max_pfn - (memblock_x86_hole_size(0, max_pfn<<PAGE_SHIFT)>>PAGE_SHIFT);
-	/* We seem to lose 3 pages somewhere. Allow 1M of slack. */
-	if ((long)(e820ram - pxmram) >= (1<<(20 - PAGE_SHIFT))) {
-		printk(KERN_ERR
-	"SRAT: PXMs only cover %luMB of your %luMB e820 RAM. Not used.\n",
-			(pxmram << PAGE_SHIFT) >> 20,
-			(e820ram << PAGE_SHIFT) >> 20);
-		return 0;
-	}
-	return 1;
-}
-
 void __init acpi_numa_arch_fixup(void) {}
 
 int __init x86_acpi_numa_init(void)
@@ -303,39 +273,8 @@ int __init x86_acpi_numa_init(void)
 /* Use the information discovered above to actually set up the nodes. */
 int __init acpi_scan_nodes(void)
 {
-	int i;
-
 	if (acpi_numa <= 0)
 		return -1;
-
-	/* for out of order entries in SRAT */
-	sort_node_map();
-	if (!nodes_cover_memory(numa_nodes)) {
-		bad_srat();
-		return -1;
-	}
-
-	init_memory_mapping_high();
-
-	/* Finally register nodes */
-	for_each_node_mask(i, node_possible_map)
-		setup_node_bootmem(i, numa_nodes[i].start, numa_nodes[i].end);
-	/* Try again in case setup_node_bootmem missed one due
-	   to missing bootmem */
-	for_each_node_mask(i, node_possible_map)
-		if (!node_online(i))
-			setup_node_bootmem(i, numa_nodes[i].start,
-					   numa_nodes[i].end);
-
-	for (i = 0; i < nr_cpu_ids; i++) {
-		int node = early_cpu_to_node(i);
-
-		if (node == NUMA_NO_NODE)
-			continue;
-		if (!node_online(node))
-			numa_clear_node(i);
-	}
-	numa_init_array();
 	return 0;
 }
 

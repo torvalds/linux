@@ -262,12 +262,5 @@ void __init amd_fake_nodes(const struct bootnode *nodes, int nr_nodes)
 
 int __init amd_scan_nodes(void)
 {
-	int i;
-
-	init_memory_mapping_high();
-	for_each_node_mask(i, node_possible_map)
-		setup_node_bootmem(i, numa_nodes[i].start, numa_nodes[i].end);
-
-	numa_init_array();
 	return 0;
 }
