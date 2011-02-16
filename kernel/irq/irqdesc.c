@@ -206,6 +206,14 @@ struct irq_desc * __ref irq_to_desc_alloc_node(unsigned int irq, int node)
 	return NULL;
 }
 
+static int irq_expand_nr_irqs(unsigned int cnt)
+{
+	if (nr_irqs + cnt > IRQ_BITMAP_BITS)
+		return -ENOMEM;
+	nr_irqs += cnt;
+	return 0;
+}
+
 int __init early_irq_init(void)
 {
 	int i, initcnt, node = first_online_node;
@@ -287,6 +295,12 @@ static inline int alloc_descs(unsigned int start, unsigned int cnt, int node)
 {
 	return start;
 }
+
+static int irq_expand_nr_irqs(unsigned int cnt)
+{
+	return -ENOMEM;
+}
+
 #endif /* !CONFIG_SPARSE_IRQ */
 
 /* Dynamic interrupt handling */
@@ -335,9 +349,11 @@ irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node)
 	if (irq >=0 && start != irq)
 		goto err;
 
-	ret = -ENOMEM;
-	if (start >= nr_irqs)
-		goto err;
+	if (start >= nr_irqs) {
+		ret = irq_expand_nr_irqs(cnt);
+		if (ret)
+			goto err;
+	}
 
 	bitmap_set(allocated_irqs, start, cnt);
 	mutex_unlock(&sparse_irq_lock);
