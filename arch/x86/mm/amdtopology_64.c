@@ -205,19 +205,6 @@ static s16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
 
-static int __init find_node_by_addr(unsigned long addr)
-{
-	int ret = NUMA_NO_NODE;
-	int i;
-
-	for (i = 0; i < 8; i++)
-		if (addr >= numa_nodes[i].start && addr < numa_nodes[i].end) {
-			ret = i;
-			break;
-		}
-	return ret;
-}
-
 /*
  * For NUMA emulation, fake proximity domain (_PXM) to node id mappings must be
  * setup to represent the physical topology but reflect the emulated

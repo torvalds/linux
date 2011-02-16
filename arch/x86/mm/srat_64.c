@@ -277,24 +277,6 @@ static int fake_node_to_pxm_map[MAX_NUMNODES] __initdata = {
 static s16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
-static int __init find_node_by_addr(unsigned long addr)
-{
-	int ret = NUMA_NO_NODE;
-	int i;
-
-	for_each_node_mask(i, mem_nodes_parsed) {
-		/*
-		 * Find the real node that this emulated node appears on.  For
-		 * the sake of simplicity, we only use a real node's starting
-		 * address to determine which emulated node it appears on.
-		 */
-		if (addr >= numa_nodes[i].start && addr < numa_nodes[i].end) {
-			ret = i;
-			break;
-		}
-	}
-	return ret;
-}
 
 /*
  * In NUMA emulation, we need to setup proximity domain (_PXM) to node ID

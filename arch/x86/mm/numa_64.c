@@ -430,6 +430,25 @@ void __init numa_emu_cmdline(char *str)
 	cmdline = str;
 }
 
+int __init find_node_by_addr(unsigned long addr)
+{
+	int ret = NUMA_NO_NODE;
+	int i;
+
+	for_each_node_mask(i, mem_nodes_parsed) {
+		/*
+		 * Find the real node that this emulated node appears on.  For
+		 * the sake of simplicity, we only use a real node's starting
+		 * address to determine which emulated node it appears on.
+		 */
+		if (addr >= numa_nodes[i].start && addr < numa_nodes[i].end) {
+			ret = i;
+			break;
+		}
+	}
+	return ret;
+}
+
 static int __init setup_physnodes(unsigned long start, unsigned long end)
 {
 	int ret = 0;
