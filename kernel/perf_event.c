@@ -150,7 +150,24 @@ int sysctl_perf_event_mlock __read_mostly = 512; /* 'free' kb per user */
 /*
  * max perf event sample rate
  */
-int sysctl_perf_event_sample_rate __read_mostly = 100000;
+#define DEFAULT_MAX_SAMPLE_RATE 100000
+int sysctl_perf_event_sample_rate __read_mostly = DEFAULT_MAX_SAMPLE_RATE;
+static int max_samples_per_tick __read_mostly =
+	DIV_ROUND_UP(DEFAULT_MAX_SAMPLE_RATE, HZ);
+
+int perf_proc_update_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp,
+		loff_t *ppos)
+{
+	int ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (ret || !write)
+		return ret;
+
+	max_samples_per_tick = DIV_ROUND_UP(sysctl_perf_event_sample_rate, HZ);
+
+	return 0;
+}
 
 static atomic64_t perf_event_id;
 
@@ -4941,26 +4958,14 @@ static int __perf_event_overflow(struct perf_event *event, int nmi,
 	if (unlikely(!is_sampling_event(event)))
 		return 0;
 
-	if (!throttle) {
-		hwc->interrupts++;
-	} else {
-		if (hwc->interrupts != MAX_INTERRUPTS) {
-			hwc->interrupts++;
-			if (HZ * hwc->interrupts >
-					(u64)sysctl_perf_event_sample_rate) {
-				hwc->interrupts = MAX_INTERRUPTS;
-				perf_log_throttle(event, 0);
-				ret = 1;
-			}
-		} else {
-			/*
-			 * Keep re-disabling events even though on the previous
-			 * pass we disabled it - just in case we raced with a
-			 * sched-in and the event got enabled again:
-			 */
+	if (unlikely(hwc->interrupts >= max_samples_per_tick)) {
+		if (throttle) {
+			hwc->interrupts = MAX_INTERRUPTS;
+			perf_log_throttle(event, 0);
 			ret = 1;
 		}
-	}
+	} else
+		hwc->interrupts++;
 
 	if (event->attr.freq) {
 		u64 now = perf_clock();
