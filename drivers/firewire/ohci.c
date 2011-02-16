@@ -2764,6 +2764,7 @@ static int ohci_stop_iso(struct fw_iso_context *base)
 	}
 	flush_writes(ohci);
 	context_stop(&ctx->context);
+	tasklet_kill(&ctx->context.tasklet);
 
 	return 0;
 }
