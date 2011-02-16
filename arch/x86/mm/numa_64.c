@@ -772,25 +772,17 @@ static int dummy_numa_init(void)
 	return 0;
 }
 
-static int dummy_scan_nodes(void)
-{
-	return 0;
-}
-
 void __init initmem_init(void)
 {
 	int (*numa_init[])(void) = { [2] = dummy_numa_init };
-	int (*scan_nodes[])(void) = { [2] = dummy_scan_nodes };
 	int i, j;
 
 	if (!numa_off) {
 #ifdef CONFIG_ACPI_NUMA
 		numa_init[0] = x86_acpi_numa_init;
-		scan_nodes[0] = acpi_scan_nodes;
 #endif
 #ifdef CONFIG_AMD_NUMA
 		numa_init[1] = amd_numa_init;
-		scan_nodes[1] = amd_scan_nodes;
 #endif
 	}
 
@@ -832,9 +824,6 @@ void __init initmem_init(void)
 			continue;
 
 		if (numa_register_memblks() < 0)
-			continue;
-
-		if (scan_nodes[i]() < 0)
 			continue;
 
 		for (j = 0; j < nr_cpu_ids; j++) {

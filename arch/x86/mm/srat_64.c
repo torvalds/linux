@@ -270,14 +270,6 @@ int __init x86_acpi_numa_init(void)
 	return srat_disabled() ? -EINVAL : 0;
 }
 
-/* Use the information discovered above to actually set up the nodes. */
-int __init acpi_scan_nodes(void)
-{
-	if (acpi_numa <= 0)
-		return -1;
-	return 0;
-}
-
 #ifdef CONFIG_NUMA_EMU
 static int fake_node_to_pxm_map[MAX_NUMNODES] __initdata = {
 	[0 ... MAX_NUMNODES-1] = PXM_INVAL

@@ -259,8 +259,3 @@ void __init amd_fake_nodes(const struct bootnode *nodes, int nr_nodes)
 	memcpy(__apicid_to_node, fake_apicid_to_node, sizeof(__apicid_to_node));
 }
 #endif /* CONFIG_NUMA_EMU */
-
-int __init amd_scan_nodes(void)
-{
-	return 0;
-}
