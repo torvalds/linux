@@ -130,8 +130,15 @@ extern void platform_driver_unregister(struct platform_driver *);
 extern int platform_driver_probe(struct platform_driver *driver,
 		int (*probe)(struct platform_device *));
 
-#define platform_get_drvdata(_dev)	dev_get_drvdata(&(_dev)->dev)
-#define platform_set_drvdata(_dev,data)	dev_set_drvdata(&(_dev)->dev, (data))
+static inline void *platform_get_drvdata(const struct platform_device *pdev)
+{
+	return dev_get_drvdata(&pdev->dev);
+}
+
+static inline void platform_set_drvdata(struct platform_device *pdev, void *data)
+{
+	dev_set_drvdata(&pdev->dev, data);
+}
 
 extern struct platform_device *platform_create_bundle(struct platform_driver *driver,
 					int (*probe)(struct platform_device *),
