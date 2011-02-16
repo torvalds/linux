@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2010 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -799,6 +799,10 @@ struct lpfc_hba {
 	struct dentry *debug_slow_ring_trc;
 	struct lpfc_debugfs_trc *slow_ring_trc;
 	atomic_t slow_ring_trc_cnt;
+	/* iDiag debugfs sub-directory */
+	struct dentry *idiag_root;
+	struct dentry *idiag_pci_cfg;
+	struct dentry *idiag_que_info;
 #endif
 
 	/* Used for deferred freeing of ELS data buffers */

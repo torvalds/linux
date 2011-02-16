@@ -125,9 +125,9 @@ struct lpfc_queue {
 	uint32_t entry_count;	/* Number of entries to support on the queue */
 	uint32_t entry_size;	/* Size of each queue entry. */
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
+	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
 	struct list_head page_list;
 	uint32_t page_count;	/* Number of pages allocated for this queue */
-
 	uint32_t host_index;	/* The host's index for putting or getting */
 	uint32_t hba_index;	/* The last known hba index for get or put */
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
