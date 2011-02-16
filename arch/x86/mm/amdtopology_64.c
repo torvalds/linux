@@ -28,7 +28,6 @@
 
 static struct bootnode __initdata nodes[8];
 static unsigned char __initdata nodeids[8];
-static nodemask_t __initdata nodes_parsed = NODE_MASK_NONE;
 
 static __init int find_northbridge(void)
 {
@@ -123,7 +122,7 @@ int __init amd_numa_init(void)
 			       nodeid, (base >> 8) & 3, (limit >> 8) & 3);
 			return -EINVAL;
 		}
-		if (node_isset(nodeid, nodes_parsed)) {
+		if (node_isset(nodeid, mem_nodes_parsed)) {
 			pr_info("Node %d already present, skipping\n",
 				nodeid);
 			continue;
@@ -173,7 +172,8 @@ int __init amd_numa_init(void)
 
 		prevbase = base;
 
-		node_set(nodeid, nodes_parsed);
+		node_set(nodeid, mem_nodes_parsed);
+		node_set(nodeid, cpu_nodes_parsed);
 	}
 
 	if (!found)
@@ -190,7 +190,7 @@ void __init amd_get_nodes(struct bootnode *physnodes)
 {
 	int i;
 
-	for_each_node_mask(i, nodes_parsed) {
+	for_each_node_mask(i, mem_nodes_parsed) {
 		physnodes[i].start = nodes[i].start;
 		physnodes[i].end = nodes[i].end;
 	}
@@ -258,8 +258,6 @@ int __init amd_scan_nodes(void)
 	unsigned int apicid_base;
 	int i;
 
-	BUG_ON(nodes_empty(nodes_parsed));
-	node_possible_map = nodes_parsed;
 	memnode_shift = compute_hash_shift(nodes, 8, NULL);
 	if (memnode_shift < 0) {
 		pr_err("No NUMA node hash function found. Contact maintainer\n");

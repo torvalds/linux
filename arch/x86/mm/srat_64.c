@@ -28,8 +28,6 @@ int acpi_numa __initdata;
 
 static struct acpi_table_slit *acpi_slit;
 
-static nodemask_t nodes_parsed __initdata;
-static nodemask_t cpu_nodes_parsed __initdata;
 static struct bootnode nodes[MAX_NUMNODES] __initdata;
 static struct bootnode nodes_add[MAX_NUMNODES];
 
@@ -293,7 +291,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 
 	if (!(ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE)) {
 		nd = &nodes[node];
-		if (!node_test_and_set(node, nodes_parsed)) {
+		if (!node_test_and_set(node, mem_nodes_parsed)) {
 			nd->start = start;
 			nd->end = end;
 		} else {
@@ -319,7 +317,7 @@ static int __init nodes_cover_memory(const struct bootnode *nodes)
 	unsigned long pxmram, e820ram;
 
 	pxmram = 0;
-	for_each_node_mask(i, nodes_parsed) {
+	for_each_node_mask(i, mem_nodes_parsed) {
 		unsigned long s = nodes[i].start >> PAGE_SHIFT;
 		unsigned long e = nodes[i].end >> PAGE_SHIFT;
 		pxmram += e - s;
@@ -348,7 +346,7 @@ void __init acpi_get_nodes(struct bootnode *physnodes, unsigned long start,
 {
 	int i;
 
-	for_each_node_mask(i, nodes_parsed) {
+	for_each_node_mask(i, mem_nodes_parsed) {
 		cutoff_node(i, start, end);
 		physnodes[i].start = nodes[i].start;
 		physnodes[i].end = nodes[i].end;
@@ -449,9 +447,6 @@ int __init acpi_scan_nodes(void)
 
 	init_memory_mapping_high();
 
-	/* Account for nodes with cpus and no memory */
-	nodes_or(node_possible_map, nodes_parsed, cpu_nodes_parsed);
-
 	/* Finally register nodes */
 	for_each_node_mask(i, node_possible_map)
 		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
@@ -485,7 +480,7 @@ static int __init find_node_by_addr(unsigned long addr)
 	int ret = NUMA_NO_NODE;
 	int i;
 
-	for_each_node_mask(i, nodes_parsed) {
+	for_each_node_mask(i, mem_nodes_parsed) {
 		/*
 		 * Find the real node that this emulated node appears on.  For
 		 * the sake of simplicity, we only use a real node's starting
@@ -545,10 +540,10 @@ void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 		__acpi_map_pxm_to_node(fake_node_to_pxm_map[i], i);
 	memcpy(__apicid_to_node, fake_apicid_to_node, sizeof(__apicid_to_node));
 
-	nodes_clear(nodes_parsed);
+	nodes_clear(mem_nodes_parsed);
 	for (i = 0; i < num_nodes; i++)
 		if (fake_nodes[i].start != fake_nodes[i].end)
-			node_set(i, nodes_parsed);
+			node_set(i, mem_nodes_parsed);
 }
 
 static int null_slit_node_compare(int a, int b)

@@ -25,6 +25,9 @@
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 
+nodemask_t cpu_nodes_parsed __initdata;
+nodemask_t mem_nodes_parsed __initdata;
+
 struct memnode memnode;
 
 static unsigned long __initdata nodemap_addr;
@@ -582,22 +585,23 @@ static int __init numa_emulation(unsigned long start_pfn,
 
 static int dummy_numa_init(void)
 {
-	return 0;
-}
-
-static int dummy_scan_nodes(void)
-{
 	printk(KERN_INFO "%s\n",
 	       numa_off ? "NUMA turned off" : "No NUMA configuration found");
 	printk(KERN_INFO "Faking a node at %016lx-%016lx\n",
 	       0LU, max_pfn << PAGE_SHIFT);
 
+	node_set(0, cpu_nodes_parsed);
+	node_set(0, mem_nodes_parsed);
+
+	return 0;
+}
+
+static int dummy_scan_nodes(void)
+{
 	/* setup dummy node covering all memory */
 	memnode_shift = 63;
 	memnodemap = memnode.embedded_map;
 	memnodemap[0] = 0;
-	node_set_online(0);
-	node_set(0, node_possible_map);
 	memblock_x86_register_active_regions(0, 0, max_pfn);
 	init_memory_mapping_high();
 	setup_node_bootmem(0, 0, max_pfn << PAGE_SHIFT);
@@ -630,6 +634,8 @@ void __init initmem_init(void)
 		for (j = 0; j < MAX_LOCAL_APIC; j++)
 			set_apicid_to_node(j, NUMA_NO_NODE);
 
+		nodes_clear(cpu_nodes_parsed);
+		nodes_clear(mem_nodes_parsed);
 		nodes_clear(node_possible_map);
 		nodes_clear(node_online_map);
 
@@ -643,6 +649,11 @@ void __init initmem_init(void)
 		nodes_clear(node_possible_map);
 		nodes_clear(node_online_map);
 #endif
+		/* Account for nodes with cpus and no memory */
+		nodes_or(node_possible_map, mem_nodes_parsed, cpu_nodes_parsed);
+		if (WARN_ON(nodes_empty(node_possible_map)))
+			continue;
+
 		if (!scan_nodes[i]())
 			return;
 	}
