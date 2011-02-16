@@ -119,6 +119,7 @@ enum {
 #define HCI_PAIRING_TIMEOUT	(60000)	/* 60 seconds */
 #define HCI_IDLE_TIMEOUT	(6000)	/* 6 seconds */
 #define HCI_INIT_TIMEOUT	(10000)	/* 10 seconds */
+#define HCI_CMD_TIMEOUT		(1000)	/* 1 seconds */
 
 /* HCI data types */
 #define HCI_COMMAND_PKT		0x01
@@ -244,6 +245,8 @@ enum {
 #define HCI_AT_GENERAL_BONDING_MITM	0x05
 
 /* -----  HCI Commands ---- */
+#define HCI_OP_NOP			0x0000
+
 #define HCI_OP_INQUIRY			0x0401
 struct hci_cp_inquiry {
 	__u8     lap[3];

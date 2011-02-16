@@ -1732,6 +1732,9 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 		break;
 	}
 
+	if (ev->opcode != HCI_OP_NOP)
+		del_timer(&hdev->cmd_timer);
+
 	if (ev->ncmd) {
 		atomic_set(&hdev->cmd_cnt, 1);
 		if (!skb_queue_empty(&hdev->cmd_q))
@@ -1806,6 +1809,9 @@ static inline void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		BT_DBG("%s opcode 0x%x", hdev->name, opcode);
 		break;
 	}
+
+	if (ev->opcode != HCI_OP_NOP)
+		del_timer(&hdev->cmd_timer);
 
 	if (ev->ncmd) {
 		atomic_set(&hdev->cmd_cnt, 1);
