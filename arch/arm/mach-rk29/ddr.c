@@ -1,13 +1,12 @@
 /****************************************************************
 *    	CopyRight(C) 2010 by Rock-Chip Fuzhou
 *     All Rights Reserved
-*	文件名:ddr.c
-*	描述: ddr driver implement
-*	作者:hcy
-*	创建日期:2011-01-04
-*	更改记录:
-*	$Log: ddr.c,v $
-*	当前版本:1.00   20110104 hcy 提交初始版本
+*	File name	:ddr.c
+*	Description: ddr driver implement
+*	Author :hcy
+*	Create date :2011-01-04
+*	Change log:
+*	Current version:1.00   20110104 hcy 
 ****************************************************************/
 
 #include <linux/init.h>
@@ -33,7 +32,7 @@
 
 #include <asm/io.h>
 
-// save_sp 必须定义为静态全局变量
+// save_sp  must be static global variable  
 
 static unsigned long save_sp;
 
@@ -369,7 +368,7 @@ typedef enum tagDDRDLLMode
 
 
 static __sramdata u32 bFreqRaise;
-static __sramdata u32 capability;  //单个CS的容量
+static __sramdata u32 capability;  // one chip cs capability
 
 //DDR2
 static __sramdata u32 tRFC;
@@ -386,8 +385,8 @@ static __sramdata u32 tXP;
 
 
 /****************************************************************************
-内部sram 的us 延时函数
-假定cpu 最高频率1.2 GHz
+Internal sram us delay function
+Cpu highest frequency is 1.2 GHz
 1 cycle = 1/1.2 ns
 1 us = 1000 ns = 1000 * 1.2 cycles = 1200 cycles
 *****************************************************************************/
@@ -471,15 +470,14 @@ u32 __sramfunc GetDDRCL(u32 newMHz)
     }
 }
 
-/****************************************************************/
-//函数名:SDRAM_EnterSelfRefresh
-//描述:SDRAM进入自刷新模式
-//参数说明:
-//返回值:
-//相关全局变量:
-//注意:(1)系统完全idle后才能进入自刷新模式，进入自刷新后不能再访问SDRAM
-//     (2)要进入自刷新模式，必须保证运行时这个函数所调用到的所有代码不在SDRAM上
-/****************************************************************/
+/*-------------------------------------------------------------------
+Name    : EnterDDRSelfRefresh
+Desc    :   DDR enter self refresh
+Params  :
+Return  :
+Notes   : 	1.  ddr enter sel-refresh must be after system enter idle ,after ddr enter sel-refresh must not access ddr 
+             	2.  ddr enter sel-refresh code must not be in ddr 
+-------------------------------------------------------------------*/
 void __sramfunc EnterDDRSelfRefresh(void)
 {    
     pDDR_Reg->CCR &= ~HOSTEN;  //disable host port
@@ -489,15 +487,14 @@ void __sramfunc EnterDDRSelfRefresh(void)
     delayus(10);
 }
 
-/****************************************************************/
-//函数名:SDRAM_ExitSelfRefresh
-//描述:SDRAM退出自刷新模式
-//参数说明:
-//返回值:
-//相关全局变量:
-//注意:(1)SDRAM在自刷新模式后不能被访问，必须先退出自刷新模式
-//     (2)必须保证运行时这个函数的代码不在SDRAM上
-/****************************************************************/
+/*-------------------------------------------------------------------
+Name   :   ExitDDRSelfRefresh
+Desc    :   DDR exit self refresh
+Params  :
+Return  :
+Notes   : 	1.  ddr enter sel-refresh must be after system enter idle ,after ddr enter sel-refresh must not access ddr 
+              2.  ddr enter sel-refresh code must not be in ddr 
+-------------------------------------------------------------------*/
 void __sramfunc ExitDDRSelfRefresh(void)
 {
 
@@ -515,12 +512,12 @@ void __sramfunc ExitDDRSelfRefresh(void)
 
 /*-------------------------------------------------------------------
 Name    : PLLGetAHBFreq
-Desc    : 获取DDR的频率
+Desc    :  get DDR frequency
 Params  :
-Return  : DDR频率,  KHz 为单位
+Return  : DDR frequency,  min is KHz
 Notes   :
 -------------------------------------------------------------------*/
-static u32 PLLGetDDRFreq(void)
+static u32 PLLGetDDRFreq(void)  // ??????????????? need to check it by huangtao , Is DPLL only used by DDR?
 {
     u32 nr;
     u32 nf;
@@ -893,15 +890,13 @@ DDR_CONFIG_T    ddrConfig[3][10] = {
     }
 };
 
-
-/****************************************************************/
-//函数名:SDRAM_Init
-//描述:DDR 初始化
-//参数说明:
-//返回值:
-//相关全局变量:
-//注意:
-/****************************************************************/
+/*-------------------------------------------------------------------
+Name    : DDR_Init
+Desc    :  ddr initialize
+Params  :
+Return  :
+Notes   : 
+-------------------------------------------------------------------*/
 u32 ddrDataTraining[16];
 void DDR_Init(void)
 {
@@ -916,20 +911,16 @@ void DDR_Init(void)
     u32          bank;
     u32          n;
 
-    //算物理对齐地址
-    n = (unsigned long)ddrDataTraining;
-	printk("\n#################### VA = 0x%x\n", n);
+    // caculate aglined physical address 
     addr =  __pa((unsigned long)ddrDataTraining);
-	printk("#################### PA = 0x%x", addr);
     if(addr&0x1F)
     {
         addr += (32-(addr&0x1F));
     }
     addr -= 0x60000000;
-	printk("#################### PA aligned = 0x%x\n", addr);
-    //算数据线宽
+    // caculate data width
     bw = ((((pDDR_Reg->DCR >> 7) & 0x7)+1)>>1);
-    //查出col，row，bank
+    // find out col，row，bank
     for(n=0;n<10; n++)
     {
         if(ddrConfig[(pDDR_Reg->DCR & 0x3)][n].config == (pDDR_Reg->DCR & 0x7c))
@@ -946,8 +937,8 @@ void DDR_Init(void)
     {
         //ASSERT
     }
-	printk("#################### bw = 0x%x, col = 0x%x, row = 0x%x, bank = 0x%x\n", bw, col, row, bank);
-    //根据不同的地址映射方式，算出DTAR寄存器的配置
+
+    // according different address mapping, caculate DTAR register value
     value = pDDR_Reg->DTAR;
     value &= ~(0x7FFFFFFF);
     switch(pDDR_Reg->DCR & (0x3<<14))
@@ -975,16 +966,15 @@ void DDR_Init(void)
                 value |= ((addr>>(bw+col+row)) & ((0x1<<bank)-1)) << 28;  // bank
             }
             break;
-        case AMAP_FIX:    //不支持这种固定的方式
+        case AMAP_FIX:    // can not support AMAP_FIX mode 
         default:
             break;
     }
-	printk("#################### value = 0x%x\n", value);
     pDDR_Reg->DTAR = value;
 
     if(memType == DDRII)
     {
-        pDDR_Reg->ALPMR = LPPERIOD_POWER_DOWN(0xFF); /* | AUTOPD;*/
+        pDDR_Reg->ALPMR = LPPERIOD_POWER_DOWN(0xFF)|AUTOPD;
     }
     else
     {
@@ -1001,8 +991,17 @@ void DDR_Init(void)
     DDRPreUpdateTiming(MHz);
     DDRUpdateRef();
     DDRUpdateTiming();
+	
 }
 
+/*-------------------------------------------------------------------
+Name    : DDR_ChangeFreq
+Desc    :  change ddr frequency 
+Params  :
+Return  :
+Notes   :  close interrupt before call it
+              open interrupt after call it
+-------------------------------------------------------------------*/
 void DDR_ChangeFreq(u32 DDRoldMHz, u32 DDRnewMHz)
 {
 
@@ -1017,15 +1016,14 @@ void DDR_ChangeFreq(u32 DDRoldMHz, u32 DDRnewMHz)
 
 ////////////////////////////////////////////////////////////////////////////////////
 
-/****************************************************************/
-//函数名:SDRAM_EnterSelfRefresh
-//描述:SDRAM进入自刷新模式
-//参数说明:
-//返回值:
-//相关全局变量:
-//注意:(1)系统完全idle后才能进入自刷新模式，进入自刷新后不能再访问SDRAM
-//     (2)要进入自刷新模式，必须保证运行时这个函数所调用到的所有代码不在SDRAM上
-/****************************************************************/
+/*-------------------------------------------------------------------
+Name    :  DDR_EnterSelfRefresh
+Desc    :   DDR enter self refresh call in ddr
+Params  :
+Return  :
+Notes   : 	1.  ddr enter sel-refresh must be after system enter idle ,after ddr enter sel-refresh must not access ddr 
+             	2.  ddr enter sel-refresh code must not be in ddr 
+-------------------------------------------------------------------*/
 void __sramfunc DDR_EnterSelfRefresh(void)
 {
     EnterDDRSelfRefresh();
@@ -1041,15 +1039,14 @@ void __sramfunc DDR_EnterSelfRefresh(void)
 #endif
 }
 
-/****************************************************************/
-//函数名:SDRAM_ExitSelfRefresh
-//描述:SDRAM退出自刷新模式
-//参数说明:
-//返回值:
-//相关全局变量:
-//注意:(1)SDRAM在自刷新模式后不能被访问，必须先退出自刷新模式
-//     (2)必须保证运行时这个函数的代码不在SDRAM上
-/****************************************************************/
+/*-------------------------------------------------------------------
+Name   :   DDR_ExitSelfRefresh
+Desc    :   DDR exit self refresh
+Params  :
+Return  :
+Notes   : 	1.  ddr enter sel-refresh must be after system enter idle ,after ddr enter sel-refresh must not access ddr 
+              2.  ddr enter sel-refresh code must not be in ddr 
+-------------------------------------------------------------------*/
 void __sramfunc DDR_ExitSelfRefresh(void)
 {
 #if 1
@@ -1076,7 +1073,7 @@ void __sramfunc DDR_ExitSelfRefresh(void)
 		"mcr p15,0,%2,c10,c0,1\n\t"
 		::"r"(vaddr) , "r"(0x00000001), "r"(0x08400000));
 }
-// 考虑cpu  预取、mmu cache
+// consider  cpu prefetch、mmu cache
 static void __sramfunc do_selfrefreshtest(void)
 {
 	volatile u32 n;	
