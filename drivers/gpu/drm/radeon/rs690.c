@@ -77,9 +77,9 @@ void rs690_pm_info(struct radeon_device *rdev)
 		switch (crev) {
 		case 1:
 			tmp.full = dfixed_const(100);
-			rdev->pm.igp_sideport_mclk.full = dfixed_const(info->info.ulBootUpMemoryClock);
+			rdev->pm.igp_sideport_mclk.full = dfixed_const(le32_to_cpu(info->info.ulBootUpMemoryClock));
 			rdev->pm.igp_sideport_mclk.full = dfixed_div(rdev->pm.igp_sideport_mclk, tmp);
-			if (info->info.usK8MemoryClock)
+			if (le16_to_cpu(info->info.usK8MemoryClock))
 				rdev->pm.igp_system_mclk.full = dfixed_const(le16_to_cpu(info->info.usK8MemoryClock));
 			else if (rdev->clock.default_mclk) {
 				rdev->pm.igp_system_mclk.full = dfixed_const(rdev->clock.default_mclk);
@@ -91,16 +91,16 @@ void rs690_pm_info(struct radeon_device *rdev)
 			break;
 		case 2:
 			tmp.full = dfixed_const(100);
-			rdev->pm.igp_sideport_mclk.full = dfixed_const(info->info_v2.ulBootUpSidePortClock);
+			rdev->pm.igp_sideport_mclk.full = dfixed_const(le32_to_cpu(info->info_v2.ulBootUpSidePortClock));
 			rdev->pm.igp_sideport_mclk.full = dfixed_div(rdev->pm.igp_sideport_mclk, tmp);
-			if (info->info_v2.ulBootUpUMAClock)
-				rdev->pm.igp_system_mclk.full = dfixed_const(info->info_v2.ulBootUpUMAClock);
+			if (le32_to_cpu(info->info_v2.ulBootUpUMAClock))
+				rdev->pm.igp_system_mclk.full = dfixed_const(le32_to_cpu(info->info_v2.ulBootUpUMAClock));
 			else if (rdev->clock.default_mclk)
 				rdev->pm.igp_system_mclk.full = dfixed_const(rdev->clock.default_mclk);
 			else
 				rdev->pm.igp_system_mclk.full = dfixed_const(66700);
 			rdev->pm.igp_system_mclk.full = dfixed_div(rdev->pm.igp_system_mclk, tmp);
-			rdev->pm.igp_ht_link_clk.full = dfixed_const(info->info_v2.ulHTLinkFreq);
+			rdev->pm.igp_ht_link_clk.full = dfixed_const(le32_to_cpu(info->info_v2.ulHTLinkFreq));
 			rdev->pm.igp_ht_link_clk.full = dfixed_div(rdev->pm.igp_ht_link_clk, tmp);
 			rdev->pm.igp_ht_link_width.full = dfixed_const(le16_to_cpu(info->info_v2.usMinHTLinkWidth));
 			break;

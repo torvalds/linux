@@ -46,6 +46,7 @@
                          SDVO_TV_MASK)
 
 #define IS_TV(c)	(c->output_flag & SDVO_TV_MASK)
+#define IS_TMDS(c)	(c->output_flag & SDVO_TMDS_MASK)
 #define IS_LVDS(c)	(c->output_flag & SDVO_LVDS_MASK)
 #define IS_TV_OR_LVDS(c) (c->output_flag & (SDVO_TV_MASK | SDVO_LVDS_MASK))
 
@@ -1359,7 +1360,8 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 				intel_sdvo->has_hdmi_monitor = drm_detect_hdmi_monitor(edid);
 				intel_sdvo->has_hdmi_audio = drm_detect_monitor_audio(edid);
 			}
-		}
+		} else
+			status = connector_status_disconnected;
 		connector->display_info.raw_edid = NULL;
 		kfree(edid);
 	}
@@ -1407,10 +1409,25 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 
 	if ((intel_sdvo_connector->output_flag & response) == 0)
 		ret = connector_status_disconnected;
-	else if (response & SDVO_TMDS_MASK)
+	else if (IS_TMDS(intel_sdvo_connector))
 		ret = intel_sdvo_hdmi_sink_detect(connector);
-	else
-		ret = connector_status_connected;
+	else {
+		struct edid *edid;
+
+		/* if we have an edid check it matches the connection */
+		edid = intel_sdvo_get_edid(connector);
+		if (edid == NULL)
+			edid = intel_sdvo_get_analog_edid(connector);
+		if (edid != NULL) {
+			if (edid->input & DRM_EDID_INPUT_DIGITAL)
+				ret = connector_status_disconnected;
+			else
+				ret = connector_status_connected;
+			connector->display_info.raw_edid = NULL;
+			kfree(edid);
+		} else
+			ret = connector_status_connected;
+	}
 
 	/* May update encoder flag for like clock for SDVO TV, etc.*/
 	if (ret == connector_status_connected) {
@@ -1446,10 +1463,15 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 		edid = intel_sdvo_get_analog_edid(connector);
 
 	if (edid != NULL) {
-		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
+		struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
+		bool monitor_is_digital = !!(edid->input & DRM_EDID_INPUT_DIGITAL);
+		bool connector_is_digital = !!IS_TMDS(intel_sdvo_connector);
+
+		if (connector_is_digital == monitor_is_digital) {
 			drm_mode_connector_update_edid_property(connector, edid);
 			drm_add_edid_modes(connector, edid);
 		}
+
 		connector->display_info.raw_edid = NULL;
 		kfree(edid);
 	}
@@ -1668,6 +1690,22 @@ static void intel_sdvo_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
+static bool intel_sdvo_detect_hdmi_audio(struct drm_connector *connector)
+{
+	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
+	struct edid *edid;
+	bool has_audio = false;
+
+	if (!intel_sdvo->is_hdmi)
+		return false;
+
+	edid = intel_sdvo_get_edid(connector);
+	if (edid != NULL && edid->input & DRM_EDID_INPUT_DIGITAL)
+		has_audio = drm_detect_monitor_audio(edid);
+
+	return has_audio;
+}
+
 static int
 intel_sdvo_set_property(struct drm_connector *connector,
 			struct drm_property *property,
@@ -1684,17 +1722,23 @@ intel_sdvo_set_property(struct drm_connector *connector,
 		return ret;
 
 	if (property == intel_sdvo_connector->force_audio_property) {
-		if (val == intel_sdvo_connector->force_audio)
+		int i = val;
+		bool has_audio;
+
+		if (i == intel_sdvo_connector->force_audio)
 			return 0;
 
-		intel_sdvo_connector->force_audio = val;
+		intel_sdvo_connector->force_audio = i;
 
-		if (val > 0 && intel_sdvo->has_hdmi_audio)
-			return 0;
-		if (val < 0 && !intel_sdvo->has_hdmi_audio)
+		if (i == 0)
+			has_audio = intel_sdvo_detect_hdmi_audio(connector);
+		else
+			has_audio = i > 0;
+
+		if (has_audio == intel_sdvo->has_hdmi_audio)
 			return 0;
 
-		intel_sdvo->has_hdmi_audio = val > 0;
+		intel_sdvo->has_hdmi_audio = has_audio;
 		goto done;
 	}
 

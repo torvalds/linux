@@ -5660,18 +5660,6 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	dev_net_set(dev, &init_net);
 
-	dev->num_tx_queues = txqs;
-	dev->real_num_tx_queues = txqs;
-	if (netif_alloc_netdev_queues(dev))
-		goto free_pcpu;
-
-#ifdef CONFIG_RPS
-	dev->num_rx_queues = rxqs;
-	dev->real_num_rx_queues = rxqs;
-	if (netif_alloc_rx_queues(dev))
-		goto free_pcpu;
-#endif
-
 	dev->gso_max_size = GSO_MAX_SIZE;
 
 	INIT_LIST_HEAD(&dev->ethtool_ntuple_list.list);
@@ -5681,8 +5669,25 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	INIT_LIST_HEAD(&dev->link_watch_list);
 	dev->priv_flags = IFF_XMIT_DST_RELEASE;
 	setup(dev);
+
+	dev->num_tx_queues = txqs;
+	dev->real_num_tx_queues = txqs;
+	if (netif_alloc_netdev_queues(dev))
+		goto free_all;
+
+#ifdef CONFIG_RPS
+	dev->num_rx_queues = rxqs;
+	dev->real_num_rx_queues = rxqs;
+	if (netif_alloc_rx_queues(dev))
+		goto free_all;
+#endif
+
 	strcpy(dev->name, name);
 	return dev;
+
+free_all:
+	free_netdev(dev);
+	return NULL;
 
 free_pcpu:
 	free_percpu(dev->pcpu_refcnt);

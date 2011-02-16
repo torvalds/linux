@@ -51,8 +51,8 @@ struct extent_map *alloc_extent_map(gfp_t mask)
 {
 	struct extent_map *em;
 	em = kmem_cache_alloc(extent_map_cache, mask);
-	if (!em || IS_ERR(em))
-		return em;
+	if (!em)
+		return NULL;
 	em->in_tree = 0;
 	em->flags = 0;
 	em->compress_type = BTRFS_COMPRESS_NONE;
