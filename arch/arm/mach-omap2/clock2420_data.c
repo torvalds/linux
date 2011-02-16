@@ -55,7 +55,7 @@
 static struct clk func_32k_ck = {
 	.name		= "func_32k_ck",
 	.ops		= &clkops_null,
-	.rate		= 32000,
+	.rate		= 32768,
 	.clkdm_name	= "wkup_clkdm",
 };
 
