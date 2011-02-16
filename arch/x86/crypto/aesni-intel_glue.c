@@ -874,19 +874,17 @@ rfc4106_set_hash_subkey(u8 *hash_subkey, const u8 *key, unsigned int key_len)
 
 	ret = crypto_ablkcipher_setkey(ctr_tfm, key, key_len);
 	if (ret)
-		goto out;
-
-	req = ablkcipher_request_alloc(ctr_tfm, GFP_KERNEL);
-	if (!req) {
-		ret = -EINVAL;
 		goto out_free_ablkcipher;
-	}
+
+	ret = -ENOMEM;
+	req = ablkcipher_request_alloc(ctr_tfm, GFP_KERNEL);
+	if (!req)
+		goto out_free_ablkcipher;
 
 	req_data = kmalloc(sizeof(*req_data), GFP_KERNEL);
-	if (!req_data) {
-		ret = -ENOMEM;
+	if (!req_data)
 		goto out_free_request;
-	}
+
 	memset(req_data->iv, 0, sizeof(req_data->iv));
 
 	/* Clear the data in the hash sub key container to zero.*/
@@ -911,12 +909,11 @@ rfc4106_set_hash_subkey(u8 *hash_subkey, const u8 *key, unsigned int key_len)
 		if (!ret)
 			ret = req_data->result.err;
 	}
+	kfree(req_data);
 out_free_request:
 	ablkcipher_request_free(req);
-	kfree(req_data);
 out_free_ablkcipher:
 	crypto_free_ablkcipher(ctr_tfm);
-out:
 	return ret;
 }
 
