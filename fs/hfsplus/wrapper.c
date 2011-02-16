@@ -141,10 +141,6 @@ int hfsplus_read_wrapper(struct super_block *sb)
 
 	if (hfsplus_get_last_session(sb, &part_start, &part_size))
 		goto out;
-	if ((u64)part_start + part_size > 0x100000000ULL) {
-		pr_err("hfs: volumes larger than 2TB are not supported yet\n");
-		goto out;
-	}
 
 	error = -ENOMEM;
 	sbi->s_vhdr = kmalloc(HFSPLUS_SECTOR_SIZE, GFP_KERNEL);

@@ -393,6 +393,13 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sbi->rsrc_clump_blocks)
 		sbi->rsrc_clump_blocks = 1;
 
+	err = generic_check_addressable(sbi->alloc_blksz_shift,
+					sbi->total_blocks);
+	if (err) {
+		printk(KERN_ERR "hfs: filesystem size too large.\n");
+		goto out_free_vhdr;
+	}
+
 	/* Set up operations so we can load metadata */
 	sb->s_op = &hfsplus_sops;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
@@ -416,6 +423,8 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 				"mounting read-only.\n");
 		sb->s_flags |= MS_RDONLY;
 	}
+
+	err = -EINVAL;
 
 	/* Load metadata objects (B*Trees) */
 	sbi->ext_tree = hfs_btree_open(sb, HFSPLUS_EXT_CNID);
