@@ -37,13 +37,9 @@ static __init int setup_node(int pxm)
 
 static __init void bad_srat(void)
 {
-	int i;
 	printk(KERN_ERR "SRAT: SRAT not used.\n");
 	acpi_numa = -1;
-	for (i = 0; i < MAX_NUMNODES; i++) {
-		numa_nodes[i].start = numa_nodes[i].end = 0;
-		nodes_add[i].start = nodes_add[i].end = 0;
-	}
+	memset(nodes_add, 0, sizeof(nodes_add));
 }
 
 static __init inline int srat_disabled(void)
@@ -210,7 +206,6 @@ update_nodes_add(int node, unsigned long start, unsigned long end)
 void __init
 acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 {
-	struct bootnode *nd;
 	unsigned long start, end;
 	int node, pxm;
 
@@ -243,18 +238,9 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	printk(KERN_INFO "SRAT: Node %u PXM %u %lx-%lx\n", node, pxm,
 	       start, end);
 
-	if (!(ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE)) {
-		nd = &numa_nodes[node];
-		if (!node_test_and_set(node, mem_nodes_parsed)) {
-			nd->start = start;
-			nd->end = end;
-		} else {
-			if (start < nd->start)
-				nd->start = start;
-			if (nd->end < end)
-				nd->end = end;
-		}
-	} else
+	if (!(ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE))
+		node_set(node, mem_nodes_parsed);
+	else
 		update_nodes_add(node, start, end);
 }
 

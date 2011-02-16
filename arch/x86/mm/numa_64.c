@@ -46,8 +46,6 @@ static unsigned long __initdata nodemap_size;
 
 static struct numa_meminfo numa_meminfo __initdata;
 
-struct bootnode numa_nodes[MAX_NUMNODES] __initdata;
-
 /*
  * Given a shift value, try to populate memnodemap[]
  * Returns :
@@ -349,17 +347,17 @@ static int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
  * Sanity check to catch more bad NUMA configurations (they are amazingly
  * common).  Make sure the nodes cover all memory.
  */
-static int __init nodes_cover_memory(const struct bootnode *nodes)
+static bool __init numa_meminfo_cover_memory(const struct numa_meminfo *mi)
 {
 	unsigned long numaram, e820ram;
 	int i;
 
 	numaram = 0;
-	for_each_node_mask(i, mem_nodes_parsed) {
-		unsigned long s = nodes[i].start >> PAGE_SHIFT;
-		unsigned long e = nodes[i].end >> PAGE_SHIFT;
+	for (i = 0; i < mi->nr_blks; i++) {
+		unsigned long s = mi->blk[i].start >> PAGE_SHIFT;
+		unsigned long e = mi->blk[i].end >> PAGE_SHIFT;
 		numaram += e - s;
-		numaram -= __absent_pages_in_range(i, s, e);
+		numaram -= __absent_pages_in_range(mi->blk[i].nid, s, e);
 		if ((long)numaram < 0)
 			numaram = 0;
 	}
@@ -371,14 +369,14 @@ static int __init nodes_cover_memory(const struct bootnode *nodes)
 		printk(KERN_ERR "NUMA: nodes only cover %luMB of your %luMB e820 RAM. Not used.\n",
 		       (numaram << PAGE_SHIFT) >> 20,
 		       (e820ram << PAGE_SHIFT) >> 20);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 static int __init numa_register_memblks(struct numa_meminfo *mi)
 {
-	int i;
+	int i, j, nid;
 
 	/* Account for nodes with cpus and no memory */
 	nodes_or(node_possible_map, mem_nodes_parsed, cpu_nodes_parsed);
@@ -398,23 +396,34 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 
 	/* for out of order entries */
 	sort_node_map();
-	if (!nodes_cover_memory(numa_nodes))
+	if (!numa_meminfo_cover_memory(mi))
 		return -EINVAL;
 
 	init_memory_mapping_high();
 
-	/* Finally register nodes. */
-	for_each_node_mask(i, node_possible_map)
-		setup_node_bootmem(i, numa_nodes[i].start, numa_nodes[i].end);
-
 	/*
-	 * Try again in case setup_node_bootmem missed one due to missing
-	 * bootmem.
+	 * Finally register nodes.  Do it twice in case setup_node_bootmem
+	 * missed one due to missing bootmem.
 	 */
-	for_each_node_mask(i, node_possible_map)
-		if (!node_online(i))
-			setup_node_bootmem(i, numa_nodes[i].start,
-					   numa_nodes[i].end);
+	for (i = 0; i < 2; i++) {
+		for_each_node_mask(nid, node_possible_map) {
+			u64 start = (u64)max_pfn << PAGE_SHIFT;
+			u64 end = 0;
+
+			if (node_online(nid))
+				continue;
+
+			for (j = 0; j < mi->nr_blks; j++) {
+				if (nid != mi->blk[j].nid)
+					continue;
+				start = min(mi->blk[j].start, start);
+				end = max(mi->blk[j].end, end);
+			}
+
+			if (start < end)
+				setup_node_bootmem(nid, start, end);
+		}
+	}
 
 	return 0;
 }
@@ -432,33 +441,41 @@ void __init numa_emu_cmdline(char *str)
 
 int __init find_node_by_addr(unsigned long addr)
 {
-	int ret = NUMA_NO_NODE;
+	const struct numa_meminfo *mi = &numa_meminfo;
 	int i;
 
-	for_each_node_mask(i, mem_nodes_parsed) {
+	for (i = 0; i < mi->nr_blks; i++) {
 		/*
 		 * Find the real node that this emulated node appears on.  For
 		 * the sake of simplicity, we only use a real node's starting
 		 * address to determine which emulated node it appears on.
 		 */
-		if (addr >= numa_nodes[i].start && addr < numa_nodes[i].end) {
-			ret = i;
-			break;
-		}
+		if (addr >= mi->blk[i].start && addr < mi->blk[i].end)
+			return mi->blk[i].nid;
 	}
-	return ret;
+	return NUMA_NO_NODE;
 }
 
 static int __init setup_physnodes(unsigned long start, unsigned long end)
 {
+	const struct numa_meminfo *mi = &numa_meminfo;
 	int ret = 0;
 	int i;
 
 	memset(physnodes, 0, sizeof(physnodes));
 
-	for_each_node_mask(i, mem_nodes_parsed) {
-		physnodes[i].start = numa_nodes[i].start;
-		physnodes[i].end = numa_nodes[i].end;
+	for (i = 0; i < mi->nr_blks; i++) {
+		int nid = mi->blk[i].nid;
+
+		if (physnodes[nid].start == physnodes[nid].end) {
+			physnodes[nid].start = mi->blk[i].start;
+			physnodes[nid].end = mi->blk[i].end;
+		} else {
+			physnodes[nid].start = min(physnodes[nid].start,
+						   mi->blk[i].start);
+			physnodes[nid].end = max(physnodes[nid].end,
+						 mi->blk[i].end);
+		}
 	}
 
 	/*
@@ -809,8 +826,6 @@ static int dummy_numa_init(void)
 	node_set(0, cpu_nodes_parsed);
 	node_set(0, mem_nodes_parsed);
 	numa_add_memblk(0, 0, (u64)max_pfn << PAGE_SHIFT);
-	numa_nodes[0].start = 0;
-	numa_nodes[0].end = (u64)max_pfn << PAGE_SHIFT;
 
 	return 0;
 }
@@ -841,7 +856,6 @@ void __init initmem_init(void)
 		nodes_clear(node_possible_map);
 		nodes_clear(node_online_map);
 		memset(&numa_meminfo, 0, sizeof(numa_meminfo));
-		memset(numa_nodes, 0, sizeof(numa_nodes));
 		remove_all_active_ranges();
 
 		if (numa_init[i]() < 0)

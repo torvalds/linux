@@ -165,12 +165,8 @@ int __init amd_numa_init(void)
 		pr_info("Node %d MemBase %016lx Limit %016lx\n",
 			nodeid, base, limit);
 
-		numa_nodes[nodeid].start = base;
-		numa_nodes[nodeid].end = limit;
-		numa_add_memblk(nodeid, base, limit);
-
 		prevbase = base;
-
+		numa_add_memblk(nodeid, base, limit);
 		node_set(nodeid, mem_nodes_parsed);
 		node_set(nodeid, cpu_nodes_parsed);
 	}
