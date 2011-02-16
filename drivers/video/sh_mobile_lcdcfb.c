@@ -21,6 +21,8 @@
 #include <linux/ioctl.h>
 #include <linux/slab.h>
 #include <linux/console.h>
+#include <linux/backlight.h>
+#include <linux/gpio.h>
 #include <video/sh_mobile_lcdc.h>
 #include <asm/atomic.h>
 
@@ -618,6 +620,11 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			board_cfg->display_on(board_cfg->board_data, ch->info);
 			module_put(board_cfg->owner);
 		}
+
+		if (ch->bl) {
+			ch->bl->props.power = FB_BLANK_UNBLANK;
+			backlight_update_status(ch->bl);
+		}
 	}
 
 	return 0;
@@ -646,6 +653,11 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 			fb_deferred_io_cleanup(ch->info);
 			ch->info->fbdefio = NULL;
 			sh_mobile_lcdc_clk_on(priv);
+		}
+
+		if (ch->bl) {
+			ch->bl->props.power = FB_BLANK_POWERDOWN;
+			backlight_update_status(ch->bl);
 		}
 
 		board_cfg = &ch->cfg.board_cfg;
@@ -980,6 +992,64 @@ static struct fb_ops sh_mobile_lcdc_ops = {
 	.fb_check_var	= sh_mobile_check_var,
 };
 
+static int sh_mobile_lcdc_update_bl(struct backlight_device *bdev)
+{
+	struct sh_mobile_lcdc_chan *ch = bl_get_data(bdev);
+	struct sh_mobile_lcdc_board_cfg *cfg = &ch->cfg.board_cfg;
+	int brightness = bdev->props.brightness;
+
+	if (bdev->props.power != FB_BLANK_UNBLANK ||
+	    bdev->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
+		brightness = 0;
+
+	return cfg->set_brightness(cfg->board_data, brightness);
+}
+
+static int sh_mobile_lcdc_get_brightness(struct backlight_device *bdev)
+{
+	struct sh_mobile_lcdc_chan *ch = bl_get_data(bdev);
+	struct sh_mobile_lcdc_board_cfg *cfg = &ch->cfg.board_cfg;
+
+	return cfg->get_brightness(cfg->board_data);
+}
+
+static int sh_mobile_lcdc_check_fb(struct backlight_device *bdev,
+				   struct fb_info *info)
+{
+	return (info->bl_dev == bdev);
+}
+
+static struct backlight_ops sh_mobile_lcdc_bl_ops = {
+	.options	= BL_CORE_SUSPENDRESUME,
+	.update_status	= sh_mobile_lcdc_update_bl,
+	.get_brightness	= sh_mobile_lcdc_get_brightness,
+	.check_fb	= sh_mobile_lcdc_check_fb,
+};
+
+static struct backlight_device *sh_mobile_lcdc_bl_probe(struct device *parent,
+					       struct sh_mobile_lcdc_chan *ch)
+{
+	struct backlight_device *bl;
+
+	bl = backlight_device_register(ch->cfg.bl_info.name, parent, ch,
+				       &sh_mobile_lcdc_bl_ops, NULL);
+	if (!bl) {
+		dev_err(parent, "unable to register backlight device\n");
+		return NULL;
+	}
+
+	bl->props.max_brightness = ch->cfg.bl_info.max_brightness;
+	bl->props.brightness = bl->props.max_brightness;
+	backlight_update_status(bl);
+
+	return bl;
+}
+
+static void sh_mobile_lcdc_bl_remove(struct backlight_device *bdev)
+{
+	backlight_device_unregister(bdev);
+}
+
 static int sh_mobile_lcdc_set_bpp(struct fb_var_screeninfo *var, int bpp)
 {
 	switch (bpp) {
@@ -1198,6 +1268,10 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		init_completion(&ch->vsync_completion);
 		ch->pan_offset = 0;
 
+		/* probe the backlight is there is one defined */
+		if (ch->cfg.bl_info.max_brightness)
+			ch->bl = sh_mobile_lcdc_bl_probe(&pdev->dev, ch);
+
 		switch (pdata->ch[i].chan) {
 		case LCDC_CHAN_MAINLCD:
 			ch->enabled = 1 << 1;
@@ -1345,6 +1419,8 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 			}
 		}
 
+		info->bl_dev = ch->bl;
+
 		error = register_framebuffer(info);
 		if (error < 0)
 			goto err1;
@@ -1402,6 +1478,11 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 					  priv->ch[i].dma_handle);
 		fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(priv->ch); i++) {
+		if (priv->ch[i].bl)
+			sh_mobile_lcdc_bl_remove(priv->ch[i].bl);
 	}
 
 	if (priv->dot_clk)
