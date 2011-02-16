@@ -105,7 +105,7 @@ static struct iscsi_transport cxgb3i_iscsi_transport = {
 	/* owner and name should be set already */
 	.caps		= CAP_RECOVERY_L0 | CAP_MULTI_R2T | CAP_HDRDGST
 				| CAP_DATADGST | CAP_DIGEST_OFFLOAD |
-				CAP_PADDING_OFFLOAD,
+				CAP_PADDING_OFFLOAD | CAP_TEXT_NEGO,
 	.param_mask	= ISCSI_MAX_RECV_DLENGTH | ISCSI_MAX_XMIT_DLENGTH |
 				ISCSI_HDRDGST_EN | ISCSI_DATADGST_EN |
 				ISCSI_INITIAL_R2T_EN | ISCSI_MAX_R2T |
