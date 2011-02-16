@@ -31,9 +31,10 @@
 /* Add spear6xx family device structure declarations here */
 extern struct amba_device gpio_device[];
 extern struct amba_device uart_device[];
-extern struct sys_timer spear_sys_timer;
+extern struct sys_timer spear6xx_timer;
 
 /* Add spear6xx family function declarations here */
+void __init spear_setup_timer(void);
 void __init spear6xx_map_io(void);
 void __init spear6xx_init_irq(void);
 void __init spear6xx_init(void);

@@ -155,3 +155,34 @@ void __init spear6xx_map_io(void)
 	/* This will initialize clock framework */
 	clk_init();
 }
+
+static void __init spear6xx_timer_init(void)
+{
+	char pclk_name[] = "pll3_48m_clk";
+	struct clk *gpt_clk, *pclk;
+
+	/* get the system timer clock */
+	gpt_clk = clk_get_sys("gpt0", NULL);
+	if (IS_ERR(gpt_clk)) {
+		pr_err("%s:couldn't get clk for gpt\n", __func__);
+		BUG();
+	}
+
+	/* get the suitable parent clock for timer*/
+	pclk = clk_get(NULL, pclk_name);
+	if (IS_ERR(pclk)) {
+		pr_err("%s:couldn't get %s as parent for gpt\n",
+				__func__, pclk_name);
+		BUG();
+	}
+
+	clk_set_parent(gpt_clk, pclk);
+	clk_put(gpt_clk);
+	clk_put(pclk);
+
+	spear_setup_timer();
+}
+
+struct sys_timer spear6xx_timer = {
+	.init = spear6xx_timer_init,
+};

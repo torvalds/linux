@@ -523,5 +523,35 @@ struct pmx_dev pmx_plgpio_45_46_49_50 = {
 	.mode_count = ARRAY_SIZE(pmx_plgpio_45_46_49_50_modes),
 	.enb_on_reset = 1,
 };
+#endif /* CONFIG_MACH_SPEAR310 || CONFIG_MACH_SPEAR320 */
 
-#endif
+static void __init spear3xx_timer_init(void)
+{
+	char pclk_name[] = "pll3_48m_clk";
+	struct clk *gpt_clk, *pclk;
+
+	/* get the system timer clock */
+	gpt_clk = clk_get_sys("gpt0", NULL);
+	if (IS_ERR(gpt_clk)) {
+		pr_err("%s:couldn't get clk for gpt\n", __func__);
+		BUG();
+	}
+
+	/* get the suitable parent clock for timer*/
+	pclk = clk_get(NULL, pclk_name);
+	if (IS_ERR(pclk)) {
+		pr_err("%s:couldn't get %s as parent for gpt\n",
+				__func__, pclk_name);
+		BUG();
+	}
+
+	clk_set_parent(gpt_clk, pclk);
+	clk_put(gpt_clk);
+	clk_put(pclk);
+
+	spear_setup_timer();
+}
+
+struct sys_timer spear3xx_timer = {
+	.init = spear3xx_timer_init,
+};

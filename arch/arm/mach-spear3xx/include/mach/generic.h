@@ -33,10 +33,11 @@
 /* Add spear3xx family device structure declarations here */
 extern struct amba_device gpio_device;
 extern struct amba_device uart_device;
-extern struct sys_timer spear_sys_timer;
+extern struct sys_timer spear3xx_timer;
 
 /* Add spear3xx family function declarations here */
 void __init clk_init(void);
+void __init spear_setup_timer(void);
 void __init spear3xx_map_io(void);
 void __init spear3xx_init_irq(void);
 void __init spear3xx_init(void);
