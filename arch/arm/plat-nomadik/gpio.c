@@ -134,14 +134,11 @@ static void __nmk_gpio_set_mode_safe(struct nmk_gpio_chip *nmk_chip,
 				     unsigned offset, int gpio_mode,
 				     bool glitch)
 {
-	u32 rwimsc;
-	u32 fwimsc;
+	u32 rwimsc = readl(nmk_chip->addr + NMK_GPIO_RWIMSC);
+	u32 fwimsc = readl(nmk_chip->addr + NMK_GPIO_FWIMSC);
 
 	if (glitch && nmk_chip->set_ioforce) {
 		u32 bit = BIT(offset);
-
-		rwimsc = readl(nmk_chip->addr + NMK_GPIO_RWIMSC);
-		fwimsc = readl(nmk_chip->addr + NMK_GPIO_FWIMSC);
 
 		/* Prevent spurious wakeups */
 		writel(rwimsc & ~bit, nmk_chip->addr + NMK_GPIO_RWIMSC);
