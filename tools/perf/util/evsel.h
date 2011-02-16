@@ -37,6 +37,12 @@ struct perf_sample_id {
 	struct perf_evsel	*evsel;
 };
 
+/** struct perf_evsel - event selector
+ *
+ * @name - Can be set to retain the original event name passed by the user,
+ *         so that when showing results in tools such as 'perf stat', we
+ *         show the name used, not some alias.
+ */
 struct perf_evsel {
 	struct list_head	node;
 	struct perf_event_attr	attr;
@@ -45,6 +51,7 @@ struct perf_evsel {
 	struct xyarray		*id;
 	struct perf_counts	*counts;
 	int			idx;
+	char			*name;
 	void			*priv;
 	struct cgroup_sel	*cgrp;
 };

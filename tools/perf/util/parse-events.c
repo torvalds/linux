@@ -268,6 +268,9 @@ const char *event_name(struct perf_evsel *evsel)
 	u64 config = evsel->attr.config;
 	int type = evsel->attr.type;
 
+	if (evsel->name)
+		return evsel->name;
+
 	return __event_name(type, config);
 }
 
@@ -782,8 +785,10 @@ int parse_events(const struct option *opt, const char *str, int unset __used)
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
 	struct perf_event_attr attr;
 	enum event_result ret;
+	const char *ostr;
 
 	for (;;) {
+		ostr = str;
 		memset(&attr, 0, sizeof(attr));
 		ret = parse_event_symbols(opt, &str, &attr);
 		if (ret == EVT_FAILED)
@@ -798,6 +803,11 @@ int parse_events(const struct option *opt, const char *str, int unset __used)
 			if (evsel == NULL)
 				return -1;
 			perf_evlist__add(evlist, evsel);
+
+			evsel->name = calloc(str - ostr + 1, 1);
+			if (!evsel->name)
+				return -1;
+			strncpy(evsel->name, ostr, str - ostr);
 		}
 
 		if (*str == 0)
