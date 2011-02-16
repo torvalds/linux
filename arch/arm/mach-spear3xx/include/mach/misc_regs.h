@@ -63,8 +63,8 @@
 #define GPT1_CLK_SHIFT		11
 #define GPT2_CLK_SHIFT		12
 #define GPT_CLK_MASK		0x1
-#define AUX_CLK_PLL3_MASK	0
-#define AUX_CLK_PLL1_MASK	1
+#define AUX_CLK_PLL3_VAL	0
+#define AUX_CLK_PLL1_VAL	1
 
 #define PERIP1_CLK_ENB		(MISC_BASE + 0x02C)
 /* PERIP1_CLK_ENB register masks */
@@ -113,6 +113,7 @@
 #define RAS3_CLK_SYNT		(MISC_BASE + 0x074)
 #define RAS4_CLK_SYNT		(MISC_BASE + 0x078)
 /* aux clk synthesiser register masks for irda to ras4 */
+#define AUX_SYNT_ENB		31
 #define AUX_EQ_SEL_SHIFT	30
 #define AUX_EQ_SEL_MASK		1
 #define AUX_EQ1_SEL		0
