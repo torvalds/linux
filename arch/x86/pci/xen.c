@@ -157,14 +157,14 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		goto error;
 	i = 0;
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
-		irq = xen_allocate_pirq(v[i], 0, /* not sharable */
+		xen_allocate_pirq_msi(
 			(type == PCI_CAP_ID_MSIX) ?
-			"pcifront-msi-x" : "pcifront-msi");
+			"pcifront-msi-x" : "pcifront-msi",
+			&irq, &v[i], XEN_ALLOC_IRQ);
 		if (irq < 0) {
 			ret = -1;
 			goto free;
 		}
-
 		ret = set_irq_msi(irq, msidesc);
 		if (ret)
 			goto error_while;
