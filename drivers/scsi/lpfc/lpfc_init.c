@@ -460,7 +460,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_16G)
 		&& !(phba->lmt & LMT_16Gb))) {
 		/* Reset link speed to auto */
-		lpfc_printf_log(phba, KERN_WARNING, LOG_LINK_EVENT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 			"1302 Invalid speed for this board: "
 			"Reset link speed to auto: x%x\n",
 			phba->cfg_link_speed);

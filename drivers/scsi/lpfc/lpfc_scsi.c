@@ -2508,6 +2508,15 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			break;
 		case IOSTAT_LOCAL_REJECT:
 		case IOSTAT_REMOTE_STOP:
+			if (lpfc_cmd->result == IOERR_ELXSEC_KEY_UNWRAP_ERROR ||
+			    lpfc_cmd->result ==
+					IOERR_ELXSEC_KEY_UNWRAP_COMPARE_ERROR ||
+			    lpfc_cmd->result == IOERR_ELXSEC_CRYPTO_ERROR ||
+			    lpfc_cmd->result ==
+					IOERR_ELXSEC_CRYPTO_COMPARE_ERROR) {
+				cmd->result = ScsiResult(DID_NO_CONNECT, 0);
+				break;
+			}
 			if (lpfc_cmd->result == IOERR_INVALID_RPI ||
 			    lpfc_cmd->result == IOERR_NO_RESOURCES ||
 			    lpfc_cmd->result == IOERR_ABORT_REQUESTED ||
@@ -2515,7 +2524,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 				cmd->result = ScsiResult(DID_REQUEUE, 0);
 				break;
 			}
-
 			if ((lpfc_cmd->result == IOERR_RX_DMA_FAILED ||
 			     lpfc_cmd->result == IOERR_TX_DMA_FAILED) &&
 			     pIocbOut->iocb.unsli3.sli3_bg.bgstat) {
@@ -2545,7 +2553,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 						lpfc_cmd->cur_iocbq.sli4_xritag,
 						0, 0);
 			}
-
 		/* else: fall through */
 		default:
 			cmd->result = ScsiResult(DID_ERROR, 0);
@@ -2556,9 +2563,8 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		    || (pnode->nlp_state != NLP_STE_MAPPED_NODE))
 			cmd->result = ScsiResult(DID_TRANSPORT_DISRUPTED,
 						 SAM_STAT_BUSY);
-	} else {
+	} else
 		cmd->result = ScsiResult(DID_OK, 0);
-	}
 
 	if (cmd->result || lpfc_cmd->fcp_rsp->rspSnsLen) {
 		uint32_t *lp = (uint32_t *)cmd->sense_buffer;

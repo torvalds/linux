@@ -82,23 +82,23 @@
  *                               the HBA. X MUST also be a power of 2.
  */
 static int lpfc_debugfs_enable = 1;
-module_param(lpfc_debugfs_enable, int, 0);
+module_param(lpfc_debugfs_enable, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_debugfs_enable, "Enable debugfs services");
 
 /* This MUST be a power of 2 */
 static int lpfc_debugfs_max_disc_trc;
-module_param(lpfc_debugfs_max_disc_trc, int, 0);
+module_param(lpfc_debugfs_max_disc_trc, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_debugfs_max_disc_trc,
 	"Set debugfs discovery trace depth");
 
 /* This MUST be a power of 2 */
 static int lpfc_debugfs_max_slow_ring_trc;
-module_param(lpfc_debugfs_max_slow_ring_trc, int, 0);
+module_param(lpfc_debugfs_max_slow_ring_trc, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_debugfs_max_slow_ring_trc,
 	"Set debugfs slow ring trace depth");
 
 static int lpfc_debugfs_mask_disc_trc;
-module_param(lpfc_debugfs_mask_disc_trc, int, 0);
+module_param(lpfc_debugfs_mask_disc_trc, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_debugfs_mask_disc_trc,
 	"Set debugfs discovery trace mask");
 
