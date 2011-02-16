@@ -1782,12 +1782,47 @@ iscsi_conn_attr(data_digest, ISCSI_PARAM_DATADGST_EN);
 iscsi_conn_attr(ifmarker, ISCSI_PARAM_IFMARKER_EN);
 iscsi_conn_attr(ofmarker, ISCSI_PARAM_OFMARKER_EN);
 iscsi_conn_attr(persistent_port, ISCSI_PARAM_PERSISTENT_PORT);
-iscsi_conn_attr(port, ISCSI_PARAM_CONN_PORT);
 iscsi_conn_attr(exp_statsn, ISCSI_PARAM_EXP_STATSN);
 iscsi_conn_attr(persistent_address, ISCSI_PARAM_PERSISTENT_ADDRESS);
-iscsi_conn_attr(address, ISCSI_PARAM_CONN_ADDRESS);
 iscsi_conn_attr(ping_tmo, ISCSI_PARAM_PING_TMO);
 iscsi_conn_attr(recv_tmo, ISCSI_PARAM_RECV_TMO);
+
+#define iscsi_conn_ep_attr_show(param)					\
+static ssize_t show_conn_ep_param_##param(struct device *dev,		\
+					  struct device_attribute *attr,\
+					  char *buf)			\
+{									\
+	struct iscsi_cls_conn *conn = iscsi_dev_to_conn(dev->parent);	\
+	struct iscsi_transport *t = conn->transport;			\
+	struct iscsi_endpoint *ep;					\
+	ssize_t rc;							\
+									\
+	/*								\
+	 * Need to make sure ep_disconnect does not free the LLD's	\
+	 * interconnect resources while we are trying to read them.	\
+	 */								\
+	mutex_lock(&conn->ep_mutex);					\
+	ep = conn->ep;							\
+	if (!ep && t->ep_connect) {					\
+		mutex_unlock(&conn->ep_mutex);				\
+		return -ENOTCONN;					\
+	}								\
+									\
+	if (ep)								\
+		rc = t->get_ep_param(ep, param, buf);			\
+	else								\
+		rc = t->get_conn_param(conn, param, buf);		\
+	mutex_unlock(&conn->ep_mutex);					\
+	return rc;							\
+}
+
+#define iscsi_conn_ep_attr(field, param)				\
+	iscsi_conn_ep_attr_show(param)					\
+static ISCSI_CLASS_ATTR(conn, field, S_IRUGO,				\
+			show_conn_ep_param_##param, NULL);
+
+iscsi_conn_ep_attr(address, ISCSI_PARAM_CONN_ADDRESS);
+iscsi_conn_ep_attr(port, ISCSI_PARAM_CONN_PORT);
 
 /*
  * iSCSI session attrs

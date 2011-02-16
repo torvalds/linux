@@ -101,6 +101,8 @@ struct iscsi_transport {
 	void (*destroy_conn) (struct iscsi_cls_conn *conn);
 	int (*set_param) (struct iscsi_cls_conn *conn, enum iscsi_param param,
 			  char *buf, int buflen);
+	int (*get_ep_param) (struct iscsi_endpoint *ep, enum iscsi_param param,
+			     char *buf);
 	int (*get_conn_param) (struct iscsi_cls_conn *conn,
 			       enum iscsi_param param, char *buf);
 	int (*get_session_param) (struct iscsi_cls_session *session,
