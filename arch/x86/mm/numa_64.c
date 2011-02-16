@@ -33,6 +33,10 @@ struct memnode memnode;
 static unsigned long __initdata nodemap_addr;
 static unsigned long __initdata nodemap_size;
 
+static int num_node_memblks __initdata;
+static struct bootnode node_memblk_range[NR_NODE_MEMBLKS] __initdata;
+static int memblk_nodeid[NR_NODE_MEMBLKS] __initdata;
+
 struct bootnode numa_nodes[MAX_NUMNODES] __initdata;
 
 /*
@@ -184,6 +188,43 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 	return NULL;
 }
 
+static __init int conflicting_memblks(unsigned long start, unsigned long end)
+{
+	int i;
+	for (i = 0; i < num_node_memblks; i++) {
+		struct bootnode *nd = &node_memblk_range[i];
+		if (nd->start == nd->end)
+			continue;
+		if (nd->end > start && nd->start < end)
+			return memblk_nodeid[i];
+		if (nd->end == end && nd->start == start)
+			return memblk_nodeid[i];
+	}
+	return -1;
+}
+
+int __init numa_add_memblk(int nid, u64 start, u64 end)
+{
+	int i;
+
+	i = conflicting_memblks(start, end);
+	if (i == nid) {
+		printk(KERN_WARNING "NUMA: Warning: node %d (%Lx-%Lx) overlaps with itself (%Lx-%Lx)\n",
+		       nid, start, end, numa_nodes[i].start, numa_nodes[i].end);
+	} else if (i >= 0) {
+		printk(KERN_ERR "NUMA: node %d (%Lx-%Lx) overlaps with node %d (%Lx-%Lx)\n",
+		       nid, start, end, i,
+		       numa_nodes[i].start, numa_nodes[i].end);
+		return -EINVAL;
+	}
+
+	node_memblk_range[num_node_memblks].start = start;
+	node_memblk_range[num_node_memblks].end = end;
+	memblk_nodeid[num_node_memblks] = nid;
+	num_node_memblks++;
+	return 0;
+}
+
 static __init void cutoff_node(int i, unsigned long start, unsigned long end)
 {
 	struct bootnode *nd = &numa_nodes[i];
@@ -244,6 +285,71 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	NODE_DATA(nodeid)->node_spanned_pages = last_pfn - start_pfn;
 
 	node_set_online(nodeid);
+}
+
+int __init numa_register_memblks(void)
+{
+	int i;
+
+	/*
+	 * Join together blocks on the same node, holes between
+	 * which don't overlap with memory on other nodes.
+	 */
+	for (i = 0; i < num_node_memblks; ++i) {
+		int j, k;
+
+		for (j = i + 1; j < num_node_memblks; ++j) {
+			unsigned long start, end;
+
+			if (memblk_nodeid[i] != memblk_nodeid[j])
+				continue;
+			start = min(node_memblk_range[i].end,
+			            node_memblk_range[j].end);
+			end = max(node_memblk_range[i].start,
+			          node_memblk_range[j].start);
+			for (k = 0; k < num_node_memblks; ++k) {
+				if (memblk_nodeid[i] == memblk_nodeid[k])
+					continue;
+				if (start < node_memblk_range[k].end &&
+				    end > node_memblk_range[k].start)
+					break;
+			}
+			if (k < num_node_memblks)
+				continue;
+			start = min(node_memblk_range[i].start,
+			            node_memblk_range[j].start);
+			end = max(node_memblk_range[i].end,
+			          node_memblk_range[j].end);
+			printk(KERN_INFO "NUMA: Node %d [%Lx,%Lx) + [%Lx,%Lx) -> [%lx,%lx)\n",
+			       memblk_nodeid[i],
+			       node_memblk_range[i].start,
+			       node_memblk_range[i].end,
+			       node_memblk_range[j].start,
+			       node_memblk_range[j].end,
+			       start, end);
+			node_memblk_range[i].start = start;
+			node_memblk_range[i].end = end;
+			k = --num_node_memblks - j;
+			memmove(memblk_nodeid + j, memblk_nodeid + j+1,
+				k * sizeof(*memblk_nodeid));
+			memmove(node_memblk_range + j, node_memblk_range + j+1,
+				k * sizeof(*node_memblk_range));
+			--j;
+		}
+	}
+
+	memnode_shift = compute_hash_shift(node_memblk_range, num_node_memblks,
+					   memblk_nodeid);
+	if (memnode_shift < 0) {
+		printk(KERN_ERR "NUMA: No NUMA node hash function found. Contact maintainer\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num_node_memblks; i++)
+		memblock_x86_register_active_regions(memblk_nodeid[i],
+				node_memblk_range[i].start >> PAGE_SHIFT,
+				node_memblk_range[i].end >> PAGE_SHIFT);
+	return 0;
 }
 
 #ifdef CONFIG_NUMA_EMU
@@ -653,6 +759,9 @@ void __init initmem_init(void)
 		nodes_clear(mem_nodes_parsed);
 		nodes_clear(node_possible_map);
 		nodes_clear(node_online_map);
+		num_node_memblks = 0;
+		memset(node_memblk_range, 0, sizeof(node_memblk_range));
+		memset(memblk_nodeid, 0, sizeof(memblk_nodeid));
 		memset(numa_nodes, 0, sizeof(numa_nodes));
 
 		if (numa_init[i]() < 0)

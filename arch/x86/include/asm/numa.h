@@ -5,6 +5,9 @@
 #include <asm/apicdef.h>
 
 #ifdef CONFIG_NUMA
+
+#define NR_NODE_MEMBLKS		(MAX_NUMNODES*2)
+
 /*
  * __apicid_to_node[] stores the raw mapping between physical apicid and
  * node and is used to initialize cpu_to_node mapping.

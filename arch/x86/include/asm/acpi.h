@@ -187,7 +187,6 @@ struct bootnode;
 extern int acpi_numa;
 extern int x86_acpi_numa_init(void);
 extern int acpi_scan_nodes(void);
-#define NR_NODE_MEMBLKS (MAX_NUMNODES*2)
 
 #ifdef CONFIG_NUMA_EMU
 extern void acpi_fake_nodes(const struct bootnode *fake_nodes,

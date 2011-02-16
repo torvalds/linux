@@ -32,6 +32,8 @@ extern nodemask_t mem_nodes_parsed __initdata;
 extern struct bootnode numa_nodes[MAX_NUMNODES] __initdata;
 
 extern int __cpuinit numa_cpu_node(int cpu);
+extern int __init numa_add_memblk(int nodeid, u64 start, u64 end);
+extern int __init numa_register_memblks(void);
 
 #ifdef CONFIG_NUMA_EMU
 #define FAKE_NODE_MIN_SIZE	((u64)32 << 20)

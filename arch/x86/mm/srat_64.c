@@ -30,28 +30,9 @@ static struct acpi_table_slit *acpi_slit;
 
 static struct bootnode nodes_add[MAX_NUMNODES];
 
-static int num_node_memblks __initdata;
-static struct bootnode node_memblk_range[NR_NODE_MEMBLKS] __initdata;
-static int memblk_nodeid[NR_NODE_MEMBLKS] __initdata;
-
 static __init int setup_node(int pxm)
 {
 	return acpi_map_pxm_to_node(pxm);
-}
-
-static __init int conflicting_memblks(unsigned long start, unsigned long end)
-{
-	int i;
-	for (i = 0; i < num_node_memblks; i++) {
-		struct bootnode *nd = &node_memblk_range[i];
-		if (nd->start == nd->end)
-			continue;
-		if (nd->end > start && nd->start < end)
-			return memblk_nodeid[i];
-		if (nd->end == end && nd->start == start)
-			return memblk_nodeid[i];
-	}
-	return -1;
 }
 
 static __init void bad_srat(void)
@@ -233,7 +214,6 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	struct bootnode *nd;
 	unsigned long start, end;
 	int node, pxm;
-	int i;
 
 	if (srat_disabled())
 		return;
@@ -255,16 +235,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 		bad_srat();
 		return;
 	}
-	i = conflicting_memblks(start, end);
-	if (i == node) {
-		printk(KERN_WARNING
-		"SRAT: Warning: PXM %d (%lx-%lx) overlaps with itself (%Lx-%Lx)\n",
-		       pxm, start, end, numa_nodes[i].start, numa_nodes[i].end);
-	} else if (i >= 0) {
-		printk(KERN_ERR
-		       "SRAT: PXM %d (%lx-%lx) overlaps with PXM %d (%Lx-%Lx)\n",
-		       pxm, start, end, node_to_pxm(i),
-		       numa_nodes[i].start, numa_nodes[i].end);
+
+	if (numa_add_memblk(node, start, end) < 0) {
 		bad_srat();
 		return;
 	}
@@ -285,11 +257,6 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 		}
 	} else
 		update_nodes_add(node, start, end);
-
-	node_memblk_range[num_node_memblks].start = start;
-	node_memblk_range[num_node_memblks].end = end;
-	memblk_nodeid[num_node_memblks] = node;
-	num_node_memblks++;
 }
 
 /* Sanity check to catch more bad SRATs (they are amazingly common).
@@ -341,67 +308,10 @@ int __init acpi_scan_nodes(void)
 	if (acpi_numa <= 0)
 		return -1;
 
-	/*
-	 * Join together blocks on the same node, holes between
-	 * which don't overlap with memory on other nodes.
-	 */
-	for (i = 0; i < num_node_memblks; ++i) {
-		int j, k;
-
-		for (j = i + 1; j < num_node_memblks; ++j) {
-			unsigned long start, end;
-
-			if (memblk_nodeid[i] != memblk_nodeid[j])
-				continue;
-			start = min(node_memblk_range[i].end,
-			            node_memblk_range[j].end);
-			end = max(node_memblk_range[i].start,
-			          node_memblk_range[j].start);
-			for (k = 0; k < num_node_memblks; ++k) {
-				if (memblk_nodeid[i] == memblk_nodeid[k])
-					continue;
-				if (start < node_memblk_range[k].end &&
-				    end > node_memblk_range[k].start)
-					break;
-			}
-			if (k < num_node_memblks)
-				continue;
-			start = min(node_memblk_range[i].start,
-			            node_memblk_range[j].start);
-			end = max(node_memblk_range[i].end,
-			          node_memblk_range[j].end);
-			printk(KERN_INFO "SRAT: Node %d "
-			       "[%Lx,%Lx) + [%Lx,%Lx) -> [%lx,%lx)\n",
-			       memblk_nodeid[i],
-			       node_memblk_range[i].start,
-			       node_memblk_range[i].end,
-			       node_memblk_range[j].start,
-			       node_memblk_range[j].end,
-			       start, end);
-			node_memblk_range[i].start = start;
-			node_memblk_range[i].end = end;
-			k = --num_node_memblks - j;
-			memmove(memblk_nodeid + j, memblk_nodeid + j+1,
-				k * sizeof(*memblk_nodeid));
-			memmove(node_memblk_range + j, node_memblk_range + j+1,
-				k * sizeof(*node_memblk_range));
-			--j;
-		}
-	}
-
-	memnode_shift = compute_hash_shift(node_memblk_range, num_node_memblks,
-					   memblk_nodeid);
-	if (memnode_shift < 0) {
-		printk(KERN_ERR
-		     "SRAT: No NUMA node hash function found. Contact maintainer\n");
+	if (numa_register_memblks() < 0) {
 		bad_srat();
 		return -1;
 	}
-
-	for (i = 0; i < num_node_memblks; i++)
-		memblock_x86_register_active_regions(memblk_nodeid[i],
-				node_memblk_range[i].start >> PAGE_SHIFT,
-				node_memblk_range[i].end >> PAGE_SHIFT);
 
 	/* for out of order entries in SRAT */
 	sort_node_map();
