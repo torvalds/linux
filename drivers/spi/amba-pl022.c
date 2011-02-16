@@ -1030,8 +1030,6 @@ static int configure_dma(struct pl022 *pl022)
 
 	return 0;
 
-err_submit_tx:
-err_submit_rx:
 err_txdesc:
 	dmaengine_terminate_all(txchan);
 err_rxdesc:
