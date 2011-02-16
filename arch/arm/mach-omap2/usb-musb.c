@@ -30,6 +30,7 @@
 #include <mach/irqs.h>
 #include <mach/am35xx.h>
 #include <plat/usb.h>
+#include "mux.h"
 
 #if defined(CONFIG_USB_MUSB_OMAP2PLUS) || defined (CONFIG_USB_MUSB_AM35X)
 
@@ -88,6 +89,43 @@ static struct platform_device musb_device = {
 	.resource	= musb_resources,
 };
 
+static void usb_musb_mux_init(struct omap_musb_board_data *board_data)
+{
+	switch (board_data->interface_type) {
+	case MUSB_INTERFACE_UTMI:
+		omap_mux_init_signal("usba0_otg_dp", OMAP_PIN_INPUT);
+		omap_mux_init_signal("usba0_otg_dm", OMAP_PIN_INPUT);
+		break;
+	case MUSB_INTERFACE_ULPI:
+		omap_mux_init_signal("usba0_ulpiphy_clk",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_stp",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dir",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_nxt",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat0",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat1",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat2",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat3",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat4",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat5",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat6",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat7",
+						OMAP_PIN_INPUT_PULLDOWN);
+		break;
+	default:
+		break;
+	}
+}
 void __init usb_musb_init(struct omap_musb_board_data *board_data)
 {
 	if (cpu_is_omap243x()) {
@@ -102,6 +140,8 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 		musb_resources[0].start = OMAP44XX_HSUSB_OTG_BASE;
 		musb_resources[1].start = OMAP44XX_IRQ_HS_USB_MC_N;
 		musb_resources[2].start = OMAP44XX_IRQ_HS_USB_DMA_N;
+
+		usb_musb_mux_init(board_data);
 	}
 	musb_resources[0].end = musb_resources[0].start + SZ_4K - 1;
 
