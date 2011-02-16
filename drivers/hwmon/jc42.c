@@ -332,7 +332,7 @@ static ssize_t set_temp_crit_hyst(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct jc42_data *data = i2c_get_clientdata(client);
-	long val;
+	unsigned long val;
 	int diff, hyst;
 	int err;
 	int ret = count;
