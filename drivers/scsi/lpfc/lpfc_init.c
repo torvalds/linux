@@ -945,17 +945,13 @@ static void
 lpfc_rrq_timeout(unsigned long ptr)
 {
 	struct lpfc_hba *phba;
-	uint32_t tmo_posted;
 	unsigned long iflag;
 
 	phba = (struct lpfc_hba *)ptr;
 	spin_lock_irqsave(&phba->pport->work_port_lock, iflag);
-	tmo_posted = phba->hba_flag & HBA_RRQ_ACTIVE;
-	if (!tmo_posted)
-		phba->hba_flag |= HBA_RRQ_ACTIVE;
+	phba->hba_flag |= HBA_RRQ_ACTIVE;
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflag);
-	if (!tmo_posted)
-		lpfc_worker_wake_up(phba);
+	lpfc_worker_wake_up(phba);
 }
 
 /**
@@ -2280,6 +2276,7 @@ lpfc_cleanup(struct lpfc_vport *vport)
 		/* Wait for any activity on ndlps to settle */
 		msleep(10);
 	}
+	lpfc_cleanup_vports_rrqs(vport, NULL);
 }
 
 /**
@@ -2355,6 +2352,10 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 	del_timer_sync(&phba->fabric_block_timer);
 	del_timer_sync(&phba->eratt_poll);
 	del_timer_sync(&phba->hb_tmofunc);
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		del_timer_sync(&phba->rrq_tmr);
+		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
+	}
 	phba->hb_outstanding = 0;
 
 	switch (phba->pci_dev_grp) {

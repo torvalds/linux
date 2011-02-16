@@ -2816,9 +2816,17 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	switch (irsp->ulpStatus) {
 	case IOSTAT_FCP_RSP_ERROR:
-	case IOSTAT_REMOTE_STOP:
 		break;
-
+	case IOSTAT_REMOTE_STOP:
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			/* This IO was aborted by the target, we don't
+			 * know the rxid and because we did not send the
+			 * ABTS we cannot generate and RRQ.
+			 */
+			lpfc_set_rrq_active(phba, ndlp,
+					 cmdiocb->sli4_xritag, 0, 0);
+		}
+		break;
 	case IOSTAT_LOCAL_REJECT:
 		switch ((irsp->un.ulpWord[4] & 0xff)) {
 		case IOERR_LOOP_OPEN_FAILURE:
@@ -4014,28 +4022,34 @@ lpfc_els_clear_rrq(struct lpfc_vport *vport,
 	uint8_t *pcmd;
 	struct RRQ *rrq;
 	uint16_t rxid;
+	uint16_t xri;
 	struct lpfc_node_rrq *prrq;
 
 
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) iocb->context2)->virt);
 	pcmd += sizeof(uint32_t);
 	rrq = (struct RRQ *)pcmd;
-	rxid = bf_get(rrq_oxid, rrq);
+	rrq->rrq_exchg = be32_to_cpu(rrq->rrq_exchg);
+	rxid = be16_to_cpu(bf_get(rrq_rxid, rrq));
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			"2883 Clear RRQ for SID:x%x OXID:x%x RXID:x%x"
 			" x%x x%x\n",
-			bf_get(rrq_did, rrq),
-			bf_get(rrq_oxid, rrq),
+			be32_to_cpu(bf_get(rrq_did, rrq)),
+			be16_to_cpu(bf_get(rrq_oxid, rrq)),
 			rxid,
 			iocb->iotag, iocb->iocb.ulpContext);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"Clear RRQ:  did:x%x flg:x%x exchg:x%.08x",
 		ndlp->nlp_DID, ndlp->nlp_flag, rrq->rrq_exchg);
-	prrq = lpfc_get_active_rrq(vport, rxid, ndlp->nlp_DID);
+	if (vport->fc_myDID == be32_to_cpu(bf_get(rrq_did, rrq)))
+		xri = be16_to_cpu(bf_get(rrq_oxid, rrq));
+	else
+		xri = rxid;
+	prrq = lpfc_get_active_rrq(vport, xri, ndlp->nlp_DID);
 	if (prrq)
-		lpfc_clr_rrq_active(phba, rxid, prrq);
+		lpfc_clr_rrq_active(phba, xri, prrq);
 	return;
 }
 
@@ -7580,6 +7594,32 @@ void lpfc_fabric_abort_hba(struct lpfc_hba *phba)
 	/* Cancel all the IOCBs from the completions list */
 	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
 			      IOERR_SLI_ABORTED);
+}
+
+/**
+ * lpfc_sli4_vport_delete_els_xri_aborted -Remove all ndlp references for vport
+ * @vport: pointer to lpfc vport data structure.
+ *
+ * This routine is invoked by the vport cleanup for deletions and the cleanup
+ * for an ndlp on removal.
+ **/
+void
+lpfc_sli4_vport_delete_els_xri_aborted(struct lpfc_vport *vport)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
+	unsigned long iflag = 0;
+
+	spin_lock_irqsave(&phba->hbalock, iflag);
+	spin_lock(&phba->sli4_hba.abts_sgl_list_lock);
+	list_for_each_entry_safe(sglq_entry, sglq_next,
+			&phba->sli4_hba.lpfc_abts_els_sgl_list, list) {
+		if (sglq_entry->ndlp && sglq_entry->ndlp->vport == vport)
+			sglq_entry->ndlp = NULL;
+	}
+	spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
+	spin_unlock_irqrestore(&phba->hbalock, iflag);
+	return;
 }
 
 /**

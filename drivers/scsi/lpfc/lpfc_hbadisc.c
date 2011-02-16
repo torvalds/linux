@@ -3160,7 +3160,7 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	spin_unlock_irq(shost->host_lock);
 	vport->unreg_vpi_cmpl = VPORT_OK;
 	mempool_free(pmb, phba->mbox_mem_pool);
-	lpfc_cleanup_vports_rrqs(vport);
+	lpfc_cleanup_vports_rrqs(vport, NULL);
 	/*
 	 * This shost reference might have been taken at the beginning of
 	 * lpfc_vport_delete()
@@ -3900,6 +3900,8 @@ lpfc_drop_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 		return;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
+	if (vport->phba->sli_rev == LPFC_SLI_REV4)
+		lpfc_cleanup_vports_rrqs(vport, ndlp);
 	lpfc_nlp_put(ndlp);
 	return;
 }
@@ -4289,7 +4291,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	list_del_init(&ndlp->els_retry_evt.evt_listp);
 	list_del_init(&ndlp->dev_loss_evt.evt_listp);
-
+	lpfc_cleanup_vports_rrqs(vport, ndlp);
 	lpfc_unreg_rpi(vport, ndlp);
 
 	return 0;

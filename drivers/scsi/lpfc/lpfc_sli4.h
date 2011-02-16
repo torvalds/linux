@@ -566,6 +566,8 @@ void lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *,
 			       struct sli4_wcqe_xri_aborted *);
 void lpfc_sli4_els_xri_aborted(struct lpfc_hba *,
 			       struct sli4_wcqe_xri_aborted *);
+void lpfc_sli4_vport_delete_els_xri_aborted(struct lpfc_vport *);
+void lpfc_sli4_vport_delete_fcp_xri_aborted(struct lpfc_vport *);
 int lpfc_sli4_brdreset(struct lpfc_hba *);
 int lpfc_sli4_add_fcf_record(struct lpfc_hba *, struct fcf_record *);
 void lpfc_sli_remove_dflt_fcf(struct lpfc_hba *);
