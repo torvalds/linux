@@ -498,10 +498,10 @@ int bnx2i_send_iscsi_nopout(struct bnx2i_conn *bnx2i_conn,
 	memcpy(nopout_wqe->lun, nopout_hdr->lun, 8);
 
 	if (test_bit(BNX2I_NX2_DEV_57710, &ep->hba->cnic_dev_type)) {
-		u32 tmp = nopout_hdr->lun[0];
+		u32 tmp = nopout_wqe->lun[0];
 		/* 57710 requires LUN field to be swapped */
-		nopout_hdr->lun[0] = nopout_hdr->lun[1];
-		nopout_hdr->lun[1] = tmp;
+		nopout_wqe->lun[0] = nopout_wqe->lun[1];
+		nopout_wqe->lun[1] = tmp;
 	}
 
 	nopout_wqe->itt = ((u16)task->itt |
