@@ -1981,12 +1981,14 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	struct scatterlist *sgel = NULL;
 	struct fcp_cmnd *fcp_cmnd = lpfc_cmd->fcp_cmnd;
 	struct sli4_sge *sgl = (struct sli4_sge *)lpfc_cmd->fcp_bpl;
+	struct sli4_sge *first_data_sgl;
 	IOCB_t *iocb_cmd = &lpfc_cmd->cur_iocbq.iocb;
 	dma_addr_t physaddr;
 	uint32_t num_bde = 0;
 	uint32_t dma_len;
 	uint32_t dma_offset = 0;
 	int nseg;
+	struct ulp_bde64 *bde;
 
 	/*
 	 * There are three possibilities here - use scatter-gather segment, use
@@ -2011,7 +2013,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		bf_set(lpfc_sli4_sge_last, sgl, 0);
 		sgl->word2 = cpu_to_le32(sgl->word2);
 		sgl += 1;
-
+		first_data_sgl = sgl;
 		lpfc_cmd->seg_cnt = nseg;
 		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9074 BLKGRD:"
@@ -2046,6 +2048,17 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 			sgl->sge_len = cpu_to_le32(dma_len);
 			dma_offset += dma_len;
 			sgl++;
+		}
+		/* setup the performance hint (first data BDE) if enabled */
+		if (phba->sli3_options & LPFC_SLI4_PERFH_ENABLED) {
+			bde = (struct ulp_bde64 *)
+					&(iocb_cmd->unsli3.sli3Words[5]);
+			bde->addrLow = first_data_sgl->addr_lo;
+			bde->addrHigh = first_data_sgl->addr_hi;
+			bde->tus.f.bdeSize =
+					le32_to_cpu(first_data_sgl->sge_len);
+			bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+			bde->tus.w = cpu_to_le32(bde->tus.w);
 		}
 	} else {
 		sgl += 1;

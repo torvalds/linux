@@ -4426,10 +4426,11 @@ lpfc_findnode_did(struct lpfc_vport *vport, uint32_t did)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *ndlp;
+	unsigned long iflags;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(shost->host_lock, iflags);
 	ndlp = __lpfc_findnode_did(vport, did);
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(shost->host_lock, iflags);
 	return ndlp;
 }
 

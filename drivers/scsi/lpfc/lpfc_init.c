@@ -4283,36 +4283,37 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_bsmbx;
 	}
 
-	/* Get the Supported Pages. It is always available. */
+	/* Get the Supported Pages if PORT_CAPABILITIES is supported by port. */
 	lpfc_supported_pages(mboxq);
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-	if (unlikely(rc)) {
-		rc = -EIO;
-		mempool_free(mboxq, phba->mbox_mem_pool);
-		goto out_free_bsmbx;
-	}
-
-	mqe = &mboxq->u.mqe;
-	memcpy(&pn_page[0], ((uint8_t *)&mqe->un.supp_pages.word3),
-	       LPFC_MAX_SUPPORTED_PAGES);
-	for (i = 0; i < LPFC_MAX_SUPPORTED_PAGES; i++) {
-		switch (pn_page[i]) {
-		case LPFC_SLI4_PARAMETERS:
-			phba->sli4_hba.pc_sli4_params.supported = 1;
-			break;
-		default:
-			break;
+	if (!rc) {
+		mqe = &mboxq->u.mqe;
+		memcpy(&pn_page[0], ((uint8_t *)&mqe->un.supp_pages.word3),
+		       LPFC_MAX_SUPPORTED_PAGES);
+		for (i = 0; i < LPFC_MAX_SUPPORTED_PAGES; i++) {
+			switch (pn_page[i]) {
+			case LPFC_SLI4_PARAMETERS:
+				phba->sli4_hba.pc_sli4_params.supported = 1;
+				break;
+			default:
+				break;
+			}
+		}
+		/* Read the port's SLI4 Parameters capabilities if supported. */
+		if (phba->sli4_hba.pc_sli4_params.supported)
+			rc = lpfc_pc_sli4_params_get(phba, mboxq);
+		if (rc) {
+			mempool_free(mboxq, phba->mbox_mem_pool);
+			rc = -EIO;
+			goto out_free_bsmbx;
 		}
 	}
-
-	/* Read the port's SLI4 Parameters capabilities if supported. */
-	if (phba->sli4_hba.pc_sli4_params.supported)
-		rc = lpfc_pc_sli4_params_get(phba, mboxq);
+	/*
+	 * Get sli4 parameters that override parameters from Port capabilities.
+	 * If this call fails it is not a critical error so continue loading.
+	 */
+	lpfc_get_sli4_parameters(phba, mboxq);
 	mempool_free(mboxq, phba->mbox_mem_pool);
-	if (rc) {
-		rc = -EIO;
-		goto out_free_bsmbx;
-	}
 	/* Create all the SLI4 queues */
 	rc = lpfc_sli4_queue_create(phba);
 	if (rc)
@@ -7810,7 +7811,7 @@ lpfc_pc_sli4_params_get(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	mqe = &mboxq->u.mqe;
 
 	/* Read the port's SLI4 Parameters port capabilities */
-	lpfc_sli4_params(mboxq);
+	lpfc_pc_sli4_params(mboxq);
 	if (!phba->sli4_hba.intr_enable)
 		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 	else {
@@ -7851,6 +7852,66 @@ lpfc_pc_sli4_params_get(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	sli4_params->sgl_pages_max = bf_get(sgl_pages, &mqe->un.sli4_params);
 	sli4_params->sgl_pp_align = bf_get(sgl_pp_align, &mqe->un.sli4_params);
 	return rc;
+}
+
+/**
+ * lpfc_get_sli4_parameters - Get the SLI4 Config PARAMETERS.
+ * @phba: Pointer to HBA context object.
+ * @mboxq: Pointer to the mailboxq memory for the mailbox command response.
+ *
+ * This function is called in the SLI4 code path to read the port's
+ * sli4 capabilities.
+ *
+ * This function may be be called from any context that can block-wait
+ * for the completion.  The expectation is that this routine is called
+ * typically from probe_one or from the online routine.
+ **/
+int
+lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
+{
+	int rc;
+	struct lpfc_mqe *mqe = &mboxq->u.mqe;
+	struct lpfc_pc_sli4_params *sli4_params;
+	int length;
+	struct lpfc_sli4_parameters *mbx_sli4_parameters;
+
+	/* Read the port's SLI4 Config Parameters */
+	length = (sizeof(struct lpfc_mbx_get_sli4_parameters) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_GET_SLI4_PARAMETERS,
+			 length, LPFC_SLI4_MBX_EMBED);
+	if (!phba->sli4_hba.intr_enable)
+		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	else
+		rc = lpfc_sli_issue_mbox_wait(phba, mboxq,
+			lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG));
+	if (unlikely(rc))
+		return rc;
+	sli4_params = &phba->sli4_hba.pc_sli4_params;
+	mbx_sli4_parameters = &mqe->un.get_sli4_parameters.sli4_parameters;
+	sli4_params->if_type = bf_get(cfg_if_type, mbx_sli4_parameters);
+	sli4_params->sli_rev = bf_get(cfg_sli_rev, mbx_sli4_parameters);
+	sli4_params->sli_family = bf_get(cfg_sli_family, mbx_sli4_parameters);
+	sli4_params->featurelevel_1 = bf_get(cfg_sli_hint_1,
+					     mbx_sli4_parameters);
+	sli4_params->featurelevel_2 = bf_get(cfg_sli_hint_2,
+					     mbx_sli4_parameters);
+	if (bf_get(cfg_phwq, mbx_sli4_parameters))
+		phba->sli3_options |= LPFC_SLI4_PHWQ_ENABLED;
+	else
+		phba->sli3_options &= ~LPFC_SLI4_PHWQ_ENABLED;
+	sli4_params->sge_supp_len = mbx_sli4_parameters->sge_supp_len;
+	sli4_params->loopbk_scope = bf_get(loopbk_scope, mbx_sli4_parameters);
+	sli4_params->cqv = bf_get(cfg_cqv, mbx_sli4_parameters);
+	sli4_params->mqv = bf_get(cfg_mqv, mbx_sli4_parameters);
+	sli4_params->wqv = bf_get(cfg_wqv, mbx_sli4_parameters);
+	sli4_params->rqv = bf_get(cfg_rqv, mbx_sli4_parameters);
+	sli4_params->sgl_pages_max = bf_get(cfg_sgl_page_cnt,
+					    mbx_sli4_parameters);
+	sli4_params->sgl_pp_align = bf_get(cfg_sgl_pp_align,
+					   mbx_sli4_parameters);
+	return 0;
 }
 
 /**

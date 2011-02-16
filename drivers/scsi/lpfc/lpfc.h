@@ -548,6 +548,8 @@ struct lpfc_hba {
 #define LPFC_SLI3_CRP_ENABLED		0x08
 #define LPFC_SLI3_BG_ENABLED		0x20
 #define LPFC_SLI3_DSS_ENABLED		0x40
+#define LPFC_SLI4_PERFH_ENABLED		0x80
+#define LPFC_SLI4_PHWQ_ENABLED		0x100
 	uint32_t iocb_cmd_size;
 	uint32_t iocb_rsp_size;
 

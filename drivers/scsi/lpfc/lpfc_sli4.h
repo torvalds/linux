@@ -359,6 +359,10 @@ struct lpfc_pc_sli4_params {
 	uint32_t hdr_pp_align;
 	uint32_t sgl_pages_max;
 	uint32_t sgl_pp_align;
+	uint8_t cqv;
+	uint8_t mqv;
+	uint8_t wqv;
+	uint8_t rqv;
 };
 
 /* SLI4 HBA data structure entries */

@@ -96,7 +96,8 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 	/* set consumption flag every once in a while */
 	if (!((q->host_index + 1) % LPFC_RELEASE_NOTIFICATION_INTERVAL))
 		bf_set(wqe_wqec, &wqe->generic.wqe_com, 1);
-
+	if (q->phba->sli3_options & LPFC_SLI4_PHWQ_ENABLED)
+		bf_set(wqe_wqid, &wqe->generic.wqe_com, q->queue_id);
 	lpfc_sli_pcimem_bcopy(wqe, temp_wqe, q->entry_size);
 
 	/* Update the host index before invoking device */
@@ -969,7 +970,8 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 		} else {
 			sglq->state = SGL_FREED;
 			sglq->ndlp = NULL;
-			list_add(&sglq->list, &phba->sli4_hba.lpfc_sgl_list);
+			list_add_tail(&sglq->list,
+				&phba->sli4_hba.lpfc_sgl_list);
 
 			/* Check if TXQ queue needs to be serviced */
 			if (pring->txq_cnt)
@@ -4817,7 +4819,10 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 				"0378 No support for fcpi mode.\n");
 		ftr_rsp++;
 	}
-
+	if (bf_get(lpfc_mbx_rq_ftr_rsp_perfh, &mqe->un.req_ftrs))
+		phba->sli3_options |= LPFC_SLI4_PERFH_ENABLED;
+	else
+		phba->sli3_options &= ~LPFC_SLI4_PERFH_ENABLED;
 	/*
 	 * If the port cannot support the host's requested features
 	 * then turn off the global config parameters to disable the
@@ -5004,7 +5009,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	phba->link_state = LPFC_LINK_DOWN;
 	spin_unlock_irq(&phba->hbalock);
-	rc = phba->lpfc_hba_init_link(phba, MBX_NOWAIT);
+	if (phba->cfg_suppress_link_up == LPFC_INITIALIZE_LINK)
+		rc = phba->lpfc_hba_init_link(phba, MBX_NOWAIT);
 out_unset_queue:
 	/* Unset all the queues set up in this routine when error out */
 	if (rc)
@@ -11189,7 +11195,7 @@ lpfc_rq_destroy(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	if (!mbox)
 		return -ENOMEM;
 	length = (sizeof(struct lpfc_mbx_rq_destroy) -
-		  sizeof(struct mbox_header));
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
 			 LPFC_MBOX_OPCODE_FCOE_RQ_DESTROY,
 			 length, LPFC_SLI4_MBX_EMBED);
@@ -11279,7 +11285,7 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
 			LPFC_MBOX_OPCODE_FCOE_POST_SGL_PAGES,
 			sizeof(struct lpfc_mbx_post_sgl_pages) -
-			sizeof(struct mbox_header), LPFC_SLI4_MBX_EMBED);
+			sizeof(struct lpfc_sli4_cfg_mhdr), LPFC_SLI4_MBX_EMBED);
 
 	post_sgl_pages = (struct lpfc_mbx_post_sgl_pages *)
 				&mbox->u.mqe.un.post_sgl_pages;
@@ -12402,7 +12408,8 @@ lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
 	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
 			 LPFC_MBOX_OPCODE_FCOE_POST_HDR_TEMPLATE,
 			 sizeof(struct lpfc_mbx_post_hdr_tmpl) -
-			 sizeof(struct mbox_header), LPFC_SLI4_MBX_EMBED);
+			 sizeof(struct lpfc_sli4_cfg_mhdr),
+			 LPFC_SLI4_MBX_EMBED);
 	bf_set(lpfc_mbx_post_hdr_tmpl_page_cnt,
 	       hdr_tmpl, rpi_page->page_count);
 	bf_set(lpfc_mbx_post_hdr_tmpl_rpi_offset, hdr_tmpl,

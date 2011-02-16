@@ -778,6 +778,7 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_QUERY_FW_CFG		0x3A
 #define LPFC_MBOX_OPCODE_FUNCTION_RESET		0x3D
 #define LPFC_MBOX_OPCODE_MQ_CREATE_EXT		0x5A
+#define LPFC_MBOX_OPCODE_GET_SLI4_PARAMETERS	0xB5
 
 /* FCoE Opcodes */
 #define LPFC_MBOX_OPCODE_FCOE_WQ_CREATE			0x01
@@ -1852,6 +1853,9 @@ struct lpfc_mbx_request_features {
 #define lpfc_mbx_rq_ftr_rq_ifip_SHIFT		7
 #define lpfc_mbx_rq_ftr_rq_ifip_MASK		0x00000001
 #define lpfc_mbx_rq_ftr_rq_ifip_WORD		word2
+#define lpfc_mbx_rq_ftr_rq_perfh_SHIFT		11
+#define lpfc_mbx_rq_ftr_rq_perfh_MASK		0x00000001
+#define lpfc_mbx_rq_ftr_rq_perfh_WORD		word2
 	uint32_t word3;
 #define lpfc_mbx_rq_ftr_rsp_iaab_SHIFT		0
 #define lpfc_mbx_rq_ftr_rsp_iaab_MASK		0x00000001
@@ -1877,6 +1881,9 @@ struct lpfc_mbx_request_features {
 #define lpfc_mbx_rq_ftr_rsp_ifip_SHIFT		7
 #define lpfc_mbx_rq_ftr_rsp_ifip_MASK		0x00000001
 #define lpfc_mbx_rq_ftr_rsp_ifip_WORD		word3
+#define lpfc_mbx_rq_ftr_rsp_perfh_SHIFT		11
+#define lpfc_mbx_rq_ftr_rsp_perfh_MASK		0x00000001
+#define lpfc_mbx_rq_ftr_rsp_perfh_WORD		word3
 };
 
 struct lpfc_mbx_supp_pages {
@@ -1935,7 +1942,7 @@ struct lpfc_mbx_supp_pages {
 #define LPFC_SLI4_PARAMETERS		2
 };
 
-struct lpfc_mbx_sli4_params {
+struct lpfc_mbx_pc_sli4_params {
 	uint32_t word1;
 #define qs_SHIFT				0
 #define qs_MASK					0x00000001
@@ -2051,6 +2058,88 @@ struct lpfc_mbx_sli4_params {
 	uint32_t rsvd_13_63[51];
 };
 
+struct lpfc_sli4_parameters {
+	uint32_t word0;
+#define cfg_prot_type_SHIFT			0
+#define cfg_prot_type_MASK			0x000000FF
+#define cfg_prot_type_WORD			word0
+	uint32_t word1;
+#define cfg_ft_SHIFT				0
+#define cfg_ft_MASK				0x00000001
+#define cfg_ft_WORD				word1
+#define cfg_sli_rev_SHIFT			4
+#define cfg_sli_rev_MASK			0x0000000f
+#define cfg_sli_rev_WORD			word1
+#define cfg_sli_family_SHIFT			8
+#define cfg_sli_family_MASK			0x0000000f
+#define cfg_sli_family_WORD			word1
+#define cfg_if_type_SHIFT			12
+#define cfg_if_type_MASK			0x0000000f
+#define cfg_if_type_WORD			word1
+#define cfg_sli_hint_1_SHIFT			16
+#define cfg_sli_hint_1_MASK			0x000000ff
+#define cfg_sli_hint_1_WORD			word1
+#define cfg_sli_hint_2_SHIFT			24
+#define cfg_sli_hint_2_MASK			0x0000001f
+#define cfg_sli_hint_2_WORD			word1
+	uint32_t word2;
+	uint32_t word3;
+	uint32_t word4;
+#define cfg_cqv_SHIFT				14
+#define cfg_cqv_MASK				0x00000003
+#define cfg_cqv_WORD				word4
+	uint32_t word5;
+	uint32_t word6;
+#define cfg_mqv_SHIFT				14
+#define cfg_mqv_MASK				0x00000003
+#define cfg_mqv_WORD				word6
+	uint32_t word7;
+	uint32_t word8;
+#define cfg_wqv_SHIFT				14
+#define cfg_wqv_MASK				0x00000003
+#define cfg_wqv_WORD				word8
+	uint32_t word9;
+	uint32_t word10;
+#define cfg_rqv_SHIFT				14
+#define cfg_rqv_MASK				0x00000003
+#define cfg_rqv_WORD				word10
+	uint32_t word11;
+#define cfg_rq_db_window_SHIFT			28
+#define cfg_rq_db_window_MASK			0x0000000f
+#define cfg_rq_db_window_WORD			word11
+	uint32_t word12;
+#define cfg_fcoe_SHIFT				0
+#define cfg_fcoe_MASK				0x00000001
+#define cfg_fcoe_WORD				word12
+#define cfg_phwq_SHIFT				15
+#define cfg_phwq_MASK				0x00000001
+#define cfg_phwq_WORD				word12
+#define cfg_loopbk_scope_SHIFT			28
+#define cfg_loopbk_scope_MASK			0x0000000f
+#define cfg_loopbk_scope_WORD			word12
+	uint32_t sge_supp_len;
+	uint32_t word14;
+#define cfg_sgl_page_cnt_SHIFT			0
+#define cfg_sgl_page_cnt_MASK			0x0000000f
+#define cfg_sgl_page_cnt_WORD			word14
+#define cfg_sgl_page_size_SHIFT			8
+#define cfg_sgl_page_size_MASK			0x000000ff
+#define cfg_sgl_page_size_WORD			word14
+#define cfg_sgl_pp_align_SHIFT			16
+#define cfg_sgl_pp_align_MASK			0x000000ff
+#define cfg_sgl_pp_align_WORD			word14
+	uint32_t word15;
+	uint32_t word16;
+	uint32_t word17;
+	uint32_t word18;
+	uint32_t word19;
+};
+
+struct lpfc_mbx_get_sli4_parameters {
+	struct mbox_header header;
+	struct lpfc_sli4_parameters sli4_parameters;
+};
+
 /* Mailbox Completion Queue Error Messages */
 #define MB_CQE_STATUS_SUCCESS 			0x0
 #define MB_CQE_STATUS_INSUFFICIENT_PRIVILEGES	0x1
@@ -2103,7 +2192,8 @@ struct lpfc_mqe {
 		struct lpfc_mbx_post_hdr_tmpl hdr_tmpl;
 		struct lpfc_mbx_query_fw_cfg query_fw_cfg;
 		struct lpfc_mbx_supp_pages supp_pages;
-		struct lpfc_mbx_sli4_params sli4_params;
+		struct lpfc_mbx_pc_sli4_params sli4_params;
+		struct lpfc_mbx_get_sli4_parameters get_sli4_parameters;
 		struct lpfc_mbx_nop nop;
 	} un;
 };
@@ -2381,6 +2471,10 @@ struct wqe_common {
 #define wqe_wqes_SHIFT        15
 #define wqe_wqes_MASK         0x00000001
 #define wqe_wqes_WORD         word10
+/* Note that this field overlaps above fields */
+#define wqe_wqid_SHIFT        1
+#define wqe_wqid_MASK         0x0000007f
+#define wqe_wqid_WORD         word10
 #define wqe_pri_SHIFT         16
 #define wqe_pri_MASK          0x00000007
 #define wqe_pri_WORD          word10
@@ -2599,7 +2693,8 @@ struct fcp_iwrite64_wqe {
 	uint32_t total_xfer_len;
 	uint32_t initial_xfer_len;
 	struct wqe_common wqe_com;     /* words 6-11 */
-	uint32_t rsvd_12_15[4];         /* word 12-15 */
+	uint32_t rsrvd12;
+	struct ulp_bde64 ph_bde;       /* words 13-15 */
 };
 
 struct fcp_iread64_wqe {
@@ -2608,7 +2703,8 @@ struct fcp_iread64_wqe {
 	uint32_t total_xfer_len;       /* word 4 */
 	uint32_t rsrvd5;               /* word 5 */
 	struct wqe_common wqe_com;     /* words 6-11 */
-	uint32_t rsvd_12_15[4];         /* word 12-15 */
+	uint32_t rsrvd12;
+	struct ulp_bde64 ph_bde;       /* words 13-15 */
 };
 
 struct fcp_icmnd64_wqe {

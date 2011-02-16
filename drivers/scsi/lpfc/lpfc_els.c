@@ -2745,7 +2745,8 @@ lpfc_els_retry_delay_handler(struct lpfc_nodelist *ndlp)
 		}
 		break;
 	case ELS_CMD_FDISC:
-		lpfc_issue_els_fdisc(vport, ndlp, retry);
+		if (!(vport->fc_flag & FC_VPORT_NEEDS_INIT_VPI))
+			lpfc_issue_els_fdisc(vport, ndlp, retry);
 		break;
 	}
 	return;
