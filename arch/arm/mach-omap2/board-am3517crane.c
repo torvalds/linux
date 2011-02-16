@@ -49,14 +49,13 @@ static struct omap_board_mux board_mux[] __initdata = {
 #define board_mux	NULL
 #endif
 
-static void __init am3517_crane_init_irq(void)
+static void __init am3517_crane_init_early(void)
 {
 	omap_board_config = am3517_crane_config;
 	omap_board_config_size = ARRAY_SIZE(am3517_crane_config);
 
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
-	omap_init_irq();
 }
 
 static struct ehci_hcd_omap_platform_data ehci_pdata __initdata = {
@@ -108,9 +107,10 @@ static void __init am3517_crane_init(void)
 
 MACHINE_START(CRANEBOARD, "AM3517/05 CRANEBOARD")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= am3517_crane_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= am3517_crane_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= am3517_crane_init,
 	.timer		= &omap_timer,
 MACHINE_END

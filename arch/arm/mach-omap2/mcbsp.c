@@ -104,7 +104,7 @@ EXPORT_SYMBOL(omap2_mcbsp_set_clks_src);
 
 /* Platform data */
 
-#ifdef CONFIG_ARCH_OMAP2420
+#ifdef CONFIG_SOC_OMAP2420
 static struct omap_mcbsp_platform_data omap2420_mcbsp_pdata[] = {
 	{
 		.phys_base	= OMAP24XX_MCBSP1_BASE,
@@ -129,7 +129,7 @@ static struct omap_mcbsp_platform_data omap2420_mcbsp_pdata[] = {
 #define OMAP2420_MCBSP_REG_NUM		0
 #endif
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 static struct omap_mcbsp_platform_data omap2430_mcbsp_pdata[] = {
 	{
 		.phys_base	= OMAP24XX_MCBSP1_BASE,

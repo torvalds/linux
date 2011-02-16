@@ -625,13 +625,12 @@ static struct spi_board_info omap3evm_spi_board_info[] = {
 static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
 };
 
-static void __init omap3_evm_init_irq(void)
+static void __init omap3_evm_init_early(void)
 {
 	omap_board_config = omap3_evm_config;
 	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params, NULL);
-	omap_init_irq();
 }
 
 static struct platform_device *omap3_evm_devices[] __initdata = {
@@ -720,9 +719,10 @@ static void __init omap3_evm_init(void)
 MACHINE_START(OMAP3EVM, "OMAP3 EVM")
 	/* Maintainer: Syed Mohammed Khasim - Texas Instruments */
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= omap3_evm_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= omap3_evm_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= omap3_evm_init,
 	.timer		= &omap_timer,
 MACHINE_END

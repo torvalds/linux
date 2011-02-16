@@ -456,11 +456,15 @@ static struct platform_device keys_gpio = {
 };
 
 
-static void __init devkit8000_init_irq(void)
+static void __init devkit8000_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
 				  mt46h32m32lf6_sdrc_params);
+}
+
+static void __init devkit8000_init_irq(void)
+{
 	omap_init_irq();
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(12);
@@ -813,8 +817,9 @@ static void __init devkit8000_init(void)
 
 MACHINE_START(DEVKIT8000, "OMAP3 Devkit8000")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
+	.map_io		= omap3_map_io,
+	.init_early	= devkit8000_init_early,
 	.init_irq	= devkit8000_init_irq,
 	.init_machine	= devkit8000_init,
 	.timer		= &omap_timer,

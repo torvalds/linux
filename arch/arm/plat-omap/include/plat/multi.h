@@ -66,7 +66,7 @@
 #  error "OMAP1 and OMAP2PLUS can't be selected at the same time"
 # endif
 #endif
-#ifdef CONFIG_ARCH_OMAP2420
+#ifdef CONFIG_SOC_OMAP2420
 # ifdef OMAP_NAME
 #  undef  MULTI_OMAP2
 #  define MULTI_OMAP2
@@ -74,7 +74,7 @@
 #  define OMAP_NAME omap2420
 # endif
 #endif
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 # ifdef OMAP_NAME
 #  undef  MULTI_OMAP2
 #  define MULTI_OMAP2

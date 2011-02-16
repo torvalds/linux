@@ -239,7 +239,7 @@ static struct omap_board_config_kernel sdp4430_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&sdp4430_lcd_config },
 };
 
-static void __init omap_4430sdp_init_irq(void)
+static void __init omap_4430sdp_init_early(void)
 {
 	omap_board_config = sdp4430_config;
 	omap_board_config_size = ARRAY_SIZE(sdp4430_config);
@@ -248,7 +248,6 @@ static void __init omap_4430sdp_init_irq(void)
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(1);
 #endif
-	gic_init_irq();
 }
 
 static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
@@ -605,9 +604,10 @@ static void __init omap_4430sdp_map_io(void)
 MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")
 	/* Maintainer: Santosh Shilimkar - Texas Instruments Inc */
 	.boot_params	= 0x80000100,
-	.map_io		= omap_4430sdp_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_4430sdp_init_irq,
+	.map_io		= omap_4430sdp_map_io,
+	.init_early	= omap_4430sdp_init_early,
+	.init_irq	= gic_init_irq,
 	.init_machine	= omap_4430sdp_init,
 	.timer		= &omap_timer,
 MACHINE_END

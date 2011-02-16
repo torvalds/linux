@@ -69,14 +69,13 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 static struct omap_board_config_kernel sdp_config[] __initdata = {
 };
 
-static void __init omap_sdp_init_irq(void)
+static void __init omap_sdp_init_early(void)
 {
 	omap_board_config = sdp_config;
 	omap_board_config_size = ARRAY_SIZE(sdp_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(h8mbx00u0mer0em_sdrc_params,
 				  h8mbx00u0mer0em_sdrc_params);
-	omap_init_irq();
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -216,9 +215,10 @@ static void __init omap_sdp_init(void)
 
 MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_sdp_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= omap_sdp_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= omap_sdp_init,
 	.timer		= &omap_timer,
 MACHINE_END

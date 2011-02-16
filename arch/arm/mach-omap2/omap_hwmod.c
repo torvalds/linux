@@ -1467,12 +1467,10 @@ static int __init _register(struct omap_hwmod *oh)
 		return -EEXIST;
 
 	ms_id = _find_mpu_port_index(oh);
-	if (!IS_ERR_VALUE(ms_id)) {
+	if (!IS_ERR_VALUE(ms_id))
 		oh->_mpu_port_index = ms_id;
-		oh->_mpu_rt_va = _find_mpu_rt_base(oh, oh->_mpu_port_index);
-	} else {
+	else
 		oh->_int_flags |= _HWMOD_NO_MPU_PORT;
-	}
 
 	list_add_tail(&oh->node, &omap_hwmod_list);
 
@@ -1621,6 +1619,26 @@ int __init omap_hwmod_init(struct omap_hwmod **ohs)
 	return 0;
 }
 
+/*
+ * _populate_mpu_rt_base - populate the virtual address for a hwmod
+ *
+ * Must be called only from omap_hwmod_late_init so ioremap works properly.
+ * Assumes the caller takes care of locking if needed.
+ *
+ */
+static int __init _populate_mpu_rt_base(struct omap_hwmod *oh, void *data)
+{
+	if (oh->_int_flags & _HWMOD_NO_MPU_PORT)
+		return 0;
+
+	oh->_mpu_rt_va = _find_mpu_rt_base(oh, oh->_mpu_port_index);
+	if (!oh->_mpu_rt_va)
+		pr_warning("omap_hwmod: %s found no _mpu_rt_va for %s\n",
+				__func__, oh->name);
+
+	return 0;
+}
+
 /**
  * omap_hwmod_late_init - do some post-clock framework initialization
  *
@@ -1628,9 +1646,11 @@ int __init omap_hwmod_init(struct omap_hwmod **ohs)
  * to struct clk pointers for each registered omap_hwmod.  Also calls
  * _setup() on each hwmod.  Returns 0.
  */
-int omap_hwmod_late_init(void)
+static int __init omap_hwmod_late_init(void)
 {
 	int r;
+
+	r = omap_hwmod_for_each(_populate_mpu_rt_base, NULL);
 
 	/* XXX check return value */
 	r = omap_hwmod_for_each(_init_clocks, NULL);
@@ -1644,6 +1664,7 @@ int omap_hwmod_late_init(void)
 
 	return 0;
 }
+core_initcall(omap_hwmod_late_init);
 
 /**
  * omap_hwmod_enable - enable an omap_hwmod

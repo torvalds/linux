@@ -288,13 +288,12 @@ static struct omap_board_config_kernel ldp_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&ldp_lcd_config },
 };
 
-static void __init omap_ldp_init_irq(void)
+static void __init omap_ldp_init_early(void)
 {
 	omap_board_config = ldp_config;
 	omap_board_config_size = ARRAY_SIZE(ldp_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
-	omap_init_irq();
 }
 
 static struct twl4030_usb_data ldp_usb_data = {
@@ -443,9 +442,10 @@ static void __init omap_ldp_init(void)
 
 MACHINE_START(OMAP_LDP, "OMAP LDP board")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_ldp_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= omap_ldp_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= omap_ldp_init,
 	.timer		= &omap_timer,
 MACHINE_END

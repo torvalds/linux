@@ -365,7 +365,7 @@ static struct omap_mmc_platform_data mmc1_data = {
 
 static struct omap_mmc_platform_data *mmc_data[OMAP16XX_NR_MMC];
 
-void __init innovator_mmc_init(void)
+static void __init innovator_mmc_init(void)
 {
 	mmc_data[0] = &mmc1_data;
 	omap1_init_mmc(mmc_data, OMAP15XX_NR_MMC);

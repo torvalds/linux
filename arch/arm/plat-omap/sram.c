@@ -312,7 +312,7 @@ u32 omap2_set_prcm(u32 dpll_ctrl_val, u32 sdrc_rfr_val, int bypass)
 }
 #endif
 
-#ifdef CONFIG_ARCH_OMAP2420
+#ifdef CONFIG_SOC_OMAP2420
 static int __init omap242x_sram_init(void)
 {
 	_omap2_sram_ddr_init = omap_sram_push(omap242x_sram_ddr_init,
@@ -333,7 +333,7 @@ static inline int omap242x_sram_init(void)
 }
 #endif
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 static int __init omap243x_sram_init(void)
 {
 	_omap2_sram_ddr_init = omap_sram_push(omap243x_sram_ddr_init,
