@@ -86,15 +86,19 @@ limits. The chip supports only a single register to configure the hysteresis,
 which applies to all limits. This register can be written by writing into
 temp1_crit_hyst. Other hysteresis attributes are read-only.
 
+If the BIOS has configured the sensor for automatic temperature management, it
+is likely that it has locked the registers, i.e., that the temperature limits
+cannot be changed.
+
 Sysfs entries
 -------------
 
 temp1_input		Temperature (RO)
-temp1_min		Minimum temperature (RW)
-temp1_max		Maximum temperature (RW)
-temp1_crit		Critical high temperature (RW)
+temp1_min		Minimum temperature (RO or RW)
+temp1_max		Maximum temperature (RO or RW)
+temp1_crit		Critical high temperature (RO or RW)
 
-temp1_crit_hyst		Critical hysteresis temperature (RW)
+temp1_crit_hyst		Critical hysteresis temperature (RO or RW)
 temp1_max_hyst		Maximum hysteresis temperature (RO)
 
 temp1_min_alarm		Temperature low alarm
