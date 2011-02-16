@@ -172,8 +172,9 @@ reread:
 		if (!hfsplus_read_mdb(sbi->s_vhdr, &wd))
 			goto out_free_backup_vhdr;
 		wd.ablk_size >>= HFSPLUS_SECTOR_SHIFT;
-		part_start += wd.ablk_start + wd.embed_start * wd.ablk_size;
-		part_size = wd.embed_count * wd.ablk_size;
+		part_start += (sector_t)wd.ablk_start +
+			       (sector_t)wd.embed_start * wd.ablk_size;
+		part_size = (sector_t)wd.embed_count * wd.ablk_size;
 		goto reread;
 	default:
 		/*
