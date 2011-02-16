@@ -751,6 +751,8 @@ extern int bnx2i_send_iscsi_login(struct bnx2i_conn *conn,
 				  struct iscsi_task *mtask);
 extern int bnx2i_send_iscsi_tmf(struct bnx2i_conn *conn,
 				  struct iscsi_task *mtask);
+extern int bnx2i_send_iscsi_text(struct bnx2i_conn *conn,
+				 struct iscsi_task *mtask);
 extern int bnx2i_send_iscsi_scsicmd(struct bnx2i_conn *conn,
 				    struct bnx2i_cmd *cmnd);
 extern int bnx2i_send_iscsi_nopout(struct bnx2i_conn *conn,

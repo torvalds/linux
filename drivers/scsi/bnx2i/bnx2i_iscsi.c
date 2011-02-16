@@ -1092,6 +1092,9 @@ static int bnx2i_iscsi_send_generic_request(struct iscsi_task *task)
 	case ISCSI_OP_SCSI_TMFUNC:
 		rc = bnx2i_send_iscsi_tmf(bnx2i_conn, task);
 		break;
+	case ISCSI_OP_TEXT:
+		rc = bnx2i_send_iscsi_text(bnx2i_conn, task);
+		break;
 	default:
 		iscsi_conn_printk(KERN_ALERT, bnx2i_conn->cls_conn->dd_data,
 				  "send_gen: unsupported op 0x%x\n",
@@ -2167,7 +2170,8 @@ struct iscsi_transport bnx2i_iscsi_transport = {
 	.name			= "bnx2i",
 	.caps			= CAP_RECOVERY_L0 | CAP_HDRDGST |
 				  CAP_MULTI_R2T | CAP_DATADGST |
-				  CAP_DATA_PATH_OFFLOAD,
+				  CAP_DATA_PATH_OFFLOAD |
+				  CAP_TEXT_NEGO,
 	.param_mask		= ISCSI_MAX_RECV_DLENGTH |
 				  ISCSI_MAX_XMIT_DLENGTH |
 				  ISCSI_HDRDGST_EN |
