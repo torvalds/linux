@@ -718,6 +718,38 @@ static int __init mot_bm_recovery_setup(char *options)
 }
 __setup("rec", mot_bm_recovery_setup);
 
+#define PRODUCT_TYPE_MAX_LEN 4
+static char product_type[PRODUCT_TYPE_MAX_LEN + 1] = "cw";
+static int __init stingray_product_type_parse(char *s)
+{
+	strncpy(product_type, s, PRODUCT_TYPE_MAX_LEN);
+	product_type[PRODUCT_TYPE_MAX_LEN] = '\0';
+	printk(KERN_INFO "product_type=%s\n", product_type);
+
+	return 1;
+}
+__setup("product_type=", stingray_product_type_parse);
+
+bool stingray_hw_has_cdma(void)
+{
+	return strstr(product_type, "c") != NULL;
+}
+
+bool stingray_hw_has_lte(void)
+{
+	return strstr(product_type, "l") != NULL;
+}
+
+bool stingray_hw_has_wifi(void)
+{
+	return strstr(product_type, "w") != NULL;
+}
+
+bool stingray_hw_has_umts(void)
+{
+	return strstr(product_type, "u") != NULL;
+}
+
 static void stingray_usb_init(void)
 {
 	char *src;

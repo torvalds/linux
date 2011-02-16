@@ -33,6 +33,11 @@ int stingray_qbp_usb_hw_bypass_enabled(void);
 void stingray_init_emc(void);
 void change_power_brcm_4329(bool);
 
+bool stingray_hw_has_cdma(void);
+bool stingray_hw_has_lte(void);
+bool stingray_hw_has_wifi(void);
+bool stingray_hw_has_umts(void);
+
 /* as defined in the bootloader*/
 #define HWREV(x)    (((x)>>16) & 0xFFFF)
 #define INSTANCE(x) ((x) & 0xFFFF)
