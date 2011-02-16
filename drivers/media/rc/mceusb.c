@@ -816,7 +816,7 @@ static void mceusb_handle_command(struct mceusb_dev *ir, int index)
 	switch (ir->buf_in[index]) {
 	/* 2-byte return value commands */
 	case MCE_CMD_S_TIMEOUT:
-		ir->rc->timeout = MS_TO_NS((hi << 8 | lo) / 2);
+		ir->rc->timeout = US_TO_NS((hi << 8 | lo) / 2);
 		break;
 
 	/* 1-byte return value commands */
@@ -855,9 +855,10 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			break;
 		case PARSE_IRDATA:
 			ir->rem--;
+			init_ir_raw_event(&rawir);
 			rawir.pulse = ((ir->buf_in[i] & MCE_PULSE_BIT) != 0);
 			rawir.duration = (ir->buf_in[i] & MCE_PULSE_MASK)
-					 * MS_TO_US(MCE_TIME_UNIT);
+					 * US_TO_NS(MCE_TIME_UNIT);
 
 			dev_dbg(ir->dev, "Storing %s with duration %d\n",
 				rawir.pulse ? "pulse" : "space",
@@ -883,6 +884,8 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 					     i, ir->rem + 1, false);
 			if (ir->rem)
 				ir->parser_state = PARSE_IRDATA;
+			else
+				ir_raw_event_reset(ir->rc);
 			break;
 		}
 
@@ -1060,7 +1063,7 @@ static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 	rc->priv = ir;
 	rc->driver_type = RC_DRIVER_IR_RAW;
 	rc->allowed_protos = RC_TYPE_ALL;
-	rc->timeout = MS_TO_NS(1000);
+	rc->timeout = US_TO_NS(1000);
 	if (!ir->flags.no_tx) {
 		rc->s_tx_mask = mceusb_set_tx_mask;
 		rc->s_tx_carrier = mceusb_set_tx_carrier;

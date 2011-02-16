@@ -36,8 +36,6 @@
 
 #define OMAP16XX_TIMER_32K_SYNCHRONIZED		0xfffbc410
 
-#if !(defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP15XX))
-
 #include <linux/clocksource.h>
 
 /*
@@ -122,11 +120,23 @@ static DEFINE_CLOCK_DATA(cd);
 #define SC_MULT		4000000000u
 #define SC_SHIFT	17
 
-unsigned long long notrace sched_clock(void)
+static inline unsigned long long notrace _omap_32k_sched_clock(void)
 {
 	u32 cyc = clocksource_32k.read(&clocksource_32k);
 	return cyc_to_fixed_sched_clock(&cd, cyc, (u32)~0, SC_MULT, SC_SHIFT);
 }
+
+#ifndef CONFIG_OMAP_MPU_TIMER
+unsigned long long notrace sched_clock(void)
+{
+	return _omap_32k_sched_clock();
+}
+#else
+unsigned long long notrace omap_32k_sched_clock(void)
+{
+	return _omap_32k_sched_clock();
+}
+#endif
 
 static void notrace omap_update_sched_clock(void)
 {
@@ -160,7 +170,7 @@ void read_persistent_clock(struct timespec *ts)
 	*ts = *tsp;
 }
 
-static int __init omap_init_clocksource_32k(void)
+int __init omap_init_clocksource_32k(void)
 {
 	static char err[] __initdata = KERN_ERR
 			"%s: can't register clocksource!\n";
@@ -195,7 +205,3 @@ static int __init omap_init_clocksource_32k(void)
 	}
 	return 0;
 }
-arch_initcall(omap_init_clocksource_32k);
-
-#endif	/* !(defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP15XX)) */
-

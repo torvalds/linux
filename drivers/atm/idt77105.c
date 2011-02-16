@@ -151,7 +151,7 @@ static int fetch_stats(struct atm_dev *dev,struct idt77105_stats __user *arg,int
 	spin_unlock_irqrestore(&idt77105_priv_lock, flags);
 	if (arg == NULL)
 		return 0;
-	return copy_to_user(arg, &PRIV(dev)->stats,
+	return copy_to_user(arg, &stats,
 		    sizeof(struct idt77105_stats)) ? -EFAULT : 0;
 }
 

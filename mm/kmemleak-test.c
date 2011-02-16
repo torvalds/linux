@@ -75,13 +75,11 @@ static int __init kmemleak_test_init(void)
 	 * after the module is removed.
 	 */
 	for (i = 0; i < 10; i++) {
-		elem = kmalloc(sizeof(*elem), GFP_KERNEL);
-		pr_info("kmemleak: kmalloc(sizeof(*elem)) = %p\n", elem);
+		elem = kzalloc(sizeof(*elem), GFP_KERNEL);
+		pr_info("kmemleak: kzalloc(sizeof(*elem)) = %p\n", elem);
 		if (!elem)
 			return -ENOMEM;
-		memset(elem, 0, sizeof(*elem));
 		INIT_LIST_HEAD(&elem->list);
-
 		list_add_tail(&elem->list, &test_list);
 	}
 

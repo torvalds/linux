@@ -91,6 +91,7 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, unsigned int op)
 static void calibrate_dc_servo(struct snd_soc_codec *codec)
 {
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
+	s8 offset;
 	u16 reg, reg_l, reg_r, dcs_cfg;
 
 	/* If we're using a digital only path and have a previously
@@ -149,16 +150,14 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 			hubs->dcs_codes);
 
 		/* HPOUT1L */
-		if (reg_l + hubs->dcs_codes > 0 &&
-		    reg_l + hubs->dcs_codes < 0xff)
-			reg_l += hubs->dcs_codes;
-		dcs_cfg = reg_l << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
+		offset = reg_l;
+		offset += hubs->dcs_codes;
+		dcs_cfg = (u8)offset << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
 
 		/* HPOUT1R */
-		if (reg_r + hubs->dcs_codes > 0 &&
-		    reg_r + hubs->dcs_codes < 0xff)
-			reg_r += hubs->dcs_codes;
-		dcs_cfg |= reg_r;
+		offset = reg_r;
+		offset += hubs->dcs_codes;
+		dcs_cfg |= (u8)offset;
 
 		dev_dbg(codec->dev, "DCS result: %x\n", dcs_cfg);
 

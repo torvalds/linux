@@ -323,6 +323,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX) {
 		struct ieee80211_work *wk;
+		u64 cookie = (unsigned long)skb;
 
 		rcu_read_lock();
 		list_for_each_entry_rcu(wk, &local->work_list, list) {
@@ -334,8 +335,12 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			break;
 		}
 		rcu_read_unlock();
+		if (local->hw_roc_skb_for_status == skb) {
+			cookie = local->hw_roc_cookie ^ 2;
+			local->hw_roc_skb_for_status = NULL;
+		}
 		cfg80211_mgmt_tx_status(
-			skb->dev, (unsigned long) skb, skb->data, skb->len,
+			skb->dev, cookie, skb->data, skb->len,
 			!!(info->flags & IEEE80211_TX_STAT_ACK), GFP_ATOMIC);
 	}
 

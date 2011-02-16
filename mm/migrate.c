@@ -772,6 +772,7 @@ uncharge:
 unlock:
 	unlock_page(page);
 
+move_newpage:
 	if (rc != -EAGAIN) {
  		/*
  		 * A page that has been migrated has all references
@@ -784,8 +785,6 @@ unlock:
 				page_is_file_cache(page));
 		putback_lru_page(page);
 	}
-
-move_newpage:
 
 	/*
 	 * Move the new page to the LRU. If migration was not successful
@@ -888,7 +887,7 @@ out:
  * are movable anymore because to has become empty
  * or no retryable pages exist anymore.
  * Caller should call putback_lru_pages to return pages to the LRU
- * or free list.
+ * or free list only if ret != 0.
  *
  * Return: Number of pages not migrated or error code.
  */
@@ -981,10 +980,6 @@ int migrate_huge_pages(struct list_head *from,
 	}
 	rc = 0;
 out:
-
-	list_for_each_entry_safe(page, page2, from, lru)
-		put_page(page);
-
 	if (rc)
 		return rc;
 

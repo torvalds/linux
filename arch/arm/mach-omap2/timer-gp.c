@@ -42,6 +42,8 @@
 
 #include "timer-gp.h"
 
+#include <plat/common.h>
+
 /* MAX_GPTIMER_ID: number of GPTIMERs on the chip */
 #define MAX_GPTIMER_ID		12
 
@@ -176,10 +178,14 @@ static void __init omap2_gp_clockevent_init(void)
 /* 
  * When 32k-timer is enabled, don't use GPTimer for clocksource
  * instead, just leave default clocksource which uses the 32k
- * sync counter.  See clocksource setup in see plat-omap/common.c. 
+ * sync counter.  See clocksource setup in plat-omap/counter_32k.c
  */
 
-static inline void __init omap2_gp_clocksource_init(void) {}
+static void __init omap2_gp_clocksource_init(void)
+{
+	omap_init_clocksource_32k();
+}
+
 #else
 /*
  * clocksource

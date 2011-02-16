@@ -306,6 +306,8 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
 
+	DRM_DEBUG_KMS("running encoder hotplug functions\n");
+
 	list_for_each_entry(encoder, &mode_config->encoder_list, base.head)
 		if (encoder->hot_plug)
 			encoder->hot_plug(encoder);
@@ -1642,14 +1644,16 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	POSTING_READ(GTIER);
 
 	if (HAS_PCH_CPT(dev)) {
-		hotplug_mask = SDE_CRT_HOTPLUG_CPT | SDE_PORTB_HOTPLUG_CPT  |
-			       SDE_PORTC_HOTPLUG_CPT | SDE_PORTD_HOTPLUG_CPT ;
+		hotplug_mask = (SDE_CRT_HOTPLUG_CPT |
+				SDE_PORTB_HOTPLUG_CPT |
+				SDE_PORTC_HOTPLUG_CPT |
+				SDE_PORTD_HOTPLUG_CPT);
 	} else {
-		hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
-			       SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
-		hotplug_mask |= SDE_AUX_MASK | SDE_FDI_MASK | SDE_TRANS_MASK;
-		for_each_pipe(pipe)
-			I915_WRITE(FDI_RX_IMR(pipe), 0);
+		hotplug_mask = (SDE_CRT_HOTPLUG |
+				SDE_PORTB_HOTPLUG |
+				SDE_PORTC_HOTPLUG |
+				SDE_PORTD_HOTPLUG |
+				SDE_AUX_MASK);
 	}
 
 	dev_priv->pch_irq_mask = ~hotplug_mask;
