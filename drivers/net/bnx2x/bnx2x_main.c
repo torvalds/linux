@@ -4254,7 +4254,7 @@ static void bnx2x_init_eq_ring(struct bnx2x *bp)
 		min_t(int, MAX_SP_DESC_CNT - MAX_SPQ_PENDING, NUM_EQ_DESC) - 1);
 }
 
-static void bnx2x_init_ind_table(struct bnx2x *bp)
+void bnx2x_push_indir_table(struct bnx2x *bp)
 {
 	int func = BP_FUNC(bp);
 	int i;
@@ -4262,13 +4262,20 @@ static void bnx2x_init_ind_table(struct bnx2x *bp)
 	if (bp->multi_mode == ETH_RSS_MODE_DISABLED)
 		return;
 
-	DP(NETIF_MSG_IFUP,
-	   "Initializing indirection table  multi_mode %d\n", bp->multi_mode);
 	for (i = 0; i < TSTORM_INDIRECTION_TABLE_SIZE; i++)
 		REG_WR8(bp, BAR_TSTRORM_INTMEM +
 			TSTORM_INDIRECTION_TABLE_OFFSET(func) + i,
-			bp->fp->cl_id + (i % (bp->num_queues -
-				NONE_ETH_CONTEXT_USE)));
+			bp->fp->cl_id + bp->rx_indir_table[i]);
+}
+
+static void bnx2x_init_ind_table(struct bnx2x *bp)
+{
+	int i;
+
+	for (i = 0; i < TSTORM_INDIRECTION_TABLE_SIZE; i++)
+		bp->rx_indir_table[i] = i % BNX2X_NUM_ETH_QUEUES(bp);
+
+	bnx2x_push_indir_table(bp);
 }
 
 void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
@@ -6016,6 +6023,8 @@ void bnx2x_free_mem(struct bnx2x *bp)
 	BNX2X_PCI_FREE(bp->eq_ring, bp->eq_mapping,
 		       BCM_PAGE_SIZE * NUM_EQ_PAGES);
 
+	BNX2X_FREE(bp->rx_indir_table);
+
 #undef BNX2X_PCI_FREE
 #undef BNX2X_KFREE
 }
@@ -6146,6 +6155,9 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 	/* EQ */
 	BNX2X_PCI_ALLOC(bp->eq_ring, &bp->eq_mapping,
 			BCM_PAGE_SIZE * NUM_EQ_PAGES);
+
+	BNX2X_ALLOC(bp->rx_indir_table, sizeof(bp->rx_indir_table[0]) *
+		    TSTORM_INDIRECTION_TABLE_SIZE);
 	return 0;
 
 alloc_mem_err:

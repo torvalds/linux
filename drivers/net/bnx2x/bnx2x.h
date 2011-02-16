@@ -1076,6 +1076,7 @@ struct bnx2x {
 	int			num_queues;
 	int			disable_tpa;
 	int			int_mode;
+	u32			*rx_indir_table;
 
 	struct tstorm_eth_mac_filter_config	mac_filters;
 #define BNX2X_ACCEPT_NONE		0x0000
@@ -1799,5 +1800,6 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 BNX2X_EXTERN int load_count[2][3]; /* per path: 0-common, 1-port0, 2-port1 */
 
 extern void bnx2x_set_ethtool_ops(struct net_device *netdev);
+void bnx2x_push_indir_table(struct bnx2x *bp);
 
 #endif /* bnx2x.h */
