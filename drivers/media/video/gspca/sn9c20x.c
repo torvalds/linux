@@ -1335,8 +1335,6 @@ static int ov7660_init_sensor(struct gspca_dev *gspca_dev)
 			return -ENODEV;
 		}
 	}
-	/* disable hflip and vflip */
-	gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX);
 	sd->hstart = 3;
 	sd->vstart = 3;
 	return 0;
@@ -1611,6 +1609,18 @@ static int set_hvflip(struct gspca_dev *gspca_dev)
 	}
 
 	switch (sd->sensor) {
+	case SENSOR_OV7660:
+		value = 0x01;
+		if (hflip)
+			value |= 0x20;
+		if (vflip) {
+			value |= 0x10;
+			sd->vstart = 2;
+		} else
+			sd->vstart = 3;
+		reg_w1(gspca_dev, 0x1182, sd->vstart);
+		i2c_w1(gspca_dev, 0x1e, value);
+		break;
 	case SENSOR_OV9650:
 		i2c_r1(gspca_dev, 0x1e, &value);
 		value &= ~0x30;
@@ -2485,7 +2495,7 @@ static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6253), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6260), SN9C20X(OV7670, 0x21, 0)},
 	{USB_DEVICE(0x0c45, 0x6270), SN9C20X(MT9VPRB, 0x00, 0)},
-	{USB_DEVICE(0x0c45, 0x627b), SN9C20X(OV7660, 0x21, 0)},
+	{USB_DEVICE(0x0c45, 0x627b), SN9C20X(OV7660, 0x21, FLIP_DETECT)},
 	{USB_DEVICE(0x0c45, 0x627c), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0x0c45, 0x627f), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6280), SN9C20X(MT9M001, 0x5d, 0)},
