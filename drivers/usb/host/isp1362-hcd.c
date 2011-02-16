@@ -226,7 +226,6 @@ static int claim_ptd_buffers(struct isp1362_ep_queue *epq,
 
 static inline void release_ptd_buffers(struct isp1362_ep_queue *epq, struct isp1362_ep *ep)
 {
-	int index = ep->ptd_index;
 	int last = ep->ptd_index + ep->num_ptds;
 
 	if (last > epq->buf_count)
@@ -236,10 +235,8 @@ static inline void release_ptd_buffers(struct isp1362_ep_queue *epq, struct isp1
 		    epq->buf_map, epq->skip_map);
 	BUG_ON(last > epq->buf_count);
 
-	for (; index < last; index++) {
-		__clear_bit(index, &epq->buf_map);
-		__set_bit(index, &epq->skip_map);
-	}
+	bitmap_clear(&epq->buf_map, ep->ptd_index, ep->num_ptds);
+	bitmap_set(&epq->skip_map, ep->ptd_index, ep->num_ptds);
 	epq->buf_avail += ep->num_ptds;
 	epq->ptd_count--;
 
