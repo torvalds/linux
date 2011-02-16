@@ -74,7 +74,7 @@ int __init amd_numa_init(void)
 	unsigned long end = PFN_PHYS(max_pfn);
 	unsigned numnodes;
 	unsigned long prevbase;
-	int i, nb, found = 0;
+	int i, nb;
 	u32 nodeid, reg;
 
 	if (!early_pci_allowed())
@@ -165,8 +165,6 @@ int __init amd_numa_init(void)
 		pr_info("Node %d MemBase %016lx Limit %016lx\n",
 			nodeid, base, limit);
 
-		found++;
-
 		nodes[nodeid].start = base;
 		nodes[nodeid].end = limit;
 
@@ -176,7 +174,7 @@ int __init amd_numa_init(void)
 		node_set(nodeid, cpu_nodes_parsed);
 	}
 
-	if (!found)
+	if (!nodes_weight(mem_nodes_parsed))
 		return -ENOENT;
 	return 0;
 }
