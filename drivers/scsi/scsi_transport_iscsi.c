@@ -976,7 +976,6 @@ iscsi_create_conn(struct iscsi_cls_session *session, int dd_size, uint32_t cid)
 
 	spin_lock_irqsave(&connlock, flags);
 	list_add(&conn->conn_list, &connlist);
-	conn->active = 1;
 	spin_unlock_irqrestore(&connlock, flags);
 
 	ISCSI_DBG_TRANS_CONN(conn, "Completed conn creation\n");
@@ -1002,7 +1001,6 @@ int iscsi_destroy_conn(struct iscsi_cls_conn *conn)
 	unsigned long flags;
 
 	spin_lock_irqsave(&connlock, flags);
-	conn->active = 0;
 	list_del(&conn->conn_list);
 	spin_unlock_irqrestore(&connlock, flags);
 
