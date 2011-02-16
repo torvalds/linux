@@ -26,7 +26,6 @@
 #include <asm/apic.h>
 #include <asm/amd_nb.h>
 
-static struct bootnode __initdata nodes[8];
 static unsigned char __initdata nodeids[8];
 
 static __init int find_northbridge(void)
@@ -166,8 +165,8 @@ int __init amd_numa_init(void)
 		pr_info("Node %d MemBase %016lx Limit %016lx\n",
 			nodeid, base, limit);
 
-		nodes[nodeid].start = base;
-		nodes[nodeid].end = limit;
+		numa_nodes[nodeid].start = base;
+		numa_nodes[nodeid].end = limit;
 
 		prevbase = base;
 
@@ -210,8 +209,8 @@ void __init amd_get_nodes(struct bootnode *physnodes)
 	int i;
 
 	for_each_node_mask(i, mem_nodes_parsed) {
-		physnodes[i].start = nodes[i].start;
-		physnodes[i].end = nodes[i].end;
+		physnodes[i].start = numa_nodes[i].start;
+		physnodes[i].end = numa_nodes[i].end;
 	}
 }
 
@@ -221,7 +220,7 @@ static int __init find_node_by_addr(unsigned long addr)
 	int i;
 
 	for (i = 0; i < 8; i++)
-		if (addr >= nodes[i].start && addr < nodes[i].end) {
+		if (addr >= numa_nodes[i].start && addr < numa_nodes[i].end) {
 			ret = i;
 			break;
 		}
@@ -274,7 +273,7 @@ int __init amd_scan_nodes(void)
 {
 	int i;
 
-	memnode_shift = compute_hash_shift(nodes, 8, NULL);
+	memnode_shift = compute_hash_shift(numa_nodes, 8, NULL);
 	if (memnode_shift < 0) {
 		pr_err("No NUMA node hash function found. Contact maintainer\n");
 		return -1;
@@ -284,11 +283,11 @@ int __init amd_scan_nodes(void)
 	/* use the coreid bits from early_identify_cpu */
 	for_each_node_mask(i, node_possible_map)
 		memblock_x86_register_active_regions(i,
-				nodes[i].start >> PAGE_SHIFT,
-				nodes[i].end >> PAGE_SHIFT);
+				numa_nodes[i].start >> PAGE_SHIFT,
+				numa_nodes[i].end >> PAGE_SHIFT);
 	init_memory_mapping_high();
 	for_each_node_mask(i, node_possible_map)
-		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
+		setup_node_bootmem(i, numa_nodes[i].start, numa_nodes[i].end);
 
 	numa_init_array();
 	return 0;

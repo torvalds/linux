@@ -33,6 +33,8 @@ struct memnode memnode;
 static unsigned long __initdata nodemap_addr;
 static unsigned long __initdata nodemap_size;
 
+struct bootnode numa_nodes[MAX_NUMNODES] __initdata;
+
 /*
  * Given a shift value, try to populate memnodemap[]
  * Returns :
@@ -180,6 +182,22 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 		       size, nodeid);
 
 	return NULL;
+}
+
+static __init void cutoff_node(int i, unsigned long start, unsigned long end)
+{
+	struct bootnode *nd = &numa_nodes[i];
+
+	if (nd->start < start) {
+		nd->start = start;
+		if (nd->end < nd->start)
+			nd->start = nd->end;
+	}
+	if (nd->end > end) {
+		nd->end = end;
+		if (nd->start > nd->end)
+			nd->start = nd->end;
+	}
 }
 
 /* Initialize bootmem allocator for a node */
@@ -638,9 +656,15 @@ void __init initmem_init(void)
 		nodes_clear(mem_nodes_parsed);
 		nodes_clear(node_possible_map);
 		nodes_clear(node_online_map);
+		memset(numa_nodes, 0, sizeof(numa_nodes));
 
 		if (numa_init[i]() < 0)
 			continue;
+
+		/* clean up the node list */
+		for (j = 0; j < MAX_NUMNODES; j++)
+			cutoff_node(j, 0, max_pfn << PAGE_SHIFT);
+
 #ifdef CONFIG_NUMA_EMU
 		setup_physnodes(0, max_pfn << PAGE_SHIFT, i == 0, i == 1);
 		if (cmdline && !numa_emulation(0, max_pfn, i == 0, i == 1))

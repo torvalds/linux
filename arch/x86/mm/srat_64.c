@@ -28,7 +28,6 @@ int acpi_numa __initdata;
 
 static struct acpi_table_slit *acpi_slit;
 
-static struct bootnode nodes[MAX_NUMNODES] __initdata;
 static struct bootnode nodes_add[MAX_NUMNODES];
 
 static int num_node_memblks __initdata;
@@ -55,29 +54,13 @@ static __init int conflicting_memblks(unsigned long start, unsigned long end)
 	return -1;
 }
 
-static __init void cutoff_node(int i, unsigned long start, unsigned long end)
-{
-	struct bootnode *nd = &nodes[i];
-
-	if (nd->start < start) {
-		nd->start = start;
-		if (nd->end < nd->start)
-			nd->start = nd->end;
-	}
-	if (nd->end > end) {
-		nd->end = end;
-		if (nd->start > nd->end)
-			nd->start = nd->end;
-	}
-}
-
 static __init void bad_srat(void)
 {
 	int i;
 	printk(KERN_ERR "SRAT: SRAT not used.\n");
 	acpi_numa = -1;
 	for (i = 0; i < MAX_NUMNODES; i++) {
-		nodes[i].start = nodes[i].end = 0;
+		numa_nodes[i].start = numa_nodes[i].end = 0;
 		nodes_add[i].start = nodes_add[i].end = 0;
 	}
 	remove_all_active_ranges();
@@ -276,12 +259,12 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	if (i == node) {
 		printk(KERN_WARNING
 		"SRAT: Warning: PXM %d (%lx-%lx) overlaps with itself (%Lx-%Lx)\n",
-			pxm, start, end, nodes[i].start, nodes[i].end);
+		       pxm, start, end, numa_nodes[i].start, numa_nodes[i].end);
 	} else if (i >= 0) {
 		printk(KERN_ERR
 		       "SRAT: PXM %d (%lx-%lx) overlaps with PXM %d (%Lx-%Lx)\n",
 		       pxm, start, end, node_to_pxm(i),
-			nodes[i].start, nodes[i].end);
+		       numa_nodes[i].start, numa_nodes[i].end);
 		bad_srat();
 		return;
 	}
@@ -290,7 +273,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	       start, end);
 
 	if (!(ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE)) {
-		nd = &nodes[node];
+		nd = &numa_nodes[node];
 		if (!node_test_and_set(node, mem_nodes_parsed)) {
 			nd->start = start;
 			nd->end = end;
@@ -347,9 +330,8 @@ void __init acpi_get_nodes(struct bootnode *physnodes, unsigned long start,
 	int i;
 
 	for_each_node_mask(i, mem_nodes_parsed) {
-		cutoff_node(i, start, end);
-		physnodes[i].start = nodes[i].start;
-		physnodes[i].end = nodes[i].end;
+		physnodes[i].start = numa_nodes[i].start;
+		physnodes[i].end = numa_nodes[i].end;
 	}
 }
 #endif /* CONFIG_NUMA_EMU */
@@ -371,10 +353,6 @@ int __init acpi_scan_nodes(void)
 
 	if (acpi_numa <= 0)
 		return -1;
-
-	/* First clean up the node list */
-	for (i = 0; i < MAX_NUMNODES; i++)
-		cutoff_node(i, 0, max_pfn << PAGE_SHIFT);
 
 	/*
 	 * Join together blocks on the same node, holes between
@@ -440,7 +418,7 @@ int __init acpi_scan_nodes(void)
 
 	/* for out of order entries in SRAT */
 	sort_node_map();
-	if (!nodes_cover_memory(nodes)) {
+	if (!nodes_cover_memory(numa_nodes)) {
 		bad_srat();
 		return -1;
 	}
@@ -449,12 +427,13 @@ int __init acpi_scan_nodes(void)
 
 	/* Finally register nodes */
 	for_each_node_mask(i, node_possible_map)
-		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
+		setup_node_bootmem(i, numa_nodes[i].start, numa_nodes[i].end);
 	/* Try again in case setup_node_bootmem missed one due
 	   to missing bootmem */
 	for_each_node_mask(i, node_possible_map)
 		if (!node_online(i))
-			setup_node_bootmem(i, nodes[i].start, nodes[i].end);
+			setup_node_bootmem(i, numa_nodes[i].start,
+					   numa_nodes[i].end);
 
 	for (i = 0; i < nr_cpu_ids; i++) {
 		int node = early_cpu_to_node(i);
@@ -486,7 +465,7 @@ static int __init find_node_by_addr(unsigned long addr)
 		 * the sake of simplicity, we only use a real node's starting
 		 * address to determine which emulated node it appears on.
 		 */
-		if (addr >= nodes[i].start && addr < nodes[i].end) {
+		if (addr >= numa_nodes[i].start && addr < numa_nodes[i].end) {
 			ret = i;
 			break;
 		}

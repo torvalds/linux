@@ -29,6 +29,7 @@ extern void setup_node_bootmem(int nodeid, unsigned long start,
 
 extern nodemask_t cpu_nodes_parsed __initdata;
 extern nodemask_t mem_nodes_parsed __initdata;
+extern struct bootnode numa_nodes[MAX_NUMNODES] __initdata;
 
 extern int __cpuinit numa_cpu_node(int cpu);
 
