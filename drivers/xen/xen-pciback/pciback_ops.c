@@ -48,6 +48,13 @@ void pciback_control_isr(struct pci_dev *dev, int reset)
 	if (enable)
 		dev_data->irq = dev->irq;
 
+	/*
+	 * SR-IOV devices in all use MSI-X and have no legacy
+	 * interrupts, so inhibit creating a fake IRQ handler for them.
+	 */
+	if (dev_data->irq == 0)
+		goto out;
+
 	dev_dbg(&dev->dev, "%s: #%d %s %s%s %s-> %s\n",
 		dev_data->irq_name,
 		dev_data->irq,
