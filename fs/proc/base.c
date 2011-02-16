@@ -225,15 +225,17 @@ static int check_mem_permission(struct task_struct *task)
 struct mm_struct *mm_for_maps(struct task_struct *task)
 {
 	struct mm_struct *mm;
+	int err;
 
-	if (mutex_lock_killable(&task->signal->cred_guard_mutex))
-		return NULL;
+	err =  mutex_lock_killable(&task->signal->cred_guard_mutex);
+	if (err)
+		return ERR_PTR(err);
 
 	mm = get_task_mm(task);
 	if (mm && mm != current->mm &&
 			!ptrace_may_access(task, PTRACE_MODE_READ)) {
 		mmput(mm);
-		mm = NULL;
+		mm = ERR_PTR(-EACCES);
 	}
 	mutex_unlock(&task->signal->cred_guard_mutex);
 
