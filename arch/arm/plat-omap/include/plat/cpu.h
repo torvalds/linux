@@ -105,6 +105,12 @@ static inline int is_omap ##subclass (void)		\
 	return (GET_OMAP_SUBCLASS == (id)) ? 1 : 0;	\
 }
 
+#define IS_TI_SUBCLASS(subclass, id)			\
+static inline int is_ti ##subclass (void)		\
+{							\
+	return (GET_OMAP_SUBCLASS == (id)) ? 1 : 0;	\
+}
+
 IS_OMAP_CLASS(7xx, 0x07)
 IS_OMAP_CLASS(15xx, 0x15)
 IS_OMAP_CLASS(16xx, 0x16)
@@ -118,6 +124,8 @@ IS_OMAP_SUBCLASS(343x, 0x343)
 IS_OMAP_SUBCLASS(363x, 0x363)
 IS_OMAP_SUBCLASS(443x, 0x443)
 
+IS_TI_SUBCLASS(816x, 0x816)
+
 #define cpu_is_omap7xx()		0
 #define cpu_is_omap15xx()		0
 #define cpu_is_omap16xx()		0
@@ -126,6 +134,7 @@ IS_OMAP_SUBCLASS(443x, 0x443)
 #define cpu_is_omap243x()		0
 #define cpu_is_omap34xx()		0
 #define cpu_is_omap343x()		0
+#define cpu_is_ti816x()			0
 #define cpu_is_omap44xx()		0
 #define cpu_is_omap443x()		0
 
@@ -330,6 +339,7 @@ IS_OMAP_TYPE(3517, 0x3517)
 # undef cpu_is_omap3530
 # undef cpu_is_omap3505
 # undef cpu_is_omap3517
+# undef cpu_is_ti816x
 # define cpu_is_omap3430()		is_omap3430()
 # define cpu_is_omap3503()		(cpu_is_omap3430() &&		\
 						(!omap3_has_iva()) &&	\
@@ -345,6 +355,7 @@ IS_OMAP_TYPE(3517, 0x3517)
 # define cpu_is_omap3517()		is_omap3517()
 # undef cpu_is_omap3630
 # define cpu_is_omap3630()		is_omap363x()
+# define cpu_is_ti816x()		is_ti816x()
 #endif
 
 # if defined(CONFIG_ARCH_OMAP4)
@@ -389,6 +400,10 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define OMAP3505_REV(v)		(OMAP35XX_CLASS | (0x3505 << 16) | (v << 8))
 #define OMAP3517_REV(v)		(OMAP35XX_CLASS | (0x3517 << 16) | (v << 8))
 
+#define TI816X_CLASS		0x81600034
+#define TI8168_REV_ES1_0	TI816X_CLASS
+#define TI8168_REV_ES1_1	(TI816X_CLASS | (OMAP_REVBITS_01 << 8))
+
 #define OMAP443X_CLASS		0x44300044
 #define OMAP4430_REV_ES1_0	OMAP443X_CLASS
 #define OMAP4430_REV_ES2_0	0x44301044
@@ -419,6 +434,7 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define CHIP_IS_OMAP3630ES1_1           (1 << 9)
 #define CHIP_IS_OMAP3630ES1_2           (1 << 10)
 #define CHIP_IS_OMAP4430ES2		(1 << 11)
+#define CHIP_IS_TI816X			(1 << 14)
 
 #define CHIP_IS_OMAP24XX		(CHIP_IS_OMAP2420 | CHIP_IS_OMAP2430)
 
@@ -455,6 +471,7 @@ extern u32 omap3_features;
 #define OMAP3_HAS_ISP			BIT(4)
 #define OMAP3_HAS_192MHZ_CLK		BIT(5)
 #define OMAP3_HAS_IO_WAKEUP		BIT(6)
+#define OMAP3_HAS_SDRC			BIT(7)
 
 #define OMAP3_HAS_FEATURE(feat,flag)			\
 static inline unsigned int omap3_has_ ##feat(void)	\
@@ -469,5 +486,6 @@ OMAP3_HAS_FEATURE(neon, NEON)
 OMAP3_HAS_FEATURE(isp, ISP)
 OMAP3_HAS_FEATURE(192mhz_clk, 192MHZ_CLK)
 OMAP3_HAS_FEATURE(io_wakeup, IO_WAKEUP)
+OMAP3_HAS_FEATURE(sdrc, SDRC)
 
 #endif
