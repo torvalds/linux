@@ -954,6 +954,7 @@ iscsi_create_conn(struct iscsi_cls_session *session, int dd_size, uint32_t cid)
 	if (dd_size)
 		conn->dd_data = &conn[1];
 
+	mutex_init(&conn->ep_mutex);
 	INIT_LIST_HEAD(&conn->conn_list);
 	conn->transport = transport;
 	conn->cid = cid;
@@ -1430,6 +1431,29 @@ release_host:
 	return err;
 }
 
+static int iscsi_if_ep_disconnect(struct iscsi_transport *transport,
+				  u64 ep_handle)
+{
+	struct iscsi_cls_conn *conn;
+	struct iscsi_endpoint *ep;
+
+	if (!transport->ep_disconnect)
+		return -EINVAL;
+
+	ep = iscsi_lookup_endpoint(ep_handle);
+	if (!ep)
+		return -EINVAL;
+	conn = ep->conn;
+	if (conn) {
+		mutex_lock(&conn->ep_mutex);
+		conn->ep = NULL;
+		mutex_unlock(&conn->ep_mutex);
+	}
+
+	transport->ep_disconnect(ep);
+	return 0;
+}
+
 static int
 iscsi_if_transport_ep(struct iscsi_transport *transport,
 		      struct iscsi_uevent *ev, int msg_type)
@@ -1454,14 +1478,8 @@ iscsi_if_transport_ep(struct iscsi_transport *transport,
 						   ev->u.ep_poll.timeout_ms);
 		break;
 	case ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT:
-		if (!transport->ep_disconnect)
-			return -EINVAL;
-
-		ep = iscsi_lookup_endpoint(ev->u.ep_disconnect.ep_handle);
-		if (!ep)
-			return -EINVAL;
-
-		transport->ep_disconnect(ep);
+		rc = iscsi_if_ep_disconnect(transport,
+					    ev->u.ep_disconnect.ep_handle);
 		break;
 	}
 	return rc;
@@ -1609,12 +1627,31 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 		session = iscsi_session_lookup(ev->u.b_conn.sid);
 		conn = iscsi_conn_lookup(ev->u.b_conn.sid, ev->u.b_conn.cid);
 
-		if (session && conn)
-			ev->r.retcode =	transport->bind_conn(session, conn,
-					ev->u.b_conn.transport_eph,
-					ev->u.b_conn.is_leading);
-		else
+		if (conn && conn->ep)
+			iscsi_if_ep_disconnect(transport, conn->ep->id);
+
+		if (!session || !conn) {
 			err = -EINVAL;
+			break;
+		}
+
+		ev->r.retcode =	transport->bind_conn(session, conn,
+						ev->u.b_conn.transport_eph,
+						ev->u.b_conn.is_leading);
+		if (ev->r.retcode || !transport->ep_connect)
+			break;
+
+		ep = iscsi_lookup_endpoint(ev->u.b_conn.transport_eph);
+		if (ep) {
+			ep->conn = conn;
+
+			mutex_lock(&conn->ep_mutex);
+			conn->ep = ep;
+			mutex_unlock(&conn->ep_mutex);
+		} else
+			iscsi_cls_conn_printk(KERN_ERR, conn,
+					      "Could not set ep conn "
+					      "binding\n");
 		break;
 	case ISCSI_UEVENT_SET_PARAM:
 		err = iscsi_set_param(transport, ev);
