@@ -290,7 +290,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Initialize a page flip struct */
 	*s = (struct nouveau_page_flip_state)
-		{ { }, s->event, nouveau_crtc(crtc)->index,
+		{ { }, event, nouveau_crtc(crtc)->index,
 		  fb->bits_per_pixel, fb->pitch, crtc->x, crtc->y,
 		  new_bo->bo.offset };
 
