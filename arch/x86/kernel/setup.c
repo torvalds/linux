@@ -1003,7 +1003,7 @@ void __init setup_arch(char **cmdline_p)
 		amd = !amd_numa_init(0, max_pfn);
 #endif
 
-	initmem_init(0, max_pfn, acpi, amd);
+	initmem_init(acpi, amd);
 	memblock_find_dma_reserve();
 	dma32_reserve_bootmem();
 

@@ -579,8 +579,7 @@ static int __init numa_emulation(unsigned long start_pfn,
 }
 #endif /* CONFIG_NUMA_EMU */
 
-void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
-				int acpi, int amd)
+void __init initmem_init(int acpi, int amd)
 {
 	int i;
 
@@ -588,19 +587,16 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
 	nodes_clear(node_online_map);
 
 #ifdef CONFIG_NUMA_EMU
-	setup_physnodes(start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT,
-			acpi, amd);
-	if (cmdline && !numa_emulation(start_pfn, last_pfn, acpi, amd))
+	setup_physnodes(0, max_pfn << PAGE_SHIFT, acpi, amd);
+	if (cmdline && !numa_emulation(0, max_pfn, acpi, amd))
 		return;
-	setup_physnodes(start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT,
-			acpi, amd);
+	setup_physnodes(0, max_pfn << PAGE_SHIFT, acpi, amd);
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);
 #endif
 
 #ifdef CONFIG_ACPI_NUMA
-	if (!numa_off && acpi && !acpi_scan_nodes(start_pfn << PAGE_SHIFT,
-						  last_pfn << PAGE_SHIFT))
+	if (!numa_off && acpi && !acpi_scan_nodes(0, max_pfn << PAGE_SHIFT))
 		return;
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);
@@ -616,8 +612,7 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
 	       numa_off ? "NUMA turned off" : "No NUMA configuration found");
 
 	printk(KERN_INFO "Faking a node at %016lx-%016lx\n",
-	       start_pfn << PAGE_SHIFT,
-	       last_pfn << PAGE_SHIFT);
+	       0LU, max_pfn << PAGE_SHIFT);
 	/* setup dummy node covering all memory */
 	memnode_shift = 63;
 	memnodemap = memnode.embedded_map;
@@ -626,9 +621,9 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
 	node_set(0, node_possible_map);
 	for (i = 0; i < MAX_LOCAL_APIC; i++)
 		set_apicid_to_node(i, NUMA_NO_NODE);
-	memblock_x86_register_active_regions(0, start_pfn, last_pfn);
+	memblock_x86_register_active_regions(0, 0, max_pfn);
 	init_memory_mapping_high();
-	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT);
+	setup_node_bootmem(0, 0, max_pfn << PAGE_SHIFT);
 	numa_init_array();
 }
 
