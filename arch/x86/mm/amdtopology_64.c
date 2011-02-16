@@ -196,10 +196,6 @@ int __init amd_numa_init(void)
 }
 
 #ifdef CONFIG_NUMA_EMU
-static s16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
-	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
-};
-
 /*
  * For NUMA emulation, fake proximity domain (_PXM) to node id mappings must be
  * setup to represent the physical topology but reflect the emulated
@@ -224,20 +220,15 @@ void __init amd_fake_nodes(const struct bootnode *nodes, int nr_nodes)
 	for (i = 0; i < nr_nodes; i++) {
 		int index;
 		int nid;
-		int j;
 
 		nid = find_node_by_addr(nodes[i].start);
 		if (nid == NUMA_NO_NODE)
 			continue;
 
 		index = nodeids[nid] << bits;
-		if (fake_apicid_to_node[index + apicid_base] == NUMA_NO_NODE)
-			for (j = apicid_base; j < cores + apicid_base; j++)
-				fake_apicid_to_node[index + j] = i;
 #ifdef CONFIG_ACPI_NUMA
 		__acpi_map_pxm_to_node(nid, i);
 #endif
 	}
-	memcpy(__apicid_to_node, fake_apicid_to_node, sizeof(__apicid_to_node));
 }
 #endif /* CONFIG_NUMA_EMU */

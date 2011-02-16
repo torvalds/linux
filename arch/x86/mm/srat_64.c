@@ -265,9 +265,6 @@ int __init x86_acpi_numa_init(void)
 static int fake_node_to_pxm_map[MAX_NUMNODES] __initdata = {
 	[0 ... MAX_NUMNODES-1] = PXM_INVAL
 };
-static s16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
-	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
-};
 
 /*
  * In NUMA emulation, we need to setup proximity domain (_PXM) to node ID
@@ -279,7 +276,7 @@ static s16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
  */
 void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 {
-	int i, j;
+	int i;
 
 	for (i = 0; i < num_nodes; i++) {
 		int nid, pxm;
@@ -291,29 +288,10 @@ void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 		if (pxm == PXM_INVAL)
 			continue;
 		fake_node_to_pxm_map[i] = pxm;
-		/*
-		 * For each apicid_to_node mapping that exists for this real
-		 * node, it must now point to the fake node ID.
-		 */
-		for (j = 0; j < MAX_LOCAL_APIC; j++)
-			if (__apicid_to_node[j] == nid &&
-			    fake_apicid_to_node[j] == NUMA_NO_NODE)
-				fake_apicid_to_node[j] = i;
 	}
-
-	/*
-	 * If there are apicid-to-node mappings for physical nodes that do not
-	 * have a corresponding emulated node, it should default to a guaranteed
-	 * value.
-	 */
-	for (i = 0; i < MAX_LOCAL_APIC; i++)
-		if (__apicid_to_node[i] != NUMA_NO_NODE &&
-		    fake_apicid_to_node[i] == NUMA_NO_NODE)
-			fake_apicid_to_node[i] = 0;
 
 	for (i = 0; i < num_nodes; i++)
 		__acpi_map_pxm_to_node(fake_node_to_pxm_map[i], i);
-	memcpy(__apicid_to_node, fake_apicid_to_node, sizeof(__apicid_to_node));
 
 	for (i = 0; i < num_nodes; i++)
 		if (fake_nodes[i].start != fake_nodes[i].end)
