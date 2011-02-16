@@ -13,6 +13,7 @@
 
 #include <linux/bug.h>
 #include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/list.h>
@@ -22,8 +23,14 @@
 
 static DEFINE_SPINLOCK(clocks_lock);
 static LIST_HEAD(root_clks);
+#ifdef CONFIG_DEBUG_FS
+static LIST_HEAD(clocks);
+#endif
 
 static void propagate_rate(struct clk *, int on_init);
+#ifdef CONFIG_DEBUG_FS
+static int clk_debugfs_reparent(struct clk *);
+#endif
 
 static int generic_clk_enable(struct clk *clk)
 {
@@ -96,6 +103,10 @@ static void clk_reparent(struct clk *clk, struct pclk_info *pclk_info)
 
 	clk->pclk = pclk_info->pclk;
 	spin_unlock_irqrestore(&clocks_lock, flags);
+
+#ifdef CONFIG_DEBUG_FS
+	clk_debugfs_reparent(clk);
+#endif
 }
 
 static void do_clk_disable(struct clk *clk)
@@ -335,6 +346,12 @@ void clk_register(struct clk_lookup *cl)
 	}
 
 	spin_unlock_irqrestore(&clocks_lock, flags);
+
+	/* debugfs specific */
+#ifdef CONFIG_DEBUG_FS
+	list_add(&clk->node, &clocks);
+	clk->cl = cl;
+#endif
 
 	/* add clock to arm clockdev framework */
 	clkdev_add(cl);
@@ -885,3 +902,102 @@ void recalc_root_clocks(void)
 	}
 	spin_unlock_irqrestore(&clocks_lock, flags);
 }
+
+#ifdef CONFIG_DEBUG_FS
+/*
+ *	debugfs support to trace clock tree hierarchy and attributes
+ */
+static struct dentry *clk_debugfs_root;
+static int clk_debugfs_register_one(struct clk *c)
+{
+	int err;
+	struct dentry *d, *child;
+	struct clk *pa = c->pclk;
+	char s[255];
+	char *p = s;
+
+	if (c) {
+		if (c->cl->con_id)
+			p += sprintf(p, "%s", c->cl->con_id);
+		if (c->cl->dev_id)
+			p += sprintf(p, "%s", c->cl->dev_id);
+	}
+	d = debugfs_create_dir(s, pa ? pa->dent : clk_debugfs_root);
+	if (!d)
+		return -ENOMEM;
+	c->dent = d;
+
+	d = debugfs_create_u32("usage_count", S_IRUGO, c->dent,
+			(u32 *)&c->usage_count);
+	if (!d) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+	d = debugfs_create_u32("rate", S_IRUGO, c->dent, (u32 *)&c->rate);
+	if (!d) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+	d = debugfs_create_x32("flags", S_IRUGO, c->dent, (u32 *)&c->flags);
+	if (!d) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+	return 0;
+
+err_out:
+	d = c->dent;
+	list_for_each_entry(child, &d->d_subdirs, d_u.d_child)
+		debugfs_remove(child);
+	debugfs_remove(c->dent);
+	return err;
+}
+
+static int clk_debugfs_register(struct clk *c)
+{
+	int err;
+	struct clk *pa = c->pclk;
+
+	if (pa && !pa->dent) {
+		err = clk_debugfs_register(pa);
+		if (err)
+			return err;
+	}
+
+	if (!c->dent) {
+		err = clk_debugfs_register_one(c);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static int __init clk_debugfs_init(void)
+{
+	struct clk *c;
+	struct dentry *d;
+	int err;
+
+	d = debugfs_create_dir("clock", NULL);
+	if (!d)
+		return -ENOMEM;
+	clk_debugfs_root = d;
+
+	list_for_each_entry(c, &clocks, node) {
+		err = clk_debugfs_register(c);
+		if (err)
+			goto err_out;
+	}
+	return 0;
+err_out:
+	debugfs_remove_recursive(clk_debugfs_root);
+	return err;
+}
+late_initcall(clk_debugfs_init);
+
+static int clk_debugfs_reparent(struct clk *c)
+{
+	debugfs_remove(c->dent);
+	return clk_debugfs_register_one(c);
+}
+#endif /* CONFIG_DEBUG_FS */

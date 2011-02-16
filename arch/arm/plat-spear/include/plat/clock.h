@@ -88,6 +88,9 @@ struct rate_config {
  * @children: list for childrens or this clock
  * @sibling: node for list of clocks having same parents
  * @private_data: clock specific private data
+ * @node: list to maintain clocks linearly
+ * @cl: clocklook up assoicated with this clock
+ * @dent: object for debugfs
  */
 struct clk {
 	unsigned int usage_count;
@@ -109,6 +112,11 @@ struct clk {
 	struct list_head children;
 	struct list_head sibling;
 	void *private_data;
+#ifdef CONFIG_DEBUG_FS
+	struct list_head node;
+	struct clk_lookup *cl;
+	struct dentry *dent;
+#endif
 };
 
 /* pll configuration structure */
