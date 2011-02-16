@@ -5126,7 +5126,6 @@ wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 	fifo = prio2fifo[prio];
 
 	ASSERT((uint) skb_headroom(sdu) >= TXOFF);
-	ASSERT(!(sdu->cloned));
 	ASSERT(!(sdu->next));
 	ASSERT(!(sdu->prev));
 	ASSERT(fifo < NFIFO);
@@ -8461,4 +8460,17 @@ static void wlc_txq_free(struct wlc_info *wlc, struct osl_info *osh,
 	}
 
 	kfree(qi);
+}
+
+/*
+ * Flag 'scan in progress' to withold dynamic phy calibration
+ */
+void wlc_scan_start(struct wlc_info *wlc)
+{
+	wlc_phy_hold_upd(wlc->band->pi, PHY_HOLD_FOR_SCAN, true);
+}
+
+void wlc_scan_stop(struct wlc_info *wlc)
+{
+	wlc_phy_hold_upd(wlc->band->pi, PHY_HOLD_FOR_SCAN, false);
 }

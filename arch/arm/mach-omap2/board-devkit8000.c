@@ -115,9 +115,6 @@ static struct omap2_hsmmc_info mmc[] = {
 
 static int devkit8000_panel_enable_lcd(struct omap_dss_device *dssdev)
 {
-	twl_i2c_write_u8(TWL4030_MODULE_GPIO, 0x80, REG_GPIODATADIR1);
-	twl_i2c_write_u8(TWL4030_MODULE_LED, 0x0, 0x0);
-
 	if (gpio_is_valid(dssdev->reset_gpio))
 		gpio_set_value_cansleep(dssdev->reset_gpio, 1);
 	return 0;
@@ -247,6 +244,8 @@ static struct gpio_led gpio_leds[];
 static int devkit8000_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
+	int ret;
+
 	omap_mux_init_gpio(29, OMAP_PIN_INPUT);
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
@@ -255,17 +254,23 @@ static int devkit8000_twl_gpio_setup(struct device *dev,
 	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
 
-        /* gpio + 1 is "LCD_PWREN" (out, active high) */
-	devkit8000_lcd_device.reset_gpio = gpio + 1;
-	gpio_request(devkit8000_lcd_device.reset_gpio, "LCD_PWREN");
-	/* Disable until needed */
-	gpio_direction_output(devkit8000_lcd_device.reset_gpio, 0);
+	/* TWL4030_GPIO_MAX + 0 is "LCD_PWREN" (out, active high) */
+	devkit8000_lcd_device.reset_gpio = gpio + TWL4030_GPIO_MAX + 0;
+	ret = gpio_request_one(devkit8000_lcd_device.reset_gpio,
+			GPIOF_DIR_OUT | GPIOF_INIT_LOW, "LCD_PWREN");
+	if (ret < 0) {
+		devkit8000_lcd_device.reset_gpio = -EINVAL;
+		printk(KERN_ERR "Failed to request GPIO for LCD_PWRN\n");
+	}
 
 	/* gpio + 7 is "DVI_PD" (out, active low) */
 	devkit8000_dvi_device.reset_gpio = gpio + 7;
-	gpio_request(devkit8000_dvi_device.reset_gpio, "DVI PowerDown");
-	/* Disable until needed */
-	gpio_direction_output(devkit8000_dvi_device.reset_gpio, 0);
+	ret = gpio_request_one(devkit8000_dvi_device.reset_gpio,
+			GPIOF_DIR_OUT | GPIOF_INIT_LOW, "DVI PowerDown");
+	if (ret < 0) {
+		devkit8000_dvi_device.reset_gpio = -EINVAL;
+		printk(KERN_ERR "Failed to request GPIO for DVI PowerDown\n");
+	}
 
 	return 0;
 }

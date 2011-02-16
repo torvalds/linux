@@ -69,6 +69,7 @@ static int led_pwm_probe(struct platform_device *pdev)
 		led_dat->pwm = pwm_request(cur_led->pwm_id,
 				cur_led->name);
 		if (IS_ERR(led_dat->pwm)) {
+			ret = PTR_ERR(led_dat->pwm);
 			dev_err(&pdev->dev, "unable to request PWM %d\n",
 					cur_led->pwm_id);
 			goto err;

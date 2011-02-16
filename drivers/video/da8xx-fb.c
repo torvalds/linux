@@ -1131,14 +1131,14 @@ static int fb_suspend(struct platform_device *dev, pm_message_t state)
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct da8xx_fb_par *par = info->par;
 
-	acquire_console_sem();
+	console_lock();
 	if (par->panel_power_ctrl)
 		par->panel_power_ctrl(0);
 
 	fb_set_suspend(info, 1);
 	lcd_disable_raster();
 	clk_disable(par->lcdc_clk);
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }
@@ -1147,14 +1147,14 @@ static int fb_resume(struct platform_device *dev)
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct da8xx_fb_par *par = info->par;
 
-	acquire_console_sem();
+	console_lock();
 	if (par->panel_power_ctrl)
 		par->panel_power_ctrl(1);
 
 	clk_enable(par->lcdc_clk);
 	lcd_enable_raster();
 	fb_set_suspend(info, 0);
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }

@@ -22,6 +22,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/sections.h>
+#include <asm/smp_plat.h>
 #include <asm/unwind.h>
 
 #ifdef CONFIG_XIP_KERNEL
@@ -268,12 +269,28 @@ struct mod_unwind_map {
 	const Elf_Shdr *txt_sec;
 };
 
+static const Elf_Shdr *find_mod_section(const Elf32_Ehdr *hdr,
+	const Elf_Shdr *sechdrs, const char *name)
+{
+	const Elf_Shdr *s, *se;
+	const char *secstrs = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+
+	for (s = sechdrs, se = sechdrs + hdr->e_shnum; s < se; s++)
+		if (strcmp(name, secstrs + s->sh_name) == 0)
+			return s;
+
+	return NULL;
+}
+
+extern void fixup_smp(const void *, unsigned long);
+
 int module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
 		    struct module *mod)
 {
+	const Elf_Shdr * __maybe_unused s = NULL;
 #ifdef CONFIG_ARM_UNWIND
 	const char *secstrs = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
-	const Elf_Shdr *s, *sechdrs_end = sechdrs + hdr->e_shnum;
+	const Elf_Shdr *sechdrs_end = sechdrs + hdr->e_shnum;
 	struct mod_unwind_map maps[ARM_SEC_MAX];
 	int i;
 
@@ -315,6 +332,9 @@ int module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
 					         maps[i].txt_sec->sh_addr,
 					         maps[i].txt_sec->sh_size);
 #endif
+	s = find_mod_section(hdr, sechdrs, ".alt.smp.init");
+	if (s && !is_smp())
+		fixup_smp((void *)s->sh_addr, s->sh_size);
 	return 0;
 }
 

@@ -753,6 +753,8 @@ struct proto {
 					int level,
 					int optname, char __user *optval,
 					int __user *option);
+	int			(*compat_ioctl)(struct sock *sk,
+					unsigned int cmd, unsigned long arg);
 #endif
 	int			(*sendmsg)(struct kiocb *iocb, struct sock *sk,
 					   struct msghdr *msg, size_t len);

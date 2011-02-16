@@ -1213,6 +1213,10 @@ static int btrfs_rm_dev_item(struct btrfs_root *root,
 		return -ENOMEM;
 
 	trans = btrfs_start_transaction(root, 0);
+	if (IS_ERR(trans)) {
+		btrfs_free_path(path);
+		return PTR_ERR(trans);
+	}
 	key.objectid = BTRFS_DEV_ITEMS_OBJECTID;
 	key.type = BTRFS_DEV_ITEM_KEY;
 	key.offset = device->devid;
@@ -1601,11 +1605,19 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 
 	ret = find_next_devid(root, &device->devid);
 	if (ret) {
+		kfree(device->name);
 		kfree(device);
 		goto error;
 	}
 
 	trans = btrfs_start_transaction(root, 0);
+	if (IS_ERR(trans)) {
+		kfree(device->name);
+		kfree(device);
+		ret = PTR_ERR(trans);
+		goto error;
+	}
+
 	lock_chunks(root);
 
 	device->writeable = 1;
@@ -1873,7 +1885,7 @@ static int btrfs_relocate_chunk(struct btrfs_root *root,
 		return ret;
 
 	trans = btrfs_start_transaction(root, 0);
-	BUG_ON(!trans);
+	BUG_ON(IS_ERR(trans));
 
 	lock_chunks(root);
 
@@ -2047,7 +2059,7 @@ int btrfs_balance(struct btrfs_root *dev_root)
 		BUG_ON(ret);
 
 		trans = btrfs_start_transaction(dev_root, 0);
-		BUG_ON(!trans);
+		BUG_ON(IS_ERR(trans));
 
 		ret = btrfs_grow_device(trans, device, old_size);
 		BUG_ON(ret);
@@ -2213,6 +2225,11 @@ again:
 
 	/* Shrinking succeeded, else we would be at "done". */
 	trans = btrfs_start_transaction(root, 0);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		goto done;
+	}
+
 	lock_chunks(root);
 
 	device->disk_total_bytes = new_size;

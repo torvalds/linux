@@ -14,6 +14,7 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/highmem.h>
@@ -283,19 +284,19 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		u32 remain, success;
 
 		/* Calculate how far we are into the transfer */
-		remain = readl(host->base + MMCIDATACNT) << 2;
+		remain = readl(host->base + MMCIDATACNT);
 		success = data->blksz * data->blocks - remain;
 
 		dev_dbg(mmc_dev(host->mmc), "MCI ERROR IRQ (status %08x)\n", status);
 		if (status & MCI_DATACRCFAIL) {
 			/* Last block was not successful */
-			host->data_xfered = ((success / data->blksz) - 1 * data->blksz);
+			host->data_xfered = round_down(success - 1, data->blksz);
 			data->error = -EILSEQ;
 		} else if (status & MCI_DATATIMEOUT) {
-			host->data_xfered = success;
+			host->data_xfered = round_down(success, data->blksz);
 			data->error = -ETIMEDOUT;
 		} else if (status & (MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
-			host->data_xfered = success;
+			host->data_xfered = round_down(success, data->blksz);
 			data->error = -EIO;
 		}
 
@@ -319,7 +320,7 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	if (status & MCI_DATABLOCKEND)
 		dev_err(mmc_dev(host->mmc), "stray MCI_DATABLOCKEND interrupt\n");
 
-	if (status & MCI_DATAEND) {
+	if (status & MCI_DATAEND || data->error) {
 		mmci_stop_data(host);
 
 		if (!data->error)
@@ -342,15 +343,15 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 
 	host->cmd = NULL;
 
-	cmd->resp[0] = readl(base + MMCIRESPONSE0);
-	cmd->resp[1] = readl(base + MMCIRESPONSE1);
-	cmd->resp[2] = readl(base + MMCIRESPONSE2);
-	cmd->resp[3] = readl(base + MMCIRESPONSE3);
-
 	if (status & MCI_CMDTIMEOUT) {
 		cmd->error = -ETIMEDOUT;
 	} else if (status & MCI_CMDCRCFAIL && cmd->flags & MMC_RSP_CRC) {
 		cmd->error = -EILSEQ;
+	} else {
+		cmd->resp[0] = readl(base + MMCIRESPONSE0);
+		cmd->resp[1] = readl(base + MMCIRESPONSE1);
+		cmd->resp[2] = readl(base + MMCIRESPONSE2);
+		cmd->resp[3] = readl(base + MMCIRESPONSE3);
 	}
 
 	if (!cmd->data || cmd->error) {

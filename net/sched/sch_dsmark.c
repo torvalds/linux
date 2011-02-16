@@ -260,7 +260,6 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return err;
 	}
 
-	qdisc_bstats_update(sch, skb);
 	sch->q.qlen++;
 
 	return NET_XMIT_SUCCESS;
@@ -283,6 +282,7 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 	if (skb == NULL)
 		return NULL;
 
+	qdisc_bstats_update(sch, skb);
 	sch->q.qlen--;
 
 	index = skb->tc_index & (p->indices - 1);

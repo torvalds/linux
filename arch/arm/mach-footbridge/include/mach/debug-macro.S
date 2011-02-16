@@ -17,8 +17,8 @@
 	/* For NetWinder debugging */
 		.macro	addruart, rp, rv
 		mov	\rp, #0x000003f8
-		orr	\rv, \rp, #0x7c000000	@ physical
-		orr	\rp, \rp, #0xff000000	@ virtual
+		orr	\rv, \rp, #0xff000000	@ virtual
+		orr	\rp, \rp, #0x7c000000	@ physical
 		.endm
 
 #define UART_SHIFT	0

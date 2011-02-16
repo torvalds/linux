@@ -625,7 +625,7 @@ static void update_curr_rt(struct rq *rq)
 	struct rt_rq *rt_rq = rt_rq_of_se(rt_se);
 	u64 delta_exec;
 
-	if (!task_has_rt_policy(curr))
+	if (curr->sched_class != &rt_sched_class)
 		return;
 
 	delta_exec = rq->clock_task - curr->se.exec_start;
