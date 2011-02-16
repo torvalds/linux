@@ -2769,10 +2769,19 @@ s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw)
 s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
                                bool *link_up, bool link_up_wait_to_complete)
 {
-	u32 links_reg;
+	u32 links_reg, links_orig;
 	u32 i;
 
+	/* clear the old state */
+	links_orig = IXGBE_READ_REG(hw, IXGBE_LINKS);
+
 	links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
+
+	if (links_orig != links_reg) {
+		hw_dbg(hw, "LINKS changed from %08X to %08X\n",
+		       links_orig, links_reg);
+	}
+
 	if (link_up_wait_to_complete) {
 		for (i = 0; i < IXGBE_LINK_UP_TIME; i++) {
 			if (links_reg & IXGBE_LINKS_UP) {
