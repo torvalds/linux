@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/nodemask.h>
 #include <linux/sched.h>
+#include <linux/acpi.h>
 
 #include <asm/e820.h>
 #include <asm/proto.h>
@@ -579,9 +580,22 @@ static int __init numa_emulation(unsigned long start_pfn,
 }
 #endif /* CONFIG_NUMA_EMU */
 
-void __init initmem_init(int acpi, int amd)
+void __init initmem_init(void)
 {
+	int acpi = 0, amd = 0;
 	int i;
+
+#ifdef CONFIG_ACPI_NUMA
+	/*
+	 * Parse SRAT to discover nodes.
+	 */
+	acpi = !x86_acpi_numa_init();
+#endif
+
+#ifdef CONFIG_AMD_NUMA
+	if (!acpi)
+		amd = !amd_numa_init();
+#endif
 
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);

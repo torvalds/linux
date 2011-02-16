@@ -352,7 +352,7 @@ static void init_remap_allocator(int nid)
 		(ulong) node_remap_end_vaddr[nid]);
 }
 
-void __init initmem_init(int acpi, int k8)
+void __init initmem_init(void)
 {
 	int nid;
 	long kva_target_pfn;

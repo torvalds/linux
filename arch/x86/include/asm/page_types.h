@@ -56,7 +56,7 @@ extern unsigned long init_memory_mapping(unsigned long start,
 
 void init_memory_mapping_high(void);
 
-extern void initmem_init(int acpi, int k8);
+extern void initmem_init(void);
 extern void free_initmem(void);
 
 #endif	/* !__ASSEMBLY__ */

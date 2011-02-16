@@ -603,7 +603,7 @@ kernel_physical_mapping_init(unsigned long start,
 }
 
 #ifndef CONFIG_NUMA
-void __init initmem_init(int acpi, int k8)
+void __init initmem_init(void)
 {
 	memblock_x86_register_active_regions(0, 0, max_pfn);
 	init_memory_mapping_high();
