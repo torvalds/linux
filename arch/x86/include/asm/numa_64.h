@@ -34,7 +34,6 @@ extern void __init numa_set_distance(int from, int to, int distance);
 #define FAKE_NODE_MIN_SIZE	((u64)32 << 20)
 #define FAKE_NODE_MIN_HASH_MASK	(~(FAKE_NODE_MIN_SIZE - 1UL))
 void numa_emu_cmdline(char *);
-int __init find_node_by_addr(unsigned long addr);
 #endif /* CONFIG_NUMA_EMU */
 #else
 static inline int numa_cpu_node(int cpu)		{ return NUMA_NO_NODE; }

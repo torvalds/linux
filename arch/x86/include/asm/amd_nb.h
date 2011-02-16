@@ -20,10 +20,6 @@ extern int amd_numa_init(void);
 extern int amd_get_subcaches(int);
 extern int amd_set_subcaches(int, int);
 
-#ifdef CONFIG_NUMA_EMU
-extern void amd_fake_nodes(const struct bootnode *nodes, int nr_nodes);
-#endif
-
 struct amd_northbridge {
 	struct pci_dev *misc;
 	struct pci_dev *link;

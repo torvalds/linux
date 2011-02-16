@@ -26,8 +26,6 @@
 
 int acpi_numa __initdata;
 
-static struct acpi_table_slit *acpi_slit;
-
 static struct bootnode nodes_add[MAX_NUMNODES];
 
 static __init int setup_node(int pxm)
@@ -51,25 +49,11 @@ static __init inline int srat_disabled(void)
 void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 {
 	int i, j;
-	unsigned length;
-	unsigned long phys;
 
 	for (i = 0; i < slit->locality_count; i++)
 		for (j = 0; j < slit->locality_count; j++)
 			numa_set_distance(pxm_to_node(i), pxm_to_node(j),
 				slit->entry[slit->locality_count * i + j]);
-
-	/* acpi_slit is used only by emulation */
-	length = slit->header.length;
-	phys = memblock_find_in_range(0, max_pfn_mapped<<PAGE_SHIFT, length,
-		 PAGE_SIZE);
-
-	if (phys == MEMBLOCK_ERROR)
-		panic(" Can not save slit!\n");
-
-	acpi_slit = __va(phys);
-	memcpy(acpi_slit, slit, length);
-	memblock_x86_reserve_range(phys, phys + length, "ACPI SLIT");
 }
 
 /* Callback for Proximity Domain -> x2APIC mapping */
@@ -260,55 +244,6 @@ int __init x86_acpi_numa_init(void)
 		return ret;
 	return srat_disabled() ? -EINVAL : 0;
 }
-
-#ifdef CONFIG_NUMA_EMU
-static int fake_node_to_pxm_map[MAX_NUMNODES] __initdata = {
-	[0 ... MAX_NUMNODES-1] = PXM_INVAL
-};
-
-/*
- * In NUMA emulation, we need to setup proximity domain (_PXM) to node ID
- * mappings that respect the real ACPI topology but reflect our emulated
- * environment.  For each emulated node, we find which real node it appears on
- * and create PXM to NID mappings for those fake nodes which mirror that
- * locality.  SLIT will now represent the correct distances between emulated
- * nodes as a result of the real topology.
- */
-void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
-{
-	int i;
-
-	for (i = 0; i < num_nodes; i++) {
-		int nid, pxm;
-
-		nid = find_node_by_addr(fake_nodes[i].start);
-		if (nid == NUMA_NO_NODE)
-			continue;
-		pxm = node_to_pxm(nid);
-		if (pxm == PXM_INVAL)
-			continue;
-		fake_node_to_pxm_map[i] = pxm;
-	}
-
-	for (i = 0; i < num_nodes; i++)
-		__acpi_map_pxm_to_node(fake_node_to_pxm_map[i], i);
-
-	for (i = 0; i < num_nodes; i++)
-		if (fake_nodes[i].start != fake_nodes[i].end)
-			node_set(i, numa_nodes_parsed);
-}
-
-int acpi_emu_node_distance(int a, int b)
-{
-	int index;
-
-	if (!acpi_slit)
-		return node_to_pxm(a) == node_to_pxm(b) ?
-			LOCAL_DISTANCE : REMOTE_DISTANCE;
-	index = acpi_slit->locality_count * node_to_pxm(a);
-	return acpi_slit->entry[index + node_to_pxm(b)];
-}
-#endif /* CONFIG_NUMA_EMU */
 
 #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) || defined(CONFIG_ACPI_HOTPLUG_MEMORY)
 int memory_add_physaddr_to_nid(u64 start)
