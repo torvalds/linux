@@ -3410,7 +3410,7 @@ static void cx_auto_parse_output(struct hda_codec *codec)
 		}
 	}
 	spec->multiout.dac_nids = spec->private_dac_nids;
-	spec->multiout.max_channels = nums * 2;
+	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
 	if (cfg->hp_outs > 0)
 		spec->auto_mute = 1;
