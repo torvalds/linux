@@ -783,25 +783,19 @@ static void iopgtable_clear_entry_all(struct iommu *obj)
  */
 static irqreturn_t iommu_fault_handler(int irq, void *data)
 {
-	u32 stat, da;
+	u32 da, errs;
 	u32 *iopgd, *iopte;
-	int err = -EIO;
 	struct iommu *obj = data;
 
 	if (!obj->refcount)
 		return IRQ_NONE;
 
-	/* Dynamic loading TLB or PTE */
-	if (obj->isr)
-		err = obj->isr(obj);
-
-	if (!err)
-		return IRQ_HANDLED;
-
 	clk_enable(obj->clk);
-	stat = iommu_report_fault(obj, &da);
+	errs = iommu_report_fault(obj, &da);
 	clk_disable(obj->clk);
-	if (!stat)
+
+	/* Fault callback or TLB/PTE Dynamic loading */
+	if (obj->isr && !obj->isr(obj, da, errs, obj->isr_priv))
 		return IRQ_HANDLED;
 
 	iommu_disable(obj);
@@ -809,15 +803,16 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 	iopgd = iopgd_offset(obj, da);
 
 	if (!iopgd_is_table(*iopgd)) {
-		dev_err(obj->dev, "%s: da:%08x pgd:%p *pgd:%08x\n", obj->name,
-			da, iopgd, *iopgd);
+		dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p "
+			"*pgd:px%08x\n", obj->name, errs, da, iopgd, *iopgd);
 		return IRQ_NONE;
 	}
 
 	iopte = iopte_offset(iopgd, da);
 
-	dev_err(obj->dev, "%s: da:%08x pgd:%p *pgd:%08x pte:%p *pte:%08x\n",
-		obj->name, da, iopgd, *iopgd, iopte, *iopte);
+	dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p *pgd:0x%08x "
+		"pte:0x%p *pte:0x%08x\n", obj->name, errs, da, iopgd, *iopgd,
+		iopte, *iopte);
 
 	return IRQ_NONE;
 }
@@ -919,6 +914,33 @@ void iommu_put(struct iommu *obj)
 	dev_dbg(obj->dev, "%s: %s\n", __func__, obj->name);
 }
 EXPORT_SYMBOL_GPL(iommu_put);
+
+int iommu_set_isr(const char *name,
+		  int (*isr)(struct iommu *obj, u32 da, u32 iommu_errs,
+			     void *priv),
+		  void *isr_priv)
+{
+	struct device *dev;
+	struct iommu *obj;
+
+	dev = driver_find_device(&omap_iommu_driver.driver, NULL, (void *)name,
+				 device_match_by_alias);
+	if (!dev)
+		return -ENODEV;
+
+	obj = to_iommu(dev);
+	mutex_lock(&obj->iommu_lock);
+	if (obj->refcount != 0) {
+		mutex_unlock(&obj->iommu_lock);
+		return -EBUSY;
+	}
+	obj->isr = isr;
+	obj->isr_priv = isr_priv;
+	mutex_unlock(&obj->iommu_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_set_isr);
 
 /*
  *	OMAP Device MMU(IOMMU) detection
