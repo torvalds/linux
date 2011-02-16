@@ -166,7 +166,7 @@ EXPORT_SYMBOL(dst_discard);
 
 const u32 dst_default_metrics[RTAX_MAX];
 
-void *dst_alloc(struct dst_ops *ops)
+void *dst_alloc(struct dst_ops *ops, int initial_ref)
 {
 	struct dst_entry *dst;
 
@@ -177,7 +177,7 @@ void *dst_alloc(struct dst_ops *ops)
 	dst = kmem_cache_zalloc(ops->kmem_cachep, GFP_ATOMIC);
 	if (!dst)
 		return NULL;
-	atomic_set(&dst->__refcnt, 0);
+	atomic_set(&dst->__refcnt, initial_ref);
 	dst->ops = ops;
 	dst->lastuse = jiffies;
 	dst->path = dst;

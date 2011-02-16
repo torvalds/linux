@@ -1122,7 +1122,7 @@ make_route:
 	if (dev_out->flags & IFF_LOOPBACK)
 		flags |= RTCF_LOCAL;
 
-	rt = dst_alloc(&dn_dst_ops);
+	rt = dst_alloc(&dn_dst_ops, 0);
 	if (rt == NULL)
 		goto e_nobufs;
 
@@ -1383,7 +1383,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 	}
 
 make_route:
-	rt = dst_alloc(&dn_dst_ops);
+	rt = dst_alloc(&dn_dst_ops, 0);
 	if (rt == NULL)
 		goto e_nobufs;
 

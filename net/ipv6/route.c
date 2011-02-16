@@ -221,7 +221,7 @@ static struct rt6_info ip6_blk_hole_entry_template = {
 /* allocate dst with ip6_dst_ops */
 static inline struct rt6_info *ip6_dst_alloc(struct dst_ops *ops)
 {
-	return (struct rt6_info *)dst_alloc(ops);
+	return (struct rt6_info *)dst_alloc(ops, 0);
 }
 
 static void ip6_dst_destroy(struct dst_entry *dst)
@@ -873,13 +873,12 @@ int ip6_dst_blackhole(struct sock *sk, struct dst_entry **dstp, struct flowi *fl
 {
 	struct rt6_info *ort = (struct rt6_info *) *dstp;
 	struct rt6_info *rt = (struct rt6_info *)
-		dst_alloc(&ip6_dst_blackhole_ops);
+		dst_alloc(&ip6_dst_blackhole_ops, 1);
 	struct dst_entry *new = NULL;
 
 	if (rt) {
 		new = &rt->dst;
 
-		atomic_set(&new->__refcnt, 1);
 		new->__use = 1;
 		new->input = dst_discard;
 		new->output = dst_discard;

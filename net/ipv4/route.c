@@ -1818,11 +1818,9 @@ static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 
 static struct rtable *rt_dst_alloc(bool nopolicy, bool noxfrm)
 {
-	struct rtable *rt = dst_alloc(&ipv4_dst_ops);
+	struct rtable *rt = dst_alloc(&ipv4_dst_ops, 1);
 	if (rt) {
 		rt->dst.obsolete = -1;
-
-		atomic_set(&rt->dst.__refcnt, 1);
 
 		rt->dst.flags = DST_HOST |
 			(nopolicy ? DST_NOPOLICY : 0) |
@@ -2679,12 +2677,11 @@ static int ipv4_dst_blackhole(struct net *net, struct rtable **rp, struct flowi 
 {
 	struct rtable *ort = *rp;
 	struct rtable *rt = (struct rtable *)
-		dst_alloc(&ipv4_dst_blackhole_ops);
+		dst_alloc(&ipv4_dst_blackhole_ops, 1);
 
 	if (rt) {
 		struct dst_entry *new = &rt->dst;
 
-		atomic_set(&new->__refcnt, 1);
 		new->__use = 1;
 		new->input = dst_discard;
 		new->output = dst_discard;
