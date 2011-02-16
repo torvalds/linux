@@ -110,7 +110,7 @@ static void omap_mask_irq(struct irq_data *d)
 	unsigned int irq = d->irq;
 	int offset = irq & (~(IRQ_BITS_PER_REG - 1));
 
-	if (cpu_is_omap34xx()) {
+	if (cpu_is_omap34xx() && !cpu_is_ti816x()) {
 		int spurious = 0;
 
 		/*
@@ -204,6 +204,9 @@ void __init omap_init_irq(void)
 			base = OMAP34XX_IC_BASE;
 
 		BUG_ON(!base);
+
+		if (cpu_is_ti816x())
+			bank->nr_irqs = 128;
 
 		/* Static mapping, never released */
 		bank->base_reg = ioremap(base, SZ_4K);

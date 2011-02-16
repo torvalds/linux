@@ -175,6 +175,18 @@ static struct map_desc omap34xx_io_desc[] __initdata = {
 #endif
 };
 #endif
+
+#ifdef CONFIG_SOC_OMAPTI816X
+static struct map_desc omapti816x_io_desc[] __initdata = {
+	{
+		.virtual	= L4_34XX_VIRT,
+		.pfn		= __phys_to_pfn(L4_34XX_PHYS),
+		.length		= L4_34XX_SIZE,
+		.type		= MT_DEVICE
+	},
+};
+#endif
+
 #ifdef	CONFIG_ARCH_OMAP4
 static struct map_desc omap44xx_io_desc[] __initdata = {
 	{
@@ -263,6 +275,14 @@ void __init omap243x_map_common_io(void)
 void __init omap34xx_map_common_io(void)
 {
 	iotable_init(omap34xx_io_desc, ARRAY_SIZE(omap34xx_io_desc));
+	_omap2_map_common_io();
+}
+#endif
+
+#ifdef CONFIG_SOC_OMAPTI816X
+void __init omapti816x_map_common_io(void)
+{
+	iotable_init(omapti816x_io_desc, ARRAY_SIZE(omapti816x_io_desc));
 	_omap2_map_common_io();
 }
 #endif
@@ -398,7 +418,7 @@ void __init omap2_init_common_infrastructure(void)
 void __init omap2_init_common_devices(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1)
 {
-	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+	if (cpu_is_omap24xx() || omap3_has_sdrc()) {
 		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
 		_omap2_init_reprogram_sdrc();
 	}

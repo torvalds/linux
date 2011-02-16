@@ -191,10 +191,17 @@ static void __init omap3_check_features(void)
 	if (!cpu_is_omap3505() && !cpu_is_omap3517())
 		omap3_features |= OMAP3_HAS_IO_WAKEUP;
 
+	omap3_features |= OMAP3_HAS_SDRC;
+
 	/*
 	 * TODO: Get additional info (where applicable)
 	 *       e.g. Size of L2 cache.
 	 */
+}
+
+static void __init ti816x_check_features(void)
+{
+	omap3_features = OMAP3_HAS_NEON;
 }
 
 static void __init omap3_check_revision(void)
@@ -287,6 +294,20 @@ static void __init omap3_check_revision(void)
 			omap_chip.oc |= CHIP_IS_OMAP3630ES1_2;
 		}
 		break;
+	case 0xb81e:
+		omap_chip.oc = CHIP_IS_TI816X;
+
+		switch (rev) {
+		case 0:
+			omap_revision = TI8168_REV_ES1_0;
+			break;
+		case 1:
+			omap_revision = TI8168_REV_ES1_1;
+			break;
+		default:
+			omap_revision =  TI8168_REV_ES1_1;
+		}
+		break;
 	default:
 		/* Unknown default to latest silicon rev as default*/
 		omap_revision =  OMAP3630_REV_ES1_2;
@@ -372,6 +393,8 @@ static void __init omap3_cpuinfo(void)
 			/* Already set in omap3_check_revision() */
 			strcpy(cpu_name, "AM3505");
 		}
+	} else if (cpu_is_ti816x()) {
+		strcpy(cpu_name, "TI816X");
 	} else if (omap3_has_iva() && omap3_has_sgx()) {
 		/* OMAP3430, OMAP3525, OMAP3515, OMAP3503 devices */
 		strcpy(cpu_name, "OMAP3430/3530");
@@ -386,7 +409,7 @@ static void __init omap3_cpuinfo(void)
 		strcpy(cpu_name, "OMAP3503");
 	}
 
-	if (cpu_is_omap3630()) {
+	if (cpu_is_omap3630() || cpu_is_ti816x()) {
 		switch (rev) {
 		case OMAP_REVBITS_00:
 			strcpy(cpu_rev, "1.0");
@@ -462,7 +485,13 @@ void __init omap2_check_revision(void)
 		omap24xx_check_revision();
 	} else if (cpu_is_omap34xx()) {
 		omap3_check_revision();
-		omap3_check_features();
+
+		/* TI816X doesn't have feature register */
+		if (!cpu_is_ti816x())
+			omap3_check_features();
+		else
+			ti816x_check_features();
+
 		omap3_cpuinfo();
 		return;
 	} else if (cpu_is_omap44xx()) {
