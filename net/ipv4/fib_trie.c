@@ -217,12 +217,12 @@ static inline int tnode_child_length(const struct tnode *tn)
 	return 1 << tn->bits;
 }
 
-static inline t_key mask_pfx(t_key k, unsigned short l)
+static inline t_key mask_pfx(t_key k, unsigned int l)
 {
 	return (l == 0) ? 0 : k >> (KEYLENGTH-l) << (KEYLENGTH-l);
 }
 
-static inline t_key tkey_extract_bits(t_key a, int offset, int bits)
+static inline t_key tkey_extract_bits(t_key a, unsigned int offset, unsigned int bits)
 {
 	if (offset < KEYLENGTH)
 		return ((t_key)(a << offset)) >> (KEYLENGTH - bits);
@@ -1378,11 +1378,11 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi *flp,
 	int ret;
 	struct rt_trie_node *n;
 	struct tnode *pn;
-	int pos, bits;
+	unsigned int pos, bits;
 	t_key key = ntohl(flp->fl4_dst);
-	int chopped_off;
+	unsigned int chopped_off;
 	t_key cindex = 0;
-	int current_prefix_length = KEYLENGTH;
+	unsigned int current_prefix_length = KEYLENGTH;
 	struct tnode *cn;
 	t_key pref_mismatch;
 
