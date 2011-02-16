@@ -194,6 +194,14 @@ char * __init xen_memory_setup(void)
 			end -= delta;
 
 			extra_pages += PFN_DOWN(delta);
+			/*
+			 * Set RAM below 4GB that is not for us to be unusable.
+			 * This prevents "System RAM" address space from being
+			 * used as potential resource for I/O address (happens
+			 * when 'allocate_resource' is called).
+			 */
+			if (delta && end < 0x100000000UL)
+				e820_add_region(end, delta, E820_UNUSABLE);
 		}
 
 		if (map[i].size > 0 && end > xen_extra_mem_start)
