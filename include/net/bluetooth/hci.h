@@ -677,6 +677,17 @@ struct hci_cp_le_create_conn {
 
 #define HCI_OP_LE_CREATE_CONN_CANCEL	0x200e
 
+#define HCI_OP_LE_CONN_UPDATE		0x2013
+struct hci_cp_le_conn_update {
+	__le16   handle;
+	__le16   conn_interval_min;
+	__le16   conn_interval_max;
+	__le16   conn_latency;
+	__le16   supervision_timeout;
+	__le16   min_ce_len;
+	__le16   max_ce_len;
+} __packed;
+
 /* ---- HCI Events ---- */
 #define HCI_EV_INQUIRY_COMPLETE		0x01
 

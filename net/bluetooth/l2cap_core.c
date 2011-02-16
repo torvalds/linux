@@ -2529,6 +2529,7 @@ static inline int l2cap_conn_param_update_req(struct l2cap_conn *conn,
 	struct l2cap_conn_param_update_req *req;
 	struct l2cap_conn_param_update_rsp rsp;
 	u16 min, max, latency, to_multiplier, cmd_len;
+	int err;
 
 	if (!(hcon->link_mode & HCI_LM_MASTER))
 		return -EINVAL;
@@ -2547,13 +2548,18 @@ static inline int l2cap_conn_param_update_req(struct l2cap_conn *conn,
 						min, max, latency, to_multiplier);
 
 	memset(&rsp, 0, sizeof(rsp));
-	if (l2cap_check_conn_param(min, max, latency, to_multiplier))
+
+	err = l2cap_check_conn_param(min, max, latency, to_multiplier);
+	if (err)
 		rsp.result = cpu_to_le16(L2CAP_CONN_PARAM_REJECTED);
 	else
 		rsp.result = cpu_to_le16(L2CAP_CONN_PARAM_ACCEPTED);
 
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_CONN_PARAM_UPDATE_RSP,
 							sizeof(rsp), &rsp);
+
+	if (!err)
+		hci_le_conn_update(hcon, min, max, latency, to_multiplier);
 
 	return 0;
 }

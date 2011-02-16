@@ -777,4 +777,6 @@ struct hci_sec_filter {
 
 void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result);
 
+void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
+					u16 latency, u16 to_multiplier);
 #endif /* __HCI_CORE_H */
