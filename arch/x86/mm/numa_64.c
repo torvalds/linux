@@ -257,21 +257,18 @@ void __init numa_emu_cmdline(char *str)
 	cmdline = str;
 }
 
-static int __init setup_physnodes(unsigned long start, unsigned long end,
-					int acpi, int amd)
+static int __init setup_physnodes(unsigned long start, unsigned long end)
 {
 	int ret = 0;
 	int i;
 
 	memset(physnodes, 0, sizeof(physnodes));
-#ifdef CONFIG_ACPI_NUMA
-	if (acpi)
-		acpi_get_nodes(physnodes, start, end);
-#endif
-#ifdef CONFIG_AMD_NUMA
-	if (amd)
-		amd_get_nodes(physnodes);
-#endif
+
+	for_each_node_mask(i, mem_nodes_parsed) {
+		physnodes[i].start = numa_nodes[i].start;
+		physnodes[i].end = numa_nodes[i].end;
+	}
+
 	/*
 	 * Basic sanity checking on the physical node map: there may be errors
 	 * if the SRAT or AMD code incorrectly reported the topology or the mem=
@@ -594,7 +591,7 @@ static int __init numa_emulation(unsigned long start_pfn,
 	init_memory_mapping_high();
 	for_each_node_mask(i, node_possible_map)
 		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
-	setup_physnodes(addr, max_addr, acpi, amd);
+	setup_physnodes(addr, max_addr);
 	fake_physnodes(acpi, amd, num_nodes);
 	numa_init_array();
 	return 0;
@@ -666,10 +663,10 @@ void __init initmem_init(void)
 			cutoff_node(j, 0, max_pfn << PAGE_SHIFT);
 
 #ifdef CONFIG_NUMA_EMU
-		setup_physnodes(0, max_pfn << PAGE_SHIFT, i == 0, i == 1);
+		setup_physnodes(0, max_pfn << PAGE_SHIFT);
 		if (cmdline && !numa_emulation(0, max_pfn, i == 0, i == 1))
 			return;
-		setup_physnodes(0, max_pfn << PAGE_SHIFT, i == 0, i == 1);
+		setup_physnodes(0, max_pfn << PAGE_SHIFT);
 		nodes_clear(node_possible_map);
 		nodes_clear(node_online_map);
 #endif

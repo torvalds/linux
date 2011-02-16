@@ -204,16 +204,6 @@ static s16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
 
-void __init amd_get_nodes(struct bootnode *physnodes)
-{
-	int i;
-
-	for_each_node_mask(i, mem_nodes_parsed) {
-		physnodes[i].start = numa_nodes[i].start;
-		physnodes[i].end = numa_nodes[i].end;
-	}
-}
-
 static int __init find_node_by_addr(unsigned long addr)
 {
 	int ret = NUMA_NO_NODE;

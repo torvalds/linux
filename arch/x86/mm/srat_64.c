@@ -323,19 +323,6 @@ static int __init nodes_cover_memory(const struct bootnode *nodes)
 
 void __init acpi_numa_arch_fixup(void) {}
 
-#ifdef CONFIG_NUMA_EMU
-void __init acpi_get_nodes(struct bootnode *physnodes, unsigned long start,
-				unsigned long end)
-{
-	int i;
-
-	for_each_node_mask(i, mem_nodes_parsed) {
-		physnodes[i].start = numa_nodes[i].start;
-		physnodes[i].end = numa_nodes[i].end;
-	}
-}
-#endif /* CONFIG_NUMA_EMU */
-
 int __init x86_acpi_numa_init(void)
 {
 	int ret;

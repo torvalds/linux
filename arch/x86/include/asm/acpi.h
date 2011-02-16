@@ -185,8 +185,6 @@ struct bootnode;
 
 #ifdef CONFIG_ACPI_NUMA
 extern int acpi_numa;
-extern void acpi_get_nodes(struct bootnode *physnodes, unsigned long start,
-				unsigned long end);
 extern int x86_acpi_numa_init(void);
 extern int acpi_scan_nodes(void);
 #define NR_NODE_MEMBLKS (MAX_NUMNODES*2)
