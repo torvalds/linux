@@ -230,6 +230,13 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
 	return 0;
 }
 
+static void __init numa_remove_memblk_from(int idx, struct numa_meminfo *mi)
+{
+	mi->nr_blks--;
+	memmove(&mi->blk[idx], &mi->blk[idx + 1],
+		(mi->nr_blks - idx) * sizeof(mi->blk[0]));
+}
+
 static __init void cutoff_node(int i, unsigned long start, unsigned long end)
 {
 	struct bootnode *nd = &numa_nodes[i];
@@ -294,25 +301,25 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 
 static int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 {
-	int i;
+	int i, j, k;
 
-	/*
-	 * Join together blocks on the same node, holes between
-	 * which don't overlap with memory on other nodes.
-	 */
-	for (i = 0; i < mi->nr_blks; ++i) {
+	for (i = 0; i < mi->nr_blks; i++) {
 		struct numa_memblk *bi = &mi->blk[i];
-		int j, k;
 
-		for (j = i + 1; j < mi->nr_blks; ++j) {
+		for (j = i + 1; j < mi->nr_blks; j++) {
 			struct numa_memblk *bj = &mi->blk[j];
 			unsigned long start, end;
 
+			/*
+			 * Join together blocks on the same node, holes
+			 * between which don't overlap with memory on other
+			 * nodes.
+			 */
 			if (bi->nid != bj->nid)
 				continue;
-			start = min(bi->end, bj->end);
-			end = max(bi->start, bj->start);
-			for (k = 0; k < mi->nr_blks; ++k) {
+			start = min(bi->start, bj->start);
+			end = max(bi->end, bj->end);
+			for (k = 0; k < mi->nr_blks; k++) {
 				struct numa_memblk *bk = &mi->blk[k];
 
 				if (bi->nid == bk->nid)
@@ -322,17 +329,12 @@ static int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 			}
 			if (k < mi->nr_blks)
 				continue;
-			start = min(bi->start, bj->start);
-			end = max(bi->end, bj->end);
 			printk(KERN_INFO "NUMA: Node %d [%Lx,%Lx) + [%Lx,%Lx) -> [%lx,%lx)\n",
 			       bi->nid, bi->start, bi->end, bj->start, bj->end,
 			       start, end);
 			bi->start = start;
 			bi->end = end;
-			k = --mi->nr_blks - j;
-			memmove(mi->blk + j, mi->blk + j + 1,
-				k * sizeof(mi->blk[0]));
-			--j;
+			numa_remove_memblk_from(j--, mi);
 		}
 	}
 
