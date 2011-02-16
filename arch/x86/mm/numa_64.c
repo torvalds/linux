@@ -292,40 +292,8 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	node_set_online(nodeid);
 }
 
-/*
- * Sanity check to catch more bad NUMA configurations (they are amazingly
- * common).  Make sure the nodes cover all memory.
- */
-static int __init nodes_cover_memory(const struct bootnode *nodes)
+static int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 {
-	unsigned long numaram, e820ram;
-	int i;
-
-	numaram = 0;
-	for_each_node_mask(i, mem_nodes_parsed) {
-		unsigned long s = nodes[i].start >> PAGE_SHIFT;
-		unsigned long e = nodes[i].end >> PAGE_SHIFT;
-		numaram += e - s;
-		numaram -= __absent_pages_in_range(i, s, e);
-		if ((long)numaram < 0)
-			numaram = 0;
-	}
-
-	e820ram = max_pfn -
-		(memblock_x86_hole_size(0, max_pfn<<PAGE_SHIFT) >> PAGE_SHIFT);
-	/* We seem to lose 3 pages somewhere. Allow 1M of slack. */
-	if ((long)(e820ram - numaram) >= (1<<(20 - PAGE_SHIFT))) {
-		printk(KERN_ERR "NUMA: nodes only cover %luMB of your %luMB e820 RAM. Not used.\n",
-			(numaram << PAGE_SHIFT) >> 20,
-			(e820ram << PAGE_SHIFT) >> 20);
-		return 0;
-	}
-	return 1;
-}
-
-static int __init numa_register_memblks(void)
-{
-	struct numa_meminfo *mi = &numa_meminfo;
 	int i;
 
 	/*
@@ -367,6 +335,49 @@ static int __init numa_register_memblks(void)
 			--j;
 		}
 	}
+
+	return 0;
+}
+
+/*
+ * Sanity check to catch more bad NUMA configurations (they are amazingly
+ * common).  Make sure the nodes cover all memory.
+ */
+static int __init nodes_cover_memory(const struct bootnode *nodes)
+{
+	unsigned long numaram, e820ram;
+	int i;
+
+	numaram = 0;
+	for_each_node_mask(i, mem_nodes_parsed) {
+		unsigned long s = nodes[i].start >> PAGE_SHIFT;
+		unsigned long e = nodes[i].end >> PAGE_SHIFT;
+		numaram += e - s;
+		numaram -= __absent_pages_in_range(i, s, e);
+		if ((long)numaram < 0)
+			numaram = 0;
+	}
+
+	e820ram = max_pfn - (memblock_x86_hole_size(0,
+					max_pfn << PAGE_SHIFT) >> PAGE_SHIFT);
+	/* We seem to lose 3 pages somewhere. Allow 1M of slack. */
+	if ((long)(e820ram - numaram) >= (1 << (20 - PAGE_SHIFT))) {
+		printk(KERN_ERR "NUMA: nodes only cover %luMB of your %luMB e820 RAM. Not used.\n",
+		       (numaram << PAGE_SHIFT) >> 20,
+		       (e820ram << PAGE_SHIFT) >> 20);
+		return 0;
+	}
+	return 1;
+}
+
+static int __init numa_register_memblks(struct numa_meminfo *mi)
+{
+	int i;
+
+	/* Account for nodes with cpus and no memory */
+	nodes_or(node_possible_map, mem_nodes_parsed, cpu_nodes_parsed);
+	if (WARN_ON(nodes_empty(node_possible_map)))
+		return -EINVAL;
 
 	memnode_shift = compute_hash_shift(mi);
 	if (memnode_shift < 0) {
@@ -823,12 +834,10 @@ void __init initmem_init(void)
 		nodes_clear(node_possible_map);
 		nodes_clear(node_online_map);
 #endif
-		/* Account for nodes with cpus and no memory */
-		nodes_or(node_possible_map, mem_nodes_parsed, cpu_nodes_parsed);
-		if (WARN_ON(nodes_empty(node_possible_map)))
+		if (numa_cleanup_meminfo(&numa_meminfo) < 0)
 			continue;
 
-		if (numa_register_memblks() < 0)
+		if (numa_register_memblks(&numa_meminfo) < 0)
 			continue;
 
 		for (j = 0; j < nr_cpu_ids; j++) {
