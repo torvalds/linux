@@ -360,7 +360,7 @@ struct bnx2i_hba {
 		#define ADAPTER_STATE_LINK_DOWN		2
 		#define ADAPTER_STATE_INIT_FAILED	31
 	unsigned int mtu_supported;
-		#define BNX2I_MAX_MTU_SUPPORTED		1500
+		#define BNX2I_MAX_MTU_SUPPORTED		9000
 
 	struct Scsi_Host *shost;
 
