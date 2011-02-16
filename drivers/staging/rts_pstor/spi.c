@@ -221,7 +221,7 @@ static int spi_init_eeprom(struct rtsx_chip *chip)
 	return STATUS_SUCCESS;
 }
 
-int spi_eeprom_program_enable(struct rtsx_chip *chip)
+static int spi_eeprom_program_enable(struct rtsx_chip *chip)
 {
 	int retval;
 

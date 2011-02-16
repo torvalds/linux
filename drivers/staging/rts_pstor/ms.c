@@ -3594,7 +3594,7 @@ void ms_free_l2p_tbl(struct rtsx_chip *chip)
 #ifdef SUPPORT_MAGIC_GATE
 
 #ifdef READ_BYTES_WAIT_INT
-int ms_poll_int(struct rtsx_chip *chip)
+static int ms_poll_int(struct rtsx_chip *chip)
 {
 	int retval;
 	u8 val;

@@ -657,7 +657,7 @@ static inline int check_sd_current_prior(u32 sd_current_prior)
 	return !fake_para;
 }
 
-int rts5209_init(struct rtsx_chip *chip)
+static int rts5209_init(struct rtsx_chip *chip)
 {
 	int retval;
 	u32 lval = 0;
@@ -805,7 +805,7 @@ int rts5209_init(struct rtsx_chip *chip)
 	return STATUS_SUCCESS;
 }
 
-int rts5208_init(struct rtsx_chip *chip)
+static int rts5208_init(struct rtsx_chip *chip)
 {
 	int retval;
 	u16 reg = 0;
@@ -871,7 +871,7 @@ int rts5208_init(struct rtsx_chip *chip)
 	return STATUS_SUCCESS;
 }
 
-int rts5288_init(struct rtsx_chip *chip)
+static int rts5288_init(struct rtsx_chip *chip)
 {
 	int retval;
 	u8 val = 0, max_func;
@@ -1097,7 +1097,7 @@ static inline void rtsx_blink_led(struct rtsx_chip *chip)
 }
 #endif
 
-void rtsx_monitor_aspm_config(struct rtsx_chip *chip)
+static void rtsx_monitor_aspm_config(struct rtsx_chip *chip)
 {
 	int maybe_support_aspm, reg_changed;
 	u32 tmp = 0;

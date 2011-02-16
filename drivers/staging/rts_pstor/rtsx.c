@@ -257,7 +257,7 @@ static int bus_reset(struct scsi_cmnd *srb)
  * this defines our host template, with which we'll allocate hosts
  */
 
-struct scsi_host_template rtsx_host_template = {
+static struct scsi_host_template rtsx_host_template = {
 	/* basic userland interface stuff */
 	.name =				CR_DRIVER_NAME,
 	.proc_name =			CR_DRIVER_NAME,
@@ -436,7 +436,7 @@ static int rtsx_resume(struct pci_dev *pci)
 }
 #endif /* CONFIG_PM */
 
-void rtsx_shutdown(struct pci_dev *pci)
+static void rtsx_shutdown(struct pci_dev *pci)
 {
 	struct rtsx_dev *dev = (struct rtsx_dev *)pci_get_drvdata(pci);
 	struct rtsx_chip *chip;

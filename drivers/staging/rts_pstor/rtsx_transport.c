@@ -324,7 +324,7 @@ static inline void rtsx_add_sg_tbl(
 	} while (len);
 }
 
-int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
+static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 		struct scatterlist *sg, int num_sg, unsigned int *index,
 		unsigned int *offset, int size,
 		enum dma_data_direction dma_dir, int timeout)
@@ -485,7 +485,7 @@ out:
 	return err;
 }
 
-int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
+static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 		struct scatterlist *sg, int num_sg,
 		enum dma_data_direction dma_dir, int timeout)
 {
@@ -632,7 +632,7 @@ out:
 	return err;
 }
 
-int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf, size_t len,
+static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf, size_t len,
 		enum dma_data_direction dma_dir, int timeout)
 {
 	struct rtsx_dev *rtsx = chip->rtsx;

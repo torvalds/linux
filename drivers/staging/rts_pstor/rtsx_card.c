@@ -300,7 +300,7 @@ void do_reset_ms_card(struct rtsx_chip *chip)
 	}
 }
 
-void release_sdio(struct rtsx_chip *chip)
+static void release_sdio(struct rtsx_chip *chip)
 {
 	if (chip->sd_io) {
 		rtsx_write_register(chip, CARD_STOP, SD_STOP | SD_CLR_ERR,
