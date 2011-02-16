@@ -229,10 +229,23 @@ static struct p9_req_t *p9_tag_alloc(struct p9_client *c, u16 tag)
 			return ERR_PTR(-ENOMEM);
 		}
 		init_waitqueue_head(req->wq);
-		req->tc = kmalloc(sizeof(struct p9_fcall)+c->msize,
-								GFP_KERNEL);
-		req->rc = kmalloc(sizeof(struct p9_fcall)+c->msize,
-								GFP_KERNEL);
+		if ((c->trans_mod->pref & P9_TRANS_PREF_PAYLOAD_MASK) ==
+				P9_TRANS_PREF_PAYLOAD_SEP) {
+			int alloc_msize = min(c->msize, 4096);
+			req->tc = kmalloc(sizeof(struct p9_fcall)+alloc_msize,
+					GFP_KERNEL);
+			req->tc->capacity = alloc_msize;
+			req->rc = kmalloc(sizeof(struct p9_fcall)+alloc_msize,
+					GFP_KERNEL);
+			req->rc->capacity = alloc_msize;
+		} else {
+			req->tc = kmalloc(sizeof(struct p9_fcall)+c->msize,
+					GFP_KERNEL);
+			req->tc->capacity = c->msize;
+			req->rc = kmalloc(sizeof(struct p9_fcall)+c->msize,
+					GFP_KERNEL);
+			req->rc->capacity = c->msize;
+		}
 		if ((!req->tc) || (!req->rc)) {
 			printk(KERN_ERR "Couldn't grow tag array\n");
 			kfree(req->tc);
@@ -243,9 +256,7 @@ static struct p9_req_t *p9_tag_alloc(struct p9_client *c, u16 tag)
 			return ERR_PTR(-ENOMEM);
 		}
 		req->tc->sdata = (char *) req->tc + sizeof(struct p9_fcall);
-		req->tc->capacity = c->msize;
 		req->rc->sdata = (char *) req->rc + sizeof(struct p9_fcall);
-		req->rc->capacity = c->msize;
 	}
 
 	p9pdu_reset(req->tc);

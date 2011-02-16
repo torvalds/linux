@@ -688,7 +688,7 @@ struct p9_rwstat {
  * @id: protocol operating identifier of type &p9_msg_t
  * @tag: transaction id of the request
  * @offset: used by marshalling routines to track currentposition in buffer
- * @capacity: used by marshalling routines to track total capacity
+ * @capacity: used by marshalling routines to track total malloc'd capacity
  * @pubuf: Payload user buffer given by the caller
  * @pubuf: Payload kernel buffer given by the caller
  * @pbuf_size: pubuf/pkbuf(only one will be !NULL) size to be read/write.
