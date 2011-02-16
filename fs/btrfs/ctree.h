@@ -2219,6 +2219,8 @@ int btrfs_error_unpin_extent_range(struct btrfs_root *root,
 				   u64 start, u64 end);
 int btrfs_error_discard_extent(struct btrfs_root *root, u64 bytenr,
 			       u64 num_bytes);
+int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root, u64 type);
 
 /* ctree.c */
 int btrfs_bin_search(struct extent_buffer *eb, struct btrfs_key *key,

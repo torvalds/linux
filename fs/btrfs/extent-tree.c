@@ -8066,6 +8066,13 @@ out:
 	return ret;
 }
 
+int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root, u64 type)
+{
+	u64 alloc_flags = get_alloc_profile(root, type);
+	return do_chunk_alloc(trans, root, 2 * 1024 * 1024, alloc_flags, 1);
+}
+
 /*
  * helper to account the unused space of all the readonly block group in the
  * list. takes mirrors into account.
